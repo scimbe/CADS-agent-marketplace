@@ -13,6 +13,7 @@ use manifest_core::ServiceManifest;
 use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::path::Path;
+use std::time::Duration;
 use subtle::ConstantTimeEq;
 
 /// F.12: the URL an operator names in `CT_MANIFEST_URL` is trusted to be the RIGHT manifest/
@@ -27,6 +28,16 @@ use subtle::ConstantTimeEq;
 /// decompressed) -- this caps the RAW fetch itself, before decompression ever begins, and applies
 /// equally to the (much smaller) manifest JSON fetch, not just bundles.
 const MAX_FETCH_BYTES: u64 = 64 * 1024 * 1024; // 64 MiB: generous for a compose bundle (F.3 already bans non-local build contexts, so bundles are config/scripts, not large binaries), tiny for a manifest.
+
+/// F.13, found alongside F.12: a byte cap alone does not stop a slow-loris-style publisher
+/// endpoint (malicious or merely broken) from trickling bytes -- or none at all -- forever,
+/// hanging `ct-agent manifest activate` indefinitely with no feedback. `reqwest::blocking::get`
+/// has NO default timeout. Mirrors ct-agent's own established convention for one-shot HTTP calls
+/// (`acme_client.rs`'s `Client::builder().timeout(Duration::from_secs(30))`); 60s here is more
+/// generous since a bundle can legitimately be up to `MAX_FETCH_BYTES`, larger than a typical ACME
+/// API response. `reqwest`'s blocking-client timeout covers the WHOLE request lifecycle --
+/// connect, redirects, and reading the body -- not just the initial connection.
+const FETCH_TIMEOUT: Duration = Duration::from_secs(60);
 
 pub fn fetch_manifest(location: &str) -> Result<ServiceManifest, String> {
     let bytes = fetch_bytes(location)?;
@@ -46,7 +57,11 @@ fn fetch_bytes(location: &str) -> Result<Vec<u8>, String> {
                  an operator is activating, and is trivially tamperable in transit before the hash check ever runs)"
             ));
         }
-        let resp = reqwest::blocking::get(location).map_err(|e| format!("fetch {location}: {e}"))?;
+        let client = reqwest::blocking::Client::builder()
+            .timeout(FETCH_TIMEOUT)
+            .build()
+            .map_err(|e| format!("build HTTP client for {location}: {e}"))?;
+        let resp = client.get(location).send().map_err(|e| format!("fetch {location}: {e}"))?;
         if !resp.status().is_success() {
             return Err(format!("fetch {location}: HTTP {}", resp.status()));
         }
