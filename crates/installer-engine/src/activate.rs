@@ -213,9 +213,9 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
 }
 
 /// F.11: refuse to proceed if `project_name` itself resembles a protected real deployment, or if
-/// any container/volume this run would create already exists (a stale collision from a previous
-/// run left running, or a genuine name clash with real infra). Checked BEFORE any fetch/unpack,
-/// so a colliding activation attempt never even reaches network I/O.
+/// any container/volume/network this run would create already exists (a stale collision from a
+/// previous run left running, or a genuine name clash with real infra). Checked BEFORE any
+/// fetch/unpack, so a colliding activation attempt never even reaches network I/O.
 fn preflight_collision_check(project_name: &str, protected_name_substrings: &[String]) -> Result<(), String> {
     let lower = project_name.to_lowercase();
     for protected in protected_name_substrings {
@@ -227,11 +227,17 @@ fn preflight_collision_check(project_name: &str, protected_name_substrings: &[St
     }
     let existing_names = docker_names("docker", &["ps", "-a", "--format", "{{.Names}}"])?;
     let existing_volumes = docker_names("docker", &["volume", "ls", "--format", "{{.Name}}"])?;
+    // Compose derives a network's default name from the project name the exact same way it does
+    // for volumes (`<project>_default`, `<project>-<net>` for a named network) -- a collision here
+    // is just as real a risk as a container/volume collision (a manifest could plant a network
+    // that a later, legitimate `docker compose -p <protected-name>` deployment would collide with,
+    // or attach to), so it gets the identical check.
+    let existing_networks = docker_names("docker", &["network", "ls", "--format", "{{.Name}}"])?;
     let prefix = format!("{project_name}-");
-    for name in existing_names.iter().chain(existing_volumes.iter()) {
+    for name in existing_names.iter().chain(existing_volumes.iter()).chain(existing_networks.iter()) {
         if name == project_name || name.starts_with(&prefix) {
             return Err(format!(
-                "a container or volume named '{name}' already exists for project '{project_name}' -- refusing to proceed (stale run left over, or a genuine name collision)"
+                "a container, volume, or network named '{name}' already exists for project '{project_name}' -- refusing to proceed (stale run left over, or a genuine name collision)"
             ));
         }
         for protected in protected_name_substrings {

@@ -33,6 +33,7 @@ pub fn scan_compose(compose_yaml: &str, bundle_dir: &Path) -> Result<Vec<Violati
         check_ports(&name, svc, &mut violations);
         check_dangerous_flags(&name, svc, &mut violations);
         check_volumes(&name, svc, bundle_dir, &mut violations);
+        check_build(&name, svc, bundle_dir, &mut violations);
     }
     Ok(violations)
 }
@@ -145,15 +146,58 @@ fn check_one_source(service: &str, source: &str, bundle_dir: &Path, out: &mut Ve
         out.push(violation(service, "F.3-docker-socket-mount", source.to_string()));
         return;
     }
+    check_one_source_with_rule(service, source, bundle_dir, out, "F.3-host-path-escapes-bundle");
+}
+
+/// Shared escape check behind [`check_one_source`] (`volumes:`) and [`check_build`]
+/// (`build.context`): does `source`, resolved against `bundle_dir`, still resolve inside it.
+fn check_one_source_with_rule(
+    service: &str,
+    source: &str,
+    bundle_dir: &Path,
+    out: &mut Vec<Violation>,
+    rule: &'static str,
+) {
     let resolved = normalize(&bundle_dir.join(source));
     let bundle_dir_norm = normalize(bundle_dir);
     if !resolved.starts_with(&bundle_dir_norm) {
         out.push(violation(
             service,
-            "F.3-host-path-escapes-bundle",
+            rule,
             format!("{source} -> {} (outside {})", resolved.display(), bundle_dir_norm.display()),
         ));
     }
+}
+
+/// F.3 (build variant): `build.context` is exactly as capable of reading arbitrary host files as
+/// a `volumes:` bind mount is -- everything under the resolved context directory is tarred up and
+/// sent to the docker daemon as the build context, and any `COPY`/`ADD` in the (unvetted, F.8)
+/// Dockerfile can pull those bytes straight into the built image. `check_volumes` above already
+/// rejects a host path escaping the bundle; `build:` needed the identical check and never had it.
+/// Short string form (`build: ./sub`) and long mapping form (`build: {context: ./sub, ...}`) both
+/// covered. A context that isn't a local path at all (a git/http(s) URL) is rejected outright --
+/// Phase 1 has no vetting story for a remote build context any more than it does for `RUN` steps.
+fn check_build(service: &str, svc: &Value, bundle_dir: &Path, out: &mut Vec<Violation>) {
+    let Some(build) = svc.get("build") else { return };
+    let context = match build {
+        Value::String(s) => Some(s.as_str()),
+        Value::Mapping(m) => m.get(Value::String("context".into())).and_then(Value::as_str),
+        _ => None,
+    };
+    let Some(context) = context else {
+        out.push(violation(service, "F.3-build-context-unrecognized", format!("{build:?}")));
+        return;
+    };
+    let looks_like_local_path = context.starts_with('/') || context.starts_with('.');
+    if !looks_like_local_path {
+        out.push(violation(
+            service,
+            "F.3-build-context-not-local",
+            format!("{context} -- remote/URL build contexts have no vetting story in Phase 1"),
+        ));
+        return;
+    }
+    check_one_source_with_rule(service, context, bundle_dir, out, "F.3-build-context-escapes-bundle");
 }
 
 /// Lexical `..`/`.`-component normalization (no filesystem access, no symlink resolution --
@@ -255,6 +299,39 @@ mod tests {
     }
 
     #[test]
+    fn bundle_relative_build_context_short_form_is_allowed() {
+        let yaml = "services:\n  heartbeat:\n    build: ./heartbeat-proxy\n";
+        assert!(scan_compose(yaml, &bundle()).unwrap().is_empty());
+    }
+
+    #[test]
+    fn bundle_relative_build_context_mapping_form_is_allowed() {
+        let yaml = "services:\n  heartbeat:\n    build:\n      context: ./heartbeat-proxy\n      dockerfile: Dockerfile\n";
+        assert!(scan_compose(yaml, &bundle()).unwrap().is_empty());
+    }
+
+    #[test]
+    fn build_context_escaping_the_bundle_via_relative_traversal_is_rejected() {
+        let yaml = "services:\n  evil:\n    build: ../../../etc\n";
+        let v = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(v[0].rule, "F.3-build-context-escapes-bundle");
+    }
+
+    #[test]
+    fn build_context_escaping_the_bundle_via_mapping_form_is_rejected() {
+        let yaml = "services:\n  evil:\n    build:\n      context: /home/becke/git/litellm-proxy\n      dockerfile: Dockerfile\n";
+        let v = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(v[0].rule, "F.3-build-context-escapes-bundle");
+    }
+
+    #[test]
+    fn remote_build_context_is_rejected_outright() {
+        let yaml = "services:\n  evil:\n    build: https://example.com/some/repo.git\n";
+        let v = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(v[0].rule, "F.3-build-context-not-local");
+    }
+
+    #[test]
     fn a_real_looking_multi_service_clean_stack_passes() {
         // Mirrors the shape of the actual litellm-proxy compose file's own conventions.
         let yaml = r#"
@@ -269,6 +346,10 @@ services:
     image: postgres:16-alpine
     volumes:
       - pgdata:/var/lib/postgresql/data
+  heartbeat:
+    build: ./heartbeat-proxy
+    ports:
+      - "127.0.0.1:4101:8080"
 "#;
         assert!(scan_compose(yaml, &bundle()).unwrap().is_empty());
     }
