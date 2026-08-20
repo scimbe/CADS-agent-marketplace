@@ -166,8 +166,13 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
 
     // 10. Run the bundle's own verify.sh -- SCRUBBED environment (no secret values; only the
     //     non-secret project name a verify script needs to find its own containers/ports).
+    //     Invoked via `bash`, not POSIX `sh` (`sh` on a Debian/Ubuntu host is `dash`, which
+    //     doesn't support `pipefail` -- and every other verify/setup script in this operator's
+    //     other deployments, e.g. kali-desktop's `setup.sh`, is itself `#!/usr/bin/env bash` with
+    //     `set -uo pipefail`; bundle verify scripts follow the same convention, documented in
+    //     this crate's README).
     let verify_outcome = match process::run_bounded(
-        "sh",
+        "bash",
         &[manifest.verify.script.as_str()],
         &opts.work_dir,
         &[("CT_MANIFEST_PROJECT_NAME", opts.project_name.as_str())],

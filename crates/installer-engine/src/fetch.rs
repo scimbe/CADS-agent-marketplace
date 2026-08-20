@@ -75,6 +75,30 @@ pub fn unpack_tar_gz_safely(bytes: &[u8], dest: &Path) -> Result<(), String> {
                 path.display()
             ));
         }
+
+        let kind = entry.header().entry_type();
+        if kind.is_symlink() || kind.is_hard_link() {
+            // A link's TARGET isn't covered by the path check above (which only validates the
+            // link's own name) -- rather than also validating link targets, refuse the whole
+            // bundle outright. Phase 1's bundles (a compose file, a config, a verify script, a
+            // small build context) never legitimately need a link.
+            return Err(format!(
+                "bundle contains a symlink/hardlink entry ({}), refusing to unpack any of it",
+                path.display()
+            ));
+        }
+        if kind.is_dir() {
+            std::fs::create_dir_all(&target).map_err(|e| format!("mkdir {}: {e}", target.display()))?;
+            continue;
+        }
+        if !kind.is_file() {
+            return Err(format!(
+                "bundle contains an unsupported entry type ({:?}) at {}, refusing to unpack any of it",
+                kind,
+                path.display()
+            ));
+        }
+
         if let Some(parent) = target.parent() {
             std::fs::create_dir_all(parent).map_err(|e| format!("mkdir {}: {e}", parent.display()))?;
         }
@@ -128,6 +152,34 @@ mod tests {
         let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
         encoder.write_all(&tar_bytes).unwrap();
         encoder.finish().unwrap()
+    }
+
+    #[test]
+    fn a_bundle_with_explicit_directory_entries_and_nested_files_unpacks_cleanly() {
+        // A real tarball built with e.g. GNU tar (as `tar czf` does) emits an explicit directory
+        // entry before the files it contains -- caught for real during the LiteLLM proof run,
+        // where `heartbeat-proxy/` is a subdirectory: the first version of this unpacker tried to
+        // `fs::write` the directory entry itself and failed with "Is a directory".
+        let dest = tempfile::tempdir().unwrap();
+        let mut tar_bytes = Vec::new();
+        {
+            let mut builder = tar::Builder::new(&mut tar_bytes);
+            builder.append_dir("heartbeat-proxy", ".").unwrap();
+            let mut header = tar::Header::new_gnu();
+            let content = b"FROM python:3.12-slim\n";
+            header.set_size(content.len() as u64);
+            header.set_mode(0o644);
+            header.set_cksum();
+            builder.append_data(&mut header, "heartbeat-proxy/Dockerfile", &content[..]).unwrap();
+            builder.finish().unwrap();
+        }
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        encoder.write_all(&tar_bytes).unwrap();
+        let archive = encoder.finish().unwrap();
+
+        unpack_tar_gz_safely(&archive, dest.path()).unwrap();
+        assert!(dest.path().join("heartbeat-proxy").is_dir());
+        assert!(dest.path().join("heartbeat-proxy/Dockerfile").is_file());
     }
 
     #[test]

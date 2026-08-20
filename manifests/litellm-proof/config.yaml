@@ -1,0 +1,21 @@
+# Trimmed LiteLLM config for the installer proof. Same key shape as the real deployment's
+# config.yaml, but no real routing: the point is proving installer mechanics, not standing up
+# a working LLM router. The single entry below exists so `model_list` is structurally present;
+# it points at the discard port and is never called by verify.sh.
+
+general_settings:
+  master_key: "os.environ/LITELLM_MASTER_KEY"
+  allow_user_auth: false
+  disable_admin_ui: true
+
+litellm_settings:
+  drop_params: true
+  request_timeout: 30
+  num_retries: 0
+
+model_list:
+  - model_name: proof-dummy
+    litellm_params:
+      model: openai/proof-dummy
+      api_base: http://127.0.0.1:9/v1
+      api_key: "unused-proof-placeholder"

@@ -1,0 +1,88 @@
+# Isolated structural reproduction of the litellm-proxy stack, used only to prove the
+# manifest installer end to end. It shares no name, network, volume, or port with the real
+# deployment at /home/becke/git/litellm-proxy.
+#
+# No `name:` here on purpose: the compose project name is supplied at runtime by the
+# installer (`docker compose -p <project>`), which may append a unique suffix. That also
+# makes every container name project-scoped (`<project>-<service>-1`), so no
+# `container_name:` is pinned either -- a pinned name would collide between two installs
+# and would not match the installer's own `--filter name=<project>` lookups.
+
+networks:
+  litellm-proof-internal:
+    driver: bridge
+
+volumes:
+  litellm-proof-pgdata:
+  litellm-proof-redisdata:
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - litellm-proof-redisdata:/data
+    networks:
+      - litellm-proof-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: litellm_proof_db
+    volumes:
+      - litellm-proof-pgdata:/var/lib/postgresql/data
+    networks:
+      - litellm-proof-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm -d litellm_proof_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4103:4000"
+    volumes:
+      - ./config.yaml:/app/config.yaml
+    environment:
+      - STORE_MODEL_IN_DB=True
+      - DATABASE_URL=postgresql://litellm:${POSTGRES_PASSWORD}@db:5432/litellm_proof_db
+      - LITELLM_SETTINGS=/app/config.yaml
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      - UI_USERNAME=admin
+      - UI_PASSWORD=${LITELLM_MASTER_KEY}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    networks:
+      - litellm-proof-internal
+    command: ["--port", "4000", "--config", "/app/config.yaml"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  heartbeat:
+    build: ./heartbeat-proxy
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4101:8080"
+    environment:
+      - LITELLM_UPSTREAM=http://litellm:4000
+      - PING_INTERVAL_SECONDS=7
+    networks:
+      - litellm-proof-internal
+    depends_on:
+      - litellm
