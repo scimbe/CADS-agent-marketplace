@@ -15,6 +15,19 @@ use std::io::Read;
 use std::path::Path;
 use subtle::ConstantTimeEq;
 
+/// F.12: the URL an operator names in `CT_MANIFEST_URL` is trusted to be the RIGHT manifest/
+/// bundle, but the BYTES returned from it are not -- those come from whatever the publisher's
+/// server actually sends, which is a separate trust boundary (see F.5/F.6, which authenticate
+/// content but never bounded its size). Without a cap, `fetch_bytes` buffers an arbitrarily large
+/// response fully into memory (`resp.bytes()`) before any signature/hash check ever runs -- a
+/// malicious, compromised, or merely misconfigured publisher endpoint (e.g. serving a directory
+/// listing instead of the bundle) can exhaust memory on the operator's own machine with a single
+/// `activate` call. Distinct from the documented "bundle decompression resource exhaustion"
+/// residual risk in `docs/security-model.md` (a zip-bomb shape: small compressed, huge
+/// decompressed) -- this caps the RAW fetch itself, before decompression ever begins, and applies
+/// equally to the (much smaller) manifest JSON fetch, not just bundles.
+const MAX_FETCH_BYTES: u64 = 64 * 1024 * 1024; // 64 MiB: generous for a compose bundle (F.3 already bans non-local build contexts, so bundles are config/scripts, not large binaries), tiny for a manifest.
+
 pub fn fetch_manifest(location: &str) -> Result<ServiceManifest, String> {
     let bytes = fetch_bytes(location)?;
     serde_json::from_slice(&bytes).map_err(|e| format!("manifest at {location} is not valid JSON: {e}"))
@@ -37,10 +50,35 @@ fn fetch_bytes(location: &str) -> Result<Vec<u8>, String> {
         if !resp.status().is_success() {
             return Err(format!("fetch {location}: HTTP {}", resp.status()));
         }
-        resp.bytes().map(|b| b.to_vec()).map_err(|e| format!("fetch {location}: {e}"))
+        let declared_len = resp.content_length();
+        read_bounded(resp, declared_len, MAX_FETCH_BYTES, location)
     } else {
         std::fs::read(location).map_err(|e| format!("read {location}: {e}"))
     }
+}
+
+/// F.12's actual cap logic, decoupled from `reqwest` so it's directly testable against a plain
+/// in-memory reader: a declared length over `max` is refused outright without reading a single
+/// byte, but a missing or LYING declared length must not bypass the cap either, so the read
+/// itself is also bounded (`take`, one byte past `max` so an exactly-at-the-cap body is not
+/// mistaken for an oversized one).
+fn read_bounded(reader: impl Read, declared_len: Option<u64>, max: u64, location: &str) -> Result<Vec<u8>, String> {
+    if let Some(len) = declared_len {
+        if len > max {
+            return Err(format!(
+                "fetch {location}: response declares {len} bytes, refusing anything over the {max}-byte cap"
+            ));
+        }
+    }
+    let mut buf = Vec::new();
+    reader
+        .take(max + 1)
+        .read_to_end(&mut buf)
+        .map_err(|e| format!("fetch {location}: {e}"))?;
+    if buf.len() as u64 > max {
+        return Err(format!("fetch {location}: response exceeded the {max}-byte cap, refusing"));
+    }
+    Ok(buf)
 }
 
 /// Constant-time sha256 comparison -- true iff `bytes` hashes to exactly `expected`.
@@ -209,5 +247,50 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         let archive = make_tar_gz(&[("/etc/passwd", b"pwned\n")]);
         assert!(unpack_tar_gz_safely(&archive, dest.path()).is_err());
+    }
+
+    #[test]
+    fn f12_a_body_within_the_cap_is_read_in_full() {
+        let body = vec![7u8; 1024];
+        let got = read_bounded(std::io::Cursor::new(body.clone()), Some(1024), 4096, "test://").unwrap();
+        assert_eq!(got, body);
+    }
+
+    #[test]
+    fn f12_a_declared_content_length_over_the_cap_is_refused_without_reading_the_body() {
+        // The reader below would panic if actually read from -- proves the declared-length check
+        // short-circuits before any read happens, not just that the end result is an error.
+        struct PanicsIfRead;
+        impl Read for PanicsIfRead {
+            fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
+                panic!("must not read when the declared Content-Length already exceeds the cap");
+            }
+        }
+        let err = read_bounded(PanicsIfRead, Some(10_000_000), 4096, "test://").unwrap_err();
+        assert!(err.contains("10000000 bytes"), "got: {err}");
+        assert!(err.contains("4096-byte cap"), "got: {err}");
+    }
+
+    #[test]
+    fn f12_a_missing_or_lying_content_length_does_not_bypass_the_cap() {
+        // No declared length at all (the HTTP/1.0-chunked-transfer-encoding-with-no-Content-Length
+        // case) -- the actual body is what gets capped.
+        let oversized = vec![9u8; 5000];
+        let err = read_bounded(std::io::Cursor::new(oversized), None, 4096, "test://").unwrap_err();
+        assert!(err.contains("exceeded the 4096-byte cap"), "got: {err}");
+
+        // A declared length that UNDERSTATES the real body (a lying/malicious server) must not
+        // let the oversized body through either.
+        let lying = vec![9u8; 5000];
+        let err = read_bounded(std::io::Cursor::new(lying), Some(10), 4096, "test://").unwrap_err();
+        assert!(err.contains("exceeded the 4096-byte cap"), "got: {err}");
+    }
+
+    #[test]
+    fn f12_a_body_exactly_at_the_cap_is_accepted_not_mistaken_for_oversized() {
+        let exact = vec![1u8; 4096];
+        let got = read_bounded(std::io::Cursor::new(exact.clone()), None, 4096, "test://").unwrap();
+        assert_eq!(got.len(), 4096);
+        assert_eq!(got, exact);
     }
 }
