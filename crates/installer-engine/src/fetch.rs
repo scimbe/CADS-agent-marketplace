@@ -48,7 +48,11 @@ pub fn fetch_bundle(url: &str) -> Result<Vec<u8>, String> {
     fetch_bytes(url)
 }
 
-fn fetch_bytes(location: &str) -> Result<Vec<u8>, String> {
+/// Same HTTPS-only / size-capped (F.12) / timeout-bounded (F.13) discipline as
+/// [`fetch_manifest`]/[`fetch_bundle`], generalized for any small signed JSON document a caller
+/// outside this crate needs to fetch the same safe way (e.g. `ct-agent harness run`'s
+/// `SignedTask`) -- exposed rather than duplicated a third time.
+pub fn fetch_bytes(location: &str) -> Result<Vec<u8>, String> {
     if location.starts_with("https://") || location.starts_with("http://") {
         if location.starts_with("http://") {
             return Err(format!(
