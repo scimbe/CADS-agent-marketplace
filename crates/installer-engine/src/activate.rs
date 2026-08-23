@@ -119,7 +119,7 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
         Err(e) => return InstallReport::Rejected { reason: e, manifest_id: Some(manifest_id_hex) },
     };
     let env_file_path = opts.work_dir.join(".env");
-    if let Err(e) = std::fs::write(&env_file_path, dotenv) {
+    if let Err(e) = write_env_file(&env_file_path, &dotenv) {
         return InstallReport::Rejected { reason: format!("write .env: {e}"), manifest_id: Some(manifest_id_hex) };
     }
 
@@ -259,6 +259,25 @@ fn docker_names(program: &str, args: &[&str]) -> Result<Vec<String>, String> {
     Ok(out.stdout.lines().map(str::trim).filter(|s| !s.is_empty()).map(str::to_string).collect())
 }
 
+/// Write the resolved `.env` (real secret VALUES, not just names) so its content is never on
+/// disk wider than `0600` -- mirrors ct-agent's `secret_file.rs::write_private` idiom. `mode`
+/// applies at CREATE time so the common case (fresh work_dir) has no window at all; `set_permissions`
+/// afterwards additionally corrects a pre-existing file left at a wider mode.
+#[cfg(unix)]
+fn write_env_file(path: &Path, content: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+    let mut f = std::fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(path)?;
+    f.write_all(content.as_bytes())?;
+    f.sync_all()?;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+}
+
+#[cfg(not(unix))]
+fn write_env_file(path: &Path, content: &str) -> std::io::Result<()> {
+    std::fs::write(path, content)
+}
+
 fn load_env_values(env_file: Option<&Path>) -> Result<std::collections::HashMap<String, String>, String> {
     let mut map = std::collections::HashMap::new();
     if let Some(path) = env_file {
@@ -345,5 +364,41 @@ mod tests {
         file_values.insert("SECRET".to_string(), "s3cr3t".to_string());
         let dotenv = resolve_env_template(&template, &file_values).unwrap();
         assert_eq!(dotenv, "SECRET=s3cr3t\n");
+    }
+
+    /// #4: the resolved `.env` carries real secret VALUES (not just names) -- it must never be
+    /// readable by anyone but the owner, on a fresh file or one that already existed wider.
+    #[test]
+    #[cfg(unix)]
+    fn write_env_file_is_never_group_or_world_readable_on_a_fresh_file() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("cads-marketplace-envfile-fresh-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(".env");
+
+        write_env_file(&path, "SECRET=s3cr3t\n").unwrap();
+
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "fresh .env must be owner-only, got {mode:o}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn write_env_file_narrows_a_pre_existing_wider_mode_file() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("cads-marketplace-envfile-preexisting-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(".env");
+        std::fs::write(&path, "STALE=old\n").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+        write_env_file(&path, "SECRET=s3cr3t\n").unwrap();
+
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "a re-activated .env must be narrowed to owner-only, got {mode:o}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
