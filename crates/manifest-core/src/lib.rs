@@ -7,5 +7,7 @@
 pub mod hex;
 pub mod manifest;
 mod preimage;
+pub mod task;
 
 pub use manifest::{BundleRef, EnvVarSpec, InstallerKind, ServiceManifest, VerifySpec};
+pub use task::SignedTask;
