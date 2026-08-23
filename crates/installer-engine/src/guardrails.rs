@@ -34,6 +34,7 @@ pub fn scan_compose(compose_yaml: &str, bundle_dir: &Path) -> Result<Vec<Violati
         check_dangerous_flags(&name, svc, &mut violations);
         check_volumes(&name, svc, bundle_dir, &mut violations);
         check_build(&name, svc, bundle_dir, &mut violations);
+        check_env_file(&name, svc, bundle_dir, &mut violations);
     }
     Ok(violations)
 }
@@ -200,6 +201,34 @@ fn check_build(service: &str, svc: &Value, bundle_dir: &Path, out: &mut Vec<Viol
     check_one_source_with_rule(service, context, bundle_dir, out, "F.3-build-context-escapes-bundle");
 }
 
+/// F.3 (env_file variant): `env_file:` reads an arbitrary host file's lines straight into the
+/// container's environment -- the exact same host-file-read primitive `volumes:` and
+/// `build.context` already guard against (see `check_one_source`/`check_build` above), just
+/// without a bind mount. A path escaping `bundle_dir` here (e.g. a sibling project's `.env`) lets
+/// an unvetted manifest exfiltrate host secrets into the container's env, where the manifest's own
+/// (equally unvetted, F.8) application code can do anything with them. Short string form
+/// (`env_file: ./local.env`), sequence-of-strings form, and the long mapping form
+/// (`env_file: [{path: ./local.env, required: true}]`) are all covered.
+fn check_env_file(service: &str, svc: &Value, bundle_dir: &Path, out: &mut Vec<Violation>) {
+    let Some(env_file) = svc.get("env_file") else { return };
+    let entries: Vec<&Value> = match env_file {
+        Value::Sequence(seq) => seq.iter().collect(),
+        single => vec![single],
+    };
+    for entry in entries {
+        let path = match entry {
+            Value::String(s) => Some(s.as_str()),
+            Value::Mapping(m) => m.get(Value::String("path".into())).and_then(Value::as_str),
+            _ => None,
+        };
+        let Some(path) = path else {
+            out.push(violation(service, "F.3-env-file-unrecognized", format!("{entry:?}")));
+            continue;
+        };
+        check_one_source_with_rule(service, path, bundle_dir, out, "F.3-env-file-escapes-bundle");
+    }
+}
+
 /// Lexical `..`/`.`-component normalization (no filesystem access, no symlink resolution --
 /// deliberate: the bundle dir may not exist yet at scan time, and this only needs to catch a
 /// textual escape, not a symlink-based one, which docker itself will refuse to traverse outside
@@ -329,6 +358,33 @@ mod tests {
         let yaml = "services:\n  evil:\n    build: https://example.com/some/repo.git\n";
         let v = scan_compose(yaml, &bundle()).unwrap();
         assert_eq!(v[0].rule, "F.3-build-context-not-local");
+    }
+
+    #[test]
+    fn env_file_absolute_host_path_outside_bundle_is_rejected() {
+        let yaml = "services:\n  web:\n    env_file:\n      - /home/becke/git/litellm-proxy/.env\n";
+        let v = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(v[0].rule, "F.3-env-file-escapes-bundle");
+    }
+
+    #[test]
+    fn env_file_short_string_form_escaping_the_bundle_is_rejected() {
+        let yaml = "services:\n  web:\n    env_file: ../../etc/some.env\n";
+        let v = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(v[0].rule, "F.3-env-file-escapes-bundle");
+    }
+
+    #[test]
+    fn env_file_long_mapping_form_escaping_the_bundle_is_rejected() {
+        let yaml = "services:\n  web:\n    env_file:\n      - path: /etc/passwd\n        required: true\n";
+        let v = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(v[0].rule, "F.3-env-file-escapes-bundle");
+    }
+
+    #[test]
+    fn env_file_bundle_relative_is_allowed() {
+        let yaml = "services:\n  web:\n    env_file:\n      - ./config/.env\n";
+        assert!(scan_compose(yaml, &bundle()).unwrap().is_empty());
     }
 
     #[test]
