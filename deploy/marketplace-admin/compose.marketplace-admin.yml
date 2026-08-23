@@ -1,0 +1,93 @@
+# marketplace.bunsenbrenner.org (PROPOSED -- not deployed): the Phase 4 read-only admin
+# dashboard over the Phase 3 registry. Same three-service shape as
+# CADS-webconference-demo/compose.webconference-demo.yml (origin + backend + ct-agent browser
+# plane), adapted: the "backend" here is the already-built `registry` service itself (Phase 3),
+# not a new bridge process -- this deploy has no write actions, so there's nothing else to
+# compute server-side beyond what registry already does.
+#
+# NOT executed as part of Phase 4 -- this operator has a standing practice (this session's own
+# history) of being asked before any new public DNS/tunnel goes live. Proposed subdomain:
+# marketplace.bunsenbrenner.org. Local proof used a plain reverse-proxy substitute for Caddy's
+# real TLS/tunnel path -- see CADS-agent-marketplace#7 for the full local-proof writeup.
+#
+# Run ALONGSIDE an already-running CADS-Tunnel plane, same adaptation notes as
+# CADS-webconference-demo's own compose file (PLANE_NETWORK, WEBCONFERENCE_AGENT_EDGE-equivalent
+# vars below) -- see that file's header comment for the full explanation, not repeated here.
+services:
+  marketplace-admin-registry:
+    build:
+      context: ../..
+      dockerfile: deploy/marketplace-admin/registry.Dockerfile
+    environment:
+      - REGISTRY_BIND_ADDR=0.0.0.0:8787
+      - REGISTRY_DB_PATH=/data/registry.sqlite
+      - REGISTRY_BUNDLES_DIR=/data/bundles
+      - REGISTRY_WRITE_TOKEN=${MARKETPLACE_REGISTRY_WRITE_TOKEN:?a real write token -- publishers/ct-agent use this to POST, never checked into this repo}
+    volumes:
+      - marketplace_admin_registry_data:/data
+    expose:
+      - "8787"
+    networks:
+      - default
+    restart: unless-stopped
+
+  marketplace-admin-origin:
+    build:
+      context: .
+      dockerfile: Caddy.Dockerfile
+    environment:
+      - MARKETPLACE_ADMIN_REGISTRY_ADDR=marketplace-admin-registry:8787
+      - CT_GATE_UPSTREAM_HOST=${CT_GATE_UPSTREAM_HOST:-bunsenbrenner.org}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${MARKETPLACE_ADMIN_CERT_DIR:?set MARKETPLACE_ADMIN_CERT_DIR=<dir with fullchain.pem+privkey.pem from the operator>}:/certs:ro
+      - marketplace_admin_caddy_data:/data
+    expose:
+      - "443"
+    depends_on:
+      - marketplace-admin-registry
+    networks:
+      - default
+      - plane
+    restart: unless-stopped
+
+  marketplace-admin-agent:
+    build:
+      context: .
+      dockerfile: Agent.Dockerfile
+      args:
+        - CT_AGENT_REF=${CT_AGENT_REF:-eb4de4d2427ce51e301c0bf31582cce4bbaa097c}
+    environment:
+      - CT_AGENT_MODE=browser
+      - CT_AGENT_HOSTNAME=marketplace.bunsenbrenner.org
+      - CT_AGENT_TOKEN=${MARKETPLACE_ADMIN_AGENT_TOKEN:-}
+      - CT_AGENT_ORIGIN=marketplace-admin-origin:443
+      - CT_AGENT_ORIGIN_PROTO=tcp
+      - CT_AGENT_CAPABILITY_OUT=/tmp/capability.bin
+      - CT_AGENT_EDGE=${MARKETPLACE_ADMIN_AGENT_EDGE:?edge host:port, e.g. edge:4433}
+      - CT_AGENT_CP_URL=${MARKETPLACE_ADMIN_AGENT_CP_URL:?control-plane URL for onboarding}
+      - CT_AGENT_JOIN_TOKEN=${MARKETPLACE_ADMIN_JOIN_TOKEN:?single-use join token}
+      - CT_AGENT_ID=marketplace-admin
+      - CT_AGENT_EDGE_CERT_URL=${MARKETPLACE_ADMIN_AGENT_EDGE_CERT_URL:-}
+      - CT_AGENT_STATE_DIR=/var/lib/ct-agent
+      - CT_AGENT_RECONNECT_MAX_ATTEMPTS=0
+    volumes:
+      - marketplace_admin_agent_state:/var/lib/ct-agent
+    depends_on:
+      - marketplace-admin-origin
+    networks:
+      - default
+      - plane
+    command: ["ct-agent", "onboard"]
+    restart: unless-stopped
+
+networks:
+  default: {}
+  plane:
+    external: true
+    name: ${PLANE_NETWORK:-ct-selfhost_default}
+
+volumes:
+  marketplace_admin_registry_data:
+  marketplace_admin_caddy_data:
+  marketplace_admin_agent_state:

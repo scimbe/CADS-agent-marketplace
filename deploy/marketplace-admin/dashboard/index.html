@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CADS Marketplace — Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>CADS Marketplace</h1>
+  <p class="subtitle">Read-only registry view — published manifests, guardrail verdicts, activation ledger.</p>
+</header>
+<main>
+  <section id="status" class="status"></section>
+  <table id="manifests">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Version</th>
+        <th>Publisher</th>
+        <th>Guardrail</th>
+        <th>Activations</th>
+        <th>Published</th>
+      </tr>
+    </thead>
+    <tbody id="manifests-body">
+      <tr><td colspan="6" class="empty">Loading…</td></tr>
+    </tbody>
+  </table>
+</main>
+<!--
+  REGISTRY_BASE_URL: same-origin deploys set this to a relative path Caddy proxies to the
+  registry service (see ../Caddyfile's `handle_path /registry/*`); local/dev runs point it
+  directly at a registry process. No build step, no framework -- matches this operator's other
+  demos' plain-<script> convention.
+-->
+<script>window.REGISTRY_BASE_URL = window.REGISTRY_BASE_URL || "/registry";</script>
+<script src="dashboard.js"></script>
+</body>
+</html>

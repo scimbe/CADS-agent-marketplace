@@ -1,0 +1,55 @@
+# Origin for the marketplace.bunsenbrenner.org admin dashboard (Phase 4). Same shape as
+# CADS-webconference-demo/CADS-kali-desktop/CADS-DEMO-sort's own Caddyfiles: reachable only
+# through the tunnel (no direct inbound), TLS terminated CORE-side while Rot/Gelb (see the long
+# comment in CADS-webconference-demo/Caddyfile for why `tls ...` must NOT be set here until this
+# tunnel reaches Grün -- same gotcha applies verbatim, not re-derived here).
+#
+# Unlike webconference-demo's landing page, this WHOLE app is gated -- there is no public,
+# ungated "hero" page to show a stranger; every route here shows real publisher pubkeys and
+# guardrail verdicts, which is operator/admin-facing information. The @gated matcher below
+# therefore covers `*` (everything), not just a subset of API paths.
+#
+# copy_headers/request_header ordering: copied VERBATIM from CADS-webconference-demo/Caddyfile's
+# own route{} block (CADS-webconference-demo#62/#65's fixes) -- same two bugs (implicit Caddy
+# directive priority ignoring written order; Connection/Upgrade headers leaking onto the
+# forward_auth probe) apply to any new gated Caddyfile in this operator's stack, not just that
+# one. Reusing the already-fixed shape rather than re-discovering the same regression here.
+{
+	auto_https off
+}
+
+:443 {
+	route {
+		request_header -X-Gate-Email
+		forward_auth https://{$CT_GATE_UPSTREAM_HOST} {
+			uri /gate/check
+			copy_headers X-Gate-Email
+			header_up -Connection
+			header_up -Upgrade
+		}
+
+		# The registry's own GET routes are unauthenticated by design (registry/src/lib.rs) --
+		# proxying them under the same gate as the dashboard itself is still correct: an
+		# unauthenticated visitor never reaches Caddy's routing past forward_auth above, so the
+		# registry is only reachable through this proxy once the gate has already admitted them.
+		# handle_path strips the /registry prefix before proxying (registry's own routes are
+		# unprefixed, e.g. `/manifests`, not `/registry/manifests`).
+		handle_path /registry/* {
+			reverse_proxy {$MARKETPLACE_ADMIN_REGISTRY_ADDR}
+		}
+
+		handle {
+			root * /srv
+			file_server
+		}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+	encode gzip
+}

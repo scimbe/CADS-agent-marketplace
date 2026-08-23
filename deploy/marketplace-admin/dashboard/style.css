@@ -1,0 +1,84 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  margin: 0;
+  background: #0f1115;
+  color: #e6e8eb;
+}
+
+header {
+  padding: 2rem 2rem 1rem;
+  border-bottom: 1px solid #262a33;
+}
+
+h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+}
+
+.subtitle {
+  margin: 0;
+  color: #9aa3b2;
+  font-size: 0.9rem;
+}
+
+main {
+  padding: 1.5rem 2rem;
+}
+
+.status {
+  margin-bottom: 1rem;
+  color: #9aa3b2;
+  font-size: 0.9rem;
+}
+
+.status-error {
+  color: #f28b82;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th, td {
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid #262a33;
+}
+
+th {
+  color: #9aa3b2;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.empty {
+  text-align: center;
+  color: #9aa3b2;
+  padding: 2rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-clean {
+  background: #16352a;
+  color: #7ee2b8;
+}
+
+.badge-flagged {
+  background: #3a1f1f;
+  color: #f28b82;
+}
