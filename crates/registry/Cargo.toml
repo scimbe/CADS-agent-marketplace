@@ -1,0 +1,29 @@
+[package]
+name = "registry"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Phase 3: marketplace registry -- publish/fetch signed ServiceManifests + bundles, ledger-only activation tracking."
+
+[[bin]]
+name = "registry"
+path = "src/main.rs"
+
+[dependencies]
+manifest-core = { path = "../manifest-core" }
+installer-engine = { path = "../installer-engine" }
+axum = { version = "0.7", features = ["multipart"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "fs", "signal"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tempfile = "3"
+
+[dev-dependencies]
+ed25519-dalek = "2"
+tower = { version = "0.5", features = ["util"] }
+tar = "0.4"
+flate2 = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "multipart"] }
