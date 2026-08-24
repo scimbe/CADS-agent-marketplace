@@ -20,3 +20,7 @@ libc = "0.2"
 
 [dev-dependencies]
 tempfile = "3"
+# Only needed to construct a real, signed ServiceManifest fixture for the Binary-executor
+# integration tests in activate.rs -- installer-engine itself never signs anything.
+ed25519-dalek = "2"
+rand = "0.8"

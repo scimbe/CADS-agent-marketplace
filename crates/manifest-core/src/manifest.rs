@@ -22,11 +22,22 @@ use serde::{Deserialize, Serialize};
 /// separation exists to prevent (see `preimage.rs`'s module doc).
 const SERVICE_MANIFEST_DOMAIN: &[u8] = b"cads-service-manifest-v1";
 
-/// How `installer-engine` should execute this manifest's `bundle`. Only [`InstallerKind::Compose`]
-/// has an executor in Phase 1 -- `Binary`/`K8s` are reserved schema slots for later phases so the
-/// wire format doesn't need to change when they land, but `installer-engine::activate` hard-rejects
-/// them today via an exhaustive `match` with no fallback arm (there is nothing to type-confuse
-/// into running, because there is no code path for them at all yet).
+/// How `installer-engine` should execute this manifest's `bundle`. [`InstallerKind::Compose`]
+/// (Phase 1) and [`InstallerKind::Binary`] (Phase 5) both have real executors; `K8s` remains a
+/// reserved schema slot -- the wire format doesn't need to change when a real executor lands for
+/// it, but `installer-engine::activate` hard-rejects it today via an exhaustive `match` with no
+/// fallback arm (there is nothing to type-confuse into running, because there is no code path for
+/// it at all yet). Unproven code claiming to run against a real Kubernetes cluster would be a
+/// false claim this operator has no cluster to verify against -- see `installer-engine::activate`'s
+/// module doc for the full rationale.
+///
+/// **Binary's trust boundary is narrower than Compose's.** A Compose bundle is scanned by
+/// `guardrails::scan_compose` before anything runs (rejects privileged containers, host mounts,
+/// non-local build contexts, etc.) -- there is no equivalent static scan for an arbitrary
+/// executable, so a `Binary` manifest's entire safety rests on the publisher trust allowlist
+/// (F.5) holding. This is a real, acknowledged reduction in defense-in-depth, not a silently
+/// dropped check: never add `Binary` to a trust allowlist for a publisher whose Compose bundles
+/// you wouldn't also blindly trust.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum InstallerKind {
@@ -55,7 +66,10 @@ pub struct BundleRef {
     pub url: String,
     #[serde(with = "crate::hex::b32")]
     pub sha256: [u8; 32],
-    /// Path inside the unpacked bundle to the compose file `installer-engine` should run.
+    /// Path inside the unpacked bundle to the thing `installer-engine` should run: the compose
+    /// file for [`InstallerKind::Compose`], or the executable itself for
+    /// [`InstallerKind::Binary`] (reused rather than adding a kind-specific field -- both are
+    /// "the one path inside the bundle that names the entrypoint").
     pub compose_file: String,
 }
 

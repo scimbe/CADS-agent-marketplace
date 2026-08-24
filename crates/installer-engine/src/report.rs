@@ -23,8 +23,15 @@ pub enum InstallReport {
         manifest_id: String,
         publisher_pubkey: String,
         project_name: String,
+        /// `docker compose up` for [`manifest_core::InstallerKind::Compose`], the executable's
+        /// own run for [`manifest_core::InstallerKind::Binary`] -- one field, same as the pipeline
+        /// stage it represents is one step regardless of kind.
         compose_up: StepResult,
         verify: StepResult,
+        /// Binary kind only: the executable's captured stdout, so a caller can confirm it
+        /// actually did what the manifest claims rather than trusting an exit code alone.
+        /// Always `None` for Compose (its stdout is `docker compose`'s own, not the service's).
+        captured_stdout: Option<String>,
     },
 }
 

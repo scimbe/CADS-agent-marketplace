@@ -31,6 +31,12 @@ fn main() {
 
     let name = env("CT_MANIFEST_NAME");
     let version = env("CT_MANIFEST_VERSION");
+    let kind = match env_or("CT_MANIFEST_KIND", "compose").as_str() {
+        "compose" => InstallerKind::Compose,
+        "binary" => InstallerKind::Binary,
+        "k8s" => InstallerKind::K8s,
+        other => panic!("CT_MANIFEST_KIND '{other}' is not one of compose|binary|k8s"),
+    };
     let compose_file = env("CT_MANIFEST_COMPOSE_FILE");
     let bundle_url = env("CT_MANIFEST_BUNDLE_URL");
     let bundle_sha256 = decode_hex32(&env("CT_MANIFEST_BUNDLE_SHA256"));
@@ -60,7 +66,7 @@ fn main() {
         manifest_id,
         name,
         version,
-        InstallerKind::Compose,
+        kind,
         BundleRef { url: bundle_url, sha256: bundle_sha256, compose_file },
         env_template,
         VerifySpec { script: verify_script, timeout_secs: verify_timeout_secs },

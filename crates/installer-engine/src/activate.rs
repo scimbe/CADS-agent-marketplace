@@ -53,13 +53,18 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
         };
     }
 
-    // 4. installer_kind -- exhaustive match, no fallback arm. Non-Compose variants have no
-    //    executor code path at all in Phase 1.
+    // 4. installer_kind -- exhaustive match, no fallback arm. K8s has no executor code path at
+    //    all yet (see manifest-core's InstallerKind doc for why: no real cluster to prove one
+    //    against). Compose and Binary both proceed; they diverge at steps 7/9 below.
     match manifest.installer_kind {
-        InstallerKind::Compose => {}
-        InstallerKind::Binary | InstallerKind::K8s => {
+        InstallerKind::Compose | InstallerKind::Binary => {}
+        InstallerKind::K8s => {
             return InstallReport::Rejected {
-                reason: format!("unsupported_installer_kind: {:?} (Phase 1 supports Compose only)", manifest.installer_kind),
+                reason: format!(
+                    "unsupported_installer_kind: {:?} (K8s is schema-only -- no executor exists, \
+                     see manifest-core::InstallerKind's doc comment)",
+                    manifest.installer_kind
+                ),
                 manifest_id: Some(manifest_id_hex),
             };
         }
@@ -85,28 +90,33 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
         return InstallReport::Rejected { reason: format!("unpack_bundle: {e}"), manifest_id: Some(manifest_id_hex) };
     }
 
-    // 7. Static guardrail scan -- BEFORE any docker command runs.
-    let compose_path = opts.work_dir.join(&manifest.bundle.compose_file);
-    let compose_yaml = match std::fs::read_to_string(&compose_path) {
-        Ok(s) => s,
-        Err(e) => {
-            return InstallReport::Rejected {
-                reason: format!("read compose file {}: {e}", compose_path.display()),
-                manifest_id: Some(manifest_id_hex),
+    // 7. Static guardrail scan -- BEFORE any docker command runs. Compose only: there is no
+    //    static-analysis equivalent for an arbitrary executable, which is exactly why Binary
+    //    leans more heavily on the allowlist check in step 3 (see manifest-core::InstallerKind's
+    //    doc comment for the acknowledged tradeoff).
+    if manifest.installer_kind == InstallerKind::Compose {
+        let compose_path = opts.work_dir.join(&manifest.bundle.compose_file);
+        let compose_yaml = match std::fs::read_to_string(&compose_path) {
+            Ok(s) => s,
+            Err(e) => {
+                return InstallReport::Rejected {
+                    reason: format!("read compose file {}: {e}", compose_path.display()),
+                    manifest_id: Some(manifest_id_hex),
+                }
             }
+        };
+        let violations = match guardrails::scan_compose(&compose_yaml, &opts.work_dir) {
+            Ok(v) => v,
+            Err(e) => return InstallReport::Rejected { reason: format!("guardrail_scan_error: {e}"), manifest_id: Some(manifest_id_hex) },
+        };
+        if !violations.is_empty() {
+            let detail = violations
+                .iter()
+                .map(|v| format!("{}[{}]: {}", v.service, v.rule, v.detail))
+                .collect::<Vec<_>>()
+                .join("; ");
+            return InstallReport::Rejected { reason: format!("guardrail_violations: {detail}"), manifest_id: Some(manifest_id_hex) };
         }
-    };
-    let violations = match guardrails::scan_compose(&compose_yaml, &opts.work_dir) {
-        Ok(v) => v,
-        Err(e) => return InstallReport::Rejected { reason: format!("guardrail_scan_error: {e}"), manifest_id: Some(manifest_id_hex) },
-    };
-    if !violations.is_empty() {
-        let detail = violations
-            .iter()
-            .map(|v| format!("{}[{}]: {}", v.service, v.rule, v.detail))
-            .collect::<Vec<_>>()
-            .join("; ");
-        return InstallReport::Rejected { reason: format!("guardrail_violations: {detail}"), manifest_id: Some(manifest_id_hex) };
     }
 
     // 8. Template env: NAMES only in the manifest, VALUES only from local, out-of-band sources.
@@ -125,38 +135,93 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
 
     let publisher_hex = hex32(&manifest.publisher_pubkey);
 
-    // 9. `docker compose up -d --build`, bounded, whole-process-group-killed on timeout.
-    let compose_file_arg = manifest.bundle.compose_file.clone();
-    let up_args = vec![
-        "compose",
-        "-p",
-        opts.project_name.as_str(),
-        "-f",
-        compose_file_arg.as_str(),
-        "--env-file",
-        ".env",
-        "up",
-        "-d",
-        "--build",
-    ];
-    let up_outcome = match process::run_bounded("docker", &up_args, &opts.work_dir, &[], Duration::from_secs(300)) {
-        Ok(o) => o,
-        Err(e) => {
-            return InstallReport::Failed {
-                manifest_id: manifest_id_hex,
-                publisher_pubkey: publisher_hex,
-                project_name: opts.project_name,
-                step: "compose_up".into(),
-                detail: e,
-            }
+    // 9. Run the bundle's primary artifact, bounded, whole-process-group-killed on timeout.
+    //    Compose: `docker compose up -d --build`. Binary: the executable itself, made
+    //    executable first, env passed the SAME resolved values as Compose's `.env` (parsed back
+    //    out of the file just written in step 8 -- one source of truth, not a second env
+    //    resolution path).
+    let (up_outcome, captured_stdout) = match manifest.installer_kind {
+        InstallerKind::Compose => {
+            let compose_file_arg = manifest.bundle.compose_file.clone();
+            let up_args = vec![
+                "compose",
+                "-p",
+                opts.project_name.as_str(),
+                "-f",
+                compose_file_arg.as_str(),
+                "--env-file",
+                ".env",
+                "up",
+                "-d",
+                "--build",
+            ];
+            let outcome = match process::run_bounded("docker", &up_args, &opts.work_dir, &[], Duration::from_secs(300)) {
+                Ok(o) => o,
+                Err(e) => {
+                    return InstallReport::Failed {
+                        manifest_id: manifest_id_hex,
+                        publisher_pubkey: publisher_hex,
+                        project_name: opts.project_name,
+                        step: "compose_up".into(),
+                        detail: e,
+                    }
+                }
+            };
+            (outcome, None)
         }
+        InstallerKind::Binary => {
+            let binary_path = opts.work_dir.join(&manifest.bundle.compose_file);
+            if let Err(e) = mark_executable(&binary_path) {
+                return InstallReport::Failed {
+                    manifest_id: manifest_id_hex,
+                    publisher_pubkey: publisher_hex,
+                    project_name: opts.project_name,
+                    step: "binary_chmod".into(),
+                    detail: e,
+                };
+            }
+            let env_pairs = parse_dotenv_pairs(&dotenv);
+            let env_refs: Vec<(&str, &str)> = env_pairs.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+            let binary_str = match binary_path.to_str() {
+                Some(s) => s,
+                None => {
+                    return InstallReport::Failed {
+                        manifest_id: manifest_id_hex,
+                        publisher_pubkey: publisher_hex,
+                        project_name: opts.project_name,
+                        step: "binary_run".into(),
+                        detail: format!("{} is not valid UTF-8", binary_path.display()),
+                    }
+                }
+            };
+            let outcome = match process::run_bounded(binary_str, &[], &opts.work_dir, &env_refs, Duration::from_secs(300)) {
+                Ok(o) => o,
+                Err(e) => {
+                    return InstallReport::Failed {
+                        manifest_id: manifest_id_hex,
+                        publisher_pubkey: publisher_hex,
+                        project_name: opts.project_name,
+                        step: "binary_run".into(),
+                        detail: e,
+                    }
+                }
+            };
+            let stdout = outcome.stdout.clone();
+            (outcome, Some(stdout))
+        }
+        InstallerKind::K8s => unreachable!("step 4 already rejected K8s"),
     };
     if up_outcome.timed_out || up_outcome.exit_code != Some(0) {
+        let step = match manifest.installer_kind {
+            InstallerKind::Compose => "compose_up",
+            InstallerKind::Binary => "binary_run",
+            InstallerKind::K8s => unreachable!("step 4 already rejected K8s"),
+        };
         return InstallReport::Failed {
             manifest_id: manifest_id_hex,
             publisher_pubkey: publisher_hex,
             project_name: opts.project_name,
-            step: "compose_up".into(),
+            step: step.into(),
             detail: format!(
                 "exit={:?} timed_out={} stderr={}",
                 up_outcome.exit_code, up_outcome.timed_out, up_outcome.stderr
@@ -209,7 +274,36 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
         project_name: opts.project_name,
         compose_up: StepResult { exit_code: up_outcome.exit_code, duration_ms: up_outcome.duration_ms },
         verify: StepResult { exit_code: verify_outcome.exit_code, duration_ms: verify_outcome.duration_ms },
+        captured_stdout,
     }
+}
+
+/// Binary kind only: add the owner-execute bit without touching the rest of the file's mode
+/// (mirrors `write_env_file`'s narrow-not-clobber discipline just above).
+#[cfg(unix)]
+fn mark_executable(path: &Path) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+    let meta = std::fs::metadata(path).map_err(|e| format!("stat {}: {e}", path.display()))?;
+    let mut perms = meta.permissions();
+    perms.set_mode(perms.mode() | 0o100);
+    std::fs::set_permissions(path, perms).map_err(|e| format!("chmod +x {}: {e}", path.display()))
+}
+
+#[cfg(not(unix))]
+fn mark_executable(_path: &Path) -> Result<(), String> {
+    Ok(())
+}
+
+/// Parse step 8's already-resolved `KEY=value` dotenv text back into pairs for `run_bounded`'s
+/// `env` parameter -- ONE resolution (`resolve_env_template`) feeds both the `.env` file Compose
+/// reads via `--env-file` and the pairs Binary gets passed directly; never re-resolve secret
+/// values a second, divergent way.
+fn parse_dotenv_pairs(dotenv: &str) -> Vec<(String, String)> {
+    dotenv
+        .lines()
+        .filter_map(|line| line.split_once('='))
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect()
 }
 
 /// F.11: refuse to proceed if `project_name` itself resembles a protected real deployment, or if
@@ -400,5 +494,208 @@ mod tests {
         let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600, "a re-activated .env must be narrowed to owner-only, got {mode:o}");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn parse_dotenv_pairs_round_trips_resolve_env_templates_output() {
+        let template = vec![
+            EnvVarSpec { name: "A".into(), required: true, description: "d".into() },
+            EnvVarSpec { name: "B".into(), required: true, description: "d".into() },
+        ];
+        let mut values = std::collections::HashMap::new();
+        values.insert("A".to_string(), "1".to_string());
+        values.insert("B".to_string(), "two=equals=ok".to_string());
+        let dotenv = resolve_env_template(&template, &values).unwrap();
+        let pairs = parse_dotenv_pairs(&dotenv);
+        assert_eq!(pairs.len(), 2);
+        assert!(pairs.contains(&("A".to_string(), "1".to_string())));
+        assert!(pairs.contains(&("B".to_string(), "two=equals=ok".to_string())));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn mark_executable_adds_owner_execute_without_touching_the_rest_of_the_mode() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("script.sh");
+        std::fs::write(&path, "#!/bin/sh\necho hi\n").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o640)).unwrap();
+
+        mark_executable(&path).unwrap();
+
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o740, "owner-execute bit should be added, group/other bits left as they were, got {mode:o}");
+    }
+
+    // -- Binary installer_kind: real, full `activate()` runs (no docker container involved --
+    // this is exactly the proof this crate's docker-based Compose path can't cheaply give in a
+    // unit test) -------------------------------------------------------------------------------
+
+    fn make_tar_gz(entries: &[(&str, &[u8])]) -> Vec<u8> {
+        use std::io::Write;
+        let mut tar_bytes = Vec::new();
+        {
+            let mut builder = tar::Builder::new(&mut tar_bytes);
+            for (name, content) in entries {
+                let mut header = tar::Header::new_gnu();
+                header.set_size(content.len() as u64);
+                header.set_mode(0o755);
+                header.set_cksum();
+                builder.append_data(&mut header, name, *content).unwrap();
+            }
+            builder.finish().unwrap();
+        }
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        encoder.write_all(&tar_bytes).unwrap();
+        encoder.finish().unwrap()
+    }
+
+    /// Builds a real, signed `Binary`-kind manifest + tarball on disk (a "hello world" shell
+    /// script as the "binary" -- `run_bounded` just execs whatever `mark_executable` made
+    /// runnable, it does not care whether that's an ELF or a script with a shebang) and returns
+    /// `(manifest_path, signer_pubkey)`. `dir` is where both files + the work_dir live.
+    fn write_binary_fixture(dir: &Path, stdout_line: &str) -> (PathBuf, [u8; 32]) {
+        use ed25519_dalek::SigningKey;
+        use manifest_core::{BundleRef, ServiceManifest, VerifySpec};
+        use rand::RngCore;
+        use sha2::{Digest, Sha256};
+
+        // ed25519_dalek::SigningKey::generate needs the `rand_core` feature; this crate matches
+        // manifest-core's own test convention (see its `random_signing_key`) of using rand's own
+        // OsRng directly + `from_bytes`, which needs no feature flag.
+        let mut seed = [0u8; 32];
+        rand::rngs::OsRng.fill_bytes(&mut seed);
+        let signing_key = SigningKey::from_bytes(&seed);
+        let pubkey = signing_key.verifying_key().to_bytes();
+
+        let script = format!("#!/bin/sh\necho '{stdout_line}'\nexit 0\n");
+        let verify_script = "#!/bin/sh\nexit 0\n";
+        let tarball = make_tar_gz(&[("run.sh", script.as_bytes()), ("verify.sh", verify_script.as_bytes())]);
+        let bundle_path = dir.join("bundle.tar.gz");
+        std::fs::write(&bundle_path, &tarball).unwrap();
+
+        let mut hasher = Sha256::new();
+        hasher.update(&tarball);
+        let sha256: [u8; 32] = hasher.finalize().into();
+
+        let manifest = ServiceManifest::sign_new(
+            &signing_key,
+            [0x42; 32],
+            "phase5-hello".to_string(),
+            "0.1.0".to_string(),
+            InstallerKind::Binary,
+            BundleRef {
+                url: bundle_path.to_str().unwrap().to_string(),
+                sha256,
+                compose_file: "run.sh".to_string(),
+            },
+            vec![],
+            VerifySpec { script: "verify.sh".to_string(), timeout_secs: 30 },
+            0,
+            u64::MAX / 2,
+        );
+        let manifest_path = dir.join("manifest.json");
+        std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+        (manifest_path, pubkey)
+    }
+
+    #[test]
+    fn a_trusted_signed_binary_manifest_actually_runs_and_its_stdout_is_captured() {
+        let dir = tempfile::tempdir().unwrap();
+        let (manifest_path, pubkey) = write_binary_fixture(dir.path(), "hello-from-phase5");
+
+        let allowlist = TrustAllowlist::parse(&hex32(&pubkey)).unwrap();
+
+        let report = activate(ActivateOptions {
+            manifest_location: manifest_path.to_str().unwrap().to_string(),
+            allowlist,
+            env_file: None,
+            project_name: format!("phase5-binary-test-{}", std::process::id()),
+            protected_name_substrings: vec!["litellm-proxy".to_string(), "kali".to_string(), "sort-demo".to_string(), "game2048".to_string()],
+            work_dir: dir.path().join("work"),
+            now: 1,
+        });
+
+        match report {
+            InstallReport::Ok { compose_up, captured_stdout, .. } => {
+                assert_eq!(compose_up.exit_code, Some(0));
+                assert_eq!(captured_stdout.as_deref(), Some("hello-from-phase5\n"));
+            }
+            other => panic!("expected InstallReport::Ok, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn an_untrusted_publishers_binary_manifest_is_refused_before_it_ever_runs() {
+        let dir = tempfile::tempdir().unwrap();
+        // stdout_line is irrelevant here -- if this binary ever actually ran, that alone is the
+        // bug this test exists to catch, regardless of what it printed.
+        let (manifest_path, _untrusted_pubkey) = write_binary_fixture(dir.path(), "should-not-run");
+
+        // A real, well-formed, but EMPTY allowlist -- the signer above is a genuine, validly
+        // signing key, just not on it. Built from a different, unrelated pubkey so this is a
+        // realistic "allowlist configured for other publishers" state, not just "no allowlist".
+        let allowlist = TrustAllowlist::parse(&hex32(&[0x99; 32])).unwrap();
+
+        let report = activate(ActivateOptions {
+            manifest_location: manifest_path.to_str().unwrap().to_string(),
+            allowlist,
+            env_file: None,
+            project_name: format!("phase5-binary-untrusted-{}", std::process::id()),
+            protected_name_substrings: vec!["litellm-proxy".to_string(), "kali".to_string(), "sort-demo".to_string(), "game2048".to_string()],
+            work_dir: dir.path().join("work"),
+            now: 1,
+        });
+
+        match report {
+            InstallReport::Rejected { reason, .. } => {
+                assert!(reason.contains("publisher_not_on_trust_allowlist"), "{reason}");
+            }
+            other => panic!("expected InstallReport::Rejected (identically to how an untrusted Compose manifest is refused), got {other:?}"),
+        }
+        assert!(!dir.path().join("work").exists(), "nothing should have been fetched/unpacked before the allowlist check");
+    }
+
+    #[test]
+    fn an_unsigned_k8s_manifest_is_still_refused_with_the_schema_only_reason() {
+        use ed25519_dalek::SigningKey;
+        use manifest_core::{BundleRef, ServiceManifest, VerifySpec};
+        use rand::RngCore;
+
+        let dir = tempfile::tempdir().unwrap();
+        let mut seed = [0u8; 32];
+        rand::rngs::OsRng.fill_bytes(&mut seed);
+        let signing_key = SigningKey::from_bytes(&seed);
+        let manifest = ServiceManifest::sign_new(
+            &signing_key,
+            [0x43; 32],
+            "phase5-k8s-placeholder".to_string(),
+            "0.1.0".to_string(),
+            InstallerKind::K8s,
+            BundleRef { url: "unused://".to_string(), sha256: [0u8; 32], compose_file: "unused".to_string() },
+            vec![],
+            VerifySpec { script: "unused".to_string(), timeout_secs: 1 },
+            0,
+            u64::MAX / 2,
+        );
+        let manifest_path = dir.path().join("manifest.json");
+        std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+
+        let allowlist = TrustAllowlist::parse(&hex32(&manifest.publisher_pubkey)).unwrap();
+
+        let report = activate(ActivateOptions {
+            manifest_location: manifest_path.to_str().unwrap().to_string(),
+            allowlist,
+            env_file: None,
+            project_name: format!("phase5-k8s-test-{}", std::process::id()),
+            protected_name_substrings: vec![],
+            work_dir: dir.path().join("work"),
+            now: 1,
+        });
+
+        match report {
+            InstallReport::Rejected { reason, .. } => assert!(reason.contains("K8s is schema-only"), "{reason}"),
+            other => panic!("expected InstallReport::Rejected, got {other:?}"),
+        }
     }
 }
