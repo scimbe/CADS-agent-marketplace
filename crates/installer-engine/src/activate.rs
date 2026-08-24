@@ -90,12 +90,26 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
         return InstallReport::Rejected { reason: format!("unpack_bundle: {e}"), manifest_id: Some(manifest_id_hex) };
     }
 
+    // 6b. `bundle.compose_file` doubles as "path to the Compose file" (Compose kind) AND "path to
+    //    the executable" (Binary kind) -- see the field's doc comment in manifest-core. Either
+    //    way it is manifest-supplied, signed-but-attacker-authorable data, exactly like a tar
+    //    entry path, so it gets the SAME traversal/absolute-path check `unpack_tar_gz_safely`
+    //    already applies to entries inside the bundle (fetch.rs). Without this, `Path::join`
+    //    silently discards `work_dir` for an absolute component and a trusted-but-malicious
+    //    publisher's Binary manifest can point outside the sandboxed work_dir at a pre-existing
+    //    host file -- one whose content the bundle's sha256 never covered -- and have it chmod
+    //    +x'd and executed in step 9 below.
+    let bundle_path = match safe_join_within_work_dir(&opts.work_dir, &manifest.bundle.compose_file) {
+        Ok(p) => p,
+        Err(e) => return InstallReport::Rejected { reason: format!("bundle.compose_file: {e}"), manifest_id: Some(manifest_id_hex) },
+    };
+
     // 7. Static guardrail scan -- BEFORE any docker command runs. Compose only: there is no
     //    static-analysis equivalent for an arbitrary executable, which is exactly why Binary
     //    leans more heavily on the allowlist check in step 3 (see manifest-core::InstallerKind's
     //    doc comment for the acknowledged tradeoff).
     if manifest.installer_kind == InstallerKind::Compose {
-        let compose_path = opts.work_dir.join(&manifest.bundle.compose_file);
+        let compose_path = &bundle_path;
         let compose_yaml = match std::fs::read_to_string(&compose_path) {
             Ok(s) => s,
             Err(e) => {
@@ -170,7 +184,7 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
             (outcome, None)
         }
         InstallerKind::Binary => {
-            let binary_path = opts.work_dir.join(&manifest.bundle.compose_file);
+            let binary_path = bundle_path.clone();
             if let Err(e) = mark_executable(&binary_path) {
                 return InstallReport::Failed {
                     manifest_id: manifest_id_hex,
@@ -276,6 +290,28 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
         verify: StepResult { exit_code: verify_outcome.exit_code, duration_ms: verify_outcome.duration_ms },
         captured_stdout,
     }
+}
+
+/// Join a manifest-supplied relative path (`bundle.compose_file`) onto `work_dir`, refusing an
+/// absolute path or any `..` component first -- the SAME check `fetch::unpack_tar_gz_safely`
+/// applies to tar entry paths, applied here to the other manifest field that names a path inside
+/// the unpacked bundle. `Path::join` silently discards `work_dir` and returns an absolute `rel`
+/// verbatim, so without this check a signed-but-untrusted-content manifest field could point the
+/// Compose file read (step 7) or the Binary executable run (step 9) completely outside the
+/// sandboxed work_dir -- at a pre-existing host file the bundle's sha256 verification (step 6)
+/// never covered.
+fn safe_join_within_work_dir(work_dir: &Path, rel: &str) -> Result<PathBuf, String> {
+    let rel_path = Path::new(rel);
+    if rel_path.is_absolute() || rel_path.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+        return Err(format!(
+            "{rel} is an absolute path or contains '..' components, refusing to use it as a path inside the bundle"
+        ));
+    }
+    let target = work_dir.join(rel_path);
+    if !target.starts_with(work_dir) {
+        return Err(format!("{rel} resolves outside work_dir, refusing to use it as a path inside the bundle"));
+    }
+    Ok(target)
 }
 
 /// Binary kind only: add the owner-execute bit without touching the rest of the file's mode
@@ -654,6 +690,119 @@ mod tests {
             other => panic!("expected InstallReport::Rejected (identically to how an untrusted Compose manifest is refused), got {other:?}"),
         }
         assert!(!dir.path().join("work").exists(), "nothing should have been fetched/unpacked before the allowlist check");
+    }
+
+    /// Same as `write_binary_fixture` but lets the caller supply an arbitrary
+    /// `bundle.compose_file` value -- used below to prove a traversal/absolute value is refused
+    /// before anything is chmod+x'd or run, rather than trusting `write_binary_fixture`'s always
+    /// -safe `"run.sh"`.
+    fn write_binary_fixture_with_compose_file(dir: &Path, compose_file: &str) -> (PathBuf, [u8; 32]) {
+        use ed25519_dalek::SigningKey;
+        use manifest_core::{BundleRef, ServiceManifest, VerifySpec};
+        use rand::RngCore;
+        use sha2::{Digest, Sha256};
+
+        let mut seed = [0u8; 32];
+        rand::rngs::OsRng.fill_bytes(&mut seed);
+        let signing_key = SigningKey::from_bytes(&seed);
+        let pubkey = signing_key.verifying_key().to_bytes();
+
+        // The bundle itself is benign and unrelated to `compose_file` -- the attack this test
+        // guards against is `compose_file` pointing OUTSIDE the unpacked bundle entirely, at a
+        // pre-existing host path never covered by this sha256 at all.
+        let verify_script = "#!/bin/sh\nexit 0\n";
+        let tarball = make_tar_gz(&[("verify.sh", verify_script.as_bytes())]);
+        let bundle_path = dir.join("bundle.tar.gz");
+        std::fs::write(&bundle_path, &tarball).unwrap();
+
+        let mut hasher = Sha256::new();
+        hasher.update(&tarball);
+        let sha256: [u8; 32] = hasher.finalize().into();
+
+        let manifest = ServiceManifest::sign_new(
+            &signing_key,
+            [0x42; 32],
+            "phase5-traversal".to_string(),
+            "0.1.0".to_string(),
+            InstallerKind::Binary,
+            BundleRef { url: bundle_path.to_str().unwrap().to_string(), sha256, compose_file: compose_file.to_string() },
+            vec![],
+            VerifySpec { script: "verify.sh".to_string(), timeout_secs: 30 },
+            0,
+            u64::MAX / 2,
+        );
+        let manifest_path = dir.join("manifest.json");
+        std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+        (manifest_path, pubkey)
+    }
+
+    /// The security-relevant regression this module exists to cover: a manifest whose
+    /// `bundle.compose_file` is an ABSOLUTE path pointing at a pre-existing host file. Without
+    /// the `safe_join_within_work_dir` check, `work_dir.join(absolute)` silently discards
+    /// `work_dir` and returns the absolute path verbatim (`std::path::PathBuf::join`'s documented
+    /// behavior) -- so a trusted-but-malicious publisher's Binary manifest could chmod+x and run
+    /// that host file directly, completely bypassing the bundle's sha256 verification. This test
+    /// proves activation is REJECTED before the canary file is ever touched.
+    #[test]
+    #[cfg(unix)]
+    fn a_binary_manifests_absolute_compose_file_is_rejected_before_it_can_be_run() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        // A "pre-existing host file" outside anything activate() will ever unpack -- a stand-in
+        // for e.g. a real system binary. If this test ever regresses, the assertion on its
+        // permissions below (never touched) is what would catch it, not just the reject reason.
+        let canary = dir.path().join("host-canary.sh");
+        std::fs::write(&canary, "#!/bin/sh\ntouch /tmp/should-never-run-from-a-manifest\n").unwrap();
+        std::fs::set_permissions(&canary, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+        let (manifest_path, pubkey) = write_binary_fixture_with_compose_file(dir.path(), canary.to_str().unwrap());
+        let allowlist = TrustAllowlist::parse(&hex32(&pubkey)).unwrap();
+
+        let report = activate(ActivateOptions {
+            manifest_location: manifest_path.to_str().unwrap().to_string(),
+            allowlist,
+            env_file: None,
+            project_name: format!("phase5-traversal-abs-{}", std::process::id()),
+            protected_name_substrings: vec!["litellm-proxy".to_string(), "kali".to_string(), "sort-demo".to_string(), "game2048".to_string()],
+            work_dir: dir.path().join("work"),
+            now: 1,
+        });
+
+        match report {
+            InstallReport::Rejected { reason, .. } => {
+                assert!(reason.contains("bundle.compose_file"), "{reason}");
+            }
+            other => panic!("expected InstallReport::Rejected, got {other:?} -- an absolute compose_file must never reach binary_chmod/binary_run"),
+        }
+        let mode = std::fs::metadata(&canary).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o644, "the out-of-bundle canary file must never be chmod+x'd");
+    }
+
+    /// Same regression, `..`-traversal flavor rather than a bare absolute path -- both branches
+    /// of `safe_join_within_work_dir`'s check need coverage since they're independent guards.
+    #[test]
+    fn a_binary_manifests_dotdot_compose_file_is_rejected_before_it_can_be_run() {
+        let dir = tempfile::tempdir().unwrap();
+        let (manifest_path, pubkey) = write_binary_fixture_with_compose_file(dir.path(), "../escaped.sh");
+        let allowlist = TrustAllowlist::parse(&hex32(&pubkey)).unwrap();
+
+        let report = activate(ActivateOptions {
+            manifest_location: manifest_path.to_str().unwrap().to_string(),
+            allowlist,
+            env_file: None,
+            project_name: format!("phase5-traversal-dotdot-{}", std::process::id()),
+            protected_name_substrings: vec!["litellm-proxy".to_string(), "kali".to_string(), "sort-demo".to_string(), "game2048".to_string()],
+            work_dir: dir.path().join("work"),
+            now: 1,
+        });
+
+        match report {
+            InstallReport::Rejected { reason, .. } => {
+                assert!(reason.contains("bundle.compose_file"), "{reason}");
+            }
+            other => panic!("expected InstallReport::Rejected, got {other:?}"),
+        }
     }
 
     #[test]
