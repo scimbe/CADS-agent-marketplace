@@ -120,7 +120,7 @@ fn check_volumes(service: &str, svc: &Value, bundle_dir: &Path, out: &mut Vec<Vi
     for v in volumes {
         match v {
             Value::String(s) => {
-                let source = s.split(':').next().unwrap_or(s);
+                let source = volume_source_field(s);
                 check_one_source(service, source, bundle_dir, out);
             }
             Value::Mapping(m) => {
@@ -137,7 +137,71 @@ fn check_volumes(service: &str, svc: &Value, bundle_dir: &Path, out: &mut Vec<Vi
     }
 }
 
+/// Split docker-compose's volume short syntax (`source:target[:mode]`) into just its leading
+/// `source` field. Naively splitting on the first `:` (the old behavior) breaks the instant
+/// `source` itself is a `${VAR:-default}` interpolation (#14): the `:` inside `${...}` is not a
+/// field separator, so a naive split truncated `${EVIL_PATH:-/etc}:/host-etc:ro` down to just
+/// `${EVIL_PATH`, mangling it before `check_one_source` ever saw the full expression. Tracks
+/// `${`/`}` nesting depth so only a `:` outside any interpolation block ends the source field.
+fn volume_source_field(s: &str) -> &str {
+    let bytes = s.as_bytes();
+    let mut depth = 0usize;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if bytes[i] == b'$' && bytes.get(i + 1) == Some(&b'{') {
+            depth += 1;
+            i += 2;
+            continue;
+        }
+        if bytes[i] == b'}' && depth > 0 {
+            depth -= 1;
+            i += 1;
+            continue;
+        }
+        if bytes[i] == b':' && depth == 0 {
+            return &s[..i];
+        }
+        i += 1;
+    }
+    s
+}
+
 fn check_one_source(service: &str, source: &str, bundle_dir: &Path, out: &mut Vec<Violation>) {
+    // #14: `$`/`~` are neither a path prefix nor a plain named-volume identifier, so they used
+    // to fall straight into the "not looks_like_path -> named volume, always fine" branch below
+    // -- silently allowing a bind mount the scanner never actually looked at. Compose expands
+    // `${VAR}`/`${VAR:-default}`/`${VAR:?msg}` interpolation itself before anything reaches
+    // docker, and the real `CADS-webconference-demo` compose already ships
+    // `${WEBCONFERENCE_CERT_DIR:?...}:/certs:ro` with a clean verdict. When a default value is
+    // present (`${VAR:-default}`/`${VAR-default}`), Compose substitutes it verbatim whenever VAR
+    // is unset, so checking that default catches the concrete bypass exactly. Anything else --
+    // `$VAR`, `${VAR}`, `${VAR:?msg}` with no default -- genuinely cannot be resolved at scan
+    // time, so it fails closed instead of being waved through as a named volume.
+    if let Some(rest) = source.strip_prefix('$') {
+        let var_expr = rest.strip_prefix('{').and_then(|s| s.strip_suffix('}')).unwrap_or(rest);
+        match extract_compose_default(var_expr) {
+            Some(default) => return check_one_source(service, &default, bundle_dir, out),
+            None => {
+                out.push(violation(
+                    service,
+                    "F.3-volume-unresolvable-interpolation",
+                    format!("{source} -- ${{VAR}} without a resolvable default cannot be vetted at scan time"),
+                ));
+                return;
+            }
+        }
+    }
+    // `~` expands to $HOME in a shell, but whether/how Compose expands it in a volume source is
+    // version-dependent and unverified here (#14) -- treated the same as an unresolvable
+    // interpolation rather than silently allowed.
+    if source.starts_with('~') {
+        out.push(violation(
+            service,
+            "F.3-volume-unresolvable-tilde",
+            format!("{source} -- ~ expansion is not vetted at scan time"),
+        ));
+        return;
+    }
     // A named volume (no leading `/`, `./`, `../`) is never a host path -- always fine.
     let looks_like_path = source.starts_with('/') || source.starts_with('.');
     if !looks_like_path {
@@ -148,6 +212,25 @@ fn check_one_source(service: &str, source: &str, bundle_dir: &Path, out: &mut Ve
         return;
     }
     check_one_source_with_rule(service, source, bundle_dir, out, "F.3-host-path-escapes-bundle");
+}
+
+/// Extract the fallback value from Compose's `${VAR:-default}`/`${VAR-default}` interpolation
+/// syntax (`var_expr` is the interior of `${...}`, or the bare `$VAR` text, with `$`/`{`/`}`
+/// already stripped) -- the shape that made #14's bypass concrete. `${VAR:?msg}`/`${VAR?msg}`
+/// (required, errors out if unset) carries no usable default -- checked first and returns `None`
+/// unconditionally, since the message after `:?`/`?` is for a human, not a fallback path, and may
+/// itself contain a `-` that would otherwise be mistaken for one. A bare `VAR` (no operator at
+/// all) also returns `None`: nothing here is a resolvable path.
+fn extract_compose_default(var_expr: &str) -> Option<String> {
+    if var_expr.contains(":?") || var_expr.contains('?') {
+        return None;
+    }
+    for sep in [":-", "-"] {
+        if let Some(idx) = var_expr.find(sep) {
+            return Some(var_expr[idx + sep.len()..].to_string());
+        }
+    }
+    None
 }
 
 /// Shared escape check behind [`check_one_source`] (`volumes:`) and [`check_build`]
@@ -325,6 +408,41 @@ mod tests {
     fn named_volume_is_always_allowed() {
         let yaml = "services:\n  db:\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n";
         assert!(scan_compose(yaml, &bundle()).unwrap().is_empty());
+    }
+
+    // #14: the four-row bypass table from the report, reproduced as regression tests.
+
+    #[test]
+    fn env_var_volume_source_with_a_default_is_checked_against_that_default() {
+        // Compose expands `${VAR:-default}` to `default` whenever VAR is unset -- this is the
+        // concrete bypass the real webconference compose already hit, just with `/etc` standing
+        // in for a real cert dir default.
+        let yaml = "services:\n  web:\n    volumes:\n      - \"${EVIL_PATH:-/etc}:/host-etc:ro\"\n";
+        let v = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(v[0].rule, "F.3-host-path-escapes-bundle", "the resolved default must go through the normal escape check: {v:?}");
+    }
+
+    #[test]
+    fn env_var_volume_source_with_no_default_fails_closed_instead_of_passing_as_a_named_volume() {
+        let yaml = "services:\n  web:\n    volumes:\n      - \"${EVIL_PATH}:/host-etc:ro\"\n";
+        let v = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(v[0].rule, "F.3-volume-unresolvable-interpolation", "{v:?}");
+    }
+
+    #[test]
+    fn env_var_volume_source_with_a_required_message_fails_closed_not_treated_as_a_default() {
+        // The real bypass: `${WEBCONFERENCE_CERT_DIR:?...}` from CADS-webconference-demo's own
+        // compose file. `:?msg` is "required, error if unset" -- msg is not a fallback path.
+        let yaml = "services:\n  web:\n    volumes:\n      - \"${WEBCONFERENCE_CERT_DIR:?set WEBCONFERENCE_CERT_DIR}:/certs:ro\"\n";
+        let v = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(v[0].rule, "F.3-volume-unresolvable-interpolation", "{v:?}");
+    }
+
+    #[test]
+    fn tilde_volume_source_fails_closed_instead_of_passing_as_a_named_volume() {
+        let yaml = "services:\n  web:\n    volumes:\n      - \"~/.ssh:/host-ssh:ro\"\n";
+        let v = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(v[0].rule, "F.3-volume-unresolvable-tilde", "{v:?}");
     }
 
     #[test]
