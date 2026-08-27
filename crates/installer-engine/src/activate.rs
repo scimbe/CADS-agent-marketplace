@@ -70,8 +70,19 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
         }
     }
 
-    // 5. Pre-flight collision guard, BEFORE fetching/unpacking/running anything.
-    if let Err(e) = preflight_collision_check(&opts.project_name, &opts.protected_name_substrings) {
+    // 5. Pre-flight collision guard, BEFORE fetching/unpacking/running anything. The
+    //    docker-resource half of this check (existing containers/volumes/networks) is a Compose-
+    //    only concern -- Binary never creates any docker resource, so it has nothing to collide
+    //    with, and shelling out to `docker` unconditionally made a Binary manifest unusable on
+    //    exactly the host class it exists for: one with no Docker daemon running (tester-found,
+    //    CADS-agent-marketplace#11 -- CI's `ubuntu-latest` always has a live daemon, so this
+    //    never failed there). The protected-substring check on `project_name` itself has nothing
+    //    to do with Docker and stays unconditional for both kinds.
+    if let Err(e) = preflight_collision_check(
+        &opts.project_name,
+        &opts.protected_name_substrings,
+        manifest.installer_kind == InstallerKind::Compose,
+    ) {
         return InstallReport::Rejected { reason: format!("collision_guard: {e}"), manifest_id: Some(manifest_id_hex) };
     }
 
@@ -346,7 +357,11 @@ fn parse_dotenv_pairs(dotenv: &str) -> Vec<(String, String)> {
 /// any container/volume/network this run would create already exists (a stale collision from a
 /// previous run left running, or a genuine name clash with real infra). Checked BEFORE any
 /// fetch/unpack, so a colliding activation attempt never even reaches network I/O.
-fn preflight_collision_check(project_name: &str, protected_name_substrings: &[String]) -> Result<(), String> {
+fn preflight_collision_check(
+    project_name: &str,
+    protected_name_substrings: &[String],
+    check_docker_resources: bool,
+) -> Result<(), String> {
     let lower = project_name.to_lowercase();
     for protected in protected_name_substrings {
         if lower.contains(&protected.to_lowercase()) {
@@ -354,6 +369,9 @@ fn preflight_collision_check(project_name: &str, protected_name_substrings: &[St
                 "project_name '{project_name}' contains protected substring '{protected}' -- refusing to risk colliding with real infra"
             ));
         }
+    }
+    if !check_docker_resources {
+        return Ok(());
     }
     let existing_names = docker_names("docker", &["ps", "-a", "--format", "{{.Names}}"])?;
     let existing_volumes = docker_names("docker", &["volume", "ls", "--format", "{{.Name}}"])?;
@@ -469,8 +487,46 @@ mod tests {
 
     #[test]
     fn collision_guard_rejects_a_protected_name() {
-        let err = preflight_collision_check("litellm-proxy", &["litellm-proxy".to_string()]).unwrap_err();
+        let err = preflight_collision_check("litellm-proxy", &["litellm-proxy".to_string()], true).unwrap_err();
         assert!(err.contains("protected substring"));
+    }
+
+    /// CADS-agent-marketplace#11: `check_docker_resources: false` (Binary's path) must genuinely
+    /// never shell out to `docker` -- not just skip its own error handling around it. Proven
+    /// hermetically by pointing `PATH` at an empty directory (no `docker` resolvable at all,
+    /// standing in for a host with no Docker daemon/CLI, without touching this host's real one)
+    /// and confirming `true` still fails exactly the way the bug reproduced (shelling out and
+    /// failing to find/run `docker`), while `false` succeeds -- the same project_name, same
+    /// process, only the flag differs. A `struct` guard restores `PATH` even if an assertion
+    /// panics, so a failure here can't leak a broken `PATH` into later tests.
+    #[test]
+    fn collision_guard_skips_docker_entirely_when_told_to() {
+        struct PathGuard(Option<String>);
+        impl Drop for PathGuard {
+            fn drop(&mut self) {
+                match &self.0 {
+                    Some(p) => std::env::set_var("PATH", p),
+                    None => std::env::remove_var("PATH"),
+                }
+            }
+        }
+        let empty_dir = tempfile::tempdir().unwrap();
+        let _guard = PathGuard(std::env::var("PATH").ok());
+        std::env::set_var("PATH", empty_dir.path());
+
+        let project = format!("phase5-no-docker-{}", std::process::id());
+
+        let with_docker_check = preflight_collision_check(&project, &[], true);
+        assert!(
+            with_docker_check.is_err(),
+            "with no docker on PATH, the docker-resource check must still fail closed, not silently pass"
+        );
+
+        let without_docker_check = preflight_collision_check(&project, &[], false);
+        assert!(
+            without_docker_check.is_ok(),
+            "Binary's path (check_docker_resources=false) must succeed even with zero docker on PATH: {without_docker_check:?}"
+        );
     }
 
     #[test]
