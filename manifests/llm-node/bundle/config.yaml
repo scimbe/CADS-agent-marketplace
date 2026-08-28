@@ -1,0 +1,25 @@
+# LiteLLM config for a real, single-node LLM relay: fronts ONE locally-served Ollama model on
+# the installing host, with virtual-key auth so it isn't bare-open the moment it's reachable
+# over a channel. Unlike ../litellm-proof/config.yaml (a deliberate discard-port stub proving
+# only installer mechanics), this config is meant to actually route real calls.
+#
+# `os.environ/...` is litellm-proxy's own env-var resolution (used here for every dynamic
+# field, not just secrets) -- NOT docker-compose's `${VAR}` substitution, which only applies
+# inside compose.yml itself and never reaches a file it mounts. The three env vars below come
+# from installer-engine's resolved .env (see manifest.json's env_template / README.md).
+
+general_settings:
+  master_key: "os.environ/LITELLM_MASTER_KEY"
+  allow_user_auth: false
+  disable_admin_ui: true
+
+litellm_settings:
+  drop_params: true
+  request_timeout: 60
+  num_retries: 0
+
+model_list:
+  - model_name: os.environ/LLM_NODE_MODEL_NAME
+    litellm_params:
+      model: os.environ/LLM_NODE_OLLAMA_MODEL_SPEC
+      api_base: os.environ/LLM_NODE_OLLAMA_BASE_URL

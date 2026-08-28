@@ -1,0 +1,36 @@
+# A real, single-node LLM relay: fronts one Ollama model already running on the installing
+# host, through litellm-proxy's virtual-key auth, so it can be safely made reachable to other
+# agents over a real Agent-Fabric channel (wiring the channel itself is a separate step after
+# this manifest activates -- see README.md). No Postgres/Redis: this node issues no persistent
+# virtual keys of its own, it only enforces the one operator-set master key, so the heavier
+# DB-backed stack ../litellm-proof/ uses (there, specifically to prove THAT installer path)
+# isn't needed here.
+#
+# No `name:`/`container_name:` -- same reasoning as every other manifest bundle in this repo:
+# the installer supplies the compose project name at runtime, a pinned name would collide
+# across repeated installs.
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    restart: unless-stopped
+    # Fixed port, not env-configurable: the installer's guardrail scan checks this string
+    # statically (a plain "host_ip:host_port:container_port" split) and can't evaluate compose's
+    # own "${VAR:-default}" substitution syntax -- an env-driven port here reads as unparseable,
+    # not-provably-loopback, and gets rejected before anything runs (found the hard way while
+    # verifying this manifest against the real installer-engine, not guessed). One instance per
+    # host is the expected deployment shape anyway, so a fixed port costs nothing real.
+    ports:
+      - "127.0.0.1:4110:4000"
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      - LLM_NODE_MODEL_NAME=${LLM_NODE_MODEL_NAME}
+      - LLM_NODE_OLLAMA_MODEL_SPEC=${LLM_NODE_OLLAMA_MODEL_SPEC}
+      - LLM_NODE_OLLAMA_BASE_URL=${LLM_NODE_OLLAMA_BASE_URL}
+    command: ["--port", "4000", "--config", "/app/config.yaml"]
+    # `host.docker.internal` resolves out of the box on Docker Desktop (macOS/Windows) but needs
+    # this explicit mapping on Linux -- included so the same compose file/default works
+    # identically on both without a host-specific override.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

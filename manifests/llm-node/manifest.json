@@ -1,0 +1,41 @@
+{
+  "publisher_pubkey": "d65242b5079c61a3a57edfd9574b3301eac620f284a72e6f52254559ceb8b7a3",
+  "manifest_id": "2d5d6d59bf86d953d4a85c2fc121eea4627722436dcf50ccc273b5ef1fc93d7d",
+  "name": "llm-node",
+  "version": "0.1.0",
+  "installer_kind": "compose",
+  "bundle": {
+    "url": "bundle.tar.gz",
+    "sha256": "ff486a0aa9e9a6943f713662b15290be56899148c55a7d7f98bd59be13336d85",
+    "compose_file": "compose.yml"
+  },
+  "env_template": [
+    {
+      "name": "LITELLM_MASTER_KEY",
+      "required": true,
+      "description": "Auth key this relay will require from callers - pick your own random string, never share it in plaintext outside your own config"
+    },
+    {
+      "name": "LLM_NODE_MODEL_NAME",
+      "required": true,
+      "description": "The public model name other agents will call e.g. llm2-devstral - your choice, just needs to be unique on your node"
+    },
+    {
+      "name": "LLM_NODE_OLLAMA_MODEL_SPEC",
+      "required": true,
+      "description": "The full litellm provider+tag string for your local Ollama model e.g. ollama_chat/llama3.1:latest - see https://docs.litellm.ai/docs/providers/ollama"
+    },
+    {
+      "name": "LLM_NODE_OLLAMA_BASE_URL",
+      "required": false,
+      "description": "Where your Ollama listens - default http://host.docker.internal:11434 works on Docker Desktop for Mac out of the box, only override if your Ollama binds somewhere else"
+    }
+  ],
+  "verify": {
+    "script": "verify.sh",
+    "timeout_secs": 120
+  },
+  "issued_at": 1787950670,
+  "expires_at": 1819486670,
+  "signature": "3186b8b14bd3f071b06fd92b6ea1eada12fd5f0aca56c8c3bec6eb0d24afad1b65485c01dfe9526d09c7e7fd503869f9ded5ddf5bb45efdd433d3f19e3bcc500"
+}
