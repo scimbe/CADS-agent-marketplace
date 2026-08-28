@@ -1,0 +1,18 @@
+{
+  "name": "diagram-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Diagram-from-description CLI — LLM writes Mermaid/Graphviz DSL, a real renderer validates it, and a genuine render-validate-retry loop feeds syntax errors back to the LLM until it self-corrects (or the attempt cap is hit).",
+  "bin": { "diagram-cli": "bin/diagram.js" },
+  "main": "src/cli/index.js",
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.js\"",
+    "generate": "node bin/diagram.js generate",
+    "fixture:broken-flow": "node fixtures/runBrokenFlow.js"
+  },
+  "dependencies": {
+    "@mermaid-js/mermaid-cli": "^11.16.0",
+    "dotenv": "^16.4.5"
+  },
+  "engines": { "node": ">=18" }
+}
