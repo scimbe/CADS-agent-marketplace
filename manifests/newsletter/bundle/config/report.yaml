@@ -1,0 +1,31 @@
+# Configuration for the Hamburg Weekly Weather Briefing demo report.
+# All values here are non-secret. Secrets (litellm key) live in .env (gitignored).
+
+location:
+  name: "Hamburg, DE"
+  latitude: 53.5511
+  longitude: 9.9937
+  timezone: "Europe/Berlin"
+
+forecast:
+  days: 7
+  # Open-Meteo daily variables requested. Order matters for facts.py parsing.
+  daily_vars:
+    - temperature_2m_max
+    - temperature_2m_min
+    - precipitation_sum
+    - wind_speed_10m_max
+
+api:
+  base_url: "https://api.open-meteo.com/v1/forecast"
+
+llm:
+  # LITELLM_API_BASE / LITELLM_API_KEY come from .env (gitignored). This is just
+  # the default model name; can be overridden via LITELLM_MODEL env var.
+  model: "local-devstral-small2"
+  temperature: 0.2
+  max_tokens: 400
+
+output:
+  dir: "docs/sample-report"
+  report_title: "Hamburg Weekly Weather Briefing"
