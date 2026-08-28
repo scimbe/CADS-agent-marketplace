@@ -28,16 +28,22 @@ interface**, including your physical LAN — on a laptop that roams networks (ca
 shared office wifi), that's a real, unauthenticated door into your models for anyone on the same
 network, completely bypassing this manifest's own virtual-key layer.
 
-What to do instead, by platform:
-- **Docker Desktop for macOS**: try the Ollama default (`127.0.0.1`, no `OLLAMA_HOST` change) as
-  a first step — Docker Desktop's `host.docker.internal` networking path may already reach a
-  loopback-bound host service without widening the bind at all, unlike native Linux Docker. Only
-  consider changing anything if `verify.sh` genuinely fails against the unmodified default.
+What to do instead, by platform — refined after review from both a Mac-side tester and the
+platform operator:
+- **Docker Desktop for macOS**: containerizing Ollama itself isn't the fix here — it would lose
+  Metal GPU access, so fronting the host's own Ollama is the right shape. But on Docker Desktop
+  for Mac there is genuinely no way to bind Ollama to only the VM's internal gateway interface
+  from the macOS side (confirmed, not assumed) — so `OLLAMA_HOST=0.0.0.0` is the real
+  requirement here, **and it MUST be paired with a host firewall rule**, not left bare: block
+  inbound `:11434` on your physical interfaces (`en0` etc. — a `pf` rule, or at minimum the
+  macOS Application Firewall set to block incoming for the `ollama` binary) while still allowing
+  the Docker Desktop VM gateway through. Reachable to the container, closed to the LAN. Verify
+  the rule actually blocks — `curl http://<your-lan-ip>:11434/api/tags` from a second device on
+  the same network should fail — don't assume the rule is correct just because you wrote it.
 - **Native Linux Docker**: bind Ollama specifically to the Docker bridge/host-gateway address
   (`docker network inspect bridge` to find it — typically `172.17.0.1`), not `0.0.0.0` — reachable
-  from containers, not from your LAN. If your setup can't isolate the bind that precisely, add a
-  host firewall rule dropping inbound `:11434` on your physical interface(s) as a second layer,
-  and treat a blanket `0.0.0.0` bind as a last resort, not the default instruction.
+  from containers, not from your LAN; this platform doesn't share Mac's GPU-passthrough
+  constraint, so the tighter bind is straightforwardly available.
 
 ## Required env vars (values go in your own local `.env`, never in the manifest — see
 `manifest.json`'s `env_template` for the authoritative list/descriptions)
