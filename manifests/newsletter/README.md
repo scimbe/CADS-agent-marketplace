@@ -71,11 +71,20 @@ model reply, not a way to run this manifest without credentials. A working, budg
 
 ## Verified for real before commit
 
-`cargo run --example dev_activate -p installer-engine`, the exact code path a real
-`ct-agent manifest activate` runs, against this exact `manifest.json`/`bundle.tar.gz` pair, with a
-real litellm-proxy key exported as `LITELLM_BASE_URL`/`LITELLM_API_KEY` in the shell (picked up via
-`resolve_env_template`'s process-env fallback — no `CT_MANIFEST_ENV_FILE` needed for this run). Real
-output:
+**v0.1.1 (current, post-fix)**: after the two bugs described below were fixed, `dev_activate` was
+run 3 times fresh against the updated `manifest.json`/`bundle.tar.gz` (new `manifest_id`,
+`publisher_pubkey`, and `bundle.sha256` — the fix changed the bundle contents, so it's a new
+signature, not an edit to the old one). All 3 real, independent runs: `"status": "ok"`,
+`compose_up.exit_code: 0`, `verify.exit_code: 0` — the identical invocation that produced 0/3
+passes before the fix (see "Known limitations" below for the full story).
+
+**v0.1.0 (original, superseded)**: `cargo run --example dev_activate -p installer-engine`, the
+exact code path a real `ct-agent manifest activate` runs, against the original `manifest.json`/
+`bundle.tar.gz` pair, with a real litellm-proxy key exported as `LITELLM_BASE_URL`/`LITELLM_API_KEY`
+in the shell (picked up via `resolve_env_template`'s process-env fallback — no
+`CT_MANIFEST_ENV_FILE` needed for this run). Real output (note: `manifest_id`/`publisher_pubkey`
+below are the *old*, no-longer-current values — kept verbatim as a historical record, don't use
+them to look up the current manifest):
 
 ```json
 {
@@ -161,25 +170,21 @@ file's claims:
   hard timeout based on the package list's size (no CI or clean-machine measurement was taken for
   this specific point, so treat "well inside" as an informed estimate, not a measured guarantee on
   an arbitrary host).
-- **A real, reproduced gap in the upstream demo's own `verify_sample.py`, found while testing this
-  manifest, not fixed here** (out of scope — this task packages the demo as-is): when the LLM's
-  narrative fails `narrative_guard`'s check twice, `generate_report.py` falls back to a
-  deterministic template (`"This week's briefing highlights..."`) that contains a literal apostrophe.
-  `render_report.py` renders `report.html` through Jinja2 with autoescaping on, which HTML-entity-
-  encodes that apostrophe (`'` → `&#39;`) — but `verify_sample.py::check_html_contains_narrative`
-  does a plain, un-decoded substring match, so it fails with `"report.html does not contain the
-  manifest's narrative verbatim"` on that (uncommon) path, even though the report itself is entirely
-  correct. Reproduced directly during this manifest's own testing (one fallback run out of several,
-  triggered by the model occasionally writing a full ISO date like `2026-08-28` inside its narrative,
-  which `narrative_guard`'s regex parses as several spurious negative numbers via the embedded
-  hyphens — also not fixed here). Practical effect for this manifest: **on an unlucky activation, a
-  correct `run.sh` output can make `verify.sh` fail.** Every real `dev_activate` run performed for
-  this manifest (the one pasted above, plus several earlier standalone `generate_report.py` runs
-  during development) landed on `llm_used: true` and a clean `verify.sh` pass; the fallback+escaping
-  interaction was observed on one standalone dry run during development, not on the committed proof
-  run. Worth a fix upstream in `CADS-DEMO-newsletter` (either decode-then-compare in
-  `verify_sample.py`, or drop the apostrophe from the fallback template) — filed as a note here, not
-  as a GitHub issue, since this session's scope was packaging, not maintaining that repo.
+- **FIXED (v0.1.1), was a real, blocking, reproduced bug**: an independent verifier ran the full
+  `dev_activate` install→verify loop 3 times against v0.1.0 and got **0/3 passes** — this was not
+  the "uncommon path" the original v0.1.0 note here claimed, it was the dominant outcome against
+  `local-devstral-small2` at this demo's configured temperature. Root cause, fixed upstream in
+  `CADS-DEMO-newsletter` (commit `b1959e0`) and re-vendored into this bundle: (1)
+  `narrative_guard`'s number regex read the hyphens in an LLM-written ISO date (e.g. `2026-08-28`)
+  as minus signs, producing spurious negative tokens that are essentially never in `facts` —
+  fixed with a negative lookbehind so a hyphen preceded by another digit is never read as a sign,
+  plus the year added to the structural allowlist. (2) `verify_sample.py`'s HTML check was a plain
+  substring match against the raw narrative, but Jinja2 autoescapes the rendered HTML — fixed by
+  unescaping the HTML before comparing. Re-verified for real: 3/3 fresh `dev_activate` runs pass
+  cleanly (`status: ok`, both steps exit 0) after the fix, using the identical invocation that
+  produced 0/3 before it. `bundle.tar.gz`/`manifest.json` in this directory already reflect the fix
+  (new sha256, new signature, `version: 0.1.1`) — this note is kept as a record of what was found
+  and fixed, not a currently-open gap.
 - **`K8s` is out of scope** — schema-only in `manifest-core`, `installer-engine::activate` refuses it
   before any executor code path; irrelevant to this manifest (`installer_kind: binary`) but noted for
   completeness since the schema allows it.

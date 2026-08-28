@@ -22,7 +22,13 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-_NUMBER_RE = re.compile(r"-?\d+(?:\.\d+)?")
+# (?<!\d) before the optional "-" stops a hyphen inside a larger digit run (e.g. the "-08-28" in
+# an ISO date "2026-08-28") from being read as a minus sign -- without it, that one date fragment
+# parses as three tokens (2026, -8, -28), with the negative pair almost never in `facts` and
+# therefore an almost-guaranteed guard failure any time the narrative embeds a raw ISO date.
+# A genuine negative number (e.g. a below-freezing "-3" degrees) still matches correctly, since it
+# is preceded by whitespace/punctuation, never another digit.
+_NUMBER_RE = re.compile(r"(?<!\d)-?\d+(?:\.\d+)?")
 
 ABS_TOL = 0.05
 
@@ -58,12 +64,15 @@ def _structural_allowed(facts: dict[str, Any]) -> set[float]:
     structural.add(float(len(days)))
     for day in days:
         date = day.get("date", "")
-        # "2026-08-28" -> day-of-month 28, month 8
+        # "2026-08-28" -> day-of-month 28, month 8, year 2026 -- all three are structural facts a
+        # narrative may legitimately restate verbatim (e.g. if it embeds the raw ISO date instead
+        # of natural-language phrasing), not fabricated numbers.
         parts = date.split("-")
         if len(parts) == 3:
             try:
                 structural.add(float(int(parts[2])))  # day of month, e.g. 28
                 structural.add(float(int(parts[1])))  # month number, e.g. 8
+                structural.add(float(int(parts[0])))  # year, e.g. 2026
             except ValueError:
                 pass
     return structural

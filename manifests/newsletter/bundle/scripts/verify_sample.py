@@ -12,6 +12,7 @@ Usage:
 """
 from __future__ import annotations
 
+import html as html_module
 import json
 import subprocess
 import sys
@@ -71,7 +72,12 @@ def check_html_contains_narrative(sample_dir: Path, manifest: dict) -> None:
     html = html_path.read_text()
 
     narrative = manifest["narrative"]
-    if narrative not in html:
+    # Jinja2 autoescapes the rendered HTML (apostrophes -> &#39;, etc.), but `manifest["narrative"]`
+    # is the raw, unescaped text -- a plain substring check false-fails on any narrative containing
+    # an HTML-special character, independent of whether the narrative content itself is correct.
+    # Unescape the rendered HTML once before comparing so this checks the same text was embedded,
+    # not that it survived Jinja2's escaping byte-for-byte.
+    if narrative not in html_module.unescape(html):
         raise VerifyError("report.html does not contain the manifest's narrative verbatim -- possible drift/edit")
 
     # re-run the guard against whatever narrative text is actually embedded
