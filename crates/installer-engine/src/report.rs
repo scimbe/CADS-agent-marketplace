@@ -18,6 +18,12 @@ pub enum InstallReport {
         project_name: String,
         step: String,
         detail: String,
+        /// Which [`crate::sandbox::SandboxBackend`] confined the Binary run this step belongs to
+        /// (backend name, e.g. `"bwrap"`), or `None` for Compose and for a Binary run that
+        /// proceeded unsandboxed, or for a failure at a step before sandbox selection happened
+        /// (`binary_chmod`, or a non-UTF-8 binary path). See `docs/security-model.md`'s threat
+        /// table (cross-linked to #12) for what each tier does and does not guarantee.
+        sandbox: Option<String>,
     },
     Ok {
         manifest_id: String,
@@ -32,6 +38,12 @@ pub enum InstallReport {
         /// actually did what the manifest claims rather than trusting an exit code alone.
         /// Always `None` for Compose (its stdout is `docker compose`'s own, not the service's).
         captured_stdout: Option<String>,
+        /// Which [`crate::sandbox::SandboxBackend`] confined the Binary run (backend name, e.g.
+        /// `"bwrap"`), or `None` for Compose and for a Binary run that proceeded unsandboxed
+        /// (no candidate usable on this host -- see the pre-execution warning `activate::activate`
+        /// step 9 emits in that case). Lets a caller tell a bwrap-confined run from an unsandboxed
+        /// one from the report alone, not just from a log line that might have scrolled away.
+        sandbox: Option<String>,
     },
 }
 

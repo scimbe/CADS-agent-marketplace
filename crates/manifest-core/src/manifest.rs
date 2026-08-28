@@ -38,6 +38,18 @@ const SERVICE_MANIFEST_DOMAIN: &[u8] = b"cads-service-manifest-v1";
 /// (F.5) holding. This is a real, acknowledged reduction in defense-in-depth, not a silently
 /// dropped check: never add `Binary` to a trust allowlist for a publisher whose Compose bundles
 /// you wouldn't also blindly trust.
+///
+/// **Runtime sandbox fallback (CADS-agent-marketplace#12,
+/// `docs/design/sandbox-fallback.md`).** Since the allowlist above is Binary's ONLY defense
+/// (there is no `guardrails::scan_compose` equivalent), `installer_engine::activate` step 9's
+/// Binary arm additionally wraps the executable in a per-OS lightweight sandbox
+/// (`installer_engine::sandbox`) when one is available on the host -- `bubblewrap` on Linux,
+/// confining network (no namespace at all), PID/UTS/IPC namespace sharing, and filesystem writes
+/// outside `work_dir`, roughly matching Compose's F.1-F.3 bar without a container runtime. When no
+/// backend is usable on a given host, activation proceeds unsandboxed by default (a loud
+/// pre-execution warning fires either way), unless the operator has set
+/// `CT_REQUIRE_BINARY_SANDBOX=1` to fail closed instead. See `docs/security-model.md`'s threat
+/// table for the exact row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum InstallerKind {

@@ -21,6 +21,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # bwrap itself for installer-engine's sandbox::bwrap tests/probe. `kernel.apparmor_restrict_
+      # unprivileged_userns` (Ubuntu 24.04's default LSM restriction on unprivileged user-namespace
+      # creation, which `ubuntu-latest` runner images carry) makes bwrap's real sandboxed-exec probe
+      # fail even with bwrap installed and on PATH -- confirmed empirically against this exact
+      # symptom during CADS-agent-marketplace#12's implementation (both `bwrap --unshare-user
+      # --unshare-pid ...` and plain `unshare --user` failed with "Permission denied" on a dev host
+      # carrying this same restriction, with no way to lift it short of root). Relaxing it here is
+      # scoped to this ephemeral CI VM only, via passwordless sudo GitHub-hosted runners provide --
+      # never do this on a shared, persistent host. Without this step, the real
+      # sandboxed-activation integration test in activate.rs would (correctly) skip rather than
+      # false-fail, but M1's actual isolation claim would then never be CI-verified for real.
+      - name: Install bwrap and allow unprivileged user namespaces
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      - name: Build (-D warnings)
+        run: cargo build --locked --all-targets
+
+      - name: Test (-D warnings)
+        run: cargo test --locked
+
+  # M2 (macOS sandbox_exec backend) is not implemented yet -- see
+  # docs/design/sandbox-fallback.md's milestones -- so this job only proves the crate still
+  # builds/tests clean on macOS (where Binary activation today proceeds unsandboxed, with the
+  # pre-execution warning). Added now per M1's own testing plan ("no such runner exists ... needs
+  # adding as part of M2, not left as documented-but-unverified") so the skeleton is ready before
+  # M2 lands a real backend on top of it; live sandbox_exec runtime behavior on macOS still needs
+  # verification by someone with an actual Mac, or by this job itself once M2 exists.
+  gate-macos:
+    runs-on: macos-latest
+    env:
+      RUSTFLAGS: "-D warnings"
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Build (-D warnings)
         run: cargo build --locked --all-targets
 
