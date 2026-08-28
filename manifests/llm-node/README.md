@@ -24,26 +24,35 @@ Docker host, a container genuinely cannot reach a host service bound to `127.0.0
 nitpick** (caught in independent review before this ever shipped): Ollama's native API on
 `:11434` has **no auth of its own**. litellm's master-key check only guards this manifest's own
 `:4110`. Binding Ollama to `0.0.0.0` exposes the unauthenticated `:11434` API on **every
-interface**, including your physical LAN — on a laptop that roams networks (café, conference,
-shared office wifi), that's a real, unauthenticated door into your models for anyone on the same
-network, completely bypassing this manifest's own virtual-key layer.
+interface** — and on a host whose network interface has a **publicly-routable address** (not
+RFC1918 private space — confirmed on real hardware during this manifest's own review: a
+university network assigning public IPs directly to a laptop, no NAT in between), that is not a
+"same-LAN" risk, it is **the entire public internet reaching an unauthenticated model API**,
+completely bypassing this manifest's own virtual-key layer. Do not read the firewall step below
+as optional hardening — on a publicly-routable interface it is a hard requirement, not a nice-to-have.
 
-What to do instead, by platform — refined after review from both a Mac-side tester and the
-platform operator:
+What to do instead, by platform — refined after review from a Mac-side tester (on real,
+publicly-routable-network hardware) and the platform operator:
 - **Docker Desktop for macOS**: containerizing Ollama itself isn't the fix here — it would lose
   Metal GPU access, so fronting the host's own Ollama is the right shape. But on Docker Desktop
   for Mac there is genuinely no way to bind Ollama to only the VM's internal gateway interface
   from the macOS side (confirmed, not assumed) — so `OLLAMA_HOST=0.0.0.0` is the real
-  requirement here, **and it MUST be paired with a host firewall rule**, not left bare: block
-  inbound `:11434` on your physical interfaces (`en0` etc. — a `pf` rule, or at minimum the
-  macOS Application Firewall set to block incoming for the `ollama` binary) while still allowing
-  the Docker Desktop VM gateway through. Reachable to the container, closed to the LAN. Verify
-  the rule actually blocks — `curl http://<your-lan-ip>:11434/api/tags` from a second device on
-  the same network should fail — don't assume the rule is correct just because you wrote it.
+  requirement here, **and a host firewall rule is mandatory before you ever set it, not an
+  optional follow-up**: block inbound `:11434` on your physical interfaces (`en0` etc. — a `pf`
+  rule, or at minimum the macOS Application Firewall set to block incoming for the `ollama`
+  binary) while still allowing the Docker Desktop VM gateway through. Reachable to the container,
+  closed to everything else. **Verify the rule actually blocks from OUTSIDE your own machine**
+  before trusting it — `curl http://<your-public-or-lan-ip>:11434/api/tags` from a genuinely
+  separate device/network should fail; testing only from localhost or the same machine proves
+  nothing about what a stranger on the internet would see.
+  - **Colima** (an alternative to Docker Desktop on macOS): the `host.docker.internal` /
+    container-reaches-host-Ollama hop has NOT been verified to behave the same way as Docker
+    Desktop's — check this empirically on your own setup before assuming any bind decision
+    carries over. Don't copy the Docker-Desktop-specific guidance above blind under colima.
 - **Native Linux Docker**: bind Ollama specifically to the Docker bridge/host-gateway address
   (`docker network inspect bridge` to find it — typically `172.17.0.1`), not `0.0.0.0` — reachable
-  from containers, not from your LAN; this platform doesn't share Mac's GPU-passthrough
-  constraint, so the tighter bind is straightforwardly available.
+  from containers, not from your LAN or the internet; this platform doesn't share Mac's
+  GPU-passthrough constraint, so the tighter bind is straightforwardly available and preferred.
 
 ## Required env vars (values go in your own local `.env`, never in the manifest — see
 `manifest.json`'s `env_template` for the authoritative list/descriptions)
