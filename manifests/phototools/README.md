@@ -132,3 +132,17 @@ repo's own README documents as its tested environment.
    Docker needed at all for this one), `cd` into this directory and run the real
    `cargo run --example dev_activate -p installer-engine` with `CT_MANIFEST_URL` pointed at this
    `manifest.json` and `CT_MANIFEST_TRUST_ALLOWLIST` set to the `publisher_pubkey` above.
+
+## Static-scan gap (Binary kind) — disclosed, not this manifest's defect
+
+`installer-engine`'s static guardrail scan (`guardrails.rs`, F.1/F.2/F.3 — loopback-only ports, no
+privileged/host-namespace flags, no docker-socket mounts) runs **only for `InstallerKind::Compose`**
+today. `InstallerKind::Binary` (what this manifest uses) gets none of that — `activate.rs`'s Binary
+arm runs the bundle's executable directly, with no static check and (as of this writing, on `main`)
+no sandbox either. This is a known, already-designed-for gap (`docs/design/sandbox-fallback.md`,
+marketplace PR#20 — bwrap-based runtime sandboxing, currently unmerged) — not something specific to
+this manifest, but worth disclosing here rather than only in that PR: **trust for a Binary manifest
+rests entirely on the publisher allowlist, not on any static or runtime containment, until PR#20
+lands.** This specific manifest's `run.sh`/entrypoint does not bind any network port (see "What it
+does" above), so the network-exposure scenario PR#20 is chiefly about does not apply here today —
+but the general absence of sandboxing does, same as every other Binary manifest.
