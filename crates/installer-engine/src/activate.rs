@@ -969,25 +969,41 @@ mod tests {
     // -- Milestone 1: real sandboxed-activation proof (docs/design/sandbox-fallback.md's testing
     // plan item 2) -------------------------------------------------------------------------------
 
-    /// A `run.sh` that asserts, from INSIDE the (possibly) sandboxed process, exactly the three
+    /// A `run.sh` that asserts, from INSIDE the (possibly) sandboxed process, exactly the two
     /// F.1/F.3-equivalent properties `docs/design/sandbox-fallback.md` claims for the bwrap
-    /// backend: (a) no non-loopback network interface is visible at all -- a stronger, more direct
-    /// check than "a bind() call fails", since binding the wildcard address `0.0.0.0` would
-    /// actually SUCCEED inside an isolated netns (it only needs `lo`), so bind-failure alone
-    /// wouldn't discriminate sandboxed from unsandboxed; (b) a write to `$OUTSIDE_TARGET` (a path
-    /// under the SAME tempdir as `work_dir`, but not inside it) fails; (c) a write inside the
-    /// current directory (bwrap `--chdir`s into `work_dir`) succeeds. Each check prints its own
-    /// `OK: ...`/`FAIL: ...` line so a failing run's captured stdout says exactly which property
-    /// broke, not just "exit 1".
+    /// backend: (a) this process is in a DIFFERENT network namespace than the host (proven by
+    /// comparing `/proc/self/ns/net`'s symlink target -- a real, per-task kernel property that's
+    /// accurate regardless of how `/proc` itself got into this mount namespace -- against
+    /// `$HOST_NET_NS`, captured on the host side BEFORE `activate()` ran); (b) a write to
+    /// `$OUTSIDE_TARGET` (a path under the SAME tempdir as `work_dir`, but not inside it) fails;
+    /// (c) a write inside the current directory (bwrap `--chdir`s into `work_dir`) succeeds. Each
+    /// check prints its own `OK: ...`/`FAIL: ...` line so a failing run's captured stdout says
+    /// exactly which property broke, not just "exit 1".
+    ///
+    /// **Not `ls /sys/class/net`** (an earlier version of this test used that, and was itself
+    /// wrong -- CADS-agent-marketplace#20's CI run caught it): `wrap_command`'s `--ro-bind / /`
+    /// bind-mounts the HOST's already-mounted `/sys` as-is. A sysfs instance's device LISTING is
+    /// captured at MOUNT time against whichever network namespace was active then (the host's) --
+    /// a bind mount doesn't create a new sysfs instance, so `/sys/class/net` keeps showing host
+    /// interfaces forever, regardless of whether `--unshare-net` genuinely put this process in a
+    /// new namespace. `/proc/self/ns/net` has no such staleness: namespace membership is a live
+    /// per-task property the kernel reports accurately no matter which mount instance of `/proc`
+    /// you read it through. This was confirmed empirically, not assumed: PR#20's CI failure showed
+    /// THIS SCRIPT'S OWN "FAIL: non-loopback interfaces visible" message on stderr (not a bwrap
+    /// launch error) -- proving bwrap had already successfully unshared namespaces, set up
+    /// loopback (which itself requires the CAP_NET_ADMIN a genuinely-created user+net namespace
+    /// grants), and exec'd this script; a broken/no-op `--unshare-net` fails LOUDLY at bwrap's own
+    /// loopback-setup step, before ever reaching the wrapped command at all (reproduced directly
+    /// against this host's own AppArmor-restricted bwrap while building this feature).
     fn sandbox_probe_script() -> &'static str {
         "#!/bin/sh\n\
          set -u\n\
-         ifaces=$(ls /sys/class/net)\n\
-         if [ \"$ifaces\" != \"lo\" ]; then\n\
-         \techo \"FAIL: non-loopback interfaces visible: $ifaces\" >&2\n\
+         my_net_ns=$(readlink /proc/self/ns/net)\n\
+         if [ \"$my_net_ns\" = \"$HOST_NET_NS\" ]; then\n\
+         \techo \"FAIL: sandboxed process is in the SAME network namespace as the host ($my_net_ns)\" >&2\n\
          \texit 1\n\
          fi\n\
-         echo \"OK: only loopback interface visible\"\n\
+         echo \"OK: sandboxed process has its own network namespace ($my_net_ns != host $HOST_NET_NS)\"\n\
          if echo probe > \"$OUTSIDE_TARGET\" 2>/dev/null; then\n\
          \techo \"FAIL: write outside work_dir unexpectedly succeeded\" >&2\n\
          \texit 1\n\
@@ -1001,10 +1017,10 @@ mod tests {
          exit 0\n"
     }
 
-    /// Same shape as `write_binary_fixture`, but declares `OUTSIDE_TARGET` in `env_template` (so
-    /// `activate`'s normal env-resolution path -- step 8, `--env-file`-equivalent for Binary --
-    /// carries it into the sandboxed process, exactly like any other manifest-declared var; no
-    /// second, sandbox-specific env-passing mechanism).
+    /// Same shape as `write_binary_fixture`, but declares `OUTSIDE_TARGET` and `HOST_NET_NS` in
+    /// `env_template` (so `activate`'s normal env-resolution path -- step 8, `--env-file`-
+    /// equivalent for Binary -- carries them into the sandboxed process, exactly like any other
+    /// manifest-declared var; no second, sandbox-specific env-passing mechanism).
     fn write_binary_fixture_sandbox_probe(dir: &Path) -> (PathBuf, [u8; 32]) {
         use ed25519_dalek::SigningKey;
         use manifest_core::{BundleRef, EnvVarSpec, ServiceManifest, VerifySpec};
@@ -1032,11 +1048,18 @@ mod tests {
             "0.1.0".to_string(),
             InstallerKind::Binary,
             BundleRef { url: bundle_path.to_str().unwrap().to_string(), sha256, compose_file: "run.sh".to_string() },
-            vec![EnvVarSpec {
-                name: "OUTSIDE_TARGET".to_string(),
-                required: true,
-                description: "absolute path outside work_dir the probe script must fail to write to".to_string(),
-            }],
+            vec![
+                EnvVarSpec {
+                    name: "OUTSIDE_TARGET".to_string(),
+                    required: true,
+                    description: "absolute path outside work_dir the probe script must fail to write to".to_string(),
+                },
+                EnvVarSpec {
+                    name: "HOST_NET_NS".to_string(),
+                    required: true,
+                    description: "this test process's own /proc/self/ns/net target, captured on the host side, for the sandboxed process to prove it differs from".to_string(),
+                },
+            ],
             VerifySpec { script: "verify.sh".to_string(), timeout_secs: 30 },
             0,
             u64::MAX / 2,
@@ -1075,8 +1098,21 @@ mod tests {
         let (manifest_path, pubkey) = write_binary_fixture_sandbox_probe(dir.path());
         let allowlist = TrustAllowlist::parse(&hex32(&pubkey)).unwrap();
 
+        // This TEST process's own network namespace -- the baseline the sandboxed process proves
+        // it does NOT share. Captured here, on the host side, not hardcoded, so this works
+        // identically whatever namespace the CI runner (or a dev host) happens to start in.
+        let host_net_ns = std::fs::read_link("/proc/self/ns/net")
+            .expect("this test host must have a real /proc/self/ns/net to compare against")
+            .to_str()
+            .unwrap()
+            .to_string();
+
         let env_file_path = dir.path().join("probe.env");
-        std::fs::write(&env_file_path, format!("OUTSIDE_TARGET={}\n", outside_target.display())).unwrap();
+        std::fs::write(
+            &env_file_path,
+            format!("OUTSIDE_TARGET={}\nHOST_NET_NS={host_net_ns}\n", outside_target.display()),
+        )
+        .unwrap();
 
         let report = activate(ActivateOptions {
             manifest_location: manifest_path.to_str().unwrap().to_string(),
@@ -1093,7 +1129,7 @@ mod tests {
             InstallReport::Ok { sandbox, captured_stdout, .. } => {
                 assert_eq!(sandbox.as_deref(), Some("bwrap"), "expected the run to be reported as bwrap-sandboxed");
                 let stdout = captured_stdout.unwrap_or_default();
-                assert!(stdout.contains("OK: only loopback interface visible"), "stdout={stdout}");
+                assert!(stdout.contains("OK: sandboxed process has its own network namespace"), "stdout={stdout}");
                 assert!(stdout.contains("OK: write outside work_dir failed as expected"), "stdout={stdout}");
                 assert!(stdout.contains("OK: write inside work_dir succeeded"), "stdout={stdout}");
             }
