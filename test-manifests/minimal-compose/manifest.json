@@ -1,0 +1,26 @@
+{
+  "publisher_pubkey": "fcdad7372b95f19507616ab501c9b34b851f88b2741e00a87061d525b78afdf8",
+  "manifest_id": "445e5626516971a44707a1600de6ce32152a5a31c2479db95c4d08d6db6b1e03",
+  "name": "minimal-http-echo",
+  "version": "0.1.0",
+  "installer_kind": "compose",
+  "bundle": {
+    "url": "bundle.tar.gz",
+    "sha256": "addbc9b4f8cb9cd24e0bc379007e053f5a038f7296e766e4ce4bbee99ddd07dc",
+    "compose_file": "compose.yml"
+  },
+  "env_template": [
+    {
+      "name": "ECHO_TEXT",
+      "required": false,
+      "description": "Text the http-echo service responds with (default hello from CADS-agent-marketplace)"
+    }
+  ],
+  "verify": {
+    "script": "verify.sh",
+    "timeout_secs": 30
+  },
+  "issued_at": 1787949381,
+  "expires_at": 1819485381,
+  "signature": "07bb71822c6329c7347c0fcce6a7ab2153362906db2dbe6e05c22976169ea7bdc05d3960d2fa5e77a382abcef872fd76afeed73113893005caddbd392a8b010b"
+}

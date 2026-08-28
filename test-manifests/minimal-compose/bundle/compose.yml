@@ -1,0 +1,14 @@
+# Deliberately trivial: one service, one image, no build context, no privileged/host-namespace/
+# docker-socket concerns -- exists purely as a real, minimal, clean-pass test target for the
+# manifest install pipeline (see ../README.md). Not a demo of anything itself.
+#
+# No `name:` (the installer supplies the compose project name at runtime, see
+# ../../litellm-proof/docker-compose.yml's comment for why) and no `container_name:` for the
+# same reason -- both would collide across repeated test installs.
+services:
+  echo:
+    image: hashicorp/http-echo:1.0
+    restart: unless-stopped
+    command: ["-text=${ECHO_TEXT:-hello from CADS-agent-marketplace}", "-listen=:5678"]
+    ports:
+      - "127.0.0.1:8765:5678"
