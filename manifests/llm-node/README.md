@@ -15,12 +15,29 @@ set — this is not an open relay the moment it starts.
 ## Before you install
 
 Your Ollama needs to be reachable **from inside a Docker container**, not just from your own
-terminal. Ollama's default (`OLLAMA_HOST=127.0.0.1:11434`) is loopback-only — a container can't
-reach that even via `host.docker.internal`, since `127.0.0.1` inside a container means the
-container itself, not the host. **Verified the hard way while building this**, not assumed:
-Set `OLLAMA_HOST=0.0.0.0` (or otherwise ensure Ollama listens on an interface Docker can reach)
-before activating this manifest, or `verify.sh` will fail with a real, honest connection error
-— not a silent false pass.
+terminal — this was verified the hard way while building this manifest (on a native Linux
+Docker host, a container genuinely cannot reach a host service bound to `127.0.0.1`, even via
+`host.docker.internal`; `127.0.0.1` inside a container means the container itself). If
+`verify.sh` fails with a connection error rather than a false pass, this is almost certainly why.
+
+**Do NOT blanket-set `OLLAMA_HOST=0.0.0.0` to fix this — real security finding, not a
+nitpick** (caught in independent review before this ever shipped): Ollama's native API on
+`:11434` has **no auth of its own**. litellm's master-key check only guards this manifest's own
+`:4110`. Binding Ollama to `0.0.0.0` exposes the unauthenticated `:11434` API on **every
+interface**, including your physical LAN — on a laptop that roams networks (café, conference,
+shared office wifi), that's a real, unauthenticated door into your models for anyone on the same
+network, completely bypassing this manifest's own virtual-key layer.
+
+What to do instead, by platform:
+- **Docker Desktop for macOS**: try the Ollama default (`127.0.0.1`, no `OLLAMA_HOST` change) as
+  a first step — Docker Desktop's `host.docker.internal` networking path may already reach a
+  loopback-bound host service without widening the bind at all, unlike native Linux Docker. Only
+  consider changing anything if `verify.sh` genuinely fails against the unmodified default.
+- **Native Linux Docker**: bind Ollama specifically to the Docker bridge/host-gateway address
+  (`docker network inspect bridge` to find it — typically `172.17.0.1`), not `0.0.0.0` — reachable
+  from containers, not from your LAN. If your setup can't isolate the bind that precisely, add a
+  host firewall rule dropping inbound `:11434` on your physical interface(s) as a second layer,
+  and treat a blanket `0.0.0.0` bind as a last resort, not the default instruction.
 
 ## Required env vars (values go in your own local `.env`, never in the manifest — see
 `manifest.json`'s `env_template` for the authoritative list/descriptions)
