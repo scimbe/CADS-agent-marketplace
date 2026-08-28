@@ -5,6 +5,10 @@ ct-agent activate a signed, holder-key-authored manifest that deterministically 
 and verifies a service behind its tunnel -- instead of the operator hand-wiring `CT_AGENT_SERVICE_HANDLER_CMD`
 to a locally-trusted script.
 
+**Docs:** https://scimbe.github.io/CADS-agent-marketplace-docs/ -- Diataxis-structured (tutorials,
+how-to, reference, explanation), same convention as `CADS-Tunnel-docs`/`CADS-devsystem-docs`. The
+design docs and security model referenced below also live there in rendered form.
+
 **Status: Phase 1.** One `installer_kind`: `compose`. See `docs/adr/0001-manifest-signing.md` and
 `docs/security-model.md` for the design and threat model. Later phases (a signed-prompt CLI
 harness, `binary`/`k8s` installer backends, a marketplace registry + billing, an admin web portal)
