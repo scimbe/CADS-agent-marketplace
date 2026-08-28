@@ -1,0 +1,74 @@
+# travel-demo — real OSRM routing (Bremen, MLD graph, pre-built and bundled below), the LLM only
+# formats already-computed route facts. Adapted from CADS-DEMO-travel's own
+# compose.travel-demo.yml for this signed manifest bundle -- see README.md for the full diff and
+# why each change was made. Two changes from the upstream file, both load-bearing for the
+# installer pipeline, not stylistic:
+#
+#  1. Only osrm-car + bridge are here (no Caddy/`travel-demo-origin`). Upstream's own README
+#     already documents this exact two-service subset as the "local dev / acceptance check"
+#     entrypoint (`docker compose -f compose.travel-demo.yml up -d osrm-car bridge`) -- the Caddy
+#     origin needs real TLS certs and is explicitly flagged upstream as "not yet tested through a
+#     real browser". A manifest's job is to prove the SERVICE works, which this scope already does.
+#
+#  2. No external network (`networks: default: name: ... external: true` is gone) and `bridge`
+#     publishes a fixed loopback port. Upstream deliberately gives bridge NO ports mapping --
+#     reachable only via the Caddy origin over a pre-existing operator-managed docker network. A
+#     signed manifest bundle has neither: installer-engine unpacks this into an isolated work_dir
+#     and brings it up standalone, so it needs its own self-contained network (compose's default,
+#     scoped to -p <project_name>) and a way for verify.sh to reach the service directly. The port
+#     is a FIXED literal (127.0.0.1:8789:8789), not env-templated -- the guardrail scanner
+#     (installer-engine/src/guardrails.rs) does a naive 3-part string split on "host_ip:host_port:
+#     container_port"; an env-substitution expression inside that string breaks the split and gets
+#     rejected as not-provably-loopback (hit this for real building manifests/llm-node earlier
+#     tonight, see that branch's README).
+#
+# osrm-car itself is UNCHANGED from upstream except path (it never had a ports: mapping upstream
+# either -- only bridge reaches it, over the compose network, by service name).
+services:
+  osrm-car:
+    build:
+      context: ./osrm
+      dockerfile: Dockerfile
+    volumes:
+      # The pre-built Bremen MLD graph (bremen-latest.osrm*) ships INSIDE this bundle already --
+      # see osrm/data/ and README.md's "What's bundled vs. built" section. Unlike upstream (where
+      # osrm/build-graph.sh produces this locally, outside the image, before `compose up` ever
+      # runs), a manifest's `docker compose up` is the ENTIRE install step -- there is no separate
+      # data-prep phase in installer-engine's activate() pipeline, so the graph has to already be
+      # present in the bundle's own bytes, not fetched/built at install time.
+      - ./osrm/data:/data:ro
+    healthcheck:
+      # osrm/osrm-backend's own image (Debian stretch) ships neither curl nor wget -- bash IS
+      # present, so a raw /dev/tcp connect attempt is the cheapest real liveness check available
+      # without installing anything extra into an otherwise-untouched upstream image.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/5000"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+    restart: unless-stopped
+
+  bridge:
+    build:
+      context: .
+      dockerfile: bridge/Dockerfile
+    environment:
+      - TRAVEL_BRIDGE_LISTEN=0.0.0.0:8789
+      - OSRM_BASE_URL=http://osrm-car:5000
+      - LITELLM_BASE_URL=${LITELLM_BASE_URL:-}
+      - LITELLM_API_KEY=${LITELLM_API_KEY:-}
+      - LITELLM_DEFAULT_MODEL=${LITELLM_DEFAULT_MODEL:-local-devstral-small2}
+      - "TRAVEL_DATASET_LABEL=bremen-latest (md5 0061299ee69f4bce070ea86e416ddc93)"
+      # Quoted: an unquoted "key: value" shape (the "contact: scimbe" bit) makes a YAML parser
+      # read the whole list entry as a mapping instead of a plain string -- upstream hit this for
+      # real (`docker compose config` failed with "unexpected type map[string]interface {}" until
+      # quoted); preserved here verbatim.
+      - "NOMINATIM_USER_AGENT=${NOMINATIM_USER_AGENT:-CADS-DEMO-travel/0.1 (bunsenbrenner.org demo; contact: scimbe)}"
+    depends_on:
+      osrm-car:
+        condition: service_healthy
+    ports:
+      # Fixed literal port -- see the file-header comment for why this can't be env-templated.
+      # 127.0.0.1-only, same discipline as every other manifest in this repo.
+      - "127.0.0.1:8789:8789"
+    restart: unless-stopped
