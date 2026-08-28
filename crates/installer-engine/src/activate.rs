@@ -542,6 +542,12 @@ fn hex32(b: &[u8; 32]) -> String {
 mod tests {
     use super::*;
 
+    // PATH_MUTATION_LOCK lives in `process.rs` (`crate::process::PATH_MUTATION_LOCK`) -- shared
+    // crate-wide, not module-local, because the race it guards against isn't specific to this
+    // module. See its doc comment there for the full story, including why a module-local version
+    // of this same lock was tried first and turned out not to be enough.
+    use crate::process::PATH_MUTATION_LOCK;
+
     #[test]
     fn collision_guard_rejects_a_protected_name() {
         let err = preflight_collision_check("litellm-proxy", &["litellm-proxy".to_string()], true).unwrap_err();
@@ -558,6 +564,7 @@ mod tests {
     /// panics, so a failure here can't leak a broken `PATH` into later tests.
     #[test]
     fn collision_guard_skips_docker_entirely_when_told_to() {
+        let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         struct PathGuard(Option<String>);
         impl Drop for PathGuard {
             fn drop(&mut self) {
@@ -1083,6 +1090,10 @@ mod tests {
     /// via `apt` and relaxes that same AppArmor restriction for exactly this test).
     #[test]
     fn a_binary_manifest_is_genuinely_confined_by_bwrap_when_a_sandbox_backend_is_available() {
+        // Held for the whole test, including the skip-check below AND the real `activate()` call
+        // at the bottom -- both call `sandbox::select()`, which resolves `bwrap` via ambient PATH,
+        // and `activate()`'s real spawn of `bwrap` does too. See `PATH_MUTATION_LOCK`'s doc comment.
+        let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         if !matches!(crate::sandbox::select(), crate::sandbox::Selection::Sandboxed(_)) {
             eprintln!(
                 "skipping a_binary_manifest_is_genuinely_confined_by_bwrap_when_a_sandbox_backend_is_available: \
@@ -1148,6 +1159,10 @@ mod tests {
     /// opt-in alternative to the warn-and-proceed default.
     #[test]
     fn require_binary_sandbox_refuses_to_run_unsandboxed_when_no_backend_is_available() {
+        // See `PATH_MUTATION_LOCK`'s doc comment -- `select()` below resolves `bwrap` via ambient
+        // PATH just like the other sandbox tests, even though this test's own assertion doesn't
+        // depend on a real bwrap spawn succeeding.
+        let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         if matches!(crate::sandbox::select(), crate::sandbox::Selection::Sandboxed(_)) {
             // This test's whole point is exercising the Unsandboxed path -- on a host where bwrap
             // genuinely IS available and usable, skip rather than fabricate a scenario this host
