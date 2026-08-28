@@ -209,6 +209,14 @@ no sandbox either. This is a known, already-designed-for gap (`docs/design/sandb
 marketplace PR#20 — bwrap-based runtime sandboxing, currently unmerged) — not something specific to
 this manifest, but worth disclosing here rather than only in that PR: **trust for a Binary manifest
 rests entirely on the publisher allowlist, not on any static or runtime containment, until PR#20
-lands.** This specific manifest's `run.sh`/entrypoint does not bind any network port (see "What it
-does" above), so the network-exposure scenario PR#20 is chiefly about does not apply here today —
-but the general absence of sandboxing does, same as every other Binary manifest.
+lands.** Unlike the other Binary manifests in this batch, this one is not a pure no-listen CLI:
+`scripts/run_demo.sh` step 1 runs `temporal server start-dev --port 7233 --ui-port 8233` with no
+`--ip` pin, starting two listeners for the run's duration — the Temporal frontend (7233) and its
+**unauthenticated** web UI (8233) — bound to whatever Temporal's dev-server default resolves to.
+The demo itself only ever dials `127.0.0.1:7233`, so as invoked here it is loopback-only in
+practice, not exposed — but that is an unpinned default, not a guardrail-enforced guarantee, and
+Binary-kind gets no guardrail check of any kind (see above). **Do not run this on a host with a
+public IP by adding `--ip 0.0.0.0`, or by any change that widens the dev-server's bind** — that
+would put both listeners, especially the unauth UI, directly on the network. PR#20's sandbox is
+the tracked containment for exactly this class of gap; until it lands, this manifest is a live
+example of the risk PR#20 exists to close, not just a hypothetical one.
