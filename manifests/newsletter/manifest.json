@@ -1,0 +1,36 @@
+{
+  "publisher_pubkey": "6360e5f22827633b55a60ae79773db8f6638327ed67ae2b31afa5fc17884949a",
+  "manifest_id": "c549cced146a02f17bc25e1f8028081b5c98df305cb2a41cf467c49d2de9dbfc",
+  "name": "newsletter",
+  "version": "0.1.0",
+  "installer_kind": "binary",
+  "bundle": {
+    "url": "bundle.tar.gz",
+    "sha256": "4bbfc502c9860f4517b1aea1e0fcfcdc310d66332f5d26df2f880f9deec0482e",
+    "compose_file": "run.sh"
+  },
+  "env_template": [
+    {
+      "name": "LITELLM_BASE_URL",
+      "required": true,
+      "description": "Base URL of the litellm-proxy OpenAI-compatible endpoint, e.g. http://127.0.0.1:4001/v1 - the demo hard-requires a real LLM call, there is no no-LLM fallback mode"
+    },
+    {
+      "name": "LITELLM_API_KEY",
+      "required": true,
+      "description": "Scoped litellm-proxy virtual key authorized for the configured model"
+    },
+    {
+      "name": "LITELLM_DEFAULT_MODEL",
+      "required": false,
+      "description": "Model name to request from the litellm-proxy endpoint - optional, defaults to local-devstral-small2 from config/report.yaml if unset"
+    }
+  ],
+  "verify": {
+    "script": "verify.sh",
+    "timeout_secs": 60
+  },
+  "issued_at": 1787953337,
+  "expires_at": 1819489337,
+  "signature": "ec9fc47fb412e4ab7c195369a24d86168c97aca27ead13dc317cd96462b44c2acb137e5bceea9fe52b292400cf7e8519af21548efe66751d1c31ac2f0fd94804"
+}
