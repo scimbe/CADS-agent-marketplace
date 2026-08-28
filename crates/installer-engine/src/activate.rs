@@ -472,7 +472,7 @@ fn resolve_env_template(
     Ok(out)
 }
 
-fn hex32(b: &[u8; 32]) -> String {
+pub(crate) fn hex32(b: &[u8; 32]) -> String {
     use std::fmt::Write as _;
     let mut s = String::with_capacity(64);
     for byte in b {
@@ -482,7 +482,7 @@ fn hex32(b: &[u8; 32]) -> String {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     #[test]
@@ -645,8 +645,11 @@ mod tests {
     /// Builds a real, signed `Binary`-kind manifest + tarball on disk (a "hello world" shell
     /// script as the "binary" -- `run_bounded` just execs whatever `mark_executable` made
     /// runnable, it does not care whether that's an ELF or a script with a shebang) and returns
-    /// `(manifest_path, signer_pubkey)`. `dir` is where both files + the work_dir live.
-    fn write_binary_fixture(dir: &Path, stdout_line: &str) -> (PathBuf, [u8; 32]) {
+    /// `(manifest_path, signer_pubkey)`. `dir` is where both files + the work_dir live (must
+    /// already exist). `manifest_id` is caller-supplied (rather than a fixed constant) so callers
+    /// needing more than one distinct fixture in the same registry/composition -- e.g.
+    /// `composition.rs`'s tests -- don't collide on manifest id.
+    pub(crate) fn write_binary_fixture(dir: &Path, manifest_id: [u8; 32], stdout_line: &str) -> (PathBuf, [u8; 32]) {
         use ed25519_dalek::SigningKey;
         use manifest_core::{BundleRef, ServiceManifest, VerifySpec};
         use rand::RngCore;
@@ -672,7 +675,7 @@ mod tests {
 
         let manifest = ServiceManifest::sign_new(
             &signing_key,
-            [0x42; 32],
+            manifest_id,
             "phase5-hello".to_string(),
             "0.1.0".to_string(),
             InstallerKind::Binary,
@@ -694,7 +697,7 @@ mod tests {
     #[test]
     fn a_trusted_signed_binary_manifest_actually_runs_and_its_stdout_is_captured() {
         let dir = tempfile::tempdir().unwrap();
-        let (manifest_path, pubkey) = write_binary_fixture(dir.path(), "hello-from-phase5");
+        let (manifest_path, pubkey) = write_binary_fixture(dir.path(), [0x42; 32], "hello-from-phase5");
 
         let allowlist = TrustAllowlist::parse(&hex32(&pubkey)).unwrap();
 
@@ -722,7 +725,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         // stdout_line is irrelevant here -- if this binary ever actually ran, that alone is the
         // bug this test exists to catch, regardless of what it printed.
-        let (manifest_path, _untrusted_pubkey) = write_binary_fixture(dir.path(), "should-not-run");
+        let (manifest_path, _untrusted_pubkey) = write_binary_fixture(dir.path(), [0x42; 32], "should-not-run");
 
         // A real, well-formed, but EMPTY allowlist -- the signer above is a genuine, validly
         // signing key, just not on it. Built from a different, unrelated pubkey so this is a

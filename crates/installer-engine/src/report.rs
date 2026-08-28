@@ -5,7 +5,7 @@
 
 use serde::Serialize;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum InstallReport {
     Rejected {
@@ -35,7 +35,7 @@ pub enum InstallReport {
     },
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct StepResult {
     pub exit_code: Option<i32>,
     pub duration_ms: u128,
