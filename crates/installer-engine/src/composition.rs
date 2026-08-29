@@ -70,6 +70,9 @@ pub struct CompositionActivateOptions {
     pub work_dir_root: PathBuf,
     pub now: u64,
     pub holder_key_resolver: Box<dyn HolderKeyResolver>,
+    /// Same meaning as [`ActivateOptions::require_binary_sandbox`], applied to every Binary-kind
+    /// sub-manifest activation.
+    pub require_binary_sandbox: bool,
 }
 
 /// One already-succeeded sub-manifest activation's bookkeeping -- exactly what full rollback (on
@@ -240,6 +243,7 @@ pub fn activate_composition(opts: CompositionActivateOptions) -> CompositionInst
             protected_name_substrings: opts.protected_name_substrings.clone(),
             work_dir: sub_work_dir.clone(),
             now: opts.now,
+            require_binary_sandbox: opts.require_binary_sandbox,
         });
 
         match &report {
@@ -444,6 +448,7 @@ mod tests {
             work_dir_root: dir.path().join("work"),
             now: 1,
             holder_key_resolver: Box::new(NullHolderKeyResolver),
+            require_binary_sandbox: false,
         });
 
         match report {
@@ -479,6 +484,7 @@ mod tests {
             work_dir_root: dir.path().join("work"),
             now: 1,
             holder_key_resolver: Box::new(NullHolderKeyResolver),
+            require_binary_sandbox: false,
         });
 
         match report {
@@ -506,6 +512,7 @@ mod tests {
             work_dir_root: dir.path().join("work"),
             now: 1,
             holder_key_resolver: Box::new(NullHolderKeyResolver),
+            require_binary_sandbox: false,
         });
 
         match report {
@@ -573,6 +580,7 @@ mod tests {
             work_dir_root: dir.path().join("work"),
             now: 1,
             holder_key_resolver: Box::new(NullHolderKeyResolver),
+            require_binary_sandbox: false,
         });
 
         match report {
