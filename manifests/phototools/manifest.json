@@ -2,11 +2,11 @@
   "publisher_pubkey": "04d9f5ee8b4d6681072e165609bdb475deb4e672ebc6d63587a9e123b2b833d5",
   "manifest_id": "85782450f84caddbe5622699669cd98b6fc14f6a2054c29d826af41461013c1d",
   "name": "phototools",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "installer_kind": "binary",
   "bundle": {
     "url": "bundle.tar.gz",
-    "sha256": "5823a716b3c6ee497ebc52628b7f650459d2ff10ec185ec727d7f7a991bb7667",
+    "sha256": "235b08c804af9ba68683da47ff7ff5600f93656565166e1bff4957084f627b5c",
     "compose_file": "run.sh"
   },
   "env_template": [],
@@ -14,7 +14,7 @@
     "script": "verify.sh",
     "timeout_secs": 60
   },
-  "issued_at": 1788005219,
-  "expires_at": 1819541219,
-  "signature": "9004fb542f152d75b42c2b11b92f166c669efbc1156c79f1919f426f650a03f6976a432557d0722f90ba2037b5dd4a0a9e64502c1c9665b386e39d0bf0d0d80f"
+  "issued_at": 1788005945,
+  "expires_at": 1819541945,
+  "signature": "8d56b1e1c2d5e04a884b193e3624cf4605e39bbd07d3622889d186c5027762b61941fd17563e7074480c76fc711abe6de9c836d95bb288d267385465b9bf8002"
 }
