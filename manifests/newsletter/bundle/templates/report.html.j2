@@ -4,25 +4,53 @@
 <meta charset="utf-8">
 <title>{{ report_title }}</title>
 <style>
-  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #222; margin: 0; padding: 0 32px 48px; background: #fff; }
-  header { border-bottom: 3px solid #1f4e79; padding: 28px 0 16px; margin-bottom: 24px; }
-  header h1 { margin: 0 0 4px; font-size: 26px; color: #1f4e79; }
-  header .meta { color: #666; font-size: 13px; }
-  h2 { font-size: 17px; color: #1f4e79; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-top: 32px; }
+  :root{
+   --bg:#0c111d; --panel:#141b2c; --panel2:#1a2338; --line:#2a3450; --line-soft:#212a41;
+   --text:#eef1f7; --muted:#8a93ad; --muted2:#c3c9db;
+   --accent:#d98a4f; --accent-soft:#a8683a; --accent2:#5fb8ab;
+   --mono:ui-monospace,SFMono-Regular,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+   --serif:ui-serif,Georgia,"Iowan Old Style","Palatino Linotype",serif;
+  }
+  @media (prefers-color-scheme: light){
+   :root{
+    --bg:#f5f7fb; --panel:#ffffff; --panel2:#eef1f8; --line:#d7deec; --line-soft:#e3e8f3;
+    --text:#131a2c; --muted:#5b6478; --muted2:#333d54;
+    --accent:#b8672f; --accent-soft:#8f4f24; --accent2:#2f8a7d;
+   }
+  }
+  body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif; color: var(--text); margin: 0; padding: 0 32px 48px; background: var(--bg); }
+  header { border-bottom: 1px solid var(--line); padding: 28px 0 16px; margin-bottom: 24px; }
+  header h1 { margin: 0 0 4px; font-family: var(--serif); font-weight: 600; letter-spacing: -.01em; font-size: 26px; color: var(--text); }
+  header .meta { color: var(--muted); font-size: 13px; }
+  header .meta a { color: var(--accent2); }
+  h2 { font-family: var(--serif); font-weight: 600; letter-spacing: -.01em; font-size: 17px; color: var(--text); border-bottom: 1px solid var(--line); padding-bottom: 4px; margin-top: 32px; }
   .highlights { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
-  .card { flex: 1 1 150px; background: #f4f7fa; border: 1px solid #dde5ec; border-radius: 6px; padding: 12px 14px; }
-  .card .label { font-size: 12px; color: #667; text-transform: uppercase; letter-spacing: 0.03em; }
-  .card .value { font-size: 22px; font-weight: 600; color: #1f4e79; margin-top: 2px; }
-  .card .date { font-size: 11px; color: #888; margin-top: 2px; }
-  .narrative { font-size: 15px; line-height: 1.6; background: #fffbe8; border-left: 4px solid #e8b400; padding: 12px 16px; margin: 16px 0; }
+  .card { flex: 1 1 150px; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
+  .card .label { font-family: var(--mono); font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .card .value { font-size: 22px; font-weight: 600; color: var(--accent); margin-top: 2px; }
+  .card .date { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .narrative { font-size: 15px; line-height: 1.6; background: var(--panel2); border-left: 4px solid var(--accent); padding: 12px 16px; margin: 16px 0; color: var(--text); }
   table { border-collapse: collapse; width: 100%; margin: 12px 0 24px; font-size: 13px; }
-  th, td { border: 1px solid #dde5ec; padding: 6px 10px; text-align: right; }
-  th { background: #1f4e79; color: #fff; text-align: right; }
+  th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: right; color: var(--text); }
+  th { background: var(--panel2); color: var(--text); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.03em; font-size: 11px; text-align: right; }
   td:first-child, th:first-child { text-align: left; }
   .chart { margin: 16px 0; text-align: center; }
-  .chart img { max-width: 100%; }
-  footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 11px; color: #888; }
-  code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; }
+  .chart img { max-width: 100%; border: 1px solid var(--line); border-radius: 4px; }
+  footer.report-footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); }
+  code { font-family: var(--mono); background: var(--panel2); color: var(--muted2); padding: 1px 4px; border-radius: 3px; }
+
+  .section.support { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--line); }
+  .section.support p { color: var(--text); font-size: 14px; line-height: 1.6; margin: 0 0 6px; }
+  .section.support p.demo-context { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .section.support .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .btn { display: inline-block; background: var(--accent); color: #20130a; font-weight: 600; text-decoration: none; padding: 10px 18px; border-radius: 6px; font-size: 14px; }
+  .btn.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+
+  footer.site-footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+  footer.site-footer .footer-inner { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+  footer.site-footer .legal-links a { font-family: var(--mono); font-size: 11px; color: var(--muted2); text-decoration: none; margin-right: 16px; }
+  footer.site-footer .legal-links a:last-child { margin-right: 0; }
+  footer.site-footer .copyright { font-size: 11px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -63,13 +91,31 @@
   </tbody>
 </table>
 
-<footer>
+<footer class="report-footer">
   Generated by CADS-DEMO-newsletter. Every figure above comes directly from the Open-Meteo forecast API
   response (<code>{{ facts.source_url }}</code>); the narrative text above was written by
   <code>{{ model_name }}</code> selecting and phrasing these figures under an enforced facts-only guard
   {% if llm_fallback_used %}&mdash; note: the LLM output failed the guard on this run, so the narrative
   above is the deterministic fallback sentence, not model-written prose{% endif %}.
   This is a demo artifact; forecast data is not archived and will differ on each regeneration.
+</footer>
+
+<div class="section support">
+ <p class="demo-context">This weekly briefing is one demo in the bunsenbrenner.org portfolio.</p>
+ <p><strong>Keep the lab running.</strong> Bunsenbrenner is free to use and runs on donated time and
+ server costs. If it helped you get something live, a small contribution keeps it going.</p>
+ <div class="actions">
+  <a class="btn" href="https://steady.page/plans/77a32d9c-c399-4ca1-9515-7a628c7a9413" target="_blank" rel="noopener">Support as a member &rarr;</a>
+  <a class="btn secondary" href="https://buymeacoffee.com/bunsenbrenner" target="_blank" rel="noopener">Buy me a coffee &rarr;</a>
+  <a class="btn secondary" href="https://github.com/scimbe/CADS-Tunnel" target="_blank" rel="noopener">GitHub &mdash; feature requests, code review, issues &rarr;</a>
+ </div>
+</div>
+
+<footer class="site-footer">
+ <div class="footer-inner">
+  <div class="legal-links"><a href="https://bunsenbrenner.org/legal-notice">Legal Notice</a><a href="https://bunsenbrenner.org/privacy-policy">Privacy Policy</a><a href="https://bunsenbrenner.org/terms-of-use">Terms of Use</a></div>
+  <div class="copyright">&copy; Bunsenbrenner.org &mdash; Martin Becke</div>
+ </div>
 </footer>
 </body>
 </html>
