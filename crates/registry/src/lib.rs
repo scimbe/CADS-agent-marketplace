@@ -16,16 +16,23 @@
 pub mod db;
 pub mod hex_util;
 
-use axum::extract::{Multipart, Path as AxPath, Query, State};
+use axum::extract::{DefaultBodyLimit, Multipart, Path as AxPath, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use db::{Db, StoredManifest};
-use manifest_core::ServiceManifest;
+use manifest_core::{InstallerKind, ServiceManifest};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
+
+/// axum's own default (2 MB) rejects any real-world bundle -- `travel`'s (real routing-engine
+/// data included) is ~18 MB, and a future LLM-node/dataset bundle could be considerably larger.
+/// 256 MB is generous headroom while still being a bound, not `usize::MAX` -- this is an
+/// authenticated (`REGISTRY_WRITE_TOKEN`-gated) write endpoint, but an unbounded body on ANY
+/// endpoint is still worth capping (marketplace#38).
+const MAX_PUBLISH_BODY_BYTES: usize = 256 * 1024 * 1024;
 
 pub struct AppState {
     pub db: Db,
@@ -43,6 +50,7 @@ pub fn app(state: Arc<AppState>) -> Router {
         .route("/manifests/:manifest_id/bundle", get(get_bundle))
         .route("/manifests/:manifest_id/activations", post(post_activation))
         .route("/publishers/:pubkey/ledger", get(get_ledger))
+        .layer(DefaultBodyLimit::max(MAX_PUBLISH_BODY_BYTES))
         .with_state(state)
 }
 
@@ -126,7 +134,11 @@ async fn publish_manifest(State(state): State<Arc<AppState>>, headers: HeaderMap
     let publisher_hex = hex_util::to_hex(&manifest.publisher_pubkey);
     let bundle_sha_hex = hex_util::to_hex(&manifest.bundle.sha256);
 
-    let verdict = match scan_bundle_for_guardrail_violations(&bundle_bytes, &manifest.bundle.compose_file) {
+    let verdict = match scan_bundle_for_guardrail_violations(
+        manifest.installer_kind,
+        &bundle_bytes,
+        &manifest.bundle.compose_file,
+    ) {
         Ok(v) => v,
         Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, format!("guardrail scan failed: {e}")),
     };
@@ -159,7 +171,33 @@ async fn publish_manifest(State(state): State<Arc<AppState>>, headers: HeaderMap
 /// Unpacks the bundle into a fresh temp dir and runs `installer_engine::guardrails::scan_compose`
 /// against it -- reusing Phase 1's own scanner and its own safe-unpack path
 /// (`unpack_tar_gz_safely`, tar-slip-protected) rather than a second implementation.
-fn scan_bundle_for_guardrail_violations(bundle_bytes: &[u8], compose_file: &str) -> Result<String, String> {
+///
+/// **Compose only.** `installer_engine::activate`'s own step 7 comment says it plainly: "there is
+/// no static-analysis equivalent for an arbitrary executable" -- `scan_compose` parses YAML, and a
+/// Binary-kind `bundle.compose_file` is the executable itself, not YAML (marketplace#37: this used
+/// to unconditionally attempt that parse anyway, and every Binary-kind publish crashed with a 500).
+/// Binary and K8s get an honest, clearly-labeled "not applicable" verdict instead of either a crash
+/// or a fabricated "clean" that would overstate coverage this scanner doesn't have -- matching the
+/// tradeoff `manifest-core::InstallerKind`'s own doc comment already acknowledges (Binary leans on
+/// the publisher-pubkey allowlist checked at activation time, not a static bundle scan).
+fn scan_bundle_for_guardrail_violations(
+    installer_kind: InstallerKind,
+    bundle_bytes: &[u8],
+    compose_file: &str,
+) -> Result<String, String> {
+    if installer_kind != InstallerKind::Compose {
+        let kind_label = match installer_kind {
+            InstallerKind::Binary => "binary",
+            InstallerKind::K8s => "k8s",
+            InstallerKind::Compose => unreachable!("handled above"),
+        };
+        return Ok(format!(
+            "{kind_label}-kind: no static compose-YAML scan applicable (see manifest-core::InstallerKind's \
+             own acknowledged tradeoff -- protection relies on the publisher-pubkey allowlist checked at \
+             activation time, not a static bundle scan)"
+        ));
+    }
+
     let tmp = tempfile::tempdir().map_err(|e| format!("tempdir: {e}"))?;
     installer_engine::fetch::unpack_tar_gz_safely(bundle_bytes, tmp.path())?;
     let compose_path = tmp.path().join(compose_file);
@@ -349,6 +387,43 @@ mod tests {
         )
     }
 
+    /// Binary-kind bundle: an executable script at the path `compose_file` names, NOT YAML --
+    /// this is exactly the shape that crashed the scanner pre-#37-fix.
+    fn make_binary_bundle_tar_gz(script: &[u8]) -> Vec<u8> {
+        let mut tar_bytes = Vec::new();
+        {
+            let mut b = tar::Builder::new(&mut tar_bytes);
+            let mut h = tar::Header::new_gnu();
+            h.set_size(script.len() as u64);
+            h.set_mode(0o755);
+            h.set_cksum();
+            b.append_data(&mut h, "run.sh", script).unwrap();
+            b.finish().unwrap();
+        }
+        let mut enc = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        enc.write_all(&tar_bytes).unwrap();
+        enc.finish().unwrap()
+    }
+
+    fn signed_binary_manifest_for(bundle_bytes: &[u8], key: &SigningKey, manifest_id: [u8; 32], now: u64) -> ServiceManifest {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(bundle_bytes);
+        let sha256: [u8; 32] = hasher.finalize().into();
+        ServiceManifest::sign_new(
+            key,
+            manifest_id,
+            "binary-proof".into(),
+            "0.1.0".into(),
+            InstallerKind::Binary,
+            BundleRef { url: "https://registry.invalid/bundle".into(), sha256, compose_file: "run.sh".into() },
+            vec![],
+            VerifySpec { script: "verify.sh".into(), timeout_secs: 30 },
+            now,
+            now + 3600,
+        )
+    }
+
     fn multipart_body(manifest_json: &str, bundle_bytes: &[u8]) -> (String, Vec<u8>) {
         let boundary = "TESTBOUNDARY";
         let mut body = Vec::new();
@@ -526,6 +601,96 @@ mod tests {
                 .unwrap();
             assert_eq!(resp.status(), expect);
         }
+    }
+
+    /// marketplace#37: publishing a Binary-kind manifest used to crash with a 500 ("guardrail
+    /// scan failed: invalid compose YAML") because the scanner unconditionally tried to parse
+    /// `compose_file` as YAML -- for Binary that path is a shell script, not YAML. It must now
+    /// succeed with an honest, clearly-labeled "not applicable" verdict instead.
+    #[tokio::test]
+    async fn publish_a_binary_kind_manifest_succeeds_instead_of_crashing() {
+        let state = test_state(1_000);
+        let key = SigningKey::from_bytes(&[3u8; 32]);
+        let bundle = make_binary_bundle_tar_gz(b"#!/usr/bin/env bash\nset -euo pipefail\necho hello\n");
+        let manifest = signed_binary_manifest_for(&bundle, &key, [9u8; 32], 500);
+        let manifest_json = serde_json::to_string(&manifest).unwrap();
+        let (boundary, body) = multipart_body(&manifest_json, &bundle);
+
+        let resp = app(state)
+            .oneshot(
+                Request::post("/manifests")
+                    .header("authorization", "Bearer test-token")
+                    .header("content-type", format!("multipart/form-data; boundary={boundary}"))
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED, "Binary-kind publish must not crash");
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let parsed: PublishResponse = serde_json::from_slice(&bytes).unwrap();
+        assert!(
+            parsed.guardrail_verdict.starts_with("binary-kind: no static compose-YAML scan applicable"),
+            "verdict must be honest about NOT scanning, not silently \"clean\": {}",
+            parsed.guardrail_verdict
+        );
+    }
+
+    /// marketplace#38: axum's own default body limit (2 MB) rejected any real-world bundle before
+    /// the multipart body was even parsed -- travel's real bundle is ~18 MB. This test pushes a
+    /// body well past the OLD default (but far under the new cap) through the full publish path
+    /// to prove the fix, without actually allocating hundreds of MB in a unit test.
+    #[tokio::test]
+    async fn publish_accepts_a_bundle_larger_than_axums_old_2mb_default_body_limit() {
+        let state = test_state(1_000);
+        let key = SigningKey::from_bytes(&[3u8; 32]);
+        // A real, valid, small compose file PLUS a separate ~3 MB high-entropy (hash-chain)
+        // sidecar file in the same bundle -- mirrors a real bundle carrying real binary data
+        // (e.g. travel's routing dataset) alongside its compose file. High-entropy padding
+        // doesn't meaningfully gzip-compress, so the actual wire body stays large; putting it in
+        // its own tar entry (not inside the compose YAML) keeps the YAML itself valid UTF-8/parseable.
+        use sha2::{Digest, Sha256};
+        let mut padding = Vec::new();
+        let mut h: [u8; 32] = Sha256::digest(b"seed for incompressible padding").into();
+        while padding.len() < 3 * 1024 * 1024 {
+            h = Sha256::digest(h).into();
+            padding.extend_from_slice(&h);
+        }
+        let compose_yaml = b"services:\n  web:\n    ports:\n      - \"127.0.0.1:4101:8080\"\n";
+        let mut tar_bytes = Vec::new();
+        {
+            let mut b = tar::Builder::new(&mut tar_bytes);
+            let mut h1 = tar::Header::new_gnu();
+            h1.set_size(compose_yaml.len() as u64);
+            h1.set_mode(0o644);
+            h1.set_cksum();
+            b.append_data(&mut h1, "docker-compose.yml", compose_yaml.as_slice()).unwrap();
+            let mut h2 = tar::Header::new_gnu();
+            h2.set_size(padding.len() as u64);
+            h2.set_mode(0o644);
+            h2.set_cksum();
+            b.append_data(&mut h2, "assets/dataset.bin", padding.as_slice()).unwrap();
+            b.finish().unwrap();
+        }
+        let mut enc = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        enc.write_all(&tar_bytes).unwrap();
+        let bundle = enc.finish().unwrap();
+        let manifest = signed_manifest_for(&bundle, &key, [11u8; 32], 500);
+        let manifest_json = serde_json::to_string(&manifest).unwrap();
+        let (boundary, body) = multipart_body(&manifest_json, &bundle);
+        assert!(body.len() > 2 * 1024 * 1024, "test body must exceed axum's old 2MB default to be meaningful");
+
+        let resp = app(state)
+            .oneshot(
+                Request::post("/manifests")
+                    .header("authorization", "Bearer test-token")
+                    .header("content-type", format!("multipart/form-data; boundary={boundary}"))
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED, "a >2MB bundle must not be rejected by the body-limit layer");
     }
 
     #[tokio::test]
