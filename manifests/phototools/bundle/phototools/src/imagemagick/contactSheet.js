@@ -1,6 +1,7 @@
 "use strict";
 
 const { execImageMagick } = require("../util/shell");
+const { resolveFont } = require("../util/font");
 
 const DEFAULTS = {
   tile: "4x",
@@ -20,10 +21,12 @@ async function buildContactSheet(filePaths, outPath, opts = {}) {
     throw new Error("buildContactSheet: filePaths must be a non-empty array");
   }
   const { tile, geometry, label } = { ...DEFAULTS, ...opts };
+  const font = await resolveFont();
 
   const { stderr, exitCode } = await execImageMagick("montage", [
     "-label",
     label,
+    ...(font ? ["-font", font] : []),
     ...filePaths,
     "-tile",
     tile,
