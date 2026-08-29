@@ -1,0 +1,21 @@
+[package]
+name = "harness-memory"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "marketplace#39: shared backbone service storing/retrieving past prompt+harness-candidate attempts by embedding similarity, for other demos to learn from what has/hasn't worked before."
+
+[[bin]]
+name = "harness-memory"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.7" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "fs", "signal"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
