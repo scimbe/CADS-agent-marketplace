@@ -1,6 +1,7 @@
 "use strict";
 
 const { execImageMagick } = require("../util/shell");
+const { resolveFont } = require("../util/font");
 
 const DEFAULTS = {
   gravity: "SouthEast",
@@ -23,6 +24,7 @@ const DEFAULTS = {
  */
 async function watermarkFile(filePath, text, opts = {}) {
   const { gravity, pointsize, fill, offset } = { ...DEFAULTS, ...opts };
+  const font = await resolveFont();
 
   const { stderr, exitCode } = await execImageMagick("convert", [
     filePath,
@@ -32,6 +34,7 @@ async function watermarkFile(filePath, text, opts = {}) {
     String(pointsize),
     "-fill",
     fill,
+    ...(font ? ["-font", font] : []),
     "-annotate",
     offset,
     text,

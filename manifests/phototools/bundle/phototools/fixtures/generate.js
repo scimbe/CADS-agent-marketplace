@@ -23,6 +23,7 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 
 const { execImageMagick } = require("../src/util/shell");
+const { resolveFont } = require("../src/util/font");
 const { writeExif } = require("../src/exif/write");
 const { readExif, toDecimalDegrees } = require("../src/exif/read");
 
@@ -42,6 +43,8 @@ async function main() {
   await fs.rm(RAW_DIR, { recursive: true, force: true });
   await fs.mkdir(RAW_DIR, { recursive: true });
 
+  const font = await resolveFont();
+
   for (const spec of SPECS) {
     const filePath = path.join(RAW_DIR, spec.name);
 
@@ -55,6 +58,7 @@ async function main() {
       "48",
       "-fill",
       "white",
+      ...(font ? ["-font", font] : []),
       "-annotate",
       "0",
       spec.label,
