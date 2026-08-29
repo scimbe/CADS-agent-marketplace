@@ -5,10 +5,15 @@
 
 pub mod activate;
 pub mod allowlist;
+pub mod composition;
 pub mod fetch;
 pub mod guardrails;
 pub mod process;
 pub mod report;
 
 pub use activate::{activate, ActivateOptions};
+pub use composition::{
+    activate_composition, CompositionActivateOptions, CompositionInstallReport, HolderKeyResolver, NullHolderKeyResolver,
+    TeardownOutcome,
+};
 pub use report::InstallReport;

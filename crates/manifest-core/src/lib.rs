@@ -4,10 +4,12 @@
 //! dependency, mirroring `ct_control_plane`/`ct_dns`'s own placement in `native/Cargo.toml`)
 //! without pulling in `installer-engine`'s much larger dependency surface (tokio, reqwest, tar).
 
+pub mod composition;
 pub mod hex;
 pub mod manifest;
 mod preimage;
 pub mod task;
 
+pub use composition::{CompositionEdge, CompositionManifest, EdgeUpgradeHint, SubManifestRef};
 pub use manifest::{BundleRef, EnvVarSpec, InstallerKind, ServiceManifest, VerifySpec};
 pub use task::SignedTask;

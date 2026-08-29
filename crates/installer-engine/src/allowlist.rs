@@ -9,7 +9,7 @@
 
 use std::collections::HashSet;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct TrustAllowlist {
     trusted: HashSet<[u8; 32]>,
 }
