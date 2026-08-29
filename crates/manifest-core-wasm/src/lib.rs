@@ -16,7 +16,7 @@
 //! except as a hex string handed to [`sign_manifest`] for the single call that
 //! needs it -- it is never logged, stored, or echoed back).
 
-use manifest_core::{BundleRef, EnvVarSpec, InstallerKind, ServiceManifest, VerifySpec};
+use manifest_core::{BundleRef, DemoPrompt, EnvVarSpec, InstallerKind, ServiceManifest, VerifySpec};
 use serde::Deserialize;
 use wasm_bindgen::prelude::*;
 
@@ -68,6 +68,12 @@ struct UnsignedManifestInput {
     verify: VerifySpec,
     issued_at: u64,
     expires_at: u64,
+    /// Optional guided-natural-language-config block -- part of the signed preimage when
+    /// present (see [`ServiceManifest::signing_bytes`]'s own doc on `demo_prompt`'s
+    /// backward-compatible encoding). `#[serde(default)]` so JSON with no `demo_prompt` key at
+    /// all still deserializes.
+    #[serde(default)]
+    demo_prompt: Option<DemoPrompt>,
 }
 
 // Pure, testable cores behind the #[wasm_bindgen] exports below -- plain
@@ -90,6 +96,7 @@ fn sign_manifest_inner(signing_key_hex: &str, manifest_json: &str) -> Result<Str
         input.verify,
         input.issued_at,
         input.expires_at,
+        input.demo_prompt,
     );
     serde_json::to_string_pretty(&signed).map_err(|e| format!("failed to serialize signed manifest: {e}"))
 }
@@ -112,6 +119,7 @@ fn verify_manifest_inner(manifest_json: &str) -> Result<bool, String> {
         &manifest.verify,
         manifest.issued_at,
         manifest.expires_at,
+        manifest.demo_prompt.as_ref(),
     );
     Ok(vk.verify(&preimage, &ed25519_dalek::Signature::from_bytes(&manifest.signature)).is_ok())
 }
@@ -259,6 +267,56 @@ mod tests {
         let mut manifest: ServiceManifest = serde_json::from_str(&signed_json).unwrap();
         manifest.publisher_pubkey = other_key.verifying_key().to_bytes();
         let tampered_json = serde_json::to_string(&manifest).unwrap();
+        assert!(!verify_manifest_inner(&tampered_json).unwrap());
+    }
+
+    #[test]
+    fn a_manifest_with_a_demo_prompt_signs_and_verifies_through_the_wasm_boundary() {
+        let key = random_signing_key();
+        let signing_key_hex = to_hex(&key.to_bytes());
+        let unsigned = format!(
+            r#"{{
+                "manifest_id": "{}",
+                "name": "keyforge-demo",
+                "version": "0.1.0",
+                "installer_kind": "compose",
+                "bundle": {{
+                    "url": "https://example.invalid/bundle.tar.gz",
+                    "sha256": "{}",
+                    "compose_file": "docker-compose.yml"
+                }},
+                "env_template": [],
+                "verify": {{"script": "verify.sh", "timeout_secs": 60}},
+                "issued_at": 1000,
+                "expires_at": 2000,
+                "demo_prompt": {{
+                    "system": "Only choose from the declared options.",
+                    "parameters": [
+                        {{"name": "location", "type": "enum", "options": ["Hamburg", "Berlin"]}}
+                    ],
+                    "examples": ["Berlin bitte"]
+                }}
+            }}"#,
+            to_hex(&[7u8; 32]),
+            to_hex(&[9u8; 32]),
+        );
+
+        let signed_json = sign_manifest_inner(&signing_key_hex, &unsigned).unwrap();
+        assert!(verify_manifest_inner(&signed_json).unwrap());
+
+        let manifest: ServiceManifest = serde_json::from_str(&signed_json).unwrap();
+        assert!(manifest.demo_prompt.is_some());
+
+        // Widening the signed enum's options post-signature (the exact attack demo_prompt being
+        // signed exists to prevent) must invalidate verification at this boundary too, not just
+        // inside manifest-core's own test suite.
+        let mut tampered = manifest.clone();
+        if let Some(dp) = tampered.demo_prompt.as_mut() {
+            if let manifest_core::PromptParamKind::Enum { options } = &mut dp.parameters[0].kind {
+                options.push("Tokio".into());
+            }
+        }
+        let tampered_json = serde_json::to_string(&tampered).unwrap();
         assert!(!verify_manifest_inner(&tampered_json).unwrap());
     }
 
