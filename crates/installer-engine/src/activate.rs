@@ -752,6 +752,7 @@ pub(crate) mod tests {
             VerifySpec { script: "verify.sh".to_string(), timeout_secs: 30 },
             0,
             u64::MAX / 2,
+            None,
         );
         let manifest_path = dir.join("manifest.json");
         std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
@@ -855,6 +856,7 @@ pub(crate) mod tests {
             VerifySpec { script: "verify.sh".to_string(), timeout_secs: 30 },
             0,
             u64::MAX / 2,
+            None,
         );
         let manifest_path = dir.join("manifest.json");
         std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
@@ -953,6 +955,7 @@ pub(crate) mod tests {
             VerifySpec { script: "unused".to_string(), timeout_secs: 1 },
             0,
             u64::MAX / 2,
+            None,
         );
         let manifest_path = dir.path().join("manifest.json");
         std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
@@ -1073,6 +1076,7 @@ pub(crate) mod tests {
             VerifySpec { script: "verify.sh".to_string(), timeout_secs: 30 },
             0,
             u64::MAX / 2,
+            None,
         );
         let manifest_path = dir.join("manifest.json");
         std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();

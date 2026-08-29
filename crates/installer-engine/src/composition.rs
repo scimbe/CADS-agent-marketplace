@@ -611,6 +611,7 @@ mod tests {
             VerifySpec { script: "unused".into(), timeout_secs: 1 },
             0,
             u64::MAX / 2,
+            None,
         );
         (manifest, pubkey)
     }

@@ -384,6 +384,7 @@ mod tests {
             VerifySpec { script: "verify.sh".into(), timeout_secs: 30 },
             now,
             now + 3600,
+            None,
         )
     }
 
@@ -421,6 +422,7 @@ mod tests {
             VerifySpec { script: "verify.sh".into(), timeout_secs: 30 },
             now,
             now + 3600,
+            None,
         )
     }
 

@@ -11,5 +11,5 @@ mod preimage;
 pub mod task;
 
 pub use composition::{CompositionEdge, CompositionManifest, EdgeUpgradeHint, SubManifestRef};
-pub use manifest::{BundleRef, EnvVarSpec, InstallerKind, ServiceManifest, VerifySpec};
+pub use manifest::{BundleRef, DemoPrompt, EnvVarSpec, InstallerKind, PromptParam, PromptParamKind, ServiceManifest, VerifySpec};
 pub use task::SignedTask;

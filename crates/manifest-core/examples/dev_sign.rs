@@ -6,7 +6,7 @@
 //!
 //! Run: `cargo run --example dev_sign` with the env vars below set.
 
-use manifest_core::{BundleRef, EnvVarSpec, InstallerKind, ServiceManifest, VerifySpec};
+use manifest_core::{BundleRef, DemoPrompt, EnvVarSpec, InstallerKind, ServiceManifest, VerifySpec};
 
 fn env(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("missing required env var {name}"))
@@ -61,6 +61,19 @@ fn main() {
     let manifest_id_hex = env_or("CT_MANIFEST_ID", "0707070707070707070707070707070707070707070707070707070707070707");
     let manifest_id = decode_hex32(&manifest_id_hex[..64]);
 
+    // Optional guided-natural-language-config block, marketplace#43-class -- raw DemoPrompt JSON
+    // (see manifest_core::manifest::{DemoPrompt, PromptParam, PromptParamKind} for the exact
+    // shape), e.g. {"system":"...","parameters":[{"name":"location","type":"enum","options":["Hamburg","Berlin"]}],"examples":["..."]}.
+    // Unset -> None, same as before this field existed. The real `ct-agent manifest create`+`sign`
+    // CLI (a separate repo, see the module doc above) needs the equivalent env var wired up there
+    // too -- this is a reference implementation for that, not a substitute for it.
+    let demo_prompt: Option<DemoPrompt> = match std::env::var("CT_MANIFEST_DEMO_PROMPT") {
+        Ok(raw) if !raw.trim().is_empty() => {
+            Some(serde_json::from_str(&raw).unwrap_or_else(|e| panic!("CT_MANIFEST_DEMO_PROMPT is not valid DemoPrompt JSON: {e}")))
+        }
+        _ => None,
+    };
+
     let manifest = ServiceManifest::sign_new(
         &signing_key,
         manifest_id,
@@ -72,6 +85,7 @@ fn main() {
         VerifySpec { script: verify_script, timeout_secs: verify_timeout_secs },
         now,
         now + expires_in,
+        demo_prompt,
     );
 
     println!("{}", serde_json::to_string_pretty(&manifest).unwrap());
