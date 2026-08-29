@@ -4,7 +4,7 @@
 
 use crate::allowlist::TrustAllowlist;
 use crate::report::{InstallReport, StepResult};
-use crate::{fetch, guardrails, process};
+use crate::{fetch, guardrails, process, sandbox};
 use manifest_core::{EnvVarSpec, InstallerKind};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -26,6 +26,13 @@ pub struct ActivateOptions {
     /// Fresh, empty scratch directory this run unpacks the bundle into.
     pub work_dir: PathBuf,
     pub now: u64,
+    /// Binary kind only -- DECIDED (operator, 2026-08-28): warn-and-proceed is the default
+    /// (`false`); set `true` (wired from `CT_REQUIRE_BINARY_SANDBOX=1` in
+    /// `examples/dev_activate.rs`, the same way `env_file` and every other option here is wired
+    /// from its own env var) for an operator who wants fail-closed instead -- refuse a Binary
+    /// activation outright rather than run it with no sandbox at all. Never blocks Compose, and
+    /// never blocks a Binary run when a sandbox backend IS available.
+    pub require_binary_sandbox: bool,
 }
 
 pub fn activate(opts: ActivateOptions) -> InstallReport {
@@ -165,7 +172,7 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
     //    executable first, env passed the SAME resolved values as Compose's `.env` (parsed back
     //    out of the file just written in step 8 -- one source of truth, not a second env
     //    resolution path).
-    let (up_outcome, captured_stdout) = match manifest.installer_kind {
+    let (up_outcome, captured_stdout, sandbox_name) = match manifest.installer_kind {
         InstallerKind::Compose => {
             let compose_file_arg = manifest.bundle.compose_file.clone();
             let up_args = vec![
@@ -189,10 +196,11 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
                         project_name: opts.project_name,
                         step: "compose_up".into(),
                         detail: e,
+                        sandbox: None,
                     }
                 }
             };
-            (outcome, None)
+            (outcome, None, None)
         }
         InstallerKind::Binary => {
             let binary_path = bundle_path.clone();
@@ -203,6 +211,7 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
                     project_name: opts.project_name,
                     step: "binary_chmod".into(),
                     detail: e,
+                    sandbox: None,
                 };
             }
             let env_pairs = parse_dotenv_pairs(&dotenv);
@@ -216,10 +225,53 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
                         project_name: opts.project_name,
                         step: "binary_run".into(),
                         detail: format!("{} is not valid UTF-8", binary_path.display()),
+                        sandbox: None,
                     }
                 }
             };
-            let outcome = match process::run_bounded(binary_str, &[], &opts.work_dir, &env_refs, Duration::from_secs(300)) {
+
+            // Milestone 1: select a sandbox backend for this Binary run (or none, if this host has
+            // no usable candidate). Selected fresh per activation rather than cached -- one extra
+            // subprocess is worth it over a stale "probed sandboxed once" claim outliving a host
+            // config change. See `sandbox::select`'s doc and `docs/design/sandbox-fallback.md`.
+            let selection = sandbox::select();
+            let (program, wrapped_args, sandbox_name): (String, Vec<String>, Option<String>) = match &selection {
+                sandbox::Selection::Sandboxed(backend) => {
+                    let (p, a) = backend.wrap_command(binary_str, &[], &opts.work_dir, &env_refs);
+                    eprintln!(
+                        "ct-agent: activating Binary manifest {manifest_id_hex} under {} sandbox -- {}",
+                        backend.name(),
+                        backend.isolation_summary()
+                    );
+                    (p, a, Some(backend.name().to_string()))
+                }
+                sandbox::Selection::Unsandboxed { tried } => {
+                    // M0: close the gap between #12's claimed and actual state -- this warning did
+                    // not previously exist (see manifest-core::InstallerKind's and
+                    // docs/security-model.md's now-corrected claims).
+                    eprintln!(
+                        "ct-agent: WARNING -- no sandbox available for Binary manifest {manifest_id_hex} \
+                         (tried: {tried:?}). This executable will run with FULL ACCESS TO THIS ENTIRE \
+                         HOST -- not just this install -- including your filesystem, network, and every \
+                         other process. This is only as safe as your trust in the publisher \
+                         (publisher_pubkey={publisher_hex}). Add `bwrap`/ensure sandbox-exec works, or \
+                         set CT_REQUIRE_BINARY_SANDBOX=1 to refuse instead of proceeding unsandboxed."
+                    );
+                    if opts.require_binary_sandbox {
+                        return InstallReport::Rejected {
+                            reason: format!(
+                                "require_binary_sandbox: no sandbox backend available for this host \
+                                 (tried: {tried:?}) and CT_REQUIRE_BINARY_SANDBOX=1 is set -- refusing \
+                                 to run this Binary manifest unsandboxed"
+                            ),
+                            manifest_id: Some(manifest_id_hex),
+                        };
+                    }
+                    (binary_str.to_string(), vec![], None)
+                }
+            };
+            let arg_refs: Vec<&str> = wrapped_args.iter().map(String::as_str).collect();
+            let outcome = match process::run_bounded(&program, &arg_refs, &opts.work_dir, &env_refs, Duration::from_secs(300)) {
                 Ok(o) => o,
                 Err(e) => {
                     return InstallReport::Failed {
@@ -228,11 +280,12 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
                         project_name: opts.project_name,
                         step: "binary_run".into(),
                         detail: e,
+                        sandbox: sandbox_name,
                     }
                 }
             };
             let stdout = outcome.stdout.clone();
-            (outcome, Some(stdout))
+            (outcome, Some(stdout), sandbox_name)
         }
         InstallerKind::K8s => unreachable!("step 4 already rejected K8s"),
     };
@@ -251,6 +304,7 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
                 "exit={:?} timed_out={} stderr={}",
                 up_outcome.exit_code, up_outcome.timed_out, up_outcome.stderr
             ),
+            sandbox: sandbox_name,
         };
     }
 
@@ -276,6 +330,7 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
                 project_name: opts.project_name,
                 step: "verify".into(),
                 detail: e,
+                sandbox: sandbox_name,
             }
         }
     };
@@ -290,6 +345,7 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
                 "exit={:?} timed_out={} stdout={} stderr={}",
                 verify_outcome.exit_code, verify_outcome.timed_out, verify_outcome.stdout, verify_outcome.stderr
             ),
+            sandbox: sandbox_name,
         };
     }
 
@@ -300,6 +356,7 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
         compose_up: StepResult { exit_code: up_outcome.exit_code, duration_ms: up_outcome.duration_ms },
         verify: StepResult { exit_code: verify_outcome.exit_code, duration_ms: verify_outcome.duration_ms },
         captured_stdout,
+        sandbox: sandbox_name,
     }
 }
 
@@ -485,6 +542,12 @@ pub(crate) fn hex32(b: &[u8; 32]) -> String {
 pub(crate) mod tests {
     use super::*;
 
+    // PATH_MUTATION_LOCK lives in `process.rs` (`crate::process::PATH_MUTATION_LOCK`) -- shared
+    // crate-wide, not module-local, because the race it guards against isn't specific to this
+    // module. See its doc comment there for the full story, including why a module-local version
+    // of this same lock was tried first and turned out not to be enough.
+    use crate::process::PATH_MUTATION_LOCK;
+
     #[test]
     fn collision_guard_rejects_a_protected_name() {
         let err = preflight_collision_check("litellm-proxy", &["litellm-proxy".to_string()], true).unwrap_err();
@@ -501,6 +564,7 @@ pub(crate) mod tests {
     /// panics, so a failure here can't leak a broken `PATH` into later tests.
     #[test]
     fn collision_guard_skips_docker_entirely_when_told_to() {
+        let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         struct PathGuard(Option<String>);
         impl Drop for PathGuard {
             fn drop(&mut self) {
@@ -709,6 +773,7 @@ pub(crate) mod tests {
             protected_name_substrings: vec!["litellm-proxy".to_string(), "kali".to_string(), "sort-demo".to_string(), "game2048".to_string()],
             work_dir: dir.path().join("work"),
             now: 1,
+            require_binary_sandbox: false,
         });
 
         match report {
@@ -740,6 +805,7 @@ pub(crate) mod tests {
             protected_name_substrings: vec!["litellm-proxy".to_string(), "kali".to_string(), "sort-demo".to_string(), "game2048".to_string()],
             work_dir: dir.path().join("work"),
             now: 1,
+            require_binary_sandbox: false,
         });
 
         match report {
@@ -826,6 +892,7 @@ pub(crate) mod tests {
             protected_name_substrings: vec!["litellm-proxy".to_string(), "kali".to_string(), "sort-demo".to_string(), "game2048".to_string()],
             work_dir: dir.path().join("work"),
             now: 1,
+            require_binary_sandbox: false,
         });
 
         match report {
@@ -854,6 +921,7 @@ pub(crate) mod tests {
             protected_name_substrings: vec!["litellm-proxy".to_string(), "kali".to_string(), "sort-demo".to_string(), "game2048".to_string()],
             work_dir: dir.path().join("work"),
             now: 1,
+            require_binary_sandbox: false,
         });
 
         match report {
@@ -899,11 +967,236 @@ pub(crate) mod tests {
             protected_name_substrings: vec![],
             work_dir: dir.path().join("work"),
             now: 1,
+            require_binary_sandbox: false,
         });
 
         match report {
             InstallReport::Rejected { reason, .. } => assert!(reason.contains("K8s is schema-only"), "{reason}"),
             other => panic!("expected InstallReport::Rejected, got {other:?}"),
+        }
+    }
+
+    // -- Milestone 1: real sandboxed-activation proof (docs/design/sandbox-fallback.md's testing
+    // plan item 2) -------------------------------------------------------------------------------
+
+    /// A `run.sh` that asserts, from INSIDE the (possibly) sandboxed process, exactly the two
+    /// F.1/F.3-equivalent properties `docs/design/sandbox-fallback.md` claims for the bwrap
+    /// backend: (a) this process is in a DIFFERENT network namespace than the host (proven by
+    /// comparing `/proc/self/ns/net`'s symlink target -- a real, per-task kernel property that's
+    /// accurate regardless of how `/proc` itself got into this mount namespace -- against
+    /// `$HOST_NET_NS`, captured on the host side BEFORE `activate()` ran); (b) a write to
+    /// `$OUTSIDE_TARGET` (a path under the SAME tempdir as `work_dir`, but not inside it) fails;
+    /// (c) a write inside the current directory (bwrap `--chdir`s into `work_dir`) succeeds. Each
+    /// check prints its own `OK: ...`/`FAIL: ...` line so a failing run's captured stdout says
+    /// exactly which property broke, not just "exit 1".
+    ///
+    /// **Not `ls /sys/class/net`** (an earlier version of this test used that, and was itself
+    /// wrong -- CADS-agent-marketplace#20's CI run caught it): `wrap_command`'s `--ro-bind / /`
+    /// bind-mounts the HOST's already-mounted `/sys` as-is. A sysfs instance's device LISTING is
+    /// captured at MOUNT time against whichever network namespace was active then (the host's) --
+    /// a bind mount doesn't create a new sysfs instance, so `/sys/class/net` keeps showing host
+    /// interfaces forever, regardless of whether `--unshare-net` genuinely put this process in a
+    /// new namespace. `/proc/self/ns/net` has no such staleness: namespace membership is a live
+    /// per-task property the kernel reports accurately no matter which mount instance of `/proc`
+    /// you read it through. This was confirmed empirically, not assumed: PR#20's CI failure showed
+    /// THIS SCRIPT'S OWN "FAIL: non-loopback interfaces visible" message on stderr (not a bwrap
+    /// launch error) -- proving bwrap had already successfully unshared namespaces, set up
+    /// loopback (which itself requires the CAP_NET_ADMIN a genuinely-created user+net namespace
+    /// grants), and exec'd this script; a broken/no-op `--unshare-net` fails LOUDLY at bwrap's own
+    /// loopback-setup step, before ever reaching the wrapped command at all (reproduced directly
+    /// against this host's own AppArmor-restricted bwrap while building this feature).
+    fn sandbox_probe_script() -> &'static str {
+        "#!/bin/sh\n\
+         set -u\n\
+         my_net_ns=$(readlink /proc/self/ns/net)\n\
+         if [ \"$my_net_ns\" = \"$HOST_NET_NS\" ]; then\n\
+         \techo \"FAIL: sandboxed process is in the SAME network namespace as the host ($my_net_ns)\" >&2\n\
+         \texit 1\n\
+         fi\n\
+         echo \"OK: sandboxed process has its own network namespace ($my_net_ns != host $HOST_NET_NS)\"\n\
+         if echo probe > \"$OUTSIDE_TARGET\" 2>/dev/null; then\n\
+         \techo \"FAIL: write outside work_dir unexpectedly succeeded\" >&2\n\
+         \texit 1\n\
+         fi\n\
+         echo \"OK: write outside work_dir failed as expected\"\n\
+         if ! echo probe > ./inside-write-proof; then\n\
+         \techo \"FAIL: write inside work_dir failed\" >&2\n\
+         \texit 1\n\
+         fi\n\
+         echo \"OK: write inside work_dir succeeded\"\n\
+         exit 0\n"
+    }
+
+    /// Same shape as `write_binary_fixture`, but declares `OUTSIDE_TARGET` and `HOST_NET_NS` in
+    /// `env_template` (so `activate`'s normal env-resolution path -- step 8, `--env-file`-
+    /// equivalent for Binary -- carries them into the sandboxed process, exactly like any other
+    /// manifest-declared var; no second, sandbox-specific env-passing mechanism).
+    fn write_binary_fixture_sandbox_probe(dir: &Path) -> (PathBuf, [u8; 32]) {
+        use ed25519_dalek::SigningKey;
+        use manifest_core::{BundleRef, EnvVarSpec, ServiceManifest, VerifySpec};
+        use rand::RngCore;
+        use sha2::{Digest, Sha256};
+
+        let mut seed = [0u8; 32];
+        rand::rngs::OsRng.fill_bytes(&mut seed);
+        let signing_key = SigningKey::from_bytes(&seed);
+        let pubkey = signing_key.verifying_key().to_bytes();
+
+        let verify_script = "#!/bin/sh\nexit 0\n";
+        let tarball = make_tar_gz(&[("run.sh", sandbox_probe_script().as_bytes()), ("verify.sh", verify_script.as_bytes())]);
+        let bundle_path = dir.join("bundle.tar.gz");
+        std::fs::write(&bundle_path, &tarball).unwrap();
+
+        let mut hasher = Sha256::new();
+        hasher.update(&tarball);
+        let sha256: [u8; 32] = hasher.finalize().into();
+
+        let manifest = ServiceManifest::sign_new(
+            &signing_key,
+            [0x42; 32],
+            "phase5-sandbox-probe".to_string(),
+            "0.1.0".to_string(),
+            InstallerKind::Binary,
+            BundleRef { url: bundle_path.to_str().unwrap().to_string(), sha256, compose_file: "run.sh".to_string() },
+            vec![
+                EnvVarSpec {
+                    name: "OUTSIDE_TARGET".to_string(),
+                    required: true,
+                    description: "absolute path outside work_dir the probe script must fail to write to".to_string(),
+                },
+                EnvVarSpec {
+                    name: "HOST_NET_NS".to_string(),
+                    required: true,
+                    description: "this test process's own /proc/self/ns/net target, captured on the host side, for the sandboxed process to prove it differs from".to_string(),
+                },
+            ],
+            VerifySpec { script: "verify.sh".to_string(), timeout_secs: 30 },
+            0,
+            u64::MAX / 2,
+        );
+        let manifest_path = dir.join("manifest.json");
+        std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+        (manifest_path, pubkey)
+    }
+
+    /// The direct, executable proof of the F.1/F.3-equivalent claims in
+    /// `docs/design/sandbox-fallback.md`'s Linux `bwrap` section -- not just "the flags look
+    /// right" (that's `wrap_command_builds_the_exact_documented_argv` in `sandbox::bwrap`), a real
+    /// sandboxed run whose OWN stdout proves isolation held. This host's bwrap availability is
+    /// probed for real, not mocked: if THIS host has no usable sandbox backend (bwrap missing, or
+    /// unprivileged user-namespace creation blocked -- e.g. by Ubuntu's
+    /// `kernel.apparmor_restrict_unprivileged_userns`, verified present on this operator's own dev
+    /// host during this feature's implementation, with no non-root way to lift it -- see
+    /// `sandbox::bwrap::probe`'s doc comment), this test SKIPS rather than false-failing on an
+    /// environment property outside this crate's control. It runs for real wherever a sandbox
+    /// backend IS available, in particular Linux CI (`.github/workflows/ci.yml` installs `bwrap`
+    /// via `apt` and relaxes that same AppArmor restriction for exactly this test).
+    #[test]
+    fn a_binary_manifest_is_genuinely_confined_by_bwrap_when_a_sandbox_backend_is_available() {
+        // Held for the whole test, including the skip-check below AND the real `activate()` call
+        // at the bottom -- both call `sandbox::select()`, which resolves `bwrap` via ambient PATH,
+        // and `activate()`'s real spawn of `bwrap` does too. See `PATH_MUTATION_LOCK`'s doc comment.
+        let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        if !matches!(crate::sandbox::select(), crate::sandbox::Selection::Sandboxed(_)) {
+            eprintln!(
+                "skipping a_binary_manifest_is_genuinely_confined_by_bwrap_when_a_sandbox_backend_is_available: \
+                 no sandbox backend available on this host (see sandbox::bwrap::probe)"
+            );
+            return;
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        // Outside work_dir, but still inside the same tempdir (so it's cleaned up together) --
+        // exactly the "a real, existing path this run must never be able to touch" shape.
+        let outside_target = dir.path().join("outside-canary.txt");
+        let (manifest_path, pubkey) = write_binary_fixture_sandbox_probe(dir.path());
+        let allowlist = TrustAllowlist::parse(&hex32(&pubkey)).unwrap();
+
+        // This TEST process's own network namespace -- the baseline the sandboxed process proves
+        // it does NOT share. Captured here, on the host side, not hardcoded, so this works
+        // identically whatever namespace the CI runner (or a dev host) happens to start in.
+        let host_net_ns = std::fs::read_link("/proc/self/ns/net")
+            .expect("this test host must have a real /proc/self/ns/net to compare against")
+            .to_str()
+            .unwrap()
+            .to_string();
+
+        let env_file_path = dir.path().join("probe.env");
+        std::fs::write(
+            &env_file_path,
+            format!("OUTSIDE_TARGET={}\nHOST_NET_NS={host_net_ns}\n", outside_target.display()),
+        )
+        .unwrap();
+
+        let report = activate(ActivateOptions {
+            manifest_location: manifest_path.to_str().unwrap().to_string(),
+            allowlist,
+            env_file: Some(env_file_path),
+            project_name: format!("phase5-sandbox-probe-{}", std::process::id()),
+            protected_name_substrings: vec!["litellm-proxy".to_string(), "kali".to_string(), "sort-demo".to_string(), "game2048".to_string()],
+            work_dir: dir.path().join("work"),
+            now: 1,
+            require_binary_sandbox: false,
+        });
+
+        match report {
+            InstallReport::Ok { sandbox, captured_stdout, .. } => {
+                assert_eq!(sandbox.as_deref(), Some("bwrap"), "expected the run to be reported as bwrap-sandboxed");
+                let stdout = captured_stdout.unwrap_or_default();
+                assert!(stdout.contains("OK: sandboxed process has its own network namespace"), "stdout={stdout}");
+                assert!(stdout.contains("OK: write outside work_dir failed as expected"), "stdout={stdout}");
+                assert!(stdout.contains("OK: write inside work_dir succeeded"), "stdout={stdout}");
+            }
+            other => panic!("expected InstallReport::Ok proving F.1/F.3-equivalent isolation under bwrap, got {other:?}"),
+        }
+        assert!(
+            !outside_target.exists(),
+            "the sandboxed run must never have actually created the outside-work_dir canary file"
+        );
+    }
+
+    /// `select()` returning `Unsandboxed` (this crate's own `Unavailable` probe result, hermetically
+    /// simulated the same way `sandbox::bwrap`'s own `probe_reports_unavailable_when_bwrap_is_not_on_path`
+    /// test is) must refuse to run a Binary manifest at all when `require_binary_sandbox` is set --
+    /// the `CT_REQUIRE_BINARY_SANDBOX=1` fail-closed policy, DECIDED (operator, 2026-08-28) as the
+    /// opt-in alternative to the warn-and-proceed default.
+    #[test]
+    fn require_binary_sandbox_refuses_to_run_unsandboxed_when_no_backend_is_available() {
+        // See `PATH_MUTATION_LOCK`'s doc comment -- `select()` below resolves `bwrap` via ambient
+        // PATH just like the other sandbox tests, even though this test's own assertion doesn't
+        // depend on a real bwrap spawn succeeding.
+        let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        if matches!(crate::sandbox::select(), crate::sandbox::Selection::Sandboxed(_)) {
+            // This test's whole point is exercising the Unsandboxed path -- on a host where bwrap
+            // genuinely IS available and usable, skip rather than fabricate a scenario this host
+            // can't actually produce (mirrors the skip above, same reasoning).
+            eprintln!(
+                "skipping require_binary_sandbox_refuses_to_run_unsandboxed_when_no_backend_is_available: \
+                 a sandbox backend IS available on this host, so Unsandboxed can't occur naturally here"
+            );
+            return;
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        let (manifest_path, pubkey) = write_binary_fixture(dir.path(), "should-never-print-this");
+        let allowlist = TrustAllowlist::parse(&hex32(&pubkey)).unwrap();
+
+        let report = activate(ActivateOptions {
+            manifest_location: manifest_path.to_str().unwrap().to_string(),
+            allowlist,
+            env_file: None,
+            project_name: format!("phase5-require-sandbox-{}", std::process::id()),
+            protected_name_substrings: vec!["litellm-proxy".to_string(), "kali".to_string(), "sort-demo".to_string(), "game2048".to_string()],
+            work_dir: dir.path().join("work"),
+            now: 1,
+            require_binary_sandbox: true,
+        });
+
+        match report {
+            InstallReport::Rejected { reason, .. } => {
+                assert!(reason.contains("require_binary_sandbox"), "{reason}");
+            }
+            other => panic!("expected InstallReport::Rejected (fail-closed), got {other:?}"),
         }
     }
 }

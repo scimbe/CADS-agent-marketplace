@@ -10,6 +10,7 @@ pub mod fetch;
 pub mod guardrails;
 pub mod process;
 pub mod report;
+pub mod sandbox;
 
 pub use activate::{activate, ActivateOptions};
 pub use composition::{

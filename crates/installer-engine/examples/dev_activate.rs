@@ -36,6 +36,7 @@ fn main() {
         .collect();
     let work_dir = std::path::PathBuf::from(env("CT_MANIFEST_WORK_DIR"));
     let now: u64 = env("CT_MANIFEST_NOW").parse().expect("CT_MANIFEST_NOW must be a unix-seconds integer");
+    let require_binary_sandbox = std::env::var("CT_REQUIRE_BINARY_SANDBOX").map(|v| v == "1").unwrap_or(false);
 
     let report = activate(ActivateOptions {
         manifest_location,
@@ -45,6 +46,7 @@ fn main() {
         protected_name_substrings,
         work_dir,
         now,
+        require_binary_sandbox,
     });
 
     let is_ok = matches!(report, installer_engine::InstallReport::Ok { .. });

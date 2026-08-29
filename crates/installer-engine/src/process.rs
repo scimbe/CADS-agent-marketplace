@@ -103,12 +103,29 @@ pub fn run_bounded(
     }
 }
 
+/// Serializes every test, in every module of this crate, that either mutates this process's real
+/// `PATH` env var or depends on `run_bounded` resolving a real binary via that same ambient `PATH`
+/// -- `cargo test`'s default thread-based parallelism runs test fns concurrently in the SAME
+/// process, so a test that blanks `PATH` (there's no way around it for
+/// `activate::tests::collision_guard_skips_docker_entirely_when_told_to`: `run_bounded` re-reads
+/// ambient `PATH` by design, see its own doc comment above) can starve an unrelated,
+/// concurrently-running test that needs a REAL `PATH` to find `sh`/`bwrap`/etc. Confirmed as an
+/// ACTUAL failure, not a theoretical one, twice: first
+/// `process::tests::the_whole_process_group_is_killed_not_just_the_shell` failed to spawn `sh`
+/// this way; after protecting `activate.rs`'s own PATH-sensitive tests with a LOCAL lock,
+/// `process::tests::a_hanging_command_is_killed_on_timeout` failed to spawn `sh` the SAME way, from
+/// the SAME mutator, because that local lock didn't reach across module boundaries. One shared,
+/// crate-visible lock closes it for every module, not just the one that happened to get hit last.
+#[cfg(test)]
+pub(crate) static PATH_MUTATION_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn a_quick_command_completes_normally() {
+        let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let out = run_bounded("sh", &["-c", "echo hi"], std::path::Path::new("."), &[], Duration::from_secs(5)).unwrap();
         assert!(!out.timed_out);
         assert_eq!(out.exit_code, Some(0));
@@ -117,6 +134,7 @@ mod tests {
 
     #[test]
     fn a_hanging_command_is_killed_on_timeout() {
+        let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let out = run_bounded(
             "sh",
             &["-c", "sleep 30"],
@@ -131,6 +149,7 @@ mod tests {
 
     #[test]
     fn the_whole_process_group_is_killed_not_just_the_shell() {
+        let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // A backgrounded grandchild (mirrors a verify.sh that backgrounds a curl, or `docker
         // compose`'s own build subprocesses) must not survive the timeout as an orphan. Have the
         // shell spawn a long-running child, print its pid, then exit -- if the group kill works,
