@@ -1178,7 +1178,7 @@ pub(crate) mod tests {
         }
 
         let dir = tempfile::tempdir().unwrap();
-        let (manifest_path, pubkey) = write_binary_fixture(dir.path(), "should-never-print-this");
+        let (manifest_path, pubkey) = write_binary_fixture(dir.path(), [0x42; 32], "should-never-print-this");
         let allowlist = TrustAllowlist::parse(&hex32(&pubkey)).unwrap();
 
         let report = activate(ActivateOptions {
