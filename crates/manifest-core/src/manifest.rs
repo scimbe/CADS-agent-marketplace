@@ -103,6 +103,62 @@ pub struct VerifySpec {
     pub timeout_secs: u64,
 }
 
+/// One bounded, typed parameter a `demo_prompt` may expose for guided natural-language
+/// configuration. Deliberately closed-world: an LLM maps free text to a value, but a caller must
+/// deterministically validate the result against exactly what's declared here (canonical
+/// membership for `Enum`/`Multiselect`, a hex-color regex for `Color`, a clamp for `Int`) before
+/// applying it -- this type only declares the bound, it enforces nothing by itself. A dynamic
+/// option set (e.g. sourced from a live API response) must still be computed by trusted caller
+/// code before the LLM call and is out of scope for what gets signed here; `Enum`/`Multiselect`'s
+/// `options` are the publisher's own declared, static bound.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum PromptParamKind {
+    Enum { options: Vec<String> },
+    Color,
+    Multiselect {
+        options: Vec<String>,
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        note: Option<String>,
+    },
+    Int { min: i64, max: i64 },
+}
+
+impl PromptParamKind {
+    fn as_u8(&self) -> u8 {
+        match self {
+            PromptParamKind::Enum { .. } => 0,
+            PromptParamKind::Color => 1,
+            PromptParamKind::Multiselect { .. } => 2,
+            PromptParamKind::Int { .. } => 3,
+        }
+    }
+}
+
+/// One named [`PromptParamKind`]. A `Vec`, not a JSON object keyed by name, for the same reason
+/// [`ServiceManifest::env_template`] is a `Vec<EnvVarSpec>` and not a map: signing needs a fixed,
+/// deterministic field order, which a map does not give you without an extra ordering discipline
+/// this crate would rather not depend on (e.g. `indexmap`) for one field.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PromptParam {
+    pub name: String,
+    #[serde(flatten)]
+    pub kind: PromptParamKind,
+}
+
+/// Guided natural-language parametrization for a demo: a user's free text is turned into a
+/// bounded config change through an LLM, `system` states the rules, `parameters` declares
+/// exactly what's tunable and how (see [`PromptParamKind`]), `examples` are few-shot prompts for
+/// the LLM (not signed-bound in any enforcement sense -- purely descriptive). Optional and
+/// backward-compatible: see [`ServiceManifest::signing_bytes`] for exactly how its presence (or
+/// absence) affects the signed preimage.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DemoPrompt {
+    pub system: String,
+    pub parameters: Vec<PromptParam>,
+    pub examples: Vec<String>,
+}
+
 /// A holder-signed description of one installable service. See the module doc for the design
 /// rationale; see [`ServiceManifest::signing_bytes`] for the exact canonical preimage.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -123,6 +179,12 @@ pub struct ServiceManifest {
     pub verify: VerifySpec,
     pub issued_at: u64,
     pub expires_at: u64,
+    /// Optional guided-natural-language-configuration block. `#[serde(default)]` so a manifest
+    /// signed before this field existed still parses (as `None`) -- see
+    /// [`ServiceManifest::signing_bytes`] for why that's also signature-compatible, not just
+    /// parse-compatible.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub demo_prompt: Option<DemoPrompt>,
     /// The holder's ed25519 signature over [`ServiceManifest::signing_bytes`].
     #[serde(with = "crate::hex::b64")]
     pub signature: [u8; 64],
@@ -133,6 +195,14 @@ impl ServiceManifest {
     /// length-prefixed via [`Preimage::var_bytes`] (the one place that discipline lives), fixed
     /// fields append verbatim. Field order here is the field order any implementation MUST use --
     /// changing it changes every future signature's meaning, not just this one.
+    ///
+    /// **`demo_prompt` is backward-compatible by construction**: `None` appends NOTHING -- the
+    /// preimage is byte-identical to a manifest signed before this field existed, so every
+    /// pre-existing signature remains valid unchanged. `Some(dp)` appends `tag(1)` then `dp`'s own
+    /// fields; because the `None` case is strictly shorter (nothing after `expires_at` at all) and
+    /// the `Some` case always starts with a `0x01` byte, no old preimage can collide with or be
+    /// extended into a new one -- ed25519 signs the exact byte string, appending bytes after the
+    /// fact does not preserve validity.
     #[allow(clippy::too_many_arguments)]
     pub fn signing_bytes(
         publisher_pubkey: &[u8; 32],
@@ -145,6 +215,7 @@ impl ServiceManifest {
         verify: &VerifySpec,
         issued_at: u64,
         expires_at: u64,
+        demo_prompt: Option<&DemoPrompt>,
     ) -> Vec<u8> {
         let mut p = Preimage::new(SERVICE_MANIFEST_DOMAIN)
             .fixed(publisher_pubkey)
@@ -162,11 +233,53 @@ impl ServiceManifest {
                 .tag(e.required as u8)
                 .var_bytes(e.description.as_bytes());
         }
-        p.var_bytes(verify.script.as_bytes())
+        p = p
+            .var_bytes(verify.script.as_bytes())
             .u64(verify.timeout_secs)
             .u64(issued_at)
-            .u64(expires_at)
-            .finish()
+            .u64(expires_at);
+        match demo_prompt {
+            None => p,
+            Some(dp) => {
+                p = p.tag(1).var_bytes(dp.system.as_bytes()).u32(dp.parameters.len() as u32);
+                for param in &dp.parameters {
+                    p = p.var_bytes(param.name.as_bytes()).tag(param.kind.as_u8());
+                    p = match &param.kind {
+                        PromptParamKind::Enum { options } => {
+                            let mut p = p.u32(options.len() as u32);
+                            for o in options {
+                                p = p.var_bytes(o.as_bytes());
+                            }
+                            p
+                        }
+                        PromptParamKind::Multiselect { options, note } => {
+                            let mut p = p.u32(options.len() as u32);
+                            for o in options {
+                                p = p.var_bytes(o.as_bytes());
+                            }
+                            // `note`'s presence gets its own tag either way -- unlike the
+                            // top-level `demo_prompt: Option`, this is NOT the last thing in the
+                            // preimage (more params or the examples count can follow), so an
+                            // asymmetric "None omits everything" encoding here could let a
+                            // present-but-empty-looking note collide with the start of whatever
+                            // comes next. Always tag, injective either way.
+                            match note {
+                                Some(note) => p.tag(1).var_bytes(note.as_bytes()),
+                                None => p.tag(0),
+                            }
+                        }
+                        PromptParamKind::Color => p,
+                        PromptParamKind::Int { min, max } => p.fixed(&min.to_le_bytes()).fixed(&max.to_le_bytes()),
+                    };
+                }
+                p = p.u32(dp.examples.len() as u32);
+                for ex in &dp.examples {
+                    p = p.var_bytes(ex.as_bytes());
+                }
+                p
+            }
+        }
+        .finish()
     }
 
     /// Whether this manifest is authentic AND still current at `now`: the publisher's signature
@@ -196,6 +309,7 @@ impl ServiceManifest {
             &self.verify,
             self.issued_at,
             self.expires_at,
+            self.demo_prompt.as_ref(),
         );
         vk.verify(&preimage, &Signature::from_bytes(&self.signature)).is_ok()
     }
@@ -215,6 +329,7 @@ impl ServiceManifest {
         verify: VerifySpec,
         issued_at: u64,
         expires_at: u64,
+        demo_prompt: Option<DemoPrompt>,
     ) -> ServiceManifest {
         let publisher_pubkey = signing_key.verifying_key().to_bytes();
         let preimage = Self::signing_bytes(
@@ -228,6 +343,7 @@ impl ServiceManifest {
             &verify,
             issued_at,
             expires_at,
+            demo_prompt.as_ref(),
         );
         let signature = signing_key.sign(&preimage).to_bytes();
         ServiceManifest {
@@ -241,6 +357,7 @@ impl ServiceManifest {
             verify,
             issued_at,
             expires_at,
+            demo_prompt,
             signature,
         }
     }
@@ -281,6 +398,7 @@ mod tests {
             VerifySpec { script: "verify.sh".into(), timeout_secs: 60 },
             issued_at,
             expires_at,
+            None,
         )
     }
 
@@ -338,6 +456,7 @@ mod tests {
             &m.verify,
             m.issued_at,
             m.expires_at,
+            m.demo_prompt.as_ref(),
         ));
         m.signature = sig.to_bytes();
         assert!(!m.is_valid(1_500), "a signature from a key other than publisher_pubkey must not verify");
@@ -349,5 +468,152 @@ mod tests {
         // from an arbitrary empty/placeholder domain, catching an accidental copy-paste of
         // another type's constant during future edits.
         assert_eq!(SERVICE_MANIFEST_DOMAIN, b"cads-service-manifest-v1");
+    }
+
+    // --- demo_prompt ---------------------------------------------------------------------
+
+    fn sample_demo_prompt() -> DemoPrompt {
+        DemoPrompt {
+            system: "Only ever choose values from the declared parameters.".into(),
+            parameters: vec![
+                PromptParam {
+                    name: "location".into(),
+                    kind: PromptParamKind::Enum { options: vec!["Hamburg".into(), "Berlin".into()] },
+                },
+                PromptParam { name: "accent_color".into(), kind: PromptParamKind::Color },
+                PromptParam {
+                    name: "include".into(),
+                    kind: PromptParamKind::Multiselect {
+                        options: vec!["temperature".into(), "wind".into()],
+                        note: Some("only what the API delivers".into()),
+                    },
+                },
+                PromptParam { name: "font_size".into(), kind: PromptParamKind::Int { min: 12, max: 48 } },
+            ],
+            examples: vec!["Berlin in Blau, ohne Wind".into()],
+        }
+    }
+
+    fn sample_with_demo_prompt(signing_key: &SigningKey, issued_at: u64, expires_at: u64) -> ServiceManifest {
+        let m = sample(signing_key, issued_at, expires_at);
+        ServiceManifest::sign_new(
+            signing_key,
+            m.manifest_id,
+            m.name,
+            m.version,
+            m.installer_kind,
+            m.bundle,
+            m.env_template,
+            m.verify,
+            issued_at,
+            expires_at,
+            Some(sample_demo_prompt()),
+        )
+    }
+
+    #[test]
+    fn a_manifest_with_a_demo_prompt_signs_and_verifies() {
+        let key = random_signing_key();
+        let m = sample_with_demo_prompt(&key, 1_000, 2_000);
+        assert!(m.is_valid(1_500));
+        assert!(m.demo_prompt.is_some());
+    }
+
+    #[test]
+    fn widening_a_demo_prompt_enum_after_signing_invalidates_the_signature() {
+        // The exact attack this field exists to prevent: a publisher signs a manifest promising
+        // "location" is bounded to {Hamburg, Berlin}, then someone (the publisher themselves, or
+        // anyone with write access to the stored JSON) adds a third option post-signature to
+        // widen what a "fest vorgeschrieben" wrapper would accept. This MUST break verification --
+        // an unsigned demo_prompt would let this slide silently, which is the whole reason it's
+        // part of the signed preimage now instead of a bolted-on extra field.
+        let key = random_signing_key();
+        let mut m = sample_with_demo_prompt(&key, 1_000, 2_000);
+        let Some(dp) = m.demo_prompt.as_mut() else { panic!("expected Some") };
+        match &mut dp.parameters[0].kind {
+            PromptParamKind::Enum { options } => options.push("Tokio".into()),
+            _ => panic!("expected the location Enum param"),
+        }
+        assert!(!m.is_valid(1_500), "widening an enum's options post-signature must invalidate the signature");
+    }
+
+    #[test]
+    fn removing_a_demo_prompt_after_signing_invalidates_the_signature() {
+        // The inverse tamper: stripping demo_prompt entirely (e.g. to bypass its constraints
+        // altogether) must be caught too, not just editing it in place.
+        let key = random_signing_key();
+        let mut m = sample_with_demo_prompt(&key, 1_000, 2_000);
+        m.demo_prompt = None;
+        assert!(!m.is_valid(1_500));
+    }
+
+    #[test]
+    fn adding_a_demo_prompt_to_a_manifest_signed_without_one_invalidates_the_signature() {
+        let key = random_signing_key();
+        let mut m = sample(&key, 1_000, 2_000);
+        assert!(m.is_valid(1_500), "sanity: signed without demo_prompt, must verify as-is");
+        m.demo_prompt = Some(sample_demo_prompt());
+        assert!(!m.is_valid(1_500), "grafting on a demo_prompt post-signature must invalidate the signature");
+    }
+
+    #[test]
+    fn demo_prompt_none_produces_a_byte_identical_preimage_to_before_this_field_existed() {
+        // The actual backward-compatibility claim, checked directly at the byte level rather than
+        // just "old tests still pass": signing_bytes(..., None) must equal signing_bytes(...) as
+        // it was defined before demo_prompt existed. Reconstructed by hand here (not by calling
+        // the old function, which no longer exists) -- this pins the exact historical shape so a
+        // future refactor of the None branch can't silently drift from it.
+        let key = random_signing_key();
+        let m = sample(&key, 1_000, 2_000);
+        let with_none = ServiceManifest::signing_bytes(
+            &m.publisher_pubkey, &m.manifest_id, &m.name, &m.version, m.installer_kind,
+            &m.bundle, &m.env_template, &m.verify, m.issued_at, m.expires_at, None,
+        );
+
+        let mut expected = Preimage::new(SERVICE_MANIFEST_DOMAIN)
+            .fixed(&m.publisher_pubkey)
+            .fixed(&m.manifest_id)
+            .var_bytes(m.name.as_bytes())
+            .var_bytes(m.version.as_bytes())
+            .tag(m.installer_kind.as_u8())
+            .var_bytes(m.bundle.url.as_bytes())
+            .fixed(&m.bundle.sha256)
+            .var_bytes(m.bundle.compose_file.as_bytes())
+            .u32(m.env_template.len() as u32);
+        for e in &m.env_template {
+            expected = expected.var_bytes(e.name.as_bytes()).tag(e.required as u8).var_bytes(e.description.as_bytes());
+        }
+        let expected = expected
+            .var_bytes(m.verify.script.as_bytes())
+            .u64(m.verify.timeout_secs)
+            .u64(m.issued_at)
+            .u64(m.expires_at)
+            .finish();
+
+        assert_eq!(with_none, expected, "None must append nothing beyond the pre-demo_prompt shape");
+    }
+
+    #[test]
+    fn demo_prompt_round_trips_through_json_including_every_param_kind() {
+        let key = random_signing_key();
+        let m = sample_with_demo_prompt(&key, 1_000, 2_000);
+        let json = serde_json::to_string(&m).unwrap();
+        let back: ServiceManifest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, m);
+        assert!(back.is_valid(1_500));
+    }
+
+    #[test]
+    fn a_manifest_json_missing_the_demo_prompt_key_entirely_still_parses_as_none() {
+        // The literal backward-compat scenario: a manifest signed and stored before this field
+        // existed has no "demo_prompt" key in its JSON at all, not even null.
+        let key = random_signing_key();
+        let m = sample(&key, 1_000, 2_000);
+        let mut json: serde_json::Value = serde_json::to_value(&m).unwrap();
+        let obj = json.as_object_mut().unwrap();
+        assert!(!obj.contains_key("demo_prompt"), "sanity: sample() without demo_prompt should not emit the key (skip_serializing_if)");
+        let back: ServiceManifest = serde_json::from_value(json).unwrap();
+        assert_eq!(back.demo_prompt, None);
+        assert!(back.is_valid(1_500));
     }
 }
