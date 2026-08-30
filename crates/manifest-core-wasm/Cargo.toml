@@ -1,0 +1,23 @@
+[package]
+name = "manifest-core-wasm"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "wasm-bindgen bindings for manifest-core's ServiceManifest sign/verify -- calls ServiceManifest::signing_bytes/sign_new/is_valid directly, so the canonical preimage-construction logic lives in exactly one place and is never re-derived in JS."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+manifest-core = { path = "../manifest-core" }
+wasm-bindgen = "0.2"
+ed25519-dalek = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1"
+
+[dev-dependencies]
+rand = "0.8"
