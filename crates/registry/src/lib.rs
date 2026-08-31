@@ -17,7 +17,7 @@ pub mod db;
 pub mod hex_util;
 
 use axum::extract::{Multipart, Path as AxPath, Query, State};
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{HeaderMap, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -26,6 +26,7 @@ use manifest_core::ServiceManifest;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
+use tower_http::cors::{Any, CorsLayer};
 
 pub struct AppState {
     pub db: Db,
@@ -37,12 +38,23 @@ pub struct AppState {
 }
 
 pub fn app(state: Arc<AppState>) -> Router {
+    // Read endpoints are unauthenticated by design (see module docs) -- browser-side callers like
+    // keyforge's manifest fetch need CORS, not just a 200 from curl. Write endpoints stay gated by
+    // the bearer-token check above, which CORS doesn't touch (only enforced client-side by browsers,
+    // not a substitute for it) -- deliberately not scoped to GET-only so a preflighted browser POST
+    // is possible too, e.g. Phase 4's dashboard.
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers(Any);
+
     Router::new()
         .route("/manifests", post(publish_manifest).get(list_manifests))
         .route("/manifests/:manifest_id", get(get_manifest))
         .route("/manifests/:manifest_id/bundle", get(get_bundle))
         .route("/manifests/:manifest_id/activations", post(post_activation))
         .route("/publishers/:pubkey/ledger", get(get_ledger))
+        .layer(cors)
         .with_state(state)
 }
 

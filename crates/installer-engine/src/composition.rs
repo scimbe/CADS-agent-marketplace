@@ -240,6 +240,7 @@ pub fn activate_composition(opts: CompositionActivateOptions) -> CompositionInst
             protected_name_substrings: opts.protected_name_substrings.clone(),
             work_dir: sub_work_dir.clone(),
             now: opts.now,
+            require_binary_sandbox: false,
         });
 
         match &report {
