@@ -18,7 +18,7 @@ pub mod hex_util;
 
 use axum::extract::{DefaultBodyLimit, Multipart, Path as AxPath, Query, State};
 use axum::http::{HeaderMap, StatusCode};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use db::{Db, StoredManifest};
@@ -45,6 +45,7 @@ pub struct AppState {
 
 pub fn app(state: Arc<AppState>) -> Router {
     Router::new()
+        .route("/", get(root_page))
         .route("/manifests", post(publish_manifest).get(list_manifests))
         .route("/manifests/:manifest_id", get(get_manifest))
         .route("/manifests/:manifest_id/bundle", get(get_bundle))
@@ -241,6 +242,92 @@ struct ManifestSummary {
     version: String,
     guardrail_verdict: String,
     published_at: i64,
+}
+
+fn html_escape(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#39;"),
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+/// Format a unix-seconds timestamp as `YYYY-MM-DD HH:MM:SS UTC` -- a small,
+/// dependency-free UTC civil-calendar conversion (Howard Hinnant's well-known
+/// `civil_from_days` algorithm, <http://howardhinnant.github.io/date_algorithms.html>).
+/// This crate has no chrono/time dependency, and a listing page's timestamp column
+/// doesn't need one.
+fn format_unix(secs: i64) -> String {
+    let days = secs.div_euclid(86400);
+    let tod = secs.rem_euclid(86400);
+    let (h, mi, s) = (tod / 3600, (tod / 60) % 60, tod % 60);
+    let z = days + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = z - era * 146097; // [0, 146096]
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365; // [0, 399]
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
+    let mp = (5 * doy + 2) / 153; // [0, 11]
+    let d = doy - (153 * mp + 2) / 5 + 1; // [1, 31]
+    let m = if mp < 10 { mp + 3 } else { mp - 9 }; // [1, 12]
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{y:04}-{m:02}-{d:02} {h:02}:{mi:02}:{s:02} UTC")
+}
+
+/// `GET /` (#47): a human-readable landing page listing everything `GET /manifests`
+/// (the machine-readable JSON API) already serves, plus an explicit pointer to that
+/// JSON endpoint for any agent/tool that lands on the root by mistake. Read-only,
+/// unauthenticated, same posture as `list_manifests` below.
+async fn root_page(State(state): State<Arc<AppState>>) -> Response {
+    let rows = match state.db.list_manifests(None, None) {
+        Ok(rows) => rows,
+        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e),
+    };
+    let rows_html = if rows.is_empty() {
+        "<p>No manifests published yet.</p>".to_string()
+    } else {
+        let items = rows
+            .iter()
+            .map(|m| {
+                format!(
+                    "<tr><td>{name}</td><td>{version}</td><td><code>{publisher}</code></td>\
+                     <td>{verdict}</td><td>{published}</td></tr>",
+                    name = html_escape(&m.name),
+                    version = html_escape(&m.version),
+                    publisher = html_escape(&m.publisher_pubkey),
+                    verdict = html_escape(&m.guardrail_verdict),
+                    published = format_unix(m.published_at),
+                )
+            })
+            .collect::<String>();
+        format!(
+            "<table><thead><tr><th>Name</th><th>Version</th><th>Publisher</th>\
+             <th>Guardrail verdict</th><th>Published</th></tr></thead><tbody>{items}</tbody></table>"
+        )
+    };
+    Html(format!(
+        "<!doctype html><html><head><meta charset=\"utf-8\">\
+         <title>CADS agent marketplace registry</title>\
+         <style>body{{font-family:sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem}}\
+         table{{border-collapse:collapse;width:100%}}th,td{{text-align:left;padding:.4rem .6rem;\
+         border-bottom:1px solid #ccc}}code{{font-size:.85em}}</style></head><body>\
+         <h1>CADS agent marketplace registry</h1>\
+         <p>{count} manifest(s) published. This is a human-readable listing -- for the \
+         machine-readable/LLM-consumable API, see <code>GET /manifests</code> \
+         (optionally filtered by <code>?publisher=</code>/<code>?name=</code>), which \
+         returns this same data as JSON.</p>\
+         {rows_html}\
+         </body></html>",
+        count = rows.len(),
+    ))
+    .into_response()
 }
 
 async fn list_manifests(State(state): State<Arc<AppState>>, Query(params): Query<ListParams>) -> Response {
@@ -785,5 +872,105 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn root_page_is_a_human_readable_listing_not_a_404() {
+        // #47: GET / used to be a bare 404 with no route registered at all.
+        let state = test_state(1_000);
+        let key = SigningKey::from_bytes(&[9u8; 32]);
+        let bundle = make_bundle_tar_gz(b"services:\n  web:\n    ports:\n      - \"127.0.0.1:4102:8080\"\n");
+        let manifest = signed_manifest_for(&bundle, &key, [8u8; 32], 500);
+        let manifest_json = serde_json::to_string(&manifest).unwrap();
+        let (boundary, body) = multipart_body(&manifest_json, &bundle);
+        let publish_resp = app(state.clone())
+            .oneshot(
+                Request::post("/manifests")
+                    .header("authorization", "Bearer test-token")
+                    .header("content-type", format!("multipart/form-data; boundary={boundary}"))
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(publish_resp.status(), StatusCode::CREATED);
+
+        let resp = app(state).oneshot(Request::get("/").body(Body::empty()).unwrap()).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let content_type = resp.headers().get("content-type").and_then(|v| v.to_str().ok()).unwrap_or("").to_string();
+        assert!(content_type.starts_with("text/html"), "got content-type {content_type:?}");
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let html = String::from_utf8(bytes.to_vec()).unwrap();
+        assert!(html.contains("litellm-proof"), "the published manifest's name is rendered");
+        assert!(html.contains("0.1.0"), "the version is rendered");
+        assert!(html.contains("clean"), "the guardrail verdict is rendered");
+        assert!(
+            html.contains("GET /manifests") || html.contains("<code>GET /manifests</code>"),
+            "the machine-readable JSON endpoint is pointed to explicitly"
+        );
+    }
+
+    #[tokio::test]
+    async fn root_page_escapes_manifest_fields_and_handles_the_empty_case() {
+        // A manifest name/version isn't attacker-controlled input here (publish requires the
+        // write token), but this page renders it as raw HTML -- escape unconditionally rather
+        // than assume the field is always benign.
+        let state = test_state(1_000);
+        let key = SigningKey::from_bytes(&[5u8; 32]);
+        let bundle = make_bundle_tar_gz(b"services:\n  web:\n    ports:\n      - \"127.0.0.1:4103:8080\"\n");
+        let mut manifest = signed_manifest_for(&bundle, &key, [6u8; 32], 500);
+        manifest.name = "<script>alert(1)</script>".to_string();
+        // Re-sign over the mutated manifest so `is_valid` still accepts it -- publish_manifest
+        // rejects a manifest whose signature doesn't cover its actual current fields.
+        let manifest = ServiceManifest::sign_new(
+            &key,
+            manifest.manifest_id,
+            manifest.name.clone(),
+            manifest.version.clone(),
+            manifest.installer_kind,
+            manifest.bundle.clone(),
+            manifest.env_template.clone(),
+            manifest.verify.clone(),
+            manifest.issued_at,
+            manifest.expires_at,
+            manifest.demo_prompt.clone(),
+        );
+        let manifest_json = serde_json::to_string(&manifest).unwrap();
+        let (boundary, body) = multipart_body(&manifest_json, &bundle);
+        let publish_resp = app(state.clone())
+            .oneshot(
+                Request::post("/manifests")
+                    .header("authorization", "Bearer test-token")
+                    .header("content-type", format!("multipart/form-data; boundary={boundary}"))
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(publish_resp.status(), StatusCode::CREATED);
+
+        let resp = app(state).oneshot(Request::get("/").body(Body::empty()).unwrap()).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let html = String::from_utf8(bytes.to_vec()).unwrap();
+        assert!(!html.contains("<script>alert(1)</script>"), "manifest name must be HTML-escaped, not injected raw");
+        assert!(html.contains("&lt;script&gt;"), "the escaped form should still be present");
+    }
+
+    #[tokio::test]
+    async fn root_page_renders_a_clean_empty_state_with_no_manifests_published() {
+        let state = test_state(1_000);
+        let resp = app(state).oneshot(Request::get("/").body(Body::empty()).unwrap()).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let html = String::from_utf8(bytes.to_vec()).unwrap();
+        assert!(html.contains("No manifests published yet"));
+    }
+
+    #[test]
+    fn format_unix_renders_a_known_timestamp_correctly() {
+        assert_eq!(format_unix(0), "1970-01-01 00:00:00 UTC");
+        // 2026-01-01 00:00:00 UTC, cross-checked against `date -u -d @1767225600`.
+        assert_eq!(format_unix(1_767_225_600), "2026-01-01 00:00:00 UTC");
     }
 }
