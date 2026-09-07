@@ -223,6 +223,7 @@ mod tests {
             1_000,
             2_000,
             None,
+            None,
         );
         // Graft the manifest's signature onto a same-shaped task and confirm it does not verify.
         let mut t = sample(&key, 1_000, 2_000);

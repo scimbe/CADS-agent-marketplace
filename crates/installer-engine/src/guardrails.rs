@@ -18,9 +18,34 @@ pub struct Violation {
     pub detail: String,
 }
 
-/// Parse and scan a compose file's raw text. `bundle_dir` is the unpacked bundle's own root --
-/// the only host paths a bind mount may resolve inside.
+/// Per-call knobs for [`scan_compose_with`]. `Default` is the strict profile
+/// `installer_engine::activate` applies; a caller with a documented reason (e.g. a registry
+/// rendering an advisory verdict for a legacy catalogue) may soften individual rules, but never
+/// silently -- the softened policy is a value it passes explicitly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GuardrailPolicy {
+    /// F.15: every `image:` must be pinned by an `@sha256:<64 hex>` digest, so the bytes that run
+    /// are the bytes the publisher signed against, not whatever a mutable tag points at today.
+    pub require_image_digest: bool,
+}
+
+impl Default for GuardrailPolicy {
+    fn default() -> Self {
+        GuardrailPolicy { require_image_digest: true }
+    }
+}
+
+/// Parse and scan a compose file's raw text under the strict default [`GuardrailPolicy`].
+/// `bundle_dir` is the unpacked bundle's own root -- the only host paths a bind mount may resolve
+/// inside.
 pub fn scan_compose(compose_yaml: &str, bundle_dir: &Path) -> Result<Vec<Violation>, String> {
+    scan_compose_with(GuardrailPolicy::default(), compose_yaml, bundle_dir)
+}
+
+/// [`scan_compose`] with an explicit policy. Rule order per service is fixed (F.1, F.2, F.3
+/// volumes/build/env_file, then F.8 build network, F.15 image digest, F.16 runtime hardening) so
+/// a caller reporting only the first violation sees the most severe class first.
+pub fn scan_compose_with(policy: GuardrailPolicy, compose_yaml: &str, bundle_dir: &Path) -> Result<Vec<Violation>, String> {
     let doc: Value = serde_yaml::from_str(compose_yaml).map_err(|e| format!("invalid compose YAML: {e}"))?;
     let services = doc
         .get("services")
@@ -35,6 +60,11 @@ pub fn scan_compose(compose_yaml: &str, bundle_dir: &Path) -> Result<Vec<Violati
         check_volumes(&name, svc, bundle_dir, &mut violations);
         check_build(&name, svc, bundle_dir, &mut violations);
         check_env_file(&name, svc, bundle_dir, &mut violations);
+        check_build_network(&name, svc, &mut violations);
+        if policy.require_image_digest {
+            check_image_digest(&name, svc, &mut violations);
+        }
+        check_runtime_hardening(&name, svc, &mut violations);
     }
     Ok(violations)
 }
@@ -312,6 +342,96 @@ fn check_env_file(service: &str, svc: &Value, bundle_dir: &Path, out: &mut Vec<V
     }
 }
 
+/// F.8 (scimbe/ct-agent#183, phase 1): a `build:` runs arbitrary Dockerfile `RUN` steps inside
+/// the Docker daemon, which ct-agent cannot sandbox -- the ONE thing the compose file can take
+/// away from those steps is the network. A `build` must therefore be the mapping form with
+/// `network: none` (`build.network` is a first-class compose key); the short string form
+/// (`build: ./dir`) cannot express it and is rejected for that reason, not for its context.
+fn check_build_network(service: &str, svc: &Value, out: &mut Vec<Violation>) {
+    let Some(build) = svc.get("build") else { return };
+    let network = build.as_mapping().and_then(|m| m.get(Value::String("network".into()))).and_then(Value::as_str);
+    if network != Some("none") {
+        out.push(violation(
+            service,
+            "F.8-build-network-not-none",
+            match network {
+                Some(other) => format!("build.network: {other} -- a build must declare `network: none`"),
+                None => "build has no `network: none` (use the mapping form: build: {context: ./dir, network: none})".to_string(),
+            },
+        ));
+    }
+}
+
+/// F.15: `image:` must be pinned by digest -- `name[:tag]@sha256:<64 hex>` -- so the image bytes
+/// are fixed at signing time. A mutable tag (`:latest`, `:main-latest`, even `:16-alpine`) can be
+/// repointed upstream between signing and install, which is exactly the supply-chain residual the
+/// threat table carried since Phase 1.
+fn check_image_digest(service: &str, svc: &Value, out: &mut Vec<Violation>) {
+    let Some(image) = svc.get("image") else { return };
+    let Some(image) = image.as_str() else {
+        out.push(violation(service, "F.15-image-not-digest-pinned", format!("{image:?} -- image must be a string")));
+        return;
+    };
+    if !image_is_digest_pinned(image) {
+        out.push(violation(
+            service,
+            "F.15-image-not-digest-pinned",
+            format!("{image} -- pin it as name@sha256:<64 hex digits>"),
+        ));
+    }
+}
+
+fn image_is_digest_pinned(image: &str) -> bool {
+    match image.rsplit_once("@sha256:") {
+        Some((name, digest)) => !name.is_empty() && digest.len() == 64 && digest.bytes().all(|b| b.is_ascii_hexdigit()),
+        None => false,
+    }
+}
+
+/// F.16 (scimbe/ct-agent#183, phase 1): the runtime hardening every manifest-installed service
+/// must declare -- read-only rootfs, every capability dropped, no privilege escalation, a pid
+/// bound and a memory bound. Each missing key is its own named violation so the operator (and
+/// `installer_engine::plan`'s `compose_overrides`) can say exactly which line to add.
+fn check_runtime_hardening(service: &str, svc: &Value, out: &mut Vec<Violation>) {
+    if svc.get("read_only").and_then(Value::as_bool) != Some(true) {
+        out.push(violation(service, "F.16-missing-read-only", "add `read_only: true`"));
+    }
+    let drops_all = svc
+        .get("cap_drop")
+        .and_then(Value::as_sequence)
+        .map(|caps| caps.iter().any(|c| c.as_str().map(|s| s.eq_ignore_ascii_case("ALL")).unwrap_or(false)))
+        .unwrap_or(false);
+    if !drops_all {
+        out.push(violation(service, "F.16-missing-cap-drop-all", "add `cap_drop: [ALL]`"));
+    }
+    let no_new_privs = svc
+        .get("security_opt")
+        .and_then(Value::as_sequence)
+        .map(|opts| {
+            opts.iter().any(|o| {
+                matches!(o.as_str(), Some("no-new-privileges") | Some("no-new-privileges:true") | Some("no-new-privileges=true"))
+            })
+        })
+        .unwrap_or(false);
+    if !no_new_privs {
+        out.push(violation(service, "F.16-missing-no-new-privileges", "add `security_opt: [\"no-new-privileges:true\"]`"));
+    }
+    let pids_ok = svc.get("pids_limit").and_then(Value::as_i64).map(|n| n > 0).unwrap_or(false);
+    if !pids_ok {
+        out.push(violation(service, "F.16-missing-pids-limit", "add `pids_limit: <positive integer>`"));
+    }
+    let mem_limit = svc.get("mem_limit").map(|v| v.as_str().is_some() || v.as_i64().is_some()).unwrap_or(false);
+    let deploy_memory = svc
+        .get("deploy")
+        .and_then(|d| d.get("resources"))
+        .and_then(|r| r.get("limits"))
+        .and_then(|l| l.get("memory"))
+        .is_some();
+    if !mem_limit && !deploy_memory {
+        out.push(violation(service, "F.16-missing-mem-limit", "add `mem_limit: <size>` (or deploy.resources.limits.memory)"));
+    }
+}
+
 /// Lexical `..`/`.`-component normalization (no filesystem access, no symlink resolution --
 /// deliberate: the bundle dir may not exist yet at scan time, and this only needs to catch a
 /// textual escape, not a symlink-based one, which docker itself will refuse to traverse outside
@@ -342,72 +462,92 @@ mod tests {
         PathBuf::from("/scratch/bundle-abc")
     }
 
+    const DIGEST: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    /// One service body carrying every key the F.15/F.16 rules require, so a test about ONE rule
+    /// asserts that rule alone. `extra` is appended verbatim (4-space-indented lines, `\n`-ended).
+    fn hardened_service(name: &str, extra: &str) -> String {
+        format!(
+            "services:\n  {name}:\n    image: example.invalid/app@sha256:{DIGEST}\n    read_only: true\n    cap_drop: [ALL]\n    security_opt: [\"no-new-privileges:true\"]\n    pids_limit: 64\n    mem_limit: 256m\n{extra}"
+        )
+    }
+
+    /// Same, for a service built from the bundle (`build:` instead of `image:`).
+    fn hardened_build_service(name: &str, context: &str, extra: &str) -> String {
+        format!(
+            "services:\n  {name}:\n    build:\n      context: {context}\n      network: none\n    read_only: true\n    cap_drop: [ALL]\n    security_opt: [\"no-new-privileges:true\"]\n    pids_limit: 64\n    mem_limit: 256m\n{extra}"
+        )
+    }
+
+    fn rules(v: &[Violation]) -> Vec<&'static str> {
+        v.iter().map(|v| v.rule).collect()
+    }
+
     #[test]
     fn loopback_bound_port_is_allowed() {
-        let yaml = "services:\n  web:\n    ports:\n      - \"127.0.0.1:4101:4000\"\n";
-        assert!(scan_compose(yaml, &bundle()).unwrap().is_empty());
+        let yaml = hardened_service("web", "    ports:\n      - \"127.0.0.1:4101:4000\"\n");
+        assert!(scan_compose(&yaml, &bundle()).unwrap().is_empty());
     }
 
     #[test]
     fn unqualified_port_is_rejected() {
-        let yaml = "services:\n  web:\n    ports:\n      - \"4101:4000\"\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v.len(), 1);
-        assert_eq!(v[0].rule, "F.1-non-loopback-port");
+        let yaml = hardened_service("web", "    ports:\n      - \"4101:4000\"\n");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.1-non-loopback-port"]);
     }
 
     #[test]
     fn bare_container_port_number_is_rejected() {
-        let yaml = "services:\n  web:\n    ports:\n      - 4000\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.1-non-loopback-port");
+        let yaml = hardened_service("web", "    ports:\n      - 4000\n");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.1-non-loopback-port"]);
     }
 
     #[test]
     fn privileged_true_is_rejected() {
-        let yaml = "services:\n  web:\n    privileged: true\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.2-privileged");
+        let yaml = hardened_service("web", "    privileged: true\n");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.2-privileged"]);
     }
 
     #[test]
     fn network_mode_host_is_rejected() {
-        let yaml = "services:\n  web:\n    network_mode: host\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.2-host-namespace");
+        let yaml = hardened_service("web", "    network_mode: host\n");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.2-host-namespace"]);
     }
 
     #[test]
     fn docker_socket_bind_mount_is_rejected_even_if_relative_looking() {
-        let yaml = "services:\n  web:\n    volumes:\n      - /var/run/docker.sock:/var/run/docker.sock\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.3-docker-socket-mount");
+        let yaml = hardened_service("web", "    volumes:\n      - /var/run/docker.sock:/var/run/docker.sock\n");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.3-docker-socket-mount"]);
     }
 
     #[test]
     fn bundle_relative_bind_mount_is_allowed() {
-        let yaml = "services:\n  web:\n    volumes:\n      - ./config.yaml:/app/config.yaml\n";
-        assert!(scan_compose(yaml, &bundle()).unwrap().is_empty());
+        let yaml = hardened_service("web", "    volumes:\n      - ./config.yaml:/app/config.yaml\n");
+        assert!(scan_compose(&yaml, &bundle()).unwrap().is_empty());
     }
 
     #[test]
     fn path_traversal_escaping_the_bundle_is_rejected() {
-        let yaml = "services:\n  web:\n    volumes:\n      - ../../etc:/etc\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.3-host-path-escapes-bundle");
+        let yaml = hardened_service("web", "    volumes:\n      - ../../etc:/etc\n");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.3-host-path-escapes-bundle"]);
     }
 
     #[test]
     fn absolute_host_path_outside_bundle_is_rejected() {
-        let yaml = "services:\n  web:\n    volumes:\n      - /home/becke/git/litellm-proxy/.env:/app/.env\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.3-host-path-escapes-bundle");
+        let yaml = hardened_service("web", "    volumes:\n      - /home/becke/git/litellm-proxy/.env:/app/.env\n");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.3-host-path-escapes-bundle"]);
     }
 
     #[test]
     fn named_volume_is_always_allowed() {
-        let yaml = "services:\n  db:\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n";
-        assert!(scan_compose(yaml, &bundle()).unwrap().is_empty());
+        let yaml = hardened_service("db", "    volumes:\n      - pgdata:/var/lib/postgresql/data\n");
+        assert!(scan_compose(&yaml, &bundle()).unwrap().is_empty());
     }
 
     // #14: the four-row bypass table from the report, reproduced as regression tests.
@@ -417,114 +557,243 @@ mod tests {
         // Compose expands `${VAR:-default}` to `default` whenever VAR is unset -- this is the
         // concrete bypass the real webconference compose already hit, just with `/etc` standing
         // in for a real cert dir default.
-        let yaml = "services:\n  web:\n    volumes:\n      - \"${EVIL_PATH:-/etc}:/host-etc:ro\"\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.3-host-path-escapes-bundle", "the resolved default must go through the normal escape check: {v:?}");
+        let yaml = hardened_service("web", "    volumes:\n      - \"${EVIL_PATH:-/etc}:/host-etc:ro\"\n");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.3-host-path-escapes-bundle"], "the resolved default must go through the normal escape check: {v:?}");
     }
 
     #[test]
     fn env_var_volume_source_with_no_default_fails_closed_instead_of_passing_as_a_named_volume() {
-        let yaml = "services:\n  web:\n    volumes:\n      - \"${EVIL_PATH}:/host-etc:ro\"\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.3-volume-unresolvable-interpolation", "{v:?}");
+        let yaml = hardened_service("web", "    volumes:\n      - \"${EVIL_PATH}:/host-etc:ro\"\n");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.3-volume-unresolvable-interpolation"], "{v:?}");
     }
 
     #[test]
     fn env_var_volume_source_with_a_required_message_fails_closed_not_treated_as_a_default() {
         // The real bypass: `${WEBCONFERENCE_CERT_DIR:?...}` from CADS-webconference-demo's own
         // compose file. `:?msg` is "required, error if unset" -- msg is not a fallback path.
-        let yaml = "services:\n  web:\n    volumes:\n      - \"${WEBCONFERENCE_CERT_DIR:?set WEBCONFERENCE_CERT_DIR}:/certs:ro\"\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.3-volume-unresolvable-interpolation", "{v:?}");
+        let yaml = hardened_service("web", "    volumes:\n      - \"${WEBCONFERENCE_CERT_DIR:?set WEBCONFERENCE_CERT_DIR}:/certs:ro\"\n");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.3-volume-unresolvable-interpolation"], "{v:?}");
     }
 
     #[test]
     fn tilde_volume_source_fails_closed_instead_of_passing_as_a_named_volume() {
-        let yaml = "services:\n  web:\n    volumes:\n      - \"~/.ssh:/host-ssh:ro\"\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.3-volume-unresolvable-tilde", "{v:?}");
+        let yaml = hardened_service("web", "    volumes:\n      - \"~/.ssh:/host-ssh:ro\"\n");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.3-volume-unresolvable-tilde"], "{v:?}");
     }
 
     #[test]
-    fn bundle_relative_build_context_short_form_is_allowed() {
-        let yaml = "services:\n  heartbeat:\n    build: ./heartbeat-proxy\n";
-        assert!(scan_compose(yaml, &bundle()).unwrap().is_empty());
-    }
-
-    #[test]
-    fn bundle_relative_build_context_mapping_form_is_allowed() {
-        let yaml = "services:\n  heartbeat:\n    build:\n      context: ./heartbeat-proxy\n      dockerfile: Dockerfile\n";
-        assert!(scan_compose(yaml, &bundle()).unwrap().is_empty());
+    fn bundle_relative_build_context_mapping_form_with_network_none_is_allowed() {
+        let yaml = hardened_build_service("heartbeat", "./heartbeat-proxy", "");
+        assert!(scan_compose(&yaml, &bundle()).unwrap().is_empty());
     }
 
     #[test]
     fn build_context_escaping_the_bundle_via_relative_traversal_is_rejected() {
-        let yaml = "services:\n  evil:\n    build: ../../../etc\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.3-build-context-escapes-bundle");
+        let yaml = hardened_build_service("evil", "../../../etc", "");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.3-build-context-escapes-bundle"]);
     }
 
     #[test]
     fn build_context_escaping_the_bundle_via_mapping_form_is_rejected() {
-        let yaml = "services:\n  evil:\n    build:\n      context: /home/becke/git/litellm-proxy\n      dockerfile: Dockerfile\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.3-build-context-escapes-bundle");
+        let yaml = hardened_build_service("evil", "/home/becke/git/litellm-proxy", "");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.3-build-context-escapes-bundle"]);
     }
 
     #[test]
     fn remote_build_context_is_rejected_outright() {
-        let yaml = "services:\n  evil:\n    build: https://example.com/some/repo.git\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.3-build-context-not-local");
+        let yaml = hardened_build_service("evil", "https://example.com/some/repo.git", "");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.3-build-context-not-local"]);
     }
 
     #[test]
     fn env_file_absolute_host_path_outside_bundle_is_rejected() {
-        let yaml = "services:\n  web:\n    env_file:\n      - /home/becke/git/litellm-proxy/.env\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.3-env-file-escapes-bundle");
+        let yaml = hardened_service("web", "    env_file:\n      - /home/becke/git/litellm-proxy/.env\n");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.3-env-file-escapes-bundle"]);
     }
 
     #[test]
     fn env_file_short_string_form_escaping_the_bundle_is_rejected() {
-        let yaml = "services:\n  web:\n    env_file: ../../etc/some.env\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.3-env-file-escapes-bundle");
+        let yaml = hardened_service("web", "    env_file: ../../etc/some.env\n");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.3-env-file-escapes-bundle"]);
     }
 
     #[test]
     fn env_file_long_mapping_form_escaping_the_bundle_is_rejected() {
-        let yaml = "services:\n  web:\n    env_file:\n      - path: /etc/passwd\n        required: true\n";
-        let v = scan_compose(yaml, &bundle()).unwrap();
-        assert_eq!(v[0].rule, "F.3-env-file-escapes-bundle");
+        let yaml = hardened_service("web", "    env_file:\n      - path: /etc/passwd\n        required: true\n");
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.3-env-file-escapes-bundle"]);
     }
 
     #[test]
     fn env_file_bundle_relative_is_allowed() {
-        let yaml = "services:\n  web:\n    env_file:\n      - ./config/.env\n";
-        assert!(scan_compose(yaml, &bundle()).unwrap().is_empty());
+        let yaml = hardened_service("web", "    env_file:\n      - ./config/.env\n");
+        assert!(scan_compose(&yaml, &bundle()).unwrap().is_empty());
     }
 
+    // -- scimbe/ct-agent#183 phase 1: F.8 build network, F.15 digest pinning, F.16 hardening ----
+
+    /// The positive case: a fully hardened multi-service stack (digest-pinned images, a
+    /// bundle-built sidecar with `network: none`, every F.16 key on every service) passes clean.
     #[test]
-    fn a_real_looking_multi_service_clean_stack_passes() {
-        // Mirrors the shape of the actual litellm-proxy compose file's own conventions.
-        let yaml = r#"
+    fn a_fully_hardened_multi_service_stack_passes() {
+        let yaml = format!(
+            r#"
 services:
   litellm:
-    image: ghcr.io/berriai/litellm:main-latest
+    image: ghcr.io/berriai/litellm:main-latest@sha256:{DIGEST}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 1g
     ports:
       - "127.0.0.1:4103:4000"
     volumes:
       - ./config.yaml:/app/config.yaml
   db:
-    image: postgres:16-alpine
+    image: postgres@sha256:{DIGEST}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     volumes:
       - pgdata:/var/lib/postgresql/data
   heartbeat:
-    build: ./heartbeat-proxy
+    build:
+      context: ./heartbeat-proxy
+      network: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 32
+    mem_limit: 128m
     ports:
       - "127.0.0.1:4101:8080"
-"#;
-        assert!(scan_compose(yaml, &bundle()).unwrap().is_empty());
+"#
+        );
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert!(v.is_empty(), "{v:?}");
+    }
+
+    #[test]
+    fn build_short_string_form_is_rejected_because_it_cannot_declare_network_none() {
+        let yaml = "services:\n  heartbeat:\n    build: ./heartbeat-proxy\n    read_only: true\n    cap_drop: [ALL]\n    security_opt: [\"no-new-privileges:true\"]\n    pids_limit: 64\n    mem_limit: 256m\n";
+        let v = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.8-build-network-not-none"], "{v:?}");
+    }
+
+    #[test]
+    fn build_mapping_form_without_network_none_is_rejected() {
+        let yaml = "services:\n  heartbeat:\n    build:\n      context: ./heartbeat-proxy\n      network: host\n    read_only: true\n    cap_drop: [ALL]\n    security_opt: [\"no-new-privileges:true\"]\n    pids_limit: 64\n    mem_limit: 256m\n";
+        let v = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.8-build-network-not-none"], "{v:?}");
+        assert!(v[0].detail.contains("network: host"), "{}", v[0].detail);
+    }
+
+    #[test]
+    fn a_tag_only_image_is_rejected_as_not_digest_pinned() {
+        let yaml = "services:\n  web:\n    image: ghcr.io/berriai/litellm:main-latest\n    read_only: true\n    cap_drop: [ALL]\n    security_opt: [\"no-new-privileges:true\"]\n    pids_limit: 64\n    mem_limit: 256m\n";
+        let v = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.15-image-not-digest-pinned"], "{v:?}");
+    }
+
+    #[test]
+    fn a_malformed_digest_is_rejected() {
+        let yaml = "services:\n  web:\n    image: app@sha256:deadbeef\n    read_only: true\n    cap_drop: [ALL]\n    security_opt: [\"no-new-privileges:true\"]\n    pids_limit: 64\n    mem_limit: 256m\n";
+        let v = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.15-image-not-digest-pinned"], "{v:?}");
+    }
+
+    #[test]
+    fn the_digest_rule_can_be_softened_per_call_but_is_strict_by_default() {
+        let yaml = "services:\n  web:\n    image: ghcr.io/berriai/litellm:main-latest\n    read_only: true\n    cap_drop: [ALL]\n    security_opt: [\"no-new-privileges:true\"]\n    pids_limit: 64\n    mem_limit: 256m\n";
+        assert_eq!(GuardrailPolicy::default(), GuardrailPolicy { require_image_digest: true });
+        let lenient = scan_compose_with(GuardrailPolicy { require_image_digest: false }, yaml, &bundle()).unwrap();
+        assert!(lenient.is_empty(), "{lenient:?}");
+        let strict = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(rules(&strict), vec!["F.15-image-not-digest-pinned"]);
+    }
+
+    #[test]
+    fn missing_read_only_is_rejected() {
+        let yaml = format!(
+            "services:\n  web:\n    image: app@sha256:{DIGEST}\n    read_only: false\n    cap_drop: [ALL]\n    security_opt: [\"no-new-privileges:true\"]\n    pids_limit: 64\n    mem_limit: 256m\n"
+        );
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.16-missing-read-only"], "{v:?}");
+    }
+
+    #[test]
+    fn missing_cap_drop_all_is_rejected() {
+        let yaml = format!(
+            "services:\n  web:\n    image: app@sha256:{DIGEST}\n    read_only: true\n    cap_drop: [NET_RAW]\n    security_opt: [\"no-new-privileges:true\"]\n    pids_limit: 64\n    mem_limit: 256m\n"
+        );
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.16-missing-cap-drop-all"], "{v:?}");
+    }
+
+    #[test]
+    fn missing_no_new_privileges_is_rejected() {
+        let yaml = format!(
+            "services:\n  web:\n    image: app@sha256:{DIGEST}\n    read_only: true\n    cap_drop: [ALL]\n    security_opt: [\"apparmor:docker-default\"]\n    pids_limit: 64\n    mem_limit: 256m\n"
+        );
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.16-missing-no-new-privileges"], "{v:?}");
+    }
+
+    #[test]
+    fn missing_pids_limit_is_rejected() {
+        let yaml = format!(
+            "services:\n  web:\n    image: app@sha256:{DIGEST}\n    read_only: true\n    cap_drop: [ALL]\n    security_opt: [\"no-new-privileges:true\"]\n    mem_limit: 256m\n"
+        );
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.16-missing-pids-limit"], "{v:?}");
+    }
+
+    #[test]
+    fn missing_mem_limit_is_rejected_unless_deploy_limits_declare_memory() {
+        let yaml = format!(
+            "services:\n  web:\n    image: app@sha256:{DIGEST}\n    read_only: true\n    cap_drop: [ALL]\n    security_opt: [\"no-new-privileges:true\"]\n    pids_limit: 64\n"
+        );
+        let v = scan_compose(&yaml, &bundle()).unwrap();
+        assert_eq!(rules(&v), vec!["F.16-missing-mem-limit"], "{v:?}");
+
+        let via_deploy = format!(
+            "services:\n  web:\n    image: app@sha256:{DIGEST}\n    read_only: true\n    cap_drop: [ALL]\n    security_opt: [\"no-new-privileges:true\"]\n    pids_limit: 64\n    deploy:\n      resources:\n        limits:\n          memory: 256M\n"
+        );
+        assert!(scan_compose(&via_deploy, &bundle()).unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_bare_minimal_service_reports_every_missing_hardening_key_by_name() {
+        // The pre-#183 "clean" shape: loopback port, nothing else. Every new rule fires, each with
+        // its own name, so an operator upgrading an old bundle gets the full list at once.
+        let yaml = "services:\n  web:\n    image: ghcr.io/berriai/litellm:main-latest\n    ports:\n      - \"127.0.0.1:4101:8080\"\n";
+        let v = scan_compose(yaml, &bundle()).unwrap();
+        assert_eq!(
+            rules(&v),
+            vec![
+                "F.15-image-not-digest-pinned",
+                "F.16-missing-read-only",
+                "F.16-missing-cap-drop-all",
+                "F.16-missing-no-new-privileges",
+                "F.16-missing-pids-limit",
+                "F.16-missing-mem-limit",
+            ],
+            "{v:?}"
+        );
     }
 }

@@ -3,12 +3,12 @@
 //! fail-closed, mirroring `installer_engine::activate`'s discipline exactly.
 
 use crate::llm_client::{tool_schema, LlmClient, Message};
-use crate::report::{append_transcript, HarnessReport, TranscriptEntry};
+use crate::report::{self, HarnessReport, TranscriptEntry};
 use crate::tools;
 use installer_engine::allowlist::TrustAllowlist;
 use manifest_core::SignedTask;
 use std::collections::BTreeSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub struct RunOptions {
     /// The already-activated manifest's own work_dir -- MUST correspond to `task.manifest_id`.
@@ -39,7 +39,46 @@ const SYSTEM_PROMPT: &str = "You are a bounded code-maintenance agent. You may O
 /// code-maintenance task while still being a real ceiling.
 const MAX_TASK_TURNS: u32 = 200;
 
+/// Where this run's transcript goes. See `report`'s module doc for why the bundle is the wrong
+/// place since scimbe/ct-agent#183.
+enum TranscriptSink<'a> {
+    StateDir(&'a Path),
+    /// Pre-#183 location, inside the writable bundle. Only reachable via the deprecated
+    /// [`run_task`].
+    InBundle,
+}
+
+impl TranscriptSink<'_> {
+    fn record(&self, bundle_dir: &Path, manifest_id_hex: &str, entry: &TranscriptEntry) {
+        match self {
+            TranscriptSink::StateDir(state_dir) => report::append_transcript(state_dir, manifest_id_hex, entry),
+            #[allow(deprecated)]
+            TranscriptSink::InBundle => report::append_transcript_in_bundle(bundle_dir, entry),
+        }
+    }
+}
+
+/// Run the task with its transcript written to
+/// [`report::transcript_path`]`(state_dir, manifest_id)` -- outside the bundle, so the audit
+/// record is not among the files the task's own `write_file` can touch. `state_dir` is
+/// ct-agent's state directory (`CT_AGENT_STATE_DIR`).
+pub fn run_task_with_state_dir(task: &SignedTask, allowlist: &TrustAllowlist, opts: RunOptions, state_dir: &Path) -> HarnessReport {
+    run_task_inner(task, allowlist, opts, TranscriptSink::StateDir(state_dir))
+}
+
+/// The pre-#183 entry point: identical checks and loop, but the transcript is appended INSIDE
+/// the bundle (`<bundle_dir>/.harness-transcript.jsonl`). Kept so ct-agent's current call still
+/// compiles until it passes its state dir; it will be removed once ct-agent has switched.
+#[deprecated(
+    since = "0.1.1",
+    note = "writes the transcript inside the writable bundle; use `run_task_with_state_dir` so the audit record \
+            lives outside what a task can edit"
+)]
 pub fn run_task(task: &SignedTask, allowlist: &TrustAllowlist, opts: RunOptions) -> HarnessReport {
+    run_task_inner(task, allowlist, opts, TranscriptSink::InBundle)
+}
+
+fn run_task_inner(task: &SignedTask, allowlist: &TrustAllowlist, opts: RunOptions, sink: TranscriptSink<'_>) -> HarnessReport {
     let task_id_hex = hex32(&task.task_id);
     let manifest_id_hex = hex32(&task.manifest_id);
 
@@ -105,8 +144,9 @@ pub fn run_task(task: &SignedTask, allowlist: &TrustAllowlist, opts: RunOptions)
                 }
             }
         };
-        append_transcript(
+        sink.record(
             &opts.bundle_dir,
+            &manifest_id_hex,
             &TranscriptEntry::ModelMessage {
                 turn,
                 content: assistant.content.clone(),
@@ -129,8 +169,9 @@ pub fn run_task(task: &SignedTask, allowlist: &TrustAllowlist, opts: RunOptions)
         messages.push(assistant);
         for call in tool_calls {
             let result = dispatch_tool(&opts.bundle_dir, &opts.compose_file, &call.function.name, &call.function.arguments, &mut files_changed, &mut rebuild_ran);
-            append_transcript(
+            sink.record(
                 &opts.bundle_dir,
+                &manifest_id_hex,
                 &TranscriptEntry::ToolCall {
                     turn,
                     tool: call.function.name.clone(),
@@ -243,7 +284,8 @@ mod tests {
             2_000,
         );
 
-        let report = run_task(&task, &allowlist_for(&key), opts_for(dir.path()));
+        let state = tempfile::tempdir().unwrap();
+        let report = run_task_with_state_dir(&task, &allowlist_for(&key), opts_for(dir.path()), state.path());
 
         match report {
             HarnessReport::Rejected { reason, .. } => {
@@ -273,7 +315,8 @@ mod tests {
             2_000,
         );
 
-        let report = run_task(&task, &allowlist_for(&key), opts_for(dir.path()));
+        let state = tempfile::tempdir().unwrap();
+        let report = run_task_with_state_dir(&task, &allowlist_for(&key), opts_for(dir.path()), state.path());
 
         match report {
             HarnessReport::Rejected { reason, .. } => assert!(!reason.contains("max_turns"), "{reason}"),

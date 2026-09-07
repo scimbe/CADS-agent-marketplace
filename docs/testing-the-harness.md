@@ -115,7 +115,9 @@ same change.
 
 ## Where the evidence lives
 
-Each run writes `.harness-transcript.jsonl` into the bundle directory — JSONL, one line per model
+Each run writes its transcript to `<state_dir>/harness/<manifest_id>.transcript.jsonl` (owner-only,
+outside the bundle since scimbe/ct-agent#183 phase 1; the deprecated `run_task` entry point still
+writes `.harness-transcript.jsonl` into the bundle directory) — JSONL, one line per model
 message and per tool call. **That transcript, not the final status, is what shows whether a tool
 call was actually made**, and with what argument. Read it before believing a containment result.
 

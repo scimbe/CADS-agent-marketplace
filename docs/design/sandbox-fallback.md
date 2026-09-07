@@ -2,8 +2,37 @@
 
 ## Status
 
-Proposed (design only -- issue #12). Not implemented. No manifest-core, installer-engine, or
-security-model.md change has landed for this yet -- see "Correcting the issue's premise" below.
+Implemented for Linux (M0 + M1 + M3, issue #12), then **hardened by scimbe/ct-agent#183 phase 1
+(2026-09-07)** -- the changes that supersede parts of the text below:
+
+- **Fallback policy flipped to fail closed.** "Warn-and-proceed by default" (the 2026-08-28
+  decision recorded under "Fallback policy") no longer holds: with no usable backend a Binary
+  activation is refused. `CT_ALLOW_UNSANDBOXED=1` is the explicit opt-out that restores
+  warn-and-proceed; `CT_REQUIRE_BINARY_SANDBOX=1` is accepted as a no-op. One helper,
+  `activate::require_binary_sandbox_from_env`, owns the mapping. The refusal text carries the
+  probe's own failure and the opt-out.
+- **The real-exec probe runs with `--unshare-net`** (`bwrap --unshare-user --unshare-pid
+  --unshare-net --ro-bind / / -- /bin/true`, `sandbox::bwrap::probe_argv`), so bwrap's
+  `loopback_setup()` -- the step Ubuntu 24.04's `kernel.apparmor_restrict_unprivileged_userns=1`
+  breaks with `bwrap: loopback: Failed RTM_NEWADDR` -- is exercised at probe time. When the probe's
+  stderr shows `RTM_NEWADDR`/`userns`/`apparmor`/`Permission denied`, the reason gains a hint
+  naming that sysctl and the `bwrap-userns-restrict` AppArmor profile
+  (`sandbox::bwrap::userns_restriction_hint`).
+- **Manifest-declared policy exists now, with `None` semantics only**: `ServiceManifest.environment`
+  (`manifest_core::EnvironmentContract`), signed as a trailing tagged preimage block after
+  `demo_prompt` (absent = strictest default, existing signatures unchanged). The installer validates
+  it and refuses `network.mode = host_loopback` or any `egress` entry ("not supported in phase 1");
+  nothing else in it is enforced yet. Note the correction to this document's own wording: bwrap's
+  `--unshare-net` yields a *private* loopback (`127.0.0.1` inside the new netns, `lo` up), not "no
+  network at all" -- the process can talk to itself, never to host services.
+- **Dry run**: `installer_engine::plan` renders backend, argv preview (secrets redacted), the
+  compose hardening overrides and every refusal without running anything but the probe.
+- Compose guardrails gained F.8 (`build.network: none`), F.15 (digest-pinned images) and F.16
+  (`read_only`, `cap_drop: [ALL]`, `no-new-privileges`, `pids_limit`, `mem_limit`) -- see
+  `docs/security-model.md`.
+
+The remainder of this document is the original design, kept as the rationale record; where it
+says "warn-and-proceed" or "no manifest-declared policy", the list above is current.
 
 ## Scope
 
@@ -198,7 +227,8 @@ bwrap
   `env` -- nothing ambient leaks in even if `run_bounded`'s own scrub (which this backend sits
   behind) somehow had a gap.
 
-**Probe depth -- DECIDED (operator, 2026-08-28): real exec probe, not just `--version`.** Some
+**Probe depth -- DECIDED (operator, 2026-08-28): real exec probe, not just `--version`.**
+(Updated 2026-09-07: the probe now also passes `--unshare-net` and `--ro-bind / /`; see "Status".) Some
 hardened kernels ship `kernel.unprivileged_userns_clone=0` (Debian has shipped this default in the
 past; some enterprise/CIS-hardened images still do), which makes `bwrap` itself fail even when the
 binary is installed and on PATH -- a bare `--version` call still succeeds (it doesn't need a user
@@ -321,7 +351,10 @@ philosophy this serves ("never a bare 'failed'... tell a signature rejection fro
 rejection... without re-deriving it from prose"); which isolation tier actually ran is the same
 class of fact.
 
-## Fallback policy -- DECIDED (operator, 2026-08-28)
+## Fallback policy -- DECIDED (operator, 2026-08-28), SUPERSEDED (scimbe/ct-agent#183 phase 1, 2026-09-07)
+
+Current behaviour: **fail closed by default**; `CT_ALLOW_UNSANDBOXED=1` is the opt-out (see
+"Status"). The original decision, kept for the record:
 
 **Warn-and-proceed by default**, with the opt-in `CT_REQUIRE_BINARY_SANDBOX=1` escape hatch (or an
 `ActivateOptions::require_binary_sandbox: bool` field, wired the same way `env_file`/other options
@@ -329,7 +362,11 @@ already are) available from Milestone 1 onward for an operator who wants fail-cl
 own stated direction for the closely-related docker-absent case and this project's existing
 Binary-without-Docker behavior; never blocks a legitimate install just because a host lacks `bwrap`.
 
-## Deferred: manifest-declared policy
+## Deferred: manifest-declared policy (landed in part -- see "Status")
+
+Superseded by `ServiceManifest.environment` (`EnvironmentContract`), which is signed and validated
+but only refuses what the sandbox cannot honour; enforcement of its remaining fields is still
+deferred. Original text:
 
 Not designed here, named so it isn't silently dropped (mirrors the issue's own "not done in this
 pass" framing): a future `binary_sandbox: { allow_network: bool, extra_ro_binds: Vec<String> }`
@@ -390,5 +427,6 @@ review pass covers both the doc/warning gap and the real sandbox work.
   publisher needing real network access has no path yet.
 - macOS's only primitive is a deprecated one with no committed-to replacement if Apple removes it.
 - `bwrap`'s unprivileged-userns dependency can silently fail on a hardened kernel in a way the
-  cheap `--version` probe won't catch (see the Linux section) -- whether to pay for a real-exec
-  probe to close that gap is also left open.
+  cheap `--version` probe won't catch (see the Linux section) -- closed: the real-exec probe now
+  runs with the runtime's own namespace flags, `--unshare-net` included, and names the fix.
+- `verify.sh` still runs on the host, unsandboxed, for both kinds (security-model.md F.4).

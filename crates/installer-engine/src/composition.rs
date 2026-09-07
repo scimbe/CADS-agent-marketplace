@@ -71,7 +71,8 @@ pub struct CompositionActivateOptions {
     pub now: u64,
     pub holder_key_resolver: Box<dyn HolderKeyResolver>,
     /// Same meaning as [`ActivateOptions::require_binary_sandbox`], applied to every Binary-kind
-    /// sub-manifest activation.
+    /// sub-manifest activation (fail closed unless the operator opted out via
+    /// `CT_ALLOW_UNSANDBOXED=1`, see `activate::require_binary_sandbox_from_env`).
     pub require_binary_sandbox: bool,
 }
 
@@ -611,6 +612,7 @@ mod tests {
             VerifySpec { script: "unused".into(), timeout_secs: 1 },
             0,
             u64::MAX / 2,
+            None,
             None,
         );
         (manifest, pubkey)
