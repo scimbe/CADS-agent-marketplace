@@ -688,6 +688,24 @@ services:
         assert!(v.is_empty(), "{v:?}");
     }
 
+    /// The shipped proof stack (`manifests/litellm-proof/`, the bundle the end-to-end installer
+    /// proof runs) must pass the strict scan exactly as committed. Scanned from the source tree
+    /// rather than a copy so a hardening regression in the manifest fails here, not at install.
+    #[test]
+    fn shipped_litellm_proof_manifest_passes_the_strict_scan() {
+        let bundle_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../manifests/litellm-proof");
+        let compose_path = bundle_dir.join("docker-compose.yml");
+        let yaml = std::fs::read_to_string(&compose_path)
+            .unwrap_or_else(|e| panic!("cannot read {}: {e}", compose_path.display()));
+        let v = scan_compose_with(GuardrailPolicy { require_image_digest: true }, &yaml, &bundle_dir).unwrap();
+        assert!(
+            v.is_empty(),
+            "{} must pass the strict scan but reported {} violation(s): {v:#?}",
+            compose_path.display(),
+            v.len()
+        );
+    }
+
     #[test]
     fn build_short_string_form_is_rejected_because_it_cannot_declare_network_none() {
         let yaml = "services:\n  heartbeat:\n    build: ./heartbeat-proxy\n    read_only: true\n    cap_drop: [ALL]\n    security_opt: [\"no-new-privileges:true\"]\n    pids_limit: 64\n    mem_limit: 256m\n";
