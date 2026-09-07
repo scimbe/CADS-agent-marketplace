@@ -102,6 +102,41 @@ pub(crate) fn unsandboxed_refusal(tried: &[(&'static str, String)]) -> String {
     )
 }
 
+/// scimbe/ct-agent#183, decision B3 (2026-09-07): on Windows a Binary manifest is refused
+/// outright, fail closed, before anything is fetched. There is no sandbox candidate for Windows
+/// at all (`sandbox::platform_candidates` is empty there, and no Job-Objects backend is
+/// designed -- see `docs/design/sandbox-fallback.md`'s "Windows" section) AND no supported
+/// unsandboxed mode either: unlike Linux, where `CT_ALLOW_UNSANDBOXED=1` restores warn-and-
+/// proceed, the opt-out does not apply here, so the refusal says so instead of pointing at it.
+/// Compose manifests (Docker Desktop) and `manifest plan` stay available, which is what the text
+/// steers an operator towards. macOS keeps the existing selection/refusal logic unchanged (its
+/// sandbox backend is a later milestone), so it is `Ok(())` here.
+///
+/// Pure over `os` (an `std::env::consts::OS`-shaped string, matched case-sensitively exactly like
+/// that constant) rather than a `cfg`, so the verdict and its text are testable on every host.
+pub fn binary_manifest_platform_verdict(os: &str) -> Result<(), String> {
+    if os == "windows" {
+        return Err(format!(
+            "binary manifests are not supported on windows (scimbe/ct-agent#183, decision B3): install this \
+             service as a compose manifest, or use `manifest plan`; {ALLOW_UNSANDBOXED_ENV} does not apply on \
+             this platform"
+        ));
+    }
+    Ok(())
+}
+
+/// The B3 refusal as it appears in an [`InstallReport::Rejected`] reason and a [`crate::Plan`]'s
+/// `refusals`: the stable `unsupported_platform: ` prefix (the same shape as the other step
+/// prefixes, e.g. `unsupported_installer_kind: `) plus [`binary_manifest_platform_verdict`]'s
+/// text. `None` for every non-Binary kind and for every OS but Windows. Shared by [`activate`]
+/// and [`crate::plan`] so both say the same thing.
+pub(crate) fn binary_manifest_platform_refusal(kind: InstallerKind, os: &str) -> Option<String> {
+    if kind != InstallerKind::Binary {
+        return None;
+    }
+    binary_manifest_platform_verdict(os).err().map(|text| format!("unsupported_platform: {text}"))
+}
+
 pub fn activate(opts: ActivateOptions) -> InstallReport {
     activate_with_selector(opts, &sandbox::select)
 }
@@ -112,6 +147,18 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
 /// runners where bwrap IS usable (the skip-if-backend-available idiom would otherwise leave the
 /// refusal path untested exactly where it matters).
 pub(crate) fn activate_with_selector(opts: ActivateOptions, select: &dyn Fn() -> sandbox::Selection) -> InstallReport {
+    activate_with_selector_on(opts, select, std::env::consts::OS)
+}
+
+/// [`activate_with_selector`] with the host OS injected as well (`os` is what
+/// `std::env::consts::OS` would say), so the Windows-only B3 refusal
+/// ([`binary_manifest_platform_verdict`]) is exercised deterministically on every host, the same
+/// way the injected `select` exercises the fail-closed path on hosts where bwrap IS usable.
+pub(crate) fn activate_with_selector_on(
+    opts: ActivateOptions,
+    select: &dyn Fn() -> sandbox::Selection,
+    os: &str,
+) -> InstallReport {
     // 1. Fetch manifest.
     let manifest = match fetch::fetch_manifest(&opts.manifest_location) {
         Ok(m) => m,
@@ -151,6 +198,15 @@ pub(crate) fn activate_with_selector(opts: ActivateOptions, select: &dyn Fn() ->
                 manifest_id: Some(manifest_id_hex),
             };
         }
+    }
+
+    // 4a. Platform (scimbe/ct-agent#183, decision B3): a Binary manifest on Windows is refused
+    //    here, before the environment contract and long before the bundle fetch or the sandbox
+    //    selection in step 9 -- there is no backend to select and no opt-out to honour, so
+    //    nothing later in the pipeline could change the verdict. Static, like steps 2-4.
+    if let Some(reason) = binary_manifest_platform_refusal(manifest.installer_kind, os) {
+        eprintln!("ct-agent: REFUSING Binary manifest {manifest_id_hex} -- {reason}");
+        return InstallReport::Rejected { reason, manifest_id: Some(manifest_id_hex) };
     }
 
     // 4b. Environment contract (scimbe/ct-agent#183, phase 1): validate, and refuse a contract
@@ -211,7 +267,7 @@ pub(crate) fn activate_with_selector(opts: ActivateOptions, select: &dyn Fn() ->
     //    doc comment for the acknowledged tradeoff).
     if manifest.installer_kind == InstallerKind::Compose {
         let compose_path = &bundle_path;
-        let compose_yaml = match std::fs::read_to_string(&compose_path) {
+        let compose_yaml = match std::fs::read_to_string(compose_path) {
             Ok(s) => s,
             Err(e) => {
                 return InstallReport::Rejected {
@@ -1361,6 +1417,66 @@ pub(crate) mod tests {
     // -- scimbe/ct-agent#183 phase 1: environment contract, None-semantics only ----------------
 
     /// Returns the report and the tempdir (kept alive so a caller can inspect `<dir>/work`).
+    const B3_TEXT: &str = "binary manifests are not supported on windows (scimbe/ct-agent#183, decision B3): install \
+                           this service as a compose manifest, or use `manifest plan`; CT_ALLOW_UNSANDBOXED does not \
+                           apply on this platform";
+
+    #[test]
+    fn binary_manifest_platform_verdict_refuses_windows_only_with_the_exact_b3_text() {
+        assert_eq!(binary_manifest_platform_verdict("windows"), Err(B3_TEXT.to_string()));
+        assert_eq!(binary_manifest_platform_verdict("linux"), Ok(()));
+        assert_eq!(binary_manifest_platform_verdict("macos"), Ok(()));
+        // Matched exactly like `std::env::consts::OS` spells it -- no case folding, no aliases.
+        assert_eq!(binary_manifest_platform_verdict("Windows"), Ok(()));
+    }
+
+    #[test]
+    fn binary_manifest_platform_refusal_carries_the_stable_prefix_and_applies_to_binary_only() {
+        let expected = format!("unsupported_platform: {B3_TEXT}");
+        let on_windows = binary_manifest_platform_refusal(InstallerKind::Binary, "windows");
+        assert_eq!(on_windows.as_deref(), Some(expected.as_str()));
+        assert_eq!(binary_manifest_platform_refusal(InstallerKind::Compose, "windows"), None);
+        assert_eq!(binary_manifest_platform_refusal(InstallerKind::K8s, "windows"), None);
+        assert_eq!(binary_manifest_platform_refusal(InstallerKind::Binary, "linux"), None);
+    }
+
+    /// Decision B3: on Windows a Binary manifest is refused before the sandbox is even probed --
+    /// the injected selector panics if step 9 is reached -- and the reason names the compose
+    /// alternative and `manifest plan`, and says the opt-out does NOT apply (so it is not the
+    /// generic `require_binary_sandbox` refusal, which would point at `CT_ALLOW_UNSANDBOXED=1`).
+    /// `require_binary_sandbox: false` here proves the opt-out is ignored on this platform.
+    #[test]
+    fn a_binary_manifest_is_refused_on_windows_before_the_sandbox_is_probed_regardless_of_the_opt_out() {
+        let dir = tempfile::tempdir().unwrap();
+        let (manifest_path, pubkey) = write_binary_fixture(dir.path(), [0x42; 32], "should-never-print-this");
+        let allowlist = TrustAllowlist::parse(&hex32(&pubkey)).unwrap();
+
+        let report = activate_with_selector_on(
+            ActivateOptions {
+                manifest_location: manifest_path.to_str().unwrap().to_string(),
+                allowlist,
+                env_file: None,
+                project_name: format!("b3-windows-refusal-{}", std::process::id()),
+                protected_name_substrings: protected_names(),
+                work_dir: dir.path().join("work"),
+                now: 1,
+                require_binary_sandbox: false,
+            },
+            &|| -> sandbox::Selection { panic!("B3: the sandbox must never be probed on windows") },
+            "windows",
+        );
+
+        match report {
+            InstallReport::Rejected { reason, manifest_id } => {
+                assert_eq!(reason, format!("unsupported_platform: {B3_TEXT}"));
+                assert!(manifest_id.is_some(), "the manifest was fetched and verified, so its id is known");
+                assert!(!reason.contains("CT_ALLOW_UNSANDBOXED=1"), "must not advertise the opt-out: {reason}");
+            }
+            other => panic!("expected InstallReport::Rejected (B3), got {other:?}"),
+        }
+        assert!(!dir.path().join("work").exists(), "nothing may be fetched or unpacked after a B3 refusal");
+    }
+
     fn activate_binary_with_environment(
         environment: Option<EnvironmentContract>,
         stdout_line: &str,

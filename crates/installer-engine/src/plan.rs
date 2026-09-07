@@ -8,7 +8,7 @@
 //! and verified it, or it is planning from a local activation record), so the plan takes the
 //! manifest's relevant fields rather than a location to fetch from.
 
-use crate::activate::{environment_contract_refusal, unsandboxed_refusal};
+use crate::activate::{binary_manifest_platform_refusal, environment_contract_refusal, unsandboxed_refusal};
 use crate::guardrails::{self, GuardrailPolicy};
 use crate::sandbox;
 use manifest_core::{EnvironmentContract, InstallerKind};
@@ -69,8 +69,24 @@ pub fn plan(opts: PlanOptions) -> Plan {
 
 /// [`plan`] with the sandbox-backend selection injected (see `activate_with_selector`).
 pub fn plan_with_selector(opts: PlanOptions, select: &dyn Fn() -> sandbox::Selection) -> Plan {
+    plan_with_selector_on(opts, select, std::env::consts::OS)
+}
+
+/// [`plan_with_selector`] with the host OS injected as well (`os` is what `std::env::consts::OS`
+/// would say), so the Windows-only B3 refusal (`activate::binary_manifest_platform_verdict`) is
+/// plannable -- and testable -- from any host. A separate function rather than a new
+/// [`PlanOptions`] field so every existing struct-literal construction (ct-agent's
+/// `build_plan_options`) keeps compiling unchanged.
+pub fn plan_with_selector_on(opts: PlanOptions, select: &dyn Fn() -> sandbox::Selection, os: &str) -> Plan {
     let mut plan = Plan { backend: None, argv_preview: Vec::new(), compose_overrides: Vec::new(), refusals: Vec::new() };
     let effective = opts.environment.clone().unwrap_or_default();
+
+    // Same order as `activate`: the platform check (step 4a, decision B3) precedes the contract
+    // check (step 4b). Binary on Windows only; every other kind/OS pair is `None`.
+    let platform_refusal = binary_manifest_platform_refusal(opts.installer_kind, os);
+    if let Some(reason) = &platform_refusal {
+        plan.refusals.push(reason.clone());
+    }
 
     if let Some(reason) = environment_contract_refusal(opts.environment.as_ref()) {
         plan.refusals.push(reason);
@@ -118,6 +134,9 @@ pub fn plan_with_selector(opts: PlanOptions, select: &dyn Fn() -> sandbox::Selec
                 },
             }
         }
+        // B3: a refused platform has no backend to probe and nothing that would run -- `activate`
+        // never reaches step 9 either -- so the plan stops at the refusal already recorded above.
+        InstallerKind::Binary if platform_refusal.is_some() => {}
         InstallerKind::Binary => {
             let entry = opts.work_dir.join(&opts.entrypoint).display().to_string();
             let redacted: Vec<(String, String)> = opts.env_names.iter().map(|n| (n.clone(), "<redacted>".to_string())).collect();
@@ -230,6 +249,64 @@ mod tests {
         assert_eq!(plan.refusals.len(), 2, "{plan:?}");
         assert!(plan.refusals[0].contains("host_loopback"), "{plan:?}");
         assert!(plan.refusals[1].contains("require_binary_sandbox"), "{plan:?}");
+    }
+
+    /// Decision B3: on Windows a Binary plan lists the platform refusal (stable prefix, compose /
+    /// `manifest plan` alternatives named, opt-out explicitly NOT applicable) and never probes a
+    /// backend -- with `require_binary_sandbox: false` to prove the opt-out changes nothing.
+    #[test]
+    fn a_binary_plan_on_windows_lists_the_b3_refusal_and_never_probes_a_backend() {
+        let plan = plan_with_selector_on(
+            binary_opts(false),
+            &|| -> Selection { panic!("B3: no backend may be probed for a Binary manifest on windows") },
+            "windows",
+        );
+        assert!(plan.would_refuse());
+        assert_eq!(plan.backend, None);
+        assert!(plan.argv_preview.is_empty(), "nothing would run: {plan:?}");
+        assert_eq!(plan.refusals.len(), 1, "{plan:?}");
+        let refusal = &plan.refusals[0];
+        let prefix = "unsupported_platform: binary manifests are not supported on windows";
+        assert!(refusal.starts_with(prefix), "{refusal}");
+        assert!(refusal.contains("decision B3"), "{refusal}");
+        assert!(refusal.contains("compose manifest"), "{refusal}");
+        assert!(refusal.contains("`manifest plan`"), "{refusal}");
+        assert!(refusal.contains("CT_ALLOW_UNSANDBOXED does not apply on this platform"), "{refusal}");
+        assert!(!refusal.contains("CT_ALLOW_UNSANDBOXED=1"), "must not advertise the opt-out: {refusal}");
+    }
+
+    /// The platform refusal comes first (step 4a precedes 4b in `activate`), and a plan still
+    /// reports EVERY refusal -- the contract one is not swallowed by the platform one.
+    #[test]
+    fn a_binary_plan_on_windows_lists_the_platform_refusal_before_a_contract_refusal() {
+        let mut env = EnvironmentContract::default();
+        env.network.mode = manifest_core::NetworkMode::HostLoopback;
+        let opts = PlanOptions { environment: Some(env), ..binary_opts(true) };
+        let plan = plan_with_selector_on(opts, &|| -> Selection { panic!("B3: never probed on windows") }, "windows");
+        assert_eq!(plan.refusals.len(), 2, "{plan:?}");
+        assert!(plan.refusals[0].starts_with("unsupported_platform: "), "{plan:?}");
+        assert!(plan.refusals[1].contains("host_loopback"), "{plan:?}");
+    }
+
+    /// Only Binary and only Windows: a Compose plan on Windows and a Binary plan on Linux/macOS
+    /// carry no platform refusal (the latter two fall through to the usual backend selection).
+    #[test]
+    fn the_b3_refusal_applies_to_binary_on_windows_only() {
+        let compose_on_windows = PlanOptions {
+            installer_kind: InstallerKind::Compose,
+            entrypoint: "docker-compose.yml".to_string(),
+            ..binary_opts(true)
+        };
+        let never = || -> Selection { panic!("Compose never probes a Binary sandbox backend") };
+        let plan = plan_with_selector_on(compose_on_windows, &never, "windows");
+        assert!(!plan.refusals.iter().any(|r| r.starts_with("unsupported_platform: ")), "{plan:?}");
+        assert_eq!(plan.argv_preview[..2], ["docker", "compose"]);
+
+        for os in ["linux", "macos"] {
+            let plan = plan_with_selector_on(binary_opts(false), &no_backend, os);
+            assert!(!plan.would_refuse(), "{os}: {plan:?}");
+            assert_eq!(plan.argv_preview, vec!["/scratch/plan-work/run.sh"], "{os}");
+        }
     }
 
     #[test]
