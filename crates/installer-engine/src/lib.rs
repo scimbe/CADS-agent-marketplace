@@ -14,9 +14,11 @@ pub mod process;
 pub mod report;
 pub mod sandbox;
 
-pub use activate::{activate, require_binary_sandbox_from_env, ActivateOptions, ALLOW_UNSANDBOXED_ENV};
+pub use activate::{
+    activate, binary_manifest_platform_verdict, require_binary_sandbox_from_env, ActivateOptions, ALLOW_UNSANDBOXED_ENV,
+};
 pub use guardrails::GuardrailPolicy;
-pub use plan::{plan, Plan, PlanOptions};
+pub use plan::{plan, plan_with_selector_on, Plan, PlanOptions};
 pub use composition::{
     activate_composition, CompositionActivateOptions, CompositionInstallReport, HolderKeyResolver, NullHolderKeyResolver,
     TeardownOutcome,
