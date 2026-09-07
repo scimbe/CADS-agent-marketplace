@@ -36,7 +36,9 @@ fn main() {
         .collect();
     let work_dir = std::path::PathBuf::from(env("CT_MANIFEST_WORK_DIR"));
     let now: u64 = env("CT_MANIFEST_NOW").parse().expect("CT_MANIFEST_NOW must be a unix-seconds integer");
-    let require_binary_sandbox = std::env::var("CT_REQUIRE_BINARY_SANDBOX").map(|v| v == "1").unwrap_or(false);
+    // Fail closed by default (scimbe/ct-agent#183 phase 1): `CT_ALLOW_UNSANDBOXED=1` is the only
+    // opt-out; `CT_REQUIRE_BINARY_SANDBOX=1` is still accepted as a no-op.
+    let require_binary_sandbox = installer_engine::require_binary_sandbox_from_env(|k| std::env::var(k).ok());
 
     let report = activate(ActivateOptions {
         manifest_location,

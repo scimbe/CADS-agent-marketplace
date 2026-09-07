@@ -6,7 +6,7 @@
 //!
 //! Run: `cargo run --example dev_sign` with the env vars below set.
 
-use manifest_core::{BundleRef, DemoPrompt, EnvVarSpec, InstallerKind, ServiceManifest, VerifySpec};
+use manifest_core::{BundleRef, DemoPrompt, EnvVarSpec, EnvironmentContract, InstallerKind, ServiceManifest, VerifySpec};
 
 fn env(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("missing required env var {name}"))
@@ -74,6 +74,20 @@ fn main() {
         _ => None,
     };
 
+    // Optional environment contract (scimbe/ct-agent#183) -- raw EnvironmentContract JSON (see
+    // manifest_core::environment for the shape; `{}` is the strictest default). Unset -> None,
+    // which the installer treats as that same strictest default. Validated before signing so a
+    // contract the installer would refuse anyway never gets a signature.
+    let environment: Option<EnvironmentContract> = match std::env::var("CT_MANIFEST_ENVIRONMENT") {
+        Ok(raw) if !raw.trim().is_empty() => {
+            let env: EnvironmentContract = serde_json::from_str(&raw)
+                .unwrap_or_else(|e| panic!("CT_MANIFEST_ENVIRONMENT is not valid EnvironmentContract JSON: {e}"));
+            env.validate().unwrap_or_else(|e| panic!("CT_MANIFEST_ENVIRONMENT is invalid: {e}"));
+            Some(env)
+        }
+        _ => None,
+    };
+
     let manifest = ServiceManifest::sign_new(
         &signing_key,
         manifest_id,
@@ -86,6 +100,7 @@ fn main() {
         now,
         now + expires_in,
         demo_prompt,
+        environment,
     );
 
     println!("{}", serde_json::to_string_pretty(&manifest).unwrap());

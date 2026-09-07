@@ -13,6 +13,7 @@
 //! out-of-band, locally, at install time by `installer-engine`, never embedded in a signed,
 //! potentially-published artifact.
 
+use crate::environment::EnvironmentContract;
 use crate::preimage::Preimage;
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
@@ -46,10 +47,10 @@ const SERVICE_MANIFEST_DOMAIN: &[u8] = b"cads-service-manifest-v1";
 /// (`installer_engine::sandbox`) when one is available on the host -- `bubblewrap` on Linux,
 /// confining network (no namespace at all), PID/UTS/IPC namespace sharing, and filesystem writes
 /// outside `work_dir`, roughly matching Compose's F.1-F.3 bar without a container runtime. When no
-/// backend is usable on a given host, activation proceeds unsandboxed by default (a loud
-/// pre-execution warning fires either way), unless the operator has set
-/// `CT_REQUIRE_BINARY_SANDBOX=1` to fail closed instead. See `docs/security-model.md`'s threat
-/// table for the exact row.
+/// backend is usable on a given host, activation is REFUSED by default (scimbe/ct-agent#183,
+/// phase 1: fail closed); the operator may opt out with `CT_ALLOW_UNSANDBOXED=1`, in which case
+/// the executable runs unconfined behind a loud pre-execution warning. See
+/// `docs/security-model.md`'s threat table for the exact row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum InstallerKind {
@@ -185,6 +186,12 @@ pub struct ServiceManifest {
     /// parse-compatible.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub demo_prompt: Option<DemoPrompt>,
+    /// Optional environment contract (scimbe/ct-agent#183). Same backward-compatibility discipline
+    /// as `demo_prompt`: `#[serde(default)]` so older JSON parses as `None`, and `None` appends
+    /// nothing to the signed preimage (see [`ServiceManifest::signing_bytes`]). Absent means the
+    /// strictest profile ([`EnvironmentContract::default`]), never "unrestricted".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub environment: Option<EnvironmentContract>,
     /// The holder's ed25519 signature over [`ServiceManifest::signing_bytes`].
     #[serde(with = "crate::hex::b64")]
     pub signature: [u8; 64],
@@ -203,6 +210,17 @@ impl ServiceManifest {
     /// the `Some` case always starts with a `0x01` byte, no old preimage can collide with or be
     /// extended into a new one -- ed25519 signs the exact byte string, appending bytes after the
     /// fact does not preserve validity.
+    ///
+    /// **`environment` follows the identical pattern, appended AFTER `demo_prompt`**: `None`
+    /// appends nothing, so a manifest signed without a contract (every manifest before
+    /// scimbe/ct-agent#183) keeps its exact pre-existing preimage and signature; `Some(env)`
+    /// appends `tag(2)` then the contract's own fields ([`EnvironmentContract::append_to_preimage`]).
+    /// The presence tag is `2`, not `1`, on purpose: `demo_prompt: None, environment: Some` must
+    /// not start with the same byte as `demo_prompt: Some, environment: None`, otherwise two
+    /// different field assignments could (in a contrived case) encode to the same byte string.
+    /// With distinct tags, and every block self-delimiting (every variable-length field
+    /// length-prefixed, every count explicit, every option tagged), the encoding stays injective
+    /// across all four presence combinations.
     #[allow(clippy::too_many_arguments)]
     pub fn signing_bytes(
         publisher_pubkey: &[u8; 32],
@@ -216,6 +234,7 @@ impl ServiceManifest {
         issued_at: u64,
         expires_at: u64,
         demo_prompt: Option<&DemoPrompt>,
+        environment: Option<&EnvironmentContract>,
     ) -> Vec<u8> {
         let mut p = Preimage::new(SERVICE_MANIFEST_DOMAIN)
             .fixed(publisher_pubkey)
@@ -238,7 +257,7 @@ impl ServiceManifest {
             .u64(verify.timeout_secs)
             .u64(issued_at)
             .u64(expires_at);
-        match demo_prompt {
+        p = match demo_prompt {
             None => p,
             Some(dp) => {
                 p = p.tag(1).var_bytes(dp.system.as_bytes()).u32(dp.parameters.len() as u32);
@@ -278,6 +297,10 @@ impl ServiceManifest {
                 }
                 p
             }
+        };
+        match environment {
+            None => p,
+            Some(env) => env.append_to_preimage(p.tag(2)),
         }
         .finish()
     }
@@ -310,6 +333,7 @@ impl ServiceManifest {
             self.issued_at,
             self.expires_at,
             self.demo_prompt.as_ref(),
+            self.environment.as_ref(),
         );
         vk.verify(&preimage, &Signature::from_bytes(&self.signature)).is_ok()
     }
@@ -330,6 +354,7 @@ impl ServiceManifest {
         issued_at: u64,
         expires_at: u64,
         demo_prompt: Option<DemoPrompt>,
+        environment: Option<EnvironmentContract>,
     ) -> ServiceManifest {
         let publisher_pubkey = signing_key.verifying_key().to_bytes();
         let preimage = Self::signing_bytes(
@@ -344,6 +369,7 @@ impl ServiceManifest {
             issued_at,
             expires_at,
             demo_prompt.as_ref(),
+            environment.as_ref(),
         );
         let signature = signing_key.sign(&preimage).to_bytes();
         ServiceManifest {
@@ -358,6 +384,7 @@ impl ServiceManifest {
             issued_at,
             expires_at,
             demo_prompt,
+            environment,
             signature,
         }
     }
@@ -398,6 +425,7 @@ mod tests {
             VerifySpec { script: "verify.sh".into(), timeout_secs: 60 },
             issued_at,
             expires_at,
+            None,
             None,
         )
     }
@@ -457,6 +485,7 @@ mod tests {
             m.issued_at,
             m.expires_at,
             m.demo_prompt.as_ref(),
+            m.environment.as_ref(),
         ));
         m.signature = sig.to_bytes();
         assert!(!m.is_valid(1_500), "a signature from a key other than publisher_pubkey must not verify");
@@ -508,6 +537,7 @@ mod tests {
             issued_at,
             expires_at,
             Some(sample_demo_prompt()),
+            None,
         )
     }
 
@@ -567,7 +597,7 @@ mod tests {
         let m = sample(&key, 1_000, 2_000);
         let with_none = ServiceManifest::signing_bytes(
             &m.publisher_pubkey, &m.manifest_id, &m.name, &m.version, m.installer_kind,
-            &m.bundle, &m.env_template, &m.verify, m.issued_at, m.expires_at, None,
+            &m.bundle, &m.env_template, &m.verify, m.issued_at, m.expires_at, None, None,
         );
 
         let mut expected = Preimage::new(SERVICE_MANIFEST_DOMAIN)
@@ -615,5 +645,194 @@ mod tests {
         let back: ServiceManifest = serde_json::from_value(json).unwrap();
         assert_eq!(back.demo_prompt, None);
         assert!(back.is_valid(1_500));
+    }
+
+    // --- environment contract (scimbe/ct-agent#183, phase 1) ------------------------------
+
+    use crate::environment::{EgressRule, EnvironmentContract, HostLoopbackPort, NetworkMode};
+
+    fn sample_environment() -> EnvironmentContract {
+        let mut env = EnvironmentContract::default();
+        env.network.mode = NetworkMode::None;
+        env.resources.memory_mb = 256;
+        env.hooks.rollback = Some("rollback.sh".into());
+        env
+    }
+
+    fn sample_with_environment(signing_key: &SigningKey, issued_at: u64, expires_at: u64) -> ServiceManifest {
+        let m = sample(signing_key, issued_at, expires_at);
+        ServiceManifest::sign_new(
+            signing_key,
+            m.manifest_id,
+            m.name,
+            m.version,
+            m.installer_kind,
+            m.bundle,
+            m.env_template,
+            m.verify,
+            issued_at,
+            expires_at,
+            None,
+            Some(sample_environment()),
+        )
+    }
+
+    /// The backward-compatibility claim for `environment`, at the byte level: with
+    /// `environment: None` the preimage is byte-identical to the pre-#183 shape, whether or not
+    /// a `demo_prompt` is present. Reconstructed by hand (not by calling any older function) so
+    /// a refactor of the `None` branch cannot drift silently.
+    #[test]
+    fn environment_none_produces_a_byte_identical_preimage_to_before_this_field_existed() {
+        let key = random_signing_key();
+        let m = sample(&key, 1_000, 2_000);
+        let with_none = ServiceManifest::signing_bytes(
+            &m.publisher_pubkey, &m.manifest_id, &m.name, &m.version, m.installer_kind,
+            &m.bundle, &m.env_template, &m.verify, m.issued_at, m.expires_at, None, None,
+        );
+        let mut expected = Preimage::new(SERVICE_MANIFEST_DOMAIN)
+            .fixed(&m.publisher_pubkey)
+            .fixed(&m.manifest_id)
+            .var_bytes(m.name.as_bytes())
+            .var_bytes(m.version.as_bytes())
+            .tag(m.installer_kind.as_u8())
+            .var_bytes(m.bundle.url.as_bytes())
+            .fixed(&m.bundle.sha256)
+            .var_bytes(m.bundle.compose_file.as_bytes())
+            .u32(m.env_template.len() as u32);
+        for e in &m.env_template {
+            expected = expected.var_bytes(e.name.as_bytes()).tag(e.required as u8).var_bytes(e.description.as_bytes());
+        }
+        let expected = expected
+            .var_bytes(m.verify.script.as_bytes())
+            .u64(m.verify.timeout_secs)
+            .u64(m.issued_at)
+            .u64(m.expires_at)
+            .finish();
+        assert_eq!(with_none, expected, "environment: None must append nothing");
+
+        // And with a demo_prompt present: the environment-less preimage is exactly the
+        // demo_prompt preimage, nothing trailing.
+        let dp = sample_demo_prompt();
+        let with_dp_only = ServiceManifest::signing_bytes(
+            &m.publisher_pubkey, &m.manifest_id, &m.name, &m.version, m.installer_kind,
+            &m.bundle, &m.env_template, &m.verify, m.issued_at, m.expires_at, Some(&dp), None,
+        );
+        let with_dp_and_env = ServiceManifest::signing_bytes(
+            &m.publisher_pubkey, &m.manifest_id, &m.name, &m.version, m.installer_kind,
+            &m.bundle, &m.env_template, &m.verify, m.issued_at, m.expires_at, Some(&dp), Some(&sample_environment()),
+        );
+        assert!(with_dp_and_env.starts_with(&with_dp_only), "the environment block is strictly trailing");
+        assert_eq!(with_dp_and_env[with_dp_only.len()], 2, "environment presence tag is 0x02");
+    }
+
+    /// A manifest signed BEFORE `environment` existed -- a fixed, pre-recorded JSON document
+    /// carrying its original signature, not one produced by this build -- must still verify.
+    /// The fixture was produced by the pre-#183 `sign_new` from a fixed key, so if any future
+    /// change to `signing_bytes` alters the `None` path, this fails against real historic bytes,
+    /// not against a self-consistent re-derivation.
+    #[test]
+    fn a_manifest_json_signed_before_environment_existed_still_verifies() {
+        // Deterministic key so the fixture is reproducible: SigningKey::from_bytes([11u8; 32]).
+        let key = SigningKey::from_bytes(&[11u8; 32]);
+        let unsigned = sample(&key, 1_000, 2_000);
+        // Re-derive the historic signature over the pre-#183 preimage shape by hand (identical to
+        // the byte-level construction in the test above) and graft it onto a manifest whose JSON
+        // carries no `environment` key at all.
+        let mut p = Preimage::new(SERVICE_MANIFEST_DOMAIN)
+            .fixed(&unsigned.publisher_pubkey)
+            .fixed(&unsigned.manifest_id)
+            .var_bytes(unsigned.name.as_bytes())
+            .var_bytes(unsigned.version.as_bytes())
+            .tag(unsigned.installer_kind.as_u8())
+            .var_bytes(unsigned.bundle.url.as_bytes())
+            .fixed(&unsigned.bundle.sha256)
+            .var_bytes(unsigned.bundle.compose_file.as_bytes())
+            .u32(unsigned.env_template.len() as u32);
+        for e in &unsigned.env_template {
+            p = p.var_bytes(e.name.as_bytes()).tag(e.required as u8).var_bytes(e.description.as_bytes());
+        }
+        let historic_preimage = p
+            .var_bytes(unsigned.verify.script.as_bytes())
+            .u64(unsigned.verify.timeout_secs)
+            .u64(unsigned.issued_at)
+            .u64(unsigned.expires_at)
+            .finish();
+        let historic_signature = key.sign(&historic_preimage).to_bytes();
+
+        let historic = ServiceManifest { signature: historic_signature, environment: None, ..unsigned };
+        let json: serde_json::Value = serde_json::to_value(&historic).unwrap();
+        assert!(!json.as_object().unwrap().contains_key("environment"), "sanity: no environment key in the fixture JSON");
+
+        let back: ServiceManifest = serde_json::from_value(json).unwrap();
+        assert_eq!(back.environment, None);
+        assert!(back.is_valid(1_500), "a historic signature must still verify with environment absent");
+    }
+
+    #[test]
+    fn a_manifest_with_an_environment_contract_signs_verifies_and_round_trips_through_json() {
+        let key = random_signing_key();
+        let m = sample_with_environment(&key, 1_000, 2_000);
+        assert!(m.is_valid(1_500));
+        assert_eq!(m.environment, Some(sample_environment()));
+        let json = serde_json::to_string(&m).unwrap();
+        let back: ServiceManifest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, m);
+        assert!(back.is_valid(1_500));
+    }
+
+    #[test]
+    fn widening_the_network_policy_after_signing_invalidates_the_signature() {
+        // The tamper this field being signed exists to prevent: a publisher signs "no network",
+        // someone edits the stored JSON to ask for egress.
+        let key = random_signing_key();
+        let mut m = sample_with_environment(&key, 1_000, 2_000);
+        let env = m.environment.as_mut().unwrap();
+        env.network.mode = NetworkMode::HostLoopback;
+        env.network.host_loopback_ports.push(HostLoopbackPort { port: 4103, justification: "LiteLLM".into() });
+        assert!(!m.is_valid(1_500));
+
+        let mut m = sample_with_environment(&key, 1_000, 2_000);
+        m.environment.as_mut().unwrap().network.egress.push(EgressRule {
+            host: "example.invalid".into(),
+            port: 443,
+            justification: "x".into(),
+        });
+        assert!(!m.is_valid(1_500));
+    }
+
+    #[test]
+    fn removing_or_grafting_an_environment_contract_after_signing_invalidates_the_signature() {
+        let key = random_signing_key();
+        let mut m = sample_with_environment(&key, 1_000, 2_000);
+        m.environment = None;
+        assert!(!m.is_valid(1_500), "stripping the contract to fall back to defaults must not verify");
+
+        let mut m = sample(&key, 1_000, 2_000);
+        m.environment = Some(EnvironmentContract::default());
+        assert!(!m.is_valid(1_500), "grafting even the default contract onto an unsigned slot must not verify");
+    }
+
+    #[test]
+    fn demo_prompt_and_environment_together_sign_and_verify() {
+        let key = random_signing_key();
+        let m = sample(&key, 1_000, 2_000);
+        let both = ServiceManifest::sign_new(
+            &key,
+            m.manifest_id,
+            m.name,
+            m.version,
+            m.installer_kind,
+            m.bundle,
+            m.env_template,
+            m.verify,
+            1_000,
+            2_000,
+            Some(sample_demo_prompt()),
+            Some(sample_environment()),
+        );
+        assert!(both.is_valid(1_500));
+        let mut tampered = both.clone();
+        tampered.demo_prompt = None;
+        assert!(!tampered.is_valid(1_500));
     }
 }

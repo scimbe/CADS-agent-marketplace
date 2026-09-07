@@ -5,11 +5,16 @@
 //! without pulling in `installer-engine`'s much larger dependency surface (tokio, reqwest, tar).
 
 pub mod composition;
+pub mod environment;
 pub mod hex;
 pub mod manifest;
 mod preimage;
 pub mod task;
 
 pub use composition::{CompositionEdge, CompositionManifest, EdgeUpgradeHint, SubManifestRef};
+pub use environment::{
+    EgressRule, EnvironmentContract, FsScope, FsScopeKind, Hooks, HostLoopbackPort, NetworkMode, NetworkPolicy,
+    ProcessPolicy, ResourceLimits, SandboxMinTier, ENVIRONMENT_SCHEMA,
+};
 pub use manifest::{BundleRef, DemoPrompt, EnvVarSpec, InstallerKind, PromptParam, PromptParamKind, ServiceManifest, VerifySpec};
 pub use task::SignedTask;

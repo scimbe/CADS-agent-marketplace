@@ -439,6 +439,17 @@ mod tests {
         })
     }
 
+    /// A compose file the strict `scan_compose` (scimbe/ct-agent#183 phase 1: digest-pinned
+    /// image, read-only rootfs, no capabilities, no new privileges, pid and memory bounds) rates
+    /// `clean`, publishing one loopback port.
+    fn clean_compose_yaml(host_port: u16) -> Vec<u8> {
+        format!(
+            "services:\n  web:\n    image: example.invalid/web@sha256:{}\n    read_only: true\n    cap_drop: [ALL]\n    security_opt: [\"no-new-privileges:true\"]\n    pids_limit: 64\n    mem_limit: 256m\n    ports:\n      - \"127.0.0.1:{host_port}:8080\"\n",
+            "ab".repeat(32)
+        )
+        .into_bytes()
+    }
+
     fn make_bundle_tar_gz(compose_yaml: &[u8]) -> Vec<u8> {
         let mut tar_bytes = Vec::new();
         {
@@ -471,6 +482,7 @@ mod tests {
             VerifySpec { script: "verify.sh".into(), timeout_secs: 30 },
             now,
             now + 3600,
+            None,
             None,
         )
     }
@@ -510,6 +522,7 @@ mod tests {
             now,
             now + 3600,
             None,
+            None,
         )
     }
 
@@ -529,7 +542,7 @@ mod tests {
     async fn publish_a_clean_manifest_then_fetch_it_back() {
         let state = test_state(1_000);
         let key = SigningKey::from_bytes(&[3u8; 32]);
-        let bundle = make_bundle_tar_gz(b"services:\n  web:\n    ports:\n      - \"127.0.0.1:4101:8080\"\n");
+        let bundle = make_bundle_tar_gz(&clean_compose_yaml(4101));
         let manifest = signed_manifest_for(&bundle, &key, [7u8; 32], 500);
         let manifest_json = serde_json::to_string(&manifest).unwrap();
         let (boundary, body) = multipart_body(&manifest_json, &bundle);
@@ -563,7 +576,7 @@ mod tests {
     async fn publish_without_the_write_token_is_refused() {
         let state = test_state(1_000);
         let key = SigningKey::from_bytes(&[3u8; 32]);
-        let bundle = make_bundle_tar_gz(b"services:\n  web:\n    ports:\n      - \"127.0.0.1:4101:8080\"\n");
+        let bundle = make_bundle_tar_gz(&clean_compose_yaml(4101));
         let manifest = signed_manifest_for(&bundle, &key, [7u8; 32], 500);
         let (boundary, body) = multipart_body(&serde_json::to_string(&manifest).unwrap(), &bundle);
         let resp = app(state)
@@ -582,7 +595,7 @@ mod tests {
     async fn publish_with_a_tampered_signature_is_refused() {
         let state = test_state(1_000);
         let key = SigningKey::from_bytes(&[3u8; 32]);
-        let bundle = make_bundle_tar_gz(b"services:\n  web:\n    ports:\n      - \"127.0.0.1:4101:8080\"\n");
+        let bundle = make_bundle_tar_gz(&clean_compose_yaml(4101));
         let mut manifest = signed_manifest_for(&bundle, &key, [7u8; 32], 500);
         manifest.name = "tampered-after-signing".to_string();
         let (boundary, body) = multipart_body(&serde_json::to_string(&manifest).unwrap(), &bundle);
@@ -605,7 +618,7 @@ mod tests {
     async fn publish_with_a_bundle_that_does_not_match_the_signed_sha256_is_refused() {
         let state = test_state(1_000);
         let key = SigningKey::from_bytes(&[3u8; 32]);
-        let bundle = make_bundle_tar_gz(b"services:\n  web:\n    ports:\n      - \"127.0.0.1:4101:8080\"\n");
+        let bundle = make_bundle_tar_gz(&clean_compose_yaml(4101));
         let manifest = signed_manifest_for(&bundle, &key, [7u8; 32], 500); // signs THIS bundle's hash
         let swapped_bundle = make_bundle_tar_gz(b"services:\n  web:\n    ports:\n      - \"0.0.0.0:4101:8080\"\n"); // different bytes, different hash
         let (boundary, body) = multipart_body(&serde_json::to_string(&manifest).unwrap(), &swapped_bundle);
@@ -628,7 +641,7 @@ mod tests {
     async fn publish_an_expired_manifest_is_refused() {
         let state = test_state(10_000); // server clock is well past expiry
         let key = SigningKey::from_bytes(&[3u8; 32]);
-        let bundle = make_bundle_tar_gz(b"services:\n  web:\n    ports:\n      - \"127.0.0.1:4101:8080\"\n");
+        let bundle = make_bundle_tar_gz(&clean_compose_yaml(4101));
         let manifest = signed_manifest_for(&bundle, &key, [7u8; 32], 500); // expires at 500+3600=4100
         let (boundary, body) = multipart_body(&serde_json::to_string(&manifest).unwrap(), &bundle);
         let resp = app(state)
@@ -672,7 +685,7 @@ mod tests {
     async fn republishing_the_same_manifest_id_is_refused() {
         let state = test_state(1_000);
         let key = SigningKey::from_bytes(&[3u8; 32]);
-        let bundle = make_bundle_tar_gz(b"services:\n  web:\n    ports:\n      - \"127.0.0.1:4101:8080\"\n");
+        let bundle = make_bundle_tar_gz(&clean_compose_yaml(4101));
         let manifest = signed_manifest_for(&bundle, &key, [7u8; 32], 500);
         let manifest_json = serde_json::to_string(&manifest).unwrap();
 
@@ -745,7 +758,7 @@ mod tests {
             h = Sha256::digest(h).into();
             padding.extend_from_slice(&h);
         }
-        let compose_yaml = b"services:\n  web:\n    ports:\n      - \"127.0.0.1:4101:8080\"\n";
+        let compose_yaml = clean_compose_yaml(4101);
         let mut tar_bytes = Vec::new();
         {
             let mut b = tar::Builder::new(&mut tar_bytes);
@@ -786,7 +799,7 @@ mod tests {
     async fn bundle_download_returns_the_exact_uploaded_bytes() {
         let state = test_state(1_000);
         let key = SigningKey::from_bytes(&[3u8; 32]);
-        let bundle = make_bundle_tar_gz(b"services:\n  web:\n    ports:\n      - \"127.0.0.1:4101:8080\"\n");
+        let bundle = make_bundle_tar_gz(&clean_compose_yaml(4101));
         let manifest = signed_manifest_for(&bundle, &key, [7u8; 32], 500);
         let manifest_json = serde_json::to_string(&manifest).unwrap();
         let (boundary, body) = multipart_body(&manifest_json, &bundle);
@@ -815,7 +828,7 @@ mod tests {
     async fn activation_ledger_records_and_accumulates() {
         let state = test_state(1_000);
         let key = SigningKey::from_bytes(&[3u8; 32]);
-        let bundle = make_bundle_tar_gz(b"services:\n  web:\n    ports:\n      - \"127.0.0.1:4101:8080\"\n");
+        let bundle = make_bundle_tar_gz(&clean_compose_yaml(4101));
         let manifest = signed_manifest_for(&bundle, &key, [7u8; 32], 500);
         let manifest_json = serde_json::to_string(&manifest).unwrap();
         let (boundary, body) = multipart_body(&manifest_json, &bundle);
@@ -879,7 +892,7 @@ mod tests {
         // #47: GET / used to be a bare 404 with no route registered at all.
         let state = test_state(1_000);
         let key = SigningKey::from_bytes(&[9u8; 32]);
-        let bundle = make_bundle_tar_gz(b"services:\n  web:\n    ports:\n      - \"127.0.0.1:4102:8080\"\n");
+        let bundle = make_bundle_tar_gz(&clean_compose_yaml(4102));
         let manifest = signed_manifest_for(&bundle, &key, [8u8; 32], 500);
         let manifest_json = serde_json::to_string(&manifest).unwrap();
         let (boundary, body) = multipart_body(&manifest_json, &bundle);
@@ -917,7 +930,7 @@ mod tests {
         // than assume the field is always benign.
         let state = test_state(1_000);
         let key = SigningKey::from_bytes(&[5u8; 32]);
-        let bundle = make_bundle_tar_gz(b"services:\n  web:\n    ports:\n      - \"127.0.0.1:4103:8080\"\n");
+        let bundle = make_bundle_tar_gz(&clean_compose_yaml(4103));
         let mut manifest = signed_manifest_for(&bundle, &key, [6u8; 32], 500);
         manifest.name = "<script>alert(1)</script>".to_string();
         // Re-sign over the mutated manifest so `is_valid` still accepts it -- publish_manifest
@@ -934,6 +947,7 @@ mod tests {
             manifest.issued_at,
             manifest.expires_at,
             manifest.demo_prompt.clone(),
+            manifest.environment.clone(),
         );
         let manifest_json = serde_json::to_string(&manifest).unwrap();
         let (boundary, body) = multipart_body(&manifest_json, &bundle);

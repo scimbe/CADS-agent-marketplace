@@ -5,9 +5,13 @@
 use crate::allowlist::TrustAllowlist;
 use crate::report::{InstallReport, StepResult};
 use crate::{fetch, guardrails, process, sandbox};
-use manifest_core::{EnvVarSpec, InstallerKind};
+use manifest_core::{EnvVarSpec, EnvironmentContract, InstallerKind, NetworkMode};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+
+/// Opt-out that lets a Binary manifest run with NO sandbox on a host where no backend is usable.
+/// Read by [`require_binary_sandbox_from_env`]; documented in `docs/security-model.md` (F.14).
+pub const ALLOW_UNSANDBOXED_ENV: &str = "CT_ALLOW_UNSANDBOXED";
 
 pub struct ActivateOptions {
     /// A URL (https://) or local file path to the signed manifest JSON.
@@ -26,16 +30,88 @@ pub struct ActivateOptions {
     /// Fresh, empty scratch directory this run unpacks the bundle into.
     pub work_dir: PathBuf,
     pub now: u64,
-    /// Binary kind only -- DECIDED (operator, 2026-08-28): warn-and-proceed is the default
-    /// (`false`); set `true` (wired from `CT_REQUIRE_BINARY_SANDBOX=1` in
-    /// `examples/dev_activate.rs`, the same way `env_file` and every other option here is wired
-    /// from its own env var) for an operator who wants fail-closed instead -- refuse a Binary
-    /// activation outright rather than run it with no sandbox at all. Never blocks Compose, and
-    /// never blocks a Binary run when a sandbox backend IS available.
+    /// Binary kind only. **Fail closed is the default** (scimbe/ct-agent#183, phase 1, superseding
+    /// the 2026-08-28 warn-and-proceed decision): when no sandbox backend is usable on this host,
+    /// a Binary activation is REFUSED, naming the probe's own failure and the opt-out. Wire it
+    /// from the environment with [`require_binary_sandbox_from_env`], which yields `true` unless
+    /// `CT_ALLOW_UNSANDBOXED=1` is set (the old `CT_REQUIRE_BINARY_SANDBOX=1` is still accepted
+    /// and is now a no-op, since it asks for what is already the default). `false` here means the
+    /// operator explicitly opted out: the executable runs unconfined behind the loud pre-execution
+    /// warning. Never blocks Compose, and never blocks a Binary run when a backend IS available.
     pub require_binary_sandbox: bool,
 }
 
+/// The one place the `CT_ALLOW_UNSANDBOXED` / `CT_REQUIRE_BINARY_SANDBOX` semantics live, so every
+/// wiring (`examples/dev_activate.rs`, ct-agent's `manifest activate`) agrees. `var` is the
+/// environment lookup, passed in rather than read ambiently so the mapping is testable without
+/// mutating the process environment (see `sandbox::bwrap::probe_with_path` for why that matters).
+///
+/// | `CT_ALLOW_UNSANDBOXED` | `CT_REQUIRE_BINARY_SANDBOX` | result |
+/// |---|---|---|
+/// | unset / not `1` | anything | `true` (fail closed -- the default) |
+/// | `1` | unset / not `1` | `false` (opt-out: warn and proceed unsandboxed) |
+/// | `1` | `1` | `true` -- an explicit "require" still wins over an explicit "allow" |
+pub fn require_binary_sandbox_from_env(var: impl Fn(&str) -> Option<String>) -> bool {
+    let is_one = |name: &str| var(name).map(|v| v.trim() == "1").unwrap_or(false);
+    if is_one("CT_REQUIRE_BINARY_SANDBOX") {
+        return true;
+    }
+    !is_one(ALLOW_UNSANDBOXED_ENV)
+}
+
+/// scimbe/ct-agent#183 phase 1: the contract is signed and validated but NOT yet enforced by the
+/// installer, with one exception -- a contract that claims more than the sandbox can give is
+/// refused, so no manifest ships promising host-loopback reachability or egress the runtime will
+/// silently not honour. `None` (no contract) is the strictest default and is never refused here.
+/// Shared by [`activate`] and [`crate::plan`] so both say the same thing.
+pub(crate) fn environment_contract_refusal(env: Option<&EnvironmentContract>) -> Option<String> {
+    let env = env?;
+    if let Err(e) = env.validate() {
+        return Some(format!("environment_contract_invalid: {e}"));
+    }
+    if env.network.mode == NetworkMode::HostLoopback {
+        return Some(
+            "environment_contract_unsupported: network.mode = host_loopback is not supported in phase 1 \
+             (the bwrap backend provides a PRIVATE loopback only; declare private_loopback or none)"
+                .to_string(),
+        );
+    }
+    if !env.network.egress.is_empty() {
+        return Some(format!(
+            "environment_contract_unsupported: {} egress rule(s) declared, but egress is not supported in \
+             phase 1 (no backend can honour it; remove the entries)",
+            env.network.egress.len()
+        ));
+    }
+    None
+}
+
+/// The fail-closed refusal text, shared by [`activate`] and [`crate::plan`]: names every backend
+/// candidate that was tried and its probe's own reason (which, for bwrap, already carries the
+/// remediation hint), and the exact opt-out.
+pub(crate) fn unsandboxed_refusal(tried: &[(&'static str, String)]) -> String {
+    let tried_text = if tried.is_empty() {
+        "no sandbox backend candidate exists for this OS yet".to_string()
+    } else {
+        tried.iter().map(|(candidate, reason)| format!("{candidate}: {reason}")).collect::<Vec<_>>().join("; ")
+    };
+    format!(
+        "require_binary_sandbox: no sandbox backend is usable on this host ({tried_text}). Refusing to run \
+         this Binary manifest unsandboxed (fail-closed default since scimbe/ct-agent#183 phase 1). To run \
+         it anyway with FULL access to this host, set {ALLOW_UNSANDBOXED_ENV}=1."
+    )
+}
+
 pub fn activate(opts: ActivateOptions) -> InstallReport {
+    activate_with_selector(opts, &sandbox::select)
+}
+
+/// [`activate`] with the sandbox-backend selection injected. Production always passes
+/// [`sandbox::select`]; tests pass a closure returning a fixed [`sandbox::Selection`] so the
+/// fail-closed and opt-out paths are exercised deterministically on every host, including CI
+/// runners where bwrap IS usable (the skip-if-backend-available idiom would otherwise leave the
+/// refusal path untested exactly where it matters).
+pub(crate) fn activate_with_selector(opts: ActivateOptions, select: &dyn Fn() -> sandbox::Selection) -> InstallReport {
     // 1. Fetch manifest.
     let manifest = match fetch::fetch_manifest(&opts.manifest_location) {
         Ok(m) => m,
@@ -75,6 +151,13 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
                 manifest_id: Some(manifest_id_hex),
             };
         }
+    }
+
+    // 4b. Environment contract (scimbe/ct-agent#183, phase 1): validate, and refuse a contract
+    //    that asks for more than the sandbox gives. Not enforced beyond that yet -- see
+    //    `environment_contract_refusal`. Checked BEFORE any fetch, like the other static checks.
+    if let Some(reason) = environment_contract_refusal(manifest.environment.as_ref()) {
+        return InstallReport::Rejected { reason, manifest_id: Some(manifest_id_hex) };
     }
 
     // 5. Pre-flight collision guard, BEFORE fetching/unpacking/running anything. The
@@ -234,7 +317,7 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
             // no usable candidate). Selected fresh per activation rather than cached -- one extra
             // subprocess is worth it over a stale "probed sandboxed once" claim outliving a host
             // config change. See `sandbox::select`'s doc and `docs/design/sandbox-fallback.md`.
-            let selection = sandbox::select();
+            let selection = select();
             let (program, wrapped_args, sandbox_name): (String, Vec<String>, Option<String>) = match &selection {
                 sandbox::Selection::Sandboxed(backend) => {
                     let (p, a) = backend.wrap_command(binary_str, &[], &opts.work_dir, &env_refs);
@@ -246,27 +329,25 @@ pub fn activate(opts: ActivateOptions) -> InstallReport {
                     (p, a, Some(backend.name().to_string()))
                 }
                 sandbox::Selection::Unsandboxed { tried } => {
-                    // M0: close the gap between #12's claimed and actual state -- this warning did
-                    // not previously exist (see manifest-core::InstallerKind's and
-                    // docs/security-model.md's now-corrected claims).
+                    // Fail closed by default (scimbe/ct-agent#183 phase 1): refuse, naming the
+                    // probe's own failure (bwrap's stderr plus the AppArmor/userns hint) and the
+                    // opt-out. The refusal reason is the operator-facing remediation.
+                    if opts.require_binary_sandbox {
+                        let reason = unsandboxed_refusal(tried);
+                        eprintln!("ct-agent: REFUSING Binary manifest {manifest_id_hex} -- {reason}");
+                        return InstallReport::Rejected { reason, manifest_id: Some(manifest_id_hex) };
+                    }
+                    // Opt-out path (`CT_ALLOW_UNSANDBOXED=1`) only: the loud pre-execution warning
+                    // (M0, marketplace#12) still fires before every unsandboxed Binary execution.
                     eprintln!(
                         "ct-agent: WARNING -- no sandbox available for Binary manifest {manifest_id_hex} \
-                         (tried: {tried:?}). This executable will run with FULL ACCESS TO THIS ENTIRE \
-                         HOST -- not just this install -- including your filesystem, network, and every \
-                         other process. This is only as safe as your trust in the publisher \
-                         (publisher_pubkey={publisher_hex}). Add `bwrap`/ensure sandbox-exec works, or \
-                         set CT_REQUIRE_BINARY_SANDBOX=1 to refuse instead of proceeding unsandboxed."
+                         (tried: {tried:?}) and {ALLOW_UNSANDBOXED_ENV}=1 is set. This executable will run \
+                         with FULL ACCESS TO THIS ENTIRE HOST -- not just this install -- including your \
+                         filesystem, network, and every other process. This is only as safe as your trust \
+                         in the publisher (publisher_pubkey={publisher_hex}). Install `bwrap` (and, on \
+                         Ubuntu 24.04+, its `bwrap-userns-restrict` AppArmor profile) and unset \
+                         {ALLOW_UNSANDBOXED_ENV} to get the fail-closed default back."
                     );
-                    if opts.require_binary_sandbox {
-                        return InstallReport::Rejected {
-                            reason: format!(
-                                "require_binary_sandbox: no sandbox backend available for this host \
-                                 (tried: {tried:?}) and CT_REQUIRE_BINARY_SANDBOX=1 is set -- refusing \
-                                 to run this Binary manifest unsandboxed"
-                            ),
-                            manifest_id: Some(manifest_id_hex),
-                        };
-                    }
                     (binary_str.to_string(), vec![], None)
                 }
             };
@@ -714,6 +795,16 @@ pub(crate) mod tests {
     /// needing more than one distinct fixture in the same registry/composition -- e.g.
     /// `composition.rs`'s tests -- don't collide on manifest id.
     pub(crate) fn write_binary_fixture(dir: &Path, manifest_id: [u8; 32], stdout_line: &str) -> (PathBuf, [u8; 32]) {
+        write_binary_fixture_with_environment(dir, manifest_id, stdout_line, None)
+    }
+
+    /// `write_binary_fixture` plus an optional signed `environment` contract (scimbe/ct-agent#183).
+    fn write_binary_fixture_with_environment(
+        dir: &Path,
+        manifest_id: [u8; 32],
+        stdout_line: &str,
+        environment: Option<EnvironmentContract>,
+    ) -> (PathBuf, [u8; 32]) {
         use ed25519_dalek::SigningKey;
         use manifest_core::{BundleRef, ServiceManifest, VerifySpec};
         use rand::RngCore;
@@ -753,10 +844,30 @@ pub(crate) mod tests {
             0,
             u64::MAX / 2,
             None,
+            environment,
         );
         let manifest_path = dir.join("manifest.json");
         std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
         (manifest_path, pubkey)
+    }
+
+    fn protected_names() -> Vec<String> {
+        vec!["litellm-proxy".to_string(), "kali".to_string(), "sort-demo".to_string(), "game2048".to_string()]
+    }
+
+    /// A `Selection` a test can hand to `activate_with_selector` to stand in for "this host has no
+    /// usable backend" -- with a bwrap-shaped probe reason, so the refusal text can be checked for
+    /// carrying the probe's own diagnosis through.
+    fn no_backend_available() -> sandbox::Selection {
+        sandbox::Selection::Unsandboxed {
+            tried: vec![(
+                "bwrap",
+                "real sandboxed-exec probe (bwrap --unshare-user --unshare-pid --unshare-net ...) failed: exit=Some(1) \
+                 stderr=bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted -- hint: this is the symptom of \
+                 Ubuntu 24.04+'s `kernel.apparmor_restrict_unprivileged_userns=1` ... `bwrap-userns-restrict` ..."
+                    .to_string(),
+            )],
+        }
     }
 
     #[test]
@@ -857,6 +968,7 @@ pub(crate) mod tests {
             0,
             u64::MAX / 2,
             None,
+            None,
         );
         let manifest_path = dir.join("manifest.json");
         std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
@@ -955,6 +1067,7 @@ pub(crate) mod tests {
             VerifySpec { script: "unused".to_string(), timeout_secs: 1 },
             0,
             u64::MAX / 2,
+            None,
             None,
         );
         let manifest_path = dir.path().join("manifest.json");
@@ -1077,6 +1190,7 @@ pub(crate) mod tests {
             0,
             u64::MAX / 2,
             None,
+            None,
         );
         let manifest_path = dir.join("manifest.json");
         std::fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
@@ -1159,48 +1273,180 @@ pub(crate) mod tests {
         );
     }
 
-    /// `select()` returning `Unsandboxed` (this crate's own `Unavailable` probe result, hermetically
-    /// simulated the same way `sandbox::bwrap`'s own `probe_reports_unavailable_when_bwrap_is_not_on_path`
-    /// test is) must refuse to run a Binary manifest at all when `require_binary_sandbox` is set --
-    /// the `CT_REQUIRE_BINARY_SANDBOX=1` fail-closed policy, DECIDED (operator, 2026-08-28) as the
-    /// opt-in alternative to the warn-and-proceed default.
+    /// scimbe/ct-agent#183 phase 1, fail closed by default: with no usable backend and no opt-out,
+    /// a Binary manifest is REFUSED before the executable is chmod+x'd or run, and the refusal
+    /// names both the probe's own failure (bwrap's stderr + the userns/AppArmor hint) and the
+    /// opt-out. Deterministic on every host via the injected selection -- no skip.
     #[test]
     fn require_binary_sandbox_refuses_to_run_unsandboxed_when_no_backend_is_available() {
-        // See `PATH_MUTATION_LOCK`'s doc comment -- `select()` below resolves `bwrap` via ambient
-        // PATH just like the other sandbox tests, even though this test's own assertion doesn't
-        // depend on a real bwrap spawn succeeding.
-        let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        if matches!(crate::sandbox::select(), crate::sandbox::Selection::Sandboxed(_)) {
-            // This test's whole point is exercising the Unsandboxed path -- on a host where bwrap
-            // genuinely IS available and usable, skip rather than fabricate a scenario this host
-            // can't actually produce (mirrors the skip above, same reasoning).
-            eprintln!(
-                "skipping require_binary_sandbox_refuses_to_run_unsandboxed_when_no_backend_is_available: \
-                 a sandbox backend IS available on this host, so Unsandboxed can't occur naturally here"
-            );
-            return;
-        }
-
         let dir = tempfile::tempdir().unwrap();
         let (manifest_path, pubkey) = write_binary_fixture(dir.path(), [0x42; 32], "should-never-print-this");
         let allowlist = TrustAllowlist::parse(&hex32(&pubkey)).unwrap();
 
-        let report = activate(ActivateOptions {
-            manifest_location: manifest_path.to_str().unwrap().to_string(),
-            allowlist,
-            env_file: None,
-            project_name: format!("phase5-require-sandbox-{}", std::process::id()),
-            protected_name_substrings: vec!["litellm-proxy".to_string(), "kali".to_string(), "sort-demo".to_string(), "game2048".to_string()],
-            work_dir: dir.path().join("work"),
-            now: 1,
-            require_binary_sandbox: true,
-        });
+        let report = activate_with_selector(
+            ActivateOptions {
+                manifest_location: manifest_path.to_str().unwrap().to_string(),
+                allowlist,
+                env_file: None,
+                project_name: format!("phase5-require-sandbox-{}", std::process::id()),
+                protected_name_substrings: protected_names(),
+                work_dir: dir.path().join("work"),
+                now: 1,
+                require_binary_sandbox: true,
+            },
+            &no_backend_available,
+        );
 
         match report {
             InstallReport::Rejected { reason, .. } => {
                 assert!(reason.contains("require_binary_sandbox"), "{reason}");
+                assert!(reason.contains("Failed RTM_NEWADDR"), "the probe's own diagnosis must be in the refusal: {reason}");
+                assert!(reason.contains("bwrap-userns-restrict"), "the remediation hint must survive into the refusal: {reason}");
+                assert!(reason.contains("CT_ALLOW_UNSANDBOXED=1"), "the opt-out must be named: {reason}");
             }
             other => panic!("expected InstallReport::Rejected (fail-closed), got {other:?}"),
         }
+    }
+
+    /// The explicit opt-out (`CT_ALLOW_UNSANDBOXED=1` -> `require_binary_sandbox: false`) keeps
+    /// the pre-#183 behaviour: warn loudly, then run unsandboxed. Same injected "no backend"
+    /// selection, only the flag differs.
+    #[test]
+    fn allow_unsandboxed_opt_out_proceeds_with_the_warning_when_no_backend_is_available() {
+        let dir = tempfile::tempdir().unwrap();
+        let (manifest_path, pubkey) = write_binary_fixture(dir.path(), [0x42; 32], "ran-unsandboxed-by-explicit-opt-out");
+        let allowlist = TrustAllowlist::parse(&hex32(&pubkey)).unwrap();
+
+        let report = activate_with_selector(
+            ActivateOptions {
+                manifest_location: manifest_path.to_str().unwrap().to_string(),
+                allowlist,
+                env_file: None,
+                project_name: format!("phase5-allow-unsandboxed-{}", std::process::id()),
+                protected_name_substrings: protected_names(),
+                work_dir: dir.path().join("work"),
+                now: 1,
+                require_binary_sandbox: false,
+            },
+            &no_backend_available,
+        );
+
+        match report {
+            InstallReport::Ok { sandbox, captured_stdout, .. } => {
+                assert_eq!(sandbox, None, "an opted-out unsandboxed run must be reported as such");
+                assert_eq!(captured_stdout.as_deref(), Some("ran-unsandboxed-by-explicit-opt-out\n"));
+            }
+            other => panic!("expected InstallReport::Ok via the opt-out, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn require_binary_sandbox_from_env_is_fail_closed_unless_the_opt_out_is_set() {
+        let env = |vars: &[(&str, &str)]| {
+            let owned: Vec<(String, String)> = vars.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+            move |name: &str| owned.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone())
+        };
+        assert!(require_binary_sandbox_from_env(env(&[])), "nothing set: fail closed");
+        assert!(require_binary_sandbox_from_env(env(&[("CT_REQUIRE_BINARY_SANDBOX", "1")])), "legacy flag: still fail closed (no-op)");
+        assert!(require_binary_sandbox_from_env(env(&[("CT_ALLOW_UNSANDBOXED", "0")])), "opt-out needs exactly 1");
+        assert!(require_binary_sandbox_from_env(env(&[("CT_ALLOW_UNSANDBOXED", "true")])), "opt-out needs exactly 1");
+        assert!(!require_binary_sandbox_from_env(env(&[("CT_ALLOW_UNSANDBOXED", "1")])), "the opt-out");
+        assert!(!require_binary_sandbox_from_env(env(&[("CT_ALLOW_UNSANDBOXED", " 1 ")])), "whitespace-tolerant");
+        assert!(
+            require_binary_sandbox_from_env(env(&[("CT_ALLOW_UNSANDBOXED", "1"), ("CT_REQUIRE_BINARY_SANDBOX", "1")])),
+            "an explicit require wins over an explicit allow"
+        );
+    }
+
+    // -- scimbe/ct-agent#183 phase 1: environment contract, None-semantics only ----------------
+
+    /// Returns the report and the tempdir (kept alive so a caller can inspect `<dir>/work`).
+    fn activate_binary_with_environment(
+        environment: Option<EnvironmentContract>,
+        stdout_line: &str,
+    ) -> (InstallReport, tempfile::TempDir) {
+        let dir = tempfile::tempdir().unwrap();
+        let (manifest_path, pubkey) = write_binary_fixture_with_environment(dir.path(), [0x42; 32], stdout_line, environment);
+        let allowlist = TrustAllowlist::parse(&hex32(&pubkey)).unwrap();
+        let report = activate(ActivateOptions {
+            manifest_location: manifest_path.to_str().unwrap().to_string(),
+            allowlist,
+            env_file: None,
+            project_name: format!("phase5-env-contract-{}-{}", std::process::id(), stdout_line.len()),
+            protected_name_substrings: protected_names(),
+            work_dir: dir.path().join("work"),
+            now: 1,
+            // Opt-out, so this test is about the contract check, not about this host's bwrap.
+            require_binary_sandbox: false,
+        });
+        (report, dir)
+    }
+
+    #[test]
+    fn a_host_loopback_contract_is_refused_before_anything_is_fetched() {
+        let mut env = EnvironmentContract::default();
+        env.network.mode = NetworkMode::HostLoopback;
+        env.network.host_loopback_ports.push(manifest_core::HostLoopbackPort { port: 4103, justification: "LiteLLM".into() });
+        let (report, dir) = activate_binary_with_environment(Some(env), "must-not-run-host-loopback");
+        match report {
+            InstallReport::Rejected { reason, .. } => {
+                assert!(reason.contains("environment_contract_unsupported"), "{reason}");
+                assert!(reason.contains("host_loopback"), "{reason}");
+                assert!(reason.contains("phase 1"), "{reason}");
+            }
+            other => panic!("expected Rejected, got {other:?}"),
+        }
+        assert!(!dir.path().join("work").exists(), "nothing may be fetched/unpacked for a refused contract");
+    }
+
+    #[test]
+    fn an_egress_contract_is_refused_before_anything_is_fetched() {
+        let mut env = EnvironmentContract::default();
+        env.network.egress.push(manifest_core::EgressRule { host: "example.invalid".into(), port: 443, justification: "updates".into() });
+        let (report, dir) = activate_binary_with_environment(Some(env), "must-not-run-egress");
+        match report {
+            InstallReport::Rejected { reason, .. } => {
+                assert!(reason.contains("environment_contract_unsupported"), "{reason}");
+                assert!(reason.contains("egress"), "{reason}");
+            }
+            other => panic!("expected Rejected, got {other:?}"),
+        }
+        assert!(!dir.path().join("work").exists());
+    }
+
+    #[test]
+    fn an_invalid_contract_is_refused_with_the_validation_error() {
+        let mut env = EnvironmentContract::default();
+        env.resources.wall_secs = 0;
+        let (report, _) = activate_binary_with_environment(Some(env), "must-not-run-invalid");
+        match report {
+            InstallReport::Rejected { reason, .. } => {
+                assert!(reason.contains("environment_contract_invalid"), "{reason}");
+                assert!(reason.contains("wall_secs"), "{reason}");
+            }
+            other => panic!("expected Rejected, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn the_default_contract_and_no_contract_both_proceed_to_a_run() {
+        for (environment, line) in [(None, "no-contract"), (Some(EnvironmentContract::default()), "default-contract")] {
+            let (report, _) = activate_binary_with_environment(environment, line);
+            match report {
+                InstallReport::Ok { captured_stdout, .. } => {
+                    assert_eq!(captured_stdout.as_deref(), Some(format!("{line}\n").as_str()));
+                }
+                other => panic!("expected Ok for {line}, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn environment_contract_refusal_is_none_for_absent_and_default_contracts() {
+        assert_eq!(environment_contract_refusal(None), None);
+        assert_eq!(environment_contract_refusal(Some(&EnvironmentContract::default())), None);
+        let mut strict = EnvironmentContract::default();
+        strict.network.mode = NetworkMode::None;
+        assert_eq!(environment_contract_refusal(Some(&strict)), None);
     }
 }

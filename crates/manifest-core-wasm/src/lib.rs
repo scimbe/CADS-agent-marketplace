@@ -16,7 +16,7 @@
 //! except as a hex string handed to [`sign_manifest`] for the single call that
 //! needs it -- it is never logged, stored, or echoed back).
 
-use manifest_core::{BundleRef, DemoPrompt, EnvVarSpec, InstallerKind, ServiceManifest, VerifySpec};
+use manifest_core::{BundleRef, DemoPrompt, EnvVarSpec, EnvironmentContract, InstallerKind, ServiceManifest, VerifySpec};
 use serde::Deserialize;
 use wasm_bindgen::prelude::*;
 
@@ -74,6 +74,12 @@ struct UnsignedManifestInput {
     /// all still deserializes.
     #[serde(default)]
     demo_prompt: Option<DemoPrompt>,
+    /// Optional environment contract (scimbe/ct-agent#183) -- signed when present, appended
+    /// after `demo_prompt` in the preimage. `#[serde(default)]` so JSON without the key still
+    /// deserializes (as `None`, i.e. the strictest profile at activation time). Validated here so
+    /// a contract the installer would refuse never gets a signature.
+    #[serde(default)]
+    environment: Option<EnvironmentContract>,
 }
 
 // Pure, testable cores behind the #[wasm_bindgen] exports below -- plain
@@ -85,6 +91,9 @@ fn sign_manifest_inner(signing_key_hex: &str, manifest_json: &str) -> Result<Str
     let input: UnsignedManifestInput =
         serde_json::from_str(manifest_json).map_err(|e| format!("invalid manifest JSON: {e}"))?;
     let manifest_id = from_hex32(&input.manifest_id)?;
+    if let Some(env) = &input.environment {
+        env.validate().map_err(|e| format!("invalid environment contract: {e}"))?;
+    }
     let signed = ServiceManifest::sign_new(
         &signing_key,
         manifest_id,
@@ -97,6 +106,7 @@ fn sign_manifest_inner(signing_key_hex: &str, manifest_json: &str) -> Result<Str
         input.issued_at,
         input.expires_at,
         input.demo_prompt,
+        input.environment,
     );
     serde_json::to_string_pretty(&signed).map_err(|e| format!("failed to serialize signed manifest: {e}"))
 }
@@ -120,6 +130,7 @@ fn verify_manifest_inner(manifest_json: &str) -> Result<bool, String> {
         manifest.issued_at,
         manifest.expires_at,
         manifest.demo_prompt.as_ref(),
+        manifest.environment.as_ref(),
     );
     Ok(vk.verify(&preimage, &ed25519_dalek::Signature::from_bytes(&manifest.signature)).is_ok())
 }
@@ -318,6 +329,69 @@ mod tests {
         }
         let tampered_json = serde_json::to_string(&tampered).unwrap();
         assert!(!verify_manifest_inner(&tampered_json).unwrap());
+    }
+
+    #[test]
+    fn a_manifest_with_an_environment_contract_signs_and_verifies_through_the_wasm_boundary() {
+        let key = random_signing_key();
+        let signing_key_hex = to_hex(&key.to_bytes());
+        let unsigned = format!(
+            r#"{{
+                "manifest_id": "{}",
+                "name": "keyforge-demo",
+                "version": "0.1.0",
+                "installer_kind": "compose",
+                "bundle": {{
+                    "url": "https://example.invalid/bundle.tar.gz",
+                    "sha256": "{}",
+                    "compose_file": "docker-compose.yml"
+                }},
+                "env_template": [],
+                "verify": {{"script": "verify.sh", "timeout_secs": 60}},
+                "issued_at": 1000,
+                "expires_at": 2000,
+                "environment": {{"network": {{"mode": "none"}}, "resources": {{"memory_mb": 256}}}}
+            }}"#,
+            to_hex(&[7u8; 32]),
+            to_hex(&[9u8; 32]),
+        );
+
+        let signed_json = sign_manifest_inner(&signing_key_hex, &unsigned).unwrap();
+        assert!(verify_manifest_inner(&signed_json).unwrap());
+
+        let manifest: ServiceManifest = serde_json::from_str(&signed_json).unwrap();
+        let env = manifest.environment.clone().expect("environment must survive the wasm boundary");
+        assert_eq!(env.network.mode, manifest_core::NetworkMode::None);
+        assert_eq!(env.resources.memory_mb, 256);
+
+        // Widening the signed network policy post-signature must fail verification here too.
+        let mut tampered = manifest.clone();
+        tampered.environment.as_mut().unwrap().network.mode = manifest_core::NetworkMode::HostLoopback;
+        let tampered_json = serde_json::to_string(&tampered).unwrap();
+        assert!(!verify_manifest_inner(&tampered_json).unwrap());
+    }
+
+    #[test]
+    fn an_invalid_environment_contract_is_refused_before_signing() {
+        let key = random_signing_key();
+        let unsigned = format!(
+            r#"{{
+                "manifest_id": "{}",
+                "name": "keyforge-demo",
+                "version": "0.1.0",
+                "installer_kind": "compose",
+                "bundle": {{"url": "https://example.invalid/b.tar.gz", "sha256": "{}", "compose_file": "docker-compose.yml"}},
+                "env_template": [],
+                "verify": {{"script": "verify.sh", "timeout_secs": 60}},
+                "issued_at": 1000,
+                "expires_at": 2000,
+                "environment": {{"network": {{"egress": [{{"host": "example.invalid", "port": 443, "justification": ""}}]}}}}
+            }}"#,
+            to_hex(&[7u8; 32]),
+            to_hex(&[9u8; 32]),
+        );
+        let err = sign_manifest_inner(&to_hex(&key.to_bytes()), &unsigned).unwrap_err();
+        assert!(err.contains("invalid environment contract"), "{err}");
     }
 
     #[test]
