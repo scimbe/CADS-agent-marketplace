@@ -10,6 +10,7 @@ use bp_collab_crdt::{Delta, Doc, Prop, ShapeId, Value};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
@@ -41,15 +42,23 @@ impl Editor {
     }
 }
 
+/// What the editors agree on to finish together: how many have sent everything and had it echoed,
+/// and the highest root sequence any of them has seen (the echo of the last write carries it).
+#[derive(Default)]
+struct Finish {
+    flushed: AtomicUsize,
+    top_seq: AtomicU64,
+}
+
 /// One editor's whole life: connect, edit, sometimes vanish and come back, until `stop`; then flush
-/// and wait until the relay has echoed everything.
-async fn editor(id: u64, addr: SocketAddr, catalog: Arc<Mutex<Vec<ShapeId>>>, log: Arc<Mutex<Vec<Delta>>>, stop: Instant) -> Doc {
+/// and wait until every editor has flushed and this one holds the root's final state.
+async fn editor(id: u64, addr: SocketAddr, catalog: Arc<Mutex<Vec<ShapeId>>>, log: Arc<Mutex<Vec<Delta>>>, stop: Instant, fin: Arc<Finish>, n: usize) -> Doc {
     let epoch = Instant::now();
     let key = DocKey::new(&SECRET);
     let token = DocKey::relay_token(&SECRET);
     let mut rng = ChaCha8Rng::seed_from_u64(id);
     let mut e = Editor { doc: Doc::new(rng.gen::<u64>() | 1), outbox: Outbox::default(), hwm: 0 };
-    let mut quiet_since: Option<Instant> = None;
+    let mut flushed = false;
     loop {
         let mut c = Client::connect(addr, DOC, token, e.hwm, e.doc.replica(), &[]).await.unwrap();
         e.outbox.requeue_unacked();
@@ -80,8 +89,8 @@ async fn editor(id: u64, addr: SocketAddr, catalog: Arc<Mutex<Vec<ShapeId>>>, lo
             loop {
                 tokio::select! {
                     m = c.next() => match m {
-                        Some(Msg::Batch { seq, frames, .. }) => { e.take(&key, &frames); e.hwm = e.hwm.max(seq); }
-                        Some(Msg::CatchUp { upto, frames, last, .. }) => { e.take(&key, &frames); if last { e.hwm = e.hwm.max(upto); } }
+                        Some(Msg::Batch { seq, frames, .. }) => { e.take(&key, &frames); e.hwm = e.hwm.max(seq); fin.top_seq.fetch_max(e.hwm, Ordering::SeqCst); }
+                        Some(Msg::CatchUp { upto, frames, last, .. }) => { e.take(&key, &frames); if last { e.hwm = e.hwm.max(upto); fin.top_seq.fetch_max(e.hwm, Ordering::SeqCst); } }
                         Some(Msg::Error(t)) => panic!("relay error: {t}"),
                         _ => break,
                     },
@@ -90,12 +99,16 @@ async fn editor(id: u64, addr: SocketAddr, catalog: Arc<Mutex<Vec<ShapeId>>>, lo
             }
             if now >= stop {
                 if e.outbox.is_idle() {
-                    let since = *quiet_since.get_or_insert(now);
-                    if now - since > Duration::from_millis(1500) {
+                    if !flushed {
+                        flushed = true;
+                        fin.flushed.fetch_add(1, Ordering::SeqCst);
+                    }
+                    // Everyone has flushed, so every write is in the root's log and the highest
+                    // sequence seen is the root's last; leave only once we hold it.
+                    if fin.flushed.load(Ordering::SeqCst) == n && e.hwm >= fin.top_seq.load(Ordering::SeqCst) {
                         return e.doc;
                     }
                 } else {
-                    quiet_since = None;
                     e.outbox.requeue_due(ms, 300);
                 }
             } else if now > session_end && rng.gen_bool(0.5) {
@@ -126,8 +139,9 @@ async fn editors_on_a_relay_tree_over_tcp_converge_to_the_oracle() {
     let log = Arc::new(Mutex::new(Vec::new()));
     let stop = Instant::now() + Duration::from_secs(4);
     let n = 120;
+    let fin = Arc::new(Finish::default());
     let tasks: Vec<_> = (0..n)
-        .map(|i| tokio::spawn(editor(i, leaves[i as usize % 2], catalog.clone(), log.clone(), stop)))
+        .map(|i| tokio::spawn(editor(i, leaves[i as usize % 2], catalog.clone(), log.clone(), stop, fin.clone(), n as usize)))
         .collect();
     let mut docs = Vec::new();
     for t in tasks {
