@@ -33,7 +33,7 @@
 
 use crate::doc::{Delta, Doc, Prop, ShapeId};
 use crate::outbox::Outbox;
-use crate::relay::{positional, Batch, Frame, Relay, TileSet, Tiles, TILE_ANY};
+use crate::relay::{is_positional, positional, shape_of, tile, Batch, Frame, Relay, TileSet, Tiles, TILE_ANY};
 use crate::value::Value;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -412,6 +412,27 @@ impl Editor {
     }
 }
 
+/// Every tile each shape's position was sequenced into by the given batches (the root batches of
+/// the freshness window), by the positional frames in them, keyed by the shape's route hash.
+pub fn window_positions<'a, Q: 'a>(batches: impl IntoIterator<Item = &'a Batch<Q>>) -> HashMap<u128, Vec<u32>> {
+    let mut out: HashMap<u128, Vec<u32>> = HashMap::new();
+    for b in batches {
+        for f in &b.frames {
+            if is_positional(f.tiles[1]) {
+                out.entry(shape_of(f.route)).or_default().push(tile(f.tiles[1]));
+            }
+        }
+    }
+    out
+}
+
+/// Whether a shape stayed in the tiles of `wanted` for the whole window: the relay has it there now
+/// (or knows no position) and it never moved out of them in between. A shape that left and came
+/// back may still have its entering state on the way, so it is not held to full freshness.
+pub fn held_throughout(wanted: &TileSet, now: Option<u32>, window: Option<&[u32]>) -> bool {
+    now.is_none_or(|t| wanted.wants(t)) && window.is_none_or(|ts| ts.iter().all(|t| wanted.wants(*t)))
+}
+
 pub fn run(cfg: &SimConfig) -> SimReport {
     let started = Instant::now();
     let tps = cfg.tiles_per_side;
@@ -489,6 +510,8 @@ pub fn run(cfg: &SimConfig) -> SimReport {
         if now == cfg.ticks && tps > 0 {
             let root_now = &root;
             let lag = cfg.freshness_lag;
+            let window_tiles = window_positions(lag_queue.iter().map(|(_, b)| &**b));
+            let window_tiles = &window_tiles;
             let checks: Vec<Option<(u64, u64)>> = editors
                 .par_iter()
                 .map(|e| {
@@ -499,9 +522,12 @@ pub fn run(cfg: &SimConfig) -> SimReport {
                     for (key, stamp, _) in lagged.sorted_registers() {
                         let shape = key.shape;
                         let here = |d: &Doc| e.wanted.matches(&[tile_of(d, tps, shape); 2]);
+                        // In the phone's tiles during the whole window, not only at its ends: a shape
+                        // that left and came back may have its entering state still on the way.
                         let still_here = || {
                             let pos = crate::doc::RegKey { shape, prop: Prop::POS }.packed();
-                            root_now.tile_of_shape(crate::relay::shape_of(pos)).is_none_or(|t| e.wanted.wants(t))
+                            let id = shape_of(pos);
+                            held_throughout(&e.wanted, root_now.tile_of_shape(id), window_tiles.get(&id).map(Vec::as_slice))
                         };
                         // A shape in the viewport (then and now): all of it must be fresh. A shape
                         // the phone thinks is there: its position must be (to see it leave).
