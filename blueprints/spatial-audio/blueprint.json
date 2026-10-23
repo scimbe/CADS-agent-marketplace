@@ -30,7 +30,26 @@
       "hoerer": 2,
       "listeners": 2,
       "sprecher": 1,
-      "speakers": 1
+      "speakers": 1,
+      "audio spatialization": 5,
+      "audiostroem": 3,
+      "audiostream": 3,
+      "raumakustik": 2,
+      "3d distanz": 2,
+      "avatar": 2,
+      "grossevent": 3,
+      "large event": 3,
+      "watch party": 3,
+      "second screen": 3,
+      "social audio": 3,
+      "clubhouse": 2,
+      "discord": 2,
+      "squad": 2,
+      "esports": 2,
+      "airpods": 3,
+      "live streaming": 2,
+      "fan block": 3,
+      "virtuell": 1
     },
     "threshold": 6
   },
@@ -51,7 +70,16 @@
         "personen",
         "people",
         "nutzer",
-        "users"
+        "users",
+        "fans",
+        "besucher",
+        "spectators",
+        "avatare",
+        "avatars",
+        "hoerer",
+        "audiostroeme",
+        "audiostreams",
+        "streams"
       ]
     },
     {
@@ -79,8 +107,17 @@
         "android": 0.9,
         "smartphone": 0.9,
         "desktop": 0.1,
-        "browser": 0.3
+        "browser": 0.3,
+        "phones": 0.9,
+        "airpods": 0.9
       }
+    },
+    {
+      "name": "latency_ms",
+      "type": "int",
+      "default": 50,
+      "min": 1,
+      "max": 1000
     }
   ],
   "capacity": {

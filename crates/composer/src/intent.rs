@@ -9,6 +9,8 @@ pub struct Intent {
     pub blueprints: Vec<(String, u32)>,
     /// Per chosen blueprint: parameters found in the prompt (defaults are not filled in).
     pub params: BTreeMap<String, BTreeMap<String, f64>>,
+    /// `<blueprint>.<parameter>` values that come from a number word without digit (`Millionen`), an order of magnitude.
+    pub estimated: BTreeSet<String>,
     pub questions: Vec<String>,
     pub confidence: f64,
 }
@@ -48,18 +50,23 @@ pub fn normalize(text: &str) -> String {
     out
 }
 
-/// Normalized tokens; a number glued to a suffix (`10k`, `50ms`, `sub-50ms`) is split in two.
+/// Normalized tokens; hyphenated words are split (`audio-spatialization`, `sub-50ms-latenz`), a number glued to a
+/// suffix (`10k`, `50ms`) is split in two and a `sub` before a number is dropped.
 fn tokens(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     for t in normalize(text).split_whitespace() {
-        let t = t.strip_prefix("sub-").unwrap_or(t);
-        let split = t.find(|c: char| c.is_alphabetic());
-        match split {
-            Some(i) if i > 0 && t.as_bytes()[0].is_ascii_digit() && parse_plain(&t[..i]).is_some() => {
-                out.push(t[..i].to_string());
-                out.push(t[i..].to_string());
+        let parts: Vec<&str> = t.split('-').collect();
+        for (k, part) in parts.iter().enumerate() {
+            if *part == "sub" && parts.get(k + 1).is_some_and(|n| n.starts_with(|c: char| c.is_ascii_digit())) {
+                continue;
             }
-            _ => out.push(t.to_string()),
+            match part.find(|c: char| c.is_alphabetic()) {
+                Some(i) if i > 0 && part.as_bytes()[0].is_ascii_digit() && parse_plain(&part[..i]).is_some() => {
+                    out.push(part[..i].to_string());
+                    out.push(part[i..].to_string());
+                }
+                _ => out.push(part.to_string()),
+            }
         }
     }
     out
@@ -105,8 +112,20 @@ fn multiplier(word: &str) -> Option<f64> {
     }
 }
 
+/// Number words without a digit: an order of magnitude only.
+fn magnitude(word: &str) -> Option<f64> {
+    match word {
+        "millionen" | "millions" => Some(1e6),
+        "tausende" | "thousands" => Some(1e3),
+        "hunderte" | "hundreds" => Some(1e2),
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 struct Num {
+    /// From a number word (`Millionen`), not from a digit.
+    estimated: bool,
     value: f64,
     start: usize,
     /// One past the last token (multiplier word included).
@@ -119,10 +138,13 @@ fn numbers_in(toks: &[String]) -> Vec<Num> {
     while i < toks.len() {
         if let Some(v) = parse_plain(&toks[i]) {
             match toks.get(i + 1).and_then(|w| multiplier(w)) {
-                Some(m) => out.push(Num { value: v * m, start: i, end: i + 2 }),
-                None => out.push(Num { value: v, start: i, end: i + 1 }),
+                Some(m) => out.push(Num { estimated: false, value: v * m, start: i, end: i + 2 }),
+                None => out.push(Num { estimated: false, value: v, start: i, end: i + 1 }),
             }
             i = out.last().unwrap().end;
+        } else if let Some(v) = magnitude(&toks[i]) {
+            out.push(Num { estimated: true, value: v, start: i, end: i + 1 });
+            i += 1;
         } else {
             i += 1;
         }
@@ -155,7 +177,7 @@ fn find_keyword(kw: &[String], toks: &[String]) -> Vec<usize> {
 }
 
 fn kw_words(kw: &str) -> Vec<String> {
-    normalize(kw).split_whitespace().map(String::from).collect()
+    normalize(kw).replace('-', " ").split_whitespace().map(String::from).collect()
 }
 
 fn score(bp: &Blueprint, toks: &[String]) -> u32 {
@@ -215,17 +237,28 @@ fn check(bp: &Blueprint, p: &Parameter, v: f64, questions: &mut Vec<String>) -> 
     Some(v)
 }
 
-fn extract(bp: &Blueprint, toks: &[String], nums: &[Num], questions: &mut Vec<String>) -> BTreeMap<String, f64> {
+fn is_ms(toks: &[String], n: &Num) -> bool {
+    toks.get(n.end).is_some_and(|w| matches!(w.as_str(), "ms" | "millisekunden" | "milliseconds" | "millisecond"))
+}
+
+fn extract(
+    bp: &Blueprint,
+    toks: &[String],
+    nums: &[Num],
+    estimated: &mut BTreeSet<String>,
+    questions: &mut Vec<String>,
+) -> BTreeMap<String, f64> {
     let mut found = BTreeMap::new();
     let mut used = BTreeSet::new();
+    // a number in milliseconds belongs to the latency, never to a unit word next to it
+    let latency = bp.parameters.iter().find(|p| p.name == "latency_ms");
+    if latency.is_some() {
+        used.extend(nums.iter().enumerate().filter(|(_, n)| is_ms(toks, n)).map(|(i, _)| i));
+    }
     for p in &bp.parameters {
         // latency in milliseconds: `sub-50ms`, `< 50 ms`, `unter 50 ms`
         if p.name == "latency_ms" {
-            let hit = nums.iter().enumerate().find(|(_, n)| {
-                toks.get(n.end).is_some_and(|w| matches!(w.as_str(), "ms" | "millisekunden" | "milliseconds" | "millisecond"))
-            });
-            if let Some((ni, n)) = hit {
-                used.insert(ni);
+            if let Some(n) = nums.iter().find(|n| is_ms(toks, n)) {
                 if let Some(v) = check(bp, p, n.value, questions) {
                     found.insert(p.name.clone(), v);
                 }
@@ -237,6 +270,9 @@ fn extract(bp: &Blueprint, toks: &[String], nums: &[Num], questions: &mut Vec<St
                 used.insert(ni);
                 if let Some(v) = check(bp, p, nums[ni].value, questions) {
                     found.insert(p.name.clone(), v);
+                    if nums[ni].estimated {
+                        estimated.insert(format!("{}.{}", bp.id, p.name));
+                    }
                 }
             }
         }
@@ -268,8 +304,9 @@ pub fn recognize(catalog: &Catalog, prompt: &str) -> Intent {
     let chosen: Vec<(&Blueprint, u32)> = scored.iter().copied().filter(|(b, s)| *s >= b.intent.threshold).collect();
     let mut questions = Vec::new();
     let mut params = BTreeMap::new();
+    let mut estimated = BTreeSet::new();
     for (b, _) in &chosen {
-        params.insert(b.id.clone(), extract(b, &toks, &nums, &mut questions));
+        params.insert(b.id.clone(), extract(b, &toks, &nums, &mut estimated, &mut questions));
     }
     let confidence = match chosen.first() {
         None => {
@@ -285,6 +322,7 @@ pub fn recognize(catalog: &Catalog, prompt: &str) -> Intent {
     Intent {
         blueprints: chosen.iter().map(|(b, s)| (b.id.clone(), *s)).collect(),
         params,
+        estimated,
         questions,
         confidence,
     }
