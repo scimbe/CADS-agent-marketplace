@@ -7,52 +7,200 @@
   "summary": "Many people in one virtual space hear each other by where they stand: the shard forwards the nearest voices unchanged, mixes cell and sector beds once per frame (never per listener), and the device renders binaurally.",
   "intent": {
     "keywords": {
-      "spatial audio": 5, "raeumliches audio": 5, "raeumlich": 3, "binaural": 4, "voice chat": 3, "sprachchat": 3,
-      "proximity chat": 5, "proximity": 2, "metaverse": 3, "virtual event": 4, "virtuelle veranstaltung": 4,
-      "stadion": 3, "stadium": 3, "konzert": 2, "concert": 2, "crowd": 2, "menschenmenge": 2, "opus": 2,
-      "sfu": 3, "head tracking": 3, "hoerer": 2, "listeners": 2, "sprecher": 1, "speakers": 1
+      "spatial audio": 5,
+      "raeumliches audio": 5,
+      "raeumlich": 3,
+      "binaural": 4,
+      "voice chat": 3,
+      "sprachchat": 3,
+      "proximity chat": 5,
+      "proximity": 2,
+      "metaverse": 3,
+      "virtual event": 4,
+      "virtuelle veranstaltung": 4,
+      "stadion": 3,
+      "stadium": 3,
+      "konzert": 2,
+      "concert": 2,
+      "crowd": 2,
+      "menschenmenge": 2,
+      "opus": 2,
+      "sfu": 3,
+      "head tracking": 3,
+      "hoerer": 2,
+      "listeners": 2,
+      "sprecher": 1,
+      "speakers": 1
     },
     "threshold": 6
   },
   "parameters": [
-    { "name": "listeners", "type": "int", "default": 10000, "min": 2, "max": 10000000,
-      "units": ["hoerer", "listeners", "teilnehmer", "participants", "zuschauer", "viewers", "personen", "people", "nutzer", "users"] },
-    { "name": "active_share", "type": "float", "default": 0.05, "min": 0.0, "max": 0.5,
-      "flags": { "diskussion": 0.2, "discussion": 0.2, "konzert": 0.02, "concert": 0.02 } },
-    { "name": "mobile_share", "type": "float", "default": 0.9, "min": 0.0, "max": 1.0,
-      "flags": { "mobile": 0.9, "ios": 0.9, "android": 0.9, "smartphone": 0.9, "desktop": 0.1, "browser": 0.3 } }
+    {
+      "name": "listeners",
+      "type": "int",
+      "default": 10000,
+      "min": 2,
+      "max": 10000000,
+      "units": [
+        "hoerer",
+        "listeners",
+        "teilnehmer",
+        "participants",
+        "zuschauer",
+        "viewers",
+        "personen",
+        "people",
+        "nutzer",
+        "users"
+      ]
+    },
+    {
+      "name": "active_share",
+      "type": "float",
+      "default": 0.05,
+      "min": 0.0,
+      "max": 0.5,
+      "flags": {
+        "diskussion": 0.2,
+        "discussion": 0.2,
+        "konzert": 0.02,
+        "concert": 0.02
+      }
+    },
+    {
+      "name": "mobile_share",
+      "type": "float",
+      "default": 0.9,
+      "min": 0.0,
+      "max": 1.0,
+      "flags": {
+        "mobile": 0.9,
+        "ios": 0.9,
+        "android": 0.9,
+        "smartphone": 0.9,
+        "desktop": 0.1,
+        "browser": 0.3
+      }
+    }
   ],
   "capacity": {
-    "comment": "Measured by `budget` (real libopus 0.3 / bundled C, release build) on a 4-core host, 5 % of listeners talking, 0.5 listeners/m2, 20 ms frames. Target: shard p99 < 20 ms and bed added latency (20 ms wait + p99) < 50 ms. A single shard of 50 000 listeners does NOT meet it on 4 cores (p99 96.6 ms, reports/budget-50000.json); the planner divides by the figures below. Update with every release.",
+    "comment": "Measured by `budget` (real libopus 0.3 / bundled C, release build) on a 4-core host, 5 % of listeners talking, 0.5 listeners/m2, 20 ms frames. Target: shard p99 < 20 ms and bed added latency (20 ms wait + p99) < 50 ms. A single shard of 50 000 listeners does NOT meet it on 4 cores (p99 96.6 ms, reports/budget-50000.json); the planner divides by the figures below. Update with every release. Re-measured with slot holding (2 s) and silent beds on a slower, noisier host: 10 000 listeners / 16 m cells p99 19.5 ms (reports/budget-10000-cell16-slots.json) -- inside the target but with almost no margin, so listeners_per_shard stays 10000 and is not raised.",
     "host_cores": 4,
     "listeners_per_shard": 10000,
-    "listeners_per_shard_config": { "cell_size_m": 16, "bed_complexity": 3, "bed_bitrate": 16000 },
+    "listeners_per_shard_config": {
+      "cell_size_m": 16,
+      "bed_complexity": 3,
+      "bed_bitrate": 16000
+    },
     "listeners_per_core": 2500,
     "listeners_per_shard_default_cell_8m": 7000,
     "server_p99_ms_at_capacity": 15.4,
     "bed_added_latency_p99_ms_at_capacity": 35.4,
-    "streams_per_listener": 9.8,
-    "egress_kbps_per_listener": 183,
+    "streams_per_listener": 6.4,
+    "egress_kbps_per_listener": 108,
     "device_share_of_one_core": 0.028,
     "load_bearing": "Per-speaker decode (about 2 500 active at 50 000 listeners, ~21 ms p99 on 4 cores) and per-listener selection (~18-30 ms) are fixed by the crowd and scale with cores; the bed encode (cells) is the one knob: cell size 8 m -> 1 300 cells, 44 ms p99; 16 m -> 470 cells, 18 ms; 32 m -> 120 cells, 6 ms. Bed complexity 0 vs 3 saves ~8 ms at 16 m cells; bed bitrate 8 kbit/s saves bandwidth (167 vs 206 kbit/s per listener) but little CPU. So: shard by listeners per core (~2 500), widen cells to 16 m, do not try to fit 50 000 into one 4-core shard.",
-    "reports": ["reports/budget-50000.json", "reports/budget-10000-cell16.json", "reports/budget-7000.json"],
-    "variance_note": "p99 over 250 frames varies run to run on a shared host (e.g. 10 000 listeners / 16 m cells: 11.6-15.4 ms over 4 runs); 12 000 listeners reached 19.7 ms in one run, so 10 000 keeps the margin."
+    "reports": [
+      "reports/budget-50000.json",
+      "reports/budget-10000-cell16.json",
+      "reports/budget-7000.json"
+    ],
+    "variance_note": "p99 over 250 frames varies run to run on a shared host (e.g. 10 000 listeners / 16 m cells: 11.6-15.4 ms over 4 runs); 12 000 listeners reached 19.7 ms in one run, so 10 000 keeps the margin.",
+    "direct_changes_per_listener_per_s": 2.5,
+    "selection": {
+      "hold_ms": 2000,
+      "why": "Voices keep their place for 2 s after the last active frame (select::select_slots); a challenger takes the quietest place early only if it is more than 3 dB more audible. Measured at 7 000 listeners (reports/levers/hold-*.json, budget-7000-slots.json), direct_changes_per_listener_per_s: 0 ms 9.3, 500 ms 5.8, 1 000 ms 4.3, 2 000 ms 2.7. The order's suggestion of 500 ms does not reach the target of <= 3; 2 s does. Each place turns over about once per (residual talk spurt + hold), so the rate falls roughly as 6 / (1 s + hold). The cost: a newcomer who is not clearly louder waits up to 2 s for a place when all places are held, and held places carry nothing (so egress falls: 185 -> 109 kbit/s, partly because fewer voices are forwarded, not only because of DTX). The 0 ms figure (9.3) is lower than the 13.1 of reports/budget-7000.json because places now keep a fixed position, so reordering no longer counts as a change.",
+      "silent_beds": "A bed whose mix peaks below -60 dBFS is neither encoded nor sent and counts in neither bytes nor streams (server::BED_SILENCE_PEAK). The synthetic voices of `budget` never fall that low (silent_beds_avg 0), so the saving is covered by tests/slots.rs only, not by a measured figure."
+    },
+    "cost_per_listener_hour": {
+      "assumptions": {
+        "usd_per_gb": 0.02,
+        "usd_per_core_hour": 0.04,
+        "note": "named assumptions, parameters --usd-per-gb and --usd-per-core-hour of `budget`; not quotes of any provider"
+      },
+      "measured_at": "1 000 000 listeners planned from the 10 000-listener / 16 m shard (reports/budget-10000-cell16-slots.json, headroom 1.5, headers included)",
+      "egress_usd": 0.0019,
+      "cpu_usd": 2e-05,
+      "total_usd": 0.0019,
+      "reading": "egress is 99 % of the cost; before this change the 7 000-listener shard was 0.0031 USD egress per listener-hour (reports/levers/hold-0ms.json)"
+    },
+    "levers": {
+      "reports": "reports/levers/",
+      "bed_bitrate_8000": "egress 109 -> 80 kbit/s per listener (-27 %), 0.00194 -> 0.00168 USD egress per listener-hour; streams unchanged; CPU encode p50 6.2 -> 4.1 ms. Not the default: bed quality at 8 kbit/s was not listened to, only counted.",
+      "beds_2plus1": "streams 6.7 -> 4.6, egress 109 -> 81 kbit/s (-25 %); the run did NOT pass the p99 target on this host (27.6 ms; the listener-cell bed selection is unchanged, so this looks like host noise, p50 stages are equal) -- not trusted, not the default; fewer beds also means a thinner far field (a quality loss not measured).",
+      "both": "bitrate 8 kbit/s + 2+1 beds: 66 kbit/s, 0.00125 USD per listener-hour (-36 % egress vs the default); same p99 caveat.",
+      "default": "none of the three is the default; each needs a listening test first.",
+      "variance": "p99 on this host varied 14-28 ms between otherwise identical runs; compare the p50 stage times and the byte/stream counts, which are deterministic for a seed."
+    }
   },
   "components": [
-    { "name": "audio-shard", "kind": "service", "binary": "budget", "args": ["--listeners", "{shard_listeners}", "--cell-size", "16"],
-      "count": "ceil(listeners / listeners_per_shard)", "role": "decodes active speakers, forwards near voices, mixes and encodes cell and sector beds; the `budget` binary is the acceptance harness, the serving binary is not part of this blueprint yet" },
-    { "name": "client-core", "kind": "library", "targets": ["x86_64-unknown-linux-gnu"], "targets_unverified": ["aarch64-linux-android", "aarch64-apple-ios", "wasm32-unknown-unknown"],
-      "role": "render::Spatializer plus Opus decode: binaural rendering (ITD/ILD, distance, air absorption, reverb) on the device; 2.8 % of one host core for 12 streams (a phone core is slower, not measured)" }
+    {
+      "name": "audio-shard",
+      "kind": "service",
+      "binary": "budget",
+      "args": [
+        "--listeners",
+        "{shard_listeners}",
+        "--cell-size",
+        "16"
+      ],
+      "count": "ceil(listeners / listeners_per_shard)",
+      "role": "decodes active speakers, forwards near voices, mixes and encodes cell and sector beds; the `budget` binary is the acceptance harness, the serving binary is not part of this blueprint yet"
+    },
+    {
+      "name": "client-core",
+      "kind": "library",
+      "targets": [
+        "x86_64-unknown-linux-gnu"
+      ],
+      "targets_unverified": [
+        "aarch64-linux-android",
+        "aarch64-apple-ios",
+        "wasm32-unknown-unknown"
+      ],
+      "role": "render::Spatializer plus Opus decode: binaural rendering (ITD/ILD, distance, air absorption, reverb) on the device; 2.8 % of one host core for 12 streams (a phone core is slower, not measured)"
+    }
   ],
   "edges": [
-    { "a": "audio-shard", "b": "audio-shard", "hint": "attempt_direct", "why": "neighbouring shards exchange border beds; about 1.4 Mbit/s per link at 7 000 listeners per shard (scale::plan)" }
+    {
+      "a": "audio-shard",
+      "b": "audio-shard",
+      "hint": "attempt_direct",
+      "why": "neighbouring shards exchange border beds; about 1.4 Mbit/s per link at 7 000 listeners per shard (scale::plan)"
+    }
   ],
   "acceptance": [
-    { "name": "budget", "command": ["budget", "--listeners", "{shard_listeners}", "--frames", "250", "--cell-size", "16"],
-      "expect": { "real_codec": true, "acceptance.passed": true },
-      "note": "real Opus, timed per frame; exit code 1 unless p99 < 20 ms and bed added latency < 50 ms" },
-    { "name": "small-scene", "command": ["cargo", "test", "-p", "bp-spatial-audio", "--release"],
-      "expect": { "exit": 0 }, "note": "tests/budget_small.rs: stream bound per listener, beds beyond the near field, finite times, codec state released after silence" }
+    {
+      "name": "budget",
+      "command": [
+        "budget",
+        "--listeners",
+        "{shard_listeners}",
+        "--frames",
+        "250",
+        "--cell-size",
+        "16"
+      ],
+      "expect": {
+        "real_codec": true,
+        "acceptance.passed": true
+      },
+      "note": "real Opus, timed per frame; exit code 1 unless p99 < 20 ms and bed added latency < 50 ms"
+    },
+    {
+      "name": "small-scene",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "bp-spatial-audio",
+        "--release"
+      ],
+      "expect": {
+        "exit": 0
+      },
+      "note": "tests/budget_small.rs: stream bound per listener, beds beyond the near field, finite times, codec state released after silence"
+    }
   ],
   "portability": {
     "platform_apis": "none: Opus is portable C compiled from source (cmake), everything else is Rust",

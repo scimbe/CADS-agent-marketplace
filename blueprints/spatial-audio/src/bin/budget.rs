@@ -1,7 +1,8 @@
 //! The acceptance benchmark: one shard of a crowd, real Opus, timed per frame.
 //!
 //! `budget [--listeners N] [--active F] [--frames N] [--threads N] [--density P] [--seed S]
-//!  [--plan-listeners N] [--cell-size M] [--bed-complexity C] [--bed-bitrate BPS]`. Prints JSON; exit code 1 unless the shard sustains real time (p99 below
+//!  [--plan-listeners N] [--cell-size M] [--bed-complexity C] [--bed-bitrate BPS] [--beds N] [--sector-beds N] [--hold-ms MS]
+//!  [--usd-per-gb P] [--usd-per-core-hour P]`. Prints JSON; exit code 1 unless the shard sustains real time (p99 below
 //! one 20 ms frame) and a bed's server-added latency (one frame of waiting plus processing) stays
 //! below 50 ms at p99.
 
@@ -9,7 +10,7 @@ use bp_spatial_audio::codec::{frame_len, Decoder, Encoder, EncoderConfig, MAX_PA
 use bp_spatial_audio::geom::{Pose, Vec3};
 use bp_spatial_audio::latency::{budgets, Measured};
 use bp_spatial_audio::render::{RenderConfig, Spatializer};
-use bp_spatial_audio::scale::{plan, ShardMeasurement};
+use bp_spatial_audio::scale::{cost, plan, CostAssumptions, ShardMeasurement};
 use bp_spatial_audio::server::{ListenerPos, Shard, ShardConfig, SpeakerFrame};
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -28,10 +29,14 @@ struct Args {
     cell_size: Option<f32>,
     bed_complexity: Option<i32>,
     bed_bitrate: Option<i32>,
+    beds: Option<usize>,
+    sector_beds: Option<usize>,
+    hold_ms: Option<u64>,
+    costs: CostAssumptions,
 }
 
 fn parse() -> Args {
-    let mut a = Args { listeners: 50_000, active: 0.05, frames: 250, threads: 0, density: 0.5, seed: 1, plan_listeners: 1_000_000, cell_size: None, bed_complexity: None, bed_bitrate: None };
+    let mut a = Args { listeners: 50_000, active: 0.05, frames: 250, threads: 0, density: 0.5, seed: 1, plan_listeners: 1_000_000, cell_size: None, bed_complexity: None, bed_bitrate: None, beds: None, sector_beds: None, hold_ms: None, costs: CostAssumptions::default() };
     let v: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
     while i < v.len() {
@@ -48,6 +53,11 @@ fn parse() -> Args {
             "--cell-size" => a.cell_size = Some(num(&val) as f32),
             "--bed-complexity" => a.bed_complexity = Some(num(&val) as i32),
             "--bed-bitrate" => a.bed_bitrate = Some(num(&val) as i32),
+            "--beds" => a.beds = Some(num(&val) as usize),
+            "--sector-beds" => a.sector_beds = Some(num(&val) as usize),
+            "--hold-ms" => a.hold_ms = Some(num(&val) as u64),
+            "--usd-per-gb" => a.costs.usd_per_gb = num(&val),
+            "--usd-per-core-hour" => a.costs.usd_per_core_hour = num(&val),
             o => die(&format!("unknown option {o}")),
         }
         i += 2;
@@ -96,6 +106,9 @@ fn main() {
     cfg.cell_size = a.cell_size.unwrap_or(cfg.cell_size);
     cfg.bed.complexity = a.bed_complexity.unwrap_or(cfg.bed.complexity);
     cfg.bed.bitrate = a.bed_bitrate.unwrap_or(cfg.bed.bitrate);
+    cfg.select.beds = a.beds.unwrap_or(cfg.select.beds);
+    cfg.select.sector_beds = a.sector_beds.unwrap_or(cfg.select.sector_beds);
+    cfg.select.hold_frames = a.hold_ms.map(|m| m / bp_spatial_audio::FRAME_MS as u64).unwrap_or(cfg.select.hold_frames);
 
     // The crowd: blocks of a stand, separated by aisles, at the given density.
     let area = a.listeners as f32 / a.density;
@@ -201,6 +214,7 @@ fn main() {
         border_cells_per_side: (side / cfg.cell_size) as f64,
     };
     let event = plan(&shard_m, a.plan_listeners, 1.5, streams_avg);
+    let cost_model = cost(&event, &a.costs);
     let sustainable = p99 < 20.0;
     let bed_added_p99 = 20.0 + p99;
     let ok = sustainable && bed_added_p99 < 50.0;
@@ -210,6 +224,10 @@ fn main() {
         "cell_size_m": cfg.cell_size,
         "bed_complexity": cfg.bed.complexity,
         "bed_bitrate": cfg.bed.bitrate,
+        "beds": cfg.select.beds,
+        "sector_beds": cfg.select.sector_beds,
+        "hold_ms": cfg.select.hold_frames * bp_spatial_audio::FRAME_MS as u64,
+        "silent_beds_avg": mean(col(&|s| s.silent_beds as f64)),
         "cores": cores,
         "frames_measured": stats.len(),
         "venue_side_m": side,
@@ -239,6 +257,7 @@ fn main() {
         },
         "latency_budget": budget,
         "event_plan": event,
+        "cost_per_listener_hour": cost_model,
         "acceptance": {
             "sustainable_p99_below_frame": sustainable,
             "bed_server_added_below_50ms": bed_added_p99 < 50.0,

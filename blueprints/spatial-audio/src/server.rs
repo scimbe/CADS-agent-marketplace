@@ -8,7 +8,7 @@
 use crate::codec::{frame_len, CodecError, Decoder, Encoder, EncoderConfig, MAX_PACKET};
 use crate::geom::Vec3;
 use crate::grid::{cell_center, cell_of, Cell, FxBuild, Grid};
-use crate::select::{beds_for_cell, select_direct, ActiveSpeaker, SelectConfig};
+use crate::select::{beds_for_cell, select_slots, ActiveSpeaker, SelectConfig, Slot};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -17,6 +17,10 @@ use std::time::Instant;
 
 /// Frames of silence after which a stream's codec state is dropped (2 s).
 pub const EVICT_AFTER: u64 = 100;
+
+/// A bed whose mix peaks below this (about -60 dBFS) carries no voice this frame: it is neither
+/// encoded nor sent (like Opus DTX), and counts neither in bytes nor in streams.
+pub const BED_SILENCE_PEAK: f32 = 1e-3;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct ShardConfig {
@@ -68,6 +72,8 @@ pub struct FrameStats {
     pub active_speakers: usize,
     pub active_cells: usize,
     pub active_sectors: usize,
+    /// Beds (cell and sector) whose mix was silent this frame: not encoded, not sent.
+    pub silent_beds: usize,
     /// Streams sent to listeners this frame, and their bytes (packets only, no transport headers).
     pub streams_out: u64,
     pub bytes_out: u64,
@@ -81,7 +87,7 @@ pub struct Shard {
     cell_encoders: HashMap<Cell, (Encoder, u64), FxBuild>,
     sector_encoders: HashMap<Cell, (Encoder, u64), FxBuild>,
     /// Per listener (by position in the listener slice): the direct voices chosen last frame.
-    prev_direct: Vec<Vec<u32>>,
+    prev_direct: Vec<Vec<Slot>>,
     frame: u64,
 }
 
@@ -132,7 +138,6 @@ impl Shard {
         let sector_of = |c: Cell| (c.0.div_euclid(cfg.sector_cells), c.1.div_euclid(cfg.sector_cells));
         let mut cells: Vec<(Cell, Vec<u32>)> = grid.cells().map(|(c, ids)| (*c, ids.clone())).collect();
         cells.sort_unstable_by_key(|(c, _)| *c);
-        let active_cells: HashSet<Cell, FxBuild> = cells.iter().map(|(c, _)| *c).collect();
         let mut sector_members: HashMap<Cell, Vec<usize>, FxBuild> = HashMap::default();
         for (i, (c, _)) in cells.iter().enumerate() {
             sector_members.entry(sector_of(*c)).or_default().push(i);
@@ -214,16 +219,19 @@ impl Shard {
             .collect();
         stats.times.mix = ms(t);
 
-        // 4. Encode every bed once.
+        // 4. Encode every bed once -- except silent ones, which are not encoded and not sent.
         let t = Instant::now();
+        let peak = |p: &Vec<f32>| p.iter().fold(0f32, |m, x| m.max(x.abs()));
+        let live_cells: Vec<usize> = (0..cells.len()).filter(|i| peak(&cell_pcm[*i]) >= BED_SILENCE_PEAK).collect();
+        let live_sectors: Vec<usize> = (0..sectors.len()).filter(|i| peak(&sector_pcm[*i]) >= BED_SILENCE_PEAK).collect();
         let take = |map: &mut HashMap<Cell, (Encoder, u64), FxBuild>, keys: &[Cell]| -> Result<Vec<Encoder>, CodecError> {
             keys.iter().map(|k| map.remove(k).map(|(e, _)| Ok(e)).unwrap_or_else(|| Encoder::new(cfg.bed))).collect()
         };
-        let cell_keys: Vec<Cell> = cells.iter().map(|(c, _)| *c).collect();
-        let sector_keys: Vec<Cell> = sectors.iter().map(|(s, _)| *s).collect();
+        let cell_keys: Vec<Cell> = live_cells.iter().map(|i| cells[*i].0).collect();
+        let sector_keys: Vec<Cell> = live_sectors.iter().map(|i| sectors[*i].0).collect();
         let mut cell_enc = take(&mut self.cell_encoders, &cell_keys)?;
         let mut sector_enc = take(&mut self.sector_encoders, &sector_keys)?;
-        let encode_all = |encs: &mut Vec<Encoder>, pcm: &[Vec<f32>]| -> Result<Vec<usize>, CodecError> {
+        let encode_all = |encs: &mut Vec<Encoder>, pcm: Vec<&Vec<f32>>| -> Result<Vec<usize>, CodecError> {
             encs.par_iter_mut()
                 .zip(pcm.par_iter())
                 .map(|(e, p)| {
@@ -232,49 +240,52 @@ impl Shard {
                 })
                 .collect()
         };
-        let cell_bytes = encode_all(&mut cell_enc, &cell_pcm)?;
-        let sector_bytes = encode_all(&mut sector_enc, &sector_pcm)?;
+        let cell_bytes = encode_all(&mut cell_enc, live_cells.iter().map(|i| &cell_pcm[*i]).collect())?;
+        let sector_bytes = encode_all(&mut sector_enc, live_sectors.iter().map(|i| &sector_pcm[*i]).collect())?;
         for (k, e) in cell_keys.iter().zip(cell_enc) {
             self.cell_encoders.insert(*k, (e, frame));
         }
         for (k, e) in sector_keys.iter().zip(sector_enc) {
             self.sector_encoders.insert(*k, (e, frame));
         }
+        stats.silent_beds = (cells.len() - live_cells.len()) + (sectors.len() - live_sectors.len());
         stats.times.encode = ms(t);
 
         // 5. Selection: beds per listener cell, direct voices per listener.
         let t = Instant::now();
         let mut listener_cells: Vec<Cell> = listeners.iter().map(|l| cell_of(l.pos, cfg.cell_size)).collect::<HashSet<_, FxBuild>>().into_iter().collect();
         listener_cells.sort_unstable();
+        // Only beds that carry a voice are offered to listeners.
+        let live_cell_set: HashSet<Cell, FxBuild> = cell_keys.iter().copied().collect();
+        let live_sector_centres: HashMap<Cell, Vec3, FxBuild> = sector_keys.iter().map(|s| (*s, sector_centres[s])).collect();
         let beds: HashMap<Cell, (Vec<Cell>, Vec<Cell>), FxBuild> = listener_cells
             .par_iter()
-            .map(|c| (*c, beds_for_cell(*c, cfg.cell_size, &active_cells, cfg.sector_cells, &sector_centres, &cfg.select)))
+            .map(|c| (*c, beds_for_cell(*c, cfg.cell_size, &live_cell_set, cfg.sector_cells, &live_sector_centres, &cfg.select)))
             .collect();
         let cell_size_of: HashMap<Cell, usize, FxBuild> = cell_keys.iter().copied().zip(cell_bytes.iter().copied()).collect();
         let sector_size_of: HashMap<Cell, usize, FxBuild> = sector_keys.iter().copied().zip(sector_bytes.iter().copied()).collect();
         if self.prev_direct.len() != listeners.len() {
             self.prev_direct = vec![Vec::new(); listeners.len()];
         }
-        let per_listener: Vec<(u64, u64, bool)> = listeners
+        let per_listener: Vec<(u64, u64, bool, u64)> = listeners
             .par_iter()
             .zip(self.prev_direct.par_iter_mut())
             .map_init(
-                || (Vec::new(), Vec::new()),
-                |(scratch, out), (l, prev)| {
-                    select_direct(l.id, l.pos, &grid, &active, &cfg.select, prev, scratch, out);
-                    let changed = out.as_slice() != prev.as_slice();
-                    prev.clear();
-                    prev.extend_from_slice(out);
+                Vec::new,
+                |scratch, (l, slots)| {
+                    let changed = select_slots(l.id, l.pos, &grid, &active, &cfg.select, frame, slots, scratch);
+                    // A held place is an open stream that carries nothing this frame.
+                    let sending = slots.iter().filter(|s| s.last_active == frame).count();
                     // Bed bytes here; the forwarded voices are counted below from the selections.
                     let (cb, sb) = &beds[&cell_of(l.pos, cfg.cell_size)];
                     let bytes = cb.iter().map(|c| cell_size_of[c] as u64).sum::<u64>() + sb.iter().map(|s| sector_size_of[s] as u64).sum::<u64>();
-                    ((out.len() + cb.len() + sb.len()) as u64, bytes, changed)
+                    ((sending + cb.len() + sb.len()) as u64, bytes, changed, sending as u64)
                 },
             )
             .collect();
         // Forwarded packets: count them by size once (a packet goes out once per receiving listener).
         let size_by_id: HashMap<u32, usize, FxBuild> = speakers.iter().map(|s| (s.id, s.packet.len())).collect();
-        let direct_bytes: u64 = self.prev_direct.iter().flat_map(|v| v.iter()).map(|id| size_by_id[id] as u64).sum();
+        let direct_bytes: u64 = self.prev_direct.iter().flat_map(|v| v.iter()).filter(|s| s.last_active == frame).map(|s| size_by_id[&s.id] as u64).sum();
         stats.streams_out = per_listener.iter().map(|p| p.0).sum();
         stats.bytes_out = per_listener.iter().map(|p| p.1).sum::<u64>() + direct_bytes;
         stats.direct_changes = per_listener.iter().filter(|p| p.2).count() as u64;
