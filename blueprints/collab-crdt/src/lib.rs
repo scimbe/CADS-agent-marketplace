@@ -25,9 +25,11 @@
 
 pub mod doc;
 pub mod frac;
+#[cfg(feature = "net")]
 pub mod net;
 pub mod outbox;
 pub mod relay;
+#[cfg(feature = "sim")]
 pub mod sim;
 pub mod stamp;
 pub mod value;

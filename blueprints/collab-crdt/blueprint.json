@@ -34,7 +34,7 @@
       "count": "documents", "role": "sequences one document; sees ciphertext only" },
     { "name": "leaf-relay", "kind": "service", "binary": "collab-relay", "args": ["--listen", "127.0.0.1:7401", "--upstream", "{root}"],
       "count": "ceil(editors / editors_per_leaf)", "role": "fans out to its editors, filters by viewport tiles, serves catch-ups" },
-    { "name": "client-core", "kind": "library", "targets": ["aarch64-apple-ios", "aarch64-linux-android", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc", "aarch64-apple-darwin", "wasm32-unknown-unknown"],
+    { "name": "client-core", "kind": "library", "targets": ["aarch64-linux-android", "x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"], "targets_unverified": ["aarch64-apple-ios", "aarch64-apple-darwin", "x86_64-pc-windows-msvc"],
       "role": "Doc + Outbox + DocKey + Client: the whole CRDT runs on the device" }
   ],
   "edges": [
