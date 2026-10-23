@@ -1,7 +1,7 @@
 //! The acceptance benchmark: one shard of a crowd, real Opus, timed per frame.
 //!
 //! `budget [--listeners N] [--active F] [--frames N] [--threads N] [--density P] [--seed S]
-//!  [--plan-listeners N]`. Prints JSON; exit code 1 unless the shard sustains real time (p99 below
+//!  [--plan-listeners N] [--cell-size M] [--bed-complexity C] [--bed-bitrate BPS]`. Prints JSON; exit code 1 unless the shard sustains real time (p99 below
 //! one 20 ms frame) and a bed's server-added latency (one frame of waiting plus processing) stays
 //! below 50 ms at p99.
 
@@ -25,10 +25,13 @@ struct Args {
     density: f32,
     seed: u64,
     plan_listeners: u64,
+    cell_size: Option<f32>,
+    bed_complexity: Option<i32>,
+    bed_bitrate: Option<i32>,
 }
 
 fn parse() -> Args {
-    let mut a = Args { listeners: 50_000, active: 0.05, frames: 250, threads: 0, density: 0.5, seed: 1, plan_listeners: 1_000_000 };
+    let mut a = Args { listeners: 50_000, active: 0.05, frames: 250, threads: 0, density: 0.5, seed: 1, plan_listeners: 1_000_000, cell_size: None, bed_complexity: None, bed_bitrate: None };
     let v: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
     while i < v.len() {
@@ -42,6 +45,9 @@ fn parse() -> Args {
             "--density" => a.density = num(&val) as f32,
             "--seed" => a.seed = num(&val) as u64,
             "--plan-listeners" => a.plan_listeners = num(&val) as u64,
+            "--cell-size" => a.cell_size = Some(num(&val) as f32),
+            "--bed-complexity" => a.bed_complexity = Some(num(&val) as i32),
+            "--bed-bitrate" => a.bed_bitrate = Some(num(&val) as i32),
             o => die(&format!("unknown option {o}")),
         }
         i += 2;
@@ -86,7 +92,10 @@ fn main() {
     }
     let cores = rayon::current_num_threads();
     let mut rng = ChaCha8Rng::seed_from_u64(a.seed);
-    let cfg = ShardConfig::default_mobile();
+    let mut cfg = ShardConfig::default_mobile();
+    cfg.cell_size = a.cell_size.unwrap_or(cfg.cell_size);
+    cfg.bed.complexity = a.bed_complexity.unwrap_or(cfg.bed.complexity);
+    cfg.bed.bitrate = a.bed_bitrate.unwrap_or(cfg.bed.bitrate);
 
     // The crowd: blocks of a stand, separated by aisles, at the given density.
     let area = a.listeners as f32 / a.density;
@@ -198,6 +207,9 @@ fn main() {
     let report = json!({
         "real_codec": REAL_CODEC,
         "listeners": a.listeners,
+        "cell_size_m": cfg.cell_size,
+        "bed_complexity": cfg.bed.complexity,
+        "bed_bitrate": cfg.bed.bitrate,
         "cores": cores,
         "frames_measured": stats.len(),
         "venue_side_m": side,

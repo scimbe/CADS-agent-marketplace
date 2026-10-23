@@ -1,0 +1,78 @@
+{
+  "schema": "cads-blueprint-v1",
+  "id": "spatial-audio",
+  "version": "0.1.0",
+  "crate": "bp-spatial-audio",
+  "title": "Spatial voice for very large virtual events",
+  "summary": "Many people in one virtual space hear each other by where they stand: the shard forwards the nearest voices unchanged, mixes cell and sector beds once per frame (never per listener), and the device renders binaurally.",
+  "intent": {
+    "keywords": {
+      "spatial audio": 5, "raeumliches audio": 5, "raeumlich": 3, "binaural": 4, "voice chat": 3, "sprachchat": 3,
+      "proximity chat": 5, "proximity": 2, "metaverse": 3, "virtual event": 4, "virtuelle veranstaltung": 4,
+      "stadion": 3, "stadium": 3, "konzert": 2, "concert": 2, "crowd": 2, "menschenmenge": 2, "opus": 2,
+      "sfu": 3, "head tracking": 3, "hoerer": 2, "listeners": 2, "sprecher": 1, "speakers": 1
+    },
+    "threshold": 6
+  },
+  "parameters": [
+    { "name": "listeners", "type": "int", "default": 10000, "min": 2, "max": 10000000,
+      "units": ["hoerer", "listeners", "teilnehmer", "participants", "zuschauer", "viewers", "personen", "people", "nutzer", "users"] },
+    { "name": "active_share", "type": "float", "default": 0.05, "min": 0.0, "max": 0.5,
+      "flags": { "diskussion": 0.2, "discussion": 0.2, "konzert": 0.02, "concert": 0.02 } },
+    { "name": "mobile_share", "type": "float", "default": 0.9, "min": 0.0, "max": 1.0,
+      "flags": { "mobile": 0.9, "ios": 0.9, "android": 0.9, "smartphone": 0.9, "desktop": 0.1, "browser": 0.3 } }
+  ],
+  "capacity": {
+    "comment": "Measured by `budget` (real libopus 0.3 / bundled C, release build) on a 4-core host, 5 % of listeners talking, 0.5 listeners/m2, 20 ms frames. Target: shard p99 < 20 ms and bed added latency (20 ms wait + p99) < 50 ms. A single shard of 50 000 listeners does NOT meet it on 4 cores (p99 96.6 ms, reports/budget-50000.json); the planner divides by the figures below. Update with every release.",
+    "host_cores": 4,
+    "listeners_per_shard": 10000,
+    "listeners_per_shard_config": { "cell_size_m": 16, "bed_complexity": 3, "bed_bitrate": 16000 },
+    "listeners_per_core": 2500,
+    "listeners_per_shard_default_cell_8m": 7000,
+    "server_p99_ms_at_capacity": 15.4,
+    "bed_added_latency_p99_ms_at_capacity": 35.4,
+    "streams_per_listener": 9.8,
+    "egress_kbps_per_listener": 183,
+    "device_share_of_one_core": 0.028,
+    "load_bearing": "Per-speaker decode (about 2 500 active at 50 000 listeners, ~21 ms p99 on 4 cores) and per-listener selection (~18-30 ms) are fixed by the crowd and scale with cores; the bed encode (cells) is the one knob: cell size 8 m -> 1 300 cells, 44 ms p99; 16 m -> 470 cells, 18 ms; 32 m -> 120 cells, 6 ms. Bed complexity 0 vs 3 saves ~8 ms at 16 m cells; bed bitrate 8 kbit/s saves bandwidth (167 vs 206 kbit/s per listener) but little CPU. So: shard by listeners per core (~2 500), widen cells to 16 m, do not try to fit 50 000 into one 4-core shard.",
+    "reports": ["reports/budget-50000.json", "reports/budget-10000-cell16.json", "reports/budget-7000.json"],
+    "variance_note": "p99 over 250 frames varies run to run on a shared host (e.g. 10 000 listeners / 16 m cells: 11.6-15.4 ms over 4 runs); 12 000 listeners reached 19.7 ms in one run, so 10 000 keeps the margin."
+  },
+  "components": [
+    { "name": "audio-shard", "kind": "service", "binary": "budget", "args": ["--listeners", "{shard_listeners}", "--cell-size", "16"],
+      "count": "ceil(listeners / listeners_per_shard)", "role": "decodes active speakers, forwards near voices, mixes and encodes cell and sector beds; the `budget` binary is the acceptance harness, the serving binary is not part of this blueprint yet" },
+    { "name": "client-core", "kind": "library", "targets": ["x86_64-unknown-linux-gnu"], "targets_unverified": ["aarch64-linux-android", "aarch64-apple-ios", "wasm32-unknown-unknown"],
+      "role": "render::Spatializer plus Opus decode: binaural rendering (ITD/ILD, distance, air absorption, reverb) on the device; 2.8 % of one host core for 12 streams (a phone core is slower, not measured)" }
+  ],
+  "edges": [
+    { "a": "audio-shard", "b": "audio-shard", "hint": "attempt_direct", "why": "neighbouring shards exchange border beds; about 1.4 Mbit/s per link at 7 000 listeners per shard (scale::plan)" }
+  ],
+  "acceptance": [
+    { "name": "budget", "command": ["budget", "--listeners", "{shard_listeners}", "--frames", "250", "--cell-size", "16"],
+      "expect": { "real_codec": true, "acceptance.passed": true },
+      "note": "real Opus, timed per frame; exit code 1 unless p99 < 20 ms and bed added latency < 50 ms" },
+    { "name": "small-scene", "command": ["cargo", "test", "-p", "bp-spatial-audio", "--release"],
+      "expect": { "exit": 0 }, "note": "tests/budget_small.rs: stream bound per listener, beds beyond the near field, finite times, codec state released after silence" }
+  ],
+  "portability": {
+    "platform_apis": "none: Opus is portable C compiled from source (cmake), everything else is Rust",
+    "hardware": "none: no GPU or special CPU feature; the shard scales with cores (rayon)",
+    "formats": "Opus packets over a datagram channel; a bed is an ordinary Opus stream; positions and levels travel beside the packet"
+  },
+  "migration": {
+    "users": "no user data is stored: shards keep only codec state, dropped after 2 s of silence",
+    "providers": "stateless shards behind any UDP/QUIC-capable host; moving is pointing clients at another address",
+    "lock_in_left": "none known"
+  },
+  "limits": [
+    "The media path needs datagrams (UDP/QUIC). The ct-agents channel forward is TCP and, according to ct-agent docs/channel.md, not released for production: it must not carry voice. A2A channels are suitable only for control and, at best, border-bed exchange between shards once a datagram channel exists.",
+    "One shard of 50 000 listeners does not reach p99 < 20 ms on this 4-core host (96.6 ms); the figure is cores-bound, so shard size above scales with cores.",
+    "The device cost was measured on the host CPU, not on a phone.",
+    "No serving binary: only the budget harness and the library exist."
+  ],
+  "threats": [
+    "The shard decodes all active speakers, so it hears the audio: no end-to-end encryption on the bed path; forwarded near voices could be sealed end to end, beds cannot.",
+    "A client can claim a high voice level or a false position to be selected by many listeners; levels and positions are trusted from the device.",
+    "Positions of all speakers are visible to the shard."
+  ]
+}

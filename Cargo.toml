@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/manifest-core", "crates/manifest-core-wasm", "crates/installer-engine", "crates/harness-core", "crates/registry", "blueprints/collab-crdt"]
+members = ["crates/manifest-core", "crates/manifest-core-wasm", "crates/installer-engine", "crates/harness-core", "crates/registry", "blueprints/collab-crdt", "blueprints/spatial-audio"]
 
 [workspace.package]
 edition = "2021"
