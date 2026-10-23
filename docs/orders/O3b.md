@@ -42,3 +42,9 @@ blueprints/spatial-audio/**
   statt Schritt 2 des Ablaufs) und **nur** die Berichte unter `blueprints/spatial-audio/reports/` als einzeiliges JSON
   ablegen (`python3 -c 'import json,sys; json.dump(json.load(open(sys.argv[1])), open(sys.argv[1],"w"), separators=(",",":"))' F`),
   dann committen und wie üblich pushen. Den Code nicht noch einmal ändern.
+
+## Zweiter Versuch (pull/11): richtig, vom Gate falsch geprüft
+pull/11 erfüllt den Vertrag (854 Diff-Zeilen). Das Gate hat wegen eines Fehlers in cads-meta (der Worktree des ersten
+Versuchs wird bei `retry` weiterverwendet, `cadsmeta/fabric/local.py` `gate()`) erneut pull/9 geprüft. Der Worktree ist
+entfernt. Neuer Versuch: **pull/11 unverändert erneut einreichen** — `git fetch origin refs/pull/11/head`, diesen Stand als
+neues `refs/pull/N/head` pushen, nichts ändern.
