@@ -8,13 +8,36 @@ description = "Blueprint: lock-free real-time collaboration on a shared vector d
 
 [dependencies]
 sha2 = "0.10"
-rand = "0.8"
+rand = { version = "0.8", optional = true }
 rand_chacha = "0.3"
-rayon = "1"
-chacha20poly1305 = "0.10"
+rayon = { version = "1", optional = true }
+chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "macros", "sync", "time"] }
+tokio = { optional = true, version = "1", features = ["rt-multi-thread", "net", "io-util", "macros", "sync", "time"] }
+
+[features]
+default = ["net", "sim"]
+net = ["dep:tokio"]
+sim = ["dep:rayon", "dep:rand"]
+
+[[bin]]
+name = "collab-relay"
+path = "src/bin/collab-relay.rs"
+required-features = ["net"]
+
+[[bin]]
+name = "convergence"
+path = "src/bin/convergence.rs"
+required-features = ["sim"]
+
+[[test]]
+name = "net"
+required-features = ["net"]
+
+[[test]]
+name = "freshness"
+required-features = ["sim"]
 
 [dev-dependencies]
 proptest = "1"

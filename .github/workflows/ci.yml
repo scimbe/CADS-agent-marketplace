@@ -64,3 +64,26 @@ jobs:
 
       - name: Test (-D warnings)
         run: cargo test --locked
+
+  # bp-collab-crdt promises a platform-free core (blueprints/collab-crdt/blueprint.json): without
+  # the net (tokio) and sim (rayon) features it must build for wasm32 and Android. iOS needs a
+  # macOS runner and is not proven here.
+  collab-crdt-portability:
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: "-D warnings"
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add targets
+        run: rustup target add wasm32-unknown-unknown aarch64-linux-android
+
+      - name: Check core for wasm32
+        run: cargo check --locked -p bp-collab-crdt --no-default-features --target wasm32-unknown-unknown
+
+      - name: Check core for Android
+        run: cargo check --locked -p bp-collab-crdt --no-default-features --target aarch64-linux-android
+
+      - name: Check all targets without default features
+        run: cargo check --locked -p bp-collab-crdt --no-default-features --all-targets
