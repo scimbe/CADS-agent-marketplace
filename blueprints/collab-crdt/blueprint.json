@@ -11,17 +11,21 @@
       "gleichzeitig": 2, "simultan": 2, "simultaneous": 2, "concurrent": 2, "editor": 2, "editoren": 3, "editors": 3,
       "figma": 4, "google docs": 4, "whiteboard": 3, "canvas": 2, "vektor": 2, "vector": 2, "local-first": 5, "offline": 2,
       "konfliktfrei": 4, "conflict-free": 4, "konvergieren": 3, "converge": 3, "synchronisier": 2, "sync": 1,
-      "baustelle": 2, "maengel": 2, "checkliste": 2, "inventur": 2, "kasse": 1, "pos": 1, "notiz": 1, "goodnotes": 3
+      "baustelle": 3, "bauleiter": 2, "gutachter": 2, "maengel": 2, "plaene": 1, "checkliste": 2, "funkloch": 2, "keller": 1,
+      "inventur": 3, "lager": 3, "logistik": 2, "kasse": 3, "point of sale": 3, "pos": 1, "festival": 2, "bestaende": 2,
+      "over selling": 3, "overselling": 3, "double spending": 3, "notiz": 1, "goodnotes": 3, "tablet": 1, "stift": 1,
+      "stylus": 1, "unendlich": 2
     },
     "threshold": 6
   },
   "parameters": [
     { "name": "editors", "type": "int", "default": 1000, "min": 2, "max": 10000000,
-      "units": ["editoren", "editors", "bearbeiter", "nutzer", "users", "teilnehmer", "participants", "personen", "people"] },
+      "units": ["editoren", "editors", "bearbeiter", "nutzer", "users", "teilnehmer", "participants", "personen", "people",
+               "lagerarbeiter", "mitarbeiter", "bauleiter", "worker"] },
     { "name": "shapes", "type": "int", "default": 2000, "min": 1, "max": 1000000,
       "units": ["formen", "shapes", "objekte", "objects", "elemente", "elements"] },
     { "name": "mobile_share", "type": "float", "default": 0.9, "min": 0.0, "max": 1.0,
-      "flags": { "mobile": 0.9, "ios": 0.9, "android": 0.9, "ipad": 0.9, "tablet": 0.9, "smartphone": 0.9, "desktop": 0.1, "browser": 0.3 } }
+      "flags": { "mobile": 0.9, "ios": 0.9, "android": 0.9, "ipad": 0.9, "tablet": 0.9, "smartphone": 0.9, "phones": 0.9, "desktop": 0.1, "browser": 0.3 } }
   ],
   "capacity": {
     "comment": "Measured by `convergence` (simulation) and `relay-load` (TCP); the planner divides by these. Update with every release.",
