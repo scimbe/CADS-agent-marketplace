@@ -32,3 +32,13 @@ blueprints/spatial-audio/**
 - `budget --listeners 7000 --frames 250`: `direct_changes_per_listener_per_s` ≤ 3, Abnahme weiter bestanden; Bericht als
   `reports/budget-7000-slots.json`; ein Bericht pro gemessenem Hebel unter `reports/levers/`.
 - blueprint.json: `capacity` aktualisiert, Kosten pro Hörer-Stunde mit den Annahmen genannt.
+
+## Review des ersten Versuchs (pull/9, Gate: ContractViolation)
+- Inhaltlich erfüllt: `direct_changes_per_listener_per_s` 2,66 bei 7 000 Hörern, Abnahme bestanden, stille Teppiche
+  entfallen (Egress 185 → 109 kbit/s), Kosten pro Hörer-Stunde mit Annahmen im Bericht.
+- Das Gate scheitert an der Diff-Grenze des Vertrags (1 200 Zeilen): 3 477 Zeilen, fast alles formatierte JSON-Berichte
+  (~380 Zeilen je Datei). Die Grenze bleibt.
+- Neuer Versuch: auf dem fertigen Stand aufsetzen (`git fetch origin refs/pull/9/head && git switch -c <branch> FETCH_HEAD`
+  statt Schritt 2 des Ablaufs) und **nur** die Berichte unter `blueprints/spatial-audio/reports/` als einzeiliges JSON
+  ablegen (`python3 -c 'import json,sys; json.dump(json.load(open(sys.argv[1])), open(sys.argv[1],"w"), separators=(",",":"))' F`),
+  dann committen und wie üblich pushen. Den Code nicht noch einmal ändern.
