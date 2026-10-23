@@ -1,0 +1,65 @@
+{
+  "schema": "cads-blueprint-v1",
+  "id": "collab-crdt",
+  "version": "0.1.0",
+  "crate": "bp-collab-crdt",
+  "title": "Real-time collaboration engine, local-first",
+  "summary": "Many people edit one vector document at the same time, also offline; every replica converges to the same state without locks (state-based LWW CRDT), behind a relay tree that sees only ciphertext.",
+  "intent": {
+    "keywords": {
+      "crdt": 5, "operational transformation": 3, "kollaboration": 4, "collaboration": 4, "kollaborativ": 4, "collaborative": 4,
+      "gleichzeitig": 2, "simultan": 2, "simultaneous": 2, "concurrent": 2, "editor": 2, "editoren": 3, "editors": 3,
+      "figma": 4, "google docs": 4, "whiteboard": 3, "canvas": 2, "vektor": 2, "vector": 2, "local-first": 5, "offline": 2,
+      "konfliktfrei": 4, "conflict-free": 4, "konvergieren": 3, "converge": 3, "synchronisier": 2, "sync": 1,
+      "baustelle": 2, "maengel": 2, "checkliste": 2, "inventur": 2, "kasse": 1, "pos": 1, "notiz": 1, "goodnotes": 3
+    },
+    "threshold": 6
+  },
+  "parameters": [
+    { "name": "editors", "type": "int", "default": 1000, "min": 2, "max": 10000000,
+      "units": ["editoren", "editors", "bearbeiter", "nutzer", "users", "teilnehmer", "participants", "personen", "people"] },
+    { "name": "shapes", "type": "int", "default": 2000, "min": 1, "max": 1000000,
+      "units": ["formen", "shapes", "objekte", "objects", "elemente", "elements"] },
+    { "name": "mobile_share", "type": "float", "default": 0.9, "min": 0.0, "max": 1.0,
+      "flags": { "mobile": 0.9, "ios": 0.9, "android": 0.9, "ipad": 0.9, "tablet": 0.9, "smartphone": 0.9, "desktop": 0.1, "browser": 0.3 } }
+  ],
+  "capacity": {
+    "comment": "Measured by `convergence` (simulation) and `relay-load` (TCP); the planner divides by these. Update with every release.",
+    "editors_per_leaf": 100,
+    "leaves_per_root": 100,
+    "writes_per_editor_per_s": 0.4
+  },
+  "components": [
+    { "name": "root-relay", "kind": "service", "binary": "collab-relay", "args": ["--listen", "127.0.0.1:7400"],
+      "count": "documents", "role": "sequences one document; sees ciphertext only" },
+    { "name": "leaf-relay", "kind": "service", "binary": "collab-relay", "args": ["--listen", "127.0.0.1:7401", "--upstream", "{root}"],
+      "count": "ceil(editors / editors_per_leaf)", "role": "fans out to its editors, filters by viewport tiles, serves catch-ups" },
+    { "name": "client-core", "kind": "library", "targets": ["aarch64-apple-ios", "aarch64-linux-android", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc", "aarch64-apple-darwin", "wasm32-unknown-unknown"],
+      "role": "Doc + Outbox + DocKey + Client: the whole CRDT runs on the device" }
+  ],
+  "edges": [
+    { "a": "leaf-relay", "b": "root-relay", "hint": "attempt_direct", "why": "leaf mirrors the root and forwards writes; one A2A channel per leaf" }
+  ],
+  "acceptance": [
+    { "name": "convergence", "command": ["convergence", "--editors", "{sim_editors}", "--leaves", "{sim_leaves}"],
+      "expect": { "converged": true, "equals_oracle": true, "viewport_registers_stale": 0 },
+      "note": "deterministic simulation with loss, duplication, reordering, offline phases; checked against an oracle of every write" },
+    { "name": "tcp", "command": ["cargo", "test", "-p", "bp-collab-crdt", "--release", "--test", "net"],
+      "expect": { "exit": 0 }, "note": "the real byte path: root + two leaves over TCP, sealed frames, reconnects" }
+  ],
+  "portability": {
+    "platform_apis": "none in the CRDT, the outbox or the crypto (pure Rust); the client transport is a byte stream (std / tokio TCP)",
+    "hardware": "none: no GPU, no special CPU feature, no secure element required",
+    "formats": "deltas and frames are documented byte formats (src/value.rs, src/doc.rs, src/wire.rs); a document exports as its register list"
+  },
+  "migration": {
+    "users": "a document is its register list: Doc::sorted_registers() exports it, Doc::apply() imports it anywhere; the outbox persists as bytes",
+    "providers": "the relays are plain TCP services holding ciphertext; moving off bunsenbrenner is pointing clients at another address (or tunnel); moving between relays is replaying the compacted log",
+    "lock_in_left": "none known in this blueprint; the document key stays with the members"
+  },
+  "threats": [
+    "The relay learns metadata: which pseudonymous registers change, when, from which replica id, which belong to one shape, which is a position, and the tile of each shape. Not the content.",
+    "A member can write with a huge Lamport counter and win every register: members are trusted with the document; revocation is a new document key.",
+    "A replica that loses its clock state must take a new replica id (nonce reuse and stamp collisions otherwise)."
+  ]
+}

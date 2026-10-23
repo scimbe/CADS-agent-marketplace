@@ -1,0 +1,20 @@
+[package]
+name = "bp-collab-crdt"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Blueprint: lock-free real-time collaboration on a shared vector document (state-based LWW CRDT, zero-knowledge relay tree)"
+
+[dependencies]
+sha2 = "0.10"
+rand = "0.8"
+rand_chacha = "0.3"
+rayon = "1"
+chacha20poly1305 = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "macros", "sync", "time"] }
+
+[dev-dependencies]
+proptest = "1"
