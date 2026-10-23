@@ -1,0 +1,381 @@
+{
+  "acceptance": {
+    "bed_server_added_below_50ms": true,
+    "direct_voice_lte_within_g114": true,
+    "passed": true,
+    "sustainable_p99_below_frame": true
+  },
+  "active_cells_avg": 185.12,
+  "active_sectors_avg": 4.844,
+  "active_speakers_avg": 349.516,
+  "bed_bitrate": 16000,
+  "bed_complexity": 3,
+  "bed_server_added_latency_p99_ms": 34.106996,
+  "beds": 4,
+  "cell_size_m": 8.0,
+  "cores": 4,
+  "cost_per_listener_hour": {
+    "assumptions": {
+      "usd_per_core_hour": 0.04,
+      "usd_per_gb": 0.02
+    },
+    "cores_per_listener": 0.000608,
+    "cpu_usd_per_listener_hour": 0.00002432,
+    "egress_gb_per_listener_hour": 0.15587760270857143,
+    "egress_usd_per_listener_hour": 0.0031175520541714286,
+    "total_usd_per_listener_hour": 0.0031418720541714286
+  },
+  "device": {
+    "decode_and_render_us_p50": 542.106,
+    "decode_and_render_us_p99": 731.671,
+    "note": "measured on this host's CPU; a phone core is slower (factor not measured here)",
+    "share_of_one_core": 0.0271053,
+    "streams": 12
+  },
+  "direct_changes_per_listener_per_s": 9.2848,
+  "egress_kbps_per_listener": 184.72164868571426,
+  "event_plan": {
+    "border_exchange_mbps_per_link": 0.5206150512695312,
+    "cores": 608,
+    "egress_gbps": 184.72164868571426,
+    "egress_gbps_with_headers": 346.3946726857142,
+    "egress_tb_per_hour": 155.8776027085714,
+    "frame_utilisation": 1.0580247,
+    "listeners": 1000000,
+    "listeners_per_shard": 6616,
+    "shard_links": 600,
+    "shards": 152
+  },
+  "frames_measured": 250,
+  "frames_over_20ms": 0,
+  "hold_ms": 0,
+  "latency_budget": [
+    {
+      "items": [
+        [
+          "capture buffer (assumed)",
+          10.0
+        ],
+        [
+          "frame",
+          20.0
+        ],
+        [
+          "voice encoder lookahead (measured)",
+          6.5
+        ],
+        [
+          "uplink wifi/fiber (assumed)",
+          8.0
+        ],
+        [
+          "forwarding (no decode)",
+          1.0
+        ],
+        [
+          "downlink wifi/fiber (assumed)",
+          8.0
+        ],
+        [
+          "jitter buffer (assumed)",
+          20.0
+        ],
+        [
+          "decode + binaural render (measured)",
+          0.7316710000000001
+        ],
+        [
+          "playback buffer (assumed)",
+          10.0
+        ]
+      ],
+      "network": "wifi/fiber",
+      "path": "direct voice",
+      "total_ms": 84.231671,
+      "within_g114": true
+    },
+    {
+      "items": [
+        [
+          "capture buffer (assumed)",
+          10.0
+        ],
+        [
+          "frame",
+          20.0
+        ],
+        [
+          "voice encoder lookahead (measured)",
+          6.5
+        ],
+        [
+          "uplink wifi/fiber (assumed)",
+          8.0
+        ],
+        [
+          "bed: wait for the mix frame",
+          20.0
+        ],
+        [
+          "bed: server processing p99 (measured)",
+          14.106996
+        ],
+        [
+          "bed encoder lookahead (measured)",
+          6.5
+        ],
+        [
+          "downlink wifi/fiber (assumed)",
+          8.0
+        ],
+        [
+          "jitter buffer (assumed)",
+          20.0
+        ],
+        [
+          "decode + binaural render (measured)",
+          0.7316710000000001
+        ],
+        [
+          "playback buffer (assumed)",
+          10.0
+        ]
+      ],
+      "network": "wifi/fiber",
+      "path": "bed",
+      "total_ms": 123.838667,
+      "within_g114": true
+    },
+    {
+      "items": [
+        [
+          "capture buffer (assumed)",
+          10.0
+        ],
+        [
+          "frame",
+          20.0
+        ],
+        [
+          "voice encoder lookahead (measured)",
+          6.5
+        ],
+        [
+          "uplink 5G (assumed)",
+          12.0
+        ],
+        [
+          "forwarding (no decode)",
+          1.0
+        ],
+        [
+          "downlink 5G (assumed)",
+          12.0
+        ],
+        [
+          "jitter buffer (assumed)",
+          30.0
+        ],
+        [
+          "decode + binaural render (measured)",
+          0.7316710000000001
+        ],
+        [
+          "playback buffer (assumed)",
+          10.0
+        ]
+      ],
+      "network": "5G",
+      "path": "direct voice",
+      "total_ms": 102.231671,
+      "within_g114": true
+    },
+    {
+      "items": [
+        [
+          "capture buffer (assumed)",
+          10.0
+        ],
+        [
+          "frame",
+          20.0
+        ],
+        [
+          "voice encoder lookahead (measured)",
+          6.5
+        ],
+        [
+          "uplink 5G (assumed)",
+          12.0
+        ],
+        [
+          "bed: wait for the mix frame",
+          20.0
+        ],
+        [
+          "bed: server processing p99 (measured)",
+          14.106996
+        ],
+        [
+          "bed encoder lookahead (measured)",
+          6.5
+        ],
+        [
+          "downlink 5G (assumed)",
+          12.0
+        ],
+        [
+          "jitter buffer (assumed)",
+          30.0
+        ],
+        [
+          "decode + binaural render (measured)",
+          0.7316710000000001
+        ],
+        [
+          "playback buffer (assumed)",
+          10.0
+        ]
+      ],
+      "network": "5G",
+      "path": "bed",
+      "total_ms": 141.838667,
+      "within_g114": true
+    },
+    {
+      "items": [
+        [
+          "capture buffer (assumed)",
+          10.0
+        ],
+        [
+          "frame",
+          20.0
+        ],
+        [
+          "voice encoder lookahead (measured)",
+          6.5
+        ],
+        [
+          "uplink LTE (assumed)",
+          25.0
+        ],
+        [
+          "forwarding (no decode)",
+          1.0
+        ],
+        [
+          "downlink LTE (assumed)",
+          25.0
+        ],
+        [
+          "jitter buffer (assumed)",
+          40.0
+        ],
+        [
+          "decode + binaural render (measured)",
+          0.7316710000000001
+        ],
+        [
+          "playback buffer (assumed)",
+          10.0
+        ]
+      ],
+      "network": "LTE",
+      "path": "direct voice",
+      "total_ms": 138.231671,
+      "within_g114": true
+    },
+    {
+      "items": [
+        [
+          "capture buffer (assumed)",
+          10.0
+        ],
+        [
+          "frame",
+          20.0
+        ],
+        [
+          "voice encoder lookahead (measured)",
+          6.5
+        ],
+        [
+          "uplink LTE (assumed)",
+          25.0
+        ],
+        [
+          "bed: wait for the mix frame",
+          20.0
+        ],
+        [
+          "bed: server processing p99 (measured)",
+          14.106996
+        ],
+        [
+          "bed encoder lookahead (measured)",
+          6.5
+        ],
+        [
+          "downlink LTE (assumed)",
+          25.0
+        ],
+        [
+          "jitter buffer (assumed)",
+          40.0
+        ],
+        [
+          "decode + binaural render (measured)",
+          0.7316710000000001
+        ],
+        [
+          "playback buffer (assumed)",
+          10.0
+        ]
+      ],
+      "network": "LTE",
+      "path": "bed",
+      "total_ms": 177.838667,
+      "within_g114": false
+    }
+  ],
+  "listeners": 7000,
+  "real_codec": true,
+  "sector_beds": 2,
+  "server_p99_ms": 14.106996,
+  "silent_beds_avg": 0.0,
+  "stage_ms": {
+    "decode": {
+      "max": 3.751005,
+      "p50": 2.196116,
+      "p99": 3.33491
+    },
+    "encode": {
+      "max": 7.900486999999999,
+      "p50": 5.35434,
+      "p99": 7.320245000000001
+    },
+    "grid": {
+      "max": 1.278314,
+      "p50": 0.038946999999999996,
+      "p99": 0.08706
+    },
+    "mix": {
+      "max": 0.45247400000000004,
+      "p50": 0.110378,
+      "p99": 0.26998
+    },
+    "select": {
+      "max": 4.470326,
+      "p50": 2.239757,
+      "p99": 3.460042
+    },
+    "total": {
+      "max": 15.261943,
+      "p50": 10.02023,
+      "p99": 14.106996
+    }
+  },
+  "streams_per_listener": 10.104564,
+  "venue_side_m": 130.1537628173828
+}

@@ -28,12 +28,14 @@ pub struct SelectConfig {
     pub hysteresis_db: f32,
     /// Distance at which the level a speaker reports applies, metres.
     pub ref_dist: f32,
+    /// Frames a selected voice keeps its place after its last active frame (0 = no holding).
+    pub hold_frames: u64,
 }
 
 impl SelectConfig {
     /// For a phone on a mobile link: 6 voices, 4 cell beds, 2 sector beds = 12 streams.
     pub fn mobile() -> SelectConfig {
-        SelectConfig { k: 6, near_radius: 12.0, beds: 4, bed_radius: 64.0, sector_beds: 2, hysteresis_db: 3.0, ref_dist: 1.0 }
+        SelectConfig { k: 6, near_radius: 12.0, beds: 4, bed_radius: 64.0, sector_beds: 2, hysteresis_db: 3.0, ref_dist: 1.0, hold_frames: 100 }
     }
 
     pub fn streams(&self) -> usize {
@@ -52,8 +54,84 @@ pub struct ActiveSpeaker {
     pub level_db: f32,
 }
 
+/// A place of a listener's direct voices: whose it is, when that voice was last a candidate and how
+/// audible it was then (the audibility a challenger has to beat while the voice is silent).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Slot {
+    pub id: u32,
+    pub last_active: u64,
+    pub audibility_db: f32,
+}
+
+/// Slot-holding selection. `slots` holds the places of the previous frame and is updated in place;
+/// places keep their position in the vector, so the vector only changes when the set does.
+///
+/// A voice keeps its place for `cfg.hold_frames` after the last frame in which it was a candidate
+/// (a speech pause shorter than that costs no stream change); a vacated place is therefore taken by
+/// someone else only after the hold time. A challenger takes a place earlier only if it is more
+/// than the hysteresis more audible than the occupant of the quietest place. Places never filled
+/// are taken at once. `frame` must increase by one per call. Returns whether the set of places
+/// changed (a voice started or stopped), which is what costs the device a stream start or stop.
+pub fn select_slots(
+    me: u32,
+    pos: Vec3,
+    grid: &Grid,
+    speakers: &[ActiveSpeaker],
+    cfg: &SelectConfig,
+    frame: u64,
+    slots: &mut Vec<Slot>,
+    scratch: &mut Vec<(f32, u32)>,
+) -> bool {
+    scratch.clear();
+    let mut changed = false;
+    let r2 = cfg.near_radius * cfg.near_radius;
+    grid.for_each_near(pos, cfg.near_radius, |_, slot| {
+        let s = &speakers[slot as usize];
+        if s.id == me {
+            return;
+        }
+        let d2 = s.pos.dist2_xy(pos);
+        if d2 <= r2 {
+            scratch.push((audibility_db(s.level_db, d2.sqrt(), cfg.ref_dist), s.id));
+        }
+    });
+    // Occupants: refresh the active ones, drop those whose hold time is over.
+    slots.retain_mut(|sl| match scratch.iter().find(|c| c.1 == sl.id) {
+        Some(c) => {
+            sl.last_active = frame;
+            sl.audibility_db = c.0;
+            true
+        }
+        None => {
+            let keep = frame - sl.last_active <= cfg.hold_frames;
+            changed |= !keep;
+            keep
+        }
+    });
+    // Challengers, most audible first.
+    scratch.retain(|c| !slots.iter().any(|sl| sl.id == c.1));
+    scratch.sort_unstable_by(|a, b| b.0.total_cmp(&a.0).then(a.1.cmp(&b.1)));
+    for &(a, id) in scratch.iter() {
+        let new = Slot { id, last_active: frame, audibility_db: a };
+        if slots.len() < cfg.k {
+            slots.push(new);
+            changed = true;
+            continue;
+        }
+        let quietest = (0..slots.len()).min_by(|&i, &j| slots[i].audibility_db.total_cmp(&slots[j].audibility_db).then(slots[i].id.cmp(&slots[j].id)));
+        match quietest {
+            Some(q) if a > slots[q].audibility_db + cfg.hysteresis_db => {
+                slots[q] = new;
+                changed = true;
+            }
+            _ => break,
+        }
+    }
+    changed
+}
+
 /// Choose up to `k` direct voices for a listener at `pos` (never itself), keeping `prev` choices
-/// unless clearly outdone. `out` is cleared and filled with speaker ids, most audible first.
+/// unless clearly outdone (no holding; see [`select_slots`]). `out` is cleared and filled with speaker ids, most audible first.
 pub fn select_direct(
     me: u32,
     pos: Vec3,

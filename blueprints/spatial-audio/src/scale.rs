@@ -63,6 +63,39 @@ pub fn plan(m: &ShardMeasurement, listeners: u64, headroom: f64, streams_per_lis
     }
 }
 
+/// Named price assumptions, not measurements: what a GB of egress and a core-hour cost the operator.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct CostAssumptions {
+    pub usd_per_gb: f64,
+    pub usd_per_core_hour: f64,
+}
+
+impl Default for CostAssumptions {
+    fn default() -> CostAssumptions {
+        CostAssumptions { usd_per_gb: 0.02, usd_per_core_hour: 0.04 }
+    }
+}
+
+/// Cost of one listener for one hour, egress and CPU kept apart.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Cost {
+    pub assumptions: CostAssumptions,
+    /// Egress with transport headers, GB per listener-hour.
+    pub egress_gb_per_listener_hour: f64,
+    /// Server cores reserved per listener (the plan's cores over its listeners).
+    pub cores_per_listener: f64,
+    pub egress_usd_per_listener_hour: f64,
+    pub cpu_usd_per_listener_hour: f64,
+    pub total_usd_per_listener_hour: f64,
+}
+
+pub fn cost(p: &EventPlan, a: &CostAssumptions) -> Cost {
+    let gb = p.egress_tb_per_hour * 1000.0 / p.listeners as f64;
+    let cores = p.cores as f64 / p.listeners as f64;
+    let (egress, cpu) = (gb * a.usd_per_gb, cores * a.usd_per_core_hour);
+    Cost { assumptions: *a, egress_gb_per_listener_hour: gb, cores_per_listener: cores, egress_usd_per_listener_hour: egress, cpu_usd_per_listener_hour: cpu, total_usd_per_listener_hour: egress + cpu }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -85,5 +118,17 @@ mod tests {
         assert!((p.egress_gbps - 250.0).abs() < 1e-6);
         let tight = plan(&ShardMeasurement { p99_ms: 20.0, ..m }, 1_000_000, 1.5, 12.0);
         assert!(tight.listeners_per_shard < 50_000 && tight.shards > 20);
+    }
+
+    #[test]
+    fn cost_per_listener_hour_separates_egress_and_cpu() {
+        let m = ShardMeasurement { listeners: 10_000, active_speakers: 500.0, cores: 4, p99_ms: 10.0, egress_kbps_per_listener: 200.0, bed_kbps: 16.0, border_cells_per_side: 20.0 };
+        let p = plan(&m, 1_000_000, 1.5, 10.0);
+        let c = cost(&p, &CostAssumptions { usd_per_gb: 0.02, usd_per_core_hour: 0.04 });
+        // (200 + 10 * 50 * 40 * 8 / 1000 = 160) kbit/s = 360 kbit/s = 0.162 GB per hour.
+        assert!((c.egress_gb_per_listener_hour - 0.162).abs() < 1e-9);
+        assert!((c.egress_usd_per_listener_hour - 0.00324).abs() < 1e-9);
+        assert!((c.cpu_usd_per_listener_hour - p.cores as f64 / 1e6 * 0.04).abs() < 1e-12);
+        assert!((c.total_usd_per_listener_hour - c.egress_usd_per_listener_hour - c.cpu_usd_per_listener_hour).abs() < 1e-15);
     }
 }
