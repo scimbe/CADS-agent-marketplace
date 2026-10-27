@@ -15,6 +15,18 @@ use std::path::{Path, PathBuf};
 pub enum TranscriptEntry {
     ModelMessage { turn: u32, content: Option<String>, tool_call_count: usize },
     ToolCall { turn: u32, tool: String, arguments: String, result: Result<String, String> },
+    /// First entry of every run: which backend, and the digests tying the prompt to its origin.
+    RunStart {
+        backend: String,
+        prompt_sha256: String,
+        prompt_source: String,
+        template_digest: Option<String>,
+        inputs_digest: Option<String>,
+    },
+    /// Captured stdout/stderr of a local agent CLI (capped; `truncated` says so).
+    CliOutput { stream: String, text: String, truncated: bool },
+    /// Exit status of a local agent CLI.
+    CliExit { exit_code: Option<i32>, timed_out: bool, duration_ms: u64 },
 }
 
 #[derive(Debug, Serialize)]

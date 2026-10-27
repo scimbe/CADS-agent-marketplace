@@ -2,6 +2,9 @@
 //! tool dispatch until the model stops calling tools or `max_turns` is reached. Every step is
 //! fail-closed, mirroring `installer_engine::activate`'s discipline exactly.
 
+use crate::backend::{
+    sha256_hex, AgentBackend, AgentFailure, AgentRequest, AgentSuccess, BackendKind, PromptProvenance, TranscriptFn,
+};
 use crate::llm_client::{tool_schema, LlmClient, Message};
 use crate::report::{self, HarnessReport, TranscriptEntry};
 use crate::tools;
@@ -78,19 +81,96 @@ pub fn run_task(task: &SignedTask, allowlist: &TrustAllowlist, opts: RunOptions)
     run_task_inner(task, allowlist, opts, TranscriptSink::InBundle)
 }
 
-fn run_task_inner(task: &SignedTask, allowlist: &TrustAllowlist, opts: RunOptions, sink: TranscriptSink<'_>) -> HarnessReport {
+fn run_task_inner(
+    task: &SignedTask,
+    allowlist: &TrustAllowlist,
+    opts: RunOptions,
+    sink: TranscriptSink<'_>,
+) -> HarnessReport {
+    let backend = LiteLlmBackend::litellm(opts.litellm_base_url, opts.api_key);
+    let ctx = RunContext {
+        bundle_dir: opts.bundle_dir,
+        compose_file: opts.compose_file,
+        allowed_models: opts.allowed_models,
+        now: opts.now,
+    };
+    run_with_sink(
+        task,
+        allowlist,
+        &ctx,
+        &backend,
+        &task.prompt,
+        &PromptProvenance::signed_task(),
+        sink,
+    )
+}
+
+/// Backend-independent run settings (the non-LiteLLM half of [`RunOptions`]).
+pub struct RunContext {
+    pub bundle_dir: PathBuf,
+    pub compose_file: String,
+    /// Harness-side model allowlist; enforced only for backends where
+    /// [`BackendKind::enforces_task_model`] is true.
+    pub allowed_models: Vec<String>,
+    pub now: u64,
+}
+
+/// Run `task` on any [`AgentBackend`], with the same fail-closed pre-checks as
+/// [`run_task_with_state_dir`]. `prompt` is the text actually sent -- normally `task.prompt`, later
+/// a rendered `PromptTemplate`; `provenance` records where it came from. The signed task still
+/// gates the run (signature, publisher allowlist, `max_turns`), so a caller that substitutes the
+/// prompt takes responsibility for it having been derived from signed inputs.
+pub fn run_with_backend(
+    task: &SignedTask,
+    allowlist: &TrustAllowlist,
+    ctx: &RunContext,
+    backend: &dyn AgentBackend,
+    prompt: &str,
+    provenance: &PromptProvenance,
+    state_dir: &Path,
+) -> HarnessReport {
+    run_with_sink(
+        task,
+        allowlist,
+        ctx,
+        backend,
+        prompt,
+        provenance,
+        TranscriptSink::StateDir(state_dir),
+    )
+}
+
+fn run_with_sink(
+    task: &SignedTask,
+    allowlist: &TrustAllowlist,
+    ctx: &RunContext,
+    backend: &dyn AgentBackend,
+    prompt: &str,
+    provenance: &PromptProvenance,
+    sink: TranscriptSink<'_>,
+) -> HarnessReport {
     let task_id_hex = hex32(&task.task_id);
     let manifest_id_hex = hex32(&task.manifest_id);
 
-    if !task.is_valid(opts.now) {
-        return HarnessReport::Rejected { reason: "invalid_signature_or_expired".into(), task_id: Some(task_id_hex) };
+    if !task.is_valid(ctx.now) {
+        return HarnessReport::Rejected {
+            reason: "invalid_signature_or_expired".into(),
+            task_id: Some(task_id_hex),
+        };
     }
     if !allowlist.contains(&task.publisher_pubkey) {
-        return HarnessReport::Rejected { reason: "publisher_not_on_trust_allowlist".into(), task_id: Some(task_id_hex) };
-    }
-    if !opts.allowed_models.iter().any(|m| m == &task.model) {
         return HarnessReport::Rejected {
-            reason: format!("model '{}' is not on this host's harness model allowlist", task.model),
+            reason: "publisher_not_on_trust_allowlist".into(),
+            task_id: Some(task_id_hex),
+        };
+    }
+    if backend.kind().enforces_task_model() && !ctx.allowed_models.iter().any(|m| m == &task.model)
+    {
+        return HarnessReport::Rejected {
+            reason: format!(
+                "model '{}' is not on this host's harness model allowlist",
+                task.model
+            ),
             task_id: Some(task_id_hex),
         };
     }
@@ -110,93 +190,188 @@ fn run_task_inner(task: &SignedTask, allowlist: &TrustAllowlist, opts: RunOption
     // (ct-agent harness run) is responsible for resolving bundle_dir FROM manifest_id via its own
     // local record of what was actually activated (see native/src/harness_run/mod.rs), so this is
     // a defense-in-depth re-check, not the primary guarantee.
-    if !opts.bundle_dir.is_dir() {
+    if !ctx.bundle_dir.is_dir() {
         return HarnessReport::Rejected {
-            reason: format!("bundle_dir {} does not exist", opts.bundle_dir.display()),
+            reason: format!("bundle_dir {} does not exist", ctx.bundle_dir.display()),
             task_id: Some(task_id_hex),
         };
     }
 
-    let client = match LlmClient::new(opts.litellm_base_url.clone(), opts.api_key.clone()) {
-        Ok(c) => c,
-        Err(e) => {
-            return HarnessReport::Failed { task_id: task_id_hex, manifest_id: manifest_id_hex, turns_used: 0, reason: e }
-        }
+    sink.record(
+        &ctx.bundle_dir,
+        &manifest_id_hex,
+        &TranscriptEntry::RunStart {
+            backend: backend.kind().id().to_string(),
+            prompt_sha256: sha256_hex(prompt.as_bytes()),
+            prompt_source: provenance.source.clone(),
+            template_digest: provenance.template_digest.clone(),
+            inputs_digest: provenance.inputs_digest.clone(),
+        },
+    );
+
+    let req = AgentRequest {
+        prompt,
+        model: &task.model,
+        max_turns: task.max_turns,
+        max_output_tokens: task.max_output_tokens,
+        work_dir: &ctx.bundle_dir,
+        compose_file: &ctx.compose_file,
     };
+    let mut record =
+        |entry: TranscriptEntry| sink.record(&ctx.bundle_dir, &manifest_id_hex, &entry);
+    match backend.run(&req, &mut record) {
+        Ok(ok) => HarnessReport::Ok {
+            task_id: task_id_hex,
+            manifest_id: manifest_id_hex,
+            turns_used: ok.turns_used,
+            files_changed: ok.files_changed,
+            rebuild_ran: ok.rebuild_ran,
+        },
+        Err(f) => HarnessReport::Failed {
+            task_id: task_id_hex,
+            manifest_id: manifest_id_hex,
+            turns_used: f.turns_used,
+            reason: f.reason,
+        },
+    }
+}
 
-    let tools_schema = tool_schema();
-    let mut messages = vec![
-        Message { role: "system".into(), content: Some(SYSTEM_PROMPT.into()), tool_calls: None, tool_call_id: None },
-        Message { role: "user".into(), content: Some(task.prompt.clone()), tool_calls: None, tool_call_id: None },
-    ];
-    let mut files_changed: BTreeSet<String> = BTreeSet::new();
-    let mut rebuild_ran = false;
+/// The harness-driven loop against an OpenAI-compatible `/chat/completions` endpoint with the
+/// three tools `read_file`/`write_file`/`rebuild`: the operator's LiteLLM (default, unchanged
+/// behaviour) or a loopback Ollama ([`LiteLlmBackend::ollama_local`]).
+pub struct LiteLlmBackend {
+    kind: BackendKind,
+    base_url: String,
+    api_key: String,
+}
 
-    for turn in 0..task.max_turns {
-        let assistant = match client.chat(&task.model, &messages, &tools_schema, task.max_output_tokens) {
-            Ok(m) => m,
-            Err(e) => {
-                return HarnessReport::Failed {
-                    task_id: task_id_hex,
-                    manifest_id: manifest_id_hex,
+impl LiteLlmBackend {
+    pub fn litellm(base_url: String, api_key: String) -> Self {
+        Self {
+            kind: BackendKind::LiteLlm,
+            base_url,
+            api_key,
+        }
+    }
+
+    /// Ollama (or any OpenAI-compatible server) on THIS machine. `base_url` is e.g.
+    /// `http://127.0.0.1:11434/v1`; a non-loopback host is refused so this backend can never be
+    /// pointed at a remote service that would see the prompt and the bundle's files.
+    pub fn ollama_local(base_url: &str) -> Result<Self, String> {
+        let host = base_url
+            .strip_prefix("http://")
+            .ok_or_else(|| {
+                format!("{base_url}: only plain http:// to a loopback address is accepted")
+            })?
+            .split('/')
+            .next()
+            .unwrap_or_default();
+        let host_only = host
+            .rsplit_once(':')
+            .filter(|(_, p)| p.chars().all(|c| c.is_ascii_digit()))
+            .map_or(host, |(h, _)| h);
+        if !matches!(host_only, "127.0.0.1" | "localhost" | "[::1]") {
+            return Err(format!("{base_url}: the ollama backend only talks to a loopback address (127.0.0.1, localhost, [::1])"));
+        }
+        Ok(Self {
+            kind: BackendKind::Ollama,
+            base_url: base_url.to_string(),
+            api_key: "ollama".into(),
+        })
+    }
+}
+
+impl AgentBackend for LiteLlmBackend {
+    fn kind(&self) -> BackendKind {
+        self.kind
+    }
+
+    fn run(
+        &self,
+        req: &AgentRequest<'_>,
+        record: &mut TranscriptFn<'_>,
+    ) -> Result<AgentSuccess, AgentFailure> {
+        let client =
+            LlmClient::new(self.base_url.clone(), self.api_key.clone()).map_err(|reason| {
+                AgentFailure {
+                    turns_used: 0,
+                    reason,
+                }
+            })?;
+
+        let tools_schema = tool_schema();
+        let mut messages = vec![
+            Message {
+                role: "system".into(),
+                content: Some(SYSTEM_PROMPT.into()),
+                tool_calls: None,
+                tool_call_id: None,
+            },
+            Message {
+                role: "user".into(),
+                content: Some(req.prompt.to_string()),
+                tool_calls: None,
+                tool_call_id: None,
+            },
+        ];
+        let mut files_changed: BTreeSet<String> = BTreeSet::new();
+        let mut rebuild_ran = false;
+
+        for turn in 0..req.max_turns {
+            let assistant = client
+                .chat(req.model, &messages, &tools_schema, req.max_output_tokens)
+                .map_err(|e| AgentFailure {
                     turns_used: turn,
                     reason: format!("model call failed: {e}"),
-                }
-            }
-        };
-        sink.record(
-            &opts.bundle_dir,
-            &manifest_id_hex,
-            &TranscriptEntry::ModelMessage {
+                })?;
+            record(TranscriptEntry::ModelMessage {
                 turn,
                 content: assistant.content.clone(),
                 tool_call_count: assistant.tool_calls.as_ref().map(|t| t.len()).unwrap_or(0),
-            },
-        );
+            });
 
-        let Some(tool_calls) = assistant.tool_calls.clone().filter(|t| !t.is_empty()) else {
-            // No tool calls this turn -- the model considers itself done.
-            messages.push(assistant);
-            return HarnessReport::Ok {
-                task_id: task_id_hex,
-                manifest_id: manifest_id_hex,
-                turns_used: turn + 1,
-                files_changed: files_changed.into_iter().collect(),
-                rebuild_ran,
+            let Some(tool_calls) = assistant.tool_calls.clone().filter(|t| !t.is_empty()) else {
+                // No tool calls this turn -- the model considers itself done.
+                return Ok(AgentSuccess {
+                    turns_used: turn + 1,
+                    files_changed: files_changed.into_iter().collect(),
+                    rebuild_ran,
+                });
             };
-        };
 
-        messages.push(assistant);
-        for call in tool_calls {
-            let result = dispatch_tool(&opts.bundle_dir, &opts.compose_file, &call.function.name, &call.function.arguments, &mut files_changed, &mut rebuild_ran);
-            sink.record(
-                &opts.bundle_dir,
-                &manifest_id_hex,
-                &TranscriptEntry::ToolCall {
+            messages.push(assistant);
+            for call in tool_calls {
+                let result = dispatch_tool(
+                    req.work_dir,
+                    req.compose_file,
+                    &call.function.name,
+                    &call.function.arguments,
+                    &mut files_changed,
+                    &mut rebuild_ran,
+                );
+                record(TranscriptEntry::ToolCall {
                     turn,
                     tool: call.function.name.clone(),
                     arguments: call.function.arguments.clone(),
                     result: result.clone(),
-                },
-            );
-            let tool_content = match &result {
-                Ok(s) => s.clone(),
-                Err(e) => format!("ERROR: {e}"),
-            };
-            messages.push(Message {
-                role: "tool".into(),
-                content: Some(tool_content),
-                tool_calls: None,
-                tool_call_id: Some(call.id),
-            });
+                });
+                let tool_content = match &result {
+                    Ok(s) => s.clone(),
+                    Err(e) => format!("ERROR: {e}"),
+                };
+                messages.push(Message {
+                    role: "tool".into(),
+                    content: Some(tool_content),
+                    tool_calls: None,
+                    tool_call_id: Some(call.id),
+                });
+            }
         }
-    }
 
-    HarnessReport::Failed {
-        task_id: task_id_hex,
-        manifest_id: manifest_id_hex,
-        turns_used: task.max_turns,
-        reason: "max_turns exceeded without the model signaling completion".into(),
+        Err(AgentFailure {
+            turns_used: req.max_turns,
+            reason: "max_turns exceeded without the model signaling completion".into(),
+        })
     }
 }
 

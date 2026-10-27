@@ -1,0 +1,685 @@
+//! `LocalCli` backend: run an agent CLI the customer already installed and logged in.
+//!
+//! Guarantees (see `docs/byo-agent-backend.md`):
+//! * the prompt reaches the CLI verbatim -- via stdin (claude, codex) or as ONE argv element
+//!   (gemini); there is never a shell, so quotes, `$(...)` and newlines are inert;
+//! * the child gets `env_clear()` plus an explicit allowlist ([`build_env`]); no API-key or token
+//!   variable of the parent is forwarded -- authentication is the CLI's own stored login;
+//! * cwd = the bundle work dir, own process group, SIGKILL of the whole group on timeout;
+//! * stdout/stderr capture is size-capped; the transcript records exit status and output;
+//! * credential files of the CLI are never opened by this crate.
+
+use crate::backend::{
+    AgentBackend, AgentFailure, AgentRequest, AgentSuccess, BackendKind, DetectedBackend,
+    TranscriptFn, VERSION_PROBE_TIMEOUT,
+};
+use crate::report::TranscriptEntry;
+use crate::tools;
+use std::collections::BTreeMap;
+use std::ffi::{OsStr, OsString};
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
+
+pub const DEFAULT_CLI_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+/// Per-stream capture cap; the rest is drained and discarded so the child never blocks on a pipe.
+const MAX_CAPTURE_BYTES: usize = 8 * 1024 * 1024;
+/// How much of each stream lands in the transcript.
+const TRANSCRIPT_TEXT_CAP: usize = 256 * 1024;
+const MAX_SNAPSHOT_ENTRIES: usize = 100_000;
+
+/// Variables every CLI may see: process basics, locale, XDG dirs, proxies/CA bundle.
+const COMMON_ENV: &[&str] = &[
+    "PATH",
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "TMPDIR",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME",
+    "XDG_CACHE_HOME",
+    "XDG_STATE_HOME",
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "NO_PROXY",
+    "ALL_PROXY",
+    "https_proxy",
+    "http_proxy",
+    "no_proxy",
+    "all_proxy",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+];
+
+/// The CLI's own config-dir variables (where it keeps ITS login -- we only pass the location).
+fn cli_env(kind: BackendKind) -> &'static [&'static str] {
+    match kind {
+        BackendKind::ClaudeCode => &["CLAUDE_CONFIG_DIR"],
+        BackendKind::Codex => &["CODEX_HOME"],
+        // Unverified for Gemini CLI; harmless if the CLI ignores it.
+        BackendKind::Gemini => &["GEMINI_CLI_HOME"],
+        BackendKind::Ollama => &["OLLAMA_HOST"],
+        BackendKind::LiteLlm => &[],
+    }
+}
+
+/// Pure: the environment a child of `kind` receives, from an ambient snapshot. Empty values are
+/// dropped. `max_output_tokens` is applied through the CLI's own variable where one exists.
+pub fn build_env(
+    kind: BackendKind,
+    ambient: &dyn Fn(&str) -> Option<OsString>,
+    max_output_tokens: u64,
+) -> Vec<(OsString, OsString)> {
+    let mut out = Vec::new();
+    for name in COMMON_ENV.iter().chain(cli_env(kind)) {
+        if let Some(v) = ambient(name).filter(|v| !v.is_empty()) {
+            out.push((OsString::from(name), v));
+        }
+    }
+    if kind == BackendKind::ClaudeCode && max_output_tokens > 0 {
+        out.push((
+            "CLAUDE_CODE_MAX_OUTPUT_TOKENS".into(),
+            max_output_tokens.to_string().into(),
+        ));
+    }
+    out
+}
+
+/// A fully built command: program, argv (without program) and the bytes for stdin.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommandSpec {
+    pub program: PathBuf,
+    pub args: Vec<OsString>,
+    pub stdin: Vec<u8>,
+}
+
+#[derive(Debug, Clone)]
+pub struct LocalCliBackend {
+    pub kind: BackendKind,
+    pub binary: PathBuf,
+    pub timeout: Duration,
+    /// Customer-chosen model for the CLI (`--model`); `None` = the CLI's own default.
+    pub model: Option<String>,
+    /// After a successful agent run, the harness itself runs `docker compose build` (the CLI gets
+    /// no shell, so it cannot).
+    pub rebuild_after: bool,
+}
+
+impl LocalCliBackend {
+    pub fn new(detected: &DetectedBackend) -> Result<Self, String> {
+        Self::from_binary(detected.kind, detected.binary.clone())
+    }
+
+    pub fn from_binary(kind: BackendKind, binary: PathBuf) -> Result<Self, String> {
+        match kind {
+            BackendKind::ClaudeCode | BackendKind::Codex | BackendKind::Gemini => Ok(Self {
+                kind,
+                binary,
+                timeout: DEFAULT_CLI_TIMEOUT,
+                model: None,
+                rebuild_after: true,
+            }),
+            other => Err(format!("{} is not a local agent CLI backend", other.id())),
+        }
+    }
+
+    /// Pure argv construction -- no spawn. Flags are those printed by each CLI's `--help`
+    /// (claude 2.1.x, codex-cli 0.141, gemini 0.46); see the docs for what is unverified.
+    pub fn build_command(&self, req: &AgentRequest<'_>) -> CommandSpec {
+        let s = |x: &str| OsString::from(x);
+        let mut args: Vec<OsString> = Vec::new();
+        let mut stdin = Vec::new();
+        match self.kind {
+            BackendKind::ClaudeCode => {
+                // No `--bare` (it disables OAuth/keychain login). `--setting-sources user` keeps
+                // a bundle-supplied .claude/settings.json (hooks!) out; `--tools` removes Bash
+                // and everything but file tools; `dontAsk` denies whatever is not pre-approved.
+                args.extend(["-p", "--output-format", "stream-json", "--verbose"].map(s));
+                args.extend([s("--max-turns"), req.max_turns.to_string().into()]);
+                args.extend(["--permission-mode", "dontAsk"].map(s));
+                args.extend(["--tools", "Read,Edit,Write,Glob,Grep"].map(s));
+                args.extend(["--allowedTools", "Read,Edit,Write,Glob,Grep"].map(s));
+                args.extend(
+                    [
+                        "--setting-sources",
+                        "user",
+                        "--strict-mcp-config",
+                        "--no-session-persistence",
+                    ]
+                    .map(s),
+                );
+                if let Some(m) = &self.model {
+                    args.extend([s("--model"), m.into()]);
+                }
+                stdin = req.prompt.as_bytes().to_vec();
+            }
+            BackendKind::Codex => {
+                // `-` = read the instructions from stdin. workspace-write sandbox rooted at -C.
+                args.extend(
+                    [
+                        "exec",
+                        "--json",
+                        "--ephemeral",
+                        "--skip-git-repo-check",
+                        "-s",
+                        "workspace-write",
+                    ]
+                    .map(s),
+                );
+                args.extend([s("-C"), req.work_dir.as_os_str().to_owned()]);
+                if let Some(m) = &self.model {
+                    args.extend([s("-m"), m.into()]);
+                }
+                args.push(s("-"));
+                stdin = req.prompt.as_bytes().to_vec();
+            }
+            BackendKind::Gemini => {
+                // `--prompt=<text>` as one argv element, so a prompt starting with `-` is not
+                // parsed as a flag. auto_edit approves edit tools; shell tools stay unapproved.
+                let mut p = OsString::from("--prompt=");
+                p.push(req.prompt);
+                args.push(p);
+                args.extend(
+                    [
+                        "--output-format",
+                        "stream-json",
+                        "--approval-mode",
+                        "auto_edit",
+                    ]
+                    .map(s),
+                );
+                if let Some(m) = &self.model {
+                    args.extend([s("--model"), m.into()]);
+                }
+            }
+            BackendKind::LiteLlm | BackendKind::Ollama => {}
+        }
+        CommandSpec {
+            program: self.binary.clone(),
+            args,
+            stdin,
+        }
+    }
+}
+
+impl AgentBackend for LocalCliBackend {
+    fn kind(&self) -> BackendKind {
+        self.kind
+    }
+
+    fn run(
+        &self,
+        req: &AgentRequest<'_>,
+        record: &mut TranscriptFn<'_>,
+    ) -> Result<AgentSuccess, AgentFailure> {
+        let fail = |turns_used: u32, reason: String| AgentFailure { turns_used, reason };
+        let spec = self.build_command(req);
+        let ambient = |k: &str| std::env::var_os(k);
+        let env = build_env(self.kind, &ambient, req.max_output_tokens);
+
+        let before =
+            snapshot(req.work_dir).map_err(|e| fail(0, format!("snapshot bundle: {e}")))?;
+        let out =
+            run_bounded_io(&spec, req.work_dir, &env, self.timeout).map_err(|e| fail(0, e))?;
+
+        for (stream, bytes) in [("stdout", &out.stdout), ("stderr", &out.stderr)] {
+            let (text, truncated) = lossy_capped(bytes);
+            record(TranscriptEntry::CliOutput {
+                stream: stream.into(),
+                text,
+                truncated,
+            });
+        }
+        record(TranscriptEntry::CliExit {
+            exit_code: out.exit_code,
+            timed_out: out.timed_out,
+            duration_ms: out.duration.as_millis() as u64,
+        });
+
+        let parsed = if self.kind == BackendKind::ClaudeCode {
+            Some(parse_claude_stream(&out.stdout))
+        } else {
+            None
+        };
+        if let Some(p) = &parsed {
+            for (i, text) in p.assistant_texts.iter().enumerate() {
+                record(TranscriptEntry::ModelMessage {
+                    turn: i as u32,
+                    content: Some(text.clone()),
+                    tool_call_count: 0,
+                });
+            }
+        }
+        let turns_used = parsed.as_ref().and_then(|p| p.num_turns).unwrap_or(0);
+
+        if out.timed_out {
+            return Err(fail(
+                turns_used,
+                format!(
+                    "{} timed out after {}s and was killed",
+                    self.kind.id(),
+                    self.timeout.as_secs()
+                ),
+            ));
+        }
+        if out.exit_code != Some(0) {
+            return Err(fail(
+                turns_used,
+                format!(
+                    "{} exited with {:?}: {}",
+                    self.kind.id(),
+                    out.exit_code,
+                    tail(&out.stderr, 500)
+                ),
+            ));
+        }
+        if let Some(p) = &parsed {
+            if p.is_error {
+                return Err(fail(
+                    turns_used,
+                    format!(
+                        "claude reported an error result ({})",
+                        p.subtype.as_deref().unwrap_or("unknown")
+                    ),
+                ));
+            }
+            if p.num_turns.is_none() {
+                return Err(fail(
+                    0,
+                    "claude produced no result event in its stream-json output".into(),
+                ));
+            }
+        }
+
+        let after = snapshot(req.work_dir)
+            .map_err(|e| fail(turns_used, format!("snapshot bundle: {e}")))?;
+        if let Some(bad) = escaping_new_symlink(req.work_dir, &before, &after) {
+            return Err(fail(
+                turns_used,
+                format!("containment violation: new symlink {bad} points outside the bundle"),
+            ));
+        }
+        let files_changed = diff(&before, &after);
+
+        let mut rebuild_ran = false;
+        if self.rebuild_after {
+            let result = tools::rebuild(req.work_dir, req.compose_file);
+            record(TranscriptEntry::ToolCall {
+                turn: turns_used,
+                tool: "rebuild".into(),
+                arguments: "{}".into(),
+                result: result.clone(),
+            });
+            if let Err(e) = result {
+                return Err(fail(
+                    turns_used,
+                    format!("rebuild after agent run failed: {e}"),
+                ));
+            }
+            rebuild_ran = true;
+        }
+        Ok(AgentSuccess {
+            turns_used,
+            files_changed,
+            rebuild_ran,
+        })
+    }
+}
+
+// ---- detection --------------------------------------------------------------------------
+
+/// Installed agent CLIs found on the ambient `PATH`. Runs `<bin> --version` only; never opens a
+/// credential file, never touches the network.
+pub fn detect_backends() -> Vec<DetectedBackend> {
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    let home = std::env::var_os("HOME");
+    detect_backends_in(&path, home.as_deref())
+}
+
+/// Like [`detect_backends`] but with an explicit `PATH` value (testable without mutating the
+/// process environment).
+pub fn detect_backends_in(path_var: &OsStr, home: Option<&OsStr>) -> Vec<DetectedBackend> {
+    let mut found = Vec::new();
+    for kind in BackendKind::ALL {
+        let Some(name) = kind.binary_name() else {
+            continue;
+        };
+        let Some(binary) = find_in_path(name, path_var) else {
+            continue;
+        };
+        let mut env = vec![(OsString::from("PATH"), path_var.to_owned())];
+        if let Some(h) = home {
+            env.push((OsString::from("HOME"), h.to_owned()));
+        }
+        let spec = CommandSpec {
+            program: binary.clone(),
+            args: vec!["--version".into()],
+            stdin: Vec::new(),
+        };
+        let version = run_bounded_io(&spec, Path::new("/"), &env, VERSION_PROBE_TIMEOUT)
+            .ok()
+            .filter(|o| !o.timed_out)
+            .and_then(|o| {
+                parse_version(
+                    &String::from_utf8_lossy(&o.stdout),
+                    &String::from_utf8_lossy(&o.stderr),
+                )
+            });
+        found.push(DetectedBackend {
+            kind,
+            binary,
+            version,
+            maturity: kind.maturity(),
+        });
+    }
+    found
+}
+
+pub fn find_in_path(name: &str, path_var: &OsStr) -> Option<PathBuf> {
+    std::env::split_paths(path_var)
+        .filter(|d| d.is_absolute())
+        .map(|d| d.join(name))
+        .find(|p| is_executable_file(p))
+}
+
+fn is_executable_file(p: &Path) -> bool {
+    let Ok(m) = std::fs::metadata(p) else {
+        return false;
+    };
+    if !m.is_file() {
+        return false;
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        m.permissions().mode() & 0o111 != 0
+    }
+    #[cfg(not(unix))]
+    {
+        true
+    }
+}
+
+/// First token that looks like a version number (`1.2.3`, `v0.34.0`), stdout before stderr.
+pub fn parse_version(stdout: &str, stderr: &str) -> Option<String> {
+    stdout
+        .lines()
+        .chain(stderr.lines())
+        .flat_map(|l| l.split_whitespace())
+        .map(|t| t.trim_start_matches('v'))
+        .find(|t| t.starts_with(|c: char| c.is_ascii_digit()) && t.contains('.'))
+        .map(|t| t.chars().take(64).collect())
+}
+
+// ---- bounded process runner -------------------------------------------------------------
+
+struct ProcOutput {
+    exit_code: Option<i32>,
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+    timed_out: bool,
+    duration: Duration,
+}
+
+fn run_bounded_io(
+    spec: &CommandSpec,
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+    timeout: Duration,
+) -> Result<ProcOutput, String> {
+    let started = Instant::now();
+    let mut cmd = Command::new(&spec.program);
+    cmd.args(&spec.args)
+        .current_dir(cwd)
+        .env_clear()
+        .envs(env.iter().map(|(k, v)| (k, v)))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        cmd.process_group(0);
+    }
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("failed to spawn {}: {e}", spec.program.display()))?;
+    let pid = child.id();
+
+    // Feed stdin on its own thread (a child that never reads must not stall the timeout loop).
+    if let Some(mut stdin) = child.stdin.take() {
+        let data = spec.stdin.clone();
+        std::thread::spawn(move || {
+            let _ = stdin.write_all(&data); // EPIPE if the child exits early is fine
+        });
+    }
+    let (tx, rx) = mpsc::channel::<(bool, Vec<u8>)>();
+    for (is_err, pipe) in [
+        (
+            false,
+            child
+                .stdout
+                .take()
+                .map(|p| Box::new(p) as Box<dyn Read + Send>),
+        ),
+        (
+            true,
+            child
+                .stderr
+                .take()
+                .map(|p| Box::new(p) as Box<dyn Read + Send>),
+        ),
+    ] {
+        let tx = tx.clone();
+        std::thread::spawn(move || {
+            let mut buf = Vec::new();
+            if let Some(mut p) = pipe {
+                let _ = (&mut p)
+                    .take(MAX_CAPTURE_BYTES as u64)
+                    .read_to_end(&mut buf);
+                let _ = std::io::copy(&mut p, &mut std::io::sink());
+            }
+            let _ = tx.send((is_err, buf));
+        });
+    }
+    drop(tx);
+
+    let deadline = started + timeout;
+    let mut timed_out = false;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(st)) => break Some(st),
+            Ok(None) if Instant::now() >= deadline => {
+                timed_out = true;
+                kill_group(pid, &mut child);
+                break child.wait().ok();
+            }
+            Ok(None) => std::thread::sleep(Duration::from_millis(20)),
+            Err(e) => return Err(format!("wait failed: {e}")),
+        }
+    };
+    // Readers end when the pipes close; after a kill, give stragglers (escaped descendants) a grace.
+    let grace = if timed_out {
+        Duration::from_secs(2)
+    } else {
+        Duration::from_secs(30)
+    };
+    let (mut stdout, mut stderr) = (Vec::new(), Vec::new());
+    let until = Instant::now() + grace;
+    for _ in 0..2 {
+        match rx.recv_timeout(until.saturating_duration_since(Instant::now())) {
+            Ok((true, b)) => stderr = b,
+            Ok((false, b)) => stdout = b,
+            Err(_) => break,
+        }
+    }
+    Ok(ProcOutput {
+        exit_code: status.and_then(|s| s.code()),
+        stdout,
+        stderr,
+        timed_out,
+        duration: started.elapsed(),
+    })
+}
+
+fn kill_group(pid: u32, child: &mut std::process::Child) {
+    #[cfg(unix)]
+    unsafe {
+        libc::kill(-(pid as libc::pid_t), libc::SIGKILL);
+    }
+    let _ = child.kill();
+    let _ = pid;
+}
+
+// ---- output handling --------------------------------------------------------------------
+
+fn lossy_capped(bytes: &[u8]) -> (String, bool) {
+    let truncated = bytes.len() > TRANSCRIPT_TEXT_CAP;
+    let slice = &bytes[..bytes.len().min(TRANSCRIPT_TEXT_CAP)];
+    (String::from_utf8_lossy(slice).into_owned(), truncated)
+}
+
+fn tail(bytes: &[u8], n: usize) -> String {
+    let s = String::from_utf8_lossy(bytes);
+    let t = s.trim();
+    let chars: Vec<char> = t.chars().collect();
+    chars[chars.len().saturating_sub(n)..].iter().collect()
+}
+
+#[derive(Debug, Default)]
+pub struct ClaudeStream {
+    pub assistant_texts: Vec<String>,
+    pub num_turns: Option<u32>,
+    pub is_error: bool,
+    pub subtype: Option<String>,
+}
+
+/// Parses `claude -p --output-format stream-json` lines: `assistant` events (text blocks) and the
+/// final `result` event (`num_turns`, `is_error`, `subtype`). Unknown lines are ignored.
+pub fn parse_claude_stream(stdout: &[u8]) -> ClaudeStream {
+    let mut out = ClaudeStream::default();
+    for line in String::from_utf8_lossy(stdout).lines() {
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else {
+            continue;
+        };
+        match v.get("type").and_then(|t| t.as_str()) {
+            Some("assistant") => {
+                let text: String = v
+                    .pointer("/message/content")
+                    .and_then(|c| c.as_array())
+                    .map(|blocks| {
+                        blocks
+                            .iter()
+                            .filter_map(|b| b.get("text").and_then(|t| t.as_str()))
+                            .collect::<Vec<_>>()
+                            .join("")
+                    })
+                    .unwrap_or_default();
+                if !text.is_empty() {
+                    out.assistant_texts.push(text);
+                }
+            }
+            Some("result") => {
+                out.num_turns = v
+                    .get("num_turns")
+                    .and_then(|n| n.as_u64())
+                    .map(|n| n as u32);
+                out.is_error = v.get("is_error").and_then(|b| b.as_bool()).unwrap_or(false);
+                out.subtype = v
+                    .get("subtype")
+                    .and_then(|s| s.as_str())
+                    .map(str::to_string);
+                // `error_max_turns` is reported with is_error=false on some versions.
+                if out
+                    .subtype
+                    .as_deref()
+                    .is_some_and(|s| s.starts_with("error"))
+                {
+                    out.is_error = true;
+                }
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+// ---- bundle snapshot / diff -------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Entry {
+    File {
+        len: u64,
+        mtime: Option<std::time::SystemTime>,
+    },
+    Symlink(PathBuf),
+}
+
+fn snapshot(root: &Path) -> Result<BTreeMap<String, Entry>, String> {
+    let mut map = BTreeMap::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        for e in std::fs::read_dir(&dir).map_err(|e| format!("{}: {e}", dir.display()))? {
+            let e = e.map_err(|e| e.to_string())?;
+            let path = e.path();
+            let meta = std::fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
+            let rel = path
+                .strip_prefix(root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .into_owned();
+            if map.len() >= MAX_SNAPSHOT_ENTRIES {
+                return Err(format!(
+                    "bundle has more than {MAX_SNAPSHOT_ENTRIES} entries"
+                ));
+            }
+            if meta.file_type().is_symlink() {
+                let target = std::fs::read_link(&path).map_err(|e| e.to_string())?;
+                map.insert(rel, Entry::Symlink(target));
+            } else if meta.is_dir() {
+                stack.push(path);
+            } else {
+                map.insert(
+                    rel,
+                    Entry::File {
+                        len: meta.len(),
+                        mtime: meta.modified().ok(),
+                    },
+                );
+            }
+        }
+    }
+    Ok(map)
+}
+
+fn diff(before: &BTreeMap<String, Entry>, after: &BTreeMap<String, Entry>) -> Vec<String> {
+    after
+        .iter()
+        .filter(|(k, v)| before.get(*k) != Some(*v))
+        .map(|(k, _)| k.clone())
+        .collect()
+}
+
+fn escaping_new_symlink(
+    root: &Path,
+    before: &BTreeMap<String, Entry>,
+    after: &BTreeMap<String, Entry>,
+) -> Option<String> {
+    let canon_root = root.canonicalize().ok()?;
+    after.iter().find_map(|(rel, e)| {
+        if !matches!(e, Entry::Symlink(_)) || before.get(rel) == Some(e) {
+            return None;
+        }
+        let resolved = root.join(rel).canonicalize().ok(); // dangling links cannot be followed
+        match resolved {
+            Some(r) if !r.starts_with(&canon_root) => Some(rel.clone()),
+            None if matches!(e, Entry::Symlink(t) if t.is_absolute()) => Some(rel.clone()),
+            _ => None,
+        }
+    })
+}
