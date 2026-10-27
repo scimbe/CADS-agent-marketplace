@@ -32,7 +32,7 @@ impl WasmExecutor for StubWasmExecutor {
     }
     fn run(&self, _component: &[u8], _spec_json: &str, _args: &[String]) -> Result<WasmRunOutput, MobileError> {
         Err(MobileError::WasmUnavailable {
-            message: "on-device Wasm execution is not wired in yet".to_string(),
+            detail: "on-device Wasm execution is not wired in yet".to_string(),
         })
     }
 }

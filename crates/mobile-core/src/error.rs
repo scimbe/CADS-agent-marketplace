@@ -2,8 +2,8 @@
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum MobileError {
     /// The template JSON could not be parsed or is structurally invalid.
-    #[error("invalid prompt template: {message}")]
-    InvalidTemplate { message: String },
+    #[error("invalid prompt template: {detail}")]
+    InvalidTemplate { detail: String },
     /// The publisher signature does not verify. The template must not be shown as trusted.
     #[error("prompt template signature does not verify")]
     BadSignature,
@@ -11,11 +11,11 @@ pub enum MobileError {
     #[error("prompt template has expired")]
     Expired,
     /// A customer value violates the signed bound of `param` (or names/omits a parameter).
-    #[error("invalid value for '{param}': {message}")]
-    InvalidValue { param: String, message: String },
+    #[error("invalid value for '{param}': {detail}")]
+    InvalidValue { param: String, detail: String },
     /// A JSON argument handed in by the app is malformed.
-    #[error("invalid input: {message}")]
-    InvalidInput { message: String },
+    #[error("invalid input: {detail}")]
+    InvalidInput { detail: String },
     /// HTTP 401, or no access token available. The app should run the sign-in flow again.
     #[error("not signed in or session expired")]
     Unauthorized,
@@ -30,16 +30,16 @@ pub enum MobileError {
     PreconditionRequired,
     /// HTTP 422: the server refused the content (e.g. secret-looking keys or values).
     /// `path` is the JSON path the server named (e.g. `values.api_key`), empty when none.
-    #[error("rejected by server at '{path}': {message}")]
-    Rejected422 { path: String, message: String },
+    #[error("rejected by server at '{path}': {detail}")]
+    Rejected422 { path: String, detail: String },
     /// Any other non-success status.
-    #[error("server error {status}: {message}")]
-    Server { status: u16, message: String },
+    #[error("server error {status}: {detail}")]
+    Server { status: u16, detail: String },
     /// Transport failure (DNS, TLS, timeout, ...). TLS verification failures land here and are
     /// never retried with a weaker policy.
-    #[error("network error: {message}")]
-    Network { message: String },
+    #[error("network error: {detail}")]
+    Network { detail: String },
     /// The on-device Wasm runtime is not wired in yet.
-    #[error("wasm runtime unavailable: {message}")]
-    WasmUnavailable { message: String },
+    #[error("wasm runtime unavailable: {detail}")]
+    WasmUnavailable { detail: String },
 }

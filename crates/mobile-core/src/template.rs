@@ -126,17 +126,17 @@ fn param_info(name: &str, kind: &PromptParamKind) -> ParamInfo {
 }
 
 fn parse(json: &str) -> Result<PromptTemplate, MobileError> {
-    serde_json::from_str(json).map_err(|e| MobileError::InvalidTemplate { message: e.to_string() })
+    serde_json::from_str(json).map_err(|e| MobileError::InvalidTemplate { detail: e.to_string() })
 }
 
 fn map_render_error(e: RenderError) -> MobileError {
     match e {
         RenderError::BadSignature => MobileError::BadSignature,
         RenderError::Expired => MobileError::Expired,
-        RenderError::InvalidTemplate(message) => MobileError::InvalidTemplate { message },
-        RenderError::UnknownParam(p) => MobileError::InvalidValue { param: p, message: "unknown parameter".into() },
-        RenderError::MissingParam(p) => MobileError::InvalidValue { param: p, message: "missing".into() },
-        RenderError::InvalidValue { param, violation } => MobileError::InvalidValue { param, message: violation.to_string() },
+        RenderError::InvalidTemplate(message) => MobileError::InvalidTemplate { detail: message },
+        RenderError::UnknownParam(p) => MobileError::InvalidValue { param: p, detail: "unknown parameter".into() },
+        RenderError::MissingParam(p) => MobileError::InvalidValue { param: p, detail: "missing".into() },
+        RenderError::InvalidValue { param, violation } => MobileError::InvalidValue { param, detail: violation.to_string() },
     }
 }
 
@@ -146,7 +146,7 @@ pub fn verify_at(json: &str, now: u64) -> Result<TemplateInfo, MobileError> {
     if !t.verify_signature() {
         return Err(MobileError::BadSignature);
     }
-    t.validate_structure().map_err(|message| MobileError::InvalidTemplate { message })?;
+    t.validate_structure().map_err(|message| MobileError::InvalidTemplate { detail: message })?;
     Ok(TemplateInfo {
         name: t.name.clone(),
         version: t.version.clone(),
@@ -185,7 +185,7 @@ pub fn render_prompt_template(template_json: String, values_json: String, now: u
     let t = parse(&template_json)?;
     let values: BTreeMap<String, Value> = match serde_json::from_str::<Value>(&values_json) {
         Ok(Value::Object(m)) => m.into_iter().collect(),
-        _ => return Err(MobileError::InvalidInput { message: "values must be a JSON object".into() }),
+        _ => return Err(MobileError::InvalidInput { detail: "values must be a JSON object".into() }),
     };
     let r = t.render_at(now, &values).map_err(map_render_error)?;
     Ok(RenderedPrompt {
@@ -261,7 +261,7 @@ mod tests {
     fn render_enforces_signed_bounds_and_expiry() {
         let bad = VALUES.replace("\"max_items\":5", "\"max_items\":11");
         match render_prompt_template(SAMPLE.into(), bad, NOW) {
-            Err(MobileError::InvalidValue { param, message }) => {
+            Err(MobileError::InvalidValue { param, detail: message }) => {
                 assert_eq!(param, "max_items");
                 assert!(message.contains("1..=10"), "{message}");
             }

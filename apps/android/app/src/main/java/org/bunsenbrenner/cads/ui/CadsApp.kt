@@ -351,7 +351,7 @@ private class ErrorTexts(
         is MobileException.BadSignature -> badSig
         is MobileException.Expired -> expired
         is MobileException.Rejected422 -> rejected(t.path.ifEmpty { "-" })
-        is MobileException.InvalidValue -> "${t.param}: ${t.message}"
+        is MobileException.InvalidValue -> "${t.param}: ${t.detail}"
         else -> generic
     }
 }

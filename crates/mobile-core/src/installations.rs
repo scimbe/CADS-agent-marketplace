@@ -166,7 +166,7 @@ fn wire_input(i: &InstallationInput) -> Result<String, MobileError> {
     let values: Value = serde_json::from_str(&i.values_json)
         .ok()
         .filter(Value::is_object)
-        .ok_or_else(|| MobileError::InvalidInput { message: "values_json must be a JSON object".into() })?;
+        .ok_or_else(|| MobileError::InvalidInput { detail: "values_json must be a JSON object".into() })?;
     serde_json::to_string(&WireInput {
         name: &i.name,
         template_id: &i.template_id,
@@ -178,7 +178,7 @@ fn wire_input(i: &InstallationInput) -> Result<String, MobileError> {
         target: &i.target,
         status: i.status,
     })
-    .map_err(|e| MobileError::InvalidInput { message: e.to_string() })
+    .map_err(|e| MobileError::InvalidInput { detail: e.to_string() })
 }
 
 fn component_record(c: &ComponentInfo) -> ComponentRecord {
@@ -236,7 +236,7 @@ fn is_loopback(host: &str) -> bool {
 
 /// Normalised base URL; `https` required except for loopback hosts.
 fn check_base(base_url: &str) -> Result<(String, bool), MobileError> {
-    let bad = |m: &str| MobileError::InvalidInput { message: m.to_string() };
+    let bad = |m: &str| MobileError::InvalidInput { detail: m.to_string() };
     let trimmed = base_url.trim().trim_end_matches('/');
     let (scheme, rest) = trimmed.split_once("://").ok_or_else(|| bad("base_url needs a scheme"))?;
     let authority = rest.split('/').next().unwrap_or("");
@@ -331,7 +331,7 @@ impl InstallationsClient {
         let token = self.tokens.access_token().filter(|t| !t.is_empty()).ok_or(MobileError::Unauthorized)?;
         let url = format!("{}{}", self.base, path);
         let auth = format!("Bearer {token}");
-        let net = |e: ureq::Error| MobileError::Network { message: sanitize(&e.to_string(), &token) };
+        let net = |e: ureq::Error| MobileError::Network { detail: sanitize(&e.to_string(), &token) };
         let if_match = if_match.map(|r| format!("\"{r}\""));
 
         macro_rules! common {
@@ -384,12 +384,12 @@ fn item_path(id: &str) -> Result<String, MobileError> {
     if ok {
         Ok(format!("/me/installations/{id}"))
     } else {
-        Err(MobileError::InvalidInput { message: "invalid installation id".into() })
+        Err(MobileError::InvalidInput { detail: "invalid installation id".into() })
     }
 }
 
 fn decode<T: serde::de::DeserializeOwned>(body: &str) -> Result<T, MobileError> {
-    serde_json::from_str(body).map_err(|e| MobileError::Server { status: 200, message: format!("unexpected response shape: {e}") })
+    serde_json::from_str(body).map_err(|e| MobileError::Server { status: 200, detail: format!("unexpected response shape: {e}") })
 }
 
 fn short(body: &str) -> String {
@@ -419,9 +419,9 @@ pub(crate) fn map_status(status: u16, body: &str) -> MobileError {
         428 => MobileError::PreconditionRequired,
         422 => {
             let (path, message) = split_path(body);
-            MobileError::Rejected422 { path, message }
+            MobileError::Rejected422 { path, detail: message }
         }
-        s => MobileError::Server { status: s, message: short(body) },
+        s => MobileError::Server { status: s, detail: short(body) },
     }
 }
 

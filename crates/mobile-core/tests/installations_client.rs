@@ -146,7 +146,7 @@ fn rejected_422_names_the_path_without_the_value() {
     let mut i = input();
     i.values_json = r#"{"api_key":"x"}"#.into();
     match client(&base).create(i) {
-        Err(MobileError::Rejected422 { path, message }) => {
+        Err(MobileError::Rejected422 { path, detail: message }) => {
             assert_eq!(path, "values.api_key");
             assert!(message.contains("secret"));
         }
@@ -179,7 +179,7 @@ fn transport_error_does_not_leak_token() {
     let base = format!("http://127.0.0.1:{}", l.local_addr().unwrap().port());
     drop(l);
     match client(&base).list(None, None, None) {
-        Err(MobileError::Network { message }) => assert!(!message.contains("tok-abc")),
+        Err(MobileError::Network { detail: message }) => assert!(!message.contains("tok-abc")),
         other => panic!("{other:?}"),
     }
 }

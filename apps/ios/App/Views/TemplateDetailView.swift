@@ -20,7 +20,7 @@ struct TemplateDetailView: View {
     private var rendered: Result<RenderedPrompt, MobileError> {
         do {
             return .success(try renderPromptTemplate(templateJson: entry.json, valuesJson: valuesJSON, now: UInt64(Date().timeIntervalSince1970)))
-        } catch let e as MobileError { return .failure(e) } catch { return .failure(.InvalidInput(message: "")) }
+        } catch let e as MobileError { return .failure(e) } catch { return .failure(.InvalidInput(detail: "")) }
     }
 
     var body: some View {
