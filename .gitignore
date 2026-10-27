@@ -1,3 +1,5 @@
 /target
 **/*.rs.bk
 .env
+/examples/wasm-hello/target
+/examples/wasm-hello/dist

@@ -37,6 +37,7 @@ http-body-util = { version = "0.1", optional = true }
 
 [dev-dependencies]
 wat = "1"
+bytes = "1"
 tempfile = "3"
 # Only needed to construct a real, signed ServiceManifest fixture for the Binary-executor
 # integration tests in activate.rs -- installer-engine itself never signs anything.

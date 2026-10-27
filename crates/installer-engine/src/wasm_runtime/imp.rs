@@ -350,3 +350,57 @@ fn classify(e: &wasmtime::Error, limiter: &Limiter, timed_out: &AtomicBool) -> W
         None => WasmOutcome::Error { message: format!("{e:#}") },
     }
 }
+
+#[cfg(all(test, feature = "wasm-http"))]
+mod http_tests {
+    use super::http_policy::AllowlistHooks;
+    use std::pin::Pin;
+    use wasmtime_wasi_http::{Error, WasiBody, WasiHttpHooks};
+
+    fn hooks() -> AllowlistHooks {
+        AllowlistHooks { hosts: vec!["api.example.com".to_string()] }
+    }
+
+    fn request(uri: &str) -> http::Request<WasiBody> {
+        use http_body_util::BodyExt;
+        let body = http_body_util::Empty::<bytes::Bytes>::new().map_err(|_| unreachable!()).boxed_unsync();
+        http::Request::builder().uri(uri).body(body).unwrap()
+    }
+
+    #[test]
+    fn only_https_to_an_exactly_listed_host_on_443_is_permitted() {
+        let h = hooks();
+        let p = |u: &str| h.permits(&u.parse().unwrap());
+        assert!(p("https://api.example.com/v1/x?y=1"));
+        assert!(p("https://API.example.com/"));
+        assert!(p("https://api.example.com:443/"));
+        assert!(!p("http://api.example.com/"), "plain http");
+        assert!(!p("https://api.example.com:8443/"), "other port");
+        assert!(!p("https://evil.example.com/"), "other host");
+        assert!(!p("https://sub.api.example.com/"), "subdomains are not implied");
+        assert!(!p("https://api.example.com.evil.net/"), "suffix trick");
+        assert!(!p("https://api.example.com@evil.net/"), "userinfo trick");
+        assert!(!p("https://evil.net/?h=api.example.com"), "host in the query");
+        assert!(!p("https://127.0.0.1/"));
+    }
+
+    #[test]
+    fn plain_http_is_not_even_a_supported_scheme() {
+        let mut h = hooks();
+        assert!(!h.is_supported_scheme(&http::uri::Scheme::HTTP));
+        assert!(h.is_supported_scheme(&http::uri::Scheme::HTTPS));
+    }
+
+    #[test]
+    fn a_request_to_a_non_allowed_host_is_denied_before_any_connection_is_attempted() {
+        let mut h = hooks();
+        let fut = h.send_request(request("https://evil.example.com/steal"), None, Box::new(async { Ok(()) }));
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let res = rt.block_on(Pin::from(fut));
+        assert!(matches!(res, Err(Error::HttpRequestDenied)), "got {:?}", res.err());
+        let mut h = hooks();
+        let fut = h.send_request(request("http://api.example.com/"), None, Box::new(async { Ok(()) }));
+        let res = rt.block_on(Pin::from(fut));
+        assert!(matches!(res, Err(Error::HttpRequestDenied)), "plain http to an allowed host is denied too");
+    }
+}
