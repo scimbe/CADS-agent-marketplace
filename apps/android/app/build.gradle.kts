@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -10,7 +12,7 @@ val cadsIssuer = (project.findProperty("cadsIssuer") as String?) ?: "https://aut
 val cadsClientId = (project.findProperty("cadsClientId") as String?) ?: "cads-mobile"
 // Android uses a verified App Link (https) as OAuth redirect, not a custom scheme another app could claim.
 val cadsRedirectUri = (project.findProperty("cadsRedirectUri") as String?) ?: "https://bunsenbrenner.org/app/oauth2redirect"
-val redirect = java.net.URI(cadsRedirectUri)
+val redirect = URI(cadsRedirectUri)
 
 android {
     namespace = "org.bunsenbrenner.cads"
