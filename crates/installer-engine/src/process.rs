@@ -123,6 +123,7 @@ pub(crate) static PATH_MUTATION_LOCK: std::sync::Mutex<()> = std::sync::Mutex::n
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
     #[test]
     fn a_quick_command_completes_normally() {
         let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -132,6 +133,7 @@ mod tests {
         assert_eq!(out.stdout.trim(), "hi");
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_hanging_command_is_killed_on_timeout() {
         let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -147,6 +149,7 @@ mod tests {
         assert!(out.exit_code.is_none());
     }
 
+    #[cfg(unix)]
     #[test]
     fn the_whole_process_group_is_killed_not_just_the_shell() {
         let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -156,21 +159,23 @@ mod tests {
         // that pid is gone shortly after; if only the shell was killed, it lingers.
         let marker = std::env::temp_dir().join(format!("installer-engine-grandchild-test-{}", std::process::id()));
         let _ = std::fs::remove_file(&marker);
+        // A unique duration, not `sleep 30`: the `pgrep -f` below is machine-global, and any other
+        // process on the host running a `sleep 30` (another test run, a CI poller) would fail it.
         let script = format!(
-            "sh -c 'sleep 30' & echo started > {}; wait",
+            "sh -c 'sleep 4242' & echo started > {}; wait",
             marker.display()
         );
         let out = run_bounded("sh", &["-c", &script], std::path::Path::new("."), &[], Duration::from_millis(300)).unwrap();
         assert!(out.timed_out);
-        // Give the OS a moment to actually reap the killed group, then confirm no `sleep 30`
+        // Give the OS a moment to actually reap the killed group, then confirm no `sleep 4242`
         // owned by this test's marker is still alive by checking the marker's grandchild is gone.
         std::thread::sleep(Duration::from_millis(300));
         let still_running = std::process::Command::new("pgrep")
-            .args(["-f", "sleep 30"])
+            .args(["-f", "sleep 4242"])
             .output()
             .map(|o| !o.stdout.is_empty())
             .unwrap_or(false);
         let _ = std::fs::remove_file(&marker);
-        assert!(!still_running, "grandchild `sleep 30` must not survive the process-group kill");
+        assert!(!still_running, "grandchild `sleep 4242` must not survive the process-group kill");
     }
 }
