@@ -6,6 +6,11 @@ rust-version.workspace = true
 license.workspace = true
 description = "Fetch/verify/unpack/guardrail-scan/compose-run/report engine for a ServiceManifest (Phase 1: compose installer_kind only)."
 
+# MSRV: the crate itself builds on Rust 1.85. The `wasm` feature (default ON for this workspace's own
+# builds) pulls wasmtime 50, which needs Rust >= 1.97 -- cargo cannot express a per-feature
+# rust-version, so consumers on an older toolchain MUST depend with `default-features = false`
+# (as `registry` and `harness-core` do, and as ct-agent should when it bumps this dependency).
+
 [features]
 # `wasm`: the WebAssembly installer kind (wasmtime component model + WASI 0.2). Default on for
 # desktop; a mobile binding that wants a smaller binary can build with

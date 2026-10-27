@@ -60,7 +60,9 @@ and is how the runtime reaches the UI. `Binary` stays refused on Android.
 - Pulley is slower than JIT (order of magnitude depends on workload; not benchmarked here).
 - Binary size grows (wasmtime + Cranelift; `wasm-http` adds the TLS stack). Mobile builds that do not
   need HTTP can disable `wasm-http`.
-- Workspace MSRV is raised to Rust 1.97 (wasmtime 50.0.0 requires it).
+- MSRV: the crates stay at Rust 1.85; only builds with installer-engine's `wasm` feature need 1.97
+  (wasmtime 50.0.0). Consumers on an older toolchain (ct-agent pins this repo by git tag) depend with
+  `default-features = false`; `registry` and `harness-core` do. The registry image builds on rust:1.97.
 - Residual: a sandbox-escape bug in wasmtime defeats the confinement and there is no OS-level second
   layer. The version is pinned exactly; updates must be deliberate and fast for security releases.
 

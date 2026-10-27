@@ -8,7 +8,7 @@ description = "Phase 2: a bounded, containment-checked, local-LLM-backed agent l
 
 [dependencies]
 manifest-core = { path = "../manifest-core" }
-installer-engine = { path = "../installer-engine" }
+installer-engine = { path = "../installer-engine", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "blocking", "json"] }

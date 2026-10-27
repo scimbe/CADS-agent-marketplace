@@ -1078,6 +1078,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::type_complexity)]
     fn every_widening_of_a_signed_wasm_capability_invalidates_the_signature() {
         let key = random_signing_key();
         let base = sample_wasm_manifest(&key);

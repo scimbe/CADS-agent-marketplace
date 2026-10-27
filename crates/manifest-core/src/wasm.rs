@@ -382,9 +382,11 @@ pub(crate) mod tests {
         assert!(s.validate().is_err());
     }
 
+    type Mutator<'a> = &'a dyn Fn(&mut WasmSpec);
+
     #[test]
     fn limits_must_be_non_zero_and_capped() {
-        let cases: [(&dyn Fn(&mut WasmSpec), &str); 6] = [
+        let cases: [(Mutator, &str); 6] = [
             (&|s| s.limits.max_memory_bytes = 0, "max_memory_bytes"),
             (&|s| s.limits.max_memory_bytes = MAX_WASM_MEMORY_BYTES + 1, "max_memory_bytes"),
             (&|s| s.limits.timeout_ms = 0, "timeout_ms"),
@@ -410,6 +412,7 @@ pub(crate) mod tests {
     }
 
     #[test]
+    #[allow(clippy::type_complexity)]
     fn preimage_distinguishes_every_field() {
         let enc = |s: &WasmSpec| s.append_to_preimage(Preimage::new(b"t")).finish();
         let base = enc(&sample());

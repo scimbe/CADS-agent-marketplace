@@ -62,7 +62,7 @@ mod http_policy {
                 && matches!(uri.port_u16(), None | Some(443))
                 && uri.host().is_some_and(|h| {
                     let h = h.to_ascii_lowercase();
-                    self.hosts.iter().any(|a| *a == h)
+                    self.hosts.contains(&h)
                 })
         }
     }

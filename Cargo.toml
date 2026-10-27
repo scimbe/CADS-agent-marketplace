@@ -4,5 +4,5 @@ members = ["crates/manifest-core", "crates/manifest-core-wasm", "crates/installe
 
 [workspace.package]
 edition = "2021"
-rust-version = "1.97"
+rust-version = "1.85"
 license = "MIT"

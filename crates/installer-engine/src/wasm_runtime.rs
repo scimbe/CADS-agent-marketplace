@@ -189,6 +189,7 @@ use manifest_core::ServiceManifest;
 /// (already confined to the work dir by the caller), runs it, and maps the outcome to an
 /// [`InstallReport`]. `env_pairs` are the resolved `env_template` values; only the names the spec
 /// grants are forwarded.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn activate_wasm(
     manifest: &ServiceManifest,
     manifest_id_hex: String,
