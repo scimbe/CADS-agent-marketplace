@@ -64,6 +64,57 @@ so `ct-agent manifest plan` shows it as a refusal rather than an error, and
 `ct-agent doctor sandbox` exits 2 on such a host. macOS is unaffected: it keeps the
 selection/refusal logic above unchanged until its sandbox backend lands.
 
+## Prompt templates (`PromptTemplate`)
+
+A `PromptTemplate` (`manifest-core::prompt_template`, domain `cads-prompt-template-v1`) is a
+publisher-signed prompt a customer fills in interactively. It is a separate signed type from
+`ServiceManifest`: it installs and runs nothing by itself, it produces text.
+
+**Trust model.**
+
+- The publisher signs the body, every parameter bound (the same `PromptParam` encoding the demo
+  prompt uses) and every component reference. Tampering with any of them -- widening an enum or a
+  `Text` length, swapping a component digest, rewriting a usage note -- invalidates the signature.
+- `validate_structure` makes "may only reference provenance-secured components" a checked property:
+  a `{{component:x}}` must name a declared `ComponentRef`, a placeholder must name a declared
+  parameter, and declared-but-unused parameters/components are rejected, so what the signature
+  covers is exactly what the body can reach.
+- As with manifests, signature validity (`is_valid`) is **issuance, not trust**: the consumer still
+  checks `publisher_pubkey` against its own trust list. `render` verifies the signature but not
+  expiry; the caller applies `is_valid(now)` with its own clock.
+
+**What "provenance" means here.** A `ComponentRef` records how the *publisher used and tested* a
+component: the sha256 of the exact artifact plus a signed usage note (version, OS, command). It does
+**not** establish where the component came from, who wrote it, or that its bytes are benign -- the
+same limit as digest-pinned images (F.15 above). A consumer that fetches the artifact must re-hash
+it against `sha256` itself; this crate only carries the claim.
+
+**Free text is data, not instructions.** `Text` is the one parameter kind with no closed value set.
+`render` therefore (1) bounds it (`max_len` chars, at most 8192; no control characters, no
+zero-width/bidi/line-separator characters, so single-line only), (2) substitutes in one pass, so a
+value containing `{{...}}` is never expanded, and (3) wraps each occurrence in
+`<customer-input name="...">...</customer-input>` with `&`, `<`, `>` escaped inside the value, so
+the customer cannot emit the closing delimiter. All other kinds are checked against the signed
+bound (enum/multiselect membership, int range, `#RRGGBB`) and inserted unwrapped; unknown and
+missing parameters are refused.
+
+**Evidence for later.** `RenderedPrompt` carries `template_digest` (sha256 of the signing preimage)
+and `values_digest` (sha256 of canonical JSON of the values, keys sorted), so a saved installation
+can show which signed template and which inputs produced its prompt.
+
+**Measured vs. not built.**
+
+- Measured (unit tests): every tamper above, stripped/zeroed signature, expiry, each render-bound
+  violation, a closing-delimiter injection attempt, non-expansion of placeholders inside values,
+  digest stability and key-order independence, and that manifests signed before `Text` existed
+  still verify (a recorded pre-change signature).
+- Not built: the delimiter is a convention, not a guarantee -- a model may still follow
+  instructions inside a `customer-input` block; the template body should say to treat it as data,
+  and a harness should not give a rendered prompt more authority than the customer has. Nothing
+  fetches or re-hashes a component artifact, enforces the usage note, or checks the template
+  against a registry yet. Multi-line free text is not supported. There is no revocation of a
+  signed template other than its expiry.
+
 ## What Phase 1 deliberately does not defend against
 
 - A trusted publisher's own manifest containing a logic bug (a compose stack that's insecure by
