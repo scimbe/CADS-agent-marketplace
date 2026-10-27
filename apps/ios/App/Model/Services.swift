@@ -51,7 +51,8 @@ struct CatalogEntry: Identifiable {
 enum Catalog {
     /// Bundled samples. Later: fetched from the registry, verified by the same code path.
     static func bundled() -> [CatalogEntry] {
-        let urls = Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: nil) ?? []
+        // Folder reference from project.yml: the templates sit in the "prompt-templates" subdirectory.
+        let urls = Bundle.main.urls(forResourcesWithExtension: "json", subdirectory: "prompt-templates") ?? []
         return urls.compactMap { url in
             guard let json = try? String(contentsOf: url, encoding: .utf8) else { return nil }
             do {

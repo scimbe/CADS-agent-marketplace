@@ -23,7 +23,19 @@ struct RootView: View {
         return 0
     }()
 
+    @EnvironmentObject var model: AppModel
+
     var body: some View {
+        #if DEBUG
+        // `-UITab 2`: show the first template's detail screen directly (CI screenshot).
+        if tab == 2, let e = model.catalog.first, let info = e.info {
+            return AnyView(NavigationStack { TemplateDetailView(entry: e, info: info) })
+        }
+        #endif
+        return AnyView(tabs)
+    }
+
+    private var tabs: some View {
         TabView(selection: $tab) {
             NavigationStack { TemplatesView() }
                 .tabItem { Label("tab.templates", systemImage: "doc.text.magnifyingglass") }

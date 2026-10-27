@@ -102,6 +102,9 @@ jobs:
           xcrun simctl terminate "$UDID" org.bunsenbrenner.cads
           xcrun simctl launch "$UDID" org.bunsenbrenner.cads -UIMockInstallations -UITab 1
           sleep 4; xcrun simctl io "$UDID" screenshot shots/2-installationen.png
+          xcrun simctl terminate "$UDID" org.bunsenbrenner.cads
+          xcrun simctl launch "$UDID" org.bunsenbrenner.cads -UIMockInstallations -UITab 2
+          sleep 4; xcrun simctl io "$UDID" screenshot shots/3-vorlage-detail.png
       - uses: actions/upload-artifact@v4
         with:
           name: ios-simulator-screenshots
