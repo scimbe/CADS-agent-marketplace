@@ -7,6 +7,7 @@
 
 pub mod agent_loop;
 pub mod backend;
+pub mod cli_sandbox;
 pub mod containment;
 pub mod llm_client;
 pub mod local_cli;

@@ -8,7 +8,9 @@
 //! (`(param "WORK")`), never spliced into the profile text -- so a path containing quotes or
 //! parentheses cannot alter the policy.
 
-use super::{Probe, SandboxBackend};
+#![cfg_attr(not(target_os = "macos"), allow(dead_code))]
+
+use super::{NetworkPolicy, Probe, SandboxBackend, SandboxPolicy};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -53,6 +55,25 @@ const PROFILE_LOOPBACK: &str = r#"(allow network-outbound (remote ip "localhost:
 (allow network-inbound (local ip "localhost:*"))
 "#;
 
+/// Outbound TLS: tcp/443 to anywhere (NOT a host allowlist -- the documented residual exfiltration
+/// channel), name resolution through the mDNSResponder socket, and the timezone database (measured:
+/// without it a Bun-based agent CLI hangs at start-up). Every line was kept only because removing it
+/// broke a real `claude -p` run under this profile (macOS 27, Claude Code 2.1.311); trustd,
+/// dnssd, configd, `/Library/Keychains`, `/private/var/db/mds` and `system-socket` were each tried
+/// and are NOT needed, so they are not allowed.
+const PROFILE_OUTBOUND: &str = r#"(allow network-outbound (remote tcp "*:443"))
+(allow network-outbound (literal "/private/var/run/mDNSResponder"))
+(allow file-read* (subpath "/private/var/db/timezone"))
+"#;
+
+/// Keychain-backed login: the Security server, plus read access to the user's keychain files
+/// (`(param "KEYCHAINS")`, the real `~/Library/Keychains`, reached through a symlink in the per-run
+/// HOME because the `security` helper resolves them relative to `$HOME`). Measured: dropping
+/// `SecurityServer` makes the login fail ("Not logged in").
+const PROFILE_KEYCHAIN: &str = r#"(allow mach-lookup (global-name "com.apple.SecurityServer"))
+(allow file-read* (subpath (param "KEYCHAINS")))
+"#;
+
 pub struct SandboxExec {
     allow_loopback: bool,
 }
@@ -79,6 +100,54 @@ impl SandboxExec {
             p.push_str(PROFILE_LOOPBACK);
         }
         p
+    }
+
+    /// The profile for a [`SandboxPolicy`]: [`Self::profile`] plus one `(param ...)`-based rule per
+    /// extra path, so no path is ever spliced into the SBPL text.
+    pub(crate) fn profile_with_policy(&self, policy: &SandboxPolicy) -> String {
+        let mut p = PROFILE_BASE.to_string();
+        if self.allow_loopback || policy.network == NetworkPolicy::Loopback {
+            p.push_str(PROFILE_LOOPBACK);
+        }
+        if policy.network == NetworkPolicy::Outbound {
+            p.push_str(PROFILE_OUTBOUND);
+        }
+        for i in 0..policy.extra_ro_paths.len() {
+            p.push_str(&format!("(allow file-read* process-exec (subpath (param \"RO{i}\")))\n"));
+        }
+        if policy.home_dir.is_some() {
+            p.push_str("(allow file-read* file-write* (subpath (param \"HOME\")))\n");
+        }
+        if policy.tmp_dir.is_some() {
+            p.push_str("(allow file-read* file-write* (subpath (param \"TMP\")))\n");
+        }
+        if policy.keychain {
+            p.push_str(PROFILE_KEYCHAIN);
+        }
+        p
+    }
+
+    fn launcher_args_with_policy(&self, work_dir: &Path, policy: &SandboxPolicy) -> Vec<String> {
+        let mut a = vec!["-p".to_string(), self.profile_with_policy(policy)];
+        let mut param = |k: String, v: &Path| {
+            a.push("-D".to_string());
+            a.push(format!("{k}={}", Self::resolved(v).display()));
+        };
+        param("WORK".into(), work_dir);
+        for (i, p) in policy.extra_ro_paths.iter().enumerate() {
+            param(format!("RO{i}"), p);
+        }
+        if let Some(h) = &policy.home_dir {
+            param("HOME".into(), h);
+        }
+        if let Some(t) = &policy.tmp_dir {
+            param("TMP".into(), t);
+        }
+        if policy.keychain {
+            let real_home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
+            param("KEYCHAINS".into(), &real_home.join("Library/Keychains"));
+        }
+        a
     }
 
     /// Seatbelt matches the *resolved* path, and `/var`, `/tmp`, `/etc` are symlinks into
@@ -127,6 +196,26 @@ impl SandboxBackend for SandboxExec {
         a.push(exe.to_string());
         a.extend(args.iter().map(|s| (*s).to_string()));
         (SANDBOX_EXEC.to_string(), a)
+    }
+
+    fn wrap_command_with_policy(
+        &self,
+        exe: &str,
+        args: &[&str],
+        work_dir: &Path,
+        env: &[(&str, &str)],
+        policy: &SandboxPolicy,
+    ) -> Result<(String, Vec<String>), String> {
+        policy.validate()?;
+        let mut a = self.launcher_args_with_policy(work_dir, policy);
+        a.push("/usr/bin/env".to_string());
+        a.push("-i".to_string());
+        for (k, v) in env {
+            a.push(format!("{k}={v}"));
+        }
+        a.push(exe.to_string());
+        a.extend(args.iter().map(|s| (*s).to_string()));
+        Ok((SANDBOX_EXEC.to_string(), a))
     }
 
     fn isolation_summary(&self) -> &'static str {
@@ -184,6 +273,78 @@ pub(crate) fn describe_probe_failure(exit_code: Option<i32>, stderr: &str) -> St
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn policy() -> SandboxPolicy {
+        SandboxPolicy {
+            extra_ro_paths: vec![PathBuf::from("/opt/cli"), PathBuf::from("/opt/node")],
+            home_dir: Some(PathBuf::from("/run/h")),
+            tmp_dir: Some(PathBuf::from("/run/t")),
+            network: NetworkPolicy::Outbound,
+            keychain: true,
+        }
+    }
+
+    #[test]
+    fn default_policy_profile_is_the_historical_profile() {
+        assert_eq!(SandboxExec::new().profile_with_policy(&SandboxPolicy::default()), SandboxExec::new().profile());
+        let (_, a) = SandboxExec::new().wrap_command_with_policy("/x", &[], Path::new("/w"), &[], &SandboxPolicy::default()).unwrap();
+        let (_, b) = SandboxExec::new().wrap_command("/x", &[], Path::new("/w"), &[]);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn outbound_policy_allows_only_tls_dns_and_the_listed_paths() {
+        let p = SandboxExec::new().profile_with_policy(&policy());
+        assert!(p.contains("(deny default)") && p.contains("(deny network*)"));
+        assert!(p.contains(r#"(allow network-outbound (remote tcp "*:443"))"#));
+        assert!(p.contains("/private/var/run/mDNSResponder"));
+        assert!(p.contains("(param \"RO0\")") && p.contains("(param \"RO1\")") && !p.contains("RO2"));
+        assert!(p.contains("(param \"HOME\")") && p.contains("(param \"TMP\")") && p.contains("(param \"KEYCHAINS\")"));
+        assert!(p.contains("com.apple.SecurityServer"));
+        // no blanket grants
+        for bad in ["(allow default)", "(allow network*)", "network-outbound (remote ip", "(allow file-write* (subpath \"/\"))"] {
+            assert!(!p.contains(bad), "{bad}");
+        }
+        // paths travel as parameters only
+        assert!(!p.contains("/opt/cli") && !p.contains("/run/h"));
+    }
+
+    #[test]
+    fn network_none_and_no_keychain_add_nothing() {
+        let mut pol = policy();
+        pol.network = NetworkPolicy::None;
+        pol.keychain = false;
+        let p = SandboxExec::new().profile_with_policy(&pol);
+        assert!(!p.contains("*:443") && !p.contains("mDNSResponder") && !p.contains("SecurityServer") && !p.contains("KEYCHAINS"));
+        assert!(p.contains("(deny network*)"));
+    }
+
+    // Unix-only: the macOS profile builder takes absolute Unix paths (`/opt/cli`), which are not
+    // absolute on Windows, so `SandboxPolicy::validate` correctly refuses them there.
+    #[cfg(unix)]
+    #[test]
+    fn policy_launcher_args_carry_every_path_as_a_d_parameter() {
+        let (prog, args) =
+            SandboxExec::new().wrap_command_with_policy("/opt/cli/claude", &["-p"], Path::new("/w"), &[("K", "v")], &policy()).unwrap();
+        assert_eq!(prog, "/usr/bin/sandbox-exec");
+        let params: Vec<&String> = args.iter().enumerate().filter(|(i, _)| *i > 0 && args[i - 1] == "-D").map(|(_, a)| a).collect();
+        for want in ["WORK=", "RO0=", "RO1=", "HOME=", "TMP=", "KEYCHAINS="] {
+            assert!(params.iter().any(|p| p.starts_with(want)), "{want} in {params:?}");
+        }
+        let env_at = args.iter().position(|a| a == "/usr/bin/env").unwrap();
+        assert_eq!(&args[env_at..], ["/usr/bin/env", "-i", "K=v", "/opt/cli/claude", "-p"]);
+    }
+
+    #[test]
+    fn invalid_policies_are_refused() {
+        for bad in [
+            SandboxPolicy { extra_ro_paths: vec![PathBuf::from("relative")], ..Default::default() },
+            SandboxPolicy { extra_ro_paths: vec![PathBuf::from("/")], ..Default::default() },
+            SandboxPolicy { home_dir: Some(PathBuf::from("h")), ..Default::default() },
+        ] {
+            assert!(SandboxExec::new().wrap_command_with_policy("/x", &[], Path::new("/w"), &[], &bad).is_err());
+        }
+    }
 
     #[test]
     fn wrap_command_builds_the_exact_documented_argv() {

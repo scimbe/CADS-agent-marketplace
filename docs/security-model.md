@@ -64,6 +64,17 @@ because it needs the Docker socket and the published ports (F.4).
 | Windows | `wsl_bwrap` (bubblewrap in the DEDICATED WSL2 distro `cads-sandbox`, via `%SystemRoot%\System32\wsl.exe`) | **Compile-tested and unit-tested only** (argv, path translation, quoting round-trip, wsl.conf/interop checks, setup plan); **never executed on Windows** | `sandbox::wsl::tests`; `gate-windows` CI job. The probe fails closed unless `wsl.conf` has `[interop] enabled=false` + `appendWindowsPath=false` and the live `WSLInterop` state is absent/`disabled`. Real isolation and `wsl.exe` argument passing are unmeasured |
 | Android | none | **Not built**; Binary manifests are refused (`unsupported_platform`) | ADR-0002 (Proposed) |
 
+#### Agent CLIs in the sandbox (BYO agent subscription)
+
+`harness-core`'s `LocalCliBackend` runs the customer's own agent CLI through the same backends with
+an extended `SandboxPolicy` (extra read-only paths for the CLI and its runtime, one writable per-run
+HOME and TMPDIR, `NetworkPolicy::Outbound`, macOS keychain access). Fail closed: no backend, or a
+backend that cannot honour the policy (WSL), refuses the run. Measured: a real `claude -p` turn
+completes inside Seatbelt, and a prompt asking it to read a canary outside the work dir exposes
+nothing. **Residual risk:** outbound tcp/443 is not host-restricted, so data the agent can read
+(the bundle, its copied login) can be exfiltrated to any 443 endpoint by a prompt-injected agent;
+the next step is a provider-host allowlist via a proxy. Details: `docs/byo-agent-backend.md`.
+
 Fail closed on every OS: when the real-exec probe finds no usable backend the activation is
 REFUSED, and the refusal names the setup step (`ct-agent doctor sandbox`; programmatically
 `installer_engine::sandbox::doctor()` / `setup_plan()` / `apply()`, which run only unelevated

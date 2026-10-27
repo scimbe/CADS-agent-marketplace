@@ -43,7 +43,9 @@ fn req<'a>(prompt: &'a str, work: &'a Path) -> AgentRequest<'a> {
 }
 
 fn backend(kind: BackendKind, bin: PathBuf) -> LocalCliBackend {
-    let mut b = LocalCliBackend::from_binary(kind, bin).unwrap();
+    let mut b = LocalCliBackend::from_binary(kind, bin)
+        .unwrap()
+        .unconfined_for_tests();
     b.rebuild_after = false;
     b.timeout = Duration::from_secs(20);
     b

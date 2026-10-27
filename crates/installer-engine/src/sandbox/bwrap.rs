@@ -8,7 +8,7 @@
 // Compiled on every OS: the Windows/WSL2 backend reuses `bwrap_args`. Only Linux probes/selects it.
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
 
-use super::{Probe, SandboxBackend};
+use super::{NetworkPolicy, Probe, SandboxBackend, SandboxPolicy};
 use std::path::Path;
 use std::process::Command;
 
@@ -36,6 +36,21 @@ impl SandboxBackend for Bwrap {
             bwrap_path().unwrap_or(BWRAP_CANDIDATES[0]).to_string(),
             bwrap_args(exe, args, &work_dir.display().to_string(), env),
         )
+    }
+
+    fn wrap_command_with_policy(
+        &self,
+        exe: &str,
+        args: &[&str],
+        work_dir: &Path,
+        env: &[(&str, &str)],
+        policy: &SandboxPolicy,
+    ) -> Result<(String, Vec<String>), String> {
+        policy.validate()?;
+        Ok((
+            bwrap_path().unwrap_or(BWRAP_CANDIDATES[0]).to_string(),
+            bwrap_args_with_policy(exe, args, &work_dir.display().to_string(), env, policy),
+        ))
     }
 
     fn isolation_summary(&self) -> &'static str {
@@ -72,6 +87,24 @@ const RO_ETC: [&str; 11] = [
 /// The `bwrap` argv (minus the program name). Shared with the Windows/WSL2 backend, which runs the
 /// same `bwrap` inside a WSL distro, so `work_dir_str` is a string (a translated Linux path there).
 pub(super) fn bwrap_args(exe: &str, args: &[&str], work_dir_str: &str, env: &[(&str, &str)]) -> Vec<String> {
+    bwrap_args_with_policy(exe, args, work_dir_str, env, &SandboxPolicy::default())
+}
+
+/// Resolver/hosts files added (read-only) only for [`NetworkPolicy::Outbound`]; the TLS trust
+/// stores (`/etc/ssl`, `/etc/ca-certificates`, `/etc/pki`) are already in [`RO_ETC`].
+const RO_ETC_NET: [&str; 2] = ["/etc/resolv.conf", "/etc/hosts"];
+
+/// [`bwrap_args`] for a non-default [`SandboxPolicy`]. With the default policy the output is
+/// byte-identical to the historical argv (pinned by a test). Extra ro paths, HOME and TMPDIR are
+/// bound before the root is remounted read-only, exactly like `work_dir`; `--share-net` follows
+/// `--unshare-all` so only the network namespace is re-shared.
+pub(super) fn bwrap_args_with_policy(
+    exe: &str,
+    args: &[&str],
+    work_dir_str: &str,
+    env: &[(&str, &str)],
+    policy: &SandboxPolicy,
+) -> Vec<String> {
     let work_dir_str = work_dir_str.to_string();
     let mut a: Vec<String> = Vec::new();
     let mut push = |xs: &[&str]| a.extend(xs.iter().map(|s| (*s).to_string()));
@@ -84,17 +117,31 @@ pub(super) fn bwrap_args(exe: &str, args: &[&str], work_dir_str: &str, env: &[(&
         "--unshare-all",
         "--cap-drop",
         "ALL",
-        "--ro-bind",
-        "/usr",
-        "/usr",
     ]);
+    if policy.network == NetworkPolicy::Outbound {
+        push(&["--share-net"]);
+    }
+    push(&["--ro-bind", "/usr", "/usr"]);
     for d in RO_DIRS {
         push(&["--ro-bind-try", d, d]);
     }
     for f in RO_ETC {
         push(&["--ro-bind-try", f, f]);
     }
+    if policy.network == NetworkPolicy::Outbound {
+        for f in RO_ETC_NET {
+            push(&["--ro-bind-try", f, f]);
+        }
+    }
+    for p in &policy.extra_ro_paths {
+        let p = p.display().to_string();
+        push(&["--ro-bind", p.as_str(), p.as_str()]);
+    }
     push(&["--proc", "/proc", "--dev", "/dev"]);
+    for p in policy.home_dir.iter().chain(policy.tmp_dir.iter()) {
+        let p = p.display().to_string();
+        push(&["--bind", p.as_str(), p.as_str()]);
+    }
     a.extend(["--bind".to_string(), work_dir_str.clone(), work_dir_str.clone(), "--chdir".to_string(), work_dir_str]);
     // The root is a tmpfs bwrap assembled; make it read-only so `mkdir`/`write` at `/`, `/tmp`,
     // `/home` fail instead of succeeding in a throwaway tmpfs (the work_dir bind stays writable).
@@ -251,6 +298,66 @@ mod tests {
         // root is made read-only only after everything is mounted.
         assert!(idx(&args, "--proc") > idx(&args, "--ro-bind") && idx(&args, "--proc") < idx(&args, "--bind"));
         assert!(idx(&args, "--remount-ro") > idx(&args, "--bind"));
+    }
+
+    fn pol() -> SandboxPolicy {
+        SandboxPolicy {
+            extra_ro_paths: vec![Path::new("/opt/cli").to_path_buf()],
+            home_dir: Some(Path::new("/run/h").to_path_buf()),
+            tmp_dir: Some(Path::new("/run/t").to_path_buf()),
+            network: NetworkPolicy::Outbound,
+            keychain: true,
+        }
+    }
+
+    #[test]
+    fn default_policy_argv_is_byte_identical_to_the_historical_argv() {
+        assert_eq!(
+            bwrap_args_with_policy("/w/run.sh", &["a"], "/w", &[("K", "v")], &SandboxPolicy::default()),
+            bwrap_args("/w/run.sh", &["a"], "/w", &[("K", "v")])
+        );
+        assert!(!bwrap_args("/x", &[], "/w", &[]).contains(&"--share-net".to_string()));
+    }
+
+    #[test]
+    fn outbound_policy_shares_only_the_net_namespace_after_unshare_all() {
+        let a = bwrap_args_with_policy("/x", &[], "/w", &[], &pol());
+        assert!(idx(&a, "--share-net") > idx(&a, "--unshare-all"));
+        assert_eq!(a.iter().filter(|x| *x == "--unshare-all").count(), 1);
+        for f in ["/etc/resolv.conf", "/etc/hosts", "/etc/ssl", "/etc/ca-certificates"] {
+            assert!(a.windows(3).any(|w| w[0] == "--ro-bind-try" && w[1] == f && w[2] == f), "{f}");
+        }
+        assert!(a.contains(&"--cap-drop".to_string()) && a.contains(&"--new-session".to_string()), "hardening intact");
+    }
+
+    #[test]
+    fn extra_ro_home_and_tmp_are_bound_before_the_root_goes_read_only() {
+        let a = bwrap_args_with_policy("/x", &[], "/w", &[], &pol());
+        let bind = |flag: &str, p: &str| a.windows(3).position(|w| w[0] == flag && w[1] == p && w[2] == p).unwrap_or_else(|| panic!("{flag} {p}"));
+        let ro = bind("--ro-bind", "/opt/cli");
+        let (h, t) = (bind("--bind", "/run/h"), bind("--bind", "/run/t"));
+        let remount = idx(&a, "--remount-ro");
+        assert!(ro < remount && h < remount && t < remount);
+        // the real home is still never bound
+        assert!(!a.iter().any(|x| x.starts_with("/home") || x.starts_with("/root")));
+    }
+
+    #[test]
+    fn network_none_policy_keeps_the_namespace_private() {
+        let mut p = pol();
+        p.network = NetworkPolicy::None;
+        let a = bwrap_args_with_policy("/x", &[], "/w", &[], &p);
+        assert!(!a.contains(&"--share-net".to_string()) && !a.contains(&"/etc/resolv.conf".to_string()));
+        p.network = NetworkPolicy::Loopback; // bwrap has only the private lo
+        assert!(!bwrap_args_with_policy("/x", &[], "/w", &[], &p).contains(&"--share-net".to_string()));
+    }
+
+    #[test]
+    fn invalid_policies_are_refused() {
+        let bad = SandboxPolicy { extra_ro_paths: vec![Path::new("/").to_path_buf()], ..Default::default() };
+        assert!(Bwrap.wrap_command_with_policy("/x", &[], Path::new("/w"), &[], &bad).is_err());
+        let bad = SandboxPolicy { tmp_dir: Some(Path::new("t").to_path_buf()), ..Default::default() };
+        assert!(Bwrap.wrap_command_with_policy("/x", &[], Path::new("/w"), &[], &bad).is_err());
     }
 
     #[test]

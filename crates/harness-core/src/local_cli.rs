@@ -108,6 +108,8 @@ pub struct LocalCliBackend {
     /// just edited on the host is not allowed outside the sandboxed installer path, so `run`
     /// fails fast when this is set. (The legacy LiteLLM loop keeps its own `rebuild` tool.)
     pub rebuild_after: bool,
+    /// Test-only (feature `test-unsandboxed`): run without the OS sandbox. Always false otherwise.
+    unconfined: bool,
 }
 
 impl LocalCliBackend {
@@ -123,9 +125,76 @@ impl LocalCliBackend {
                 timeout: DEFAULT_CLI_TIMEOUT,
                 model: None,
                 rebuild_after: false,
+                unconfined: false,
             }),
             other => Err(format!("{} is not a local agent CLI backend", other.id())),
         }
+    }
+
+    /// Wrap `spec` in the platform sandbox with a per-run HOME holding only this CLI's login.
+    /// Fails closed: no sandbox backend, an unsupported policy, or an unpreparable HOME is an
+    /// error, never a fallback to an unconfined run.
+    #[allow(clippy::type_complexity)]
+    fn sandboxed(
+        &self,
+        req: &AgentRequest<'_>,
+        spec: &CommandSpec,
+        ambient: &dyn Fn(&str) -> Option<OsString>,
+    ) -> Result<(CommandSpec, Vec<(OsString, OsString)>, crate::cli_sandbox::RunDirs), String> {
+        use crate::cli_sandbox as cs;
+        use installer_engine::sandbox::{self, NetworkPolicy, SandboxPolicy, Selection};
+        let backend = match sandbox::select() {
+            Selection::Sandboxed(b) => b,
+            Selection::Unsandboxed { tried } => {
+                return Err(format!(
+                    "no OS sandbox backend is available on this host ({tried:?}); refusing to run {} unconfined \
+                     (see `doctor`)",
+                    self.kind.id()
+                ))
+            }
+        };
+        let real_home = ambient("HOME").map(PathBuf::from).ok_or("HOME is not set; cannot locate the CLI login")?;
+        let dirs = cs::create_run_dirs().map_err(|e| format!("create per-run HOME/TMPDIR: {e}"))?;
+        let copied = cs::prepare_home(&cs::credential_files(self.kind, &real_home, ambient), &dirs.home)?;
+        let keychain = cs::needs_keychain(self.kind, &copied) && cs::link_keychains(&real_home, &dirs.home)?;
+        let path_var = ambient("PATH").unwrap_or_default();
+        let canon = std::fs::canonicalize(&spec.program).map_err(|e| format!("{}: {e}", spec.program.display()))?;
+        let policy = SandboxPolicy {
+            extra_ro_paths: cs::runtime_ro_paths(&spec.program, &path_var),
+            home_dir: Some(dirs.home.clone()),
+            tmp_dir: Some(dirs.tmp.clone()),
+            network: NetworkPolicy::Outbound,
+            keychain,
+        };
+        let env = cs::sandbox_env(self.kind, ambient, req.max_output_tokens, &dirs);
+        let env_refs: Vec<(String, String)> = env
+            .iter()
+            .map(|(k, v)| (k.to_string_lossy().into_owned(), v.to_string_lossy().into_owned()))
+            .collect();
+        let env_refs: Vec<(&str, &str)> = env_refs.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+        let args: Vec<String> = spec.args.iter().map(|a| a.to_string_lossy().into_owned()).collect();
+        let args: Vec<&str> = args.iter().map(String::as_str).collect();
+        let (program, wrapped) = backend.wrap_command_with_policy(
+            &canon.to_string_lossy(),
+            &args,
+            req.work_dir,
+            &env_refs,
+            &policy,
+        )?;
+        let wrapped = CommandSpec {
+            program: PathBuf::from(program),
+            args: wrapped.into_iter().map(OsString::from).collect(),
+            stdin: spec.stdin.clone(),
+        };
+        Ok((wrapped, env, dirs))
+    }
+
+    /// Run the CLI directly, without the OS sandbox. Only exists for this crate's own tests with
+    /// fake CLIs; experimental CLIs stay refused in this mode.
+    #[cfg(feature = "test-unsandboxed")]
+    pub fn unconfined_for_tests(mut self) -> Self {
+        self.unconfined = true;
+        self
     }
 
     /// Pure argv construction -- no spawn. Flags are those printed by each CLI's `--help`
@@ -212,13 +281,11 @@ impl AgentBackend for LocalCliBackend {
         record: &mut TranscriptFn<'_>,
     ) -> Result<AgentSuccess, AgentFailure> {
         let fail = |turns_used: u32, reason: String| AgentFailure { turns_used, reason };
-        if self.kind != BackendKind::ClaudeCode {
+        if self.unconfined && self.kind != BackendKind::ClaudeCode {
             return Err(fail(
                 0,
                 format!(
-                    "{} is refused: an experimental agent CLI may only run wrapped in an OS sandbox \
-                     backend, which is not available yet (only claude runs, with its own --restricted \
-                     confinement)",
+                    "{} is refused: an experimental agent CLI only runs wrapped in an OS sandbox",
                     self.kind.id()
                 ),
             ));
@@ -231,14 +298,20 @@ impl AgentBackend for LocalCliBackend {
                     .into(),
             ));
         }
-        let spec = self.build_command(req);
         let ambient = |k: &str| std::env::var_os(k);
-        let env = build_env(self.kind, &ambient, req.max_output_tokens);
+        let mut spec = self.build_command(req);
+        let (env, limits, _dirs) = if self.unconfined {
+            (build_env(self.kind, &ambient, req.max_output_tokens), None, None)
+        } else {
+            let (wrapped, env, dirs) = self.sandboxed(req, &spec, &ambient).map_err(|e| fail(0, e))?;
+            spec = wrapped;
+            (env, Some(installer_engine::sandbox::DEFAULT_LIMITS), Some(dirs))
+        };
 
         let before =
             snapshot(req.work_dir).map_err(|e| fail(0, format!("snapshot bundle: {e}")))?;
         let out =
-            run_bounded_io(&spec, req.work_dir, &env, self.timeout).map_err(|e| fail(0, e))?;
+            run_bounded_io(&spec, req.work_dir, &env, self.timeout, limits).map_err(|e| fail(0, e))?;
 
         for (stream, bytes) in [("stdout", &out.stdout), ("stderr", &out.stderr)] {
             let (text, truncated) = lossy_capped(bytes);
@@ -357,7 +430,7 @@ pub fn detect_backends_in(path_var: &OsStr, home: Option<&OsStr>) -> Vec<Detecte
             args: vec!["--version".into()],
             stdin: Vec::new(),
         };
-        let version = run_bounded_io(&spec, Path::new("/"), &env, VERSION_PROBE_TIMEOUT)
+        let version = run_bounded_io(&spec, Path::new("/"), &env, VERSION_PROBE_TIMEOUT, None)
             .ok()
             .filter(|o| !o.timed_out)
             .and_then(|o| {
@@ -427,6 +500,7 @@ fn run_bounded_io(
     cwd: &Path,
     env: &[(OsString, OsString)],
     timeout: Duration,
+    limits: Option<installer_engine::sandbox::Limits>,
 ) -> Result<ProcOutput, String> {
     let started = Instant::now();
     let mut cmd = Command::new(&spec.program);
@@ -441,7 +515,15 @@ fn run_bounded_io(
     {
         use std::os::unix::process::CommandExt;
         cmd.process_group(0);
+        if let Some(l) = limits {
+            // SAFETY: `apply_limits` only calls the async-signal-safe get/setrlimit.
+            unsafe {
+                cmd.pre_exec(move || installer_engine::process::apply_limits(l));
+            }
+        }
     }
+    #[cfg(not(unix))]
+    let _ = limits;
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("failed to spawn {}: {e}", spec.program.display()))?;
