@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 OUT=apps/android/app/src/main
 
-cargo ndk -t arm64-v8a -t x86_64 -o "$OUT/jniLibs" build -p mobile-core --release
+cargo ndk -t arm64-v8a -t x86_64 -o "$OUT/jniLibs" build -p mobile-core --features wasm --release
 
 # Bindings come from the host build of the same library (metadata is identical).
 cargo build -p mobile-core --release

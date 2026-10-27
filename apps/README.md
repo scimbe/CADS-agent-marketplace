@@ -6,7 +6,7 @@ Verbraucher-Apps fuer den CADS-Marktplatz. Beide Apps nutzen denselben Rust-Kern
 |---|---|
 | Signierte Prompt-Vorlagen auf dem Geraet pruefen (Signatur, Ablauf, Herkunft der Komponenten) und ausfuellen | `verify_prompt_template`, `render_prompt_template` (nutzt `manifest-core`, keine zweite Implementierung) |
 | Installationen speichern, anpassen, abrufen | `InstallationsClient` gegen `/me/installations` der CADS-Tunnel-Control-Plane (Bearer-Token, `If-Match`-Revision, Fehler `Conflict`, `NotFound`, `Rejected422{path}`, `Unauthorized`) |
-| Wasm-Installationen auf dem Geraet ausfuehren (spaeter) | Trait `WasmExecutor` mit Stub in `crates/mobile-core/src/wasm.rs` (TODO: `installer-engine::wasm_runtime` anbinden, sobald `feat/wasm-installer` gemergt ist) |
+| Wasm-Installationen auf dem Geraet ausfuehren | `run_wasm_installation(component, spec_json, args, work_dir)` ueber `installer-engine::wasm_runtime` (Cargo-Feature `wasm`, von den Build-Skripten aktiviert; wasmtime-Komponentenmodell, WASI 0.2, Grenzen und Rechte aus der signierten `WasmSpec`). Pulley-Interpreter auf iOS (kein JIT erlaubt), Cranelift-JIT auf Android. Ohne das Feature liefert `WasmExecutor` einen Stub, der ablehnt. Test mit den WAT-Gaesten des Repos: `cargo test -p mobile-core --features wasm` (benoetigt Rust >= 1.97) |
 
 Screens in beiden Apps: **Vorlagen**, **Vorlage-Detail** (Vertrauensanzeige, Formular, Vorschau, Speichern), **Meine Installationen** (Liste, Detail/Bearbeiten, Duplizieren, Loeschen, Konfliktbehandlung bei 409: neu laden oder ueberschreiben). Texte auf Deutsch und Englisch. Die Beispielvorlagen werden direkt aus `manifests/prompt-templates/` gebuendelt.
 

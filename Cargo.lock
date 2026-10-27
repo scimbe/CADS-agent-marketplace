@@ -1419,12 +1419,16 @@ dependencies = [
 name = "mobile-core"
 version = "0.1.0"
 dependencies = [
+ "installer-engine",
  "manifest-core",
  "serde",
  "serde_json",
+ "sha2",
+ "tempfile",
  "thiserror",
  "uniffi",
  "ureq",
+ "wat",
 ]
 
 [[package]]
