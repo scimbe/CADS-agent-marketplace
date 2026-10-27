@@ -144,3 +144,65 @@ fn a_wasm_kind_without_a_wasm_block_and_a_stray_block_on_another_kind_are_both_r
         }
     }
 }
+
+#[test]
+fn secrets_are_never_written_into_a_work_dir_the_guest_can_see() {
+    // env_template declares SECRET, the operator supplies it, the spec grants NO env and preopens the
+    // whole work dir read-write. The guest must find nothing: no `.env`, no file containing the value.
+    let dir = tempfile::tempdir().unwrap();
+    let c = fs_probe_component("out.txt");
+    let key = SigningKey::from_bytes(&[21u8; 32]);
+    let tarball = tar_gz(&[("app.wasm", &c)]);
+    let bundle = dir.path().join("bundle.tar.gz");
+    std::fs::write(&bundle, &tarball).unwrap();
+    let spec = WasmSpec {
+        component_path: "app.wasm".into(),
+        component_sha256: Sha256::digest(&c).into(),
+        world: "wasi:cli/command".into(),
+        capabilities: WasmCapabilities {
+            preopens: vec![Preopen { guest_path: "/work".into(), host_subdir: String::new(), mode: PreopenMode::Rw }],
+            allowed_http_hosts: vec![],
+            env: vec![],
+        },
+        limits: WasmLimits { max_memory_bytes: 16 << 20, timeout_ms: 5_000, fuel: None },
+    };
+    let m = ServiceManifest::sign_new_with_wasm(
+        &key,
+        [0x78; 32],
+        "wasm-secret".into(),
+        "0.1.0".into(),
+        InstallerKind::Wasm,
+        BundleRef { url: bundle.to_str().unwrap().into(), sha256: Sha256::digest(&tarball).into(), compose_file: "app.wasm".into() },
+        vec![manifest_core::EnvVarSpec { name: "SECRET".into(), required: true, description: "x".into() }],
+        VerifySpec { script: "unused".into(), timeout_secs: 1 },
+        0,
+        u64::MAX / 2,
+        None,
+        None,
+        Some(spec),
+    );
+    let manifest_path = dir.path().join("manifest.json");
+    std::fs::write(&manifest_path, serde_json::to_vec(&m).unwrap()).unwrap();
+    let env_file = dir.path().join("secrets.env");
+    std::fs::write(&env_file, "SECRET=hunter2-top-secret\n").unwrap();
+    let report = activate(ActivateOptions {
+        manifest_location: manifest_path.to_str().unwrap().into(),
+        allowlist: TrustAllowlist::parse(&hex(&key.verifying_key().to_bytes())).unwrap(),
+        env_file: Some(env_file),
+        project_name: format!("wasm-secret-{}", std::process::id()),
+        protected_name_substrings: vec![],
+        work_dir: dir.path().join("work"),
+        now: 1,
+        require_binary_sandbox: true,
+    });
+    assert!(matches!(report, InstallReport::Ok { .. }), "{}", report.to_json());
+    let work = dir.path().join("work");
+    assert!(!work.join(".env").exists(), "no .env may exist in a Wasm install's work dir");
+    for entry in std::fs::read_dir(&work).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_file() {
+            let data = std::fs::read(&path).unwrap();
+            assert!(!String::from_utf8_lossy(&data).contains("hunter2"), "{} leaks the secret", path.display());
+        }
+    }
+}

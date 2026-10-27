@@ -268,3 +268,87 @@ fn wasi_http_is_linked_only_when_hosts_are_granted() {
     let r = run_wasm_component(&bytes, &spec, dir.path(), &[]);
     assert_eq!(r.outcome, WasmOutcome::Exited { code: 0 }, "{r:?}");
 }
+
+#[test]
+fn only_env_names_granted_by_the_spec_reach_the_guest() {
+    let dir = tempfile::tempdir().unwrap();
+    let values = vec![("GRANTED".to_string(), "v1".to_string()), ("SECRET".to_string(), "s3cret".to_string())];
+    for (granted, expected) in [(vec![], 0u32), (vec!["GRANTED".to_string()], 1)] {
+        let bytes = common::env_count_component(expected);
+        let mut spec = spec_for(&bytes, vec![]);
+        spec.capabilities.env = granted;
+        let opts = WasmRunOptions { env: values.clone(), ..Default::default() };
+        let r = run_wasm_component_with(&bytes, &spec, dir.path(), &opts);
+        assert_eq!(r.outcome, WasmOutcome::Exited { code: 0 }, "expected exactly {expected} variable(s): {r:?}");
+    }
+    // Control: the probe really fails when the count is wrong (no ambient env, SECRET not leaked).
+    let bytes = common::env_count_component(2);
+    let mut spec = spec_for(&bytes, vec![]);
+    spec.capabilities.env = vec!["GRANTED".into()];
+    let opts = WasmRunOptions { env: values, ..Default::default() };
+    let r = run_wasm_component_with(&bytes, &spec, dir.path(), &opts);
+    assert_eq!(r.outcome, WasmOutcome::Exited { code: 1 }, "{r:?}");
+}
+
+#[test]
+fn an_oversized_component_is_refused_before_hashing_or_compiling() {
+    let bytes = simple_component("i32.const 0", 1);
+    let spec = spec_for(&bytes, vec![]);
+    let dir = tempfile::tempdir().unwrap();
+    let opts = WasmRunOptions { max_component_bytes: bytes.len() - 1, ..Default::default() };
+    let r = run_wasm_component_with(&bytes, &spec, dir.path(), &opts);
+    match r.outcome {
+        WasmOutcome::Refused { reason } => assert!(reason.contains("component_too_large"), "{reason}"),
+        other => panic!("expected Refused, got {other:?}"),
+    }
+    let ok = WasmRunOptions { max_component_bytes: bytes.len(), ..Default::default() };
+    assert!(run_wasm_component_with(&bytes, &spec, dir.path(), &ok).success());
+}
+
+#[test]
+fn compilation_counts_against_the_time_budget() {
+    // ~600k-op function: Cranelift needs far longer than 30 ms for it; the run must come back as
+    // TimedOut promptly instead of blocking until the compile is done.
+    let bytes = common::slow_to_compile_component(600_000);
+    let mut spec = spec_for(&bytes, vec![]);
+    spec.limits.timeout_ms = 30;
+    let dir = tempfile::tempdir().unwrap();
+    let started = std::time::Instant::now();
+    let r = run_wasm_component(&bytes, &spec, dir.path(), &[]);
+    assert_eq!(r.outcome, WasmOutcome::TimedOut, "{r:?}");
+    assert!(started.elapsed() < std::time::Duration::from_secs(3), "returned after {:?}", started.elapsed());
+}
+
+#[test]
+fn a_guest_cannot_flood_the_host_resource_table() {
+    // Each call allocates new descriptor handles; 20_000 calls would need far more than the cap.
+    let bytes = common::table_flood_component(20_000);
+    let spec = spec_for(&bytes, vec![rw("/work", "")]);
+    let dir = tempfile::tempdir().unwrap();
+    let r = run_wasm_component(&bytes, &spec, dir.path(), &[]);
+    assert!(matches!(r.outcome, WasmOutcome::Trapped { .. } | WasmOutcome::Error { .. }), "the table cap must stop it: {r:?}");
+    // And a modest number of calls is fine.
+    let ok = common::table_flood_component(100);
+    let spec = spec_for(&ok, vec![rw("/work", "")]);
+    assert!(run_wasm_component(&ok, &spec, dir.path(), &[]).success());
+}
+
+#[test]
+fn ro_and_rw_preopens_of_overlapping_host_directories_are_refused() {
+    let bytes = simple_component("i32.const 0", 1);
+    let dir = tempfile::tempdir().unwrap();
+    let ro = |g: &str, sub: &str| Preopen { guest_path: g.into(), host_subdir: sub.into(), mode: PreopenMode::Ro };
+    for pair in [vec![rw("/a", ""), ro("/b", "")], vec![rw("/a", "x"), ro("/b", "x/y")], vec![ro("/a", ""), rw("/b", "x")]] {
+        let spec = spec_for(&bytes, pair);
+        let r = run_wasm_component(&bytes, &spec, dir.path(), &[]);
+        match r.outcome {
+            WasmOutcome::Refused { reason } => assert!(reason.contains("overlap"), "{reason}"),
+            other => panic!("expected Refused, got {other:?}"),
+        }
+    }
+    // Disjoint trees with different modes, and same-mode overlap, are fine.
+    for pair in [vec![rw("/a", "x"), ro("/b", "y")], vec![rw("/a", ""), rw("/b", "x")]] {
+        let spec = spec_for(&bytes, pair);
+        assert!(run_wasm_component(&bytes, &spec, dir.path(), &[]).success());
+    }
+}

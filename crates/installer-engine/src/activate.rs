@@ -324,9 +324,13 @@ pub(crate) fn activate_with_selector_on(
         Ok(d) => d,
         Err(e) => return InstallReport::Rejected { reason: e, manifest_id: Some(manifest_id_hex) },
     };
-    let env_file_path = opts.work_dir.join(".env");
-    if let Err(e) = write_env_file(&env_file_path, &dotenv) {
-        return InstallReport::Rejected { reason: format!("write .env: {e}"), manifest_id: Some(manifest_id_hex) };
+    // Wasm: NEVER write `.env`. A preopen of the work dir would hand the guest every resolved
+    // `env_template` value, bypassing `capabilities.env`; the runtime passes only the granted names.
+    if manifest.installer_kind != InstallerKind::Wasm {
+        let env_file_path = opts.work_dir.join(".env");
+        if let Err(e) = write_env_file(&env_file_path, &dotenv) {
+            return InstallReport::Rejected { reason: format!("write .env: {e}"), manifest_id: Some(manifest_id_hex) };
+        }
     }
 
     let publisher_hex = hex32(&manifest.publisher_pubkey);

@@ -15,6 +15,10 @@ use wasmtime_wasi::{FsPerms, I32Exit, WasiCtx, WasiCtxBuilder, WasiCtxView, Wasi
 /// Epoch tick: how often a running guest hands control back to check the deadline.
 const EPOCH_TICK: Duration = Duration::from_millis(10);
 
+/// Upper bound on live WASI resources (open files, streams, pollables, ...) per run. A guest that
+/// opens or allocates handles in a loop hits this long before it exhausts host memory.
+const MAX_RESOURCE_TABLE_ENTRIES: usize = 10_000;
+
 /// Total-memory limiter. Trapping (instead of letting `memory.grow` return -1) makes exceeding the
 /// cap a distinct, clean outcome whatever the guest's allocator would have done with a failure.
 struct Limiter {
@@ -48,16 +52,25 @@ impl ResourceLimiter for Limiter {
 }
 
 #[cfg(feature = "wasm-http")]
-mod http_policy {
+pub(super) mod http_policy {
+    use super::super::http_connect::{send_pinned, Resolver};
+    use std::sync::Arc;
     use wasmtime_wasi_http::{Error, RequestOptions, WasiBody, WasiHttpHooks};
 
-    /// Outgoing-request policy: https only, exact hostname allowlist, port 443 only.
-    pub(super) struct AllowlistHooks {
-        pub hosts: Vec<String>,
+    /// Outgoing-request policy: https only, exact hostname allowlist, port 443 only, and the
+    /// destination address is resolved once, vetted ([`super::super::http_connect::is_global_ip`])
+    /// and pinned for the connection (DNS-rebinding / SSRF defence).
+    pub(in super::super) struct AllowlistHooks {
+        hosts: Vec<String>,
+        resolver: Arc<dyn Resolver>,
     }
 
     impl AllowlistHooks {
-        pub(super) fn permits(&self, uri: &http::Uri) -> bool {
+        pub(in super::super) fn new(hosts: Vec<String>, resolver: Arc<dyn Resolver>) -> Self {
+            AllowlistHooks { hosts, resolver }
+        }
+
+        pub(in super::super) fn permits(&self, uri: &http::Uri) -> bool {
             uri.scheme() == Some(&http::uri::Scheme::HTTPS)
                 && matches!(uri.port_u16(), None | Some(443))
                 && uri.host().is_some_and(|h| {
@@ -90,11 +103,7 @@ mod http_policy {
             if !self.permits(request.uri()) {
                 return Box::new(async { Err(Error::HttpRequestDenied) });
             }
-            Box::new(async move {
-                use http_body_util::BodyExt;
-                let (res, io) = wasmtime_wasi_http::default_send_request(request, options).await?;
-                Ok((res.map(BodyExt::boxed_unsync), Box::new(io) as Box<dyn std::future::Future<Output = _> + Send>))
-            })
+            Box::new(send_pinned(self.resolver.clone(), request, options))
         }
     }
 }
@@ -134,16 +143,36 @@ fn resolve_host_dir(canonical_work: &Path, subdir: &str) -> Result<PathBuf, Stri
     Ok(canonical)
 }
 
+/// A read-only and a read-write preopen of the same (or nested) host directory would let the guest
+/// pick whichever mode suits it for that tree; the manifest must say one thing per tree.
+fn check_no_mixed_mode_overlap(resolved: &[(PathBuf, PreopenMode, &str)]) -> Result<(), String> {
+    for (i, (a, ma, ga)) in resolved.iter().enumerate() {
+        for (b, mb, gb) in &resolved[i + 1..] {
+            if ma != mb && (a.starts_with(b) || b.starts_with(a)) {
+                return Err(format!("preopens {ga} and {gb} overlap on the host with different modes (ro/rw)"));
+            }
+        }
+    }
+    Ok(())
+}
+
 fn engine_config(kind: WasmEngineKind, fuel: bool) -> Result<Config, String> {
     let mut c = Config::new();
     c.consume_fuel(fuel);
     c.epoch_interruption(true);
     // Keep the guest stack bounded regardless of the host thread's stack.
     c.max_wasm_stack(512 * 1024);
+    if cfg!(target_pointer_width = "32") {
+        // 32-bit hosts (older Android phones, armv7): there is no address space for the 64-bit
+        // style multi-GiB reservations, so use small explicit ones and rely on bounds checks.
+        c.memory_reservation(16 << 20);
+        c.memory_guard_size(64 << 10);
+        c.memory_reservation_for_growth(1 << 20);
+    }
     if kind == WasmEngineKind::Interpreter {
         let target = if cfg!(target_pointer_width = "64") { "pulley64" } else { "pulley32" };
         c.target(target).map_err(|e| format!("pulley target {target}: {e}"))?;
-        // Pulley does not use signal-based traps' guard pages on every host (iOS forbids them).
+        // No guard-page/signal-based traps: iOS forbids the signal handlers they need.
         c.signals_based_traps(false);
     }
     Ok(c)
@@ -160,6 +189,7 @@ pub(super) fn run(bytes: &[u8], spec: &WasmSpec, work_dir: &Path, opts: &WasmRun
             outcome: WasmOutcome::Error { message: "wasm runtime thread panicked".to_string() },
             stdout: String::new(),
             stderr: String::new(),
+            output_truncated: false,
             duration_ms: 0,
             fuel_consumed: None,
             engine: opts.engine,
@@ -171,20 +201,26 @@ pub(super) fn run(bytes: &[u8], spec: &WasmSpec, work_dir: &Path, opts: &WasmRun
 
 fn run_inner(bytes: &[u8], spec: &WasmSpec, work_dir: &Path, opts: &WasmRunOptions) -> WasmRunReport {
     let engine_kind = opts.engine;
-    let mk = |outcome: WasmOutcome, stdout: String, stderr: String, fuel: Option<u64>| WasmRunReport {
+    // One budget for everything: compile, instantiate and run all count against `timeout_ms`.
+    let timeout = Duration::from_millis(spec.limits.timeout_ms);
+    let deadline = Instant::now() + timeout;
+
+    let mk = |outcome: WasmOutcome, stdout: String, stderr: String, truncated: bool, fuel: Option<u64>| WasmRunReport {
         outcome,
         stdout,
         stderr,
+        output_truncated: truncated,
         duration_ms: 0,
         fuel_consumed: fuel,
         engine: engine_kind,
     };
-    let refused = |reason: String| mk(WasmOutcome::Refused { reason }, String::new(), String::new(), None);
-    let error = |message: String| mk(WasmOutcome::Error { message }, String::new(), String::new(), None);
+    let refused = |reason: String| mk(WasmOutcome::Refused { reason }, String::new(), String::new(), false, None);
+    let error = |message: String| mk(WasmOutcome::Error { message }, String::new(), String::new(), false, None);
 
-    let http_hosts = &spec.capabilities.allowed_http_hosts;
+    #[cfg(feature = "wasm-http")]
+    let http_hosts = spec.capabilities.allowed_http_hosts.clone();
     #[cfg(not(feature = "wasm-http"))]
-    if !http_hosts.is_empty() {
+    if !spec.capabilities.allowed_http_hosts.is_empty() {
         return refused("wasm_unavailable: allowed_http_hosts requires the `wasm-http` feature".to_string());
     }
 
@@ -194,17 +230,24 @@ fn run_inner(bytes: &[u8], spec: &WasmSpec, work_dir: &Path, opts: &WasmRunOptio
         Err(e) => return refused(format!("work_dir {}: {e}", work_dir.display())),
     };
     let mut wasi = WasiCtxBuilder::new();
+    let mut resolved: Vec<(PathBuf, PreopenMode, &str)> = Vec::new();
     for po in &spec.capabilities.preopens {
         let host = match resolve_host_dir(&canonical_work, &po.host_subdir) {
             Ok(h) => h,
             Err(e) => return refused(format!("preopen {}: {e}", po.guest_path)),
         };
-        let perms = match po.mode {
+        resolved.push((host, po.mode, po.guest_path.as_str()));
+    }
+    if let Err(e) = check_no_mixed_mode_overlap(&resolved) {
+        return refused(e);
+    }
+    for (host, mode, guest) in &resolved {
+        let perms = match mode {
             PreopenMode::Ro => FsPerms::ReadOnly,
             PreopenMode::Rw => FsPerms::ReadWrite,
         };
-        if let Err(e) = wasi.preopened_dir(&host, &po.guest_path, perms) {
-            return refused(format!("preopen {}: {e}", po.guest_path));
+        if let Err(e) = wasi.preopened_dir(host, guest, perms) {
+            return refused(format!("preopen {guest}: {e}"));
         }
     }
 
@@ -215,6 +258,9 @@ fn run_inner(bytes: &[u8], spec: &WasmSpec, work_dir: &Path, opts: &WasmRunOptio
     let mut argv = vec!["component.wasm".to_string()];
     argv.extend(opts.args.iter().cloned());
     wasi.args(&argv);
+    // The ONLY source of guest-visible environment: names granted by the signed spec, values from
+    // the caller. Nothing is inherited, and (see `activate`) no `.env` file is written to the work
+    // dir for Wasm installs, so a work-dir preopen cannot expose ungranted secrets either.
     for name in &spec.capabilities.env {
         if let Some((_, v)) = opts.env.iter().find(|(k, _)| k == name) {
             wasi.env(name, v);
@@ -225,7 +271,7 @@ fn run_inner(bytes: &[u8], spec: &WasmSpec, work_dir: &Path, opts: &WasmRunOptio
     wasi.allow_tcp(false).allow_udp(false).allow_ip_name_lookup(false);
     wasi.socket_addr_check(|_, _| Box::pin(async { false }));
 
-    // --- engine, component, linker --------------------------------------------------------------
+    // --- engine, linker ------------------------------------------------------------------------
     let config = match engine_config(engine_kind, spec.limits.fuel.is_some()) {
         Ok(c) => c,
         Err(e) => return error(e),
@@ -233,10 +279,6 @@ fn run_inner(bytes: &[u8], spec: &WasmSpec, work_dir: &Path, opts: &WasmRunOptio
     let engine = match Engine::new(&config) {
         Ok(e) => e,
         Err(e) => return error(format!("engine: {e}")),
-    };
-    let component = match Component::new(&engine, bytes) {
-        Ok(c) => c,
-        Err(e) => return error(format!("compile component: {e}")),
     };
     let mut linker: Linker<Host> = Linker::new(&engine);
     if let Err(e) = wasmtime_wasi::p2::add_to_linker_async(&mut linker) {
@@ -249,14 +291,16 @@ fn run_inner(bytes: &[u8], spec: &WasmSpec, work_dir: &Path, opts: &WasmRunOptio
         }
     }
 
+    let mut table = ResourceTable::new();
+    table.set_max_capacity(MAX_RESOURCE_TABLE_ENTRIES);
     let host = Host {
         wasi: wasi.build(),
-        table: ResourceTable::new(),
+        table,
         limiter: Limiter { max: usize::try_from(spec.limits.max_memory_bytes).unwrap_or(usize::MAX), used: 0, exceeded: false },
         #[cfg(feature = "wasm-http")]
         http: wasmtime_wasi_http::WasiHttpCtx::new(),
         #[cfg(feature = "wasm-http")]
-        hooks: http_policy::AllowlistHooks { hosts: http_hosts.clone() },
+        hooks: http_policy::AllowlistHooks::new(http_hosts, Arc::new(super::http_connect::SystemResolver)),
     };
     let mut store = Store::new(&engine, host);
     store.limiter(|h| &mut h.limiter);
@@ -267,8 +311,6 @@ fn run_inner(bytes: &[u8], spec: &WasmSpec, work_dir: &Path, opts: &WasmRunOptio
     }
 
     // --- time: epoch ticker + deadline callback + host-side timeout -----------------------------
-    let timeout = Duration::from_millis(spec.limits.timeout_ms);
-    let deadline = Instant::now() + timeout;
     let timed_out = Arc::new(AtomicBool::new(false));
     store.set_epoch_deadline(1);
     {
@@ -301,33 +343,45 @@ fn run_inner(bytes: &[u8], spec: &WasmSpec, work_dir: &Path, opts: &WasmRunOptio
             return error(format!("tokio runtime: {e}"));
         }
     };
-    let result: Result<Result<wasmtime::Result<Result<(), ()>>, ()>, ()> = rt.block_on(async {
+    // Compile (Cranelift, potentially seconds for a hostile component) on a blocking thread so the
+    // timeout can fire while it runs; then instantiate and run, all inside the same budget.
+    let bytes_owned = bytes.to_vec();
+    let compile_engine = engine.clone();
+    let result: Result<wasmtime::Result<Result<(), ()>>, ()> = rt.block_on(async {
         let fut = async {
+            let component = tokio::task::spawn_blocking(move || Component::new(&compile_engine, &bytes_owned))
+                .await
+                .map_err(|e| wasmtime::format_err!("compile task failed: {e}"))??;
             let command = wasmtime_wasi::p2::bindings::Command::instantiate_async(&mut store, &component, &linker).await?;
             command.wasi_cli_run().call_run(&mut store).await
         };
-        match tokio::time::timeout(timeout, fut).await {
-            Ok(r) => Ok(Ok(r)),
-            Err(_elapsed) => Err(()),
-        }
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        tokio::time::timeout(remaining, fut).await.map_err(|_elapsed| ())
     });
     stop.store(true, Ordering::SeqCst);
     let _ = ticker.join();
+    // Do not wait for a still-running compile on timeout: it cannot be interrupted, only abandoned.
+    rt.shutdown_background();
 
     let fuel_consumed = spec.limits.fuel.map(|f| f.saturating_sub(store.get_fuel().unwrap_or(0)));
-    let out = String::from_utf8_lossy(&stdout.contents()).into_owned();
-    let err = String::from_utf8_lossy(&stderr.contents()).into_owned();
+    let out_bytes = stdout.contents();
+    let err_bytes = stderr.contents();
+    let truncated = out_bytes.len() >= opts.stdout_cap || err_bytes.len() >= opts.stderr_cap;
+    let out = String::from_utf8_lossy(&out_bytes).into_owned();
+    let err = String::from_utf8_lossy(&err_bytes).into_owned();
     let outcome = match result {
         Err(()) => WasmOutcome::TimedOut,
-        Ok(Err(())) => unreachable!("only constructed as Ok(Ok(..)) or Err(())"),
-        Ok(Ok(Ok(Ok(())))) => WasmOutcome::Exited { code: 0 },
-        Ok(Ok(Ok(Err(())))) => WasmOutcome::Exited { code: 1 },
-        Ok(Ok(Err(e))) => classify(&e, &store.data().limiter, &timed_out),
+        Ok(Ok(Ok(()))) => WasmOutcome::Exited { code: 0 },
+        Ok(Ok(Err(()))) => WasmOutcome::Exited { code: 1 },
+        Ok(Err(e)) => classify(&e, &store.data().limiter, &timed_out, truncated),
     };
-    mk(outcome, out, err, fuel_consumed)
+    mk(outcome, out, err, truncated, fuel_consumed)
 }
 
-fn classify(e: &wasmtime::Error, limiter: &Limiter, timed_out: &AtomicBool) -> WasmOutcome {
+/// Map a failed run to an outcome using typed signals only: `I32Exit`, the deadline flag the epoch
+/// callback sets, the limiter's own flag, `Trap::OutOfFuel`. A write that hit the stdout/stderr cap
+/// is recognised by the capture buffer being full (`truncated`), not by parsing an error message.
+fn classify(e: &wasmtime::Error, limiter: &Limiter, timed_out: &AtomicBool, truncated: bool) -> WasmOutcome {
     if let Some(I32Exit(code)) = e.downcast_ref::<I32Exit>() {
         return WasmOutcome::Exited { code: *code };
     }
@@ -340,25 +394,28 @@ fn classify(e: &wasmtime::Error, limiter: &Limiter, timed_out: &AtomicBool) -> W
     if matches!(e.downcast_ref::<Trap>(), Some(Trap::OutOfFuel)) {
         return WasmOutcome::OutOfFuel;
     }
-    let text = format!("{e:?}");
-    if text.contains("write beyond capacity of MemoryOutputPipe") {
+    if truncated {
         return WasmOutcome::OutputLimitExceeded;
     }
     match e.downcast_ref::<Trap>() {
         Some(_) => WasmOutcome::Trapped { message: format!("{e}") },
-        // Not a trap: instantiation/link failure (missing import, wrong world, ...).
+        // Not a trap: compile/instantiation/link failure (missing import, wrong world, ...).
         None => WasmOutcome::Error { message: format!("{e:#}") },
     }
 }
 
 #[cfg(all(test, feature = "wasm-http"))]
 mod http_tests {
+    use super::super::http_connect::{Resolver, SystemResolver};
     use super::http_policy::AllowlistHooks;
+    use std::future::Future;
+    use std::net::IpAddr;
     use std::pin::Pin;
+    use std::sync::Arc;
     use wasmtime_wasi_http::{Error, WasiBody, WasiHttpHooks};
 
     fn hooks() -> AllowlistHooks {
-        AllowlistHooks { hosts: vec!["api.example.com".to_string()] }
+        AllowlistHooks::new(vec!["api.example.com".to_string()], Arc::new(SystemResolver))
     }
 
     fn request(uri: &str) -> http::Request<WasiBody> {
@@ -391,16 +448,38 @@ mod http_tests {
         assert!(h.is_supported_scheme(&http::uri::Scheme::HTTPS));
     }
 
+    fn block_on<F: Future>(f: F) -> F::Output {
+        tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(f)
+    }
+
     #[test]
     fn a_request_to_a_non_allowed_host_is_denied_before_any_connection_is_attempted() {
         let mut h = hooks();
         let fut = h.send_request(request("https://evil.example.com/steal"), None, Box::new(async { Ok(()) }));
-        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
-        let res = rt.block_on(Pin::from(fut));
+        let res = block_on(Pin::from(fut));
         assert!(matches!(res, Err(Error::HttpRequestDenied)), "got {:?}", res.err());
         let mut h = hooks();
         let fut = h.send_request(request("http://api.example.com/"), None, Box::new(async { Ok(()) }));
-        let res = rt.block_on(Pin::from(fut));
+        let res = block_on(Pin::from(fut));
         assert!(matches!(res, Err(Error::HttpRequestDenied)), "plain http to an allowed host is denied too");
+    }
+
+    struct Fixed(IpAddr);
+    impl Resolver for Fixed {
+        fn resolve<'a>(&'a self, _: &'a str, _: u16) -> Pin<Box<dyn Future<Output = std::io::Result<Vec<IpAddr>>> + Send + 'a>> {
+            let ip = self.0;
+            Box::pin(async move { Ok(vec![ip]) })
+        }
+    }
+
+    #[test]
+    fn an_allowed_host_that_resolves_to_an_internal_address_is_refused_end_to_end() {
+        // DNS rebinding / SSRF: the NAME is on the allowlist, the ADDRESS is not acceptable.
+        for ip in ["127.0.0.1", "169.254.169.254", "10.0.0.5", "192.168.0.1", "100.64.0.1", "::1", "fd00::1", "::ffff:127.0.0.1"] {
+            let mut h = AllowlistHooks::new(vec!["api.example.com".to_string()], Arc::new(Fixed(ip.parse().unwrap())));
+            let fut = h.send_request(request("https://api.example.com/latest/meta-data"), None, Box::new(async { Ok(()) }));
+            let res = block_on(Pin::from(fut));
+            assert!(matches!(res, Err(Error::DestinationIpProhibited)), "{ip}: {:?}", res.err());
+        }
     }
 }

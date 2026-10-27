@@ -47,6 +47,11 @@ use subtle::ConstantTimeEq;
 
 /// Default cap on captured stdout and on captured stderr, each.
 pub const DEFAULT_OUTPUT_CAP_BYTES: usize = 64 * 1024;
+/// Default cap on the size of the component file (checked before hashing and compiling).
+pub const DEFAULT_MAX_COMPONENT_BYTES: usize = 16 * 1024 * 1024;
+
+#[cfg(feature = "wasm-http")]
+mod http_connect;
 
 /// Which wasmtime back end executes the component.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
@@ -71,6 +76,8 @@ pub struct WasmRunOptions {
     pub stdout_cap: usize,
     /// Cap for captured stderr, bytes.
     pub stderr_cap: usize,
+    /// Components larger than this are refused before they are hashed or compiled.
+    pub max_component_bytes: usize,
 }
 
 impl Default for WasmRunOptions {
@@ -81,6 +88,7 @@ impl Default for WasmRunOptions {
             env: Vec::new(),
             stdout_cap: DEFAULT_OUTPUT_CAP_BYTES,
             stderr_cap: DEFAULT_OUTPUT_CAP_BYTES,
+            max_component_bytes: DEFAULT_MAX_COMPONENT_BYTES,
         }
     }
 }
@@ -114,6 +122,8 @@ pub struct WasmRunReport {
     pub outcome: WasmOutcome,
     pub stdout: String,
     pub stderr: String,
+    /// `true` when stdout or stderr reached its cap (further output was dropped or the guest stopped).
+    pub output_truncated: bool,
     pub duration_ms: u128,
     /// Fuel actually consumed; `None` when no fuel limit was configured.
     pub fuel_consumed: Option<u64>,
@@ -131,6 +141,7 @@ impl WasmRunReport {
             outcome: WasmOutcome::Refused { reason },
             stdout: String::new(),
             stderr: String::new(),
+            output_truncated: false,
             duration_ms: 0,
             fuel_consumed: None,
             engine,
@@ -162,6 +173,12 @@ pub fn run_wasm_component(bytes: &[u8], spec: &WasmSpec, work_dir: &Path, args: 
 pub fn run_wasm_component_with(bytes: &[u8], spec: &WasmSpec, work_dir: &Path, opts: &WasmRunOptions) -> WasmRunReport {
     if let Err(reason) = spec.validate() {
         return WasmRunReport::refused(opts.engine, format!("wasm_spec_invalid: {reason}"));
+    }
+    if bytes.len() > opts.max_component_bytes {
+        return WasmRunReport::refused(
+            opts.engine,
+            format!("component_too_large: {} bytes exceeds the {} byte cap", bytes.len(), opts.max_component_bytes),
+        );
     }
     if let Err(reason) = verify_component_bytes(bytes, spec) {
         return WasmRunReport::refused(opts.engine, reason);
@@ -207,6 +224,12 @@ pub(crate) fn activate_wasm(
     let Some(spec) = manifest.wasm.as_ref() else {
         return reject("wasm_spec_invalid: missing wasm block".to_string());
     };
+    let max = WasmRunOptions::default().max_component_bytes as u64;
+    match std::fs::metadata(component_file) {
+        Ok(m) if m.len() > max => return reject(format!("component_too_large: {} bytes exceeds the {max} byte cap", m.len())),
+        Ok(_) => {}
+        Err(e) => return reject(format!("read component {}: {e}", component_file.display())),
+    }
     let bytes = match std::fs::read(component_file) {
         Ok(b) => b,
         Err(e) => return reject(format!("read component {}: {e}", component_file.display())),

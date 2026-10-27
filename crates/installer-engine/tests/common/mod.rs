@@ -87,3 +87,77 @@ pub fn fs_probe_component(path: &str) -> Vec<u8> {
     wat::parse_str(wat).expect("valid component wat")
 }
 
+
+/// Exits 0 iff `wasi:cli/environment.get-environment` returns exactly `expected` variables.
+pub fn env_count_component(expected: u32) -> Vec<u8> {
+    let wat = format!(
+        r#"(component
+  (import "wasi:cli/environment@0.2.0" (instance $env
+    (export "get-environment" (func (result (list (tuple string string)))))))
+  (core module $libc
+    (memory (export "memory") 1)
+    (global $bump (mut i32) (i32.const 4096))
+    (func (export "realloc") (param i32 i32 i32 i32) (result i32) (local $p i32)
+      (local.set $p (i32.and (i32.add (global.get $bump) (i32.const 7)) (i32.const -8)))
+      (global.set $bump (i32.add (local.get $p) (local.get 3)))
+      (local.get $p)))
+  (core instance $libc (instantiate $libc))
+  (alias export $env "get-environment" (func $get))
+  (core func $get_l (canon lower (func $get) (memory (core memory $libc "memory")) (realloc (core func $libc "realloc"))))
+  (core module $main
+    (import "libc" "memory" (memory 1))
+    (import "host" "get" (func $get (param i32)))
+    (func (export "run") (result i32)
+      (call $get (i32.const 16))
+      (i32.ne (i32.load (i32.const 20)) (i32.const {expected}))))
+  (core instance $main (instantiate $main (with "libc" (instance $libc)) (with "host" (instance (export "get" (func $get_l))))))
+  (func $run (result (result)) (canon lift (core func $main "run")))
+  (instance $inst (export "run" (func $run)))
+  (export "wasi:cli/run@0.2.0" (instance $inst)))"#
+    );
+    wat::parse_str(wat).expect("valid component wat")
+}
+
+/// Calls `wasi:filesystem/preopens.get-directories` `n` times, each call allocating new descriptor
+/// handles in the host resource table (and never dropping them).
+pub fn table_flood_component(n: u32) -> Vec<u8> {
+    let wat = format!(
+        r#"(component
+  (import "wasi:filesystem/types@0.2.0" (instance $types
+    (export "descriptor" (type $descriptor (sub resource)))))
+  (alias export $types "descriptor" (type $descriptor))
+  (import "wasi:filesystem/preopens@0.2.0" (instance $preopens
+    (alias outer 1 $descriptor (type $d))
+    (export "get-directories" (func (result (list (tuple (own $d) string)))))))
+  (core module $libc
+    (memory (export "memory") 64)
+    (global $bump (mut i32) (i32.const 4096))
+    (func (export "realloc") (param i32 i32 i32 i32) (result i32) (local $p i32)
+      (local.set $p (i32.and (i32.add (global.get $bump) (i32.const 7)) (i32.const -8)))
+      (global.set $bump (i32.add (local.get $p) (local.get 3)))
+      (local.get $p)))
+  (core instance $libc (instantiate $libc))
+  (alias export $preopens "get-directories" (func $get_dirs))
+  (core func $get_dirs_l (canon lower (func $get_dirs) (memory (core memory $libc "memory")) (realloc (core func $libc "realloc"))))
+  (core module $main
+    (import "libc" "memory" (memory 64))
+    (import "host" "get-dirs" (func $get_dirs (param i32)))
+    (func (export "run") (result i32) (local $i i32)
+      (loop $l
+        (call $get_dirs (i32.const 16))
+        (local.set $i (i32.add (local.get $i) (i32.const 1)))
+        (br_if $l (i32.lt_u (local.get $i) (i32.const {n}))))
+      (i32.const 0)))
+  (core instance $main (instantiate $main (with "libc" (instance $libc)) (with "host" (instance (export "get-dirs" (func $get_dirs_l))))))
+  (func $run (result (result)) (canon lift (core func $main "run")))
+  (instance $inst (export "run" (func $run)))
+  (export "wasi:cli/run@0.2.0" (instance $inst)))"#
+    );
+    wat::parse_str(wat).expect("valid component wat")
+}
+
+/// A component with one enormous straight-line function: cheap to ship, slow to compile.
+pub fn slow_to_compile_component(ops: usize) -> Vec<u8> {
+    let body = "i32.const 1 i32.add ".repeat(ops);
+    simple_component(&format!("i32.const 0 {body} drop i32.const 0"), 1)
+}

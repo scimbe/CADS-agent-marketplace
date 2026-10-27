@@ -1032,10 +1032,12 @@ dependencies = [
  "flate2",
  "http",
  "http-body-util",
+ "hyper",
  "libc",
  "manifest-core",
  "rand 0.8.7",
  "reqwest",
+ "rustls",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -1044,10 +1046,12 @@ dependencies = [
  "tar",
  "tempfile",
  "tokio",
+ "tokio-rustls",
  "wasmtime",
  "wasmtime-wasi",
  "wasmtime-wasi-http",
  "wat",
+ "webpki-roots",
 ]
 
 [[package]]
