@@ -11,6 +11,7 @@ pub mod manifest;
 mod preimage;
 pub mod prompt_template;
 pub mod task;
+pub mod wasm;
 
 pub use composition::{CompositionEdge, CompositionManifest, EdgeUpgradeHint, SubManifestRef};
 pub use environment::{
@@ -20,3 +21,7 @@ pub use environment::{
 pub use manifest::{BundleRef, DemoPrompt, EnvVarSpec, InstallerKind, PromptParam, PromptParamKind, ServiceManifest, VerifySpec};
 pub use prompt_template::{ComponentRef, PromptTemplate, RenderError, RenderedPrompt, ValueViolation};
 pub use task::SignedTask;
+pub use wasm::{
+    PreopenMode, Preopen, WasmCapabilities, WasmLimits, WasmSpec, MAX_WASM_FUEL, MAX_WASM_MEMORY_BYTES, MAX_WASM_TIMEOUT_MS,
+    WASM_WORLD_CLI_COMMAND,
+};
