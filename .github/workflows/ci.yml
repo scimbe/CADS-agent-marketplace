@@ -50,9 +50,7 @@ jobs:
         run: |
           cargo test --locked -p installer-engine -- --nocapture --test-threads=1 \
             sandbox::bwrap::tests::real activate::tests::a_binary_manifest_is_genuinely_confined_by_bwrap 2>&1 | tee escape.log
-          grep -q "test sandbox::bwrap::tests::real::host_procfs_is_not_reachable_from_inside ... ok" escape.log
-          grep -q "test sandbox::bwrap::tests::real::home_is_unreadable_and_everything_but_work_dir_is_read_only ... ok" escape.log
-          grep -q "a_binary_manifest_is_genuinely_confined_by_bwrap_when_a_sandbox_backend_is_available ... ok" escape.log
+          grep -q "test result: ok. 3 passed; 0 failed" escape.log   # all three executed and passed
           ! grep -q "skipping" escape.log
 
   # macOS: the `sandbox_exec` (Seatbelt) backend is real, so this job EXECUTES the escape tests
