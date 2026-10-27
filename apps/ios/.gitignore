@@ -1,0 +1,7 @@
+Generated/
+Frameworks/
+build/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+build/
+build-mac/
