@@ -236,11 +236,37 @@ fn is_prompt_template_valid_inner(template_json: &str, now: u64) -> Result<bool,
     Ok(parse_prompt_template(template_json)?.is_valid(now))
 }
 
-fn render_prompt_template_inner(template_json: &str, values_json: &str) -> Result<String, String> {
+/// A JSON object of customer values that REFUSES duplicate keys (serde's default `BTreeMap`
+/// deserialisation silently keeps the last one, so `{"tone":"a","tone":"b"}` would be ambiguous).
+struct StrictValues(BTreeMap<String, serde_json::Value>);
+
+impl<'de> Deserialize<'de> for StrictValues {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        struct V;
+        impl<'de> serde::de::Visitor<'de> for V {
+            type Value = StrictValues;
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("a JSON object")
+            }
+            fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                let mut out = BTreeMap::new();
+                while let Some((k, v)) = map.next_entry::<String, serde_json::Value>()? {
+                    if out.insert(k.clone(), v).is_some() {
+                        return Err(serde::de::Error::custom(format!("duplicate key '{k}'")));
+                    }
+                }
+                Ok(StrictValues(out))
+            }
+        }
+        d.deserialize_map(V)
+    }
+}
+
+fn render_prompt_template_inner(template_json: &str, values_json: &str, now: u64) -> Result<String, String> {
     let template = parse_prompt_template(template_json)?;
-    let values: BTreeMap<String, serde_json::Value> =
+    let StrictValues(values) =
         serde_json::from_str(values_json).map_err(|e| format!("invalid values JSON (expected an object): {e}"))?;
-    let rendered = template.render(&values).map_err(|e| e.to_string())?;
+    let rendered = template.render_at(now, &values).map_err(|e| e.to_string())?;
     serde_json::to_string_pretty(&rendered).map_err(|e| format!("failed to serialize rendered prompt: {e}"))
 }
 
@@ -261,22 +287,23 @@ pub fn verify_prompt_template(template_json: &str) -> Result<bool, JsError> {
 }
 
 /// Signature AND `now < expires_at` via [`PromptTemplate::is_valid`], `now` a caller-supplied Unix
-/// timestamp (seconds) -- the [`is_manifest_valid`] analogue. Call this before
-/// [`render_prompt_template`], which checks the signature but not the clock.
+/// timestamp (seconds) -- the [`is_manifest_valid`] analogue. ([`render_prompt_template`] enforces
+/// the same check itself.)
 #[wasm_bindgen(js_name = isPromptTemplateValid)]
 pub fn is_prompt_template_valid(template_json: &str, now: u64) -> Result<bool, JsError> {
     is_prompt_template_valid_inner(template_json, now).map_err(|e| JsError::new(&e))
 }
 
 /// Render a signed prompt template with the customer's values (a JSON object, parameter name ->
-/// value) via [`PromptTemplate::render`]. Returns the [`manifest_core::RenderedPrompt`] as JSON
+/// value, duplicate keys refused) via [`PromptTemplate::render_at`], so the signature AND
+/// `now < expires_at` (caller-supplied Unix seconds) are enforced. Returns the [`manifest_core::RenderedPrompt`] as JSON
 /// (`text`, `template_id`, `template_digest`, `values_digest`, `components`). Any refusal -- bad
 /// signature, invalid structure, unknown/missing parameter, a value outside its signed bound -- is a
 /// `JsError` whose message never contains the offending value. Free-text values come back wrapped
 /// in `<customer-input>` blocks: data, not instructions.
 #[wasm_bindgen(js_name = renderPromptTemplate)]
-pub fn render_prompt_template(template_json: &str, values_json: &str) -> Result<String, JsError> {
-    render_prompt_template_inner(template_json, values_json).map_err(|e| JsError::new(&e))
+pub fn render_prompt_template(template_json: &str, values_json: &str, now: u64) -> Result<String, JsError> {
+    render_prompt_template_inner(template_json, values_json, now).map_err(|e| JsError::new(&e))
 }
 
 #[cfg(test)]
@@ -543,7 +570,7 @@ mod tests {
         let t: PromptTemplate = serde_json::from_str(&signed).unwrap();
         assert_eq!(t.publisher_pubkey, key.verifying_key().to_bytes());
 
-        let rendered = render_prompt_template_inner(&signed, r#"{"topic": "Hafen", "tone": "locker"}"#).unwrap();
+        let rendered = render_prompt_template_inner(&signed, r#"{"topic": "Hafen", "tone": "locker"}"#, 1_500).unwrap();
         let r: serde_json::Value = serde_json::from_str(&rendered).unwrap();
         assert_eq!(
             r["text"],
@@ -557,7 +584,8 @@ mod tests {
         assert_eq!(r["values_digest"].as_str().unwrap().len(), 64);
 
         // Key order of the values must not change the digest.
-        let reordered = render_prompt_template_inner(&signed, r#"{"tone": "locker", "topic": "Hafen"}"#).unwrap();
+        let reordered =
+            render_prompt_template_inner(&signed, r#"{"tone": "locker", "topic": "Hafen"}"#, 1_500).unwrap();
         assert_eq!(serde_json::from_str::<serde_json::Value>(&reordered).unwrap()["values_digest"], r["values_digest"]);
     }
 
@@ -567,20 +595,21 @@ mod tests {
         t.components[0].sha256 = "cd".repeat(32);
         let tampered = serde_json::to_string(&t).unwrap();
         assert!(!verify_prompt_template_inner(&tampered).unwrap());
-        let err = render_prompt_template_inner(&tampered, r#"{"topic": "x", "tone": "locker"}"#).unwrap_err();
+        let err = render_prompt_template_inner(&tampered, r#"{"topic": "x", "tone": "locker"}"#, 1_500).unwrap_err();
         assert!(err.contains("signature"), "{err}");
     }
 
     #[test]
     fn render_refusals_surface_as_errors_without_echoing_the_value() {
         let signed = signed_template();
-        let err = render_prompt_template_inner(&signed, r#"{"topic": "SECRET\nline", "tone": "locker"}"#).unwrap_err();
+        let err =
+            render_prompt_template_inner(&signed, r#"{"topic": "SECRET\nline", "tone": "locker"}"#, 1_500).unwrap_err();
         assert!(err.contains("parameter 'topic'") && !err.contains("SECRET"), "{err}");
-        assert!(render_prompt_template_inner(&signed, r#"{"tone": "locker"}"#)
+        assert!(render_prompt_template_inner(&signed, r#"{"tone": "locker"}"#, 1_500)
             .unwrap_err()
             .contains("missing parameter 'topic'"));
-        assert!(render_prompt_template_inner(&signed, r#"{"topic": "x", "tone": "frech"}"#).is_err());
-        assert!(render_prompt_template_inner(&signed, r#"{"topic": "x", "tone": "locker", "z": 1}"#)
+        assert!(render_prompt_template_inner(&signed, r#"{"topic": "x", "tone": "frech"}"#, 1_500).is_err());
+        assert!(render_prompt_template_inner(&signed, r#"{"topic": "x", "tone": "locker", "z": 1}"#, 1_500)
             .unwrap_err()
             .contains("unknown"));
     }
@@ -597,12 +626,24 @@ mod tests {
     }
 
     #[test]
+    fn render_enforces_expiry_and_refuses_duplicate_value_keys_at_the_wasm_boundary() {
+        let signed = signed_template();
+        let ok = r#"{"topic": "x", "tone": "locker"}"#;
+        assert!(render_prompt_template_inner(&signed, ok, 1_999).is_ok());
+        let err = render_prompt_template_inner(&signed, ok, 2_000).unwrap_err();
+        assert!(err.contains("expired"), "{err}");
+        let dup = r#"{"topic": "x", "tone": "sachlich", "tone": "locker"}"#;
+        let err = render_prompt_template_inner(&signed, dup, 1_500).unwrap_err();
+        assert!(err.contains("duplicate key 'tone'"), "{err}");
+    }
+
+    #[test]
     fn prompt_template_rejects_malformed_input_as_an_error_not_a_false() {
         assert!(sign_prompt_template_inner("nothex", "{}").is_err());
         let key = random_signing_key();
         assert!(sign_prompt_template_inner(&to_hex(&key.to_bytes()), "not json").is_err());
         assert!(verify_prompt_template_inner("not json").is_err());
         assert!(is_prompt_template_valid_inner("not json", 0).is_err());
-        assert!(render_prompt_template_inner(&signed_template(), "[1]").is_err());
+        assert!(render_prompt_template_inner(&signed_template(), "[1]", 1_500).is_err());
     }
 }
