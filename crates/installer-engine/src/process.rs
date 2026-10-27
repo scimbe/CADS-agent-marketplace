@@ -185,7 +185,7 @@ mod tests {
         let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let l = crate::sandbox::Limits { cpu_secs: 123, fsize_bytes: 1 << 20, nproc: 2000 };
         let out = run_bounded_limited(
-            "sh",
+            "bash",
             &["-c", "echo cpu=$(ulimit -t) nproc=$(ulimit -u)"],
             std::path::Path::new("."),
             &[],
@@ -193,7 +193,10 @@ mod tests {
             Some(l),
         )
         .unwrap();
-        assert_eq!(out.stdout.trim(), "cpu=123 nproc=2000", "{out:?}");
+        // nproc is only ever lowered: min(requested, the host's own limit), so assert the bound.
+        let (cpu, nproc) = out.stdout.trim().split_once(" nproc=").expect("output shape");
+        assert_eq!(cpu, "cpu=123", "{out:?}");
+        assert!(nproc.parse::<u64>().unwrap() <= 2000, "{out:?}");
         let plain = run_bounded("sh", &["-c", "echo $(ulimit -t)"], std::path::Path::new("."), &[], Duration::from_secs(5)).unwrap();
         assert_ne!(plain.stdout.trim(), "123");
     }
