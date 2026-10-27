@@ -1,4 +1,5 @@
-//! `wasm-bindgen` bindings for [`manifest_core::ServiceManifest`] sign/verify.
+//! `wasm-bindgen` bindings for [`manifest_core::ServiceManifest`] sign/verify and, alongside, for
+//! [`manifest_core::PromptTemplate`] sign/verify/render (same discipline: this crate re-derives nothing).
 //!
 //! Deliberately calls [`ServiceManifest::signing_bytes`]/[`ServiceManifest::sign_new`]/
 //! [`ServiceManifest::is_valid`] DIRECTLY -- this crate reimplements none of the
@@ -16,8 +17,12 @@
 //! except as a hex string handed to [`sign_manifest`] for the single call that
 //! needs it -- it is never logged, stored, or echoed back).
 
-use manifest_core::{BundleRef, DemoPrompt, EnvVarSpec, EnvironmentContract, InstallerKind, ServiceManifest, VerifySpec};
+use manifest_core::{
+    BundleRef, ComponentRef, DemoPrompt, EnvVarSpec, EnvironmentContract, InstallerKind, PromptParam, PromptTemplate,
+    ServiceManifest, VerifySpec,
+};
 use serde::Deserialize;
+use std::collections::BTreeMap;
 use wasm_bindgen::prelude::*;
 
 /// Panics inside wasm otherwise surface only as an opaque "unreachable
@@ -182,6 +187,123 @@ pub fn verify_manifest(manifest_json: &str) -> Result<bool, JsError> {
 #[wasm_bindgen(js_name = isManifestValid)]
 pub fn is_manifest_valid(manifest_json: &str, now: u64) -> Result<bool, JsError> {
     is_manifest_valid_inner(manifest_json, now).map_err(|e| JsError::new(&e))
+}
+
+/// JSON shape [`sign_prompt_template`] accepts: every [`PromptTemplate`] field EXCEPT
+/// `publisher_pubkey` and `signature` (derived/computed by [`PromptTemplate::sign_new`], so a
+/// caller cannot claim a key it does not hold). `template_id` is hex, like `manifest_id` above.
+#[derive(Deserialize)]
+struct UnsignedPromptTemplateInput {
+    template_id: String,
+    name: String,
+    version: String,
+    body: String,
+    parameters: Vec<PromptParam>,
+    components: Vec<ComponentRef>,
+    issued_at: u64,
+    expires_at: u64,
+}
+
+fn sign_prompt_template_inner(signing_key_hex: &str, template_json: &str) -> Result<String, String> {
+    let signing_key = ed25519_dalek::SigningKey::from_bytes(&from_hex32(signing_key_hex)?);
+    let input: UnsignedPromptTemplateInput =
+        serde_json::from_str(template_json).map_err(|e| format!("invalid prompt template JSON: {e}"))?;
+    let signed = PromptTemplate::sign_new(
+        &signing_key,
+        from_hex32(&input.template_id)?,
+        input.name,
+        input.version,
+        input.body,
+        input.parameters,
+        input.components,
+        input.issued_at,
+        input.expires_at,
+    );
+    // Validated here so a template `render` would refuse never gets a signature.
+    signed.validate_structure().map_err(|e| format!("invalid prompt template: {e}"))?;
+    serde_json::to_string_pretty(&signed).map_err(|e| format!("failed to serialize signed prompt template: {e}"))
+}
+
+fn parse_prompt_template(template_json: &str) -> Result<PromptTemplate, String> {
+    serde_json::from_str(template_json).map_err(|e| format!("invalid prompt template JSON: {e}"))
+}
+
+fn verify_prompt_template_inner(template_json: &str) -> Result<bool, String> {
+    Ok(parse_prompt_template(template_json)?.verify_signature())
+}
+
+fn is_prompt_template_valid_inner(template_json: &str, now: u64) -> Result<bool, String> {
+    Ok(parse_prompt_template(template_json)?.is_valid(now))
+}
+
+/// A JSON object of customer values that REFUSES duplicate keys (serde's default `BTreeMap`
+/// deserialisation silently keeps the last one, so `{"tone":"a","tone":"b"}` would be ambiguous).
+struct StrictValues(BTreeMap<String, serde_json::Value>);
+
+impl<'de> Deserialize<'de> for StrictValues {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        struct V;
+        impl<'de> serde::de::Visitor<'de> for V {
+            type Value = StrictValues;
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("a JSON object")
+            }
+            fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                let mut out = BTreeMap::new();
+                while let Some((k, v)) = map.next_entry::<String, serde_json::Value>()? {
+                    if out.insert(k.clone(), v).is_some() {
+                        return Err(serde::de::Error::custom(format!("duplicate key '{k}'")));
+                    }
+                }
+                Ok(StrictValues(out))
+            }
+        }
+        d.deserialize_map(V)
+    }
+}
+
+fn render_prompt_template_inner(template_json: &str, values_json: &str, now: u64) -> Result<String, String> {
+    let template = parse_prompt_template(template_json)?;
+    let StrictValues(values) =
+        serde_json::from_str(values_json).map_err(|e| format!("invalid values JSON (expected an object): {e}"))?;
+    let rendered = template.render_at(now, &values).map_err(|e| e.to_string())?;
+    serde_json::to_string_pretty(&rendered).map_err(|e| format!("failed to serialize rendered prompt: {e}"))
+}
+
+/// Sign an unsigned prompt template (see [`UnsignedPromptTemplateInput`]) with a publisher's
+/// ed25519 holder private key, same key encoding as [`sign_manifest`]. Refuses (`JsError`) a
+/// template that fails [`PromptTemplate::validate_structure`]. Returns the signed template as
+/// pretty-printed JSON.
+#[wasm_bindgen(js_name = signPromptTemplate)]
+pub fn sign_prompt_template(signing_key_hex: &str, template_json: &str) -> Result<String, JsError> {
+    sign_prompt_template_inner(signing_key_hex, template_json).map_err(|e| JsError::new(&e))
+}
+
+/// Verify a signed prompt template's signature ONLY, ignoring `expires_at` -- the
+/// [`verify_manifest`] analogue. `Ok(false)` means tampered/forged; `Err` means malformed input.
+#[wasm_bindgen(js_name = verifyPromptTemplate)]
+pub fn verify_prompt_template(template_json: &str) -> Result<bool, JsError> {
+    verify_prompt_template_inner(template_json).map_err(|e| JsError::new(&e))
+}
+
+/// Signature AND `now < expires_at` via [`PromptTemplate::is_valid`], `now` a caller-supplied Unix
+/// timestamp (seconds) -- the [`is_manifest_valid`] analogue. ([`render_prompt_template`] enforces
+/// the same check itself.)
+#[wasm_bindgen(js_name = isPromptTemplateValid)]
+pub fn is_prompt_template_valid(template_json: &str, now: u64) -> Result<bool, JsError> {
+    is_prompt_template_valid_inner(template_json, now).map_err(|e| JsError::new(&e))
+}
+
+/// Render a signed prompt template with the customer's values (a JSON object, parameter name ->
+/// value, duplicate keys refused) via [`PromptTemplate::render_at`], so the signature AND
+/// `now < expires_at` (caller-supplied Unix seconds) are enforced. Returns the [`manifest_core::RenderedPrompt`] as JSON
+/// (`text`, `template_id`, `template_digest`, `values_digest`, `components`). Any refusal -- bad
+/// signature, invalid structure, unknown/missing parameter, a value outside its signed bound -- is a
+/// `JsError` whose message never contains the offending value. Free-text values come back wrapped
+/// in `<customer-input>` blocks: data, not instructions.
+#[wasm_bindgen(js_name = renderPromptTemplate)]
+pub fn render_prompt_template(template_json: &str, values_json: &str, now: u64) -> Result<String, JsError> {
+    render_prompt_template_inner(template_json, values_json, now).map_err(|e| JsError::new(&e))
 }
 
 #[cfg(test)]
@@ -401,5 +523,127 @@ mod tests {
         assert!(sign_manifest_inner(&to_hex(&key.to_bytes()), "not json").is_err());
         assert!(verify_manifest_inner("not json").is_err());
         assert!(is_manifest_valid_inner("not json", 0).is_err());
+    }
+
+    // --- prompt templates ----------------------------------------------------------------
+
+    fn sample_unsigned_template_json(body: &str) -> String {
+        format!(
+            r#"{{
+                "template_id": "{}",
+                "name": "briefing",
+                "version": "1.0.0",
+                "body": {},
+                "parameters": [
+                    {{"name": "topic", "type": "text", "max_len": 60}},
+                    {{"name": "tone", "type": "enum", "options": ["sachlich", "locker"]}}
+                ],
+                "components": [
+                    {{"name": "pandoc", "sha256": "{}", "usage": "pandoc 3.1.11, macOS 14.4 arm64"}}
+                ],
+                "issued_at": 1000,
+                "expires_at": 2000
+            }}"#,
+            to_hex(&[3u8; 32]),
+            serde_json::to_string(body).unwrap(),
+            "ab".repeat(32),
+        )
+    }
+
+    const TEMPLATE_BODY: &str = "{{tone}}: {{topic}} via {{component:pandoc}}";
+
+    fn signed_template() -> String {
+        let key = random_signing_key();
+        sign_prompt_template_inner(&to_hex(&key.to_bytes()), &sample_unsigned_template_json(TEMPLATE_BODY)).unwrap()
+    }
+
+    #[test]
+    fn prompt_template_sign_verify_render_round_trips_through_the_wasm_boundary() {
+        let key = random_signing_key();
+        let signed =
+            sign_prompt_template_inner(&to_hex(&key.to_bytes()), &sample_unsigned_template_json(TEMPLATE_BODY))
+                .unwrap();
+        assert!(verify_prompt_template_inner(&signed).unwrap());
+        assert!(is_prompt_template_valid_inner(&signed, 1_500).unwrap());
+        assert!(!is_prompt_template_valid_inner(&signed, 2_000).unwrap(), "expired");
+
+        let t: PromptTemplate = serde_json::from_str(&signed).unwrap();
+        assert_eq!(t.publisher_pubkey, key.verifying_key().to_bytes());
+
+        let rendered = render_prompt_template_inner(&signed, r#"{"topic": "Hafen", "tone": "locker"}"#, 1_500).unwrap();
+        let r: serde_json::Value = serde_json::from_str(&rendered).unwrap();
+        assert_eq!(
+            r["text"],
+            format!(
+                "locker: <customer-input name=\"topic\">Hafen</customer-input> via pandoc@sha256:{}",
+                "ab".repeat(32)
+            )
+        );
+        assert_eq!(r["template_id"], to_hex(&[3u8; 32]));
+        assert_eq!(r["template_digest"].as_str().unwrap().len(), 64);
+        assert_eq!(r["values_digest"].as_str().unwrap().len(), 64);
+
+        // Key order of the values must not change the digest.
+        let reordered =
+            render_prompt_template_inner(&signed, r#"{"tone": "locker", "topic": "Hafen"}"#, 1_500).unwrap();
+        assert_eq!(serde_json::from_str::<serde_json::Value>(&reordered).unwrap()["values_digest"], r["values_digest"]);
+    }
+
+    #[test]
+    fn tampered_prompt_template_fails_verification_and_refuses_to_render() {
+        let mut t: PromptTemplate = serde_json::from_str(&signed_template()).unwrap();
+        t.components[0].sha256 = "cd".repeat(32);
+        let tampered = serde_json::to_string(&t).unwrap();
+        assert!(!verify_prompt_template_inner(&tampered).unwrap());
+        let err = render_prompt_template_inner(&tampered, r#"{"topic": "x", "tone": "locker"}"#, 1_500).unwrap_err();
+        assert!(err.contains("signature"), "{err}");
+    }
+
+    #[test]
+    fn render_refusals_surface_as_errors_without_echoing_the_value() {
+        let signed = signed_template();
+        let err =
+            render_prompt_template_inner(&signed, r#"{"topic": "SECRET\nline", "tone": "locker"}"#, 1_500).unwrap_err();
+        assert!(err.contains("parameter 'topic'") && !err.contains("SECRET"), "{err}");
+        assert!(render_prompt_template_inner(&signed, r#"{"tone": "locker"}"#, 1_500)
+            .unwrap_err()
+            .contains("missing parameter 'topic'"));
+        assert!(render_prompt_template_inner(&signed, r#"{"topic": "x", "tone": "frech"}"#, 1_500).is_err());
+        assert!(render_prompt_template_inner(&signed, r#"{"topic": "x", "tone": "locker", "z": 1}"#, 1_500)
+            .unwrap_err()
+            .contains("unknown"));
+    }
+
+    #[test]
+    fn a_structurally_invalid_prompt_template_is_refused_before_signing() {
+        let key = random_signing_key();
+        let err = sign_prompt_template_inner(
+            &to_hex(&key.to_bytes()),
+            &sample_unsigned_template_json("{{tone}} {{component:pandoc}}"),
+        )
+        .unwrap_err();
+        assert!(err.contains("invalid prompt template") && err.contains("topic"), "{err}");
+    }
+
+    #[test]
+    fn render_enforces_expiry_and_refuses_duplicate_value_keys_at_the_wasm_boundary() {
+        let signed = signed_template();
+        let ok = r#"{"topic": "x", "tone": "locker"}"#;
+        assert!(render_prompt_template_inner(&signed, ok, 1_999).is_ok());
+        let err = render_prompt_template_inner(&signed, ok, 2_000).unwrap_err();
+        assert!(err.contains("expired"), "{err}");
+        let dup = r#"{"topic": "x", "tone": "sachlich", "tone": "locker"}"#;
+        let err = render_prompt_template_inner(&signed, dup, 1_500).unwrap_err();
+        assert!(err.contains("duplicate key 'tone'"), "{err}");
+    }
+
+    #[test]
+    fn prompt_template_rejects_malformed_input_as_an_error_not_a_false() {
+        assert!(sign_prompt_template_inner("nothex", "{}").is_err());
+        let key = random_signing_key();
+        assert!(sign_prompt_template_inner(&to_hex(&key.to_bytes()), "not json").is_err());
+        assert!(verify_prompt_template_inner("not json").is_err());
+        assert!(is_prompt_template_valid_inner("not json", 0).is_err());
+        assert!(render_prompt_template_inner(&signed_template(), "[1]", 1_500).is_err());
     }
 }

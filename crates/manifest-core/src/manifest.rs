@@ -123,6 +123,24 @@ pub enum PromptParamKind {
         note: Option<String>,
     },
     Int { min: i64, max: i64 },
+    /// Free-text customer input, at most `max_len` Unicode scalar values (chars), no control or
+    /// invisible format characters. Unlike every other kind there is no closed set to check membership against, so
+    /// a consumer MUST treat a `Text` value as untrusted **data**, never as instructions -- see
+    /// [`crate::prompt_template::PromptTemplate::render`] for the delimiting rule and
+    /// `docs/security-model.md`. Added after the other kinds with tag `4`; a manifest that does
+    /// not use it keeps its exact pre-existing signing preimage (see
+    /// [`PromptParam::append_to_preimage`]).
+    Text {
+        max_len: u32,
+        /// `false` (default): single line, no newline. `true`: `\n` allowed (`\r\n` is normalised
+        /// to `\n`; a lone `\r`, U+2028/2029 and U+0085 stay rejected).
+        #[serde(default)]
+        multiline: bool,
+        /// Upper bound on the number of lines; only meaningful with `multiline` (a template
+        /// declaring it without `multiline` is structurally invalid).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        max_lines: Option<u32>,
+    },
 }
 
 impl PromptParamKind {
@@ -132,6 +150,7 @@ impl PromptParamKind {
             PromptParamKind::Color => 1,
             PromptParamKind::Multiselect { .. } => 2,
             PromptParamKind::Int { .. } => 3,
+            PromptParamKind::Text { .. } => 4,
         }
     }
 }
@@ -145,6 +164,51 @@ pub struct PromptParam {
     pub name: String,
     #[serde(flatten)]
     pub kind: PromptParamKind,
+}
+
+impl PromptParam {
+    /// Append this param to a signing preimage: `name ‖ kind-tag ‖ kind fields`. The single
+    /// definition shared by [`ServiceManifest::signing_bytes`] and
+    /// [`crate::prompt_template::PromptTemplate::signing_bytes`], so the two signed types can never
+    /// drift on how a bound is encoded. Self-delimiting (every variable-length field is
+    /// length-prefixed, every count explicit, every kind tagged), hence injective.
+    pub(crate) fn append_to_preimage(&self, p: Preimage) -> Preimage {
+        let p = p.var_bytes(self.name.as_bytes()).tag(self.kind.as_u8());
+        match &self.kind {
+            PromptParamKind::Enum { options } => {
+                let mut p = p.u32(options.len() as u32);
+                for o in options {
+                    p = p.var_bytes(o.as_bytes());
+                }
+                p
+            }
+            PromptParamKind::Multiselect { options, note } => {
+                let mut p = p.u32(options.len() as u32);
+                for o in options {
+                    p = p.var_bytes(o.as_bytes());
+                }
+                // `note`'s presence gets its own tag either way -- unlike the top-level
+                // `demo_prompt: Option`, this is NOT the last thing in the preimage (more params
+                // or the examples count can follow), so an asymmetric "None omits everything"
+                // encoding here could let a present-but-empty-looking note collide with the start
+                // of whatever comes next. Always tag, injective either way.
+                match note {
+                    Some(note) => p.tag(1).var_bytes(note.as_bytes()),
+                    None => p.tag(0),
+                }
+            }
+            PromptParamKind::Color => p,
+            PromptParamKind::Int { min, max } => p.fixed(&min.to_le_bytes()).fixed(&max.to_le_bytes()),
+            PromptParamKind::Text { max_len, multiline, max_lines } => {
+                let p = p.u32(*max_len).tag(*multiline as u8);
+                // Always tagged: more params can follow, same reasoning as `note` above.
+                match max_lines {
+                    Some(n) => p.tag(1).u32(*n),
+                    None => p.tag(0),
+                }
+            }
+        }
+    }
 }
 
 /// Guided natural-language parametrization for a demo: a user's free text is turned into a
@@ -262,34 +326,7 @@ impl ServiceManifest {
             Some(dp) => {
                 p = p.tag(1).var_bytes(dp.system.as_bytes()).u32(dp.parameters.len() as u32);
                 for param in &dp.parameters {
-                    p = p.var_bytes(param.name.as_bytes()).tag(param.kind.as_u8());
-                    p = match &param.kind {
-                        PromptParamKind::Enum { options } => {
-                            let mut p = p.u32(options.len() as u32);
-                            for o in options {
-                                p = p.var_bytes(o.as_bytes());
-                            }
-                            p
-                        }
-                        PromptParamKind::Multiselect { options, note } => {
-                            let mut p = p.u32(options.len() as u32);
-                            for o in options {
-                                p = p.var_bytes(o.as_bytes());
-                            }
-                            // `note`'s presence gets its own tag either way -- unlike the
-                            // top-level `demo_prompt: Option`, this is NOT the last thing in the
-                            // preimage (more params or the examples count can follow), so an
-                            // asymmetric "None omits everything" encoding here could let a
-                            // present-but-empty-looking note collide with the start of whatever
-                            // comes next. Always tag, injective either way.
-                            match note {
-                                Some(note) => p.tag(1).var_bytes(note.as_bytes()),
-                                None => p.tag(0),
-                            }
-                        }
-                        PromptParamKind::Color => p,
-                        PromptParamKind::Int { min, max } => p.fixed(&min.to_le_bytes()).fixed(&max.to_le_bytes()),
-                    };
+                    p = param.append_to_preimage(p);
                 }
                 p = p.u32(dp.examples.len() as u32);
                 for ex in &dp.examples {
@@ -645,6 +682,54 @@ mod tests {
         let back: ServiceManifest = serde_json::from_value(json).unwrap();
         assert_eq!(back.demo_prompt, None);
         assert!(back.is_valid(1_500));
+    }
+
+    // --- PromptParamKind::Text ----------------------------------------------------------------
+
+    /// A manifest with a four-kind-plus-`Multiselect{note: None}` `demo_prompt`, signed by the
+    /// build BEFORE `PromptParamKind::Text` and the shared `PromptParam::append_to_preimage`
+    /// refactor existed (key `SigningKey::from_bytes(&[11u8; 32])`, ed25519 is deterministic). It is
+    /// a recorded byte string, not re-derived by this build, so any drift in the encoding of the
+    /// pre-existing kinds fails here against real historic bytes.
+    const PRE_TEXT_KIND_SIGNED_MANIFEST: &str = r#"{"publisher_pubkey":"66be7e332c7a453332bd9d0a7f7db055f5c5ef1a06ada66d98b39fb6810c473a","manifest_id":"0707070707070707070707070707070707070707070707070707070707070707","name":"litellm-proof","version":"0.1.0","installer_kind":"compose","bundle":{"url":"https://example.invalid/bundle.tar.gz","sha256":"0909090909090909090909090909090909090909090909090909090909090909","compose_file":"docker-compose.yml"},"env_template":[],"verify":{"script":"verify.sh","timeout_secs":60},"issued_at":1000,"expires_at":2000,"demo_prompt":{"system":"Only ever choose values from the declared parameters.","parameters":[{"name":"location","type":"enum","options":["Hamburg","Berlin"]},{"name":"accent_color","type":"color"},{"name":"include","type":"multiselect","options":["temperature","wind"],"note":"only what the API delivers"},{"name":"plain","type":"multiselect","options":["a"]},{"name":"font_size","type":"int","min":12,"max":48}],"examples":["Berlin in Blau, ohne Wind"]},"signature":"4841cd9bb088c4d062695a5f5638b9bed58f2c2137effb884eae2f8eda02046baba086ccf8c449c7a810cf2d8ed1ca5e82694324d7af865470295f86860ca20e"}"#;
+
+    #[test]
+    fn a_manifest_signed_before_the_text_kind_existed_still_verifies() {
+        let m: ServiceManifest = serde_json::from_str(PRE_TEXT_KIND_SIGNED_MANIFEST).unwrap();
+        assert_eq!(m.demo_prompt.as_ref().unwrap().parameters.len(), 5);
+        assert!(m.is_valid(1_500), "adding PromptParamKind::Text must not change any existing preimage");
+    }
+
+    #[test]
+    fn a_demo_prompt_with_a_text_param_signs_round_trips_and_binds_max_len() {
+        let key = random_signing_key();
+        let m = sample(&key, 1_000, 2_000);
+        let mut dp = sample_demo_prompt();
+        dp.parameters.push(PromptParam { name: "note".into(), kind: PromptParamKind::Text { max_len: 80, multiline: true, max_lines: Some(5) } });
+        let mut m = ServiceManifest::sign_new(
+            &key, m.manifest_id, m.name, m.version, m.installer_kind, m.bundle, m.env_template, m.verify,
+            1_000, 2_000, Some(dp), None,
+        );
+        assert!(m.is_valid(1_500));
+        let json = serde_json::to_string(&m).unwrap();
+        assert!(json.contains(r#""type":"text","max_len":80,"multiline":true,"max_lines":5"#), "{json}");
+        assert_eq!(serde_json::from_str::<ServiceManifest>(&json).unwrap(), m);
+
+        let Some(PromptParamKind::Text { max_len, .. }) = m.demo_prompt.as_mut().map(|d| &mut d.parameters[4].kind) else {
+            panic!("expected the Text param")
+        };
+        *max_len = 8_000;
+        assert!(!m.is_valid(1_500), "widening a signed Text bound must invalidate the signature");
+    }
+
+    #[test]
+    fn text_param_encoding_is_pinned_at_the_byte_level() {
+        let enc = |kind| PromptParam { name: "t".into(), kind }.append_to_preimage(Preimage::new(b"d")).finish();
+        let head = Preimage::new(b"d").var_bytes(b"t").tag(4);
+        let single = head.u32(7).tag(0).tag(0).finish();
+        assert_eq!(enc(PromptParamKind::Text { max_len: 7, multiline: false, max_lines: None }), single);
+        let multi = Preimage::new(b"d").var_bytes(b"t").tag(4).u32(7).tag(1).tag(1).u32(3).finish();
+        assert_eq!(enc(PromptParamKind::Text { max_len: 7, multiline: true, max_lines: Some(3) }), multi);
     }
 
     // --- environment contract (scimbe/ct-agent#183, phase 1) ------------------------------

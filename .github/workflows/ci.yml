@@ -64,3 +64,19 @@ jobs:
 
       - name: Test (-D warnings)
         run: cargo test --locked
+
+  # Measures what the other jobs cannot: manifest-core-wasm (the browser binding for ServiceManifest
+  # and PromptTemplate sign/verify/render) actually builds for wasm32-unknown-unknown.
+  wasm-build:
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: "-D warnings"
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Build manifest-core-wasm for wasm32
+        run: cargo build --locked -p manifest-core-wasm --target wasm32-unknown-unknown --release
