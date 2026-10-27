@@ -447,6 +447,15 @@ mod tests {
     }
 
     #[test]
+    fn extended_policies_are_refused_on_wsl_instead_of_silently_ignored() {
+        let pol = super::super::SandboxPolicy { network: super::super::NetworkPolicy::Outbound, ..Default::default() };
+        let r = WslBwrap::default().wrap_command_with_policy(r"C:\w\run.sh", &[], Path::new(r"C:\w"), &[], &pol);
+        assert!(r.unwrap_err().contains("does not support"));
+        // the default policy is still accepted and equals plain wrap_command
+        assert!(WslBwrap::default().wrap_command_with_policy(r"C:\w\run.sh", &[], Path::new(r"C:\w"), &[], &Default::default()).is_ok());
+    }
+
+    #[test]
     fn probe_args_are_the_runtime_bwrap_argv_in_the_dedicated_distro() {
         let a = probe_args("/mnt/c/Windows/Temp");
         assert_eq!(&a[..4], ["-d", "cads-sandbox", "--exec", "/usr/bin/bwrap"]);

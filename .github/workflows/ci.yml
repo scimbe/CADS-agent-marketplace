@@ -53,6 +53,16 @@ jobs:
           grep -q "test result: ok. 3 passed; 0 failed" escape.log   # all three executed and passed
           ! grep -q "skipping" escape.log
 
+      # The agent-CLI escape test (fake CLI under the REAL bwrap sandbox) must execute, not skip.
+      # The real-`claude` tests in the same file skip here because the runner has no `claude`
+      # (they print "SKIPPED: ..." with the reason); only the fake-CLI test is asserted.
+      - name: agent CLI runs confined under bwrap (fake CLI, no skip)
+        run: |
+          cargo test --locked -p harness-core --test sandboxed_cli -- --nocapture --test-threads=1 \
+            fake_cli_cannot_read 2>&1 | tee cli.log
+          grep -q "test result: ok. 1 passed; 0 failed" cli.log
+          ! grep -q "SKIPPED: no OS sandbox" cli.log
+
   # macOS: the `sandbox_exec` (Seatbelt) backend is real, so this job EXECUTES the escape tests
   # (sandbox::sandbox_exec::tests::real::*, activate's macOS confinement test): a write outside
   # work_dir and a TCP connect to a live loopback listener must both fail from inside the sandbox.

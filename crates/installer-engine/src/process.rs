@@ -125,8 +125,10 @@ pub fn run_bounded_limited(
     }
 }
 
+/// Lower the process's `RLIMIT_CPU/FSIZE/NPROC` to `l` (never raises). Async-signal-safe: callable
+/// from a `pre_exec` hook.
 #[cfg(unix)]
-fn apply_limits(l: crate::sandbox::Limits) -> std::io::Result<()> {
+pub fn apply_limits(l: crate::sandbox::Limits) -> std::io::Result<()> {
     // Only ever LOWER a limit: the launcher may not raise a hard limit, and raising the soft one
     // above what the user already runs under would loosen, not tighten. A macro, not a function,
     // because the type of `libc::RLIMIT_*` differs between targets (u32 on glibc, i32 on macOS).

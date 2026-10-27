@@ -10,11 +10,11 @@
 //! `process::run_bounded` actually executes. Implementations never spawn or wait on anything
 //! themselves -- `run_bounded` still owns spawning, timeout, and output capture, unchanged.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 mod bwrap;
 mod doctor;
-#[cfg(target_os = "macos")]
+// Compiled on every OS (pure profile/argv generation is unit-tested everywhere); only macOS selects it.
 mod sandbox_exec;
 mod wsl;
 
@@ -42,9 +42,86 @@ pub trait SandboxBackend {
     /// ambient inheritance beyond what the backend itself unavoidably needs).
     fn wrap_command(&self, exe: &str, args: &[&str], work_dir: &Path, env: &[(&str, &str)]) -> (String, Vec<String>);
 
+    /// [`wrap_command`](Self::wrap_command) plus the extra capabilities in `policy` (extra
+    /// read-only paths, a writable HOME/TMPDIR, outbound network). A backend that cannot
+    /// honour a non-default policy returns `Err` -- the caller must then NOT run the payload:
+    /// failing closed is the contract. The default policy is exactly `wrap_command`.
+    fn wrap_command_with_policy(
+        &self,
+        exe: &str,
+        args: &[&str],
+        work_dir: &Path,
+        env: &[(&str, &str)],
+        policy: &SandboxPolicy,
+    ) -> Result<(String, Vec<String>), String> {
+        if *policy == SandboxPolicy::default() {
+            Ok(self.wrap_command(exe, args, work_dir, env))
+        } else {
+            Err(format!("sandbox backend '{}' does not support extended sandbox policies", self.name()))
+        }
+    }
+
     /// One-line, operator-facing description of what this backend does and does NOT provide,
     /// relative to the F.1-F.3 bar -- surfaced in the pre-execution warning and in `InstallReport`.
     fn isolation_summary(&self) -> &'static str;
+}
+
+/// Network access a sandboxed payload gets. `None` is the installer default.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum NetworkPolicy {
+    /// No network (bwrap: private namespace with only a private `lo`; Seatbelt: `deny network*`).
+    #[default]
+    None,
+    /// The HOST's loopback only on Seatbelt (shared with every local service); on bwrap there is
+    /// no host loopback, only the namespace's private one, so this equals `None`.
+    Loopback,
+    /// Outbound TLS to the internet (tcp/443) plus name resolution. NOT a per-host allowlist:
+    /// anything reachable on 443 is reachable, which is the residual exfiltration channel
+    /// (`docs/security-model.md`). **bwrap shares the HOST network namespace** (`--share-net`), so
+    /// host loopback services and the local network are reachable too; Seatbelt limits egress to
+    /// tcp/443 only. Neither is a substitute for a provider-host proxy allowlist.
+    Outbound,
+}
+
+/// What a caller may ask for beyond the installer default (read-only OS view, writes confined to
+/// `work_dir`, no network). Every path must be absolute; the backend refuses `/`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SandboxPolicy {
+    /// Extra read-only (and, on Seatbelt, executable) trees, e.g. an agent CLI and its runtime.
+    pub extra_ro_paths: Vec<PathBuf>,
+    /// One writable per-run HOME directory (outside `work_dir`).
+    pub home_dir: Option<PathBuf>,
+    /// One writable per-run TMPDIR (outside `work_dir`).
+    pub tmp_dir: Option<PathBuf>,
+    pub network: NetworkPolicy,
+}
+
+impl SandboxPolicy {
+    /// Structural validation shared by every backend.
+    pub fn validate(&self) -> Result<(), String> {
+        let check = |what: &str, p: &Path| -> Result<(), String> {
+            if !p.is_absolute() {
+                return Err(format!("sandbox policy: {what} {} is not absolute", p.display()));
+            }
+            if p.parent().is_none() {
+                return Err(format!("sandbox policy: {what} may not be the filesystem root"));
+            }
+            if p.to_string_lossy().contains(['\n', '\0']) {
+                return Err(format!("sandbox policy: {what} contains a control character"));
+            }
+            Ok(())
+        };
+        for p in &self.extra_ro_paths {
+            check("read-only path", p)?;
+        }
+        if let Some(p) = &self.home_dir {
+            check("home_dir", p)?;
+        }
+        if let Some(p) = &self.tmp_dir {
+            check("tmp_dir", p)?;
+        }
+        Ok(())
+    }
 }
 
 /// Runtime capability probe result for one backend candidate -- distinct from "no candidate for

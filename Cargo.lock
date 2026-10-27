@@ -475,11 +475,14 @@ name = "harness-core"
 version = "0.1.1"
 dependencies = [
  "ed25519-dalek",
+ "harness-core",
  "installer-engine",
+ "libc",
  "manifest-core",
  "reqwest",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
 ]
 

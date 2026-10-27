@@ -10,11 +10,23 @@
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TranscriptEntry {
     ModelMessage { turn: u32, content: Option<String>, tool_call_count: usize },
     ToolCall { turn: u32, tool: String, arguments: String, result: Result<String, String> },
+    /// First entry of every run: which backend, and the digests tying the prompt to its origin.
+    RunStart {
+        backend: String,
+        prompt_sha256: String,
+        prompt_source: String,
+        template_digest: Option<String>,
+        inputs_digest: Option<String>,
+    },
+    /// Captured stdout/stderr of a local agent CLI (capped; `truncated` says so).
+    CliOutput { stream: String, text: String, truncated: bool },
+    /// Exit status of a local agent CLI.
+    CliExit { exit_code: Option<i32>, timed_out: bool, duration_ms: u64 },
 }
 
 #[derive(Debug, Serialize)]
@@ -37,6 +49,30 @@ pub enum HarnessReport {
         turns_used: u32,
         reason: String,
     },
+}
+
+impl TranscriptEntry {
+    /// A copy with every free-text field passed through [`crate::redact::redact`].
+    pub fn redacted(&self) -> TranscriptEntry {
+        use crate::redact::redact as r;
+        match self.clone() {
+            TranscriptEntry::ModelMessage { turn, content, tool_call_count } => TranscriptEntry::ModelMessage {
+                turn,
+                content: content.map(|c| r(&c)),
+                tool_call_count,
+            },
+            TranscriptEntry::ToolCall { turn, tool, arguments, result } => TranscriptEntry::ToolCall {
+                turn,
+                tool,
+                arguments: r(&arguments),
+                result: result.map(|s| r(&s)).map_err(|e| r(&e)),
+            },
+            TranscriptEntry::CliOutput { stream, text, truncated } => {
+                TranscriptEntry::CliOutput { stream, text: r(&text), truncated }
+            }
+            other => other,
+        }
+    }
 }
 
 impl HarnessReport {
@@ -84,7 +120,8 @@ pub fn append_transcript_in_bundle(bundle_dir: &Path, entry: &TranscriptEntry) {
 }
 
 fn append_transcript_to(path: &Path, entry: &TranscriptEntry) {
-    let line = match serde_json::to_string(entry) {
+    // Token-shaped secrets never reach disk, whichever backend produced the text.
+    let line = match serde_json::to_string(&entry.redacted()) {
         Ok(l) => l,
         Err(e) => {
             eprintln!("harness: failed to serialize transcript entry: {e}");

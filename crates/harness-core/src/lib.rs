@@ -6,12 +6,18 @@
 //! transcript inside the bundle).
 
 pub mod agent_loop;
+pub mod backend;
+pub mod cli_sandbox;
 pub mod containment;
 pub mod llm_client;
+pub mod local_cli;
+pub mod redact;
 pub mod report;
 pub mod tools;
 
 #[allow(deprecated)]
 pub use agent_loop::run_task;
-pub use agent_loop::{run_task_with_state_dir, RunOptions};
+pub use agent_loop::{run_task_with_state_dir, run_with_backend, LiteLlmBackend, RunContext, RunOptions};
+pub use backend::{pick_auto, AgentBackend, BackendKind, DetectedBackend, Maturity, PromptProvenance};
+pub use local_cli::{detect_backends, detect_backends_in, LocalCliBackend};
 pub use report::{transcript_path, HarnessReport};
