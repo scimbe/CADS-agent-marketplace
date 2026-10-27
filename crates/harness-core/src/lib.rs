@@ -10,6 +10,7 @@ pub mod backend;
 pub mod containment;
 pub mod llm_client;
 pub mod local_cli;
+pub mod redact;
 pub mod report;
 pub mod tools;
 

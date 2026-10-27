@@ -14,7 +14,6 @@ use crate::backend::{
     TranscriptFn, VERSION_PROBE_TIMEOUT,
 };
 use crate::report::TranscriptEntry;
-use crate::tools;
 use std::collections::BTreeMap;
 use std::ffi::{OsStr, OsString};
 use std::io::{Read, Write};
@@ -105,8 +104,9 @@ pub struct LocalCliBackend {
     pub timeout: Duration,
     /// Customer-chosen model for the CLI (`--model`); `None` = the CLI's own default.
     pub model: Option<String>,
-    /// After a successful agent run, the harness itself runs `docker compose build` (the CLI gets
-    /// no shell, so it cannot).
+    /// Request a host-side `docker compose build` after the run. REFUSED: building files an agent
+    /// just edited on the host is not allowed outside the sandboxed installer path, so `run`
+    /// fails fast when this is set. (The legacy LiteLLM loop keeps its own `rebuild` tool.)
     pub rebuild_after: bool,
 }
 
@@ -122,7 +122,7 @@ impl LocalCliBackend {
                 binary,
                 timeout: DEFAULT_CLI_TIMEOUT,
                 model: None,
-                rebuild_after: true,
+                rebuild_after: false,
             }),
             other => Err(format!("{} is not a local agent CLI backend", other.id())),
         }
@@ -136,23 +136,17 @@ impl LocalCliBackend {
         let mut stdin = Vec::new();
         match self.kind {
             BackendKind::ClaudeCode => {
-                // No `--bare` (it disables OAuth/keychain login). `--setting-sources user` keeps
-                // a bundle-supplied .claude/settings.json (hooks!) out; `--tools` removes Bash
-                // and everything but file tools; `dontAsk` denies whatever is not pre-approved.
+                // No `--bare` (it disables OAuth/keychain login). `--restricted` drops Bash and all
+                // code-running tools, ignores user/project/local settings (a bundle-supplied
+                // .claude/settings.json with hooks cannot take effect) and confines the file tools
+                // to the working directories; `--tools` scopes to file tools only; `dontAsk`
+                // denies whatever is not pre-approved. App-level confinement, not an OS sandbox.
                 args.extend(["-p", "--output-format", "stream-json", "--verbose"].map(s));
                 args.extend([s("--max-turns"), req.max_turns.to_string().into()]);
-                args.extend(["--permission-mode", "dontAsk"].map(s));
+                args.extend(["--restricted", "--permission-mode", "dontAsk"].map(s));
                 args.extend(["--tools", "Read,Edit,Write,Glob,Grep"].map(s));
                 args.extend(["--allowedTools", "Read,Edit,Write,Glob,Grep"].map(s));
-                args.extend(
-                    [
-                        "--setting-sources",
-                        "user",
-                        "--strict-mcp-config",
-                        "--no-session-persistence",
-                    ]
-                    .map(s),
-                );
+                args.extend(["--strict-mcp-config", "--no-session-persistence"].map(s));
                 if let Some(m) = &self.model {
                     args.extend([s("--model"), m.into()]);
                 }
@@ -218,6 +212,25 @@ impl AgentBackend for LocalCliBackend {
         record: &mut TranscriptFn<'_>,
     ) -> Result<AgentSuccess, AgentFailure> {
         let fail = |turns_used: u32, reason: String| AgentFailure { turns_used, reason };
+        if self.kind != BackendKind::ClaudeCode {
+            return Err(fail(
+                0,
+                format!(
+                    "{} is refused: an experimental agent CLI may only run wrapped in an OS sandbox \
+                     backend, which is not available yet (only claude runs, with its own --restricted \
+                     confinement)",
+                    self.kind.id()
+                ),
+            ));
+        }
+        if self.rebuild_after {
+            return Err(fail(
+                0,
+                "rebuild needs the sandboxed installer path: the harness will not run `docker compose \
+                 build` on the host for files an agent CLI edited"
+                    .into(),
+            ));
+        }
         let spec = self.build_command(req);
         let ambient = |k: &str| std::env::var_os(k);
         let env = build_env(self.kind, &ambient, req.max_output_tokens);
@@ -274,7 +287,7 @@ impl AgentBackend for LocalCliBackend {
                     "{} exited with {:?}: {}",
                     self.kind.id(),
                     out.exit_code,
-                    tail(&out.stderr, 500)
+                    crate::redact::redact(&tail(&out.stderr, 500))
                 ),
             ));
         }
@@ -306,27 +319,10 @@ impl AgentBackend for LocalCliBackend {
         }
         let files_changed = diff(&before, &after);
 
-        let mut rebuild_ran = false;
-        if self.rebuild_after {
-            let result = tools::rebuild(req.work_dir, req.compose_file);
-            record(TranscriptEntry::ToolCall {
-                turn: turns_used,
-                tool: "rebuild".into(),
-                arguments: "{}".into(),
-                result: result.clone(),
-            });
-            if let Err(e) = result {
-                return Err(fail(
-                    turns_used,
-                    format!("rebuild after agent run failed: {e}"),
-                ));
-            }
-            rebuild_ran = true;
-        }
         Ok(AgentSuccess {
             turns_used,
             files_changed,
-            rebuild_ran,
+            rebuild_ran: false,
         })
     }
 }

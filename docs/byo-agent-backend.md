@@ -6,8 +6,8 @@
 |----|-----------|--------|
 | `litellm` | harness-driven loop against the operator's LiteLLM (unchanged default) | supported |
 | `claude` | the customer's installed **Claude Code** (`claude -p`) | supported: flags checked against `claude --help` 2.1.310, one real run measured |
-| `codex` | **OpenAI Codex CLI** (`codex exec`) | experimental |
-| `gemini` | **Gemini CLI** (`gemini --prompt=...`) | experimental |
+| `codex` | **OpenAI Codex CLI** (`codex exec`) | experimental, **refused** until an OS sandbox wraps it |
+| `gemini` | **Gemini CLI** (`gemini --prompt=...`) | experimental, **refused** until an OS sandbox wraps it |
 | `ollama` | Ollama / OpenAI-compatible server on **loopback only**, via the same loop as `litellm` | experimental |
 
 ## Terms and trust boundary
@@ -22,10 +22,19 @@ to check them.
 ## Bounds
 
 * `max_turns` is signed in the task and capped at 200 locally; passed as `--max-turns` (claude).
-* Working directory = the bundle's work dir. claude gets only `Read,Edit,Write,Glob,Grep`
-  (`--tools`/`--allowedTools`, `--permission-mode dontAsk`), no Bash/MCP/project settings
-  (`--setting-sources user`, `--strict-mcp-config`). The harness itself runs the final
-  `docker compose build` (`rebuild`). New symlinks leaving the bundle fail the run.
+* Working directory = the bundle's work dir. claude runs with `--restricted` (no Bash or other
+  code-running tools, user/project/local settings ignored, file tools confined to the working
+  directories), `--tools`/`--allowedTools` limited to `Read,Edit,Write,Glob,Grep`,
+  `--permission-mode dontAsk`, `--strict-mcp-config`. This is application-level confinement, not an
+  OS sandbox; wrapping the spawn in the installer-engine sandbox is the follow-up (part B of the
+  security review). Until then `codex` and `gemini` are refused outright, and `auto` never picks
+  them.
+* No host-side build: the harness does **not** run `docker compose build` after a CLI run
+  (`rebuild_after` defaults to false and, if set, the run is refused with "rebuild needs the
+  sandboxed installer path"). Only the legacy LiteLLM loop keeps its `rebuild` tool.
+* Transcripts and failure reasons pass through `redact` (sk-, sk-ant-, ghp_/github_pat_, glpat-,
+  xox*, AKIA/ASIA, AIza, JWTs, `Bearer ...`, PEM private keys) before they are stored; they are
+  written only to the local state dir (0600).
 * Wall-clock timeout (default 15 min); the whole process group is SIGKILLed.
 * Environment: `env_clear()` + allowlist (`PATH`, `HOME`, `USER`, `LOGNAME`, locale, `TMPDIR`,
   `XDG_*`, proxy/CA variables, and per CLI `CLAUDE_CONFIG_DIR` / `CODEX_HOME` / `GEMINI_CLI_HOME` /

@@ -142,6 +142,11 @@ fn build_command_passes_the_prompt_verbatim_never_through_a_shell() {
     ] {
         assert!(a.iter().any(|x| x == flag), "missing {flag} in {a:?}");
     }
+    assert!(
+        a.iter().any(|x| x == "--restricted"),
+        "claude must run --restricted: {a:?}"
+    );
+    assert!(!a.iter().any(|x| x == "--setting-sources"), "{a:?}");
     assert!(!a.iter().any(|x| x.contains("Bash")), "no Bash tool");
     assert!(
         !a.iter().any(|x| x == "--bare" || x.contains("dangerously")),
@@ -227,26 +232,87 @@ fn run_delivers_nasty_prompt_verbatim_and_does_not_execute_it() {
 }
 
 #[test]
-fn gemini_receives_prompt_as_a_single_argv_element() {
+fn experimental_clis_are_refused_without_a_sandbox_and_never_spawned() {
+    let _g = lock();
+    for kind in [BackendKind::Codex, BackendKind::Gemini] {
+        let tmp = tempfile::tempdir().unwrap();
+        let work = tmp.path().join("b");
+        std::fs::create_dir(&work).unwrap();
+        let marker = tmp.path().join("spawned");
+        let bin = fake_cli(
+            tmp.path(),
+            kind.id(),
+            &format!("touch '{}'", marker.display()),
+        );
+        let f = run(&backend(kind, bin), &req("hi", &work)).0.unwrap_err();
+        assert!(
+            f.reason.contains("refused") && f.reason.contains("sandbox"),
+            "{}",
+            f.reason
+        );
+        assert!(!marker.exists(), "{} was executed unconfined", kind.id());
+    }
+}
+
+#[test]
+fn host_side_rebuild_is_refused_before_anything_runs() {
     let _g = lock();
     let tmp = tempfile::tempdir().unwrap();
     let work = tmp.path().join("b");
     std::fs::create_dir(&work).unwrap();
-    let rec = tmp.path().join("argv0");
+    let marker = tmp.path().join("spawned");
     let bin = fake_cli(
         tmp.path(),
-        "gemini",
-        &format!("printf '%s' \"$1\" > '{}'\necho ok", rec.display()),
+        "claude",
+        &format!("touch '{}'\n{CLAUDE_OK_STREAM}", marker.display()),
     );
-    let (res, _) = run(
-        &backend(BackendKind::Gemini, bin),
-        &req(NASTY_PROMPT, &work),
+    let mut b = backend(BackendKind::ClaudeCode, bin);
+    b.rebuild_after = true;
+    let f = run(&b, &req("hi", &work)).0.unwrap_err();
+    assert!(
+        f.reason
+            .contains("rebuild needs the sandboxed installer path"),
+        "{}",
+        f.reason
     );
-    res.unwrap();
-    assert_eq!(
-        std::fs::read_to_string(rec).unwrap(),
-        format!("--prompt={NASTY_PROMPT}")
+    assert!(!marker.exists());
+    // And by default the backend never asks for one.
+    assert!(
+        !LocalCliBackend::from_binary(BackendKind::ClaudeCode, "x".into())
+            .unwrap()
+            .rebuild_after
     );
+}
+
+#[test]
+fn secrets_in_cli_output_are_redacted_in_the_reason_and_on_disk() {
+    let _g = lock();
+    let tmp = tempfile::tempdir().unwrap();
+    let work = tmp.path().join("b");
+    std::fs::create_dir(&work).unwrap();
+    let secret = format!("{}{}", "sk-ant-", "api03-abcdefghijklmnopqrstuvwxyz0123");
+    let bin = fake_cli(
+        tmp.path(),
+        "claude",
+        &format!("echo 'key={secret}'\necho 'bad {secret}' >&2\nexit 2"),
+    );
+    let (res, log) = run(&backend(BackendKind::ClaudeCode, bin), &req("hi", &work));
+    let reason = res.unwrap_err().reason;
+    assert!(
+        !reason.contains(&secret) && reason.contains("[REDACTED]"),
+        "{reason}"
+    );
+    let state = tempfile::tempdir().unwrap();
+    for e in &log {
+        harness_core::report::append_transcript(state.path(), "abc", e);
+    }
+    let disk = std::fs::read_to_string(harness_core::report::transcript_path(state.path(), "abc"))
+        .unwrap();
+    assert!(
+        !disk.contains(&secret),
+        "secret reached the transcript: {disk}"
+    );
+    assert!(disk.contains("[REDACTED]"));
 }
 
 #[test]
@@ -372,8 +438,8 @@ fn non_zero_exit_is_a_failure_with_stderr_in_reason_and_transcript() {
     let tmp = tempfile::tempdir().unwrap();
     let work = tmp.path().join("b");
     std::fs::create_dir(&work).unwrap();
-    let bin = fake_cli(tmp.path(), "codex", "echo 'not logged in' >&2\nexit 3");
-    let (res, log) = run(&backend(BackendKind::Codex, bin), &req("hi", &work));
+    let bin = fake_cli(tmp.path(), "claude", "echo 'not logged in' >&2\nexit 3");
+    let (res, log) = run(&backend(BackendKind::ClaudeCode, bin), &req("hi", &work));
     let f = res.unwrap_err();
     assert!(
         f.reason.contains("3") && f.reason.contains("not logged in"),
