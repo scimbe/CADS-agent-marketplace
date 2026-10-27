@@ -1,0 +1,42 @@
+[package]
+name = "mobile-core"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Shared Rust core for the Android and iOS apps: on-device prompt-template verification/rendering and the /me/installations client, exposed through UniFFI."
+publish = false
+
+[lib]
+name = "mobile_core"
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["cli"]
+
+[features]
+# Only needed to generate the Swift/Kotlin bindings (`cargo run --features cli --bin uniffi-bindgen`).
+cli = ["uniffi/cli"]
+# On-device Wasm installations through `installer-engine::wasm_runtime` (wasmtime component model,
+# WASI 0.2). Needs Rust >= 1.97 (wasmtime 50); without the feature `WasmExecutor` is the refusing stub.
+# JIT on Android/desktop, the Pulley interpreter on iOS (no executable memory there).
+wasm = ["dep:installer-engine"]
+
+[dependencies]
+manifest-core = { path = "../manifest-core" }
+installer-engine = { path = "../installer-engine", default-features = false, features = ["wasm"], optional = true }
+# Pinned: the generated Swift/Kotlin bindings must match the library's scaffolding exactly.
+uniffi = { version = "=0.32.2" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# rustls only (no OpenSSL) so the crate cross-compiles for Android and iOS; certificate
+# verification uses the bundled webpki roots, never a disabled verifier.
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+thiserror = "2"
+
+[dev-dependencies]
+wat = "1"
+tempfile = "3"
+sha2 = "0.10"
