@@ -434,6 +434,7 @@ mod tests {
         TrustAllowlist::parse(&csv).unwrap()
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_valid_two_agent_composition_installs_both_sub_manifests() {
         let dir = tempfile::tempdir().unwrap();
@@ -532,6 +533,7 @@ mod tests {
     /// verify only checks `SubManifestRef` tamper-evidence against what the registry actually
     /// returns -- publishing an already-invalid manifest to the fake registry is the honest way to
     /// reach `activate()`'s own rejection from here).
+    #[cfg(unix)]
     #[test]
     fn a_failure_partway_through_tears_down_every_sub_manifest_that_already_succeeded() {
         let dir = tempfile::tempdir().unwrap();

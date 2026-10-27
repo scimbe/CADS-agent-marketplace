@@ -73,8 +73,8 @@ pub fn plan_with_selector(opts: PlanOptions, select: &dyn Fn() -> sandbox::Selec
 }
 
 /// [`plan_with_selector`] with the host OS injected as well (`os` is what `std::env::consts::OS`
-/// would say), so the Windows-only B3 refusal (`activate::binary_manifest_platform_verdict`) is
-/// plannable -- and testable -- from any host. A separate function rather than a new
+/// would say), so the Android platform refusal (`activate::binary_manifest_platform_verdict`) and the
+/// Windows no-opt-out rule are plannable -- and testable -- from any host. A separate function rather than a new
 /// [`PlanOptions`] field so every existing struct-literal construction (ct-agent's
 /// `build_plan_options`) keeps compiling unchanged.
 pub fn plan_with_selector_on(opts: PlanOptions, select: &dyn Fn() -> sandbox::Selection, os: &str) -> Plan {
@@ -82,7 +82,7 @@ pub fn plan_with_selector_on(opts: PlanOptions, select: &dyn Fn() -> sandbox::Se
     let effective = opts.environment.clone().unwrap_or_default();
 
     // Same order as `activate`: the platform check (step 4a, decision B3) precedes the contract
-    // check (step 4b). Binary on Windows only; every other kind/OS pair is `None`.
+    // check (step 4b). Binary on Android only; every other kind/OS pair is `None`.
     let platform_refusal = binary_manifest_platform_refusal(opts.installer_kind, os);
     if let Some(reason) = &platform_refusal {
         plan.refusals.push(reason.clone());
@@ -148,7 +148,8 @@ pub fn plan_with_selector_on(opts: PlanOptions, select: &dyn Fn() -> sandbox::Se
                     plan.argv_preview = std::iter::once(program).chain(args).collect();
                 }
                 sandbox::Selection::Unsandboxed { tried } => {
-                    if opts.require_binary_sandbox {
+                    // Windows has no unsandboxed mode (see `activate` step 9): the opt-out is ignored.
+                    if opts.require_binary_sandbox || os == "windows" {
                         plan.refusals.push(unsandboxed_refusal(&tried));
                     } else {
                         plan.argv_preview = vec![entry];
@@ -219,6 +220,7 @@ mod tests {
         assert!(plan.refusals[0].contains("CT_ALLOW_UNSANDBOXED=1"), "{}", plan.refusals[0]);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_binary_plan_under_the_opt_out_previews_the_bare_unsandboxed_command() {
         let plan = plan_with_selector(binary_opts(false), &no_backend);
@@ -227,6 +229,7 @@ mod tests {
         assert_eq!(plan.argv_preview, vec!["/scratch/plan-work/run.sh"]);
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_binary_plan_with_a_backend_previews_the_wrapped_argv_with_secrets_redacted() {
         let plan = plan_with_selector(binary_opts(true), &|| Selection::Sandboxed(Box::new(FakeBackend)));
@@ -251,26 +254,23 @@ mod tests {
         assert!(plan.refusals[1].contains("require_binary_sandbox"), "{plan:?}");
     }
 
-    /// Decision B3: on Windows a Binary plan lists the platform refusal (stable prefix, compose /
-    /// `manifest plan` alternatives named, opt-out explicitly NOT applicable) and never probes a
-    /// backend -- with `require_binary_sandbox: false` to prove the opt-out changes nothing.
+    /// Android: a Binary plan lists the platform refusal (stable prefix, opt-out explicitly NOT
+    /// applicable) and never probes a backend -- with `require_binary_sandbox: false` to prove the
+    /// opt-out changes nothing.
     #[test]
-    fn a_binary_plan_on_windows_lists_the_b3_refusal_and_never_probes_a_backend() {
+    fn a_binary_plan_on_android_lists_the_platform_refusal_and_never_probes_a_backend() {
         let plan = plan_with_selector_on(
             binary_opts(false),
-            &|| -> Selection { panic!("B3: no backend may be probed for a Binary manifest on windows") },
-            "windows",
+            &|| -> Selection { panic!("no backend may be probed for a Binary manifest on android") },
+            "android",
         );
         assert!(plan.would_refuse());
         assert_eq!(plan.backend, None);
         assert!(plan.argv_preview.is_empty(), "nothing would run: {plan:?}");
         assert_eq!(plan.refusals.len(), 1, "{plan:?}");
         let refusal = &plan.refusals[0];
-        let prefix = "unsupported_platform: binary manifests are not supported on windows";
-        assert!(refusal.starts_with(prefix), "{refusal}");
-        assert!(refusal.contains("decision B3"), "{refusal}");
-        assert!(refusal.contains("compose manifest"), "{refusal}");
-        assert!(refusal.contains("`manifest plan`"), "{refusal}");
+        assert!(refusal.starts_with("unsupported_platform: binary manifests are not supported on android"), "{refusal}");
+        assert!(refusal.contains("docs/adr/0002-android-sandbox-via-ct-agent-core.md"), "{refusal}");
         assert!(refusal.contains("CT_ALLOW_UNSANDBOXED does not apply on this platform"), "{refusal}");
         assert!(!refusal.contains("CT_ALLOW_UNSANDBOXED=1"), "must not advertise the opt-out: {refusal}");
     }
@@ -278,27 +278,40 @@ mod tests {
     /// The platform refusal comes first (step 4a precedes 4b in `activate`), and a plan still
     /// reports EVERY refusal -- the contract one is not swallowed by the platform one.
     #[test]
-    fn a_binary_plan_on_windows_lists_the_platform_refusal_before_a_contract_refusal() {
+    fn a_binary_plan_on_android_lists_the_platform_refusal_before_a_contract_refusal() {
         let mut env = EnvironmentContract::default();
         env.network.mode = manifest_core::NetworkMode::HostLoopback;
         let opts = PlanOptions { environment: Some(env), ..binary_opts(true) };
-        let plan = plan_with_selector_on(opts, &|| -> Selection { panic!("B3: never probed on windows") }, "windows");
+        let plan = plan_with_selector_on(opts, &|| -> Selection { panic!("never probed on android") }, "android");
         assert_eq!(plan.refusals.len(), 2, "{plan:?}");
         assert!(plan.refusals[0].starts_with("unsupported_platform: "), "{plan:?}");
         assert!(plan.refusals[1].contains("host_loopback"), "{plan:?}");
     }
 
-    /// Only Binary and only Windows: a Compose plan on Windows and a Binary plan on Linux/macOS
-    /// carry no platform refusal (the latter two fall through to the usual backend selection).
+    /// Windows has a backend (WSL2 + bwrap): with none usable the plan refuses even under the
+    /// opt-out, and with one it previews the wrapped command like any other OS.
     #[test]
-    fn the_b3_refusal_applies_to_binary_on_windows_only() {
-        let compose_on_windows = PlanOptions {
+    fn a_binary_plan_on_windows_ignores_the_opt_out_and_uses_the_probed_backend_otherwise() {
+        let plan = plan_with_selector_on(binary_opts(false), &no_backend, "windows");
+        assert_eq!(plan.refusals.len(), 1, "{plan:?}");
+        assert!(plan.refusals[0].contains("ct-agent doctor sandbox"), "{plan:?}");
+        let ok = plan_with_selector_on(binary_opts(false), &|| Selection::Sandboxed(Box::new(FakeBackend)), "windows");
+        assert!(!ok.would_refuse(), "{ok:?}");
+        assert_eq!(ok.backend.as_deref(), Some("fake"));
+    }
+
+    /// Only Binary on Android is platform-refused: a Compose plan on Android and a Binary plan on
+    /// Linux/macOS carry no platform refusal (the latter fall through to backend selection).
+    #[cfg(unix)]
+    #[test]
+    fn the_platform_refusal_applies_to_binary_on_android_only() {
+        let compose_on_android = PlanOptions {
             installer_kind: InstallerKind::Compose,
             entrypoint: "docker-compose.yml".to_string(),
             ..binary_opts(true)
         };
         let never = || -> Selection { panic!("Compose never probes a Binary sandbox backend") };
-        let plan = plan_with_selector_on(compose_on_windows, &never, "windows");
+        let plan = plan_with_selector_on(compose_on_android, &never, "android");
         assert!(!plan.refusals.iter().any(|r| r.starts_with("unsupported_platform: ")), "{plan:?}");
         assert_eq!(plan.argv_preview[..2], ["docker", "compose"]);
 

@@ -91,34 +91,53 @@ pub(crate) fn environment_contract_refusal(env: Option<&EnvironmentContract>) ->
 /// remediation hint), and the exact opt-out.
 pub(crate) fn unsandboxed_refusal(tried: &[(&'static str, String)]) -> String {
     let tried_text = if tried.is_empty() {
-        "no sandbox backend candidate exists for this OS yet".to_string()
+        "no sandbox backend candidate exists for this OS".to_string()
     } else {
         tried.iter().map(|(candidate, reason)| format!("{candidate}: {reason}")).collect::<Vec<_>>().join("; ")
     };
     format!(
         "require_binary_sandbox: no sandbox backend is usable on this host ({tried_text}). Refusing to run \
-         this Binary manifest unsandboxed (fail-closed default since scimbe/ct-agent#183 phase 1). To run \
-         it anyway with FULL access to this host, set {ALLOW_UNSANDBOXED_ENV}=1."
+         this Binary manifest unsandboxed (fail-closed default since scimbe/ct-agent#183 phase 1). \
+         Set up the sandbox: {} (`ct-agent doctor sandbox` prints the exact steps for this host). \
+         Only as an explicit operator decision, to run it anyway with FULL access to this host, set \
+         {ALLOW_UNSANDBOXED_ENV}=1.",
+        setup_hint()
     )
 }
 
-/// scimbe/ct-agent#183, decision B3 (2026-09-07): on Windows a Binary manifest is refused
-/// outright, fail closed, before anything is fetched. There is no sandbox candidate for Windows
-/// at all (`sandbox::platform_candidates` is empty there, and no Job-Objects backend is
-/// designed -- see `docs/design/sandbox-fallback.md`'s "Windows" section) AND no supported
-/// unsandboxed mode either: unlike Linux, where `CT_ALLOW_UNSANDBOXED=1` restores warn-and-
-/// proceed, the opt-out does not apply here, so the refusal says so instead of pointing at it.
-/// Compose manifests (Docker Desktop) and `manifest plan` stay available, which is what the text
-/// steers an operator towards. macOS keeps the existing selection/refusal logic unchanged (its
-/// sandbox backend is a later milestone), so it is `Ok(())` here.
+/// One-line, OS-specific name of the setup step, for refusal messages. Static on purpose (no host
+/// probing): the full, host-specific list is `sandbox::setup_plan()`.
+pub(crate) fn setup_hint() -> &'static str {
+    if cfg!(target_os = "linux") {
+        "install bubblewrap with your package manager (e.g. `sudo apt-get install bubblewrap`) and allow unprivileged user namespaces"
+    } else if cfg!(target_os = "macos") {
+        "nothing to install -- /usr/bin/sandbox-exec is built in; run from a normal Terminal, not from inside another sandbox"
+    } else if cfg!(windows) {
+        "install WSL2 and bubblewrap: `wsl --install -d Ubuntu` (elevated), then `wsl -u root -- apt-get install -y bubblewrap`"
+    } else {
+        "no sandbox backend is built for this OS yet"
+    }
+}
+
+/// Platform verdict for a Binary manifest, checked before anything is fetched. History:
+/// scimbe/ct-agent#183 decision B3 (2026-09-07) refused Binary on Windows outright because no
+/// backend existed there; Windows now has one (`wsl_bwrap`, see `sandbox::wsl`), so Windows is
+/// `Ok(())` here and is gated by the normal probe-or-refuse step instead -- fail closed, and
+/// without the `CT_ALLOW_UNSANDBOXED` opt-out (a Linux payload cannot run natively on Windows, so
+/// there is no unsandboxed mode to opt into; see step 9).
+///
+/// Android is refused: the planned backend (the ct-agent core inside an app sandbox,
+/// `docs/adr/0002-android-sandbox-via-ct-agent-core.md`, status Proposed) is not built, and
+/// "unsandboxed" is not an offer this product makes there.
 ///
 /// Pure over `os` (an `std::env::consts::OS`-shaped string, matched case-sensitively exactly like
-/// that constant) rather than a `cfg`, so the verdict and its text are testable on every host.
+/// that constant) rather than a `cfg`, so the verdict and its text are testable on every host. The
+/// function and its signature stay public: ct-agent calls it.
 pub fn binary_manifest_platform_verdict(os: &str) -> Result<(), String> {
-    if os == "windows" {
+    if os == "android" {
         return Err(format!(
-            "binary manifests are not supported on windows (scimbe/ct-agent#183, decision B3): install this \
-             service as a compose manifest, or use `manifest plan`; {ALLOW_UNSANDBOXED_ENV} does not apply on \
+            "binary manifests are not supported on android yet: no sandbox backend is built (planned: \
+             docs/adr/0002-android-sandbox-via-ct-agent-core.md); {ALLOW_UNSANDBOXED_ENV} does not apply on \
              this platform"
         ));
     }
@@ -128,7 +147,7 @@ pub fn binary_manifest_platform_verdict(os: &str) -> Result<(), String> {
 /// The B3 refusal as it appears in an [`InstallReport::Rejected`] reason and a [`crate::Plan`]'s
 /// `refusals`: the stable `unsupported_platform: ` prefix (the same shape as the other step
 /// prefixes, e.g. `unsupported_installer_kind: `) plus [`binary_manifest_platform_verdict`]'s
-/// text. `None` for every non-Binary kind and for every OS but Windows. Shared by [`activate`]
+/// text. `None` for every non-Binary kind and for every OS but Android. Shared by [`activate`]
 /// and [`crate::plan`] so both say the same thing.
 pub(crate) fn binary_manifest_platform_refusal(kind: InstallerKind, os: &str) -> Option<String> {
     if kind != InstallerKind::Binary {
@@ -311,7 +330,7 @@ pub(crate) fn activate_with_selector_on(
     //    executable first, env passed the SAME resolved values as Compose's `.env` (parsed back
     //    out of the file just written in step 8 -- one source of truth, not a second env
     //    resolution path).
-    let (up_outcome, captured_stdout, sandbox_name) = match manifest.installer_kind {
+    let (up_outcome, captured_stdout, sandbox_name, verify_backend) = match manifest.installer_kind {
         InstallerKind::Compose => {
             let compose_file_arg = manifest.bundle.compose_file.clone();
             let up_args = vec![
@@ -339,7 +358,7 @@ pub(crate) fn activate_with_selector_on(
                     }
                 }
             };
-            (outcome, None, None)
+            (outcome, None, None, None)
         }
         InstallerKind::Binary => {
             let binary_path = bundle_path.clone();
@@ -374,7 +393,8 @@ pub(crate) fn activate_with_selector_on(
             // subprocess is worth it over a stale "probed sandboxed once" claim outliving a host
             // config change. See `sandbox::select`'s doc and `docs/design/sandbox-fallback.md`.
             let selection = select();
-            let (program, wrapped_args, sandbox_name): (String, Vec<String>, Option<String>) = match &selection {
+            let mut verify_backend: Option<Box<dyn sandbox::SandboxBackend>> = None;
+            let (program, wrapped_args, sandbox_name): (String, Vec<String>, Option<String>) = match selection {
                 sandbox::Selection::Sandboxed(backend) => {
                     let (p, a) = backend.wrap_command(binary_str, &[], &opts.work_dir, &env_refs);
                     eprintln!(
@@ -382,14 +402,20 @@ pub(crate) fn activate_with_selector_on(
                         backend.name(),
                         backend.isolation_summary()
                     );
-                    (p, a, Some(backend.name().to_string()))
+                    let name = backend.name().to_string();
+                    // The same backend then confines `verify.sh` (step 10): the bundle's own
+                    // verification script is bundle-supplied code too.
+                    verify_backend = Some(backend);
+                    (p, a, Some(name))
                 }
                 sandbox::Selection::Unsandboxed { tried } => {
                     // Fail closed by default (scimbe/ct-agent#183 phase 1): refuse, naming the
                     // probe's own failure (bwrap's stderr plus the AppArmor/userns hint) and the
                     // opt-out. The refusal reason is the operator-facing remediation.
-                    if opts.require_binary_sandbox {
-                        let reason = unsandboxed_refusal(tried);
+                    // On Windows there is no unsandboxed mode at all (decision B3 stands): a Linux
+                    // payload cannot run natively there, so the opt-out is not honoured.
+                    if opts.require_binary_sandbox || os == "windows" {
+                        let reason = unsandboxed_refusal(&tried);
                         eprintln!("ct-agent: REFUSING Binary manifest {manifest_id_hex} -- {reason}");
                         return InstallReport::Rejected { reason, manifest_id: Some(manifest_id_hex) };
                     }
@@ -422,7 +448,7 @@ pub(crate) fn activate_with_selector_on(
                 }
             };
             let stdout = outcome.stdout.clone();
-            (outcome, Some(stdout), sandbox_name)
+            (outcome, Some(stdout), sandbox_name, verify_backend)
         }
         InstallerKind::K8s => unreachable!("step 4 already rejected K8s"),
     };
@@ -452,13 +478,22 @@ pub(crate) fn activate_with_selector_on(
     //     other deployments, e.g. kali-desktop's `setup.sh`, is itself `#!/usr/bin/env bash` with
     //     `set -uo pipefail`; bundle verify scripts follow the same convention, documented in
     //     this crate's README).
-    let verify_outcome = match process::run_bounded(
-        "bash",
-        &[manifest.verify.script.as_str()],
-        &opts.work_dir,
-        &[("CT_MANIFEST_PROJECT_NAME", opts.project_name.as_str())],
-        Duration::from_secs(manifest.verify.timeout_secs),
-    ) {
+    //     For a Binary run the SAME sandbox backend wraps it (no network, writes confined to
+    //     work_dir, cleared env): the bundle's verify script is as much publisher-supplied code as
+    //     its executable. A Binary run that was explicitly opted out of the sandbox
+    //     (`CT_ALLOW_UNSANDBOXED=1`) and Compose (whose verify needs the docker socket and the
+    //     published ports) keep running it on the host, as before.
+    let verify_env = [("CT_MANIFEST_PROJECT_NAME", opts.project_name.as_str())];
+    let verify_timeout = Duration::from_secs(manifest.verify.timeout_secs);
+    let verify_result = match &verify_backend {
+        Some(backend) => {
+            let (program, args) = backend.wrap_command(&sandbox::verify_shell(), &[manifest.verify.script.as_str()], &opts.work_dir, &verify_env);
+            let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+            process::run_bounded(&program, &arg_refs, &opts.work_dir, &verify_env, verify_timeout)
+        }
+        None => process::run_bounded("bash", &[manifest.verify.script.as_str()], &opts.work_dir, &verify_env, verify_timeout),
+    };
+    let verify_outcome = match verify_result {
         Ok(o) => o,
         Err(e) => {
             return InstallReport::Failed {
@@ -926,6 +961,7 @@ pub(crate) mod tests {
         }
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_trusted_signed_binary_manifest_actually_runs_and_its_stdout_is_captured() {
         let dir = tempfile::tempdir().unwrap();
@@ -1177,6 +1213,7 @@ pub(crate) mod tests {
     /// grants), and exec'd this script; a broken/no-op `--unshare-net` fails LOUDLY at bwrap's own
     /// loopback-setup step, before ever reaching the wrapped command at all (reproduced directly
     /// against this host's own AppArmor-restricted bwrap while building this feature).
+    #[cfg(target_os = "linux")]
     fn sandbox_probe_script() -> &'static str {
         "#!/bin/sh\n\
          set -u\n\
@@ -1199,11 +1236,26 @@ pub(crate) mod tests {
          exit 0\n"
     }
 
+    /// `verify.sh` for the sandbox proofs: it must itself be confined (step 10 runs it inside the
+    /// same backend). Exits 0 only if a write outside the work dir FAILS and a write inside it
+    /// works; the host-side canary is asserted absent by the calling test. Unsandboxed it would
+    /// create the canary and exit 1.
+    fn verify_escape_script() -> &'static str {
+        "#!/bin/sh\n\
+         if echo escaped > /tmp/installer-engine-verify-escape-canary 2>/dev/null; then\n\
+         \techo \"FAIL: verify.sh wrote outside work_dir\" >&2\n\
+         \trm -f /tmp/installer-engine-verify-escape-canary\n\
+         \texit 1\n\
+         fi\n\
+         echo verified > ./verify-ran-inside\n\
+         exit 0\n"
+    }
+
     /// Same shape as `write_binary_fixture`, but declares `OUTSIDE_TARGET` and `HOST_NET_NS` in
     /// `env_template` (so `activate`'s normal env-resolution path -- step 8, `--env-file`-
     /// equivalent for Binary -- carries them into the sandboxed process, exactly like any other
     /// manifest-declared var; no second, sandbox-specific env-passing mechanism).
-    fn write_binary_fixture_sandbox_probe(dir: &Path) -> (PathBuf, [u8; 32]) {
+    fn write_binary_fixture_sandbox_probe(dir: &Path, run_script: &str, verify_script: &str) -> (PathBuf, [u8; 32]) {
         use ed25519_dalek::SigningKey;
         use manifest_core::{BundleRef, EnvVarSpec, ServiceManifest, VerifySpec};
         use rand::RngCore;
@@ -1214,8 +1266,7 @@ pub(crate) mod tests {
         let signing_key = SigningKey::from_bytes(&seed);
         let pubkey = signing_key.verifying_key().to_bytes();
 
-        let verify_script = "#!/bin/sh\nexit 0\n";
-        let tarball = make_tar_gz(&[("run.sh", sandbox_probe_script().as_bytes()), ("verify.sh", verify_script.as_bytes())]);
+        let tarball = make_tar_gz(&[("run.sh", run_script.as_bytes()), ("verify.sh", verify_script.as_bytes())]);
         let bundle_path = dir.join("bundle.tar.gz");
         std::fs::write(&bundle_path, &tarball).unwrap();
 
@@ -1241,6 +1292,11 @@ pub(crate) mod tests {
                     required: true,
                     description: "this test process's own /proc/self/ns/net target, captured on the host side, for the sandboxed process to prove it differs from".to_string(),
                 },
+                EnvVarSpec {
+                    name: "LISTEN_PORT".to_string(),
+                    required: false,
+                    description: "a live loopback port on the host the sandboxed process must fail to connect to".to_string(),
+                },
             ],
             VerifySpec { script: "verify.sh".to_string(), timeout_secs: 30 },
             0,
@@ -1265,6 +1321,7 @@ pub(crate) mod tests {
     /// environment property outside this crate's control. It runs for real wherever a sandbox
     /// backend IS available, in particular Linux CI (`.github/workflows/ci.yml` installs `bwrap`
     /// via `apt` and relaxes that same AppArmor restriction for exactly this test).
+    #[cfg(target_os = "linux")]
     #[test]
     fn a_binary_manifest_is_genuinely_confined_by_bwrap_when_a_sandbox_backend_is_available() {
         // Held for the whole test, including the skip-check below AND the real `activate()` call
@@ -1283,7 +1340,7 @@ pub(crate) mod tests {
         // Outside work_dir, but still inside the same tempdir (so it's cleaned up together) --
         // exactly the "a real, existing path this run must never be able to touch" shape.
         let outside_target = dir.path().join("outside-canary.txt");
-        let (manifest_path, pubkey) = write_binary_fixture_sandbox_probe(dir.path());
+        let (manifest_path, pubkey) = write_binary_fixture_sandbox_probe(dir.path(), sandbox_probe_script(), verify_escape_script());
         let allowlist = TrustAllowlist::parse(&hex32(&pubkey)).unwrap();
 
         // This TEST process's own network namespace -- the baseline the sandboxed process proves
@@ -1327,6 +1384,60 @@ pub(crate) mod tests {
             !outside_target.exists(),
             "the sandboxed run must never have actually created the outside-work_dir canary file"
         );
+        assert!(dir.path().join("work/verify-ran-inside").exists(), "verify.sh must have run (inside the sandbox)");
+        assert!(!Path::new("/tmp/installer-engine-verify-escape-canary").exists(), "verify.sh must not escape the sandbox");
+    }
+
+    /// The macOS counterpart, run for real through `activate()`: install AND `verify.sh` execute
+    /// under Seatbelt (`sandbox_exec`); a write outside work_dir and a TCP connect to a live host
+    /// loopback listener both fail from inside; the report names the backend.
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn a_binary_manifest_and_its_verify_script_are_genuinely_confined_by_sandbox_exec_on_macos() {
+        let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        if !matches!(crate::sandbox::select(), crate::sandbox::Selection::Sandboxed(_)) {
+            eprintln!("skipping macOS sandbox_exec activate test: no sandbox backend available here (nested sandbox?)");
+            return;
+        }
+        let run_script = "#!/bin/sh\n\
+             set -u\n\
+             if echo probe > \"$OUTSIDE_TARGET\" 2>/dev/null; then echo \"FAIL: write outside work_dir succeeded\" >&2; exit 1; fi\n\
+             echo \"OK: write outside work_dir failed as expected\"\n\
+             if /usr/bin/nc -z -w 2 127.0.0.1 \"$LISTEN_PORT\" 2>/dev/null; then echo \"FAIL: network connect succeeded\" >&2; exit 1; fi\n\
+             echo \"OK: network connect failed as expected\"\n\
+             echo probe > ./inside-write-proof || { echo \"FAIL: write inside work_dir failed\" >&2; exit 1; }\n\
+             echo \"OK: write inside work_dir succeeded\"\n";
+        let dir = tempfile::tempdir().unwrap();
+        let outside_target = dir.path().join("outside-canary.txt");
+        let (manifest_path, pubkey) = write_binary_fixture_sandbox_probe(dir.path(), run_script, verify_escape_script());
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let env_file_path = dir.path().join("probe.env");
+        std::fs::write(&env_file_path, format!("OUTSIDE_TARGET={}\nHOST_NET_NS=n/a-on-macos\nLISTEN_PORT={port}\n", outside_target.display())).unwrap();
+
+        let report = activate(ActivateOptions {
+            manifest_location: manifest_path.to_str().unwrap().to_string(),
+            allowlist: TrustAllowlist::parse(&hex32(&pubkey)).unwrap(),
+            env_file: Some(env_file_path),
+            project_name: format!("phase5-sandbox-probe-mac-{}", std::process::id()),
+            protected_name_substrings: protected_names(),
+            work_dir: dir.path().join("work"),
+            now: 1,
+            require_binary_sandbox: true,
+        });
+        match report {
+            InstallReport::Ok { sandbox, captured_stdout, .. } => {
+                assert_eq!(sandbox.as_deref(), Some("sandbox_exec"));
+                let stdout = captured_stdout.unwrap_or_default();
+                for line in ["OK: write outside work_dir failed", "OK: network connect failed", "OK: write inside work_dir succeeded"] {
+                    assert!(stdout.contains(line), "missing {line:?} in stdout={stdout}");
+                }
+            }
+            other => panic!("expected InstallReport::Ok under sandbox_exec, got {other:?}"),
+        }
+        assert!(!outside_target.exists());
+        assert!(dir.path().join("work/verify-ran-inside").exists(), "verify.sh must have run, inside the sandbox");
+        assert!(!Path::new("/tmp/installer-engine-verify-escape-canary").exists(), "verify.sh must not escape the sandbox");
     }
 
     /// scimbe/ct-agent#183 phase 1, fail closed by default: with no usable backend and no opt-out,
@@ -1367,6 +1478,7 @@ pub(crate) mod tests {
     /// The explicit opt-out (`CT_ALLOW_UNSANDBOXED=1` -> `require_binary_sandbox: false`) keeps
     /// the pre-#183 behaviour: warn loudly, then run unsandboxed. Same injected "no backend"
     /// selection, only the flag differs.
+    #[cfg(unix)]
     #[test]
     fn allow_unsandboxed_opt_out_proceeds_with_the_warning_when_no_backend_is_available() {
         let dir = tempfile::tempdir().unwrap();
@@ -1417,36 +1529,35 @@ pub(crate) mod tests {
     // -- scimbe/ct-agent#183 phase 1: environment contract, None-semantics only ----------------
 
     /// Returns the report and the tempdir (kept alive so a caller can inspect `<dir>/work`).
-    const B3_TEXT: &str = "binary manifests are not supported on windows (scimbe/ct-agent#183, decision B3): install \
-                           this service as a compose manifest, or use `manifest plan`; CT_ALLOW_UNSANDBOXED does not \
-                           apply on this platform";
+    const ANDROID_TEXT: &str = "binary manifests are not supported on android yet: no sandbox backend is built (planned: \
+                                docs/adr/0002-android-sandbox-via-ct-agent-core.md); CT_ALLOW_UNSANDBOXED does not apply \
+                                on this platform";
 
     #[test]
-    fn binary_manifest_platform_verdict_refuses_windows_only_with_the_exact_b3_text() {
-        assert_eq!(binary_manifest_platform_verdict("windows"), Err(B3_TEXT.to_string()));
-        assert_eq!(binary_manifest_platform_verdict("linux"), Ok(()));
-        assert_eq!(binary_manifest_platform_verdict("macos"), Ok(()));
+    fn binary_manifest_platform_verdict_refuses_android_only_with_the_exact_text() {
+        assert_eq!(binary_manifest_platform_verdict("android"), Err(ANDROID_TEXT.to_string()));
+        for os in ["linux", "macos", "windows"] {
+            assert_eq!(binary_manifest_platform_verdict(os), Ok(()), "{os} has (or can get) a sandbox backend");
+        }
         // Matched exactly like `std::env::consts::OS` spells it -- no case folding, no aliases.
-        assert_eq!(binary_manifest_platform_verdict("Windows"), Ok(()));
+        assert_eq!(binary_manifest_platform_verdict("Android"), Ok(()));
     }
 
     #[test]
     fn binary_manifest_platform_refusal_carries_the_stable_prefix_and_applies_to_binary_only() {
-        let expected = format!("unsupported_platform: {B3_TEXT}");
-        let on_windows = binary_manifest_platform_refusal(InstallerKind::Binary, "windows");
-        assert_eq!(on_windows.as_deref(), Some(expected.as_str()));
-        assert_eq!(binary_manifest_platform_refusal(InstallerKind::Compose, "windows"), None);
-        assert_eq!(binary_manifest_platform_refusal(InstallerKind::K8s, "windows"), None);
+        let expected = format!("unsupported_platform: {ANDROID_TEXT}");
+        let on_android = binary_manifest_platform_refusal(InstallerKind::Binary, "android");
+        assert_eq!(on_android.as_deref(), Some(expected.as_str()));
+        assert_eq!(binary_manifest_platform_refusal(InstallerKind::Compose, "android"), None);
+        assert_eq!(binary_manifest_platform_refusal(InstallerKind::K8s, "android"), None);
         assert_eq!(binary_manifest_platform_refusal(InstallerKind::Binary, "linux"), None);
+        assert_eq!(binary_manifest_platform_refusal(InstallerKind::Binary, "windows"), None);
     }
 
-    /// Decision B3: on Windows a Binary manifest is refused before the sandbox is even probed --
-    /// the injected selector panics if step 9 is reached -- and the reason names the compose
-    /// alternative and `manifest plan`, and says the opt-out does NOT apply (so it is not the
-    /// generic `require_binary_sandbox` refusal, which would point at `CT_ALLOW_UNSANDBOXED=1`).
-    /// `require_binary_sandbox: false` here proves the opt-out is ignored on this platform.
+    /// Android: a Binary manifest is refused before the sandbox is even probed -- the injected
+    /// selector panics if step 9 is reached -- regardless of the opt-out.
     #[test]
-    fn a_binary_manifest_is_refused_on_windows_before_the_sandbox_is_probed_regardless_of_the_opt_out() {
+    fn a_binary_manifest_is_refused_on_android_before_the_sandbox_is_probed_regardless_of_the_opt_out() {
         let dir = tempfile::tempdir().unwrap();
         let (manifest_path, pubkey) = write_binary_fixture(dir.path(), [0x42; 32], "should-never-print-this");
         let allowlist = TrustAllowlist::parse(&hex32(&pubkey)).unwrap();
@@ -1456,25 +1567,63 @@ pub(crate) mod tests {
                 manifest_location: manifest_path.to_str().unwrap().to_string(),
                 allowlist,
                 env_file: None,
-                project_name: format!("b3-windows-refusal-{}", std::process::id()),
+                project_name: format!("android-refusal-{}", std::process::id()),
                 protected_name_substrings: protected_names(),
                 work_dir: dir.path().join("work"),
                 now: 1,
                 require_binary_sandbox: false,
             },
-            &|| -> sandbox::Selection { panic!("B3: the sandbox must never be probed on windows") },
-            "windows",
+            &|| -> sandbox::Selection { panic!("the sandbox must never be probed on android") },
+            "android",
         );
 
         match report {
             InstallReport::Rejected { reason, manifest_id } => {
-                assert_eq!(reason, format!("unsupported_platform: {B3_TEXT}"));
+                assert_eq!(reason, format!("unsupported_platform: {ANDROID_TEXT}"));
                 assert!(manifest_id.is_some(), "the manifest was fetched and verified, so its id is known");
                 assert!(!reason.contains("CT_ALLOW_UNSANDBOXED=1"), "must not advertise the opt-out: {reason}");
             }
-            other => panic!("expected InstallReport::Rejected (B3), got {other:?}"),
+            other => panic!("expected InstallReport::Rejected (android), got {other:?}"),
         }
-        assert!(!dir.path().join("work").exists(), "nothing may be fetched or unpacked after a B3 refusal");
+        assert!(!dir.path().join("work").exists(), "nothing may be fetched or unpacked after a platform refusal");
+    }
+
+    /// Windows has a backend now (WSL2 + bwrap), so it goes through the normal probe -- and when
+    /// that fails it is refused with the setup step EVEN with the opt-out set: a Linux payload
+    /// cannot run natively on Windows, so there is no unsandboxed mode to opt into.
+    #[test]
+    fn windows_without_a_usable_backend_is_refused_with_setup_steps_even_under_the_opt_out() {
+        let dir = tempfile::tempdir().unwrap();
+        let (manifest_path, pubkey) = write_binary_fixture(dir.path(), [0x42; 32], "should-never-print-this");
+        let report = activate_with_selector_on(
+            ActivateOptions {
+                manifest_location: manifest_path.to_str().unwrap().to_string(),
+                allowlist: TrustAllowlist::parse(&hex32(&pubkey)).unwrap(),
+                env_file: None,
+                project_name: format!("windows-refusal-{}", std::process::id()),
+                protected_name_substrings: protected_names(),
+                work_dir: dir.path().join("work"),
+                now: 1,
+                require_binary_sandbox: false,
+            },
+            &no_backend_available,
+            "windows",
+        );
+        match report {
+            InstallReport::Rejected { reason, .. } => {
+                assert!(reason.contains("require_binary_sandbox"), "{reason}");
+                assert!(reason.contains("ct-agent doctor sandbox"), "the refusal must name the setup step: {reason}");
+            }
+            other => panic!("expected a fail-closed refusal on windows, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn the_refusal_text_names_the_setup_step_and_the_doctor() {
+        let text = unsandboxed_refusal(&[("bwrap", "not runnable".to_string())]);
+        assert!(text.contains("Set up the sandbox:") && text.contains("ct-agent doctor sandbox"), "{text}");
+        assert!(text.contains("CT_ALLOW_UNSANDBOXED=1") && text.contains("explicit operator decision"), "{text}");
+        assert!(!setup_hint().is_empty());
     }
 
     fn activate_binary_with_environment(
@@ -1544,6 +1693,7 @@ pub(crate) mod tests {
         }
     }
 
+    #[cfg(unix)]
     #[test]
     fn the_default_contract_and_no_contract_both_proceed_to_a_run() {
         for (environment, line) in [(None, "no-contract"), (Some(EnvironmentContract::default()), "default-contract")] {
