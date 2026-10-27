@@ -14,6 +14,8 @@ protocol InstallationsAPI: Sendable {
     func update(id: String, ifMatch: Int64, _ input: InstallationInput) async throws -> InstallationRecord
     func delete(id: String, ifMatch: Int64?) async throws
     func duplicate(id: String) async throws -> InstallationRecord
+    /// Resolves a 409 in favour of the user's edit, built on the fresh server record (see mobile-core).
+    func overwrite(id: String, name: String, valuesJson: String?, valuesDigest: String?) async throws -> InstallationRecord
 }
 
 /// Blocking Rust calls run off the main thread.
@@ -33,6 +35,10 @@ struct RustInstallationsAPI: InstallationsAPI {
     }
     func delete(id: String, ifMatch: Int64?) async throws { try await run { try $0.delete(id: id, ifMatch: ifMatch) } }
     func duplicate(id: String) async throws -> InstallationRecord { try await run { try $0.duplicate(id: id, name: nil) } }
+
+    func overwrite(id: String, name: String, valuesJson: String?, valuesDigest: String?) async throws -> InstallationRecord {
+        try await run { try $0.overwrite(id: id, name: name, valuesJson: valuesJson, valuesDigest: valuesDigest) }
+    }
 
     private func run<T: Sendable>(_ f: @escaping @Sendable (InstallationsClient) throws -> T) async throws -> T {
         let c = client

@@ -141,11 +141,22 @@ struct InstallationDetailView: View {
 
     private func save() async { await write(ifMatch: record.revision) }
 
+    /// Keep my edits on top of the server's current record (status, components from the fresh copy).
     private func overwrite() async {
-        // Keep my edits, base them on the server's current revision.
         guard let api = model.api else { return }
         await model.prepareRequest()
-        if let cur = try? await api.get(id: record.id) { await write(ifMatch: cur.revision) }
+        do {
+            var vj: String?, vd: String?
+            if let json = templateJSON {
+                let values = form.valuesJSON(params: params)
+                vd = try renderPromptTemplate(templateJson: json, valuesJson: values, now: UInt64(Date().timeIntervalSince1970)).valuesDigest
+                vj = values
+            }
+            record = try await api.overwrite(id: record.id, name: name, valuesJson: vj, valuesDigest: vd)
+            message = String(localized: "save.done"); onChange()
+        } catch MobileError.Conflict {
+            conflictRevision = record.revision + 1 // changed again meanwhile; dialog offers the choice anew
+        } catch let e as MobileError { message = e.userMessage } catch { message = String(localized: "err.generic") }
     }
 
     private func write(ifMatch: Int64) async {

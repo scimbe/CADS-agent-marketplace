@@ -527,7 +527,19 @@ private fun InstallationDetail(
                 TextButton(onClick = {
                     conflict = null
                     scope.launch {
-                        try { beforeRequest(); write(api.get(record.id).revision) } catch (e: MobileException) { report(e) }
+                        try {
+                            beforeRequest()
+                            var vj: String? = null
+                            var vd: String? = null
+                            if (entry != null) {
+                                vj = FormValues.toJson(form.values(params))
+                                vd = renderPromptTemplate(entry.json, vj, now()).valuesDigest
+                            }
+                            record = api.overwrite(record.id, name.trim(), vj, vd)
+                            message = savedText
+                        } catch (e: MobileException.Conflict) {
+                            conflict = record.revision + 1 // changed again meanwhile; dialog offers the choice anew
+                        } catch (e: MobileException) { report(e) }
                     }
                 }) { Text(stringResource(R.string.conflict_overwrite)) }
             },

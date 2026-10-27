@@ -209,3 +209,24 @@ fn render_to_installation_roundtrip_input() {
     assert_eq!(inp.template_digest, r.template_digest);
     assert_eq!(inp.components[0].name, "pandoc");
 }
+
+#[test]
+fn overwrite_builds_from_fresh_record_and_uses_fresh_revision() {
+    // Fresh record on the server: revision 7, status installed, different components than the stale copy.
+    let fresh = rec_json(7, "Server-Name").replace("\"status\":\"draft\"", "\"status\":\"installed\"");
+    let (base, seen) = serve(vec![(200, vec![], fresh), (200, vec![], rec_json(8, "Meins"))]);
+    let r = client(&base).overwrite("abc".into(), "Meins".into(), Some(r#"{"topic":"neu"}"#.into()), Some(H64.replace('a', "b"))).unwrap();
+    assert_eq!(r.revision, 8);
+    let s = seen.lock().unwrap();
+    assert!(s[0].request_line.starts_with("GET /me/installations/abc"));
+    assert!(s[1].request_line.starts_with("PUT /me/installations/abc"));
+    assert!(s[1].headers.to_lowercase().contains("if-match: \"7\""), "fresh revision: {}", s[1].headers);
+    assert!(s[1].body.contains(r#""status":"installed""#), "status comes from the fresh record: {}", s[1].body);
+    assert!(s[1].body.contains(r#""name":"Meins""#) && s[1].body.contains(r#""topic":"neu""#));
+}
+
+#[test]
+fn overwrite_surfaces_a_second_conflict() {
+    let (base, _) = serve(vec![(200, vec![], rec_json(3, "x")), (409, vec![], "revision mismatch".into())]);
+    assert!(matches!(client(&base).overwrite("abc".into(), "n".into(), None, None), Err(MobileError::Conflict { current_revision: None })));
+}

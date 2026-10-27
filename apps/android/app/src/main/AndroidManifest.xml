@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -19,7 +20,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!-- AppAuth's RedirectUriReceiverActivity is merged from the library; its scheme comes
-             from the appAuthRedirectScheme manifest placeholder (build.gradle.kts). -->
+        <!-- OAuth redirect as a verified App Link (https + autoVerify). Replaces AppAuth's own
+             custom-scheme receiver so no other app can register the redirect. The operator must
+             serve /.well-known/assetlinks.json for this package (apps/README.md). -->
+        <activity
+            android:name="net.openid.appauth.RedirectUriReceiverActivity"
+            android:exported="true"
+            tools:node="replace">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="${redirectHost}" android:path="${redirectPath}" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

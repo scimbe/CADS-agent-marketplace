@@ -45,6 +45,14 @@ struct MockInstallationsAPI: InstallationsAPI {
         r.revision += 1; r.updatedAt = Int64(Date().timeIntervalSince1970)
         await store.put(r); return r
     }
+    func overwrite(id: String, name: String, valuesJson: String?, valuesDigest: String?) async throws -> InstallationRecord {
+        guard var r = await store.find(id) else { throw MobileError.NotFound }
+        r.name = name
+        if let v = valuesJson { r.valuesJson = v }
+        if let d = valuesDigest { r.valuesDigest = d }
+        r.revision += 1
+        await store.put(r); return r
+    }
     func delete(id: String, ifMatch: Int64?) async throws { await store.remove(id) }
     func duplicate(id: String) async throws -> InstallationRecord {
         guard var r = await store.find(id) else { throw MobileError.NotFound }

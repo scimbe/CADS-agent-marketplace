@@ -41,6 +41,9 @@ interface InstallationsApi {
     suspend fun update(id: String, ifMatch: Long, input: InstallationInput): InstallationRecord
     suspend fun delete(id: String, ifMatch: Long?)
     suspend fun duplicate(id: String): InstallationRecord
+
+    /** Resolves a 409 in favour of the user's edit, built on the fresh server record (see mobile-core). */
+    suspend fun overwrite(id: String, name: String, valuesJson: String?, valuesDigest: String?): InstallationRecord
 }
 
 class RustInstallationsApi(tokens: () -> String?) : InstallationsApi {
@@ -60,6 +63,8 @@ class RustInstallationsApi(tokens: () -> String?) : InstallationsApi {
     override suspend fun update(id: String, ifMatch: Long, input: InstallationInput) = io { client.update(id, ifMatch, input) }
     override suspend fun delete(id: String, ifMatch: Long?) = io { client.delete(id, ifMatch) }
     override suspend fun duplicate(id: String) = io { client.duplicate(id, null) }
+    override suspend fun overwrite(id: String, name: String, valuesJson: String?, valuesDigest: String?) =
+        io { client.overwrite(id, name, valuesJson, valuesDigest) }
 }
 
 fun deviceTarget() = TargetRecord(os = "android", deviceLabel = Build.MODEL ?: "", agentHolderPubkey = null)

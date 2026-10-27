@@ -12,12 +12,14 @@ enum Keychain {
          kSecAttrAccount as String: account]
     }
 
-    static func save(_ data: Data, account: String) {
+    /// Returns false when the item could not be stored; callers must not treat the user as signed in then.
+    @discardableResult
+    static func save(_ data: Data, account: String) -> Bool {
         SecItemDelete(query(account) as CFDictionary)
         var q = query(account)
         q[kSecValueData as String] = data
         q[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        SecItemAdd(q as CFDictionary, nil)
+        return SecItemAdd(q as CFDictionary, nil) == errSecSuccess
     }
 
     static func load(account: String) -> Data? {

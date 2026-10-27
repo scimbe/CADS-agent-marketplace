@@ -12,6 +12,7 @@ import net.openid.appauth.AuthorizationRequest
 import net.openid.appauth.AuthorizationResponse
 import net.openid.appauth.AuthorizationService
 import net.openid.appauth.AuthorizationServiceConfiguration
+import net.openid.appauth.EndSessionRequest
 import net.openid.appauth.ResponseTypeValues
 import org.bunsenbrenner.cads.BuildConfig
 import kotlin.coroutines.resume
@@ -30,6 +31,8 @@ class AuthManager(context: Context) {
     private val config = AuthorizationServiceConfiguration(
         Uri.parse(BuildConfig.OIDC_ISSUER + "/protocol/openid-connect/auth"),
         Uri.parse(BuildConfig.OIDC_ISSUER + "/protocol/openid-connect/token"),
+        null,
+        Uri.parse(BuildConfig.OIDC_ISSUER + "/protocol/openid-connect/logout"),
     )
 
     /** Synchronous read for the Rust client's token callback (runs on a background thread). */
@@ -76,10 +79,29 @@ class AuthManager(context: Context) {
         }
     }
 
-    fun signOut() {
+    /**
+     * Clears all local token state at once and revokes the refresh token at Keycloak in the
+     * background. Returns an intent that ends the Keycloak browser session (end_session with the
+     * ID token hint) or null when there is none; the caller launches it and may ignore its result.
+     */
+    fun signOut(): Intent? {
+        val refresh = state.refreshToken
+        val idToken = state.idToken
+        val endSession = idToken?.let {
+            service.getEndSessionRequestIntent(
+                EndSessionRequest.Builder(config)
+                    .setIdTokenHint(it)
+                    .setPostLogoutRedirectUri(Uri.parse(BuildConfig.REDIRECT_URI))
+                    .build(),
+            )
+        }
         store.clear()
         state = AuthState()
         _signedIn.value = false
+        if (refresh != null) {
+            Thread { Revocation.revoke(BuildConfig.OIDC_ISSUER + "/protocol/openid-connect/revoke", refresh, BuildConfig.OIDC_CLIENT_ID) }.start()
+        }
+        return endSession
     }
 
     private fun persist() {

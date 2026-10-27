@@ -8,7 +8,9 @@ plugins {
 val cadsApiBase = (project.findProperty("cadsApiBase") as String?) ?: "https://bunsenbrenner.org"
 val cadsIssuer = (project.findProperty("cadsIssuer") as String?) ?: "https://auth.bunsenbrenner.org/realms/ct-demo"
 val cadsClientId = (project.findProperty("cadsClientId") as String?) ?: "cads-mobile"
-val redirectScheme = "org.bunsenbrenner.cads"
+// Android uses a verified App Link (https) as OAuth redirect, not a custom scheme another app could claim.
+val cadsRedirectUri = (project.findProperty("cadsRedirectUri") as String?) ?: "https://bunsenbrenner.org/app/oauth2redirect"
+val redirect = java.net.URI(cadsRedirectUri)
 
 android {
     namespace = "org.bunsenbrenner.cads"
@@ -20,11 +22,13 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
-        manifestPlaceholders["appAuthRedirectScheme"] = redirectScheme
+        manifestPlaceholders["appAuthRedirectScheme"] = redirect.scheme // required by AppAuth's manifest
+        manifestPlaceholders["redirectHost"] = redirect.host
+        manifestPlaceholders["redirectPath"] = redirect.path
         buildConfigField("String", "API_BASE", "\"$cadsApiBase\"")
         buildConfigField("String", "OIDC_ISSUER", "\"$cadsIssuer\"")
         buildConfigField("String", "OIDC_CLIENT_ID", "\"$cadsClientId\"")
-        buildConfigField("String", "REDIRECT_URI", "\"$redirectScheme:/oauth2redirect\"")
+        buildConfigField("String", "REDIRECT_URI", "\"$cadsRedirectUri\"")
         // Rust core is built for these ABIs by build-rust.sh (cargo-ndk).
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }

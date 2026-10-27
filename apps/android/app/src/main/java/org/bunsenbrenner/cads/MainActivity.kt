@@ -42,12 +42,13 @@ private fun Root(vm: AppViewModel) {
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         vm.auth.handleSignInResult(result.data) { /* signedIn flow updates the UI */ }
     }
+    val endSessionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { /* result not needed */ }
     CadsApp(
         catalog = vm.catalog,
         api = vm.api,
         signedIn = signedIn,
         beforeRequest = { vm.auth.ensureFresh() },
         onSignIn = { launcher.launch(vm.auth.signInIntent()) },
-        onSignOut = { vm.auth.signOut() },
+        onSignOut = { vm.auth.signOut()?.let { endSessionLauncher.launch(it) } },
     )
 }

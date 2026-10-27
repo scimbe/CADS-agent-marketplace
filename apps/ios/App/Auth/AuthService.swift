@@ -9,7 +9,7 @@ struct StoredTokens: Codable {
     var expiresAt: Date
 }
 
-enum AuthError: Error { case cancelled, stateMismatch, tokenEndpoint(Int), invalidResponse }
+enum AuthError: Error { case cancelled, stateMismatch, tokenEndpoint(Int), invalidResponse, storageFailed }
 
 /// OIDC Authorization Code + PKCE (RFC 7636/8252) with the system browser
 /// (ASWebAuthenticationSession), public client, no client secret. Tokens live in the Keychain.
@@ -19,13 +19,23 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
     private var session: ASWebAuthenticationSession?
     private static let account = "tokens"
 
+    private var refreshTask: Task<Void, Never>?
+
     override init() {
+        // Keychain items survive an app delete/reinstall. Treat the first launch after an install
+        // as signed out and drop whatever a previous installation left behind.
+        let defaults = UserDefaults.standard
+        if !defaults.bool(forKey: "cads.launchedBefore") {
+            Keychain.delete(account: Self.account)
+            defaults.set(true, forKey: "cads.launchedBefore")
+        }
         isSignedIn = Keychain.load(account: Self.account) != nil
         super.init()
     }
 
     private var authEndpoint: URL { URL(string: AppConfig.issuer + "/protocol/openid-connect/auth")! }
     private var tokenEndpoint: URL { URL(string: AppConfig.issuer + "/protocol/openid-connect/token")! }
+    private var revokeEndpoint: URL { URL(string: AppConfig.issuer + "/protocol/openid-connect/revoke")! }
 
     // MARK: Sign in
 
@@ -49,7 +59,9 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
                 if let url { cont.resume(returning: url) } else { cont.resume(throwing: error ?? AuthError.cancelled) }
             }
             s.presentationContextProvider = self
-            s.prefersEphemeralWebBrowserSession = false
+            // Ephemeral: no Keycloak SSO cookie is left in Safari, so signing out here really ends the
+            // browser session as well (no end_session round trip needed).
+            s.prefersEphemeralWebBrowserSession = true
             self.session = s
             if !s.start() { cont.resume(throwing: AuthError.cancelled) }
         }
@@ -64,9 +76,27 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
         ])
     }
 
+    /// Clears all local token state at once, then revokes the refresh token at Keycloak
+    /// (RFC 7009) in the background; a revocation failure never keeps the user signed in locally.
     func signOut() {
+        let old = Keychain.load(account: Self.account).flatMap { try? JSONDecoder().decode(StoredTokens.self, from: $0) }
+        refreshTask?.cancel()
+        refreshTask = nil
         Keychain.delete(account: Self.account)
         isSignedIn = false
+        guard let refresh = old?.refreshToken else { return }
+        let url = revokeEndpoint
+        Task.detached {
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.timeoutInterval = 15
+            req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+            var body = URLComponents()
+            body.queryItems = [.init(name: "token", value: refresh), .init(name: "token_type_hint", value: "refresh_token"),
+                               .init(name: "client_id", value: AppConfig.clientId)]
+            req.httpBody = body.percentEncodedQuery?.data(using: .utf8)
+            _ = try? await URLSession.shared.data(for: req)
+        }
     }
 
     // MARK: Tokens
@@ -79,6 +109,16 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
 
     /// Refreshes the access token when it expires within 60 s. Call before each API request.
     func ensureFresh() async {
+        // One refresh at a time: concurrent callers wait for the running one. With refresh-token
+        // rotation a second parallel refresh would present an already-used token and sign the user out.
+        if let running = refreshTask { await running.value; return }
+        let task = Task { await self.refreshIfNeeded() }
+        refreshTask = task
+        await task.value
+        refreshTask = nil
+    }
+
+    private func refreshIfNeeded() async {
         guard let d = Keychain.load(account: Self.account), let t = try? JSONDecoder().decode(StoredTokens.self, from: d) else { return }
         guard t.expiresAt.timeIntervalSinceNow < 60 else { return }
         guard let refresh = t.refreshToken else { signOut(); return }
@@ -107,7 +147,11 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
         let stored = StoredTokens(accessToken: r.access_token,
                                   refreshToken: r.refresh_token ?? old?.refreshToken,
                                   expiresAt: Date().addingTimeInterval(r.expires_in ?? 300))
-        Keychain.save(try JSONEncoder().encode(stored), account: Self.account)
+        guard Keychain.save(try JSONEncoder().encode(stored), account: Self.account) else {
+            Keychain.delete(account: Self.account)
+            isSignedIn = false
+            throw AuthError.storageFailed
+        }
         isSignedIn = true
     }
 

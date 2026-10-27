@@ -39,9 +39,6 @@ targets:
     info:
       path: App/Info.plist
       properties:
-        CFBundleURLTypes:
-          - CFBundleURLName: org.bunsenbrenner.cads.oauth
-            CFBundleURLSchemes: [org.bunsenbrenner.cads]
         CadsApiBase: https://bunsenbrenner.org
         CadsOidcIssuer: https://auth.bunsenbrenner.org/realms/ct-demo
         CadsOidcClientId: cads-mobile

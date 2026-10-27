@@ -307,6 +307,26 @@ impl InstallationsClient {
         Ok(decode::<WireRecord>(&resp)?.into())
     }
 
+    /// Resolve a 409 in favour of the user's edit: always re-GET the current record, then PUT the
+    /// user's edited fields (`name`, and `values_json`/`values_digest` when given) on top of the
+    /// FRESH record, so status, components and everything the user did not edit come from the
+    /// server's current state, with `If-Match` set to the fresh revision. Does not depend on the
+    /// 409 body carrying a revision. A concurrent change between the GET and the PUT yields
+    /// another `Conflict`.
+    pub fn overwrite(&self, id: String, name: String, values_json: Option<String>, values_digest: Option<String>) -> Result<InstallationRecord, MobileError> {
+        let fresh = self.get(id.clone())?;
+        let rev = fresh.revision;
+        let mut input = installation_input_from_record(fresh);
+        input.name = name;
+        if let Some(v) = values_json {
+            input.values_json = v;
+        }
+        if let Some(d) = values_digest {
+            input.values_digest = d;
+        }
+        self.update(id, rev, input)
+    }
+
     /// Soft delete (the server keeps the newest removed records restorable via `update`).
     pub fn delete(&self, id: String, if_match: Option<i64>) -> Result<(), MobileError> {
         self.send("DELETE", &item_path(&id)?, None, if_match).map(|_| ())
