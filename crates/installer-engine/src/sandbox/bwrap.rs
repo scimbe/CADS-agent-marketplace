@@ -1,6 +1,9 @@
 //! Linux backend: `bubblewrap` (`bwrap`). See `docs/design/sandbox-fallback.md`'s "Linux backend"
 //! section for the full rationale behind each flag below and the rejected `firejail` alternative.
 
+// Compiled on every OS: the Windows/WSL2 backend reuses `bwrap_args`. Only Linux probes/selects it.
+#![cfg_attr(not(target_os = "linux"), allow(dead_code))]
+
 use super::{Probe, SandboxBackend};
 use std::path::Path;
 use std::process::Command;
@@ -15,40 +18,7 @@ impl SandboxBackend for Bwrap {
     }
 
     fn wrap_command(&self, exe: &str, args: &[&str], work_dir: &Path, env: &[(&str, &str)]) -> (String, Vec<String>) {
-        let work_dir_str = work_dir.display().to_string();
-        let mut a: Vec<String> = vec![
-            "--die-with-parent".to_string(),
-            // No network namespace at all -- F.1-equivalent by construction, stronger than
-            // "loopback only". No manifest-declared network-need escape hatch in this MVP.
-            "--unshare-net".to_string(),
-            "--unshare-pid".to_string(),
-            "--unshare-uts".to_string(),
-            "--unshare-ipc".to_string(),
-            // Read the base OS (libraries, /usr/bin/sh if it shells out, etc.) but WRITE only
-            // inside work_dir below -- F.3-equivalent. No `--unshare-user` flag passed explicitly:
-            // bwrap uses an unprivileged user namespace internally by default when not
-            // setuid-root-installed, matching `InstallerKind`'s doc-comment posture that the
-            // allowlist check already assumes ("no privilege escalation for the installer
-            // itself") -- this backend doesn't weaken it.
-            "--ro-bind".to_string(),
-            "/".to_string(),
-            "/".to_string(),
-            "--bind".to_string(),
-            work_dir_str.clone(),
-            work_dir_str.clone(),
-            "--chdir".to_string(),
-            work_dir_str,
-            "--clearenv".to_string(),
-        ];
-        for (k, v) in env {
-            a.push("--setenv".to_string());
-            a.push((*k).to_string());
-            a.push((*v).to_string());
-        }
-        a.push("--".to_string());
-        a.push(exe.to_string());
-        a.extend(args.iter().map(|s| (*s).to_string()));
-        ("bwrap".to_string(), a)
+        ("bwrap".to_string(), bwrap_args(exe, args, &work_dir.display().to_string(), env, &[]))
     }
 
     fn isolation_summary(&self) -> &'static str {
@@ -57,6 +27,54 @@ impl SandboxBackend for Bwrap {
          while the base OS remains readable (F.3-equivalent). No resource limits (memory/CPU) -- \
          same gap Compose has today, not a regression."
     }
+}
+
+/// The `bwrap` argv (minus the program name). Shared with the Windows/WSL2 backend, which runs the
+/// same `bwrap` inside a WSL distro: `work_dir` is passed as a string because there it is a
+/// translated Linux path, and `hide` lists extra directories to blank with a tmpfs AFTER the
+/// read-only root bind and BEFORE the work_dir bind (WSL uses it to hide the `/mnt/<drive>` mounts
+/// of the Windows filesystem). Empty for native Linux, so that argv is unchanged.
+pub(super) fn bwrap_args(exe: &str, args: &[&str], work_dir_str: &str, env: &[(&str, &str)], hide: &[&str]) -> Vec<String> {
+    let work_dir_str = work_dir_str.to_string();
+    let mut a: Vec<String> = vec![
+        "--die-with-parent".to_string(),
+        // No network namespace at all -- F.1-equivalent by construction, stronger than
+        // "loopback only". No manifest-declared network-need escape hatch in this MVP.
+        "--unshare-net".to_string(),
+        "--unshare-pid".to_string(),
+        "--unshare-uts".to_string(),
+        "--unshare-ipc".to_string(),
+        // Read the base OS (libraries, /usr/bin/sh if it shells out, etc.) but WRITE only
+        // inside work_dir below -- F.3-equivalent. No `--unshare-user` flag passed explicitly:
+        // bwrap uses an unprivileged user namespace internally by default when not
+        // setuid-root-installed, matching `InstallerKind`'s doc-comment posture that the
+        // allowlist check already assumes ("no privilege escalation for the installer
+        // itself") -- this backend doesn't weaken it.
+        "--ro-bind".to_string(),
+        "/".to_string(),
+        "/".to_string(),
+    ];
+    for dir in hide {
+        a.push("--tmpfs".to_string());
+        a.push((*dir).to_string());
+    }
+    a.extend([
+        "--bind".to_string(),
+        work_dir_str.clone(),
+        work_dir_str.clone(),
+        "--chdir".to_string(),
+        work_dir_str,
+        "--clearenv".to_string(),
+    ]);
+    for (k, v) in env {
+        a.push("--setenv".to_string());
+        a.push((*k).to_string());
+        a.push((*v).to_string());
+    }
+    a.push("--".to_string());
+    a.push(exe.to_string());
+    a.extend(args.iter().map(|s| (*s).to_string()));
+    a
 }
 
 /// Cheap, side-effect-free `--version` check first (matches this crate's existing
