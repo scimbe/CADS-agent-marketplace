@@ -1,5 +1,9 @@
 //! Linux backend: `bubblewrap` (`bwrap`). See `docs/design/sandbox-fallback.md`'s "Linux backend"
-//! section for the full rationale behind each flag below and the rejected `firejail` alternative.
+//! section for the rationale behind the flags, and `docs/security-model.md` F.14 for the measured
+//! limits. The filesystem view is an ALLOWLIST (`/usr`, `/bin`, `/sbin`, `/lib*`, a few `/etc`
+//! files, a private `/proc` and `/dev`), not `--ro-bind / /`: a read-only bind of the host root
+//! exposes `$HOME` (`~/.ssh`, tokens) and the host's procfs (`/proc/<pid>/root`, `environ` of
+//! same-UID processes).
 
 // Compiled on every OS: the Windows/WSL2 backend reuses `bwrap_args`. Only Linux probes/selects it.
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
@@ -10,6 +14,16 @@ use std::process::Command;
 
 const CANDIDATE: &str = "bwrap";
 
+/// Where `bwrap` is looked for. Absolute paths only, never a `PATH` search: a user-writable
+/// `PATH` entry must not be able to substitute the sandbox launcher (and Ubuntu's AppArmor profile
+/// `bwrap-userns-restrict` is attached to `/usr/bin/bwrap`).
+const BWRAP_CANDIDATES: [&str; 3] = ["/usr/bin/bwrap", "/bin/bwrap", "/usr/local/bin/bwrap"];
+
+/// The absolute path of an installed `bwrap`, if any.
+pub(crate) fn bwrap_path() -> Option<&'static str> {
+    BWRAP_CANDIDATES.into_iter().find(|p| Path::new(p).is_file())
+}
+
 pub struct Bwrap;
 
 impl SandboxBackend for Bwrap {
@@ -18,54 +32,73 @@ impl SandboxBackend for Bwrap {
     }
 
     fn wrap_command(&self, exe: &str, args: &[&str], work_dir: &Path, env: &[(&str, &str)]) -> (String, Vec<String>) {
-        ("bwrap".to_string(), bwrap_args(exe, args, &work_dir.display().to_string(), env, &[]))
+        (
+            bwrap_path().unwrap_or(BWRAP_CANDIDATES[0]).to_string(),
+            bwrap_args(exe, args, &work_dir.display().to_string(), env),
+        )
     }
 
     fn isolation_summary(&self) -> &'static str {
-        "bwrap: no network namespace (F.1-equivalent), no PID/UTS/IPC namespace sharing with the \
-         host and no privilege escalation (F.2-equivalent), filesystem writes confined to work_dir \
-         while the base OS remains readable (F.3-equivalent). No resource limits (memory/CPU) -- \
-         same gap Compose has today, not a regression."
+        "bwrap: all namespaces unshared incl. network (F.1-equivalent), PID/UTS/IPC/cgroup, all \
+         capabilities dropped, new session (no TIOCSTI), private /proc and /dev, read-only allowlisted \
+         filesystem view (no $HOME), writes confined to work_dir (F.3-equivalent), environment cleared. \
+         Resource caps: CPU time, file size and a per-UID process cap via setrlimit; no memory cap."
     }
 }
 
+/// Read-only host directories bound into the sandbox when present. `/usr` is mandatory (checked by
+/// the caller via the bind itself); the rest use `--ro-bind-try`, so merged-`/usr` hosts (where
+/// `/bin` is a symlink to `usr/bin`) get the resolved directory at the same path, and non-merged
+/// hosts get their real directories.
+const RO_DIRS: [&str; 6] = ["/bin", "/sbin", "/lib", "/lib32", "/lib64", "/libx32"];
+
+/// The few `/etc` entries a dynamically linked program or TLS client needs. Deliberately NOT all of
+/// `/etc` (`/etc/shadow`-adjacent data, other users' configs) and not `/etc/resolv.conf`: there is
+/// no network, and a future network opt-in must add it explicitly.
+const RO_ETC: [&str; 11] = [
+    "/etc/alternatives",
+    "/etc/ld.so.cache",
+    "/etc/ld.so.conf",
+    "/etc/ld.so.conf.d",
+    "/etc/passwd",
+    "/etc/group",
+    "/etc/nsswitch.conf",
+    "/etc/localtime",
+    "/etc/ssl",
+    "/etc/ca-certificates",
+    "/etc/pki",
+];
+
 /// The `bwrap` argv (minus the program name). Shared with the Windows/WSL2 backend, which runs the
-/// same `bwrap` inside a WSL distro: `work_dir` is passed as a string because there it is a
-/// translated Linux path, and `hide` lists extra directories to blank with a tmpfs AFTER the
-/// read-only root bind and BEFORE the work_dir bind (WSL uses it to hide the `/mnt/<drive>` mounts
-/// of the Windows filesystem). Empty for native Linux, so that argv is unchanged.
-pub(super) fn bwrap_args(exe: &str, args: &[&str], work_dir_str: &str, env: &[(&str, &str)], hide: &[&str]) -> Vec<String> {
+/// same `bwrap` inside a WSL distro, so `work_dir_str` is a string (a translated Linux path there).
+pub(super) fn bwrap_args(exe: &str, args: &[&str], work_dir_str: &str, env: &[(&str, &str)]) -> Vec<String> {
     let work_dir_str = work_dir_str.to_string();
-    let mut a: Vec<String> = vec![
-        "--die-with-parent".to_string(),
-        // No network namespace at all -- F.1-equivalent by construction, stronger than
-        // "loopback only". No manifest-declared network-need escape hatch in this MVP.
-        "--unshare-net".to_string(),
-        "--unshare-pid".to_string(),
-        "--unshare-uts".to_string(),
-        "--unshare-ipc".to_string(),
-        // Read the base OS (libraries, /usr/bin/sh if it shells out, etc.) but WRITE only
-        // inside work_dir below -- F.3-equivalent. No `--unshare-user` flag passed explicitly:
-        // bwrap uses an unprivileged user namespace internally by default when not
-        // setuid-root-installed, matching `InstallerKind`'s doc-comment posture that the
-        // allowlist check already assumes ("no privilege escalation for the installer
-        // itself") -- this backend doesn't weaken it.
-        "--ro-bind".to_string(),
-        "/".to_string(),
-        "/".to_string(),
-    ];
-    for dir in hide {
-        a.push("--tmpfs".to_string());
-        a.push((*dir).to_string());
-    }
-    a.extend([
-        "--bind".to_string(),
-        work_dir_str.clone(),
-        work_dir_str.clone(),
-        "--chdir".to_string(),
-        work_dir_str,
-        "--clearenv".to_string(),
+    let mut a: Vec<String> = Vec::new();
+    let mut push = |xs: &[&str]| a.extend(xs.iter().map(|s| (*s).to_string()));
+    push(&[
+        "--die-with-parent",
+        // TIOCSTI keystroke injection into the controlling terminal.
+        "--new-session",
+        // user, ipc, pid, net, uts, cgroup: network is thereby unshared (F.1-equivalent). There is
+        // no loopback opt-in on this backend; with `--unshare-net` bwrap brings up a PRIVATE `lo`.
+        "--unshare-all",
+        "--cap-drop",
+        "ALL",
+        "--ro-bind",
+        "/usr",
+        "/usr",
     ]);
+    for d in RO_DIRS {
+        push(&["--ro-bind-try", d, d]);
+    }
+    for f in RO_ETC {
+        push(&["--ro-bind-try", f, f]);
+    }
+    push(&["--proc", "/proc", "--dev", "/dev"]);
+    a.extend(["--bind".to_string(), work_dir_str.clone(), work_dir_str.clone(), "--chdir".to_string(), work_dir_str]);
+    // The root is a tmpfs bwrap assembled; make it read-only so `mkdir`/`write` at `/`, `/tmp`,
+    // `/home` fail instead of succeeding in a throwaway tmpfs (the work_dir bind stays writable).
+    a.extend(["--remount-ro".to_string(), "/".to_string(), "--clearenv".to_string()]);
     for (k, v) in env {
         a.push("--setenv".to_string());
         a.push((*k).to_string());
@@ -77,37 +110,25 @@ pub(super) fn bwrap_args(exe: &str, args: &[&str], work_dir_str: &str, env: &[(&
     a
 }
 
-/// Cheap, side-effect-free `--version` check first (matches this crate's existing
-/// `docker_names`-style "shell out and check exit status" idiom), THEN a real sandboxed-exec probe
-/// -- DECIDED (operator, 2026-08-28): some hardened kernels/LSM configs (Ubuntu's
-/// `kernel.apparmor_restrict_unprivileged_userns`, or the older `kernel.unprivileged_userns_clone=0`)
-/// let `--version` succeed (it needs no user namespace) while a real sandboxed exec later fails --
-/// this probe catches that at probe time, one extra subprocess per activation, worth it over "probe
-/// passed but first real use fails."
+/// Cheap `--version` first, THEN a real sandboxed exec with the runtime's own flags -- DECIDED
+/// (operator, 2026-08-28): hardened kernels/LSM configs (Ubuntu's
+/// `kernel.apparmor_restrict_unprivileged_userns`, the older `kernel.unprivileged_userns_clone=0`)
+/// let `--version` succeed while a real exec fails.
 pub fn probe() -> Probe {
-    probe_with_path(std::env::var("PATH").ok().as_deref())
+    probe_with(bwrap_path())
 }
 
-/// Same probe, with the `PATH` `bwrap` is resolved against passed explicitly rather than read from
-/// the current process's ambient environment -- lets the "not on PATH" test below exercise the real
-/// `Command::new("bwrap")` resolution failure hermetically, by overriding just this one `Command`'s
-/// env, instead of mutating the whole test process's `PATH` via `std::env::set_var` (the
-/// `collision_guard_skips_docker_entirely_when_told_to` idiom elsewhere in this crate). That idiom
-/// is correct where it's used (`process::run_bounded` itself re-reads `PATH` from process env, so
-/// there's no other way to redirect it), but doing it a SECOND time here, concurrently with the
-/// first, was measured to flake other tests that shell out (e.g. `process::tests`) roughly 1 run in
-/// 5 under `cargo test`'s default parallelism -- a global, process-wide env mutation racing against
-/// unrelated tests reading that same global state. `Command::env` scopes the override to this one
-/// child process only, with no such race.
-fn probe_with_path(path: Option<&str>) -> Probe {
-    let mut version_cmd = Command::new("bwrap");
-    version_cmd.arg("--version");
-    if let Some(p) = path {
-        version_cmd.env("PATH", p);
-    } else {
-        version_cmd.env_remove("PATH");
-    }
-    match version_cmd.output() {
+/// Same probe with the `bwrap` path passed explicitly, so the "not installed" case is testable
+/// without touching the process environment (see the `PATH_MUTATION_LOCK` history in
+/// `process.rs`).
+fn probe_with(bwrap: Option<&str>) -> Probe {
+    let Some(bwrap) = bwrap else {
+        return Probe::Unavailable {
+            candidate: CANDIDATE,
+            reason: format!("bwrap not found at any of {BWRAP_CANDIDATES:?}"),
+        };
+    };
+    match Command::new(bwrap).arg("--version").env_clear().output() {
         Ok(o) if o.status.success() => {}
         Ok(o) => {
             return Probe::Unavailable {
@@ -119,28 +140,9 @@ fn probe_with_path(path: Option<&str>) -> Probe {
                 ),
             }
         }
-        Err(e) => return Probe::Unavailable { candidate: CANDIDATE, reason: format!("bwrap not runnable on PATH: {e}") },
+        Err(e) => return Probe::Unavailable { candidate: CANDIDATE, reason: format!("{bwrap} not runnable: {e}") },
     }
-
-    // `--ro-bind / /` is added beyond the design doc's bare `bwrap --unshare-user --unshare-pid
-    // true` sketch: bwrap's default root (with NO binds at all) is an empty, invisible tmpfs
-    // (confirmed against this host's `bwrap` manpage), so a bare `true` could never resolve even on
-    // a fully permissive host -- that would make the probe a false negative everywhere, not just on
-    // a hardened one. Binding `/` read-only (identical to the real `wrap_command`'s own posture,
-    // above) keeps the probe meaningful -- it still exercises real user/pid/net namespace creation,
-    // exactly what's gated on a hardened host -- while actually being able to find the target
-    // binary. `--unshare-user` is explicit here (unlike `wrap_command`'s implicit reliance on
-    // bwrap's non-setuid default) because explicit `--unshare-user` fails hard when namespace
-    // creation is denied, where the implicit form can silently degrade instead -- the probe wants
-    // the strict, fail-loud form. See `probe_argv` for why `--unshare-net` is in the list too.
-    let mut exec_cmd = Command::new("bwrap");
-    exec_cmd.args(probe_argv());
-    if let Some(p) = path {
-        exec_cmd.env("PATH", p);
-    } else {
-        exec_cmd.env_remove("PATH");
-    }
-    match exec_cmd.output() {
+    match Command::new(bwrap).args(probe_argv(&probe_work_dir())).env_clear().output() {
         Ok(o) if o.status.success() => Probe::Available(Box::new(Bwrap)),
         Ok(o) => Probe::Unavailable {
             candidate: CANDIDATE,
@@ -150,20 +152,18 @@ fn probe_with_path(path: Option<&str>) -> Probe {
     }
 }
 
-/// The exact argv of the real sandboxed-exec probe, minus the leading `bwrap`. A pure function so
-/// a test can pin it without executing anything.
-///
-/// `--unshare-net` is here since scimbe/ct-agent#183 (phase 1): it is the flag `wrap_command`
-/// actually runs with, and it is the one that makes bwrap run `loopback_setup()` -- configure
-/// `127.0.0.1` and bring `lo` up inside the new network namespace via `RTM_NEWLINK`/`RTM_NEWADDR`.
-/// On Ubuntu 24.04+ with `kernel.apparmor_restrict_unprivileged_userns=1` that netlink step is
-/// exactly what fails (`bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`), and the
-/// previous probe (user+pid namespaces only) passed on such a host while every real activation
-/// then failed. `--unshare-net` is also the F.1-equivalent claim this backend makes, so a probe
-/// that skips it verifies the wrong thing.
-pub(crate) fn probe_argv() -> [&'static str; 8] {
-    ["--unshare-user", "--unshare-pid", "--unshare-net", "--ro-bind", "/", "/", "--", "/bin/true"]
+fn probe_work_dir() -> String {
+    std::env::temp_dir().display().to_string()
 }
+
+/// The argv of the real sandboxed-exec probe: EXACTLY the runtime argv (`bwrap_args`) running
+/// `/bin/true`, so every flag the runtime uses -- `--unshare-all` (whose loopback setup is what
+/// Ubuntu 24.04's AppArmor restriction breaks with `RTM_NEWADDR`), `--cap-drop`, `--proc`,
+/// `--remount-ro` -- is exercised at probe time, not just a subset.
+pub(crate) fn probe_argv(work_dir: &str) -> Vec<String> {
+    bwrap_args("/bin/true", &[], work_dir, &[])
+}
+
 
 /// The operator-facing reason for a failed real-exec probe: bwrap's exit code and its own stderr
 /// verbatim, plus -- when that stderr shows the known unprivileged-user-namespace restriction --
@@ -172,7 +172,7 @@ pub(crate) fn describe_probe_failure(exit_code: Option<i32>, stderr: &str) -> St
     let stderr = stderr.trim();
     let mut reason = format!(
         "real sandboxed-exec probe (bwrap {}) failed: exit={exit_code:?} stderr={stderr}",
-        probe_argv().join(" ")
+        probe_argv(&probe_work_dir()).join(" ")
     );
     if let Some(hint) = userns_restriction_hint(stderr) {
         reason.push_str(" -- ");
@@ -209,106 +209,97 @@ pub(crate) fn userns_restriction_hint(stderr: &str) -> Option<&'static str> {
 mod tests {
     use super::*;
 
-    /// `wrap_command`'s output (the exact argv it builds) is a pure function of its inputs -- this
-    /// test hermetically asserts the flag list directly, needing no real sandboxing, the same way
-    /// `guardrails.rs`'s tests assert `Violation` values without a real Docker daemon.
+    fn idx(a: &[String], flag: &str) -> usize {
+        a.iter().position(|x| x == flag).unwrap_or_else(|| panic!("{flag} missing from {a:?}"))
+    }
+
+    /// `wrap_command`'s output is a pure function of its inputs (and of the absolute `bwrap` path),
+    /// so the full flag list is pinned without any sandboxing.
     #[test]
     fn wrap_command_builds_the_exact_documented_argv() {
-        let backend = Bwrap;
-        let work_dir = Path::new("/tmp/work-dir-example");
-        let (program, args) = backend.wrap_command(
-            "/tmp/work-dir-example/run.sh",
-            &["--flag", "value"],
-            work_dir,
-            &[("FOO", "bar"), ("BAZ", "qux")],
-        );
-
-        assert_eq!(program, "bwrap");
-        assert_eq!(
-            args,
-            vec![
-                "--die-with-parent",
-                "--unshare-net",
-                "--unshare-pid",
-                "--unshare-uts",
-                "--unshare-ipc",
-                "--ro-bind",
-                "/",
-                "/",
-                "--bind",
-                "/tmp/work-dir-example",
-                "/tmp/work-dir-example",
-                "--chdir",
-                "/tmp/work-dir-example",
-                "--clearenv",
-                "--setenv",
-                "FOO",
-                "bar",
-                "--setenv",
-                "BAZ",
-                "qux",
-                "--",
-                "/tmp/work-dir-example/run.sh",
-                "--flag",
-                "value",
+        let (program, args) =
+            Bwrap.wrap_command("/tmp/wd/run.sh", &["--flag", "value"], Path::new("/tmp/wd"), &[("FOO", "bar"), ("BAZ", "qux")]);
+        assert!(program.starts_with('/') && program.ends_with("bwrap"), "absolute bwrap path, not a PATH lookup: {program}");
+        let mut expected: Vec<String> = ["--die-with-parent", "--new-session", "--unshare-all", "--cap-drop", "ALL", "--ro-bind", "/usr", "/usr"]
+            .map(String::from)
+            .to_vec();
+        for d in RO_DIRS.iter().chain(RO_ETC.iter()) {
+            expected.extend(["--ro-bind-try", d, d].map(String::from));
+        }
+        expected.extend(
+            [
+                "--proc", "/proc", "--dev", "/dev", "--bind", "/tmp/wd", "/tmp/wd", "--chdir", "/tmp/wd", "--remount-ro", "/",
+                "--clearenv", "--setenv", "FOO", "bar", "--setenv", "BAZ", "qux", "--", "/tmp/wd/run.sh", "--flag", "value",
             ]
+            .map(String::from),
         );
+        assert_eq!(args, expected);
+    }
+
+    #[test]
+    fn the_host_root_home_and_resolv_conf_are_never_bound() {
+        let (_, args) = Bwrap.wrap_command("/w/run.sh", &[], Path::new("/w"), &[]);
+        for (i, a) in args.iter().enumerate() {
+            if a.starts_with("--ro-bind") {
+                assert_ne!(args[i + 1], "/", "no read-only bind of the host root: {args:?}");
+                assert!(!args[i + 1].starts_with("/home") && !args[i + 1].starts_with("/root"), "{args:?}");
+                assert_ne!(args[i + 1], "/etc", "all of /etc must not be bound");
+                assert_ne!(args[i + 1], "/etc/resolv.conf", "no network, so no resolver config");
+            }
+        }
+        // Private procfs/devtmpfs come after the binds and before the writable work_dir bind; the
+        // root is made read-only only after everything is mounted.
+        assert!(idx(&args, "--proc") > idx(&args, "--ro-bind") && idx(&args, "--proc") < idx(&args, "--bind"));
+        assert!(idx(&args, "--remount-ro") > idx(&args, "--bind"));
+    }
+
+    #[test]
+    fn hardening_flags_are_present() {
+        let (_, args) = Bwrap.wrap_command("/w/run.sh", &[], Path::new("/w"), &[]);
+        for f in ["--die-with-parent", "--new-session", "--unshare-all", "--cap-drop", "--proc", "--dev", "--clearenv"] {
+            idx(&args, f);
+        }
+        assert_eq!(args[idx(&args, "--cap-drop") + 1], "ALL");
+        assert!(!args.iter().any(|a| a == "--share-net"), "no network opt-in on this backend");
     }
 
     #[test]
     fn wrap_command_with_no_env_pairs_still_clears_the_environment() {
-        let backend = Bwrap;
-        let work_dir = Path::new("/tmp/wd");
-        let (_program, args) = backend.wrap_command("/tmp/wd/run.sh", &[], work_dir, &[]);
+        let (_program, args) = Bwrap.wrap_command("/tmp/wd/run.sh", &[], Path::new("/tmp/wd"), &[]);
         assert!(args.iter().any(|a| a == "--clearenv"));
         assert!(!args.iter().any(|a| a == "--setenv"));
-        // No args after `--` beyond the exe itself.
-        let dashdash = args.iter().position(|a| a == "--").unwrap();
+        let dashdash = idx(&args, "--");
         assert_eq!(&args[dashdash + 1..], &["/tmp/wd/run.sh"]);
     }
 
-    /// Hermetically simulates "bwrap not on PATH" -- an empty-dir `PATH`, same scenario
-    /// `collision_guard_skips_docker_entirely_when_told_to` (activate.rs) simulates for "docker not
-    /// on PATH" -- but scoped to a single child process via `probe_with_path` rather than mutating
-    /// the whole test process's real `PATH` with `std::env::set_var`. See `probe_with_path`'s doc
-    /// comment for why: doing the global-mutation version a second time in this crate was measured
-    /// to intermittently fail unrelated tests that shell out. Confirms the probe fails closed with
-    /// a populated reason, not a panic or a silent `Available` claim.
     #[test]
-    fn probe_reports_unavailable_when_bwrap_is_not_on_path() {
-        let empty_dir = tempfile::tempdir().unwrap();
-
-        match probe_with_path(Some(empty_dir.path().to_str().unwrap())) {
+    fn probe_reports_unavailable_when_bwrap_is_not_installed() {
+        match probe_with(None) {
             Probe::Unavailable { candidate, reason } => {
                 assert_eq!(candidate, "bwrap");
-                assert!(!reason.is_empty());
+                assert!(reason.contains("/usr/bin/bwrap"), "{reason}");
             }
-            Probe::Available(_) => panic!("bwrap must not be reported Available with an empty PATH"),
+            Probe::Available(_) => panic!("bwrap must not be reported Available when not found"),
         }
+        assert!(matches!(probe_with(Some("/nonexistent/bwrap")), Probe::Unavailable { .. }));
     }
 
-    /// scimbe/ct-agent#183 phase 1: the probe must run with the real namespace flags, `--unshare-net`
-    /// included, so bwrap's `loopback_setup()` is exercised at probe time. Pinned as a pure argv
-    /// assertion, no bwrap execution.
+    /// The probe runs the runtime argv itself (so `--unshare-all`, `--cap-drop`, `--proc` are all
+    /// exercised), only with `/bin/true` as the payload.
     #[test]
-    fn probe_argv_exercises_user_pid_and_net_namespaces_with_the_runtime_ro_bind() {
-        let argv = probe_argv();
-        let idx = |flag: &str| argv.iter().position(|a| *a == flag).unwrap_or_else(|| panic!("{flag} missing from {argv:?}"));
-        idx("--unshare-user");
-        idx("--unshare-pid");
-        idx("--unshare-net");
-        let ro = idx("--ro-bind");
-        assert_eq!(&argv[ro..ro + 3], &["--ro-bind", "/", "/"], "the probe binds / read-only exactly like wrap_command");
-        let dashdash = idx("--");
-        assert_eq!(&argv[dashdash + 1..], &["/bin/true"]);
-        assert!(idx("--unshare-net") < dashdash);
+    fn probe_argv_is_the_runtime_argv_running_bin_true() {
+        let argv = probe_argv("/tmp");
+        let expect = bwrap_args("/bin/true", &[], "/tmp", &[]);
+        assert_eq!(argv, expect);
+        idx(&argv, "--unshare-all");
+        assert!(idx(&argv, "--unshare-all") < idx(&argv, "--"));
     }
 
     #[test]
     fn probe_failure_reason_carries_bwraps_stderr_and_the_userns_hint_for_the_ubuntu_symptom() {
         let reason = describe_probe_failure(Some(1), "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted\n");
         assert!(reason.contains("Failed RTM_NEWADDR"), "{reason}");
-        assert!(reason.contains("--unshare-net"), "{reason}");
+        assert!(reason.contains("--unshare-all"), "{reason}");
         assert!(reason.contains("kernel.apparmor_restrict_unprivileged_userns"), "{reason}");
         assert!(reason.contains("bwrap-userns-restrict"), "{reason}");
     }
@@ -327,5 +318,94 @@ mod tests {
         assert!(userns_restriction_hint("").is_none());
         let plain = describe_probe_failure(Some(127), "bwrap: execvp /bin/true: No such file or directory");
         assert!(!plain.contains("hint:"), "{plain}");
+    }
+
+    // -- Real enforcement (Linux only; skipped, loudly, when the probe says bwrap is unusable) --
+
+    #[cfg(target_os = "linux")]
+    mod real {
+        use super::*;
+        use std::io::Write;
+        use std::os::unix::fs::PermissionsExt;
+
+        fn backend_or_skip(test: &str) -> Option<Bwrap> {
+            match probe() {
+                Probe::Available(_) => Some(Bwrap),
+                Probe::Unavailable { reason, .. } => {
+                    eprintln!("skipping {test}: bwrap unavailable here: {reason}");
+                    None
+                }
+            }
+        }
+
+        fn run(work: &Path, env: &[(&str, &str)], script: &str) -> std::process::Output {
+            let (program, args) = Bwrap.wrap_command("/bin/sh", &["-c", script], work, env);
+            Command::new(program).args(args).env_clear().current_dir(work).output().unwrap()
+        }
+
+        /// Removes the fixture dir created under the real `$HOME` even if an assert panics.
+        struct Cleanup(std::path::PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+
+        /// HIGH: `--ro-bind / /` exposed the host procfs. From inside, a same-UID host process's
+        /// `/proc/<pid>/root` (a magic link into the host's writable mount namespace) and
+        /// `/proc/<pid>/environ` must be unreachable.
+        #[test]
+        fn host_procfs_is_not_reachable_from_inside() {
+            let Some(_) = backend_or_skip("host_procfs_is_not_reachable_from_inside") else { return };
+            let work = tempfile::tempdir().unwrap();
+            let outside = tempfile::tempdir().unwrap();
+            let target = outside.path().join("pwned");
+            let mut victim = Command::new("sleep").arg("60").env("SECRET_CANARY", "s3cret-canary").spawn().unwrap();
+            let pid = victim.id().to_string();
+            let script = format!(
+                "( echo x > /proc/{pid}/root{t} ) 2>/dev/null && echo WROTE_VIA_HOST_PROC_ROOT; \
+                 ( echo x > /proc/1/root{t} ) 2>/dev/null && echo WROTE_VIA_PROC_1_ROOT; \
+                 ( echo x > /proc/$PPID/root{t} ) 2>/dev/null && echo WROTE_VIA_PPID_ROOT; \
+                 cat /proc/{pid}/environ 2>/dev/null | grep -q s3cret-canary && echo READ_HOST_ENVIRON; \
+                 ls /proc/{pid} >/dev/null 2>&1 && echo HOST_PID_VISIBLE; echo done",
+                t = target.display()
+            );
+            let out = run(work.path(), &[], &script);
+            let _ = victim.kill();
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            assert!(stdout.contains("done"), "script did not run: {stdout} / {}", String::from_utf8_lossy(&out.stderr));
+            for bad in ["WROTE_VIA_HOST_PROC_ROOT", "WROTE_VIA_PROC_1_ROOT", "WROTE_VIA_PPID_ROOT", "READ_HOST_ENVIRON", "HOST_PID_VISIBLE"] {
+                assert!(!stdout.contains(bad), "{bad}: {stdout}");
+            }
+            assert!(!target.exists(), "nothing may be written through /proc/<pid>/root");
+        }
+
+        /// MEDIUM: `$HOME` (`~/.ssh`) must not be readable; `/tmp` and the root are not writable.
+        #[test]
+        fn home_is_unreadable_and_everything_but_work_dir_is_read_only() {
+            let Some(_) = backend_or_skip("home_is_unreadable_and_everything_but_work_dir_is_read_only") else { return };
+            let Ok(home) = std::env::var("HOME") else { return };
+            let fixture = Path::new(&home).join(format!(".installer-engine-test-{}", std::process::id()));
+            let _cleanup = Cleanup(fixture.clone());
+            std::fs::create_dir_all(fixture.join(".ssh")).unwrap();
+            let key = fixture.join(".ssh/id_test");
+            std::fs::File::create(&key).unwrap().write_all(b"PRIVATE-KEY-CANARY").unwrap();
+            std::fs::set_permissions(&key, std::fs::Permissions::from_mode(0o600)).unwrap();
+            let work = tempfile::tempdir().unwrap();
+            let script = format!(
+                "cat '{k}' 2>/dev/null && echo READ_HOME_KEY; ls '{h}' >/dev/null 2>&1 && echo LISTED_HOME; \
+                 ( echo x > /tmp/ie-canary ) 2>/dev/null && echo WROTE_TMP; ( echo x > /ie-root-canary ) 2>/dev/null && echo WROTE_ROOT; \
+                 echo x > ./inside && echo WROTE_INSIDE; echo done",
+                k = key.display(),
+                h = home
+            );
+            let out = run(work.path(), &[], &script);
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            assert!(stdout.contains("done") && stdout.contains("WROTE_INSIDE"), "{stdout} / {}", String::from_utf8_lossy(&out.stderr));
+            for bad in ["READ_HOME_KEY", "PRIVATE-KEY-CANARY", "LISTED_HOME", "WROTE_TMP", "WROTE_ROOT"] {
+                assert!(!stdout.contains(bad), "{bad}: {stdout}");
+            }
+            assert!(!Path::new("/tmp/ie-canary").exists());
+        }
     }
 }

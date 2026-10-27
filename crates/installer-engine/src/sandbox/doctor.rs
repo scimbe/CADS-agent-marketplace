@@ -124,17 +124,6 @@ fn sudo(is_root: bool, rest: &[&str]) -> Vec<String> {
     v
 }
 
-/// A distro-agnostic "install bubblewrap" for inside WSL: tries each package manager in turn, as
-/// the distro's root (`wsl -u root`), so it needs no password and no host elevation.
-fn wsl_install_bwrap_script() -> &'static str {
-    "if command -v apt-get >/dev/null; then apt-get update && apt-get install -y bubblewrap; \
-     elif command -v dnf >/dev/null; then dnf install -y bubblewrap; \
-     elif command -v pacman >/dev/null; then pacman -S --noconfirm bubblewrap; \
-     elif command -v zypper >/dev/null; then zypper --non-interactive install bubblewrap; \
-     elif command -v apk >/dev/null; then apk add bubblewrap; \
-     else echo 'no supported package manager found in this WSL distro' >&2; exit 1; fi"
-}
-
 fn manual(id: &'static str, description: impl Into<String>) -> SetupStep {
     SetupStep {
         id,
@@ -199,7 +188,20 @@ fn plan_linux(f: &HostFacts, steps: &mut Vec<SetupStep>) {
             privilege: Privilege::Elevated,
         });
     }
-    if f.userns.apparmor_restricted {
+    // Either the sysctl says so, or bwrap's own failure shows it (observed on a real Ubuntu 24.04
+    // host: `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`) -- the sysctl file can
+    // be unreadable inside containers while the restriction still applies.
+    let probe_text = reasons(&f.tried).to_ascii_lowercase();
+    let apparmor_symptom = probe_text.contains("rtm_newaddr") || probe_text.contains("rtm_newlink");
+    if f.userns.apparmor_restricted || apparmor_symptom {
+        if f.package_manager == Some(PackageManager::Apt) {
+            steps.push(SetupStep {
+                id: "install-apparmor-profiles",
+                description: "the bwrap AppArmor profile ships in `apparmor-profiles`".into(),
+                command: Some(sudo(f.is_root, &["apt-get", "install", "-y", "apparmor-profiles"])),
+                privilege: Privilege::Elevated,
+            });
+        }
         steps.push(SetupStep {
             id: "install-bwrap-apparmor-profile",
             description: "kernel.apparmor_restrict_unprivileged_userns=1 (Ubuntu 24.04+) denies bwrap its user namespace; \
@@ -249,41 +251,61 @@ fn plan_macos(f: &HostFacts, steps: &mut Vec<SetupStep>) {
     }
 }
 
+/// Windows setup: a DEDICATED distro (`cads-sandbox`) so the hardening (interop off, no Windows
+/// `PATH`) never touches the user's own distro, then bubblewrap inside it. Each step is added only
+/// when the probe's reason shows it is missing; an unrecognised failure gets a diagnostic, never a
+/// guess.
 fn plan_windows(f: &HostFacts, steps: &mut Vec<SetupStep>) {
     let reason = reasons(&f.tried).to_ascii_lowercase();
-    let no_distro = !f.wsl_exe_present
-        || reason.contains("no wsl distribution")
-        || reason.contains("wsl is not installed");
+    let no_wsl = !f.wsl_exe_present || reason.contains("wsl is not installed");
+    let no_distro = no_wsl || reason.contains("is not installed. setup") || reason.contains("no distribution") || reason.contains("no installed distributions");
+    let bad_conf = reason.contains("wsl.conf lacks") || reason.contains("wsl interop is live");
     let no_bwrap = reason.contains("bubblewrap is not installed");
-    if no_distro {
+    let d = super::wsl::SANDBOX_DISTRO;
+    let root_sh = |script: &str| -> Vec<String> {
+        ["wsl.exe", "-d", d, "-u", "root", "--exec", "/bin/sh", "-c", script].map(String::from).to_vec()
+    };
+    if no_wsl {
         steps.push(SetupStep {
             id: "wsl-install",
-            description: "install WSL2 with an Ubuntu distro (run in an elevated PowerShell; reboot if asked, then start the distro once to create a user)".into(),
-            command: Some(vec!["wsl.exe".into(), "--install".into(), "-d".into(), "Ubuntu".into()]),
+            description: "enable WSL2 itself (elevated PowerShell; reboot if asked)".into(),
+            command: Some(["wsl.exe", "--install", "--no-distribution"].map(String::from).to_vec()),
             privilege: Privilege::Elevated,
+        });
+    }
+    if no_distro {
+        steps.push(SetupStep {
+            id: "wsl-create-sandbox-distro",
+            description: format!("create the dedicated distro `{d}` (a separate Ubuntu instance; your own distros are untouched)"),
+            command: Some(["wsl.exe", "--install", "-d", "Ubuntu", "--name", d, "--no-launch"].map(String::from).to_vec()),
+            privilege: Privilege::None,
+        });
+    }
+    if no_distro || bad_conf {
+        steps.push(SetupStep {
+            id: "wsl-harden-sandbox-distro",
+            description: format!("write {d}'s /etc/wsl.conf with interop and the Windows PATH disabled, so a sandboxed payload cannot start Windows executables"),
+            command: Some(root_sh("printf '[interop]\\nenabled=false\\nappendWindowsPath=false\\n' > /etc/wsl.conf")),
+            privilege: Privilege::None,
+        });
+        steps.push(SetupStep {
+            id: "wsl-restart-sandbox-distro",
+            description: "restart the distro so wsl.conf takes effect (the probe also checks the live interop state)".into(),
+            command: Some(["wsl.exe", "--terminate", d].map(String::from).to_vec()),
+            privilege: Privilege::None,
         });
     }
     if no_distro || no_bwrap {
         steps.push(SetupStep {
             id: "wsl-install-bubblewrap",
-            description: "install bubblewrap inside the WSL distro (as the distro's root; no Windows elevation)".into(),
-            command: Some(vec!["wsl.exe".into(), "-u".into(), "root".into(), "--exec".into(), "sh".into(), "-c".into(), wsl_install_bwrap_script().into()]),
+            description: format!("install bubblewrap (and util-linux's prlimit) inside `{d}` as the distro's root; no Windows elevation"),
+            command: Some(root_sh("apt-get update && apt-get install -y bubblewrap util-linux")),
             privilege: Privilege::None,
         });
     }
-    if !no_distro && !no_bwrap {
-        steps.push(manual(
-            "diagnose",
-            format!(
-                "WSL is present but the sandbox probe fails: {}",
-                reasons(&f.tried)
-            ),
-        ));
+    if steps.is_empty() {
+        steps.push(manual("diagnose", format!("WSL and `{d}` look present but the sandbox probe fails: {}", reasons(&f.tried))));
     }
-    steps.push(manual(
-        "wsl-disable-interop",
-        "recommended hardening: set `[interop]\\nenabled=false` in the distro's /etc/wsl.conf and run `wsl --shutdown`, so a sandboxed payload cannot launch Windows executables",
-    ));
 }
 
 fn reasons(tried: &[(String, String)]) -> String {
@@ -607,6 +629,7 @@ mod tests {
             [
                 "enable-user-namespaces",
                 "enable-unprivileged-userns",
+                "install-apparmor-profiles",
                 "install-bwrap-apparmor-profile",
                 "load-bwrap-apparmor-profile"
             ]
@@ -639,30 +662,48 @@ mod tests {
     }
 
     #[test]
-    fn windows_without_wsl_installs_wsl_elevated_then_bubblewrap_in_the_distro() {
+    fn windows_without_wsl_enables_wsl_elevated_then_builds_the_dedicated_hardened_distro() {
         let mut f = facts("windows");
         f.wsl_exe_present = false;
         let steps = plan_from_facts(&f).steps;
-        assert_eq!(steps[0].id, "wsl-install");
+        let ids: Vec<_> = steps.iter().map(|s| s.id).collect();
+        assert_eq!(ids, ["wsl-install", "wsl-create-sandbox-distro", "wsl-harden-sandbox-distro", "wsl-restart-sandbox-distro", "wsl-install-bubblewrap"]);
         assert_eq!(steps[0].privilege, Privilege::Elevated);
-        assert_eq!(
-            steps[0].command_line().unwrap(),
-            "wsl.exe --install -d Ubuntu"
-        );
-        assert_eq!(steps[1].id, "wsl-install-bubblewrap");
-        assert_eq!(steps[1].privilege, Privilege::None);
-        assert!(steps[1].command_line().unwrap().contains("apt-get"));
+        assert_eq!(steps[0].command_line().unwrap(), "wsl.exe --install --no-distribution");
+        assert!(steps[1].command_line().unwrap().contains("--name cads-sandbox"));
+        assert!(steps[2].command_line().unwrap().contains("enabled=false") && steps[2].command_line().unwrap().contains("appendWindowsPath=false"));
+        assert!(steps[1..].iter().all(|s| s.privilege == Privilege::None), "only enabling WSL needs elevation");
+        assert!(steps[4].command_line().unwrap().contains("bubblewrap"));
+    }
+
+    #[test]
+    fn windows_distro_present_but_interop_on_only_needs_the_hardening_steps() {
+        let mut f = facts("windows");
+        f.tried = vec![("wsl_bwrap".into(), "cads-sandbox's /etc/wsl.conf lacks [interop] enabled=false -- Setup".into())];
+        let ids: Vec<_> = plan_from_facts(&f).steps.iter().map(|s| s.id).collect();
+        assert_eq!(ids, ["wsl-harden-sandbox-distro", "wsl-restart-sandbox-distro"]);
     }
 
     #[test]
     fn windows_with_a_distro_but_no_bwrap_only_needs_the_in_distro_install() {
         let mut f = facts("windows");
-        f.tried = vec![(
-            "wsl_bwrap".into(),
-            "probe failed -- bubblewrap is not installed in the default WSL distro: ...".into(),
-        )];
+        f.tried = vec![("wsl_bwrap".into(), "WSL sandbox probe failed -- bubblewrap is not installed in `cads-sandbox`: run".into())];
         let ids: Vec<_> = plan_from_facts(&f).steps.iter().map(|s| s.id).collect();
-        assert_eq!(ids, ["wsl-install-bubblewrap", "wsl-disable-interop"]);
+        assert_eq!(ids, ["wsl-install-bubblewrap"]);
+    }
+
+    #[test]
+    fn ubuntu_apparmor_userns_failure_is_detected_from_bwrap_stderr_even_without_the_sysctl() {
+        // The exact failure seen on a real Ubuntu 24.04 host; /proc/sys/... unreadable (container).
+        let mut f = facts("linux");
+        f.bwrap_on_path = true;
+        f.tried = vec![("bwrap".into(), "real sandboxed-exec probe failed: exit=Some(1) stderr=bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted".into())];
+        assert!(!f.userns.apparmor_restricted);
+        let steps = plan_from_facts(&f).steps;
+        let ids: Vec<_> = steps.iter().map(|s| s.id).collect();
+        assert_eq!(ids, ["install-apparmor-profiles", "install-bwrap-apparmor-profile", "load-bwrap-apparmor-profile"]);
+        assert!(steps[1].command_line().unwrap().contains("/etc/apparmor.d/bwrap-userns-restrict"));
+        assert!(steps.iter().all(|s| s.privilege == Privilege::Elevated), "stays fail-closed: nothing here is auto-applied");
     }
 
     #[test]

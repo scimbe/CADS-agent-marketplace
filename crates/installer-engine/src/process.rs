@@ -33,6 +33,20 @@ pub fn run_bounded(
     env: &[(&str, &str)],
     timeout: Duration,
 ) -> Result<RunOutcome, String> {
+    run_bounded_limited(program, args, cwd, env, timeout, None)
+}
+
+/// [`run_bounded`] plus optional `setrlimit` caps applied in the child before `exec` (Unix only;
+/// ignored elsewhere -- WSL gets its caps from `prlimit` inside the distro). The caps are inherited
+/// by everything the sandbox launcher starts.
+pub fn run_bounded_limited(
+    program: &str,
+    args: &[&str],
+    cwd: &std::path::Path,
+    env: &[(&str, &str)],
+    timeout: Duration,
+    limits: Option<crate::sandbox::Limits>,
+) -> Result<RunOutcome, String> {
     let started = std::time::Instant::now();
     let mut command = Command::new(program);
     command
@@ -55,7 +69,15 @@ pub fn run_bounded(
     {
         use std::os::unix::process::CommandExt;
         command.process_group(0);
+        if let Some(l) = limits {
+            // SAFETY: the closure only calls the async-signal-safe `setrlimit`.
+            unsafe {
+                command.pre_exec(move || apply_limits(l));
+            }
+        }
     }
+    #[cfg(not(unix))]
+    let _ = limits;
 
     let child = command
         .spawn()
@@ -103,6 +125,30 @@ pub fn run_bounded(
     }
 }
 
+#[cfg(unix)]
+fn apply_limits(l: crate::sandbox::Limits) -> std::io::Result<()> {
+    // Only ever LOWER a limit: the launcher may not raise a hard limit, and raising the soft one
+    // above what the user already runs under would loosen, not tighten. A macro, not a function,
+    // because the type of `libc::RLIMIT_*` differs between targets (u32 on glibc, i32 on macOS).
+    macro_rules! lower {
+        ($resource:expr, $v:expr) => {{
+            let mut cur = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
+            if unsafe { libc::getrlimit($resource, &mut cur) } != 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            let want = $v as libc::rlim_t;
+            let lim = libc::rlimit { rlim_cur: cur.rlim_cur.min(want), rlim_max: cur.rlim_max.min(want) };
+            if unsafe { libc::setrlimit($resource, &lim) } != 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+        }};
+    }
+    lower!(libc::RLIMIT_CPU, l.cpu_secs);
+    lower!(libc::RLIMIT_FSIZE, l.fsize_bytes);
+    lower!(libc::RLIMIT_NPROC, l.nproc);
+    Ok(())
+}
+
 /// Serializes every test, in every module of this crate, that either mutates this process's real
 /// `PATH` env var or depends on `run_bounded` resolving a real binary via that same ambient `PATH`
 /// -- `cargo test`'s default thread-based parallelism runs test fns concurrently in the SAME
@@ -131,6 +177,25 @@ mod tests {
         assert!(!out.timed_out);
         assert_eq!(out.exit_code, Some(0));
         assert_eq!(out.stdout.trim(), "hi");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rlimits_are_applied_to_the_child() {
+        let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let l = crate::sandbox::Limits { cpu_secs: 123, fsize_bytes: 1 << 20, nproc: 2000 };
+        let out = run_bounded_limited(
+            "sh",
+            &["-c", "echo cpu=$(ulimit -t) nproc=$(ulimit -u)"],
+            std::path::Path::new("."),
+            &[],
+            Duration::from_secs(5),
+            Some(l),
+        )
+        .unwrap();
+        assert_eq!(out.stdout.trim(), "cpu=123 nproc=2000", "{out:?}");
+        let plain = run_bounded("sh", &["-c", "echo $(ulimit -t)"], std::path::Path::new("."), &[], Duration::from_secs(5)).unwrap();
+        assert_ne!(plain.stdout.trim(), "123");
     }
 
     #[cfg(unix)]

@@ -434,7 +434,8 @@ pub(crate) fn activate_with_selector_on(
                 }
             };
             let arg_refs: Vec<&str> = wrapped_args.iter().map(String::as_str).collect();
-            let outcome = match process::run_bounded(&program, &arg_refs, &opts.work_dir, &env_refs, Duration::from_secs(300)) {
+            let limits = sandbox_name.is_some().then_some(sandbox::DEFAULT_LIMITS);
+            let outcome = match process::run_bounded_limited(&program, &arg_refs, &opts.work_dir, &env_refs, Duration::from_secs(300), limits) {
                 Ok(o) => o,
                 Err(e) => {
                     return InstallReport::Failed {
@@ -489,7 +490,7 @@ pub(crate) fn activate_with_selector_on(
         Some(backend) => {
             let (program, args) = backend.wrap_command(&sandbox::verify_shell(), &[manifest.verify.script.as_str()], &opts.work_dir, &verify_env);
             let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
-            process::run_bounded(&program, &arg_refs, &opts.work_dir, &verify_env, verify_timeout)
+            process::run_bounded_limited(&program, &arg_refs, &opts.work_dir, &verify_env, verify_timeout, Some(sandbox::DEFAULT_LIMITS))
         }
         None => process::run_bounded("bash", &[manifest.verify.script.as_str()], &opts.work_dir, &verify_env, verify_timeout),
     };
@@ -735,6 +736,7 @@ pub(crate) mod tests {
     /// process, only the flag differs. A `struct` guard restores `PATH` even if an assertion
     /// panics, so a failure here can't leak a broken `PATH` into later tests.
     #[test]
+    #[cfg(unix)]
     fn collision_guard_skips_docker_entirely_when_told_to() {
         let _path_lock = PATH_MUTATION_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         struct PathGuard(Option<String>);

@@ -59,9 +59,9 @@ because it needs the Docker socket and the published ports (F.4).
 
 | OS | Backend | Status | Evidence |
 |---|---|---|---|
-| Linux | `bwrap` (`bwrap`) | Built; real-exec probe; the escape test runs on the Linux CI job | CI only -- not run on the macOS development host that wrote the macOS and Windows parts |
+| Linux | `bwrap` (`/usr/bin/bwrap`) | Built; real-exec probe with the runtime's own flags. After the security review (PR #53): allowlisted read-only view (`/usr`, `/bin`, `/sbin`, `/lib*`, a few `/etc` files; no `$HOME`, no host `/proc`), `--proc`/`--dev`, `--unshare-all`, `--cap-drop ALL`, `--new-session`, `--die-with-parent`, read-only root, rlimits | `sandbox::bwrap::tests::real::*` (host `/proc/<pid>/root` writes and `environ` reads fail; `$HOME/.ssh` unreadable; `/tmp` and `/` read-only) and the activate confinement test, executed in the `gate` CI job (the job fails if they skip). NOT run on the macOS development host |
 | macOS | Seatbelt (`sandbox_exec`) | Built; **measured on macOS 27.0.1 (build 26A434), arm64** | `sandbox::sandbox_exec::tests::real::*` and `activate::tests::a_binary_manifest_and_its_verify_script_are_genuinely_confined_by_sandbox_exec_on_macos` execute for real: a write outside `work_dir`, a read of a file outside the allowlist, and a TCP connect to a live loopback listener all fail from inside; `work_dir` writes succeed; the environment is cleared. The `macos-latest` CI job runs them |
-| Windows | `wsl_bwrap` (bubblewrap in a WSL2 distro via `wsl.exe --exec`) | **Compile-tested and unit-tested only** (argv, path translation, probe-failure classification, setup plan); **never executed on Windows** | `sandbox::wsl::tests`; `gate-windows` CI job (non-blocking until a first green run). The real isolation, `/mnt` hiding and `wsl.exe` quoting are unmeasured |
+| Windows | `wsl_bwrap` (bubblewrap in the DEDICATED WSL2 distro `cads-sandbox`, via `%SystemRoot%\System32\wsl.exe`) | **Compile-tested and unit-tested only** (argv, path translation, quoting round-trip, wsl.conf/interop checks, setup plan); **never executed on Windows** | `sandbox::wsl::tests`; `gate-windows` CI job. The probe fails closed unless `wsl.conf` has `[interop] enabled=false` + `appendWindowsPath=false` and the live `WSLInterop` state is absent/`disabled`. Real isolation and `wsl.exe` argument passing are unmeasured |
 | Android | none | **Not built**; Binary manifests are refused (`unsupported_platform`) | ADR-0002 (Proposed) |
 
 Fail closed on every OS: when the real-exec probe finds no usable backend the activation is
@@ -83,12 +83,15 @@ Known limits of the backends, stated rather than implied:
   probe fails and the refusal says so. Loopback can be allowed only through the explicit
   `SandboxExec::with_loopback()` constructor, and it is the *host's* shared loopback, not a private
   one; nothing in the installer turns it on, and a `host_loopback` contract is still refused.
-- **Windows/WSL2**: WSL interop (launching Windows `.exe` files from inside the distro) is not
-  disabled by the backend. A payload that writes an `.exe` into `work_dir` (a `/mnt/<drive>` path)
-  may be able to start it on the Windows side. Setting `[interop] enabled=false` in the distro's
-  `/etc/wsl.conf` is in the setup plan as a recommended step but is not checked by the probe.
-  This is an open escape path until measured and closed.
-- No backend limits memory, CPU or disk (same gap as Compose).
+- **Windows/WSL2**: interop (launching Windows `.exe` from the distro) is closed by requiring the
+  dedicated distro to have interop and the Windows `PATH` disabled, checked in `wsl.conf` and live
+  at every probe; doctor creates and configures that distro. The automount root is read from the
+  distro's `wsl.conf`; only `work_dir` is mounted into the sandbox. Unmeasured on a real Windows host.
+- **Linux/bwrap** needs unprivileged user namespaces. On Ubuntu 24.04+ the AppArmor restriction
+  makes bwrap fail with `loopback: Failed RTM_NEWADDR`; doctor recognises that symptom (and the
+  sysctl) and prints the AppArmor-profile steps, and the activation stays refused until fixed.
+  NixOS-style layouts without `/usr` are not supported by the allowlist.
+- Resource caps are `RLIMIT_CPU` (600 s), `RLIMIT_FSIZE` (4 GiB) and `RLIMIT_NPROC` (8192, which counts every process of the user, never raised above the user's own limit), set via `setrlimit` (`prlimit` in WSL). There is NO memory cap and no disk quota; Compose has the same gap.
 
 ## Prompt templates (`PromptTemplate`)
 

@@ -67,6 +67,27 @@ pub enum Selection {
     Unsandboxed { tried: Vec<(&'static str, String)> },
 }
 
+/// Resource caps applied to a sandboxed run via `setrlimit` (Linux, macOS: in the launcher, before
+/// exec, inherited by the payload) or `prlimit` (WSL: inside the distro). They bound a runaway or
+/// hostile payload; they are not a fair-share scheduler.
+///
+/// * `cpu_secs`: CPU time (the wall-clock bound is `run_bounded`'s timeout, 300 s).
+/// * `fsize_bytes`: the largest single file the payload can write (fills no disk with one write).
+/// * `nproc`: `RLIMIT_NPROC` counts ALL processes and threads of the real UID, not just the
+///   sandbox's. 8192 is a backstop against a fork bomb that still leaves a busy desktop user
+///   headroom; if the user already runs more, `fork` fails and the install fails closed.
+///
+/// There is no memory cap: `RLIMIT_AS` breaks JIT/Go/Java runtimes, and there is no portable
+/// alternative short of cgroups. That gap is documented in `docs/security-model.md`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Limits {
+    pub cpu_secs: u64,
+    pub fsize_bytes: u64,
+    pub nproc: u64,
+}
+
+pub const DEFAULT_LIMITS: Limits = Limits { cpu_secs: 600, fsize_bytes: 4 << 30, nproc: 8192 };
+
 /// The shell that runs a bundle's `verify.sh` inside a backend. An absolute path where one is known
 /// to resolve inside the sandbox (macOS's profile only allows the OS's own binary directories, so
 /// a Homebrew `bash` earlier on `PATH` would be denied), else a `PATH` lookup, else the bare name.

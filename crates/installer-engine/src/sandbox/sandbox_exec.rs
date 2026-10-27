@@ -134,11 +134,11 @@ impl SandboxBackend for SandboxExec {
             "sandbox_exec (Seatbelt): writes confined to work_dir, reads limited to OS libraries and \
              work_dir (not $HOME), environment cleared, network denied EXCEPT the host's shared \
              loopback. No PID/UTS/IPC namespace (the process can still see and signal same-UID \
-             processes), no resource limits, and sandbox-exec is deprecated by Apple."
+             processes), CPU-time/file-size/process caps via setrlimit but no memory cap, and sandbox-exec is deprecated by Apple."
         } else {
             "sandbox_exec (Seatbelt): writes confined to work_dir, reads limited to OS libraries and \
              work_dir (not $HOME), environment cleared, all network denied. No PID/UTS/IPC namespace \
-             (the process can still see and signal same-UID processes), no resource limits, and \
+             (the process can still see and signal same-UID processes), CPU-time/file-size/process caps via setrlimit but no memory cap, and \
              sandbox-exec is deprecated by Apple."
         }
     }
