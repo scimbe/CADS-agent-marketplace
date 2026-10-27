@@ -96,6 +96,13 @@ pub fn plan_with_selector_on(opts: PlanOptions, select: &dyn Fn() -> sandbox::Se
         InstallerKind::K8s => {
             plan.refusals.push("unsupported_installer_kind: K8s (schema-only, no executor exists)".to_string());
         }
+        // Wasm runs in-process under wasmtime (no argv, no OS sandbox backend): the preview names the
+        // runtime and the component, and the plan stays refusal-free (the spec itself is validated
+        // by `activate`'s step 4a' and by the caller before planning).
+        InstallerKind::Wasm => {
+            plan.backend = Some("wasmtime".to_string());
+            plan.argv_preview = vec!["wasmtime-embedded".to_string(), opts.entrypoint.clone()];
+        }
         InstallerKind::Compose => {
             plan.argv_preview = vec![
                 "docker".to_string(),

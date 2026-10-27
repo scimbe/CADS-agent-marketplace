@@ -190,6 +190,7 @@ fn scan_bundle_for_guardrail_violations(
         let kind_label = match installer_kind {
             InstallerKind::Binary => "binary",
             InstallerKind::K8s => "k8s",
+            InstallerKind::Wasm => "wasm",
             InstallerKind::Compose => unreachable!("handled above"),
         };
         return Ok(format!(

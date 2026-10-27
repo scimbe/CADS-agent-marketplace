@@ -85,6 +85,9 @@ struct UnsignedManifestInput {
     /// a contract the installer would refuse never gets a signature.
     #[serde(default)]
     environment: Option<EnvironmentContract>,
+    /// Wasm installation spec; required exactly for `installer_kind: "wasm"`.
+    #[serde(default)]
+    wasm: Option<manifest_core::WasmSpec>,
 }
 
 // Pure, testable cores behind the #[wasm_bindgen] exports below -- plain
@@ -99,7 +102,7 @@ fn sign_manifest_inner(signing_key_hex: &str, manifest_json: &str) -> Result<Str
     if let Some(env) = &input.environment {
         env.validate().map_err(|e| format!("invalid environment contract: {e}"))?;
     }
-    let signed = ServiceManifest::sign_new(
+    let signed = ServiceManifest::sign_new_with_wasm(
         &signing_key,
         manifest_id,
         input.name,
@@ -112,7 +115,9 @@ fn sign_manifest_inner(signing_key_hex: &str, manifest_json: &str) -> Result<Str
         input.expires_at,
         input.demo_prompt,
         input.environment,
+        input.wasm,
     );
+    signed.validate_wasm_spec().map_err(|e| format!("invalid wasm block: {e}"))?;
     serde_json::to_string_pretty(&signed).map_err(|e| format!("failed to serialize signed manifest: {e}"))
 }
 
@@ -123,7 +128,7 @@ fn verify_manifest_inner(manifest_json: &str) -> Result<bool, String> {
         return Ok(false);
     };
     use ed25519_dalek::Verifier;
-    let preimage = ServiceManifest::signing_bytes(
+    let preimage = ServiceManifest::signing_bytes_with_wasm(
         &manifest.publisher_pubkey,
         &manifest.manifest_id,
         &manifest.name,
@@ -136,6 +141,7 @@ fn verify_manifest_inner(manifest_json: &str) -> Result<bool, String> {
         manifest.expires_at,
         manifest.demo_prompt.as_ref(),
         manifest.environment.as_ref(),
+        manifest.wasm.as_ref(),
     );
     Ok(vk.verify(&preimage, &ed25519_dalek::Signature::from_bytes(&manifest.signature)).is_ok())
 }
