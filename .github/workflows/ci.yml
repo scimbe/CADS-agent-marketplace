@@ -44,13 +44,21 @@ jobs:
       - name: Test (-D warnings)
         run: cargo test --locked
 
-  # M2 (macOS sandbox_exec backend) is not implemented yet -- see
-  # docs/design/sandbox-fallback.md's milestones -- so this job only proves the crate still
-  # builds/tests clean on macOS (where Binary activation today proceeds unsandboxed, with the
-  # pre-execution warning). Added now per M1's own testing plan ("no such runner exists ... needs
-  # adding as part of M2, not left as documented-but-unverified") so the skeleton is ready before
-  # M2 lands a real backend on top of it; live sandbox_exec runtime behavior on macOS still needs
-  # verification by someone with an actual Mac, or by this job itself once M2 exists.
+      # The Linux escape tests must EXECUTE, not skip: with bwrap installed above and the userns
+      # restriction relaxed, a "skipping" line means the sandbox silently did not run.
+      - name: bwrap escape tests actually ran (no skips)
+        run: |
+          cargo test --locked -p installer-engine -- --nocapture --test-threads=1 \
+            sandbox::bwrap::tests::real activate::tests::a_binary_manifest_is_genuinely_confined_by_bwrap 2>&1 | tee escape.log
+          grep -q "test result: ok. 3 passed; 0 failed" escape.log   # all three executed and passed
+          ! grep -q "skipping" escape.log
+
+  # macOS: the `sandbox_exec` (Seatbelt) backend is real, so this job EXECUTES the escape tests
+  # (sandbox::sandbox_exec::tests::real::*, activate's macOS confinement test): a write outside
+  # work_dir and a TCP connect to a live loopback listener must both fail from inside the sandbox.
+  # If macos-latest ever stops shipping /usr/bin/sandbox-exec (Apple deprecated it), the probe
+  # reports Unavailable, those tests skip with a message, and the Seatbelt step below fails loudly
+  # instead of letting the gap go unnoticed.
   gate-macos:
     runs-on: macos-latest
     env:
@@ -64,6 +72,26 @@ jobs:
 
       - name: Test (-D warnings)
         run: cargo test --locked
+
+      - name: Seatbelt must be usable here (no silent skips)
+        run: /usr/bin/sandbox-exec -p '(version 1)(allow default)' /usr/bin/true
+
+  # Windows: compile + unit-test the WSL2/bwrap backend (path translation, argv, probe-failure
+  # classification, doctor plans), which are pure and run on every OS, plus the platform-neutral
+  # engine tests. The runner has no WSL distro, so the real wsl_bwrap isolation is NOT exercised
+  # here (the runner has no distro, so the probe reports Unavailable with setup steps). The
+  # shell-driven activation tests are `#[cfg(unix)]`. `continue-on-error` until a first run has
+  # shown the remaining platform-neutral tests are green on Windows; then remove it.
+  gate-windows:
+    runs-on: windows-latest
+    continue-on-error: true
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test installer-engine
+        run: cargo test --locked -p installer-engine
 
   # Measures what the other jobs cannot: manifest-core-wasm (the browser binding for ServiceManifest
   # and PromptTemplate sign/verify/render) actually builds for wasm32-unknown-unknown.

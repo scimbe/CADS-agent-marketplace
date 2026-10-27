@@ -31,6 +31,21 @@ Implemented for Linux (M0 + M1 + M3, issue #12), then **hardened by scimbe/ct-ag
   (`read_only`, `cap_drop: [ALL]`, `no-new-privileges`, `pids_limit`, `mem_limit`) -- see
   `docs/security-model.md`.
 
+**Sandbox everywhere (WP4)** -- supersedes the "macOS: M2", "Windows: not designed" and
+"`verify.sh` runs unsandboxed" parts below:
+
+- macOS `sandbox_exec` is built (`sandbox::sandbox_exec`). Deviations from the sketch below: the
+  profile is passed inline with `sandbox-exec -p` and the work dir as a `-D WORK=` parameter (no
+  `.sandbox-profile.sb` file in `work_dir`); the environment is cleared with `/usr/bin/env -i`
+  inside the sandbox; reads are limited to OS libraries and `work_dir` (not `allow file-read*`
+  everywhere), exec to `work_dir` plus the OS binary directories. Escape tests run for real.
+- Windows `wsl_bwrap` is built (`sandbox::wsl`): `wsl.exe --exec bwrap`, same flags plus a tmpfs
+  over `/mnt`. Compile/unit-tested only; never executed on Windows. Windows has no unsandboxed mode.
+- `verify.sh` of a Binary manifest runs inside the same backend as the install.
+- `sandbox::doctor()` / `setup_plan()` / `apply()` expose per-OS setup steps (apt/dnf/pacman/
+  zypper/apk, userns checks, `wsl --install`); `apply` runs only unelevated steps.
+- Android: refused; see `docs/adr/0002-android-sandbox-via-ct-agent-core.md` (Proposed).
+
 The remainder of this document is the original design, kept as the rationale record; where it
 says "warn-and-proceed" or "no manifest-declared policy", the list above is current.
 
