@@ -7,7 +7,7 @@
 //! returning an error and would echo the panic message (and thus the bad input) back to a
 //! caller. Requiring ASCII-hex-only first guarantees single-byte-per-char indexing is safe.
 
-fn to_hex(b: &[u8]) -> String {
+pub(crate) fn to_hex(b: &[u8]) -> String {
     use std::fmt::Write as _;
     let mut s = String::with_capacity(b.len() * 2);
     for byte in b {
