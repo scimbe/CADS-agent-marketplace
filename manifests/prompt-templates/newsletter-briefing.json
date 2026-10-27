@@ -8,7 +8,9 @@
     {
       "name": "topic",
       "type": "text",
-      "max_len": 120
+      "max_len": 2000,
+      "multiline": true,
+      "max_lines": 40
     },
     {
       "name": "audience",
@@ -49,5 +51,5 @@
   ],
   "issued_at": 1700000000,
   "expires_at": 4102444800,
-  "signature": "53a329b41fcb3b566fdbb0d137c1b131a8501849c1feb2200da6587fdbdeb8cbe502fc7e2307a5b60573fb7f854de1ce2756b2b840f592c7ae15a55ed57a6509"
+  "signature": "2df3874b91d86bf8a88b506511537c261609cbb874a1b04b7dee95053a2d1340507ad5e5dab15f9e4c4b658fb0afef2ba545eeb155a3a89a77d138eefa84bd08"
 }

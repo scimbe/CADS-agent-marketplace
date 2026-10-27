@@ -123,14 +123,24 @@ pub enum PromptParamKind {
         note: Option<String>,
     },
     Int { min: i64, max: i64 },
-    /// Free-text customer input, at most `max_len` Unicode scalar values (chars), no control
-    /// characters. Unlike every other kind there is no closed set to check membership against, so
+    /// Free-text customer input, at most `max_len` Unicode scalar values (chars), no control or
+    /// invisible format characters. Unlike every other kind there is no closed set to check membership against, so
     /// a consumer MUST treat a `Text` value as untrusted **data**, never as instructions -- see
     /// [`crate::prompt_template::PromptTemplate::render`] for the delimiting rule and
     /// `docs/security-model.md`. Added after the other kinds with tag `4`; a manifest that does
     /// not use it keeps its exact pre-existing signing preimage (see
     /// [`PromptParam::append_to_preimage`]).
-    Text { max_len: u32 },
+    Text {
+        max_len: u32,
+        /// `false` (default): single line, no newline. `true`: `\n` allowed (`\r\n` is normalised
+        /// to `\n`; a lone `\r`, U+2028/2029 and U+0085 stay rejected).
+        #[serde(default)]
+        multiline: bool,
+        /// Upper bound on the number of lines; only meaningful with `multiline` (a template
+        /// declaring it without `multiline` is structurally invalid).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        max_lines: Option<u32>,
+    },
 }
 
 impl PromptParamKind {
@@ -189,7 +199,14 @@ impl PromptParam {
             }
             PromptParamKind::Color => p,
             PromptParamKind::Int { min, max } => p.fixed(&min.to_le_bytes()).fixed(&max.to_le_bytes()),
-            PromptParamKind::Text { max_len } => p.u32(*max_len),
+            PromptParamKind::Text { max_len, multiline, max_lines } => {
+                let p = p.u32(*max_len).tag(*multiline as u8);
+                // Always tagged: more params can follow, same reasoning as `note` above.
+                match max_lines {
+                    Some(n) => p.tag(1).u32(*n),
+                    None => p.tag(0),
+                }
+            }
         }
     }
 }
@@ -688,21 +705,31 @@ mod tests {
         let key = random_signing_key();
         let m = sample(&key, 1_000, 2_000);
         let mut dp = sample_demo_prompt();
-        dp.parameters.push(PromptParam { name: "note".into(), kind: PromptParamKind::Text { max_len: 80 } });
+        dp.parameters.push(PromptParam { name: "note".into(), kind: PromptParamKind::Text { max_len: 80, multiline: true, max_lines: Some(5) } });
         let mut m = ServiceManifest::sign_new(
             &key, m.manifest_id, m.name, m.version, m.installer_kind, m.bundle, m.env_template, m.verify,
             1_000, 2_000, Some(dp), None,
         );
         assert!(m.is_valid(1_500));
         let json = serde_json::to_string(&m).unwrap();
-        assert!(json.contains(r#""type":"text","max_len":80"#), "{json}");
+        assert!(json.contains(r#""type":"text","max_len":80,"multiline":true,"max_lines":5"#), "{json}");
         assert_eq!(serde_json::from_str::<ServiceManifest>(&json).unwrap(), m);
 
-        let Some(PromptParamKind::Text { max_len }) = m.demo_prompt.as_mut().map(|d| &mut d.parameters[4].kind) else {
+        let Some(PromptParamKind::Text { max_len, .. }) = m.demo_prompt.as_mut().map(|d| &mut d.parameters[4].kind) else {
             panic!("expected the Text param")
         };
         *max_len = 8_000;
         assert!(!m.is_valid(1_500), "widening a signed Text bound must invalidate the signature");
+    }
+
+    #[test]
+    fn text_param_encoding_is_pinned_at_the_byte_level() {
+        let enc = |kind| PromptParam { name: "t".into(), kind }.append_to_preimage(Preimage::new(b"d")).finish();
+        let head = Preimage::new(b"d").var_bytes(b"t").tag(4);
+        let single = head.u32(7).tag(0).tag(0).finish();
+        assert_eq!(enc(PromptParamKind::Text { max_len: 7, multiline: false, max_lines: None }), single);
+        let multi = Preimage::new(b"d").var_bytes(b"t").tag(4).u32(7).tag(1).tag(1).u32(3).finish();
+        assert_eq!(enc(PromptParamKind::Text { max_len: 7, multiline: true, max_lines: Some(3) }), multi);
     }
 
     // --- environment contract (scimbe/ct-agent#183, phase 1) ------------------------------
