@@ -542,3 +542,62 @@ fn only_cli_kinds_construct_a_local_cli_backend() {
     assert!(LocalCliBackend::from_binary(BackendKind::LiteLlm, "x".into()).is_err());
     assert!(LocalCliBackend::from_binary(BackendKind::Ollama, "x".into()).is_err());
 }
+
+#[test]
+fn the_token_reaches_the_cli_on_fd_3_and_never_in_argv_or_environment() {
+    let _g = lock();
+    let tmp = tempfile::tempdir().unwrap();
+    let work = tmp.path().join("b");
+    std::fs::create_dir(&work).unwrap();
+    let rec = tmp.path().join("rec");
+    std::fs::create_dir(&rec).unwrap();
+    let token = format!("{}-tok-{}", "tokenvalue", "7731");
+    let tok_file = tmp.path().join("token");
+    std::fs::write(&tok_file, format!("{token}\n")).unwrap();
+    std::fs::set_permissions(&tok_file, std::fs::Permissions::from_mode(0o600)).unwrap();
+    let body = format!(
+        "cat <&3 > '{r}/fd3'\nenv > '{r}/env'\nprintf '%s\\n' \"$@\" > '{r}/args'\n{CLAUDE_OK_STREAM}",
+        r = rec.display()
+    );
+    let bin = fake_cli(tmp.path(), "claude", &body);
+    let mut b = backend(BackendKind::ClaudeCode, bin);
+    b.token_file = Some(tok_file);
+    let (res, log) = run(&b, &req("hi", &work));
+    res.unwrap_or_else(|f| panic!("{}", f.reason));
+    assert_eq!(std::fs::read_to_string(rec.join("fd3")).unwrap(), token);
+    let env = std::fs::read_to_string(rec.join("env")).unwrap();
+    assert!(
+        env.contains("CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR=3"),
+        "{env}"
+    );
+    assert!(
+        !env.contains(&token) && !env.contains("CLAUDE_CODE_OAUTH_TOKEN="),
+        "{env}"
+    );
+    assert!(!std::fs::read_to_string(rec.join("args"))
+        .unwrap()
+        .contains(&token));
+    assert!(!format!("{log:?}").contains(&token));
+}
+
+#[test]
+fn a_world_readable_token_file_is_refused_before_anything_runs() {
+    let _g = lock();
+    let tmp = tempfile::tempdir().unwrap();
+    let work = tmp.path().join("b");
+    std::fs::create_dir(&work).unwrap();
+    let marker = tmp.path().join("spawned");
+    let tok_file = tmp.path().join("token");
+    std::fs::write(&tok_file, "abc").unwrap();
+    std::fs::set_permissions(&tok_file, std::fs::Permissions::from_mode(0o644)).unwrap();
+    let bin = fake_cli(
+        tmp.path(),
+        "claude",
+        &format!("touch '{}'", marker.display()),
+    );
+    let mut b = backend(BackendKind::ClaudeCode, bin);
+    b.token_file = Some(tok_file);
+    let f = run(&b, &req("hi", &work)).0.unwrap_err();
+    assert!(f.reason.contains("chmod 600"), "{}", f.reason);
+    assert!(!marker.exists());
+}

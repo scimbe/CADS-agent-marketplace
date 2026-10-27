@@ -43,7 +43,7 @@ pub trait SandboxBackend {
     fn wrap_command(&self, exe: &str, args: &[&str], work_dir: &Path, env: &[(&str, &str)]) -> (String, Vec<String>);
 
     /// [`wrap_command`](Self::wrap_command) plus the extra capabilities in `policy` (extra
-    /// read-only paths, a writable HOME/TMPDIR, outbound network, keychain). A backend that cannot
+    /// read-only paths, a writable HOME/TMPDIR, outbound network). A backend that cannot
     /// honour a non-default policy returns `Err` -- the caller must then NOT run the payload:
     /// failing closed is the contract. The default policy is exactly `wrap_command`.
     fn wrap_command_with_policy(
@@ -77,7 +77,9 @@ pub enum NetworkPolicy {
     Loopback,
     /// Outbound TLS to the internet (tcp/443) plus name resolution. NOT a per-host allowlist:
     /// anything reachable on 443 is reachable, which is the residual exfiltration channel
-    /// (`docs/security-model.md`).
+    /// (`docs/security-model.md`). **bwrap shares the HOST network namespace** (`--share-net`), so
+    /// host loopback services and the local network are reachable too; Seatbelt limits egress to
+    /// tcp/443 only. Neither is a substitute for a provider-host proxy allowlist.
     Outbound,
 }
 
@@ -92,10 +94,6 @@ pub struct SandboxPolicy {
     /// One writable per-run TMPDIR (outside `work_dir`).
     pub tmp_dir: Option<PathBuf>,
     pub network: NetworkPolicy,
-    /// macOS only: allow the Security framework (keychain login): `com.apple.SecurityServer` and
-    /// read access to `~/Library/Keychains`. Ignored elsewhere. Needed only when the payload's
-    /// login lives in the keychain rather than in files copied into `home_dir`.
-    pub keychain: bool,
 }
 
 impl SandboxPolicy {

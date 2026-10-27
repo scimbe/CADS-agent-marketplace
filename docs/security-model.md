@@ -68,10 +68,14 @@ because it needs the Docker socket and the published ports (F.4).
 
 `harness-core`'s `LocalCliBackend` runs the customer's own agent CLI through the same backends with
 an extended `SandboxPolicy` (extra read-only paths for the CLI and its runtime, one writable per-run
-HOME and TMPDIR, `NetworkPolicy::Outbound`, macOS keychain access). Fail closed: no backend, or a
+HOME and TMPDIR, `NetworkPolicy::Outbound`). Fail closed: no backend, or a
 backend that cannot honour the policy (WSL), refuses the run. Measured: a real `claude -p` turn
-completes inside Seatbelt, and a prompt asking it to read a canary outside the work dir exposes
-nothing. **Residual risk:** outbound tcp/443 is not host-restricted, so data the agent can read
+reaches the API from inside Seatbelt, and a prompt asking it to read a canary outside the work dir
+exposes nothing. **The keychain is unreachable**: a review showed that with `/usr/bin` executable and
+the Security server reachable, `security find-generic-password -w` returned any application-readable
+item, so `security(1)` and `com.apple.SecurityServer` are denied as the last rules of every profile
+(regression test with a throw-away keychain), and the Claude credential is a `claude setup-token`
+token passed over a file descriptor. **Residual risk:** outbound tcp/443 is not host-restricted, so data the agent can read
 (the bundle, its copied login) can be exfiltrated to any 443 endpoint by a prompt-injected agent;
 the next step is a provider-host allowlist via a proxy. Details: `docs/byo-agent-backend.md`.
 

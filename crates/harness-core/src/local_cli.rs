@@ -89,6 +89,21 @@ pub fn build_env(
     out
 }
 
+/// The inherited file descriptor number the token is delivered on.
+const SECRET_FD: i32 = 3;
+
+const CLAUDE_CREDENTIAL_SETUP: &str = "no Claude credential is available to the sandbox: run `claude setup-token` once, store the \
+    token it prints in a file readable only by you (mode 0600) and configure that path (ct-agent: \
+    CT_HARNESS_CLAUDE_TOKEN_FILE). The harness never reads the macOS keychain, because a sandboxed agent must not \
+    be able to reach it";
+
+struct SandboxedRun {
+    spec: CommandSpec,
+    env: Vec<(OsString, OsString)>,
+    dirs: crate::cli_sandbox::RunDirs,
+    token: Option<String>,
+}
+
 /// A fully built command: program, argv (without program) and the bytes for stdin.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CommandSpec {
@@ -110,6 +125,10 @@ pub struct LocalCliBackend {
     pub rebuild_after: bool,
     /// Test-only (feature `test-unsandboxed`): run without the OS sandbox. Always false otherwise.
     unconfined: bool,
+    /// claude only: file holding the long-lived token from `claude setup-token` (mode 0600). It is
+    /// read OUTSIDE the sandbox and handed to the CLI over an inherited file descriptor; the
+    /// harness never reads the macOS keychain or any other login store for it.
+    pub token_file: Option<PathBuf>,
 }
 
 impl LocalCliBackend {
@@ -126,6 +145,7 @@ impl LocalCliBackend {
                 model: None,
                 rebuild_after: false,
                 unconfined: false,
+                token_file: None,
             }),
             other => Err(format!("{} is not a local agent CLI backend", other.id())),
         }
@@ -134,13 +154,12 @@ impl LocalCliBackend {
     /// Wrap `spec` in the platform sandbox with a per-run HOME holding only this CLI's login.
     /// Fails closed: no sandbox backend, an unsupported policy, or an unpreparable HOME is an
     /// error, never a fallback to an unconfined run.
-    #[allow(clippy::type_complexity)]
     fn sandboxed(
         &self,
         req: &AgentRequest<'_>,
         spec: &CommandSpec,
         ambient: &dyn Fn(&str) -> Option<OsString>,
-    ) -> Result<(CommandSpec, Vec<(OsString, OsString)>, crate::cli_sandbox::RunDirs), String> {
+    ) -> Result<SandboxedRun, String> {
         use crate::cli_sandbox as cs;
         use installer_engine::sandbox::{self, NetworkPolicy, SandboxPolicy, Selection};
         let backend = match sandbox::select() {
@@ -153,26 +172,59 @@ impl LocalCliBackend {
                 ))
             }
         };
-        let real_home = ambient("HOME").map(PathBuf::from).ok_or("HOME is not set; cannot locate the CLI login")?;
+        let real_home = ambient("HOME")
+            .map(PathBuf::from)
+            .ok_or("HOME is not set; cannot locate the CLI login")?;
         let dirs = cs::create_run_dirs().map_err(|e| format!("create per-run HOME/TMPDIR: {e}"))?;
-        let copied = cs::prepare_home(&cs::credential_files(self.kind, &real_home, ambient), &dirs.home)?;
-        let keychain = cs::needs_keychain(self.kind, &copied) && cs::link_keychains(&real_home, &dirs.home)?;
+        let copied = cs::prepare_home(
+            &cs::credential_files(self.kind, &real_home, ambient),
+            &dirs.home,
+        )?;
+        // Credential: claude needs a long-lived token file (read here, outside the sandbox) or a
+        // file-based login copied above. The macOS keychain is deliberately NOT reachable.
+        let token = match (self.kind, &self.token_file) {
+            (BackendKind::ClaudeCode, Some(path)) => Some(cs::read_token_file(path)?),
+            (BackendKind::ClaudeCode, None)
+                if !copied.iter().any(|p| p.ends_with(".credentials.json")) =>
+            {
+                return Err(CLAUDE_CREDENTIAL_SETUP.to_string())
+            }
+            _ => None,
+        };
         let path_var = ambient("PATH").unwrap_or_default();
-        let canon = std::fs::canonicalize(&spec.program).map_err(|e| format!("{}: {e}", spec.program.display()))?;
+        let canon = std::fs::canonicalize(&spec.program)
+            .map_err(|e| format!("{}: {e}", spec.program.display()))?;
         let policy = SandboxPolicy {
             extra_ro_paths: cs::runtime_ro_paths(&spec.program, &path_var),
             home_dir: Some(dirs.home.clone()),
             tmp_dir: Some(dirs.tmp.clone()),
             network: NetworkPolicy::Outbound,
-            keychain,
         };
-        let env = cs::sandbox_env(self.kind, ambient, req.max_output_tokens, &dirs);
+        let env = cs::sandbox_env(
+            self.kind,
+            ambient,
+            req.max_output_tokens,
+            &dirs,
+            token.as_ref().map(|_| SECRET_FD),
+        );
         let env_refs: Vec<(String, String)> = env
             .iter()
-            .map(|(k, v)| (k.to_string_lossy().into_owned(), v.to_string_lossy().into_owned()))
+            .map(|(k, v)| {
+                (
+                    k.to_string_lossy().into_owned(),
+                    v.to_string_lossy().into_owned(),
+                )
+            })
             .collect();
-        let env_refs: Vec<(&str, &str)> = env_refs.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-        let args: Vec<String> = spec.args.iter().map(|a| a.to_string_lossy().into_owned()).collect();
+        let env_refs: Vec<(&str, &str)> = env_refs
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect();
+        let args: Vec<String> = spec
+            .args
+            .iter()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
         let args: Vec<&str> = args.iter().map(String::as_str).collect();
         let (program, wrapped) = backend.wrap_command_with_policy(
             &canon.to_string_lossy(),
@@ -186,7 +238,12 @@ impl LocalCliBackend {
             args: wrapped.into_iter().map(OsString::from).collect(),
             stdin: spec.stdin.clone(),
         };
-        Ok((wrapped, env, dirs))
+        Ok(SandboxedRun {
+            spec: wrapped,
+            env,
+            dirs,
+            token,
+        })
     }
 
     /// Run the CLI directly, without the OS sandbox. Only exists for this crate's own tests with
@@ -300,18 +357,45 @@ impl AgentBackend for LocalCliBackend {
         }
         let ambient = |k: &str| std::env::var_os(k);
         let mut spec = self.build_command(req);
-        let (env, limits, _dirs) = if self.unconfined {
-            (build_env(self.kind, &ambient, req.max_output_tokens), None, None)
+        let (env, limits, _dirs, token) = if self.unconfined {
+            let token = match (self.kind, &self.token_file) {
+                (BackendKind::ClaudeCode, Some(path)) => {
+                    Some(crate::cli_sandbox::read_token_file(path).map_err(|e| fail(0, e))?)
+                }
+                _ => None,
+            };
+            let mut env = build_env(self.kind, &ambient, req.max_output_tokens);
+            if token.is_some() {
+                env.push((
+                    "CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR".into(),
+                    SECRET_FD.to_string().into(),
+                ));
+            }
+            (env, None, None, token)
         } else {
-            let (wrapped, env, dirs) = self.sandboxed(req, &spec, &ambient).map_err(|e| fail(0, e))?;
-            spec = wrapped;
-            (env, Some(installer_engine::sandbox::DEFAULT_LIMITS), Some(dirs))
+            let run = self
+                .sandboxed(req, &spec, &ambient)
+                .map_err(|e| fail(0, e))?;
+            spec = run.spec;
+            (
+                run.env,
+                Some(installer_engine::sandbox::DEFAULT_LIMITS),
+                Some(run.dirs),
+                run.token,
+            )
         };
 
         let before =
             snapshot(req.work_dir).map_err(|e| fail(0, format!("snapshot bundle: {e}")))?;
-        let out =
-            run_bounded_io(&spec, req.work_dir, &env, self.timeout, limits).map_err(|e| fail(0, e))?;
+        let out = run_bounded_io(
+            &spec,
+            req.work_dir,
+            &env,
+            self.timeout,
+            limits,
+            token.as_deref().map(str::as_bytes),
+        )
+        .map_err(|e| fail(0, e))?;
 
         for (stream, bytes) in [("stdout", &out.stdout), ("stderr", &out.stderr)] {
             let (text, truncated) = lossy_capped(bytes);
@@ -430,15 +514,22 @@ pub fn detect_backends_in(path_var: &OsStr, home: Option<&OsStr>) -> Vec<Detecte
             args: vec!["--version".into()],
             stdin: Vec::new(),
         };
-        let version = run_bounded_io(&spec, Path::new("/"), &env, VERSION_PROBE_TIMEOUT, None)
-            .ok()
-            .filter(|o| !o.timed_out)
-            .and_then(|o| {
-                parse_version(
-                    &String::from_utf8_lossy(&o.stdout),
-                    &String::from_utf8_lossy(&o.stderr),
-                )
-            });
+        let version = run_bounded_io(
+            &spec,
+            Path::new("/"),
+            &env,
+            VERSION_PROBE_TIMEOUT,
+            None,
+            None,
+        )
+        .ok()
+        .filter(|o| !o.timed_out)
+        .and_then(|o| {
+            parse_version(
+                &String::from_utf8_lossy(&o.stdout),
+                &String::from_utf8_lossy(&o.stderr),
+            )
+        });
         found.push(DetectedBackend {
             kind,
             binary,
@@ -501,6 +592,7 @@ fn run_bounded_io(
     env: &[(OsString, OsString)],
     timeout: Duration,
     limits: Option<installer_engine::sandbox::Limits>,
+    secret: Option<&[u8]>,
 ) -> Result<ProcOutput, String> {
     let started = Instant::now();
     let mut cmd = Command::new(&spec.program);
@@ -524,9 +616,37 @@ fn run_bounded_io(
     }
     #[cfg(not(unix))]
     let _ = limits;
+    // A secret travels over a pipe inherited as fd SECRET_FD: never argv, never the environment.
+    #[cfg(unix)]
+    let secret_rd = match secret {
+        Some(bytes) => {
+            let (rd, raw) = secret_pipe(bytes)?;
+            unsafe {
+                use std::os::unix::process::CommandExt;
+                cmd.pre_exec(move || {
+                    // dup2 yields a descriptor without CLOEXEC; clear the flag explicitly so the
+                    // rd == SECRET_FD case works too.
+                    if libc::dup2(raw, SECRET_FD) < 0
+                        || libc::fcntl(SECRET_FD, libc::F_SETFD, 0) < 0
+                    {
+                        return Err(std::io::Error::last_os_error());
+                    }
+                    Ok(())
+                });
+            }
+            Some(rd)
+        }
+        None => None,
+    };
+    #[cfg(not(unix))]
+    if secret.is_some() {
+        return Err("passing a secret by file descriptor needs Unix".into());
+    }
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("failed to spawn {}: {e}", spec.program.display()))?;
+    #[cfg(unix)]
+    drop(secret_rd); // the parent's read end; the child owns its duplicate
     let pid = child.id();
 
     // Feed stdin on its own thread (a child that never reads must not stall the timeout loop).
@@ -760,4 +880,31 @@ fn escaping_new_symlink(
             _ => None,
         }
     })
+}
+
+/// A pipe pre-filled with `bytes` and with the write end already closed (EOF after the data); both
+/// ends are CLOEXEC so only the explicit `dup2` in the child survives `exec`.
+#[cfg(unix)]
+fn secret_pipe(bytes: &[u8]) -> Result<(std::os::fd::OwnedFd, i32), String> {
+    use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
+    if bytes.len() > 4096 {
+        return Err("secret too large for the pipe".into());
+    }
+    let mut fds = [0i32; 2];
+    // SAFETY: plain libc calls on a fresh two-element array; both descriptors are wrapped at once.
+    unsafe {
+        if libc::pipe(fds.as_mut_ptr()) != 0 {
+            return Err(format!("pipe: {}", std::io::Error::last_os_error()));
+        }
+        let (rd, wr) = (OwnedFd::from_raw_fd(fds[0]), OwnedFd::from_raw_fd(fds[1]));
+        for fd in [rd.as_raw_fd(), wr.as_raw_fd()] {
+            libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC);
+        }
+        let mut w = std::fs::File::from(wr);
+        w.write_all(bytes)
+            .map_err(|e| format!("write secret pipe: {e}"))?;
+        drop(w);
+        let raw = rd.as_raw_fd();
+        Ok((rd, raw))
+    }
 }

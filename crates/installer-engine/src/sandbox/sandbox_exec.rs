@@ -46,6 +46,15 @@ const PROFILE_BASE: &str = r#"(version 1)
 (deny network*)
 "#;
 
+/// Always the LAST rules of every profile, so no earlier or policy-added allow can re-enable them:
+/// the keychain is unreachable from a sandboxed payload. `/usr/bin` is executable for the OS tools
+/// a bundle needs, which includes `security(1)`; with the Security server reachable it reads every
+/// keychain item whose ACL admits any application (measured in the security review of the BYO
+/// agent backend), so both the binary and the Mach service are denied explicitly.
+const PROFILE_FINAL_DENIES: &str = r#"(deny process-exec (literal "/usr/bin/security"))
+(deny mach-lookup (global-name "com.apple.SecurityServer"))
+"#;
+
 /// Appended only when the backend was constructed with [`SandboxExec::with_loopback`]. Seatbelt
 /// has no network namespace: this is the HOST's loopback, shared with every other local service,
 /// not the private loopback bwrap's `--unshare-net` gives. That is why nothing in the installer
@@ -64,14 +73,6 @@ const PROFILE_LOOPBACK: &str = r#"(allow network-outbound (remote ip "localhost:
 const PROFILE_OUTBOUND: &str = r#"(allow network-outbound (remote tcp "*:443"))
 (allow network-outbound (literal "/private/var/run/mDNSResponder"))
 (allow file-read* (subpath "/private/var/db/timezone"))
-"#;
-
-/// Keychain-backed login: the Security server, plus read access to the user's keychain files
-/// (`(param "KEYCHAINS")`, the real `~/Library/Keychains`, reached through a symlink in the per-run
-/// HOME because the `security` helper resolves them relative to `$HOME`). Measured: dropping
-/// `SecurityServer` makes the login fail ("Not logged in").
-const PROFILE_KEYCHAIN: &str = r#"(allow mach-lookup (global-name "com.apple.SecurityServer"))
-(allow file-read* (subpath (param "KEYCHAINS")))
 "#;
 
 pub struct SandboxExec {
@@ -99,6 +100,7 @@ impl SandboxExec {
         if self.allow_loopback {
             p.push_str(PROFILE_LOOPBACK);
         }
+        p.push_str(PROFILE_FINAL_DENIES);
         p
     }
 
@@ -121,9 +123,7 @@ impl SandboxExec {
         if policy.tmp_dir.is_some() {
             p.push_str("(allow file-read* file-write* (subpath (param \"TMP\")))\n");
         }
-        if policy.keychain {
-            p.push_str(PROFILE_KEYCHAIN);
-        }
+        p.push_str(PROFILE_FINAL_DENIES);
         p
     }
 
@@ -142,10 +142,6 @@ impl SandboxExec {
         }
         if let Some(t) = &policy.tmp_dir {
             param("TMP".into(), t);
-        }
-        if policy.keychain {
-            let real_home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
-            param("KEYCHAINS".into(), &real_home.join("Library/Keychains"));
         }
         a
     }
@@ -280,7 +276,6 @@ mod tests {
             home_dir: Some(PathBuf::from("/run/h")),
             tmp_dir: Some(PathBuf::from("/run/t")),
             network: NetworkPolicy::Outbound,
-            keychain: true,
         }
     }
 
@@ -299,8 +294,9 @@ mod tests {
         assert!(p.contains(r#"(allow network-outbound (remote tcp "*:443"))"#));
         assert!(p.contains("/private/var/run/mDNSResponder"));
         assert!(p.contains("(param \"RO0\")") && p.contains("(param \"RO1\")") && !p.contains("RO2"));
-        assert!(p.contains("(param \"HOME\")") && p.contains("(param \"TMP\")") && p.contains("(param \"KEYCHAINS\")"));
-        assert!(p.contains("com.apple.SecurityServer"));
+        assert!(p.contains("(param \"HOME\")") && p.contains("(param \"TMP\")"));
+        // the keychain stays unreachable even with an outbound policy
+        assert!(!p.contains("(allow mach-lookup") && !p.contains("KEYCHAINS"));
         // no blanket grants
         for bad in ["(allow default)", "(allow network*)", "network-outbound (remote ip", "(allow file-write* (subpath \"/\"))"] {
             assert!(!p.contains(bad), "{bad}");
@@ -310,12 +306,28 @@ mod tests {
     }
 
     #[test]
-    fn network_none_and_no_keychain_add_nothing() {
+    fn keychain_denies_are_the_last_rules_of_every_profile() {
+        let mut with_ro = policy();
+        with_ro.extra_ro_paths.push(PathBuf::from("/usr/bin"));
+        for p in [
+            SandboxExec::new().profile(),
+            SandboxExec::with_loopback().profile(),
+            SandboxExec::new().profile_with_policy(&policy()),
+            SandboxExec::new().profile_with_policy(&with_ro),
+        ] {
+            assert!(p.ends_with(PROFILE_FINAL_DENIES), "{p}");
+            assert!(p.contains(r#"(deny process-exec (literal "/usr/bin/security"))"#));
+            assert!(p.contains(r#"(deny mach-lookup (global-name "com.apple.SecurityServer"))"#));
+            assert!(!p.contains("(allow mach-lookup"), "no mach-lookup is ever allowed");
+        }
+    }
+
+    #[test]
+    fn network_none_adds_nothing() {
         let mut pol = policy();
         pol.network = NetworkPolicy::None;
-        pol.keychain = false;
         let p = SandboxExec::new().profile_with_policy(&pol);
-        assert!(!p.contains("*:443") && !p.contains("mDNSResponder") && !p.contains("SecurityServer") && !p.contains("KEYCHAINS"));
+        assert!(!p.contains("*:443") && !p.contains("mDNSResponder"));
         assert!(p.contains("(deny network*)"));
     }
 
@@ -328,7 +340,7 @@ mod tests {
             SandboxExec::new().wrap_command_with_policy("/opt/cli/claude", &["-p"], Path::new("/w"), &[("K", "v")], &policy()).unwrap();
         assert_eq!(prog, "/usr/bin/sandbox-exec");
         let params: Vec<&String> = args.iter().enumerate().filter(|(i, _)| *i > 0 && args[i - 1] == "-D").map(|(_, a)| a).collect();
-        for want in ["WORK=", "RO0=", "RO1=", "HOME=", "TMP=", "KEYCHAINS="] {
+        for want in ["WORK=", "RO0=", "RO1=", "HOME=", "TMP="] {
             assert!(params.iter().any(|p| p.starts_with(want)), "{want} in {params:?}");
         }
         let env_at = args.iter().position(|a| a == "/usr/bin/env").unwrap();
@@ -403,7 +415,7 @@ mod tests {
                 && !p.contains("(subpath \"/private/var\")")
                 && !p.contains("(subpath \"/tmp\")")
         );
-        assert!(!p.contains("mach-lookup"));
+        assert!(!p.contains("(allow mach-lookup"));
         assert!(
             p.contains("(allow file-write* (subpath (param \"WORK\")) (literal \"/dev/null\"))")
         );
@@ -476,6 +488,71 @@ mod tests {
                 .current_dir(work)
                 .output()
                 .unwrap()
+        }
+
+        /// Regression for the security review of the BYO agent backend: with `/usr/bin` executable
+        /// and the keychain file readable, `security find-generic-password -w` printed a secret
+        /// from inside the sandbox (item created with `-A`, i.e. readable by any application). The
+        /// profile's final denies (the `security` binary and the Security server) must stop that.
+        /// Uses a throw-away keychain file, never the user's login keychain; the file's directory
+        /// is granted read+exec through the policy so that ONLY the denies are under test. A
+        /// control run outside the sandbox must print the secret, otherwise the test is vacuous
+        /// and skips.
+        #[test]
+        fn a_keychain_item_readable_by_any_app_cannot_be_read_from_inside_the_sandbox() {
+            let Some(b) = backend_or_skip("a_keychain_item_readable_by_any_app_cannot_be_read") else { return };
+            let dir = tempfile::tempdir().unwrap();
+            let dir_path = std::fs::canonicalize(dir.path()).unwrap();
+            let kc = dir_path.join("canary.keychain-db");
+            let kc_s = kc.display().to_string();
+            let sec = |args: &[&str]| Command::new("/usr/bin/security").args(args).output().unwrap();
+            if !sec(&["create-keychain", "-p", "pw", &kc_s]).status.success()
+                || !sec(&["unlock-keychain", "-p", "pw", &kc_s]).status.success()
+            {
+                eprintln!("skipping: cannot create a throw-away keychain here");
+                return;
+            }
+            let secret = "KEYCHAIN-CANARY-8841";
+            let added = sec(&["add-generic-password", "-A", "-a", "acct", "-s", "canary-svc", "-w", secret, &kc_s]);
+            let control = sec(&["find-generic-password", "-s", "canary-svc", "-w", &kc_s]);
+            let control_ok = added.status.success() && String::from_utf8_lossy(&control.stdout).contains(secret);
+            let policy = SandboxPolicy { extra_ro_paths: vec![dir_path.clone()], ..Default::default() };
+            let (program, args) = b
+                .wrap_command_with_policy(
+                    "/usr/bin/security",
+                    &["find-generic-password", "-s", "canary-svc", "-w", &kc_s],
+                    &dir_path,
+                    &[("HOME", &dir_path.display().to_string())],
+                    &policy,
+                )
+                .unwrap();
+            let out = Command::new(program).args(args).current_dir(&dir_path).output().unwrap();
+            // Worst case: a regression that ALLOWS the Security server and `security` right before
+            // the final denies. `leaky` (denies stripped) proves the hostile allows really would
+            // leak; `guarded` (denies kept) must not.
+            let hostile = "(allow mach-lookup (global-name \"com.apple.SecurityServer\"))\n(allow process-exec (literal \"/usr/bin/security\"))\n";
+            let run_variant = |tail: &str| {
+                let mut a = SandboxExec::new().launcher_args_with_policy(&dir_path, &policy);
+                a[1] = a[1].replace(PROFILE_FINAL_DENIES, &format!("{hostile}{tail}"));
+                a.extend(["/usr/bin/security", "find-generic-password", "-s", "canary-svc", "-w", &kc_s].map(String::from));
+                Command::new(SANDBOX_EXEC).args(a).current_dir(&dir_path).env("HOME", &dir_path).output().unwrap()
+            };
+            let leaky = run_variant("");
+            let guarded = run_variant(PROFILE_FINAL_DENIES);
+            let _ = sec(&["delete-keychain", &kc_s]);
+            let leaky_text = String::from_utf8_lossy(&leaky.stdout).into_owned();
+            let guarded_text = format!("{}{}", String::from_utf8_lossy(&guarded.stdout), String::from_utf8_lossy(&guarded.stderr));
+            assert!(!guarded.status.success() && !guarded_text.contains(secret), "final denies did not hold: {guarded_text}");
+            if !leaky_text.contains(secret) {
+                eprintln!("note: the hostile allows alone did not leak on this macOS; the deny test is not discriminating here");
+            }
+            if !control_ok {
+                eprintln!("skipping: control read outside the sandbox did not return the secret (vacuous test)");
+                return;
+            }
+            let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+            assert!(!out.status.success(), "security ran successfully inside the sandbox: {text}");
+            assert!(!text.contains(secret), "keychain secret leaked from inside the sandbox: {text}");
         }
 
         #[test]

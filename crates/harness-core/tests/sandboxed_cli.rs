@@ -187,6 +187,9 @@ fn real_claude() -> Option<LocalCliBackend> {
         .find(|d| d.kind == BackendKind::ClaudeCode)?;
     let mut b = LocalCliBackend::new(&d).ok()?;
     b.timeout = Duration::from_secs(180);
+    // The sandbox never reaches the macOS keychain: a real run needs a `claude setup-token` token
+    // in a 0600 file (or, on Linux, a file-based login that is copied into the per-run HOME).
+    b.token_file = std::env::var_os("HARNESS_CLAUDE_TOKEN_FILE").map(PathBuf::from);
     Some(b)
 }
 
@@ -216,6 +219,10 @@ fn real_claude_runs_inside_the_sandbox_with_max_turns_1() {
             assert!(out.contains("OK"), "{out}");
             eprintln!("MEASURED: real claude inside the sandbox ok, turns_used=1");
         }
+        Err(f) if f.reason.contains("claude setup-token") => skip(&format!(
+            "no sandbox-usable Claude credential (set HARNESS_CLAUDE_TOKEN_FILE to a `claude setup-token` file): {}",
+            f.reason
+        )),
         Err(f) if out.contains("Not logged in") => skip(&format!(
             "claude is not logged in on this host ({})",
             f.reason
@@ -249,6 +256,9 @@ fn real_claude_cannot_read_a_canary_outside_the_work_dir() {
     let mut log = Vec::new();
     let res = b.run(&req(&prompt, &work), &mut |e| log.push(e));
     let out = texts(&log);
+    if matches!(&res, Err(f) if f.reason.contains("claude setup-token")) {
+        return skip("no sandbox-usable Claude credential (set HARNESS_CLAUDE_TOKEN_FILE)");
+    }
     if out.contains("Not logged in") {
         return skip("claude is not logged in on this host");
     }
@@ -262,5 +272,98 @@ fn real_claude_cannot_read_a_canary_outside_the_work_dir() {
     eprintln!(
         "MEASURED: canary not exposed; run result ok={}",
         res.is_ok()
+    );
+}
+
+fn private_token_file(dir: &Path, token: &str) -> PathBuf {
+    let f = dir.join("token");
+    std::fs::write(&f, token).unwrap();
+    std::fs::set_permissions(&f, std::fs::Permissions::from_mode(0o600)).unwrap();
+    f
+}
+
+/// Without a configured token and without a file-based login the run is refused with the setup
+/// instruction, and nothing is spawned (in particular no keychain fallback).
+#[test]
+fn claude_without_a_sandbox_usable_credential_is_refused_with_setup_instructions() {
+    let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    if !sandbox_available() {
+        return skip("no OS sandbox backend on this host");
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let t = std::fs::canonicalize(tmp.path()).unwrap();
+    let real_home = t.join("realhome");
+    std::fs::create_dir_all(&real_home).unwrap(); // no .claude/.credentials.json
+    let work = t.join("work");
+    std::fs::create_dir(&work).unwrap();
+    let marker = t.join("spawned");
+    let bin = fake_cli(&t, "claude", &format!("touch '{}'", marker.display()));
+    let b = LocalCliBackend::from_binary(BackendKind::ClaudeCode, bin).unwrap();
+    let prev = std::env::var_os("HOME");
+    std::env::set_var("HOME", &real_home);
+    let r = b.run(&req("hi", &work), &mut |_| {});
+    match prev {
+        Some(p) => std::env::set_var("HOME", p),
+        None => std::env::remove_var("HOME"),
+    }
+    let f = r.unwrap_err();
+    assert!(
+        f.reason.contains("claude setup-token")
+            && f.reason.contains("never reads the macOS keychain"),
+        "{}",
+        f.reason
+    );
+    assert!(!marker.exists());
+}
+
+/// Inside the REAL sandbox: the token arrives on fd 3 (not in argv/env), and on macOS the keychain
+/// tooling is unusable even with the CLI's own directory readable.
+#[test]
+fn token_is_delivered_on_fd_3_inside_the_sandbox_and_the_keychain_tool_is_denied() {
+    let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    if !sandbox_available() {
+        return skip("no OS sandbox backend on this host");
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let t = std::fs::canonicalize(tmp.path()).unwrap();
+    let real_home = t.join("realhome");
+    std::fs::create_dir_all(&real_home).unwrap();
+    let work = t.join("work");
+    std::fs::create_dir(&work).unwrap();
+    let token = "sandbox-fd-token-4471";
+    let tok = private_token_file(&t, token);
+    let bin_dir = t.join("bin");
+    std::fs::create_dir(&bin_dir).unwrap();
+    let body = r#"echo "fd3=$(cat <&3 2>&1)"
+echo "envtoken=$(env | grep -c sandbox-fd-token)"
+echo "argtoken=$(echo "$@" | grep -c sandbox-fd-token)"
+if [ -x /usr/bin/security ]; then
+  /usr/bin/security list-keychains >/dev/null 2>&1 && echo "security=RAN" || echo "security=denied"
+else
+  echo "security=absent"
+fi
+echo '{"type":"result","subtype":"success","is_error":false,"num_turns":1}'"#;
+    let bin = fake_cli(&bin_dir, "claude", body);
+    let mut b = LocalCliBackend::from_binary(BackendKind::ClaudeCode, bin).unwrap();
+    b.token_file = Some(tok);
+    b.timeout = Duration::from_secs(60);
+    let prev = std::env::var_os("HOME");
+    std::env::set_var("HOME", &real_home);
+    let mut log = Vec::new();
+    let r = b.run(&req("hi", &work), &mut |e| log.push(e));
+    match prev {
+        Some(p) => std::env::set_var("HOME", p),
+        None => std::env::remove_var("HOME"),
+    }
+    r.unwrap_or_else(|f| panic!("{} | {}", f.reason, texts(&log)));
+    let out = texts(&log);
+    assert!(out.contains(&format!("fd3={token}")), "{out}");
+    assert!(
+        out.contains("envtoken=0") && out.contains("argtoken=0"),
+        "{out}"
+    );
+    assert!(
+        !out.contains("security=RAN"),
+        "the keychain tool ran inside the sandbox:\n{out}"
     );
 }

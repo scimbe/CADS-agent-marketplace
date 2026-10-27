@@ -30,20 +30,32 @@ fallback. WSL/Windows does not support the extended policy and is refused as wel
 * Filesystem: deny-by-default read-only OS view, no real `$HOME`; writes only to the bundle work dir,
   a per-run HOME and a per-run TMPDIR (both 0700, outside the bundle, deleted after the run).
 * The CLI binary and its runtime (e.g. the Node installation of a script CLI) are added read-only.
-* Per-run HOME holds only the selected CLI's login: claude `~/.claude/.credentials.json` and a
-  filtered `~/.claude.json` (without `projects`/`mcpServers`), codex `~/.codex/{auth.json,config.toml}`,
-  gemini `~/.gemini/{oauth_creds.json,google_accounts.json,settings.json,installation_id}`
+* Per-run HOME holds only the selected CLI's file-based login: claude `~/.claude/.credentials.json`
+  and a filtered `~/.claude.json` (without `projects`/`mcpServers`), codex
+  `~/.codex/{auth.json,config.toml}`, gemini
+  `~/.gemini/{oauth_creds.json,google_accounts.json,settings.json,installation_id}`
   (`CLAUDE_CONFIG_DIR`/`CODEX_HOME`/`GEMINI_CLI_HOME` locate the source). Nothing is written back.
-* macOS keychain login (the case here: no credentials file): the sandbox additionally allows
-  `com.apple.SecurityServer` and read access to the real `~/Library/Keychains` (linked into the
-  per-run HOME); the keychain's own item ACLs still apply. No other login store is reachable.
-* Network: outbound tcp/443 plus name resolution (Seatbelt: mDNSResponder socket; bwrap: `--share-net`
-  with read-only `resolv.conf`, `hosts` and the CA stores). This is **not** a host allowlist.
+  Stale `cads-harness-run-<pid>-*` directories of dead processes are swept at the next start.
+* **The macOS keychain is not reachable from the sandbox** (`security(1)` and the Security server are
+  denied as the last rules of every Seatbelt profile). On macOS Claude Code keeps its login in the
+  keychain, so a sandboxed run needs a credential obtained outside the sandbox: run
+  `claude setup-token` once, store the printed long-lived token in a file readable only by you
+  (mode 0600) and configure it (`LocalCliBackend::token_file`; ct-agent
+  `CT_HARNESS_CLAUDE_TOKEN_FILE`). The harness reads that file itself and gives the token to the CLI
+  over an inherited file descriptor (`CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR=3`), never in argv or
+  the environment. Without a token file (and without a file-based login on Linux) the run is
+  refused with that instruction; there is no keychain fallback. `CLAUDE_CODE_OAUTH_TOKEN` and the
+  descriptor variable are present in the Claude Code binary (verified with `strings`); the
+  long-lived token is documented by `claude setup-token --help` as requiring a Claude subscription
+  and is inference-only.
+* Network: outbound plus name resolution. Seatbelt: tcp/443 only (plus the mDNSResponder socket).
+  bwrap: `--share-net` with read-only `resolv.conf`, `hosts` and the CA stores, which shares the
+  **host network namespace**: host loopback services and the local network are reachable from the
+  sandbox, not just 443 (no `pasta`/`slirp4netns` isolation yet). Neither is a host allowlist.
 * `rlimit`s of the installer sandbox (CPU, file size, process count) apply.
 * Seatbelt rules were each kept only because removing them broke a real `claude -p` run (macOS 27,
-  Claude Code 2.1.311): outbound 443, the mDNSResponder socket, the timezone database, and for the
-  keychain login `SecurityServer`. `trustd`, `dnssd`, `configd`, `/Library/Keychains`, `mds` and
-  `system-socket` were tried and are not needed. Claude Code is pointed at the per-run TMPDIR via
+  Claude Code 2.1.311): outbound 443, the mDNSResponder socket and the timezone database. `trustd`,
+  `dnssd`, `configd`, `/Library/Keychains`, `mds` and `system-socket` were tried and are not needed. Claude Code is pointed at the per-run TMPDIR via
   `CLAUDE_CODE_TMPDIR` (it otherwise writes the shared `/tmp/claude-<uid>`).
 
 ## Bounds
@@ -78,8 +90,15 @@ fallback. WSL/Windows does not support the extended policy and is refused as wel
   provider; anything inside the sandbox that the agent can read (the bundle, its copied login) can
   be sent to any host on 443 by a prompt-injected agent. Recommended next step: route the sandbox's
   traffic through a proxy that allows only the provider hosts (`api.anthropic.com`, ...).
-* The copied login is readable by the sandboxed CLI (necessarily) and, on macOS keychain login, the
-  CLI can ask the Security server for items whose ACL allows it.
+* The credential (token or copied file login) is readable by the sandboxed CLI, necessarily, and is
+  exfiltrable over the allowed network. A long-lived inference-only token limits the damage; revoke
+  it if a run is suspect.
+* On Linux, bwrap `--share-net` exposes host loopback services (see Network above).
+* **Measured vs not:** the sandboxed real `claude` was run with a dummy token on macOS: it read the
+  token from the descriptor, reached the API and received the API's 401, which shows the credential
+  path and network work. A successful turn with a real `claude setup-token` token was NOT measured
+  (minting one needs an interactive login); set `HARNESS_CLAUDE_TOKEN_FILE` to run
+  `tests/sandboxed_cli.rs` against a real one.
 * `--max-turns` is accepted by claude but is not listed in its `--help`.
 * `codex`, `gemini`: flags come from `--help` (codex-cli 0.141, gemini 0.46); they were never run
   end to end under the sandbox. No turn limit (only the timeout); Codex has no per-tool allowlist;

@@ -97,7 +97,9 @@ const RO_ETC_NET: [&str; 2] = ["/etc/resolv.conf", "/etc/hosts"];
 /// [`bwrap_args`] for a non-default [`SandboxPolicy`]. With the default policy the output is
 /// byte-identical to the historical argv (pinned by a test). Extra ro paths, HOME and TMPDIR are
 /// bound before the root is remounted read-only, exactly like `work_dir`; `--share-net` follows
-/// `--unshare-all` so only the network namespace is re-shared.
+/// `--unshare-all` so only the network namespace is re-shared. NOTE: that is the HOST's network
+/// namespace -- host loopback services and the local network are reachable from the sandbox, not
+/// just tcp/443 (no `pasta`/`slirp4netns` isolation yet; documented residual risk).
 pub(super) fn bwrap_args_with_policy(
     exe: &str,
     args: &[&str],
@@ -306,7 +308,6 @@ mod tests {
             home_dir: Some(Path::new("/run/h").to_path_buf()),
             tmp_dir: Some(Path::new("/run/t").to_path_buf()),
             network: NetworkPolicy::Outbound,
-            keychain: true,
         }
     }
 
