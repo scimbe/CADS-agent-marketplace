@@ -9,6 +9,7 @@ pub mod environment;
 pub mod hex;
 pub mod manifest;
 mod preimage;
+pub mod prompt_template;
 pub mod task;
 
 pub use composition::{CompositionEdge, CompositionManifest, EdgeUpgradeHint, SubManifestRef};
@@ -17,4 +18,5 @@ pub use environment::{
     ProcessPolicy, ResourceLimits, SandboxMinTier, ENVIRONMENT_SCHEMA,
 };
 pub use manifest::{BundleRef, DemoPrompt, EnvVarSpec, InstallerKind, PromptParam, PromptParamKind, ServiceManifest, VerifySpec};
+pub use prompt_template::{ComponentRef, PromptTemplate, RenderError, RenderedPrompt, ValueViolation};
 pub use task::SignedTask;
