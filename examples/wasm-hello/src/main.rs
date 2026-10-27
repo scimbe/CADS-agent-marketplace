@@ -2,8 +2,9 @@
 //!
 //! ```text
 //! wasm-hello <name>            writes /work/hello.txt ("hello, <name>") and prints it to stdout
-//! wasm-hello --try-open <path> tries to create <path>; exit 0 if that worked, 3 if it was refused
+//! wasm-hello --try-open <path> tries to create <path>; exit 0 if that worked, non-zero if it was refused
 //! ```
+//! (Under `wasm32-wasip2` any non-zero status is reported by `wasi:cli/run` as plain failure, i.e. 1.)
 //! The second form is what the sandbox tests use to prove a path outside the preopen is unreachable.
 //! Only `std` is used, so the same source also builds and runs natively for a quick check.
 

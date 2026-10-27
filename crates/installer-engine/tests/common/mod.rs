@@ -21,6 +21,8 @@ pub fn simple_component(core_body: &str, memory_pages: u32) -> Vec<u8> {
 /// Opens `path` (create + write) in the FIRST preopen and writes "hello". Exit 1 if any step fails.
 pub fn fs_probe_component(path: &str) -> Vec<u8> {
     let len = path.len();
+    // Every byte as a \xx escape: paths may hold backslashes (Windows temp dirs) or quotes.
+    let path: String = path.bytes().map(|b| format!("\\{b:02x}")).collect();
     let wat = format!(
         r#"(component
   (import "wasi:filesystem/types@0.2.0" (instance $types

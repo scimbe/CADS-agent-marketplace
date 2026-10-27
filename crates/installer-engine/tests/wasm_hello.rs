@@ -62,6 +62,7 @@ fn hello_writes_its_file_inside_the_preopen_and_reports_on_stdout() {
 
 #[test]
 fn hello_cannot_open_a_path_outside_the_preopen() {
+    // wasi:cli/run returns only ok/err, so any non-zero exit of the example surfaces as code 1.
     let Some(bytes) = component() else { return };
     let outer = tempfile::tempdir().unwrap();
     let work = outer.path().join("work");
@@ -70,7 +71,7 @@ fn hello_cannot_open_a_path_outside_the_preopen() {
     for path in ["../escaped.txt", target.to_str().unwrap()] {
         for kind in [WasmEngineKind::Jit, WasmEngineKind::Interpreter] {
             let r = run(kind, &bytes, &work, &["--try-open", path]);
-            assert_eq!(r.outcome, WasmOutcome::Exited { code: 3 }, "{path} {kind:?}: {r:?}");
+            assert_eq!(r.outcome, WasmOutcome::Exited { code: 1 }, "{path} {kind:?}: {r:?}");
             assert!(r.stderr.contains("refused"), "{}", r.stderr);
         }
     }
