@@ -13,14 +13,19 @@ pub mod plan;
 pub mod process;
 pub mod report;
 pub mod sandbox;
+pub mod wasm_runtime;
 
 pub use activate::{
     activate, binary_manifest_platform_verdict, require_binary_sandbox_from_env, ActivateOptions, ALLOW_UNSANDBOXED_ENV,
 };
 pub use guardrails::GuardrailPolicy;
-pub use plan::{plan, plan_with_selector_on, Plan, PlanOptions};
+pub use plan::{plan, plan_with_selector_on, plan_with_wasm_spec, wasm_capability_lines, Plan, PlanOptions};
 pub use composition::{
     activate_composition, CompositionActivateOptions, CompositionInstallReport, HolderKeyResolver, NullHolderKeyResolver,
     TeardownOutcome,
 };
 pub use report::InstallReport;
+pub use wasm_runtime::{
+    run_wasm_component, run_wasm_component_with, verify_component_bytes, WasmEngineKind, WasmOutcome, WasmRunOptions,
+    WasmRunReport,
+};

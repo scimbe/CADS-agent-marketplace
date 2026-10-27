@@ -1,0 +1,17 @@
+[package]
+name = "wasm-hello"
+version = "0.1.0"
+edition = "2021"
+description = "Tiny WASI 0.2 command component used to exercise InstallerKind::Wasm (built for wasm32-wasip2)."
+license = "MIT"
+publish = false
+
+# Not a member of the main workspace: it targets wasm32-wasip2 and must not be built by `cargo build --workspace`.
+[workspace]
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+panic = "abort"
+codegen-units = 1

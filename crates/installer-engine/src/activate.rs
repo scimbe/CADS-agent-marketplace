@@ -206,7 +206,7 @@ pub(crate) fn activate_with_selector_on(
     //    all yet (see manifest-core's InstallerKind doc for why: no real cluster to prove one
     //    against). Compose and Binary both proceed; they diverge at steps 7/9 below.
     match manifest.installer_kind {
-        InstallerKind::Compose | InstallerKind::Binary => {}
+        InstallerKind::Compose | InstallerKind::Binary | InstallerKind::Wasm => {}
         InstallerKind::K8s => {
             return InstallReport::Rejected {
                 reason: format!(
@@ -226,6 +226,12 @@ pub(crate) fn activate_with_selector_on(
     if let Some(reason) = binary_manifest_platform_refusal(manifest.installer_kind, os) {
         eprintln!("ct-agent: REFUSING Binary manifest {manifest_id_hex} -- {reason}");
         return InstallReport::Rejected { reason, manifest_id: Some(manifest_id_hex) };
+    }
+
+    // 4a'. Wasm block consistency (kind <-> `wasm` agree, spec well-formed, env names declared).
+    //    Static, so before any fetch; also rejects a stray `wasm` block on a non-Wasm kind.
+    if let Err(e) = manifest.validate_wasm_spec() {
+        return InstallReport::Rejected { reason: format!("wasm_spec_invalid: {e}"), manifest_id: Some(manifest_id_hex) };
     }
 
     // 4b. Environment contract (scimbe/ct-agent#183, phase 1): validate, and refuse a contract
@@ -318,12 +324,35 @@ pub(crate) fn activate_with_selector_on(
         Ok(d) => d,
         Err(e) => return InstallReport::Rejected { reason: e, manifest_id: Some(manifest_id_hex) },
     };
-    let env_file_path = opts.work_dir.join(".env");
-    if let Err(e) = write_env_file(&env_file_path, &dotenv) {
-        return InstallReport::Rejected { reason: format!("write .env: {e}"), manifest_id: Some(manifest_id_hex) };
+    // Wasm: NEVER write `.env`. A preopen of the work dir would hand the guest every resolved
+    // `env_template` value, bypassing `capabilities.env`; the runtime passes only the granted names.
+    if manifest.installer_kind != InstallerKind::Wasm {
+        let env_file_path = opts.work_dir.join(".env");
+        if let Err(e) = write_env_file(&env_file_path, &dotenv) {
+            return InstallReport::Rejected { reason: format!("write .env: {e}"), manifest_id: Some(manifest_id_hex) };
+        }
     }
 
     let publisher_hex = hex32(&manifest.publisher_pubkey);
+
+    // 8b. Wasm kind: the runtime is the sandbox (see `wasm_runtime`); no process, no verify.sh.
+    if manifest.installer_kind == InstallerKind::Wasm {
+        let spec = manifest.wasm.as_ref().expect("validate_wasm_spec guarantees the block for Wasm");
+        let component_file = match safe_join_within_work_dir(&opts.work_dir, &spec.component_path) {
+            Ok(p) => p,
+            Err(e) => return InstallReport::Rejected { reason: format!("wasm.component_path: {e}"), manifest_id: Some(manifest_id_hex) },
+        };
+        return crate::wasm_runtime::activate_wasm(
+            &manifest,
+            manifest_id_hex,
+            publisher_hex,
+            opts.project_name.clone(),
+            &component_file,
+            &opts.work_dir,
+            parse_dotenv_pairs(&dotenv),
+            crate::wasm_runtime::WasmEngineKind::Jit,
+        );
+    }
 
     // 9. Run the bundle's primary artifact, bounded, whole-process-group-killed on timeout.
     //    Compose: `docker compose up -d --build`. Binary: the executable itself, made
@@ -452,12 +481,14 @@ pub(crate) fn activate_with_selector_on(
             (outcome, Some(stdout), sandbox_name, verify_backend)
         }
         InstallerKind::K8s => unreachable!("step 4 already rejected K8s"),
+        InstallerKind::Wasm => unreachable!("step 8b dispatched Wasm"),
     };
     if up_outcome.timed_out || up_outcome.exit_code != Some(0) {
         let step = match manifest.installer_kind {
             InstallerKind::Compose => "compose_up",
             InstallerKind::Binary => "binary_run",
             InstallerKind::K8s => unreachable!("step 4 already rejected K8s"),
+            InstallerKind::Wasm => unreachable!("step 8b dispatched Wasm"),
         };
         return InstallReport::Failed {
             manifest_id: manifest_id_hex,

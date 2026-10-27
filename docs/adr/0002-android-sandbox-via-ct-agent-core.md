@@ -2,7 +2,11 @@
 
 ## Status
 
-Proposed. Nothing described here is built; `installer-engine` refuses Binary manifests on Android
+Proposed. **Partly superseded by ADR-0003 (Proposed):** the "run the payload natively inside the
+app" part is replaced by the `Wasm` installer kind for anything downloaded; the UniFFI/ct-agent-core
+packaging decision in this ADR stays relevant as the way the Wasm runtime reaches the app.
+
+Original status: Proposed. Nothing described here is built; `installer-engine` refuses Binary manifests on Android
 (`activate::binary_manifest_platform_verdict("android")`, `unsupported_platform: ...`) until this is
 implemented and measured on a device.
 

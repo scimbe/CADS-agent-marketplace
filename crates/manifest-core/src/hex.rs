@@ -16,6 +16,8 @@ pub(crate) fn to_hex(b: &[u8]) -> String {
     s
 }
 
+// `is_multiple_of` (clippy's suggestion on newer toolchains) is not available on this crate's MSRV 1.85.
+#[allow(clippy::manual_is_multiple_of)]
 fn from_hex(s: &str) -> Option<Vec<u8>> {
     if s.len() % 2 != 0 || !s.bytes().all(|b| b.is_ascii_hexdigit()) {
         return None;

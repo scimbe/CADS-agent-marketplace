@@ -11,6 +11,7 @@
 use crate::activate::{binary_manifest_platform_refusal, environment_contract_refusal, unsandboxed_refusal};
 use crate::guardrails::{self, GuardrailPolicy};
 use crate::sandbox;
+use manifest_core::WasmSpec;
 use manifest_core::{EnvironmentContract, InstallerKind};
 use serde::Serialize;
 use std::path::PathBuf;
@@ -51,6 +52,9 @@ pub struct Plan {
     pub compose_overrides: Vec<String>,
     /// Every reason the real activation would be rejected, in the order the checks run.
     pub refusals: Vec<String>,
+    /// Wasm only: the signed capability grant in plain words (what the user consents to): preopened
+    /// directories and modes, reachable hosts, environment variable names, limits.
+    pub capabilities: Vec<String>,
 }
 
 impl Plan {
@@ -61,6 +65,51 @@ impl Plan {
     pub fn would_refuse(&self) -> bool {
         !self.refusals.is_empty()
     }
+}
+
+/// [`plan`] for a Wasm manifest with its signed [`WasmSpec`] in hand: validates it (every violation
+/// is a refusal) and fills [`Plan::capabilities`] with the grant the user is consenting to. A
+/// separate function, not a `PlanOptions` field, so existing struct-literal constructions keep
+/// compiling.
+pub fn plan_with_wasm_spec(opts: PlanOptions, spec: &WasmSpec) -> Plan {
+    let mut p = plan(opts);
+    if let Err(e) = spec.validate() {
+        p.refusals.push(format!("wasm_spec_invalid: {e}"));
+    }
+    p.capabilities = wasm_capability_lines(spec);
+    p
+}
+
+/// Plain-words rendering of a [`WasmSpec`]'s capabilities and limits, for consent screens.
+pub fn wasm_capability_lines(spec: &WasmSpec) -> Vec<String> {
+    use manifest_core::PreopenMode;
+    let c = &spec.capabilities;
+    let mut v = Vec::new();
+    if c.preopens.is_empty() {
+        v.push("files: none".to_string());
+    }
+    for po in &c.preopens {
+        let mode = match po.mode {
+            PreopenMode::Ro => "read-only",
+            PreopenMode::Rw => "read-write",
+        };
+        let host = if po.host_subdir.is_empty() { "<install dir>".to_string() } else { format!("<install dir>/{}", po.host_subdir) };
+        v.push(format!("files: {} -> {host} ({mode})", po.guest_path));
+    }
+    if c.allowed_http_hosts.is_empty() {
+        v.push("network: none".to_string());
+    } else {
+        v.push(format!("network: https only, to {} (public addresses only)", c.allowed_http_hosts.join(", ")));
+    }
+    if c.env.is_empty() {
+        v.push("environment variables: none".to_string());
+    } else {
+        v.push(format!("environment variables: {}", c.env.join(", ")));
+    }
+    let l = &spec.limits;
+    let fuel = l.fuel.map(|f| format!(", fuel {f}")).unwrap_or_default();
+    v.push(format!("limits: memory {} MiB, time {} ms{fuel}", l.max_memory_bytes / (1024 * 1024), l.timeout_ms));
+    v
 }
 
 pub fn plan(opts: PlanOptions) -> Plan {
@@ -78,7 +127,7 @@ pub fn plan_with_selector(opts: PlanOptions, select: &dyn Fn() -> sandbox::Selec
 /// [`PlanOptions`] field so every existing struct-literal construction (ct-agent's
 /// `build_plan_options`) keeps compiling unchanged.
 pub fn plan_with_selector_on(opts: PlanOptions, select: &dyn Fn() -> sandbox::Selection, os: &str) -> Plan {
-    let mut plan = Plan { backend: None, argv_preview: Vec::new(), compose_overrides: Vec::new(), refusals: Vec::new() };
+    let mut plan = Plan { backend: None, argv_preview: Vec::new(), compose_overrides: Vec::new(), refusals: Vec::new(), capabilities: Vec::new() };
     let effective = opts.environment.clone().unwrap_or_default();
 
     // Same order as `activate`: the platform check (step 4a, decision B3) precedes the contract
@@ -95,6 +144,16 @@ pub fn plan_with_selector_on(opts: PlanOptions, select: &dyn Fn() -> sandbox::Se
     match opts.installer_kind {
         InstallerKind::K8s => {
             plan.refusals.push("unsupported_installer_kind: K8s (schema-only, no executor exists)".to_string());
+        }
+        // Wasm runs in-process under wasmtime (no argv, no OS sandbox backend): the preview names the
+        // runtime and the component, and the plan stays refusal-free (the spec itself is validated
+        // by `activate`'s step 4a' and by the caller before planning).
+        InstallerKind::Wasm => {
+            plan.backend = Some("wasmtime".to_string());
+            plan.argv_preview = vec!["wasmtime-embedded".to_string(), opts.entrypoint.clone()];
+            plan.capabilities.push(
+                "(wasm spec not supplied to the plan -- use `plan_with_wasm_spec` to list the signed capability grant)".to_string(),
+            );
         }
         InstallerKind::Compose => {
             plan.argv_preview = vec![
@@ -350,5 +409,68 @@ mod tests {
         assert!(json.get("argv_preview").is_some());
         assert!(json.get("compose_overrides").is_some());
         assert_eq!(json["refusals"].as_array().unwrap().len(), 1);
+    }
+}
+
+#[cfg(test)]
+mod wasm_plan_tests {
+    use super::*;
+    use manifest_core::{Preopen, PreopenMode, WasmCapabilities, WasmLimits};
+
+    fn spec() -> WasmSpec {
+        WasmSpec {
+            component_path: "app.wasm".into(),
+            component_sha256: [1; 32],
+            world: "wasi:cli/command".into(),
+            capabilities: WasmCapabilities {
+                preopens: vec![
+                    Preopen { guest_path: "/work".into(), host_subdir: String::new(), mode: PreopenMode::Rw },
+                    Preopen { guest_path: "/in".into(), host_subdir: "input".into(), mode: PreopenMode::Ro },
+                ],
+                allowed_http_hosts: vec!["api.example.com".into()],
+                env: vec!["API_KEY".into()],
+            },
+            limits: WasmLimits { max_memory_bytes: 64 << 20, timeout_ms: 10_000, fuel: Some(5) },
+        }
+    }
+
+    fn opts() -> PlanOptions {
+        PlanOptions {
+            installer_kind: InstallerKind::Wasm,
+            environment: None,
+            entrypoint: "app.wasm".into(),
+            work_dir: PathBuf::from("/tmp/w"),
+            env_names: vec!["API_KEY".into()],
+            require_binary_sandbox: true,
+            project_name: "p".into(),
+            compose_yaml: None,
+            guardrail_policy: GuardrailPolicy::default(),
+        }
+    }
+
+    #[test]
+    fn the_plan_lists_the_signed_capability_grant_in_plain_words() {
+        let p = plan_with_wasm_spec(opts(), &spec());
+        assert!(!p.would_refuse(), "{:?}", p.refusals);
+        assert_eq!(p.backend.as_deref(), Some("wasmtime"));
+        let text = p.capabilities.join("\n");
+        for needle in [
+            "/work -> <install dir> (read-write)",
+            "/in -> <install dir>/input (read-only)",
+            "https only, to api.example.com",
+            "environment variables: API_KEY",
+            "memory 64 MiB, time 10000 ms, fuel 5",
+        ] {
+            assert!(text.contains(needle), "missing {needle:?} in:\n{text}");
+        }
+    }
+
+    #[test]
+    fn an_invalid_spec_makes_the_plan_refuse_and_a_missing_spec_says_so() {
+        let mut bad = spec();
+        bad.limits.timeout_ms = 0;
+        assert!(plan_with_wasm_spec(opts(), &bad).refusals.iter().any(|r| r.starts_with("wasm_spec_invalid")));
+        let p = plan(opts());
+        assert!(p.capabilities.iter().any(|c| c.contains("not supplied")));
     }
 }

@@ -12,7 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 manifest-core = { path = "../manifest-core" }
-installer-engine = { path = "../installer-engine" }
+installer-engine = { path = "../installer-engine", default-features = false }
 axum = { version = "0.7", features = ["multipart"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "fs", "signal"] }
 rusqlite = { version = "0.31", features = ["bundled"] }

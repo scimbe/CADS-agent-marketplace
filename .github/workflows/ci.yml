@@ -44,6 +44,18 @@ jobs:
       - name: Test (-D warnings)
         run: cargo test --locked
 
+      # InstallerKind::Wasm: build the real Rust example as a WASI 0.2 component and run it under the
+      # runtime (JIT and Pulley). WASM_HELLO_REQUIRED=1 turns a missing component into a failure, so
+      # these tests can never skip silently here (locally they skip when the target is absent).
+      - name: Add wasm32-wasip2 target
+        run: rustup target add wasm32-wasip2
+
+      - name: Build examples/wasm-hello (wasm32-wasip2)
+        run: scripts/build-wasm-hello.sh
+
+      - name: Wasm example runs under the sandbox runtime (no skips)
+        run: WASM_HELLO_REQUIRED=1 cargo test --locked -p installer-engine --test wasm_hello
+
       # The Linux escape tests must EXECUTE, not skip: with bwrap installed above and the userns
       # restriction relaxed, a "skipping" line means the sandbox silently did not run.
       - name: bwrap escape tests actually ran (no skips)

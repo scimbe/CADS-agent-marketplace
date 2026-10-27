@@ -346,7 +346,7 @@ fn teardown_sub_manifest(state: &SubInstallState) -> TeardownOutcome {
             };
             TeardownOutcome { index: state.index, kind: state.kind, error, nothing_to_reverse: false }
         }
-        InstallerKind::Binary => TeardownOutcome { index: state.index, kind: state.kind, error: None, nothing_to_reverse: true },
+        InstallerKind::Binary | InstallerKind::Wasm => TeardownOutcome { index: state.index, kind: state.kind, error: None, nothing_to_reverse: true },
         InstallerKind::K8s => unreachable!("activate() rejects K8s before a successful activation can exist"),
     }
 }

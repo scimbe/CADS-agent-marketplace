@@ -15,6 +15,7 @@
 
 use crate::environment::EnvironmentContract;
 use crate::preimage::Preimage;
+use crate::wasm::WasmSpec;
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 
@@ -57,6 +58,13 @@ pub enum InstallerKind {
     Compose,
     Binary,
     K8s,
+    /// A WebAssembly component run inside the host process by `installer-engine::wasm_runtime`
+    /// (wasmtime, WASI 0.2). The runtime is the sandbox: only the capabilities in the signed
+    /// [`WasmSpec`] exist for the guest. This is the only kind that works on Android and iOS, where
+    /// downloaded native executables cannot be run. A `Wasm` manifest MUST carry `wasm: Some(..)`
+    /// and every other kind MUST NOT ([`ServiceManifest::validate_wasm_spec`]). See
+    /// `docs/adr/0003-wasm-installer-kind-for-mobile.md`.
+    Wasm,
 }
 
 impl InstallerKind {
@@ -65,6 +73,7 @@ impl InstallerKind {
             InstallerKind::Compose => 0,
             InstallerKind::Binary => 1,
             InstallerKind::K8s => 2,
+            InstallerKind::Wasm => 3,
         }
     }
 }
@@ -256,6 +265,11 @@ pub struct ServiceManifest {
     /// strictest profile ([`EnvironmentContract::default`]), never "unrestricted".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub environment: Option<EnvironmentContract>,
+    /// Wasm installation spec; present exactly when `installer_kind == Wasm`. Same
+    /// backward-compatibility discipline as `demo_prompt`/`environment`: `#[serde(default)]`, and
+    /// `None` appends nothing to the signed preimage (see [`ServiceManifest::signing_bytes_with_wasm`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wasm: Option<WasmSpec>,
     /// The holder's ed25519 signature over [`ServiceManifest::signing_bytes`].
     #[serde(with = "crate::hex::b64")]
     pub signature: [u8; 64],
@@ -285,6 +299,15 @@ impl ServiceManifest {
     /// With distinct tags, and every block self-delimiting (every variable-length field
     /// length-prefixed, every count explicit, every option tagged), the encoding stays injective
     /// across all four presence combinations.
+    ///
+    /// **`wasm` follows the same pattern, appended AFTER `environment`** with presence tag `3`:
+    /// `None` appends nothing (every manifest signed before `InstallerKind::Wasm` existed keeps its
+    /// exact preimage and signature -- pinned by a recorded-fixture test), `Some(spec)` appends
+    /// `tag(3)` then [`WasmSpec::append_to_preimage`].
+    ///
+    /// This function is the pre-Wasm signature, kept so existing callers compile unchanged; it
+    /// signs/verifies a manifest WITHOUT a `wasm` block. Anything that may handle a `Wasm`
+    /// manifest must call [`ServiceManifest::signing_bytes_with_wasm`] (as `is_valid` does).
     #[allow(clippy::too_many_arguments)]
     pub fn signing_bytes(
         publisher_pubkey: &[u8; 32],
@@ -299,6 +322,30 @@ impl ServiceManifest {
         expires_at: u64,
         demo_prompt: Option<&DemoPrompt>,
         environment: Option<&EnvironmentContract>,
+    ) -> Vec<u8> {
+        Self::signing_bytes_with_wasm(
+            publisher_pubkey, manifest_id, name, version, installer_kind, bundle, env_template, verify,
+            issued_at, expires_at, demo_prompt, environment, None,
+        )
+    }
+
+    /// [`ServiceManifest::signing_bytes`] plus the optional [`WasmSpec`] block. See there for the
+    /// preimage layout.
+    #[allow(clippy::too_many_arguments)]
+    pub fn signing_bytes_with_wasm(
+        publisher_pubkey: &[u8; 32],
+        manifest_id: &[u8; 32],
+        name: &str,
+        version: &str,
+        installer_kind: InstallerKind,
+        bundle: &BundleRef,
+        env_template: &[EnvVarSpec],
+        verify: &VerifySpec,
+        issued_at: u64,
+        expires_at: u64,
+        demo_prompt: Option<&DemoPrompt>,
+        environment: Option<&EnvironmentContract>,
+        wasm: Option<&WasmSpec>,
     ) -> Vec<u8> {
         let mut p = Preimage::new(SERVICE_MANIFEST_DOMAIN)
             .fixed(publisher_pubkey)
@@ -335,9 +382,13 @@ impl ServiceManifest {
                 p
             }
         };
-        match environment {
+        p = match environment {
             None => p,
             Some(env) => env.append_to_preimage(p.tag(2)),
+        };
+        match wasm {
+            None => p,
+            Some(w) => w.append_to_preimage(p.tag(3)),
         }
         .finish()
     }
@@ -358,7 +409,7 @@ impl ServiceManifest {
         let Ok(vk) = VerifyingKey::from_bytes(&self.publisher_pubkey) else {
             return false;
         };
-        let preimage = Self::signing_bytes(
+        let preimage = Self::signing_bytes_with_wasm(
             &self.publisher_pubkey,
             &self.manifest_id,
             &self.name,
@@ -371,13 +422,15 @@ impl ServiceManifest {
             self.expires_at,
             self.demo_prompt.as_ref(),
             self.environment.as_ref(),
+            self.wasm.as_ref(),
         );
         vk.verify(&preimage, &Signature::from_bytes(&self.signature)).is_ok()
     }
 
     /// Construct and sign a manifest from a publisher's holder `SigningKey`. `publisher_pubkey`
     /// is always derived from `signing_key` itself, so a caller cannot mint a manifest claiming a
-    /// key it does not hold.
+    /// key it does not hold. Produces a manifest without a `wasm` block; use
+    /// [`ServiceManifest::sign_new_with_wasm`] for `InstallerKind::Wasm`.
     #[allow(clippy::too_many_arguments)]
     pub fn sign_new(
         signing_key: &SigningKey,
@@ -393,8 +446,32 @@ impl ServiceManifest {
         demo_prompt: Option<DemoPrompt>,
         environment: Option<EnvironmentContract>,
     ) -> ServiceManifest {
+        Self::sign_new_with_wasm(
+            signing_key, manifest_id, name, version, installer_kind, bundle, env_template, verify, issued_at,
+            expires_at, demo_prompt, environment, None,
+        )
+    }
+
+    /// [`ServiceManifest::sign_new`] plus the optional [`WasmSpec`]. Does not validate: call
+    /// [`ServiceManifest::validate_wasm_spec`] before publishing (the installer re-checks anyway).
+    #[allow(clippy::too_many_arguments)]
+    pub fn sign_new_with_wasm(
+        signing_key: &SigningKey,
+        manifest_id: [u8; 32],
+        name: String,
+        version: String,
+        installer_kind: InstallerKind,
+        bundle: BundleRef,
+        env_template: Vec<EnvVarSpec>,
+        verify: VerifySpec,
+        issued_at: u64,
+        expires_at: u64,
+        demo_prompt: Option<DemoPrompt>,
+        environment: Option<EnvironmentContract>,
+        wasm: Option<WasmSpec>,
+    ) -> ServiceManifest {
         let publisher_pubkey = signing_key.verifying_key().to_bytes();
-        let preimage = Self::signing_bytes(
+        let preimage = Self::signing_bytes_with_wasm(
             &publisher_pubkey,
             &manifest_id,
             &name,
@@ -407,6 +484,7 @@ impl ServiceManifest {
             expires_at,
             demo_prompt.as_ref(),
             environment.as_ref(),
+            wasm.as_ref(),
         );
         let signature = signing_key.sign(&preimage).to_bytes();
         ServiceManifest {
@@ -422,7 +500,28 @@ impl ServiceManifest {
             expires_at,
             demo_prompt,
             environment,
+            wasm,
             signature,
+        }
+    }
+
+    /// Consistency of `installer_kind` and `wasm`: a `Wasm` manifest must carry a [`WasmSpec`] that
+    /// passes [`WasmSpec::validate`], every `env` name it grants must be declared in `env_template`,
+    /// and no other kind may carry one (a stray block would be signed but silently ignored).
+    pub fn validate_wasm_spec(&self) -> Result<(), String> {
+        match (self.installer_kind, &self.wasm) {
+            (InstallerKind::Wasm, None) => Err("installer_kind wasm requires a `wasm` block".to_string()),
+            (InstallerKind::Wasm, Some(w)) => {
+                w.validate()?;
+                for n in &w.capabilities.env {
+                    if !self.env_template.iter().any(|e| &e.name == n) {
+                        return Err(format!("wasm.capabilities.env: {n:?} is not declared in env_template"));
+                    }
+                }
+                Ok(())
+            }
+            (_, Some(_)) => Err("a `wasm` block is only allowed for installer_kind wasm".to_string()),
+            (_, None) => Ok(()),
         }
     }
 }
@@ -919,5 +1018,112 @@ mod tests {
         let mut tampered = both.clone();
         tampered.demo_prompt = None;
         assert!(!tampered.is_valid(1_500));
+    }
+
+    // --- InstallerKind::Wasm / WasmSpec -------------------------------------------------------
+
+    /// A `binary` manifest carrying BOTH optional blocks (`demo_prompt` and `environment`), signed
+    /// by the build immediately BEFORE `InstallerKind::Wasm` / `ServiceManifest::wasm` existed
+    /// (key `SigningKey::from_bytes(&[11u8; 32])`; ed25519 is deterministic). A recorded byte string,
+    /// not re-derived here, so any drift in the pre-existing preimage fails against real history.
+    const PRE_WASM_SIGNED_MANIFEST: &str = r#"{"publisher_pubkey":"66be7e332c7a453332bd9d0a7f7db055f5c5ef1a06ada66d98b39fb6810c473a","manifest_id":"0707070707070707070707070707070707070707070707070707070707070707","name":"legacy-fixture","version":"0.1.0","installer_kind":"binary","bundle":{"url":"https://example.invalid/b.tgz","sha256":"0909090909090909090909090909090909090909090909090909090909090909","compose_file":"run.sh"},"env_template":[],"verify":{"script":"verify.sh","timeout_secs":60},"issued_at":1000,"expires_at":2000,"demo_prompt":{"system":"s","parameters":[{"name":"c","type":"color"}],"examples":["x"]},"environment":{"schema":1,"filesystem":{"scope":"bundle_dir","read_base_os":true,"extra_ro":[],"tmp_mb":256},"processes":{"allow":[],"max_pids":64},"network":{"mode":"private_loopback","host_loopback_ports":[],"egress":[]},"resources":{"cpu_cores":1.0,"memory_mb":1024,"wall_secs":300,"disk_mb":512},"hooks":{"verify":"verify.sh","verify_timeout_secs":60},"sandbox_min_tier":{"linux":"bwrap","macos":"seatbelt","windows":"wsl2_bwrap"}},"signature":"868663de631c9729c8a792faa02ca2d19e7bc283a506d1a139c404356c9df54ba796360c9e618a2f3bbcc68e5f675775de85225d89113d7b748cb79001cf0204"}"#;
+
+    #[test]
+    fn a_manifest_signed_before_the_wasm_kind_existed_still_verifies() {
+        let m: ServiceManifest = serde_json::from_str(PRE_WASM_SIGNED_MANIFEST).unwrap();
+        assert_eq!(m.wasm, None);
+        assert!(m.demo_prompt.is_some() && m.environment.is_some());
+        assert!(m.is_valid(1_500), "adding the wasm block must not change any existing preimage");
+        assert!(m.validate_wasm_spec().is_ok());
+        // ...and the legacy 12-argument entry point still reproduces exactly the signed bytes.
+        let legacy = ServiceManifest::signing_bytes(
+            &m.publisher_pubkey, &m.manifest_id, &m.name, &m.version, m.installer_kind, &m.bundle, &m.env_template,
+            &m.verify, m.issued_at, m.expires_at, m.demo_prompt.as_ref(), m.environment.as_ref(),
+        );
+        let ext = ServiceManifest::signing_bytes_with_wasm(
+            &m.publisher_pubkey, &m.manifest_id, &m.name, &m.version, m.installer_kind, &m.bundle, &m.env_template,
+            &m.verify, m.issued_at, m.expires_at, m.demo_prompt.as_ref(), m.environment.as_ref(), None,
+        );
+        assert_eq!(legacy, ext);
+    }
+
+    #[test]
+    fn grafting_a_wasm_block_onto_a_legacy_manifest_invalidates_the_signature() {
+        let mut m: ServiceManifest = serde_json::from_str(PRE_WASM_SIGNED_MANIFEST).unwrap();
+        m.wasm = Some(crate::wasm::tests::sample());
+        assert!(!m.is_valid(1_500));
+    }
+
+    fn sample_wasm_manifest(key: &SigningKey) -> ServiceManifest {
+        let base = sample(key, 1_000, 2_000);
+        let mut spec = crate::wasm::tests::sample();
+        spec.capabilities.env = vec!["LITELLM_MASTER_KEY".into()];
+        ServiceManifest::sign_new_with_wasm(
+            key, base.manifest_id, "wasm-hello".into(), "0.1.0".into(), InstallerKind::Wasm, base.bundle,
+            base.env_template, base.verify, 1_000, 2_000, None, None, Some(spec),
+        )
+    }
+
+    #[test]
+    fn a_wasm_manifest_signs_verifies_validates_and_round_trips_through_json() {
+        let key = random_signing_key();
+        let m = sample_wasm_manifest(&key);
+        assert!(m.is_valid(1_500));
+        m.validate_wasm_spec().unwrap();
+        let json = serde_json::to_string(&m).unwrap();
+        assert!(json.contains(r#""installer_kind":"wasm""#));
+        let back: ServiceManifest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, m);
+        assert!(back.is_valid(1_500));
+    }
+
+    #[test]
+    #[allow(clippy::type_complexity)]
+    fn every_widening_of_a_signed_wasm_capability_invalidates_the_signature() {
+        let key = random_signing_key();
+        let base = sample_wasm_manifest(&key);
+        let tamper: Vec<(&str, Box<dyn Fn(&mut WasmSpec)>)> = vec![
+            ("add http host", Box::new(|w| w.capabilities.allowed_http_hosts.push("evil.example.com".into()))),
+            ("preopen ro -> rw", Box::new(|w| w.capabilities.preopens[0].mode = crate::wasm::PreopenMode::Ro)),
+            ("raise memory", Box::new(|w| w.limits.max_memory_bytes *= 2)),
+            ("raise timeout", Box::new(|w| w.limits.timeout_ms += 1)),
+            ("add fuel limit", Box::new(|w| w.limits.fuel = Some(5))),
+            ("swap component hash", Box::new(|w| w.component_sha256 = [0xEE; 32])),
+            ("swap component path", Box::new(|w| w.component_path = "other.wasm".into())),
+            ("grant env name", Box::new(|w| w.capabilities.env.push("OTHER".into()))),
+        ];
+        for (what, f) in tamper {
+            let mut m = base.clone();
+            f(m.wasm.as_mut().unwrap());
+            assert!(!m.is_valid(1_500), "{what} must invalidate the signature");
+        }
+        let mut stripped = base.clone();
+        stripped.wasm = None;
+        assert!(!stripped.is_valid(1_500), "removing the block must invalidate the signature");
+    }
+
+    #[test]
+    fn the_installer_kind_is_part_of_the_preimage_so_wasm_cannot_be_relabelled() {
+        let key = random_signing_key();
+        let mut m = sample_wasm_manifest(&key);
+        m.installer_kind = InstallerKind::Binary;
+        assert!(!m.is_valid(1_500));
+    }
+
+    #[test]
+    fn validate_wasm_spec_enforces_kind_and_block_agree() {
+        let key = random_signing_key();
+        let mut m = sample_wasm_manifest(&key);
+        m.wasm = None;
+        assert!(m.validate_wasm_spec().unwrap_err().contains("requires"));
+        let mut m = sample_wasm_manifest(&key);
+        m.installer_kind = InstallerKind::Compose;
+        assert!(m.validate_wasm_spec().unwrap_err().contains("only allowed"));
+        let mut m = sample_wasm_manifest(&key);
+        m.wasm.as_mut().unwrap().capabilities.env = vec!["UNDECLARED".into()];
+        assert!(m.validate_wasm_spec().unwrap_err().contains("env_template"));
+        let mut m = sample_wasm_manifest(&key);
+        m.wasm.as_mut().unwrap().limits.timeout_ms = 0;
+        assert!(m.validate_wasm_spec().is_err());
     }
 }
