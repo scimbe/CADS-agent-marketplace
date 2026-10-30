@@ -1,0 +1,25 @@
+[package]
+name = "cads-run"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Fetch a signed template from the marketplace, verify it and run it in the local sandbox."
+
+[[bin]]
+name = "cads-run"
+path = "src/main.rs"
+
+[dependencies]
+# Without the wasm feature: no wasmtime in a small download. A Wasm manifest is refused with a reason.
+installer-engine = { path = "../installer-engine", default-features = false }
+serde_json = "1"
+
+[dev-dependencies]
+manifest-core = { path = "../manifest-core" }
+ed25519-dalek = "2"
+rand = "0.8"
+sha2 = "0.10"
+tar = "0.4"
+flate2 = "1"
+tempfile = "3"

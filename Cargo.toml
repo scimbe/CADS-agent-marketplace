@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/manifest-core", "crates/manifest-core-wasm", "crates/installer-engine", "crates/harness-core", "crates/registry", "crates/mobile-core"]
+members = ["crates/manifest-core", "crates/manifest-core-wasm", "crates/installer-engine", "crates/harness-core", "crates/registry", "crates/mobile-core", "crates/cads-run"]
 
 [workspace.package]
 edition = "2021"
