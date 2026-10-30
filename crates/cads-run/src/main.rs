@@ -178,43 +178,6 @@ fn run(args: Args) -> Result<InstallReport, String> {
     }, &policy))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn entry(name: &str, version: &str, publisher: &str, at: i64) -> serde_json::Value {
-        serde_json::json!({ "manifest_id": format!("{name}-{version}"), "name": name, "version": version, "publisher_pubkey": publisher, "published_at": at })
-    }
-
-    #[test]
-    fn picks_the_newest_trusted_entry_and_ignores_strangers() {
-        let trust = TrustAllowlist::parse(PINNED_PUBLISHERS).unwrap();
-        let stranger = "ab".repeat(32);
-        let list = serde_json::json!([
-            entry("demo", "1.0.0", PINNED_PUBLISHERS, 1),
-            entry("demo", "2.0.0", PINNED_PUBLISHERS, 2),
-            entry("demo", "9.9.9", &stranger, 3),
-        ]);
-        assert_eq!(pick_manifest_id(&list, "demo", None, &trust).as_deref(), Some("demo-2.0.0"));
-        assert_eq!(pick_manifest_id(&list, "demo", Some("1.0.0"), &trust).as_deref(), Some("demo-1.0.0"));
-        assert_eq!(pick_manifest_id(&list, "demo", Some("9.9.9"), &trust), None);
-        assert_eq!(pick_manifest_id(&list, "other", None, &trust), None);
-    }
-
-    #[test]
-    fn the_home_directory_cannot_be_granted() {
-        let home = tempfile::tempdir().unwrap();
-        let inside = home.path().join("sub");
-        std::fs::create_dir(&inside).unwrap();
-        let other = tempfile::tempdir().unwrap();
-        for bad in [home.path().to_path_buf(), inside, PathBuf::from("/")] {
-            assert!(checked_read_paths(&[bad.clone()], home.path()).is_err(), "{}", bad.display());
-        }
-        assert!(checked_read_paths(&[other.path().to_path_buf()], home.path()).is_ok());
-        assert!(checked_read_paths(&[PathBuf::from("/does/not/exist")], home.path()).is_err());
-    }
-}
-
 fn main() -> ExitCode {
     let argv: Vec<String> = std::env::args().skip(1).collect();
     if argv.first().map(String::as_str) == Some("doctor") {
@@ -254,5 +217,42 @@ fn main() -> ExitCode {
             eprintln!("cads-run: fehlgeschlagen in {step} (Sandbox {}): {detail}", sandbox.as_deref().unwrap_or("keine"));
             ExitCode::FAILURE
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn entry(name: &str, version: &str, publisher: &str, at: i64) -> serde_json::Value {
+        serde_json::json!({ "manifest_id": format!("{name}-{version}"), "name": name, "version": version, "publisher_pubkey": publisher, "published_at": at })
+    }
+
+    #[test]
+    fn picks_the_newest_trusted_entry_and_ignores_strangers() {
+        let trust = TrustAllowlist::parse(PINNED_PUBLISHERS).unwrap();
+        let stranger = "ab".repeat(32);
+        let list = serde_json::json!([
+            entry("demo", "1.0.0", PINNED_PUBLISHERS, 1),
+            entry("demo", "2.0.0", PINNED_PUBLISHERS, 2),
+            entry("demo", "9.9.9", &stranger, 3),
+        ]);
+        assert_eq!(pick_manifest_id(&list, "demo", None, &trust).as_deref(), Some("demo-2.0.0"));
+        assert_eq!(pick_manifest_id(&list, "demo", Some("1.0.0"), &trust).as_deref(), Some("demo-1.0.0"));
+        assert_eq!(pick_manifest_id(&list, "demo", Some("9.9.9"), &trust), None);
+        assert_eq!(pick_manifest_id(&list, "other", None, &trust), None);
+    }
+
+    #[test]
+    fn the_home_directory_cannot_be_granted() {
+        let home = tempfile::tempdir().unwrap();
+        let inside = home.path().join("sub");
+        std::fs::create_dir(&inside).unwrap();
+        let other = tempfile::tempdir().unwrap();
+        for bad in [home.path().to_path_buf(), inside, PathBuf::from("/")] {
+            assert!(checked_read_paths(std::slice::from_ref(&bad), home.path()).is_err(), "{}", bad.display());
+        }
+        assert!(checked_read_paths(&[other.path().to_path_buf()], home.path()).is_ok());
+        assert!(checked_read_paths(&[PathBuf::from("/does/not/exist")], home.path()).is_err());
     }
 }
