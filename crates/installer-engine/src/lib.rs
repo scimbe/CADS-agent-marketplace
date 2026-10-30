@@ -16,6 +16,7 @@ pub mod sandbox;
 pub mod wasm_runtime;
 
 pub use activate::{
+    activate_with_policy,
     activate, binary_manifest_platform_verdict, require_binary_sandbox_from_env, ActivateOptions, ALLOW_UNSANDBOXED_ENV,
 };
 pub use guardrails::GuardrailPolicy;

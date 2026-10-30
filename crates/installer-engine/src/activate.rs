@@ -178,6 +178,22 @@ pub(crate) fn activate_with_selector_on(
     select: &dyn Fn() -> sandbox::Selection,
     os: &str,
 ) -> InstallReport {
+    activate_inner(opts, select, os, &sandbox::SandboxPolicy::default())
+}
+
+/// [`activate`] with a [`sandbox::SandboxPolicy`] beyond the default, for a caller whose USER
+/// explicitly granted it (`cads-run --allow-read`). The policy is the only thing that differs; a
+/// backend that cannot honour it refuses the run. Binary kind only.
+pub fn activate_with_policy(opts: ActivateOptions, policy: &sandbox::SandboxPolicy) -> InstallReport {
+    activate_inner(opts, &sandbox::select, std::env::consts::OS, policy)
+}
+
+fn activate_inner(
+    opts: ActivateOptions,
+    select: &dyn Fn() -> sandbox::Selection,
+    os: &str,
+    policy: &sandbox::SandboxPolicy,
+) -> InstallReport {
     // 1. Fetch manifest.
     let manifest = match fetch::fetch_manifest(&opts.manifest_location) {
         Ok(m) => m,
@@ -401,7 +417,8 @@ pub(crate) fn activate_with_selector_on(
                     sandbox: None,
                 };
             }
-            let env_pairs = parse_dotenv_pairs(&dotenv);
+            let mut env_pairs = parse_dotenv_pairs(&dotenv);
+            env_pairs.extend(policy_path(policy).map(|p| ("PATH".to_string(), p)));
             let env_refs: Vec<(&str, &str)> = env_pairs.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
             let binary_str = match binary_path.to_str() {
                 Some(s) => s,
@@ -425,7 +442,10 @@ pub(crate) fn activate_with_selector_on(
             let mut verify_backend: Option<Box<dyn sandbox::SandboxBackend>> = None;
             let (program, wrapped_args, sandbox_name): (String, Vec<String>, Option<String>) = match selection {
                 sandbox::Selection::Sandboxed(backend) => {
-                    let (p, a) = backend.wrap_command(binary_str, &[], &opts.work_dir, &env_refs);
+                    let (p, a) = match backend.wrap_command_with_policy(binary_str, &[], &opts.work_dir, &env_refs, policy) {
+                        Ok(wrapped) => wrapped,
+                        Err(reason) => return InstallReport::Rejected { reason, manifest_id: Some(manifest_id_hex) },
+                    };
                     eprintln!(
                         "ct-agent: activating Binary manifest {manifest_id_hex} under {} sandbox -- {}",
                         backend.name(),
@@ -519,7 +539,20 @@ pub(crate) fn activate_with_selector_on(
     let verify_timeout = Duration::from_secs(manifest.verify.timeout_secs);
     let verify_result = match &verify_backend {
         Some(backend) => {
-            let (program, args) = backend.wrap_command(&sandbox::verify_shell(), &[manifest.verify.script.as_str()], &opts.work_dir, &verify_env);
+            let verify_path = policy_path(policy);
+            let mut sandbox_verify_env = verify_env.to_vec();
+            sandbox_verify_env.extend(verify_path.as_deref().map(|p| ("PATH", p)));
+            let wrapped = backend.wrap_command_with_policy(
+                &sandbox::verify_shell(),
+                &[manifest.verify.script.as_str()],
+                &opts.work_dir,
+                &sandbox_verify_env,
+                policy,
+            );
+            let (program, args) = match wrapped {
+                Ok(w) => w,
+                Err(reason) => return InstallReport::Rejected { reason, manifest_id: Some(manifest_id_hex) },
+            };
             let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
             process::run_bounded_limited(&program, &arg_refs, &opts.work_dir, &verify_env, verify_timeout, Some(sandbox::DEFAULT_LIMITS))
         }
@@ -562,6 +595,17 @@ pub(crate) fn activate_with_selector_on(
         captured_stdout,
         sandbox: sandbox_name,
     }
+}
+
+/// `PATH` for a payload that was granted extra read-only trees: each tree's `bin` first, then the
+/// OS directories. `None` for the default policy, which leaves `PATH` as it always was.
+fn policy_path(policy: &sandbox::SandboxPolicy) -> Option<String> {
+    if policy.extra_ro_paths.is_empty() {
+        return None;
+    }
+    let mut dirs: Vec<String> = policy.extra_ro_paths.iter().map(|p| p.join("bin").display().to_string()).collect();
+    dirs.push("/usr/bin:/bin:/usr/sbin:/sbin".to_string());
+    Some(dirs.join(":"))
 }
 
 /// Join a manifest-supplied relative path (`bundle.compose_file`) onto `work_dir`, refusing an

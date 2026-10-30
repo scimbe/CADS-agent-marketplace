@@ -243,6 +243,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
+name = "cads-run"
+version = "0.1.0"
+dependencies = [
+ "ed25519-dalek",
+ "flate2",
+ "installer-engine",
+ "manifest-core",
+ "rand 0.8.7",
+ "serde_json",
+ "sha2",
+ "tar",
+ "tempfile",
+]
+
+[[package]]
 name = "camino"
 version = "1.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -1,0 +1,71 @@
+name: cads-run
+
+# Builds the cads-run binaries on every change to them, and publishes a GitHub release for a tag
+# `cads-run-v*`. The escape test runs on the same target it ships for; a build that cannot prove
+# confinement there does not produce an artifact.
+on:
+  pull_request:
+    paths:
+      - crates/cads-run/**
+      - crates/installer-engine/**
+      - crates/manifest-core/**
+      - .github/workflows/cads-run.yml
+  push:
+    tags: ["cads-run-v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest, target: aarch64-apple-darwin }
+          - { os: macos-15-intel, target: x86_64-apple-darwin }
+          - { os: ubuntu-24.04, target: x86_64-unknown-linux-musl }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare Linux (bubblewrap for the escape test, musl for a static binary)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap musl-tools
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+      - run: rustup target add ${{ matrix.target }}
+      - name: Escape test (real sandbox; must not skip)
+        env:
+          CADS_RUN_REQUIRE_SANDBOX: "1"
+        run: |
+          cargo test --release --locked -p cads-run --target ${{ matrix.target }}
+          "target/${{ matrix.target }}/release/cads-run" doctor
+      - name: Package
+        run: |
+          cargo build --release --locked -p cads-run --target ${{ matrix.target }}
+          mkdir dist
+          tar -czf "dist/cads-run-${{ matrix.target }}.tar.gz" -C "target/${{ matrix.target }}/release" cads-run
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cads-run-${{ matrix.target }}
+          path: dist/*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/cads-run-v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: cd dist && sha256sum *.tar.gz > SHA256SUMS
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes "cads-run binaries. Verify with SHA256SUMS."
