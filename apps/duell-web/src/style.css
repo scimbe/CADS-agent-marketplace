@@ -116,3 +116,8 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 #toast.show{opacity:1;transform:translate(-50%,0)}
 @media (min-width:600px){.scr,#game{left:50%;right:auto;width:440px;margin-left:-220px}}
 @media (prefers-reduced-motion:reduce){#home::before,#hint,.enter #hero span,.enter .burst,#leaf.enter,#doneimg{animation:none}.panel,#leaf{transition:none}}
+.duellog{margin:0 0 5px;font:700 14px/1.25 var(--ui)}
+.duelres{margin:6px 0;font:900 22px/1.1 var(--disp);text-transform:uppercase}
+.chip.hand{font-size:34px;flex:1;min-height:76px}
+.qlock{font-size:72px;text-align:center;margin:18px 0 6px}
+.qtext{font:900 27px/1.15 var(--disp);margin:6px 0 16px;overflow-wrap:anywhere}
