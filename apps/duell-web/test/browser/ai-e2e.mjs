@@ -20,8 +20,8 @@ const tap = (s) => p.locator(s).tap();
 const ai0 = () => p.locator('.aibox .chip').first();
 const openCard = async () => { await p.evaluate(() => {}); await tap('#own'); await p.locator('.mech').first().tap(); await p.getByRole('tab', { name: 'Text' }).tap(); };
 await openCard();
-await p.waitForFunction(() => /von 3/.test(document.querySelector('.aicount')?.textContent || ''));
-assert.match(await p.textContent('.aicount'), /Noch 3 von 3 KI-Versuchen gratis/);
+assert.match(await p.textContent('.aicount'), /3 KI-Versuche gratis/);
+assert.deepEqual(sent, [], 'ohne Antippen geht nichts raus');
 assert.ok(await p.getByText('Bei KI geht dein Text an unseren Server. Fotos bleiben auf dem Handy.').isVisible());
 { const P = await p.locator('#panel').boundingBox(), N = await p.getByText('Bei KI geht dein Text').boundingBox(), G = await ai0().boundingBox(); assert.ok(N.y + N.height <= P.y + P.height && G.y + G.height <= P.y + P.height, 'Hinweis und Knopf ohne Scrollen sichtbar'); }
 if (shot) await p.screenshot({ path: shot + '-panel.png' });
@@ -37,26 +37,24 @@ for (let i = 0; i < 3; i++) {
   assert.equal(await p.evaluate(() => window.DailyDebug.doc().x), o, 'Spruch steht auf der Karte');
 }
 // fourth: wall, honest, no call to the model
-const before = sent.filter((s) => s.url.endsWith('/ai')).length;
 await p.locator('#panel textarea').fill('Vierte Karte');
 await ai().tap();
 await p.getByText('Abo kommt bald').waitFor();
-assert.equal(sent.filter((s) => s.url.endsWith('/ai')).length, before, 'Seite fragt nicht mehr');
 const wall = await p.textContent('#shbody');
 assert.match(wall, /3 KI-Versuche genutzt/); assert.ok(!/€|\d+[,.]\d\d|Countdown/.test(wall));
 if (shot) await p.screenshot({ path: shot + '-wall.png' });
 await p.getByText('Ich hätte Interesse').tap(); await p.getByText('Notiert, danke').waitFor();
 await tap('#shback'); assert.ok(await p.locator('#stage').isVisible(), 'zurueck im Editor');
+await p.locator('.aiopt').first().waitFor();
 // bypass of the page: server still refuses
 const dev = await p.evaluate(() => window.Kit.store.aiDev);
 const direct = await p.evaluate(async (dev) => { const r = await fetch('https://demos-34a13a96.bunsenbrenner.org/api/duell/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'line', input: { text: 'tricks' }, device: dev }) }); return [r.status, (await r.json()).error]; }, dev);
 assert.deepEqual(direct, [429, 'quota'], 'Server setzt durch');
 // new person, server unreachable: local at once, nothing counted
-await p.evaluate(() => { window.Kit.store.aiDev = ''; window.Kit.save(); });
+await p.evaluate(() => { window.Kit.store.aiDev = ''; delete window.Kit.store.aiMeter; window.Kit.save(); });
 mode = 'down';
 const t0 = Date.now(); await p.locator('#panel textarea').fill('Offline');
 await p.getByRole('tab', { name: 'Stil' }).tap(); await p.getByRole('tab', { name: 'Text' }).tap();
-await p.getByText('gerade kein Stand vom Server').waitFor();
 await ai().tap(); await p.getByText('Gerade ohne KI').waitFor();
 assert.ok(Date.now() - t0 < 3000); assert.ok(await p.locator('.aiopt').count() >= 1);
 await p.locator('.aiopt').first().tap();

@@ -30,7 +30,7 @@
 
   if (typeof window === "undefined") { if (typeof module !== "undefined" && module.exports) module.exports = api; return; }
 
-  var Kit = window.Kit, C = window.DuellCore, D = window.Daily, t = Kit.t, meter = null, busy = false;
+  var Kit = window.Kit, C = window.DuellCore, D = window.Daily, t = Kit.t, meter = Kit.store.aiMeter || null, busy = false;
   function device() {
     var s = Kit.store;
     if (typeof s.aiDev !== "string" || !/^[a-f0-9]{32}$/.test(s.aiDev)) {
@@ -50,10 +50,8 @@
       return { status: res.status, json: await res.json() };
     } finally { clearTimeout(tm); }
   }
-  async function refresh() {
-    try { var r = await post("/status", { device: device() }); meter = r.json && r.json.meter || null; } catch (e) { meter = null; }   // unknown stays unknown: the line says so
-    return meter;
-  }
+  // Nothing leaves the device before the first tap on an AI button, so the count shown until then is the last one this device saw.
+  function keep(json) { if (json && json.meter) { meter = json.meter; Kit.store.aiMeter = meter; Kit.save(); } }
   function randomPick(n) { return Math.floor(Math.random() * n); }
   // -> { how: result|local|quota|blocked, options }
   async function run(kind, input) {
@@ -61,7 +59,7 @@
     try {
       if (navigator.onLine === false) throw new Error("offline");
       var r = await post("", { kind: kind, input: input, device: device(), lang: lang });
-      if (r.json && r.json.meter) meter = r.json.meter;
+      keep(r.json);
       how = verdict(r.status, r.json);
       if (how === "result") options = r.json.options;
     } catch (e) { how = "local"; }
@@ -69,11 +67,10 @@
     return { how: how, options: options || local(kind, D.IDEAS, lang, randomPick, input.topic) };
   }
   function line() {
-    if (!meter) return t("aiCountNone");
+    if (!meter) return t("aiCountNew");
     if (meter.abo) return t("aiCountAbo", { n: meter.remaining });
     return t("aiCount", { n: meter.remaining, m: meter.free });
   }
-  function out() { return !!meter && !meter.abo && meter.remaining <= 0; }
 
   // One AI action in a panel. o: { kind, label, el, input(), show(option) -> label, apply(option), wall(), hint? }
   function block(p, o) {
@@ -81,7 +78,6 @@
     var go = el("button", "chip", "✨ " + o.label, async function () {
       if (busy) return;
       var input = o.input(); if (!input) { Kit.toast(t("filter")); return; }
-      if (out()) { o.wall(); return; }
       busy = true; go.disabled = true; go.textContent = "… " + t("aiThinking"); res.textContent = ""; src.hidden = true;
       var r = await run(o.kind, input);
       busy = false; go.disabled = false; go.textContent = "✨ " + o.label; count.textContent = line();
@@ -97,7 +93,6 @@
     var row = el("div", "airow"); row.appendChild(go); row.appendChild(count);
     box.appendChild(el("p", "note", t("aiNote"))); box.appendChild(row); box.appendChild(src); box.appendChild(res);
     p.appendChild(box);
-    refresh().then(function () { count.textContent = line(); });
   }
   // The honest wall: no price, no countdown, nothing to buy yet.
   function wall(b, el) {
@@ -106,7 +101,7 @@
     b.appendChild(el("p", "note", t("aiNoBuy")));
     var ok = el("button", "btn", meter && meter.interest ? t("aiNoted") : t("aiWant"), async function () {
       ok.disabled = true;
-      try { var r = await post("/interest", { device: device() }); if (r.json && r.json.meter) meter = r.json.meter; ok.textContent = t("aiNoted"); } catch (e) { ok.disabled = false; Kit.toast(t("aiNet")); }
+      try { var r = await post("/interest", { device: device() }); keep(r.json); ok.textContent = t("aiNoted"); } catch (e) { ok.disabled = false; Kit.toast(t("aiNet")); }
     });
     ok.disabled = !!(meter && meter.interest); b.appendChild(ok);
     b.appendChild(el("p", "note", t("aiWantNote")));
@@ -114,5 +109,5 @@
       var a = el("a", "btn", t("aiLogin")); a.href = "/auth/login?return=" + encodeURIComponent("/duell"); b.appendChild(a);
     }
   }
-  window.Ai = { block: block, wall: wall, refresh: refresh, count: line };
+  window.Ai = { block: block, wall: wall, count: line };
 })(typeof globalThis !== "undefined" ? globalThis : this);
