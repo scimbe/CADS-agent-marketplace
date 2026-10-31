@@ -80,24 +80,26 @@ wait_web 'Emu.*42' 10
 shot 0b-duell-challenge
 echo "duell: challenge link opened the game with the challenge (title + rival Emu / 42 shown)"
 
-# 3. The game runs: a bot taps on the beat (scheduled on the device clock, so adb latency does not
-#    drift the beat). The score must rise above 0; if the bird dies earlier, "Again" and retry.
-NS=$(adb shell date +%s%N | tr -d '\r')
-case "$NS" in ''|*[!0-9]*) BEAT_CLOCK=0;; *) BEAT_CLOCK=1;; esac
-SCREEN_H=$(adb shell wm size | tr -d '\r' | grep -oE '[0-9]+x[0-9]+' | tail -1 | cut -dx -f2)
-play() { # one attempt of ~7 s
-  if [ "$BEAT_CLOCK" = 1 ]; then
-    adb shell "t=\$(date +%s%N); end=\$((t+7000000000)); next=\$t; while [ \$t -lt \$end ]; do input tap $wx $wy; next=\$((next+620000000)); while [ \$(date +%s%N) -lt \$next ]; do :; done; t=\$(date +%s%N); done"
-  else
-    adb shell "for i in \$(seq 1 12); do input tap $wx $wy; sleep 0.45; done"
-  fi
+# 3. The game runs: a bot taps on the beat (scheduled on an absolute beat, so adb latency does not
+#    drift it). The score must rise above 0; if the bird dies earlier, "Again" and retry.
+play() { # one attempt of ~7 s: taps launched on an absolute host-side beat, not chained
+  python3 -I -c '
+import subprocess,sys,time
+x,y,dur,beat=sys.argv[1],sys.argv[2],float(sys.argv[3]),float(sys.argv[4])
+t0=time.monotonic(); n=0; procs=[]
+while n*beat<dur:
+    d=t0+n*beat-time.monotonic()
+    if d>0: time.sleep(d)
+    procs.append(subprocess.Popen(["adb","shell","input","tap",x,y])); n+=1
+for p in procs: p.wait()' "$wx" "$wy" 7 0.622
 }
+SCREEN_H=$(adb shell wm size | tr -d '\r' | grep -oE '[0-9]+x[0-9]+' | tail -1 | cut -dx -f2)
 max_score() { webtext | grep -E '^[0-9]+$' | sort -n | tail -1; }
 SCORE=0
 for attempt in 1 2 3 4 5 6; do
   play
   SCORE=$(max_score); SCORE=${SCORE:-0}
-  echo "duell: attempt $attempt -> score $SCORE"
+  echo "duell: attempt $attempt -> score $SCORE  [page: $(webtext | tr "\n" "|")]"
   shot "0c-duell-spiel-$attempt"
   [ "$SCORE" -ge 1 ] && break
   if p=$(find_node "(^|\\s)(Again|Nochmal)(\\s|\$)"); then
