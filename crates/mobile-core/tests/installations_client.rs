@@ -40,7 +40,11 @@ fn serve(responses: Vec<Reply>) -> (String, Arc<Mutex<Vec<Seen>>>) {
                 buf.extend_from_slice(&tmp[..n]);
                 if let Some(p) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
                     let head = String::from_utf8_lossy(&buf[..p]).to_lowercase();
-                    let clen = head.lines().find_map(|l| l.strip_prefix("content-length: ")).and_then(|v| v.trim().parse::<usize>().ok()).unwrap_or(0);
+                    let clen = head
+                        .lines()
+                        .find_map(|l| l.strip_prefix("content-length: "))
+                        .and_then(|v| v.trim().parse::<usize>().ok())
+                        .unwrap_or(0);
                     break (p + 4, clen);
                 }
                 if n == 0 {
@@ -53,8 +57,15 @@ fn serve(responses: Vec<Reply>) -> (String, Arc<Mutex<Vec<Seen>>>) {
             }
             let head = String::from_utf8_lossy(&buf[..head_end]).to_string();
             let (rl, hs) = head.split_once("\r\n").unwrap();
-            s2.lock().unwrap().push(Seen { request_line: rl.to_string(), headers: hs.to_string(), body: String::from_utf8_lossy(&buf[head_end..]).to_string() });
-            let mut out = format!("HTTP/1.1 {status} X\r\nContent-Length: {}\r\nConnection: close\r\n", body.len());
+            s2.lock().unwrap().push(Seen {
+                request_line: rl.to_string(),
+                headers: hs.to_string(),
+                body: String::from_utf8_lossy(&buf[head_end..]).to_string(),
+            });
+            let mut out = format!(
+                "HTTP/1.1 {status} X\r\nContent-Length: {}\r\nConnection: close\r\n",
+                body.len()
+            );
             for (k, v) in hdrs {
                 out.push_str(&format!("{k}: {v}\r\n"));
             }
@@ -85,16 +96,26 @@ fn input() -> InstallationInput {
         template_digest: H64.into(),
         values_json: r#"{"topic":"Q3"}"#.into(),
         values_digest: H64.into(),
-        components: vec![ComponentRecord { name: "pandoc".into(), sha256: H64.into() }],
+        components: vec![ComponentRecord {
+            name: "pandoc".into(),
+            sha256: H64.into(),
+        }],
         manifest_ids: vec![],
-        target: TargetRecord { os: "android".into(), device_label: "Pixel".into(), agent_holder_pubkey: None },
+        target: TargetRecord {
+            os: "android".into(),
+            device_label: "Pixel".into(),
+            agent_holder_pubkey: None,
+        },
         status: None,
     }
 }
 
 #[test]
 fn list_get_create_update_delete_duplicate_export() {
-    let page = format!(r#"{{"items":[{}],"total":1,"limit":25,"offset":0}}"#, rec_json(1, "A"));
+    let page = format!(
+        r#"{{"items":[{}],"total":1,"limit":25,"offset":0}}"#,
+        rec_json(1, "A")
+    );
     let (base, seen) = serve(vec![
         (200, vec![], page),
         (200, vec![("ETag", "\"1\"".into())], rec_json(1, "A")),
@@ -102,10 +123,16 @@ fn list_get_create_update_delete_duplicate_export() {
         (200, vec![], rec_json(2, "B")),
         (204, vec![], String::new()),
         (201, vec![], rec_json(1, "A (copy)")),
-        (200, vec![], r#"{"version":1,"exported_at":5,"installations":[]}"#.into()),
+        (
+            200,
+            vec![],
+            r#"{"version":1,"exported_at":5,"installations":[]}"#.into(),
+        ),
     ]);
     let c = client(&base);
-    let p = c.list(Some(InstallationStatus::Draft), Some(10), Some(0)).unwrap();
+    let p = c
+        .list(Some(InstallationStatus::Draft), Some(10), Some(0))
+        .unwrap();
     assert_eq!((p.total, p.items.len()), (1, 1));
     assert_eq!(p.items[0].values_json, r#"{"topic":"Q3"}"#);
     let id = p.items[0].id.clone();
@@ -117,10 +144,21 @@ fn list_get_create_update_delete_duplicate_export() {
     assert!(c.export().unwrap().contains("\"version\":1"));
 
     let s = seen.lock().unwrap();
-    assert_eq!(s[0].request_line, "GET /me/installations?status=draft&limit=10&offset=0 HTTP/1.1");
-    assert!(s.iter().all(|r| r.headers.to_lowercase().contains("authorization: bearer tok-abc")));
-    assert!(s.iter().all(|r| !r.headers.to_lowercase().contains("cookie")));
-    assert!(s[2].headers.to_lowercase().contains("content-type: application/json"));
+    assert_eq!(
+        s[0].request_line,
+        "GET /me/installations?status=draft&limit=10&offset=0 HTTP/1.1"
+    );
+    assert!(s.iter().all(|r| r
+        .headers
+        .to_lowercase()
+        .contains("authorization: bearer tok-abc")));
+    assert!(s
+        .iter()
+        .all(|r| !r.headers.to_lowercase().contains("cookie")));
+    assert!(s[2]
+        .headers
+        .to_lowercase()
+        .contains("content-type: application/json"));
     assert!(s[2].body.contains(r#""values":{"topic":"Q3"}"#));
     assert!(!s[2].body.contains("\"status\""), "no status key when None");
     assert!(s[3].request_line.starts_with("PUT /me/installations/"));
@@ -132,7 +170,11 @@ fn list_get_create_update_delete_duplicate_export() {
 
 #[test]
 fn conflict_409_carries_current_revision() {
-    let (base, _) = serve(vec![(409, vec![], "revision mismatch: the installation is at revision 4; reload and retry".into())]);
+    let (base, _) = serve(vec![(
+        409,
+        vec![],
+        "revision mismatch: the installation is at revision 4; reload and retry".into(),
+    )]);
     match client(&base).update("abc".into(), 2, input()) {
         Err(MobileError::Conflict { current_revision }) => assert_eq!(current_revision, Some(4)),
         other => panic!("{other:?}"),
@@ -146,7 +188,10 @@ fn rejected_422_names_the_path_without_the_value() {
     let mut i = input();
     i.values_json = r#"{"api_key":"x"}"#.into();
     match client(&base).create(i) {
-        Err(MobileError::Rejected422 { path, detail: message }) => {
+        Err(MobileError::Rejected422 {
+            path,
+            detail: message,
+        }) => {
             assert_eq!(path, "values.api_key");
             assert!(message.contains("secret"));
         }
@@ -156,19 +201,36 @@ fn rejected_422_names_the_path_without_the_value() {
 
 #[test]
 fn not_found_unauthorized_and_precondition() {
-    let (base, _) = serve(vec![(404, vec![], "installation not found".into()), (401, vec![], "no".into()), (428, vec![], "If-Match: <revision> is required".into()), (500, vec![], "boom".into())]);
+    let (base, _) = serve(vec![
+        (404, vec![], "installation not found".into()),
+        (401, vec![], "no".into()),
+        (428, vec![], "If-Match: <revision> is required".into()),
+        (500, vec![], "boom".into()),
+    ]);
     let c = client(&base);
     assert!(matches!(c.get("abc".into()), Err(MobileError::NotFound)));
-    assert!(matches!(c.list(None, None, None), Err(MobileError::Unauthorized)));
-    assert!(matches!(c.update("abc".into(), 1, input()), Err(MobileError::PreconditionRequired)));
-    assert!(matches!(c.delete("abc".into(), None), Err(MobileError::Server { status: 500, .. })));
+    assert!(matches!(
+        c.list(None, None, None),
+        Err(MobileError::Unauthorized)
+    ));
+    assert!(matches!(
+        c.update("abc".into(), 1, input()),
+        Err(MobileError::PreconditionRequired)
+    ));
+    assert!(matches!(
+        c.delete("abc".into(), None),
+        Err(MobileError::Server { status: 500, .. })
+    ));
 }
 
 #[test]
 fn missing_token_means_no_request() {
     let (base, seen) = serve(vec![]);
     let c = InstallationsClient::new(base, Arc::new(Tok(None))).unwrap();
-    assert!(matches!(c.list(None, None, None), Err(MobileError::Unauthorized)));
+    assert!(matches!(
+        c.list(None, None, None),
+        Err(MobileError::Unauthorized)
+    ));
     assert!(seen.lock().unwrap().is_empty());
 }
 
@@ -186,8 +248,15 @@ fn transport_error_does_not_leak_token() {
 
 #[test]
 fn redirects_are_not_followed() {
-    let (base, seen) = serve(vec![(302, vec![("Location", "http://127.0.0.1:1/steal".into())], String::new())]);
-    assert!(matches!(client(&base).list(None, None, None), Err(MobileError::Server { status: 302, .. })));
+    let (base, seen) = serve(vec![(
+        302,
+        vec![("Location", "http://127.0.0.1:1/steal".into())],
+        String::new(),
+    )]);
+    assert!(matches!(
+        client(&base).list(None, None, None),
+        Err(MobileError::Server { status: 302, .. })
+    ));
     assert_eq!(seen.lock().unwrap().len(), 1);
 }
 
@@ -196,7 +265,10 @@ fn invalid_values_json_is_refused_locally() {
     let (base, seen) = serve(vec![]);
     let mut i = input();
     i.values_json = "[1]".into();
-    assert!(matches!(client(&base).create(i), Err(MobileError::InvalidInput { .. })));
+    assert!(matches!(
+        client(&base).create(i),
+        Err(MobileError::InvalidInput { .. })
+    ));
     assert!(seen.lock().unwrap().is_empty());
 }
 
@@ -204,8 +276,19 @@ fn invalid_values_json_is_refused_locally() {
 fn render_to_installation_roundtrip_input() {
     let json = include_str!("../../../manifests/prompt-templates/newsletter-briefing.json");
     let values = r##"{"topic":"x","audience":"Team","sections":["Risiken"],"max_items":3,"accent_color":"#112233"}"##;
-    let r = mobile_core::template::render_prompt_template(json.into(), values.into(), 1_800_000_000).unwrap();
-    let inp = installation_input_from_render("n".into(), r.clone(), values.into(), TargetRecord { os: "ios".into(), device_label: String::new(), agent_holder_pubkey: None });
+    let r =
+        mobile_core::template::render_prompt_template(json.into(), values.into(), 1_800_000_000)
+            .unwrap();
+    let inp = installation_input_from_render(
+        "n".into(),
+        r.clone(),
+        values.into(),
+        TargetRecord {
+            os: "ios".into(),
+            device_label: String::new(),
+            agent_holder_pubkey: None,
+        },
+    );
     assert_eq!(inp.template_digest, r.template_digest);
     assert_eq!(inp.components[0].name, "pandoc");
 }
@@ -213,20 +296,47 @@ fn render_to_installation_roundtrip_input() {
 #[test]
 fn overwrite_builds_from_fresh_record_and_uses_fresh_revision() {
     // Fresh record on the server: revision 7, status installed, different components than the stale copy.
-    let fresh = rec_json(7, "Server-Name").replace("\"status\":\"draft\"", "\"status\":\"installed\"");
-    let (base, seen) = serve(vec![(200, vec![], fresh), (200, vec![], rec_json(8, "Meins"))]);
-    let r = client(&base).overwrite("abc".into(), "Meins".into(), Some(r#"{"topic":"neu"}"#.into()), Some(H64.replace('a', "b"))).unwrap();
+    let fresh =
+        rec_json(7, "Server-Name").replace("\"status\":\"draft\"", "\"status\":\"installed\"");
+    let (base, seen) = serve(vec![
+        (200, vec![], fresh),
+        (200, vec![], rec_json(8, "Meins")),
+    ]);
+    let r = client(&base)
+        .overwrite(
+            "abc".into(),
+            "Meins".into(),
+            Some(r#"{"topic":"neu"}"#.into()),
+            Some(H64.replace('a', "b")),
+        )
+        .unwrap();
     assert_eq!(r.revision, 8);
     let s = seen.lock().unwrap();
     assert!(s[0].request_line.starts_with("GET /me/installations/abc"));
     assert!(s[1].request_line.starts_with("PUT /me/installations/abc"));
-    assert!(s[1].headers.to_lowercase().contains("if-match: \"7\""), "fresh revision: {}", s[1].headers);
-    assert!(s[1].body.contains(r#""status":"installed""#), "status comes from the fresh record: {}", s[1].body);
+    assert!(
+        s[1].headers.to_lowercase().contains("if-match: \"7\""),
+        "fresh revision: {}",
+        s[1].headers
+    );
+    assert!(
+        s[1].body.contains(r#""status":"installed""#),
+        "status comes from the fresh record: {}",
+        s[1].body
+    );
     assert!(s[1].body.contains(r#""name":"Meins""#) && s[1].body.contains(r#""topic":"neu""#));
 }
 
 #[test]
 fn overwrite_surfaces_a_second_conflict() {
-    let (base, _) = serve(vec![(200, vec![], rec_json(3, "x")), (409, vec![], "revision mismatch".into())]);
-    assert!(matches!(client(&base).overwrite("abc".into(), "n".into(), None, None), Err(MobileError::Conflict { current_revision: None })));
+    let (base, _) = serve(vec![
+        (200, vec![], rec_json(3, "x")),
+        (409, vec![], "revision mismatch".into()),
+    ]);
+    assert!(matches!(
+        client(&base).overwrite("abc".into(), "n".into(), None, None),
+        Err(MobileError::Conflict {
+            current_revision: None
+        })
+    ));
 }

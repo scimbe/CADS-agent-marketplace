@@ -12,8 +12,11 @@ object DuellLink {
     const val ASSET_PAGE = "https://$ASSET_HOST/assets/duell/index.html"
 
     private const val MAX_FRAGMENT = 8 * 1024
-    // `c=<base64url>` (challenge, shared work) or `i=<id>` (invite to a day's idea; ids are [a-z0-9-], at most 32).
-    private val FRAGMENT = Regex("^(?:c=[A-Za-z0-9_\\-=]+|i=[a-z0-9-]{1,32})$")
+    // `c=<base64url>` (challenge, shared work), `i=<id>` (invite to a day's idea; ids are [a-z0-9-], at most 32)
+    // or `p=<base64url>` (invite to build together; a secret, it never reaches a server).
+    private val FRAGMENT = Regex("^(?:c=[A-Za-z0-9_\\-=]+|i=[a-z0-9-]{1,32}|p=[A-Za-z0-9_\\-]{40,1024})$")
+    private val PEER_VALUE = Regex("^[A-Za-z0-9_\\-]{40,1024}$")
+    private const val CORE_LINK = "https://$SHARE_HOST/p#"
 
     private fun isDuellUri(uri: URI) =
         uri.scheme == "https" && uri.host == SHARE_HOST && uri.port == -1 && uri.rawPath?.trimEnd('/') == SHARE_PATH
@@ -39,6 +42,18 @@ object DuellLink {
     fun isShareable(url: String?): Boolean {
         val uri = parse(url)?.takeIf { isDuellUri(it) } ?: return false
         return uri.rawFragment == null || fragmentOf(url) != null
+    }
+
+    /** The core's invite link as the App Link people share. `/p` has neither a page nor an App Link entry. */
+    fun shareLink(coreLink: String?): String? {
+        val v = coreLink?.takeIf { it.startsWith(CORE_LINK) }?.removePrefix(CORE_LINK) ?: return null
+        return if (PEER_VALUE.matches(v)) "https://$SHARE_HOST$SHARE_PATH#p=$v" else null
+    }
+
+    /** The other way, for `peer_accept_invite`. Only a valid `#p=` link of this app. */
+    fun coreLink(link: String?): String? {
+        val f = fragmentOf(link)?.takeIf { it.startsWith("p=") } ?: return null
+        return CORE_LINK + f.removePrefix("p=")
     }
 
     /** True for requests that stay inside the WebView: the bundled page itself. */

@@ -10,8 +10,9 @@
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use ct_common::channel::{
-    channel_id_for_link, member_noise_attest_bytes, verify_invitation, verify_stateless, ChannelGrant, ChannelId,
-    ChannelInvitation, Direction, Rights, SignedChannelGrant, SignedChannelInvitation,
+    channel_id_for_link, member_noise_attest_bytes, verify_invitation, verify_stateless,
+    ChannelGrant, ChannelId, ChannelInvitation, Direction, Rights, SignedChannelGrant,
+    SignedChannelInvitation,
 };
 use ct_common::hex;
 use ed25519_dalek::{Signer, SigningKey};
@@ -44,13 +45,31 @@ pub(crate) fn public_of(seed: &[u8; 32]) -> [u8; 32] {
     SigningKey::from_bytes(seed).verifying_key().to_bytes()
 }
 
-pub(crate) fn attest(channel: &ChannelId, holder_seed: &[u8; 32], noise_public: &[u8; 32]) -> [u8; 64] {
+pub(crate) fn attest(
+    channel: &ChannelId,
+    holder_seed: &[u8; 32],
+    noise_public: &[u8; 32],
+) -> [u8; 64] {
     let holder = public_of(holder_seed);
-    SigningKey::from_bytes(holder_seed).sign(&member_noise_attest_bytes(channel, &holder, noise_public)).to_bytes()
+    SigningKey::from_bytes(holder_seed)
+        .sign(&member_noise_attest_bytes(channel, &holder, noise_public))
+        .to_bytes()
 }
 
-fn grant_for(channel: ChannelId, holder: [u8; 32], direction: Direction, expires_at: u64) -> ChannelGrant {
-    ChannelGrant { channel, holder, direction, rights: Rights::ReadWrite, delegable: false, expires_at }
+fn grant_for(
+    channel: ChannelId,
+    holder: [u8; 32],
+    direction: Direction,
+    expires_at: u64,
+) -> ChannelGrant {
+    ChannelGrant {
+        channel,
+        holder,
+        direction,
+        rights: Rights::ReadWrite,
+        delegable: false,
+        expires_at,
+    }
 }
 
 fn invitation_for(channel: ChannelId, slot: [u8; 32], expires_at: u64) -> ChannelInvitation {
@@ -96,7 +115,9 @@ impl Contact {
 }
 
 pub(crate) fn decode32(s: &str) -> Result<[u8; 32], PeerError> {
-    hex::decode_32(s).ok_or(PeerError::InvalidInput { detail: "bad key encoding".into() })
+    hex::decode_32(s).ok_or(PeerError::InvalidInput {
+        detail: "bad key encoding".into(),
+    })
 }
 
 /// A contact being created, before the control plane knows it.
@@ -110,7 +131,9 @@ pub struct NewInvite {
 /// All keys for one new contact plus the link. Pure: nothing leaves the device here.
 pub fn new_invite(now: u64, ttl_secs: u64) -> Result<NewInvite, PeerError> {
     if ttl_secs == 0 || ttl_secs > INVITE_TTL_MAX_SECS {
-        return Err(PeerError::InvalidInput { detail: "invite lifetime out of range".into() });
+        return Err(PeerError::InvalidInput {
+            detail: "invite lifetime out of range".into(),
+        });
     }
     let (operator_seed, holder_seed, slot_seed) = (random32(), random32(), random32());
     let noise = ct_common::noise::generate_static_keypair();
@@ -120,8 +143,14 @@ pub fn new_invite(now: u64, ttl_secs: u64) -> Result<NewInvite, PeerError> {
     let channel = channel_id_for_link(&operator_public, &holder, &slot);
     let (invite_exp, grant_exp) = (now + ttl_secs, now + GRANT_TTL_SECS);
 
-    let own_grant = sign_grant(&operator, grant_for(channel, holder, Direction::Initiate, grant_exp));
-    let slot_grant = sign_grant(&operator, grant_for(channel, slot, Direction::Accept, grant_exp));
+    let own_grant = sign_grant(
+        &operator,
+        grant_for(channel, holder, Direction::Initiate, grant_exp),
+    );
+    let slot_grant = sign_grant(
+        &operator,
+        grant_for(channel, slot, Direction::Accept, grant_exp),
+    );
     let invitation = invitation_for(channel, slot, invite_exp);
     let invitation_sig = operator.sign(&invitation.signing_bytes()).to_bytes();
 
@@ -169,7 +198,9 @@ pub struct OpenedLink {
 /// here. Whether it is still unused only the control plane can say.
 pub fn open_link(link: &str, now: u64) -> Result<OpenedLink, PeerError> {
     let raw = link.trim().rsplit('#').next().unwrap_or("");
-    let b = URL_SAFE_NO_PAD.decode(raw).map_err(|_| PeerError::LinkInvalid)?;
+    let b = URL_SAFE_NO_PAD
+        .decode(raw)
+        .map_err(|_| PeerError::LinkInvalid)?;
     if b.len() != LINK_LEN || b[0] != LINK_VERSION {
         return Err(PeerError::LinkInvalid);
     }
@@ -190,20 +221,35 @@ pub fn open_link(link: &str, now: u64) -> Result<OpenedLink, PeerError> {
 
     let slot = public_of(&slot_seed);
     let channel = channel_id_for_link(&operator, &inviter_holder, &slot);
-    let invitation =
-        SignedChannelInvitation { invitation: invitation_for(channel, slot, invite_exp), signature: invitation_sig };
-    let grant = SignedChannelGrant { grant: grant_for(channel, slot, Direction::Accept, grant_exp), signature: grant_sig };
+    let invitation = SignedChannelInvitation {
+        invitation: invitation_for(channel, slot, invite_exp),
+        signature: invitation_sig,
+    };
+    let grant = SignedChannelGrant {
+        grant: grant_for(channel, slot, Direction::Accept, grant_exp),
+        signature: grant_sig,
+    };
     verify_stateless(&operator, &grant, now).map_err(|_| PeerError::LinkInvalid)?;
     verify_invitation(&operator, &invitation, now).map_err(|e| match e {
         ct_common::channel::GrantError::Expired => PeerError::LinkExpired,
         _ => PeerError::LinkInvalid,
     })?;
-    Ok(OpenedLink { slot_seed, invitation, grant, inviter_holder, inviter_noise })
+    Ok(OpenedLink {
+        slot_seed,
+        invitation,
+        grant,
+        inviter_holder,
+        inviter_noise,
+    })
 }
 
 /// The eight-digit code both sides can compare. Shown, never required.
 pub fn verification_code(channel: &ChannelId, noise_a: &[u8; 32], noise_b: &[u8; 32]) -> String {
-    let (lo, hi) = if noise_a <= noise_b { (noise_a, noise_b) } else { (noise_b, noise_a) };
+    let (lo, hi) = if noise_a <= noise_b {
+        (noise_a, noise_b)
+    } else {
+        (noise_b, noise_a)
+    };
     let mut h: [u8; 32] = Sha256::new()
         .chain_update(b"cads-peer-sas-v1")
         .chain_update(channel.0)
@@ -228,19 +274,31 @@ mod tests {
         assert!(inv.link.len() < 400, "{}", inv.link.len());
         let opened = open_link(&inv.link, 1_001).unwrap();
         assert_eq!(hex::encode(&opened.inviter_noise), inv.contact.noise_public);
-        assert_eq!(hex::encode(&opened.grant.encode()), inv.contact.peer_grant.unwrap());
+        assert_eq!(
+            hex::encode(&opened.grant.encode()),
+            inv.contact.peer_grant.unwrap()
+        );
     }
 
     #[test]
     fn expired_and_damaged_links_are_refused_locally() {
         let inv = new_invite(1_000, 600).unwrap();
-        assert!(matches!(open_link(&inv.link, 1_600), Err(PeerError::LinkExpired)));
+        assert!(matches!(
+            open_link(&inv.link, 1_600),
+            Err(PeerError::LinkExpired)
+        ));
         // Flip a bit inside the fragment: a signature no longer verifies.
         let mut bad = inv.link.into_bytes();
         let i = bad.len() - 200;
         bad[i] = if bad[i] == b'A' { b'B' } else { b'A' };
-        assert!(matches!(open_link(std::str::from_utf8(&bad).unwrap(), 1_001), Err(PeerError::LinkInvalid)));
-        assert!(matches!(open_link("https://bunsenbrenner.org/p#kurz", 1_001), Err(PeerError::LinkInvalid)));
+        assert!(matches!(
+            open_link(std::str::from_utf8(&bad).unwrap(), 1_001),
+            Err(PeerError::LinkInvalid)
+        ));
+        assert!(matches!(
+            open_link("https://bunsenbrenner.org/p#kurz", 1_001),
+            Err(PeerError::LinkInvalid)
+        ));
     }
 
     #[test]
