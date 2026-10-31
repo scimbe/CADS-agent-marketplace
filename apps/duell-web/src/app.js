@@ -189,7 +189,7 @@ var PANEL = {
   },
   Color: function (p) { colors(p, function () { return ed.doc.col; }, function (c) { ed.doc.col = c; if (ed.doc.k === "photo") ed.photo._id += ""; }); },
   Sticker: function (p) {
-    var d = ed.doc, set = D.SETS[me.set].concat([me.emoji]);
+    var d = ed.doc, own = D.byId(d.i), set = D.SETS[(own && own.set) || me.set].concat([me.emoji]);
     var box = el("div", "chips");
     set.forEach(function (e) {
       box.appendChild(el("button", "chip em", e, function () {
