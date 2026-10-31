@@ -25,7 +25,7 @@ class PeerBridgeTest {
         override fun leave() { left += 1 }
         override fun decline(id: Long) { declined += id }
         var onNext: (() -> Unit)? = null
-        override fun next(waitMs: Long): PeerIn? { onNext?.let { it(); return null }; return queue.removeFirstOrNull() ?: PeerIn.Closed }
+        override fun next(waitMs: Long): PeerIn? { onNext?.let { it(); return null }; return if (queue.isEmpty()) PeerIn.Closed else queue.removeFirst() }
         override fun dispose() { disposed += 1 }
     }
     private class Port(val conns: ArrayDeque<Any>, val failInvite: String? = null, val failAccept: String? = null) : PeerPort {
