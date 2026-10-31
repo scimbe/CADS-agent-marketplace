@@ -446,6 +446,7 @@ function openOwn() {
     [["card", "🃏"], ["photo", "📷"], ["sound", "🥁"], ["game", "🕹"]].forEach(function (m) {
       b.appendChild(el("button", "mech", m[1] + " " + t(m[0]), function () { Kit.sfx.thud(); openEditor(D.blankDoc(m[0], me, Kit.lang), { own: true }); }));
     });
+    CC.tile(b);
   });
 }
 
@@ -478,6 +479,8 @@ window.addEventListener("resize", function () { if (screen === "home") fitHero()
 window.addEventListener("popstate", function () { if (screen !== "home" && !location.hash && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
 
 function route() {
+  var card = CC.route(location.hash);
+  if (card) { clearLink(); if (!card.keep && screen !== "editor") goHomeKeep(); return true; }
   if (CU.route(location.hash)) { clearLink(); if (screen !== "editor") goHomeKeep(); return true; }
   var r = D.parseRoute(location.hash);
   if (r && r.type === "challenge") {
@@ -508,6 +511,8 @@ var CU = window.CollabUI.init({
   },
   more: function () { try { window.DuellHost.more(); } catch (e) {} }
 });
+
+var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 /* test hook, used by browser checks: read-only snapshot */
 window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); }, collab: function () { return CU.engine(); } };

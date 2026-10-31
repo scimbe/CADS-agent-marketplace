@@ -112,6 +112,9 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 #res-score{text-align:center;font:900 80px/1 var(--disp);font-variant-numeric:tabular-nums}
 #res-line{text-align:center;min-height:20px;margin:2px 14px 10px}
 #gamebtns{display:flex;flex-direction:column;gap:6px;padding:0 18px 6px}
+.cccard{border:3px solid var(--ink);border-radius:4px;padding:12px;margin-bottom:10px;font:900 24px/1.05 var(--disp);text-transform:uppercase}
+.cccard p{margin:6px 0 0}
+#shbody .btn.hot{margin-top:10px}
 #cogo{font-size:19px}
 #cobar{flex:none;display:flex;align-items:center;gap:8px;min-height:38px;padding:2px 8px 2px 14px;background:var(--ink);color:#fff;font:800 13px var(--ui)}
 #costatus{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}

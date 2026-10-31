@@ -108,5 +108,7 @@ class PeerBridgeTest {
         assertEquals(shared, DuellLink.shareLink(core)); assertEquals(core, DuellLink.coreLink(shared))
         assertNull(DuellLink.shareLink("https://evil.example/p#$frag")); assertNull(DuellLink.coreLink(core))
         assertTrue(DuellLink.isShareable(shared)); assertEquals("p=$frag", DuellLink.fragmentOf(shared))
+        assertTrue(DuellLink.isShareable("$shared&k=abc_-1")); assertEquals(core, DuellLink.coreLink("$shared&k=abc_-1"))
+        assertFalse(DuellLink.isShareable("$shared&k=<b>")); assertFalse(DuellLink.isShareable("$shared&x=1"))
     }
 }

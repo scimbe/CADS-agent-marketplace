@@ -86,5 +86,7 @@ final class PeerBridgeTests: XCTestCase {
         XCTAssertEqual(DuellLink.shareLink(core), shared); XCTAssertEqual(DuellLink.coreLink(shared), core)
         XCTAssertNil(DuellLink.shareLink("https://evil.example/p#\(frag)")); XCTAssertNil(DuellLink.coreLink(core))
         XCTAssertTrue(DuellLink.isShareable(shared))
+        XCTAssertTrue(DuellLink.isShareable(shared + "&k=abc_-1")); XCTAssertEqual(DuellLink.coreLink(shared + "&k=abc_-1"), core)
+        XCTAssertNil(DuellLink.validFragment("p=\(frag)&x=1")); XCTAssertNil(DuellLink.validFragment("p=\(frag)&k=a&k=b"))
     }
 }

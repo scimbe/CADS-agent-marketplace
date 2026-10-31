@@ -13,8 +13,8 @@ object DuellLink {
 
     private const val MAX_FRAGMENT = 8 * 1024
     // `c=<base64url>` (challenge, shared work), `i=<id>` (invite to a day's idea; ids are [a-z0-9-], at most 32)
-    // or `p=<base64url>` (invite to build together; a secret, it never reaches a server).
-    private val FRAGMENT = Regex("^(?:c=[A-Za-z0-9_\\-=]+|i=[a-z0-9-]{1,32}|p=[A-Za-z0-9_\\-]{40,1024})$")
+    // or `p=<base64url>` (invite to build together; a secret, it never reaches a server), optionally with `&k=<card>`.
+    private val FRAGMENT = Regex("^(?:c=[A-Za-z0-9_\\-=]+|i=[a-z0-9-]{1,32}|p=[A-Za-z0-9_\\-]{40,1024}(?:&k=[A-Za-z0-9_\\-]{1,1500})?)$")
     private val PEER_VALUE = Regex("^[A-Za-z0-9_\\-]{40,1024}$")
     private const val CORE_LINK = "https://$SHARE_HOST/p#"
 
@@ -53,7 +53,7 @@ object DuellLink {
     /** The other way, for `peer_accept_invite`. Only a valid `#p=` link of this app. */
     fun coreLink(link: String?): String? {
         val f = fragmentOf(link)?.takeIf { it.startsWith("p=") } ?: return null
-        return CORE_LINK + f.removePrefix("p=")
+        return CORE_LINK + f.removePrefix("p=").substringBefore("&k=")
     }
 
     /** True for requests that stay inside the WebView: the bundled page itself. */

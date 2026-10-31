@@ -44,7 +44,11 @@ enum DuellLink {
             guard value.unicodeScalars.allSatisfy(allowed.contains) else { return nil }
             return fragment
         }
-        if fragment.hasPrefix("p=") { return peerValue(String(fragment.dropFirst(2))) != nil ? fragment : nil }
+        if fragment.hasPrefix("p=") {
+            let parts = fragment.dropFirst(2).components(separatedBy: "&k=")
+            guard peerValue(parts[0]) != nil, parts.count == 1 || (parts.count == 2 && cardValue(parts[1])) else { return nil }
+            return fragment
+        }
         return nil
     }
 
@@ -52,6 +56,10 @@ enum DuellLink {
     private static func peerValue(_ v: String) -> String? {
         let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
         return (40...1024).contains(v.count) && v.unicodeScalars.allSatisfy(allowed.contains) ? v : nil
+    }
+    private static func cardValue(_ v: String) -> Bool {
+        let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
+        return (1...1500).contains(v.count) && v.unicodeScalars.allSatisfy(allowed.contains)
     }
     private static let coreBase = "https://\(host)/p#"
 
@@ -64,6 +72,6 @@ enum DuellLink {
     /// The other way, for `peerAcceptInvite`. Only a valid `#p=` link of this app.
     static func coreLink(_ link: String?) -> String? {
         guard let link, let url = URL(string: link), let f = challengeFragment(from: url), f.hasPrefix("p=") else { return nil }
-        return coreBase + f.dropFirst(2)
+        return coreBase + (f.dropFirst(2).components(separatedBy: "&k=").first ?? "")
     }
 }
