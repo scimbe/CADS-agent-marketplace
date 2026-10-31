@@ -36,8 +36,7 @@ test("Tagesidee: gleich fuer alle am selben UTC-Tag, Tageswechsel genau um 0 Uhr
   assert.equal(a.id, b.id); assert.notEqual(a.id, c.id);
 });
 test("Tagesidee: in einer Runde keine Wiederholung, nie zweimal dieselbe Mechanik hintereinander", () => {
-  const n = D.IDEAS.length, start = Math.floor(D.dayNumber(new Date("2026-11-01Z")) / n) * n;
-  const seq = []; for (let i = 0; i < n; i++) seq.push(D.ideaForDay(new Date(start * 86400000 + i * 86400000)));
+  const n = D.ROUND.length, seq = D.roundOrder(Math.floor(D.dayNumber(new Date("2026-11-01Z")) / n));
   assert.equal(new Set(seq.map((x) => x.id)).size, n);
   let same = 0; for (let i = 1; i < n; i++) if (seq[i].kind === seq[i - 1].kind) same++;
   assert.equal(same, 0);
@@ -127,4 +126,16 @@ test("Wand: nur gueltige Eintraege, Deckel, keine fremden Bildquellen", () => {
   assert.deepEqual(D.sanitizeWall("kaputt"), []);
   let l = []; for (let i = 0; i < 50; i++) l = D.addToWall(l, { ...ok, ts: i });
   assert.equal(l.length, D.MAX_WALL); assert.equal(l[0].ts, 49);
+});
+
+test("Kalenderidee: Halloween erscheint genau am 31.10. und sonst nie", () => {
+  assert.equal(D.ideaForDay(new Date("2026-10-31T19:00:00Z")).id, "halloween");
+  assert.equal(D.ideaForDay(new Date("2027-10-31T00:00:00Z")).id, "halloween");
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(Date.UTC(2027, 0, 1) + i * 86400000);
+    if (d.toISOString().slice(5, 10) !== "10-31") assert.notEqual(D.ideaForDay(d).id, "halloween");
+  }
+  const doc = D.docFromIdea(D.byId("halloween"), D.sanitizeProfile({}), "de");
+  assert.deepEqual(doc.col, ["#120b1f", "#ff7a00"]); assert.equal(doc.st, "neon");
+  assert.ok(D.SETS.grusel.includes("🎃"));
 });

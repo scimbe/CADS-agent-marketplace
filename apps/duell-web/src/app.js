@@ -92,7 +92,7 @@ function paint() {
   timer = 0; if (!ed) return;
   ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1]);
   if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks }); }
-  footer(); CU.local();
+  SK.sync(); footer(); CU.local();
 }
 function changed() {           // every control ends up here: redraw within the next moment
   if (!timer) timer = setTimeout(paint, 16);
@@ -189,22 +189,31 @@ var PANEL = {
   },
   Color: function (p) { colors(p, function () { return ed.doc.col; }, function (c) { ed.doc.col = c; if (ed.doc.k === "photo") ed.photo._id += ""; }); },
   Sticker: function (p) {
-    var d = ed.doc, set = D.SETS[me.set].concat([me.emoji]);
+    var d = ed.doc, own = D.byId(d.i), set = D.SETS[(own && own.set) || me.set].concat([me.emoji]);
     var box = el("div", "chips");
     set.forEach(function (e) {
       box.appendChild(el("button", "chip em", e, function () {
-        if (d.sk.length >= D.MAX_STICKERS) return;
+        if (d.sk.length >= D.MAX_STICKERS) { Kit.toast(t("skFull")); return; }
         Kit.sfx.pop(); var r = C.mulberry32(C.hash32(me.nick + d.sk.length + e + d.x));
-        d.sk.push({ e: e, x: 0.15 + r() * 0.7, y: 0.15 + r() * 0.65, r: (r() - 0.5) * 0.7, z: 0.8 + r() * 0.7 }); ed.sel = d.sk.length - 1; changed();
+        SK.step(function (l) { l.push({ e: e, x: 0.15 + r() * 0.7, y: 0.15 + r() * 0.65, r: (r() - 0.5) * 0.7, z: 0.8 + r() * 0.7 }); ed.sel = l.length - 1; });
       }));
     });
     p.appendChild(box);
+    if (!d.sk.length) return;
+    p.appendChild(el("p", "note", t("skHint")));
+    var mine = el("div", "chips");   // also the way to reach a sticker that is hard to tap, and the keyboard's way
+    d.sk.forEach(function (s, i) {
+      var b = el("button", "chip em" + (i === ed.sel ? " on" : ""), s.e, function () { Kit.sfx.tap(); SK.select(i); });
+      b.setAttribute("aria-pressed", String(i === ed.sel)); mine.appendChild(b);
+    });
+    p.appendChild(mine);
     var row = el("div", "chips");
-    [["−", function (s) { s.z = Math.max(0.5, s.z - 0.2); }], ["+", function (s) { s.z = Math.min(2.5, s.z + 0.2); }], ["↻", function (s) { s.r = s.r > 0.8 ? -1 : s.r + 0.25; }], ["✕", null]].forEach(function (x) {
-      row.appendChild(el("button", "chip em", x[0], function () {
-        var s = d.sk[ed.sel]; if (!s) return; Kit.sfx.tap();
-        if (x[1]) x[1](s); else { d.sk.splice(ed.sel, 1); ed.sel = d.sk.length - 1; } changed();
-      }));
+    [["−", function (s) { s.z = Math.max(0.5, s.z - 0.2); }], ["+", function (s) { s.z = Math.min(2.5, s.z + 0.2); }], ["↻", function (s) { s.r = s.r > 2.9 ? -3 : s.r + 0.25; }], ["✕", null]].forEach(function (x) {
+      var b = el("button", "chip em", x[0], function () {
+        if (!d.sk[ed.sel]) return; Kit.sfx.tap();
+        if (x[1]) SK.step(function (l) { x[1](l[ed.sel]); }); else SK.remove(ed.sel);
+      });
+      b.disabled = !d.sk[ed.sel]; row.appendChild(b);
     });
     p.appendChild(row);
   },
@@ -244,18 +253,11 @@ var PANEL = {
   }
 };
 
-/* sticker dragging on the preview */
-(function () {
-  var drag = -1;
-  function pos(e) { var r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height }; }
-  cv.addEventListener("pointerdown", function (e) {
-    if (!ed || !ed.doc.sk) return; var p = pos(e), l = ed.doc.sk;
-    for (var i = l.length - 1; i >= 0; i--) { if (Math.hypot(l[i].x - p.x, (l[i].y - p.y) * 1.25) < 0.1 * l[i].z) { drag = i; ed.sel = i; try { cv.setPointerCapture(e.pointerId); } catch (x) {} Kit.sfx.tap(); return; } }
-  });
-  cv.addEventListener("pointermove", function (e) { if (drag < 0 || !ed) return; var p = pos(e), s = ed.doc.sk[drag]; if (!s) return; s.x = Math.min(1, Math.max(0, p.x)); s.y = Math.min(1, Math.max(0, p.y)); changed(); });
-  function up() { drag = -1; }
-  cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
-})();
+/* stickers on the preview (stickers.js) */
+var SK = window.Stickers.attach({
+  cv: cv, wrap: $("stagewrap"), state: function () { return ed; }, changed: changed, t: t, sfx: function (n) { Kit.sfx[n](); },
+  onChange: function () { if (ed && ed.tab === "Sticker") { var keep = $("panel").scrollTop; tab("Sticker"); $("panel").scrollTop = keep; } }
+});
 
 /* photo: read locally, drawn to a canvas; the file never leaves this function's memory */
 $("file").addEventListener("change", async function () {
@@ -370,7 +372,7 @@ $("share").addEventListener("click", async function () {
 $("save").addEventListener("click", function () { Kit.sfx.tap(); Kit.saveFile(result.file, result.name); });
 $("keep").addEventListener("click", function () { Kit.sfx.tap(); backToEditor(); });
 function backToEditor() {
-  ed = result.keep; show("editor"); if (ed.doc.k === "game") G.demo($("demo"), gameState()); changed();
+  ed = result.keep; ed.sel = -1; show("editor"); if (ed.doc.k === "game") G.demo($("demo"), gameState()); changed();
 }
 $("dhome").addEventListener("click", goHome);
 $("edback").addEventListener("click", function () { Kit.sfx.tap(); goHome(); });
@@ -456,7 +458,7 @@ function labels() {
   $("brand").textContent = t("brand"); $("lang").textContent = Kit.lang.toUpperCase(); $("me").textContent = me.emoji;
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
   $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home");
-  $("save").hidden = !Kit.canSave(); CU.labels();
+  $("save").hidden = !Kit.canSave(); SK.labels(); CU.labels();
   // Inside the app shells (DuellHost.more) a quiet "more" opens the native extras; in a browser it stays hidden.
   var host = window.DuellHost && typeof window.DuellHost.more === "function";
   $("host").hidden = !host; $("host").setAttribute("aria-label", t("hostMore"));

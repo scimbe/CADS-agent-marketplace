@@ -41,7 +41,7 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .press.wait{background:transparent;color:#111;border-style:dashed;box-shadow:none;font-size:22px}
 #tools{position:relative;display:grid;grid-template-columns:repeat(4,1fr);padding:0 10px 8px;flex:none}
 #tools button{min-height:48px;border:0;background:transparent;color:var(--on);font:800 13px/1.1 var(--ui);padding:2px}
-#stagewrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 12px;background:var(--a)}
+#stagewrap{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 12px;background:var(--a)}
 #stage{max-width:100%;max-height:100%;aspect-ratio:4/5;border:3px solid var(--ink);box-shadow:4px 5px 0 var(--ink);touch-action:none;background:#fff}
 #gamestage{height:100%;aspect-ratio:288/512;max-width:100%;border:3px solid var(--ink);box-shadow:4px 5px 0 var(--ink);overflow:hidden;position:relative}
 #demo{display:block}
@@ -132,3 +132,13 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 #toast.show{opacity:1;transform:translate(-50%,0)}
 @media (min-width:600px){.scr,#game{left:50%;right:auto;width:440px;margin-left:-220px}}
 @media (prefers-reduced-motion:reduce){#home::before,#hint,.enter #hero span,.enter .burst,#leaf.enter,#doneimg{animation:none}.panel,#leaf{transition:none}}
+/* stickers: selection chrome above the canvas, never part of the picture */
+#skui{position:absolute;pointer-events:none;touch-action:none}
+#skui [hidden]{display:none}
+.skring{position:absolute;border:3px dashed var(--ink);border-radius:50%;box-shadow:0 0 0 2px #fff}
+.skx,.skgrip{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;padding:0;display:grid;place-items:center;border:3px solid var(--ink);border-radius:50%;font:900 19px/1 var(--ui);pointer-events:auto;touch-action:none}
+.skx{background:#ff2d2d;color:#fff}
+.skgrip{background:#fff;color:#111}
+.skundo{position:absolute;left:6px;top:6px;width:44px;height:44px;padding:0;border:3px solid var(--ink);border-radius:50%;background:#fff;color:#111;font:900 22px/1 var(--ui);pointer-events:auto}
+.skbin{position:absolute;left:50%;bottom:8px;width:72px;height:72px;margin-left:-36px;display:grid;place-items:center;font-size:32px;line-height:1;background:#fff;border:3px dashed var(--ink);border-radius:50%;transition:transform 90ms ease-out}
+.skbin.over{background:#ff2d2d;transform:scale(1.2)}
