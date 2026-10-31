@@ -13,6 +13,8 @@ mkdir -p "$OUT"
 adb install -r "$APK" >/dev/null
 adb logcat -c
 adb shell pm clear "$PKG" >/dev/null || true
+# The first fullscreen launch shows Android's one-time "Viewing full screen" tutorial; mark it seen.
+adb shell settings put secure immersive_mode_confirmations confirmed
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
 
 dump() { adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb exec-out cat /sdcard/ui.xml; }
