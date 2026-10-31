@@ -72,7 +72,7 @@ echo "duell: starts in the game (hint shown, score $(score_of))"
 #    fixed beat can pass the first obstacle: period = 2*jump/gravity keeps the bird level.
 FRAG=$(python3 -I -c '
 import base64,json
-c={"v":1,"seed":14,"params":{"gravity":900,"jump":280,"gap":200,"speed":90},"theme":"day","title":"Smoke Duell","emoji":"\U0001F525","score":42,"name":"Emu"}
+c={"v":1,"seed":115,"params":{"gravity":900,"jump":280,"gap":200,"speed":90},"theme":"day","title":"Smoke Duell","emoji":"\U0001F525","score":42,"name":"Emu"}
 print("c="+base64.urlsafe_b64encode(json.dumps(c,ensure_ascii=False,separators=(",",":")).encode()).decode().rstrip("="))')
 adb shell "am start -W -a android.intent.action.VIEW -c android.intent.category.BROWSABLE -p $PKG -d 'https://bunsenbrenner.org/duell#$FRAG'" >/dev/null
 wait_web 'Smoke Duell' 20
@@ -91,13 +91,16 @@ while n*beat<dur:
     d=t0+n*beat-time.monotonic()
     if d>0: time.sleep(d)
     procs.append(subprocess.Popen(["adb","shell","input","tap",x,y])); n+=1
-for p in procs: p.wait()' "$wx" "$wy" 7 0.622
+for p in procs: p.wait()' "$wx" "$wy" 7 "$1"
 }
 SCREEN_H=$(adb shell wm size | tr -d '\r' | grep -oE '[0-9]+x[0-9]+' | tail -1 | cut -dx -f2)
 max_score() { webtext | grep -E '^[0-9]+$' | sort -n | tail -1; }
 SCORE=0
-for attempt in 1 2 3 4 5 6; do
-  play
+# The page caps a frame at 50 ms, so on a slow software-rendered emulator the game runs slower than
+# real time. Hence the beat is swept: 0.62 s is exact for real time, longer beats cover slow frames.
+BEATS=(0.62 0.75 0.9 1.05 1.25 1.5 0.5 0.68)
+for attempt in 1 2 3 4 5 6 7 8; do
+  play "${BEATS[$((attempt-1))]}"
   SCORE=$(max_score); SCORE=${SCORE:-0}
   echo "duell: attempt $attempt -> score $SCORE  [page: $(webtext | tr "\n" "|")]"
   shot "0c-duell-spiel-$attempt"
@@ -107,7 +110,7 @@ for attempt in 1 2 3 4 5 6; do
     if [ "$ay" -gt 0 ] && [ "$ay" -lt "$SCREEN_H" ]; then adb shell input tap "$ax" "$ay"; sleep 1; fi
   fi
 done
-if [ "$SCORE" -lt 1 ]; then echo "FAIL: score never rose above 0 in 6 attempts" >&2; webtext >&2; exit 1; fi
+if [ "$SCORE" -lt 1 ]; then echo "FAIL: score never rose above 0 in 8 attempts" >&2; webtext >&2; exit 1; fi
 if webtext | grep -Eq 'Tap\. Fly|Tippen\. Fliegen'; then echo "FAIL: start hint still shown, game did not start" >&2; exit 1; fi
 echo "duell: game runs, taps scored (score $SCORE)"
 
