@@ -9,7 +9,7 @@ import { mintTurnCredential } from '../server/turn-credentials.js';
 const FAST = { minEpochGapMs: 0, iceFetchTimeoutMs: 20, signalRetryMs: 5, ringTimeoutMs: 40, connectTimeoutMs: 30, disconnectGraceMs: 1,
   reconnectWindowMs: 60, restartBackoffMs: [0, 2], statsIntervalMs: 2, mediaStallMs: 10 };
 // Echte Neuaufbau-Reihenfolge: eine Epoche, keine Schleife im Millisekundentakt, kein Fensterablauf.
-const STEADY = { ...FAST, minEpochGapMs: 60000, reconnectWindowMs: 5000 };
+const STEADY = { ...FAST, minEpochGapMs: 60000, reconnectWindowMs: 5000, mediaStallMs: 60000 };
 // Echte Medien laufen weiter: Pakete steigen, bis die Bedingung erreicht ist.
 const whileFlowing = async (e, f) => { const id = setInterval(() => { e.packets += 1; }, 1); try { await until(f); } finally { clearInterval(id); } };
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
