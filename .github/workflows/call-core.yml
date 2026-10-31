@@ -1,0 +1,36 @@
+name: call-core
+
+on:
+  push:
+    branches: [main]
+    paths: ["apps/call-core/**", ".github/workflows/call-core.yml"]
+  pull_request:
+    paths: ["apps/call-core/**", ".github/workflows/call-core.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/call-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Unit tests (node --test)
+        run: npm test
+      # Zwei Chromium in getrennten Netzen, lokales coturn mit Wegwerf-Secret, kein Live-Dienst.
+      - name: Medienfluss, TURN und Wiederverbindung
+        env:
+          E2E_REPORT: ${{ runner.temp }}/call-e2e.json
+        run: npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: call-e2e-report
+          path: ${{ runner.temp }}/call-e2e.json
