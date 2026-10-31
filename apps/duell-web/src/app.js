@@ -374,7 +374,16 @@ function backToEditor() {
 }
 $("dhome").addEventListener("click", goHome);
 $("edback").addEventListener("click", function () { Kit.sfx.tap(); goHome(); });
-$("shback").addEventListener("click", function () { Kit.sfx.tap(); goHome(); });
+$("shback").addEventListener("click", function () { Kit.sfx.tap(); if (!backFromStyle()) goHome(); });
+// My style opened from the editor returns there with the work intact; new colours apply unless they were chosen by hand.
+function backFromStyle() {
+  if (!ed || !ed.styling) return false;
+  ed.styling = false;
+  if (ed.doc.col.join() === ed.base.col.join()) { ed.doc.col = me.colors.slice(); ed.base.col = me.colors.slice(); }
+  $("edstyle").textContent = me.emoji; show("editor");
+  if (ed.doc.k === "game") G.demo($("demo"), gameState());
+  changed(); return true;
+}
 $("gback").addEventListener("click", function () { Kit.sfx.tap(); goHome(); });
 function gameToEditor() {
   var s = G.current(), d = { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji } };
@@ -451,7 +460,7 @@ function labels() {
 $("lang").addEventListener("click", function () { Kit.lang = Kit.lang === "de" ? "en" : "de"; store.lang = Kit.lang; Kit.save(); labels(); if (home) setHome(home, false); });
 $("mute").addEventListener("click", function () { Kit.muted = !Kit.muted; store.muted = Kit.muted; Kit.save(); labels(); Kit.sfx.tap(); });
 $("me").addEventListener("click", function () { Kit.sfx.tap(); openStyle(); });
-$("edstyle").addEventListener("click", function () { /* the editor stays open underneath */ Kit.sfx.tap(); var keep = ed; openStyle(); ed = keep; });
+$("edstyle").addEventListener("click", function () { Kit.sfx.tap(); ed.styling = true; openStyle(); });
 $("more").addEventListener("click", function () { tear(1); });
 $("past").addEventListener("click", function () { Kit.sfx.tap(); openPast(); });
 $("wall").addEventListener("click", function () { Kit.sfx.tap(); openWall(); });
@@ -462,7 +471,7 @@ $("go").addEventListener("click", function () {
   else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea });
 });
 window.addEventListener("resize", function () { if (screen === "home") fitHero(); });
-window.addEventListener("popstate", function () { if (screen !== "home" && !location.hash) goHome(); });   // with a hash, hashchange decides
+window.addEventListener("popstate", function () { if (screen !== "home" && !location.hash && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
 
 function route() {
   var r = D.parseRoute(location.hash);

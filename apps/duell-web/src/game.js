@@ -146,7 +146,7 @@ function showResult() {
   } else line = t("bestN", { n: Math.max(prevBest, sc) });
   $("res-line").textContent = line; $("res-score").textContent = String(sc);
   // Own changes make sharing the main action; a game nobody touched asks for a remix first.
-  $("challenge").classList.toggle("hot", !!opts.own); $("toremix").classList.toggle("hot", !opts.own);
+  $("image").hidden = !opts.own; $("challenge").classList.toggle("hot", !!opts.own); $("toremix").classList.toggle("hot", !opts.own);
   $("gamebtns").insertBefore(opts.own ? $("challenge") : $("toremix"), $("gamebtns").firstChild);
   $("result").classList.add("show");
 }
