@@ -112,6 +112,19 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 #res-score{text-align:center;font:900 80px/1 var(--disp);font-variant-numeric:tabular-nums}
 #res-line{text-align:center;min-height:20px;margin:2px 14px 10px}
 #gamebtns{display:flex;flex-direction:column;gap:6px;padding:0 18px 6px}
+#cogo{font-size:19px}
+#cobar{flex:none;display:flex;align-items:center;gap:8px;min-height:38px;padding:2px 8px 2px 14px;background:var(--ink);color:#fff;font:800 13px var(--ui)}
+#costatus{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#cobar.off{background:#7a1f12}
+#coleave{min-height:34px;padding:0 10px;border:2px solid #fff;border-radius:4px;background:transparent;color:#fff;font:800 13px var(--ui)}
+#cosheet{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.6)}
+#cosheet[hidden]{display:none}
+#cobox{width:100%;max-width:360px;max-height:100%;overflow-y:auto;background:var(--paper);color:var(--ink);border:3px solid var(--ink);border-radius:6px;padding:14px;box-shadow:6px 7px 0 var(--ink)}
+#cotitle{margin:0 0 6px;font:900 26px/1.05 var(--disp);text-transform:uppercase}
+#cotext{margin:0 0 10px;font-size:14px;font-weight:600}
+#coqr{display:block;width:100%;max-width:300px;height:auto;margin:0 auto 10px;background:#fff;image-rendering:pixelated}
+#coqr[hidden]{display:none}
+#coacts{display:flex;flex-direction:column;gap:6px}
 #toast{position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 56px);bottom:auto;transform:translate(-50%,16px);background:var(--ink);color:#fff;padding:11px 14px;font-weight:800;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:86vw;text-align:center;z-index:9;border-radius:4px}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 @media (min-width:600px){.scr,#game{left:50%;right:auto;width:440px;margin-left:-220px}}

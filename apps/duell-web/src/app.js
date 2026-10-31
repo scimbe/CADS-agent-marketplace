@@ -60,7 +60,7 @@ function setHome(h, animate) {
 }
 function dayHome() { return { date: today, idea: D.ideaForDay(today) }; }
 function goHome() {
-  stopSound(); G.stop(); ed = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
+  CU.end(); stopSound(); G.stop(); ed = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
   if (!home) home = dayHome(); setHome(home, true);
 }
 function tear(dir) {
@@ -92,7 +92,7 @@ function paint() {
   timer = 0; if (!ed) return;
   ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1]);
   if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks }); }
-  footer();
+  footer(); CU.local();
 }
 function changed() {           // every control ends up here: redraw within the next moment
   if (!timer) timer = setTimeout(paint, 16);
@@ -128,7 +128,7 @@ function openEditor(doc, opt) {
   });
   tab(list[0]);
   if (g) G.demo($("demo"), gameState());
-  paint();
+  paint(); CU.editor();
 }
 function tab(k) {
   ed.tab = k; Array.from($("tabs").children).forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.k === k)); });
@@ -252,7 +252,7 @@ var PANEL = {
     if (!ed || !ed.doc.sk) return; var p = pos(e), l = ed.doc.sk;
     for (var i = l.length - 1; i >= 0; i--) { if (Math.hypot(l[i].x - p.x, (l[i].y - p.y) * 1.25) < 0.1 * l[i].z) { drag = i; ed.sel = i; try { cv.setPointerCapture(e.pointerId); } catch (x) {} Kit.sfx.tap(); return; } }
   });
-  cv.addEventListener("pointermove", function (e) { if (drag < 0 || !ed) return; var p = pos(e), s = ed.doc.sk[drag]; s.x = Math.min(1, Math.max(0, p.x)); s.y = Math.min(1, Math.max(0, p.y)); changed(); });
+  cv.addEventListener("pointermove", function (e) { if (drag < 0 || !ed) return; var p = pos(e), s = ed.doc.sk[drag]; if (!s) return; s.x = Math.min(1, Math.max(0, p.x)); s.y = Math.min(1, Math.max(0, p.y)); changed(); });
   function up() { drag = -1; }
   cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
 })();
@@ -455,7 +455,7 @@ function labels() {
   $("brand").textContent = t("brand"); $("lang").textContent = Kit.lang.toUpperCase(); $("me").textContent = me.emoji;
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
   $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home");
-  $("save").hidden = !Kit.canSave();
+  $("save").hidden = !Kit.canSave(); CU.labels();
   // Inside the app shells (DuellHost.more) a quiet "more" opens the native extras; in a browser it stays hidden.
   var host = window.DuellHost && typeof window.DuellHost.more === "function";
   $("host").hidden = !host; $("host").setAttribute("aria-label", t("hostMore"));
@@ -478,6 +478,7 @@ window.addEventListener("resize", function () { if (screen === "home") fitHero()
 window.addEventListener("popstate", function () { if (screen !== "home" && !location.hash && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
 
 function route() {
+  if (CU.route(location.hash)) { clearLink(); if (screen !== "editor") goHomeKeep(); return true; }
   var r = D.parseRoute(location.hash);
   if (r && r.type === "challenge") {
     var st = Object.assign({}, r.state), riv = typeof st.score === "number" ? { score: st.score, name: st.name || "" } : null;
@@ -490,11 +491,26 @@ function route() {
   }
   return false;
 }
-function goHomeKeep() { stopSound(); G.stop(); ed = null; setInk(me.colors[0], me.colors[1]); show("home"); setHome(home, true); }
+function goHomeKeep() { if (!home) home = dayHome(); stopSound(); G.stop(); ed = null; setInk(me.colors[0], me.colors[1]); show("home"); setHome(home, true); }
 window.addEventListener("hashchange", route);
 
+/* Zusammen bauen (collab-ui.js) reaches the editor only through these. */
+var CU = window.CollabUI.init({
+  ed: function () { return ed; }, me: function () { return me; }, changed: changed,
+  open: function (doc) { openEditor(doc, { idea: doc.i ? D.byId(doc.i) : null }); },
+  // A remote change arrived: redraw, and rebuild the open panel unless someone is typing or dragging in it.
+  remote: function (keys) {
+    if (ed.doc.k === "sound" && ed.doc.m === "beat") { beatPeaks(); if (loop) playBeat(); }
+    if (keys.indexOf("fx") >= 0) applyFx();
+    var a = document.activeElement, p = $("panel");
+    if (!(a && p.contains(a) && /^(INPUT|TEXTAREA)$/.test(a.tagName))) { var top = p.scrollTop; tab(ed.tab); p.scrollTop = top; }
+    trailLine(); changed();
+  },
+  more: function () { try { window.DuellHost.more(); } catch (e) {} }
+});
+
 /* test hook, used by browser checks: read-only snapshot */
-window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); } };
+window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); }, collab: function () { return CU.engine(); } };
 
 labels();
 if (!route()) goHome();

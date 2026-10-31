@@ -35,7 +35,8 @@
   </section>
 
   <section id="editor" class="scr" hidden>
-    <header class="bar tight"><button id="edback" class="ico" aria-label="Zurück">←</button><div id="edtitle"></div><button id="edstyle" class="ico" aria-label="Mein Stil"></button></header>
+    <header class="bar tight"><button id="edback" class="ico" aria-label="Zurück">←</button><div id="edtitle"></div><button id="cogo" class="ico" aria-label="Zusammen bauen">👥</button><button id="edstyle" class="ico" aria-label="Mein Stil"></button></header>
+    <div id="cobar" role="status" hidden><span id="costatus"></span><button id="coleave" type="button"></button></div>
     <div id="stagewrap"><canvas id="stage" width="540" height="675" aria-label="Vorschau"></canvas><div id="gamestage"><canvas id="demo" aria-label="Spielvorschau"></canvas></div></div>
     <div id="trail" hidden></div>
     <div id="tabs" role="tablist"></div>
@@ -70,14 +71,18 @@
       <div class="row"><button class="btn" id="again"></button><button class="btn" id="image"></button></div>
     </div>
   </section>
+  <div id="cosheet" role="dialog" aria-modal="true" aria-labelledby="cotitle" hidden><div id="cobox"><h2 id="cotitle"></h2><p id="cotext"></p><canvas id="coqr" width="330" height="330" aria-label="QR-Code" hidden></canvas><div id="coacts"></div></div></div>
   <div id="toast" role="status"></div>
 </div>
 <script>/*@DATA@*/</script>
+<script>/*@QRCODE@*/</script>
 <script>/*@CORE@*/</script>
 <script>/*@ENGINE@*/</script>
 <script>/*@DAILY@*/</script>
 <script>/*@STUDIO@*/</script>
 <script>/*@KIT@*/</script>
+<script>/*@COLLAB@*/</script>
+<script>/*@COLLABUI@*/</script>
 <script>/*@RENDER@*/</script>
 <script>/*@GAME@*/</script>
 <script>/*@APP@*/</script>
