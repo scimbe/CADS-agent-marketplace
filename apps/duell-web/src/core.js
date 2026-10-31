@@ -8,11 +8,12 @@
   var MAX_NAME = 16, MAX_TITLE = 28, MAX_PROMPT = 80, MAX_SCORE = 9999;
 
   var RANGES = {
-    gravity: [900, 2800, 1800],
-    jump: [320, 600, 430],
-    gap: [92, 200, 140],
-    speed: [85, 250, 130]
+    gravity: [900, 2600, 1800],
+    jump: [280, 620, 430],
+    gap: [90, 200, 140],
+    speed: [90, 260, 130]
   };
+  var ALIAS = { jump: "flapPower", gap: "pipeGap", speed: "pipeSpeed" };
   var THEME_NAMES = ["day", "night", "sunset", "retro", "candy", "neon", "ocean", "lava"];
   var DEFAULT_EMOJI = "🐤";
 
@@ -26,8 +27,9 @@
     var out = {};
     p = p && typeof p === "object" ? p : {};
     Object.keys(RANGES).forEach(function (k) {
-      var r = RANGES[k];
-      out[k] = Math.round(clampNum(p[k], r[0], r[1], r[2]));
+      var r = RANGES[k], v = p[k];
+      if (v === undefined && ALIAS[k]) v = p[ALIAS[k]];   // API names: flapPower, pipeGap, pipeSpeed
+      out[k] = Math.round(clampNum(v, r[0], r[1], r[2]));
     });
     return out;
   }

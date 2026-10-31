@@ -34,7 +34,7 @@ test("Kodierung: Muell, falsche Version, zu lang, kaputtes UTF-8 -> null", () =>
 test("Begrenzung: Parameter werden hart geklemmt", () => {
   const evil = { ...base(), params: { gravity: 1e9, jump: -5, gap: 0, speed: "999" }, score: 1e12 };
   const st = C.decodeState(Buffer.from(JSON.stringify(evil)).toString("base64url"));
-  assert.deepEqual(st.params, { gravity: 2800, jump: 320, gap: 92, speed: 250 });
+  assert.deepEqual(st.params, { gravity: 2600, jump: 280, gap: 90, speed: 260 });
   assert.equal(st.score, C.MAX_SCORE);
 });
 test("Begrenzung: NaN, Strings, Objekte, fehlende Felder -> Defaults", () => {
@@ -118,9 +118,14 @@ test("Lokale Wortlogik: schnell/Nacht/Rakete wirken, gleiche Idee = gleiche Stre
 });
 test("API-Antwort wird wie ein Link behandelt (klemmen, filtern)", () => {
   const st = C.stateFromApi({ params: { gravity: 99999, jump: 1, gap: 1, speed: 1 }, theme: "<x>", title: "Scheisse", emoji: "hi" }, "test");
-  assert.deepEqual(st.params, { gravity: 2800, jump: 320, gap: 92, speed: 85 });
+  assert.deepEqual(st.params, { gravity: 2600, jump: 280, gap: 90, speed: 90 });
   assert.equal(st.theme, "day");
   assert.equal(st.title, "Duell");
   assert.equal(C.stateFromApi(null, "x"), null);
   assert.equal(C.stateFromApi({ params: "x" }, "x"), null);
+});
+test("API-Namen: flapPower/pipeGap/pipeSpeed werden angenommen und mit den API-Grenzen geklemmt", () => {
+  const st = C.stateFromApi({ params: { gravity: 2000, flapPower: 9999, pipeGap: 95, pipeSpeed: 1 }, theme: "lava", title: "Hallo", emoji: "\u{1F525}" }, "x");
+  assert.deepEqual(st.params, { gravity: 2000, jump: 620, gap: 95, speed: 90 });
+  assert.deepEqual(C.sanitizeParams({ gravity: 900, flapPower: 280, pipeGap: 200, pipeSpeed: 260 }), { gravity: 900, jump: 280, gap: 200, speed: 260 });
 });
