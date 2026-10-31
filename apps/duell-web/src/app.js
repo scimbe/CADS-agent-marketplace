@@ -456,8 +456,12 @@ function labels() {
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
   $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home");
   $("save").hidden = !Kit.canSave();
+  // Inside the app shells (DuellHost.more) a quiet "more" opens the native extras; in a browser it stays hidden.
+  var host = window.DuellHost && typeof window.DuellHost.more === "function";
+  $("host").hidden = !host; $("host").setAttribute("aria-label", t("hostMore"));
 }
 $("lang").addEventListener("click", function () { Kit.lang = Kit.lang === "de" ? "en" : "de"; store.lang = Kit.lang; Kit.save(); labels(); if (home) setHome(home, false); });
+$("host").addEventListener("click", function () { Kit.sfx.tap(); try { window.DuellHost.more(); } catch (e) {} });
 $("mute").addEventListener("click", function () { Kit.muted = !Kit.muted; store.muted = Kit.muted; Kit.save(); labels(); Kit.sfx.tap(); });
 $("me").addEventListener("click", function () { Kit.sfx.tap(); openStyle(); });
 $("edstyle").addEventListener("click", function () { Kit.sfx.tap(); ed.styling = true; openStyle(); });
@@ -494,4 +498,6 @@ window.DailyDebug = { me: function () { return me; }, doc: function () { return 
 
 labels();
 if (!route()) goHome();
+// The embedded display font loads after the first paint: fit the headline again once it is there.
+if (document.fonts && document.fonts.load) document.fonts.load('900 40px Anton').then(function () { if (screen === "home") fitHero(); }, function () {});
 })();

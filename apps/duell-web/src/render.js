@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   var C = window.DuellCore, S = window.Studio;
-  var FONT = 'Impact,"Avenir Next Condensed","Roboto Condensed","Arial Black",system-ui,sans-serif';
+  var FONT = 'Anton,Impact,"Avenir Next Condensed","Roboto Condensed","Arial Black",system-ui,sans-serif';
   var EMO = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 
   function lum(h) { var r = parseInt(h.slice(1, 3), 16), g = parseInt(h.slice(3, 5), 16), b = parseInt(h.slice(5, 7), 16); return (0.3 * r + 0.59 * g + 0.11 * b) / 255; }
