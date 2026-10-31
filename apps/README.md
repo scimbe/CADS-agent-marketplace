@@ -22,7 +22,7 @@ Authorization Code + PKCE (S256) im System-Browser, oeffentlicher Client ohne Se
 
 Konfiguration (Standardwerte, ueberschreibbar): API `https://bunsenbrenner.org`, Issuer `https://auth.bunsenbrenner.org/realms/ct-demo`, Client `cads-mobile`, Redirect iOS `org.bunsenbrenner.cads:/oauth2redirect`, Android `https://bunsenbrenner.org/app/oauth2redirect`.
 Android: `gradle -PcadsApiBase=... -PcadsIssuer=... -PcadsClientId=... -PcadsRedirectUri=...`; iOS: Info.plist-Schluessel `CadsApiBase`, `CadsOidcIssuer`, `CadsOidcClientId` (in `apps/ios/project.yml`).
-**Der Issuer-Host ist eine Annahme** und muss vor dem Produktivbetrieb mit dem tatsaechlichen Keycloak-Host abgeglichen werden.
+Der Issuer-Host `auth.bunsenbrenner.org` ist gegen den echten Keycloak geprueft: `/.well-known/openid-configuration` liefert genau diesen `issuer`, und der Client `cads-mobile` existiert mit dem App-Link-Redirect (Autorisierungsanfrage mit diesem Redirect wird dorthin zurueckgeleitet, ein fremder Redirect nicht).
 
 ### Deployment-Schritt fuer den Betreiber (Realm wurde nicht veraendert)
 
@@ -106,10 +106,15 @@ apps/ios/build-rust.sh
 cd apps/ios && xcodegen generate && xcodebuild -project CadsMarketplace.xcodeproj -scheme CadsMarketplace \
   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' build
 
-# Android: cargo-ndk + Kotlin-Bindings, dann Gradle (Wrapper-JAR ist nicht eingecheckt; Gradle >= 8.11)
+# Android: cargo-ndk + Kotlin-Bindings, dann Gradle ueber den eingecheckten Wrapper (Gradle 8.11.1, Distribution per SHA-256 gepinnt)
 rustup target add aarch64-linux-android x86_64-linux-android && cargo install cargo-ndk
 apps/android/build-rust.sh
-cd apps/android && gradle testDebugUnitTest assembleDebug
+cd apps/android && ./gradlew testDebugUnitTest assembleDebug assembleRelease   # Release ist unsigniert; Signatur siehe unten
 ```
 
 Das CI (`.github/workflows/mobile.yml`) fuehrt beides aus. Nur in Debug-Builds der iOS-App gibt es die Startargumente `-UIMockInstallations` und `-UITab <0|1>`: sie zeigen Beispieldaten in "Meine Installationen" ohne Server und werden fuer die CI-Screenshots genutzt. In Release-Builds sind sie nicht enthalten.
+
+### Release-Signatur und Emulator-Test (Android)
+
+* Das CI baut `assembleRelease` **unsigniert** und fuehrt die App in einem Emulator aus (`apps/android/emulator-smoke.sh`: Vorlagenliste mit lokal geprueftem Signaturstatus, Vorlagen-Detail mit Vertrauensanzeige, Formular mit Vorschau; die Anmeldung wird nicht geprueft). Fuer den Emulator wird eine Kopie mit einem Wegwerf-Schluessel signiert.
+* Die Release-Signatur erfolgt ausserhalb des CI mit dem Schluessel des Maintainers (`apksigner sign`); der Schluessel liegt nicht im Repository und nicht in CI-Secrets. Der SHA-256-Fingerabdruck des Zertifikats gehoert in `assetlinks.json` (siehe oben).
