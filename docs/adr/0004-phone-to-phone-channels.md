@@ -116,6 +116,14 @@ capability only produces a question to the user; `Policy::approve`, called after
 path by which capability data becomes an envelope. Unlisted capabilities get an automatic refusal
 without bothering the user.
 
+### Liveness and rejoin
+
+Both sides ping every 3 s while connected; 8 s of silence ends the session with one `Closed`. A
+network change kills TCP without a FIN, so without this a session would wait forever. Pings do not
+count against the inbound rate and never reach the app. The app then calls `connect` again with the
+stored contact: no new invite, same keys, same code. Nothing is buffered, so whatever was in flight is
+lost and retries belong to the layer above.
+
 ## Alternatives considered
 
 - **Claim invites** (`POST /me/channels/:c/claim-invites`): need a portal session on the recipient

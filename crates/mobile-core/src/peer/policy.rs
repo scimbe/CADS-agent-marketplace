@@ -17,6 +17,9 @@ pub const MAX_INBOUND_PER_MINUTE: usize = 120;
 /// Unanswered capability requests one peer may have open.
 pub const MAX_PENDING_REQUESTS: usize = 8;
 
+/// The serialized form of [`Envelope::Ping`].
+pub const PING_BYTES: &[u8] = br#"{"k":"ping"}"#;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "k", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Envelope {
@@ -25,6 +28,8 @@ pub enum Envelope {
     CapReq { id: u64, cap: String },
     CapRes { id: u64, ok: bool, data: Option<Value> },
     Bye,
+    /// Liveness only. Never reaches the app and does not count against the inbound rate.
+    Ping,
 }
 
 /// What the app sees of an inbound envelope.
@@ -64,6 +69,9 @@ impl Policy {
 
     /// Judge raw decrypted bytes. Malformed, oversized and over-rate input yields nothing.
     pub fn inbound(&mut self, raw: &[u8], now: u64) -> Decision {
+        if raw == PING_BYTES {
+            return Decision::default();
+        }
         self.arrivals.retain(|t| now.saturating_sub(*t) < 60);
         if raw.len() > MAX_ENVELOPE_BYTES || self.arrivals.len() >= MAX_INBOUND_PER_MINUTE {
             return Decision::default();
@@ -86,6 +94,7 @@ impl Policy {
             }
             Envelope::CapRes { id, ok, data } => deliver(Inbound::CapResult { id, ok, data }),
             Envelope::Bye => deliver(Inbound::PeerLeft),
+            Envelope::Ping => Decision::default(),
         }
     }
 
@@ -167,6 +176,16 @@ mod tests {
         assert_eq!(feed(&mut p, json!({"k":"text","text":"x"})), Decision::default());
         assert!(p.inbound(br#"{"k":"text","text":"x"}"#, 1_061).deliver.is_some(), "the window slides");
         assert_eq!(p.inbound(&vec![b' '; MAX_ENVELOPE_BYTES + 1], 1_061), Decision::default());
+    }
+
+    #[test]
+    fn heartbeats_stay_invisible_and_cost_no_rate() {
+        assert_eq!(serde_json::to_vec(&Envelope::Ping).unwrap(), PING_BYTES);
+        let mut p = policy();
+        for _ in 0..1_000 {
+            assert_eq!(p.inbound(PING_BYTES, 1_000), Decision::default());
+        }
+        assert!(feed(&mut p, json!({"k":"text","text":"x"})).deliver.is_some());
     }
 
     #[test]

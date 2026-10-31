@@ -93,6 +93,17 @@ grep -qx 'cap 1 ok=false' "$T/a.out" || fail "unlisted capability not refused"
 grep -q '^cap 2 ok=true data=.*Wolken' "$T/a.out" || fail "approved capability did not arrive"
 pass "tool calls ignored, unlisted capability refused, data only after the tap"
 
+# 5b. Rejoin: a new session from the stored contacts, with no new invite and no account.
+env -u PEER_TOKEN "$PEER_DEMO_BIN" run-invitee "$T/b.json" "$T/tap-b2" "zweite-sitzung-B" >"$T/b2.out" 2>&1 &
+B_PID=$!
+sleep 1
+env -u PEER_TOKEN "$PEER_DEMO_BIN" run-inviter "$T/a.json" "$T/tap-a2" "zweite-sitzung-A" >"$T/a2.out" 2>&1 || { cat "$T/a2.out" "$T/b2.out"; fail "rejoin inviter"; }
+wait $B_PID || { cat "$T/a2.out" "$T/b2.out"; fail "rejoin invitee"; }
+grep -qx "got text zweite-sitzung-A" "$T/b2.out" || fail "no delivery after rejoin"
+grep -qx "got text zweite-sitzung-B" "$T/a2.out" || fail "no delivery after rejoin"
+[ "$(grep '^code ' "$T/a.out")" = "$(grep '^code ' "$T/a2.out")" ] || fail "the code changed across sessions"
+pass "rejoin from stored contacts, no new invite, same code"
+
 # 6. An expired link.
 "$PEER_DEMO_BIN" invite "$T/x.json" "$T/link-x" 1 >/dev/null
 sleep 2

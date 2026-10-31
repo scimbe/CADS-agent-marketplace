@@ -29,6 +29,11 @@ const DEFAULT_SNI: &str = "localhost";
 /// The admission exchange bound of ct-agent's plain `:443` leg; the park lease fits inside it.
 const JOIN_EXCHANGE_TIMEOUT: Duration = Duration::from_secs(45);
 const NOISE_TIMEOUT: Duration = Duration::from_secs(15);
+/// Both sides send a ping this often while connected.
+pub const HEARTBEAT: Duration = Duration::from_secs(3);
+/// Silence after which the path counts as dead. A network change kills TCP without a FIN, so
+/// without this a session would wait forever. Rejoining needs only the stored contact.
+pub const DEAD_AFTER: Duration = Duration::from_secs(8);
 
 fn net(e: impl std::fmt::Display) -> PeerError {
     PeerError::Network { detail: e.to_string().chars().take(120).collect() }
@@ -127,6 +132,13 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send> Established<S> {
         Ok(Joined::Paired(Box::new(Self { read, write, noise, inbox: Vec::new(), peer_noise, code })))
     }
 
+    /// A session on any stream, for tests of the loop above it.
+    #[cfg(test)]
+    pub(crate) fn from_parts(stream: S, noise: snow::TransportState) -> Self {
+        let (read, write) = split(stream);
+        Self { read, write, noise, inbox: Vec::new(), peer_noise: [0; 32], code: String::new() }
+    }
+
     pub async fn send_raw(&mut self, plaintext: &[u8]) -> Result<(), PeerError> {
         a2a_send(&mut self.write, &mut self.noise, plaintext).await.map_err(net)
     }
@@ -136,7 +148,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send> Established<S> {
         if bytes.len() > MAX_ENVELOPE_BYTES {
             return Err(PeerError::TooLarge);
         }
-        self.send_raw(&bytes).await
+        // A dead path with a full send buffer must not stall the loop past the heartbeat.
+        tokio::time::timeout(DEAD_AFTER, self.send_raw(&bytes)).await.map_err(|_| PeerError::Closed)?
     }
 
     /// Next decrypted message. Cancel-safe: the app's loop selects this against outgoing work, and

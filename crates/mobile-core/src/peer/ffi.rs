@@ -2,15 +2,16 @@
 //! the app keeps in Keystore/Keychain; this core persists nothing.
 
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde_json::Value;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
 
 use super::invite::{Contact, INVITE_TTL_DEFAULT_SECS};
 use super::policy::{Envelope, Inbound, Policy};
-use super::session::connect;
+use super::session::{connect, Established, DEAD_AFTER, HEARTBEAT};
 use super::{cp, PeerConfig, PeerError};
 
 fn bad(detail: &str) -> PeerError {
@@ -83,6 +84,61 @@ enum Out {
     Decline(u64),
 }
 
+/// The session loop. Ends with exactly one `Closed`: peer gone, network changed or heartbeat
+/// silent for `dead_after`. The app then calls `PeerSession.connect` with the same contact; no new
+/// invite is involved. Messages in flight at that moment are lost, nothing is buffered.
+async fn pump<S: AsyncRead + AsyncWrite + Unpin + Send>(
+    session: &mut Established<S>,
+    mut policy: Policy,
+    mut out_rx: mpsc::Receiver<Out>,
+    ev_tx: mpsc::Sender<PeerEvent>,
+    heartbeat: Duration,
+    dead_after: Duration,
+) {
+    let mut beat = tokio::time::interval(heartbeat);
+    beat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut last_heard = Instant::now();
+    // Writes happen in arm bodies, never in a select condition: a write cut short would break
+    // the Noise stream. Only `recv_raw` is cancelled, and it is cancel-safe.
+    let closed = loop {
+        tokio::select! {
+            raw = session.recv_raw() => {
+                last_heard = Instant::now();
+                let judged = match raw {
+                    Ok(r) => session.judge(&r, &mut policy).await,
+                    Err(e) => Err(e),
+                };
+                match judged {
+                    Ok(Some(i)) => { let _ = ev_tx.send(i.into()).await; }
+                    Ok(None) => {}
+                    Err(_) => break true,
+                }
+            }
+            cmd = out_rx.recv() => {
+                let env = match cmd {
+                    Some(Out::Env(e)) => Ok(e),
+                    Some(Out::Approve(id, data)) => policy.approve(id, data),
+                    Some(Out::Decline(id)) => policy.decline(id),
+                    None => break false,
+                };
+                if let Ok(e) = env {
+                    if session.send(&e).await.is_err() {
+                        break true;
+                    }
+                }
+            }
+            _ = beat.tick() => {
+                if last_heard.elapsed() >= dead_after || session.send(&Envelope::Ping).await.is_err() {
+                    break true;
+                }
+            }
+        }
+    };
+    if closed {
+        let _ = ev_tx.send(PeerEvent::Closed).await;
+    }
+}
+
 /// A live session. `next_event` and the send calls may run on different threads.
 #[derive(uniffi::Object)]
 pub struct PeerSession {
@@ -111,7 +167,7 @@ impl PeerSession {
             .enable_all()
             .build()
             .map_err(|_| bad("runtime"))?;
-        let (out, mut out_rx) = mpsc::channel::<Out>(32);
+        let (out, out_rx) = mpsc::channel::<Out>(32);
         let (ev_tx, events) = mpsc::channel::<PeerEvent>(64);
         let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<([u8; 32], String), PeerError>>();
         let task_contact = contact.clone();
@@ -126,36 +182,8 @@ impl PeerSession {
                     return;
                 }
             };
-            let mut policy = Policy::new(&capabilities, &namespaces);
-            loop {
-                tokio::select! {
-                    raw = session.recv_raw() => {
-                        let judged = match raw {
-                            Ok(r) => session.judge(&r, &mut policy).await,
-                            Err(e) => Err(e),
-                        };
-                        match judged {
-                            Ok(Some(i)) => { let _ = ev_tx.send(i.into()).await; }
-                            Ok(None) => {}
-                            Err(_) => { let _ = ev_tx.send(PeerEvent::Closed).await; return; }
-                        }
-                    }
-                    cmd = out_rx.recv() => {
-                        let env = match cmd {
-                            Some(Out::Env(e)) => Ok(e),
-                            Some(Out::Approve(id, data)) => policy.approve(id, data),
-                            Some(Out::Decline(id)) => policy.decline(id),
-                            None => return,
-                        };
-                        if let Ok(e) = env {
-                            if session.send(&e).await.is_err() {
-                                let _ = ev_tx.send(PeerEvent::Closed).await;
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
+            let policy = Policy::new(&capabilities, &namespaces);
+            pump(&mut session, policy, out_rx, ev_tx, HEARTBEAT, DEAD_AFTER).await;
         });
         let (peer_noise, code) = ready_rx.recv().map_err(|_| PeerError::Closed)??;
         contact.peer_noise = Some(ct_common::hex::encode(&peer_noise));
@@ -215,5 +243,71 @@ impl PeerSession {
 impl PeerSession {
     fn push(&self, o: Out) -> Result<(), PeerError> {
         self.out.blocking_send(o).map_err(|_| PeerError::Closed)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ct_common::a2a::{a2a_initiate, a2a_respond_with_peer_key};
+    use tokio::io::{duplex, split, DuplexStream};
+
+    async fn pair() -> (Established<DuplexStream>, Established<DuplexStream>) {
+        let (a, b) = duplex(1 << 16);
+        let (mut ar, mut aw) = split(a);
+        let (mut br, mut bw) = split(b);
+        let k = ct_common::noise::generate_static_keypair();
+        let i = ct_common::noise::generate_static_keypair();
+        let (ta, tb) = tokio::join!(
+            a2a_initiate(&mut aw, &mut ar, &i.private, &k.public),
+            a2a_respond_with_peer_key(&mut bw, &mut br, &k.private)
+        );
+        (
+            Established::from_parts(ar.unsplit(aw), ta.unwrap()),
+            Established::from_parts(br.unsplit(bw), tb.unwrap().0),
+        )
+    }
+
+    const BEAT: Duration = Duration::from_millis(40);
+    const DEAD: Duration = Duration::from_millis(200);
+
+    /// The network-change case: the stream stays open and silent, no FIN ever arrives.
+    #[tokio::test]
+    async fn a_silently_dead_path_ends_in_closed_within_the_bound() {
+        let (mut a, _silent_b) = pair().await;
+        let (_out, out_rx) = mpsc::channel(4);
+        let (ev_tx, mut ev) = mpsc::channel(4);
+        let started = Instant::now();
+        let run = tokio::spawn(async move { pump(&mut a, Policy::new(&[], &[]), out_rx, ev_tx, BEAT, DEAD).await });
+        assert!(matches!(ev.recv().await, Some(PeerEvent::Closed)));
+        run.await.unwrap();
+        assert!(started.elapsed() >= DEAD, "not before the bound");
+        assert!(started.elapsed() < DEAD * 3, "took {:?}", started.elapsed());
+    }
+
+    /// Two healthy sides keep each other alive through heartbeats alone, and the app sees none.
+    #[tokio::test]
+    async fn heartbeats_keep_a_quiet_session_open_and_stay_invisible() {
+        let (mut a, mut b) = pair().await;
+        let (out_a, rx_a) = mpsc::channel(4);
+        let (out_b, rx_b) = mpsc::channel(4);
+        let (tx_a, mut ev_a) = mpsc::channel(4);
+        let (tx_b, _ev_b) = mpsc::channel(4);
+        tokio::spawn(async move { pump(&mut a, Policy::new(&[], &[]), rx_a, tx_a, BEAT, DEAD).await });
+        tokio::spawn(async move { pump(&mut b, Policy::new(&[], &[]), rx_b, tx_b, BEAT, DEAD).await });
+        assert!(tokio::time::timeout(DEAD * 4, ev_a.recv()).await.is_err(), "no event, no close");
+        out_b.send(Out::Env(Envelope::Text { text: "still here".into() })).await.unwrap();
+        assert!(matches!(ev_a.recv().await, Some(PeerEvent::Text { text }) if text == "still here"));
+        drop(out_a);
+    }
+
+    #[tokio::test]
+    async fn a_peer_closing_cleanly_ends_in_closed_at_once() {
+        let (mut a, b) = pair().await;
+        let (_out, out_rx) = mpsc::channel(4);
+        let (ev_tx, mut ev) = mpsc::channel(4);
+        tokio::spawn(async move { pump(&mut a, Policy::new(&[], &[]), out_rx, ev_tx, BEAT, Duration::from_secs(60)).await });
+        drop(b);
+        assert!(matches!(tokio::time::timeout(DEAD, ev.recv()).await, Ok(Some(PeerEvent::Closed))));
     }
 }
