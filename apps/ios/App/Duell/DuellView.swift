@@ -174,7 +174,7 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
 #if DEBUG
 /// CI helpers (DEBUG builds only):
 ///  `-DuellChallenge <fragment>`  open with a challenge fragment, like a Universal Link would
-///  `-DuellReport`               after load, click the first button and write Documents/duell-report.json
+///  `-DuellReport`               after load, tap the game (or click the first button) and write Documents/duell-report.json
 enum DuellDebug {
     static var launchFragment: String? {
         let a = ProcessInfo.processInfo.arguments
@@ -187,7 +187,8 @@ enum DuellDebug {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             let snap = "JSON.stringify({hash: location.hash, text: document.body.innerText, href: location.href})"
             web.evaluateJavaScript(snap) { before, _ in
-                web.evaluateJavaScript("var b=document.querySelector('button'); var l=b?b.innerText:''; if(b) b.click(); l") { label, _ in
+                let act = "var a=document.getElementById('app'),l='';if(a){a.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,cancelable:true}));l='tap on #app'}else{var b=document.querySelector('button');if(b){l=b.innerText;b.click()}}l"
+                web.evaluateJavaScript(act) { label, _ in
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                         web.evaluateJavaScript(snap) { after, _ in
                             let report: [String: Any] = [

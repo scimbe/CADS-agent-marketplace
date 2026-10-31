@@ -130,6 +130,12 @@ jobs:
           echo "4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806  /tmp/xcodegen.zip" | shasum -a 256 -c -
           unzip -q /tmp/xcodegen.zip -d /tmp/xcodegen-dist
           echo "/tmp/xcodegen-dist/xcodegen/bin" >> "$GITHUB_PATH"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+      - name: Build the Duell web game (apps/duell-web/dist/index.html, bundled into the app)
+        working-directory: apps/duell-web
+        run: npm run build
       - name: Build Rust core XCFramework + Swift bindings
         run: apps/ios/build-rust.sh
       - name: Generate Xcode project and build for the iOS simulator
@@ -166,7 +172,7 @@ jobs:
           }
           # Tabs: 0 Duell (default), 1 Vorlagen, 2 Installationen, 3 Vorlage-Detail
           shot 1-duell -UITab 0 -DuellReport
-          CH=$(printf '{"v":1,"n":"Mira-Test"}' | base64 | tr '+/' '-_' | tr -d '=\n')
+          CH=$(node -e "const C=require('./../duell-web/src/core.js');process.stdout.write(C.encodeState({v:1,name:'Mira-Test',score:7}))")
           shot 2-duell-challenge -UITab 0 -DuellChallenge "c=$CH" -DuellReport
           shot 3-vorlagen -UITab 1
           shot 4-installationen -UITab 2
@@ -184,11 +190,9 @@ jobs:
           cb = json.loads(chal["before"])
           assert cb["hash"] == "#c=" + ch, f"challenge fragment not taken over: {cb['hash']!r}"
           assert cb["href"].startswith("file://") and cb["href"].endswith("duell/index.html#c=" + ch)
-          if "PLATZHALTER" in b["text"]:
-              assert "Mira-Test" in cb["text"], "challenge content not shown"
-              print("placeholder page: challenge content shown")
-          else:
-              print("real page: fragment taken over (content check only on the placeholder)")
+          assert "PLATZHALTER" not in b["text"], "placeholder bundled instead of the real game"
+          assert "Mira-Test" in cb["text"] and "7" in cb["text"], f"challenge content not shown: {cb['text']!r}"
+          print("challenge banner:", cb["text"].strip().splitlines()[:6])
           print("duell checks ok; clicked:", start["clicked"])
           PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
