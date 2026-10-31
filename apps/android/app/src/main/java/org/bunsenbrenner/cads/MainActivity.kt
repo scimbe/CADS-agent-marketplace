@@ -94,6 +94,7 @@ private fun Root(vm: AppViewModel, onImmersive: (Boolean) -> Unit) {
         onSignOut = { vm.auth.signOut()?.let { endSessionLauncher.launch(it) } },
         duellFragment = vm.duellFragment,
         duellLinkSeq = vm.duellLinkSeq,
+        peerToken = { vm.auth.accessToken() },
         onImmersive = onImmersive,
     )
 }

@@ -166,7 +166,9 @@ fn wire_input(i: &InstallationInput) -> Result<String, MobileError> {
     let values: Value = serde_json::from_str(&i.values_json)
         .ok()
         .filter(Value::is_object)
-        .ok_or_else(|| MobileError::InvalidInput { detail: "values_json must be a JSON object".into() })?;
+        .ok_or_else(|| MobileError::InvalidInput {
+            detail: "values_json must be a JSON object".into(),
+        })?;
     serde_json::to_string(&WireInput {
         name: &i.name,
         template_id: &i.template_id,
@@ -178,11 +180,16 @@ fn wire_input(i: &InstallationInput) -> Result<String, MobileError> {
         target: &i.target,
         status: i.status,
     })
-    .map_err(|e| MobileError::InvalidInput { detail: e.to_string() })
+    .map_err(|e| MobileError::InvalidInput {
+        detail: e.to_string(),
+    })
 }
 
 fn component_record(c: &ComponentInfo) -> ComponentRecord {
-    ComponentRecord { name: c.name.clone(), sha256: c.sha256.clone() }
+    ComponentRecord {
+        name: c.name.clone(),
+        sha256: c.sha256.clone(),
+    }
 }
 
 /// Build the payload to save a freshly rendered prompt: digests and components come from the
@@ -201,7 +208,11 @@ pub fn installation_input_from_render(
         values_json,
         values_digest: rendered.values_digest,
         components: rendered.components.iter().map(component_record).collect(),
-        manifest_ids: rendered.components.iter().filter_map(|c| c.manifest_id.clone()).collect(),
+        manifest_ids: rendered
+            .components
+            .iter()
+            .filter_map(|c| c.manifest_id.clone())
+            .collect(),
         target,
         status: None,
     }
@@ -236,15 +247,21 @@ fn is_loopback(host: &str) -> bool {
 
 /// Normalised base URL; `https` required except for loopback hosts.
 fn check_base(base_url: &str) -> Result<(String, bool), MobileError> {
-    let bad = |m: &str| MobileError::InvalidInput { detail: m.to_string() };
+    let bad = |m: &str| MobileError::InvalidInput {
+        detail: m.to_string(),
+    };
     let trimmed = base_url.trim().trim_end_matches('/');
-    let (scheme, rest) = trimmed.split_once("://").ok_or_else(|| bad("base_url needs a scheme"))?;
+    let (scheme, rest) = trimmed
+        .split_once("://")
+        .ok_or_else(|| bad("base_url needs a scheme"))?;
     let authority = rest.split('/').next().unwrap_or("");
     if authority.is_empty() || authority.contains('@') {
         return Err(bad("base_url needs a host and no credentials"));
     }
     let host = if authority.starts_with('[') {
-        authority.split_once(']').map_or(authority, |(h, _)| &authority[..h.len() + 1])
+        authority
+            .split_once(']')
+            .map_or(authority, |(h, _)| &authority[..h.len() + 1])
     } else {
         authority.split(':').next().unwrap_or("")
     };
@@ -268,10 +285,19 @@ impl InstallationsClient {
             .max_redirects(0)
             .build()
             .into();
-        Ok(Arc::new(Self { base, tokens, agent }))
+        Ok(Arc::new(Self {
+            base,
+            tokens,
+            agent,
+        }))
     }
 
-    pub fn list(&self, status: Option<InstallationStatus>, limit: Option<u32>, offset: Option<u32>) -> Result<InstallationPage, MobileError> {
+    pub fn list(
+        &self,
+        status: Option<InstallationStatus>,
+        limit: Option<u32>,
+        offset: Option<u32>,
+    ) -> Result<InstallationPage, MobileError> {
         let mut q = Vec::new();
         if let Some(s) = status {
             q.push(format!("status={}", s.as_str()));
@@ -282,10 +308,19 @@ impl InstallationsClient {
         if let Some(o) = offset {
             q.push(format!("offset={o}"));
         }
-        let qs = if q.is_empty() { String::new() } else { format!("?{}", q.join("&")) };
+        let qs = if q.is_empty() {
+            String::new()
+        } else {
+            format!("?{}", q.join("&"))
+        };
         let (_, body) = self.send("GET", &format!("/me/installations{qs}"), None, None)?;
         let p: WirePage = decode(&body)?;
-        Ok(InstallationPage { items: p.items.into_iter().map(Into::into).collect(), total: p.total, limit: p.limit, offset: p.offset })
+        Ok(InstallationPage {
+            items: p.items.into_iter().map(Into::into).collect(),
+            total: p.total,
+            limit: p.limit,
+            offset: p.offset,
+        })
     }
 
     pub fn get(&self, id: String) -> Result<InstallationRecord, MobileError> {
@@ -301,7 +336,12 @@ impl InstallationsClient {
 
     /// Update with optimistic concurrency: `if_match` is the revision the edit was based on.
     /// A stale one yields `Conflict { current_revision }`; reload with `get` and retry.
-    pub fn update(&self, id: String, if_match: i64, input: InstallationInput) -> Result<InstallationRecord, MobileError> {
+    pub fn update(
+        &self,
+        id: String,
+        if_match: i64,
+        input: InstallationInput,
+    ) -> Result<InstallationRecord, MobileError> {
         let body = wire_input(&input)?;
         let (_, resp) = self.send("PUT", &item_path(&id)?, Some(&body), Some(if_match))?;
         Ok(decode::<WireRecord>(&resp)?.into())
@@ -313,7 +353,13 @@ impl InstallationsClient {
     /// server's current state, with `If-Match` set to the fresh revision. Does not depend on the
     /// 409 body carrying a revision. A concurrent change between the GET and the PUT yields
     /// another `Conflict`.
-    pub fn overwrite(&self, id: String, name: String, values_json: Option<String>, values_digest: Option<String>) -> Result<InstallationRecord, MobileError> {
+    pub fn overwrite(
+        &self,
+        id: String,
+        name: String,
+        values_json: Option<String>,
+        values_digest: Option<String>,
+    ) -> Result<InstallationRecord, MobileError> {
         let fresh = self.get(id.clone())?;
         let rev = fresh.revision;
         let mut input = installation_input_from_record(fresh);
@@ -329,11 +375,16 @@ impl InstallationsClient {
 
     /// Soft delete (the server keeps the newest removed records restorable via `update`).
     pub fn delete(&self, id: String, if_match: Option<i64>) -> Result<(), MobileError> {
-        self.send("DELETE", &item_path(&id)?, None, if_match).map(|_| ())
+        self.send("DELETE", &item_path(&id)?, None, if_match)
+            .map(|_| ())
     }
 
     /// New draft copy; the server appends " (copy)" when `name` is `None`.
-    pub fn duplicate(&self, id: String, name: Option<String>) -> Result<InstallationRecord, MobileError> {
+    pub fn duplicate(
+        &self,
+        id: String,
+        name: Option<String>,
+    ) -> Result<InstallationRecord, MobileError> {
         let body = name.map(|n| serde_json::json!({ "name": n }).to_string());
         let path = format!("{}/duplicate", item_path(&id)?);
         let (_, resp) = self.send("POST", &path, body.as_deref(), None)?;
@@ -342,21 +393,36 @@ impl InstallationsClient {
 
     /// The account's installations as the server's export document (`installations.json`).
     pub fn export(&self) -> Result<String, MobileError> {
-        self.send("GET", "/me/installations/export", None, None).map(|(_, b)| b)
+        self.send("GET", "/me/installations/export", None, None)
+            .map(|(_, b)| b)
     }
 }
 
 impl InstallationsClient {
-    fn send(&self, method: &str, path: &str, body: Option<&str>, if_match: Option<i64>) -> Result<(u16, String), MobileError> {
-        let token = self.tokens.access_token().filter(|t| !t.is_empty()).ok_or(MobileError::Unauthorized)?;
+    fn send(
+        &self,
+        method: &str,
+        path: &str,
+        body: Option<&str>,
+        if_match: Option<i64>,
+    ) -> Result<(u16, String), MobileError> {
+        let token = self
+            .tokens
+            .access_token()
+            .filter(|t| !t.is_empty())
+            .ok_or(MobileError::Unauthorized)?;
         let url = format!("{}{}", self.base, path);
         let auth = format!("Bearer {token}");
-        let net = |e: ureq::Error| MobileError::Network { detail: sanitize(&e.to_string(), &token) };
+        let net = |e: ureq::Error| MobileError::Network {
+            detail: sanitize(&e.to_string(), &token),
+        };
         let if_match = if_match.map(|r| format!("\"{r}\""));
 
         macro_rules! common {
             ($req:expr) => {{
-                let mut r = $req.header("Authorization", &auth).header("Accept", "application/json");
+                let mut r = $req
+                    .header("Authorization", &auth)
+                    .header("Accept", "application/json");
                 if let Some(im) = &if_match {
                     r = r.header("If-Match", im);
                 }
@@ -367,7 +433,11 @@ impl InstallationsClient {
             "GET" => common!(self.agent.get(&url)).call(),
             "DELETE" => common!(self.agent.delete(&url)).call(),
             "POST" | "PUT" => {
-                let req = if method == "POST" { self.agent.post(&url) } else { self.agent.put(&url) };
+                let req = if method == "POST" {
+                    self.agent.post(&url)
+                } else {
+                    self.agent.put(&url)
+                };
                 let req = common!(req);
                 match body {
                     Some(b) => req.header("Content-Type", "application/json").send(b),
@@ -400,16 +470,25 @@ fn sanitize(msg: &str, token: &str) -> String {
 }
 
 fn item_path(id: &str) -> Result<String, MobileError> {
-    let ok = !id.is_empty() && id.len() <= 200 && id.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'));
+    let ok = !id.is_empty()
+        && id.len() <= 200
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'));
     if ok {
         Ok(format!("/me/installations/{id}"))
     } else {
-        Err(MobileError::InvalidInput { detail: "invalid installation id".into() })
+        Err(MobileError::InvalidInput {
+            detail: "invalid installation id".into(),
+        })
     }
 }
 
 fn decode<T: serde::de::DeserializeOwned>(body: &str) -> Result<T, MobileError> {
-    serde_json::from_str(body).map_err(|e| MobileError::Server { status: 200, detail: format!("unexpected response shape: {e}") })
+    serde_json::from_str(body).map_err(|e| MobileError::Server {
+        status: 200,
+        detail: format!("unexpected response shape: {e}"),
+    })
 }
 
 fn short(body: &str) -> String {
@@ -435,13 +514,21 @@ pub(crate) fn map_status(status: u16, body: &str) -> MobileError {
     match status {
         401 => MobileError::Unauthorized,
         404 => MobileError::NotFound,
-        409 => MobileError::Conflict { current_revision: parse_revision(body) },
+        409 => MobileError::Conflict {
+            current_revision: parse_revision(body),
+        },
         428 => MobileError::PreconditionRequired,
         422 => {
             let (path, message) = split_path(body);
-            MobileError::Rejected422 { path, detail: message }
+            MobileError::Rejected422 {
+                path,
+                detail: message,
+            }
         }
-        s => MobileError::Server { status: s, detail: short(body) },
+        s => MobileError::Server {
+            status: s,
+            detail: short(body),
+        },
     }
 }
 
@@ -455,7 +542,14 @@ mod tests {
         assert!(check_base("http://127.0.0.1:8080").is_ok());
         assert!(check_base("http://localhost:3000").is_ok());
         assert!(check_base("http://[::1]:3000").is_ok());
-        for bad in ["http://bunsenbrenner.org", "ftp://x", "bunsenbrenner.org", "https://", "https://user:pw@host", "http://127.0.0.1.evil.org"] {
+        for bad in [
+            "http://bunsenbrenner.org",
+            "ftp://x",
+            "bunsenbrenner.org",
+            "https://",
+            "https://user:pw@host",
+            "http://127.0.0.1.evil.org",
+        ] {
             assert!(check_base(bad).is_err(), "{bad}");
         }
     }
@@ -465,8 +559,13 @@ mod tests {
         assert!(matches!(map_status(401, ""), MobileError::Unauthorized));
         assert!(matches!(map_status(404, "x"), MobileError::NotFound));
         assert!(matches!(
-            map_status(409, "revision mismatch: the installation is at revision 7; reload and retry"),
-            MobileError::Conflict { current_revision: Some(7) }
+            map_status(
+                409,
+                "revision mismatch: the installation is at revision 7; reload and retry"
+            ),
+            MobileError::Conflict {
+                current_revision: Some(7)
+            }
         ));
         match map_status(422, "values.api_key: key looks like a secret") {
             MobileError::Rejected422 { path, .. } => assert_eq!(path, "values.api_key"),
@@ -476,7 +575,10 @@ mod tests {
             MobileError::Rejected422 { path, .. } => assert_eq!(path, ""),
             e => panic!("{e:?}"),
         }
-        assert!(matches!(map_status(500, "boom"), MobileError::Server { status: 500, .. }));
+        assert!(matches!(
+            map_status(500, "boom"),
+            MobileError::Server { status: 500, .. }
+        ));
     }
 
     #[test]

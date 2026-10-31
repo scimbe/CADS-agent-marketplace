@@ -6,11 +6,11 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 OUT=apps/android/app/src/main
 
-cargo ndk -t arm64-v8a -t x86_64 -o "$OUT/jniLibs" build -p mobile-core --features wasm --release
+cargo ndk -t arm64-v8a -t x86_64 -o "$OUT/jniLibs" build -p mobile-core --features wasm,peer --release
 
 # Bindings come from the host build of the same library (metadata is identical).
-cargo build -p mobile-core --release
-cargo build -p mobile-core --features cli --bin uniffi-bindgen --release
+cargo build -p mobile-core --features peer --release
+cargo build -p mobile-core --features cli,peer --bin uniffi-bindgen --release
 HOSTLIB=target/release/libmobile_core.so
 [ -f "$HOSTLIB" ] || HOSTLIB=target/release/libmobile_core.dylib
 target/release/uniffi-bindgen generate --library "$HOSTLIB" --language kotlin --no-format --out-dir "$OUT/java"

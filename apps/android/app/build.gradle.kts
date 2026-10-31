@@ -7,6 +7,10 @@ plugins {
 }
 
 // Deployment configuration (overridable: -PcadsIssuer=... -PcadsApiBase=... -PcadsClientId=...).
+// Phone channels ("Zusammen bauen"): without front door and edge CA the feature stays off and the page says so.
+val cadsPeerFrontDoor = (project.findProperty("cadsPeerFrontDoor") as String?) ?: ""
+val cadsPeerEdgeCaB64 = (project.findProperty("cadsPeerEdgeCaB64") as String?) ?: ""
+val cadsPeerSni = (project.findProperty("cadsPeerSni") as String?) ?: ""
 val cadsApiBase = (project.findProperty("cadsApiBase") as String?) ?: "https://bunsenbrenner.org"
 val cadsIssuer = (project.findProperty("cadsIssuer") as String?) ?: "https://auth.bunsenbrenner.org/realms/ct-demo"
 val cadsClientId = (project.findProperty("cadsClientId") as String?) ?: "cads-mobile"
@@ -53,6 +57,9 @@ android {
         manifestPlaceholders["redirectHost"] = redirect.host
         manifestPlaceholders["redirectPath"] = redirect.path
         buildConfigField("String", "API_BASE", "\"$cadsApiBase\"")
+        buildConfigField("String", "PEER_FRONT_DOOR", "\"$cadsPeerFrontDoor\"")
+        buildConfigField("String", "PEER_EDGE_CA_B64", "\"$cadsPeerEdgeCaB64\"")
+        buildConfigField("String", "PEER_SNI", "\"$cadsPeerSni\"")
         buildConfigField("String", "OIDC_ISSUER", "\"$cadsIssuer\"")
         buildConfigField("String", "OIDC_CLIENT_ID", "\"$cadsClientId\"")
         buildConfigField("String", "DUELL_API_BASE", "\"$duellApiBase\"")

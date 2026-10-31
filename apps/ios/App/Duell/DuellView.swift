@@ -31,8 +31,9 @@ private struct DuellWebView: UIViewRepresentable {
         let c = context.coordinator
         let config = WKWebViewConfiguration()
         let ucc = config.userContentController
-        // Only these handlers exist: share sheet (link / file), save, haptics and the quiet "more".
+        // Only these handlers exist: share sheet (link / file), save, haptics, the quiet "more" and the AI call.
         for name in DuellCoordinator.handlerNames { ucc.add(WeakHandler(c), name: name) }
+        ucc.addScriptMessageHandler(DuellAiBridge(), contentWorld: .page, name: "ai")   // the one network call, made by the shell
         ucc.addUserScript(WKUserScript(source: DuellCoordinator.hostScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         // The page keeps its wall and profile in localStorage; that has to survive a restart.
         config.websiteDataStore = .default()
@@ -75,6 +76,12 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
     private var queuedFragment: String?
     private var reported = false
     private var exportDir: URL?
+    private lazy var peer = PeerBridge(
+        port: PeerCoreAdapter.fromBuild(),
+        token: { AuthService.currentAccessToken() },
+        emit: { [weak self] json in DispatchQueue.main.async { self?.web?.evaluateJavaScript(PeerJson.call(json), completionHandler: nil) } },
+        spawn: { work in DispatchQueue.global(qos: .userInitiated).async(execute: work) }
+    )
 
     init(onMore: @escaping () -> Void) {
         self.onMore = onMore
@@ -87,15 +94,15 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
     }
 
     #if DEBUG
-    static let handlerNames = ["share", "shareFile", "saveFile", "haptic", "more", "dbgResult"]
+    static let handlerNames = ["share", "shareFile", "saveFile", "haptic", "more", "peerInvite", "peerAccept", "peerSend", "peerLeave", "dbgResult"]
     #else
-    static let handlerNames = ["share", "shareFile", "saveFile", "haptic", "more"]
+    static let handlerNames = ["share", "shareFile", "saveFile", "haptic", "more", "peerInvite", "peerAccept", "peerSend", "peerLeave"]
     #endif
 
     /// Exposes `window.DuellHost` to the page. `navigator.share` is removed on purpose: the page then
     /// always goes through `shareFile` / `share`, where type, size, name and link are checked and the
     /// cache file is cleaned up afterwards.
-    static let hostScript = """
+    static var hostScript: String { """
     try { delete Navigator.prototype.share; delete Navigator.prototype.canShare; } catch (e) {}
     (function () {
       var h = window.webkit.messageHandlers;
@@ -104,10 +111,16 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
         shareFile: function (b64, typ, name, url, text) { h.shareFile.postMessage({ b64: String(b64), typ: String(typ), name: String(name || ""), url: String(url || ""), text: String(text || "") }); },
         saveFile: function (b64, typ, name) { h.saveFile.postMessage({ b64: String(b64), typ: String(typ), name: String(name || "") }); },
         haptic: function (style) { h.haptic.postMessage({ style: String(style || "light") }); },
-        more: function () { h.more.postMessage({}); }
+        more: function () { h.more.postMessage({}); },
+        peerReady: function () { return \(PeerCoreAdapter.fromBuild() != nil); },
+        peerInvite: function () { h.peerInvite.postMessage({}); },
+        peerAccept: function (link) { h.peerAccept.postMessage({ link: String(link) }); },
+        peerSend: function (frame) { h.peerSend.postMessage({ frame: String(frame) }); },
+        peerLeave: function () { h.peerLeave.postMessage({}); },
+        ai: function (path, body) { return h.ai.postMessage({ path: String(path), body: String(body) }); }
       });
     })();
-    """
+    """ }
 
     static var bundledPage: URL? { Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "duell") }
 
@@ -118,8 +131,9 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
         #if DEBUG
         if fragment == nil { fragment = DuellDebug.launchFragment }
         #endif
-        // Block every network load (http/https) inside the page, then load the bundled page.
-        let rules = #"[{"trigger":{"url-filter":"^https?://"},"action":{"type":"block"}}]"#
+        // Block every network load (http/https) inside the page except the short-link API (it is only called after
+        // a tap on share, or to open a /s/ link), then load the bundled page.
+        let rules = #"[{"trigger":{"url-filter":"^https?://"},"action":{"type":"block"}},{"trigger":{"url-filter":"^https://demos-34a13a96\\.bunsenbrenner\\.org/api/s/?[0-9a-zA-Z]*$"},"action":{"type":"ignore-previous-rules"}}]"#
         WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "duell-no-network", encodedContentRuleList: rules) { [weak self] list, _ in
             DispatchQueue.main.async {
                 guard let self, let web = self.web, let base = self.pageURL else { return }
@@ -220,6 +234,10 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
             UIImpactFeedbackGenerator(style: style).impactOccurred()
         case "more":
             onMore()
+        case "peerInvite": peer.invite()
+        case "peerAccept": peer.accept(body["link"] as? String)
+        case "peerSend": peer.send(body["frame"] as? String)
+        case "peerLeave": peer.leave()
         default: break
         }
     }

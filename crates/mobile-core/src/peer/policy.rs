@@ -23,10 +23,22 @@ pub const PING_BYTES: &[u8] = br#"{"k":"ping"}"#;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "k", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Envelope {
-    Text { text: String },
-    App { ns: String, body: Value },
-    CapReq { id: u64, cap: String },
-    CapRes { id: u64, ok: bool, data: Option<Value> },
+    Text {
+        text: String,
+    },
+    App {
+        ns: String,
+        body: Value,
+    },
+    CapReq {
+        id: u64,
+        cap: String,
+    },
+    CapRes {
+        id: u64,
+        ok: bool,
+        data: Option<Value>,
+    },
     Bye,
     /// Liveness only. Never reaches the app and does not count against the inbound rate.
     Ping,
@@ -36,10 +48,20 @@ pub enum Envelope {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Inbound {
     Text(String),
-    App { ns: String, body: Value },
+    App {
+        ns: String,
+        body: Value,
+    },
     /// Show the user a question. Nothing happens without [`Policy::approve`].
-    ApprovalNeeded { id: u64, cap: String },
-    CapResult { id: u64, ok: bool, data: Option<Value> },
+    ApprovalNeeded {
+        id: u64,
+        cap: String,
+    },
+    CapResult {
+        id: u64,
+        ok: bool,
+        data: Option<Value>,
+    },
     PeerLeft,
 }
 
@@ -80,14 +102,26 @@ impl Policy {
         let Ok(env) = serde_json::from_slice::<Envelope>(raw) else {
             return Decision::default();
         };
-        let deliver = |i| Decision { deliver: Some(i), reply: None };
+        let deliver = |i| Decision {
+            deliver: Some(i),
+            reply: None,
+        };
         match env {
             Envelope::Text { text } => deliver(Inbound::Text(text)),
-            Envelope::App { ns, body } if self.namespaces.contains(&ns) => deliver(Inbound::App { ns, body }),
+            Envelope::App { ns, body } if self.namespaces.contains(&ns) => {
+                deliver(Inbound::App { ns, body })
+            }
             Envelope::App { .. } => Decision::default(),
             Envelope::CapReq { id, cap } => {
                 if !self.capabilities.contains(&cap) || self.pending.len() >= MAX_PENDING_REQUESTS {
-                    return Decision { deliver: None, reply: Some(Envelope::CapRes { id, ok: false, data: None }) };
+                    return Decision {
+                        deliver: None,
+                        reply: Some(Envelope::CapRes {
+                            id,
+                            ok: false,
+                            data: None,
+                        }),
+                    };
                 }
                 self.pending.insert(id, cap.clone());
                 deliver(Inbound::ApprovalNeeded { id, cap })
@@ -100,14 +134,26 @@ impl Policy {
 
     /// The user tapped "Teilen": the only path by which capability data becomes an envelope.
     pub fn approve(&mut self, id: u64, data: Value) -> Result<Envelope, PeerError> {
-        self.pending.remove(&id).ok_or(PeerError::InvalidInput { detail: "no such request".into() })?;
-        Ok(Envelope::CapRes { id, ok: true, data: Some(data) })
+        self.pending.remove(&id).ok_or(PeerError::InvalidInput {
+            detail: "no such request".into(),
+        })?;
+        Ok(Envelope::CapRes {
+            id,
+            ok: true,
+            data: Some(data),
+        })
     }
 
     /// The user tapped "Nein".
     pub fn decline(&mut self, id: u64) -> Result<Envelope, PeerError> {
-        self.pending.remove(&id).ok_or(PeerError::InvalidInput { detail: "no such request".into() })?;
-        Ok(Envelope::CapRes { id, ok: false, data: None })
+        self.pending.remove(&id).ok_or(PeerError::InvalidInput {
+            detail: "no such request".into(),
+        })?;
+        Ok(Envelope::CapRes {
+            id,
+            ok: false,
+            data: None,
+        })
     }
 }
 
@@ -138,19 +184,42 @@ mod tests {
 
     #[test]
     fn unlisted_capabilities_are_refused_without_asking_the_user() {
-        let d = feed(&mut policy(), json!({"k":"cap_req","id":7,"cap":"contacts.read"}));
+        let d = feed(
+            &mut policy(),
+            json!({"k":"cap_req","id":7,"cap":"contacts.read"}),
+        );
         assert_eq!(d.deliver, None);
-        assert_eq!(d.reply, Some(Envelope::CapRes { id: 7, ok: false, data: None }));
+        assert_eq!(
+            d.reply,
+            Some(Envelope::CapRes {
+                id: 7,
+                ok: false,
+                data: None
+            })
+        );
     }
 
     #[test]
     fn a_listed_capability_waits_for_the_tap_and_data_goes_out_only_then() {
         let mut p = policy();
         let d = feed(&mut p, json!({"k":"cap_req","id":7,"cap":"idea.today"}));
-        assert_eq!(d.deliver, Some(Inbound::ApprovalNeeded { id: 7, cap: "idea.today".into() }));
+        assert_eq!(
+            d.deliver,
+            Some(Inbound::ApprovalNeeded {
+                id: 7,
+                cap: "idea.today".into()
+            })
+        );
         assert_eq!(d.reply, None, "no automatic answer");
         let out = p.approve(7, json!({"idea":"x"})).unwrap();
-        assert_eq!(out, Envelope::CapRes { id: 7, ok: true, data: Some(json!({"idea":"x"})) });
+        assert_eq!(
+            out,
+            Envelope::CapRes {
+                id: 7,
+                ok: true,
+                data: Some(json!({"idea":"x"}))
+            }
+        );
         assert!(p.approve(7, json!({})).is_err(), "one tap, one answer");
     }
 
@@ -162,20 +231,42 @@ mod tests {
     #[test]
     fn unknown_namespaces_are_dropped_and_known_ones_stay_opaque() {
         let mut p = policy();
-        assert_eq!(feed(&mut p, json!({"k":"app","ns":"other","body":{}})), Decision::default());
+        assert_eq!(
+            feed(&mut p, json!({"k":"app","ns":"other","body":{}})),
+            Decision::default()
+        );
         let d = feed(&mut p, json!({"k":"app","ns":"call","body":{"t":"offer"}}));
-        assert_eq!(d.deliver, Some(Inbound::App { ns: "call".into(), body: json!({"t":"offer"}) }));
+        assert_eq!(
+            d.deliver,
+            Some(Inbound::App {
+                ns: "call".into(),
+                body: json!({"t":"offer"})
+            })
+        );
     }
 
     #[test]
     fn flooding_and_oversize_are_dropped() {
         let mut p = policy();
         for _ in 0..MAX_INBOUND_PER_MINUTE {
-            assert!(feed(&mut p, json!({"k":"text","text":"x"})).deliver.is_some());
+            assert!(feed(&mut p, json!({"k":"text","text":"x"}))
+                .deliver
+                .is_some());
         }
-        assert_eq!(feed(&mut p, json!({"k":"text","text":"x"})), Decision::default());
-        assert!(p.inbound(br#"{"k":"text","text":"x"}"#, 1_061).deliver.is_some(), "the window slides");
-        assert_eq!(p.inbound(&vec![b' '; MAX_ENVELOPE_BYTES + 1], 1_061), Decision::default());
+        assert_eq!(
+            feed(&mut p, json!({"k":"text","text":"x"})),
+            Decision::default()
+        );
+        assert!(
+            p.inbound(br#"{"k":"text","text":"x"}"#, 1_061)
+                .deliver
+                .is_some(),
+            "the window slides"
+        );
+        assert_eq!(
+            p.inbound(&vec![b' '; MAX_ENVELOPE_BYTES + 1], 1_061),
+            Decision::default()
+        );
     }
 
     #[test]
@@ -185,16 +276,29 @@ mod tests {
         for _ in 0..1_000 {
             assert_eq!(p.inbound(PING_BYTES, 1_000), Decision::default());
         }
-        assert!(feed(&mut p, json!({"k":"text","text":"x"})).deliver.is_some());
+        assert!(feed(&mut p, json!({"k":"text","text":"x"}))
+            .deliver
+            .is_some());
     }
 
     #[test]
     fn open_requests_are_bounded() {
         let mut p = policy();
         for id in 0..MAX_PENDING_REQUESTS as u64 {
-            assert!(feed(&mut p, json!({"k":"cap_req","id":id,"cap":"idea.today"})).deliver.is_some());
+            assert!(
+                feed(&mut p, json!({"k":"cap_req","id":id,"cap":"idea.today"}))
+                    .deliver
+                    .is_some()
+            );
         }
         let d = feed(&mut p, json!({"k":"cap_req","id":100,"cap":"idea.today"}));
-        assert_eq!(d.reply, Some(Envelope::CapRes { id: 100, ok: false, data: None }));
+        assert_eq!(
+            d.reply,
+            Some(Envelope::CapRes {
+                id: 100,
+                ok: false,
+                data: None
+            })
+        );
     }
 }

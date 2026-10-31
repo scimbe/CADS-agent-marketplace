@@ -104,6 +104,12 @@ grep -qx "got text zweite-sitzung-B" "$T/a2.out" || fail "no delivery after rejo
 [ "$(grep '^code ' "$T/a.out")" = "$(grep '^code ' "$T/a2.out")" ] || fail "the code changed across sessions"
 pass "rejoin from stored contacts, no new invite, same code"
 
+# 5c. "Zusammen bauen": two real sync engines over the apps' own session path, rate limit included.
+if command -v node >/dev/null; then
+  node "$(dirname "$0")/../apps/duell-web/scripts/collab-channel.js" "$T/a.json" "$T/b.json" || fail "collab over the channel"
+  pass "editor state converged over the real edge"
+fi
+
 # 6. An expired link.
 "$PEER_DEMO_BIN" invite "$T/x.json" "$T/link-x" 1 >/dev/null
 sleep 2

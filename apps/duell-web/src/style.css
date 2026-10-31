@@ -112,6 +112,22 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 #res-score{text-align:center;font:900 80px/1 var(--disp);font-variant-numeric:tabular-nums}
 #res-line{text-align:center;min-height:20px;margin:2px 14px 10px}
 #gamebtns{display:flex;flex-direction:column;gap:6px;padding:0 18px 6px}
+.cccard{border:3px solid var(--ink);border-radius:4px;padding:12px;margin-bottom:10px;font:900 24px/1.05 var(--disp);text-transform:uppercase}
+.cccard p{margin:6px 0 0}
+#shbody .btn.hot{margin-top:10px}
+#cogo{font-size:19px}
+#cobar{flex:none;display:flex;align-items:center;gap:8px;min-height:38px;padding:2px 8px 2px 14px;background:var(--ink);color:#fff;font:800 13px var(--ui)}
+#costatus{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#cobar.off{background:#7a1f12}
+#coleave{min-height:34px;padding:0 10px;border:2px solid #fff;border-radius:4px;background:transparent;color:#fff;font:800 13px var(--ui)}
+#cosheet{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.6)}
+#cosheet[hidden]{display:none}
+#cobox{width:100%;max-width:360px;max-height:100%;overflow-y:auto;background:var(--paper);color:var(--ink);border:3px solid var(--ink);border-radius:6px;padding:14px;box-shadow:6px 7px 0 var(--ink)}
+#cotitle{margin:0 0 6px;font:900 26px/1.05 var(--disp);text-transform:uppercase}
+#cotext{margin:0 0 10px;font-size:14px;font-weight:600}
+#coqr{display:block;width:100%;max-width:300px;height:auto;margin:0 auto 10px;background:#fff;image-rendering:pixelated}
+#coqr[hidden]{display:none}
+#coacts{display:flex;flex-direction:column;gap:6px}
 #toast{position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 56px);bottom:auto;transform:translate(-50%,16px);background:var(--ink);color:#fff;padding:11px 14px;font-weight:800;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:86vw;text-align:center;z-index:9;border-radius:4px}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 @media (min-width:600px){.scr,#game{left:50%;right:auto;width:440px;margin-left:-220px}}
@@ -126,3 +142,16 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 .skundo{position:absolute;left:6px;top:6px;width:44px;height:44px;padding:0;border:3px solid var(--ink);border-radius:50%;background:#fff;color:#111;font:900 22px/1 var(--ui);pointer-events:auto}
 .skbin{position:absolute;left:50%;bottom:8px;width:72px;height:72px;margin-left:-36px;display:grid;place-items:center;font-size:32px;line-height:1;background:#fff;border:3px dashed var(--ink);border-radius:50%;transition:transform 90ms ease-out}
 .skbin.over{background:#ff2d2d;transform:scale(1.2)}
+/* AI actions */
+.aibox{margin-top:10px;padding-top:8px;border-top:2px dashed var(--ink)}
+.airow{display:flex;gap:8px;align-items:center}
+.aicount{margin:0;font-size:13px;font-weight:800;flex:1}
+.aiopt{display:block;width:100%;text-align:left;white-space:normal;height:auto;min-height:44px;padding:8px 10px;margin-bottom:6px}
+.lyrics{white-space:pre-line;font-weight:800;margin:8px 0}
+a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
+#shnote{padding:0 18px;margin:2px 0 6px}
+.duellog{margin:0 0 5px;font:700 14px/1.25 var(--ui)}
+.duelres{margin:6px 0;font:900 22px/1.1 var(--disp);text-transform:uppercase}
+.chip.hand{font-size:34px;flex:1;min-height:76px}
+.qlock{font-size:72px;text-align:center;margin:18px 0 6px}
+.qtext{font:900 27px/1.15 var(--disp);margin:6px 0 16px;overflow-wrap:anywhere}

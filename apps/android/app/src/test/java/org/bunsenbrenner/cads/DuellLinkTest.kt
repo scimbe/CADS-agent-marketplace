@@ -53,6 +53,8 @@ class DuellLinkTest {
     @Test fun onlyAssetsAndConfigApiMayLoad() {
         assertTrue(DuellLink.mayLoad("https://appassets.androidplatform.net/assets/duell/index.html", api))
         assertTrue(DuellLink.mayLoad("https://$api/api/duell/config", api))
+        assertTrue(DuellLink.mayLoad("https://$api/api/duell/ai", api))
+        assertTrue(DuellLink.mayLoad("https://$api/api/duell/ai/status", api))
         assertFalse(DuellLink.mayLoad("https://tracker.example/p.gif", api))
         assertFalse(DuellLink.mayLoad("http://$api/api/duell/config", api))
         assertFalse(DuellLink.mayLoad("file:///etc/hosts", api))
@@ -77,6 +79,24 @@ class DuellLinkTest {
         assertNull(DuellLink.fragmentOf("https://evil.example/duell#i=quiz-chaos"))
         assertNull(DuellLink.fragmentOf("http://bunsenbrenner.org/duell#i=quiz-chaos"))
         assertNull(DuellLink.fragmentOf("https://bunsenbrenner.org/app/oauth2redirect#i=quiz-chaos"))
+    }
+
+    @Test fun shortLinkBecomesFragmentForThePage() {
+        assertEquals("s=aB3dE5gH", DuellLink.fragmentOf("https://bunsenbrenner.org/s/aB3dE5gH"))
+        assertEquals("https://appassets.androidplatform.net/assets/duell/index.html#s=aB3dE5gH", DuellLink.pageUrl("s=aB3dE5gH"))
+        assertTrue(DuellLink.isShareable("https://bunsenbrenner.org/s/aB3dE5gH"))
+    }
+
+    @Test fun foreignShortLinksAreRejected() {
+        for (bad in listOf(
+            "https://evil.example/s/aB3dE5gH", "http://bunsenbrenner.org/s/aB3dE5gH", "https://bunsenbrenner.org:8443/s/aB3dE5gH",
+            "https://bunsenbrenner.org/s/aB3dE5g", "https://bunsenbrenner.org/s/aB3dE5gHi", "https://bunsenbrenner.org/s/aB3dE5g0",
+            "https://bunsenbrenner.org/s/aB3dE5gO", "https://bunsenbrenner.org/s/../duell", "https://bunsenbrenner.org/s/aB3dE5gH/x",
+            "https://bunsenbrenner.org/s/aB3dE5gH?x=1", "https://bunsenbrenner.org/s/",
+        )) {
+            assertNull(bad, DuellLink.fragmentOf(bad))
+            assertFalse(bad, DuellLink.isShareable(bad))
+        }
     }
 
     @Test fun pageUrlCarriesInviteFragment() {

@@ -1,7 +1,7 @@
 /* Calendar, remix editor, my style, wall. All text goes in as text nodes, never as markup. */
 (function () {
 "use strict";
-var C = window.DuellCore, D = window.Daily, S = window.Studio, Kit = window.Kit, G = window.Game, R = window.Render, t = Kit.t;
+var C = window.DuellCore, D = window.Daily, W = window.Wish, P = window.Playable, S = window.Studio, Kit = window.Kit, G = window.Game, R = window.Render, t = Kit.t;
 var $ = function (id) { return document.getElementById(id); };
 function el(tag, cls, text, on) {
   var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text;
@@ -54,13 +54,16 @@ function setHome(h, animate) {
   $("teaser").textContent = sub;
   var from = $("from");
   if (h.note) { from.textContent = h.note; from.hidden = false; } else from.hidden = true;
-  $("go").textContent = t("go"); fitHero();
+  $("go").textContent = t("go");
+  var mode = doc && X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
+  if (mode) { $("go").textContent = mode.go; from.textContent = mode.note; from.hidden = false; }
+  fitHero();
   var leaf = $("leaf"); leaf.className = ""; leaf.style.transform = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
 }
 function dayHome() { return { date: today, idea: D.ideaForDay(today) }; }
 function goHome() {
-  stopSound(); G.stop(); ed = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
+  CU.end(); stopSound(); G.stop(); ed = null; played = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
   if (!home) home = dayHome(); setHome(home, true);
 }
 function tear(dir) {
@@ -91,17 +94,18 @@ var cv = $("stage"), timer = 0;
 function paint() {
   timer = 0; if (!ed) return;
   ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1]);
-  if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks }); }
-  SK.sync(); footer();
+  if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks, x: ed.x }); }
+  SK.sync(); footer(); CU.local();
 }
 function changed() {           // every control ends up here: redraw within the next moment
   if (!timer) timer = setTimeout(paint, 16);
 }
 function gameState() { return C.sanitizeState(Object.assign({ v: 1 }, ed.doc.g)); }
-function areas() { var w = D.changedAreas(ed.base, ed.doc); if (ed.ownPhoto) w.push("foto"); if (ed.ownVoice) w.push("stimme"); return w; }
+function areas() { var w = D.changedAreas(ed.base, ed.doc); if (X[ed.doc.k] && X[ed.doc.k].areas) w = w.concat(X[ed.doc.k].areas(ed)); if (ed.ownPhoto) w.push("foto"); if (ed.ownVoice) w.push("stimme"); return w; }
 function touched() { var ok = areas().length > 0; return ed.own ? ok && !!ed.doc.t : ok; }
 function footer() {
   var b = $("edmain"), ok = touched(), g = ed.doc.k === "game";
+  if (X[ed.doc.k]) { X[ed.doc.k].footer(b, ed, ok); return; }
   b.classList.toggle("wait", !ok && !g);
   b.textContent = g ? t("play") : ok ? t("done") : t("needOwn");
 }
@@ -116,24 +120,71 @@ function openEditor(doc, opt) {
   if (ed.doc.k === "sound" && ed.doc.m === "beat") beatPeaks();
   if (ed.doc.k === "photo") { ed.photo = R.botFace(C.hash32(me.nick + Date.now()), ed.doc.col[1]); }
   var g = ed.doc.k === "game";
+  $("tabs").hidden = false;
+  if (X[ed.doc.k]) X[ed.doc.k].open(ed);
   cv.hidden = g; $("gamestage").hidden = !g;
   $("edtitle").textContent = ed.own ? t("own") : (ed.idea ? ideaText(ed.idea).t.replace("|", " ") : t(ed.doc.k));
   $("edstyle").textContent = me.emoji;
   stopSound(); show("editor", true); trailLine();
   var tabs = $("tabs"); tabs.textContent = "";
-  var list = (ed.own ? ["Idea"] : []).concat(TABS[ed.doc.k]);
+  var list = (ed.own ? ["Idea"] : []).concat(W.KINDS.indexOf(ed.doc.k) >= 0 ? ["Wish"] : [], TABS[ed.doc.k]);
   list.forEach(function (k) {
     var b = el("button", "", t("tab" + (k === "Sound" ? (ed.doc.m === "beat" ? "Beat" : "Voice") : k === "Idea" ? "Idea" : k)), function () { Kit.sfx.tap(); tab(k); });
     b.setAttribute("role", "tab"); b.dataset.k = k; tabs.appendChild(b);
   });
-  tab(list[0]);
+  tab(list[0] === "Wish" ? list[1] : list[0]);
   if (g) G.demo($("demo"), gameState());
-  paint();
+  paint(); CU.editor();
 }
 function tab(k) {
   ed.tab = k; Array.from($("tabs").children).forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.k === k)); });
-  var p = $("panel"); p.textContent = ""; p.classList.toggle("tall", k === "Sound" && ed.doc.m === "beat"); PANEL[k](p); p.scrollTop = 0;
+  var p = $("panel"); p.textContent = ""; p.classList.toggle("tall", (k === "Sound" && ed.doc.m === "beat") || (k === "Text" && ed.doc.k !== "game") || k === "Wish"); PANEL[k](p); p.scrollTop = 0;
 }
+function setDoc(d) {        // a whole creation replaced by a wish or its undo; the canvas state follows
+  ed.doc = d; ed.sel = -1; if (d.k === "sound" && d.m === "beat") beatPeaks();
+  if (d.k === "sound" && ed.raw) applyFx();
+  $("edstyle").textContent = me.emoji; trailLine(); changed();
+}
+// Weather card: place and day in, real figures out. No figures without the service.
+function weatherBlock(p) {
+  var box = el("div", "aibox"), place = el("input", "field"), days = el("div", "chips"), when = 0, row = el("div", "chips");
+  place.maxLength = 40; place.autocomplete = "off"; place.setAttribute("aria-label", t("wxPlace")); place.placeholder = t("wxPlace");
+  box.appendChild(el("label", "lbl", t("wxTitle"))); box.appendChild(place);
+  [t("wxToday"), t("wxTomorrow"), t("wxAfter")].forEach(function (l, i) {
+    var b = el("button", "chip" + (i ? "" : " on"), l, function () { when = i; Array.from(days.children).forEach(function (x) { x.classList.remove("on"); }); b.classList.add("on"); });
+    days.appendChild(b);
+  });
+  box.appendChild(days);
+  var go = el("button", "chip", "🌦 " + t("wxGo"), async function () {
+    var v = D.cleanInput(place.value, 40); if (!v) { Kit.toast(t("filter")); return; }
+    go.disabled = true;
+    var day = new Date(Date.now() + when * 86400000).toISOString().slice(0, 10), r = null;
+    try { r = await window.Ai.post("/weather", { place: v, date: day }); } catch (e) { r = null; }
+    go.disabled = false;
+    if (!r || r.status !== 200 || !r.json) { Kit.toast(r && r.status === 404 ? t("wxNoPlace") : r && r.status === 422 ? t("filter") : t("wxFail")); return; }
+    var j = r.json; ed.doc.w = D.sanitizeDoc({ k: "card", w: { p: j.place, d: j.date, hi: j.hi, lo: j.lo, rn: j.rain, c: j.code } }).w; Kit.sfx.pop(); changed(); tab("Text");
+  });
+  row.appendChild(go);
+  if (ed.doc.w) row.appendChild(el("button", "chip", "✕ " + t("wxOff"), function () { delete ed.doc.w; changed(); tab("Text"); }));
+  box.appendChild(row); box.appendChild(el("p", "note", t("wxNote"))); p.appendChild(box);
+}
+function playButton(p) {
+  p.appendChild(el("button", "chip", "🕹 " + t("playIt"), makePlayable));
+  if (ed.doc.k === "photo") p.appendChild(el("p", "note", t("playNote")));
+}
+// The creation becomes the game: same engine, its colours, picture and figure. Back leads to the creation, not home.
+var played = null;
+function makePlayable() {
+  var d = ed.doc, photo = ed.ownPhoto ? ed.photo : null, st = P.fromDoc(d, me);
+  var o = { own: true, bg: P.backdrop(function (c, doc, m) { R.draw(c, doc, { me: m, photo: ed.photo, peaks: ed.peaks }); }, d, me), figure: photo ? P.figure(photo) : null };
+  played = ed; Kit.sfx.thud(); stopSound(); G.stop(); show("game", true); G.play(st, null, o);
+  if (photo) Kit.toast(t("playNote"));
+}
+function backFromPlay() {
+  if (!played) return false;
+  ed = played; played = null; G.stop(); show("editor"); changed(); return true;
+}
+function aiBlock(p, o) { o.el = el; o.wall = openAiWall; window.Ai.block(p, o); }
 function field(p, label, value, max, on, area) {
   p.appendChild(el("label", "lbl", label));
   var f = el(area ? "textarea" : "input", "field"); f.value = value || ""; f.maxLength = max; if (area) f.rows = 2; f.autocomplete = "off"; f.setAttribute("aria-label", label);
@@ -169,6 +220,25 @@ function colors(p, get, set) {
   p.appendChild(row);
 }
 var PANEL = {
+  Wish: function (p) {
+    var f = field(p, t("wishL"), "", 100, function () {}, true), box = el("div", "chips");
+    t("wishTips").split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; })); });
+    p.appendChild(box);
+    aiBlock(p, {
+      kind: "wish", label: t("wishGo"), input: function () { var v = D.cleanInput(f.value, 100); return v ? W.request(ed.doc, v, ed.idea ? ideaText(ed.idea).t.replace("|", " ") : "") : null; },
+      fallback: function () { return [{ changes: W.local(ed.doc, D.cleanInput(f.value, 100), Kit.lang, function (n) { return Math.floor(Math.random() * n); }), note: "" }]; },
+      auto: function (o, real, res) {
+        var before = JSON.stringify(ed.doc), next = W.apply(ed.doc, o.changes, PAIRS, Math.random), was = JSON.parse(before), what = D.changedAreas(was, next);
+        if (ed.doc.k === "sound" && next.fx !== was.fx && what.indexOf("stimme") < 0) what.push("stimme");
+        res.textContent = "";
+        if (!what.length) { res.appendChild(el("p", "note", t("wishSame"))); return; }
+        setDoc(next); (ed.wishes = ed.wishes || []).push(before);
+        res.appendChild(el("p", "aicount", (real && o.note ? o.note + " · " : "") + t("wishDid") + ": " + what.map(function (w) { return t("a_" + w); }).join(", ")));
+        var un = el("button", "chip", "↶ " + t("skUndo"), function () { setDoc(JSON.parse(ed.wishes.pop())); Kit.sfx.pop(); res.textContent = ""; });
+        res.appendChild(un);
+      }
+    });
+  },
   Idea: function (p) {
     p.appendChild(el("p", "note", t("ownH")));
     field(p, t("ideaT"), ed.doc.t, 40, function (v) { ed.doc.t = v; });
@@ -179,8 +249,19 @@ var PANEL = {
     if (d.k === "card") {
       var f = field(p, t("line"), d.x, 90, function (v) { d.x = v; }, true), L = ed.idea ? ideaText(ed.idea).lines : null;
       if (L) p.appendChild(el("button", "chip", "🎲 " + t("dice"), function () { Kit.sfx.pop(); ed.line = (ed.line + 1) % L.length; d.x = L[ed.line]; f.value = d.x; ed.base.x = d.x; changed(); }));
-    } else if (d.k === "photo") { field(p, t("top"), d.x, 28, function (v) { d.x = v; }); field(p, t("bottom"), d.y, 28, function (v) { d.y = v; }); }
-    else if (d.k === "sound") field(p, t("titleL"), d.x, 28, function (v) { d.x = v; });
+      playButton(p);
+      aiBlock(p, { kind: "line", label: t("aiLine"), input: function () { var x = D.cleanInput(d.x, 90) || t("own"); return { text: x, style: d.st }; }, show: String, apply: function (o) { var v = D.cleanInput(o, 90); if (v) { d.x = v; f.value = v; changed(); } } });
+      weatherBlock(p);
+    } else if (d.k === "photo") {
+      var top = field(p, t("top"), d.x, 28, function (v) { d.x = v; }), low = field(p, t("bottom"), d.y, 28, function (v) { d.y = v; });
+      playButton(p);
+      var what = field(p, t("aiDesc"), "", 100, function () {});
+      aiBlock(p, { kind: "meme", label: t("aiMeme"), input: function () { var v = D.cleanInput(what.value, 100); return v ? { desc: v } : null; }, show: function (o) { return o.top + " / " + o.bottom; }, apply: function (o) { d.x = D.cleanInput(o.top, 28); d.y = D.cleanInput(o.bottom, 28); top.value = d.x; low.value = d.y; changed(); } });
+    } else if (d.k === "sound") {
+      var name = field(p, t("titleL"), d.x, 28, function (v) { d.x = v; }), topic = field(p, t("aiTopic"), "", 60, function () {}), song = el("p", "lyrics"); song.hidden = true;
+      aiBlock(p, { kind: "lyrics", label: t("aiLyrics"), input: function () { var v = D.cleanInput(topic.value, 60); return v ? { topic: v, bpm: d.bpm || 110 } : null; }, show: function (o) { return o.title; }, apply: function (o) { var v = D.cleanInput(o.title, 28); if (v) { d.x = v; name.value = v; } song.textContent = o.lines.join("\n"); song.hidden = false; changed(); } });
+      p.appendChild(song);
+    }
     else field(p, t("titleL"), d.g.title, 28, function (v) { d.g.title = v || "Duell"; });
   },
   Style: function (p) {
@@ -351,14 +432,16 @@ async function finish(doc, idea, pictureDoc) {
     file = new Blob([S.wav(pcm)], { type: "audio/wav" }); name = "my-daily-idea.wav";
   }
   var url = D.docUrl(doc);
-  result = { url: url, file: file, name: name, png: png, keep: ed };
+  result = { url: url, file: file, name: name, png: png, keep: ed, canvas: c, kind: doc.k };
   wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c) }); store.wall = wall; Kit.save();
   if (!Kit.persisted) Kit.toast(t("wallFull"));
   var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png);
+  $("playit").hidden = doc.k !== "card" && doc.k !== "photo";
   stopSound(); G.stop(); labels(); show("done", true); Kit.sfx.win();
 }
 $("edmain").addEventListener("click", function () {
   if (!ed) return;
+  if (X[ed.doc.k]) { X[ed.doc.k].main(ed); return; }
   if (ed.doc.k === "game") { Kit.sfx.thud(); G.stop(); show("game", true); G.play(gameState(), null, { own: touched() }); return; }
   if (!touched()) { Kit.tone(200, 160, 0.1, "square", 0.06); return; }
   Kit.sfx.thud();
@@ -366,9 +449,29 @@ $("edmain").addEventListener("click", function () {
 });
 $("share").addEventListener("click", async function () {
   Kit.sfx.tap();
-  var how = await Kit.share({ url: result.url, text: t("shareText"), blob: result.file, name: result.name });
+  var link = await shortLink();
+  var how = await Kit.share({ url: link.url, text: t("shareText"), blob: result.file, name: result.name });
   if (how === "link") Kit.toast(t("shot"));
 });
+$("playit").addEventListener("click", function () { ed = result.keep; ed.sel = -1; makePlayable(); });
+// Reaches the server only from here, that is after a tap on one of the share buttons.
+async function shortLink() {
+  if (!result.link) { result.link = await window.ShortLink.shorten(result.url, { k: result.kind, l: Kit.lang }, store); Kit.save(); }
+  return result.link;
+}
+/* Status and story: pictures cannot carry a tappable link, so the picture shows the address and a code, and the text goes to the clipboard.
+   Without a short link the long one would be an unreadable code: the picture then points to the app, the long link stays in the text. */
+async function exportStory(kind) {
+  Kit.sfx.tap();
+  var link = await shortLink(), shown = link.short ? link.url : C.SHARE_BASE, cols = result.keep ? result.keep.doc.col : me.colors;
+  var cv = window.StatusCard.draw(result.canvas, { url: shown, bg: cols[0], ink: R.ink(cols[0]), cta: t(link.short ? "sh_cta" : "sh_ctaApp") });
+  var blob = await makeBlob(cv, "image/jpeg", 0.92);
+  var text = kind === "story" ? link.url : t("shareText") + " " + link.url;
+  if (await Kit.copy(text)) Kit.toast(t(kind === "story" ? "sh_copiedStory" : "copied"));
+  await Kit.share({ url: link.url, text: t("shareText"), blob: blob, name: "my-daily-idea-" + kind + ".jpg" });
+}
+$("tostatus").addEventListener("click", function () { exportStory("status"); });
+$("tostory").addEventListener("click", function () { exportStory("story"); });
 $("save").addEventListener("click", function () { Kit.sfx.tap(); Kit.saveFile(result.file, result.name); });
 $("keep").addEventListener("click", function () { Kit.sfx.tap(); backToEditor(); });
 function backToEditor() {
@@ -386,8 +489,9 @@ function backFromStyle() {
   if (ed.doc.k === "game") G.demo($("demo"), gameState());
   changed(); return true;
 }
-$("gback").addEventListener("click", function () { Kit.sfx.tap(); goHome(); });
+$("gback").addEventListener("click", function () { Kit.sfx.tap(); if (!backFromPlay()) goHome(); });
 function gameToEditor() {
+  if (backFromPlay()) return;
   var s = G.current(), d = { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji } };
   if (ed && ed.doc.k === "game") { var keep = ed; G.stop(); show("editor"); ed = keep; G.demo($("demo"), gameState()); changed(); return; }
   G.stop(); openEditor(d);
@@ -417,6 +521,7 @@ function openStyle() {
   });
 }
 function shelf(title, fill) { stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
+function openAiWall() { ed.styling = true; shelf(t("aiTitle"), function (b) { window.Ai.wall(b, el); }); }
 function openPast() {
   shelf(t("past"), function (b) {
     D.lastDays(today, 7).forEach(function (e) {
@@ -430,7 +535,7 @@ function openPast() {
 }
 function openWall() {
   shelf(t("wall"), function (b) {
-    if (!wall.length) { b.appendChild(el("div", "empty", t("wallEmpty"))); return; }
+    if (!wall.length) { b.appendChild(el("div", "empty", t("wallEmpty"))); linksList(b); return; }
     var g = el("div", "wallgrid");
     wall.forEach(function (w, i) {
       var c = el("button", "", null, function () {
@@ -440,14 +545,32 @@ function openWall() {
       var im = el("img"); im.src = w.th; im.alt = ""; c.appendChild(im); g.appendChild(c);
     });
     b.appendChild(g);
+    linksList(b);
+  });
+}
+function linksList(b) {
+  var list = window.ShortLink.kept(store.links, Date.now());
+  if (!list.length) return;
+  b.appendChild(el("h3", "note", t("sh_mine")));
+  list.forEach(function (l) {
+    var row = el("div", "day"), when = new Date(l.exp).toLocaleDateString(Kit.lang === "de" ? "de-DE" : "en-GB");
+    row.appendChild(el("span", "", "/s/" + l.id + " · " + t("sh_until", { d: when })));
+    row.appendChild(el("button", "chip", t("gone"), async function () {
+      Kit.sfx.tap();
+      var ok = await window.ShortLink.remove(l.id, store);
+      Kit.save(); Kit.toast(t(ok ? "sh_deleted" : "sh_deleteFail"));
+      if (ok) openWall();
+    }));
+    b.appendChild(row);
   });
 }
 function openOwn() {
   shelf(t("own"), function (b) {
     b.appendChild(el("p", "note", t("ownH")));
-    [["card", "🃏"], ["photo", "📷"], ["sound", "🥁"], ["game", "🕹"]].forEach(function (m) {
+    [["card", "🃏"], ["photo", "📷"], ["sound", "🥁"], ["game", "🕹"], ["duel", "🤖"]].concat(D.caps().crypto ? [["quest", "🗝️"]] : []).forEach(function (m) {
       b.appendChild(el("button", "mech", m[1] + " " + t(m[0]), function () { Kit.sfx.thud(); openEditor(D.blankDoc(m[0], me, Kit.lang), { own: true }); }));
     });
+    CC.tile(b);
   });
 }
 
@@ -456,8 +579,9 @@ function labels() {
   document.documentElement.lang = Kit.lang;
   $("brand").textContent = t("brand"); $("lang").textContent = Kit.lang.toUpperCase(); $("me").textContent = me.emoji;
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
-  $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home");
-  $("save").hidden = !Kit.canSave(); SK.labels();
+  $("tostatus").textContent = t("sh_status"); $("tostory").textContent = t("sh_story"); $("shnote").textContent = t("sh_note");
+  $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home"); $("playit").textContent = "🕹 " + t("playIt");
+  $("save").hidden = !Kit.canSave(); SK.labels(); CU.labels();
   // Inside the app shells (DuellHost.more) a quiet "more" opens the native extras; in a browser it stays hidden.
   var host = window.DuellHost && typeof window.DuellHost.more === "function";
   $("host").hidden = !host; $("host").setAttribute("aria-label", t("hostMore"));
@@ -473,18 +597,28 @@ $("wall").addEventListener("click", function () { Kit.sfx.tap(); openWall(); });
 $("own").addEventListener("click", function () { Kit.sfx.tap(); openOwn(); });
 $("go").addEventListener("click", function () {
   Kit.sfx.thud();
+  if (home.doc && X[home.doc.k] && X[home.doc.k].incoming && X[home.doc.k].incoming(home.doc)) return;
   if (home.doc) openEditor(home.doc, { idea: home.doc.i ? D.byId(home.doc.i) : null });
   else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea });
 });
 window.addEventListener("resize", function () { if (screen === "home") fitHero(); });
-window.addEventListener("popstate", function () { if (screen !== "home" && !location.hash && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
+window.addEventListener("popstate", function () { if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
 
 function route() {
+  var card = CC.route(location.hash);
+  if (card) { clearLink(); if (!card.keep && screen !== "editor") goHomeKeep(); return true; }
+  if (CU.route(location.hash)) { clearLink(); if (screen !== "editor") goHomeKeep(); return true; }
   var r = D.parseRoute(location.hash);
+  if (r && r.type === "short") {
+    goHome();
+    window.ShortLink.resolve(r.id).then(function (f) { if (f) location.hash = f; else Kit.toast(t("sh_gone")); });
+    return true;
+  }
   if (r && r.type === "challenge") {
     var st = Object.assign({}, r.state), riv = typeof st.score === "number" ? { score: st.score, name: st.name || "" } : null;
     delete st.score; delete st.name; show("game"); G.play(st, riv, { own: true }); return true;
   }
+  if ((r && r.type === "idea" && !D.available(D.byId(r.id))) || (r && r.type === "doc" && !D.docAvailable(r.doc))) { home = dayHome(); goHomeKeep(); Kit.toast(t("notHere")); return true; }
   if (r && r.type === "idea") { home = { date: today, idea: D.byId(r.id), note: t("invite") }; goHomeKeep(); return true; }
   if (r && r.type === "doc") {
     var lastBy = r.doc.by.length ? r.doc.by[r.doc.by.length - 1].n : r.doc.n;
@@ -492,14 +626,36 @@ function route() {
   }
   return false;
 }
-function goHomeKeep() { stopSound(); G.stop(); ed = null; setInk(me.colors[0], me.colors[1]); show("home"); setHome(home, true); }
+function goHomeKeep() { if (!home) home = dayHome(); stopSound(); G.stop(); ed = null; setInk(me.colors[0], me.colors[1]); show("home"); setHome(home, true); }
 window.addEventListener("hashchange", route);
 
-/* test hook, used by browser checks: read-only snapshot */
-window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); } };
+/* Zusammen bauen (collab-ui.js) reaches the editor only through these. */
+var CU = window.CollabUI.init({
+  ed: function () { return ed; }, me: function () { return me; }, changed: changed,
+  open: function (doc) { openEditor(doc, { idea: doc.i ? D.byId(doc.i) : null }); },
+  // A remote change arrived: redraw, and rebuild the open panel unless someone is typing or dragging in it.
+  remote: function (keys) {
+    if (ed.doc.k === "sound" && ed.doc.m === "beat") { beatPeaks(); if (loop) playBeat(); }
+    if (keys.indexOf("fx") >= 0) applyFx();
+    var a = document.activeElement, p = $("panel");
+    if (!(a && p.contains(a) && /^(INPUT|TEXTAREA)$/.test(a.tagName))) { var top = p.scrollTop; tab(ed.tab); p.scrollTop = top; }
+    trailLine(); changed();
+  },
+  more: function () { try { window.DuellHost.more(); } catch (e) {} }
+});
 
+var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
+
+var X = window.DailyModes = {};
+window.DailyApp = { TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+
+/* test hook, used by browser checks: read-only snapshot */
+window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); }, collab: function () { return CU.engine(); } };
+
+window.addEventListener("DOMContentLoaded", function () {
 labels();
 if (!route()) goHome();
 // The embedded display font loads after the first paint: fit the headline again once it is there.
 if (document.fonts && document.fonts.load) document.fonts.load('900 40px Anton').then(function () { if (screen === "home") fitHero(); }, function () {});
+});
 })();

@@ -51,7 +51,7 @@ import java.net.URI
  * file, a light tick and the quiet "more" that opens the native extras. Everything the page passes is
  * validated here ([DuellLink], [DuellFiles]); the page is the app's own bundled asset, not a trusted caller.
  */
-class DuellHost(private val context: Context, private val view: View, private val onMore: () -> Unit) {
+class DuellHost(private val context: Context, private val view: View, private val peer: PeerBridge, private val onMore: () -> Unit) {
     private val main = Handler(Looper.getMainLooper())
     private val shareDir = File(context.cacheDir, "share")
 
@@ -139,6 +139,26 @@ class DuellHost(private val context: Context, private val view: View, private va
         main.post { onMore() }
     }
 
+    /** Whether this build has the channel's production values; the page says so honestly when not. */
+    @JavascriptInterface
+    fun peerReady(): Boolean = peer.ready
+
+    /** "Einladen". The answer arrives through `window.DuellPeer.onPeerMessage`. */
+    @JavascriptInterface
+    fun peerInvite() = peer.invite()
+
+    /** "Annehmen", with the `/duell#p=` link the page got. */
+    @JavascriptInterface
+    fun peerAccept(link: String?) = peer.accept(link)
+
+    /** One sync frame. Only the namespace of [PeerBridge] and only up to its size. */
+    @JavascriptInterface
+    fun peerSend(frame: String?) = peer.send(frame)
+
+    /** "Verlassen". */
+    @JavascriptInterface
+    fun peerLeave() = peer.leave()
+
     private fun startChooser(chooser: Intent) {
         val activity = context.findActivity()
         try {
@@ -178,6 +198,7 @@ fun DuellScreen(
     linkSeq: Int,
     visible: Boolean,
     apiBase: String,
+    peerToken: () -> String?,
     onMore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -185,6 +206,17 @@ fun DuellScreen(
     val holder = remember { arrayOfNulls<WebView>(1) }
     val loaded = remember { intArrayOf(-1) }
     val more by rememberUpdatedState(onMore)
+    val token by rememberUpdatedState(peerToken)
+    // One worker per session step, so a blocking call of the channel never holds the UI or the JS thread.
+    val peerBridge = remember {
+        val main = Handler(Looper.getMainLooper())
+        PeerBridge(
+            PeerCoreAdapter.fromBuild(),
+            { token() },
+            { json -> main.post { holder[0]?.evaluateJavascript(PeerJson.call(json), null) } },
+            { work -> Thread(work, "peer").apply { isDaemon = true }.start() },
+        )
+    }
 
     // Photo: the system chooser (gallery/files; the camera only appears as one of its entries and runs
     // only when the person picks it after tapping the page's photo button). Always answer the callback.
@@ -213,6 +245,7 @@ fun DuellScreen(
         onDispose {
             chooserCallback[0]?.onReceiveValue(null); chooserCallback[0] = null
             micPending[0]?.deny(); micPending[0] = null
+            peerBridge.leave()
             holder[0]?.let { it.stopLoading(); it.removeJavascriptInterface("DuellHost"); it.destroy() }; holder[0] = null
         }
     }
@@ -243,7 +276,7 @@ fun DuellScreen(
                 }
                 WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
                 web.overScrollMode = View.OVER_SCROLL_NEVER
-                web.addJavascriptInterface(DuellHost(ctx, web) { more() }, "DuellHost")
+                web.addJavascriptInterface(DuellHost(ctx, web, peerBridge) { more() }, "DuellHost")
                 web.webChromeClient = object : WebChromeClient() {
                     override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
                         chooserCallback[0]?.onReceiveValue(null) // a new request replaces an unanswered one
@@ -276,6 +309,9 @@ fun DuellScreen(
                     }
                 }
                 web.webViewClient = object : WebViewClient() {
+                    // A new page knows nothing of a running session, so the session ends with the old one.
+                    override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) { peerBridge.leave() }
+
                     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                         val url = request.url.toString()
                         if (DuellLink.isInternal(url)) return false

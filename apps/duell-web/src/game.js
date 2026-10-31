@@ -1,7 +1,7 @@
 /* Game screen: the Duell flyer as one idea among others. Also runs as a live, self-playing preview in the editor. */
 (function () {
 "use strict";
-var C = window.DuellCore, E = window.DuellEngine, D = window.Daily, Kit = window.Kit, t = Kit.t;
+var C = window.DuellCore, E = window.DuellEngine, D = window.Daily, Kit = window.Kit, P = window.Playable, t = Kit.t;
 var $ = function (id) { return document.getElementById(id); };
 var TH = {
   day:   { skyTop: "#4ec0ca", skyBottom: "#b6e6e0", pipe: "#5cbf3a", pipeEdge: "#2f7d1b", ground: "#ded895", groundEdge: "#c5b96a", accent: "#f7d51d" },
@@ -13,6 +13,8 @@ var TH = {
   ocean: { skyTop: "#04476b", skyBottom: "#1aa6b7", pipe: "#ff7f6b", pipeEdge: "#b74a3a", ground: "#0b2f4a", groundEdge: "#1d5f86", accent: "#aef0ff", bubbles: 1 },
   lava:  { skyTop: "#2b0a0a", skyBottom: "#7a1d0b", pipe: "#3a3a3a", pipeEdge: "#1b1b1b", ground: "#1b0f0f", groundEdge: "#ff5a1f", accent: "#ffb347", glow: 1 }
 };
+var skinTh = null;   // a game made from a card has that card's colours instead of a named world
+function look() { return cur.skin ? skinTh || (skinTh = P.skinTheme(cur.skin)) : TH[cur.theme]; }
 function fmt(k, o) { return t(k, o); }
 function tone(a, b, c, d, e, f) { Kit.tone(a, b, c, d, e, f); }
 var SFX = {
@@ -48,13 +50,14 @@ function fit() {
 }
 window.addEventListener("resize", function () { if (mode !== "off") fit(); });
 function draw() {
-  var th = TH[cur.theme], p = sim, s = scale * cv.dpr, W = E.W, H = E.H, G = E.GROUND;
+  var th = look(), p = sim, s = scale * cv.dpr, W = E.W, H = E.H, G = E.GROUND;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, cv.width, cv.height);
   var sx = shake ? (Math.random() - 0.5) * shake : 0, sy = shake ? (Math.random() - 0.5) * shake : 0;
   ctx.setTransform(s, 0, 0, s, sx * s, sy * s);
   var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, th.skyTop); g.addColorStop(1, th.skyBottom);
   ctx.fillStyle = g; ctx.fillRect(-20, -20, W + 40, H + 40);
+  if (opts.bg) { ctx.globalAlpha = 0.45; ctx.drawImage(opts.bg, 0, 0, W, H - G); ctx.globalAlpha = 1; }
   // backdrop: stars / bubbles / soft clouds (visual only)
   var i, x, y;
   if (th.stars) { ctx.fillStyle = "rgba(255,255,255,.8)"; for (i = 0; i < 28; i++) { x = (i * 97 + 13) % W; y = (i * 53 + 7) % (H - G - 80); ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(clock * 1.5 + i)); ctx.fillRect(x, y, 2, 2); } ctx.globalAlpha = 1; }
@@ -85,7 +88,8 @@ function draw() {
   var by2 = p.state === "ready" ? p.bird.y + Math.sin(clock * 4) * 6 : p.bird.y;
   ctx.save(); ctx.translate(E.BX, by2); ctx.rotate(p.state === "over" ? 1.4 : p.bird.rot);
   ctx.font = Math.round(E.GROUND * 0.62) + "px " + EMO; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText(cur.emoji, 0, 2); ctx.restore();
+  if (opts.figure) ctx.drawImage(opts.figure, -18, -18, 36, 36); else ctx.fillText(cur.emoji, 0, 2);
+  ctx.restore();
   // particles
   for (i = 0; i < parts.length; i++) { var q = parts[i]; ctx.globalAlpha = Math.max(0, q.life / q.max); ctx.fillStyle = q.c; ctx.fillRect(q.x, q.y, q.s, q.s); }
   ctx.globalAlpha = 1;
@@ -130,7 +134,7 @@ function handle(ev) {
 }
 function onDead() {
   document.body.setAttribute("data-state", "over"); SFX.dead(); doShake(18); flash = 1;
-  burst(86, sim.bird.y, 46, [TH[cur.theme].accent, "#fff", "#ff3d71", "#ffd93d"], 320, 700);
+  burst(86, sim.bird.y, 46, [look().accent, "#fff", "#ff3d71", "#ffd93d"], 320, 700);
   isRecord = sim.score > prevBest && sim.score > 0;
   if (isRecord) { best()[C.configKey(cur)] = sim.score; Kit.save(); }
   $("hint").hidden = true; $("banner").hidden = true;
@@ -144,7 +148,7 @@ function showResult() {
     var nm = rival.name || t("rival");
     line = sc > rival.score ? t("win", { name: nm }) : sc === rival.score ? t("tie", { name: nm }) : t("lose", { name: nm, d: rival.score - sc });
   } else line = t("bestN", { n: Math.max(prevBest, sc) });
-  $("res-line").textContent = line; $("res-score").textContent = String(sc);
+  $("res-line").textContent = !rival && cur.skin && cur.skin.l ? cur.skin.l : line; $("res-score").textContent = String(sc);
   // Own changes make sharing the main action; a game nobody touched asks for a remix first.
   $("image").hidden = !opts.own; $("challenge").classList.toggle("hot", !!opts.own); $("toremix").classList.toggle("hot", !opts.own);
   $("gamebtns").insertBefore(opts.own ? $("challenge") : $("toremix"), $("gamebtns").firstChild);
@@ -179,20 +183,22 @@ function doFlap() {
   if (mode !== "play" || sim.state === "over") return;
   var ev = sim.flap();
   if (ev.indexOf("start") >= 0) { document.body.setAttribute("data-state", "run"); $("hint").hidden = true; $("dock").hidden = true; $("banner").hidden = true; }
-  if (ev.indexOf("flap") >= 0) { SFX.flap(); burst(76, sim.bird.y + 8, 5, ["#fff", TH[cur.theme].accent], 90, 200); }
+  if (ev.indexOf("flap") >= 0) { SFX.flap(); burst(76, sim.bird.y + 8, 5, ["#fff", look().accent], 90, 200); }
 }
 $("game").addEventListener("pointerdown", function (e) { if (e.target.closest("button,input,.panel")) return; e.preventDefault(); doFlap(); });
 window.addEventListener("keydown", function (e) {
   if (mode === "play" && (e.code === "Space" || e.key === "ArrowUp") && !(e.target && e.target.tagName === "INPUT")) { e.preventDefault(); doFlap(); }
 });
 $("again").addEventListener("click", function () { Kit.sfx.tap(); newRun(); });
-$("challenge").addEventListener("click", function () {
+$("challenge").addEventListener("click", async function () {
   Kit.sfx.tap();
-  Kit.share({ url: D.challengeUrl(cur, sim.score), text: t("chText", { n: sim.score, t: cur.title }) });
+  var link = await window.ShortLink.shorten(D.challengeUrl(cur, sim.score), { k: "game", n: sim.score, l: Kit.lang }, Kit.store);
+  Kit.save();
+  Kit.share({ url: link.url, text: t("chText", { n: sim.score, t: cur.title }) });
 });
 function attach(host) { cv = host; ctx = cv.getContext("2d"); fit(); }
 
-/* The one network call of the app: a sentence typed for a game, only ever in this function, with a local fallback. */
+/* The one network call of the game: a sentence typed for a game, only ever in this function, with a local fallback. */
 async function fromSentence(prompt, lang) {
   var st = null;
   if (navigator.onLine !== false && typeof fetch === "function") {
@@ -209,8 +215,8 @@ async function fromSentence(prompt, lang) {
 window.Game = {
   THEMES: Object.keys(TH), themeColor: function (n) { return TH[n].skyTop; }, fromSentence: fromSentence,
   play: function (st, riv, o) {
-    opts = o || {}; rival = riv || null; cur = st; mode = "play";
-    attach($("cv")); $("game").style.background = TH[cur.theme].skyTop; $("title").textContent = cur.title; $("hint").textContent = t("hint"); $("remixbtn").textContent = "✨ " + t("remix");
+    opts = o || {}; rival = riv || null; cur = st; skinTh = null; mode = "play";
+    attach($("cv")); $("game").style.background = look().skyTop; $("title").textContent = cur.title; $("hint").textContent = t("hint"); $("remixbtn").textContent = "✨ " + t("remix");
     $("challenge").textContent = t("challenge"); $("again").textContent = t("again"); $("image").textContent = t("image"); $("toremix").textContent = t("remix");
     newRun(); run();
   },

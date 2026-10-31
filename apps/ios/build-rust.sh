@@ -9,11 +9,11 @@ PROFILE=release
 TARGETS=(aarch64-apple-ios aarch64-apple-ios-sim)
 
 for t in "${TARGETS[@]}"; do
-  cargo build -p mobile-core --features wasm --"$PROFILE" --target "$t"
+  cargo build -p mobile-core --features wasm,peer --"$PROFILE" --target "$t"
 done
 # Host build: bindgen reads the UniFFI metadata from the cdylib.
-cargo build -p mobile-core --"$PROFILE"
-cargo build -p mobile-core --features cli --bin uniffi-bindgen --"$PROFILE"
+cargo build -p mobile-core --features peer --"$PROFILE"
+cargo build -p mobile-core --features cli,peer --bin uniffi-bindgen --"$PROFILE"
 
 HOSTLIB=target/$PROFILE/libmobile_core.dylib
 [ -f "$HOSTLIB" ] || HOSTLIB=target/$PROFILE/libmobile_core.so
