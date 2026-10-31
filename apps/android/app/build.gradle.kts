@@ -51,8 +51,8 @@ android {
         applicationId = "org.bunsenbrenner.cads"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
         manifestPlaceholders["appAuthRedirectScheme"] = redirect.scheme // required by AppAuth's manifest
         manifestPlaceholders["redirectHost"] = redirect.host
         manifestPlaceholders["redirectPath"] = redirect.path
