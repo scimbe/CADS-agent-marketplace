@@ -9,6 +9,7 @@ settings:
     DEVELOPMENT_TEAM: ""
     EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
     CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: NO   # copy-duell.sh reads ../duell-web and writes into the bundle
 targets:
   CadsMarketplace:
     type: application
@@ -19,6 +20,10 @@ targets:
       - path: ../../manifests/prompt-templates   # bundled signed sample templates (no copy)
         type: folder
         buildPhase: resources
+    postCompileScripts:
+      - name: Bundle Duell web game
+        script: ./copy-duell.sh
+        basedOnDependencyAnalysis: false
     dependencies:
       - framework: Frameworks/MobileCoreFFI.xcframework
         embed: false
@@ -29,10 +34,11 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: CADS
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_CadsApiBase: https://bunsenbrenner.org
         INFOPLIST_KEY_CadsOidcIssuer: https://auth.bunsenbrenner.org/realms/ct-demo
         INFOPLIST_KEY_CadsOidcClientId: cads-mobile
+        CODE_SIGN_ENTITLEMENTS: App/CadsMarketplace.entitlements
         CODE_SIGNING_ALLOWED: NO
         CODE_SIGN_IDENTITY: ""
         SWIFT_OBJC_BRIDGING_HEADER: ""
@@ -44,3 +50,12 @@ targets:
         CadsOidcClientId: cads-mobile
         CFBundleLocalizations: [de, en]
         UILaunchScreen: {}
+        UIRequiresFullScreen: true
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait]
+    entitlements:
+      path: App/CadsMarketplace.entitlements
+      properties:
+        # Universal Link for https://bunsenbrenner.org/duell. Takes effect only in a build signed with
+        # a team that has the Associated Domains capability (the CI simulator build is unsigned).
+        com.apple.developer.associated-domains: ["applinks:bunsenbrenner.org"]

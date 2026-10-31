@@ -13,14 +13,15 @@
 		4C82FE33B02D3BE63814407D /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75BAFB855677D8EF7B6ACD64 /* AppModel.swift */; };
 		5B76B6CC3C0F0F7C65EC483A /* TemplateDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD81CFE084B80A189CFAFC41 /* TemplateDetailView.swift */; };
 		87009D78E9A22462C1D14314 /* MockInstallationsAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA250E4313740B60FE8CF3C9 /* MockInstallationsAPI.swift */; };
+		89B852D1AE9FF129AD8E9736 /* DuellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67F7F52E5C7800D88585B9F3 /* DuellView.swift */; };
 		9836F1532EC50362670F0DB3 /* InstallationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F531ACF30ACF28A772D3C191 /* InstallationsView.swift */; };
 		A5588970492D3201F595179F /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = DECC8E8EB59AFD37BAC6D2BB /* Keychain.swift */; };
 		BA7B6F26776E97246B741FCB /* prompt-templates in Resources */ = {isa = PBXBuildFile; fileRef = 3CB74CFFEB7F4201592CC8DF /* prompt-templates */; };
 		CFA8F9451F7F0E34DFFA87BB /* FormState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2874F7FCCCF551B3B226EAB8 /* FormState.swift */; };
-		D2E8F9FBAB9D3E3C4F733438 /* mobile_core.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E5D5BE7E6403A26AB8D8A83 /* mobile_core.swift */; };
 		D9B5A1AC9442042BB1220D0C /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = DA644F6B8C5AF50712C95672 /* Localizable.strings */; };
 		DFE0401A8DD5428449B6FA63 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1193DB384ADE6E5A29A24DC2 /* AuthService.swift */; };
 		E7B10E54CC3D0CC73509608E /* TemplatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4286026C041C3D0ECE84B51E /* TemplatesView.swift */; };
+		FB0C2FD02A4F1AE70A3548F5 /* DuellLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 774B7A0DA48A8462BEF31959 /* DuellLink.swift */; };
 		FBB46733CFCABCB06B516BA7 /* Services.swift in Sources */ = {isa = PBXBuildFile; fileRef = D28DA4D5E3DFAB55BEF9DCA1 /* Services.swift */; };
 		FD7007A4A5685D5CC8B9F9C7 /* TemplateFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 794079433C6AB1AAFAC505E0 /* TemplateFormView.swift */; };
 /* End PBXBuildFile section */
@@ -29,13 +30,15 @@
 		1193DB384ADE6E5A29A24DC2 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		1D415199D36806AE6D3A4E7C /* CadsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CadsApp.swift; sourceTree = "<group>"; };
 		2874F7FCCCF551B3B226EAB8 /* FormState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormState.swift; sourceTree = "<group>"; };
+		2A239E8D814F0058F050C9B0 /* CadsMarketplace.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CadsMarketplace.entitlements; sourceTree = "<group>"; };
 		2E9C593FC7515BD9FB599458 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		3CB74CFFEB7F4201592CC8DF /* prompt-templates */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "prompt-templates"; path = "../../manifests/prompt-templates"; sourceTree = SOURCE_ROOT; };
-		3E5D5BE7E6403A26AB8D8A83 /* mobile_core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = mobile_core.swift; sourceTree = "<group>"; };
 		4286026C041C3D0ECE84B51E /* TemplatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplatesView.swift; sourceTree = "<group>"; };
 		4C5A2FDD3D23DD15E1BAC75B /* CadsMarketplace.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CadsMarketplace.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		67F7F52E5C7800D88585B9F3 /* DuellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuellView.swift; sourceTree = "<group>"; };
 		71B9DE8C8F70CF610430F689 /* MobileCoreFFI.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = MobileCoreFFI.xcframework; path = Frameworks/MobileCoreFFI.xcframework; sourceTree = "<group>"; };
 		75BAFB855677D8EF7B6ACD64 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		774B7A0DA48A8462BEF31959 /* DuellLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuellLink.swift; sourceTree = "<group>"; };
 		794079433C6AB1AAFAC505E0 /* TemplateFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateFormView.swift; sourceTree = "<group>"; };
 		953656569E6456B00EDF750E /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
 		97E940EF9C78BBB4B6E9B5DE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -94,9 +97,11 @@
 			isa = PBXGroup;
 			children = (
 				1D415199D36806AE6D3A4E7C /* CadsApp.swift */,
+				2A239E8D814F0058F050C9B0 /* CadsMarketplace.entitlements */,
 				953656569E6456B00EDF750E /* Config.swift */,
 				97E940EF9C78BBB4B6E9B5DE /* Info.plist */,
 				516019488E71B37688CE31F5 /* Auth */,
+				8216BC8A9190DA94B8359997 /* Duell */,
 				0BD92F48F778A5C4C3B334A8 /* Model */,
 				E847FA465E6CEA8DE3B73231 /* Resources */,
 				8B04454577A31E60DA9FA707 /* Views */,
@@ -110,6 +115,15 @@
 				71B9DE8C8F70CF610430F689 /* MobileCoreFFI.xcframework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		8216BC8A9190DA94B8359997 /* Duell */ = {
+			isa = PBXGroup;
+			children = (
+				774B7A0DA48A8462BEF31959 /* DuellLink.swift */,
+				67F7F52E5C7800D88585B9F3 /* DuellView.swift */,
+			);
+			path = Duell;
 			sourceTree = "<group>";
 		};
 		8B04454577A31E60DA9FA707 /* Views */ = {
@@ -126,7 +140,6 @@
 		C137F3842EB41F6984ABDFC4 /* Generated */ = {
 			isa = PBXGroup;
 			children = (
-				3E5D5BE7E6403A26AB8D8A83 /* mobile_core.swift */,
 			);
 			path = Generated;
 			sourceTree = "<group>";
@@ -155,6 +168,7 @@
 			buildConfigurationList = 861B3EFD3BF35B22375F140E /* Build configuration list for PBXNativeTarget "CadsMarketplace" */;
 			buildPhases = (
 				07812143DE3DED15D427D05F /* Sources */,
+				84563C1EA68EFA5DE0AFD3D3 /* Bundle Duell web game */,
 				9EBFE8BDC8493C270E7DD77F /* Resources */,
 				DF3B2B9C3372E3E13E192678 /* Frameworks */,
 			);
@@ -216,6 +230,28 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		84563C1EA68EFA5DE0AFD3D3 /* Bundle Duell web game */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Bundle Duell web game";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "./copy-duell.sh";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		07812143DE3DED15D427D05F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -225,6 +261,8 @@
 				DFE0401A8DD5428449B6FA63 /* AuthService.swift in Sources */,
 				128FBC89B9AF5A2F7E689D95 /* CadsApp.swift in Sources */,
 				2914F499B1C3AA8F777F8CE1 /* Config.swift in Sources */,
+				FB0C2FD02A4F1AE70A3548F5 /* DuellLink.swift in Sources */,
+				89B852D1AE9FF129AD8E9736 /* DuellView.swift in Sources */,
 				CFA8F9451F7F0E34DFFA87BB /* FormState.swift in Sources */,
 				9836F1532EC50362670F0DB3 /* InstallationsView.swift in Sources */,
 				A5588970492D3201F595179F /* Keychain.swift in Sources */,
@@ -233,7 +271,6 @@
 				5B76B6CC3C0F0F7C65EC483A /* TemplateDetailView.swift in Sources */,
 				FD7007A4A5685D5CC8B9F9C7 /* TemplateFormView.swift in Sources */,
 				E7B10E54CC3D0CC73509608E /* TemplatesView.swift in Sources */,
-				D2E8F9FBAB9D3E3C4F733438 /* mobile_core.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -291,6 +328,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
@@ -357,6 +395,7 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -382,6 +421,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_ENTITLEMENTS = App/CadsMarketplace.entitlements;
 				CODE_SIGN_IDENTITY = "";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -394,7 +434,7 @@
 				INFOPLIST_KEY_CadsOidcClientId = "cads-mobile";
 				INFOPLIST_KEY_CadsOidcIssuer = "https://auth.bunsenbrenner.org/realms/ct-demo";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -412,6 +452,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_ENTITLEMENTS = App/CadsMarketplace.entitlements;
 				CODE_SIGN_IDENTITY = "";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -424,7 +465,7 @@
 				INFOPLIST_KEY_CadsOidcClientId = "cads-mobile";
 				INFOPLIST_KEY_CadsOidcIssuer = "https://auth.bunsenbrenner.org/realms/ct-demo";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

@@ -139,22 +139,53 @@ jobs:
           xcodebuild -project CadsMarketplace.xcodeproj -scheme CadsMarketplace \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build build
-      - name: Run in the simulator and capture the three screens (mock data, DEBUG build)
+      - name: Run in the simulator, capture the screens and check the Duell game (mock data, DEBUG build)
         working-directory: apps/ios
         run: |
+          set -euo pipefail
+          APP=org.bunsenbrenner.cads
           UDID=$(xcrun simctl list devices available | grep -m1 "iPhone" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
           xcrun simctl boot "$UDID"
           xcrun simctl install "$UDID" build/Build/Products/Debug-iphonesimulator/CadsMarketplace.app
           mkdir -p shots
-          xcrun simctl launch "$UDID" org.bunsenbrenner.cads -UIMockInstallations -UITab 0
-          sleep 4; xcrun simctl io "$UDID" screenshot shots/1-vorlagen.png
-          xcrun simctl terminate "$UDID" org.bunsenbrenner.cads
-          xcrun simctl launch "$UDID" org.bunsenbrenner.cads -UIMockInstallations -UITab 1
-          sleep 4; xcrun simctl io "$UDID" screenshot shots/2-installationen.png
-          xcrun simctl terminate "$UDID" org.bunsenbrenner.cads
-          xcrun simctl launch "$UDID" org.bunsenbrenner.cads -UIMockInstallations -UITab 2
-          sleep 4; xcrun simctl io "$UDID" screenshot shots/3-vorlage-detail.png
+          shot() { # name, extra launch args...
+            local name=$1; shift
+            xcrun simctl launch "$UDID" $APP -UIMockInstallations "$@"
+            sleep 6; xcrun simctl io "$UDID" screenshot "shots/$name.png"
+            xcrun simctl terminate "$UDID" $APP
+          }
+          # Tabs: 0 Duell (default), 1 Vorlagen, 2 Installationen, 3 Vorlage-Detail
+          shot 1-duell -UITab 0 -DuellReport
+          cp "$(xcrun simctl get_app_container "$UDID" $APP data)/Documents/duell-report.json" shots/report-start.json
+          CH=$(printf '{"v":1,"n":"Mira-Test"}' | base64 | tr '+/' '-_' | tr -d '=\n')
+          shot 2-duell-challenge -UITab 0 -DuellChallenge "c=$CH" -DuellReport
+          cp "$(xcrun simctl get_app_container "$UDID" $APP data)/Documents/duell-report.json" shots/report-challenge.json
+          shot 3-vorlagen -UITab 1
+          shot 4-installationen -UITab 2
+          shot 5-vorlage-detail -UITab 3
+          python3 - "$CH" <<'PY'
+          import json, sys
+          ch = sys.argv[1]
+          start = json.load(open("shots/report-start.json"))
+          chal = json.load(open("shots/report-challenge.json"))
+          assert start["bundledPage"], "bundled duell/index.html missing"
+          b, a = json.loads(start["before"]), json.loads(start["after"])
+          assert b["hash"] == "", f"unexpected fragment without challenge: {b['hash']!r}"
+          assert start["clicked"], "no button found in the game"
+          assert b["text"] != a["text"], "game did not react to the click"
+          cb = json.loads(chal["before"])
+          assert cb["hash"] == "#c=" + ch, f"challenge fragment not taken over: {cb['hash']!r}"
+          assert cb["href"].startswith("file://") and cb["href"].endswith("duell/index.html#c=" + ch)
+          if "PLATZHALTER" in b["text"]:
+              assert "Mira-Test" in cb["text"], "challenge content not shown"
+              print("placeholder page: challenge content shown")
+          else:
+              print("real page: fragment taken over (content check only on the placeholder)")
+          print("duell checks ok; clicked:", start["clicked"])
+          PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ios-simulator-screenshots
-          path: apps/ios/shots/*.png
+          path: |
+            apps/ios/shots/*.png
+            apps/ios/shots/*.json

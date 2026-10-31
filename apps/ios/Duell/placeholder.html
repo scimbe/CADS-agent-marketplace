@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Duell (Platzhalter)</title>
+<style>
+body{margin:0;font:18px -apple-system,system-ui,sans-serif;background:#10151f;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px;text-align:center}
+button{font:inherit;padding:14px 28px;border:0;border-radius:12px;background:#3b82f6;color:#fff}
+small{opacity:.6}
+</style></head><body>
+<h1>Duell</h1>
+<small id="src">PLATZHALTER - nur zum Test, die echte Datei kommt aus apps/duell-web/dist</small>
+<div id="ch">Keine Herausforderung</div>
+<div>Punkte: <b id="n">0</b></div>
+<button id="tap">Tippen</button>
+<button id="share">Teilen</button>
+<script>
+function b64(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return decodeURIComponent(escape(atob(s)))}
+function show(){
+  var m=/^#c=([A-Za-z0-9_-]+)/.exec(location.hash),el=document.getElementById('ch');
+  if(!m){el.textContent='Keine Herausforderung';return}
+  try{var j=JSON.parse(b64(m[1]));el.textContent='Herausforderung von '+j.n}catch(e){el.textContent='Herausforderung ungueltig'}
+}
+addEventListener('hashchange',show);show();
+document.getElementById('tap').onclick=function(){var n=document.getElementById('n');n.textContent=+n.textContent+1;
+  if(window.DuellHost&&DuellHost.haptic)DuellHost.haptic('light')};
+document.getElementById('share').onclick=function(){
+  var u='https://bunsenbrenner.org/duell'+(location.hash||''),t='Duell mich!';
+  if(window.DuellHost&&DuellHost.share)DuellHost.share(u,t);else if(navigator.share)navigator.share({url:u,text:t})};
+</script></body></html>

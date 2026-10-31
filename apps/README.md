@@ -112,7 +112,19 @@ apps/android/build-rust.sh
 cd apps/android && ./gradlew testDebugUnitTest assembleDebug assembleRelease   # Release ist unsigniert; Signatur siehe unten
 ```
 
-Das CI (`.github/workflows/mobile.yml`) fuehrt beides aus. Nur in Debug-Builds der iOS-App gibt es die Startargumente `-UIMockInstallations` und `-UITab <0|1>`: sie zeigen Beispieldaten in "Meine Installationen" ohne Server und werden fuer die CI-Screenshots genutzt. In Release-Builds sind sie nicht enthalten.
+Das CI (`.github/workflows/mobile.yml`) fuehrt beides aus. Nur in Debug-Builds der iOS-App gibt es die Startargumente `-UIMockInstallations` und `-UITab <0..3>` (0 Duell, 1 Vorlagen, 2 Installationen, 3 Vorlage-Detail) sowie `-DuellChallenge`, `-DuellReport`: sie zeigen Beispieldaten in "Meine Installationen" ohne Server und werden fuer die CI-Screenshots genutzt. In Release-Builds sind sie nicht enthalten.
+
+### Duell (iOS)
+
+Erster Tab, ohne Anmeldung. Ein `WKWebView` laedt ausschliesslich `duell/index.html` aus dem App-Paket (`apps/ios/copy-duell.sh` kopiert `apps/duell-web/dist/index.html`, falls vorhanden, sonst den Test-Platzhalter `apps/ios/Duell/placeholder.html`). Netzwerk-Laden der Seite ist per Content-Rule-Liste gesperrt, externe Links oeffnen in Safari. Es gibt nur zwei Script-Handler: `share` (Teilen-Dialog, nur `https://bunsenbrenner.org/...`) und `haptic`; die Seite sieht sie als `window.DuellHost.share(url, text)` und `.haptic(stil)`. Hochformat, Vollbild, keine Analytics.
+
+Universal Link `https://bunsenbrenner.org/duell#c=...` oeffnet den Duell-Tab mit der Herausforderung (Entitlement `applinks:bunsenbrenner.org` in `project.yml`). Das wirkt erst in einem signierten Build mit Apple-Team (Associated Domains). Dazu liefert der Server unter `https://bunsenbrenner.org/.well-known/apple-app-site-association` (Content-Type `application/json`, ohne Redirect):
+
+```json
+{"applinks":{"details":[{"appIDs":["<TEAM_ID>.org.bunsenbrenner.cads"],"components":[{"/":"/duell"},{"/":"/duell/*"}]}]}}
+```
+
+`<TEAM_ID>` ist ein Platzhalter bis zum Apple-Developer-Konto.
 
 ### Release-Signatur und Emulator-Test (Android)
 
