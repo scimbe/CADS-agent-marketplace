@@ -7,7 +7,7 @@
   var Kit = window.Kit, S = window.Collab, t = Kit.t;
   var $ = function (id) { return document.getElementById(id); };
   var LINK = "https://bunsenbrenner.org/duell#p=", FRAG = /^[A-Za-z0-9_-]{40,1024}$/, TICK_MS = 100;
-  var ctx = null, eng = null, timer = 0, phase = "off", code = "", link = "", role = "";
+  var ctx = null, eng = null, claimed = null, timer = 0, phase = "off", code = "", link = "", role = "";
 
   function host() { return window.DuellHost; }
   function bridged() { var h = host(); return !!h && typeof h.peerInvite === "function"; }
@@ -98,7 +98,9 @@
   // From the shell. Anything it passes is treated like any other untrusted input.
   function onPeerMessage(json) {
     var m; try { m = JSON.parse(json); } catch (e) { return; }
-    if (!m || typeof m !== "object" || !eng) return;
+    if (!m || typeof m !== "object") return;
+    if (claimed) { claimed(m); return; }
+    if (!eng) return;
     if (m.t === "msg") {
       var e = ctx.ed(); if (e) eng.local(e.doc);
       if (typeof m.body === "string") eng.receive(m.body, now());
@@ -147,7 +149,13 @@
           sheet(t("co_title"), t("co_ask"), [btn(t("co_accept"), true, function () { Kit.sfx.thud(); accept(frag); }), btn(t("co_no"), false, closeSheet)]);
           return true;
         },
-        engine: function () { return eng; }
+        engine: function () { return eng; },
+        // For a feature that uses the channel instead of the editor sync, one at a time (callcard-ui.js).
+        channel: {
+          bridged: bridged, ready: ready, busy: function () { return phase !== "off" || !!claimed; }, sheet: sheet, close: closeSheet,
+          btn: btn, link: function (frag) { return LINK + frag; },
+          claim: function (fn) { claimed = fn; }, release: function () { claimed = null; }
+        }
       };
     }
   };
