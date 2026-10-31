@@ -132,8 +132,9 @@ function openEditor(doc, opt) {
 }
 function tab(k) {
   ed.tab = k; Array.from($("tabs").children).forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.k === k)); });
-  var p = $("panel"); p.textContent = ""; p.classList.toggle("tall", k === "Sound" && ed.doc.m === "beat"); PANEL[k](p); p.scrollTop = 0;
+  var p = $("panel"); p.textContent = ""; p.classList.toggle("tall", (k === "Sound" && ed.doc.m === "beat") || (k === "Text" && ed.doc.k !== "game")); PANEL[k](p); p.scrollTop = 0;
 }
+function aiBlock(p, o) { o.el = el; o.wall = openAiWall; window.Ai.block(p, o); }
 function field(p, label, value, max, on, area) {
   p.appendChild(el("label", "lbl", label));
   var f = el(area ? "textarea" : "input", "field"); f.value = value || ""; f.maxLength = max; if (area) f.rows = 2; f.autocomplete = "off"; f.setAttribute("aria-label", label);
@@ -179,8 +180,16 @@ var PANEL = {
     if (d.k === "card") {
       var f = field(p, t("line"), d.x, 90, function (v) { d.x = v; }, true), L = ed.idea ? ideaText(ed.idea).lines : null;
       if (L) p.appendChild(el("button", "chip", "🎲 " + t("dice"), function () { Kit.sfx.pop(); ed.line = (ed.line + 1) % L.length; d.x = L[ed.line]; f.value = d.x; ed.base.x = d.x; changed(); }));
-    } else if (d.k === "photo") { field(p, t("top"), d.x, 28, function (v) { d.x = v; }); field(p, t("bottom"), d.y, 28, function (v) { d.y = v; }); }
-    else if (d.k === "sound") field(p, t("titleL"), d.x, 28, function (v) { d.x = v; });
+      aiBlock(p, { kind: "line", label: t("aiLine"), input: function () { var x = D.cleanInput(d.x, 90) || t("own"); return { text: x, style: d.st }; }, show: String, apply: function (o) { var v = D.cleanInput(o, 90); if (v) { d.x = v; f.value = v; changed(); } } });
+    } else if (d.k === "photo") {
+      var top = field(p, t("top"), d.x, 28, function (v) { d.x = v; }), low = field(p, t("bottom"), d.y, 28, function (v) { d.y = v; });
+      var what = field(p, t("aiDesc"), "", 100, function () {});
+      aiBlock(p, { kind: "meme", label: t("aiMeme"), input: function () { var v = D.cleanInput(what.value, 100); return v ? { desc: v } : null; }, show: function (o) { return o.top + " / " + o.bottom; }, apply: function (o) { d.x = D.cleanInput(o.top, 28); d.y = D.cleanInput(o.bottom, 28); top.value = d.x; low.value = d.y; changed(); } });
+    } else if (d.k === "sound") {
+      var name = field(p, t("titleL"), d.x, 28, function (v) { d.x = v; }), topic = field(p, t("aiTopic"), "", 60, function () {}), song = el("p", "lyrics"); song.hidden = true;
+      aiBlock(p, { kind: "lyrics", label: t("aiLyrics"), input: function () { var v = D.cleanInput(topic.value, 60); return v ? { topic: v, bpm: d.bpm || 110 } : null; }, show: function (o) { return o.title; }, apply: function (o) { var v = D.cleanInput(o.title, 28); if (v) { d.x = v; name.value = v; } song.textContent = o.lines.join("\n"); song.hidden = false; changed(); } });
+      p.appendChild(song);
+    }
     else field(p, t("titleL"), d.g.title, 28, function (v) { d.g.title = v || "Duell"; });
   },
   Style: function (p) {
@@ -417,6 +426,7 @@ function openStyle() {
   });
 }
 function shelf(title, fill) { stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
+function openAiWall() { ed.styling = true; shelf(t("aiTitle"), function (b) { window.Ai.wall(b, el); }); }
 function openPast() {
   shelf(t("past"), function (b) {
     D.lastDays(today, 7).forEach(function (e) {

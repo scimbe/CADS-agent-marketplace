@@ -31,8 +31,9 @@ private struct DuellWebView: UIViewRepresentable {
         let c = context.coordinator
         let config = WKWebViewConfiguration()
         let ucc = config.userContentController
-        // Only these handlers exist: share sheet (link / file), save, haptics and the quiet "more".
+        // Only these handlers exist: share sheet (link / file), save, haptics, the quiet "more" and the AI call.
         for name in DuellCoordinator.handlerNames { ucc.add(WeakHandler(c), name: name) }
+        ucc.addScriptMessageHandler(DuellAiBridge(), contentWorld: .page, name: "ai")   // the one network call, made by the shell
         ucc.addUserScript(WKUserScript(source: DuellCoordinator.hostScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         // The page keeps its wall and profile in localStorage; that has to survive a restart.
         config.websiteDataStore = .default()
@@ -104,7 +105,8 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
         shareFile: function (b64, typ, name, url, text) { h.shareFile.postMessage({ b64: String(b64), typ: String(typ), name: String(name || ""), url: String(url || ""), text: String(text || "") }); },
         saveFile: function (b64, typ, name) { h.saveFile.postMessage({ b64: String(b64), typ: String(typ), name: String(name || "") }); },
         haptic: function (style) { h.haptic.postMessage({ style: String(style || "light") }); },
-        more: function () { h.more.postMessage({}); }
+        more: function () { h.more.postMessage({}); },
+        ai: function (path, body) { return h.ai.postMessage({ path: String(path), body: String(body) }); }
       });
     })();
     """

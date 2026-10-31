@@ -21,9 +21,12 @@ test("Build: eine Datei, voll offline, alle Welten da, Platzhalter ersetzt, Groe
   assert.match(html, /Content-Security-Policy[^>]*default-src 'none'/);
   assert.match(html, /connect-src https:\/\/demos-34a13a96\.bunsenbrenner\.org;/, "nur der eine Host");
 });
-test("Datenschutz: genau eine fetch-Stelle, nur im Spiel, nur mit dem getippten Satz; kein anderer Weg nach draussen", () => {
+test("Datenschutz: zwei fetch-Stellen (Spielsatz, KI-Text), nur getippter Text; kein anderer Weg nach draussen", () => {
   const html = fs.readFileSync(dist, "utf8");
-  assert.equal((html.match(/fetch\(/g) || []).length, 1, "genau ein fetch");
+  assert.equal((html.match(/fetch\(/g) || []).length, 2, "genau zwei fetch");
+  assert.equal((src("ai.js").match(/fetch\(/g) || []).length, 1, "ein fetch in der KI");
+  assert.match(src("ai.js").match(/await fetch\([^\n]*/)[0], /body: text/, "nur der gepruefte Text");
+  assert.ok(!/toDataURL|toBlob|drawImage|getImageData/.test(src("ai.js")), "KI fasst kein Bild an");
   assert.ok(src("game.js").includes("await fetch("), "fetch gehoert ins Spiel");
   const body = src("game.js").match(/fetch\([^\n]*/)[0];
   assert.match(body, /JSON\.stringify\(\{ prompt: prompt, lang: lang \}\)/, "nur Satz + Sprache");
