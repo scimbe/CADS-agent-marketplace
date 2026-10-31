@@ -30,6 +30,8 @@
   function trail(v) { return Array.isArray(v) && JSON.stringify(D.sanitizeDoc({ k: "card", by: v }).by) === JSON.stringify(v); }
   function name(v) { return typeof v === "string" && (v === "" || C.sanitizeName(v) === v); }
 
+  // Only these sync. Duels and secret channels stay with one person: the channel's answers must never travel as editor fields.
+  var KINDS = ["game", "photo", "sound", "card"];
   // The fields of one kind. A key that is not listed here cannot enter the state.
   function rules(kind) {
     var r = { t: text(40), s: text(70), n: name, col: pair, by: trail };
@@ -155,7 +157,7 @@
     function okClock(l) { return Number.isInteger(l) && l >= 1 && l <= MAX_CLOCK && l <= s.clock + MAX_JUMP; }
     function okStamp(l, a) { return okClock(l) && typeof a === "string" && ACTOR.test(a); }
     function okMeta(m) {
-      if (!m || typeof m !== "object" || D.KINDS.indexOf(m.k) < 0) return false;
+      if (!m || typeof m !== "object" || KINDS.indexOf(m.k) < 0) return false;
       if (m.k === "sound" ? m.m !== "beat" && m.m !== "voice" : m.m !== undefined) return false;
       if (m.i !== undefined && D.sanitizeId(m.i) !== m.i) return false;
       return !s.meta || (s.meta.k === m.k && s.meta.m === m.m && s.meta.i === m.i);
@@ -305,7 +307,7 @@
     return a;
   }
 
-  var api = { create: create, newActor: newActor, flatten: flatten, rules: rules, V: V, MAX_FRAME: MAX_FRAME, MAX_OPS: MAX_OPS, MAX_IDS: MAX_IDS, LOCAL_IDS: LOCAL_IDS, MAX_IN_PER_MIN: MAX_IN_PER_MIN, FLUSH_MS: FLUSH_MS, DIGEST_MS: DIGEST_MS, NS: "mdi.collab.v1" };
+  var api = { KINDS: KINDS, create: create, newActor: newActor, flatten: flatten, rules: rules, V: V, MAX_FRAME: MAX_FRAME, MAX_OPS: MAX_OPS, MAX_IDS: MAX_IDS, LOCAL_IDS: LOCAL_IDS, MAX_IN_PER_MIN: MAX_IN_PER_MIN, FLUSH_MS: FLUSH_MS, DIGEST_MS: DIGEST_MS, NS: "mdi.collab.v1" };
   if (node) module.exports = api;
   else root.Collab = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

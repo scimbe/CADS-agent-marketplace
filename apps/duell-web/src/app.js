@@ -54,7 +54,10 @@ function setHome(h, animate) {
   $("teaser").textContent = sub;
   var from = $("from");
   if (h.note) { from.textContent = h.note; from.hidden = false; } else from.hidden = true;
-  $("go").textContent = t("go"); fitHero();
+  $("go").textContent = t("go");
+  var mode = doc && X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
+  if (mode) { $("go").textContent = mode.go; from.textContent = mode.note; from.hidden = false; }
+  fitHero();
   var leaf = $("leaf"); leaf.className = ""; leaf.style.transform = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
 }
@@ -91,17 +94,18 @@ var cv = $("stage"), timer = 0;
 function paint() {
   timer = 0; if (!ed) return;
   ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1]);
-  if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks }); }
+  if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks, x: ed.x }); }
   SK.sync(); footer(); CU.local();
 }
 function changed() {           // every control ends up here: redraw within the next moment
   if (!timer) timer = setTimeout(paint, 16);
 }
 function gameState() { return C.sanitizeState(Object.assign({ v: 1 }, ed.doc.g)); }
-function areas() { var w = D.changedAreas(ed.base, ed.doc); if (ed.ownPhoto) w.push("foto"); if (ed.ownVoice) w.push("stimme"); return w; }
+function areas() { var w = D.changedAreas(ed.base, ed.doc); if (X[ed.doc.k] && X[ed.doc.k].areas) w = w.concat(X[ed.doc.k].areas(ed)); if (ed.ownPhoto) w.push("foto"); if (ed.ownVoice) w.push("stimme"); return w; }
 function touched() { var ok = areas().length > 0; return ed.own ? ok && !!ed.doc.t : ok; }
 function footer() {
   var b = $("edmain"), ok = touched(), g = ed.doc.k === "game";
+  if (X[ed.doc.k]) { X[ed.doc.k].footer(b, ed, ok); return; }
   b.classList.toggle("wait", !ok && !g);
   b.textContent = g ? t("play") : ok ? t("done") : t("needOwn");
 }
@@ -116,12 +120,14 @@ function openEditor(doc, opt) {
   if (ed.doc.k === "sound" && ed.doc.m === "beat") beatPeaks();
   if (ed.doc.k === "photo") { ed.photo = R.botFace(C.hash32(me.nick + Date.now()), ed.doc.col[1]); }
   var g = ed.doc.k === "game";
+  $("tabs").hidden = false;
+  if (X[ed.doc.k]) X[ed.doc.k].open(ed);
   cv.hidden = g; $("gamestage").hidden = !g;
   $("edtitle").textContent = ed.own ? t("own") : (ed.idea ? ideaText(ed.idea).t.replace("|", " ") : t(ed.doc.k));
   $("edstyle").textContent = me.emoji;
   stopSound(); show("editor", true); trailLine();
   var tabs = $("tabs"); tabs.textContent = "";
-  var list = (ed.own ? ["Idea"] : []).concat(["Wish"], TABS[ed.doc.k]);
+  var list = (ed.own ? ["Idea"] : []).concat(W.KINDS.indexOf(ed.doc.k) >= 0 ? ["Wish"] : [], TABS[ed.doc.k]);
   list.forEach(function (k) {
     var b = el("button", "", t("tab" + (k === "Sound" ? (ed.doc.m === "beat" ? "Beat" : "Voice") : k === "Idea" ? "Idea" : k)), function () { Kit.sfx.tap(); tab(k); });
     b.setAttribute("role", "tab"); b.dataset.k = k; tabs.appendChild(b);
@@ -435,6 +441,7 @@ async function finish(doc, idea, pictureDoc) {
 }
 $("edmain").addEventListener("click", function () {
   if (!ed) return;
+  if (X[ed.doc.k]) { X[ed.doc.k].main(ed); return; }
   if (ed.doc.k === "game") { Kit.sfx.thud(); G.stop(); show("game", true); G.play(gameState(), null, { own: touched() }); return; }
   if (!touched()) { Kit.tone(200, 160, 0.1, "square", 0.06); return; }
   Kit.sfx.thud();
@@ -560,7 +567,7 @@ function linksList(b) {
 function openOwn() {
   shelf(t("own"), function (b) {
     b.appendChild(el("p", "note", t("ownH")));
-    [["card", "🃏"], ["photo", "📷"], ["sound", "🥁"], ["game", "🕹"]].forEach(function (m) {
+    [["card", "🃏"], ["photo", "📷"], ["sound", "🥁"], ["game", "🕹"], ["duel", "🤖"]].concat(D.caps().crypto ? [["quest", "🗝️"]] : []).forEach(function (m) {
       b.appendChild(el("button", "mech", m[1] + " " + t(m[0]), function () { Kit.sfx.thud(); openEditor(D.blankDoc(m[0], me, Kit.lang), { own: true }); }));
     });
     CC.tile(b);
@@ -590,6 +597,7 @@ $("wall").addEventListener("click", function () { Kit.sfx.tap(); openWall(); });
 $("own").addEventListener("click", function () { Kit.sfx.tap(); openOwn(); });
 $("go").addEventListener("click", function () {
   Kit.sfx.thud();
+  if (home.doc && X[home.doc.k] && X[home.doc.k].incoming && X[home.doc.k].incoming(home.doc)) return;
   if (home.doc) openEditor(home.doc, { idea: home.doc.i ? D.byId(home.doc.i) : null });
   else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea });
 });
@@ -610,6 +618,7 @@ function route() {
     var st = Object.assign({}, r.state), riv = typeof st.score === "number" ? { score: st.score, name: st.name || "" } : null;
     delete st.score; delete st.name; show("game"); G.play(st, riv, { own: true }); return true;
   }
+  if ((r && r.type === "idea" && !D.available(D.byId(r.id))) || (r && r.type === "doc" && !D.docAvailable(r.doc))) { home = dayHome(); goHomeKeep(); Kit.toast(t("notHere")); return true; }
   if (r && r.type === "idea") { home = { date: today, idea: D.byId(r.id), note: t("invite") }; goHomeKeep(); return true; }
   if (r && r.type === "doc") {
     var lastBy = r.doc.by.length ? r.doc.by[r.doc.by.length - 1].n : r.doc.n;
@@ -637,11 +646,16 @@ var CU = window.CollabUI.init({
 
 var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
+var X = window.DailyModes = {};
+window.DailyApp = { TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+
 /* test hook, used by browser checks: read-only snapshot */
 window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); }, collab: function () { return CU.engine(); } };
 
+window.addEventListener("DOMContentLoaded", function () {
 labels();
 if (!route()) goHome();
 // The embedded display font loads after the first paint: fit the headline again once it is there.
 if (document.fonts && document.fonts.load) document.fonts.load('900 40px Anton').then(function () { if (screen === "home") fitHero(); }, function () {});
+});
 })();

@@ -5,6 +5,8 @@
   var C = root.DuellCore || (typeof require === "function" ? require("./core.js") : null);
   var D = root.Daily || (typeof require === "function" ? require("./daily.js") : null);
 
+  // The kinds the server has a schema for. Duels are tuned with sliders; a secret channel's text never leaves the device.
+  var KINDS = ["game", "photo", "sound", "card"];
   // What goes to the server about the creation: its type and its texts, nothing else.
   function request(doc, wish, idea) {
     var now = doc.k === "game" ? { title: doc.g.title } : { x: doc.x, y: doc.y, st: doc.st, bpm: doc.bpm };
@@ -36,7 +38,7 @@
     var list = D.STYLES[doc.k], st = list[(list.indexOf(doc.st) + 1) % list.length];
     return { st: st, palette: pick(8) };
   }
-  var api = { request: request, apply: apply, local: local };
+  var api = { KINDS: KINDS, request: request, apply: apply, local: local };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Wish = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

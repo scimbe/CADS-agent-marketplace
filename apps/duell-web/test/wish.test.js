@@ -27,7 +27,7 @@ test("Anwenden: nur Felder des Typs wirken, Ergebnis ist bereinigt, Original ble
   assert.equal(W.apply(d, { st: "kaputt" }, PAIRS, rand).st, "druck", "unbekannter Stil faellt zurueck");
 });
 test("Lokal: jede Mechanik aendert sichtbar etwas ohne Server", () => {
-  for (const k of D.KINDS) {
+  for (const k of W.KINDS) {
     const d = of(k), n = W.apply(d, W.local(d, "viel schwerer und schnell", "de", () => 1), [PAIRS[0], PAIRS[1]], rand);
     assert.ok(D.changedAreas(d, n).length, k);
   }
@@ -41,4 +41,8 @@ test("Wetter: Wunsch kann die Zahlen nie aendern, kaputte Werte fallen weg, Text
   assert.equal(D.sanitizeDoc({ k: "card", w: { p: "fuck", d: "2026-11-02", hi: 1, lo: 1 } }).w, undefined);
   assert.equal(D.sanitizeDoc({ k: "card", w: { p: "x", d: "2026-11-02", hi: "viel", lo: 1 } }).w, undefined);
   assert.equal(D.changedAreas(D.sanitizeDoc({ k: "card" }), d).includes("text"), true);
+});
+test("Grenze: Duell und Geheimkanal haben keinen Wunsch, ihre Texte gehen nicht an den Server", () => {
+  assert.deepEqual([...W.KINDS].sort(), D.KINDS.filter((k) => k !== "duel" && k !== "quest").sort());
+  assert.match(require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/app.js"), "utf8"), /W\.KINDS\.indexOf\(ed\.doc\.k\) >= 0 \? \["Wish"\] : \[\]/);
 });

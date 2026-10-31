@@ -41,6 +41,39 @@ test("Tagesidee: in einer Runde keine Wiederholung, nie zweimal dieselbe Mechani
   let same = 0; for (let i = 1; i < n; i++) if (seq[i].kind === seq[i - 1].kind) same++;
   assert.equal(same, 0);
 });
+test("Tagesfolge: jede Runde enthaelt jede Idee genau einmal, keine Mechanik doppelt, auch nicht ueber die Rundennaht", () => {
+  const n = D.ROUND.length, all = D.ROUND.map((x) => x.id).sort();
+  for (let r = 0; r < 1000; r++) {
+    const seq = D.roundOrder(r), next = D.roundOrder(r + 1);
+    assert.deepEqual(seq.map((x) => x.id).sort(), all, "Runde " + r);
+    for (let i = 1; i < n; i++) assert.notEqual(seq[i].kind, seq[i - 1].kind, "Runde " + r + " Platz " + i);
+    assert.notEqual(next[0].kind, seq[n - 1].kind, "Naht nach Runde " + r);
+  }
+});
+test("Tagesfolge: ueber 30 Jahre nie zweimal dieselbe Mechanik, in jeder Geraeteklasse und um Halloween herum", () => {
+  const start = Date.UTC(2026, 9, 1), days = 366 * 30;
+  const classes = [{ crypto: true }, { crypto: false }, { crypto: true, call: true }, { crypto: false, call: true }, { crypto: true, channel: true, call: true }];
+  for (const c of classes) {
+    let prev = null;
+    for (let n = 0; n < days; n++) {
+      const day = new Date(start + n * 86400000), idea = D.ideaForDay(day, c), key = day.toISOString().slice(0, 10);
+      assert.ok(idea, key); assert.ok(D.available(idea, c), idea.id + " " + key);
+      if (prev) assert.notEqual(idea.kind, prev.kind, key + ": " + prev.id + " und " + idea.id + " mit " + JSON.stringify(c));
+      if (key.slice(5) === "10-31") assert.equal(idea.id, "halloween", key); else assert.notEqual(idea.id, "halloween", key);
+      prev = idea;
+    }
+  }
+});
+test("Tagesfolge: heute, 2026-11-01, zeigt eine lauffaehige Idee", () => {
+  const day = new Date("2026-11-01T12:00:00Z"), me = D.sanitizeProfile({});
+  for (const c of [{ crypto: true }, { crypto: false }, { crypto: true, call: true }]) {
+    const idea = D.ideaForDay(day, c);
+    assert.ok(D.available(idea, c)); assert.ok(D.docAvailable(D.sanitizeDoc(D.docFromIdea(idea, me, "de")), c), idea.id);
+  }
+});
+test("Zufallsidee: Kalenderideen bleiben ihrem Tag vorbehalten", () => {
+  for (let i = 0; i < 2000; i++) assert.notEqual(D.randomIdea(Math.random, "").id, "halloween");
+});
 test("Archiv: die letzten Tage, neueste zuerst, ohne heute", () => {
   const d = new Date("2026-11-10T12:00:00Z"), l = D.lastDays(d, 7);
   assert.equal(l.length, 7); assert.equal(l[0].key, "2026-11-09"); assert.equal(l[6].key, "2026-11-03");

@@ -57,7 +57,7 @@
   }
   function stop() { clearInterval(timer); timer = 0; eng = null; phase = "off"; code = ""; link = ""; role = ""; status(); }
   function invite() {
-    var e = ctx.ed(); if (!e) return;
+    var e = ctx.ed(); if (!e || S.KINDS.indexOf(e.doc.k) < 0) return;
     Kit.sfx.tap();
     if (phase !== "off") { Kit.toast(t("co_busy")); return; }
     var ok = btn(t("co_close"), false, closeSheet);
@@ -135,7 +135,7 @@
       return {
         local: function () { var e = ctx.ed(); if (eng && e) eng.local(e.doc); },
         end: end,
-        editor: function () { var e = ctx.ed(); if (eng && e && role === "invitee") { eng.applyTo(e.doc); e.base = JSON.parse(JSON.stringify(e.doc)); ctx.remote([]); } status(); },
+        editor: function () { var e = ctx.ed(); $("cogo").hidden = !e || S.KINDS.indexOf(e.doc.k) < 0; if (eng && e && role === "invitee") { eng.applyTo(e.doc); e.base = JSON.parse(JSON.stringify(e.doc)); ctx.remote([]); } status(); },
         labels: function () { $("coleave").textContent = t("co_leave"); $("cogo").setAttribute("aria-label", t("co_title")); status(); },
         // A link with #p= lands here first; the rest of the page does not see the secret part.
         route: function (hash) {

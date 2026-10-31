@@ -179,6 +179,7 @@
   function draw(cv, doc, opt) {
     var c = cv.getContext("2d"), W = cv.width, H = cv.height, me = opt.me;
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, H); c.shadowBlur = 0;
+    if (Render.extra[doc.k]) { Render.extra[doc.k](c, W, H, doc, opt); credit(c, W, H, doc, me, "#fff"); return; }
     if (doc.k === "card") drawCard(c, W, H, doc);
     else if (doc.k === "photo") drawPhoto(c, W, H, doc, opt.photo);
     else if (doc.k === "sound") drawSound(c, W, H, doc, opt.peaks);
@@ -200,5 +201,5 @@
     cv._id = "bot" + seed;
     return cv;
   }
-  window.Render = { draw: draw, lum: lum, block: block, ink: ink, botFace: botFace, dots: dots, rays: rays, FONT: FONT };
+  var Render = window.Render = { extra: {}, stickers: stickers, draw: draw, lum: lum, block: block, ink: ink, botFace: botFace, dots: dots, rays: rays, FONT: FONT };
 })();

@@ -45,7 +45,7 @@ function pair(k, opt = {}) {
 function same(n) { assert.equal(n.a.c.hash(), n.b.c.hash(), "Hash"); assert.deepEqual(n.a.c.snapshot(), n.b.c.snapshot()); assert.deepEqual(D.sanitizeDoc(n.a.doc), D.sanitizeDoc(n.b.doc)); }
 
 test("Beitritt: B startet leer und hat nach dem Abgleich die Arbeit von A, je Mechanik", () => {
-  for (const k of D.KINDS) {
+  for (const k of S.KINDS) {
     const n = pair(k); n.run(6000);
     assert.ok(n.b.doc, k); same(n);
     assert.equal(n.a.c.peer().nick, "Ben"); assert.equal(n.b.c.peer().nick, "Ada");
@@ -111,7 +111,7 @@ test("Mehr Sticker als erlaubt: beide zeigen dieselben, nie mehr als die Grenze"
 });
 test("Konvergenz: 40 Zufallslaeufe mit vertauschten, doppelten und verlorenen Nachrichten und einem Abbruch", () => {
   for (let seed = 1; seed <= 40; seed++) {
-    const k = D.KINDS[seed % 4], n = pair(k, { seed, shuffle: true, dup: 0.3, lose: 0.3 }), r = rng(seed * 7);
+    const k = S.KINDS[seed % 4], n = pair(k, { seed, shuffle: true, dup: 0.3, lose: 0.3 }), r = rng(seed * 7);
     n.run(9000); assert.ok(n.b.doc, "Beitritt " + seed);
     const edit = (d) => {
       const c = r();
@@ -180,7 +180,7 @@ test("Filter: unbekannte Felder, Markup, Woerter vom Filter und kaputte Werte ko
   assert.ok(!/[<>]/.test(c.peer().nick + c.peer().emoji));
 });
 test("Kein Medium im Protokoll: Foto und Stimme haben kein Feld, das Foto-Doc enthaelt nur Rahmen, Text und Sticker", () => {
-  for (const k of D.KINDS) assert.ok(!Object.keys(S.rules(k)).some((f) => /photo|pcm|raw|voice|image|peaks/.test(f)), k);
+  for (const k of S.KINDS) assert.ok(!Object.keys(S.rules(k)).some((f) => /photo|pcm|raw|voice|image|peaks/.test(f)), k);
   const n = pair("photo"); n.a.doc.bild = "data:image/png;base64,AAAA"; n.run(6000);
   assert.ok(!JSON.stringify(n.b.c.snapshot()).includes("AAAA")); assert.equal(n.b.doc.bild, undefined);
 });
@@ -188,4 +188,9 @@ test("Praesenz: da, Spitzname, weg nach Stille", () => {
   const n = pair("card"); n.run(6000);
   assert.ok(n.a.c.peerHere(n.t.now));
   n.wire.cut = true; n.t.now += 12000; assert.equal(n.a.c.peerHere(n.t.now), false);
+});
+test("Grenze: Duell und Geheimkanal lassen sich nicht zusammen bauen, auch nicht ueber fremde Metadaten", () => {
+  assert.deepEqual([...S.KINDS].sort(), D.KINDS.filter((k) => k !== "duel" && k !== "quest").sort());
+  const src = require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/collab.js"), "utf8");
+  assert.match(src, /\|\| KINDS\.indexOf\(m\.k\) < 0\) return false/, "okMeta prueft die eigene Liste");
 });

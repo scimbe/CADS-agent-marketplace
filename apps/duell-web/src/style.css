@@ -150,3 +150,8 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 .lyrics{white-space:pre-line;font-weight:800;margin:8px 0}
 a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 #shnote{padding:0 18px;margin:2px 0 6px}
+.duellog{margin:0 0 5px;font:700 14px/1.25 var(--ui)}
+.duelres{margin:6px 0;font:900 22px/1.1 var(--disp);text-transform:uppercase}
+.chip.hand{font-size:34px;flex:1;min-height:76px}
+.qlock{font-size:72px;text-align:center;margin:18px 0 6px}
+.qtext{font:900 27px/1.15 var(--disp);margin:6px 0 16px;overflow-wrap:anywhere}
