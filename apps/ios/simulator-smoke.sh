@@ -22,7 +22,12 @@ run() {
     for _ in $(seq 1 90); do grep -q '"done":true' "$rep" 2>/dev/null && break; sleep 1; done
     if ! grep -q '"done":true' "$rep" 2>/dev/null; then
       echo "FAIL: flow $name did not finish" >&2; [ -f "$rep" ] && cat "$rep" >&2
-      xcrun simctl io "$UDID" screenshot "$OUT/fail-$name.png" || true; exit 1
+      xcrun simctl io "$UDID" screenshot "$OUT/fail-$name.png" || true
+      echo "--- app log (last 5 min) ---" >&2
+      xcrun simctl spawn "$UDID" log show --last 5m --style compact --predicate 'process == "CadsMarketplace" OR senderImagePath CONTAINS "CadsMarketplace"' 2>&1 | tail -80 >&2 || true
+      echo "--- crash reports ---" >&2
+      for f in "$HOME"/Library/Logs/DiagnosticReports/CadsMarketplace*; do [ -f "$f" ] && { echo "$f"; head -c 6000 "$f"; } >&2; done
+      exit 1
     fi
     sleep 3   # let a presented share sheet / file picker settle before the screenshot
     cp "$rep" "$OUT/$name.json"
