@@ -1,5 +1,11 @@
 {
 "de": {
+"skFull": "Mehr Sticker passen nicht drauf.",
+"skHint": "Sticker antippen: X löscht, Griff dreht und skaliert. Oder in den Mülleimer ziehen.",
+"skDelete": "Sticker löschen",
+"skGrip": "Drehen und skalieren",
+"skUndo": "Rückgängig",
+"skBin": "Mülleimer",
 "brand": "My Daily Idea",
 "go": "Mach's zu deinem",
 "more": "Noch eine",
@@ -133,6 +139,12 @@
 "w_lava": "Lava"
 },
 "en": {
+"skFull": "No room for more stickers.",
+"skHint": "Tap a sticker: X deletes, the grip turns and scales. Or drag it into the bin.",
+"skDelete": "Delete sticker",
+"skGrip": "Turn and scale",
+"skUndo": "Undo",
+"skBin": "Bin",
 "brand": "My Daily Idea",
 "go": "Make it yours",
 "more": "Another one",
