@@ -66,6 +66,15 @@
       c.restore();
     });
   }
+  // Real figures from the weather service, always with the source. WMO code -> a small picture.
+  function sky(code) { return code <= 1 ? "☀️" : code <= 3 ? "⛅" : code <= 48 ? "🌫" : code <= 67 ? "🌧" : code <= 77 ? "❄️" : code <= 82 ? "🌦" : code <= 86 ? "❄️" : "⛈"; }
+  function weather(c, W, H, w) {
+    if (!w) return;
+    var y = H * 0.8, h = H * 0.105, day = w.d.slice(8, 10) + "." + w.d.slice(5, 7) + ".";
+    c.fillStyle = "#111"; c.fillRect(0, y, W, h); c.fillStyle = "#fff"; c.textBaseline = "middle"; c.textAlign = "left";
+    c.font = "900 " + W * 0.05 + "px system-ui,sans-serif," + EMO; c.fillText(sky(w.c) + " " + w.hi + "° / " + w.lo + "°  💧" + w.rn + " %", W * 0.04, y + h * 0.33);
+    c.font = "700 " + W * 0.032 + "px system-ui,sans-serif"; c.fillText(w.p + ", " + day + " · Open-Meteo", W * 0.04, y + h * 0.75);
+  }
   function credit(c, W, H, doc, me, col) {
     var who = [me.emoji, me.nick].filter(Boolean).join(" ");
     c.font = "800 " + W * 0.036 + "px system-ui,sans-serif," + EMO; c.textBaseline = "alphabetic";
@@ -173,6 +182,7 @@
     if (doc.k === "card") drawCard(c, W, H, doc);
     else if (doc.k === "photo") drawPhoto(c, W, H, doc, opt.photo);
     else if (doc.k === "sound") drawSound(c, W, H, doc, opt.peaks);
+    weather(c, W, H, doc.w);
     stickers(c, W, H, doc.sk);
     credit(c, W, H, doc, me, doc.k === "card" && doc.st === "neon" ? "#fff" : (doc.k === "photo" && doc.st !== "sticker" ? "#fff" : ink(doc.k === "card" && doc.st === "zettel" ? doc.col[1] : doc.col[0])));
   }

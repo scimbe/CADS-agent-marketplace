@@ -1,7 +1,7 @@
 /* Calendar, remix editor, my style, wall. All text goes in as text nodes, never as markup. */
 (function () {
 "use strict";
-var C = window.DuellCore, D = window.Daily, S = window.Studio, Kit = window.Kit, G = window.Game, R = window.Render, t = Kit.t;
+var C = window.DuellCore, D = window.Daily, W = window.Wish, S = window.Studio, Kit = window.Kit, G = window.Game, R = window.Render, t = Kit.t;
 var $ = function (id) { return document.getElementById(id); };
 function el(tag, cls, text, on) {
   var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text;
@@ -121,19 +121,48 @@ function openEditor(doc, opt) {
   $("edstyle").textContent = me.emoji;
   stopSound(); show("editor", true); trailLine();
   var tabs = $("tabs"); tabs.textContent = "";
-  var list = (ed.own ? ["Idea"] : []).concat(TABS[ed.doc.k]);
+  var list = (ed.own ? ["Idea"] : []).concat(["Wish"], TABS[ed.doc.k]);
   list.forEach(function (k) {
     var b = el("button", "", t("tab" + (k === "Sound" ? (ed.doc.m === "beat" ? "Beat" : "Voice") : k === "Idea" ? "Idea" : k)), function () { Kit.sfx.tap(); tab(k); });
     b.setAttribute("role", "tab"); b.dataset.k = k; tabs.appendChild(b);
   });
-  tab(list[0]);
+  tab(list[0] === "Wish" ? list[1] : list[0]);
   if (g) G.demo($("demo"), gameState());
   paint(); CU.editor();
 }
 function tab(k) {
   ed.tab = k; Array.from($("tabs").children).forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.k === k)); });
-  var p = $("panel"); p.textContent = ""; p.classList.toggle("tall", k === "Sound" && ed.doc.m === "beat"); PANEL[k](p); p.scrollTop = 0;
+  var p = $("panel"); p.textContent = ""; p.classList.toggle("tall", (k === "Sound" && ed.doc.m === "beat") || (k === "Text" && ed.doc.k !== "game") || k === "Wish"); PANEL[k](p); p.scrollTop = 0;
 }
+function setDoc(d) {        // a whole creation replaced by a wish or its undo; the canvas state follows
+  ed.doc = d; ed.sel = -1; if (d.k === "sound" && d.m === "beat") beatPeaks();
+  if (d.k === "sound" && ed.raw) applyFx();
+  $("edstyle").textContent = me.emoji; trailLine(); changed();
+}
+// Weather card: place and day in, real figures out. No figures without the service.
+function weatherBlock(p) {
+  var box = el("div", "aibox"), place = el("input", "field"), days = el("div", "chips"), when = 0, row = el("div", "chips");
+  place.maxLength = 40; place.autocomplete = "off"; place.setAttribute("aria-label", t("wxPlace")); place.placeholder = t("wxPlace");
+  box.appendChild(el("label", "lbl", t("wxTitle"))); box.appendChild(place);
+  [t("wxToday"), t("wxTomorrow"), t("wxAfter")].forEach(function (l, i) {
+    var b = el("button", "chip" + (i ? "" : " on"), l, function () { when = i; Array.from(days.children).forEach(function (x) { x.classList.remove("on"); }); b.classList.add("on"); });
+    days.appendChild(b);
+  });
+  box.appendChild(days);
+  var go = el("button", "chip", "🌦 " + t("wxGo"), async function () {
+    var v = D.cleanInput(place.value, 40); if (!v) { Kit.toast(t("filter")); return; }
+    go.disabled = true;
+    var day = new Date(Date.now() + when * 86400000).toISOString().slice(0, 10), r = null;
+    try { r = await window.Ai.post("/weather", { place: v, date: day }); } catch (e) { r = null; }
+    go.disabled = false;
+    if (!r || r.status !== 200 || !r.json) { Kit.toast(r && r.status === 404 ? t("wxNoPlace") : r && r.status === 422 ? t("filter") : t("wxFail")); return; }
+    var j = r.json; ed.doc.w = D.sanitizeDoc({ k: "card", w: { p: j.place, d: j.date, hi: j.hi, lo: j.lo, rn: j.rain, c: j.code } }).w; Kit.sfx.pop(); changed(); tab("Text");
+  });
+  row.appendChild(go);
+  if (ed.doc.w) row.appendChild(el("button", "chip", "✕ " + t("wxOff"), function () { delete ed.doc.w; changed(); tab("Text"); }));
+  box.appendChild(row); box.appendChild(el("p", "note", t("wxNote"))); p.appendChild(box);
+}
+function aiBlock(p, o) { o.el = el; o.wall = openAiWall; window.Ai.block(p, o); }
 function field(p, label, value, max, on, area) {
   p.appendChild(el("label", "lbl", label));
   var f = el(area ? "textarea" : "input", "field"); f.value = value || ""; f.maxLength = max; if (area) f.rows = 2; f.autocomplete = "off"; f.setAttribute("aria-label", label);
@@ -169,6 +198,25 @@ function colors(p, get, set) {
   p.appendChild(row);
 }
 var PANEL = {
+  Wish: function (p) {
+    var f = field(p, t("wishL"), "", 100, function () {}, true), box = el("div", "chips");
+    t("wishTips").split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; })); });
+    p.appendChild(box);
+    aiBlock(p, {
+      kind: "wish", label: t("wishGo"), input: function () { var v = D.cleanInput(f.value, 100); return v ? W.request(ed.doc, v, ed.idea ? ideaText(ed.idea).t.replace("|", " ") : "") : null; },
+      fallback: function () { return [{ changes: W.local(ed.doc, D.cleanInput(f.value, 100), Kit.lang, function (n) { return Math.floor(Math.random() * n); }), note: "" }]; },
+      auto: function (o, real, res) {
+        var before = JSON.stringify(ed.doc), next = W.apply(ed.doc, o.changes, PAIRS, Math.random), was = JSON.parse(before), what = D.changedAreas(was, next);
+        if (ed.doc.k === "sound" && next.fx !== was.fx && what.indexOf("stimme") < 0) what.push("stimme");
+        res.textContent = "";
+        if (!what.length) { res.appendChild(el("p", "note", t("wishSame"))); return; }
+        setDoc(next); (ed.wishes = ed.wishes || []).push(before);
+        res.appendChild(el("p", "aicount", (real && o.note ? o.note + " · " : "") + t("wishDid") + ": " + what.map(function (w) { return t("a_" + w); }).join(", ")));
+        var un = el("button", "chip", "↶ " + t("skUndo"), function () { setDoc(JSON.parse(ed.wishes.pop())); Kit.sfx.pop(); res.textContent = ""; });
+        res.appendChild(un);
+      }
+    });
+  },
   Idea: function (p) {
     p.appendChild(el("p", "note", t("ownH")));
     field(p, t("ideaT"), ed.doc.t, 40, function (v) { ed.doc.t = v; });
@@ -179,8 +227,17 @@ var PANEL = {
     if (d.k === "card") {
       var f = field(p, t("line"), d.x, 90, function (v) { d.x = v; }, true), L = ed.idea ? ideaText(ed.idea).lines : null;
       if (L) p.appendChild(el("button", "chip", "🎲 " + t("dice"), function () { Kit.sfx.pop(); ed.line = (ed.line + 1) % L.length; d.x = L[ed.line]; f.value = d.x; ed.base.x = d.x; changed(); }));
-    } else if (d.k === "photo") { field(p, t("top"), d.x, 28, function (v) { d.x = v; }); field(p, t("bottom"), d.y, 28, function (v) { d.y = v; }); }
-    else if (d.k === "sound") field(p, t("titleL"), d.x, 28, function (v) { d.x = v; });
+      aiBlock(p, { kind: "line", label: t("aiLine"), input: function () { var x = D.cleanInput(d.x, 90) || t("own"); return { text: x, style: d.st }; }, show: String, apply: function (o) { var v = D.cleanInput(o, 90); if (v) { d.x = v; f.value = v; changed(); } } });
+      weatherBlock(p);
+    } else if (d.k === "photo") {
+      var top = field(p, t("top"), d.x, 28, function (v) { d.x = v; }), low = field(p, t("bottom"), d.y, 28, function (v) { d.y = v; });
+      var what = field(p, t("aiDesc"), "", 100, function () {});
+      aiBlock(p, { kind: "meme", label: t("aiMeme"), input: function () { var v = D.cleanInput(what.value, 100); return v ? { desc: v } : null; }, show: function (o) { return o.top + " / " + o.bottom; }, apply: function (o) { d.x = D.cleanInput(o.top, 28); d.y = D.cleanInput(o.bottom, 28); top.value = d.x; low.value = d.y; changed(); } });
+    } else if (d.k === "sound") {
+      var name = field(p, t("titleL"), d.x, 28, function (v) { d.x = v; }), topic = field(p, t("aiTopic"), "", 60, function () {}), song = el("p", "lyrics"); song.hidden = true;
+      aiBlock(p, { kind: "lyrics", label: t("aiLyrics"), input: function () { var v = D.cleanInput(topic.value, 60); return v ? { topic: v, bpm: d.bpm || 110 } : null; }, show: function (o) { return o.title; }, apply: function (o) { var v = D.cleanInput(o.title, 28); if (v) { d.x = v; name.value = v; } song.textContent = o.lines.join("\n"); song.hidden = false; changed(); } });
+      p.appendChild(song);
+    }
     else field(p, t("titleL"), d.g.title, 28, function (v) { d.g.title = v || "Duell"; });
   },
   Style: function (p) {
@@ -417,6 +474,7 @@ function openStyle() {
   });
 }
 function shelf(title, fill) { stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
+function openAiWall() { ed.styling = true; shelf(t("aiTitle"), function (b) { window.Ai.wall(b, el); }); }
 function openPast() {
   shelf(t("past"), function (b) {
     D.lastDays(today, 7).forEach(function (e) {

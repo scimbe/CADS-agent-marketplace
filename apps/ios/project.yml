@@ -78,6 +78,7 @@ targets:
       - path: App/Duell/DuellLink.swift
       - path: App/Duell/DuellFiles.swift
       - path: App/Duell/PeerBridge.swift
+      - path: App/Duell/DuellAi.swift
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
