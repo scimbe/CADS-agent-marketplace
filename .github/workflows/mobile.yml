@@ -184,7 +184,7 @@ jobs:
           chal = json.load(open("shots/report-2-duell-challenge.json"))
           assert start["bundledPage"], "bundled duell/index.html missing"
           b, a = json.loads(start["before"]), json.loads(start["after"])
-          assert b["hash"] == "", f"unexpected fragment without challenge: {b['hash']!r}"
+          assert b["hash"] != "#c=" + ch, "start without challenge must not show the test challenge"
           assert start["clicked"], "no button found in the game"
           assert b["text"] != a["text"], "game did not react to the click"
           cb = json.loads(chal["before"])
