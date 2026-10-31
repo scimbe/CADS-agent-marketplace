@@ -25,7 +25,7 @@ enum DuellLink {
         return validFragment(fragment) != nil
     }
 
-    /// Only `c=` followed by base64url characters (padding allowed), or `i=` followed by an idea id
+    /// Only `c=` followed by base64url characters (padding allowed), `p=` with an invite to build together, or `i=` followed by an idea id
     /// (`[a-z0-9-]`, 1 to 32 characters). This also makes the value safe to hand to the web page
     /// without any escaping.
     static func validFragment(_ fragment: String) -> String? {
@@ -44,6 +44,26 @@ enum DuellLink {
             guard value.unicodeScalars.allSatisfy(allowed.contains) else { return nil }
             return fragment
         }
+        if fragment.hasPrefix("p=") { return peerValue(String(fragment.dropFirst(2))) != nil ? fragment : nil }
         return nil
+    }
+
+    /// The secret part of an invite to build together: base64url, it never reaches a server.
+    private static func peerValue(_ v: String) -> String? {
+        let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
+        return (40...1024).contains(v.count) && v.unicodeScalars.allSatisfy(allowed.contains) ? v : nil
+    }
+    private static let coreBase = "https://\(host)/p#"
+
+    /// The core's invite link as the Universal Link people share. `/p` has neither a page nor an entry in the app links.
+    static func shareLink(_ coreLink: String?) -> String? {
+        guard let coreLink, coreLink.hasPrefix(coreBase), let v = peerValue(String(coreLink.dropFirst(coreBase.count))) else { return nil }
+        return "https://\(host)\(path)#p=\(v)"
+    }
+
+    /// The other way, for `peerAcceptInvite`. Only a valid `#p=` link of this app.
+    static func coreLink(_ link: String?) -> String? {
+        guard let link, let url = URL(string: link), let f = challengeFragment(from: url), f.hasPrefix("p=") else { return nil }
+        return coreBase + f.dropFirst(2)
     }
 }

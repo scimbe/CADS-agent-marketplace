@@ -15,7 +15,9 @@ use super::session::{connect, Established, DEAD_AFTER, HEARTBEAT};
 use super::{cp, PeerConfig, PeerError};
 
 fn bad(detail: &str) -> PeerError {
-    PeerError::InvalidInput { detail: detail.into() }
+    PeerError::InvalidInput {
+        detail: detail.into(),
+    }
 }
 
 fn parse(contact_json: &str) -> Result<Contact, PeerError> {
@@ -35,9 +37,15 @@ pub struct PeerInvite {
 
 /// "Einladen".
 #[uniffi::export]
-pub fn peer_create_invite(config: PeerConfig, access_token: String) -> Result<PeerInvite, PeerError> {
+pub fn peer_create_invite(
+    config: PeerConfig,
+    access_token: String,
+) -> Result<PeerInvite, PeerError> {
     let inv = cp::create_invite(&config, &access_token, INVITE_TTL_DEFAULT_SECS)?;
-    Ok(PeerInvite { link: inv.link, contact_json: dump(&inv.contact)? })
+    Ok(PeerInvite {
+        link: inv.link,
+        contact_json: dump(&inv.contact)?,
+    })
 }
 
 /// "Annehmen". Returns the contact JSON.
@@ -55,11 +63,23 @@ pub fn peer_disconnect(config: PeerConfig, contact_json: String) -> Result<(), P
 
 #[derive(uniffi::Enum)]
 pub enum PeerEvent {
-    Text { text: String },
-    App { ns: String, body_json: String },
+    Text {
+        text: String,
+    },
+    App {
+        ns: String,
+        body_json: String,
+    },
     /// Ask the user. Answer with `approve` or `decline`.
-    ApprovalNeeded { id: u64, capability: String },
-    CapabilityResult { id: u64, ok: bool, data_json: Option<String> },
+    ApprovalNeeded {
+        id: u64,
+        capability: String,
+    },
+    CapabilityResult {
+        id: u64,
+        ok: bool,
+        data_json: Option<String>,
+    },
     PeerLeft,
     Closed,
 }
@@ -68,11 +88,19 @@ impl From<Inbound> for PeerEvent {
     fn from(i: Inbound) -> Self {
         match i {
             Inbound::Text(text) => Self::Text { text },
-            Inbound::App { ns, body } => Self::App { ns, body_json: body.to_string() },
-            Inbound::ApprovalNeeded { id, cap } => Self::ApprovalNeeded { id, capability: cap },
-            Inbound::CapResult { id, ok, data } => {
-                Self::CapabilityResult { id, ok, data_json: data.map(|d| d.to_string()) }
-            }
+            Inbound::App { ns, body } => Self::App {
+                ns,
+                body_json: body.to_string(),
+            },
+            Inbound::ApprovalNeeded { id, cap } => Self::ApprovalNeeded {
+                id,
+                capability: cap,
+            },
+            Inbound::CapResult { id, ok, data } => Self::CapabilityResult {
+                id,
+                ok,
+                data_json: data.map(|d| d.to_string()),
+            },
             Inbound::PeerLeft => Self::PeerLeft,
         }
     }
@@ -169,25 +197,33 @@ impl PeerSession {
             .map_err(|_| bad("runtime"))?;
         let (out, out_rx) = mpsc::channel::<Out>(32);
         let (ev_tx, events) = mpsc::channel::<PeerEvent>(64);
-        let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<([u8; 32], String), PeerError>>();
+        let (ready_tx, ready_rx) =
+            std::sync::mpsc::channel::<Result<([u8; 32], String), PeerError>>();
         let task_contact = contact.clone();
         runtime.spawn(async move {
-            let mut session = match connect(&config, &task_contact, Duration::from_secs(wait_secs)).await {
-                Ok(s) => {
-                    let _ = ready_tx.send(Ok((s.peer_noise, s.code.clone())));
-                    s
-                }
-                Err(e) => {
-                    let _ = ready_tx.send(Err(e));
-                    return;
-                }
-            };
+            let mut session =
+                match connect(&config, &task_contact, Duration::from_secs(wait_secs)).await {
+                    Ok(s) => {
+                        let _ = ready_tx.send(Ok((s.peer_noise, s.code.clone())));
+                        s
+                    }
+                    Err(e) => {
+                        let _ = ready_tx.send(Err(e));
+                        return;
+                    }
+                };
             let policy = Policy::new(&capabilities, &namespaces);
             pump(&mut session, policy, out_rx, ev_tx, HEARTBEAT, DEAD_AFTER).await;
         });
         let (peer_noise, code) = ready_rx.recv().map_err(|_| PeerError::Closed)??;
         contact.peer_noise = Some(ct_common::hex::encode(&peer_noise));
-        Ok(Self { _runtime: runtime, code, contact_json: dump(&contact)?, out, events: Mutex::new(events) })
+        Ok(Self {
+            _runtime: runtime,
+            code,
+            contact_json: dump(&contact)?,
+            out,
+            events: Mutex::new(events),
+        })
     }
 
     /// The code to compare, e.g. "4821 0937".
@@ -212,7 +248,10 @@ impl PeerSession {
 
     /// Ask the peer for one of its allow-listed capabilities. The answer is a `CapabilityResult`.
     pub fn request_capability(&self, id: u64, capability: String) -> Result<(), PeerError> {
-        self.push(Out::Env(Envelope::CapReq { id, cap: capability }))
+        self.push(Out::Env(Envelope::CapReq {
+            id,
+            cap: capability,
+        }))
     }
 
     /// The user tapped "Teilen".
@@ -235,7 +274,10 @@ impl PeerSession {
     pub fn next_event(&self, wait_ms: u64) -> Option<PeerEvent> {
         let mut rx = self.events.lock().ok()?;
         self._runtime.block_on(async {
-            tokio::time::timeout(Duration::from_millis(wait_ms), rx.recv()).await.ok().flatten()
+            tokio::time::timeout(Duration::from_millis(wait_ms), rx.recv())
+                .await
+                .ok()
+                .flatten()
         })
     }
 }
@@ -278,7 +320,9 @@ mod tests {
         let (_out, out_rx) = mpsc::channel(4);
         let (ev_tx, mut ev) = mpsc::channel(4);
         let started = Instant::now();
-        let run = tokio::spawn(async move { pump(&mut a, Policy::new(&[], &[]), out_rx, ev_tx, BEAT, DEAD).await });
+        let run = tokio::spawn(async move {
+            pump(&mut a, Policy::new(&[], &[]), out_rx, ev_tx, BEAT, DEAD).await
+        });
         assert!(matches!(ev.recv().await, Some(PeerEvent::Closed)));
         run.await.unwrap();
         assert!(started.elapsed() >= DEAD, "not before the bound");
@@ -293,11 +337,25 @@ mod tests {
         let (out_b, rx_b) = mpsc::channel(4);
         let (tx_a, mut ev_a) = mpsc::channel(4);
         let (tx_b, _ev_b) = mpsc::channel(4);
-        tokio::spawn(async move { pump(&mut a, Policy::new(&[], &[]), rx_a, tx_a, BEAT, DEAD).await });
-        tokio::spawn(async move { pump(&mut b, Policy::new(&[], &[]), rx_b, tx_b, BEAT, DEAD).await });
-        assert!(tokio::time::timeout(DEAD * 4, ev_a.recv()).await.is_err(), "no event, no close");
-        out_b.send(Out::Env(Envelope::Text { text: "still here".into() })).await.unwrap();
-        assert!(matches!(ev_a.recv().await, Some(PeerEvent::Text { text }) if text == "still here"));
+        tokio::spawn(
+            async move { pump(&mut a, Policy::new(&[], &[]), rx_a, tx_a, BEAT, DEAD).await },
+        );
+        tokio::spawn(
+            async move { pump(&mut b, Policy::new(&[], &[]), rx_b, tx_b, BEAT, DEAD).await },
+        );
+        assert!(
+            tokio::time::timeout(DEAD * 4, ev_a.recv()).await.is_err(),
+            "no event, no close"
+        );
+        out_b
+            .send(Out::Env(Envelope::Text {
+                text: "still here".into(),
+            }))
+            .await
+            .unwrap();
+        assert!(
+            matches!(ev_a.recv().await, Some(PeerEvent::Text { text }) if text == "still here")
+        );
         drop(out_a);
     }
 
@@ -306,8 +364,21 @@ mod tests {
         let (mut a, b) = pair().await;
         let (_out, out_rx) = mpsc::channel(4);
         let (ev_tx, mut ev) = mpsc::channel(4);
-        tokio::spawn(async move { pump(&mut a, Policy::new(&[], &[]), out_rx, ev_tx, BEAT, Duration::from_secs(60)).await });
+        tokio::spawn(async move {
+            pump(
+                &mut a,
+                Policy::new(&[], &[]),
+                out_rx,
+                ev_tx,
+                BEAT,
+                Duration::from_secs(60),
+            )
+            .await
+        });
         drop(b);
-        assert!(matches!(tokio::time::timeout(DEAD, ev.recv()).await, Ok(Some(PeerEvent::Closed))));
+        assert!(matches!(
+            tokio::time::timeout(DEAD, ev.recv()).await,
+            Ok(Some(PeerEvent::Closed))
+        ));
     }
 }

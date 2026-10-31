@@ -14,6 +14,11 @@ enum AppConfig {
     static var issuer: String { plist("CadsOidcIssuer", "https://auth.bunsenbrenner.org/realms/ct-demo") }
     /// Public client (no secret) that the operator has to create, see apps/README.md.
     static var clientId: String { plist("CadsOidcClientId", "cads-mobile") }
+    /// Phone channels ("Zusammen bauen"): `host:port` of the edge's :443 front door, its CA root as base64 DER and the
+    /// TLS name. Empty means the feature is off and the page says so.
+    static var peerFrontDoor: String { plist("CadsPeerFrontDoor", "") }
+    static var peerEdgeCaBase64: String { plist("CadsPeerEdgeCaBase64", "") }
+    static var peerSni: String { plist("CadsPeerSni", "") }
     static let redirectScheme = "org.bunsenbrenner.cads"
     static var redirectURI: String { "\(redirectScheme):/oauth2redirect" }
 }

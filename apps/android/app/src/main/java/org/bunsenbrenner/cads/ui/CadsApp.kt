@@ -85,6 +85,7 @@ fun CadsApp(
     onSignOut: () -> Unit,
     duellFragment: String? = null,
     duellLinkSeq: Int = 0,
+    peerToken: () -> String? = { null },
     onImmersive: (Boolean) -> Unit = {},
 ) {
     MaterialTheme(
@@ -114,6 +115,7 @@ fun CadsApp(
                 linkSeq = duellLinkSeq,
                 visible = screen == Screen.Idea,
                 apiBase = BuildConfig.DUELL_API_BASE,
+                peerToken = peerToken,
                 onMore = { moreOpen = true },
                 modifier = Modifier.fillMaxSize(),
             )
