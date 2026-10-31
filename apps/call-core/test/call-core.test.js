@@ -10,6 +10,8 @@ const FAST = { minEpochGapMs: 0, iceFetchTimeoutMs: 20, signalRetryMs: 5, ringTi
   reconnectWindowMs: 60, restartBackoffMs: [0, 2], statsIntervalMs: 2, mediaStallMs: 10 };
 // Echte Neuaufbau-Reihenfolge: eine Epoche, keine Schleife im Millisekundentakt, kein Fensterablauf.
 const STEADY = { ...FAST, minEpochGapMs: 60000, reconnectWindowMs: 5000 };
+// Echte Medien laufen weiter: Pakete steigen, bis die Bedingung erreicht ist.
+const whileFlowing = async (e, f) => { const id = setInterval(() => { e.packets += 1; }, 1); try { await until(f); } finally { clearInterval(id); } };
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 const until = async (f) => { for (let i = 0; i < 300 && !f(); i++) await tick(2); assert.ok(f(), 'Bedingung nicht erreicht'); };
 
@@ -134,8 +136,7 @@ test('Abbruch: frische Zugangsdaten, neue Epoche, Medien beenden den Neuaufbau',
   assert.ok(p.ea.pcs[0].offers.some((o) => o.iceRestart));
   p.ea.pcs[0].set('connected');
   assert.equal(c.state, State.RECONNECTING, 'connected ohne Pakete zaehlt nicht');
-  p.ea.packets = 50;
-  await until(() => c.state === State.CONNECTED);
+  await whileFlowing(p.ea, () => c.state === State.CONNECTED);
   assert.equal(c.reconnects, 1);
   p.a.close(); p.b.close();
 });
@@ -153,8 +154,7 @@ test('Restpakete vor dem ausgehandelten Neustart zaehlen nicht als Erholung', as
   assert.equal(c.state, State.RECONNECTING, 'Restpakete beendeten den Neuaufbau');
   block = false;
   await until(() => p.b.call.answeredEpoch >= 1 && p.ea.pcs[0].signalingState === 'stable');
-  p.ea.packets += 10;
-  await until(() => c.state === State.CONNECTED);
+  await whileFlowing(p.ea, () => c.state === State.CONNECTED);
   p.a.close(); p.b.close();
 });
 
@@ -164,8 +164,8 @@ test('verspaetetes call.restart oeffnet keine neue Epoche', async () => {
   p.ea.packets = 1; await tick(6);
   p.ea.pcs[0].set('failed');
   await until(() => c.epoch === 1);
-  p.ea.pcs[0].set('connected'); p.ea.packets = 50;
-  await until(() => c.state === State.CONNECTED);
+  p.ea.pcs[0].set('connected');
+  await whileFlowing(p.ea, () => c.state === State.CONNECTED);
   c.receive({ v: 1, type: 'call.restart', callId: c.callId, epoch: 0 });
   assert.equal(c.state, State.CONNECTED);
   p.a.close(); p.b.close();
