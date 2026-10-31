@@ -2,7 +2,7 @@
   "name": "duell-web",
   "private": true,
   "version": "0.1.0",
-  "description": "Duell: Mini-Spiel zum Herausfordern, eine einzige Offline-HTML-Datei",
+  "description": "My Daily Idea: taegliche Remix-Idee, eine einzige Offline-HTML-Datei",
   "scripts": {
     "build": "node scripts/build.js",
     "test": "node --test test/*.test.js"

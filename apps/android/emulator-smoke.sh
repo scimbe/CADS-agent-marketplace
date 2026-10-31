@@ -54,17 +54,17 @@ wait_web() { # regex, tries: the WebView must show matching text
 }
 score_of() { webtext | grep -E '^[0-9]+$' | head -1; }
 
-# 1. The app starts in the Duell game, not in the template list.
+# 1. The app starts in My Daily Idea (the calendar page of the bundled web app), not in the template list.
 wx=""; wy=""
 for _ in $(seq 1 40); do
   if p=$(find_node "" android.webkit.WebView); then read -r wx wy <<<"$p"; break; fi
   sleep 1
 done
 [ -n "$wx" ] || { echo "FAIL: no WebView at start" >&2; shot fail-start; dump >&2; adb logcat -d -t 300 >&2; exit 1; }
-wait_web 'Tap\. Fly|Tippen\. Fliegen' 40      # the start hint of the game
+wait_web 'My Daily Idea' 40                   # the brand on the start page
 if find_node "Signature verified" >/dev/null; then echo "FAIL: app started in the template list, not in Duell" >&2; exit 1; fi
 shot 0-duell-start
-echo "duell: starts in the game (hint shown, score $(score_of))"
+echo "duell: starts in My Daily Idea"
 
 # 2. A challenge App Link opens the game with the challenge. The intent goes to our package, so it
 #    does not depend on App Link verification (assetlinks.json) having completed on the runner.
