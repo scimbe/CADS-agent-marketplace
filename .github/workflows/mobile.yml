@@ -8,6 +8,7 @@ on:
       - "crates/manifest-core/**"
       - "apps/**"
       - "manifests/prompt-templates/**"
+      - "scripts/peer-e2e.sh"
       - ".github/workflows/mobile.yml"
   pull_request:
     paths:
@@ -15,6 +16,7 @@ on:
       - "crates/manifest-core/**"
       - "apps/**"
       - "manifests/prompt-templates/**"
+      - "scripts/peer-e2e.sh"
       - ".github/workflows/mobile.yml"
 
 permissions:
@@ -38,6 +40,55 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - run: cargo test -p mobile-core
       - run: cargo test -p mobile-core --features wasm
+
+  # Phone-to-phone channels (docs/adr/0004): two peer-demo processes against the real edge and
+  # control plane, built from a pinned CADS-Tunnel commit. Nothing leaves the runner.
+  peer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      RUSTFLAGS: "-D warnings"
+      TUNNEL_REV: e8a6dd02ec371c8a98a79987534be47129b7db7c
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - run: cargo test -p mobile-core --features peer
+      - run: cargo build -p mobile-core --features peer --bin peer-demo
+      - name: The feature cross-compiles for Android
+        run: |
+          cargo install cargo-ndk --locked --version 3.5.4
+          export ANDROID_NDK_HOME=$(ls -d "$ANDROID_HOME"/ndk/* | sort -V | tail -1)
+          cargo ndk -t arm64-v8a build -p mobile-core --features peer --lib
+      - name: Kotlin and Swift bindings generate with the feature on
+        run: |
+          cargo build -p mobile-core --features peer --lib
+          cargo run -p mobile-core --features cli,peer --bin uniffi-bindgen -- generate --library target/debug/libmobile_core.so --language kotlin --out-dir /tmp/peer-kt
+          cargo run -p mobile-core --features cli,peer --bin uniffi-bindgen -- generate --library target/debug/libmobile_core.so --language swift --out-dir /tmp/peer-swift
+          grep -rq peerCreateInvite /tmp/peer-kt
+      - uses: actions/cache@v4
+        id: tunnel-bins
+        with:
+          path: tunnel-bin
+          key: tunnel-bin-${{ env.TUNNEL_REV }}
+      - name: Build edge and control plane
+        if: steps.tunnel-bins.outputs.cache-hit != 'true'
+        env:
+          RUSTFLAGS: ""
+        run: |
+          git clone --quiet https://github.com/scimbe/CADS-Tunnel /tmp/tunnel
+          git -C /tmp/tunnel checkout --quiet "$TUNNEL_REV"
+          cargo build --manifest-path /tmp/tunnel/Cargo.toml --locked -p ct-edge -p ct-control-plane
+          mkdir -p tunnel-bin
+          cp /tmp/tunnel/target/debug/ct-edge /tmp/tunnel/target/debug/ct-control-plane tunnel-bin/
+      - name: End-to-end proof
+        env:
+          CT_EDGE_BIN: tunnel-bin/ct-edge
+          CT_CP_BIN: tunnel-bin/ct-control-plane
+          PEER_DEMO_BIN: target/debug/peer-demo
+        run: scripts/peer-e2e.sh
 
   android:
     runs-on: ubuntu-latest
@@ -144,6 +195,8 @@ jobs:
         run: npm ci --ignore-scripts && npm run build
       - name: Build Rust core XCFramework + Swift bindings
         run: apps/ios/build-rust.sh
+      - name: The peer feature compiles for iOS
+        run: cargo check -p mobile-core --features peer --lib --target aarch64-apple-ios
       - name: Generate Xcode project and build for the iOS simulator
         working-directory: apps/ios
         run: |
