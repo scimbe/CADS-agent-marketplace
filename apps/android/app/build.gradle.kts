@@ -13,6 +13,31 @@ val cadsClientId = (project.findProperty("cadsClientId") as String?) ?: "cads-mo
 // Android uses a verified App Link (https) as OAuth redirect, not a custom scheme another app could claim.
 val cadsRedirectUri = (project.findProperty("cadsRedirectUri") as String?) ?: "https://bunsenbrenner.org/app/oauth2redirect"
 val redirect = URI(cadsRedirectUri)
+// The only host (besides the bundled assets) the Duell WebView may talk to: the Duell config API.
+val duellApiBase = (project.findProperty("cadsDuellApiBase") as String?) ?: "https://demos-34a13a96.bunsenbrenner.org"
+
+// Copies the Duell page (apps/duell-web/dist/index.html, produced by `npm run build` there) into the
+// assets. The build fails if it is missing: the app never ships a stand-in page.
+abstract class SyncDuellAsset : DefaultTask() {
+    @get:InputFile @get:Optional @get:PathSensitive(PathSensitivity.NONE) abstract val page: RegularFileProperty
+    @get:OutputDirectory abstract val outDir: DirectoryProperty
+
+    @TaskAction
+    fun sync() {
+        if (!page.isPresent) throw GradleException("apps/duell-web/dist/index.html missing: run `npm run build` in apps/duell-web first")
+        val dir = outDir.get().asFile.resolve("duell")
+        dir.mkdirs()
+        page.get().asFile.copyTo(File(dir, "index.html"), overwrite = true)
+    }
+}
+val syncDuellAsset = tasks.register<SyncDuellAsset>("syncDuellAsset") {
+    val built = rootProject.file("../duell-web/dist/index.html")
+    if (built.exists()) page.set(built)
+    outDir.set(layout.buildDirectory.dir("generated/duell-assets"))
+}
+androidComponents {
+    onVariants { variant -> variant.sources.assets?.addGeneratedSourceDirectory(syncDuellAsset, SyncDuellAsset::outDir) }
+}
 
 android {
     namespace = "org.bunsenbrenner.cads"
@@ -30,6 +55,7 @@ android {
         buildConfigField("String", "API_BASE", "\"$cadsApiBase\"")
         buildConfigField("String", "OIDC_ISSUER", "\"$cadsIssuer\"")
         buildConfigField("String", "OIDC_CLIENT_ID", "\"$cadsClientId\"")
+        buildConfigField("String", "DUELL_API_BASE", "\"$duellApiBase\"")
         buildConfigField("String", "REDIRECT_URI", "\"$cadsRedirectUri\"")
         // Rust core is built for these ABIs by build-rust.sh (cargo-ndk).
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
@@ -66,6 +92,8 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    // WebViewAssetLoader: serves the bundled Duell page from https://appassets.androidplatform.net.
+    implementation("androidx.webkit:webkit:1.12.1")
 
     // OIDC Authorization Code + PKCE through Custom Tabs.
     implementation("net.openid:appauth:0.11.1")

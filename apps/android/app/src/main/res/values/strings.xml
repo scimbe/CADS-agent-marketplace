@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">CADS</string>
+    <string name="app_name">Duel</string>
+    <string name="tab_duell">Duel</string>
     <string name="tab_templates">Templates</string>
     <string name="tab_installations">My installations</string>
     <string name="templates_title">Templates</string>
