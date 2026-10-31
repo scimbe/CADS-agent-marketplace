@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The page runs into the display cutout instead of leaving a black strip (it pads itself with env(safe-area-inset-*)). -->
+    <style name="Theme.Cads" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/brand_yellow</item>
+        <item name="android:colorPrimary">@color/brand_ink</item>
+        <item name="android:colorAccent">@color/brand_red</item>
+        <item name="android:statusBarColor">@color/brand_yellow</item>
+        <item name="android:navigationBarColor">@color/brand_yellow</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>
