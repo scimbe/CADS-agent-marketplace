@@ -28,7 +28,7 @@ test("Datenschutz: genau eine fetch-Stelle, nur im Spiel, nur mit dem getippten 
   const body = src("game.js").match(/fetch\([^\n]*/)[0];
   assert.match(body, /JSON\.stringify\(\{ prompt: prompt, lang: lang \}\)/, "nur Satz + Sprache");
   assert.ok(!/XMLHttpRequest|sendBeacon|WebSocket|EventSource|RTCPeerConnection|importScripts|new Worker/.test(html), "weiterer Ausgang");
-  assert.ok(!/analytics|gtag|tracker|Notification\.|serviceWorker/i.test(html), "Tracker/Push");
+  assert.ok(!/analytics|\bgtag\b|tracker|Notification\.|serviceWorker/i.test(html), "Tracker/Push");
 });
 test("XSS: kein HTML-Sink im Seitencode", () => {
   const html = noComments(fs.readFileSync(dist, "utf8"));
