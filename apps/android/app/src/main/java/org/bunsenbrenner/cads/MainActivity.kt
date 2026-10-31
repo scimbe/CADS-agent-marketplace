@@ -55,7 +55,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         if (savedInstanceState == null) vm.onLink(intent)
-        setContent { Root(vm, ::setImmersive) }
+        setContent { Root(vm, ::applyFullscreen) }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Full screen in the game: system bars hidden, shown briefly by a swipe from the edge. */
-    private fun setImmersive(on: Boolean) {
+    private fun applyFullscreen(on: Boolean) {
         val c = WindowInsetsControllerCompat(window, window.decorView)
         c.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         if (on) c.hide(WindowInsetsCompat.Type.systemBars()) else c.show(WindowInsetsCompat.Type.systemBars())
