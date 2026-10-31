@@ -16,26 +16,27 @@ val redirect = URI(cadsRedirectUri)
 // The only host (besides the bundled assets) the Duell WebView may talk to: the Duell config API.
 val duellApiBase = (project.findProperty("cadsDuellApiBase") as String?) ?: "https://demos-34a13a96.bunsenbrenner.org"
 
-val duellAssets = layout.buildDirectory.dir("generated/duell-assets")
-val syncDuellAsset = tasks.register("syncDuellAsset") {
-    val real = rootProject.file("../duell-web/dist/index.html")
-    val placeholder = file("src/placeholder/duell/index.html")
-    val out = duellAssets.map { it.dir("duell") }
-    val requireReal = (project.findProperty("duellRequireReal") as String?) == "true"
-    inputs.files(real, placeholder).optional()
-    outputs.dir(out)
-    doLast {
-        if (requireReal && !real.exists()) throw GradleException("apps/duell-web/dist/index.html missing (duellRequireReal=true)")
-        val src = if (real.exists()) real else placeholder
-        logger.lifecycle("Duell page: ${if (real.exists()) "real" else "PLACEHOLDER"} (${src})")
-        val dir = out.get().asFile
+// Copies the Duell page (apps/duell-web/dist/index.html, produced by `npm run build` there) into the
+// assets. The build fails if it is missing: the app never ships a stand-in page.
+abstract class SyncDuellAsset : DefaultTask() {
+    @get:InputFile @get:Optional @get:PathSensitive(PathSensitivity.NONE) abstract val page: RegularFileProperty
+    @get:OutputDirectory abstract val outDir: DirectoryProperty
+
+    @TaskAction
+    fun sync() {
+        if (!page.isPresent) throw GradleException("apps/duell-web/dist/index.html missing: run `npm run build` in apps/duell-web first")
+        val dir = outDir.get().asFile.resolve("duell")
         dir.mkdirs()
-        src.copyTo(File(dir, "index.html"), overwrite = true)
+        page.get().asFile.copyTo(File(dir, "index.html"), overwrite = true)
     }
 }
-tasks.configureEach {
-    if (name.startsWith("merge") && name.endsWith("Assets")) dependsOn(syncDuellAsset)
-    if (name.startsWith("lintVital") || name.startsWith("lint")) dependsOn(syncDuellAsset)
+val syncDuellAsset = tasks.register<SyncDuellAsset>("syncDuellAsset") {
+    val built = rootProject.file("../duell-web/dist/index.html")
+    if (built.exists()) page.set(built)
+    outDir.set(layout.buildDirectory.dir("generated/duell-assets"))
+}
+androidComponents {
+    onVariants { variant -> variant.sources.assets?.addGeneratedSourceDirectory(syncDuellAsset, SyncDuellAsset::outDir) }
 }
 
 android {
@@ -64,10 +65,6 @@ android {
         compose = true
         buildConfig = true
     }
-
-    // Duell page: the real offline file of apps/duell-web is copied into the assets at build time;
-    // without it a tiny test placeholder is used (never for a release: -PduellRequireReal=true).
-    sourceSets["main"].assets.srcDir(duellAssets)
 
     // The signed sample templates are shared with the web builder; no copy is checked in.
     sourceSets["main"].assets.srcDir("../../../manifests/prompt-templates")

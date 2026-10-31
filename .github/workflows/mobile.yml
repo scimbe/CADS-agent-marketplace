@@ -61,6 +61,12 @@ jobs:
           echo "using NDK $NDK"
       - name: Build Rust core + Kotlin bindings
         run: apps/android/build-rust.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build the Duell page (single offline HTML file bundled into the app)
+        working-directory: apps/duell-web
+        run: npm run build
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
       - name: Unit tests + assembleDebug + assembleRelease (unsigned)
         working-directory: apps/android

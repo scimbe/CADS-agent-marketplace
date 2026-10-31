@@ -97,7 +97,7 @@ Hinweise: Der `sub`-Mapper entspricht dem von `ct-agent-cli`, weil die Control-P
 
 ## Duell (Android)
 
-Der erste Tab der Android-App ist das Duell (Jugend-Funktion, keine Anmeldung noetig). Es ist die Offline-Seite `apps/duell-web/dist/index.html`, die der Gradle-Task `syncDuellAsset` beim Bauen in die Assets kopiert (fehlt die Datei, nimmt er den Test-Platzhalter `app/src/placeholder/duell/index.html`; `-PduellRequireReal=true` bricht dann ab und gehoert in jeden Release-Build).
+Der erste Tab der Android-App ist das Duell (Jugend-Funktion, keine Anmeldung noetig). Es ist die Offline-Seite `apps/duell-web/dist/index.html` (zuerst `npm run build` in `apps/duell-web`; `dist/` ist nicht eingecheckt), die der Gradle-Task `syncDuellAsset` beim Bauen in die Assets kopiert. Fehlt die Datei, bricht der Android-Build ab.
 
 * WebView laedt nur ueber `WebViewAssetLoader` (`https://appassets.androidplatform.net/assets/duell/index.html`), JavaScript an, kein Datei-/Content-Zugriff, kein Mixed Content. Unterressourcen sind auf diese Assets und den Config-API-Host (`-PcadsDuellApiBase`, Standard `https://demos-34a13a96.bunsenbrenner.org`) beschraenkt; alle anderen Links oeffnen im System-Browser. Die Config-API muss CORS fuer den Origin `https://appassets.androidplatform.net` erlauben, sonst laeuft die Seite mit ihrer lokalen Rueckfalllogik.
 * `window.DuellHost` hat nur `share(url, text)` (Android-Share-Sheet, nur `https://bunsenbrenner.org/duell...`) und `haptic()`.
