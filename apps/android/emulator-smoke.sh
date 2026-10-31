@@ -189,7 +189,7 @@ sys.exit(0 if ok else 1)' "$kind" || fail "content of the saved $kind is wrong" 
 open_idea() {
   adb shell "am start -W -a android.intent.action.VIEW -c android.intent.category.BROWSABLE -p $PKG -d 'https://bunsenbrenner.org/duell#i=$1'" >/dev/null
   wait_web "$2" 20
-  tap_web "^(Make it yours|Mach's zu deinem)\$" 10   # the button, not the invite note that contains the same words
+  tap_web "^(Make it yours|Mach's zu deinem)\\s*\$" 10   # the button, not the invite note that contains the same words
 }
 
 # 4. Invite link (i=): a card idea. Add a sticker, finish, Share opens the system share sheet, Save writes
