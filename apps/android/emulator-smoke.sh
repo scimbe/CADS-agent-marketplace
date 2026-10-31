@@ -80,39 +80,26 @@ wait_web 'Emu.*42' 10
 shot 0b-duell-challenge
 echo "duell: challenge link opened the game with the challenge (title + rival Emu / 42 shown)"
 
-# 3. The game runs: a bot taps on the beat (scheduled on an absolute beat, so adb latency does not
-#    drift it). The score must rise above 0; if the bird dies earlier, "Again" and retry.
-play() { # one attempt of ~7 s: taps launched on an absolute host-side beat, not chained
-  python3 -I -c '
-import subprocess,sys,time
-x,y,dur,beat=sys.argv[1],sys.argv[2],float(sys.argv[3]),float(sys.argv[4])
-t0=time.monotonic(); n=0; procs=[]
-while n*beat<dur:
-    d=t0+n*beat-time.monotonic()
-    if d>0: time.sleep(d)
-    procs.append(subprocess.Popen(["adb","shell","input","tap",x,y])); n+=1
-for p in procs: p.wait()' "$wx" "$wy" 7 "$1"
-}
+# 3. A tap starts the round and changes the state: the start hint disappears, and after the bird
+#    has crashed (one tap, then it falls) the game-over panel with "Again" is on screen. Counting
+#    score is covered by the web tests (apps/duell-web), not replayed on the emulator.
 SCREEN_H=$(adb shell wm size | tr -d '\r' | grep -oE '[0-9]+x[0-9]+' | tail -1 | cut -dx -f2)
-max_score() { webtext | grep -E '^[0-9]+$' | sort -n | tail -1; }
-SCORE=0
-# The page caps a frame at 50 ms, so on a slow software-rendered emulator the game runs slower than
-# real time. Hence the beat is swept: 0.62 s is exact for real time, longer beats cover slow frames.
-BEATS=(0.62 0.75 0.9 1.05 1.25 1.5 0.5 0.68)
-for attempt in 1 2 3 4 5 6 7 8; do
-  play "${BEATS[$((attempt-1))]}"
-  SCORE=$(max_score); SCORE=${SCORE:-0}
-  echo "duell: attempt $attempt -> score $SCORE  [page: $(webtext | tr "\n" "|")]"
-  shot "0c-duell-spiel-$attempt"
-  [ "$SCORE" -ge 1 ] && break
+adb shell input tap "$wx" "$wy"
+for _ in $(seq 1 10); do webtext | grep -Eq 'Tap\. Fly|Tippen\. Fliegen' || break; sleep 1; done
+if webtext | grep -Eq 'Tap\. Fly|Tippen\. Fliegen'; then echo "FAIL: start hint still shown after the tap, round did not start" >&2; webtext >&2; shot fail-tap; exit 1; fi
+echo "duell: tap started the round (start hint gone)"
+OVER=""
+for _ in $(seq 1 30); do
   if p=$(find_node "(^|\\s)(Again|Nochmal)(\\s|\$)"); then
     read -r ax ay <<<"$p"
-    if [ "$ay" -gt 0 ] && [ "$ay" -lt "$SCREEN_H" ]; then adb shell input tap "$ax" "$ay"; sleep 1; fi
+    if [ "$ay" -gt 0 ] && [ "$ay" -lt "$SCREEN_H" ]; then OVER=1; break; fi
   fi
+  sleep 1
 done
-if [ "$SCORE" -lt 1 ]; then echo "FAIL: score never rose above 0 in 8 attempts" >&2; webtext >&2; exit 1; fi
-if webtext | grep -Eq 'Tap\. Fly|Tippen\. Fliegen'; then echo "FAIL: start hint still shown, game did not start" >&2; exit 1; fi
-echo "duell: game runs, taps scored (score $SCORE)"
+[ -n "$OVER" ] || { echo "FAIL: no game-over panel after the crash" >&2; webtext >&2; shot fail-over; exit 1; }
+wait_web 'Emu.*42' 5   # the result compares with the rival from the link
+shot 0c-duell-game-over
+echo "duell: round ran to game over ('Again' on screen, rival Emu / 42 still referenced)"
 
 # 4. Other tabs stay: Templates (offline), and Back returns to the game with its state.
 read -r x y < <(find_node "(^|\\s)Templates(\\s|\$)")
