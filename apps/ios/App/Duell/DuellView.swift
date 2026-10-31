@@ -113,7 +113,11 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
         #endif
     }
 
+    #if DEBUG
+    static let handlerNames = ["share", "shareFile", "saveFile", "haptic", "more", "dbgResult"]
+    #else
     static let handlerNames = ["share", "shareFile", "saveFile", "haptic", "more"]
+    #endif
 
     /// Exposes `window.DuellHost` to the page. `navigator.share` is removed on purpose: the page then
     /// always goes through `shareFile` / `share`, where type, size, name and link are checked and the
@@ -226,6 +230,9 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
     // MARK: Script messages
 
     func userContentController(_ u: WKUserContentController, didReceive m: WKScriptMessage) {
+        #if DEBUG
+        if m.name == "dbgResult" { DuellDebug.finish(m.body); return }
+        #endif
         guard m.frameInfo.isMainFrame, let body = m.body as? [String: Any] else { return }
         switch m.name {
         case "share":
@@ -404,18 +411,22 @@ enum DuellDebug {
             """,
     ]
 
+    /// The flow runs as an async function in the page and reports through the `dbgResult` message handler
+    /// (callAsyncJavaScript's Result-based variant lives in the Swift WebKit overlay, which the simulator runtime lacks).
     static func runScenarioIfRequested(web: WKWebView) {
         guard let name = scenario, let flow = flows[name] else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            let script = prelude + "try {" + flow + "} catch (e) { log('error', String(e && e.message || e)); }\nlog('text', document.body.innerText.slice(0, 600)); return JSON.stringify(out);"
-            web.callAsyncJavaScript(script, arguments: [:], in: nil, in: .page) { result in
-                var page: Any = "no result"
-                if case .success(let v) = result, let s = v as? String, let d = s.data(using: .utf8), let j = try? JSONSerialization.jsonObject(with: d) { page = j }
-                else if case .failure(let e) = result { page = "js error: \(e.localizedDescription)" }
-                write(["page": page, "scenario": name, "loader": DuellCoordinator.usesSchemeHandler ? "scheme" : "file"])
-                note("done", true)
-            }
+            let script = "(async () => {" + prelude + "try {" + flow + "} catch (e) { log('error', String(e && e.message || e)); }\n"
+                + "log('text', document.body.innerText.slice(0, 600)); window.webkit.messageHandlers.dbgResult.postMessage(JSON.stringify(out)); })();"
+            web.evaluateJavaScript(script, completionHandler: nil)
         }
+    }
+
+    static func finish(_ body: Any) {
+        var page: Any = "no result"
+        if let s = body as? String, let d = s.data(using: .utf8), let j = try? JSONSerialization.jsonObject(with: d) { page = j }
+        write(["page": page, "scenario": scenario ?? "", "loader": DuellCoordinator.usesSchemeHandler ? "scheme" : "file"])
+        note("done", true)
     }
 }
 #endif
