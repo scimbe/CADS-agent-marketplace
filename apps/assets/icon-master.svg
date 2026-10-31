@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<!-- My Daily Idea app icon: tear-off calendar leaf with a bulb in a burst. Master for the iOS PNG and the Android vector. -->
+<rect width="1024" height="1024" fill="#FFD400"/>
+<path d="M270,186H754A34,34 0 0 1 788,220V820A34,34 0 0 1 754,854H270A34,34 0 0 1 236,820V220A34,34 0 0 1 270,186Z" fill="#FF3B1D" stroke="#111111" stroke-width="22" stroke-linejoin="round" transform="rotate(6 512 512)"/>
+<path d="M314,238H754A30,30 0 0 1 784,268V828A30,30 0 0 1 754,858H314A30,30 0 0 1 284,828V268A30,30 0 0 1 314,238Z" fill="#111111" transform="rotate(-5 512 512)"/>
+<path d="M292,214H732A30,30 0 0 1 762,244V804A30,30 0 0 1 732,834H292A30,30 0 0 1 262,804V244A30,30 0 0 1 292,214Z" fill="#FFF6DC" stroke="#111111" stroke-width="22" stroke-linejoin="round" transform="rotate(-5 512 512)"/>
+<path d="M329,268A17,17 0 1 0 363,268A17,17 0 1 0 329,268Z" fill="#FFD400" stroke="#111111" stroke-width="9" stroke-linejoin="round" transform="rotate(-5 512 512)"/>
+<path d="M395,268A17,17 0 1 0 429,268A17,17 0 1 0 395,268Z" fill="#FFD400" stroke="#111111" stroke-width="9" stroke-linejoin="round" transform="rotate(-5 512 512)"/>
+<path d="M461,268A17,17 0 1 0 495,268A17,17 0 1 0 461,268Z" fill="#FFD400" stroke="#111111" stroke-width="9" stroke-linejoin="round" transform="rotate(-5 512 512)"/>
+<path d="M527,268A17,17 0 1 0 561,268A17,17 0 1 0 527,268Z" fill="#FFD400" stroke="#111111" stroke-width="9" stroke-linejoin="round" transform="rotate(-5 512 512)"/>
+<path d="M593,268A17,17 0 1 0 627,268A17,17 0 1 0 593,268Z" fill="#FFD400" stroke="#111111" stroke-width="9" stroke-linejoin="round" transform="rotate(-5 512 512)"/>
+<path d="M659,268A17,17 0 1 0 693,268A17,17 0 1 0 659,268Z" fill="#FFD400" stroke="#111111" stroke-width="9" stroke-linejoin="round" transform="rotate(-5 512 512)"/>
+<path d="M512.0,380.0L558.2,434.6L629.6,409.4L638.0,480.8L709.4,497.6L671.6,564.8L722.0,623.6L654.8,657.2L654.8,732.8L579.2,724.4L528.8,791.6L478.4,737.0L402.8,766.4L390.2,690.8L318.8,669.8L356.6,602.6L306.2,543.8L373.4,510.2L373.4,434.6L449.0,447.2Z" fill="#FF3B1D" stroke="#111111" stroke-width="18" stroke-linejoin="round" transform="rotate(-5 512 512)"/>
+<path d="M434,560A78,78 0 1 0 590,560A78,78 0 1 0 434,560Z" fill="#FFD400" stroke="#111111" stroke-width="16" stroke-linejoin="round" transform="rotate(-5 512 512)"/>
+<path d="M488,634H536A10,10 0 0 1 546,644V658A10,10 0 0 1 536,668H488A10,10 0 0 1 478,658V644A10,10 0 0 1 488,634Z" fill="#111111" transform="rotate(-5 512 512)"/>
+<path d="M497,676H527A9,9 0 0 1 536,685V685A9,9 0 0 1 527,694H497A9,9 0 0 1 488,685V685A9,9 0 0 1 497,676Z" fill="#111111" transform="rotate(-5 512 512)"/>
+</svg>

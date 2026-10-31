@@ -8,16 +8,23 @@
 
 /* Begin PBXBuildFile section */
 		128FBC89B9AF5A2F7E689D95 /* CadsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D415199D36806AE6D3A4E7C /* CadsApp.swift */; };
+		1C11C16C863DD00AB12E52D6 /* DuellFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88A74CE0498F8C2AFE1140A5 /* DuellFiles.swift */; };
 		2914F499B1C3AA8F777F8CE1 /* Config.swift in Sources */ = {isa = PBXBuildFile; fileRef = 953656569E6456B00EDF750E /* Config.swift */; };
 		34C0462C010A0AC3220B7F7D /* MobileCoreFFI.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 71B9DE8C8F70CF610430F689 /* MobileCoreFFI.xcframework */; };
+		35CEB1C9C5755380FBDBCF5C /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 8B639A6615BCDA3687A96D30 /* InfoPlist.strings */; };
+		4BDCDFDA5B68488C6D0D92AB /* DuellLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 774B7A0DA48A8462BEF31959 /* DuellLink.swift */; };
 		4C82FE33B02D3BE63814407D /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75BAFB855677D8EF7B6ACD64 /* AppModel.swift */; };
+		581AFAFFAE2D5662EFACF4D5 /* DuellFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88A74CE0498F8C2AFE1140A5 /* DuellFiles.swift */; };
 		5B76B6CC3C0F0F7C65EC483A /* TemplateDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD81CFE084B80A189CFAFC41 /* TemplateDetailView.swift */; };
 		87009D78E9A22462C1D14314 /* MockInstallationsAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA250E4313740B60FE8CF3C9 /* MockInstallationsAPI.swift */; };
+		889561E05CE6A47D6F5F22C4 /* DuellLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1258342EB4536F081A7CB11 /* DuellLinkTests.swift */; };
 		89B852D1AE9FF129AD8E9736 /* DuellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67F7F52E5C7800D88585B9F3 /* DuellView.swift */; };
 		9836F1532EC50362670F0DB3 /* InstallationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F531ACF30ACF28A772D3C191 /* InstallationsView.swift */; };
 		A5588970492D3201F595179F /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = DECC8E8EB59AFD37BAC6D2BB /* Keychain.swift */; };
 		BA7B6F26776E97246B741FCB /* prompt-templates in Resources */ = {isa = PBXBuildFile; fileRef = 3CB74CFFEB7F4201592CC8DF /* prompt-templates */; };
+		CF354478D843A5B9A5CC8722 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BCEFD62307C126D763924AA2 /* Assets.xcassets */; };
 		CFA8F9451F7F0E34DFFA87BB /* FormState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2874F7FCCCF551B3B226EAB8 /* FormState.swift */; };
+		D2FFFC41373E36BC972CAE09 /* DuellFilesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005DB9F9B26A3C63853EBFDF /* DuellFilesTests.swift */; };
 		D9B5A1AC9442042BB1220D0C /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = DA644F6B8C5AF50712C95672 /* Localizable.strings */; };
 		DFE0401A8DD5428449B6FA63 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1193DB384ADE6E5A29A24DC2 /* AuthService.swift */; };
 		E7B10E54CC3D0CC73509608E /* TemplatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4286026C041C3D0ECE84B51E /* TemplatesView.swift */; };
@@ -27,25 +34,32 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		005DB9F9B26A3C63853EBFDF /* DuellFilesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuellFilesTests.swift; sourceTree = "<group>"; };
 		1193DB384ADE6E5A29A24DC2 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		1D415199D36806AE6D3A4E7C /* CadsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CadsApp.swift; sourceTree = "<group>"; };
 		2874F7FCCCF551B3B226EAB8 /* FormState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormState.swift; sourceTree = "<group>"; };
 		2A239E8D814F0058F050C9B0 /* CadsMarketplace.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CadsMarketplace.entitlements; sourceTree = "<group>"; };
 		2E9C593FC7515BD9FB599458 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		371EF8EDB9540BBB4660D0BC /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		3CB74CFFEB7F4201592CC8DF /* prompt-templates */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "prompt-templates"; path = "../../manifests/prompt-templates"; sourceTree = SOURCE_ROOT; };
 		4286026C041C3D0ECE84B51E /* TemplatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplatesView.swift; sourceTree = "<group>"; };
 		4C5A2FDD3D23DD15E1BAC75B /* CadsMarketplace.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CadsMarketplace.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		67F7F52E5C7800D88585B9F3 /* DuellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuellView.swift; sourceTree = "<group>"; };
 		71B9DE8C8F70CF610430F689 /* MobileCoreFFI.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = MobileCoreFFI.xcframework; path = Frameworks/MobileCoreFFI.xcframework; sourceTree = "<group>"; };
+		7411D65353B5AB8A04F1FC5B /* CadsMarketplaceTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CadsMarketplaceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		75BAFB855677D8EF7B6ACD64 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		774B7A0DA48A8462BEF31959 /* DuellLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuellLink.swift; sourceTree = "<group>"; };
 		794079433C6AB1AAFAC505E0 /* TemplateFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateFormView.swift; sourceTree = "<group>"; };
+		88A74CE0498F8C2AFE1140A5 /* DuellFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuellFiles.swift; sourceTree = "<group>"; };
 		953656569E6456B00EDF750E /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
 		97E940EF9C78BBB4B6E9B5DE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		BCEFD62307C126D763924AA2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BD81CFE084B80A189CFAFC41 /* TemplateDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateDetailView.swift; sourceTree = "<group>"; };
+		D1258342EB4536F081A7CB11 /* DuellLinkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuellLinkTests.swift; sourceTree = "<group>"; };
 		D28DA4D5E3DFAB55BEF9DCA1 /* Services.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services.swift; sourceTree = "<group>"; };
 		DA250E4313740B60FE8CF3C9 /* MockInstallationsAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockInstallationsAPI.swift; sourceTree = "<group>"; };
 		DECC8E8EB59AFD37BAC6D2BB /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		EF80BC8B459786530FFDB43A /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		F531ACF30ACF28A772D3C191 /* InstallationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallationsView.swift; sourceTree = "<group>"; };
 		FE2FFB726A398040B962BDA4 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -79,6 +93,7 @@
 				3CB74CFFEB7F4201592CC8DF /* prompt-templates */,
 				53DBE3C8F1C31C1F200AD3E8 /* App */,
 				C137F3842EB41F6984ABDFC4 /* Generated */,
+				EE7166E68D3A9294DFC3F999 /* Tests */,
 				5A7C938DC567B70AD8264FE5 /* Frameworks */,
 				EF9B151A07568A8D595FEEC3 /* Products */,
 			);
@@ -96,6 +111,7 @@
 		53DBE3C8F1C31C1F200AD3E8 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				BCEFD62307C126D763924AA2 /* Assets.xcassets */,
 				1D415199D36806AE6D3A4E7C /* CadsApp.swift */,
 				2A239E8D814F0058F050C9B0 /* CadsMarketplace.entitlements */,
 				953656569E6456B00EDF750E /* Config.swift */,
@@ -120,6 +136,7 @@
 		8216BC8A9190DA94B8359997 /* Duell */ = {
 			isa = PBXGroup;
 			children = (
+				88A74CE0498F8C2AFE1140A5 /* DuellFiles.swift */,
 				774B7A0DA48A8462BEF31959 /* DuellLink.swift */,
 				67F7F52E5C7800D88585B9F3 /* DuellView.swift */,
 			);
@@ -147,15 +164,26 @@
 		E847FA465E6CEA8DE3B73231 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				8B639A6615BCDA3687A96D30 /* InfoPlist.strings */,
 				DA644F6B8C5AF50712C95672 /* Localizable.strings */,
 			);
 			path = Resources;
+			sourceTree = "<group>";
+		};
+		EE7166E68D3A9294DFC3F999 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				005DB9F9B26A3C63853EBFDF /* DuellFilesTests.swift */,
+				D1258342EB4536F081A7CB11 /* DuellLinkTests.swift */,
+			);
+			path = Tests;
 			sourceTree = "<group>";
 		};
 		EF9B151A07568A8D595FEEC3 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				4C5A2FDD3D23DD15E1BAC75B /* CadsMarketplace.app */,
+				7411D65353B5AB8A04F1FC5B /* CadsMarketplaceTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -163,6 +191,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		A85481B63AD64BB90C9ABD0F /* CadsMarketplaceTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 46D1E01FAFA3CDB8E8DC2A7E /* Build configuration list for PBXNativeTarget "CadsMarketplaceTests" */;
+			buildPhases = (
+				C470EC5F79E06AF24A6EEC13 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CadsMarketplaceTests;
+			packageProductDependencies = (
+			);
+			productName = CadsMarketplaceTests;
+			productReference = 7411D65353B5AB8A04F1FC5B /* CadsMarketplaceTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		C4483946B46EA3E2EAF597DE /* CadsMarketplace */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 861B3EFD3BF35B22375F140E /* Build configuration list for PBXNativeTarget "CadsMarketplace" */;
@@ -192,6 +237,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					A85481B63AD64BB90C9ABD0F = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
 					C4483946B46EA3E2EAF597DE = {
 						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
@@ -214,6 +263,7 @@
 			projectRoot = "";
 			targets = (
 				C4483946B46EA3E2EAF597DE /* CadsMarketplace */,
+				A85481B63AD64BB90C9ABD0F /* CadsMarketplaceTests */,
 			);
 		};
 /* End PBXProject section */
@@ -223,6 +273,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CF354478D843A5B9A5CC8722 /* Assets.xcassets in Resources */,
+				35CEB1C9C5755380FBDBCF5C /* InfoPlist.strings in Resources */,
 				D9B5A1AC9442042BB1220D0C /* Localizable.strings in Resources */,
 				BA7B6F26776E97246B741FCB /* prompt-templates in Resources */,
 			);
@@ -261,6 +313,7 @@
 				DFE0401A8DD5428449B6FA63 /* AuthService.swift in Sources */,
 				128FBC89B9AF5A2F7E689D95 /* CadsApp.swift in Sources */,
 				2914F499B1C3AA8F777F8CE1 /* Config.swift in Sources */,
+				1C11C16C863DD00AB12E52D6 /* DuellFiles.swift in Sources */,
 				FB0C2FD02A4F1AE70A3548F5 /* DuellLink.swift in Sources */,
 				89B852D1AE9FF129AD8E9736 /* DuellView.swift in Sources */,
 				CFA8F9451F7F0E34DFFA87BB /* FormState.swift in Sources */,
@@ -274,9 +327,29 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C470EC5F79E06AF24A6EEC13 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				581AFAFFAE2D5662EFACF4D5 /* DuellFiles.swift in Sources */,
+				D2FFFC41373E36BC972CAE09 /* DuellFilesTests.swift in Sources */,
+				4BDCDFDA5B68488C6D0D92AB /* DuellLink.swift in Sources */,
+				889561E05CE6A47D6F5F22C4 /* DuellLinkTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXVariantGroup section */
+		8B639A6615BCDA3687A96D30 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				EF80BC8B459786530FFDB43A /* de */,
+				371EF8EDB9540BBB4660D0BC /* en */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
 		DA644F6B8C5AF50712C95672 /* Localizable.strings */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -356,6 +429,24 @@
 			};
 			name = Debug;
 		};
+		1C6DE809E3C51ACF7DCF0A81 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.bunsenbrenner.cads.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 		25DAE62E510A2BA2D8CF0A09 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -429,11 +520,10 @@
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = App/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = CADS;
+				INFOPLIST_KEY_CFBundleDisplayName = "My Daily Idea";
 				INFOPLIST_KEY_CadsApiBase = "https://bunsenbrenner.org";
 				INFOPLIST_KEY_CadsOidcClientId = "cads-mobile";
 				INFOPLIST_KEY_CadsOidcIssuer = "https://auth.bunsenbrenner.org/realms/ct-demo";
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -460,11 +550,10 @@
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = App/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = CADS;
+				INFOPLIST_KEY_CFBundleDisplayName = "My Daily Idea";
 				INFOPLIST_KEY_CadsApiBase = "https://bunsenbrenner.org";
 				INFOPLIST_KEY_CadsOidcClientId = "cads-mobile";
 				INFOPLIST_KEY_CadsOidcIssuer = "https://auth.bunsenbrenner.org/realms/ct-demo";
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -478,9 +567,36 @@
 			};
 			name = Debug;
 		};
+		D7E9B216496FA6587568A39B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.bunsenbrenner.cads.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		46D1E01FAFA3CDB8E8DC2A7E /* Build configuration list for PBXNativeTarget "CadsMarketplaceTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1C6DE809E3C51ACF7DCF0A81 /* Debug */,
+				D7E9B216496FA6587568A39B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		861B3EFD3BF35B22375F140E /* Build configuration list for PBXNativeTarget "CadsMarketplace" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

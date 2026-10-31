@@ -5,3 +5,4 @@ build/
 *.xcodeproj/project.xcworkspace/xcuserdata/
 build/
 build-mac/
+*.xcodeproj/xcshareddata/
