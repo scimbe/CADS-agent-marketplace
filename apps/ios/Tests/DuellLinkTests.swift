@@ -3,6 +3,23 @@ import XCTest
 final class DuellLinkTests: XCTestCase {
     private func frag(_ s: String) -> String? { URL(string: s).flatMap(DuellLink.challengeFragment(from:)) }
 
+    func testShortLinkBecomesFragmentForThePage() {
+        XCTAssertEqual(frag("https://bunsenbrenner.org/s/aB3dE5gH"), "s=aB3dE5gH")
+        XCTAssertEqual(DuellLink.validFragment("s=aB3dE5gH"), "s=aB3dE5gH")
+        XCTAssertTrue(DuellLink.isShareable("https://bunsenbrenner.org/s/aB3dE5gH"))
+    }
+
+    func testForeignShortLinksAreRejected() {
+        for bad in ["https://evil.example/s/aB3dE5gH", "http://bunsenbrenner.org/s/aB3dE5gH", "https://bunsenbrenner.org:8443/s/aB3dE5gH",
+                    "https://bunsenbrenner.org/s/aB3dE5g", "https://bunsenbrenner.org/s/aB3dE5gHi", "https://bunsenbrenner.org/s/aB3dE5g0",
+                    "https://bunsenbrenner.org/s/aB3dE5gO", "https://bunsenbrenner.org/s/../duell", "https://bunsenbrenner.org/s/aB3dE5gH/x",
+                    "https://bunsenbrenner.org/s/aB3dE5gH?x=1", "https://bunsenbrenner.org/s/"] {
+            XCTAssertNil(frag(bad), bad)
+            XCTAssertFalse(DuellLink.isShareable(bad), bad)
+        }
+        for bad in ["s=", "s=short", "s=aB3dE5g0", "s=aB3dE5gHi", "s=aB3dE5g\""] { XCTAssertNil(DuellLink.validFragment(bad), bad) }
+    }
+
     func testChallengeFragmentIsAccepted() {
         XCTAssertEqual(frag("https://bunsenbrenner.org/duell#c=eyJ2IjoxfQ"), "c=eyJ2IjoxfQ")
         XCTAssertEqual(frag("https://bunsenbrenner.org/duell/#c=eyJ2IjoxfQ=="), "c=eyJ2IjoxfQ==")

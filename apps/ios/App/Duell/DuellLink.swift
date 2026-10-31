@@ -5,10 +5,23 @@ import Foundation
 enum DuellLink {
     static let host = "bunsenbrenner.org"
     static let path = "/duell"
+    static let shortPrefix = "/s/"
     static let maxFragmentLength = 8192
 
+    /// Short link id of the gallery: eight characters without 0, 1, O, o, I, l.
+    private static func shortId(in url: URL) -> String? {
+        guard url.scheme?.lowercased() == "https", url.host?.lowercased() == host, url.port == nil, url.user == nil, url.query == nil,
+              url.path.hasPrefix(shortPrefix) else { return nil }
+        let id = String(url.path.dropFirst(shortPrefix.count))
+        let allowed = CharacterSet(charactersIn: "23456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ")
+        guard id.count == 8, id.unicodeScalars.allSatisfy(allowed.contains) else { return nil }
+        return id
+    }
+
     /// Returns the fragment ("c=..." or "i=...") when `url` is a valid link of this app, else nil.
+    /// A short link has no fragment of its own: it becomes `s=<id>` and the page fetches the rest.
     static func challengeFragment(from url: URL) -> String? {
+        if let id = shortId(in: url) { return "s=" + id }
         guard url.scheme?.lowercased() == "https",
               url.host?.lowercased() == host,
               url.path == path || url.path == path + "/",
@@ -19,6 +32,7 @@ enum DuellLink {
     /// Links the page may pass to the share sheet: only the public Duell link (https, our host, path /duell),
     /// with a valid fragment if it has one.
     static func isShareable(_ string: String) -> Bool {
+        if let short = URL(string: string), shortId(in: short) != nil, short.fragment == nil { return true }
         guard let url = URL(string: string), url.scheme?.lowercased() == "https", url.host?.lowercased() == host, url.port == nil,
               url.path == path || url.path == path + "/", url.user == nil, url.query == nil else { return false }
         guard let fragment = url.fragment else { return true }
@@ -35,6 +49,12 @@ enum DuellLink {
             guard !value.isEmpty else { return nil }
             let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_=")
             guard value.unicodeScalars.allSatisfy(allowed.contains) else { return nil }
+            return fragment
+        }
+        if fragment.hasPrefix("s=") {
+            let value = fragment.dropFirst(2)
+            let allowed = CharacterSet(charactersIn: "23456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ")
+            guard value.count == 8, value.unicodeScalars.allSatisfy(allowed.contains) else { return nil }
             return fragment
         }
         if fragment.hasPrefix("i=") {

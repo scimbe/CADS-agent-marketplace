@@ -21,10 +21,23 @@ test("Build: eine Datei, voll offline, alle Welten da, Platzhalter ersetzt, Groe
   assert.match(html, /Content-Security-Policy[^>]*default-src 'none'/);
   assert.match(html, /connect-src https:\/\/demos-34a13a96\.bunsenbrenner\.org;/, "nur der eine Host");
 });
-test("Datenschutz: zwei fetch-Stellen (Spielsatz, KI-Text), nur getippter Text; kein anderer Weg nach draussen", () => {
-  const html = fs.readFileSync(dist, "utf8");
-  assert.equal((html.match(/fetch\(/g) || []).length, 2, "genau zwei fetch");
-  assert.equal((src("ai.js").match(/fetch\(/g) || []).length, 1, "ein fetch in der KI");
+test("Datenschutz: Kurzlink nur ueber shortlink.js, nur nach einem Tipp auf Teilen; p= bleibt draussen", () => {
+  assert.ok(src("shortlink.js").includes("(fetchFn || fetch)(API + path"));
+  assert.ok(!/ShortLink\.shorten/.test(src("app.js").replace(/async function shortLink\(\)[\s\S]*?\n\}/, "")), "app.js: nur shortLink() kuerzt");
+  for (const m of src("app.js").matchAll(/shortLink\(\)/g)) assert.ok(/await shortLink\(\)|function shortLink\(\)/.test(src("app.js").slice(m.index - 15, m.index + 11)));
+  const game = src("game.js"), at = game.indexOf("ShortLink.shorten");
+  assert.ok(at > game.indexOf('$("challenge").addEventListener("click"'), "game.js: nur im Klick");
+});
+test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, Kurzlink), nur getippter Text; kein anderer Weg nach draussen", () => {
+  const html = noComments(fs.readFileSync(dist, "utf8"));
+  // Every call site by name; a new one fails here until it is argued for and listed.
+  const allowed = { "game.js": 1, "ai.js": 1 }, short = /\(fetchFn \|\| fetch\)\(/g;
+  for (const f of fs.readdirSync(path.join(__dirname, "../src")).filter((n) => n.endsWith(".js"))) {
+    assert.equal((noComments(src(f)).match(/\bfetch\(/g) || []).length, allowed[f] || 0, "direktes fetch( in " + f);
+    assert.equal((noComments(src(f)).match(short) || []).length, f === "shortlink.js" ? 1 : 0, "Kurzlink-fetch in " + f);
+  }
+  assert.equal((html.match(/\bfetch\(/g) || []).length, Object.values(allowed).reduce((a, b) => a + b, 0), "direkte fetch( im Build");
+  assert.equal((html.match(short) || []).length, 1, "eine Stelle fuer Kurzlinks im Build");
   assert.match(src("ai.js").match(/await fetch\([^\n]*/)[0], /body: text/, "nur der gepruefte Text");
   assert.ok(!/toDataURL|toBlob|drawImage|getImageData/.test(src("ai.js")), "KI fasst kein Bild an");
   assert.ok(src("game.js").includes("await fetch("), "fetch gehoert ins Spiel");

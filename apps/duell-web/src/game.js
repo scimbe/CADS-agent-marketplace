@@ -190,13 +190,15 @@ window.addEventListener("keydown", function (e) {
   if (mode === "play" && (e.code === "Space" || e.key === "ArrowUp") && !(e.target && e.target.tagName === "INPUT")) { e.preventDefault(); doFlap(); }
 });
 $("again").addEventListener("click", function () { Kit.sfx.tap(); newRun(); });
-$("challenge").addEventListener("click", function () {
+$("challenge").addEventListener("click", async function () {
   Kit.sfx.tap();
-  Kit.share({ url: D.challengeUrl(cur, sim.score), text: t("chText", { n: sim.score, t: cur.title }) });
+  var link = await window.ShortLink.shorten(D.challengeUrl(cur, sim.score), { k: "game", n: sim.score, l: Kit.lang }, Kit.store);
+  Kit.save();
+  Kit.share({ url: link.url, text: t("chText", { n: sim.score, t: cur.title }) });
 });
 function attach(host) { cv = host; ctx = cv.getContext("2d"); fit(); }
 
-/* The one network call of the app: a sentence typed for a game, only ever in this function, with a local fallback. */
+/* The one network call of the game: a sentence typed for a game, only ever in this function, with a local fallback. */
 async function fromSentence(prompt, lang) {
   var st = null;
   if (navigator.onLine !== false && typeof fetch === "function") {

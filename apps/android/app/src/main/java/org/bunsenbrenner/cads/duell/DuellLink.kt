@@ -6,6 +6,7 @@ import java.net.URI
 object DuellLink {
     const val SHARE_HOST = "bunsenbrenner.org"
     const val SHARE_PATH = "/duell"
+    const val SHORT_PREFIX = "/s/"
 
     /** Virtual origin the WebViewAssetLoader serves the bundled assets from. */
     const val ASSET_HOST = "appassets.androidplatform.net"
@@ -18,16 +19,26 @@ object DuellLink {
     private val PEER_VALUE = Regex("^[A-Za-z0-9_\\-]{40,1024}$")
     private const val CORE_LINK = "https://$SHARE_HOST/p#"
 
+    // Short link id of the gallery: eight characters without 0, 1, O, o, I, l.
+    private val SHORT_ID = Regex("^[2-9a-km-np-zA-HJ-NP-Z]{8}$")
+
+    private fun shortId(uri: URI): String? =
+        uri.rawPath?.takeIf { uri.scheme == "https" && uri.host == SHARE_HOST && uri.port == -1 && uri.rawQuery == null && it.startsWith(SHORT_PREFIX) }
+            ?.removePrefix(SHORT_PREFIX)?.takeIf { SHORT_ID.matches(it) }
+
     private fun isDuellUri(uri: URI) =
         uri.scheme == "https" && uri.host == SHARE_HOST && uri.port == -1 && uri.rawPath?.trimEnd('/') == SHARE_PATH
 
     /**
      * The `c=<base64url>` or `i=<id>` fragment of a shared link, or null when [link] is not a Duell link
      * of this app (other host or path, no fragment, characters outside the base64url alphabet,
-     * oversize). Only this validated fragment is ever handed to the page.
+     * oversize). Only this validated fragment is ever handed to the page. A short link
+     * (`/s/<id>`) has no fragment of its own: it becomes `s=<id>` and the page fetches the rest.
      */
     fun fragmentOf(link: String?): String? {
-        val uri = parse(link)?.takeIf { isDuellUri(it) } ?: return null
+        val parsed = parse(link) ?: return null
+        shortId(parsed)?.let { return "s=$it" }
+        val uri = parsed.takeIf { isDuellUri(it) } ?: return null
         return uri.rawFragment?.takeIf { it.length <= MAX_FRAGMENT && FRAGMENT.matches(it) }
     }
 
@@ -40,7 +51,9 @@ object DuellLink {
 
     /** Links the page may pass to the share sheet: only the public Duell link, with a valid fragment if any. */
     fun isShareable(url: String?): Boolean {
-        val uri = parse(url)?.takeIf { isDuellUri(it) } ?: return false
+        val parsed = parse(url) ?: return false
+        if (shortId(parsed) != null && parsed.rawFragment == null) return true
+        val uri = parsed.takeIf { isDuellUri(it) } ?: return false
         return uri.rawFragment == null || fragmentOf(url) != null
     }
 

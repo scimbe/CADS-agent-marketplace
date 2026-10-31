@@ -3,6 +3,7 @@
   "use strict";
 
   var SHARE_BASE = "https://bunsenbrenner.org/duell";
+  var SHORT_BASE = "https://bunsenbrenner.org/s/";
   var DEFAULT_API = "https://demos-34a13a96.bunsenbrenner.org/api/duell/config";
   var MAX_FRAGMENT = 1200;       // hard cap on the encoded payload we are willing to parse
   var MAX_NAME = 16, MAX_TITLE = 28, MAX_PROMPT = 80, MAX_SCORE = 9999;
@@ -279,7 +280,7 @@
   }
 
   var api = {
-    SHARE_BASE: SHARE_BASE, DEFAULT_API: DEFAULT_API, MAX_FRAGMENT: MAX_FRAGMENT, MAX_NAME: MAX_NAME, MAX_TITLE: MAX_TITLE,
+    SHARE_BASE: SHARE_BASE, SHORT_BASE: SHORT_BASE, DEFAULT_API: DEFAULT_API, MAX_FRAGMENT: MAX_FRAGMENT, MAX_NAME: MAX_NAME, MAX_TITLE: MAX_TITLE,
     MAX_PROMPT: MAX_PROMPT, MAX_SCORE: MAX_SCORE, RANGES: RANGES, THEME_NAMES: THEME_NAMES, PRESETS: PRESETS,
     clampNum: clampNum, sanitizeParams: sanitizeParams, sanitizeTheme: sanitizeTheme, sanitizeSeed: sanitizeSeed,
     isClean: isClean, sanitizeName: sanitizeName, sanitizeTitle: sanitizeTitle, sanitizeEmoji: sanitizeEmoji, sanitizePrompt: sanitizePrompt,

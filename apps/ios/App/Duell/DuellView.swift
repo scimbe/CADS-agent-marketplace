@@ -131,8 +131,9 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
         #if DEBUG
         if fragment == nil { fragment = DuellDebug.launchFragment }
         #endif
-        // Block every network load (http/https) inside the page, then load the bundled page.
-        let rules = #"[{"trigger":{"url-filter":"^https?://"},"action":{"type":"block"}}]"#
+        // Block every network load (http/https) inside the page except the short-link API (it is only called after
+        // a tap on share, or to open a /s/ link), then load the bundled page.
+        let rules = #"[{"trigger":{"url-filter":"^https?://"},"action":{"type":"block"}},{"trigger":{"url-filter":"^https://demos-34a13a96\\.bunsenbrenner\\.org/api/s/?[0-9a-zA-Z]*$"},"action":{"type":"ignore-previous-rules"}}]"#
         WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "duell-no-network", encodedContentRuleList: rules) { [weak self] list, _ in
             DispatchQueue.main.async {
                 guard let self, let web = self.web, let base = self.pageURL else { return }
