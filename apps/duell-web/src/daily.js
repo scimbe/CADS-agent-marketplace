@@ -119,7 +119,7 @@
   function sanitizeStickers(a) {
     return (Array.isArray(a) ? a : []).slice(0, MAX_STICKERS).map(function (s) {
       var f = function (v, a, b, d) { return Math.round(C.clampNum(v, a, b, d) * 1000) / 1000; };
-      return s && typeof s === "object" ? { e: C.sanitizeEmoji(s.e), x: f(s.x, 0, 1, 0.5), y: f(s.y, 0, 1, 0.5), r: f(s.r, -1, 1, 0), z: f(s.z, 0.5, 2.5, 1) } : null;
+      return s && typeof s === "object" ? { e: C.sanitizeEmoji(s.e), x: f(s.x, 0, 1, 0.5), y: f(s.y, 0, 1, 0.5), r: f(s.r, -3.14, 3.14, 0), z: f(s.z, 0.5, 2.5, 1) } : null;
     }).filter(Boolean);
   }
   function sanitizeTrail(a) {
