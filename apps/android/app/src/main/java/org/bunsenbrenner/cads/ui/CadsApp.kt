@@ -7,12 +7,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Inbox
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -24,11 +23,10 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -69,7 +68,12 @@ import uniffi.mobile_core.renderPromptTemplate
 import java.text.DateFormat
 import java.util.Date
 
-private enum class Tab { Duell, Templates, Installations }
+private enum class Screen { Idea, Templates, Installations }
+
+private val BrandInk = Color(0xFF111111)
+private val BrandYellow = Color(0xFFFFD400)
+private val BrandRed = Color(0xFFFF3B1D)
+private val BrandPaper = Color(0xFFFFF6DC)
 
 @Composable
 fun CadsApp(
@@ -83,67 +87,76 @@ fun CadsApp(
     duellLinkSeq: Int = 0,
     onImmersive: (Boolean) -> Unit = {},
 ) {
-    MaterialTheme {
-        var tab by remember { mutableStateOf(Tab.Duell) }
-        // A challenge link (App Link) always lands in the game.
-        LaunchedEffect(duellLinkSeq) { if (duellLinkSeq > 0) { tab = Tab.Duell } }
-        LaunchedEffect(tab) { onImmersive(tab == Tab.Duell) }
+    MaterialTheme(
+        colorScheme = lightColorScheme(
+            primary = BrandInk, onPrimary = BrandYellow, secondary = BrandRed,
+            background = BrandPaper, onBackground = BrandInk, surface = BrandPaper, onSurface = BrandInk,
+            surfaceVariant = Color(0xFFFFEBA8), onSurfaceVariant = BrandInk,
+        ),
+    ) {
+        // My Daily Idea fills the whole screen. Templates and installations are not tabs of equal rank:
+        // they sit behind the page's quiet "more" (DuellHost.more) and come back with Back.
+        var screen by remember { mutableStateOf(Screen.Idea) }
+        var moreOpen by remember { mutableStateOf(false) }
+        // A shared link (App Link) always lands in the page.
+        LaunchedEffect(duellLinkSeq) { if (duellLinkSeq > 0) { screen = Screen.Idea; moreOpen = false } }
+        LaunchedEffect(screen, moreOpen) { onImmersive(screen == Screen.Idea && !moreOpen) }
         var openTemplate by remember { mutableStateOf<CatalogEntry?>(null) }
         var openInstallation by remember { mutableStateOf<InstallationRecord?>(null) }
         var reloadTick by remember { mutableStateOf(0) }
-        // Back from another tab returns to the game; in the game the WebView handles Back itself.
-        BackHandler(enabled = tab != Tab.Duell) { tab = Tab.Duell; openTemplate = null; openInstallation = null }
+        fun backToIdea() { screen = Screen.Idea; openTemplate = null; openInstallation = null }
+        // Back from the extras returns to the page; in the page the WebView handles Back itself.
+        BackHandler(enabled = screen != Screen.Idea) { backToIdea() }
 
-        Scaffold(
-            bottomBar = {
-                NavigationBar {
-                    NavigationBarItem(
-                        selected = tab == Tab.Duell,
-                        onClick = { tab = Tab.Duell; openTemplate = null; openInstallation = null },
-                        icon = { Icon(Icons.Filled.SportsEsports, contentDescription = null) },
-                        label = { Text(stringResource(R.string.tab_duell)) },
-                    )
-                    NavigationBarItem(
-                        selected = tab == Tab.Templates,
-                        onClick = { tab = Tab.Templates; openTemplate = null; openInstallation = null },
-                        icon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                        label = { Text(stringResource(R.string.tab_templates)) },
-                    )
-                    NavigationBarItem(
-                        selected = tab == Tab.Installations,
-                        onClick = { tab = Tab.Installations; openTemplate = null; openInstallation = null },
-                        icon = { Icon(Icons.Filled.Inbox, contentDescription = null) },
-                        label = { Text(stringResource(R.string.tab_installations)) },
-                    )
-                }
-            },
-        ) { pad ->
-            Box(Modifier.padding(pad).fillMaxSize()) {
-                DuellScreen(
-                    fragment = duellFragment,
-                    linkSeq = duellLinkSeq,
-                    visible = tab == Tab.Duell,
-                    apiBase = BuildConfig.DUELL_API_BASE,
-                    modifier = Modifier.fillMaxSize(),
-                )
-                if (tab != Tab.Duell) {
-                Column(Modifier.fillMaxSize()) {
-                    val t = openTemplate
-                    val i = openInstallation
-                    when {
-                        tab == Tab.Templates && t?.info != null -> TemplateDetail(
-                            t, t.info, api, signedIn, beforeRequest, onSignIn, onBack = { openTemplate = null },
-                        )
-                        tab == Tab.Templates -> TemplateList(catalog) { openTemplate = it }
-                        i != null -> InstallationDetail(
-                            i, catalog, api, beforeRequest,
-                            onBack = { openInstallation = null; reloadTick++ },
-                        )
-                        else -> InstallationList(api, signedIn, beforeRequest, onSignIn, onSignOut, reloadTick) { openInstallation = it }
+        Box(Modifier.fillMaxSize()) {
+            DuellScreen(
+                fragment = duellFragment,
+                linkSeq = duellLinkSeq,
+                visible = screen == Screen.Idea,
+                apiBase = BuildConfig.DUELL_API_BASE,
+                onMore = { moreOpen = true },
+                modifier = Modifier.fillMaxSize(),
+            )
+            if (screen != Screen.Idea) {
+                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+                        TextButton(onClick = { backToIdea() }, modifier = Modifier.padding(horizontal = 8.dp)) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                            Text(stringResource(R.string.more_back), modifier = Modifier.padding(start = 8.dp))
+                        }
+                        val t = openTemplate
+                        val i = openInstallation
+                        when {
+                            screen == Screen.Templates && t?.info != null -> TemplateDetail(
+                                t, t.info, api, signedIn, beforeRequest, onSignIn, onBack = { openTemplate = null },
+                            )
+                            screen == Screen.Templates -> TemplateList(catalog) { openTemplate = it }
+                            i != null -> InstallationDetail(
+                                i, catalog, api, beforeRequest,
+                                onBack = { openInstallation = null; reloadTick++ },
+                            )
+                            else -> InstallationList(api, signedIn, beforeRequest, onSignIn, onSignOut, reloadTick) { openInstallation = it }
+                        }
                     }
                 }
-                }
             }
+        }
+        if (moreOpen) {
+            AlertDialog(
+                onDismissRequest = { moreOpen = false },
+                title = { Text(stringResource(R.string.more_title)) },
+                text = {
+                    Column {
+                        TextButton(onClick = { moreOpen = false; screen = Screen.Templates; openTemplate = null; openInstallation = null }) {
+                            Text(stringResource(R.string.more_templates))
+                        }
+                        TextButton(onClick = { moreOpen = false; screen = Screen.Installations; openTemplate = null; openInstallation = null }) {
+                            Text(stringResource(R.string.more_installations))
+                        }
+                    }
+                },
+                confirmButton = { TextButton(onClick = { moreOpen = false }) { Text(stringResource(R.string.cancel)) } },
+            )
         }
     }
 }

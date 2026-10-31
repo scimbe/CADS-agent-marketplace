@@ -57,4 +57,48 @@ class DuellLinkTest {
         assertFalse(DuellLink.mayLoad("http://$api/api/duell/config", api))
         assertFalse(DuellLink.mayLoad("file:///etc/hosts", api))
     }
+
+    @Test fun inviteFragmentIsAllowedNextToChallenge() {
+        assertEquals("i=quiz-chaos", DuellLink.fragmentOf("https://bunsenbrenner.org/duell#i=quiz-chaos"))
+        assertEquals("i=quiz-chaos", DuellLink.fragmentOf("https://bunsenbrenner.org/duell/#i=quiz-chaos"))
+        assertEquals("i=" + "a".repeat(32), DuellLink.fragmentOf("https://bunsenbrenner.org/duell#i=" + "a".repeat(32)))
+        assertEquals("c=eyJ2IjoxfQ", DuellLink.fragmentOf("https://bunsenbrenner.org/duell#c=eyJ2IjoxfQ"))
+    }
+
+    @Test fun malformedInviteFragmentsAreRejected() {
+        assertNull(DuellLink.fragmentOf("https://bunsenbrenner.org/duell#i="))
+        assertNull(DuellLink.fragmentOf("https://bunsenbrenner.org/duell#i=" + "a".repeat(33)))
+        assertNull(DuellLink.fragmentOf("https://bunsenbrenner.org/duell#i=Quiz-Chaos"))   // ids are lower case
+        assertNull(DuellLink.fragmentOf("https://bunsenbrenner.org/duell#i=a_b"))
+        assertNull(DuellLink.fragmentOf("https://bunsenbrenner.org/duell#i=../x"))
+        assertNull(DuellLink.fragmentOf("https://bunsenbrenner.org/duell#i=a&c=b"))
+        assertNull(DuellLink.fragmentOf("https://bunsenbrenner.org/duell#i=a\"+alert(1)+\""))
+        assertNull(DuellLink.fragmentOf("https://bunsenbrenner.org/duell#I=quiz-chaos"))
+        assertNull(DuellLink.fragmentOf("https://evil.example/duell#i=quiz-chaos"))
+        assertNull(DuellLink.fragmentOf("http://bunsenbrenner.org/duell#i=quiz-chaos"))
+        assertNull(DuellLink.fragmentOf("https://bunsenbrenner.org/app/oauth2redirect#i=quiz-chaos"))
+    }
+
+    @Test fun pageUrlCarriesInviteFragment() {
+        assertEquals("https://appassets.androidplatform.net/assets/duell/index.html#i=quiz-chaos", DuellLink.pageUrl("i=quiz-chaos"))
+    }
+
+    @Test fun shareableLinkMayCarryInvite() {
+        assertTrue(DuellLink.isShareable("https://bunsenbrenner.org/duell#i=quiz-chaos"))
+        assertFalse(DuellLink.isShareable("https://bunsenbrenner.org/duell#i=QUIZ"))
+    }
+
+    @Test fun microphoneOnlyForOwnOriginAndOnlyAudio() {
+        val audio = arrayOf(DuellLink.AUDIO_CAPTURE)
+        assertTrue(DuellLink.micAllowed("https://appassets.androidplatform.net/", audio))
+        assertTrue(DuellLink.micAllowed("https://appassets.androidplatform.net", audio))
+        assertFalse(DuellLink.micAllowed("https://$api/", audio))
+        assertFalse(DuellLink.micAllowed("https://bunsenbrenner.org/", audio))
+        assertFalse(DuellLink.micAllowed("http://appassets.androidplatform.net/", audio))
+        assertFalse(DuellLink.micAllowed("https://appassets.androidplatform.net:8443/", audio))
+        assertFalse(DuellLink.micAllowed(null, audio))
+        assertFalse(DuellLink.micAllowed("https://appassets.androidplatform.net/", arrayOf("android.webkit.resource.VIDEO_CAPTURE")))
+        assertFalse(DuellLink.micAllowed("https://appassets.androidplatform.net/", arrayOf(DuellLink.AUDIO_CAPTURE, "android.webkit.resource.VIDEO_CAPTURE")))
+        assertFalse(DuellLink.micAllowed("https://appassets.androidplatform.net/", emptyArray()))
+    }
 }

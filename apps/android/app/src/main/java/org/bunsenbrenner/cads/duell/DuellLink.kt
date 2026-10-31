@@ -12,13 +12,14 @@ object DuellLink {
     const val ASSET_PAGE = "https://$ASSET_HOST/assets/duell/index.html"
 
     private const val MAX_FRAGMENT = 8 * 1024
-    private val FRAGMENT = Regex("^c=[A-Za-z0-9_\\-=]+$")
+    // `c=<base64url>` (challenge, shared work) or `i=<id>` (invite to a day's idea; ids are [a-z0-9-], at most 32).
+    private val FRAGMENT = Regex("^(?:c=[A-Za-z0-9_\\-=]+|i=[a-z0-9-]{1,32})$")
 
     private fun isDuellUri(uri: URI) =
         uri.scheme == "https" && uri.host == SHARE_HOST && uri.port == -1 && uri.rawPath?.trimEnd('/') == SHARE_PATH
 
     /**
-     * The `c=<base64url>` fragment of a shared Duell link, or null when [link] is not a Duell link
+     * The `c=<base64url>` or `i=<id>` fragment of a shared link, or null when [link] is not a Duell link
      * of this app (other host or path, no fragment, characters outside the base64url alphabet,
      * oversize). Only this validated fragment is ever handed to the page.
      */
@@ -52,6 +53,12 @@ object DuellLink {
         if (uri.scheme != "https" || uri.port != -1) return false
         return uri.host == ASSET_HOST || uri.host == apiHost
     }
+
+    /** Microphone only for the bundled page's own origin and only as the sole requested resource (no camera). */
+    fun micAllowed(origin: String?, resources: Array<String>): Boolean =
+        isInternal(origin) && resources.size == 1 && resources[0] == AUDIO_CAPTURE
+
+    const val AUDIO_CAPTURE = "android.webkit.resource.AUDIO_CAPTURE"
 
     /** Navigations that go to the system browser (everything web-like that is not internal). */
     fun opensExternally(url: String?): Boolean {

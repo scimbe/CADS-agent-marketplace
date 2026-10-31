@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Duell</string>
-    <string name="tab_duell">Duell</string>
-    <string name="tab_templates">Vorlagen</string>
-    <string name="tab_installations">Meine Installationen</string>
+    <string name="app_name">My Daily Idea</string>
+    <string name="more_title">Mehr</string>
+    <string name="more_templates">Vorlagen</string>
+    <string name="more_installations">Meine Installationen</string>
+    <string name="more_back">Zurück zu My Daily Idea</string>
+    <string name="saved_image">Gespeichert in Bilder / My Daily Idea</string>
+    <string name="saved_audio">Gespeichert in Musik / My Daily Idea</string>
+    <string name="file_failed">Die Datei konnte nicht gespeichert oder geteilt werden.</string>
     <string name="templates_title">Vorlagen</string>
     <string name="templates_empty">Keine Vorlagen</string>
     <string name="templates_open_hint">Öffnet die geprüfte Vorlage</string>

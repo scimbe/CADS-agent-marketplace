@@ -1,6 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- My Daily Idea: tear-off calendar leaf with a bulb in a burst (same drawing as apps/assets/icon-master.svg, rotations baked in). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#000000" android:pathData="M30,40 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0 M18,70 q12,-18 24,0 v8 h-24 z M78,40 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0 M66,70 q12,-18 24,0 v8 h-24 z M58,22 L46,56 h8 L48,86 L64,48 h-8 z" />
+    <group android:translateX="21.66" android:translateY="21.66" android:scaleX="0.06316" android:scaleY="0.06316">
+        <path android:pathData="M266.9,234.3L705.2,196.0A30,30 0 0 1 737.7,223.2L786.5,781.1A30,30 0 0 1 759.2,813.6L320.9,851.9A30,30 0 0 1 288.4,824.7L239.6,266.8A30,30 0 0 1 266.9,234.3Z" android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="26" android:strokeLineJoin="round" />
+        <path android:pathData="M308.4,284.9A17,17 0 1 0 342.3,281.9A17,17 0 1 0 308.4,284.9Z" android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="9" android:strokeLineJoin="round" />
+        <path android:pathData="M374.2,279.1A17,17 0 1 0 408.0,276.2A17,17 0 1 0 374.2,279.1Z" android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="9" android:strokeLineJoin="round" />
+        <path android:pathData="M439.9,273.4A17,17 0 1 0 473.8,270.4A17,17 0 1 0 439.9,273.4Z" android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="9" android:strokeLineJoin="round" />
+        <path android:pathData="M505.7,267.6A17,17 0 1 0 539.5,264.7A17,17 0 1 0 505.7,267.6Z" android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="9" android:strokeLineJoin="round" />
+        <path android:pathData="M571.4,261.9A17,17 0 1 0 605.3,258.9A17,17 0 1 0 571.4,261.9Z" android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="9" android:strokeLineJoin="round" />
+        <path android:pathData="M637.2,256.1A17,17 0 1 0 671.0,253.2A17,17 0 1 0 637.2,256.1Z" android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="9" android:strokeLineJoin="round" />
+        <path android:pathData="M500.5,380.5L551.3,430.9L620.2,399.5L634.8,469.9L707.4,480.5L675.6,550.7L730.9,604.9L666.9,644.2L673.5,719.5L597.5,717.7L553.1,789.1L498.1,739.1L425.4,774.9L406.2,700.7L333.3,686.0L365.1,615.8L309.8,561.6L373.8,522.3L367.2,447.0L443.6,452.9Z" android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="20" android:strokeLineJoin="round" />
+        <path android:pathData="M438.5,566.6A78,78 0 1 0 593.9,553.0A78,78 0 1 0 438.5,566.6Z" android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="16" android:strokeLineJoin="round" />
+        <path android:pathData="M498.7,635.6L546.5,631.4A10,10 0 0 1 557.4,640.5L558.6,654.5A10,10 0 0 1 549.5,665.3L501.7,669.5A10,10 0 0 1 490.9,660.4L489.6,646.5A10,10 0 0 1 498.7,635.6Z" android:fillColor="#FF000000" />
+        <path android:pathData="M511.4,676.7L541.2,674.1A9,9 0 0 1 551.0,682.2L551.0,682.2A9,9 0 0 1 542.8,692.0L512.9,694.6A9,9 0 0 1 503.2,686.4L503.2,686.4A9,9 0 0 1 511.4,676.7Z" android:fillColor="#FF000000" />
+    </group>
 </vector>

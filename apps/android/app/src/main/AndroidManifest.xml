@@ -3,6 +3,15 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Microphone: asked only when the person taps record in the page; the page's own origin only
+         (DuellScreen.onPermissionRequest). Refusal leaves the silly voice. No camera, storage or
+         media permission: photos come from the system chooser, files are saved through MediaStore. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <queries>
+        <!-- lets the photo chooser offer the camera app (it is started only when the person picks it) -->
+        <intent><action android:name="android.media.action.IMAGE_CAPTURE" /></intent>
+    </queries>
 
     <application
         android:allowBackup="false"
@@ -13,6 +22,15 @@
         android:supportsRtl="true"
         android:usesCleartextTraffic="false"
         android:theme="@style/Theme.Cads">
+
+        <!-- Files shared from the page (picture, sound) are handed out from the cache folder only. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
+        </provider>
 
         <activity
             android:name=".MainActivity"

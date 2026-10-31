@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Cads" parent="@android:style/Theme.Material.Light.NoActionBar" />
+    <!-- theme color: the window is the brand yellow from the first frame (no white flash before the page). -->
+    <style name="Theme.Cads" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/brand_yellow</item>
+        <item name="android:colorPrimary">@color/brand_ink</item>
+        <item name="android:colorAccent">@color/brand_red</item>
+        <item name="android:statusBarColor">@color/brand_yellow</item>
+        <item name="android:navigationBarColor">@color/brand_yellow</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
 </resources>

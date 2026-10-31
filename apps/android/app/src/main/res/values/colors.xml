@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FF5A36</color>
+    <!-- Brand of My Daily Idea (same as the page: yellow sheet, ink, red burst, cream paper). -->
+    <color name="brand_yellow">#FFD400</color>
+    <color name="brand_ink">#111111</color>
+    <color name="brand_red">#FF3B1D</color>
+    <color name="brand_paper">#FFF6DC</color>
+    <color name="ic_launcher_background">#FFD400</color>
 </resources>

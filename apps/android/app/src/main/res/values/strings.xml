@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Duel</string>
-    <string name="tab_duell">Duel</string>
-    <string name="tab_templates">Templates</string>
-    <string name="tab_installations">My installations</string>
+    <string name="app_name">My Daily Idea</string>
+    <string name="more_title">More</string>
+    <string name="more_templates">Templates</string>
+    <string name="more_installations">My installations</string>
+    <string name="more_back">Back to My Daily Idea</string>
+    <string name="saved_image">Saved to Pictures / My Daily Idea</string>
+    <string name="saved_audio">Saved to Music / My Daily Idea</string>
+    <string name="file_failed">Could not save or share the file.</string>
     <string name="templates_title">Templates</string>
     <string name="templates_empty">No templates</string>
     <string name="templates_open_hint">Opens the verified template</string>

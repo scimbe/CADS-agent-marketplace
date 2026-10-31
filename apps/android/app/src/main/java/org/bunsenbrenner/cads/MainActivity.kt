@@ -10,7 +10,9 @@ import androidx.compose.runtime.setValue
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import org.bunsenbrenner.cads.duell.DuellFiles
 import org.bunsenbrenner.cads.duell.DuellLink
+import java.io.File
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -54,7 +56,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        if (savedInstanceState == null) vm.onLink(intent)
+        if (savedInstanceState == null) {
+            vm.onLink(intent)
+            // Files left from a share or a camera shot of an earlier run are not needed any more.
+            DuellFiles.sweep(File(cacheDir, "share"), System.currentTimeMillis(), 0)
+        }
         setContent { Root(vm, ::applyFullscreen) }
     }
 
