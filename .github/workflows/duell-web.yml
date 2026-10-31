@@ -21,6 +21,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Install the pinned font package (@fontsource/anton, embedded into the page)
+        run: npm ci --ignore-scripts
       - name: Unit tests (node --test)
         run: npm test
       - name: Build single-file dist/index.html
