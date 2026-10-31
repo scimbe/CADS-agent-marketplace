@@ -53,8 +53,12 @@ wait_web() { # regex, tries: the WebView must show matching text
 score_of() { webtext | grep -E '^[0-9]+$' | head -1; }
 
 # 1. The app starts in the Duell game, not in the template list.
-read -r wx wy < <(for _ in $(seq 1 30); do find_node "" android.webkit.WebView && break; sleep 1; done)
-[ -n "${wx:-}" ] || { echo "FAIL: no WebView at start" >&2; dump >&2; exit 1; }
+wx=""; wy=""
+for _ in $(seq 1 40); do
+  if p=$(find_node "" android.webkit.WebView); then read -r wx wy <<<"$p"; break; fi
+  sleep 1
+done
+[ -n "$wx" ] || { echo "FAIL: no WebView at start" >&2; shot fail-start; dump >&2; adb logcat -d -t 300 >&2; exit 1; }
 wait_web 'Tap\. Fly|Tippen\. Fliegen' 40      # the start hint of the game
 if find_node "Signature verified" >/dev/null; then echo "FAIL: app started in the template list, not in Duell" >&2; exit 1; fi
 shot 0-duell-start
