@@ -95,6 +95,15 @@ Der Pfad `/app/oauth2redirect` muss serverseitig nicht existieren oder darf eine
 
 Hinweise: Der `sub`-Mapper entspricht dem von `ct-agent-cli`, weil die Control-Plane das Konto ueber `sub` und `iss` aufloest. Erzwingt der Betreiber `CT_OIDC_ACCESS_AUD`, braucht der Client zusaetzlich einen Audience-Mapper fuer diesen Wert. Ohne diesen Client scheitert die Anmeldung mit `invalid_client`; die Vorlagen-Funktionen (pruefen, ausfuellen) laufen auch ohne Anmeldung.
 
+## Duell (Android)
+
+Der erste Tab der Android-App ist das Duell (Jugend-Funktion, keine Anmeldung noetig). Es ist die Offline-Seite `apps/duell-web/dist/index.html`, die der Gradle-Task `syncDuellAsset` beim Bauen in die Assets kopiert (fehlt die Datei, nimmt er den Test-Platzhalter `app/src/placeholder/duell/index.html`; `-PduellRequireReal=true` bricht dann ab und gehoert in jeden Release-Build).
+
+* WebView laedt nur ueber `WebViewAssetLoader` (`https://appassets.androidplatform.net/assets/duell/index.html`), JavaScript an, kein Datei-/Content-Zugriff, kein Mixed Content. Unterressourcen sind auf diese Assets und den Config-API-Host (`-PcadsDuellApiBase`, Standard `https://demos-34a13a96.bunsenbrenner.org`) beschraenkt; alle anderen Links oeffnen im System-Browser. Die Config-API muss CORS fuer den Origin `https://appassets.androidplatform.net` erlauben, sonst laeuft die Seite mit ihrer lokalen Rueckfalllogik.
+* `window.DuellHost` hat nur `share(url, text)` (Android-Share-Sheet, nur `https://bunsenbrenner.org/duell...`) und `haptic()`.
+* App-Link `https://bunsenbrenner.org/duell#c=...` (autoVerify) oeffnet das Duell mit der Challenge; der Betreiber traegt das Paket (gleicher Fingerabdruck wie beim Login-Link) in `/.well-known/assetlinks.json` ein. Das Fragment wird nur als `c=<base64url>` (max. 8 KiB) an die Seite gereicht.
+* Hochformat, Vollbild (Systemleisten ausgeblendet im Duell), Zurueck-Taste: im Duell geht es in der Seitenhistorie zurueck bzw. beendet die App, in den anderen Tabs zurueck ins Duell. Keine Analytics, kein Tracking. Name und Icon: `app_name` in `res/values*/strings.xml`, Icon in `res/drawable/ic_launcher_*.xml`.
+
 ## Bauen
 
 Voraussetzungen: Rust (rustup) mit den Zielen, Xcode bzw. Android SDK/NDK.

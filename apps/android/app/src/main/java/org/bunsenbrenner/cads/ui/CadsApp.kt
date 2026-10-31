@@ -1,6 +1,7 @@
 package org.bunsenbrenner.cads.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -46,7 +48,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import androidx.activity.compose.BackHandler
+import org.bunsenbrenner.cads.BuildConfig
 import org.bunsenbrenner.cads.R
+import org.bunsenbrenner.cads.duell.DuellScreen
 import org.bunsenbrenner.cads.data.CatalogEntry
 import org.bunsenbrenner.cads.data.InstallationsApi
 import org.bunsenbrenner.cads.data.deviceTarget
@@ -64,7 +69,7 @@ import uniffi.mobile_core.renderPromptTemplate
 import java.text.DateFormat
 import java.util.Date
 
-private enum class Tab { Templates, Installations }
+private enum class Tab { Duell, Templates, Installations }
 
 @Composable
 fun CadsApp(
@@ -74,16 +79,30 @@ fun CadsApp(
     beforeRequest: suspend () -> Unit,
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
+    duellFragment: String? = null,
+    duellLinkSeq: Int = 0,
+    onImmersive: (Boolean) -> Unit = {},
 ) {
     MaterialTheme {
-        var tab by remember { mutableStateOf(Tab.Templates) }
+        var tab by remember { mutableStateOf(Tab.Duell) }
+        // A challenge link (App Link) always lands in the game.
+        LaunchedEffect(duellLinkSeq) { if (duellLinkSeq > 0) { tab = Tab.Duell } }
+        LaunchedEffect(tab) { onImmersive(tab == Tab.Duell) }
         var openTemplate by remember { mutableStateOf<CatalogEntry?>(null) }
         var openInstallation by remember { mutableStateOf<InstallationRecord?>(null) }
         var reloadTick by remember { mutableStateOf(0) }
+        // Back from another tab returns to the game; in the game the WebView handles Back itself.
+        BackHandler(enabled = tab != Tab.Duell) { tab = Tab.Duell; openTemplate = null; openInstallation = null }
 
         Scaffold(
             bottomBar = {
                 NavigationBar {
+                    NavigationBarItem(
+                        selected = tab == Tab.Duell,
+                        onClick = { tab = Tab.Duell; openTemplate = null; openInstallation = null },
+                        icon = { Icon(Icons.Filled.SportsEsports, contentDescription = null) },
+                        label = { Text(stringResource(R.string.tab_duell)) },
+                    )
                     NavigationBarItem(
                         selected = tab == Tab.Templates,
                         onClick = { tab = Tab.Templates; openTemplate = null; openInstallation = null },
@@ -99,19 +118,30 @@ fun CadsApp(
                 }
             },
         ) { pad ->
-            Column(Modifier.padding(pad).fillMaxSize()) {
-                val t = openTemplate
-                val i = openInstallation
-                when {
-                    tab == Tab.Templates && t?.info != null -> TemplateDetail(
-                        t, t.info, api, signedIn, beforeRequest, onSignIn, onBack = { openTemplate = null },
-                    )
-                    tab == Tab.Templates -> TemplateList(catalog) { openTemplate = it }
-                    i != null -> InstallationDetail(
-                        i, catalog, api, beforeRequest,
-                        onBack = { openInstallation = null; reloadTick++ },
-                    )
-                    else -> InstallationList(api, signedIn, beforeRequest, onSignIn, onSignOut, reloadTick) { openInstallation = it }
+            Box(Modifier.padding(pad).fillMaxSize()) {
+                DuellScreen(
+                    fragment = duellFragment,
+                    linkSeq = duellLinkSeq,
+                    visible = tab == Tab.Duell,
+                    apiBase = BuildConfig.DUELL_API_BASE,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                if (tab != Tab.Duell) {
+                Column(Modifier.fillMaxSize()) {
+                    val t = openTemplate
+                    val i = openInstallation
+                    when {
+                        tab == Tab.Templates && t?.info != null -> TemplateDetail(
+                            t, t.info, api, signedIn, beforeRequest, onSignIn, onBack = { openTemplate = null },
+                        )
+                        tab == Tab.Templates -> TemplateList(catalog) { openTemplate = it }
+                        i != null -> InstallationDetail(
+                            i, catalog, api, beforeRequest,
+                            onBack = { openInstallation = null; reloadTick++ },
+                        )
+                        else -> InstallationList(api, signedIn, beforeRequest, onSignIn, onSignOut, reloadTick) { openInstallation = it }
+                    }
+                }
                 }
             }
         }
