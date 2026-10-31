@@ -48,6 +48,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="bunsenbrenner.org" android:path="/duell" />
+                <data android:scheme="https" android:host="bunsenbrenner.org" android:pathPrefix="/s/" />
             </intent-filter>
         </activity>
         <!-- OAuth redirect as a verified App Link (https + autoVerify). Replaces AppAuth's own

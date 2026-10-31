@@ -349,7 +349,7 @@ async function finish(doc, idea, pictureDoc) {
     file = new Blob([S.wav(pcm)], { type: "audio/wav" }); name = "my-daily-idea.wav";
   }
   var url = D.docUrl(doc);
-  result = { url: url, file: file, name: name, png: png, keep: ed };
+  result = { url: url, file: file, name: name, png: png, keep: ed, canvas: c, kind: doc.k };
   wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c) }); store.wall = wall; Kit.save();
   if (!Kit.persisted) Kit.toast(t("wallFull"));
   var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png);
@@ -364,9 +364,28 @@ $("edmain").addEventListener("click", function () {
 });
 $("share").addEventListener("click", async function () {
   Kit.sfx.tap();
-  var how = await Kit.share({ url: result.url, text: t("shareText"), blob: result.file, name: result.name });
+  var link = await shortLink();
+  var how = await Kit.share({ url: link.url, text: t("shareText"), blob: result.file, name: result.name });
   if (how === "link") Kit.toast(t("shot"));
 });
+// Reaches the server only from here, that is after a tap on one of the share buttons.
+async function shortLink() {
+  if (!result.link) { result.link = await window.ShortLink.shorten(result.url, { k: result.kind, l: Kit.lang }, store); Kit.save(); }
+  return result.link;
+}
+/* Status and story: pictures cannot carry a tappable link, so the picture shows the address and a code, and the text goes to the clipboard.
+   Without a short link the long one would be an unreadable code: the picture then points to the app, the long link stays in the text. */
+async function exportStory(kind) {
+  Kit.sfx.tap();
+  var link = await shortLink(), shown = link.short ? link.url : C.SHARE_BASE, cols = result.keep ? result.keep.doc.col : me.colors;
+  var cv = window.StatusCard.draw(result.canvas, { url: shown, bg: cols[0], ink: R.ink(cols[0]), cta: t(link.short ? "sh_cta" : "sh_ctaApp") });
+  var blob = await makeBlob(cv, "image/jpeg", 0.92);
+  var text = kind === "story" ? link.url : t("shareText") + " " + link.url;
+  if (await Kit.copy(text)) Kit.toast(t(kind === "story" ? "sh_copiedStory" : "copied"));
+  await Kit.share({ url: link.url, text: t("shareText"), blob: blob, name: "my-daily-idea-" + kind + ".jpg" });
+}
+$("tostatus").addEventListener("click", function () { exportStory("status"); });
+$("tostory").addEventListener("click", function () { exportStory("story"); });
 $("save").addEventListener("click", function () { Kit.sfx.tap(); Kit.saveFile(result.file, result.name); });
 $("keep").addEventListener("click", function () { Kit.sfx.tap(); backToEditor(); });
 function backToEditor() {
@@ -428,7 +447,7 @@ function openPast() {
 }
 function openWall() {
   shelf(t("wall"), function (b) {
-    if (!wall.length) { b.appendChild(el("div", "empty", t("wallEmpty"))); return; }
+    if (!wall.length) { b.appendChild(el("div", "empty", t("wallEmpty"))); linksList(b); return; }
     var g = el("div", "wallgrid");
     wall.forEach(function (w, i) {
       var c = el("button", "", null, function () {
@@ -438,6 +457,23 @@ function openWall() {
       var im = el("img"); im.src = w.th; im.alt = ""; c.appendChild(im); g.appendChild(c);
     });
     b.appendChild(g);
+    linksList(b);
+  });
+}
+function linksList(b) {
+  var list = window.ShortLink.kept(store.links, Date.now());
+  if (!list.length) return;
+  b.appendChild(el("h3", "note", t("sh_mine")));
+  list.forEach(function (l) {
+    var row = el("div", "day"), when = new Date(l.exp).toLocaleDateString(Kit.lang === "de" ? "de-DE" : "en-GB");
+    row.appendChild(el("span", "", "/s/" + l.id + " · " + t("sh_until", { d: when })));
+    row.appendChild(el("button", "chip", t("gone"), async function () {
+      Kit.sfx.tap();
+      var ok = await window.ShortLink.remove(l.id, store);
+      Kit.save(); Kit.toast(t(ok ? "sh_deleted" : "sh_deleteFail"));
+      if (ok) openWall();
+    }));
+    b.appendChild(row);
   });
 }
 function openOwn() {
@@ -454,6 +490,7 @@ function labels() {
   document.documentElement.lang = Kit.lang;
   $("brand").textContent = t("brand"); $("lang").textContent = Kit.lang.toUpperCase(); $("me").textContent = me.emoji;
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
+  $("tostatus").textContent = t("sh_status"); $("tostory").textContent = t("sh_story"); $("shnote").textContent = t("sh_note");
   $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home");
   $("save").hidden = !Kit.canSave();
   // Inside the app shells (DuellHost.more) a quiet "more" opens the native extras; in a browser it stays hidden.
@@ -479,6 +516,11 @@ window.addEventListener("popstate", function () { if (screen !== "home" && !loca
 
 function route() {
   var r = D.parseRoute(location.hash);
+  if (r && r.type === "short") {
+    goHome();
+    window.ShortLink.resolve(r.id).then(function (f) { if (f) location.hash = f; else Kit.toast(t("sh_gone")); });
+    return true;
+  }
   if (r && r.type === "challenge") {
     var st = Object.assign({}, r.state), riv = typeof st.score === "number" ? { score: st.score, name: st.name || "" } : null;
     delete st.score; delete st.name; show("game"); G.play(st, riv, { own: true }); return true;

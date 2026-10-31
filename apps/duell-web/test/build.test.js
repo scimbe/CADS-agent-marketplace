@@ -21,14 +21,22 @@ test("Build: eine Datei, voll offline, alle Welten da, Platzhalter ersetzt, Groe
   assert.match(html, /Content-Security-Policy[^>]*default-src 'none'/);
   assert.match(html, /connect-src https:\/\/demos-34a13a96\.bunsenbrenner\.org;/, "nur der eine Host");
 });
-test("Datenschutz: genau eine fetch-Stelle, nur im Spiel, nur mit dem getippten Satz; kein anderer Weg nach draussen", () => {
-  const html = fs.readFileSync(dist, "utf8");
-  assert.equal((html.match(/fetch\(/g) || []).length, 1, "genau ein fetch");
+test("Datenschutz: Kurzlink nur ueber shortlink.js, nur nach einem Tipp auf Teilen; p= bleibt draussen", () => {
+  assert.ok(src("shortlink.js").includes("(fetchFn || fetch)(API + path"));
+  assert.ok(!/ShortLink\.shorten/.test(src("app.js").replace(/async function shortLink\(\)[\s\S]*?\n\}/, "")), "app.js: nur shortLink() kuerzt");
+  for (const m of src("app.js").matchAll(/shortLink\(\)/g)) assert.ok(/await shortLink\(\)|function shortLink\(\)/.test(src("app.js").slice(m.index - 15, m.index + 11)));
+  const game = src("game.js"), at = game.indexOf("ShortLink.shorten");
+  assert.ok(at > game.indexOf('$("challenge").addEventListener("click"'), "game.js: nur im Klick");
+});
+test("Datenschutz: eine fetch-Stelle im Spiel, eine fuer Kurzlinks; das Spiel sendet nur den getippten Satz; kein anderer Weg nach draussen", () => {
+  const html = noComments(fs.readFileSync(dist, "utf8"));
+  assert.equal((html.match(/\bfetch\(/g) || []).length, 1, "ein direktes fetch( im Spiel");
+  assert.equal((html.match(/\(fetchFn \|\| fetch\)\(/g) || []).length, 1, "eine Stelle fuer Kurzlinks");
   assert.ok(src("game.js").includes("await fetch("), "fetch gehoert ins Spiel");
   const body = src("game.js").match(/fetch\([^\n]*/)[0];
   assert.match(body, /JSON\.stringify\(\{ prompt: prompt, lang: lang \}\)/, "nur Satz + Sprache");
   assert.ok(!/XMLHttpRequest|sendBeacon|WebSocket|EventSource|RTCPeerConnection|importScripts|new Worker/.test(html), "weiterer Ausgang");
-  assert.ok(!/analytics|gtag|tracker|Notification\.|serviceWorker/i.test(html), "Tracker/Push");
+  assert.ok(!/analytics|\bgtag\b|tracker|Notification\.|serviceWorker/i.test(html), "Tracker/Push");
 });
 test("XSS: kein HTML-Sink im Seitencode", () => {
   const html = noComments(fs.readFileSync(dist, "utf8"));

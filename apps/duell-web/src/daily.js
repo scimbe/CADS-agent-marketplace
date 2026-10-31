@@ -52,6 +52,8 @@
     if (typeof hash !== "string") return null;
     var s = hash.replace(/^#/, ""), m = s.match(/(?:^|&)i=([^&]*)/);
     if (m) { var id = sanitizeId(m[1]); return id ? { type: "idea", id: id } : null; }
+    var sh = s.match(/^s=([2-9a-km-np-zA-HJ-NP-Z]{8})$/);        // short link opened in an app shell, see shortlink.js
+    if (sh) return { type: "short", id: sh[1] };
     var c = s.match(/(?:^|&)c=([^&]*)/);
     if (!c) return null;
     try {

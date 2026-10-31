@@ -116,3 +116,4 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 #toast.show{opacity:1;transform:translate(-50%,0)}
 @media (min-width:600px){.scr,#game{left:50%;right:auto;width:440px;margin-left:-220px}}
 @media (prefers-reduced-motion:reduce){#home::before,#hint,.enter #hero span,.enter .burst,#leaf.enter,#doneimg{animation:none}.panel,#leaf{transition:none}}
+#shnote{padding:0 18px;margin:2px 0 6px}

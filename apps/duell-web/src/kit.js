@@ -63,6 +63,7 @@
     return Promise.resolve(legacyCopy(s));
   }
   function b64(blob) { return new Promise(function (ok, no) { var r = new FileReader(); r.onload = function () { ok(String(r.result).split(",")[1]); }; r.onerror = no; r.readAsDataURL(blob); }); }
+  Kit.copy = copyText;
   // Best channel first: with the file if the device can, otherwise the link.
   Kit.share = async function (o) {
     var file = null;
