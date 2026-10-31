@@ -70,8 +70,21 @@ class MainActivity : ComponentActivity() {
         vm.onLink(intent)
     }
 
+    private var immersive = false
+
+    /**
+     * Coming back from a system window (share sheet, permission dialog, file chooser) can leave the
+     * bars visible; they would then cover the page's bottom buttons (Save, Keep changing). Hide them
+     * again whenever the window regains focus while the game screen is up.
+     */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && immersive) applyFullscreen(true)
+    }
+
     /** Full screen in the game: system bars hidden, shown briefly by a swipe from the edge. */
     private fun applyFullscreen(on: Boolean) {
+        immersive = on
         val c = WindowInsetsControllerCompat(window, window.decorView)
         c.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         if (on) c.hide(WindowInsetsCompat.Type.systemBars()) else c.show(WindowInsetsCompat.Type.systemBars())
