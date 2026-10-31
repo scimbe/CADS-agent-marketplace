@@ -51,15 +51,14 @@ need(f.get("magic", "").startswith("89504e470d0a1a0a") and f.get("bytes", 0) > 5
 need(n.get("exportPickerPresented") is True, "file picker presented")
 
 # microphone refused: the delegate was reached, getUserMedia failed cleanly, the page points to the silly voice and goes on to a WAV
-def mic(name, loader):
+def mic(name):
     r = load(name); n = r["native"]; ls = logd(r)
-    print(f"env ({loader} loader):", json.dumps(ls["env"]))
-    need(r.get("loader") == loader, f"{name} used the {loader} loader", r.get("loader"))
+    print("env (mic flow, file:// page):", json.dumps(ls["env"]))
+    need(ls["env"]["mediaDevices"] == "object" and ls["env"]["getUserMedia"] == "function", f"{name}: getUserMedia is available under file://", ls["env"])
     need("error" not in ls, f"{name}: no script error", ls.get("error"))
     need(n.get("mediaCaptureRequest", {}).get("type") == 1, f"{name}: getUserMedia reached the native permission delegate (microphone)", n.get("mediaCaptureRequest"))
     need(re.search(r"Kein Mikro|No mic here", ls.get("toast", "")) is not None, f"{name}: refusal ends in the silly-voice message", ls.get("toast"))
     f = n.get("saveFile", {})
     need(f.get("name", "").endswith(".wav") and f.get("bytes", 0) > 5000 and f["magic"].startswith("52494646") and f["magic"][16:24] == "57415645", f"{name}: sound saved as a WAV with content", f)
-mic("12-mikro-abgelehnt", "file")
-mic("13-mikro-abgelehnt-scheme", "scheme")
+mic("12-mikro-abgelehnt")
 print("all simulator checks ok")

@@ -36,9 +36,6 @@ private struct DuellWebView: UIViewRepresentable {
         ucc.addUserScript(WKUserScript(source: DuellCoordinator.hostScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         // The page keeps its wall and profile in localStorage; that has to survive a restart.
         config.websiteDataStore = .default()
-        if DuellCoordinator.usesSchemeHandler {
-            config.setURLSchemeHandler(DuellSchemeHandler(), forURLScheme: DuellSchemeHandler.scheme)
-        }
 
         let web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = c
@@ -69,30 +66,6 @@ private final class WeakHandler: NSObject, WKScriptMessageHandler {
     func userContentController(_ u: WKUserContentController, didReceive m: WKScriptMessage) {
         target?.userContentController(u, didReceive: m)
     }
-}
-
-/// Serves the bundled page under `cads-duell://app/index.html` (only that one resource). Used when a
-/// page loaded from `file://` cannot use the microphone (see `DuellCoordinator.usesSchemeHandler`).
-final class DuellSchemeHandler: NSObject, WKURLSchemeHandler {
-    static let scheme = "cads-duell"
-    static let host = "app"
-    static var pageURL: URL { URL(string: "\(scheme)://\(host)/index.html")! }
-
-    func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
-        guard let url = task.request.url, url.scheme == Self.scheme, url.host == Self.host,
-              url.path == "/index.html", let page = DuellCoordinator.bundledPage, let data = try? Data(contentsOf: page) else {
-            task.didFailWithError(URLError(.fileDoesNotExist)); return
-        }
-        let headers = ["Content-Type": "text/html; charset=utf-8", "Content-Length": String(data.count), "Cache-Control": "no-store"]
-        guard let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: headers) else {
-            task.didFailWithError(URLError(.badServerResponse)); return
-        }
-        task.didReceive(response)
-        task.didReceive(data)
-        task.didFinish()
-    }
-
-    func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
 }
 
 final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, UIDocumentPickerDelegate {
@@ -138,19 +111,9 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
 
     static var bundledPage: URL? { Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "duell") }
 
-    /// Whether the page is served by `DuellSchemeHandler` instead of loaded from `file://`.
-    static var usesSchemeHandler: Bool {
-        #if DEBUG
-        if let i = ProcessInfo.processInfo.arguments.firstIndex(of: "-DuellLoad"), i + 1 < ProcessInfo.processInfo.arguments.count {
-            return ProcessInfo.processInfo.arguments[i + 1] == "scheme"
-        }
-        #endif
-        return false
-    }
-
     func start(initialFragment: String?) {
         guard web != nil, let page = Self.bundledPage else { return }
-        pageURL = Self.usesSchemeHandler ? DuellSchemeHandler.pageURL : page
+        pageURL = page
         var fragment = initialFragment
         #if DEBUG
         if fragment == nil { fragment = DuellDebug.launchFragment }
@@ -163,8 +126,7 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
                 if let list { web.configuration.userContentController.add(list) }
                 var url = base
                 if let f = fragment, let u = URL(string: base.absoluteString + "#" + f) { url = u }
-                if Self.usesSchemeHandler { web.load(URLRequest(url: url)) }
-                else { web.loadFileURL(url, allowingReadAccessTo: base.deletingLastPathComponent()) }
+                web.loadFileURL(url, allowingReadAccessTo: base.deletingLastPathComponent())
             }
         }
     }
@@ -180,7 +142,6 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
 
     private func isOwnPage(_ url: URL) -> Bool {
         guard let page = pageURL else { return false }
-        if Self.usesSchemeHandler { return url.scheme == DuellSchemeHandler.scheme && url.host == DuellSchemeHandler.host && url.path == "/index.html" }
         return url.isFileURL && url.path == page.path
     }
 
@@ -211,7 +172,7 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
     // MARK: Microphone: only the page's own origin, only audio, only when the page asks (after the tap on record).
 
     private func isOwnOrigin(_ origin: WKSecurityOrigin) -> Bool {
-        if Self.usesSchemeHandler { return origin.protocol == DuellSchemeHandler.scheme && origin.host == DuellSchemeHandler.host }
+        // getUserMedia works for the bundled file:// page (checked in the simulator), so no custom scheme is needed.
         return origin.protocol == "file"
     }
 
@@ -330,7 +291,6 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
 #if DEBUG
 /// CI helpers (DEBUG builds only; the simulator offers no tap injection, so the page is driven through its DOM):
 ///  `-DuellChallenge <fragment>`  open with a link fragment, like a Universal Link would
-///  `-DuellLoad file|scheme`      load the page from file:// (default) or through the scheme handler
 ///  `-DuellMicDeny`               refuse microphone requests (exercises the fallback without a system dialog)
 ///  `-DuellScenario <name>`       after load, run a scripted flow in the page and write Documents/duell-scenario.json.
 ///                                names: probe, more, share, save, mic
@@ -425,7 +385,7 @@ enum DuellDebug {
     static func finish(_ body: Any) {
         var page: Any = "no result"
         if let s = body as? String, let d = s.data(using: .utf8), let j = try? JSONSerialization.jsonObject(with: d) { page = j }
-        write(["page": page, "scenario": scenario ?? "", "loader": DuellCoordinator.usesSchemeHandler ? "scheme" : "file"])
+        write(["page": page, "scenario": scenario ?? ""])
         note("done", true)
     }
 }

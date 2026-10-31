@@ -53,4 +53,3 @@ run 09-ergebnis-teilen yes -DuellScenario share
 run 10-nach-teilen-aufgeraeumt yes -DuellScenario probe    # the file left by the share run is swept at start
 run 11-ergebnis-speichern yes -DuellScenario save
 run 12-mikro-abgelehnt yes -DuellScenario mic -DuellMicDeny
-run 13-mikro-abgelehnt-scheme yes -DuellScenario mic -DuellMicDeny -DuellLoad scheme
