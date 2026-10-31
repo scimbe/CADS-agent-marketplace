@@ -36,8 +36,7 @@ test("Tagesidee: gleich fuer alle am selben UTC-Tag, Tageswechsel genau um 0 Uhr
   assert.equal(a.id, b.id); assert.notEqual(a.id, c.id);
 });
 test("Tagesidee: in einer Runde keine Wiederholung, nie zweimal dieselbe Mechanik hintereinander", () => {
-  const n = D.ROUND.length, start = Math.floor(D.dayNumber(new Date("2026-12-15Z")) / n) * n;
-  const seq = []; for (let i = 0; i < n; i++) seq.push(D.ideaForDay(new Date(start * 86400000 + i * 86400000)));
+  const n = D.ROUND.length, seq = D.roundOrder(Math.floor(D.dayNumber(new Date("2026-11-01Z")) / n));
   assert.equal(new Set(seq.map((x) => x.id)).size, n);
   let same = 0; for (let i = 1; i < n; i++) if (seq[i].kind === seq[i - 1].kind) same++;
   assert.equal(same, 0);
