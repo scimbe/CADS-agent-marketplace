@@ -26,7 +26,7 @@ dump() { adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb exec-out
 find_node() {
   dump | python3 -I -c '
 import re,sys,xml.etree.ElementTree as ET
-pat=re.compile(sys.argv[1]); cls=sys.argv[2] if len(sys.argv)>2 else ""
+pat=re.compile(sys.argv[1],re.I); cls=sys.argv[2] if len(sys.argv)>2 else ""
 for n in ET.fromstring(sys.stdin.read()).iter("node"):
     s=(n.get("text") or "")+" "+(n.get("content-desc") or "")
     if pat.search(s) and (not cls or n.get("class")==cls):
@@ -189,7 +189,7 @@ sys.exit(0 if ok else 1)' "$kind" || fail "content of the saved $kind is wrong" 
 open_idea() {
   adb shell "am start -W -a android.intent.action.VIEW -c android.intent.category.BROWSABLE -p $PKG -d 'https://bunsenbrenner.org/duell#i=$1'" >/dev/null
   wait_web "$2" 20
-  tap_web "Make it yours|Mach's zu deinem" 10
+  tap_web "^(Make it yours|Mach's zu deinem)\$" 10   # the button, not the invite note that contains the same words
 }
 
 # 4. Invite link (i=): a card idea. Add a sticker, finish, Share opens the system share sheet, Save writes
