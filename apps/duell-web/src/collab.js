@@ -184,6 +184,8 @@
           var seen = {};
           doc.sk.forEach(function (g) {
             var id = ids.get(g), now = shape(g);
+            // Undo rebuilds the list from a copy: same sticker, new object.
+            if (!id) { id = s.shown.filter(function (k) { return !seen[k] && s.stickers[k] && same(s.stickers[k].g, now); })[0]; if (id) ids.set(g, id); }
             if (!id) {
               if (idCount() >= LOCAL_IDS) { s.dirty = true; return; }
               id = tick() + "." + actor; ids.set(g, id); putSticker(id, now); s.shown.push(id); changed = true;
@@ -192,6 +194,9 @@
           });
           s.shown.slice().forEach(function (id) { if (!seen[id] && s.stickers[id]) { kill(id); changed = true; } });
           s.shown = s.shown.filter(function (id) { return seen[id]; });
+          // A sticker that came back through undo has a new id and so a new place; applyTo puts the list in order.
+          var order = doc.sk.map(function (g) { return ids.get(g); });
+          if (order.join() !== visible().join()) s.dirty = true;
         }
         return changed;
       },

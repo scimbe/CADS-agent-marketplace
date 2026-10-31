@@ -116,10 +116,8 @@ test("Text auf A: in unter 1 s auf B im Dokument, im Eingabefeld und im Bild; St
   await b.page.click('#tabs button[data-k="Sticker"]'); await b.page.click("#panel .chips button");
   await waitDoc(a, () => window.DailyDebug.doc().sk.length === 1);
   await a.page.click('#tabs button[data-k="Sticker"]');
-  await a.page.evaluate(() => { const s = document.querySelectorAll("#panel .chips")[1].lastChild; return s.textContent; });
-  const box = await a.page.locator("#stage").boundingBox(), sk = (await doc(a)).sk[0];
-  await a.page.mouse.click(box.x + sk.x * box.width, box.y + sk.y * box.height);
-  await a.page.locator("#panel .chips").nth(1).locator("button").last().click();
+  await a.page.locator("#panel .chips").nth(1).locator("button").first().click();
+  await a.page.locator("#panel .chips").last().locator("button").last().click();
   await waitDoc(b, () => window.DailyDebug.doc().sk.length === 0);
   await b.page.waitForTimeout(3500);
   assert.equal((await doc(a)).sk.length, 0); assert.equal((await doc(b)).sk.length, 0, "taucht nicht wieder auf");

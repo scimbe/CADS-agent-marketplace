@@ -43,7 +43,7 @@
   function loop() {
     if (!eng) return;
     var e = ctx.ed();
-    if (e) eng.local(e.doc);
+    if (e) { eng.local(e.doc); applyRemote(); }
     eng.tick(now());
     status();
   }

@@ -1,0 +1,12 @@
+{
+  "name": "call-core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "1:1-Anruf fuer Kanaele: transportunabhaengiger WebRTC-Kern ohne eigenes Konto",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "e2e": "node test/e2e/run.mjs"
+  },
+  "engines": { "node": ">=20" }
+}
