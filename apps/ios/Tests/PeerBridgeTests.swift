@@ -80,7 +80,7 @@ final class PeerBridgeTests: XCTestCase {
     func testTheCallIntoThePageIsAClosedLiteral() {
         let s = PeerJson.call("\"});alert(1)//\u{2028}\n")
         XCTAssertFalse(s.contains("\u{2028}")); XCTAssertFalse(s.contains("\n"))
-        XCTAssertTrue(s.contains(#"\"});alert(1)// \u000a"#))
+        XCTAssertTrue(s.contains(#"\"});alert(1)//\u2028\u000a"#))
     }
     func testLinkFormsMapBothWays() {
         XCTAssertEqual(DuellLink.shareLink(core), shared); XCTAssertEqual(DuellLink.coreLink(shared), core)
