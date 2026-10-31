@@ -17,7 +17,7 @@ await p.route('https://demos-34a13a96.bunsenbrenner.org/api/duell/**', async (r)
 });
 await p.goto(srv + '/duell');
 const tap = (s) => p.locator(s).tap();
-const ai0 = () => p.locator('.aibox .chip').first();
+const ai0 = () => p.locator('.aibox .airow .chip').first();
 const openCard = async () => { await p.evaluate(() => {}); await tap('#own'); await p.locator('.mech').first().tap(); await p.getByRole('tab', { name: 'Text' }).tap(); };
 await openCard();
 assert.match(await p.textContent('.aicount'), /3 KI-Versuche gratis/);
@@ -25,7 +25,7 @@ assert.deepEqual(sent, [], 'ohne Antippen geht nichts raus');
 assert.ok(await p.getByText('Bei KI geht dein Text an unseren Server. Fotos bleiben auf dem Handy.').isVisible());
 { const P = await p.locator('#panel').boundingBox(), N = await p.getByText('Bei KI geht dein Text').boundingBox(), G = await ai0().boundingBox(); assert.ok(N.y + N.height <= P.y + P.height && G.y + G.height <= P.y + P.height, 'Hinweis und Knopf ohne Scrollen sichtbar'); }
 if (shot) await p.screenshot({ path: shot + '-panel.png' });
-const ai = () => p.locator('.aibox .chip').first();
+const ai = () => p.locator('.aibox .airow .chip').first();
 for (let i = 0; i < 3; i++) {
   await p.locator('#panel textarea').fill('Meine Karte Nummer ' + i);
   await ai().tap();

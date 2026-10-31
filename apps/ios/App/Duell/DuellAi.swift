@@ -5,7 +5,7 @@ import WebKit
 /// the AI actions, goes through here: fixed host, three fixed paths, small JSON, no cookies. The page never gets network.
 enum DuellAi {
     static let base = "https://demos-34a13a96.bunsenbrenner.org/api/duell/ai"
-    static let paths: Set<String> = ["", "/status", "/interest"]
+    static let paths: Set<String> = ["", "/status", "/interest", "/weather"]
     static let maxBody = 2048
 
     /// The request for a call from the page, or nil when the page asks for anything else.

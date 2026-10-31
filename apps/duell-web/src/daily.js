@@ -118,6 +118,13 @@
       return s && typeof s === "object" ? { e: C.sanitizeEmoji(s.e), x: f(s.x, 0, 1, 0.5), y: f(s.y, 0, 1, 0.5), r: f(s.r, -3.14, 3.14, 0), z: f(s.z, 0.5, 2.5, 1) } : null;
     }).filter(Boolean);
   }
+  // Weather strip: figures from the weather service only; no wish and no model can set it. The card always names the source.
+  function sanitizeWeather(o) {
+    if (!o || typeof o !== "object" || !/^\d{4}-\d{2}-\d{2}$/.test(o.d)) return null;
+    var p = txt(o.p, 32), hi = C.clampNum(o.hi, -60, 60, NaN), lo = C.clampNum(o.lo, -60, 60, NaN);
+    if (!p || isNaN(hi) || isNaN(lo)) return null;
+    return { p: p, d: o.d, hi: Math.round(hi), lo: Math.round(lo), rn: Math.round(C.clampNum(o.rn, 0, 100, 0)), c: Math.round(C.clampNum(o.c, 0, 99, 0)) };
+  }
   function sanitizeTrail(a) {
     return (Array.isArray(a) ? a : []).map(function (e) {
       if (!e || typeof e !== "object") return null;
@@ -133,6 +140,7 @@
     if (t) d.t = t; if (s) d.s = s; if (n) d.n = n;    // t/s: an own idea of the day, n: who made it
     if (o.k === "card") {
       d.x = txt(o.x, MAX_TEXT); d.st = STYLES.card.indexOf(o.st) >= 0 ? o.st : "druck"; d.sk = sanitizeStickers(o.sk);
+      var w = sanitizeWeather(o.w); if (w) d.w = w;
     } else if (o.k === "photo") {
       d.x = txt(o.x, 28); d.y = txt(o.y, 28); d.st = STYLES.photo.indexOf(o.st) >= 0 ? o.st : "poster"; d.sk = sanitizeStickers(o.sk);
     } else if (o.k === "sound") {
@@ -160,7 +168,7 @@
   function changedAreas(a, b) {
     var w = [];
     function ne(x, y) { return JSON.stringify(x) !== JSON.stringify(y); }
-    if (a.x !== b.x || a.y !== b.y) w.push("text");
+    if (a.x !== b.x || a.y !== b.y || ne(a.w, b.w)) w.push("text");
     if (ne(a.col, b.col)) w.push("farbe");
     if (a.st !== b.st) w.push("stil");
     if (ne(a.sk, b.sk)) w.push("sticker");

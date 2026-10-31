@@ -54,7 +54,7 @@
   function keep(json) { if (json && json.meter) { meter = json.meter; Kit.store.aiMeter = meter; Kit.save(); } }
   function randomPick(n) { return Math.floor(Math.random() * n); }
   // -> { how: result|local|quota|blocked, options }
-  async function run(kind, input) {
+  async function run(kind, input, fallback) {
     var lang = Kit.lang, how = "local", options = null;
     try {
       if (navigator.onLine === false) throw new Error("offline");
@@ -64,7 +64,7 @@
       if (how === "result") options = r.json.options;
     } catch (e) { how = "local"; }
     if (how === "blocked") return { how: how, options: [] };
-    return { how: how, options: options || local(kind, D.IDEAS, lang, randomPick, input.topic) };
+    return { how: how, options: options || (fallback ? fallback() : local(kind, D.IDEAS, lang, randomPick, input.topic)) };
   }
   function line() {
     if (!meter) return t("aiCountNew");
@@ -79,12 +79,13 @@
       if (busy) return;
       var input = o.input(); if (!input) { Kit.toast(t("filter")); return; }
       busy = true; go.disabled = true; go.textContent = "… " + t("aiThinking"); res.textContent = ""; src.hidden = true;
-      var r = await run(o.kind, input);
+      var r = await run(o.kind, input, o.fallback);
       busy = false; go.disabled = false; go.textContent = "✨ " + o.label; count.textContent = line();
       if (r.how === "blocked") { Kit.toast(t("filter")); return; }
       if (r.how === "quota") o.wall();
       src.textContent = t("aiLocal"); src.hidden = r.how === "result";
-      r.options.forEach(function (opt) {
+      if (o.auto) { if (r.how !== "quota") o.auto(r.options[0], r.how === "result", res); }
+      else r.options.forEach(function (opt) {
         res.appendChild(el("button", "chip aiopt", o.show(opt), function () { Kit.sfx.pop(); o.apply(opt); }));
       });
       Kit.sfx.pop();
@@ -109,5 +110,5 @@
       var a = el("a", "btn", t("aiLogin")); a.href = "/auth/login?return=" + encodeURIComponent("/duell"); b.appendChild(a);
     }
   }
-  window.Ai = { block: block, wall: wall, count: line };
+  window.Ai = { block: block, wall: wall, count: line, post: post };
 })(typeof globalThis !== "undefined" ? globalThis : this);
