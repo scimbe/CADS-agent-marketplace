@@ -8,6 +8,8 @@ import { mintTurnCredential } from '../server/turn-credentials.js';
 
 const FAST = { minEpochGapMs: 0, iceFetchTimeoutMs: 20, signalRetryMs: 5, ringTimeoutMs: 40, connectTimeoutMs: 30, disconnectGraceMs: 1,
   reconnectWindowMs: 60, restartBackoffMs: [0, 2], statsIntervalMs: 2, mediaStallMs: 10 };
+// Echte Neuaufbau-Reihenfolge: eine Epoche, keine Schleife im Millisekundentakt, kein Fensterablauf.
+const STEADY = { ...FAST, minEpochGapMs: 60000, reconnectWindowMs: 5000 };
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 const until = async (f) => { for (let i = 0; i < 300 && !f(); i++) await tick(2); assert.ok(f(), 'Bedingung nicht erreicht'); };
 
@@ -120,7 +122,7 @@ test('verweigertes Mikrofon beendet den Anruf bei beiden sichtbar', async () => 
 });
 
 test('Abbruch: frische Zugangsdaten, neue Epoche, Medien beenden den Neuaufbau', async () => {
-  const p = pair();
+  const p = pair({ a: { timing: STEADY }, b: { timing: STEADY } });
   const c = await connected(p);
   const before = p.ea.ice;
   p.ea.packets = 1;
@@ -140,7 +142,7 @@ test('Abbruch: frische Zugangsdaten, neue Epoche, Medien beenden den Neuaufbau',
 
 test('Restpakete vor dem ausgehandelten Neustart zaehlen nicht als Erholung', async () => {
   let block = false;
-  const p = pair({ drop: (m) => block && (m.type === 'call.offer' || m.type === 'call.answer') });
+  const p = pair({ a: { timing: STEADY }, b: { timing: STEADY }, drop: (m) => block && (m.type === 'call.offer' || m.type === 'call.answer') });
   const c = await connected(p);
   p.ea.packets = 1; await tick(6);
   block = true;
@@ -157,7 +159,7 @@ test('Restpakete vor dem ausgehandelten Neustart zaehlen nicht als Erholung', as
 });
 
 test('verspaetetes call.restart oeffnet keine neue Epoche', async () => {
-  const p = pair();
+  const p = pair({ a: { timing: STEADY }, b: { timing: STEADY } });
   const c = await connected(p);
   p.ea.packets = 1; await tick(6);
   p.ea.pcs[0].set('failed');
