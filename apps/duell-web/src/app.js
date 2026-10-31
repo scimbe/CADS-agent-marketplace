@@ -1,7 +1,7 @@
 /* Calendar, remix editor, my style, wall. All text goes in as text nodes, never as markup. */
 (function () {
 "use strict";
-var C = window.DuellCore, D = window.Daily, W = window.Wish, S = window.Studio, Kit = window.Kit, G = window.Game, R = window.Render, t = Kit.t;
+var C = window.DuellCore, D = window.Daily, W = window.Wish, P = window.Playable, S = window.Studio, Kit = window.Kit, G = window.Game, R = window.Render, t = Kit.t;
 var $ = function (id) { return document.getElementById(id); };
 function el(tag, cls, text, on) {
   var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text;
@@ -60,7 +60,7 @@ function setHome(h, animate) {
 }
 function dayHome() { return { date: today, idea: D.ideaForDay(today) }; }
 function goHome() {
-  stopSound(); G.stop(); ed = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
+  stopSound(); G.stop(); ed = null; played = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
   if (!home) home = dayHome(); setHome(home, true);
 }
 function tear(dir) {
@@ -162,6 +162,22 @@ function weatherBlock(p) {
   if (ed.doc.w) row.appendChild(el("button", "chip", "✕ " + t("wxOff"), function () { delete ed.doc.w; changed(); tab("Text"); }));
   box.appendChild(row); box.appendChild(el("p", "note", t("wxNote"))); p.appendChild(box);
 }
+function playButton(p) {
+  p.appendChild(el("button", "chip", "🕹 " + t("playIt"), makePlayable));
+  if (ed.doc.k === "photo") p.appendChild(el("p", "note", t("playNote")));
+}
+// The creation becomes the game: same engine, its colours, picture and figure. Back leads to the creation, not home.
+var played = null;
+function makePlayable() {
+  var d = ed.doc, photo = ed.ownPhoto ? ed.photo : null, st = P.fromDoc(d, me);
+  var o = { own: true, bg: P.backdrop(function (c, doc, m) { R.draw(c, doc, { me: m, photo: ed.photo, peaks: ed.peaks }); }, d, me), figure: photo ? P.figure(photo) : null };
+  played = ed; Kit.sfx.thud(); stopSound(); G.stop(); show("game", true); G.play(st, null, o);
+  if (photo) Kit.toast(t("playNote"));
+}
+function backFromPlay() {
+  if (!played) return false;
+  ed = played; played = null; G.stop(); show("editor"); changed(); return true;
+}
 function aiBlock(p, o) { o.el = el; o.wall = openAiWall; window.Ai.block(p, o); }
 function field(p, label, value, max, on, area) {
   p.appendChild(el("label", "lbl", label));
@@ -227,10 +243,12 @@ var PANEL = {
     if (d.k === "card") {
       var f = field(p, t("line"), d.x, 90, function (v) { d.x = v; }, true), L = ed.idea ? ideaText(ed.idea).lines : null;
       if (L) p.appendChild(el("button", "chip", "🎲 " + t("dice"), function () { Kit.sfx.pop(); ed.line = (ed.line + 1) % L.length; d.x = L[ed.line]; f.value = d.x; ed.base.x = d.x; changed(); }));
+      playButton(p);
       aiBlock(p, { kind: "line", label: t("aiLine"), input: function () { var x = D.cleanInput(d.x, 90) || t("own"); return { text: x, style: d.st }; }, show: String, apply: function (o) { var v = D.cleanInput(o, 90); if (v) { d.x = v; f.value = v; changed(); } } });
       weatherBlock(p);
     } else if (d.k === "photo") {
       var top = field(p, t("top"), d.x, 28, function (v) { d.x = v; }), low = field(p, t("bottom"), d.y, 28, function (v) { d.y = v; });
+      playButton(p);
       var what = field(p, t("aiDesc"), "", 100, function () {});
       aiBlock(p, { kind: "meme", label: t("aiMeme"), input: function () { var v = D.cleanInput(what.value, 100); return v ? { desc: v } : null; }, show: function (o) { return o.top + " / " + o.bottom; }, apply: function (o) { d.x = D.cleanInput(o.top, 28); d.y = D.cleanInput(o.bottom, 28); top.value = d.x; low.value = d.y; changed(); } });
     } else if (d.k === "sound") {
@@ -412,6 +430,7 @@ async function finish(doc, idea, pictureDoc) {
   wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c) }); store.wall = wall; Kit.save();
   if (!Kit.persisted) Kit.toast(t("wallFull"));
   var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png);
+  $("playit").hidden = doc.k !== "card" && doc.k !== "photo";
   stopSound(); G.stop(); labels(); show("done", true); Kit.sfx.win();
 }
 $("edmain").addEventListener("click", function () {
@@ -426,6 +445,7 @@ $("share").addEventListener("click", async function () {
   var how = await Kit.share({ url: result.url, text: t("shareText"), blob: result.file, name: result.name });
   if (how === "link") Kit.toast(t("shot"));
 });
+$("playit").addEventListener("click", function () { ed = result.keep; ed.sel = -1; makePlayable(); });
 $("save").addEventListener("click", function () { Kit.sfx.tap(); Kit.saveFile(result.file, result.name); });
 $("keep").addEventListener("click", function () { Kit.sfx.tap(); backToEditor(); });
 function backToEditor() {
@@ -443,8 +463,9 @@ function backFromStyle() {
   if (ed.doc.k === "game") G.demo($("demo"), gameState());
   changed(); return true;
 }
-$("gback").addEventListener("click", function () { Kit.sfx.tap(); goHome(); });
+$("gback").addEventListener("click", function () { Kit.sfx.tap(); if (!backFromPlay()) goHome(); });
 function gameToEditor() {
+  if (backFromPlay()) return;
   var s = G.current(), d = { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji } };
   if (ed && ed.doc.k === "game") { var keep = ed; G.stop(); show("editor"); ed = keep; G.demo($("demo"), gameState()); changed(); return; }
   G.stop(); openEditor(d);
@@ -514,7 +535,7 @@ function labels() {
   document.documentElement.lang = Kit.lang;
   $("brand").textContent = t("brand"); $("lang").textContent = Kit.lang.toUpperCase(); $("me").textContent = me.emoji;
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
-  $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home");
+  $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home"); $("playit").textContent = "🕹 " + t("playIt");
   $("save").hidden = !Kit.canSave(); SK.labels();
   // Inside the app shells (DuellHost.more) a quiet "more" opens the native extras; in a browser it stays hidden.
   var host = window.DuellHost && typeof window.DuellHost.more === "function";
@@ -535,7 +556,7 @@ $("go").addEventListener("click", function () {
   else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea });
 });
 window.addEventListener("resize", function () { if (screen === "home") fitHero(); });
-window.addEventListener("popstate", function () { if (screen !== "home" && !location.hash && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
+window.addEventListener("popstate", function () { if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
 
 function route() {
   var r = D.parseRoute(location.hash);

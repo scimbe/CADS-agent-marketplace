@@ -103,6 +103,14 @@
     return cpSlice(String(s == null ? "" : s).replace(/[\u0000-\u001f\u007f<>]/g, " ").replace(/\s+/g, " ").trim(), MAX_PROMPT);
   }
 
+  // Optional look of a game made from a card: two colours and one line, nothing that could carry a picture.
+  function sanitizeSkin(o) {
+    if (!o || typeof o !== "object" || !Array.isArray(o.c) || o.c.length !== 2 || !o.c.every(function (x) { return typeof x === "string" && /^#[0-9a-f]{6}$/i.test(x); })) return null;
+    var skin = { c: [o.c[0], o.c[1]] }, l = cpSlice(stripText(o.l), 60).trim();
+    if (l && isClean(l)) skin.l = l;
+    return skin;
+  }
+
   // ---------- state (the shared contract) ----------
   function sanitizeState(o) {
     if (!o || typeof o !== "object" || Array.isArray(o)) return null;
@@ -115,6 +123,8 @@
       title: sanitizeTitle(o.title),
       emoji: sanitizeEmoji(o.emoji)
     };
+    var skin = sanitizeSkin(o.skin);
+    if (skin) st.skin = skin;
     if (o.score !== undefined && o.score !== null) {
       var sc = clampNum(o.score, 0, MAX_SCORE, NaN);
       if (!isNaN(sc)) st.score = Math.floor(sc);
