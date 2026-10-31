@@ -1,6 +1,7 @@
-"tab.duell" = "Duell";
-"tab.templates" = "Vorlagen";
-"tab.installations" = "Meine Installationen";
+"more.title" = "Mehr";
+"more.templates" = "Vorlagen";
+"more.installations" = "Meine Installationen";
+"more.done" = "Fertig";
 "templates.title" = "Vorlagen";
 "templates.empty" = "Keine Vorlagen";
 "templates.open.hint" = "Öffnet die geprüfte Vorlage";

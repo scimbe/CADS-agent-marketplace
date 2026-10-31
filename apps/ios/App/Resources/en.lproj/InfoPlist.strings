@@ -1,0 +1,3 @@
+"CFBundleDisplayName" = "My Daily Idea";
+"NSMicrophoneUsageDescription" = "My Daily Idea records only when you tap Record in the page. The recording stays on your device.";
+"NSCameraUsageDescription" = "My Daily Idea uses the camera only when you choose Take Photo in the photo picker. The photo stays on your device.";

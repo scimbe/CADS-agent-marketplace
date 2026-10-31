@@ -1,6 +1,7 @@
-"tab.duell" = "Duel";
-"tab.templates" = "Templates";
-"tab.installations" = "My installations";
+"more.title" = "More";
+"more.templates" = "Templates";
+"more.installations" = "My installations";
+"more.done" = "Done";
 "templates.title" = "Templates";
 "templates.empty" = "No templates";
 "templates.open.hint" = "Opens the verified template";

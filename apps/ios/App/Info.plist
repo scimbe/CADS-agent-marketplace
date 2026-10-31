@@ -4,6 +4,8 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>My Daily Idea</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -29,8 +31,15 @@
 	<string>cads-mobile</string>
 	<key>CadsOidcIssuer</key>
 	<string>https://auth.bunsenbrenner.org/realms/ct-demo</string>
+	<key>NSCameraUsageDescription</key>
+	<string>My Daily Idea nutzt die Kamera nur, wenn du in der Fotoauswahl Foto aufnehmen wählst. Das Foto bleibt auf dem Gerät.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>My Daily Idea nimmt nur auf, wenn du in der Seite auf Aufnehmen tippst. Die Aufnahme bleibt auf dem Gerät.</string>
 	<key>UILaunchScreen</key>
-	<dict/>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchYellow</string>
+	</dict>
 	<key>UIRequiresFullScreen</key>
 	<true/>
 	<key>UISupportedInterfaceOrientations</key>

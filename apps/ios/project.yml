@@ -32,8 +32,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.bunsenbrenner.cads
         PRODUCT_NAME: CadsMarketplace
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: CADS
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: My Daily Idea
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_CadsApiBase: https://bunsenbrenner.org
         INFOPLIST_KEY_CadsOidcIssuer: https://auth.bunsenbrenner.org/realms/ct-demo
@@ -49,7 +49,14 @@ targets:
         CadsOidcIssuer: https://auth.bunsenbrenner.org/realms/ct-demo
         CadsOidcClientId: cads-mobile
         CFBundleLocalizations: [de, en]
-        UILaunchScreen: {}
+        CFBundleDisplayName: My Daily Idea
+        # Brand yellow from the first frame (colour set LaunchYellow in Assets.xcassets): the theme colour.
+        UILaunchScreen:
+          UIColorName: LaunchYellow
+        # Asked only when the person taps record in the page / picks "Take Photo" in the photo sheet.
+        # Texts are localized in Resources/*.lproj/InfoPlist.strings (these are the German defaults).
+        NSMicrophoneUsageDescription: "My Daily Idea nimmt nur auf, wenn du in der Seite auf Aufnehmen tippst. Die Aufnahme bleibt auf dem Gerät."
+        NSCameraUsageDescription: "My Daily Idea nutzt die Kamera nur, wenn du in der Fotoauswahl Foto aufnehmen wählst. Das Foto bleibt auf dem Gerät."
         UIRequiresFullScreen: true
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait]
@@ -59,3 +66,27 @@ targets:
         # Universal Link for https://bunsenbrenner.org/duell. Takes effect only in a build signed with
         # a team that has the Associated Domains capability (the CI simulator build is unsigned).
         com.apple.developer.associated-domains: ["applinks:bunsenbrenner.org"]
+  # Pure logic (links, file rules): compiled straight into the test bundle, no host app and no Rust core needed.
+  CadsMarketplaceTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+      - path: App/Duell/DuellLink.swift
+      - path: App/Duell/DuellFiles.swift
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: org.bunsenbrenner.cads.tests
+        CODE_SIGNING_ALLOWED: NO
+        SWIFT_VERSION: "5.0"
+schemes:
+  CadsMarketplace:
+    build:
+      targets:
+        CadsMarketplace: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets: [CadsMarketplaceTests]

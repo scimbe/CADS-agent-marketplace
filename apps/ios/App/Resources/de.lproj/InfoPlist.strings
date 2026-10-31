@@ -1,0 +1,3 @@
+"CFBundleDisplayName" = "My Daily Idea";
+"NSMicrophoneUsageDescription" = "My Daily Idea nimmt nur auf, wenn du in der Seite auf Aufnehmen tippst. Die Aufnahme bleibt auf dem Gerät.";
+"NSCameraUsageDescription" = "My Daily Idea nutzt die Kamera nur, wenn du in der Fotoauswahl Foto aufnehmen wählst. Das Foto bleibt auf dem Gerät.";
