@@ -54,7 +54,10 @@ function setHome(h, animate) {
   $("teaser").textContent = sub;
   var from = $("from");
   if (h.note) { from.textContent = h.note; from.hidden = false; } else from.hidden = true;
-  $("go").textContent = t("go"); fitHero();
+  $("go").textContent = t("go");
+  var mode = doc && X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
+  if (mode) { $("go").textContent = mode.go; from.textContent = mode.note; from.hidden = false; }
+  fitHero();
   var leaf = $("leaf"); leaf.className = ""; leaf.style.transform = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
 }

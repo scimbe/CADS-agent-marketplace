@@ -254,6 +254,7 @@ X.duel = {
     if (!ed.x) { Kit.sfx.thud(); start(ed); return; }
     if (ed.x.done) { Kit.sfx.thud(); share(ed); }
   },
+  label: function (doc) { return doc.ch ? { go: t("duelTake"), note: t("duelInvite", { n: nameOf(doc.a, t("someone")) }) } : null; },
   // A challenge link: the sender's agent becomes the rival, mine comes from my phone.
   incoming: function (doc) {
     if (!doc.ch) return false;
@@ -306,6 +307,7 @@ X.quest = {
     if (!ed.doc.t && ed.idea) { ed.doc.t = title(ed).slice(0, 40); ed.base.t = ed.doc.t; }
     A.finish(D.withTrail(ed.doc, A.me().nick, A.areas()));
   },
+  label: function (doc) { return doc.c.length ? { go: t("questTry"), note: t("questInvite") } : null; },
   incoming: function (doc) { if (!doc.c.length) return false; solve(doc); return true; }
 };
 function solve(doc) {

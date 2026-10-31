@@ -163,7 +163,7 @@ test("Geheimkanal: von Hand gebauter Link kann gesperrte Inhalte nicht durchschl
     const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, key, enc.encode(JSON.stringify(obj))));
     return Buffer.concat([nonce, ct]).toString("base64url");
   }
-  for (const body of [{ e: "fuck you" }, { e: "Komm allein zum Bahnhof" }, { q: "<img src=x onerror=alert(1)>" === 0 ? "" : "schreib auf Insta" }, { x: 1 }])
+  for (const body of [{ e: "fuck you" }, { e: "Komm allein zum Bahnhof" }, { q: "schreib auf Insta" }, { x: 1 }])
     assert.deepEqual(await Q.open(await forge(body, "ja"), "ja"), { blocked: true }, JSON.stringify(body));
   assert.ok(!/[<>]/.test((await Q.open(await forge({ e: "a<b>c" }, "ja"), "ja")).e));
   assert.equal(await Q.open("kaputt", "ja"), null); assert.equal(await Q.open(null, "ja"), null);
