@@ -4,6 +4,7 @@
   var C = typeof module !== "undefined" && module.exports ? require("./core.js") : root.DuellCore;
   var DATA = typeof module !== "undefined" && module.exports ? require("./ideas.json") : root.DuellIdeas;
   var IDEAS = DATA.ideas;
+  var ROUND = IDEAS.filter(function (i) { return !i.on; });   // calendar ideas ("on": "MM-DD") only appear on their day
   var ID_RE = /^[a-z0-9-]{1,32}$/, MAX_WALL = 30, MAX_THUMB = 60000, MAX_TEXT = 90;
   var DAY = 86400000;
   var KINDS = ["game", "photo", "sound", "card"];
@@ -21,7 +22,7 @@
 
   // One shuffled round through all ideas, so nothing repeats before everything has come up once.
   function roundOrder(round) {
-    var r = C.mulberry32(C.hash32("daily-round-" + round)), out = IDEAS.slice(), i, j, t;
+    var r = C.mulberry32(C.hash32("daily-round-" + round)), out = ROUND.slice(), i, j, t;
     for (i = out.length - 1; i > 0; i--) { j = Math.floor(r() * (i + 1)); t = out[i]; out[i] = out[j]; out[j] = t; }
     for (i = 1; i < out.length; i++) {           // no two days of the same kind in a row
       if (out[i].kind !== out[i - 1].kind) continue;
@@ -30,7 +31,9 @@
     return out;
   }
   function ideaForDay(date) {
-    var n = dayNumber(date), len = IDEAS.length;
+    var md = C.dailyKey(date).slice(5);
+    for (var k = 0; k < IDEAS.length; k++) if (IDEAS[k].on === md) return IDEAS[k];
+    var n = dayNumber(date), len = ROUND.length;
     return roundOrder(Math.floor(n / len))[((n % len) + len) % len];
   }
   function dayDate(date, back) { return new Date((dayNumber(date) - (back || 0)) * DAY); }
@@ -98,7 +101,8 @@
   }
   var SETS = {
     tiere: ["🐸", "🦆", "🐙", "🦝", "🐌", "🦖"], essen: ["🍕", "🌮", "🍩", "🥨", "🍟", "🧃"],
-    weltall: ["🚀", "🛸", "👽", "🪐", "🌟", "☄️"], chaos: ["💥", "🔥", "💀", "🤡", "🌀", "⚡"]
+    weltall: ["🚀", "🛸", "👽", "🪐", "🌟", "☄️"], chaos: ["💥", "🔥", "💀", "🤡", "🌀", "⚡"],
+    grusel: ["🎃", "👻", "🦇", "🕷️", "🧛", "🕸️"]
   };
   function sanitizeProfile(p) {
     p = p && typeof p === "object" ? p : {};
@@ -115,7 +119,7 @@
   function sanitizeStickers(a) {
     return (Array.isArray(a) ? a : []).slice(0, MAX_STICKERS).map(function (s) {
       var f = function (v, a, b, d) { return Math.round(C.clampNum(v, a, b, d) * 1000) / 1000; };
-      return s && typeof s === "object" ? { e: C.sanitizeEmoji(s.e), x: f(s.x, 0, 1, 0.5), y: f(s.y, 0, 1, 0.5), r: f(s.r, -1, 1, 0), z: f(s.z, 0.5, 2.5, 1) } : null;
+      return s && typeof s === "object" ? { e: C.sanitizeEmoji(s.e), x: f(s.x, 0, 1, 0.5), y: f(s.y, 0, 1, 0.5), r: f(s.r, -3.14, 3.14, 0), z: f(s.z, 0.5, 2.5, 1) } : null;
     }).filter(Boolean);
   }
   function sanitizeTrail(a) {
@@ -146,7 +150,7 @@
   }
   function docFromIdea(idea, profile, lang) {
     var L = idea[lang] || idea.de, plain = L.t.replace("|", " ").trim(), base = { k: idea.kind, i: idea.id, col: profile.colors, by: [] };
-    if (idea.kind === "card") { base.x = L.lines[0]; base.st = idea.style || "druck"; base.sk = []; }
+    if (idea.kind === "card") { base.x = L.lines[0]; base.st = idea.style || "druck"; base.sk = []; if (idea.col) base.col = idea.col; }
     if (idea.kind === "photo") { base.x = L.top; base.y = L.bottom; base.st = idea.photo.mode; base.sk = []; }
     if (idea.kind === "sound") { var s = idea.sound; base.m = s.mode; base.x = plain.slice(0, 28); base.fx = s.fx || "chip"; base.bpm = s.bpm || 110; base.p = { k: s.k || "x---x---x---x---", s: s.s || "----x-------x---", h: s.h || "x-x-x-x-x-x-x-x-", b: s.b || "----------------" }; }
     if (idea.kind === "game") { var g = idea.game; base.g = { seed: g.seed, params: g.params, theme: g.theme, title: plain, emoji: g.emoji }; }
@@ -210,7 +214,7 @@
   }
 
   var api = {
-    IDEAS: IDEAS, KINDS: KINDS, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays,
+    IDEAS: IDEAS, ROUND: ROUND, roundOrder: roundOrder, KINDS: KINDS, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays,
     randomIdea: randomIdea, paperIndex: paperIndex, sanitizeId: sanitizeId, parseRoute: parseRoute, inviteUrl: inviteUrl, challengeUrl: challengeUrl,
     cleanInput: cleanInput, sanitizeProfile: sanitizeProfile, sanitizeDoc: sanitizeDoc, docFromIdea: docFromIdea, blankDoc: blankDoc,
     changedAreas: changedAreas, withTrail: withTrail, docUrl: docUrl, SETS: SETS, STYLES: STYLES, FX: FX, MAX_STICKERS: MAX_STICKERS, sanitizeWall: sanitizeWall, addToWall: addToWall, ideaStrings: ideaStrings

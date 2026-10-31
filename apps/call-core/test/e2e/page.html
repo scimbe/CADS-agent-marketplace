@@ -1,0 +1,84 @@
+<!doctype html><meta charset="utf-8"><title>Anruf-Messstand</title>
+<p id="status" data-testid="status"></p>
+<button id="call" data-testid="call">Anrufen</button>
+<button id="videocall" data-testid="videocall">Videoanruf</button>
+<button id="accept" data-testid="accept">Annehmen</button>
+<button id="hangup" data-testid="hangup">Auflegen</button>
+<audio id="remote" autoplay></audio>
+<script type="module">
+import { CallEndpoint, browserRtc, stateLabel } from '/src/call-core.js';
+const q = new URLSearchParams(location.search);
+const peer = q.get('peer'); const other = peer === 'a' ? 'b' : 'a';
+const counters = { gum: 0, gumBeforeAccept: 0, recorders: 0, accepted: false };
+const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+const Rec = globalThis.MediaRecorder;
+globalThis.MediaRecorder = class extends Rec { constructor(...a) { super(...a); counters.recorders += 1; } };
+const rtc = browserRtc();
+const tracks = [];
+rtc.getUserMedia = async (c) => {
+  counters.gum += 1;
+  if (!counters.accepted) counters.gumBeforeAccept += 1;
+  const s = await gum(c); tracks.push(...s.getTracks()); return s;
+};
+const handlers = new Set();
+let es; let lastPing = 0;
+function openChannel() {
+  es?.close();
+  lastPing = Date.now();
+  es = new EventSource(`/events?peer=${peer}`);
+  es.onmessage = (e) => handlers.forEach((h) => h(JSON.parse(e.data)));
+  es.addEventListener('ping', () => { lastPing = Date.now(); });
+}
+openChannel();
+setInterval(() => { if (Date.now() - lastPing > 3000) openChannel(); }, 1000);
+const iceUrl = (who) => `/ice?peer=${who}${q.get('tcp') ? '&tcp=1' : ''}`;
+const getJson = (u) => fetch(u, { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const noAccount = q.get('noaccount') && peer === 'b';
+const timing = q.get('window') ? { reconnectWindowMs: Number(q.get('window')) } : undefined;
+let peakHz = 0; let analyser; let audioCtx;
+const ep = new CallEndpoint({
+  transport: {
+    send: (m) => fetch(`/send?to=${other}`, { method: 'POST', body: JSON.stringify(m) }),
+    onMessage: (h) => { handlers.add(h); return () => handlers.delete(h); },
+  },
+  rtc, timing,
+  forceRelay: q.get('relay') === '1',
+  getIceServers: async () => (noAccount ? [] : getJson(iceUrl(peer))),
+  getPeerIceServers: q.get('noaccount') && peer === 'a' ? async () => getJson(iceUrl('b')) : undefined,
+  allowedRelayHosts: ['turn'],
+  onRemoteStream: (stream) => {
+    document.getElementById('remote').srcObject = stream;
+    audioCtx ??= new AudioContext();
+    audioCtx.resume();
+    analyser = audioCtx.createAnalyser(); analyser.fftSize = 8192;
+    audioCtx.createMediaStreamSource(stream).connect(analyser);
+  },
+  onChange: (s) => { document.getElementById('status').textContent = stateLabel(s.state, s.endReason); },
+  log: (l) => console.log(`${(Date.now()/1000).toFixed(1)} ${l}`),
+});
+function measurePeak() {
+  if (!analyser) return 0;
+  const d = new Float32Array(analyser.frequencyBinCount);
+  analyser.getFloatFrequencyData(d);
+  let best = -Infinity; let at = 0;
+  d.forEach((v, i) => { if (v > best) { best = v; at = i; } });
+  return best > -80 ? Math.round(at * audioCtx.sampleRate / analyser.fftSize) : 0;
+}
+document.getElementById('call').onclick = () => ep.dial();
+document.getElementById('videocall').onclick = () => ep.dial({ video: true });
+document.getElementById('accept').onclick = () => { counters.accepted = true; ep.call?.accept(); };
+document.getElementById('hangup').onclick = () => ep.active?.hangup();
+addEventListener('online', () => ep.active?.networkChanged());
+navigator.connection?.addEventListener('change', () => ep.active?.networkChanged());
+const origReceive = ep.handle.bind(ep);
+ep.handle = (m) => { if (m.type === 'call.accept') counters.accepted = true; origReceive(m); };
+window.snapshot = async () => {
+  const c = ep.call;
+  const stats = c && c.pc ? await c.sample() : null;
+  peakHz = measurePeak();
+  return { t: Date.now(), state: c?.state ?? 'idle', label: document.getElementById('status').textContent,
+    endReason: c?.endReason ?? null, epoch: c?.epoch ?? 0, reconnects: c?.reconnects ?? 0, turn: c?.turnAvailable ?? null,
+    stats, peakHz, ...counters, liveTracks: tracks.filter((t) => t.readyState === 'live').length };
+};
+window.ready = true;
+</script>

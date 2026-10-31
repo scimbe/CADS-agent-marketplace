@@ -92,6 +92,17 @@ test("Loeschen vor Hinzufuegen in vertauschter Reihenfolge: nichts taucht auf", 
   n.b.c.receive(JSON.stringify({ v: 1, t: "ops", d, o: [["s", id, g, 99, "aaaa1111"]] }), n.t.now);
   n.b.c.applyTo(n.b.doc); assert.equal(n.b.doc.sk.length, 0);
 });
+test("Rueckgaengig baut die Liste neu auf: gleiche Sticker bleiben gleich, ein wiederhergestellter kommt wieder", () => {
+  const n = pair("card"); n.run(6000);
+  n.a.doc.sk.push({ e: "🐸", x: 0.2, y: 0.2, r: 0, z: 1 }, { e: "🦆", x: 0.7, y: 0.7, r: 0, z: 1 }); n.run(1500);
+  const dead = n.a.c.snapshot().dead.length, ids = n.a.c.snapshot().stickers.map((s) => s[0]);
+  n.a.doc.sk.splice(0, 2, ...JSON.parse(JSON.stringify(n.a.doc.sk))); n.run(1500);
+  assert.equal(n.a.c.snapshot().dead.length, dead, "kein Loeschen"); assert.deepEqual(n.a.c.snapshot().stickers.map((s) => s[0]), ids);
+  const was = JSON.stringify(n.a.doc.sk);
+  n.a.doc.sk.shift(); n.run(1500); assert.equal(n.b.doc.sk.length, 1);
+  n.a.doc.sk.length = 0; JSON.parse(was).forEach((s) => n.a.doc.sk.push(s)); n.run(1500);
+  same(n); assert.equal(n.b.doc.sk.length, 2);
+});
 test("Mehr Sticker als erlaubt: beide zeigen dieselben, nie mehr als die Grenze", () => {
   const n = pair("card"); n.run(6000); n.down();
   for (let i = 0; i < 6; i++) { n.a.doc.sk.push({ e: "🐸", x: 0.1, y: 0.1, r: 0, z: 1 }); n.b.doc.sk.push({ e: "🦆", x: 0.9, y: 0.9, r: 0, z: 1 }); }
