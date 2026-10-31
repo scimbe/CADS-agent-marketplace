@@ -70,6 +70,7 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
     private var pageURL: URL?
     private var loaded = false
     private var queuedFragment: String?
+    private var reported = false
 
     /// Exposes `window.DuellHost.share(url, text)` and `.haptic(style)` to the page.
     static let hostScript = """
@@ -97,9 +98,6 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
                 var url = page
                 if let f = fragment, let u = URL(string: page.absoluteString + "#" + f) { url = u }
                 web.loadFileURL(url, allowingReadAccessTo: page.deletingLastPathComponent())
-                #if DEBUG
-                DuellDebug.scheduleReport(web: web)
-                #endif
             }
         }
     }
@@ -129,6 +127,9 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if let f = queuedFragment { queuedFragment = nil; apply(fragment: f) }
+        #if DEBUG
+        if !reported { reported = true; DuellDebug.scheduleReport(web: webView) }
+        #endif
     }
 
     private func openExternally(_ url: URL) {
@@ -183,7 +184,7 @@ enum DuellDebug {
 
     static func scheduleReport(web: WKWebView) {
         guard ProcessInfo.processInfo.arguments.contains("-DuellReport") else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             let snap = "JSON.stringify({hash: location.hash, text: document.body.innerText, href: location.href})"
             web.evaluateJavaScript(snap) { before, _ in
                 web.evaluateJavaScript("var b=document.querySelector('button'); var l=b?b.innerText:''; if(b) b.click(); l") { label, _ in
