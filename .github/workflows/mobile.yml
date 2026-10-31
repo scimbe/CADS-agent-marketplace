@@ -136,6 +136,12 @@ jobs:
           echo "4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806  /tmp/xcodegen.zip" | shasum -a 256 -c -
           unzip -q /tmp/xcodegen.zip -d /tmp/xcodegen-dist
           echo "/tmp/xcodegen-dist/xcodegen/bin" >> "$GITHUB_PATH"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+      - name: Build the Duell web game (apps/duell-web/dist/index.html, bundled into the app)
+        working-directory: apps/duell-web
+        run: npm run build
       - name: Build Rust core XCFramework + Swift bindings
         run: apps/ios/build-rust.sh
       - name: Generate Xcode project and build for the iOS simulator
@@ -145,22 +151,60 @@ jobs:
           xcodebuild -project CadsMarketplace.xcodeproj -scheme CadsMarketplace \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build build
-      - name: Run in the simulator and capture the three screens (mock data, DEBUG build)
+      - name: Run in the simulator, capture the screens and check the Duell game (mock data, DEBUG build)
         working-directory: apps/ios
         run: |
+          set -euo pipefail
+          APP=org.bunsenbrenner.cads
           UDID=$(xcrun simctl list devices available | grep -m1 "iPhone" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
           xcrun simctl boot "$UDID"
           xcrun simctl install "$UDID" build/Build/Products/Debug-iphonesimulator/CadsMarketplace.app
           mkdir -p shots
-          xcrun simctl launch "$UDID" org.bunsenbrenner.cads -UIMockInstallations -UITab 0
-          sleep 4; xcrun simctl io "$UDID" screenshot shots/1-vorlagen.png
-          xcrun simctl terminate "$UDID" org.bunsenbrenner.cads
-          xcrun simctl launch "$UDID" org.bunsenbrenner.cads -UIMockInstallations -UITab 1
-          sleep 4; xcrun simctl io "$UDID" screenshot shots/2-installationen.png
-          xcrun simctl terminate "$UDID" org.bunsenbrenner.cads
-          xcrun simctl launch "$UDID" org.bunsenbrenner.cads -UIMockInstallations -UITab 2
-          sleep 4; xcrun simctl io "$UDID" screenshot shots/3-vorlage-detail.png
+          shot() { # name, extra launch args...
+            local name=$1; shift
+            local rep; rep="$(xcrun simctl get_app_container "$UDID" $APP data)/Documents/duell-report.json"
+            rm -f "$rep"
+            xcrun simctl launch "$UDID" $APP -UIMockInstallations "$@"
+            if [[ " $* " == *" -DuellReport "* ]]; then
+              # cold WebKit start on a fresh simulator can take a while: wait for the report file
+              for _ in $(seq 1 60); do [ -f "$rep" ] && break; sleep 1; done
+              sleep 2
+              [ -f "$rep" ] && cp "$rep" "shots/report-$name.json"
+            else
+              sleep 6
+            fi
+            xcrun simctl io "$UDID" screenshot "shots/$name.png"
+            xcrun simctl terminate "$UDID" $APP
+          }
+          # Tabs: 0 Duell (default), 1 Vorlagen, 2 Installationen, 3 Vorlage-Detail
+          shot 1-duell -UITab 0 -DuellReport
+          CH=$(node -e "const C=require('./../duell-web/src/core.js');process.stdout.write(C.encodeState({v:1,name:'Mira-Test',score:7}))")
+          shot 2-duell-challenge -UITab 0 -DuellChallenge "c=$CH" -DuellReport
+          shot 3-vorlagen -UITab 1
+          shot 4-installationen -UITab 2
+          shot 5-vorlage-detail -UITab 3
+          python3 - "$CH" <<'PY'
+          import json, sys
+          ch = sys.argv[1]
+          start = json.load(open("shots/report-1-duell.json"))
+          chal = json.load(open("shots/report-2-duell-challenge.json"))
+          assert start["bundledPage"], "bundled duell/index.html missing"
+          b, a = json.loads(start["before"]), json.loads(start["after"])
+          assert b["hash"] != "#c=" + ch, "start without challenge must not show the test challenge"
+          assert start["clicked"], "no button found in the game"
+          assert b["text"] != a["text"], "game did not react to the click"
+          cb = json.loads(chal["before"])
+          assert cb["hash"] == "#c=" + ch, f"challenge fragment not taken over: {cb['hash']!r}"
+          assert cb["href"].startswith("file://") and cb["href"].endswith("duell/index.html#c=" + ch)
+          assert "PLATZHALTER" not in b["text"], "placeholder bundled instead of the real game"
+          assert "Mira-Test" in cb["text"] and "7" in cb["text"], f"challenge content not shown: {cb['text']!r}"
+          print("challenge banner:", cb["text"].strip().splitlines()[:6])
+          print("duell checks ok; clicked:", start["clicked"])
+          PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
         with:
           name: ios-simulator-screenshots
-          path: apps/ios/shots/*.png
+          path: |
+            apps/ios/shots/*.png
+            apps/ios/shots/*.json
