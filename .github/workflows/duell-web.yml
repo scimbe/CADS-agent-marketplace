@@ -1,0 +1,32 @@
+name: duell-web
+
+on:
+  push:
+    branches: [main]
+    paths: ["apps/duell-web/**", ".github/workflows/duell-web.yml"]
+  pull_request:
+    paths: ["apps/duell-web/**", ".github/workflows/duell-web.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/duell-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Unit tests (node --test)
+        run: npm test
+      - name: Build single-file dist/index.html
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: duell-index-html
+          path: apps/duell-web/dist/index.html
+          if-no-files-found: error
