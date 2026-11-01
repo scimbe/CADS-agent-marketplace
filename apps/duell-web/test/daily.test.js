@@ -172,3 +172,12 @@ test("Kalenderidee: Halloween erscheint genau am 31.10. und sonst nie", () => {
   assert.deepEqual(doc.col, ["#120b1f", "#ff7a00"]); assert.equal(doc.st, "neon");
   assert.ok(D.SETS.grusel.includes("🎃"));
 });
+test("Plan: 30 Tage ab 2. November, jeden Tag eine eigene Idee, nie zweimal dieselbe Art hintereinander", () => {
+  const seen = new Set(); let prev = "";
+  for (let i = 0; i < 30; i++) {
+    const day = new Date(Date.UTC(2026, 10, 2 + i)), idea = D.ideaForDay(day, { crypto: true, channel: false, call: false });
+    assert.match(idea.id, /^plan-/, day.toISOString()); assert.ok(!seen.has(idea.id)); seen.add(idea.id);
+    assert.notEqual(idea.kind, prev, idea.id); prev = idea.kind;
+  }
+  assert.ok(D.IDEAS.filter((i) => /^plan-/.test(i.id) && i.live).length >= 15, "mindestens die Haelfte fuehrt zu einem echten Dienst");
+});

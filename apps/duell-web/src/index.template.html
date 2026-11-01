@@ -23,13 +23,15 @@
       <article id="leaf">
         <div class="holes" aria-hidden="true"></div>
         <div class="dateline"><b id="dnum"></b><span id="dmon"></span><span id="dkind" class="burst"></span></div>
+        <div id="pv" hidden><canvas id="pvgame" aria-label="Vorschau"></canvas><canvas id="pvcard" width="540" height="675" aria-label="Vorschau"></canvas></div>
         <div id="hero"></div>
         <p id="teaser"></p>
         <p id="from" hidden></p>
       </article>
     </div>
     <button id="go" class="press"></button>
-    <button id="wishgo" hidden></button>
+    <div id="homerow"><button id="wishgo" hidden></button><button id="livego" hidden></button></div>
+    <nav id="feat" aria-label="Funktionen"></nav>
     <nav id="tools">
       <button id="more"></button><button id="own"></button><button id="past"></button><button id="wall"></button>
     </nav>

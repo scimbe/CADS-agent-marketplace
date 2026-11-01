@@ -264,6 +264,7 @@ window.Game = {
   demo: function (host, st) { cur = st; rival = null; mode = "demo"; attach(host); newRun(); run(); },
   update: function (st) { cur = st; if (mode === "demo") newRun(); },   // every change shows at once
   stop: function () { mode = "off"; clearTimeout(resultTimer); },
+  stopDemo: function () { if (mode === "demo") mode = "off"; },
   current: function () { return cur; }, score: function () { return sim ? sim.score : 0; }
 };
 /* test hook, used by browser checks: reads the state; tick() advances without waiting for frames */

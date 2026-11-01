@@ -42,9 +42,10 @@ test("Wetter: Wunsch kann die Zahlen nie aendern, kaputte Werte fallen weg, Text
   assert.equal(D.sanitizeDoc({ k: "card", w: { p: "x", d: "2026-11-02", hi: "viel", lo: 1 } }).w, undefined);
   assert.equal(D.changedAreas(D.sanitizeDoc({ k: "card" }), d).includes("text"), true);
 });
-test("Grenze: Duell und Geheimkanal haben keinen Wunsch, ihre Texte gehen nicht an den Server", () => {
-  assert.deepEqual([...W.KINDS].sort(), D.KINDS.filter((k) => k !== "duel" && k !== "quest").sort());
-  assert.match(require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/app.js"), "utf8"), /W\.KINDS\.indexOf\(ed\.doc\.k\) >= 0 \? \["Wish"\] : \[\]/);
+test("Grenze: jede Art hat einen Wunsch, Raetsel und Antworten eines Kanals gehen nicht an den Server", () => {
+  assert.deepEqual([...W.KINDS].sort(), [...D.KINDS].sort());
+  const q = Object.assign(of("quest"), { q0: "Geheimfrage", h0: "abc", c: ["Z2VoZWlt"] }), r = JSON.stringify(W.request(q, "x", ""));
+  assert.ok(!/Geheimfrage|Z2VoZWlt/.test(r));
 });
 test("Wunsch Spiel: Hintergrund, Spieler, Hindernisse, Boden und Farben aendern sich, Regeln bleiben im Rahmen", () => {
   const g = of("game"), look = { a: "#060A2A", b: "#2a1a5e", d: "stars", e: ["🪐", "🌟", "👽", "🚀"], p: "#9aa7c7", q: "#4d5878", f: "emoji", o: "🌵", g: "#1a1a33", h: "#7a6cff", m: "✨", x: "weg", f2: 1 };
@@ -66,4 +67,11 @@ test("Wunsch ohne Modell: Spiel bekommt trotzdem eine ganze Welt", () => {
 });
 test("Wunsch: freie Farben auf Karte, Foto und Sound", () => {
   assert.deepEqual(W.apply(of("card"), { colors: ["#112233", "#445566"] }, PAIRS, rand).col, ["#112233", "#445566"]);
+});
+test("Wunsch: Duell und Kanal aendern vier Bereiche, Raetsel bleiben unberuehrt und gehen nie mit", () => {
+  const du = of("duel"), n = W.apply(du, { t: "Piratenduell", s: "Arrr", ae: "🦜", be: "🏴", bn: "Käpt'n", colors: ["#112233", "#445566"] }, PAIRS, rand);
+  assert.equal(n.t, "Piratenduell"); assert.equal(n.a.e, "🦜"); assert.equal(n.b.e, "🏴"); assert.deepEqual(n.col, ["#112233", "#445566"]);
+  const q = of("quest"), m = W.apply(q, { t: "Schatz", s: "Grab", e: "🗺️", colors: ["#112233", "#445566"], q0: "fremd", c: [] }, PAIRS, rand);
+  assert.equal(m.t, "Schatz"); assert.equal(m.e, "🗺️"); assert.equal(m.q0, q.q0);
+  assert.ok(!JSON.stringify(W.request(q, "x", "")).includes(q.q0));
 });

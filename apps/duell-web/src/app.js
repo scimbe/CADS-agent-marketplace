@@ -23,6 +23,7 @@ function setInk(a, b) {
 }
 function show(name, push) {
   ["home", "editor", "done", "shelf", "game"].forEach(function (s) { $(s).hidden = s !== name; });
+  if (name !== "home") G.stopDemo();
   screen = name; document.body.setAttribute("data-state", name === "game" ? "ready" : name);
   if (push) { try { history.pushState({ s: name }, "", location.href); } catch (e) {} }
 }
@@ -58,16 +59,39 @@ function setHome(h, animate) {
   var mode = doc && X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
   if (mode) { $("go").textContent = mode.go; from.textContent = mode.note; from.hidden = false; }
   $("wishgo").textContent = t("wishHome"); $("wishgo").hidden = !!mode || W.KINDS.indexOf(kind) < 0;
+  var live = idea && idea.live, lb = $("livego"); lb.hidden = !live; if (live) { lb.textContent = t("live_" + live); lb.dataset.u = LIVE[live]; }
+  preview(doc || D.docFromIdea(idea, me, Kit.lang));
   fitHero();
   var leaf = $("leaf"); leaf.className = ""; leaf.style.transform = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
 }
+var LIVE = { conf: "https://webconference.bunsenbrenner.org/", tunnel: "https://bunsenbrenner.org/", demos: "https://demos-34a13a96.bunsenbrenner.org/", nordwind: "https://a2a-demo.bunsenbrenner.org/" };
+function openLive(url) { if (!window.open(url, "_blank", "noopener")) location.href = url; }
+// The day is shown as the real thing: a game flies by itself, everything else is drawn like its finished picture.
+function preview(doc) {
+  var box = $("pv"), g = $("pvgame"), c = $("pvcard"); G.stopDemo();
+  g.hidden = c.hidden = true; box.hidden = false;
+  try {
+    if (doc.k === "game") { g.hidden = false; G.demo(g, C.sanitizeState(Object.assign({ v: 1 }, doc.g))); return; }
+    c.hidden = false;
+    R.draw(c, doc, { me: me, photo: doc.k === "photo" ? R.botFace(C.hash32(doc.x || "x"), doc.col[1]) : null, peaks: null, x: {} });
+  } catch (e) { box.hidden = true; }
+}
+function feats() {
+  var box = $("feat"); box.textContent = "";
+  [["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
+    ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].forEach(function (f) {
+    box.appendChild(el("button", "", f[1] + " " + t(f[0]), function () { Kit.sfx.tap(); f[2](); }));
+  });
+}
+function blank(kind) { Kit.sfx.thud(); openEditor(D.blankDoc(kind, me, Kit.lang), { own: true }); }
+var page = 0, PLAN_DAYS = 31;
 function dayHome() { return { date: today, idea: D.ideaForDay(today) }; }
 // The page can stay open for days, above all in an app shell: a new day shows up when it comes back or while it is open.
 function newDay() {
   var n = new Date();
   if (D.dayNumber(n) === D.dayNumber(today)) return;
-  today = n;
+  today = n; page = 0;
   if (home && (home.note || home.doc)) return;   // an invitation or a creation from a link stays until it is left
   home = dayHome();
   if (screen === "home") setHome(home, true);
@@ -80,7 +104,9 @@ function tear(dir) {
   var leaf = $("leaf"); Kit.rip(); Kit.haptic(18);
   leaf.className = "gone"; leaf.style.transform = "translate(" + dir * 130 + "%,-20%) rotate(" + dir * 26 + "deg)";
   setTimeout(function () {
-    setHome({ date: today, idea: D.randomIdea(Math.random, home.idea ? home.idea.id : "") }, true); Kit.sfx.thud();
+    page = (page + 1) % PLAN_DAYS;                       // the calendar: a torn sheet shows the next day, then back to today
+    var d = D.dayDate(today, -page);
+    setHome({ date: d, idea: D.ideaForDay(d) || D.randomIdea(Math.random, "") }, true); Kit.sfx.thud();
   }, 300);
 }
 (function drag() {
@@ -232,8 +258,8 @@ function colors(p, get, set) {
 var PANEL = {
   Wish: function (p) {
     var f = field(p, t("wishL"), "", 100, function () {}, true), box = el("div", "chips");
-    if (ed.doc.k === "game") p.appendChild(el("p", "note", t("wishGameH")));
-    t(ed.doc.k === "game" ? "wishTipsGame" : "wishTips").split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; })); });
+    p.appendChild(el("p", "note", t("wishH_" + ed.doc.k)));
+    t("wishTips_" + ed.doc.k).split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; })); });
     p.appendChild(box);
     aiBlock(p, {
       kind: "wish", label: t("wishGo"), input: function () { var v = D.cleanInput(f.value, 100); return v ? W.request(ed.doc, v, ed.idea ? ideaText(ed.idea).t.replace("|", " ") : "") : null; },
@@ -588,7 +614,7 @@ function openOwn() {
 /* ---------- chrome ---------- */
 function labels() {
   document.documentElement.lang = Kit.lang;
-  $("brand").textContent = t("brand"); $("lang").textContent = Kit.lang.toUpperCase(); $("me").textContent = me.emoji;
+  feats(); $("brand").textContent = t("brand"); $("lang").textContent = Kit.lang.toUpperCase(); $("me").textContent = me.emoji;
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
   $("tostatus").textContent = t("sh_status"); $("tostory").textContent = t("sh_story"); $("shnote").textContent = t("sh_note");
   $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home"); $("playit").textContent = "🕹 " + t("playIt");
@@ -614,6 +640,7 @@ function start(tabName) {
 }
 $("go").addEventListener("click", function () { start(); });
 $("wishgo").addEventListener("click", function () { start("Wish"); });
+$("livego").addEventListener("click", function () { Kit.sfx.tap(); openLive($("livego").dataset.u); });
 ["focus", "pageshow"].forEach(function (e) { window.addEventListener(e, newDay); });
 document.addEventListener("visibilitychange", newDay);
 setInterval(newDay, 60000);
