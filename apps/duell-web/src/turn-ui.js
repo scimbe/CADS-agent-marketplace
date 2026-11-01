@@ -179,9 +179,12 @@ X.turn = {
   menu: function () {
     A.shelf(t("turn"), function (b) {
       b.appendChild(el("p", "note", t("turnH")));
-      D.IDEAS.filter(function (i) { return i.kind === "turn"; }).forEach(function (i) {
+      ["streit", "pause", "abend", "geschenk", "raum"].forEach(function (g) {
+        b.appendChild(el("label", "lbl", L()["grip_" + g]));
+        D.IDEAS.filter(function (i) { return i.kind === "turn" && i.turn.grip === g; }).forEach(function (i) {
         var T = i[Kit.lang] || i.de, m = el("button", "mech", null, function () { Kit.sfx.thud(); A.openEditor(D.docFromIdea(i, A.me(), Kit.lang), { idea: i }); });
         m.appendChild(el("span", "", T.t.replace("|", " ") + " · " + T.s)); b.appendChild(m);
+        });
       });
     });
   },

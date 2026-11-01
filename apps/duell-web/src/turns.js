@@ -222,6 +222,31 @@
     turns: [[{ w: "pick", l: "job_pick", n: 1, from: jobs }], [{ w: "pick", l: "job_pick", n: 1, from: jobs }]],
     result: function (doc, m, lang) { var X = T(lang), l = jobs(doc, m, [], lang); return { h: X.job_h, lines: [fmt(X.job_a, { w: l[m[1][0][0]] }), fmt(X.job_b, { w: l[m[0][0][0]] })] }; }
   };
+  function listOf(k) { return function (doc, m, now, lang) { return DATA[k].map(function (x, i) { return pair(DATA[k], i, lang); }); }; }
+  function wheel(k, l) { return { w: "pick", n: 1, auto: true, l: l, from: function (doc, m, now, lang) { return mix(doc, k, DATA[k].length).slice(0, 4).map(function (i) { return pair(DATA[k], i, lang); }); } }; }
+  function excuse(doc, m, lang) { var w = ["who", "what", "why"].map(function (k, i) { return pair(DATA[k], mix(doc, k, DATA[k].length)[m[0][i][0]], lang); }); return w.join(" "); }
+  GAMES.ausrede = {
+    turns: [[wheel("who", "aus_who"), wheel("what", "aus_what"), wheel("why", "aus_why")],
+      [{ w: "pick", n: 1, auto: true, l: "aus_stamp", top: function (doc, m, lang) { return excuse(doc, m, lang); }, from: function (doc, m, now, lang) { var X = T(lang); return [X.aus_s0, X.aus_s1, X.aus_s2]; } }]],
+    result: function (doc, m, lang) { var X = T(lang); return { h: [X.aus_s0, X.aus_s1, X.aus_s2][m[1][0][0]], lines: [excuse(doc, m, lang)] }; }
+  };
+  GAMES.gutschein = {
+    turns: [[{ w: "pick", n: 3, l: "gut_pick", from: listOf("vouchers") }],
+      [{ w: "pick", n: 1, l: "gut_take", from: function (doc, m, now, lang) { return m[0][0].map(function (i) { return pair(DATA.vouchers, i, lang); }); } }]],
+    result: function (doc, m, lang) { var X = T(lang), l = m[0][0].map(function (i) { return pair(DATA.vouchers, i, lang); }); return { h: X.gut_h, lines: [fmt(X.gut_used, { w: l[m[1][0][0]] })] }; }
+  };
+  function fields(doc, m, now, lang) { return [1, 2, 3, 4, 5, 6].map(function (n) { return fmt(T(lang).rub_field, { n: n }); }); }
+  GAMES.rubbellos = {
+    turns: [[{ w: "pick", n: 1, l: "rub_prize", from: listOf("prizes") }, { w: "pick", n: 1, l: "rub_hide", from: fields }], [{ w: "pick", n: 3, l: "rub_try", from: fields }]],
+    result: function (doc, m, lang) {
+      var X = T(lang), at = m[0][1][0];
+      return m[1][0].indexOf(at) >= 0 ? { h: fmt(X.rub_win, { w: pair(DATA.prizes, m[0][0][0], lang) }), lines: [fmt(X.rub_was, { n: at + 1 })] } : { h: X.rub_lose, lines: [fmt(X.rub_was, { n: at + 1 })] };
+    }
+  };
+  GAMES.urkunde = {
+    local: true, turns: [[{ w: "pick", n: 1, l: "urk_what", from: listOf("awards") }, { w: "slide", l: "urk_a", min: 0, max: 10, def: 5 }, { w: "slide", l: "urk_b", min: 0, max: 10, def: 5 }, { w: "slide", l: "urk_c", min: 0, max: 10, def: 5 }]],
+    result: function (doc, m, lang) { var X = T(lang), sum = m[0][1] + m[0][2] + m[0][3]; return { h: fmt(X.urk_h, { r: X["urk_" + (sum >= 24 ? 3 : sum >= 16 ? 2 : sum >= 8 ? 1 : 0)] }), lines: [pair(DATA.awards, m[0][0][0], lang)] }; }
+  };
   // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
   function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
   function struck(doc, m, lang) {

@@ -16,6 +16,7 @@ const LINES = {
   teilen: [[[[5, 3, 2, 0]], [[0, 3, 2, 5]]]],
   wette: [[[[1], 3], [[1]]]],
   socke: [[[50], [80]]], bluff: [[[[0], [0], [0], [0], [0]], [[0], [1], [0], [1], [0]]]], auftrag: [[[[1]], [[2]]]],
+  ausrede: [[[[0], [1], [2]], [[1]]]], gutschein: [[[[0, 3, 5]], [[1]]]], rubbellos: [[[[2], [3]], [[0, 3, 5]]]], urkunde: [[[[1], 9, 9, 9]]],
   streichen: [[[[0]], [[0]], [[0]], [[0]], [[0]], [[0]]]], finger: [[[0]]], erklaeren: [[[7]]], sorry: [[[[0], [1], [2]]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
@@ -70,7 +71,7 @@ test("Vorgaben: Daten paarig, jugendfrei, keine Kurzschrift", () => {
   const C = require("../src/core.js");
   for (const s of Tn.strings()) assert.ok(C.isClean(s), s);
   const T = require("../src/turn.json");
-  for (const k of ["words", "smuggle", "praise", "items", "fates", "either", "tasks", "vows", "jobs"]) for (const x of T[k]) assert.equal(x.split("|").length, 2, x);
+  for (const k of ["words", "smuggle", "praise", "items", "fates", "either", "tasks", "vows", "jobs", "who", "what", "why", "vouchers", "prizes", "awards"]) for (const x of T[k]) assert.equal(x.split("|").length, 2, x);
   assert.deepEqual(Object.keys(T.text.de).sort(), Object.keys(T.text.en).sort());
 });
 test("Filter: Saetze, die einzeln harmlos wirken, gehen nicht; Treffer und am Platz gehen", () => {
