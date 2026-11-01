@@ -57,10 +57,26 @@ test("Ein Tipp reicht: Pizza oder Pommes springt von Frage zu Frage, Luecke zeig
   const e = await open(hash(await url(m))); await e.locator("#go").click(); await e.locator("#panel").getByText(/Lama.*Riese/).waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Selbes Handy: Weitergeben statt Link, Streichen endet im Beschluss", async () => {
+  const { b, open, errs } = await setup();
+  const d = await open("#i=zug-deal"); await d.locator("#go").click(); await slide(d, 4); await next(d);
+  await d.getByRole("button", { name: /Selbes Handy/ }).click(); await d.getByRole("button", { name: "Ich bin dran" }).click();
+  await slide(d, 3); await d.locator("#panel").getByText("Ab wie viel").waitFor();
+  const s = await open("#i=raum-streichen"); await s.locator("#go").click();
+  for (let i = 0; i < 6; i++) { await s.locator("#panel .chip").first().click(); if (i < 5) await s.getByRole("button", { name: "Ich bin dran" }).click(); }
+  await s.locator("#panel").getByText(/Beschluss: /).waitFor();
+  const f = await open("#i=raum-finger"); await f.locator("#go").click();
+  await f.locator(".touchpad").evaluate((pad) => { [1, 2].forEach((id) => pad.dispatchEvent(new PointerEvent("pointerdown", { pointerId: id, clientX: 40 * id, clientY: 40, bubbles: true }))); });
+  await f.locator("#panel").getByText("Ein Finger hat entschieden").waitFor();
+  const r = await open("#i=raum-sorry"); await r.locator("#go").click();
+  for (let i = 0; i < 3; i++) await r.locator("#panel .chip").first().click();
+  await r.getByRole("button", { name: "Kopieren" }).waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 12);
+  assert.equal(await m.locator("#shbody .mech").count(), 16);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);

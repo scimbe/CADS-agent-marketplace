@@ -15,6 +15,7 @@ const LINES = {
   snack: [[Array(10).fill([0]), Array(10).fill(0).map((x, i) => [i % 2])]],
   teilen: [[[[5, 3, 2, 0]], [[0, 3, 2, 5]]]],
   wette: [[[[1], 3], [[1]]]],
+  streichen: [[[[0]], [[0]], [[0]], [[0]], [[0]], [[0]]]], finger: [[[0]]], erklaeren: [[[7]]], sorry: [[[[0], [1], [2]]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
@@ -83,4 +84,9 @@ test("Luecke fuellt die Geschichte, Teilen vergibt jede Aufgabe genau einmal, We
   d = Tn.play(Tn.play(fresh("teilen", 2), [[5, 3, 2, 0]], 0), [[0, 3, 2, 5]], 0);
   const all = Tn.result(d, "de").lines.join(); for (const w of ["Folien", "Vortrag", "Recherche", "Handout"]) assert.equal(all.split(w).length, 2, w);
   d = through(Tn.play(fresh("wette", 2), [[1], 3], 500)); assert.equal(Tn.gate(d, 502), 1); assert.equal(Tn.gate(d, 503), 0);
+});
+test("Raum-Blaetter: Streichen laesst genau einen Vorschlag, Sorry bleibt Text ohne Absender", () => {
+  let d = fresh("streichen", 4); for (let i = 0; i < 6; i++) d = Tn.play(d, [[0]], 0);
+  assert.match(Tn.result(d, "de").h, /Beschluss: /); assert.equal(Tn.GAMES.streichen.turns[0][0].from(d, [[[0]], [[0]]], [], "de").length, 5);
+  d = Tn.play(fresh("sorry", 1), [[0], [1], [2]], 0); const r = Tn.result(d, "de"); assert.equal(r.copy, r.lines[0]); assert.ok(!/daily/i.test(r.copy));
 });

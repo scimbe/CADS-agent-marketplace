@@ -285,7 +285,28 @@
 "wet_no": "Nicht geschafft",
 "luck_pick": "Wähle eine Geschichte. Die andere Seite sieht sie erst am Ende.",
 "luck_fill": "Sechs Wörter. Die Geschichte bleibt noch geheim.",
-"luck_h": "Eure Geschichte"
+"luck_h": "Eure Geschichte",
+"hand": "Handy weitergeben",
+"hand_go": "Ich bin dran",
+"hand_same": "Selbes Handy: weitergeben",
+"str_pick": "Streiche einen Vorschlag.",
+"str_h": "Beschluss: {o}",
+"str_note": "Dagegen darf keiner mehr was sagen.",
+"str_set": "Worum geht es?",
+"fin_pick": "Alle legen einen Finger aufs Feld und halten still.",
+"fin_h": "Ein Finger hat entschieden",
+"fin_note": "Der leuchtende Finger ist dran.",
+"exp_go": "Erkläre, ohne das Wort zu sagen. 60 Sekunden.",
+"exp_hit": "Erraten",
+"exp_skip": "Weiter",
+"exp_h": "{n} Wörter in 60 Sekunden",
+"exp_note": "Die nächste Runde muss das knacken.",
+"sor_1": "Was war?",
+"sor_2": "Was tut dir leid?",
+"sor_3": "Wie geht es weiter?",
+"sor_h": "Dein erster Satz",
+"sor_copy": "Kopieren",
+"sor_note": "Bleibt auf deinem Handy. Geh in deinen Chat und schick es selbst. Bei Gewalt oder Angst: Sprich mit einer erwachsenen Person, der du vertraust."
 },
 "en": {
 "things": "cookies",
@@ -374,7 +395,28 @@
 "wet_no": "Not done",
 "luck_pick": "Pick a story. The other side sees it only at the end.",
 "luck_fill": "Six words. The story stays secret for now.",
-"luck_h": "Your story"
+"luck_h": "Your story",
+"hand": "Pass the phone",
+"hand_go": "My turn",
+"hand_same": "Same phone: pass it on",
+"str_pick": "Strike one option.",
+"str_h": "Decided: {o}",
+"str_note": "Nobody gets to argue now.",
+"str_set": "What is it about?",
+"fin_pick": "Everyone puts one finger on the field and holds still.",
+"fin_h": "One finger decided",
+"fin_note": "The glowing finger goes first.",
+"exp_go": "Explain without saying the word. 60 seconds.",
+"exp_hit": "Got it",
+"exp_skip": "Skip",
+"exp_h": "{n} words in 60 seconds",
+"exp_note": "The next round has to beat that.",
+"sor_1": "What happened?",
+"sor_2": "What are you sorry for?",
+"sor_3": "What now?",
+"sor_h": "Your first words",
+"sor_copy": "Copy",
+"sor_note": "Stays on your phone. Go to your chat and send it yourself. If violence or fear is involved, talk to an adult you trust."
 }
 },
 "ask": [
@@ -447,5 +489,23 @@
 ],
 "hints": [
 "Tier oder Ding|Essen|Etwas Kleines|Ein Ausruf|Tätigkeit|Eine Person aus einem Märchen||Animal or thing|Food|Something small|An exclamation|An activity|A fairy-tale person"
+],
+"sets": [
+"Pizza|Burger|Nudeln|Döner|Pommes|Sushi|Pfannkuchen||Pizza|Burger|Pasta|Kebab|Fries|Sushi|Pancakes",
+"Film|Brettspiel|Rausgehen|Videospiel|Karten|Kochen|Musik||Film|Board game|Go out|Video game|Cards|Cook|Music"
+],
+"sorry": [
+[
+"Das vorhin lief nicht gut.|Ich war gemein.|Ich habe dich nicht ausreden lassen.|Ich habe dich hängen lassen.",
+"That did not go well earlier.|I was mean.|I did not let you finish.|I let you down."
+],
+[
+"Das tut mir leid.|Ich wollte dich nicht verletzen.|Ich weiß, dass das nicht okay war.|Du hattest recht, sauer zu sein.",
+"I am sorry.|I did not want to hurt you.|I know that was not okay.|You had every right to be angry."
+],
+[
+"Beim nächsten Mal höre ich erst zu.|Ich mache es wieder gut.|Können wir reden?|Sag mir, was dir hilft.",
+"Next time I will listen first.|I will make it up to you.|Can we talk?|Tell me what would help."
+]
 ]
 }

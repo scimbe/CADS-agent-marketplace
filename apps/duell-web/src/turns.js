@@ -187,6 +187,34 @@
       return { h: T(lang).luck_h, lines: [s.replace(/\{(\d)\}/g, function (x, i) { return w[i]; })] };
     }
   };
+  // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
+  function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
+  function struck(doc, m, lang) {
+    var left = offers(doc, lang).map(function (x, i) { return i; });
+    m.forEach(function (t) { left.splice(t[0][0], 1); });
+    return left;
+  }
+  function strike() { return [{ w: "pick", l: "str_pick", n: 1, auto: true, from: function (doc, m, now, lang) { var o = offers(doc, lang); return struck(doc, m, lang).map(function (i) { return o[i]; }); } }]; }
+  GAMES.streichen = {
+    local: true, turns: [strike(), strike(), strike(), strike(), strike(), strike()],
+    result: function (doc, m, lang) { var X = T(lang); return { h: fmt(X.str_h, { o: offers(doc, lang)[struck(doc, m, lang)[0]] }), lines: [X.str_note] }; }
+  };
+  GAMES.finger = {
+    local: true, turns: [[{ w: "touch", l: "fin_pick", auto: true }]],
+    result: function (doc, m, lang) { return { h: T(lang).fin_h, lines: [T(lang).fin_note] }; }
+  };
+  GAMES.erklaeren = {
+    local: true, turns: [[{ w: "explain", l: "exp_go", auto: true, secs: 60, max: 99, list: function (doc, lang) { return mix(doc, "erkl", DATA.words.length).map(function (i) { return pair(DATA.words, i, lang); }); } }]],
+    result: function (doc, m, lang) { return { h: fmt(T(lang).exp_h, { n: m[0][0] }), lines: [T(lang).exp_note] }; }
+  };
+  function sorryAsk(i) { return { w: "pick", l: "sor_" + (i + 1), n: 1, auto: true, from: function (doc, m, now, lang) { return DATA.sorry[i][lang === "en" ? 1 : 0].split("|"); } }; }
+  GAMES.sorry = {
+    local: true, turns: [[sorryAsk(0), sorryAsk(1), sorryAsk(2)]],
+    result: function (doc, m, lang) {
+      var text = m[0].map(function (a, i) { return DATA.sorry[i][lang === "en" ? 1 : 0].split("|")[a[0]]; }).join(" ");
+      return { h: T(lang).sor_h, lines: [text], copy: text, note: T(lang).sor_note };
+    }
+  };
   GAMES.kapsel.gateFrom = 1;
   var IDS = Object.keys(GAMES);
   function dealLine(doc, offer, floor, i, lang) {
@@ -214,7 +242,8 @@
   function intIn(v, a, b) { return Number.isInteger(v) && v >= a && v <= b; }
   function distinct(a) { return new Set(a).size === a.length; }
   function okAnswer(p, v, doc, lang, m, now) {
-    if (p.w === "show") return v === 0;
+    if (p.w === "show" || p.w === "touch") return v === 0;
+    if (p.w === "explain") return intIn(v, 0, p.max);
     if (p.w === "slide") return intIn(v, p.min || 0, p.max);
     if (p.w === "text") return typeof v === "string" && !!Q.clean(v, p.max) && Q.clean(v, p.max) === v && !(p.oneWord && /\s/.test(v)) && !(p.bad && p.bad(v, doc, lang));
     if (p.w === "list") return Array.isArray(v) && v.length === p.n && v.every(function (x) { return typeof x === "string" && !!Q.clean(x, p.max) && Q.clean(x, p.max) === x; }) && distinct(v.map(Q.fold));
