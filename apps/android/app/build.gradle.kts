@@ -51,8 +51,8 @@ android {
         applicationId = "org.bunsenbrenner.cads"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.3.3"
+        versionCode = 7
+        versionName = "0.3.4"
         manifestPlaceholders["appAuthRedirectScheme"] = redirect.scheme // required by AppAuth's manifest
         manifestPlaceholders["redirectHost"] = redirect.host
         manifestPlaceholders["redirectPath"] = redirect.path
@@ -83,7 +83,7 @@ android {
     kotlinOptions { jvmTarget = "17" }
 
     packaging {
-        resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        resources.pickFirsts += "/META-INF/{AL2.0,LGPL2.1}"
     }
     testOptions { unitTests.isReturnDefaultValues = true }
 }
