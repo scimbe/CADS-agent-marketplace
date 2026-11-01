@@ -73,6 +73,25 @@ test("Selbes Handy: Weitergeben statt Link, Streichen endet im Beschluss", async
   await r.getByRole("button", { name: "Kopieren" }).waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Karten: Ausrede mit Stempel, Rubbellos mit drei Versuchen, Gutschein, Urkunde", async () => {
+  const { b, open, errs } = await setup();
+  const a = await open("#i=karte-ausrede"); await a.locator("#go").click();
+  for (let i = 0; i < 3; i++) await a.locator("#panel .chip").first().click();
+  await send(a); await a.locator("#share").waitFor();
+  const a2 = await open(hash(await url(a))); await a2.locator("#go").click(); await a2.getByRole("button", { name: "Na gut" }).click(); await send(a2); await a2.locator("#share").waitFor();
+  const a3 = await open(hash(await url(a2))); await a3.locator("#go").click(); await a3.locator("#panel").getByText("Na gut").waitFor();
+  const r = await open("#i=zug-rubbellos"); await r.locator("#go").click(); await r.locator("#panel .chip").first().click(); await next(r); await r.getByRole("button", { name: "Feld 2" }).click(); await next(r); await send(r); await r.locator("#share").waitFor();
+  const r2 = await open(hash(await url(r))); await r2.locator("#go").click(); for (const n of ["Feld 1", "Feld 2", "Feld 3"]) await r2.getByRole("button", { name: n }).click();
+  await next(r2); await send(r2); await r2.locator("#share").waitFor();
+  const r3 = await open(hash(await url(r2))); await r3.locator("#go").click(); await r3.locator("#panel").getByText(/Treffer: /).waitFor();
+  const g = await open("#i=zug-gutschein"); await g.locator("#go").click(); for (let i = 0; i < 3; i++) await g.locator("#panel .chip").nth(i).click();
+  await next(g); await send(g); await g.locator("#share").waitFor();
+  const g2 = await open(hash(await url(g))); await g2.locator("#go").click(); assert.equal(await g2.locator("#panel .chip").count(), 3);
+  const u = await open("#i=karte-urkunde"); await u.locator("#go").click(); await u.locator("#panel .chip").first().click(); await next(u);
+  for (let i = 0; i < 3; i++) { await slide(u, 10); await next(u); }
+  await u.locator("#panel").getByText("Urkunde: Gold").waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
