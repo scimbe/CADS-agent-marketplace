@@ -187,6 +187,41 @@
       return { h: T(lang).luck_h, lines: [s.replace(/\{(\d)\}/g, function (x, i) { return w[i]; })] };
     }
   };
+  GAMES.socke = {
+    turns: [[{ w: "slide", l: "soc_limit", min: 10, max: 200, def: 50 }], [{ w: "slide", l: "soc_bid", min: 10, max: 200, def: 50 }]],
+    result: function (doc, m, lang) {
+      var X = T(lang), a = m[0][0], b = m[1][0];
+      return { h: fmt(X.soc_h, { n: a + b }), lines: [a === b ? X.soc_tie : fmt(X.soc_win, { w: a > b ? X.first : X.second })] };
+    }
+  };
+  function cards(doc) { return mix(doc, "karten", 12).slice(0, 5).map(function (i) { return i % 6 + 1; }); }
+  function says() {
+    return [0, 1, 2, 3, 4].map(function (i) {
+      return { w: "pick", n: 1, auto: true, l: "blf_say", top: function (doc, m, lang) { return fmt(T(lang).blf_say, { n: i + 1, v: cards(doc)[i] }); }, from: function (doc) { var o = []; for (var v = cards(doc)[i]; v <= 6; v++) o.push(String(v)); return o; } };
+    });
+  }
+  function checks() {
+    return [0, 1, 2, 3, 4].map(function (i) {
+      return { w: "pick", n: 1, auto: true, l: "blf_see", top: function (doc, m, lang) { return fmt(T(lang).blf_see, { n: i + 1, v: cards(doc)[i] + m[0][i][0] }); }, from: function (doc, m, now, lang) { return [T(lang).blf_yes, T(lang).blf_no]; } };
+    });
+  }
+  GAMES.bluff = {
+    turns: [says(), checks()],
+    result: function (doc, m, lang) {
+      var X = T(lang), c = cards(doc), a = 0, b = 0, lines = [];
+      c.forEach(function (t, i) {
+        var said = t + m[0][i][0], open = m[1][i][0] === 1;
+        if (!open) a += said; else if (said === t) a += t + 2; else b += said;
+        lines.push(fmt(X.blf_line, { c: said, t: t }));
+      });
+      return { h: fmt(X.blf_h, { a: a, b: b }), lines: lines };
+    }
+  };
+  function jobs(doc, m, now, lang) { return DATA.jobs.map(function (x, i) { return pair(DATA.jobs, i, lang); }); }
+  GAMES.auftrag = {
+    turns: [[{ w: "pick", l: "job_pick", n: 1, from: jobs }], [{ w: "pick", l: "job_pick", n: 1, from: jobs }]],
+    result: function (doc, m, lang) { var X = T(lang), l = jobs(doc, m, [], lang); return { h: X.job_h, lines: [fmt(X.job_a, { w: l[m[1][0][0]] }), fmt(X.job_b, { w: l[m[0][0][0]] })] }; }
+  };
   // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
   function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
   function struck(doc, m, lang) {

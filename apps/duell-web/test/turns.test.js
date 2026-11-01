@@ -15,6 +15,7 @@ const LINES = {
   snack: [[Array(10).fill([0]), Array(10).fill(0).map((x, i) => [i % 2])]],
   teilen: [[[[5, 3, 2, 0]], [[0, 3, 2, 5]]]],
   wette: [[[[1], 3], [[1]]]],
+  socke: [[[50], [80]]], bluff: [[[[0], [0], [0], [0], [0]], [[0], [1], [0], [1], [0]]]], auftrag: [[[[1]], [[2]]]],
   streichen: [[[[0]], [[0]], [[0]], [[0]], [[0]], [[0]]]], finger: [[[0]]], erklaeren: [[[7]]], sorry: [[[[0], [1], [2]]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
@@ -69,7 +70,7 @@ test("Vorgaben: Daten paarig, jugendfrei, keine Kurzschrift", () => {
   const C = require("../src/core.js");
   for (const s of Tn.strings()) assert.ok(C.isClean(s), s);
   const T = require("../src/turn.json");
-  for (const k of ["words", "smuggle", "praise", "items", "fates", "either", "tasks", "vows"]) for (const x of T[k]) assert.equal(x.split("|").length, 2, x);
+  for (const k of ["words", "smuggle", "praise", "items", "fates", "either", "tasks", "vows", "jobs"]) for (const x of T[k]) assert.equal(x.split("|").length, 2, x);
   assert.deepEqual(Object.keys(T.text.de).sort(), Object.keys(T.text.en).sort());
 });
 test("Filter: Saetze, die einzeln harmlos wirken, gehen nicht; Treffer und am Platz gehen", () => {
@@ -89,4 +90,11 @@ test("Raum-Blaetter: Streichen laesst genau einen Vorschlag, Sorry bleibt Text o
   let d = fresh("streichen", 4); for (let i = 0; i < 6; i++) d = Tn.play(d, [[0]], 0);
   assert.match(Tn.result(d, "de").h, /Beschluss: /); assert.equal(Tn.GAMES.streichen.turns[0][0].from(d, [[[0]], [[0]]], [], "de").length, 5);
   d = Tn.play(fresh("sorry", 1), [[0], [1], [2]], 0); const r = Tn.result(d, "de"); assert.equal(r.copy, r.lines[0]); assert.ok(!/daily/i.test(r.copy));
+});
+test("Bluff: nur nach oben luegen, Luege beim Aufdecken bringt der anderen Seite die Punkte", () => {
+  const d = fresh("bluff", 3), first = Tn.GAMES.bluff.turns[0][0].from(d, [], [], "de");
+  assert.equal(Number(first[0]) >= 1 && first.length <= 6, true);
+  assert.equal(Tn.play(d, [[9], [0], [0], [0], [0]], 0), null);
+  const c = Number(first[0]), ok = Tn.play(Tn.play(d, [[0], [0], [0], [0], [0]], 0), [[1], [1], [1], [1], [1]], 0);
+  assert.match(Tn.result(ok, "de").h, / zu 0$/); assert.ok(c);
 });

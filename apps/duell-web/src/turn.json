@@ -306,7 +306,22 @@
 "sor_3": "Wie geht es weiter?",
 "sor_h": "Dein erster Satz",
 "sor_copy": "Kopieren",
-"sor_note": "Bleibt auf deinem Handy. Geh in deinen Chat und schick es selbst. Bei Gewalt oder Angst: Sprich mit einer erwachsenen Person, der du vertraust."
+"sor_note": "Bleibt auf deinem Handy. Geh in deinen Chat und schick es selbst. Bei Gewalt oder Angst: Sprich mit einer erwachsenen Person, der du vertraust.",
+"soc_limit": "Geheime Grenze für eine linke Socke. Bis dahin bietest du mit.",
+"soc_bid": "Eine linke Socke. Bis wie viel gehst du mit?",
+"soc_h": "Zusammen {n} Münzen für eine linke Socke",
+"soc_win": "{w} bekommt die Socke.",
+"soc_tie": "Niemand bekommt die Socke.",
+"blf_say": "Karte {n}: Du hast {v}. Was sagst du an?",
+"blf_see": "Karte {n}: angesagt {v}. Glaubst du das?",
+"blf_yes": "Glauben",
+"blf_no": "Aufdecken",
+"blf_h": "{a} zu {b}",
+"blf_line": "Ansage {c}, in Wahrheit {t}.",
+"job_pick": "Wähle eine Aufgabe für die andere Seite.",
+"job_h": "Bis morgen",
+"job_a": "Erste Seite macht: {w}",
+"job_b": "Zweite Seite macht: {w}"
 },
 "en": {
 "things": "cookies",
@@ -416,7 +431,22 @@
 "sor_3": "What now?",
 "sor_h": "Your first words",
 "sor_copy": "Copy",
-"sor_note": "Stays on your phone. Go to your chat and send it yourself. If violence or fear is involved, talk to an adult you trust."
+"sor_note": "Stays on your phone. Go to your chat and send it yourself. If violence or fear is involved, talk to an adult you trust.",
+"soc_limit": "Secret limit for one left sock. You keep bidding up to here.",
+"soc_bid": "One left sock. How high do you go?",
+"soc_h": "{n} coins together for one left sock",
+"soc_win": "{w} gets the sock.",
+"soc_tie": "Nobody gets the sock.",
+"blf_say": "Card {n}: you hold {v}. What do you announce?",
+"blf_see": "Card {n}: announced {v}. Do you believe it?",
+"blf_yes": "Believe",
+"blf_no": "Reveal",
+"blf_h": "{a} to {b}",
+"blf_line": "Announced {c}, really {t}.",
+"job_pick": "Pick a task for the other side.",
+"job_h": "By tomorrow",
+"job_a": "First player does: {w}",
+"job_b": "Second player does: {w}"
 }
 },
 "ask": [
@@ -507,5 +537,19 @@
 "Beim nächsten Mal höre ich erst zu.|Ich mache es wieder gut.|Können wir reden?|Sag mir, was dir hilft.",
 "Next time I will listen first.|I will make it up to you.|Can we talk?|Tell me what would help."
 ]
+],
+"jobs": [
+"Sag heute dreimal Formidabel|Say formidable three times today",
+"Iss etwas mit Stäbchen, das nicht dafür gedacht ist|Eat something with chopsticks that is not meant for it",
+"Mach ein Foto von etwas Rundem|Take a photo of something round",
+"Bau einen Turm aus fünf Dingen vom Schreibtisch|Build a tower from five desk things",
+"Lerne einen Witz auswendig|Learn one joke by heart",
+"Zeichne deinen Kühlschrank aus dem Kopf|Draw your fridge from memory",
+"Finde drei Dinge in derselben Farbe|Find three things of the same colour",
+"Falte einen Papierflieger mit Namen|Fold a paper plane and name it",
+"Schreib einen Vierzeiler über Socken|Write four lines about socks",
+"Summ ein Lied, bis jemand mitsummt|Hum a song until someone joins in",
+"Räum eine Schublade auf und finde etwas Altes|Tidy a drawer and find something old",
+"Mach zehn Hampelmänner vor dem Abendessen|Do ten jumping jacks before dinner"
 ]
 }
