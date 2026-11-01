@@ -171,7 +171,11 @@ echo "duell: round ran to game over ('Again' on screen, rival Emu / 42 still ref
 # folder, has content, and starts with the magic number of its type. Prints the size.
 media_check() {
   local coll=$1 kind=$2 row id
-  row=$(adb shell "content query --uri content://media/external/$coll/media --projection _id:_size:_display_name:relative_path --where \"_display_name LIKE 'my-daily-idea%'\" --sort '_id DESC'" | tr -d '\r' | grep '^Row' | head -1 || true)
+  for _ in $(seq 1 15); do
+    row=$(adb shell "content query --uri content://media/external/$coll/media --projection _id:_size:_display_name:relative_path --where \"_display_name LIKE 'my-daily-idea%'\" --sort '_id DESC'" | tr -d '\r' | grep '^Row' | head -1 || true)
+    [ -n "$row" ] && break
+    sleep 1
+  done
   [ -n "$row" ] || fail "no my-daily-idea file in MediaStore ($coll)" "media-$coll"
   echo "  $row"
   id=$(sed -n 's/.*_id=\([0-9][0-9]*\).*/\1/p' <<<"$row")

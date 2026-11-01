@@ -56,9 +56,9 @@ var draw = {
   },
   list: function (box, p, set) {
     var fs = [];
-    function up() { var v = fs.map(function (f) { return Q.clean(f.value, p.max); }); set(v.every(Boolean) && new Set(v.map(Q.fold)).size === p.n ? v : null); }
+    function up() { var v = fs.map(function (f) { return Q.clean(f.value, p.max); }); set(p.loose ? fs.map(function (f, i) { return f.value.trim() ? v[i] : ""; }) : v.every(Boolean) && new Set(v.map(Q.fold)).size === p.n ? v : null); }
     for (var i = 0; i < p.n; i++) { var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l] + " " + (i + 1)); if (p.hints) f.placeholder = p.hints(Kit.lang)[i]; f.addEventListener("input", up); box.appendChild(f); fs.push(f); }
-    set(null);
+    if (p.loose) up(); else set(null);
   },
   pick: function (box, p, set, ctx) {
     var on = [], row = el("div", "chips"), items = p.from(ctx.doc, ctx.m, ctx.now, Kit.lang);
@@ -85,6 +85,31 @@ var draw = {
     });
     box.appendChild(row); set(null);
   },
+  // Up to five fingers at once; when nobody moved for three seconds one is chosen.
+  touch: function (box, p, set) {
+    var pad = el("div", "touchpad"), on = {}, timer = 0;
+    function arm() {
+      clearTimeout(timer); var ids = Object.keys(on); if (ids.length < 2) return;
+      timer = setTimeout(function () { var a = new Uint32Array(1); window.crypto.getRandomValues(a); var who = on[ids[a[0] % ids.length]]; pad.textContent = ""; who.classList.add("win"); pad.appendChild(who); Kit.sfx.win(); Kit.haptic(60); setTimeout(function () { set(0); }, 900); }, 3000);
+    }
+    pad.addEventListener("pointerdown", function (e) {
+      e.preventDefault(); if (Object.keys(on).length >= 5) return;
+      var r = pad.getBoundingClientRect(), d = el("i", "touchdot"); d.style.left = e.clientX - r.left + "px"; d.style.top = e.clientY - r.top + "px"; on[e.pointerId] = d; pad.appendChild(d); Kit.sfx.tap(); arm();
+    });
+    function up(e) { if (on[e.pointerId]) { on[e.pointerId].remove(); delete on[e.pointerId]; arm(); } }
+    pad.addEventListener("pointerup", up); pad.addEventListener("pointercancel", up);
+    box.appendChild(pad); set(null);
+  },
+  explain: function (box, p, set, ctx) {
+    var words = p.list(ctx.doc, Kit.lang), at = 0, hits = 0, w = el("p", "qtext", words[0]), left = el("p", "lbl", String(p.secs)), n = el("p", "lbl", "0"), t0 = Date.now(), row = el("div", "chips");
+    var tick = setInterval(function () {
+      var s = p.secs - Math.floor((Date.now() - t0) / 1000); left.textContent = String(Math.max(0, s));
+      if (s <= 0 || !box.isConnected) { clearInterval(tick); if (box.isConnected) set(hits); }
+    }, 250);
+    function step(hit) { if (hit) { hits = Math.min(p.max, hits + 1); Kit.sfx.pop(); } at = (at + 1) % words.length; w.textContent = words[at]; n.textContent = String(hits); }
+    row.appendChild(el("button", "chip", L().exp_hit, function () { step(true); })); row.appendChild(el("button", "chip", L().exp_skip, function () { step(false); }));
+    box.appendChild(left); box.appendChild(w); box.appendChild(row); box.appendChild(n); set(null);
+  },
   alloc: function (box, p, set, ctx) {
     var items = p.from(ctx.doc, ctx.m, ctx.now, Kit.lang), vals = p.vals(ctx.doc), bids = items.map(function () { return 0; }), left = el("p", "lbl", "");
     function sum() { return bids.reduce(function (a, b) { return a + b; }, 0); }
@@ -100,17 +125,26 @@ var draw = {
     box.appendChild(left); up();
   }
 };
+// The next move on the same phone: nobody sees the last one, the phone changes hands first.
+function pass(box, ed) {
+  var d = ed.next; ed.next = null; ed.doc = d; A.changed();
+  if (Tn.state(d).over) { A.tab("Move"); return; }
+  box.textContent = ""; box.appendChild(el("p", "qtext", L().hand));
+  box.appendChild(el("button", "btn hot", L().hand_go, function () { Kit.sfx.tap(); walk(box, ed); }));
+}
 // Goes through the turn's prompts one by one; each screen shows only what that step may know.
 function walk(box, ed) {
   var st = Tn.state(ed.doc), now = [], i = 0;
   function step() {
     box.textContent = "";
-    if (i >= st.prompts.length) { ed.move = now; ed.next = Tn.play(ed.doc, now, Tn.today()); A.changed(); box.appendChild(el("p", "lbl", L().ready)); return; }
+    if (i >= st.prompts.length) { ed.move = now; ed.next = Tn.play(ed.doc, now, Tn.today());
+      if (Tn.GAMES[ed.doc.g].local) { pass(box, ed); return; }
+      A.changed(); box.appendChild(el("p", "lbl", L().ready)); box.appendChild(el("button", "btn", L().hand_same, function () { pass(box, ed); })); return; }
     var p = st.prompts[i], cur = null, go = el("button", "btn hot", L().next, function () {
       if (cur === null) return; Kit.sfx.pop(); now.push(cur); i++; step();
     });
     if (p.peek) box.appendChild(el("p", "qtext", p.peek(ed.doc, st.moves, now, Kit.lang)));
-    if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("label", "lbl", L()[p.l].replace(": {q}", "")));
+    if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("label", "lbl", p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "")));
     draw[p.w](box, p, function (v) { cur = v; go.disabled = v === null; if (p.auto && v !== null) go.click(); }, { doc: ed.doc, m: st.moves, now: now });
     box.appendChild(go);
   }
@@ -121,6 +155,7 @@ A.PANEL.Move = function (p) {
   var ed = A.ed(), doc = ed.doc, st = Tn.state(doc), left = Tn.gate(doc, Tn.today()), res = Tn.result(doc, Kit.lang);
   if (res) {
     p.appendChild(el("p", "qtext", res.h)); res.lines.forEach(function (s) { p.appendChild(el("p", "note", s)); });
+    if (res.copy) { p.appendChild(el("button", "btn hot", L().sor_copy, async function () { if (await Kit.copy(res.copy)) Kit.toast(t("copied")); })); p.appendChild(el("p", "note", res.note)); return; }
     p.appendChild(el("button", "btn hot", L().rematch, function () { var d = Tn.fresh(doc, seed()); A.openEditor(d, { idea: d.i ? D.byId(d.i) : null }); }));
     return;
   }
@@ -144,9 +179,12 @@ X.turn = {
   menu: function () {
     A.shelf(t("turn"), function (b) {
       b.appendChild(el("p", "note", t("turnH")));
-      D.IDEAS.filter(function (i) { return i.kind === "turn"; }).forEach(function (i) {
+      ["streit", "pause", "abend", "geschenk", "raum"].forEach(function (g) {
+        b.appendChild(el("label", "lbl", L()["grip_" + g]));
+        D.IDEAS.filter(function (i) { return i.kind === "turn" && i.turn.grip === g; }).forEach(function (i) {
         var T = i[Kit.lang] || i.de, m = el("button", "mech", null, function () { Kit.sfx.thud(); A.openEditor(D.docFromIdea(i, A.me(), Kit.lang), { idea: i }); });
         m.appendChild(el("span", "", T.t.replace("|", " ") + " · " + T.s)); b.appendChild(m);
+        });
       });
     });
   },
@@ -154,6 +192,7 @@ X.turn = {
   areas: function (ed) { return ed.next ? ["regeln"] : []; },
   footer: function (b, ed) {
     var over = !!Tn.result(ed.doc, Kit.lang), ok = over || !!ed.next;
+    b.hidden = ed.doc.g === "sorry" && over;
     b.classList.toggle("wait", !ok); b.textContent = over ? L().result_pic : ed.next ? L().send : L().need;
   },
   main: function (ed) {

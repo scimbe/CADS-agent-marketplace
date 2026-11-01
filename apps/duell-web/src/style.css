@@ -167,3 +167,6 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .chip.hand{font-size:34px;flex:1;min-height:76px}
 .qlock{font-size:72px;text-align:center;margin:18px 0 6px}
 .qtext{font:900 27px/1.15 var(--disp);margin:6px 0 16px;overflow-wrap:anywhere}
+.touchpad{position:relative;height:280px;border:3px solid var(--ink);border-radius:4px;background:var(--a);touch-action:none;overflow:hidden;margin-bottom:8px}
+.touchdot{position:absolute;width:76px;height:76px;margin:-38px;border-radius:50%;background:var(--b)}
+.touchdot.win{width:120px;height:120px;margin:-60px;box-shadow:0 0 0 12px var(--ink)}
