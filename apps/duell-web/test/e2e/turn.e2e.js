@@ -27,6 +27,7 @@ test("Zwei Geraete: Keks-Deal laeuft nur ueber Links bis zum Ergebnisbild", asyn
   const one = await url(a); assert.ok(!/"?offer/.test(one));
   const c = await open(hash(one));
   assert.match(await c.locator("#from").textContent(), /Du bist dran. Zug 2 von 3/);
+  assert.match(await c.locator("#hero").textContent(), /Zehn Kekse/);
   await c.locator("#go").click(); await slide(c, 3); await next(c);
   await c.getByText(/4 abgegeben, ab 3 angenommen/).waitFor(); await slide(c, 6); await next(c); await send(c); await c.locator("#share").waitFor();
   const a2 = await open(hash(await url(c)));
