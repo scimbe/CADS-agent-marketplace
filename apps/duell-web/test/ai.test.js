@@ -32,3 +32,8 @@ test("Keine Dark Patterns: kein Preis, kein Zeitdruck, kein Kaufknopf in den Tex
     assert.ok(!/€|\$|\d+[,.]\d\d|countdown|sofort|hurry|letzte chance|last chance|nur noch|läuft ab|expires/i.test(T[l][k]), k + ": " + T[l][k]);
   }
 });
+test("Nachweis: gefundene Zahl hat die verlangten Nullbits", async () => {
+  const { createHash, webcrypto } = require("node:crypto"), A = require("../src/ai.js"), dev = "ab".repeat(16);
+  const p = await A.solve(dev, 12, webcrypto.subtle), h = createHash("sha256").update(dev + ":" + p).digest();
+  assert.equal(h[0], 0); assert.equal(h[1] >> 4, 0);
+});
