@@ -287,6 +287,41 @@
     turns: [[{ w: "pick", n: 3, l: "rad_pick", from: listOf("fates2") }], [{ w: "pick", n: 1, auto: true, l: "rad_spin", from: numbers }]],
     result: function (doc, m, lang) { var o = mix(doc, "rad", 3); return { h: T(lang).rad_h, lines: [pair(DATA.fates2, m[0][0][o[m[1][0][0]]], lang)] }; }
   };
+  // Same seed, same blocks: both sides play the identical stream, and the receiver replays the moves instead of trusting a score.
+  var SIZE = 8, MAX_BLOCKS = 40;
+  var BLOCKS = [[[0, 0]], [[0, 0], [1, 0]], [[0, 0], [0, 1]], [[0, 0], [1, 0], [2, 0]], [[0, 0], [0, 1], [0, 2]], [[0, 0], [1, 0], [0, 1], [1, 1]], [[0, 0], [1, 0], [0, 1]], [[0, 0], [0, 1], [1, 1]], [[0, 0], [1, 0], [2, 0], [3, 0]], [[0, 0], [0, 1], [0, 2], [0, 3]], [[0, 0], [1, 0], [2, 0], [1, 1]]];
+  function blockAt(doc, i) { var r = C.mulberry32(C.hash32("steine|" + doc.seed)), v = 0; for (var k = 0; k <= i; k++) v = r(); return BLOCKS[Math.floor(v * BLOCKS.length)]; }
+  function fits(grid, block, at) {
+    var x = at % SIZE, y = Math.floor(at / SIZE);
+    return block.every(function (c) { var cx = x + c[0], cy = y + c[1]; return cx < SIZE && cy < SIZE && !grid[cy * SIZE + cx]; });
+  }
+  function drop(st, block, at) {
+    var x = at % SIZE, y = Math.floor(at / SIZE), g = st.grid.slice(), rows = [], cols = [], i, j;
+    block.forEach(function (c) { g[(y + c[1]) * SIZE + x + c[0]] = 1; });
+    for (i = 0; i < SIZE; i++) {
+      var r = true, k = true;
+      for (j = 0; j < SIZE; j++) { if (!g[i * SIZE + j]) r = false; if (!g[j * SIZE + i]) k = false; }
+      if (r) rows.push(i); if (k) cols.push(i);
+    }
+    rows.forEach(function (r) { for (j = 0; j < SIZE; j++) g[r * SIZE + j] = 0; });
+    cols.forEach(function (c) { for (j = 0; j < SIZE; j++) g[j * SIZE + c] = 0; });
+    var n = rows.length + cols.length;
+    return { grid: g, score: st.score + block.length + n * n * 10, lines: n, i: st.i + 1 };
+  }
+  function replay(doc, cells) {
+    var st = { grid: new Array(SIZE * SIZE).fill(0), score: 0, lines: 0, i: 0 };
+    for (var n = 0; n < cells.length; n++) { var b = blockAt(doc, st.i); if (!fits(st.grid, b, cells[n])) return null; st = drop(st, b, cells[n]); }
+    return st;
+  }
+  function canMove(st, doc) { var b = blockAt(doc, st.i); for (var a = 0; a < SIZE * SIZE; a++) if (fits(st.grid, b, a)) return true; return false; }
+  function blocksPrompt() { return { w: "blocks", l: "blk_go", max: MAX_BLOCKS, auto: true }; }
+  GAMES.steine = {
+    turns: [[blocksPrompt()], [blocksPrompt()]],
+    result: function (doc, m, lang) {
+      var X = T(lang), a = replay(doc, m[0][0]).score, b = replay(doc, m[1][0]).score;
+      return { h: a === b ? X.blk_tie : fmt(X.blk_h, { a: a, b: b }), lines: [X.blk_fair] };
+    }
+  };
   // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
   function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
   function struck(doc, m, lang) {
@@ -344,6 +379,7 @@
   function okAnswer(p, v, doc, lang, m, now) {
     if (p.w === "show" || p.w === "touch") return v === 0;
     if (p.w === "explain") return intIn(v, 0, p.max);
+    if (p.w === "blocks") return Array.isArray(v) && v.length <= p.max && v.every(function (x) { return intIn(x, 0, 63); }) && !!replay(doc, v);
     if (p.w === "slide") return intIn(v, p.min || 0, p.max);
     if (p.w === "text") return typeof v === "string" && !!Q.clean(v, p.max) && Q.clean(v, p.max) === v && !(p.oneWord && /\s/.test(v)) && !(p.bad && p.bad(v, doc, lang));
     if (p.w === "list" && p.loose) return Array.isArray(v) && v.length === p.n && v.every(function (x) { return x === "" || (typeof x === "string" && Q.clean(x, p.max) === x); });
@@ -401,6 +437,6 @@
     (function walk(v) { if (typeof v === "string") v.split("|").forEach(function (x) { out.push(x); }); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.keys(v).forEach(function (k) { walk(v[k]); }); })(DATA);
     return out;
   }
-  var api = { IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, whole: whole, fresh: fresh, today: today, okAnswer: okAnswer, strings: strings };
+  var api = { IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, whole: whole, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
   if (node) module.exports = api; else root.Turns = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

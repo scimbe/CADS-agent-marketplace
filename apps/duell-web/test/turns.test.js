@@ -19,6 +19,7 @@ const LINES = {
   ausrede: [[[[0], [1], [2]], [[1]]]], gutschein: [[[[0, 3, 5]], [[1]]]], rubbellos: [[[[2], [3]], [[0, 3, 5]]]], urkunde: [[[[1], 9, 9, 9]]],
   luege: [[[["Ich mag Toast", "Ich kann pfeifen", "Ich war am Mond"], [2]], [[1]]]], blitz: [[[["", "", "", "", "", ""]], [["", "", "", "", "", ""]]]], recht: [[["Toast ist Brot"], ["Toast ist Kunst"], [[1], [2]]]],
   morgen: [[[[1], 1], [0]]], umschlag: [[["Spiel was", "Atme durch", "Zähl Enten"], [[1]]]], rad: [[[[0, 4, 7]], [[2]]]],
+  steine: [[[[0, 20, 40]], [[0, 21, 42]]]],
   streichen: [[[[0]], [[0]], [[0]], [[0]], [[0]], [[0]]]], finger: [[[0]]], erklaeren: [[[7]]], sorry: [[[[0], [1], [2]]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
@@ -105,4 +106,19 @@ test("Blitz zaehlt nur eigene Woerter mit dem Buchstaben, Doppeltes faellt raus"
   const d = Tn.fresh(fresh("blitz", 0), 0), L = "B";
   let x = Tn.play(d, [["Bär", "Brot", "", "", "", ""]], 0); x = Tn.play(x, [["Bär", "Apfel", "", "", "", ""]], 0);
   const r = Tn.result(x, "de"); assert.match(r.h, /^1 zu 0/); assert.match(r.lines[1], /Bär/); assert.ok(L);
+});
+test("Gleiche Steine: beide Seiten bekommen denselben Strom, Punkte werden nachgerechnet, nichts haengt am Geraet", () => {
+  const d = fresh("steine", 77), e = fresh("steine", 77);
+  for (let i = 0; i < 40; i++) assert.deepEqual(Tn.blockAt(d, i), Tn.blockAt(e, i));
+  assert.equal(Tn.replay(d, [0, 0]), null, "Feld schon belegt");
+  assert.equal(Tn.play(d, [[0, 0]], 0), null);
+  const src = require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/turns.js"), "utf8");
+  const part = src.slice(src.indexOf("var SIZE = 8"), src.indexOf("GAMES.steine"));
+  assert.ok(!/navigator|screen\.|userAgent|Date\.|Math\.random|localStorage|store/.test(part), "Steine haengen nur am Seed");
+  let st = { grid: new Array(64).fill(0), score: 0, lines: 0, i: 0 }; for (let i = 0; i < 7; i++) st.grid[i] = 1;
+  assert.equal(Tn.drop(st, [[0, 0]], 7).lines, 1); assert.equal(Tn.drop(st, [[0, 0]], 7).grid.slice(0, 8).join(""), "00000000");
+});
+test("Keine Werbe- und Manipulationstechnik in den Quellen", () => {
+  const fs = require("node:fs"), path = require("node:path"), dir = path.join(__dirname, "../src");
+  for (const f of fs.readdirSync(dir).filter((n) => n.endsWith(".js"))) assert.ok(!/ad_revenue|interstitial|rewarded|userAgent|deviceMemory|hardwareConcurrency|\brevive\b/i.test(fs.readFileSync(path.join(dir, f), "utf8")), f);
 });

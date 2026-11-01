@@ -110,6 +110,29 @@ var draw = {
     row.appendChild(el("button", "chip", L().exp_hit, function () { step(true); })); row.appendChild(el("button", "chip", L().exp_skip, function () { step(false); }));
     box.appendChild(left); box.appendChild(w); box.appendChild(row); box.appendChild(n); set(null);
   },
+  // Every tap is kept, so the other phone can replay the game. Nothing here looks at the player: the stream of blocks is fixed by the seed.
+  blocks: function (box, p, set, ctx) {
+    var doc = ctx.doc, moves = [], st = { grid: new Array(64).fill(0), score: 0, lines: 0, i: 0 }, grid = el("div", "bgrid"), info = el("p", "lbl", ""), shapes = el("div", "bnext"), cells = [];
+    function mini(b) { var m = el("div", "bmini"); b.forEach(function (c) { var i = el("i"); i.style.gridColumn = c[0] + 1; i.style.gridRow = c[1] + 1; m.appendChild(i); }); return m; }
+    function show() {
+      cells.forEach(function (c, i) { c.classList.toggle("on", !!st.grid[i]); });
+      info.textContent = say("blk_score", { n: st.score }); shapes.textContent = "";
+      shapes.appendChild(el("span", "", L().blk_now)); shapes.appendChild(mini(Tn.blockAt(doc, st.i))); shapes.appendChild(el("span", "", L().blk_next)); shapes.appendChild(mini(Tn.blockAt(doc, st.i + 1)));
+    }
+    function end() { set(moves.slice()); }
+    for (var i = 0; i < 64; i++) (function (i) {
+      var c = el("button", "bcell", null, function () {
+        var b = Tn.blockAt(doc, st.i);
+        if (!Tn.fits(st.grid, b, i)) { Kit.tone(200, 90, 0.08, "square", 0.05); return; }
+        st = Tn.drop(st, b, i); moves.push(i); show(); Kit.sfx.tap();
+        if (st.lines) { Kit.sfx.pop(); Kit.haptic(st.lines > 1 ? 50 : 20); if (st.lines > 1) Kit.toast(L().blk_combo + " x" + st.lines); }
+        if (moves.length >= p.max || !Tn.canMove(st, doc)) end();
+      });
+      c.setAttribute("aria-label", String(i + 1)); cells.push(c); grid.appendChild(c);
+    })(i);
+    box.appendChild(info); box.appendChild(shapes); box.appendChild(grid); box.appendChild(el("button", "chip", L().blk_end, end));
+    show(); set(null);
+  },
   alloc: function (box, p, set, ctx) {
     var items = p.from(ctx.doc, ctx.m, ctx.now, Kit.lang), vals = p.vals(ctx.doc), bids = items.map(function () { return 0; }), left = el("p", "lbl", "");
     function sum() { return bids.reduce(function (a, b) { return a + b; }, 0); }

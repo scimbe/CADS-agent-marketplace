@@ -123,10 +123,18 @@ test("Geschenke: Umschlag zeigt nur den gewaehlten Satz, Rad zieht eine von drei
   const r3 = await open(hash(await url(r2))); await r3.locator("#go").click(); await r3.locator("#panel").getByText("Dein Schicksal").waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Gleiche Steine: zwei Seiten, gleiche Partie, Ergebnis nachgerechnet", async () => {
+  const { b, open, errs } = await setup();
+  const play = async (p) => { await p.locator("#go").click(); const c = p.locator(".bcell"); assert.equal(await c.count(), 64); await c.nth(0).click(); await c.nth(36).click(); await p.getByRole("button", { name: "Fertig", exact: true }).click(); await send(p); await p.locator("#share").waitFor(); };
+  const a = await open("#i=zug-steine"); await play(a);
+  const c = await open(hash(await url(a))); await play(c);
+  const r = await open(hash(await url(c))); await r.locator("#go").click(); await r.locator("#panel").getByText("nachgerechnet").waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 29);
+  assert.equal(await m.locator("#shbody .mech").count(), 30);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);

@@ -383,7 +383,16 @@
 "rad_pick": "Wähle drei Vorhersagen fürs Rad.",
 "rad_spin": "Dreh das Rad. Wähle eine Zahl.",
 "rad_h": "Dein Schicksal",
-"rad_n": "Zahl {n}"
+"rad_n": "Zahl {n}",
+"blk_go": "Setze die Steine. Volle Reihen verschwinden. Beide Seiten bekommen dieselben Steine.",
+"blk_end": "Fertig",
+"blk_next": "Danach",
+"blk_now": "Dein Stein",
+"blk_score": "{n} Punkte",
+"blk_combo": "Combo",
+"blk_h": "{a} zu {b}",
+"blk_tie": "Unentschieden",
+"blk_fair": "Gleiche Steine, keine versteckte Schwierigkeit. Das Ergebnis wurde nachgerechnet."
 },
 "en": {
 "things": "cookies",
@@ -570,7 +579,16 @@
 "rad_pick": "Pick three predictions for the wheel.",
 "rad_spin": "Spin the wheel. Pick a number.",
 "rad_h": "Your fate",
-"rad_n": "Number {n}"
+"rad_n": "Number {n}",
+"blk_go": "Place the blocks. Full lines vanish. Both sides get the same blocks.",
+"blk_end": "Finish",
+"blk_next": "Next",
+"blk_now": "Your block",
+"blk_score": "{n} points",
+"blk_combo": "Combo",
+"blk_h": "{a} to {b}",
+"blk_tie": "A draw",
+"blk_fair": "Same blocks, no hidden difficulty. The result was recalculated."
 }
 },
 "ask": [
