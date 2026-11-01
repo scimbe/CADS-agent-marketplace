@@ -57,11 +57,21 @@ function setHome(h, animate) {
   $("go").textContent = t("go");
   var mode = doc && X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
   if (mode) { $("go").textContent = mode.go; from.textContent = mode.note; from.hidden = false; }
+  $("wishgo").textContent = t("wishHome"); $("wishgo").hidden = !!mode || W.KINDS.indexOf(kind) < 0;
   fitHero();
   var leaf = $("leaf"); leaf.className = ""; leaf.style.transform = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
 }
 function dayHome() { return { date: today, idea: D.ideaForDay(today) }; }
+// The page can stay open for days, above all in an app shell: a new day shows up when it comes back or while it is open.
+function newDay() {
+  var n = new Date();
+  if (D.dayNumber(n) === D.dayNumber(today)) return;
+  today = n;
+  if (home && (home.note || home.doc)) return;   // an invitation or a creation from a link stays until it is left
+  home = dayHome();
+  if (screen === "home") setHome(home, true);
+}
 function goHome() {
   CU.end(); stopSound(); G.stop(); ed = null; played = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
   if (!home) home = dayHome(); setHome(home, true);
@@ -129,10 +139,10 @@ function openEditor(doc, opt) {
   var tabs = $("tabs"); tabs.textContent = "";
   var list = (ed.own ? ["Idea"] : []).concat(W.KINDS.indexOf(ed.doc.k) >= 0 ? ["Wish"] : [], TABS[ed.doc.k]);
   list.forEach(function (k) {
-    var b = el("button", "", t("tab" + (k === "Sound" ? (ed.doc.m === "beat" ? "Beat" : "Voice") : k === "Idea" ? "Idea" : k)), function () { Kit.sfx.tap(); tab(k); });
+    var b = el("button", k === "Wish" ? "hot" : "", t("tab" + (k === "Sound" ? (ed.doc.m === "beat" ? "Beat" : "Voice") : k === "Idea" ? "Idea" : k)), function () { Kit.sfx.tap(); tab(k); });
     b.setAttribute("role", "tab"); b.dataset.k = k; tabs.appendChild(b);
   });
-  tab(list[0] === "Wish" ? list[1] : list[0]);
+  tab(list.indexOf(opt.tab) >= 0 ? opt.tab : list[0] === "Wish" ? list[1] : list[0]);
   if (g) G.demo($("demo"), gameState());
   paint(); CU.editor();
 }
@@ -595,12 +605,17 @@ $("more").addEventListener("click", function () { tear(1); });
 $("past").addEventListener("click", function () { Kit.sfx.tap(); openPast(); });
 $("wall").addEventListener("click", function () { Kit.sfx.tap(); openWall(); });
 $("own").addEventListener("click", function () { Kit.sfx.tap(); openOwn(); });
-$("go").addEventListener("click", function () {
+function start(tabName) {
   Kit.sfx.thud();
   if (home.doc && X[home.doc.k] && X[home.doc.k].incoming && X[home.doc.k].incoming(home.doc)) return;
-  if (home.doc) openEditor(home.doc, { idea: home.doc.i ? D.byId(home.doc.i) : null });
-  else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea });
-});
+  if (home.doc) openEditor(home.doc, { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName });
+  else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea, tab: tabName });
+}
+$("go").addEventListener("click", function () { start(); });
+$("wishgo").addEventListener("click", function () { start("Wish"); });
+["focus", "pageshow"].forEach(function (e) { window.addEventListener(e, newDay); });
+document.addEventListener("visibilitychange", newDay);
+setInterval(newDay, 60000);
 window.addEventListener("resize", function () { if (screen === "home") fitHero(); });
 window.addEventListener("popstate", function () { if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
 

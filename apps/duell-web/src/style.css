@@ -39,6 +39,8 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .press{display:block;margin:0 18px 8px;width:calc(100% - 36px);min-height:68px;border:3px solid var(--ink);border-radius:6px;background:var(--ink);color:var(--btn);font:900 30px/1 var(--disp);text-transform:uppercase;letter-spacing:.6px;box-shadow:0 6px 0 var(--b);transition:transform 90ms ease-out,box-shadow 90ms ease-out;position:relative;flex:none}
 .press:active{transform:translateY(5px);box-shadow:0 1px 0 var(--b)}
 .press.wait{background:transparent;color:#111;border-style:dashed;box-shadow:none;font-size:22px}
+#wishgo{display:block;position:relative;flex:none;margin:2px 18px 8px;width:calc(100% - 36px);min-height:48px;border:2px solid var(--on);border-radius:6px;background:transparent;color:var(--on);font:900 16px/1.1 var(--ui)}
+#wishgo[hidden]{display:none}
 #tools{position:relative;display:grid;grid-template-columns:repeat(4,1fr);padding:0 10px 8px;flex:none}
 #tools button{min-height:48px;border:0;background:transparent;color:var(--on);font:800 13px/1.1 var(--ui);padding:2px}
 #stagewrap{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 12px;background:var(--a)}
@@ -48,6 +50,7 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 #trail{flex:none;padding:0 14px 4px;font-size:12px;color:var(--on);white-space:nowrap;overflow-x:auto}
 #tabs{flex:none;display:flex;overflow-x:auto;background:var(--ink);scrollbar-width:none}
 #tabs button{flex:1 0 auto;min-height:46px;padding:0 13px;border:0;background:transparent;color:#fff;font:800 14px var(--ui);opacity:.7}
+#tabs button.hot{opacity:1;color:var(--btn)}
 #tabs button[aria-selected=true]{opacity:1;background:var(--paper);color:var(--ink)}
 #panel.tall{height:246px}
 #panel{flex:none;height:190px;overflow-y:auto;background:var(--paper);color:var(--ink);padding:10px 12px;touch-action:pan-y;user-select:auto;-webkit-user-select:auto}
