@@ -54,7 +54,7 @@ test("Begrenzung: unbekannte Felder verschwinden, Name max 16, Titel max 28, Emo
   assert.equal("evil" in st, false);
   assert.equal(Array.from(st.name).length, 16);
   assert.equal(Array.from(st.title).length, 28);
-  assert.equal(st.emoji, "\u{1F424}");
+  assert.equal(st.emoji, "\u{1FA81}");
   assert.equal(C.sanitizeEmoji("\u{1F468}‍\u{1F680} extra"), "\u{1F468}‍\u{1F680}");
 });
 test("XSS: Markup-Zeichen und Steuerzeichen fliegen aus Name und Titel", () => {

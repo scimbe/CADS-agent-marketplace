@@ -170,3 +170,9 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .touchpad{position:relative;height:280px;border:3px solid var(--ink);border-radius:4px;background:var(--a);touch-action:none;overflow:hidden;margin-bottom:8px}
 .touchdot{position:absolute;width:76px;height:76px;margin:-38px;border-radius:50%;background:var(--b)}
 .touchdot.win{width:120px;height:120px;margin:-60px;box-shadow:0 0 0 12px var(--ink)}
+.bgrid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;max-width:300px;margin:0 auto 8px}
+.bcell{aspect-ratio:1;border:1px solid var(--ink);background:#fff;padding:0;min-width:0}
+.bcell.on{background:var(--b)}
+.bnext{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:800;margin-bottom:6px}
+.bmini{display:grid;grid-template-columns:repeat(4,10px);grid-auto-rows:10px;gap:1px}
+.bmini i{background:var(--b)}

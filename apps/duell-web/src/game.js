@@ -4,10 +4,10 @@
 var C = window.DuellCore, E = window.DuellEngine, D = window.Daily, Kit = window.Kit, P = window.Playable, t = Kit.t;
 var $ = function (id) { return document.getElementById(id); };
 var TH = {
-  day:   { skyTop: "#4ec0ca", skyBottom: "#b6e6e0", pipe: "#5cbf3a", pipeEdge: "#2f7d1b", ground: "#ded895", groundEdge: "#c5b96a", accent: "#f7d51d" },
+  day:   { skyTop: "#ffd9b8", skyBottom: "#fff1dc", pipe: "#3457d5", pipeEdge: "#1c2f7a", ground: "#7a4fd0", groundEdge: "#4b2a96", accent: "#ff3b6b" },
   night: { skyTop: "#0b1030", skyBottom: "#26305e", pipe: "#3a6ea5", pipeEdge: "#20406a", ground: "#2b2b3a", groundEdge: "#4a4a63", accent: "#7ad1ff", stars: 1 },
   sunset:{ skyTop: "#ff9e57", skyBottom: "#ffd9a0", pipe: "#c0653a", pipeEdge: "#7d3b1b", ground: "#caa06a", groundEdge: "#a67c48", accent: "#ffef8f" },
-  retro: { skyTop: "#9bbc0f", skyBottom: "#8bac0f", pipe: "#306230", pipeEdge: "#0f380f", ground: "#306230", groundEdge: "#0f380f", accent: "#e0f8d0" },
+  retro: { skyTop: "#f2e3c6", skyBottom: "#e6d0a6", pipe: "#b0413e", pipeEdge: "#6e2422", ground: "#3f3a60", groundEdge: "#26233f", accent: "#2a9d8f" },
   candy: { skyTop: "#ff8fd0", skyBottom: "#ffd0ec", pipe: "#7a5cff", pipeEdge: "#4a2fb0", ground: "#ffc0e6", groundEdge: "#e59ccf", accent: "#fff2b0" },
   neon:  { skyTop: "#12002b", skyBottom: "#3a0a6b", pipe: "#00f5d4", pipeEdge: "#00a896", ground: "#1b0036", groundEdge: "#ff2bd6", accent: "#ff2bd6", glow: 1, stars: 1 },
   ocean: { skyTop: "#04476b", skyBottom: "#1aa6b7", pipe: "#ff7f6b", pipeEdge: "#b74a3a", ground: "#0b2f4a", groundEdge: "#1d5f86", accent: "#aef0ff", bubbles: 1 },
@@ -106,12 +106,12 @@ function draw() {
     if (lk.f && lk.f !== "tube" || lk.o) { var form = lk.o && !lk.f ? "emoji" : lk.f; column(pp.x, 0, pp.top, true, th, form, lk.o); column(pp.x, by, H - G - by, false, th, form, lk.o); continue; }
     if (th.glow) { ctx.shadowColor = th.pipe; ctx.shadowBlur = 12; }
     ctx.fillStyle = th.pipe; ctx.strokeStyle = th.pipeEdge; ctx.lineWidth = 2;
-    ctx.fillRect(pp.x, 0, P, pp.top); ctx.strokeRect(pp.x + 1, 0, P - 2, pp.top);
-    ctx.fillRect(pp.x - 5, pp.top - cap, P + 10, cap); ctx.strokeRect(pp.x - 4, pp.top - cap, P + 8, cap);
-    ctx.fillRect(pp.x, by, P, H - G - by); ctx.strokeRect(pp.x + 1, by, P - 2, H - G - by);
-    ctx.fillRect(pp.x - 5, by, P + 10, cap); ctx.strokeRect(pp.x - 4, by + 1, P + 8, cap - 1);
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "rgba(255,255,255,.22)"; ctx.fillRect(pp.x + 6, 0, 5, pp.top - cap); ctx.fillRect(pp.x + 6, by + cap, 5, H - G - by - cap);
+    // Own form: plain stacked bars with a pointed tip, on purpose no tube with a cap.
+    ctx.beginPath(); ctx.moveTo(pp.x, 0); ctx.lineTo(pp.x, pp.top - cap); ctx.lineTo(pp.x + P / 2, pp.top); ctx.lineTo(pp.x + P, pp.top - cap); ctx.lineTo(pp.x + P, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pp.x, H - G); ctx.lineTo(pp.x, by + cap); ctx.lineTo(pp.x + P / 2, by); ctx.lineTo(pp.x + P, by + cap); ctx.lineTo(pp.x + P, H - G); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0; ctx.fillStyle = "rgba(255,255,255,.22)";
+    for (var bar = 24; bar < pp.top - cap; bar += 24) ctx.fillRect(pp.x, pp.top - cap - bar, P, 6);
+    for (bar = 24; by + cap + bar < H - G; bar += 24) ctx.fillRect(pp.x, by + cap + bar, P, 6);
   }
   // ground
   var off = p.state === "run" ? (p.ticks * p.params.speed * E.STEP) % 24 : 0;

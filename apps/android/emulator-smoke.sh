@@ -261,5 +261,6 @@ if adb shell dumpsys package "$PKG" | grep -E 'android.permission.(CAMERA|READ_M
 shot 15-foto-abgebrochen
 echo "photo: cancelled chooser leaves the page usable, no camera or media permission involved"
 
-if adb logcat -d | grep -E "FATAL EXCEPTION|UnsatisfiedLinkError" >&2; then echo "FAIL: crash in logcat" >&2; exit 1; fi
+# The UiAutomation thread belongs to the screen dump tool of this script, not to the app.
+if adb logcat -d | grep -E "FATAL EXCEPTION|UnsatisfiedLinkError" | grep -v "FATAL EXCEPTION: UiAutomation" >&2; then echo "FAIL: crash in logcat" >&2; exit 1; fi
 echo "smoke OK"
