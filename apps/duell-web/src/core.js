@@ -16,7 +16,7 @@
   };
   var ALIAS = { jump: "flapPower", gap: "pipeGap", speed: "pipeSpeed" };
   var THEME_NAMES = ["day", "night", "sunset", "retro", "candy", "neon", "ocean", "lava"];
-  var DEFAULT_EMOJI = "🐤";
+  var DEFAULT_EMOJI = "🪁";
 
   // ---------- numbers / sanitizing ----------
   function clampNum(v, min, max, def) {
@@ -235,9 +235,9 @@
   }
 
   // ---------- presets + offline word logic ----------
-  var THEME_EMOJI = { day: "🐤", night: "🦇", sunset: "🦜", retro: "👾", candy: "🦄", neon: "👽", ocean: "🐟", lava: "🐉" };
+  var THEME_EMOJI = { day: "🪁", night: "🦇", sunset: "🦜", retro: "👾", candy: "🦄", neon: "👽", ocean: "🐟", lava: "🐉" };
   var PRESETS = [
-    { id: "chill",   emoji: "🐤", de: "Chill",        en: "Chill",       theme: "day",    seed: 101, params: { gravity: 1400, jump: 400, gap: 175, speed: 105 } },
+    { id: "chill",   emoji: "🪁", de: "Chill",        en: "Chill",       theme: "day",    seed: 101, params: { gravity: 1400, jump: 400, gap: 175, speed: 105 } },
     { id: "rocket",  emoji: "🚀", de: "Rakete",       en: "Rocket",      theme: "night",  seed: 202, params: { gravity: 1500, jump: 430, gap: 135, speed: 175 } },
     { id: "night",   emoji: "🦇", de: "Nachtschicht", en: "Night shift", theme: "night",  seed: 303, params: { gravity: 1800, jump: 430, gap: 140, speed: 130 } },
     { id: "candy",   emoji: "🦄", de: "Zuckerwatte",  en: "Candy",       theme: "candy",  seed: 404, params: { gravity: 1300, jump: 390, gap: 165, speed: 115 } },
@@ -264,7 +264,7 @@
   var THEME_RULES = [
     ["night", /nacht|night|dark|dunkel|mitternacht|mond|moon|vampir|fledermaus|\bbat\b/],
     ["sunset", /sonnenuntergang|sunset|abend|dusk|golden|sommer|summer/],
-    ["retro", /retro|gameboy|8.?bit|pixel|arcade|oldschool/],
+    ["retro", /retro|8.?bit|pixel|arcade|oldschool/],
     ["candy", /candy|zuckerl|suss|sweet|bonbon|pink|einhorn|unicorn|zuckerwatte/],
     ["neon", /neon|cyber|disco|party|rave|club|glitch/],
     ["ocean", /ozean|ocean|meer|\bsea|wasser|water|tauch|fisch|\bfish|\bhai\b|shark|delfin|dolphin/],

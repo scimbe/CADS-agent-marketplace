@@ -463,7 +463,8 @@ function makeBlob(c, type, q) { return new Promise(function (ok) { c.toBlob(ok, 
 function thumb(c) { var s = document.createElement("canvas"); s.width = 270; s.height = 338; s.getContext("2d").drawImage(c, 0, 0, 270, 338); return s.toDataURL("image/jpeg", 0.6); }
 async function finish(doc, idea, pictureDoc) {
   var c = document.createElement("canvas"); c.width = 1080; c.height = 1350;
-  R.draw(c, pictureDoc || doc, { me: me, photo: ed && ed.photo, peaks: ed && ed.peaks });
+  R.exporting = true;
+  try { R.draw(c, pictureDoc || doc, { me: me, photo: ed && ed.photo, peaks: ed && ed.peaks }); } finally { R.exporting = false; }
   var png = await makeBlob(c), file = png, name = "my-daily-idea.png";
   if (doc.k === "sound") {
     var pcm = doc.m === "beat" ? beatPcm(2) : (ed.pcm || S.warp(S.dummyVoice(), doc.fx));
@@ -539,7 +540,7 @@ $("toremix").addEventListener("click", function () { Kit.sfx.tap(); gameToEditor
 $("image").addEventListener("click", function () {
   var s = G.current(), sc = G.score(), base = ed && ed.doc.k === "game" ? ed.doc : { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji } };
   if (!ed) ed = { doc: D.sanitizeDoc(base), base: D.sanitizeDoc(base), photo: null, peaks: null };
-  var pic = { k: "card", st: "druck", col: base.col, x: sc + " " + s.emoji + " " + s.title, sk: [] };
+  var pic = { k: "card", st: "druck", col: base.col, x: sc + " " + s.title, sk: [] };
   finish(D.withTrail(base, me.nick, D.changedAreas(ed.base, ed.doc)), base.i, pic);
 });
 

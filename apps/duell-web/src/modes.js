@@ -14,7 +14,7 @@ function setTabs(on) { $("tabs").hidden = !on; }
 
 /* ---------- drawing ---------- */
 function text(c, s, x, y, size, col, align) { c.font = "900 " + size + "px " + FONT; c.fillStyle = col; c.textAlign = align || "center"; c.textBaseline = "middle"; c.fillText(s, x, y); }
-function emoji(c, s, x, y, size) { c.font = size + "px " + EMO; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#000"; c.fillText(s, x, y); }
+function emoji(c, s, x, y, size) { if (R.exporting) { c.fillStyle = "rgba(0,0,0,.7)"; c.beginPath(); c.arc(x, y, size * 0.42, 0, 6.3); c.fill(); return; } c.font = size + "px " + EMO; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#000"; c.fillText(s, x, y); }
 function fit(c, s, w, size) { c.font = "900 " + size + "px " + FONT; var m = c.measureText(s).width; return m > w ? size * w / m : size; }
 function wrap(c, s, w, size) {
   c.font = "800 " + size + "px system-ui,sans-serif"; var out = [], cur = "";
@@ -121,7 +121,7 @@ A.PANEL.Arena = function (p) {
   if (d.m === "rps" || d.m === "mind") { p.appendChild(el("label", "lbl", t("pickSet"))); A.chips(p, DD.sets.map(function (s, i) { return { v: i, l: s.join(" ") }; }), d.set, function (v) { d.set = v; }); }
   if (d.m === "flappy") {
     p.appendChild(el("p", "note", t("trainH")));
-    p.appendChild(el("button", "chip", "🐤 " + t("train"), function () { Kit.sfx.tap(); train(); }));
+    p.appendChild(el("button", "chip", "🪁 " + t("train"), function () { Kit.sfx.tap(); train(); }));
     p.appendChild(el("label", "lbl", t("worldL")));
     A.chips(p, A.game.THEMES.map(function (n) { return { v: n, l: t("w_" + n) }; }), d.g.theme, function (v) { d.g.theme = v; });
   }

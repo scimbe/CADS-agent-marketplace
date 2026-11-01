@@ -131,6 +131,18 @@ test("Gleiche Steine: zwei Seiten, gleiche Partie, Ergebnis nachgerechnet", asyn
   const r = await open(hash(await url(c))); await r.locator("#go").click(); await r.locator("#panel").getByText("nachgerechnet").waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Export: Sticker erscheinen nicht im veroeffentlichten Bild, im Editor schon", async () => {
+  const { b, open, errs } = await setup();
+  const p = await open("");
+  const same = await p.evaluate(async () => {
+    await document.fonts.load("900 40px Anton"); await document.fonts.ready;
+    const draw = (sk, ex) => { const c = document.createElement("canvas"); c.width = 540; c.height = 675; window.Render.exporting = ex; window.Render.draw(c, { k: "card", st: "druck", x: "Hallo", col: ["#ffd400", "#ff3b1d"], sk, by: [] }, { me: { nick: "", emoji: "" } }); window.Render.exporting = false; return c.toDataURL(); };
+    const s = [{ e: "🍕", x: 0.5, y: 0.5, r: 0, z: 2 }];
+    return { export: draw(s, true) === draw([], true), editor: draw(s, false) === draw([], false) };
+  });
+  assert.deepEqual(same, { export: true, editor: false });
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();

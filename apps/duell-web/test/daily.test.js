@@ -145,7 +145,7 @@ test("Link: weder Foto noch Ton reisen mit, nur Einstellungen", () => {
   assert.ok(!/pcm|photo|data:|th"/.test(s), s);
 });
 test("Mein Stil: nur gueltige Werte, Filter greift beim Spitznamen", () => {
-  assert.deepEqual(D.sanitizeProfile({ nick: "Fuck", emoji: "<b>", colors: ["x"], set: "evil" }), { nick: "", emoji: "🐤", colors: ["#ffd400", "#ff3b1d"], set: "tiere" });
+  assert.deepEqual(D.sanitizeProfile({ nick: "Fuck", emoji: "<b>", colors: ["x"], set: "evil" }), { nick: "", emoji: "🪁", colors: ["#ffd400", "#ff3b1d"], set: "tiere" });
   assert.equal(D.sanitizeProfile(null).nick, "");
   assert.equal(D.docFromIdea(D.byId("karte-spruch"), me, "de").col[0], "#2b4bff", "Stil fliesst in die Idee");
 });

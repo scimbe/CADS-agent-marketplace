@@ -58,6 +58,7 @@
     c.restore();
   }
   function stickers(c, W, H, list) {
+    if (Render.exporting) return;      // system emoji glyphs are not ours to publish in a picture
     (list || []).forEach(function (s) {
       var r = W * 0.1 * s.z;
       c.save(); c.translate(s.x * W, s.y * H); c.rotate(s.r);
