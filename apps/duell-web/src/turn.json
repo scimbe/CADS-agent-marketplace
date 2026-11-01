@@ -392,7 +392,15 @@
 "blk_combo": "Combo",
 "blk_h": "{a} zu {b}",
 "blk_tie": "Unentschieden",
-"blk_fair": "Gleiche Steine, keine versteckte Schwierigkeit. Das Ergebnis wurde nachgerechnet."
+"blk_fair": "Gleiche Steine, keine versteckte Schwierigkeit. Das Ergebnis wurde nachgerechnet.",
+"unl_go": "Tippe 20-mal links oder rechts. Sei unberechenbar.",
+"unl_a": "Links",
+"unl_b": "Rechts",
+"unl_h": "Der Zähler lag {n} von 20 richtig",
+"unl_top": "Er hat dich nicht erwischt.",
+"unl_low": "Er hat dein Muster gefunden.",
+"dam_q": "Frag und tippe die Antwort.",
+"dam_h": "Damals mit 13"
 },
 "en": {
 "things": "cookies",
@@ -588,7 +596,15 @@
 "blk_combo": "Combo",
 "blk_h": "{a} to {b}",
 "blk_tie": "A draw",
-"blk_fair": "Same blocks, no hidden difficulty. The result was recalculated."
+"blk_fair": "Same blocks, no hidden difficulty. The result was recalculated.",
+"unl_go": "Tap left or right 20 times. Be unpredictable.",
+"unl_a": "Left",
+"unl_b": "Right",
+"unl_h": "The counter was right {n} of 20",
+"unl_top": "It did not catch you.",
+"unl_low": "It found your pattern.",
+"dam_q": "Ask and type the answer.",
+"dam_h": "Back at 13"
 }
 },
 "ask": [
@@ -797,5 +813,12 @@
 "Die Socke taucht wieder auf.|The sock will return.",
 "Du sagst heute etwas sehr Schlaues.|You will say something very clever.",
 "Ein Plan klappt anders, aber besser.|A plan will work out differently, but better."
+],
+"past": [
+"Was war dein Lieblingsessen mit 13?|What was your favourite food at 13?",
+"Womit hast du deine Freizeit verbracht?|How did you spend your free time?",
+"Welches Lied lief damals überall?|Which song was everywhere back then?",
+"Was war damals verboten?|What was forbidden back then?",
+"Was wäre heute für dich unglaublich gewesen?|What would have seemed unbelievable to you then?"
 ]
 }
