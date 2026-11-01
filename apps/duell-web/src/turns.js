@@ -247,6 +247,29 @@
     local: true, turns: [[{ w: "pick", n: 1, l: "urk_what", from: listOf("awards") }, { w: "slide", l: "urk_a", min: 0, max: 10, def: 5 }, { w: "slide", l: "urk_b", min: 0, max: 10, def: 5 }, { w: "slide", l: "urk_c", min: 0, max: 10, def: 5 }]],
     result: function (doc, m, lang) { var X = T(lang), sum = m[0][1] + m[0][2] + m[0][3]; return { h: fmt(X.urk_h, { r: X["urk_" + (sum >= 24 ? 3 : sum >= 16 ? 2 : sum >= 8 ? 1 : 0)] }), lines: [pair(DATA.awards, m[0][0][0], lang)] }; }
   };
+  function three(m) { return m[0][0]; }
+  GAMES.luege = {
+    turns: [[{ w: "list", l: "lie_write", n: 3, max: 44 }, { w: "pick", n: 1, l: "lie_which", from: function (doc, m, now) { return now[0]; } }],
+      [{ w: "pick", n: 1, l: "lie_guess", from: function (doc, m) { return three(m); } }]],
+    result: function (doc, m, lang) { var X = T(lang), at = m[0][1][0]; return { h: m[1][0][0] === at ? X.lie_ok : X.lie_no, lines: [fmt(X.lie_was, { s: three(m)[at] })] }; }
+  };
+  function letter(doc) { return DATA.letters[doc.seed % DATA.letters.length]; }
+  function blitzHint(lang) { return side(DATA.cats[0], lang); }
+  function blitzBox() { return { w: "list", l: "blz_go", n: 6, max: 16, loose: true, title: function (doc, lang) { return fmt(T(lang).blz_go, { l: letter(doc) }); }, hints: blitzHint, keep: function (x, doc) { return Q.fold(x).charAt(0) === letter(doc).toLowerCase(); } }; }
+  GAMES.blitz = {
+    turns: [[blitzBox()], [blitzBox()]],
+    result: function (doc, m, lang) {
+      var X = T(lang), a = m[0][0].map(Q.fold), b = m[1][0].map(Q.fold), good = function (l, o) { return l.filter(function (x) { return x && o.indexOf(x) < 0 && x.charAt(0) === letter(doc).toLowerCase(); }).length; };
+      var same = m[0][0].filter(function (x) { return x && b.indexOf(Q.fold(x)) >= 0; });
+      return { h: fmt(X.blz_h, { a: good(a, b), b: good(b, a) }), lines: [fmt(X.blz_go, { l: letter(doc) })].concat(same.length ? [fmt(X.blz_same, { w: same.join(", ") })] : []) };
+    }
+  };
+  function fight(doc, lang) { return pair(DATA.fights, doc.seed % DATA.fights.length, lang); }
+  GAMES.recht = {
+    turns: [[{ w: "text", l: "rec_a", max: 44 }], [{ w: "text", l: "rec_b", max: 44 }],
+      [{ w: "pick", n: 1, l: "rec_who", top: function (doc, m, lang) { return fight(doc, lang) + " A: " + m[0][0] + " B: " + m[1][0]; }, from: function (doc, m, now, lang) { return [T(lang).first, T(lang).second]; } }, { w: "pick", n: 1, l: "rec_why", from: listOf("verdicts") }]],
+    result: function (doc, m, lang) { var X = T(lang); return { h: fmt(X.rec_h, { w: m[2][0][0] ? X.second : X.first }), lines: [fmt(X.rec_case, { f: fight(doc, lang) }), m[0][0], m[1][0], pair(DATA.verdicts, m[2][1][0], lang)] }; }
+  };
   // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
   function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
   function struck(doc, m, lang) {
@@ -306,6 +329,7 @@
     if (p.w === "explain") return intIn(v, 0, p.max);
     if (p.w === "slide") return intIn(v, p.min || 0, p.max);
     if (p.w === "text") return typeof v === "string" && !!Q.clean(v, p.max) && Q.clean(v, p.max) === v && !(p.oneWord && /\s/.test(v)) && !(p.bad && p.bad(v, doc, lang));
+    if (p.w === "list" && p.loose) return Array.isArray(v) && v.length === p.n && v.every(function (x) { return x === "" || (typeof x === "string" && Q.clean(x, p.max) === x); });
     if (p.w === "list") return Array.isArray(v) && v.length === p.n && v.every(function (x) { return typeof x === "string" && !!Q.clean(x, p.max) && Q.clean(x, p.max) === x; }) && distinct(v.map(Q.fold));
     var n = p.from ? p.from(doc, m, now, lang).length : 0;
     if (p.w === "pick") return Array.isArray(v) && v.length === p.n && distinct(v) && v.every(function (x) { return intIn(x, 0, n - 1); });

@@ -56,9 +56,9 @@ var draw = {
   },
   list: function (box, p, set) {
     var fs = [];
-    function up() { var v = fs.map(function (f) { return Q.clean(f.value, p.max); }); set(v.every(Boolean) && new Set(v.map(Q.fold)).size === p.n ? v : null); }
+    function up() { var v = fs.map(function (f) { return Q.clean(f.value, p.max); }); set(p.loose ? fs.map(function (f, i) { return f.value.trim() ? v[i] : ""; }) : v.every(Boolean) && new Set(v.map(Q.fold)).size === p.n ? v : null); }
     for (var i = 0; i < p.n; i++) { var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l] + " " + (i + 1)); if (p.hints) f.placeholder = p.hints(Kit.lang)[i]; f.addEventListener("input", up); box.appendChild(f); fs.push(f); }
-    set(null);
+    if (p.loose) up(); else set(null);
   },
   pick: function (box, p, set, ctx) {
     var on = [], row = el("div", "chips"), items = p.from(ctx.doc, ctx.m, ctx.now, Kit.lang);
@@ -144,7 +144,7 @@ function walk(box, ed) {
       if (cur === null) return; Kit.sfx.pop(); now.push(cur); i++; step();
     });
     if (p.peek) box.appendChild(el("p", "qtext", p.peek(ed.doc, st.moves, now, Kit.lang)));
-    if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("label", "lbl", L()[p.l].replace(": {q}", "")));
+    if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("label", "lbl", p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "")));
     draw[p.w](box, p, function (v) { cur = v; go.disabled = v === null; if (p.auto && v !== null) go.click(); }, { doc: ed.doc, m: st.moves, now: now });
     box.appendChild(go);
   }

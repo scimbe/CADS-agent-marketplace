@@ -353,7 +353,23 @@
 "grip_pause": "In der Pause oder im Bus",
 "grip_abend": "Abends im Chat",
 "grip_geschenk": "Für jemanden, der es verdient hat",
-"grip_raum": "Alle im selben Raum"
+"grip_raum": "Alle im selben Raum",
+"lie_write": "Drei Sätze über dich. Nichts, was nur du wissen solltest.",
+"lie_which": "Welcher Satz ist gelogen?",
+"lie_guess": "Welcher ist gelogen?",
+"lie_ok": "Durchschaut",
+"lie_no": "Reingelegt",
+"lie_was": "Gelogen war: {s}",
+"blz_go": "Sechs Wörter mit {l}.",
+"blz_h": "{a} zu {b} Wörter",
+"blz_same": "Doppelt zählt nicht: {w}",
+"rec_fight": "Der Streit",
+"rec_a": "Dein Satz dazu.",
+"rec_b": "Dein Gegensatz.",
+"rec_who": "Wer hat recht?",
+"rec_why": "Begründung",
+"rec_h": "Urteil: {w}",
+"rec_case": "Fall: {f}"
 },
 "en": {
 "things": "cookies",
@@ -510,7 +526,23 @@
 "grip_pause": "At break or on the bus",
 "grip_abend": "In the evening chat",
 "grip_geschenk": "For someone who earned it",
-"grip_raum": "Everyone in one room"
+"grip_raum": "Everyone in one room",
+"lie_write": "Three sentences about you. Nothing only you should know.",
+"lie_which": "Which sentence is the lie?",
+"lie_guess": "Which one is the lie?",
+"lie_ok": "Seen through",
+"lie_no": "Fooled",
+"lie_was": "The lie was: {s}",
+"blz_go": "Six words with {l}.",
+"blz_h": "{a} to {b} words",
+"blz_same": "Doubles do not count: {w}",
+"rec_fight": "The dispute",
+"rec_a": "Your sentence.",
+"rec_b": "Your counter.",
+"rec_who": "Who is right?",
+"rec_why": "Reasoning",
+"rec_h": "Verdict: {w}",
+"rec_case": "Case: {f}"
 }
 },
 "ask": [
@@ -675,5 +707,26 @@
 "Wiederfinden des Schlüssels|Finding the keys again",
 "Pünktlichkeit, einmalig|Being on time, once",
 "Aufstehen trotz Sofa|Getting up despite the sofa"
-]
+],
+"fights": [
+"Ist Toast noch Brot?|Is toast still bread?",
+"Gehört Ananas auf Pizza?|Does pineapple belong on pizza?",
+"Ist ein Hotdog ein Sandwich?|Is a hot dog a sandwich?",
+"Socken in Sandalen: ja oder nein?|Socks with sandals: yes or no?",
+"Zuerst Milch oder zuerst Müsli?|Milk first or cereal first?",
+"Ist Wasser nass?|Is water wet?",
+"Gewinnt die Katze gegen den Staubsauger?|Would a cat beat a vacuum?",
+"Ist Montag ein Gefühl?|Is Monday a feeling?"
+],
+"verdicts": [
+"Klar überzeugend|Clearly convincing",
+"Frech, aber wahr|Cheeky but true",
+"Das beste Wort entscheidet|The best word decides",
+"Das Gericht hatte Hunger|The court was hungry",
+"Aus reiner Sympathie|Out of pure sympathy"
+],
+"cats": [
+"Tier|Essen|Stadt|Beruf|Ding im Bad|Etwas Rundes||Animal|Food|City|Job|Bathroom thing|Something round"
+],
+"letters": "BDFGHKLMNPRST"
 }
