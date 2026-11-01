@@ -126,6 +126,68 @@
       }
     }
   };
+  function side(s, lang) { var a = s.split("||"); return a[lang === "en" ? 1 : 0].split("|"); }
+  function asks(doc) { return mix(doc, "frag", DATA.ask.length).slice(0, 5); }
+  function askText(doc, i, lang) { return side(DATA.ask[asks(doc)[i]], lang); }
+  function fives(key, l) {
+    return [0, 1, 2, 3, 4].map(function (i) {
+      return { w: "pick", n: 1, auto: true, l: key, top: function (doc, m, lang) { return fmt(T(lang)[key], { q: askText(doc, i, lang)[0] }); }, from: function (doc, m, now, lang) { return askText(doc, i, lang).slice(1); } };
+    });
+  }
+  function eithers(doc) { return mix(doc, "either", DATA.either.length).slice(0, 10); }
+  function tens() {
+    return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (i) {
+      return { w: "pick", n: 1, auto: true, l: "snack_q", from: function (doc, m, now, lang) { return pair(DATA.either, eithers(doc)[i], lang).split(lang === "en" ? " or " : " oder "); } };
+    });
+  }
+  function score(a, b) { var n = 0; a.forEach(function (x, i) { if (x[0] === b[i][0]) n++; }); return n; }
+  GAMES.kennst = {
+    turns: [fives("ken_self"), fives("ken_guess").concat(fives("ken_self")), fives("ken_guess")],
+    result: function (doc, m, lang) {
+      var X = T(lang), a = score(m[0], m[1].slice(0, 5)), b = score(m[1].slice(5), m[2]);
+      return { h: a + b >= 7 ? X.ken_top : fmt(X.ken_head, { a: a, b: b }), lines: [fmt(X.ken_head, { a: a, b: b })] };
+    }
+  };
+  GAMES.snack = {
+    turns: [tens(), tens()],
+    result: function (doc, m, lang) {
+      var X = T(lang), n = score(m[0], m[1]), e = eithers(doc), diff = e.filter(function (x, i) { return m[0][i][0] !== m[1][i][0]; }).slice(0, 2);
+      return { h: fmt(X.snack_h, { n: n }), lines: [n >= 7 ? X.snack_top : X.snack_low].concat(diff.map(function (i) { return fmt(X.snack_fight, { o: pair(DATA.either, i, lang) }); })) };
+    }
+  };
+  function tasks(doc, m, now, lang) { return DATA.tasks.map(function (x, i) { return pair(DATA.tasks, i, lang); }); }
+  GAMES.teilen = {
+    turns: [[{ w: "alloc", l: "teil_bid", sum: 10, step: 1, from: tasks }], [{ w: "alloc", l: "teil_bid", sum: 10, step: 1, from: tasks }]],
+    result: function (doc, m, lang) {
+      var X = T(lang), a = [], b = [], l = tasks(doc, m, [], lang), tie = mix(doc, "teil", 4), want = function (s, i) { return s[0][i]; };
+      l.forEach(function (x, i) {
+        var d = m[0][0][i] - m[1][0][i], first = d > 0 || (d === 0 && tie[i] % 2 === 0);
+        (first ? a : b).push(x);
+      });
+      return { h: X.teil_h, lines: [fmt(X.teil_a, { w: a.join(", ") || "-" }), fmt(X.teil_b, { w: b.join(", ") || "-" })] };
+    }
+  };
+  GAMES.wette = {
+    gateFrom: 1,
+    turns: [
+      [{ w: "pick", l: "wet_pick", n: 1, from: function (doc, m, now, lang) { return DATA.vows.map(function (x, i) { return pair(DATA.vows, i, lang); }); } }, { w: "slide", l: "wet_days", min: 1, max: 7, def: 3 }],
+      [{ w: "pick", l: "wet_judge", n: 1, from: function (doc, m, now, lang) { return [T(lang).wet_yes, T(lang).wet_no]; } }]
+    ],
+    gate: function (doc, m) { return m.length === 1 ? doc.o : 0; },
+    peekWhole: function (doc, m, lang) { return m.length === 1 ? pair(DATA.vows, m[0][0][0], lang) : ""; },
+    result: function (doc, m, lang) { var X = T(lang); return { h: m[1][0][0] === 0 ? X.wet_done : X.wet_fail, lines: [pair(DATA.vows, m[0][0][0], lang)].concat(m[1][0][0] === 0 ? [] : [DATA.forfeit[0].split("|")[lang === "en" ? 1 : 0]]) }; }
+  };
+  GAMES.luecke = {
+    turns: [
+      [{ w: "pick", l: "luck_pick", n: 1, from: function (doc, m, now, lang) { return DATA.stories.map(function (s, i) { return s.split("||")[lang === "en" ? 1 : 0].split(" ").slice(0, 3).join(" ") + " ..."; }); } }],
+      [{ w: "list", l: "luck_fill", n: 6, max: 18, hints: function (lang) { return side(DATA.hints[0], lang); } }]
+    ],
+    result: function (doc, m, lang) {
+      var s = DATA.stories[m[0][0][0]].split("||")[lang === "en" ? 1 : 0], w = m[1][0];
+      return { h: T(lang).luck_h, lines: [s.replace(/\{(\d)\}/g, function (x, i) { return w[i]; })] };
+    }
+  };
+  GAMES.kapsel.gateFrom = 1;
   var IDS = Object.keys(GAMES);
   function dealLine(doc, offer, floor, i, lang) {
     var X = T(lang), w = things(doc, lang);
@@ -193,7 +255,7 @@
     for (var i = 0; i < answers.length; i++) if (!okAnswer(st.prompts[i], answers[i], doc, "de", st.moves, answers.slice(0, i))) return null;
     var d = JSON.parse(JSON.stringify(doc));
     d.q = seal(st.moves.concat([answers]), d.seed);
-    if (d.g === "kapsel" && st.turn === 0) d.o = today + answers[1];
+    if (GAMES[d.g].gateFrom && st.turn === 0) d.o = today + answers[1];
     return d;
   }
   function result(doc, lang) { var st = state(doc); return st.over ? GAMES[doc.g].result(doc, st.moves, lang) : null; }

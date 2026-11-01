@@ -10,7 +10,12 @@ const fresh = (g, seed) => { const d = D.docFromIdea(ideas.find((i) => i.turn.g 
 const LINES = {
   deal: [[[4], [3, 6], [5]]], einig: [[[["Pizza", "Sushi", "Döner", "Pommes", "Nudeln"], [0, 1, 2, 3, 4]], [[4, 0, 1, 2, 3]]]],
   wort: [[[[0, 1, 2], "Zzzz"], [[0, 1, 5]]]], schmuggel: [[[0], [0, [0, 1, 2]], [[3, 4, 5]]]],
-  lob: [[[[0, 1, 2], [3, 4, 5]], [[3, 9, 10], [0, 1, 11]]]], auktion: [[[[50, 30, 20, 0, 0]], [[40, 30, 30, 0, 0]]]], kapsel: [[[[2], 7], [[0]]]]
+  lob: [[[[0, 1, 2], [3, 4, 5]], [[3, 9, 10], [0, 1, 11]]]], auktion: [[[[50, 30, 20, 0, 0]], [[40, 30, 30, 0, 0]]]], kapsel: [[[[2], 7], [[0]]]],
+  kennst: [[[[0], [1], [2], [0], [1]], [[0], [1], [2], [0], [1], [2], [2], [2], [2], [2]], [[2], [2], [2], [2], [0]]]],
+  snack: [[Array(10).fill([0]), Array(10).fill(0).map((x, i) => [i % 2])]],
+  teilen: [[[[5, 3, 2, 0]], [[0, 3, 2, 5]]]],
+  wette: [[[[1], 3], [[1]]]],
+  luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
   assert.deepEqual(ideas.map((i) => i.turn.g).sort(), [...Tn.IDS].sort());
@@ -63,6 +68,19 @@ test("Vorgaben: Daten paarig, jugendfrei, keine Kurzschrift", () => {
   const C = require("../src/core.js");
   for (const s of Tn.strings()) assert.ok(C.isClean(s), s);
   const T = require("../src/turn.json");
-  for (const k of ["words", "smuggle", "praise", "items", "fates"]) for (const x of T[k]) assert.equal(x.split("|").length, 2, x);
+  for (const k of ["words", "smuggle", "praise", "items", "fates", "either", "tasks", "vows"]) for (const x of T[k]) assert.equal(x.split("|").length, 2, x);
   assert.deepEqual(Object.keys(T.text.de).sort(), Object.keys(T.text.en).sort());
+});
+test("Filter: Saetze, die einzeln harmlos wirken, gehen nicht; Treffer und am Platz gehen", () => {
+  const C = require("../src/core.js"), Q = require("../src/quest.js");
+  for (const x of ["Du bist hässlich", "Niemand mag dich", "Keiner mag dich", "Wir lachen alle über dich", "you are so ugly", "nobody likes you"]) assert.equal(C.isClean(x), false, x);
+  assert.equal(Q.clean("Komm morgen vorbei", 40), "");
+  for (const x of ["Du bist witzig", "Niemand mag Montage", "Treffer", "am Platz"]) assert.equal(Q.clean(x, 40), x, x);
+});
+test("Luecke fuellt die Geschichte, Teilen vergibt jede Aufgabe genau einmal, Wette ist bis zum Tag zu", () => {
+  let d = Tn.play(Tn.play(fresh("luecke", 2), [[0]], 0), [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]], 0);
+  assert.ok(!/\\{\\d\\}/.test(Tn.result(d, "de").lines[0])); assert.match(Tn.result(d, "de").lines[0], /Lama.*Riese/);
+  d = Tn.play(Tn.play(fresh("teilen", 2), [[5, 3, 2, 0]], 0), [[0, 3, 2, 5]], 0);
+  const all = Tn.result(d, "de").lines.join(); for (const w of ["Folien", "Vortrag", "Recherche", "Handout"]) assert.equal(all.split(w).length, 2, w);
+  d = through(Tn.play(fresh("wette", 2), [[1], 3], 500)); assert.equal(Tn.gate(d, 502), 1); assert.equal(Tn.gate(d, 503), 0);
 });

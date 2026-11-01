@@ -39,10 +39,28 @@ test("Zwei Geraete: Keks-Deal laeuft nur ueber Links bis zum Ergebnisbild", asyn
   await send(back); await back.locator("#share").waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Ein Tipp reicht: Pizza oder Pommes springt von Frage zu Frage, Luecke zeigt die Geschichte erst am Ende", async () => {
+  const { b, open, errs } = await setup();
+  const a = await open("#i=zug-snack"); await a.locator("#go").click();
+  for (let i = 0; i < 10; i++) await a.locator("#panel .chip").first().click();
+  await a.getByText("Zug steht").waitFor(); await send(a); await a.locator("#share").waitFor();
+  const c = await open(hash(await url(a))); await c.locator("#go").click();
+  for (let i = 0; i < 10; i++) await c.locator("#panel .chip").first().click();
+  await send(c); await c.locator("#share").waitFor();
+  const r = await open(hash(await url(c))); await r.locator("#go").click(); await r.locator("#panel").getByText("10 von 10 gleich").waitFor();
+  const l = await open("#i=zug-luecke"); await l.locator("#go").click(); await l.locator("#panel .chip").first().click(); await next(l); await send(l); await l.locator("#share").waitFor();
+  const m = await open(hash(await url(l))); await m.locator("#go").click();
+  const fs = m.locator("#panel input.field"), w = ["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"];
+  for (let i = 0; i < 6; i++) await fs.nth(i).fill(w[i]);
+  assert.equal(await m.locator("#panel").getByText("vor der Tür").count(), 0);
+  await next(m); await send(m); await m.locator("#share").waitFor();
+  const e = await open(hash(await url(m))); await e.locator("#go").click(); await e.locator("#panel").getByText(/Lama.*Riese/).waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 7);
+  assert.equal(await m.locator("#shbody .mech").count(), 12);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);
