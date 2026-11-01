@@ -92,6 +92,23 @@ test("Karten: Ausrede mit Stempel, Rubbellos mit drei Versuchen, Gutschein, Urku
   await u.locator("#panel").getByText("Urkunde: Gold").waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Freitext-Blaetter: Luege, Blitz und Urteil bis zum Ergebnis, Filter sperrt verletzende Saetze", async () => {
+  const { b, open, errs } = await setup();
+  const l = await open("#i=zug-luege"); await l.locator("#go").click();
+  const fs = l.locator("#panel input.field"); await fs.nth(0).fill("Niemand mag dich"); await fs.nth(1).fill("Ich kann pfeifen"); await fs.nth(2).fill("Ich war am Mond");
+  assert.equal(await l.getByRole("button", { name: "Weiter", exact: true }).isDisabled(), true);
+  await fs.nth(0).fill("Ich mag Toast"); await next(l); await l.getByRole("button", { name: "Ich war am Mond" }).click(); await next(l); await send(l); await l.locator("#share").waitFor();
+  const l2 = await open(hash(await url(l))); await l2.locator("#go").click(); await l2.getByRole("button", { name: "Ich war am Mond" }).click(); await next(l2); await send(l2); await l2.locator("#share").waitFor();
+  const l3 = await open(hash(await url(l2))); await l3.locator("#go").click(); await l3.locator("#panel").getByText("Durchschaut").waitFor();
+  const z = await open("#i=zug-blitz"); await z.locator("#go").click(); await next(z); await send(z); await z.locator("#share").waitFor();
+  const z2 = await open(hash(await url(z))); await z2.locator("#go").click(); await next(z2); await send(z2); await z2.locator("#share").waitFor();
+  const z3 = await open(hash(await url(z2))); await z3.locator("#go").click(); await z3.locator("#panel").getByText("0 zu 0 Wörter").first().waitFor();
+  const r = await open("#i=zug-recht"); await r.locator("#go").click(); await r.locator("#panel input.field").fill("Toast ist Brot"); await next(r); await send(r); await r.locator("#share").waitFor();
+  const r2 = await open(hash(await url(r))); await r2.locator("#go").click(); await r2.locator("#panel input.field").fill("Toast ist Kunst"); await next(r2); await send(r2); await r2.locator("#share").waitFor();
+  const r3 = await open(hash(await url(r2))); await r3.locator("#go").click(); await r3.locator("#panel .chip").first().click(); await next(r3); await r3.locator("#panel .chip").first().click(); await next(r3); await send(r3); await r3.locator("#share").waitFor();
+  const r4 = await open(hash(await url(r3))); await r4.locator("#go").click(); await r4.locator("#panel").getByText(/Urteil: /).waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
