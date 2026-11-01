@@ -369,7 +369,21 @@
 "rec_who": "Wer hat recht?",
 "rec_why": "Begründung",
 "rec_h": "Urteil: {w}",
-"rec_case": "Fall: {f}"
+"rec_case": "Fall: {f}",
+"mor_pick": "Welcher Satz soll aufgehen?",
+"mor_days": "In wie vielen Tagen?",
+"mor_ok": "Aufgegangen. Alles zur richtigen Zeit.",
+"mor_open": "Mach sie auf",
+"mor_h": "Für dich",
+"env_a": "Satz für: Wenn dir langweilig ist",
+"env_b": "Satz für: Wenn du sauer bist",
+"env_c": "Satz für: Wenn du nicht schlafen kannst",
+"env_pick": "Welcher Umschlag passt gerade?",
+"env_h": "Dein Umschlag",
+"rad_pick": "Wähle drei Vorhersagen fürs Rad.",
+"rad_spin": "Dreh das Rad. Wähle eine Zahl.",
+"rad_h": "Dein Schicksal",
+"rad_n": "Zahl {n}"
 },
 "en": {
 "things": "cookies",
@@ -542,7 +556,21 @@
 "rec_who": "Who is right?",
 "rec_why": "Reasoning",
 "rec_h": "Verdict: {w}",
-"rec_case": "Case: {f}"
+"rec_case": "Case: {f}",
+"mor_pick": "Which sentence should open?",
+"mor_days": "In how many days?",
+"mor_ok": "Opened. All in good time.",
+"mor_open": "Open it",
+"mor_h": "For you",
+"env_a": "Words for: when you are bored",
+"env_b": "Words for: when you are angry",
+"env_c": "Words for: when you cannot sleep",
+"env_pick": "Which envelope fits right now?",
+"env_h": "Your envelope",
+"rad_pick": "Pick three predictions for the wheel.",
+"rad_spin": "Spin the wheel. Pick a number.",
+"rad_h": "Your fate",
+"rad_n": "Number {n}"
 }
 },
 "ask": [
@@ -728,5 +756,28 @@
 "cats": [
 "Tier|Essen|Stadt|Beruf|Ding im Bad|Etwas Rundes||Animal|Food|City|Job|Bathroom thing|Something round"
 ],
-"letters": "BDFGHKLMNPRST"
+"letters": "BDFGHKLMNPRST",
+"lifts": [
+"Du schaffst das, ich glaube an dich.|You can do this, I believe in you.",
+"Einmal durchatmen, dann los.|One deep breath, then go.",
+"Egal wie es läuft, ich finde dich gut.|However it goes, I think you are great.",
+"Du bist besser vorbereitet, als du denkst.|You are better prepared than you think.",
+"Danach gibt es Pommes.|Fries afterwards.",
+"Stell dir vor, alle tragen Socken mit Enten.|Imagine everyone wearing duck socks."
+],
+"envs": [
+"Wenn dir langweilig ist|Wenn du sauer bist|Wenn du nicht schlafen kannst||When you are bored|When you are angry|When you cannot sleep"
+],
+"fates2": [
+"Dir fällt heute etwas Gutes ein.|You will have a good idea today.",
+"Dein Handy-Akku hält genau bis zum Bus.|Your battery will last exactly until the bus.",
+"Jemand bringt dich unerwartet zum Lachen.|Someone will make you laugh unexpectedly.",
+"Du findest eine Münze oder wenigstens Ruhe.|You will find a coin or at least some peace.",
+"Heute gewinnt der zweite Versuch.|Today the second try wins.",
+"Ein Lied verfolgt dich bis zum Abend.|A song will follow you until evening.",
+"Du isst heute das Beste zuerst.|You will eat the best bit first.",
+"Die Socke taucht wieder auf.|The sock will return.",
+"Du sagst heute etwas sehr Schlaues.|You will say something very clever.",
+"Ein Plan klappt anders, aber besser.|A plan will work out differently, but better."
+]
 }

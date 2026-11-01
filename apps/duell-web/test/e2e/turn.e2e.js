@@ -109,10 +109,24 @@ test("Freitext-Blaetter: Luege, Blitz und Urteil bis zum Ergebnis, Filter sperrt
   const r4 = await open(hash(await url(r3))); await r4.locator("#go").click(); await r4.locator("#panel").getByText(/Urteil: /).waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Geschenke: Umschlag zeigt nur den gewaehlten Satz, Rad zieht eine von drei Vorhersagen", async () => {
+  const { b, open, errs } = await setup();
+  const u = await open("#i=zug-umschlag"); await u.locator("#go").click();
+  for (const x of ["Spiel was", "Atme durch", "Zähl Enten"]) { await u.locator("#panel input.field").fill(x); await next(u); }
+  await send(u); await u.locator("#share").waitFor();
+  const u2 = await open(hash(await url(u))); await u2.locator("#go").click(); await u2.locator("#panel .chip").nth(1).click(); await next(u2); await send(u2); await u2.locator("#share").waitFor();
+  const u3 = await open(hash(await url(u2))); await u3.locator("#go").click(); await u3.locator("#panel").getByText("Atme durch").waitFor();
+  assert.equal(await u3.locator("#panel").getByText("Spiel was").count(), 0);
+  const r = await open("#i=zug-rad"); await r.locator("#go").click(); for (let i = 0; i < 3; i++) await r.locator("#panel .chip").nth(i).click();
+  await next(r); await send(r); await r.locator("#share").waitFor();
+  const r2 = await open(hash(await url(r))); await r2.locator("#go").click(); await r2.getByRole("button", { name: "Zahl 2" }).click(); await send(r2); await r2.locator("#share").waitFor();
+  const r3 = await open(hash(await url(r2))); await r3.locator("#go").click(); await r3.locator("#panel").getByText("Dein Schicksal").waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 26);
+  assert.equal(await m.locator("#shbody .mech").count(), 29);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);

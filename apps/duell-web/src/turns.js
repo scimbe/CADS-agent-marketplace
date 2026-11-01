@@ -270,6 +270,23 @@
       [{ w: "pick", n: 1, l: "rec_who", top: function (doc, m, lang) { return fight(doc, lang) + " A: " + m[0][0] + " B: " + m[1][0]; }, from: function (doc, m, now, lang) { return [T(lang).first, T(lang).second]; } }, { w: "pick", n: 1, l: "rec_why", from: listOf("verdicts") }]],
     result: function (doc, m, lang) { var X = T(lang); return { h: fmt(X.rec_h, { w: m[2][0][0] ? X.second : X.first }), lines: [fmt(X.rec_case, { f: fight(doc, lang) }), m[0][0], m[1][0], pair(DATA.verdicts, m[2][1][0], lang)] }; }
   };
+  GAMES.morgen = {
+    gateFrom: 1,
+    turns: [[{ w: "pick", n: 1, l: "mor_pick", from: listOf("lifts") }, { w: "slide", l: "mor_days", min: 1, max: 7, def: 1 }], [{ w: "show", l: "mor_open", list: function (doc, m, now, lang) { return [pair(DATA.lifts, m[0][0][0], lang)]; } }]],
+    gate: function (doc, m) { return m.length === 1 ? doc.o : 0; },
+    result: function (doc, m, lang) { return { h: T(lang).mor_h, lines: [pair(DATA.lifts, m[0][0][0], lang)] }; }
+  };
+  function envs(lang) { return side(DATA.envs[0], lang); }
+  GAMES.umschlag = {
+    turns: [[{ w: "text", l: "env_a", max: 44 }, { w: "text", l: "env_b", max: 44 }, { w: "text", l: "env_c", max: 44 }],
+      [{ w: "pick", n: 1, l: "env_pick", from: function (doc, m, now, lang) { return envs(lang); } }]],
+    result: function (doc, m, lang) { var i = m[1][0][0]; return { h: envs(lang)[i], lines: [m[0][i]] }; }
+  };
+  function numbers(doc, m, now, lang) { return [1, 2, 3].map(function (n) { return fmt(T(lang).rad_n, { n: n }); }); }
+  GAMES.rad = {
+    turns: [[{ w: "pick", n: 3, l: "rad_pick", from: listOf("fates2") }], [{ w: "pick", n: 1, auto: true, l: "rad_spin", from: numbers }]],
+    result: function (doc, m, lang) { var o = mix(doc, "rad", 3); return { h: T(lang).rad_h, lines: [pair(DATA.fates2, m[0][0][o[m[1][0][0]]], lang)] }; }
+  };
   // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
   function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
   function struck(doc, m, lang) {
