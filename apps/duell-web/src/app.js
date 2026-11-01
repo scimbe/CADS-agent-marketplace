@@ -48,6 +48,7 @@ function setHome(h, animate) {
   $("dmon").textContent = monthLines(d);
   var title, sub, kind, min;
   if (idea) { var L = ideaText(idea); title = L.t.split("|"); sub = L.s; kind = idea.kind; min = idea.min; }
+  else if (doc.k === "turn" && !doc.t && D.byId(doc.i)) { var Li = ideaText(D.byId(doc.i)); title = Li.t.split("|"); sub = doc.s || Li.s; kind = doc.k; min = D.byId(doc.i).min; }
   else { title = (doc.t || doc.x || (doc.g && doc.g.title) || t("own")).split(/\s+/).reduce(function (a, w) { if (a.length && (a[a.length - 1] + " " + w).length < 13) a[a.length - 1] += " " + w; else a.push(w); return a; }, []).slice(0, 4); sub = doc.s || ""; kind = doc.k; min = 60; }
   $("dkind").textContent = t(kind) + "\n" + t("sec", { n: min });
   var hero = $("hero"); hero.textContent = "";
@@ -79,7 +80,7 @@ function preview(doc) {
 }
 function feats() {
   var box = $("feat"); box.textContent = "";
-  [["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
+  [["f_two", "🤝", function () { X.turn.menu(); }], ["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
     ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].forEach(function (f) {
     box.appendChild(el("button", "", f[1] + " " + t(f[0]), function () { Kit.sfx.tap(); f[2](); }));
   });
@@ -285,7 +286,7 @@ var PANEL = {
     var d = ed.doc;
     if (d.k === "card") {
       var f = field(p, t("line"), d.x, 90, function (v) { d.x = v; }, true), L = ed.idea ? ideaText(ed.idea).lines : null;
-      if (L) p.appendChild(el("button", "chip", "🎲 " + t("dice"), function () { Kit.sfx.pop(); ed.line = (ed.line + 1) % L.length; d.x = L[ed.line]; f.value = d.x; ed.base.x = d.x; changed(); }));
+      if (L) p.appendChild(el("button", "chip", "🎲 " + t("dice"), function () { Kit.sfx.pop(); ed.line = (ed.line + 1) % L.length; d.x = L[ed.line]; f.value = d.x; changed(); }));
       playButton(p);
       aiBlock(p, { kind: "line", label: t("aiLine"), input: function () { var x = D.cleanInput(d.x, 90) || t("own"); return { text: x, style: d.st }; }, show: String, apply: function (o) { var v = D.cleanInput(o, 90); if (v) { d.x = v; f.value = v; changed(); } } });
       weatherBlock(p);

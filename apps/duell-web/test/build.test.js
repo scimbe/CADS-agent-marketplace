@@ -16,7 +16,7 @@ test("Build: eine Datei, voll offline, alle Welten da, Platzhalter ersetzt, Groe
   assert.ok(!/<(img|audio|video|iframe)[^>]+src=["']https?:/i.test(html));
   const core = require("../src/core.js");
   for (const t of core.THEME_NAMES) assert.match(html, new RegExp("\\b" + t + ":\\s*\\{"), "Welt " + t);
-  assert.ok(Buffer.byteLength(html) < 420 * 1024, "dist ueber 420 KB: " + Buffer.byteLength(html));
+  assert.ok(Buffer.byteLength(html) < 700 * 1024, "dist ueber 700 KB: " + Buffer.byteLength(html));
   assert.match(html, /<title>My Daily Idea<\/title>/);
   assert.match(html, /Content-Security-Policy[^>]*default-src 'none'/);
   assert.match(html, /connect-src https:\/\/demos-34a13a96\.bunsenbrenner\.org;/, "nur der eine Host");

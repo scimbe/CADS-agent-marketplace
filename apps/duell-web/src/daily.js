@@ -5,12 +5,13 @@
   var DATA = typeof module !== "undefined" && module.exports ? require("./ideas.json") : root.DuellIdeas;
   var Duel = typeof module !== "undefined" && module.exports ? require("./duel.js") : root.Duel;
   var Quest = typeof module !== "undefined" && module.exports ? require("./quest.js") : root.Quest;
+  var Turns = typeof module !== "undefined" && module.exports ? require("./turns.js") : root.Turns;
   var IDEAS = DATA.ideas, GATED = DATA.gated || [], BONUS_EVERY = 6, ORDER_TRIES = 200;
   var ROUND = IDEAS.filter(function (i) { return !i.on; });   // calendar ideas ("on": "MM-DD") only appear on their day
   var ROUND_KINDS = ROUND.map(function (i) { return i.kind; }).filter(function (k, i, a) { return a.indexOf(k) === i; }).sort();
   var ID_RE = /^[a-z0-9-]{1,32}$/, MAX_WALL = 30, MAX_THUMB = 60000, MAX_TEXT = 90;
   var DAY = 86400000;
-  var KINDS = ["game", "photo", "sound", "card", "duel", "quest"];
+  var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn"];
   var STYLES = { card: ["druck", "zettel", "stempel", "neon"], photo: ["poster", "sticker", "meme", "glitch"] };
   var FX = ["chip", "monster", "robot", "echo"];
   var AREAS = ["text", "farbe", "stil", "sticker", "foto", "beat", "stimme", "regeln", "figur", "welt", "idee"];
@@ -212,6 +213,8 @@
       Duel.sanitize(o, d);
     } else if (o.k === "quest") {
       Quest.sanitize(o, d);
+    } else if (o.k === "turn") {
+      Turns.sanitize(o, d);
     } else {
       var g = C.sanitizeState({ v: 1, seed: o.g && o.g.seed, params: o.g && o.g.params, theme: o.g && o.g.theme, title: o.g && o.g.title, emoji: o.g && o.g.emoji, look: o.g && o.g.look });
       d.g = { seed: g.seed, params: g.params, theme: g.theme, title: g.title, emoji: g.emoji };
@@ -227,6 +230,7 @@
     if (idea.kind === "game") { var g = idea.game; base.g = { seed: g.seed, params: g.params, theme: g.theme, title: plain, emoji: g.emoji, look: g.look }; }
     if (idea.kind === "duel") Duel.fromIdea(idea, profile, lang, base);
     if (idea.kind === "quest") Quest.fromIdea(idea, lang, base);
+    if (idea.kind === "turn") Turns.fromIdea(idea, lang, base);
     return sanitizeDoc(base);
   }
   function blankDoc(kind, profile, lang) {
@@ -244,8 +248,8 @@
     if (ne(a.p, b.p) || a.bpm !== b.bpm) w.push("beat");
     if (a.fx !== b.fx) w.push("stimme");
     if (a.t !== b.t || a.s !== b.s) w.push("idee");
-    if (a.e !== b.e) w.push("figur");
-    if (ne(a.a, b.a) || ne(a.b, b.b) || a.w !== b.w) w.push("regeln");
+    if (a.e !== b.e || a.f !== b.f) w.push("figur");
+    if (ne(a.a, b.a) || ne(a.b, b.b) || a.w !== b.w || a.q !== b.q) w.push("regeln");
     if (a.g && b.g) {
       if (ne(a.g.params, b.g.params)) w.push("regeln");
       if (a.g.emoji !== b.g.emoji) w.push("figur");

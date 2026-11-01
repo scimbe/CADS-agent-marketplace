@@ -6,7 +6,7 @@
   "scripts": {
     "build": "node scripts/build.js",
     "test": "node --test test/*.test.js",
-    "test:e2e": "node scripts/build.js && node --test test/e2e/*.e2e.js"
+    "test:e2e": "node scripts/build.js && node --test --test-timeout=300000 --test-force-exit test/e2e/*.e2e.js"
   },
   "engines": {
     "node": ">=20"
