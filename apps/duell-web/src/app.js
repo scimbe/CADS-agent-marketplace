@@ -232,7 +232,8 @@ function colors(p, get, set) {
 var PANEL = {
   Wish: function (p) {
     var f = field(p, t("wishL"), "", 100, function () {}, true), box = el("div", "chips");
-    t("wishTips").split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; })); });
+    if (ed.doc.k === "game") p.appendChild(el("p", "note", t("wishGameH")));
+    t(ed.doc.k === "game" ? "wishTipsGame" : "wishTips").split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; })); });
     p.appendChild(box);
     aiBlock(p, {
       kind: "wish", label: t("wishGo"), input: function () { var v = D.cleanInput(f.value, 100); return v ? W.request(ed.doc, v, ed.idea ? ideaText(ed.idea).t.replace("|", " ") : "") : null; },

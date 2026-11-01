@@ -213,8 +213,9 @@
     } else if (o.k === "quest") {
       Quest.sanitize(o, d);
     } else {
-      var g = C.sanitizeState({ v: 1, seed: o.g && o.g.seed, params: o.g && o.g.params, theme: o.g && o.g.theme, title: o.g && o.g.title, emoji: o.g && o.g.emoji });
+      var g = C.sanitizeState({ v: 1, seed: o.g && o.g.seed, params: o.g && o.g.params, theme: o.g && o.g.theme, title: o.g && o.g.title, emoji: o.g && o.g.emoji, look: o.g && o.g.look });
       d.g = { seed: g.seed, params: g.params, theme: g.theme, title: g.title, emoji: g.emoji };
+      if (g.look) d.g.look = g.look;
     }
     return d;
   }
@@ -247,7 +248,7 @@
     if (a.g && b.g) {
       if (ne(a.g.params, b.g.params)) w.push("regeln");
       if (a.g.emoji !== b.g.emoji) w.push("figur");
-      if (a.g.theme !== b.g.theme) w.push("welt");
+      if (a.g.theme !== b.g.theme || ne(a.g.look, b.g.look)) w.push("welt");
       if (a.g.title !== b.g.title) w.push("text");
     }
     return w;

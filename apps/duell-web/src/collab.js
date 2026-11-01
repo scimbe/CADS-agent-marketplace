@@ -43,6 +43,7 @@
     } else {
       r["g.seed"] = function (v) { return C.sanitizeSeed(v) === v; };
       r["g.theme"] = oneOf(C.THEME_NAMES);
+      r["g.look"] = function (v) { return v === null || JSON.stringify(C.sanitizeLook(v)) === JSON.stringify(v); };
       r["g.title"] = function (v) { return typeof v === "string" && C.sanitizeTitle(v) === v; };
       r["g.emoji"] = function (v) { return typeof v === "string" && C.sanitizeEmoji(v) === v; };
       Object.keys(C.RANGES).forEach(function (k) { r["g.params." + k] = range(C.RANGES[k][0], C.RANGES[k][1]); });
@@ -56,7 +57,7 @@
       f.x = d.x; f.fx = d.fx; f.bpm = d.bpm;
       TRACKS.forEach(function (t) { for (var i = 0; i < 16; i++) f["p." + t + "." + i] = d.p[t][i]; });
     } else {
-      f["g.seed"] = d.g.seed; f["g.theme"] = d.g.theme; f["g.title"] = d.g.title; f["g.emoji"] = d.g.emoji;
+      f["g.seed"] = d.g.seed; f["g.theme"] = d.g.theme; f["g.title"] = d.g.title; f["g.emoji"] = d.g.emoji; f["g.look"] = d.g.look || null;
       Object.keys(d.g.params).forEach(function (k) { f["g.params." + k] = d.g.params[k]; });
     }
     return f;

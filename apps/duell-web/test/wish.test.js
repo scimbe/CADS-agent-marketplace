@@ -46,3 +46,24 @@ test("Grenze: Duell und Geheimkanal haben keinen Wunsch, ihre Texte gehen nicht 
   assert.deepEqual([...W.KINDS].sort(), D.KINDS.filter((k) => k !== "duel" && k !== "quest").sort());
   assert.match(require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/app.js"), "utf8"), /W\.KINDS\.indexOf\(ed\.doc\.k\) >= 0 \? \["Wish"\] : \[\]/);
 });
+test("Wunsch Spiel: Hintergrund, Spieler, Hindernisse, Boden und Farben aendern sich, Regeln bleiben im Rahmen", () => {
+  const g = of("game"), look = { a: "#060A2A", b: "#2a1a5e", d: "stars", e: ["🪐", "🌟", "👽", "🚀"], p: "#9aa7c7", q: "#4d5878", f: "emoji", o: "🌵", g: "#1a1a33", h: "#7a6cff", m: "✨", x: "weg", f2: 1 };
+  const n = W.apply(g, { look, emoji: "🛸", gravity: 2000 }, PAIRS, rand);
+  assert.equal(n.g.look.a, "#060a2a"); assert.equal(n.g.look.e.length, 3); assert.equal(n.g.look.o, "🌵"); assert.equal(n.g.look.x, undefined);
+  assert.equal(n.g.emoji, "🛸"); assert.ok(D.changedAreas(g, n).includes("welt"));
+  assert.equal(W.apply(n, { look: { a: "#111111" } }, PAIRS, rand).g.look.m, "✨", "ein zweiter Wunsch baut auf dem ersten auf");
+  const url = D.docUrl(n); assert.deepEqual(D.parseRoute("#" + url.split("#")[1]).doc.g.look, n.g.look, "die Gestaltung reist im Link mit");
+});
+test("Wunsch Spiel: Hindernis in Himmelsfarbe bleibt sichtbar, kaputte Werte fallen weg", () => {
+  const C = require("../src/core.js");
+  assert.equal(C.sanitizeLook({ a: "#101010", b: "#101010", p: "#121212" }).p, "#f2f2f2");
+  assert.equal(C.sanitizeLook({ a: "#ffffff", p: "#fefefe" }).p, "#1f1f2e");
+  assert.equal(C.sanitizeLook({ a: "red", d: "feuer", e: "x", f: "emoji" }), null);
+});
+test("Wunsch ohne Modell: Spiel bekommt trotzdem eine ganze Welt", () => {
+  const g = of("game"), n = W.apply(g, W.local(g, "Unter Wasser", "de", () => 0), PAIRS, rand);
+  assert.equal(n.g.look.d, "bubbles"); assert.equal(n.g.emoji, "🐠");
+});
+test("Wunsch: freie Farben auf Karte, Foto und Sound", () => {
+  assert.deepEqual(W.apply(of("card"), { colors: ["#112233", "#445566"] }, PAIRS, rand).col, ["#112233", "#445566"]);
+});

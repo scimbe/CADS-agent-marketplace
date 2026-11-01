@@ -112,6 +112,28 @@
     return skin;
   }
 
+  // Own look of a game: a frame around the game, never its mechanics. a,b sky; d motif; e drifting emoji; p,q obstacle
+  // fill and edge; f its form; o its emoji; g,h ground and edge; m trail emoji. Hitboxes and physics stay the same for all.
+  var DECOS = ["stars", "bubbles", "clouds", "snow", "rain", "none"], FORMS = ["tube", "block", "round", "emoji"];
+  function hex(v) { return typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : ""; }
+  function emo(v) { var m = typeof v === "string" && v.trim().match(EMOJI_RE); return m && m[0].length <= 12 ? m[0] : ""; }
+  function light(c) { var n = parseInt(c.slice(1), 16); return (0.3 * (n >> 16) + 0.59 * ((n >> 8) & 255) + 0.11 * (n & 255)) / 255; }
+  function sanitizeLook(o) {
+    if (!o || typeof o !== "object" || Array.isArray(o)) return null;
+    var l = {};
+    ["a", "b", "p", "q", "g", "h"].forEach(function (k) { var c = hex(o[k]); if (c) l[k] = c; });
+    if (DECOS.indexOf(o.d) >= 0) l.d = o.d;
+    if (FORMS.indexOf(o.f) >= 0) l.f = o.f;
+    var e = (Array.isArray(o.e) ? o.e : []).map(emo).filter(Boolean).slice(0, 3); if (e.length) l.e = e;
+    var ob = emo(o.o), m = emo(o.m); if (ob) l.o = ob; if (m) l.m = m;
+    if (l.f === "emoji" && !l.o) delete l.f;
+    if (l.a && l.p) {                                  // an obstacle that melts into the sky cannot be played
+      var sky = (light(l.a) + light(l.b || l.a)) / 2;
+      if (Math.abs(sky - light(l.p)) < 0.18) l.p = sky > 0.5 ? "#1f1f2e" : "#f2f2f2";
+    }
+    return Object.keys(l).length ? l : null;
+  }
+
   // ---------- state (the shared contract) ----------
   function sanitizeState(o) {
     if (!o || typeof o !== "object" || Array.isArray(o)) return null;
@@ -126,6 +148,8 @@
     };
     var skin = sanitizeSkin(o.skin);
     if (skin) st.skin = skin;
+    var lk = sanitizeLook(o.look);
+    if (lk) st.look = lk;
     if (o.score !== undefined && o.score !== null) {
       var sc = clampNum(o.score, 0, MAX_SCORE, NaN);
       if (!isNaN(sc)) st.score = Math.floor(sc);
@@ -286,7 +310,7 @@
     isClean: isClean, sanitizeName: sanitizeName, sanitizeTitle: sanitizeTitle, sanitizeEmoji: sanitizeEmoji, sanitizePrompt: sanitizePrompt,
     sanitizeState: sanitizeState, encodeState: encodeState, decodeState: decodeState, parseHash: parseHash, buildUrl: buildUrl,
     configKey: configKey, hash32: hash32, mulberry32: mulberry32, dailyKey: dailyKey, dailySeed: dailySeed, dailyConfig: dailyConfig,
-    presetState: presetState, localConfig: localConfig, stateFromApi: stateFromApi
+    sanitizeLook: sanitizeLook, DECOS: DECOS, FORMS: FORMS, presetState: presetState, localConfig: localConfig, stateFromApi: stateFromApi
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.DuellCore = api;
