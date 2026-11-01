@@ -213,8 +213,9 @@
     } else if (o.k === "quest") {
       Quest.sanitize(o, d);
     } else {
-      var g = C.sanitizeState({ v: 1, seed: o.g && o.g.seed, params: o.g && o.g.params, theme: o.g && o.g.theme, title: o.g && o.g.title, emoji: o.g && o.g.emoji });
+      var g = C.sanitizeState({ v: 1, seed: o.g && o.g.seed, params: o.g && o.g.params, theme: o.g && o.g.theme, title: o.g && o.g.title, emoji: o.g && o.g.emoji, look: o.g && o.g.look });
       d.g = { seed: g.seed, params: g.params, theme: g.theme, title: g.title, emoji: g.emoji };
+      if (g.look) d.g.look = g.look;
     }
     return d;
   }
@@ -223,7 +224,7 @@
     if (idea.kind === "card") { base.x = L.lines[0]; base.st = idea.style || "druck"; base.sk = []; if (idea.col) base.col = idea.col; }
     if (idea.kind === "photo") { base.x = L.top; base.y = L.bottom; base.st = idea.photo.mode; base.sk = []; }
     if (idea.kind === "sound") { var s = idea.sound; base.m = s.mode; base.x = plain.slice(0, 28); base.fx = s.fx || "chip"; base.bpm = s.bpm || 110; base.p = { k: s.k || "x---x---x---x---", s: s.s || "----x-------x---", h: s.h || "x-x-x-x-x-x-x-x-", b: s.b || "----------------" }; }
-    if (idea.kind === "game") { var g = idea.game; base.g = { seed: g.seed, params: g.params, theme: g.theme, title: plain, emoji: g.emoji }; }
+    if (idea.kind === "game") { var g = idea.game; base.g = { seed: g.seed, params: g.params, theme: g.theme, title: plain, emoji: g.emoji, look: g.look }; }
     if (idea.kind === "duel") Duel.fromIdea(idea, profile, lang, base);
     if (idea.kind === "quest") Quest.fromIdea(idea, lang, base);
     return sanitizeDoc(base);
@@ -243,11 +244,12 @@
     if (ne(a.p, b.p) || a.bpm !== b.bpm) w.push("beat");
     if (a.fx !== b.fx) w.push("stimme");
     if (a.t !== b.t || a.s !== b.s) w.push("idee");
+    if (a.e !== b.e) w.push("figur");
     if (ne(a.a, b.a) || ne(a.b, b.b) || a.w !== b.w) w.push("regeln");
     if (a.g && b.g) {
       if (ne(a.g.params, b.g.params)) w.push("regeln");
       if (a.g.emoji !== b.g.emoji) w.push("figur");
-      if (a.g.theme !== b.g.theme) w.push("welt");
+      if (a.g.theme !== b.g.theme || ne(a.g.look, b.g.look)) w.push("welt");
       if (a.g.title !== b.g.title) w.push("text");
     }
     return w;

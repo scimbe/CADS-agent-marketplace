@@ -16,6 +16,10 @@ test("Start: KI-Knopf oeffnet den Wunsch, ein offenes Blatt springt am neuen Tag
   await p.clock.fastForward("24:00:00");
   await p.waitForFunction((f) => document.getElementById("dnum").textContent + "|" + document.getElementById("hero").textContent !== f, first);
   assert.match(await day(), /^02\|/);
+  await p.locator("#more").click(); await p.clock.runFor(400);
+  assert.match(await day(), /^03\|/, "abreissen blaettert zum naechsten Tag");
+  await p.locator("#more").click(); await p.clock.runFor(400);
+  assert.match(await day(), /^04\|/);
   const wish = p.locator("#wishgo");
   await wish.waitFor();
   assert.equal(await wish.textContent(), "✨ Mit KI anpassen");

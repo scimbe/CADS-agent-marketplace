@@ -39,8 +39,17 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .press{display:block;margin:0 18px 8px;width:calc(100% - 36px);min-height:68px;border:3px solid var(--ink);border-radius:6px;background:var(--ink);color:var(--btn);font:900 30px/1 var(--disp);text-transform:uppercase;letter-spacing:.6px;box-shadow:0 6px 0 var(--b);transition:transform 90ms ease-out,box-shadow 90ms ease-out;position:relative;flex:none}
 .press:active{transform:translateY(5px);box-shadow:0 1px 0 var(--b)}
 .press.wait{background:transparent;color:#111;border-style:dashed;box-shadow:none;font-size:22px}
-#wishgo{display:block;position:relative;flex:none;margin:2px 18px 8px;width:calc(100% - 36px);min-height:48px;border:2px solid var(--on);border-radius:6px;background:transparent;color:var(--on);font:900 16px/1.1 var(--ui)}
-#wishgo[hidden]{display:none}
+#homerow{position:relative;flex:none;display:flex;gap:8px;margin:2px 18px 6px}
+#homerow button{flex:1;min-height:44px;border:2px solid var(--on);border-radius:6px;background:transparent;color:var(--on);font:900 14px/1.1 var(--ui);padding:2px 6px}
+#homerow button[hidden]{display:none}
+#feat{position:relative;flex:none;display:flex;gap:6px;overflow-x:auto;padding:0 18px 6px;scrollbar-width:none}
+#feat button{flex:none;min-height:40px;padding:0 11px;border:2px solid var(--ink);border-radius:20px;background:var(--paper);color:var(--ink);font:800 13px var(--ui);white-space:nowrap}
+#pv{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;margin:2px 0 6px}
+#pv[hidden]{display:none}
+#pv canvas{max-width:100%;max-height:100%;border:2px solid var(--ink);display:block}
+#pvcard{height:100%;aspect-ratio:4/5}
+#pv canvas[hidden]{display:none}
+#pv:not([hidden]) ~ #hero{flex:0 0 84px}
 #tools{position:relative;display:grid;grid-template-columns:repeat(4,1fr);padding:0 10px 8px;flex:none}
 #tools button{min-height:48px;border:0;background:transparent;color:var(--on);font:800 13px/1.1 var(--ui);padding:2px}
 #stagewrap{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 12px;background:var(--a)}

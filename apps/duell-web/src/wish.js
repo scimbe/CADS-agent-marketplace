@@ -5,8 +5,8 @@
   var C = root.DuellCore || (typeof require === "function" ? require("./core.js") : null);
   var D = root.Daily || (typeof require === "function" ? require("./daily.js") : null);
 
-  // The kinds the server has a schema for. Duels are tuned with sliders; a secret channel's text never leaves the device.
-  var KINDS = ["game", "photo", "sound", "card"];
+  // The kinds the server has a schema for. A secret channel's riddles and answers never leave the device, only its look can change.
+  var KINDS = ["game", "photo", "sound", "card", "duel", "quest"];
   // What goes to the server about the creation: its type and its texts, nothing else.
   function request(doc, wish, idea) {
     var now = doc.k === "game" ? { title: doc.g.title } : { x: doc.x, y: doc.y, st: doc.st, bpm: doc.bpm };
@@ -16,8 +16,17 @@
   function apply(doc, ch, pairs, rand) {
     var d = JSON.parse(JSON.stringify(doc));
     if (typeof ch.palette === "number" && pairs[ch.palette]) d.col = pairs[ch.palette].slice();
-    if (d.k === "game") {
+    if (Array.isArray(ch.colors)) d.col = ch.colors.slice();
+    if (d.k === "duel" || d.k === "quest") {
+      if (ch.t) d.t = ch.t; if (ch.s) d.s = ch.s;
+      if (d.k === "quest") { if (ch.e) d.e = ch.e; }
+      else {
+        if (ch.ae) d.a.e = ch.ae; if (ch.be) d.b.e = ch.be; if (ch.bn) d.b.n = ch.bn;
+        if (ch.w && d.w) d.w = ch.w; if (ch.theme && d.g) d.g.theme = ch.theme;
+      }
+    } else if (d.k === "game") {
       ["gravity", "jump", "gap", "speed"].forEach(function (k) { if (ch[k] !== undefined) d.g.params[k] = ch[k]; });
+      if (ch.look) d.g.look = Object.assign({}, d.g.look, ch.look);
       if (ch.theme) d.g.theme = ch.theme; if (ch.emoji) d.g.emoji = ch.emoji; if (ch.title) d.g.title = ch.title;
     } else {
       ["x", "y", "st", "bpm", "fx"].forEach(function (k) { if (ch[k] !== undefined && d[k] !== undefined) d[k] = ch[k]; });
@@ -28,11 +37,28 @@
     }
     return D.sanitizeDoc(d);
   }
+  // Fixed worlds for the case without a model, so a wish still changes sky, figure, obstacles and ground.
+  var LOOKS = [
+    [/welt|all\b|space|rakete|alien|stern/i, "🚀", { a: "#060a2a", b: "#2a1a5e", d: "stars", e: ["🪐", "🌟"], p: "#9aa7c7", q: "#4d5878", f: "block", g: "#1a1a33", h: "#7a6cff", m: "✨" }],
+    [/wasser|meer|ocean|sea|fisch|fish/i, "🐠", { a: "#03466e", b: "#1fa8b8", d: "bubbles", e: ["🐟", "🪼"], p: "#ff7f6b", q: "#b74a3a", f: "round", g: "#e6d29a", h: "#b89c5e", m: "🫧" }],
+    [/grusel|spook|halloween|horror|nacht|night|geist/i, "👻", { a: "#120a1f", b: "#3d1a4f", d: "stars", e: ["🦇", "🌙"], p: "#ff7a1a", q: "#7a2f00", o: "🎃", f: "emoji", g: "#1b1020", h: "#6b2fa0", m: "🦇" }],
+    [/s(ü|ue)ß|suess|candy|sweet|keks|kuchen|bonbon/i, "🍩", { a: "#ff9ad5", b: "#ffe3f2", d: "clouds", e: ["🍬", "🍭"], p: "#7a5cff", q: "#4a2fb0", o: "🍫", f: "emoji", g: "#ffc0e6", h: "#e59ccf", m: "🍬" }],
+    [/winter|schnee|snow|eis\b|ice/i, "⛄", { a: "#bfe3ff", b: "#f4fbff", d: "snow", e: ["❄️"], p: "#3f7fb5", q: "#1f4f7a", f: "block", g: "#ffffff", h: "#a8cfe8", m: "❄️" }],
+    [/wald|forest|natur|baum|dschungel|jungle/i, "🦉", { a: "#2f7a4a", b: "#c4e6a8", d: "clouds", e: ["🍃", "🦋"], p: "#6b4226", q: "#3a2212", o: "🌲", f: "emoji", g: "#3f6b2a", h: "#2a4a1c", m: "🍃" }]
+  ];
+  function localLook(wish, pick) {
+    var hit = LOOKS.filter(function (x) { return x[0].test(wish); })[0] || LOOKS[pick(LOOKS.length)];
+    return { fig: hit[1], look: hit[2] };
+  }
   // No server, no model: still a visible answer from fixed rules. Costs nothing.
   function local(doc, wish, lang, pick) {
     if (doc.k === "game") {
-      var s = C.localConfig(wish, lang), P = s.params || {};
-      return { gravity: P.gravity, jump: P.jump, gap: P.gap, speed: P.speed, theme: s.theme, emoji: s.emoji };
+      var s = C.localConfig(wish, lang), P = s.params || {}, L = localLook(wish, pick);
+      return { gravity: P.gravity, jump: P.jump, gap: P.gap, speed: P.speed, theme: s.theme, emoji: L.fig || s.emoji, look: L.look };
+    }
+    if (doc.k === "duel" || doc.k === "quest") {
+      var e = D.SETS.chaos[pick(6)];
+      return doc.k === "duel" ? { palette: pick(8), be: e, ae: D.SETS.weltall[pick(6)] } : { palette: pick(8), e: e };
     }
     if (doc.k === "sound") { var slow = /langsam|ruhig|slow|chill/i.test(wish); return { bpm: Math.max(70, Math.min(170, doc.bpm + (slow ? -20 : 20))) }; }
     var list = D.STYLES[doc.k], st = list[(list.indexOf(doc.st) + 1) % list.length];
