@@ -7,7 +7,8 @@ const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
 const safe = (s) => s.replace(/<\/script/gi, "<\\/script").replace(/<!--/g, "<\\!--");
 const data = "window.DuellIdeas=" + JSON.stringify(JSON.parse(read("src/ideas.json"))) + ";window.DailyTexts=" + JSON.stringify(JSON.parse(read("src/texts.json"))) + ";";
 const duelData = JSON.parse(read("src/duel.json"));
-const dataAll = data + "window.DuelData=" + JSON.stringify(duelData) + ";Object.assign(window.DailyTexts.de,window.DuelData.texts.de);Object.assign(window.DailyTexts.en,window.DuelData.texts.en);";
+const licenses = ["Anton-OFL.txt", "qrcode-generator-MIT.txt"].map((f) => read("licenses/" + f)).join("\n\n");
+const dataAll = data + "window.DailyLicenses=" + JSON.stringify(licenses) + ";window.DuelData=" + JSON.stringify(duelData) + ";Object.assign(window.DailyTexts.de,window.DuelData.texts.de);Object.assign(window.DailyTexts.en,window.DuelData.texts.en);";
 const parts = { DATA: dataAll, DUEL: read("src/duel.js"), QUEST: read("src/quest.js"), MODES: read("src/modes.js"), QRCODE: read("node_modules/qrcode-generator/qrcode.js"), SHORT: read("src/shortlink.js"), STATUSCARD: read("src/statuscard.js"), CORE: read("src/core.js"), ENGINE: read("src/engine.js"), DAILY: read("src/daily.js"), STUDIO: read("src/studio.js"), KIT: read("src/kit.js"), COLLAB: read("src/collab.js"), COLLABUI: read("src/collab-ui.js"), CALLCARD: read("src/callcard.js"), CALLCARDUI: read("src/callcard-ui.js"), STICKERS: read("src/stickers.js"), AI: read("src/ai.js"), WISH: read("src/wish.js"), RENDER: read("src/render.js"), PLAYABLE: read("src/playable.js"), GAME: read("src/game.js"), APP: read("src/app.js") };
 // QR code for invites: qrcode-generator (MIT, Kazuhiko Arase), licenses/qrcode-generator-MIT.txt.
 // Display font: Anton (SIL OFL 1.1), latin subset (covers ä ö ü ß and German quotes) from @fontsource, embedded as data: URL.

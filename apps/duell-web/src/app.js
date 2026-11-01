@@ -555,6 +555,7 @@ function openStyle() {
     colors(b, function () { return me.colors; }, function (c) { me.colors = c; saveMe(); setInk(c[0], c[1]); });
     b.appendChild(el("label", "lbl", t("set")));
     chips(b, Object.keys(D.SETS).map(function (s) { return { v: s, l: D.SETS[s][0] + " " + t("set_" + s) }; }), me.set, function (v) { me.set = v; saveMe(); });
+    b.appendChild(el("button", "btn", t("licenses"), function () { var l = el("pre", "note", window.DailyLicenses); l.style.whiteSpace = "pre-wrap"; b.textContent = ""; b.appendChild(l); }));
   });
 }
 function shelf(title, fill) { stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }

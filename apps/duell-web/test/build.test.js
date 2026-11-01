@@ -16,7 +16,7 @@ test("Build: eine Datei, voll offline, alle Welten da, Platzhalter ersetzt, Groe
   assert.ok(!/<(img|audio|video|iframe)[^>]+src=["']https?:/i.test(html));
   const core = require("../src/core.js");
   for (const t of core.THEME_NAMES) assert.match(html, new RegExp("\\b" + t + ":\\s*\\{"), "Welt " + t);
-  assert.ok(Buffer.byteLength(html) < 400 * 1024, "dist ueber 400 KB: " + Buffer.byteLength(html));
+  assert.ok(Buffer.byteLength(html) < 420 * 1024, "dist ueber 420 KB: " + Buffer.byteLength(html));
   assert.match(html, /<title>My Daily Idea<\/title>/);
   assert.match(html, /Content-Security-Policy[^>]*default-src 'none'/);
   assert.match(html, /connect-src https:\/\/demos-34a13a96\.bunsenbrenner\.org;/, "nur der eine Host");
@@ -61,4 +61,8 @@ test("Schrift: Anton als data:-URL eingebettet, Lizenzhinweis im Build, Volltext
   const range = css.match(/anton-latin-400-normal \*\/[^}]*unicode-range:([^;]+);/)[1];
   const has = (cp) => range.split(",").some((r) => { const [a, b] = r.trim().replace("U+", "").split("-").map((x) => parseInt(x, 16)); return cp >= a && cp <= (b || a); });
   for (const cp of [0xc4, 0xd6, 0xdc, 0xdf, 0xe4, 0xf6, 0xfc, 0x201e, 0x201c, 0x2013]) assert.ok(has(cp), "Glyph U+" + cp.toString(16));
+});
+test("Lizenzen: Volltexte von Anton und qrcode-generator stecken in der Seite", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../dist/index.html"), "utf8");
+  assert.match(html, /SIL OPEN FONT LICENSE Version 1\.1/); assert.match(html, /Permission is hereby granted, free of charge/);
 });
