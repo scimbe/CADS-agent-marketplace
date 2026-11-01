@@ -322,6 +322,30 @@
       return { h: a === b ? X.blk_tie : fmt(X.blk_h, { a: a, b: b }), lines: [X.blk_fair] };
     }
   };
+  // A plain counter: after each pair of taps it guesses what usually came next. No model, no look at the player beyond these taps.
+  function foreseen(tips) {
+    var seen = {}, hit = 0;
+    tips.forEach(function (x, i) {
+      var key = i >= 2 ? tips[i - 2] + "" + tips[i - 1] : "", c = seen[key] || [0, 0];
+      if ((c[1] > c[0] ? 1 : 0) === x) hit++;
+      c[x]++; seen[key] = c;
+    });
+    return hit;
+  }
+  function twenty() {
+    var o = [];
+    for (var i = 0; i < 20; i++) o.push({ w: "pick", n: 1, auto: true, l: "unl_go", from: function (doc, m, now, lang) { return [T(lang).unl_a, T(lang).unl_b]; } });
+    return o;
+  }
+  GAMES.unlesbar = {
+    local: true, turns: [twenty()],
+    result: function (doc, m, lang) { var X = T(lang), n = foreseen(m[0].map(function (a) { return a[0]; })); return { h: fmt(X.unl_h, { n: n }), lines: [n <= 12 ? X.unl_top : X.unl_low] }; }
+  };
+  function pastAsk(i) { return { w: "text", l: "dam_q", max: 44, top: function (doc, m, lang) { return pair(DATA.past, i, lang); } }; }
+  GAMES.damals = {
+    local: true, turns: [[0, 1, 2, 3, 4].map(pastAsk)],
+    result: function (doc, m, lang) { return { h: T(lang).dam_h, lines: m[0].map(function (a, i) { return pair(DATA.past, i, lang) + " " + a; }) }; }
+  };
   // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
   function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
   function struck(doc, m, lang) {
