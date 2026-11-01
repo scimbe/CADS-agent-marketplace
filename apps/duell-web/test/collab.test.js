@@ -190,7 +190,7 @@ test("Praesenz: da, Spitzname, weg nach Stille", () => {
   n.wire.cut = true; n.t.now += 12000; assert.equal(n.a.c.peerHere(n.t.now), false);
 });
 test("Grenze: Duell und Geheimkanal lassen sich nicht zusammen bauen, auch nicht ueber fremde Metadaten", () => {
-  assert.deepEqual([...S.KINDS].sort(), D.KINDS.filter((k) => k !== "duel" && k !== "quest").sort());
+  assert.deepEqual([...S.KINDS].sort(), D.KINDS.filter((k) => k !== "duel" && k !== "quest" && k !== "turn").sort());
   const src = require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/collab.js"), "utf8");
   assert.match(src, /\|\| KINDS\.indexOf\(m\.k\) < 0\) return false/, "okMeta prueft die eigene Liste");
 });

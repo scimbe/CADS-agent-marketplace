@@ -6,10 +6,10 @@
   var D = root.Daily || (typeof require === "function" ? require("./daily.js") : null);
 
   // The kinds the server has a schema for. A secret channel's riddles and answers never leave the device, only its look can change.
-  var KINDS = ["game", "photo", "sound", "card", "duel", "quest"];
+  var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn"];
   // What goes to the server about the creation: its type and its texts, nothing else.
   function request(doc, wish, idea) {
-    var now = doc.k === "game" ? { title: doc.g.title } : { x: doc.x, y: doc.y, st: doc.st, bpm: doc.bpm };
+    var now = doc.k === "game" ? { title: doc.g.title } : doc.k === "turn" ? { w: doc.w } : { x: doc.x, y: doc.y, st: doc.st, bpm: doc.bpm };
     return { type: doc.k, wish: wish, idea: idea || doc.t || "", now: now };
   }
   // doc + changes -> a new sanitized doc; only keys of its type can have any effect.
@@ -17,7 +17,9 @@
     var d = JSON.parse(JSON.stringify(doc));
     if (typeof ch.palette === "number" && pairs[ch.palette]) d.col = pairs[ch.palette].slice();
     if (Array.isArray(ch.colors)) d.col = ch.colors.slice();
-    if (d.k === "duel" || d.k === "quest") {
+    if (d.k === "turn") {
+      if (ch.t) d.t = ch.t; if (ch.s) d.s = ch.s; if (ch.w) d.w = ch.w; if (ch.f) d.f = ch.f;
+    } else if (d.k === "duel" || d.k === "quest") {
       if (ch.t) d.t = ch.t; if (ch.s) d.s = ch.s;
       if (d.k === "quest") { if (ch.e) d.e = ch.e; }
       else {
@@ -56,6 +58,7 @@
       var s = C.localConfig(wish, lang), P = s.params || {}, L = localLook(wish, pick);
       return { gravity: P.gravity, jump: P.jump, gap: P.gap, speed: P.speed, theme: s.theme, emoji: L.fig || s.emoji, look: L.look };
     }
+    if (doc.k === "turn") { var f = ["cookie", "star", "heart", "bolt", "ring", "drop"]; return { palette: pick(8), f: f[(f.indexOf(doc.f) + 1 + pick(5)) % 6] }; }
     if (doc.k === "duel" || doc.k === "quest") {
       var e = D.SETS.chaos[pick(6)];
       return doc.k === "duel" ? { palette: pick(8), be: e, ae: D.SETS.weltall[pick(6)] } : { palette: pick(8), e: e };

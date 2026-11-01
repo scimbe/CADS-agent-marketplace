@@ -79,7 +79,7 @@ function preview(doc) {
 }
 function feats() {
   var box = $("feat"); box.textContent = "";
-  [["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
+  [["f_two", "🤝", function () { X.turn.menu(); }], ["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
     ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].forEach(function (f) {
     box.appendChild(el("button", "", f[1] + " " + t(f[0]), function () { Kit.sfx.tap(); f[2](); }));
   });

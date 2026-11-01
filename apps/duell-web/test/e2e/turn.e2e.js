@@ -1,0 +1,76 @@
+"use strict";
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const path = require("node:path");
+const { chromium, devices } = require("playwright");
+const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
+const shot = process.env.SHOT_DIR;
+const hash = (u) => "#" + u.split("#")[1];
+
+async function setup() {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), errs = [];
+  ctx.setDefaultTimeout(15000);
+  const open = async (h) => { const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e))); await p.goto(page + h); return p; };
+  return { b, open, errs };
+}
+const url = (p) => p.evaluate(() => window.DailyDebug.result().url);
+const next = (p) => p.getByRole("button", { name: "Weiter", exact: true }).click();
+const slide = (p, v) => p.locator("#panel input[type=range]").evaluate((r, x) => { r.value = x; r.dispatchEvent(new Event("input", { bubbles: true })); }, v);
+const send = (p) => p.locator("#edmain").click();
+
+test("Zwei Geraete: Keks-Deal laeuft nur ueber Links bis zum Ergebnisbild", async () => {
+  const { b, open, errs } = await setup();
+  const a = await open("#i=zug-deal"); await a.locator("#go").click();
+  assert.match(await a.locator("#edmain").textContent(), /Erst deinen Zug/);
+  await slide(a, 4); await next(a); await a.getByText("Zug steht").waitFor(); await send(a); await a.locator("#share").waitFor();
+  const one = await url(a); assert.ok(!/"?offer/.test(one));
+  const c = await open(hash(one));
+  assert.match(await c.locator("#from").textContent(), /Du bist dran. Zug 2 von 3/);
+  await c.locator("#go").click(); await slide(c, 3); await next(c);
+  await c.getByText(/4 abgegeben, ab 3 angenommen/).waitFor(); await slide(c, 6); await next(c); await send(c); await c.locator("#share").waitFor();
+  const a2 = await open(hash(await url(c)));
+  await a2.locator("#go").click(); await slide(a2, 5); await next(a2); await send(a2); await a2.locator("#share").waitFor();
+  const back = await open(hash(await url(a2)));
+  assert.match(await back.locator("#from").textContent(), /fertig/);
+  await back.locator("#go").click(); await back.getByText("Beide Deals stehen").first().waitFor();
+  if (shot) await back.screenshot({ path: shot + "/deal.png" });
+  await send(back); await back.locator("#share").waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
+test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
+  const { b, open, errs } = await setup();
+  const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
+  assert.equal(await m.locator("#shbody .mech").count(), 7);
+  await m.getByRole("button", { name: /Worauf einigen/ }).click();
+  const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
+  await next(m);
+  for (const n of ["FilmA", "FilmB", "FilmC", "FilmD", "FilmE"]) await m.getByRole("button", { name: n }).click();
+  await next(m); await send(m); await m.locator("#share").waitFor();
+  const e = await open(hash(await url(m))); await e.locator("#go").click();
+  for (const n of ["FilmE", "FilmD", "FilmC", "FilmB", "FilmA"]) await e.getByRole("button", { name: n, exact: true }).click();
+  await next(e); await send(e); await e.locator("#share").waitFor();
+  const r = await open(hash(await url(e))); await r.locator("#go").click(); await r.getByText("Einigung: FilmC").first().waitFor();
+
+  const w = await open("#i=zug-wort"); await w.locator("#go").click();
+  const chips = w.locator("#panel .chip"); assert.equal(await chips.count(), 9);
+  for (let i = 0; i < 3; i++) await chips.nth(i).click();
+  await next(w); await w.locator("#panel input.field").fill("Qqqq"); await next(w); await send(w); await w.locator("#share").waitFor();
+  const w2 = await open(hash(await url(w))); await w2.locator("#go").click(); await w2.getByText("Qqqq").first().waitFor();
+  const c2 = w2.locator("#panel .chip"); for (let i = 0; i < 3; i++) await c2.nth(i).click();
+  await next(w2); await send(w2); await w2.locator("#share").waitFor();
+  const w3 = await open(hash(await url(w2))); await w3.locator("#go").click(); await w3.getByText("Drei von drei").first().waitFor();
+
+  const k = await open("#i=zug-kapsel"); await k.locator("#go").click();
+  await k.locator("#panel .chip").first().click(); await next(k); await slide(k, 3); await next(k); await send(k); await k.locator("#share").waitFor();
+  const k2 = await open(hash(await url(k)));
+  assert.match(await k2.locator("#from").textContent(), /Noch 3 Tage/);
+  await k2.locator("#go").click(); await k2.locator("#panel").getByText("Noch 3 Tage").waitFor();
+  assert.equal(await k2.getByRole("button", { name: "Weiter", exact: true }).count(), 0);
+
+  const au = await open("#i=zug-auktion"); await au.locator("#go").click();
+  const plus = au.locator("#panel .chip", { hasText: "+" }); assert.equal(await plus.count(), 5);
+  for (let i = 0; i < 11; i++) await plus.first().click();
+  await au.getByText("Noch 0 Münzen").waitFor(); await next(au); await send(au); await au.locator("#share").waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
