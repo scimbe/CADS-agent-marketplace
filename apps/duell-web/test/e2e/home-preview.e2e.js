@@ -6,7 +6,7 @@ const { chromium, devices } = require("playwright");
 const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
 const shot = process.env.SHOT_DIR;
 
-test("Start: jede Art zeigt Vorschau, Funktionsleiste fuehrt zu Flappy und Webconference, 30 Tage laufen ohne Fehler", async () => {
+test("Start: jede Art zeigt Vorschau, Funktionsleiste fuehrt zum Flugspiel und Webconference, 30 Tage laufen ohne Fehler", async () => {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), errs = [];
   for (let i = 0; i < 30; i++) {
@@ -21,7 +21,7 @@ test("Start: jede Art zeigt Vorschau, Funktionsleiste fuehrt zu Flappy und Webco
   assert.deepEqual(errs, []);
   const p = await ctx.newPage(); await p.goto(page);
   assert.ok(await p.getByRole("button", { name: /Webconference/ }).first().isVisible());
-  await p.getByRole("button", { name: /Flappy/ }).click();
+  await p.getByRole("button", { name: /Flugspiel/ }).click();
   await p.getByRole("tab", { name: "✨ Wunsch" }).waitFor();
   await b.close();
 });
