@@ -38,9 +38,9 @@ R.extra.turn = function (c, W, H, doc) {
 
 /* ---------- one prompt ---------- */
 var draw = {
-  slide: function (box, p, set) {
+  slide: function (box, p, set, ctx) {
     var v = p.def || p.min || 0, row = el("label", "slide"), r = el("input"), b = el("b", "", v);
-    row.appendChild(el("span", "", "")); r.type = "range"; r.min = p.min || 0; r.max = p.max; r.value = v; r.setAttribute("aria-label", L()[p.l]);
+    row.appendChild(el("span", "", "")); r.type = "range"; r.min = p.min || 0; r.max = p.maxOf ? p.maxOf(ctx.doc) : p.max; r.value = v; r.setAttribute("aria-label", L()[p.l]);
     r.addEventListener("input", function () { b.textContent = r.value; set(Number(r.value)); });
     row.appendChild(r); row.appendChild(b); box.appendChild(row); set(v);
   },
@@ -57,7 +57,7 @@ var draw = {
   },
   list: function (box, p, set) {
     var fs = [];
-    function up() { var v = fs.map(function (f) { return Q.clean(f.value, p.max); }); set(p.loose ? fs.map(function (f, i) { return f.value.trim() ? v[i] : ""; }) : v.every(Boolean) && (p.same || new Set(v.map(Q.fold)).size === p.n) && (!p.bytes || new TextEncoder().encode(v.join("")).length <= p.bytes) ? v : null); }
+    function up() { var v = fs.map(function (f) { return Q.clean(f.value, p.max); }), have = v.filter(Boolean); if (p.least && (have.length < p.least || new Set(have.map(Q.fold)).size < have.length)) { set(null); return; } set(p.loose ? fs.map(function (f, i) { return f.value.trim() ? v[i] : ""; }) : v.every(Boolean) && (p.same || new Set(v.map(Q.fold)).size === p.n) && (!p.bytes || new TextEncoder().encode(v.join("")).length <= p.bytes) ? v : null); }
     for (var i = 0; i < p.n; i++) { var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l] + " " + (i + 1)); if (p.hints) f.placeholder = p.hints(Kit.lang)[i]; f.addEventListener("input", up); box.appendChild(f); fs.push(f); }
     if (p.loose) up(); else set(null);
   },
@@ -75,7 +75,7 @@ var draw = {
     box.appendChild(row); set(null);
   },
   rank: function (box, p, set, ctx) {
-    var order = [], items = p.from(ctx.doc, ctx.m, ctx.now), row = el("div", "chips");
+    var order = [], items = p.from(ctx.doc, ctx.m, ctx.now, Kit.lang), row = el("div", "chips");
     items.forEach(function (s, i) {
       var b = el("button", "chip", s, function () {
         Kit.sfx.tap(); var at = order.indexOf(i); if (at >= 0) order.splice(at, 1); else order.push(i);
@@ -180,6 +180,7 @@ function walk(box, ed) {
   var st = Tn.state(ed.doc), now = [], i = 0;
   function step() {
     box.textContent = "";
+    if (i >= st.prompts.length && Tn.GAMES[ed.doc.g].stay && st.turn) { box.appendChild(el("p", "lbl", L().stay_note)); return; }   // the same link goes on to the next person
     if (i >= st.prompts.length) { ed.move = now; ed.next = Tn.play(ed.doc, now, Tn.today());
       if (Tn.GAMES[ed.doc.g].local) { pass(box, ed); return; }
       A.changed(); box.appendChild(el("p", "lbl", L().ready)); box.appendChild(el("button", "btn", L().hand_same, function () { pass(box, ed); })); return; }
@@ -199,6 +200,7 @@ A.PANEL.Move = function (p) {
   if (res) {
     p.appendChild(el("p", "qtext", res.h)); res.lines.forEach(function (s) { p.appendChild(el("p", "note", s)); });
     if (res.copy) { p.appendChild(el("button", "btn hot", L().sor_copy, async function () { if (await Kit.copy(res.copy)) Kit.toast(t("copied")); })); p.appendChild(el("p", "note", res.note)); return; }
+    if (res.note) p.appendChild(el("p", "note", res.note));
     p.appendChild(el("button", "btn hot", L().rematch, function () { var d = Tn.fresh(doc, seed()); A.openEditor(d, { idea: d.i ? D.byId(d.i) : null }); }));
     return;
   }
@@ -231,7 +233,7 @@ X.turn = {
       });
     });
   },
-  open: function (ed) { ed.next = null; if (!Tn.state(ed.doc).turn) { ed.doc.seed = seed(); ed.base.seed = ed.doc.seed; ed.doc.q = ""; ed.base.q = ""; } },
+  open: function (ed) { ed.next = null; if (!Tn.state(ed.doc).turn) { ed.doc.seed = Tn.GAMES[ed.doc.g].daily ? Tn.today() : seed(); ed.base.seed = ed.doc.seed; ed.doc.q = ""; ed.base.q = ""; } },
   areas: function (ed) { return ed.next ? ["regeln"] : []; },
   footer: function (b, ed) {
     var over = !!Tn.result(ed.doc, Kit.lang), ok = over || !!ed.next;
