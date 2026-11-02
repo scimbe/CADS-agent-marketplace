@@ -376,7 +376,7 @@ enum DuellDebug {
             await openIdea('quiz-chaos');
             await clickEl(btn(/^(Stickers|Sticker)$/)); await clickEl($('#panel .chip.em'));
             log('footer', $('#edmain').textContent); await clickEl($('#edmain'), 1500);
-            log('doneImg', !!$('#doneimg').src); await clickEl($('#share'), 1500);
+            log('doneImg', !!$('#doneimg').src); await clickEl($('#share'), 2500); await clickEl($('#share'), 1500);
             """,
         "save": """
             await openIdea('quiz-chaos');
