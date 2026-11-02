@@ -19,7 +19,7 @@ test("Build: eine Datei, voll offline, alle Welten da, Platzhalter ersetzt, Groe
   assert.ok(Buffer.byteLength(html) < 700 * 1024, "dist ueber 700 KB: " + Buffer.byteLength(html));
   assert.match(html, /<title>My Daily Idea<\/title>/);
   assert.match(html, /Content-Security-Policy[^>]*default-src 'none'/);
-  assert.match(html, /connect-src https:\/\/demos-34a13a96\.bunsenbrenner\.org;/, "nur der eine Host");
+  assert.match(html, /connect-src https:\/\/demos-34a13a96\.bunsenbrenner\.org https:\/\/webconference\.bunsenbrenner\.org wss:\/\/webconference\.bunsenbrenner\.org;/, "der eigene Host und fuer Live-Spiele nur die Webconference");
 });
 test("Datenschutz: Kurzlink nur ueber shortlink.js, nur nach einem Tipp auf Teilen; p= bleibt draussen", () => {
   assert.ok(src("shortlink.js").includes("(fetchFn || fetch)(API + path"));
@@ -31,7 +31,7 @@ test("Datenschutz: Kurzlink nur ueber shortlink.js, nur nach einem Tipp auf Teil
 test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, Kurzlink), nur getippter Text; kein anderer Weg nach draussen", () => {
   const html = noComments(fs.readFileSync(dist, "utf8"));
   // Every call site by name; a new one fails here until it is argued for and listed.
-  const allowed = { "game.js": 1, "ai.js": 1 }, short = /\(fetchFn \|\| fetch\)\(/g;
+  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1 }, short = /\(fetchFn \|\| fetch\)\(/g;
   for (const f of fs.readdirSync(path.join(__dirname, "../src")).filter((n) => n.endsWith(".js"))) {
     assert.equal((noComments(src(f)).match(/\bfetch\(/g) || []).length, allowed[f] || 0, "direktes fetch( in " + f);
     assert.equal((noComments(src(f)).match(short) || []).length, f === "shortlink.js" ? 1 : 0, "Kurzlink-fetch in " + f);
@@ -43,7 +43,11 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, Kurzlink
   assert.ok(src("game.js").includes("await fetch("), "fetch gehoert ins Spiel");
   const body = src("game.js").match(/fetch\([^\n]*/)[0];
   assert.match(body, /JSON\.stringify\(\{ prompt: prompt, lang: lang \}\)/, "nur Satz + Sprache");
-  assert.ok(!/XMLHttpRequest|sendBeacon|WebSocket|EventSource|RTCPeerConnection|importScripts|new Worker/.test(html), "weiterer Ausgang");
+  assert.ok(!/XMLHttpRequest|sendBeacon|EventSource|importScripts|new Worker/.test(html), "weiterer Ausgang");
+  // Live games: one WebSocket to the edge and one peer connection, both only in live.js, and its one fetch goes to the play API.
+  for (const f of fs.readdirSync(path.join(__dirname, "../src")).filter((n) => n.endsWith(".js") && n !== "live.js")) assert.ok(!/WebSocket|RTCPeerConnection/.test(noComments(src(f))), "Live-Ausgang in " + f);
+  assert.equal((html.match(/new WebSocket\(/g) || []).length, 1, "ein WebSocket"); assert.equal((html.match(/new RTCPeerConnection\(/g) || []).length, 1, "eine Peer-Verbindung");
+  assert.match(src("live.js"), /API = WC \+ "\/api\/play"/, "Live spricht nur mit /api/play"); assert.match(src("live.js"), /iceTransportPolicy: ice\.iceServers \? "relay"/, "nur ueber TURN");
   assert.ok(!/analytics|\bgtag\b|tracker|Notification\.|serviceWorker/i.test(html), "Tracker/Push");
 });
 test("XSS: kein HTML-Sink im Seitencode", () => {

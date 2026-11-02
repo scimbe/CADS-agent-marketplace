@@ -463,6 +463,7 @@ X.turn = {
     function start(i) { Kit.sfx.thud(); A.openEditor(D.docFromIdea(i, A.me(), Kit.lang), { idea: i }); }
     A.shelf(say("turn_all", { n: all.length }), function (b) {
       b.appendChild(el("p", "note", t("turnH")));
+      if (window.LiveUI && window.LiveUI.on()) b.appendChild(el("button", "btn hot live", t("live_tile"), function () { Kit.sfx.thud(); window.LiveUI.invite(); }));
       b.appendChild(el("button", "btn hot", "🎲 " + L().turn_any, function () { start(all[seed() % all.length]); }));
       ["streit", "pause", "abend", "geschenk", "raum"].forEach(function (g) {
         b.appendChild(el("label", "lbl", L()["grip_" + g]));
