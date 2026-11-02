@@ -273,6 +273,7 @@
 "wishH_turn": "Die KI ändert Titel, Untertitel, Figur, Farben und den Spieleinsatz. Deine Züge bleiben im Link.",
 "wishTips_turn": "Piraten teilen Beute|Weltraum-Handel|Süß und niedlich|Wie im Krimi",
 "f_two": "Zu zweit",
+"f_twoN": "{n} Spiele zu zweit",
 "turnH": "Du machst deinen Zug und schickst den Link. Jede neue Partie ist ein eigenes Paar. Nichts liegt auf einem Server."
 },
 "en": {
@@ -549,6 +550,7 @@
 "wishH_turn": "The AI changes title, subtitle, figure, colours and what is at stake. Your moves stay in the link.",
 "wishTips_turn": "Pirates share loot|Space trade|Sweet and cute|Like a crime story",
 "f_two": "For two",
+"f_twoN": "{n} games for two",
 "turnH": "Make your move and send the link. Every new game is its own pair. Nothing sits on a server."
 }
 }

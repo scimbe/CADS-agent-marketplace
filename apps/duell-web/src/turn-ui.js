@@ -369,15 +369,22 @@ A.PANEL.Text = (function (old) {
 })(A.PANEL.Text);
 X.turn = {
   // Every game on one shelf, each with what it is for.
+  // Every game on one shelf as a tile with its own sign, grouped by when it fits, plus one button for a surprise.
   menu: function () {
-    A.shelf(t("turn"), function (b) {
+    var all = D.IDEAS.filter(function (i) { return i.kind === "turn"; }), COL = { streit: "#ff3b1d", pause: "#1d7cff", abend: "#7a3bff", geschenk: "#ff5fa2", raum: "#12a150" };
+    function start(i) { Kit.sfx.thud(); A.openEditor(D.docFromIdea(i, A.me(), Kit.lang), { idea: i }); }
+    A.shelf(say("turn_all", { n: all.length }), function (b) {
       b.appendChild(el("p", "note", t("turnH")));
+      b.appendChild(el("button", "btn hot", "🎲 " + L().turn_any, function () { start(all[seed() % all.length]); }));
       ["streit", "pause", "abend", "geschenk", "raum"].forEach(function (g) {
         b.appendChild(el("label", "lbl", L()["grip_" + g]));
-        D.IDEAS.filter(function (i) { return i.kind === "turn" && i.turn.grip === g; }).forEach(function (i) {
-        var T = i[Kit.lang] || i.de, m = el("button", "mech", null, function () { Kit.sfx.thud(); A.openEditor(D.docFromIdea(i, A.me(), Kit.lang), { idea: i }); });
-        m.appendChild(el("span", "", T.t.replace("|", " ") + " · " + T.s)); b.appendChild(m);
+        var box = el("div", "tiles");
+        all.filter(function (i) { return i.turn.grip === g; }).forEach(function (i) {
+          var T = i[Kit.lang] || i.de, m = el("button", "mech tile", null, function () { start(i); }), c = document.createElement("canvas");
+          c.width = c.height = 96; shape(c.getContext("2d"), i.turn.f, 48, 48, 30, COL[g]);
+          m.appendChild(c); m.appendChild(el("b", "", T.t.replace("|", " "))); m.appendChild(el("small", "", T.s)); box.appendChild(m);
         });
+        b.appendChild(box);
       });
     });
   },

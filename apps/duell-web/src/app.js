@@ -82,7 +82,8 @@ function feats() {
   var box = $("feat"); box.textContent = "";
   [["f_two", "🤝", function () { X.turn.menu(); }], ["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
     ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].forEach(function (f) {
-    box.appendChild(el("button", "", f[1] + " " + t(f[0]), function () { Kit.sfx.tap(); f[2](); }));
+    var n = D.IDEAS.filter(function (i) { return i.kind === "turn"; }).length;
+    box.appendChild(el("button", f[0] === "f_two" ? "hot" : "", f[0] === "f_two" ? "🎲 " + t("f_twoN", { n: n }) : f[1] + " " + t(f[0]), function () { Kit.sfx.tap(); f[2](); }));
   });
 }
 function blank(kind) { Kit.sfx.thud(); openEditor(D.blankDoc(kind, me, Kit.lang), { own: true }); }
