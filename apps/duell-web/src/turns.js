@@ -359,10 +359,10 @@
   GAMES.kreis = {
     turns: [
       [{ w: "list", l: "krs_words", n: 5, max: 14 }, { w: "rank", l: "krs_rank", from: function (doc, m, now) { return now[0]; } }],
-      [0, 1, 2, 3, 4, 5].map(circleTest).concat([{ w: "rank", l: "krs_guess", peek: function (doc, m, now, lang) { return circleSoFar(doc, m, now, lang); }, from: function (doc, m) { return m[0][0]; } }])
+      [0, 1, 2].map(circleTest).concat([{ w: "rank", l: "krs_guess", peek: function (doc, m, now, lang) { return circleSoFar(doc, m, now, lang); }, from: function (doc, m) { return m[0][0]; } }])
     ],
     result: function (doc, m, lang) {
-      var X = T(lang), o = m[0][1], w = m[0][0], ok = circleSame(o, m[1][6]);
+      var X = T(lang), o = m[0][1], w = m[0][0], ok = circleSame(o, m[1][3]);
       return { h: ok ? X.krs_right : X.krs_wrong, lines: [fmt(X.krs_was, { w: o.map(function (i) { return w[i]; }).join(" → ") + " → " + w[o[0]] })] };
     }
   };
@@ -609,7 +609,7 @@
     return t === 1 ? [{ w: "grid", l: "sok_hide", n: 2 }, p] : [p];
   }
   GAMES.socken = {
-    turns: [[{ w: "grid", l: "sok_hide", n: 2 }]].concat([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(sockTurn)),
+    turns: [[{ w: "grid", l: "sok_hide", n: 2 }]].concat([1, 2, 3, 4, 5, 6].map(sockTurn)),
     ends: function (doc, m) { return m.length >= 2 && (sockFound(m, 0) === 2 || sockFound(m, 1) === 2); },
     result: function (doc, m, lang) {
       var X = T(lang), a = sockFound(m, 1), b = sockFound(m, 0), w = a === b ? null : a > b ? X.first : X.second;
@@ -667,6 +667,35 @@
       [{ w: "pick", l: "stm_role", n: 1, auto: true, from: function (doc, m, now, lang) { return [T(lang).stm_speak, T(lang).stm_guess]; } },
        { w: "voices", l: "stm_go", auto: true, rounds: 5, figure: function (doc, r, lang) { return pair(DATA.figures, figure(doc, r), lang); }, cards: function (doc, r, lang) { return figureCards(doc, r).map(function (i) { return pair(DATA.figures, i, lang); }); }, right: function (doc, r) { return figureCards(doc, r).indexOf(figure(doc, r)); } }]],
     result: function (doc, m, lang) { return { h: fmt(T(lang).stm_h, { n: m[1][1] }), lines: [T(lang).stm_note] }; }
+  };
+  // ---------- voices on one phone: recordings stay in memory on this device and never go into a link ----------
+  var FXS = ["chip", "monster", "robot", "echo"];
+  GAMES.maus = {
+    local: true,
+    turns: [[{ w: "text", l: "mau_for", max: 12 }, { w: "pick", l: "mau_fx", n: 1, auto: true, from: function (doc, m, now, lang) { return FXS.map(function (f) { return T(lang)["mau_" + f]; }); } }, { w: "rec", l: "mau_rec", auto: true, ms: 4000, slot: "maus" }],
+      [{ w: "once", l: "mau_press", auto: true, slot: "maus", fx: function (m) { return FXS[m[0][1][0]]; }, who: function (m) { return m[0][0]; } }]],
+    result: function (doc, m, lang) { return { h: fmt(T(lang).mau_h, { n: m[0][0] }), lines: [T(lang).mau_gone] }; }
+  };
+  function parrotWords(doc, lang) { return mix(doc, "papagei", DATA.words.length).slice(0, 3).map(function (i) { return pair(DATA.words, i, lang); }); }
+  GAMES.papagei = {
+    local: true,
+    turns: [[{ w: "show", l: "pap_say", list: function (doc, m, now, lang) { return [parrotWords(doc, lang)[mix(doc, "pw", 3)[0]]]; } }, { w: "rec", l: "pap_rec", auto: true, ms: 2500, slot: "pap_a" }],
+      [{ w: "parrot", l: "pap_copy", auto: true, from: "pap_a", slot: "pap_b" }, { w: "pick", l: "pap_guess", n: 1, auto: true, from: function (doc, m, now, lang) { return parrotWords(doc, lang); } }]],
+    result: function (doc, m, lang) { var X = T(lang), w = parrotWords(doc, lang), ok = mix(doc, "pw", 3)[0]; return { h: m[1][1][0] === ok ? X.pap_right : X.pap_wrong, lines: [fmt(X.pap_was, { w: w[ok] })] }; }
+  };
+  function animalTurn(i) { return [{ w: "rec", l: "tie_rec", auto: true, ms: 1200, slot: "tier" + i, peek: function (doc, m, now, lang) { return fmt(T(lang).ask_you, { n: m[0][0][i] }); } }]; }
+  function animalOrder(doc) { return mix(doc, "tierfolge", 3); }
+  function animalGuess(k) {
+    return { w: "whose", l: "tie_who", auto: true, slot: function (doc) { return "tier" + animalOrder(doc)[k]; }, fx: function (doc) { return FXS[doc.seed % 4]; }, title: function (doc, lang) { return fmt(T(lang).tie_n, { n: k + 1 }); }, from: function (doc, m) { return m[0][0]; } };
+  }
+  GAMES.tier = {
+    local: true,
+    turns: [[{ w: "list", l: "ask_names", n: 3, max: 12 }], animalTurn(0), animalTurn(1), animalTurn(2), [animalGuess(0), animalGuess(1), animalGuess(2)]],
+    result: function (doc, m, lang) {
+      var X = T(lang), o = animalOrder(doc), names = m[0][0], hit = o.map(function (who, k) { return m[4][k] === who; });
+      var lines = names.map(function (n, who) { return fmt(hit[o.indexOf(who)] ? X.tie_known : X.tie_hidden, { n: n }); });
+      return { h: fmt(X.tie_h, { n: hit.filter(Boolean).length }), lines: lines };
+    }
   };
   // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
   function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
@@ -729,6 +758,8 @@
     if (p.w === "drop") return intIn(v, 0, p.max);
     if (p.w === "doors") return v === 0;
     if (p.w === "freeze") return intIn(v, 0, p.max);
+    if (p.w === "rec" || p.w === "once" || p.w === "parrot") return v === 0;
+    if (p.w === "whose") return intIn(v, 0, 2);
     if (p.w === "voices") return intIn(v, 0, p.rounds);
     if (p.w === "grid") return Array.isArray(v) && v.length === p.n && distinct(v) && v.every(function (x) { return intIn(x, 0, 24); });
     if (p.w === "probe") { var old = p.before(doc, m); return Array.isArray(v) && v.length >= 1 && v.length <= p.n && distinct(v.concat(old)) && v.every(function (x) { return intIn(x, 0, 24); }); }

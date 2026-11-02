@@ -24,7 +24,7 @@
 },
 "texts": {
  "de": {
-  "duel": "Duell", "quest": "Geheim", "notHere": "Das geht auf diesem Gerät gerade nicht. Hier ist die Tageskarte.",
+  "duel": "Gegen Bot", "quest": "Geheim", "notHere": "Das geht auf diesem Gerät gerade nicht. Hier ist die Tageskarte.",
   "tabAgent": "Mein Agent", "tabRival": "Gegner", "tabArena": "Arena", "tabRiddle": "Rätsel", "tabEnd": "Schatz",
   "agName": "Name", "agLook": "Aussehen", "ag_r": "Mut", "ag_c": "Frechheit", "ag_p": "Geduld", "ag_sharp": "Lernt so schnell",
   "agRandom": "Gegner würfeln", "agLocal": "Dein Agent rechnet hier auf dem Handy, ohne Netz. Regeln, keine KI.",
@@ -42,7 +42,7 @@
   "questGone": "Dieser Inhalt ist gesperrt.", "questOwn": "Bau dein eigenes"
  },
  "en": {
-  "duel": "Duel", "quest": "Secret", "notHere": "That doesn't work on this device right now. Here's today's card.",
+  "duel": "Versus bot", "quest": "Secret", "notHere": "That doesn't work on this device right now. Here's today's card.",
   "tabAgent": "My agent", "tabRival": "Rival", "tabArena": "Arena", "tabRiddle": "Riddle", "tabEnd": "Treasure",
   "agName": "Name", "agLook": "Look", "ag_r": "Courage", "ag_c": "Cheek", "ag_p": "Patience", "ag_sharp": "Learning speed",
   "agRandom": "Roll a rival", "agLocal": "Your agent runs here on the phone, no network. Rules, no AI.",

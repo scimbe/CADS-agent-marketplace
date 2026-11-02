@@ -180,3 +180,8 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .sgrid { grid-template-columns: repeat(5, 1fr); max-width: 300px; }
 .sgrid .bcell.a2 { background: var(--hot, #f5a623); }
 .sgrid .bcell.a1 { opacity: .8; }
+#feat button.hot{background:var(--ink);color:var(--btn);border-color:var(--ink)}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.tiles .mech.tile{flex-direction:column;align-items:flex-start;gap:4px;min-height:150px;margin:0;padding:10px;font:900 19px/1.05 var(--disp);text-align:left;background:var(--paper)}
+.tiles .mech.tile canvas{width:44px;height:44px}
+.tiles .mech.tile small{font:600 12px/1.25 var(--ui);text-transform:none}

@@ -22,7 +22,7 @@ const LINES = {
   steine: [[[[0, 20, 40]], [[0, 21, 42]]]],
   unlesbar: [[Array(20).fill(0).map((x, i) => [i % 2])]], damals: [[["Pudding", "Lesen", "Schlager", "Kaugummi", "Video"]]],
   streichen: [[[[0]], [[0]], [[0]], [[0]], [[0]], [[0]]]], finger: [[[0]]], erklaeren: [[[7]]], sorry: [[[[0], [1], [2]]]],
-  kreis: [[[["Toast", "Hai", "Mond", "Kuh", "Wind"], [0, 1, 2, 3, 4]], [[0, 1], [0, 2], [0, 3], [0, 4], [1, 2], [1, 3], [0, 1, 2, 3, 4]]]],
+  kreis: [[[["Toast", "Hai", "Mond", "Kuh", "Wind"], [0, 1, 2, 3, 4]], [[0, 1], [0, 2], [0, 3], [0, 1, 2, 3, 4]]]],
   hoeflich: [[[[0]], [[0]], [[0]], [[0]], [[0]], [[0]]]],
   woerter: [[[[0], [0]], [[0], [1], [1]], [[0], [2], [2]], [[0], [3], [3]], [[0]]]],
   abfragen: [[[["Eins", "Zwei", "Drei", "Vier"], ["ja", "ja", "nein", "ja"]], [0, [0], 0, [1], 0, [0], 0, [0], ["Aa", "Bb", "Cc", "Dd"], ["x", "y", "x", "y"]], [0, [0], 0, [0], 0, [1], 0, [0]]]],
@@ -44,6 +44,9 @@ const LINES = {
   rap: [[[[0], [0]], [[1], [2]]]],
   disco: [[[[0], 3]]],
   stimme: [[[0], [[1], 4]]],
+  maus: [[["Oma", [0], 0], [0]]],
+  papagei: [[[0, 0], [0, [1]]]],
+  tier: [[[["Ana", "Ben", "Cem"]], [0], [0], [0], [0, 1, 2]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
@@ -142,7 +145,7 @@ test("Gleiche Steine: beide Seiten bekommen denselben Strom, Punkte werden nachg
   assert.equal(Tn.drop(st, [[0, 0]], 7).lines, 1); assert.equal(Tn.drop(st, [[0, 0]], 7).grid.slice(0, 8).join(""), "00000000");
 });
 test("Kreis: jedes Wort schlaegt die zwei naechsten, gedrehter Kreis zaehlt als richtig", () => {
-  const words = ["Aa", "Bb", "Cc", "Dd", "Ee"], tests = [[0, 1], [0, 2], [0, 3], [0, 4], [1, 2], [1, 3]];
+  const words = ["Aa", "Bb", "Cc", "Dd", "Ee"], tests = [[0, 1], [0, 2], [0, 3]];
   let d = Tn.play(fresh("kreis", 5), [words, [0, 2, 4, 1, 3]], 0);
   const p = Tn.GAMES.kreis.turns[1][1].peek(d, Tn.moves(d), [[0, 2], [0, 1]], "de");
   assert.match(p, /Aa schlägt Cc/); assert.match(p, /Bb schlägt Aa/);
@@ -257,6 +260,13 @@ test("Stimmen: sechs verschiedene Karten, die richtige Figur ist immer dabei", (
   const p = Tn.GAMES.stimme.turns[1][1];
   for (let seed = 1; seed < 80; seed++) for (let r = 0; r < 5; r++) { const d = fresh("stimme", seed), c = p.cards(d, r, "de"); assert.equal(new Set(c).size, 6); assert.equal(c[p.right(d, r)], p.figure(d, r, "de")); }
   const t = Tn.GAMES.disco.turns[0][1]; assert.ok(t.pause(fresh("disco", 3), 0) >= 4 && t.pause(fresh("disco", 3), 0) <= 12);
+});
+test("Ton-Blaetter: keine Aufnahme im Link, Tier-Aufstellung zaehlt Erkannte", () => {
+  let d = fresh("maus", 1); for (const a of [["Oma", [0], 0], [0]]) d = Tn.play(d, a, 0);
+  assert.ok(D.docUrl(d).length < 400);
+  let e = fresh("tier", 4); for (const a of [[["Ana", "Ben", "Cem"]], [0], [0], [0]]) e = Tn.play(e, a, 0);
+  const o = [0, 1, 2].map((k) => Number(Tn.GAMES.tier.turns[4][k].slot(e).slice(4)));
+  assert.equal(Tn.result(Tn.play(e, o, 0), "de").h, "3 von 3 erkannt");
 });
 test("Keine Werbe- und Manipulationstechnik in den Quellen", () => {
   const fs = require("node:fs"), path = require("node:path"), dir = path.join(__dirname, "../src");

@@ -8,9 +8,11 @@ const shot = process.env.SHOT_DIR;
 const hash = (u) => "#" + u.split("#")[1];
 
 async function setup() {
-  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined, args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), errs = [];
   ctx.setDefaultTimeout(15000);
+  // macOS gives a headless browser no microphone: a test tone from the audio graph stands in, the recording path stays the real one.
+  await ctx.addInitScript(() => { if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = async () => { const a = window.Kit.audio(true), o = a.createOscillator(), d = a.createMediaStreamDestination(); o.connect(d); o.start(); return d.stream; }; });
   const open = async (h) => { const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e))); await p.goto(page + h); return p; };
   return { b, open, errs };
 }
@@ -138,7 +140,7 @@ test("Export: Sticker erscheinen nicht im veroeffentlichten Bild, im Editor scho
     await document.fonts.load("900 40px Anton"); await document.fonts.ready;
     const draw = (sk, ex) => { const c = document.createElement("canvas"); c.width = 540; c.height = 675; window.Render.exporting = ex; window.Render.draw(c, { k: "card", st: "druck", x: "Hallo", col: ["#ffd400", "#ff3b1d"], sk, by: [] }, { me: { nick: "", emoji: "" } }); window.Render.exporting = false; return c.toDataURL(); };
     const s = [{ e: "🍕", x: 0.5, y: 0.5, r: 0, z: 2 }];
-    draw(s, false); await document.fonts.ready;   // the first draw is what asks for the fonts of this style
+    draw(s, false); draw(s, true); draw([], true); await document.fonts.ready; await new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)));   // the first draw is what asks for the fonts of this style
     return { export: draw(s, true) === draw([], true), editor: draw(s, false) === draw([], false) };
   });
   assert.deepEqual(same, { export: true, editor: false });
@@ -163,8 +165,8 @@ test("Stufe 3: Hoeflich, Kreis, Woerterbuch und Abfragen starten und nehmen Zueg
   const k = await open("#i=zug-kreis"); await k.locator("#go").click();
   const fs5 = k.locator("#panel input.field");
   for (let i = 0; i < 5; i++) await fs5.nth(i).fill(["Toast", "Hai", "Mond", "Kuh", "Wind"][i]);
-  await next(k); for (let i = 0; i < 5; i++) await k.locator("#panel .chip").nth(i).click();
-  await next(k); assert.equal(await k.locator("#panel input.field").count(), 0);
+  await next(k); for (let i = 0; i < 4; i++) await k.locator("#panel .chip").nth(i).click();
+  await k.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor(); assert.equal(await k.locator("#panel input.field").count(), 0);
   const w = await open("#i=zug-woerter"); await w.locator("#go").click();
   await w.locator("#panel .chip").first().click(); await w.locator("#panel").getByText("Für welchen Moment").waitFor();
   const f = await open("#i=zug-abfragen"); await f.locator("#go").click();
@@ -200,8 +202,8 @@ test("Wichteln zeigt den Zettel und schickt nichts weiter, Schaetzen endet im Er
   for (let i = 0; i < 5; i++) { await s.locator("#panel input[type=range]").fill("1"); await next(s); }
   await s.locator("#panel").getByText(/Im Schnitt \d+ Prozent/).waitFor(); await s.locator("#panel p.note").getByText(/\?\s\d+/).first().waitFor();
   const r = await open("#i=zug-rangliste"); await r.locator("#go").click();
-  for (let i = 0; i < 8; i++) await r.locator("#panel .chip").nth(i).click();
-  await next(r); await r.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
+  for (let i = 0; i < 7; i++) await r.locator("#panel .chip").nth(i).click();
+  await r.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
   const c = await open("#i=zug-reihum"); await c.locator("#go").click(); await c.locator("#panel .chip").first().click();
   await c.locator("#panel input.field").fill("dein Lachen"); await next(c); await c.locator("#panel input.field").fill("Ana"); await next(c);
   await c.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
@@ -244,18 +246,31 @@ test("Statue spielt und stoppt, Stimmen-Raetsel zaehlt beim Raten", async () => 
   await s.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Drueck mich spielt einmal und loescht, Tier-Aufstellung endet im Ergebnis", async () => {
+  const { b, open, errs } = await setup(); const X = require("../../src/turn.json").text.de, hand = (p) => p.getByRole("button", { name: X.hand_go }).click();
+  const m = await open("#i=raum-maus"); await m.locator("#go").click(); await m.locator("#panel input.field").fill("Oma"); await next(m);
+  await m.locator("#panel .chip").first().click(); await m.getByRole("button", { name: /Aufnehmen/ }).click(); await hand(m);
+  await m.getByRole("button", { name: /Drück mich/ }).click(); await m.locator("#panel").getByText(X.mau_gone).first().waitFor();
+  assert.equal(await m.evaluate(() => window.TurnVoice.has("maus")), false);
+  const t = await open("#i=mut-tierstory"); await t.locator("#go").click();
+  const f = t.locator("#panel input.field"); for (let i = 0; i < 3; i++) await f.nth(i).fill(["Ana", "Ben", "Cem"][i]); await next(t); await hand(t);
+  for (let i = 0; i < 3; i++) { await t.getByRole("button", { name: /Aufnehmen/ }).click(); await hand(t); }
+  for (let i = 0; i < 3; i++) await t.locator("#panel .chips .chip").first().click();
+  await t.locator("#panel").getByText(/von 3 erkannt/).waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
-  const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 54);
+  const m = await open(""); await m.getByRole("button", { name: /Spiele zu zweit/ }).click();
+  assert.equal(await m.locator("#shbody .mech").count(), 57);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);
-  for (const n of ["FilmA", "FilmB", "FilmC", "FilmD", "FilmE"]) await m.getByRole("button", { name: n }).click();
-  await next(m); await send(m); await m.locator("#share").waitFor();
+  for (const n of ["FilmA", "FilmB", "FilmC", "FilmD"]) await m.getByRole("button", { name: n, exact: true }).click();   // the last place sets itself, then it goes on
+  await m.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor(); await send(m); await m.locator("#share").waitFor();
   const e = await open(hash(await url(m))); await e.locator("#go").click();
-  for (const n of ["FilmE", "FilmD", "FilmC", "FilmB", "FilmA"]) await e.getByRole("button", { name: n, exact: true }).click();
-  await next(e); await send(e); await e.locator("#share").waitFor();
+  for (const n of ["FilmE", "FilmD", "FilmC", "FilmB"]) await e.getByRole("button", { name: n, exact: true }).click();
+  await e.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor(); await send(e); await e.locator("#share").waitFor();
   const r = await open(hash(await url(e))); await r.locator("#go").click(); await r.getByText("Einigung: FilmC").first().waitFor();
 
   const w = await open("#i=zug-wort"); await w.locator("#go").click();

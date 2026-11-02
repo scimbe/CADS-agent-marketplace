@@ -6,6 +6,32 @@ function L() { return Tn.T(Kit.lang); }
 function say(k, o) { return String(L()[k]).replace(/\{(\w+)\}/g, function (m, n) { return o[n]; }); }
 function seed() { var a = new Uint32Array(1); window.crypto.getRandomValues(a); return a[0]; }
 
+/* ---------- voices: only in this tab's memory, overwritten after use ---------- */
+var VOICE = {};
+function wipe(k) { if (VOICE[k]) VOICE[k].fill(0); delete VOICE[k]; }
+function listen(ms) {
+  return new Promise(function (done) {
+    var over = false, fake = function () { if (over) return; over = true; Kit.toast(t("noMic")); done(Studio.dummyVoice()); }, wait = setTimeout(fake, 20000);   // a prompt nobody answers must not freeze the game
+    var ac = Kit.audio(true);
+    if (!navigator.mediaDevices || !ac || !ac.createScriptProcessor) { fake(); return; }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (st) {
+      clearTimeout(wait); if (over) { st.getTracks().forEach(function (x) { x.stop(); }); return; }
+      // Straight from the audio graph: no file, no codec, just samples in memory.
+      var src = ac.createMediaStreamSource(st), sp = ac.createScriptProcessor(4096, 1, 1), mute = ac.createGain(), got = [], n = 0;
+      mute.gain.value = 0; sp.onaudioprocess = function (e) { var c = e.inputBuffer.getChannelData(0); got.push(Float32Array.from(c)); n += c.length; };
+      src.connect(sp); sp.connect(mute); mute.connect(ac.destination);
+      setTimeout(function () {
+        sp.disconnect(); src.disconnect(); mute.disconnect(); st.getTracks().forEach(function (x) { x.stop(); });
+        var k = ac.sampleRate / Studio.SR, o = new Float32Array(Math.floor(n / k)), all = new Float32Array(n), at = 0;
+        got.forEach(function (c) { all.set(c, at); at += c.length; c.fill(0); }); got.length = 0;
+        for (var i = 0; i < o.length; i++) o[i] = all[Math.floor(i * k)];
+        all.fill(0); over = true; done(o.length ? o : Studio.dummyVoice());
+      }, ms);
+    }).catch(fake);
+  });
+}
+window.TurnVoice = { has: function (k) { return !!VOICE[k]; } };
+
 /* ---------- picture: own vector shapes, no emoji ---------- */
 function shape(c, f, x, y, r, col) {
   c.save(); c.translate(x, y); c.fillStyle = col; c.strokeStyle = col; c.lineWidth = r * 0.28; c.beginPath();
@@ -33,7 +59,8 @@ R.extra.turn = function (c, W, H, doc) {
   shape(c, doc.f, W * 0.84, H * 0.84, W * 0.08, b); shape(c, doc.f, W * 0.14, H * 0.8, W * 0.05, b);
   R.block(c, res ? res.h : title(doc), W * 0.07, H * 0.1, W * 0.86, H * 0.34, ink, null);
   if (res) lines(c, res.lines, W, H * 0.5, W * 0.038, ink);
-  else lines(c, [say("picture_turn", { n: st.turn + 1, m: st.total }), L().sealed], W, H * 0.56, W * 0.05, ink);
+  else if (!st.turn) { var i0 = doc.i ? D.byId(doc.i) : null; lines(c, [doc.s || (i0 ? (i0[Kit.lang] || i0.de).s : ""), L().you_start], W, H * 0.52, W * 0.05, ink); }   // the goal, not the machinery
+  else lines(c, [say("picture_turn", { n: st.turn + 1, m: st.total })], W, H * 0.56, W * 0.05, ink);
 };
 
 /* ---------- one prompt ---------- */
@@ -80,6 +107,7 @@ var draw = {
       var b = el("button", "chip", s, function () {
         Kit.sfx.tap(); var at = order.indexOf(i); if (at >= 0) order.splice(at, 1); else order.push(i);
         Array.from(row.children).forEach(function (x, n) { var w = order.indexOf(n); x.textContent = (w >= 0 ? w + 1 + ". " : "") + items[n]; x.classList.toggle("on", w >= 0); });
+        if (order.length === items.length - 1) { order.push(items.findIndex(function (x, n) { return order.indexOf(n) < 0; })); Array.from(row.children).forEach(function (x, n) { x.textContent = order.indexOf(n) + 1 + ". " + items[n]; x.classList.add("on"); }); }
         set(order.length === items.length ? order.slice() : null);
       });
       row.appendChild(b);
@@ -118,6 +146,37 @@ var draw = {
     }, 250);
     box.appendChild(el("p", "qtext", p.text(ctx.doc, ctx.m, Kit.lang))); box.appendChild(left);
     box.appendChild(el("button", "chip", L().clk_done, function () { clearInterval(tick); set(0); })); set(null);
+  },
+  rec: function (box, p, set, ctx) {
+    var b = el("button", "btn hot", "🎙 " + L().rec_go, function () {
+      if (b.disabled) return; b.disabled = true; b.textContent = "● " + L().rec_on;
+      listen(p.ms).then(function (pcm) { VOICE[p.slot] = pcm; b.textContent = "✓"; set(0); });
+    });
+    box.appendChild(b); set(null);
+  },
+  // One press, one playback, then the samples are overwritten and the slot is empty.
+  once: function (box, p, set, ctx) {
+    var pcm = VOICE[p.slot], b = el("button", "btn hot big", say("mau_from", { n: p.who(ctx.m) }), function () {
+      if (!VOICE[p.slot]) return; var o = Studio.warp(VOICE[p.slot], p.fx(ctx.m)); Kit.playPcm(o, Studio.SR, false);
+      wipe(p.slot); setTimeout(function () { o.fill(0); }, o.length / Studio.SR * 1000 + 200); b.disabled = true; b.textContent = L().mau_gone; set(0);
+    });
+    if (!pcm) { b.disabled = true; b.textContent = L().rec_lost; box.appendChild(b); set(0); return; }
+    box.appendChild(b); set(null);
+  },
+  parrot: function (box, p, set) {
+    var src = VOICE[p.from], row = el("div", "chips");
+    row.appendChild(el("button", "chip", "▶ " + L().pap_back, function () { if (src) Kit.playPcm(Array.from(src).reverse(), Studio.SR, false); }));
+    var r = el("button", "chip", "🎙 " + L().rec_go, function () {
+      if (r.disabled) return; r.disabled = true; r.textContent = "● " + L().rec_on;
+      listen(2500).then(function (pcm) { VOICE[p.slot] = pcm; Kit.playPcm(Float32Array.from(pcm).reverse(), Studio.SR, false); wipe(p.from); r.textContent = "✓"; setTimeout(function () { set(0); }, pcm.length / Studio.SR * 1000 + 300); });
+    });
+    row.appendChild(r); box.appendChild(row); set(null);
+  },
+  whose: function (box, p, set, ctx) {
+    var s = p.slot(ctx.doc), row = el("div", "chips");
+    box.appendChild(el("button", "chip", "▶ " + L().tie_play, function () { if (VOICE[s]) Kit.playPcm(Studio.warp(VOICE[s], p.fx(ctx.doc)), Studio.SR, false); }));
+    p.from(ctx.doc, ctx.m).forEach(function (n, i) { row.appendChild(el("button", "chip", n, function () { Kit.sfx.tap(); if (i === 2 || ctx.now.length === 2) wipe(s); set(i); })); });
+    box.appendChild(row); set(null);
   },
   // The beat plays and breaks off; the stop card names the statue. People judge the wobbling, the phone sees nothing.
   freeze: function (box, p, set, ctx) {
@@ -280,7 +339,12 @@ function walk(box, ed) {
     });
     if (p.peek) box.appendChild(el("p", "qtext", p.peek(ed.doc, st.moves, now, Kit.lang)));
     if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("label", "lbl", p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "")));
-    draw[p.w](box, p, function (v) { cur = v; go.disabled = v === null; if (p.auto && v !== null) go.click(); }, { doc: ed.doc, m: st.moves, now: now });
+    var soon = 0;
+    draw[p.w](box, p, function (v) {
+      cur = v; go.disabled = v === null; clearTimeout(soon);
+      if (v === null) return;
+      if (p.auto) go.click(); else if (p.w === "rank" || (p.w === "pick" && p.n > 1)) soon = setTimeout(function () { if (box.isConnected && cur === v) go.click(); }, 450);   // a short look at the choice, then on
+    }, { doc: ed.doc, m: st.moves, now: now });
     box.appendChild(go);
   }
   step();
@@ -312,15 +376,22 @@ A.PANEL.Text = (function (old) {
 })(A.PANEL.Text);
 X.turn = {
   // Every game on one shelf, each with what it is for.
+  // Every game on one shelf as a tile with its own sign, grouped by when it fits, plus one button for a surprise.
   menu: function () {
-    A.shelf(t("turn"), function (b) {
+    var all = D.IDEAS.filter(function (i) { return i.kind === "turn"; }), COL = { streit: "#ff3b1d", pause: "#1d7cff", abend: "#7a3bff", geschenk: "#ff5fa2", raum: "#12a150" };
+    function start(i) { Kit.sfx.thud(); A.openEditor(D.docFromIdea(i, A.me(), Kit.lang), { idea: i }); }
+    A.shelf(say("turn_all", { n: all.length }), function (b) {
       b.appendChild(el("p", "note", t("turnH")));
+      b.appendChild(el("button", "btn hot", "🎲 " + L().turn_any, function () { start(all[seed() % all.length]); }));
       ["streit", "pause", "abend", "geschenk", "raum"].forEach(function (g) {
         b.appendChild(el("label", "lbl", L()["grip_" + g]));
-        D.IDEAS.filter(function (i) { return i.kind === "turn" && i.turn.grip === g; }).forEach(function (i) {
-        var T = i[Kit.lang] || i.de, m = el("button", "mech", null, function () { Kit.sfx.thud(); A.openEditor(D.docFromIdea(i, A.me(), Kit.lang), { idea: i }); });
-        m.appendChild(el("span", "", T.t.replace("|", " ") + " · " + T.s)); b.appendChild(m);
+        var box = el("div", "tiles");
+        all.filter(function (i) { return i.turn.grip === g; }).forEach(function (i) {
+          var T = i[Kit.lang] || i.de, m = el("button", "mech tile", null, function () { start(i); }), c = document.createElement("canvas");
+          c.width = c.height = 96; shape(c.getContext("2d"), i.turn.f, 48, 48, 30, COL[g]);
+          m.appendChild(c); m.appendChild(el("b", "", T.t.replace("|", " "))); m.appendChild(el("small", "", T.s)); box.appendChild(m);
         });
+        b.appendChild(box);
       });
     });
   },
@@ -340,7 +411,7 @@ X.turn = {
     var st = Tn.state(doc), left = Tn.gate(doc, Tn.today());
     if (st.over) return { go: L().go_view, note: L().note_over };
     if (left) return { go: L().go_play, note: say("note_wait", { n: left }) };
-    return st.turn ? { go: L().go_play, note: say("note_turn", { n: st.turn + 1, m: st.total }) } : null;
+    return st.turn ? { go: L().go_play, note: say("note_turn", { n: st.turn + 1, m: st.total }) } : { go: L().go_first, note: "" };
   }
 };
 })();
