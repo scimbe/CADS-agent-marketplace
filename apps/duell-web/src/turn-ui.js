@@ -119,6 +119,15 @@ var draw = {
     box.appendChild(el("p", "qtext", p.text(ctx.doc, ctx.m, Kit.lang))); box.appendChild(left);
     box.appendChild(el("button", "chip", L().clk_done, function () { clearInterval(tick); set(0); })); set(null);
   },
+  // A door opens on its day in December, on the phone's own date; after Christmas all of them stay open.
+  doors: function (box, p, set, ctx) {
+    var now = new Date(), open = now.getMonth() === 11 ? now.getDate() : now.getMonth() === 0 ? 24 : 0, g = el("div", "bgrid sgrid"), say1 = el("p", "qtext", open ? L().adv_tap : L().adv_wait);
+    for (var i = 0; i < 24; i++) (function (i) {
+      var c = el("button", "bcell", String(i + 1), function () { if (i < open) { say1.textContent = p.text(ctx.doc, ctx.m, i, Kit.lang); c.classList.add("on"); Kit.sfx.pop(); } else Kit.tone(200, 90, 0.08, "square", 0.05); });
+      c.disabled = i >= open; g.appendChild(c);
+    })(i);
+    box.appendChild(say1); box.appendChild(g); set(null);
+  },
   // The price falls in eight seconds; a tap buys at the price shown. Only the tap goes into the link.
   drop: function (box, p, set, ctx) {
     var n = el("p", "qtext", String(p.max)), t0 = 0, run = 0, done = false, b;
