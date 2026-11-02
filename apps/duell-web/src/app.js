@@ -670,6 +670,8 @@ function route() {
   var card = CC.route(location.hash);
   if (card) { clearLink(); if (!card.keep && screen !== "editor") goHomeKeep(); return true; }
   if (CU.route(location.hash)) { clearLink(); if (screen !== "editor") goHomeKeep(); return true; }
+  var live = location.hash.match(/^#live=([A-Za-z0-9_-]{22})$/);
+  if (live && window.LiveUI) { history.replaceState(null, "", location.pathname); window.LiveUI.accept(live[1]); }
   var r = D.parseRoute(location.hash);
   if (r && r.type === "short") {
     goHome();
