@@ -190,3 +190,4 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .touchpad.react{font:900 120px/1 var(--ui);display:flex;align-items:center;justify-content:center;width:100%}
 #peek{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;padding:24px;text-align:center;color:var(--ink)}
 #peek b{font:900 22px var(--ui)}#peek span{font:400 40px/1 var(--disp);text-transform:uppercase}#peek i{font:600 16px/1.3 var(--ui);font-style:normal}
+.nudge{outline:4px solid var(--b);outline-offset:2px}

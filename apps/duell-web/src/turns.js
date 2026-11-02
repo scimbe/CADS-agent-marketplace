@@ -610,7 +610,8 @@
   }
   GAMES.socken = {
     turns: [[{ w: "grid", l: "sok_hide", n: 2 }]].concat([1, 2, 3, 4, 5, 6].map(sockTurn)),
-    ends: function (doc, m) { return m.length >= 2 && (sockFound(m, 0) === 2 || sockFound(m, 1) === 2); },
+    // Only after both sides had the same number of searches: the second side may not win before the first could search.
+    ends: function (doc, m) { return m.length >= 3 && m.length % 2 === 1 && (sockFound(m, 0) === 2 || sockFound(m, 1) === 2); },
     result: function (doc, m, lang) {
       var X = T(lang), a = sockFound(m, 1), b = sockFound(m, 0), w = a === b ? null : a > b ? X.first : X.second;
       return { h: w ? fmt(X.sok_win, { w: w }) : X.sok_tie, lines: [fmt(X.sok_score, { w: X.first, n: a }), fmt(X.sok_score, { w: X.second, n: b }), fmt(X.sok_turns, { n: m.length - 1 })] };

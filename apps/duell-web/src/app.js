@@ -492,9 +492,14 @@ $("edmain").addEventListener("click", function () {
   Kit.sfx.thud();
   finish(D.withTrail(ed.doc, me.nick, areas()));
 });
+// Two steps when the short link is not there yet: the first tap makes it, the second shares it. Sharing and copying need a fresh
+// tap in most browsers, and the wait for the server would use it up, which sent an old or no link before.
+var sharing = false;
 $("share").addEventListener("click", async function () {
+  var b = $("share"); if (sharing) return;
   Kit.sfx.tap();
-  var link = await shortLink();
+  if (!result.link) { sharing = true; b.disabled = true; b.textContent = t("sh_making"); try { await shortLink(); } finally { sharing = false; b.disabled = false; b.textContent = t("sh_ready"); } return; }
+  var link = result.link;
   // Only the link: chat apps such as WhatsApp drop the link when a picture comes along. The picture stays one tap away under Save.
   await Kit.share({ url: link.url, text: t("shareText") });
 });

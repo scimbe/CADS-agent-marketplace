@@ -24,6 +24,7 @@
     if (status === 200 && json && Array.isArray(json.options) && json.options.length) return "result";
     if (status === 429 && json && json.error === "quota") return "quota";
     if (status === 422) return "blocked";
+    if (status === 429) return "busy";      // the AI is there but full: say so instead of pretending with local rules (503 = gone: local, marked as such)
     return "local";
   }
   // The small proof of work a new device shows once: a number whose SHA-256 with the device id starts with `bits` zero bits.
@@ -76,7 +77,7 @@
       how = verdict(r.status, r.json);
       if (how === "result") options = r.json.options;
     } catch (e) { how = "local"; }
-    if (how === "blocked") return { how: how, options: [] };
+    if (how === "blocked" || how === "busy") return { how: how, options: [] };
     return { how: how, options: options || (fallback ? fallback() : local(kind, D.IDEAS, lang, randomPick, input.topic)) };
   }
   function line() {
@@ -94,7 +95,8 @@
       busy = true; go.disabled = true; go.textContent = "… " + t("aiThinking"); res.textContent = ""; src.hidden = true;
       var r = await run(o.kind, input, o.fallback);
       busy = false; go.disabled = false; go.textContent = "✨ " + o.label; count.textContent = line();
-      if (r.how === "blocked") { Kit.toast(t("filter")); return; }
+      if (r.how === "blocked") { res.appendChild(el("p", "note", t("aiBlocked"))); return; }
+      if (r.how === "busy") { res.appendChild(el("p", "note", t("aiBusy"))); return; }
       if (r.how === "quota") o.wall();
       src.textContent = t("aiLocal"); src.hidden = r.how === "result";
       if (o.auto) { if (r.how !== "quota") o.auto(r.options[0], r.how === "result", res); }

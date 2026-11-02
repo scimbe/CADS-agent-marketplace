@@ -217,6 +217,9 @@ tap_web '(^|\s)(Done|Fertig)(\s|$)' 10
 wait_web '(^|\s)(Share|Teilen)(\s|$)' 15
 shot 9-ergebnis
 tap_node '(^|\s)(Share|Teilen)(\s|$)'
+# the first tap makes the short link (here offline: the long link), the second shares it with a fresh tap
+wait_web '(Jetzt teilen|Share now)' 15
+tap_node '(Jetzt teilen|Share now)'
 wait_focus 'intentresolver|ChooserActivity|ResolverActivity' 15
 shot 10-share-sheet
 echo "share: result sharing opened the system share sheet ($(focus | grep -oE '[A-Za-z0-9_.]+/[A-Za-z0-9_.]+' | head -1))"
