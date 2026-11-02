@@ -84,7 +84,7 @@
   }
   async function connect(w, me, info, token, onState) {
     var caller = info.role === "caller";
-    var at = await call("/attest", { channel: info.channel, role: info.role, holderPub: me.hp, noisePub: me.np, attestation: attestation(w, info.channel, me) });
+    var at = await call("/attest", { channel: info.channel, role: info.role, token: token, holderPub: me.hp, noisePub: me.np, attestation: attestation(w, info.channel, me) });
     if (at.http !== 200) throw new Error("attest");
     onState("register"); await registered(token, 30000);
     onState("join"); var j = await joinEdge(w, info.ws, info.grant, me), s = j.s;
@@ -94,8 +94,10 @@
     var nt = hs.intoTransport();
     function signal(bytes) { s.send(w.frame_message(nt.encrypt(bytes))); }   // no await inside: the nonce order stays intact
     onState("rtc");
-    var ice = await call("/ice?channel=" + info.channel);
-    var pc = new RTCPeerConnection({ iceServers: ice.iceServers || [], iceTransportPolicy: ice.iceServers ? "relay" : "all" });
+    var ice = await call("/ice?channel=" + info.channel + "&role=" + info.role + "&token=" + encodeURIComponent(token));
+    // Browser to browser over STUN, no relay: the game costs the servers nothing once it runs. Both players see each
+    // other's IP address; the invite screen says so.
+    var pc = new RTCPeerConnection({ iceServers: ice.iceServers && ice.iceServers.length ? ice.iceServers : [{ urls: "stun:stun.l.google.com:19302" }] });
     var early = [], haveRemote = false;
     pc.onicecandidate = function (e) { if (e.candidate) signal(w.encodeSignalIceCandidate(e.candidate.candidate, e.candidate.sdpMid, e.candidate.sdpMLineIndex)); };
     var dcReady = new Promise(function (ok) {
@@ -115,6 +117,8 @@
     })();
     if (caller) { var of = await pc.createOffer(); await pc.setLocalDescription(of); signal(w.encodeSignalOffer(of.sdp)); }
     var dc = await Promise.race([dcReady, sleep(JOIN_MS).then(function () { throw new Error("rtc"); })]);
+    // The game runs peer to peer now: the edge socket and the server-side channel are not needed any more.
+    setTimeout(function () { try { s.ws.close(); } catch (e) {} call("/done", { channel: info.channel, token: token }).catch(function () {}); }, 3000);
     var handlers = [], closers = [];
     dc.onmessage = function (e) { var o; try { o = JSON.parse(e.data); } catch (x) { return; } handlers.forEach(function (h) { h(o); }); };
     function end() { closers.splice(0).forEach(function (h) { h(); }); }
@@ -123,7 +127,7 @@
       channel: info.channel, caller: caller,
       send: function (o) { if (dc.readyState === "open") dc.send(JSON.stringify(o)); },
       on: function (h) { handlers = [h]; }, onClose: function (h) { closers.push(h); },
-      close: function () { try { dc.close(); pc.close(); s.ws.close(); } catch (e) {} call("/done", { channel: info.channel }).catch(function () {}); }
+      close: function () { try { dc.close(); pc.close(); s.ws.close(); } catch (e) {} call("/done", { channel: info.channel, token: token }).catch(function () {}); }
     };
   }
   // Inviter: returns the token at once; the connection follows when the friend opens the link.
@@ -137,7 +141,7 @@
         var st = await call("/status?token=" + encodeURIComponent(token));
         if (st.http === 404) throw new Error("gone");
         if (st.state === "joined") { onState("found", st.channel); return connect(w, me, st, token, onState); }
-        await sleep(2000);
+        await sleep(3000);
       }
       throw new Error("expired");
     })();

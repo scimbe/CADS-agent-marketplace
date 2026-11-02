@@ -47,7 +47,7 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, Kurzlink
   // Live games: one WebSocket to the edge and one peer connection, both only in live.js, and its one fetch goes to the play API.
   for (const f of fs.readdirSync(path.join(__dirname, "../src")).filter((n) => n.endsWith(".js") && n !== "live.js")) assert.ok(!/WebSocket|RTCPeerConnection/.test(noComments(src(f))), "Live-Ausgang in " + f);
   assert.equal((html.match(/new WebSocket\(/g) || []).length, 1, "ein WebSocket"); assert.equal((html.match(/new RTCPeerConnection\(/g) || []).length, 1, "eine Peer-Verbindung");
-  assert.match(src("live.js"), /API = WC \+ "\/api\/play"/, "Live spricht nur mit /api/play"); assert.match(src("live.js"), /iceTransportPolicy: ice\.iceServers \? "relay"/, "nur ueber TURN");
+  assert.match(src("live.js"), /API = WC \+ "\/api\/play"/, "Live spricht nur mit /api/play"); assert.ok(!/"turns?:|iceTransportPolicy: "relay"/.test(src("live.js")), "Live nutzt kein TURN, nur STUN"); assert.match(src("texts.json"), /IP-Adresse des anderen/, "Hinweis auf die sichtbare IP");
   assert.ok(!/analytics|\bgtag\b|tracker|Notification\.|serviceWorker/i.test(html), "Tracker/Push");
 });
 test("XSS: kein HTML-Sink im Seitencode", () => {
