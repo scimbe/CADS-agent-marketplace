@@ -200,8 +200,8 @@
 "text": {
 "de": {
 "things": "Kekse",
-"first": "Erste Seite",
-"second": "Zweite Seite",
+"first": "Spieler 1",
+"second": "Spieler 2",
 "yes": "Ja, stimmt",
 "no": "Nein, stimmt nicht",
 "deal_offer": "Du teilst zehn. Wie viele gibst du ab?",
@@ -616,8 +616,8 @@
 },
 "en": {
 "things": "cookies",
-"first": "First player",
-"second": "Second player",
+"first": "Player 1",
+"second": "Player 2",
 "yes": "Yes, it did",
 "no": "No, it did not",
 "deal_offer": "You split 10. How many do you give away?",
