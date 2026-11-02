@@ -346,6 +346,88 @@
     local: true, turns: [[0, 1, 2, 3, 4].map(pastAsk)],
     result: function (doc, m, lang) { return { h: T(lang).dam_h, lines: m[0].map(function (a, i) { return pair(DATA.past, i, lang) + " " + a; }) }; }
   };
+  // ---------- Stufe 3: the circle, the polite line, the word book, the study cards ----------
+  function beats(order, a, b) { var p = places(order), d = (p[b] - p[a] + 5) % 5; return d === 1 || d === 2; }
+  function circleTest(i) {
+    return { w: "pick", l: "krs_test", n: 2, peek: function (doc, m, now, lang) { return circleSoFar(doc, m, now, lang); }, from: function (doc, m) { return m[0][0]; } };
+  }
+  function circleSoFar(doc, m, now, lang) {
+    var X = T(lang), w = m[0][0], o = m[0][1], out = now.map(function (p) { var a = p[0], b = p[1]; if (!beats(o, a, b)) { a = p[1]; b = p[0]; } return fmt(X.krs_beat, { a: w[a], b: w[b] }); });
+    return out.length ? out.join(" · ") : X.krs_first;
+  }
+  function circleSame(a, b) { var s = a.indexOf(b[0]); return b.every(function (x, i) { return a[(s + i) % 5] === x; }); }
+  GAMES.kreis = {
+    turns: [
+      [{ w: "list", l: "krs_words", n: 5, max: 14 }, { w: "rank", l: "krs_rank", from: function (doc, m, now) { return now[0]; } }],
+      [0, 1, 2, 3, 4, 5].map(circleTest).concat([{ w: "rank", l: "krs_guess", peek: function (doc, m, now, lang) { return circleSoFar(doc, m, now, lang); }, from: function (doc, m) { return m[0][0]; } }])
+    ],
+    result: function (doc, m, lang) {
+      var X = T(lang), o = m[0][1], w = m[0][0], ok = circleSame(o, m[1][6]);
+      return { h: ok ? X.krs_right : X.krs_wrong, lines: [fmt(X.krs_was, { w: o.map(function (i) { return w[i]; }).join(" → ") + " → " + w[o[0]] })] };
+    }
+  };
+  function politeLimit(doc) { return 7 + mix(doc, "grenze", 10)[0]; }
+  function politeRow(doc, t) { return [0, 1, 2].map(function (s) { var l = DATA.polite[s]; return l[mix(doc, "hof" + s, l.length)[t % l.length]]; }); }
+  function politeLevel(m) { return m.reduce(function (a, x) { return a + x[0][0] + 1; }, 0); }
+  function politeTurn(t) {
+    return [{ w: "pick", l: "hof_pick", n: 1, auto: true, peek: function (doc, m, now, lang) { return fmt(T(lang).hof_level, { n: politeLevel(m) }); }, from: function (doc, m, now, lang) { return politeRow(doc, t).map(function (x, s) { return "•••".slice(0, s + 1) + " " + x.split("|")[lang === "en" ? 1 : 0]; }); } }];
+  }
+  GAMES.hoeflich = {
+    turns: [0, 1, 2, 3, 4, 5].map(politeTurn),
+    ends: function (doc, m) { return politeLevel(m) > politeLimit(doc); },
+    result: function (doc, m, lang) {
+      var X = T(lang), at = m.length - 1, burst = politeLevel(m) > politeLimit(doc), a = 0, b = 0, last = politeRow(doc, at)[m[at][0][0]].split("|")[lang === "en" ? 1 : 0];
+      m.forEach(function (x, i) { if (i % 2) b += x[0][0] + 1; else a += x[0][0] + 1; });
+      if (burst) return { h: fmt(X.hof_burst, { w: at % 2 ? X.first : X.second }), lines: [fmt(X.hof_line, { l: last }), fmt(X.hof_limit, { n: politeLimit(doc) })] };
+      return { h: a === b ? X.hof_tie : fmt(X.hof_win, { w: a > b ? X.first : X.second, a: a, b: b }), lines: [fmt(X.hof_limit, { n: politeLimit(doc) })] };
+    }
+  };
+  function coinSlot(doc, r) { return mix(doc, "wort5", DATA.coined.length).slice(r * 5, r * 5 + 5); }
+  function momentSlot(doc, r) { return mix(doc, "moment", DATA.moments.length).slice(r * 6, r * 6 + 6); }
+  function coinPrompts(r) {
+    return [
+      { w: "pick", l: "wbu_word", n: 1, auto: true, from: function (doc) { return coinSlot(doc, r).map(function (i) { return DATA.coined[i]; }); } },
+      { w: "pick", l: "wbu_moment", n: 1, auto: true, from: function (doc, m, now, lang) { return momentSlot(doc, r).map(function (i) { return pair(DATA.moments, i, lang); }); } }
+    ];
+  }
+  function coinWord(doc, m, r) { var a = m[r], off = r ? 1 : 0; return coinSlot(doc, r)[a[off][0]]; }
+  function coinMoment(doc, m, r) { var a = m[r], off = r ? 1 : 0; return momentSlot(doc, r)[a[off + 1][0]]; }
+  function coinOptions(doc, m, r) {
+    var s = momentSlot(doc, r), at = s.indexOf(coinMoment(doc, m, r)), o = [s[at], s[(at + 1) % 6], s[(at + 2) % 6]], k = mix(doc, "wahl" + r, 3);
+    return k.map(function (i) { return o[i]; });
+  }
+  function coinGuess(r) {
+    return { w: "pick", l: "wbu_guess", n: 1, auto: true, top: function (doc, m) { return DATA.coined[coinWord(doc, m, r)]; }, from: function (doc, m, now, lang) { return coinOptions(doc, m, r).map(function (i) { return pair(DATA.moments, i, lang); }); } };
+  }
+  GAMES.woerter = {
+    turns: [coinPrompts(0), [coinGuess(0)].concat(coinPrompts(1)), [coinGuess(1)].concat(coinPrompts(2)), [coinGuess(2)].concat(coinPrompts(3)), [coinGuess(3)]],
+    result: function (doc, m, lang) {
+      var X = T(lang), hit = 0, lines = [0, 1, 2, 3].map(function (r) {
+        if (coinOptions(doc, m, r)[m[r + 1][0][0]] === coinMoment(doc, m, r)) hit++;
+        return fmt(X.wbu_line, { w: DATA.coined[coinWord(doc, m, r)], m: pair(DATA.moments, coinMoment(doc, m, r), lang) });
+      });
+      return { h: fmt(X.wbu_h, { n: hit }), lines: lines };
+    }
+  };
+  function cardPrompts() { return [{ w: "list", l: "abf_q", n: 4, max: 28, bytes: 130 }, { w: "list", l: "abf_a", n: 4, max: 24, same: true, bytes: 110 }]; }
+  function cardBack(t) {
+    var out = [];
+    [0, 1, 2, 3].forEach(function (i) {
+      out.push({ w: "show", l: "abf_think", list: function (doc, m) { return [m[t][t ? 8 : 0][i]]; } });
+      out.push({ w: "pick", l: "abf_knew", n: 1, auto: true, top: function (doc, m) { return m[t][(t ? 8 : 0) + 1][i]; }, from: function (doc, m, now, lang) { return [T(lang).abf_yes, T(lang).abf_no]; } });
+    });
+    return out;
+  }
+  GAMES.abfragen = {
+    turns: [cardPrompts(), cardBack(0).concat(cardPrompts()), cardBack(1)],
+    result: function (doc, m, lang) {
+      var X = T(lang), a = [0, 1, 2, 3].map(function (i) { return m[1][i * 2 + 1][0]; }), b = [0, 1, 2, 3].map(function (i) { return m[2][i * 2 + 1][0]; });
+      var sa = a.filter(function (x) { return x === 0; }).length, sb = b.filter(function (x) { return x === 0; }).length, lines = [fmt(X.abf_score, { w: X.second, n: sa }), fmt(X.abf_score, { w: X.first, n: sb })];
+      a.forEach(function (x, i) { if (x) lines.push(fmt(X.abf_open, { w: X.second, q: m[0][0][i] })); });
+      b.forEach(function (x, i) { if (x) lines.push(fmt(X.abf_open, { w: X.first, q: m[1][8][i] })); });
+      return { h: X.abf_h, lines: lines };
+    }
+  };
   // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
   function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
   function struck(doc, m, lang) {
@@ -401,13 +483,14 @@
   function intIn(v, a, b) { return Number.isInteger(v) && v >= a && v <= b; }
   function distinct(a) { return new Set(a).size === a.length; }
   function okAnswer(p, v, doc, lang, m, now) {
+    if (p.bytes && Array.isArray(v) && new TextEncoder().encode(v.join("")).length > p.bytes) return false;   // the whole game has to fit into the link
     if (p.w === "show" || p.w === "touch") return v === 0;
     if (p.w === "explain") return intIn(v, 0, p.max);
     if (p.w === "blocks") return Array.isArray(v) && v.length <= p.max && v.every(function (x) { return intIn(x, 0, 63); }) && !!replay(doc, v);
     if (p.w === "slide") return intIn(v, p.min || 0, p.max);
     if (p.w === "text") return typeof v === "string" && !!Q.clean(v, p.max) && Q.clean(v, p.max) === v && !(p.oneWord && /\s/.test(v)) && !(p.bad && p.bad(v, doc, lang));
     if (p.w === "list" && p.loose) return Array.isArray(v) && v.length === p.n && v.every(function (x) { return x === "" || (typeof x === "string" && Q.clean(x, p.max) === x); });
-    if (p.w === "list") return Array.isArray(v) && v.length === p.n && v.every(function (x) { return typeof x === "string" && !!Q.clean(x, p.max) && Q.clean(x, p.max) === x; }) && distinct(v.map(Q.fold));
+    if (p.w === "list") return Array.isArray(v) && v.length === p.n && v.every(function (x) { return typeof x === "string" && !!Q.clean(x, p.max) && Q.clean(x, p.max) === x; }) && (p.same || distinct(v.map(Q.fold)));
     var n = p.from ? p.from(doc, m, now, lang).length : 0;
     if (p.w === "pick") return Array.isArray(v) && v.length === p.n && distinct(v) && v.every(function (x) { return intIn(x, 0, n - 1); });
     if (p.w === "rank") return Array.isArray(v) && v.length === n && distinct(v) && v.every(function (x) { return intIn(x, 0, n - 1); });
@@ -416,7 +499,7 @@
   }
   function checked(doc, raw) {
     var g = GAMES[doc.g], out = [];
-    for (var t = 0; t < raw.length && t < g.turns.length; t++) {
+    for (var t = 0; t < raw.length && t < g.turns.length && !(g.ends && g.ends(doc, out)); t++) {
       var want = g.turns[t], got = raw[t];
       if (!Array.isArray(got) || got.length !== want.length) return out;
       for (var i = 0; i < want.length; i++) if (!okAnswer(want[i], got[i], doc, "de", out, got.slice(0, i))) return out;
@@ -436,7 +519,7 @@
   function fromIdea(idea, lang, base) { base.g = idea.turn.g; base.seed = C.hash32("turn-" + idea.id); base.q = ""; base.f = idea.turn.f; if (idea.turn.w) base.w = (idea.turn.w[lang] || idea.turn.w.de); return base; }
   function moves(doc) { return checked(doc, unseal(doc.q, doc.seed)); }
   function state(doc) {
-    var g = GAMES[doc.g], m = moves(doc), over = m.length >= g.turns.length;
+    var g = GAMES[doc.g], m = moves(doc), over = m.length >= g.turns.length || !!(g.ends && g.ends(doc, m));
     return { moves: m, turn: m.length, total: g.turns.length, who: m.length % 2, over: over, prompts: over ? [] : g.turns[m.length] };
   }
   // The next doc, or null if the answers do not fit the turn.

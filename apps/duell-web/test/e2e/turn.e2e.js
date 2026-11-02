@@ -138,6 +138,7 @@ test("Export: Sticker erscheinen nicht im veroeffentlichten Bild, im Editor scho
     await document.fonts.load("900 40px Anton"); await document.fonts.ready;
     const draw = (sk, ex) => { const c = document.createElement("canvas"); c.width = 540; c.height = 675; window.Render.exporting = ex; window.Render.draw(c, { k: "card", st: "druck", x: "Hallo", col: ["#ffd400", "#ff3b1d"], sk, by: [] }, { me: { nick: "", emoji: "" } }); window.Render.exporting = false; return c.toDataURL(); };
     const s = [{ e: "🍕", x: 0.5, y: 0.5, r: 0, z: 2 }];
+    draw(s, false); await document.fonts.ready;   // the first draw is what asks for the fonts of this style
     return { export: draw(s, true) === draw([], true), editor: draw(s, false) === draw([], false) };
   });
   assert.deepEqual(same, { export: true, editor: false });
@@ -154,10 +155,28 @@ test("Raum: Unberechenbar und Damals enden im Ergebnis", async () => {
   await d.locator("#panel").getByText(/Pudding/).first().waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Stufe 3: Hoeflich, Kreis, Woerterbuch und Abfragen starten und nehmen Zuege", async () => {
+  const { b, open, errs } = await setup();
+  const h = await open("#i=zug-hoeflich"); await h.locator("#go").click();
+  await h.locator("#panel").getByText("Pegel: 0").waitFor(); await h.locator("#panel .chip").nth(1).click();
+  await h.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
+  const k = await open("#i=zug-kreis"); await k.locator("#go").click();
+  const fs5 = k.locator("#panel input.field");
+  for (let i = 0; i < 5; i++) await fs5.nth(i).fill(["Toast", "Hai", "Mond", "Kuh", "Wind"][i]);
+  await next(k); for (let i = 0; i < 5; i++) await k.locator("#panel .chip").nth(i).click();
+  await next(k); assert.equal(await k.locator("#panel input.field").count(), 0);
+  const w = await open("#i=zug-woerter"); await w.locator("#go").click();
+  await w.locator("#panel .chip").first().click(); await w.locator("#panel").getByText("Für welchen Moment").waitFor();
+  const f = await open("#i=zug-abfragen"); await f.locator("#go").click();
+  const qs = f.locator("#panel input.field"); for (let i = 0; i < 4; i++) await qs.nth(i).fill("Frage " + "abcd"[i]);
+  await next(f); const as = f.locator("#panel input.field"); for (let i = 0; i < 4; i++) await as.nth(i).fill("ja");
+  await next(f); assert.equal(await f.locator("#panel input.field").count(), 0);
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 32);
+  assert.equal(await m.locator("#shbody .mech").count(), 36);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);
