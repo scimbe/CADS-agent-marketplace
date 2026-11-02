@@ -428,6 +428,67 @@
       return { h: X.abf_h, lines: lines };
     }
   };
+  // ---------- the rule on a tablet: only words from a fixed box, so no names and nothing mean can get in ----------
+  function ruleStart(doc) { return DATA.rule.map(function (l, s) { return mix(doc, "regel" + s, l.length)[0]; }); }
+  function ruleOthers(cur, s) { return DATA.rule[s].map(function (x, i) { return i; }).filter(function (i) { return i !== cur[s]; }); }
+  function ruleAt(doc, m) { var c = ruleStart(doc); m.forEach(function (x) { c[x[0][0]] = ruleOthers(c, x[0][0])[x[1][0]]; }); return c; }
+  function ruleText(c, lang) { return c.map(function (w, s) { return pair(DATA.rule[s], w, lang); }).join(" ") + "."; }
+  function ruleTurn() {
+    return [
+      { w: "pick", l: "reg_slot", n: 1, auto: true, peek: function (doc, m, now, lang) { return ruleText(ruleAt(doc, m), lang); }, from: function (doc, m, now, lang) { return ruleAt(doc, m).map(function (w, s) { return pair(DATA.rule[s], w, lang); }); } },
+      { w: "pick", l: "reg_word", n: 1, auto: true, from: function (doc, m, now, lang) { var s = now[0][0]; return ruleOthers(ruleAt(doc, m), s).map(function (i) { return pair(DATA.rule[s], i, lang); }); } }
+    ];
+  }
+  GAMES.regel = {
+    turns: [ruleTurn(), ruleTurn(), ruleTurn(), ruleTurn(), ruleTurn()],
+    result: function (doc, m, lang) {
+      var X = T(lang), old = [];
+      for (var i = 0; i < m.length; i++) old.push(fmt(X.reg_old, { r: ruleText(ruleAt(doc, m.slice(0, i)), lang) }));
+      return { h: fmt(X.reg_h, { r: ruleText(ruleAt(doc, m), lang) }), lines: old };
+    }
+  };
+  function buyers(doc, lang) { return pair(DATA.buyers, mix(doc, "kunde", DATA.buyers.length)[0], lang); }
+  function sellTurn(i) { return [{ w: "clock", l: "wer_sell", secs: 30, auto: true, text: function (doc, m, lang) { return fmt(T(lang).wer_for, { n: m[0][0][i], b: buyers(doc, lang) }); } }]; }
+  function buyTurn(i) { return [{ w: "pick", l: "wer_buy", n: 1, auto: true, peek: function (doc, m, now, lang) { return fmt(T(lang).ask_you, { n: m[0][0][i] }); }, from: function (doc, m) { return m[0][0].filter(function (x, at) { return at !== i; }); } }]; }
+  GAMES.werbung = {
+    local: true, turns: [[{ w: "list", l: "ask_names", n: 3, max: 12 }], sellTurn(0), sellTurn(1), sellTurn(2), buyTurn(0), buyTurn(1), buyTurn(2)],
+    result: function (doc, m, lang) {
+      var X = T(lang), names = m[0][0], c = [0, 0, 0];
+      [0, 1, 2].forEach(function (v) { var o = [0, 1, 2].filter(function (x) { return x !== v; }); c[o[m[4 + v][0][0]]]++; });
+      var top = Math.max.apply(null, c), best = names.filter(function (x, i) { return c[i] === top; });
+      return { h: best.length === 1 ? fmt(X.wer_h, { n: best[0], c: top }) : X.wer_tie, lines: names.map(function (x, i) { return x + ": " + c[i]; }) };
+    }
+  };
+  function askAt(doc, q, lang) { return pair(DATA.either, eithers(doc)[q], lang).split(lang === "en" ? " or " : " oder "); }
+  function machineRows(doc, m) {
+    var flip = mix(doc, "aus", 6).slice(0, 1 + doc.seed % 2), rows = [1, 2, 3].map(function (t) { return m[t].map(function (a) { return a[0]; }); });
+    rows.push([0, 1, 2, 3, 4, 5].map(function (q) { var one = rows[0][q] + rows[1][q] + rows[2][q], most = one >= 2 ? 1 : 0; return flip.indexOf(q) >= 0 ? 1 - most : most; }));
+    return rows;
+  }
+  function machineSeen(doc) { return mix(doc, "reihe", 4); }
+  function rowText(doc, r, lang) { return r.map(function (a, q) { return askAt(doc, q, lang)[a]; }).join(", "); }
+  function machineAsk(i) {
+    return [0, 1, 2, 3, 4, 5].map(function (q) { return { w: "pick", l: "mas_q", n: 1, auto: true, peek: function (doc, m, now, lang) { return fmt(T(lang).ask_you, { n: m[0][0][i] }); }, from: function (doc, m, now, lang) { return askAt(doc, q, lang); } }; });
+  }
+  function machineVote(i) {
+    return [{ w: "pick", l: "mas_vote", n: 1, auto: true, peek: function (doc, m, now, lang) { return fmt(T(lang).ask_you, { n: m[0][0][i] }); }, from: function (doc, m, now, lang) { var r = machineRows(doc, m); return machineSeen(doc).map(function (at) { return rowText(doc, r[at], lang); }); } }];
+  }
+  GAMES.maschine = {
+    local: true, turns: [[{ w: "list", l: "ask_names", n: 3, max: 12 }], machineAsk(0), machineAsk(1), machineAsk(2), machineVote(0), machineVote(1), machineVote(2)],
+    result: function (doc, m, lang) {
+      var X = T(lang), r = machineRows(doc, m), seen = machineSeen(doc), at = seen.indexOf(3), found = m[0][0].filter(function (x, i) { return m[4 + i][0][0] === at; });
+      return { h: fmt(X.mas_h, { n: 3 - found.length }), lines: [fmt(X.mas_was, { r: rowText(doc, r[3], lang) }), found.length ? fmt(X.mas_found, { n: found.join(", ") }) : X.mas_none] };
+    }
+  };
+  function huntWords(doc, lang) { return mix(doc, "suche", DATA.words.length).slice(0, 4).map(function (i) { return pair(DATA.words, i, lang); }); }
+  GAMES.suche = {
+    local: true,
+    turns: [
+      [{ w: "show", l: "suc_words", list: function (doc, m, now, lang) { return huntWords(doc, lang); }, later: "suc_later" }, { w: "list", l: "suc_hints", n: 4, max: 40 }],
+      [{ w: "hunt", l: "suc_go", auto: true, max: 3600, list: function (doc, m, lang) { return huntWords(doc, lang).map(function (x, i) { return { w: x, hint: m[0][1][i] }; }); } }]
+    ],
+    result: function (doc, m, lang) { var X = T(lang); return { h: fmt(X.suc_h, { n: m[1][0] }), lines: [X.suc_note] }; }
+  };
   // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
   function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
   function struck(doc, m, lang) {
@@ -484,7 +545,8 @@
   function distinct(a) { return new Set(a).size === a.length; }
   function okAnswer(p, v, doc, lang, m, now) {
     if (p.bytes && Array.isArray(v) && new TextEncoder().encode(v.join("")).length > p.bytes) return false;   // the whole game has to fit into the link
-    if (p.w === "show" || p.w === "touch") return v === 0;
+    if (p.w === "show" || p.w === "touch" || p.w === "clock") return v === 0;
+    if (p.w === "hunt") return intIn(v, 1, p.max);
     if (p.w === "explain") return intIn(v, 0, p.max);
     if (p.w === "blocks") return Array.isArray(v) && v.length <= p.max && v.every(function (x) { return intIn(x, 0, 63); }) && !!replay(doc, v);
     if (p.w === "slide") return intIn(v, p.min || 0, p.max);

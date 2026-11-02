@@ -26,6 +26,10 @@ const LINES = {
   hoeflich: [[[[0]], [[0]], [[0]], [[0]], [[0]], [[0]]]],
   woerter: [[[[0], [0]], [[0], [1], [1]], [[0], [2], [2]], [[0], [3], [3]], [[0]]]],
   abfragen: [[[["Eins", "Zwei", "Drei", "Vier"], ["ja", "ja", "nein", "ja"]], [0, [0], 0, [1], 0, [0], 0, [0], ["Aa", "Bb", "Cc", "Dd"], ["x", "y", "x", "y"]], [0, [0], 0, [0], 0, [1], 0, [0]]]],
+  regel: [[[[0], [0]], [[1], [1]], [[2], [2]], [[3], [3]], [[0], [4]]]],
+  werbung: [[[["Ana", "Ben", "Cem"]], [0], [0], [0], [[0]], [[0]], [[0]]]],
+  maschine: [[[["Ana", "Ben", "Cem"]], Array(6).fill([0]), Array(6).fill([1]), Array(6).fill([0]), [[0]], [[1]], [[2]]]],
+  suche: [[[0, ["Unter dem Kissen", "Am Fenster", "Im Schuh", "Beim Regal"]], [42]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
@@ -158,6 +162,28 @@ test("Abfragen: volle Karten passen in den Link, Falsches bleibt auf dem Stapel"
   d = Tn.play(d, [0, [1], 0, [1], 0, [0], 0, [0]], 0); assert.ok(d, "Link zu lang");
   assert.ok(Tn.state(d).over); assert.ok(D.docUrl(d).length < 1400, "Laenge " + D.docUrl(d).length);
   const r = Tn.result(d, "de"); assert.equal(r.lines.filter((x) => /übt noch/.test(x)).length, 3);
+});
+test("Regel: fuenf Tausche ergeben ein Gesetz, alte Fassungen bleiben sichtbar", () => {
+  let d = fresh("regel", 2); const seen = [];
+  for (let i = 0; i < 5; i++) { seen.push(Tn.GAMES.regel.turns[i][0].peek(d, Tn.moves(d), [], "de")); d = Tn.play(d, [[i % 4], [i]], 0); assert.ok(d); }
+  const r = Tn.result(d, "de"); assert.equal(r.lines.length, 5); assert.ok(r.lines[0].includes(seen[0])); assert.ok(!r.h.includes(seen[0]));
+  assert.equal(Tn.play(fresh("regel", 2), [[0], [7]], 0), null);
+});
+test("Werbung: niemand kauft bei sich selbst, die Stimmen werden richtig gezaehlt", () => {
+  let d = fresh("werbung", 2); for (const a of [[["Ana", "Ben", "Cem"]], [0], [0], [0], [[0]], [[0]], [[0]]]) d = Tn.play(d, a, 0);
+  assert.deepEqual(Tn.result(d, "de").lines, ["Ana: 2", "Ben: 1", "Cem: 0"]); assert.match(Tn.result(d, "de").h, /Ana/);
+  let e = fresh("werbung", 2); for (const a of [[["Ana", "Ben", "Cem"]], [0], [0], [0], [[0]], [[1]], [[0]]]) e = Tn.play(e, a, 0);
+  assert.equal(Tn.result(e, "de").h, Tn.T("de").wer_tie);
+});
+test("Maschine: ihre Reihe entsteht aus der Runde, mit ein bis zwei Ausreissern", () => {
+  for (const seed of [4, 5]) {
+    let d = fresh("maschine", seed); d = Tn.play(d, [["Ana", "Ben", "Cem"]], 0);
+    for (let i = 0; i < 3; i++) d = Tn.play(d, Array(6).fill([0]), 0);
+    const opts = Tn.GAMES.maschine.turns[4][0].from(d, Tn.moves(d), [], "de"), first = [0, 1, 2, 3, 4, 5].map((q) => Tn.GAMES.maschine.turns[1][q].from(d, [], [], "de")[0]).join(", ");
+    assert.equal(opts.filter((x) => x === first).length, 3); const at = opts.findIndex((x) => x !== first);
+    for (let i = 0; i < 3; i++) d = Tn.play(d, [[at]], 0);
+    assert.equal(Tn.result(d, "de").h, "Die Maschine hat 0 von 3 reingelegt");
+  }
 });
 test("Keine Werbe- und Manipulationstechnik in den Quellen", () => {
   const fs = require("node:fs"), path = require("node:path"), dir = path.join(__dirname, "../src");
