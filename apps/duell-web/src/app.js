@@ -488,8 +488,8 @@ $("edmain").addEventListener("click", function () {
 $("share").addEventListener("click", async function () {
   Kit.sfx.tap();
   var link = await shortLink();
-  var how = await Kit.share({ url: link.url, text: t("shareText"), blob: result.file, name: result.name });
-  if (how === "link") Kit.toast(t("shot"));
+  // Only the link: chat apps such as WhatsApp drop the link when a picture comes along. The picture stays one tap away under Save.
+  await Kit.share({ url: link.url, text: t("shareText") });
 });
 $("playit").addEventListener("click", function () { ed = result.keep; ed.sel = -1; makePlayable(); });
 // Reaches the server only from here, that is after a tap on one of the share buttons.
