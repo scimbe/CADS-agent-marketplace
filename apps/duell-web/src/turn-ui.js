@@ -111,6 +111,25 @@ var draw = {
     row.appendChild(el("button", "chip", L().exp_hit, function () { step(true); })); row.appendChild(el("button", "chip", L().exp_skip, function () { step(false); }));
     box.appendChild(left); box.appendChild(w); box.appendChild(row); box.appendChild(n); set(null);
   },
+  clock: function (box, p, set, ctx) {
+    var left = el("p", "lbl", String(p.secs)), t0 = Date.now(), tick = setInterval(function () {
+      var s = p.secs - Math.floor((Date.now() - t0) / 1000); left.textContent = String(Math.max(0, s));
+      if (s <= 0 || !box.isConnected) { clearInterval(tick); if (box.isConnected) set(0); }
+    }, 250);
+    box.appendChild(el("p", "qtext", p.text(ctx.doc, ctx.m, Kit.lang))); box.appendChild(left);
+    box.appendChild(el("button", "chip", L().clk_done, function () { clearInterval(tick); set(0); })); set(null);
+  },
+  // Each word on a paper in the room opens the next hint; the time is what stays.
+  hunt: function (box, p, set, ctx) {
+    var list = p.list(ctx.doc, ctx.m, Kit.lang), at = 0, t0 = Date.now(), hint = el("p", "qtext", list[0].hint), f = el("input", "field");
+    f.maxLength = 30; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l]);
+    f.addEventListener("input", function () {
+      if (Q.fold(f.value.trim()) !== Q.fold(list[at].w)) return;
+      Kit.sfx.pop(); at++; f.value = "";
+      if (at >= list.length) set(Math.min(p.max, Math.max(1, Math.round((Date.now() - t0) / 1000)))); else hint.textContent = list[at].hint;
+    });
+    box.appendChild(hint); box.appendChild(f); set(null);
+  },
   // Every tap is kept, so the other phone can replay the game. Nothing here looks at the player: the stream of blocks is fixed by the seed.
   blocks: function (box, p, set, ctx) {
     var doc = ctx.doc, moves = [], st = { grid: new Array(64).fill(0), score: 0, lines: 0, i: 0 }, grid = el("div", "bgrid"), info = el("p", "lbl", ""), shapes = el("div", "bnext"), cells = [];

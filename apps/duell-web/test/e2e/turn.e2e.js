@@ -173,10 +173,28 @@ test("Stufe 3: Hoeflich, Kreis, Woerterbuch und Abfragen starten und nehmen Zueg
   await next(f); assert.equal(await f.locator("#panel input.field").count(), 0);
   assert.deepEqual(errs, []); await b.close();
 });
+test("Runde im Raum: Verkaufen, Maschine und Such-Zettel laufen bis zum Ergebnis", async () => {
+  const { b, open, errs } = await setup(); const hand = (p) => p.getByRole("button", { name: require("../../src/turn.json").text.de.hand_go }).click();
+  const names = async (p) => { const f = p.locator("#panel input.field"); for (let i = 0; i < 3; i++) await f.nth(i).fill(["Ana", "Ben", "Cem"][i]); await next(p); await hand(p); };
+  const w = await open("#i=mut-werbung"); await w.locator("#go").click(); await names(w);
+  for (let i = 0; i < 3; i++) { await w.getByRole("button", { name: "Fertig", exact: true }).click(); await hand(w); }
+  for (let i = 0; i < 3; i++) { await w.locator("#panel .chip").first().click(); if (i < 2) await hand(w); }
+  await w.locator("#panel").getByText("Ana: 2").waitFor();
+  const m = await open("#i=raum-maschine"); await m.locator("#go").click(); await names(m);
+  for (let i = 0; i < 3; i++) { for (let q = 0; q < 6; q++) await m.locator("#panel .chip").nth(i % 2).click(); await hand(m); }
+  for (let i = 0; i < 3; i++) { await m.locator("#panel .chip").first().click(); if (i < 2) await hand(m); }
+  await m.locator("#panel").getByText(/von 3 reingelegt/).waitFor();
+  const s = await open("#i=raum-suche"); await s.locator("#go").click();
+  const words = await s.locator("#panel p.qtext").allTextContents(); await next(s);
+  const h = s.locator("#panel input.field"); for (let i = 0; i < 4; i++) await h.nth(i).fill("Ort " + "abcd"[i]); await next(s); await hand(s);
+  for (const x of words) await s.locator("#panel input.field").fill(x);
+  await s.locator("#panel").getByText(/in \d+ Sekunden/).waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 36);
+  assert.equal(await m.locator("#shbody .mech").count(), 40);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);
