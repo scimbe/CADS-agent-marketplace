@@ -578,6 +578,44 @@
       return { h: fmt(X.pst_h, { n: n }), lines: m[0][0].map(function (s, i) { return (m[1][i][0] === 0 ? "✓ " : "✗ ") + s; }) };
     }
   };
+  // ---------- a falling price, and socks on a field ----------
+  function junk(doc, lang) { return mix(doc, "quatsch", DATA.items.length).slice(0, 4).map(function (i) { return pair(DATA.items, i, lang); }); }
+  function junkWorth(doc, who) { return mix(doc, "qwert" + who, 9).slice(0, 4).map(function (i) { return 20 + i * 10; }); }
+  function dropTurn(who) { return [0, 1, 2, 3].map(function (i) { return { w: "drop", l: "aq_tap", auto: true, max: 100, item: function (doc, lang) { return junk(doc, lang)[i]; }, worth: function (doc) { return junkWorth(doc, who)[i]; } }; }); }
+  GAMES.fallpreis = {
+    turns: [dropTurn(0), dropTurn(1)],
+    result: function (doc, m, lang) {
+      var X = T(lang), l = junk(doc, lang), wa = junkWorth(doc, 0), wb = junkWorth(doc, 1), sa = 0, sb = 0;
+      var lines = l.map(function (x, i) {
+        var a = m[0][i], b = m[1][i];
+        if (a === b) return fmt(X.aq_none, { o: x, p: a });
+        if (a > b) { sa += wa[i] - a; return fmt(X.aq_buy, { o: x, w: X.first, p: a, v: wa[i] }); }
+        sb += wb[i] - b; return fmt(X.aq_buy, { o: x, w: X.second, p: b, v: wb[i] });
+      });
+      return { h: sa === sb ? fmt(X.aq_tie, { a: sa }) : fmt(X.aq_win, { w: sa > sb ? X.first : X.second, a: sa, b: sb }), lines: lines };
+    }
+  };
+  // Socks: each side hides two on a 5x5 field; every turn six taps on the other field answer found, near or far.
+  function hidden(m, who) { return m[who][0]; }
+  function sockAnswer(socks, c) { var x = c % 5, y = Math.floor(c / 5); return socks.indexOf(c) >= 0 ? 2 : socks.some(function (s) { return Math.max(Math.abs(s % 5 - x), Math.abs(Math.floor(s / 5) - y)) <= 1; }) ? 1 : 0; }
+  function sockFound(m, who) {           // the socks of 'who' that the other side has tapped so far
+    var mine = hidden(m, who), got = {};
+    m.forEach(function (t, i) { if (i < 1 || i % 2 === who) return; var taps = t[t.length - 1]; if (Array.isArray(taps)) taps.forEach(function (c) { if (mine.indexOf(c) >= 0) got[c] = 1; }); });
+    return Object.keys(got).length;
+  }
+  function sockTaps(m, who) { var o = []; m.forEach(function (t, i) { if (i >= 1 && i % 2 !== who) o = o.concat(t[t.length - 1]); }); return o; }
+  function sockTurn(t) {
+    var p = { w: "probe", l: "sok_probe", n: 6, socks: function (doc, m) { return hidden(m, (t + 1) % 2); }, before: function (doc, m) { return sockTaps(m, (t + 1) % 2); } };
+    return t === 1 ? [{ w: "grid", l: "sok_hide", n: 2 }, p] : [p];
+  }
+  GAMES.socken = {
+    turns: [[{ w: "grid", l: "sok_hide", n: 2 }]].concat([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(sockTurn)),
+    ends: function (doc, m) { return m.length >= 2 && (sockFound(m, 0) === 2 || sockFound(m, 1) === 2); },
+    result: function (doc, m, lang) {
+      var X = T(lang), a = sockFound(m, 1), b = sockFound(m, 0), w = a === b ? null : a > b ? X.first : X.second;
+      return { h: w ? fmt(X.sok_win, { w: w }) : X.sok_tie, lines: [fmt(X.sok_score, { w: X.first, n: a }), fmt(X.sok_score, { w: X.second, n: b }), fmt(X.sok_turns, { n: m.length - 1 })] };
+    }
+  };
   // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
   function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
   function struck(doc, m, lang) {
@@ -636,6 +674,9 @@
     if (p.bytes && Array.isArray(v) && new TextEncoder().encode(v.join("")).length > p.bytes) return false;   // the whole game has to fit into the link
     if (p.w === "show" || p.w === "touch" || p.w === "clock" || p.w === "blow") return v === 0;
     if (p.w === "hunt") return intIn(v, 1, p.max);
+    if (p.w === "drop") return intIn(v, 0, p.max);
+    if (p.w === "grid") return Array.isArray(v) && v.length === p.n && distinct(v) && v.every(function (x) { return intIn(x, 0, 24); });
+    if (p.w === "probe") { var old = p.before(doc, m); return Array.isArray(v) && v.length >= 1 && v.length <= p.n && distinct(v.concat(old)) && v.every(function (x) { return intIn(x, 0, 24); }); }
     if (p.w === "explain") return intIn(v, 0, p.max);
     if (p.w === "blocks") return Array.isArray(v) && v.length <= p.max && v.every(function (x) { return intIn(x, 0, 63); }) && !!replay(doc, v);
     if (p.w === "slide") return intIn(v, p.min || 0, p.maxOf ? p.maxOf(doc) : p.max);
@@ -695,6 +736,6 @@
     (function walk(v) { if (typeof v === "string") v.split("|").forEach(function (x) { out.push(x); }); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.keys(v).forEach(function (k) { walk(v[k]); }); })(DATA);
     return out;
   }
-  var api = { glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, whole: whole, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
+  var api = { sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, whole: whole, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
   if (node) module.exports = api; else root.Turns = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
