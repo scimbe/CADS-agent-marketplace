@@ -5,7 +5,7 @@
 var Kit = window.Kit, B = window.Ballduell, t = Kit.t;
 var ov = null, conn = null, loop = 0, net = 0;
 // Shown on the shelf; switched on once the server side registered channels and a real game ran over edge and TURN.
-var ON = false;
+var ON = true;
 function el(tag, cls, text, on) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; if (on) e.addEventListener("click", on); return e; }
 function layer() {
   close(true);
@@ -26,7 +26,7 @@ function screen(lines, buttons) {
   return b;
 }
 function fail(e) {
-  var k = { gone: "live_gone", expired: "live_expired", server: "live_server", self: "live_self", rate: "live_busy", busy: "live_busy" }[e && e.message] || "live_lost";
+  var k = { gone: "live_gone", expired: "live_expired", server: "live_server", self: "live_self", rate: "live_busy", busy: "live_busy", rtc: "live_nonet" }[e && e.message] || "live_lost";
   screen([["p", "livebig", t(k)]], [[t("live_again"), function () { invite(); }], [t("live_home"), function () { close(); }, "btn"]]);
 }
 function link(token) { return window.DuellCore.SHARE_BASE + "#live=" + token; }
