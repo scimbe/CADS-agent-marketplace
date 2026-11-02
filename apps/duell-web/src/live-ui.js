@@ -59,7 +59,9 @@ function lost() { if (!ov) return; cancelAnimationFrame(loop); clearInterval(net
 // ---------- the game ----------
 function play(serving) {
   var body = layer(), cv = el("canvas", "livecv"), c = cv.getContext("2d"), info = el("p", "livescore", "");
-  cv.width = B.W / 2; cv.height = B.H / 2; body.appendChild(info); body.appendChild(cv);
+  cv.width = B.W / 2; cv.height = B.H / 2;
+  // The three pictures stay up the whole game: the invited player cannot hold the start screen to compare them.
+  body.appendChild(el("p", "livemini", B.badge(conn.channel))); body.appendChild(info); body.appendChild(cv);
   var seed = conn.channel, s = { me: B.W / 2, opp: B.W / 2, oppAt: performance.now(), ball: null, score: [0, 0], n: 0, held: false, again: [false, false], done: false };
   var countdown = performance.now() + 3000, last = performance.now();
   function toX(e) { var r = cv.getBoundingClientRect(); return Math.min(B.W - B.PW / 2, Math.max(B.PW / 2, (e.clientX - r.left) / r.width * B.W)); }
