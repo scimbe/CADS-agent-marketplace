@@ -540,6 +540,44 @@
     turns: [signTurn(), signTurn(), signTurn(), signTurn()],
     result: function (doc, m, lang) { return { h: T(lang).rei_h, lines: m.map(function (x) { return signedLine(x, lang); }) }; }
   };
+  // ---------- thanks, candles, a secret alphabet, a letter to yourself ----------
+  GAMES.danke = {
+    turns: [[{ w: "text", l: "dan_why", max: 44 }, { w: "text", l: "dan_from", max: 12 }], [{ w: "show", l: "dan_got", list: function (doc, m, now, lang) { return [fmt(T(lang).dan_h, { s: m[0][0] }), m[0][1]]; } }]],
+    peekWhole: function (doc, m, lang) { return m.length === 1 ? fmt(T(lang).dan_h, { s: m[0][0] }) : ""; },
+    result: function (doc, m, lang) { return { h: fmt(T(lang).dan_h, { s: m[0][0] }), lines: [fmt(T(lang).dan_sig, { n: m[0][1] }), T(lang).dan_ok] }; }
+  };
+  GAMES.kerzen = {
+    turns: [[{ w: "text", l: "ker_text", max: 60 }], [{ w: "blow", l: "ker_blow", auto: true, n: 5 }]],
+    result: function (doc, m, lang) { return { h: m[0][0], lines: [T(lang).ker_h] }; }
+  };
+  // Same word on two phones, same 26 signs: nothing goes through the app, the notes are paper.
+  var DOTS = [1, 8, 2, 16, 4, 32, 64, 128];
+  function glyphs(word) {
+    var r = C.mulberry32(C.hash32("tunnel|" + Q.fold(word))), seen = {}, out = [];
+    for (var i = 0; i < 26; i++) {
+      var g; do { g = 0; DOTS.forEach(function (d) { if (r() < 0.5) g |= d; }); } while (seen[g] || [0, 255].indexOf(g) >= 0 || (g & 15) === 0 || (g & 240) === 0);
+      seen[g] = 1; out.push(String.fromCharCode(0x2800 + g));
+    }
+    return out;
+  }
+  GAMES.tunnel = {
+    local: true, turns: [[{ w: "text", l: "tun_word", max: 14, oneWord: true }]],
+    result: function (doc, m, lang) {
+      var g = glyphs(m[0][0]), lines = [];
+      for (var i = 0; i < 26; i += 2) lines.push(String.fromCharCode(65 + i) + " " + g[i] + "    " + String.fromCharCode(66 + i) + " " + g[i + 1]);
+      return { h: T(lang).tun_h, lines: lines, note: T(lang).tun_note };
+    }
+  };
+  GAMES.post = {
+    gateFrom: 1,
+    turns: [[{ w: "list", l: "pst_say", n: 3, max: 40, hints: function (lang) { return DATA.postStarts.map(function (x, i) { return pair(DATA.postStarts, i, lang); }); } }, { w: "slide", l: "pst_days", min: 7, max: 30, def: 30 }],
+      [0, 1, 2].map(function (i) { return { w: "pick", l: "pst_true", n: 1, auto: true, top: function (doc, m, lang) { return m[0][0][i]; }, from: function (doc, m, now, lang) { return [T(lang).pst_yes, T(lang).pst_no]; } }; })],
+    gate: function (doc, m) { return m.length === 1 ? doc.o : 0; },
+    result: function (doc, m, lang) {
+      var X = T(lang), n = m[1].filter(function (a) { return a[0] === 0; }).length;
+      return { h: fmt(X.pst_h, { n: n }), lines: m[0][0].map(function (s, i) { return (m[1][i][0] === 0 ? "✓ " : "✗ ") + s; }) };
+    }
+  };
   // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
   function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
   function struck(doc, m, lang) {
@@ -596,7 +634,7 @@
   function distinct(a) { return new Set(a).size === a.length; }
   function okAnswer(p, v, doc, lang, m, now) {
     if (p.bytes && Array.isArray(v) && new TextEncoder().encode(v.join("")).length > p.bytes) return false;   // the whole game has to fit into the link
-    if (p.w === "show" || p.w === "touch" || p.w === "clock") return v === 0;
+    if (p.w === "show" || p.w === "touch" || p.w === "clock" || p.w === "blow") return v === 0;
     if (p.w === "hunt") return intIn(v, 1, p.max);
     if (p.w === "explain") return intIn(v, 0, p.max);
     if (p.w === "blocks") return Array.isArray(v) && v.length <= p.max && v.every(function (x) { return intIn(x, 0, 63); }) && !!replay(doc, v);
@@ -657,6 +695,6 @@
     (function walk(v) { if (typeof v === "string") v.split("|").forEach(function (x) { out.push(x); }); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.keys(v).forEach(function (k) { walk(v[k]); }); })(DATA);
     return out;
   }
-  var api = { IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, whole: whole, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
+  var api = { glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, whole: whole, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
   if (node) module.exports = api; else root.Turns = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

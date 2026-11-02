@@ -119,6 +119,27 @@ var draw = {
     box.appendChild(el("p", "qtext", p.text(ctx.doc, ctx.m, Kit.lang))); box.appendChild(left);
     box.appendChild(el("button", "chip", L().clk_done, function () { clearInterval(tick); set(0); })); set(null);
   },
+  // A puff of air puts out a candle. The microphone only gives a loudness, nothing is kept; without it a tap does the same.
+  blow: function (box, p, set) {
+    var row = el("div", "chips"), left = p.n, st = null, ac = null, last = 0;
+    function out(b) { if (b.disabled) return; b.disabled = true; b.textContent = "·"; Kit.sfx.pop(); left--; if (!left) { stop(); set(0); } }
+    function stop() { if (st) st.getTracks().forEach(function (x) { x.stop(); }); if (ac) ac.close(); st = ac = null; }
+    for (var i = 0; i < p.n; i++) (function () { var b = el("button", "chip", "🕯️", function () { out(b); }); row.appendChild(b); })();
+    box.appendChild(row);
+    box.appendChild(el("button", "chip", L().ker_mic, async function () {
+      try {
+        st = await navigator.mediaDevices.getUserMedia({ audio: true }); ac = new AudioContext();
+        var an = ac.createAnalyser(), buf = new Uint8Array(an.fftSize); ac.createMediaStreamSource(st).connect(an);
+        (function loop() {
+          if (!st || !box.isConnected) { stop(); return; }
+          an.getByteTimeDomainData(buf); var s = 0; buf.forEach(function (x) { s += (x - 128) * (x - 128); });
+          if (Math.sqrt(s / buf.length) > 28 && Date.now() - last > 450) { last = Date.now(); var b = Array.from(row.children).find(function (x) { return !x.disabled; }); if (b) out(b); }
+          requestAnimationFrame(loop);
+        })();
+      } catch (e) { Kit.toast(L().ker_nomic); }
+    }));
+    set(null);
+  },
   // Each word on a paper in the room opens the next hint; the time is what stays.
   hunt: function (box, p, set, ctx) {
     var list = p.list(ctx.doc, ctx.m, Kit.lang), at = 0, t0 = Date.now(), hint = el("p", "qtext", list[0].hint), f = el("input", "field");
