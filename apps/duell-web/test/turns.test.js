@@ -51,6 +51,7 @@ const LINES = {
   pokal: [[[9800], [10300]]],
   pommes: [[[[1], 1]]],
   reaktion: [[[1800], [2100]]],
+  tuer: [[[[2, 15, 20]]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
@@ -287,6 +288,14 @@ test("Uhr: zu frueh und zu spaet richtig benannt, Pokal und Reaktion vergleichen
   let p = Tn.play(Tn.play(fresh("pokal", 1), [9800], 0), [10100], 0); assert.match(Tn.result(p, "de").h, new RegExp(Tn.T("de").second));
   assert.equal(Tn.play(fresh("pokal", 1), [1500], 0), null);
   const a = Tn.GAMES.reaktion.turns[0][0].plan(fresh("reaktion", 3)), b = Tn.GAMES.reaktion.turns[1][0].plan(fresh("reaktion", 3)); assert.deepEqual(a, b);
+});
+test("Tuersteher: jede Regel zeigt frueh ein Ja und ein Nein, gleiche Wesen fuer alle am Tag", () => {
+  const d = fresh("tuer", 20400), o = Tn.doorOrder(d);
+  assert.deepEqual(Tn.doorBeing(d, o[0], 3, [true, false]), Tn.doorBeing(fresh("tuer", 20400), o[0], 3, [true, false]));
+  for (const r of o) { const prev = []; const seen = new Set(); for (let i = 0; i < 6; i++) { const b = Tn.doorBeing(d, r, i, prev); const v = Tn.doorIn(r, b); prev.push(v); seen.add(v); } assert.equal(seen.size, 2, "Regel " + r); }
+  const res = Tn.result(Tn.play(fresh("tuer", 1), [[2, 15, 20]], 0), "de");
+  assert.equal(res.h, "2 Regeln geknackt"); assert.equal(res.lines.length, 4); assert.ok(res.lines[0].startsWith("✓ ")); assert.ok(res.lines[2].startsWith("✗ "));
+  assert.equal(Tn.play(fresh("tuer", 1), [[2, 25, 20]], 0), null);
 });
 test("Keine Werbe- und Manipulationstechnik in den Quellen", () => {
   const fs = require("node:fs"), path = require("node:path"), dir = path.join(__dirname, "../src");

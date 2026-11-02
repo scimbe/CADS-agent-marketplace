@@ -292,10 +292,18 @@ test("Nutzertest: Weiter nach automatischem Weiter zaehlt nicht doppelt, Teilen 
   await k.getByRole("tab", { name: "Text" }).click(); await k.getByRole("tab", { name: /Zug/ }).click(); await k.locator("#panel").getByText(X.ready).waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Tuersteher: Wesen an der Tuer, Rein und Raus bis zum Ende", async () => {
+  const { b, open, errs } = await setup();
+  const p = await open("#i=raum-tuer"); await p.locator("#go").click();
+  await p.locator(".bface").waitFor();
+  for (let i = 0; i < 12; i++) { await p.getByRole("button", { name: i % 2 ? "✋ Raus" : "✅ Rein" }).click(); await p.waitForTimeout(650); }
+  await p.locator("#panel").getByText(/Regeln geknackt/).waitFor({ timeout: 70000 }); await p.locator("#panel").getByText(/von \d+ richtig/).waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 61);
+  assert.equal(await m.locator("#shbody .mech").count(), 62);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);
