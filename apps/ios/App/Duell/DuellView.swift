@@ -213,6 +213,9 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
         case "share":
             guard let s = body["url"] as? String, DuellLink.isShareable(s), let url = URL(string: s) else { return }
             presentShare(items: [Self.caption(text: body["text"] as? String, link: url.absoluteString)], cleanup: nil)
+            #if DEBUG
+            DuellDebug.note("shareLink", url.absoluteString)
+            #endif
         case "shareFile":
             guard let (file, link) = stage(body, sharing: true) else { return }
             var items: [Any] = [file]

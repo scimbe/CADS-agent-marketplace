@@ -33,11 +33,10 @@ m = load("03-mehr"); need(logd(m).get("moreTapped") is True and "error" not in l
 i = load("07-link-i"); need(re.search(r"chaos", text(i), re.I) is not None, "invite link i= shows that idea", text(i)[:200])
 c = load("08-link-c"); need("Mira-Test" in text(c), "challenge link c= shows the challenge", text(c)[:200])
 
-# share: the PNG arrived in the cache folder with content, the share sheet was presented
+# share: only the link goes out (chat apps drop the link when a picture comes along), the share sheet was presented
 s = load("09-ergebnis-teilen"); n = s["native"]; ls = logd(s)
 need("error" not in ls, "share flow without script error", ls.get("error"))
-f = n.get("shareFile", {})
-need(f.get("name", "").endswith(".png") and f.get("bytes", 0) > 5000 and f.get("magic", "").startswith("89504e470d0a1a0a") and f.get("inCache") is True, "shared file is a PNG with content in the cache folder", f)
+need(str(n.get("shareLink", "")).startswith("https://") and not n.get("shareFile"), "share hands over the link, no picture", (n.get("shareLink"), n.get("shareFile")))
 need(n.get("shareSheetPresented") is True, "share sheet presented")
 
 # cleanup: the next start removes what the (never finished) share left behind

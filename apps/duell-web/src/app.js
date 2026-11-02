@@ -63,7 +63,7 @@ function setHome(h, animate) {
   var live = idea && idea.live, lb = $("livego"); lb.hidden = !live; if (live) { lb.textContent = t("live_" + live); lb.dataset.u = LIVE[live]; }
   preview(doc || D.docFromIdea(idea, me, Kit.lang));
   fitHero();
-  var leaf = $("leaf"); leaf.className = ""; leaf.style.transform = "";
+  var leaf = $("leaf"); leaf.className = ""; leaf.style.transform = ""; leaf.style.opacity = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
 }
 var LIVE = { conf: "https://webconference.bunsenbrenner.org/", tunnel: "https://bunsenbrenner.org/", demos: "https://demos-34a13a96.bunsenbrenner.org/", nordwind: "https://a2a-demo.bunsenbrenner.org/" };
@@ -102,23 +102,32 @@ function goHome() {
   CU.end(); stopSound(); G.stop(); ed = null; played = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
   if (!home) home = dayHome(); setHome(home, true);
 }
+function nextSheet() { var p = (page + 1) % PLAN_DAYS, d = D.dayDate(today, -p); return { page: p, date: d, idea: D.ideaForDay(d) }; }
+// While the sheet is pulled, the one below already shows what comes next.
+function peek() {
+  var n = nextSheet(), box = $("peek"), L = n.idea ? ideaText(n.idea) : null;
+  box.children[0].textContent = String(n.date.getUTCDate()).padStart(2, "0") + " " + monthLines(n.date).split("\n")[0];
+  box.children[1].textContent = L ? L.t.replace("|", " ") : "";
+  box.children[2].textContent = L ? L.s : "";
+}
 function tear(dir) {
   var leaf = $("leaf"); Kit.rip(); Kit.haptic(18);
   leaf.className = "gone"; leaf.style.transform = "translate(" + dir * 130 + "%,-20%) rotate(" + dir * 26 + "deg)";
   setTimeout(function () {
-    page = (page + 1) % PLAN_DAYS;                       // the calendar: a torn sheet shows the next day, then back to today
-    var d = D.dayDate(today, -page);
-    setHome({ date: d, idea: D.ideaForDay(d) || D.randomIdea(Math.random, "") }, true); Kit.sfx.thud();
+    var n = nextSheet(); page = n.page;                   // the calendar: a torn sheet shows the next day, then back to today
+    setHome({ date: n.date, idea: n.idea || D.randomIdea(Math.random, "") }, true); Kit.sfx.thud();
   }, 300);
 }
 (function drag() {
-  var leaf = $("leaf"), sx = 0, sy = 0, on = false;
-  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
-  leaf.addEventListener("pointermove", function (e) { if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy; leaf.style.transform = "translate(" + dx + "px," + dy * 0.4 + "px) rotate(" + dx / 16 + "deg)"; });
+  var leaf = $("leaf"), sx = 0, sy = 0, on = false, last = 0;
+  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; try { peek(); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
+  leaf.addEventListener("pointermove", function (e) { if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy; leaf.style.transform = "translate(" + dx + "px," + dy * 0.4 + "px) rotate(" + dx / 16 + "deg)"; leaf.style.opacity = String(1 - Math.min(0.7, Math.abs(dx) / 220)); });
   function up(e) {
     if (!on) return; on = false; leaf.classList.remove("drag");
-    var dx = e.clientX - sx;
-    if (Math.abs(dx) > 90) tear(dx > 0 ? 1 : -1); else leaf.style.transform = "";
+    var dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.abs(dx) > 90) { tear(dx > 0 ? 1 : -1); return; }
+    leaf.style.transform = ""; leaf.style.opacity = "";
+    if (Math.abs(dx) < 12 && Math.abs(dy) < 12) { var now = Date.now(); if (now - last < 400) { last = 0; start(); } else last = now; }   // a double tap opens the card, a swipe turns the day
   }
   leaf.addEventListener("pointerup", up); leaf.addEventListener("pointercancel", up);
 })();
@@ -141,8 +150,10 @@ function changed() {           // every control ends up here: redraw within the 
 function gameState() { return C.sanitizeState(Object.assign({ v: 1 }, ed.doc.g)); }
 function areas() { var w = D.changedAreas(ed.base, ed.doc); if (X[ed.doc.k] && X[ed.doc.k].areas) w = w.concat(X[ed.doc.k].areas(ed)); if (ed.ownPhoto) w.push("foto"); if (ed.ownVoice) w.push("stimme"); return w; }
 function touched() { var ok = areas().length > 0; return ed.own ? ok && !!ed.doc.t : ok; }
+// The idea of the day can go out as it is; only a blank one needs something of your own first.
+function ready() { return ed.own ? touched() : true; }
 function footer() {
-  var b = $("edmain"), ok = touched(), g = ed.doc.k === "game";
+  var b = $("edmain"), ok = ready(), g = ed.doc.k === "game";
   if (X[ed.doc.k]) { X[ed.doc.k].footer(b, ed, ok); return; }
   b.classList.toggle("wait", !ok && !g);
   b.textContent = g ? t("play") : ok ? t("done") : t("needOwn");
@@ -205,10 +216,6 @@ function weatherBlock(p) {
   row.appendChild(go);
   if (ed.doc.w) row.appendChild(el("button", "chip", "✕ " + t("wxOff"), function () { delete ed.doc.w; changed(); tab("Text"); }));
   box.appendChild(row); box.appendChild(el("p", "note", t("wxNote"))); p.appendChild(box);
-}
-function playButton(p) {
-  p.appendChild(el("button", "chip", "🕹 " + t("playIt"), makePlayable));
-  if (ed.doc.k === "photo") p.appendChild(el("p", "note", t("playNote")));
 }
 // The creation becomes the game: same engine, its colours, picture and figure. Back leads to the creation, not home.
 var played = null;
@@ -288,12 +295,10 @@ var PANEL = {
     if (d.k === "card") {
       var f = field(p, t("line"), d.x, 90, function (v) { d.x = v; }, true), L = ed.idea ? ideaText(ed.idea).lines : null;
       if (L) p.appendChild(el("button", "chip", "🎲 " + t("dice"), function () { Kit.sfx.pop(); ed.line = (ed.line + 1) % L.length; d.x = L[ed.line]; f.value = d.x; changed(); }));
-      playButton(p);
       aiBlock(p, { kind: "line", label: t("aiLine"), input: function () { var x = D.cleanInput(d.x, 90) || t("own"); return { text: x, style: d.st }; }, show: String, apply: function (o) { var v = D.cleanInput(o, 90); if (v) { d.x = v; f.value = v; changed(); } } });
       weatherBlock(p);
     } else if (d.k === "photo") {
       var top = field(p, t("top"), d.x, 28, function (v) { d.x = v; }), low = field(p, t("bottom"), d.y, 28, function (v) { d.y = v; });
-      playButton(p);
       var what = field(p, t("aiDesc"), "", 100, function () {});
       aiBlock(p, { kind: "meme", label: t("aiMeme"), input: function () { var v = D.cleanInput(what.value, 100); return v ? { desc: v } : null; }, show: function (o) { return o.top + " / " + o.bottom; }, apply: function (o) { d.x = D.cleanInput(o.top, 28); d.y = D.cleanInput(o.bottom, 28); top.value = d.x; low.value = d.y; changed(); } });
     } else if (d.k === "sound") {
@@ -476,22 +481,22 @@ async function finish(doc, idea, pictureDoc) {
   wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c) }); store.wall = wall; Kit.save();
   if (!Kit.persisted) Kit.toast(t("wallFull"));
   var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png);
-  $("playit").hidden = doc.k !== "card" && doc.k !== "photo";
+  $("playit").hidden = true;   // a card is not a level: whoever does not fly far would never see it
   stopSound(); G.stop(); labels(); show("done", true); Kit.sfx.win();
 }
 $("edmain").addEventListener("click", function () {
   if (!ed) return;
   if (X[ed.doc.k]) { X[ed.doc.k].main(ed); return; }
   if (ed.doc.k === "game") { Kit.sfx.thud(); G.stop(); show("game", true); G.play(gameState(), null, { own: touched() }); return; }
-  if (!touched()) { Kit.tone(200, 160, 0.1, "square", 0.06); return; }
+  if (!ready()) { Kit.tone(200, 160, 0.1, "square", 0.06); return; }
   Kit.sfx.thud();
   finish(D.withTrail(ed.doc, me.nick, areas()));
 });
 $("share").addEventListener("click", async function () {
   Kit.sfx.tap();
   var link = await shortLink();
-  var how = await Kit.share({ url: link.url, text: t("shareText"), blob: result.file, name: result.name });
-  if (how === "link") Kit.toast(t("shot"));
+  // Only the link: chat apps such as WhatsApp drop the link when a picture comes along. The picture stays one tap away under Save.
+  await Kit.share({ url: link.url, text: t("shareText") });
 });
 $("playit").addEventListener("click", function () { ed = result.keep; ed.sel = -1; makePlayable(); });
 // Reaches the server only from here, that is after a tap on one of the share buttons.
