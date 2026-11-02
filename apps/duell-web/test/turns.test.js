@@ -40,6 +40,8 @@ const LINES = {
   post: [[[["Mathe", "Gitarre", "Toast"], 30], [[0], [1], [0]]]],
   fallpreis: [[[70, 60, 50, 40], [65, 60, 55, 0]]],
   socken: [[[[0, 24]], [[5, 6], [0, 1, 2, 3, 4, 24]]]],
+  advent: [[[Array(24).fill("").map((x, i) => i % 3 ? "" : "Tür " + (i + 1))], [0]]],
+  rap: [[[[0], [0]], [[1], [2]]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
@@ -234,6 +236,20 @@ test("Socken: Antworten aus dem Versteck, Spielende sobald beide gefunden", () =
 test("Fallpreis: wer frueher tippt, kauft, Gewinn ist Wert minus Preis", () => {
   let d = Tn.play(fresh("fallpreis", 1), [100, 0, 0, 0], 0); d = Tn.play(d, [0, 10, 0, 0], 0);
   const r = Tn.result(d, "de"); assert.match(r.lines[0], new RegExp(Tn.T("de").first + " kauft für 100")); assert.match(r.lines[2], /keiner kauft/);
+});
+test("Rap: zweite Karte reimt auf die erste und ist nie dieselbe, Konter zaehlen", () => {
+  for (let seed = 1; seed < 60; seed++) {
+    let d = fresh("rap", seed); const p = Tn.GAMES.rap.turns[0];
+    for (let a = 0; a < 3; a++) { const one = p[0].from(d, [], [], "de")[a], two = p[1].from(d, [], [[a]], "de"); assert.equal(two.length, 3); assert.ok(!two.includes(one)); }
+    d = Tn.play(d, [[0], [0]], 0); d = Tn.play(d, [[0], [0]], 0); const r = Tn.result(d, "de");
+    assert.equal(r.lines.length, 4); assert.equal(new Set(r.lines).size, 4);
+  }
+});
+test("Advent: leere Tueren bekommen einen festen Satz, volle Saetze passen in den Link", () => {
+  const full = Array(24).fill(0).map((x, i) => ("Satz " + i).padEnd(20, "x"));
+  assert.ok(Tn.play(fresh("advent", 1), [full], 0)); assert.equal(Tn.play(fresh("advent", 1), [full.map((x) => "ä".repeat(20))], 0), null);
+  const d = Tn.play(fresh("advent", 1), [Array(24).fill("")], 0), p = Tn.GAMES.advent.turns[1][0];
+  assert.ok(p.text(d, Tn.moves(d), 3, "de").length > 3); assert.ok(D.docUrl(Tn.play(fresh("advent", 1), [full], 0)).length < 1400);
 });
 test("Keine Werbe- und Manipulationstechnik in den Quellen", () => {
   const fs = require("node:fs"), path = require("node:path"), dir = path.join(__dirname, "../src");

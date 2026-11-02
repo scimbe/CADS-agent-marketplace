@@ -227,10 +227,18 @@ test("Fallpreis und Socken nehmen den ersten Zug", async () => {
   await s.locator("#panel").getByText(ready).waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Rap und Adventskalender nehmen den ersten Zug", async () => {
+  const { b, open, errs } = await setup(); const ready = require("../../src/turn.json").text.de.ready;
+  const r = await open("#i=zug-rap"); await r.locator("#go").click(); await r.locator("#panel .chip").first().click(); await r.locator("#panel .chip").first().click();
+  await r.locator("#panel").getByText(ready).waitFor();
+  const a = await open("#i=zug-advent"); await a.locator("#go").click(); await a.locator("#panel input.field").first().fill("Hallo"); await next(a);
+  await a.locator("#panel").getByText(ready).waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 50);
+  assert.equal(await m.locator("#shbody .mech").count(), 52);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);

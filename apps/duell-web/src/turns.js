@@ -616,6 +616,37 @@
       return { h: w ? fmt(X.sok_win, { w: w }) : X.sok_tie, lines: [fmt(X.sok_score, { w: X.first, n: a }), fmt(X.sok_score, { w: X.second, n: b }), fmt(X.sok_turns, { n: m.length - 1 })] };
     }
   };
+  // ---------- 24 doors, and a rap from rhyme cards ----------
+  function doorText(m, i, lang) { return m[0][0][i] || pair(DATA.doorFill, i % DATA.doorFill.length, lang); }
+  GAMES.advent = {
+    stay: true,
+    turns: [[{ w: "list", l: "adv_write", n: 24, max: 20, loose: true, bytes: 520 }], [{ w: "doors", l: "adv_open", text: function (doc, m, i, lang) { return doorText(m, i, lang); } }]],
+    result: function (doc, m, lang) { return { h: T(lang).adv_h, lines: [doorText(m, 0, lang)] }; }
+  };
+  var RAPTYPE = [0, 0, 1, 1, 2, 2];
+  function rapFam(doc, who) { return mix(doc, "rap", DATA.rap.de.length)[who]; }
+  function rapLine(doc, who, i, lang) { return DATA.rap[lang === "en" ? "en" : "de"][rapFam(doc, who)][i]; }
+  function rapCards(doc, who, k, avoid) { return mix(doc, "karte" + who + k, 6).filter(function (i) { return i !== avoid; }).slice(0, 3); }
+  function rapPick(who, k) {
+    return { w: "pick", l: "rap_pick", n: 1, auto: true, peek: function (doc, m, now, lang) { return rapSoFar(doc, m, now, lang) || T(lang).rap_start; },
+      from: function (doc, m, now, lang) { var X = T(lang), avoid = k ? rapCards(doc, who, 0)[now[0][0]] : -1; return rapCards(doc, who, k, avoid).map(function (i) { return X["rap_t" + RAPTYPE[i]] + ": " + rapLine(doc, who, i, lang); }); } };
+  }
+  function rapChosen(doc, m, now, lang) {
+    var out = [];
+    m.concat(now.length ? [now] : []).forEach(function (t, who) {
+      var first = rapCards(doc, who, 0)[t[0][0]]; out.push(first);
+      if (t[1]) out.push(rapCards(doc, who, 1, first)[t[1][0]]);
+    });
+    return out;
+  }
+  function rapSoFar(doc, m, now, lang) { return rapChosen(doc, m, now, lang).map(function (i, at) { return rapLine(doc, at < 2 ? 0 : 1, i, lang); }).join(" / "); }
+  GAMES.rap = {
+    turns: [[rapPick(0, 0), rapPick(0, 1)], [rapPick(1, 0), rapPick(1, 1)]],
+    result: function (doc, m, lang) {
+      var X = T(lang), c = rapChosen(doc, m, [], lang), a = (RAPTYPE[c[0]] === 2) + (RAPTYPE[c[1]] === 2), b = (RAPTYPE[c[2]] === 2) + (RAPTYPE[c[3]] === 2);
+      return { h: a === b ? fmt(X.rap_tie, { a: a }) : fmt(X.rap_win, { w: a > b ? X.first : X.second, a: a, b: b }), lines: c.map(function (i, at) { return rapLine(doc, at < 2 ? 0 : 1, i, lang); }) };
+    }
+  };
   // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
   function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
   function struck(doc, m, lang) {
@@ -675,6 +706,7 @@
     if (p.w === "show" || p.w === "touch" || p.w === "clock" || p.w === "blow") return v === 0;
     if (p.w === "hunt") return intIn(v, 1, p.max);
     if (p.w === "drop") return intIn(v, 0, p.max);
+    if (p.w === "doors") return v === 0;
     if (p.w === "grid") return Array.isArray(v) && v.length === p.n && distinct(v) && v.every(function (x) { return intIn(x, 0, 24); });
     if (p.w === "probe") { var old = p.before(doc, m); return Array.isArray(v) && v.length >= 1 && v.length <= p.n && distinct(v.concat(old)) && v.every(function (x) { return intIn(x, 0, 24); }); }
     if (p.w === "explain") return intIn(v, 0, p.max);
