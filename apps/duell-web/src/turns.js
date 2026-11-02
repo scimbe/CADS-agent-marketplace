@@ -697,6 +697,53 @@
       return { h: fmt(X.tie_h, { n: hit.filter(Boolean).length }), lines: lines };
     }
   };
+  // ---------- time and nerves: the phone measures, the targets and pauses come from the seed ----------
+  function uhrTargets(doc) { return [0, 1, 2, 3, 4].map(function (r) { return 3000 + mix(doc, "uhr" + r, 6)[0] * 1000; }); }
+  GAMES.uhr = {
+    local: true, daily: true,
+    turns: [[{ w: "inner", l: "uhr_go", auto: true, targets: uhrTargets }]],
+    result: function (doc, m, lang) {
+      var X = T(lang), d = m[0][0], mean = Math.round(d.reduce(function (a, b) { return a + b; }, 0) / d.length / 100) / 10;
+      var h = Math.abs(mean) < 0.1 ? X.uhr_spot : fmt(mean < 0 ? X.uhr_early : X.uhr_late, { n: String(Math.abs(mean)).replace(".", lang === "en" ? "." : ",") });
+      return { h: h, lines: d.map(function (x, i) { return fmt(X.uhr_line, { i: i + 1, t: uhrTargets(doc)[i] / 1000, n: (x > 0 ? "+" : "") + (x / 1000).toFixed(1) }); }) };
+    }
+  };
+  function secs(ms, lang) { var s = (ms / 1000).toFixed(2); return lang === "en" ? s : s.replace(".", ","); }
+  GAMES.pokal = {
+    turns: [[{ w: "blind", l: "pok_go", auto: true, tries: 3, goal: 10000 }],
+      [{ w: "blind", l: "pok_go", auto: true, tries: 3, goal: 10000, peek: function (doc, m, now, lang) { return fmt(T(lang).pok_beat, { n: secs(m[0][0], lang) }); } }]],
+    result: function (doc, m, lang) {
+      var X = T(lang), a = Math.abs(m[0][0] - 10000), b = Math.abs(m[1][0] - 10000);
+      return { h: a === b ? X.pok_tie : fmt(X.pok_win, { w: a < b ? X.first : X.second }), lines: [X.first + ": " + secs(m[0][0], lang) + " s", X.second + ": " + secs(m[1][0], lang) + " s"] };
+    }
+  };
+  // Misère Nim from 3/4/5: the player always starts from a position that can be won, the good bot plays it perfectly.
+  function nimMove(heaps, good, r) {
+    var big = heaps.filter(function (h) { return h > 1; }).length, x = heaps.reduce(function (a, h) { return a ^ h; }, 0), i, k;
+    if (good) {
+      if (big === 1) { i = heaps.findIndex(function (h) { return h > 1; }); var ones = heaps.filter(function (h) { return h === 1; }).length; return [i, ones % 2 ? heaps[i] : heaps[i] - 1]; }
+      if (big > 1 && x) for (i = 0; i < heaps.length; i++) { k = heaps[i] ^ x; if (k < heaps[i]) return [i, heaps[i] - k]; }
+    }
+    var live = heaps.map(function (h, n) { return h ? n : -1; }).filter(function (n) { return n >= 0; }); i = live[Math.floor(r() * live.length)];
+    return [i, 1 + Math.floor(r() * heaps[i])];
+  }
+  GAMES.pommes = {
+    local: true,
+    turns: [[{ w: "pick", l: "pom_bot", n: 1, auto: true, from: function (doc, m, now, lang) { return [T(lang).pom_easy, T(lang).pom_good]; } },
+      { w: "nim", l: "pom_go", auto: true, heaps: [3, 4, 5], bot: function (doc, heaps, step, good) { return nimMove(heaps, good, C.mulberry32(C.hash32("nim|" + doc.seed + "|" + step))); } }]],
+    result: function (doc, m, lang) { var X = T(lang); return { h: m[0][1] ? X.pom_won : X.pom_lost, lines: [m[0][0][0] ? X.pom_good : X.pom_easy] }; }
+  };
+  function reactPlan(doc) {            // per round: how many decoys come first and the pauses, the same for both players
+    return [0, 1, 2, 3, 4].map(function (r) { return { decoys: mix(doc, "lock" + r, 3)[0], pause: 700 + mix(doc, "pause" + r, 12)[0] * 150 }; });
+  }
+  GAMES.reaktion = {
+    turns: [[{ w: "react", l: "rea_go", auto: true, plan: reactPlan }],
+      [{ w: "react", l: "rea_go", auto: true, plan: reactPlan, peek: function (doc, m, now, lang) { return fmt(T(lang).rea_beat, { n: secs(m[0][0], lang) }); } }]],
+    result: function (doc, m, lang) {
+      var X = T(lang), a = m[0][0], b = m[1][0];
+      return { h: a === b ? X.rea_tie : fmt(X.rea_win, { w: a < b ? X.first : X.second }), lines: [X.first + ": " + secs(a, lang) + " s", X.second + ": " + secs(b, lang) + " s", a < b ? X.rea_tease : X.rea_tease2] };
+    }
+  };
   // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
   function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
   function struck(doc, m, lang) {
@@ -760,6 +807,10 @@
     if (p.w === "freeze") return intIn(v, 0, p.max);
     if (p.w === "rec" || p.w === "once" || p.w === "parrot") return v === 0;
     if (p.w === "whose") return intIn(v, 0, 2);
+    if (p.w === "inner") return Array.isArray(v) && v.length === 5 && v.every(function (x) { return Number.isInteger(x) && x >= -20000 && x <= 20000; });
+    if (p.w === "blind") return intIn(v, 2000, 30000);
+    if (p.w === "nim") return v === 0 || v === 1;
+    if (p.w === "react") return intIn(v, 0, 60000);
     if (p.w === "voices") return intIn(v, 0, p.rounds);
     if (p.w === "grid") return Array.isArray(v) && v.length === p.n && distinct(v) && v.every(function (x) { return intIn(x, 0, 24); });
     if (p.w === "probe") { var old = p.before(doc, m); return Array.isArray(v) && v.length >= 1 && v.length <= p.n && distinct(v.concat(old)) && v.every(function (x) { return intIn(x, 0, 24); }); }
@@ -822,6 +873,6 @@
     (function walk(v) { if (typeof v === "string") v.split("|").forEach(function (x) { out.push(x); }); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.keys(v).forEach(function (k) { walk(v[k]); }); })(DATA);
     return out;
   }
-  var api = { sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, whole: whole, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
+  var api = { nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, whole: whole, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
   if (node) module.exports = api; else root.Turns = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

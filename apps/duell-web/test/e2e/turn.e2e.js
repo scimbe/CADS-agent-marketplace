@@ -259,10 +259,33 @@ test("Drueck mich spielt einmal und loescht, Tier-Aufstellung endet im Ergebnis"
   await t.locator("#panel").getByText(/von 3 erkannt/).waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Stufe 5: Pommes gegen Bot bis zum Ende, Uhr und Pokal messen", async () => {
+  const { b, open, errs } = await setup();
+  const p = await open("#i=raum-pommes"); await p.locator("#go").click(); await p.locator("#panel .chip").first().click();
+  for (let i = 0; i < 20; i++) {
+    if (await p.locator("#panel").getByText(/Gewonnen|Verloren/).count()) break;
+    const f = p.locator("#panel .chip.fry"); if (!(await f.count())) break;
+    await f.first().click(); await p.locator("#panel .chip.fry.on").first().click(); await p.waitForTimeout(800);
+  }
+  await p.locator("#panel").getByText(/Gewonnen|Verloren/).first().waitFor();
+  const u = await open("#i=raum-uhr"); await u.locator("#go").click();
+  for (let i = 0; i < 5; i++) { await u.getByRole("button", { name: "Stopp" }).click({ trial: true }); await u.waitForFunction(() => !document.querySelector("#panel .btn.big").disabled); await u.waitForTimeout(600); await u.getByRole("button", { name: "Stopp" }).click(); }
+  await u.locator("#panel").getByText(/im Schnitt|auf den Punkt/).waitFor();
+  const k = await open("#i=zug-pokal"); await k.locator("#go").click();
+  for (let i = 0; i < 3; i++) { await k.waitForFunction(() => !document.querySelector("#panel .btn.big").disabled); await k.waitForTimeout(2100); await k.getByRole("button", { name: "Stopp" }).click(); }
+  await k.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
+test("Doppeltipp oeffnet die Tageskarte, eine Karte geht unveraendert raus", async () => {
+  const { b, open, errs } = await setup();
+  const h = await open(""); await h.locator("#leaf").dblclick(); await h.locator("#edmain").waitFor();
+  const c = await open("#i=quiz-chaos"); await c.locator("#go").click(); await c.locator("#edmain").click(); await c.locator("#share").waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Spiele zu zweit/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 57);
+  assert.equal(await m.locator("#shbody .mech").count(), 61);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);

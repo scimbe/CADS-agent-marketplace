@@ -178,6 +178,84 @@ var draw = {
     p.from(ctx.doc, ctx.m).forEach(function (n, i) { row.appendChild(el("button", "chip", n, function () { Kit.sfx.tap(); if (i === 2 || ctx.now.length === 2) wipe(s); set(i); })); });
     box.appendChild(row); set(null);
   },
+  // Five rounds: the target shows, the time runs by itself after a second, one tap stops it. Nothing is shown while it runs.
+  inner: function (box, p, set, ctx) {
+    var tg = p.targets(ctx.doc), r = 0, out = [], q = el("p", "qtext", ""), fake = el("p", "lbl fakeno", ""), b = el("button", "btn hot big", L().uhr_stop), t0 = 0, flick = 0;
+    function round() {
+      clearInterval(flick); fake.textContent = ""; b.disabled = true; t0 = 0;
+      q.textContent = say("uhr_target", { n: tg[r] / 1000 }) + (r === 1 ? " " + L().uhr_warn : "");
+      setTimeout(function () {
+        if (!box.isConnected) return; t0 = performance.now(); b.disabled = false; q.textContent = L().uhr_count;
+        if (r) flick = setInterval(function () { fake.textContent = String(1 + Math.floor(Math.random() * 9)); }, 700);   // a distraction, never a hint: it does not follow the time
+      }, 1000);
+    }
+    b.addEventListener("click", function () {
+      var d = performance.now() - t0; if (!t0 || d < 500) return;
+      clearInterval(flick); out.push(Math.max(-20000, Math.min(20000, Math.round(d - tg[r])))); Kit.sfx.pop(); r++;
+      if (r >= tg.length) { b.disabled = true; set(out); } else round();
+    });
+    box.appendChild(q); box.appendChild(fake); box.appendChild(b); round(); set(null);
+  },
+  // Stop at the goal without seeing a clock; the next try starts by itself, a stop under two seconds does not count.
+  blind: function (box, p, set) {
+    var n = 0, best = 0, q = el("p", "qtext", L().pok_ready), info = el("p", "lbl", ""), b = el("button", "btn hot big", L().pok_stop), t0 = 0;
+    function go() { b.disabled = true; setTimeout(function () { if (!box.isConnected) return; t0 = performance.now(); b.disabled = false; q.textContent = say("pok_try", { n: n + 1, m: p.tries }); }, 1000); }
+    b.addEventListener("click", function () {
+      var d = Math.round(performance.now() - t0); if (!t0 || d < 2000) return; t0 = 0;
+      n++; if (!best || Math.abs(d - p.goal) < Math.abs(best - p.goal)) best = Math.min(30000, d);
+      info.textContent = say("pok_got", { n: (d / 1000).toFixed(2) }); Kit.sfx.pop();
+      if (n >= p.tries) { b.disabled = true; set(best); } else go();
+    });
+    box.appendChild(q); box.appendChild(b); box.appendChild(info); go(); set(null);
+  },
+  // Tap a fry to mark it and all to its right, tap it again to take them; the bot answers after a short look.
+  nim: function (box, p, set, ctx) {
+    var h = p.heaps.slice(), good = ctx.now[0][0] === 1, mark = null, step = 0, wrap = el("div", "nim"), info = el("p", "lbl", L().pom_you);
+    function draw() {
+      wrap.textContent = "";
+      h.forEach(function (n, i) {
+        var row = el("div", "chips");
+        for (var k = 0; k < n; k++) (function (k) {
+          var on = mark && mark[0] === i && k >= mark[1];
+          row.appendChild(el("button", "chip fry" + (on ? " on" : ""), "🍟", function () {
+            if (info.dataset.busy) return;
+            if (!on) { mark = [i, k]; Kit.sfx.tap(); draw(); return; }
+            take(i, n - mark[1], false);
+          }));
+        })(k);
+        wrap.appendChild(row);
+      });
+    }
+    function left() { return h.reduce(function (a, b) { return a + b; }, 0); }
+    function take(i, k, bot) {
+      h[i] -= k; mark = null; step++; Kit.sfx[bot ? "tap" : "pop"](); draw();
+      if (!left()) { info.textContent = bot ? L().pom_won : L().pom_lost; set(bot ? 1 : 0); return; }
+      if (bot) { info.textContent = say("pom_botdid", { k: k, i: i + 1 }) + " " + L().pom_you; return; }
+      info.dataset.busy = "1"; info.textContent = L().pom_think;
+      setTimeout(function () { if (!box.isConnected) return; delete info.dataset.busy; var mv = p.bot(ctx.doc, h, step, good); take(mv[0], mv[1], true); }, 600);
+    }
+    box.appendChild(info); box.appendChild(wrap); draw(); set(null);
+  },
+  // Five rounds: shapes come one after the other, only the star counts. A wrong tap costs half a second.
+  react: function (box, p, set, ctx) {
+    var plan = p.plan(ctx.doc), r = 0, k = 0, sum = 0, t0 = 0, star = false, timer = 0, pad = el("button", "touchpad react", ""), info = el("p", "lbl", L().rea_rule), SH = ["●", "▲", "■"];
+    function next() {
+      clearTimeout(timer); pad.textContent = ""; star = false; t0 = 0;
+      if (r >= plan.length) { set(Math.min(60000, Math.round(sum))); info.textContent = say("rea_done", { n: (sum / 1000).toFixed(2) }); return; }
+      timer = setTimeout(function () {
+        if (!box.isConnected) return;
+        if (k < plan[r].decoys) { pad.textContent = SH[(r + k) % 3]; k++; timer = setTimeout(next, 650); return; }
+        pad.textContent = "★"; star = true; t0 = performance.now();
+        timer = setTimeout(function () { sum += 2000; r++; k = 0; next(); }, 2000);
+      }, plan[r].pause);
+    }
+    pad.addEventListener("pointerdown", function (e) {
+      e.preventDefault(); if (r >= plan.length) return;
+      if (star) { clearTimeout(timer); sum += performance.now() - t0; r++; k = 0; Kit.sfx.pop(); next(); }
+      else if (pad.textContent) { sum += 500; Kit.tone(200, 90, 0.08, "square", 0.05); info.textContent = L().rea_wrong; }
+    });
+    box.appendChild(info); box.appendChild(pad); next(); set(null);
+  },
   // The beat plays and breaks off; the stop card names the statue. People judge the wobbling, the phone sees nothing.
   freeze: function (box, p, set, ctx) {
     var bpm = 124, pcm = Studio.renderBeat(p.beat(ctx.now[0][0]), bpm, 8), loop = null, timer = 0, r = 0, card = el("p", "qtext", L().dis_ready);

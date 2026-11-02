@@ -47,6 +47,10 @@ const LINES = {
   maus: [[["Oma", [0], 0], [0]]],
   papagei: [[[0, 0], [0, [1]]]],
   tier: [[[["Ana", "Ben", "Cem"]], [0], [0], [0], [0, 1, 2]]],
+  uhr: [[[[100, -200, 300, 0, -100]]]],
+  pokal: [[[9800], [10300]]],
+  pommes: [[[[1], 1]]],
+  reaktion: [[[1800], [2100]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
@@ -267,6 +271,21 @@ test("Ton-Blaetter: keine Aufnahme im Link, Tier-Aufstellung zaehlt Erkannte", (
   let e = fresh("tier", 4); for (const a of [[["Ana", "Ben", "Cem"]], [0], [0], [0]]) e = Tn.play(e, a, 0);
   const o = [0, 1, 2].map((k) => Number(Tn.GAMES.tier.turns[4][k].slot(e).slice(4)));
   assert.equal(Tn.result(Tn.play(e, o, 0), "de").h, "3 von 3 erkannt");
+});
+test("Pommes: der gute Bot spielt Misere-Nim richtig, 3/4/5 ist fuer den Anfang gewinnbar", () => {
+  const r = () => 0.5, x = (h) => h.reduce((a, b) => a ^ b, 0);
+  assert.notEqual(x([3, 4, 5]), 0);
+  for (const h of [[3, 4, 5], [1, 4, 5], [2, 2, 3], [0, 0, 4], [1, 1, 3], [1, 0, 0]]) {
+    const [i, k] = Tn.nimMove(h, true, r); assert.ok(k >= 1 && k <= h[i], JSON.stringify(h));
+  }
+  assert.deepEqual(Tn.nimMove([0, 0, 4], true, r), [2, 3]); assert.deepEqual(Tn.nimMove([1, 1, 3], true, r), [2, 2]); assert.deepEqual(Tn.nimMove([1, 0, 3], true, r), [2, 3]);
+});
+test("Uhr: zu frueh und zu spaet richtig benannt, Pokal und Reaktion vergleichen fair", () => {
+  let d = Tn.play(fresh("uhr", 7), [[-400, -400, -400, -400, -400]], 0); assert.equal(Tn.result(d, "de").h, "Du tippst im Schnitt 0,4 s zu früh");
+  d = Tn.play(fresh("uhr", 7), [[500, 500, 500, 500, 500]], 0); assert.equal(Tn.result(d, "de").h, "Du tippst im Schnitt 0,5 s zu spät");
+  let p = Tn.play(Tn.play(fresh("pokal", 1), [9800], 0), [10100], 0); assert.match(Tn.result(p, "de").h, new RegExp(Tn.T("de").second));
+  assert.equal(Tn.play(fresh("pokal", 1), [1500], 0), null);
+  const a = Tn.GAMES.reaktion.turns[0][0].plan(fresh("reaktion", 3)), b = Tn.GAMES.reaktion.turns[1][0].plan(fresh("reaktion", 3)); assert.deepEqual(a, b);
 });
 test("Keine Werbe- und Manipulationstechnik in den Quellen", () => {
   const fs = require("node:fs"), path = require("node:path"), dir = path.join(__dirname, "../src");
