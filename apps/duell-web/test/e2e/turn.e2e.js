@@ -143,10 +143,21 @@ test("Export: Sticker erscheinen nicht im veroeffentlichten Bild, im Editor scho
   assert.deepEqual(same, { export: true, editor: false });
   assert.deepEqual(errs, []); await b.close();
 });
+test("Raum: Unberechenbar und Damals enden im Ergebnis", async () => {
+  const { b, open, errs } = await setup();
+  const u = await open("#i=raum-unlesbar"); await u.locator("#go").click();
+  for (let i = 0; i < 20; i++) await u.getByRole("button", { name: i % 2 ? "Rechts" : "Links" }).click();
+  await u.locator("#panel").getByText(/von 20 richtig/).waitFor();
+  const d = await open("#i=raum-damals"); await d.locator("#go").click();
+  await d.locator("#panel").getByText("Lieblingsessen").waitFor();
+  for (const x of ["Pudding", "Lesen", "Schlager", "Kaugummi", "Video"]) { await d.locator("#panel input.field").fill(x); await next(d); }
+  await d.locator("#panel").getByText(/Pudding/).first().waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 30);
+  assert.equal(await m.locator("#shbody .mech").count(), 32);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);
