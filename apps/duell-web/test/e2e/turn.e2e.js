@@ -140,7 +140,7 @@ test("Export: Sticker erscheinen nicht im veroeffentlichten Bild, im Editor scho
     await document.fonts.load("900 40px Anton"); await document.fonts.ready;
     const draw = (sk, ex) => { const c = document.createElement("canvas"); c.width = 540; c.height = 675; window.Render.exporting = ex; window.Render.draw(c, { k: "card", st: "druck", x: "Hallo", col: ["#ffd400", "#ff3b1d"], sk, by: [] }, { me: { nick: "", emoji: "" } }); window.Render.exporting = false; return c.toDataURL(); };
     const s = [{ e: "🍕", x: 0.5, y: 0.5, r: 0, z: 2 }];
-    draw(s, false); await document.fonts.ready;   // the first draw is what asks for the fonts of this style
+    draw(s, false); draw(s, true); draw([], true); await document.fonts.ready; await new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)));   // the first draw is what asks for the fonts of this style
     return { export: draw(s, true) === draw([], true), editor: draw(s, false) === draw([], false) };
   });
   assert.deepEqual(same, { export: true, editor: false });
@@ -165,8 +165,8 @@ test("Stufe 3: Hoeflich, Kreis, Woerterbuch und Abfragen starten und nehmen Zueg
   const k = await open("#i=zug-kreis"); await k.locator("#go").click();
   const fs5 = k.locator("#panel input.field");
   for (let i = 0; i < 5; i++) await fs5.nth(i).fill(["Toast", "Hai", "Mond", "Kuh", "Wind"][i]);
-  await next(k); for (let i = 0; i < 5; i++) await k.locator("#panel .chip").nth(i).click();
-  await next(k); assert.equal(await k.locator("#panel input.field").count(), 0);
+  await next(k); for (let i = 0; i < 4; i++) await k.locator("#panel .chip").nth(i).click();
+  await k.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor(); assert.equal(await k.locator("#panel input.field").count(), 0);
   const w = await open("#i=zug-woerter"); await w.locator("#go").click();
   await w.locator("#panel .chip").first().click(); await w.locator("#panel").getByText("Für welchen Moment").waitFor();
   const f = await open("#i=zug-abfragen"); await f.locator("#go").click();
@@ -202,8 +202,8 @@ test("Wichteln zeigt den Zettel und schickt nichts weiter, Schaetzen endet im Er
   for (let i = 0; i < 5; i++) { await s.locator("#panel input[type=range]").fill("1"); await next(s); }
   await s.locator("#panel").getByText(/Im Schnitt \d+ Prozent/).waitFor(); await s.locator("#panel p.note").getByText(/\?\s\d+/).first().waitFor();
   const r = await open("#i=zug-rangliste"); await r.locator("#go").click();
-  for (let i = 0; i < 8; i++) await r.locator("#panel .chip").nth(i).click();
-  await next(r); await r.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
+  for (let i = 0; i < 7; i++) await r.locator("#panel .chip").nth(i).click();
+  await r.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
   const c = await open("#i=zug-reihum"); await c.locator("#go").click(); await c.locator("#panel .chip").first().click();
   await c.locator("#panel input.field").fill("dein Lachen"); await next(c); await c.locator("#panel input.field").fill("Ana"); await next(c);
   await c.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
@@ -266,11 +266,11 @@ test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswa
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);
-  for (const n of ["FilmA", "FilmB", "FilmC", "FilmD", "FilmE"]) await m.getByRole("button", { name: n }).click();
-  await next(m); await send(m); await m.locator("#share").waitFor();
+  for (const n of ["FilmA", "FilmB", "FilmC", "FilmD"]) await m.getByRole("button", { name: n, exact: true }).click();   // the last place sets itself, then it goes on
+  await m.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor(); await send(m); await m.locator("#share").waitFor();
   const e = await open(hash(await url(m))); await e.locator("#go").click();
-  for (const n of ["FilmE", "FilmD", "FilmC", "FilmB", "FilmA"]) await e.getByRole("button", { name: n, exact: true }).click();
-  await next(e); await send(e); await e.locator("#share").waitFor();
+  for (const n of ["FilmE", "FilmD", "FilmC", "FilmB"]) await e.getByRole("button", { name: n, exact: true }).click();
+  await e.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor(); await send(e); await e.locator("#share").waitFor();
   const r = await open(hash(await url(e))); await r.locator("#go").click(); await r.getByText("Einigung: FilmC").first().waitFor();
 
   const w = await open("#i=zug-wort"); await w.locator("#go").click();

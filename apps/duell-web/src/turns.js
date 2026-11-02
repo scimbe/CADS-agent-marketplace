@@ -359,10 +359,10 @@
   GAMES.kreis = {
     turns: [
       [{ w: "list", l: "krs_words", n: 5, max: 14 }, { w: "rank", l: "krs_rank", from: function (doc, m, now) { return now[0]; } }],
-      [0, 1, 2, 3, 4, 5].map(circleTest).concat([{ w: "rank", l: "krs_guess", peek: function (doc, m, now, lang) { return circleSoFar(doc, m, now, lang); }, from: function (doc, m) { return m[0][0]; } }])
+      [0, 1, 2].map(circleTest).concat([{ w: "rank", l: "krs_guess", peek: function (doc, m, now, lang) { return circleSoFar(doc, m, now, lang); }, from: function (doc, m) { return m[0][0]; } }])
     ],
     result: function (doc, m, lang) {
-      var X = T(lang), o = m[0][1], w = m[0][0], ok = circleSame(o, m[1][6]);
+      var X = T(lang), o = m[0][1], w = m[0][0], ok = circleSame(o, m[1][3]);
       return { h: ok ? X.krs_right : X.krs_wrong, lines: [fmt(X.krs_was, { w: o.map(function (i) { return w[i]; }).join(" → ") + " → " + w[o[0]] })] };
     }
   };
@@ -609,7 +609,7 @@
     return t === 1 ? [{ w: "grid", l: "sok_hide", n: 2 }, p] : [p];
   }
   GAMES.socken = {
-    turns: [[{ w: "grid", l: "sok_hide", n: 2 }]].concat([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(sockTurn)),
+    turns: [[{ w: "grid", l: "sok_hide", n: 2 }]].concat([1, 2, 3, 4, 5, 6].map(sockTurn)),
     ends: function (doc, m) { return m.length >= 2 && (sockFound(m, 0) === 2 || sockFound(m, 1) === 2); },
     result: function (doc, m, lang) {
       var X = T(lang), a = sockFound(m, 1), b = sockFound(m, 0), w = a === b ? null : a > b ? X.first : X.second;

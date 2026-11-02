@@ -50,13 +50,13 @@ function setHome(h, animate) {
   if (idea) { var L = ideaText(idea); title = L.t.split("|"); sub = L.s; kind = idea.kind; min = idea.min; }
   else if (doc.k === "turn" && !doc.t && D.byId(doc.i)) { var Li = ideaText(D.byId(doc.i)); title = Li.t.split("|"); sub = doc.s || Li.s; kind = doc.k; min = D.byId(doc.i).min; }
   else { title = (doc.t || doc.x || (doc.g && doc.g.title) || t("own")).split(/\s+/).reduce(function (a, w) { if (a.length && (a[a.length - 1] + " " + w).length < 13) a[a.length - 1] += " " + w; else a.push(w); return a; }, []).slice(0, 4); sub = doc.s || ""; kind = doc.k; min = 60; }
-  $("dkind").textContent = t(kind) + "\n" + t("sec", { n: min });
+  $("dkind").textContent = t(kind) + "\n" + (min >= 120 ? t("mins", { n: Math.round(min / 60) }) : t("sec", { n: min }));
   var hero = $("hero"); hero.textContent = "";
   title.filter(Boolean).forEach(function (l, i) { var s = el("span", "", l); s.style.setProperty("--i", i); hero.appendChild(s); });
   $("teaser").textContent = sub;
   var from = $("from");
   if (h.note) { from.textContent = h.note; from.hidden = false; } else from.hidden = true;
-  $("go").textContent = t("go");
+  $("go").textContent = t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
   var mode = doc && X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
   if (mode) { $("go").textContent = mode.go; from.textContent = mode.note; from.hidden = false; }
   $("wishgo").textContent = t("wishHome"); $("wishgo").hidden = !!mode || W.KINDS.indexOf(kind) < 0;

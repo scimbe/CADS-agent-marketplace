@@ -22,7 +22,7 @@ const LINES = {
   steine: [[[[0, 20, 40]], [[0, 21, 42]]]],
   unlesbar: [[Array(20).fill(0).map((x, i) => [i % 2])]], damals: [[["Pudding", "Lesen", "Schlager", "Kaugummi", "Video"]]],
   streichen: [[[[0]], [[0]], [[0]], [[0]], [[0]], [[0]]]], finger: [[[0]]], erklaeren: [[[7]]], sorry: [[[[0], [1], [2]]]],
-  kreis: [[[["Toast", "Hai", "Mond", "Kuh", "Wind"], [0, 1, 2, 3, 4]], [[0, 1], [0, 2], [0, 3], [0, 4], [1, 2], [1, 3], [0, 1, 2, 3, 4]]]],
+  kreis: [[[["Toast", "Hai", "Mond", "Kuh", "Wind"], [0, 1, 2, 3, 4]], [[0, 1], [0, 2], [0, 3], [0, 1, 2, 3, 4]]]],
   hoeflich: [[[[0]], [[0]], [[0]], [[0]], [[0]], [[0]]]],
   woerter: [[[[0], [0]], [[0], [1], [1]], [[0], [2], [2]], [[0], [3], [3]], [[0]]]],
   abfragen: [[[["Eins", "Zwei", "Drei", "Vier"], ["ja", "ja", "nein", "ja"]], [0, [0], 0, [1], 0, [0], 0, [0], ["Aa", "Bb", "Cc", "Dd"], ["x", "y", "x", "y"]], [0, [0], 0, [0], 0, [1], 0, [0]]]],
@@ -145,7 +145,7 @@ test("Gleiche Steine: beide Seiten bekommen denselben Strom, Punkte werden nachg
   assert.equal(Tn.drop(st, [[0, 0]], 7).lines, 1); assert.equal(Tn.drop(st, [[0, 0]], 7).grid.slice(0, 8).join(""), "00000000");
 });
 test("Kreis: jedes Wort schlaegt die zwei naechsten, gedrehter Kreis zaehlt als richtig", () => {
-  const words = ["Aa", "Bb", "Cc", "Dd", "Ee"], tests = [[0, 1], [0, 2], [0, 3], [0, 4], [1, 2], [1, 3]];
+  const words = ["Aa", "Bb", "Cc", "Dd", "Ee"], tests = [[0, 1], [0, 2], [0, 3]];
   let d = Tn.play(fresh("kreis", 5), [words, [0, 2, 4, 1, 3]], 0);
   const p = Tn.GAMES.kreis.turns[1][1].peek(d, Tn.moves(d), [[0, 2], [0, 1]], "de");
   assert.match(p, /Aa schlägt Cc/); assert.match(p, /Bb schlägt Aa/);

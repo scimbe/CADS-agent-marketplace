@@ -59,7 +59,8 @@ R.extra.turn = function (c, W, H, doc) {
   shape(c, doc.f, W * 0.84, H * 0.84, W * 0.08, b); shape(c, doc.f, W * 0.14, H * 0.8, W * 0.05, b);
   R.block(c, res ? res.h : title(doc), W * 0.07, H * 0.1, W * 0.86, H * 0.34, ink, null);
   if (res) lines(c, res.lines, W, H * 0.5, W * 0.038, ink);
-  else lines(c, [say("picture_turn", { n: st.turn + 1, m: st.total }), L().sealed], W, H * 0.56, W * 0.05, ink);
+  else if (!st.turn) { var i0 = doc.i ? D.byId(doc.i) : null; lines(c, [doc.s || (i0 ? (i0[Kit.lang] || i0.de).s : ""), L().you_start], W, H * 0.52, W * 0.05, ink); }   // the goal, not the machinery
+  else lines(c, [say("picture_turn", { n: st.turn + 1, m: st.total })], W, H * 0.56, W * 0.05, ink);
 };
 
 /* ---------- one prompt ---------- */
@@ -106,6 +107,7 @@ var draw = {
       var b = el("button", "chip", s, function () {
         Kit.sfx.tap(); var at = order.indexOf(i); if (at >= 0) order.splice(at, 1); else order.push(i);
         Array.from(row.children).forEach(function (x, n) { var w = order.indexOf(n); x.textContent = (w >= 0 ? w + 1 + ". " : "") + items[n]; x.classList.toggle("on", w >= 0); });
+        if (order.length === items.length - 1) { order.push(items.findIndex(function (x, n) { return order.indexOf(n) < 0; })); Array.from(row.children).forEach(function (x, n) { x.textContent = order.indexOf(n) + 1 + ". " + items[n]; x.classList.add("on"); }); }
         set(order.length === items.length ? order.slice() : null);
       });
       row.appendChild(b);
@@ -337,7 +339,12 @@ function walk(box, ed) {
     });
     if (p.peek) box.appendChild(el("p", "qtext", p.peek(ed.doc, st.moves, now, Kit.lang)));
     if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("label", "lbl", p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "")));
-    draw[p.w](box, p, function (v) { cur = v; go.disabled = v === null; if (p.auto && v !== null) go.click(); }, { doc: ed.doc, m: st.moves, now: now });
+    var soon = 0;
+    draw[p.w](box, p, function (v) {
+      cur = v; go.disabled = v === null; clearTimeout(soon);
+      if (v === null) return;
+      if (p.auto) go.click(); else if (p.w === "rank" || (p.w === "pick" && p.n > 1)) soon = setTimeout(function () { if (box.isConnected && cur === v) go.click(); }, 450);   // a short look at the choice, then on
+    }, { doc: ed.doc, m: st.moves, now: now });
     box.appendChild(go);
   }
   step();
@@ -404,7 +411,7 @@ X.turn = {
     var st = Tn.state(doc), left = Tn.gate(doc, Tn.today());
     if (st.over) return { go: L().go_view, note: L().note_over };
     if (left) return { go: L().go_play, note: say("note_wait", { n: left }) };
-    return st.turn ? { go: L().go_play, note: say("note_turn", { n: st.turn + 1, m: st.total }) } : null;
+    return st.turn ? { go: L().go_play, note: say("note_turn", { n: st.turn + 1, m: st.total }) } : { go: L().go_first, note: "" };
   }
 };
 })();
