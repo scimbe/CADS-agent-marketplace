@@ -57,7 +57,7 @@ var draw = {
   },
   list: function (box, p, set) {
     var fs = [];
-    function up() { var v = fs.map(function (f) { return Q.clean(f.value, p.max); }); set(p.loose ? fs.map(function (f, i) { return f.value.trim() ? v[i] : ""; }) : v.every(Boolean) && new Set(v.map(Q.fold)).size === p.n ? v : null); }
+    function up() { var v = fs.map(function (f) { return Q.clean(f.value, p.max); }); set(p.loose ? fs.map(function (f, i) { return f.value.trim() ? v[i] : ""; }) : v.every(Boolean) && (p.same || new Set(v.map(Q.fold)).size === p.n) && (!p.bytes || new TextEncoder().encode(v.join("")).length <= p.bytes) ? v : null); }
     for (var i = 0; i < p.n; i++) { var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l] + " " + (i + 1)); if (p.hints) f.placeholder = p.hints(Kit.lang)[i]; f.addEventListener("input", up); box.appendChild(f); fs.push(f); }
     if (p.loose) up(); else set(null);
   },

@@ -22,6 +22,10 @@ const LINES = {
   steine: [[[[0, 20, 40]], [[0, 21, 42]]]],
   unlesbar: [[Array(20).fill(0).map((x, i) => [i % 2])]], damals: [[["Pudding", "Lesen", "Schlager", "Kaugummi", "Video"]]],
   streichen: [[[[0]], [[0]], [[0]], [[0]], [[0]], [[0]]]], finger: [[[0]]], erklaeren: [[[7]]], sorry: [[[[0], [1], [2]]]],
+  kreis: [[[["Toast", "Hai", "Mond", "Kuh", "Wind"], [0, 1, 2, 3, 4]], [[0, 1], [0, 2], [0, 3], [0, 4], [1, 2], [1, 3], [0, 1, 2, 3, 4]]]],
+  hoeflich: [[[[0]], [[0]], [[0]], [[0]], [[0]], [[0]]]],
+  woerter: [[[[0], [0]], [[0], [1], [1]], [[0], [2], [2]], [[0], [3], [3]], [[0]]]],
+  abfragen: [[[["Eins", "Zwei", "Drei", "Vier"], ["ja", "ja", "nein", "ja"]], [0, [0], 0, [1], 0, [0], 0, [0], ["Aa", "Bb", "Cc", "Dd"], ["x", "y", "x", "y"]], [0, [0], 0, [0], 0, [1], 0, [0]]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
@@ -118,6 +122,42 @@ test("Gleiche Steine: beide Seiten bekommen denselben Strom, Punkte werden nachg
   assert.ok(!/navigator|screen\.|userAgent|Date\.|Math\.random|localStorage|store/.test(part), "Steine haengen nur am Seed");
   let st = { grid: new Array(64).fill(0), score: 0, lines: 0, i: 0 }; for (let i = 0; i < 7; i++) st.grid[i] = 1;
   assert.equal(Tn.drop(st, [[0, 0]], 7).lines, 1); assert.equal(Tn.drop(st, [[0, 0]], 7).grid.slice(0, 8).join(""), "00000000");
+});
+test("Kreis: jedes Wort schlaegt die zwei naechsten, gedrehter Kreis zaehlt als richtig", () => {
+  const words = ["Aa", "Bb", "Cc", "Dd", "Ee"], tests = [[0, 1], [0, 2], [0, 3], [0, 4], [1, 2], [1, 3]];
+  let d = Tn.play(fresh("kreis", 5), [words, [0, 2, 4, 1, 3]], 0);
+  const p = Tn.GAMES.kreis.turns[1][1].peek(d, Tn.moves(d), [[0, 2], [0, 1]], "de");
+  assert.match(p, /Aa schlägt Cc/); assert.match(p, /Bb schlägt Aa/);
+  assert.equal(Tn.result(Tn.play(d, [...tests, [2, 4, 1, 3, 0]], 0), "de").h, Tn.T("de").krs_right);
+  assert.equal(Tn.result(Tn.play(d, [...tests, [0, 1, 2, 3, 4]], 0), "de").h, Tn.T("de").krs_wrong);
+});
+test("Hoeflich: wer die Grenze reisst, verliert sofort, der Rest der Zuege entfaellt", () => {
+  let d = fresh("hoeflich", 9), n = 0;
+  while (!Tn.state(d).over) { d = Tn.play(d, [[2]], 0); n++; }
+  assert.ok(n >= 3 && n <= 6); const r = Tn.result(d, "de");
+  assert.ok(/gewinnt/.test(r.h)); assert.ok(n % 2 ? r.h.startsWith(Tn.T("de").second) : r.h.startsWith(Tn.T("de").first));
+  assert.equal(Tn.play(d, [[0]], 0), null);
+  for (const s of [1, 2, 3]) assert.ok(Tn.GAMES.hoeflich.turns[0][0].from(fresh("hoeflich", s), [], [], "de").every((x) => /^•{1,3} /.test(x)));
+});
+test("Woerterbuch: drei Antworten, eine davon stimmt, und die Zaehlung passt", () => {
+  let d = Tn.play(fresh("woerter", 3), [[0], [0]], 0), hit = 0;
+  for (let r = 0; r < 4; r++) {
+    const st = Tn.state(d), g = Tn.GAMES.woerter.turns[r + 1][0], o = g.from(d, st.moves, [], "de"), m = st.moves[r], off = r ? 1 : 0;
+    assert.equal(o.length, 3);
+    const want = Tn.GAMES.woerter.turns[r][off + 1].from(d, st.moves, [], "de")[m[off + 1][0]], at = o.indexOf(want); assert.ok(at >= 0);
+    const pick = r % 2 ? (at + 1) % 3 : at; if (pick === at) hit++;
+    d = Tn.play(d, r < 3 ? [[pick], [1], [2]] : [[pick]], 0);
+  }
+  assert.equal(Tn.result(d, "de").h, "Euer Wörterbuch: " + hit + " von 4 erraten");
+});
+test("Abfragen: volle Karten passen in den Link, Falsches bleibt auf dem Stapel", () => {
+  const q = (c) => [0, 1, 2, 3].map((i) => (c + i).padEnd(28, "ae")), a = (c) => [0, 1, 2, 3].map((i) => (c + i).padEnd(24, "oe"));
+  assert.equal(Tn.play(fresh("abfragen", 4), [[0, 1, 2, 3].map((i) => "ä".repeat(27) + i), a("B")], 0), null);
+  let d = Tn.play(fresh("abfragen", 4), [q("A"), a("B")], 0);
+  d = Tn.play(d, [0, [0], 0, [1], 0, [0], 0, [0], q("C"), a("D")], 0); assert.ok(d);
+  d = Tn.play(d, [0, [1], 0, [1], 0, [0], 0, [0]], 0); assert.ok(d, "Link zu lang");
+  assert.ok(Tn.state(d).over); assert.ok(D.docUrl(d).length < 1400, "Laenge " + D.docUrl(d).length);
+  const r = Tn.result(d, "de"); assert.equal(r.lines.filter((x) => /übt noch/.test(x)).length, 3);
 });
 test("Keine Werbe- und Manipulationstechnik in den Quellen", () => {
   const fs = require("node:fs"), path = require("node:path"), dir = path.join(__dirname, "../src");
