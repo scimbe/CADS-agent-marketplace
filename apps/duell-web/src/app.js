@@ -158,6 +158,11 @@ function footer() {
   b.classList.toggle("wait", !ok && !g);
   b.textContent = g ? t("play") : ok ? t("done") : t("needOwn");
 }
+// The line above the link says what the receiver gets: a move to make, a result, or something made for them.
+function shareLine(doc) {
+  if (doc && doc.k === "turn") { var st = window.Turns.state(doc); return t(st.over ? "shareResult" : "shareTurn"); }
+  return t(doc && (doc.k === "card" || doc.k === "photo") ? "shareCard" : "shareText");
+}
 function trailLine() {
   var box = $("trail"), by = ed.doc.by; box.textContent = ""; box.hidden = !by.length; if (!by.length) return;
   box.textContent = t("trail") + ": " + by.map(function (e) { return (e.n || t("anon")) + " (" + e.w.map(function (w) { return t("a_" + w); }).join(", ") + ")"; }).join(" → ");
@@ -501,7 +506,7 @@ $("share").addEventListener("click", async function () {
   if (!result.link) { sharing = true; b.disabled = true; b.textContent = t("sh_making"); try { await shortLink(); } finally { sharing = false; b.disabled = false; b.textContent = t("sh_ready"); } return; }
   var link = result.link;
   // Only the link: chat apps such as WhatsApp drop the link when a picture comes along. The picture stays one tap away under Save.
-  await Kit.share({ url: link.url, text: t("shareText") });
+  await Kit.share({ url: link.url, text: shareLine(result.keep && result.keep.doc) });
 });
 $("playit").addEventListener("click", function () { ed = result.keep; ed.sel = -1; makePlayable(); });
 // Reaches the server only from here, that is after a tap on one of the share buttons.
