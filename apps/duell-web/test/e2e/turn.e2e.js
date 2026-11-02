@@ -8,9 +8,11 @@ const shot = process.env.SHOT_DIR;
 const hash = (u) => "#" + u.split("#")[1];
 
 async function setup() {
-  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined, args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), errs = [];
   ctx.setDefaultTimeout(15000);
+  // macOS gives a headless browser no microphone: a test tone from the audio graph stands in, the recording path stays the real one.
+  await ctx.addInitScript(() => { if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = async () => { const a = window.Kit.audio(true), o = a.createOscillator(), d = a.createMediaStreamDestination(); o.connect(d); o.start(); return d.stream; }; });
   const open = async (h) => { const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e))); await p.goto(page + h); return p; };
   return { b, open, errs };
 }
@@ -244,10 +246,23 @@ test("Statue spielt und stoppt, Stimmen-Raetsel zaehlt beim Raten", async () => 
   await s.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Drueck mich spielt einmal und loescht, Tier-Aufstellung endet im Ergebnis", async () => {
+  const { b, open, errs } = await setup(); const X = require("../../src/turn.json").text.de, hand = (p) => p.getByRole("button", { name: X.hand_go }).click();
+  const m = await open("#i=raum-maus"); await m.locator("#go").click(); await m.locator("#panel input.field").fill("Oma"); await next(m);
+  await m.locator("#panel .chip").first().click(); await m.getByRole("button", { name: /Aufnehmen/ }).click(); await hand(m);
+  await m.getByRole("button", { name: /Drück mich/ }).click(); await m.locator("#panel").getByText(X.mau_gone).first().waitFor();
+  assert.equal(await m.evaluate(() => window.TurnVoice.has("maus")), false);
+  const t = await open("#i=mut-tierstory"); await t.locator("#go").click();
+  const f = t.locator("#panel input.field"); for (let i = 0; i < 3; i++) await f.nth(i).fill(["Ana", "Ben", "Cem"][i]); await next(t); await hand(t);
+  for (let i = 0; i < 3; i++) { await t.getByRole("button", { name: /Aufnehmen/ }).click(); await hand(t); }
+  for (let i = 0; i < 3; i++) await t.locator("#panel .chips .chip").first().click();
+  await t.locator("#panel").getByText(/von 3 erkannt/).waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 54);
+  assert.equal(await m.locator("#shbody .mech").count(), 57);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);

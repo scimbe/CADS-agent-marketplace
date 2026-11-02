@@ -44,6 +44,9 @@ const LINES = {
   rap: [[[[0], [0]], [[1], [2]]]],
   disco: [[[[0], 3]]],
   stimme: [[[0], [[1], 4]]],
+  maus: [[["Oma", [0], 0], [0]]],
+  papagei: [[[0, 0], [0, [1]]]],
+  tier: [[[["Ana", "Ben", "Cem"]], [0], [0], [0], [0, 1, 2]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
@@ -257,6 +260,13 @@ test("Stimmen: sechs verschiedene Karten, die richtige Figur ist immer dabei", (
   const p = Tn.GAMES.stimme.turns[1][1];
   for (let seed = 1; seed < 80; seed++) for (let r = 0; r < 5; r++) { const d = fresh("stimme", seed), c = p.cards(d, r, "de"); assert.equal(new Set(c).size, 6); assert.equal(c[p.right(d, r)], p.figure(d, r, "de")); }
   const t = Tn.GAMES.disco.turns[0][1]; assert.ok(t.pause(fresh("disco", 3), 0) >= 4 && t.pause(fresh("disco", 3), 0) <= 12);
+});
+test("Ton-Blaetter: keine Aufnahme im Link, Tier-Aufstellung zaehlt Erkannte", () => {
+  let d = fresh("maus", 1); for (const a of [["Oma", [0], 0], [0]]) d = Tn.play(d, a, 0);
+  assert.ok(D.docUrl(d).length < 400);
+  let e = fresh("tier", 4); for (const a of [[["Ana", "Ben", "Cem"]], [0], [0], [0]]) e = Tn.play(e, a, 0);
+  const o = [0, 1, 2].map((k) => Number(Tn.GAMES.tier.turns[4][k].slot(e).slice(4)));
+  assert.equal(Tn.result(Tn.play(e, o, 0), "de").h, "3 von 3 erkannt");
 });
 test("Keine Werbe- und Manipulationstechnik in den Quellen", () => {
   const fs = require("node:fs"), path = require("node:path"), dir = path.join(__dirname, "../src");

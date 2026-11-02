@@ -6,6 +6,32 @@ function L() { return Tn.T(Kit.lang); }
 function say(k, o) { return String(L()[k]).replace(/\{(\w+)\}/g, function (m, n) { return o[n]; }); }
 function seed() { var a = new Uint32Array(1); window.crypto.getRandomValues(a); return a[0]; }
 
+/* ---------- voices: only in this tab's memory, overwritten after use ---------- */
+var VOICE = {};
+function wipe(k) { if (VOICE[k]) VOICE[k].fill(0); delete VOICE[k]; }
+function listen(ms) {
+  return new Promise(function (done) {
+    var over = false, fake = function () { if (over) return; over = true; Kit.toast(t("noMic")); done(Studio.dummyVoice()); }, wait = setTimeout(fake, 20000);   // a prompt nobody answers must not freeze the game
+    var ac = Kit.audio(true);
+    if (!navigator.mediaDevices || !ac || !ac.createScriptProcessor) { fake(); return; }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (st) {
+      clearTimeout(wait); if (over) { st.getTracks().forEach(function (x) { x.stop(); }); return; }
+      // Straight from the audio graph: no file, no codec, just samples in memory.
+      var src = ac.createMediaStreamSource(st), sp = ac.createScriptProcessor(4096, 1, 1), mute = ac.createGain(), got = [], n = 0;
+      mute.gain.value = 0; sp.onaudioprocess = function (e) { var c = e.inputBuffer.getChannelData(0); got.push(Float32Array.from(c)); n += c.length; };
+      src.connect(sp); sp.connect(mute); mute.connect(ac.destination);
+      setTimeout(function () {
+        sp.disconnect(); src.disconnect(); mute.disconnect(); st.getTracks().forEach(function (x) { x.stop(); });
+        var k = ac.sampleRate / Studio.SR, o = new Float32Array(Math.floor(n / k)), all = new Float32Array(n), at = 0;
+        got.forEach(function (c) { all.set(c, at); at += c.length; c.fill(0); }); got.length = 0;
+        for (var i = 0; i < o.length; i++) o[i] = all[Math.floor(i * k)];
+        all.fill(0); over = true; done(o.length ? o : Studio.dummyVoice());
+      }, ms);
+    }).catch(fake);
+  });
+}
+window.TurnVoice = { has: function (k) { return !!VOICE[k]; } };
+
 /* ---------- picture: own vector shapes, no emoji ---------- */
 function shape(c, f, x, y, r, col) {
   c.save(); c.translate(x, y); c.fillStyle = col; c.strokeStyle = col; c.lineWidth = r * 0.28; c.beginPath();
@@ -118,6 +144,37 @@ var draw = {
     }, 250);
     box.appendChild(el("p", "qtext", p.text(ctx.doc, ctx.m, Kit.lang))); box.appendChild(left);
     box.appendChild(el("button", "chip", L().clk_done, function () { clearInterval(tick); set(0); })); set(null);
+  },
+  rec: function (box, p, set, ctx) {
+    var b = el("button", "btn hot", "🎙 " + L().rec_go, function () {
+      if (b.disabled) return; b.disabled = true; b.textContent = "● " + L().rec_on;
+      listen(p.ms).then(function (pcm) { VOICE[p.slot] = pcm; b.textContent = "✓"; set(0); });
+    });
+    box.appendChild(b); set(null);
+  },
+  // One press, one playback, then the samples are overwritten and the slot is empty.
+  once: function (box, p, set, ctx) {
+    var pcm = VOICE[p.slot], b = el("button", "btn hot big", say("mau_from", { n: p.who(ctx.m) }), function () {
+      if (!VOICE[p.slot]) return; var o = Studio.warp(VOICE[p.slot], p.fx(ctx.m)); Kit.playPcm(o, Studio.SR, false);
+      wipe(p.slot); setTimeout(function () { o.fill(0); }, o.length / Studio.SR * 1000 + 200); b.disabled = true; b.textContent = L().mau_gone; set(0);
+    });
+    if (!pcm) { b.disabled = true; b.textContent = L().rec_lost; box.appendChild(b); set(0); return; }
+    box.appendChild(b); set(null);
+  },
+  parrot: function (box, p, set) {
+    var src = VOICE[p.from], row = el("div", "chips");
+    row.appendChild(el("button", "chip", "▶ " + L().pap_back, function () { if (src) Kit.playPcm(Array.from(src).reverse(), Studio.SR, false); }));
+    var r = el("button", "chip", "🎙 " + L().rec_go, function () {
+      if (r.disabled) return; r.disabled = true; r.textContent = "● " + L().rec_on;
+      listen(2500).then(function (pcm) { VOICE[p.slot] = pcm; Kit.playPcm(Float32Array.from(pcm).reverse(), Studio.SR, false); wipe(p.from); r.textContent = "✓"; setTimeout(function () { set(0); }, pcm.length / Studio.SR * 1000 + 300); });
+    });
+    row.appendChild(r); box.appendChild(row); set(null);
+  },
+  whose: function (box, p, set, ctx) {
+    var s = p.slot(ctx.doc), row = el("div", "chips");
+    box.appendChild(el("button", "chip", "▶ " + L().tie_play, function () { if (VOICE[s]) Kit.playPcm(Studio.warp(VOICE[s], p.fx(ctx.doc)), Studio.SR, false); }));
+    p.from(ctx.doc, ctx.m).forEach(function (n, i) { row.appendChild(el("button", "chip", n, function () { Kit.sfx.tap(); if (i === 2 || ctx.now.length === 2) wipe(s); set(i); })); });
+    box.appendChild(row); set(null);
   },
   // The beat plays and breaks off; the stop card names the statue. People judge the wobbling, the phone sees nothing.
   freeze: function (box, p, set, ctx) {
