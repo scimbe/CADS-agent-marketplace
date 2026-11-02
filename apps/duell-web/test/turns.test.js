@@ -39,7 +39,7 @@ const LINES = {
   tunnel: [[["Pommes"]]],
   post: [[[["Mathe", "Gitarre", "Toast"], 30], [[0], [1], [0]]]],
   fallpreis: [[[70, 60, 50, 40], [65, 60, 55, 0]]],
-  socken: [[[[0, 24]], [[5, 6], [0, 1, 2, 3, 4, 24]]]],
+  socken: [[[[0, 24]], [[5, 6], [0, 1, 2, 3, 4, 24]], [[7, 8, 10, 11, 12, 13]]]],
   advent: [[[Array(24).fill("").map((x, i) => i % 3 ? "" : "Tür " + (i + 1))], [0]]],
   rap: [[[[0], [0]], [[1], [2]]]],
   disco: [[[[0], 3]]],
@@ -240,6 +240,7 @@ test("Socken: Antworten aus dem Versteck, Spielende sobald beide gefunden", () =
   let d = Tn.play(fresh("socken", 1), [[0, 24]], 0); d = Tn.play(d, [[5, 6], [1, 2, 3, 4, 9, 14]], 0);
   assert.equal(Tn.state(d).over, false); d = Tn.play(d, [[7, 8, 10, 11, 12, 13]], 0); assert.equal(Tn.state(d).over, false);
   assert.equal(Tn.play(d, [[1, 0]], 0), null); d = Tn.play(d, [[0, 24]], 0);
+  assert.equal(Tn.state(d).over, false, "die erste Seite bekommt noch ihren Suchzug"); d = Tn.play(d, [[14, 15, 16, 17, 18, 19]], 0);
   assert.equal(Tn.state(d).over, true); assert.equal(Tn.result(d, "de").h, "Zweiter hat alle Socken gefunden!".replace("Zweiter", Tn.T("de").second));
 });
 test("Fallpreis: wer frueher tippt, kauft, Gewinn ist Wert minus Preis", () => {

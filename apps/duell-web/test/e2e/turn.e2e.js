@@ -24,7 +24,7 @@ const send = (p) => p.locator("#edmain").click();
 test("Zwei Geraete: Keks-Deal laeuft nur ueber Links bis zum Ergebnisbild", async () => {
   const { b, open, errs } = await setup();
   const a = await open("#i=zug-deal"); await a.locator("#go").click();
-  assert.match(await a.locator("#edmain").textContent(), /Erst deinen Zug/);
+  assert.match(await a.locator("#edmain").textContent(), /Erst oben fertig/);
   await slide(a, 4); await next(a); await a.getByText("Zug steht").waitFor(); await send(a); await a.locator("#share").waitFor();
   const one = await url(a); assert.ok(!/"?offer/.test(one));
   const c = await open(hash(one));
@@ -282,9 +282,19 @@ test("Doppeltipp oeffnet die Tageskarte, eine Karte geht unveraendert raus", asy
   const c = await open("#i=quiz-chaos"); await c.locator("#go").click(); await c.locator("#edmain").click(); await c.locator("#share").waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Nutzertest: Weiter nach automatischem Weiter zaehlt nicht doppelt, Teilen in zwei Schritten", async () => {
+  const { b, open, errs } = await setup(); const X = require("../../src/turn.json").text.de;
+  const k = await open("#i=zug-kreis"); await k.locator("#go").click();
+  const f = k.locator("#panel input.field"); for (let i = 0; i < 5; i++) await f.nth(i).fill(["Toast", "Hai", "Mond", "Kuh", "Wind"][i]);
+  await next(k); for (let i = 0; i < 4; i++) await k.locator("#panel .chip").nth(i).click();
+  await k.getByRole("button", { name: "Weiter", exact: true }).click().catch(() => {});   // a human taps on as well
+  await k.locator("#panel").getByText(X.ready).waitFor(); await k.waitForFunction((s) => document.querySelector("#edmain").textContent.trim() === s, X.send);
+  await k.getByRole("tab", { name: "Text" }).click(); await k.getByRole("tab", { name: /Zug/ }).click(); await k.locator("#panel").getByText(X.ready).waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
-  const m = await open(""); await m.getByRole("button", { name: /Spiele zu zweit/ }).click();
+  const m = await open(""); await m.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   assert.equal(await m.locator("#shbody .mech").count(), 61);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
@@ -293,7 +303,8 @@ test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswa
   await m.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor(); await send(m); await m.locator("#share").waitFor();
   const e = await open(hash(await url(m))); await e.locator("#go").click();
   for (const n of ["FilmE", "FilmD", "FilmC", "FilmB"]) await e.getByRole("button", { name: n, exact: true }).click();
-  await e.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor(); await send(e); await e.locator("#share").waitFor();
+  await e.getByText("Einigung: FilmC").first().waitFor();   // the last move shows the result at once
+  await send(e); await e.locator("#share").waitFor();
   const r = await open(hash(await url(e))); await r.locator("#go").click(); await r.getByText("Einigung: FilmC").first().waitFor();
 
   const w = await open("#i=zug-wort"); await w.locator("#go").click();

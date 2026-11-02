@@ -214,6 +214,7 @@ var draw = {
     function draw() {
       wrap.textContent = "";
       h.forEach(function (n, i) {
+        wrap.appendChild(el("p", "lbl", say("pom_pile", { i: i + 1 })));
         var row = el("div", "chips");
         for (var k = 0; k < n; k++) (function (k) {
           var on = mark && mark[0] === i && k >= mark[1];
@@ -398,7 +399,7 @@ var draw = {
 };
 // The next move on the same phone: nobody sees the last one, the phone changes hands first.
 function pass(box, ed) {
-  var d = ed.next; ed.next = null; ed.doc = d; A.changed();
+  var d = ed.next; if (!d) return; ed.next = null; ed.doc = d; A.changed();
   if (Tn.state(d).over) { A.tab("Move"); return; }
   box.textContent = ""; box.appendChild(el("p", "qtext", L().hand));
   box.appendChild(el("button", "btn hot", L().hand_go, function () { Kit.sfx.tap(); walk(box, ed); }));
@@ -407,13 +408,13 @@ function pass(box, ed) {
 function walk(box, ed) {
   var st = Tn.state(ed.doc), now = [], i = 0;
   function step() {
-    box.textContent = "";
+    box.textContent = ""; box.style.pointerEvents = "none"; setTimeout(function () { box.style.pointerEvents = ""; }, 250);
     if (i >= st.prompts.length && Tn.GAMES[ed.doc.g].stay && st.turn) { ed.next = null; A.changed(); box.appendChild(el("p", "lbl", L().stay_note)); return; }   // the same link goes on to the next person
     if (i >= st.prompts.length) { ed.move = now; ed.next = Tn.play(ed.doc, now, Tn.today());
-      if (Tn.GAMES[ed.doc.g].local) { pass(box, ed); return; }
+      if (Tn.GAMES[ed.doc.g].local || (ed.next && Tn.state(ed.next).over)) { pass(box, ed); return; }
       A.changed(); box.appendChild(el("p", "lbl", L().ready)); box.appendChild(el("button", "btn", L().hand_same, function () { pass(box, ed); })); return; }
     var p = st.prompts[i], cur = null, go = el("button", "btn hot", L().next, function () {
-      if (cur === null) return; Kit.sfx.pop(); now.push(cur); i++; step();
+      if (cur === null || !go.isConnected) return; Kit.sfx.pop(); now.push(cur); cur = null; i++; step();
     });
     if (p.peek) box.appendChild(el("p", "qtext", p.peek(ed.doc, st.moves, now, Kit.lang)));
     if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("label", "lbl", p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "")));
@@ -421,6 +422,7 @@ function walk(box, ed) {
     draw[p.w](box, p, function (v) {
       cur = v; go.disabled = v === null; clearTimeout(soon);
       if (v === null) return;
+      if (!p.auto) try { go.scrollIntoView({ block: "nearest" }); } catch (e) {}
       if (p.auto) go.click(); else if (p.w === "rank" || (p.w === "pick" && p.n > 1)) soon = setTimeout(function () { if (box.isConnected && cur === v) go.click(); }, 450);   // a short look at the choice, then on
     }, { doc: ed.doc, m: st.moves, now: now });
     box.appendChild(go);
@@ -439,6 +441,7 @@ A.PANEL.Move = function (p) {
   }
   if (left) { p.appendChild(el("p", "qtext", say("note_wait", { n: left }))); return; }
   var w = Tn.whole(doc, Kit.lang); if (w) p.appendChild(el("p", "qtext", w));
+  if (ed.next) { p.appendChild(el("p", "lbl", L().ready)); p.appendChild(el("button", "btn", L().redo, function () { ed.next = null; A.changed(); A.tab("Move"); })); return; }
   walk(p, ed);
 };
 A.PANEL.Text = (function (old) {
@@ -482,7 +485,7 @@ X.turn = {
   },
   main: function (ed) {
     var over = !!Tn.result(ed.doc, Kit.lang);
-    if (!over && !ed.next) { Kit.tone(200, 160, 0.1, "square", 0.06); return; }
+    if (!over && !ed.next) { Kit.tone(200, 160, 0.1, "square", 0.06); var g = document.querySelector("#panel .btn.hot, #panel .chip, #panel .field"); if (g) { g.scrollIntoView({ block: "center" }); g.classList.add("nudge"); setTimeout(function () { g.classList.remove("nudge"); }, 700); } return; }
     Kit.sfx.thud(); A.finish(over ? ed.doc : ed.next);
   },
   label: function (doc) {
