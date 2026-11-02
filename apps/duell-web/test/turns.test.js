@@ -30,6 +30,10 @@ const LINES = {
   werbung: [[[["Ana", "Ben", "Cem"]], [0], [0], [0], [[0]], [[0]], [[0]]]],
   maschine: [[[["Ana", "Ben", "Cem"]], Array(6).fill([0]), Array(6).fill([1]), Array(6).fill([0]), [[0]], [[1]], [[2]]]],
   suche: [[[0, ["Unter dem Kissen", "Am Fenster", "Im Schuh", "Beim Regal"]], [42]]],
+  wichteln: [[[["Ana", "Ben", "Cem", "", "", "", "", "", "", "", "", ""]], [[0], 0]]],
+  rangliste: [[[[0, 1, 2, 3, 4, 5, 6, 7]], [[7, 1, 2, 3, 4, 5, 6, 0]]]],
+  schaetzen: [[[1, 1, 1, 1, 1]]],
+  reihum: [[[[0], "dein Lachen", "Ana"], [[1], "Toast machen", "Ben"], [[2], "wir lachten", "Cem"], [[4], "alles", "Dag"]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
@@ -184,6 +188,26 @@ test("Maschine: ihre Reihe entsteht aus der Runde, mit ein bis zwei Ausreissern"
     for (let i = 0; i < 3; i++) d = Tn.play(d, [[at]], 0);
     assert.equal(Tn.result(d, "de").h, "Die Maschine hat 0 von 3 reingelegt");
   }
+});
+test("Wichteln: niemand zieht sich selbst, jeder Name kommt genau einmal vor", () => {
+  for (let seed = 1; seed < 200; seed++) for (const n of [3, 4, 12]) {
+    const names = Array.from({ length: 12 }, (x, i) => i < n ? "N" + String.fromCharCode(97 + i) : "");
+    const d = Tn.play(fresh("wichteln", seed), [names], 0), m = Tn.moves(d), p = Tn.GAMES.wichteln.turns[1][1], got = [];
+    for (let i = 0; i < n; i++) { const o = p.list(d, m, [[i]])[0]; assert.notEqual(o, names[i]); got.push(o); }
+    assert.equal(new Set(got).size, n);
+  }
+  assert.equal(Tn.play(fresh("wichteln", 1), [["Ana", "Ben", "", "", "", "", "", "", "", "", "", ""]], 0), null);
+  assert.equal(Tn.play(fresh("wichteln", 1), [["Ana", "ana", "Cem", "", "", "", "", "", "", "", "", ""]], 0), null);
+});
+test("Schaetzen: gleicher Tag gleiche Fragen, das Bild verraet keine Loesung", () => {
+  const f = (s) => fresh("schaetzen", s), q = (d) => Tn.GAMES.schaetzen.turns[0].map((p) => p.peek(d, [], [], "de"));
+  assert.deepEqual(q(f(100)), q(f(100))); assert.notDeepEqual(q(f(100)), q(f(101)));
+  const d = Tn.play(f(100), [0, 0, 0, 0, 0], 0), r = Tn.result(d, "de");
+  assert.equal(r.h, "Im Schnitt 100 Prozent daneben"); assert.ok(!/\d{2,}/.test(r.lines.join(" ").replace(/100 Prozent/g, ""))); assert.ok(r.note);
+});
+test("Rangliste nennt den groessten Streit", () => {
+  let d = Tn.play(fresh("rangliste", 0), [[0, 1, 2, 3, 4, 5, 6, 7]], 0); d = Tn.play(d, [[7, 1, 2, 3, 4, 5, 6, 0]], 0);
+  const r = Tn.result(d, "de"); assert.match(r.lines[2], /Pausenbrot/); assert.equal(r.h, "56 Prozent einig");
 });
 test("Keine Werbe- und Manipulationstechnik in den Quellen", () => {
   const fs = require("node:fs"), path = require("node:path"), dir = path.join(__dirname, "../src");

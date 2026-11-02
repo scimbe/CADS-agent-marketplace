@@ -191,10 +191,26 @@ test("Runde im Raum: Verkaufen, Maschine und Such-Zettel laufen bis zum Ergebnis
   await s.locator("#panel").getByText(/in \d+ Sekunden/).waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Wichteln zeigt den Zettel und schickt nichts weiter, Schaetzen endet im Ergebnis", async () => {
+  const { b, open, errs } = await setup();
+  const w = await open("#i=zug-wichteln"); await w.locator("#go").click();
+  const f = w.locator("#panel input.field"); for (let i = 0; i < 3; i++) await f.nth(i).fill(["Ana", "Ben", "Cem"][i]);
+  await next(w); await w.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
+  const s = await open("#i=raum-schaetzen"); await s.locator("#go").click();
+  for (let i = 0; i < 5; i++) { await s.locator("#panel input[type=range]").fill("1"); await next(s); }
+  await s.locator("#panel").getByText(/Im Schnitt \d+ Prozent/).waitFor(); await s.locator("#panel p.note").getByText(/\?\s\d+/).first().waitFor();
+  const r = await open("#i=zug-rangliste"); await r.locator("#go").click();
+  for (let i = 0; i < 8; i++) await r.locator("#panel .chip").nth(i).click();
+  await next(r); await r.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
+  const c = await open("#i=zug-reihum"); await c.locator("#go").click(); await c.locator("#panel .chip").first().click();
+  await c.locator("#panel input.field").fill("dein Lachen"); await next(c); await c.locator("#panel input.field").fill("Ana"); await next(c);
+  await c.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 40);
+  assert.equal(await m.locator("#shbody .mech").count(), 44);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);
