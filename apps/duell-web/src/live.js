@@ -95,8 +95,9 @@
     function signal(bytes) { s.send(w.frame_message(nt.encrypt(bytes))); }   // no await inside: the nonce order stays intact
     onState("rtc");
     var ice = await call("/ice?channel=" + info.channel + "&role=" + info.role + "&token=" + encodeURIComponent(token));
-    if (!ice.iceServers || !ice.iceServers.length) throw new Error("server");    // never without the relay: a direct path would show the other player this IP
-    var pc = new RTCPeerConnection({ iceServers: ice.iceServers, iceTransportPolicy: "relay" });
+    // Browser to browser over STUN, no relay: the game costs the servers nothing once it runs. Both players see each
+    // other's IP address; the invite screen says so.
+    var pc = new RTCPeerConnection({ iceServers: ice.iceServers && ice.iceServers.length ? ice.iceServers : [{ urls: "stun:stun.l.google.com:19302" }] });
     var early = [], haveRemote = false;
     pc.onicecandidate = function (e) { if (e.candidate) signal(w.encodeSignalIceCandidate(e.candidate.candidate, e.candidate.sdpMid, e.candidate.sdpMLineIndex)); };
     var dcReady = new Promise(function (ok) {
@@ -116,7 +117,8 @@
     })();
     if (caller) { var of = await pc.createOffer(); await pc.setLocalDescription(of); signal(w.encodeSignalOffer(of.sdp)); }
     var dc = await Promise.race([dcReady, sleep(JOIN_MS).then(function () { throw new Error("rtc"); })]);
-    setTimeout(function () { try { s.ws.close(); } catch (e) {} }, 3000);   // the game runs peer to peer now; the edge socket is not needed any more
+    // The game runs peer to peer now: the edge socket and the server-side channel are not needed any more.
+    setTimeout(function () { try { s.ws.close(); } catch (e) {} call("/done", { channel: info.channel, token: token }).catch(function () {}); }, 3000);
     var handlers = [], closers = [];
     dc.onmessage = function (e) { var o; try { o = JSON.parse(e.data); } catch (x) { return; } handlers.forEach(function (h) { h(o); }); };
     function end() { closers.splice(0).forEach(function (h) { h(); }); }

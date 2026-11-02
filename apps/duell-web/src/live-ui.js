@@ -38,7 +38,7 @@ async function invite() {
   try { inv = await window.Live.invite(onState); } catch (e) { fail(e); return; }
   try { sessionStorage.setItem("liveInvite", JSON.stringify({ token: inv.token, until: inv.expires })); } catch (e) {}
   var share = function () { Kit.share({ url: link(inv.token), text: t("live_shareText") }); };
-  var b = screen([["p", "livebig", t("live_wait")], ["p", "livecount", ""], ["p", "note", t("live_waitNote")]], [[t("live_share"), share], [t("live_home"), function () { close(); }, "btn"]]);
+  var b = screen([["p", "livebig", t("live_wait")], ["p", "livecount", ""], ["p", "note", t("live_waitNote")], ["p", "note", t("live_ipNote")]], [[t("live_share"), share], [t("live_home"), function () { close(); }, "btn"]]);
   var cnt = b.querySelector(".livecount"), tick = setInterval(function () { if (!b.isConnected) return clearInterval(tick); cnt.textContent = t("live_left", { t: mmss(inv.expires - Date.now()) }); }, 500);
   share();
   try { conn = await inv.ready; } catch (e) { clearInterval(tick); fail(e); return; }
