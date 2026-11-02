@@ -38,6 +38,8 @@ const LINES = {
   kerzen: [[["Alles Gute, du Held"], [0]]],
   tunnel: [[["Pommes"]]],
   post: [[[["Mathe", "Gitarre", "Toast"], 30], [[0], [1], [0]]]],
+  fallpreis: [[[70, 60, 50, 40], [65, 60, 55, 0]]],
+  socken: [[[[0, 24]], [[5, 6], [0, 1, 2, 3, 4, 24]]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
@@ -221,6 +223,17 @@ test("Post an mich: oeffnet erst am gewaehlten Tag", () => {
   const d = Tn.play(fresh("post", 1), [["Mathe", "Gitarre", "Toast"], 30], 100);
   assert.equal(Tn.gate(d, 100), 30); assert.equal(Tn.gate(d, 130), 0);
   assert.equal(Tn.result(Tn.play(d, [[0], [1], [0]], 130), "de").h, "2 von 3 Vorhersagen stimmten");
+});
+test("Socken: Antworten aus dem Versteck, Spielende sobald beide gefunden", () => {
+  assert.equal(Tn.sockAnswer([12], 12), 2); assert.equal(Tn.sockAnswer([12], 6), 1); assert.equal(Tn.sockAnswer([12], 0), 0);
+  let d = Tn.play(fresh("socken", 1), [[0, 24]], 0); d = Tn.play(d, [[5, 6], [1, 2, 3, 4, 9, 14]], 0);
+  assert.equal(Tn.state(d).over, false); d = Tn.play(d, [[7, 8, 10, 11, 12, 13]], 0); assert.equal(Tn.state(d).over, false);
+  assert.equal(Tn.play(d, [[1, 0]], 0), null); d = Tn.play(d, [[0, 24]], 0);
+  assert.equal(Tn.state(d).over, true); assert.equal(Tn.result(d, "de").h, "Zweiter hat alle Socken gefunden!".replace("Zweiter", Tn.T("de").second));
+});
+test("Fallpreis: wer frueher tippt, kauft, Gewinn ist Wert minus Preis", () => {
+  let d = Tn.play(fresh("fallpreis", 1), [100, 0, 0, 0], 0); d = Tn.play(d, [0, 10, 0, 0], 0);
+  const r = Tn.result(d, "de"); assert.match(r.lines[0], new RegExp(Tn.T("de").first + " kauft für 100")); assert.match(r.lines[2], /keiner kauft/);
 });
 test("Keine Werbe- und Manipulationstechnik in den Quellen", () => {
   const fs = require("node:fs"), path = require("node:path"), dir = path.join(__dirname, "../src");

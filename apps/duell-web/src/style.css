@@ -176,3 +176,7 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .bnext{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:800;margin-bottom:6px}
 .bmini{display:grid;grid-template-columns:repeat(4,10px);grid-auto-rows:10px;gap:1px}
 .bmini i{background:var(--b)}
+
+.sgrid { grid-template-columns: repeat(5, 1fr); max-width: 300px; }
+.sgrid .bcell.a2 { background: var(--hot, #f5a623); }
+.sgrid .bcell.a1 { opacity: .8; }

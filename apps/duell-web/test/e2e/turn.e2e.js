@@ -217,10 +217,20 @@ test("Kerzen ohne Mikro, Geheimschrift und Danke", async () => {
   await d.locator("#panel input.field").fill("Ana"); await next(d); await d.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Fallpreis und Socken nehmen den ersten Zug", async () => {
+  const { b, open, errs } = await setup(); const ready = require("../../src/turn.json").text.de.ready;
+  const a = await open("#i=zug-fallpreis"); await a.locator("#go").click();
+  for (let i = 0; i < 4; i++) { await a.getByRole("button", { name: "Start" }).click(); await a.waitForTimeout(300); await a.getByRole("button", { name: "Jetzt kaufen" }).click(); }
+  await a.locator("#panel").getByText(ready).waitFor();
+  const s = await open("#i=zug-socken"); await s.locator("#go").click();
+  await s.locator("#panel .bcell").nth(3).click(); await s.locator("#panel .bcell").nth(17).click(); await next(s);
+  await s.locator("#panel").getByText(ready).waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 48);
+  assert.equal(await m.locator("#shbody .mech").count(), 50);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);

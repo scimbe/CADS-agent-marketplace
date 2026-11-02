@@ -119,6 +119,40 @@ var draw = {
     box.appendChild(el("p", "qtext", p.text(ctx.doc, ctx.m, Kit.lang))); box.appendChild(left);
     box.appendChild(el("button", "chip", L().clk_done, function () { clearInterval(tick); set(0); })); set(null);
   },
+  // The price falls in eight seconds; a tap buys at the price shown. Only the tap goes into the link.
+  drop: function (box, p, set, ctx) {
+    var n = el("p", "qtext", String(p.max)), t0 = 0, run = 0, done = false, b;
+    box.appendChild(el("p", "lbl", say("aq_item", { o: p.item(ctx.doc, Kit.lang), v: p.worth(ctx.doc) })));
+    box.appendChild(n);
+    function price() { return Math.max(0, p.max - Math.floor((Date.now() - t0) / 80)); }
+    b = el("button", "chip", L().aq_start, function () {
+      if (done) return;
+      if (!t0) { t0 = Date.now(); b.textContent = L().aq_now; run = setInterval(function () { var v = price(); n.textContent = String(v); if (!v || !box.isConnected) { clearInterval(run); if (!done && box.isConnected) { done = true; set(0); } } }, 50); return; }
+      done = true; clearInterval(run); Kit.sfx.pop(); set(price());
+    });
+    box.appendChild(b); set(null);
+  },
+  grid: function (box, p, set) {
+    var on = [], g = el("div", "bgrid sgrid");
+    for (var i = 0; i < 25; i++) (function (i) {
+      var c = el("button", "bcell", null, function () { var at = on.indexOf(i); if (at >= 0) on.splice(at, 1); else if (on.length < p.n) on.push(i); c.classList.toggle("on", on.indexOf(i) >= 0); Kit.sfx.tap(); set(on.length === p.n ? on.slice() : null); });
+      c.setAttribute("aria-label", String(i + 1)); g.appendChild(c);
+    })(i);
+    box.appendChild(g); set(null);
+  },
+  // The answers come from the other side's hidden socks in the link: found, near or far.
+  probe: function (box, p, set, ctx) {
+    var socks = p.socks(ctx.doc, ctx.m), old = p.before(ctx.doc, ctx.m), taps = [], g = el("div", "bgrid sgrid"), mark = ["·", "~", "🧦"], info = el("p", "lbl", say("sok_left", { n: p.n }));
+    function show(c, i) { var a = Tn.sockAnswer(socks, i); c.textContent = mark[a]; c.classList.add("a" + a); c.disabled = true; }
+    for (var i = 0; i < 25; i++) (function (i) {
+      var c = el("button", "bcell", null, function () {
+        if (taps.length >= p.n) return; taps.push(i); show(c, i); Kit.sfx[Tn.sockAnswer(socks, i) === 2 ? "pop" : "tap"]();
+        info.textContent = say("sok_left", { n: p.n - taps.length }); set(taps.slice());
+      });
+      c.setAttribute("aria-label", String(i + 1)); if (old.indexOf(i) >= 0) show(c, i); g.appendChild(c);
+    })(i);
+    box.appendChild(info); box.appendChild(g); box.appendChild(el("p", "note", L().sok_key)); set(null);
+  },
   // A puff of air puts out a candle. The microphone only gives a loudness, nothing is kept; without it a tap does the same.
   blow: function (box, p, set) {
     var row = el("div", "chips"), left = p.n, st = null, ac = null, last = 0;
