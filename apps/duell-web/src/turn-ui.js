@@ -119,6 +119,33 @@ var draw = {
     box.appendChild(el("p", "qtext", p.text(ctx.doc, ctx.m, Kit.lang))); box.appendChild(left);
     box.appendChild(el("button", "chip", L().clk_done, function () { clearInterval(tick); set(0); })); set(null);
   },
+  // The beat plays and breaks off; the stop card names the statue. People judge the wobbling, the phone sees nothing.
+  freeze: function (box, p, set, ctx) {
+    var bpm = 124, pcm = Studio.renderBeat(p.beat(ctx.now[0][0]), bpm, 8), loop = null, timer = 0, r = 0, card = el("p", "qtext", L().dis_ready);
+    function stop() { if (loop) { try { loop.stop(); } catch (e) {} loop = null; } clearTimeout(timer); }
+    function go() {
+      stop(); if (!box.isConnected) return; card.textContent = "♪ ♪ ♪"; loop = Kit.playPcm(pcm, Studio.SR, true);
+      timer = setTimeout(function () { stop(); if (!box.isConnected) return; Kit.haptic(80); card.textContent = say("dis_stop", { s: p.statue(ctx.doc, r, Kit.lang) }); r++; }, p.pause(ctx.doc, r) * 1000);
+    }
+    box.appendChild(card);
+    box.appendChild(el("button", "chip", L().dis_play, go));
+    box.appendChild(el("button", "chip", L().dis_end, function () { stop(); set(Math.min(p.max, r)); }));
+    set(null);
+  },
+  // Each phone in the call shows its own side from the same link: the figure to speak, or six cards to guess from.
+  voices: function (box, p, set, ctx) {
+    var speak = ctx.now[0][0] === 0, r = 0, hits = 0, q = el("p", "qtext", ""), row = el("div", "chips"), info = el("p", "lbl", "");
+    function round() {
+      row.textContent = ""; info.textContent = say("stm_round", { n: r + 1, m: p.rounds });
+      if (r >= p.rounds) { q.textContent = speak ? L().stm_done : say("stm_h", { n: hits }); set(hits); return; }
+      if (speak) { q.textContent = p.figure(ctx.doc, r, Kit.lang); row.appendChild(el("button", "chip", L().next, function () { r++; round(); })); return; }
+      q.textContent = L().stm_which;
+      p.cards(ctx.doc, r, Kit.lang).forEach(function (s, i) {
+        row.appendChild(el("button", "chip", s, function () { var ok = i === p.right(ctx.doc, r); if (ok) { hits++; Kit.sfx.pop(); } else Kit.tone(200, 90, 0.08, "square", 0.05); Kit.toast(ok ? L().stm_yes : say("stm_no", { s: p.figure(ctx.doc, r, Kit.lang) })); r++; round(); }));
+      });
+    }
+    box.appendChild(info); box.appendChild(q); box.appendChild(row); round(); if (r < p.rounds) set(null);
+  },
   // A door opens on its day in December, on the phone's own date; after Christmas all of them stay open.
   doors: function (box, p, set, ctx) {
     var now = new Date(), open = now.getMonth() === 11 ? now.getDate() : now.getMonth() === 0 ? 24 : 0, g = el("div", "bgrid sgrid"), say1 = el("p", "qtext", open ? L().adv_tap : L().adv_wait);
@@ -244,7 +271,7 @@ function walk(box, ed) {
   var st = Tn.state(ed.doc), now = [], i = 0;
   function step() {
     box.textContent = "";
-    if (i >= st.prompts.length && Tn.GAMES[ed.doc.g].stay && st.turn) { box.appendChild(el("p", "lbl", L().stay_note)); return; }   // the same link goes on to the next person
+    if (i >= st.prompts.length && Tn.GAMES[ed.doc.g].stay && st.turn) { ed.next = null; A.changed(); box.appendChild(el("p", "lbl", L().stay_note)); return; }   // the same link goes on to the next person
     if (i >= st.prompts.length) { ed.move = now; ed.next = Tn.play(ed.doc, now, Tn.today());
       if (Tn.GAMES[ed.doc.g].local) { pass(box, ed); return; }
       A.changed(); box.appendChild(el("p", "lbl", L().ready)); box.appendChild(el("button", "btn", L().hand_same, function () { pass(box, ed); })); return; }

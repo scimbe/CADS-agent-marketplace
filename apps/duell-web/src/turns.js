@@ -647,6 +647,27 @@
       return { h: a === b ? fmt(X.rap_tie, { a: a }) : fmt(X.rap_win, { w: a > b ? X.first : X.second, a: a, b: b }), lines: c.map(function (i, at) { return rapLine(doc, at < 2 ? 0 : 1, i, lang); }) };
     }
   };
+  // ---------- music stops, and voices in a call ----------
+  function statue(doc, r, lang) { return pair(DATA.statues, mix(doc, "statue", DATA.statues.length)[r % DATA.statues.length], lang); }
+  function pauseAt(doc, r) { return 4 + mix(doc, "pause" + r, 9)[0]; }          // seconds of music before the next stop, from the seed
+  GAMES.disco = {
+    local: true,
+    turns: [[{ w: "pick", l: "dis_beat", n: 1, auto: true, from: function (doc, m, now, lang) { return DATA.discoBeats.map(function (b) { return b[lang === "en" ? 1 : 0]; }); } },
+      { w: "freeze", l: "dis_go", auto: true, max: 99, beat: function (i) { return DATA.discoBeats[i][2]; }, statue: statue, pause: pauseAt }]],
+    result: function (doc, m, lang) { return { h: fmt(T(lang).dis_h, { n: m[0][1] }), lines: [T(lang).dis_note] }; }
+  };
+  function figure(doc, r) { return mix(doc, "figur", DATA.figures.length)[r]; }
+  function figureCards(doc, r) {
+    var ok = figure(doc, r), rest = mix(doc, "fk" + r, DATA.figures.length).filter(function (i) { return i !== ok; }).slice(0, 5).concat([ok]);
+    return mix(doc, "fo" + r, 6).map(function (i) { return rest[i]; });
+  }
+  GAMES.stimme = {
+    stay: true,
+    turns: [[{ w: "show", l: "stm_call", list: function (doc, m, now, lang) { return [T(lang).stm_share]; } }],
+      [{ w: "pick", l: "stm_role", n: 1, auto: true, from: function (doc, m, now, lang) { return [T(lang).stm_speak, T(lang).stm_guess]; } },
+       { w: "voices", l: "stm_go", auto: true, rounds: 5, figure: function (doc, r, lang) { return pair(DATA.figures, figure(doc, r), lang); }, cards: function (doc, r, lang) { return figureCards(doc, r).map(function (i) { return pair(DATA.figures, i, lang); }); }, right: function (doc, r) { return figureCards(doc, r).indexOf(figure(doc, r)); } }]],
+    result: function (doc, m, lang) { return { h: fmt(T(lang).stm_h, { n: m[1][1] }), lines: [T(lang).stm_note] }; }
+  };
   // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
   function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
   function struck(doc, m, lang) {
@@ -707,6 +728,8 @@
     if (p.w === "hunt") return intIn(v, 1, p.max);
     if (p.w === "drop") return intIn(v, 0, p.max);
     if (p.w === "doors") return v === 0;
+    if (p.w === "freeze") return intIn(v, 0, p.max);
+    if (p.w === "voices") return intIn(v, 0, p.rounds);
     if (p.w === "grid") return Array.isArray(v) && v.length === p.n && distinct(v) && v.every(function (x) { return intIn(x, 0, 24); });
     if (p.w === "probe") { var old = p.before(doc, m); return Array.isArray(v) && v.length >= 1 && v.length <= p.n && distinct(v.concat(old)) && v.every(function (x) { return intIn(x, 0, 24); }); }
     if (p.w === "explain") return intIn(v, 0, p.max);

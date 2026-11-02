@@ -42,6 +42,8 @@ const LINES = {
   socken: [[[[0, 24]], [[5, 6], [0, 1, 2, 3, 4, 24]]]],
   advent: [[[Array(24).fill("").map((x, i) => i % 3 ? "" : "Tür " + (i + 1))], [0]]],
   rap: [[[[0], [0]], [[1], [2]]]],
+  disco: [[[[0], 3]]],
+  stimme: [[[0], [[1], 4]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
@@ -250,6 +252,11 @@ test("Advent: leere Tueren bekommen einen festen Satz, volle Saetze passen in de
   assert.ok(Tn.play(fresh("advent", 1), [full], 0)); assert.equal(Tn.play(fresh("advent", 1), [full.map((x) => "ä".repeat(20))], 0), null);
   const d = Tn.play(fresh("advent", 1), [Array(24).fill("")], 0), p = Tn.GAMES.advent.turns[1][0];
   assert.ok(p.text(d, Tn.moves(d), 3, "de").length > 3); assert.ok(D.docUrl(Tn.play(fresh("advent", 1), [full], 0)).length < 1400);
+});
+test("Stimmen: sechs verschiedene Karten, die richtige Figur ist immer dabei", () => {
+  const p = Tn.GAMES.stimme.turns[1][1];
+  for (let seed = 1; seed < 80; seed++) for (let r = 0; r < 5; r++) { const d = fresh("stimme", seed), c = p.cards(d, r, "de"); assert.equal(new Set(c).size, 6); assert.equal(c[p.right(d, r)], p.figure(d, r, "de")); }
+  const t = Tn.GAMES.disco.turns[0][1]; assert.ok(t.pause(fresh("disco", 3), 0) >= 4 && t.pause(fresh("disco", 3), 0) <= 12);
 });
 test("Keine Werbe- und Manipulationstechnik in den Quellen", () => {
   const fs = require("node:fs"), path = require("node:path"), dir = path.join(__dirname, "../src");
