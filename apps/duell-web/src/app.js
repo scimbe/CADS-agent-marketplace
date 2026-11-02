@@ -63,7 +63,7 @@ function setHome(h, animate) {
   var live = idea && idea.live, lb = $("livego"); lb.hidden = !live; if (live) { lb.textContent = t("live_" + live); lb.dataset.u = LIVE[live]; }
   preview(doc || D.docFromIdea(idea, me, Kit.lang));
   fitHero();
-  var leaf = $("leaf"); leaf.className = ""; leaf.style.transform = "";
+  var leaf = $("leaf"); leaf.className = ""; leaf.style.transform = ""; leaf.style.opacity = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
 }
 var LIVE = { conf: "https://webconference.bunsenbrenner.org/", tunnel: "https://bunsenbrenner.org/", demos: "https://demos-34a13a96.bunsenbrenner.org/", nordwind: "https://a2a-demo.bunsenbrenner.org/" };
@@ -102,24 +102,31 @@ function goHome() {
   CU.end(); stopSound(); G.stop(); ed = null; played = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
   if (!home) home = dayHome(); setHome(home, true);
 }
+function nextSheet() { var p = (page + 1) % PLAN_DAYS, d = D.dayDate(today, -p); return { page: p, date: d, idea: D.ideaForDay(d) }; }
+// While the sheet is pulled, the one below already shows what comes next.
+function peek() {
+  var n = nextSheet(), box = $("peek"), L = n.idea ? ideaText(n.idea) : null;
+  box.children[0].textContent = String(n.date.getUTCDate()).padStart(2, "0") + " " + monthLines(n.date).split("\n")[0];
+  box.children[1].textContent = L ? L.t.replace("|", " ") : "";
+  box.children[2].textContent = L ? L.s : "";
+}
 function tear(dir) {
   var leaf = $("leaf"); Kit.rip(); Kit.haptic(18);
   leaf.className = "gone"; leaf.style.transform = "translate(" + dir * 130 + "%,-20%) rotate(" + dir * 26 + "deg)";
   setTimeout(function () {
-    page = (page + 1) % PLAN_DAYS;                       // the calendar: a torn sheet shows the next day, then back to today
-    var d = D.dayDate(today, -page);
-    setHome({ date: d, idea: D.ideaForDay(d) || D.randomIdea(Math.random, "") }, true); Kit.sfx.thud();
+    var n = nextSheet(); page = n.page;                   // the calendar: a torn sheet shows the next day, then back to today
+    setHome({ date: n.date, idea: n.idea || D.randomIdea(Math.random, "") }, true); Kit.sfx.thud();
   }, 300);
 }
 (function drag() {
   var leaf = $("leaf"), sx = 0, sy = 0, on = false, last = 0;
-  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
-  leaf.addEventListener("pointermove", function (e) { if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy; leaf.style.transform = "translate(" + dx + "px," + dy * 0.4 + "px) rotate(" + dx / 16 + "deg)"; });
+  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; try { peek(); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
+  leaf.addEventListener("pointermove", function (e) { if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy; leaf.style.transform = "translate(" + dx + "px," + dy * 0.4 + "px) rotate(" + dx / 16 + "deg)"; leaf.style.opacity = String(1 - Math.min(0.7, Math.abs(dx) / 220)); });
   function up(e) {
     if (!on) return; on = false; leaf.classList.remove("drag");
     var dx = e.clientX - sx, dy = e.clientY - sy;
     if (Math.abs(dx) > 90) { tear(dx > 0 ? 1 : -1); return; }
-    leaf.style.transform = "";
+    leaf.style.transform = ""; leaf.style.opacity = "";
     if (Math.abs(dx) < 12 && Math.abs(dy) < 12) { var now = Date.now(); if (now - last < 400) { last = 0; start(); } else last = now; }   // a double tap opens the card, a swipe turns the day
   }
   leaf.addEventListener("pointerup", up); leaf.addEventListener("pointercancel", up);
