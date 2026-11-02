@@ -34,6 +34,10 @@ const LINES = {
   rangliste: [[[[0, 1, 2, 3, 4, 5, 6, 7]], [[7, 1, 2, 3, 4, 5, 6, 0]]]],
   schaetzen: [[[1, 1, 1, 1, 1]]],
   reihum: [[[[0], "dein Lachen", "Ana"], [[1], "Toast machen", "Ben"], [[2], "wir lachten", "Cem"], [[4], "alles", "Dag"]]],
+  danke: [[["du mir geholfen hast", "Ana"], [0]]],
+  kerzen: [[["Alles Gute, du Held"], [0]]],
+  tunnel: [[["Pommes"]]],
+  post: [[[["Mathe", "Gitarre", "Toast"], 30], [[0], [1], [0]]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
@@ -208,6 +212,15 @@ test("Schaetzen: gleicher Tag gleiche Fragen, das Bild verraet keine Loesung", (
 test("Rangliste nennt den groessten Streit", () => {
   let d = Tn.play(fresh("rangliste", 0), [[0, 1, 2, 3, 4, 5, 6, 7]], 0); d = Tn.play(d, [[7, 1, 2, 3, 4, 5, 6, 0]], 0);
   const r = Tn.result(d, "de"); assert.match(r.lines[2], /Pausenbrot/); assert.equal(r.h, "56 Prozent einig");
+});
+test("Geheimschrift: gleiches Wort gleiche Zeichen, 26 verschiedene", () => {
+  const a = Tn.glyphs("Pommes"), b = Tn.glyphs("pommes"), c = Tn.glyphs("Nudel");
+  assert.deepEqual(a, b); assert.notDeepEqual(a, c); assert.equal(new Set(a).size, 26);
+});
+test("Post an mich: oeffnet erst am gewaehlten Tag", () => {
+  const d = Tn.play(fresh("post", 1), [["Mathe", "Gitarre", "Toast"], 30], 100);
+  assert.equal(Tn.gate(d, 100), 30); assert.equal(Tn.gate(d, 130), 0);
+  assert.equal(Tn.result(Tn.play(d, [[0], [1], [0]], 130), "de").h, "2 von 3 Vorhersagen stimmten");
 });
 test("Keine Werbe- und Manipulationstechnik in den Quellen", () => {
   const fs = require("node:fs"), path = require("node:path"), dir = path.join(__dirname, "../src");

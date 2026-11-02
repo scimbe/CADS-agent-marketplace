@@ -207,10 +207,20 @@ test("Wichteln zeigt den Zettel und schickt nichts weiter, Schaetzen endet im Er
   await c.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Kerzen ohne Mikro, Geheimschrift und Danke", async () => {
+  const { b, open, errs } = await setup();
+  const k = await open("#i=zug-kerzen"); await k.locator("#go").click(); await k.locator("#panel input.field").fill("Alles Gute"); await next(k);
+  await k.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
+  const t = await open("#i=raum-tunnel"); await t.locator("#go").click(); await t.locator("#panel input.field").fill("Pommes"); await next(t);
+  await t.locator("#panel").getByText(/^A .   +B /).waitFor();
+  const d = await open("#i=karte-danke"); await d.locator("#go").click(); await d.locator("#panel input.field").fill("du da warst"); await next(d);
+  await d.locator("#panel input.field").fill("Ana"); await next(d); await d.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /Zu zweit/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 44);
+  assert.equal(await m.locator("#shbody .mech").count(), 48);
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);
