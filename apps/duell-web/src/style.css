@@ -197,3 +197,8 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .livebig{font:400 36px/1.05 var(--disp);text-transform:uppercase}.livebadge{font-size:48px;letter-spacing:8px}.livecount{font:900 28px var(--ui)}
 .livecv{width:min(92vw,46vh);aspect-ratio:1000/1600;border:3px solid var(--ink);touch-action:none;background:#111}.livescore{font:900 22px var(--ui)}
 .btn.hot.live{background:var(--b);color:#fff}
+.being{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px;border:4px solid transparent;border-radius:12px}
+.being.ok{border-color:#1b9e3a}.being.no{border-color:#e53935}.bhat,.bsocks{height:34px;font-size:30px;line-height:34px}
+.bface{width:110px;height:110px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:64px}
+.doorrow{display:flex;gap:12px;width:100%}.doorrow .btn{flex:1;min-height:64px;font:900 22px var(--ui)}.doorout{background:#e53935;color:#fff}.doorin{background:#1b9e3a;color:#fff}
+.doordots{font:900 18px var(--ui);letter-spacing:2px}

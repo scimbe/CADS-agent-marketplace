@@ -745,6 +745,32 @@
       return { h: a === b ? X.rea_tie : fmt(X.rea_win, { w: a < b ? X.first : X.second }), lines: [X.first + ": " + secs(a, lang) + " s", X.second + ": " + secs(b, lang) + " s", a < b ? X.rea_tease : X.rea_tease2] };
     }
   };
+  // ---------- the bouncer: one hidden rule at a time, the beings come from the day's seed ----------
+  // being: [animal 0-3, hat 0/1, colour 0-2, socks 0/1]
+  var DOOR_RULES = [function (b) { return b[1] === 1; }, function (b) { return b[1] === 0; }, function (b) { return b[3] === 1; }, function (b) { return b[3] === 0; },
+    function (b) { return b[2] === 0; }, function (b) { return b[2] === 1; }, function (b) { return b[2] === 2; }, function (b) { return b[0] !== 0; }, function (b) { return b[0] === 1; }, function (b) { return b[0] !== 2; }];
+  function doorOrder(doc) { return mix(doc, "tuer", DOOR_RULES.length); }
+  // The i-th being under rule r. Every second one is forced to the other side of the rule when the last two agreed,
+  // so a rule always shows a "yes" and a "no" early and can be found by looking, not by luck.
+  function doorBeing(doc, r, i, prev) {
+    var rnd = C.mulberry32(C.hash32("wesen|" + doc.seed + "|" + r + "|" + i)), b = [Math.floor(rnd() * 4), rnd() < 0.5 ? 1 : 0, Math.floor(rnd() * 3), rnd() < 0.5 ? 1 : 0];
+    if (prev && prev.length >= 2 && prev[prev.length - 1] === prev[prev.length - 2]) {
+      var want = !prev[prev.length - 1];
+      for (var k = 0; k < 24 && DOOR_RULES[r](b) !== want; k++) b = [Math.floor(rnd() * 4), rnd() < 0.5 ? 1 : 0, Math.floor(rnd() * 3), rnd() < 0.5 ? 1 : 0];
+    }
+    return b;
+  }
+  function doorIn(r, b) { return DOOR_RULES[r](b); }
+  GAMES.tuer = {
+    local: true, daily: true,
+    turns: [[{ w: "door", l: "tue_go", auto: true, secs: 60, streak: 4 }]],
+    result: function (doc, m, lang) {
+      var X = T(lang), a = m[0][0], k = a[0], order = doorOrder(doc), lines = [];
+      for (var i = 0; i <= Math.min(k, DOOR_RULES.length - 1); i++) lines.push((i < k ? "✓ " : "✗ ") + pair(DATA.doorRules, order[i], lang));
+      lines.push(fmt(X.tue_right, { n: a[1], m: a[2] }));
+      return { h: fmt(X.tue_h, { n: k }), lines: lines };
+    }
+  };
   // ---------- one phone in the room: nothing leaves the device, the moves only pass from hand to hand ----------
   function offers(doc, lang) { return side(DATA.sets[doc.seed % DATA.sets.length], lang); }
   function struck(doc, m, lang) {
@@ -812,6 +838,7 @@
     if (p.w === "blind") return intIn(v, 2000, 30000);
     if (p.w === "nim") return v === 0 || v === 1;
     if (p.w === "react") return intIn(v, 0, 60000);
+    if (p.w === "door") return Array.isArray(v) && v.length === 3 && intIn(v[0], 0, 10) && intIn(v[2], 0, 999) && intIn(v[1], 0, v[2]);
     if (p.w === "voices") return intIn(v, 0, p.rounds);
     if (p.w === "grid") return Array.isArray(v) && v.length === p.n && distinct(v) && v.every(function (x) { return intIn(x, 0, 24); });
     if (p.w === "probe") { var old = p.before(doc, m); return Array.isArray(v) && v.length >= 1 && v.length <= p.n && distinct(v.concat(old)) && v.every(function (x) { return intIn(x, 0, 24); }); }
@@ -874,6 +901,6 @@
     (function walk(v) { if (typeof v === "string") v.split("|").forEach(function (x) { out.push(x); }); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.keys(v).forEach(function (k) { walk(v[k]); }); })(DATA);
     return out;
   }
-  var api = { nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, whole: whole, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
+  var api = { doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, whole: whole, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
   if (node) module.exports = api; else root.Turns = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

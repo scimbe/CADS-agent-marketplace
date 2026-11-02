@@ -257,6 +257,42 @@ var draw = {
     });
     box.appendChild(info); box.appendChild(pad); next(); set(null);
   },
+  // The bouncer: a being at the door, "out" left and "in" right; the being keeps its frame for a moment after each tap.
+  door: function (box, p, set, ctx) {
+    var doc = ctx.doc, order = Tn.doorOrder(doc), k = 0, i = 0, right = 0, total = 0, run = 0, prev = [], lock = false, t0 = Date.now(), cur;
+    var ANI = ["🐱", "🐶", "🐸", "🐰"], COL = ["#e53935", "#1e63d6", "#f2c200"], PAT = ["", "repeating-linear-gradient(45deg,rgba(255,255,255,.35) 0 6px,transparent 6px 12px)", "radial-gradient(rgba(255,255,255,.45) 2px,transparent 3px) 0 0/12px 12px"];
+    var clock = el("p", "lbl", ""), dots = el("p", "doordots", ""), news = el("p", "qtext", ""), being = el("div", "being"), row = el("div", "doorrow");
+    function show() {
+      cur = Tn.doorBeing(doc, order[k], i, prev);
+      being.className = "being"; being.textContent = "";
+      being.appendChild(el("div", "bhat", cur[1] ? "🎩" : ""));
+      var face = el("div", "bface", ANI[cur[0]]); face.style.background = COL[cur[2]]; if (PAT[cur[2]]) face.style.backgroundImage = PAT[cur[2]]; being.appendChild(face);
+      being.appendChild(el("div", "bsocks", cur[3] ? "🧦🧦" : ""));
+      dots.textContent = "●".repeat(run) + "○".repeat(p.streak - run) + "   " + say("tue_found", { n: k });
+    }
+    function done() { lock = true; set([k, right, total]); }
+    function tap(inside) {
+      if (lock) return; lock = true; total++;
+      var ok = Tn.doorIn(order[k], cur) === inside; prev.push(Tn.doorIn(order[k], cur));
+      if (ok) { right++; run++; Kit.sfx.pop(); } else { run = 0; Kit.tone(200, 90, 0.08, "square", 0.05); }
+      being.classList.add(ok ? "ok" : "no");
+      setTimeout(function () {
+        if (!box.isConnected) return;
+        i++; news.textContent = "";
+        if (run >= p.streak) { k++; run = 0; prev = []; i = 0; news.textContent = L().tue_new; Kit.haptic(30); }
+        if (k >= order.length) { done(); return; }
+        lock = false; show();
+      }, 600);
+    }
+    row.appendChild(el("button", "btn doorout", L().tue_out, function () { tap(false); }));
+    row.appendChild(el("button", "btn doorin", L().tue_in, function () { tap(true); }));
+    box.appendChild(clock); box.appendChild(dots); box.appendChild(news); box.appendChild(being); box.appendChild(row);
+    var tick = setInterval(function () {
+      var left = p.secs - Math.floor((Date.now() - t0) / 1000); clock.textContent = String(Math.max(0, left));
+      if (left <= 0 || !box.isConnected) { clearInterval(tick); if (box.isConnected && !lock) done(); else if (box.isConnected) setTimeout(function () { if (box.isConnected) set([k, right, total]); }, 650); }
+    }, 250);
+    show(); set(null);
+  },
   // The beat plays and breaks off; the stop card names the statue. People judge the wobbling, the phone sees nothing.
   freeze: function (box, p, set, ctx) {
     var bpm = 124, pcm = Studio.renderBeat(p.beat(ctx.now[0][0]), bpm, 8), loop = null, timer = 0, r = 0, card = el("p", "qtext", L().dis_ready);
