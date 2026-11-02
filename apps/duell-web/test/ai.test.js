@@ -16,12 +16,12 @@ test("Lokal: jede Art liefert ohne Netz sofort Vorschlaege in beiden Sprachen, a
   }
   for (const l of ["de", "en"]) for (const h of A.HOOKS[l]) for (const s of h) assert.ok(C.isClean(s), s);
 });
-test("Antwort: nur 200 mit Inhalt ist Ergebnis, Kontingent und Filter sind eigene Faelle, alles andere ist sofort lokal", () => {
+test("Antwort: nur 200 mit Inhalt ist Ergebnis, Kontingent, Filter und Ueberlast sind eigene Faelle, alles andere ist sofort lokal", () => {
   assert.equal(A.verdict(200, { options: ["x"] }), "result");
   assert.equal(A.verdict(200, { options: [] }), "local");
   assert.equal(A.verdict(429, { error: "quota" }), "quota");
-  assert.equal(A.verdict(429, { error: "busy" }), "local");
-  assert.equal(A.verdict(429, { error: "daily-limit" }), "local");
+  assert.equal(A.verdict(429, { error: "busy" }), "busy");   // full: say so, do not fake a result
+  assert.equal(A.verdict(429, { error: "daily-limit" }), "busy");
   assert.equal(A.verdict(422, { error: "blocked" }), "blocked");
   assert.equal(A.verdict(503, { error: "llm-unavailable" }), "local");
   assert.equal(A.verdict(200, null), "local");
