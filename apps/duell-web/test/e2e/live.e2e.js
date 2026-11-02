@@ -30,6 +30,8 @@ test("Ballduell live: einladen, ankommen, gleiche Erkennungsbilder, ein ganzes S
   assert.equal(badgeA, badgeB); assert.equal(badgeA.split(" ").length, 3);
   await A.p.getByRole("button", { name: "Starten" }).click();
   await A.p.locator(".livecv").waitFor(); await B.p.locator(".livecv").waitFor();
+  // the pictures stay visible during the game, so the invited player can still compare them
+  assert.equal(await A.p.locator(".livemini").textContent(), badgeA); assert.equal(await B.p.locator(".livemini").textContent(), badgeB);
   // both paddles to the far left: almost every serve gets through, so the game ends quickly and for real
   for (const x of [A, B]) { const r = await x.p.locator(".livecv").boundingBox(); await x.p.mouse.move(r.x + 2, r.y + r.height - 20); await x.p.mouse.down(); await x.p.mouse.move(r.x + 1, r.y + r.height - 20); await x.p.mouse.up(); }
   if (process.env.LIVE_DEBUG) { await A.p.waitForTimeout(9000); console.log("DBG", await A.p.locator(".livebody").innerText(), "|", await B.p.locator(".livebody").innerText()); await A.p.screenshot({ path: process.env.LIVE_DEBUG + "/a.png" }); await B.p.screenshot({ path: process.env.LIVE_DEBUG + "/b.png" }); }
