@@ -4,7 +4,7 @@
 "use strict";
 var Kit = window.Kit, B = window.Ballduell, t = Kit.t;
 var ov = null, conn = null, loop = 0, net = 0;
-// Shown on the shelf only once the server side can register channels; an invite link opens either way.
+// Shown on the shelf; switched on once the server side registered channels and a real game ran over edge and TURN.
 var ON = false;
 function el(tag, cls, text, on) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; if (on) e.addEventListener("click", on); return e; }
 function layer() {
@@ -55,7 +55,7 @@ async function accept(token) {
   conn.on(function (m) { if (m.t === "go" && ov && !loop) play(false); });
 }
 function onState(s) { var n = ov && ov.querySelector(".note"); if (n && t("live_s_" + s) !== "live_s_" + s) n.textContent = t("live_s_" + s); }
-function lost() { if (!ov) return; cancelAnimationFrame(loop); clearInterval(net); loop = net = 0; conn = null; screen([["p", "livebig", t("live_lost")]], [[t("live_again"), function () { invite(); }], [t("live_home"), function () { close(); }, "btn"]]); }
+function lost() { if (!ov) return; cancelAnimationFrame(loop); clearInterval(net); loop = net = 0; if (conn) { try { conn.close(); } catch (e) {} } conn = null; /* close() frees the channel on the server too */ screen([["p", "livebig", t("live_lost")]], [[t("live_again"), function () { invite(); }], [t("live_home"), function () { close(); }, "btn"]]); }
 // ---------- the game ----------
 function play(serving) {
   var body = layer(), cv = el("canvas", "livecv"), c = cv.getContext("2d"), info = el("p", "livescore", "");
