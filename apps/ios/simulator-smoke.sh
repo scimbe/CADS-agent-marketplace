@@ -50,6 +50,6 @@ run 06-vorlage-detail "" -UITab 3
 run 07-link-i yes -DuellChallenge "i=quiz-chaos" -DuellScenario probe
 run 08-link-c yes -DuellChallenge "c=$CH" -DuellScenario probe
 run 09-ergebnis-teilen yes -DuellScenario share
-run 10-nach-teilen-aufgeraeumt yes -DuellScenario probe    # the file left by the share run is swept at start
 run 11-ergebnis-speichern yes -DuellScenario save
+run 10-nach-teilen-aufgeraeumt yes -DuellScenario probe    # the file left by the save run (picker never finished) is swept at start
 run 12-mikro-abgelehnt yes -DuellScenario mic -DuellMicDeny
