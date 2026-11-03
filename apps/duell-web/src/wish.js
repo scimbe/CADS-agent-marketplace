@@ -33,7 +33,7 @@
       if (ch.look) d.g.look = Object.assign({}, d.g.look, ch.look);
       if (ch.theme) d.g.theme = ch.theme; if (ch.emoji) d.g.emoji = ch.emoji; if (ch.title) d.g.title = ch.title;
     } else {
-      ["x", "y", "st", "bpm", "fx"].forEach(function (k) { if (ch[k] !== undefined && d[k] !== undefined) d[k] = ch[k]; });
+      ["x", "y", "st", "bpm", "fx"].forEach(function (k) { if (ch[k] !== undefined && d[k] !== undefined && !(k === "st" && d.st === "herz")) d[k] = ch[k]; });   // a feel-good card keeps its warm look
       if (d.p) ["k", "s", "h", "b"].forEach(function (k) { if (ch[k]) d.p[k] = ch[k]; });
       // A wish sets the stickers anew, so a second wish does not pile up on the first; undo brings the old ones back.
       if (d.sk && ch.stickers) d.sk = ch.stickers.slice(0, D.MAX_STICKERS).map(function (e) {
@@ -55,7 +55,7 @@
     var hit = LOOKS.filter(function (x) { return x[0].test(wish); })[0] || LOOKS[pick(LOOKS.length)];
     return { fig: hit[1], look: hit[2] };
   }
-  var SET_RE = [[/grusel|spook|halloween|horror|nacht|night|geist/i, "grusel"], [/welt|all\b|space|rakete|alien|stern|poster/i, "weltall"], [/essen|food|pizza|s(ü|ue)ß|candy|keks/i, "essen"], [/tier|animal|zoo|frosch/i, "tiere"]];
+  var SET_RE = [[/herz|lieb|warm|danke|freund|heart|love|thank|friend/i, "herz"], [/grusel|spook|halloween|horror|nacht|night|geist/i, "grusel"], [/welt|all\b|space|rakete|alien|stern|poster/i, "weltall"], [/essen|food|pizza|s(ü|ue)ß|candy|keks/i, "essen"], [/tier|animal|zoo|frosch/i, "tiere"]];
   function stickersFor(wish, pick) {
     var hit = SET_RE.filter(function (x) { return x[0].test(wish); })[0], names = Object.keys(D.SETS), set = D.SETS[hit ? hit[1] : names[pick(names.length)]];
     return [0, 1, 2].map(function (i) { return set[(pick(set.length) + i * 2) % set.length]; });
@@ -76,7 +76,7 @@
       var slow = /langsam|ruhig|slow|chill/i.test(wish), fx = D.FX;
       return { bpm: Math.max(70, Math.min(170, doc.bpm + (slow ? -20 : 20))), fx: fx[(fx.indexOf(doc.fx) + 1 + pick(fx.length - 1)) % fx.length], palette: pick(8) };
     }
-    var list = D.STYLES[doc.k], st = list[(list.indexOf(doc.st) + 1) % list.length];
+    var list = D.STYLES[doc.k], st = doc.st === "herz" ? "herz" : list[(list.indexOf(doc.st) + 1) % list.length];
     return { st: st, palette: pick(8), stickers: stickersFor(wish, pick) };
   }
   var api = { KINDS: KINDS, request: request, apply: apply, local: local };

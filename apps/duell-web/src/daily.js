@@ -12,7 +12,7 @@
   var ID_RE = /^[a-z0-9-]{1,32}$/, MAX_WALL = 30, MAX_THUMB = 60000, MAX_TEXT = 90;
   var DAY = 86400000;
   var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn"];
-  var STYLES = { card: ["druck", "zettel", "stempel", "neon"], photo: ["poster", "sticker", "meme", "glitch"] };
+  var STYLES = { card: ["druck", "zettel", "stempel", "neon", "herz"], photo: ["poster", "sticker", "meme", "glitch"] };
   var FX = ["chip", "monster", "robot", "echo"];
   var AREAS = ["text", "farbe", "stil", "sticker", "foto", "beat", "stimme", "regeln", "figur", "welt", "idee"];
   var HEX = /^#[0-9a-f]{6}$/;
@@ -161,7 +161,7 @@
   var SETS = {
     tiere: ["🐸", "🦆", "🐙", "🦝", "🐌", "🦖"], essen: ["🍕", "🌮", "🍩", "🥨", "🍟", "🧃"],
     weltall: ["🚀", "🛸", "👽", "🪐", "🌟", "☄️"], chaos: ["💥", "🔥", "💀", "🤡", "🌀", "⚡"],
-    grusel: ["🎃", "👻", "🦇", "🕷️", "🧛", "🕸️"]
+    grusel: ["🎃", "👻", "🦇", "🕷️", "🧛", "🕸️"], herz: ["💛", "🌻", "✨", "🫶", "🌈", "☀️"]
   };
   function sanitizeProfile(p) {
     p = p && typeof p === "object" ? p : {};
