@@ -245,3 +245,28 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .tbcard.small{width:40px;height:60px}.tbcard.no{opacity:.45}.tbcard.ok{cursor:pointer}.tbcard.ok:active{transform:translateY(-4px)}.tbcard.sel{transform:translateY(-12px)}
 .tbacts{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;width:100%}.tbacts .btn{min-height:44px;padding:6px 12px;font-size:16px}
 @media (max-width:420px){.tbcard{width:52px;height:78px}}
+/* Advent door from a link (door.js): closed, one tap, two leaves swing open; with reduced motion it only fades */
+#door{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));background:var(--da);color:#fffaf0;text-align:center;overflow:auto}
+.dtitle{margin:0;font:900 clamp(28px,8vw,44px)/1 var(--disp);text-transform:uppercase;text-shadow:0 3px 0 rgba(0,0,0,.35)}
+.dfrom{margin:0;font:800 16px var(--ui)}
+.dstage{position:relative;width:min(78vw,46vh,420px);aspect-ratio:4/5;perspective:1200px}
+.dstage canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.dstage canvas[hidden]{display:none}
+.dshut{position:absolute;inset:0;padding:0;border:0;background:none;cursor:pointer;transform-style:preserve-3d}
+.dleaf{position:absolute;top:0;bottom:0;width:50%;background:var(--db);border:4px solid rgba(0,0,0,.35);box-sizing:border-box;transition:transform .6s cubic-bezier(.3,.7,.3,1.2)}
+.dleaf.l{left:0;transform-origin:left center;border-radius:6px 0 0 6px}.dleaf.r{right:0;transform-origin:right center;border-radius:0 6px 6px 0}
+.dleaf::after{content:"";position:absolute;top:50%;width:10px;height:28px;margin-top:-14px;border-radius:5px;background:rgba(0,0,0,.4)}
+.dleaf.l::after{right:10px}.dleaf.r::after{left:10px}
+.dnr{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;place-items:center;width:44%;aspect-ratio:1;border-radius:50%;background:var(--da);color:#fffaf0;border:5px solid #fffaf0;font:900 clamp(56px,18vw,120px)/1 var(--disp);transition:opacity .25s}
+.dflake{position:absolute;font-style:normal;font-size:20px;color:#fffaf0;opacity:.85;pointer-events:none}
+.dhint{margin:0;font:900 18px var(--ui);animation:dpulse 1.6s ease-in-out infinite}
+@keyframes dpulse{50%{transform:scale(1.07)}}
+#door.open .dleaf.l{transform:rotateY(-108deg)}#door.open .dleaf.r{transform:rotateY(108deg)}
+#door.open .dnr,#door.open .dflake{opacity:0}
+#door.open .dshut{pointer-events:none}
+#door.open canvas{animation:dpop .6s ease-out}
+@keyframes dpop{from{transform:scale(.92);filter:brightness(1.6)}to{transform:none;filter:none}}
+.dafter{display:flex;flex-direction:column;gap:8px;width:min(100%,420px)}.dafter[hidden]{display:none}
+.dafter .note{color:#fffaf0;margin:0}
+.dmsg{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.dhint,#door.open canvas{animation:none}.dleaf{transition:opacity .15s}#door.open .dleaf.l,#door.open .dleaf.r{transform:none;opacity:0}}

@@ -58,7 +58,9 @@
     var hit = LOOKS.filter(function (x) { return x[0].test(wish); })[0] || LOOKS[pick(LOOKS.length)];
     return { fig: hit[1], look: hit[2] };
   }
-  var SET_RE = [[/herz|lieb|warm|danke|freund|heart|love|thank|friend/i, "herz"], [/grusel|spook|halloween|horror|nacht|night|geist/i, "grusel"], [/welt|all\b|space|rakete|alien|stern|poster/i, "weltall"], [/essen|food|pizza|s(ü|ue)ß|candy|keks/i, "essen"], [/tier|animal|zoo|frosch/i, "tiere"]];
+  // Christmas wishes: Advent look, its colours and stickers (snow, stars, presents, fir trees). Checked before the other sets.
+  var XMAS = /weihnacht|advent|christmas|xmas|nikolaus|santa|tanne|schnee|verschneit|snow|festlich|gemütlich|cosy|cozy|lebkuchen|plätzchen|geschenk|goldene? stern|kerze|engel|rentier|reindeer|glühwein/i;
+  var SET_RE = [[XMAS, "advent"], [/herz|lieb|warm|danke|freund|heart|love|thank|friend/i, "herz"], [/grusel|spook|halloween|horror|nacht|night|geist/i, "grusel"], [/welt|all\b|space|rakete|alien|stern|poster/i, "weltall"], [/essen|food|pizza|s(ü|ue)ß|candy|keks/i, "essen"], [/tier|animal|zoo|frosch/i, "tiere"]];
   function stickersFor(wish, pick) {
     var hit = SET_RE.filter(function (x) { return x[0].test(wish); })[0], names = Object.keys(D.SETS), set = D.SETS[hit ? hit[1] : names[pick(names.length)]];
     return [0, 1, 2].map(function (i) { return set[(pick(set.length) + i * 2) % set.length]; });
@@ -79,6 +81,7 @@
       var slow = /langsam|ruhig|slow|chill/i.test(wish), fx = D.FX;
       return { bpm: Math.max(70, Math.min(170, doc.bpm + (slow ? -20 : 20))), fx: fx[(fx.indexOf(doc.fx) + 1 + pick(fx.length - 1)) % fx.length], palette: pick(8) };
     }
+    if (doc.k === "card" && doc.st !== "herz" && XMAS.test(wish)) return { st: "advent", colors: ["#0f5132", "#ffd400"], stickers: stickersFor(wish, pick) };
     var list = D.STYLES[doc.k], st = doc.st === "herz" ? "herz" : list[(list.indexOf(doc.st) + 1) % list.length];
     return { st: st, palette: pick(8), stickers: stickersFor(wish, pick) };
   }

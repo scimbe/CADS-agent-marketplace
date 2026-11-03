@@ -203,12 +203,12 @@ function footer() {
   var b = $("edmain"), ok = ready(), g = ed.doc.k === "game";
   if (X[ed.doc.k]) { X[ed.doc.k].footer(b, ed, ok); return; }
   b.classList.toggle("wait", !ok && !g);
-  b.textContent = g ? t("play") : ok ? t("done") : t("needOwn");
+  b.textContent = g ? t("play") : ok ? t(ed.doc.nr ? "doorSend" : "done") : t("needOwn");
 }
 // The line above the link says what the receiver gets: a move to make, a result, or something made for them.
 function shareLine(doc) {
   if (doc && doc.k === "turn") { var st = window.Turns.state(doc); return t(st.over ? "shareResult" : "shareTurn"); }
-  return t(doc && (doc.k === "card" || doc.k === "photo") ? "shareCard" : "shareText");
+  return t(doc && doc.nr ? "shareDoor" : doc && (doc.k === "card" || doc.k === "photo") ? "shareCard" : "shareText");
 }
 function trailLine() {
   var box = $("trail"), by = ed.doc.by; box.textContent = ""; box.hidden = !by.length; if (!by.length) return;
@@ -229,7 +229,7 @@ function openEditor(doc, opt) {
   $("edstyle").textContent = me.emoji;
   stopSound(); show("editor", true); trailLine();
   var tabs = $("tabs"); tabs.textContent = "";
-  var list = (ed.own ? ["Idea"] : []).concat(W.KINDS.indexOf(ed.doc.k) >= 0 ? ["Wish"] : [], TABS[ed.doc.k]);
+  var list = (ed.own ? ["Idea"] : []).concat(W.KINDS.indexOf(ed.doc.k) >= 0 ? ["Wish"] : [], ed.doc.nr ? ["Door"] : [], TABS[ed.doc.k]);
   list.forEach(function (k) {
     var b = el("button", k === "Wish" ? "hot" : "", t("tab" + (k === "Sound" ? (ed.doc.m === "beat" ? "Beat" : "Voice") : k === "Idea" ? "Idea" : k)), function () { Kit.sfx.tap(); tab(k); });
     b.setAttribute("role", "tab"); b.dataset.k = k; tabs.appendChild(b);
@@ -337,9 +337,15 @@ var PANEL = {
       }
     });
     p.appendChild(el("label", "lbl wishtips", t("wishOr")));
-    t("wishTips_" + (WM.is(ed.doc) ? "warm" : ed.doc.k)).split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; go(); })); });
+    t("wishTips_" + (WM.is(ed.doc) ? "warm" : ed.doc.nr ? "door" : ed.doc.k)).split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; go(); })); });
     p.appendChild(box);
-    p.appendChild(el("p", "note", t("wishH_" + ed.doc.k) + " " + t("aiNote")));
+    p.appendChild(el("p", "note", t("wishH_" + (ed.doc.nr ? "door" : ed.doc.k)) + " " + t("aiNote")));
+  },
+  // Advent door: only its number; 1-24 as plain buttons, no typing.
+  Door: function (p) {
+    p.appendChild(el("label", "lbl", t("doorPick")));
+    chips(p, Array.from({ length: 24 }, function (x, i) { return { v: i + 1, l: String(i + 1) }; }), ed.doc.nr, function (v) { ed.doc.nr = v; }, "em");
+    p.appendChild(el("p", "note", t("doorNote")));
   },
   Idea: function (p) {
     p.appendChild(el("p", "note", t("ownH")));
@@ -352,7 +358,7 @@ var PANEL = {
       var f = field(p, t("line"), d.x, 90, function (v) { d.x = v; }, true), L = ed.idea ? ideaText(ed.idea).lines : null;
       if (L) p.appendChild(el("button", "chip", "🎲 " + t("dice"), function () { Kit.sfx.pop(); ed.line = (ed.line + 1) % L.length; d.x = L[ed.line]; f.value = d.x; changed(); }));
       aiBlock(p, { kind: "line", label: t("aiLine"), input: function () { var x = D.cleanInput(d.x, 90) || t("own"); return { text: x, style: d.st }; }, show: String, apply: function (o) { var v = D.cleanInput(o, 90); if (v) { d.x = v; f.value = v; changed(); } } });
-      weatherBlock(p);
+      if (!d.nr) weatherBlock(p);
     } else if (d.k === "photo") {
       var top = field(p, t("top"), d.x, 28, function (v) { d.x = v; }), low = field(p, t("bottom"), d.y, 28, function (v) { d.y = v; });
       var what = field(p, t("aiDesc"), "", 100, function () {});
@@ -743,6 +749,8 @@ function openOwn() {
     [["card", "🃏"], ["photo", "📷"], ["sound", "🥁"], ["game", "🕹"], ["duel", "🤖"]].concat(D.caps().crypto ? [["quest", "🗝️"]] : []).forEach(function (m) {
       b.appendChild(el("button", "mech", m[1] + " " + t(m[0]), function () { Kit.sfx.thud(); openEditor(D.blankDoc(m[0], me, Kit.lang), { own: true }); }));
     });
+    var door = D.byId("advent-tuer");   // an Advent door can be made any day, not only on its calendar days
+    if (door) b.appendChild(el("button", "mech", "🎄 " + ideaText(door).t.replace("|", " "), function () { Kit.sfx.thud(); openEditor(D.docFromIdea(door, me, Kit.lang), { idea: door }); }));
     CC.tile(b);
   });
 }
@@ -808,7 +816,9 @@ function route() {
   if (r && r.type === "idea") { home = { date: today, idea: D.byId(r.id), note: t("invite") }; goHomeKeep(); return true; }
   if (r && r.type === "doc") {
     var lastBy = r.doc.by.length ? r.doc.by[r.doc.by.length - 1].n : r.doc.n;
-    home = { date: today, doc: r.doc, note: t("remixOf", { n: lastBy || t("someone") }) }; goHomeKeep(); return true;
+    home = { date: today, doc: r.doc, note: t("remixOf", { n: lastBy || t("someone") }) }; goHomeKeep();
+    if (r.doc.k === "card" && r.doc.nr && window.Door) window.Door.show(r.doc);   // an Advent door comes closed first
+    return true;
   }
   return false;
 }
