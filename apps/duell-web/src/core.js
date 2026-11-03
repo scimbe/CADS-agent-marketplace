@@ -2,7 +2,7 @@
 (function (root) {
   "use strict";
 
-  var SHARE_BASE = "https://bunsenbrenner.org/duell";
+  var SHARE_BASE = (root.DailyFlavor && root.DailyFlavor.shareBase) || "https://bunsenbrenner.org/duell";   // a flavor build is shared under its own path
   var SHORT_BASE = "https://bunsenbrenner.org/s/";
   var DEFAULT_API = "https://demos-34a13a96.bunsenbrenner.org/api/duell/config";
   var MAX_FRAGMENT = 1200;       // hard cap on the encoded payload we are willing to parse
