@@ -156,6 +156,8 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 .skbin.over{background:#ff2d2d;transform:scale(1.2)}
 /* AI actions */
 .aibox{margin-top:10px;padding-top:8px;border-top:2px dashed var(--ink)}
+.profile .btn,.profile .field{margin-bottom:8px}.pfcheck{display:flex;gap:8px;align-items:center;font-weight:700;margin:6px 0 8px;min-height:44px}.pfcheck input{width:24px;height:24px}
+.pfcode{font:800 13px ui-monospace,Menlo,monospace;overflow-wrap:break-word;margin:0 0 6px}
 .airow{display:flex;gap:8px;align-items:center}
 .aicount{margin:0;font-size:13px;font-weight:800;flex:1}
 .aiopt{display:block;width:100%;text-align:left;white-space:normal;height:auto;min-height:44px;padding:8px 10px;margin-bottom:6px}

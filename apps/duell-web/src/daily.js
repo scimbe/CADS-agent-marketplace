@@ -279,7 +279,7 @@
     return list.filter(function (e) {
       return e && typeof e === "object" && (sanitizeId(e.id) || e.id === "own") && typeof e.ts === "number" &&
         typeof e.th === "string" && e.th.length <= MAX_THUMB && /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(e.th);
-    }).slice(0, MAX_WALL).map(function (e) { return { id: e.id, ts: e.ts, th: e.th }; });
+    }).slice(0, MAX_WALL).map(function (e) { var o = { id: e.id, ts: e.ts, th: e.th }; if (typeof e.k === "string" && /^[a-z]{1,12}$/.test(e.k)) o.k = e.k; return o; });   // k: what was made; "photo" never leaves the device (profile.js)
   }
   function addToWall(list, entry) { return sanitizeWall([entry].concat(list)); }
 

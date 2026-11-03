@@ -28,10 +28,10 @@ test("Datenschutz: Kurzlink nur ueber shortlink.js, nur nach einem Tipp auf Teil
   const game = src("game.js"), at = game.indexOf("ShortLink.shorten");
   assert.ok(at > game.indexOf('$("challenge").addEventListener("click"'), "game.js: nur im Klick");
 });
-test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, Kurzlink), nur getippter Text; kein anderer Weg nach draussen", () => {
+test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, Kurzlink, Profil), nur getippter Text; kein anderer Weg nach draussen", () => {
   const html = noComments(fs.readFileSync(dist, "utf8"));
   // Every call site by name; a new one fails here until it is argued for and listed.
-  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1 }, short = /\(fetchFn \|\| fetch\)\(/g;
+  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1, "profile.js": 1 }, short = /\(fetchFn \|\| fetch\)\(/g;
   for (const f of fs.readdirSync(path.join(__dirname, "../src")).filter((n) => n.endsWith(".js"))) {
     assert.equal((noComments(src(f)).match(/\bfetch\(/g) || []).length, allowed[f] || 0, "direktes fetch( in " + f);
     assert.equal((noComments(src(f)).match(short) || []).length, f === "shortlink.js" ? 1 : 0, "Kurzlink-fetch in " + f);
@@ -40,6 +40,10 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, Kurzlink
   assert.equal((html.match(short) || []).length, 1, "eine Stelle fuer Kurzlinks im Build");
   assert.match(src("ai.js").match(/await fetch\([^\n]*/)[0], /body: text/, "nur der gepruefte Text");
   assert.ok(!/toDataURL|toBlob|drawImage|getImageData/.test(src("ai.js")), "KI fasst kein Bild an");
+  // Profile: only the opt-in sync of the profile; it never draws or reads a picture and leaves photo works out.
+  assert.ok(!/toDataURL|toBlob|drawImage|getImageData|\.photo\b|ownPhoto/.test(noComments(src("profile.js"))), "Profil fasst kein Foto an");
+  assert.match(src("profile.js"), /e\.k !== "photo"/, "Fotowerke bleiben auf dem Geraet");
+  assert.match(src("profile.js"), /fetch\(base\(\) \+ "\/" \+ op/, "Profil spricht nur mit /api/duell/profile");
   assert.ok(src("game.js").includes("await fetch("), "fetch gehoert ins Spiel");
   const body = src("game.js").match(/fetch\([^\n]*/)[0];
   assert.match(body, /JSON\.stringify\(\{ prompt: prompt, lang: lang \}\)/, "nur Satz + Sprache");

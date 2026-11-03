@@ -499,7 +499,8 @@ async function finish(doc, idea, pictureDoc) {
   }
   var url = D.docUrl(doc);
   result = { url: url, file: file, name: name, png: png, keep: ed, canvas: c, kind: doc.k };
-  wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c) }); store.wall = wall; Kit.save();
+  var made = pictureDoc || doc;
+  wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c), k: made.k === "photo" || (ed && ed.photo) ? "photo" : made.k }); store.wall = wall; Kit.save();
   if (!Kit.persisted) Kit.toast(t("wallFull"));
   var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png);
   $("playit").hidden = true;   // a card is not a level: whoever does not fly far would never see it
@@ -577,8 +578,9 @@ $("image").addEventListener("click", function () {
 });
 
 /* ---------- my style ---------- */
+var styleFill = null;
 function openStyle() {
-  shelf(t("style"), function (b) {
+  shelf(t("style"), styleFill = function (b) {
     b.appendChild(el("label", "lbl", t("nick")));
     var f = el("input", "field"); f.value = me.nick; f.maxLength = 16; f.setAttribute("aria-label", t("nick"));
     f.addEventListener("input", function () { var v = C.sanitizeName(f.value); if (f.value.trim() && !v) { Kit.toast(t("filter")); return; } me.nick = v; saveMe(); });
@@ -589,9 +591,16 @@ function openStyle() {
     colors(b, function () { return me.colors; }, function (c) { me.colors = c; saveMe(); setInk(c[0], c[1]); });
     b.appendChild(el("label", "lbl", t("set")));
     chips(b, Object.keys(D.SETS).map(function (s) { return { v: s, l: D.SETS[s][0] + " " + t("set_" + s) }; }), me.set, function (v) { me.set = v; saveMe(); });
+    window.Profile.section(b, el);
     b.appendChild(el("button", "btn", t("licenses"), function () { var l = el("pre", "note", window.DailyLicenses); l.style.whiteSpace = "pre-wrap"; b.textContent = ""; b.appendChild(l); }));
   });
 }
+// A sync brought style, wall or saved cards from another device: the open My style shows them at once.
+window.Profile.onChange(function () {
+  me = D.sanitizeProfile(store.me); wall = D.sanitizeWall(store.wall); $("me").textContent = me.emoji;
+  if (screen === "home" || (screen === "shelf" && $("pfbox"))) setInk(me.colors[0], me.colors[1]);
+  if (screen === "shelf" && $("pfbox")) { var b = $("shbody"); b.textContent = ""; styleFill(b); }
+});
 function shelf(title, fill) { stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
 function openAiWall() { ed.styling = true; shelf(t("aiTitle"), function (b) { window.Ai.wall(b, el); }); }
 function openPast() {
