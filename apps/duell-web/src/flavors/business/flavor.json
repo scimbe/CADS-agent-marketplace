@@ -1,0 +1,16 @@
+{
+ "id": "business",
+ "title": "Daily Business",
+ "theme": "#1e293b",
+ "shareBase": "https://bunsenbrenner.org/business",
+ "feats": [
+  "f_two",
+  "f_conf"
+ ],
+ "short": false,
+ "eur": [
+  1,
+  500
+ ],
+ "adult": true
+}
