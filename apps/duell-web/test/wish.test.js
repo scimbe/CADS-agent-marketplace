@@ -43,7 +43,7 @@ test("Wetter: Wunsch kann die Zahlen nie aendern, kaputte Werte fallen weg, Text
   assert.equal(D.changedAreas(D.sanitizeDoc({ k: "card" }), d).includes("text"), true);
 });
 test("Grenze: jede Art hat einen Wunsch, Raetsel und Antworten eines Kanals gehen nicht an den Server", () => {
-  assert.deepEqual([...W.KINDS].sort(), [...D.KINDS].sort());
+  assert.deepEqual([...W.KINDS].sort(), D.KINDS.filter((k) => k !== "table").sort());   // a card table opens the live game, it has no editor to wish in
   const q = Object.assign(of("quest"), { q0: "Geheimfrage", h0: "abc", c: ["Z2VoZWlt"] }), r = JSON.stringify(W.request(q, "x", ""));
   assert.ok(!/Geheimfrage|Z2VoZWlt/.test(r));
 });
