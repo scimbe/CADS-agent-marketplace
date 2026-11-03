@@ -89,14 +89,22 @@ function preview(root, doc, still) {
     R.draw(c, doc, { me: me, photo: doc.k === "photo" ? R.botFace(C.hash32(doc.x || "x"), doc.col[1]) : null, peaks: null, x: {} });
   } catch (e) { box.hidden = true; }
 }
+// Two copies in one track make the ticker seamless; the second is only for the eye, not for screen readers or Tab.
 function feats() {
-  var box = $("feat"); box.textContent = "";
-  [["f_two", "🤝", function () { X.turn.menu(); }], ["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
+  var bar = $("feat"), box = el("div", "track"); bar.textContent = ""; bar.appendChild(box);
+  [0, 1].forEach(function (copy) { [["f_two", "🤝", function () { X.turn.menu(); }], ["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
     ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].forEach(function (f) {
     var n = D.IDEAS.filter(function (i) { return i.kind === "turn"; }).length;
-    box.appendChild(el("button", f[0] === "f_two" ? "hot" : "", f[0] === "f_two" ? "🎲 " + t("f_twoN", { n: n }) : f[1] + " " + t(f[0]), function () { Kit.sfx.tap(); f[2](); }));
-  });
+    var b = el("button", f[0] === "f_two" ? "hot" : "", f[0] === "f_two" ? "🎲 " + t("f_twoN", { n: n }) : f[1] + " " + t(f[0]), function () { Kit.sfx.tap(); f[2](); });
+    if (copy) { b.setAttribute("aria-hidden", "true"); b.tabIndex = -1; }
+    box.appendChild(b);
+  }); });
 }
+(function () {   // a finger on the ticker holds it, so the button under it does not run away
+  var bar = $("feat"), off = function () { bar.classList.remove("hold"); };
+  bar.addEventListener("pointerdown", function () { bar.classList.add("hold"); });
+  ["pointerup", "pointercancel", "pointerleave"].forEach(function (e) { bar.addEventListener(e, function () { setTimeout(off, 1500); }); });
+})();
 function blank(kind) { Kit.sfx.thud(); openEditor(D.blankDoc(kind, me, Kit.lang), { own: true }); }
 var page = 0, PLAN_DAYS = 31;
 function dayHome() { return { date: today, idea: D.ideaForDay(today) }; }
@@ -161,7 +169,7 @@ function paint() {
   timer = 0; if (!ed) return;
   ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1]);
   if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks, x: ed.x }); }
-  SK.sync(); footer(); CU.local();
+  SK.sync(); footer(); CU.local(); saveMark();
 }
 function changed() {           // every control ends up here: redraw within the next moment
   if (!timer) timer = setTimeout(paint, 16);
@@ -569,6 +577,22 @@ function backToEditor() {
 }
 $("dhome").addEventListener("click", goHome);
 $("edback").addEventListener("click", function () { Kit.sfx.tap(); goHome(); });
+// Merken: the work as it is now lands on the wall, with its link, so it opens again in the editor later.
+function savedNow() { var f = docFragment(ed.doc); return !!f && wall.some(function (w) { return w.f === f; }); }
+function docFragment(doc) { var u = D.docUrl(doc), i = u.indexOf("#"); return i < 0 ? "" : u.slice(i + 1); }
+function saveMark() { var on = !!ed && savedNow(); $("edsave").textContent = on ? "♥" : "♡"; $("edsave").setAttribute("aria-pressed", String(on)); }
+$("edsave").addEventListener("click", function () {
+  if (!ed) return; Kit.sfx.pop(); Kit.haptic(12);
+  var f = docFragment(ed.doc);
+  if (savedNow()) { wall = wall.filter(function (w) { return w.f !== f; }); Kit.toast(t("unsaved")); }
+  else {
+    var c = document.createElement("canvas"); c.width = 540; c.height = 675;
+    if (ed.doc.k === "game") { var g = $("demo"); c.getContext("2d").drawImage(g, 0, 0, c.width, c.height); }
+    else R.draw(c, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks });
+    wall = D.addToWall(wall, { id: ed.doc.i || "own", ts: Date.now(), th: thumb(c), f: f }); Kit.toast(t("saved"));
+  }
+  store.wall = wall; Kit.save(); saveMark();
+});
 $("shback").addEventListener("click", function () { Kit.sfx.tap(); if (!backFromStyle()) goHome(); });
 // My style opened from the editor returns there with the work intact; new colours apply unless they were chosen by hand.
 function backFromStyle() {
@@ -631,6 +655,8 @@ function openWall() {
     wall.forEach(function (w, i) {
       var c = el("button", "", null, function () {
         Kit.sfx.tap(); b.textContent = ""; var im = el("img", "big"); im.src = w.th; im.alt = ""; b.appendChild(im);
+        var r = w.f ? D.parseRoute("#" + w.f) : null;
+        if (r && r.type === "doc") b.appendChild(el("button", "btn hot", t("openAgain"), function () { Kit.sfx.thud(); openEditor(r.doc, { idea: r.doc.i ? D.byId(r.doc.i) : null, own: !r.doc.i }); }));
         b.appendChild(el("button", "btn", t("gone"), function () { wall.splice(i, 1); store.wall = wall; Kit.save(); openWall(); }));
       });
       var im = el("img"); im.src = w.th; im.alt = ""; c.appendChild(im); g.appendChild(c);

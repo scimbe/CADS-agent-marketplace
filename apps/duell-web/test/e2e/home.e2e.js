@@ -96,3 +96,28 @@ test("Welt: ein Thema im Welt-Tab ersetzt die gebaute Welt eines Spiels sichtbar
   assert.deepEqual(errs, []);
   await b.close();
 });
+
+test("Fensterebene: Kreuz schliesst, Merken legt die Arbeit auf die Wand und oeffnet sie wieder; Laufband nur mit Platz", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), p = await ctx.newPage();
+  const errs = []; p.on("pageerror", (e) => errs.push(e.message));
+  await p.goto(page);
+  const bar = await p.evaluate(() => { const f = document.getElementById("feat"), tr = f.querySelector(".track"); return { shown: getComputedStyle(f).display !== "none", anim: getComputedStyle(tr).animationName, hidden: tr.querySelectorAll("[aria-hidden=true]").length, all: tr.children.length }; });
+  assert.ok(bar.shown); assert.equal(bar.anim, "ticker"); assert.equal(bar.hidden * 2, bar.all, "zweite Kopie nur fuers Auge");
+  await p.getByRole("button", { name: /Meme bauen/ }).click();
+  await p.locator("#editor").waitFor();
+  assert.equal(await p.locator("#edback").getAttribute("aria-label"), "Schließen"); assert.equal(await p.locator("#edback").textContent(), "✕");
+  await p.locator("#edsave").click();
+  assert.equal(await p.locator("#edsave").getAttribute("aria-pressed"), "true");
+  await p.locator("#edback").click(); await p.locator("#home").waitFor();
+  await p.locator("#wall").click();
+  await p.locator(".wallgrid button").first().click();
+  await p.getByRole("button", { name: "Wieder öffnen" }).click();
+  await p.locator("#editor").waitFor();
+  assert.equal(await p.locator("#edsave").textContent(), "♥", "die geoeffnete Arbeit ist als gemerkt erkannt");
+  await p.locator("#edsave").click(); assert.equal(await p.locator("#edsave").textContent(), "♡");
+  await p.setViewportSize({ width: 375, height: 640 });
+  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById("feat")).display), "none", "kurzer Bildschirm: Laufband aus");
+  assert.deepEqual(errs, []);
+  await b.close();
+});
