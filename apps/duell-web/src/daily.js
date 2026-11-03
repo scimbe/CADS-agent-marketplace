@@ -12,6 +12,7 @@
   var ID_RE = /^[a-z0-9-]{1,32}$/, MAX_WALL = 30, MAX_THUMB = 60000, MAX_TEXT = 90;
   var DAY = 86400000;
   var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn"];
+  var PLAY = ["arcade"];   // days that are only played (arcade-ui.js), never edited, wished for or sent as a creation
   var STYLES = { card: ["druck", "zettel", "stempel", "neon", "herz"], photo: ["poster", "sticker", "meme", "glitch"] };
   var FX = ["chip", "monster", "robot", "echo"];
   var AREAS = ["text", "farbe", "stil", "sticker", "foto", "beat", "stimme", "regeln", "figur", "welt", "idee"];
@@ -258,6 +259,8 @@
     if (idea.kind === "duel") Duel.fromIdea(idea, profile, lang, base);
     if (idea.kind === "quest") Quest.fromIdea(idea, lang, base);
     if (idea.kind === "turn") Turns.fromIdea(idea, lang, base);
+    // Played in arcade-ui.js, never edited or sent: no link ever carries such a doc, so sanitizeDoc keeps refusing it.
+    if (idea.kind === "arcade") { base.a = idea.arcade.g; return base; }
     return sanitizeDoc(base);
   }
   function blankDoc(kind, profile, lang) {
@@ -326,7 +329,7 @@
   }
 
   var api = {
-    IDEAS: IDEAS, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays, fold: fold, searchIdeas: searchIdeas,
+    IDEAS: IDEAS, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, PLAY: PLAY, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays, fold: fold, searchIdeas: searchIdeas,
     randomIdea: randomIdea, paperIndex: paperIndex, sanitizeId: sanitizeId, parseRoute: parseRoute, inviteUrl: inviteUrl, challengeUrl: challengeUrl,
     cleanInput: cleanInput, sanitizeProfile: sanitizeProfile, sanitizeDoc: sanitizeDoc, docFromIdea: docFromIdea, blankDoc: blankDoc,
     changedAreas: changedAreas, withTrail: withTrail, docUrl: docUrl, SETS: SETS, STYLES: STYLES, FX: FX, MAX_STICKERS: MAX_STICKERS, sanitizeWall: sanitizeWall, addToWall: addToWall, ideaStrings: ideaStrings

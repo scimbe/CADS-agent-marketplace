@@ -229,3 +229,7 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .inv img{width:100%;height:100%;object-fit:cover;display:block}.invicon{display:grid;place-items:center;height:100%;font-size:40px}
 .invx{position:absolute;top:-8px;right:-8px;width:36px;height:36px;border-radius:50%;border:2px solid var(--ink);background:#fff;color:#111;font:900 16px var(--ui);display:grid;place-items:center}
 .invdate{font:700 12px var(--ui);text-align:center}
+.arcov{background:#0b0b12;color:#fff}.arcov .note,.arcov .livescore{color:#fff}.arcov .livebody{gap:8px}
+.arccv{width:min(94vw,60vh);aspect-ratio:1000/1600;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border-color:#fff;background:#07070b}
+.arcdemo{width:min(56vw,30vh);aspect-ratio:300/480;border:3px solid #fff;background:#07070b}.arcnote{min-height:2.4em;margin:0}
+@media (prefers-reduced-motion:reduce){.arccv,.arcdemo{animation:none;transition:none}}

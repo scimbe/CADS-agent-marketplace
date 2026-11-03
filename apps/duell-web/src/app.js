@@ -93,6 +93,8 @@ function preview(root, doc, still) {
   try {
     if (doc.k === "game") { g.hidden = false; var st = C.sanitizeState(Object.assign({ v: 1 }, doc.g)); if (still) G.still(g, st); else G.demo(g, st); return; }
     c.hidden = false;
+    if (window.ArcadeUI) window.ArcadeUI.demo(c, doc.k === "arcade" ? doc.a : null, still);   // null ends a running duel preview
+    if (doc.k === "arcade") return;
     R.draw(c, doc, { me: me, photo: doc.k === "photo" ? R.botFace(C.hash32(doc.x || "x"), doc.col[1]) : null, peaks: null, x: {} });
   } catch (e) { box.hidden = true; }
 }
@@ -101,7 +103,7 @@ function shown(k) { var F = window.DailyFlavor; return !F || !F.feats || F.feats
 // The games button stays put on the left; the rest runs by as a ticker. Two copies in one track make it seamless;
 // the second is only for the eye, not for screen readers or Tab.
 function feats() {
-  var bar = $("feat"), lane = el("div", "lane"), box = el("div", "track"), n = D.IDEAS.filter(function (i) { return i.kind === "turn"; }).length;
+  var bar = $("feat"), lane = el("div", "lane"), box = el("div", "track"), n = D.IDEAS.filter(function (i) { return i.kind === "turn" || i.kind === "arcade"; }).length;
   bar.textContent = "";
   if (shown("f_two")) bar.appendChild(el("button", "hot", "🎲 " + t("f_twoN", { n: n }), function () { Kit.sfx.tap(); X.turn.menu(); }));
   lane.appendChild(box); bar.appendChild(lane);
@@ -770,6 +772,7 @@ function start(tabName) {
   if (WM.start(home, tabName)) return;
   if (home.doc && X[home.doc.k] && X[home.doc.k].incoming && X[home.doc.k].incoming(home.doc)) return;
   if (!home.doc && home.idea && home.idea.protokoll) { var u = protokollUrl(); if (location.protocol === "https:") location.href = u; else openLive(u); return; }
+  if (!home.doc && home.idea && home.idea.kind === "arcade" && window.ArcadeUI) { window.ArcadeUI.menu(home.idea.arcade.g); return; }
   if (home.doc) openEditor(home.doc, { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName });
   else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea, tab: tabName });
 }
@@ -786,8 +789,8 @@ function route() {
   var card = CC.route(location.hash);
   if (card) { clearLink(); if (!card.keep && screen !== "editor") goHomeKeep(); return true; }
   if (CU.route(location.hash)) { clearLink(); if (screen !== "editor") goHomeKeep(); return true; }
-  var live = location.hash.match(/^#live=([A-Za-z0-9_-]{22})$/);
-  if (live && window.LiveUI) { history.replaceState(null, "", location.pathname); window.LiveUI.accept(live[1]); }
+  var live = location.hash.match(/^#live=([A-Za-z0-9_-]{22})(?:&g=([a-z]{2,12}))?$/);
+  if (live && window.LiveUI) { history.replaceState(null, "", location.pathname); window.LiveUI.accept(live[1], live[2]); }
   var r = D.parseRoute(location.hash);
   if (r && r.type === "short") {
     goHome();
