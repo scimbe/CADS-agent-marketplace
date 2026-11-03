@@ -248,7 +248,7 @@ test("Termin finden: Termine nur angetippt, bester Termin gewinnt, Gleichstand e
   assert.equal(de(x).h, "Alle können: Do 5.11., 20 Uhr"); assert.match(de(x).lines.at(-1), /^Können: Mia, Ä[ä]{9}B, Ä[ä]{9}C \+7$/);
   // in the calendar on its day, in the shelf of the evening chat
   const idea = D.IDEAS.find((i) => i.id === "zug-termin");
-  assert.equal(idea.on, "12-03"); assert.equal(D.ideaForDay(new Date(Date.UTC(2026, 11, 3))).id, "zug-termin");
+  assert.equal(idea.on, "12-04"); assert.equal(D.ideaForDay(new Date(Date.UTC(2026, 11, 4))).id, "zug-termin");
 });
 test("Rangliste nennt den groessten Streit", () => {
   let d = Tn.play(fresh("rangliste", 0), [[0, 1, 2, 3, 4, 5, 6, 7]], 0); d = Tn.play(d, [[7, 1, 2, 3, 4, 5, 6, 0]], 0);
