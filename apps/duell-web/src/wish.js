@@ -10,17 +10,19 @@
   // What goes to the server about the creation: its type and its texts, nothing else.
   function request(doc, wish, idea) {
     var now = doc.k === "game" ? { title: doc.g.title } : doc.k === "turn" ? { w: doc.w } : { x: doc.x, y: doc.y, st: doc.st, bpm: doc.bpm };
+    if (doc.t) now.t = doc.t;
     return { type: doc.k, wish: wish, idea: idea || doc.t || "", now: now };
   }
-  // doc + changes -> a new sanitized doc; only keys of its type can have any effect.
+  // doc + changes -> a new sanitized doc; only keys of its type can have any effect. Every sheet also takes a title and
+  // a line below it (t, s), the one thing a wish changes beyond the editor's tabs.
   function apply(doc, ch, pairs, rand) {
     var d = JSON.parse(JSON.stringify(doc));
     if (typeof ch.palette === "number" && pairs[ch.palette]) d.col = pairs[ch.palette].slice();
     if (Array.isArray(ch.colors)) d.col = ch.colors.slice();
+    if (ch.t) d.t = ch.t; if (ch.s) d.s = ch.s;
     if (d.k === "turn") {
-      if (ch.t) d.t = ch.t; if (ch.s) d.s = ch.s; if (ch.w) d.w = ch.w; if (ch.f) d.f = ch.f;
+      if (ch.w) d.w = ch.w; if (ch.f) d.f = ch.f;
     } else if (d.k === "duel" || d.k === "quest") {
-      if (ch.t) d.t = ch.t; if (ch.s) d.s = ch.s;
       if (d.k === "quest") { if (ch.e) d.e = ch.e; }
       else {
         if (ch.ae) d.a.e = ch.ae; if (ch.be) d.b.e = ch.be; if (ch.bn) d.b.n = ch.bn;
@@ -33,8 +35,9 @@
     } else {
       ["x", "y", "st", "bpm", "fx"].forEach(function (k) { if (ch[k] !== undefined && d[k] !== undefined) d[k] = ch[k]; });
       if (d.p) ["k", "s", "h", "b"].forEach(function (k) { if (ch[k]) d.p[k] = ch[k]; });
-      if (d.sk && ch.stickers) ch.stickers.forEach(function (e) {
-        if (d.sk.length < D.MAX_STICKERS) d.sk.push({ e: e, x: 0.15 + rand() * 0.7, y: 0.15 + rand() * 0.65, r: (rand() - 0.5) * 0.7, z: 0.8 + rand() * 0.7 });
+      // A wish sets the stickers anew, so a second wish does not pile up on the first; undo brings the old ones back.
+      if (d.sk && ch.stickers) d.sk = ch.stickers.slice(0, D.MAX_STICKERS).map(function (e) {
+        return { e: e, x: 0.15 + rand() * 0.7, y: 0.15 + rand() * 0.65, r: (rand() - 0.5) * 0.7, z: 0.8 + rand() * 0.7 };
       });
     }
     return D.sanitizeDoc(d);
@@ -52,7 +55,13 @@
     var hit = LOOKS.filter(function (x) { return x[0].test(wish); })[0] || LOOKS[pick(LOOKS.length)];
     return { fig: hit[1], look: hit[2] };
   }
-  // No server, no model: still a visible answer from fixed rules. Costs nothing.
+  var SET_RE = [[/grusel|spook|halloween|horror|nacht|night|geist/i, "grusel"], [/welt|all\b|space|rakete|alien|stern|poster/i, "weltall"], [/essen|food|pizza|s(ü|ue)ß|candy|keks/i, "essen"], [/tier|animal|zoo|frosch/i, "tiere"]];
+  function stickersFor(wish, pick) {
+    var hit = SET_RE.filter(function (x) { return x[0].test(wish); })[0], names = Object.keys(D.SETS), set = D.SETS[hit ? hit[1] : names[pick(names.length)]];
+    return [0, 1, 2].map(function (i) { return set[(pick(set.length) + i * 2) % set.length]; });
+  }
+  // No server, no model: still a visible answer from fixed rules, for every part a wish can change except the texts.
+  // With a model these fill in whatever its answer left out, so a wish always changes the whole sheet.
   function local(doc, wish, lang, pick) {
     if (doc.k === "game") {
       var s = C.localConfig(wish, lang), P = s.params || {}, L = localLook(wish, pick);
@@ -63,9 +72,12 @@
       var e = D.SETS.chaos[pick(6)];
       return doc.k === "duel" ? { palette: pick(8), be: e, ae: D.SETS.weltall[pick(6)] } : { palette: pick(8), e: e };
     }
-    if (doc.k === "sound") { var slow = /langsam|ruhig|slow|chill/i.test(wish); return { bpm: Math.max(70, Math.min(170, doc.bpm + (slow ? -20 : 20))) }; }
+    if (doc.k === "sound") {
+      var slow = /langsam|ruhig|slow|chill/i.test(wish), fx = D.FX;
+      return { bpm: Math.max(70, Math.min(170, doc.bpm + (slow ? -20 : 20))), fx: fx[(fx.indexOf(doc.fx) + 1 + pick(fx.length - 1)) % fx.length], palette: pick(8) };
+    }
     var list = D.STYLES[doc.k], st = list[(list.indexOf(doc.st) + 1) % list.length];
-    return { st: st, palette: pick(8) };
+    return { st: st, palette: pick(8), stickers: stickersFor(wish, pick) };
   }
   var api = { KINDS: KINDS, request: request, apply: apply, local: local };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

@@ -16,9 +16,9 @@
       return e && typeof e === "object" && ID_RE.test(e.id) && typeof e.t === "string" && typeof e.exp === "number" && e.exp > now;
     });
   }
-  function call(path, opts, fetchFn) {
+  function call(path, opts, fetchFn, ms) {
     var ctl = typeof AbortController === "function" ? new AbortController() : null;
-    var timer = ctl ? setTimeout(function () { ctl.abort(); }, TIMEOUT) : 0;
+    var timer = ctl ? setTimeout(function () { ctl.abort(); }, ms || TIMEOUT) : 0;
     return (fetchFn || fetch)(API + path, Object.assign({ signal: ctl && ctl.signal, credentials: "omit", referrerPolicy: "no-referrer" }, opts))
       .finally(function () { clearTimeout(timer); });
   }
@@ -50,6 +50,16 @@
       return j && typeof j.f === "string" && SAFE.test(j.f) ? j.f : null;
     } catch (e) { return null; }
   }
+  // The chat preview of a link: the finished picture, sent once by whoever made the link (the delete token proves it).
+  // Never a photo: the caller leaves photo posters out. Any failure keeps the fixed picture of its kind.
+  async function picture(id, blob, store, o) {
+    var e = kept(store.links, 0).filter(function (x) { return x.id === id; })[0];
+    if (!e || !blob) return false;
+    try {
+      var r = await call("/" + id + "/img", { method: "PUT", headers: { Authorization: "Bearer " + e.t, "Content-Type": "image/jpeg" }, body: blob }, o && o.fetch, 8000);
+      return r.status === 204;
+    } catch (x) { return false; }
+  }
   // Gone from the server, or already gone there: forget it here too. Offline: keep the token and say so.
   async function remove(id, store, o) {
     var e = kept(store.links, 0).filter(function (x) { return x.id === id; })[0];
@@ -61,6 +71,6 @@
     store.links = store.links.filter(function (x) { return x.id !== id; });
     return true;
   }
-  var api = { fragmentOf: fragmentOf, shorten: shorten, resolve: resolve, remove: remove, kept: kept, ID_RE: ID_RE };
+  var api = { fragmentOf: fragmentOf, shorten: shorten, picture: picture, resolve: resolve, remove: remove, kept: kept, ID_RE: ID_RE };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.ShortLink = api;
 })(typeof window !== "undefined" ? window : globalThis);

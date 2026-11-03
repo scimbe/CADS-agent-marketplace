@@ -86,10 +86,12 @@
     return t("aiCount", { n: meter.remaining, m: meter.free });
   }
 
-  // One AI action in a panel. o: { kind, label, el, input(), show(option) -> label, apply(option), wall(), hint? }
+  // One AI action in a panel. o: { kind, label, el, input(), show(option) -> label, apply(option), wall(), hint?, noteLast? }
+  // Returns the action itself, so a suggestion can start it with one tap. noteLast: the caller puts the privacy note at the end.
   function block(p, o) {
-    var el = o.el, box = el("div", "aibox"), count = el("p", "aicount", line()), res = el("div", "chips");
-    var go = el("button", "chip", "✨ " + o.label, async function () {
+    var el = o.el, box = el("div", o.noteLast ? "aibox flat" : "aibox"), count = el("p", "aicount", line()), res = el("div", "chips");
+    var go = el("button", "chip" + (o.noteLast ? " hot" : ""), "✨ " + o.label, act);
+    async function act() {
       if (busy) return;
       var input = o.input(); if (!input) { Kit.toast(t("filter")); return; }
       busy = true; go.disabled = true; go.textContent = "… " + t("aiThinking"); res.textContent = ""; src.hidden = true;
@@ -104,11 +106,13 @@
         res.appendChild(el("button", "chip aiopt", o.show(opt), function () { Kit.sfx.pop(); o.apply(opt); }));
       });
       Kit.sfx.pop();
-    }), src = el("p", "note", null);
-    src.hidden = true;
-    var row = el("div", "airow"); row.appendChild(go); row.appendChild(count);
-    box.appendChild(el("p", "note", t("aiNote"))); box.appendChild(row); box.appendChild(src); box.appendChild(res);
+    }
+    var src = el("p", "note", null), row = el("div", "airow");
+    src.hidden = true; row.appendChild(go); row.appendChild(count);
+    if (!o.noteLast) box.appendChild(el("p", "note", t("aiNote")));
+    box.appendChild(row); box.appendChild(src); box.appendChild(res);
     p.appendChild(box);
+    return act;
   }
   // The honest wall: no price, no countdown, nothing to buy yet.
   function wall(b, el) {

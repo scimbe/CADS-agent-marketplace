@@ -75,3 +75,14 @@ test("Wunsch: Duell und Kanal aendern vier Bereiche, Raetsel bleiben unberuehrt 
   assert.equal(m.t, "Schatz"); assert.equal(m.e, "🗺️"); assert.equal(m.q0, q.q0);
   assert.ok(!JSON.stringify(W.request(q, "x", "")).includes(q.q0));
 });
+test("Wunsch aendert das ganze Blatt: lokal jeder Bereich ohne Text, dazu Titel und Untertitel des Blatts", () => {
+  const want = { card: ["stil", "farbe", "sticker"], photo: ["stil", "farbe", "sticker"], sound: ["beat", "stimme", "farbe"], game: ["regeln", "figur", "welt"], duel: ["farbe", "regeln"], quest: ["farbe", "figur"], turn: ["farbe", "figur"] };
+  for (const k of W.KINDS) {
+    const d = of(k), n = W.apply(d, W.local(d, "mach es gruseliger", "de", () => 0), PAIRS, rand), got = D.changedAreas(d, n);
+    for (const a of want[k]) assert.ok(got.includes(a), k + ": " + a + " fehlt in " + got);
+    const ts = W.apply(d, { t: "Gruselnacht", s: "Nur fuer Mutige" }, PAIRS, rand);
+    assert.equal(ts.t, "Gruselnacht", k); assert.equal(ts.s, "Nur fuer Mutige", k); assert.ok(D.changedAreas(d, ts).includes("idee"), k);
+  }
+  const c = W.apply(of("card"), { stickers: ["🎃", "👻"] }, PAIRS, rand), c2 = W.apply(c, { stickers: ["🦇"] }, PAIRS, rand);
+  assert.deepEqual(c2.sk.map((s) => s.e), ["🦇"], "ein zweiter Wunsch stapelt keine Sticker");
+});
