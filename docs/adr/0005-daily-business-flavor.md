@@ -71,6 +71,19 @@ gespeichert nur auf dem Gerät), teilt in eigenen Farben. Passt das Feld nicht m
 | Freitext | Filter `Quest.clean` (keine Telefonnummern, Adressen, Handles) | Derselbe Filter gilt. Auch eine Firmenkarte soll keine Kontaktdaten weitertragen. |
 | Zahlungen | Nur ein PayPal.me-Link. Das Geld läuft nie über uns. | Unverändert. Es gibt keine Konten und keine Zahlungsdaten in der App. |
 
+### Firmennetze
+
+Firmennetze lassen oft nur HTTPS auf Port 443 durch, meist über einen Proxy mit TLS-Inspection. UDP ist dort zu, WebSockets und fremde Domains sind gesperrt. Darauf ist der Build so ausgelegt:
+
+- **Ohne Netz lauffähig.** Die App ist eine einzige Datei mit eingebetteter Schrift, ohne CDN und ohne Anfrage beim Start. Alle Business-Karten reisen im Link und brauchen keinen Server.
+- **Keine Echtzeitkanäle.** „Zusammen bauen“ und Live-Spiele sind im Business-Build ausgeblendet. Damit braucht der Build weder WebSocket noch WebRTC oder UDP. Ein Rückfallpfad von WebSocket auf SSE oder Long-Polling ist deshalb hier nicht nötig. Er wird erst nötig, wenn eine Business-Karte Echtzeit braucht.
+- **Webconference.** Vor dem Öffnen gibt es eine Probe ohne Cookies und ohne Referrer, Frist 3 s. Ist die Webconference gesperrt oder kommt keine Antwort, erscheint sofort „aus diesem Netz nicht erreichbar“, dazu der Hinweis auf Handy ohne WLAN oder auf die IT (Host und Port 443) und ein Knopf zum Kopieren des Links. Einen Proxy, der mit einer eigenen Sperrseite antwortet, erkennt die Probe nicht; dann zeigt der neue Tab diese Seite.
+- **PayPal.** Neben dem Bezahl-Link steht „PayPal gesperrt? Link kopieren und auf dem Handy öffnen“. Eine Probe ist hier nicht möglich, weil die CSP keine Verbindung zu paypal.me erlaubt, und das bleibt so.
+- **Kurze Fristen.** Die Probe hat 3 s, die Spielsatz-Anfrage 4 s. Der KI-Wunsch hat 25 s (ai.js, gemeinsam) und fällt bei Sperre sofort auf lokale Vorschläge zurück.
+- **Getestet** mit Playwright-Routing (`test/e2e/business.e2e.js`). Jeder Host außer der Datei selbst wird einmal abgewiesen (Proxy-Sperre) und einmal stumm verworfen (Firewall-Drop). WebSockets werden geschlossen, das Netz ist auf 600 ms Latenz und 32 KB/s gedrosselt. Geprüft wird, dass der Start ohne Anfrage auskommt, dass die Sperrmeldung in unter 5 s kommt und dass eine Karte vollständig angelegt und geteilt werden kann. Ein Gegentest prüft, dass bei offenem Netz der Tipp die Webconference öffnet.
+
+![Webconference gesperrt](img/0005/biz-blocked.png)
+
 ## Karten (Stand dieses Branches)
 
 | Karte | Logik | Bis zu | Ende |
@@ -79,8 +92,8 @@ gespeichert nur auf dem Gerät), teilt in eigenen Farben. Passt das Feld nicht m
 | Feedback einholen | `office.js: feedback` | 6 Rückmeldungen, Note 1–5, optionaler Satz | Nach der 6. Rückmeldung |
 | Aufgaben verteilen | `office.js: aufgaben` | 2–5 Aufgaben, jede nur einmal | Wenn keine mehr offen ist |
 | Meeting-Agenda + Webconference | `office.js: agenda` | 3 Startpunkte plus 6 Beiträge | Nach dem 6. Beitrag. „Webconference starten“ ab dem ersten Eintrag. |
-| Termin finden | `turns.js: termin` (Branch feat/duell-terminfinder) | – | kommt mit dem Merge |
-| Geld einsammeln | `turns.js: sammeln` (Branch feat/duell-geld-einsammeln) | – | kommt mit dem Merge |
+| Termin finden | `turns.js: termin` (PR #109) | 10 Personen, 2–5 Termine | kommt mit dem Merge, im kombinierten Stand getestet |
+| Geld einsammeln | `turns.js: sammeln` (PR #108) | 1–500 € in Business | kommt mit dem Merge, Regler bis 500 € im kombinierten Stand getestet |
 
 Die Grenzen sind gemessen. Voll belegt mit den längsten Eingaben bleibt jede Karte unter
 `MAX_FRAGMENT`, mit Platz für die Firmenfarbe (`test/office.test.js`).
@@ -105,7 +118,8 @@ Die Screenshots stammen aus `test/e2e/business.e2e.js` (mit `SHOT_DIR`), Pixel 7
    ein Ziel pro App kennt, teilt Business den langen Link (`flavor.json: short: false`). Das echte
    Vorschaubild hängt am Kurzlink und fehlt Business deshalb bis dahin. Nötig ist ein Feld `a`
    (App) im `POST /api/s` und ein Ziel pro App beim Auflösen.
-3. **Gemeinsamer Raum in der Webconference.** Die Webconference kennt keinen Raum per URL. Der Knopf
+3. **Webconference in Firmennetzen.** Die Webconference läuft über WebSocket und WebRTC. Für Firmennetze braucht sie TURN über TLS/TCP 443 (`turns:`) auf der eigenen Domain. Das liegt bei der Webconference, nicht in dieser App.
+4. **Gemeinsamer Raum in der Webconference.** Die Webconference kennt keinen Raum per URL. Der Knopf
    öffnet sie, und verbunden wird über die eigenen Kontakte.
-4. **KI-Wunsch im Business-Ton.** Der Server-Prompt ist auf Jugendliche zugeschnitten. Für Business
+5. **KI-Wunsch im Business-Ton.** Der Server-Prompt ist auf Jugendliche zugeschnitten. Für Business
    braucht es eine eigene Tonlage (Feld `a` wie bei 2).

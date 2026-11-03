@@ -77,6 +77,12 @@ test("Flavor-Build: eigener Katalog, Texte, Farben und Pfad; ohne Flag bleibt di
   const ideas = JSON.parse(fs.readFileSync(path.join(root, "src/flavors/business/ideas.json"), "utf8")).ideas;
   const games = new Set(ideas.map((i) => i.turn.g).filter((g) => Tn.GAMES[g]));
   assert.ok(games.size >= 4 && ideas.filter((i) => Tn.GAMES[i.turn.g]).length >= 5, "mindestens fuenf Karten laufen");
+  // Datenschutz und Firmennetz: genau eine Stelle mehr nach draussen als die Jugend-App, die Erreichbarkeitsprobe der Webconference.
+  const flavorJs = fs.readFileSync(path.join(root, "src/flavors/business/flavor.js"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.equal((flavorJs.match(/\bfetch\(/g) || []).length, 1);
+  assert.match(flavorJs, /return fetch\(url, \{ mode: "no-cors", cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer"/);
+  assert.match(flavorJs, /reach\(CONF\)/); assert.equal((flavorJs.match(/reach\(/g) || []).length, 2, "nur die Webconference wird geprobt");
+  assert.match(html, /"short":false/, "Kurzlinks aus, solange der Server nur \/duell kennt");
   assert.throws(() => execFileSync(process.execPath, [path.join(root, "scripts/build.js"), "--flavor", "nichtda"], { stdio: "pipe" }));
   execFileSync(process.execPath, [path.join(root, "scripts/build.js")]);
   const kid = fs.readFileSync(path.join(root, "dist/index.html"), "utf8");

@@ -48,3 +48,4 @@ h1{transform:none;text-transform:none;font:650 19px/1 var(--disp);letter-spacing
 .orgrow{display:flex;gap:8px;align-items:center;margin-bottom:10px}
 .orgrow input[type=color]{width:52px;height:44px;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:2px}
 #mute{display:none}
+#cogo,#livego{display:none!important}   /* no live channels here: company networks block WebSockets and UDP */

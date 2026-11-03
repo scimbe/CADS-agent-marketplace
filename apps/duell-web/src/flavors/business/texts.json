@@ -21,7 +21,14 @@
   "org_off": "Ohne Branding",
   "org_from": "Geteilt von {n}",
   "go_turn": "Anlegen",
-  "tabMove": "Eintrag"
+  "tabMove": "Eintrag",
+  "net_check": "Verbindung wird geprüft …",
+  "net_h": "Nicht erreichbar",
+  "net_conf": "Die Webconference ist aus diesem Netz nicht erreichbar. Firmennetze sperren sie manchmal.",
+  "net_try": "Öffne den Link auf dem Handy ohne WLAN oder frag eure IT nach webconference.bunsenbrenner.org (HTTPS, Port 443).",
+  "net_copy": "Link kopieren",
+  "net_back": "Zurück",
+  "net_pay": "PayPal gesperrt? Link kopieren und auf dem Handy öffnen."
  },
  "en": {
   "brand": "Daily Business",
@@ -45,6 +52,13 @@
   "org_off": "No branding",
   "org_from": "Shared by {n}",
   "go_turn": "Create",
-  "tabMove": "Entry"
+  "tabMove": "Entry",
+  "net_check": "Checking the connection …",
+  "net_h": "Not reachable",
+  "net_conf": "The web conference cannot be reached from this network. Company networks sometimes block it.",
+  "net_try": "Open the link on your phone without Wi-Fi, or ask your IT about webconference.bunsenbrenner.org (HTTPS, port 443).",
+  "net_copy": "Copy link",
+  "net_back": "Back",
+  "net_pay": "PayPal blocked? Copy the link and open it on your phone."
  }
 }

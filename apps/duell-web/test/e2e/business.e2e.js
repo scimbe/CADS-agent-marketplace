@@ -95,3 +95,48 @@ test("Die Jugend-App bleibt wie sie ist und oeffnet trotzdem einen Business-Link
   await y.locator("#go").click(); await y.locator("#panel input[type=range]").waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+
+// Company network: only the file itself loads; every other host is refused by the proxy or silently dropped,
+// WebSockets are cut, and what does come through is slow. Nothing may hang, every block is said out loud.
+async function firewalled(b, mode) {
+  const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), errs = [], asked = [];
+  ctx.setDefaultTimeout(15000);
+  await ctx.route("**/*", (r) => {
+    const u = r.request().url(); if (u.startsWith("file:")) return r.continue();
+    asked.push(u); return mode === "drop" ? undefined : r.abort("blockedbyclient");   // drop: no answer at all
+  });
+  await ctx.routeWebSocket(/.*/, (ws) => { asked.push(ws.url()); ws.close(); });
+  const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e)));
+  const cdp = await ctx.newCDPSession(p);
+  await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 600, downloadThroughput: 32 * 1024, uploadThroughput: 16 * 1024 });
+  return { p, errs, asked };
+}
+for (const mode of ["refuse", "drop"]) {
+  test("Firmennetz (" + mode + "): Karten laufen ohne Netz, Webconference sagt in Sekunden, dass sie gesperrt ist", async () => {
+    const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+    const { p, errs, asked } = await firewalled(b, mode);
+    const t0 = Date.now(); await p.goto(page); await p.locator("#go").waitFor();
+    assert.ok(Date.now() - t0 < 5000, "Startseite haengt am Netz");
+    assert.equal(await p.locator("#cogo").isVisible(), false); assert.equal(await p.locator("#livego").isVisible(), false);
+    const t1 = Date.now();
+    await p.locator("#feat button", { hasText: "Webconference" }).click();
+    await p.getByText("Die Webconference ist aus diesem Netz nicht erreichbar").waitFor({ timeout: 6000 });
+    assert.ok(Date.now() - t1 < 5000, "Rueckmeldung zu spaet: " + (Date.now() - t1) + " ms");
+    assert.ok(asked.every((u) => u.startsWith("https://webconference.bunsenbrenner.org/")), "nur der eine Tipp geht raus: " + asked.join(" "));
+    if (shot && mode === "refuse") await p.screenshot({ path: shot + "/biz-blocked.png" });
+    await p.goto(page + "#i=biz-aufgaben"); await p.locator("#go").click();
+    await type(p, "Umzug"); const f = p.locator("#panel input.field"); await f.nth(0).fill("Kisten"); await f.nth(1).fill("Transporter"); await next(p);
+    assert.match(await send(p), /#c=/);
+    assert.deepEqual(errs, []); await b.close();
+  });
+}
+test("Firmennetz offen fuer die eigene Domain: der Tipp oeffnet die Webconference", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" });
+  await ctx.route("https://webconference.bunsenbrenner.org/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<title>WC</title>" }));
+  const p = await ctx.newPage(); await p.goto(page);
+  const [tab] = await Promise.all([ctx.waitForEvent("page"), p.locator("#feat button", { hasText: "Webconference" }).click()]);
+  await tab.waitForLoadState(); assert.equal(tab.url(), "https://webconference.bunsenbrenner.org/");
+  assert.equal(await p.getByText("nicht erreichbar").count(), 0);
+  await b.close();
+});

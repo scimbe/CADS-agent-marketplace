@@ -85,12 +85,47 @@ R.extra.turn = function (c, W, H, doc) {
   if (st.over || st.turn) c.fillText(st.over ? L.note_over : String(L.picture_turn).replace("{n}", st.turn).replace("{m}", st.total), p, H - p * 1.1);
 };
 
-/* ---------- a card that leads to a meeting offers the call ---------- */
+/* ---------- company networks: only 443, often a proxy, sometimes the conference or PayPal is blocked ---------- */
+// One look at the host before leaving, without cookies or referrer and with a short deadline: an answer of any kind
+// means the network lets it through; a refusal or silence means it does not, and the person hears it at once.
+// A proxy that answers with its own block page cannot be told apart here; then the new tab shows that page.
+var REACH_MS = 3000;
+function reach(url) {
+  var ctl = new AbortController(), tm = setTimeout(function () { ctl.abort(); }, REACH_MS);
+  return fetch(url, { mode: "no-cors", cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer", signal: ctl.signal })
+    .then(function () { return true; }, function () { return false; }).finally(function () { clearTimeout(tm); });
+}
+var going = false;
+async function conference() {
+  if (going) return; going = true; Kit.toast(t("net_check"));
+  try {
+    if (!(await reach(CONF))) { blocked(t("net_conf")); return; }
+    if (!window.open(CONF, "_blank", "noopener")) location.href = CONF;
+  } finally { going = false; }
+}
+function blocked(text) {
+  A.shelf(t("net_h"), function (b) {
+    b.appendChild(el("p", "qtext", text)); b.appendChild(el("p", "note", t("net_try")));
+    b.appendChild(el("button", "btn hot", t("net_copy"), async function () { if (await Kit.copy(CONF)) Kit.toast(t("copied")); }));
+    b.appendChild(el("button", "btn", t("net_back"), function () { history.back(); }));
+  });
+}
+// The feature row is drawn again on every language switch, so its conference button is caught here instead of rebuilt.
+$("feat").addEventListener("click", function (e) {
+  var b = e.target.closest("button"); if (!b || b.textContent.indexOf(t("f_conf")) < 0) return;
+  e.stopImmediatePropagation(); conference();
+}, true);
+
+/* ---------- a card that leads to a meeting offers the call; a payment link says what to do if PayPal is blocked ---------- */
 var move = A.PANEL.Move;
 A.PANEL.Move = function (p) {
   move(p);
-  var ed = A.ed(), g = ed && Tn.GAMES[ed.doc.g];
-  if (g && g.call && Tn.moves(ed.doc).length) p.appendChild(el("button", "btn", Tn.T(Kit.lang).age_call, function () { if (!window.open(CONF, "_blank", "noopener")) location.href = CONF; }));
+  var ed = A.ed(), g = ed && Tn.GAMES[ed.doc.g], pay = p.querySelector("#paylink");
+  if (g && g.call && Tn.moves(ed.doc).length) p.appendChild(el("button", "btn", Tn.T(Kit.lang).age_call, conference));
+  if (pay) {
+    p.appendChild(el("p", "note", t("net_pay")));
+    p.appendChild(el("button", "btn", t("net_copy"), async function () { if (await Kit.copy(pay.href)) Kit.toast(t("copied")); }));
+  }
 };
 
 /* ---------- header: the logo opens the settings, the blank sheet opens the templates ---------- */
