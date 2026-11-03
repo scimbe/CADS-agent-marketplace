@@ -75,3 +75,18 @@ test("Wunsch: Duell und Kanal aendern vier Bereiche, Raetsel bleiben unberuehrt 
   assert.equal(m.t, "Schatz"); assert.equal(m.e, "🗺️"); assert.equal(m.q0, q.q0);
   assert.ok(!JSON.stringify(W.request(q, "x", "")).includes(q.q0));
 });
+test("Adventstuerchen: Wunsch aendert Botschaft, Farben, Sticker, Stil und Titel/Untertitel auf einmal, Nummer bleibt", () => {
+  const d = D.sanitizeDoc({ ...D.docFromIdea(D.byId("advent-tuer"), me, "de"), st: "zettel" }), nr = d.nr;
+  const n = W.apply(d, { x: "Frohe Weihnachten!", st: "advent", colors: ["#b3001b", "#ffffff"], stickers: ["🎄", "⭐", "🎁"], t: "Tür voller Schnee", s: "Tipp drauf, es schneit.", nr: 3 }, PAIRS, rand);
+  assert.equal(n.x, "Frohe Weihnachten!"); assert.equal(n.st, "advent"); assert.deepEqual(n.col, ["#b3001b", "#ffffff"]);
+  assert.deepEqual(n.sk.map((s) => s.e), ["🎄", "⭐", "🎁"]); assert.equal(n.t, "Tür voller Schnee"); assert.equal(n.s, "Tipp drauf, es schneit.");
+  assert.equal(n.nr, nr, "die Nummer waehlt nur der Mensch");
+  assert.deepEqual(D.changedAreas(d, n).sort(), ["farbe", "idee", "sticker", "stil", "text"]);
+});
+test("Adventstuerchen: ohne Server macht ein weihnachtlicher Wunsch Stil, Farben und Sticker weihnachtlich", () => {
+  const d = D.sanitizeDoc({ ...D.docFromIdea(D.byId("advent-tuer"), me, "de"), st: "druck", col: ["#ffd400", "#ff3b1d"] });
+  for (const w of ["Sehr weihnachtlich", "Verschneit und gemütlich", "very christmassy"]) {
+    const n = W.apply(d, W.local(d, w, "de", () => 1), PAIRS, rand);
+    assert.equal(n.st, "advent", w); assert.deepEqual(n.col, ["#0f5132", "#ffd400"]); assert.ok(n.sk.every((s) => D.SETS.advent.includes(s.e)) && n.sk.length, w);
+  }
+});

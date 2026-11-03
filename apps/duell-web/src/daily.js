@@ -7,12 +7,12 @@
   var Quest = typeof module !== "undefined" && module.exports ? require("./quest.js") : root.Quest;
   var Turns = typeof module !== "undefined" && module.exports ? require("./turns.js") : root.Turns;
   var IDEAS = DATA.ideas, GATED = DATA.gated || [], BONUS_EVERY = 6, ORDER_TRIES = 200;
-  var ROUND = IDEAS.filter(function (i) { return !i.on; });   // calendar ideas ("on": "MM-DD") only appear on their day
+  var ROUND = IDEAS.filter(function (i) { return !i.on; });   // calendar ideas ("on": "MM-DD" or a list of them) only appear on their days
   var ROUND_KINDS = ROUND.map(function (i) { return i.kind; }).filter(function (k, i, a) { return a.indexOf(k) === i; }).sort();
   var ID_RE = /^[a-z0-9-]{1,32}$/, MAX_WALL = 30, MAX_THUMB = 60000, MAX_TEXT = 90;
   var DAY = 86400000;
   var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn"];
-  var STYLES = { card: ["druck", "zettel", "stempel", "neon"], photo: ["poster", "sticker", "meme", "glitch"] };
+  var STYLES = { card: ["druck", "zettel", "stempel", "neon", "advent"], photo: ["poster", "sticker", "meme", "glitch"] };
   var FX = ["chip", "monster", "robot", "echo"];
   var AREAS = ["text", "farbe", "stil", "sticker", "foto", "beat", "stimme", "regeln", "figur", "welt", "idee"];
   var HEX = /^#[0-9a-f]{6}$/;
@@ -69,7 +69,7 @@
   function baseIdea(n) { var len = ROUND.length; return roundOrder(Math.floor(n / len))[((n % len) + len) % len]; }
   function calendarIdea(n) {
     var md = C.dailyKey(new Date(n * DAY)).slice(5);
-    for (var k = 0; k < IDEAS.length; k++) if (IDEAS[k].on === md) return IDEAS[k];
+    for (var k = 0; k < IDEAS.length; k++) if ([].concat(IDEAS[k].on || []).indexOf(md) >= 0) return IDEAS[k];
     return null;
   }
   // Everyone sees the same day; a device only departs from it where it must. The round already keeps kinds apart, so a
@@ -161,7 +161,7 @@
   var SETS = {
     tiere: ["🐸", "🦆", "🐙", "🦝", "🐌", "🦖"], essen: ["🍕", "🌮", "🍩", "🥨", "🍟", "🧃"],
     weltall: ["🚀", "🛸", "👽", "🪐", "🌟", "☄️"], chaos: ["💥", "🔥", "💀", "🤡", "🌀", "⚡"],
-    grusel: ["🎃", "👻", "🦇", "🕷️", "🧛", "🕸️"]
+    grusel: ["🎃", "👻", "🦇", "🕷️", "🧛", "🕸️"], advent: ["🎄", "⭐", "🎁", "❄️", "⛄", "🍪"]
   };
   function sanitizeProfile(p) {
     p = p && typeof p === "object" ? p : {};
@@ -174,6 +174,8 @@
   // ---------- creation ("doc"): what the editor changes and what travels in a link ----------
   function num(v, r, d) { return Math.round(C.clampNum(v, r[0], r[1], d)); }
   function txt(v, max) { return cleanInput(v, max); }
+  // An Advent door carries its number 1-24. Before December and after the 24th the door to make is the first one.
+  function doorNumber(date) { var d = date instanceof Date ? date : new Date(); return d.getUTCMonth() === 11 && d.getUTCDate() <= 24 ? d.getUTCDate() : 1; }
   function steps(v) { return typeof v === "string" && /^[x-]{16}$/.test(v) ? v : "----------------"; }
   function sanitizeStickers(a) {
     return (Array.isArray(a) ? a : []).slice(0, MAX_STICKERS).map(function (s) {
@@ -204,6 +206,7 @@
     if (o.k === "card") {
       d.x = txt(o.x, MAX_TEXT); d.st = STYLES.card.indexOf(o.st) >= 0 ? o.st : "druck"; d.sk = sanitizeStickers(o.sk);
       var w = sanitizeWeather(o.w); if (w) d.w = w;
+      if (o.nr !== undefined) d.nr = num(o.nr, [1, 24], 1);
     } else if (o.k === "photo") {
       d.x = txt(o.x, 28); d.y = txt(o.y, 28); d.st = STYLES.photo.indexOf(o.st) >= 0 ? o.st : "poster"; d.sk = sanitizeStickers(o.sk);
     } else if (o.k === "sound") {
@@ -224,7 +227,7 @@
   }
   function docFromIdea(idea, profile, lang) {
     var L = idea[lang] || idea.de, plain = L.t.replace("|", " ").trim(), base = { k: idea.kind, i: idea.id, col: profile.colors, by: [] };
-    if (idea.kind === "card") { base.x = L.lines[0]; base.st = idea.style || "druck"; base.sk = []; if (idea.col) base.col = idea.col; }
+    if (idea.kind === "card") { base.x = L.lines[0]; base.st = idea.style || "druck"; base.sk = []; if (idea.col) base.col = idea.col; if (idea.door) base.nr = doorNumber(); }
     if (idea.kind === "photo") { base.x = L.top; base.y = L.bottom; base.st = idea.photo.mode; base.sk = []; }
     if (idea.kind === "sound") { var s = idea.sound; base.m = s.mode; base.x = plain.slice(0, 28); base.fx = s.fx || "chip"; base.bpm = s.bpm || 110; base.p = { k: s.k || "x---x---x---x---", s: s.s || "----x-------x---", h: s.h || "x-x-x-x-x-x-x-x-", b: s.b || "----------------" }; }
     if (idea.kind === "game") { var g = idea.game; base.g = { seed: g.seed, params: g.params, theme: g.theme, title: plain, emoji: g.emoji, look: g.look }; }
@@ -241,7 +244,7 @@
   function changedAreas(a, b) {
     var w = [];
     function ne(x, y) { return JSON.stringify(x) !== JSON.stringify(y); }
-    if (a.x !== b.x || a.y !== b.y || ne(a.w, b.w)) w.push("text");
+    if (a.x !== b.x || a.y !== b.y || a.nr !== b.nr || ne(a.w, b.w)) w.push("text");
     if (ne(a.col, b.col)) w.push("farbe");
     if (a.st !== b.st) w.push("stil");
     if (ne(a.sk, b.sk)) w.push("sticker");
@@ -297,7 +300,7 @@
   var api = {
     IDEAS: IDEAS, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays,
     randomIdea: randomIdea, paperIndex: paperIndex, sanitizeId: sanitizeId, parseRoute: parseRoute, inviteUrl: inviteUrl, challengeUrl: challengeUrl,
-    cleanInput: cleanInput, sanitizeProfile: sanitizeProfile, sanitizeDoc: sanitizeDoc, docFromIdea: docFromIdea, blankDoc: blankDoc,
+    cleanInput: cleanInput, sanitizeProfile: sanitizeProfile, sanitizeDoc: sanitizeDoc, doorNumber: doorNumber, docFromIdea: docFromIdea, blankDoc: blankDoc,
     changedAreas: changedAreas, withTrail: withTrail, docUrl: docUrl, SETS: SETS, STYLES: STYLES, FX: FX, MAX_STICKERS: MAX_STICKERS, sanitizeWall: sanitizeWall, addToWall: addToWall, ideaStrings: ideaStrings
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

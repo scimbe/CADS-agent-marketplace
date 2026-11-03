@@ -176,8 +176,41 @@ test("Plan: 30 Tage ab 2. November, jeden Tag eine eigene Idee, nie zweimal dies
   const seen = new Set(); let prev = "";
   for (let i = 0; i < 30; i++) {
     const day = new Date(Date.UTC(2026, 10, 2 + i)), idea = D.ideaForDay(day, { crypto: true, channel: false, call: false });
-    assert.match(idea.id, /^(plan|zug)-/, day.toISOString()); assert.ok(!seen.has(idea.id)); seen.add(idea.id);
+    assert.match(idea.id, /^(plan|zug)-|^advent-tuer$/, day.toISOString()); assert.ok(!seen.has(idea.id)); seen.add(idea.id);
     assert.notEqual(idea.kind, prev, idea.id); prev = idea.kind;
   }
   assert.ok(D.IDEAS.filter((i) => /^plan-/.test(i.id) && i.live).length >= 15, "mindestens die Haelfte fuehrt zu einem echten Dienst");
+});
+test("Adventstuerchen: am 1., 6., 13., 20. und 24. Dezember, sonst nie; Dezember ohne gleiche Art hintereinander", () => {
+  const DAYS = ["12-01", "12-06", "12-13", "12-20", "12-24"];
+  for (const year of [2026, 2027, 2030]) {
+    let prev = null;
+    for (let d = 0; d < 32; d++) {
+      const day = new Date(Date.UTC(year, 10, 30 + d)), key = day.toISOString().slice(5, 10);
+      for (const c of [{ crypto: true }, { crypto: false }, { crypto: true, call: true }]) {
+        const idea = D.ideaForDay(day, c);
+        if (DAYS.includes(key)) assert.equal(idea.id, "advent-tuer", year + "-" + key); else assert.notEqual(idea.id, "advent-tuer", year + "-" + key);
+      }
+      const idea = D.ideaForDay(day, { crypto: true });
+      if (prev) assert.notEqual(idea.kind, prev.kind, year + "-" + key + ": " + prev.id + " und " + idea.id);
+      prev = idea;
+    }
+  }
+  for (let i = 0; i < 2000; i++) assert.notEqual(D.randomIdea(Math.random, "").id, "advent-tuer");
+});
+test("Adventstuerchen: Nummer 1 bis 24 reist im Link, Vorbelegung ist der Dezembertag, sonst 1", () => {
+  assert.equal(D.doorNumber(new Date("2026-12-06T10:00:00Z")), 6);
+  assert.equal(D.doorNumber(new Date("2026-12-24T23:59:00Z")), 24);
+  assert.equal(D.doorNumber(new Date("2026-12-25T10:00:00Z")), 1);
+  assert.equal(D.doorNumber(new Date("2026-11-03T10:00:00Z")), 1);
+  const doc = D.docFromIdea(D.byId("advent-tuer"), D.sanitizeProfile({}), "de");
+  assert.equal(doc.k, "card"); assert.equal(doc.st, "advent"); assert.ok(doc.nr >= 1 && doc.nr <= 24);
+  assert.deepEqual(doc.col, ["#0f5132", "#ffd400"]); assert.ok(D.STYLES.card.includes("advent"));
+  for (const e of ["🎄", "⭐", "🎁", "❄️", "⛄"]) assert.ok(D.SETS.advent.includes(e), e);
+  for (const [v, want] of [[7, 7], [0, 1], [99, 24], ["12", 12], [3.6, 4], ["x", 1]]) assert.equal(D.sanitizeDoc({ ...doc, nr: v }).nr, want, String(v));
+  assert.equal(D.sanitizeDoc({ k: "card", x: "Hallo" }).nr, undefined, "normale Karte bekommt keine Nummer");
+  assert.equal(D.sanitizeDoc({ k: "photo", nr: 5 }).nr, undefined);
+  const r = D.parseRoute(D.docUrl({ ...doc, nr: 17, x: "Für dich" }).split("#")[1].replace(/^/, "#"));
+  assert.equal(r.type, "doc"); assert.equal(r.doc.nr, 17); assert.equal(r.doc.x, "Für dich"); assert.equal(r.doc.st, "advent");
+  assert.deepEqual(D.changedAreas(doc, { ...doc, nr: doc.nr % 24 + 1 }), ["text"]);
 });

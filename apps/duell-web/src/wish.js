@@ -32,6 +32,7 @@
       if (ch.theme) d.g.theme = ch.theme; if (ch.emoji) d.g.emoji = ch.emoji; if (ch.title) d.g.title = ch.title;
     } else {
       ["x", "y", "st", "bpm", "fx"].forEach(function (k) { if (ch[k] !== undefined && d[k] !== undefined) d[k] = ch[k]; });
+      if (d.k === "card") { if (ch.t) d.t = ch.t; if (ch.s) d.s = ch.s; }
       if (d.p) ["k", "s", "h", "b"].forEach(function (k) { if (ch[k]) d.p[k] = ch[k]; });
       if (d.sk && ch.stickers) ch.stickers.forEach(function (e) {
         if (d.sk.length < D.MAX_STICKERS) d.sk.push({ e: e, x: 0.15 + rand() * 0.7, y: 0.15 + rand() * 0.65, r: (rand() - 0.5) * 0.7, z: 0.8 + rand() * 0.7 });
@@ -52,6 +53,7 @@
     var hit = LOOKS.filter(function (x) { return x[0].test(wish); })[0] || LOOKS[pick(LOOKS.length)];
     return { fig: hit[1], look: hit[2] };
   }
+  var XMAS = /weihnacht|advent|christmas|xmas|nikolaus|santa|tanne|schnee|verschneit|snow|winter|festlich|gemütlich|cosy|cozy|stern|star|gold/i;
   // No server, no model: still a visible answer from fixed rules. Costs nothing.
   function local(doc, wish, lang, pick) {
     if (doc.k === "game") {
@@ -64,6 +66,7 @@
       return doc.k === "duel" ? { palette: pick(8), be: e, ae: D.SETS.weltall[pick(6)] } : { palette: pick(8), e: e };
     }
     if (doc.k === "sound") { var slow = /langsam|ruhig|slow|chill/i.test(wish); return { bpm: Math.max(70, Math.min(170, doc.bpm + (slow ? -20 : 20))) }; }
+    if (doc.k === "card" && XMAS.test(wish)) return { st: "advent", colors: ["#0f5132", "#ffd400"], stickers: D.SETS.advent.slice(0, 3) };
     var list = D.STYLES[doc.k], st = list[(list.indexOf(doc.st) + 1) % list.length];
     return { st: st, palette: pick(8) };
   }
