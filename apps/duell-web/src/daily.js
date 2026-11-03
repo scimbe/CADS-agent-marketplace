@@ -11,8 +11,9 @@
   var ROUND_KINDS = ROUND.map(function (i) { return i.kind; }).filter(function (k, i, a) { return a.indexOf(k) === i; }).sort();
   var ID_RE = /^[a-z0-9-]{1,32}$/, MAX_WALL = 30, MAX_THUMB = 60000, MAX_TEXT = 90;
   var DAY = 86400000;
-  var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn"];
-  var STYLES = { card: ["druck", "zettel", "stempel", "neon", "advent"], photo: ["poster", "sticker", "meme", "glitch"] };
+  var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn", "table"];
+  var PLAY = ["arcade"];   // days that are only played (arcade-ui.js), never edited, wished for or sent as a creation
+  var STYLES = { card: ["druck", "zettel", "stempel", "neon", "herz", "advent"], photo: ["poster", "sticker", "meme", "glitch"] };
   var FX = ["chip", "monster", "robot", "echo"];
   var AREAS = ["text", "farbe", "stil", "sticker", "foto", "beat", "stimme", "regeln", "figur", "welt", "idee"];
   var HEX = /^#[0-9a-f]{6}$/;
@@ -99,6 +100,33 @@
     for (var i = 1; i <= n; i++) { var d = dayDate(date, i); out.push({ date: d, key: C.dailyKey(d), idea: ideaForDay(d) }); }
     return out;
   }
+  // ---------- search ----------
+  // Case, umlauts and accents do not matter: "Rätsel", "RAETSEL" and "raetsel" are the same word before comparing. A title
+  // broken as "Geister-|schicht" reads as one word again.
+  function fold(s) {
+    return String(s == null ? "" : s).toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-?\|/g, function (m) { return m === "|" ? " " : ""; }).replace(/\u00ad/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  }
+  // Title, subtitle, kind and tags in both languages; names maps a kind to its shown words. A new entry in ideas.json is
+  // found as soon as it is there, with the day it last came up if that was within the last year.
+  var SEARCH_DAYS = 365, MAX_HITS = 30;
+  function searchIdeas(query, date, names, c) {
+    var words = fold(query).split(" ").filter(Boolean);
+    if (!words.length) return [];
+    c = c || caps();
+    var hits = IDEAS.concat(GATED).filter(function (i) {
+      if (!available(i, c)) return false;
+      var parts = [i.kind].concat(i.tags || [], (names && names[i.kind]) || []);
+      ["de", "en"].forEach(function (l) { var L = i[l] || {}; parts = parts.concat(L.t, L.s, L.tags || []); });
+      var hay = fold(parts.join(" "));
+      return words.every(function (w) { return hay.indexOf(w) >= 0; });
+    });
+    if (!hits.length) return [];
+    var last = {}, n0 = dayNumber(date);
+    for (var b = 1; b <= SEARCH_DAYS; b++) { var x = ideaOn(n0 - b, c); if (x && !last[x.id]) last[x.id] = n0 - b; }
+    return hits.map(function (i) { return { idea: i, date: last[i.id] ? new Date(last[i.id] * DAY) : null }; })
+      .sort(function (a, b) { return (b.date ? b.date.getTime() : -1) - (a.date ? a.date.getTime() : -1); }).slice(0, MAX_HITS);
+  }
   function randomIdea(rnd, notId) {
     var pool = ROUND.concat(GATED).filter(function (i) { return i.id !== notId && available(i); });
     return pool[Math.floor(rnd() * pool.length)];
@@ -161,7 +189,8 @@
   var SETS = {
     tiere: ["🐸", "🦆", "🐙", "🦝", "🐌", "🦖"], essen: ["🍕", "🌮", "🍩", "🥨", "🍟", "🧃"],
     weltall: ["🚀", "🛸", "👽", "🪐", "🌟", "☄️"], chaos: ["💥", "🔥", "💀", "🤡", "🌀", "⚡"],
-    grusel: ["🎃", "👻", "🦇", "🕷️", "🧛", "🕸️"], advent: ["🎄", "⭐", "🎁", "❄️", "⛄", "🍪"]
+    grusel: ["🎃", "👻", "🦇", "🕷️", "🧛", "🕸️"], herz: ["💛", "🌻", "✨", "🫶", "🌈", "☀️"],
+    advent: ["🎄", "⭐", "🎁", "❄️", "⛄", "🍪"]
   };
   function sanitizeProfile(p) {
     p = p && typeof p === "object" ? p : {};
@@ -218,6 +247,8 @@
       Quest.sanitize(o, d);
     } else if (o.k === "turn") {
       Turns.sanitize(o, d);
+    } else if (o.k === "table") {
+      d.g = o.g === "skat" ? "skat" : "doko";
     } else {
       var g = C.sanitizeState({ v: 1, seed: o.g && o.g.seed, params: o.g && o.g.params, theme: o.g && o.g.theme, title: o.g && o.g.title, emoji: o.g && o.g.emoji, look: o.g && o.g.look });
       d.g = { seed: g.seed, params: g.params, theme: g.theme, title: g.title, emoji: g.emoji };
@@ -234,6 +265,9 @@
     if (idea.kind === "duel") Duel.fromIdea(idea, profile, lang, base);
     if (idea.kind === "quest") Quest.fromIdea(idea, lang, base);
     if (idea.kind === "turn") Turns.fromIdea(idea, lang, base);
+    if (idea.kind === "table") base.g = idea.table.game;
+    // Played in arcade-ui.js, never edited or sent: no link ever carries such a doc, so sanitizeDoc keeps refusing it.
+    if (idea.kind === "arcade") { base.a = idea.arcade.g; return base; }
     return sanitizeDoc(base);
   }
   function blankDoc(kind, profile, lang) {
@@ -282,7 +316,11 @@
     return list.filter(function (e) {
       return e && typeof e === "object" && (sanitizeId(e.id) || e.id === "own") && typeof e.ts === "number" &&
         typeof e.th === "string" && e.th.length <= MAX_THUMB && /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(e.th);
-    }).slice(0, MAX_WALL).map(function (e) { return { id: e.id, ts: e.ts, th: e.th }; });
+    }).slice(0, MAX_WALL).map(function (e) {
+      var o = { id: e.id, ts: e.ts, th: e.th };   // f: the link of a work kept with Merken, only a c= fragment
+      if (typeof e.f === "string" && e.f.length <= C.MAX_FRAGMENT && /^c=[A-Za-z0-9_-]+={0,2}$/.test(e.f)) o.f = e.f;
+      return o;
+    });
   }
   function addToWall(list, entry) { return sanitizeWall([entry].concat(list)); }
 
@@ -298,7 +336,7 @@
   }
 
   var api = {
-    IDEAS: IDEAS, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays,
+    IDEAS: IDEAS, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, PLAY: PLAY, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays, fold: fold, searchIdeas: searchIdeas,
     randomIdea: randomIdea, paperIndex: paperIndex, sanitizeId: sanitizeId, parseRoute: parseRoute, inviteUrl: inviteUrl, challengeUrl: challengeUrl,
     cleanInput: cleanInput, sanitizeProfile: sanitizeProfile, sanitizeDoc: sanitizeDoc, doorNumber: doorNumber, docFromIdea: docFromIdea, blankDoc: blankDoc,
     changedAreas: changedAreas, withTrail: withTrail, docUrl: docUrl, SETS: SETS, STYLES: STYLES, FX: FX, MAX_STICKERS: MAX_STICKERS, sanitizeWall: sanitizeWall, addToWall: addToWall, ideaStrings: ideaStrings

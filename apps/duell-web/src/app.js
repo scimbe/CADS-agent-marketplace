@@ -1,7 +1,7 @@
 /* Calendar, remix editor, my style, wall. All text goes in as text nodes, never as markup. */
 (function () {
 "use strict";
-var C = window.DuellCore, D = window.Daily, W = window.Wish, P = window.Playable, S = window.Studio, Kit = window.Kit, G = window.Game, R = window.Render, t = Kit.t;
+var C = window.DuellCore, D = window.Daily, W = window.Wish, WM = window.Warm, P = window.Playable, S = window.Studio, Kit = window.Kit, G = window.Game, R = window.Render, t = Kit.t;
 var $ = function (id) { return document.getElementById(id); };
 function el(tag, cls, text, on) {
   var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text;
@@ -52,28 +52,38 @@ function fillSheet(root, h, still) {
   else if (doc.k === "turn" && !doc.t && D.byId(doc.i)) { var Li = ideaText(D.byId(doc.i)); title = Li.t.split("|"); sub = doc.s || Li.s; kind = doc.k; min = D.byId(doc.i).min; }
   else { title = (doc.t || doc.x || (doc.g && doc.g.title) || t("own")).split(/\s+/).reduce(function (a, w) { if (a.length && (a[a.length - 1] + " " + w).length < 13) a[a.length - 1] += " " + w; else a.push(w); return a; }, []).slice(0, 4); sub = doc.s || ""; kind = doc.k; min = 60; }
   q("dkind").textContent = t(kind) + "\n" + (min >= 120 ? t("mins", { n: Math.round(min / 60) }) : t("sec", { n: min }));
-  var hero = q("hero"); hero.textContent = "";
+  var mode = doc && X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
+  // Something sent by a friend: the sheet is that work, big. Its text stands in the picture, so the title shows only
+  // when the sheet has one of its own.
+  var got = !!(doc && h.note && !mode); root.classList.toggle("got", got);
+  var hero = q("hero"); hero.textContent = ""; hero.hidden = got && !doc.t;
   title.filter(Boolean).forEach(function (l, i) { var s = el("span", "", l); s.style.setProperty("--i", i); hero.appendChild(s); });
   q("teaser").textContent = sub;
   var from = q("from");
   if (h.note) { from.textContent = h.note; from.hidden = false; } else from.hidden = true;
-  var mode = doc && X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
   if (mode) { from.textContent = mode.note; from.hidden = false; }
   preview(root, doc || D.docFromIdea(idea, me, Kit.lang), still);
   fitHero(hero);
-  return { kind: kind, mode: mode };
+  return { kind: kind, mode: mode, got: got };
 }
 function setHome(h, animate) {
   home = h;
   var s = fillSheet($("leaf"), h, false), kind = s.kind, mode = s.mode, idea = h.idea;
-  $("go").textContent = mode ? mode.go : t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
+  $("go").textContent = mode ? mode.go : idea && idea.protokoll && !h.doc ? t("go_protokoll") : s.got ? t("remixGo") : t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
   $("wishgo").textContent = t("wishHome"); $("wishgo").hidden = !!mode || W.KINDS.indexOf(kind) < 0;
   var live = idea && idea.live, lb = $("livego"); lb.hidden = !live; if (live) { lb.textContent = t("live_" + live); lb.dataset.u = LIVE[live]; }
-  var leaf = $("leaf"); leaf.className = ""; leaf.style.transform = ""; leaf.style.opacity = "";
+  var leaf = $("leaf"); leaf.className = s.got ? "got" : ""; leaf.style.transform = ""; leaf.style.opacity = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
+  WM.sheet(h, s.got, animate);
 }
 var LIVE = { conf: "https://webconference.bunsenbrenner.org/", tunnel: "https://bunsenbrenner.org/", demos: "https://demos-34a13a96.bunsenbrenner.org/", nordwind: "https://a2a-demo.bunsenbrenner.org/" };
-function openLive(url) { if (!window.open(url, "_blank", "noopener")) location.href = url; }
+function openLive(url) { if (url === LIVE.conf) url = C.confLink(me.colors); if (!window.open(url, "_blank", "noopener")) location.href = url; }
+// Fast Easy Protokoll records on its own page (cross-origin isolated, connect-src 'self'), on the gallery's origin.
+// From the web page that is this origin; from an app shell (file:, appassets) it is the origin of the gallery API.
+function protokollUrl() {
+  var base = location.protocol === "https:" ? "" : new URL(C.DEFAULT_API).origin;
+  return base + "/duell/protokoll?lang=" + Kit.lang;
+}
 // The day is shown as the real thing: a game flies by itself (on the greyed sheet it stands still), everything else is
 // drawn like its finished picture.
 function preview(root, doc, still) {
@@ -83,17 +93,32 @@ function preview(root, doc, still) {
   try {
     if (doc.k === "game") { g.hidden = false; var st = C.sanitizeState(Object.assign({ v: 1 }, doc.g)); if (still) G.still(g, st); else G.demo(g, st); return; }
     c.hidden = false;
+    if (window.ArcadeUI) window.ArcadeUI.demo(c, doc.k === "arcade" ? doc.a : null, still);   // null ends a running duel preview
+    if (doc.k === "arcade") return;
     R.draw(c, doc, { me: me, photo: doc.k === "photo" ? R.botFace(C.hash32(doc.x || "x"), doc.col[1]) : null, peaks: null, x: {} });
   } catch (e) { box.hidden = true; }
 }
+// A flavor (the business app) may show only some of these buttons.
+function shown(k) { var F = window.DailyFlavor; return !F || !F.feats || F.feats.indexOf(k) >= 0; }
+// The games button stays put on the left; the rest runs by as a ticker. Two copies in one track make it seamless;
+// the second is only for the eye, not for screen readers or Tab.
 function feats() {
-  var box = $("feat"); box.textContent = "";
-  [["f_two", "🤝", function () { X.turn.menu(); }], ["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
-    ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].forEach(function (f) {
-    var n = D.IDEAS.filter(function (i) { return i.kind === "turn"; }).length;
-    box.appendChild(el("button", f[0] === "f_two" ? "hot" : "", f[0] === "f_two" ? "🎲 " + t("f_twoN", { n: n }) : f[1] + " " + t(f[0]), function () { Kit.sfx.tap(); f[2](); }));
-  });
+  var bar = $("feat"), lane = el("div", "lane"), box = el("div", "track"), n = D.IDEAS.filter(function (i) { return i.kind === "turn" || i.kind === "arcade"; }).length;
+  bar.textContent = "";
+  if (shown("f_two")) bar.appendChild(el("button", "hot", "🎲 " + t("f_twoN", { n: n }), function () { Kit.sfx.tap(); X.turn.menu(); }));
+  lane.appendChild(box); bar.appendChild(lane);
+  [0, 1].forEach(function (copy) { [["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
+    ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].filter(function (f) { return shown(f[0]); }).forEach(function (f) {
+    var b = el("button", "", f[1] + " " + t(f[0]), function () { Kit.sfx.tap(); f[2](); });
+    if (copy) { b.setAttribute("aria-hidden", "true"); b.tabIndex = -1; }
+    box.appendChild(b);
+  }); });
 }
+(function () {   // a finger on the ticker holds it, so the button under it does not run away
+  var bar = $("feat"), off = function () { bar.classList.remove("hold"); };
+  bar.addEventListener("pointerdown", function () { bar.classList.add("hold"); });
+  ["pointerup", "pointercancel", "pointerleave"].forEach(function (e) { bar.addEventListener(e, function () { setTimeout(off, 1500); }); });
+})();
 function blank(kind) { Kit.sfx.thud(); openEditor(D.blankDoc(kind, me, Kit.lang), { own: true }); }
 var page = 0, PLAN_DAYS = 31;
 function dayHome() { return { date: today, idea: D.ideaForDay(today) }; }
@@ -101,7 +126,7 @@ function dayHome() { return { date: today, idea: D.ideaForDay(today) }; }
 function newDay() {
   var n = new Date();
   if (D.dayNumber(n) === D.dayNumber(today)) return;
-  today = n; page = 0; upcoming = null;
+  today = n; page = 0; upcoming = {};
   if (home && (home.note || home.doc)) return;   // an invitation or a creation from a link stays until it is left
   home = dayHome();
   if (screen === "home") setHome(home, true);
@@ -110,38 +135,44 @@ function goHome() {
   CU.end(); stopSound(); G.stop(); ed = null; played = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
   if (!home) home = dayHome(); setHome(home, true);
 }
-// The next sheet is chosen once, so the greyed preview and the sheet that lands after tearing are the same.
-var upcoming = null;
-function nextSheet() {
-  if (upcoming && upcoming.after === page) return upcoming;
-  var p = (page + 1) % PLAN_DAYS, d = D.dayDate(today, -p);
-  return (upcoming = { after: page, page: p, date: d, idea: D.ideaForDay(d) || D.randomIdea(Math.random, "") });
+// Swiping to the left turns to the next day, to the right back to the day before, like the pages of a book.
+// The sheet is chosen once per direction, so the greyed preview and the sheet that lands after tearing are the same.
+var upcoming = {};
+function nextSheet(step) {
+  step = step < 0 ? -1 : 1;
+  var u = upcoming[step]; if (u && u.after === page) return u;
+  var p = page + step; if (Math.abs(p) >= PLAN_DAYS) p = 0;
+  var d = D.dayDate(today, -p);
+  return (upcoming[step] = { after: page, page: p, date: d, idea: D.ideaForDay(d) || D.randomIdea(Math.random, "") });
 }
-// While the sheet is pulled, the one below already is the next day: the same sheet, only greyed out.
-function peek() {
+// While the sheet is pulled, the one below already is the day it turns to: the same sheet, only greyed out.
+function peek(step) {
   var under = document.querySelector("#pad .u1"), g = under.querySelector(".ghost");
   if (!g) {
     g = $("leaf").cloneNode(true); g.removeAttribute("id"); g.removeAttribute("style"); g.className = "ghost"; g.setAttribute("aria-hidden", "true");
     g.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); }); under.appendChild(g);
   }
-  var n = nextSheet(); fillSheet(g, { date: n.date, idea: n.idea }, true);
+  var n = nextSheet(step); fillSheet(g, { date: n.date, idea: n.idea }, true);
 }
-function tear(dir) {
-  var leaf = $("leaf"); Kit.rip(); Kit.haptic(18);
+function tear(step) {
+  var leaf = $("leaf"), dir = step < 0 ? 1 : -1; Kit.rip(); Kit.haptic(18);   // forward flies off to the left, back to the right
   leaf.className = "gone"; leaf.style.transform = "translate(" + dir * 130 + "%,-20%) rotate(" + dir * 26 + "deg)";
   setTimeout(function () {
-    var n = nextSheet(); page = n.page;                   // the calendar: a torn sheet shows the next day, then back to today
+    var n = nextSheet(step); page = n.page;
     setHome({ date: n.date, idea: n.idea }, true); Kit.sfx.thud();
   }, 300);
 }
 (function drag() {
-  var leaf = $("leaf"), sx = 0, sy = 0, on = false, last = 0;
-  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; try { peek(); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
-  leaf.addEventListener("pointermove", function (e) { if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy; leaf.style.transform = "translate(" + dx + "px," + dy * 0.4 + "px) rotate(" + dx / 16 + "deg)"; leaf.style.opacity = String(1 - Math.min(0.7, Math.abs(dx) / 220)); });
+  var leaf = $("leaf"), sx = 0, sy = 0, on = false, last = 0, shown = 0;
+  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; shown = 1; try { peek(1); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
+  leaf.addEventListener("pointermove", function (e) {
+    if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy, step = dx > 0 ? -1 : 1;
+    if (Math.abs(dx) > 8 && step !== shown) { shown = step; try { peek(step); } catch (x) {} }
+    leaf.style.transform = "translate(" + dx + "px," + dy * 0.4 + "px) rotate(" + dx / 16 + "deg)"; leaf.style.opacity = String(1 - Math.min(0.7, Math.abs(dx) / 220)); });
   function up(e) {
     if (!on) return; on = false; leaf.classList.remove("drag");
     var dx = e.clientX - sx, dy = e.clientY - sy;
-    if (Math.abs(dx) > 90) { tear(dx > 0 ? 1 : -1); return; }
+    if (Math.abs(dx) > 90) { tear(dx > 0 ? -1 : 1); return; }
     leaf.style.transform = ""; leaf.style.opacity = "";
     if (Math.abs(dx) < 12 && Math.abs(dy) < 12) { var now = Date.now(); if (now - last < 400) { last = 0; start(); } else last = now; }   // a double tap opens the card, a swipe turns the day
   }
@@ -158,7 +189,7 @@ function paint() {
   timer = 0; if (!ed) return;
   ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1]);
   if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks, x: ed.x }); }
-  SK.sync(); footer(); CU.local();
+  SK.sync(); footer(); CU.local(); saveMark();
 }
 function changed() {           // every control ends up here: redraw within the next moment
   if (!timer) timer = setTimeout(paint, 16);
@@ -185,6 +216,7 @@ function trailLine() {
 }
 function openEditor(doc, opt) {
   opt = opt || {};
+  if (doc && doc.k === "table") { if (window.TableUI) window.TableUI.open(doc.g); return; }   // a card table is played live, there is nothing to edit
   ed = { doc: D.sanitizeDoc(doc), base: D.sanitizeDoc(doc), own: !!opt.own, photo: null, peaks: null, pcm: null, tab: null, sel: -1, page: 0, line: 0, idea: opt.idea || null };
   if (opt.own) ed.doc.n = me.nick;
   if (ed.doc.k === "sound" && ed.doc.m === "beat") beatPeaks();
@@ -250,7 +282,7 @@ function backFromPlay() {
   if (!played) return false;
   ed = played; played = null; G.stop(); show("editor"); changed(); return true;
 }
-function aiBlock(p, o) { o.el = el; o.wall = openAiWall; window.Ai.block(p, o); }
+function aiBlock(p, o) { o.el = el; o.wall = openAiWall; return window.Ai.block(p, o); }
 function field(p, label, value, max, on, area) {
   p.appendChild(el("label", "lbl", label));
   var f = el(area ? "textarea" : "input", "field"); f.value = value || ""; f.maxLength = max; if (area) f.rows = 2; f.autocomplete = "off"; f.setAttribute("aria-label", label);
@@ -286,17 +318,15 @@ function colors(p, get, set) {
   p.appendChild(row);
 }
 var PANEL = {
+  // Type a wish and apply it right below, or tap a suggestion: that applies it at once. One wish changes the whole sheet.
   Wish: function (p) {
     var f = field(p, t("wishL"), "", 100, function () {}, true), box = el("div", "chips");
-    var wk = ed.doc.nr ? "door" : ed.doc.k;
-    p.appendChild(el("p", "note", t("wishH_" + wk)));
-    t("wishTips_" + wk).split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; })); });
-    p.appendChild(box);
-    aiBlock(p, {
-      kind: "wish", label: t("wishGo"), input: function () { var v = D.cleanInput(f.value, 100); return v ? W.request(ed.doc, v, ed.idea ? ideaText(ed.idea).t.replace("|", " ") : "") : null; },
+    var go = aiBlock(p, {
+      kind: "wish", label: t("wishGo"), noteLast: true, input: function () { var v = D.cleanInput(f.value, 100); return v ? W.request(ed.doc, v, ed.idea ? ideaText(ed.idea).t.replace("|", " ") : "") : null; },
       fallback: function () { return [{ changes: W.local(ed.doc, D.cleanInput(f.value, 100), Kit.lang, function (n) { return Math.floor(Math.random() * n); }), note: "" }]; },
       auto: function (o, real, res) {
-        var before = JSON.stringify(ed.doc), next = W.apply(ed.doc, o.changes, PAIRS, Math.random), was = JSON.parse(before), what = D.changedAreas(was, next);
+        var all = real ? Object.assign(W.local(ed.doc, D.cleanInput(f.value, 100) || "", Kit.lang, function (n) { return Math.floor(Math.random() * n); }), o.changes) : o.changes;
+        var before = JSON.stringify(ed.doc), next = W.apply(ed.doc, all, PAIRS, Math.random), was = JSON.parse(before), what = D.changedAreas(was, next);
         if (ed.doc.k === "sound" && next.fx !== was.fx && what.indexOf("stimme") < 0) what.push("stimme");
         res.textContent = "";
         if (!what.length) { res.appendChild(el("p", "note", t("wishSame"))); return; }
@@ -306,6 +336,10 @@ var PANEL = {
         res.appendChild(un);
       }
     });
+    p.appendChild(el("label", "lbl wishtips", t("wishOr")));
+    t("wishTips_" + (WM.is(ed.doc) ? "warm" : ed.doc.nr ? "door" : ed.doc.k)).split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; go(); })); });
+    p.appendChild(box);
+    p.appendChild(el("p", "note", t("wishH_" + (ed.doc.nr ? "door" : ed.doc.k)) + " " + t("aiNote")));
   },
   // Advent door: only its number; 1-24 as plain buttons, no typing.
   Door: function (p) {
@@ -399,9 +433,10 @@ var PANEL = {
     var g = ed.doc.g, list = EMOJI.indexOf(me.emoji) < 0 ? [me.emoji].concat(EMOJI) : EMOJI;
     chips(p, list.map(function (e) { return { v: e, l: e }; }), g.emoji, function (v) { g.emoji = v; }, "em");
   },
+  // A world chosen here replaces a world built by a wish or the idea (its look), which would otherwise cover every theme.
   World: function (p) {
     var g = ed.doc.g;
-    var b = chips(p, G.THEMES.map(function (n) { return { v: n, l: t("w_" + n) }; }), g.theme, function (v) { g.theme = v; });
+    var b = chips(p, G.THEMES.map(function (n) { return { v: n, l: t("w_" + n) }; }), g.look ? null : g.theme, function (v) { g.theme = v; delete g.look; });
     Array.from(b.children).forEach(function (c, i) { c.style.borderBottom = "8px solid " + G.themeColor(G.THEMES[i]); });
   }
 };
@@ -494,6 +529,7 @@ function voicePanel(p) {
 
 /* ---------- finish ---------- */
 function makeBlob(c, type, q) { return new Promise(function (ok) { c.toBlob(ok, type || "image/png", q); }); }
+function tinyThumb(c) { var s = document.createElement("canvas"); s.width = 135; s.height = 169; s.getContext("2d").drawImage(c, 0, 0, 135, 169); return s.toDataURL("image/jpeg", 0.6); }
 function thumb(c) { var s = document.createElement("canvas"); s.width = 270; s.height = 338; s.getContext("2d").drawImage(c, 0, 0, 270, 338); return s.toDataURL("image/jpeg", 0.6); }
 async function finish(doc, idea, pictureDoc) {
   var c = document.createElement("canvas"); c.width = 1080; c.height = 1350;
@@ -520,6 +556,11 @@ $("edmain").addEventListener("click", function () {
   Kit.sfx.thud();
   finish(D.withTrail(ed.doc, me.nick, areas()));
 });
+// A card finished straight from the sheet, without the editor (feel-good cards); Edit then opens it there.
+function quick(doc, idea) {
+  ed = { doc: D.sanitizeDoc(doc), base: D.docFromIdea(idea, me, Kit.lang), own: false, photo: null, peaks: null, idea: idea, quick: true };
+  return finish(D.withTrail(ed.doc, me.nick, D.changedAreas(ed.base, ed.doc)));
+}
 // Two steps when the short link is not there yet: the first tap makes it, the second shares it. Sharing and copying need a fresh
 // tap in most browsers, and the wait for the server would use it up, which sent an old or no link before.
 var sharing = false;
@@ -532,10 +573,25 @@ $("share").addEventListener("click", async function () {
   await Kit.share({ url: link.url, text: shareLine(result.keep && result.keep.doc) });
 });
 $("playit").addEventListener("click", function () { ed = result.keep; ed.sel = -1; makePlayable(); });
-// Reaches the server only from here, that is after a tap on one of the share buttons.
+// Reaches the server only from here, that is after a tap on one of the share buttons (or on "finish the card" of a feel-good card, see warm.js). The chat preview then shows the
+// finished picture, before anyone can send the link; a photo poster keeps the fixed picture, photos stay on the phone.
 async function shortLink() {
-  if (!result.link) { result.link = await window.ShortLink.shorten(result.url, { k: result.kind, l: Kit.lang }, store); Kit.save(); }
+  if (!result.link) {
+    result.link = await window.ShortLink.shorten(result.url, { k: result.kind, l: Kit.lang }, store);
+    var mine = result.link.short && store.links.filter(function (e) { return e.id === result.link.id; })[0];
+    if (mine && result.canvas) { mine.th = tinyThumb(result.canvas); mine.k = result.kind; }   // only on this phone, for the list of invitations
+    Kit.save();
+    if (result.link.short && result.kind !== "photo" && result.canvas) {
+      try { await window.ShortLink.picture(result.link.id, await makeBlob(chatPicture(result.canvas, result.keep ? result.keep.doc.col : me.colors), "image/jpeg", 0.82), store); } catch (e) {}
+    }
+  }
   return result.link;
+}
+// 1200x630, the size chat apps show large: the work in the middle on its own colour, so a square crop still shows it whole.
+function chatPicture(c, col) {
+  var o = document.createElement("canvas"), x = o.getContext("2d"), h = 590, w = Math.round(h * c.width / c.height);
+  o.width = 1200; o.height = 630; x.fillStyle = col[0]; x.fillRect(0, 0, 1200, 630); x.drawImage(c, (1200 - w) / 2, 20, w, h);
+  return o;
 }
 /* Status and story: pictures cannot carry a tappable link, so the picture shows the address and a code, and the text goes to the clipboard.
    Without a short link the long one would be an unreadable code: the picture then points to the app, the long link stays in the text. */
@@ -553,10 +609,27 @@ $("tostory").addEventListener("click", function () { exportStory("story"); });
 $("save").addEventListener("click", function () { Kit.sfx.tap(); Kit.saveFile(result.file, result.name); });
 $("keep").addEventListener("click", function () { Kit.sfx.tap(); backToEditor(); });
 function backToEditor() {
+  if (result.keep.quick) { openEditor(result.keep.doc, { idea: result.keep.idea }); return; }
   ed = result.keep; ed.sel = -1; show("editor"); if (ed.doc.k === "game") G.demo($("demo"), gameState()); changed();
 }
 $("dhome").addEventListener("click", goHome);
 $("edback").addEventListener("click", function () { Kit.sfx.tap(); goHome(); });
+// Merken: the work as it is now lands on the wall, with its link, so it opens again in the editor later.
+function savedNow() { var f = docFragment(ed.doc); return !!f && wall.some(function (w) { return w.f === f; }); }
+function docFragment(doc) { var u = D.docUrl(doc), i = u.indexOf("#"); return i < 0 ? "" : u.slice(i + 1); }
+function saveMark() { var on = !!ed && savedNow(); $("edsave").textContent = on ? "♥" : "♡"; $("edsave").setAttribute("aria-pressed", String(on)); }
+$("edsave").addEventListener("click", function () {
+  if (!ed) return; Kit.sfx.pop(); Kit.haptic(12);
+  var f = docFragment(ed.doc);
+  if (savedNow()) { wall = wall.filter(function (w) { return w.f !== f; }); Kit.toast(t("unsaved")); }
+  else {
+    var c = document.createElement("canvas"); c.width = 540; c.height = 675;
+    if (ed.doc.k === "game") { var g = $("demo"); c.getContext("2d").drawImage(g, 0, 0, c.width, c.height); }
+    else R.draw(c, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks });
+    wall = D.addToWall(wall, { id: ed.doc.i || "own", ts: Date.now(), th: thumb(c), f: f }); Kit.toast(t("saved"));
+  }
+  store.wall = wall; Kit.save(); saveMark();
+});
 $("shback").addEventListener("click", function () { Kit.sfx.tap(); if (!backFromStyle()) goHome(); });
 // My style opened from the editor returns there with the work intact; new colours apply unless they were chosen by hand.
 function backFromStyle() {
@@ -601,47 +674,74 @@ function openStyle() {
 }
 function shelf(title, fill) { stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
 function openAiWall() { ed.styling = true; shelf(t("aiTitle"), function (b) { window.Ai.wall(b, el); }); }
+// The last week, and above it a search over every sheet: one word, one tap on a hit, and that sheet is back.
 function openPast() {
   shelf(t("past"), function (b) {
-    D.lastDays(today, 7).forEach(function (e) {
-      var made = wall.some(function (w) { return w.id === e.idea.id; }), row = el("button", "day", null, function () { Kit.sfx.tap(); home = { date: e.date, idea: e.idea }; goHome(); });
-      row.appendChild(el("b", "", String(e.date.getUTCDate()).padStart(2, "0")));
-      row.appendChild(el("span", "", ideaText(e.idea).t.replace("|", " ")));
-      if (made) row.appendChild(el("i", "", "✓"));
-      b.appendChild(row);
-    });
+    var q = el("input", "field"), list = el("div"), T = window.DailyTexts, names = {};
+    q.type = "search"; q.id = "pastq"; q.placeholder = t("pastSearch"); q.setAttribute("aria-label", t("pastSearch")); q.autocomplete = "off"; q.enterKeyHint = "search";
+    D.KINDS.forEach(function (k) { names[k] = [T.de[k], T.en[k]]; });
+    function row(e) {
+      var made = wall.some(function (w) { return w.id === e.idea.id; }), r = el("button", "day", null, function () { Kit.sfx.tap(); home = { date: e.date || today, idea: e.idea }; goHome(); });
+      r.appendChild(el("b", "", e.date ? String(e.date.getUTCDate()).padStart(2, "0") : "✦"));
+      r.appendChild(el("span", "", ideaText(e.idea).t.replace("|", " ")));
+      if (e.found) r.appendChild(el("small", "", e.date ? monthLines(e.date).split("\n")[0] + " " + e.date.getUTCFullYear() : t("pastNew")));
+      if (made) r.appendChild(el("i", "", "✓"));
+      list.appendChild(r);
+    }
+    function fill() {
+      list.textContent = "";
+      if (!q.value.trim()) { D.lastDays(today, 7).forEach(row); return; }
+      var hits = D.searchIdeas(q.value, today, names);
+      if (!hits.length) { list.appendChild(el("div", "empty", t("pastNone"))); return; }
+      hits.forEach(function (h) { h.found = true; row(h); });
+    }
+    q.addEventListener("input", fill);
+    b.appendChild(q); b.appendChild(list); fill();
   });
 }
-function openWall() {
+function openWall(which) {
   shelf(t("wall"), function (b) {
-    if (!wall.length) { b.appendChild(el("div", "empty", t("wallEmpty"))); linksList(b); return; }
+    var links = window.ShortLink.kept(store.links, Date.now()), tabs = el("div", "chips walltabs");
+    [["wall", t("wall")], ["links", t("invites") + " (" + links.length + ")"]].forEach(function (x) {
+      var on = (which || "wall") === x[0], c = el("button", "chip" + (on ? " on" : ""), x[1], function () { Kit.sfx.tap(); openWall(x[0]); });
+      c.setAttribute("role", "tab"); c.setAttribute("aria-selected", String(on)); tabs.appendChild(c);
+    });
+    b.appendChild(tabs);
+    if (which === "links") { invites(b, links); return; }
+    if (!wall.length) { b.appendChild(el("div", "empty", t("wallEmpty"))); return; }
     var g = el("div", "wallgrid");
     wall.forEach(function (w, i) {
       var c = el("button", "", null, function () {
         Kit.sfx.tap(); b.textContent = ""; var im = el("img", "big"); im.src = w.th; im.alt = ""; b.appendChild(im);
+        var r = w.f ? D.parseRoute("#" + w.f) : null;
+        if (r && r.type === "doc") b.appendChild(el("button", "btn hot", t("openAgain"), function () { Kit.sfx.thud(); openEditor(r.doc, { idea: r.doc.i ? D.byId(r.doc.i) : null, own: !r.doc.i }); }));
         b.appendChild(el("button", "btn", t("gone"), function () { wall.splice(i, 1); store.wall = wall; Kit.save(); openWall(); }));
       });
       var im = el("img"); im.src = w.th; im.alt = ""; c.appendChild(im); g.appendChild(c);
     });
     b.appendChild(g);
-    linksList(b);
   });
 }
-function linksList(b) {
-  var list = window.ShortLink.kept(store.links, Date.now());
-  if (!list.length) return;
-  b.appendChild(el("h3", "note", t("sh_mine")));
+// Invitations: every short link made on this phone, as its picture with the date it runs out and a cross that deletes it.
+function invites(b, list) {
+  if (!list.length) { b.appendChild(el("div", "empty", t("invEmpty"))); return; }
+  var g = el("div", "wallgrid inv"), ICON = { card: "🃏", photo: "📷", sound: "🥁", game: "🕹", idea: "💡" };
   list.forEach(function (l) {
-    var row = el("div", "day"), when = new Date(l.exp).toLocaleDateString(Kit.lang === "de" ? "de-DE" : "en-GB");
-    row.appendChild(el("span", "", "/s/" + l.id + " · " + t("sh_until", { d: when })));
-    row.appendChild(el("button", "chip", t("gone"), async function () {
-      Kit.sfx.tap();
+    var url = C.SHORT_BASE + l.id, when = new Date(l.exp).toLocaleDateString(Kit.lang === "de" ? "de-DE" : "en-GB"), cell = el("div", "invcell");
+    var open = el("button", "", null, function () { Kit.sfx.tap(); Kit.share({ url: url, text: t("shareText") }); });
+    open.setAttribute("aria-label", t("invShare", { d: when }));
+    if (typeof l.th === "string" && l.th.length < 30000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(l.th)) { var im = el("img"); im.src = l.th; im.alt = ""; open.appendChild(im); }
+    else open.appendChild(el("span", "invicon", ICON[l.k] || "🔗"));
+    var x = el("button", "invx", "✕", async function () {
+      Kit.sfx.tap(); x.disabled = true;
       var ok = await window.ShortLink.remove(l.id, store);
       Kit.save(); Kit.toast(t(ok ? "sh_deleted" : "sh_deleteFail"));
-      if (ok) openWall();
-    }));
-    b.appendChild(row);
+      openWall("links");
+    });
+    x.setAttribute("aria-label", t("invDelete", { d: when }));
+    cell.appendChild(open); cell.appendChild(x); cell.appendChild(el("span", "invdate", t("sh_until", { d: when }))); g.appendChild(cell);
   });
+  b.appendChild(g);
 }
 function openOwn() {
   shelf(t("own"), function (b) {
@@ -649,6 +749,8 @@ function openOwn() {
     [["card", "🃏"], ["photo", "📷"], ["sound", "🥁"], ["game", "🕹"], ["duel", "🤖"]].concat(D.caps().crypto ? [["quest", "🗝️"]] : []).forEach(function (m) {
       b.appendChild(el("button", "mech", m[1] + " " + t(m[0]), function () { Kit.sfx.thud(); openEditor(D.blankDoc(m[0], me, Kit.lang), { own: true }); }));
     });
+    var door = D.byId("advent-tuer");   // an Advent door can be made any day, not only on its calendar days
+    if (door) b.appendChild(el("button", "mech", "🎄 " + ideaText(door).t.replace("|", " "), function () { Kit.sfx.thud(); openEditor(D.docFromIdea(door, me, Kit.lang), { idea: door }); }));
     CC.tile(b);
   });
 }
@@ -676,7 +778,10 @@ $("wall").addEventListener("click", function () { Kit.sfx.tap(); openWall(); });
 $("own").addEventListener("click", function () { Kit.sfx.tap(); openOwn(); });
 function start(tabName) {
   Kit.sfx.thud();
+  if (WM.start(home, tabName)) return;
   if (home.doc && X[home.doc.k] && X[home.doc.k].incoming && X[home.doc.k].incoming(home.doc)) return;
+  if (!home.doc && home.idea && home.idea.protokoll) { var u = protokollUrl(); if (location.protocol === "https:") location.href = u; else openLive(u); return; }
+  if (!home.doc && home.idea && home.idea.kind === "arcade" && window.ArcadeUI) { window.ArcadeUI.menu(home.idea.arcade.g); return; }
   if (home.doc) openEditor(home.doc, { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName });
   else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea, tab: tabName });
 }
@@ -693,8 +798,10 @@ function route() {
   var card = CC.route(location.hash);
   if (card) { clearLink(); if (!card.keep && screen !== "editor") goHomeKeep(); return true; }
   if (CU.route(location.hash)) { clearLink(); if (screen !== "editor") goHomeKeep(); return true; }
-  var live = location.hash.match(/^#live=([A-Za-z0-9_-]{22})$/);
-  if (live && window.LiveUI) { history.replaceState(null, "", location.pathname); window.LiveUI.accept(live[1]); }
+  var live = location.hash.match(/^#live=([A-Za-z0-9_-]{22})(?:&g=([a-z]{2,12}))?$/);
+  if (live && window.LiveUI) { history.replaceState(null, "", location.pathname); window.LiveUI.accept(live[1], live[2]); }
+  var seat = location.hash.match(/^#tisch=(doko|skat)\.([A-Za-z0-9_-]{22})$/);
+  if (seat && window.TableUI) { history.replaceState(null, "", location.pathname); window.TableUI.accept(seat[1], seat[2]); }
   var r = D.parseRoute(location.hash);
   if (r && r.type === "short") {
     goHome();
@@ -736,7 +843,7 @@ var CU = window.CollabUI.init({
 var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
-window.DailyApp = { TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 /* test hook, used by browser checks: read-only snapshot */
 window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); }, collab: function () { return CU.engine(); } };

@@ -26,9 +26,9 @@
     var after = el("div", "dafter"); after.hidden = true;
     after.appendChild(el("p", "dmsg", doc.x));
     if (early(doc.nr, new Date())) after.appendChild(el("p", "note", t("doorFor", { n: doc.nr })));
-    after.appendChild(el("button", "btn hot", t("doorOwn"), function () {
-      Kit.sfx.thud(); box.remove();
-      var idea = D.byId("advent-tuer"); A.openEditor(D.docFromIdea(idea, A.me(), Kit.lang), { idea: idea });
+    var idea = D.byId("advent-tuer");   // a flavor without the Advent card still opens the door, just without "make your own"
+    if (idea) after.appendChild(el("button", "btn hot", t("doorOwn"), function () {
+      Kit.sfx.thud(); box.remove(); A.openEditor(D.docFromIdea(idea, A.me(), Kit.lang), { idea: idea });
     }));
     after.appendChild(el("button", "btn", t("doorOn"), function () { Kit.sfx.tap(); box.remove(); }));
     box.appendChild(after);

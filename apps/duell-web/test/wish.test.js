@@ -16,8 +16,8 @@ test("Anfrage: nur Typ, Wunsch, Grundidee und Texte; kein Bild, keine Sticker, k
 });
 test("Anwenden: nur Felder des Typs wirken, Ergebnis ist bereinigt, Original bleibt unberuehrt", () => {
   const d = of("card"), before = JSON.stringify(d);
-  const n = W.apply(d, { x: "Neu", st: "neon", palette: 1, stickers: ["🐸"], gravity: 2000, bpm: 150, y: "weg" }, PAIRS, rand);
-  assert.equal(n.x, "Neu"); assert.equal(n.st, "neon"); assert.deepEqual(n.col, PAIRS[1]); assert.equal(n.sk.length, 1);
+  const n = W.apply(d, { x: "Neu", st: "neon", palette: 0, stickers: ["🐸"], gravity: 2000, bpm: 150, y: "weg" }, PAIRS, rand);
+  assert.equal(n.x, "Neu"); assert.equal(n.st, "neon"); assert.deepEqual(n.col, PAIRS[0]); assert.equal(n.sk.length, 1);
   assert.equal(n.y, undefined); assert.equal(n.bpm, undefined); assert.equal(n.g, undefined);
   assert.equal(JSON.stringify(d), before);
   const g = W.apply(of("game"), { gravity: 99999, theme: "lava", emoji: "🚀", title: "Lava", x: "weg" }, PAIRS, rand);
@@ -43,7 +43,7 @@ test("Wetter: Wunsch kann die Zahlen nie aendern, kaputte Werte fallen weg, Text
   assert.equal(D.changedAreas(D.sanitizeDoc({ k: "card" }), d).includes("text"), true);
 });
 test("Grenze: jede Art hat einen Wunsch, Raetsel und Antworten eines Kanals gehen nicht an den Server", () => {
-  assert.deepEqual([...W.KINDS].sort(), [...D.KINDS].sort());
+  assert.deepEqual([...W.KINDS].sort(), D.KINDS.filter((k) => k !== "table").sort());   // a card table opens the live game, it has no editor to wish in
   const q = Object.assign(of("quest"), { q0: "Geheimfrage", h0: "abc", c: ["Z2VoZWlt"] }), r = JSON.stringify(W.request(q, "x", ""));
   assert.ok(!/Geheimfrage|Z2VoZWlt/.test(r));
 });
@@ -74,6 +74,22 @@ test("Wunsch: Duell und Kanal aendern vier Bereiche, Raetsel bleiben unberuehrt 
   const q = of("quest"), m = W.apply(q, { t: "Schatz", s: "Grab", e: "🗺️", colors: ["#112233", "#445566"], q0: "fremd", c: [] }, PAIRS, rand);
   assert.equal(m.t, "Schatz"); assert.equal(m.e, "🗺️"); assert.equal(m.q0, q.q0);
   assert.ok(!JSON.stringify(W.request(q, "x", "")).includes(q.q0));
+});
+test("Wunsch aendert das ganze Blatt: lokal jeder Bereich ohne Text, dazu Titel und Untertitel des Blatts", () => {
+  const want = { card: ["stil", "farbe", "sticker"], photo: ["stil", "farbe", "sticker"], sound: ["beat", "stimme", "farbe"], game: ["regeln", "figur", "welt"], duel: ["farbe", "regeln"], quest: ["farbe", "figur"], turn: ["farbe", "figur"] };
+  for (const k of W.KINDS) {
+    const d = of(k), n = W.apply(d, W.local(d, "mach es gruseliger", "de", () => 0), PAIRS, rand), got = D.changedAreas(d, n);
+    for (const a of want[k]) assert.ok(got.includes(a), k + ": " + a + " fehlt in " + got);
+    const ts = W.apply(d, { t: "Gruselnacht", s: "Nur fuer Mutige" }, PAIRS, rand);
+    assert.equal(ts.t, "Gruselnacht", k); assert.equal(ts.s, "Nur fuer Mutige", k); assert.ok(D.changedAreas(d, ts).includes("idee"), k);
+  }
+  const c = W.apply(of("card"), { stickers: ["🎃", "👻"] }, PAIRS, rand), c2 = W.apply(c, { stickers: ["🦇"] }, PAIRS, rand);
+  assert.deepEqual(c2.sk.map((s) => s.e), ["🦇"], "ein zweiter Wunsch stapelt keine Sticker");
+});
+test("Farbe: ein Wunsch mit dem Farbpaar, das schon gilt, nimmt das naechste", () => {
+  const d = Object.assign(of("card"), { col: PAIRS[1].slice() });
+  assert.deepEqual(W.apply(d, { palette: 1 }, PAIRS, rand).col, PAIRS[0]);
+  assert.deepEqual(W.apply(d, { palette: 0 }, PAIRS, rand).col, PAIRS[0]);
 });
 test("Adventstuerchen: Wunsch aendert Botschaft, Farben, Sticker, Stil und Titel/Untertitel auf einmal, Nummer bleibt", () => {
   const d = D.sanitizeDoc({ ...D.docFromIdea(D.byId("advent-tuer"), me, "de"), st: "zettel" }), nr = d.nr;

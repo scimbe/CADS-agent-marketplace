@@ -1,0 +1,51 @@
+/* Business: calm surfaces, one accent (the organisation's colour), plain type, nothing tilted or bouncing. */
+/* On body, not :root: the daily app writes its own colours inline on <html>, and these must win below it. */
+body{--org:#1d4ed8;--onorg:#fff;--bg:#f4f5f7;--card:#fff;--line:#d5d9e0;--text:#111827;--muted:#5b6472;
+  --a:var(--bg);--b:var(--org);--paper:var(--card);--ink:var(--text);--on:var(--text);--onb:var(--onorg);--btn:var(--onorg);
+  --disp:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,system-ui,sans-serif;--ui:var(--disp)}
+html,body,.scr,.bar.tight,.foot.col,#stagewrap{background:#f4f5f7!important;color:var(--text)}
+body{font-weight:500}
+#home::before{display:none}
+h1{transform:none;text-transform:none;font:650 19px/1 var(--disp);letter-spacing:-.2px;display:flex;align-items:center;gap:8px}
+.orglogo{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 6px;border-radius:6px;background:var(--org);color:var(--onorg);font:700 13px/1 var(--disp);letter-spacing:.3px}
+.under{display:none}
+#leaf{transform:none!important;border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.06),0 4px 16px rgba(16,24,40,.06);border-top:4px solid var(--org)}
+#leaf.enter,.enter .burst,.enter .hero span{animation:none}
+.holes{display:none}
+.dnum{font:650 44px/1 var(--disp);letter-spacing:-1px}
+.dmon{font:600 12px/1.2 var(--disp);color:var(--muted)}
+.burst{clip-path:none;transform:none;width:auto;height:auto;padding:5px 10px;margin:0 0 0 auto;border-radius:999px;background:#eef2ff;color:var(--org);font:600 12px/1.2 var(--disp);border:1px solid #c7d2fe}
+.hero{text-transform:none;font:700 100px/1.02 var(--disp);letter-spacing:-.02em;color:var(--text)}
+.hero span{text-shadow:none}
+.teaser{font:500 16px/1.35 var(--disp);color:var(--muted)}
+.press{border:0;border-radius:10px;background:var(--org);color:var(--onorg);font:600 18px/1 var(--disp);text-transform:none;letter-spacing:0;box-shadow:0 1px 2px rgba(16,24,40,.15);min-height:54px}
+.press:active{transform:translateY(1px);box-shadow:none}
+.press.wait{color:var(--muted);border:1px dashed var(--line);background:transparent;font-size:15px}
+#homerow button{border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font:600 14px var(--disp)}
+#feat button{border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--text);font:600 13px var(--disp)}
+#feat button.hot{background:var(--text);color:#fff;border-color:var(--text)}
+#tools button{color:var(--muted);font:600 13px var(--disp)}
+.pv canvas,#stage,#doneimg,.big{border:1px solid var(--line)!important;border-radius:8px;box-shadow:0 2px 10px rgba(16,24,40,.08)!important}
+#tabs{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+#tabs button{color:var(--muted);font-weight:600}
+#tabs button.hot{color:var(--org)}
+#tabs button[aria-selected=true]{background:var(--card);color:var(--text);box-shadow:inset 0 -2px 0 var(--org)}
+#panel,.foot,#shelf{background:var(--card)}
+.field{border:1px solid var(--line);border-radius:8px;font-weight:500}
+.field:focus{border-color:var(--org);outline:2px solid #c7d2fe;outline-offset:0}
+.chip{border:1px solid var(--line);border-radius:8px;background:var(--card);font-weight:600}
+.chip.on{background:var(--org);border-color:var(--org);color:var(--onorg)}
+.btn{border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font-weight:600}
+.btn.hot{background:var(--org);border-color:var(--org);color:var(--onorg);font:600 17px var(--disp);text-transform:none;min-height:52px}
+.lbl{color:var(--muted);font-weight:600;text-transform:none}
+.qtext{font-weight:600}
+#shtitle,#edtitle{font:650 18px/1 var(--disp);text-transform:none}
+.mech{border:1px solid var(--line);border-radius:10px;box-shadow:none;background:var(--card)}
+.mech canvas{display:none}
+.day b{font:650 28px/1 var(--disp)}
+.empty{font:600 18px/1.3 var(--disp);text-transform:none;color:var(--muted)}
+.slide input{accent-color:var(--org)}
+.orgrow{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.orgrow input[type=color]{width:52px;height:44px;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:2px}
+#mute{display:none}
+#cogo,#livego{display:none!important}   /* no live channels here: company networks block WebSockets and UDP */

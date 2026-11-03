@@ -128,7 +128,8 @@
 
   function drawCard(c, W, H, doc) {
     var a = doc.col[0], b = doc.col[1], tx = doc.x || "…";
-    if (doc.st === "zettel") {
+    if (Render.styles[doc.st]) Render.styles[doc.st](c, W, H, doc);     // a style from its own file, e.g. "herz" in warm.js
+    else if (doc.st === "zettel") {
       c.fillStyle = b; c.fillRect(0, 0, W, H); dots(c, W, H, a, W * 0.05, 0.9);
       c.save(); c.translate(W / 2, H * 0.47); c.rotate(-0.04);
       c.fillStyle = "#fff8e4"; c.fillRect(-W * 0.42, -H * 0.38, W * 0.84, H * 0.76);
@@ -229,5 +230,5 @@
     cv._id = "bot" + seed;
     return cv;
   }
-  var Render = window.Render = { extra: {}, stickers: stickers, draw: draw, lum: lum, block: block, ink: ink, botFace: botFace, dots: dots, rays: rays, FONT: FONT };
+  var Render = window.Render = { extra: {}, styles: {}, layout: layout, stickers: stickers, draw: draw, lum: lum, block: block, ink: ink, botFace: botFace, dots: dots, rays: rays, FONT: FONT };
 })();

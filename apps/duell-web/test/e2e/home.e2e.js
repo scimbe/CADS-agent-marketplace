@@ -53,3 +53,103 @@ test("Start: beim Ziehen liegt darunter das echte naechste Blatt, ausgegraut, un
   assert.deepEqual(errs, []);
   await b.close();
 });
+
+test("Wunsch: ein Tipp auf eine Idee wendet sie sofort an und aendert das ganze Blatt; Empfaenger sieht die Karte gross", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), p = await ctx.newPage();
+  const errs = []; p.on("pageerror", (e) => errs.push(e.message));
+  await p.route("**/api/**", (r) => r.abort());   // kein Server: die festen Regeln antworten
+  await p.goto(page + "#c=eyJ2IjoxLCJkIjp7ImsiOiJjYXJkIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMDkiLCJ4IjoiSGV1dGUgMjAgVWhyLiBWaWRlbyBhbi4gS2VpbmUgQXVzcmVkZW4uIiwic3QiOiJzdGVtcGVsIiwic2siOltdfX0");
+  await p.locator("#leaf.got").waitFor();
+  assert.equal(await p.locator("#hero").isHidden(), true, "der Kartentext steht nur einmal da, im Bild");
+  assert.equal(await p.locator("#pvcard").isVisible(), true);
+  assert.equal(await p.locator("#go").textContent(), "Weiter bauen");
+  await p.locator("#wishgo").tap();
+  const tip = p.getByRole("button", { name: "Mach es gruseliger" });
+  await tip.waitFor();
+  const order = await p.evaluate(() => { const pn = document.getElementById("panel"), at = (x) => [...pn.querySelectorAll("*")].indexOf(x); return { field: at(pn.querySelector("textarea")), go: at([...pn.querySelectorAll("button")].find((x) => /Wunsch anwenden/.test(x.textContent))), tip: at([...pn.querySelectorAll("button")].find((x) => x.textContent === "Mach es gruseliger")) }; });
+  assert.ok(order.field < order.go && order.go < order.tip, "Feld, gleich darunter Anwenden, dann die Ideen: " + JSON.stringify(order));
+  await tip.tap();
+  const did = p.locator(".aicount", { hasText: "Geändert" });
+  await did.waitFor();
+  const txt = await did.textContent();
+  for (const a of ["Stil", "Farbe", "Sticker"]) assert.match(txt, new RegExp(a), "ein Tipp aendert alles ohne Text: " + txt);
+  assert.equal(await p.locator("#panel textarea").inputValue(), "Mach es gruseliger");
+  assert.deepEqual(errs, []);
+  await b.close();
+});
+
+test("Welt: ein Thema im Welt-Tab ersetzt die gebaute Welt eines Spiels sichtbar", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const p = await (await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" })).newPage();
+  const errs = []; p.on("pageerror", (e) => errs.push(e.message));
+  await p.goto(page);
+  await p.evaluate(() => { const D = window.Daily, i = D.IDEAS.find((x) => x.kind === "game" && x.game.look); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i }); });
+  await p.getByRole("tab", { name: "Welt" }).tap();
+  assert.equal(await p.locator("#panel .chip.on").count(), 0, "eine gebaute Welt ist keines der Themen");
+  const sky = () => p.evaluate(() => { const c = document.getElementById("demo"), d = c.getContext("2d").getImageData(4, 4, 1, 1).data; return [d[0], d[1], d[2]].join(); });
+  const before = await sky();
+  await p.getByRole("button", { name: "Lava" }).tap(); await p.waitForTimeout(300);
+  assert.equal(await p.evaluate(() => [window.DailyApp.ed().doc.g.theme, !!window.DailyApp.ed().doc.g.look].join()), "lava,false");
+  assert.notEqual(await sky(), before, "der Himmel wechselt");
+  assert.equal(await p.locator("#panel .chip.on").textContent(), "Lava");
+  assert.deepEqual(errs, []);
+  await b.close();
+});
+
+test("Fensterebene: Kreuz schliesst, Merken legt die Arbeit auf die Wand und oeffnet sie wieder; Laufband nur mit Platz", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), p = await ctx.newPage();
+  const errs = []; p.on("pageerror", (e) => errs.push(e.message));
+  await p.goto(page);
+  const bar = await p.evaluate(() => { const f = document.getElementById("feat"), tr = f.querySelector(".track"); return { shown: getComputedStyle(f).display !== "none", anim: getComputedStyle(tr).animationName, hidden: tr.querySelectorAll("[aria-hidden=true]").length, all: tr.children.length }; });
+  assert.ok(bar.shown); assert.equal(bar.anim, "ticker"); assert.equal(bar.hidden * 2, bar.all, "zweite Kopie nur fuers Auge");
+  await p.locator("#feat").hover();   // like a finger on it: the ticker stands still
+  await p.getByRole("button", { name: /Meme bauen/ }).click();
+  await p.locator("#editor").waitFor();
+  assert.equal(await p.locator("#edback").getAttribute("aria-label"), "Schließen"); assert.equal(await p.locator("#edback").textContent(), "✕");
+  await p.locator("#edsave").click();
+  assert.equal(await p.locator("#edsave").getAttribute("aria-pressed"), "true");
+  await p.locator("#edback").click(); await p.locator("#home").waitFor();
+  await p.locator("#wall").click();
+  await p.locator(".wallgrid button").first().click();
+  await p.getByRole("button", { name: "Wieder öffnen" }).click();
+  await p.locator("#editor").waitFor();
+  assert.equal(await p.locator("#edsave").textContent(), "♥", "die geoeffnete Arbeit ist als gemerkt erkannt");
+  await p.locator("#edsave").click(); assert.equal(await p.locator("#edsave").textContent(), "♡");
+  await p.setViewportSize({ width: 375, height: 640 });
+  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById("feat")).display), "none", "kurzer Bildschirm: Laufband aus");
+  assert.deepEqual(errs, []);
+  await b.close();
+});
+
+test("Blaettern: nach links wischen ist der naechste Tag, nach rechts der Tag davor; Einladungen mit Bild und Kreuz", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), p = await ctx.newPage();
+  const errs = []; p.on("pageerror", (e) => errs.push(e.message));
+  await p.clock.install({ time: new Date("2026-11-10T10:00:00Z") });
+  await p.goto(page);
+  const box = await p.locator("#leaf").boundingBox(), x = box.x + box.width / 2, y = box.y + box.height / 2;
+  const swipe = async (dx) => { await p.mouse.move(x, y); await p.mouse.down(); await p.mouse.move(x + dx / 3, y, { steps: 3 });
+    const ghost = await p.evaluate(() => document.querySelector(".ghost .dnum").textContent); await p.mouse.move(x + dx, y, { steps: 3 }); await p.mouse.up(); await p.clock.runFor(400); return ghost; };
+  const day = () => p.evaluate(() => document.getElementById("dnum").textContent);
+  assert.equal(await day(), "10");
+  assert.equal(await swipe(-240), "11", "links: darunter liegt schon morgen"); assert.equal(await day(), "11");
+  assert.equal(await swipe(240), "10", "rechts: darunter liegt der Tag davor"); assert.equal(await day(), "10");
+  assert.equal(await swipe(240), "09"); assert.equal(await day(), "09");
+  await p.locator("#more").click(); await p.clock.runFor(400); assert.equal(await day(), "10", "Naechster Tag geht vorwaerts");
+  await p.locator("#wall").click();
+  await p.getByRole("tab", { name: /Einladungen \(0\)/ }).click();
+  await p.getByText("Noch keine Einladungen").waitFor();
+  let gone = null; await p.route("**/api/s/**", (r) => { gone = r.request().method(); r.fulfill({ status: 204 }); });
+  await p.evaluate(() => { window.Kit.store.links = [{ id: "aB3dE5gH", t: "tok", exp: Date.now() + 5 * 86400000, f: "c=eyJ2IjoxfQ", k: "card", th: "data:image/jpeg;base64,/9j/4AAQ" }]; });
+  await p.locator("#shback").click(); await p.locator("#wall").click();
+  await p.getByRole("tab", { name: /Einladungen \(1\)/ }).click();
+  assert.equal(await p.locator(".inv img").count(), 1, "die Einladung zeigt ihr Bild");
+  assert.match(await p.locator(".invdate").textContent(), /^bis \d/);
+  await p.getByRole("button", { name: /Einladung bis .* löschen/ }).click();
+  await p.getByText("Noch keine Einladungen").waitFor();
+  assert.equal(gone, "DELETE");
+  assert.deepEqual(errs, []);
+  await b.close();
+});

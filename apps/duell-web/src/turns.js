@@ -7,7 +7,7 @@
   var C = node ? require("./core.js") : root.DuellCore;
   var Q = node ? require("./quest.js") : root.Quest;
   var DATA = node ? require("./turn.json") : root.TurnData;
-  var BLOB = /^[A-Za-z0-9_-]{0,900}$/, SHAPES = ["cookie", "star", "heart", "bolt", "ring", "drop"], DAY = 86400000;
+  var BLOB = /^[A-Za-z0-9_-]{0,900}$/, SHAPES = ["cookie", "star", "heart", "bolt", "ring", "drop", "coin"], DAY = 86400000;
 
   function T(lang) { return DATA.text[lang === "en" ? "en" : "de"]; }
   function pair(list, i, lang) { return list[i].split("|")[lang === "en" ? 1 : 0]; }
@@ -540,6 +540,48 @@
     turns: [signTurn(), signTurn(), signTurn(), signTurn()],
     result: function (doc, m, lang) { return { h: T(lang).rei_h, lines: m.map(function (x) { return signedLine(x, lang); }) }; }
   };
+  // ---------- finding a date: dates are tapped, never typed, so no place or time of day slips in as free text ----------
+  // A date is day * 10 + hour slot. Whoever asks chose the dates and counts as yes everywhere; up to ten people in one link.
+  var HOURS = [10, 12, 14, 15, 16, 17, 18, 19, 20], VOTERS = 10;
+  function dayText(day, lang) { var X = T(lang), d = new Date(day * DAY); return fmt(X.ter_day, { w: X.ter_days.split("|")[d.getUTCDay()], d: d.getUTCDate(), m: d.getUTCMonth() + 1 }); }
+  function hourText(i, lang) { var h = HOURS[i]; return lang === "en" ? (h > 12 ? h - 12 : h) + (h < 12 ? " am" : " pm") : fmt(T(lang).ter_hour, { h: h }); }
+  function slotText(s, lang) { return dayText(Math.floor(s / 10), lang) + ", " + hourText(s % 10, lang); }
+  function nameOk(v) { return typeof v === "string" && !!Q.fold(v) && Q.clean(v, 12) === v && new TextEncoder().encode(v).length <= 24; }
+  function termDates(m) { return m[0][0][1]; }
+  function voted(m) { return m.map(function (t) { return t[0][0]; }); }
+  function tally(m) {
+    return termDates(m).map(function (s, i) {
+      var c = { s: s, yes: 1, maybe: 0, who: [m[0][0][0]] };
+      m.slice(1).forEach(function (t) { var v = t[0][1][i]; if (v === 0) { c.yes++; c.who.push(t[0][0]); } else if (v === 1) c.maybe++; });
+      c.pts = (c.yes * 2 + c.maybe) * 100 + c.yes;
+      return c;
+    }).sort(function (a, b) { return b.pts - a.pts || a.s - b.s; });
+  }
+  function few(names) { return names.slice(0, 3).join(", ") + (names.length > 3 ? " +" + (names.length - 3) : ""); }
+  function termHead(m, lang) {
+    var X = T(lang), l = tally(m), top = l.filter(function (c) { return c.pts === l[0].pts; });
+    if (m.length === 1) return fmt(X.ter_open, { s: termDates(m).map(function (s) { return slotText(s, lang); }).join(" · ") });   // only the one who asks so far
+    if (top.length > 1) return fmt(X.ter_tie, { s: top.map(function (c) { return slotText(c.s, lang); }).join(" · ") });
+    return fmt(l[0].yes === m.length ? X.ter_all : X.ter_most, { s: slotText(l[0].s, lang) });
+  }
+  function ballot() {
+    return { w: "vote", l: "ter_vote", peek: function (doc, m, now, lang) { return termHead(m, lang); }, ok: function (v, m) {
+      return Array.isArray(v) && v.length === 2 && nameOk(v[0]) && voted(m).every(function (n) { return Q.fold(n) !== Q.fold(v[0]); }) &&
+        Array.isArray(v[1]) && v[1].length === termDates(m).length && v[1].every(function (x) { return intIn(x, 0, 2); });
+    } };
+  }
+  GAMES.termin = {
+    turns: [[{ w: "slots", l: "ter_pick", ok: function (v) {
+      var s = Array.isArray(v) && v.length === 2 && v[1];
+      return !!s && nameOk(v[0]) && Array.isArray(s) && s.length >= 2 && s.length <= 5 && s.every(function (x, i) { return intIn(x, 0, 9999999) && x % 10 < HOURS.length && (!i || x > s[i - 1]); });
+    } }]].concat(Array.apply(null, Array(VOTERS - 1)).map(function () { return [ballot()]; })),
+    words: { you_start: "ter_start", go_first: "ter_go_first", go_play: "ter_go", note_turn: "ter_note", note_over: "ter_over", ready: "ter_ready", send: "ter_send", rematch: "ter_again" },
+    face: function (doc, m, lang) { return m.length ? [termHead(m, lang), fmt(T(lang).ter_count, { n: m.length }), T(lang).ter_you] : null; },
+    result: function (doc, m, lang) {
+      var X = T(lang), l = tally(m);
+      return { h: termHead(m, lang), lines: l.slice(0, 2).map(function (c) { return fmt(X.ter_line, { s: slotText(c.s, lang), y: c.yes, v: c.maybe }); }).concat([fmt(X.ter_can, { w: few(l[0].who) })]) };
+    }
+  };
   // ---------- thanks, candles, a secret alphabet, a letter to yourself ----------
   GAMES.danke = {
     turns: [[{ w: "text", l: "dan_why", max: 44 }, { w: "text", l: "dan_from", max: 12 }], [{ w: "show", l: "dan_got", list: function (doc, m, now, lang) { return [fmt(T(lang).dan_h, { s: m[0][0] }), m[0][1]]; } }]],
@@ -799,6 +841,28 @@
       return { h: T(lang).sor_h, lines: [text], copy: text, note: T(lang).sor_note };
     }
   };
+  // ---------- collecting money: the card only builds a PayPal.me link, the money never touches us ----------
+  // Only the public PayPal.me name travels, and only the characters PayPal allows there. The amount is whole euros.
+  // A build flavor (adults) may raise the cap; it is baked in at build time, a link cannot change it.
+  var PPME = /^[A-Za-z0-9]{1,20}$/, FL = root.DailyFlavor && root.DailyFlavor.eur;
+  var EUR = Array.isArray(FL) && FL.length === 2 && Number.isInteger(FL[0]) && Number.isInteger(FL[1]) && FL[0] >= 1 && FL[0] <= FL[1] && FL[1] <= 500 ? FL : [1, 50];
+  function payName(v) { return typeof v === "string" && PPME.test(v); }
+  function payLink(m) {
+    var n = m[0] && m[0][0], e = m[0] && m[0][2];
+    return payName(n) && intIn(e, EUR[0], EUR[1]) ? "https://paypal.me/" + n + "/" + e + "EUR" : "";
+  }
+  function payLine(m, lang) { return fmt(T(lang).sam_line, { e: m[0][2], w: m[0][1], n: m[0][0] }); }
+  GAMES.sammeln = {
+    stay: true,
+    turns: [
+      [{ w: "text", l: "sam_name", max: 20, oneWord: true, hint: "sam_name_hint", bad: function (v) { return !payName(v); } },
+       { w: "text", l: "sam_what", max: 30, hint: "sam_what_hint" },
+       { w: "slide", l: "sam_eur", min: EUR[0], max: EUR[1], def: 5, unit: "€" }],
+      [{ w: "pay", l: "sam_pay", end: true, link: function (doc, m) { return payLink(m); }, peek: function (doc, m, now, lang) { return payLine(m, lang); } }]
+    ],
+    face: function (doc, m, lang) { return m.length ? [payLine(m, lang), T(lang).sam_face] : null; },
+    result: function (doc, m, lang) { return { h: T(lang).sam_h, lines: [payLine(m, lang)], note: T(lang).sam_safe }; }
+  };
   GAMES.kapsel.gateFrom = 1;
   var IDS = Object.keys(GAMES);
   function dealLine(doc, offer, floor, i, lang) {
@@ -832,7 +896,8 @@
     if (p.w === "drop") return intIn(v, 0, p.max);
     if (p.w === "doors") return v === 0;
     if (p.w === "freeze") return intIn(v, 0, p.max);
-    if (p.w === "rec" || p.w === "once" || p.w === "parrot") return v === 0;
+    if (p.w === "rec" || p.w === "once" || p.w === "parrot" || p.w === "pay") return v === 0;
+    if (p.w === "slots" || p.w === "vote") return p.ok(v, m);
     if (p.w === "whose") return intIn(v, 0, 2);
     if (p.w === "inner") return Array.isArray(v) && v.length === 5 && v.every(function (x) { return Number.isInteger(x) && x >= -20000 && x <= 20000; });
     if (p.w === "blind") return intIn(v, 2000, 30000);
@@ -845,7 +910,7 @@
     if (p.w === "explain") return intIn(v, 0, p.max);
     if (p.w === "blocks") return Array.isArray(v) && v.length <= p.max && v.every(function (x) { return intIn(x, 0, 63); }) && !!replay(doc, v);
     if (p.w === "slide") return intIn(v, p.min || 0, p.maxOf ? p.maxOf(doc) : p.max);
-    if (p.w === "text") return typeof v === "string" && !!Q.clean(v, p.max) && Q.clean(v, p.max) === v && !(p.oneWord && /\s/.test(v)) && !(p.bad && p.bad(v, doc, lang));
+    if (p.w === "text") return typeof v === "string" && !!Q.clean(v, p.max) && Q.clean(v, p.max) === v && !(p.oneWord && /\s/.test(v)) && !(p.bad && p.bad(v, doc, lang, m));
     if (p.w === "list" && p.loose) return Array.isArray(v) && v.length === p.n && (!p.least || (v.filter(Boolean).length >= p.least && distinct(v.filter(Boolean).map(Q.fold)))) && v.every(function (x) { return x === "" || (typeof x === "string" && Q.clean(x, p.max) === x); });
     if (p.w === "list") return Array.isArray(v) && v.length === p.n && v.every(function (x) { return typeof x === "string" && !!Q.clean(x, p.max) && Q.clean(x, p.max) === x; }) && (p.same || distinct(v.map(Q.fold)));
     var n = p.from ? p.from(doc, m, now, lang).length : 0;
@@ -893,6 +958,7 @@
     var g = GAMES[doc.g], at = g.gate ? g.gate(doc, moves(doc)) : 0, left = at ? at - today : 0;
     return left > 0 ? left : 0;
   }
+  function face(doc, lang) { var g = GAMES[doc.g]; return g.face ? g.face(doc, moves(doc), lang) : null; }
   function whole(doc, lang) { var g = GAMES[doc.g]; return g.peekWhole ? g.peekWhole(doc, moves(doc), lang) : ""; }
   function fresh(doc, seed) { var d = JSON.parse(JSON.stringify(doc)); d.seed = seed >>> 0; d.q = ""; delete d.o; return d; }
   function today(date) { return Math.floor((date || new Date()).getTime() / DAY); }
@@ -901,6 +967,6 @@
     (function walk(v) { if (typeof v === "string") v.split("|").forEach(function (x) { out.push(x); }); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.keys(v).forEach(function (k) { walk(v[k]); }); })(DATA);
     return out;
   }
-  var api = { doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, whole: whole, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
+  var api = { HOURS: HOURS, dayText: dayText, hourText: hourText, slotText: slotText, termDates: termDates, voted: voted, doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, face: face, whole: whole, payLink: payLink, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
   if (node) module.exports = api; else root.Turns = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

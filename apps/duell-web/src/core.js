@@ -2,7 +2,7 @@
 (function (root) {
   "use strict";
 
-  var SHARE_BASE = "https://bunsenbrenner.org/duell";
+  var SHARE_BASE = (root.DailyFlavor && root.DailyFlavor.shareBase) || "https://bunsenbrenner.org/duell";   // a flavor build is shared under its own path
   var SHORT_BASE = "https://bunsenbrenner.org/s/";
   var DEFAULT_API = "https://demos-34a13a96.bunsenbrenner.org/api/duell/config";
   var MAX_FRAGMENT = 1200;       // hard cap on the encoded payload we are willing to parse
@@ -306,6 +306,15 @@
     return st;
   }
 
+  // The web conference wears the app's look in the player's own two colours (theme.js in CADS-webconference-demo).
+  // Only "rrggbb" goes into the link; anything else falls back to the app's yellow and red.
+  var CONF_BASE = "https://webconference.bunsenbrenner.org/";
+  function confLink(colors) {
+    var c = Array.isArray(colors) ? colors : [], hex = /^#[0-9a-fA-F]{6}$/;
+    var a = hex.test(c[0]) ? c[0] : "#ffd400", b = hex.test(c[1]) ? c[1] : "#ff3b1d";
+    return CONF_BASE + "?look=daily&a=" + a.slice(1).toLowerCase() + "&b=" + b.slice(1).toLowerCase();
+  }
+
   var api = {
     SHARE_BASE: SHARE_BASE, SHORT_BASE: SHORT_BASE, DEFAULT_API: DEFAULT_API, MAX_FRAGMENT: MAX_FRAGMENT, MAX_NAME: MAX_NAME, MAX_TITLE: MAX_TITLE,
     MAX_PROMPT: MAX_PROMPT, MAX_SCORE: MAX_SCORE, RANGES: RANGES, THEME_NAMES: THEME_NAMES, PRESETS: PRESETS,
@@ -313,7 +322,7 @@
     isClean: isClean, sanitizeName: sanitizeName, sanitizeTitle: sanitizeTitle, sanitizeEmoji: sanitizeEmoji, sanitizePrompt: sanitizePrompt,
     sanitizeState: sanitizeState, encodeState: encodeState, decodeState: decodeState, parseHash: parseHash, buildUrl: buildUrl,
     configKey: configKey, hash32: hash32, mulberry32: mulberry32, dailyKey: dailyKey, dailySeed: dailySeed, dailyConfig: dailyConfig,
-    sanitizeLook: sanitizeLook, DECOS: DECOS, FORMS: FORMS, presetState: presetState, localConfig: localConfig, stateFromApi: stateFromApi
+    sanitizeLook: sanitizeLook, DECOS: DECOS, FORMS: FORMS, presetState: presetState, localConfig: localConfig, stateFromApi: stateFromApi, CONF_BASE: CONF_BASE, confLink: confLink
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.DuellCore = api;

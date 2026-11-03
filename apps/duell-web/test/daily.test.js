@@ -11,7 +11,7 @@ const UNSAFE = /alkohol|bier\b|schnaps|vodka|wodka|zigarett|rauch|droge|kiffen|n
 
 test("Daten: mindestens 40 Tagesideen als Daten, 4 Mechaniken, Ids eindeutig, DE und EN vollstaendig", () => {
   assert.ok(D.IDEAS.length >= 40);
-  assert.deepEqual([...new Set(D.IDEAS.map((i) => i.kind))].sort(), [...D.KINDS].sort());
+  assert.deepEqual([...new Set(D.IDEAS.map((i) => i.kind))].sort(), [...D.KINDS, ...D.PLAY].sort());
   assert.equal(new Set(D.IDEAS.map((i) => i.id)).size, D.IDEAS.length);
   for (const i of D.IDEAS) {
     assert.ok(/^[a-z0-9-]{1,32}$/.test(i.id), i.id);
@@ -176,27 +176,36 @@ test("Plan: 30 Tage ab 2. November, jeden Tag eine eigene Idee, nie zweimal dies
   const seen = new Set(); let prev = "";
   for (let i = 0; i < 30; i++) {
     const day = new Date(Date.UTC(2026, 10, 2 + i)), idea = D.ideaForDay(day, { crypto: true, channel: false, call: false });
-    assert.match(idea.id, /^(plan|zug)-|^advent-tuer$/, day.toISOString()); assert.ok(!seen.has(idea.id)); seen.add(idea.id);
+    assert.match(idea.id, /^(plan|zug)-/, day.toISOString()); assert.ok(!seen.has(idea.id)); seen.add(idea.id);
     assert.notEqual(idea.kind, prev, idea.id); prev = idea.kind;
   }
   assert.ok(D.IDEAS.filter((i) => /^plan-/.test(i.id) && i.live).length >= 15, "mindestens die Haelfte fuehrt zu einem echten Dienst");
 });
-test("Adventstuerchen: am 1., 6., 13., 20. und 24. Dezember, sonst nie; Dezember ohne gleiche Art hintereinander", () => {
-  const DAYS = ["12-01", "12-06", "12-13", "12-20", "12-24"];
+test("Adventstuerchen: nur am 22. und 24. Dezember zwischen zwei Arcade-Tagen, der Dezember-Plan bleibt, wie er ist", () => {
+  const DAYS = ["12-22", "12-24"], CAPS = [{ crypto: true }, { crypto: false }, { crypto: true, call: true }, { crypto: true, channel: false, call: false }];
+  // every other calendar idea still owns its day: plan-30, Geld einsammeln, Termin finden, Wohlfuehl- und Arcade-Tage
+  for (const i of D.IDEAS.filter((x) => x.on && x.id !== "advent-tuer")) for (const md of [].concat(i.on)) assert.equal(D.ideaForDay(new Date("2026-" + md + "T12:00:00Z")).id, i.id, md);
   for (const year of [2026, 2027, 2030]) {
     let prev = null;
-    for (let d = 0; d < 32; d++) {
-      const day = new Date(Date.UTC(year, 10, 30 + d)), key = day.toISOString().slice(5, 10);
-      for (const c of [{ crypto: true }, { crypto: false }, { crypto: true, call: true }]) {
+    for (let d = 0; d < 34; d++) {
+      const day = new Date(Date.UTC(year, 10, 29 + d, 12)), key = day.toISOString().slice(5, 10);
+      for (const c of CAPS) {
         const idea = D.ideaForDay(day, c);
-        if (DAYS.includes(key)) assert.equal(idea.id, "advent-tuer", year + "-" + key); else assert.notEqual(idea.id, "advent-tuer", year + "-" + key);
+        if (DAYS.includes(key)) {
+          assert.equal(idea.id, "advent-tuer", year + "-" + key);
+          for (const n of [-1, 1]) assert.notEqual(D.ideaForDay(new Date(day.getTime() + n * 86400000), c).kind, "card", year + "-" + key + " Nachbar");
+          assert.equal(D.ideaForDay(new Date(day.getTime() - 86400000), c).kind, "arcade", "davor wird gespielt");
+        } else assert.notEqual(idea.id, "advent-tuer", year + "-" + key);
       }
       const idea = D.ideaForDay(day, { crypto: true });
       if (prev) assert.notEqual(idea.kind, prev.kind, year + "-" + key + ": " + prev.id + " und " + idea.id);
       prev = idea;
     }
   }
+  assert.equal(D.ideaForDay(new Date("2026-12-23T12:00:00Z")).kind, "arcade", "zwischen den beiden Tuerchen-Tagen wird gespielt");
   for (let i = 0; i < 2000; i++) assert.notEqual(D.randomIdea(Math.random, "").id, "advent-tuer");
+  assert.ok(D.searchIdeas("Adventstürchen", new Date("2026-11-03T12:00:00Z")).some((h) => h.idea.id === "advent-tuer"), "jederzeit ueber die Suche");
+  assert.ok(D.searchIdeas("tuerchen", new Date("2026-07-01T12:00:00Z")).some((h) => h.idea.id === "advent-tuer"));
 });
 test("Adventstuerchen: Nummer 1 bis 24 reist im Link, Vorbelegung ist der Dezembertag, sonst 1", () => {
   assert.equal(D.doorNumber(new Date("2026-12-06T10:00:00Z")), 6);
