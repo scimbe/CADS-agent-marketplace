@@ -99,6 +99,33 @@
     for (var i = 1; i <= n; i++) { var d = dayDate(date, i); out.push({ date: d, key: C.dailyKey(d), idea: ideaForDay(d) }); }
     return out;
   }
+  // ---------- search ----------
+  // Case, umlauts and accents do not matter: "Rätsel", "RAETSEL" and "raetsel" are the same word before comparing. A title
+  // broken as "Geister-|schicht" reads as one word again.
+  function fold(s) {
+    return String(s == null ? "" : s).toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/-?\|/g, function (m) { return m === "|" ? " " : ""; }).replace(/\u00ad/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  }
+  // Title, subtitle, kind and tags in both languages; names maps a kind to its shown words. A new entry in ideas.json is
+  // found as soon as it is there, with the day it last came up if that was within the last year.
+  var SEARCH_DAYS = 365, MAX_HITS = 30;
+  function searchIdeas(query, date, names, c) {
+    var words = fold(query).split(" ").filter(Boolean);
+    if (!words.length) return [];
+    c = c || caps();
+    var hits = IDEAS.concat(GATED).filter(function (i) {
+      if (!available(i, c)) return false;
+      var parts = [i.kind].concat(i.tags || [], (names && names[i.kind]) || []);
+      ["de", "en"].forEach(function (l) { var L = i[l] || {}; parts = parts.concat(L.t, L.s, L.tags || []); });
+      var hay = fold(parts.join(" "));
+      return words.every(function (w) { return hay.indexOf(w) >= 0; });
+    });
+    if (!hits.length) return [];
+    var last = {}, n0 = dayNumber(date);
+    for (var b = 1; b <= SEARCH_DAYS; b++) { var x = ideaOn(n0 - b, c); if (x && !last[x.id]) last[x.id] = n0 - b; }
+    return hits.map(function (i) { return { idea: i, date: last[i.id] ? new Date(last[i.id] * DAY) : null }; })
+      .sort(function (a, b) { return (b.date ? b.date.getTime() : -1) - (a.date ? a.date.getTime() : -1); }).slice(0, MAX_HITS);
+  }
   function randomIdea(rnd, notId) {
     var pool = ROUND.concat(GATED).filter(function (i) { return i.id !== notId && available(i); });
     return pool[Math.floor(rnd() * pool.length)];
@@ -299,7 +326,7 @@
   }
 
   var api = {
-    IDEAS: IDEAS, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays,
+    IDEAS: IDEAS, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays, fold: fold, searchIdeas: searchIdeas,
     randomIdea: randomIdea, paperIndex: paperIndex, sanitizeId: sanitizeId, parseRoute: parseRoute, inviteUrl: inviteUrl, challengeUrl: challengeUrl,
     cleanInput: cleanInput, sanitizeProfile: sanitizeProfile, sanitizeDoc: sanitizeDoc, docFromIdea: docFromIdea, blankDoc: blankDoc,
     changedAreas: changedAreas, withTrail: withTrail, docUrl: docUrl, SETS: SETS, STYLES: STYLES, FX: FX, MAX_STICKERS: MAX_STICKERS, sanitizeWall: sanitizeWall, addToWall: addToWall, ideaStrings: ideaStrings
