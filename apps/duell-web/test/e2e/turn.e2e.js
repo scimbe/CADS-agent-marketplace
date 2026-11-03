@@ -41,6 +41,32 @@ test("Zwei Geraete: Keks-Deal laeuft nur ueber Links bis zum Ergebnisbild", asyn
   await send(back); await back.locator("#share").waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Termin finden: Uhrzeit und Tage antippen, Gruppe stimmt ueber Links ab, Karte nennt den besten Termin", async () => {
+  const { b, open, errs } = await setup();
+  const a = await open("#i=zug-termin"); await a.locator("#go").click();
+  const rows = a.locator("#panel .chips");
+  await a.getByRole("button", { name: "18 Uhr", exact: true }).click();
+  await rows.nth(1).locator(".chip").nth(1).click(); await rows.nth(1).locator(".chip").nth(2).click();
+  await a.getByRole("button", { name: "20 Uhr", exact: true }).click(); await rows.nth(1).locator(".chip").nth(2).click();
+  assert.equal(await rows.nth(2).locator(".chip").count(), 3);
+  await a.locator("#panel input.field").fill("Mia"); await next(a); await a.getByText("Fertig. Schick es in die Gruppe.").waitFor();
+  await a.locator("#edmain").filter({ hasText: "In die Gruppe schicken" }).waitFor();
+  await send(a); await a.locator("#share").waitFor();
+  const c = await open(hash(await url(a)));
+  assert.match(await c.locator("#from").textContent(), /Tipp, wann du kannst. Abgestimmt: 1/);
+  await c.locator("#go").click(); await c.locator("#panel").getByText(/^Zur Wahl: /).waitFor();
+  await c.locator("#panel input.field").fill("mia"); await c.locator("#panel").getByText("Den Namen gibt es schon").waitFor();
+  await c.locator("#panel input.field").fill("Ben");
+  assert.equal(await c.getByRole("button", { name: "Weiter", exact: true }).isDisabled(), true);   // no answer is set in advance
+  await c.getByRole("button", { name: "Alle Ja" }).click();
+  await c.locator("#panel .chips").nth(1).getByRole("button", { name: "Vielleicht" }).click(); await c.locator("#panel .chips").nth(2).getByRole("button", { name: "Nein" }).click();
+  await next(c); await send(c); await c.locator("#share").waitFor();
+  const d = await open(hash(await url(c)));
+  assert.match(await d.locator("#from").textContent(), /Abgestimmt: 2/);
+  await d.locator("#go").click(); await d.locator("#panel").getByText(/^Alle können: \S+ \d+\.\d+\., 18 Uhr$/).waitFor();
+  if (shot) await d.screenshot({ path: shot + "/termin.png" });
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Ein Tipp reicht: Pizza oder Pommes springt von Frage zu Frage, Luecke zeigt die Geschichte erst am Ende", async () => {
   const { b, open, errs } = await setup();
   const a = await open("#i=zug-snack"); await a.locator("#go").click();
