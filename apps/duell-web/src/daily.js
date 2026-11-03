@@ -11,8 +11,9 @@
   var ROUND_KINDS = ROUND.map(function (i) { return i.kind; }).filter(function (k, i, a) { return a.indexOf(k) === i; }).sort();
   var ID_RE = /^[a-z0-9-]{1,32}$/, MAX_WALL = 30, MAX_THUMB = 60000, MAX_TEXT = 90;
   var DAY = 86400000;
-  var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn"];
-  var STYLES = { card: ["druck", "zettel", "stempel", "neon"], photo: ["poster", "sticker", "meme", "glitch"] };
+  var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn", "table"];
+  var PLAY = ["arcade"];   // days that are only played (arcade-ui.js), never edited, wished for or sent as a creation
+  var STYLES = { card: ["druck", "zettel", "stempel", "neon", "herz"], photo: ["poster", "sticker", "meme", "glitch"] };
   var FX = ["chip", "monster", "robot", "echo"];
   var AREAS = ["text", "farbe", "stil", "sticker", "foto", "beat", "stimme", "regeln", "figur", "welt", "idee"];
   var HEX = /^#[0-9a-f]{6}$/;
@@ -188,7 +189,7 @@
   var SETS = {
     tiere: ["🐸", "🦆", "🐙", "🦝", "🐌", "🦖"], essen: ["🍕", "🌮", "🍩", "🥨", "🍟", "🧃"],
     weltall: ["🚀", "🛸", "👽", "🪐", "🌟", "☄️"], chaos: ["💥", "🔥", "💀", "🤡", "🌀", "⚡"],
-    grusel: ["🎃", "👻", "🦇", "🕷️", "🧛", "🕸️"]
+    grusel: ["🎃", "👻", "🦇", "🕷️", "🧛", "🕸️"], herz: ["💛", "🌻", "✨", "🫶", "🌈", "☀️"]
   };
   function sanitizeProfile(p) {
     p = p && typeof p === "object" ? p : {};
@@ -242,6 +243,8 @@
       Quest.sanitize(o, d);
     } else if (o.k === "turn") {
       Turns.sanitize(o, d);
+    } else if (o.k === "table") {
+      d.g = o.g === "skat" ? "skat" : "doko";
     } else {
       var g = C.sanitizeState({ v: 1, seed: o.g && o.g.seed, params: o.g && o.g.params, theme: o.g && o.g.theme, title: o.g && o.g.title, emoji: o.g && o.g.emoji, look: o.g && o.g.look });
       d.g = { seed: g.seed, params: g.params, theme: g.theme, title: g.title, emoji: g.emoji };
@@ -258,6 +261,9 @@
     if (idea.kind === "duel") Duel.fromIdea(idea, profile, lang, base);
     if (idea.kind === "quest") Quest.fromIdea(idea, lang, base);
     if (idea.kind === "turn") Turns.fromIdea(idea, lang, base);
+    if (idea.kind === "table") base.g = idea.table.game;
+    // Played in arcade-ui.js, never edited or sent: no link ever carries such a doc, so sanitizeDoc keeps refusing it.
+    if (idea.kind === "arcade") { base.a = idea.arcade.g; return base; }
     return sanitizeDoc(base);
   }
   function blankDoc(kind, profile, lang) {
@@ -326,7 +332,7 @@
   }
 
   var api = {
-    IDEAS: IDEAS, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays, fold: fold, searchIdeas: searchIdeas,
+    IDEAS: IDEAS, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, PLAY: PLAY, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays, fold: fold, searchIdeas: searchIdeas,
     randomIdea: randomIdea, paperIndex: paperIndex, sanitizeId: sanitizeId, parseRoute: parseRoute, inviteUrl: inviteUrl, challengeUrl: challengeUrl,
     cleanInput: cleanInput, sanitizeProfile: sanitizeProfile, sanitizeDoc: sanitizeDoc, docFromIdea: docFromIdea, blankDoc: blankDoc,
     changedAreas: changedAreas, withTrail: withTrail, docUrl: docUrl, SETS: SETS, STYLES: STYLES, FX: FX, MAX_STICKERS: MAX_STICKERS, sanitizeWall: sanitizeWall, addToWall: addToWall, ideaStrings: ideaStrings

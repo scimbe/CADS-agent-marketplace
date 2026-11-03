@@ -42,11 +42,11 @@ test("Suche: jede Karte aus ideas.json ist ueber ihren Titel findbar, neue Eintr
   const neu = { id: "test-geld", kind: "turn", tags: ["PayPal", "Geld"], de: { t: "Geld|einsammeln", s: "Fürs Geschenk." }, en: { t: "Collect|money", s: "For the gift." } };
   D.IDEAS.push(neu);
   try {
-    assert.deepEqual(ids("paypal"), ["test-geld"]);
+    assert.deepEqual(ids("paypal").sort(), ["test-geld", "zug-sammeln"], "die echte Karte Geld einsammeln und der neue Eintrag");
     assert.ok(ids("collect money").includes("test-geld"));
-    assert.equal(D.searchIdeas("paypal", day, names, ALL)[0].date, null, "noch nie dran gewesen: kein Datum");
+    assert.equal(D.searchIdeas("paypal", day, names, ALL).find((h) => h.idea.id === "test-geld").date, null, "noch nie dran gewesen: kein Datum");
   } finally { D.IDEAS.pop(); }
-  assert.deepEqual(ids("paypal"), []);
+  assert.deepEqual(ids("paypal"), ["zug-sammeln"]);
 });
 test("Suche: Treffer tragen den letzten Tag, an dem die Karte dran war, neueste zuerst", () => {
   const hits = D.searchIdeas("flug", day, names, NONE), dated = hits.filter((h) => h.date);

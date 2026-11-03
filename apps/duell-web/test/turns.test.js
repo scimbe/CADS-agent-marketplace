@@ -35,6 +35,7 @@ const LINES = {
   rangliste: [[[[0, 1, 2, 3, 4, 5, 6, 7]], [[7, 1, 2, 3, 4, 5, 6, 0]]]],
   schaetzen: [[[1, 1, 1, 1, 1]]],
   reihum: [[[[0], "dein Lachen", "Ana"], [[1], "Toast machen", "Ben"], [[2], "wir lachten", "Cem"], [[4], "alles", "Dag"]]],
+  termin: [[[["Mia", [207606, 207616, 207626]]]].concat(["Ben", "Lea", "Cem", "Dag", "Eva", "Finn", "Gus", "Hana", "Ida"].map((n, i) => [[n, [i % 3, 0, 2]]]))],
   danke: [[["du mir geholfen hast", "Ana"], [0]]],
   kerzen: [[["Alles Gute, du Held"], [0]]],
   tunnel: [[["Pommes"]]],
@@ -248,6 +249,32 @@ test("Schaetzen: gleicher Tag gleiche Fragen, das Bild verraet keine Loesung", (
   const d = Tn.play(f(100), [0, 0, 0, 0, 0], 0), r = Tn.result(d, "de");
   assert.equal(r.h, "Im Schnitt 100 Prozent daneben"); assert.ok(!/\d{2,}/.test(r.lines.join(" ").replace(/100 Prozent/g, ""))); assert.ok(r.note);
 });
+test("Termin finden: Termine nur angetippt, bester Termin gewinnt, Gleichstand ehrlich, Grenzen halten", () => {
+  const d = fresh("termin", 5), day = 20760, de = (x) => Tn.result(x, "de");
+  const one = Tn.play(d, [["Mia", [day * 10 + 6, (day + 1) * 10 + 6, (day + 2) * 10 + 0]]], 0);
+  assert.equal(Tn.face(d, "de"), null);
+  assert.deepEqual(Tn.face(one, "de"), ["Zur Wahl: Di 3.11., 18 Uhr · Mi 4.11., 18 Uhr · Do 5.11., 10 Uhr", "Abgestimmt: 1", "Tipp, wann du kannst."]);
+  const two = Tn.play(through(one), [["Ben", [2, 0, 1]]], 0), three = Tn.play(through(two), [["Lea", [1, 0, 2]]], 0);
+  assert.equal(Tn.face(three, "de")[0], "Alle können: Mi 4.11., 18 Uhr");
+  assert.equal(Tn.face(Tn.play(two, [["Lea", [0, 2, 2]]], 0), "de")[0], "Gleichauf: Di 3.11., 18 Uhr · Mi 4.11., 18 Uhr");
+  assert.equal(Tn.face(Tn.play(two, [["Lea", [1, 2, 2]]], 0), "de")[0], "Die meisten können: Mi 4.11., 18 Uhr");
+  assert.match(Tn.face(one, "en")[0], /^To choose from: Tue 11\/3, 6 pm · Wed 11\/4, 6 pm · Thu 11\/5, 10 am$/);
+  // dates are taps: no text, 2 to 5, in order, only the offered hours
+  for (const bad of [["Fr 18 Uhr", "Sa 14 Uhr"], [day * 10], [1, 2, 3, 4, 5, 6].map((i) => (day + i) * 10), [day * 10 + 1, day * 10], [day * 10 + 9, day * 10 + 19]]) assert.equal(Tn.play(d, [["Mia", bad]], 0), null, JSON.stringify(bad));
+  // names go through the filter and count once, every date gets one of three answers
+  for (const n of ["", "Treff 18 Uhr", "mia", "M i a", "!!", "abcdefghijklm"]) assert.equal(Tn.play(one, [[n, [0, 0, 0]]], 0), null, n);
+  assert.equal(Tn.play(d, [["Treff am Bahnhof", [day * 10, day * 10 + 1]]], 0), null);
+  for (const v of [[0, 0], [0, 0, 3], [0, 0, -1], [0, 0, 0, 0]]) assert.equal(Tn.play(one, [["Ben", v]], 0), null, JSON.stringify(v));
+  // ten people at most, then the card is done; long names still fit into the link
+  let x = Tn.play(d, [["Mia", [1, 2, 3, 4, 5].map((i) => (day + i) * 10 + 8)]], 0);
+  for (let i = 0; i < 9; i++) x = through(Tn.play(x, [["Ääääääääää" + "BCDEFGHIJ"[i], [i % 3, 0, 1, 2, 1]]], 0));
+  assert.equal(Tn.state(x).over, true); assert.equal(Tn.play(x, [["Zoe", [0, 0, 0, 0, 0]]], 0), null);
+  assert.ok(D.docUrl(x).length < 1400, "Linklaenge " + D.docUrl(x).length);
+  assert.equal(de(x).h, "Alle können: Do 5.11., 20 Uhr"); assert.match(de(x).lines.at(-1), /^Können: Mia, Ä[ä]{9}B, Ä[ä]{9}C \+7$/);
+  // in the calendar on its day, in the shelf of the evening chat
+  const idea = D.IDEAS.find((i) => i.id === "zug-termin");
+  assert.equal(idea.on, "12-04"); assert.equal(D.ideaForDay(new Date(Date.UTC(2026, 11, 4))).id, "zug-termin");
+});
 test("Rangliste nennt den groessten Streit", () => {
   let d = Tn.play(fresh("rangliste", 0), [[0, 1, 2, 3, 4, 5, 6, 7]], 0); d = Tn.play(d, [[7, 1, 2, 3, 4, 5, 6, 0]], 0);
   const r = Tn.result(d, "de"); assert.match(r.lines[2], /Pausenbrot/); assert.equal(r.h, "56 Prozent einig");
@@ -324,7 +351,13 @@ test("Tuersteher: jede Regel zeigt frueh ein Ja und ein Nein, gleiche Wesen fuer
 });
 test("Keine Werbe- und Manipulationstechnik in den Quellen", () => {
   const fs = require("node:fs"), path = require("node:path"), dir = path.join(__dirname, "../src");
-  for (const f of fs.readdirSync(dir).filter((n) => n.endsWith(".js"))) assert.ok(!/ad_revenue|interstitial|rewarded|userAgent|deviceMemory|hardwareConcurrency|\brevive\b/i.test(fs.readFileSync(path.join(dir, f), "utf8")), f);
+  // One exception for device signals: the protocol page picks the speech model size and thread count from them (or says
+  // honestly that the device is too weak). They stay on the device; build.test.js checks they are not in what is sent.
+  for (const f of fs.readdirSync(dir).filter((n) => n.endsWith(".js"))) {
+    const s = fs.readFileSync(path.join(dir, f), "utf8");
+    assert.ok(!/ad_revenue|interstitial|rewarded|\brevive\b/i.test(s), f);
+    if (f !== "protokoll-page.js") assert.ok(!/userAgent|deviceMemory|hardwareConcurrency/.test(s), f);
+  }
 });
 test("Unberechenbar: ein starres Muster wird erkannt", () => {
   let d = fresh("unlesbar", 1), r;

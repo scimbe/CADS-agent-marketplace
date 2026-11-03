@@ -13,7 +13,7 @@ test("Webconference-Knopf oeffnet die Konferenz im App-Look mit den eigenen Farb
     window.__opened = []; window.open = (u) => { window.__opened.push(u); return {}; };
   });
   await p.goto(page);
-  await p.locator("#feat button", { hasText: "Webconference" }).click();
+  await p.locator("#feat .lane").hover(); await p.locator("#feat .lane button:not([aria-hidden])", { hasText: "Webconference" }).click();
   assert.deepEqual(await p.evaluate(() => window.__opened), ["https://webconference.bunsenbrenner.org/?look=daily&a=2b59ff&b=ffd400"]);
   await b.close();
 });

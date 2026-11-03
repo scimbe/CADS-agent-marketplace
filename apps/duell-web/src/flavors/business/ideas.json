@@ -1,0 +1,257 @@
+{
+ "ideas": [
+  {
+   "id": "biz-termin",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Termin|finden",
+    "s": "Zwei bis fünf Vorschläge. Alle kreuzen an."
+   },
+   "en": {
+    "t": "Find|a date",
+    "s": "Two to five options. Everyone ticks."
+   },
+   "turn": {
+    "g": "termin",
+    "f": "ring",
+    "grip": "abend"
+   }
+  },
+  {
+   "id": "biz-umfrage-lunch",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Team-Lunch|abstimmen",
+    "s": "Eine Frage, bis zu vier Antworten."
+   },
+   "en": {
+    "t": "Vote on|team lunch",
+    "s": "One question, up to four answers."
+   },
+   "turn": {
+    "g": "umfrage",
+    "f": "star",
+    "grip": "streit"
+   }
+  },
+  {
+   "id": "biz-feedback-meeting",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Feedback|zum Meeting",
+    "s": "Note 1 bis 5, ohne Namen."
+   },
+   "en": {
+    "t": "Feedback|on the meeting",
+    "s": "Score 1 to 5, no names."
+   },
+   "turn": {
+    "g": "feedback",
+    "f": "heart",
+    "grip": "pause"
+   }
+  },
+  {
+   "id": "biz-aufgaben",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Aufgaben|verteilen",
+    "s": "Jeder nimmt sich eine, bis alle weg sind."
+   },
+   "en": {
+    "t": "Hand out|tasks",
+    "s": "Everyone takes one until none are left."
+   },
+   "turn": {
+    "g": "aufgaben",
+    "f": "bolt",
+    "grip": "raum"
+   }
+  },
+  {
+   "id": "biz-agenda",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Agenda fürs|Meeting",
+    "s": "Alle tragen ihren Punkt ein. Dann Call starten."
+   },
+   "en": {
+    "t": "Agenda for|the meeting",
+    "s": "Everyone adds an item. Then start the call."
+   },
+   "turn": {
+    "g": "agenda",
+    "f": "drop",
+    "grip": "abend"
+   }
+  },
+  {
+   "id": "biz-sammeln",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Geld|einsammeln",
+    "s": "PayPal-Link mit Betrag. Das Geld läuft nie über uns."
+   },
+   "en": {
+    "t": "Collect|money",
+    "s": "PayPal link with an amount. The money never passes through us."
+   },
+   "turn": {
+    "g": "sammeln",
+    "f": "coin",
+    "grip": "geschenk"
+   }
+  },
+  {
+   "id": "biz-umfrage-prio",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Was hat|Priorität?",
+    "s": "Das Team entscheidet in einer Runde."
+   },
+   "en": {
+    "t": "What comes|first?",
+    "s": "The team decides in one round."
+   },
+   "turn": {
+    "g": "umfrage",
+    "f": "star",
+    "grip": "streit"
+   }
+  },
+  {
+   "id": "biz-feedback-workshop",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Wie war der|Workshop?",
+    "s": "Ehrliche Note, kurzer Satz."
+   },
+   "en": {
+    "t": "How was the|workshop?",
+    "s": "Honest score, one sentence."
+   },
+   "turn": {
+    "g": "feedback",
+    "f": "heart",
+    "grip": "pause"
+   }
+  },
+  {
+   "id": "biz-aufgaben-event",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Wer macht|was beim Event?",
+    "s": "Liste rein, Namen kommen dazu."
+   },
+   "en": {
+    "t": "Who does what|at the event?",
+    "s": "Add the list, names follow."
+   },
+   "turn": {
+    "g": "aufgaben",
+    "f": "bolt",
+    "grip": "raum"
+   }
+  },
+  {
+   "id": "biz-termin-review",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Termin für|das Review",
+    "s": "Kein Mail-Pingpong mehr."
+   },
+   "en": {
+    "t": "Date for|the review",
+    "s": "No more email ping-pong."
+   },
+   "turn": {
+    "g": "termin",
+    "f": "ring",
+    "grip": "abend"
+   }
+  },
+  {
+   "id": "biz-umfrage-ort",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Wo treffen|wir uns?",
+    "s": "Büro, Café oder remote."
+   },
+   "en": {
+    "t": "Where do|we meet?",
+    "s": "Office, café or remote."
+   },
+   "turn": {
+    "g": "umfrage",
+    "f": "star",
+    "grip": "streit"
+   }
+  },
+  {
+   "id": "biz-agenda-retro",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Retro-Themen|sammeln",
+    "s": "Jeder bringt ein Thema mit."
+   },
+   "en": {
+    "t": "Collect retro|topics",
+    "s": "Everyone brings one topic."
+   },
+   "turn": {
+    "g": "agenda",
+    "f": "drop",
+    "grip": "abend"
+   }
+  },
+  {
+   "id": "biz-sammeln-geschenk",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Geschenk|für Kollegin",
+    "s": "Alle geben, keiner rechnet."
+   },
+   "en": {
+    "t": "Gift for|a colleague",
+    "s": "Everyone chips in, nobody does sums."
+   },
+   "turn": {
+    "g": "sammeln",
+    "f": "coin",
+    "grip": "geschenk"
+   }
+  },
+  {
+   "id": "biz-feedback-quartal",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Quartal|in einer Note",
+    "s": "Wie lief es für dich?"
+   },
+   "en": {
+    "t": "The quarter|in one score",
+    "s": "How did it go for you?"
+   },
+   "turn": {
+    "g": "feedback",
+    "f": "heart",
+    "grip": "pause"
+   }
+  }
+ ],
+ "gated": []
+}

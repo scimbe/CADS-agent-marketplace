@@ -51,6 +51,16 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 @media (max-height:700px){#feat{display:none}}
 @media (prefers-reduced-motion:reduce){#feat .lane{overflow-x:auto;scrollbar-width:none}#feat .track{animation:none}#feat .track [aria-hidden]{display:none}}
 #edsave[aria-pressed=true]{color:#ff3d71}
+/* feel-good card: the optional name above the button, and a soft arrival for whoever gets one */
+.warmto{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:-8px 18px 8px;color:var(--on);font:800 14px/1.2 var(--ui)}
+.warmto[hidden]{display:none}
+.warmto .field{flex:1;width:auto;min-width:120px;min-height:44px;margin:0;user-select:text;-webkit-user-select:text}
+.warmwarn{flex-basis:100%;font-size:13px}.warmwarn:empty{display:none}
+#leaf.warmin{animation:lift .8s cubic-bezier(.2,1.3,.4,1) both}
+@keyframes lift{from{transform:translateY(46px) scale(.9) rotate(-.8deg);opacity:0}}
+.wh{position:absolute;bottom:16%;left:calc(14% + var(--i) * 13%);color:var(--b);font:900 34px/1 var(--ui);pointer-events:none;animation:rise 1.7s calc(var(--i) * 110ms + .35s) ease-out both}
+@keyframes rise{from{transform:translateY(0) scale(.6);opacity:0}25%{opacity:1}to{transform:translateY(-240px) scale(1.15);opacity:0}}
+@media (prefers-reduced-motion:reduce){#leaf.warmin{animation:none}.wh{display:none}}
 #feat button{flex:none;min-height:40px;padding:0 11px;border:2px solid var(--ink);border-radius:20px;background:var(--paper);color:var(--ink);font:800 13px var(--ui);white-space:nowrap}
 .pv{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;margin:2px 0 6px}
 .pv[hidden]{display:none}
@@ -219,3 +229,18 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .inv img{width:100%;height:100%;object-fit:cover;display:block}.invicon{display:grid;place-items:center;height:100%;font-size:40px}
 .invx{position:absolute;top:-8px;right:-8px;width:36px;height:36px;border-radius:50%;border:2px solid var(--ink);background:#fff;color:#111;font:900 16px var(--ui);display:grid;place-items:center}
 .invdate{font:700 12px var(--ui);text-align:center}
+.arcov{background:#0b0b12;color:#fff}.arcov .note,.arcov .livescore{color:#fff}.arcov .livebody{gap:8px}
+.arccv{width:min(94vw,60vh);aspect-ratio:1000/1600;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border-color:#fff;background:#07070b}
+.arcdemo{width:min(56vw,30vh);aspect-ratio:300/480;border:3px solid #fff;background:#07070b}.arcnote{min-height:2.4em;margin:0}
+@media (prefers-reduced-motion:reduce){.arccv,.arcdemo{animation:none;transition:none}}
+/* card tables (table-ui.js) */
+.tbov{justify-content:flex-start;overflow-y:auto}.tbbody{padding-top:44px;gap:10px}.tbbadge{font-size:26px}
+.tbseats{width:100%;display:flex;flex-direction:column;gap:6px}.tbseat{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:3px solid var(--ink);background:var(--paper);font:900 18px var(--ui);text-align:left}
+.tbseat.me{outline:3px solid var(--b)}.tbseat .btn{min-height:40px;padding:6px 10px;font-size:15px}.tbwarn{font-weight:900}
+.tbturn{font:900 22px var(--ui);margin:0;min-height:28px}.tbturn.hot{color:var(--b)}.tbinfo{margin:0;min-height:20px}
+.tbtrick{display:flex;justify-content:center;gap:8px;min-height:118px;flex-wrap:wrap}.tbplayed{display:flex;flex-direction:column;align-items:center;gap:2px;font:700 12px var(--ui)}
+.tbhand{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;width:100%}
+.tbcard{display:inline-block;width:64px;height:96px;padding:0;border:0;background:none;line-height:0;transition:transform .12s}.tbcard svg{width:100%;height:100%}
+.tbcard.small{width:40px;height:60px}.tbcard.no{opacity:.45}.tbcard.ok{cursor:pointer}.tbcard.ok:active{transform:translateY(-4px)}.tbcard.sel{transform:translateY(-12px)}
+.tbacts{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;width:100%}.tbacts .btn{min-height:44px;padding:6px 12px;font-size:16px}
+@media (max-width:420px){.tbcard{width:52px;height:78px}}
