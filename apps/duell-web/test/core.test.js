@@ -129,3 +129,9 @@ test("API-Namen: flapPower/pipeGap/pipeSpeed werden angenommen und mit den API-G
   assert.deepEqual(st.params, { gravity: 2000, jump: 620, gap: 95, speed: 90 });
   assert.deepEqual(C.sanitizeParams({ gravity: 900, flapPower: 280, pipeGap: 200, pipeSpeed: 260 }), { gravity: 900, jump: 280, gap: 200, speed: 260 });
 });
+test("Webconference: Link traegt den App-Look und genau die zwei Profilfarben", () => {
+  assert.equal(C.confLink(["#2B59FF", "#ffd400"]), "https://webconference.bunsenbrenner.org/?look=daily&a=2b59ff&b=ffd400");
+  assert.equal(C.confLink(null), "https://webconference.bunsenbrenner.org/?look=daily&a=ffd400&b=ff3b1d");
+  assert.equal(C.confLink(["red", "#ffd400&x=1"]), "https://webconference.bunsenbrenner.org/?look=daily&a=ffd400&b=ff3b1d", "nur #rrggbb kommt in den Link");
+  assert.ok(C.confLink(["#111111", "#eeeeee"]).startsWith(C.CONF_BASE));
+});
