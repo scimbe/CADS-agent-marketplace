@@ -540,6 +540,48 @@
     turns: [signTurn(), signTurn(), signTurn(), signTurn()],
     result: function (doc, m, lang) { return { h: T(lang).rei_h, lines: m.map(function (x) { return signedLine(x, lang); }) }; }
   };
+  // ---------- finding a date: dates are tapped, never typed, so no place or time of day slips in as free text ----------
+  // A date is day * 10 + hour slot. Whoever asks chose the dates and counts as yes everywhere; up to ten people in one link.
+  var HOURS = [10, 12, 14, 15, 16, 17, 18, 19, 20], VOTERS = 10;
+  function dayText(day, lang) { var X = T(lang), d = new Date(day * DAY); return fmt(X.ter_day, { w: X.ter_days.split("|")[d.getUTCDay()], d: d.getUTCDate(), m: d.getUTCMonth() + 1 }); }
+  function hourText(i, lang) { var h = HOURS[i]; return lang === "en" ? (h > 12 ? h - 12 : h) + (h < 12 ? " am" : " pm") : fmt(T(lang).ter_hour, { h: h }); }
+  function slotText(s, lang) { return dayText(Math.floor(s / 10), lang) + ", " + hourText(s % 10, lang); }
+  function nameOk(v) { return typeof v === "string" && !!Q.fold(v) && Q.clean(v, 12) === v && new TextEncoder().encode(v).length <= 24; }
+  function termDates(m) { return m[0][0][1]; }
+  function voted(m) { return m.map(function (t) { return t[0][0]; }); }
+  function tally(m) {
+    return termDates(m).map(function (s, i) {
+      var c = { s: s, yes: 1, maybe: 0, who: [m[0][0][0]] };
+      m.slice(1).forEach(function (t) { var v = t[0][1][i]; if (v === 0) { c.yes++; c.who.push(t[0][0]); } else if (v === 1) c.maybe++; });
+      c.pts = (c.yes * 2 + c.maybe) * 100 + c.yes;
+      return c;
+    }).sort(function (a, b) { return b.pts - a.pts || a.s - b.s; });
+  }
+  function few(names) { return names.slice(0, 3).join(", ") + (names.length > 3 ? " +" + (names.length - 3) : ""); }
+  function termHead(m, lang) {
+    var X = T(lang), l = tally(m), top = l.filter(function (c) { return c.pts === l[0].pts; });
+    if (m.length === 1) return fmt(X.ter_open, { s: termDates(m).map(function (s) { return slotText(s, lang); }).join(" · ") });   // only the one who asks so far
+    if (top.length > 1) return fmt(X.ter_tie, { s: top.map(function (c) { return slotText(c.s, lang); }).join(" · ") });
+    return fmt(l[0].yes === m.length ? X.ter_all : X.ter_most, { s: slotText(l[0].s, lang) });
+  }
+  function ballot() {
+    return { w: "vote", l: "ter_vote", peek: function (doc, m, now, lang) { return termHead(m, lang); }, ok: function (v, m) {
+      return Array.isArray(v) && v.length === 2 && nameOk(v[0]) && voted(m).every(function (n) { return Q.fold(n) !== Q.fold(v[0]); }) &&
+        Array.isArray(v[1]) && v[1].length === termDates(m).length && v[1].every(function (x) { return intIn(x, 0, 2); });
+    } };
+  }
+  GAMES.termin = {
+    turns: [[{ w: "slots", l: "ter_pick", ok: function (v) {
+      var s = Array.isArray(v) && v.length === 2 && v[1];
+      return !!s && nameOk(v[0]) && Array.isArray(s) && s.length >= 2 && s.length <= 5 && s.every(function (x, i) { return intIn(x, 0, 9999999) && x % 10 < HOURS.length && (!i || x > s[i - 1]); });
+    } }]].concat(Array.apply(null, Array(VOTERS - 1)).map(function () { return [ballot()]; })),
+    words: { you_start: "ter_start", go_first: "ter_go_first", go_play: "ter_go", note_turn: "ter_note", note_over: "ter_over", ready: "ter_ready", send: "ter_send", rematch: "ter_again" },
+    face: function (doc, m, lang) { return m.length ? [termHead(m, lang), fmt(T(lang).ter_count, { n: m.length }), T(lang).ter_you] : null; },
+    result: function (doc, m, lang) {
+      var X = T(lang), l = tally(m);
+      return { h: termHead(m, lang), lines: l.slice(0, 2).map(function (c) { return fmt(X.ter_line, { s: slotText(c.s, lang), y: c.yes, v: c.maybe }); }).concat([fmt(X.ter_can, { w: few(l[0].who) })]) };
+    }
+  };
   // ---------- thanks, candles, a secret alphabet, a letter to yourself ----------
   GAMES.danke = {
     turns: [[{ w: "text", l: "dan_why", max: 44 }, { w: "text", l: "dan_from", max: 12 }], [{ w: "show", l: "dan_got", list: function (doc, m, now, lang) { return [fmt(T(lang).dan_h, { s: m[0][0] }), m[0][1]]; } }]],
@@ -855,6 +897,7 @@
     if (p.w === "doors") return v === 0;
     if (p.w === "freeze") return intIn(v, 0, p.max);
     if (p.w === "rec" || p.w === "once" || p.w === "parrot" || p.w === "pay") return v === 0;
+    if (p.w === "slots" || p.w === "vote") return p.ok(v, m);
     if (p.w === "whose") return intIn(v, 0, 2);
     if (p.w === "inner") return Array.isArray(v) && v.length === 5 && v.every(function (x) { return Number.isInteger(x) && x >= -20000 && x <= 20000; });
     if (p.w === "blind") return intIn(v, 2000, 30000);
@@ -924,6 +967,6 @@
     (function walk(v) { if (typeof v === "string") v.split("|").forEach(function (x) { out.push(x); }); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.keys(v).forEach(function (k) { walk(v[k]); }); })(DATA);
     return out;
   }
-  var api = { doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, face: face, whole: whole, payLink: payLink, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
+  var api = { HOURS: HOURS, dayText: dayText, hourText: hourText, slotText: slotText, termDates: termDates, voted: voted, doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, face: face, whole: whole, payLink: payLink, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
   if (node) module.exports = api; else root.Turns = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
