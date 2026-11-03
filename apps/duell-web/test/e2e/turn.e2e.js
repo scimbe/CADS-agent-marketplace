@@ -303,7 +303,7 @@ test("Tuersteher: Wesen an der Tuer, Rein und Raus bis zum Ende", async () => {
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 63);
+  assert.equal(await m.locator("#shbody .mech").count(), await m.evaluate(() => window.Daily.IDEAS.filter((i) => i.kind === "turn").length));
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);
