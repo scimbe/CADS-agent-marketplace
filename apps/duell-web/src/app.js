@@ -608,9 +608,37 @@ function openStyle() {
     colors(b, function () { return me.colors; }, function (c) { me.colors = c; saveMe(); setInk(c[0], c[1]); });
     b.appendChild(el("label", "lbl", t("set")));
     chips(b, Object.keys(D.SETS).map(function (s) { return { v: s, l: D.SETS[s][0] + " " + t("set_" + s) }; }), me.set, function (v) { me.set = v; saveMe(); });
-    b.appendChild(el("button", "btn", t("licenses"), function () { var l = el("pre", "note", window.DailyLicenses); l.style.whiteSpace = "pre-wrap"; b.textContent = ""; b.appendChild(l); }));
+    b.appendChild(el("label", "lbl", legalNav().title));
+    legalChips(b, "");
   });
 }
+/* ---------- legal pages (src/legal.js): reachable in at most two taps from every screen ---------- */
+function legalNav() { return (window.DailyLegal.L[Kit.lang] || window.DailyLegal.L.de).nav; }
+function legalChips(b, cur) {
+  var row = el("div", "chips");
+  window.Legal.PAGES.forEach(function (p) { var c = el("button", "chip", legalNav()[p], function () { Kit.sfx.tap(); openLegal(p); }); c.dataset.legal = p; if (p === cur) c.setAttribute("aria-current", "page"); row.appendChild(c); });
+  b.appendChild(row);
+}
+function openLegal(page) {
+  var DL = window.DailyLegal, N = legalNav();
+  shelf(page ? N[page] : N.title, function (b) {
+    legalChips(b, page);
+    if (!page) return;
+    var box = el("div", "legal");
+    window.Legal.blocks(DL.L, DL.op, page, Kit.lang).forEach(function (x) {
+      if (x.t === "h") box.appendChild(el("h2", "", x.s));
+      else if (x.t === "ul") { var u = el("ul"); x.items.forEach(function (i) { u.appendChild(el("li", "", i)); }); box.appendChild(u); }
+      else if (x.t === "lic") DL.lic.forEach(function (l) { box.appendChild(el("h2", "", l.name)); box.appendChild(el("p", "", l.license + " · " + l.url)); box.appendChild(el("pre", "", l.text)); });
+      else box.appendChild(el("p", "", x.s));
+    });
+    box.appendChild(el("p", "note", N.stand));
+    b.appendChild(box);
+  });
+}
+document.addEventListener("click", function (e) {
+  var b = e.target.closest && e.target.closest(".legalrow [data-legal], #shlegal");
+  if (b) { Kit.sfx.tap(); openLegal(b.dataset.legal); }
+});
 function shelf(title, fill) { stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
 function openAiWall() { ed.styling = true; shelf(t("aiTitle"), function (b) { window.Ai.wall(b, el); }); }
 function openPast() {
@@ -673,6 +701,9 @@ function labels() {
   $("tostatus").textContent = t("sh_status"); $("tostory").textContent = t("sh_story"); $("shnote").textContent = t("sh_note");
   $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home"); $("playit").textContent = "🕹 " + t("playIt");
   $("save").hidden = !Kit.canSave(); SK.labels(); CU.labels();
+  var N = legalNav();
+  document.querySelectorAll(".legalrow [data-legal]").forEach(function (b) { b.textContent = b.dataset.legal ? N[b.dataset.legal] : N.title + " …"; });
+  $("shlegal").setAttribute("aria-label", N.title);
   // Inside the app shells (DuellHost.more) a quiet "more" opens the native extras; in a browser it stays hidden.
   var host = window.DuellHost && typeof window.DuellHost.more === "function";
   $("host").hidden = !host; $("host").setAttribute("aria-label", t("hostMore"));

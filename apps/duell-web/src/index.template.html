@@ -35,6 +35,7 @@
     <nav id="tools">
       <button id="more"></button><button id="own"></button><button id="past"></button><button id="wall"></button>
     </nav>
+    <nav class="legalrow" aria-label="Rechtliches"><button data-legal="impressum"></button><button data-legal="datenschutz"></button><button data-legal=""></button></nav>
   </section>
 
   <section id="editor" class="scr" hidden>
@@ -56,11 +57,12 @@
       <div class="row"><button id="tostatus" class="btn"></button><button id="tostory" class="btn"></button></div>
       <p id="shnote" class="note"></p>
       <div class="row"><button id="save" class="btn"></button><button id="keep" class="btn"></button><button id="dhome" class="btn"></button></div>
+      <nav class="legalrow" aria-label="Rechtliches"><button data-legal="impressum"></button><button data-legal="datenschutz"></button><button data-legal=""></button></nav>
     </div>
   </section>
 
   <section id="shelf" class="scr" hidden>
-    <header class="bar tight"><button id="shback" class="ico" aria-label="Zurück">←</button><div id="shtitle"></div><span class="ico"></span></header>
+    <header class="bar tight"><button id="shback" class="ico" aria-label="Zurück">←</button><div id="shtitle"></div><button id="shlegal" class="ico" aria-label="Rechtliches" data-legal="">§</button></header>
     <div id="shbody"></div>
   </section>
 
@@ -105,6 +107,7 @@
 <script>/*@BALLDUELL@*/</script>
 <script>/*@LIVE@*/</script>
 <script>/*@LIVEUI@*/</script>
+<script>/*@LEGAL@*/</script>
 <script>/*@APP@*/</script>
 <script>/*@MODES@*/</script>
 <script>/*@TURNUI@*/</script>
