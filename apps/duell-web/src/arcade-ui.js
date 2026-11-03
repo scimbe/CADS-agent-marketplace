@@ -239,9 +239,9 @@ var DRAW = {
       var st = S.st, m = P.m, Z = A.PANZER, T = st.T, cw = W / Z.N, now = P.clock, i;
       c.fillStyle = "rgba(255,255,255,0.18)";   // clouds drift with the wind
       for (var k = 0; k < 4; k++) { var cx = ((k * 330 + now * st.wind * 0.6) % (W + 300) + W + 300) % (W + 300) - 150, cy = 220 + k * 140; c.beginPath(); c.ellipse(cx, cy, 120, 34, 0, 0, 6.283); c.ellipse(cx + 60, cy - 20, 80, 30, 0, 0, 6.283); c.fill(); }
-      c.fillStyle = lin(c, Z.SEA, H, ["#1c6fb8", "#0b2d55"]); c.fillRect(0, Z.SEA, W, H - Z.SEA);
       c.beginPath(); c.moveTo(0, T[0]); for (i = 0; i < Z.N; i++) c.lineTo((i + 0.5) * cw, T[i]); c.lineTo(W, T[Z.N - 1]); c.lineTo(W, H); c.lineTo(0, H); c.closePath();
       c.fillStyle = lin(c, H - 760, Z.SEA + 40, ["#7cdb3c", "#4f8f2a", "#5a3b1e"]); c.fill(); c.strokeStyle = "#b6ff7a"; c.lineWidth = 6; c.stroke();
+      c.globalAlpha = 0.88; c.fillStyle = lin(c, Z.SEA, H, ["#1c6fb8", "#0b2d55"]); c.fillRect(0, Z.SEA, W, H - Z.SEA); c.globalAlpha = 1;   // the sea in front of the shore
       c.strokeStyle = "rgba(255,255,255,0.5)"; c.lineWidth = 4; c.beginPath();
       for (var w = 0; w <= W; w += 20) { var y = Z.SEA + Math.sin(w / 60 + now * 2) * 6; if (w) c.lineTo(w, y); else c.moveTo(w, y); } c.stroke();
       [[true, st.aim, m.a], [false, st.oppAim, m.b]].forEach(function (q) {
@@ -515,7 +515,7 @@ function playBot(g) {
     onEnd: function (won) {
       endText(body, won, S.score, false);
       body.appendChild(el("button", "btn hot", t("arc_again"), function () { Kit.sfx.thud(); playBot(g); }));
-      if (window.LiveUI && window.LiveUI.on()) body.appendChild(el("button", "btn hot live", t("arc_live"), function () { Kit.sfx.thud(); window.LiveUI.invite({ g: g }); }));
+      if (window.LiveUI && window.LiveUI.on()) body.appendChild(el("button", "btn hot live", t("arc_live"), function () { Kit.sfx.thud(); closeOwn(); window.LiveUI.invite({ g: g }); }));
       body.appendChild(el("button", "btn", t("live_home"), function () { closeOwn(); }));
     } });
 }
@@ -550,7 +550,7 @@ function menu(g) {
   var cv = el("canvas", "arcdemo"); cv.width = 300; cv.height = 480; body.appendChild(cv);
   body.appendChild(el("p", "note", L.s + " " + t("arc_how_" + g)));
   body.appendChild(el("button", "btn hot", t("arc_bot"), function () { Kit.sfx.thud(); playBot(g); }));
-  if (window.LiveUI && window.LiveUI.on()) body.appendChild(el("button", "btn hot live", t("arc_live"), function () { Kit.sfx.thud(); window.LiveUI.invite({ g: g }); }));
+  if (window.LiveUI && window.LiveUI.on()) body.appendChild(el("button", "btn hot live", t("arc_live"), function () { Kit.sfx.thud(); closeOwn(); window.LiveUI.invite({ g: g }); }));
   body.appendChild(el("button", "btn", t("live_home"), function () { closeOwn(); }));
   demo(cv, g, false);
 }
