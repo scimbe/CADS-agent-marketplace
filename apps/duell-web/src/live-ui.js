@@ -3,7 +3,9 @@
 (function () {
 "use strict";
 var Kit = window.Kit, B = window.Ballduell, t = Kit.t;
-var ov = null, conn = null, loop = 0, net = 0;
+var ov = null, conn = null, loop = 0, net = 0, game = null, busy = false;   // game: { g } for a duel from window.LiveGames
+// Further live duels register here: LiveGames[g](api, serving) plays one game on the layer; invite, badge and link stay here.
+var GAMES = window.LiveGames = window.LiveGames || {};
 // Shown on the shelf; switched on once the server side registered channels and a real game ran over edge and TURN.
 var ON = true;
 function el(tag, cls, text, on) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; if (on) e.addEventListener("click", on); return e; }
@@ -15,7 +17,7 @@ function layer() {
   return body;
 }
 function close(keepLink) {
-  cancelAnimationFrame(loop); clearInterval(net); loop = net = 0;
+  cancelAnimationFrame(loop); clearInterval(net); loop = net = 0; busy = false;
   if (conn && !keepLink) { try { conn.close(); } catch (e) {} conn = null; }
   if (ov) { ov.remove(); ov = null; }
 }
@@ -27,35 +29,43 @@ function screen(lines, buttons) {
 }
 function fail(e) {
   var k = { gone: "live_gone", expired: "live_expired", server: "live_server", self: "live_self", rate: "live_busy", busy: "live_busy", rtc: "live_nonet" }[e && e.message] || "live_lost";
-  screen([["p", "livebig", t(k)]], [[t("live_again"), function () { invite(); }], [t("live_home"), function () { close(); }, "btn"]]);
+  screen([["p", "livebig", t(k)]], [[t("live_again"), function () { invite(game); }], [t("live_home"), function () { close(); }, "btn"]]);
 }
-function link(token) { return window.DuellCore.SHARE_BASE + "#live=" + token; }
+function link(token) { return window.DuellCore.SHARE_BASE + "#live=" + token + (game ? "&g=" + game.g : ""); }
+function pick(g) { return g && GAMES[g] ? { g: g } : null; }
+function begin(serving) {
+  if (!game) { play(serving); return; }
+  busy = true;
+  GAMES[game.g]({ conn: conn, layer: layer, close: close, el: el, again: function () { invite(game); }, badge: B.badge(conn.channel) }, serving);
+}
 function mmss(ms) { var s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
 // ---------- the inviter ----------
-async function invite() {
+async function invite(opt) {
+  game = pick(opt && opt.g);
   screen([["p", "livebig", t("live_making")]]);
   var inv;
   try { inv = await window.Live.invite(onState); } catch (e) { fail(e); return; }
   try { sessionStorage.setItem("liveInvite", JSON.stringify({ token: inv.token, until: inv.expires })); } catch (e) {}
-  var share = function () { Kit.share({ url: link(inv.token), text: t("live_shareText") }); };
+  var share = function () { Kit.share({ url: link(inv.token), text: game ? t("arc_share", { n: t("arc_" + game.g) }) : t("live_shareText") }); };
   var b = screen([["p", "livebig", t("live_wait")], ["p", "livecount", ""], ["p", "note", t("live_waitNote")], ["p", "note", t("live_ipNote")]], [[t("live_share"), share], [t("live_home"), function () { close(); }, "btn"]]);
   var cnt = b.querySelector(".livecount"), tick = setInterval(function () { if (!b.isConnected) return clearInterval(tick); cnt.textContent = t("live_left", { t: mmss(inv.expires - Date.now()) }); }, 500);
   share();
   try { conn = await inv.ready; } catch (e) { clearInterval(tick); fail(e); return; }
   clearInterval(tick);
-  screen([["p", "livebig", t("live_here")], ["p", "livebadge", B.badge(conn.channel)], ["p", "note", t("live_badgeNote")]], [[t("live_start"), function () { conn.send({ t: "go" }); play(true); }]]);
+  screen([["p", "livebig", t("live_here")], ["p", "livebadge", B.badge(conn.channel)], ["p", "note", t("live_badgeNote")]], [[t("live_start"), function () { conn.send(game ? { t: "go", g: game.g } : { t: "go" }); begin(true); }]]);
   conn.onClose(lost);
 }
 // ---------- the invited friend ----------
-async function accept(token) {
+async function accept(token, g) {
+  game = pick(g);
   screen([["p", "livebig", t("live_challenged")], ["p", "note", t("live_connecting")]]);
   try { conn = await window.Live.accept(token, onState); } catch (e) { fail(e); return; }
   conn.onClose(lost);
-  screen([["p", "livebig", t("live_challenged")], ["p", "livebadge", B.badge(conn.channel)], ["p", "note", t("live_badgeNote")], ["p", "note", t("live_howto")], ["p", "lbl", t("live_waitStart")]]);
-  conn.on(function (m) { if (m.t === "go" && ov && !loop) play(false); });
+  screen([["p", "livebig", t("live_challenged")], ["p", "livebadge", B.badge(conn.channel)], ["p", "note", t("live_badgeNote")], ["p", "note", t(game ? "arc_how_" + game.g : "live_howto")], ["p", "lbl", t("live_waitStart")]]);
+  conn.on(function (m) { if (m.t !== "go" || !ov || loop || busy) return; game = pick(m.g); begin(false); });
 }
 function onState(s) { var n = ov && ov.querySelector(".note"); if (n && t("live_s_" + s) !== "live_s_" + s) n.textContent = t("live_s_" + s); }
-function lost() { if (!ov) return; cancelAnimationFrame(loop); clearInterval(net); loop = net = 0; if (conn) { try { conn.close(); } catch (e) {} } conn = null; /* close() frees the channel on the server too */ screen([["p", "livebig", t("live_lost")]], [[t("live_again"), function () { invite(); }], [t("live_home"), function () { close(); }, "btn"]]); }
+function lost() { if (!ov) return; cancelAnimationFrame(loop); clearInterval(net); loop = net = 0; if (conn) { try { conn.close(); } catch (e) {} } conn = null; /* close() frees the channel on the server too */ screen([["p", "livebig", t("live_lost")]], [[t("live_again"), function () { invite(game); }], [t("live_home"), function () { close(); }, "btn"]]); }
 // ---------- the game ----------
 function play(serving) {
   var body = layer(), cv = el("canvas", "livecv"), c = cv.getContext("2d"), info = el("p", "livescore", "");

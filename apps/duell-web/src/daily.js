@@ -11,7 +11,7 @@
   var ROUND_KINDS = ROUND.map(function (i) { return i.kind; }).filter(function (k, i, a) { return a.indexOf(k) === i; }).sort();
   var ID_RE = /^[a-z0-9-]{1,32}$/, MAX_WALL = 30, MAX_THUMB = 60000, MAX_TEXT = 90;
   var DAY = 86400000;
-  var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn"];
+  var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn", "arcade"];
   var STYLES = { card: ["druck", "zettel", "stempel", "neon"], photo: ["poster", "sticker", "meme", "glitch"] };
   var FX = ["chip", "monster", "robot", "echo"];
   var AREAS = ["text", "farbe", "stil", "sticker", "foto", "beat", "stimme", "regeln", "figur", "welt", "idee"];
@@ -231,6 +231,7 @@
     if (idea.kind === "duel") Duel.fromIdea(idea, profile, lang, base);
     if (idea.kind === "quest") Quest.fromIdea(idea, lang, base);
     if (idea.kind === "turn") Turns.fromIdea(idea, lang, base);
+    if (idea.kind === "arcade") base.a = idea.arcade.g;   // played in arcade-ui.js, never edited or sent as a creation
     return sanitizeDoc(base);
   }
   function blankDoc(kind, profile, lang) {
