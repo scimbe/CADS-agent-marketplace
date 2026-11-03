@@ -53,3 +53,46 @@ test("Start: beim Ziehen liegt darunter das echte naechste Blatt, ausgegraut, un
   assert.deepEqual(errs, []);
   await b.close();
 });
+
+test("Wunsch: ein Tipp auf eine Idee wendet sie sofort an und aendert das ganze Blatt; Empfaenger sieht die Karte gross", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), p = await ctx.newPage();
+  const errs = []; p.on("pageerror", (e) => errs.push(e.message));
+  await p.route("**/api/**", (r) => r.abort());   // kein Server: die festen Regeln antworten
+  await p.goto(page + "#c=eyJ2IjoxLCJkIjp7ImsiOiJjYXJkIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMDkiLCJ4IjoiSGV1dGUgMjAgVWhyLiBWaWRlbyBhbi4gS2VpbmUgQXVzcmVkZW4uIiwic3QiOiJzdGVtcGVsIiwic2siOltdfX0");
+  await p.locator("#leaf.got").waitFor();
+  assert.equal(await p.locator("#hero").isHidden(), true, "der Kartentext steht nur einmal da, im Bild");
+  assert.equal(await p.locator("#pvcard").isVisible(), true);
+  assert.equal(await p.locator("#go").textContent(), "Weiter bauen");
+  await p.locator("#wishgo").tap();
+  const tip = p.getByRole("button", { name: "Mach es gruseliger" });
+  await tip.waitFor();
+  const order = await p.evaluate(() => { const pn = document.getElementById("panel"), at = (x) => [...pn.querySelectorAll("*")].indexOf(x); return { field: at(pn.querySelector("textarea")), go: at([...pn.querySelectorAll("button")].find((x) => /Wunsch anwenden/.test(x.textContent))), tip: at([...pn.querySelectorAll("button")].find((x) => x.textContent === "Mach es gruseliger")) }; });
+  assert.ok(order.field < order.go && order.go < order.tip, "Feld, gleich darunter Anwenden, dann die Ideen: " + JSON.stringify(order));
+  await tip.tap();
+  const did = p.locator(".aicount", { hasText: "Geändert" });
+  await did.waitFor();
+  const txt = await did.textContent();
+  for (const a of ["Stil", "Farbe", "Sticker"]) assert.match(txt, new RegExp(a), "ein Tipp aendert alles ohne Text: " + txt);
+  assert.equal(await p.locator("#panel textarea").inputValue(), "Mach es gruseliger");
+  assert.deepEqual(errs, []);
+  await b.close();
+});
+
+test("Welt: ein Thema im Welt-Tab ersetzt die gebaute Welt eines Spiels sichtbar", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const p = await (await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" })).newPage();
+  const errs = []; p.on("pageerror", (e) => errs.push(e.message));
+  await p.goto(page);
+  await p.evaluate(() => { const D = window.Daily, i = D.IDEAS.find((x) => x.kind === "game" && x.game.look); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i }); });
+  await p.getByRole("tab", { name: "Welt" }).tap();
+  assert.equal(await p.locator("#panel .chip.on").count(), 0, "eine gebaute Welt ist keines der Themen");
+  const sky = () => p.evaluate(() => { const c = document.getElementById("demo"), d = c.getContext("2d").getImageData(4, 4, 1, 1).data; return [d[0], d[1], d[2]].join(); });
+  const before = await sky();
+  await p.getByRole("button", { name: "Lava" }).tap(); await p.waitForTimeout(300);
+  assert.equal(await p.evaluate(() => [window.DailyApp.ed().doc.g.theme, !!window.DailyApp.ed().doc.g.look].join()), "lava,false");
+  assert.notEqual(await sky(), before, "der Himmel wechselt");
+  assert.equal(await p.locator("#panel .chip.on").textContent(), "Lava");
+  assert.deepEqual(errs, []);
+  await b.close();
+});

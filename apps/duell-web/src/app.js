@@ -52,24 +52,27 @@ function fillSheet(root, h, still) {
   else if (doc.k === "turn" && !doc.t && D.byId(doc.i)) { var Li = ideaText(D.byId(doc.i)); title = Li.t.split("|"); sub = doc.s || Li.s; kind = doc.k; min = D.byId(doc.i).min; }
   else { title = (doc.t || doc.x || (doc.g && doc.g.title) || t("own")).split(/\s+/).reduce(function (a, w) { if (a.length && (a[a.length - 1] + " " + w).length < 13) a[a.length - 1] += " " + w; else a.push(w); return a; }, []).slice(0, 4); sub = doc.s || ""; kind = doc.k; min = 60; }
   q("dkind").textContent = t(kind) + "\n" + (min >= 120 ? t("mins", { n: Math.round(min / 60) }) : t("sec", { n: min }));
-  var hero = q("hero"); hero.textContent = "";
+  var mode = doc && X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
+  // Something sent by a friend: the sheet is that work, big. Its text stands in the picture, so the title shows only
+  // when the sheet has one of its own.
+  var got = !!(doc && h.note && !mode); root.classList.toggle("got", got);
+  var hero = q("hero"); hero.textContent = ""; hero.hidden = got && !doc.t;
   title.filter(Boolean).forEach(function (l, i) { var s = el("span", "", l); s.style.setProperty("--i", i); hero.appendChild(s); });
   q("teaser").textContent = sub;
   var from = q("from");
   if (h.note) { from.textContent = h.note; from.hidden = false; } else from.hidden = true;
-  var mode = doc && X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
   if (mode) { from.textContent = mode.note; from.hidden = false; }
   preview(root, doc || D.docFromIdea(idea, me, Kit.lang), still);
   fitHero(hero);
-  return { kind: kind, mode: mode };
+  return { kind: kind, mode: mode, got: got };
 }
 function setHome(h, animate) {
   home = h;
   var s = fillSheet($("leaf"), h, false), kind = s.kind, mode = s.mode, idea = h.idea;
-  $("go").textContent = mode ? mode.go : t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
+  $("go").textContent = mode ? mode.go : s.got ? t("remixGo") : t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
   $("wishgo").textContent = t("wishHome"); $("wishgo").hidden = !!mode || W.KINDS.indexOf(kind) < 0;
   var live = idea && idea.live, lb = $("livego"); lb.hidden = !live; if (live) { lb.textContent = t("live_" + live); lb.dataset.u = LIVE[live]; }
-  var leaf = $("leaf"); leaf.className = ""; leaf.style.transform = ""; leaf.style.opacity = "";
+  var leaf = $("leaf"); leaf.className = s.got ? "got" : ""; leaf.style.transform = ""; leaf.style.opacity = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
 }
 var LIVE = { conf: "https://webconference.bunsenbrenner.org/", tunnel: "https://bunsenbrenner.org/", demos: "https://demos-34a13a96.bunsenbrenner.org/", nordwind: "https://a2a-demo.bunsenbrenner.org/" };
@@ -250,7 +253,7 @@ function backFromPlay() {
   if (!played) return false;
   ed = played; played = null; G.stop(); show("editor"); changed(); return true;
 }
-function aiBlock(p, o) { o.el = el; o.wall = openAiWall; window.Ai.block(p, o); }
+function aiBlock(p, o) { o.el = el; o.wall = openAiWall; return window.Ai.block(p, o); }
 function field(p, label, value, max, on, area) {
   p.appendChild(el("label", "lbl", label));
   var f = el(area ? "textarea" : "input", "field"); f.value = value || ""; f.maxLength = max; if (area) f.rows = 2; f.autocomplete = "off"; f.setAttribute("aria-label", label);
@@ -286,16 +289,15 @@ function colors(p, get, set) {
   p.appendChild(row);
 }
 var PANEL = {
+  // Type a wish and apply it right below, or tap a suggestion: that applies it at once. One wish changes the whole sheet.
   Wish: function (p) {
     var f = field(p, t("wishL"), "", 100, function () {}, true), box = el("div", "chips");
-    p.appendChild(el("p", "note", t("wishH_" + ed.doc.k)));
-    t("wishTips_" + ed.doc.k).split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; })); });
-    p.appendChild(box);
-    aiBlock(p, {
-      kind: "wish", label: t("wishGo"), input: function () { var v = D.cleanInput(f.value, 100); return v ? W.request(ed.doc, v, ed.idea ? ideaText(ed.idea).t.replace("|", " ") : "") : null; },
+    var go = aiBlock(p, {
+      kind: "wish", label: t("wishGo"), noteLast: true, input: function () { var v = D.cleanInput(f.value, 100); return v ? W.request(ed.doc, v, ed.idea ? ideaText(ed.idea).t.replace("|", " ") : "") : null; },
       fallback: function () { return [{ changes: W.local(ed.doc, D.cleanInput(f.value, 100), Kit.lang, function (n) { return Math.floor(Math.random() * n); }), note: "" }]; },
       auto: function (o, real, res) {
-        var before = JSON.stringify(ed.doc), next = W.apply(ed.doc, o.changes, PAIRS, Math.random), was = JSON.parse(before), what = D.changedAreas(was, next);
+        var all = real ? Object.assign(W.local(ed.doc, D.cleanInput(f.value, 100) || "", Kit.lang, function (n) { return Math.floor(Math.random() * n); }), o.changes) : o.changes;
+        var before = JSON.stringify(ed.doc), next = W.apply(ed.doc, all, PAIRS, Math.random), was = JSON.parse(before), what = D.changedAreas(was, next);
         if (ed.doc.k === "sound" && next.fx !== was.fx && what.indexOf("stimme") < 0) what.push("stimme");
         res.textContent = "";
         if (!what.length) { res.appendChild(el("p", "note", t("wishSame"))); return; }
@@ -305,6 +307,10 @@ var PANEL = {
         res.appendChild(un);
       }
     });
+    p.appendChild(el("label", "lbl wishtips", t("wishOr")));
+    t("wishTips_" + ed.doc.k).split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; go(); })); });
+    p.appendChild(box);
+    p.appendChild(el("p", "note", t("wishH_" + ed.doc.k) + " " + t("aiNote")));
   },
   Idea: function (p) {
     p.appendChild(el("p", "note", t("ownH")));
@@ -392,9 +398,10 @@ var PANEL = {
     var g = ed.doc.g, list = EMOJI.indexOf(me.emoji) < 0 ? [me.emoji].concat(EMOJI) : EMOJI;
     chips(p, list.map(function (e) { return { v: e, l: e }; }), g.emoji, function (v) { g.emoji = v; }, "em");
   },
+  // A world chosen here replaces a world built by a wish or the idea (its look), which would otherwise cover every theme.
   World: function (p) {
     var g = ed.doc.g;
-    var b = chips(p, G.THEMES.map(function (n) { return { v: n, l: t("w_" + n) }; }), g.theme, function (v) { g.theme = v; });
+    var b = chips(p, G.THEMES.map(function (n) { return { v: n, l: t("w_" + n) }; }), g.look ? null : g.theme, function (v) { g.theme = v; delete g.look; });
     Array.from(b.children).forEach(function (c, i) { c.style.borderBottom = "8px solid " + G.themeColor(G.THEMES[i]); });
   }
 };
@@ -525,10 +532,22 @@ $("share").addEventListener("click", async function () {
   await Kit.share({ url: link.url, text: shareLine(result.keep && result.keep.doc) });
 });
 $("playit").addEventListener("click", function () { ed = result.keep; ed.sel = -1; makePlayable(); });
-// Reaches the server only from here, that is after a tap on one of the share buttons.
+// Reaches the server only from here, that is after a tap on one of the share buttons. The chat preview then shows the
+// finished picture, before anyone can send the link; a photo poster keeps the fixed picture, photos stay on the phone.
 async function shortLink() {
-  if (!result.link) { result.link = await window.ShortLink.shorten(result.url, { k: result.kind, l: Kit.lang }, store); Kit.save(); }
+  if (!result.link) {
+    result.link = await window.ShortLink.shorten(result.url, { k: result.kind, l: Kit.lang }, store); Kit.save();
+    if (result.link.short && result.kind !== "photo" && result.canvas) {
+      try { await window.ShortLink.picture(result.link.id, await makeBlob(chatPicture(result.canvas, result.keep ? result.keep.doc.col : me.colors), "image/jpeg", 0.82), store); } catch (e) {}
+    }
+  }
   return result.link;
+}
+// 1200x630, the size chat apps show large: the work in the middle on its own colour, so a square crop still shows it whole.
+function chatPicture(c, col) {
+  var o = document.createElement("canvas"), x = o.getContext("2d"), h = 590, w = Math.round(h * c.width / c.height);
+  o.width = 1200; o.height = 630; x.fillStyle = col[0]; x.fillRect(0, 0, 1200, 630); x.drawImage(c, (1200 - w) / 2, 20, w, h);
+  return o;
 }
 /* Status and story: pictures cannot carry a tappable link, so the picture shows the address and a code, and the text goes to the clipboard.
    Without a short link the long one would be an unreadable code: the picture then points to the app, the long link stays in the text. */
