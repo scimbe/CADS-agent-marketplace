@@ -303,7 +303,7 @@ test("Tuersteher: Wesen an der Tuer, Rein und Raus bis zum Ende", async () => {
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
   const m = await open(""); await m.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
-  assert.equal(await m.locator("#shbody .mech").count(), 62);
+  assert.equal(await m.locator("#shbody .mech").count(), await m.evaluate(() => window.Daily.IDEAS.filter((i) => i.kind === "turn").length));
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
   const fs = m.locator("#panel input.field"); for (let i = 0; i < 5; i++) await fs.nth(i).fill("Film" + "ABCDE"[i]);
   await next(m);
@@ -335,5 +335,29 @@ test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswa
   const plus = au.locator("#panel .chip", { hasText: "+" }); assert.equal(await plus.count(), 5);
   for (let i = 0; i < 11; i++) await plus.first().click();
   await au.getByText("Noch 0 Münzen").waitFor(); await next(au); await send(au); await au.locator("#share").waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
+test("Geld einsammeln: Name, Zweck, Betrag, dann oeffnen alle denselben Link und zahlen mit einem Tipp bei PayPal.me", async () => {
+  const { b, open, errs } = await setup();
+  const a = await open("#i=zug-sammeln"); await a.locator("#go").click();
+  const f = a.locator("#panel input.field"), weiter = a.getByRole("button", { name: "Weiter", exact: true });
+  await f.fill("max muster"); assert.equal(await weiter.isDisabled(), true);
+  await f.fill("maxmuster"); await next(a);
+  await a.locator("#panel input.field").fill("Pizza-Abend"); await next(a);
+  await slide(a, 7); await a.locator("#panel").getByText("7 €").waitFor(); await next(a);
+  await a.getByText("Zug steht").waitFor(); await send(a); await a.locator("#share").waitFor();
+  const one = await url(a); assert.ok(!/maxmuster|paypal/i.test(one), "Name steht nicht lesbar im Link");
+  const c = await open(hash(one)); await c.locator("#go").click();
+  await c.locator("#panel").getByText("Pizza-Abend: 7 € pro Person an paypal.me/maxmuster").waitFor();
+  await c.locator("#panel").getByText(/nur an Leute, die du kennst.*erst ab 18/).waitFor();
+  const pay = c.locator("#paylink");
+  assert.equal(await pay.getAttribute("href"), "https://paypal.me/maxmuster/7EUR");
+  assert.equal(await pay.getAttribute("target"), "_blank"); assert.equal(await pay.getAttribute("rel"), "noopener noreferrer");
+  assert.match(await pay.textContent(), /7 € mit PayPal zahlen/);
+  assert.equal(await c.getByRole("button", { name: "Weiter", exact: true }).count(), 0, "nach dem Bezahlen kein Weiter, kein Druck");
+  assert.equal(await c.locator("#edmain").isVisible(), false);
+  await c.context().route("https://paypal.me/**", (r) => r.abort());
+  const popup = c.waitForEvent("popup"); await pay.click(); await popup;
+  await c.locator("#panel").getByText("Fertig. Den Link teilen kannst du, wenn du magst.").waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
