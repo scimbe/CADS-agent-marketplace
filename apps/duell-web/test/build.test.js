@@ -16,7 +16,9 @@ test("Build: eine Datei, voll offline, alle Welten da, Platzhalter ersetzt, Groe
   assert.ok(!/<(img|audio|video|iframe)[^>]+src=["']https?:/i.test(html));
   const core = require("../src/core.js");
   for (const t of core.THEME_NAMES) assert.match(html, new RegExp("\\b" + t + ":\\s*\\{"), "Welt " + t);
-  assert.ok(Buffer.byteLength(html) < 800 * 1024, "dist ueber 800 KB: " + Buffer.byteLength(html));
+  // 700 KB until the card tables, 800 KB until arcade, card tables, feel-good cards and Protokoll came together (~900 KB);
+  // the hard line stays the 1 MB of the test name: past it, the page has to be split instead of growing.
+  assert.ok(Buffer.byteLength(html) < 1024 * 1024, "dist ueber 1 MB: " + Buffer.byteLength(html));
   assert.match(html, /<title>My Daily Idea<\/title>/);
   assert.match(html, /Content-Security-Policy[^>]*default-src 'none'/);
   assert.match(html, /connect-src https:\/\/demos-34a13a96\.bunsenbrenner\.org https:\/\/webconference\.bunsenbrenner\.org wss:\/\/webconference\.bunsenbrenner\.org;/, "der eigene Host und fuer Live-Spiele nur die Webconference");

@@ -216,6 +216,7 @@ function trailLine() {
 }
 function openEditor(doc, opt) {
   opt = opt || {};
+  if (doc && doc.k === "table") { if (window.TableUI) window.TableUI.open(doc.g); return; }   // a card table is played live, there is nothing to edit
   ed = { doc: D.sanitizeDoc(doc), base: D.sanitizeDoc(doc), own: !!opt.own, photo: null, peaks: null, pcm: null, tab: null, sel: -1, page: 0, line: 0, idea: opt.idea || null };
   if (opt.own) ed.doc.n = me.nick;
   if (ed.doc.k === "sound" && ed.doc.m === "beat") beatPeaks();
@@ -791,6 +792,8 @@ function route() {
   if (CU.route(location.hash)) { clearLink(); if (screen !== "editor") goHomeKeep(); return true; }
   var live = location.hash.match(/^#live=([A-Za-z0-9_-]{22})(?:&g=([a-z]{2,12}))?$/);
   if (live && window.LiveUI) { history.replaceState(null, "", location.pathname); window.LiveUI.accept(live[1], live[2]); }
+  var seat = location.hash.match(/^#tisch=(doko|skat)\.([A-Za-z0-9_-]{22})$/);
+  if (seat && window.TableUI) { history.replaceState(null, "", location.pathname); window.TableUI.accept(seat[1], seat[2]); }
   var r = D.parseRoute(location.hash);
   if (r && r.type === "short") {
     goHome();
