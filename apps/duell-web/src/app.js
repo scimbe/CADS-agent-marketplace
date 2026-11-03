@@ -66,7 +66,7 @@ function fillSheet(root, h, still) {
 function setHome(h, animate) {
   home = h;
   var s = fillSheet($("leaf"), h, false), kind = s.kind, mode = s.mode, idea = h.idea;
-  $("go").textContent = mode ? mode.go : t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
+  $("go").textContent = mode ? mode.go : idea && idea.api && ideaText(idea).go ? ideaText(idea).go : t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
   $("wishgo").textContent = t("wishHome"); $("wishgo").hidden = !!mode || W.KINDS.indexOf(kind) < 0;
   var live = idea && idea.live, lb = $("livego"); lb.hidden = !live; if (live) { lb.textContent = t("live_" + live); lb.dataset.u = LIVE[live]; }
   var leaf = $("leaf"); leaf.className = ""; leaf.style.transform = ""; leaf.style.opacity = "";
@@ -238,6 +238,46 @@ function weatherBlock(p) {
   if (ed.doc.w) row.appendChild(el("button", "chip", "✕ " + t("wxOff"), function () { delete ed.doc.w; changed(); tab("Text"); }));
   box.appendChild(row); box.appendChild(el("p", "note", t("wxNote"))); p.appendChild(box);
 }
+// Data card: the day's fact or question from a free web API, through our server. No answer, no data: it says so.
+function apiOf() { var a = ed.idea && ed.idea.api; return a && window.Facts.has(a) ? a : ed.doc.api ? ed.doc.api.a : ""; }
+function apiBlock(p, id, f) {
+  var F = window.Facts, src = F.SRC[id], L = ed.idea && ed.idea.api === id ? ideaText(ed.idea) : null, pick = (store.apiPick || {})[id] || "";
+  var box = el("div", "aibox"), res = el("div", "chips"), busyNow = false;
+  async function load() {
+    if (busyNow) return;
+    if (src.q && !pick) { Kit.toast(t("apiPick")); return; }
+    busyNow = true; res.textContent = ""; delete res.dataset.done; res.appendChild(el("p", "note", "… " + t("apiLoading")));
+    var r = null;
+    try { r = await window.Ai.post("/fact", { api: id, date: new Date().toISOString().slice(0, 10), q: pick || undefined, lang: Kit.lang }); } catch (e) { r = null; }
+    busyNow = false; res.textContent = "";
+    var how = r ? F.verdict(r.status, r.json, id) : "fail", j = r && r.json;
+    if (how !== "ok") {
+      res.appendChild(el("p", "note", t("api_" + how)));
+      if (how !== "blocked") res.appendChild(el("button", "chip", "↻ " + t("apiAgain"), load));
+      return;
+    }
+    var x = D.cleanInput(j.h, 90); if (x) { ed.doc.x = x; f.value = x; }
+    if (j.stale) res.appendChild(el("p", "note", t("apiStale")));
+    ed.doc.api = F.sanitize({ a: id, d: j.date, v: j.c ? "" : j.v }); Kit.sfx.pop(); changed();
+    if (!j.c) return;
+    var btns = j.c.map(function (c, i) {
+      return res.appendChild(el("button", "chip aiopt", c, function () {
+        if (res.dataset.done) return;
+        res.dataset.done = "1"; var a = F.answer(j, i);
+        btns.forEach(function (b, k) { b.disabled = true; if (k === j.a) b.classList.add("on"); });
+        ed.doc.api = F.sanitize({ a: id, d: j.date, v: a.v }); Kit.sfx[a.right ? "pop" : "thud"](); Kit.toast(t(a.right ? "apiRight" : "apiWrong")); changed();
+      }));
+    });
+  }
+  // A place is a tap on a chip and stays remembered; without one the card loads as soon as it opens.
+  if (src.q) chips(box, src.q.map(function (c) { return { v: c[0], l: F.label(c, Kit.lang) }; }), pick, function (v) {
+    pick = v; var m = Object.assign({}, store.apiPick); m[id] = v; store.apiPick = m; Kit.save(); load();
+  });
+  if (L && L.go) box.insertBefore(el("label", "lbl", L.go), box.firstChild);
+  box.appendChild(res); box.appendChild(el("p", "note", t("apiNote") + " " + src.c));
+  p.insertBefore(box, p.firstChild);
+  if (!ed.doc.api && (!src.q || pick)) load();
+}
 // The creation becomes the game: same engine, its colours, picture and figure. Back leads to the creation, not home.
 var played = null;
 function makePlayable() {
@@ -316,8 +356,12 @@ var PANEL = {
     if (d.k === "card") {
       var f = field(p, t("line"), d.x, 90, function (v) { d.x = v; }, true), L = ed.idea ? ideaText(ed.idea).lines : null;
       if (L) p.appendChild(el("button", "chip", "🎲 " + t("dice"), function () { Kit.sfx.pop(); ed.line = (ed.line + 1) % L.length; d.x = L[ed.line]; f.value = d.x; changed(); }));
-      aiBlock(p, { kind: "line", label: t("aiLine"), input: function () { var x = D.cleanInput(d.x, 90) || t("own"); return { text: x, style: d.st }; }, show: String, apply: function (o) { var v = D.cleanInput(o, 90); if (v) { d.x = v; f.value = v; changed(); } } });
-      weatherBlock(p);
+      var api = apiOf();
+      if (api) apiBlock(p, api, f);
+      else {
+        aiBlock(p, { kind: "line", label: t("aiLine"), input: function () { var x = D.cleanInput(d.x, 90) || t("own"); return { text: x, style: d.st }; }, show: String, apply: function (o) { var v = D.cleanInput(o, 90); if (v) { d.x = v; f.value = v; changed(); } } });
+        weatherBlock(p);
+      }
     } else if (d.k === "photo") {
       var top = field(p, t("top"), d.x, 28, function (v) { d.x = v; }), low = field(p, t("bottom"), d.y, 28, function (v) { d.y = v; });
       var what = field(p, t("aiDesc"), "", 100, function () {});

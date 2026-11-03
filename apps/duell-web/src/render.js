@@ -76,6 +76,20 @@
     c.font = "900 " + W * 0.05 + "px system-ui,sans-serif," + EMO; c.fillText(sky(w.c) + " " + w.hi + "° / " + w.lo + "°  💧" + w.rn + " %", W * 0.04, y + h * 0.33);
     c.font = "700 " + W * 0.032 + "px system-ui,sans-serif"; c.fillText(w.p + ", " + day + " · open-meteo.com, CC BY 4.0, gerundet", W * 0.04, y + h * 0.75);
   }
+  // A data card: the line from the service and, always, the source from the fixed list in facts.js.
+  function factStrip(c, W, H, f) {
+    var src = f && window.Facts ? window.Facts.credit(f) : "";
+    if (!src) return;
+    var y = H * 0.8, h = H * 0.105, day = f.d.slice(8, 10) + "." + f.d.slice(5, 7) + ".", fit = function (txt, px, max) {
+      c.font = "900 " + px + "px system-ui,sans-serif," + EMO; var k = Math.min(1, max / Math.max(1, c.measureText(txt).width));
+      c.font = "900 " + px * Math.max(0.6, k) + "px system-ui,sans-serif," + EMO;
+    };
+    c.fillStyle = "#111"; c.fillRect(0, y, W, h); c.fillStyle = "#fff"; c.textBaseline = "middle"; c.textAlign = "left";
+    if (f.v) { fit(f.v, W * 0.045, W * 0.92); c.fillText(f.v, W * 0.04, y + h * 0.33); }
+    var line = src + " · " + day;
+    c.font = "700 " + W * 0.03 + "px system-ui,sans-serif"; var k = Math.min(1, W * 0.92 / Math.max(1, c.measureText(line).width));
+    c.font = "700 " + W * 0.03 * Math.max(0.7, k) + "px system-ui,sans-serif"; c.fillText(line, W * 0.04, y + h * (f.v ? 0.75 : 0.5));
+  }
   function credit(c, W, H, doc, me, col) {
     var who = me.nick || "";          // no emoji in exports: the system glyphs are not ours to publish
     c.font = "800 " + W * 0.036 + "px system-ui,sans-serif," + EMO; c.textBaseline = "alphabetic";
@@ -186,6 +200,7 @@
     else if (doc.k === "sound") drawSound(c, W, H, doc, opt.peaks);
     stickers(c, W, H, doc.sk);
     weather(c, W, H, doc.w);          // last: stickers must never cover the source line
+    factStrip(c, W, H, doc.api);
     credit(c, W, H, doc, me, doc.k === "card" && doc.st === "neon" ? "#fff" : (doc.k === "photo" && doc.st !== "sticker" ? "#fff" : ink(doc.k === "card" && doc.st === "zettel" ? doc.col[1] : doc.col[0])));
   }
   // The bot face: a stand-in when there is no photo, drawn from the seed so it is never quite the same.

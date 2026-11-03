@@ -6,6 +6,7 @@
   var Duel = typeof module !== "undefined" && module.exports ? require("./duel.js") : root.Duel;
   var Quest = typeof module !== "undefined" && module.exports ? require("./quest.js") : root.Quest;
   var Turns = typeof module !== "undefined" && module.exports ? require("./turns.js") : root.Turns;
+  var Facts = typeof module !== "undefined" && module.exports ? require("./facts.js") : root.Facts;
   var IDEAS = DATA.ideas, GATED = DATA.gated || [], BONUS_EVERY = 6, ORDER_TRIES = 200;
   var ROUND = IDEAS.filter(function (i) { return !i.on; });   // calendar ideas ("on": "MM-DD") only appear on their day
   var ROUND_KINDS = ROUND.map(function (i) { return i.kind; }).filter(function (k, i, a) { return a.indexOf(k) === i; }).sort();
@@ -203,7 +204,8 @@
     if (t) d.t = t; if (s) d.s = s; if (n) d.n = n;    // t/s: an own idea of the day, n: who made it
     if (o.k === "card") {
       d.x = txt(o.x, MAX_TEXT); d.st = STYLES.card.indexOf(o.st) >= 0 ? o.st : "druck"; d.sk = sanitizeStickers(o.sk);
-      var w = sanitizeWeather(o.w); if (w) d.w = w;
+      var w = sanitizeWeather(o.w), f = Facts.sanitize(o.api);
+      if (f) d.api = f; else if (w) d.w = w;      // a data card shows its own source, no weather under it
     } else if (o.k === "photo") {
       d.x = txt(o.x, 28); d.y = txt(o.y, 28); d.st = STYLES.photo.indexOf(o.st) >= 0 ? o.st : "poster"; d.sk = sanitizeStickers(o.sk);
     } else if (o.k === "sound") {
@@ -241,7 +243,7 @@
   function changedAreas(a, b) {
     var w = [];
     function ne(x, y) { return JSON.stringify(x) !== JSON.stringify(y); }
-    if (a.x !== b.x || a.y !== b.y || ne(a.w, b.w)) w.push("text");
+    if (a.x !== b.x || a.y !== b.y || ne(a.w, b.w) || ne(a.api, b.api)) w.push("text");
     if (ne(a.col, b.col)) w.push("farbe");
     if (a.st !== b.st) w.push("stil");
     if (ne(a.sk, b.sk)) w.push("sticker");
