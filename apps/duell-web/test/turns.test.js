@@ -234,7 +234,7 @@ test("Geld einsammeln: nur der PayPal.me-Name reist, Betrag geklemmt, Link geht 
   assert.equal(Tn.moves(forged).length, 0); assert.equal(pay.link(forged, Tn.moves(forged)), "");
   const big = Object.assign({}, fresh("sammeln", 9), { q: Tn.seal([["max", "Pizza", 5000]], 9) });
   assert.equal(Tn.moves(big).length, 0);
-  assert.equal(D.byId("zug-sammeln").on, "12-05"); assert.equal(D.ideaForDay(new Date(Date.UTC(2026, 11, 5))).id, "zug-sammeln");
+  assert.equal(D.byId("zug-sammeln").on, "12-02"); assert.equal(D.ideaForDay(new Date(Date.UTC(2026, 11, 2))).id, "zug-sammeln");
 });
 test("Geld einsammeln: Obergrenze nur per Build-Flavor, ohne Flavor bleibt es bei 1 bis 50 Euro", () => {
   const slide = (t) => t.GAMES.sammeln.turns[0][2], load = (fl) => { delete require.cache[require.resolve("../src/turns.js")]; if (fl === undefined) delete globalThis.DailyFlavor; else globalThis.DailyFlavor = fl; const t = require("../src/turns.js"); delete globalThis.DailyFlavor; delete require.cache[require.resolve("../src/turns.js")]; return t; };
