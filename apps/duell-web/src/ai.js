@@ -82,7 +82,7 @@
   }
   function line() {
     if (!meter) return t("aiCountNew");
-    if (meter.abo) return t("aiCountAbo", { n: meter.remaining });
+    if (meter.abo) return t(meter.pro ? "aiCountPro" : "aiCountAbo", { n: meter.remaining });
     return t("aiCount", { n: meter.remaining, m: meter.free });
   }
 
@@ -110,10 +110,11 @@
     box.appendChild(el("p", "note", t("aiNote"))); box.appendChild(row); box.appendChild(src); box.appendChild(res);
     p.appendChild(box);
   }
-  // The honest wall: no price, no countdown, nothing to buy yet.
-  function wall(b, el) {
+  // The honest wall: no price, no countdown, nothing to buy yet (until the server says Pro is on sale).
+  function wall(b, el, fromAd) {     // fromAd: opened from the ad strip, the person may not have used any tries
+    if (meter && meter.shop && meter.shop.buy && window.Ads) return window.Ads.pro(b, el, meter);   // Pro is on sale: ads.js shows it
     b.appendChild(el("div", "empty", t("aiSoon")));
-    b.appendChild(el("p", "note", t("aiUsed", { m: meter ? meter.free : 3 })));
+    if (!fromAd) b.appendChild(el("p", "note", t("aiUsed", { m: meter ? meter.free : 3 })));
     b.appendChild(el("p", "note", t("aiNoBuy")));
     var ok = el("button", "btn", meter && meter.interest ? t("aiNoted") : t("aiWant"), async function () {
       ok.disabled = true;
