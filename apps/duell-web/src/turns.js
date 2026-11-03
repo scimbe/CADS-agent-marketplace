@@ -801,7 +801,9 @@
   };
   // ---------- collecting money: the card only builds a PayPal.me link, the money never touches us ----------
   // Only the public PayPal.me name travels, and only the characters PayPal allows there. The amount is whole euros.
-  var PPME = /^[A-Za-z0-9]{1,20}$/, EUR = [1, 50];
+  // A build flavor (adults) may raise the cap; it is baked in at build time, a link cannot change it.
+  var PPME = /^[A-Za-z0-9]{1,20}$/, FL = root.DailyFlavor && root.DailyFlavor.eur;
+  var EUR = Array.isArray(FL) && FL.length === 2 && Number.isInteger(FL[0]) && Number.isInteger(FL[1]) && FL[0] >= 1 && FL[0] <= FL[1] && FL[1] <= 500 ? FL : [1, 50];
   function payName(v) { return typeof v === "string" && PPME.test(v); }
   function payLink(m) {
     var n = m[0] && m[0][0], e = m[0] && m[0][2];
