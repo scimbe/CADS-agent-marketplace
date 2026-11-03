@@ -31,6 +31,7 @@ const LINES = {
   maschine: [[[["Ana", "Ben", "Cem"]], Array(6).fill([0]), Array(6).fill([1]), Array(6).fill([0]), [[0]], [[1]], [[2]]]],
   suche: [[[0, ["Unter dem Kissen", "Am Fenster", "Im Schuh", "Beim Regal"]], [42]]],
   wichteln: [[[["Ana", "Ben", "Cem", "", "", "", "", "", "", "", "", ""]], [[0], 0]]],
+  sammeln: [[["maxmuster", "Pizza-Abend", 5], [0]]],
   rangliste: [[[[0, 1, 2, 3, 4, 5, 6, 7]], [[7, 1, 2, 3, 4, 5, 6, 0]]]],
   schaetzen: [[[1, 1, 1, 1, 1]]],
   reihum: [[[[0], "dein Lachen", "Ana"], [[1], "Toast machen", "Ben"], [[2], "wir lachten", "Cem"], [[4], "alles", "Dag"]]],
@@ -216,6 +217,24 @@ test("Wichteln: niemand zieht sich selbst, jeder Name kommt genau einmal vor", (
   }
   assert.equal(Tn.play(fresh("wichteln", 1), [["Ana", "Ben", "", "", "", "", "", "", "", "", "", ""]], 0), null);
   assert.equal(Tn.play(fresh("wichteln", 1), [["Ana", "ana", "Cem", "", "", "", "", "", "", "", "", ""]], 0), null);
+});
+test("Geld einsammeln: nur der PayPal.me-Name reist, Betrag geklemmt, Link geht nur zu paypal.me", () => {
+  const d = through(Tn.play(fresh("sammeln", 1), ["maxmuster", "Pizza-Abend", 5], 0)), m = Tn.moves(d), pay = Tn.GAMES.sammeln.turns[1][0];
+  assert.equal(pay.link(d, m), "https://paypal.me/maxmuster/5EUR");
+  assert.deepEqual(Tn.face(d, "de"), ["Pizza-Abend: 5 € pro Person an paypal.me/maxmuster", "Link öffnen und mit PayPal zahlen"]);
+  assert.equal(Tn.face(fresh("sammeln", 1), "de"), null);
+  assert.equal(Tn.state(d).turn, 1); assert.ok(Tn.GAMES.sammeln.stay, "derselbe Link fuer alle, niemand meldet zurueck, wer gezahlt hat");
+  assert.ok(Tn.result(Tn.play(d, [0], 0), "de").note.includes("nur an Leute, die du kennst"));
+  for (const bad of ["max muster", "max/../evil", "max?x=1", "max#a", "maxmuster.de", "a".repeat(21), "", "<b>", "max@paypal", "müller"]) assert.equal(Tn.play(fresh("sammeln", 1), [bad, "Pizza", 5], 0), null, bad);
+  for (const e of [0, 51, -5, 2.5, 1e9, "5"]) assert.equal(Tn.play(fresh("sammeln", 1), ["max", "Pizza", e], 0), null, String(e));
+  assert.ok(Tn.play(fresh("sammeln", 1), ["Max2024", "Pizza", 50], 0)); assert.ok(Tn.play(fresh("sammeln", 1), ["M", "Pizza", 1], 0));
+  assert.equal(Tn.play(fresh("sammeln", 1), ["max", "Treff am Bahnhof", 5], 0), null);
+  // A link built by hand with a foreign name or a huge amount is dropped before anything is shown.
+  const forged = Object.assign({}, fresh("sammeln", 9), { q: Tn.seal([["evil.com/x", "Pizza", 5]], 9) });
+  assert.equal(Tn.moves(forged).length, 0); assert.equal(pay.link(forged, Tn.moves(forged)), "");
+  const big = Object.assign({}, fresh("sammeln", 9), { q: Tn.seal([["max", "Pizza", 5000]], 9) });
+  assert.equal(Tn.moves(big).length, 0);
+  assert.equal(D.byId("zug-sammeln").on, "12-02"); assert.equal(D.ideaForDay(new Date(Date.UTC(2026, 11, 2))).id, "zug-sammeln");
 });
 test("Schaetzen: gleicher Tag gleiche Fragen, das Bild verraet keine Loesung", () => {
   const f = (s) => fresh("schaetzen", s), q = (d) => Tn.GAMES.schaetzen.turns[0].map((p) => p.peek(d, [], [], "de"));

@@ -7,7 +7,7 @@
   var C = node ? require("./core.js") : root.DuellCore;
   var Q = node ? require("./quest.js") : root.Quest;
   var DATA = node ? require("./turn.json") : root.TurnData;
-  var BLOB = /^[A-Za-z0-9_-]{0,900}$/, SHAPES = ["cookie", "star", "heart", "bolt", "ring", "drop"], DAY = 86400000;
+  var BLOB = /^[A-Za-z0-9_-]{0,900}$/, SHAPES = ["cookie", "star", "heart", "bolt", "ring", "drop", "coin"], DAY = 86400000;
 
   function T(lang) { return DATA.text[lang === "en" ? "en" : "de"]; }
   function pair(list, i, lang) { return list[i].split("|")[lang === "en" ? 1 : 0]; }
@@ -799,6 +799,26 @@
       return { h: T(lang).sor_h, lines: [text], copy: text, note: T(lang).sor_note };
     }
   };
+  // ---------- collecting money: the card only builds a PayPal.me link, the money never touches us ----------
+  // Only the public PayPal.me name travels, and only the characters PayPal allows there. The amount is whole euros.
+  var PPME = /^[A-Za-z0-9]{1,20}$/, EUR = [1, 50];
+  function payName(v) { return typeof v === "string" && PPME.test(v); }
+  function payLink(m) {
+    var n = m[0] && m[0][0], e = m[0] && m[0][2];
+    return payName(n) && intIn(e, EUR[0], EUR[1]) ? "https://paypal.me/" + n + "/" + e + "EUR" : "";
+  }
+  function payLine(m, lang) { return fmt(T(lang).sam_line, { e: m[0][2], w: m[0][1], n: m[0][0] }); }
+  GAMES.sammeln = {
+    stay: true,
+    turns: [
+      [{ w: "text", l: "sam_name", max: 20, oneWord: true, hint: "sam_name_hint", bad: function (v) { return !payName(v); } },
+       { w: "text", l: "sam_what", max: 30, hint: "sam_what_hint" },
+       { w: "slide", l: "sam_eur", min: EUR[0], max: EUR[1], def: 5, unit: "€" }],
+      [{ w: "pay", l: "sam_pay", end: true, link: function (doc, m) { return payLink(m); }, peek: function (doc, m, now, lang) { return payLine(m, lang); } }]
+    ],
+    face: function (doc, m, lang) { return m.length ? [payLine(m, lang), T(lang).sam_face] : null; },
+    result: function (doc, m, lang) { return { h: T(lang).sam_h, lines: [payLine(m, lang)], note: T(lang).sam_safe }; }
+  };
   GAMES.kapsel.gateFrom = 1;
   var IDS = Object.keys(GAMES);
   function dealLine(doc, offer, floor, i, lang) {
@@ -832,7 +852,7 @@
     if (p.w === "drop") return intIn(v, 0, p.max);
     if (p.w === "doors") return v === 0;
     if (p.w === "freeze") return intIn(v, 0, p.max);
-    if (p.w === "rec" || p.w === "once" || p.w === "parrot") return v === 0;
+    if (p.w === "rec" || p.w === "once" || p.w === "parrot" || p.w === "pay") return v === 0;
     if (p.w === "whose") return intIn(v, 0, 2);
     if (p.w === "inner") return Array.isArray(v) && v.length === 5 && v.every(function (x) { return Number.isInteger(x) && x >= -20000 && x <= 20000; });
     if (p.w === "blind") return intIn(v, 2000, 30000);
@@ -893,6 +913,7 @@
     var g = GAMES[doc.g], at = g.gate ? g.gate(doc, moves(doc)) : 0, left = at ? at - today : 0;
     return left > 0 ? left : 0;
   }
+  function face(doc, lang) { var g = GAMES[doc.g]; return g.face ? g.face(doc, moves(doc), lang) : null; }
   function whole(doc, lang) { var g = GAMES[doc.g]; return g.peekWhole ? g.peekWhole(doc, moves(doc), lang) : ""; }
   function fresh(doc, seed) { var d = JSON.parse(JSON.stringify(doc)); d.seed = seed >>> 0; d.q = ""; delete d.o; return d; }
   function today(date) { return Math.floor((date || new Date()).getTime() / DAY); }
@@ -901,6 +922,6 @@
     (function walk(v) { if (typeof v === "string") v.split("|").forEach(function (x) { out.push(x); }); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.keys(v).forEach(function (k) { walk(v[k]); }); })(DATA);
     return out;
   }
-  var api = { doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, whole: whole, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
+  var api = { doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, face: face, whole: whole, payLink: payLink, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
   if (node) module.exports = api; else root.Turns = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

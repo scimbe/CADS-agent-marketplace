@@ -39,6 +39,7 @@ function shape(c, f, x, y, r, col) {
   else if (f === "heart") { c.moveTo(0, r * 0.9); c.bezierCurveTo(-r * 1.5, -r * 0.1, -r * 0.6, -r * 1.1, 0, -r * 0.35); c.bezierCurveTo(r * 0.6, -r * 1.1, r * 1.5, -r * 0.1, 0, r * 0.9); c.fill(); }
   else if (f === "bolt") { [[0.2, -1], [-0.55, 0.15], [-0.05, 0.15], [-0.2, 1], [0.55, -0.2], [0.05, -0.2]].forEach(function (p) { c.lineTo(p[0] * r, p[1] * r); }); c.closePath(); c.fill(); }
   else if (f === "ring") { c.arc(0, 0, r * 0.8, 0, 6.3); c.stroke(); }
+  else if (f === "coin") { c.arc(0, 0, r, 0, 6.3); c.fill(); c.fillStyle = "rgba(0,0,0,.35)"; c.font = "900 " + Math.round(r * 1.2) + "px system-ui,sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("€", 0, r * 0.06); }
   else if (f === "drop") { c.moveTo(0, -r); c.bezierCurveTo(r * 1.1, 0, r * 0.7, r, 0, r); c.bezierCurveTo(-r * 0.7, r, -r * 1.1, 0, 0, -r); c.fill(); }
   else { c.arc(0, 0, r, 0, 6.3); c.fill(); c.fillStyle = "rgba(0,0,0,.35)"; [[-0.4, -0.3], [0.35, -0.45], [0.05, 0.1], [-0.3, 0.5], [0.5, 0.4]].forEach(function (p) { c.beginPath(); c.arc(p[0] * r, p[1] * r, r * 0.13, 0, 6.3); c.fill(); }); }
   c.restore();
@@ -58,7 +59,9 @@ R.extra.turn = function (c, W, H, doc) {
   c.fillStyle = a; c.fillRect(0, 0, W, H); R.rays(c, W, H, "rgba(0,0,0,.05)", 0.2);
   shape(c, doc.f, W * 0.84, H * 0.84, W * 0.08, b); shape(c, doc.f, W * 0.14, H * 0.8, W * 0.05, b);
   R.block(c, res ? res.h : title(doc), W * 0.07, H * 0.1, W * 0.86, H * 0.34, ink, null);
+  var face = res ? null : Tn.face(doc, Kit.lang);
   if (res) lines(c, res.lines, W, H * 0.5, W * 0.038, ink);
+  else if (face) lines(c, face, W, H * 0.52, W * 0.05, ink);
   else if (!st.turn) { var i0 = doc.i ? D.byId(doc.i) : null; lines(c, [doc.s || (i0 ? (i0[Kit.lang] || i0.de).s : ""), L().you_start], W, H * 0.52, W * 0.05, ink); }   // the goal, not the machinery
   else lines(c, [say("picture_turn", { n: st.turn + 1, m: st.total })], W, H * 0.56, W * 0.05, ink);
 };
@@ -66,9 +69,9 @@ R.extra.turn = function (c, W, H, doc) {
 /* ---------- one prompt ---------- */
 var draw = {
   slide: function (box, p, set, ctx) {
-    var v = p.def || p.min || 0, row = el("label", "slide"), r = el("input"), b = el("b", "", v);
+    var v = p.def || p.min || 0, row = el("label", "slide"), r = el("input"), u = p.unit ? " " + p.unit : "", b = el("b", "", v + u);
     row.appendChild(el("span", "", "")); r.type = "range"; r.min = p.min || 0; r.max = p.maxOf ? p.maxOf(ctx.doc) : p.max; r.value = v; r.setAttribute("aria-label", L()[p.l]);
-    r.addEventListener("input", function () { b.textContent = r.value; set(Number(r.value)); });
+    r.addEventListener("input", function () { b.textContent = r.value + u; set(Number(r.value)); });
     row.appendChild(r); row.appendChild(b); box.appendChild(row); set(v);
   },
   show: function (box, p, set, ctx) {
@@ -78,9 +81,19 @@ var draw = {
   },
   text: function (box, p, set, ctx) {
     if (p.top) box.appendChild(el("p", "qtext", p.top(ctx.doc, ctx.m, Kit.lang)));
-    var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l]);
+    var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l]); if (p.hint) f.placeholder = L()[p.hint];
     f.addEventListener("input", function () { var v = f.value.trim(), ok = Tn.okAnswer(p, v, ctx.doc, Kit.lang, ctx.m, ctx.now); set(ok ? v : null); });
     box.appendChild(f); set(null);
+  },
+  // A plain link to PayPal.me: the shells hand it to the browser or the PayPal app. Nothing comes back, nobody counts who paid.
+  pay: function (box, p, set, ctx) {
+    var url = p.link(ctx.doc, ctx.m), after = el("p", "note", L().sam_after);
+    box.appendChild(el("p", "note", L().sam_safe));
+    if (url) {
+      var a = el("a", "btn hot", say("sam_btn", { e: ctx.m[0][2] })); a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.id = "paylink";
+      a.addEventListener("click", function () { Kit.sfx.tap(); after.hidden = false; }); box.appendChild(a);
+    }
+    after.hidden = true; box.appendChild(after); set(0);
   },
   list: function (box, p, set) {
     var fs = [];
@@ -461,7 +474,7 @@ function walk(box, ed) {
       if (!p.auto) try { go.scrollIntoView({ block: "nearest" }); } catch (e) {}
       if (p.auto) go.click(); else if (p.w === "rank" || (p.w === "pick" && p.n > 1)) soon = setTimeout(function () { if (box.isConnected && cur === v) go.click(); }, 450);   // a short look at the choice, then on
     }, { doc: ed.doc, m: st.moves, now: now });
-    box.appendChild(go);
+    if (!p.end) box.appendChild(go);
   }
   step();
 }
@@ -517,7 +530,7 @@ X.turn = {
   areas: function (ed) { return ed.next ? ["regeln"] : []; },
   footer: function (b, ed) {
     var over = !!Tn.result(ed.doc, Kit.lang), ok = over || !!ed.next;
-    b.hidden = ed.doc.g === "sorry" && over;
+    b.hidden = (ed.doc.g === "sorry" && over) || Tn.state(ed.doc).prompts.some(function (p) { return p.end; });   // a last step that only hands over, like paying
     b.classList.toggle("wait", !ok); b.textContent = over ? L().result_pic : ed.next ? L().send : L().need;
   },
   main: function (ed) {
