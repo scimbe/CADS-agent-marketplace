@@ -194,7 +194,7 @@ open_idea() {
   adb shell "am start -W -a android.intent.action.VIEW -c android.intent.category.BROWSABLE -p $PKG -d 'https://bunsenbrenner.org/duell#i=$1'" >/dev/null
   wait_web "$2" 20
   # the button, not the invite note that contains the same words; its text says what happens for each kind
-  tap_web "^(Make it yours|Mach's zu deinem|Karte machen|Make a card|Foto machen|Take a photo|Ton bauen|Build a sound|Losfliegen|Fly|Bot einstellen|Set up your bot|Los, du fängst an|Go, you start)\\s*\$" 10
+  tap_web "^(Make it yours|Mach's zu deinem|Karte machen|Make a card|Meme bauen|Make a meme|Ton bauen|Build a sound|Losfliegen|Fly|Bot einstellen|Set up your bot|Los, du fängst an|Go, you start)\\s*\$" 10
 }
 
 # 4. Invite link (i=): a card idea. Add a sticker, finish, Share opens the system share sheet, Save writes

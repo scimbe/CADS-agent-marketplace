@@ -21,6 +21,7 @@ test("Start: jede Art zeigt Vorschau, Funktionsleiste fuehrt zum Flugspiel und W
   assert.deepEqual(errs, []);
   const p = await ctx.newPage(); await p.goto(page);
   assert.ok(await p.getByRole("button", { name: /Webconference/ }).first().isVisible());
+  await p.locator("#feat").hover();   // the ticker stands still under the pointer
   await p.getByRole("button", { name: /Flugspiel/ }).click();
   await p.getByRole("tab", { name: "✨ Wunsch" }).waitFor();
   await b.close();

@@ -279,7 +279,11 @@
     return list.filter(function (e) {
       return e && typeof e === "object" && (sanitizeId(e.id) || e.id === "own") && typeof e.ts === "number" &&
         typeof e.th === "string" && e.th.length <= MAX_THUMB && /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(e.th);
-    }).slice(0, MAX_WALL).map(function (e) { return { id: e.id, ts: e.ts, th: e.th }; });
+    }).slice(0, MAX_WALL).map(function (e) {
+      var o = { id: e.id, ts: e.ts, th: e.th };   // f: the link of a work kept with Merken, only a c= fragment
+      if (typeof e.f === "string" && e.f.length <= C.MAX_FRAGMENT && /^c=[A-Za-z0-9_-]+={0,2}$/.test(e.f)) o.f = e.f;
+      return o;
+    });
   }
   function addToWall(list, entry) { return sanitizeWall([entry].concat(list)); }
 

@@ -16,8 +16,8 @@ test("Anfrage: nur Typ, Wunsch, Grundidee und Texte; kein Bild, keine Sticker, k
 });
 test("Anwenden: nur Felder des Typs wirken, Ergebnis ist bereinigt, Original bleibt unberuehrt", () => {
   const d = of("card"), before = JSON.stringify(d);
-  const n = W.apply(d, { x: "Neu", st: "neon", palette: 1, stickers: ["🐸"], gravity: 2000, bpm: 150, y: "weg" }, PAIRS, rand);
-  assert.equal(n.x, "Neu"); assert.equal(n.st, "neon"); assert.deepEqual(n.col, PAIRS[1]); assert.equal(n.sk.length, 1);
+  const n = W.apply(d, { x: "Neu", st: "neon", palette: 0, stickers: ["🐸"], gravity: 2000, bpm: 150, y: "weg" }, PAIRS, rand);
+  assert.equal(n.x, "Neu"); assert.equal(n.st, "neon"); assert.deepEqual(n.col, PAIRS[0]); assert.equal(n.sk.length, 1);
   assert.equal(n.y, undefined); assert.equal(n.bpm, undefined); assert.equal(n.g, undefined);
   assert.equal(JSON.stringify(d), before);
   const g = W.apply(of("game"), { gravity: 99999, theme: "lava", emoji: "🚀", title: "Lava", x: "weg" }, PAIRS, rand);
@@ -85,4 +85,9 @@ test("Wunsch aendert das ganze Blatt: lokal jeder Bereich ohne Text, dazu Titel 
   }
   const c = W.apply(of("card"), { stickers: ["🎃", "👻"] }, PAIRS, rand), c2 = W.apply(c, { stickers: ["🦇"] }, PAIRS, rand);
   assert.deepEqual(c2.sk.map((s) => s.e), ["🦇"], "ein zweiter Wunsch stapelt keine Sticker");
+});
+test("Farbe: ein Wunsch mit dem Farbpaar, das schon gilt, nimmt das naechste", () => {
+  const d = Object.assign(of("card"), { col: PAIRS[1].slice() });
+  assert.deepEqual(W.apply(d, { palette: 1 }, PAIRS, rand).col, PAIRS[0]);
+  assert.deepEqual(W.apply(d, { palette: 0 }, PAIRS, rand).col, PAIRS[0]);
 });

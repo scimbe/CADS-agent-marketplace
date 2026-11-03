@@ -42,7 +42,15 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 #homerow{position:relative;flex:none;display:flex;gap:8px;margin:2px 18px 6px}
 #homerow button{flex:1;min-height:44px;border:2px solid var(--on);border-radius:6px;background:transparent;color:var(--on);font:900 14px/1.1 var(--ui);padding:2px 6px}
 #homerow button[hidden]{display:none}
-#feat{position:relative;flex:none;display:flex;gap:6px;overflow-x:auto;padding:0 18px 6px;scrollbar-width:none}
+/* The feature bar runs by slowly as a ticker; it stops under a finger or the mouse, and on short screens it is left out. */
+#feat{position:relative;flex:none;display:flex;align-items:center;gap:6px;padding:0 0 6px 18px}
+#feat .lane{flex:1;min-width:0;overflow:hidden;-webkit-mask:linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 18px),transparent);mask:linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 18px),transparent)}
+#feat .track{display:flex;gap:6px;width:max-content;padding-left:8px;animation:ticker 45s linear infinite}
+#feat .lane:hover .track,#feat .lane:focus-within .track,#feat.hold .track{animation-play-state:paused}
+@keyframes ticker{to{transform:translateX(-50%)}}
+@media (max-height:700px){#feat{display:none}}
+@media (prefers-reduced-motion:reduce){#feat .lane{overflow-x:auto;scrollbar-width:none}#feat .track{animation:none}#feat .track [aria-hidden]{display:none}}
+#edsave[aria-pressed=true]{color:#ff3d71}
 #feat button{flex:none;min-height:40px;padding:0 11px;border:2px solid var(--ink);border-radius:20px;background:var(--paper);color:var(--ink);font:800 13px var(--ui);white-space:nowrap}
 .pv{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;margin:2px 0 6px}
 .pv[hidden]{display:none}
@@ -204,3 +212,10 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .bface{width:110px;height:110px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:64px}
 .doorrow{display:flex;gap:12px;width:100%}.doorrow .btn{flex:1;min-height:64px;font:900 22px var(--ui)}.doorout{background:#e53935;color:#fff}.doorin{background:#1b9e3a;color:#fff}
 .doordots{font:900 18px var(--ui);letter-spacing:2px}
+
+/* invitations: picture, date, a cross to delete */
+.walltabs{margin-bottom:10px}.inv .invcell{position:relative;display:flex;flex-direction:column;gap:4px}
+.inv .invcell>button:first-child{display:block;padding:0;border:2px solid var(--ink);background:var(--paper);aspect-ratio:4/5;width:100%;overflow:hidden}
+.inv img{width:100%;height:100%;object-fit:cover;display:block}.invicon{display:grid;place-items:center;height:100%;font-size:40px}
+.invx{position:absolute;top:-8px;right:-8px;width:36px;height:36px;border-radius:50%;border:2px solid var(--ink);background:#fff;color:#111;font:900 16px var(--ui);display:grid;place-items:center}
+.invdate{font:700 12px var(--ui);text-align:center}

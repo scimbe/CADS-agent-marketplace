@@ -89,14 +89,25 @@ function preview(root, doc, still) {
     R.draw(c, doc, { me: me, photo: doc.k === "photo" ? R.botFace(C.hash32(doc.x || "x"), doc.col[1]) : null, peaks: null, x: {} });
   } catch (e) { box.hidden = true; }
 }
+// The games button stays put on the left; the rest runs by as a ticker. Two copies in one track make it seamless;
+// the second is only for the eye, not for screen readers or Tab.
 function feats() {
-  var box = $("feat"); box.textContent = "";
-  [["f_two", "🤝", function () { X.turn.menu(); }], ["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
+  var bar = $("feat"), lane = el("div", "lane"), box = el("div", "track"), n = D.IDEAS.filter(function (i) { return i.kind === "turn"; }).length;
+  bar.textContent = "";
+  bar.appendChild(el("button", "hot", "🎲 " + t("f_twoN", { n: n }), function () { Kit.sfx.tap(); X.turn.menu(); }));
+  lane.appendChild(box); bar.appendChild(lane);
+  [0, 1].forEach(function (copy) { [["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
     ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].forEach(function (f) {
-    var n = D.IDEAS.filter(function (i) { return i.kind === "turn"; }).length;
-    box.appendChild(el("button", f[0] === "f_two" ? "hot" : "", f[0] === "f_two" ? "🎲 " + t("f_twoN", { n: n }) : f[1] + " " + t(f[0]), function () { Kit.sfx.tap(); f[2](); }));
-  });
+    var b = el("button", "", f[1] + " " + t(f[0]), function () { Kit.sfx.tap(); f[2](); });
+    if (copy) { b.setAttribute("aria-hidden", "true"); b.tabIndex = -1; }
+    box.appendChild(b);
+  }); });
 }
+(function () {   // a finger on the ticker holds it, so the button under it does not run away
+  var bar = $("feat"), off = function () { bar.classList.remove("hold"); };
+  bar.addEventListener("pointerdown", function () { bar.classList.add("hold"); });
+  ["pointerup", "pointercancel", "pointerleave"].forEach(function (e) { bar.addEventListener(e, function () { setTimeout(off, 1500); }); });
+})();
 function blank(kind) { Kit.sfx.thud(); openEditor(D.blankDoc(kind, me, Kit.lang), { own: true }); }
 var page = 0, PLAN_DAYS = 31;
 function dayHome() { return { date: today, idea: D.ideaForDay(today) }; }
@@ -104,7 +115,7 @@ function dayHome() { return { date: today, idea: D.ideaForDay(today) }; }
 function newDay() {
   var n = new Date();
   if (D.dayNumber(n) === D.dayNumber(today)) return;
-  today = n; page = 0; upcoming = null;
+  today = n; page = 0; upcoming = {};
   if (home && (home.note || home.doc)) return;   // an invitation or a creation from a link stays until it is left
   home = dayHome();
   if (screen === "home") setHome(home, true);
@@ -113,38 +124,44 @@ function goHome() {
   CU.end(); stopSound(); G.stop(); ed = null; played = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
   if (!home) home = dayHome(); setHome(home, true);
 }
-// The next sheet is chosen once, so the greyed preview and the sheet that lands after tearing are the same.
-var upcoming = null;
-function nextSheet() {
-  if (upcoming && upcoming.after === page) return upcoming;
-  var p = (page + 1) % PLAN_DAYS, d = D.dayDate(today, -p);
-  return (upcoming = { after: page, page: p, date: d, idea: D.ideaForDay(d) || D.randomIdea(Math.random, "") });
+// Swiping to the left turns to the next day, to the right back to the day before, like the pages of a book.
+// The sheet is chosen once per direction, so the greyed preview and the sheet that lands after tearing are the same.
+var upcoming = {};
+function nextSheet(step) {
+  step = step < 0 ? -1 : 1;
+  var u = upcoming[step]; if (u && u.after === page) return u;
+  var p = page + step; if (Math.abs(p) >= PLAN_DAYS) p = 0;
+  var d = D.dayDate(today, -p);
+  return (upcoming[step] = { after: page, page: p, date: d, idea: D.ideaForDay(d) || D.randomIdea(Math.random, "") });
 }
-// While the sheet is pulled, the one below already is the next day: the same sheet, only greyed out.
-function peek() {
+// While the sheet is pulled, the one below already is the day it turns to: the same sheet, only greyed out.
+function peek(step) {
   var under = document.querySelector("#pad .u1"), g = under.querySelector(".ghost");
   if (!g) {
     g = $("leaf").cloneNode(true); g.removeAttribute("id"); g.removeAttribute("style"); g.className = "ghost"; g.setAttribute("aria-hidden", "true");
     g.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); }); under.appendChild(g);
   }
-  var n = nextSheet(); fillSheet(g, { date: n.date, idea: n.idea }, true);
+  var n = nextSheet(step); fillSheet(g, { date: n.date, idea: n.idea }, true);
 }
-function tear(dir) {
-  var leaf = $("leaf"); Kit.rip(); Kit.haptic(18);
+function tear(step) {
+  var leaf = $("leaf"), dir = step < 0 ? 1 : -1; Kit.rip(); Kit.haptic(18);   // forward flies off to the left, back to the right
   leaf.className = "gone"; leaf.style.transform = "translate(" + dir * 130 + "%,-20%) rotate(" + dir * 26 + "deg)";
   setTimeout(function () {
-    var n = nextSheet(); page = n.page;                   // the calendar: a torn sheet shows the next day, then back to today
+    var n = nextSheet(step); page = n.page;
     setHome({ date: n.date, idea: n.idea }, true); Kit.sfx.thud();
   }, 300);
 }
 (function drag() {
-  var leaf = $("leaf"), sx = 0, sy = 0, on = false, last = 0;
-  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; try { peek(); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
-  leaf.addEventListener("pointermove", function (e) { if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy; leaf.style.transform = "translate(" + dx + "px," + dy * 0.4 + "px) rotate(" + dx / 16 + "deg)"; leaf.style.opacity = String(1 - Math.min(0.7, Math.abs(dx) / 220)); });
+  var leaf = $("leaf"), sx = 0, sy = 0, on = false, last = 0, shown = 0;
+  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; shown = 1; try { peek(1); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
+  leaf.addEventListener("pointermove", function (e) {
+    if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy, step = dx > 0 ? -1 : 1;
+    if (Math.abs(dx) > 8 && step !== shown) { shown = step; try { peek(step); } catch (x) {} }
+    leaf.style.transform = "translate(" + dx + "px," + dy * 0.4 + "px) rotate(" + dx / 16 + "deg)"; leaf.style.opacity = String(1 - Math.min(0.7, Math.abs(dx) / 220)); });
   function up(e) {
     if (!on) return; on = false; leaf.classList.remove("drag");
     var dx = e.clientX - sx, dy = e.clientY - sy;
-    if (Math.abs(dx) > 90) { tear(dx > 0 ? 1 : -1); return; }
+    if (Math.abs(dx) > 90) { tear(dx > 0 ? -1 : 1); return; }
     leaf.style.transform = ""; leaf.style.opacity = "";
     if (Math.abs(dx) < 12 && Math.abs(dy) < 12) { var now = Date.now(); if (now - last < 400) { last = 0; start(); } else last = now; }   // a double tap opens the card, a swipe turns the day
   }
@@ -161,7 +178,7 @@ function paint() {
   timer = 0; if (!ed) return;
   ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1]);
   if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks, x: ed.x }); }
-  SK.sync(); footer(); CU.local();
+  SK.sync(); footer(); CU.local(); saveMark();
 }
 function changed() {           // every control ends up here: redraw within the next moment
   if (!timer) timer = setTimeout(paint, 16);
@@ -494,6 +511,7 @@ function voicePanel(p) {
 
 /* ---------- finish ---------- */
 function makeBlob(c, type, q) { return new Promise(function (ok) { c.toBlob(ok, type || "image/png", q); }); }
+function tinyThumb(c) { var s = document.createElement("canvas"); s.width = 135; s.height = 169; s.getContext("2d").drawImage(c, 0, 0, 135, 169); return s.toDataURL("image/jpeg", 0.6); }
 function thumb(c) { var s = document.createElement("canvas"); s.width = 270; s.height = 338; s.getContext("2d").drawImage(c, 0, 0, 270, 338); return s.toDataURL("image/jpeg", 0.6); }
 async function finish(doc, idea, pictureDoc) {
   var c = document.createElement("canvas"); c.width = 1080; c.height = 1350;
@@ -536,7 +554,10 @@ $("playit").addEventListener("click", function () { ed = result.keep; ed.sel = -
 // finished picture, before anyone can send the link; a photo poster keeps the fixed picture, photos stay on the phone.
 async function shortLink() {
   if (!result.link) {
-    result.link = await window.ShortLink.shorten(result.url, { k: result.kind, l: Kit.lang }, store); Kit.save();
+    result.link = await window.ShortLink.shorten(result.url, { k: result.kind, l: Kit.lang }, store);
+    var mine = result.link.short && store.links.filter(function (e) { return e.id === result.link.id; })[0];
+    if (mine && result.canvas) { mine.th = tinyThumb(result.canvas); mine.k = result.kind; }   // only on this phone, for the list of invitations
+    Kit.save();
     if (result.link.short && result.kind !== "photo" && result.canvas) {
       try { await window.ShortLink.picture(result.link.id, await makeBlob(chatPicture(result.canvas, result.keep ? result.keep.doc.col : me.colors), "image/jpeg", 0.82), store); } catch (e) {}
     }
@@ -569,6 +590,22 @@ function backToEditor() {
 }
 $("dhome").addEventListener("click", goHome);
 $("edback").addEventListener("click", function () { Kit.sfx.tap(); goHome(); });
+// Merken: the work as it is now lands on the wall, with its link, so it opens again in the editor later.
+function savedNow() { var f = docFragment(ed.doc); return !!f && wall.some(function (w) { return w.f === f; }); }
+function docFragment(doc) { var u = D.docUrl(doc), i = u.indexOf("#"); return i < 0 ? "" : u.slice(i + 1); }
+function saveMark() { var on = !!ed && savedNow(); $("edsave").textContent = on ? "♥" : "♡"; $("edsave").setAttribute("aria-pressed", String(on)); }
+$("edsave").addEventListener("click", function () {
+  if (!ed) return; Kit.sfx.pop(); Kit.haptic(12);
+  var f = docFragment(ed.doc);
+  if (savedNow()) { wall = wall.filter(function (w) { return w.f !== f; }); Kit.toast(t("unsaved")); }
+  else {
+    var c = document.createElement("canvas"); c.width = 540; c.height = 675;
+    if (ed.doc.k === "game") { var g = $("demo"); c.getContext("2d").drawImage(g, 0, 0, c.width, c.height); }
+    else R.draw(c, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks });
+    wall = D.addToWall(wall, { id: ed.doc.i || "own", ts: Date.now(), th: thumb(c), f: f }); Kit.toast(t("saved"));
+  }
+  store.wall = wall; Kit.save(); saveMark();
+});
 $("shback").addEventListener("click", function () { Kit.sfx.tap(); if (!backFromStyle()) goHome(); });
 // My style opened from the editor returns there with the work intact; new colours apply unless they were chosen by hand.
 function backFromStyle() {
@@ -624,36 +661,49 @@ function openPast() {
     });
   });
 }
-function openWall() {
+function openWall(which) {
   shelf(t("wall"), function (b) {
-    if (!wall.length) { b.appendChild(el("div", "empty", t("wallEmpty"))); linksList(b); return; }
+    var links = window.ShortLink.kept(store.links, Date.now()), tabs = el("div", "chips walltabs");
+    [["wall", t("wall")], ["links", t("invites") + " (" + links.length + ")"]].forEach(function (x) {
+      var on = (which || "wall") === x[0], c = el("button", "chip" + (on ? " on" : ""), x[1], function () { Kit.sfx.tap(); openWall(x[0]); });
+      c.setAttribute("role", "tab"); c.setAttribute("aria-selected", String(on)); tabs.appendChild(c);
+    });
+    b.appendChild(tabs);
+    if (which === "links") { invites(b, links); return; }
+    if (!wall.length) { b.appendChild(el("div", "empty", t("wallEmpty"))); return; }
     var g = el("div", "wallgrid");
     wall.forEach(function (w, i) {
       var c = el("button", "", null, function () {
         Kit.sfx.tap(); b.textContent = ""; var im = el("img", "big"); im.src = w.th; im.alt = ""; b.appendChild(im);
+        var r = w.f ? D.parseRoute("#" + w.f) : null;
+        if (r && r.type === "doc") b.appendChild(el("button", "btn hot", t("openAgain"), function () { Kit.sfx.thud(); openEditor(r.doc, { idea: r.doc.i ? D.byId(r.doc.i) : null, own: !r.doc.i }); }));
         b.appendChild(el("button", "btn", t("gone"), function () { wall.splice(i, 1); store.wall = wall; Kit.save(); openWall(); }));
       });
       var im = el("img"); im.src = w.th; im.alt = ""; c.appendChild(im); g.appendChild(c);
     });
     b.appendChild(g);
-    linksList(b);
   });
 }
-function linksList(b) {
-  var list = window.ShortLink.kept(store.links, Date.now());
-  if (!list.length) return;
-  b.appendChild(el("h3", "note", t("sh_mine")));
+// Invitations: every short link made on this phone, as its picture with the date it runs out and a cross that deletes it.
+function invites(b, list) {
+  if (!list.length) { b.appendChild(el("div", "empty", t("invEmpty"))); return; }
+  var g = el("div", "wallgrid inv"), ICON = { card: "🃏", photo: "📷", sound: "🥁", game: "🕹", idea: "💡" };
   list.forEach(function (l) {
-    var row = el("div", "day"), when = new Date(l.exp).toLocaleDateString(Kit.lang === "de" ? "de-DE" : "en-GB");
-    row.appendChild(el("span", "", "/s/" + l.id + " · " + t("sh_until", { d: when })));
-    row.appendChild(el("button", "chip", t("gone"), async function () {
-      Kit.sfx.tap();
+    var url = C.SHORT_BASE + l.id, when = new Date(l.exp).toLocaleDateString(Kit.lang === "de" ? "de-DE" : "en-GB"), cell = el("div", "invcell");
+    var open = el("button", "", null, function () { Kit.sfx.tap(); Kit.share({ url: url, text: t("shareText") }); });
+    open.setAttribute("aria-label", t("invShare", { d: when }));
+    if (typeof l.th === "string" && l.th.length < 30000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(l.th)) { var im = el("img"); im.src = l.th; im.alt = ""; open.appendChild(im); }
+    else open.appendChild(el("span", "invicon", ICON[l.k] || "🔗"));
+    var x = el("button", "invx", "✕", async function () {
+      Kit.sfx.tap(); x.disabled = true;
       var ok = await window.ShortLink.remove(l.id, store);
       Kit.save(); Kit.toast(t(ok ? "sh_deleted" : "sh_deleteFail"));
-      if (ok) openWall();
-    }));
-    b.appendChild(row);
+      openWall("links");
+    });
+    x.setAttribute("aria-label", t("invDelete", { d: when }));
+    cell.appendChild(open); cell.appendChild(x); cell.appendChild(el("span", "invdate", t("sh_until", { d: when }))); g.appendChild(cell);
   });
+  b.appendChild(g);
 }
 function openOwn() {
   shelf(t("own"), function (b) {
