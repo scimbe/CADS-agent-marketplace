@@ -471,6 +471,8 @@
   var IDS = ["puck", "ziegel", "volley", "panzer"];
   // One phone's side of a duel. o: { seed, serving, send(msg) }.
   function side(g, o) { return GAMES[g].side(o); }
+  // More duels (arcade2.js) register here with the same building blocks.
+  function add(g) { GAMES[g.id] = g; IDS.push(g.id); }
   function bot(g, S, seed) { return GAMES[g].bot(S, rng(seed + "|bot")); }
   // Two sides wired together in one page (the bot match, the card preview, the tests). lag: messages arrive that many
   // ticks later, which lets the tests play over a slow network.
@@ -486,6 +488,7 @@
     mirror: mirror, mirrorX: mirrorX, puckServe: puckServe, puckStrike: puckStrike, plausibleMallet: plausibleMallet, plausiblePuck: plausiblePuck,
     ziegelServe: ziegelServe, ziegelDefend: ziegelDefend, plausiblePaddle: plausiblePaddle, plausibleZiegel: plausibleZiegel,
     volleyServe: volleyServe, volleyStep: volleyStep, volleyBump: volleyBump, plausibleFigure: plausibleFigure, plausibleVolley: plausibleVolley,
-    island: island, surface: surface, tankPos: tankPos, wind: wind, flight: flight, crater: crater, plausibleShot: plausibleShot };
+    island: island, surface: surface, tankPos: tankPos, wind: wind, flight: flight, crater: crater, plausibleShot: plausibleShot,
+    add: add, _: { base: base, loop: loop, report: report, reach: reach, clamp: clamp, num: num, body: body, copy: copy, cap: cap, speed: speed, unit: unit, same: same } };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.Arcade = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
