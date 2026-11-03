@@ -97,7 +97,7 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 #shbody{flex:1;overflow-y:auto;padding:12px 14px;touch-action:pan-y;user-select:auto;-webkit-user-select:auto}
 .day{display:flex;width:100%;align-items:center;gap:12px;padding:8px 10px;min-height:62px;border:0;border-bottom:3px solid var(--ink);background:transparent;text-align:left}
 .day b{font:900 34px/1 var(--disp);min-width:46px;font-variant-numeric:tabular-nums}
-.day span{flex:1}.day i{font-style:normal}
+.day span{flex:1}.day i{font-style:normal}.day small{font:700 13px var(--ui);opacity:.75;white-space:nowrap}
 .mech{display:flex;width:100%;gap:12px;align-items:center;min-height:76px;border:3px solid var(--ink);background:var(--a);color:#111;margin-bottom:10px;padding:0 14px;font:900 28px/1 var(--disp);text-transform:uppercase;box-shadow:4px 5px 0 var(--ink);border-radius:4px}
 .wallgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .wallgrid button{border:3px solid var(--ink);padding:0;aspect-ratio:4/5;background:#fff;overflow:hidden}

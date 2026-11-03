@@ -594,15 +594,29 @@ function openStyle() {
 }
 function shelf(title, fill) { stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
 function openAiWall() { ed.styling = true; shelf(t("aiTitle"), function (b) { window.Ai.wall(b, el); }); }
+// The last week, and above it a search over every sheet: one word, one tap on a hit, and that sheet is back.
 function openPast() {
   shelf(t("past"), function (b) {
-    D.lastDays(today, 7).forEach(function (e) {
-      var made = wall.some(function (w) { return w.id === e.idea.id; }), row = el("button", "day", null, function () { Kit.sfx.tap(); home = { date: e.date, idea: e.idea }; goHome(); });
-      row.appendChild(el("b", "", String(e.date.getUTCDate()).padStart(2, "0")));
-      row.appendChild(el("span", "", ideaText(e.idea).t.replace("|", " ")));
-      if (made) row.appendChild(el("i", "", "✓"));
-      b.appendChild(row);
-    });
+    var q = el("input", "field"), list = el("div"), T = window.DailyTexts, names = {};
+    q.type = "search"; q.id = "pastq"; q.placeholder = t("pastSearch"); q.setAttribute("aria-label", t("pastSearch")); q.autocomplete = "off"; q.enterKeyHint = "search";
+    D.KINDS.forEach(function (k) { names[k] = [T.de[k], T.en[k]]; });
+    function row(e) {
+      var made = wall.some(function (w) { return w.id === e.idea.id; }), r = el("button", "day", null, function () { Kit.sfx.tap(); home = { date: e.date || today, idea: e.idea }; goHome(); });
+      r.appendChild(el("b", "", e.date ? String(e.date.getUTCDate()).padStart(2, "0") : "✦"));
+      r.appendChild(el("span", "", ideaText(e.idea).t.replace("|", " ")));
+      if (e.found) r.appendChild(el("small", "", e.date ? monthLines(e.date).split("\n")[0] + " " + e.date.getUTCFullYear() : t("pastNew")));
+      if (made) r.appendChild(el("i", "", "✓"));
+      list.appendChild(r);
+    }
+    function fill() {
+      list.textContent = "";
+      if (!q.value.trim()) { D.lastDays(today, 7).forEach(row); return; }
+      var hits = D.searchIdeas(q.value, today, names);
+      if (!hits.length) { list.appendChild(el("div", "empty", t("pastNone"))); return; }
+      hits.forEach(function (h) { h.found = true; row(h); });
+    }
+    q.addEventListener("input", fill);
+    b.appendChild(q); b.appendChild(list); fill();
   });
 }
 function openWall() {
