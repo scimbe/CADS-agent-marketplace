@@ -119,7 +119,7 @@ for (const mode of ["refuse", "drop"]) {
     assert.ok(Date.now() - t0 < 5000, "Startseite haengt am Netz");
     assert.equal(await p.locator("#cogo").isVisible(), false); assert.equal(await p.locator("#livego").isVisible(), false);
     const t1 = Date.now();
-    await p.locator("#feat button", { hasText: "Webconference" }).click();
+    await p.locator("#feat .lane").hover(); await p.locator("#feat .lane button:not([aria-hidden])", { hasText: "Webconference" }).click();
     await p.getByText("Die Webconference ist aus diesem Netz nicht erreichbar").waitFor({ timeout: 6000 });
     assert.ok(Date.now() - t1 < 5000, "Rueckmeldung zu spaet: " + (Date.now() - t1) + " ms");
     assert.ok(asked.every((u) => u.startsWith("https://webconference.bunsenbrenner.org/")), "nur der eine Tipp geht raus: " + asked.join(" "));
@@ -135,7 +135,8 @@ test("Firmennetz offen fuer die eigene Domain: der Tipp oeffnet die Webconferenc
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" });
   await ctx.route("https://webconference.bunsenbrenner.org/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<title>WC</title>" }));
   const p = await ctx.newPage(); await p.goto(page);
-  const [tab] = await Promise.all([ctx.waitForEvent("page"), p.locator("#feat button", { hasText: "Webconference" }).click()]);
+  await p.locator("#feat .lane").hover();
+  const [tab] = await Promise.all([ctx.waitForEvent("page"), p.locator("#feat .lane button:not([aria-hidden])", { hasText: "Webconference" }).click()]);
   await tab.waitForLoadState(); assert.equal(tab.url(), "https://webconference.bunsenbrenner.org/");
   assert.equal(await p.getByText("nicht erreichbar").count(), 0);
   await b.close();

@@ -81,10 +81,11 @@ test("Gegen den Bot: Regal zeigt zehn Arcade-Duelle neben dem Ballduell, Insel-P
   assert.deepEqual(errs, []); await b.close();
 });
 
-test("Kalender: am 4. Dezember ist das Puck-Duell das Blatt des Tages und oeffnet Bot oder Freund", async () => {
+test("Kalender: an seinem Tag ist das Puck-Duell das Blatt des Tages und oeffnet Bot oder Freund", async () => {
   const b = await launch(), ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);
   const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
-  await p.clock.setFixedTime(new Date("2026-12-04T09:00:00Z"));
+  const on = require("../../src/ideas.json").ideas.find((i) => i.id === "arcade-puck").on;   // the December plan decides the day
+  await p.clock.setFixedTime(new Date("2026-" + on + "T09:00:00Z"));
   await p.goto(page);
   await p.locator("#leaf").getByText("Puck", { exact: true }).waitFor();
   await p.locator("#go").click();
