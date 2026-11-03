@@ -67,7 +67,8 @@ test("Eis-Stock live: Rundenspiel, wer dran ist wechselt, nachdem der Wurf bei b
 test("Gegen den Bot: Regal zeigt zehn Arcade-Duelle neben dem Ballduell, Insel-Panzer bis zum Ende", async () => {
   const b = await launch(), ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);
   const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
-  await p.addInitScript(() => { window.__liveOn = true; });
+  // Fixed seed and fixed steps: the bot game is the same every run and ends after 11 s of game time (about 3 s here).
+  await p.addInitScript(() => { window.__liveOn = true; window.__arcadeSeed = "e2e-28"; window.__arcadeSpeed = 4; });
   await p.goto(page); await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await p.getByRole("button", { name: /Ballduell live/ }).waitFor();
   assert.equal(await p.locator(".arctile").count(), 10);
@@ -75,7 +76,7 @@ test("Gegen den Bot: Regal zeigt zehn Arcade-Duelle neben dem Ballduell, Insel-P
   await p.locator(".arcdemo").waitFor();
   await p.getByRole("button", { name: /Gegen den Bot/ }).click();
   await p.locator(".arccv").waitFor();
-  await p.getByText(/Gewonnen|Knapp!/).waitFor({ timeout: 120000 });   // standing still, the bot wins 3:0
+  await p.getByText(/Gewonnen|Knapp!/).waitFor({ timeout: 30000 });   // standing still, the bot wins 3:0
   assert.match(await p.locator(".livebig").textContent(), /Knapp! 0:3/);
   await p.getByRole("button", { name: "Nochmal" }).waitFor();
   assert.deepEqual(errs, []); await b.close();
