@@ -204,3 +204,14 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .bface{width:110px;height:110px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:64px}
 .doorrow{display:flex;gap:12px;width:100%}.doorrow .btn{flex:1;min-height:64px;font:900 22px var(--ui)}.doorout{background:#e53935;color:#fff}.doorin{background:#1b9e3a;color:#fff}
 .doordots{font:900 18px var(--ui);letter-spacing:2px}
+/* Ad strip: neutral grey, never the app's colours, so it cannot pass for content */
+#adslot{position:relative;flex:none;margin:0 18px 6px;padding:4px 8px 6px;background:#ededed;color:#222;border:1px dashed #777;border-radius:6px;font:600 12px/1.2 var(--ui)}
+#adslot[hidden]{display:none}
+.adtop{display:flex;align-items:center;justify-content:space-between}.adlbl{font-weight:800;text-transform:uppercase;font-size:11px;letter-spacing:.5px}
+.adx{min-width:36px;min-height:32px;border:0;background:transparent;color:#222;font:800 16px var(--ui)}
+.adbody{display:flex;align-items:center;gap:8px;max-height:64px;overflow:hidden}.adimg{width:56px;height:56px;object-fit:cover;border-radius:4px}
+.adtxt{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}.adtxt b{font-weight:800}
+.adgo,.adpro{border:1px solid #222;border-radius:4px;background:#fff;color:#222;font:800 12px var(--ui);min-height:32px;padding:0 8px}
+.adpro{margin-top:4px;border:0;background:transparent;text-decoration:underline;padding:0}
+.adsbygoogle{display:block;width:100%;height:60px}
+.proage{display:flex;align-items:center;gap:6px;margin:8px 0}.btn[aria-disabled="true"]{opacity:.5}

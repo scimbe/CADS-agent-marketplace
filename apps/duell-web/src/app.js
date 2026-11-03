@@ -74,6 +74,7 @@ function setHome(h, animate) {
   var live = idea && idea.live, lb = $("livego"); lb.hidden = !live; if (live) { lb.textContent = t("live_" + live); lb.dataset.u = LIVE[live]; }
   var leaf = $("leaf"); leaf.className = s.got ? "got" : ""; leaf.style.transform = ""; leaf.style.opacity = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
+  window.Ads.home({ box: $("adslot"), el: el, today: today, idea: idea, onPro: function () { shelf(t("proTitle"), function (b) { window.Ads.pro(b, el, store.aiMeter || null); }); } });
 }
 var LIVE = { conf: "https://webconference.bunsenbrenner.org/", tunnel: "https://bunsenbrenner.org/", demos: "https://demos-34a13a96.bunsenbrenner.org/", nordwind: "https://a2a-demo.bunsenbrenner.org/" };
 function openLive(url) { if (!window.open(url, "_blank", "noopener")) location.href = url; }
