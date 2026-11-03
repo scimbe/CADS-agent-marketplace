@@ -351,7 +351,13 @@ test("Tuersteher: jede Regel zeigt frueh ein Ja und ein Nein, gleiche Wesen fuer
 });
 test("Keine Werbe- und Manipulationstechnik in den Quellen", () => {
   const fs = require("node:fs"), path = require("node:path"), dir = path.join(__dirname, "../src");
-  for (const f of fs.readdirSync(dir).filter((n) => n.endsWith(".js"))) assert.ok(!/ad_revenue|interstitial|rewarded|userAgent|deviceMemory|hardwareConcurrency|\brevive\b/i.test(fs.readFileSync(path.join(dir, f), "utf8")), f);
+  // One exception for device signals: the protocol page picks the speech model size and thread count from them (or says
+  // honestly that the device is too weak). They stay on the device; build.test.js checks they are not in what is sent.
+  for (const f of fs.readdirSync(dir).filter((n) => n.endsWith(".js"))) {
+    const s = fs.readFileSync(path.join(dir, f), "utf8");
+    assert.ok(!/ad_revenue|interstitial|rewarded|\brevive\b/i.test(s), f);
+    if (f !== "protokoll-page.js") assert.ok(!/userAgent|deviceMemory|hardwareConcurrency/.test(s), f);
+  }
 });
 test("Unberechenbar: ein starres Muster wird erkannt", () => {
   let d = fresh("unlesbar", 1), r;

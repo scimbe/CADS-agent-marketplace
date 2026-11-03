@@ -21,3 +21,12 @@ for (const k of Object.keys(parts)) html = html.replace("/*@" + k + "@*/", () =>
 fs.mkdirSync(path.join(root, "dist"), { recursive: true });
 fs.writeFileSync(path.join(root, "dist/index.html"), html);
 console.log("dist/index.html", Buffer.byteLength(html), "bytes");
+
+// Fast Easy Protokoll: its own page, because whisper.cpp needs a cross-origin isolated page and connect-src 'self' (served by
+// the gallery at /duell/protokoll). The worker stays a separate file: a Worker is only started from a same-origin URL.
+const prot = { CSS: read("src/protokoll.css"), DATA: "window.ProtokollTexts=" + JSON.stringify(JSON.parse(read("src/protokoll.json"))) + ";", PROTOKOLL: read("src/protokoll.js"), PAGE: read("src/protokoll-page.js") };
+let ph = read("src/protokoll.template.html");
+for (const k of Object.keys(prot)) ph = ph.replace("/*@" + k + "@*/", () => (k === "CSS" ? prot[k] : safe(prot[k])));
+fs.writeFileSync(path.join(root, "dist/protokoll.html"), ph);
+fs.copyFileSync(path.join(root, "src/protokoll-worker.js"), path.join(root, "dist/protokoll-worker.js"));
+console.log("dist/protokoll.html", Buffer.byteLength(ph), "bytes");

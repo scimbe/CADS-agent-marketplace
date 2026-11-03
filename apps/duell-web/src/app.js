@@ -69,7 +69,7 @@ function fillSheet(root, h, still) {
 function setHome(h, animate) {
   home = h;
   var s = fillSheet($("leaf"), h, false), kind = s.kind, mode = s.mode, idea = h.idea;
-  $("go").textContent = mode ? mode.go : s.got ? t("remixGo") : t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
+  $("go").textContent = mode ? mode.go : idea && idea.protokoll && !h.doc ? t("go_protokoll") : s.got ? t("remixGo") : t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
   $("wishgo").textContent = t("wishHome"); $("wishgo").hidden = !!mode || W.KINDS.indexOf(kind) < 0;
   var live = idea && idea.live, lb = $("livego"); lb.hidden = !live; if (live) { lb.textContent = t("live_" + live); lb.dataset.u = LIVE[live]; }
   var leaf = $("leaf"); leaf.className = s.got ? "got" : ""; leaf.style.transform = ""; leaf.style.opacity = "";
@@ -77,6 +77,12 @@ function setHome(h, animate) {
 }
 var LIVE = { conf: "https://webconference.bunsenbrenner.org/", tunnel: "https://bunsenbrenner.org/", demos: "https://demos-34a13a96.bunsenbrenner.org/", nordwind: "https://a2a-demo.bunsenbrenner.org/" };
 function openLive(url) { if (url === LIVE.conf) url = C.confLink(me.colors); if (!window.open(url, "_blank", "noopener")) location.href = url; }
+// Fast Easy Protokoll records on its own page (cross-origin isolated, connect-src 'self'), on the gallery's origin.
+// From the web page that is this origin; from an app shell (file:, appassets) it is the origin of the gallery API.
+function protokollUrl() {
+  var base = location.protocol === "https:" ? "" : new URL(C.DEFAULT_API).origin;
+  return base + "/duell/protokoll?lang=" + Kit.lang;
+}
 // The day is shown as the real thing: a game flies by itself (on the greyed sheet it stands still), everything else is
 // drawn like its finished picture.
 function preview(root, doc, still) {
@@ -753,6 +759,7 @@ $("own").addEventListener("click", function () { Kit.sfx.tap(); openOwn(); });
 function start(tabName) {
   Kit.sfx.thud();
   if (home.doc && X[home.doc.k] && X[home.doc.k].incoming && X[home.doc.k].incoming(home.doc)) return;
+  if (!home.doc && home.idea && home.idea.protokoll) { var u = protokollUrl(); if (location.protocol === "https:") location.href = u; else openLive(u); return; }
   if (home.doc) openEditor(home.doc, { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName });
   else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea, tab: tabName });
 }
