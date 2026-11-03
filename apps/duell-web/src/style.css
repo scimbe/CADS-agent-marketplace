@@ -51,6 +51,16 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 @media (max-height:700px){#feat{display:none}}
 @media (prefers-reduced-motion:reduce){#feat .lane{overflow-x:auto;scrollbar-width:none}#feat .track{animation:none}#feat .track [aria-hidden]{display:none}}
 #edsave[aria-pressed=true]{color:#ff3d71}
+/* feel-good card: the optional name above the button, and a soft arrival for whoever gets one */
+.warmto{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:-8px 18px 8px;color:var(--on);font:800 14px/1.2 var(--ui)}
+.warmto[hidden]{display:none}
+.warmto .field{flex:1;width:auto;min-width:120px;min-height:44px;margin:0;user-select:text;-webkit-user-select:text}
+.warmwarn{flex-basis:100%;font-size:13px}.warmwarn:empty{display:none}
+#leaf.warmin{animation:lift .8s cubic-bezier(.2,1.3,.4,1) both}
+@keyframes lift{from{transform:translateY(46px) scale(.9) rotate(-.8deg);opacity:0}}
+.wh{position:absolute;bottom:16%;left:calc(14% + var(--i) * 13%);color:var(--b);font:900 34px/1 var(--ui);pointer-events:none;animation:rise 1.7s calc(var(--i) * 110ms + .35s) ease-out both}
+@keyframes rise{from{transform:translateY(0) scale(.6);opacity:0}25%{opacity:1}to{transform:translateY(-240px) scale(1.15);opacity:0}}
+@media (prefers-reduced-motion:reduce){#leaf.warmin{animation:none}.wh{display:none}}
 #feat button{flex:none;min-height:40px;padding:0 11px;border:2px solid var(--ink);border-radius:20px;background:var(--paper);color:var(--ink);font:800 13px var(--ui);white-space:nowrap}
 .pv{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;margin:2px 0 6px}
 .pv[hidden]{display:none}

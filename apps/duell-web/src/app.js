@@ -1,7 +1,7 @@
 /* Calendar, remix editor, my style, wall. All text goes in as text nodes, never as markup. */
 (function () {
 "use strict";
-var C = window.DuellCore, D = window.Daily, W = window.Wish, P = window.Playable, S = window.Studio, Kit = window.Kit, G = window.Game, R = window.Render, t = Kit.t;
+var C = window.DuellCore, D = window.Daily, W = window.Wish, WM = window.Warm, P = window.Playable, S = window.Studio, Kit = window.Kit, G = window.Game, R = window.Render, t = Kit.t;
 var $ = function (id) { return document.getElementById(id); };
 function el(tag, cls, text, on) {
   var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text;
@@ -74,6 +74,7 @@ function setHome(h, animate) {
   var live = idea && idea.live, lb = $("livego"); lb.hidden = !live; if (live) { lb.textContent = t("live_" + live); lb.dataset.u = LIVE[live]; }
   var leaf = $("leaf"); leaf.className = s.got ? "got" : ""; leaf.style.transform = ""; leaf.style.opacity = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
+  WM.sheet(h, s.got, animate);
 }
 var LIVE = { conf: "https://webconference.bunsenbrenner.org/", tunnel: "https://bunsenbrenner.org/", demos: "https://demos-34a13a96.bunsenbrenner.org/", nordwind: "https://a2a-demo.bunsenbrenner.org/" };
 function openLive(url) { if (url === LIVE.conf) url = C.confLink(me.colors); if (!window.open(url, "_blank", "noopener")) location.href = url; }
@@ -333,7 +334,7 @@ var PANEL = {
       }
     });
     p.appendChild(el("label", "lbl wishtips", t("wishOr")));
-    t("wishTips_" + ed.doc.k).split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; go(); })); });
+    t("wishTips_" + (WM.is(ed.doc) ? "warm" : ed.doc.k)).split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; go(); })); });
     p.appendChild(box);
     p.appendChild(el("p", "note", t("wishH_" + ed.doc.k) + " " + t("aiNote")));
   },
@@ -546,6 +547,11 @@ $("edmain").addEventListener("click", function () {
   Kit.sfx.thud();
   finish(D.withTrail(ed.doc, me.nick, areas()));
 });
+// A card finished straight from the sheet, without the editor (feel-good cards); Edit then opens it there.
+function quick(doc, idea) {
+  ed = { doc: D.sanitizeDoc(doc), base: D.docFromIdea(idea, me, Kit.lang), own: false, photo: null, peaks: null, idea: idea, quick: true };
+  return finish(D.withTrail(ed.doc, me.nick, D.changedAreas(ed.base, ed.doc)));
+}
 // Two steps when the short link is not there yet: the first tap makes it, the second shares it. Sharing and copying need a fresh
 // tap in most browsers, and the wait for the server would use it up, which sent an old or no link before.
 var sharing = false;
@@ -558,7 +564,7 @@ $("share").addEventListener("click", async function () {
   await Kit.share({ url: link.url, text: shareLine(result.keep && result.keep.doc) });
 });
 $("playit").addEventListener("click", function () { ed = result.keep; ed.sel = -1; makePlayable(); });
-// Reaches the server only from here, that is after a tap on one of the share buttons. The chat preview then shows the
+// Reaches the server only from here, that is after a tap on one of the share buttons (or on "finish the card" of a feel-good card, see warm.js). The chat preview then shows the
 // finished picture, before anyone can send the link; a photo poster keeps the fixed picture, photos stay on the phone.
 async function shortLink() {
   if (!result.link) {
@@ -594,6 +600,7 @@ $("tostory").addEventListener("click", function () { exportStory("story"); });
 $("save").addEventListener("click", function () { Kit.sfx.tap(); Kit.saveFile(result.file, result.name); });
 $("keep").addEventListener("click", function () { Kit.sfx.tap(); backToEditor(); });
 function backToEditor() {
+  if (result.keep.quick) { openEditor(result.keep.doc, { idea: result.keep.idea }); return; }
   ed = result.keep; ed.sel = -1; show("editor"); if (ed.doc.k === "game") G.demo($("demo"), gameState()); changed();
 }
 $("dhome").addEventListener("click", goHome);
@@ -760,6 +767,7 @@ $("wall").addEventListener("click", function () { Kit.sfx.tap(); openWall(); });
 $("own").addEventListener("click", function () { Kit.sfx.tap(); openOwn(); });
 function start(tabName) {
   Kit.sfx.thud();
+  if (WM.start(home, tabName)) return;
   if (home.doc && X[home.doc.k] && X[home.doc.k].incoming && X[home.doc.k].incoming(home.doc)) return;
   if (!home.doc && home.idea && home.idea.protokoll) { var u = protokollUrl(); if (location.protocol === "https:") location.href = u; else openLive(u); return; }
   if (home.doc) openEditor(home.doc, { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName });
@@ -819,7 +827,7 @@ var CU = window.CollabUI.init({
 var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
-window.DailyApp = { TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 /* test hook, used by browser checks: read-only snapshot */
 window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); }, collab: function () { return CU.engine(); } };
