@@ -1,0 +1,22 @@
+{
+  "_hinweis": "Betreiberdaten für Impressum und Datenschutz. Alles in ⟦…⟧ ist ein Platzhalter und muss ersetzt werden; solange einer drinsteht, scheitert `npm run check:release` und der Wrapper liefert die Rechtsseiten nicht aus. Optionale Felder: leerer Text \"\" lässt die Zeile weg. Unter `bestaetigt` stehen Aussagen, die aus dem Code bzw. der Infrastruktur abgeleitet sind; der Betreiber setzt sie auf true, wenn sie stimmen.",
+  "name": "⟦BITTE AUSFÜLLEN: Vor- und Nachname oder Firma mit Rechtsform und Vertretungsberechtigten⟧",
+  "street": "⟦BITTE AUSFÜLLEN: Straße und Hausnummer (ladungsfähig, kein Postfach)⟧",
+  "city": "⟦BITTE AUSFÜLLEN: PLZ und Ort⟧",
+  "country": "⟦BITTE AUSFÜLLEN: Land⟧",
+  "email": "⟦BITTE AUSFÜLLEN: E-Mail-Adresse⟧",
+  "phone": "⟦BITTE AUSFÜLLEN: Telefonnummer oder zweiter schneller Kontaktweg⟧",
+  "vatId": "⟦BITTE AUSFÜLLEN: USt-IdNr. nach § 27a UStG, oder \"\" wenn keine vorhanden⟧",
+  "register": "⟦BITTE AUSFÜLLEN: Registergericht und Registernummer, oder \"\" wenn nicht eingetragen⟧",
+  "mstv": "⟦BITTE AUSFÜLLEN: Name und Anschrift der inhaltlich verantwortlichen Person nach § 18 Abs. 2 MStV⟧",
+  "dpo": "",
+  "hosting": "OVH GmbH, Deutschland",
+  "proxyLogDays": "⟦BITTE AUSFÜLLEN: Tage, die Zugriffsprotokolle mit IP-Adresse beim Proxy/Webserver aufbewahrt werden (Zahl), oder 0⟧",
+  "bestaetigt": {
+    "hosting": false,
+    "aiModelOwnHardware": false,
+    "avvHosting": false,
+    "conference": false,
+    "channelRelay": false
+  }
+}

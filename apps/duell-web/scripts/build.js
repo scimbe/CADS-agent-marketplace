@@ -7,9 +7,18 @@ const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
 const safe = (s) => s.replace(/<\/script/gi, "<\\/script").replace(/<!--/g, "<\\!--");
 const data = "window.DuellIdeas=" + JSON.stringify(JSON.parse(read("src/ideas.json"))) + ";window.DailyTexts=" + JSON.stringify(JSON.parse(read("src/texts.json"))) + ";";
 const duelData = JSON.parse(read("src/duel.json"));
-const licenses = ["Anton-OFL.txt", "qrcode-generator-MIT.txt"].map((f) => read("licenses/" + f)).join("\n\n");
-const dataAll = data + "window.DailyLicenses=" + JSON.stringify(licenses) + ";window.TurnData=" + JSON.stringify(JSON.parse(read("src/turn.json"))) + ";window.DuelData=" + JSON.stringify(duelData) + ";Object.assign(window.DailyTexts.de,window.DuelData.texts.de);Object.assign(window.DailyTexts.en,window.DuelData.texts.en);";
-const parts = { DATA: dataAll, DUEL: read("src/duel.js"), QUEST: read("src/quest.js"), MODES: read("src/modes.js"), TURNS: read("src/turns.js"), TURNUI: read("src/turn-ui.js"), BALLDUELL: read("src/ballduell.js"), LIVE: read("src/live.js"), LIVEUI: read("src/live-ui.js"), QRCODE: read("node_modules/qrcode-generator/qrcode.js"), SHORT: read("src/shortlink.js"), STATUSCARD: read("src/statuscard.js"), CORE: read("src/core.js"), ENGINE: read("src/engine.js"), DAILY: read("src/daily.js"), STUDIO: read("src/studio.js"), KIT: read("src/kit.js"), COLLAB: read("src/collab.js"), COLLABUI: read("src/collab-ui.js"), CALLCARD: read("src/callcard.js"), CALLCARDUI: read("src/callcard-ui.js"), STICKERS: read("src/stickers.js"), AI: read("src/ai.js"), WISH: read("src/wish.js"), RENDER: read("src/render.js"), PLAYABLE: read("src/playable.js"), GAME: read("src/game.js"), APP: read("src/app.js") };
+// Every third-party piece that ends up in the built page. test/legal.test.js checks that each node_modules file read below is listed here.
+const THIRD_PARTY = [
+  { name: "Anton", license: "SIL Open Font License 1.1", url: "https://github.com/googlefonts/AntonFont", file: "Anton-OFL.txt", from: "node_modules/@fontsource/anton" },
+  { name: "qrcode-generator", license: "MIT", url: "https://github.com/kazuhikoarase/qrcode-generator", file: "qrcode-generator-MIT.txt", from: "node_modules/qrcode-generator" },
+];
+const lic = THIRD_PARTY.map((l) => ({ name: l.name, license: l.license, url: l.url, text: read("licenses/" + l.file) }));
+const licenses = lic.map((l) => l.text).join("\n\n");
+// Legal pages: texts plus the operator's details. Placeholders are built in as they are; scripts/check-legal.js and the server keep them from going live.
+const Legal = require("../src/legal.js");
+const legalTexts = JSON.parse(read("src/legal.json")), operator = Object.fromEntries(Object.entries(JSON.parse(read("legal/operator.json"))).filter(([k]) => k[0] !== "_"));
+const dataAll = data + "window.DailyLicenses=" + JSON.stringify(licenses) + ";window.DailyLegal=" + JSON.stringify({ L: legalTexts, op: operator, lic: lic }) + ";window.TurnData=" + JSON.stringify(JSON.parse(read("src/turn.json"))) + ";window.DuelData=" + JSON.stringify(duelData) + ";Object.assign(window.DailyTexts.de,window.DuelData.texts.de);Object.assign(window.DailyTexts.en,window.DuelData.texts.en);";
+const parts = { DATA: dataAll, DUEL: read("src/duel.js"), QUEST: read("src/quest.js"), MODES: read("src/modes.js"), TURNS: read("src/turns.js"), TURNUI: read("src/turn-ui.js"), BALLDUELL: read("src/ballduell.js"), LIVE: read("src/live.js"), LIVEUI: read("src/live-ui.js"), QRCODE: read("node_modules/qrcode-generator/qrcode.js"), SHORT: read("src/shortlink.js"), STATUSCARD: read("src/statuscard.js"), CORE: read("src/core.js"), ENGINE: read("src/engine.js"), DAILY: read("src/daily.js"), STUDIO: read("src/studio.js"), KIT: read("src/kit.js"), COLLAB: read("src/collab.js"), COLLABUI: read("src/collab-ui.js"), CALLCARD: read("src/callcard.js"), CALLCARDUI: read("src/callcard-ui.js"), STICKERS: read("src/stickers.js"), AI: read("src/ai.js"), WISH: read("src/wish.js"), RENDER: read("src/render.js"), PLAYABLE: read("src/playable.js"), GAME: read("src/game.js"), LEGAL: read("src/legal.js"), APP: read("src/app.js") };
 // QR code for invites: qrcode-generator (MIT, Kazuhiko Arase), licenses/qrcode-generator-MIT.txt.
 // Display font: Anton (SIL OFL 1.1), latin subset (covers ä ö ü ß and German quotes) from @fontsource, embedded as data: URL.
 const fontFile = path.join(root, "node_modules/@fontsource/anton/files/anton-latin-400-normal.woff2");
@@ -21,3 +30,8 @@ for (const k of Object.keys(parts)) html = html.replace("/*@" + k + "@*/", () =>
 fs.mkdirSync(path.join(root, "dist"), { recursive: true });
 fs.writeFileSync(path.join(root, "dist/index.html"), html);
 console.log("dist/index.html", Buffer.byteLength(html), "bytes");
+// Static legal pages for the server: dist/legal/<page>.html (German) and dist/legal/en/<page>.html.
+fs.mkdirSync(path.join(root, "dist/legal/en"), { recursive: true });
+for (const lang of ["de", "en"]) for (const page of Legal.PAGES) fs.writeFileSync(path.join(root, "dist/legal", lang === "en" ? "en" : "", page + ".html"), Legal.html(legalTexts, operator, page, lang, lic));
+const open = Legal.missing(operator);
+if (open.length) console.log("Rechtsseiten: noch offen (nicht live-faehig):", open.join(", "));
