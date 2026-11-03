@@ -106,6 +106,26 @@
     c.closePath();
   }
 
+  // Snow from a fixed seed: the same card always shows the same flakes, in the editor and in the picture.
+  function snow(c, W, H, seed) {
+    var r = C.mulberry32(seed); c.fillStyle = "rgba(255,255,255,.75)";
+    for (var i = 0; i < 70; i++) { c.beginPath(); c.arc(r() * W, r() * H, W * (0.003 + r() * 0.007), 0, 6.3); c.fill(); }
+  }
+  function star(c, x, y, r, col) { burstPath(c, x, y, r, 5, 0.45); c.fillStyle = col; c.fill(); }
+  // A ribbon across the card with a bow on top, like a parcel.
+  function bow(c, W, H, col) {
+    c.fillStyle = col; c.fillRect(W * 0.47, 0, W * 0.06, H); c.fillRect(0, H * 0.13, W, W * 0.05);
+    [-1, 1].forEach(function (s) { c.beginPath(); c.moveTo(W / 2, H * 0.15); c.lineTo(W / 2 + s * W * 0.16, H * 0.06); c.lineTo(W / 2 + s * W * 0.16, H * 0.2); c.closePath(); c.fill(); });
+    c.beginPath(); c.arc(W / 2, H * 0.15, W * 0.04, 0, 6.3); c.fill();
+  }
+  // The door number, top left, readable on every style.
+  function doorBadge(c, W, H, nr, a, b) {
+    var r = W * 0.1, x = W * 0.15, y = H * 0.12;
+    c.fillStyle = b; c.strokeStyle = a; c.lineWidth = W * 0.012; c.beginPath(); c.arc(x, y, r, 0, 6.3); c.fill(); c.stroke();
+    c.fillStyle = ink(b); c.font = "900 " + r * 1.1 + "px " + FONT; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(String(nr), x, y + r * 0.04);
+    c.textBaseline = "alphabetic";
+  }
+
   function drawCard(c, W, H, doc) {
     var a = doc.col[0], b = doc.col[1], tx = doc.x || "…";
     if (Render.styles[doc.st]) Render.styles[doc.st](c, W, H, doc);     // a style from its own file, e.g. "herz" in warm.js
@@ -124,6 +144,13 @@
       c.strokeStyle = b; c.lineWidth = W * 0.022; c.strokeRect(-W * 0.4, -H * 0.32, W * 0.8, H * 0.64); c.lineWidth = W * 0.006; c.strokeRect(-W * 0.375, -H * 0.3, W * 0.75, H * 0.6);
       block(c, tx, -W * 0.34, -H * 0.27, W * 0.68, H * 0.54, b, null);
       c.restore();
+    } else if (doc.st === "advent") {
+      c.fillStyle = a; c.fillRect(0, 0, W, H); snow(c, W, H, C.hash32(doc.x + "|" + (doc.nr || 0)));
+      bow(c, W, H, b);
+      c.fillStyle = "rgba(0,0,0,.28)"; c.fillRect(W * 0.08, H * 0.27, W * 0.84, H * 0.56);
+      c.strokeStyle = b; c.lineWidth = W * 0.01; c.strokeRect(W * 0.08, H * 0.27, W * 0.84, H * 0.56);
+      [[0.13, 0.31], [0.87, 0.31], [0.13, 0.79], [0.87, 0.79]].forEach(function (p) { star(c, W * p[0], H * p[1], W * 0.035, b); });
+      block(c, tx, W * 0.13, H * 0.32, W * 0.74, H * 0.46, "#fffaf0", "rgba(0,0,0,.35)", W * 0.008);
     } else if (doc.st === "neon") {
       c.fillStyle = "#0c0a14"; c.fillRect(0, 0, W, H); dots(c, W, H, "rgba(255,255,255,.07)", W * 0.03, 2);
       c.save(); c.shadowColor = a; c.shadowBlur = W * 0.04;
@@ -182,12 +209,12 @@
     var c = cv.getContext("2d"), W = cv.width, H = cv.height, me = opt.me;
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, H); c.shadowBlur = 0;
     if (Render.extra[doc.k]) { Render.extra[doc.k](c, W, H, doc, opt); credit(c, W, H, doc, me, "#fff"); return; }
-    if (doc.k === "card") drawCard(c, W, H, doc);
+    if (doc.k === "card") { drawCard(c, W, H, doc); if (doc.nr) doorBadge(c, W, H, doc.nr, doc.col[0], doc.col[1]); }
     else if (doc.k === "photo") drawPhoto(c, W, H, doc, opt.photo);
     else if (doc.k === "sound") drawSound(c, W, H, doc, opt.peaks);
     stickers(c, W, H, doc.sk);
     weather(c, W, H, doc.w);          // last: stickers must never cover the source line
-    credit(c, W, H, doc, me, doc.k === "card" && doc.st === "neon" ? "#fff" : (doc.k === "photo" && doc.st !== "sticker" ? "#fff" : ink(doc.k === "card" && doc.st === "zettel" ? doc.col[1] : doc.col[0])));
+    credit(c, W, H, doc, me, doc.k === "card" && (doc.st === "neon" || doc.st === "advent") ? "#fff" : (doc.k === "photo" && doc.st !== "sticker" ? "#fff" : ink(doc.k === "card" && doc.st === "zettel" ? doc.col[1] : doc.col[0])));
   }
   // The bot face: a stand-in when there is no photo, drawn from the seed so it is never quite the same.
   function botFace(seed, col) {
