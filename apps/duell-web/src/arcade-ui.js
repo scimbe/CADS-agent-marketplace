@@ -486,7 +486,9 @@ function match(o) {
     var dt = Math.min(0.1, (now - last) / 1000); last = now;
     X.count = now < start ? String(Math.ceil((start - now) / 1000)) : "";
     if (!X.count && !S.started) { S.start(); if (o.startOther) o.startOther(); }
-    if (S.started && !o.paused) { S.tick(dt); if (o.other) o.other(dt); }
+    // Tests can fix the clock: window.__arcadeSpeed fixed steps of 1/60 s per frame, the same game on every machine.
+    var fix = typeof window.__arcadeSpeed === "number" ? window.__arcadeSpeed : 0;
+    if (S.started && !o.paused) { if (fix) for (var q = 0; q < fix; q++) { S.tick(1 / 60); if (o.other) o.other(1 / 60); } else { S.tick(dt); if (o.other) o.other(dt); } }
     P.frame(S, dt, X);
     info.textContent = t("arc_you") + " " + S.score[0] + " : " + S.score[1] + " " + o.them;
     if (S.started && !S.over) {
@@ -506,7 +508,8 @@ function endText(body, won, s, live) {
 }
 // Against the bot: the bot's side runs in this page with the very same engine and messages as a live friend.
 function playBot(g) {
-  var body = layer(), seed = "bot|" + g + "|" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), toMe = [], toBot = [];
+  var seed = typeof window.__arcadeSeed === "string" ? window.__arcadeSeed : "bot|" + g + "|" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);   // tests fix the seed
+  var body = layer(), toMe = [], toBot = [];
   var S = A.side(g, { seed: seed, serving: true, send: function (m) { toBot.push(JSON.parse(JSON.stringify(m))); } });
   var B = A.side(g, { seed: seed, serving: false, send: function (m) { toMe.push(JSON.parse(JSON.stringify(m))); } });
   var bot = A.bot(g, B, seed);
