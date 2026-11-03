@@ -101,7 +101,10 @@ function nameField(p, ag) { A.field(p, t("agName"), ag.n, 16, function (v) { ag.
 A.TABS.duel = ["Agent", "Rival", "Arena", "Color"];
 A.TABS.quest = ["Riddle", "End", "Color"];
 A.PANEL.Agent = function (p) {
-  var d = A.ed().doc; nameField(p, d.a); sliders(p, d.a, Duel.SLIDERS[d.m].filter(function (k) { return d.m !== "mind"; })); look(p, d.a);
+  var d = A.ed().doc;
+  // Rock-paper-scissors also runs live against a real person; the footer button stays the match against the bot.
+  if (d.m === "rps" && window.LiveUI && window.LiveUI.on()) p.appendChild(el("button", "btn hot live", t("duelLive"), function () { Kit.sfx.thud(); Kit.store.agent = d.a; Kit.save(); window.LiveUI.invite({ g: "rps", set: d.set }); }));
+  nameField(p, d.a); sliders(p, d.a, Duel.SLIDERS[d.m].filter(function (k) { return d.m !== "mind"; })); look(p, d.a);
   p.appendChild(el("p", "note", t("agLocal")));
 };
 A.PANEL.Rival = function (p) {

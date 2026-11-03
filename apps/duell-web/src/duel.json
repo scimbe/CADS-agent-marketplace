@@ -39,7 +39,12 @@
   "questEnd": "Was ganz am Ende wartet", "questBlocked": "Keine Treffpunkte, Adressen oder Nummern. Nur Rätsel.", "questNote": "Rätsel 1 liest jeder mit dem Link. Alles danach ist verschlüsselt, die Antworten stehen nirgends drin. Ein Spiel, kein Tresor.",
   "questYou": "Offen im Link: Rätsel 1", "questSees": "Verschlüsselt: alles danach", "questWait": "Trag die Antworten ein, dann wird hier verschlüsselt",
   "questTry": "Aufschließen", "questWrong": "Falsch. Schloss bleibt zu.", "questTip": "Tipp: fängt mit {l} an, {n} Zeichen", "questAns": "Deine Antwort", "questOpen": "Offen!", "questStep": "Schloss {n} von {m}",
-  "questGone": "Dieser Inhalt ist gesperrt.", "questOwn": "Bau dein eigenes"
+  "questGone": "Dieser Inhalt ist gesperrt.", "questOwn": "Bau dein eigenes",
+  "duelLive": "🔴 Live gegen Freund", "live_friend": "Freund", "live_rpsShareText": "Schere-Stein-Papier live! Ich warte JETZT auf dich – tippen und los (nur 15 Min):",
+  "live_rpsHowto": "Tipp eine Hand. Keiner sieht die Hand des anderen vorher. Wer zuerst 5 Punkte hat, gewinnt.", "live_rpsPick": "Wähl deine Hand.",
+  "live_rpsSealed": "Versiegelt. Warte auf {n} …", "live_rpsTheyPicked": "{n} hat gewählt. Du bist dran.", "live_rpsWin": "Punkt für dich! Nächste Hand.",
+  "live_rpsLose": "Punkt für {n}. Nächste Hand.", "live_rpsDraw": "Gleich. Nochmal.", "live_rpsCheat": "Die Hand von {n} passt nicht zum Siegel. Das Spiel zählt nicht.",
+  "live_rpsStall": "{n} deckt nicht auf. Das Spiel zählt nicht."
  },
  "en": {
   "duel": "Versus bot", "quest": "Secret", "notHere": "That doesn't work on this device right now. Here's today's card.",
@@ -57,7 +62,12 @@
   "questEnd": "What waits at the very end", "questBlocked": "No meeting places, addresses or numbers. Riddles only.", "questNote": "Anyone with the link reads riddle 1. Everything after it is encrypted, the answers are nowhere in it. A game, not a safe.",
   "questYou": "Open in the link: riddle 1", "questSees": "Encrypted: everything after", "questWait": "Fill in the answers and it gets encrypted here",
   "questTry": "Unlock", "questWrong": "Wrong. Still locked.", "questTip": "Tip: starts with {l}, {n} characters", "questAns": "Your answer", "questOpen": "Open!", "questStep": "Lock {n} of {m}",
-  "questGone": "This content is blocked.", "questOwn": "Build your own"
+  "questGone": "This content is blocked.", "questOwn": "Build your own",
+  "duelLive": "🔴 Live vs a friend", "live_friend": "Friend", "live_rpsShareText": "Rock-paper-scissors live! I'm waiting for you NOW – tap and go (15 min only):",
+  "live_rpsHowto": "Tap a hand. Nobody sees the other hand first. First to 5 wins.", "live_rpsPick": "Pick your hand.",
+  "live_rpsSealed": "Sealed. Waiting for {n} …", "live_rpsTheyPicked": "{n} has picked. Your turn.", "live_rpsWin": "Point for you! Next hand.",
+  "live_rpsLose": "Point for {n}. Next hand.", "live_rpsDraw": "Same. Again.", "live_rpsCheat": "{n}'s hand does not match the seal. This game does not count.",
+  "live_rpsStall": "{n} does not reveal. This game does not count."
  }
 }
 }

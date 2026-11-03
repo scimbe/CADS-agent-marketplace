@@ -3,7 +3,7 @@
 (function () {
 "use strict";
 var Kit = window.Kit, B = window.Ballduell, t = Kit.t;
-var ov = null, conn = null, loop = 0, net = 0, game = null, busy = false;   // game: { g } for a duel from window.LiveGames
+var ov = null, conn = null, loop = 0, net = 0, game = null, busy = false, games = 0;   // game: { g } for a duel from window.LiveGames, { g: "rps", set } for the agent duel
 // Further live duels register here: LiveGames[g](api, serving) plays one game on the layer; invite, badge and link stay here.
 var GAMES = window.LiveGames = window.LiveGames || {};
 // Shown on the shelf; switched on once the server side registered channels and a real game ran over edge and TURN.
@@ -17,7 +17,7 @@ function layer() {
   return body;
 }
 function close(keepLink) {
-  cancelAnimationFrame(loop); clearInterval(net); loop = net = 0; busy = false;
+  cancelAnimationFrame(loop); clearInterval(net); clearTimeout(net); loop = net = 0; busy = false;
   if (conn && !keepLink) { try { conn.close(); } catch (e) {} conn = null; }
   if (ov) { ov.remove(); ov = null; }
 }
@@ -32,7 +32,10 @@ function fail(e) {
   screen([["p", "livebig", t(k)]], [[t("live_again"), function () { invite(game); }], [t("live_home"), function () { close(); }, "btn"]]);
 }
 function link(token) { return window.DuellCore.SHARE_BASE + "#live=" + token + (game ? "&g=" + game.g : ""); }
-function pick(g) { return g && GAMES[g] ? { g: g } : null; }
+// The agent duel brings the picture set of its card along; every other game is just its name.
+function pick(g, set) { return g && GAMES[g] ? (g === "rps" ? { g: g, set: set | 0 } : { g: g }) : null; }
+// A game may bring its own share and how-to text (live_<g>ShareText, live_<g>Howto); otherwise the arcade ones.
+function own(k, fb, v) { return t(k) !== k ? t(k, v) : t(fb, v); }
 function begin(serving) {
   if (!game) { play(serving); return; }
   busy = true;
@@ -41,31 +44,31 @@ function begin(serving) {
 function mmss(ms) { var s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
 // ---------- the inviter ----------
 async function invite(opt) {
-  game = pick(opt && opt.g);
+  game = pick(opt && opt.g, opt && opt.set); games = 0;
   screen([["p", "livebig", t("live_making")]]);
   var inv;
   try { inv = await window.Live.invite(onState); } catch (e) { fail(e); return; }
   try { sessionStorage.setItem("liveInvite", JSON.stringify({ token: inv.token, until: inv.expires })); } catch (e) {}
-  var share = function () { Kit.share({ url: link(inv.token), text: game ? t("arc_share", { n: t("arc_" + game.g) }) : t("live_shareText") }); };
+  var share = function () { Kit.share({ url: link(inv.token), text: game ? own("live_" + game.g + "ShareText", "arc_share", { n: t("arc_" + game.g) }) : t("live_shareText") }); };
   var b = screen([["p", "livebig", t("live_wait")], ["p", "livecount", ""], ["p", "note", t("live_waitNote")], ["p", "note", t("live_ipNote")]], [[t("live_share"), share], [t("live_home"), function () { close(); }, "btn"]]);
   var cnt = b.querySelector(".livecount"), tick = setInterval(function () { if (!b.isConnected) return clearInterval(tick); cnt.textContent = t("live_left", { t: mmss(inv.expires - Date.now()) }); }, 500);
   share();
   try { conn = await inv.ready; } catch (e) { clearInterval(tick); fail(e); return; }
   clearInterval(tick);
-  screen([["p", "livebig", t("live_here")], ["p", "livebadge", B.badge(conn.channel)], ["p", "note", t("live_badgeNote")]], [[t("live_start"), function () { conn.send(game ? { t: "go", g: game.g } : { t: "go" }); begin(true); }]]);
+  screen([["p", "livebig", t("live_here")], ["p", "livebadge", B.badge(conn.channel)], ["p", "note", t("live_badgeNote")]], [[t("live_start"), function () { conn.send(Object.assign({ t: "go" }, game)); begin(true); }]]);
   conn.onClose(lost);
 }
 // ---------- the invited friend ----------
 async function accept(token, g) {
-  game = pick(g);
+  game = pick(g); games = 0;
   screen([["p", "livebig", t("live_challenged")], ["p", "note", t("live_connecting")]]);
   try { conn = await window.Live.accept(token, onState); } catch (e) { fail(e); return; }
   conn.onClose(lost);
-  screen([["p", "livebig", t("live_challenged")], ["p", "livebadge", B.badge(conn.channel)], ["p", "note", t("live_badgeNote")], ["p", "note", t(game ? "arc_how_" + game.g : "live_howto")], ["p", "lbl", t("live_waitStart")]]);
-  conn.on(function (m) { if (m.t !== "go" || !ov || loop || busy) return; game = pick(m.g); begin(false); });
+  screen([["p", "livebig", t("live_challenged")], ["p", "livebadge", B.badge(conn.channel)], ["p", "note", t("live_badgeNote")], ["p", "note", game ? own("live_" + game.g + "Howto", "arc_how_" + game.g) : t("live_howto")], ["p", "lbl", t("live_waitStart")]]);
+  conn.on(function (m) { if (m.t !== "go" || !ov || loop || busy) return; game = pick(m.g, m.set); begin(false); });
 }
 function onState(s) { var n = ov && ov.querySelector(".note"); if (n && t("live_s_" + s) !== "live_s_" + s) n.textContent = t("live_s_" + s); }
-function lost() { if (!ov) return; cancelAnimationFrame(loop); clearInterval(net); loop = net = 0; if (conn) { try { conn.close(); } catch (e) {} } conn = null; /* close() frees the channel on the server too */ screen([["p", "livebig", t("live_lost")]], [[t("live_again"), function () { invite(game); }], [t("live_home"), function () { close(); }, "btn"]]); }
+function lost() { if (!ov || !conn) return;   /* no connection any more: this side ended the game itself */ cancelAnimationFrame(loop); clearInterval(net); clearTimeout(net); loop = net = 0; busy = false; try { conn.close(); } catch (e) {} conn = null; /* close() frees the channel on the server too */ screen([["p", "livebig", t("live_lost")]], [[t("live_again"), function () { invite(game); }], [t("live_home"), function () { close(); }, "btn"]]); }
 // ---------- the game ----------
 function play(serving) {
   var body = layer(), cv = el("canvas", "livecv"), c = cv.getContext("2d"), info = el("p", "livescore", "");
@@ -125,5 +128,58 @@ function play(serving) {
   }
   loop = requestAnimationFrame(frame);
 }
+// ---------- the agent duel: rock-paper-scissors to 5, every hand sealed before it is shown (rpslive.js) ----------
+function agentOf() {
+  var me = (window.DailyApp && window.DailyApp.me()) || {}, a = window.Duel.sanitizeAgent(Kit.store.agent, { n: me.nick, e: me.emoji || "🤖" });
+  return { n: a.n, e: a.e };
+}
+function playRps(set) {
+  var R = window.RpsLive, faces = window.DuelData.sets[set] || window.DuelData.sets[0], m = R.match(conn.channel, games), mine = agentOf(), foe = { n: "", e: "❔" };
+  var again = [false, false], body = layer();
+  busy = true;   // a running game: a late "go" does not start a second one
+  body.appendChild(el("p", "livemini", B.badge(conn.channel)));
+  var head = el("p", "livescore", ""), last = el("p", "rpslast", ""), say = el("p", "note", t("live_rpsPick")), row = el("div", "chips");
+  [head, last, say, row].forEach(function (x) { body.appendChild(x); });
+  function who() { return foe.n || t("live_friend"); }
+  function draw() { var s = m.state().score; head.textContent = mine.e + " " + s[0] + " : " + s[1] + " " + foe.e; }
+  function send(list) { list.forEach(function (x) { conn && conn.send(x); }); }
+  function lock(on) { row.querySelectorAll("button").forEach(function (b) { b.disabled = on; }); }
+  faces.forEach(function (f, i) {
+    row.appendChild(el("button", "chip em hand", f, function () {
+      if (m.state().picked || m.state().done) return;
+      lock(true); Kit.sfx.tap(); say.textContent = t("live_rpsSealed", { n: who() });
+      m.pick(i).then(function (r) { send(r.send); watch(); });
+    }));
+  });
+  // A seal without its reveal would stall the game for good: after a while the round does not count.
+  function watch() { clearTimeout(net); net = setTimeout(function () { var s = m.state(); if (ov && s.picked && s.theyPicked) stop(t("live_rpsStall")); }, 30000); }
+  function stop(text) { clearTimeout(net); net = 0; busy = false; if (conn) { try { conn.close(); } catch (e) {} } conn = null; screen([["p", "livebig", text]], [[t("live_again"), function () { invite(game); }], [t("live_home"), function () { close(); }, "btn"]]); }
+  conn.on(function (x) {
+    if (x.t === "ag") { foe = { n: window.DuellCore.sanitizeName(x.n) || "", e: typeof x.e === "string" ? window.DuellCore.sanitizeEmoji(x.e) : "❔" }; draw(); return; }
+    if (x.t === "again") { again[1] = true; restart(); return; }
+    m.receive(x).then(function (r) {
+      if (!ov) return;
+      send(r.send); if (r.send.length) watch();
+      if (r.cheat) { stop(t("live_rpsCheat", { n: who() })); return; }
+      if (r.theyPicked && !m.state().picked) say.textContent = t("live_rpsTheyPicked", { n: who() });
+      if (!r.result) return;
+      clearTimeout(net); var o = r.result;
+      last.textContent = faces[o.x] + "  " + faces[o.y]; draw();
+      Kit.sfx[o.o > 0 ? "pop" : "tap"](); if (o.o < 0) Kit.haptic(40);
+      say.textContent = t(o.o > 0 ? "live_rpsWin" : o.o < 0 ? "live_rpsLose" : "live_rpsDraw", { n: who() });
+      if (o.over) end(o.score); else lock(false);
+    });
+  });
+  function end(s) {
+    row.remove();
+    var b = el("div", "chips"), more = el("button", "btn hot", t("live_more"), function () { more.disabled = true; more.textContent = t("live_moreWait"); again[0] = true; conn && conn.send({ t: "again" }); restart(); });
+    body.insertBefore(el("p", "livebig", s[0] > s[1] ? t("live_won", { a: s[0], b: s[1] }) : t("live_lostGame", { a: s[0], b: s[1] })), head);
+    b.appendChild(more); b.appendChild(el("button", "btn", t("live_home"), function () { close(); })); body.appendChild(b);
+    if (s[0] > s[1]) Kit.sfx.win();
+  }
+  function restart() { if (!(again[0] && again[1])) return; games++; playRps(set); }
+  send([{ t: "ag", n: mine.n, e: mine.e }]); draw();
+}
+GAMES.rps = function () { playRps(game.set); };
 window.LiveUI = { invite: invite, accept: accept, close: close, on: function () { return ON || window.__liveOn === true; } };
 })();
