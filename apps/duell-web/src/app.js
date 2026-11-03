@@ -35,45 +35,53 @@ function monthLines(d) {
   var loc = Kit.lang === "de" ? "de-DE" : "en-GB";
   return d.toLocaleDateString(loc, { month: "short", timeZone: "UTC" }).replace(".", "") + "\n" + d.toLocaleDateString(loc, { weekday: "long", timeZone: "UTC" });
 }
-function fitHero() {
-  var box = $("hero"), w = box.clientWidth, h = box.clientHeight, ls = Array.from(box.children), sum = 0;
+function fitHero(box) {
+  box = box || $("hero"); var w = box.clientWidth, h = box.clientHeight, ls = Array.from(box.children), sum = 0;
   ls.forEach(function (s) { s.style.fontSize = "100px"; var size = Math.min(100 * w / Math.max(1, s.offsetWidth) * 0.97, h * 0.34); s.size = size; sum += size; });
   var k = sum > h ? h / sum : 1;
   ls.forEach(function (s) { s.style.fontSize = s.size * k + "px"; s.style.lineHeight = "1"; });
 }
-function setHome(h, animate) {
-  home = h;
+// One calendar sheet: the real one on top and the greyed next day below it are filled by the same code.
+function fillSheet(root, h, still) {
+  var q = function (k) { return root.querySelector("." + k); };
   var d = h.date || today, idea = h.idea, doc = h.doc;
-  $("dnum").textContent = String(d.getUTCDate()).padStart(2, "0");
-  $("dmon").textContent = monthLines(d);
+  q("dnum").textContent = String(d.getUTCDate()).padStart(2, "0");
+  q("dmon").textContent = monthLines(d);
   var title, sub, kind, min;
   if (idea) { var L = ideaText(idea); title = L.t.split("|"); sub = L.s; kind = idea.kind; min = idea.min; }
   else if (doc.k === "turn" && !doc.t && D.byId(doc.i)) { var Li = ideaText(D.byId(doc.i)); title = Li.t.split("|"); sub = doc.s || Li.s; kind = doc.k; min = D.byId(doc.i).min; }
   else { title = (doc.t || doc.x || (doc.g && doc.g.title) || t("own")).split(/\s+/).reduce(function (a, w) { if (a.length && (a[a.length - 1] + " " + w).length < 13) a[a.length - 1] += " " + w; else a.push(w); return a; }, []).slice(0, 4); sub = doc.s || ""; kind = doc.k; min = 60; }
-  $("dkind").textContent = t(kind) + "\n" + (min >= 120 ? t("mins", { n: Math.round(min / 60) }) : t("sec", { n: min }));
-  var hero = $("hero"); hero.textContent = "";
+  q("dkind").textContent = t(kind) + "\n" + (min >= 120 ? t("mins", { n: Math.round(min / 60) }) : t("sec", { n: min }));
+  var hero = q("hero"); hero.textContent = "";
   title.filter(Boolean).forEach(function (l, i) { var s = el("span", "", l); s.style.setProperty("--i", i); hero.appendChild(s); });
-  $("teaser").textContent = sub;
-  var from = $("from");
+  q("teaser").textContent = sub;
+  var from = q("from");
   if (h.note) { from.textContent = h.note; from.hidden = false; } else from.hidden = true;
-  $("go").textContent = t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
   var mode = doc && X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
-  if (mode) { $("go").textContent = mode.go; from.textContent = mode.note; from.hidden = false; }
+  if (mode) { from.textContent = mode.note; from.hidden = false; }
+  preview(root, doc || D.docFromIdea(idea, me, Kit.lang), still);
+  fitHero(hero);
+  return { kind: kind, mode: mode };
+}
+function setHome(h, animate) {
+  home = h;
+  var s = fillSheet($("leaf"), h, false), kind = s.kind, mode = s.mode, idea = h.idea;
+  $("go").textContent = mode ? mode.go : t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
   $("wishgo").textContent = t("wishHome"); $("wishgo").hidden = !!mode || W.KINDS.indexOf(kind) < 0;
   var live = idea && idea.live, lb = $("livego"); lb.hidden = !live; if (live) { lb.textContent = t("live_" + live); lb.dataset.u = LIVE[live]; }
-  preview(doc || D.docFromIdea(idea, me, Kit.lang));
-  fitHero();
   var leaf = $("leaf"); leaf.className = ""; leaf.style.transform = ""; leaf.style.opacity = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
 }
 var LIVE = { conf: "https://webconference.bunsenbrenner.org/", tunnel: "https://bunsenbrenner.org/", demos: "https://demos-34a13a96.bunsenbrenner.org/", nordwind: "https://a2a-demo.bunsenbrenner.org/" };
 function openLive(url) { if (!window.open(url, "_blank", "noopener")) location.href = url; }
-// The day is shown as the real thing: a game flies by itself, everything else is drawn like its finished picture.
-function preview(doc) {
-  var box = $("pv"), g = $("pvgame"), c = $("pvcard"); G.stopDemo();
+// The day is shown as the real thing: a game flies by itself (on the greyed sheet it stands still), everything else is
+// drawn like its finished picture.
+function preview(root, doc, still) {
+  var box = root.querySelector(".pv"), g = root.querySelector(".pvgame"), c = root.querySelector(".pvcard");
+  if (!still) G.stopDemo();
   g.hidden = c.hidden = true; box.hidden = false;
   try {
-    if (doc.k === "game") { g.hidden = false; G.demo(g, C.sanitizeState(Object.assign({ v: 1 }, doc.g))); return; }
+    if (doc.k === "game") { g.hidden = false; var st = C.sanitizeState(Object.assign({ v: 1 }, doc.g)); if (still) G.still(g, st); else G.demo(g, st); return; }
     c.hidden = false;
     R.draw(c, doc, { me: me, photo: doc.k === "photo" ? R.botFace(C.hash32(doc.x || "x"), doc.col[1]) : null, peaks: null, x: {} });
   } catch (e) { box.hidden = true; }
@@ -93,7 +101,7 @@ function dayHome() { return { date: today, idea: D.ideaForDay(today) }; }
 function newDay() {
   var n = new Date();
   if (D.dayNumber(n) === D.dayNumber(today)) return;
-  today = n; page = 0;
+  today = n; page = 0; upcoming = null;
   if (home && (home.note || home.doc)) return;   // an invitation or a creation from a link stays until it is left
   home = dayHome();
   if (screen === "home") setHome(home, true);
@@ -102,20 +110,28 @@ function goHome() {
   CU.end(); stopSound(); G.stop(); ed = null; played = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
   if (!home) home = dayHome(); setHome(home, true);
 }
-function nextSheet() { var p = (page + 1) % PLAN_DAYS, d = D.dayDate(today, -p); return { page: p, date: d, idea: D.ideaForDay(d) }; }
-// While the sheet is pulled, the one below already shows what comes next.
+// The next sheet is chosen once, so the greyed preview and the sheet that lands after tearing are the same.
+var upcoming = null;
+function nextSheet() {
+  if (upcoming && upcoming.after === page) return upcoming;
+  var p = (page + 1) % PLAN_DAYS, d = D.dayDate(today, -p);
+  return (upcoming = { after: page, page: p, date: d, idea: D.ideaForDay(d) || D.randomIdea(Math.random, "") });
+}
+// While the sheet is pulled, the one below already is the next day: the same sheet, only greyed out.
 function peek() {
-  var n = nextSheet(), box = $("peek"), L = n.idea ? ideaText(n.idea) : null;
-  box.children[0].textContent = String(n.date.getUTCDate()).padStart(2, "0") + " " + monthLines(n.date).split("\n")[0];
-  box.children[1].textContent = L ? L.t.replace("|", " ") : "";
-  box.children[2].textContent = L ? L.s : "";
+  var under = document.querySelector("#pad .u1"), g = under.querySelector(".ghost");
+  if (!g) {
+    g = $("leaf").cloneNode(true); g.removeAttribute("id"); g.removeAttribute("style"); g.className = "ghost"; g.setAttribute("aria-hidden", "true");
+    g.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); }); under.appendChild(g);
+  }
+  var n = nextSheet(); fillSheet(g, { date: n.date, idea: n.idea }, true);
 }
 function tear(dir) {
   var leaf = $("leaf"); Kit.rip(); Kit.haptic(18);
   leaf.className = "gone"; leaf.style.transform = "translate(" + dir * 130 + "%,-20%) rotate(" + dir * 26 + "deg)";
   setTimeout(function () {
     var n = nextSheet(); page = n.page;                   // the calendar: a torn sheet shows the next day, then back to today
-    setHome({ date: n.date, idea: n.idea || D.randomIdea(Math.random, "") }, true); Kit.sfx.thud();
+    setHome({ date: n.date, idea: n.idea }, true); Kit.sfx.thud();
   }, 300);
 }
 (function drag() {

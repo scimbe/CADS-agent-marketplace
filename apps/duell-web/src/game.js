@@ -265,6 +265,12 @@ window.Game = {
   update: function (st) { cur = st; if (mode === "demo") newRun(); },   // every change shows at once
   stop: function () { mode = "off"; clearTimeout(resultTimer); },
   stopDemo: function () { if (mode === "demo") mode = "off"; },
+  // One standing frame on another canvas (the greyed next sheet); a running demo keeps its canvas and its run.
+  still: function (host, st) {
+    var keep = [cv, ctx, scale, cur, sim];
+    try { cur = st; attach(host); sim = E.createSim(st.params, C.mulberry32(st.seed)); draw(); }
+    finally { cv = keep[0]; ctx = keep[1]; scale = keep[2]; cur = keep[3]; sim = keep[4]; }
+  },
   current: function () { return cur; }, score: function () { return sim ? sim.score : 0; }
 };
 /* test hook, used by browser checks: reads the state; tick() advances without waiting for frames */
