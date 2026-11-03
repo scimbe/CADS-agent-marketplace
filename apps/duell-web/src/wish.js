@@ -17,7 +17,10 @@
   // a line below it (t, s), the one thing a wish changes beyond the editor's tabs.
   function apply(doc, ch, pairs, rand) {
     var d = JSON.parse(JSON.stringify(doc));
-    if (typeof ch.palette === "number" && pairs[ch.palette]) d.col = pairs[ch.palette].slice();
+    if (typeof ch.palette === "number" && pairs[ch.palette]) {   // a wish always changes the colours: the pair already in use moves on to the next
+      var at = pairs[ch.palette].join() === d.col.join() ? (ch.palette + 1) % pairs.length : ch.palette;
+      d.col = pairs[at].slice();
+    }
     if (Array.isArray(ch.colors)) d.col = ch.colors.slice();
     if (ch.t) d.t = ch.t; if (ch.s) d.s = ch.s;
     if (d.k === "turn") {
