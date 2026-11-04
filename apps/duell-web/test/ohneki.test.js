@@ -111,3 +111,59 @@ test("Protokoll -> Aufgaben-Link: Frist aus dem Gesagten, Name nur bei ausdrueck
   const got = JSON.parse(Buffer.from(link.split("=")[1], "base64url").toString("utf8")); assert.deepEqual(got, pay);
   assert.deepEqual(Tn.todoFrom(got).list[0], [["Anna", 0]]);
 });
+
+// ---------- review of PR #131: each one failed before its fix ----------
+test("Review 1: Frist am Ende wird nur als eigenes Wort und nur bei bekanntem Tag abgeschnitten, Wortenden und Bereiche bleiben", () => {
+  const text = (s, due = 20771) => { const r = Tn.todoFrom({ i: [[s, "", due]] }); return r.list && r.list[1][0][0]; };
+  assert.equal(text("Lobby dekorieren"), "Lobby dekorieren");
+  assert.equal(text("Ruby aufsetzen"), "Ruby aufsetzen");
+  assert.equal(text("Tische 1 bis 5 aufstellen"), "Tische 1 bis 5 aufstellen");
+  assert.equal(text("Hobby-Raum bis Freitag"), "Hobby-Raum", "das Wort davor bleibt, die Frist geht");
+  assert.equal(text("Ruby by Friday"), "Ruby");
+  for (const [s, want] of [["Bericht schreiben bis Freitag morgen", "Bericht schreiben"], ["Folien (bis 14.11.)", "Folien"], ["Raum buchen bis Ende der Woche", "Raum buchen"], ["Raum buchen, bis Sonntagabend", "Raum buchen"], ["Flyer drucken by next Friday", "Flyer drucken"]])
+    assert.equal(text(s), want, s);
+  assert.equal(text("Getränke besorgen bis Mittwoch", 0), "Getränke besorgen bis Mittwoch", "ohne erkannten Tag bleibt die Frist im Text stehen");
+});
+test("Review 2: Frist liest ganze Woerter, Wochentag vor morgen, keine Dezimalzahl als Datum", () => {
+  const at = new Date(2026, 10, 4, 10).getTime(), day = (s, l) => P.dueDay(s, at, l || "de"), iso = (n) => n ? new Date(n * 864e5).toISOString().slice(0, 10) : 0;
+  assert.deepEqual(["bis Freitag morgen", "Montagmorgen", "Sonntagabend", "bis Freitagmittag", "morgen früh", "Friday morning"].map((s) => iso(day(s, s.startsWith("Friday") ? "en" : "de"))),
+    ["2026-11-06", "2026-11-09", "2026-11-08", "2026-11-06", "2026-11-05", "2026-11-06"]);
+  for (const s of ["morgens", "in 2.5 Wochen", "in 2,5 Wochen", "1.5 Tage", "12.5%", "bis 2.50 Euro", "Morgenrunde"]) assert.equal(day(s), 0, s);
+  assert.equal(iso(day("bis 2.5.")), "2027-05-02"); assert.equal(iso(day("am 14.11.26")), "2026-11-14"); assert.equal(iso(day("by 1/12/2027", "en")), "2027-01-12");
+});
+test("Review 5: Name zaehlt nur, wenn er fuer genau diese Aufgabe faellt", () => {
+  const t = "Anna leitet heute das Meeting. Wer bucht den Raum? Das klären wir. Ben schickt die Einladung. Wer holt den Kuchen? Cem.";
+  assert.equal(P.said("Anna", t, "Raum buchen"), false, "Anna fiel, aber nicht beim Raum");
+  assert.equal(P.said("Ben", t, "Einladung schicken"), true);
+  assert.equal(P.said("Cem", t, "Kuchen holen"), true, "Antwort auf die Frage davor");
+  assert.equal(P.said("Ben", t, "Kuchen holen"), false);
+  assert.equal(P.said("Anna", t), true, "ohne Aufgabe: die einfache Pruefung wie bisher");
+  const rec = { at: new Date(2026, 10, 4, 10).getTime(), segs: [{ t: 0, x: t }], protocol: P.check({ title: "Jour fixe", tasks: [{ who: "Anna", what: "Raum buchen", due: "" }, { who: "Ben", what: "Einladung schicken", due: "" }] }, "ai") };
+  assert.deepEqual(P.todoPayload(rec, "de").i.map((x) => x[1]), ["", "Ben"]);
+});
+test("Review 6: der 18+-Knopf sagt, dass die Angabe in den Vorgaben gemerkt wird", () => {
+  const J = JSON.stringify(require("../src/turn.json"));
+  assert.match(J, /"sam_age":"Den PayPal-Link zeigen wir ab 18\. Deine Angabe wird in deinen Vorgaben gemerkt/);
+  assert.match(J, /"sam_age":"We show the PayPal link from 18\. Your answer is kept in your defaults/);
+});
+test("Review 7: ein Link mit einer Person und ganzen Euro geht im alten Format raus, eine aeltere App liest ihn", () => {
+  const me = { emoji: "🐙", nick: "M", colors: ["#2b4bff", "#ffe600"], set: "tiere" };
+  const fresh = (seed) => Tn.fresh(D.docFromIdea(D.IDEAS.find((i) => i.kind === "turn" && i.turn.g === "sammeln"), me, "de"), seed);
+  const d = Tn.play(fresh(3), ["maxmuster", "Pizza-Abend", 1, 700], 0);
+  assert.deepEqual(Tn.unseal(d.q, d.seed), [["maxmuster", "Pizza-Abend", 7]], "drei Felder wie vor der Cent-Aufteilung");
+  assert.deepEqual(Tn.moves(d), [["maxmuster", "Pizza-Abend", 1, 700]]);
+  const paid = Tn.play(d, [0], 0); assert.deepEqual(Tn.unseal(paid.q, paid.seed)[0], ["maxmuster", "Pizza-Abend", 7], "auch der zweite Zug laesst den ersten alt");
+  const split = Tn.play(fresh(3), ["maxmuster", "Pizza-Abend", 4, 3750], 0);
+  assert.deepEqual(Tn.unseal(split.q, split.seed), [["maxmuster", "Pizza-Abend", 4, 3750]], "Cent oder mehrere Personen: das neue Format");
+});
+test("Review 8: .ics bricht lange Zeilen nach 75 Oktetten um (RFC 5545), auch mitten in Umlauten nie", () => {
+  const long = "Getränke für das Sommerfest besorgen ÄÖÜ";
+  const r = Tn.todoFrom({ t: "Sommerfest der Abteilung Öffentlichkeitsarbeit", i: [[long, "Anna-Lena", 20771], ["Raum", "Bartholomäus", 20771]] });
+  const ics = Tn.todoIcs(r.list, "Sommerfest der Abteilung Öffentlichkeitsarbeit und Kommunikation, Nord", "de", Date.UTC(2026, 10, 4, 12));
+  const lines = ics.split("\r\n").filter(Boolean);
+  for (const l of lines) assert.ok(Buffer.byteLength(l, "utf8") <= 75, l);
+  assert.ok(lines.some((l) => l.startsWith(" ")), "es wurde umgebrochen");
+  const unfolded = ics.replace(/\r\n /g, "");
+  assert.match(unfolded, /\r\nSUMMARY:Getränke für das Sommerfest besorgen ÄÖÜ \(Anna-Lena\)\r\n/);
+  assert.match(unfolded, /\r\nDESCRIPTION:Sommerfest der Abteilung Öffentlichkeitsarbeit und Kommunikation\\, Nord\r\n/);
+});

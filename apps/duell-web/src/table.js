@@ -200,8 +200,10 @@
       if (!force && (v < rulesV || (v === rulesV && !(by && (!rulesBy || by < rulesBy))))) return false;
       house = R.rules(r); rulesV = v; rulesBy = by; return true;
     }
+    // Fixed for me once I said "ready" at a full table: the others may already start with the rules they have.
+    function rulesOpen() { return !hand && !closed && me.seat >= 0 && !(meReady && complete()); }
     function setRules(list) {
-      if (hand || closed || me.seat < 0) return false;
+      if (!rulesOpen()) return false;
       house = R.rules(list); rulesV++; rulesBy = me.id;
       all({ t: "rules", r: house, v: rulesV }); meReady = null; maybeReady(); emit(); return true;
     }
@@ -314,6 +316,7 @@
         r = R.apply(h.state, a); if (!r.ok) return WAIT; h.state = r.state;
       } else {
         ["v", "p", "a", "game", "hand", "schneider", "schwarz", "ouvert"].forEach(function (k) { if (m.a[k] !== undefined) a[k] = m.a[k]; });
+        if (R.kontraLate && R.kontraLate(h.state, a)) return null;      // said already by the other defender: nothing to wait for
         r = R.apply(h.state, a); if (!r.ok) return WAIT; h.state = r.state;
         // Skat: the declarer picks up, so everyone else hands over their keys of the two skat cards
         if (a.t === "pickup" && seat !== me.seat) send(from, { t: "keys", no: h.no, pos: h.lay.skat, k: h.lay.skat.map(function (p) { return h.sec.ki[p]; }) });
@@ -489,7 +492,7 @@
     function view() {
       var r = roster(), st = hand && hand.state;
       return {
-        game: o.game, rules: house.slice(), me: me.id, mySeat: me.seat, no: no, badge: badge(), complete: complete(), lost: lost, closed: closed, note: note, auto: me.auto, deadline: deadline,
+        game: o.game, rules: house.slice(), rulesOpen: rulesOpen(), me: me.id, mySeat: me.seat, no: no, badge: badge(), complete: complete(), lost: lost, closed: closed, note: note, auto: me.auto, deadline: deadline,
         seats: r.map(function (id, s) {
           if (!id) return { free: true, held: !!holds[s] };
           var x = id === me.id ? me : members[id];

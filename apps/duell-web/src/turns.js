@@ -879,6 +879,8 @@
        { w: "money", l: "sam_eur", hint: "sam_eur_hint", ok: function (v, now) { return moneyOk(v, now[2]); }, line: function (v, now, lang) { return moneyLine(v, now[2], lang); } }],
       [{ w: "pay", l: "sam_pay", end: true, link: function (doc, m) { return payLink(m); }, share: payShare, more: function (m, lang) { return payLines(m, lang)[1] || ""; }, peek: function (doc, m, now, lang) { return payLine(m, lang); } }]
     ],
+    // An older app (the store shell updates later) only reads [name, what, euros]: that form whenever it says everything.
+    store: function (t, v) { return t === 0 && Array.isArray(v) && v.length === 4 && v[2] === 1 && v[3] % 100 === 0 && intIn(v[3] / 100, EUR[0], EUR[1]) ? [v[0], v[1], v[3] / 100] : v; },
     legacy: function (t, got) { return t === 0 && Array.isArray(got) && got.length === 3 && Number.isInteger(got[2]) && Math.abs(got[2]) < 1e6 ? [got[0], got[1], 1, got[2] * 100] : got; },
     face: function (doc, m, lang) { return m.length ? payLines(m, lang).concat([T(lang).sam_face]) : null; },
     result: function (doc, m, lang) { return { h: T(lang).sam_h, lines: payLines(m, lang), note: T(lang).sam_safe }; }
@@ -992,12 +994,18 @@
   function dueText(day, lang) { return day ? fmt(T(lang).tdo_due, { d: dayText(day, lang) }) : ""; }
   // The hand-over from the protocol page: { t: title, i: [[what, who, due day]] } -> a list that fits a link, and how
   // many tasks did not make it (filtered text, no room). A name only stands where the protocol gave one.
+  // "… bis Freitag" / "… by 14.11." at the very end, when the deadline came as a day anyway: a separate word, then a day the
+  // protocol page can read (dueDay). "Lobby", "Ruby" or "Tische 1 bis 5 aufstellen" stay as they are.
+  var DUE_DAY = "(?:(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)(?:s|morgens?|vormittags?|mittags?|nachmittags?|abends?|nachts?)?|monday|tuesday|wednesday|thursday|friday|saturday|sunday" +
+    "|übermorgen|morgen|heute|tomorrow|today|eod|woche|week|wochenende|weekend|monatsende|monat|month|kw ?\\d{1,2}|\\d{1,2}\\.\\s?\\d{1,2}\\.?(?:\\s?\\d{2,4})?|\\d{1,2}/\\d{1,2}(?:/\\d{2,4})?)";
+  var DUE_TAIL = new RegExp("(?:^|[\\s(,;–-])\\s*[(,;–-]?\\s*(?:bis|by)\\s+(?:(?:spätestens|zum|zur|am|kommenden?|nächsten?|naechsten?|diesen?|next|this|the|end of|ende(?: der| des| dieser)?)\\s+)*" +
+    DUE_DAY + "(?:\\s+(?:morgen|früh|mittag|abend|morning|noon|evening|\\d{1,2}(?::\\d{2})?\\s?uhr))?[\\s.)]*$", "iu");
   function todoFrom(o) {
     o = o && typeof o === "object" ? o : {};
     var items = (Array.isArray(o.i) ? o.i : []).slice(0, 20), people = [], adds = [], marks = [], lost = 0;
     items.forEach(function (x, i) {
       x = Array.isArray(x) ? x : [];
-      var text = Q.clean(String(x[0] || "").replace(/\s*[(,;–-]?\s*(bis|by)\s+\S.*$/i, ""), TODO.text), due = intIn(x[2], 1, TODO.qty) ? x[2] : 0;
+      var due = intIn(x[2], 1, TODO.qty) ? x[2] : 0, text = Q.clean(due ? String(x[0] || "").replace(DUE_TAIL, "") : String(x[0] || ""), TODO.text);
       if (!text || !shopKey(text) || adds.some(function (a) { return shopKey(a[0]) === shopKey(text); })) { lost++; return; }
       var full = typeof x[1] === "string" ? x[1].trim() : "", who = nameOk(full) ? full : full.split(/\s+/)[0];   // too long: the first name
       if (who && nameOk(who)) {
@@ -1012,6 +1020,17 @@
     var v = shopClose(shopOpen([people, adds]), TODO);
     return { list: shopOk(v, TODO) ? v : null, lost: lost + adds.length - (v ? v[1].length : 0), t: Q.clean(o.t, 40) || "" };
   }
+  // RFC 5545 3.1: a content line longer than 75 octets goes on in lines that start with a space; never inside a UTF-8 character.
+  function icsFold(line) {
+    var out = [], cur = "", n = 0, max = 75;
+    Array.from(line).forEach(function (ch) {
+      var b = new TextEncoder().encode(ch).length;
+      if (n + b > max) { out.push(cur); cur = " "; n = 1; max = 75; }
+      cur += ch; n += b;
+    });
+    out.push(cur);
+    return out.join("\r\n");
+  }
   // .ics with one all-day entry per open task that has a due day; nothing about who else is on the list.
   function todoIcs(list, title, lang, stamp) {
     var X = T(lang), d8 = function (day) { return new Date(day * DAY).toISOString().slice(0, 10).replace(/-/g, ""); };
@@ -1024,7 +1043,7 @@
         "SUMMARY:" + esc(r.text + (r.bring.length ? " (" + todoNames(r.bring) + ")" : "")), "DESCRIPTION:" + esc(title || X.tdo_title), "END:VEVENT");
     });
     if (!ev.length) return "";
-    return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//My Daily Idea//Aufgaben//DE", "CALSCALE:GREGORIAN"].concat(ev, ["END:VCALENDAR"]).join("\r\n") + "\r\n";
+    return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//My Daily Idea//Aufgaben//DE", "CALSCALE:GREGORIAN"].concat(ev, ["END:VCALENDAR"]).map(icsFold).join("\r\n") + "\r\n";
   }
   // The next meeting's agenda from what is still open, without AI: a look back, the open tasks, room for new points.
   function todoAgenda(list, title, lang) {
@@ -1126,7 +1145,8 @@
     var st = state(doc); if (st.over || answers.length !== st.prompts.length) return null;
     for (var i = 0; i < answers.length; i++) if (!okAnswer(st.prompts[i], answers[i], doc, "de", st.moves, answers.slice(0, i))) return null;
     var d = JSON.parse(JSON.stringify(doc));
-    d.q = seal(GAMES[d.g].snap ? [answers] : st.moves.concat([answers]), d.seed);
+    var g = GAMES[d.g], out = g.snap ? [answers] : st.moves.concat([answers]);
+    d.q = seal(g.store ? out.map(function (x, t) { return g.store(t, x); }) : out, d.seed);
     if (GAMES[d.g].gateFrom && st.turn === 0) d.o = today + answers[1];
     return d;
   }

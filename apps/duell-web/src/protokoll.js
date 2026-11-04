@@ -213,11 +213,16 @@
   // own day on this device (days since 1970 like the app's Turns.today); 0 when it is not clear. No model guesses dates.
   var WEEK = { de: ["sonntag", "montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag"], en: ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] };
   function dayNo(y, m, d) { return Math.floor(Date.UTC(y, m, d) / 864e5); }
+  // A whole word only: "morgen" is not in "Montagmorgen" or "morgens"; a weekday may carry its time of day ("Sonntagabend").
+  function word(re) { return new RegExp("(?:^|[^\\p{L}\\p{N}])(?:" + re + ")(?![\\p{L}\\p{N}])", "u"); }
+  var PART = "(?:s|morgens?|vormittags?|mittags?|nachmittags?|abends?|nachts?)?";
+  // dd.mm.(yyyy) with nothing numeric around it: "in 2.5 Wochen" or "2,5" is an amount, not the 2nd of May.
+  var DATE_DE = /(?:^|[^\d.,])(\d{1,2})\.\s?(\d{1,2})(?:\.(?:\s?(\d{4}|\d{2}(?!\d)))?)?(?![\d,]|\.\d|\s*(?:wochen?|tagen?|stunden?|monaten?|jahren?|minuten?|weeks?|days?|hours?|months?|years?|minutes?|%|€|euro?|eur)(?![\p{L}]))/u;
   function dueDay(text, at, lang) {
     var s = String(text == null ? "" : text).toLowerCase().replace(/\s+/g, " ").trim(), base = new Date(at), wd = base.getDay();
     if (!s || isNaN(base)) return 0;
     var y = base.getFullYear(), mo = base.getMonth(), d = base.getDate(), today = Math.floor(Date.UTC(y, mo, d) / 864e5), m;
-    if ((m = s.match(/(\d{1,2})\.\s?(\d{1,2})\.?(?:\s?(\d{2,4}))?/)) || (lang === "en" && (m = s.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/)))) {
+    if ((m = s.match(DATE_DE)) || (lang === "en" && (m = s.match(/(?:^|[^\d/])(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?(?![\d/])/)))) {
       var dd = +m[1], mm = +m[2] - 1, yy = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : y;
       if (s.indexOf("/") >= 0 && lang === "en") { var tmp = dd; dd = mm + 1; mm = tmp - 1; }
       if (mm < 0 || mm > 11 || dd < 1 || dd > 31) return 0;
@@ -226,28 +231,43 @@
       if (!m[3] && day < today) day = dayNo(yy + 1, mm, dd);           // "14.1." said in December: next year
       return day;
     }
-    if (/übermorgen|day after tomorrow/.test(s)) return today + 2;
-    if (/morgen|tomorrow/.test(s)) return today + 1;
-    if (/heute|today/.test(s)) return today;
-    if (/nächste woche|naechste woche|next week/.test(s)) return today + ((8 - wd) % 7 || 7);                // next Monday
-    if (/ende der woche|end of (the )?week|wochenende/.test(s)) return today + ((5 - wd + 7) % 7 || (wd === 5 ? 0 : 7));   // Friday
-    if (/monatsende|ende des monats|end of (the )?month/.test(s)) return Math.floor(Date.UTC(y, mo + 1, 0) / 864e5);
+    if (word("übermorgen|day after tomorrow").test(s)) return today + 2;
+    if (word("nächste woche|naechste woche|next week").test(s)) return today + ((8 - wd) % 7 || 7);                // next Monday
+    if (word("ende der woche|end of (?:the )?week|wochenende|weekend").test(s)) return today + ((5 - wd + 7) % 7 || (wd === 5 ? 0 : 7));   // Friday
+    if (word("monatsende|ende des monats|end of (?:the )?month").test(s)) return Math.floor(Date.UTC(y, mo + 1, 0) / 864e5);
+    // a weekday before "morgen": "bis Freitag morgen" is Friday morning, not tomorrow
     var names = WEEK.de.concat(WEEK.en);
-    for (var i = 0; i < names.length; i++) if (new RegExp("\\b" + names[i] + "\\b").test(s)) return today + (((i % 7) - wd + 7) % 7 || 7);
+    for (var i = 0; i < names.length; i++) if (word(names[i] + PART).test(s)) return today + (((i % 7) - wd + 7) % 7 || 7);
+    if (word("morgen|tomorrow").test(s)) return today + 1;
+    if (word("heute|today").test(s)) return today;
     return 0;
   }
-  // A name only counts where the transcript says it: the AI may not hand a task to someone nobody named.
-  function said(name, text) {
+  // A name only counts where the transcript says it, and for that task: the name and a word of the task (its first five
+  // letters, so "schicken" meets "schickt") stand in the same sentence or the name answers the sentence before
+  // ("Wer bucht den Raum? Anna."). Without the task, any mention of the name counts (the plain check).
+  var STOP = ["eine", "einen", "einem", "einer", "dass", "noch", "auch", "bitte", "alle", "with", "that", "this", "have", "will", "from"];
+  function stems(s) {
+    return (String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").match(/[\p{L}\p{N}]{4,}/gu) || [])
+      .filter(function (w) { return STOP.indexOf(w) < 0; }).map(function (w) { return w.slice(0, 5); });
+  }
+  function said(name, text, what) {
     var n = String(name || "").trim(); if (!n) return false;
-    var esc = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp("(^|[^\\p{L}\\p{N}])" + esc + "($|[^\\p{L}\\p{N}])", "iu").test(String(text || ""));
+    var esc = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), re = new RegExp("(^|[^\\p{L}\\p{N}])" + esc + "($|[^\\p{L}\\p{N}])", "iu");
+    if (what === undefined) return re.test(String(text || ""));
+    var task = stems(what), parts = String(text || "").split(/[.!?;\n]+/);
+    if (!task.length) return false;
+    return parts.some(function (p, i) {
+      if (!re.test(p)) return false;
+      var near = stems(p.replace(re, " ") + " " + (i > 0 ? parts[i - 1] : ""));
+      return task.some(function (w) { return near.indexOf(w) >= 0; });
+    });
   }
   // The hand-over to the app: { t: title, i: [[what, who, due day]] }. Who stays "" (open) unless the transcript names
-  // that person; the app checks every text again (turns.js todoFrom).
+  // that person for that task; the app checks every text again (turns.js todoFrom).
   function todoPayload(rec, lang) {
     var p = rec.protocol || check({}, "local"), text = transcriptText(rec.segs || []);
     return { t: short(p.title || "", 40), i: p.tasks.slice(0, 12).map(function (x) {
-      return [short(x.what, 80), x.who && said(x.who, text) ? short(x.who, 40) : "", dueDay(x.due, rec.at, lang)];
+      return [short(x.what, 80), x.who && said(x.who, text, x.what) ? short(x.who, 40) : "", dueDay(x.due, rec.at, lang)];
     }) };
   }
   function todoLink(rec, lang, base) {

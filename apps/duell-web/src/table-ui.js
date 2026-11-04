@@ -127,7 +127,7 @@ function keepRules(list) { var r = Kit.store.tbRules; r = r && typeof r === "obj
 // Chips for the house rules: everyone sees the same list (table.js keeps it equal); a change only between two games.
 function houseChips(b, v) {
   b.appendChild(el("p", "lbl", t("house")));
-  var row = el("div", "chips tbrules"), on = v.rules || [], free = !v.hand;
+  var row = el("div", "chips tbrules"), on = v.rules || [], free = v.rulesOpen;   // fixed once I said "ready": the others may start with them
   engine().RULES.forEach(function (k) {
     var x = on.indexOf(k) >= 0, c = el("button", "chip" + (x ? " on" : ""), t("r_" + k), function () {
       if (!free) return; Kit.sfx.tap();

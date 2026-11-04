@@ -91,6 +91,11 @@
     if (t === "kontra") return s.kontra === 0 && seat !== s.declarer && playedBy(s, seat) === 0;
     return t === "re" && s.kontra === 1 && seat === s.declarer && playedBy(s, seat) <= 1;
   }
+  // Two defenders say Kontra at nearly the same time: every device takes whichever came first, and the other one says
+  // nothing more (Kontra is 1 either way). The table drops it instead of waiting for it to become legal.
+  function kontraLate(s, a) {
+    return !!a && a.t === "kontra" && has(s, "kontra") && s.phase === "play" && !!s.contract && !s.contract.ramsch && s.kontra >= 1 && a.seat !== s.declarer;
+  }
   function mayPlay(game, hand, card, trick) {
     if (hand.indexOf(card) < 0) return false;
     if (!trick || !trick.cards.length) return true;
@@ -379,7 +384,7 @@
     return ok.length ? { t: "play", seat: seat, card: ok[0] } : null;
   }
 
-  var api = { SEATS: SEATS, HAND: HAND, DECK: DECK, EYES: EYES, BASE: BASE, NULL: NULL, BIDS: BIDS, RULES: RULES, rules: rules, explain: explain, trumpOrder: trumpOrder, auto: auto,
+  var api = { kontraLate: kontraLate, SEATS: SEATS, HAND: HAND, DECK: DECK, EYES: EYES, BASE: BASE, NULL: NULL, BIDS: BIDS, RULES: RULES, rules: rules, explain: explain, trumpOrder: trumpOrder, auto: auto,
     layout: layout, start: start, turn: turn, actions: actions, apply: apply, done: done, result: result, audit: audit,
     trickWinner: trickWinner, isTrump: isTrump, suitOf: suitOf, tops: tops, eyes: eyes,
     forehand: forehand, middlehand: middlehand, rearhand: rearhand };

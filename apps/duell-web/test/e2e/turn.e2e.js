@@ -386,7 +386,7 @@ test("Geld einsammeln: Name, Zweck, Personen, Betrag mit Cent; alle oeffnen dens
   await c.locator("#panel").getByText("37,50 € geteilt durch 4 · Rest 2 ct übernimmt, wer sammelt").waitFor();
   await c.locator("#panel").getByText(/nur an Leute, die du kennst.*erst ab 18/).waitFor();
   assert.equal(await c.locator("#paylink").count(), 0, "ohne Alter kein PayPal-Link");
-  await c.locator("#panel").getByText("Den PayPal-Link zeigen wir ab 18.").waitFor();
+  await c.locator("#panel").getByText("Den PayPal-Link zeigen wir ab 18. Deine Angabe wird in deinen Vorgaben gemerkt, dort kannst du sie wieder abwählen.").waitFor();
   if (shot) await c.screenshot({ path: shot + "/wa-sammeln-alter.png" });
   await c.getByRole("button", { name: "Ich bin 18 oder älter" }).click();
   const pay = c.locator("#paylink");
