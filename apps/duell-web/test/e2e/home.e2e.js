@@ -66,7 +66,7 @@ test("Wuerfel: Kosmetik ohne KI und ohne Netz, gleicher Seed gleicher Wurf, ruec
   assert.equal(await p.locator("#hero").isHidden(), true, "der Kartentext steht nur einmal da, im Bild");
   assert.equal(await p.locator("#pvcard").isVisible(), true);
   assert.equal(await p.locator("#go").textContent(), "Weiter bauen");
-  assert.equal(await p.locator("#leaf .kiseal").isHidden(), true, "ohne KI kein Siegel"); assert.equal(await p.locator("#kireport").isHidden(), true);
+  assert.equal(await p.locator("#leaf .kiseal").isHidden(), true, "ohne KI kein Siegel"); assert.equal(await p.locator("#kireport").isVisible(), true, "melden kann man jedes geteilte Blatt");
   await p.locator("#wishgo").tap();
   await p.getByRole("tab", { name: "🎲 Würfel" }).and(p.locator("[aria-selected=true]")).waitFor();
   assert.equal(await p.getByRole("tab", { name: "✨ Wunsch" }).count(), 0, "kein KI-Umfaerben auf der Karte");
@@ -81,7 +81,7 @@ test("Wuerfel: Kosmetik ohne KI und ohne Netz, gleicher Seed gleicher Wurf, ruec
   await p.getByRole("button", { name: /Rückgängig/ }).tap();
   assert.equal(await p.evaluate(() => JSON.stringify(window.DailyDebug.doc())), before, "rueckgaengig bringt das alte Blatt");
   // same sheet, same roll number -> same look on a second phone
-  const n = calls.length, p2 = await ctx.newPage(); await p2.goto(page + link); await p2.locator("#leaf.got").waitFor(); await p2.locator("#wishgo").tap();
+  const n = calls.length, ctx2 = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), p2 = await ctx2.newPage(); await ctx2.route(/^https?:/, (r) => { calls.push(r.request().url()); return r.abort(); }); await p2.goto(page + link); await p2.locator("#leaf.got").waitFor(); await p2.locator("#wishgo").tap();
   await p2.getByRole("button", { name: "🎲 Würfeln" }).tap(); await p2.locator(".aicount", { hasText: "Geändert" }).waitFor();
   const a1 = JSON.parse(first), a2 = await p2.evaluate(() => window.DailyDebug.doc());
   assert.deepEqual([a2.col, a2.st, a2.sk.map((x) => x.e)], [a1.col, a1.st, a1.sk.map((x) => x.e)], "Zufall nur aus dem Seed");

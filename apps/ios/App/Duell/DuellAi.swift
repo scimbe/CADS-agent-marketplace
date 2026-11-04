@@ -1,18 +1,23 @@
 import Foundation
 import WebKit
 
-/// The page runs from a file with all network blocked (content rule "duell-no-network"). The one exception it needs,
-/// the AI actions, goes through here: fixed host, three fixed paths, small JSON, no cookies. The page never gets network.
+/// The page runs from a file with all network blocked (content rule "duell-no-network"). The exceptions it needs, the AI
+/// actions, the queue and the report, go through here: fixed host, a fixed list of the page's path names, each mapped to one
+/// server path (the server protocol of CADS-DEMO-wrapper), small JSON, no cookies. The page never gets network.
 enum DuellAi {
-    static let base = "https://demos-34a13a96.bunsenbrenner.org/api/duell/ai"
-    static let paths: Set<String> = ["", "/status", "/interest", "/weather"]
+    static let base = "https://demos-34a13a96.bunsenbrenner.org/api/duell"
+    /// The page's name -> the server path. "/queue" and "/report" sit next to the AI, the rest below it.
+    static let routes: [String: String] = [
+        "": "/ai", "/status": "/ai/status", "/interest": "/ai/interest", "/weather": "/ai/weather",
+        "/accept": "/ai/accept", "/discard": "/ai/discard", "/queue": "/queue", "/report": "/report",
+    ]
     static let maxBody = 2048
 
     /// The request for a call from the page, or nil when the page asks for anything else.
     static func request(path: String, body: String) -> URLRequest? {
-        guard paths.contains(path), !body.isEmpty, body.utf8.count <= maxBody,
+        guard let route = routes[path], !body.isEmpty, body.utf8.count <= maxBody,
               let data = body.data(using: .utf8), (try? JSONSerialization.jsonObject(with: data)) is [String: Any],
-              let url = URL(string: base + path) else { return nil }
+              let url = URL(string: base + route) else { return nil }
         var r = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 25)
         r.httpMethod = "POST"
         r.httpBody = data

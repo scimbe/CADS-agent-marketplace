@@ -88,7 +88,17 @@
     else if (doc.k === "quest") ch.e = other(D.SETS.chaos, doc.e);
     return ch;
   }
-  var api = { KINDS: KINDS, DICE: DICE, request: request, apply: apply, local: local, dice: dice };
+  // The roll number of one sheet on this device, kept across opening and closing: the next roll is a new one, and still
+  // only from the seed. rolls: the device's small store { key: n }; the oldest keys go once there are more than ROLL_KEYS.
+  var ROLL_KEYS = 60;
+  function nextRoll(rolls, key) {
+    key = String(key).slice(0, 80);
+    var n = Number(rolls[key]); n = (Number.isInteger(n) && n > 0 && n < 1e6 ? n : 0) + 1;
+    delete rolls[key]; rolls[key] = n;
+    var ks = Object.keys(rolls); while (ks.length > ROLL_KEYS) delete rolls[ks.shift()];
+    return n;
+  }
+  var api = { KINDS: KINDS, DICE: DICE, request: request, apply: apply, local: local, dice: dice, nextRoll: nextRoll };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Wish = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

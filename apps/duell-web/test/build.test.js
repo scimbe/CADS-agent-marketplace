@@ -35,7 +35,7 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
   // Every call site by name; a new one fails here until it is argued for and listed.
   // protokoll-page.js is its own page (dist/protokoll.html, connect-src 'self'): one GET for the speech model from this
   // domain, one POST with the redacted text after the explicit yes. Neither is in the app build below.
-  const allowed = { "game.js": 1, "ai.js": 2, "live.js": 1, "protokoll-page.js": 2 }, short = /\(fetchFn \|\| fetch\)\(/g;
+  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1, "protokoll-page.js": 2 }, short = /\(fetchFn \|\| fetch\)\(/g;
   assert.match(src("protokoll-page.js"), /fetch\(url, \{ signal: ctl\.signal, credentials: "same-origin", cache: "no-store" \}\)/, "Modell nur per GET");
   assert.match(src("protokoll-page.js"), /input: P\.aiInput\(rec\.segs, rec\.names\)/, "an die KI nur der geschwaerzte Text");
   assert.ok(!/deviceMemory|hardwareConcurrency|userAgent/.test(src("protokoll-page.js").match(/JSON\.stringify\(\{ kind: "protokoll"[^\n]*/)[0]), "Geraetedaten bleiben auf dem Geraet");
@@ -49,8 +49,8 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
   assert.ok(!/XMLHttpRequest|sendBeacon|EventSource|WebSocket|RTCPeerConnection|analytics|serviceWorker/.test(ph), "Protokoll-Seite: kein weiterer Ausgang");
   assert.match(ph, /connect-src 'self' blob:;/, "Protokoll-Seite spricht nur mit der eigenen Domain");
   assert.equal((html.match(short) || []).length, 1, "eine Stelle fuer Kurzlinks im Build");
-  for (const call of src("ai.js").match(/await fetch\([^\n]*/g)) assert.match(call, /body: text/, "nur der gepruefte Text");   // KI-Aufruf und Meldung (nach Ja)
-  assert.match(src("ai.js"), /fetch\(api0\(\)\.replace\(\/\\\/config\$\/, "\/report"\)[^\n]*credentials: "omit"/, "Meldung ohne Cookie");
+  for (const call of src("ai.js").match(/await fetch\([^\n]*/g)) assert.match(call, /body: text/, "nur der gepruefte Text");   // eine Stelle fuer KI-Aufruf, Warteschlange, Abrechnung und Meldung (nach Ja)
+  assert.match(src("ai.js"), /fetch\(endpoint\(api0\(\), path\)[^\n]*credentials: path === "\/report" \? "omit" : "same-origin"/, "Meldung ohne Cookie, ueber dieselbe eine Stelle");
   assert.ok(!/toDataURL|toBlob|drawImage|getImageData/.test(src("ai.js")), "KI fasst kein Bild an");
   assert.ok(src("game.js").includes("await fetch("), "fetch gehoert ins Spiel");
   const body = src("game.js").match(/fetch\([^\n]*/)[0];

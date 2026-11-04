@@ -3,61 +3,80 @@
    local suggestion up as an AI answer. Only typed text leaves the device, never a photo. */
 (function (root) {
   "use strict";
-  var TIMEOUT = 25000, WAIT_MAX = 60000, PROOF_BITS = 16;
+  var TIMEOUT = 25000, WAIT_MAX = 60000, PAUSE = 500, PROOF_BITS = 16;
+  var REASONS = ["harm", "sex", "hate", "private", "wrong", "other"];
   // What the server's answer means for the page.
   function verdict(status, json) {
     if (status === 200 && json && Array.isArray(json.options) && json.options.length) return "result";
     if (status === 202 && json && ticket(json)) return "queued";
     if (status === 429 && json && json.error === "quota") return "quota";
     if (status === 422) return "blocked";
-    if (status === 429) return "busy";      // the AI is there but full
-    return "off";                           // gone, broken or offline: said as such, nothing is made up
+    if (status === 429 || status === 409) return "busy";      // the AI is there but full, or this person already waits
+    return "off";                           // gone, broken, ticket lapsed or offline: said as such, nothing is made up
   }
+  // The queue counts from 0 (running now) and 1 (next); 0 shows as "thinking", so only a real place in line is a number.
   function place(json) { var n = Number(json && (json.position != null ? json.position : json.queue && json.queue.position)); return Number.isInteger(n) && n >= 1 && n <= 9999 ? n : 0; }
   function ticket(json) { return json && typeof json.ticket === "string" && /^[A-Za-z0-9_-]{4,64}$/.test(json.ticket) ? json.ticket : ""; }
-  function seal(json) { return json && typeof json.seal === "string" && /^[A-Za-z0-9._~-]{8,200}$/.test(json.seal) ? json.seal : ""; }
-  function pause(json) { var w = Number(json && json.wait); return Number.isFinite(w) ? Math.max(500, Math.min(5000, w)) : 1500; }
+  function okSeal(x) { return typeof x === "string" && /^[A-Za-z0-9._~-]{8,200}$/.test(x) ? x : ""; }
+  function receipt(json) { return json && typeof json.receipt === "string" && /^[A-Za-z0-9._~:-]{4,400}$/.test(json.receipt) ? json.receipt : ""; }
+  // One seal per option (seals[i] belongs to options[i]); a bad one is simply left out.
+  function seals(json) { var a = json && Array.isArray(json.seals) ? json.seals : []; return json.options.map(function (x, i) { return okSeal(a[i]); }); }
+  // The page names a path; queue and report sit next to the AI on the server, the rest below it. iOS maps the same names.
+  var ROOT = { "/queue": 1, "/report": 1 };
+  function endpoint(api, path) { var r = String(api).replace(/\/(config|ai)$/, ""); return r + (ROOT[path] ? path : "/ai" + path); }
 
-  /* The client adapter: one place that speaks the server's protocol. send(path, body) -> { status, json }.
-       POST ""         { v: 2, kind, input, device, proof, lang }
-         200 { options, meter, seal?, ticket? }   result; with a ticket the action is only charged on /confirm
-         202 { ticket, position, wait? }          queued: the page asks "/wait" { device, ticket } until it is something else
-         429 { error: "busy", position? } | { error: "quota" } · 422 blocked · anything else: off
-       POST "/wait"    { device, ticket }        -> same answers as above
-       POST "/confirm" { device, ticket }        the person took an option -> { meter, seal? }
-       POST "/cancel"  { device, ticket }        the page stopped waiting (best effort)
-     A server without the queue (v1) never sends a ticket: the same states, no waiting, nothing to confirm. */
+  /* The client adapter: one place that speaks the server's protocol (CADS-DEMO-wrapper, "Schnittstellen fuer die App").
+     send(path, body) -> { status, json }; the path is one of the page's names, endpoint() turns it into the URL.
+       POST ""         { kind, input, device, proof, lang, queue: "ticket" }     -> /api/duell/ai
+         200 { options, seals[], cost, receipt?, meter }   result; charged when it is handed out
+         202 { queued, ticket, position, etaS }            queued: the page asks "/queue" { ticket } until it is something else
+         429 { error: "busy" | "quota" | ... } · 409 pending · 422 blocked · anything else: off
+       POST "/queue"   { ticket }                 -> /api/duell/queue: the same answers, 404 when the ticket lapsed
+       POST "/accept"  { device, receipt }        -> /api/duell/ai/accept: the person took an option, the charge is final
+       POST "/discard" { device, receipt }        -> /api/duell/ai/discard: nothing taken or nothing changed, refund
+     There is no cancel: a ticket nobody asks about for 15 s lapses on the server and costs nothing.
+     A server without the queue never sends a ticket or a receipt: the same states, no waiting, nothing to settle.
+     alive() (optional): false once the page left the sheet the action was for; the waiting then stops at once. */
   function client(o) {
     var sleep = o.sleep || function (ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }, now = o.now || Date.now, max = o.waitMax || WAIT_MAX;
     function keep(json) { if (o.keep) o.keep(json); }
-    async function ask(body, onWait) {
-      var r, how, started = now(), last = 0;
-      try { r = await o.send("", Object.assign({ v: 2 }, body)); } catch (e) { return { how: "off", options: [], position: 0 }; }
+    var none = function (how, n) { return { how: how, options: [], seals: [], receipt: "", position: n || 0 }; };
+    async function ask(body, onWait, alive) {
+      var r, how, started = now(), last = 0, tk = "";
+      try { r = await o.send("", Object.assign({}, body, { queue: "ticket" })); } catch (e) { return none("off"); }
       for (;;) {
         keep(r.json); how = verdict(r.status, r.json);
         if (how !== "queued") break;
-        var tk = ticket(r.json); last = place(r.json) || last; if (onWait) onWait(last);
-        await sleep(pause(r.json));
-        if (now() - started >= max) { o.send("/cancel", { device: body.device, ticket: tk }).catch(function () {}); how = "busy"; break; }
-        try { r = await o.send("/wait", { device: body.device, ticket: tk }); } catch (e) { return { how: "off", options: [], position: 0 }; }
+        tk = ticket(r.json) || tk; last = place(r.json); if (onWait) onWait(last);
+        await sleep(PAUSE);
+        if (alive && !alive()) return none("gone");
+        if (now() - started >= max) return none("busy", last);
+        try { r = await o.send("/queue", { ticket: tk }); } catch (e) { return none("off"); }
       }
-      return { how: how, options: how === "result" ? r.json.options : [], seal: how === "result" ? seal(r.json) : "", ticket: how === "result" ? ticket(r.json) : "", position: how === "busy" || how === "queued" ? place(r.json) || last : 0 };
+      if (how !== "result") return none(how, how === "busy" ? place(r.json) || last : 0);
+      return { how: how, options: r.json.options, seals: seals(r.json), receipt: receipt(r.json), position: 0 };
     }
-    // -> the server's seal for the taken option, or "" (old server, offline: the action simply stays as it was answered)
-    async function confirm(device, tk) {
-      if (!tk) return "";
-      try { var r = await o.send("/confirm", { device: device, ticket: tk }); keep(r.json); return r.status === 200 ? seal(r.json) : ""; } catch (e) { return ""; }
+    // Settle a handed-out result once: accept (taken) or discard (nothing taken, nothing changed). -> true when the server said yes.
+    async function settle(path, device, rc) {
+      if (!rc) return false;
+      try { var r = await o.send(path, { device: device, receipt: rc }); keep(r.json); return r.status === 200; } catch (e) { return false; }
     }
-    return { ask: ask, confirm: confirm };
+    return { ask: ask, accept: function (d, rc) { return settle("/accept", d, rc); }, discard: function (d, rc) { return settle("/discard", d, rc); } };
   }
-  // What a report carries: the sheet's own texts, its type and its seal. Never a photo, never the trail of nicknames,
-  // never a channel's riddles or answers.
-  function reportBody(doc, lang) {
-    var c = {};
+  // What a report carries (POST /api/duell/report): the reason, the sheet's own texts and type, its seal and short link
+  // when it has them. Never a photo, never the trail of nicknames, never a channel's riddles or answers. consent: the
+  // person said yes in the dialog, which names what goes out. null when the reason is not one the server knows.
+  function reportBody(doc, reason, link) {
+    if (REASONS.indexOf(reason) < 0) return null;
+    var c = { type: doc.k };
     ["t", "s", "x", "y", "w"].forEach(function (k) { if (typeof doc[k] === "string" && doc[k]) c[k] = doc[k]; });
     if (doc.g && typeof doc.g.title === "string") c.title = doc.g.title;
     if (doc.b && typeof doc.b.n === "string") c.rival = doc.b.n;
-    return { v: 1, type: doc.k, kind: doc.ki ? doc.ki.k : "", seal: (doc.ki && doc.ki.s) || "", lang: lang === "en" ? "en" : "de", content: c };
+    var b = { reason: reason, consent: true, content: c };
+    if (doc.ki && doc.ki.k) b.kind = doc.ki.k;
+    if (doc.ki && okSeal(doc.ki.s)) b.seal = doc.ki.s;
+    if (typeof link === "string" && /^[A-Za-z0-9_-]{3,40}$/.test(link)) b.link = link;
+    return b;
   }
   // The small proof of work a new device shows once: a number whose SHA-256 with the device id starts with `bits` zero bits.
   async function solve(device, bits, subtle) {
@@ -74,7 +93,7 @@
     if (meter.abo) return t("aiCountAbo", { n: meter.remaining });
     return t(meter.period === "week" ? "aiCountWeek" : "aiCount", { n: meter.remaining, m: meter.free });
   }
-  var api = { verdict: verdict, place: place, client: client, reportBody: reportBody, solve: solve, count: count };
+  var api = { verdict: verdict, place: place, endpoint: endpoint, client: client, reportBody: reportBody, REASONS: REASONS, solve: solve, count: count };
 
   if (typeof window === "undefined") { if (typeof module !== "undefined" && module.exports) module.exports = api; return; }
 
@@ -92,15 +111,15 @@
     return Kit.store.aiProof;
   }
   function api0() { return window.DUELL_API || C.DEFAULT_API; }
-  function base() { return api0().replace(/\/config$/, "/ai"); }
-  // iOS loads the page from a file and blocks its network; there the shell makes this one call. Everywhere else: plain fetch.
+  // iOS loads the page from a file and blocks its network; there the shell makes these calls (same path names, its own
+  // fixed list). Everywhere else: plain fetch. A report never carries a cookie.
   async function post(path, body) {
     var H = window.DuellHost, text = JSON.stringify(body);
-    if (H && typeof H.ai === "function") { var r = await H.ai(path, text); return { status: r.status, json: JSON.parse(r.body) }; }
+    if (H && typeof H.ai === "function") { var r = await H.ai(path, text); var j = null; try { j = JSON.parse(r.body); } catch (e) { j = null; } return { status: r.status, json: j }; }
     if (navigator.onLine === false) throw new Error("offline");
     var ctl = new AbortController(), tm = setTimeout(function () { ctl.abort(); }, TIMEOUT);
     try {
-      var res = await fetch(base() + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: text, signal: ctl.signal, credentials: "same-origin", referrerPolicy: "no-referrer" });
+      var res = await fetch(endpoint(api0(), path), { method: "POST", headers: { "Content-Type": "application/json" }, body: text, signal: ctl.signal, credentials: path === "/report" ? "omit" : "same-origin", referrerPolicy: "no-referrer" });
       var json = null; try { json = await res.json(); } catch (e) { json = null; }
       return { status: res.status, json: json };
     } finally { clearTimeout(tm); }
@@ -108,9 +127,15 @@
   // Nothing leaves the device before the first tap on an AI button, so the count shown until then is the last one this device saw.
   function keep(json) { if (json && json.meter) { meter = json.meter; Kit.store.aiMeter = meter; Kit.save(); } }
   var cl = client({ send: post, keep: keep });
-  async function run(kind, input, onWait) {
-    return cl.ask({ kind: kind, input: input, device: device(), proof: await proof(), lang: Kit.lang }, onWait);
+  async function run(kind, input, onWait, alive) {
+    return cl.ask({ kind: kind, input: input, device: device(), proof: await proof(), lang: Kit.lang }, onWait, alive);
   }
+  // Results handed out but not settled yet (options nobody tapped). They go back when the person asks again or leaves.
+  var open = [];
+  function settle(rc, took) { var i = open.indexOf(rc); if (i < 0) return; open.splice(i, 1); (took ? cl.accept : cl.discard)(device(), rc).then(function () { refresh(); }); }
+  function drop() { open.slice().forEach(function (rc) { settle(rc, false); }); }
+  var shown = [];
+  function refresh() { shown = shown.filter(function (c) { return c.isConnected; }); shown.forEach(function (c) { c.textContent = line(); }); }
   function line() { return count(meter, t); }
   function stateText(r) {
     if (r.how === "blocked") return t("aiBlocked");
@@ -120,27 +145,36 @@
   }
 
   /* One AI action in a panel. o: { kind, label, el, input(), show(option) -> label, apply(option, ki), wall(), noteLast?,
-       auto?(option, ki | null, res), local?(input) -> option | null, reseal?(ki) }
+       auto?(option, ki | null, res) -> false when it changed nothing, local?(input) -> option | null, alive?() }
      ki = { k: kind, s: seal } marks what the AI made; apply/auto get null for the rule-based way, which is labelled "without AI".
-     Returns the action itself, so a suggestion can start it with one tap. noteLast: the caller puts the privacy note at the end. */
+     alive(): false once the sheet this panel was made for is gone; a late answer is then dropped (and refunded), never
+     applied to whatever is open now. A result is settled once: accepted on the first take, refunded when nothing was
+     taken or nothing changed. Returns the action itself, so a suggestion can start it with one tap. */
   function block(p, o) {
     var el = o.el, box = el("div", o.noteLast ? "aibox flat" : "aibox"), cnt = el("p", "aicount", line()), res = el("div", "chips");
-    var go = el("button", "chip" + (o.noteLast ? " hot" : ""), "✨ " + o.label, act);
-    cnt.setAttribute("aria-live", "polite");
+    var go = el("button", "chip" + (o.noteLast ? " hot" : ""), "✨ " + o.label, act), mine = null, alive = o.alive || function () { return true; };
+    cnt.setAttribute("aria-live", "polite"); shown.push(cnt);
     async function act() {
       if (busy) return;
       var input = o.input(); if (!input) { Kit.toast(t("filter")); return; }
+      if (mine) { settle(mine, false); mine = null; }      // the options of the last answer were left untouched
       busy = true; go.disabled = true; go.textContent = "… " + t("aiThinking"); res.textContent = "";
-      var r = await run(o.kind, input, function (n) { go.textContent = "… " + (n ? t("aiWait", { n: n }) : t("aiThinking")); });
+      var r = await run(o.kind, input, function (n) { go.textContent = "… " + (n ? t("aiWait", { n: n }) : t("aiThinking")); }, alive);
       busy = false; go.disabled = false; go.textContent = "✨ " + o.label; cnt.textContent = line();
+      if (r.receipt) open.push(r.receipt);
+      if (!alive()) { if (r.receipt) settle(r.receipt, false); return; }
+      if (r.how === "gone") return;
       if (r.how === "result") {
-        var took = function (opt) {
-          var ki = { k: o.kind, s: r.seal };
-          if (o.auto) o.auto(opt, ki, res); else o.apply(opt, ki);
-          cl.confirm(device(), r.ticket).then(function (s) { cnt.textContent = line(); if (s && o.reseal) { ki.s = s; o.reseal(ki); } });
+        var rc = mine = r.receipt;
+        var took = function (opt, i) {
+          if (!alive()) return;
+          var ki = { k: o.kind, s: r.seals[i] || "" };
+          var did = o.auto ? o.auto(opt, ki, res) : o.apply(opt, ki);
+          if (mine === rc) mine = null;
+          settle(rc, did !== false);
         };
-        if (o.auto) took(r.options[0]);
-        else r.options.forEach(function (opt) { res.appendChild(el("button", "chip aiopt", o.show(opt), function () { Kit.sfx.pop(); took(opt); })); });
+        if (o.auto) took(r.options[0], 0);
+        else r.options.forEach(function (opt, i) { res.appendChild(el("button", "chip aiopt", o.show(opt), function () { Kit.sfx.pop(); took(opt, i); })); });
         Kit.sfx.pop(); return;
       }
       res.appendChild(el("p", "note aistate", stateText(r)));
@@ -170,18 +204,11 @@
       var a = el("a", "btn", t("aiLogin")); a.href = "/auth/login?return=" + encodeURIComponent("/duell"); b.appendChild(a);
     }
   }
-  // Report an AI sheet: only after the person said yes in the dialog. -> true when the server took it.
-  async function report(doc) {
-    var H = window.DuellHost, text = JSON.stringify(reportBody(doc, Kit.lang));
-    try {
-      if (H && typeof H.report === "function") { var h = await H.report(text); return h.status >= 200 && h.status < 300; }
-      if (navigator.onLine === false) return false;
-      var ctl = new AbortController(), tm = setTimeout(function () { ctl.abort(); }, TIMEOUT);
-      try {
-        var res = await fetch(api0().replace(/\/config$/, "/report"), { method: "POST", headers: { "Content-Type": "application/json" }, body: text, signal: ctl.signal, credentials: "omit", referrerPolicy: "no-referrer" });
-        return res.status >= 200 && res.status < 300;
-      } finally { clearTimeout(tm); }
-    } catch (e) { return false; }
+  // Report a shared sheet: only after the person chose a reason and said yes in the dialog. -> true when the server took it.
+  async function report(doc, reason, link) {
+    var body = reportBody(doc, reason, link);
+    if (!body) return false;
+    try { var r = await post("/report", body); return r.status >= 200 && r.status < 300; } catch (e) { return false; }
   }
-  window.Ai = { block: block, wall: wall, count: line, post: post, report: report };
+  window.Ai = { block: block, wall: wall, count: line, post: post, report: report, drop: drop, REASONS: REASONS };
 })(typeof globalThis !== "undefined" ? globalThis : this);

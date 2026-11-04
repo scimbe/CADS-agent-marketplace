@@ -132,3 +132,13 @@ test("KI-Siegel: reist im Link mit, fremde Zeichen fallen weg, ohne Siegel nur d
   assert.equal(D.sanitizeDoc({ ...g, ki: { k: "Wish!" } }).ki, undefined);
   assert.equal(D.sanitizeDoc(of("card")).ki, undefined, "ohne KI kein Siegel");
 });
+
+test("Wurfnummer: bleibt auf dem Geraet je Blatt, weiter statt von vorn; begrenzt, kaputte Werte fangen bei 1 an", () => {
+  const rolls = {};
+  assert.deepEqual([W.nextRoll(rolls, "card-1"), W.nextRoll(rolls, "card-1"), W.nextRoll(rolls, "game-2"), W.nextRoll(rolls, "card-1")], [1, 2, 1, 3]);
+  const again = JSON.parse(JSON.stringify(rolls));   // the editor closed and opened again: the store is the same
+  assert.equal(W.nextRoll(again, "card-1"), 4, "nicht wieder Wurf 1");
+  assert.equal(W.nextRoll({ x: -3 }, "x"), 1); assert.equal(W.nextRoll({ x: "zwei" }, "x"), 1);
+  const many = {}; for (let i = 0; i < 100; i++) W.nextRoll(many, "k" + i);
+  assert.equal(Object.keys(many).length, 60); assert.ok(!("k0" in many) && "k99" in many, "die aeltesten gehen");
+});
