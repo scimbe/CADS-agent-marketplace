@@ -208,7 +208,7 @@
   function draw(cv, doc, opt) {
     var c = cv.getContext("2d"), W = cv.width, H = cv.height, me = opt.me;
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, H); c.shadowBlur = 0;
-    if (Render.extra[doc.k]) { Render.extra[doc.k](c, W, H, doc, opt); credit(c, W, H, doc, me, "#fff"); return; }
+    if (Render.extra[doc.k]) { var inkx = Render.extra[doc.k](c, W, H, doc, opt); credit(c, W, H, doc, me, typeof inkx === "string" ? inkx : "#fff"); return; }   // an extra may name the colour its corner text reads in
     if (doc.k === "card") { drawCard(c, W, H, doc); if (doc.nr) doorBadge(c, W, H, doc.nr, doc.col[0], doc.col[1]); }
     else if (doc.k === "photo") drawPhoto(c, W, H, doc, opt.photo);
     else if (doc.k === "sound") drawSound(c, W, H, doc, opt.peaks);

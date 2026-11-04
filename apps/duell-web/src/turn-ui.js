@@ -57,6 +57,7 @@ function lines(c, list, W, y, size, col) {
 }
 function title(doc) { var i = doc.i ? D.byId(doc.i) : null, T = i ? (i[Kit.lang] || i.de).t.replace("|", " ") : ""; return doc.t || T || t("turn"); }
 R.extra.turn = function (c, W, H, doc) {
+  if (doc.g === "einkauf") return drawShop(c, W, H, doc);
   var a = doc.col[0], b = doc.col[1], ink = R.ink(a), st = Tn.state(doc), res = Tn.result(doc, Kit.lang);
   c.fillStyle = a; c.fillRect(0, 0, W, H); R.rays(c, W, H, "rgba(0,0,0,.05)", 0.2);
   shape(c, doc.f, W * 0.84, H * 0.84, W * 0.08, b); shape(c, doc.f, W * 0.14, H * 0.8, W * 0.05, b);
@@ -67,6 +68,53 @@ R.extra.turn = function (c, W, H, doc) {
   else if (!st.turn) { var i0 = doc.i ? D.byId(doc.i) : null; lines(c, [doc.s || (i0 ? (i0[Kit.lang] || i0.de).s : ""), L()[word(doc, "you_start")]], W, H * 0.52, W * 0.05, ink); }   // the goal, not the machinery
   else lines(c, [say("picture_turn", { n: st.turn + 1, m: st.total })], W, H * 0.56, W * 0.05, ink);
 };
+
+/* ---------- the shopping list: this phone keeps what it knows of each list, so a reply merges instead of replacing ---------- */
+var SHOP_KEEP = 12;
+function shopStore() { var s = Kit.store.shop; return s && typeof s === "object" && !Array.isArray(s) ? s : {}; }
+function shopKept(doc) { var v = shopStore()["s" + doc.seed]; return Tn.shopOk(v) ? v : null; }
+function shopKeep(doc, v) {
+  var s = shopStore(), k; delete s["s" + doc.seed]; s["s" + doc.seed] = v;
+  for (k = Object.keys(s); k.length > SHOP_KEEP; k.shift()) delete s[k[0]];
+  Kit.store.shop = s; Kit.save();
+}
+// The list as this phone sees it: the link merged with what it knew of the same list before.
+function shopSeen(doc) { var m = Tn.moves(doc), mine = shopKept(doc); return m.length ? (mine ? Tn.shopMerge(m[0][0], mine) : m[0][0]) : null; }
+function shopSync(ed) { var v = shopSeen(ed.doc); if (!v) return; ed.doc.q = Tn.seal([[v]], ed.doc.seed); ed.base.q = ed.doc.q; shopKeep(ed.doc, v); }
+function myFace() { var i = Tn.FACES.indexOf(A.me().emoji); return i < 0 ? 0 : i; }
+// WCAG contrast: black or white, whichever reads better on this colour.
+function rl(hex) { var v = [1, 3, 5].map(function (i) { var x = parseInt(hex.slice(i, i + 2), 16) / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; }
+function inkOn(hex) { var l = rl(hex); return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? "#000000" : "#ffffff"; }   // the better of the two is always at least 4.58:1
+function fit(c, s, w) { s = String(s); if (c.measureText(s).width <= w) return s; while (s.length > 1 && c.measureText(s + "…").width > w) s = s.slice(0, -1); return s + "…"; }
+// The card picture is the list itself on a sheet of paper: dark ink on white, whatever colours the card has. No emoji in exports.
+function drawShop(c, W, H, doc) {
+  var ed = A.ed(), out = ed && ed.doc === doc && ed.next ? ed.next : doc;   // in the editor: the list as it will go out, in the colours chosen now
+  var a = doc.col[0], b = doc.col[1], ink = inkOn(a), v = out === doc ? shopSeen(doc) : Tn.moves(out)[0][0], res = Tn.result(out, Kit.lang), rows = v ? Tn.shopRows(v) : [], i0 = doc.i ? D.byId(doc.i) : null;
+  c.fillStyle = a; c.fillRect(0, 0, W, H); R.rays(c, W, H, "rgba(0,0,0,.05)", 0.2);
+  R.block(c, res ? res.h : title(doc), W * 0.07, H * 0.035, W * 0.86, H * 0.15, ink, null);
+  c.font = "800 " + Math.round(W * 0.036) + "px system-ui,sans-serif"; c.fillStyle = ink; c.textAlign = "center"; c.textBaseline = "middle";
+  c.fillText(fit(c, v ? Tn.shopCount(v, Kit.lang) : doc.s || (i0 ? (i0[Kit.lang] || i0.de).s : ""), W * 0.86), W / 2, H * 0.205);
+  var x0 = W * 0.06, y0 = H * 0.235, pw = W * 0.88, ph = H - W * 0.085 - y0, n = Math.max(rows.length, 1), rh = Math.min(ph * 0.92 / n, W * 0.08), fs = Math.round(rh * 0.5), pad = W * 0.045;
+  c.fillStyle = b; c.fillRect(x0 + W * 0.014, y0 + W * 0.014, pw, ph);
+  c.fillStyle = "#fffdf7"; c.fillRect(x0, y0, pw, ph); c.strokeStyle = "#111111"; c.lineWidth = W * 0.004; c.strokeRect(x0, y0, pw, ph);
+  var y = y0 + ph * 0.04 + rh / 2;
+  if (!rows.length) { c.font = "700 " + Math.round(W * 0.04) + "px system-ui,sans-serif"; c.fillStyle = "#4b5563"; c.fillText(L().ein_empty, W / 2, y0 + ph / 2); }
+  rows.forEach(function (r) {
+    var done = r.bought.length > 0, box = fs * 1.05, bx = x0 + pad, who = done ? say("ein_got", { n: r.bought.map(function (p) { return p[0]; }).join(", ") }) : r.bring.length ? say("ein_brings", { n: r.bring.map(function (p) { return p[0]; }).join(", ") }) : "";
+    c.strokeStyle = "#dbe4f0"; c.lineWidth = Math.max(1, W * 0.002); c.beginPath(); c.moveTo(x0 + pad * 0.5, y + rh / 2); c.lineTo(x0 + pw - pad * 0.5, y + rh / 2); c.stroke();
+    c.lineWidth = W * 0.004; c.strokeStyle = "#111111"; c.strokeRect(bx, y - box / 2, box, box);
+    if (done) { c.fillStyle = "#111111"; c.fillRect(bx, y - box / 2, box, box); c.strokeStyle = "#ffffff"; c.lineWidth = box * 0.16; c.beginPath(); c.moveTo(bx + box * 0.2, y); c.lineTo(bx + box * 0.42, y + box * 0.22); c.lineTo(bx + box * 0.8, y - box * 0.24); c.stroke(); }
+    var tx = bx + box + pad * 0.5, right = x0 + pw - pad * 0.6, roomWho = who ? pw * 0.36 : 0;
+    c.textAlign = "left"; c.textBaseline = "middle"; c.font = "800 " + fs + "px system-ui,sans-serif"; c.fillStyle = done ? "#4b5563" : "#111111";
+    var s = fit(c, r.label, right - tx - roomWho - pad * 0.3); c.fillText(s, tx, y);
+    if (done) { var w = c.measureText(s).width; c.strokeStyle = "#4b5563"; c.lineWidth = Math.max(2, fs * 0.08); c.beginPath(); c.moveTo(tx, y); c.lineTo(tx + w, y); c.stroke(); }
+    if (who) { c.textAlign = "right"; c.font = "700 " + Math.round(fs * 0.72) + "px system-ui,sans-serif"; c.fillStyle = done ? "#166534" : "#1d4ed8"; c.fillText(fit(c, who, roomWho), right, y); }
+    y += rh;
+  });
+  shape(c, doc.f, W * 0.92, H * 0.2, W * 0.035, b);
+  return ink;
+}
+window.TurnShop = { draw: drawShop };
 
 /* ---------- one prompt ---------- */
 var draw = {
@@ -447,6 +495,62 @@ var draw = {
     });
     box.appendChild(left); up();
   },
+  // The shopping list: one field, Enter adds ("2× Milch" counts 2). Each row: I'll bring it, or bought. set() gets the whole list as
+  // it would go out: what came in, merged with this phone's copy, plus this person's changes. Text only ever goes in as textContent.
+  shop: function (box, p, set, ctx) {
+    var base = ctx.m.length ? ctx.m[0][0] : null, e = ctx.ed.shop || (ctx.ed.shop = { name: "", face: myFace(), adds: [], marks: {} });
+    var form = el("form", "shopadd"), f = el("input", "field"), plus = el("button", "chip", "+"), rows = el("div", "shoplist"), who = el("input", "field"), pn = document.getElementById("panel");
+    if (pn) pn.dataset.size = "big";
+    f.maxLength = 40; f.autocomplete = "off"; f.enterKeyHint = "enter"; f.placeholder = L().ein_ph; f.setAttribute("aria-label", L().ein_field);
+    plus.type = "submit"; plus.setAttribute("aria-label", L().ein_add);
+    who.maxLength = 12; who.autocomplete = "off"; who.setAttribute("aria-label", L().ein_name); who.placeholder = L().ter_name;
+    var nick = A.me().nick; if (!e.name && nick && Tn.nameOk(nick)) e.name = nick; who.value = e.name;
+    function now() { return Tn.shopApply(base, e); }
+    function named() { return Tn.nameOk(e.name); }
+    function people(l) { return l.map(function (x) { return Tn.FACES[x[1]] + " " + x[0]; }).join(", "); }
+    function sent(k) { return !!base && base[1].some(function (it) { return Tn.shopKey(it[0]) === k; }); }
+    function mark(k, s) {
+      if (!named()) { Kit.toast(L().ein_need_name); who.focus(); who.classList.add("nudge"); setTimeout(function () { who.classList.remove("nudge"); }, 700); return; }
+      e.marks[k] = s; Kit.sfx.tap(); up();
+    }
+    function row(r, v) {
+      var me = named() ? Tn.shopMark(v, e.name, r.key) % 3 : 0, d = el("div", "shoprow" + (r.bought.length ? " done" : "")), txt = el("div", "shoptext");
+      txt.appendChild(el("b", "", r.label));
+      var line = r.bought.length ? say("ein_got", { n: people(r.bought) }) : r.bring.length ? say("ein_brings", { n: people(r.bring) }) : "";
+      if (line) txt.appendChild(el("small", "", line));
+      d.appendChild(txt);
+      [[1, "🙋", "ein_bring"], [2, "✓", "ein_bought"]].forEach(function (x) {
+        var b = el("button", "chip" + (me === x[0] ? " on" : ""), x[1], function () { mark(r.key, me === x[0] ? 0 : x[0]); });
+        b.setAttribute("aria-label", L()[x[2]] + ": " + r.label); b.setAttribute("aria-pressed", String(me === x[0])); d.appendChild(b);
+      });
+      if (!sent(r.key)) {
+        var x = el("button", "chip", "✕", function () { e.adds = e.adds.filter(function (a) { return Tn.shopKey(a.text) !== r.key; }); delete e.marks[r.key]; Kit.sfx.tap(); up(); });
+        x.setAttribute("aria-label", L().ein_drop + ": " + r.label); d.appendChild(x);
+      }
+      return d;
+    }
+    function up() {
+      var v = now();
+      rows.textContent = "";
+      if (!v[1].length) rows.appendChild(el("p", "note", L().ein_empty));
+      Tn.shopRows(v).forEach(function (r) { rows.appendChild(row(r, v)); });
+      set(Tn.shopOk(v) ? v : null);
+    }
+    form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var a = Tn.shopParse(f.value); if (!a) { if (f.value.trim()) Kit.toast(t("filter")); return; }
+      var k = Tn.shopKey(a.text), had = now()[1].filter(function (it) { return Tn.shopKey(it[0]) === k; })[0];
+      f.value = ""; f.focus();
+      if (had && had[2] >= a.qty) { Kit.toast(L().ein_have); return; }
+      e.adds.push(a);
+      if (!now()[1].some(function (it) { return Tn.shopKey(it[0]) === k; })) { e.adds.pop(); f.value = a.qty > 1 ? a.qty + "× " + a.text : a.text; Kit.toast(L().ein_full); return; }
+      Kit.sfx.pop(); up();
+    });
+    who.addEventListener("input", function () { e.name = who.value.trim(); up(); });
+    form.appendChild(f); form.appendChild(plus); box.appendChild(form); box.appendChild(rows);
+    box.appendChild(el("label", "lbl", L().ein_name)); box.appendChild(who);
+    box.appendChild(el("p", "note", L().ein_hint)); up();
+  },
   // The time is picked once, then every tapped day adds that time. Dates are taps, never text.
   slots: function (box, p, set) {
     var today = localDay(), h = 6, picked = [], times = el("div", "chips"), days = el("div", "chips"), mine = el("div", "chips"), name = nameField(up);
@@ -524,12 +628,13 @@ function walk(box, ed) {
     if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("label", "lbl", p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "")));
     var soon = 0;
     draw[p.w](box, p, function (v) {
+      if (p.live) { ed.next = v === null ? null : Tn.play(ed.doc, [v], Tn.today()); A.changed(); return; }   // no Weiter: the footer sends what is on screen
       cur = v; go.disabled = v === null; clearTimeout(soon);
       if (v === null) return;
       if (!p.auto) try { go.scrollIntoView({ block: "nearest" }); } catch (e) {}
       if (p.auto) go.click(); else if (p.w === "rank" || (p.w === "pick" && p.n > 1)) soon = setTimeout(function () { if (box.isConnected && cur === v) go.click(); }, 450);   // a short look at the choice, then on
-    }, { doc: ed.doc, m: st.moves, now: now });
-    if (!p.end) box.appendChild(go);
+    }, { doc: ed.doc, m: st.moves, now: now, ed: ed });
+    if (!p.end && !p.live) box.appendChild(go);
   }
   step();
 }
@@ -545,7 +650,7 @@ A.PANEL.Move = function (p) {
   }
   if (left) { p.appendChild(el("p", "qtext", say("note_wait", { n: left }))); return; }
   var w = Tn.whole(doc, Kit.lang); if (w) p.appendChild(el("p", "qtext", w));
-  if (ed.next) { p.appendChild(el("p", "lbl", L()[word(doc, "ready")])); p.appendChild(el("button", "btn", L().redo, function () { ed.next = null; A.changed(); A.tab("Move"); })); return; }
+  if (ed.next && !st.prompts.some(function (x) { return x.live; })) { p.appendChild(el("p", "lbl", L()[word(doc, "ready")])); p.appendChild(el("button", "btn", L().redo, function () { ed.next = null; A.changed(); A.tab("Move"); })); return; }
   walk(p, ed);
 };
 A.PANEL.Text = (function (old) {
@@ -584,7 +689,10 @@ X.turn = {
       });
     });
   },
-  open: function (ed) { ed.next = null; if (!Tn.state(ed.doc).turn) { ed.doc.seed = Tn.GAMES[ed.doc.g].daily ? Tn.today() : seed(); ed.base.seed = ed.doc.seed; ed.doc.q = ""; ed.base.q = ""; } },
+  open: function (ed) {
+    ed.next = null; if (!Tn.state(ed.doc).turn) { ed.doc.seed = Tn.GAMES[ed.doc.g].daily ? Tn.today() : seed(); ed.base.seed = ed.doc.seed; ed.doc.q = ""; ed.base.q = ""; }
+    if (ed.doc.g === "einkauf") shopSync(ed);
+  },
   areas: function (ed) { return ed.next ? ["regeln"] : []; },
   footer: function (b, ed) {
     var over = !!Tn.result(ed.doc, Kit.lang), ok = over || !!ed.next;
@@ -594,6 +702,9 @@ X.turn = {
   main: function (ed) {
     var over = !!Tn.result(ed.doc, Kit.lang);
     if (!over && !ed.next) { Kit.tone(200, 160, 0.1, "square", 0.06); var g = document.querySelector("#panel .btn.hot, #panel .chip, #panel .field"); if (g) { g.scrollIntoView({ block: "center" }); g.classList.add("nudge"); setTimeout(function () { g.classList.remove("nudge"); }, 700); } return; }
+    if (!over && ed.doc.g === "einkauf") {   // the list on screen in the colours and words chosen since; what goes out is what this phone knows now
+      ed.next = Tn.play(ed.doc, [Tn.moves(ed.next)[0][0]], Tn.today()) || ed.next; shopKeep(ed.next, Tn.moves(ed.next)[0][0]);
+    }
     Kit.sfx.thud(); A.finish(over ? ed.doc : ed.next);
   },
   label: function (doc) {

@@ -388,3 +388,50 @@ test("Geld einsammeln: Name, Zweck, Betrag, dann oeffnen alle denselben Link und
   await c.locator("#panel").getByText("Fertig. Den Link teilen kannst du, wenn du magst.").waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
+test("Einkaufszettel: zwei Handys, Antwort und eigene Ergaenzung werden beim Ersteller zusammengefuehrt", async () => {
+  // Two browser contexts are two phones: separate storage, only the links travel between them.
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }), errs = [];
+  const phone = async () => { const c = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); c.setDefaultTimeout(15000); return c; };
+  const mia = await phone(), ben = await phone();
+  const open = async (c, h) => { const p = await c.newPage(); p.on("pageerror", (e) => errs.push(String(e))); await p.goto(page + h); return p; };
+  const add = async (p, s) => { const f = p.locator("#panel form.shopadd input"); await f.fill(s); await f.press("Enter"); };
+  const rows = (p) => p.evaluate(() => window.Turns.shopRows(window.Turns.moves(window.DailyDebug.doc())[0][0]).map((r) => [r.label, r.bought.map((x) => x[0]).join(), r.bring.map((x) => x[0]).join()]));
+  const share = async (p) => { await p.locator("#edmain").filter({ hasText: "Liste teilen" }).click(); await p.locator("#share").waitFor(); return url(p); };
+  // Mia: open, four items with Enter, share. The first link is three taps away: open, share, send.
+  const a = await open(mia, "#i=zug-einkauf"); await a.locator("#go").click();
+  assert.equal(await a.getByRole("button", { name: "Weiter", exact: true }).count(), 0, "kein Weiter: was auf der Liste steht, geht raus");
+  for (const s of ["2× Milch", "Brot", "Käse", "6 Äpfel"]) await add(a, s);
+  await add(a, "<img src=x onerror=alert(1)>");
+  assert.equal(await a.locator("#panel img").count(), 0, "kein HTML aus der Eingabe");
+  await a.getByRole("button", { name: /^Wieder streichen: .*img/ }).click();
+  assert.equal(await a.locator("#panel .shoprow").count(), 4);
+  if (shot) await a.screenshot({ path: shot + "/einkauf-creator.png" });
+  const one = await share(a); assert.ok(!/Milch/.test(Buffer.from(one.split("#c=")[1], "base64url").toString()), "Liste steht nicht lesbar im Link");
+  // Ben, on his own phone: name, bring the milk, bought the cheese, add chips, send back.
+  const c = await open(ben, hash(one));
+  assert.match(await c.locator("#from").textContent(), /Abhaken, mitbringen, dazuschreiben/);
+  if (shot) await c.screenshot({ path: shot + "/einkauf-received.png" });
+  await c.locator("#go").click();
+  await c.getByRole("button", { name: "Bring ich mit: 2× Milch" }).click(); await c.getByText("Erst deinen Namen eintragen.").waitFor();
+  await c.getByRole("textbox", { name: /Dein Name/ }).fill("Ben");
+  await c.getByRole("button", { name: "Bring ich mit: 2× Milch" }).click(); await c.getByRole("button", { name: "Hab ich gekauft: Käse" }).click();
+  await add(c, "Chips");
+  await c.locator("#panel").getByText("bringt: 🐸 Ben").waitFor(); await c.locator("#panel").getByText("gekauft: 🐸 Ben").waitFor();
+  await c.waitForFunction(() => !document.getElementById("toast").classList.contains("show"));
+  if (shot) await c.screenshot({ path: shot + "/einkauf-recipient.png" });
+  const reply = await share(c);
+  // Meanwhile Mia adds butter on the first link: her phone now knows a list Ben's reply does not have.
+  const a2 = await open(mia, hash(one)); await a2.locator("#go").click(); await add(a2, "Butter"); await share(a2);
+  // Ben's reply arrives: nothing of either side is lost.
+  const back = await open(mia, hash(reply)); await back.locator("#go").click();
+  assert.deepEqual(await rows(back), [["2× Milch", "", "Ben"], ["Brot", "", ""], ["Käse", "Ben", ""], ["6× Äpfel", "", ""], ["Butter", "", ""], ["Chips", "", ""]]);
+  await back.locator("#panel").getByText("bringt: 🐸 Ben").waitFor();
+  // the same reply opened a second time on Mia's phone changes nothing
+  const again = await open(mia, hash(reply)); await again.locator("#go").click(); assert.equal((await rows(again)).length, 6);
+  await share(again);
+  if (shot) {
+    const png = await again.evaluate(async () => { const r = new FileReader(); return await new Promise((ok) => { r.onload = () => ok(r.result); r.readAsDataURL(window.DailyDebug.result().png); }); });
+    require("node:fs").writeFileSync(shot + "/einkauf-share.png", Buffer.from(png.split(",")[1], "base64"));
+  }
+  assert.deepEqual(errs, []); await b.close();
+});

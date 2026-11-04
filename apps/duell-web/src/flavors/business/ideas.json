@@ -163,6 +163,32 @@
    }
   },
   {
+   "id": "biz-einkauf",
+   "kind": "turn",
+   "min": 120,
+   "tags": [
+    "einkauf",
+    "einkaufsliste",
+    "liste",
+    "shopping",
+    "mitbringen",
+    "bestellliste"
+   ],
+   "de": {
+    "t": "Mitbringliste|fürs Meeting",
+    "s": "Wer bringt was mit? Abhaken statt Rundmail."
+   },
+   "en": {
+    "t": "Bring list|for the meeting",
+    "s": "Who brings what? Tick it off, no mail chain."
+   },
+   "turn": {
+    "g": "einkauf",
+    "f": "drop",
+    "grip": "raum"
+   }
+  },
+  {
    "id": "biz-termin-review",
    "kind": "turn",
    "min": 120,

@@ -863,6 +863,102 @@
     face: function (doc, m, lang) { return m.length ? [payLine(m, lang), T(lang).sam_face] : null; },
     result: function (doc, m, lang) { return { h: T(lang).sam_h, lines: [payLine(m, lang)], note: T(lang).sam_safe }; }
   };
+  // ---------- a shopping list for the group: the whole list travels in the link, and every reply merges into what this phone knows ----------
+  // A list is [people, items]. people: [[name, face]], face an index into FACES. items: [[text, t, qty, marks]]; t orders the items
+  // (whoever adds puts the item after everything they saw), marks: [[person, x]] with x = version * 3 + s, s 0 nothing, 1 "I'll bring
+  // it", 2 "bought". Merging is a union: one item per folded text (smaller t, larger quantity, smaller text on a tie), one mark per
+  // item and person, the larger x wins: the later version, on equal versions the stronger state. So it does not matter in which
+  // order replies arrive or how often the same one comes back. Nothing is ever deleted once it went out, so nothing comes back
+  // from the dead either. Only the caps cut: whatever sorts last does not fit into a link.
+  var SHOP = { items: 20, text: 24, people: 8, qty: 99, ver: 999, t: 999, bytes: 560 }, FACES = ["🐸", "🦝", "🐙", "🦖", "🍕", "👽", "🤖", "👻", "🔥", "🌈", "🦄", "🐝"];
+  function shopKey(s) { return Q.fold(s); }
+  function shopBytes(v) { return new TextEncoder().encode(JSON.stringify(v)).length; }
+  function cmp(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
+  function shopOk(v) {
+    if (!Array.isArray(v) || v.length !== 2 || !Array.isArray(v[0]) || !Array.isArray(v[1])) return false;
+    var P = v[0], I = v[1];
+    if (P.length > SHOP.people || !I.length || I.length > SHOP.items || shopBytes(v) > SHOP.bytes) return false;
+    var okP = P.every(function (p) { return Array.isArray(p) && p.length === 2 && nameOk(p[0]) && intIn(p[1], 0, FACES.length - 1); });
+    var okI = okP && I.every(function (it) {
+      if (!Array.isArray(it) || it.length !== 4 || typeof it[0] !== "string" || Q.clean(it[0], SHOP.text) !== it[0] || !shopKey(it[0])) return false;
+      if (!intIn(it[1], 0, SHOP.t) || !intIn(it[2], 1, SHOP.qty) || !Array.isArray(it[3])) return false;
+      return it[3].every(function (k) { return Array.isArray(k) && k.length === 2 && intIn(k[0], 0, P.length - 1) && intIn(k[1], 1, SHOP.ver * 3 + 2); }) && distinct(it[3].map(function (k) { return k[0]; }));
+    });
+    return okI && distinct(P.map(function (p) { return Q.fold(p[0]); })) && distinct(I.map(function (it) { return shopKey(it[0]); }));
+  }
+  // Into maps keyed by folded text and folded name, and back into the one order every phone builds.
+  function shopOpen(list, into) {
+    var o = into || { people: {}, items: {} };
+    if (!list) return o;
+    list[1].forEach(function (it) {
+      var k = shopKey(it[0]), x = o.items[k];
+      if (!x) x = o.items[k] = { text: it[0], t: it[1], qty: it[2], marks: {} };
+      else { if (it[0] < x.text) x.text = it[0]; x.t = Math.min(x.t, it[1]); x.qty = Math.max(x.qty, it[2]); }
+      it[3].forEach(function (m) { var pk = Q.fold(list[0][m[0]][0]); x.marks[pk] = Math.max(x.marks[pk] || 0, m[1]); });
+    });
+    list[0].forEach(function (p) { var pk = Q.fold(p[0]), x = o.people[pk]; if (!x) o.people[pk] = [p[0], p[1]]; else { if (p[0] < x[0]) x[0] = p[0]; x[1] = Math.min(x[1], p[1]); } });
+    return o;
+  }
+  function shopClose(o) {
+    var keys = Object.keys(o.items).sort(function (a, b) { return o.items[a].t - o.items[b].t || cmp(a, b); }).slice(0, SHOP.items);
+    for (;;) {
+      var used = Object.keys(o.people).filter(function (pk) { return keys.some(function (k) { return o.items[k].marks[pk] > 0; }); }).sort(cmp).slice(0, SHOP.people);
+      var v = [used.map(function (pk) { return o.people[pk].slice(); }), keys.map(function (k) {
+        var x = o.items[k];
+        return [x.text, x.t, x.qty, used.map(function (pk, i) { return [i, x.marks[pk] || 0]; }).filter(function (m) { return m[1] > 0; })];
+      })];
+      if (shopBytes(v) <= SHOP.bytes || keys.length <= 1) return v;
+      keys.pop();
+    }
+  }
+  function shopMerge(a, b) { return shopClose(shopOpen(b, shopOpen(a))); }
+  // "2× Milch", "2x Milch", "2 Milch": a count of 1 to 99 in front, the rest is the text.
+  function shopParse(s) {
+    var raw = String(s == null ? "" : s).trim(), m = raw.match(/^(\d{1,2})\s*[x×*]?\s+(\S.*)$/i) || raw.match(/^(\d{1,2})\s*[x×*]\s*(\S.*)$/i), qty = 1;
+    if (m && +m[1] >= 1) { qty = +m[1]; raw = m[2]; }
+    var text = Q.clean(raw, SHOP.text);
+    return text && shopKey(text) ? { text: text, qty: qty } : null;
+  }
+  function shopMark(list, name, key) { var at = -1, pk = Q.fold(name); list[0].forEach(function (p, i) { if (Q.fold(p[0]) === pk) at = i; }); var it = list[1].filter(function (x) { return shopKey(x[0]) === key; })[0], m = it && it[3].filter(function (k) { return k[0] === at; })[0]; return m ? m[1] : 0; }
+  // One person's changes on top of what they got: new items after everything they saw, then their own marks, each one version
+  // above the mark they got, so the change wins against what they saw and loses against what someone else did later.
+  function shopApply(base, e) {
+    var o = shopOpen(base), t = 0, pk = nameOk(e.name) ? Q.fold(e.name) : "";
+    Object.keys(o.items).forEach(function (k) { t = Math.max(t, o.items[k].t + 1); });
+    (e.adds || []).forEach(function (a) { shopOpen([[], [[a.text, Math.min(SHOP.t, t++), a.qty, []]]], o); });
+    if (pk) {
+      if (!o.people[pk]) o.people[pk] = [e.name, intIn(e.face, 0, FACES.length - 1) ? e.face : 0];
+      Object.keys(e.marks || {}).forEach(function (k) {
+        var s = e.marks[k], had = base ? shopMark(base, e.name, k) : 0;
+        if (!o.items[k] || !intIn(s, 0, 2) || (had ? had % 3 === s : s === 0)) return;
+        o.items[k].marks[pk] = Math.min(SHOP.ver, Math.floor(had / 3) + 1) * 3 + s;
+      });
+    }
+    return shopClose(o);
+  }
+  function shopRows(list) {
+    return list[1].map(function (it) {
+      var who = function (s) { return it[3].filter(function (m) { return m[1] % 3 === s; }).map(function (m) { return list[0][m[0]]; }); };
+      return { key: shopKey(it[0]), text: it[0], qty: it[2], label: (it[2] > 1 ? it[2] + "× " : "") + it[0], bought: who(2), bring: who(1) };
+    });
+  }
+  function shopDone(list) { return !!list && list[1].length > 0 && shopRows(list).every(function (r) { return r.bought.length > 0; }); }
+  function shopCount(list, lang) {
+    var r = shopRows(list);
+    return fmt(T(lang).ein_count, { n: r.length, b: r.filter(function (x) { return x.bought.length; }).length, c: r.filter(function (x) { return !x.bought.length && x.bring.length; }).length });
+  }
+  function shopNames(l) { return l.map(function (p) { return p[0]; }).join(", "); }
+  GAMES.einkauf = {
+    snap: true,           // the link holds the list as it is now, not the way there
+    turns: [[{ w: "shop", l: "ein_make", live: true }], [{ w: "shop", l: "ein_go", live: true }]],
+    ends: function (doc, m) { return m.length > 0 && shopDone(m[0][0]); },
+    words: { you_start: "ein_start", go_first: "ein_go_first", go_play: "ein_go_play", note_turn: "ein_note", note_over: "ein_over", ready: "ein_ready", send: "ein_send", rematch: "ein_again" },
+    face: function (doc, m, lang) { return m.length ? [shopCount(m[0][0], lang)] : null; },
+    result: function (doc, m, lang) {
+      var X = T(lang);
+      return { h: X.ein_done_h, lines: shopRows(m[0][0]).map(function (r) { return fmt(X.ein_line, { s: r.label, n: shopNames(r.bought) }); }) };
+    }
+  };
   GAMES.kapsel.gateFrom = 1;
   var IDS = Object.keys(GAMES);
   function dealLine(doc, offer, floor, i, lang) {
@@ -898,6 +994,7 @@
     if (p.w === "freeze") return intIn(v, 0, p.max);
     if (p.w === "rec" || p.w === "once" || p.w === "parrot" || p.w === "pay") return v === 0;
     if (p.w === "slots" || p.w === "vote") return p.ok(v, m);
+    if (p.w === "shop") return shopOk(v);
     if (p.w === "whose") return intIn(v, 0, 2);
     if (p.w === "inner") return Array.isArray(v) && v.length === 5 && v.every(function (x) { return Number.isInteger(x) && x >= -20000 && x <= 20000; });
     if (p.w === "blind") return intIn(v, 2000, 30000);
@@ -949,7 +1046,7 @@
     var st = state(doc); if (st.over || answers.length !== st.prompts.length) return null;
     for (var i = 0; i < answers.length; i++) if (!okAnswer(st.prompts[i], answers[i], doc, "de", st.moves, answers.slice(0, i))) return null;
     var d = JSON.parse(JSON.stringify(doc));
-    d.q = seal(st.moves.concat([answers]), d.seed);
+    d.q = seal(GAMES[d.g].snap ? [answers] : st.moves.concat([answers]), d.seed);
     if (GAMES[d.g].gateFrom && st.turn === 0) d.o = today + answers[1];
     return d;
   }
@@ -967,6 +1064,6 @@
     (function walk(v) { if (typeof v === "string") v.split("|").forEach(function (x) { out.push(x); }); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.keys(v).forEach(function (k) { walk(v[k]); }); })(DATA);
     return out;
   }
-  var api = { HOURS: HOURS, dayText: dayText, hourText: hourText, slotText: slotText, termDates: termDates, voted: voted, doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, face: face, whole: whole, payLink: payLink, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
+  var api = { HOURS: HOURS, dayText: dayText, hourText: hourText, slotText: slotText, termDates: termDates, voted: voted, doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, face: face, whole: whole, payLink: payLink, SHOP: SHOP, FACES: FACES, nameOk: nameOk, shopOk: shopOk, shopMerge: shopMerge, shopApply: shopApply, shopParse: shopParse, shopRows: shopRows, shopMark: shopMark, shopKey: shopKey, shopDone: shopDone, shopCount: shopCount, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
   if (node) module.exports = api; else root.Turns = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

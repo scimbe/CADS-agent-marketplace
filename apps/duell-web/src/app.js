@@ -240,7 +240,7 @@ function openEditor(doc, opt) {
 }
 function tab(k) {
   ed.tab = k; Array.from($("tabs").children).forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.k === k)); });
-  var p = $("panel"); p.textContent = ""; p.classList.toggle("tall", (k === "Sound" && ed.doc.m === "beat") || (k === "Text" && ed.doc.k !== "game") || k === "Wish"); PANEL[k](p); p.scrollTop = 0;
+  var p = $("panel"); p.textContent = ""; p.removeAttribute("data-size"); p.classList.toggle("tall", (k === "Sound" && ed.doc.m === "beat") || (k === "Text" && ed.doc.k !== "game") || k === "Wish"); PANEL[k](p); p.scrollTop = 0;
 }
 function setDoc(d) {        // a whole creation replaced by a wish or its undo; the canvas state follows
   ed.doc = d; ed.sel = -1; if (d.k === "sound" && d.m === "beat") beatPeaks();
@@ -751,6 +751,8 @@ function openOwn() {
     });
     var door = D.byId("advent-tuer");   // an Advent door can be made any day, not only on its calendar days
     if (door) b.appendChild(el("button", "mech", "🎄 " + ideaText(door).t.replace("|", " "), function () { Kit.sfx.thud(); openEditor(D.docFromIdea(door, me, Kit.lang), { idea: door }); }));
+    var shop = D.IDEAS.filter(function (i) { return i.turn && i.turn.g === "einkauf"; })[0];   // a shopping list is needed any day, too
+    if (shop) b.appendChild(el("button", "mech", "🛒 " + ideaText(shop).t.replace("|", " "), function () { Kit.sfx.thud(); openEditor(D.docFromIdea(shop, me, Kit.lang), { idea: shop }); }));
     CC.tile(b);
   });
 }

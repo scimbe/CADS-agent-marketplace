@@ -19,7 +19,13 @@
   "need": "Erst oben ausfüllen",
   "hand_same": "Selbes Gerät: weitergeben",
   "picture_turn": "Beitrag {n} von {m}",
-  "tab": "Eintrag"
+  "tab": "Eintrag",
+  "ein_start": "Du legst die Liste an, das Team trägt ein.",
+  "ein_go_first": "Liste anlegen",
+  "ein_send": "Liste weitergeben",
+  "ein_again": "Neue Liste",
+  "ein_done_h": "Alles besorgt!",
+  "ein_over": "Alles besorgt."
  },
  "en": {
   "turn_all": "{n} team templates",
@@ -41,6 +47,12 @@
   "need": "Fill in above first",
   "hand_same": "Same device: pass on",
   "picture_turn": "Entry {n} of {m}",
-  "tab": "Entry"
+  "tab": "Entry",
+  "ein_start": "You set up the list, the team fills in.",
+  "ein_go_first": "Create the list",
+  "ein_send": "Pass the list on",
+  "ein_again": "New list",
+  "ein_done_h": "All sorted!",
+  "ein_over": "All sorted."
  }
 }
