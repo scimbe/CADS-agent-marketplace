@@ -26,11 +26,20 @@ test("Anwenden: nur Felder des Typs wirken, Ergebnis ist bereinigt, Original ble
   assert.equal(s.bpm, 150); assert.equal(s.p.k, "x-x-x-x-x-x-x-x-");
   assert.equal(W.apply(d, { st: "kaputt" }, PAIRS, rand).st, "druck", "unbekannter Stil faellt zurueck");
 });
-test("Lokal: jede Mechanik aendert sichtbar etwas ohne Server", () => {
-  for (const k of W.KINDS) {
-    const d = of(k), n = W.apply(d, W.local(d, "viel schwerer und schnell", "de", () => 1), [PAIRS[0], PAIRS[1]], rand);
+test("Ohne KI: nur das Flugspiel erkennt einen Satz mit festen Regeln, sonst gibt es keinen Ersatz, der wie eine KI-Antwort aussieht", () => {
+  const g = of("game"), n = W.apply(g, W.local(g, "viel schwerer und schnell", "de", () => 1), PAIRS, rand);
+  assert.ok(D.changedAreas(g, n).includes("regeln"));
+  for (const k of ["card", "photo", "sound", "duel", "quest", "turn"]) assert.equal(W.local(of(k), "mach es gruseliger", "de", () => 0), null, k);
+});
+test("Wuerfel: jede Art mit Look aendert sichtbar etwas, ohne Netz; gleicher Seed, gleicher Wurf", () => {
+  for (const k of W.DICE) {
+    const d = of(k), a = W.dice(d, "seed|1", PAIRS), n = W.apply(d, a, PAIRS, rand);
     assert.ok(D.changedAreas(d, n).length, k);
+    assert.deepEqual(W.dice(d, "seed|1", PAIRS), a, k + ": deterministisch aus dem Seed");
   }
+  const d = of("card"), rolls = new Set([1, 2, 3, 4, 5, 6].map((i) => JSON.stringify(W.dice(d, "plan-09|" + i, PAIRS))));
+  assert.ok(rolls.size >= 4, "verschiedene Wuerfe sehen verschieden aus");
+  assert.equal(require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/wish.js"), "utf8").includes("Math.random"), false, "Zufall nur aus dem Seed");
 });
 test("Wetter: Wunsch kann die Zahlen nie aendern, kaputte Werte fallen weg, Text bleibt daneben frei", () => {
   const w = { p: "Hamburg", d: "2026-11-02", hi: 12, lo: 7, rn: 40, c: 61 }, d = D.sanitizeDoc({ k: "card", x: "Hallo", col: ["#ffd400", "#ff3b1d"], w });
@@ -42,8 +51,10 @@ test("Wetter: Wunsch kann die Zahlen nie aendern, kaputte Werte fallen weg, Text
   assert.equal(D.sanitizeDoc({ k: "card", w: { p: "x", d: "2026-11-02", hi: "viel", lo: 1 } }).w, undefined);
   assert.equal(D.changedAreas(D.sanitizeDoc({ k: "card" }), d).includes("text"), true);
 });
-test("Grenze: jede Art hat einen Wunsch, Raetsel und Antworten eines Kanals gehen nicht an den Server", () => {
-  assert.deepEqual([...W.KINDS].sort(), D.KINDS.filter((k) => k !== "table").sort());   // a card table opens the live game, it has no editor to wish in
+test("Grenze: KI-Wunsch nur wo die KI echte Arbeit macht, Kosmetik wuerfelt lokal; Raetsel eines Kanals gehen nicht an den Server", () => {
+  assert.deepEqual([...W.KINDS].sort(), ["duel", "game", "quest", "sound"]);
+  for (const k of ["card", "photo", "turn"]) assert.ok(!W.KINDS.includes(k) && W.DICE.includes(k), k + ": kein KI-Umfaerben");
+  assert.deepEqual([...new Set([...W.KINDS, ...W.DICE])].sort(), D.KINDS.filter((k) => k !== "table" && k !== "arcade").sort());   // a card table and arcade have no editor
   const q = Object.assign(of("quest"), { q0: "Geheimfrage", h0: "abc", c: ["Z2VoZWlt"] }), r = JSON.stringify(W.request(q, "x", ""));
   assert.ok(!/Geheimfrage|Z2VoZWlt/.test(r));
 });
@@ -75,10 +86,10 @@ test("Wunsch: Duell und Kanal aendern vier Bereiche, Raetsel bleiben unberuehrt 
   assert.equal(m.t, "Schatz"); assert.equal(m.e, "🗺️"); assert.equal(m.q0, q.q0);
   assert.ok(!JSON.stringify(W.request(q, "x", "")).includes(q.q0));
 });
-test("Wunsch aendert das ganze Blatt: lokal jeder Bereich ohne Text, dazu Titel und Untertitel des Blatts", () => {
-  const want = { card: ["stil", "farbe", "sticker"], photo: ["stil", "farbe", "sticker"], sound: ["beat", "stimme", "farbe"], game: ["regeln", "figur", "welt"], duel: ["farbe", "regeln"], quest: ["farbe", "figur"], turn: ["farbe", "figur"] };
-  for (const k of W.KINDS) {
-    const d = of(k), n = W.apply(d, W.local(d, "mach es gruseliger", "de", () => 0), PAIRS, rand), got = D.changedAreas(d, n);
+test("Wurf aendert den ganzen Look, Wunsch dazu Titel und Untertitel des Blatts", () => {
+  const want = { card: ["stil", "farbe", "sticker"], photo: ["stil", "farbe", "sticker"], sound: ["stimme", "farbe"], duel: ["farbe", "regeln"], quest: ["farbe", "figur"], turn: ["farbe", "figur"] };
+  for (const k of W.DICE) {
+    const d = of(k), n = W.apply(d, W.dice(d, k + "|1", PAIRS), PAIRS, rand), got = D.changedAreas(d, n);
     for (const a of want[k]) assert.ok(got.includes(a), k + ": " + a + " fehlt in " + got);
     const ts = W.apply(d, { t: "Gruselnacht", s: "Nur fuer Mutige" }, PAIRS, rand);
     assert.equal(ts.t, "Gruselnacht", k); assert.equal(ts.s, "Nur fuer Mutige", k); assert.ok(D.changedAreas(d, ts).includes("idee"), k);
@@ -86,10 +97,16 @@ test("Wunsch aendert das ganze Blatt: lokal jeder Bereich ohne Text, dazu Titel 
   const c = W.apply(of("card"), { stickers: ["🎃", "👻"] }, PAIRS, rand), c2 = W.apply(c, { stickers: ["🦇"] }, PAIRS, rand);
   assert.deepEqual(c2.sk.map((s) => s.e), ["🦇"], "ein zweiter Wunsch stapelt keine Sticker");
 });
-test("Farbe: ein Wunsch mit dem Farbpaar, das schon gilt, nimmt das naechste", () => {
+test("Farbe: ein Wunsch bekommt genau das Farbpaar, das die KI nennt, kein erzwungener Wechsel; ein Wurf wechselt immer", () => {
   const d = Object.assign(of("card"), { col: PAIRS[1].slice() });
-  assert.deepEqual(W.apply(d, { palette: 1 }, PAIRS, rand).col, PAIRS[0]);
+  assert.deepEqual(W.apply(d, { palette: 1 }, PAIRS, rand).col, PAIRS[1]);
   assert.deepEqual(W.apply(d, { palette: 0 }, PAIRS, rand).col, PAIRS[0]);
+  for (let i = 0; i < 20; i++) assert.notDeepEqual(W.dice(d, "x|" + i, PAIRS).colors, d.col);
+});
+test("Wurf: eine Karte mit dem Text ihrer Idee bekommt eine andere Zeile derselben Idee, eigener Text bleibt", () => {
+  const idea = D.IDEAS.find((i) => i.kind === "card" && i.de.lines.length > 2), d = D.docFromIdea(idea, me, "de"), L = idea.de.lines;
+  const x = W.dice(d, "t|1", PAIRS, L).x; assert.ok(L.includes(x) && x !== d.x);
+  assert.equal(W.dice({ ...d, x: "Mein eigener Satz" }, "t|1", PAIRS, L).x, undefined);
 });
 test("Adventstuerchen: Wunsch aendert Botschaft, Farben, Sticker, Stil und Titel/Untertitel auf einmal, Nummer bleibt", () => {
   const d = D.sanitizeDoc({ ...D.docFromIdea(D.byId("advent-tuer"), me, "de"), st: "zettel" }), nr = d.nr;
@@ -99,10 +116,19 @@ test("Adventstuerchen: Wunsch aendert Botschaft, Farben, Sticker, Stil und Titel
   assert.equal(n.nr, nr, "die Nummer waehlt nur der Mensch");
   assert.deepEqual(D.changedAreas(d, n).sort(), ["farbe", "idee", "sticker", "stil", "text"]);
 });
-test("Adventstuerchen: ohne Server macht ein weihnachtlicher Wunsch Stil, Farben und Sticker weihnachtlich", () => {
-  const d = D.sanitizeDoc({ ...D.docFromIdea(D.byId("advent-tuer"), me, "de"), st: "druck", col: ["#ffd400", "#ff3b1d"] });
-  for (const w of ["Sehr weihnachtlich", "Verschneit und gemütlich", "very christmassy"]) {
-    const n = W.apply(d, W.local(d, w, "de", () => 1), PAIRS, rand);
-    assert.equal(n.st, "advent", w); assert.deepEqual(n.col, ["#0f5132", "#ffd400"]); assert.ok(n.sk.every((s) => D.SETS.advent.includes(s.e)) && n.sk.length, w);
+test("Adventstuerchen: der Wurf bleibt weihnachtlich, Stil, Nummer und Botschaft bleiben", () => {
+  const d = D.sanitizeDoc({ ...D.docFromIdea(D.byId("advent-tuer"), me, "de"), st: "advent", col: ["#ffd400", "#ff3b1d"], x: "Für dich" });
+  for (let i = 1; i <= 5; i++) {
+    const n = W.apply(d, W.dice(d, "advent|" + i, PAIRS), PAIRS, rand);
+    assert.equal(n.st, "advent"); assert.equal(n.nr, d.nr); assert.equal(n.x, "Für dich");
+    assert.ok(n.sk.length && n.sk.every((s) => D.SETS.advent.includes(s.e)), "Sticker aus dem Advent-Set");
+    assert.notDeepEqual(n.col, d.col);
   }
+});
+test("KI-Siegel: reist im Link mit, fremde Zeichen fallen weg, ohne Siegel nur die Art", () => {
+  const g = Object.assign(of("game"), { ki: { k: "wish", s: "v1.k1.abcDEF-123_x" } }), url = D.docUrl(g);
+  assert.deepEqual(D.parseRoute("#" + url.split("#")[1]).doc.ki, { k: "wish", s: "v1.k1.abcDEF-123_x" });
+  assert.deepEqual(D.sanitizeDoc({ ...g, ki: { k: "wish", s: "<b>x</b>" } }).ki, { k: "wish" });
+  assert.equal(D.sanitizeDoc({ ...g, ki: { k: "Wish!" } }).ki, undefined);
+  assert.equal(D.sanitizeDoc(of("card")).ki, undefined, "ohne KI kein Siegel");
 });
