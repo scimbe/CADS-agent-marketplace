@@ -173,10 +173,12 @@ test("Kalenderidee: Halloween erscheint genau am 31.10. und sonst nie", () => {
   assert.ok(D.SETS.grusel.includes("🎃"));
 });
 test("Plan: 30 Tage ab 2. November, jeden Tag eine eigene Idee, nie zweimal dieselbe Art hintereinander", () => {
+  // ab dem 6. November wechseln sich Arcade-Spiele und Karten ab, damit die Spiele nicht erst im Dezember auftauchen
+  for (let d = 6; d <= 18; d += 2) assert.equal(D.ideaForDay(new Date(Date.UTC(2026, 10, d)), { crypto: true }).kind, "arcade", "11-" + d);
   const seen = new Set(); let prev = "";
   for (let i = 0; i < 30; i++) {
     const day = new Date(Date.UTC(2026, 10, 2 + i)), idea = D.ideaForDay(day, { crypto: true, channel: false, call: false });
-    assert.match(idea.id, /^(plan|zug)-/, day.toISOString()); assert.ok(!seen.has(idea.id)); seen.add(idea.id);
+    assert.match(idea.id, /^(plan|zug|arcade)-/, day.toISOString()); assert.ok(!seen.has(idea.id)); seen.add(idea.id);
     assert.notEqual(idea.kind, prev, idea.id); prev = idea.kind;
   }
   assert.ok(D.IDEAS.filter((i) => /^plan-/.test(i.id) && i.live).length >= 15, "mindestens die Haelfte fuehrt zu einem echten Dienst");
