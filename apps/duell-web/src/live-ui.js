@@ -12,8 +12,10 @@ function el(tag, cls, text, on) { var e = document.createElement(tag); if (cls) 
 function layer() {
   close(true);
   ov = el("div", "liveov"); ov.setAttribute("role", "dialog");
-  ov.appendChild(el("button", "liveback", "✕", function () { Kit.sfx.tap(); close(); }));
-  var body = el("div", "livebody"); ov.appendChild(body); document.body.appendChild(ov);
+  var body = el("div", "livebody"); ov.appendChild(body);
+  // An arcade duel wears the arcade banner with its ✕ (arcade-ui.js); every other live game keeps the plain ✕.
+  if (!(game && window.ArcadeUI && window.ArcadeUI.dress(ov, close, game.g))) ov.insertBefore(el("button", "liveback", "✕", function () { Kit.sfx.tap(); close(); }), body);
+  document.body.appendChild(ov);
   return body;
 }
 function close(keepLink) {
@@ -24,7 +26,9 @@ function close(keepLink) {
 function screen(lines, buttons) {
   var b = layer();
   lines.forEach(function (l) { b.appendChild(el(l[0], l[1], l[2])); });
-  (buttons || []).forEach(function (x) { b.appendChild(el("button", x[2] || "btn hot", x[0], x[1])); });
+  // The plain "Back" button only where there is no banner ✕ to go back with.
+  var banner = !!ov.querySelector(".arcbar");
+  (buttons || []).forEach(function (x) { if (!(banner && x[2] === "btn")) b.appendChild(el("button", x[2] || "btn hot", x[0], x[1])); });
   return b;
 }
 function fail(e) {

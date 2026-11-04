@@ -49,3 +49,6 @@ h1{transform:none;text-transform:none;font:650 19px/1 var(--disp);letter-spacing
 .orgrow input[type=color]{width:52px;height:44px;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:2px}
 #mute{display:none}
 #cogo,#livego{display:none!important}   /* no live channels here: company networks block WebSockets and UDP */
+.arcbrand{transform:none;text-transform:none;font:650 19px/1 var(--disp);letter-spacing:-.2px}
+.arcov .btn.hot,.arcov .btn.hot.live{background:var(--org);border-color:var(--org);color:var(--onorg);box-shadow:none}
+.arcbar{border-bottom:1px solid var(--line)}.arcbar::after{display:none}

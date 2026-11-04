@@ -465,12 +465,23 @@ function controls(cv, g, S, X) {
 
 // ---------- a match on a layer: bot or live ----------
 var ov = null, demos = [];
-function layer() {
+// The chrome of every arcade layer, also the live one from live-ui.js: the home page's brand as a banner in the user's
+// two colours, the ✕ in the same place and style as on the editor and the shelf. It is the one way back, so the screens
+// below carry no extra "Back" button. false: not an arcade game, the layer stays as it was.
+function dress(o, close, g) {
+  if (!A.GAMES[g]) return false;
+  var bar = el("header", "bar tight arcbar"), x = el("button", "ico arcx", "✕", function () { Kit.sfx.tap(); close(); });
+  x.type = "button"; x.setAttribute("aria-label", t("arc_close"));
+  bar.appendChild(x); bar.appendChild(el("div", "arcbrand", t("brand")));
+  var tag = el("span", "burst arcburst", META[g] ? META[g].e : "🎮"); tag.setAttribute("aria-hidden", "true"); bar.appendChild(tag);
+  o.classList.add("arcov"); o.insertBefore(bar, o.firstChild);
+  return true;
+}
+function layer(g) {
   if (window.LiveUI) window.LiveUI.close();
   closeOwn();
-  ov = el("div", "liveov arcov"); ov.setAttribute("role", "dialog");
-  ov.appendChild(el("button", "liveback", "✕", function () { Kit.sfx.tap(); closeOwn(); }));
-  var body = el("div", "livebody"); ov.appendChild(body); document.body.appendChild(ov);
+  ov = el("div", "liveov"); ov.setAttribute("role", "dialog");
+  var body = el("div", "livebody"); ov.appendChild(body); dress(ov, closeOwn, g); document.body.appendChild(ov);
   return body;
 }
 function closeOwn() { if (ov) { ov.remove(); ov = null; } }
@@ -509,7 +520,7 @@ function endText(body, won, s, live) {
 // Against the bot: the bot's side runs in this page with the very same engine and messages as a live friend.
 function playBot(g) {
   var seed = typeof window.__arcadeSeed === "string" ? window.__arcadeSeed : "bot|" + g + "|" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);   // tests fix the seed
-  var body = layer(), toMe = [], toBot = [];
+  var body = layer(g), toMe = [], toBot = [];
   var S = A.side(g, { seed: seed, serving: true, send: function (m) { toBot.push(JSON.parse(JSON.stringify(m))); } });
   var B = A.side(g, { seed: seed, serving: false, send: function (m) { toMe.push(JSON.parse(JSON.stringify(m))); } });
   var bot = A.bot(g, B, seed);
@@ -519,7 +530,6 @@ function playBot(g) {
       endText(body, won, S.score, false);
       body.appendChild(el("button", "btn hot", t("arc_again"), function () { Kit.sfx.thud(); playBot(g); }));
       if (window.LiveUI && window.LiveUI.on()) body.appendChild(el("button", "btn hot live", t("arc_live"), function () { Kit.sfx.thud(); closeOwn(); window.LiveUI.invite({ g: g }); }));
-      body.appendChild(el("button", "btn", t("live_home"), function () { closeOwn(); }));
     } });
 }
 // Live: live-ui.js has made the connection and shows the badge; a rematch counts up the round so serves differ.
@@ -531,7 +541,7 @@ function playLive(g) {
     var o = { body: body, g: g, S: S, them: t("arc_friend"), badge: api.badge, onEnd: function (won) {
       endText(body, won, S.score, true);
       var more = el("button", "btn hot", t("live_more"), function () { more.disabled = true; more.textContent = t("live_moreWait"); again[0] = true; conn.send({ t: "again" }); restart(); });
-      body.appendChild(more); body.appendChild(el("button", "btn", t("live_home"), function () { api.close(); }));
+      body.appendChild(more);
     } };
     function restart() { if (again[0] && again[1]) live(api, !serving, round + 1); }
     conn.on(function (m) {
@@ -548,13 +558,12 @@ function playLive(g) {
 A.IDS.forEach(function (g) { (window.LiveGames = window.LiveGames || {})[g] = playLive(g); });
 
 function menu(g) {
-  var body = layer(), i = idea(g), L = i ? (i[Kit.lang] || i.de) : { t: t("arc_" + g), s: "" };
+  var body = layer(g), i = idea(g), L = i ? (i[Kit.lang] || i.de) : { t: t("arc_" + g), s: "" };
   body.appendChild(el("p", "livebig", L.t.replace("|", " ")));
   var cv = el("canvas", "arcdemo"); cv.width = 300; cv.height = 480; body.appendChild(cv);
   body.appendChild(el("p", "note", L.s + " " + t("arc_how_" + g)));
   body.appendChild(el("button", "btn hot", t("arc_bot"), function () { Kit.sfx.thud(); playBot(g); }));
   if (window.LiveUI && window.LiveUI.on()) body.appendChild(el("button", "btn hot live", t("arc_live"), function () { Kit.sfx.thud(); closeOwn(); window.LiveUI.invite({ g: g }); }));
-  body.appendChild(el("button", "btn", t("live_home"), function () { closeOwn(); }));
   demo(cv, g, false);
 }
 // A preview that plays itself: two bots, no sound. still: one frame a few seconds in. g = null ends the preview.
@@ -588,5 +597,5 @@ function tiles(box) {
   });
   box.appendChild(grid);
 }
-window.ArcadeUI = { menu: menu, demo: demo, tiles: tiles, count: function () { return ideas().length; }, playBot: playBot };
+window.ArcadeUI = { menu: menu, dress: dress, demo: demo, tiles: tiles, count: function () { return ideas().length; }, playBot: playBot };
 })();
