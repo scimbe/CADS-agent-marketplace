@@ -42,12 +42,12 @@ function bot(t, game) {
 const until = (f, ms = 60000) => new Promise((ok, bad) => { const t0 = Date.now(); (function tick() { let r; try { r = f(); } catch (e) { r = false; } if (r) return ok(r); if (Date.now() - t0 > ms) return bad(new Error("timeout")); setTimeout(tick, 20); })(); });
 
 async function fill(game, seats, live) {
-  const A = Table.create({ game, live, name: "Ada", emoji: "🦊" }), all = [A];
+  const A = Table.create({ game, live, name: "Ada", emoji: "🦊", autoFast: 20 }), all = [A];
   for (let i = 1; i < seats; i++) {
     const host = all[i - 1];                               // every newcomer is invited by the one before, not only by the creator
     await until(() => host.view().mySeat >= 0);
     const inv = await host.invite();
-    all.push(await Table.join(inv.token, { game, live, name: "P" + i, emoji: "🐢" }));
+    all.push(await Table.join(inv.token, { game, live, name: "P" + i, emoji: "🐢", autoFast: 20 }));
   }
   return all;
 }
@@ -70,10 +70,10 @@ test("Doppelkopf: vier Geraete, jeder laedt den naechsten ein, ein ganzes Spiel,
   T.forEach((t) => t.leave());
 });
 
-test("Doppelkopf: wer geht, macht den Platz frei; das laufende Spiel faellt aus, ein Neuer setzt sich hin", async () => {
+test("Doppelkopf: wer einfach wegfaellt (ohne Uebergabe), macht den Platz frei; das Spiel faellt aus, ein Neuer setzt sich hin", async () => {
   const live = fakeLive(), T = await fill("doko", 4, live);
   await until(() => T.every((t) => t.view().hand && t.view().hand.dealt));
-  const leaver = T[2], seat = leaver.view().mySeat; leaver.leave();
+  const leaver = T[2], seat = leaver.view().mySeat; leaver._crash();
   const rest = T.filter((t) => t !== leaver);
   await until(() => rest.every((t) => !t.view().hand && t.view().last && t.view().last.aborted && t.view().seats[seat].free));
   const inv = await rest[2].invite();                       // the last one who came invites
@@ -102,5 +102,97 @@ test("Ein voller Tisch nimmt niemanden mehr auf", async () => {
   const live = fakeLive(), T = await fill("skat", 3, live);
   await until(() => T.every((t) => t.view().complete));
   await assert.rejects(T[1].invite(), /full/);
+  await assert.rejects(T[1].inviteAll(), /full/);
+  T.forEach((t) => t.leave());
+});
+
+// ---------- one link for the whole group ----------
+async function group(game, live, opt) {
+  const A = Table.create(Object.assign({ game, live, name: "Ada", emoji: "🦊" }, opt)), g = await A.inviteAll();
+  return { A, g };
+}
+test("Gruppenlink (Doppelkopf): ein Link fuer drei Plaetze, gleichzeitig geoeffnet, jeder bekommt einen anderen Platz, der Vierte liest: voll", async () => {
+  const live = fakeLive(), { A, g } = await group("doko", live);
+  assert.equal(g.tokens.length, 3); assert.equal(new Set(g.tokens).size, 3);
+  assert.deepEqual(A.view().seats.map((s) => !!(s.free && s.held)), [false, true, true, true]);
+  const T = [A].concat(await Promise.all(["Ben", "Cem", "Dia"].map((n) => Table.join(g.tokens, { game: "doko", live, name: n, emoji: "🐢" }))));
+  await until(() => T.every((t) => t.view().complete));
+  assert.deepEqual(T.map((t) => t.view().mySeat).sort(), [0, 1, 2, 3]);
+  await assert.rejects(Table.join(g.tokens, { game: "doko", live, name: "Eli", emoji: "🐙" }), /full/);
+  await until(() => T.every((t) => t.view().hand && t.view().hand.dealt));
+  T.forEach((t) => t.leave());
+});
+
+test("Gruppenlink: wer sich zuerst verbindet, bekommt den vordersten freien Platz, egal welches Token", async () => {
+  const live = fakeLive(), { A, g } = await group("skat", live);
+  assert.equal(g.tokens.length, 2);
+  const C = await Table.join([g.tokens[1]], { game: "skat", live, name: "Cem", emoji: "🐢" });   // the second token first
+  await until(() => C.view().mySeat >= 0);
+  assert.equal(C.view().mySeat, 1);
+  const B = await Table.join(g.tokens, { game: "skat", live, name: "Ben", emoji: "🐢" });        // token 1 is still free
+  await until(() => B.view().mySeat >= 0);
+  assert.equal(B.view().mySeat, 2);
+  assert.equal(A.view().invites.length, 0);
+  [A, B, C].forEach((t) => t.leave());
+});
+
+// ---------- Auto ----------
+test("Auto (Doppelkopf und Skat): niemand tippt, nach der Frist zieht jedes Geraet selbst regelgerecht, alle zaehlen gleich", async () => {
+  for (const [game, n] of [["doko", 4], ["skat", 3]]) {
+    const live = fakeLive(), { A, g } = await group(game, live, { autoMs: 30 });
+    const T = [A]; for (let i = 1; i < n; i++) T.push(await Table.join(g.tokens, { game, live, name: "P" + i, emoji: "🐢", autoMs: 30 }));
+    await until(() => T.every((t) => t.view().last && (t.view().last.result || t.view().last.audit)), 120000);
+    const l = T.map((t) => t.view().last);
+    l.forEach((x) => assert.deepEqual(x.audit, [], game));
+    assert.equal(new Set(l.map((x) => JSON.stringify(x.result.points))).size, 1, game);
+    T.forEach((t) => t.leave());
+  }
+});
+
+test("Auto-Schalter: ein Platz spielt auf Auto, die anderen von Hand; das Spiel endet regelgerecht und alle sehen den Auto-Platz", async () => {
+  const live = fakeLive(), T = await fill("doko", 4, live);
+  await until(() => T.every((t) => t.view().hand && t.view().hand.dealt));
+  const ai = T[1], seat = ai.view().mySeat; ai.auto(true);
+  await until(() => T.every((t) => t.view().seats[seat].auto));
+  T.filter((t) => t !== ai).forEach((t) => bot(t, "doko"));
+  await until(() => T.every((t) => t.view().last && t.view().last.result), 120000);
+  T.forEach((t) => assert.deepEqual(t.view().last.audit, []));
+  assert.equal(new Set(T.map((t) => JSON.stringify(t.view().last.result.points))).size, 1);
+  T.forEach((t) => t.leave());
+});
+
+test("Aufstehen mitten im Spiel: die Karten gehen offen an alle, jedes Geraet spielt den Platz gleich zu Ende, danach ist er frei", async () => {
+  for (const [game, n] of [["doko", 4], ["skat", 3]]) {
+    const live = fakeLive(), T = await fill(game, n, live);
+    await until(() => T.every((t) => t.view().hand && t.view().hand.dealt));
+    // Skat: the leaver is Rearhand, so the bots bid, the declarer picks up the skat (with the leaver's keys from the
+    // handover) and the hand is really played; Doppelkopf: the last seat
+    const leaver = game === "skat" ? T[0] : T[n - 1], rest = T.filter((t) => t !== leaver), seat = leaver.view().mySeat, mine = leaver.view().hand.cards.slice().sort();
+    leaver.leave();
+    await until(() => rest.every((t) => t.view().hand && t.view().hand.ghosts.some((x) => x.seat === seat)));
+    rest.forEach((t) => assert.deepEqual(t.view().hand.ghosts[0].cards.slice().sort(), mine));
+    rest.forEach((t) => bot(t, game));
+    await until(() => rest.every((t) => t.view().last && (t.view().last.result || t.view().last.audit)), 120000);
+    const l = rest.map((t) => t.view().last);
+    l.forEach((x) => { assert.ok(!x.aborted, game); assert.deepEqual(x.audit, [], game); assert.equal(x.cheat, undefined); });
+    assert.equal(new Set(l.map((x) => JSON.stringify(x.result.points))).size, 1, game);
+    assert.ok(!l[0].result.passedOut && l[0].state.tricks.length > 0, game + " was played");
+    if (game === "skat") { assert.equal(l[0].result.declarer, 2); assert.equal(l[0].full.pushed.length, 2); }
+    await until(() => rest.every((t) => t.view().seats[seat].free));
+    rest.forEach((t) => t.leave());
+  }
+});
+
+test("Eine gefaelschte Uebergabe (falsche Schluessel) macht keinen Platz zu Auto", async () => {
+  const MP = require("../src/mpoker.js");
+  const live = fakeLive(), T = await fill("skat", 3, live);
+  await until(() => T.every((t) => t.view().hand && t.view().hand.dealt));
+  const victim = T[1], A = T[0], d = A._debug(), h = d.hand, seat = victim.view().mySeat;
+  // a handover for the victim's seat, as if it came over the victim's own link, but with made-up secrets
+  const sec = MP.secrets(32);
+  d.inbox(victim.id, { t: "handover", no: h.no, sec, pushed: [], open: h.lay.hands[seat].map((p) => [p, [sec.ki[p], sec.ki[p], sec.ki[p]]]) });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(A._debug().hand.ghost[seat], undefined);
+  assert.ok(A._debug().hand.flags.some((f) => f.seat === seat));
   T.forEach((t) => t.leave());
 });

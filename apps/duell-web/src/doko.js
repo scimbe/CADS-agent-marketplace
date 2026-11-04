@@ -267,7 +267,34 @@
     return out;
   }
 
-  var api = { SEATS: SEATS, HAND: HAND, DECK: DECK, SOLOS: SOLOS, CALLS: CALLS, EYES: EYES,
+  // ---------- Auto: one legal move for a seat whose player is away or too slow ----------
+  // Plain and fully determined by the public state and the seat's own cards, no dice: healthy, no calls, and always the
+  // weakest card that may be played (lowest in the trick's order, then fewest eyes, then the card's name). A reservation
+  // already made picks the marriage if possible, else the solo with the most trumps in hand.
+  function weakest(kind, cards, trick) {
+    var led = trick.cards.length ? follows(kind, trick.cards[0].card) : null;
+    function key(c) { return [power(kind, c, led || follows(kind, c)), eyes(c), c]; }
+    return cards.slice().sort(function (a, b) {
+      var x = key(a), y = key(b);
+      return x[0] - y[0] || x[1] - y[1] || (x[2] < y[2] ? -1 : x[2] > y[2] ? 1 : 0);
+    })[0];
+  }
+  function auto(s, seat, hand) {
+    if (turn(s) !== seat) return null;
+    var acts = actions(s, seat, hand || []);
+    if (s.phase === "vorbehalt") return acts[0];                          // gesund
+    if (s.phase === "abfrage") {
+      var wed = acts.filter(function (a) { return a.v === "hochzeit"; })[0];
+      if (wed) return wed;
+      var best = null, most = -1;
+      SOLOS.forEach(function (v) { var n = hand.filter(function (c) { return isTrump(v, c); }).length; if (n > most) { most = n; best = v; } });
+      return { t: "vorbehalt", seat: seat, v: best };
+    }
+    var cards = acts.filter(function (a) { return a.t === "play"; }).map(function (a) { return a.card; });
+    return cards.length ? { t: "play", seat: seat, card: weakest(s.kind, cards, s.trick) } : null;
+  }
+
+  var api = { SEATS: SEATS, HAND: HAND, DECK: DECK, SOLOS: SOLOS, CALLS: CALLS, EYES: EYES, auto: auto,
     layout: function () { var hands = []; for (var s = 0; s < SEATS; s++) { hands.push([]); for (var i = 0; i < HAND; i++) hands[s].push(s * HAND + i); } return { hands: hands, skat: [] }; },
     start: start, turn: turn, actions: actions, apply: apply, done: done, result: result, audit: audit,
     trumps: trumps, isTrump: isTrump, trickWinner: trickWinner, legalCards: legalCards, eyes: eyes, knownParty: knownParty };

@@ -8,13 +8,16 @@ var Kit = window.Kit, T = window.Table;
 var TX = {
   de: { doko: "Doppelkopf", skat: "Skat", making: "Tisch wird gedeckt …", invite: "➕ Platz {n} einladen", share: "Nochmal teilen",
     shareText: { doko: "Doppelkopf live! Mir fehlt noch wer am Tisch – tippen und hinsetzen (15 Min):", skat: "Skat live! Mir fehlt noch wer am Tisch – tippen und hinsetzen (15 Min):" },
+    inviteAll: "👥 Alle einladen", shareAll: "Gruppenlink nochmal teilen",
+    shareGroup: { doko: "Doppelkopf live! Wer zuerst tippt, sitzt am Tisch (15 Min):", skat: "Skat live! Wer zuerst tippt, sitzt am Tisch (15 Min):" },
+    autoOff: "🤖 Auto: aus", autoOn: "🤖 Auto: an", autoIn: "Auto in {n} s", ghost: "🤖 spielt offen für {n}",
     guest: "Gast {n}", total: "Gesamt", free: "frei", held: "eingeladen …", you: "Du", wait: "Es fehlen noch {n}.", mesh: "Alle verbinden sich …", shuffle: "Alle mischen gemeinsam …",
     badgeNote: "Seht ihr alle dieselben drei Bilder? Dann sitzt ihr am selben Tisch.", ipNote: "Live-Spiele laufen möglichst direkt zwischen euren Geräten. Dabei können die Geräte die IP-Adressen der anderen sehen.",
     leave: "Aufstehen", turnYou: "Du bist dran", turnOf: "{n} ist dran", next: "Nächstes Spiel", waitNext: "Warte auf die anderen …",
     won: "{p} gewinnt", none: "Keiner gewinnt", checked: "✓ Alle Karten nachgeprüft: fair gemischt, richtig gespielt.",
     cheat: "⚠ Beim Mischen hat jemand geschummelt ({n}). Das Spiel zählt nicht.", bad: "⚠ Regelverstoß von {n} ({w}). Das Spiel zählt nicht.",
     aborted: "{n} ist aufgestanden – dieses Spiel zählt nicht. Ladet jemanden ein, dann geht's weiter.", lost: "Verbindung zum Tisch weg.",
-    full: "Der Tisch ist schon voll.", joining: "Du wirst an den Tisch geholt …",
+    full: "Der Tisch ist schon voll (oder der Link ist abgelaufen).", joining: "Du wirst an den Tisch geholt …",
     gesund: "Gesund", vorbehalt: "Vorbehalt", hochzeit: "Hochzeit", damen: "Damensolo", buben: "Bubensolo", fleischlos: "Fleischloser", kreuz: "Kreuz-Solo", pik: "Pik-Solo", herz: "Herz-Solo", karo: "Karo-Solo",
     k90: "keine 90", k60: "keine 60", k30: "keine 30", schwarz: "schwarz", normal: "Normalspiel", wedding: "Hochzeit",
     bid: "{v} reizen", hold: "Ja ({v})", pass: "Passe", pickup: "Skat aufnehmen", push: "Diese 2 drücken", pushHint: "Tipp zwei Karten an, die du drückst.",
@@ -23,13 +26,16 @@ var TX = {
     bidNow: "Gereizt: {v}", ranks: { A: "A", T: "10", K: "K", Q: "D", J: "B", 9: "9", 8: "8", 7: "7" } },
   en: { doko: "Doppelkopf", skat: "Skat", making: "Setting the table …", invite: "➕ Invite seat {n}", share: "Share again",
     shareText: { doko: "Doppelkopf live! I'm missing a player – tap and take a seat (15 min):", skat: "Skat live! I'm missing a player – tap and take a seat (15 min):" },
+    inviteAll: "👥 Invite everyone", shareAll: "Share group link again",
+    shareGroup: { doko: "Doppelkopf live! First to tap gets a seat (15 min):", skat: "Skat live! First to tap gets a seat (15 min):" },
+    autoOff: "🤖 Auto: off", autoOn: "🤖 Auto: on", autoIn: "Auto in {n} s", ghost: "🤖 plays {n}'s cards face up",
     guest: "Guest {n}", total: "Total", free: "free", held: "invited …", you: "You", wait: "{n} missing.", mesh: "Everyone is connecting …", shuffle: "Shuffling together …",
     badgeNote: "Do you all see the same three pictures? Then you sit at the same table.", ipNote: "Live games run directly between your devices where possible. The devices may see each other's IP addresses.",
     leave: "Stand up", turnYou: "Your turn", turnOf: "{n}'s turn", next: "Next game", waitNext: "Waiting for the others …",
     won: "{p} wins", none: "Nobody wins", checked: "✓ Every card checked: fairly shuffled, fairly played.",
     cheat: "⚠ Someone cheated while shuffling ({n}). This game does not count.", bad: "⚠ Rule broken by {n} ({w}). This game does not count.",
     aborted: "{n} left – this game does not count. Invite someone and carry on.", lost: "Connection to the table lost.",
-    full: "The table is already full.", joining: "Taking you to the table …",
+    full: "The table is already full (or the link has expired).", joining: "Taking you to the table …",
     gesund: "Healthy", vorbehalt: "Reservation", hochzeit: "Marriage", damen: "Queen solo", buben: "Jack solo", fleischlos: "Aces solo", kreuz: "Clubs solo", pik: "Spades solo", herz: "Hearts solo", karo: "Diamonds solo",
     k90: "no 90", k60: "no 60", k30: "no 30", schwarz: "schwarz", normal: "Normal game", wedding: "Marriage",
     bid: "Bid {v}", hold: "Yes ({v})", pass: "Pass", pickup: "Pick up the skat", push: "Discard these 2", pushHint: "Tap the two cards you discard.",
@@ -97,11 +103,17 @@ function layer() {
   var b = ov.querySelector(".tbbody"); b.textContent = ""; return b;
 }
 function close() { clearInterval(tick); tick = 0; if (tb) { try { tb.leave(); } catch (e) {} tb = null; } if (ov) { ov.remove(); ov = null; } }
-function link(token) { return window.DuellCore.SHARE_BASE + "#tisch=" + game + "." + token; }
+// one token, or a group link with one token per seat (tried in order by whoever opens it)
+function link(tokens) { return window.DuellCore.SHARE_BASE + "#tisch=" + game + "." + [].concat(tokens).join("."); }
+function clock(v) { return v.auto ? "🤖" : v.deadline ? t("autoIn", { n: Math.max(0, Math.ceil((v.deadline - Date.now()) / 1000)) }) : ""; }
 function me() { var p = window.Daily.sanitizeProfile(Kit.store && Kit.store.me); return { name: p.nick, emoji: p.emoji }; }
 // players without a nickname are "Gast 2" after their seat
 function nick(x, s) { return x.name && x.name !== "?" ? x.name : t("guest", { n: s + 1 }); }
-function seatName(v, s) { var x = v.seats[s]; return x && !x.free ? (x.me ? t("you") : x.emoji + " " + nick(x, s)) : "?"; }
+function seatName(v, s) {
+  var x = v.seats[s];
+  if (!x || x.free) return v.last && v.last.names && v.last.names[s] || "?";        // a seat freed after the hand
+  return (x.me ? t("you") : x.emoji + " " + nick(x, s)) + (x.auto ? " 🤖" : "");
+}
 function render(v) {
   if (!ov) return;
   var b = layer();
@@ -134,12 +146,23 @@ function lobby(b, v) {
   seats(b, v);
   var missing = v.seats.filter(function (x) { return x.free; }).length;
   b.appendChild(el("p", "note tbstatus", missing ? t("wait", { n: missing }) : v.hand ? t("shuffle") : t("mesh")));
-  v.invites.forEach(function (i) { b.appendChild(el("button", "btn", t("share") + " (" + (i.seat + 1) + ")", function () { Kit.share({ url: link(i.token), text: L().shareText[game] }); })); });
+  var unheld = v.seats.filter(function (x) { return x.free && !x.held; }).length, groups = {};
+  if (unheld > 1) b.appendChild(el("button", "btn hot", t("inviteAll"), function () { Kit.sfx.tap(); inviteGroup(); }));
+  v.invites.forEach(function (i) {
+    if (i.group) { (groups[i.group] = groups[i.group] || []).push(i.token); return; }
+    b.appendChild(el("button", "btn", t("share") + " (" + (i.seat + 1) + ")", function () { Kit.share({ url: link(i.token), text: L().shareText[game] }); }));
+  });
+  // the tokens of a group link nobody has used yet, in one link again
+  Object.keys(groups).forEach(function (g) { b.appendChild(el("button", "btn", t("shareAll"), function () { Kit.share({ url: link(groups[g]), text: L().shareGroup[game] }); })); });
   b.appendChild(el("p", "note", t("badgeNote"))); b.appendChild(el("p", "note", t("ipNote")));
   b.appendChild(el("button", "btn", t("leave"), function () { close(); }));
 }
 async function inviteOne() {
   try { var i = await tb.invite(); Kit.share({ url: link(i.token), text: L().shareText[game] }); }
+  catch (e) { Kit.toast(t(e && e.message === "full" ? "full" : "lost")); }
+}
+async function inviteGroup() {
+  try { var g = await tb.inviteAll(); Kit.share({ url: link(g.tokens), text: L().shareGroup[game] }); }
   catch (e) { Kit.toast(t(e && e.message === "full" ? "full" : "lost")); }
 }
 function label(a, st) {
@@ -164,12 +187,19 @@ function info(v) {
 function play(b, v) {
   var h = v.hand, st = h.state, acts = h.actions, mine = h.turn === v.mySeat;
   b.appendChild(el("p", "note tbinfo", info(v)));
-  b.appendChild(el("p", "tbturn" + (mine ? " hot" : ""), h.turn < 0 ? "" : mine ? t("turnYou") : t("turnOf", { n: seatName(v, h.turn) })));
+  var turn = el("p", "tbturn" + (mine ? " hot" : ""), h.turn < 0 ? "" : mine ? t("turnYou") : t("turnOf", { n: seatName(v, h.turn) }));
+  if (mine) { turn.appendChild(document.createTextNode(" · ")); turn.appendChild(el("span", "tbclock", clock(v))); }   // the Auto countdown, ticking
+  b.appendChild(turn);
   // the trick on the table: the running one, or the last one taken while the next has not started
   var tr = st.trick && st.trick.cards.length ? st.trick : st.tricks.length ? st.tricks[st.tricks.length - 1] : null, box = el("div", "tbtrick");
   if (tr) tr.cards.forEach(function (x) { var w = el("div", "tbplayed"); w.appendChild(cardEl(x.card)); w.appendChild(el("small", "", seatName(v, x.seat))); box.appendChild(w); });
   b.appendChild(box);
   if (st.open && st.declarer !== v.mySeat) { var op = el("div", "tbhand tbopen"); sortHand(st, st.open).forEach(function (c) { op.appendChild(cardEl(c, null, "small")); }); b.appendChild(op); }
+  // who stood up: their cards are open for everyone now, Auto plays them
+  (h.ghosts || []).forEach(function (g) {
+    b.appendChild(el("p", "note tbghost", t("ghost", { n: seatName(v, g.seat).replace(" 🤖", "") })));
+    var gh = el("div", "tbhand tbopen"); sortHand(st, g.cards).forEach(function (c) { gh.appendChild(cardEl(c, null, "small")); }); b.appendChild(gh);
+  });
   var playable = {}; acts.forEach(function (a) { if (a.t === "play") playable[a.card] = a; });
   var pushing = acts.some(function (a) { return a.t === "push"; }), hand = el("div", "tbhand");
   if (!pushing) pick = [];
@@ -188,7 +218,9 @@ function play(b, v) {
   if (bids.length) row.appendChild(button(bids[0], st));     // the next value only; going higher is one tap more
   acts.filter(function (a) { return a.t !== "play" && a.t !== "push" && a.t !== "bid"; }).forEach(function (a) { row.appendChild(button(a, st)); });
   b.appendChild(row);
-  b.appendChild(el("p", "note tbscore", v.seats.map(function (x, s) { return x.free ? "" : (x.me ? t("you") : nick(x, s)) + " " + x.score; }).join(" · ")));
+  var au = el("button", "btn tbauto" + (v.auto ? " hot" : ""), t(v.auto ? "autoOn" : "autoOff"), function () { Kit.sfx.tap(); tb.auto(!v.auto); });
+  au.setAttribute("aria-pressed", v.auto ? "true" : "false"); b.appendChild(au);
+  b.appendChild(el("p", "note tbscore", v.seats.map(function (x, s) { return x.free ? "" : (x.me ? t("you") : nick(x, s)) + (x.auto ? " 🤖" : "") + " " + x.score; }).join(" · ")));
 }
 function button(a, st) { return el("button", "btn" + (a.t === "pass" || a.t === "call" ? "" : " hot"), label(a, st), function () { Kit.sfx.tap(); tb.act(a); }); }
 function end(b, v) {
@@ -215,7 +247,13 @@ function start(make) {
   close(); layer().appendChild(el("p", "livebig", t("making")));
   return Promise.resolve().then(make).then(function (x) {
     tb = x; tb.on(render); render(tb.view());
-    tick = setInterval(function () { if (tb && ov) render(tb.view()); }, 5000);
+    // every second the Auto countdown, every five seconds the whole screen (redrawing more often would eat taps)
+    var n = 0;
+    tick = setInterval(function () {
+      if (!tb || !ov) return;
+      var v = tb.view(), c = ov.querySelector(".tbclock");
+      if (++n % 5 === 0) render(v); else if (c) c.textContent = clock(v);
+    }, 1000);
     return tb;
   }).catch(function (e) {
     var b = layer(); b.appendChild(el("p", "livebig", t(e && e.message === "full" ? "full" : "lost")));
@@ -223,14 +261,15 @@ function start(make) {
     return null;
   });
 }
-// A new table: I take seat 1 and invite straight away.
+// A new table: I take seat 1 and invite everyone straight away, with one link for the group chat.
 function open(g) {
   game = g === "skat" ? "skat" : "doko";
-  return start(function () { return T.create(Object.assign({ game: game, live: window.Live }, me())); }).then(function (x) { if (x) inviteOne(); });
+  return start(function () { return T.create(Object.assign({ game: game, live: window.Live }, me())); }).then(function (x) { if (x) inviteGroup(); });
 }
-function accept(g, token) {
+// tokens: "a" or "a.b.c" (a group link)
+function accept(g, tokens) {
   game = g === "skat" ? "skat" : "doko";
-  return start(function () { return T.join(token, Object.assign({ game: game, live: window.Live }, me())); });
+  return start(function () { return T.join(String(tokens).split("."), Object.assign({ game: game, live: window.Live }, me())); });
 }
 window.TableUI = { open: open, accept: accept, close: close, cardSvg: cardSvg, preview: preview };
 })();

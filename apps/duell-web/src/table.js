@@ -7,14 +7,24 @@
    card publishes all keys of its position, and after the hand all secrets are revealed and the deal is replayed.
    Rules: doko.js / skat.js, run identically on every device. Messages from one sender are handled strictly in the
    order sent (calls in Doppelkopf depend on how many cards the caller had played); a message that arrives before what
-   it builds on (another player's card on a different link) waits until it fits. */
+   it builds on (another player's card on a different link) waits until it fits.
+   Group invite: one link with a one-time token for every free seat (the bridge burns a token on first use, so two
+   people can never get the same one); whoever opens it tries the tokens in order and takes the first one still unused,
+   the inviter seats the newcomers in the order they connect, and once all are used the link says the table is full.
+   Auto: when it is my turn and I do not move within AUTO_MS (or at once when I switched to Auto), my own device plays
+   the rules' auto move (doko.js / skat.js auto) - nobody else can move for a player who is still there. Who stands up
+   during a hand hands over: their secrets and the keys of their own cards go to everyone, so their hand becomes public
+   and every device plays the very same auto moves for that seat until the hand is over. A handover is only accepted if
+   its keys are the ones that player gave out, so nobody can hand over someone else's seat. A device that just drops
+   off (no handover) still ends the hand: its cards stay locked without its keys. */
 (function (root) {
   "use strict";
   var node = typeof module !== "undefined" && module.exports;
   var MP = node ? require("./mpoker.js") : root.MPoker;
   var B = node ? require("./ballduell.js") : root.Ballduell;
   function rules(game) { return game === "skat" ? (node ? require("./skat.js") : root.Skat) : (node ? require("./doko.js") : root.Doko); }
-  var BLOCK_MS = 30000, WAIT = {}, ID_RE = /^[0-9a-f]{16}$/, TABLE_TYPES = ["me", "seat", "join", "hold", "unhold", "gone", "peers", "ready", "fwd", "link", "full"];
+  var BLOCK_MS = 30000, AUTO_MS = 20000, AUTO_FAST = 1500, HANDOVER_MS = 2000, WAIT = {}, ID_RE = /^[0-9a-f]{16}$/;
+  var TABLE_TYPES = ["me", "seat", "join", "hold", "unhold", "gone", "peers", "ready", "fwd", "link", "full", "auto"];
 
   function rid() { var b = new Uint8Array(8); root.crypto.getRandomValues(b); return Array.from(b, function (x) { return (x < 16 ? "0" : "") + x.toString(16); }).join(""); }
   function clean(s, n) { return String(s == null ? "" : s).replace(/[\u0000-\u001f\u007f<>]/g, "").slice(0, n); }
@@ -29,17 +39,18 @@
 
   function Table(o) {
     var R = rules(o.game), SEATS = R.SEATS, N = R.DECK.length, live = o.live;
-    var me = { id: o.id || rid(), name: clean(o.name, 20) || "?", emoji: clean(o.emoji, 8) || "🙂", seat: o.create ? 0 : -1 };
+    var me = { id: o.id || rid(), name: clean(o.name, 20) || "?", emoji: clean(o.emoji, 8) || "🙂", seat: o.create ? 0 : -1, auto: false };
+    var autoMs = o.autoMs || AUTO_MS, autoFast = o.autoFast || AUTO_FAST, autoT = 0, autoKey = "", deadline = 0, groups = 0;
     var members = {}, links = {}, holds = {}, readies = {}, queues = {}, scores = {}, invites = [];
     var no = 0, hand = null, last = null, want = true, lost = false, closed = false, joinVia = null, pumping = false, timer = 0, subs = [], note = "", meReady = null;
 
     // ---------- small helpers ----------
-    function emit() { var v = view(); subs.forEach(function (f) { try { f(v); } catch (e) {} }); }
+    function emit() { arm(); var v = view(); subs.forEach(function (f) { try { f(v); } catch (e) {} }); }
     function roster() { var r = []; for (var s = 0; s < SEATS; s++) r.push(null); if (me.seat >= 0) r[me.seat] = me.id; Object.keys(members).forEach(function (id) { var x = members[id]; if (x.seat >= 0 && !r[x.seat]) r[x.seat] = id; }); return r; }
     function others() { return Object.keys(members); }
     function send(id, m) { var c = links[id]; if (c) c.send(m); }
     function all(m) { Object.keys(links).forEach(function (id) { send(id, m); }); }
-    function meMsg() { return { t: "me", id: me.id, name: me.name, emoji: me.emoji, seat: me.seat, game: o.game }; }
+    function meMsg() { return { t: "me", id: me.id, name: me.name, emoji: me.emoji, seat: me.seat, game: o.game, auto: me.auto }; }
     function free() {
       var r = roster();
       for (var s = 0; s < SEATS; s++) if (!r[s] && !holds[s]) return s;
@@ -79,8 +90,10 @@
       if (links[id]) { try { links[id].close(); } catch (e) {} }
       links[id] = conn;
       var x = members[id] || (members[id] = { id: id, seat: -1 });
-      x.name = clean(m.name, 20) || "?"; x.emoji = clean(m.emoji, 8) || "🙂";
+      x.name = clean(m.name, 20) || "?"; x.emoji = clean(m.emoji, 8) || "🙂"; x.auto = m.auto === true;
       if (how && how.seat != null && m.seat === -1) {
+        // a group link: whoever connects first gets the lowest seat the link still holds
+        if (how.group) invites.forEach(function (i) { if (i.group === how.group && i.seat < how.seat && holds[i.seat] === me.id) { var t = i.seat; i.seat = how.seat; how.seat = t; } });
         if (holds[how.seat] === me.id) { delete holds[how.seat]; all({ t: "unhold", seat: how.seat }); }
         var s = roster()[how.seat] || (holds[how.seat] && holds[how.seat] !== me.id) ? free() : how.seat;
         if (s < 0 || hand) { conn.send({ t: "full" }); delete links[id]; delete members[id]; setTimeout(function () { try { conn.close(); } catch (e) {} }, 500); emit(); return; }
@@ -94,6 +107,13 @@
     function dropped(id) { delete links[id]; all({ t: "gone", id: id }); remove(id); }
     function remove(id) {
       if (!members[id]) return;
+      // handed over (or the handover still waits in the queue): the seat plays on Auto until the hand is over
+      var hs = hand ? hand.roster.indexOf(id) : -1;
+      if (hs >= 0 && (hand.ghost[hs] || (queues[id] || []).some(function (q) { return q.m.t === "handover" && (q.m.no | 0) === hand.no; }))) {
+        members[id].gone = true;
+        if (links[id]) { var l = links[id]; delete links[id]; try { l.close(); } catch (e) {} }
+        emit(); return;
+      }
       var name = members[id].name;
       delete members[id]; delete readies[id]; delete queues[id]; delete scores[id];
       if (links[id]) { var c = links[id]; delete links[id]; try { c.close(); } catch (e) {} }
@@ -144,6 +164,7 @@
         var z = members[m.id] || (members[m.id] = { id: m.id, seat: -1 }); if (z.seat < 0) z.seat = m.seat;
         z.name = z.name || clean(m.name, 20); z.emoji = z.emoji || clean(m.emoji, 8);
       } else if (m.t === "me" && x && m.seat >= 0 && m.seat < SEATS) x.seat = m.seat;
+      else if (m.t === "auto" && x) x.auto = m.on === true;
       else if (m.t === "hold" && x && m.seat >= 0 && m.seat < SEATS) {
         var mine = holds[m.seat] === me.id;
         if (!mine || x.seat < me.seat) holds[m.seat] = from;           // two holds on one seat: the lower seat keeps it
@@ -178,7 +199,7 @@
     function begin() {
       var lay = R.layout();
       hand = { no: no, roster: roster(), lay: lay, d1: [], d2: [], sec: MP.secrets(N), keys: {}, own: lay.hands[me.seat].slice(), open: {}, played: {}, pushed: [],
-        rev: {}, state: R.start({ dealer: no % SEATS }), flags: [] };
+        rev: {}, state: R.start({ dealer: no % SEATS }), flags: [], ghost: {}, moves: 0 };
       want = false; meReady = null; readies = {}; last = null;
       step(); emit();
     }
@@ -194,7 +215,14 @@
       }
     }
     function final() { return hand.d2.length === SEATS ? hand.d2[SEATS - 1] : null; }
-    function keysFor(p) { var out = []; for (var s = 0; s < SEATS; s++) { var k = s === me.seat ? hand.sec.ki[p] : hand.keys[p] && hand.keys[p][s]; if (!k) return null; out.push(k); } return out; }
+    function keysFor(p) {
+      var out = [];
+      for (var s = 0; s < SEATS; s++) {
+        var k = s === me.seat ? hand.sec.ki[p] : hand.ghost[s] ? hand.ghost[s].sec.ki[p] : hand.keys[p] && hand.keys[p][s];
+        if (!k) return null; out.push(k);
+      }
+      return out;
+    }
     function openOwn() {
       var f = final(); if (!f) return;
       hand.own.forEach(function (p) { if (hand.open[p] == null) { var k = keysFor(p); if (k) hand.open[p] = MP.open(f[p], k, N); } });
@@ -242,6 +270,11 @@
         h.rev[seat] = { sec: m.sec, pushed: Array.isArray(m.pushed) ? m.pushed.slice(0, 2) : [] };
         finish(); return null;
       }
+      if (m.t === "handover") {
+        if (!f) return WAIT;
+        if (seat !== me.seat && !h.ghost[seat] && !h.rev[seat]) takeOver(seat, m);   // also right at the end: then it stands in for the reveal
+        return null;
+      }
       if (m.t !== "act" || !m.a || typeof m.a.t !== "string") return null;
       if (!f) return WAIT;
       var a = { t: m.a.t, seat: seat }, r;
@@ -268,12 +301,51 @@
         if (a.t === "pickup" && seat !== me.seat) send(from, { t: "keys", no: h.no, pos: h.lay.skat, k: h.lay.skat.map(function (p) { return h.sec.ki[p]; }) });
         if (a.t === "pickup" && seat === me.seat) { h.own = h.own.concat(h.lay.skat); openOwn(); }
       }
-      if (R.done(h.state) && !h.revealed) {
-        h.revealed = true;
-        all({ t: "rev", no: h.no, sec: h.sec, pushed: h.pushed });
-        h.rev[me.seat] = { sec: h.sec, pushed: h.pushed }; finish();
-      }
+      h.moves++; settle();
       return null;
+    }
+    // ---------- a seat handed over: every device plays it the same way ----------
+    // m: { sec, open: [[pos, keys of every seat]], pushed }. Every key I gave that player must be in it, and every
+    // card of that player must open with it - else it is not that player's handover.
+    function takeOver(seat, m) {
+      var h = hand, f = final(), open = {};
+      if (!MP.validSecrets(m.sec, N)) { flag(seat, "deal"); return; }
+      if (h.lay.hands[me.seat].some(function (p) { return h.keys[p] && h.keys[p][seat] && h.keys[p][seat] !== m.sec.ki[p]; })) { flag(seat, "deal"); return; }
+      var may = h.lay.hands[seat].concat(h.lay.skat && h.state.declarer === seat && h.state.pickedUp ? h.lay.skat : []);
+      (Array.isArray(m.open) ? m.open : []).slice(0, may.length).forEach(function (x) {
+        var p = Array.isArray(x) ? x[0] : -1, k = Array.isArray(x) ? x[1] : null;
+        if (may.indexOf(p) < 0 || !Array.isArray(k) || k.length !== SEATS || !k.every(MP.isPoint) || k[seat] !== m.sec.ki[p] || k[me.seat] !== h.sec.ki[p]) return;
+        var id = MP.open(f[p], k, N); if (id >= 0) open[p] = id;
+      });
+      if (may.some(function (p) { return open[p] == null; })) { flag(seat, "deal"); return; }
+      var pushed = (Array.isArray(m.pushed) ? m.pushed : []).filter(function (p) { return open[p] != null; }).slice(0, 2);
+      h.ghost[seat] = { sec: m.sec, open: open, pushed: pushed };
+      var x = members[h.roster[seat]]; if (x) x.auto = true;
+      openOwn(); settle();
+    }
+    function ghostCards(seat) {
+      var h = hand, g = h.ghost[seat];
+      return Object.keys(g.open).map(Number).filter(function (p) { return h.played[p] == null && g.pushed.indexOf(p) < 0; })
+        .sort(function (a, b) { return a - b; }).map(function (p) { return { p: p, card: R.DECK[g.open[p]] }; });
+    }
+    // After every move: handed-over seats move at once, the same on every device; at the end all secrets go round.
+    function settle() {
+      var h = hand;
+      while (hand === h && !R.done(h.state)) {
+        var s = R.turn(h.state), g = h.ghost[s]; if (!g || s === me.seat) break;
+        var cs = ghostCards(s), a = R.auto(h.state, s, cs.map(function (x) { return x.card; }));
+        if (!a) break;
+        var at = function (c) { return cs.filter(function (x) { return x.card === c; })[0].p; };
+        if (a.t === "play") h.played[at(a.card)] = s;
+        if (a.t === "push") g.pushed = a.cards.map(at);
+        var r = R.apply(h.state, a); if (!r.ok) { flag(s, "auto"); break; }
+        h.state = r.state; h.moves++;
+      }
+      if (hand === h && R.done(h.state)) {
+        Object.keys(h.ghost).forEach(function (s) { h.rev[s] = { sec: h.ghost[s].sec, pushed: h.ghost[s].pushed }; });
+        if (!h.revealed) { h.revealed = true; all({ t: "rev", no: h.no, sec: h.sec, pushed: h.pushed }); h.rev[me.seat] = { sec: h.sec, pushed: h.pushed }; }
+        finish();
+      }
     }
     function flag(seat, why) { if (hand) hand.flags.push({ seat: seat, why: why }); }
     // All secrets are in: replay the deal, score the hand, check every card played against the real hands.
@@ -296,7 +368,10 @@
           (pts || []).forEach(function (x, s) { scores[h.roster[s]] = (scores[h.roster[s]] || 0) + x; });
         }
       }
-      last = out; hand = null; no++; emit();
+      out.names = h.roster.map(function (id) { var x = id === me.id ? me : members[id]; return x ? x.emoji + " " + x.name : "?"; });
+      last = out; hand = null; no++;
+      Object.keys(members).forEach(function (id) { if (members[id].gone) remove(id); });   // a handed-over seat is free now
+      emit();
     }
 
     // ---------- what the player does ----------
@@ -317,6 +392,23 @@
       all(m); inbox(me.id, m);
       return true;
     }
+    // ---------- Auto: only my own device moves for me ----------
+    // A new turn of mine starts the clock; when it runs out (at once on Auto) the rules pick the move.
+    function arm() {
+      var h = hand, mine = !!h && !closed && R.turn(h.state) === me.seat && actions().length > 0;
+      var key = mine ? h.no + ":" + h.moves + ":" + me.auto : "";
+      if (key === autoKey) return;
+      autoKey = key; clearTimeout(autoT); deadline = 0;
+      if (!mine) return;
+      var ms = me.auto ? autoFast : autoMs; deadline = Date.now() + ms;
+      autoT = setTimeout(fire, ms);
+    }
+    function fire() {
+      if (!hand || closed || R.turn(hand.state) !== me.seat) return;
+      var a = R.auto(hand.state, me.seat, myCards());
+      if (!a || !act(a)) autoT = setTimeout(fire, 1000);        // my last move is not through yet: a moment later
+    }
+    function setAuto(on) { me.auto = !!on; all({ t: "auto", on: me.auto }); emit(); }
     // Only once my whole hand is open (and the skat, after picking it up).
     function actions() {
       if (!hand || !final() || me.seat < 0) return [];
@@ -325,46 +417,83 @@
     }
 
     // ---------- seats and invites ----------
-    async function inviteSeat() {
+    async function inviteSeat(group) {
       var s = free(); if (s < 0 || me.seat < 0 || closed) throw new Error("full");
       holds[s] = me.id; all({ t: "hold", seat: s }); emit();
       var inv;
       try { inv = await retry(function () { return live.invite(function () {}); }); }
       catch (e) { if (holds[s] === me.id) { delete holds[s]; all({ t: "unhold", seat: s }); } emit(); throw e; }
-      var rec = { token: inv.token, expires: inv.expires, seat: s }; invites.push(rec);
+      var rec = { token: inv.token, expires: inv.expires, seat: s, group: group || 0 }; invites.push(rec);
       inv.ready.then(function (c) { attach(c, rec); }, function () { if (holds[rec.seat] === me.id) { delete holds[rec.seat]; all({ t: "unhold", seat: rec.seat }); } })
         .then(function () { invites = invites.filter(function (x) { return x !== rec; }); emit(); });
       emit();
       return rec;
     }
-    function leave() { if (closed) return; closed = true; clearTimeout(timer); Object.keys(links).forEach(function (id) { try { links[id].close(); } catch (e) {} }); links = {}; emit(); }
+    // One link for every free seat: a one-time token per seat, all in the same link (see the top).
+    async function inviteAll() {
+      var r = roster(), n = 0;
+      for (var s = 0; s < SEATS; s++) if (!r[s] && !holds[s]) n++;
+      if (!n || me.seat < 0 || closed) throw new Error("full");
+      var g = ++groups, tries = [];
+      for (var i = 0; i < n; i++) tries.push(inviteSeat(g));
+      var got = [], err = null;
+      for (var j = 0; j < tries.length; j++) { try { got.push(await tries[j]); } catch (e) { err = err || e; } }
+      if (!got.length) throw err;
+      got.sort(function (a, b) { return a.seat - b.seat; });
+      return { group: g, tokens: got.map(function (x) { return x.token; }), expires: got[0].expires };
+    }
+    // Standing up during a hand hands the seat over (see the top); before the cards are open the hand just ends.
+    function handover() {
+      var h = hand;
+      if (!h || !final() || me.seat < 0 || R.done(h.state) || h.own.some(function (p) { return h.open[p] == null; })) return null;
+      return { t: "handover", no: h.no, sec: h.sec, pushed: h.pushed, open: h.own.map(function (p) { return [p, keysFor(p)]; }) };
+    }
+    function leave() {
+      if (closed) return;
+      var ho = handover(), ls = links;
+      closed = true; clearTimeout(timer); clearTimeout(autoT); links = {};
+      function shut() { Object.keys(ls).forEach(function (id) { try { ls[id].close(); } catch (e) {} }); }
+      if (ho) { Object.keys(ls).forEach(function (id) { ls[id].send(ho); }); setTimeout(shut, HANDOVER_MS); } else shut();
+      emit();
+    }
     function next() { if (hand || closed) return; want = true; maybeReady(); emit(); }
     // a newcomer: one link to whoever invited them, the rest follows once the seat is known
-    async function join(token) { attach(await retry(function () { return live.accept(token, function () {}); }), "via"); }
+    // A group link carries several tokens: the first one nobody has used yet is mine; all used means the table is full.
+    async function join(tokens) {
+      tokens = [].concat(tokens); var last = null;
+      for (var i = 0; i < tokens.length; i++) {
+        try { attach(await retry(function () { return live.accept(tokens[i], function () {}); }), "via"); return; }
+        catch (e) { last = e; if (e.message !== "gone" && e.message !== "self") throw e; }
+      }
+      throw new Error(last && last.message === "self" ? "self" : tokens.length > 1 ? "full" : (last && last.message) || "gone");
+    }
 
     function view() {
       var r = roster(), st = hand && hand.state;
       return {
-        game: o.game, me: me.id, mySeat: me.seat, no: no, badge: badge(), complete: complete(), lost: lost, closed: closed, note: note,
+        game: o.game, me: me.id, mySeat: me.seat, no: no, badge: badge(), complete: complete(), lost: lost, closed: closed, note: note, auto: me.auto, deadline: deadline,
         seats: r.map(function (id, s) {
           if (!id) return { free: true, held: !!holds[s] };
           var x = id === me.id ? me : members[id];
-          return { id: id, name: x.name, emoji: x.emoji, me: id === me.id, linked: id === me.id || !!links[id], score: scores[id] || 0 };
+          return { id: id, name: x.name, emoji: x.emoji, me: id === me.id, linked: id === me.id || !!links[id], score: scores[id] || 0, auto: !!x.auto, gone: !!x.gone };
         }),
-        invites: invites.map(function (i) { return { token: i.token, expires: i.expires, seat: i.seat }; }),
-        hand: hand ? { no: hand.no, dealt: !!final() && !hand.own.some(function (p) { return hand.open[p] == null; }), state: st, turn: R.turn(st), cards: myCards(), actions: actions(), roster: hand.roster } : null,
+        invites: invites.map(function (i) { return { token: i.token, expires: i.expires, seat: i.seat, group: i.group }; }),
+        hand: hand ? { no: hand.no, dealt: !!final() && !hand.own.some(function (p) { return hand.open[p] == null; }), state: st, turn: R.turn(st), cards: myCards(), actions: actions(), roster: hand.roster,
+          ghosts: Object.keys(hand.ghost).map(function (s) { return { seat: +s, cards: ghostCards(+s).map(function (x) { return x.card; }) }; }) } : null,
         want: want, last: last
       };
     }
     return {
-      id: me.id, view: view, on: function (f) { subs.push(f); }, invite: inviteSeat, act: act, next: next, leave: leave, join: join,
-      _debug: function () { return { hand: hand, members: members, links: Object.keys(links), holds: holds, readies: readies, no: no }; }
+      id: me.id, view: view, on: function (f) { subs.push(f); }, invite: function () { return inviteSeat(0); }, inviteAll: inviteAll, auto: setAuto,
+      act: act, next: next, leave: leave, join: join,
+      _crash: function () { closed = true; Object.keys(links).forEach(function (id) { try { links[id].close(); } catch (e) {} }); },   // tests: a device that just drops off
+      _debug: function () { return { hand: hand, members: members, links: Object.keys(links), holds: holds, readies: readies, no: no, inbox: inbox }; }
     };
   }
   var api = {
     create: function (o) { return Table(Object.assign({}, o, { create: true })); },
     join: function (token, o) { var t = Table(Object.assign({}, o, { create: false })); return t.join(token).then(function () { return t; }); },
-    BLOCK_MS: BLOCK_MS
+    BLOCK_MS: BLOCK_MS, AUTO_MS: AUTO_MS
   };
   if (node) module.exports = api; else root.Table = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
