@@ -5,7 +5,7 @@ const path = require("node:path");
 const { chromium, devices } = require("playwright");
 const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
 
-test("Start: KI-Knopf oeffnet den Wunsch, ein offenes Blatt springt am neuen Tag um", async () => {
+test("Start: Knopf unter dem Blatt oeffnet Wunsch (KI) oder Wuerfel (Kosmetik), ein offenes Blatt springt am neuen Tag um", async () => {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), p = await ctx.newPage();
   await p.clock.install({ time: new Date("2026-11-01T10:00:00Z") });
@@ -22,10 +22,11 @@ test("Start: KI-Knopf oeffnet den Wunsch, ein offenes Blatt springt am neuen Tag
   assert.match(await day(), /^04\|/);
   const wish = p.locator("#wishgo");
   await wish.waitFor();
-  assert.equal(await wish.textContent(), "✨ Mit KI anpassen");
+  const kind = await p.evaluate(() => window.DailyDebug.home().idea.kind), ai = ["game", "sound", "duel", "quest"].includes(kind);
+  assert.equal(await wish.textContent(), ai ? "✨ Mit KI anpassen" : "🎲 Look würfeln", kind);
   await wish.tap();
-  await p.getByRole("tab", { name: "✨ Wunsch" }).and(p.locator("[aria-selected=true]")).waitFor();
-  await p.getByText("Wunsch anwenden").waitFor();
+  await p.getByRole("tab", { name: ai ? "✨ Wunsch" : "🎲 Würfel" }).and(p.locator("[aria-selected=true]")).waitFor();
+  await p.getByRole("button", { name: ai ? /Wunsch anwenden|Bauen/ : "🎲 Würfeln" }).waitFor();
   await b.close();
 });
 
@@ -54,27 +55,37 @@ test("Start: beim Ziehen liegt darunter das echte naechste Blatt, ausgegraut, un
   await b.close();
 });
 
-test("Wunsch: ein Tipp auf eine Idee wendet sie sofort an und aendert das ganze Blatt; Empfaenger sieht die Karte gross", async () => {
+test("Wuerfel: Kosmetik ohne KI und ohne Netz, gleicher Seed gleicher Wurf, rueckgaengig; Empfaenger sieht die Karte gross", async () => {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), p = await ctx.newPage();
-  const errs = []; p.on("pageerror", (e) => errs.push(e.message));
-  await p.route("**/api/**", (r) => r.abort());   // kein Server: die festen Regeln antworten
-  await p.goto(page + "#c=eyJ2IjoxLCJkIjp7ImsiOiJjYXJkIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMDkiLCJ4IjoiSGV1dGUgMjAgVWhyLiBWaWRlbyBhbi4gS2VpbmUgQXVzcmVkZW4uIiwic3QiOiJzdGVtcGVsIiwic2siOltdfX0");
+  const errs = [], calls = []; p.on("pageerror", (e) => errs.push(e.message));
+  await ctx.route(/^https?:/, (r) => { calls.push(r.request().url()); return r.abort(); });
+  const link = "#c=eyJ2IjoxLCJkIjp7ImsiOiJjYXJkIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMDkiLCJ4IjoiSGV1dGUgMjAgVWhyLiBWaWRlbyBhbi4gS2VpbmUgQXVzcmVkZW4uIiwic3QiOiJzdGVtcGVsIiwic2siOltdfX0";
+  await p.goto(page + link);
   await p.locator("#leaf.got").waitFor();
   assert.equal(await p.locator("#hero").isHidden(), true, "der Kartentext steht nur einmal da, im Bild");
   assert.equal(await p.locator("#pvcard").isVisible(), true);
   assert.equal(await p.locator("#go").textContent(), "Weiter bauen");
+  assert.equal(await p.locator("#leaf .kiseal").isHidden(), true, "ohne KI kein Siegel"); assert.equal(await p.locator("#kireport").isVisible(), true, "melden kann man jedes geteilte Blatt");
   await p.locator("#wishgo").tap();
-  const tip = p.getByRole("button", { name: "Mach es gruseliger" });
-  await tip.waitFor();
-  const order = await p.evaluate(() => { const pn = document.getElementById("panel"), at = (x) => [...pn.querySelectorAll("*")].indexOf(x); return { field: at(pn.querySelector("textarea")), go: at([...pn.querySelectorAll("button")].find((x) => /Wunsch anwenden/.test(x.textContent))), tip: at([...pn.querySelectorAll("button")].find((x) => x.textContent === "Mach es gruseliger")) }; });
-  assert.ok(order.field < order.go && order.go < order.tip, "Feld, gleich darunter Anwenden, dann die Ideen: " + JSON.stringify(order));
-  await tip.tap();
+  await p.getByRole("tab", { name: "🎲 Würfel" }).and(p.locator("[aria-selected=true]")).waitFor();
+  assert.equal(await p.getByRole("tab", { name: "✨ Wunsch" }).count(), 0, "kein KI-Umfaerben auf der Karte");
+  const before = await p.evaluate(() => JSON.stringify(window.DailyDebug.doc()));
+  calls.length = 0;
+  await p.getByRole("button", { name: "🎲 Würfeln" }).tap();
   const did = p.locator(".aicount", { hasText: "Geändert" });
   await did.waitFor();
-  const txt = await did.textContent();
-  for (const a of ["Stil", "Farbe", "Sticker"]) assert.match(txt, new RegExp(a), "ein Tipp aendert alles ohne Text: " + txt);
-  assert.equal(await p.locator("#panel textarea").inputValue(), "Mach es gruseliger");
+  for (const a of ["Stil", "Farbe", "Sticker"]) assert.match(await did.textContent(), new RegExp(a));
+  const first = await p.evaluate(() => JSON.stringify(window.DailyDebug.doc()));
+  assert.notEqual(first, before); assert.ok(!JSON.parse(first).ki, "ein Wurf ist keine KI");
+  await p.getByRole("button", { name: /Rückgängig/ }).tap();
+  assert.equal(await p.evaluate(() => JSON.stringify(window.DailyDebug.doc())), before, "rueckgaengig bringt das alte Blatt");
+  // same sheet, same roll number -> same look on a second phone
+  const n = calls.length, ctx2 = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), p2 = await ctx2.newPage(); await ctx2.route(/^https?:/, (r) => { calls.push(r.request().url()); return r.abort(); }); await p2.goto(page + link); await p2.locator("#leaf.got").waitFor(); await p2.locator("#wishgo").tap();
+  await p2.getByRole("button", { name: "🎲 Würfeln" }).tap(); await p2.locator(".aicount", { hasText: "Geändert" }).waitFor();
+  const a1 = JSON.parse(first), a2 = await p2.evaluate(() => window.DailyDebug.doc());
+  assert.deepEqual([a2.col, a2.st, a2.sk.map((x) => x.e)], [a1.col, a1.st, a1.sk.map((x) => x.e)], "Zufall nur aus dem Seed");
+  assert.equal(n, 0, "kein Netz fuer Kosmetik: " + calls.join(" "));
   assert.deepEqual(errs, []);
   await b.close();
 });

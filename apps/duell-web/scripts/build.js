@@ -32,7 +32,10 @@ const fontCss = "/* Anton, Copyright 2020 The Anton Project Authors (https://git
   '@font-face{font-family:"Anton";font-style:normal;font-weight:400 900;font-display:block;src:url(data:font/woff2;base64,' + fs.readFileSync(fontFile).toString("base64") + ") format(\"woff2\")}\n";
 let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + read("src/style.css") + (has("style.css") ? "\n" + read(fl("style.css")) : ""));
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
-for (const k of Object.keys(parts)) html = html.replace("/*@" + k + "@*/", () => safe(parts[k]));
+// Our own sources lose their comment-only lines in the page (about 55 KB); third-party code (QR code) and the data stay as they are.
+const KEEP = new Set(["DATA", "QRCODE"]);
+const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).join("\n");
+for (const k of Object.keys(parts)) html = html.replace("/*@" + k + "@*/", () => safe(KEEP.has(k) ? parts[k] : lean(parts[k])));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html";
 fs.mkdirSync(path.dirname(path.join(root, out)), { recursive: true });
 fs.writeFileSync(path.join(root, out), html);

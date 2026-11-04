@@ -30,7 +30,7 @@ test("Datenschutz: Kurzlink nur ueber shortlink.js, nur nach einem Tipp auf Teil
   const game = src("game.js"), at = game.indexOf("ShortLink.shorten");
   assert.ok(at > game.indexOf('$("challenge").addEventListener("click"'), "game.js: nur im Klick");
 });
-test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, Kurzlink), nur getippter Text; kein anderer Weg nach draussen", () => {
+test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldung, Kurzlink), nur getippter Text; kein anderer Weg nach draussen", () => {
   const html = noComments(fs.readFileSync(dist, "utf8"));
   // Every call site by name; a new one fails here until it is argued for and listed.
   // protokoll-page.js is its own page (dist/protokoll.html, connect-src 'self'): one GET for the speech model from this
@@ -49,7 +49,8 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, Kurzlink
   assert.ok(!/XMLHttpRequest|sendBeacon|EventSource|WebSocket|RTCPeerConnection|analytics|serviceWorker/.test(ph), "Protokoll-Seite: kein weiterer Ausgang");
   assert.match(ph, /connect-src 'self' blob:;/, "Protokoll-Seite spricht nur mit der eigenen Domain");
   assert.equal((html.match(short) || []).length, 1, "eine Stelle fuer Kurzlinks im Build");
-  assert.match(src("ai.js").match(/await fetch\([^\n]*/)[0], /body: text/, "nur der gepruefte Text");
+  for (const call of src("ai.js").match(/await fetch\([^\n]*/g)) assert.match(call, /body: text/, "nur der gepruefte Text");   // eine Stelle fuer KI-Aufruf, Warteschlange, Abrechnung und Meldung (nach Ja)
+  assert.match(src("ai.js"), /fetch\(endpoint\(api0\(\), path\)[^\n]*credentials: path === "\/report" \? "omit" : "same-origin"/, "Meldung ohne Cookie, ueber dieselbe eine Stelle");
   assert.ok(!/toDataURL|toBlob|drawImage|getImageData/.test(src("ai.js")), "KI fasst kein Bild an");
   assert.ok(src("game.js").includes("await fetch("), "fetch gehoert ins Spiel");
   const body = src("game.js").match(/fetch\([^\n]*/)[0];

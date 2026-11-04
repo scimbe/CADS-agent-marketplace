@@ -56,6 +56,7 @@ function fillSheet(root, h, still) {
   // Something sent by a friend: the sheet is that work, big. Its text stands in the picture, so the title shows only
   // when the sheet has one of its own.
   var got = !!(doc && h.note && !mode); root.classList.toggle("got", got);
+  var ks = q("kiseal"); ks.hidden = !(doc && doc.ki && doc.ki.s); ks.textContent = t("kiBadge"); ks.title = t("kiBadgeL"); ks.setAttribute("aria-label", t("kiBadgeL"));
   var hero = q("hero"); hero.textContent = ""; hero.hidden = got && !doc.t;
   title.filter(Boolean).forEach(function (l, i) { var s = el("span", "", l); s.style.setProperty("--i", i); hero.appendChild(s); });
   q("teaser").textContent = sub;
@@ -70,7 +71,9 @@ function setHome(h, animate) {
   home = h;
   var s = fillSheet($("leaf"), h, false), kind = s.kind, mode = s.mode, idea = h.idea;
   $("go").textContent = mode ? mode.go : idea && idea.protokoll && !h.doc ? t("go_protokoll") : s.got ? t("remixGo") : t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
-  $("wishgo").textContent = t("wishHome"); $("wishgo").hidden = !!mode || W.KINDS.indexOf(kind) < 0;
+  var wk = W.KINDS.indexOf(kind) >= 0, wb = $("wishgo");   // AI where it does real work, otherwise the dice
+  wb.dataset.tab = wk ? "Wish" : "Dice"; wb.textContent = t(wk ? "wishHome" : "diceHome"); wb.hidden = !!mode || (!wk && W.DICE.indexOf(kind) < 0);
+  var kr = $("kireport"), done = h.doc && reported(h.doc); kr.textContent = t(done ? "kiReported" : "kiReport"); kr.disabled = !!done; kr.hidden = !h.doc;   // every shared sheet can be reported
   var live = idea && idea.live, lb = $("livego"); lb.hidden = !live; if (live) { lb.textContent = t("live_" + live); lb.dataset.u = LIVE[live]; }
   var leaf = $("leaf"); leaf.className = s.got ? "got" : ""; leaf.style.transform = ""; leaf.style.opacity = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
@@ -132,7 +135,7 @@ function newDay() {
   if (screen === "home") setHome(home, true);
 }
 function goHome() {
-  CU.end(); stopSound(); G.stop(); ed = null; played = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
+  CU.end(); stopSound(); G.stop(); ed = null; window.Ai.drop(); played = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
   if (!home) home = dayHome(); setHome(home, true);
 }
 // Swiping to the left turns to the next day, to the right back to the day before, like the pages of a book.
@@ -217,6 +220,7 @@ function trailLine() {
 function openEditor(doc, opt) {
   opt = opt || {};
   if (doc && doc.k === "table") { if (window.TableUI) window.TableUI.open(doc.g); return; }   // a card table is played live, there is nothing to edit
+  window.Ai.drop();
   ed = { doc: D.sanitizeDoc(doc), base: D.sanitizeDoc(doc), own: !!opt.own, photo: null, peaks: null, pcm: null, tab: null, sel: -1, page: 0, line: 0, idea: opt.idea || null };
   if (opt.own) ed.doc.n = me.nick;
   if (ed.doc.k === "sound" && ed.doc.m === "beat") beatPeaks();
@@ -229,18 +233,18 @@ function openEditor(doc, opt) {
   $("edstyle").textContent = me.emoji;
   stopSound(); show("editor", true); trailLine();
   var tabs = $("tabs"); tabs.textContent = "";
-  var list = (ed.own ? ["Idea"] : []).concat(W.KINDS.indexOf(ed.doc.k) >= 0 ? ["Wish"] : [], ed.doc.nr ? ["Door"] : [], TABS[ed.doc.k]);
+  var list = (ed.own ? ["Idea"] : []).concat(W.KINDS.indexOf(ed.doc.k) >= 0 ? ["Wish"] : [], W.DICE.indexOf(ed.doc.k) >= 0 ? ["Dice"] : [], ed.doc.nr ? ["Door"] : [], TABS[ed.doc.k]);
   list.forEach(function (k) {
     var b = el("button", k === "Wish" ? "hot" : "", t("tab" + (k === "Sound" ? (ed.doc.m === "beat" ? "Beat" : "Voice") : k === "Idea" ? "Idea" : k)), function () { Kit.sfx.tap(); tab(k); });
     b.setAttribute("role", "tab"); b.dataset.k = k; tabs.appendChild(b);
   });
-  tab(list.indexOf(opt.tab) >= 0 ? opt.tab : list[0] === "Wish" ? list[1] : list[0]);
+  tab(list.indexOf(opt.tab) >= 0 ? opt.tab : list.filter(function (k) { return k !== "Wish" && k !== "Dice"; })[0]);
   if (g) G.demo($("demo"), gameState());
   paint(); CU.editor();
 }
 function tab(k) {
   ed.tab = k; Array.from($("tabs").children).forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.k === k)); });
-  var p = $("panel"); p.textContent = ""; p.removeAttribute("data-size"); p.classList.toggle("tall", (k === "Sound" && ed.doc.m === "beat") || (k === "Text" && ed.doc.k !== "game") || k === "Wish"); PANEL[k](p); p.scrollTop = 0;
+  var p = $("panel"); p.textContent = ""; p.removeAttribute("data-size"); p.classList.toggle("tall", (k === "Sound" && ed.doc.m === "beat") || (k === "Text" && ed.doc.k !== "game") || k === "Wish" || k === "Dice"); PANEL[k](p); p.scrollTop = 0;
 }
 function setDoc(d) {        // a whole creation replaced by a wish or its undo; the canvas state follows
   ed.doc = d; ed.sel = -1; if (d.k === "sound" && d.m === "beat") beatPeaks();
@@ -271,7 +275,7 @@ function weatherBlock(p) {
   box.appendChild(row); box.appendChild(el("p", "note", t("wxNote"))); p.appendChild(box);
 }
 // The creation becomes the game: same engine, its colours, picture and figure. Back leads to the creation, not home.
-var played = null;
+var played = null, shortId = null;   // shortId: the short link a shared sheet came through, so a report can name it
 function makePlayable() {
   var d = ed.doc, photo = ed.ownPhoto ? ed.photo : null, st = P.fromDoc(d, me);
   var o = { own: true, bg: P.backdrop(function (c, doc, m) { R.draw(c, doc, { me: m, photo: ed.photo, peaks: ed.peaks }); }, d, me), figure: photo ? P.figure(photo) : null };
@@ -282,7 +286,21 @@ function backFromPlay() {
   if (!played) return false;
   ed = played; played = null; G.stop(); show("editor"); changed(); return true;
 }
-function aiBlock(p, o) { o.el = el; o.wall = openAiWall; return window.Ai.block(p, o); }
+// The panel belongs to the sheet open now; an answer that comes back after it was left is dropped, not applied elsewhere.
+function aiBlock(p, o) { var mine = ed; o.el = el; o.wall = openAiWall; o.alive = function () { return !!mine && ed === mine; }; return window.Ai.block(p, o); }
+function markKi(d, ki) { var k = D.sanitizeKi(ki); if (k) d.ki = k; }
+// "Geändert: …" and the undo, after a wish or a roll. before: the doc as JSON before the change. -> false when nothing changed.
+function didLine(res, before, next, lead) {
+  var was = JSON.parse(before), what = D.changedAreas(was, next);
+  if (next.k === "sound" && next.fx !== was.fx && what.indexOf("stimme") < 0) what.push("stimme");
+  if (!what.length) { res.appendChild(el("p", "note", t("wishSame"))); return false; }
+  setDoc(next); (ed.wishes = ed.wishes || []).push(before);
+  res.appendChild(el("p", "aicount", (lead ? lead + " · " : "") + t("wishDid") + ": " + what.map(function (w) { return t("a_" + w); }).join(", ")));
+  res.appendChild(el("button", "chip", "↶ " + t("skUndo"), function () { setDoc(JSON.parse(ed.wishes.pop())); Kit.sfx.pop(); res.textContent = ""; }));
+  return true;
+}
+// Random only from a seed: the same wish text or the same roll of the same sheet always gives the same result.
+function seeded(s) { return C.mulberry32(C.hash32(String(s))); }
 function field(p, label, value, max, on, area) {
   p.appendChild(el("label", "lbl", label));
   var f = el(area ? "textarea" : "input", "field"); f.value = value || ""; f.maxLength = max; if (area) f.rows = 2; f.autocomplete = "off"; f.setAttribute("aria-label", label);
@@ -318,28 +336,36 @@ function colors(p, get, set) {
   p.appendChild(row);
 }
 var PANEL = {
-  // Type a wish and apply it right below, or tap a suggestion: that applies it at once. One wish changes the whole sheet.
+  // Type a wish and apply it right below, or tap a suggestion: that applies it at once. The AI's answer is applied as it
+  // came, nothing mixed in. The flight game's one way in: "What do you want to fly?"; offline its rules still build a world.
   Wish: function (p) {
-    var f = field(p, t("wishL"), "", 100, function () {}, true), box = el("div", "chips");
+    var game = ed.doc.k === "game", f = field(p, t(game ? "wishL_game" : "wishL"), "", 100, function () {}, true), box = el("div", "chips");
+    var want = function () { return D.cleanInput(f.value, 100); };
     var go = aiBlock(p, {
-      kind: "wish", label: t("wishGo"), noteLast: true, input: function () { var v = D.cleanInput(f.value, 100); return v ? W.request(ed.doc, v, ed.idea ? ideaText(ed.idea).t.replace("|", " ") : "") : null; },
-      fallback: function () { return [{ changes: W.local(ed.doc, D.cleanInput(f.value, 100), Kit.lang, function (n) { return Math.floor(Math.random() * n); }), note: "" }]; },
-      auto: function (o, real, res) {
-        var all = real ? Object.assign(W.local(ed.doc, D.cleanInput(f.value, 100) || "", Kit.lang, function (n) { return Math.floor(Math.random() * n); }), o.changes) : o.changes;
-        var before = JSON.stringify(ed.doc), next = W.apply(ed.doc, all, PAIRS, Math.random), was = JSON.parse(before), what = D.changedAreas(was, next);
-        if (ed.doc.k === "sound" && next.fx !== was.fx && what.indexOf("stimme") < 0) what.push("stimme");
-        res.textContent = "";
-        if (!what.length) { res.appendChild(el("p", "note", t("wishSame"))); return; }
-        setDoc(next); (ed.wishes = ed.wishes || []).push(before);
-        res.appendChild(el("p", "aicount", (real && o.note ? o.note + " · " : "") + t("wishDid") + ": " + what.map(function (w) { return t("a_" + w); }).join(", ")));
-        var un = el("button", "chip", "↶ " + t("skUndo"), function () { setDoc(JSON.parse(ed.wishes.pop())); Kit.sfx.pop(); res.textContent = ""; });
-        res.appendChild(un);
+      kind: "wish", label: t(game ? "wishGo_game" : "wishGo"), noteLast: true, input: function () { var v = want(); return v ? W.request(ed.doc, v, ed.idea ? ideaText(ed.idea).t.replace("|", " ") : "") : null; },
+      local: game ? function () { var v = want(), r = seeded(v); return { changes: W.local(ed.doc, v, Kit.lang, function (n) { return Math.floor(r() * n); }) }; } : null,
+      auto: function (o, ki, res) {
+        var before = JSON.stringify(ed.doc), next = W.apply(ed.doc, o.changes || {}, PAIRS, seeded(want() + "|sk"));
+        if (ki) markKi(next, ki);
+        return didLine(res, before, next, ki ? (o.note || "") : t("aiNoAi"));
       }
     });
     p.appendChild(el("label", "lbl wishtips", t("wishOr")));
-    t("wishTips_" + (WM.is(ed.doc) ? "warm" : ed.doc.nr ? "door" : ed.doc.k)).split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; go(); })); });
+    t("wishTips_" + ed.doc.k).split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; go(); })); });
     p.appendChild(box);
-    p.appendChild(el("p", "note", t("wishH_" + (ed.doc.nr ? "door" : ed.doc.k)) + " " + t("aiNote")));
+    p.appendChild(el("p", "note", t("wishH_" + ed.doc.k) + " " + t("aiNote")));
+  },
+  // The dice: style, colours, stickers (and a card's line from its idea) rolled on the device. No AI, no network, no count.
+  Dice: function (p) {
+    var res = el("div", "chips");
+    p.appendChild(el("button", "chip hot", "🎲 " + t("diceGo"), function () {
+      Kit.sfx.pop();
+      var d = ed.doc, key = d.seed != null ? d.seed : d.i || d.k, n = roll(key), seed = key + "|" + n;
+      var before = JSON.stringify(d), lines = ed.idea && d.k === "card" ? ideaText(ed.idea).lines : null;
+      res.textContent = ""; didLine(res, before, W.apply(d, W.dice(d, seed, PAIRS, lines), PAIRS, seeded(seed + "|sk")));
+    }));
+    p.appendChild(res);
+    p.appendChild(el("p", "note", t("diceNote")));
   },
   // Advent door: only its number; 1-24 as plain buttons, no typing.
   Door: function (p) {
@@ -356,16 +382,16 @@ var PANEL = {
     var d = ed.doc;
     if (d.k === "card") {
       var f = field(p, t("line"), d.x, 90, function (v) { d.x = v; }, true), L = ed.idea ? ideaText(ed.idea).lines : null;
-      if (L) p.appendChild(el("button", "chip", "🎲 " + t("dice"), function () { Kit.sfx.pop(); ed.line = (ed.line + 1) % L.length; d.x = L[ed.line]; f.value = d.x; changed(); }));
-      aiBlock(p, { kind: "line", label: t("aiLine"), input: function () { var x = D.cleanInput(d.x, 90) || t("own"); return { text: x, style: d.st }; }, show: String, apply: function (o) { var v = D.cleanInput(o, 90); if (v) { d.x = v; f.value = v; changed(); } } });
+      if (L) p.appendChild(el("button", "chip", "↻ " + t("nextLine"), function () { Kit.sfx.pop(); ed.line = (ed.line + 1) % L.length; d.x = L[ed.line]; f.value = d.x; changed(); }));
+      aiBlock(p, { kind: "line", label: t("aiLine"), input: function () { var x = D.cleanInput(d.x, 90) || t("own"); return { text: x, style: d.st }; }, show: String, apply: function (o, ki) { var v = D.cleanInput(o, 90); if (v) { d.x = v; f.value = v; markKi(d, ki); changed(); } } });
       if (!d.nr) weatherBlock(p);
     } else if (d.k === "photo") {
       var top = field(p, t("top"), d.x, 28, function (v) { d.x = v; }), low = field(p, t("bottom"), d.y, 28, function (v) { d.y = v; });
       var what = field(p, t("aiDesc"), "", 100, function () {});
-      aiBlock(p, { kind: "meme", label: t("aiMeme"), input: function () { var v = D.cleanInput(what.value, 100); return v ? { desc: v } : null; }, show: function (o) { return o.top + " / " + o.bottom; }, apply: function (o) { d.x = D.cleanInput(o.top, 28); d.y = D.cleanInput(o.bottom, 28); top.value = d.x; low.value = d.y; changed(); } });
+      aiBlock(p, { kind: "meme", label: t("aiMeme"), input: function () { var v = D.cleanInput(what.value, 100); return v ? { desc: v } : null; }, show: function (o) { return o.top + " / " + o.bottom; }, apply: function (o, ki) { d.x = D.cleanInput(o.top, 28); d.y = D.cleanInput(o.bottom, 28); top.value = d.x; low.value = d.y; markKi(d, ki); changed(); } });
     } else if (d.k === "sound") {
       var name = field(p, t("titleL"), d.x, 28, function (v) { d.x = v; }), topic = field(p, t("aiTopic"), "", 60, function () {}), song = el("p", "lyrics"); song.hidden = true;
-      aiBlock(p, { kind: "lyrics", label: t("aiLyrics"), input: function () { var v = D.cleanInput(topic.value, 60); return v ? { topic: v, bpm: d.bpm || 110 } : null; }, show: function (o) { return o.title; }, apply: function (o) { var v = D.cleanInput(o.title, 28); if (v) { d.x = v; name.value = v; } song.textContent = o.lines.join("\n"); song.hidden = false; changed(); } });
+      aiBlock(p, { kind: "lyrics", label: t("aiLyrics"), input: function () { var v = D.cleanInput(topic.value, 60); return v ? { topic: v, bpm: d.bpm || 110 } : null; }, show: function (o) { return o.title; }, apply: function (o, ki) { var v = D.cleanInput(o.title, 28); if (v) { d.x = v; name.value = v; } song.textContent = o.lines.join("\n"); song.hidden = false; markKi(d, ki); changed(); } });
       p.appendChild(song);
     }
     else field(p, t("titleL"), d.g.title, 28, function (v) { d.g.title = v || "Duell"; });
@@ -419,15 +445,7 @@ var PANEL = {
       r.addEventListener("input", function () { g.params[k] = Number(r.value); v.textContent = r.value; changed(); });
       row.appendChild(r); row.appendChild(v); p.appendChild(row);
     });
-    var f = field(p, t("describe"), "", 80, function () {});
-    p.appendChild(el("button", "chip", "✨ " + t("describeGo"), async function (e) {
-      var v = D.cleanInput(f.value, 80); if (!v) { Kit.toast(t("filter")); return; }
-      var b = e.currentTarget; b.disabled = true;
-      var st = await G.fromSentence(v, Kit.lang); b.disabled = false;
-      if (!ed || !st || st.rejected) { Kit.toast(t("filter")); return; }
-      ed.doc.g = { seed: st.seed, params: st.params, theme: st.theme, title: st.title, emoji: st.emoji }; tab("Rules"); changed();
-    }));
-    p.appendChild(el("p", "note", t("netNote")));
+    p.appendChild(el("button", "chip", "✨ " + t("wishL_game"), function () { Kit.sfx.tap(); tab("Wish"); }));   // the one way in, not a second one
   },
   Figure: function (p) {
     var g = ed.doc.g, list = EMOJI.indexOf(me.emoji) < 0 ? [me.emoji].concat(EMOJI) : EMOJI;
@@ -657,8 +675,16 @@ $("image").addEventListener("click", function () {
 });
 
 /* ---------- my style ---------- */
+// The roll number lives on the device, so closing and opening again goes on with the next roll instead of the first.
+function roll(key) { var s = Kit.store; if (!s.rolls || typeof s.rolls !== "object" || Array.isArray(s.rolls)) s.rolls = {}; var n = W.nextRoll(s.rolls, key); Kit.save(); return n; }
 function openStyle() {
   shelf(t("style"), function (b) {
+    // The dice for my style: figure, colours and sticker set from a seed (name + roll), on the device, no AI.
+    b.appendChild(el("button", "chip", "🎲 " + t("diceGo"), function () {
+      var r = seeded("me|" + me.nick + "|" + roll("me|" + me.nick)), pick = function (n) { return Math.floor(r() * n); }, sets = Object.keys(D.SETS);
+      Kit.sfx.pop(); me.emoji = EMOJI[pick(EMOJI.length)]; me.colors = PAIRS[pick(PAIRS.length)].slice(); me.set = sets[pick(sets.length)];
+      saveMe(); $("me").textContent = me.emoji; setInk(me.colors[0], me.colors[1]); openStyle();
+    }));
     b.appendChild(el("label", "lbl", t("nick")));
     var f = el("input", "field"); f.value = me.nick; f.maxLength = 16; f.setAttribute("aria-label", t("nick"));
     f.addEventListener("input", function () { var v = C.sanitizeName(f.value); if (f.value.trim() && !v) { Kit.toast(t("filter")); return; } me.nick = v; saveMe(); });
@@ -716,6 +742,36 @@ function prefUse(box, keys) {
     Object.keys(off).forEach(function (id) { if (off[id]) { var k = id.split(":")[0]; p.pref = D.dropPref(p, k, id.slice(k.length + 1)); } });
     return D.prefContext(p, Kit.lang, keys);
   } };
+}
+// Report a shared sheet: a dialog says what goes out (the sheet's texts, its seal if it has one), asks for the reason,
+// and only "Melden" sends it. A sheet goes out once from this device; the server limits the rest.
+function reportKey(doc) { return String(C.hash32(JSON.stringify([doc.k, doc.t, doc.s, doc.x, doc.y, doc.g && doc.g.title, doc.ki && doc.ki.s]))); }
+function reported(doc) { return Array.isArray(Kit.store.reported) && Kit.store.reported.indexOf(reportKey(doc)) >= 0; }
+function reportKi(doc, link) {
+  if (reported(doc)) return;
+  var dlg = el("dialog", "kidlg"), h = el("h2", "", t("kiAsk")), msg = el("p", "note"), row = el("div", "chips"), why = null;
+  h.id = "kidlgh"; dlg.setAttribute("aria-labelledby", "kidlgh"); msg.setAttribute("role", "status");
+  var reasons = el("div", "chips"); reasons.setAttribute("role", "radiogroup"); reasons.setAttribute("aria-label", t("kiWhy"));
+  window.Ai.REASONS.forEach(function (r) {
+    var b = el("button", "chip", t("kiWhy_" + r), function () { Kit.sfx.tap(); why = r; Array.from(reasons.children).forEach(function (x) { x.setAttribute("aria-checked", String(x === b)); x.classList.toggle("on", x === b); }); send.disabled = false; });
+    b.setAttribute("role", "radio"); b.setAttribute("aria-checked", "false"); reasons.appendChild(b);
+  });
+  var send = el("button", "btn", t("kiSend"), async function () {
+    if (!why) return;
+    send.disabled = true; msg.textContent = "…";
+    var ok = await window.Ai.report(doc, why, link);
+    msg.textContent = t(ok ? "kiThanks" : "kiOffline");
+    if (ok) {
+      var s = Kit.store; s.reported = (Array.isArray(s.reported) ? s.reported : []).concat(reportKey(doc)).slice(-50); Kit.save();
+      send.hidden = true; no.textContent = t("kiClose"); var kr = $("kireport"); kr.textContent = t("kiReported"); kr.disabled = true;
+    } else send.disabled = false;
+  });
+  send.disabled = true;
+  var no = el("button", "chip", t("kiCancel"), function () { dlg.close(); });
+  dlg.addEventListener("close", function () { dlg.remove(); });
+  row.appendChild(send); row.appendChild(no);
+  [h, el("p", "", t("kiConsent")), el("p", "lbl", t("kiWhy")), reasons, row, msg].forEach(function (x) { dlg.appendChild(x); });
+  document.body.appendChild(dlg); dlg.showModal();
 }
 function shelf(title, fill) { stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
 function openAiWall() { ed.styling = true; shelf(t("aiTitle"), function (b) { window.Ai.wall(b, el); }); }
@@ -833,7 +889,8 @@ function start(tabName) {
   else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea, tab: tabName });
 }
 $("go").addEventListener("click", function () { start(); });
-$("wishgo").addEventListener("click", function () { start("Wish"); });
+$("wishgo").addEventListener("click", function () { start($("wishgo").dataset.tab || "Wish"); });
+$("kireport").addEventListener("click", function () { Kit.sfx.tap(); if (home && home.doc) reportKi(home.doc, home.link); });
 $("livego").addEventListener("click", function () { Kit.sfx.tap(); openLive($("livego").dataset.u); });
 ["focus", "pageshow"].forEach(function (e) { window.addEventListener(e, newDay); });
 document.addEventListener("visibilitychange", newDay);
@@ -853,7 +910,7 @@ function route() {
   var r = D.parseRoute(location.hash);
   if (r && r.type === "short") {
     goHome();
-    window.ShortLink.resolve(r.id).then(function (f) { if (f) location.hash = f; else Kit.toast(t("sh_gone")); });
+    window.ShortLink.resolve(r.id).then(function (f) { if (f) { shortId = r.id; location.hash = f; } else Kit.toast(t("sh_gone")); });
     return true;
   }
   if (r && r.type === "challenge") {
@@ -864,7 +921,7 @@ function route() {
   if (r && r.type === "idea") { home = { date: today, idea: D.byId(r.id), note: t("invite") }; goHomeKeep(); return true; }
   if (r && r.type === "doc") {
     var lastBy = r.doc.by.length ? r.doc.by[r.doc.by.length - 1].n : r.doc.n;
-    home = { date: today, doc: r.doc, note: t("remixOf", { n: lastBy || t("someone") }) }; goHomeKeep();
+    home = { date: today, doc: r.doc, note: t("remixOf", { n: lastBy || t("someone") }), link: shortId || undefined }; shortId = null; goHomeKeep();
     if (r.doc.k === "card" && r.doc.nr && window.Door) window.Door.show(r.doc);   // an Advent door comes closed first
     return true;
   }
@@ -884,7 +941,7 @@ function todoLink() {
   if (got.lost) Kit.toast(X.tdo_lost.replace("{n}", got.lost));
   return true;
 }
-function goHomeKeep() { if (!home) home = dayHome(); stopSound(); G.stop(); ed = null; setInk(me.colors[0], me.colors[1]); show("home"); setHome(home, true); }
+function goHomeKeep() { if (!home) home = dayHome(); stopSound(); G.stop(); ed = null; window.Ai.drop(); setInk(me.colors[0], me.colors[1]); show("home"); setHome(home, true); }
 window.addEventListener("hashchange", route);
 
 /* Zusammen bauen (collab-ui.js) reaches the editor only through these. */

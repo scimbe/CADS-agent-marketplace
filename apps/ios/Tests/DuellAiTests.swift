@@ -12,6 +12,17 @@ final class DuellAiTests: XCTestCase {
         }
     }
 
+    func testQueueSettleAndReportUseTheServerPaths() {
+        let host = "https://demos-34a13a96.bunsenbrenner.org/api/duell"
+        let want = ["": "/ai", "/queue": "/queue", "/accept": "/ai/accept", "/discard": "/ai/discard", "/report": "/report"]
+        for (page, server) in want {
+            XCTAssertEqual(DuellAi.request(path: page, body: "{}")?.url?.absoluteString, host + server, page)
+        }
+        for p in ["/wait", "/confirm", "/cancel", "/ai", "/seal", "/queue/x"] {
+            XCTAssertNil(DuellAi.request(path: p, body: "{}"), p)
+        }
+    }
+
     func testBodyMustBeSmallJsonObject() {
         XCTAssertNil(DuellAi.request(path: "", body: ""))
         XCTAssertNil(DuellAi.request(path: "", body: "kein json"))

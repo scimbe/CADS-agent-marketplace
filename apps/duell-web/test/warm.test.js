@@ -42,12 +42,13 @@ test("Antwort: eine andere Wohlfuehlkarte, an den Absender; Link traegt Stil und
   assert.equal(r.doc.st, "herz"); assert.equal(r.doc.x, d.x); assert.equal(Wm.sender(r.doc), "Ana");
   for (let k = 0; k < 20; k++) { const n = Wm.reply(r.doc, () => k / 20); assert.ok(n.warm); assert.notEqual(n.id, "warm-danke"); }
 });
-test("KI-Wunsch: eigene Tipps, Karte bleibt warm, Text wird umformuliert", () => {
-  for (const l of ["de", "en"]) assert.equal(T[l].wishTips_warm.split("|").length, 4);
+test("Wuerfel statt KI-Wunsch: Karte bleibt warm, Name im Text bleibt, Sticker aus dem Herz-Set", () => {
   const d = D.docFromIdea(D.byId("warm-toll"), me, "de");
   const w = Wish.apply(d, { x: "Lea, mit dir ist jeder Tag besser.", st: "neon" }, [], () => 0.5);
   assert.equal(w.st, "herz"); assert.equal(w.x, "Lea, mit dir ist jeder Tag besser.");
-  assert.equal(Wish.local(d, "waermer", "de", () => 0).st, "herz");
+  const pairs = [["#ffd400", "#ff3b1d"], ["#2b4bff", "#ffe600"]], ch = Wish.dice(d, "warm-toll|1", pairs, null), r = Wish.apply(d, ch, pairs, () => 0.5);
+  assert.equal(r.st, "herz"); assert.equal(r.x, d.x); assert.ok(r.sk.length && r.sk.every((s) => D.SETS.herz.includes(s.e)));
+  assert.equal(Wish.local(d, "waermer", "de", () => 0), null, "kein KI-Ersatz, der wie eine Antwort aussieht");
 });
 test("Kein Kettenbrief: keine Weiterschick-Aufforderung, kein Zaehler in Texten und Code", () => {
   const fs = require("node:fs"), path = require("node:path");

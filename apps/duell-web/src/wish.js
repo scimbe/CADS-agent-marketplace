@@ -1,12 +1,16 @@
-/* My Daily Idea: the free wish. The server returns validated changes; this file applies them to a creation, says what
-   changed and keeps the state before, so every wish can be undone. Without a server it uses plain local rules. */
+/* My Daily Idea: the wish and the dice. A wish (AI) is only offered where the model does real work: the flight game's world
+   from one sentence, a beat, a duel, a channel. The server returns validated changes; this file applies them 1:1 to a
+   creation and keeps the state before, so every wish can be undone. Colours, stickers and style are never worth an AI
+   call: the dice rolls them on the device from a seed, the same seed always gives the same look. */
 (function (root) {
   "use strict";
   var C = root.DuellCore || (typeof require === "function" ? require("./core.js") : null);
   var D = root.Daily || (typeof require === "function" ? require("./daily.js") : null);
 
-  // The kinds the server has a schema for. A secret channel's riddles and answers never leave the device, only its look can change.
-  var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn"];
+  // The kinds with an AI wish. A secret channel's riddles and answers never leave the device, only its look can change.
+  var KINDS = ["game", "sound", "duel", "quest"];
+  // The kinds with the local dice (no AI, no network): every sheet that has a look to roll. card covers the warm card and the Advent door.
+  var DICE = ["card", "photo", "sound", "duel", "quest", "turn"];
   // What goes to the server about the creation: its type and its texts, nothing else.
   function request(doc, wish, idea) {
     var now = doc.k === "game" ? { title: doc.g.title } : doc.k === "turn" ? { w: doc.w } : { x: doc.x, y: doc.y, st: doc.st, bpm: doc.bpm };
@@ -17,10 +21,7 @@
   // a line below it (t, s), the one thing a wish changes beyond the editor's tabs.
   function apply(doc, ch, pairs, rand) {
     var d = JSON.parse(JSON.stringify(doc));
-    if (typeof ch.palette === "number" && pairs[ch.palette]) {   // a wish always changes the colours: the pair already in use moves on to the next
-      var at = pairs[ch.palette].join() === d.col.join() ? (ch.palette + 1) % pairs.length : ch.palette;
-      d.col = pairs[at].slice();
-    }
+    if (typeof ch.palette === "number" && pairs[ch.palette]) d.col = pairs[ch.palette].slice();   // exactly the pair asked for
     if (Array.isArray(ch.colors)) d.col = ch.colors.slice();
     if (ch.t) d.t = ch.t; if (ch.s) d.s = ch.s;
     if (d.k === "turn") {
@@ -58,34 +59,46 @@
     var hit = LOOKS.filter(function (x) { return x[0].test(wish); })[0] || LOOKS[pick(LOOKS.length)];
     return { fig: hit[1], look: hit[2] };
   }
-  // Christmas wishes: Advent look, its colours and stickers (snow, stars, presents, fir trees). Checked before the other sets.
-  var XMAS = /weihnacht|advent|christmas|xmas|nikolaus|santa|tanne|schnee|verschneit|snow|festlich|gemütlich|cosy|cozy|lebkuchen|plätzchen|geschenk|goldene? stern|kerze|engel|rentier|reindeer|glühwein/i;
-  var SET_RE = [[XMAS, "advent"], [/herz|lieb|warm|danke|freund|heart|love|thank|friend/i, "herz"], [/grusel|spook|halloween|horror|nacht|night|geist/i, "grusel"], [/welt|all\b|space|rakete|alien|stern|poster/i, "weltall"], [/essen|food|pizza|s(ü|ue)ß|candy|keks/i, "essen"], [/tier|animal|zoo|frosch/i, "tiere"]];
-  function stickersFor(wish, pick) {
-    var hit = SET_RE.filter(function (x) { return x[0].test(wish); })[0], names = Object.keys(D.SETS), set = D.SETS[hit ? hit[1] : names[pick(names.length)]];
-    return [0, 1, 2].map(function (i) { return set[(pick(set.length) + i * 2) % set.length]; });
-  }
-  // No server, no model: still a visible answer from fixed rules, for every part a wish can change except the texts.
-  // With a model these fill in whatever its answer left out, so a wish always changes the whole sheet.
+  // Without the model the flight game still understands a sentence: fixed rules for physics (core.js) and keywords for
+  // the world. Shown as "without AI", never as an AI answer. Other kinds have no such rules: there the dice is the way without AI.
   function local(doc, wish, lang, pick) {
-    if (doc.k === "game") {
-      var s = C.localConfig(wish, lang), P = s.params || {}, L = localLook(wish, pick);
-      return { gravity: P.gravity, jump: P.jump, gap: P.gap, speed: P.speed, theme: s.theme, emoji: L.fig || s.emoji, look: L.look };
-    }
-    if (doc.k === "turn") { var f = ["cookie", "star", "heart", "bolt", "ring", "drop"]; return { palette: pick(8), f: f[(f.indexOf(doc.f) + 1 + pick(5)) % 6] }; }
-    if (doc.k === "duel" || doc.k === "quest") {
-      var e = D.SETS.chaos[pick(6)];
-      return doc.k === "duel" ? { palette: pick(8), be: e, ae: D.SETS.weltall[pick(6)] } : { palette: pick(8), e: e };
-    }
-    if (doc.k === "sound") {
-      var slow = /langsam|ruhig|slow|chill/i.test(wish), fx = D.FX;
-      return { bpm: Math.max(70, Math.min(170, doc.bpm + (slow ? -20 : 20))), fx: fx[(fx.indexOf(doc.fx) + 1 + pick(fx.length - 1)) % fx.length], palette: pick(8) };
-    }
-    if (doc.k === "card" && doc.st !== "herz" && XMAS.test(wish)) return { st: "advent", colors: ["#0f5132", "#ffd400"], stickers: stickersFor(wish, pick) };
-    var list = D.STYLES[doc.k], st = doc.st === "herz" ? "herz" : list[(list.indexOf(doc.st) + 1) % list.length];
-    return { st: st, palette: pick(8), stickers: stickersFor(wish, pick) };
+    if (doc.k !== "game") return null;
+    var s = C.localConfig(wish, lang), P = s.params || {}, L = localLook(wish, pick);
+    return { gravity: P.gravity, jump: P.jump, gap: P.gap, speed: P.speed, theme: s.theme, emoji: L.fig || s.emoji, look: L.look };
   }
-  var api = { KINDS: KINDS, request: request, apply: apply, local: local };
+  // The dice: seed -> changes for the look of a sheet, the same seed always the same roll. pairs: the app's colour pairs;
+  // lines: the idea's own lines, so a card that still shows one of them rolls another (the title variant).
+  var XMAS_PAIRS = [["#0f5132", "#ffd400"], ["#b3001b", "#ffffff"], ["#1b3a6b", "#ffd400"], ["#ffffff", "#b3001b"]];
+  var TURN_F = ["cookie", "star", "heart", "bolt", "ring", "drop"];
+  function dice(doc, seed, pairs, lines) {
+    var r = C.mulberry32(C.hash32("dice|" + seed)), pick = function (n) { return Math.floor(r() * n); };
+    var other = function (list, now) { var i = pick(list.length); return JSON.stringify(list[i]) === JSON.stringify(now) ? list[(i + 1) % list.length] : list[i]; };
+    var three = function (set) { var a = set.slice(), out = []; while (a.length && out.length < 3) out.push(a.splice(pick(a.length), 1)[0]); return out; };
+    var door = doc.k === "card" && doc.nr !== undefined, herz = doc.st === "herz";
+    var ch = { colors: other(door ? XMAS_PAIRS : pairs, doc.col).slice() };
+    if (doc.k === "card" || doc.k === "photo") {
+      var names = Object.keys(D.SETS).filter(function (n) { return n !== "advent"; });
+      ch.stickers = three(D.SETS[door ? "advent" : herz ? "herz" : names[pick(names.length)]]);
+      // a feel-good card keeps its warm look, a door its Advent look
+      if (!door && !herz) ch.st = other(D.STYLES[doc.k].filter(function (x) { return x !== "herz" && x !== "advent"; }), doc.st);
+      if (doc.k === "card" && Array.isArray(lines) && lines.length > 1 && lines.indexOf(doc.x) >= 0) ch.x = other(lines, doc.x);
+    } else if (doc.k === "sound") ch.fx = other(D.FX, doc.fx);
+    else if (doc.k === "turn") ch.f = other(TURN_F, doc.f);
+    else if (doc.k === "duel") { ch.ae = D.SETS.weltall[pick(D.SETS.weltall.length)]; ch.be = D.SETS.chaos[pick(D.SETS.chaos.length)]; }
+    else if (doc.k === "quest") ch.e = other(D.SETS.chaos, doc.e);
+    return ch;
+  }
+  // The roll number of one sheet on this device, kept across opening and closing: the next roll is a new one, and still
+  // only from the seed. rolls: the device's small store { key: n }; the oldest keys go once there are more than ROLL_KEYS.
+  var ROLL_KEYS = 60;
+  function nextRoll(rolls, key) {
+    key = String(key).slice(0, 80);
+    var n = Number(rolls[key]); n = (Number.isInteger(n) && n > 0 && n < 1e6 ? n : 0) + 1;
+    delete rolls[key]; rolls[key] = n;
+    var ks = Object.keys(rolls); while (ks.length > ROLL_KEYS) delete rolls[ks.shift()];
+    return n;
+  }
+  var api = { KINDS: KINDS, DICE: DICE, request: request, apply: apply, local: local, dice: dice, nextRoll: nextRoll };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Wish = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

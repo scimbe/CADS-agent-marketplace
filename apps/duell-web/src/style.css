@@ -292,3 +292,11 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .shoptext small{font-size:13px;font-weight:700;overflow-wrap:anywhere}
 .shoprow.done b{text-decoration:line-through}
 .shoplist{margin-bottom:8px}
+.kiseal{position:absolute;bottom:10px;right:12px;z-index:2;background:#111;color:#fff;font:900 13px/1 var(--ui);padding:5px 8px;border-radius:4px;letter-spacing:.04em}
+.kiseal[hidden]{display:none}
+.kidlg{max-width:340px;width:calc(100% - 32px);background:var(--paper);color:var(--ink);border:3px solid var(--ink);border-radius:6px;padding:16px;box-shadow:6px 7px 0 var(--ink)}
+.kidlg::backdrop{background:rgba(0,0,0,.6)}
+.kidlg h2{margin:0 0 8px;font:900 20px var(--ui)}
+.kidlg p{margin:0 0 12px;font-size:15px;line-height:1.35}
+.kidlg .chips{gap:8px}
+.aistate{flex-basis:100%;margin:2px 0}

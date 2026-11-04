@@ -15,7 +15,7 @@ test.after(async () => { await b.close(); });
 async function phone(opt, when) {
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE", ...opt }), p = await ctx.newPage(), errs = [];
   p.on("pageerror", (e) => errs.push(String(e)));
-  await ctx.route(/^https?:/, (r) => r.abort());          // no server: the wish answers with the local rules
+  await ctx.route(/^https?:/, (r) => r.abort());          // no server: the dice needs none
   await ctx.addInitScript("try{localStorage.setItem('daily.v1',JSON.stringify({muted:true,me:{nick:'Ada'}}))}catch(e){}");
   await p.clock.install({ time: new Date(when || "2026-12-22T10:00:00Z") });
   return { p, errs };
@@ -30,12 +30,14 @@ async function makeDoor() {
   await p.locator("#panel .chip", { hasText: /^23$/ }).click();
   await p.getByRole("tab", { name: "Text" }).click();
   await p.locator("#panel textarea").fill("Für dich: heißer Kakao und gute Laune!");
-  await p.getByRole("tab", { name: "✨ Wunsch" }).click();
-  await p.getByRole("button", { name: "Sehr weihnachtlich" }).click();
-  if (!(await p.evaluate(() => window.DailyDebug.doc().sk.length))) await p.getByText("Wunsch anwenden").click();   // while a tip only fills the field
+  assert.equal(await p.getByRole("tab", { name: "✨ Wunsch" }).count(), 0, "kein KI-Umfaerben am Tuerchen");
+  const st = await p.evaluate(() => window.DailyDebug.doc().st);
+  await p.getByRole("tab", { name: "🎲 Würfel" }).click();
+  await p.getByRole("button", { name: "🎲 Würfeln" }).click();
   await p.waitForFunction(() => window.DailyDebug.doc().sk.length > 0);
   const doc = await p.evaluate(() => window.DailyDebug.doc());
-  assert.equal(doc.nr, 23); assert.equal(doc.st, "advent"); assert.equal(doc.x, "Für dich: heißer Kakao und gute Laune!"); assert.ok(doc.sk.length >= 1);
+  assert.equal(doc.nr, 23); assert.equal(doc.st, st, "das Tuerchen behaelt seinen Stil");
+  assert.equal(doc.x, "Für dich: heißer Kakao und gute Laune!"); assert.ok(doc.sk.length >= 1);
   if (shots) await p.screenshot({ path: path.join(shots, "d1-editor.png") });
   assert.equal(await p.textContent("#edmain"), "Türchen verschicken");
   await p.click("#edmain");

@@ -36,7 +36,7 @@ test("Wohlfuehlkarte: Name rein, zwei Tipps bis Teilen; Empfaenger sieht die Kar
   assert.deepEqual(errs, []); await b.close();
 });
 
-test("Wohlfuehlkarte: Beleidigung als Name wird gemeldet und nicht verschickt; KI-Wunsch hat eigene Tipps; ruhig ohne Bewegung", async () => {
+test("Wohlfuehlkarte: Beleidigung als Name wird gemeldet und nicht verschickt; Wuerfel laesst sie warm; ruhig ohne Bewegung", async () => {
   const { b, open, errs } = await setup("reduce");
   const s = await open("#i=warm-denke");
   await s.locator("#warmname").fill("Arschloch");
@@ -44,8 +44,10 @@ test("Wohlfuehlkarte: Beleidigung als Name wird gemeldet und nicht verschickt; K
   await s.locator("#go").click();
   assert.equal(await s.locator("#home").isVisible(), true, "bleibt auf dem Blatt");
   await s.locator("#warmname").fill("");
+  assert.equal(await s.locator("#wishgo").textContent(), "🎲 Look würfeln", "Wohlfuehlkarte: wuerfeln statt KI-Umfaerben");
   await s.locator("#wishgo").click();
-  await s.getByRole("button", { name: "Persönlicher und wärmer" }).waitFor();
+  await s.getByRole("button", { name: "🎲 Würfeln" }).click();
+  await s.locator(".aicount", { hasText: "Geändert" }).waitFor();
   assert.equal(await s.evaluate(() => window.DailyDebug.doc().st), "herz");
   const r = await open("#i=warm-sorry");
   await r.evaluate(() => { const D = window.Daily; location.hash = D.docUrl(window.Warm.cardFor(D.byId("warm-sorry"), "", D.sanitizeProfile({ nick: "Ben" }), "de")).split("#")[1]; });

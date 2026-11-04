@@ -275,12 +275,21 @@
       return w.length ? { n: C.sanitizeName(e.n), w: w } : null;
     }).filter(Boolean).slice(-MAX_TRAIL);
   }
+  // KI seal: which AI action made (part of) this sheet, and the server's signature over it when it sent one. The sheet
+  // shows "KI" and a report button for it; the page never checks the signature, the server does when a report comes in.
+  function sanitizeKi(o) {
+    if (!o || typeof o !== "object" || typeof o.k !== "string" || !/^[a-z]{2,12}$/.test(o.k)) return null;
+    var r = { k: o.k };
+    if (typeof o.s === "string" && /^[A-Za-z0-9._~-]{8,200}$/.test(o.s)) r.s = o.s;
+    return r;
+  }
   function sanitizeDoc(o) {
     if (!o || typeof o !== "object" || KINDS.indexOf(o.k) < 0) return null;
     var d = { k: o.k, col: sanitizeColors(o.col, ["#ffd400", "#ff3b1d"]), by: sanitizeTrail(o.by) };
     var id = sanitizeId(o.i); if (id) d.i = id;
     var t = txt(o.t, 40), s = txt(o.s, 70), n = C.sanitizeName(o.n);
     if (t) d.t = t; if (s) d.s = s; if (n) d.n = n;    // t/s: an own idea of the day, n: who made it
+    var ki = sanitizeKi(o.ki); if (ki) d.ki = ki;
     if (o.k === "card") {
       d.x = txt(o.x, MAX_TEXT); d.st = STYLES.card.indexOf(o.st) >= 0 ? o.st : "druck"; d.sk = sanitizeStickers(o.sk);
       var w = sanitizeWeather(o.w); if (w) d.w = w;
@@ -387,7 +396,7 @@
   var api = {
     IDEAS: IDEAS, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, PLAY: PLAY, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays, fold: fold, searchIdeas: searchIdeas,
     randomIdea: randomIdea, paperIndex: paperIndex, sanitizeId: sanitizeId, parseRoute: parseRoute, inviteUrl: inviteUrl, challengeUrl: challengeUrl,
-    cleanInput: cleanInput, sanitizeProfile: sanitizeProfile, sanitizePref: sanitizePref, prefChips: prefChips, dropPref: dropPref, prefContext: prefContext, adult: adult, dietOk: dietOk, PREF: { AGES: AGES, DIETS: DIETS, NOTIMES: NOTIMES }, sanitizeDoc: sanitizeDoc, doorNumber: doorNumber, docFromIdea: docFromIdea, blankDoc: blankDoc,
+    cleanInput: cleanInput, sanitizeProfile: sanitizeProfile, sanitizePref: sanitizePref, prefChips: prefChips, dropPref: dropPref, prefContext: prefContext, adult: adult, dietOk: dietOk, PREF: { AGES: AGES, DIETS: DIETS, NOTIMES: NOTIMES }, sanitizeDoc: sanitizeDoc, sanitizeKi: sanitizeKi, doorNumber: doorNumber, docFromIdea: docFromIdea, blankDoc: blankDoc,
     changedAreas: changedAreas, withTrail: withTrail, docUrl: docUrl, SETS: SETS, STYLES: STYLES, FX: FX, MAX_STICKERS: MAX_STICKERS, sanitizeWall: sanitizeWall, addToWall: addToWall, ideaStrings: ideaStrings
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
