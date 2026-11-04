@@ -364,28 +364,49 @@ test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswa
   await au.getByText("Noch 0 Münzen").waitFor(); await next(au); await send(au); await au.locator("#share").waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
-test("Geld einsammeln: Name, Zweck, Betrag, dann oeffnen alle denselben Link und zahlen mit einem Tipp bei PayPal.me", async () => {
+test("Geld einsammeln: Name, Zweck, Personen, Betrag mit Cent; alle oeffnen denselben Link, PayPal-Link nur ab 18", async () => {
   const { b, open, errs } = await setup();
   const a = await open("#i=zug-sammeln"); await a.locator("#go").click();
   const f = a.locator("#panel input.field"), weiter = a.getByRole("button", { name: "Weiter", exact: true });
   await f.fill("max muster"); assert.equal(await weiter.isDisabled(), true);
   await f.fill("maxmuster"); await next(a);
   await a.locator("#panel input.field").fill("Pizza-Abend"); await next(a);
-  await slide(a, 7); await a.locator("#panel").getByText("7 €").waitFor(); await next(a);
+  await slide(a, 4); await a.locator("#panel").getByText("4 👤").waitFor(); await next(a);
+  const eur = a.locator("#panel input.field");
+  assert.equal(await eur.getAttribute("inputmode"), "decimal");
+  await eur.fill("abc"); assert.equal(await weiter.isDisabled(), true);
+  await eur.fill("37,50"); await a.locator("#panel").getByText("37,50 € geteilt durch 4 · 9,37 € pro Person · Rest 2 ct übernimmt, wer sammelt").waitFor();
+  if (shot) await a.screenshot({ path: shot + "/wa-sammeln-betrag.png" });
+  await next(a);
   await a.getByText("Zug steht").waitFor(); await send(a); await a.locator("#share").waitFor();
   const one = await url(a); assert.ok(!/maxmuster|paypal/i.test(one), "Name steht nicht lesbar im Link");
+  // someone without an age in the profile: a note, no link, one tap to say 18+
   const c = await open(hash(one)); await c.locator("#go").click();
-  await c.locator("#panel").getByText("Pizza-Abend: 7 € pro Person an paypal.me/maxmuster").waitFor();
+  await c.locator("#panel").getByText("Pizza-Abend: 9,37 € pro Person an paypal.me/maxmuster").waitFor();
+  await c.locator("#panel").getByText("37,50 € geteilt durch 4 · Rest 2 ct übernimmt, wer sammelt").waitFor();
   await c.locator("#panel").getByText(/nur an Leute, die du kennst.*erst ab 18/).waitFor();
+  assert.equal(await c.locator("#paylink").count(), 0, "ohne Alter kein PayPal-Link");
+  await c.locator("#panel").getByText("Den PayPal-Link zeigen wir ab 18. Deine Angabe wird in deinen Vorgaben gemerkt, dort kannst du sie wieder abwählen.").waitFor();
+  if (shot) await c.screenshot({ path: shot + "/wa-sammeln-alter.png" });
+  await c.getByRole("button", { name: "Ich bin 18 oder älter" }).click();
   const pay = c.locator("#paylink");
-  assert.equal(await pay.getAttribute("href"), "https://paypal.me/maxmuster/7EUR");
+  assert.equal(await pay.getAttribute("href"), "https://paypal.me/maxmuster/9.37EUR");
   assert.equal(await pay.getAttribute("target"), "_blank"); assert.equal(await pay.getAttribute("rel"), "noopener noreferrer");
-  assert.match(await pay.textContent(), /7 € mit PayPal zahlen/);
+  assert.match(await pay.textContent(), /9,37 € mit PayPal zahlen/);
+  assert.equal(await c.evaluate(() => JSON.parse(localStorage.getItem("daily.v1")).me.pref.age), "a18", "nur lokal gemerkt");
   assert.equal(await c.getByRole("button", { name: "Weiter", exact: true }).count(), 0, "nach dem Bezahlen kein Weiter, kein Druck");
   assert.equal(await c.locator("#edmain").isVisible(), false);
   await c.context().route("https://paypal.me/**", (r) => r.abort());
   const popup = c.waitForEvent("popup"); await pay.click(); await popup;
   await c.locator("#panel").getByText("Fertig. Den Link teilen kannst du, wenn du magst.").waitFor();
+  if (shot) await c.screenshot({ path: shot + "/wa-sammeln-zahlen.png" });
+  // a known 16-17: no link and no way around it; creating one is not offered either
+  const y = await open(hash(one)); await y.evaluate(() => { const s = JSON.parse(localStorage.getItem("daily.v1")); s.me.pref = { age: "u18" }; localStorage.setItem("daily.v1", JSON.stringify(s)); });
+  await y.reload(); await y.locator("#go").click();
+  await y.locator("#panel").getByText(/^PayPal gibt es erst ab 18/).waitFor();
+  assert.equal(await y.locator("#paylink").count(), 0); assert.equal(await y.getByRole("button", { name: "Ich bin 18 oder älter" }).count(), 0);
+  const y2 = await open("#i=zug-sammeln"); await y2.locator("#go").click(); await y2.locator("#panel").getByText(/^PayPal gibt es erst ab 18/).waitFor();
+  assert.equal(await y2.locator("#panel input.field").count(), 0);
   assert.deepEqual(errs, []); await b.close();
 });
 test("Einkaufszettel: zwei Handys, Antwort und eigene Ergaenzung werden beim Ersteller zusammengefuehrt", async () => {
@@ -434,4 +455,84 @@ test("Einkaufszettel: zwei Handys, Antwort und eigene Ergaenzung werden beim Ers
     require("node:fs").writeFileSync(shot + "/einkauf-share.png", Buffer.from(png.split(",")[1], "base64"));
   }
   assert.deepEqual(errs, []); await b.close();
+});
+test("Aufgaben aus dem Protokoll: Link oeffnet die Liste, Namen nur wo genannt, uebernehmen, .ics-Fristen, Folgetermin, Antwort wird zusammengefuehrt", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }), errs = [];
+  const phone = async () => { const c = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE", acceptDownloads: true }); c.setDefaultTimeout(15000); return c; };
+  const mia = await phone(), cem = await phone();
+  const open = async (c, h) => { const p = await c.newPage(); p.on("pageerror", (e) => errs.push(String(e))); await p.goto(page + h); return p; };
+  const day = Math.floor(Date.UTC(2026, 10, 14) / 864e5);
+  const payload = { t: "Sommerfest", i: [["Getränke besorgen", "Anna", day], ["Raum buchen", "", 0], ["Treffen am Bahnhof", "", 0]] };
+  const a = await open(mia, "#todo=" + Buffer.from(JSON.stringify(payload)).toString("base64url"));
+  await a.locator("#panel .shoprow").first().waitFor();
+  assert.equal(await a.evaluate(() => location.hash), "", "der Inhalt verschwindet sofort aus der Adresse");
+  await a.getByText("Nicht im Link: 1 (Text gefiltert oder kein Platz).").waitFor();
+  const rows = () => a.locator("#panel .shoprow").allInnerTexts();
+  assert.deepEqual((await rows()).map((s) => s.split("\n")[0]), ["Getränke besorgen", "Raum buchen"]);
+  await a.locator("#panel").getByText("macht: 🐸 Anna · bis Sa 14.11.").waitFor();
+  await a.locator("#panel .shoprow", { hasText: "Raum buchen" }).getByText("offen").waitFor();
+  if (shot) await a.screenshot({ path: shot + "/wa-aufgaben.png" });
+  // the deadlines as a calendar file
+  const dl = a.waitForEvent("download"); await a.getByRole("button", { name: "📅 Fristen (.ics)" }).click(); const file = await dl;
+  assert.equal(file.suggestedFilename(), "aufgaben.ics");
+  const ics = require("node:fs").readFileSync(await file.path(), "utf8");
+  assert.match(ics, /SUMMARY:Getränke besorgen \(Anna\)/); assert.match(ics, /DTSTART;VALUE=DATE:20261114/); assert.equal((ics.match(/BEGIN:VEVENT/g) || []).length, 1);
+  // the next meeting's agenda from the open tasks
+  await a.getByRole("button", { name: "🗓 Folgetermin" }).click();
+  await a.locator(".agendatext").getByText(/Folgetermin: Sommerfest\s+1\. Rückblick: 0 von 2 erledigt\s+2\. Getränke besorgen \(Anna, bis Sa 14\.11\.\)\s+3\. Raum buchen \(offen\)\s+4\. Neue Punkte/).waitFor();
+  if (shot) await a.screenshot({ path: shot + "/wa-folgetermin.png" });
+  await a.locator("#edmain").filter({ hasText: "Aufgaben teilen" }).click(); await a.locator("#share").waitFor();
+  const one = await url(a);
+  // Cem takes the room on his phone and sends it back; Mia's phone merges it
+  const c = await open(cem, hash(one)); await c.locator("#go").click();
+  await c.getByRole("textbox", { name: /Dein Name/ }).fill("Cem");
+  await c.getByRole("button", { name: "Mach ich: Raum buchen" }).click();
+  await c.locator("#panel").getByText("macht: 🐸 Cem").waitFor();
+  await c.locator("#edmain").filter({ hasText: "Aufgaben teilen" }).click(); await c.locator("#share").waitFor();
+  const back = await open(mia, hash(await url(c))); await back.locator("#go").click();
+  await back.locator("#panel .shoprow", { hasText: "Raum buchen" }).getByText("macht: 🐸 Cem").waitFor();
+  await back.locator("#panel .shoprow", { hasText: "Getränke besorgen" }).getByText(/macht: 🐸 Anna/).waitFor();
+  const bad = await open(mia, "#todo=" + Buffer.from("{kaputt").toString("base64url"));
+  await bad.locator("#go").waitFor(); assert.equal(await bad.locator("#panel .shoprow").count(), 0);
+  assert.deepEqual(errs, []); await b.close();
+});
+test("Profil: Vorgaben als Chips, abwaehlbar, nur lokal; Essen erst ab 16, PayPal-Name ab 18 fuellt Geld einsammeln vor", async () => {
+  const { b, open, errs } = await setup();
+  const p = await open(""); await p.locator("#me").click();
+  await p.getByText("Meine Vorgaben").waitFor(); await p.getByText("Noch keine.").waitFor();
+  await p.getByText("Essen fragen wir erst ab 16.").waitFor(); await p.getByText("PayPal gibt es erst ab 18.").waitFor();
+  const box = p.locator(".pfbox");
+  await box.getByRole("button", { name: "13–15", exact: true }).click();
+  await box.getByRole("button", { name: "4", exact: true }).click();
+  await box.getByRole("button", { name: "sonntags", exact: true }).click();
+  assert.equal(await box.getByRole("button", { name: "vegetarisch", exact: true }).count(), 0, "unter 16 keine Frage nach dem Essen");
+  await box.getByRole("button", { name: "16–17", exact: true }).click();
+  await box.getByRole("button", { name: "vegetarisch", exact: true }).click();
+  await box.getByRole("button", { name: "Alter 16–17 ✕" }).waitFor(); await box.getByRole("button", { name: "vegetarisch ✕" }).waitFor();
+  await box.getByRole("button", { name: "18+", exact: true }).click();
+  await box.getByRole("textbox", { name: "PayPal.me-Name" }).fill("paypal.me/miaMuster"); await box.getByRole("textbox", { name: "PayPal.me-Name" }).press("Enter");
+  await box.getByRole("button", { name: "paypal.me/miaMuster ✕" }).waitFor();
+  if (shot) await p.screenshot({ path: shot + "/wa-profil.png", fullPage: true });
+  assert.equal(await p.evaluate(() => window.DailyApp.prefContext()), "Haushalt 4 Personen; vegetarisch; keine Zeit sonntags");
+  await box.getByRole("button", { name: "Keine Zeit sonntags ✕" }).click();
+  assert.equal(await p.evaluate(() => window.DailyApp.prefContext(["hh", "no"])), "Haushalt 4 Personen");
+  const stored = await p.evaluate(() => JSON.parse(localStorage.getItem("daily.v1")).me.pref);
+  assert.deepEqual(stored, { age: "a18", hh: 4, diet: "veg", pp: "miaMuster" });
+  const s = await open("#i=zug-sammeln"); await s.locator("#go").click();
+  assert.equal(await s.locator("#panel input.field").inputValue(), "miaMuster", "eigener PayPal-Name steht schon drin");
+  assert.equal(await s.getByRole("button", { name: "Weiter", exact: true }).isDisabled(), false);
+  assert.deepEqual(errs, []); await b.close();
+});
+test("Agent-Duell: nach dem Match steht, warum es so ausging, ohne KI und ohne Netz", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE", reducedMotion: "reduce" }), errs = [], hosts = new Set();
+  ctx.setDefaultTimeout(15000); ctx.on("request", (r) => { if (/^https?:/.test(r.url())) hosts.add(new URL(r.url()).host); });
+  for (const id of ["duell-ssp", "auktion-socke", "rap-agenten"]) {
+    const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e))); await p.goto(page + "#i=" + id);
+    await p.locator("#go").click(); await p.locator("#edmain").click();
+    await p.locator(".duelres").waitFor(); const why = p.locator(".duelwhy").first(); await why.waitFor();
+    assert.match(await why.textContent(), /^❓ \S/); assert.ok(!/\{\w+\}|undefined/.test(await p.locator("#panel").innerText()));
+    if (shot && id === "auktion-socke") await p.screenshot({ path: shot + "/wa-duell-warum.png" });
+  }
+  assert.deepEqual([...hosts], [], "keine Anfrage ins Netz"); assert.deepEqual(errs, []); await b.close();
 });

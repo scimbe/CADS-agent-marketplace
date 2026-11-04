@@ -669,8 +669,53 @@ function openStyle() {
     colors(b, function () { return me.colors; }, function (c) { me.colors = c; saveMe(); setInk(c[0], c[1]); });
     b.appendChild(el("label", "lbl", t("set")));
     chips(b, Object.keys(D.SETS).map(function (s) { return { v: s, l: D.SETS[s][0] + " " + t("set_" + s) }; }), me.set, function (v) { me.set = v; saveMe(); });
+    b.appendChild(el("label", "lbl", t("pf_title")));
+    var pf = el("div", "pfbox"); b.appendChild(pf); prefs(pf);
     b.appendChild(el("button", "btn", t("licenses"), function () { var l = el("pre", "note", window.DailyLicenses); l.style.whiteSpace = "pre-wrap"; b.textContent = ""; b.appendChild(l); }));
   });
+}
+// My defaults (daily.js): the ones set stand on top as chips with ✕; below, what can be set. Only on this device.
+function prefs(box) {
+  var f = me.pref || {}, P = D.PREF;
+  function put(g) { me.pref = D.sanitizePref(g); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); prefs(box); }
+  function edit(fn) { var g = JSON.parse(JSON.stringify(me.pref || {})); fn(g); put(g); }
+  function group(label, items, isOn, pick) {
+    box.appendChild(el("p", "lbl", label));
+    var r = el("div", "chips");
+    items.forEach(function (it) { var c = el("button", "chip" + (isOn(it.v) ? " on" : ""), it.l, function () { Kit.sfx.tap(); edit(function (g) { pick(g, it.v); }); }); c.setAttribute("aria-pressed", String(isOn(it.v))); r.appendChild(c); });
+    box.appendChild(r);
+  }
+  box.textContent = "";
+  var on = el("div", "chips"), list = D.prefChips(me, Kit.lang);
+  if (!list.length) on.appendChild(el("p", "note", t("pf_none")));
+  list.forEach(function (c) { var x = el("button", "chip on", c.l + " ✕", function () { Kit.sfx.tap(); put(D.dropPref(me, c.k, c.v)); }); on.appendChild(x); });
+  box.appendChild(on); box.appendChild(el("p", "note", t("pf_note")));
+  if (!(window.DailyFlavor && window.DailyFlavor.adult)) group(t("pf_age"), P.AGES.map(function (a) { return { v: a, l: t("pf_age_" + a) }; }), function (v) { return f.age === v; }, function (g, v) { if (g.age === v) delete g.age; else g.age = v; });
+  group(t("pf_hh"), [1, 2, 3, 4, 5, 6].map(function (n) { return { v: n, l: n === 6 ? "6+" : String(n) }; }), function (v) { return f.hh === v; }, function (g, v) { if (g.hh === v) delete g.hh; else g.hh = v; });
+  if (D.dietOk(me)) group(t("pf_diet"), P.DIETS.map(function (d) { return { v: d, l: t("pf_diet_" + d) }; }), function (v) { return f.diet === v; }, function (g, v) { if (g.diet === v) delete g.diet; else g.diet = v; });
+  else box.appendChild(el("p", "note", t("pf_diet_later")));
+  group(t("pf_no"), P.NOTIMES.map(function (k) { return { v: k, l: t("pf_no_" + k) }; }), function (v) { return (f.no || []).indexOf(v) >= 0; }, function (g, v) { var n = g.no || []; g.no = n.indexOf(v) >= 0 ? n.filter(function (x) { return x !== v; }) : n.concat([v]); });
+  if (D.adult(me)) {
+    box.appendChild(el("label", "lbl", t("pf_pp")));
+    var pp = el("input", "field"); pp.value = f.pp || ""; pp.maxLength = 20; pp.autocomplete = "off"; pp.setAttribute("aria-label", t("pf_pp")); pp.placeholder = "paypal.me/…";
+    pp.addEventListener("change", function () { var v = pp.value.trim().replace(/^(https?:\/\/)?(www\.)?paypal\.me\//i, ""); if (v && !/^[A-Za-z0-9]{1,20}$/.test(v)) { Kit.toast(t("filter")); return; } edit(function (g) { if (v) g.pp = v; else delete g.pp; }); });
+    box.appendChild(pp);
+  } else box.appendChild(el("p", "note", t("pf_pp_later")));
+}
+// For an AI feature (next wave): the defaults that would go along, shown as chips where the request is made; a tap
+// leaves one out for this request only. use.context() is the short text (D.prefContext) with what is still on.
+function prefUse(box, keys) {
+  var off = {}, row = el("div", "chips pfuse");
+  D.prefChips(me, Kit.lang).filter(function (c) { return keys.indexOf(c.k) >= 0; }).forEach(function (c) {
+    var id = c.k + ":" + c.v, b = el("button", "chip on", c.l, function () { off[id] = !off[id]; b.classList.toggle("on", !off[id]); b.setAttribute("aria-pressed", String(!off[id])); Kit.sfx.tap(); });
+    b.setAttribute("aria-pressed", "true"); row.appendChild(b);
+  });
+  if (row.children.length) box.appendChild(row);
+  return { context: function () {
+    var p = { pref: JSON.parse(JSON.stringify(me.pref || {})) };
+    Object.keys(off).forEach(function (id) { if (off[id]) { var k = id.split(":")[0]; p.pref = D.dropPref(p, k, id.slice(k.length + 1)); } });
+    return D.prefContext(p, Kit.lang, keys);
+  } };
 }
 function shelf(title, fill) { stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
 function openAiWall() { ed.styling = true; shelf(t("aiTitle"), function (b) { window.Ai.wall(b, el); }); }
@@ -802,8 +847,9 @@ function route() {
   if (CU.route(location.hash)) { clearLink(); if (screen !== "editor") goHomeKeep(); return true; }
   var live = location.hash.match(/^#live=([A-Za-z0-9_-]{22})(?:&g=([a-z]{2,12}))?$/);
   if (live && window.LiveUI) { history.replaceState(null, "", location.pathname); window.LiveUI.accept(live[1], live[2]); }
-  var seat = location.hash.match(/^#tisch=(doko|skat)\.([A-Za-z0-9_-]{22}(?:\.[A-Za-z0-9_-]{22}){0,2})$/);   // one token, or one per free seat
-  if (seat && window.TableUI) { history.replaceState(null, "", location.pathname); window.TableUI.accept(seat[1], seat[2]); }
+  var seat = location.hash.match(/^#tisch=(doko|skat)\.([A-Za-z0-9_-]{22}(?:\.[A-Za-z0-9_-]{22}){0,2})(?:&r=([a-z]{1,8}(?:\.[a-z]{1,8}){0,3}))?$/);   // one token, or one per free seat; the house rules
+  if (seat && window.TableUI) { history.replaceState(null, "", location.pathname); window.TableUI.accept(seat[1], seat[2], seat[3]); }
+  if (todoLink()) return true;
   var r = D.parseRoute(location.hash);
   if (r && r.type === "short") {
     goHome();
@@ -823,6 +869,20 @@ function route() {
     return true;
   }
   return false;
+}
+// Fast Easy Protokoll hands its tasks over as #todo=: they become a task list (turns.js todo) on this device, ready to
+// share. Nothing is sent anywhere by opening it; the hash is dropped from the address at once.
+function todoLink() {
+  var m = location.hash.match(/^#todo=([A-Za-z0-9_-]{1,6000})$/), Tn = window.Turns, got = null;
+  if (!m) return false;
+  history.replaceState(null, "", location.pathname + location.search);
+  try { var b = m[1].replace(/-/g, "+").replace(/_/g, "/"); got = Tn.todoFrom(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(atob(b + "===".slice(0, (4 - b.length % 4) % 4)), function (c) { return c.charCodeAt(0); })))); } catch (e) { got = null; }
+  if (!got || !got.list) { goHome(); Kit.toast(t("filter")); return true; }
+  var seed = crypto.getRandomValues(new Uint32Array(1))[0], X = Tn.T(Kit.lang);
+  var doc = D.sanitizeDoc({ k: "turn", g: "todo", seed: seed, q: Tn.seal([[got.list]], seed), f: "bolt", col: me.colors, by: [], t: got.t || X.tdo_title, s: X.tdo_from });
+  openEditor(doc, { idea: null });
+  if (got.lost) Kit.toast(X.tdo_lost.replace("{n}", got.lost));
+  return true;
 }
 function goHomeKeep() { if (!home) home = dayHome(); stopSound(); G.stop(); ed = null; setInk(me.colors[0], me.colors[1]); show("home"); setHome(home, true); }
 window.addEventListener("hashchange", route);
@@ -845,7 +905,7 @@ var CU = window.CollabUI.init({
 var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
-window.DailyApp = { TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 /* test hook, used by browser checks: read-only snapshot */
 window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); }, collab: function () { return CU.engine(); } };

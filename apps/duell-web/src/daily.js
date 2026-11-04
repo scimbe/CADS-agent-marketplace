@@ -6,6 +6,7 @@
   var Duel = typeof module !== "undefined" && module.exports ? require("./duel.js") : root.Duel;
   var Quest = typeof module !== "undefined" && module.exports ? require("./quest.js") : root.Quest;
   var Turns = typeof module !== "undefined" && module.exports ? require("./turns.js") : root.Turns;
+  var TX = typeof module !== "undefined" && module.exports ? require("./texts.json") : root.DailyTexts;
   var IDEAS = DATA.ideas, GATED = DATA.gated || [], BONUS_EVERY = 6, ORDER_TRIES = 200;
   var ROUND = IDEAS.filter(function (i) { return !i.on; });   // calendar ideas ("on": "MM-DD" or a list of them) only appear on their days
   var ROUND_KINDS = ROUND.map(function (i) { return i.kind; }).filter(function (k, i, a) { return a.indexOf(k) === i; }).sort();
@@ -196,10 +197,56 @@
   };
   function sanitizeProfile(p) {
     p = p && typeof p === "object" ? p : {};
-    return {
+    var o = {
       nick: C.sanitizeName(p.nick) , emoji: typeof p.emoji === "string" ? C.sanitizeEmoji(p.emoji) : "🐸",
       colors: sanitizeColors(p.colors, ["#ffd400", "#ff3b1d"]), set: SETS[p.set] ? p.set : "tiere"
-    };
+    }, f = sanitizePref(p.pref);
+    if (Object.keys(f).length) o.pref = f;
+    return o;
+  }
+
+  // ---------- my defaults (local only): visible chips the person can drop one by one ----------
+  // age: a band the person picks (never a birth date); hh: household size; diet: only asked from 16 (only kept when the
+  // age band allows it); no: times without time; pp: own PayPal.me name, only 18+. Nothing of it travels in a link.
+  // An adult build (business flavor) is 18+ by its terms, so it never asks the age.
+  var AGES = ["u16", "u18", "a18"], DIETS = ["veg", "vegan"], NOTIMES = ["frueh", "tag", "abend", "sa", "so"], PPME = /^[A-Za-z0-9]{1,20}$/;
+  function flavorAdult() { return !!(root.DailyFlavor && root.DailyFlavor.adult === true); }
+  function adult(p) { var f = p && p.pref; return flavorAdult() || (!!f && f.age === "a18"); }
+  function dietOk(p) { var f = p && p.pref; return flavorAdult() || (!!f && (f.age === "u18" || f.age === "a18")); }
+  function sanitizePref(f) {
+    f = f && typeof f === "object" && !Array.isArray(f) ? f : {};
+    var o = {};
+    if (AGES.indexOf(f.age) >= 0 && !flavorAdult()) o.age = f.age;
+    if (Number.isInteger(f.hh) && f.hh >= 1 && f.hh <= 6) o.hh = f.hh;
+    if (DIETS.indexOf(f.diet) >= 0 && dietOk({ pref: o })) o.diet = f.diet;
+    var no = NOTIMES.filter(function (k) { return Array.isArray(f.no) && f.no.indexOf(k) >= 0; }); if (no.length) o.no = no;
+    if (typeof f.pp === "string" && PPME.test(f.pp) && adult({ pref: o })) o.pp = f.pp;
+    return o;
+  }
+  function tx(lang, k, v) { var s = (TX[lang] || TX.de)[k] || TX.de[k] || k; return s.replace(/\{(\w+)\}/g, function (m, x) { return v && v[x] != null ? v[x] : m; }); }
+  // The chips on screen: [{ k, v, l }], in a fixed order. dropPref removes one and checks the rest again.
+  function prefChips(p, lang) {
+    var f = (p && p.pref) || {}, out = [];
+    if (f.age) out.push({ k: "age", v: f.age, l: tx(lang, "pf_age") + " " + tx(lang, "pf_age_" + f.age) });
+    if (f.hh) out.push({ k: "hh", v: f.hh, l: tx(lang, "pf_hh_n", { n: f.hh === 6 ? "6+" : f.hh }) });
+    if (f.diet) out.push({ k: "diet", v: f.diet, l: tx(lang, "pf_diet_" + f.diet) });
+    (f.no || []).forEach(function (k) { out.push({ k: "no", v: k, l: tx(lang, "pf_no") + " " + tx(lang, "pf_no_" + k) }); });
+    if (f.pp) out.push({ k: "pp", v: f.pp, l: "paypal.me/" + f.pp });
+    return out;
+  }
+  function dropPref(p, k, v) {
+    var f = JSON.parse(JSON.stringify((p && p.pref) || {}));
+    if (k === "no") f.no = (f.no || []).filter(function (x) { return x !== v; }); else delete f[k];
+    return sanitizePref(f);
+  }
+  // What an AI feature may add to its prompt (about 60 tokens at most): household, food, times without time - only the
+  // parts asked for, in the page's language. Never the age band, never the PayPal name, never a name.
+  function prefContext(p, lang, keys) {
+    var f = (p && p.pref) || {}, want = function (k) { return !keys || keys.indexOf(k) >= 0; }, out = [];
+    if (want("hh") && f.hh) out.push(tx(lang, "pf_ctx_hh", { n: f.hh === 6 ? "6+" : f.hh }));
+    if (want("diet") && f.diet) out.push(tx(lang, "pf_diet_" + f.diet));
+    if (want("no") && f.no) out.push(tx(lang, "pf_ctx_no", { s: f.no.map(function (k) { return tx(lang, "pf_no_" + k); }).join(", ") }));
+    return out.join("; ");
   }
 
   // ---------- creation ("doc"): what the editor changes and what travels in a link ----------
@@ -340,7 +387,7 @@
   var api = {
     IDEAS: IDEAS, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, PLAY: PLAY, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays, fold: fold, searchIdeas: searchIdeas,
     randomIdea: randomIdea, paperIndex: paperIndex, sanitizeId: sanitizeId, parseRoute: parseRoute, inviteUrl: inviteUrl, challengeUrl: challengeUrl,
-    cleanInput: cleanInput, sanitizeProfile: sanitizeProfile, sanitizeDoc: sanitizeDoc, doorNumber: doorNumber, docFromIdea: docFromIdea, blankDoc: blankDoc,
+    cleanInput: cleanInput, sanitizeProfile: sanitizeProfile, sanitizePref: sanitizePref, prefChips: prefChips, dropPref: dropPref, prefContext: prefContext, adult: adult, dietOk: dietOk, PREF: { AGES: AGES, DIETS: DIETS, NOTIMES: NOTIMES }, sanitizeDoc: sanitizeDoc, doorNumber: doorNumber, docFromIdea: docFromIdea, blankDoc: blankDoc,
     changedAreas: changedAreas, withTrail: withTrail, docUrl: docUrl, SETS: SETS, STYLES: STYLES, FX: FX, MAX_STICKERS: MAX_STICKERS, sanitizeWall: sanitizeWall, addToWall: addToWall, ideaStrings: ideaStrings
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

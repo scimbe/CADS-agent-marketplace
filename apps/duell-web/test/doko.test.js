@@ -277,3 +277,39 @@ test("apply prueft Reihenfolge, Format und doppelte Karten und veraendert den al
   assert.equal(JSON.stringify(D.start({ dealer: 3 })) !== before, true);
   assert.equal(D.done(s), false); assert.equal(D.turn(s), 2);
 });
+
+test("Hausregeln: nur bekannte Namen, feste Reihenfolge; zweite Dulle sticht die erste nur mit Regel", () => {
+  assert.deepEqual(D.rules(["nosp", "x", "dulle", "dulle"]), ["dulle", "nosp"]); assert.deepEqual(D.rules("dulle"), []);
+  assert.deepEqual(D.start({ rules: ["dulle"] }).rules, ["dulle"]); assert.deepEqual(D.start().rules, []);
+  const T = (kind, cs, r) => D.trickWinner(kind, cs.map((card, i) => ({ seat: i, card })), r);
+  assert.equal(T("normal", ["HT", "CQ", "HT", "D9"]), 0);
+  assert.equal(T("normal", ["HT", "CQ", "HT", "D9"], ["dulle"]), 2);
+  assert.equal(T("normal", ["CA", "CA", "C9", "CK"], ["dulle"]), 0, "andere gleiche Karten: weiter die erste");
+  assert.equal(T("damen", ["HA", "HT", "HT", "H9"], ["dulle"]), 0, "im Damensolo ist die Herz 10 keine Dulle");
+});
+test("Warum? am Stich: angespielt, Gewinner, Grund und wie jede Karte bedient hat", () => {
+  const E = (kind, cs, r) => D.explain(kind, cs.map((card, i) => ({ seat: (i + 1) % 4, card })), r);
+  const a = E("normal", ["CA", "CT", "D9", "SA"]);
+  assert.deepEqual([a.led, a.win, a.seat, a.card, a.why], ["C", 2, 3, "D9", "trump"]);
+  assert.deepEqual(a.plays.map((p) => p.how), ["lead", "follow", "trump", "off"]);
+  assert.equal(a.order[0], "HT");
+  assert.equal(E("normal", ["HA", "HK", "H9", "HK"]).why, "high");
+  assert.equal(E("normal", ["HT", "CQ", "HT", "D9"]).why, "first");
+  const d = E("normal", ["HT", "CQ", "HT", "D9"], ["dulle"]); assert.equal(d.why, "dulle"); assert.equal(d.win, 2);
+  assert.deepEqual(E("normal", ["HA", "HT"]).plays.map((p) => p.how), ["lead", "trump"], "die Dulle bedient Herz nicht");
+  assert.equal(D.explain("normal", []), null);
+});
+test("Hausregel ohne Sonderpunkte: kein Fuchs, Doppelkopf, Karlchen; gegen die Alten bleibt", () => {
+  let found = 0;
+  for (let seed = 1; seed <= 60; seed++) {
+    const hands = deal(seed);
+    if (hands.some((h) => h.filter((c) => c === "CQ").length === 2)) continue;
+    const run = (rules) => { let s = sayAll(D.start({ dealer: seed % 4, rules }), ["gesund", "gesund", "gesund", "gesund"]); s = playOut(s, hands); return D.result(s, { hands }); };
+    const a = run([]), b = run(["nosp"]);
+    assert.ok(!b.lines.some((l) => ["fuchs", "doppelkopf", "karlchen"].indexOf(l.k) >= 0));
+    if (a.lines.some((l) => ["fuchs", "doppelkopf", "karlchen"].indexOf(l.k) >= 0)) found++;
+    assert.equal(a.lines.some((l) => l.k === "gegen_die_alten"), b.lines.some((l) => l.k === "gegen_die_alten"));
+    assert.equal(sum(b.points), 0);
+  }
+  assert.ok(found > 0, "ohne Regel kommen Sonderpunkte vor");
+});

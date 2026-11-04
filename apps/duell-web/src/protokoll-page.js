@@ -212,6 +212,7 @@
       var e = el("li", "task"); e.appendChild(el("b", "", x.who || L.open)); e.appendChild(el("span", "", " " + x.what)); if (x.due) e.appendChild(el("em", "", " · " + x.due)); return e;
     }));
     box.appendChild(el("p", "src", L[p.source]));
+    $("todo").hidden = !p.tasks.length;
     $("note").hidden = !note; $("note").textContent = note || "";
     show("result");
   }
@@ -266,6 +267,8 @@
   $("download").addEventListener("click", download);
   $("share").addEventListener("click", share);
   $("del").addEventListener("click", function () { if (rec) remove(rec.id); });
+  // The tasks as a checklist to share: the app opens with them (same origin, the hash never reaches a server).
+  $("todo").addEventListener("click", function () { if (rec && rec.protocol) location.href = P.todoLink(rec, lang); });
   $("again").addEventListener("click", function () { rec = null; fillList(); show("intro"); });
   $("delall").addEventListener("click", removeAll);
   // Leaving the page ends the recording: nothing goes on unseen in the background of a closed tab.

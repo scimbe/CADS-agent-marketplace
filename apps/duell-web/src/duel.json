@@ -24,6 +24,13 @@
 },
 "texts": {
  "de": {
+  "why_draw": "Gleichstand {a}:{b}. Beide Agenten waren gleich stark.", "why_luck": "Knapp, {a}:{b}. Hier hat der Zufall aus dem Seed entschieden.",
+  "why_rpsCounter": "{w} hat {n}× gekontert: Auf die letzte Hand von {l} kam genau die, die sie schlägt (Geduld {p}).", "why_rpsRepeat": "{l} hat {n}× eine Siegerhand wiederholt und wurde erwischt (Frechheit {c}).", "why_rpsLead": "{l} spielte {n} von 9 Mal {h} (Mut {r}). Das war leicht zu lesen.",
+  "why_rapCourage": "{w} hatte mehr Mut ({r} zu {s}), das bringt größere Punktsprünge.", "why_rapPatience": "{w} hat Geduld über 60 ({p}), das gibt +1 in jeder Runde.", "why_rapCounter": "{w} hat die Sprüche besser gesetzt: frech gegen Ungeduldige, ruhig gegen Freche (+{n}).",
+  "why_aucOver": "{l} hat {n}× mehr geboten, als die Sache wert war (Mut {r}).", "why_aucLeft": "{l} hatte am Ende noch {m} Münzen übrig (Geduld {p}).", "why_aucFew": "{w} hat {k} Sachen ersteigert, {l} nur {j}.",
+  "why_flyShaky": "{l} flog zappelig (Geduld {p}) und blieb an Röhre {n} hängen.", "why_flyClose": "{l} flog zu nah an der Röhre (Mut {r}) und blieb an Röhre {n} hängen.", "why_flyLuck": "{l} kam bis Röhre {n}, {w} bis {m}. Gleiche Strecke, knapper Unterschied.",
+  "tip_tipCounter": "Tipp: Geduld hoch, dann kontert dein Agent selbst.", "tip_tipRepeat": "Tipp: Frechheit runter, dann wiederholt dein Agent seltener.", "tip_tipLead": "Tipp: Mut Richtung 0, dann mischt dein Agent die Hände.", "tip_tipCourage": "Tipp: Mut hoch.", "tip_tipPatience": "Tipp: Geduld über 60.",
+  "tip_tipCheek": "Tipp: Gegen freche Gegner Frechheit runter, gegen ungeduldige hoch.", "tip_tipOver": "Tipp: Mut runter.", "tip_tipLeft": "Tipp: Geduld runter, dann bietet dein Agent mehr.", "tip_tipFew": "Tipp: Mut hoch.", "tip_tipShaky": "Tipp: Geduld hoch oder einmal vorfliegen.", "tip_tipClose": "Tipp: Mut näher an 50.",
   "duel": "Gegen Bot", "quest": "Geheim", "notHere": "Das geht auf diesem Gerät gerade nicht. Hier ist die Tageskarte.",
   "tabAgent": "Mein Agent", "tabRival": "Gegner", "tabArena": "Arena", "tabRiddle": "Rätsel", "tabEnd": "Schatz",
   "agName": "Name", "agLook": "Aussehen", "ag_r": "Mut", "ag_c": "Frechheit", "ag_p": "Geduld", "ag_sharp": "Lernt so schnell",
@@ -47,6 +54,13 @@
   "live_rpsStall": "{n} deckt nicht auf. Das Spiel zählt nicht."
  },
  "en": {
+  "why_draw": "Draw {a}:{b}. Both agents were equally strong.", "why_luck": "Close, {a}:{b}. Chance from the seed decided this one.",
+  "why_rpsCounter": "{w} countered {n}×: {l}'s last hand was met by exactly the one that beats it (patience {p}).", "why_rpsRepeat": "{l} repeated a winning hand {n}× and got caught (cheek {c}).", "why_rpsLead": "{l} played {h} {n} out of 9 times (courage {r}). Easy to read.",
+  "why_rapCourage": "{w} had more courage ({r} to {s}), which means bigger point swings.", "why_rapPatience": "{w} has patience over 60 ({p}), worth +1 every round.", "why_rapCounter": "{w} picked the lines better: cheeky against impatient, calm against cheeky (+{n}).",
+  "why_aucOver": "{l} bid more than the item was worth {n}× (courage {r}).", "why_aucLeft": "{l} still had {m} coins left at the end (patience {p}).", "why_aucFew": "{w} won {k} items, {l} only {j}.",
+  "why_flyShaky": "{l} flew shakily (patience {p}) and hit pipe {n}.", "why_flyClose": "{l} flew too close to the pipe (courage {r}) and hit pipe {n}.", "why_flyLuck": "{l} reached pipe {n}, {w} pipe {m}. Same course, a close call.",
+  "tip_tipCounter": "Tip: raise patience, then your agent counters too.", "tip_tipRepeat": "Tip: lower cheek, then your agent repeats less.", "tip_tipLead": "Tip: courage towards 0, then your agent mixes its hands.", "tip_tipCourage": "Tip: raise courage.", "tip_tipPatience": "Tip: patience over 60.",
+  "tip_tipCheek": "Tip: against cheeky rivals lower cheek, against impatient ones raise it.", "tip_tipOver": "Tip: lower courage.", "tip_tipLeft": "Tip: lower patience, then your agent bids more.", "tip_tipFew": "Tip: raise courage.", "tip_tipShaky": "Tip: raise patience or fly once for it.", "tip_tipClose": "Tip: courage closer to 50.",
   "duel": "Versus bot", "quest": "Secret", "notHere": "That doesn't work on this device right now. Here's today's card.",
   "tabAgent": "My agent", "tabRival": "Rival", "tabArena": "Arena", "tabRiddle": "Riddle", "tabEnd": "Treasure",
   "agName": "Name", "agLook": "Look", "ag_r": "Courage", "ag_c": "Cheek", "ag_p": "Patience", "ag_sharp": "Learning speed",

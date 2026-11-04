@@ -196,3 +196,80 @@ test("Eine gefaelschte Uebergabe (falsche Schluessel) macht keinen Platz zu Auto
   assert.ok(A._debug().hand.flags.some((f) => f.seat === seat));
   T.forEach((t) => t.leave());
 });
+
+test("Hausregeln am Tisch: der Ersteller waehlt, Neue uebernehmen sie (auch gegen einen alten Link), Aenderung zwischen zwei Spielen gilt fuer alle", async () => {
+  const live = fakeLive(), A = Table.create({ game: "skat", live, name: "Ada", emoji: "🦊", rules: ["ramsch"], autoFast: 20 }), T = [A];
+  for (let i = 1; i < 3; i++) {
+    await until(() => T[i - 1].view().mySeat >= 0);
+    const inv = await T[i - 1].invite();
+    T.push(await Table.join(inv.token, { game: "skat", live, name: "P" + i, emoji: "🐢", rules: ["kontra"], autoFast: 20 }));   // an old link with other rules
+  }
+  await until(() => T.every((t) => t.view().hand && t.view().hand.dealt));
+  T.forEach((t) => { assert.deepEqual(t.view().rules, ["ramsch"]); assert.deepEqual(t.view().hand.state.rules, ["ramsch"]); });
+  assert.equal(A.rules(["kontra"]), false, "nicht mitten im Spiel");
+  // everyone passes: Ramsch, played by the plain bot to the end, the same result everywhere
+  T.forEach((t) => { let busy = false; const go = (v) => { if (busy || !v.hand || !v.hand.actions.length) return; const a = v.hand.actions.find((x) => x.t === "pass") || v.hand.actions.find((x) => x.t === "play"); if (!a) return; busy = true; setImmediate(() => { busy = false; t.act(a); }); }; t.on(go); go(t.view()); });
+  await until(() => T.every((t) => t.view().last && t.view().last.result), 120000);
+  const r = T.map((t) => t.view().last.result); assert.ok(r.every((x) => x.ramsch)); assert.equal(new Set(r.map((x) => JSON.stringify(x.points))).size, 1);
+  assert.equal(T[1].rules(["kontra", "ramsch"]), true);
+  await until(() => T.every((t) => t.view().rules.join() === "ramsch,kontra"));
+  T.forEach((t) => t.next());
+  await until(() => T.every((t) => t.view().hand && t.view().hand.state));
+  T.forEach((t) => assert.deepEqual(t.view().hand.state.rules, ["ramsch", "kontra"]));
+  T.forEach((t) => t.leave());
+});
+
+// ---------- review of PR #131 ----------
+async function skatWith(rules, live) {
+  const T = [Table.create({ game: "skat", live, name: "Ada", emoji: "🦊", rules, autoFast: 20 })];
+  for (let i = 1; i < 3; i++) {
+    await until(() => T[i - 1].view().mySeat >= 0);
+    const inv = await T[i - 1].invite();
+    T.push(await Table.join(inv.token, { game: "skat", live, name: "P" + i, emoji: "🐢", rules, autoFast: 20 }));
+  }
+  return T;
+}
+test("Review 3: zwei Gegenspieler sagen gleichzeitig Kontra, der Tisch haengt nicht (kein 30-s-Stau), Kontra zaehlt einmal", async () => {
+  const live = fakeLive(), T = await skatWith(["kontra"], live), gate = { open: false };
+  await until(() => T.every((t) => t.view().hand && t.view().hand.dealt));
+  // the plain bot, but in the play phase it waits until both Kontras are out
+  T.forEach((t) => {
+    let busy = false;
+    const go = (v) => { if (!gate.open && v.hand && v.hand.state && v.hand.state.phase === "play") return; if (busy || !v.hand || !v.hand.actions.length) return;
+      const acts = v.hand.actions, pick = (f) => acts.find(f);
+      const a = pick((x) => x.t === "bid" && x.v === 18 && v.mySeat === (v.hand.state.dealer + 2) % 3) || pick((x) => x.t === "pickup")
+        || (pick((x) => x.t === "push") && { t: "push", seat: v.mySeat, cards: v.hand.cards.slice(0, 2) })
+        || pick((x) => x.t === "declare" && x.game === "C" && !x.hand) || pick((x) => x.t === "play") || pick((x) => x.t === "pass");
+      if (!a) return; busy = true; setImmediate(() => { busy = false; t.act(a); }); };
+    t.on(go); t._go = go; go(t.view());
+  });
+  await until(() => T.every((t) => t.view().hand.state.phase === "play"));
+  const decl = T[0].view().hand.state.declarer, def = T.filter((t) => t.view().mySeat !== decl);
+  await until(() => def.every((t) => t.view().hand.actions.some((x) => x.t === "kontra")));
+  def.forEach((t) => assert.equal(t.act({ t: "kontra", seat: t.view().mySeat }), true, "beide sagen Kontra im selben Moment"));
+  await until(() => T.every((t) => t.view().hand.state.kontra === 1));
+  gate.open = true; T.forEach((t) => t._go(t.view()));
+  await until(() => T.every((t) => t.view().last && t.view().last.result), 12000);
+  const l = T.map((t) => t.view().last);
+  l.forEach((x) => assert.deepEqual(x.audit, [])); assert.equal(new Set(l.map((x) => JSON.stringify(x.result.list))).size, 1);
+  T.forEach((t) => assert.notEqual(t.view().note, "stuck"));
+  assert.ok(l[0].result.lines.some((x) => x.k === "kontra"), "Kontra einmal gewertet");
+  T.forEach((t) => t.leave());
+});
+test("Review 4: wer nach dem Spiel schon bereit ist, kann die Hausregeln nicht mehr aendern; wer noch nicht bereit ist, schon, und alle starten damit", async () => {
+  const live = fakeLive(), T = await skatWith(["ramsch"], live);
+  await until(() => T.every((t) => t.view().hand && t.view().hand.dealt));
+  T.forEach((t) => { let busy = false; const go = (v) => { if (busy || !v.hand || !v.hand.actions.length || v.hand.no > 0) return; const a = v.hand.actions.find((x) => x.t === "pass") || v.hand.actions.find((x) => x.t === "play"); if (!a) return; busy = true; setImmediate(() => { busy = false; t.act(a); }); }; t.on(go); go(t.view()); });
+  await until(() => T.every((t) => t.view().last && t.view().last.result), 120000);
+  assert.ok(T.every((t) => t.view().rulesOpen), "zwischen zwei Spielen offen");
+  T[0].next(); T[1].next();
+  assert.equal(T[0].view().rulesOpen, false); assert.equal(T[0].rules(["kontra"]), false, "schon bereit: die anderen koennten mit den alten Regeln starten");
+  assert.equal(T[2].view().rulesOpen, true);
+  assert.equal(T[2].rules(["kontra"]), true);
+  await until(() => T.every((t) => t.view().rules.join() === "kontra"));
+  T[2].next();
+  await until(() => T.every((t) => t.view().hand && t.view().hand.state));
+  T.forEach((t) => assert.deepEqual(t.view().hand.state.rules, ["kontra"]));
+  assert.ok(T.every((t) => !t.view().rulesOpen), "mitten im Spiel zu");
+  T.forEach((t) => t.leave());
+});

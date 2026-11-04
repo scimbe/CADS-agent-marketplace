@@ -189,10 +189,20 @@ function end(ed, res) {
   if (x.sa) { x.sa = null; x.sb = null; }
   ed.x = x; stopBeat(); Kit.sfx.win(); A.changed();
   var p = $("panel"); log(p, x.verdict, "duelres");
+  if (!x.mind) why(d, res, p);
   var row = el("div", "chips");
   if (d.m === "flappy") row.appendChild(el("button", "chip", t("flyMe", { n: nameOf(d.b) }), function () { flyAgainst(ed); }));
   row.appendChild(el("button", "chip", "↩ " + t("duelAgain"), function () { reset(ed); }));
   p.appendChild(row); p.scrollTop = p.scrollHeight;
+}
+// Why it ended like this: duel.js reads it from the match and the sliders (no AI); a tip only when my agent lost.
+function why(d, res, p) {
+  var w = Duel.explain(d, res); if (!w) return;
+  var who = function (k) { var ag = d[k]; return (ag.e + " " + (ag.n || "")).trim(); };
+  var v = Object.assign({}, w.v, { w: w.w ? who(w.w) : "", l: w.w ? who(w.w === "a" ? "b" : "a") : "" });
+  if (v.h != null) v.h = handFace(d, v.h);
+  log(p, "❓ " + t("why_" + w.k, v), "duelwhy");
+  if (w.tip && w.w === "b") log(p, t("tip_" + w.tip), "duelwhy");
 }
 function stopBeat() { if (beat) { try { beat.stop(); } catch (e) {} beat = null; } }
 function flyAgainst(ed) {

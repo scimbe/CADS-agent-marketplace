@@ -184,6 +184,8 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 #shnote{padding:0 18px;margin:2px 0 6px}
 .duellog{margin:0 0 5px;font:700 14px/1.25 var(--ui)}
 .duelres{margin:6px 0;font:900 22px/1.1 var(--disp);text-transform:uppercase}
+.agendatext{margin:6px 0;padding:8px 10px;border:2px solid var(--ink);background:#fff;color:#111;font:700 14px/1.35 var(--ui);white-space:pre-line}
+.duelwhy{margin:0 0 6px;font:700 14px/1.3 var(--ui)}
 .chip.hand{font-size:34px;flex:1;min-height:76px}
 .qlock{font-size:72px;text-align:center;margin:18px 0 6px}
 .qtext{font:900 27px/1.15 var(--disp);margin:6px 0 16px;overflow-wrap:anywhere}
@@ -247,6 +249,7 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .tbseats{width:100%;display:flex;flex-direction:column;gap:6px}.tbseat{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:3px solid var(--ink);background:var(--paper);font:900 18px var(--ui);text-align:left}
 .tbseat.me{outline:3px solid var(--b)}.tbseat .btn{min-height:40px;padding:6px 10px;font-size:15px}.tbwarn{font-weight:900}
 .tbturn{font:900 22px var(--ui);margin:0;min-height:28px}.tbturn.hot{color:var(--b)}.tbinfo{margin:0;min-height:20px}
+.tbrules{justify-content:center}.tbrules .chip:disabled{opacity:.6}.tbwhy{align-self:center}.tbhouse{margin:0;font-weight:800}.tbexplain{width:100%;margin:0;padding:8px 10px;border:3px solid var(--ink);background:var(--paper);color:var(--ink);text-align:left}.tbexplain p{margin:2px 0}
 .tbtrick{display:flex;justify-content:center;gap:8px;min-height:118px;flex-wrap:wrap}.tbplayed{display:flex;flex-direction:column;align-items:center;gap:2px;font:700 12px var(--ui)}
 .tbhand{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;width:100%}
 .tbcard{display:inline-block;width:64px;height:96px;padding:0;border:0;background:none;line-height:0;transition:transform .12s}.tbcard svg{width:100%;height:100%}
