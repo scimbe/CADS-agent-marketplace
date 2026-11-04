@@ -217,7 +217,7 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .livebig{font:400 36px/1.05 var(--disp);text-transform:uppercase}.livebadge{font-size:48px;letter-spacing:8px}.livemini{font-size:22px;letter-spacing:6px;margin:0}.livecount{font:900 28px var(--ui)}
 .livecv{width:min(92vw,46vh);aspect-ratio:1000/1600;border:3px solid var(--ink);touch-action:none;background:#111}.livescore{font:900 22px var(--ui)}
 .rpslast{font-size:56px;letter-spacing:24px;min-height:64px;margin:0}.livebody .chips{width:100%}
-.btn.hot.live{background:var(--b);color:#fff}
+.btn.hot.live{background:var(--b);color:var(--onb)}
 .being{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px;border:4px solid transparent;border-radius:12px}
 .being.ok{border-color:#1b9e3a}.being.no{border-color:#e53935}.bhat,.bsocks{height:34px;font-size:30px;line-height:34px}
 .bface{width:110px;height:110px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:64px}
@@ -230,7 +230,15 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .inv img{width:100%;height:100%;object-fit:cover;display:block}.invicon{display:grid;place-items:center;height:100%;font-size:40px}
 .invx{position:absolute;top:-8px;right:-8px;width:36px;height:36px;border-radius:50%;border:2px solid var(--ink);background:#fff;color:#111;font:900 16px var(--ui);display:grid;place-items:center}
 .invdate{font:700 12px var(--ui);text-align:center}
-.arcov{background:#0b0b12;color:#fff}.arcov .note,.arcov .livescore{color:#fff}.arcov .livebody{gap:8px}
+.arcov{background:#0b0b12;color:#fff;justify-content:flex-start;padding:0 16px max(16px,env(safe-area-inset-bottom));overflow-y:auto}.arcov .note,.arcov .livescore{color:#fff}.arcov .livebody{gap:8px;margin:auto 0;padding-top:14px}
+/* arcade banner: the home page's brand line in the user's colours, its lower edge torn off the calendar block */
+.arcbar{align-self:stretch;margin:0 -16px;padding-top:calc(env(safe-area-inset-top) + 6px);padding-right:14px;color:var(--on)}
+.arcbar::after{content:"";position:absolute;left:0;right:0;bottom:-6px;height:12px;background:radial-gradient(circle at 50% 50%,#0b0b12 0 5px,transparent 5.5px) 0 0/25px 12px repeat-x;pointer-events:none}
+.arcbrand{flex:1;min-width:0;font:900 25px/1.1 var(--disp);letter-spacing:.3px;text-transform:uppercase;transform:rotate(-1.5deg);transform-origin:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.arcburst{width:46px;height:46px;margin:0;font-size:21px;line-height:1;flex:none}
+.arcov .btn.hot{background:var(--a);border-color:var(--a);color:var(--on);box-shadow:0 5px 0 var(--b);margin-bottom:6px}
+.arcov .btn.hot.live{background:var(--b);border-color:var(--b);color:var(--onb);box-shadow:0 5px 0 var(--a)}
+.arcov .btn.hot:active{transform:translateY(4px);box-shadow:0 1px 0 var(--b)}
 .arccv{width:min(94vw,60vh);aspect-ratio:1000/1600;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border-color:#fff;background:#07070b}
 .arcdemo{width:min(56vw,30vh);aspect-ratio:300/480;border:3px solid #fff;background:#07070b}.arcnote{min-height:2.4em;margin:0}
 @media (prefers-reduced-motion:reduce){.arccv,.arcdemo{animation:none;transition:none}}

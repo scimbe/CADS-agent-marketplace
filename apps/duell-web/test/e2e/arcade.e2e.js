@@ -79,6 +79,9 @@ test("Gegen den Bot: Regal zeigt zehn Arcade-Duelle neben dem Ballduell, Insel-P
   await p.getByText(/Gewonnen|Knapp!/).waitFor({ timeout: 30000 });   // standing still, the bot wins 3:0
   assert.match(await p.locator(".livebig").textContent(), /Knapp! 0:3/);
   await p.getByRole("button", { name: "Nochmal" }).waitFor();
+  // one way back: the ✕ in the banner, no second "Zurück" below the game
+  assert.equal(await p.locator(".arcov .arcbar").count(), 1);
+  assert.equal(await p.getByRole("button", { name: "Zurück" }).count(), 0);
   assert.deepEqual(errs, []); await b.close();
 });
 
@@ -91,5 +94,15 @@ test("Kalender: an seinem Tag ist das Puck-Duell das Blatt des Tages und oeffnet
   await p.locator("#leaf").getByText("Puck", { exact: true }).waitFor();
   await p.locator("#go").click();
   await p.getByRole("button", { name: /Gegen den Bot/ }).waitFor();
+  // The menu wears the home page's brand as a banner in the user's colour, with the same ✕ as editor and shelf.
+  const bar = p.locator(".arcov .arcbar");
+  assert.equal(await bar.locator(".arcbrand").textContent(), "My Daily Idea");
+  const look = await bar.evaluate((e) => { const a = getComputedStyle(e), h = getComputedStyle(document.querySelector("#home .bar h1")); return { bg: a.backgroundColor, home: getComputedStyle(document.body).backgroundColor, font: getComputedStyle(e.querySelector(".arcbrand")).fontFamily === h.fontFamily }; });
+  assert.equal(look.bg, look.home, "Banner in der Farbe der Startseite"); assert.ok(look.font, "Schrift der Marke wie auf der Startseite");
+  const x = bar.getByRole("button", { name: "Schließen" });
+  assert.equal(await x.textContent(), "✕"); assert.equal(await x.getAttribute("class"), "ico arcx");
+  assert.equal(await p.getByRole("button", { name: "Zurück" }).count(), 0, "nur ein Weg zurück");
+  await x.click();
+  assert.equal(await p.locator(".arcov").count(), 0); await p.locator("#go").waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
