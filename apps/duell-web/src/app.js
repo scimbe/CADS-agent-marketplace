@@ -800,7 +800,7 @@ function route() {
   if (CU.route(location.hash)) { clearLink(); if (screen !== "editor") goHomeKeep(); return true; }
   var live = location.hash.match(/^#live=([A-Za-z0-9_-]{22})(?:&g=([a-z]{2,12}))?$/);
   if (live && window.LiveUI) { history.replaceState(null, "", location.pathname); window.LiveUI.accept(live[1], live[2]); }
-  var seat = location.hash.match(/^#tisch=(doko|skat)\.([A-Za-z0-9_-]{22})$/);
+  var seat = location.hash.match(/^#tisch=(doko|skat)\.([A-Za-z0-9_-]{22}(?:\.[A-Za-z0-9_-]{22}){0,2})$/);   // one token, or one per free seat
   if (seat && window.TableUI) { history.replaceState(null, "", location.pathname); window.TableUI.accept(seat[1], seat[2]); }
   var r = D.parseRoute(location.hash);
   if (r && r.type === "short") {

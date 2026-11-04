@@ -244,6 +244,7 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .tbcard{display:inline-block;width:64px;height:96px;padding:0;border:0;background:none;line-height:0;transition:transform .12s}.tbcard svg{width:100%;height:100%}
 .tbcard.small{width:40px;height:60px}.tbcard.no{opacity:.45}.tbcard.ok{cursor:pointer}.tbcard.ok:active{transform:translateY(-4px)}.tbcard.sel{transform:translateY(-12px)}
 .tbacts{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;width:100%}.tbacts .btn{min-height:44px;padding:6px 12px;font-size:16px}
+.tbauto{min-height:40px;padding:6px 12px;font-size:15px}.tbclock{font-size:16px}.tbghost{margin:0;font-weight:900}
 @media (max-width:420px){.tbcard{width:52px;height:78px}}
 /* Advent door from a link (door.js): closed, one tap, two leaves swing open; with reduced motion it only fades */
 #door{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));background:var(--da);color:#fffaf0;text-align:center;overflow:auto}

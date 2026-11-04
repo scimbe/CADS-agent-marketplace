@@ -295,7 +295,38 @@
     return out;
   }
 
-  var api = { SEATS: SEATS, HAND: HAND, DECK: DECK, EYES: EYES, BASE: BASE, NULL: NULL, BIDS: BIDS,
+  // ---------- Auto: one legal move for a seat whose player is away or too slow ----------
+  // Plain and fully determined by the public state and the seat's own cards, no dice: it passes when bidding; a
+  // declarer it stands in for plays a hand game (the skat stays down) in the suit it holds most of, discards its two
+  // lowest non-jacks after a pick-up, lays an ouvert hand open, and always plays the weakest card it may (lowest in the
+  // trick's order, then fewest eyes, then the card's name).
+  function cmp(a, b) { for (var i = 0; i < a.length; i++) { if (a[i] < b[i]) return -1; if (a[i] > b[i]) return 1; } return 0; }
+  function longest(hand) {
+    var best = "C", most = -1;
+    ["C", "S", "H", "D"].forEach(function (g) { var n = hand.filter(function (c) { return isTrump(g, c); }).length; if (n > most) { most = n; best = g; } });
+    return best;
+  }
+  function auto(s, seat, hand) {
+    if (turn(s) !== seat) return null;
+    hand = hand || [];
+    if (s.phase === "bid") return { t: "pass", seat: seat };
+    if (s.phase === "skat" || s.phase === "declare") {
+      var c = { t: "declare", seat: seat, game: longest(hand), hand: !s.pickedUp, schneider: false, schwarz: false, ouvert: false };
+      return checkContract(s, c) ? null : c;
+    }
+    if (s.phase === "push") {
+      var low = hand.slice().sort(function (a, b) { return cmp([a[1] === "J" ? 1 : 0, EYES[a[1]], a], [b[1] === "J" ? 1 : 0, EYES[b[1]], b]); });
+      return { t: "push", seat: seat, cards: low.slice(0, 2) };
+    }
+    if (s.phase === "show") return { t: "show", seat: seat, cards: hand.slice() };
+    if (s.phase !== "play") return null;
+    var game = s.contract.game, ok = hand.filter(function (c) { return mayPlay(game, hand, c, s.trick); });
+    var led = s.trick && s.trick.cards.length ? suitOf(game, s.trick.cards[0].card) : null;
+    ok.sort(function (a, b) { return cmp([power(game, a, led || suitOf(game, a)), EYES[a[1]], a], [power(game, b, led || suitOf(game, b)), EYES[b[1]], b]); });
+    return ok.length ? { t: "play", seat: seat, card: ok[0] } : null;
+  }
+
+  var api = { SEATS: SEATS, HAND: HAND, DECK: DECK, EYES: EYES, BASE: BASE, NULL: NULL, BIDS: BIDS, auto: auto,
     layout: layout, start: start, turn: turn, actions: actions, apply: apply, done: done, result: result, audit: audit,
     trickWinner: trickWinner, isTrump: isTrump, suitOf: suitOf, tops: tops, eyes: eyes,
     forehand: forehand, middlehand: middlehand, rearhand: rearhand };

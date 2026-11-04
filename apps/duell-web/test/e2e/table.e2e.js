@@ -1,4 +1,4 @@
-// Doppelkopf with four browsers and Skat with three, end to end. Only the two-player links of live.js are replaced:
+// Doppelkopf with four browsers and Skat with three, end to end, seated through one group link, one seat on Auto. Only the two-player links of live.js are replaced:
 // a small broker here pipes each pair's messages between the pages, like the data channel does. The mesh, the
 // invites from seat to seat, the joint shuffle, the rules, the screens and the score all run for real.
 const test = require("node:test"), assert = require("node:assert/strict"), path = require("node:path");
@@ -7,6 +7,9 @@ const page = "file://" + path.join(__dirname, "../../dist/index.html");
 
 const FAKE = `(() => {
   window.__liveOn = true;
+  // what the page would hand to the share sheet (the group chat): kept for the test
+  window.__shared = [];
+  Object.defineProperty(navigator, "share", { configurable: true, value: async (o) => { window.__shared.push(o.url); } });
   const conns = {}, pend = {};
   function mk(id, ch) {
     const c = { channel: ch, h: null, cl: [], dead: false,
@@ -74,11 +77,12 @@ async function step(x, game) {
   } catch (e) { /* the screen was redrawn under the click: next round */ }
   return false;
 }
+// Pages with x.auto set never get a tap: their own device has to move for them.
 async function playHand(all, game) {
   const t0 = Date.now();
   while (Date.now() - t0 < 240000) {
     let ended = 0;
-    for (const x of all) { if (await x.p.locator(".tbcheck").count()) ended++; else await step(x, game); }
+    for (const x of all) { if (await x.p.locator(".tbcheck").count()) ended++; else if (!x.auto) await step(x, game); }
     if (ended === all.length) return;
     await all[0].p.waitForTimeout(60);
   }
@@ -97,52 +101,79 @@ async function dealt(all) {
   try { for (const x of all) await x.p.locator(".tbhand .tbcard").first().waitFor({ timeout: 60000 }); }
   catch (e) { throw new Error("not dealt:\n" + (await Promise.all(all.map((x) => x.p.locator(".tbbody").innerText().catch(() => "-")))).join("\n---\n")); }
 }
+// The one link the page put into the share sheet for the group chat: one token for each of the n free seats.
+async function groupLink(host, n) {
+  await host.p.waitForFunction((k) => document.querySelectorAll(".tbseat").length && [...document.querySelectorAll(".tbseat")].filter((e) => /eingeladen/.test(e.textContent)).length === k && window.__shared.length, n);
+  const shared = await host.p.evaluate(() => window.__shared.slice());
+  assert.equal(shared.length, 1, "shared once: " + shared.join(" "));
+  const hash = shared[0].slice(shared[0].indexOf("#"));
+  assert.match(hash, new RegExp("^#tisch=(doko|skat)(\\.[A-Za-z0-9_-]{22}){" + n + "}$"));
+  return page + hash;
+}
+async function autoOn(x) {
+  await x.p.getByRole("button", { name: "🤖 Auto: aus" }).click();
+  await x.p.getByRole("button", { name: "🤖 Auto: an" }).waitFor();
+  x.auto = true;
+}
 const badgeOf = (x) => x.p.locator(".tbbadge").textContent();
 const handOf = (x) => x.p.locator(".tbhand:not(.tbopen) .tbcard").evaluateAll((els) => els.map((e) => e.dataset.card));
 
-test("Doppelkopf live mit vier Browsern: Platz fuer Platz eingeladen, gleiche Bilder, ein ganzes Spiel, Aufstehen und Nachruecken", async () => {
+test("Doppelkopf live mit vier Browsern: ein Gruppenlink fuer alle, der Fuenfte liest voll, ein Platz auf Auto, Aufstehen mitten im Spiel, Nachruecken", async () => {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }), br = broker();
   const [A, B, C, D, E] = [await setup(b, br, "Ada"), await setup(b, br, "Ben"), await setup(b, br, "Cem"), await setup(b, br, "Dia"), await setup(b, br, "Eli")];
   await openTable(A, /Doppelkopf live/);
-  // A invites at once (a seat is held); after that the player who came last invites the next
-  await A.p.locator(".tbseat", { hasText: "eingeladen" }).waitFor();
+  // A invites everyone at once: three seats held, ONE link for the group chat
+  const url = await groupLink(A, 3);
   if (process.env.TB_SHOTS) await A.p.screenshot({ path: process.env.TB_SHOTS + "/doko-tisch.png" });
-  await B.p.goto(page + "#tisch=doko." + await tokenOf(br, A.p)); await B.p.locator(".tbseat.me").waitFor();
-  await seatBy(B, br, C, "doko"); await seatBy(C, br, D, "doko");
+  // three friends open the same link at the same moment: three different seats
+  await Promise.all([B, C, D].map(async (x) => { await x.p.goto(url); await x.p.locator(".tbseat.me").waitFor(); }));
   const four = [A, B, C, D];
-  await dealt(four);
+  // a fourth friend from the chat is too late
+  await E.p.goto(url); await E.p.getByText("Der Tisch ist schon voll").waitFor();
+  await dealt(four);                                   // four different seats: four hands of twelve below
   const badges = await Promise.all(four.map(badgeOf));
   assert.equal(new Set(badges).size, 1, badges.join(" | ")); assert.equal(badges[0].split(" ").length, 3);
   // everybody sees only their own twelve cards, and together they are the whole deck
   const hands = await Promise.all(four.map(handOf));
   hands.forEach((h) => assert.equal(h.length, 12));
   assert.equal(hands.flat().length, 48); assert.equal(new Set(hands.flat()).size, 24);
+  // D switches to Auto and never taps again: D's own device plays D's cards, the others see the robot
+  await autoOn(D);
+  for (const x of [A, B, C]) await x.p.locator(".tbscore", { hasText: "🤖" }).waitFor();
   if (process.env.TB_SHOTS) await A.p.screenshot({ path: process.env.TB_SHOTS + "/doko-hand.png" });
   await playHand(four, "doko");
   if (process.env.TB_SHOTS) await A.p.screenshot({ path: process.env.TB_SHOTS + "/doko-ende.png" });
   const pts = await Promise.all(four.map(async (x) => (await x.p.locator(".tbresult b").allInnerTexts()).map(Number)));
   pts.forEach((p) => assert.deepEqual(p, pts[0])); assert.equal(pts[0].reduce((a, c) => a + c, 0), 0);
-  // the next game, and D stands up in the middle of it: the seat is free again, C invites E, the table plays on
+  for (const x of four) assert.equal(await x.p.locator(".tbcheck").count(), 1, x.nick + ": all cards checked");
+  // the next game, and D stands up in the middle of it: D's cards go open to the table, Auto plays them to the end on
+  // every device, then the seat is free, C invites E, the table plays on
   for (const x of four) await x.p.getByRole("button", { name: "Nächstes Spiel" }).click();
   await dealt(four);
   await D.p.locator(".liveback").click();
-  for (const x of [A, B, C]) await x.p.getByText(/ist aufgestanden/).waitFor();
+  for (const x of [A, B, C]) await x.p.getByText(/spielt offen für/).waitFor();
+  if (process.env.TB_SHOTS) await A.p.screenshot({ path: process.env.TB_SHOTS + "/doko-auto-offen.png" });
+  await playHand([A, B, C], "doko");
+  const pts2 = await Promise.all([A, B, C].map(async (x) => (await x.p.locator(".tbresult b").allInnerTexts()).map(Number)));
+  pts2.forEach((p) => assert.deepEqual(p, pts2[0])); assert.equal(pts2[0].length, 4);
+  await E.p.goto("about:blank");
   await seatBy(C, br, E, "doko");
+  for (const x of [A, B, C]) await x.p.getByRole("button", { name: "Nächstes Spiel" }).click();
   await dealt([A, B, C, E]);
   assert.equal(new Set(await Promise.all([A, B, C, E].map(badgeOf))).size, 1);
   for (const x of [A, B, C, D, E]) assert.deepEqual(x.errs, [], x.nick);
   await b.close();
 });
 
-test("Skat live mit drei Browsern: Reizen, Skat aufnehmen, druecken, Kreuz spielen, alle zaehlen gleich", async () => {
+test("Skat live mit drei Browsern: ein Gruppenlink, ein Platz auf Auto, Reizen, Skat aufnehmen, druecken, alle zaehlen gleich", async () => {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }), br = broker();
   const [A, B, C] = [await setup(b, br, "Ada"), await setup(b, br, "Ben"), await setup(b, br, "Cem")];
   await openTable(A, /Skat live/);
-  await A.p.locator(".tbseat", { hasText: "eingeladen" }).waitFor();
-  await B.p.goto(page + "#tisch=skat." + await tokenOf(br, A.p)); await B.p.locator(".tbseat.me").waitFor();
-  await seatBy(B, br, C, "skat");
+  const url = await groupLink(A, 2);
+  await Promise.all([B, C].map(async (x) => { await x.p.goto(url); await x.p.locator(".tbseat.me").waitFor(); }));
   const three = [A, B, C];
   await dealt(three);
+  await autoOn(C);                                     // C bids, (maybe) declares and plays on Auto, untouched
   assert.equal(new Set(await Promise.all(three.map(badgeOf))).size, 1);
   const hands = await Promise.all(three.map(handOf)); hands.forEach((h) => assert.equal(h.length, 10)); assert.equal(new Set(hands.flat()).size, 30);
   await playHand(three, "skat");
