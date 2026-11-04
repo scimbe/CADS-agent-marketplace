@@ -25,6 +25,10 @@ test("Suche: Untertitel, Art und mehrere Woerter (alle muessen passen)", () => {
   assert.deepEqual(ids("flug mond").sort(), ids("mond flug").sort());
   assert.ok(ids("flug mond").every((id) => ids("flug").includes(id) && ids("mond").includes(id)));
 });
+test("Suche: Einkaufszettel ueber deutsche und englische Woerter und Tags", () => {
+  for (const q of ["einkauf", "Einkaufszettel", "EINKAUFSLISTE", "shopping", "shopping list", "liste", "mitbringen", "WG"]) assert.ok(ids(q).includes("zug-einkauf"), q);
+  assert.deepEqual(ids("einkaufszettel"), ["zug-einkauf"]);
+});
 test("Suche: leere Eingabe und Unbekanntes geben nichts", () => {
   assert.deepEqual(ids(""), []); assert.deepEqual(ids("   "), []); assert.deepEqual(ids("<>|"), []); assert.deepEqual(ids("xyzquatschwort"), []);
 });

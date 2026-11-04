@@ -71,6 +71,7 @@ function text(c, s, x, y, w, size, weight, col, max) {
 }
 function heading(doc) { var i = doc.i ? D.byId(doc.i) : null, T = i ? (i[Kit.lang] || i.de) : null; return { t: doc.t || (T ? T.t.replace("|", " ") : t("turn")), s: doc.s || (T ? T.s : "") }; }
 R.extra.turn = function (c, W, H, doc) {
+  if (doc.g === "einkauf" && window.TurnShop) return window.TurnShop.draw(c, W, H, doc);   // the list is the picture, on white paper already
   var o = org() || DEF, st = Tn.state(doc), res = Tn.result(doc, Kit.lang), face = res ? null : O.face(doc, Kit.lang), h = heading(doc), L = Tn.T(Kit.lang), p = W * 0.08, y;
   c.fillStyle = "#ffffff"; c.fillRect(0, 0, W, H);
   c.fillStyle = o.c; c.fillRect(0, 0, W, W * 0.022);

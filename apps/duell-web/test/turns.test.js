@@ -32,6 +32,7 @@ const LINES = {
   suche: [[[0, ["Unter dem Kissen", "Am Fenster", "Im Schuh", "Beim Regal"]], [42]]],
   wichteln: [[[["Ana", "Ben", "Cem", "", "", "", "", "", "", "", "", ""]], [[0], 0]]],
   sammeln: [[["maxmuster", "Pizza-Abend", 5], [0]]],
+  einkauf: [[[[[], [["Milch", 0, 2, []], ["Brot", 1, 1, []]]]], [[[["Ana", 0]], [["Milch", 0, 2, [[0, 5]]], ["Brot", 1, 1, [[0, 5]]]]]]]],
   rangliste: [[[[0, 1, 2, 3, 4, 5, 6, 7]], [[7, 1, 2, 3, 4, 5, 6, 0]]]],
   schaetzen: [[[1, 1, 1, 1, 1]]],
   reihum: [[[[0], "dein Lachen", "Ana"], [[1], "Toast machen", "Ben"], [[2], "wir lachten", "Cem"], [[4], "alles", "Dag"]]],
@@ -363,4 +364,103 @@ test("Unberechenbar: ein starres Muster wird erkannt", () => {
   let d = fresh("unlesbar", 1), r;
   d = Tn.play(d, Array(20).fill(0).map((x, i) => [i % 2]), 0); r = Tn.result(d, "de");
   assert.equal(r.lines[0], Tn.T("de").unl_low);
+});
+// ---------- Einkaufszettel: the list in the link, replies merge ----------
+const S = (v) => JSON.stringify(v);
+const edit = (name, face, adds, marks) => ({ name, face, adds: adds.map((a) => Tn.shopParse(a)), marks: marks || {} });
+const shopList = (d) => Tn.moves(d)[0][0];
+const rowsOf = (v) => Object.fromEntries(Tn.shopRows(v).map((r) => [r.label, { b: r.bought.map((p) => p[0]), c: r.bring.map((p) => p[0]) }]));
+test("Einkaufszettel: Eingabe mit Menge, nur gefilterter Text, Grenzen fuer kurze Links", () => {
+  assert.deepEqual(["2× Milch", "2x Milch", "2 Milch", "2*Milch"].map(Tn.shopParse), Array(4).fill({ text: "Milch", qty: 2 }));
+  assert.deepEqual(Tn.shopParse("10 Eier"), { text: "Eier", qty: 10 }); assert.deepEqual(Tn.shopParse("1,5 kg Mehl"), { text: "1,5 kg Mehl", qty: 1 });
+  assert.deepEqual(Tn.shopParse("0 Milch"), { text: "0 Milch", qty: 1 }); assert.equal(Tn.shopParse("123 Milch").qty, 1);
+  for (const bad of ["", "   ", "!!!", "\u0000\u0007", "<>"]) assert.equal(Tn.shopParse(bad), null, JSON.stringify(bad));
+  const tag = Tn.shopParse("<img src=x onerror=alert(1)>Käse"); assert.ok(tag && !/[<>]/.test(tag.text), tag && tag.text);
+  assert.equal(Tn.shopParse("Mil\u0000ch\u001b").text, "Mil ch"); assert.equal(Tn.shopParse("x".repeat(80)).text.length, Tn.SHOP.text);
+  // a list from a link has to be one the screen could have built
+  const ok = [[["Ana", 0]], [["Milch", 0, 2, [[0, 5]]]]];
+  assert.ok(Tn.shopOk(ok));
+  for (const bad of [
+    [[], []], [[["Ana", 0]], [["Milch", 0, 2, [[1, 5]]]]], [[], [["Mil\u0007ch", 0, 1, []]]], [[], [["<b>", 0, 1, []]]], [[], [["Milch", 0, 0, []]]],
+    [[], [["Milch", 0, 100, []]]], [[], [["Milch", 0, 1, []], ["milch!", 1, 1, []]]], [[["Ana", 0], ["ana", 1]], [["Milch", 0, 1, [[0, 5]]]]],
+    [[["Ana", 12]], [["Milch", 0, 1, [[0, 5]]]]], [[["Ana", 0]], [["Milch", 0, 1, [[0, 5], [0, 4]]]]], [[["Ana", 0]], [["Milch", 0, 1, [[0, 0]]]]],
+    [[], Array.from({ length: 21 }, (x, i) => ["S" + i, i, 1, []])], [[], [["Milch", 0, 1, []]], 1], [[["Treff 18 Uhr am Bahnhof", 0]], [["Milch", 0, 1, [[0, 5]]]]]
+  ]) assert.equal(Tn.shopOk(bad), false, S(bad));
+  // forged links with such a list are dropped before anything is shown
+  const forged = Object.assign({}, fresh("einkauf", 4), { q: Tn.seal([[[[], [["<script>", 0, 1, []]]]]], 4) });
+  assert.equal(Tn.moves(forged).length, 0); assert.equal(Tn.state(forged).turn, 0);
+  // the fullest list still fits a link that opens again
+  const long = (i) => "Ää" + String(i).padStart(2, "0") + "x".repeat(Tn.SHOP.text - 4);
+  let full = Tn.shopApply(null, { name: "", adds: Array.from({ length: 30 }, (x, i) => ({ text: long(i), qty: 99 })) });
+  for (const n of ["Aa", "Bb", "Cc", "Dd", "Ee", "Ff", "Gg", "Hh", "Ii", "Jj"]) full = Tn.shopApply(full, { name: n + "ääääääää", face: 11, marks: Object.fromEntries(Tn.shopRows(full).map((r) => [r.key, 1])) });
+  assert.ok(Tn.shopOk(full)); assert.ok(full[1].length <= Tn.SHOP.items && full[0].length <= Tn.SHOP.people, S(full).length);
+  const d = through(Tn.play(fresh("einkauf", 4294967295), [full], 0));
+  assert.deepEqual(shopList(d), full); assert.ok(D.docUrl(d).split("#c=")[1].length <= 1200, "Linklaenge " + D.docUrl(d).length);
+});
+test("Einkaufszettel: Antworten werden zusammengefuehrt, egal in welcher Reihenfolge sie ankommen", () => {
+  // Mia writes four things and shares the link
+  const a = Tn.shopApply(null, edit("", 0, ["2× Milch", "Brot", "Käse", "6 Äpfel"]));
+  const d = through(Tn.play(fresh("einkauf", 77), [a], 0));
+  assert.equal(Tn.state(d).turn, 1); assert.deepEqual(Tn.face(d, "de"), ["4 Sachen · 0 gekauft · 0 bringt jemand mit"]);
+  // Ben and Lea answer the same link at the same time
+  const ben = Tn.shopApply(shopList(d), edit("Ben", 3, ["Chips", "3 Milch"], { brot: 1, kase: 2 }));
+  const lea = Tn.shopApply(shopList(d), edit("Lea", 2, ["Saft", "Chips"], { kase: 2, apfel: 1 }));
+  const one = Tn.shopMerge(Tn.shopMerge(a, ben), lea), two = Tn.shopMerge(Tn.shopMerge(a, lea), ben);
+  assert.equal(S(one), S(two), "Reihenfolge egal"); assert.equal(S(Tn.shopMerge(one, ben)), S(one), "dieselbe Antwort zweimal aendert nichts");
+  assert.deepEqual(rowsOf(one), {
+    "3× Milch": { b: [], c: [] }, Brot: { b: [], c: ["Ben"] }, "Käse": { b: ["Ben", "Lea"], c: [] }, "6× Äpfel": { b: [], c: ["Lea"] },
+    Chips: { b: [], c: [] }, Saft: { b: [], c: [] }
+  }, "beide Neuen da, Chips nur einmal, groessere Menge gewinnt, beide haben Kaese gekauft");
+  // the reply link carries only the list as it is now: the link stays one move long
+  const back = through(Tn.play(d, [ben], 0)); assert.equal(Tn.moves(back).length, 1);
+  // Ben takes his "I'll bring it" back: the later version wins against the copy Lea still has
+  const ben2 = Tn.shopApply(one, edit("Ben", 3, [], { brot: 0 }));
+  assert.deepEqual(rowsOf(Tn.shopMerge(Tn.shopMerge(one, lea), ben2)).Brot, { b: [], c: [] });
+  assert.deepEqual(rowsOf(Tn.shopMerge(ben2, ben)).Brot, { b: [], c: [] }, "ein alter Link holt das Mitbringen nicht zurueck");
+  // the same name on two phones at once: the stronger state wins on both phones
+  const p1 = Tn.shopApply(one, edit("Ben", 3, [], { saft: 1 })), p2 = Tn.shopApply(one, edit("ben", 3, [], { saft: 2 }));
+  assert.equal(S(Tn.shopMerge(p1, p2)), S(Tn.shopMerge(p2, p1))); assert.deepEqual(rowsOf(Tn.shopMerge(p1, p2)).Saft, { b: ["Ben"], c: [] });
+  // tapping back to what came in is no change at all
+  assert.equal(S(Tn.shopApply(one, edit("Ben", 3, [], { kase: 2, brot: 1 }))), S(one));
+  // everything bought: the list is done and the result names who bought what
+  let all = one; for (const r of Tn.shopRows(one)) all = Tn.shopApply(all, edit("Mia", 0, [], { [r.key]: 2 }));
+  const done = through(Tn.play(d, [all], 0));
+  assert.equal(Tn.state(done).over, true); assert.equal(Tn.result(done, "de").h, "Alles eingekauft!");
+  assert.equal(Tn.result(done, "de").lines[2], "Käse: Ben, Lea, Mia"); assert.equal(Tn.result(done, "en").h, "All bought!");
+});
+test("Einkaufszettel: Zusammenfuehren ist kommutativ, assoziativ und idempotent (Zufallsfaelle)", () => {
+  const C = require("../src/core.js"), r = C.mulberry32(20261104), pick = (l) => l[Math.floor(r() * l.length)];
+  const words = ["Milch", "Brot", "Käse", "Äpfel", "Chips", "Saft", "Eier", "Nudeln", "Reis", "Tee", "Kekse", "Gurke"], who = ["Ana", "Ben", "Cem", "Dag", "Eva"];
+  const step = (v) => {
+    const keys = v ? Tn.shopRows(v).map((x) => x.key) : [], marks = {};
+    for (let i = 0; i < 3 && keys.length; i++) marks[pick(keys)] = Math.floor(r() * 3);
+    return Tn.shopApply(v, { name: pick(who), face: Math.floor(r() * 12), adds: Array.from({ length: Math.floor(r() * 3) }, () => ({ text: pick(words), qty: 1 + Math.floor(r() * 4) })), marks });
+  };
+  for (let n = 0; n < 200; n++) {
+    let base = step(null); while (!base[1].length) base = step(null);
+    const x = step(step(base)), y = step(base), z = step(step(step(base)));
+    assert.equal(S(Tn.shopMerge(x, y)), S(Tn.shopMerge(y, x)), "kommutativ");
+    assert.equal(S(Tn.shopMerge(Tn.shopMerge(x, y), z)), S(Tn.shopMerge(x, Tn.shopMerge(y, z))), "assoziativ");
+    assert.equal(S(Tn.shopMerge(x, x)), S(x), "idempotent");
+    const m = Tn.shopMerge(Tn.shopMerge(x, y), z);
+    assert.ok(Tn.shopOk(m), S(m));
+    for (const v of [x, y, z]) for (const k of Tn.shopRows(v).map((q) => q.key)) assert.ok(Tn.shopRows(m).some((q) => q.key === k), "nichts geht verloren: " + k);
+  }
+});
+test("Einkaufszettel: Obergrenzen schneiden nach fester Regel, nie zufaellig", () => {
+  const fill = (n, name) => Tn.shopApply(null, { name: "", adds: Array.from({ length: n }, (x, i) => ({ text: name + i, qty: 1 })) });
+  const a = fill(15, "A"), b = fill(15, "B"), m = Tn.shopMerge(a, b);
+  assert.equal(m[1].length, Tn.SHOP.items); assert.equal(S(m), S(Tn.shopMerge(b, a)));
+  assert.deepEqual(m[1].slice(0, 2).map((x) => x[0]), ["A0", "B0"], "nach Platz in der Liste, dann nach Text");
+  // a full list takes no more: the new item is the one that does not fit
+  assert.equal(Tn.shopApply(fill(20, "C"), edit("", 0, ["Brot"]))[1].some((x) => x[0] === "Brot"), false);
+  // nine people mark the same thing: only eight names fit into a link, by a fixed order
+  let v = fill(1, "D"); for (const n of ["Ii", "Aa", "Bb", "Cc", "Dd", "Ee", "Ff", "Gg", "Hh"]) v = Tn.shopApply(v, { name: n, face: 0, marks: { d0: 1 } });
+  assert.equal(v[0].length, Tn.SHOP.people); assert.ok(Tn.shopOk(v)); assert.ok(!v[0].some((p) => p[0] === "Ii"));
+});
+test("Einkaufszettel: kein Kalendertag, im Business-Flavor als Mitbringliste", () => {
+  const idea = D.IDEAS.find((i) => i.id === "zug-einkauf");
+  assert.equal(idea.on, undefined); assert.equal(idea.turn.g, "einkauf");
+  const biz = require("../src/flavors/business/ideas.json").ideas.find((i) => i.turn && i.turn.g === "einkauf");
+  assert.ok(biz && biz.turn.grip === "raum");
 });

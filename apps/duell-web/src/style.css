@@ -270,3 +270,13 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .dafter .note{color:#fffaf0;margin:0}
 .dmsg{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (prefers-reduced-motion:reduce){.dhint,#door.open canvas{animation:none}.dleaf{transition:opacity .15s}#door.open .dleaf.l,#door.open .dleaf.r{transform:none;opacity:0}}
+/* shopping list: a taller panel, one row per item, the buttons stay at full tap size */
+#panel[data-size=big]{height:min(46vh,400px)}
+.shopadd{display:flex;gap:6px;margin-bottom:6px}
+.shopadd .field{flex:1;min-width:0;margin:0;user-select:text;-webkit-user-select:text}
+.shoprow{display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:2px dashed var(--ink)}
+.shoptext{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.shoptext b{font-size:16px;overflow-wrap:anywhere}
+.shoptext small{font-size:13px;font-weight:700;overflow-wrap:anywhere}
+.shoprow.done b{text-decoration:line-through}
+.shoplist{margin-bottom:8px}
