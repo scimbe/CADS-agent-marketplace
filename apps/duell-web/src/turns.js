@@ -842,26 +842,46 @@
     }
   };
   // ---------- collecting money: the card only builds a PayPal.me link, the money never touches us ----------
-  // Only the public PayPal.me name travels, and only the characters PayPal allows there. The amount is whole euros.
-  // A build flavor (adults) may raise the cap; it is baked in at build time, a link cannot change it.
-  var PPME = /^[A-Za-z0-9]{1,20}$/, FL = root.DailyFlavor && root.DailyFlavor.eur;
+  // Only the public PayPal.me name travels, and only the characters PayPal allows there. The total is in cents and is
+  // split over 1 to 20 people: everyone pays the same whole-cent share, the cents left over (fewer than the people) stay
+  // with whoever collects, and the card says so. EUR caps the share per person; a build flavor (adults) may raise it,
+  // baked in at build time, a link cannot change it. Links from before the split ([name, what, euros]) still open.
+  var PPME = /^[A-Za-z0-9]{1,20}$/, FL = root.DailyFlavor && root.DailyFlavor.eur, PAYERS = 20;
   var EUR = Array.isArray(FL) && FL.length === 2 && Number.isInteger(FL[0]) && Number.isInteger(FL[1]) && FL[0] >= 1 && FL[0] <= FL[1] && FL[1] <= 500 ? FL : [1, 50];
   function payName(v) { return typeof v === "string" && PPME.test(v); }
-  function payLink(m) {
-    var n = m[0] && m[0][0], e = m[0] && m[0][2];
-    return payName(n) && intIn(e, EUR[0], EUR[1]) ? "https://paypal.me/" + n + "/" + e + "EUR" : "";
+  function split(c, k) { var e = Math.floor(c / k); return { c: c, k: k, e: e, r: c - e * k }; }
+  function moneyOk(c, k) { return intIn(k, 1, PAYERS) && intIn(c, EUR[0] * 100, EUR[1] * 100 * k) && split(c, k).e >= 1; }
+  // "37,50", "37.5", "37 €" -> 3750; anything else -> null
+  function parseCents(s) {
+    var m = String(s == null ? "" : s).trim().match(/^(\d{1,5})(?:[.,](\d{1,2}))?\s*(?:€|eur)?$/i);
+    return m ? +m[1] * 100 + (m[2] ? +(m[2] + "0").slice(0, 2) : 0) : null;
   }
-  function payLine(m, lang) { return fmt(T(lang).sam_line, { e: m[0][2], w: m[0][1], n: m[0][0] }); }
+  function euros(c, lang) { var s = c % 100 ? (c / 100).toFixed(2) : String(c / 100); return lang === "url" || lang === "en" ? s : s.replace(".", ","); }
+  function sam(m) { var a = m[0] || []; return { n: a[0], w: a[1], k: a[2], c: a[3] }; }
+  function payLink(m) {
+    var x = sam(m);
+    return payName(x.n) && moneyOk(x.c, x.k) ? "https://paypal.me/" + x.n + "/" + euros(split(x.c, x.k).e, "url") + "EUR" : "";
+  }
+  function moneyLine(c, k, lang, bare) {
+    var X = T(lang), p = split(c, k), s = bare ? "" : fmt(X.sam_share, { e: euros(p.e, lang) });
+    if (k > 1) s = fmt(X.sam_split, { t: euros(c, lang), k: k }) + (s ? " · " + s : "");
+    return p.r ? s + " · " + fmt(X.sam_rest, { r: p.r }) : s;
+  }
+  function payLine(m, lang) { var x = sam(m); return fmt(T(lang).sam_line, { e: euros(split(x.c, x.k).e, lang), w: x.w, n: x.n }); }
+  function payLines(m, lang) { var x = sam(m); return x.k > 1 || split(x.c, x.k).r ? [payLine(m, lang), moneyLine(x.c, x.k, lang, true)] : [payLine(m, lang)]; }
+  function payShare(m, lang) { var x = sam(m); return euros(split(x.c, x.k).e, lang); }
   GAMES.sammeln = {
     stay: true,
     turns: [
-      [{ w: "text", l: "sam_name", max: 20, oneWord: true, hint: "sam_name_hint", bad: function (v) { return !payName(v); } },
+      [{ w: "text", l: "sam_name", max: 20, oneWord: true, hint: "sam_name_hint", adult: true, pref: "pp", bad: function (v) { return !payName(v); } },
        { w: "text", l: "sam_what", max: 30, hint: "sam_what_hint" },
-       { w: "slide", l: "sam_eur", min: EUR[0], max: EUR[1], def: 5, unit: "€" }],
-      [{ w: "pay", l: "sam_pay", end: true, link: function (doc, m) { return payLink(m); }, peek: function (doc, m, now, lang) { return payLine(m, lang); } }]
+       { w: "slide", l: "sam_who", min: 1, max: PAYERS, def: 1, unit: "👤" },
+       { w: "money", l: "sam_eur", hint: "sam_eur_hint", ok: function (v, now) { return moneyOk(v, now[2]); }, line: function (v, now, lang) { return moneyLine(v, now[2], lang); } }],
+      [{ w: "pay", l: "sam_pay", end: true, link: function (doc, m) { return payLink(m); }, share: payShare, more: function (m, lang) { return payLines(m, lang)[1] || ""; }, peek: function (doc, m, now, lang) { return payLine(m, lang); } }]
     ],
-    face: function (doc, m, lang) { return m.length ? [payLine(m, lang), T(lang).sam_face] : null; },
-    result: function (doc, m, lang) { return { h: T(lang).sam_h, lines: [payLine(m, lang)], note: T(lang).sam_safe }; }
+    legacy: function (t, got) { return t === 0 && Array.isArray(got) && got.length === 3 && Number.isInteger(got[2]) && Math.abs(got[2]) < 1e6 ? [got[0], got[1], 1, got[2] * 100] : got; },
+    face: function (doc, m, lang) { return m.length ? payLines(m, lang).concat([T(lang).sam_face]) : null; },
+    result: function (doc, m, lang) { return { h: T(lang).sam_h, lines: payLines(m, lang), note: T(lang).sam_safe }; }
   };
   // ---------- a shopping list for the group: the whole list travels in the link, and every reply merges into what this phone knows ----------
   // A list is [people, items]. people: [[name, face]], face an index into FACES. items: [[text, t, qty, marks]]; t orders the items
@@ -870,19 +890,22 @@
   // item and person, the larger x wins: the later version, on equal versions the stronger state. So it does not matter in which
   // order replies arrive or how often the same one comes back. Nothing is ever deleted once it went out, so nothing comes back
   // from the dead either. Only the caps cut: whatever sorts last does not fit into a link.
-  var SHOP = { items: 20, text: 24, people: 8, qty: 99, ver: 999, t: 999, bytes: 560 }, FACES = ["🐸", "🦝", "🐙", "🦖", "🍕", "👽", "🤖", "👻", "🔥", "🌈", "🦄", "🐝"];
+  // The same machinery carries the task list from a protocol (todo below): there the number is a due day (0 = none),
+  // marks mean "I'll do it" and "done". Every list function takes that config as an optional last argument.
+  var SHOP = { items: 20, text: 24, people: 8, min: 1, qty: 99, ver: 999, t: 999, bytes: 560 }, FACES = ["🐸", "🦝", "🐙", "🦖", "🍕", "👽", "🤖", "👻", "🔥", "🌈", "🦄", "🐝"];
   function shopKey(s) { return Q.fold(s); }
   function shopBytes(v) { return new TextEncoder().encode(JSON.stringify(v)).length; }
   function cmp(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
-  function shopOk(v) {
+  function shopOk(v, cf) {
+    var S = cf || SHOP;
     if (!Array.isArray(v) || v.length !== 2 || !Array.isArray(v[0]) || !Array.isArray(v[1])) return false;
     var P = v[0], I = v[1];
-    if (P.length > SHOP.people || !I.length || I.length > SHOP.items || shopBytes(v) > SHOP.bytes) return false;
+    if (P.length > S.people || !I.length || I.length > S.items || shopBytes(v) > S.bytes) return false;
     var okP = P.every(function (p) { return Array.isArray(p) && p.length === 2 && nameOk(p[0]) && intIn(p[1], 0, FACES.length - 1); });
     var okI = okP && I.every(function (it) {
-      if (!Array.isArray(it) || it.length !== 4 || typeof it[0] !== "string" || Q.clean(it[0], SHOP.text) !== it[0] || !shopKey(it[0])) return false;
-      if (!intIn(it[1], 0, SHOP.t) || !intIn(it[2], 1, SHOP.qty) || !Array.isArray(it[3])) return false;
-      return it[3].every(function (k) { return Array.isArray(k) && k.length === 2 && intIn(k[0], 0, P.length - 1) && intIn(k[1], 1, SHOP.ver * 3 + 2); }) && distinct(it[3].map(function (k) { return k[0]; }));
+      if (!Array.isArray(it) || it.length !== 4 || typeof it[0] !== "string" || Q.clean(it[0], S.text) !== it[0] || !shopKey(it[0])) return false;
+      if (!intIn(it[1], 0, S.t) || !intIn(it[2], S.min, S.qty) || !Array.isArray(it[3])) return false;
+      return it[3].every(function (k) { return Array.isArray(k) && k.length === 2 && intIn(k[0], 0, P.length - 1) && intIn(k[1], 1, S.ver * 3 + 2); }) && distinct(it[3].map(function (k) { return k[0]; }));
     });
     return okI && distinct(P.map(function (p) { return Q.fold(p[0]); })) && distinct(I.map(function (it) { return shopKey(it[0]); }));
   }
@@ -899,19 +922,19 @@
     list[0].forEach(function (p) { var pk = Q.fold(p[0]), x = o.people[pk]; if (!x) o.people[pk] = [p[0], p[1]]; else { if (p[0] < x[0]) x[0] = p[0]; x[1] = Math.min(x[1], p[1]); } });
     return o;
   }
-  function shopClose(o) {
-    var keys = Object.keys(o.items).sort(function (a, b) { return o.items[a].t - o.items[b].t || cmp(a, b); }).slice(0, SHOP.items);
+  function shopClose(o, cf) {
+    var S = cf || SHOP, keys = Object.keys(o.items).sort(function (a, b) { return o.items[a].t - o.items[b].t || cmp(a, b); }).slice(0, S.items);
     for (;;) {
-      var used = Object.keys(o.people).filter(function (pk) { return keys.some(function (k) { return o.items[k].marks[pk] > 0; }); }).sort(cmp).slice(0, SHOP.people);
+      var used = Object.keys(o.people).filter(function (pk) { return keys.some(function (k) { return o.items[k].marks[pk] > 0; }); }).sort(cmp).slice(0, S.people);
       var v = [used.map(function (pk) { return o.people[pk].slice(); }), keys.map(function (k) {
         var x = o.items[k];
         return [x.text, x.t, x.qty, used.map(function (pk, i) { return [i, x.marks[pk] || 0]; }).filter(function (m) { return m[1] > 0; })];
       })];
-      if (shopBytes(v) <= SHOP.bytes || keys.length <= 1) return v;
+      if (shopBytes(v) <= S.bytes || keys.length <= 1) return v;
       keys.pop();
     }
   }
-  function shopMerge(a, b) { return shopClose(shopOpen(b, shopOpen(a))); }
+  function shopMerge(a, b, cf) { return shopClose(shopOpen(b, shopOpen(a)), cf); }
   // "2× Milch", "2x Milch", "2 Milch": a count of 1 to 99 in front, the rest is the text.
   function shopParse(s) {
     var raw = String(s == null ? "" : s).trim(), m = raw.match(/^(\d{1,2})\s*[x×*]?\s+(\S.*)$/i) || raw.match(/^(\d{1,2})\s*[x×*]\s*(\S.*)$/i), qty = 1;
@@ -922,30 +945,31 @@
   function shopMark(list, name, key) { var at = -1, pk = Q.fold(name); list[0].forEach(function (p, i) { if (Q.fold(p[0]) === pk) at = i; }); var it = list[1].filter(function (x) { return shopKey(x[0]) === key; })[0], m = it && it[3].filter(function (k) { return k[0] === at; })[0]; return m ? m[1] : 0; }
   // One person's changes on top of what they got: new items after everything they saw, then their own marks, each one version
   // above the mark they got, so the change wins against what they saw and loses against what someone else did later.
-  function shopApply(base, e) {
-    var o = shopOpen(base), t = 0, pk = nameOk(e.name) ? Q.fold(e.name) : "";
+  function shopApply(base, e, cf) {
+    var S = cf || SHOP, o = shopOpen(base), t = 0, pk = nameOk(e.name) ? Q.fold(e.name) : "";
     Object.keys(o.items).forEach(function (k) { t = Math.max(t, o.items[k].t + 1); });
-    (e.adds || []).forEach(function (a) { shopOpen([[], [[a.text, Math.min(SHOP.t, t++), a.qty, []]]], o); });
+    (e.adds || []).forEach(function (a) { shopOpen([[], [[a.text, Math.min(S.t, t++), a.qty, []]]], o); });
     if (pk) {
       if (!o.people[pk]) o.people[pk] = [e.name, intIn(e.face, 0, FACES.length - 1) ? e.face : 0];
       Object.keys(e.marks || {}).forEach(function (k) {
         var s = e.marks[k], had = base ? shopMark(base, e.name, k) : 0;
         if (!o.items[k] || !intIn(s, 0, 2) || (had ? had % 3 === s : s === 0)) return;
-        o.items[k].marks[pk] = Math.min(SHOP.ver, Math.floor(had / 3) + 1) * 3 + s;
+        o.items[k].marks[pk] = Math.min(S.ver, Math.floor(had / 3) + 1) * 3 + s;
       });
     }
-    return shopClose(o);
+    return shopClose(o, S);
   }
-  function shopRows(list) {
+  // A task list shows the text alone (its number is the due day, label stays the text); a shopping list "2× Milch".
+  function shopRows(list, cf) {
     return list[1].map(function (it) {
       var who = function (s) { return it[3].filter(function (m) { return m[1] % 3 === s; }).map(function (m) { return list[0][m[0]]; }); };
-      return { key: shopKey(it[0]), text: it[0], qty: it[2], label: (it[2] > 1 ? it[2] + "× " : "") + it[0], bought: who(2), bring: who(1) };
+      return { key: shopKey(it[0]), text: it[0], qty: it[2], label: (cf && cf.due) || it[2] <= 1 ? it[0] : it[2] + "× " + it[0], due: cf && cf.due ? it[2] : 0, bought: who(2), bring: who(1) };
     });
   }
   function shopDone(list) { return !!list && list[1].length > 0 && shopRows(list).every(function (r) { return r.bought.length > 0; }); }
-  function shopCount(list, lang) {
-    var r = shopRows(list);
-    return fmt(T(lang).ein_count, { n: r.length, b: r.filter(function (x) { return x.bought.length; }).length, c: r.filter(function (x) { return !x.bought.length && x.bring.length; }).length });
+  function shopCount(list, lang, cf) {
+    var r = shopRows(list, cf);
+    return fmt(T(lang)[cf && cf.due ? "tdo_count" : "ein_count"], { n: r.length, b: r.filter(function (x) { return x.bought.length; }).length, c: r.filter(function (x) { return !x.bought.length && x.bring.length; }).length });
   }
   function shopNames(l) { return l.map(function (p) { return p[0]; }).join(", "); }
   GAMES.einkauf = {
@@ -959,6 +983,61 @@
       return { h: X.ein_done_h, lines: shopRows(m[0][0]).map(function (r) { return fmt(X.ein_line, { s: r.label, n: shopNames(r.bought) }); }) };
     }
   };
+  GAMES.einkauf.list = SHOP;
+
+  // ---------- tasks from a meeting (the card itself is in office.js): the shopping list's links and merging, a due
+  // day per task. Marks: 1 "I'll do it", 2 "done". A person is only named where the protocol named them for that task.
+  var TODO = { items: 12, text: 48, people: 8, min: 0, qty: 99999, ver: 999, t: 999, bytes: 540, due: true };
+  function todoNames(l) { return l.map(function (p) { return p[0]; }).join(", "); }
+  function dueText(day, lang) { return day ? fmt(T(lang).tdo_due, { d: dayText(day, lang) }) : ""; }
+  // The hand-over from the protocol page: { t: title, i: [[what, who, due day]] } -> a list that fits a link, and how
+  // many tasks did not make it (filtered text, no room). A name only stands where the protocol gave one.
+  function todoFrom(o) {
+    o = o && typeof o === "object" ? o : {};
+    var items = (Array.isArray(o.i) ? o.i : []).slice(0, 20), people = [], adds = [], marks = [], lost = 0;
+    items.forEach(function (x, i) {
+      x = Array.isArray(x) ? x : [];
+      var text = Q.clean(String(x[0] || "").replace(/\s*[(,;–-]?\s*(bis|by)\s+\S.*$/i, ""), TODO.text), due = intIn(x[2], 1, TODO.qty) ? x[2] : 0;
+      if (!text || !shopKey(text) || adds.some(function (a) { return shopKey(a[0]) === shopKey(text); })) { lost++; return; }
+      var full = typeof x[1] === "string" ? x[1].trim() : "", who = nameOk(full) ? full : full.split(/\s+/)[0];   // too long: the first name
+      if (who && nameOk(who)) {
+        var at = people.map(function (p) { return Q.fold(p[0]); }).indexOf(Q.fold(who));
+        if (at < 0 && people.length < TODO.people) { people.push([who, people.length % FACES.length]); at = people.length - 1; }
+        if (at >= 0) marks.push([adds.length, at]);
+      }
+      adds.push([text, adds.length, due, []]);
+    });
+    if (!adds.length) return { list: null, lost: lost, t: "" };
+    marks.forEach(function (m) { adds[m[0]][3].push([m[1], 1]); });
+    var v = shopClose(shopOpen([people, adds]), TODO);
+    return { list: shopOk(v, TODO) ? v : null, lost: lost + adds.length - (v ? v[1].length : 0), t: Q.clean(o.t, 40) || "" };
+  }
+  // .ics with one all-day entry per open task that has a due day; nothing about who else is on the list.
+  function todoIcs(list, title, lang, stamp) {
+    var X = T(lang), d8 = function (day) { return new Date(day * DAY).toISOString().slice(0, 10).replace(/-/g, ""); };
+    var esc = function (v) { return String(v).replace(/[\\;,]/g, function (c) { return "\\" + c; }).replace(/\n/g, "\\n"); };
+    var now = new Date(stamp || Date.now()).toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z", ev = [];
+    shopRows(list, TODO).forEach(function (r, i) {
+      if (!r.due || r.bought.length) return;
+      ev.push("BEGIN:VEVENT", "UID:todo-" + C.hash32(title + "|" + r.key + "|" + r.due) + "@bunsenbrenner.org", "DTSTAMP:" + now,
+        "DTSTART;VALUE=DATE:" + d8(r.due), "DTEND;VALUE=DATE:" + d8(r.due + 1),
+        "SUMMARY:" + esc(r.text + (r.bring.length ? " (" + todoNames(r.bring) + ")" : "")), "DESCRIPTION:" + esc(title || X.tdo_title), "END:VEVENT");
+    });
+    if (!ev.length) return "";
+    return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//My Daily Idea//Aufgaben//DE", "CALSCALE:GREGORIAN"].concat(ev, ["END:VCALENDAR"]).join("\r\n") + "\r\n";
+  }
+  // The next meeting's agenda from what is still open, without AI: a look back, the open tasks, room for new points.
+  function todoAgenda(list, title, lang) {
+    var X = T(lang), rows = shopRows(list, TODO), open = rows.filter(function (r) { return !r.bought.length; }), out = [fmt(X.tdo_agenda_h, { t: title || X.tdo_title })], n = 1;
+    out.push(n++ + ". " + fmt(X.tdo_agenda_back, { b: rows.length - open.length, n: rows.length }));
+    open.forEach(function (r) {
+      var who = r.bring.length ? todoNames(r.bring) : X.tdo_open, due = r.due ? ", " + dueText(r.due, lang) : "";
+      out.push(n++ + ". " + fmt(X.tdo_agenda_item, { s: r.text, w: who, d: due }));
+    });
+    out.push(n + ". " + X.tdo_agenda_new);
+    return out.join("\n");
+  }
+
   GAMES.kapsel.gateFrom = 1;
   var IDS = Object.keys(GAMES);
   function dealLine(doc, offer, floor, i, lang) {
@@ -994,7 +1073,7 @@
     if (p.w === "freeze") return intIn(v, 0, p.max);
     if (p.w === "rec" || p.w === "once" || p.w === "parrot" || p.w === "pay") return v === 0;
     if (p.w === "slots" || p.w === "vote") return p.ok(v, m);
-    if (p.w === "shop") return shopOk(v);
+    if (p.w === "shop") return shopOk(v, p.cfg);
     if (p.w === "whose") return intIn(v, 0, 2);
     if (p.w === "inner") return Array.isArray(v) && v.length === 5 && v.every(function (x) { return Number.isInteger(x) && x >= -20000 && x <= 20000; });
     if (p.w === "blind") return intIn(v, 2000, 30000);
@@ -1007,6 +1086,7 @@
     if (p.w === "explain") return intIn(v, 0, p.max);
     if (p.w === "blocks") return Array.isArray(v) && v.length <= p.max && v.every(function (x) { return intIn(x, 0, 63); }) && !!replay(doc, v);
     if (p.w === "slide") return intIn(v, p.min || 0, p.maxOf ? p.maxOf(doc) : p.max);
+    if (p.w === "money") return Number.isInteger(v) && p.ok(v, now || []);
     if (p.w === "text") return typeof v === "string" && !!Q.clean(v, p.max) && Q.clean(v, p.max) === v && !(p.oneWord && /\s/.test(v)) && !(p.bad && p.bad(v, doc, lang, m));
     if (p.w === "list" && p.loose) return Array.isArray(v) && v.length === p.n && (!p.least || (v.filter(Boolean).length >= p.least && distinct(v.filter(Boolean).map(Q.fold)))) && v.every(function (x) { return x === "" || (typeof x === "string" && Q.clean(x, p.max) === x); });
     if (p.w === "list") return Array.isArray(v) && v.length === p.n && v.every(function (x) { return typeof x === "string" && !!Q.clean(x, p.max) && Q.clean(x, p.max) === x; }) && (p.same || distinct(v.map(Q.fold)));
@@ -1019,7 +1099,7 @@
   function checked(doc, raw) {
     var g = GAMES[doc.g], out = [];
     for (var t = 0; t < raw.length && t < g.turns.length && !(g.ends && g.ends(doc, out)); t++) {
-      var want = g.turns[t], got = raw[t];
+      var want = g.turns[t], got = g.legacy ? g.legacy(t, raw[t]) : raw[t];
       if (!Array.isArray(got) || got.length !== want.length) return out;
       for (var i = 0; i < want.length; i++) if (!okAnswer(want[i], got[i], doc, "de", out, got.slice(0, i))) return out;
       out.push(got);
@@ -1064,6 +1144,6 @@
     (function walk(v) { if (typeof v === "string") v.split("|").forEach(function (x) { out.push(x); }); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.keys(v).forEach(function (k) { walk(v[k]); }); })(DATA);
     return out;
   }
-  var api = { HOURS: HOURS, dayText: dayText, hourText: hourText, slotText: slotText, termDates: termDates, voted: voted, doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, face: face, whole: whole, payLink: payLink, SHOP: SHOP, FACES: FACES, nameOk: nameOk, shopOk: shopOk, shopMerge: shopMerge, shopApply: shopApply, shopParse: shopParse, shopRows: shopRows, shopMark: shopMark, shopKey: shopKey, shopDone: shopDone, shopCount: shopCount, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
+  var api = { HOURS: HOURS, dayText: dayText, hourText: hourText, slotText: slotText, termDates: termDates, voted: voted, doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, face: face, whole: whole, payLink: payLink, parseCents: parseCents, euros: euros, split: split, moneyLine: moneyLine, PAYERS: PAYERS, SHOP: SHOP, FACES: FACES, nameOk: nameOk, shopOk: shopOk, shopMerge: shopMerge, shopApply: shopApply, shopParse: shopParse, shopRows: shopRows, shopMark: shopMark, shopKey: shopKey, shopDone: shopDone, shopCount: shopCount, TODO: TODO, todoFrom: todoFrom, todoIcs: todoIcs, todoAgenda: todoAgenda, dueText: dueText, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
   if (node) module.exports = api; else root.Turns = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

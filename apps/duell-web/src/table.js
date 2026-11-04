@@ -24,7 +24,7 @@
   var B = node ? require("./ballduell.js") : root.Ballduell;
   function rules(game) { return game === "skat" ? (node ? require("./skat.js") : root.Skat) : (node ? require("./doko.js") : root.Doko); }
   var BLOCK_MS = 30000, AUTO_MS = 20000, AUTO_FAST = 1500, HANDOVER_MS = 2000, WAIT = {}, ID_RE = /^[0-9a-f]{16}$/;
-  var TABLE_TYPES = ["me", "seat", "join", "hold", "unhold", "gone", "peers", "ready", "fwd", "link", "full", "auto"];
+  var TABLE_TYPES = ["me", "seat", "join", "hold", "unhold", "gone", "peers", "ready", "fwd", "link", "full", "auto", "rules"];
 
   function rid() { var b = new Uint8Array(8); root.crypto.getRandomValues(b); return Array.from(b, function (x) { return (x < 16 ? "0" : "") + x.toString(16); }).join(""); }
   function clean(s, n) { return String(s == null ? "" : s).replace(/[\u0000-\u001f\u007f<>]/g, "").slice(0, n); }
@@ -42,6 +42,9 @@
     var me = { id: o.id || rid(), name: clean(o.name, 20) || "?", emoji: clean(o.emoji, 8) || "🙂", seat: o.create ? 0 : -1, auto: false };
     var autoMs = o.autoMs || AUTO_MS, autoFast = o.autoFast || AUTO_FAST, autoT = 0, autoKey = "", deadline = 0, groups = 0;
     var members = {}, links = {}, holds = {}, readies = {}, queues = {}, scores = {}, invites = [];
+    // House rules: the same list on every device. Set between hands by anyone seated; the higher version wins, on a tie
+    // the smaller player id, so two taps at once still end in one list. A hand only starts once every ready names it.
+    var house = R.rules(o.rules), rulesV = 0, rulesBy = "";
     var no = 0, hand = null, last = null, want = true, lost = false, closed = false, joinVia = null, pumping = false, timer = 0, subs = [], note = "", meReady = null;
 
     // ---------- small helpers ----------
@@ -98,7 +101,7 @@
         var s = roster()[how.seat] || (holds[how.seat] && holds[how.seat] !== me.id) ? free() : how.seat;
         if (s < 0 || hand) { conn.send({ t: "full" }); delete links[id]; delete members[id]; setTimeout(function () { try { conn.close(); } catch (e) {} }, 500); emit(); return; }
         x.seat = s;
-        conn.send({ t: "seat", seat: s, no: no, scores: scores,
+        conn.send({ t: "seat", seat: s, no: no, scores: scores, rules: house, rv: rulesV, rby: rulesBy,
           members: others().filter(function (y) { return y !== id; }).map(function (y) { var z = members[y]; return { id: y, name: z.name, emoji: z.emoji, seat: z.seat }; }) });
         Object.keys(links).forEach(function (y) { if (y !== id) send(y, { t: "join", id: id, name: x.name, emoji: x.emoji, seat: s }); });
       } else if (m.seat >= 0 && m.seat < SEATS) x.seat = m.seat;
@@ -156,6 +159,7 @@
           var z = members[y.id] || (members[y.id] = { id: y.id }); z.seat = y.seat; z.name = z.name || clean(y.name, 20); z.emoji = z.emoji || clean(y.emoji, 8);
         });
         if (m.scores && typeof m.scores === "object") Object.keys(m.scores).forEach(function (k) { if (ID_RE.test(k)) scores[k] = Number(m.scores[k]) || 0; });
+        takeRules(m.rules, m.rv, m.rby, true);
         // a link to everybody else; the tokens travel through the player who invited me
         others().forEach(function (id) { if (!links[id]) linkTo(id); });
         all(meMsg());
@@ -165,6 +169,7 @@
         z.name = z.name || clean(m.name, 20); z.emoji = z.emoji || clean(m.emoji, 8);
       } else if (m.t === "me" && x && m.seat >= 0 && m.seat < SEATS) x.seat = m.seat;
       else if (m.t === "auto" && x) x.auto = m.on === true;
+      else if (m.t === "rules" && x) { if (takeRules(m.r, m.v, from)) { meReady = null; maybeReady(); } }
       else if (m.t === "hold" && x && m.seat >= 0 && m.seat < SEATS) {
         var mine = holds[m.seat] === me.id;
         if (!mine || x.seat < me.seat) holds[m.seat] = from;           // two holds on one seat: the lower seat keeps it
@@ -174,7 +179,7 @@
       else if (m.t === "peers" && x) {
         x.peers = (Array.isArray(m.ids) ? m.ids : []).filter(function (y) { return ID_RE.test(y); }).slice(0, SEATS);
         x.ch = (Array.isArray(m.ch) ? m.ch : []).slice(0, SEATS); maybeReady();
-      } else if (m.t === "ready" && x && Array.isArray(m.roster)) { readies[from] = { no: m.no | 0, roster: m.roster.join() }; if ((m.no | 0) > no && !hand) no = m.no | 0; maybeReady(); }
+      } else if (m.t === "ready" && x && Array.isArray(m.roster)) { readies[from] = { no: m.no | 0, roster: m.roster.join() + "|" + R.rules(m.rules).join(".") }; if ((m.no | 0) > no && !hand) no = m.no | 0; maybeReady(); }
       else if (m.t === "fwd" && x && m.m && m.m.t === "link" && links[m.to]) send(m.to, { t: "link", token: m.m.token, from: from });
       else if (m.t === "link" && /^[A-Za-z0-9_-]{22}$/.test(m.token || "") && members[m.from] && !links[m.from]) {
         retry(function () { return live.accept(m.token, function () {}); }).then(function (c) { attach(c, null); }).catch(function () { note = "mesh"; emit(); });
@@ -188,18 +193,31 @@
       } catch (e) { note = "mesh"; emit(); }
     }
 
+    // ---------- house rules ----------
+    function takeRules(r, v, by, force) {
+      if (!Array.isArray(r) || !Number.isInteger(v) || v < 0) return false;
+      by = ID_RE.test(by || "") ? by : "";
+      if (!force && (v < rulesV || (v === rulesV && !(by && (!rulesBy || by < rulesBy))))) return false;
+      house = R.rules(r); rulesV = v; rulesBy = by; return true;
+    }
+    function setRules(list) {
+      if (hand || closed || me.seat < 0) return false;
+      house = R.rules(list); rulesV++; rulesBy = me.id;
+      all({ t: "rules", r: house, v: rulesV }); meReady = null; maybeReady(); emit(); return true;
+    }
+
     // ---------- starting a hand ----------
     function maybeReady() {
       if (closed || hand || me.seat < 0) return;
-      var r = roster().join(), ok = complete();
-      if (want && ok && (!meReady || meReady.no !== no || meReady.roster !== r)) { meReady = { no: no, roster: r }; all({ t: "ready", no: no, roster: roster() }); }
+      var r = roster().join() + "|" + house.join("."), ok = complete();
+      if (want && ok && (!meReady || meReady.no !== no || meReady.roster !== r)) { meReady = { no: no, roster: r }; all({ t: "ready", no: no, roster: roster(), rules: house }); }
       if (!ok || !meReady || meReady.no !== no || meReady.roster !== r) return;
       if (others().every(function (id) { var x = readies[id]; return x && x.no === no && x.roster === r; })) begin();
     }
     function begin() {
       var lay = R.layout();
       hand = { no: no, roster: roster(), lay: lay, d1: [], d2: [], sec: MP.secrets(N), keys: {}, own: lay.hands[me.seat].slice(), open: {}, played: {}, pushed: [],
-        rev: {}, state: R.start({ dealer: no % SEATS }), flags: [], ghost: {}, moves: 0 };
+        rev: {}, state: R.start({ dealer: no % SEATS, rules: house }), flags: [], ghost: {}, moves: 0 };
       want = false; meReady = null; readies = {}; last = null;
       step(); emit();
     }
@@ -471,7 +489,7 @@
     function view() {
       var r = roster(), st = hand && hand.state;
       return {
-        game: o.game, me: me.id, mySeat: me.seat, no: no, badge: badge(), complete: complete(), lost: lost, closed: closed, note: note, auto: me.auto, deadline: deadline,
+        game: o.game, rules: house.slice(), me: me.id, mySeat: me.seat, no: no, badge: badge(), complete: complete(), lost: lost, closed: closed, note: note, auto: me.auto, deadline: deadline,
         seats: r.map(function (id, s) {
           if (!id) return { free: true, held: !!holds[s] };
           var x = id === me.id ? me : members[id];
@@ -484,7 +502,7 @@
       };
     }
     return {
-      id: me.id, view: view, on: function (f) { subs.push(f); }, invite: function () { return inviteSeat(0); }, inviteAll: inviteAll, auto: setAuto,
+      id: me.id, view: view, on: function (f) { subs.push(f); }, invite: function () { return inviteSeat(0); }, inviteAll: inviteAll, auto: setAuto, rules: setRules,
       act: act, next: next, leave: leave, join: join,
       _crash: function () { closed = true; Object.keys(links).forEach(function (id) { try { links[id].close(); } catch (e) {} }); },   // tests: a device that just drops off
       _debug: function () { return { hand: hand, members: members, links: Object.keys(links), holds: holds, readies: readies, no: no, inbox: inbox }; }

@@ -196,3 +196,25 @@ test("Eine gefaelschte Uebergabe (falsche Schluessel) macht keinen Platz zu Auto
   assert.ok(A._debug().hand.flags.some((f) => f.seat === seat));
   T.forEach((t) => t.leave());
 });
+
+test("Hausregeln am Tisch: der Ersteller waehlt, Neue uebernehmen sie (auch gegen einen alten Link), Aenderung zwischen zwei Spielen gilt fuer alle", async () => {
+  const live = fakeLive(), A = Table.create({ game: "skat", live, name: "Ada", emoji: "🦊", rules: ["ramsch"], autoFast: 20 }), T = [A];
+  for (let i = 1; i < 3; i++) {
+    await until(() => T[i - 1].view().mySeat >= 0);
+    const inv = await T[i - 1].invite();
+    T.push(await Table.join(inv.token, { game: "skat", live, name: "P" + i, emoji: "🐢", rules: ["kontra"], autoFast: 20 }));   // an old link with other rules
+  }
+  await until(() => T.every((t) => t.view().hand && t.view().hand.dealt));
+  T.forEach((t) => { assert.deepEqual(t.view().rules, ["ramsch"]); assert.deepEqual(t.view().hand.state.rules, ["ramsch"]); });
+  assert.equal(A.rules(["kontra"]), false, "nicht mitten im Spiel");
+  // everyone passes: Ramsch, played by the plain bot to the end, the same result everywhere
+  T.forEach((t) => { let busy = false; const go = (v) => { if (busy || !v.hand || !v.hand.actions.length) return; const a = v.hand.actions.find((x) => x.t === "pass") || v.hand.actions.find((x) => x.t === "play"); if (!a) return; busy = true; setImmediate(() => { busy = false; t.act(a); }); }; t.on(go); go(t.view()); });
+  await until(() => T.every((t) => t.view().last && t.view().last.result), 120000);
+  const r = T.map((t) => t.view().last.result); assert.ok(r.every((x) => x.ramsch)); assert.equal(new Set(r.map((x) => JSON.stringify(x.points))).size, 1);
+  assert.equal(T[1].rules(["kontra", "ramsch"]), true);
+  await until(() => T.every((t) => t.view().rules.join() === "ramsch,kontra"));
+  T.forEach((t) => t.next());
+  await until(() => T.every((t) => t.view().hand && t.view().hand.state));
+  T.forEach((t) => assert.deepEqual(t.view().hand.state.rules, ["ramsch", "kontra"]));
+  T.forEach((t) => t.leave());
+});

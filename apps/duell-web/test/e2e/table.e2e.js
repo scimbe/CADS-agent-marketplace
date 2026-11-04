@@ -183,3 +183,34 @@ test("Skat live mit drei Browsern: ein Gruppenlink, ein Platz auf Auto, Reizen, 
   for (const x of three) assert.deepEqual(x.errs, [], x.nick);
   await b.close();
 });
+
+test("Hausregeln als Chips: im Gruppenlink geteilt, alle sehen dieselben; Warum? am Stich erklaert aus den Regeln", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }), br = broker();
+  const [A, B, C, D] = [await setup(b, br, "Ada"), await setup(b, br, "Ben"), await setup(b, br, "Cem"), await setup(b, br, "Dia")];
+  await openTable(A, /Doppelkopf live/);
+  await A.p.waitForFunction(() => window.__shared.length === 1);
+  const chip = A.p.getByRole("button", { name: "2. Dulle sticht 1." });
+  assert.equal(await chip.getAttribute("aria-pressed"), "false");
+  await chip.click(); await A.p.getByRole("button", { name: "2. Dulle sticht 1.", pressed: true }).waitFor();
+  await A.p.getByRole("button", { name: "Gruppenlink nochmal teilen" }).click();
+  await A.p.waitForFunction(() => window.__shared.length === 2);
+  const shared = await A.p.evaluate(() => window.__shared[1]), url = page + shared.slice(shared.indexOf("#"));
+  assert.match(shared, /#tisch=doko(\.[A-Za-z0-9_-]{22}){3}&r=dulle$/);
+  if (process.env.TB_SHOTS) await A.p.screenshot({ path: process.env.TB_SHOTS + "/wa-tisch-hausregeln.png" });
+  await Promise.all([B, C, D].map(async (x) => { await x.p.goto(url); await x.p.locator(".tbseat.me").waitFor(); }));
+  for (const x of [B, C, D]) await x.p.getByRole("button", { name: "2. Dulle sticht 1.", pressed: true }).waitFor();
+  const four = [A, B, C, D];
+  await dealt(four);
+  for (const x of four) assert.equal(await x.p.locator(".tbhouse").textContent(), "⚖ 2. Dulle sticht 1.");
+  // until the first card lies on the table, then A asks why
+  for (let i = 0; i < 400 && !(await A.p.locator(".tbtrick .tbcard").count()); i++) { for (const x of four) await step(x, "doko"); }
+  await A.p.getByRole("button", { name: "❓ Warum?" }).click();
+  const ex = A.p.locator(".tbexplain");
+  await ex.waitFor();
+  const text = await ex.innerText();
+  assert.match(text, /(Trumpf angespielt: wer Trumpf hat, muss Trumpf geben\.|\S+ angespielt: wer \S+ hat, muss \S+ bedienen\.)/);
+  assert.match(text, /gewinnt: /); assert.match(text, /Trumpf von oben: Herz 10 > Kreuz D > Pik D/);
+  if (process.env.TB_SHOTS) await A.p.screenshot({ path: process.env.TB_SHOTS + "/wa-tisch-warum.png" });
+  for (const x of four) assert.deepEqual(x.errs, [], x.nick);
+  await b.close();
+});

@@ -208,7 +208,55 @@
     }
   }
 
-  var api = { RATE: RATE, VENDOR: VENDOR, RUNTIME: RUNTIME, MODELS: MODELS, MAX_TEXT: MAX_TEXT, pickModel: pickModel, threads: threads, resample: resample, rms: rms, Chunker: Chunker,
+  // ---- tasks to a checklist link: the app (turns.js todo) merges replies like a shopping list ----------------------------
+  // A deadline as said ("bis Freitag", "14.11.", "nächste Woche", "by Friday") -> a calendar day, counted from the meeting's
+  // own day on this device (days since 1970 like the app's Turns.today); 0 when it is not clear. No model guesses dates.
+  var WEEK = { de: ["sonntag", "montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag"], en: ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] };
+  function dayNo(y, m, d) { return Math.floor(Date.UTC(y, m, d) / 864e5); }
+  function dueDay(text, at, lang) {
+    var s = String(text == null ? "" : text).toLowerCase().replace(/\s+/g, " ").trim(), base = new Date(at), wd = base.getDay();
+    if (!s || isNaN(base)) return 0;
+    var y = base.getFullYear(), mo = base.getMonth(), d = base.getDate(), today = Math.floor(Date.UTC(y, mo, d) / 864e5), m;
+    if ((m = s.match(/(\d{1,2})\.\s?(\d{1,2})\.?(?:\s?(\d{2,4}))?/)) || (lang === "en" && (m = s.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/)))) {
+      var dd = +m[1], mm = +m[2] - 1, yy = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : y;
+      if (s.indexOf("/") >= 0 && lang === "en") { var tmp = dd; dd = mm + 1; mm = tmp - 1; }
+      if (mm < 0 || mm > 11 || dd < 1 || dd > 31) return 0;
+      if (new Date(Date.UTC(yy, mm, dd)).getUTCDate() !== dd) return 0;          // 31.2. is no day
+      var day = dayNo(yy, mm, dd);
+      if (!m[3] && day < today) day = dayNo(yy + 1, mm, dd);           // "14.1." said in December: next year
+      return day;
+    }
+    if (/übermorgen|day after tomorrow/.test(s)) return today + 2;
+    if (/morgen|tomorrow/.test(s)) return today + 1;
+    if (/heute|today/.test(s)) return today;
+    if (/nächste woche|naechste woche|next week/.test(s)) return today + ((8 - wd) % 7 || 7);                // next Monday
+    if (/ende der woche|end of (the )?week|wochenende/.test(s)) return today + ((5 - wd + 7) % 7 || (wd === 5 ? 0 : 7));   // Friday
+    if (/monatsende|ende des monats|end of (the )?month/.test(s)) return Math.floor(Date.UTC(y, mo + 1, 0) / 864e5);
+    var names = WEEK.de.concat(WEEK.en);
+    for (var i = 0; i < names.length; i++) if (new RegExp("\\b" + names[i] + "\\b").test(s)) return today + (((i % 7) - wd + 7) % 7 || 7);
+    return 0;
+  }
+  // A name only counts where the transcript says it: the AI may not hand a task to someone nobody named.
+  function said(name, text) {
+    var n = String(name || "").trim(); if (!n) return false;
+    var esc = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp("(^|[^\\p{L}\\p{N}])" + esc + "($|[^\\p{L}\\p{N}])", "iu").test(String(text || ""));
+  }
+  // The hand-over to the app: { t: title, i: [[what, who, due day]] }. Who stays "" (open) unless the transcript names
+  // that person; the app checks every text again (turns.js todoFrom).
+  function todoPayload(rec, lang) {
+    var p = rec.protocol || check({}, "local"), text = transcriptText(rec.segs || []);
+    return { t: short(p.title || "", 40), i: p.tasks.slice(0, 12).map(function (x) {
+      return [short(x.what, 80), x.who && said(x.who, text) ? short(x.who, 40) : "", dueDay(x.due, rec.at, lang)];
+    }) };
+  }
+  function todoLink(rec, lang, base) {
+    var b = new TextEncoder().encode(JSON.stringify(todoPayload(rec, lang))), bin = "";
+    b.forEach(function (x) { bin += String.fromCharCode(x); });
+    return (base || "/duell") + "#todo=" + btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  var api = { dueDay: dueDay, said: said, todoPayload: todoPayload, todoLink: todoLink, RATE: RATE, VENDOR: VENDOR, RUNTIME: RUNTIME, MODELS: MODELS, MAX_TEXT: MAX_TEXT, pickModel: pickModel, threads: threads, resample: resample, rms: rms, Chunker: Chunker,
     cleanSegment: cleanSegment, resultText: resultText, stamp: stamp, cleanNames: cleanNames, redact: redact, transcriptText: transcriptText, localSummary: localSummary,
     check: check, isEmpty: isEmpty, toText: toText, brief: brief, keep: keep, drop: drop, aiInput: aiInput, aiVerdict: aiVerdict, solve: solve, LABELS: LABELS };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

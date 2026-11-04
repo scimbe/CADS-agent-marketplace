@@ -1,7 +1,8 @@
 /* Doppelkopf: pure rules (no DOM, no network), after the tournament rules of the Deutscher Doppelkopf-Verband
    (DDV Turnierspielregeln, doko-verband.de; checked against the TSR text as rendered at rulespal.com/doppelkopf/rulebook:
    2.2-2.3 cards and trumps, 4.1-4.4 reservations and marriage, 5.2-5.3 following suit and equal cards, 6.2-6.4 calls,
-   7.1-7.2 winning and scoring). No house rules: no Schweinchen, no Armut, no Schmeissen, the first of two equal cards wins.
+   7.1-7.2 winning and scoring). Two house rules the table may switch on together (chips, the same on every device):
+   "dulle" - the second Heart Ten beats the first; "nosp" - no Fuchs, Doppelkopf or Karlchen. No Schweinchen, no Armut.
    The state is plain JSON and public: hidden hands only come in at the end (result, audit) once every key is revealed.
    Cards: suit C S H D + rank A T K Q J 9, e.g. "CQ". */
 (function (root) {
@@ -15,6 +16,10 @@
   var CALLS = ["re", "k90", "k60", "k30", "schwarz"];    // level 0..4 of a party; "kontra" is level 0 of the other side
   var NEED = [11, 10, 9, 8, 7];                           // cards still in hand a call needs (6.2.2, 6.3)
   var QUEENS = ["CQ", "SQ", "HQ", "DQ"], JACKS = ["CJ", "SJ", "HJ", "DJ"];
+  var RULES = ["dulle", "nosp"];
+  // Only names this engine knows, each once, in a fixed order: the same list on every device whatever came in.
+  function rules(r) { r = Array.isArray(r) ? r : []; return RULES.filter(function (k) { return r.indexOf(k) >= 0; }); }
+  function has(s, k) { return !!s && Array.isArray(s.rules) && s.rules.indexOf(k) >= 0; }
 
   function copy(o) { return JSON.parse(JSON.stringify(o)); }
   function eyes(c) { return EYES[c[1]]; }
@@ -44,11 +49,28 @@
     if (c[0] !== led) return -1;
     return 100 - plainOrder(kind).indexOf(c[1]);
   }
-  // Winner of a full trick: on equal cards the one played first wins (5.3.3, also for the Heart Ten).
-  function trickWinner(kind, cards) {
-    var led = follows(kind, cards[0].card), best = 0;
-    for (var i = 1; i < cards.length; i++) if (power(kind, cards[i].card, led) > power(kind, cards[best].card, led)) best = i;
-    return cards[best].seat;
+  // Winner of a full trick: on equal cards the one played first wins (5.3.3, also for the Heart Ten), unless the
+  // house rule "dulle" is on: then a second trump Heart Ten beats the first.
+  function bestIndex(kind, cards, rs) {
+    var led = follows(kind, cards[0].card), best = 0, dulle = rules(rs).indexOf("dulle") >= 0 && isTrump(kind, "HT");
+    for (var i = 1; i < cards.length; i++) {
+      var p = power(kind, cards[i].card, led), q = power(kind, cards[best].card, led);
+      if (p > q || (p === q && dulle && cards[i].card === "HT")) best = i;
+    }
+    return best;
+  }
+  function trickWinner(kind, cards, rs) { return cards[bestIndex(kind, cards, rs)].seat; }
+  // Why a trick goes where it goes, from the rules alone (no hand is needed): what was led, which card wins and why,
+  // and for every later card whether it followed, trumped or was thrown off. table-ui.js puts it into words.
+  function explain(kind, cards, rs) {
+    if (!cards || !cards.length) return null;
+    var led = follows(kind, cards[0].card), i = bestIndex(kind, cards, rs), w = cards[i].card, why = "high";
+    var twin = cards.some(function (x, k) { return k !== i && x.card === w; });
+    if (twin) why = cards.map(function (x) { return x.card; }).indexOf(w) === i ? "first" : "dulle";
+    else if (led !== "T" && isTrump(kind, w)) why = "trump";
+    return { led: led, win: i, seat: cards[i].seat, card: w, why: why,
+      plays: cards.map(function (x, k) { return { seat: x.seat, card: x.card, how: k === 0 ? "lead" : follows(kind, x.card) === led ? "follow" : isTrump(kind, x.card) ? "trump" : "off" }; }),
+      order: trumps(kind) };
   }
   function legalCards(kind, trick, hand) {
     if (!trick.cards.length) return hand.slice();
@@ -58,7 +80,7 @@
 
   function start(o) {
     var dealer = ((o && o.dealer) | 0) % SEATS;
-    return { game: "doko", dealer: dealer, phase: "vorbehalt", ask: next(dealer), say: [null, null, null, null], queue: [], wedding: -1,
+    return { game: "doko", rules: rules(o && o.rules), dealer: dealer, phase: "vorbehalt", ask: next(dealer), say: [null, null, null, null], queue: [], wedding: -1,
       kind: "normal", soloist: -1, partner: -1, clar: 0, trick: { lead: next(dealer), cards: [] }, tricks: [], played: [0, 0, 0, 0],
       level: { re: -1, kontra: -1 }, claim: [null, null, null, null], calls: [] };
   }
@@ -153,7 +175,7 @@
       if (seen >= 2) return fail("card");
       s.trick.cards.push({ seat: seat, card: a.card }); s.played[seat]++;
       if (s.trick.cards.length < SEATS) return { ok: true, state: s };
-      var w = trickWinner(s.kind, s.trick.cards), sum = s.trick.cards.reduce(function (n, x) { return n + eyes(x.card); }, 0);
+      var w = trickWinner(s.kind, s.trick.cards, s.rules), sum = s.trick.cards.reduce(function (n, x) { return n + eyes(x.card); }, 0);
       s.tricks.push({ lead: s.trick.lead, cards: s.trick.cards, winner: w, eyes: sum });
       var n = s.tricks.length;
       if (s.kind === "hochzeit" && s.partner < 0) {
@@ -226,7 +248,7 @@
     });
     if (!P.solo && s.kind !== "karo") {       // special points: normal games only (7.2.3), an announced marriage is one
       if (winner === "kontra") add("kontra", "gegen_die_alten", 1);
-      s.tricks.forEach(function (t, i) {
+      if (!has(s, "nosp")) s.tricks.forEach(function (t, i) {
         var w = side(t.winner);
         if (t.eyes >= 40) add(w, "doppelkopf", 1);
         t.cards.forEach(function (x) { if (x.card === "DA" && side(x.seat) !== w) add(w, "fuchs", 1); });
@@ -294,7 +316,7 @@
     return cards.length ? { t: "play", seat: seat, card: weakest(s.kind, cards, s.trick) } : null;
   }
 
-  var api = { SEATS: SEATS, HAND: HAND, DECK: DECK, SOLOS: SOLOS, CALLS: CALLS, EYES: EYES, auto: auto,
+  var api = { SEATS: SEATS, HAND: HAND, DECK: DECK, SOLOS: SOLOS, CALLS: CALLS, EYES: EYES, RULES: RULES, rules: rules, explain: explain, auto: auto,
     layout: function () { var hands = []; for (var s = 0; s < SEATS; s++) { hands.push([]); for (var i = 0; i < HAND; i++) hands[s].push(s * HAND + i); } return { hands: hands, skat: [] }; },
     start: start, turn: turn, actions: actions, apply: apply, done: done, result: result, audit: audit,
     trumps: trumps, isTrump: isTrump, trickWinner: trickWinner, legalCards: legalCards, eyes: eyes, knownParty: knownParty };

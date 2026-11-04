@@ -24,7 +24,13 @@ var TX = {
     bid: "{v} reizen", hold: "Ja ({v})", pass: "Passe", pickup: "Skat aufnehmen", push: "Diese 2 drücken", pushHint: "Tipp zwei Karten an, die du drückst.",
     G: "Grand", N: "Null", C: "Kreuz", S: "Pik", H: "Herz", D: "Karo", handG: "Hand", schneiderA: "Schneider angesagt", schwarzA: "Schwarz angesagt", ouvertA: "offen",
     show: "Karten offen hinlegen", re_: "Re", kontra_: "Kontra", declarer: "Alleinspieler", defenders: "Gegenspieler", passed: "Eingepasst – neu geben.", eyes: "Augen",
-    bidNow: "Gereizt: {v}", ranks: { A: "A", T: "10", K: "K", Q: "D", J: "B", 9: "9", 8: "8", 7: "7" } },
+    bidNow: "Gereizt: {v}", ranks: { A: "A", T: "10", K: "K", Q: "D", J: "B", 9: "9", 8: "8", 7: "7" },
+    house: "Hausregeln (gelten für alle am Tisch)", houseNone: "Turnierregeln", r_dulle: "2. Dulle sticht 1.", r_nosp: "Ohne Fuchs & Karlchen", r_ramsch: "Ramsch statt Einpassen", r_kontra: "Kontra & Re",
+    kontra: "Kontra!", re: "Re!", ramschG: "Ramsch", ramschLost: "Ramsch: {n} verliert", march: "Durchmarsch: {n}",
+    why: "Warum?", wLedT: "Trumpf angespielt: wer Trumpf hat, muss Trumpf geben.", wLed: "{s} angespielt: wer {s} hat, muss {s} bedienen.",
+    wTrump: "{n} hat kein {s} und sticht mit Trumpf.", wOff: "{n} hat kein {s} und wirft ab.", wWinTrump: "{c} gewinnt: Trumpf schlägt jede andere Farbe.",
+    wWinT: "{c} gewinnt: höchster Trumpf im Stich.", wWin: "{c} gewinnt: höchste {s} im Stich.", wFirst: "{c} gewinnt: zwei gleiche Karten, die zuerst gespielte zählt.",
+    wDulle: "{c} gewinnt: Hausregel, die zweite Dulle sticht die erste.", wOrder: "Trumpf von oben: {o} …", wNoTrump: "Kein Trumpf in diesem Spiel.", trumpW: "Trumpf" },
   en: { doko: "Doppelkopf", skat: "Skat", making: "Setting the table …", invite: "➕ Invite seat {n}", share: "Share again",
     shareText: { doko: "Doppelkopf live! I'm missing a player – tap and take a seat (15 min):", skat: "Skat live! I'm missing a player – tap and take a seat (15 min):" },
     inviteAll: "👥 Invite everyone", shareAll: "Share group link again",
@@ -43,7 +49,13 @@ var TX = {
     bid: "Bid {v}", hold: "Yes ({v})", pass: "Pass", pickup: "Pick up the skat", push: "Discard these 2", pushHint: "Tap the two cards you discard.",
     G: "Grand", N: "Null", C: "Clubs", S: "Spades", H: "Hearts", D: "Diamonds", handG: "Hand", schneiderA: "Schneider announced", schwarzA: "Schwarz announced", ouvertA: "open",
     show: "Lay your cards open", re_: "Re", kontra_: "Kontra", declarer: "Declarer", defenders: "Defenders", passed: "All passed – deal again.", eyes: "card points",
-    bidNow: "Bid: {v}", ranks: { A: "A", T: "10", K: "K", Q: "Q", J: "J", 9: "9", 8: "8", 7: "7" } }
+    bidNow: "Bid: {v}", ranks: { A: "A", T: "10", K: "K", Q: "Q", J: "J", 9: "9", 8: "8", 7: "7" },
+    house: "House rules (for everyone at the table)", houseNone: "Tournament rules", r_dulle: "2nd Ten beats 1st", r_nosp: "No Fox & Charlie", r_ramsch: "Ramsch if all pass", r_kontra: "Kontra & Re",
+    kontra: "Kontra!", re: "Re!", ramschG: "Ramsch", ramschLost: "Ramsch: {n} loses", march: "Durchmarsch: {n}",
+    why: "Why?", wLedT: "Trump led: whoever has trump must play trump.", wLed: "{s} led: whoever has {s} must follow.",
+    wTrump: "{n} has no {s} and trumps.", wOff: "{n} has no {s} and throws off.", wWinTrump: "{c} wins: trump beats every other suit.",
+    wWinT: "{c} wins: highest trump in the trick.", wWin: "{c} wins: highest {s} in the trick.", wFirst: "{c} wins: two equal cards, the first one played counts.",
+    wDulle: "{c} wins: house rule, the second Heart Ten beats the first.", wOrder: "Trumps from the top: {o} …", wNoTrump: "No trumps in this game.", trumpW: "trump" }
 };
 function L() { return TX[Kit.lang] || TX.de; }
 function t(k, v) { var s = L()[k]; if (s == null) s = TX.de[k]; if (s == null) return k; return String(s).replace(/\{(\w+)\}/g, function (m, x) { return v && v[x] != null ? v[x] : m; }); }
@@ -95,7 +107,7 @@ function preview(c, W, H, doc) {
 if (window.Render) window.Render.extra.table = preview;
 
 // ---------- the layer ----------
-var ov = null, tb = null, game = "doko", pick = [], tick = 0;
+var ov = null, tb = null, game = "doko", pick = [], tick = 0, whyAt = "";
 var mine = [];   // the tokens of this table's links that I made or came in with: tapped again, they lead back here
 function layer() {
   if (!ov) {
@@ -107,7 +119,26 @@ function layer() {
 }
 function close() { clearInterval(tick); tick = 0; if (tb) { try { tb.leave(); } catch (e) {} tb = null; } if (ov) { ov.remove(); ov = null; } }
 // one token, or a group link with one token per seat (tried in order by whoever opens it)
-function link(tokens) { return window.DuellCore.SHARE_BASE + "#tisch=" + game + "." + [].concat(tokens).join("."); }
+function link(tokens) { var r = tb ? tb.view().rules : saved(); return window.DuellCore.SHARE_BASE + "#tisch=" + game + "." + [].concat(tokens).join(".") + (r.length ? "&r=" + r.join(".") : ""); }
+// The house rules this device chose last for the game: the next table it sets starts with them. Only a preference.
+function engine() { return game === "skat" ? window.Skat : window.Doko; }
+function saved() { var r = Kit.store.tbRules; return engine().rules(r && r[game]); }
+function keepRules(list) { var r = Kit.store.tbRules; r = r && typeof r === "object" && !Array.isArray(r) ? r : {}; r[game] = list; Kit.store.tbRules = r; Kit.save(); }
+// Chips for the house rules: everyone sees the same list (table.js keeps it equal); a change only between two games.
+function houseChips(b, v) {
+  b.appendChild(el("p", "lbl", t("house")));
+  var row = el("div", "chips tbrules"), on = v.rules || [], free = !v.hand;
+  engine().RULES.forEach(function (k) {
+    var x = on.indexOf(k) >= 0, c = el("button", "chip" + (x ? " on" : ""), t("r_" + k), function () {
+      if (!free) return; Kit.sfx.tap();
+      var next = x ? on.filter(function (y) { return y !== k; }) : on.concat([k]);
+      if (tb.rules(next)) keepRules(engine().rules(next));
+    });
+    c.setAttribute("aria-pressed", String(x)); c.disabled = !free; row.appendChild(c);
+  });
+  b.appendChild(row);
+}
+function ruleLine(v) { return (v.rules || []).length ? v.rules.map(function (k) { return t("r_" + k); }).join(" · ") : t("houseNone"); }
 function clock(v) { return v.auto ? "🤖" : v.deadline ? t("autoIn", { n: Math.max(0, Math.ceil((v.deadline - Date.now()) / 1000)) }) : ""; }
 function me() { var p = window.Daily.sanitizeProfile(Kit.store && Kit.store.me); return { name: p.nick, emoji: p.emoji }; }
 // players without a nickname are "Gast 2" after their seat
@@ -147,6 +178,7 @@ function seats(b, v) {
 function lobby(b, v) {
   if (v.last && v.last.aborted) b.appendChild(el("p", "note tbwarn", t("aborted", { n: v.last.who })));
   seats(b, v);
+  houseChips(b, v);
   var missing = v.seats.filter(function (x) { return x.free; }).length;
   b.appendChild(el("p", "note tbstatus", missing ? t("wait", { n: missing }) : v.hand ? t("shuffle") : t("mesh")));
   var unheld = v.seats.filter(function (x) { return x.free && !x.held; }).length, groups = {};
@@ -172,6 +204,7 @@ async function inviteGroup() {
 }
 function label(a, st) {
   if (a.t === "vorbehalt") return t(a.v);
+  if (a.t === "kontra" || a.t === "re") return t(a.t);
   if (a.t === "call") return a.a === a.p ? t(a.p + "_") : t(a.a);
   if (a.t === "bid") return t("bid", { v: a.v });
   if (a.t === "hold") return t("hold", { v: st.bid.v });
@@ -184,14 +217,19 @@ function info(v) {
     if (st.phase === "play") out.push(st.wedding >= 0 ? t("wedding") : st.kind === "normal" ? t("normal") : t(st.kind));
     (st.calls || []).forEach(function (c) { out.push(seatName(v, c.seat) + ": " + (c.a === c.p ? t(c.p + "_") : t(c.a))); });
   } else {
-    if (st.bid && st.bid.v) out.push(t("bidNow", { v: st.bid.v }));
-    if (st.contract) out.push(seatName(v, st.declarer) + ": " + label(Object.assign({ t: "declare" }, st.contract), st));
+    if (st.contract && st.contract.ramsch) out.push(t("ramschG"));
+    else {
+      if (st.bid && st.bid.v) out.push(t("bidNow", { v: st.bid.v }));
+      if (st.contract) out.push(seatName(v, st.declarer) + ": " + label(Object.assign({ t: "declare" }, st.contract), st));
+    }
+    if (st.kontra) out.push(t(st.kontra > 1 ? "re" : "kontra"));
   }
   return out.join(" · ");
 }
 function play(b, v) {
   var h = v.hand, st = h.state, acts = h.actions, mine = h.turn === v.mySeat;
   b.appendChild(el("p", "note tbinfo", info(v)));
+  if ((st.rules || []).length) b.appendChild(el("p", "note tbhouse", "⚖ " + ruleLine({ rules: st.rules })));
   var turn = el("p", "tbturn" + (mine ? " hot" : ""), h.turn < 0 ? "" : mine ? t("turnYou") : t("turnOf", { n: seatName(v, h.turn) }));
   if (mine) { turn.appendChild(document.createTextNode(" · ")); turn.appendChild(el("span", "tbclock", clock(v))); }   // the Auto countdown, ticking
   b.appendChild(turn);
@@ -199,6 +237,7 @@ function play(b, v) {
   var tr = st.trick && st.trick.cards.length ? st.trick : st.tricks.length ? st.tricks[st.tricks.length - 1] : null, box = el("div", "tbtrick");
   if (tr) tr.cards.forEach(function (x) { var w = el("div", "tbplayed"); w.appendChild(cardEl(x.card)); w.appendChild(el("small", "", seatName(v, x.seat))); box.appendChild(w); });
   b.appendChild(box);
+  if (tr) why(b, v, st, tr);
   if (st.open && st.declarer !== v.mySeat) { var op = el("div", "tbhand tbopen"); sortHand(st, st.open).forEach(function (c) { op.appendChild(cardEl(c, null, "small")); }); b.appendChild(op); }
   // who stood up: their cards are open for everyone now, Auto plays them
   (h.ghosts || []).forEach(function (g) {
@@ -227,12 +266,35 @@ function play(b, v) {
   au.setAttribute("aria-pressed", v.auto ? "true" : "false"); b.appendChild(au);
   b.appendChild(el("p", "note tbscore", v.seats.map(function (x, s) { return x.free ? "" : (x.me ? t("you") : nick(x, s)) + (x.auto ? " 🤖" : "") + " " + x.score; }).join(" · ")));
 }
+// "Why?" at the trick: what the rules say about the cards on the table, nothing about anyone's hand. It stays open
+// for this trick (the screen redraws every few seconds) and closes by itself on the next one.
+function why(b, v, st, tr) {
+  var key = (v.hand.no) + ":" + st.tricks.length + ":" + tr.cards.length, open = whyAt === key;
+  var bt = el("button", "chip tbwhy" + (open ? " on" : ""), "❓ " + t("why"), function () { Kit.sfx.tap(); whyAt = open ? "" : key; render(tb.view()); });
+  bt.setAttribute("aria-expanded", String(open)); b.appendChild(bt);
+  if (!open) return;
+  var kind = game === "doko" ? st.kind : st.contract ? st.contract.game : "G", x = engine().explain(kind, tr.cards, st.rules), box = el("div", "note tbexplain");
+  if (!x) return;
+  var suit = x.led === "T" ? t("trumpW") : t(x.led), c = cardName(x.card), lines = [x.led === "T" ? t("wLedT") : t("wLed", { s: suit })];
+  x.plays.forEach(function (p) { if (p.how === "trump" || p.how === "off") lines.push(t(p.how === "trump" ? "wTrump" : "wOff", { n: seatName(v, p.seat), s: suit })); });
+  lines.push(x.why === "trump" ? t("wWinTrump", { c: c }) : x.why === "first" ? t("wFirst", { c: c }) : x.why === "dulle" ? t("wDulle", { c: c }) : x.led === "T" ? t("wWinT", { c: c }) : t("wWin", { c: c, s: suit }));
+  lines.push(x.order.length ? t("wOrder", { o: x.order.slice(0, 6).map(cardName).join(" > ") }) : t("wNoTrump"));
+  lines.forEach(function (s) { box.appendChild(el("p", "", s)); });
+  b.appendChild(box);
+}
 function button(a, st) { return el("button", "btn" + (a.t === "pass" || a.t === "call" ? "" : " hot"), label(a, st), function () { Kit.sfx.tap(); tb.act(a); }); }
 function end(b, v) {
   var l = v.last, r = l.result;
   if (l.cheat != null) b.appendChild(el("p", "livebig", t("cheat", { n: l.cheat >= 0 ? seatName(v, l.cheat) : "?" })));
   else if (l.audit && l.audit.length) b.appendChild(el("p", "livebig", t("bad", { n: l.audit[0].seat >= 0 ? seatName(v, l.audit[0].seat) : "?", w: l.audit[0].why })));
   else if (r && r.passedOut) b.appendChild(el("p", "livebig", t("passed")));
+  else if (r && r.ramsch) {
+    b.appendChild(el("p", "livebig", r.durchmarsch >= 0 ? t("march", { n: seatName(v, r.durchmarsch) }) : t("ramschLost", { n: r.losers.map(function (s) { return seatName(v, s); }).join(", ") })));
+    b.appendChild(el("p", "note", l.roster.map(function (id, s) { return seatName(v, s) + " " + r.seatEyes[s]; }).join(" · ") + " " + t("eyes")));
+    var rl = el("div", "tbseats tbresult");
+    l.roster.forEach(function (id, s) { var row = el("div", "tbseat"); row.appendChild(el("span", "", seatName(v, s))); row.appendChild(el("b", "", (r.points[s] > 0 ? "+" : "") + r.points[s])); rl.appendChild(row); });
+    b.appendChild(rl); b.appendChild(el("p", "note tbcheck", t("checked")));
+  }
   else if (r) {
     var who = r.winner === "re" ? t("re_") : r.winner === "kontra" ? t("kontra_") : r.winner === "declarer" ? seatName(v, r.declarer) : r.winner === "defenders" ? t("defenders") : null;
     b.appendChild(el("p", "livebig", who ? t("won", { p: who }) : t("none")));
@@ -244,6 +306,7 @@ function end(b, v) {
   }
   b.appendChild(el("p", "lbl", t("total")));
   seats(b, v);
+  houseChips(b, v);
   if (v.want) b.appendChild(el("p", "note", t("waitNext")));
   else b.appendChild(el("button", "btn hot", t("next"), function () { Kit.sfx.thud(); tb.next(); }));
   b.appendChild(el("button", "btn", t("leave"), function () { close(); }));
@@ -269,7 +332,7 @@ function start(make) {
 // A new table: I take seat 1 and invite everyone straight away, with one link for the group chat.
 function open(g) {
   game = g === "skat" ? "skat" : "doko";
-  return start(function () { return T.create(Object.assign({ game: game, live: window.Live }, me())); }).then(function (x) { if (x) inviteGroup(); });
+  return start(function () { return T.create(Object.assign({ game: game, live: window.Live, rules: saved() }, me())); }).then(function (x) { if (x) inviteGroup(); });
 }
 // My own link, opened on this device: never a join. Back to the table if this tab still has it.
 function back(list) {
@@ -288,13 +351,13 @@ function ownLink(list) {
   b.appendChild(el("button", "btn", t("back"), function () { close(); }));
   return Promise.resolve(null);
 }
-// tokens: "a" or "a.b.c" (a group link)
-function accept(g, tokens) {
+// tokens: "a" or "a.b.c" (a group link); rules: the house rules the link names ("dulle.nosp"), until the table says
+function accept(g, tokens, rules) {
   var list = String(tokens).split(".");
   if (back(list)) return Promise.resolve(tb);
   game = g === "skat" ? "skat" : "doko";
   if (window.OwnInvites && window.OwnInvites.mine(list)) return ownLink(list);
-  return start(function () { return T.join(list, Object.assign({ game: game, live: window.Live }, me())); }).then(function (x) { if (x) mine = mine.concat(list); return x; });
+  return start(function () { return T.join(list, Object.assign({ game: game, live: window.Live, rules: String(rules || "").split(".") }, me())); }).then(function (x) { if (x) mine = mine.concat(list); return x; });
 }
 window.TableUI = { open: open, accept: accept, close: close, cardSvg: cardSvg, preview: preview };
 })();

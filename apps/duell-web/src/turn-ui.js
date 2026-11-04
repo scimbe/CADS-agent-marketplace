@@ -57,7 +57,7 @@ function lines(c, list, W, y, size, col) {
 }
 function title(doc) { var i = doc.i ? D.byId(doc.i) : null, T = i ? (i[Kit.lang] || i.de).t.replace("|", " ") : ""; return doc.t || T || t("turn"); }
 R.extra.turn = function (c, W, H, doc) {
-  if (doc.g === "einkauf") return drawShop(c, W, H, doc);
+  if (listOf(doc)) return drawShop(c, W, H, doc);
   var a = doc.col[0], b = doc.col[1], ink = R.ink(a), st = Tn.state(doc), res = Tn.result(doc, Kit.lang);
   c.fillStyle = a; c.fillRect(0, 0, W, H); R.rays(c, W, H, "rgba(0,0,0,.05)", 0.2);
   shape(c, doc.f, W * 0.84, H * 0.84, W * 0.08, b); shape(c, doc.f, W * 0.14, H * 0.8, W * 0.05, b);
@@ -72,14 +72,17 @@ R.extra.turn = function (c, W, H, doc) {
 /* ---------- the shopping list: this phone keeps what it knows of each list, so a reply merges instead of replacing ---------- */
 var SHOP_KEEP = 12;
 function shopStore() { var s = Kit.store.shop; return s && typeof s === "object" && !Array.isArray(s) ? s : {}; }
-function shopKept(doc) { var v = shopStore()["s" + doc.seed]; return Tn.shopOk(v) ? v : null; }
+// Shopping list and task list share the merging; listOf gives the game's caps, words picks its words (ein_ / tdo_).
+function listOf(doc) { var g = Tn.GAMES[doc.g]; return g && g.list ? g.list : null; }
+function words(doc) { return doc.g === "todo" ? "tdo" : "ein"; }
+function shopKept(doc) { var v = shopStore()["s" + doc.seed]; return Tn.shopOk(v, listOf(doc)) ? v : null; }
 function shopKeep(doc, v) {
   var s = shopStore(), k; delete s["s" + doc.seed]; s["s" + doc.seed] = v;
   for (k = Object.keys(s); k.length > SHOP_KEEP; k.shift()) delete s[k[0]];
   Kit.store.shop = s; Kit.save();
 }
 // The list as this phone sees it: the link merged with what it knew of the same list before.
-function shopSeen(doc) { var m = Tn.moves(doc), mine = shopKept(doc); return m.length ? (mine ? Tn.shopMerge(m[0][0], mine) : m[0][0]) : null; }
+function shopSeen(doc) { var m = Tn.moves(doc), mine = shopKept(doc); return m.length ? (mine ? Tn.shopMerge(m[0][0], mine, listOf(doc)) : m[0][0]) : null; }
 function shopSync(ed) { var v = shopSeen(ed.doc); if (!v) return; ed.doc.q = Tn.seal([[v]], ed.doc.seed); ed.base.q = ed.doc.q; shopKeep(ed.doc, v); }
 function myFace() { var i = Tn.FACES.indexOf(A.me().emoji); return i < 0 ? 0 : i; }
 // WCAG contrast: black or white, whichever reads better on this colour.
@@ -89,18 +92,18 @@ function fit(c, s, w) { s = String(s); if (c.measureText(s).width <= w) return s
 // The card picture is the list itself on a sheet of paper: dark ink on white, whatever colours the card has. No emoji in exports.
 function drawShop(c, W, H, doc) {
   var ed = A.ed(), out = ed && ed.doc === doc && ed.next ? ed.next : doc;   // in the editor: the list as it will go out, in the colours chosen now
-  var a = doc.col[0], b = doc.col[1], ink = inkOn(a), v = out === doc ? shopSeen(doc) : Tn.moves(out)[0][0], res = Tn.result(out, Kit.lang), rows = v ? Tn.shopRows(v) : [], i0 = doc.i ? D.byId(doc.i) : null;
+  var cf = listOf(doc), K = words(doc), a = doc.col[0], b = doc.col[1], ink = inkOn(a), v = out === doc ? shopSeen(doc) : Tn.moves(out)[0][0], res = Tn.result(out, Kit.lang), rows = v ? Tn.shopRows(v, cf) : [], i0 = doc.i ? D.byId(doc.i) : null;
   c.fillStyle = a; c.fillRect(0, 0, W, H); R.rays(c, W, H, "rgba(0,0,0,.05)", 0.2);
   R.block(c, res ? res.h : title(doc), W * 0.07, H * 0.035, W * 0.86, H * 0.15, ink, null);
   c.font = "800 " + Math.round(W * 0.036) + "px system-ui,sans-serif"; c.fillStyle = ink; c.textAlign = "center"; c.textBaseline = "middle";
-  c.fillText(fit(c, v ? Tn.shopCount(v, Kit.lang) : doc.s || (i0 ? (i0[Kit.lang] || i0.de).s : ""), W * 0.86), W / 2, H * 0.205);
+  c.fillText(fit(c, v ? Tn.shopCount(v, Kit.lang, cf) : doc.s || (i0 ? (i0[Kit.lang] || i0.de).s : ""), W * 0.86), W / 2, H * 0.205);
   var x0 = W * 0.06, y0 = H * 0.235, pw = W * 0.88, ph = H - W * 0.085 - y0, n = Math.max(rows.length, 1), rh = Math.min(ph * 0.92 / n, W * 0.08), fs = Math.round(rh * 0.5), pad = W * 0.045;
   c.fillStyle = b; c.fillRect(x0 + W * 0.014, y0 + W * 0.014, pw, ph);
   c.fillStyle = "#fffdf7"; c.fillRect(x0, y0, pw, ph); c.strokeStyle = "#111111"; c.lineWidth = W * 0.004; c.strokeRect(x0, y0, pw, ph);
   var y = y0 + ph * 0.04 + rh / 2;
-  if (!rows.length) { c.font = "700 " + Math.round(W * 0.04) + "px system-ui,sans-serif"; c.fillStyle = "#4b5563"; c.fillText(L().ein_empty, W / 2, y0 + ph / 2); }
+  if (!rows.length) { c.font = "700 " + Math.round(W * 0.04) + "px system-ui,sans-serif"; c.fillStyle = "#4b5563"; c.fillText(L()[K + "_empty"], W / 2, y0 + ph / 2); }
   rows.forEach(function (r) {
-    var done = r.bought.length > 0, box = fs * 1.05, bx = x0 + pad, who = done ? say("ein_got", { n: r.bought.map(function (p) { return p[0]; }).join(", ") }) : r.bring.length ? say("ein_brings", { n: r.bring.map(function (p) { return p[0]; }).join(", ") }) : "";
+    var done = r.bought.length > 0, box = fs * 1.05, bx = x0 + pad, who = done ? say(K + "_got", { n: r.bought.map(function (p) { return p[0]; }).join(", ") }) : r.bring.length ? say(K + "_brings", { n: r.bring.map(function (p) { return p[0]; }).join(", ") }) : r.due ? Tn.dueText(r.due, Kit.lang) : "";
     c.strokeStyle = "#dbe4f0"; c.lineWidth = Math.max(1, W * 0.002); c.beginPath(); c.moveTo(x0 + pad * 0.5, y + rh / 2); c.lineTo(x0 + pw - pad * 0.5, y + rh / 2); c.stroke();
     c.lineWidth = W * 0.004; c.strokeStyle = "#111111"; c.strokeRect(bx, y - box / 2, box, box);
     if (done) { c.fillStyle = "#111111"; c.fillRect(bx, y - box / 2, box, box); c.strokeStyle = "#ffffff"; c.lineWidth = box * 0.16; c.beginPath(); c.moveTo(bx + box * 0.2, y); c.lineTo(bx + box * 0.42, y + box * 0.22); c.lineTo(bx + box * 0.8, y - box * 0.24); c.stroke(); }
@@ -130,19 +133,43 @@ var draw = {
     set(0);
   },
   text: function (box, p, set, ctx) {
+    if (p.adult && minor()) { box.appendChild(el("p", "qtext", L().sam_minor)); set(null); return; }   // a PayPal name: 18+ only
     if (p.top) box.appendChild(el("p", "qtext", p.top(ctx.doc, ctx.m, Kit.lang)));
     var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l]); if (p.hint) f.placeholder = L()[p.hint];
-    f.addEventListener("input", function () { var v = f.value.trim(), ok = Tn.okAnswer(p, v, ctx.doc, Kit.lang, ctx.m, ctx.now); set(ok ? v : null); });
-    box.appendChild(f); set(null);
+    function check() { var v = f.value.trim(), ok = Tn.okAnswer(p, v, ctx.doc, Kit.lang, ctx.m, ctx.now); set(ok ? v : null); }
+    f.addEventListener("input", check);
+    var mine = p.pref && A.me().pref && A.me().pref[p.pref];   // my own default (Profil), visible in the field and changeable
+    box.appendChild(f); set(null); if (mine) { f.value = mine; check(); }
+  },
+  // An amount in euros and cents; under the field what each person pays and the cents left over.
+  money: function (box, p, set, ctx) {
+    var f = el("input", "field"), info = el("p", "note", "");
+    f.inputMode = "decimal"; f.maxLength = 9; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l]); if (p.hint) f.placeholder = L()[p.hint];
+    f.addEventListener("input", function () {
+      var c = Tn.parseCents(f.value), ok = c !== null && Tn.okAnswer(p, c, ctx.doc, Kit.lang, ctx.m, ctx.now);
+      info.textContent = ok ? p.line(c, ctx.now, Kit.lang) : ""; set(ok ? c : null);
+    });
+    box.appendChild(f); box.appendChild(info); set(null);
   },
   // A plain link to PayPal.me: the shells hand it to the browser or the PayPal app. Nothing comes back, nobody counts who paid.
+  // Under 18 there is no PayPal link: the age band comes from my defaults (Profil); without one, a note and one tap to say 18+.
   pay: function (box, p, set, ctx) {
-    var url = p.link(ctx.doc, ctx.m), after = el("p", "note", L().sam_after);
+    var url = p.link(ctx.doc, ctx.m), after = el("p", "note", L().sam_after), gate = el("div"), more = p.more ? p.more(ctx.m, Kit.lang) : "";
+    if (more) box.appendChild(el("p", "note", more));
     box.appendChild(el("p", "note", L().sam_safe));
-    if (url) {
-      var a = el("a", "btn hot", say("sam_btn", { e: ctx.m[0][2] })); a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.id = "paylink";
-      a.addEventListener("click", function () { Kit.sfx.tap(); after.hidden = false; }); box.appendChild(a);
+    function link() {
+      gate.textContent = "";
+      if (!url) return;
+      if (minor()) { gate.appendChild(el("p", "qtext", L().sam_minor)); return; }
+      if (!D.adult(A.me())) {
+        gate.appendChild(el("p", "note", L().sam_age));
+        gate.appendChild(el("button", "chip", L().sam_adult, function () { Kit.sfx.tap(); var f = Object.assign({}, A.me().pref || {}); f.age = "a18"; A.savePref(f); link(); }));
+        return;
+      }
+      var a = el("a", "btn hot", say("sam_btn", { e: p.share(ctx.m, Kit.lang) })); a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.id = "paylink";
+      a.addEventListener("click", function () { Kit.sfx.tap(); after.hidden = false; }); gate.appendChild(a);
     }
+    box.appendChild(gate); link();
     after.hidden = true; box.appendChild(after); set(0);
   },
   list: function (box, p, set) {
@@ -498,14 +525,17 @@ var draw = {
   // The shopping list: one field, Enter adds ("2× Milch" counts 2). Each row: I'll bring it, or bought. set() gets the whole list as
   // it would go out: what came in, merged with this phone's copy, plus this person's changes. Text only ever goes in as textContent.
   shop: function (box, p, set, ctx) {
+    var cf = p.cfg, K = p.k || "ein", W = function (x) { return L()[K + "_" + x] || L()["ein_" + x]; };
     var base = ctx.m.length ? ctx.m[0][0] : null, e = ctx.ed.shop || (ctx.ed.shop = { name: "", face: myFace(), adds: [], marks: {} });
     var form = el("form", "shopadd"), f = el("input", "field"), plus = el("button", "chip", "+"), rows = el("div", "shoplist"), who = el("input", "field"), pn = document.getElementById("panel");
     if (pn) pn.dataset.size = "big";
-    f.maxLength = 40; f.autocomplete = "off"; f.enterKeyHint = "enter"; f.placeholder = L().ein_ph; f.setAttribute("aria-label", L().ein_field);
-    plus.type = "submit"; plus.setAttribute("aria-label", L().ein_add);
-    who.maxLength = 12; who.autocomplete = "off"; who.setAttribute("aria-label", L().ein_name); who.placeholder = L().ter_name;
+    f.maxLength = cf ? cf.text + 4 : 40; f.autocomplete = "off"; f.enterKeyHint = "enter"; f.placeholder = W("ph"); f.setAttribute("aria-label", W("field"));
+    plus.type = "submit"; plus.setAttribute("aria-label", W("add"));
+    who.maxLength = 12; who.autocomplete = "off"; who.setAttribute("aria-label", W("name")); who.placeholder = L().ter_name;
     var nick = A.me().nick; if (!e.name && nick && Tn.nameOk(nick)) e.name = nick; who.value = e.name;
-    function now() { return Tn.shopApply(base, e); }
+    function now() { return Tn.shopApply(base, e, cf); }
+    // a task is its text (no count in front); a shopping item may start with a count
+    function parse(v) { if (!cf || !cf.due) return Tn.shopParse(v); var x = Q.clean(v, cf.text); return x && Tn.shopKey(x) ? { text: x, qty: 0 } : null; }
     function named() { return Tn.nameOk(e.name); }
     function people(l) { return l.map(function (x) { return Tn.FACES[x[1]] + " " + x[0]; }).join(", "); }
     function sent(k) { return !!base && base[1].some(function (it) { return Tn.shopKey(it[0]) === k; }); }
@@ -516,40 +546,42 @@ var draw = {
     function row(r, v) {
       var me = named() ? Tn.shopMark(v, e.name, r.key) % 3 : 0, d = el("div", "shoprow" + (r.bought.length ? " done" : "")), txt = el("div", "shoptext");
       txt.appendChild(el("b", "", r.label));
-      var line = r.bought.length ? say("ein_got", { n: people(r.bought) }) : r.bring.length ? say("ein_brings", { n: people(r.bring) }) : "";
+      var line = [r.bought.length ? say(K + "_got", { n: people(r.bought) }) : r.bring.length ? say(K + "_brings", { n: people(r.bring) }) : cf && cf.due ? L().tdo_open : "", r.due ? Tn.dueText(r.due, Kit.lang) : ""].filter(Boolean).join(" · ");
       if (line) txt.appendChild(el("small", "", line));
       d.appendChild(txt);
-      [[1, "🙋", "ein_bring"], [2, "✓", "ein_bought"]].forEach(function (x) {
+      [[1, "🙋", K + "_bring"], [2, "✓", K + "_bought"]].forEach(function (x) {
         var b = el("button", "chip" + (me === x[0] ? " on" : ""), x[1], function () { mark(r.key, me === x[0] ? 0 : x[0]); });
         b.setAttribute("aria-label", L()[x[2]] + ": " + r.label); b.setAttribute("aria-pressed", String(me === x[0])); d.appendChild(b);
       });
       if (!sent(r.key)) {
         var x = el("button", "chip", "✕", function () { e.adds = e.adds.filter(function (a) { return Tn.shopKey(a.text) !== r.key; }); delete e.marks[r.key]; Kit.sfx.tap(); up(); });
-        x.setAttribute("aria-label", L().ein_drop + ": " + r.label); d.appendChild(x);
+        x.setAttribute("aria-label", W("drop") + ": " + r.label); d.appendChild(x);
       }
       return d;
     }
     function up() {
       var v = now();
       rows.textContent = "";
-      if (!v[1].length) rows.appendChild(el("p", "note", L().ein_empty));
-      Tn.shopRows(v).forEach(function (r) { rows.appendChild(row(r, v)); });
-      set(Tn.shopOk(v) ? v : null);
+      if (!v[1].length) rows.appendChild(el("p", "note", W("empty")));
+      Tn.shopRows(v, cf).forEach(function (r) { rows.appendChild(row(r, v)); });
+      set(Tn.shopOk(v, cf) ? v : null);
     }
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
-      var a = Tn.shopParse(f.value); if (!a) { if (f.value.trim()) Kit.toast(t("filter")); return; }
+      var a = parse(f.value); if (!a) { if (f.value.trim()) Kit.toast(t("filter")); return; }
       var k = Tn.shopKey(a.text), had = now()[1].filter(function (it) { return Tn.shopKey(it[0]) === k; })[0];
       f.value = ""; f.focus();
-      if (had && had[2] >= a.qty) { Kit.toast(L().ein_have); return; }
+      if (had && had[2] >= a.qty) { Kit.toast(W("have")); return; }
       e.adds.push(a);
-      if (!now()[1].some(function (it) { return Tn.shopKey(it[0]) === k; })) { e.adds.pop(); f.value = a.qty > 1 ? a.qty + "× " + a.text : a.text; Kit.toast(L().ein_full); return; }
+      if (!now()[1].some(function (it) { return Tn.shopKey(it[0]) === k; })) { e.adds.pop(); f.value = a.qty > 1 ? a.qty + "× " + a.text : a.text; Kit.toast(W("full")); return; }
       Kit.sfx.pop(); up();
     });
     who.addEventListener("input", function () { e.name = who.value.trim(); up(); });
     form.appendChild(f); form.appendChild(plus); box.appendChild(form); box.appendChild(rows);
-    box.appendChild(el("label", "lbl", L().ein_name)); box.appendChild(who);
-    box.appendChild(el("p", "note", L().ein_hint)); up();
+    box.appendChild(el("label", "lbl", W("name"))); box.appendChild(who);
+    box.appendChild(el("p", "note", W("hint")));
+    if (cf && cf.due) todoTools(box, ctx.doc, now);
+    up();
   },
   // The time is picked once, then every tapped day adds that time. Dates are taps, never text.
   slots: function (box, p, set) {
@@ -595,6 +627,25 @@ var draw = {
     box.appendChild(el("p", "note", L().ter_hint)); up();
   }
 };
+// Under a task list: the open deadlines as a calendar file, and the next meeting's agenda from the open tasks (no AI).
+function todoTools(box, doc, now) {
+  var row = el("div", "chips"), out = el("div", "todoagenda"), title = doc.t || L().tdo_title;
+  row.appendChild(el("button", "chip", L().tdo_ics, function () {
+    var ics = Tn.todoIcs(now(), title, Kit.lang); Kit.sfx.tap();
+    if (!ics) { Kit.toast(L().tdo_ics_none); return; }
+    var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" })); a.download = "aufgaben.ics";
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+  }));
+  row.appendChild(el("button", "chip", L().tdo_next, function () {
+    Kit.sfx.tap(); out.textContent = "";
+    var text = Tn.todoAgenda(now(), title, Kit.lang);
+    out.appendChild(el("p", "agendatext", text));
+    out.appendChild(el("button", "chip", L().tdo_copy, async function () { if (await Kit.copy(text)) Kit.toast(t("copied")); }));
+  }));
+  box.appendChild(row); box.appendChild(out);
+}
+// A known age band under 18 (my defaults); an adult build never asks.
+function minor() { var f = A.me().pref; return !D.adult(A.me()) && !!f && (f.age === "u16" || f.age === "u18"); }
 // The calendar day on this phone, counted like Turns.today but from local midnight.
 function localDay() { return Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000); }
 // A name field filled with the profile's nick when the filter lets it through.
@@ -691,7 +742,7 @@ X.turn = {
   },
   open: function (ed) {
     ed.next = null; if (!Tn.state(ed.doc).turn) { ed.doc.seed = Tn.GAMES[ed.doc.g].daily ? Tn.today() : seed(); ed.base.seed = ed.doc.seed; ed.doc.q = ""; ed.base.q = ""; }
-    if (ed.doc.g === "einkauf") shopSync(ed);
+    if (listOf(ed.doc)) shopSync(ed);
   },
   areas: function (ed) { return ed.next ? ["regeln"] : []; },
   footer: function (b, ed) {
@@ -702,7 +753,7 @@ X.turn = {
   main: function (ed) {
     var over = !!Tn.result(ed.doc, Kit.lang);
     if (!over && !ed.next) { Kit.tone(200, 160, 0.1, "square", 0.06); var g = document.querySelector("#panel .btn.hot, #panel .chip, #panel .field"); if (g) { g.scrollIntoView({ block: "center" }); g.classList.add("nudge"); setTimeout(function () { g.classList.remove("nudge"); }, 700); } return; }
-    if (!over && ed.doc.g === "einkauf") {   // the list on screen in the colours and words chosen since; what goes out is what this phone knows now
+    if (!over && listOf(ed.doc)) {   // the list on screen in the colours and words chosen since; what goes out is what this phone knows now
       ed.next = Tn.play(ed.doc, [Tn.moves(ed.next)[0][0]], Tn.today()) || ed.next; shopKeep(ed.next, Tn.moves(ed.next)[0][0]);
     }
     Kit.sfx.thud(); A.finish(over ? ed.doc : ed.next);

@@ -1,7 +1,11 @@
 /* Skat: pure rules (no DOM, no network) after the International Skat Order (ISkO, DSkV/ISPA; English text at
    weddslist.com/skat/ordnung, sections 2-5). Three seats, 32 cards, 10 each plus a skat of two. The state is public:
    nobody's hand is in it, cards appear only when played or laid open. Following suit can only be checked once the hands
-   are revealed, see audit(). Left out for now: Kontra/Re, Ramsch, Bock. */
+   are revealed, see audit(). Two house rules the table may switch on together (chips, the same on every device):
+   "ramsch" - all pass: a Ramsch instead of a new deal (jacks only are trump, everyone for themselves, the skat goes to
+   whoever takes the last trick, the most card points lose them; one player with every trick: Durchmarsch, +120);
+   "kontra" - a defender may say Kontra before playing a card, the declarer Re before his second card; each doubles
+   the game value. Left out: Bock, Jungfrau, Schieberamsch. */
 (function (root) {
   "use strict";
   var SEATS = 3, HAND = 10, SUITS = ["C", "S", "H", "D"], RANKS = ["A", "T", "K", "Q", "J", "9", "8", "7"];
@@ -9,6 +13,9 @@
   var EYES = { A: 11, T: 10, K: 4, Q: 3, J: 2, "9": 0, "8": 0, "7": 0 };
   var BASE = { D: 9, H: 10, S: 11, C: 12, G: 24 };
   var NULL = { plain: 23, hand: 35, ouvert: 46, ouvertHand: 59 };
+  var RULES = ["ramsch", "kontra"];
+  function rules(r) { r = Array.isArray(r) ? r : []; return RULES.filter(function (k) { return r.indexOf(k) >= 0; }); }
+  function has(s, k) { return !!s && Array.isArray(s.rules) && s.rules.indexOf(k) >= 0; }
   var JACKS = ["CJ", "SJ", "HJ", "DJ"], PLAIN = ["A", "T", "K", "Q", "9", "8", "7"], NULLRANK = ["A", "K", "Q", "J", "T", "9", "8", "7"];
 
   // Every value a game can have, ascending: the valid bids (ISkO 3.3.2). Suit games range from "with/without 1, game 2"
@@ -37,7 +44,7 @@
   function start(o) {
     var dealer = o && typeof o.dealer === "number" ? ((o.dealer % 3) + 3) % 3 : 0;
     return {
-      game: "skat", dealer: dealer, phase: "bid",
+      game: "skat", rules: rules(o && o.rules), kontra: 0, dealer: dealer, phase: "bid",
       // stage: "mh" Middlehand bids to Forehand, "rh" Rearhand bids to the survivor, "fh" both passed and Forehand decides
       bid: { v: 0, bidder: middlehand(dealer), holder: forehand(dealer), ask: "bid", stage: "mh", passed: [], last: null },
       declarer: -1, pickedUp: false, pushed: false, contract: null, open: null,
@@ -60,10 +67,29 @@
     var order = game === "N" ? NULLRANK : PLAIN;
     return 50 - order.indexOf(c[1]);
   }
-  function trickWinner(game, cards) {
+  function bestIndex(game, cards) {
     var led = suitOf(game, cards[0].card), best = 0;
     for (var i = 1; i < cards.length; i++) if (power(game, cards[i].card, led) > power(game, cards[best].card, led)) best = i;
-    return cards[best].seat;
+    return best;
+  }
+  function trickWinner(game, cards) { return cards[bestIndex(game, cards)].seat; }
+  // Why a trick goes where it goes (see doko.js explain): led suit, winning card and reason, how each card answered.
+  function explain(game, cards) {
+    if (!cards || !cards.length) return null;
+    var led = suitOf(game, cards[0].card), i = bestIndex(game, cards), w = cards[i].card;
+    return { led: led, win: i, seat: cards[i].seat, card: w, why: led !== "T" && isTrump(game, w) ? "trump" : "high",
+      plays: cards.map(function (x, k) { return { seat: x.seat, card: x.card, how: k === 0 ? "lead" : suitOf(game, x.card) === led ? "follow" : isTrump(game, x.card) ? "trump" : "off" }; }),
+      order: trumpOrder(game) };
+  }
+  function playedBy(s, seat) {
+    return s.tricks.concat(s.trick ? [s.trick] : []).reduce(function (n, t) { return n + t.cards.filter(function (x) { return x.seat === seat; }).length; }, 0);
+  }
+  // Kontra/Re (house rule): the deadline only counts the caller's own cards, so every device judges it the same way
+  // whatever order the other players' messages arrive in.
+  function kontraOk(s, seat, t) {
+    if (!has(s, "kontra") || s.phase !== "play" || !s.contract || s.contract.ramsch) return false;
+    if (t === "kontra") return s.kontra === 0 && seat !== s.declarer && playedBy(s, seat) === 0;
+    return t === "re" && s.kontra === 1 && seat === s.declarer && playedBy(s, seat) <= 1;
   }
   function mayPlay(game, hand, card, trick) {
     if (hand.indexOf(card) < 0) return false;
@@ -124,8 +150,9 @@
       declareOptions(s).forEach(function (c) { out.push(Object.assign({ t: "declare", seat: seat }, c)); });
     } else if (s.phase === "show" && seat === s.declarer) {
       out.push({ t: "show", seat: seat, cards: (hand || []).slice() });
-    } else if (s.phase === "play" && seat === s.next) {
-      (hand || []).forEach(function (c) { if (mayPlay(s.contract.game, hand, c, s.trick)) out.push({ t: "play", seat: seat, card: c }); });
+    } else if (s.phase === "play") {
+      if (seat === s.next) (hand || []).forEach(function (c) { if (mayPlay(s.contract.game, hand, c, s.trick)) out.push({ t: "play", seat: seat, card: c }); });
+      ["kontra", "re"].forEach(function (t) { if (kontraOk(s, seat, t)) out.push({ t: t, seat: seat }); });
     }
     return out;
   }
@@ -149,7 +176,14 @@
     if (a.t === "hold") { if (b.ask !== "answer") return fail("phase"); b.ask = "bid"; return ok(s); }
     if (a.t !== "pass") return fail("action");
     b.passed.push(a.seat);
-    if (b.stage === "fh") { s.phase = "done"; s.passedOut = true; b.ask = null; return ok(s); }
+    if (b.stage === "fh") {
+      b.ask = null;
+      if (!has(s, "ramsch")) { s.phase = "done"; s.passedOut = true; return ok(s); }
+      // everyone passed: Ramsch, Forehand leads, the skat stays down
+      s.phase = "play"; s.contract = { game: "G", hand: true, schneider: false, schwarz: false, ouvert: false, ramsch: true };
+      s.next = forehand(d); s.trick = { lead: s.next, cards: [] };
+      return ok(s);
+    }
     var survivor = a.seat === b.bidder ? b.holder : b.bidder;
     if (b.stage === "mh") {
       // Rearhand now bids to whoever is left, starting above the last value (ISkO 3.3.4)
@@ -182,6 +216,10 @@
     var s = copy(state);
     if (s.phase === "done") return fail("done");
     if (s.phase === "bid") return applyBid(s, a);
+    if (a.t === "kontra" || a.t === "re") {
+      if (!kontraOk(s, a.seat, a.t)) return fail("kontra");
+      s.kontra++; return ok(s);
+    }
     if (a.seat !== turn(s)) return fail("turn");
     if (s.phase === "skat" && a.t === "pickup") { s.pickedUp = true; s.phase = "push"; return ok(s); }
     if (s.phase === "push" && a.t === "push") { s.pushed = true; s.phase = "declare"; return ok(s); }
@@ -228,6 +266,7 @@
   // ---------- scoring ----------
   function result(s, full) {
     if (s.passedOut) return { winner: null, passedOut: true, points: [0, 0, 0], list: [0, 0, 0], eyes: null, lines: [] };
+    if (s.contract && s.contract.ramsch) return ramschResult(s, full);
     var d = s.declarer, c = s.contract, base, value, won, lines = [], overbid = false;
     var mine = s.tricks.filter(function (t) { return t.winner === d; });
     var down = s.pickedUp ? (full.pushed || []) : (full.skat || []);
@@ -251,11 +290,13 @@
       value = base * m; won = !failed && de >= 61;
       lines.push({ k: "base", v: base });
     }
+    var dbl = s.kontra ? Math.pow(2, s.kontra) : 1;
     if (value < s.bid.v) {
       // overbid: lost, and raised by whole multiples of the base value until it covers the bid (5.4.1). An invalid null
       // cannot be announced at all, so for nulls this only guards against a broken state.
       overbid = true; won = false; value = Math.ceil(s.bid.v / base) * base; lines.push({ k: "overbid", v: value });
     }
+    if (dbl > 1) { value *= dbl; lines.push({ k: s.kontra > 1 ? "re" : "kontra", v: dbl }); }
     var points = [0, 0, 0], list = [0, 0, 0];
     points[d] = won ? value : -2 * value;
     // tournament list (Seeger-Fabian, ISkO scoresheet): +50 for a won game, -50 for a lost one, and when the soloist
@@ -264,6 +305,18 @@
     if (!won) for (var i = 0; i < 3; i++) if (i !== d) list[i] = 40;
     return { winner: won ? "declarer" : "defenders", declarer: d, game: c.game, value: value, won: won, overbid: overbid,
       points: points, list: list, eyes: { declarer: de, defenders: 120 - de }, tricks: mine.length, lines: lines };
+  }
+
+  // Ramsch: every seat counts its own tricks, the skat goes with the last trick. The most card points lose them (ties:
+  // all of them); one seat with all ten tricks wins 120 (Durchmarsch). The tournament list has no Ramsch: it equals the points.
+  function ramschResult(s, full) {
+    var e = [0, 0, 0], n = [0, 0, 0], last = s.tricks[s.tricks.length - 1];
+    s.tricks.forEach(function (t) { e[t.winner] += eyes(t.cards.map(function (x) { return x.card; })); n[t.winner]++; });
+    if (last) e[last.winner] += eyes(full.skat || []);
+    var points = [0, 0, 0], march = n.indexOf(HAND), top = Math.max.apply(null, e), losers = [];
+    if (march >= 0) points[march] = 120;
+    else e.forEach(function (x, i) { if (x === top) { losers.push(i); points[i] = -x; } });
+    return { winner: "ramsch", ramsch: true, durchmarsch: march, losers: losers, points: points, list: points.slice(), eyes: null, seatEyes: e, tricks: n, lines: [] };
   }
 
   // ---------- after the hand: was everything legal? ----------
@@ -326,7 +379,7 @@
     return ok.length ? { t: "play", seat: seat, card: ok[0] } : null;
   }
 
-  var api = { SEATS: SEATS, HAND: HAND, DECK: DECK, EYES: EYES, BASE: BASE, NULL: NULL, BIDS: BIDS, auto: auto,
+  var api = { SEATS: SEATS, HAND: HAND, DECK: DECK, EYES: EYES, BASE: BASE, NULL: NULL, BIDS: BIDS, RULES: RULES, rules: rules, explain: explain, trumpOrder: trumpOrder, auto: auto,
     layout: layout, start: start, turn: turn, actions: actions, apply: apply, done: done, result: result, audit: audit,
     trickWinner: trickWinner, isTrump: isTrump, suitOf: suitOf, tops: tops, eyes: eyes,
     forehand: forehand, middlehand: middlehand, rearhand: rearhand };

@@ -264,3 +264,46 @@ test("Zustand bleibt reines JSON und apply veraendert ihn nie", () => {
   assert.deepEqual(JSON.parse(before), s);
   no(s, null, "action"); no(s, { t: "fly", seat: 2 }, "action");
 });
+
+test("Hausregel Ramsch: alle passen, nur Buben sind Trumpf, meiste Augen verlieren, Skat an den letzten Stich", () => {
+  assert.deepEqual(S.rules(["kontra", "ramsch", "bock"]), ["ramsch", "kontra"]);
+  const passAll = [{ t: "pass", seat: 1 }, { t: "pass", seat: 2 }, { t: "pass", seat: 0 }];
+  assert.equal(seq(S.start({ dealer: 2 }), passAll).passedOut, true, "ohne Regel: neu geben");
+  for (let seed = 1; seed <= 30; seed++) {
+    const full = deal(seed);
+    let s = seq(S.start({ dealer: 2, rules: ["ramsch"] }), passAll);
+    assert.equal(s.phase, "play"); assert.equal(s.contract.ramsch, true); assert.equal(S.turn(s), 0); assert.equal(s.declarer, -1);
+    assert.ok(!S.actions(s, 1, full.hands[1]).some((a) => a.t === "kontra"));
+    s = playOut(s, full.hands);
+    const r = S.result(s, full), last = s.tricks[9].winner;
+    assert.equal(r.seatEyes.reduce((a, b) => a + b, 0), 120);
+    assert.ok(r.seatEyes[last] >= S.eyes(full.skat));
+    if (r.durchmarsch >= 0) assert.deepEqual(r.points.filter((p) => p), [120]);
+    else { const top = Math.max(...r.seatEyes); assert.deepEqual(r.losers, [0, 1, 2].filter((i) => r.seatEyes[i] === top)); r.losers.forEach((i) => assert.equal(r.points[i], -top)); }
+    assert.deepEqual(r.list, r.points); assert.deepEqual(S.audit(s, full), [], "seed " + seed);
+  }
+});
+test("Hausregel Kontra/Re: Gegner vor der ersten eigenen Karte, Alleinspieler vor der zweiten; jedes verdoppelt", () => {
+  const start = (rules) => seq(S.start({ dealer: 2, rules }), [{ t: "bid", seat: 1, v: 18 }, { t: "pass", seat: 0 }, { t: "pass", seat: 2 }, { t: "declare", seat: 1, game: "C", hand: true }]);
+  no(start([]), { t: "kontra", seat: 0 }, "kontra");
+  let s = start(["kontra"]);
+  assert.ok(S.actions(s, 2, []).some((a) => a.t === "kontra"), "auch ausser der Reihe");
+  assert.ok(!S.actions(s, 1, []).some((a) => a.t === "kontra"));
+  no(s, { t: "re", seat: 1 }, "kontra");
+  s = go(s, { t: "play", seat: 0, card: "C7" });
+  no(s, { t: "kontra", seat: 0 }, "kontra");                       // already played a card
+  s = go(s, { t: "kontra", seat: 2 }); assert.equal(s.kontra, 1);
+  no(s, { t: "kontra", seat: 2 }, "kontra");
+  s = go(s, { t: "play", seat: 1, card: "C8" }); s = go(s, { t: "re", seat: 1 }); assert.equal(s.kontra, 2);
+  const r1 = S.start({ dealer: 2, rules: ["kontra"] });
+  const base = finished({ game: "C", hand: true }, { mine: HIGH.slice(0, 9).concat(["CJ", "SJ", "HJ"]) });
+  const plain = S.result(base, fullFor(0, ["CJ", "SJ"], ["S7", "S8"], false));
+  const dbl = S.result(Object.assign({}, base, { rules: r1.rules, kontra: 2 }), fullFor(0, ["CJ", "SJ"], ["S7", "S8"], false));
+  assert.equal(dbl.value, plain.value * 4); assert.ok(dbl.lines.some((l) => l.k === "re" && l.v === 4));
+});
+test("Warum? im Skat: Bube ist Trumpf, Fehl nur in der Farbe", () => {
+  const E = (g, cs) => S.explain(g, cs.map((card, i) => ({ seat: i, card })));
+  const a = E("H", ["CA", "DJ", "C7"]); assert.deepEqual([a.led, a.win, a.why], ["C", 1, "trump"]); assert.deepEqual(a.plays.map((p) => p.how), ["lead", "trump", "follow"]);
+  assert.deepEqual(E("G", ["SA", "ST", "HA"]).plays.map((p) => p.how), ["lead", "follow", "off"]);
+  assert.equal(E("N", ["SJ", "SA", "ST"]).win, 1); assert.deepEqual(E("N", ["SJ"]).order, []);
+});

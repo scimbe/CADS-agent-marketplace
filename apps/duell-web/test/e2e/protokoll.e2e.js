@@ -177,3 +177,28 @@ test("Protokoll: Modell nur von der eigenen Domain; Sperre im Firmennetz und kap
   assert.equal(await p.locator("#rec").isHidden(), true);
   await b.close();
 });
+
+test("Protokoll -> Aufgaben-Link: Namen nur wo im Meeting genannt, Frist als Tag, die App oeffnet die Liste", async () => {
+  const ai = { status: 200, body: { kind: "protokoll", options: [{ title: "Sommerfest", participants: ["Anna", "Ben"], topics: ["Sommerfest"], decisions: [],
+    tasks: [{ who: "Anna", what: "Getränke besorgen", due: "Mittwoch" }, { who: "Ben", what: "Raum buchen", due: "" }] }], meter: { remaining: 2, free: 3 } } };
+  const { b, p, seen } = await open({ ai });
+  await p.route(ORIGIN + "/duell", (r) => r.fulfill({ body: fs.readFileSync(path.join(DIST, "index.html")), headers: { "Content-Type": "text/html; charset=utf-8" } }));
+  await p.getByLabel(CONSENT).check(); await p.getByRole("button", { name: "Mitschrift starten" }).click();
+  await p.locator("#lines li").nth(2).waitFor({ timeout: 20000 });
+  await p.getByRole("button", { name: "■ Stopp" }).click(); await p.waitForFunction(() => !document.getElementById("transcript").disabled);
+  await p.getByRole("button", { name: "Mit KI zusammenfassen …" }).click();
+  await p.getByLabel("Ja, diesen Text einmalig zur Zusammenfassung senden.").check();
+  await p.getByRole("button", { name: "Senden und zusammenfassen" }).click(); await p.locator("#result").waitFor();
+  const go = p.getByRole("button", { name: "✅ Aufgaben zum Abhaken teilen" });
+  if (process.env.SHOT_DIR) await p.screenshot({ path: process.env.SHOT_DIR + "/wa-protokoll-aufgaben.png", fullPage: true });
+  const nav = p.waitForURL(/\/duell#todo=|\/duell$/); await go.click(); await nav;
+  await p.locator("#panel .shoprow").first().waitFor();
+  const rows = await p.locator("#panel .shoprow").allInnerTexts();
+  assert.equal(rows.length, 2);
+  assert.match(rows[0], /Getränke besorgen\nmacht: 🐸 Anna · bis Mi \d{1,2}\.\d{1,2}\./, "Anna fiel im Meeting: zustaendig, Frist Mittwoch");
+  assert.match(rows[1], /Raum buchen\noffen/, "Ben fiel nie: offen");
+  assert.equal(await p.evaluate(() => location.hash), "");
+  if (process.env.SHOT_DIR) await p.screenshot({ path: process.env.SHOT_DIR + "/wa-protokoll-liste.png" });
+  assert.deepEqual([...seen.hosts], ["protokoll.test"]); assert.deepEqual(seen.errors, []);
+  await b.close();
+});

@@ -93,7 +93,19 @@
     call: true   // the card offers to start the meeting in the webconference
   };
 
-  var CARDS = { umfrage: umfrage, feedback: feedback, aufgaben: aufgaben, agenda: agenda };
+  // ---------- tasks from Fast Easy Protokoll: a checklist link, merged like the shopping list (turns.js TODO) ----------
+  var TODO = Tn.TODO;
+  function names(l) { return l.map(function (p) { return p[0]; }).join(", "); }
+  var todo = {
+    snap: true, list: TODO,
+    turns: [[{ w: "shop", l: "tdo_make", live: true, k: "tdo", cfg: TODO }], [{ w: "shop", l: "tdo_go", live: true, k: "tdo", cfg: TODO }]],
+    ends: function (doc, m) { return m.length > 0 && Tn.shopDone(m[0][0]); },
+    words: { you_start: "tdo_start", go_first: "tdo_go_first", go_play: "tdo_go_play", note_turn: "tdo_note", note_over: "tdo_over", ready: "tdo_ready", send: "tdo_send", rematch: "tdo_again" },
+    face: function (doc, m, lang) { return m.length ? [Tn.shopCount(m[0][0], lang, TODO)] : null; },
+    result: function (doc, m, lang) { return { h: T(lang).tdo_done_h, lines: Tn.shopRows(m[0][0], TODO).map(function (r) { return fmt(T(lang).tdo_line, { s: r.label, n: names(r.bought) }); }) }; }
+  };
+
+  var CARDS = { umfrage: umfrage, feedback: feedback, aufgaben: aufgaben, agenda: agenda, todo: todo };
   Object.keys(CARDS).forEach(function (k) { if (!Tn.GAMES[k]) { Tn.GAMES[k] = CARDS[k]; Tn.IDS.push(k); } });
   var api = { CARDS: Object.keys(CARDS), pollCount: pollCount, owners: owners, openJobs: openJobs, points: points, face: function (doc, lang) { var g = Tn.GAMES[doc.g]; return g && g.face ? g.face(doc, Tn.moves(doc), lang) : null; } };
   if (node) module.exports = api; else root.Office = api;
