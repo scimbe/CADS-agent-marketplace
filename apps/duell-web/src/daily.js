@@ -109,9 +109,11 @@
   }
   // Title, subtitle, kind and tags in both languages; names maps a kind to its shown words. A new entry in ideas.json is
   // found as soon as it is there, with the day it last came up if that was within the last year.
-  var SEARCH_DAYS = 365, MAX_HITS = 30;
+  // Fill words ("Geschenk für Oma", "game for the class") do not have to appear on the card, unless nothing else is typed.
+  var SEARCH_DAYS = 365, MAX_HITS = 30, FILL = " fuer for mit with und and the der die das den dem ein eine einen a an zum zur im in am to of von ";
   function searchIdeas(query, date, names, c) {
-    var words = fold(query).split(" ").filter(Boolean);
+    var words = fold(query).split(" ").filter(Boolean), real = words.filter(function (w) { return FILL.indexOf(" " + w + " ") < 0; });
+    if (real.length) words = real;
     if (!words.length) return [];
     c = c || caps();
     var hits = IDEAS.concat(GATED).filter(function (i) {
