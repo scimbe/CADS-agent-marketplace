@@ -47,24 +47,51 @@ function begin(serving) {
 }
 function mmss(ms) { var s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
 // ---------- the inviter ----------
+// My open invite in this tab. Its own link (tapped in the chat after sharing) brings me back here instead of using it up.
+var mine = null, joined = null;
 async function invite(opt) {
   game = pick(opt && opt.g, opt && opt.set); games = 0;
   screen([["p", "livebig", t("live_making")]]);
   var inv;
   try { inv = await window.Live.invite(onState); } catch (e) { fail(e); return; }
   try { sessionStorage.setItem("liveInvite", JSON.stringify({ token: inv.token, until: inv.expires })); } catch (e) {}
+  if (window.OwnInvites) window.OwnInvites.add([inv.token], inv.expires);
   var share = function () { Kit.share({ url: link(inv.token), text: game ? own("live_" + game.g + "ShareText", "arc_share", { n: t("arc_" + game.g) }) : t("live_shareText") }); };
-  var b = screen([["p", "livebig", t("live_wait")], ["p", "livecount", ""], ["p", "note", t("live_waitNote")], ["p", "note", t("live_ipNote")]], [[t("live_share"), share], [t("live_home"), function () { close(); }, "btn"]]);
-  var cnt = b.querySelector(".livecount"), tick = setInterval(function () { if (!b.isConnected) return clearInterval(tick); cnt.textContent = t("live_left", { t: mmss(inv.expires - Date.now()) }); }, 500);
+  var tick = 0, g = game;
+  function wait() {
+    clearInterval(tick); game = g;
+    var b = screen([["p", "livebig", t("live_wait")], ["p", "livecount", ""], ["p", "note", t("live_waitNote")], ["p", "note", t("live_ipNote")]], [[t("live_share"), share], [t("live_home"), function () { close(); }, "btn"]]);
+    var cnt = b.querySelector(".livecount");
+    tick = setInterval(function () { if (!b.isConnected) return clearInterval(tick); cnt.textContent = t("live_left", { t: mmss(inv.expires - Date.now()) }); }, 500);
+  }
+  var me = mine = { token: inv.token, wait: wait };
+  wait();
   share();
-  try { conn = await inv.ready; } catch (e) { clearInterval(tick); fail(e); return; }
-  clearInterval(tick);
+  try { conn = await inv.ready; } catch (e) { clearInterval(tick); if (mine === me) mine = null; if (window.OwnInvites) window.OwnInvites.drop([inv.token]); fail(e); return; }
+  clearInterval(tick); me.wait = null;
+  if (window.OwnInvites) window.OwnInvites.drop([inv.token]);   // used by the friend now: a later tap on it is an ordinary used link
   screen([["p", "livebig", t("live_here")], ["p", "livebadge", B.badge(conn.channel)], ["p", "note", t("live_badgeNote")]], [[t("live_start"), function () { conn.send(Object.assign({ t: "go" }, game)); begin(true); }]]);
   conn.onClose(lost);
 }
+// My own link, opened on this device: never a join. The waiting screen or the running game if this tab still has it,
+// otherwise a word that the link stays free, with a way to share it again or to invite anew.
+function back(token) {
+  if (joined === token && ov) return true;   // the link I came in with, tapped again during the game
+  if (!mine || mine.token !== token) return false;
+  if (mine.wait) { mine.wait(); return true; }
+  return !!ov;
+}
+function ownLink(token, g) {
+  if (ov && conn) { Kit.toast(t("live_own")); return; }   // another game runs here: it stays
+  game = pick(g);
+  var share = function () { Kit.share({ url: link(token), text: game ? own("live_" + game.g + "ShareText", "arc_share", { n: t("arc_" + game.g) }) : t("live_shareText") }); };
+  screen([["p", "livebig", t("live_own")], ["p", "note", t("live_ownNote")]], [[t("live_share"), share], [t("live_again"), function () { invite(game); }], [t("live_home"), function () { close(); }, "btn"]]);
+}
 // ---------- the invited friend ----------
 async function accept(token, g) {
-  game = pick(g); games = 0;
+  if (back(token)) return;
+  if (window.OwnInvites && window.OwnInvites.mine([token])) { ownLink(token, g); return; }
+  game = pick(g); games = 0; joined = token;
   screen([["p", "livebig", t("live_challenged")], ["p", "note", t("live_connecting")]]);
   try { conn = await window.Live.accept(token, onState); } catch (e) { fail(e); return; }
   conn.onClose(lost);
