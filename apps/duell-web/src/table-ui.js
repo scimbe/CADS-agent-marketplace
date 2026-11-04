@@ -18,6 +18,7 @@ var TX = {
     cheat: "⚠ Beim Mischen hat jemand geschummelt ({n}). Das Spiel zählt nicht.", bad: "⚠ Regelverstoß von {n} ({w}). Das Spiel zählt nicht.",
     aborted: "{n} ist aufgestanden – dieses Spiel zählt nicht. Ladet jemanden ein, dann geht's weiter.", lost: "Verbindung zum Tisch weg.",
     full: "Der Tisch ist schon voll (oder der Link ist abgelaufen).", joining: "Du wirst an den Tisch geholt …",
+    own: "Das ist deine eigene Einladung – sie bleibt frei für deine Freunde.", ownNote: "Dein Tisch steht dort, wo du eingeladen hast. Ist das zu, deck hier einen neuen.", fresh: "Neuen Tisch decken", back: "Zurück",
     gesund: "Gesund", vorbehalt: "Vorbehalt", hochzeit: "Hochzeit", damen: "Damensolo", buben: "Bubensolo", fleischlos: "Fleischloser", kreuz: "Kreuz-Solo", pik: "Pik-Solo", herz: "Herz-Solo", karo: "Karo-Solo",
     k90: "keine 90", k60: "keine 60", k30: "keine 30", schwarz: "schwarz", normal: "Normalspiel", wedding: "Hochzeit",
     bid: "{v} reizen", hold: "Ja ({v})", pass: "Passe", pickup: "Skat aufnehmen", push: "Diese 2 drücken", pushHint: "Tipp zwei Karten an, die du drückst.",
@@ -36,6 +37,7 @@ var TX = {
     cheat: "⚠ Someone cheated while shuffling ({n}). This game does not count.", bad: "⚠ Rule broken by {n} ({w}). This game does not count.",
     aborted: "{n} left – this game does not count. Invite someone and carry on.", lost: "Connection to the table lost.",
     full: "The table is already full (or the link has expired).", joining: "Taking you to the table …",
+    own: "This is your own invite – it stays free for your friends.", ownNote: "Your table is where you sent the invite. If that is closed, set a new one here.", fresh: "Set a new table", back: "Back",
     gesund: "Healthy", vorbehalt: "Reservation", hochzeit: "Marriage", damen: "Queen solo", buben: "Jack solo", fleischlos: "Aces solo", kreuz: "Clubs solo", pik: "Spades solo", herz: "Hearts solo", karo: "Diamonds solo",
     k90: "no 90", k60: "no 60", k30: "no 30", schwarz: "schwarz", normal: "Normal game", wedding: "Marriage",
     bid: "Bid {v}", hold: "Yes ({v})", pass: "Pass", pickup: "Pick up the skat", push: "Discard these 2", pushHint: "Tap the two cards you discard.",
@@ -94,6 +96,7 @@ if (window.Render) window.Render.extra.table = preview;
 
 // ---------- the layer ----------
 var ov = null, tb = null, game = "doko", pick = [], tick = 0;
+var mine = [];   // the tokens of this table's links that I made or came in with: tapped again, they lead back here
 function layer() {
   if (!ov) {
     ov = el("div", "liveov tbov"); ov.setAttribute("role", "dialog");
@@ -157,12 +160,14 @@ function lobby(b, v) {
   b.appendChild(el("p", "note", t("badgeNote"))); b.appendChild(el("p", "note", t("ipNote")));
   b.appendChild(el("button", "btn", t("leave"), function () { close(); }));
 }
+// Every link I hand out is remembered on this device first, so that tapping it myself never takes a seat (own.js).
+function made(tokens, exp) { mine = mine.concat(tokens); if (window.OwnInvites) window.OwnInvites.add(tokens, exp); }
 async function inviteOne() {
-  try { var i = await tb.invite(); Kit.share({ url: link(i.token), text: L().shareText[game] }); }
+  try { var i = await tb.invite(); made([i.token], i.expires); Kit.share({ url: link(i.token), text: L().shareText[game] }); }
   catch (e) { Kit.toast(t(e && e.message === "full" ? "full" : "lost")); }
 }
 async function inviteGroup() {
-  try { var g = await tb.inviteAll(); Kit.share({ url: link(g.tokens), text: L().shareGroup[game] }); }
+  try { var g = await tb.inviteAll(); made(g.tokens, g.expires); Kit.share({ url: link(g.tokens), text: L().shareGroup[game] }); }
   catch (e) { Kit.toast(t(e && e.message === "full" ? "full" : "lost")); }
 }
 function label(a, st) {
@@ -244,7 +249,7 @@ function end(b, v) {
   b.appendChild(el("button", "btn", t("leave"), function () { close(); }));
 }
 function start(make) {
-  close(); layer().appendChild(el("p", "livebig", t("making")));
+  close(); mine = []; layer().appendChild(el("p", "livebig", t("making")));
   return Promise.resolve().then(make).then(function (x) {
     tb = x; tb.on(render); render(tb.view());
     // every second the Auto countdown, every five seconds the whole screen (redrawing more often would eat taps)
@@ -266,10 +271,30 @@ function open(g) {
   game = g === "skat" ? "skat" : "doko";
   return start(function () { return T.create(Object.assign({ game: game, live: window.Live }, me())); }).then(function (x) { if (x) inviteGroup(); });
 }
+// My own link, opened on this device: never a join. Back to the table if this tab still has it.
+function back(list) {
+  if (!tb || !ov || !list.some(function (x) { return mine.indexOf(x) >= 0; })) return false;
+  render(tb.view()); return true;
+}
+// The table is not here any more (another tab, a reload): the link stays free, share it again or set a new table.
+function ownLink(list) {
+  if (tb && ov) { Kit.toast(t("own")); render(tb.view()); return Promise.resolve(tb); }   // another table runs here: it stays
+  close();
+  var b = layer();
+  b.appendChild(el("p", "lbl", t(game)));
+  b.appendChild(el("p", "livebig", t("own"))); b.appendChild(el("p", "note", t("ownNote")));
+  b.appendChild(el("button", "btn hot", t(list.length > 1 ? "shareAll" : "share"), function () { Kit.share({ url: link(list), text: L()[list.length > 1 ? "shareGroup" : "shareText"][game] }); }));
+  b.appendChild(el("button", "btn hot", t("fresh"), function () { Kit.sfx.thud(); open(game); }));
+  b.appendChild(el("button", "btn", t("back"), function () { close(); }));
+  return Promise.resolve(null);
+}
 // tokens: "a" or "a.b.c" (a group link)
 function accept(g, tokens) {
+  var list = String(tokens).split(".");
+  if (back(list)) return Promise.resolve(tb);
   game = g === "skat" ? "skat" : "doko";
-  return start(function () { return T.join(String(tokens).split("."), Object.assign({ game: game, live: window.Live }, me())); });
+  if (window.OwnInvites && window.OwnInvites.mine(list)) return ownLink(list);
+  return start(function () { return T.join(list, Object.assign({ game: game, live: window.Live }, me())); }).then(function (x) { if (x) mine = mine.concat(list); return x; });
 }
 window.TableUI = { open: open, accept: accept, close: close, cardSvg: cardSvg, preview: preview };
 })();
