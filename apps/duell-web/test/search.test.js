@@ -64,3 +64,52 @@ test("Suche: Treffer tragen den letzten Tag, an dem die Karte dran war, neueste 
   const own = D.searchIdeas(yesterday.de.t, day, names).find((h) => h.idea.id === yesterday.id);
   assert.equal(D.dayNumber(own.date), D.dayNumber(day) - 1);
 });
+test("Suche: Fuellwoerter wie fuer/mit/for muessen nicht auf der Karte stehen, allein bleiben sie Suchwort", () => {
+  assert.deepEqual(ids("Geld für PayPal"), ids("geld paypal"));
+  assert.deepEqual(ids("game for the moon"), ids("game moon"));
+  assert.ok(ids("mit").length > 0, "nur Fuellwort: wird normal gesucht");
+});
+test("Tags: Filter fuer die KI-Vorschlaege (Wortliste, Jugendschutz, Marken, Laenge, doppelt)", () => {
+  const Tg = require("../scripts/tags.js");
+  for (const bad of ["Bier", "Trinkspiel", "casino abend", "Dating", "hurensohn", "TikTok", "Spaß", "fun", "a", "vier wörter sind zu viel", "x".repeat(29)]) assert.equal(Tg.cleanTag(bad), "", bad);
+  for (const ok of ["Geschenk für Oma", "Weinen", "schwein", "Mathe lernen!"]) assert.ok(Tg.cleanTag(ok), ok);
+  const idea = { id: "x", kind: "turn", tags: ["wg"], de: { t: "Geld|einsammeln", s: "Fürs Geschenk." }, en: { t: "Collect|money", s: "For the gift." } };
+  assert.deepEqual(Tg.filterTags(idea, { de: ["geburtstag", "Geburtstagsfeier", "geschenk", "WG", "oma", "bier"], en: ["birthday", "money", "flatmates"] }),
+    ["wg", "geburtstagsfeier", "oma", "birthday", "flatmates"], "bestehende zuerst, dann in Reihenfolge; im Titel, in einem laengeren Tag oder doppelt: raus");
+});
+test("Tags: fast jede Karte hat mindestens 5, keine mehr als 30; alle sauber, kurz, keine doppelt", () => {
+  const Tg = require("../scripts/tags.js"), biz = require("../src/flavors/business/ideas.json"), all = D.IDEAS.concat(D.GATED, biz.ideas);
+  // A card that another branch adds gets its tags in the next nightly run; until then it is found by title.
+  assert.ok(all.filter((i) => (i.tags || []).length >= 5).length >= all.length * 0.9);
+  for (const i of all) {
+    const tags = i.tags || [];
+    assert.ok(tags.length <= 30, i.id);
+    assert.equal(new Set(tags.map(D.fold)).size, tags.length, i.id);
+    for (const t of tags) assert.equal(Tg.cleanTag(t), t, i.id + ": " + t);
+  }
+});
+// The cards a person means, not the words on them: each query is only found through the tags (checked without them).
+const EVERYDAY = [["Geschenk für Oma", "zug-gutschein"], ["Mathe lernen", "zug-abfragen"], ["Grillabend", "zug-einkauf"], ["Geburtstag", "zug-kerzen"],
+  ["Klassenfahrt", "raum-erklaeren"], ["Weihnachten", "zug-wichteln"], ["krank", "warm-besserung"], ["Bewerbung", "warm-daumen"], ["Versöhnung", "raum-sorry"],
+  ["Fernbeziehung", "zug-umschlag"], ["Regentag", "raum-finger"], ["birthday party", "zug-kerzen"]];
+const OFFICE = [["Teammeeting", "biz-agenda"], ["Abschied", "biz-sammeln-geschenk"], ["Mittagessen", "biz-umfrage-lunch"]];
+function withoutTags(list, fn) {
+  const saved = list.map((i) => i.tags);
+  list.forEach((i) => delete i.tags);
+  try { return fn(); } finally { list.forEach((i, k) => { if (saved[k]) i.tags = saved[k]; }); }
+}
+test("Suche: 15 Alltagsanfragen finden die passende Karte, und zwar ueber die Tags", () => {
+  assert.equal(EVERYDAY.length + OFFICE.length, 15);
+  for (const [q, id] of EVERYDAY) {
+    assert.ok(ids(q).includes(id), q + " -> " + id);
+    assert.ok(!withoutTags(D.IDEAS, () => ids(q)).includes(id), q + ": ohne Tags nicht gefunden");
+  }
+  const biz = require("../src/flavors/business/ideas.json").ideas, saved = D.IDEAS.splice(0, D.IDEAS.length, ...biz);
+  try {
+    for (const [q, id] of OFFICE) {
+      assert.ok(ids(q).includes(id), "Business: " + q + " -> " + id);
+      assert.ok(!withoutTags(D.IDEAS, () => ids(q)).includes(id), q + ": ohne Tags nicht gefunden");
+    }
+  } finally { D.IDEAS.splice(0, D.IDEAS.length, ...saved); }
+  assert.equal(D.IDEAS.length, saved.length);
+});

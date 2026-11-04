@@ -1,6 +1,7 @@
 {
  "ideas": [
   {
+   "tags": ["vereinbaren","kalender","planung","kollegen","gruppe","besprechung","treffen","schedule","calendar","planning","colleagues","meeting","get together","organization"],
    "id": "biz-termin",
    "kind": "turn",
    "min": 120,
@@ -19,6 +20,7 @@
    }
   },
   {
+   "tags": ["teamlunch","mittagessen","abstimmung","kollegen","entscheidung","kantine","restaurant","lunch vote","poll","choice","colleagues","decision","catering","food"],
    "id": "biz-umfrage-lunch",
    "kind": "turn",
    "min": 120,
@@ -37,6 +39,7 @@
    }
   },
   {
+   "tags": ["bewertung","auswertung","team","besprechung","kritik","verbesserung","erfolg","rating","evaluation","review","critique","improvement","success","quality"],
    "id": "biz-feedback-meeting",
    "kind": "turn",
    "min": 120,
@@ -55,6 +58,7 @@
    }
   },
   {
+   "tags": ["teamarbeit","projekt","verteilung","teamwork","project","distribution"],
    "id": "biz-aufgaben",
    "kind": "turn",
    "min": 120,
@@ -73,6 +77,7 @@
    }
   },
   {
+   "tags": ["teammeeting","jour fixe","besprechung","vereinbaren","punkte","planung","workshop","team meeting","discussion","schedule","items","planning","training","colleagues"],
    "id": "biz-agenda",
    "kind": "turn",
    "min": 120,
@@ -91,6 +96,7 @@
    }
   },
   {
+   "tags": ["spenden","kollekte","geld sammeln","beitrag","kosten teilen","geschenk","party","donation","collection","raise money","contribution","split costs","gift","holiday"],
    "id": "biz-sammeln",
    "kind": "turn",
    "min": 120,
@@ -109,6 +115,7 @@
    }
   },
   {
+   "tags": ["entscheidung","wahl","meinungsbildung","abstimmung","kollegen","projekt","planung","priority","decision","vote","opinion","poll","ballot","colleagues"],
    "id": "biz-umfrage-prio",
    "kind": "turn",
    "min": 120,
@@ -127,6 +134,7 @@
    }
   },
   {
+   "tags": ["feedback","bewertung","meinung","kritik","erfolg","verbesserung","team","rating","opinion","critique","success","improvement"],
    "id": "biz-feedback-workshop",
    "kind": "turn",
    "min": 120,
@@ -145,6 +153,7 @@
    }
   },
   {
+   "tags": ["aufgaben","planung","team","verteilung","party","treffen","organisation","tasks","planning","distribution","meeting","organization","help","colleagues"],
    "id": "biz-aufgaben-event",
    "kind": "turn",
    "min": 120,
@@ -166,14 +175,7 @@
    "id": "biz-einkauf",
    "kind": "turn",
    "min": 120,
-   "tags": [
-    "einkauf",
-    "einkaufsliste",
-    "liste",
-    "shopping",
-    "mitbringen",
-    "bestellliste"
-   ],
+   "tags": ["einkauf","einkaufsliste","liste","shopping","mitbringen","bestellliste","teammeeting","kollegen","grillabend","besprechung","shared shopping","office snacks","team building","team meeting","barbecue","briefing","coworkers"],
    "de": {
     "t": "Mitbringliste|fürs Meeting",
     "s": "Wer bringt was mit? Abhaken statt Rundmail."
@@ -189,6 +191,7 @@
    }
   },
   {
+   "tags": ["meeting","besprechung","team","check-in","stand-up","kollegen","feedback","briefing","colleagues","appointment"],
    "id": "biz-termin-review",
    "kind": "turn",
    "min": 120,
@@ -207,6 +210,7 @@
    }
   },
   {
+   "tags": ["entscheidung","mehrheit","wahl","abstimmung","planung","vereinbarung","gruppe","where to meet","decision","majority","vote","poll","gathering","planning"],
    "id": "biz-umfrage-ort",
    "kind": "turn",
    "min": 120,
@@ -225,6 +229,7 @@
    }
   },
   {
+   "tags": ["feedback","rückblick","besprechungspunkte","team","reflexion","review","discussion","agenda","meeting points","reflection","brainstorming"],
    "id": "biz-agenda-retro",
    "kind": "turn",
    "min": 120,
@@ -243,6 +248,7 @@
    }
   },
   {
+   "tags": ["kollegen","team","spenden","gemeinsam","kosten teilen","überraschung","abschied","colleagues","coworker","office","contribute","together","split cost","surprise"],
    "id": "biz-sammeln-geschenk",
    "kind": "turn",
    "min": 120,
@@ -261,6 +267,7 @@
    }
   },
   {
+   "tags": ["feedback","bewertung","leistung","ziel","entwicklung","gespräch","reflexion","evaluation","performance","goal","development","meeting","reflection","progress"],
    "id": "biz-feedback-quartal",
    "kind": "turn",
    "min": 120,

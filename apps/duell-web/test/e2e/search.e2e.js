@@ -34,6 +34,9 @@ test("Letzte Tage: Karte suchen, Treffer antippen, ihr Blatt liegt oben; ohne Tr
   assert.ok(await p.locator("#shbody .day").count() > 0, "Umlaut in der Eingabe");
   await p.getByRole("searchbox").fill("raetsel");
   assert.ok(await p.locator("#shbody .day").count() > 0, "ae statt ä");
+  await p.getByRole("searchbox").fill("Geschenk für Oma");
+  await p.locator("#shbody .day").first().waitFor();
+  assert.ok(await p.locator("#shbody .day").count() > 0, "Anlass statt Titel, ueber die Tags");
   assert.deepEqual(errs, []);
   await b.close();
 });
