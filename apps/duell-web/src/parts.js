@@ -1,0 +1,66 @@
+/* Parts: code that only some people open (live and arcade duels, the card table, the QR code, the licence texts) is
+   built into files of its own next to the page (scripts/build.js, window.DailyParts) and loaded here on first use.
+   Offline: the apps ship the files in their bundle next to index.html (Android assets, iOS bundle; nothing goes over the
+   network). On the web the page loads every part once it has been idle, so losing the connection later cuts nothing off.
+   Only the files named in the build manifest, from the page's own folder; on http(s) each one with its SRI hash, so a
+   changed file is refused. Until a part is there, small stand-ins below keep the names the core calls. */
+(function (root) {
+  "use strict";
+  var LIST = root.DailyParts || {}, got = {}, done = {};
+  // The folder of the page: …/index.html, /duell/ and /duell (the web route without a slash) all mean the same folder.
+  function dir() { var p = location.pathname; return /\.html?$/i.test(p) ? p.replace(/[^/]*$/, "") : p.replace(/\/?$/, "/"); }
+  function need(name) {
+    var p = LIST[name];
+    if (!p) return Promise.reject(new Error("part " + name));
+    if (got[name]) return got[name];
+    var wait = got[name] = Promise.all((p.d || []).map(need)).then(function () {
+      return new Promise(function (ok, no) {
+        var s = document.createElement("script");
+        if (/^https?:$/.test(location.protocol)) s.integrity = p.h;   // file:// (iOS, tests) has no CORS origin for SRI
+        s.onload = function () { done[name] = true; ok(); };
+        s.onerror = function () { s.remove(); if (got[name] === wait) delete got[name]; no(new Error("part " + name)); };
+        s.src = dir() + p.f;
+        document.head.appendChild(s);
+      });
+    });
+    return wait;
+  }
+  function fail() { try { root.Kit.toast(root.Kit.t("part_fail")); } catch (e) {} }
+  // need() + then, with a short word on screen if the file is missing (an old page after an update, a broken bundle).
+  function use(name, fn) { return need(name).then(fn, function (e) { fail(); throw e; }); }
+  // A stand-in: each listed call waits for the part, then calls the real one (the part replaces root[key] when it runs).
+  function stand(part, key, calls, extra) {
+    var s = extra || {};
+    calls.forEach(function (m) {
+      s[m] = function () {
+        var a = arguments;
+        return use(part, function () { var r = root[key]; if (!r || r === s) throw new Error("part " + part + " without " + key); return r[m].apply(r, a); }).catch(function () {});
+      };
+    });
+    return (root[key] = s);
+  }
+  // Live duels (live-ui.js). on() answers like the switch ON there (true; test/parts.test.js keeps both the same); the
+  // stand-in has nothing open to close.
+  stand("play", "LiveUI", ["invite", "accept"], { close: function () {}, on: function () { return true; } });
+  // Arcade duels (arcade-ui.js). count() comes from the catalog, so the games shelf shows its number without the part;
+  // demo() only loads the part for an arcade sheet, and only the latest call wins (a sheet may change while it loads).
+  var pv = 0, arc = stand("play", "ArcadeUI", ["menu", "tiles", "playBot"], {
+    count: function () { return ((root.DuellIdeas && root.DuellIdeas.ideas) || []).filter(function (i) { return i.kind === "arcade"; }).length; },
+    dress: function () { return false; },
+    demo: function (c, a, still) {
+      var my = ++pv;
+      if (a) need("play").then(function () { if (my === pv && root.ArcadeUI !== arc) root.ArcadeUI.demo(c, a, still); }, function () {});
+    }
+  });
+  // Doppelkopf and Skat (table-ui.js), which play over live.js.
+  stand("table", "TableUI", ["open", "accept"], { close: function () {} });
+  // On the web: everything once the page is idle (see above). In the apps the files are on the device anyway.
+  if (/^https?:$/.test(location.protocol) && location.hostname !== "appassets.androidplatform.net") {
+    root.addEventListener("load", function () {
+      (root.requestIdleCallback || function (f) { return setTimeout(f, 1500); })(function () {
+        Object.keys(LIST).forEach(function (n) { need(n).catch(function () {}); });
+      });
+    });
+  }
+  root.Parts = { need: need, use: use, ready: function (name) { return !!done[name]; }, names: function () { return Object.keys(LIST); } };
+})(window);

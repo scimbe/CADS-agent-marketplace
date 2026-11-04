@@ -53,3 +53,4 @@ run 09-ergebnis-teilen yes -DuellScenario share
 run 11-ergebnis-speichern yes -DuellScenario save
 run 10-nach-teilen-aufgeraeumt yes -DuellScenario probe    # the file left by the save run (picker never finished) is swept at start
 run 12-mikro-abgelehnt yes -DuellScenario mic -DuellMicDeny
+run 13-teildateien yes -DuellScenario parts                 # page parts (duell/parts/*.js) load from the bundle, network blocked

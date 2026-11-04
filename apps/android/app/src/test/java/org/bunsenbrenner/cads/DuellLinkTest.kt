@@ -52,6 +52,7 @@ class DuellLinkTest {
 
     @Test fun onlyAssetsAndConfigApiMayLoad() {
         assertTrue(DuellLink.mayLoad("https://appassets.androidplatform.net/assets/duell/index.html", api))
+        assertTrue(DuellLink.mayLoad("https://appassets.androidplatform.net/assets/duell/parts/play.0123456789ab.js", api))   // page parts, from the assets
         assertTrue(DuellLink.mayLoad("https://$api/api/duell/config", api))
         assertTrue(DuellLink.mayLoad("https://$api/api/duell/ai", api))
         assertTrue(DuellLink.mayLoad("https://$api/api/duell/ai/status", api))

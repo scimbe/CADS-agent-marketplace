@@ -725,7 +725,8 @@ X.turn = {
     A.shelf(say("turn_all", { n: all.length + arcade }), function (b) {
       b.appendChild(el("p", "note", t("turnH")));
       if (window.LiveUI && window.LiveUI.on()) b.appendChild(el("button", "btn hot live", t("live_tile"), function () { Kit.sfx.thud(); window.LiveUI.invite(); }));
-      if (arcade) window.ArcadeUI.tiles(b);
+      // The arcade tiles come with their part (parts.js): a slot keeps their place on the shelf until then.
+      if (arcade) { var slot = el("div", ""); slot.style.display = "contents"; b.appendChild(slot); window.ArcadeUI.tiles(slot); }
       if (window.TableUI && window.LiveUI && window.LiveUI.on()) [["doko", "tb_doko"], ["skat", "tb_skat"]].forEach(function (g) { b.appendChild(el("button", "btn hot live", t(g[1]), function () { Kit.sfx.thud(); window.TableUI.open(g[0]); })); });
       b.appendChild(el("button", "btn hot", "🎲 " + L().turn_any, function () { start(all[seed() % all.length]); }));
       ["streit", "pause", "abend", "geschenk", "raum"].forEach(function (g) {

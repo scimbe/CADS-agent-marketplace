@@ -1,6 +1,8 @@
 "use strict";
-// Inlines data, styles and code into the template -> one self-contained dist/index.html (no external requests).
+// Inlines data, styles and code into the template -> dist/index.html (the core, no external requests), plus the rarely used
+// parts as files of their own in dist/parts/ that the core loads on first use (src/parts.js).
 const fs = require("fs");
+const crypto = require("crypto");
 const path = require("path");
 const root = path.join(__dirname, "..");
 const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
@@ -21,9 +23,20 @@ if (flavor) catalog.ideas = catalog.ideas.filter((i) => !i.turn || games[i.turn.
 const data = (conf ? "window.DailyFlavor=" + JSON.stringify(conf) + ";" : "") + "window.DuellIdeas=" + JSON.stringify(catalog) + ";window.DailyTexts=" + JSON.stringify(texts) + ";window.OfficeData=" + JSON.stringify(json("src/office.json")) + ";";
 const duelData = JSON.parse(read("src/duel.json"));
 const licenses = ["Anton-OFL.txt", "qrcode-generator-MIT.txt", "Kartendeck-CC0.txt"].map((f) => read("licenses/" + f)).join("\n\n");
-const dataAll = data + "window.DailyLicenses=" + JSON.stringify(licenses) + ";window.TurnData=" + JSON.stringify(turnData) + ";window.DuelData=" + JSON.stringify(duelData) + ";Object.assign(window.DailyTexts.de,window.DuelData.texts.de);Object.assign(window.DailyTexts.en,window.DuelData.texts.en);" +
+const dataAll = data + "window.TurnData=" + JSON.stringify(turnData) + ";window.DuelData=" + JSON.stringify(duelData) + ";Object.assign(window.DailyTexts.de,window.DuelData.texts.de);Object.assign(window.DailyTexts.en,window.DuelData.texts.en);" +
   "window.ArcadeTexts=" + JSON.stringify(JSON.parse(read("src/arcade.json"))) + ";Object.assign(window.DailyTexts.de,window.ArcadeTexts.de);Object.assign(window.DailyTexts.en,window.ArcadeTexts.en);";
-const parts = { DATA: dataAll, DUEL: read("src/duel.js"), QUEST: read("src/quest.js"), MODES: read("src/modes.js"), DOOR: read("src/door.js"), TURNS: read("src/turns.js"), OFFICE: read("src/office.js"), FLAVOR: has("flavor.js") ? read(fl("flavor.js")) : "", WARM: read("src/warm.js"), TURNUI: read("src/turn-ui.js"), ARCADE: read("src/arcade.js"), ARCADE2: read("src/arcade2.js"), ARCADEUI: read("src/arcade-ui.js"), MPOKER: read("src/mpoker.js"), DOKO: read("src/doko.js"), SKAT: read("src/skat.js"), TABLE: read("src/table.js"), TABLEUI: read("src/table-ui.js"), RPSLIVE: read("src/rpslive.js"), BALLDUELL: read("src/ballduell.js"), LIVE: read("src/live.js"), LIVEUI: read("src/live-ui.js"), QRCODE: read("node_modules/qrcode-generator/qrcode.js"), SHORT: read("src/shortlink.js"), OWN: read("src/own.js"), STATUSCARD: read("src/statuscard.js"), CORE: read("src/core.js"), ENGINE: read("src/engine.js"), DAILY: read("src/daily.js"), STUDIO: read("src/studio.js"), KIT: read("src/kit.js"), COLLAB: read("src/collab.js"), COLLABUI: read("src/collab-ui.js"), CALLCARD: read("src/callcard.js"), CALLCARDUI: read("src/callcard-ui.js"), STICKERS: read("src/stickers.js"), AI: read("src/ai.js"), WISH: read("src/wish.js"), RENDER: read("src/render.js"), PLAYABLE: read("src/playable.js"), GAME: read("src/game.js"), APP: read("src/app.js") };
+const parts = { DATA: dataAll, DUEL: read("src/duel.js"), QUEST: read("src/quest.js"), MODES: read("src/modes.js"), DOOR: read("src/door.js"), TURNS: read("src/turns.js"), OFFICE: read("src/office.js"), FLAVOR: has("flavor.js") ? read(fl("flavor.js")) : "", WARM: read("src/warm.js"), TURNUI: read("src/turn-ui.js"), PARTS: read("src/parts.js"), ARCADE: read("src/arcade.js"), ARCADE2: read("src/arcade2.js"), ARCADEUI: read("src/arcade-ui.js"), MPOKER: read("src/mpoker.js"), DOKO: read("src/doko.js"), SKAT: read("src/skat.js"), TABLE: read("src/table.js"), TABLEUI: read("src/table-ui.js"), RPSLIVE: read("src/rpslive.js"), BALLDUELL: read("src/ballduell.js"), LIVE: read("src/live.js"), LIVEUI: read("src/live-ui.js"), QRCODE: read("node_modules/qrcode-generator/qrcode.js"), SHORT: read("src/shortlink.js"), OWN: read("src/own.js"), STATUSCARD: read("src/statuscard.js"), CORE: read("src/core.js"), ENGINE: read("src/engine.js"), DAILY: read("src/daily.js"), STUDIO: read("src/studio.js"), KIT: read("src/kit.js"), COLLAB: read("src/collab.js"), COLLABUI: read("src/collab-ui.js"), CALLCARD: read("src/callcard.js"), CALLCARDUI: read("src/callcard-ui.js"), STICKERS: read("src/stickers.js"), AI: read("src/ai.js"), WISH: read("src/wish.js"), RENDER: read("src/render.js"), PLAYABLE: read("src/playable.js"), GAME: read("src/game.js"), APP: read("src/app.js") };
+// Parts: past 1 MB the page is split instead of growing. The core (home, calendar sheet, editor, sharing) stays inline in
+// index.html; what only some people open lands in parts/<name>.<hash>.js next to it and is loaded on first use. The apps
+// ship the folder in their bundle (Android assets, iOS bundle), the web gets it from /duell/parts/. `d`: parts it needs first.
+// New, rarely used code goes into a part here (or a new one), not into the core: test/build.test.js holds the budgets.
+const PARTS = {
+  play: { d: [], src: ["BALLDUELL", "RPSLIVE", "LIVE", "LIVEUI", "ARCADE", "ARCADE2", "ARCADEUI"] },   // live and arcade duels
+  table: { d: ["play"], src: ["MPOKER", "DOKO", "SKAT", "TABLE", "TABLEUI"] },                        // Doppelkopf and Skat live (over live.js)
+  qr: { d: [], src: ["QRCODE", "STATUSCARD"] },                                                        // status picture and invite code with a QR code
+  licenses: { d: [], src: ["LICENSES"] },                                                              // the licence texts, shown on request
+};
+parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
 // QR code for invites: qrcode-generator (MIT, Kazuhiko Arase), licenses/qrcode-generator-MIT.txt.
 // Display font: Anton (SIL OFL 1.1), latin subset (covers ä ö ü ß and German quotes) from @fontsource, embedded as data: URL.
 const fontFile = path.join(root, "node_modules/@fontsource/anton/files/anton-latin-400-normal.woff2");
@@ -33,13 +46,28 @@ const fontCss = "/* Anton, Copyright 2020 The Anton Project Authors (https://git
 let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + read("src/style.css") + (has("style.css") ? "\n" + read(fl("style.css")) : ""));
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines in the page (about 55 KB); third-party code (QR code) and the data stay as they are.
-const KEEP = new Set(["DATA", "QRCODE"]);
+const KEEP = new Set(["DATA", "QRCODE", "LICENSES"]);
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).join("\n");
-for (const k of Object.keys(parts)) html = html.replace("/*@" + k + "@*/", () => safe(KEEP.has(k) ? parts[k] : lean(parts[k])));
-const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html";
-fs.mkdirSync(path.dirname(path.join(root, out)), { recursive: true });
+const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
+const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));
+// Each part: its sources one after the other, each closed with ";" like the separate <script> blocks they were. The name
+// carries the content hash (a new build never meets an old cached file); the manifest carries the SRI hash.
+fs.rmSync(path.join(outDir, "parts"), { recursive: true, force: true });
+fs.mkdirSync(path.join(outDir, "parts"), { recursive: true });
+const manifest = {};
+let partBytes = 0;
+for (const name of Object.keys(PARTS)) {
+  const body = PARTS[name].src.map((k) => { const c = code(k); delete parts[k]; return c; }).join("\n;\n") + "\n";
+  const file = "parts/" + name + "." + crypto.createHash("sha256").update(body).digest("hex").slice(0, 12) + ".js";
+  fs.writeFileSync(path.join(outDir, file), body);
+  manifest[name] = { f: file, h: "sha384-" + crypto.createHash("sha384").update(body).digest("base64"), d: PARTS[name].d };
+  partBytes += Buffer.byteLength(body);
+  console.log(path.dirname(out) + "/" + file, Buffer.byteLength(body), "bytes");
+}
+parts.DATA = "window.DailyParts=" + JSON.stringify(manifest) + ";" + parts.DATA;
+for (const k of Object.keys(parts)) html = html.replace("/*@" + k + "@*/", () => code(k));
 fs.writeFileSync(path.join(root, out), html);
-console.log(out, Buffer.byteLength(html), "bytes");
+console.log(out, Buffer.byteLength(html), "bytes (core); parts", partBytes, "bytes; together", Buffer.byteLength(html) + partBytes);
 
 // Fast Easy Protokoll: its own page, because whisper.cpp needs a cross-origin isolated page and connect-src 'self' (served by
 // the gallery at /duell/protokoll). The worker stays a separate file: a Worker is only started from a same-origin URL.

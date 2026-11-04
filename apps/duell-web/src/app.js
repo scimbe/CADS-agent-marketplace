@@ -616,6 +616,7 @@ function chatPicture(c, col) {
 async function exportStory(kind) {
   Kit.sfx.tap();
   var link = await shortLink(), shown = link.short ? link.url : C.SHARE_BASE, cols = result.keep ? result.keep.doc.col : me.colors;
+  try { await window.Parts.use("qr", function () {}); } catch (e) { return; }   // statuscard.js and the QR code are a part of their own
   var cv = window.StatusCard.draw(result.canvas, { url: shown, bg: cols[0], ink: R.ink(cols[0]), cta: t(link.short ? "sh_cta" : "sh_ctaApp") });
   var blob = await makeBlob(cv, "image/jpeg", 0.92);
   var text = kind === "story" ? link.url : t("shareText") + " " + link.url;
@@ -697,7 +698,7 @@ function openStyle() {
     chips(b, Object.keys(D.SETS).map(function (s) { return { v: s, l: D.SETS[s][0] + " " + t("set_" + s) }; }), me.set, function (v) { me.set = v; saveMe(); });
     b.appendChild(el("label", "lbl", t("pf_title")));
     var pf = el("div", "pfbox"); b.appendChild(pf); prefs(pf);
-    b.appendChild(el("button", "btn", t("licenses"), function () { var l = el("pre", "note", window.DailyLicenses); l.style.whiteSpace = "pre-wrap"; b.textContent = ""; b.appendChild(l); }));
+    b.appendChild(el("button", "btn", t("licenses"), function () { window.Parts.use("licenses", function () { var l = el("pre", "note", window.DailyLicenses); l.style.whiteSpace = "pre-wrap"; b.textContent = ""; b.appendChild(l); }).catch(function () {}); }));
   });
 }
 // My defaults (daily.js): the ones set stand on top as chips with ✕; below, what can be set. Only on this device.
