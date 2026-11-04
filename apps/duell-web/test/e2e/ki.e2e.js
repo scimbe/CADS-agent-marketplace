@@ -4,6 +4,10 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium, devices } = require("playwright");
+const { createHash } = require("node:crypto");
+const A = require("../../src/ai.js");
+// The option hash as the server computes it: sha256 over the canonical JSON, base64url, 43 characters.
+const hashOf = (opt) => createHash("sha256").update(A.canonical(opt), "utf8").digest("base64url");
 const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
 const API = "https://demos-34a13a96.bunsenbrenner.org/api/duell/";
 let b;
@@ -67,7 +71,7 @@ test("Warteschlange nach Server-Protokoll: queue:'ticket', Platz sichtbar, /queu
   const doc = await p.evaluate(() => window.DailyDebug.doc());
   assert.deepEqual(doc.g.look.e, ["👽"]); assert.equal(doc.g.emoji, "🛸"); assert.equal(doc.t, "Alienflug");
   assert.deepEqual(doc.col, (await p.evaluate(() => window.DailyApp.me().colors)), "keine erzwungene Farbe, kein Zufall dazugemischt");
-  assert.deepEqual(doc.ki, { k: "wish", s: "s1.wish.k1.endgueltig01" });
+  assert.deepEqual(doc.ki, { k: "wish", s: "s1.wish.k1.endgueltig01", h: hashOf(WISH.options[0]) }, "Siegel und Hash der uebernommenen Option");
   while (sent.length < 4) await p.waitForTimeout(50);
   assert.deepEqual(sent.map((x) => x.path), ["ai", "queue", "queue", "ai/accept"]);
   assert.equal(sent[0].body.queue, "ticket"); assert.equal(sent[0].body.v, undefined);
@@ -117,7 +121,7 @@ test("Optionen: genau ein /ai/accept je Antwort, auch bei mehreren Tipps; unberu
   const paths = sent.map((x) => x.path + ":" + (x.body.receipt || ""));
   assert.deepEqual(paths.filter((x) => x.startsWith("ai/")).sort(), ["ai/accept:rc-line-2", "ai/discard:rc-line-1"]);
   const doc = await p.evaluate(() => window.DailyDebug.doc());
-  assert.equal(doc.x, "Zeile B2"); assert.deepEqual(doc.ki, { k: "line", s: "s1.line.b.sigB0002" });
+  assert.equal(doc.x, "Zeile B2"); assert.deepEqual(doc.ki, { k: "line", s: "s1.line.b.sigB0002", h: hashOf("Zeile B2") });
   assert.deepEqual(errs, []); await p.context().close();
 });
 
@@ -194,6 +198,21 @@ test("Melden: jedes geteilte Blatt; 'KI' nur mit Siegel; Grund noetig; Body nach
   const contrast = await p.evaluate(() => { const L = (c) => { const v = c.match(/\d+/g).slice(0, 3).map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
     const s = getComputedStyle(document.querySelector("#leaf .kiseal")), a = L(s.color), z = L(s.backgroundColor); return (Math.max(a, z) + 0.05) / (Math.min(a, z) + 0.05); });
   assert.ok(contrast >= 4.5, "Siegel-Kontrast " + contrast);
+  assert.deepEqual(errs, []); await p.context().close();
+});
+
+test("Melden mit Options-Hash: das Blatt traegt h neben dem Siegel, die Meldung schickt es als optionHash", async () => {
+  const { p, errs, sent } = await phone((path0) => (path0 === "report" ? [202, { id: "r2" }] : null));
+  const h = hashOf(WISH.options[0]);
+  await p.evaluate((x) => { location.hash = x; }, await sharedHash(p, { k: "wish", s: "s1.wish.k1.siegel0002", h }));
+  await p.locator("#leaf .kiseal").waitFor();
+  assert.deepEqual(await p.evaluate(() => window.Daily.parseRoute(location.hash).doc.ki), { k: "wish", s: "s1.wish.k1.siegel0002", h }, "h kommt durch den Link");
+  await p.locator("#kireport").tap();
+  const dlg = p.getByRole("dialog", { name: "Blatt melden?" });
+  await dlg.getByRole("radio", { name: "Etwas anderes" }).tap();
+  await dlg.getByRole("button", { name: "Melden", exact: true }).tap();
+  await dlg.getByText("Danke. Wir sehen es uns an.").waitFor();
+  assert.deepEqual(sent[0].body, { reason: "other", consent: true, content: { type: "game", title: "Alienflug" }, kind: "wish", seal: "s1.wish.k1.siegel0002", optionHash: h });
   assert.deepEqual(errs, []); await p.context().close();
 });
 
