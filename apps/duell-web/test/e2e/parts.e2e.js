@@ -57,7 +57,8 @@ test("file://: der Knopf Status-Bild holt den QR-Teil und teilt ein Bild 1080x19
   assert.equal(await p.evaluate(() => typeof window.StatusCard), "undefined", "vor dem Knopf kein QR-Teil");
   await p.locator("#tostatus").evaluate((e) => e.click());
   await p.waitForFunction(() => window.__shared.length > 0);
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["qr"]);
+  // the card editor's text tab has loaded "texte" (Worte finden, card text) on the way; the button only adds "qr"
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["texte", "qr"]);
   const f = await p.evaluate(async () => { const f = window.__shared[0], i = await createImageBitmap(f); return { type: f.type, name: f.name, w: i.width, h: i.height }; });
   assert.deepEqual(f, { type: "image/jpeg", name: "my-daily-idea-status.jpg", w: 1080, h: 1920 });
   assert.deepEqual(errs, []);
@@ -71,7 +72,7 @@ test("Web /duell: nach dem Laden alle Teile mit SRI vorab; danach offline Arcade
   await p.goto(base + "/duell");   // without the slash: the parts still come from /duell/parts/
   await p.waitForFunction(() => window.Parts.names().every((n) => window.Parts.ready(n)));
   const got = await loaded(p);
-  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["licenses", "play", "qr", "table", "welt"]);
+  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["licenses", "play", "qr", "table", "texte", "welt"]);
   for (const s of got) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
   assert.equal(await p.evaluate(() => typeof window.TableUI.preview + typeof window.StatusCard.draw), "functionfunction", "echte Module statt Platzhalter");
   await ctx.setOffline(true);
