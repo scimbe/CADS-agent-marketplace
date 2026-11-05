@@ -8,6 +8,18 @@
   var Turns = typeof module !== "undefined" && module.exports ? require("./turns.js") : root.Turns;
   var TX = typeof module !== "undefined" && module.exports ? require("./texts.json") : root.DailyTexts;
   var IDEAS = DATA.ideas, GATED = DATA.gated || [], BONUS_EVERY = 6, ORDER_TRIES = 200;
+  // In the page the core holds only the catalog's index (scripts/build.js); the part "katalog" brings the full entries and
+  // fill() merges them into the same objects, so every list and order built from the index stays valid. In Node: full.
+  var FULL = !DATA.index;
+  function fill() {
+    var F = root.DuellIdeasFull;
+    if (FULL || !F) return FULL;
+    var by = {};
+    (F.ideas || []).concat(F.gated || []).forEach(function (i) { by[i.id] = i; });
+    IDEAS.concat(GATED).forEach(function (i) { if (by[i.id]) Object.assign(i, by[i.id]); });
+    return (FULL = true);
+  }
+  fill();   // the part may have run before this file
   var ROUND = IDEAS.filter(function (i) { return !i.on; });   // calendar ideas ("on": "MM-DD" or a list of them) only appear on their days
   var ROUND_KINDS = ROUND.map(function (i) { return i.kind; }).filter(function (k, i, a) { return a.indexOf(k) === i; }).sort();
   var ID_RE = /^[a-z0-9-]{1,32}$/, MAX_WALL = 30, MAX_THUMB = 60000, MAX_TEXT = 90;
@@ -119,7 +131,7 @@
     c = c || caps();
     var hits = IDEAS.concat(GATED).filter(function (i) {
       if (!available(i, c)) return false;
-      var parts = [i.kind].concat(i.tags || [], (names && names[i.kind]) || []);
+      var parts = [i.kind, i.x || ""].concat(i.tags || [], (names && names[i.kind]) || []);
       ["de", "en"].forEach(function (l) { var L = i[l] || {}; parts = parts.concat(L.t, L.s, L.tags || []); });
       var hay = fold(parts.join(" "));
       return words.every(function (w) { return hay.indexOf(w) >= 0; });
@@ -129,6 +141,20 @@
     for (var b = 1; b <= SEARCH_DAYS; b++) { var x = ideaOn(n0 - b, c); if (x && !last[x.id]) last[x.id] = n0 - b; }
     return hits.map(function (i) { return { idea: i, date: last[i.id] ? new Date(last[i.id] * DAY) : null }; })
       .sort(function (a, b) { return (b.date ? b.date.getTime() : -1) - (a.date ? a.date.getTime() : -1); }).slice(0, MAX_HITS);
+  }
+  // The core's index of a catalog (scripts/build.js): what the day's sheet and the search need before the part is there;
+  // x: the tags of both languages, folded.
+  function index(cat) {
+    function slim(i) {
+      var o = { id: i.id, kind: i.kind };
+      ["on", "needs", "min"].forEach(function (k) { if (i[k] != null) o[k] = i[k]; });
+      ["de", "en"].forEach(function (l) { if (i[l]) o[l] = { t: i[l].t }; });
+      var x = fold([].concat(i.tags || [], (i.de && i.de.tags) || [], (i.en && i.en.tags) || []).join(" ")).split(" ")
+        .filter(function (w, k, a) { return w && a.indexOf(w) === k; }).join(" ");
+      if (x) o.x = x;
+      return o;
+    }
+    return { index: true, ideas: cat.ideas.map(slim), gated: (cat.gated || []).map(slim) };
   }
   function randomIdea(rnd, notId) {
     var pool = ROUND.concat(GATED).filter(function (i) { return i.id !== notId && available(i); });
@@ -321,6 +347,8 @@
     return d;
   }
   function docFromIdea(idea, profile, lang) {
+    // Without the catalog part (a broken bundle) the day still shows: its title as a plain card.
+    if (!FULL) return sanitizeDoc({ k: "card", i: idea.id, col: profile.colors, by: [], x: (idea[lang] || idea.de).t.replace(/-?\|/g, function (m) { return m === "|" ? " " : ""; }), st: "druck", sk: [] });
     var L = idea[lang] || idea.de, plain = L.t.replace("|", " ").trim(), base = { k: idea.kind, i: idea.id, col: profile.colors, by: [] };
     if (idea.kind === "card") { base.x = L.lines[0]; base.st = idea.style || "druck"; base.sk = []; if (idea.col) base.col = idea.col; if (idea.door) base.nr = doorNumber(); }
     if (idea.kind === "photo") { base.x = L.top; base.y = L.bottom; base.st = idea.photo.mode; base.sk = []; }
@@ -402,7 +430,7 @@
   }
 
   var api = {
-    IDEAS: IDEAS, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, PLAY: PLAY, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays, fold: fold, searchIdeas: searchIdeas,
+    IDEAS: IDEAS, fill: fill, index: index, full: function () { return FULL; }, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, PLAY: PLAY, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays, fold: fold, searchIdeas: searchIdeas,
     randomIdea: randomIdea, paperIndex: paperIndex, sanitizeId: sanitizeId, parseRoute: parseRoute, inviteUrl: inviteUrl, challengeUrl: challengeUrl,
     cleanInput: cleanInput, sanitizeProfile: sanitizeProfile, sanitizePref: sanitizePref, prefChips: prefChips, dropPref: dropPref, prefContext: prefContext, adult: adult, dietOk: dietOk, PREF: { AGES: AGES, DIETS: DIETS, NOTIMES: NOTIMES }, sanitizeDoc: sanitizeDoc, sanitizeKi: sanitizeKi, doorNumber: doorNumber, docFromIdea: docFromIdea, blankDoc: blankDoc,
     changedAreas: changedAreas, withTrail: withTrail, docUrl: docUrl, SETS: SETS, STYLES: STYLES, FX: FX, MAX_STICKERS: MAX_STICKERS, sanitizeWall: sanitizeWall, addToWall: addToWall, ideaStrings: ideaStrings

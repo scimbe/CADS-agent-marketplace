@@ -15,6 +15,28 @@
       try { if (window.DuellHost && window.DuellHost.haptic) { window.DuellHost.haptic(); return; } if (navigator.vibrate) navigator.vibrate(p || 8); } catch (e) {}
     }
   };
+  // Numbers and plurals through Intl (Katalog v2, rule 27): t.plural("key", n) picks key_one, key_few, ... key_other
+  // by the language's plural rules (Intl.PluralRules), with German as the fallback for a missing word; {n} is the number
+  // written the way the language writes it ("1,5" in de, "1.5" in en). New texts never branch on the language.
+  Kit.loc = function () { return Kit.lang === "en" ? "en-GB" : "de-DE"; };
+  Kit.num = function (n, opt) { try { return new Intl.NumberFormat(Kit.loc(), opt).format(n); } catch (e) { return String(n); } };
+  Kit.t.plural = function (k, n, o) {
+    var cat = "other", L = T[Kit.lang] || {}, D = T.de || {};
+    try { cat = new Intl.PluralRules(Kit.loc()).select(n); } catch (e) {}
+    var key = [k + "_" + cat, k + "_other"].filter(function (x) { return L[x] != null || D[x] != null; })[0] || k;
+    var s = L[key] != null ? L[key] : D[key] != null ? D[key] : key, v = Object.assign({}, o, { n: Kit.num(n) });
+    return s.replace(/\{(\w+)\}/g, function (_, x) { return v[x] != null ? v[x] : ""; });
+  };
+  // Font size token --fs (rule 2): normal / gross / sehr gross = 1 / 1.25 / 1.5 times the system's size (1rem follows
+  // the system setting). Only on this device, chosen in Mein Stil; new cards size their text in rem through var(--fs).
+  Kit.FS = { n: 1, g: 1.25, sg: 1.5 };
+  Kit.fs = Object.prototype.hasOwnProperty.call(Kit.FS, store.fs) ? store.fs : "n";
+  Kit.setFs = function (v) {
+    if (!Object.prototype.hasOwnProperty.call(Kit.FS, v)) return;
+    Kit.fs = v; if (v === "n") delete store.fs; else store.fs = v; Kit.save();
+    var r = document.documentElement; r.style.setProperty("--fs", String(Kit.FS[v])); r.setAttribute("data-fs", v);
+  };
+  try { document.documentElement.style.setProperty("--fs", String(Kit.FS[Kit.fs])); document.documentElement.setAttribute("data-fs", Kit.fs); } catch (e) {}
   var actx = null;
   Kit.audio = function (force) {
     if (Kit.muted && !force) return null;

@@ -742,6 +742,8 @@ function openStyle() {
     colors(b, function () { return me.colors; }, function (c) { me.colors = c; saveMe(); setInk(c[0], c[1]); });
     b.appendChild(el("label", "lbl", t("set")));
     chips(b, Object.keys(D.SETS).map(function (s) { return { v: s, l: D.SETS[s][0] + " " + t("set_" + s) }; }), me.set, function (v) { me.set = v; saveMe(); });
+    b.appendChild(el("label", "lbl", t("fs_title")));
+    chips(b, ["n", "g", "sg"].map(function (v) { return { v: v, l: t("fs_" + v) }; }), Kit.fs, function (v) { Kit.setFs(v); if (screen === "home") fitHero(); }, "fs");
     b.appendChild(el("label", "lbl", t("pf_title")));
     var pf = el("div", "pfbox"); b.appendChild(pf); prefs(pf);
     b.appendChild(el("p", "note", t("aiPicNote")));
@@ -1019,7 +1021,10 @@ window.DailyDebug = { me: function () { return me; }, doc: function () { return 
 
 window.addEventListener("DOMContentLoaded", function () {
 labels();
-if (!route()) goHome();
+// The first sheet waits for the catalog part (src/parts.js asks for it at once; in the apps it is a file next to the page).
+// Without it the day still shows from the core's index, as a plain card, and the page says the part is missing.
+function boot() { if (!route()) goHome(); }
+window.Parts.need("katalog").then(boot, function () { Kit.toast(t("part_fail")); boot(); });
 // The embedded display font loads after the first paint: fit the headline again once it is there.
 if (document.fonts && document.fonts.load) document.fonts.load('900 40px Anton').then(function () { if (screen === "home") fitHero(); }, function () {});
 });

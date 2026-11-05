@@ -24,7 +24,8 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // Sizes at the split: core 693 KB, parts 310 KB (play 140, table 104, qr 59, licenses 6), together 1003 KB.
   assert.ok(Buffer.byteLength(html) < 700 * 1024, "Kern ueber 700 KB: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["licenses", "play", "qr", "quiz", "satz", "table", "texte", "welt"]);
+  assert.deepEqual(Object.keys(man).sort(), ["daten", "katalog", "licenses", "logik", "play", "qr", "quiz", "satz", "table", "texte", "turnzwei", "welt"]);
+  for (const n of Object.keys(man)) assert.match(n, /^[a-z]{1,20}$/, "Teilname nur Buchstaben (Galerie-Server und Android lassen nur [a-z]{1,20} durch): " + n);
   assert.equal(files.length, Object.keys(man).length, "nur die Teile aus dem Manifest liegen in dist/parts");
   let sum = 0;
   for (const [name, p] of Object.entries(man)) {
@@ -40,6 +41,15 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   const part = (n) => fs.readFileSync(path.join(path.dirname(dist), man[n].f), "utf8");
   assert.match(part("play"), /window\.ArcadeUI = \{/); assert.match(part("play"), /window\.LiveUI = \{/);
   assert.match(part("table"), /window\.TableUI = \{/); assert.match(part("qr"), /root\.StatusCard =/);
+  // Katalog v2 W0: the catalog is a part, the core keeps its index only; empty parts turnzwei/logik, the data part daten.
+  const idx = JSON.parse(html.match(/window\.DuellIdeas=(\{.*?\});window\./)[1]), full = require("../src/ideas.json");
+  assert.equal(idx.index, true); assert.equal(idx.ideas.length, full.ideas.length);
+  assert.ok(Buffer.byteLength(JSON.stringify(idx)) < Buffer.byteLength(JSON.stringify(full)) * 0.55, "Index klein: " + Buffer.byteLength(JSON.stringify(idx)));
+  assert.match(part("katalog"), /^window\.DuellIdeasFull=\{/); assert.ok(!/"lines":/.test(html), "Kartentexte nur im Teil");
+  assert.deepEqual(man.play.d, ["katalog"], "Arcade liest die vollen Eintraege");
+  assert.match(part("turnzwei"), /root\.Turn2 = root\.Parts\.registry\("turnzwei"/); assert.match(part("logik"), /root\.Logik = root\.Parts\.registry\("logik"/);
+  assert.match(part("daten"), /window\.KalenderData=\{/); assert.match(part("daten"), /root\.Kalender = api/); assert.ok(!/KalenderData=/.test(html));
+  assert.match(html, /root\.Bausteine = \{/);
   assert.match(part("welt"), /root\.WeltUI = \{/); assert.ok(!/root\.WeltUI = \{/.test(html), "Flugspiel-Einstieg nur im Teil");
   assert.match(part("texte"), /root\.TexteUI = \{/); assert.match(part("texte"), /window\.TexteData=\{/); assert.ok(!/root\.TexteUI = \{|window\.TexteData=/.test(html), "Texte und Song nur im Teil");
   assert.match(part("satz"), /window\.SatzUI = \{/); assert.match(part("satz"), /root\.SatzLogic = api/);
