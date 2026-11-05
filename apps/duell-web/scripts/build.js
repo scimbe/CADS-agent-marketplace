@@ -36,8 +36,8 @@ const PARTS = {
   play: { d: [], src: ["BALLDUELL", "RPSLIVE", "LIVE", "LIVEUI", "ARCADE", "ARCADE2", "ARCADEUI"] },   // live and arcade duels
   table: { d: ["play"], src: ["MPOKER", "DOKO", "SKAT", "TABLE", "TABLEUI"] },                        // Doppelkopf and Skat live (over live.js)
   qr: { d: [], src: ["QRCODE", "STATUSCARD"] },                                                        // status picture and invite code with a QR code
-  licenses: { d: [], src: ["LICENSES"] },
-  welt: { d: [], src: ["WELTUI"] },                                                                    // the flight game's "What do you want to fly?" (AI kind welt)                                                              // the licence texts, shown on request
+  licenses: { d: [], src: ["LICENSES"] },                                                              // the licence texts, shown on request
+  welt: { d: [], src: ["WELTUI"] },                                                                    // the flight game's "What do you want to fly?" (AI kind welt)
 };
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
 // QR code for invites: qrcode-generator (MIT, Kazuhiko Arase), licenses/qrcode-generator-MIT.txt.

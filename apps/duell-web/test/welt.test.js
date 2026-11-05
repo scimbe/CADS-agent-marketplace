@@ -105,3 +105,19 @@ test("Ohne KI: die Regel-Erkennung ist fest (kein Zufall), ohne Strecke", () => 
   const a = C.localConfig("Unter Wasser mit Fischen", "de"), b = C.localConfig("Unter Wasser mit Fischen", "de");
   assert.deepEqual(a, b); assert.equal(a.theme, "ocean"); assert.equal(a.route, undefined);
 });
+
+test("Ohne KI: Weltraum-Vorschlag ergibt eine Nachtwelt (Sterne), kein Tageshimmel", () => {
+  assert.equal(C.localConfig("Weltraum mit Aliens", "de").theme, "night");
+  assert.equal(C.localConfig("Space with aliens", "en").theme, "night");
+  assert.equal(C.localConfig("Gestern beim Start", "de").theme, "day", "gestern/Start sind keine Sterne");
+});
+
+test("Krisenhinweis zentral (ai.js): beide Nummern, eine davon rund um die Uhr; dieselben eindeutigen Worte wie der Server, auch ohne Netz", () => {
+  const A = require("../src/ai.js"), T = require("../src/texts.json");
+  for (const l of ["de", "en"]) { assert.match(T[l].aiCrisis, /116 111/); assert.match(T[l].aiCrisis, /0800 111 0 111/); }
+  assert.match(T.de.aiCrisis, /rund um die Uhr/); assert.match(T.en.aiCrisis, /day and night/);
+  for (const s of ["ich will nicht mehr leben", "Ich bring mich um", "ich wäre lieber tot", "Selbstmord", "lebensmüde", "I want to die", "kill myself"]) assert.equal(A.crisis(s), true, s);
+  for (const s of ["Unter Wasser mit Fischen", "ich lach mich tot", "ich ziehe mir was an", "Weltraum mit Aliens", "Tote Hose im Sturm"]) assert.equal(A.crisis(s), false, s);
+  assert.equal(A.crisis(A.texts({ satz: "ich will sterben" })), true, "jeder Text der Anfrage");
+  assert.ok(A.CRISIS_KINDS.includes("welt") && !A.CRISIS_KINDS.includes("meme"), "wie am Server: nur die strukturierten Arten");
+});

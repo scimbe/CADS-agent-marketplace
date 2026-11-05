@@ -302,7 +302,7 @@
     [/mond|moon|float|schweb|feder|feather|weltall|\bspace/, { gravity: 0.7, jump: 0.85 }]
   ];
   var THEME_RULES = [
-    ["night", /nacht|night|dark|dunkel|mitternacht|mond|moon|vampir|fledermaus|\bbat\b/],
+    ["night", /nacht|night|dark|dunkel|mitternacht|mond|moon|vampir|fledermaus|\bbat\b|weltraum|weltall|\bspace\b|alien|\bsterne?n?\b|\bstars?\b|galax|planet|rakete|rocket|\bufo/],   // space: a sky of stars
     ["sunset", /sonnenuntergang|sunset|abend|dusk|golden|sommer|summer/],
     ["retro", /retro|8.?bit|pixel|arcade|oldschool/],
     ["candy", /candy|zuckerl|suss|sweet|bonbon|pink|einhorn|unicorn|zuckerwatte/],

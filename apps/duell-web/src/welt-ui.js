@@ -17,12 +17,14 @@
   }
   // The route as one line of three steps: "🐳 schwebend → ⚡ Sturm → 🌊 schnell".
   function routeLine(route) { return route.map(function (x) { return x.e + " " + t("ph_" + x.p); }).join(" → "); }
-  /* p: the panel; A: the core's hooks { el, field, aiBlock, didLine, ed, tab, preview(state | null), play() } */
+  // p: the panel; A: the core's hooks { el, field, aiBlock, didLine, ed, tab, preview(state | null, fly), play() }.
+  // preview gets fly too: the editor's big PLAY button flies the preview the same way "Fly" does.
   function panel(p, A) {
-    var el = A.el, asked = "", shown = false;
+    var el = A.el, asked = "", shown = false, wait = null;
     var f = A.field(p, t("wishL_game"), "", 140, function () {}, true), tips = el("div", "chips");
     var want = function () { return D.cleanInput(f.value, 140); };
-    function off() { if (shown) { shown = false; A.preview(null); } }   // the editor shows the sheet again
+    // The editor shows the sheet again, and an open answer goes back (refund): asking again, Discard, the sliders.
+    function off() { if (shown) { shown = false; A.preview(null); } var d = wait; wait = null; if (d) d(false); }
     var go = A.aiBlock(p, {
       kind: "welt", label: t("wishGo_game"), noteLast: true,
       input: function () { off(); asked = want(); return asked ? { satz: asked } : null; },
@@ -32,15 +34,15 @@
         if (!ki) { A.didLine(res, before, worldDoc(doc, o.local, null), t("aiNoAi")); return; }
         var st = C.stateFromApi(o, asked);
         if (!st || !st.route) { res.appendChild(el("p", "note aistate", t("aiOff"))); return false; }
-        shown = true; A.preview(st);
         return new Promise(function (done) {
+          wait = done; shown = true; A.preview(st, function () { take(true); });
           var box = el("div", "weltpv"), head = el("p", "lbl"), seal = el("span", "kitag", t("kiBadge"));
           seal.setAttribute("role", "img"); seal.setAttribute("aria-label", t("kiBadgeL")); seal.title = t("kiBadgeL");
           head.appendChild(document.createTextNode(st.emoji + " " + st.title + " ")); head.appendChild(seal);
           box.appendChild(head); box.appendChild(el("p", "note welt-route", routeLine(st.route)));
           var row = el("div", "chips");
           function take(fly) {
-            shown = false; res.textContent = "";
+            shown = false; wait = null; res.textContent = "";
             var did = A.didLine(res, before, worldDoc(A.ed().doc, st, { k: "welt", s: ki.s, h: ki.h }), t("kiBadgeL"));
             A.preview(null); done(did);
             if (fly) A.play();
@@ -48,7 +50,7 @@
           row.appendChild(el("button", "chip hot", "▶ " + t("welt_fly"), function () { Kit.sfx.pop(); take(true); }));
           row.appendChild(el("button", "chip", "✓ " + t("welt_keep"), function () { Kit.sfx.pop(); take(false); }));
           row.appendChild(el("button", "chip", "✕ " + t("welt_drop"), function () {
-            Kit.sfx.tap(); off(); res.textContent = ""; res.appendChild(el("p", "note", t("welt_dropped"))); done(false);
+            Kit.sfx.tap(); off(); res.textContent = ""; res.appendChild(el("p", "note", t("welt_dropped")));
           }));
           box.appendChild(row); box.appendChild(el("p", "note", t("welt_check")));
           res.appendChild(box);

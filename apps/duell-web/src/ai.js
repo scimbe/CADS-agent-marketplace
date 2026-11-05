@@ -5,6 +5,20 @@
   "use strict";
   var TIMEOUT = 25000, WAIT_MAX = 60000, PAUSE = 500, PROOF_BITS = 16;
   var REASONS = ["harm", "sex", "hate", "private", "wrong", "other"];
+  // A crisis is nobody's to answer, least of all a model's. The one place for it in the page: the same unambiguous words
+  // as CRISIS in CADS-DEMO-wrapper lib/duell-ai.mjs (folded like foldForFilter there), checked before anything is sent,
+  // so such a text never leaves the device and the help shows at once, also offline and on the way without AI. Only for
+  // the kinds the server checks too ("lach mich tot" on a meme is a joke). Whether "ritzen" means a cut needs the context
+  // around it; that stays with the server (selfCut). The help is always our own text aiCrisis, never the server's.
+  var CRISIS_KINDS = ["plan", "liste", "quiz", "welt", "text"];
+  var CRISIS = /suizid|selbstmord|selbstverletz|umbring|umzubring|nicht mehr leben|will sterben|sterben will|lebensmud|\bbringe? mich um\b|\b(will|mochte|ware|war) (lieber )?tot( sein)?\b|\btu(e|n)? mir (was|etwas) an\b|\bmir (was|etwas) (an ?tun|anzutun)\b|\bkys\b|kill myself|suicid|self.?harm|want to die|end my life/;
+  var LEET = { 0: "o", 1: "i", 3: "e", 4: "a", 5: "s", 7: "t", 8: "b", "@": "a", $: "s", "\u20ac": "e", "!": "i" };
+  function crisis(text) {
+    var f = String(text == null ? "" : text).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\u00df/g, "ss");
+    return CRISIS.test(f.replace(/[0134578@$\u20ac!]/g, function (c) { return LEET[c]; }).replace(/\s+/g, " "));
+  }
+  // Every text in a request, joined: what crisis() looks at.
+  function texts(v) { return typeof v === "string" ? v : v && typeof v === "object" ? Object.keys(v).map(function (k) { return texts(v[k]); }).join(" ") : ""; }
   // What the server's answer means for the page.
   function verdict(status, json) {
     if (status === 200 && json && Array.isArray(json.options) && json.options.length) return "result";
@@ -113,7 +127,7 @@
     if (meter.abo) return t("aiCountAbo", { n: meter.remaining });
     return t(meter.period === "week" ? "aiCountWeek" : "aiCount", { n: meter.remaining, m: meter.free });
   }
-  var api = { verdict: verdict, place: place, endpoint: endpoint, client: client, reportBody: reportBody, REASONS: REASONS, solve: solve, count: count, canonical: canonical, optionHash: optionHash };
+  var api = { verdict: verdict, place: place, endpoint: endpoint, client: client, reportBody: reportBody, REASONS: REASONS, solve: solve, count: count, canonical: canonical, optionHash: optionHash, crisis: crisis, texts: texts, CRISIS_KINDS: CRISIS_KINDS };
 
   if (typeof window === "undefined") { if (typeof module !== "undefined" && module.exports) module.exports = api; return; }
 
@@ -178,6 +192,7 @@
     async function act() {
       if (busy) return;
       var input = o.input(); if (!input) { Kit.toast(t("filter")); return; }
+      if (CRISIS_KINDS.indexOf(o.kind) >= 0 && crisis(texts(input))) { res.textContent = ""; res.appendChild(el("p", "note aistate", t("aiCrisis"))); return; }   // nothing sent, nothing charged
       if (mine) { settle(mine, false); mine = null; }      // the options of the last answer were left untouched
       busy = true; go.disabled = true; go.textContent = "… " + t("aiThinking"); res.textContent = "";
       var r = await run(o.kind, input, function (n) { go.textContent = "… " + (n ? t("aiWait", { n: n }) : t("aiThinking")); }, alive);
@@ -236,5 +251,5 @@
     if (!body) return false;
     try { var r = await post("/report", body); return r.status >= 200 && r.status < 300; } catch (e) { return false; }
   }
-  window.Ai = { block: block, wall: wall, count: line, post: post, report: report, drop: drop, REASONS: REASONS };
+  window.Ai = { block: block, wall: wall, count: line, post: post, report: report, drop: drop, crisis: crisis, REASONS: REASONS };
 })(typeof globalThis !== "undefined" ? globalThis : this);

@@ -222,6 +222,8 @@ function changed() {           // every control ends up here: redraw within the 
   if (!timer) timer = setTimeout(paint, 16);
 }
 function gameState() { return C.sanitizeState(Object.assign({ v: 1 }, ed.doc.g, { ki: ed.doc.ki })); }
+// A change by hand to a game the AI made: the sheet is no longer what the seal was made for, so the AI mark goes.
+function byHand() { delete ed.doc.ki; }
 function playGame() { Kit.sfx.thud(); G.stop(); show("game", true); G.play(gameState(), null, { own: touched() }); }
 // A game state (played, or from a challenge) back into a sheet: route and AI mark go along.
 function gameDoc(s) { var d = { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji, route: s.route } }; if (s.ki) d.ki = s.ki; return d; }
@@ -270,7 +272,7 @@ function openEditor(doc, opt) {
   paint(); CU.editor();
 }
 function tab(k) {
-  if (ed.pv) { ed.pv = false; window.Ai.drop(); G.update(gameState()); }
+  if (ed.pv) { ed.pv = false; ed.fly = null; window.Ai.drop(); G.update(gameState()); }
   ed.tab = k; Array.from($("tabs").children).forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.k === k)); });
   var p = $("panel"); p.textContent = ""; p.removeAttribute("data-size"); p.classList.toggle("tall", (k === "Sound" && ed.doc.m === "beat") || (k === "Text" && ed.doc.k !== "game") || k === "Wish" || k === "Dice"); PANEL[k](p); p.scrollTop = 0;
 }
@@ -369,8 +371,12 @@ var PANEL = {
   Wish: function (p) {
     if (ed.doc.k === "game") {   // the flight game's one way in lives in a part (welt-ui.js)
       var mine = ed, hooks = { el: el, field: field, aiBlock: aiBlock, didLine: didLine, tab: tab, play: playGame, ed: function () { return ed; },
-        preview: function (st) { ed.pv = !!st; G.update(st || gameState()); } };
-      window.Parts.use("welt", function () { if (ed === mine && ed.tab === "Wish") window.WeltUI.panel(p, hooks); }).catch(function () {});
+        preview: function (st, fly) { ed.pv = !!st; ed.fly = st && fly || null; G.update(st || gameState()); } };
+      window.Parts.use("welt", function () { if (ed === mine && ed.tab === "Wish") window.WeltUI.panel(p, hooks); }).catch(function () {
+        if (ed !== mine || ed.tab !== "Wish") return;      // the part did not load (offline without a cache, SRI): the way without AI stays
+        p.appendChild(el("p", "note aistate", t("welt_noPart")));
+        p.appendChild(el("button", "chip", "🎚 " + t("welt_rules"), function () { Kit.sfx.tap(); tab("Rules"); }));
+      });
       return;
     }
     var f = field(p, t("wishL"), "", 100, function () {}, true), box = el("div", "chips");
@@ -427,7 +433,7 @@ var PANEL = {
       aiBlock(p, { kind: "lyrics", label: t("aiLyrics"), input: function () { var v = D.cleanInput(topic.value, 60); return v ? { topic: v, bpm: d.bpm || 110 } : null; }, show: function (o) { return o.title; }, apply: function (o, ki) { var v = D.cleanInput(o.title, 28); if (v) { d.x = v; name.value = v; } song.textContent = o.lines.join("\n"); song.hidden = false; markKi(d, ki); changed(); } });
       p.appendChild(song);
     }
-    else field(p, t("titleL"), d.g.title, 28, function (v) { d.g.title = v || "Duell"; });
+    else field(p, t("titleL"), d.g.title, 28, function (v) { d.g.title = v || "Duell"; byHand(); });
   },
   Style: function (p) {
     var d = ed.doc;
@@ -475,19 +481,19 @@ var PANEL = {
     ["gravity", "jump", "gap", "speed"].forEach(function (k) {
       var row = el("label", "slide"), r = el("input"), v = el("b", "", g.params[k]);
       row.appendChild(el("span", "", t(k))); r.type = "range"; r.min = ranges[k][0]; r.max = ranges[k][1]; r.value = g.params[k]; r.setAttribute("aria-label", t(k));
-      r.addEventListener("input", function () { g.params[k] = Number(r.value); v.textContent = r.value; changed(); });
+      r.addEventListener("input", function () { g.params[k] = Number(r.value); v.textContent = r.value; byHand(); changed(); });
       row.appendChild(r); row.appendChild(v); p.appendChild(row);
     });
     p.appendChild(el("button", "chip", "✨ " + t("wishL_game"), function () { Kit.sfx.tap(); tab("Wish"); }));   // the one way in, not a second one
   },
   Figure: function (p) {
     var g = ed.doc.g, list = EMOJI.indexOf(me.emoji) < 0 ? [me.emoji].concat(EMOJI) : EMOJI;
-    chips(p, list.map(function (e) { return { v: e, l: e }; }), g.emoji, function (v) { g.emoji = v; }, "em");
+    chips(p, list.map(function (e) { return { v: e, l: e }; }), g.emoji, function (v) { g.emoji = v; byHand(); }, "em");
   },
   // A world chosen here replaces a world built by a wish or the idea (its look), which would otherwise cover every theme.
   World: function (p) {
     var g = ed.doc.g;
-    var b = chips(p, G.THEMES.map(function (n) { return { v: n, l: t("w_" + n) }; }), g.look || g.route ? null : g.theme, function (v) { g.theme = v; delete g.look; delete g.route; });
+    var b = chips(p, G.THEMES.map(function (n) { return { v: n, l: t("w_" + n) }; }), g.look || g.route ? null : g.theme, function (v) { g.theme = v; delete g.look; delete g.route; byHand(); });
     Array.from(b.children).forEach(function (c, i) { c.style.borderBottom = "8px solid " + G.themeColor(G.THEMES[i]); });
   }
 };
@@ -602,7 +608,7 @@ async function finish(doc, idea, pictureDoc) {
 $("edmain").addEventListener("click", function () {
   if (!ed) return;
   if (X[ed.doc.k]) { X[ed.doc.k].main(ed); return; }
-  if (ed.doc.k === "game") { playGame(); return; }
+  if (ed.doc.k === "game") { if (ed.pv && ed.fly) ed.fly(); else playGame(); return; }   // an open preview: PLAY flies it, like "Fly"
   if (!ready()) { Kit.tone(200, 160, 0.1, "square", 0.06); return; }
   Kit.sfx.thud();
   finish(D.withTrail(ed.doc, me.nick, areas()));

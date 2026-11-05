@@ -142,3 +142,90 @@ test("Kontingent leer: ehrlich gesagt, der Satz wird ohne KI nach festen Regeln 
   assert.equal(await p.locator("#panel input[type=range]").count(), 4);
   assert.deepEqual(errs, []); await p.context().close();
 });
+
+const openGame = (p) => p.evaluate(() => { const D = window.Daily, i = D.IDEAS.find((x) => x.kind === "game"); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i }); });
+const build = async (p) => { await p.getByLabel("Was willst du fliegen?").fill("Haie im Sturm"); await p.getByRole("button", { name: "✨ Bauen" }).tap(); await p.locator(".weltpv").waitFor(); };
+
+test("Befund 1: 'Ohne KI: Regler' bei offener Vorschau gibt die Aktion sofort zurueck (/ai/discard)", async () => {
+  let n = 0;
+  const { p, errs, sent } = await phone((path0) => (path0 === "ai" ? OK("rc-r-" + ++n) : path0.startsWith("ai/") ? [200, { refunded: 1, meter: METER }] : null));
+  await openGame(p);
+  const before = JSON.stringify(await p.evaluate(() => window.DailyDebug.doc()));
+  await build(p);
+  await p.getByRole("button", { name: "🎚 Ohne KI: Regler" }).tap();
+  await p.getByRole("tab", { name: "Regeln" }).and(p.locator("[aria-selected=true]")).waitFor();
+  assert.deepEqual(await settled(sent, 1), ["ai/discard:rc-r-1"], "sofort zurueck, nicht erst beim Gang nach Hause");
+  assert.equal(JSON.stringify(await p.evaluate(() => window.DailyDebug.doc())), before);
+  assert.equal((await p.evaluate(() => window.DuellDebug.snap())).cfg.route, undefined, "die Vorschau ist weg");
+  assert.deepEqual(errs, []); await p.context().close();
+});
+
+test("Befund 3: SPIELEN bei offener Vorschau fliegt die Vorschau (wie '▶ Fliegen'), nicht die alte Welt", async () => {
+  const { p, errs, sent } = await phone((path0) => (path0 === "ai" ? OK("rc-s-1") : path0 === "ai/accept" ? [200, { final: true, meter: METER }] : null));
+  await openGame(p);
+  await build(p);
+  await p.locator("#edmain").tap();
+  await p.locator("#game:not([hidden])").waitFor();
+  assert.deepEqual(await settled(sent, 1), ["ai/accept:rc-s-1"]);
+  const s = await p.evaluate(() => window.DuellDebug.snap());
+  assert.equal(s.cfg.route.length, 3, "die Strecke der Vorschau"); assert.equal(s.cfg.title, "Hai-Abenteuer");
+  assert.deepEqual((await p.evaluate(() => window.DailyApp.ed().doc)).ki, { k: "welt", s: SEAL, h: HASH });
+  assert.equal(await p.locator("#gki").isVisible(), true);
+  assert.deepEqual(errs, []); await p.context().close();
+});
+
+test("Befund 2: eigene Aenderungen (Regler, Figur, Welt, Name) nehmen das KI-Zeichen und das Siegel weg", async () => {
+  let n = 0;
+  const { p, errs } = await phone((path0) => (path0 === "ai" ? OK("rc-h-" + ++n) : path0.startsWith("ai/") ? [200, { final: true, meter: METER }] : null));
+  await openGame(p);
+  const doc = () => p.evaluate(() => window.DailyDebug.doc());
+  const keep = async () => { await p.getByRole("tab", { name: "✨ Wunsch" }).tap(); await build(p); await p.getByRole("button", { name: "✓ Übernehmen" }).tap(); assert.deepEqual((await doc()).ki, { k: "welt", s: SEAL, h: HASH }); };
+  await keep();
+  await p.getByRole("tab", { name: "Regeln" }).tap();
+  await p.locator("#panel input[type=range]").first().evaluate((r) => { r.value = "900"; r.dispatchEvent(new Event("input", { bubbles: true })); });
+  assert.equal((await doc()).g.params.gravity, 900); assert.equal((await doc()).ki, undefined, "Regler");
+  assert.ok((await doc()).g.route, "die Strecke bleibt, nur das Zeichen geht");
+  await keep();
+  await p.getByRole("tab", { name: "Figur" }).tap(); await p.locator("#panel .chip.em").nth(2).tap();
+  assert.equal((await doc()).ki, undefined, "Figur");
+  await keep();
+  await p.getByRole("tab", { name: "Welt" }).tap(); await p.getByRole("button", { name: "Lava" }).tap();
+  const d = await doc(); assert.equal(d.ki, undefined, "Welt"); assert.equal(d.g.route, undefined);
+  await keep();
+  await p.getByRole("tab", { name: "Text" }).tap(); await p.getByLabel("Name").fill("Mein Flug");
+  assert.equal((await doc()).ki, undefined, "Name");
+  await p.locator("#edmain").tap(); await p.locator("#game:not([hidden])").waitFor();
+  assert.equal(await p.locator("#gki").isVisible(), false, "das Spiel zeigt kein KI mehr");
+  const url = await p.evaluate(() => window.Daily.challengeUrl(window.Game.current(), 3));
+  const f = await phone(null);
+  await f.p.evaluate((h) => { location.hash = h; }, url.slice(url.indexOf("#")));
+  await f.p.locator("#game:not([hidden])").waitFor();
+  assert.equal((await f.p.evaluate(() => window.Game.current())).ki, undefined, "der Link traegt kein Siegel");
+  assert.deepEqual(errs, []); assert.deepEqual(f.errs, []); await f.p.context().close(); await p.context().close();
+});
+
+test("Befund 6: Krise ohne Netz: Hilfe auf dem Geraet (116 111 und 0800 111 0 111), nichts geht raus, keine Welt gebaut", async () => {
+  for (const api of [null, () => [500, {}]]) {
+    const { p, errs, sent } = await phone(api);
+    await openGame(p);
+    const before = JSON.stringify(await p.evaluate(() => window.DailyDebug.doc()));
+    await p.getByLabel("Was willst du fliegen?").fill("ich will nicht mehr leben"); await p.getByRole("button", { name: "✨ Bauen" }).tap();
+    const h = p.locator(".aistate", { hasText: "116 111" });
+    await h.waitFor();
+    assert.match(await h.textContent(), /0800 111 0 111, rund um die Uhr/);
+    assert.equal(sent.length, 0, "nichts geht raus");
+    assert.equal(JSON.stringify(await p.evaluate(() => window.DailyDebug.doc())), before, "kein Titel 'Ich will nicht mehr leben'");
+    assert.equal(await p.locator(".aicount", { hasText: "Ohne KI erkannt" }).count(), 0);
+    assert.deepEqual(errs, []); await p.context().close();
+  }
+});
+
+test("Befund 9: laedt der Teil welt nicht, sagt der Wunsch-Tab das und bietet die Regler an", async () => {
+  const { p, errs } = await phone(null);
+  await p.evaluate(() => { window.Parts.use = () => Promise.reject(new Error("sri")); });
+  await openGame(p);
+  await p.getByText("Das Flugspiel lädt gerade nicht.", { exact: false }).waitFor();
+  await p.getByRole("button", { name: "🎚 Ohne KI: Regler" }).tap();
+  await p.getByRole("tab", { name: "Regeln" }).and(p.locator("[aria-selected=true]")).waitFor();
+  assert.deepEqual(errs, []); await p.context().close();
+});
