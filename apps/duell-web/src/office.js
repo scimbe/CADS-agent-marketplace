@@ -10,6 +10,10 @@
   // Up to this many people in one link: with the longest answers the whole card still fits the link (core.js MAX_FRAGMENT)
   // with room for an organisation's colours, see office.test.js.
   var VOTERS = 10, RATERS = 6, TAKERS = 5, HELPERS = 6;
+  // k-anonymity (Katalog v2, rule 18): a result without names (mean, notes) shows only from K answers on; below that the
+  // card says how many are still missing. Every card here with an anonymous result goes through anon().
+  var K = 5;
+  function anon(n) { return n >= K; }
 
   Object.keys(TEXT).forEach(function (l) { Object.assign(Tn.T(l), TEXT[l]); });
   function T(lang) { return Tn.T(lang); }
@@ -49,13 +53,16 @@
   function rates(m) { return m.slice(1).map(function (t) { return t[0]; }); }
   function notes(m) { return filled(m.slice(1).map(function (t) { return t[1][0]; })); }
   function mean(m, lang) { var r = rates(m), s = r.reduce(function (a, b) { return a + b; }, 0) / r.length; return s.toLocaleString(lang === "en" ? "en-GB" : "de-DE", { maximumFractionDigits: 1 }); }
-  function fbHead(m, lang) { return m.length > 1 ? fmt(T(lang).fb_mean, { a: mean(m, lang), n: m.length - 1 }) : T(lang).fb_none; }
+  function fbHead(m, lang) {
+    var n = m.length - 1;
+    return !n ? T(lang).fb_none : anon(n) ? fmt(T(lang).fb_mean, { a: mean(m, lang), n: n }) : fmt(T(lang).fb_few, { n: n, k: K });
+  }
   var feedback = {
     turns: [[{ w: "text", l: "fb_topic", max: 60 }]].concat(times(RATERS, function () {
       return [{ w: "slide", l: "fb_rate", min: 1, max: 5, def: 3, peek: function (doc, m) { return m[0][0]; } }, { w: "list", l: "fb_note", n: 1, max: 30, loose: true }];
     })),
     face: function (doc, m, lang) { return m.length ? [m[0][0], fbHead(m, lang), T(lang).fb_anon] : null; },
-    result: function (doc, m, lang) { return { h: fbHead(m, lang), lines: [m[0][0]].concat(notes(m).slice(-4).map(function (s) { return "„" + s + "“"; })) }; }
+    result: function (doc, m, lang) { return { h: fbHead(m, lang), lines: [m[0][0]].concat((anon(m.length - 1) ? notes(m) : []).slice(-4).map(function (s) { return "„" + s + "“"; })) }; }
   };
 
   // ---------- tasks: a list of jobs, everyone takes one that is still open, until none is left ----------
@@ -107,6 +114,6 @@
 
   var CARDS = { umfrage: umfrage, feedback: feedback, aufgaben: aufgaben, agenda: agenda, todo: todo };
   Object.keys(CARDS).forEach(function (k) { if (!Tn.GAMES[k]) { Tn.GAMES[k] = CARDS[k]; Tn.IDS.push(k); } });
-  var api = { CARDS: Object.keys(CARDS), pollCount: pollCount, owners: owners, openJobs: openJobs, points: points, face: function (doc, lang) { var g = Tn.GAMES[doc.g]; return g && g.face ? g.face(doc, Tn.moves(doc), lang) : null; } };
+  var api = { K: K, anon: anon, CARDS: Object.keys(CARDS), pollCount: pollCount, owners: owners, openJobs: openJobs, points: points, face: function (doc, lang) { var g = Tn.GAMES[doc.g]; return g && g.face ? g.face(doc, Tn.moves(doc), lang) : null; } };
   if (node) module.exports = api; else root.Office = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

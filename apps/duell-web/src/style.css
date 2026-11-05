@@ -1,7 +1,8 @@
-:root{--a:#ffd400;--b:#ff3b1d;--btn:#ffd400;--onb:#fffaf0;--ink:#111;--paper:#fff6dc;--on:#111;--disp:Anton,Impact,"Avenir Next Condensed","Roboto Condensed","Arial Black",system-ui,sans-serif;--ui:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+:root{--fs:1;--a:#ffd400;--b:#ff3b1d;--btn:#ffd400;--onb:#fffaf0;--ink:#111;--paper:#fff6dc;--on:#111;--disp:Anton,Impact,"Avenir Next Condensed","Roboto Condensed","Arial Black",system-ui,sans-serif;--ui:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
-html,body{margin:0;height:100%;overflow:hidden;background:var(--a);color:var(--ink);font:700 16px/1.25 var(--ui);overscroll-behavior:none;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--a);color:var(--ink);font:700 1rem/1.25 var(--ui);overscroll-behavior:none;user-select:none;-webkit-user-select:none}
+html{font-size:calc(100% * var(--fs))}   /* the font token: 1rem = system size x --fs (Kit.setFs, Mein Stil) */
 [hidden]{display:none!important}
 button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
 button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
@@ -94,10 +95,10 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .foot{flex:none;background:var(--paper);padding:8px 0 4px}
 .foot.col{background:var(--a);padding-top:10px}
 .foot .press{margin-bottom:8px}
-.lbl{display:block;font-size:12px;font-weight:800;margin:0 0 3px}
-.field{width:100%;min-height:44px;border:3px solid var(--ink);border-radius:4px;background:#fff;color:#111;font:700 16px var(--ui);padding:8px 10px;resize:none;margin-bottom:8px}
+.lbl{display:block;font-size:.75rem;font-weight:800;margin:0 0 3px}
+.field{width:100%;min-height:44px;border:3px solid var(--ink);border-radius:4px;background:#fff;color:#111;font:700 1rem var(--ui);padding:8px 10px;resize:none;margin-bottom:8px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-.chip{min-height:44px;min-width:44px;padding:0 12px;border:3px solid var(--ink);border-radius:4px;background:#fff;color:#111;font:800 14px var(--ui);transition:transform 90ms ease-out}
+.chip{min-height:44px;min-width:44px;padding:0 12px;border:3px solid var(--ink);border-radius:4px;background:#fff;color:#111;font:800 .875rem var(--ui);transition:transform 90ms ease-out}
 .chip:active{transform:scale(.95)}
 .chip.on{background:var(--ink);color:var(--paper)}
 .chip.em{font-size:23px;padding:0 6px}
@@ -113,7 +114,10 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 .step{height:34px;border:2px solid var(--ink);border-radius:3px;background:#fff;padding:0}
 .step.q{background:#eadfc0}.step.on{background:var(--b)}
 .step.now{outline:3px solid var(--ink)}
-.note{font-size:12px;font-weight:600;margin:0 0 6px}
+.note{font-size:.75rem;font-weight:600;margin:0 0 6px}
+/* Building blocks (src/bausteine.js): the privacy line and "Daten fehlen", sized through --fs (1rem follows it) */
+.wsw{font-size:.9375rem;font-weight:600;line-height:1.3;margin:6px 0}
+.note.miss{font-size:1rem;font-weight:800}
 .row{display:flex;gap:6px;padding:0 18px 6px}
 .btn{flex:1;min-height:48px;border:3px solid var(--ink);border-radius:4px;background:var(--paper);color:var(--ink);font:800 14px var(--ui);padding:2px 6px}
 .btn:active{transform:translateY(2px)}

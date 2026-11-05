@@ -115,3 +115,29 @@ test("Platzhalter passen zu den echten Modulen: LiveUI-Schalter, Arcade-Zahl aus
   }
   assert.deepEqual([...seen].sort(), ["ArcadeUI", "LiveUI", "TableUI"], "der Kern ruft alle drei Platzhalter");
 });
+test("Teile: der Katalog wird sofort angefragt, sobald das Manifest ihn nennt; andere Teile erst bei Bedarf", async () => {
+  const saved = Object.assign({}, MAN);
+  MAN.katalog = { f: "parts/katalog.dddddddddddd.js", h: "sha384-K", d: [] };
+  try {
+    const { added } = page("file:///x/index.html"); await tick();
+    assert.deepEqual(added.map((s) => s.src.match(/parts\/([a-z]+)/)[1]), ["katalog"]);
+  } finally { delete MAN.katalog; Object.assign(MAN, saved); }
+  const { added } = page("file:///x/index.html"); await tick();
+  assert.deepEqual(added, [], "ohne Katalog im Manifest laedt der Start nichts");
+});
+test("Registrierungs-API (turnzwei, logik): je Art ein Name nur einmal, nur gueltige Namen, get/list/kinds; dieselbe Registry je Teil", () => {
+  const { w } = page("file:///x/index.html"), R = w.Parts.registry("turnzwei", ["rule", "widget"]);
+  assert.equal(w.Parts.registry("turnzwei", ["x"]), R, "ein Teil, eine Registry");
+  const def = { turns: [] };
+  assert.equal(R.add("rule", "checkin", def), def); R.add("widget", "board", () => 1); R.add("rule", "abc-2", {});
+  assert.equal(R.get("rule", "checkin"), def); assert.equal(R.get("rule", "nichtda"), null); assert.equal(R.get("rule", "toString"), null);
+  assert.deepEqual([...R.list("rule")], ["abc-2", "checkin"]); assert.deepEqual([...R.kinds()], ["rule", "widget"]);
+  assert.throws(() => R.add("rule", "checkin", {}), /twice/); assert.throws(() => R.add("rule", "Gross", {}), /bad id/);
+  assert.throws(() => R.add("gen", "x", {}), /unknown kind/); assert.throws(() => R.get("gen", "x"), /unknown kind/);
+  const fs0 = require("node:fs"), rd = (f) => fs0.readFileSync(path.join(__dirname, "../src", f), "utf8");
+  // the two empty parts: only their registry, nothing else yet
+  for (const [f, name, kinds] of [["turn2.js", "Turn2", ["rule", "widget"]], ["logik.js", "Logik", ["gen"]]]) {
+    const p = page("file:///x/index.html").w; vm.runInNewContext(rd(f), { window: p });
+    assert.deepEqual([...p[name].kinds()], kinds); assert.deepEqual(kinds.map((k) => p[name].list(k).length), kinds.map(() => 0));
+  }
+});

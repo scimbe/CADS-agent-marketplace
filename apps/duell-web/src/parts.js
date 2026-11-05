@@ -65,5 +65,28 @@
       });
     });
   }
-  root.Parts = { need: need, use: use, ready: function (name) { return !!done[name]; }, names: function () { return Object.keys(LIST); } };
+  // The catalog (katalog) is needed for the first sheet: asked for at once, while the rest of the core is still parsed.
+  if (LIST.katalog) need("katalog").catch(function () {});
+  // Registration API for parts that collect pieces by kind (turnzwei: rule, widget; logik: gen). A part creates its registry
+  // with registry("turnzwei", ["rule", "widget"]) and adds to it; the core asks through Parts.use("turnzwei", ...) and get().
+  // Names are short ids; one name once per kind, so two cards never overwrite each other's rules unnoticed.
+  var regs = {};
+  function registry(name, kinds) {
+    if (regs[name]) return regs[name];
+    var m = {};
+    kinds.forEach(function (k) { m[k] = {}; });
+    function box(k) { if (!m[k]) throw new Error(name + ": unknown kind " + k); return m[k]; }
+    return (regs[name] = {
+      add: function (k, id, def) {
+        var b = box(k);
+        if (typeof id !== "string" || !/^[a-z][a-z0-9-]{0,31}$/.test(id)) throw new Error(name + ": bad id " + id);
+        if (b[id]) throw new Error(name + ": " + k + " " + id + " twice");
+        b[id] = def; return def;
+      },
+      get: function (k, id) { var b = box(k); return Object.prototype.hasOwnProperty.call(b, id) ? b[id] : null; },
+      list: function (k) { return Object.keys(box(k)).sort(); },
+      kinds: function () { return kinds.slice(); }
+    });
+  }
+  root.Parts = { need: need, use: use, ready: function (name) { return !!done[name]; }, names: function () { return Object.keys(LIST); }, registry: registry };
 })(window);

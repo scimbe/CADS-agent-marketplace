@@ -34,9 +34,18 @@ test("Aufgaben: jede nur einmal, Karte endet, wenn alle vergeben sind", () => {
   assert.equal(Tn.state(end).over, true);
   assert.deepEqual(Tn.result(end, "de").lines, ["Grill → Cem", "Musik → Ben", "Deko → Dag"]);
 });
-test("Feedback ohne Namen: Mittelwert, leerer Kommentar erlaubt, Note nur 1 bis 5", () => {
+test("Feedback ohne Namen: Ergebnis erst ab k=5 Stimmen, darunter wie viele fehlen; leerer Kommentar erlaubt, Note nur 1 bis 5", () => {
   const d = run("feedback", [["Workshop"], [4, ["Gut erklärt"]], [5, [""]]]);
-  assert.deepEqual(O.face(d, "de"), ["Workshop", "Ø 4,5 von 5 · 2 Rückmeldungen", "Ohne Namen"]);
+  assert.equal(O.K, 5);
+  assert.deepEqual(O.face(d, "de"), ["Workshop", "Noch zu wenig Stimmen: 2 von 5. Das Ergebnis zeigt sich ab 5.", "Ohne Namen"]);
+  assert.deepEqual(O.face(d, "en"), ["Workshop", "Not enough votes yet: 2 of 5. The result shows from 5.", "No names"]);
+  const four = run("feedback", [["W"], [4, ["eins"]], [5, ["zwei"]], [3, ["drei"]], [4, ["vier"]]]);
+  const five = Tn.play(four, [2, ["fünf"]], 0), six = Tn.play(five, [1, [""]], 0);
+  assert.equal(O.face(five, "de")[1], "Ø 3,6 von 5 · 5 Rückmeldungen");
+  assert.deepEqual(Tn.result(six, "de").lines.slice(1), ["„zwei“", "„drei“", "„vier“", "„fünf“"], "ab 5: die letzten Notizen ohne Namen");
+  assert.deepEqual(O.face(four, "de")[1], "Noch zu wenig Stimmen: 4 von 5. Das Ergebnis zeigt sich ab 5.");
+  assert.ok(!O.face(four, "de").join(" ").includes("Ø"), "kein Schnitt unter 5");
+  assert.equal(O.face(run("feedback", [["W"]]), "de")[1], "Noch keine Rückmeldung");
   assert.equal(Tn.play(d, [6, [""]], 0), null);
   assert.ok(!JSON.stringify(Tn.moves(d)).includes("Ana"));
 });
