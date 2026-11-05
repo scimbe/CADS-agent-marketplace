@@ -117,3 +117,46 @@ test("Fristen: relativ zum Event, nie vor heute; Event-Tag aus dem Satz; Aufgabe
   assert.ok(got.list); assert.equal(got.lost, 0);
   assert.deepEqual(Tn.shopRows(got.list, Tn.TODO).map((r) => [r.text, r.due]), [["Einladungen verschicken", day(2026, 11, 28)], ["Kuchen backen", ev - 1], ["Fotos teilen", ev + 1], ["Ideen sammeln", 0]]);
 });
+
+test("Review B2 #1: ein genanntes Datum ('am 12.11.') ist der einzige Tag der Abstimmung, auch ohne KI", () => {
+  const d = S.namedDay("Treffen am 12.11. um 19 Uhr", THU);
+  assert.equal(d, day(2026, 11, 12));
+  assert.deepEqual(S.slots(rule({ uhrzeit: "19:00" }), { today: THU, day: d }).slots.map(txt), ["Do 12.11., 19 Uhr"]);
+  assert.deepEqual(S.slots(rule({ wochentage: ["fr"], tageszeiten: ["abends"] }), { today: THU, day: d }).slots.map(txt), ["Do 12.11., 18 Uhr"], "der Tag zaehlt vor dem Wochentag");
+  assert.deepEqual(S.slots(rule({ uhrzeit: "18:00" }), { today: THU, day: day(2026, 12, 25) }).slots.map(txt), ["Fr 25.12., 18 Uhr"], "ausdruecklich genannter Feiertag bleibt");
+  const l = S.localPlan("Termin am 12.11.");
+  assert.ok(l, "ein Datum allein reicht der lokalen Lesart");
+  assert.equal(S.namedDay("Treffen naechsten Samstag", THU), 0);
+});
+
+test("Review B2 #2: Gruppenwort in der Namensliste: die Namen gehen trotzdem als [Name] raus; Akzente gehoeren zum Namen", () => {
+  const n = S.names("Wichteln mit Jorinde, Kasimir, Wendelin und Familie, 10 Euro");
+  assert.deepEqual(n.names, ["Jorinde", "Kasimir", "Wendelin"]);
+  assert.equal(n.satz, "Wichteln mit [Name], [Name], [Name], Familie, 10 Euro");
+  assert.ok(!/Jorinde|Kasimir|Wendelin/.test(n.satz));
+  const z = S.names("Wichteln mit Zoë, Chloé und Émile");
+  assert.deepEqual(z.names, ["Zoë", "Chloé", "Émile"]); assert.equal(z.satz, "Wichteln mit [Name], [Name], [Name]");
+  assert.deepEqual(S.names("Wichteln mit Freunden, Familie und Kollegen"), { names: [], satz: "Wichteln mit Freunden, Familie und Kollegen" });
+});
+
+test("Review B2 gering: 'um 9' ohne 'Uhr', 12am ist Mitternacht, die Uhrzeit steht nicht im Titel", () => {
+  assert.equal(S.localPlan("Treffen morgen um 9").uhrzeit, "09:00");
+  assert.equal(S.localPlan("Party 12am tomorrow").uhrzeit, "00:00"); assert.equal(S.localPlan("Lunch 12pm tomorrow").uhrzeit, "12:00");
+  const k = S.localPlan("Kaffee 7pm next week");
+  assert.deepEqual([k.uhrzeit, k.titel], ["19:00", "Kaffee"]);
+  assert.equal(S.localPlan("Zahnarzt morgen um 9 Uhr").uhrzeit, "09:00");
+});
+
+test("Review B2 gering: ungueltige Daten und Uhrzeiten werden kein Event-Tag", () => {
+  assert.equal(S.eventDay("Feier am 31.2.", THU), 0);
+  assert.equal(S.eventDay("Sitzung um 10.11 Uhr", THU), 0);
+  assert.equal(S.eventDay("Feier am 30.4.", THU), day(2027, 4, 30));
+  assert.equal(S.eventDay("Feier am 29.2.28", THU), day(2028, 2, 29));
+});
+
+test("Review B2 gering: 'morgens und abends' bleiben am selben Tag zusammen", () => {
+  const r = S.slots(rule({ tageszeiten: ["morgens", "abends"], zeitraum: "naechste_woche" }), { today: THU });
+  const by = {}; r.slots.forEach((s) => { const d = Math.floor(s / 10); (by[d] = by[d] || []).push(s % 10); });
+  assert.ok(r.slots.length <= 5 && r.slots.length >= 4);
+  assert.ok(Object.values(by).every((h) => h.length === 2), JSON.stringify(r.slots.map(txt)));
+});

@@ -190,22 +190,76 @@ test("Ohne Netz: der Termin-Satz wird lokal gelesen (ehrlich 'Ohne KI erkannt', 
   assert.deepEqual(errs, []); await ctx.close();
 });
 
-test("Krise: 422 crisis zeigt die Hilfe lokal, nichts wird geaendert; kind_ok sagt ehrlich nein; Verwerfen gibt die Aktion zurueck", async () => {
-  const { p, errs, sent, ctx } = await phone((i) => /leben/.test(i.satz) ? [422, { error: "blocked", why: "crisis", help: "Du bist nicht allein. Nummer gegen Kummer: 116 111." }]
+test("Krise: der zentrale Hinweis aus ai.js (aiCrisis), lokal erkannt geht nichts raus; 422 crisis zeigt nie den Servertext; kind_ok sagt ehrlich nein; Verwerfen gibt die Aktion zurueck", async () => {
+  const T = require("../../src/texts.json");
+  const { p, errs, sent, ctx } = await phone((i) => /ritze/.test(i.satz) ? [422, { error: "blocked", why: "crisis", help: "SERVERTEXT" }]
     : /Mutprobe/.test(i.satz) ? [422, { error: "blocked", why: "kind_ok" }] : [200, LIVE_PLAN], { hash: "#i=zug-termin", ms: 0 });
   await p.locator("#go").tap();
   await ask(p, "Grillen am Samstag").catch(() => {});
   await p.locator(".satzrev").getByRole("button", { name: "Verwerfen" }).tap();
   assert.deepEqual((await waitSent(sent, "ai/discard")).map((x) => x.body.receipt), ["rc-satz-1"]);
-  const f = p.locator(".satz input.field").first();
+  const f = p.locator(".satz input.field").first(), asked = () => sent.filter((x) => x.path === "ai").length;
   await f.fill("Ich will nicht mehr leben"); await p.getByRole("button", { name: "✨ Vorschlag" }).tap();
-  await p.locator(".aihelp").waitFor();
-  assert.equal(await p.locator(".aihelp").textContent(), "Du bist nicht allein. Nummer gegen Kummer: 116 111.");
-  assert.equal(await p.locator(".aistate").textContent(), "Hier hilft die KI nicht weiter. Nichts verbraucht.");
+  await p.locator(".aistate", { hasText: "116 111" }).waitFor();
+  assert.equal(await p.locator(".aistate").textContent(), T.de.aiCrisis, "der eine Krisenhinweis der Seite");
+  assert.equal(asked(), 1, "lokal erkannt: der Satz verlaesst das Handy nicht");
   await snap(p, "krise");
+  await f.fill("Ich ritze am Samstag"); await p.getByRole("button", { name: "✨ Vorschlag" }).tap();
+  await waitSent(sent, "ai"); for (let i = 0; i < 100 && asked() < 2; i++) await p.waitForTimeout(30);
+  await p.locator(".aistate", { hasText: "116 111" }).waitFor();
+  assert.equal(await p.locator(".aistate").textContent(), T.de.aiCrisis); assert.equal(await p.getByText("SERVERTEXT").count(), 0, "nie der Text des Servers");
   await f.fill("Mutprobe am Samstag"); await p.getByRole("button", { name: "✨ Vorschlag" }).tap();
-  await p.locator(".aistate", { hasText: "Dazu macht die KI nichts. Nichts verbraucht." }).waitFor();
+  await p.locator(".aistate", { hasText: T.de.aiKind }).waitFor();
   assert.equal(await p.locator(".satzrev").count(), 0); assert.equal(await next(p), null);
+  assert.equal(sent.filter((x) => x.path === "ai/accept").length, 0);
+  assert.deepEqual(errs, []); await ctx.close();
+});
+
+test("Review B2 #1: ein Datum im Satz ('am 12.11.') wird der Termin, mit und ohne KI", async () => {
+  const { p, errs, sent, ctx } = await phone((i) => /KI/.test(i.satz) ? [200, plan({ titel: "Treffen", uhrzeit: "19:00" })] : null, { hash: "#i=zug-termin", ms: 0 });
+  await p.locator("#go").tap();
+  await ask(p, "Treffen am 12.11. um 19 Uhr KI");
+  assert.match(await p.locator(".satzrev .note").first().textContent(), /^Erkannt: Do 12\.11\. · 19:00$/);
+  assert.deepEqual(await p.locator(".satzrev .chip.on").allTextContents(), ["Do 12.11., 19 Uhr"]);
+  await take(p);
+  await p.locator("#panel .chips").first().waitFor();
+  assert.deepEqual(await slotsOf(p) || await p.evaluate(() => window.DailyApp.ed().pre && window.DailyApp.ed().pre.slots.map((s) => window.Turns.slotText(s, "de"))), ["Do 12.11., 19 Uhr"]);
+  await p.evaluate(() => { const D = window.Daily, i = D.byId("zug-termin"); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i }); });
+  await ask(p, "Treffen am 12.11. um 19 Uhr");      // no network: the local rules
+  assert.equal(await p.locator(".satzrev .satzki").textContent(), "⚙ Ohne KI erkannt");
+  assert.deepEqual(await p.locator(".satzrev .chip.on").allTextContents(), ["Do 12.11., 19 Uhr"]);
+  assert.deepEqual(errs, []); await ctx.close();
+});
+
+test("Review B2 #2: Namensliste mit Gruppenwort: kein Name geht raus, die Namen fuellen trotzdem die Liste", async () => {
+  const W = plan({ art: "wichteln", titel: "Wichteln", budget_eur: 10 });
+  const { p, errs, sent, ctx } = await phone(() => [200, W], { hash: "#i=zug-wichteln", ms: 0 });
+  await p.locator("#go").tap();
+  await ask(p, "Wichteln mit Jorinde, Kasimir, Wendelin und Familie, 10 Euro");
+  assert.equal(sent.filter((x) => x.path === "ai")[0].body.input.satz, "Wichteln mit [Name], [Name], [Name], Familie, 10 Euro");
+  assert.ok(!/Jorinde|Kasimir|Wendelin/.test(JSON.stringify(sent)), "kein Name geht raus");
+  assert.deepEqual(await p.locator(".satzrev .chip.on").allTextContents(), ["Jorinde", "Kasimir", "Wendelin"]);
+  assert.deepEqual(errs, []); await ctx.close();
+});
+
+test("Review B2 #3: ohne Auswahl ist Uebernehmen aus, nichts wird abgebucht; Verwerfen gibt die Aktion zurueck", async () => {
+  const { p, errs, sent, ctx } = await phone(() => [200, LIVE_PLAN], { hash: "#i=zug-termin", ms: 0 });
+  await p.locator("#go").tap();
+  await ask(p, "Grillen bei mir nächsten Samstagabend");
+  const rev = p.locator(".satzrev"), btn = rev.getByRole("button", { name: "Übernehmen" });
+  for (const c of await rev.locator(".chips .chip").all()) await c.tap();
+  assert.equal(await rev.locator(".chip.on").count(), 0);
+  assert.equal(await btn.isDisabled(), true, "nichts gewaehlt: Uebernehmen aus");
+  await btn.evaluate((b) => b.click());
+  await p.waitForTimeout(300);
+  assert.equal(sent.filter((x) => x.path === "ai/accept").length, 0, "nichts abgebucht");
+  assert.equal(await next(p), null, "nichts uebernommen");
+  await rev.locator(".chips .chip").first().tap();
+  assert.equal(await btn.isDisabled(), false, "wieder einer gewaehlt: Uebernehmen an");
+  await rev.locator(".chips .chip").first().tap();
+  await rev.getByRole("button", { name: "Verwerfen" }).tap();
+  assert.deepEqual((await waitSent(sent, "ai/discard")).map((x) => x.body.receipt), ["rc-satz-1"]);
+  assert.equal(sent.filter((x) => x.path === "ai/accept").length, 0);
   assert.deepEqual(errs, []); await ctx.close();
 });
 
@@ -279,6 +333,12 @@ test("Business: Aufgabenliste fuers Event aus einem Satz, Fristen vom Event-Tag 
   assert.deepEqual(await p.locator(".satzrev .chip.on").allTextContents(), ["Raum buchen · bis Sa 28.11.", "Einladungen verschicken · bis Sa 28.11.", "Catering bestellen · bis Sa 5.12.", "Deko besorgen · bis Mi 9.12.", "Aufbauen · bis Sa 12.12.", "Fotos teilen · bis So 13.12."]);
   assert.equal(await p.locator(".satzrev .note", { hasText: "weggelassen" }).textContent(), "1 weggelassen: keine Orte oder Kontakte im Link.", "'Location' nimmt die Liste nicht: gesehen = gesendet");
   await snap(p, "aufgaben-pruefen");
+  const btn = p.locator(".satzrev").getByRole("button", { name: "Übernehmen" }), chips = await p.locator(".satzrev .chips .chip").all();
+  for (const c of chips) await c.tap();
+  assert.equal(await btn.isDisabled(), true, "Review B2 #3: keine Aufgabe gewaehlt, Uebernehmen aus");
+  await btn.evaluate((b) => b.click()); await p.waitForTimeout(200);
+  assert.equal(sent.filter((x) => x.path === "ai/accept").length, 0, "nichts abgebucht ohne Aufgabe");
+  for (const c of chips) await c.tap();
   await take(p);
   await p.locator("#panel .shoprow").filter({ hasText: "Raum buchen" }).waitFor();
   await p.locator("#edmain").tap(); await p.locator("#share").waitFor();

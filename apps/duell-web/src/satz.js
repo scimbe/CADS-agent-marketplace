@@ -56,8 +56,10 @@
   function nearest(h, mi) { var v = h + mi / 60, best = 0; HOURS.forEach(function (x, i) { if (Math.abs(x - v) <= Math.abs(HOURS[best] - v)) best = i; }); return best; }
   var TZ = { morgens: 0, vormittags: 0, mittags: 1, nachmittags: 3, abends: 6 };
   /* rule: the plan option (wochentage, tageszeiten, uhrzeit, zeitraum, ...). opt: { today, nowHour, no: profile "no time"
-     keys, def: hour index when nothing is said }. -> { slots, skipped: holidays left out, rounded: the said time is not on
-     the grid, none: only the profile ruled every slot out } */
+     keys, def: hour index when nothing is said, day: the date the sentence names ("am 12.11."; the plan format has no
+     field for it, so it is read here) }. A named date is the only day: no weekday filter, a holiday is kept (it was asked
+     for). -> { slots, skipped: holidays left out, rounded: the said time is not on the grid, none: only the profile ruled
+     every slot out, day: the named date when there was one } */
   function slots(rule, opt) {
     opt = opt || {};
     var today = opt.today, no = opt.no || [], hours = [], rounded = "";
@@ -66,20 +68,28 @@
     else (rule.tageszeiten || []).forEach(function (z) { if (TZ[z] != null && hours.indexOf(TZ[z]) < 0) hours.push(TZ[z]); });
     if (!hours.length) hours = [opt.def == null ? 6 : opt.def];
     hours.sort(function (a, b) { return a - b; });
-    var days = (rule.wochentage || []).length ? rule.wochentage : null, skipped = [], pairs = [], ruled = 0;
-    period(rule.zeitraum, today).forEach(function (d) {
+    var fixed = opt.day || 0, days = !fixed && (rule.wochentage || []).length ? rule.wochentage : null, skipped = [], pairs = [], ruled = 0, byDay = [];
+    (fixed ? [fixed] : period(rule.zeitraum, today)).forEach(function (d) {
       if (d < today || (days && days.indexOf(WD[wd(d)]) < 0)) return;
-      if (holiday(d)) { skipped.push(d); return; }
+      if (!fixed && holiday(d)) { skipped.push(d); return; }
+      var mine = [];
       hours.forEach(function (h) {
         if (d === today && HOURS[h] <= (opt.nowHour == null ? 24 : opt.nowHour)) return;
         var weekday = mon(d) < 5;
         if ((no.indexOf("sa") >= 0 && wd(d) === 6) || (no.indexOf("so") >= 0 && wd(d) === 0) || (no.indexOf("tag") >= 0 && weekday && HOURS[h] < 17) || (no.indexOf("abend") >= 0 && HOURS[h] >= 20)) { ruled++; return; }
-        pairs.push(d * 10 + h);
+        pairs.push(d * 10 + h); mine.push(d * 10 + h);
       });
+      if (mine.length) byDay.push(mine);
     });
-    var pick = pairs;
-    if (pairs.length > MAX) { pick = []; for (var i = 0; i < MAX; i++) pick.push(pairs[Math.round(i * (pairs.length - 1) / (MAX - 1))]); }
-    return { slots: pick, skipped: skipped, rounded: rounded, none: !pairs.length && ruled > 0 };
+    // At most MAX, spread evenly over the days; a day keeps all its times ("morgens und abends" stays together on one day).
+    var pick = pairs, per = Math.max(1, hours.length), nd = Math.max(1, Math.floor(MAX / per));
+    if (pairs.length > MAX) {
+      pick = [];
+      if (byDay.length <= nd) byDay.forEach(function (x) { pick = pick.concat(x); });
+      else for (var i = 0; i < nd; i++) pick = pick.concat(byDay[nd === 1 ? 0 : Math.round(i * (byDay.length - 1) / (nd - 1))]);
+      pick = pick.slice(0, MAX);
+    }
+    return { slots: pick, skipped: skipped, rounded: rounded, none: !pairs.length && ruled > 0, day: fixed };
   }
 
   // ---------- .ics for one slot: floating local time (RFC 5545 form 1), no names, no place ----------
@@ -117,8 +127,9 @@
     if (/(^|[^r])mittag|\bnoon\b|lunch/.test(n.replace(/vormittag|nachmittag/g, ""))) r.tageszeiten.push("mittags");
     if (/nachmittag|afternoon/.test(n)) r.tageszeiten.push("nachmittags");
     if (/ abends? |evening|tonight/.test(n) || (/abend/.test(n) && !r.tageszeiten.length)) r.tageszeiten.push("abends");   // "Spieleabend": evening, unless the sentence says when
-    var t = n.match(/ (\d{1,2}):(\d{2}) /) || n.match(/ (\d{1,2})[.:]?(\d{2})? ?uhr /) || n.match(/ (\d{1,2})(?::(\d{2}))? ?(pm|am) /);
-    if (t && +t[1] <= 23) { var h = +t[1] + (t[3] === "pm" && +t[1] < 12 ? 12 : 0), mi = t[2] ? +t[2] : 0; if (mi <= 59) r.uhrzeit = pad(h) + ":" + pad(mi); }
+    // "18:30", "19 Uhr", "7pm", "12am" (midnight), and a bare hour after "um/ab/gegen/at" ("morgen um 9").
+    var t = n.match(/ (\d{1,2}):(\d{2}) /) || n.match(/ (\d{1,2})[.:]?(\d{2})? ?uhr /) || n.match(/ (\d{1,2})(?::(\d{2}))? ?(pm|am) /) || n.match(/ (?:um|ab|gegen|at) (\d{1,2}) (?!uhr )/);
+    if (t && +t[1] <= 23 && (!t[3] || (+t[1] >= 1 && +t[1] <= 12))) { var h = t[3] ? +t[1] % 12 + (t[3] === "pm" ? 12 : 0) : +t[1], mi = t[2] ? +t[2] : 0; if (mi <= 59) r.uhrzeit = pad(h) + ":" + pad(mi); }
     var du = n.match(/ (\d{1,2}|ein|eine|einer|zwei|drei|vier|fuenf|sechs|acht|one|two|three|four|five|six|eight|an|a) (stunden?|std|hours?|h) /), dm = n.match(/ (\d{1,3}) (minuten|min|minutes) /);
     var mins = /halbe stunde|half an hour/.test(n) ? 30 : du ? (+du[1] || NUM[du[1]]) * 60 : dm ? +dm[1] : 0;
     if (mins) { r.dauer_min = DAUER.reduce(function (a, b) { return Math.abs(b - mins) < Math.abs(a - mins) ? b : a; }, 0); }
@@ -131,11 +142,11 @@
     PLACES.some(function (p) { if (p[1].test(n)) { r.ort = p[0]; return true; } return false; });
     BRING.forEach(function (b) { if (b[1].test(n) && /bring|mitbring/.test(n)) r.mitbringen.push(b[0]); });
     var eur = n.match(/ (\d{1,4}) ?(€|euro|eur) /); if (eur) r.budget_eur = Math.min(1000, +eur[1]);
-    hit = r.wochentage.length + r.tageszeiten.length + (r.uhrzeit ? 1 : 0) + (r.zeitraum !== "offen" ? 1 : 0);
+    hit = r.wochentage.length + r.tageszeiten.length + (r.uhrzeit ? 1 : 0) + (r.zeitraum !== "offen" ? 1 : 0) + (dateIn(n, dayOf(2000, 1, 1)) ? 1 : 0);
     // The title: the words before the first word about time or place, at most three.
-    var stop = /^(bei|am|um|im|in|an|ab|mit|fuer|naechste\w*|diese\w*|jeden|jede|heute|morgen|at|on|in|next|this|with|for|every|today|tomorrow|zwischen|vor|unter|irgendwann|egal|online)$/;
+    var CLOCK = /^\d{1,2}([:.]\d{2})?(am|pm|uhr|h)?$/, stop = /^(bei|am|um|im|in|an|ab|mit|fuer|naechste\w*|diese\w*|jeden|jede|heute|morgen|at|on|in|next|this|with|for|every|today|tomorrow|zwischen|vor|unter|irgendwann|egal|online)$/;
     var words = [], raw = String(satz || "").replace(/[,.;:!?].*$/, "").split(/\s+/).filter(Boolean);
-    for (var i = 0; i < raw.length && words.length < 3; i++) { var w = norm(raw[i]).trim(); if (stop.test(w) || DAYS.some(function (d) { return new RegExp("^(" + d[1] + "|" + d[2] + ")").test(w); })) break; words.push(raw[i]); }
+    for (var i = 0; i < raw.length && words.length < 3; i++) { var w = norm(raw[i]).trim(); if (stop.test(w) || CLOCK.test(w) || DAYS.some(function (d) { return new RegExp("^(" + d[1] + "|" + d[2] + ")").test(w); })) break; words.push(raw[i]); }
     r.titel = words.join(" ").slice(0, 40);
     if (r.titel) r.titel = r.titel.charAt(0).toUpperCase() + r.titel.slice(1);
     return hit ? r : null;
@@ -150,13 +161,15 @@
   // ---------- names stay on the device: "Wichteln mit Anna, Ben und Carla" -> the names here, [Name] for the server ----------
   var NOT_NAMES = /^(Euro|Eur|Budget|Thema|Freunden?|Familie|Kollegen|Klasse|Team|Büro|Verein|Weihnachten|Advent|Geschenke?|Spaß|Leuten|Personen|Kindern?|Eltern|Oma|Opa|Mama|Papa|Allen|Uns|Euch|Friends|Family|Team|Colleagues)$/;
   function names(satz) {
-    var s = String(satz || ""), found = [], NAME = "[A-ZÄÖÜ][a-zäöüß]{1,11}(?:-[A-ZÄÖÜ][a-zäöüß]{1,11})?";
-    var re = new RegExp("(\\b(?:mit|with|für|for|von)\\s+|:\\s*)(" + NAME + "(?:\\s*(?:,|\\bund\\b|\\band\\b|&)\\s*" + NAME + "){2,})", "g");
+    // Letters with accents too ("Zoë", "Chloé", "Émile"): \p{Lu}\p{Ll} instead of A-Z.
+    var s = String(satz || ""), found = [], NAME = "\\p{Lu}\\p{Ll}{1,11}(?:-\\p{Lu}\\p{Ll}{1,11})?";
+    var re = new RegExp("(\\b(?:mit|with|für|for|von)\\s+|:\\s*)(" + NAME + "(?:\\s*(?:,|\\bund\\b|\\band\\b|&)\\s*" + NAME + "){2,})(?!\\p{L})", "gu");
     var out = s.replace(re, function (all, lead, list) {
-      var l = list.split(/\s*(?:,|\bund\b|\band\b|&)\s*/).filter(Boolean);
-      if (l.some(function (x) { return NOT_NAMES.test(x); })) return all;
-      l.forEach(function (x) { if (found.indexOf(x) < 0 && x.length <= 12) found.push(x); });
-      return lead + l.map(function () { return "[Name]"; }).join(", ");
+      var l = list.split(/\s*(?:,|\bund\b|\band\b|&)\s*/).filter(Boolean), real = l.filter(function (x) { return !NOT_NAMES.test(x); });
+      if (!real.length) return all;      // "mit Freunden, Familie und Kollegen": no names at all
+      // A group word in the list ("und Familie") stays as it is; every name next to it still goes out as [Name].
+      real.forEach(function (x) { if (found.indexOf(x) < 0 && Array.from(x).length <= 12) found.push(x); });
+      return lead + l.map(function (x) { return NOT_NAMES.test(x) ? x : "[Name]"; }).join(", ");
     });
     return { names: found.slice(0, 12), satz: out };
   }
@@ -199,14 +212,26 @@
   var FRIST = { sofort: null, "2_wochen_vorher": -14, "1_woche_vorher": -7, "3_tage_vorher": -3, "1_tag_vorher": -1, am_tag: 0, danach: 1 };
   // -> the due day (a day number), 0 for none; never before today.
   function due(frist, event, today) { if (frist === "offen" || !(frist in FRIST)) return 0; var d = FRIST[frist] === null ? today : event + FRIST[frist]; return Math.max(today, d); }
-  // The event day from the sentence when it names one ("am 14.12.", "Samstag", "in 3 Wochen", "morgen"), else 0.
-  function eventDay(satz, today) {
-    var n = norm(satz), y = ymd(today), m;
-    if ((m = n.match(/ (\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?/)) && +m[2] >= 1 && +m[2] <= 12 && +m[1] >= 1 && +m[1] <= 31) {
-      var yr = m[3] ? (+m[3] < 100 ? 2000 + +m[3] : +m[3]) : y[0], d = dayOf(yr, +m[2], +m[1]);
-      if (!m[3] && d < today) d = dayOf(yr + 1, +m[2], +m[1]);
+  /* A calendar date in a normed sentence ("12.11.", "3.1.27"), else 0: only a real day ("31.2." is none) and not a time
+     ("um 10.11 Uhr"). Without a year the next such day from today. */
+  function dateIn(n, today) {
+    var re = / (\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?(?!\d)/g, m;
+    while ((m = re.exec(n))) {
+      var rest = n.slice(m.index + m[0].length), before = n.slice(0, m.index + 1);
+      if (/^ ?(uhr|h) /.test(rest) || / (um|ab|gegen|bis|at) $/.test(before)) continue;
+      var yr = m[3] ? (+m[3] < 100 ? 2000 + +m[3] : +m[3]) : ymd(today)[0], mo = +m[2], da = +m[1], d = dayOf(yr, mo, da), x = ymd(d);
+      if (x[1] !== mo || x[2] !== da) continue;
+      if (!m[3] && d < today) { d = dayOf(yr + 1, mo, da); x = ymd(d); if (x[1] !== mo || x[2] !== da) continue; }      // 29.2. next year
       return d;
     }
+    return 0;
+  }
+  // The date the sentence names ("Treffen am 12.11. um 19 Uhr"), else 0: the date card asks for that day only.
+  function namedDay(satz, today) { return dateIn(norm(satz), today); }
+  // The event day from the sentence when it names one ("am 14.12.", "Samstag", "in 3 Wochen", "morgen"), else 0.
+  function eventDay(satz, today) {
+    var n = norm(satz), m, fixed = dateIn(n, today);
+    if (fixed) return fixed;
     if ((m = n.match(/ in (\d{1,2}|zwei|drei|vier|two|three|four) (tagen|wochen|days|weeks) /))) return today + (+m[1] || NUM[m[1]]) * (/w/.test(m[2]) ? 7 : 1);
     if (/ uebermorgen /.test(n)) return today + 2;
     if (/ (morgen|tomorrow) /.test(n)) return today + 1;
@@ -216,6 +241,6 @@
   // Tasks for the todo list (turns.js todoFrom): [[what, "", due day]], who stays empty: people pick a task themselves.
   function tasks(o, event, today) { return (o.aufgaben || []).map(function (x) { return [x.was, "", due(x.frist, event, today)]; }); }
 
-  var api = { HOURS: HOURS, holiday: holiday, holidays: holidays, easter: easter, period: period, slots: slots, ics: ics, localPlan: localPlan, planArt: planArt, listArt: listArt, names: names, amount: amount, shopList: shopList, due: due, eventDay: eventDay, tasks: tasks, PER: PER, dayOf: dayOf };
+  var api = { HOURS: HOURS, holiday: holiday, holidays: holidays, easter: easter, period: period, slots: slots, ics: ics, localPlan: localPlan, planArt: planArt, listArt: listArt, names: names, amount: amount, shopList: shopList, due: due, eventDay: eventDay, namedDay: namedDay, tasks: tasks, PER: PER, dayOf: dayOf };
   if (node) module.exports = api; else root.SatzLogic = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

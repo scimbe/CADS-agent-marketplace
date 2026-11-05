@@ -44,11 +44,11 @@ function today() { return Math.floor((Date.now() - new Date().getTimezoneOffset(
 function business() { return !!(window.DailyFlavor && window.DailyFlavor.adult === true); }
 function dayText(d) { return Tn.dayText(d, Kit.lang); }
 function cut(s, n) { s = String(s || "").trim(); if (Array.from(s).length <= n) return s; var t = Array.from(s).slice(0, n).join(""); return t.replace(/\s+\S*$/, "") || t; }
-// The chip row of a review: each item on, a tap takes it out (and back in). -> () => the indexes still on
-function toggles(box, labels) {
+// The chip row of a review: each item on, a tap takes it out (and back in); change() after each tap. -> () => the indexes still on
+function toggles(box, labels, change) {
   var on = labels.map(function () { return true; }), row = el("div", "chips");
   labels.forEach(function (l, i) {
-    var b = el("button", "chip on", l, function () { on[i] = !on[i]; b.classList.toggle("on", on[i]); b.setAttribute("aria-pressed", String(on[i])); Kit.sfx.tap(); });
+    var b = el("button", "chip on", l, function () { on[i] = !on[i]; b.classList.toggle("on", on[i]); b.setAttribute("aria-pressed", String(on[i])); Kit.sfx.tap(); if (change) change(); });
     b.setAttribute("aria-pressed", "true"); row.appendChild(b);
   });
   box.appendChild(row);
@@ -61,18 +61,27 @@ function head(box, ki, read) {
   box.appendChild(h);
   if (read) box.appendChild(el("p", "note", L().read + ": " + read));
 }
-// Take / discard: the promise the AI action waits for before it settles (true = taken, the charge is final).
-function decide(box, ok, onTake) {
-  var row = el("div", "airow"), take = el("button", "btn hot", L().take, function () { if (take.disabled) return; take.disabled = true; Kit.sfx.pop(); onTake(); done(true); }), x = el("button", "chip", L().drop, function () { Kit.sfx.tap(); box.textContent = ""; done(false); });
+/* Take / discard: the promise the AI action waits for before it settles (true = taken, the charge is final). picked():
+   false while nothing is chosen, "Übernehmen" is then off. onTake() returns false when it took nothing after all (the
+   list was full, nothing fits the link): then nothing is settled, the check stays open, and leaving or "Verwerfen"
+   gives the action back. -> sync(), to call when the choice changed. */
+function decide(box, ok, onTake, picked) {
+  var row = el("div", "airow"), take = el("button", "btn hot", L().take, function () {
+    if (take.disabled || (picked && !picked())) return; take.disabled = true; Kit.sfx.pop();
+    if (onTake() === false) { sync(); return; }
+    done(true);
+  }), x = el("button", "chip", L().drop, function () { Kit.sfx.tap(); box.textContent = ""; done(false); });
   var done = ok;
-  row.appendChild(take); row.appendChild(x); box.appendChild(row);
-  return take;
+  function sync() { take.disabled = !!picked && !picked(); }
+  row.appendChild(take); row.appendChild(x); box.appendChild(row); sync();
+  return sync;
 }
 function markKi(doc, ki) { var k = ki && D.sanitizeKi(ki); if (k) doc.ki = k; }
 
 // ---------- the five cards ----------
-function readPlan(o) {
+function readPlan(o, day) {
   var X = L(), parts = [];
+  if (day) parts.push(dayText(day));
   if (o.wochentage.length) parts.push(o.wochentage.map(function (w) { return X.wd[w]; }).join(", "));
   if (o.uhrzeit) parts.push(o.uhrzeit); else if (o.tageszeiten.length) parts.push(o.tageszeiten.join(", "));
   if (X.z[o.zeitraum]) parts.push(X.z[o.zeitraum]);
@@ -84,22 +93,24 @@ function readPlan(o) {
 var MODES = {
   termin: { kind: "plan", keys: ["no"], max: 200, art: function (s) { return S.planArt(s, business()); }, local: function (s) { var r = S.localPlan(s); if (r) r.art = S.planArt(s, business()); return r; },
     review: function (box, o, ki, ctx) {
-      var X = L(), pref = ctx.use.pref(), r = S.slots(o, { today: today(), nowHour: new Date().getHours(), no: pref.no || [], def: business() ? 0 : 6 });
-      head(box, ki, readPlan(o));
+      var X = L(), t0 = today(), named = S.namedDay(ctx.satz, t0);      // "am 12.11.": the plan format has no field for a date
+      var pref = ctx.use.pref(), r = S.slots(o, { today: t0, nowHour: new Date().getHours(), no: pref.no || [], def: business() ? 0 : 6, day: named });
+      head(box, ki, readPlan(o, named));
       if (!r.slots.length) { box.appendChild(el("p", "note", r.none ? X.byPref : X.none)); return Promise.resolve(false); }
-      var on = toggles(box, r.slots.map(function (s) { return Tn.slotText(s, Kit.lang); }));
+      var sync = null, on = toggles(box, r.slots.map(function (s) { return Tn.slotText(s, Kit.lang); }), function () { sync(); });
       if (r.skipped.length) box.appendChild(el("p", "note", say("hol", { d: r.skipped.map(function (d) { return dayText(d) + " " + S.holiday(d, Kit.lang); }).join(", ") })));
       if (r.rounded) box.appendChild(el("p", "note", say("round", { t: r.rounded, h: Tn.hourText(r.slots[0] % 10, Kit.lang) })));
       if (r.slots.length === 1) box.appendChild(el("p", "note", X.one));
       box.appendChild(el("p", "note", X.tap));
       return new Promise(function (ok) {
-        decide(box, ok, function () {
+        sync = decide(box, ok, function () {
           var d = ctx.ed.doc, pick = on().map(function (i) { return r.slots[i]; });
+          if (!pick.length) return false;
           if (o.titel) d.t = D.cleanInput(o.titel, 40) || d.t;
           if (o.art === "einladung") { var s = [X.ort[o.ort], o.mitbringen.length ? X.bring + ": " + o.mitbringen.map(function (m) { return X.mit[m]; }).join(", ") : ""].filter(Boolean).join(" · "); if (s) d.s = D.cleanInput(cut(s, 70), 70) || d.s; }
           ctx.ed.satzMins = o.dauer_min || (o.art === "einladung" ? 120 : 60);
           ctx.ed.pre = { slots: pick, go: 1 }; markKi(d, ki); ctx.redo();
-        });
+        }, function () { return on().length > 0; });
       });
     } },
   wichteln: { kind: "plan", keys: [], max: 200, art: function () { return "wichteln"; },
@@ -130,13 +141,14 @@ var MODES = {
     review: function (box, o, ki, ctx) {
       var X = L(), pref = ctx.use.pref(), noMeat = !!pref.diet, p = o.personen || pref.hh || 4, guess = !o.personen && !pref.hh, v = noMeat ? p : o.vegetarisch || 0;
       head(box, ki, o.titel);
-      var row = el("div", "airow"), n = el("b", "satzn", ""), list = el("div"), on = null, items = [];
+      var row = el("div", "airow"), n = el("b", "satzn", ""), list = el("div"), on = null, items = [], sync = null;
       function draw() {
         n.textContent = p + " " + X.people + (v && !noMeat ? " · " + say("veg", { n: Math.min(v, p) }) : "") + (guess ? " (" + X.guess + ")" : "");
         var all = S.shopList(o, p, Math.min(v, p), Kit.lang, noMeat); list.textContent = "";
         items = all.filter(function (a) { return !!Q.clean(a.text, 24); });      // what the list takes (no places, no contacts): seen = sent
         if (all.length > items.length) list.appendChild(el("p", "note", say("left", { n: all.length - items.length })));
-        on = toggles(list, items.map(function (a) { return (a.qty > 1 ? a.qty + "× " : "") + a.text + (a.m === "nach_bedarf" ? " (" + X.need + ")" : ""); }));
+        on = toggles(list, items.map(function (a) { return (a.qty > 1 ? a.qty + "× " : "") + a.text + (a.m === "nach_bedarf" ? " (" + X.need + ")" : ""); }), function () { sync(); });
+        if (sync) sync();
       }
       [["−", -1], ["+", 1]].forEach(function (x) {
         var b = el("button", "chip", x[0], function () { var q = Math.max(1, Math.min(99, p + x[1])); if (q === p) return; p = q; guess = false; Kit.sfx.tap(); draw(); });
@@ -144,42 +156,44 @@ var MODES = {
       });
       box.appendChild(row); box.appendChild(list); box.appendChild(el("p", "note", X.calc)); draw();
       return new Promise(function (ok) {
-        decide(box, ok, function () {
-          var ed = ctx.ed, e = ed.shop || (ed.shop = { name: "", face: 0, adds: [], marks: {} }), st = Tn.state(ed.doc), base = st.moves.length ? st.moves[0][0] : null, cf = Tn.GAMES[ed.doc.g].list, lost = 0;
-          on().forEach(function (i) {
+        sync = decide(box, ok, function () {
+          var ed = ctx.ed, e = ed.shop || (ed.shop = { name: "", face: 0, adds: [], marks: {} }), st = Tn.state(ed.doc), base = st.moves.length ? st.moves[0][0] : null, cf = Tn.GAMES[ed.doc.g].list, lost = 0, sel = on();
+          sel.forEach(function (i) {
             var a = items[i], text = Q.clean(a.text, 24); if (!text || !Tn.shopKey(text)) { lost++; return; }
             e.adds = e.adds.filter(function (x) { return Tn.shopKey(x.text) !== Tn.shopKey(text); }); e.adds.push({ text: text, qty: a.qty });
             if (!Tn.shopApply(base, e, cf)[1].some(function (it) { return Tn.shopKey(it[0]) === Tn.shopKey(text); })) { e.adds.pop(); lost++; }
           });
+          if (lost) Kit.toast(say("full", { n: lost }));
+          if (lost === sel.length) return false;      // nothing went onto the list: nothing taken, nothing charged
           if (o.titel && !st.moves.length) ed.doc.t = D.cleanInput(o.titel, 40) || ed.doc.t;
           markKi(ed.doc, ki); ctx.redo();
-          if (lost) Kit.toast(say("full", { n: lost }));
-        });
+        }, function () { return !!on && on().length > 0; });
       });
     } },
   aufgaben: { kind: "liste", keys: [], max: 300, art: function () { return "aufgaben"; },
     review: function (box, o, ki, ctx) {
-      var X = L(), t0 = today(), ev = S.eventDay(ctx.satz, t0) || t0 + 14, f = el("input", "field"), list = el("div"), on = null, rows = [];
+      var X = L(), t0 = today(), ev = S.eventDay(ctx.satz, t0) || t0 + 14, f = el("input", "field"), list = el("div"), on = null, rows = [], sync = null;
       head(box, ki, o.titel);
       f.type = "date"; f.setAttribute("aria-label", X.event); f.value = new Date(ev * 86400000).toISOString().slice(0, 10);
       function draw() {
         var all = S.tasks(o, ev, t0); list.textContent = "";
         rows = all.filter(function (r) { return !!Q.clean(r[0], Tn.TODO.text); });
         if (all.length > rows.length) list.appendChild(el("p", "note", say("left", { n: all.length - rows.length })));
-        on = toggles(list, rows.map(function (r) { return r[0] + " · " + (r[2] ? say("dueBy", { d: dayText(r[2]) }) : X.noDue); }));
+        on = toggles(list, rows.map(function (r) { return r[0] + " · " + (r[2] ? say("dueBy", { d: dayText(r[2]) }) : X.noDue); }), function () { sync(); });
+        if (sync) sync();
       }
       f.addEventListener("change", function () { var m = f.value.match(/^(\d{4})-(\d{2})-(\d{2})$/); if (m) { ev = S.dayOf(+m[1], +m[2], +m[3]); draw(); } });
       box.appendChild(el("label", "lbl", X.event)); box.appendChild(f); box.appendChild(list); box.appendChild(el("p", "note", X.tap)); draw();
       return new Promise(function (ok) {
-        decide(box, ok, function () {
+        sync = decide(box, ok, function () {
           var got = Tn.todoFrom({ t: o.titel || "", i: on().map(function (i) { return rows[i]; }) });
-          if (!got.list) { Kit.toast(Kit.t("filter")); return; }
+          if (!got.list) { Kit.toast(Kit.t("filter")); return false; }
           var seed = crypto.getRandomValues(new Uint32Array(1))[0], T = Tn.T(Kit.lang);
           var doc = D.sanitizeDoc({ k: "turn", g: "todo", seed: seed, q: Tn.seal([[got.list]], seed), f: "bolt", col: A.me().colors, by: [], t: got.t || T.tdo_title, s: say("dueBy", { d: dayText(ev) }) });
           markKi(doc, ki);
           // after the action settled (the editor that opens next hands back what is still open)
           setTimeout(function () { A.openEditor(doc, { idea: null }); if (got.lost) Kit.toast(T.tdo_lost.replace("{n}", got.lost)); }, 0);
-        });
+        }, function () { return !!on && on().length > 0; });
       });
     } }
 };
