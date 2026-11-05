@@ -221,7 +221,7 @@
           if (!alive()) return;
           var ki = { k: o.kind, s: r.seals[i] || "", h: hs[i] };
           var did = o.auto ? o.auto(opt, ki, res) : o.apply(opt, ki);
-          if (did && typeof did.then === "function") { did.then(function (x) { if (mine === rc) mine = null; settle(rc, x !== false); }); return; }
+          if (did && typeof did.then === "function") { did.then(function (x) { if (mine === rc) mine = null; settle(rc, x !== false); }, function () { if (mine === rc) mine = null; settle(rc, false); }); return; }
           if (mine === rc) mine = null;
           settle(rc, did !== false);
         };

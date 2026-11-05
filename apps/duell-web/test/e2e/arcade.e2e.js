@@ -71,6 +71,7 @@ test("Gegen den Bot: Regal zeigt zehn Arcade-Duelle neben dem Ballduell, Insel-P
   await p.addInitScript(() => { window.__liveOn = true; window.__arcadeSeed = "e2e-28"; window.__arcadeSpeed = 4; });
   await p.goto(page); await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await p.getByRole("button", { name: /Ballduell live/ }).waitFor();
+  await p.locator(".arctile").nth(9).waitFor();   // the tiles come with the lazy play part, after the shelf itself
   assert.equal(await p.locator(".arctile").count(), 10);
   await p.locator(".arctile[data-g=panzer]").click();
   await p.locator(".arcdemo").waitFor();
