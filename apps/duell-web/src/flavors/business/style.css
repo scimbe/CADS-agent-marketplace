@@ -52,3 +52,16 @@ h1{transform:none;text-transform:none;font:650 19px/1 var(--disp);letter-spacing
 .arcbrand{transform:none;text-transform:none;font:650 19px/1 var(--disp);letter-spacing:-.2px}
 .arcov .btn.hot,.arcov .btn.hot.live{background:var(--org);border-color:var(--org);color:var(--onorg);box-shadow:none}
 .arcbar{border-bottom:1px solid var(--line)}.arcbar::after{display:none}
+/* Stage 2 (biz-ui.js): onboarding plan, feedback summary, next meeting. An AI option is read in full before it is taken. */
+.aiopt{white-space:pre-line;font-weight:500;line-height:1.35}
+.bizbox{margin-top:12px}
+.bizlist{list-style:none;margin:8px 0 4px;padding:0;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.bizlist li{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;padding:8px 10px;border-top:1px solid var(--line);font:500 15px/1.3 var(--disp);color:var(--text)}
+.bizlist li:first-child{border-top:0}
+.bizlist li span{flex:1 1 60%}
+.bizlist li small{color:var(--muted);font:600 13px/1.2 var(--disp)}
+.bizlist li.ki{background:#eef2ff}
+.bizx{min-width:44px;min-height:44px;margin:-8px -6px -8px 0;border:0;background:transparent;color:var(--text);font:600 20px/1 var(--disp)}
+.bizres{margin-top:8px}
+.bizseal{display:inline-block;margin:4px 0;padding:4px 8px;border-radius:4px;background:#111;color:#fff;font:700 12px/1.2 var(--disp)}
+.bizhelp{border-left:3px solid var(--org);padding-left:8px;color:var(--text)}

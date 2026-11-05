@@ -144,3 +144,150 @@ test("Firmennetz offen fuer die eigene Domain: der Tipp oeffnet die Webconferenc
   assert.equal(await p.getByText("nicht erreichbar").count(), 0);
   await b.close();
 });
+
+// ---------- Stufe 2: Onboarding, Feedback-Auswertung, Folgetermin (part "biz"), with a mocked AI server ----------
+const API = "https://demos-34a13a96.bunsenbrenner.org/api/duell/";
+const METER = { free: 7, remaining: 6, period: "week" };
+async function phoneApi(b, api) {
+  const ctx = await b.newContext({ ...devices["Pixel 7"], viewport: { width: 412, height: 915 }, deviceScaleFactor: 1, locale: "de-DE" }), errs = [], sent = [];
+  ctx.setDefaultTimeout(15000);
+  await ctx.route(/^https?:/, async (r) => {
+    const u = r.request().url();
+    if (u.startsWith(API)) { const p0 = u.slice(API.length), body = JSON.parse(r.request().postData() || "null"); sent.push({ path: p0, body }); const a = api && api(p0, body); if (a) return r.fulfill({ status: a[0], contentType: "application/json", body: JSON.stringify(a[1]) }); }
+    return r.abort();
+  });
+  const open = async (h) => { const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e))); await p.goto(page + (h || "")); return p; };
+  return { ctx, open, errs, sent };
+}
+const until = async (f) => { for (let i = 0; i < 100 && !f(); i++) await new Promise((ok) => setTimeout(ok, 50)); };
+
+test("Onboarding: Startdatum + Rolle -> feste Checkliste mit Fristen; KI ergaenzt Aufgaben, sichtbar vor dem Uebernehmen, mit Siegel; ohne KI geht es auch", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const OPT = { art: "aufgaben", titel: "Onboarding Vertrieb", personen: 0, vegetarisch: 0, posten: [], aufgaben: [
+    { was: "CRM-Zugang einrichten", frist: "1_woche_vorher", wer: "" }, { was: "Kundenliste übergeben", frist: "danach", wer: "" },
+    { was: "Begrüßung und Rundgang", frist: "am_tag", wer: "" }, { was: "Produktschulung buchen", frist: "3_tage_vorher", wer: "" }] };
+  const { ctx, open, errs, sent } = await phoneApi(b, (p0) => p0 === "ai" ? [200, { kind: "liste", options: [OPT], seals: ["s2.liste.k1.onboard0001"], hashes: [], cost: 1, receipt: "rc-ob-1", meter: METER }] : p0 === "ai/accept" ? [200, { final: true, meter: METER }] : null);
+  const a = await open("#i=biz-onboarding");
+  await a.locator("#go").click();
+  await a.getByLabel("Erster Arbeitstag").waitFor();
+  assert.equal(await a.locator(".bizlist li").count(), 8, "die feste Vorlage steht sofort da");
+  const day1 = await a.getByLabel("Erster Arbeitstag").inputValue();
+  assert.equal(new Date(day1 + "T00:00:00Z").getUTCDay(), 1, "Vorschlag: ein Montag");
+  await a.getByLabel("Erster Arbeitstag").fill("2026-12-07"); await a.getByLabel("Erster Arbeitstag").dispatchEvent("change");
+  await a.locator(".bizlist li", { hasText: "Begrüßung und Rundgang" }).getByText("bis Mo 7.12.").waitFor();
+  await a.locator(".bizlist li", { hasText: "Arbeitsplatz und Technik bestellen" }).getByText("bis Mo 23.11.").waitFor();
+  await a.getByLabel("Rolle (ohne Namen)").fill("Vertrieb");
+  await snap(a, "wb2-business-onboard");
+  await a.getByRole("button", { name: "✨ Aufgaben für die Rolle ergänzen" }).click();
+  const opt = a.locator(".aiopt"); await opt.waitFor();
+  assert.equal(await opt.innerText(), "✨ +3 Aufgaben übernehmen:\n• CRM-Zugang einrichten\n• Kundenliste übergeben\n• Produktschulung buchen", "vollstaendig sichtbar, Doppeltes faellt weg");
+  await opt.scrollIntoViewIfNeeded(); await snap(a, "wb2-business-onboard-ki");
+  assert.equal(await a.locator(".bizlist li.ki").count(), 0, "nichts uebernommen, bevor man tippt");
+  await opt.click();
+  await a.locator(".bizlist li.ki").nth(2).waitFor();
+  await a.locator(".bizlist li", { hasText: "CRM-Zugang einrichten" }).getByText("bis Mo 30.11.").waitFor();
+  await a.getByRole("button", { name: "Streichen: Kundenliste übergeben" }).click();
+  assert.equal(await a.locator(".bizlist li.ki").count(), 2);
+  await until(() => sent.some((x) => x.path === "ai/accept"));
+  const ask = sent.find((x) => x.path === "ai").body;
+  assert.equal(ask.kind, "liste"); assert.equal(ask.input.art, "aufgaben");
+  assert.equal(ask.input.satz, "Erste Wochen im neuen Team vorbereiten, Rolle: Vertrieb", "nur die Rolle, kein Name, kein Datum");
+  assert.deepEqual(sent.find((x) => x.path === "ai/accept").body.receipt, "rc-ob-1");
+  await a.locator("#edmain").filter({ hasText: "Checkliste anlegen" }).click();
+  await a.locator("#panel .shoprow").first().waitFor();
+  const doc = await a.evaluate(() => window.DailyDebug.doc());
+  assert.equal(doc.t, "Onboarding: Vertrieb"); assert.equal(doc.g, "todo");
+  assert.equal(doc.ki.k, "liste"); assert.equal(doc.ki.s, "s2.liste.k1.onboard0001", "KI-Anteil traegt das Siegel"); assert.match(doc.ki.h, /^[A-Za-z0-9_-]{43}$/);
+  assert.equal(await a.locator("#panel .shoprow").count(), 10);
+  await snap(a, "wb2-business-onboard-list");
+  const u = await send(a);
+  const r = await open(hash(u));
+  assert.equal(await r.locator("#leaf .kiseal").isVisible(), true, "Empfaenger sieht 'KI'");
+  await snap(r, "wb2-business-onboard-received");
+  // without a server: the plan alone, no seal
+  await ctx.unroute(/^https?:/); await ctx.route(/^https?:/, (x) => x.abort());
+  const o = await open("#i=biz-onboarding"); await o.locator("#go").click();
+  await o.getByRole("button", { name: "✨ Aufgaben für die Rolle ergänzen" }).click();
+  await o.locator(".aistate").getByText("KI gerade nicht erreichbar. Nichts verbraucht.").waitFor();
+  await o.locator("#edmain").filter({ hasText: "Checkliste anlegen" }).click(); await o.locator("#panel .shoprow").first().waitFor();
+  assert.equal(await o.locator("#panel .shoprow").count(), 8);
+  assert.equal((await o.evaluate(() => window.DailyDebug.doc())).ki, undefined);
+  assert.deepEqual(errs, []); await b.close();
+});
+
+const NOTES = ["Zu lang ohne Pause", "Ziel war unklar", "Gute Praxisbeispiele", "Pausen fehlten", "Mehr Zeit für Fragen"];
+const fbLink = (p, notes) => p.evaluate((n) => {
+  const D = window.Daily, Tn = window.Turns, i = D.byId("biz-feedback-workshop");
+  let d = D.docFromIdea(i, window.DailyApp.me(), "de"); d.seed = 4242;
+  d = Tn.play(d, ["Workshop Montag"], 0);
+  n.forEach((x, k) => { d = Tn.play(d, [1 + (k % 5), [x]], 0); });
+  return "#" + D.docUrl(d).split("#")[1];
+}, notes);
+test("Feedback: ab 5 Notizen 3 Themen + 1 Vorschlag; Notizen gemischt und ohne Namen raus, Betriebsrat-Hinweis, Retro-Agenda mit Siegel; alter Server ehrlich", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  let answer = { art: "feedback", titel: "Workshop", themen: ["Zeitrahmen", "Praxisbezug", "Zielklarheit"], vorschlag: "Beim nächsten Mal Ziel und Pausen gleich zu Beginn festlegen.", posten: [], aufgaben: [] };
+  const { open, errs, sent } = await phoneApi(b, (p0) => p0 === "ai" ? [200, { kind: "liste", options: [answer], seals: ["s2.liste.k1.feedback001"], hashes: [], cost: 1, receipt: "rc-fb-" + sent.length, meter: METER }] : /^ai\/(accept|discard)$/.test(p0) ? [200, { meter: METER }] : null);
+  const s = await open();
+  const four = await open(await fbLink(s, NOTES.slice(0, 4))); await four.locator("#go").click();
+  await four.getByText("✨ Auswertung ab 5 Notizen · bisher 4").waitFor();
+  assert.equal(await four.getByRole("button", { name: /3 Themen/ }).count(), 0);
+  const a = await open(await fbLink(s, NOTES)); await a.locator("#go").click();
+  await a.getByText("Nur Themen, nie Personen.", { exact: false }).waitFor();
+  assert.match(await a.locator(".bizbox").innerText(), /Betriebsrat/);
+  await a.getByRole("button", { name: "✨ 3 Themen + 1 Vorschlag" }).click();
+  const opt = a.locator(".aiopt"); await opt.waitFor();
+  assert.equal(await opt.innerText(), "1. Zeitrahmen\n2. Praxisbezug\n3. Zielklarheit\n→ Beim nächsten Mal Ziel und Pausen gleich zu Beginn festlegen.");
+  await opt.scrollIntoViewIfNeeded(); await snap(a, "wb2-business-feedback-ki");
+  const ask = sent.find((x) => x.path === "ai").body;
+  assert.equal(ask.input.art, "feedback");
+  assert.deepEqual(ask.input.notizen.slice().sort(), NOTES.slice().sort(), "genau die Notizen, sonst nichts");
+  assert.notDeepEqual(ask.input.notizen, NOTES, "gemischt");
+  assert.deepEqual(Object.keys(ask.input).sort(), ["art", "notizen"], "kein Thema-Titel, keine Noten, keine Namen");
+  await opt.click();
+  await a.locator(".bizseal").getByText("✨ Mit KI erstellt · Siegel").waitFor();
+  await a.getByRole("button", { name: "Kopieren" }).scrollIntoViewIfNeeded(); await snap(a, "wb2-business-feedback-result");
+  await a.getByRole("button", { name: "Als Retro-Agenda weitergeben" }).click();
+  await a.getByText("Eingetragen").waitFor();
+  const doc = await a.evaluate(() => window.DailyDebug.doc());
+  assert.equal(doc.ki.s, "s2.liste.k1.feedback001"); assert.match(doc.ki.h, /^[A-Za-z0-9_-]{43}$/, "Options-Hash fuers Melden");
+  const u = await send(a);
+  const r = await open(hash(u));
+  assert.deepEqual(await r.evaluate(() => window.Office.face(window.DailyDebug.home().doc, "de")), ["Retro: Workshop Montag", "1. Zeitrahmen (Moderation)", "2. Praxisbezug (Moderation)", "3. Zielklarheit (Moderation)"]);
+  assert.equal(await r.locator("#leaf .kiseal").isVisible(), true);
+  await snap(r, "wb2-business-retro-received");
+  // a server without art feedback answers with a shopping list; a quoting answer is dropped too: said, refunded
+  for (const [bad, say] of [[{ art: "einkauf", titel: "x", personen: 0, vegetarisch: 0, posten: [{ n: "Brot", kat: "backwaren", m: "fix", e: "stueck", veg: true }], aufgaben: [] }, "noch nicht auswerten"],
+    [{ ...answer, themen: ["Zeitrahmen", "Pausen fehlten", "Zielklarheit"] }, "zitiert"]]) {
+    answer = bad; const n0 = sent.length;
+    const c = await open(await fbLink(s, NOTES)); await c.locator("#go").click();
+    await c.getByRole("button", { name: "✨ 3 Themen + 1 Vorschlag" }).click();
+    await c.locator(".aiopt", { hasText: say }).click();
+    await until(() => sent.slice(n0).some((x) => x.path === "ai/discard"));
+    assert.ok(sent.slice(n0).some((x) => x.path === "ai/discard"), "zurueckgegeben: " + say);
+    assert.equal(await c.locator(".bizseal").count(), 0);
+  }
+  const k = await open(await fbLink(s, [...NOTES.slice(0, 4), "Ich will nicht mehr leben"])); await k.locator("#go").click();
+  await k.getByText("Nummer gegen Kummer 116 111", { exact: false }).waitFor();
+  assert.deepEqual(errs, []); await b.close();
+});
+
+test("Folgetermin aus dem Protokoll: offene Aufgaben werden ohne KI zur Agenda-Karte, Betriebsrat-Hinweis, kein Aufruf nach draussen", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const { open, errs, sent } = await phoneApi(b, () => null);
+  const payload = { t: "Weekly", i: [["Angebot schicken", "Ana", 0], ["Raum buchen", "", 0], ["Budget prüfen", "Ben", 0]] };
+  const a = await open("#todo=" + Buffer.from(JSON.stringify(payload)).toString("base64url"));
+  await a.locator("#panel .shoprow").first().waitFor();
+  await a.getByRole("button", { name: "🗓 Agenda-Link aus offenen Aufgaben" }).waitFor();
+  assert.match(await a.locator(".bizbox").innerText(), /Ohne KI, nur aus dieser Liste\. Gibt es einen Betriebsrat/);
+  await a.locator(".bizbox").scrollIntoViewIfNeeded(); await snap(a, "wb2-business-folgetermin");
+  await a.getByRole("button", { name: "🗓 Agenda-Link aus offenen Aufgaben" }).click();
+  await a.getByText("Eingetragen").waitFor();
+  const u = await send(a);
+  const r = await open(hash(u));
+  assert.deepEqual(await r.evaluate(() => window.Office.face(window.DailyDebug.home().doc, "de")), ["Folgetermin: Weekly", "1. Angebot schicken (Ana) (Moderation)", "2. Raum buchen (Moderation)", "3. Budget prüfen (Ben) (Moderation)"]);
+  assert.equal(await r.locator("#leaf .kiseal").isVisible(), false, "ohne KI kein Siegel");
+  await r.locator("#go").click(); await r.getByRole("button", { name: "Webconference starten" }).waitFor();
+  await snap(r, "wb2-business-folgetermin-agenda");
+  assert.deepEqual(sent, [], "nichts an den KI-Server");
+  assert.deepEqual(errs, []); await b.close();
+});
