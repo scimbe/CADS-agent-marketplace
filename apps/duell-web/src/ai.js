@@ -180,14 +180,16 @@
       if (mine) { settle(mine, false); mine = null; }      // the options of the last answer were left untouched
       busy = true; go.disabled = true; go.textContent = "… " + t("aiThinking"); res.textContent = "";
       var r = await run(o.kind, input, function (n) { go.textContent = "… " + (n ? t("aiWait", { n: n }) : t("aiThinking")); }, alive);
+      // Hashed while the button is still locked, so taking an option stays one synchronous step and a second tap cannot
+      // hand back this answer's receipt before its options are shown. Only sealed options need a hash.
+      var sub = window.crypto && window.crypto.subtle;
+      var hs = r.how === "result" ? await Promise.all(r.options.map(function (opt, i) { return r.seals[i] ? optionHash(opt, sub) : ""; })) : [];
       busy = false; go.disabled = false; go.textContent = "✨ " + o.label; cnt.textContent = line();
       if (r.receipt) open.push(r.receipt);
       if (!alive()) { if (r.receipt) settle(r.receipt, false); return; }
       if (r.how === "gone") return;
       if (r.how === "result") {
-        var rc = mine = r.receipt, sub = window.crypto && window.crypto.subtle;
-        // Hashed before anything is shown, so taking an option stays one synchronous step; only sealed options need one.
-        var hs = await Promise.all(r.options.map(function (opt, i) { return r.seals[i] ? optionHash(opt, sub) : ""; }));
+        var rc = mine = r.receipt;
         var took = function (opt, i) {
           if (!alive()) return;
           var ki = { k: o.kind, s: r.seals[i] || "", h: hs[i] };

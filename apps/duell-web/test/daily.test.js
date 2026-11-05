@@ -126,6 +126,27 @@ test("Remix: voll beladen bleibt der Link unter der Grenze, die die Seite annimm
   assert.ok(f.length <= C.MAX_FRAGMENT, String(f.length));
   assert.equal(D.parseRoute("#c=" + f).type, "doc");
 });
+test("Remix: Linkbudget – erst Sticker, dann der Options-Hash h, dann die Spur; das Siegel bleibt pruefbar, solange Sticker weichen koennen", () => {
+  const ki = { k: "line", s: "s1.line.mhl2x0ab.ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef", h: "Y-feMaAnaOXUrB2BxPv3vUTgMan0NNfOQmA6jhDp_Tc" };
+  const load = (trail) => {
+    const d = D.docFromIdea(D.byId("foto-boss"), me, "de");
+    d.t = "Ü".repeat(40); d.s = "Ö".repeat(70); d.x = "Ä".repeat(28); d.y = "Ä".repeat(28);
+    d.sk = Array.from({ length: 8 }, (_, i) => ({ e: "🍕", x: 0.123456789 + i / 10, y: 0.987654321 - i / 10, r: 0.5555555, z: 1.2345678 }));
+    d.by = Array.from({ length: trail }, () => ({ n: "Ü".repeat(16), w: ["text", "farbe", "stil", "sticker", "foto"] }));
+    d.ki = { ...ki };
+    return d;
+  };
+  const back = (d) => { const u = D.docUrl(d), f = u.slice(u.indexOf("#c=") + 3); assert.ok(f.length <= C.MAX_FRAGMENT, String(f.length)); return D.parseRoute("#c=" + f).doc; };
+  let partly = 0;
+  for (let trail = 0; trail <= 5; trail++) {
+    const d = load(trail), r = back(d);
+    assert.equal(r.ki.s, ki.s, "das Siegel bleibt immer");
+    if (r.sk.length) assert.equal(r.ki.h, ki.h, "h bleibt, solange noch ein Sticker weichen koennte (Spur " + trail + ")");
+    if (r.by.length < trail) assert.equal(r.ki.h, undefined, "die Spur weicht erst nach h");
+    if (r.sk.length > 0 && r.sk.length < 8) partly++;
+  }
+  assert.ok(partly > 0, "mindestens ein Fall, in dem nur ein Teil der Sticker weicht und h bleibt");
+});
 test("Link-Inhalte: Markup, Schimpfwoerter, Mist werden entfernt oder abgelehnt", () => {
   const evil = { k: "card", x: "<img src=x onerror=alert(1)>", st: "<script>", col: ["red", "javascript:x"], t: "fuck you", n: "<b>x", sk: [{ e: "<svg>", x: 99, y: -9, r: 9, z: 99 }], by: [{ n: "<i>", w: ["text", "<x>"] }], evil: 1 };
   const r = D.parseRoute("#c=" + b64({ v: 1, d: evil }));

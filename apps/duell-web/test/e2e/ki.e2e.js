@@ -4,10 +4,9 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium, devices } = require("playwright");
-const { createHash } = require("node:crypto");
-const A = require("../../src/ai.js");
-// The option hash as the server computes it: sha256 over the canonical JSON, base64url, 43 characters.
-const hashOf = (opt) => createHash("sha256").update(A.canonical(opt), "utf8").digest("base64url");
+// The option hashes as the server computes them, fixed here and not recomputed with the page's own canonical(): sha256 over
+// canonical() from CADS-DEMO-wrapper lib/duell-seal.mjs, base64url, 43 characters.
+const H_WISH = "DW_OmSXV_rx6BCXNzLlcYiO2vjKxt5zg3PHI0YWqxmU", H_A1 = "macQPQ6HVOj2G8RGlyaJu8hYLaUhlUg1-bNH1Afhfzw", H_B2 = "iesb_yN0JfIuZ06yVvHEmZrv8or8KsDjYN3eaVEj6Yk";
 const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
 const API = "https://demos-34a13a96.bunsenbrenner.org/api/duell/";
 let b;
@@ -71,7 +70,7 @@ test("Warteschlange nach Server-Protokoll: queue:'ticket', Platz sichtbar, /queu
   const doc = await p.evaluate(() => window.DailyDebug.doc());
   assert.deepEqual(doc.g.look.e, ["👽"]); assert.equal(doc.g.emoji, "🛸"); assert.equal(doc.t, "Alienflug");
   assert.deepEqual(doc.col, (await p.evaluate(() => window.DailyApp.me().colors)), "keine erzwungene Farbe, kein Zufall dazugemischt");
-  assert.deepEqual(doc.ki, { k: "wish", s: "s1.wish.k1.endgueltig01", h: hashOf(WISH.options[0]) }, "Siegel und Hash der uebernommenen Option");
+  assert.deepEqual(doc.ki, { k: "wish", s: "s1.wish.k1.endgueltig01", h: H_WISH }, "Siegel und Hash der uebernommenen Option");
   while (sent.length < 4) await p.waitForTimeout(50);
   assert.deepEqual(sent.map((x) => x.path), ["ai", "queue", "queue", "ai/accept"]);
   assert.equal(sent[0].body.queue, "ticket"); assert.equal(sent[0].body.v, undefined);
@@ -121,7 +120,37 @@ test("Optionen: genau ein /ai/accept je Antwort, auch bei mehreren Tipps; unberu
   const paths = sent.map((x) => x.path + ":" + (x.body.receipt || ""));
   assert.deepEqual(paths.filter((x) => x.startsWith("ai/")).sort(), ["ai/accept:rc-line-2", "ai/discard:rc-line-1"]);
   const doc = await p.evaluate(() => window.DailyDebug.doc());
-  assert.equal(doc.x, "Zeile B2"); assert.deepEqual(doc.ki, { k: "line", s: "s1.line.b.sigB0002", h: hashOf("Zeile B2") });
+  assert.equal(doc.x, "Zeile B2"); assert.deepEqual(doc.ki, { k: "line", s: "s1.line.b.sigB0002", h: H_B2 });
+  assert.deepEqual(errs, []); await p.context().close();
+});
+
+test("Zweiter Tipp waehrend die Optionen noch gehasht werden: der Knopf bleibt gesperrt, nie zwei Antwort-Saetze, kein kostenloses Uebernehmen", async () => {
+  let n = 0;
+  const { p, errs, sent } = await phone((path0) => {
+    if (path0 === "ai") { n++; return [200, { kind: "line", options: ["Zeile A" + n, "Zeile B" + n], seals: ["s1.line.a.sigA000" + n, "s1.line.b.sigB000" + n], cost: 1, receipt: "rc-line-" + n, meter: { free: 7, remaining: 6, period: "week" } }]; }
+    if (path0 === "ai/accept" || path0 === "ai/discard") return [200, { meter: { free: 7, remaining: 6, period: "week" } }];
+    return null;
+  });
+  // only the digest of the first answer's option is slow; the proof of work and everything else run at full speed
+  await p.evaluate(() => { const d = crypto.subtle.digest.bind(crypto.subtle); crypto.subtle.digest = async (a, x) => { if (window.__slow && new TextDecoder().decode(x) === "\"Zeile A1\"") await new Promise((ok) => setTimeout(ok, window.__slow)); return d(a, x); }; });
+  await openCard(p, "Text");
+  const ask = p.locator(".aibox button.chip:not(.aiopt)").first();
+  await p.evaluate(() => { window.__slow = 1500; });
+  await ask.tap();
+  while (!sent.some((x) => x.path === "ai")) await p.waitForTimeout(20);
+  await p.waitForTimeout(300);                                       // the answer is in, its options are being hashed
+  assert.equal(await p.locator(".aiopt").count(), 0, "noch keine Optionen sichtbar");
+  assert.equal(await ask.isDisabled(), true, "waehrend des Hashens bleibt der KI-Knopf gesperrt");
+  await ask.dispatchEvent("click");                                  // a tap that still gets through must do nothing
+  await p.getByRole("button", { name: "Zeile A1" }).waitFor();
+  await p.waitForTimeout(300);
+  assert.deepEqual(await p.locator(".aiopt").allTextContents(), ["Zeile A1", "Zeile B1"]);
+  assert.deepEqual(sent.map((x) => x.path), ["ai"], "kein zweiter Auftrag, kein /ai/discard des laufenden Belegs");
+  await p.getByRole("button", { name: "Zeile A1" }).tap();
+  while (sent.length < 2) await p.waitForTimeout(20);
+  assert.deepEqual(sent.map((x) => x.path + ":" + (x.body.receipt || "")), ["ai:", "ai/accept:rc-line-1"]);
+  const doc = await p.evaluate(() => window.DailyDebug.doc());
+  assert.equal(doc.x, "Zeile A1"); assert.deepEqual(doc.ki, { k: "line", s: "s1.line.a.sigA0001", h: H_A1 });
   assert.deepEqual(errs, []); await p.context().close();
 });
 
@@ -203,7 +232,7 @@ test("Melden: jedes geteilte Blatt; 'KI' nur mit Siegel; Grund noetig; Body nach
 
 test("Melden mit Options-Hash: das Blatt traegt h neben dem Siegel, die Meldung schickt es als optionHash", async () => {
   const { p, errs, sent } = await phone((path0) => (path0 === "report" ? [202, { id: "r2" }] : null));
-  const h = hashOf(WISH.options[0]);
+  const h = H_WISH;
   await p.evaluate((x) => { location.hash = x; }, await sharedHash(p, { k: "wish", s: "s1.wish.k1.siegel0002", h }));
   await p.locator("#leaf .kiseal").waitFor();
   assert.deepEqual(await p.evaluate(() => window.Daily.parseRoute(location.hash).doc.ki), { k: "wish", s: "s1.wish.k1.siegel0002", h }, "h kommt durch den Link");
