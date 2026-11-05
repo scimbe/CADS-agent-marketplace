@@ -735,6 +735,7 @@ X.turn = {
       // The arcade tiles come with their part (parts.js): a slot keeps their place on the shelf until then.
       if (arcade) { var slot = el("div", ""); slot.style.display = "contents"; b.appendChild(slot); window.ArcadeUI.tiles(slot); }
       if (window.TableUI && window.LiveUI && window.LiveUI.on()) [["doko", "tb_doko"], ["skat", "tb_skat"]].forEach(function (g) { b.appendChild(el("button", "btn hot live", t(g[1]), function () { Kit.sfx.thud(); window.TableUI.open(g[0]); })); });
+      if (window.TableUI) b.appendChild(el("button", "btn hot", t("tb_bauernskat"), function () { Kit.sfx.thud(); window.TableUI.open("bauernskat"); }));   // also offline, against the bot
       b.appendChild(el("button", "btn hot", "🎲 " + L().turn_any, function () { start(all[seed() % all.length]); }));
       ["streit", "pause", "abend", "geschenk", "raum"].forEach(function (g) {
         b.appendChild(el("label", "lbl", L()["grip_" + g]));
