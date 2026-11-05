@@ -22,7 +22,7 @@ function serve(tamper) {
   return new Promise((ok) => srv.listen(0, "127.0.0.1", () => ok(srv)));
 }
 
-test("file:// (Apps, Tests): Start ohne Teile; Spiele-Regal holt Arcade+Live, Status-Bild den QR-Teil, Lizenzen ihren Teil", async () => {
+test("file:// (Apps, Tests): Start ohne Teile; Spiele-Regal holt Arcade+Live, Lizenzen ihren Teil", async () => {
   const b = await launch(), ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);
   const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
   await p.clock.setFixedTime(new Date("2026-03-03T09:00:00Z"));   // a day whose sheet is no arcade duel
@@ -41,6 +41,27 @@ test("file:// (Apps, Tests): Start ohne Teile; Spiele-Regal holt Arcade+Live, St
   await p.getByText(/SIL OPEN FONT LICENSE Version 1\.1/).waitFor();
   assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["play", "licenses"]);
   assert.deepEqual(errs, []); await b.close();
+});
+
+test("file://: der Knopf Status-Bild holt den QR-Teil und teilt ein Bild 1080x1920", async () => {
+  const b = await launch(); try {   // closed also when a step fails, so the file does not hang
+  const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);
+  const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
+  await p.addInitScript(() => {   // the phone's share sheet: keep the file it gets
+    window.__shared = [];
+    Object.defineProperty(navigator, "canShare", { configurable: true, value: () => true });
+    Object.defineProperty(navigator, "share", { configurable: true, value: async (o) => { window.__shared.push(...(o.files || [])); } });
+  });
+  await p.goto("file://" + path.join(dist, "index.html") + "#i=quiz-chaos");
+  await p.locator("#go").click(); await p.locator("#edmain").click(); await p.locator("#share").waitFor();
+  assert.equal(await p.evaluate(() => typeof window.StatusCard), "undefined", "vor dem Knopf kein QR-Teil");
+  await p.locator("#tostatus").evaluate((e) => e.click());
+  await p.waitForFunction(() => window.__shared.length > 0);
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["qr"]);
+  const f = await p.evaluate(async () => { const f = window.__shared[0], i = await createImageBitmap(f); return { type: f.type, name: f.name, w: i.width, h: i.height }; });
+  assert.deepEqual(f, { type: "image/jpeg", name: "my-daily-idea-status.jpg", w: 1080, h: 1920 });
+  assert.deepEqual(errs, []);
+  } finally { await b.close(); }
 });
 
 test("Web /duell: nach dem Laden alle Teile mit SRI vorab; danach offline Arcade-Menue und Lizenzen", async () => {

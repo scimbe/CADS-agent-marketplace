@@ -55,6 +55,21 @@ test("Teile: fehlt die Datei, sagt die Seite es, und der naechste Versuch laedt 
   assert.deepEqual(w.toasts, ["part_fail"]); assert.ok(added[0].removed);
   mods.qr = {}; await w.Parts.need("qr"); assert.equal(added.length, 2);
 });
+test("Teile: scheitert eine Abhaengigkeit, laedt der naechste Versuch auch den abhaengigen Teil neu", async () => {
+  const mods = { play: "fail" };
+  const { w, added } = page("file:///x/index.html", { auto: run(mods) });
+  await assert.rejects(w.Parts.need("table"), /part play/);
+  assert.deepEqual(added.map((s) => s.src.match(/parts\/([a-z]+)/)[1]), ["play"]);
+  mods.play = {}; mods.table = { TableUI: { open() {} } };
+  await w.Parts.need("table");
+  assert.deepEqual(added.map((s) => s.src.match(/parts\/([a-z]+)/)[1]), ["play", "play", "table"]);
+  assert.ok(w.Parts.ready("table"));
+});
+test("Platzhalter: laedt der Teil, setzt sein Modul aber nicht (Fehler beim Ausfuehren), sagt die Seite es", async () => {
+  const { w } = page("file:///x/index.html", { auto: run({ table: {} }) });
+  await w.TableUI.open("doko");
+  assert.deepEqual(w.toasts, ["part_fail"]);
+});
 test("Platzhalter: rufen den echten Teil, sobald er geladen ist; zaehlen Arcade ohne den Teil", async () => {
   const calls = [];
   const real = { LiveUI: { invite: (o) => calls.push(["invite", o]), accept: (a, b) => calls.push(["accept", a, b]), close() {}, on: () => true },
@@ -93,6 +108,10 @@ test("Platzhalter passen zu den echten Modulen: LiveUI-Schalter, Arcade-Zahl aus
   }
   // Every call the core makes on a stand-in exists there.
   const core = ["app.js", "turn-ui.js", "modes.js"].map((f) => fs.readFileSync(path.join(__dirname, "../src", f), "utf8")).join("\n");
-  const have = { LiveUI: ["invite", "accept", "close", "on"], ArcadeUI: ["menu", "tiles", "playBot", "count", "dress", "demo"], TableUI: ["open", "accept", "close"] };
-  for (const m of core.matchAll(/window\.(LiveUI|ArcadeUI|TableUI)\.([a-zA-Z]+)\(/g)) assert.ok(have[m[1]].includes(m[2]), m[0]);
+  // The stand-ins are read from src/parts.js itself (run against the fake page), not listed here by hand.
+  const { w } = page("file:///x/index.html"), seen = new Set();
+  for (const m of core.matchAll(/window\.(LiveUI|ArcadeUI|TableUI)\.([a-zA-Z]+)\(/g)) {
+    assert.equal(typeof w[m[1]][m[2]], "function", m[0] + " fehlt als Platzhalter in parts.js"); seen.add(m[1]);
+  }
+  assert.deepEqual([...seen].sort(), ["ArcadeUI", "LiveUI", "TableUI"], "der Kern ruft alle drei Platzhalter");
 });

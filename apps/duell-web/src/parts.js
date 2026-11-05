@@ -18,11 +18,13 @@
         var s = document.createElement("script");
         if (/^https?:$/.test(location.protocol)) s.integrity = p.h;   // file:// (iOS, tests) has no CORS origin for SRI
         s.onload = function () { done[name] = true; ok(); };
-        s.onerror = function () { s.remove(); if (got[name] === wait) delete got[name]; no(new Error("part " + name)); };
+        s.onerror = function () { s.remove(); no(new Error("part " + name)); };
         s.src = dir() + p.f;
         document.head.appendChild(s);
       });
     });
+    // Any failure, its own file or one it depends on, clears the entry, so the next try loads again.
+    wait.catch(function () { if (got[name] === wait) delete got[name]; });
     return wait;
   }
   function fail() { try { root.Kit.toast(root.Kit.t("part_fail")); } catch (e) {} }
@@ -34,7 +36,8 @@
     calls.forEach(function (m) {
       s[m] = function () {
         var a = arguments;
-        return use(part, function () { var r = root[key]; if (!r || r === s) throw new Error("part " + part + " without " + key); return r[m].apply(r, a); }).catch(function () {});
+        // A part that loaded but did not set its module (it threw while running) gets the same word on screen.
+        return use(part, function () { var r = root[key]; if (!r || r === s) { fail(); throw new Error("part " + part + " without " + key); } return r[m].apply(r, a); }).catch(function () {});
       };
     });
     return (root[key] = s);
