@@ -301,6 +301,9 @@
     } else if (o.k === "sound") {
       d.m = o.m === "voice" ? "voice" : "beat"; d.x = txt(o.x, 28); d.fx = FX.indexOf(o.fx) >= 0 ? o.fx : "chip"; d.bpm = num(o.bpm, [70, 170], 110);
       d.p = { k: steps(o.p && o.p.k), s: steps(o.p && o.p.s), h: steps(o.p && o.p.h), b: steps(o.p && o.p.b) };
+      // ly: a song's hook (texte.js), 2 to 4 lines that the sheet shows in time with the beat
+      var ly = Array.isArray(o.ly) ? o.ly.slice(0, 4).map(function (l) { return typeof l === "string" ? txt(l, 60) : ""; }).filter(Boolean) : [];
+      if (ly.length) d.ly = ly;
     } else if (o.k === "duel") {
       Duel.sanitize(o, d);
     } else if (o.k === "quest") {
@@ -339,7 +342,7 @@
   function changedAreas(a, b) {
     var w = [];
     function ne(x, y) { return JSON.stringify(x) !== JSON.stringify(y); }
-    if (a.x !== b.x || a.y !== b.y || a.nr !== b.nr || ne(a.w, b.w)) w.push("text");
+    if (a.x !== b.x || a.y !== b.y || a.nr !== b.nr || ne(a.w, b.w) || ne(a.ly, b.ly)) w.push("text");
     if (ne(a.col, b.col)) w.push("farbe");
     if (a.st !== b.st) w.push("stil");
     if (ne(a.sk, b.sk)) w.push("sticker");

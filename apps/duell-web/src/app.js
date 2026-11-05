@@ -215,7 +215,7 @@ var cv = $("stage"), timer = 0;
 function paint() {
   timer = 0; if (!ed) return;
   ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1]);
-  if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks, x: ed.x }); }
+  if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks, x: ed.x, lyr: ed.lyr }); }
   SK.sync(); footer(); CU.local(); saveMark();
 }
 function changed() {           // every control ends up here: redraw within the next moment
@@ -319,6 +319,13 @@ function backFromPlay() {
 // The panel belongs to the sheet open now; an answer that comes back after it was left is dropped, not applied elsewhere.
 function aiBlock(p, o) { var mine = ed; o.el = el; o.wall = openAiWall; o.alive = function () { return !!mine && ed === mine; }; return window.Ai.block(p, o); }
 function markKi(d, ki) { var k = D.sanitizeKi(ki); if (k) d.ki = k; }
+// Texte und Song (texte.js) are a part of their own: the slot stands in the panel now, its content follows with the part.
+function textePart(p, what, f) {
+  var slot = el("div"); p.appendChild(slot);
+  window.Parts.use("texte", function () {
+    if (slot.isConnected && ed) window.TexteUI[what](slot, { f: f, aiBlock: aiBlock, markKi: markKi, setDoc: setDoc, play: function () { beatPeaks(); playBeat(); tab(ed.tab); }, stop: stopSound });
+  }).catch(function () {});
+}
 // "Geändert: …" and the undo, after a wish or a roll. before: the doc as JSON before the change. -> false when nothing changed.
 function didLine(res, before, next, lead) {
   var was = JSON.parse(before), what = D.changedAreas(was, next);
@@ -422,16 +429,15 @@ var PANEL = {
     if (d.k === "card") {
       var f = field(p, t("line"), d.x, 90, function (v) { d.x = v; }, true), L = ed.idea ? ideaText(ed.idea).lines : null;
       if (L) p.appendChild(el("button", "chip", "↻ " + t("nextLine"), function () { Kit.sfx.pop(); ed.line = (ed.line + 1) % L.length; d.x = L[ed.line]; f.value = d.x; changed(); }));
-      aiBlock(p, { kind: "line", label: t("aiLine"), input: function () { var x = D.cleanInput(d.x, 90) || t("own"); return { text: x, style: d.st }; }, show: String, apply: function (o, ki) { var v = D.cleanInput(o, 90); if (v) { d.x = v; f.value = v; markKi(d, ki); changed(); } } });
+      textePart(p, "card", f);
       if (!d.nr) weatherBlock(p);
     } else if (d.k === "photo") {
       var top = field(p, t("top"), d.x, 28, function (v) { d.x = v; }), low = field(p, t("bottom"), d.y, 28, function (v) { d.y = v; });
       var what = field(p, t("aiDesc"), "", 100, function () {});
       aiBlock(p, { kind: "meme", label: t("aiMeme"), input: function () { var v = D.cleanInput(what.value, 100); return v ? { desc: v } : null; }, show: function (o) { return o.top + " / " + o.bottom; }, apply: function (o, ki) { d.x = D.cleanInput(o.top, 28); d.y = D.cleanInput(o.bottom, 28); top.value = d.x; low.value = d.y; markKi(d, ki); changed(); } });
     } else if (d.k === "sound") {
-      var name = field(p, t("titleL"), d.x, 28, function (v) { d.x = v; }), topic = field(p, t("aiTopic"), "", 60, function () {}), song = el("p", "lyrics"); song.hidden = true;
-      aiBlock(p, { kind: "lyrics", label: t("aiLyrics"), input: function () { var v = D.cleanInput(topic.value, 60); return v ? { topic: v, bpm: d.bpm || 110 } : null; }, show: function (o) { return o.title; }, apply: function (o, ki) { var v = D.cleanInput(o.title, 28); if (v) { d.x = v; name.value = v; } song.textContent = o.lines.join("\n"); song.hidden = false; markKi(d, ki); changed(); } });
-      p.appendChild(song);
+      field(p, t("titleL"), d.x, 28, function (v) { d.x = v; });
+      if (d.ly) p.appendChild(el("button", "chip", "✕ " + t("lyOff"), function () { delete d.ly; changed(); tab("Text"); }));
     }
     else field(p, t("titleL"), d.g.title, 28, function (v) { d.g.title = v || "Duell"; byHand(); });
   },
@@ -475,7 +481,7 @@ var PANEL = {
     p.appendChild(el("p", "note", t("photoNote") + " " + t("noPick")));
     chips(p, D.STYLES.photo.map(function (s) { return { v: s, l: t("st_" + s) }; }), ed.doc.st, function (v) { ed.doc.st = v; });
   },
-  Sound: function (p) { if (ed.doc.m === "beat") beatPanel(p); else voicePanel(p); },
+  Sound: function (p) { if (ed.doc.m === "beat") { textePart(p, "song"); beatPanel(p); } else voicePanel(p); },
   Rules: function (p) {
     var g = ed.doc.g, ranges = C.RANGES;
     ["gravity", "jump", "gap", "speed"].forEach(function (k) {
@@ -518,15 +524,16 @@ $("file").addEventListener("change", async function () {
 
 /* sound */
 var loop = null, playTimer = 0;
-function stopSound() { clearInterval(playTimer); playTimer = 0; if (loop) { try { loop.stop(); } catch (e) {} loop = null; } clearNow(); }
+function stopSound() { clearInterval(playTimer); playTimer = 0; if (loop) { try { loop.stop(); } catch (e) {} loop = null; } clearNow(); if (ed && ed.lyr >= 0) { ed.lyr = -1; changed(); } }
 function clearNow() { document.querySelectorAll(".step.now").forEach(function (x) { x.classList.remove("now"); }); }
 function beatPcm(loops) { return S.renderBeat(ed.doc.p, ed.doc.bpm, loops || 2); }
 function beatPeaks() { ed.peaks = S.peaks(beatPcm(1), 40); }
 function playBeat() {
   stopSound(); var pcm = beatPcm(1); loop = Kit.playPcm(pcm, S.SR, true); if (!loop) return;
-  var i = 0, ms = 60000 / ed.doc.bpm / 4;
+  var i = 0, bar = 0, ms = 60000 / ed.doc.bpm / 4;
   playTimer = setInterval(function () {
     clearNow();
+    if (i === 0 && ed.doc.ly) { ed.lyr = bar++ % ed.doc.ly.length; changed(); }   // a song's hook: one line per bar
     var page = Math.floor(i / 8); if (page === ed.page) document.querySelectorAll('.step[data-c="' + (i % 8) + '"]').forEach(function (x) { x.classList.add("now"); });
     i = (i + 1) % 16;
   }, ms);
@@ -554,7 +561,7 @@ function beatPanel(p) {
   row.appendChild(r); row.appendChild(v); p.appendChild(row);
   var bar = el("div", "chips");
   bar.appendChild(el("button", "chip", "1–8 / 9–16", function () { ed.page = 1 - ed.page; fill(); }));
-  var pl = el("button", "chip", "▶ " + t("listen"), function () { if (loop) { stopSound(); pl.textContent = "▶ " + t("listen"); } else { playBeat(); pl.textContent = "■ " + t("stop"); } });
+  var pl = el("button", "chip", loop ? "■ " + t("stop") : "▶ " + t("listen"), function () { if (loop) { stopSound(); pl.textContent = "▶ " + t("listen"); } else { playBeat(); pl.textContent = "■ " + t("stop"); } });
   bar.appendChild(pl); p.appendChild(bar);
 }
 function setVoice(pcm, mine) { ed.raw = pcm; if (mine) ed.ownVoice = true; applyFx(); }

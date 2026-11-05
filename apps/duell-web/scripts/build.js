@@ -38,8 +38,11 @@ const PARTS = {
   qr: { d: [], src: ["QRCODE", "STATUSCARD"] },                                                        // status picture and invite code with a QR code
   licenses: { d: [], src: ["LICENSES"] },                                                              // the licence texts, shown on request
   welt: { d: [], src: ["WELTUI"] },                                                                    // the flight game's "What do you want to fly?" (AI kind welt)
+  texte: { d: [], src: ["TEXTEDATA", "TEXTE"] },                                                       // Worte finden, card text, song (texte.js + ready-made texts)
 };
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
+parts.TEXTE = read("src/texte.js");
+parts.TEXTEDATA = "window.TexteData=" + JSON.stringify(json("src/texte.json")) + ";";
 // QR code for invites: qrcode-generator (MIT, Kazuhiko Arase), licenses/qrcode-generator-MIT.txt.
 // Display font: Anton (SIL OFL 1.1), latin subset (covers ä ö ü ß and German quotes) from @fontsource, embedded as data: URL.
 const fontFile = path.join(root, "node_modules/@fontsource/anton/files/anton-latin-400-normal.woff2");
@@ -49,7 +52,7 @@ const fontCss = "/* Anton, Copyright 2020 The Anton Project Authors (https://git
 let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + read("src/style.css") + (has("style.css") ? "\n" + read(fl("style.css")) : ""));
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines in the page (about 55 KB); third-party code (QR code) and the data stay as they are.
-const KEEP = new Set(["DATA", "QRCODE", "LICENSES"]);
+const KEEP = new Set(["DATA", "QRCODE", "LICENSES", "TEXTEDATA"]);
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).join("\n");
 const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));

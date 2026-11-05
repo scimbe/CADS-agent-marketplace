@@ -73,7 +73,7 @@
   function client(o) {
     var sleep = o.sleep || function (ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }, now = o.now || Date.now, max = o.waitMax || WAIT_MAX;
     function keep(json) { if (o.keep) o.keep(json); }
-    var none = function (how, n) { return { how: how, options: [], seals: [], receipt: "", position: n || 0 }; };
+    var none = function (how, n, json) { return { how: how, options: [], seals: [], receipt: "", position: n || 0, why: json && typeof json.why === "string" ? json.why : "" }; };
     async function ask(body, onWait, alive) {
       var r, how, started = now(), last = 0, tk = "";
       try { r = await o.send("", Object.assign({}, body, { queue: "ticket" })); } catch (e) { return none("off"); }
@@ -105,6 +105,7 @@
     ["t", "s", "x", "y", "w"].forEach(function (k) { if (typeof doc[k] === "string" && doc[k]) c[k] = doc[k]; });
     if (doc.g && typeof doc.g.title === "string") c.title = doc.g.title;
     if (doc.b && typeof doc.b.n === "string") c.rival = doc.b.n;
+    if (Array.isArray(doc.ly) && doc.ly.length) c.ly = doc.ly.join(" / ");      // a song's hook
     var b = { reason: reason, consent: true, content: c };
     if (doc.ki && doc.ki.k) b.kind = doc.ki.k;
     if (doc.ki && okSeal(doc.ki.s)) b.seal = doc.ki.s;
@@ -179,7 +180,8 @@
   }
 
   /* One AI action in a panel. o: { kind, label, el, input(), show(option) -> label, apply(option, ki), wall(), noteLast?,
-       auto?(option, ki | null, res) -> false when it changed nothing, local?(input) -> option | null, alive?() }
+       auto?(option, ki | null, res) -> false when it changed nothing, local?(input) -> option | null, alive?(), raw?() }
+     raw(): the typed text as it is, looked at for a crisis before input() runs its word filter over it.
      ki = { k: kind, s: seal, h: option hash } marks what the AI made; apply/auto get null for the rule-based way, which is labelled "without AI".
      auto may return a Promise: the result is then settled once the person decided (true taken, false given back).
      alive(): false once the sheet this panel was made for is gone; a late answer is then dropped (and refunded), never
@@ -191,8 +193,10 @@
     cnt.setAttribute("aria-live", "polite"); shown.push(cnt);
     async function act() {
       if (busy) return;
-      var input = o.input(); if (!input) { Kit.toast(t("filter")); return; }
-      if (CRISIS_KINDS.indexOf(o.kind) >= 0 && crisis(texts(input))) { res.textContent = ""; res.appendChild(el("p", "note aistate", t("aiCrisis"))); return; }   // nothing sent, nothing charged
+      var crisisKind = CRISIS_KINDS.indexOf(o.kind) >= 0;
+      if (crisisKind && o.raw && crisis(o.raw())) { help(res); return; }   // the typed text before input() filters words out of it
+      var input = o.input(); if (!input) { if (!o.raw) Kit.toast(t("filter")); return; }
+      if (crisisKind && crisis(texts(input))) { help(res); return; }   // nothing sent, nothing charged
       if (mine) { settle(mine, false); mine = null; }      // the options of the last answer were left untouched
       busy = true; go.disabled = true; go.textContent = "… " + t("aiThinking"); res.textContent = "";
       var r = await run(o.kind, input, function (n) { go.textContent = "… " + (n ? t("aiWait", { n: n }) : t("aiThinking")); }, alive);
@@ -218,10 +222,20 @@
         else r.options.forEach(function (opt, i) { res.appendChild(el("button", "chip aiopt", o.show(opt), function () { Kit.sfx.pop(); took(opt, i); })); });
         Kit.sfx.pop(); return;
       }
+      if (r.how === "blocked" && r.why === "crisis") { help(res); return; }
       res.appendChild(el("p", "note aistate", stateText(r)));
       if (r.how === "quota") res.appendChild(el("button", "chip", "ⓘ " + t("aiTitle"), o.wall));
       var own = (r.how === "off" || r.how === "quota") && o.local ? o.local(input) : null;      // the marked way without AI; busy: just try again
       if (own && o.auto) o.auto(own, null, res);
+    }
+    // Help instead of an answer: the one crisis line aiCrisis (as for every kind), shown from the page's own words, offline too.
+    // Scrolled to the middle, so the numbers in it are not left under the sheet's buttons below.
+    function help(r) {
+      if (mine) { settle(mine, false); mine = null; }
+      r.textContent = "";
+      var hb = el("p", "note aistate", t("aiCrisis")); hb.setAttribute("role", "alert");
+      r.appendChild(hb);
+      try { hb.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) {}
     }
     var row = el("div", "airow");
     row.appendChild(go); row.appendChild(cnt);

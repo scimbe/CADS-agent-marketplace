@@ -189,18 +189,34 @@
       c.fillStyle = "#000"; c.fillRect(W * 0.28, H * 0.82, W * 0.72, H * 0.09); block(c, doc.y, W * 0.31, H * 0.825, W * 0.66, H * 0.08, a, null);
     }
   }
-  function drawSound(c, W, H, doc, pk) {
-    var a = doc.col[0], b = doc.col[1], fg = ink(a);
+  // A song's hook (doc.ly): every line, the one at the beat's bar (lyr, -1 when nothing plays) big on a band of the
+  // second colour, so the text runs along with the beat (texte.js). Its ink is picked for contrast on that band.
+  function lyrics(c, W, H, doc, lyr) {
+    var a = doc.col[0], b = doc.col[1], top = H * 0.5, step = H * 0.085, n = doc.ly.length;
+    c.textAlign = "center"; c.textBaseline = "middle";
+    for (var i = 0; i < n; i++) {
+      var on = i === lyr, y = top + i * step, size = W * (on ? 0.062 : 0.05);
+      c.font = "900 " + size + "px " + FONT;
+      while (size > W * 0.03 && c.measureText(doc.ly[i]).width > W * 0.86) { size *= 0.92; c.font = "900 " + size + "px " + FONT; }
+      if (on) { c.fillStyle = b; c.fillRect(W * 0.04, y - step * 0.46, W * 0.92, step * 0.92); }
+      c.fillStyle = on ? ink(b) : ink(a); c.globalAlpha = lyr >= 0 && !on ? 0.75 : 1;
+      c.fillText(doc.ly[i], W / 2, y); c.globalAlpha = 1;
+    }
+    c.textBaseline = "alphabetic";
+  }
+  function drawSound(c, W, H, doc, pk, lyr) {
+    var a = doc.col[0], b = doc.col[1], fg = ink(a), song = doc.ly && doc.ly.length;
     c.fillStyle = a; c.fillRect(0, 0, W, H);
-    block(c, doc.x || "…", W * 0.06, H * 0.05, W * 0.88, H * 0.3, fg, softDots(c, W, H, b, W * 0.03, 0.4, fg), W * 0.01);
-    var n = 40, bw = W * 0.88 / n, cy = H * 0.64, amp = H * 0.2;
+    block(c, doc.x || "…", W * 0.06, H * 0.05, W * 0.88, H * (song ? 0.22 : 0.3), fg, softDots(c, W, H, b, W * 0.03, 0.4, fg), W * 0.01);
+    var n = 40, bw = W * 0.88 / n, cy = H * (song ? 0.36 : 0.64), amp = H * (song ? 0.07 : 0.2);
     c.fillStyle = fg;
     for (var i = 0; i < n; i++) {
       var v = pk && pk.length ? pk[Math.floor(i * pk.length / n)] : 0.05, bh = Math.max(W * 0.008, v * amp);
       c.fillRect(W * 0.06 + i * bw, cy - bh, bw * 0.62, bh * 2);
     }
+    if (song) lyrics(c, W, H, doc, lyr == null ? -1 : lyr);
     if (doc.m === "beat") {
-      c.font = "900 " + W * 0.05 + "px " + FONT; c.textAlign = "center"; c.fillText(doc.bpm + " BPM", W / 2, H * 0.9);
+      c.fillStyle = fg; c.font = "900 " + W * 0.05 + "px " + FONT; c.textAlign = "center"; c.fillText(doc.bpm + " BPM", W / 2, H * 0.9);
     }
   }
 
@@ -211,7 +227,7 @@
     if (Render.extra[doc.k]) { var inkx = Render.extra[doc.k](c, W, H, doc, opt); credit(c, W, H, doc, me, typeof inkx === "string" ? inkx : "#fff"); return; }   // an extra may name the colour its corner text reads in
     if (doc.k === "card") { drawCard(c, W, H, doc); if (doc.nr) doorBadge(c, W, H, doc.nr, doc.col[0], doc.col[1]); }
     else if (doc.k === "photo") drawPhoto(c, W, H, doc, opt.photo);
-    else if (doc.k === "sound") drawSound(c, W, H, doc, opt.peaks);
+    else if (doc.k === "sound") drawSound(c, W, H, doc, opt.peaks, opt.lyr);
     stickers(c, W, H, doc.sk);
     weather(c, W, H, doc.w);          // last: stickers must never cover the source line
     credit(c, W, H, doc, me, doc.k === "card" && (doc.st === "neon" || doc.st === "advent") ? "#fff" : (doc.k === "photo" && doc.st !== "sticker" ? "#fff" : ink(doc.k === "card" && doc.st === "zettel" ? doc.col[1] : doc.col[0])));
