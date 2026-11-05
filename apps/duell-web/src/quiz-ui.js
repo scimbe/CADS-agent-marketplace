@@ -14,25 +14,29 @@ var TX = {
     make: "Fragen machen", check: "Vor dem Senden prüfen", byAi: "KI · bitte jede Frage prüfen", byNight: "🌙 Nachtpaket · mit KI gemacht, von Hand geprüft", inText: "✓ steht im Text", notIn: "⚠ nicht im Text gefunden",
     q: "Frage {n}", right: "Richtig", wrong: "Falsch", strike: "✕ Streichen", back: "↶ Zurückholen", types: "Ergebnistypen (nur Stärken)", typeN: "Typ", typeS: "Stärke", to: "→ {n}",
     take: "Übernehmen", drop: "Verwerfen", fit: "{n} von {m} Fragen passen in den Link.", fitAll: "Alle {n} Fragen passen in den Link.", few: "Zu wenige Fragen: mindestens 3.", long: "Zu lang für einen Link: Texte kürzen oder Fragen streichen.", sub: "Fragenpaket mit {n} Fragen", nums: "Für Schätzen braucht es 3 Fragen mit einer Zahl als Antwort.",
-    took: "Paket übernommen", noAi: "Ohne KI geht es weiter: fertige Pakete oder die Karte ohne Paket.", help: "Du bist nicht allein. Nummer gegen Kummer: 116 111 (kostenlos, anonym). TelefonSeelsorge: 0800 111 0 111, rund um die Uhr." },
+    took: "Paket übernommen", noAi: "Ohne KI geht es weiter: fertige Pakete oder die Karte ohne Paket." },
   en: { title: "Question pack", name: "Title", night: "🌙 Ready packs", topic: "✨ Topic", own: "✨ Own text", keys: "✨ Keywords", nightNote: "Made at night and checked by hand. Costs no AI action.",
     none: "There is no ready pack for this card yet.", qn: "{n} questions", ab: "from {n}", topicL: "Topic", topicH: "e.g. volcanoes", keysL: "Three keywords about the group", keysH: "e.g. school trip, football, cooking",
     textL: "Your study text (paste it)", textH: "Paste text from your notes or book …", count: "{n} of {m} characters, at least {k}", ownNote: "Only this text goes to the AI, never a photo. It is not stored.",
     make: "Make questions", check: "Check before sending", byAi: "AI · please check every question", byNight: "🌙 Night pack · made with AI, checked by hand", inText: "✓ stands in the text", notIn: "⚠ not found in the text",
     q: "Question {n}", right: "Right", wrong: "Wrong", strike: "✕ Strike", back: "↶ Bring back", types: "Result types (strengths only)", typeN: "Type", typeS: "Strength", to: "→ {n}",
     take: "Use it", drop: "Discard", fit: "{n} of {m} questions fit into the link.", fitAll: "All {n} questions fit into the link.", few: "Too few questions: at least 3.", long: "Too long for one link: shorten texts or strike questions.", sub: "Question pack with {n} questions", nums: "Guessing needs 3 questions with a number as the answer.",
-    took: "Pack taken", noAi: "Without AI you can go on: ready packs or the card without a pack.", help: "You are not alone. In Germany: Nummer gegen Kummer 116 111 (free, anonymous), TelefonSeelsorge 0800 111 0 111, day and night." }
+    took: "Pack taken", noAi: "Without AI you can go on: ready packs or the card without a pack." }
 };
 function L() { return TX[Kit.lang === "en" ? "en" : "de"]; }
 function say(k, o) { return String(L()[k]).replace(/\{(\w+)\}/g, function (m, n) { return o[n]; }); }
 function modus(g) { return g === "typen" ? "gruppe" : window.DailyFlavor && window.DailyFlavor.id === "business" ? "firma" : "lernen"; }
-// A crisis is not for a quiz: help at once, on the device, and nothing is sent (the server would refuse it too, 422 crisis).
-var CRISIS = /suizid|selbstmord|selbstverletz|umbring|nicht mehr leben|will sterben|sterben will|lebensm(ü|ue|u)de|\britzen\b|kill myself|suicid|self.?harm|want to die|end my life/i;
+// A crisis is not for a quiz: Ai.block (kind quiz) checks the typed text with the one list in ai.js and shows the one help
+// line aiCrisis, before anything is sent and also for the server's 422 crisis. No second list or help text here.
+// The open check list: settled once (true taken, false discarded), also when the next one comes, a new question goes out,
+// the pack sheet is left (back) or opened again; Ai.drop refunds on leaving the sheet too.
+var done = null;
+function close(v) { if (done) done(v); }
 var CSS = ".qzseg{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}.qzpack{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;padding:10px 12px;margin:0 0 8px}" +
   ".qzpack small{font:600 12px var(--ui)}.qzcard{border:3px solid var(--ink);border-radius:4px;background:#fff;color:#111;padding:10px;margin:0 0 10px}.qzcard.off .field{text-decoration:line-through;color:#555;background:#f3f3f3}" +
   ".qzcard .field{margin-bottom:6px;user-select:text;-webkit-user-select:text}.qzhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 6px}.qzbadge{display:inline-block;font:800 12px var(--ui);padding:3px 6px;border-radius:4px;margin:0 0 6px}" +
   ".qzbadge.ok{background:#dcfce7;color:#14532d}.qzbadge.no{background:#fee2e2;color:#7f1d1d}.qzbadge.ki{background:#111;color:#fff}.qzsmall{display:block;font:700 12px var(--ui);margin:0 0 4px;color:#111}.qzarea{min-height:140px;user-select:text;-webkit-user-select:text}" +
-  ".qzhelp{border:3px solid var(--ink);background:#fff;color:#111;padding:10px;font:800 15px var(--ui)}.qzfoot{position:sticky;bottom:0;background:var(--paper);padding:8px 0;display:flex;flex-direction:column;gap:6px}";
+  ".qzfoot{position:sticky;bottom:0;background:var(--paper);padding:8px 0;display:flex;flex-direction:column;gap:6px}";
 function style() { if (document.getElementById("qzcss")) return; var s = document.createElement("style"); s.id = "qzcss"; s.textContent = CSS; document.head.appendChild(s); }
 // area: true a big text field (own text), 2 a two-line one; hide: the label only for screen readers (the card says it)
 function input(box, label, value, max, area, ph, hide) {
@@ -54,7 +58,8 @@ function fit(doc, pk, ki) {
 
 function open(ed) {
   style();
-  var g = ed.doc.g, mo = modus(g), done = null;
+  var g = ed.doc.g, mo = modus(g);
+  close(false);
   ed.styling = true;      // the shelf's back button returns to the editor with the work intact (app.js backFromStyle)
   A.shelf(L().title, function (b) {
     var seg = el("div", "qzseg"), pane = el("div"), check = el("div");
@@ -76,10 +81,12 @@ function open(ed) {
       });
     }
     function ask(p, read) {
-      var help = el("p", "qzhelp", L().help); help.hidden = true; help.setAttribute("role", "status");
-      p.appendChild(help);
       var own = false;      // the answer is about the person's own text: then "steht im Text" is shown
-      A.aiBlock(p, { kind: "quiz", label: L().make, input: function () { var i = read(); help.hidden = !(i && CRISIS.test((i.thema || "") + " " + (i.text || ""))); own = !!(i && i.text); return i && help.hidden ? i : null; },
+      // raw: the field as typed, for the crisis check in ai.js before cleanInput filters words out of it. Ai.block asks for
+      // it first on every tap: a new try closes the check list still open (its receipt goes back), so neither a failed
+      // second try nor the crisis help leaves a list that could be taken without its charge.
+      A.aiBlock(p, { kind: "quiz", label: L().make, raw: function () { close(false); check.textContent = ""; return p.querySelector(".field").value; },
+        input: function () { var i = read(); own = !!(i && i.text); if (!i) Kit.toast(Kit.t("filter")); return i; },
         auto: function (opt, ki) { var pk = M.fromOption(opt); if (!pk) return false; return review(pk, ki, own ? opt : null); } });
       p.appendChild(el("p", "note", L().noAi));
     }
@@ -96,7 +103,7 @@ function open(ed) {
     /* The check list. pk: the pack, ki: the AI seal (null: a night pack), opt: the server's option for an own text (quelle_im_text).
        -> a promise: true once taken, false when discarded or replaced by the next one. */
     function review(pk, ki, opt) {
-      if (done) done(false);
+      close(false);
       check.textContent = "";
       return new Promise(function (resolve) {
         done = function (v) { done = null; resolve(v); };
@@ -147,7 +154,9 @@ function open(ed) {
         function foot() {
           var p = read(), f = p && fit(named(p), p, ki);
           take.disabled = !f;
-          line.textContent = !p ? (g === "schaetzen" ? L().nums : L().few) : !f ? L().long : f.q.length < p.q.length ? say("fit", { n: f.q.length, m: p.q.length }) : say("fitAll", { n: f.q.length });
+          // Schätzen plays only the questions with a number: those are what is counted
+          var n = function (x) { return g === "schaetzen" ? P.nums({ pk: x }).length : x.q.length; };
+          line.textContent = !p ? (g === "schaetzen" ? L().nums : L().few) : !f ? L().long : n(f) < n(p) ? say("fit", { n: n(f), m: n(p) }) : say("fitAll", { n: n(f) });
         }
         foot();
         try { check.scrollIntoView({ block: "start" }); } catch (e) {}
@@ -156,6 +165,9 @@ function open(ed) {
     show(night);
   });
 }
-// A check list nobody decided on stays open until the next one or until the sheet is left; then Ai.drop refunds it.
+// Back from the pack sheet (button or the phone's back) without a decision: the check list is discarded and refunded at once.
+// "Übernehmen" settles first and then goes back, so this finds nothing open.
+document.getElementById("shback").addEventListener("click", function () { close(false); });
+window.addEventListener("popstate", function () { close(false); });
 window.QuizUI = { open: open, fit: fit, nightPacks: nightPacks };
 })();

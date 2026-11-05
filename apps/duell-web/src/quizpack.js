@@ -19,8 +19,9 @@
     return s && C.isClean(s) && !/https?:|www\.|:\/\//i.test(s) ? s : "";
   }
   function fold(s) { return String(s).toLowerCase().replace(/ß/g, "ss").normalize("NFKD").replace(/[^\p{L}\p{N}]/gu, ""); }
-  // "8", "1.000", "4 000" -> 8, 1000, 4000; anything with a unit, a comma or more than one number is not a Schätzen answer
-  function whole(a) { var s = String(a).trim(); if (!/^\d{1,3}([. ]\d{3})*$|^\d{1,6}$/.test(s)) return 0; var n = Number(s.replace(/[. ]/g, "")); return n >= 2 && n <= ZMAX ? n : 0; }
+  // "8", "1.000", "4 000" -> 8, 1000, 4000; anything with a unit, a comma, a leading zero ("007") or more than one number
+  // is not a Schätzen answer
+  function whole(a) { var s = String(a).trim(); if (!/^[1-9]\d{0,2}([. ]\d{3})*$|^[1-9]\d{0,5}$/.test(s)) return 0; var n = Number(s.replace(/[. ]/g, "")); return n >= 2 && n <= ZMAX ? n : 0; }
   // A pack from the link, or null. Every text through the word list; a question whose answers are not all different goes.
   function sanitize(o) {
     if (!o || typeof o !== "object" || ["l", "f", "g"].indexOf(o.m) < 0 || !Array.isArray(o.q)) return null;
@@ -62,10 +63,12 @@
   // Wörter: the answer is shown, which question does it belong to? The right one and two others, mixed.
   function others(doc, i) { var n = q(doc).length, o = mix(doc, "w" + i, n).filter(function (k) { return k !== i; }).slice(0, 2); return mix(doc, "wo" + i, 3).map(function (k) { return [i].concat(o)[k]; }); }
   function nums(doc) { var z = doc.pk.z || []; return q(doc).map(function (x, i) { return i; }).filter(function (i) { return z[i] > 0; }); }
-  // The slider's end: 1.5 to 3 times the number, rounded up to 1, 2 or 5 times a power of ten, so its middle gives nothing away.
+  // The slider's end, from the seed: the number sits at an even spread between 1/5 and 4/5 of the slider (as often below its
+  // middle as above), the end rounded up to two digits only (37, 4100), so neither the middle nor a round end gives it away.
   function top(doc, i) {
-    var v = doc.pk.z[i] * (1.5 + 1.5 * C.mulberry32(C.hash32("pk|" + doc.seed + "|z" + i))()), p = Math.pow(10, Math.floor(Math.log10(v)));
-    return Math.min(ZMAX * 3, [1, 2, 5, 10].map(function (k) { return k * p; }).filter(function (x) { return x >= v; })[0]);
+    var z = doc.pk.z[i], v = z / (0.2 + 0.6 * C.mulberry32(C.hash32("pk|" + doc.seed + "|z" + i))());
+    var p = Math.max(1, Math.pow(10, Math.floor(Math.log10(v)) - 1));
+    return Math.min(ZMAX * 3, Math.max(z + 1, Math.ceil(v / p) * p));
   }
   function items(doc, g) {
     var X = function (lang) { return T(lang); };

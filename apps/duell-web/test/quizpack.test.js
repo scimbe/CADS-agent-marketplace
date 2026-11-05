@@ -30,6 +30,9 @@ test("Paket aus der KI-Antwort: Texte gefiltert, Zahlen nur als Ziffern-Antwort,
   assert.equal(pk.m, "l"); assert.equal(pk.q.length, 5);
   assert.deepEqual(pk.z, [8, 0, 0, 2, 365], "Schaetzen nimmt nur ganze Zahlen, die so in der Antwort stehen");
   assert.equal(P.whole("1.000"), 1000); assert.equal(P.whole("ca. 8"), 0); assert.equal(P.whole("8 km"), 0); assert.equal(P.whole("1"), 0);
+  // Review B2 #5: a leading zero is not a number as it stands
+  for (const x of ["007", "0 100", "01.000", "00"]) assert.equal(P.whole(x), 0, x);
+  assert.equal(P.whole("10"), 10); assert.equal(P.whole("100.000"), 100000);
   const g = P.fromOption(GROUP);
   assert.equal(g.m, "g"); assert.deepEqual(g.y[0], ["Planerin", "Du behältst den Überblick."]);
   // an answer pointing at a type that does not exist goes, a question with fewer than two answers goes
@@ -65,11 +68,29 @@ test("Gleiche Reihenfolge auf beiden Handys, nur aus dem Seed; Schaetzen-Regler 
   for (let i = 0; i < 5; i++) assert.deepEqual(P.choices(a, i), P.choices(b, i));
   assert.equal(P.choices(a, 0)[P.rightAt(a, 0)], "8");
   const seen = new Set();
-  for (let s = 1; s < 60; s++) { const d = card("schaetzen", pk, s), top = P.top(d, 0); assert.ok(top >= 12 && top <= 50, "Ende zwischen 1,5- und 3-fach, gerundet: " + top); seen.add(top); }
+  for (let s = 1; s < 60; s++) { const d = card("schaetzen", pk, s), top = P.top(d, 0); assert.ok(Number.isInteger(top) && top > 8 && top <= 45, "Ende ganzzahlig, die Zahl liegt zwischen gut einem Sechstel und vier Fuenfteln: " + top); seen.add(top); }
   assert.ok(seen.size >= 2, "das Ende wechselt mit dem Seed");
+  // Review B2 #3: where the number sits on the slider (number / end) spreads around the middle, for small and big numbers
+  for (const z of [2, 7, 24, 206, 4000, 999999]) {
+    const pz = Object.assign({}, pk, { z: [z, 0, 0, 2, 365] }), at = [];
+    for (let s = 1; s < 400; s++) { const top = P.top(card("schaetzen", pz, s), 0); assert.ok(top > z, z + " " + top); at.push(z / top); }
+    at.sort((a, b) => a - b);
+    const below = at.filter((x) => x < 0.5).length / at.length;
+    assert.ok(below > 0.3 && below < 0.7, z + ": unter der Mitte " + below.toFixed(2));
+    assert.ok(at[0] > 0.15 && at[at.length - 1] < 0.85, z + ": " + at[0].toFixed(2) + ".." + at[at.length - 1].toFixed(2));
+  }
   // right answers: count them
   const d = card("luecke", pk, 9), right = [0, 1, 2, 3, 4].map((i) => [P.rightAt(d, i)]);
   const s = P.score(d, "luecke", right); assert.equal(s.ok, 5); assert.deepEqual(s.open, []);
+  // Frag mich ab and Woerter: the right answers count as right, the wrong ones stay open
+  const ab = card("abfragen", pk, 9), knew = [];
+  for (let i = 0; i < 5; i++) knew.push(0, [i === 2 ? 1 : 0]);
+  const sa = P.score(ab, "abfragen", knew); assert.equal(sa.ok, 4); assert.deepEqual(sa.open, [pk.q[2][0] + " → " + pk.q[2][1]]);
+  const wo = card("woerter", pk, 9), from = (i) => Tn.state(wo).prompts[i].from(wo, [], [], "de");
+  const hit = [0, 1, 2, 3, 4].map((i) => [from(i).indexOf(pk.q[i][0])]);
+  assert.ok(hit.every((x) => x[0] >= 0));
+  assert.equal(P.score(wo, "woerter", hit).ok, 5);
+  assert.equal(P.score(wo, "woerter", hit.map((x) => [(x[0] + 1) % 3])).ok, 0);
 });
 
 test("Team-Quiz und Typen: jede Person spielt allein, kein Ergebnis kommt zurueck, keine Rangliste, Typen nur Staerken", () => {

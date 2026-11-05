@@ -130,16 +130,82 @@ test("Thema: ein Aufruf mit modus lernen, Pruefliste ohne 'steht im Text' (es gi
   assert.deepEqual(errs, []); await p.context().close();
 });
 
-test("Krise im Text: Hilfe sofort auf dem Geraet (116 111), nichts geht raus", async () => {
-  const { p, errs, sent } = await phone(() => [500, {}]);
+test("Krise im Text: die zentrale Hilfe aus ai.js sofort auf dem Geraet (116 111), nichts geht raus; 422 crisis zeigt dieselbe", async () => {
+  const HELP = /Nummer gegen Kummer 116 111/;
+  const { p, errs, sent } = await phone(() => [422, { error: "blocked", why: "crisis" }]);
   await openTurn(p, "abfragen");
   await p.getByRole("button", { name: "📦 Fragenpaket wählen" }).tap();
   await p.getByRole("button", { name: "✨ Thema" }).tap();
-  await p.getByLabel("Thema").fill("ich will sterben");
-  await p.getByRole("button", { name: "✨ Fragen machen" }).tap();
-  await p.getByText(/Nummer gegen Kummer: 116 111/).waitFor();
+  // Review B2 #2: frequent words the old own list missed; the help is the one line aiCrisis, no second one of the quiz
+  for (const s of ["ich will sterben", "ich ritze mich", "keinen Bock mehr zu leben", "ich hasse mein Leben"]) {
+    await p.getByLabel("Thema").fill(s);
+    await p.getByRole("button", { name: "✨ Fragen machen" }).tap();
+    await p.getByText(HELP).waitFor();
+    assert.equal(await p.getByText(HELP).count(), 1, s);
+    assert.equal(sent.length, 0, s);
+  }
   await shot(p, "7-krise");
-  assert.equal(sent.length, 0);
+  // what only the server sees (selfCut): its 422 crisis brings the same help, never "lassen wir lieber weg"
+  await p.getByLabel("Thema").fill("Vulkane");
+  await p.getByRole("button", { name: "✨ Fragen machen" }).tap();
+  while (!sent.length) await p.waitForTimeout(30);
+  await p.getByText(HELP).waitFor();
+  assert.equal(await p.locator(".aistate").count(), 1);
+  assert.deepEqual(errs, []); await p.context().close();
+});
+
+test("Zweites Fragen schlaegt fehl: die alte Pruefliste geht zu, nichts laesst sich ohne Abbuchung uebernehmen", async () => {
+  let n = 0;
+  const { p, errs, sent } = await phone((path0) => {
+    if (path0 === "ai") { n++; return n === 1 ? [200, { kind: "quiz", options: [OPT], seals: ["s2.quiz.mh2x9k1a.ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef"], cost: 2, receipt: "rc-" + n, meter: METER }] : n === 2 ? [503, {}] : [200, { kind: "quiz", options: [OPT], seals: ["s2.quiz.mh2x9k1a.ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef"], cost: 2, receipt: "rc-" + n, meter: METER }]; }
+    if (path0 === "ai/accept" || path0 === "ai/discard") return [200, { meter: METER }];
+    return null;
+  });
+  await openTurn(p, "luecke");
+  await p.getByRole("button", { name: "📦 Fragenpaket wählen" }).tap();
+  await p.getByRole("button", { name: "✨ Thema" }).tap();
+  await p.getByLabel("Thema").fill("Die Zelle");
+  await p.getByRole("button", { name: "✨ Fragen machen" }).tap();
+  await p.getByText("Vor dem Senden prüfen").waitFor();
+  await p.getByRole("button", { name: "✨ Fragen machen" }).tap();
+  await p.locator(".aistate").waitFor();
+  while (!sent.some((x) => x.path === "ai/discard")) await p.waitForTimeout(30);
+  assert.equal(sent.find((x) => x.path === "ai/discard").body.receipt, "rc-1", "die alte Quittung ist erstattet");
+  assert.equal(await p.getByText("Vor dem Senden prüfen").count(), 0, "die erstattete Pruefliste ist zu");
+  assert.equal(await p.getByRole("button", { name: "Übernehmen" }).count(), 0);
+  assert.equal((await doc(p)).pk, undefined);
+  assert.equal(sent.filter((x) => x.path === "ai/accept").length, 0);
+  // the same with the crisis help: a list open before it goes back and closes, nothing is left to take
+  await p.getByRole("button", { name: "✨ Fragen machen" }).tap();
+  await p.getByText("Vor dem Senden prüfen").waitFor();
+  await p.getByLabel("Thema").fill("ich ritze mich");
+  await p.getByRole("button", { name: "✨ Fragen machen" }).tap();
+  await p.getByText(/Nummer gegen Kummer 116 111/).waitFor();
+  while (!sent.some((x) => x.path === "ai/discard" && x.body.receipt === "rc-3")) await p.waitForTimeout(30);
+  assert.equal(await p.getByRole("button", { name: "Übernehmen" }).count(), 0);
+  assert.equal(sent.filter((x) => x.path === "ai").length, 3, "der Krisentext ging nicht raus");
+  assert.deepEqual(errs, []); await p.context().close();
+});
+
+test("Zurueck mit offener KI-Pruefliste: die Quittung geht sofort zurueck, nicht erst beim Verlassen des Blatts", async () => {
+  const { p, errs, sent } = await phone((path0) => (path0 === "ai" ? [200, { kind: "quiz", options: [OPT], seals: ["s2.quiz.mh2x9k1a.ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef"], cost: 2, receipt: "rc-back", meter: METER }] : path0.startsWith("ai/") ? [200, { meter: METER }] : null));
+  await openTurn(p, "luecke");
+  await p.getByRole("button", { name: "📦 Fragenpaket wählen" }).tap();
+  await p.getByRole("button", { name: "✨ Thema" }).tap();
+  await p.getByLabel("Thema").fill("Die Zelle");
+  await p.getByRole("button", { name: "✨ Fragen machen" }).tap();
+  await p.getByText("Vor dem Senden prüfen").waitFor();
+  await p.locator("#shback").tap();
+  await p.getByRole("button", { name: "📦 Fragenpaket wählen" }).waitFor();
+  for (let i = 0; i < 100 && !sent.some((x) => x.path === "ai/discard"); i++) await p.waitForTimeout(30);
+  assert.deepEqual(sent.filter((x) => x.path.startsWith("ai/")).map((x) => [x.path, x.body.receipt]), [["ai/discard", "rc-back"]]);
+  assert.ok(await doc(p), "das Blatt ist noch offen");
+  // a night pack taken afterwards charges nothing
+  await p.getByRole("button", { name: "📦 Fragenpaket wählen" }).tap();
+  await p.getByRole("button", { name: /🌙 Unsere Planeten/ }).tap();
+  await p.getByRole("button", { name: "Übernehmen" }).tap();
+  await p.getByRole("button", { name: "📦 Unsere Planeten · ändern" }).waitFor();
+  assert.equal(sent.filter((x) => x.path === "ai/accept").length, 0);
   assert.deepEqual(errs, []); await p.context().close();
 });
 
@@ -151,6 +217,8 @@ test("Ohne Netz: ehrlicher Zustand, fertige Pakete bleiben; Schaetzen nimmt nur 
   const titles = await p.locator(".qzpack b").allTextContents();
   assert.ok(titles.includes("🌙 Unsere Planeten") && !titles.includes("🌙 Ritter und Burgen"), titles.join());
   await p.getByRole("button", { name: /🌙 Körper und Skelett/ }).tap();
+  // Review B2 #4: Schätzen counts only its number questions, and all three fit
+  assert.equal(await p.locator(".qzfoot .note").textContent(), "Alle 3 Fragen passen in den Link.");
   await p.getByRole("button", { name: "Übernehmen" }).tap();
   const d = await doc(p);
   assert.deepEqual(d.pk.z, [206, 24, 7]);
