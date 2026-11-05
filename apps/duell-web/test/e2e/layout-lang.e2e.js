@@ -51,6 +51,9 @@ test("Layout: Hochformat bleibt eine Spalte; ein Spiel quer sagt ehrlich, dass e
   const { b, p } = await open(page, { viewport: { width: 390, height: 844 } });
   const pad = await box(p, "#pad"), go = await box(p, "#go");
   assert.ok(go.y >= pad.y + pad.height - 1, "Hauptknopf unter dem Blatt");
+  // An upright phone whose WebView reports a short viewport (Android shell, open keyboard) is not "sideways".
+  await p.setViewportSize({ width: 411, height: 380 });
+  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById("home")).display), "flex", "schmal bleibt einspaltig");
   await p.setViewportSize({ width: 740, height: 360 });
   await p.evaluate(() => { document.getElementById("home").hidden = true; document.getElementById("game").hidden = false; });
   const hint = await p.evaluate(() => getComputedStyle(document.getElementById("game"), "::after").content);
