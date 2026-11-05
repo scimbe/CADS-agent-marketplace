@@ -73,7 +73,7 @@ test("KI-Bild: Karte mit Bild zeigt es statt der Zeichnung, mit lesbarem 'KI-Bil
   await p.locator("#warmname").fill("");
   await p.locator("#lang").click();
   await p.locator("#leaf .pv.pic").waitFor();
-  assert.equal(await p.locator(".pvimg .kitag").textContent(), "AI image");
+  assert.equal(await p.locator("#leaf .kitag").textContent(), "AI image");
   for (const [m, d, n] of shot ? [[10, 25, "plan-24"], [11, 18, "warm-freunde"]] : []) {
     const q = await open(MAIN, [m, d]); await q.locator("#leaf .pv.pic").waitFor(); await q.screenshot({ path: shot + "/thumb-" + n + ".png" }); await q.close();
   }
@@ -127,6 +127,117 @@ test("KI-Bild: Business zeigt Bilder aus dem eigenen Satz", async () => {
   }
   assert.ok(done, "ein Business-Tag mit Bild");
   assert.ok(asked.every((a) => /^biz-/.test(a.id)), "nur Bilder des Business-Satzes");
+  assert.deepEqual(errs, []);
+  await b.close();
+});
+
+// ---- the picture stays: greyed next sheet, editor, received card, export; a tap opens the card ----
+const edState = (p) => p.evaluate(() => {
+  const w = document.getElementById("stagewrap"), f = document.getElementById("edpic"), r = f.getBoundingClientRect(), s = document.getElementById("stage").getBoundingClientRect();
+  return { open: !document.getElementById("editor").hidden, pic: w.classList.contains("pic"), shown: r.width > 0 && r.height > 0, ratio: r.width / Math.max(1, r.height),
+    tag: f.querySelector(".kitag").textContent, stage: s.width > 0 && s.height > 0, above: r.bottom <= s.top + 1, over: document.documentElement.scrollWidth > innerWidth };
+});
+// share picture: does the finished picture differ from the card drawn alone (= picture composed in)?
+const exported = (p) => p.evaluate(() => {
+  const res = window.DailyDebug.result(), c = res.canvas, a = document.createElement("canvas"); a.width = c.width; a.height = c.height;
+  window.Render.draw(a, window.DailyDebug.doc(), { me: window.DailyDebug.me(), photo: null, peaks: null });
+  const x = c.getContext("2d").getImageData(0, 0, c.width, 400).data, y = a.getContext("2d").getImageData(0, 0, c.width, 400).data;
+  let diff = 0; for (let i = 0; i < x.length; i += 40) if (Math.abs(x[i] - y[i]) > 24) diff++;
+  return diff / (x.length / 40);
+});
+
+test("KI-Bild: das graue Folgeblatt zeigt sein Bild, erst wenn es sichtbar wird; ein Tap oeffnet die Karte mit Bild im Editor", async () => {
+  const { b, open, errs, asked } = await setup("on");
+  let p = null, next = null;
+  for (const day of [[9, 11], [9, 10], [11, 5]]) {   // Folgetag mit Bild (11.10.: foto-haustier -> karte-weisheit)
+    if (next) break;
+    p = await open(MAIN, day);
+    const r = await p.evaluate(() => { const D = window.Daily, h = window.DailyApp.home(), n = D.ideaForDay(D.dayDate(new Date(), -1)); return { cur: h.idea.id, next: n && n.id, has: !!n && window.DailyThumbs.includes(n.id), curHas: window.DailyThumbs.includes(h.idea.id) }; });
+    if (r.has) next = r; else await p.close();
+  }
+  assert.ok(next, "ein Tag mit Bild, dessen Folgetag ein Bild hat");
+  if (next.curHas) await p.locator("#leaf .pv.pic").waitFor();
+  const box = await p.locator("#leaf").boundingBox(), cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+  asked.length = 0;
+  await p.mouse.move(cx, cy); await p.mouse.down(); await p.waitForTimeout(150);
+  assert.deepEqual(asked, [], "nur Anfassen: noch keine Anfrage fuers Folgeblatt");
+  await p.mouse.move(cx - 30, cy, { steps: 3 }); await p.mouse.move(cx - 60, cy, { steps: 3 });
+  await p.locator("#pad .ghost .pv.pic").waitFor();
+  const g = await p.evaluate(() => { const v = document.querySelector("#pad .ghost .pv"), i = v.querySelector(".pvimg img"), r = i.getBoundingClientRect(), gs = getComputedStyle(document.querySelector("#pad .ghost"));
+    return { src: i.getAttribute("src"), w: r.width, ratio: r.width / r.height, card: v.querySelector(".pvcard").getBoundingClientRect().width, filter: gs.filter, tag: v.querySelector(".kitag").textContent }; });
+  assert.ok(g.src.endsWith("/" + next.next + ".jpg") && g.w > 0 && Math.abs(g.ratio - 16 / 9) < 0.05 && g.card === 0, JSON.stringify(g));
+  assert.match(g.filter, /grayscale/); assert.equal(g.tag, "KI-Bild");
+  assert.deepEqual(asked.map((a) => a.id), [next.next], "genau das eine Bild des Folgeblatts");
+  if (shot) await p.screenshot({ path: shot + "/pic-ghost.png" });
+  await p.mouse.move(cx, cy, { steps: 3 }); await p.mouse.up(); await p.waitForTimeout(400);
+  assert.ok(await p.locator("#home").isVisible(), "zurueckgelegt, kein Tap");
+  // tap without moving: the card opens, the picture stays above it
+  await p.locator("#leaf").click({ position: { x: box.width / 2, y: box.height * 0.6 } });
+  await p.locator("#stagewrap.pic").waitFor();
+  const e = await edState(p);
+  assert.ok(e.open && e.pic && e.shown && e.stage && e.above && !e.over, JSON.stringify(e));
+  assert.ok(Math.abs(e.ratio - 16 / 9) < 0.05, "16:9 " + e.ratio); assert.equal(e.tag, "KI-Bild");
+  if (shot) await p.screenshot({ path: shot + "/pic-editor.png" });
+  // the finished picture carries it too (CORS image: the canvas stays clean)
+  await p.locator("#edmain").click(); await p.locator("#done").waitFor({ state: "visible" });
+  assert.ok(await exported(p) > 0.2, "Bild im fertigen Bild");
+  if (shot) { await p.waitForTimeout(300); await p.screenshot({ path: shot + "/pic-done.png" }); }
+  assert.deepEqual(errs, []);
+  await b.close();
+});
+
+test("Tap auf das Blatt: Tap oeffnet, Swipe blaettert ohne zu oeffnen, Tap waehrend des Abreissens zaehlt nicht", async () => {
+  const { b, open, errs } = await setup("on");
+  const p = await open(MAIN, [11, 6]);
+  const day = () => p.evaluate(() => window.DailyApp.home().date.toISOString().slice(0, 10));
+  const box = await p.locator("#leaf").boundingBox(), cx = box.x + box.width / 2, cy = box.y + box.height / 2, d0 = await day();
+  await p.mouse.move(cx, cy); await p.mouse.down(); await p.mouse.move(cx - 80, cy, { steps: 5 }); await p.mouse.move(cx - 150, cy, { steps: 5 }); await p.mouse.up();
+  await p.mouse.click(cx, cy);   // while the torn sheet flies
+  await p.waitForTimeout(900);
+  assert.ok(await p.locator("#home").isVisible(), "Swipe + Tap im Flug: kein Editor");
+  assert.notEqual(await day(), d0, "geblaettert");
+  // the button inside the sheet area is no tap on the sheet; a plain tap opens like #go
+  await p.mouse.click(cx, cy); await p.locator("#editor").waitFor({ state: "visible" });
+  await p.locator("#edback").click(); await p.locator("#home").waitFor({ state: "visible" });
+  // a press held long is no tap either
+  await p.mouse.move(cx, cy); await p.mouse.down(); await p.waitForTimeout(700); await p.mouse.up(); await p.waitForTimeout(300);
+  assert.ok(await p.locator("#home").isVisible(), "langes Druecken: kein Editor");
+  assert.deepEqual(errs, []);
+  await b.close();
+});
+
+test("KI-Bild: empfangene Karte zeigt Karte und Bild, auch im Editor; mit Foto des Absenders keins; Spiel keins; eigenes Foto ersetzt es", async () => {
+  const { b, open, errs, asked } = await setup("on");
+  const p = await open(MAIN, [11, 7]);   // a game day: the home sheet asks for nothing
+  assert.deepEqual(asked, []);
+  await p.evaluate(() => { const D = window.Daily, d = D.docFromIdea(D.byId("karte-lob"), D.sanitizeProfile({ nick: "Ben" }), "de"); location.hash = D.docUrl(D.withTrail(d, "Ben", ["text"])).split("#")[1]; });
+  await p.locator("#leaf .pv.pic.with").waitFor(); await p.waitForTimeout(600);   // the sheet's landing animation
+  const r = await p.evaluate(() => { const v = document.querySelector("#leaf .pv"), i = v.querySelector(".pvimg").getBoundingClientRect(), c = v.querySelector(".pvcard").getBoundingClientRect();
+    return { img: i.width > 0, card: c.width > 0 && c.height > 0, above: i.bottom <= c.top + 1, ratio: i.width / i.height, note: !document.getElementById("from").hidden, over: document.documentElement.scrollWidth > innerWidth }; });
+  assert.ok(r.img && r.card && r.above && r.note && !r.over && Math.abs(r.ratio - 16 / 9) < 0.05, JSON.stringify(r));
+  assert.deepEqual(asked.map((a) => a.id), ["karte-lob"]);
+  if (shot) await p.screenshot({ path: shot + "/pic-received.png" });
+  await p.locator("#go").click(); await p.locator("#stagewrap.pic").waitFor();
+  assert.ok((await edState(p)).shown);
+  if (shot) await p.screenshot({ path: shot + "/pic-received-editor.png" });
+  // the sender used an own photo: no AI picture stands in for it
+  await p.evaluate(() => { const D = window.Daily, d = D.docFromIdea(D.byId("foto-haustier"), D.sanitizeProfile({ nick: "Ben" }), "de"); location.hash = D.docUrl(D.withTrail(d, "Ben", ["foto"])).split("#")[1]; });
+  await p.waitForTimeout(900);
+  assert.ok(await p.evaluate(() => !document.querySelector("#leaf .pv").classList.contains("pic") && window.DailyApp.home().doc.i === "foto-haustier"));
+  assert.ok(!asked.some((a) => a.id === "foto-haustier"), "kein Bild fuer ein Foto");
+  // a game in the editor: no picture
+  await p.evaluate(() => { const D = window.Daily; window.DailyApp.openEditor(D.docFromIdea(D.IDEAS.find((x) => x.kind === "game"), window.DailyApp.me(), "de"), {}); });
+  await p.waitForTimeout(300);
+  assert.ok(!(await edState(p)).pic, "Spiel ohne Bild");
+  // meme: the AI picture until the own photo is taken, then the photo alone (also in the finished picture)
+  await p.evaluate(() => { const D = window.Daily, i = D.byId("foto-haustier"); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i }); });
+  await p.locator("#stagewrap.pic").waitFor();
+  const png = await p.evaluate(() => { const c = document.createElement("canvas"); c.width = 64; c.height = 64; const x = c.getContext("2d"); x.fillStyle = "#08f"; x.fillRect(0, 0, 64, 64); return c.toDataURL("image/png").split(",")[1]; });
+  await p.locator("#file").setInputFiles({ name: "me.png", mimeType: "image/png", buffer: Buffer.from(png, "base64") });
+  await p.waitForFunction(() => !document.getElementById("stagewrap").classList.contains("pic"));
+  assert.ok((await edState(p)).stage);
+  await p.locator("#edmain").click(); await p.locator("#done").waitFor({ state: "visible" });
+  assert.ok(await p.evaluate(() => window.DailyDebug.result().canvas.height === 1350));
   assert.deepEqual(errs, []);
   await b.close();
 });

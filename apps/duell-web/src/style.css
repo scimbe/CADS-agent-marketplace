@@ -85,6 +85,15 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 /* with a picture the sheet is picture + title: the picture keeps its 16:9 height, the title takes the rest (no empty bands) */
 .pv.pic{flex:0 0 auto;margin-top:10px}
 .pv.pic:not([hidden]) ~ .hero{flex:1 1 auto}
+/* something received: its drawn card stays, the picture goes above it */
+.pv.pic.with{flex:1 1 auto;flex-direction:column;gap:8px;padding:0 6px 4px 0}
+.pv.pic.with canvas:not([hidden]){display:block;flex:1 1 0;min-height:0;height:auto}
+.pv.pic.with .pvimg{order:-1;flex:none;width:auto;max-width:100%;height:36%;box-shadow:3px 4px 0 var(--ink)}
+.pv.pic.with ~ .hero{flex:0 0 auto}
+/* editor: the picture above the card */
+#stagewrap.pic{flex-direction:column;gap:10px}
+#stagewrap.pic .pvimg{display:block;flex:none;width:auto;height:30%;max-width:100%;box-shadow:4px 5px 0 var(--ink)}
+#stagewrap.pic #stage{flex:1 1 0;min-height:0;height:auto}
 .kitag{position:absolute;right:6px;bottom:6px;padding:3px 7px;border-radius:5px;background:#111;color:#fff;font:700 12px/1.2 var(--ui);letter-spacing:.3px}
 .pv:not([hidden]) ~ .hero{flex:0 0 84px}
 .hero[hidden]{display:none}
