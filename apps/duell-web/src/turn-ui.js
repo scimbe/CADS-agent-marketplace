@@ -55,7 +55,7 @@ function lines(c, list, W, y, size, col) {
   });
   return y;
 }
-function title(doc) { var i = doc.i ? D.byId(doc.i) : null, T = i ? (i[Kit.lang] || i.de).t.replace("|", " ") : ""; return doc.t || T || t("turn"); }
+function title(doc) { var i = doc.i ? D.byId(doc.i) : null, T = i ? D.plainTitle((i[Kit.lang] || i.de).t) : ""; return doc.t || T || t("turn"); }
 R.extra.turn = function (c, W, H, doc) {
   if (listOf(doc)) return drawShop(c, W, H, doc);
   var a = doc.col[0], b = doc.col[1], ink = R.ink(a), st = Tn.state(doc), res = Tn.result(doc, Kit.lang);
@@ -674,32 +674,37 @@ function satz(box, ed) {
   });
   w.appendChild(b); box.appendChild(w);
 }
-// Goes through the turn's prompts one by one; each screen shows only what that step may know.
+// Goes through the turn's prompts one by one; each screen shows only what that step may know. "Weiter" is the footer's
+// main button (ed.step): locked until the step has an answer, so it never hides below the fold of the panel.
 function walk(box, ed) {
   var st = Tn.state(ed.doc), now = [], i = 0;
   function step() {
+    ed.step = null;
     box.textContent = ""; box.style.pointerEvents = "none"; setTimeout(function () { box.style.pointerEvents = ""; }, 250);
     if (i >= st.prompts.length && Tn.game(ed.doc).stay && st.turn) { ed.next = null; A.changed(); box.appendChild(el("p", "lbl", L().stay_note)); return; }   // the same link goes on to the next person
     if (i >= st.prompts.length) { ed.move = now; ed.next = Tn.play(ed.doc, now, Tn.today());
       if (Tn.game(ed.doc).local || (ed.next && Tn.state(ed.next).over)) { pass(box, ed); return; }
       A.changed(); box.appendChild(el("p", "lbl", L()[word(ed.doc, "ready")])); box.appendChild(el("button", "btn", L().hand_same, function () { pass(box, ed); })); return; }
-    var p = st.prompts[i], cur = null, go = el("button", "btn hot", L().next, function () {
-      if (cur === null || !go.isConnected) return; Kit.sfx.pop(); now.push(cur); cur = null; i++; step();
-    });
+    var p = st.prompts[i], at = i, cur = null, me = { box: box, live: !!p.live, ok: function () { return cur !== null; },
+      why: t("whyOpen", { s: p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "").replace(/:\s*$/, "") }), go: go };
+    function go() {   // the main button takes no tap for a moment: the second tap of a double tap does not take the next step too
+      if (cur === null || ed.step !== me || !box.isConnected) return; Kit.sfx.pop(); now.push(cur); cur = null; i++;
+      var b = document.getElementById("edmain"); b.style.pointerEvents = "none"; setTimeout(function () { b.style.pointerEvents = ""; }, 250);
+      step(); A.footer();
+    }
     if (i === 0 && SATZ[ed.doc.g] && (!st.turn || p.live)) satz(box, ed);
     if (p.peek) box.appendChild(el("p", "qtext", p.peek(ed.doc, st.moves, now, Kit.lang)));
     if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("label", "lbl", p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "")));
     var soon = 0;
     draw[p.w](box, p, function (v) {
       if (p.live) { ed.next = v === null ? null : Tn.play(ed.doc, [v], Tn.today()); A.changed(); return; }   // no Weiter: the footer sends what is on screen
-      cur = v; go.disabled = v === null; clearTimeout(soon);
+      cur = v; clearTimeout(soon); A.footer();
       var auto = ed.pre && ed.pre.go; if (auto) ed.pre.go = 0;      // taken from a sentence and complete: on at once, only this once
       if (v === null) return;
-      if (auto) setTimeout(function () { if (cur === v) go.click(); }, 0);
-      if (!p.auto) try { go.scrollIntoView({ block: "nearest" }); } catch (e) {}
-      if (p.auto) go.click(); else if (p.w === "rank" || (p.w === "pick" && p.n > 1)) soon = setTimeout(function () { if (box.isConnected && cur === v) go.click(); }, 450);   // a short look at the choice, then on
+      if (auto) setTimeout(function () { if (cur === v) go(); }, 0);
+      if (p.auto) go(); else if (p.w === "rank" || (p.w === "pick" && p.n > 1)) soon = setTimeout(function () { if (box.isConnected && cur === v) go(); }, 450);   // a short look at the choice, then on
     }, { doc: ed.doc, m: st.moves, now: now, ed: ed });
-    if (!p.end && !p.live) box.appendChild(go);
+    if (!p.end && box.isConnected && i === at) { ed.step = me; A.footer(); }   // unless the step already went on by itself
   }
   step();
 }
@@ -710,7 +715,8 @@ function icsRow(p, doc) {
 }
 A.TABS.turn = ["Move", "Text", "Color"];
 A.PANEL.Move = function (p) {
-  var ed = A.ed(), doc = ed.doc, st = Tn.state(doc), left = Tn.gate(doc, Tn.today()), res = Tn.result(doc, Kit.lang);
+  var ed = A.ed(); ed.step = null;
+  var doc = ed.doc, st = Tn.state(doc), left = Tn.gate(doc, Tn.today()), res = Tn.result(doc, Kit.lang);
   if (res) {
     p.appendChild(el("p", "qtext", res.h)); res.lines.forEach(function (s) { p.appendChild(el("p", "note", s)); });
     if (doc.g === "termin") icsRow(p, doc);
@@ -763,7 +769,7 @@ X.turn = {
         all.filter(function (i) { return i.turn.grip === g; }).forEach(function (i) {
           var T = i[Kit.lang] || i.de, m = el("button", "mech tile", null, function () { start(i); }), c = document.createElement("canvas");
           c.width = c.height = 96; shape(c.getContext("2d"), i.turn.f, 48, 48, 30, COL[g]);
-          m.appendChild(c); m.appendChild(el("b", "", T.t.replace("|", " "))); m.appendChild(el("small", "", T.s)); box.appendChild(m);
+          m.appendChild(c); m.appendChild(el("b", "", D.plainTitle(T.t))); m.appendChild(el("small", "", T.s)); box.appendChild(m);
         });
         b.appendChild(box);
       });
@@ -774,14 +780,20 @@ X.turn = {
     if (listOf(ed.doc)) shopSync(ed);
   },
   areas: function (ed) { return ed.next ? ["regeln"] : []; },
+  // The main button is the next step ("Weiter", locked until answered), then sending; with nothing to do here
+  // (waiting for a day, a pack to pick, the phone to pass on) there is no button at all rather than a dummy one.
   footer: function (b, ed) {
-    var over = !!Tn.result(ed.doc, Kit.lang), ok = over || !!ed.next;
-    b.hidden = (ed.doc.g === "sorry" && over) || Tn.state(ed.doc).prompts.some(function (p) { return p.end; });   // a last step that only hands over, like paying
-    b.classList.toggle("wait", !ok); b.textContent = over ? L().result_pic : ed.next ? L()[word(ed.doc, "send")] : L().need;
+    var over = !!Tn.result(ed.doc, Kit.lang), s = !over && ed.step, walking = s && !s.live && !ed.next;
+    b.hidden = (ed.doc.g === "sorry" && over) || Tn.state(ed.doc).prompts.some(function (p) { return p.end; }) || (!over && !ed.next && !s);   // a last step that only hands over, like paying
+    b.classList.toggle("wait", walking ? !s.ok() : !over && !ed.next);
+    b.textContent = over ? L().result_pic : walking ? L().next : L()[word(ed.doc, "send")];
+    if (s) b.dataset.why = s.why;
   },
+  nudge: function (ed) { if (ed.step && !ed.step.box.isConnected) A.tab("Move"); return false; },
   main: function (ed) {
-    var over = !!Tn.result(ed.doc, Kit.lang);
-    if (!over && !ed.next) { Kit.tone(200, 160, 0.1, "square", 0.06); var g = document.querySelector("#panel .btn.hot, #panel .chip, #panel .field"); if (g) { g.scrollIntoView({ block: "center" }); g.classList.add("nudge"); setTimeout(function () { g.classList.remove("nudge"); }, 700); } return; }
+    var over = !!Tn.result(ed.doc, Kit.lang), s = ed.step;
+    if (!over && s && !s.live && !ed.next) { if (!s.box.isConnected) A.tab("Move"); else s.go(); return; }
+    if (!over && !ed.next) return;
     if (!over && listOf(ed.doc)) {   // the list on screen in the colours and words chosen since; what goes out is what this phone knows now
       ed.next = Tn.play(ed.doc, [Tn.moves(ed.next)[0][0]], Tn.today()) || ed.next; shopKeep(ed.next, Tn.moves(ed.next)[0][0]);
     }

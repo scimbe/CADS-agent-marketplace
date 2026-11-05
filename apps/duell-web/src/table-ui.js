@@ -123,7 +123,7 @@ var mine = [];   // the tokens of this table's links that I made or came in with
 // (4 x 2, or 8 in a row where there is room). --cw: my card width from the screen's width and height, so 360x740 needs
 // no scrolling. Lives here, in the table part, not in the page's core CSS.
 var CSS = ".bsov{--cw:min(84px,10.8vh,calc((100vw - 48px)/4));--ow:min(46px,5.6vh,calc((100vw - 56px)/8));--tw:min(64px,8vh);padding:0 12px max(12px,env(safe-area-inset-bottom));overflow-x:hidden}" +
-  ".bsov .tbbody{max-width:480px;gap:6px;padding-top:12px}.bsov .tbbody>.lbl:first-child{margin:0 56px 0 0;align-self:flex-start;font-size:16px;min-height:44px;line-height:44px}" +
+  ".bsov .tbbody{max-width:480px;gap:6px;padding-top:12px}.bsov .tbbody>.lbl:first-child{margin:0 0 0 52px;align-self:flex-start;font-size:16px;min-height:44px;line-height:44px}" +
   ".bsplay{width:100%;display:flex;flex-direction:column;gap:6px}.bsleft,.bsright{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}" +
   ".bstop{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:2px 8px}.bstop .tbinfo{font-weight:800;text-align:left;margin:0}" +
   ".bsov .tbturn{font-size:17px;min-height:0}.bsov .tbturn.hot{color:var(--ink);background:var(--paper);border:2px solid var(--ink);padding:0 6px}.bswho{margin:0;font:800 15px var(--ui);align-self:flex-start}" +
@@ -145,7 +145,7 @@ function layer() {
   css();
   if (!ov) {
     ov = el("div", "liveov tbov" + (game === "bauernskat" ? " bsov" : "")); ov.setAttribute("role", "dialog");
-    ov.appendChild(el("button", "liveback", "✕", function () { Kit.sfx.tap(); close(); }));
+    var x = el("button", "liveback", "✕", function () { Kit.sfx.tap(); close(); }); x.setAttribute("aria-label", Kit.t("xClose")); ov.appendChild(x);
     ov.appendChild(el("div", "livebody tbbody")); document.body.appendChild(ov);
   }
   var b = ov.querySelector(".tbbody"); b.textContent = ""; return b;

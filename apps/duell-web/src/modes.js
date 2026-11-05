@@ -7,7 +7,7 @@ var FONT = R.FONT, EMO = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji
 var $ = function (id) { return document.getElementById(id); };
 var reduce = false, timer = 0, raf = 0, beat = null;
 try { reduce = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
-function title(ed) { return ed.idea ? (ed.idea[Kit.lang] || ed.idea.de).t.replace("|", " ") : ""; }
+function title(ed) { return ed.idea ? D.plainTitle((ed.idea[Kit.lang] || ed.idea.de).t) : ""; }
 function nameOf(a, fb) { return a.n || fb || a.e; }
 function stopAll() { clearTimeout(timer); clearInterval(timer); cancelAnimationFrame(raf); if (beat) { try { beat.stop(); } catch (e) {} beat = null; } }
 function setTabs(on) { $("tabs").hidden = !on; }
@@ -312,7 +312,7 @@ A.PANEL.End = function (p) {
 X.quest = {
   open: function (ed) { ed.draft = draftOf(ed); ed.stop = 0; ed.sealed = null; ed.x = null; ed.doc.c = []; setTabs(true); },
   areas: function (ed) { return ed.draft && ed.draft.stops.some(function (s) { return s.a; }) ? ["text"] : []; },
-  footer: function (b, ed, ok) { var c = Q.complete(ed.draft) && ok; b.classList.toggle("wait", !c); b.textContent = c ? t("questLock") : t("questNeed"); },
+  footer: function (b, ed, ok) { var c = Q.complete(ed.draft) && ok; b.classList.toggle("wait", !c); b.textContent = t("questLock"); if (!c) b.dataset.why = t("questNeed"); },
   main: async function (ed) {
     if (!Q.complete(ed.draft)) { Kit.tone(200, 160, 0.1, "square", 0.06); return; }
     var s = await Q.seal(ed.draft); if (!s || A.ed() !== ed) return;

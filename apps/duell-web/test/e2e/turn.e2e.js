@@ -24,7 +24,8 @@ const send = (p) => p.locator("#edmain").click();
 test("Zwei Geraete: Keks-Deal laeuft nur ueber Links bis zum Ergebnisbild", async () => {
   const { b, open, errs } = await setup();
   const a = await open("#i=zug-deal"); await a.locator("#go").click();
-  assert.match(await a.locator("#edmain").textContent(), /Erst oben fertig/);
+  assert.equal(await a.locator("#edmain").textContent(), "Weiter");   // the step's Weiter sits in the footer, locked until answered
+  assert.equal(await a.locator("#edmain").getAttribute("aria-disabled"), "false");   // the slider starts with a value
   await slide(a, 4); await next(a); await a.getByText("Zug steht").waitFor(); await send(a); await a.locator("#share").waitFor();
   const one = await url(a); assert.ok(!/"?offer/.test(one));
   const c = await open(hash(one));

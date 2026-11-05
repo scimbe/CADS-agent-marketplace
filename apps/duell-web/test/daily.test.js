@@ -246,3 +246,18 @@ test("Adventstuerchen: Nummer 1 bis 24 reist im Link, Vorbelegung ist der Dezemb
   assert.equal(r.type, "doc"); assert.equal(r.doc.nr, 17); assert.equal(r.doc.x, "Für dich"); assert.equal(r.doc.st, "advent");
   assert.deepEqual(D.changedAreas(doc, { ...doc, nr: doc.nr % 24 + 1 }), ["text"]);
 });
+
+test("plainTitle: Bindestrich-Titel einzeilig richtig zusammengesetzt (Tür-|steher, Winter-|Tunnel), kein \"|\" in Titeln", () => {
+  assert.equal(D.plainTitle("Tür-|steher"), "Türsteher");
+  assert.equal(D.plainTitle("Geister-|schicht"), "Geisterschicht");
+  assert.equal(D.plainTitle("Winter-|Tunnel"), "Winter-Tunnel");
+  assert.equal(D.plainTitle("Rätsel-|Staffel"), "Rätsel-Staffel");
+  assert.equal(D.plainTitle("Letzte Socke|unterm Hammer"), "Letzte Socke unterm Hammer");
+  assert.equal(D.plainTitle("Ghost|shift"), "Ghost shift");
+  for (const i of D.IDEAS) for (const l of ["de", "en"]) {
+    const s = D.plainTitle(i[l].t);
+    assert.ok(!/\||- /.test(s), i.id + " " + l + ": " + s);
+  }
+  const geist = D.IDEAS.find((i) => i.id === "spiel-geist");
+  if (geist) assert.equal(D.docFromIdea(geist, me, "de").g.title, "Geisterschicht");
+});

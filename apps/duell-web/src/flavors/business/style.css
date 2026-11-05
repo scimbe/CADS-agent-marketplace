@@ -7,7 +7,7 @@ html,body,.scr,.bar.tight,.foot.col,#stagewrap{background:#f4f5f7!important;colo
 body{font-weight:500}
 #home::before{display:none}
 h1{transform:none;text-transform:none;font:650 19px/1 var(--disp);letter-spacing:-.2px;display:flex;align-items:center;gap:8px}
-.orglogo{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 6px;border-radius:6px;background:var(--org);color:var(--onorg);font:700 13px/1 var(--disp);letter-spacing:.3px}
+.orglogo{display:inline-grid;place-items:center;min-width:44px;height:44px;border:0;padding:0 6px;border-radius:6px;background:var(--org);color:var(--onorg);font:700 13px/1 var(--disp);letter-spacing:.3px}
 .under{display:none}
 #leaf{transform:none!important;border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.06),0 4px 16px rgba(16,24,40,.06);border-top:4px solid var(--org)}
 #leaf.enter,.enter .burst,.enter .hero span{animation:none}
@@ -20,7 +20,7 @@ h1{transform:none;text-transform:none;font:650 19px/1 var(--disp);letter-spacing
 .teaser{font:500 16px/1.35 var(--disp);color:var(--muted)}
 .press{border:0;border-radius:10px;background:var(--org);color:var(--onorg);font:600 18px/1 var(--disp);text-transform:none;letter-spacing:0;box-shadow:0 1px 2px rgba(16,24,40,.15);min-height:54px}
 .press:active{transform:translateY(1px);box-shadow:none}
-.press.wait{color:var(--muted);border:1px dashed var(--line);background:transparent;font-size:15px}
+
 #homerow button{border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font:600 14px var(--disp)}
 #feat button{border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--text);font:600 13px var(--disp)}
 #feat button.hot{background:var(--text);color:#fff;border-color:var(--text)}
@@ -39,7 +39,7 @@ h1{transform:none;text-transform:none;font:650 19px/1 var(--disp);letter-spacing
 .btn.hot{background:var(--org);border-color:var(--org);color:var(--onorg);font:600 17px var(--disp);text-transform:none;min-height:52px}
 .lbl{color:var(--muted);font-weight:600;text-transform:none}
 .qtext{font-weight:600}
-#shtitle,#edtitle{font:650 18px/1 var(--disp);text-transform:none}
+#shtitle,#edtitle{font:650 18px/1.15 var(--disp);text-transform:none}
 .mech{border:1px solid var(--line);border-radius:10px;box-shadow:none;background:var(--card)}
 .mech canvas{display:none}
 .day b{font:650 28px/1 var(--disp)}
