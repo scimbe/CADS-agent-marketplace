@@ -272,10 +272,11 @@ function tear(step) {
   }, 300);
 }
 (function drag() {
-  var leaf = $("leaf"), sx = 0, sy = 0, on = false, t0 = 0, shown = 0;
-  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; t0 = Date.now(); shown = 1; try { peek(1, true); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
+  var leaf = $("leaf"), sx = 0, sy = 0, on = false, t0 = 0, far = false, shown = 0;
+  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; t0 = Date.now(); far = false; shown = 1; try { peek(1, true); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
   leaf.addEventListener("pointermove", function (e) {
     if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy, step = dx > 0 ? -1 : 1;
+    if (Math.abs(dx) >= 10 || Math.abs(dy) >= 10) far = true;   // moved once: never a tap, even when let go where it began
     if (Math.abs(dx) > 8) { try { if (step !== shown) { shown = step; peek(step); } else wake(); } catch (x) {} }
     leaf.style.transform = "translate(" + dx + "px," + dy * 0.4 + "px) rotate(" + dx / 16 + "deg)"; leaf.style.opacity = String(1 - Math.min(0.7, Math.abs(dx) / 220)); });
   function up(e) {
@@ -284,7 +285,7 @@ function tear(step) {
     if (Math.abs(dx) > 90) { tear(dx > 0 ? -1 : 1); return; }
     leaf.style.transform = ""; leaf.style.opacity = "";
     // A tap (no move, short, not on a control of the sheet, not while a torn sheet flies) opens the card like #go; a swipe turns the day.
-    if (e.type === "pointerup" && Math.abs(dx) < 10 && Math.abs(dy) < 10 && Date.now() - t0 < 500 && t0 > busy && !(e.target.closest && e.target.closest("a,button,input,textarea,select,label"))) start();
+    if (e.type === "pointerup" && !far && Math.abs(dx) < 10 && Math.abs(dy) < 10 && Date.now() - t0 < 500 && t0 > busy && !(e.target.closest && e.target.closest("a,button,input,textarea,select,label"))) start();
   }
   leaf.addEventListener("pointerup", up); leaf.addEventListener("pointercancel", up);
 })();

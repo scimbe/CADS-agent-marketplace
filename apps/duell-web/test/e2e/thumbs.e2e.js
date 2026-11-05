@@ -148,15 +148,13 @@ const exported = (p) => p.evaluate(() => {
 
 test("KI-Bild: das graue Folgeblatt zeigt sein Bild, erst wenn es sichtbar wird; ein Tap oeffnet die Karte mit Bild im Editor", async () => {
   const { b, open, errs, asked } = await setup("on");
-  let p = null, next = null;
-  for (const day of [[9, 11], [9, 10], [11, 5]]) {   // Folgetag mit Bild (11.10.: foto-haustier -> karte-weisheit)
-    if (next) break;
-    p = await open(MAIN, day);
-    const r = await p.evaluate(() => { const D = window.Daily, h = window.DailyApp.home(), n = D.ideaForDay(D.dayDate(new Date(), -1)); return { cur: h.idea.id, next: n && n.id, has: !!n && window.DailyThumbs.includes(n.id), curHas: window.DailyThumbs.includes(h.idea.id) }; });
-    if (r.has) next = r; else await p.close();
-  }
-  assert.ok(next, "ein Tag mit Bild, dessen Folgetag ein Bild hat");
-  if (next.curHas) await p.locator("#leaf .pv.pic").waitFor();
+  // a day with a picture whose next day has one too (the plan moves when ideas are added, so it is looked up)
+  const q = await open(MAIN, [10, 1]);
+  const day = await q.evaluate(() => { const D = window.Daily, T = window.DailyThumbs; for (let k = 0; k < 400; k++) { const x = new Date(Date.UTC(2026, 9, 1 + k, 10)), a = D.ideaForDay(x), n = D.ideaForDay(D.dayDate(x, -1)); if (a && n && T.includes(a.id) && T.includes(n.id)) return [x.getUTCMonth() + 12 * (x.getUTCFullYear() - 2026), x.getUTCDate(), n.id]; } return null; });
+  await q.close();
+  assert.ok(day, "ein Tag mit Bild, dessen Folgetag ein Bild hat");
+  const p = await open(MAIN, day.slice(0, 2)), next = { next: day[2] };
+  await p.locator("#leaf .pv.pic").waitFor();
   const box = await p.locator("#leaf").boundingBox(), cx = box.x + box.width / 2, cy = box.y + box.height / 2;
   asked.length = 0;
   await p.mouse.move(cx, cy); await p.mouse.down(); await p.waitForTimeout(150);
@@ -178,7 +176,9 @@ test("KI-Bild: das graue Folgeblatt zeigt sein Bild, erst wenn es sichtbar wird;
   assert.ok(e.open && e.pic && e.shown && e.stage && e.above && !e.over, JSON.stringify(e));
   assert.ok(Math.abs(e.ratio - 16 / 9) < 0.05, "16:9 " + e.ratio); assert.equal(e.tag, "KI-Bild");
   if (shot) await p.screenshot({ path: shot + "/pic-editor.png" });
-  // the finished picture carries it too (CORS image: the canvas stays clean)
+  // the finished picture of a card carries it too (CORS image: the canvas stays clean)
+  await p.evaluate(() => { const D = window.Daily, i = D.byId("karte-lob"); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i }); });
+  await p.locator("#stagewrap.pic").waitFor();
   await p.locator("#edmain").click(); await p.locator("#done").waitFor({ state: "visible" });
   assert.ok(await exported(p) > 0.2, "Bild im fertigen Bild");
   if (shot) { await p.waitForTimeout(300); await p.screenshot({ path: shot + "/pic-done.png" }); }
