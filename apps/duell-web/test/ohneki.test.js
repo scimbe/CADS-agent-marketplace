@@ -129,7 +129,7 @@ test("Review 2: Frist liest ganze Woerter, Wochentag vor morgen, keine Dezimalza
   assert.deepEqual(["bis Freitag morgen", "Montagmorgen", "Sonntagabend", "bis Freitagmittag", "morgen früh", "Friday morning"].map((s) => iso(day(s, s.startsWith("Friday") ? "en" : "de"))),
     ["2026-11-06", "2026-11-09", "2026-11-08", "2026-11-06", "2026-11-05", "2026-11-06"]);
   for (const s of ["morgens", "in 2.5 Wochen", "in 2,5 Wochen", "1.5 Tage", "12.5%", "bis 2.50 Euro", "Morgenrunde"]) assert.equal(day(s), 0, s);
-  assert.equal(iso(day("bis 2.5.")), "2027-05-02"); assert.equal(iso(day("am 14.11.26")), "2026-11-14"); assert.equal(iso(day("by 1/12/2027", "en")), "2027-01-12");
+  assert.equal(iso(day("bis 2.5.")), "2027-05-02"); assert.equal(iso(day("am 14.11.26")), "2026-11-14"); assert.equal(iso(day("by 1/12/2027", "en")), "2027-12-01", "EN liest Tag/Monat wie die Anzeige (en-GB)"); assert.equal(iso(day("by 5/11", "en")), "2026-11-05");
 });
 test("Review 5: Name zaehlt nur, wenn er fuer genau diese Aufgabe faellt", () => {
   const t = "Anna leitet heute das Meeting. Wer bucht den Raum? Das klären wir. Ben schickt die Einladung. Wer holt den Kuchen? Cem.";

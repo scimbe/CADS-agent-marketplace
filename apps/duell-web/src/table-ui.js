@@ -65,7 +65,7 @@ var TX = {
     wWinT: "{c} wins: highest trump in the trick.", wWin: "{c} wins: highest {s} in the trick.", wFirst: "{c} wins: two equal cards, the first one played counts.",
     wDulle: "{c} wins: house rule, the second Heart Ten beats the first.", wOrder: "Trumps from the top: {o} …", wNoTrump: "No trumps in this game.", trumpW: "trump" }
 };
-function L() { return TX[Kit.lang] || TX.de; }
+function L() { return window.DuellCore.textsFor(TX, Kit.lang); }
 function t(k, v) { var s = L()[k]; if (s == null) s = TX.de[k]; if (s == null) return k; return String(s).replace(/\{(\w+)\}/g, function (m, x) { return v && v[x] != null ? v[x] : m; }); }
 function el(tag, cls, text, on) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; if (on) e.addEventListener("click", on); return e; }
 
@@ -146,6 +146,7 @@ function layer() {
   if (!ov) {
     ov = el("div", "liveov tbov" + (game === "bauernskat" ? " bsov" : "")); ov.setAttribute("role", "dialog");
     var x = el("button", "liveback", "✕", function () { Kit.sfx.tap(); close(); }); x.setAttribute("aria-label", Kit.t("xClose")); ov.appendChild(x);
+    ov.appendChild(Kit.langBtn("livelang"));      // an invited player can change the language before the first card
     ov.appendChild(el("div", "livebody tbbody")); document.body.appendChild(ov);
   }
   var b = ov.querySelector(".tbbody"); b.textContent = ""; return b;
@@ -156,7 +157,11 @@ function close() {
   if (tb) { try { tb.leave(!!robot); } catch (e) {} tb = null; }
   if (robot) { try { robot.leave(true); } catch (e) {} robot = null; }
   if (ov) { ov.remove(); ov = null; }
+  redo = null;
 }
+// Another language: the open table draws itself again in it, and so does a screen before the table.
+var redo = null;
+window.addEventListener("daily:lang", function () { if (!ov) return; if (tb) render(tb.view()); else if (redo) redo(); });
 // one token, or a group link with one token per seat (tried in order by whoever opens it)
 function link(tokens) { var r = tb ? tb.view().rules : saved(); return window.DuellCore.SHARE_BASE + "#tisch=" + game + "." + [].concat(tokens).join(".") + (r.length ? "&r=" + r.join(".") : ""); }
 // The house rules this device chose last for the game: the next table it sets starts with them. Only a preference.
@@ -427,7 +432,7 @@ function open(g) {
 }
 function friends() { return start(function () { return T.create(Object.assign({ game: game, live: window.Live, rules: saved() }, me())); }).then(function (x) { if (x) inviteGroup(); }); }
 function choose() {
-  close();
+  close(); redo = choose;
   var b = layer();
   b.appendChild(el("p", "lbl", t(game)));
   var cv = el("canvas", "bsprev"); cv.width = 640; cv.height = 400; cv.setAttribute("aria-hidden", "true"); preview(cv.getContext("2d"), 640, 400, { g: game }); b.appendChild(cv);
@@ -474,7 +479,7 @@ function back(list) {
 // The table is not here any more (another tab, a reload): the link stays free, share it again or set a new table.
 function ownLink(list) {
   if (tb && ov) { Kit.toast(t("own")); render(tb.view()); return Promise.resolve(tb); }   // another table runs here: it stays
-  close();
+  close(); redo = function () { ownLink(list); };
   var b = layer();
   b.appendChild(el("p", "lbl", t(game)));
   b.appendChild(el("p", "livebig", t("own"))); b.appendChild(el("p", "note", t("ownNote")));

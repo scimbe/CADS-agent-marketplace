@@ -201,7 +201,7 @@
     var ul = el("ul"); items.forEach(function (x) { ul.appendChild(fmt(x)); }); s.appendChild(ul); return s;
   }
   function result(note) {
-    var p = rec.protocol, L = P.LABELS[lang], box = $("protocol"), li = function (x) { return el("li", "", x); };
+    var p = rec.protocol, L = P.LABELS[lang] || P.LABELS.de, box = $("protocol"), li = function (x) { return el("li", "", x); };
     box.textContent = "";
     box.appendChild(el("h2", "", p.title || L.head));
     box.appendChild(el("p", "meta", new Date(rec.at).toLocaleString(lang === "en" ? "en-GB" : "de-DE", { dateStyle: "medium", timeStyle: "short" }) + " · " + L.length + " " + P.stamp(rec.sec)));

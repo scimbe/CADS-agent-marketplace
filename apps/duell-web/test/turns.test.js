@@ -251,8 +251,8 @@ test("Geld einsammeln: Cent-Betraege und Aufteilen auf N Personen, Rest sichtbar
   assert.equal(pay.link(d, m), "https://paypal.me/maxmuster/9.37EUR", "Punkt als Dezimalzeichen, zwei Stellen");
   assert.deepEqual(Tn.split(3750, 4), { c: 3750, k: 4, e: 937, r: 2 });
   assert.deepEqual(Tn.face(d, "de"), ["Pizza-Abend: 9,37 € pro Person an paypal.me/maxmuster", "37,50 € geteilt durch 4 · Rest 2 ct übernimmt, wer sammelt", "Link öffnen und mit PayPal zahlen"]);
-  assert.equal(Tn.face(d, "en")[0], "Pizza-Abend: 9.37 € per person to paypal.me/maxmuster");
-  assert.equal(pay.share(m, "de"), "9,37"); assert.equal(pay.more(m, "de"), Tn.face(d, "de")[1]);
+  assert.equal(Tn.face(d, "en")[0], "Pizza-Abend: €9.37 per person to paypal.me/maxmuster", "Englisch: Euro vor dem Betrag");
+  assert.equal(pay.share(m, "de"), "9,37 €"); assert.equal(pay.share(m, "en"), "€9.37"); assert.equal(pay.more(m, "de"), Tn.face(d, "de")[1]);
   assert.equal(pay.link(Tn.play(fresh("sammeln", 1), ["max", "Pizza", 3, 3000], 0), [["max", "Pizza", 3, 3000]]), "https://paypal.me/max/10EUR");
   assert.equal(Tn.moneyLine(3000, 3, "de"), "30 € geteilt durch 3 · 10 € pro Person", "geht es auf, steht kein Rest da");
   // fair: everyone pays the same whole cents, the rest is under one cent per person and stays with the collector

@@ -3,7 +3,7 @@
 "use strict";
 var A = window.DailyApp, X = window.DailyModes, Tn = window.Turns, Q = window.Quest, C = window.DuellCore, D = window.Daily, R = window.Render, Kit = window.Kit, t = Kit.t, el = A.el;
 function L() { return Tn.T(Kit.lang); }
-function say(k, o) { return String(L()[k]).replace(/\{(\w+)\}/g, function (m, n) { return o[n]; }); }
+function say(k, o) { return String(C.form(L(), k, o && o.n, Kit.lang)).replace(/\{(\w+)\}/g, function (m, n) { return o[n]; }); }
 // A game may name its own words for the shared buttons (GAMES[g].words), so a date poll does not speak of moves.
 function word(doc, k) { var w = Tn.GAMES[doc.g] && Tn.GAMES[doc.g].words; return (w && w[k]) || k; }
 function seed() { var a = new Uint32Array(1); window.crypto.getRandomValues(a); return a[0]; }
@@ -294,7 +294,7 @@ var draw = {
     b.addEventListener("click", function () {
       var d = Math.round(performance.now() - t0); if (!t0 || d < 2000) return; t0 = 0;
       n++; if (!best || Math.abs(d - p.goal) < Math.abs(best - p.goal)) best = Math.min(30000, d);
-      info.textContent = say("pok_got", { n: (d / 1000).toFixed(2) }); Kit.sfx.pop();
+      info.textContent = say("pok_got", { n: Kit.num(d / 1000, 2) }); Kit.sfx.pop();
       if (n >= p.tries) { b.disabled = true; set(best); } else go();
     });
     box.appendChild(q); box.appendChild(b); box.appendChild(info); go(); set(null);
@@ -333,7 +333,7 @@ var draw = {
     var plan = p.plan(ctx.doc), r = 0, k = 0, sum = 0, t0 = 0, star = false, timer = 0, pad = el("button", "touchpad react", ""), info = el("p", "lbl", L().rea_rule), SH = ["●", "▲", "■"];
     function next() {
       clearTimeout(timer); pad.textContent = ""; star = false; t0 = 0;
-      if (r >= plan.length) { set(Math.min(60000, Math.round(sum))); info.textContent = say("rea_done", { n: (sum / 1000).toFixed(2) }); return; }
+      if (r >= plan.length) { set(Math.min(60000, Math.round(sum))); info.textContent = say("rea_done", { n: Kit.num(sum / 1000, 2) }); return; }
       timer = setTimeout(function () {
         if (!box.isConnected) return;
         if (k < plan[r].decoys) { pad.textContent = SH[(r + k) % 3]; k++; timer = setTimeout(next, 650); return; }

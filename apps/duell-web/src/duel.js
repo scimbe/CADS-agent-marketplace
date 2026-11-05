@@ -68,7 +68,7 @@
   function pick(list, rnd) { return list[Math.floor(rnd() * list.length)]; }
   function fill(s, ag, doc) { return s.replace(/\{w\}/g, doc.w || "").replace(/\{n\}/g, ag.n || ag.e); }
   function rapLine(ag, foe, doc, rnd, lang) {
-    var T = DATA.rap[lang], x = rnd(), kind = x < ag.c / (ag.c + ag.p + 1) ? "boast" : "calm", list = doc.w ? T[kind].concat(T.word) : T[kind];
+    var T = DATA.rap[lang] || DATA.rap.de, x = rnd(), kind = x < ag.c / (ag.c + ag.p + 1) ? "boast" : "calm", list = doc.w ? T[kind].concat(T.word) : T[kind];
     var base = 3 + Math.floor(rnd() * (2 + (ag.r / 100) * 7)), pat = ag.p > 60 ? 1 : 0, bon = 0;
     if (kind === "boast" && foe.p < 40) bon++;       // cheek lands best on an impatient rival
     if (kind === "calm" && foe.c > 60) bon++;        // staying calm answers cheek
@@ -88,7 +88,7 @@
     return Math.max(0, Math.min(left, Math.round(Math.min(raw, left - keep))));
   }
   function playAuction(doc, rnd, lang) {
-    var flip = !canonical(doc.a, doc.b), left = [100, 100], gain = [0, 0], out = [], items = DATA.items[lang].slice(), list = [];
+    var flip = !canonical(doc.a, doc.b), left = [100, 100], gain = [0, 0], out = [], items = (DATA.items[lang] || DATA.items.de).slice(), list = [];
     while (list.length < ROUNDS.auction) list.push(items.splice(Math.floor(rnd() * items.length), 1)[0]);
     if (doc.w) list[0] = doc.w;
     list.forEach(function (item, i) {

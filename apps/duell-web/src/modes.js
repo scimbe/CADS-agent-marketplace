@@ -110,7 +110,7 @@ A.PANEL.Agent = function (p) {
 A.PANEL.Rival = function (p) {
   var d = A.ed().doc;
   p.appendChild(el("button", "chip", "🎲 " + t("agRandom"), function () {
-    var r = Math.random, L = DD.rivals[Kit.lang]; Kit.sfx.pop();
+    var r = Math.random, L = DD.rivals[Kit.lang] || DD.rivals.de; Kit.sfx.pop();
     d.b = { n: L[Math.floor(r() * L.length)], e: DD.emoji[Math.floor(r() * DD.emoji.length)], r: Math.floor(r() * 101), c: Math.floor(r() * 101), p: Math.floor(r() * 101) };
     A.tab("Rival"); A.changed();
   }));
@@ -241,7 +241,7 @@ function mindStart(ed, p) {
   });
 }
 function deckStart(ed, p) {
-  var d = ed.doc, list = (d.w ? [d.w] : []).concat(DD.deck[Kit.lang]), i = 0, deck = { left: 60, text: list[0] };
+  var d = ed.doc, list = (d.w ? [d.w] : []).concat(DD.deck[Kit.lang] || DD.deck.de), i = 0, deck = { left: 60, text: list[0] };
   ed.x = { deck: deck, res: { rounds: [], sa: 0, sb: 0 }, running: true, title: title(ed) };
   p.appendChild(el("button", "chip", t("deckNext"), function () { i = (i + 1) % list.length; deck.text = list[i]; Kit.sfx.tap(); A.changed(); }));
   timer = setInterval(function () {
