@@ -167,6 +167,15 @@ wait_web 'Emu.*42' 5   # the result compares with the rival from the link
 shot 8-duell-game-over
 echo "duell: round ran to game over ('Again' on screen, rival Emu / 42 still referenced)"
 
+# 3b. A page part from the assets (dist/parts/play.<hash>.js next to index.html): the arcade duel's menu lives there.
+#     Invite link to the puck duel, tap "Play": the bot menu shows only if the part loaded inside the app, offline.
+adb shell "am start -W -a android.intent.action.VIEW -c android.intent.category.BROWSABLE -p $PKG -d 'https://bunsenbrenner.org/duell#i=arcade-puck'" >/dev/null
+wait_web 'puck' 20
+tap_web '^(Spielen|Play)\s*$' 10
+wait_web '(Gegen den Bot|Against the bot)' 20
+shot 8b-arcade-part
+echo "parts: the arcade menu came from its part in the app's assets"
+
 # media_check <images|audio> <png|wav>: the newest my-daily-idea* file in MediaStore sits in the app's
 # folder, has content, and starts with the magic number of its type. Prints the size.
 media_check() {

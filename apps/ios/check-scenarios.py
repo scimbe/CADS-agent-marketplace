@@ -60,4 +60,11 @@ def mic(name):
     f = n.get("saveFile", {})
     need(f.get("name", "").endswith(".wav") and f.get("bytes", 0) > 5000 and f["magic"].startswith("52494646") and f["magic"][16:24] == "57415645", f"{name}: sound saved as a WAV with content", f)
 mic("12-mikro-abgelehnt")
+
+# parts: the file:// page loads its parts from the bundle (CSP script-src 'self', content rule blocks only http/https)
+p = load("13-teildateien"); lp = logd(p)
+need("error" not in lp, "parts flow without script error", lp.get("error"))
+need(lp.get("arcadeMenu") is True, "arcade menu from the play part", lp)
+need(lp.get("parts") == "licenses,play,qr,table", "every part loaded from the bundle", lp.get("parts"))
+need(lp.get("licenses") is True and lp.get("qr") is True, "licence texts and QR code came with their parts", lp)
 print("all simulator checks ok")

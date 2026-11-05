@@ -7,8 +7,11 @@ const path = require("node:path");
 const dist = path.join(__dirname, "../dist/index.html");
 const src = (f) => fs.readFileSync(path.join(__dirname, "../src", f), "utf8");
 const noComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "");
+// The page as it runs: the core (dist/index.html) and its parts (dist/parts/, loaded on first use by src/parts.js).
+const partFiles = () => fs.readdirSync(path.join(path.dirname(dist), "parts")).map((f) => path.join(path.dirname(dist), "parts", f));
+const bundle = () => [fs.readFileSync(dist, "utf8")].concat(partFiles().map((f) => fs.readFileSync(f, "utf8"))).join("\n");
 
-test("Build: eine Datei, voll offline, alle Welten da, Platzhalter ersetzt, Groesse unter 1 MB", () => {
+test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter ersetzt, Kern unter 700 KB, jede Teildatei unter 300 KB", () => {
   execFileSync(process.execPath, [path.join(__dirname, "../scripts/build.js")]);
   const html = fs.readFileSync(dist, "utf8");
   assert.ok(!/\/\*@[A-Z]+@\*\//.test(html), "Platzhalter uebrig");
@@ -16,11 +19,33 @@ test("Build: eine Datei, voll offline, alle Welten da, Platzhalter ersetzt, Groe
   assert.ok(!/<(img|audio|video|iframe)[^>]+src=["']https?:/i.test(html));
   const core = require("../src/core.js");
   for (const t of core.THEME_NAMES) assert.match(html, new RegExp("\\b" + t + ":\\s*\\{"), "Welt " + t);
-  // 700 KB until the card tables, 800 KB until arcade, card tables, feel-good cards and Protokoll came together (~900 KB);
-  // the hard line stays the 1 MB of the test name: past it, the page has to be split instead of growing.
-  assert.ok(Buffer.byteLength(html) < 1024 * 1024, "dist ueber 1 MB: " + Buffer.byteLength(html));
+  // At 998 KB the single page was split (rule: past 1 MB split instead of growing). The core (home, calendar sheet, editor,
+  // sharing) stays below 700 KB, every part below 300 KB; new, rarely used code goes into a part (scripts/build.js PARTS).
+  // Sizes at the split: core 693 KB, parts 310 KB (play 140, table 104, qr 59, licenses 6), together 1003 KB.
+  assert.ok(Buffer.byteLength(html) < 700 * 1024, "Kern ueber 700 KB: " + Buffer.byteLength(html));
+  const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
+  assert.deepEqual(Object.keys(man).sort(), ["licenses", "play", "qr", "table"]);
+  assert.equal(files.length, Object.keys(man).length, "nur die Teile aus dem Manifest liegen in dist/parts");
+  let sum = 0;
+  for (const [name, p] of Object.entries(man)) {
+    assert.match(p.f, new RegExp("^parts/" + name + "\\.[0-9a-f]{12}\\.js$"), "Name mit Inhalts-Hash");
+    const body = fs.readFileSync(path.join(path.dirname(dist), p.f));
+    assert.ok(body.length < 300 * 1024, "Teil " + name + " ueber 300 KB: " + body.length);
+    assert.equal(p.h, "sha384-" + require("node:crypto").createHash("sha384").update(body).digest("base64"), "SRI-Hash von " + name);
+    for (const d of p.d) assert.ok(man[d], "Abhaengigkeit " + d);
+    sum += body.length;
+  }
+  assert.ok(Buffer.byteLength(html) + sum < 1.5 * 1024 * 1024, "Kern + Teile: " + (Buffer.byteLength(html) + sum));
+  // Each part runs where it ran inside the page: the module code, not a stand-in. Spot checks on what moved.
+  const part = (n) => fs.readFileSync(path.join(path.dirname(dist), man[n].f), "utf8");
+  assert.match(part("play"), /window\.ArcadeUI = \{/); assert.match(part("play"), /window\.LiveUI = \{/);
+  assert.match(part("table"), /window\.TableUI = \{/); assert.match(part("qr"), /root\.StatusCard =/);
+  assert.ok(!/window\.ArcadeUI = \{ menu|window\.TableUI = \{ open|root\.StatusCard =/.test(html), "verschobener Code steckt nicht doppelt im Kern");
   assert.match(html, /<title>My Daily Idea<\/title>/);
   assert.match(html, /Content-Security-Policy[^>]*default-src 'none'/);
+  // Parts come only from the page's own origin ('self'); on http(s) each with its SRI hash (src/parts.js).
+  assert.match(html, /script-src 'unsafe-inline' 'self' https:\/\/webconference\.bunsenbrenner\.org 'wasm-unsafe-eval';/);
+  assert.match(src("parts.js"), /s\.integrity = p\.h;/); assert.match(src("parts.js"), /s\.src = dir\(\) \+ p\.f;/);
   assert.match(html, /connect-src https:\/\/demos-34a13a96\.bunsenbrenner\.org https:\/\/webconference\.bunsenbrenner\.org wss:\/\/webconference\.bunsenbrenner\.org;/, "der eigene Host und fuer Live-Spiele nur die Webconference");
 });
 test("Datenschutz: Kurzlink nur ueber shortlink.js, nur nach einem Tipp auf Teilen; p= bleibt draussen", () => {
@@ -31,7 +56,7 @@ test("Datenschutz: Kurzlink nur ueber shortlink.js, nur nach einem Tipp auf Teil
   assert.ok(at > game.indexOf('$("challenge").addEventListener("click"'), "game.js: nur im Klick");
 });
 test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldung, Kurzlink), nur getippter Text; kein anderer Weg nach draussen", () => {
-  const html = noComments(fs.readFileSync(dist, "utf8"));
+  const html = noComments(bundle());
   // Every call site by name; a new one fails here until it is argued for and listed.
   // protokoll-page.js is its own page (dist/protokoll.html, connect-src 'self'): one GET for the speech model from this
   // domain, one POST with the redacted text after the explicit yes. Neither is in the app build below.
@@ -43,7 +68,7 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
     assert.equal((noComments(src(f)).match(/\bfetch\(/g) || []).length, allowed[f] || 0, "direktes fetch( in " + f);
     assert.equal((noComments(src(f)).match(short) || []).length, f === "shortlink.js" ? 1 : 0, "Kurzlink-fetch in " + f);
   }
-  assert.equal((html.match(/\bfetch\(/g) || []).length, allowed["game.js"] + allowed["ai.js"] + allowed["live.js"], "direkte fetch( im Build");
+  assert.equal((html.match(/\bfetch\(/g) || []).length, allowed["game.js"] + allowed["ai.js"] + allowed["live.js"], "direkte fetch( im Build (Kern + Teile)");
   const ph = noComments(fs.readFileSync(path.join(path.dirname(dist), "protokoll.html"), "utf8"));
   assert.equal((ph.match(/\bfetch\(/g) || []).length, 2, "Protokoll-Seite: Modell + KI-Text");
   assert.ok(!/XMLHttpRequest|sendBeacon|EventSource|WebSocket|RTCPeerConnection|analytics|serviceWorker/.test(ph), "Protokoll-Seite: kein weiterer Ausgang");
@@ -62,8 +87,8 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
   assert.match(src("live.js"), /API = WC \+ "\/api\/play"/, "Live spricht nur mit /api/play"); assert.ok(!/"turns?:|stun:|iceTransportPolicy: "relay"/.test(src("live.js")), "ICE-Server kommen nur vom Server, kein erzwungenes Relay"); assert.match(src("texts.json"), /IP-Adresse des anderen/, "Hinweis auf die sichtbare IP");
   assert.ok(!/analytics|\bgtag\b|tracker|Notification\.|serviceWorker/i.test(html), "Tracker/Push");
 });
-test("XSS: kein HTML-Sink im Seitencode", () => {
-  const html = noComments(fs.readFileSync(dist, "utf8"));
+test("XSS: kein HTML-Sink im Seitencode (Kern + Teile)", () => {
+  const html = noComments(bundle());
   assert.ok(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\(|new Function/.test(html), "HTML-Sink");
 });
 test("Schrift: Anton als data:-URL eingebettet, Lizenzhinweis im Build, Volltext im Repo, deutsche Glyphen im Subset", () => {
@@ -78,7 +103,7 @@ test("Schrift: Anton als data:-URL eingebettet, Lizenzhinweis im Build, Volltext
   const has = (cp) => range.split(",").some((r) => { const [a, b] = r.trim().replace("U+", "").split("-").map((x) => parseInt(x, 16)); return cp >= a && cp <= (b || a); });
   for (const cp of [0xc4, 0xd6, 0xdc, 0xdf, 0xe4, 0xf6, 0xfc, 0x201e, 0x201c, 0x2013]) assert.ok(has(cp), "Glyph U+" + cp.toString(16));
 });
-test("Lizenzen: Volltexte von Anton und qrcode-generator stecken in der Seite", () => {
-  const html = fs.readFileSync(path.join(__dirname, "../dist/index.html"), "utf8");
+test("Lizenzen: Volltexte von Anton und qrcode-generator stecken im Bundle (Teil licenses)", () => {
+  const html = bundle();
   assert.match(html, /SIL OPEN FONT LICENSE Version 1\.1/); assert.match(html, /Permission is hereby granted, free of charge/);
 });

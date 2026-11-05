@@ -74,6 +74,10 @@ test("Flavor-Build: eigener Katalog, Texte, Farben und Pfad; ohne Flag bleibt di
   assert.match(html, /"id":"biz-umfrage-lunch"/);
   assert.ok(!html.includes('"id":"spiel-lava"'), "kein Jugend-Katalog");
   assert.match(html, /Content-Security-Policy[^>]*default-src 'none'/);
+  // The flavor is split like the app: its core below 700 KB, its parts in dist/business/parts/ next to it.
+  assert.ok(Buffer.byteLength(html) < 700 * 1024, "Business-Kern: " + Buffer.byteLength(html));
+  const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]);
+  for (const p of Object.values(man)) assert.ok(fs.existsSync(path.join(root, "dist/business", p.f)), p.f);
   const ideas = JSON.parse(fs.readFileSync(path.join(root, "src/flavors/business/ideas.json"), "utf8")).ideas;
   const games = new Set(ideas.map((i) => i.turn.g).filter((g) => Tn.GAMES[g]));
   assert.ok(games.size >= 4 && ideas.filter((i) => Tn.GAMES[i.turn.g]).length >= 5, "mindestens fuenf Karten laufen");
