@@ -19,6 +19,25 @@
   function ticket(json) { return json && typeof json.ticket === "string" && /^[A-Za-z0-9_-]{4,64}$/.test(json.ticket) ? json.ticket : ""; }
   function okSeal(x) { return typeof x === "string" && /^[A-Za-z0-9._~-]{8,200}$/.test(x) ? x : ""; }
   function receipt(json) { return json && typeof json.receipt === "string" && /^[A-Za-z0-9._~:-]{4,400}$/.test(json.receipt) ? json.receipt : ""; }
+  function okHash(x) { return typeof x === "string" && /^[A-Za-z0-9_-]{43}$/.test(x) ? x : ""; }
+  /* The option as one exact text, the same rule as canonical() in CADS-DEMO-wrapper lib/duell-seal.mjs: JSON without
+     spaces, object keys sorted like Array.prototype.sort (UTF-16 code units), array order kept, undefined left out of an
+     object and null in an array, strings and numbers exactly as JSON.stringify writes them. */
+  function canonical(v) {
+    if (v === null || typeof v !== "object") return JSON.stringify(v === undefined ? null : v);
+    if (Array.isArray(v)) return "[" + v.map(function (x) { return canonical(x === undefined ? null : x); }).join(",") + "]";
+    return "{" + Object.keys(v).filter(function (k) { return v[k] !== undefined; }).sort().map(function (k) { return JSON.stringify(k) + ":" + canonical(v[k]); }).join(",") + "}";
+  }
+  /* h: base64url(SHA-256(UTF-8(canonical(option)))) without padding, 43 characters. It travels in the sheet next to the
+     seal (doc.ki.h), so a report can name the option the seal was made for without carrying the option itself.
+     "" when this device cannot hash (no crypto.subtle): the sheet then simply has no h, like every sheet before it. */
+  async function optionHash(opt, subtle) {
+    try {
+      var d = new Uint8Array(await subtle.digest("SHA-256", new TextEncoder().encode(canonical(opt)))), s = "";
+      for (var i = 0; i < d.length; i++) s += String.fromCharCode(d[i]);
+      return okHash(btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""));
+    } catch (e) { return ""; }
+  }
   // One seal per option (seals[i] belongs to options[i]); a bad one is simply left out.
   function seals(json) { var a = json && Array.isArray(json.seals) ? json.seals : []; return json.options.map(function (x, i) { return okSeal(a[i]); }); }
   // The page names a path; queue and report sit next to the AI on the server, the rest below it. iOS maps the same names.
@@ -63,8 +82,8 @@
     }
     return { ask: ask, accept: function (d, rc) { return settle("/accept", d, rc); }, discard: function (d, rc) { return settle("/discard", d, rc); } };
   }
-  // What a report carries (POST /api/duell/report): the reason, the sheet's own texts and type, its seal and short link
-  // when it has them. Never a photo, never the trail of nicknames, never a channel's riddles or answers. consent: the
+  // What a report carries (POST /api/duell/report): the reason, the sheet's own texts and type, its seal (with the
+  // option's hash as optionHash) and short link when it has them. Never a photo, never the trail of nicknames, never a channel's riddles or answers. consent: the
   // person said yes in the dialog, which names what goes out. null when the reason is not one the server knows.
   function reportBody(doc, reason, link) {
     if (REASONS.indexOf(reason) < 0) return null;
@@ -75,6 +94,7 @@
     var b = { reason: reason, consent: true, content: c };
     if (doc.ki && doc.ki.k) b.kind = doc.ki.k;
     if (doc.ki && okSeal(doc.ki.s)) b.seal = doc.ki.s;
+    if (b.seal && okHash(doc.ki.h)) b.optionHash = doc.ki.h;      // seal version s2 is checked against this hash
     if (typeof link === "string" && /^[A-Za-z0-9_-]{3,40}$/.test(link)) b.link = link;
     return b;
   }
@@ -93,7 +113,7 @@
     if (meter.abo) return t("aiCountAbo", { n: meter.remaining });
     return t(meter.period === "week" ? "aiCountWeek" : "aiCount", { n: meter.remaining, m: meter.free });
   }
-  var api = { verdict: verdict, place: place, endpoint: endpoint, client: client, reportBody: reportBody, REASONS: REASONS, solve: solve, count: count };
+  var api = { verdict: verdict, place: place, endpoint: endpoint, client: client, reportBody: reportBody, REASONS: REASONS, solve: solve, count: count, canonical: canonical, optionHash: optionHash };
 
   if (typeof window === "undefined") { if (typeof module !== "undefined" && module.exports) module.exports = api; return; }
 
@@ -146,7 +166,7 @@
 
   /* One AI action in a panel. o: { kind, label, el, input(), show(option) -> label, apply(option, ki), wall(), noteLast?,
        auto?(option, ki | null, res) -> false when it changed nothing, local?(input) -> option | null, alive?() }
-     ki = { k: kind, s: seal } marks what the AI made; apply/auto get null for the rule-based way, which is labelled "without AI".
+     ki = { k: kind, s: seal, h: option hash } marks what the AI made; apply/auto get null for the rule-based way, which is labelled "without AI".
      alive(): false once the sheet this panel was made for is gone; a late answer is then dropped (and refunded), never
      applied to whatever is open now. A result is settled once: accepted on the first take, refunded when nothing was
      taken or nothing changed. Returns the action itself, so a suggestion can start it with one tap. */
@@ -160,6 +180,10 @@
       if (mine) { settle(mine, false); mine = null; }      // the options of the last answer were left untouched
       busy = true; go.disabled = true; go.textContent = "… " + t("aiThinking"); res.textContent = "";
       var r = await run(o.kind, input, function (n) { go.textContent = "… " + (n ? t("aiWait", { n: n }) : t("aiThinking")); }, alive);
+      // Hashed while the button is still locked, so taking an option stays one synchronous step and a second tap cannot
+      // hand back this answer's receipt before its options are shown. Only sealed options need a hash.
+      var sub = window.crypto && window.crypto.subtle;
+      var hs = r.how === "result" ? await Promise.all(r.options.map(function (opt, i) { return r.seals[i] ? optionHash(opt, sub) : ""; })) : [];
       busy = false; go.disabled = false; go.textContent = "✨ " + o.label; cnt.textContent = line();
       if (r.receipt) open.push(r.receipt);
       if (!alive()) { if (r.receipt) settle(r.receipt, false); return; }
@@ -168,7 +192,7 @@
         var rc = mine = r.receipt;
         var took = function (opt, i) {
           if (!alive()) return;
-          var ki = { k: o.kind, s: r.seals[i] || "" };
+          var ki = { k: o.kind, s: r.seals[i] || "", h: hs[i] };
           var did = o.auto ? o.auto(opt, ki, res) : o.apply(opt, ki);
           if (mine === rc) mine = null;
           settle(rc, did !== false);

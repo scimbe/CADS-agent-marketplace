@@ -125,3 +125,33 @@ test("Nachweis: gefundene Zahl hat die verlangten Nullbits", async () => {
   const p = await A.solve(dev, 12, webcrypto.subtle), h = createHash("sha256").update(dev + ":" + p).digest();
   assert.equal(h[0], 0); assert.equal(h[1] >> 4, 0);
 });
+
+// Fixed vectors, computed with canonical() from CADS-DEMO-wrapper lib/duell-seal.mjs and node:crypto sha256 base64url.
+const VEC = [
+  ["Zeile A", "\"Zeile A\"", "hcGrPTYbZsK9tsaqzwSGUoKzFUrwVK8Mn0PqSXYdi6s"],
+  [{ changes: { t: "Alienflug", theme: "space", emoji: "🛸", look: { d: "bubbles", sky: "#0b1020" } } },
+    "{\"changes\":{\"emoji\":\"🛸\",\"look\":{\"d\":\"bubbles\",\"sky\":\"#0b1020\"},\"t\":\"Alienflug\",\"theme\":\"space\"}}", "Y-feMaAnaOXUrB2BxPv3vUTgMan0NNfOQmA6jhDp_Tc"],
+  [{ b: 1, a: [1, "ä", null, true], "Ä": 2, Z: 0, "\"q\\": "Zeile\nzwei" },
+    "{\"\\\"q\\\\\":\"Zeile\\nzwei\",\"Z\":0,\"a\":[1,\"ä\",null,true],\"b\":1,\"Ä\":2}", "AqF9AIRLXl9TdSAYN7CXkWCNzBmIwePnlNl2YhSNMcs"],
+  [{ x: 0.1, y: 1e21, z: -0, w: 12.50 }, "{\"w\":12.5,\"x\":0.1,\"y\":1e+21,\"z\":0}", "WfF_3Rk2ObrCP9aV5PP1pO-5_c_WS8RNMoKXj6oQJeQ"],
+  [{ top: "Wenn der Montag", bottom: "schon wieder ruft 😅" }, "{\"bottom\":\"schon wieder ruft 😅\",\"top\":\"Wenn der Montag\"}", "LuRmOaagKwV8izpFzGCMhVmQ9aSI_4Eez8n6-toAMSo"]
+];
+test("Options-Hash: kanonisches JSON mit sortierten Schluesseln, SHA-256 base64url, feste Vektoren wie der Server", async () => {
+  for (const [opt, canon, h] of VEC) {
+    assert.equal(A.canonical(opt), canon);
+    assert.equal(await A.optionHash(opt, crypto.subtle), h);
+    assert.equal(h.length, 43);
+  }
+  // key order and undefined do not matter, any other change does
+  assert.equal(await A.optionHash({ Z: 0, "Ä": 2, a: [1, "ä", null, true], "\"q\\": "Zeile\nzwei", b: 1, u: undefined }, crypto.subtle), VEC[2][2]);
+  assert.equal(A.canonical([undefined, 1]), "[null,1]");
+  assert.notEqual(await A.optionHash({ top: "Wenn der Montag", bottom: "schon wieder ruft 😅 " }, crypto.subtle), VEC[4][2]);
+  assert.equal(await A.optionHash("x", undefined), "", "ohne crypto.subtle kein h, kein Fehler");
+});
+test("Meldung: optionHash nur neben einem Siegel und nur mit genau 43 base64url-Zeichen; alte Blaetter ohne h bleiben gleich", () => {
+  const h = VEC[1][2], ki = { k: "wish", s: "s1.wish.abc.defgh", h };
+  assert.equal(A.reportBody({ k: "game", ki }, "harm").optionHash, h);
+  assert.equal(A.reportBody({ k: "game", ki: { k: "wish", h } }, "harm").optionHash, undefined, "ohne Siegel kein Hash");
+  for (const bad of [h.slice(1), h + "A", h.slice(1) + "+", h.slice(1) + "=", 42]) assert.equal(A.reportBody({ k: "game", ki: { ...ki, h: bad } }, "harm").optionHash, undefined, String(bad));
+  assert.equal("optionHash" in A.reportBody({ k: "game", ki: { k: "wish", s: "s1.wish.abc.defgh" } }, "harm"), false);
+});

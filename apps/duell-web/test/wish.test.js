@@ -132,6 +132,13 @@ test("KI-Siegel: reist im Link mit, fremde Zeichen fallen weg, ohne Siegel nur d
   assert.equal(D.sanitizeDoc({ ...g, ki: { k: "Wish!" } }).ki, undefined);
   assert.equal(D.sanitizeDoc(of("card")).ki, undefined, "ohne KI kein Siegel");
 });
+test("KI-Siegel mit Options-Hash h: optional, genau 43 base64url-Zeichen, nur neben einem Siegel", () => {
+  const h = "Y-feMaAnaOXUrB2BxPv3vUTgMan0NNfOQmA6jhDp_Tc", g = Object.assign(of("game"), { ki: { k: "wish", s: "s1.wish.k1.abcDEF-123_x", h } });
+  assert.deepEqual(D.parseRoute("#" + D.docUrl(g).split("#")[1]).doc.ki, { k: "wish", s: "s1.wish.k1.abcDEF-123_x", h });
+  for (const bad of [h.slice(1), h + "x", h.slice(1) + "/", h.slice(1) + "=", "<b>" + h.slice(3), 1]) assert.deepEqual(D.sanitizeKi({ k: "wish", s: "s1.wish.k1.abcDEF-123_x", h: bad }), { k: "wish", s: "s1.wish.k1.abcDEF-123_x" }, String(bad));
+  assert.deepEqual(D.sanitizeKi({ k: "wish", h }), { k: "wish" }, "h ohne Siegel faellt weg");
+  assert.deepEqual(D.sanitizeKi({ k: "wish", s: "s1.wish.k1.abcDEF-123_x" }), { k: "wish", s: "s1.wish.k1.abcDEF-123_x" }, "alte Blaetter ohne h");
+});
 
 test("Wurfnummer: bleibt auf dem Geraet je Blatt, weiter statt von vorn; begrenzt, kaputte Werte fangen bei 1 an", () => {
   const rolls = {};

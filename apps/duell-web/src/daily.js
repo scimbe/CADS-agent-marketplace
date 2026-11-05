@@ -281,6 +281,8 @@
     if (!o || typeof o !== "object" || typeof o.k !== "string" || !/^[a-z]{2,12}$/.test(o.k)) return null;
     var r = { k: o.k };
     if (typeof o.s === "string" && /^[A-Za-z0-9._~-]{8,200}$/.test(o.s)) r.s = o.s;
+    // h: base64url SHA-256 of the option the seal was made for (Ai.optionHash), only next to a seal. Sheets without it stay valid.
+    if (r.s && typeof o.h === "string" && /^[A-Za-z0-9_-]{43}$/.test(o.h)) r.h = o.h;
     return r;
   }
   function sanitizeDoc(o) {
@@ -358,10 +360,12 @@
     if (areas.length) d.by = sanitizeTrail(d.by.concat([{ n: nick, w: areas }]));
     return d;
   }
-  // Never over the size the page itself accepts: stickers, then the oldest trail, give way first.
+  /* Never over the size the page itself accepts. Stickers give way first, then the option hash h (without it a seal
+     that is checked against the option's hash can no longer be checked; the seal itself stays), then the oldest trail. */
   function docUrl(doc) {
     var d = sanitizeDoc(doc), enc = function () { return toB64(JSON.stringify({ v: 1, d: d })); };
     while (enc().length > C.MAX_FRAGMENT && d.sk && d.sk.length) d.sk.pop();
+    if (enc().length > C.MAX_FRAGMENT && d.ki) delete d.ki.h;
     while (enc().length > C.MAX_FRAGMENT && d.by.length) d.by.shift();
     if (enc().length > C.MAX_FRAGMENT) delete d.s;
     if (enc().length > C.MAX_FRAGMENT) delete d.t;

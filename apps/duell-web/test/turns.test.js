@@ -415,6 +415,18 @@ test("Einkaufszettel: Eingabe mit Menge, nur gefilterter Text, Grenzen fuer kurz
   assert.ok(Tn.shopOk(full)); assert.ok(full[1].length <= Tn.SHOP.items && full[0].length <= Tn.SHOP.people, S(full).length);
   const d = through(Tn.play(fresh("einkauf", 4294967295), [full], 0));
   assert.deepEqual(shopList(d), full); assert.ok(D.docUrl(d).split("#c=")[1].length <= 1200, "Linklaenge " + D.docUrl(d).length);
+  // KI seal with option hash h: a list well under the budget keeps h; one that fits only with the seal alone drops h, never
+  // the seal, and the link still opens
+  const h = "Y-feMaAnaOXUrB2BxPv3vUTgMan0NNfOQmA6jhDp_Tc", s = "s2.liste.mhl2x0ab.ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef";
+  const sized = (n) => through(Tn.play(fresh("einkauf", 4294967295), [Tn.shopApply(null, { name: "", adds: Array.from({ length: n }, (x, i) => ({ text: long(i), qty: 99 })) })], 0));
+  const frag = (x) => D.docUrl(x).split("#c=")[1].length;
+  const small = Object.assign({}, sized(3), { ki: { k: "liste", s, h } });
+  assert.ok(frag(small) <= 1200); assert.deepEqual(through(small).ki, { k: "liste", s, h });
+  let n = 3; while (frag(Object.assign({}, sized(n + 1), { ki: { k: "liste", s } })) <= 1200) n++;
+  const edge = Object.assign({}, sized(n), { ki: { k: "liste", s, h } });
+  assert.ok(frag(Object.assign({}, edge, { ki: { k: "liste", s } })) > 1200 - 64, "Grenzfall: ohne h knapp unter dem Budget (" + n + " Posten)");
+  assert.ok(frag(edge) <= 1200, "Linklaenge mit KI-Siegel und h " + frag(edge));
+  const back = through(edge); assert.deepEqual(back.ki, { k: "liste", s }, "h faellt zuerst weg, das Siegel bleibt"); assert.deepEqual(shopList(back), shopList(sized(n)));
 });
 test("Einkaufszettel: Antworten werden zusammengefuehrt, egal in welcher Reihenfolge sie ankommen", () => {
   // Mia writes four things and shares the link
