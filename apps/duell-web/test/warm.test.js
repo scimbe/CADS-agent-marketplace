@@ -48,7 +48,7 @@ test("Wuerfel statt KI-Wunsch: Karte bleibt warm, Name im Text bleibt, Sticker a
   assert.equal(w.st, "herz"); assert.equal(w.x, "Lea, mit dir ist jeder Tag besser.");
   const pairs = [["#ffd400", "#ff3b1d"], ["#2b4bff", "#ffe600"]], ch = Wish.dice(d, "warm-toll|1", pairs, null), r = Wish.apply(d, ch, pairs, () => 0.5);
   assert.equal(r.st, "herz"); assert.equal(r.x, d.x); assert.ok(r.sk.length && r.sk.every((s) => D.SETS.herz.includes(s.e)));
-  assert.equal(Wish.local(d, "waermer", "de", () => 0), null, "kein KI-Ersatz, der wie eine Antwort aussieht");
+  assert.equal(Wish.local, undefined, "kein KI-Ersatz, der wie eine Antwort aussieht");
 });
 test("Kein Kettenbrief: keine Weiterschick-Aufforderung, kein Zaehler in Texten und Code", () => {
   const fs = require("node:fs"), path = require("node:path");

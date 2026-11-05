@@ -221,7 +221,10 @@ function paint() {
 function changed() {           // every control ends up here: redraw within the next moment
   if (!timer) timer = setTimeout(paint, 16);
 }
-function gameState() { return C.sanitizeState(Object.assign({ v: 1 }, ed.doc.g)); }
+function gameState() { return C.sanitizeState(Object.assign({ v: 1 }, ed.doc.g, { ki: ed.doc.ki })); }
+function playGame() { Kit.sfx.thud(); G.stop(); show("game", true); G.play(gameState(), null, { own: touched() }); }
+// A game state (played, or from a challenge) back into a sheet: route and AI mark go along.
+function gameDoc(s) { var d = { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji, route: s.route } }; if (s.ki) d.ki = s.ki; return d; }
 function areas() { var w = D.changedAreas(ed.base, ed.doc); if (X[ed.doc.k] && X[ed.doc.k].areas) w = w.concat(X[ed.doc.k].areas(ed)); if (ed.ownPhoto) w.push("foto"); if (ed.ownVoice) w.push("stimme"); return w; }
 function touched() { var ok = areas().length > 0; return ed.own ? ok && !!ed.doc.t : ok; }
 // The idea of the day can go out as it is; only a blank one needs something of your own first.
@@ -262,11 +265,12 @@ function openEditor(doc, opt) {
     var b = el("button", k === "Wish" ? "hot" : "", t("tab" + (k === "Sound" ? (ed.doc.m === "beat" ? "Beat" : "Voice") : k === "Idea" ? "Idea" : k)), function () { Kit.sfx.tap(); tab(k); });
     b.setAttribute("role", "tab"); b.dataset.k = k; tabs.appendChild(b);
   });
-  tab(list.indexOf(opt.tab) >= 0 ? opt.tab : list.filter(function (k) { return k !== "Wish" && k !== "Dice"; })[0]);
+  tab(list.indexOf(opt.tab) >= 0 ? opt.tab : g ? "Wish" : list.filter(function (k) { return k !== "Wish" && k !== "Dice"; })[0]);
   if (g) G.demo($("demo"), gameState());
   paint(); CU.editor();
 }
 function tab(k) {
+  if (ed.pv) { ed.pv = false; window.Ai.drop(); G.update(gameState()); }
   ed.tab = k; Array.from($("tabs").children).forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.k === k)); });
   var p = $("panel"); p.textContent = ""; p.removeAttribute("data-size"); p.classList.toggle("tall", (k === "Sound" && ed.doc.m === "beat") || (k === "Text" && ed.doc.k !== "game") || k === "Wish" || k === "Dice"); PANEL[k](p); p.scrollTop = 0;
 }
@@ -361,13 +365,18 @@ function colors(p, get, set) {
 }
 var PANEL = {
   // Type a wish and apply it right below, or tap a suggestion: that applies it at once. The AI's answer is applied as it
-  // came, nothing mixed in. The flight game's one way in: "What do you want to fly?"; offline its rules still build a world.
+  // came, nothing mixed in. The flight game's one way in, "What do you want to fly?", is the part welt-ui.js.
   Wish: function (p) {
-    var game = ed.doc.k === "game", f = field(p, t(game ? "wishL_game" : "wishL"), "", 100, function () {}, true), box = el("div", "chips");
+    if (ed.doc.k === "game") {   // the flight game's one way in lives in a part (welt-ui.js)
+      var mine = ed, hooks = { el: el, field: field, aiBlock: aiBlock, didLine: didLine, tab: tab, play: playGame, ed: function () { return ed; },
+        preview: function (st) { ed.pv = !!st; G.update(st || gameState()); } };
+      window.Parts.use("welt", function () { if (ed === mine && ed.tab === "Wish") window.WeltUI.panel(p, hooks); }).catch(function () {});
+      return;
+    }
+    var f = field(p, t("wishL"), "", 100, function () {}, true), box = el("div", "chips");
     var want = function () { return D.cleanInput(f.value, 100); };
     var go = aiBlock(p, {
-      kind: "wish", label: t(game ? "wishGo_game" : "wishGo"), noteLast: true, input: function () { var v = want(); return v ? W.request(ed.doc, v, ed.idea ? ideaText(ed.idea).t.replace("|", " ") : "") : null; },
-      local: game ? function () { var v = want(), r = seeded(v); return { changes: W.local(ed.doc, v, Kit.lang, function (n) { return Math.floor(r() * n); }) }; } : null,
+      kind: "wish", label: t("wishGo"), noteLast: true, input: function () { var v = want(); return v ? W.request(ed.doc, v, ed.idea ? ideaText(ed.idea).t.replace("|", " ") : "") : null; },
       auto: function (o, ki, res) {
         var before = JSON.stringify(ed.doc), next = W.apply(ed.doc, o.changes || {}, PAIRS, seeded(want() + "|sk"));
         if (ki) markKi(next, ki);
@@ -478,7 +487,7 @@ var PANEL = {
   // A world chosen here replaces a world built by a wish or the idea (its look), which would otherwise cover every theme.
   World: function (p) {
     var g = ed.doc.g;
-    var b = chips(p, G.THEMES.map(function (n) { return { v: n, l: t("w_" + n) }; }), g.look ? null : g.theme, function (v) { g.theme = v; delete g.look; });
+    var b = chips(p, G.THEMES.map(function (n) { return { v: n, l: t("w_" + n) }; }), g.look || g.route ? null : g.theme, function (v) { g.theme = v; delete g.look; delete g.route; });
     Array.from(b.children).forEach(function (c, i) { c.style.borderBottom = "8px solid " + G.themeColor(G.THEMES[i]); });
   }
 };
@@ -593,7 +602,7 @@ async function finish(doc, idea, pictureDoc) {
 $("edmain").addEventListener("click", function () {
   if (!ed) return;
   if (X[ed.doc.k]) { X[ed.doc.k].main(ed); return; }
-  if (ed.doc.k === "game") { Kit.sfx.thud(); G.stop(); show("game", true); G.play(gameState(), null, { own: touched() }); return; }
+  if (ed.doc.k === "game") { playGame(); return; }
   if (!ready()) { Kit.tone(200, 160, 0.1, "square", 0.06); return; }
   Kit.sfx.thud();
   finish(D.withTrail(ed.doc, me.nick, areas()));
@@ -686,14 +695,14 @@ function backFromStyle() {
 $("gback").addEventListener("click", function () { Kit.sfx.tap(); if (!backFromPlay()) goHome(); });
 function gameToEditor() {
   if (backFromPlay()) return;
-  var s = G.current(), d = { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji } };
+  var d = gameDoc(G.current());
   if (ed && ed.doc.k === "game") { var keep = ed; G.stop(); show("editor"); ed = keep; G.demo($("demo"), gameState()); changed(); return; }
   G.stop(); openEditor(d);
 }
 $("remixbtn").addEventListener("click", function () { Kit.sfx.tap(); gameToEditor(); });
 $("toremix").addEventListener("click", function () { Kit.sfx.tap(); gameToEditor(); });
 $("image").addEventListener("click", function () {
-  var s = G.current(), sc = G.score(), base = ed && ed.doc.k === "game" ? ed.doc : { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji } };
+  var s = G.current(), sc = G.score(), base = ed && ed.doc.k === "game" ? ed.doc : gameDoc(s);
   if (!ed) ed = { doc: D.sanitizeDoc(base), base: D.sanitizeDoc(base), photo: null, peaks: null };
   var pic = { k: "card", st: "druck", col: base.col, x: sc + " " + s.title, sk: [] };
   finish(D.withTrail(base, me.nick, D.changedAreas(ed.base, ed.doc)), base.i, pic);

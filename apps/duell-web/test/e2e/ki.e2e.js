@@ -6,7 +6,8 @@ const path = require("node:path");
 const { chromium, devices } = require("playwright");
 // The option hashes as the server computes them, fixed here and not recomputed with the page's own canonical(): sha256 over
 // canonical() from CADS-DEMO-wrapper lib/duell-seal.mjs, base64url, 43 characters.
-const H_WISH = "DW_OmSXV_rx6BCXNzLlcYiO2vjKxt5zg3PHI0YWqxmU", H_A1 = "macQPQ6HVOj2G8RGlyaJu8hYLaUhlUg1-bNH1Afhfzw", H_B2 = "iesb_yN0JfIuZ06yVvHEmZrv8or8KsDjYN3eaVEj6Yk";
+// H_WELT is the hash the live server sent with this very option (2026-11-05, "hashes"), so it also checks canonical().
+const H_WISH = "DW_OmSXV_rx6BCXNzLlcYiO2vjKxt5zg3PHI0YWqxmU", H_WELT = "3tcKq21IwdMq89hVw0ASV5MnYO6RX-JkYugqLugtlsA", H_A1 = "macQPQ6HVOj2G8RGlyaJu8hYLaUhlUg1-bNH1Afhfzw", H_B2 = "iesb_yN0JfIuZ06yVvHEmZrv8or8KsDjYN3eaVEj6Yk";
 const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
 const API = "https://demos-34a13a96.bunsenbrenner.org/api/duell/";
 let b;
@@ -41,13 +42,19 @@ test("Flugspiel: ein einziger Einstieg 'Was willst du fliegen?'; ohne Server bau
   assert.match(await did.textContent(), /^Ohne KI erkannt · Geändert: .*Welt/);
   assert.equal(await p.locator(".aistate").textContent(), "KI gerade nicht erreichbar. Nichts verbraucht.");
   const doc = await p.evaluate(() => window.DailyDebug.doc());
-  assert.equal(doc.g.look.d, "bubbles"); assert.equal(doc.ki, undefined, "ohne KI kein KI-Siegel");
+  assert.equal(doc.g.theme, "ocean"); assert.equal(doc.g.look, undefined, "keine gewuerfelte Welt dazugemischt"); assert.equal(doc.g.route, undefined);
+  assert.equal(doc.ki, undefined, "ohne KI kein KI-Siegel");
+  await p.getByRole("button", { name: "🎚 Ohne KI: Regler" }).tap();
+  await p.getByRole("tab", { name: "Regeln" }).and(p.locator("[aria-selected=true]")).waitFor();
   assert.deepEqual(errs, []); await p.context().close();
 });
 
-const LOOK = { a: "#060a2a", b: "#2a1a5e", d: "stars", e: ["👽"], p: "#9aa7c7", q: "#4d5878", f: "block", g: "#1a1a33", h: "#7a6cff", m: "✨" };
-const WISH = { kind: "wish", options: [{ changes: { look: LOOK, emoji: "🛸", theme: "space", t: "Alienflug" } }], seals: ["s1.wish.k1.endgueltig01"], cost: 1, receipt: "rc-wish-1", meter: { free: 7, remaining: 6, period: "week" } };
+// The live answer for "Unter Wasser mit Haien, dann ein Sturm" (kind welt, 2026-11-05), key order as sent.
+const WELT_OPT = { params: { gravity: 1800, flapPower: 430, pipeGap: 140, pipeSpeed: 130 }, theme: "day", title: "Hai-Abenteuer", emoji: "🐳", abschnitte: [{ physik: "schwebend", delta: { gravity: -400, flapPower: -40 }, thema: "day", emoji: "🐳" }, { physik: "sturm", delta: { pipeSpeed: 30, pipeGap: -15 }, thema: "night", emoji: "⚡" }, { physik: "schnell", delta: { pipeSpeed: 40 }, thema: "day", emoji: "🌊" }] };
+const WELT = { kind: "welt", options: [WELT_OPT], seals: ["s2.welt.mw2y455c.AnlRQb9jJYrLILMRBtJj7yR1qlhJF0ER"], hashes: [H_WELT], cost: 1, receipt: "rc-wish-1", meter: { free: 7, remaining: 6, period: "week" } };
 async function wishFor(p, text) { await p.getByLabel("Was willst du fliegen?").fill(text); await p.getByRole("button", { name: "✨ Bauen" }).tap(); }
+// The answer shows as a preview with its AI mark first; "Übernehmen" takes it.
+async function keep(p) { await p.locator(".weltpv .kitag", { hasText: "KI" }).waitFor(); await p.getByRole("button", { name: "✓ Übernehmen" }).tap(); }
 const openCard = (p, tab) => p.evaluate((tb) => { const D = window.Daily, i = D.IDEAS.find((x) => x.kind === "card"); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i, tab: tb }); }, tab);
 const sharedHash = (p, ki) => p.evaluate((k) => { const D = window.Daily, d = D.docFromIdea(D.IDEAS.find((x) => x.kind === "game"), D.sanitizeProfile({ nick: "Ada" }), "de"); d.g.title = "Alienflug"; if (k) d.ki = k; return D.docUrl(D.withTrail(d, "Ada", ["welt"])).split("#")[1]; }, ki);
 
@@ -55,7 +62,7 @@ test("Warteschlange nach Server-Protokoll: queue:'ticket', Platz sichtbar, /queu
   let polls = 0;
   const { p, errs, sent } = await phone((path0) => {
     if (path0 === "ai") return [202, { queued: true, ticket: "tk-e2e-1", position: 3, etaS: 9 }];
-    if (path0 === "queue") return ++polls < 2 ? [202, { queued: true, ticket: "tk-e2e-1", position: 2, etaS: 5 }] : [200, WISH];
+    if (path0 === "queue") return ++polls < 2 ? [202, { queued: true, ticket: "tk-e2e-1", position: 2, etaS: 5 }] : [200, WELT];
     if (path0 === "ai/accept") return [200, { final: true, meter: { free: 7, remaining: 6, period: "week" } }];
     return null;
   });
@@ -63,14 +70,16 @@ test("Warteschlange nach Server-Protokoll: queue:'ticket', Platz sichtbar, /queu
   await p.getByRole("tab", { name: "✨ Wunsch" }).tap();
   await wishFor(p, "Weltraum mit Aliens");
   await p.getByRole("button", { name: "… KI gerade belegt (Platz 3)" }).waitFor();
+  await keep(p);
   const did = p.locator(".aicount", { hasText: "Geändert" });
   await did.waitFor();
   assert.doesNotMatch(await did.textContent(), /Ohne KI/);
   await p.locator(".aicount", { hasText: "KI diese Woche: noch 6 von 7" }).waitFor();
   const doc = await p.evaluate(() => window.DailyDebug.doc());
-  assert.deepEqual(doc.g.look.e, ["👽"]); assert.equal(doc.g.emoji, "🛸"); assert.equal(doc.t, "Alienflug");
+  assert.equal(doc.g.look, undefined); assert.equal(doc.g.emoji, "🐳"); assert.equal(doc.t, "Hai-Abenteuer"); assert.equal(doc.g.title, "Hai-Abenteuer");
+  assert.deepEqual(doc.g.route.map((x) => x.p), ["schwebend", "sturm", "schnell"], "Strecke 1:1");
   assert.deepEqual(doc.col, (await p.evaluate(() => window.DailyApp.me().colors)), "keine erzwungene Farbe, kein Zufall dazugemischt");
-  assert.deepEqual(doc.ki, { k: "wish", s: "s1.wish.k1.endgueltig01", h: H_WISH }, "Siegel und Hash der uebernommenen Option");
+  assert.deepEqual(doc.ki, { k: "welt", s: WELT.seals[0], h: H_WELT }, "Siegel und Hash der uebernommenen Option (wie vom Server)");
   while (sent.length < 4) await p.waitForTimeout(50);
   assert.deepEqual(sent.map((x) => x.path), ["ai", "queue", "queue", "ai/accept"]);
   assert.equal(sent[0].body.queue, "ticket"); assert.equal(sent[0].body.v, undefined);
@@ -88,15 +97,15 @@ test("Warteschlange nach Server-Protokoll: queue:'ticket', Platz sichtbar, /queu
 test("Wunsch ohne Aenderung wird nicht abgebucht: /ai/discard statt /ai/accept", async () => {
   let n = 0;
   const { p, errs, sent } = await phone((path0) => {
-    if (path0 === "ai") return [200, Object.assign({}, WISH, { receipt: "rc-same-" + ++n })];
+    if (path0 === "ai") return [200, Object.assign({}, WELT, { receipt: "rc-same-" + ++n })];
     if (path0 === "ai/accept" || path0 === "ai/discard") return [200, { meter: { free: 7, remaining: 6, period: "week" } }];
     return null;
   });
   await openGame(p);
   await p.getByRole("tab", { name: "✨ Wunsch" }).tap();
-  await wishFor(p, "Weltraum mit Aliens");
+  await wishFor(p, "Weltraum mit Aliens"); await keep(p);
   await p.locator(".aicount", { hasText: "Geändert" }).waitFor();
-  await wishFor(p, "Weltraum mit Aliens");
+  await wishFor(p, "Weltraum mit Aliens"); await keep(p);
   await p.getByText("Dieser Wunsch hat nichts geändert.").waitFor();
   while (sent.length < 4) await p.waitForTimeout(50);
   assert.deepEqual(sent.map((x) => [x.path, x.body.receipt]), [["ai", undefined], ["ai/accept", "rc-same-1"], ["ai", undefined], ["ai/discard", "rc-same-2"]]);
@@ -157,7 +166,7 @@ test("Zweiter Tipp waehrend die Optionen noch gehasht werden: der Knopf bleibt g
 test("Blatt verlassen waehrend die KI rechnet: kein Fehler, nichts landet auf einem anderen Blatt, das Ergebnis geht per /ai/discard zurueck", async () => {
   let release; const gate = new Promise((ok) => { release = ok; });
   const { p, errs, sent } = await phone(() => null);
-  await p.context().route(API + "ai", async (r) => { sent.push({ path: "ai", body: JSON.parse(r.request().postData()) }); await gate; return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(WISH) }); });
+  await p.context().route(API + "ai", async (r) => { sent.push({ path: "ai", body: JSON.parse(r.request().postData()) }); await gate; return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(WELT) }); });
   await p.context().route(API + "ai/discard", (r) => { sent.push({ path: "ai/discard", body: JSON.parse(r.request().postData()) }); return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ refunded: 1 }) }); });
   await openGame(p);
   await p.getByRole("tab", { name: "✨ Wunsch" }).tap();
@@ -177,7 +186,7 @@ test("Blatt verlassen waehrend die KI rechnet: kein Fehler, nichts landet auf ei
 test("Blatt verlassen, nach Hause: kein TypeError, wenn die Antwort spaeter kommt", async () => {
   let release; const gate = new Promise((ok) => { release = ok; });
   const { p, errs, sent } = await phone((path0) => (path0 === "ai/discard" ? [200, { refunded: 1 }] : null));
-  await p.context().route(API + "ai", async (r) => { sent.push({ path: "ai" }); await gate; return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(WISH) }); });
+  await p.context().route(API + "ai", async (r) => { sent.push({ path: "ai" }); await gate; return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(WELT) }); });
   await openGame(p);
   await p.getByRole("tab", { name: "✨ Wunsch" }).tap();
   await wishFor(p, "Weltraum mit Aliens");
@@ -255,14 +264,14 @@ test("iOS-Huelle (DuellHost.ai, Seite ohne Netz): Warteschlange, Abrechnung und 
   await ctx.exposeFunction("hostAi", (path0, body) => {
     if (!(path0 in ROUTES)) return null;
     host.push({ path: ROUTES[path0], body: JSON.parse(body) });
-    const a = path0 === "" ? [202, { queued: true, ticket: "tk-ios-1", position: 1 }] : path0 === "/queue" ? (++polls < 2 ? [202, { queued: true, ticket: "tk-ios-1", position: 0 }] : [200, WISH]) : path0 === "/report" ? [202, { id: "r1" }] : [200, { meter: { free: 7, remaining: 6, period: "week" } }];
+    const a = path0 === "" ? [202, { queued: true, ticket: "tk-ios-1", position: 1 }] : path0 === "/queue" ? (++polls < 2 ? [202, { queued: true, ticket: "tk-ios-1", position: 0 }] : [200, WELT]) : path0 === "/report" ? [202, { id: "r1" }] : [200, { meter: { free: 7, remaining: 6, period: "week" } }];
     return { status: a[0], body: JSON.stringify(a[1]) };
   });
   await ctx.addInitScript(() => { window.DuellHost = Object.freeze({ ai: async (path0, body) => { const r = await window.hostAi(path0, body); if (!r) throw new Error("refused"); return r; } }); });
   await p.goto(page);
   await openGame(p);
   await p.getByRole("tab", { name: "✨ Wunsch" }).tap();
-  await wishFor(p, "Weltraum mit Aliens");
+  await wishFor(p, "Weltraum mit Aliens"); await keep(p);
   await p.locator(".aicount", { hasText: "Geändert" }).waitFor();
   while (host.length < 4) await p.waitForTimeout(50);
   assert.deepEqual(host.map((x) => x.path), ["/ai", "/queue", "/queue", "/ai/accept"]);

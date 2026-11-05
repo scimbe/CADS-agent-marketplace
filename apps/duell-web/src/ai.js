@@ -72,7 +72,7 @@
         if (now() - started >= max) return none("busy", last);
         try { r = await o.send("/queue", { ticket: tk }); } catch (e) { return none("off"); }
       }
-      if (how !== "result") return none(how, how === "busy" ? place(r.json) || last : 0);
+      if (how !== "result") { var no = none(how, how === "busy" ? place(r.json) || last : 0); no.why = how === "blocked" && r.json && (r.json.why === "crisis" || r.json.why === "kind_ok") ? r.json.why : ""; return no; }
       return { how: how, options: r.json.options, seals: seals(r.json), receipt: receipt(r.json), position: 0 };
     }
     // Settle a handed-out result once: accept (taken) or discard (nothing taken, nothing changed). -> true when the server said yes.
@@ -158,7 +158,7 @@
   function refresh() { shown = shown.filter(function (c) { return c.isConnected; }); shown.forEach(function (c) { c.textContent = line(); }); }
   function line() { return count(meter, t); }
   function stateText(r) {
-    if (r.how === "blocked") return t("aiBlocked");
+    if (r.how === "blocked") return t(r.why === "crisis" ? "aiCrisis" : r.why === "kind_ok" ? "aiKind" : "aiBlocked");   // crisis: the help line is our own text, never the server's
     if (r.how === "quota") return t("aiQuota");
     if (r.how === "busy") return r.position ? t("aiBusyAt", { n: r.position }) : t("aiBusy");
     return t("aiOff");
@@ -167,6 +167,7 @@
   /* One AI action in a panel. o: { kind, label, el, input(), show(option) -> label, apply(option, ki), wall(), noteLast?,
        auto?(option, ki | null, res) -> false when it changed nothing, local?(input) -> option | null, alive?() }
      ki = { k: kind, s: seal, h: option hash } marks what the AI made; apply/auto get null for the rule-based way, which is labelled "without AI".
+     auto may return a Promise: the result is then settled once the person decided (true taken, false given back).
      alive(): false once the sheet this panel was made for is gone; a late answer is then dropped (and refunded), never
      applied to whatever is open now. A result is settled once: accepted on the first take, refunded when nothing was
      taken or nothing changed. Returns the action itself, so a suggestion can start it with one tap. */
@@ -194,6 +195,7 @@
           if (!alive()) return;
           var ki = { k: o.kind, s: r.seals[i] || "", h: hs[i] };
           var did = o.auto ? o.auto(opt, ki, res) : o.apply(opt, ki);
+          if (did && typeof did.then === "function") { did.then(function (x) { if (mine === rc) mine = null; settle(rc, x !== false); }); return; }
           if (mine === rc) mine = null;
           settle(rc, did !== false);
         };
