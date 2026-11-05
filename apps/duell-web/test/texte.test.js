@@ -100,6 +100,9 @@ test("Krise bleibt auf dem Geraet: die zentrale Liste aus ai.js, Redewendungen u
   for (const s of ["Ich lach mich tot", "Kürbis ritzen", "Trost für Oma", "das ist geritzt", "in die Ritze", "Totenkopf-Party an Halloween"]) assert.equal(A.crisis(s), false, s);
   assert.equal(A.crisis(A.texts({ art: "worte", insider: "will nicht mehr leben" })), true);
   assert.deepEqual(A.CRISIS_KINDS, ["plan", "liste", "quiz", "welt", "text"]);
+  // Review B2 #2: frequent words of young people, also in a quiz topic (reflexive "ritze mich" is never about a pumpkin)
+  for (const s of ["ich ritze mich", "Ich ritz mich wieder", "Ich will tot sein", "ich möchte einfach tot sein", "keinen Bock mehr zu leben", "keine Lust mehr auf Leben", "ich hasse mein Leben"]) assert.equal(A.crisis(s), true, s);
+  for (const s of ["Holz ritzen", "Zellen können tot sein", "Lust auf Leben im Meer", "Bock auf Lernen", "ich ritze meinen Namen ins Holz"]) assert.equal(A.crisis(s), false, s);
 });
 
 test("Server-Antwort 422 mit why: der Grund kommt bei der Seite an (crisis zeigt Hilfe, kind_ok sagt es freundlich)", async () => {

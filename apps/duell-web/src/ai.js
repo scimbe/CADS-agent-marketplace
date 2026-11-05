@@ -8,10 +8,12 @@
   // A crisis is nobody's to answer, least of all a model's. The one place for it in the page: the same unambiguous words
   // as CRISIS in CADS-DEMO-wrapper lib/duell-ai.mjs (folded like foldForFilter there), checked before anything is sent,
   // so such a text never leaves the device and the help shows at once, also offline and on the way without AI. Only for
-  // the kinds the server checks too ("lach mich tot" on a meme is a joke). Whether "ritzen" means a cut needs the context
-  // around it; that stays with the server (selfCut). The help is always our own text aiCrisis, never the server's.
+  // the kinds the server checks too ("lach mich tot" on a meme is a joke). Whether a bare "ritzen" means a cut needs the
+  // context around it; that stays with the server (selfCut). The page adds a few frequent words of young people the server
+  // list lacks ("ich ritze mich", "keinen Bock mehr zu leben", "hasse mein Leben"): stricter here only means the help comes
+  // sooner and nothing is sent. The help is always our own text aiCrisis, never the server's.
   var CRISIS_KINDS = ["plan", "liste", "quiz", "welt", "text"];
-  var CRISIS = /suizid|selbstmord|selbstverletz|umbring|umzubring|nicht mehr leben|will sterben|sterben will|lebensmud|\bbringe? mich um\b|\b(will|mochte|ware|war) (lieber )?tot( sein)?\b|\btu(e|n)? mir (was|etwas) an\b|\bmir (was|etwas) (an ?tun|anzutun)\b|\bkys\b|kill myself|suicid|self.?harm|want to die|end my life/;
+  var CRISIS = /suizid|selbstmord|selbstverletz|umbring|umzubring|nicht mehr leben|will sterben|sterben will|lebensmud|\bbringe? mich um\b|\b(will|mochte|ware|war) (einfach |lieber )?tot( sein)?\b|\britz(e|te)? mich\b|\b(lust|bock|sinn|grund) mehr (zu|auf|aufs) leben\b|\bhasse mein leben\b|\btu(e|n)? mir (was|etwas) an\b|\bmir (was|etwas) (an ?tun|anzutun)\b|\bkys\b|kill myself|suicid|self.?harm|want to die|end my life/;
   var LEET = { 0: "o", 1: "i", 3: "e", 4: "a", 5: "s", 7: "t", 8: "b", "@": "a", $: "s", "\u20ac": "e", "!": "i" };
   function crisis(text) {
     var f = String(text == null ? "" : text).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\u00df/g, "ss");
@@ -106,6 +108,7 @@
     if (doc.g && typeof doc.g.title === "string") c.title = doc.g.title;
     if (doc.b && typeof doc.b.n === "string") c.rival = doc.b.n;
     if (Array.isArray(doc.ly) && doc.ly.length) c.ly = doc.ly.join(" / ");      // a song's hook
+    if (doc.pk && typeof doc.pk === "object") c.quiz = doc.pk;      // a question pack: the questions are what is reported
     var b = { reason: reason, consent: true, content: c };
     if (doc.ki && doc.ki.k) b.kind = doc.ki.k;
     if (doc.ki && okSeal(doc.ki.s)) b.seal = doc.ki.s;
@@ -180,7 +183,7 @@
   }
 
   /* One AI action in a panel. o: { kind, label, el, input(), show(option) -> label, apply(option, ki), wall(), noteLast?,
-       auto?(option, ki | null, res) -> false when it changed nothing, local?(input) -> option | null, alive?(), raw?() }
+       auto?(option, ki | null, res) -> false (or a promise of it) when it changed nothing, local?(input) -> option | null, alive?(), raw?() }
      raw(): the typed text as it is, looked at for a crisis before input() runs its word filter over it.
      ki = { k: kind, s: seal, h: option hash } marks what the AI made; apply/auto get null for the rule-based way, which is labelled "without AI".
      auto may return a Promise: the result is then settled once the person decided (true taken, false given back).

@@ -735,7 +735,22 @@
 "abf_no": "Nicht gewusst",
 "abf_h": "Euer Lernstand",
 "abf_score": "{w}: {n} von 4",
-"abf_open": "{w} übt noch: {q}"
+"abf_open": "{w} übt noch: {q}",
+"pk_need": "Erst ein Fragenpaket wählen.",
+"pk_btn": "Fragenpaket wählen",
+"pk_change": "ändern",
+"pk_pick": "Welche Antwort stimmt?",
+"pk_match": "Zu welcher Frage gehört diese Antwort?",
+"pk_start": "Fragenpaket",
+"pk_intro": "{n} Fragen. Senden, dann spielt jede Person auf dem eigenen Handy.",
+"pk_score": "{w}: {n} von {m} richtig",
+"pk_off": "{w}: im Schnitt {n} Prozent daneben",
+"pk_you": "Dein Ergebnis",
+"pk_me": "Du",
+"pk_team": "Nur du siehst dein Ergebnis. Es gibt keine Rangliste.",
+"pk_type": "Deine Stärke",
+"pk_is": "Du bist: {n}",
+"pk_group": "Jede Stärke zählt. Niemand wird verglichen."
 },
 "en": {
 "things": "cookies",
@@ -1274,7 +1289,22 @@
 "abf_no": "Did not",
 "abf_h": "Where you stand",
 "abf_score": "{w}: {n} of 4",
-"abf_open": "{w} still needs: {q}"
+"abf_open": "{w} still needs: {q}",
+"pk_need": "Pick a question pack first.",
+"pk_btn": "Pick a question pack",
+"pk_change": "change",
+"pk_pick": "Which answer is right?",
+"pk_match": "Which question does this answer belong to?",
+"pk_start": "Question pack",
+"pk_intro": "{n} questions. Send it, then everyone plays on their own phone.",
+"pk_score": "{w}: {n} of {m} right",
+"pk_off": "{w}: on average {n} percent off",
+"pk_you": "Your result",
+"pk_me": "You",
+"pk_team": "Only you see your result. There is no ranking.",
+"pk_type": "Your strength",
+"pk_is": "You are: {n}",
+"pk_group": "Every strength counts. Nobody is compared."
 }
 },
 "ask": [

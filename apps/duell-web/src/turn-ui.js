@@ -129,6 +129,7 @@ var draw = {
   },
   show: function (box, p, set, ctx) {
     p.list(ctx.doc, ctx.m, ctx.now, Kit.lang).forEach(function (s) { box.appendChild(el("p", "qtext", s)); });
+    if (p.notes) p.notes(ctx.doc, ctx.m, ctx.now).forEach(function (s) { box.appendChild(el("p", "note", s)); });   // e.g. what a quiz still has open
     if (p.later) box.appendChild(el("p", "note", L()[p.later]));
     set(0);
   },
@@ -668,9 +669,9 @@ function walk(box, ed) {
   var st = Tn.state(ed.doc), now = [], i = 0;
   function step() {
     box.textContent = ""; box.style.pointerEvents = "none"; setTimeout(function () { box.style.pointerEvents = ""; }, 250);
-    if (i >= st.prompts.length && Tn.GAMES[ed.doc.g].stay && st.turn) { ed.next = null; A.changed(); box.appendChild(el("p", "lbl", L().stay_note)); return; }   // the same link goes on to the next person
+    if (i >= st.prompts.length && Tn.game(ed.doc).stay && st.turn) { ed.next = null; A.changed(); box.appendChild(el("p", "lbl", L().stay_note)); return; }   // the same link goes on to the next person
     if (i >= st.prompts.length) { ed.move = now; ed.next = Tn.play(ed.doc, now, Tn.today());
-      if (Tn.GAMES[ed.doc.g].local || (ed.next && Tn.state(ed.next).over)) { pass(box, ed); return; }
+      if (Tn.game(ed.doc).local || (ed.next && Tn.state(ed.next).over)) { pass(box, ed); return; }
       A.changed(); box.appendChild(el("p", "lbl", L()[word(ed.doc, "ready")])); box.appendChild(el("button", "btn", L().hand_same, function () { pass(box, ed); })); return; }
     var p = st.prompts[i], cur = null, go = el("button", "btn hot", L().next, function () {
       if (cur === null || !go.isConnected) return; Kit.sfx.pop(); now.push(cur); cur = null; i++; step();
@@ -702,6 +703,12 @@ A.PANEL.Move = function (p) {
   if (left) { p.appendChild(el("p", "qtext", say("note_wait", { n: left }))); return; }
   var w = Tn.whole(doc, Kit.lang); if (w) p.appendChild(el("p", "qtext", w));
   if (ed.next && !st.prompts.some(function (x) { return x.live; })) { p.appendChild(el("p", "lbl", L()[word(doc, "ready")])); p.appendChild(el("button", "btn", L().redo, function () { ed.next = null; A.changed(); A.tab("Move"); })); return; }
+  // Quiz cards: a question pack (part "quiz") before the first move; Team- and Typen-Quiz need one.
+  if (!st.turn && window.QuizPack.GAMES[doc.g]) {
+    p.appendChild(el("button", "btn qzbtn", "📦 " + (doc.pk ? doc.pk.t + " · " + L().pk_change : L().pk_btn), function () { Kit.sfx.tap(); window.Parts.use("quiz", function () { window.QuizUI.open(ed); }).catch(function () {}); }));
+    if (Tn.GAMES[doc.g].needs && !doc.pk) { p.appendChild(el("p", "note", L().pk_need)); return; }
+    var box = el("div"); p.appendChild(box); p = box;
+  }
   walk(p, ed);
 };
 A.PANEL.Text = (function (old) {

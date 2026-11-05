@@ -27,7 +27,7 @@ const duelData = JSON.parse(read("src/duel.json"));
 const licenses = ["Anton-OFL.txt", "qrcode-generator-MIT.txt", "Kartendeck-CC0.txt"].map((f) => read("licenses/" + f)).join("\n\n");
 const dataAll = data + "window.TurnData=" + JSON.stringify(turnData) + ";window.DuelData=" + JSON.stringify(duelData) + ";Object.assign(window.DailyTexts.de,window.DuelData.texts.de);Object.assign(window.DailyTexts.en,window.DuelData.texts.en);" +
   "window.ArcadeTexts=" + JSON.stringify(JSON.parse(read("src/arcade.json"))) + ";Object.assign(window.DailyTexts.de,window.ArcadeTexts.de);Object.assign(window.DailyTexts.en,window.ArcadeTexts.en);";
-const parts = { DATA: dataAll, DUEL: read("src/duel.js"), QUEST: read("src/quest.js"), MODES: read("src/modes.js"), DOOR: read("src/door.js"), TURNS: read("src/turns.js"), OFFICE: read("src/office.js"), FLAVOR: has("flavor.js") ? read(fl("flavor.js")) : "", WARM: read("src/warm.js"), TURNUI: read("src/turn-ui.js"), PARTS: read("src/parts.js"), ARCADE: read("src/arcade.js"), ARCADE2: read("src/arcade2.js"), ARCADEUI: read("src/arcade-ui.js"), MPOKER: read("src/mpoker.js"), DOKO: read("src/doko.js"), SKAT: read("src/skat.js"), TABLE: read("src/table.js"), TABLEUI: read("src/table-ui.js"), RPSLIVE: read("src/rpslive.js"), BALLDUELL: read("src/ballduell.js"), LIVE: read("src/live.js"), LIVEUI: read("src/live-ui.js"), QRCODE: read("node_modules/qrcode-generator/qrcode.js"), SHORT: read("src/shortlink.js"), OWN: read("src/own.js"), STATUSCARD: read("src/statuscard.js"), CORE: read("src/core.js"), ENGINE: read("src/engine.js"), DAILY: read("src/daily.js"), STUDIO: read("src/studio.js"), KIT: read("src/kit.js"), COLLAB: read("src/collab.js"), COLLABUI: read("src/collab-ui.js"), CALLCARD: read("src/callcard.js"), CALLCARDUI: read("src/callcard-ui.js"), STICKERS: read("src/stickers.js"), AI: read("src/ai.js"), WISH: read("src/wish.js"), WELTUI: read("src/welt-ui.js"), RENDER: read("src/render.js"), PLAYABLE: read("src/playable.js"), GAME: read("src/game.js"), APP: read("src/app.js") };
+const parts = { DATA: dataAll, DUEL: read("src/duel.js"), QUEST: read("src/quest.js"), MODES: read("src/modes.js"), DOOR: read("src/door.js"), QUIZPACK: read("src/quizpack.js"), TURNS: read("src/turns.js"), QUIZMAKE: read("src/quizmake.js"), QUIZUI: read("src/quiz-ui.js"), OFFICE: read("src/office.js"), FLAVOR: has("flavor.js") ? read(fl("flavor.js")) : "", WARM: read("src/warm.js"), TURNUI: read("src/turn-ui.js"), PARTS: read("src/parts.js"), ARCADE: read("src/arcade.js"), ARCADE2: read("src/arcade2.js"), ARCADEUI: read("src/arcade-ui.js"), MPOKER: read("src/mpoker.js"), DOKO: read("src/doko.js"), SKAT: read("src/skat.js"), TABLE: read("src/table.js"), TABLEUI: read("src/table-ui.js"), RPSLIVE: read("src/rpslive.js"), BALLDUELL: read("src/ballduell.js"), LIVE: read("src/live.js"), LIVEUI: read("src/live-ui.js"), QRCODE: read("node_modules/qrcode-generator/qrcode.js"), SHORT: read("src/shortlink.js"), OWN: read("src/own.js"), STATUSCARD: read("src/statuscard.js"), CORE: read("src/core.js"), ENGINE: read("src/engine.js"), DAILY: read("src/daily.js"), STUDIO: read("src/studio.js"), KIT: read("src/kit.js"), COLLAB: read("src/collab.js"), COLLABUI: read("src/collab-ui.js"), CALLCARD: read("src/callcard.js"), CALLCARDUI: read("src/callcard-ui.js"), STICKERS: read("src/stickers.js"), AI: read("src/ai.js"), WISH: read("src/wish.js"), WELTUI: read("src/welt-ui.js"), RENDER: read("src/render.js"), PLAYABLE: read("src/playable.js"), GAME: read("src/game.js"), APP: read("src/app.js") };
 // Parts: past 1 MB the page is split instead of growing. The core (home, calendar sheet, editor, sharing) stays inline in
 // index.html; what only some people open lands in parts/<name>.<hash>.js next to it and is loaded on first use. The apps
 // ship the folder in their bundle (Android assets, iOS bundle), the web gets it from /duell/parts/. `d`: parts it needs first.
@@ -39,10 +39,12 @@ const PARTS = {
   licenses: { d: [], src: ["LICENSES"] },                                                              // the licence texts, shown on request
   welt: { d: [], src: ["WELTUI"] },                                                                    // the flight game's "What do you want to fly?" (AI kind welt)
   texte: { d: [], src: ["TEXTEDATA", "TEXTE"] },                                                       // Worte finden, card text, song (texte.js + ready-made texts)
+  quiz: { d: [], src: ["QUIZDATA", "QUIZMAKE", "QUIZUI"] },                                                      // question packs: night packs, AI pack, check list
 };
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
 parts.TEXTE = read("src/texte.js");
 parts.TEXTEDATA = "window.TexteData=" + JSON.stringify(json("src/texte.json")) + ";";
+parts.QUIZDATA = "window.QuizPacks=" + JSON.stringify(json("src/quiz-packs.json")) + ";";
 // QR code for invites: qrcode-generator (MIT, Kazuhiko Arase), licenses/qrcode-generator-MIT.txt.
 // Display font: Anton (SIL OFL 1.1), latin subset (covers ä ö ü ß and German quotes) from @fontsource, embedded as data: URL.
 const fontFile = path.join(root, "node_modules/@fontsource/anton/files/anton-latin-400-normal.woff2");
@@ -51,9 +53,10 @@ const fontCss = "/* Anton, Copyright 2020 The Anton Project Authors (https://git
   '@font-face{font-family:"Anton";font-style:normal;font-weight:400 900;font-display:block;src:url(data:font/woff2;base64,' + fs.readFileSync(fontFile).toString("base64") + ") format(\"woff2\")}\n";
 let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + read("src/style.css") + (has("style.css") ? "\n" + read(fl("style.css")) : ""));
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
-// Our own sources lose their comment-only lines in the page (about 55 KB); third-party code (QR code) and the data stay as they are.
-const KEEP = new Set(["DATA", "QRCODE", "LICENSES", "TEXTEDATA"]);
-const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).join("\n");
+// Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
+// code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
+const KEEP = new Set(["DATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA"]);
+const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "")).join("\n");
 const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));
 // Each part: its sources one after the other, each closed with ";" like the separate <script> blocks they were. The name
