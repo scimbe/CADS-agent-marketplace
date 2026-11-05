@@ -19,7 +19,7 @@
     spruch: ["geburtstag", "danke", "lob", "urkunde", "glueckwunsch", "gute_besserung", "freundschaft", "motivation", "willkommen", "abschied", "weihnachten", "neujahr", "pruefung", "einfach_so"],
     song: ["party", "chill", "freundschaft", "geburtstag", "sport", "schule", "sommer", "winter", "tiere", "essen", "einfach_so"]
   };
-  var TOENE = ["warm", "locker", "kurz"], MAX = { worte: 80, spruch: 90 }, INSIDER = 80, HOOK = 44, TITLE = 26;
+  var TOENE = ["warm", "locker", "kurz"], MAX = { worte: 80, spruch: 90 }, INSIDER = 80, HOOK = 44, TITLE = 26, CARD = 90;
   var STEPS = /^[x-]{16}$/, FX = D.FX;
 
   function clean(s, max) { return typeof s === "string" ? D.cleanInput(s, max) : ""; }
@@ -48,7 +48,7 @@
     var n = Wm.name(who); if (n === null) return null;
     var raw = String(insider == null ? "" : insider).replace(/\s+/g, " ").trim(), r = { art: art, anlass: anlass };
     if (raw) {
-      if (n) raw = raw.replace(new RegExp("(^|[^\\p{L}])" + n.replace(/[.'-]/g, "\\$&") + "(?![\\p{L}])", "giu"), "$1{name}");
+      if (n) raw = raw.replace(new RegExp("(^|[^\\p{L}])" + n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![\\p{L}])", "giu"), "$1{name}");
       var v = clean(raw.replace(/\{name\}/g, "Qnameq"), INSIDER); if (!v) return null;
       r.insider = v.replace(/Qnameq/g, "{name}");
     }
@@ -56,21 +56,28 @@
     return r;
   }
   /* {name} -> the name, here on the device. Without a name the placeholder goes with the comma next to it
-     ("{name}, du schaffst das" -> "Du schaffst das", "Danke, {name}!" -> "Danke!"). */
+     ("{name}, du schaffst das" -> "Du schaffst das", "Danke, {name}!" -> "Danke!"). A text that would grow past max with
+     the name comes without it: never cut in the middle of a word. */
   function fill(s, who, max) {
     var n = Wm.name(who) || "", out;
+    max = max || CARD;
     if (s.indexOf("{name}") < 0) return s;
-    if (n) out = s.replace(/\{name\}/g, n);
-    else { out = s.replace(/\s*,\s*\{name\}/g, "").replace(/\{name\}[,:]?\s*/g, "").replace(/\s+/g, " ").trim(); out = out.charAt(0).toUpperCase() + out.slice(1); }
-    return D.cleanInput(out, max || 90) || "";
+    var bare = s.replace(/\s*,\s*\{name\}/g, "").replace(/\{name\}[,:]?\s*/g, "").replace(/\s+/g, " ").trim();
+    bare = bare.charAt(0).toUpperCase() + bare.slice(1);
+    out = n ? s.replace(/\{name\}/g, n) : bare;
+    if (Array.from(out).length > max) out = bare;
+    return D.cleanInput(out, max) || "";
   }
+  // The card text of a checked worte/spruch option: the same string for the option's label and for the card.
+  function cardText(c, who) { return c ? fill(c.x, who, CARD) : ""; }
   /* A ready-made text has no {name}: the name goes in front, like on every feel-good card ("Lea, du schaffst das").
      A German noun or "Ich"/"I" at the start keeps its capital ("Lea, Kopf hoch!", "Lea, Mut!"); the ready-made texts
-     start with no other noun (test/texte.test.js). */
+     start with no other noun (test/texte.test.js). Too long with the name: the text as it is, never cut short. */
   var NOUN = /^(Ich|I|Mut|Kummer|Trost|Freude|Abschied|Glückwunsch|Kopf|Respekt|Freundschaft|Weihnachten)\b/;
   function named(s, who) {
     var n = Wm.name(who); if (!n) return s;
-    return D.cleanInput(n + ", " + (NOUN.test(s) ? s : s.charAt(0).toLowerCase() + s.slice(1)), 90) || s;
+    var out = n + ", " + (NOUN.test(s) ? s : s.charAt(0).toLowerCase() + s.slice(1));
+    return Array.from(out).length <= CARD ? D.cleanInput(out, CARD) || s : s;
   }
   // A song taken: title, beat and hook on the sound sheet (doc.ly: the lines the sheet shows in time with the beat).
   function song(doc, o, who) {
@@ -93,7 +100,7 @@
     return "";
   }
 
-  var api = { NOUN: NOUN, ANLASS: ANLASS, TOENE: TOENE, MAX: MAX, check: check, vor: vor, request: request, fill: fill, named: named, song: song, lineAt: lineAt, videoBars: videoBars, videoSeconds: videoSeconds, videoType: videoType };
+  var api = { NOUN: NOUN, ANLASS: ANLASS, TOENE: TOENE, MAX: MAX, check: check, vor: vor, request: request, fill: fill, cardText: cardText, named: named, song: song, lineAt: lineAt, videoBars: videoBars, videoSeconds: videoSeconds, videoType: videoType };
   if (node) { module.exports = api; return; }
   root.Texte = api;
 
@@ -151,8 +158,8 @@
         return r;
       },
       raw: function () { return [ins.value, who.value].join(" "); },
-      show: function (x) { var c = check(art, x); return c ? (c.ton ? t("ton_" + c.ton) + " · " : "") + fill(c.x, who.value, MAX[art]) : "–"; },
-      apply: function (x, ki) { var c = check(art, x), v = c && fill(c.x, who.value, 90); if (!v) return false; put(v, ki); }
+      show: function (x) { var c = check(art, x); return c ? (c.ton ? t("ton_" + c.ton) + " · " : "") + cardText(c, who.value) : "–"; },
+      apply: function (x, ki) { var v = cardText(check(art, x), who.value); if (!v) return false; put(v, ki); }
     });
   }
 
@@ -174,7 +181,7 @@
         return r;
       },
       raw: function () { return [ins.value, who.value].join(" "); },
-      show: function (x) { var c = check("song", x); return c ? fill(c.titel, who.value, 28) + " — " + c.hook.map(function (l) { return fill(l, who.value, 60); }).join(" / ") : "–"; },
+      show: function (x) { var c = check("song", x); return c ? fill(c.titel, who.value, 28) + " — " + c.hook.map(function (l) { return fill(l, who.value, HOOK + 14); }).join(" / ") : "–"; },
       apply: function (x, ki) {
         var c = check("song", x); if (!c) return false;
         var ed = App.ed(), next = song(ed.doc, c, who.value); o.markKi(next, ki);

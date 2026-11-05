@@ -94,8 +94,9 @@ test("Video nur, wo der Browser es aufnimmt: erster unterstuetzter Typ, sonst ni
   assert.equal(Tx.videoType({ isTypeSupported: () => false }), "");
 });
 
-test("Krise bleibt auf dem Geraet: dieselben Woerter wie der Server, Redewendungen und Basteln nicht", () => {
-  for (const s of ["Ich will nicht mehr leben", "ich ritze mich", "Selbstmord", "s3lbstm0rd", "Ich will sterben", "i want to die", "kill myself", "ich tu mir was an", "Lebensmüde"]) assert.equal(A.crisis(s), true, s);
+test("Krise bleibt auf dem Geraet: die zentrale Liste aus ai.js, Redewendungen und Basteln nicht", () => {
+  // "ritzen" braucht den Zusammenhang und bleibt beim Server (selfCut, 422 why crisis): die Seite zeigt dann dieselbe Hilfe
+  for (const s of ["Ich will nicht mehr leben", "Selbstmord", "s3lbstm0rd", "Ich will sterben", "i want to die", "kill myself", "ich tu mir was an", "Lebensmüde"]) assert.equal(A.crisis(s), true, s);
   for (const s of ["Ich lach mich tot", "Kürbis ritzen", "Trost für Oma", "das ist geritzt", "in die Ritze", "Totenkopf-Party an Halloween"]) assert.equal(A.crisis(s), false, s);
   assert.equal(A.crisis(A.texts({ art: "worte", insider: "will nicht mehr leben" })), true);
   assert.deepEqual(A.CRISIS_KINDS, ["plan", "liste", "quiz", "welt", "text"]);
@@ -107,4 +108,32 @@ test("Server-Antwort 422 mit why: der Grund kommt bei der Seite an (crisis zeigt
   assert.equal((await c.ask({})).why, "crisis");
   assert.equal((await c.ask({})).why, "kind_ok");
   const r = await c.ask({}); assert.equal(r.how, "blocked"); assert.equal(r.why, "");
+});
+
+test("Name mit Bindestrich oder Apostroph (Warm.name erlaubt beides): die Anfrage entsteht, der Name wird {name}", () => {
+  assert.deepEqual(Tx.request("worte", "mut", "Anne-Marie hat morgen Prüfung", "Anne-Marie"), { art: "worte", anlass: "mut", insider: "{name} hat morgen Prüfung", name: true });
+  assert.deepEqual(Tx.request("spruch", "lob", "O'Neil backt mit anne-marie", "O'Neil"), { art: "spruch", anlass: "lob", insider: "{name} backt mit anne-marie", name: true });
+  assert.equal(Tx.request("song", "party", "Dr. Who tanzt", "Dr. Who").insider, "{name} tanzt");
+  assert.equal(Tx.request("worte", "mut", "Anne Marie tanzt", "Anne-Marie").insider, "Anne Marie tanzt", "der Bindestrich ist kein Platzhalter fuer ein beliebiges Zeichen");
+});
+
+test("Kein Text endet mitten im Wort: fertige Texte mit 14-Zeichen-Namen ganz oder ohne Namen; {name} in KI-Texten ebenso; Anzeige gleich Uebernahme", () => {
+  for (const who of ["Lea", "Maximilian", "Anna-Lena", "Maximiliane-Jo"]) {
+    assert.ok(Array.from(who).length <= 14);
+    for (const lang of ["de", "en"]) for (const art of ["worte", "spruch"]) for (const a of Tx.ANLASS[art]) for (const v of Tx.vor(lang, art, a)) {
+      const out = Tx.named(v.x, who);
+      assert.ok(out === v.x || out.endsWith(v.x.slice(1)), "abgeschnitten: " + out);
+      assert.ok(Array.from(out).length <= 90, out);
+    }
+  }
+  // worte: a KI line of the full 80 characters with {name} fits with a 14-character name (88), shown whole, not at 80
+  const w = "{name}, du bist die beste Freundin, die man sich wünschen kann. Danke für alles!";
+  assert.equal(Array.from(w).length, Tx.MAX.worte);
+  assert.equal(Tx.cardText(Tx.check("worte", { ton: "warm", x: w }), "Maximiliane-Jo"), "Maximiliane-Jo, du bist die beste Freundin, die man sich wünschen kann. Danke für alles!");
+  // spruch: 90 characters with {name} would grow past 90 with the name: then the text without it, never cut
+  const sp = "{name}, du hast dich hervorragend engagiert. Diese Urkunde ist ein Dankeschön für dich!";
+  assert.ok(Array.from(sp).length <= Tx.MAX.spruch && Array.from(sp.replace("{name}", "Maximiliane-Jo")).length > 90);
+  assert.equal(Tx.cardText(Tx.check("spruch", { x: sp }), "Lea"), "Lea, du hast dich hervorragend engagiert. Diese Urkunde ist ein Dankeschön für dich!");
+  assert.equal(Tx.cardText(Tx.check("spruch", { x: sp }), "Maximiliane-Jo"), "Du hast dich hervorragend engagiert. Diese Urkunde ist ein Dankeschön für dich!");
+  assert.equal(Tx.fill("Heute feiern wir {name}", "Maximiliane-Jo", 20), "Heute feiern wir", "zu lang mit Namen: der Text ohne Namen");
 });

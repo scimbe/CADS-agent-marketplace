@@ -89,13 +89,15 @@ test("Krise: das Wort bleibt auf dem Geraet, Hilfe mit 116 111 erscheint sofort;
   await p.locator(".txan button", { hasText: "Trost" }).tap();
   await p.getByLabel("Etwas Persönliches (optional, nur Nettes)").fill("ich will nicht mehr leben");
   await p.getByRole("button", { name: "✨ Eigene Worte" }).tap();
-  const help = p.locator(".aihelp");
+  const help = p.locator('.aistate[role="alert"]');
   await help.waitFor();
-  assert.match(await help.textContent(), /Du bist nicht allein/);
-  assert.equal(await help.locator("a").first().getAttribute("href"), "tel:116111");
-  assert.match(await help.locator("a").first().textContent(), /Nummer gegen Kummer 116 111/);
-  assert.equal(await help.getAttribute("role"), "alert");
+  assert.equal(await help.textContent(), await p.evaluate(() => window.Kit.t("aiCrisis")), "der zentrale Krisenhinweis aus ai.js");
+  assert.match(await help.textContent(), /Nummer gegen Kummer 116 111.*TelefonSeelsorge 0800 111 0 111/);
   assert.deepEqual(sent, [], "nichts gesendet");
+  // the whole hint, numbers included, is on screen and not under the sheet's buttons (FERTIG) once the scroll settled
+  const seen = async () => { let last = ""; for (let i = 0; i < 40; i++) { const now = JSON.stringify(await help.boundingBox()); if (now === last) break; last = now; await p.waitForTimeout(50); }
+    return help.evaluate((h) => { const r = h.getBoundingClientRect(), x = r.left + r.width / 2; return r.top >= 0 && r.bottom <= innerHeight && [r.top + 3, r.top + r.height / 2, r.bottom - 3].every((y) => h.contains(document.elementFromPoint(x, y))); }); };
+  assert.equal(await seen(), true, "Krisenhinweis ganz sichtbar");
   await shot(p, "krise");
   // the server's own check (a word this page does not know): the same help, from the page's words, not the server's
   await p.getByLabel("Etwas Persönliches (optional, nur Nettes)").fill("ist traurig");
@@ -103,9 +105,10 @@ test("Krise: das Wort bleibt auf dem Geraet, Hilfe mit 116 111 erscheint sofort;
   while (!sent.length) await p.waitForTimeout(30);
   await help.waitFor();
   assert.doesNotMatch(await help.textContent(), /vom Server/);
+  assert.equal(await seen(), true, "auch die Hilfe nach der Server-Antwort ist ganz sichtbar");
   why = "kind_ok";
   await p.getByRole("button", { name: "✨ Eigene Worte" }).tap();
-  await p.locator(".aistate", { hasText: "Hier gibt es nur freundliche Texte. Nichts verbraucht." }).waitFor();
+  await p.locator(".aistate", { hasText: "Das baut die KI nicht. Probier einen freundlichen Wunsch. Nichts verbraucht." }).waitFor();
   assert.equal(await help.count(), 0);
   assert.deepEqual(errs, []); await p.context().close();
 });
