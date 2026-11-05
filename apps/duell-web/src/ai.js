@@ -183,8 +183,12 @@
   }
 
   /* One AI action in a panel. o: { kind, label, el, input(), show(option) -> label, apply(option, ki), wall(), noteLast?,
-       auto?(option, ki | null, res) -> false (or a promise of it) when it changed nothing, local?(input) -> option | null, alive?(), raw?() }
+       auto?(option, ki | null, res) -> false (or a promise of it) when it changed nothing, local?(input) -> option | null, alive?(), raw?(),
+       crisis?(), reject?(option) }
      raw(): the typed text as it is, looked at for a crisis before input() runs its word filter over it.
+     crisis(): true when the panel's own rule sees a crisis in what would be sent (as crisis() above: help, nothing sent).
+     reject(option) -> "" or why it cannot be taken: shown as a note, not as a button; when no option can be taken, the
+     answer goes back at once (discard), not only after a tap, a new ask or leaving.
      ki = { k: kind, s: seal, h: option hash } marks what the AI made; apply/auto get null for the rule-based way, which is labelled "without AI".
      auto may return a Promise: the result is then settled once the person decided (true taken, false given back).
      alive(): false once the sheet this panel was made for is gone; a late answer is then dropped (and refunded), never
@@ -199,7 +203,7 @@
       var crisisKind = CRISIS_KINDS.indexOf(o.kind) >= 0;
       if (crisisKind && o.raw && crisis(o.raw())) { help(res); return; }   // the typed text before input() filters words out of it
       var input = o.input(); if (!input) { if (!o.raw) Kit.toast(t("filter")); return; }
-      if (crisisKind && crisis(texts(input))) { help(res); return; }   // nothing sent, nothing charged
+      if (crisisKind && (crisis(texts(input)) || (o.crisis && o.crisis()))) { help(res); return; }   // nothing sent, nothing charged
       if (mine) { settle(mine, false); mine = null; }      // the options of the last answer were left untouched
       busy = true; go.disabled = true; go.textContent = "… " + t("aiThinking"); res.textContent = "";
       var r = await run(o.kind, input, function (n) { go.textContent = "… " + (n ? t("aiWait", { n: n }) : t("aiThinking")); }, alive);
@@ -222,7 +226,15 @@
           settle(rc, did !== false);
         };
         if (o.auto) took(r.options[0], 0);
-        else r.options.forEach(function (opt, i) { res.appendChild(el("button", "chip aiopt", o.show(opt), function () { Kit.sfx.pop(); took(opt, i); })); });
+        else {
+          var can = 0;
+          r.options.forEach(function (opt, i) {
+            var no = o.reject ? o.reject(opt) : "";
+            if (no) { res.appendChild(el("p", "note aistate", no)); return; }
+            can++; res.appendChild(el("button", "chip aiopt", o.show(opt), function () { Kit.sfx.pop(); took(opt, i); }));
+          });
+          if (!can) { mine = null; settle(rc, false); }      // nothing here can be taken: given back now, nothing used
+        }
         Kit.sfx.pop(); return;
       }
       if (r.how === "blocked" && r.why === "crisis") { help(res); return; }

@@ -79,9 +79,57 @@ test("Retro-Agenda aus den 3 Themen und Folgetermin aus offenen Aufgaben sind gu
   assert.ok(Tn.play(start("agenda"), r, 0), "the agenda card takes it");
   const got = Tn.todoFrom({ t: "Weekly", i: [["Angebot schicken", "Ana", 0], ["Raum buchen", "", 0], ["Budget prüfen", "Ben", 0], ["Protokoll teilen", "", 0]] });
   const f = B.followUp(got.list, "Weekly", "Cem", "de");
-  assert.deepEqual(f, ["Folgetermin: Weekly", ["Angebot schicken (Ana)", "Raum buchen", "2 weitere offene Aufgaben"], "Cem"]);
+  assert.deepEqual(f, ["Folgetermin: Weekly", ["Ana: Angebot schicken", "Raum buchen", "2 weitere offene Aufgaben"], "Cem"]);
   assert.ok(Tn.play(start("agenda"), f, 0));
   const two = B.followUp(Tn.todoFrom({ t: "W", i: [["Eine sehr lange Aufgabe für den Termin", "Maximilian", 0]] }).list, "W", "", "en");
-  assert.ok(two[1][0].length <= 30 && two[1][0].endsWith("(Maximilian)"), two[1][0]);
+  assert.ok(two[1][0].length <= 30 && two[1][0].startsWith("Maximilian: "), two[1][0]);
   assert.ok(Tn.play(start("agenda"), two, 0));
+});
+
+// ---------- Review B2 (PR #135) ----------
+const dayOf = (iso) => Math.floor(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 86400000);
+const isoOf = (d) => new Date(d * 86400000).toISOString().slice(0, 10);
+
+test("Befund 2: nach einem Datumswechsel rechnen KI-Aufgaben ihre Frist neu aus der relativen Frist, nicht aus dem gekuerzten Tag", () => {
+  const today = dayOf("2026-11-02"), start = today + 7;   // a Monday: today+16 is a Wednesday
+  const opt = { art: "aufgaben", aufgaben: [{ was: "CRM-Zugang einrichten", frist: "2_wochen_vorher" }, { was: "Produktschulung buchen", frist: "sofort" }, { was: "Mittagessen", frist: "offen" }] };
+  const add = B.aiTasks(opt, B.onboardPlan(start, today, "de"), start, today, 4);
+  assert.deepEqual(add.map((x) => x[2]), [today, today, 0], "14 Tage vorher liegt vor heute: heute");
+  const later = B.redate(add, today + 30, today);
+  assert.deepEqual(later.map((x) => x[2]), [today + 16, today, 0], "Start +30: 14 Tage vorher = heute+16, sofort bleibt heute");
+  assert.deepEqual(later.map((x) => x[0]), add.map((x) => x[0]));
+  assert.ok(Tn.todoFrom({ t: "Onboarding", i: B.onboardPlan(today + 30, today, "de").concat(later) }).list, "the 4th field does not disturb the list");
+});
+
+test("Befund 6: Folgetermin kuerzt am Wortende ohne das letzte passende Wort zu verlieren, auch bei mehreren Personen", () => {
+  assert.equal(B.cut("Angebot an Kunden schicken", 17), "Angebot an Kunden", "the word that fits stays");
+  const list = Tn.todoFrom({ t: "W", i: [["Angebot an Kunden schicken", "Maximilian", 0], ["Budget für das nächste Quartal prüfen", "", 0]] }).list;
+  const f = B.followUp(list, "W", "", "de");
+  assert.equal(f[1][0], "Maximilian: Angebot an Kunden", "who first, then the task; no second bracket next to the host's");
+  assert.ok(f[1].every((p) => [...p].length <= 30), JSON.stringify(f[1]));
+  const many = B.point("Angebot an Kunden schicken", ["Maximilian", "Josephine", "Konstantin"]);
+  assert.equal(many, "Maximilian +2: Angebot an");
+  const crowd = B.point("Angebot an Kunden schicken", ["Konstantinopel1"].concat("ABCDEFGHIJK".split("")));
+  assert.ok([...crowd].length <= 30 && /^Konstantinopel1 \+11: Angebot$/.test(crowd), "never a cut to nothing: " + crowd);
+  assert.equal(B.point("Raum buchen", []), "Raum buchen");
+});
+
+test("Befund 7: Krisenhinweis aus der zentralen Liste (ai.js), 'Ich kann nicht mehr' als ganze Notiz, Burnout als Thema nicht", () => {
+  for (const s of ["Ich will nicht mehr leben", "ich ritze mich", "Ich kann nicht mehr.", "kann einfach nicht mehr!!"]) assert.equal(B.crisis([s]), true, s);
+  for (const s of ["Burnout-Thema ansprechen", "Ich kann nicht mehr folgen, zu schnell", "Burn out vorbeugen"]) assert.equal(B.crisis([s]), false, s);
+  const src = fs.readFileSync(path.join(__dirname, "../src/biz.js"), "utf8");
+  assert.match(src, /require\("\.\/ai\.js"\)/, "the one central list, not a copy");
+});
+
+test("Befund 8: Startvorschlag ist der erste Montag ab einer Woche, kein Feiertag; Fristen fallen nicht aufs Wochenende oder einen Feiertag", () => {
+  assert.equal(isoOf(B.firstDay(dayOf("2026-11-05"))), "2026-11-16", "Do -> erster Montag ab +7");
+  assert.equal(isoOf(B.firstDay(dayOf("2027-03-22"))), "2027-04-05", "Ostermontag 29.3.2027 wird uebersprungen");
+  assert.equal(isoOf(B.firstDay(dayOf("2026-05-18"))), "2026-06-01", "Pfingstmontag 25.5.2026 wird uebersprungen");
+  assert.equal(B.holiday(dayOf("2027-03-29")), true); assert.equal(B.holiday(dayOf("2026-05-25")), true);
+  assert.equal(B.holiday(dayOf("2026-12-25")), true); assert.equal(B.holiday(dayOf("2026-10-03")), true); assert.equal(B.holiday(dayOf("2026-11-16")), false);
+  const now = dayOf("2026-11-05");
+  assert.equal(isoOf(B.dueOf(30, dayOf("2026-11-19"), now)), "2026-12-18", "Start Do: +30 waere Sa 19.12. -> Fr 18.12.");
+  assert.equal(isoOf(B.dueOf(0, dayOf("2026-11-21"), now)), "2026-11-21", "day one stays what the person picked");
+  assert.equal(isoOf(B.dueOf(7, dayOf("2027-03-22"), dayOf("2027-03-01"))), "2027-03-25", "+7 = Ostermontag -> So, Sa, Karfreitag -> Do");
+  assert.equal(isoOf(B.dueOf(-14, dayOf("2026-11-23"), dayOf("2026-11-09"))), "2026-11-09");
 });

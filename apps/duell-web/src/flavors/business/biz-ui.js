@@ -26,7 +26,7 @@ function openAgenda(move, ki) {
 
 /* ---------- onboarding: start date and role -> the fixed plan; the AI may add tasks for the role ---------- */
 function onboard(box) {
-  var today = localDay(), start = today + 7 + ((8 - new Date((today + 7) * DAY).getUTCDay()) % 7), extra = [], ki = null;
+  var today = localDay(), start = B.firstDay(today), extra = [], ki = null;
   var date = el("input", "field"), role = el("input", "field"), list = el("ul", "bizlist"), room = function () { return Tn.TODO.items - B.PLAN.length; };
   date.type = "date"; date.value = iso(start); date.min = iso(today); date.setAttribute("aria-label", t("biz_ob_start"));
   role.maxLength = 26; role.autocomplete = "off"; role.placeholder = t("biz_ob_role_ph"); role.setAttribute("aria-label", t("biz_ob_role"));
@@ -48,8 +48,8 @@ function onboard(box) {
   }
   date.addEventListener("change", function () {
     var d = dayOf(date.value); if (d < today) return;
-    // the AI's tasks keep their place relative to day one
-    extra = extra.map(function (x) { return x[2] ? [x[0], "", Math.max(today, x[2] + (d - start))] : x; }); start = d; draw();
+    // the AI's tasks keep their place relative to day one: computed again from their relative deadline
+    start = d; extra = B.redate(extra, start, today); draw();
   });
   box.appendChild(el("p", "note", t("biz_ob_h")));
   box.appendChild(el("label", "lbl", t("biz_ob_start"))); box.appendChild(date);
@@ -62,10 +62,8 @@ function onboard(box) {
       // Live, "neue Person als …" came back kind_ok false; the neutral first-day sentence passes (wrapper PR #95 adds a hint).
       return { art: "aufgaben", satz: Kit.lang === "en" ? "Prepare the first weeks in the new team" + (r ? ", role: " + r : "") : "Erste Wochen im neuen Team vorbereiten" + (r ? ", Rolle: " + r : "") };
     },
-    show: function (opt) {
-      var add = more(opt);
-      return add.length ? t("biz_ob_add", { n: add.length }) + "\n" + add.map(function (x) { return "• " + x[0]; }).join("\n") : "⚠ " + t("biz_ob_none");
-    },
+    reject: function (opt) { return more(opt).length ? "" : "⚠ " + t("biz_ob_none"); },
+    show: function (opt) { var add = more(opt); return t("biz_ob_add", { n: add.length }) + "\n" + add.map(function (x) { return "• " + x[0]; }).join("\n"); },
     apply: function (opt, k) {
       var add = more(opt);
       if (!add.length) return false;
@@ -94,15 +92,14 @@ function feedback(box, ed) {
   var res = el("div", "bizres");
   box.appendChild(el("label", "lbl", t("biz_fb_h")));
   box.appendChild(el("p", "note", t("biz_fb_br")));
-  if (B.crisis(notes)) box.appendChild(el("p", "note bizhelp", t("biz_help")));
+  // the page's one crisis line (ai.js, aiCrisis); the AI button then sends nothing (crisis below)
+  if (B.crisis(notes)) { var hb = el("p", "note bizhelp", t("aiCrisis")); hb.setAttribute("role", "alert"); box.appendChild(hb); }
   ai(box, {
     kind: "liste", label: t("biz_fb_ai"),
     input: function () { return { art: "feedback", notizen: B.mixed(doc, notes) }; },
-    show: function (opt) {
-      var e = B.evaluation(opt, notes);
-      if (e.bad) return "⚠ " + t(e.bad === "old" ? "biz_fb_old" : "biz_fb_quote");
-      return e.themen.map(function (s, i) { return (i + 1) + ". " + s; }).join("\n") + "\n→ " + e.vorschlag;
-    },
+    crisis: function () { return B.crisis(notes); },
+    reject: function (opt) { var e = B.evaluation(opt, notes); return e.bad ? "⚠ " + t(e.bad === "old" ? "biz_fb_old" : "biz_fb_quote") : ""; },
+    show: function (opt) { var e = B.evaluation(opt, notes); return e.themen.map(function (s, i) { return (i + 1) + ". " + s; }).join("\n") + "\n→ " + e.vorschlag; },
     apply: function (opt, ki) {
       var e = B.evaluation(opt, notes);
       if (e.bad) { Kit.toast(t(e.bad === "old" ? "biz_fb_old" : "biz_fb_quote")); return false; }
@@ -121,13 +118,20 @@ function feedback(box, ed) {
 }
 
 /* ---------- next meeting from a task list (Fast Easy Protokoll -> #todo=): the open tasks as an agenda link, no AI ---------- */
+// One place for the next meeting: this section takes the place of the list's own text chip "🗓 Folgetermin" (turn-ui.js
+// todoTools) and keeps its text as "copy agenda" next to the link.
 function todo(box, ed) {
-  var src = ed.next || ed.doc, m = Tn.moves(src);
+  var src = ed.next || ed.doc, m = Tn.moves(src), X = L();
   if (!m.length || !m[0][0]) return;
+  var p = box.parentNode;
+  if (p) { Array.prototype.forEach.call(p.querySelectorAll("button.chip"), function (b) { if (b.textContent === X.tdo_next) b.remove(); }); Array.prototype.forEach.call(p.querySelectorAll(".todoagenda"), function (x) { x.remove(); }); }
+  function cur() { var c = Tn.moves(A.ed().next || A.ed().doc); return c.length ? c[0][0] : null; }
   box.appendChild(el("label", "lbl", t("biz_next_h")));
   box.appendChild(el("button", "btn", t("biz_next"), function () {
-    var cur = Tn.moves(A.ed().next || A.ed().doc);
-    Kit.sfx.thud(); openAgenda(cur.length ? B.followUp(cur[0][0], A.ed().doc.t, nick(), Kit.lang) : null, null);
+    var l = cur(); Kit.sfx.thud(); openAgenda(l ? B.followUp(l, A.ed().doc.t, nick(), Kit.lang) : null, null);
+  }));
+  box.appendChild(el("button", "chip", X.tdo_copy, async function () {
+    var l = cur(); if (l && await Kit.copy(Tn.todoAgenda(l, A.ed().doc.t || X.tdo_title, Kit.lang))) Kit.toast(t("copied"));
   }));
   box.appendChild(el("p", "note", t("biz_next_br")));
 }

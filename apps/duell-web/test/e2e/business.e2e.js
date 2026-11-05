@@ -255,19 +255,37 @@ test("Feedback: ab 5 Notizen 3 Themen + 1 Vorschlag; Notizen gemischt und ohne N
   assert.deepEqual(await r.evaluate(() => window.Office.face(window.DailyDebug.home().doc, "de")), ["Retro: Workshop Montag", "1. Zeitrahmen (Moderation)", "2. Praxisbezug (Moderation)", "3. Zielklarheit (Moderation)"]);
   assert.equal(await r.locator("#leaf .kiseal").isVisible(), true);
   await snap(r, "wb2-business-retro-received");
-  // a server without art feedback answers with a shopping list; a quoting answer is dropped too: said, refunded
+  // a server without art feedback answers with a shopping list; a quoting answer is dropped too: said, and given back AT
+  // ONCE (Review B2, Befund 4): no button to tap, the discard goes out without a tap, so closing the app loses nothing
   for (const [bad, say] of [[{ art: "einkauf", titel: "x", personen: 0, vegetarisch: 0, posten: [{ n: "Brot", kat: "backwaren", m: "fix", e: "stueck", veg: true }], aufgaben: [] }, "noch nicht auswerten"],
     [{ ...answer, themen: ["Zeitrahmen", "Pausen fehlten", "Zielklarheit"] }, "zitiert"]]) {
     answer = bad; const n0 = sent.length;
     const c = await open(await fbLink(s, NOTES)); await c.locator("#go").click();
     await c.getByRole("button", { name: "✨ 3 Themen + 1 Vorschlag" }).click();
-    await c.locator(".aiopt", { hasText: say }).click();
+    await c.locator(".aistate", { hasText: say }).waitFor();
+    assert.equal(await c.locator(".aiopt").count(), 0, "nothing to take: " + say);
     await until(() => sent.slice(n0).some((x) => x.path === "ai/discard"));
-    assert.ok(sent.slice(n0).some((x) => x.path === "ai/discard"), "zurueckgegeben: " + say);
+    const back = sent.slice(n0).filter((x) => x.path === "ai/discard");
+    assert.equal(back.length, 1, "zurueckgegeben ohne Antippen: " + say); assert.match(back[0].body.receipt, /^rc-fb-/);
     assert.equal(await c.locator(".bizseal").count(), 0);
+    await c.close();
   }
-  const k = await open(await fbLink(s, [...NOTES.slice(0, 4), "Ich will nicht mehr leben"])); await k.locator("#go").click();
-  await k.getByText("Nummer gegen Kummer 116 111", { exact: false }).waitFor();
+  // a crisis in a note: the page's one crisis line (aiCrisis, ai.js), also for "Ich kann nicht mehr." alone; nothing is sent
+  answer = { art: "feedback", titel: "W", themen: ["Zeitrahmen", "Praxisbezug", "Zielklarheit"], vorschlag: "Ziel zu Beginn klären.", posten: [], aufgaben: [] };
+  for (const note of ["Ich will nicht mehr leben", "Ich kann nicht mehr."]) {
+    const n0 = sent.length;
+    const k = await open(await fbLink(s, [...NOTES.slice(0, 4), note])); await k.locator("#go").click();
+    await k.locator(".bizhelp").getByText("Klingt, als ginge es dir gerade nicht gut.", { exact: false }).waitFor();
+    assert.match(await k.locator(".bizhelp").innerText(), /116 111.*0800 111 0 111/);
+    await k.getByRole("button", { name: "✨ 3 Themen + 1 Vorschlag" }).click();
+    await k.locator(".aistate[role=alert]").waitFor();
+    assert.equal(sent.slice(n0).filter((x) => x.path === "ai").length, 0, "nothing sent: " + note);
+    await k.close();
+  }
+  // a work topic is no crisis: no help line, the evaluation goes out
+  const w = await open(await fbLink(s, [...NOTES.slice(0, 4), "Burnout-Thema ansprechen"])); await w.locator("#go").click();
+  await w.getByRole("button", { name: "✨ 3 Themen + 1 Vorschlag" }).click(); await w.locator(".aiopt").waitFor();
+  assert.equal(await w.locator(".bizhelp").count(), 0);
   assert.deepEqual(errs, []); await b.close();
 });
 
@@ -279,12 +297,15 @@ test("Folgetermin aus dem Protokoll: offene Aufgaben werden ohne KI zur Agenda-K
   await a.locator("#panel .shoprow").first().waitFor();
   await a.getByRole("button", { name: "🗓 Agenda-Link aus offenen Aufgaben" }).waitFor();
   assert.match(await a.locator(".bizbox").innerText(), /Ohne KI, nur aus dieser Liste\. Gibt es einen Betriebsrat/);
+  // Review B2, Befund 5: one place for the next meeting; the list's own text chip "🗓 Folgetermin" is gone, its text stays as "copy"
+  assert.equal(await a.getByRole("button", { name: "🗓 Folgetermin", exact: true }).count(), 0, "kein zweiter Folgetermin-Knopf");
+  assert.equal(await a.locator(".bizbox").getByRole("button", { name: "Tagesordnung kopieren" }).count(), 1);
   await a.locator(".bizbox").scrollIntoViewIfNeeded(); await snap(a, "wb2-business-folgetermin");
   await a.getByRole("button", { name: "🗓 Agenda-Link aus offenen Aufgaben" }).click();
   await a.getByText("Eingetragen").waitFor();
   const u = await send(a);
   const r = await open(hash(u));
-  assert.deepEqual(await r.evaluate(() => window.Office.face(window.DailyDebug.home().doc, "de")), ["Folgetermin: Weekly", "1. Angebot schicken (Ana) (Moderation)", "2. Raum buchen (Moderation)", "3. Budget prüfen (Ben) (Moderation)"]);
+  assert.deepEqual(await r.evaluate(() => window.Office.face(window.DailyDebug.home().doc, "de")), ["Folgetermin: Weekly", "1. Ana: Angebot schicken (Moderation)", "2. Raum buchen (Moderation)", "3. Ben: Budget prüfen (Moderation)"]);
   assert.equal(await r.locator("#leaf .kiseal").isVisible(), false, "ohne KI kein Siegel");
   await r.locator("#go").click(); await r.getByRole("button", { name: "Webconference starten" }).waitFor();
   await snap(r, "wb2-business-folgetermin-agenda");
