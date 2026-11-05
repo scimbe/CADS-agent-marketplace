@@ -284,6 +284,25 @@
     "f": "heart",
     "grip": "pause"
    }
+  },
+  {
+   "tags": ["schulung","onboarding","wissen","auffrischen","datenschutz","it-sicherheit","team","training","knowledge","refresher","data protection","security","colleagues"],
+   "id": "biz-teamquiz",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Team-|Quiz",
+    "s": "Wissen auffrischen, ohne Rangliste."
+   },
+   "en": {
+    "t": "Team|quiz",
+    "s": "Refresh knowledge, no ranking."
+   },
+   "turn": {
+    "g": "quiz",
+    "f": "star",
+    "grip": "pause"
+   }
   }
  ],
  "gated": []

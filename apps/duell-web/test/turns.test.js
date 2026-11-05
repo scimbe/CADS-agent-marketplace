@@ -6,7 +6,9 @@ const Tn = require("../src/turns.js");
 const me = { emoji: "🐙", nick: "M", colors: ["#2b4bff", "#ffe600"], set: "tiere" };
 const ideas = D.IDEAS.filter((i) => i.kind === "turn");
 const through = (d) => { const hash = D.docUrl(d).split("#")[1]; const r = D.parseRoute("#" + hash); assert.equal(r.type, "doc"); return r.doc; };
-const fresh = (g, seed) => { const d = D.docFromIdea(ideas.find((i) => i.turn.g === g), me, "de"); return Tn.fresh(d, seed); };
+// Team-Quiz and Typen-Quiz only run with a question pack (quizpack.js): the first night pack that fits.
+const PACKS = require("../src/quiz-packs.json").packs, QP = require("../src/quizpack.js");
+const fresh = (g, seed) => { const d = D.docFromIdea(ideas.find((i) => i.turn.g === g), me, "de"); if (Tn.GAMES[g].needs) { d.pk = PACKS.map((x) => QP.sanitize(x.pk)).find((p) => QP.fits(g, p)); d.pk.q = d.pk.q.slice(0, 3); } return Tn.fresh(d, seed); };
 const LINES = {
   deal: [[[4], [3, 6], [5]]], einig: [[[["Pizza", "Sushi", "Döner", "Pommes", "Nudeln"], [0, 1, 2, 3, 4]], [[4, 0, 1, 2, 3]]]],
   wort: [[[[0, 1, 2], "Zzzz"], [[0, 1, 5]]]], schmuggel: [[[0], [0, [0, 1, 2]], [[3, 4, 5]]]],
@@ -55,7 +57,9 @@ const LINES = {
   pommes: [[[[1], 1]]],
   reaktion: [[[1800], [2100]]],
   tuer: [[[[2, 15, 20]]]],
-  luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]]
+  luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]],
+  quiz: [[[[0], [1], [2]], [[1], [1], [1]]]],
+  typen: [[[0], [[0], [1], [2], 0]]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
   assert.deepEqual(ideas.map((i) => i.turn.g).sort(), [...Tn.IDS].sort());

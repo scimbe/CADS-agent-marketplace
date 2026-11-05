@@ -7,6 +7,7 @@
   var C = node ? require("./core.js") : root.DuellCore;
   var Q = node ? require("./quest.js") : root.Quest;
   var DATA = node ? require("./turn.json") : root.TurnData;
+  var P = node ? require("./quizpack.js") : root.QuizPack;
   var BLOB = /^[A-Za-z0-9_-]{0,900}$/, SHAPES = ["cookie", "star", "heart", "bolt", "ring", "drop", "coin"], DAY = 86400000;
 
   function T(lang) { return DATA.text[lang === "en" ? "en" : "de"]; }
@@ -1058,6 +1059,11 @@
   }
 
   GAMES.kapsel.gateFrom = 1;
+  // Team-Quiz and Typen-Quiz only run with a question pack (quizpack.js, doc.pk); without one no answer is ever valid.
+  GAMES.quiz = { needs: true, turns: [[{ w: "pk", l: "pk_need" }]], result: function () { return { h: "", lines: [] }; } };
+  GAMES.typen = { needs: true, turns: [[{ w: "pk", l: "pk_need" }]], result: function () { return { h: "", lines: [] }; } };
+  // The game as this doc plays it: with a pack that fits, the pack's turns (QuizPack.game), else the card's own.
+  function game(doc) { return (doc.pk && P.game(doc)) || GAMES[doc.g]; }
   var IDS = Object.keys(GAMES);
   function dealLine(doc, offer, floor, i, lang) {
     var X = T(lang), w = things(doc, lang);
@@ -1116,7 +1122,7 @@
     return false;
   }
   function checked(doc, raw) {
-    var g = GAMES[doc.g], out = [];
+    var g = game(doc), out = [];
     for (var t = 0; t < raw.length && t < g.turns.length && !(g.ends && g.ends(doc, out)); t++) {
       var want = g.turns[t], got = g.legacy ? g.legacy(t, raw[t]) : raw[t];
       if (!Array.isArray(got) || got.length !== want.length) return out;
@@ -1132,12 +1138,13 @@
     d.f = SHAPES.indexOf(o.f) >= 0 ? o.f : SHAPES[0];
     var w = Q.clean(o.w, 14); if (w) d.w = w;
     if (typeof o.o === "number" && intIn(o.o, 0, 99999)) d.o = o.o;
+    var pk = P.sanitize(o.pk); if (pk && P.fits(d.g, pk)) d.pk = pk;
     return d;
   }
   function fromIdea(idea, lang, base) { base.g = idea.turn.g; base.seed = C.hash32("turn-" + idea.id); base.q = ""; base.f = idea.turn.f; if (idea.turn.w) base.w = (idea.turn.w[lang] || idea.turn.w.de); return base; }
   function moves(doc) { return checked(doc, unseal(doc.q, doc.seed)); }
   function state(doc) {
-    var g = GAMES[doc.g], m = moves(doc), over = m.length >= g.turns.length || !!(g.ends && g.ends(doc, m));
+    var g = game(doc), m = moves(doc), over = m.length >= g.turns.length || !!(g.ends && g.ends(doc, m));
     return { moves: m, turn: m.length, total: g.turns.length, who: m.length % 2, over: over, prompts: over ? [] : g.turns[m.length] };
   }
   // The next doc, or null if the answers do not fit the turn.
@@ -1145,18 +1152,18 @@
     var st = state(doc); if (st.over || answers.length !== st.prompts.length) return null;
     for (var i = 0; i < answers.length; i++) if (!okAnswer(st.prompts[i], answers[i], doc, "de", st.moves, answers.slice(0, i))) return null;
     var d = JSON.parse(JSON.stringify(doc));
-    var g = GAMES[d.g], out = g.snap ? [answers] : st.moves.concat([answers]);
+    var g = game(d), out = g.snap ? [answers] : st.moves.concat([answers]);
     d.q = seal(g.store ? out.map(function (x, t) { return g.store(t, x); }) : out, d.seed);
-    if (GAMES[d.g].gateFrom && st.turn === 0) d.o = today + answers[1];
+    if (g.gateFrom && st.turn === 0) d.o = today + answers[1];
     return d;
   }
-  function result(doc, lang) { var st = state(doc); return st.over ? GAMES[doc.g].result(doc, st.moves, lang) : null; }
+  function result(doc, lang) { var st = state(doc); return st.over ? game(doc).result(doc, st.moves, lang) : null; }
   function gate(doc, today) {
-    var g = GAMES[doc.g], at = g.gate ? g.gate(doc, moves(doc)) : 0, left = at ? at - today : 0;
+    var g = game(doc), at = g.gate ? g.gate(doc, moves(doc)) : 0, left = at ? at - today : 0;
     return left > 0 ? left : 0;
   }
-  function face(doc, lang) { var g = GAMES[doc.g]; return g.face ? g.face(doc, moves(doc), lang) : null; }
-  function whole(doc, lang) { var g = GAMES[doc.g]; return g.peekWhole ? g.peekWhole(doc, moves(doc), lang) : ""; }
+  function face(doc, lang) { var g = game(doc); return g.face ? g.face(doc, moves(doc), lang) : null; }
+  function whole(doc, lang) { var g = game(doc); return g.peekWhole ? g.peekWhole(doc, moves(doc), lang) : ""; }
   function fresh(doc, seed) { var d = JSON.parse(JSON.stringify(doc)); d.seed = seed >>> 0; d.q = ""; delete d.o; return d; }
   function today(date) { return Math.floor((date || new Date()).getTime() / DAY); }
   function strings() {
@@ -1164,6 +1171,6 @@
     (function walk(v) { if (typeof v === "string") v.split("|").forEach(function (x) { out.push(x); }); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.keys(v).forEach(function (k) { walk(v[k]); }); })(DATA);
     return out;
   }
-  var api = { HOURS: HOURS, dayText: dayText, hourText: hourText, slotText: slotText, termDates: termDates, voted: voted, doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, face: face, whole: whole, payLink: payLink, parseCents: parseCents, euros: euros, split: split, moneyLine: moneyLine, PAYERS: PAYERS, SHOP: SHOP, FACES: FACES, nameOk: nameOk, shopOk: shopOk, shopMerge: shopMerge, shopApply: shopApply, shopParse: shopParse, shopRows: shopRows, shopMark: shopMark, shopKey: shopKey, shopDone: shopDone, shopCount: shopCount, TODO: TODO, todoFrom: todoFrom, todoIcs: todoIcs, todoAgenda: todoAgenda, dueText: dueText, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
+  var api = { game: game, HOURS: HOURS, dayText: dayText, hourText: hourText, slotText: slotText, termDates: termDates, voted: voted, doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, face: face, whole: whole, payLink: payLink, parseCents: parseCents, euros: euros, split: split, moneyLine: moneyLine, PAYERS: PAYERS, SHOP: SHOP, FACES: FACES, nameOk: nameOk, shopOk: shopOk, shopMerge: shopMerge, shopApply: shopApply, shopParse: shopParse, shopRows: shopRows, shopMark: shopMark, shopKey: shopKey, shopDone: shopDone, shopCount: shopCount, TODO: TODO, todoFrom: todoFrom, todoIcs: todoIcs, todoAgenda: todoAgenda, dueText: dueText, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
   if (node) module.exports = api; else root.Turns = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

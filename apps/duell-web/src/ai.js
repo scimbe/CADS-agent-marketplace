@@ -106,6 +106,7 @@
     if (doc.g && typeof doc.g.title === "string") c.title = doc.g.title;
     if (doc.b && typeof doc.b.n === "string") c.rival = doc.b.n;
     if (Array.isArray(doc.ly) && doc.ly.length) c.ly = doc.ly.join(" / ");      // a song's hook
+    if (doc.pk && typeof doc.pk === "object") c.quiz = doc.pk;      // a question pack: the questions are what is reported
     var b = { reason: reason, consent: true, content: c };
     if (doc.ki && doc.ki.k) b.kind = doc.ki.k;
     if (doc.ki && okSeal(doc.ki.s)) b.seal = doc.ki.s;
@@ -180,7 +181,7 @@
   }
 
   /* One AI action in a panel. o: { kind, label, el, input(), show(option) -> label, apply(option, ki), wall(), noteLast?,
-       auto?(option, ki | null, res) -> false when it changed nothing, local?(input) -> option | null, alive?(), raw?() }
+       auto?(option, ki | null, res) -> false (or a promise of it) when it changed nothing, local?(input) -> option | null, alive?(), raw?() }
      raw(): the typed text as it is, looked at for a crisis before input() runs its word filter over it.
      ki = { k: kind, s: seal, h: option hash } marks what the AI made; apply/auto get null for the rule-based way, which is labelled "without AI".
      auto may return a Promise: the result is then settled once the person decided (true taken, false given back).
