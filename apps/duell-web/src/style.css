@@ -72,6 +72,9 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .pv.pic canvas{display:none}
 .pv.pic .pvimg{display:block}
 .pv.pic{align-items:center;padding:0 8px 6px 2px}
+/* with a picture the sheet is picture + title: the picture keeps its 16:9 height, the title takes the rest (no empty bands) */
+.pv.pic{flex:0 0 auto;margin-top:10px}
+.pv.pic:not([hidden]) ~ .hero{flex:1 1 auto}
 .kitag{position:absolute;right:6px;bottom:6px;padding:3px 7px;border-radius:5px;background:#111;color:#fff;font:700 12px/1.2 var(--ui);letter-spacing:.3px}
 .pv:not([hidden]) ~ .hero{flex:0 0 84px}
 .hero[hidden]{display:none}
