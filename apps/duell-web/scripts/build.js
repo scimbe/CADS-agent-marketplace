@@ -20,7 +20,9 @@ over(turnData.text, "turn.json");
 require("../src/office.js");
 const games = require("../src/turns.js").GAMES, catalog = json(has("ideas.json") ? fl("ideas.json") : "src/ideas.json");
 if (flavor) catalog.ideas = catalog.ideas.filter((i) => !i.turn || games[i.turn.g]);
-const data = (conf ? "window.DailyFlavor=" + JSON.stringify(conf) + ";" : "") + "window.DuellIdeas=" + JSON.stringify(catalog) + ";window.DailyTexts=" + JSON.stringify(texts) + ";window.OfficeData=" + JSON.stringify(json("src/office.json")) + ";";
+// Pictures of the day's cards (AI-made, see src/thumbs.json): only the ids go in, the images stay on the gallery server.
+const thumbs = Object.keys(json(has("thumbs.json") ? fl("thumbs.json") : "src/thumbs.json").items);
+const data = "window.DailyThumbs=" + JSON.stringify(thumbs) + ";" + (conf ? "window.DailyFlavor=" + JSON.stringify(conf) + ";" : "") + "window.DuellIdeas=" + JSON.stringify(catalog) + ";window.DailyTexts=" + JSON.stringify(texts) + ";window.OfficeData=" + JSON.stringify(json("src/office.json")) + ";";
 const duelData = JSON.parse(read("src/duel.json"));
 const licenses = ["Anton-OFL.txt", "qrcode-generator-MIT.txt", "Kartendeck-CC0.txt"].map((f) => read("licenses/" + f)).join("\n\n");
 const dataAll = data + "window.TurnData=" + JSON.stringify(turnData) + ";window.DuelData=" + JSON.stringify(duelData) + ";Object.assign(window.DailyTexts.de,window.DuelData.texts.de);Object.assign(window.DailyTexts.en,window.DuelData.texts.en);" +

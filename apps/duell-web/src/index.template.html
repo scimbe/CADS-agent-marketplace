@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'self' https://webconference.bunsenbrenner.org 'wasm-unsafe-eval'; style-src 'unsafe-inline'; font-src data:; img-src data: blob:; media-src blob:; connect-src https://demos-34a13a96.bunsenbrenner.org https://webconference.bunsenbrenner.org wss://webconference.bunsenbrenner.org; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'self' https://webconference.bunsenbrenner.org 'wasm-unsafe-eval'; style-src 'unsafe-inline'; font-src data:; img-src data: blob: https://demos-34a13a96.bunsenbrenner.org; media-src blob:; connect-src https://demos-34a13a96.bunsenbrenner.org https://webconference.bunsenbrenner.org wss://webconference.bunsenbrenner.org; base-uri 'none'; form-action 'none'">
 <meta name="theme-color" content="#ffd400">
 <meta name="referrer" content="no-referrer">
 <title>My Daily Idea</title>
@@ -23,7 +23,7 @@
       <article id="leaf">
         <div class="holes" aria-hidden="true"></div>
         <div class="dateline"><b id="dnum" class="dnum"></b><span id="dmon" class="dmon"></span><span id="dkind" class="dkind burst"></span></div>
-        <div id="pv" class="pv" hidden><canvas id="pvgame" class="pvgame" aria-label="Vorschau"></canvas><canvas id="pvcard" class="pvcard" width="540" height="675" aria-label="Vorschau"></canvas></div>
+        <div id="pv" class="pv" hidden><canvas id="pvgame" class="pvgame" aria-label="Vorschau"></canvas><canvas id="pvcard" class="pvcard" width="540" height="675" aria-label="Vorschau"></canvas><figure class="pvimg"><img alt="" width="960" height="540" decoding="async"><figcaption class="kitag"></figcaption></figure></div>
         <div id="hero" class="hero"></div>
         <p id="teaser" class="teaser"></p>
         <p id="from" class="from" hidden></p>

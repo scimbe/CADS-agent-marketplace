@@ -25,7 +25,7 @@ h1{transform:none;text-transform:none;font:650 19px/1 var(--disp);letter-spacing
 #feat button{border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--text);font:600 13px var(--disp)}
 #feat button.hot{background:var(--text);color:#fff;border-color:var(--text)}
 #tools button{color:var(--muted);font:600 13px var(--disp)}
-.pv canvas,#stage,#doneimg,.big{border:1px solid var(--line)!important;border-radius:8px;box-shadow:0 2px 10px rgba(16,24,40,.08)!important}
+.pvimg,.pv canvas,#stage,#doneimg,.big{border:1px solid var(--line)!important;border-radius:8px;box-shadow:0 2px 10px rgba(16,24,40,.08)!important}
 #tabs{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 #tabs button{color:var(--muted);font-weight:600}
 #tabs button.hot{color:var(--org)}

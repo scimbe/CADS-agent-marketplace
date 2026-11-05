@@ -122,7 +122,10 @@ for (const mode of ["refuse", "drop"]) {
     await p.locator("#feat .lane").hover(); await p.locator("#feat .lane button:not([aria-hidden])", { hasText: "Webconference" }).click();
     await p.getByText("Die Webconference ist aus diesem Netz nicht erreichbar").waitFor({ timeout: 6000 });
     assert.ok(Date.now() - t1 < 5000, "Rueckmeldung zu spaet: " + (Date.now() - t1) + " ms");
-    assert.ok(asked.every((u) => u.startsWith("https://webconference.bunsenbrenner.org/")), "nur der eine Tipp geht raus: " + asked.join(" "));
+    // besides the tap only the picture of the day's card (KI-Bild, thumbs.e2e.js), which the blocked net simply leaves out
+    const pic = /^https:\/\/demos-34a13a96\.bunsenbrenner\.org\/duell\/img\/biz-[a-z0-9-]+\.jpg$/;
+    assert.ok(asked.every((u) => u.startsWith("https://webconference.bunsenbrenner.org/") || pic.test(u)), "nur der eine Tipp geht raus: " + asked.join(" "));
+    assert.ok(asked.filter((u) => pic.test(u)).length <= 1, "hoechstens das eine Bild");
     if (shot && mode === "refuse") await p.screenshot({ path: shot + "/biz-blocked.png" });
     await p.goto(page + "#i=biz-aufgaben"); await p.locator("#go").click();
     await type(p, "Umzug"); const f = p.locator("#panel input.field"); await f.nth(0).fill("Kisten"); await f.nth(1).fill("Transporter"); await next(p);
