@@ -27,12 +27,12 @@ h1{transform:none;text-transform:none;font:650 19px/1 var(--disp);letter-spacing
 #tools button{color:var(--muted);font:600 13px var(--disp)}
 .pvimg,.pv canvas,#stage,#doneimg,.big{border:1px solid var(--line)!important;border-radius:8px;box-shadow:0 2px 10px rgba(16,24,40,.08)!important}
 #tabs{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-#tabs button{color:var(--muted);font-weight:600}
+#tabs button{color:var(--muted);font-weight:600;opacity:1}   /* --muted is AA only at full opacity */
 #tabs button.hot{color:var(--org)}
 #tabs button[aria-selected=true]{background:var(--card);color:var(--text);box-shadow:inset 0 -2px 0 var(--org)}
 #panel,.foot,#shelf{background:var(--card)}
 .field{border:1px solid var(--line);border-radius:8px;font-weight:500}
-.field:focus{border-color:var(--org);outline:2px solid #c7d2fe;outline-offset:0}
+.field:focus{border-color:var(--org);outline:2px solid var(--org);outline-offset:0}   /* 3:1 against white (WCAG 2.4.11) */
 .chip{border:1px solid var(--line);border-radius:8px;background:var(--card);font-weight:600}
 .chip.on{background:var(--org);border-color:var(--org);color:var(--onorg)}
 .btn{border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font-weight:600}

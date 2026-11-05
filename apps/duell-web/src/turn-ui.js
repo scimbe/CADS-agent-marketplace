@@ -346,7 +346,7 @@ var draw = {
       if (star) { clearTimeout(timer); sum += performance.now() - t0; r++; k = 0; Kit.sfx.pop(); next(); }
       else if (pad.textContent) { sum += 500; Kit.tone(200, 90, 0.08, "square", 0.05); info.textContent = L().rea_wrong; }
     });
-    box.appendChild(info); box.appendChild(pad); next(); set(null);
+    pad.setAttribute("aria-label", L().a_pad); box.appendChild(info); box.appendChild(pad); next(); set(null);
   },
   // The bouncer: a being at the door, "out" left and "in" right; the being keeps its frame for a moment after each tap.
   door: function (box, p, set, ctx) {
@@ -510,15 +510,16 @@ var draw = {
     show(); set(null);
   },
   alloc: function (box, p, set, ctx) {
-    var items = p.from(ctx.doc, ctx.m, ctx.now, Kit.lang), vals = p.vals(ctx.doc), bids = items.map(function () { return 0; }), left = el("p", "lbl", "");
+    var items = p.from(ctx.doc, ctx.m, ctx.now, Kit.lang), vals = p.vals ? p.vals(ctx.doc) : null, bids = items.map(function () { return 0; }), left = el("p", "lbl", "");
     function sum() { return bids.reduce(function (a, b) { return a + b; }, 0); }
     function up() { left.textContent = say("left", { n: p.sum - sum() }); set(bids.slice()); }
     items.forEach(function (s, i) {
-      box.appendChild(el("p", "lbl", s + " · " + vals[i]));
+      box.appendChild(el("p", "lbl", vals ? s + " · " + vals[i] : s));
       var row = el("div", "chips"), n = el("b", "", "0");
-      row.appendChild(el("button", "chip", "−", function () { if (bids[i] >= p.step) { bids[i] -= p.step; n.textContent = bids[i]; up(); Kit.sfx.tap(); } }));
-      row.appendChild(n);
-      row.appendChild(el("button", "chip", "+", function () { if (sum() + p.step <= p.sum) { bids[i] += p.step; n.textContent = bids[i]; up(); Kit.sfx.tap(); } }));
+      var less = el("button", "chip", "−", function () { if (bids[i] >= p.step) { bids[i] -= p.step; n.textContent = bids[i]; up(); Kit.sfx.tap(); } });
+      var more = el("button", "chip", "+", function () { if (sum() + p.step <= p.sum) { bids[i] += p.step; n.textContent = bids[i]; up(); Kit.sfx.tap(); } });
+      less.setAttribute("aria-label", say("a_less", { s: s })); more.setAttribute("aria-label", say("a_more", { s: s }));
+      row.appendChild(less); row.appendChild(n); row.appendChild(more);
       box.appendChild(row);
     });
     box.appendChild(left); up();
