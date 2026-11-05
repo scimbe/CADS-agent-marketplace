@@ -1,6 +1,25 @@
 {
  "ideas": [
   {
+   "tags": ["einarbeitung","neue kollegin","neuer kollege","erster arbeitstag","willkommen","checkliste","personal","onboarding","new hire","first day","welcome","induction","checklist","new colleague"],
+   "id": "biz-onboarding",
+   "kind": "turn",
+   "min": 120,
+   "de": {
+    "t": "Onboarding|planen",
+    "s": "Startdatum rein, fertige Checkliste raus."
+   },
+   "en": {
+    "t": "Plan|onboarding",
+    "s": "Start date in, ready checklist out."
+   },
+   "turn": {
+    "g": "todo",
+    "f": "bolt",
+    "grip": "raum"
+   }
+  },
+  {
    "tags": ["vereinbaren","kalender","planung","kollegen","gruppe","besprechung","treffen","schedule","calendar","planning","colleagues","meeting","get together","organization"],
    "id": "biz-termin",
    "kind": "turn",

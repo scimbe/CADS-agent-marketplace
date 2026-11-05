@@ -119,8 +119,18 @@ $("feat").addEventListener("click", function (e) {
 
 /* ---------- a card that leads to a meeting offers the call; a payment link says what to do if PayPal is blocked ---------- */
 var move = A.PANEL.Move;
+// Onboarding, feedback evaluation and the next meeting live in the part "biz" (biz-ui.js); here only the hooks.
+function biz(p, what) { var box = el("div", "bizbox"); p.appendChild(box); window.Parts.use("biz", function () { if (box.isConnected) window.BizUI[what](box, A.ed()); }).catch(function () {}); }
+function boarding(ed) { return !!ed && ed.doc.g === "todo" && ed.doc.i === "biz-onboarding" && !Tn.moves(ed.doc).length; }
+// Onboarding before its list exists: the main button makes the checklist from the plan on screen.
+var TM = window.DailyModes.turn, foot = TM.footer, main = TM.main;
+TM.footer = function (b, ed) { foot.apply(TM, arguments); if (boarding(ed)) { b.classList.remove("wait"); b.textContent = t("biz_ob_make"); } };
+TM.main = function (ed) { if (!boarding(ed)) { main.apply(TM, arguments); return; } window.Parts.use("biz", function () { window.BizUI.make(); }).catch(function () {}); };
 A.PANEL.Move = function (p) {
+  var e0 = A.ed();
+  if (boarding(e0)) { biz(p, "onboard"); return; }
   move(p);
+  if (e0 && (e0.doc.g === "feedback" || e0.doc.g === "todo")) biz(p, e0.doc.g);
   var ed = A.ed(), g = ed && Tn.GAMES[ed.doc.g], pay = p.querySelector("#paylink");
   if (g && g.call && Tn.moves(ed.doc).length) p.appendChild(el("button", "btn", Tn.T(Kit.lang).age_call, conference));
   if (pay) {
