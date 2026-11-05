@@ -4,7 +4,6 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { execFileSync } = require("node:child_process");
 const Tn = require("../src/turns.js");
 const B = require("../src/biz.js");
 const start = (g) => ({ g, seed: 7, q: "", f: "star" });
@@ -85,16 +84,4 @@ test("Retro-Agenda aus den 3 Themen und Folgetermin aus offenen Aufgaben sind gu
   const two = B.followUp(Tn.todoFrom({ t: "W", i: [["Eine sehr lange Aufgabe für den Termin", "Maximilian", 0]] }).list, "W", "", "en");
   assert.ok(two[1][0].length <= 30 && two[1][0].endsWith("(Maximilian)"), two[1][0]);
   assert.ok(Tn.play(start("agenda"), two, 0));
-});
-
-test("Build: Teil biz nur im Business-Flavor, Kern bleibt unter 700 KB", () => {
-  const root = path.join(__dirname, "..");
-  execFileSync(process.execPath, [path.join(root, "scripts/build.js"), "--flavor", "business"]);
-  const html = fs.readFileSync(path.join(root, "dist/business/index.html"), "utf8"), man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]);
-  assert.ok(man.biz && fs.existsSync(path.join(root, "dist/business", man.biz.f)));
-  assert.ok(!html.includes("window.BizUI = {") && !html.includes("function onboardPlan"), "the screens are in the part, not the core");
-  assert.match(html, /"id":"biz-onboarding"/);
-  execFileSync(process.execPath, [path.join(root, "scripts/build.js")]);
-  const kid = fs.readFileSync(path.join(root, "dist/index.html"), "utf8");
-  assert.equal(JSON.parse(kid.match(/window\.DailyParts=(\{.*?\});window\./)[1]).biz, undefined);
 });

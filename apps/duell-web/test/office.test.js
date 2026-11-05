@@ -78,6 +78,9 @@ test("Flavor-Build: eigener Katalog, Texte, Farben und Pfad; ohne Flag bleibt di
   assert.ok(Buffer.byteLength(html) < 700 * 1024, "Business-Kern: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]);
   for (const p of Object.values(man)) assert.ok(fs.existsSync(path.join(root, "dist/business", p.f)), p.f);
+  // Stage 2 (src/biz.js, biz-ui.js): a part of its own, only in this flavor; the core keeps the hooks only.
+  assert.ok(man.biz, "Teil biz"); assert.ok(!html.includes("function onboardPlan") && !html.includes("window.BizUI = {"));
+  assert.match(html, /"id":"biz-onboarding"/);
   const ideas = JSON.parse(fs.readFileSync(path.join(root, "src/flavors/business/ideas.json"), "utf8")).ideas;
   const games = new Set(ideas.map((i) => i.turn.g).filter((g) => Tn.GAMES[g]));
   assert.ok(games.size >= 4 && ideas.filter((i) => Tn.GAMES[i.turn.g]).length >= 5, "mindestens fuenf Karten laufen");
@@ -91,4 +94,5 @@ test("Flavor-Build: eigener Katalog, Texte, Farben und Pfad; ohne Flag bleibt di
   execFileSync(process.execPath, [path.join(root, "scripts/build.js")]);
   const kid = fs.readFileSync(path.join(root, "dist/index.html"), "utf8");
   assert.ok(!kid.includes("window.DailyFlavor=") && !kid.includes("Daily Business"));
+  assert.equal(JSON.parse(kid.match(/window\.DailyParts=(\{.*?\});window\./)[1]).biz, undefined, "kein Teil biz in der Jugend-App");
 });
