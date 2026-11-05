@@ -98,6 +98,14 @@
     }
     return { ask: ask, accept: function (d, rc) { return settle("/accept", d, rc); }, discard: function (d, rc) { return settle("/discard", d, rc); } };
   }
+  /* 422 says why: "crisis" brings a help text in the page's language (shown here, nothing else happens), "kind_ok" means the
+     model said no (free). Only short plain text is kept; it is shown as textContent. */
+  function why(r, json) {
+    var w = json && typeof json.why === "string" && /^[a-z_]{2,20}$/.test(json.why) ? json.why : "";
+    if (w) r.why = w;
+    if (w === "crisis" && json && typeof json.help === "string") r.help = json.help.replace(/[\u0000-\u001f<>]/g, " ").slice(0, 300).trim();
+    return r;
+  }
   // What a report carries (POST /api/duell/report): the reason, the sheet's own texts and type, its seal (with the
   // option's hash as optionHash) and short link when it has them. Never a photo, never the trail of nicknames, never a channel's riddles or answers. consent: the
   // person said yes in the dialog, which names what goes out. null when the reason is not one the server knows.
@@ -221,7 +229,7 @@
           if (!alive()) return;
           var ki = { k: o.kind, s: r.seals[i] || "", h: hs[i] };
           var did = o.auto ? o.auto(opt, ki, res) : o.apply(opt, ki);
-          if (did && typeof did.then === "function") { did.then(function (x) { if (mine === rc) mine = null; settle(rc, x !== false); }); return; }
+          if (did && typeof did.then === "function") { did.then(function (x) { if (mine === rc) mine = null; settle(rc, x !== false); }, function () { if (mine === rc) mine = null; settle(rc, false); }); return; }
           if (mine === rc) mine = null;
           settle(rc, did !== false);
         };
@@ -239,6 +247,7 @@
       }
       if (r.how === "blocked" && r.why === "crisis") { help(res); return; }
       res.appendChild(el("p", "note aistate", stateText(r)));
+      if (r.why === "crisis") res.appendChild(el("p", "note aihelp", r.help || t("aiHelp")));      // help on the device, no AI
       if (r.how === "quota") res.appendChild(el("button", "chip", "ⓘ " + t("aiTitle"), o.wall));
       var own = (r.how === "off" || r.how === "quota") && o.local ? o.local(input) : null;      // the marked way without AI; busy: just try again
       if (own && o.auto) o.auto(own, null, res);

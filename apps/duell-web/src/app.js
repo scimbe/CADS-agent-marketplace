@@ -785,11 +785,13 @@ function prefUse(box, keys) {
     b.setAttribute("aria-pressed", "true"); row.appendChild(b);
   });
   if (row.children.length) box.appendChild(row);
-  return { context: function () {
+  function on() {
     var p = { pref: JSON.parse(JSON.stringify(me.pref || {})) };
     Object.keys(off).forEach(function (id) { if (off[id]) { var k = id.split(":")[0]; p.pref = D.dropPref(p, k, id.slice(k.length + 1)); } });
-    return D.prefContext(p, Kit.lang, keys);
-  } };
+    return p;
+  }
+  // pref(): the defaults still on, for what the page computes itself (household size, times without time).
+  return { context: function () { return D.prefContext(on(), Kit.lang, keys); }, pref: function () { return on().pref; } };
 }
 // Report a shared sheet: a dialog says what goes out (the sheet's texts, its seal if it has one), asks for the reason,
 // and only "Melden" sends it. A sheet goes out once from this device; the server limits the rest.

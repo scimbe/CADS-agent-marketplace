@@ -173,11 +173,11 @@ var draw = {
     box.appendChild(gate); link();
     after.hidden = true; box.appendChild(after); set(0);
   },
-  list: function (box, p, set) {
-    var fs = [];
+  list: function (box, p, set, ctx) {
+    var fs = [], pre = ctx && ctx.ed.pre && ctx.ed.pre[p.l];
     function up() { var v = fs.map(function (f) { return Q.clean(f.value, p.max); }), have = v.filter(Boolean); if (p.least && (have.length < p.least || new Set(have.map(Q.fold)).size < have.length)) { set(null); return; } set(p.loose ? fs.map(function (f, i) { return f.value.trim() ? v[i] : ""; }) : v.every(Boolean) && (p.same || new Set(v.map(Q.fold)).size === p.n) && (!p.bytes || new TextEncoder().encode(v.join("")).length <= p.bytes) ? v : null); }
-    for (var i = 0; i < p.n; i++) { var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l] + " " + (i + 1)); if (p.hints) f.placeholder = p.hints(Kit.lang)[i]; f.addEventListener("input", up); box.appendChild(f); fs.push(f); }
-    if (p.loose) up(); else set(null);
+    for (var i = 0; i < p.n; i++) { var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l] + " " + (i + 1)); if (p.hints) f.placeholder = p.hints(Kit.lang)[i]; f.addEventListener("input", up); if (pre && pre[i]) f.value = pre[i]; box.appendChild(f); fs.push(f); }
+    if (p.loose || pre) up(); else set(null);
   },
   pick: function (box, p, set, ctx) {
     var on = [], row = el("div", "chips"), items = p.from(ctx.doc, ctx.m, ctx.now, Kit.lang);
@@ -585,8 +585,8 @@ var draw = {
     up();
   },
   // The time is picked once, then every tapped day adds that time. Dates are taps, never text.
-  slots: function (box, p, set) {
-    var today = localDay(), h = 6, picked = [], times = el("div", "chips"), days = el("div", "chips"), mine = el("div", "chips"), name = nameField(up);
+  slots: function (box, p, set, ctx) {
+    var pre = ctx && ctx.ed.pre && ctx.ed.pre.slots, today = localDay(), picked = pre ? pre.slice(0, 5) : [], h = picked.length ? picked[0] % 10 : 6, times = el("div", "chips"), days = el("div", "chips"), mine = el("div", "chips"), name = nameField(up);
     function up() {
       picked.sort(function (a, b) { return a - b; });
       Array.from(times.children).forEach(function (b, i) { b.classList.toggle("on", i === h); });
@@ -664,6 +664,16 @@ function pass(box, ed) {
   box.textContent = ""; box.appendChild(el("p", "qtext", L().hand));
   box.appendChild(el("button", "btn hot", L().hand_go, function () { Kit.sfx.tap(); walk(box, ed); }));
 }
+// Satz zu Formular (satz-ui.js, its own part): one tap above the first step opens it. It fills the step below (ed.pre, the
+// shopping list's own changes) after the person checked it; it never sends a move by itself.
+var SATZ = { termin: 1, einkauf: 1, wichteln: 1, reihum: 1, aufgaben: 1 };
+function satz(box, ed) {
+  var w = el("div", "satz"), b = el("button", "btn satzgo", "✨ " + L().satz_go, function () {
+    Kit.sfx.tap(); b.disabled = true;
+    window.Parts.use("satz", function () { b.remove(); window.SatzUI.open(w, ed, function () { A.tab("Move"); }); }).catch(function () { b.disabled = false; });
+  });
+  w.appendChild(b); box.appendChild(w);
+}
 // Goes through the turn's prompts one by one; each screen shows only what that step may know.
 function walk(box, ed) {
   var st = Tn.state(ed.doc), now = [], i = 0;
@@ -676,13 +686,16 @@ function walk(box, ed) {
     var p = st.prompts[i], cur = null, go = el("button", "btn hot", L().next, function () {
       if (cur === null || !go.isConnected) return; Kit.sfx.pop(); now.push(cur); cur = null; i++; step();
     });
+    if (i === 0 && SATZ[ed.doc.g] && (!st.turn || p.live)) satz(box, ed);
     if (p.peek) box.appendChild(el("p", "qtext", p.peek(ed.doc, st.moves, now, Kit.lang)));
     if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("label", "lbl", p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "")));
     var soon = 0;
     draw[p.w](box, p, function (v) {
       if (p.live) { ed.next = v === null ? null : Tn.play(ed.doc, [v], Tn.today()); A.changed(); return; }   // no Weiter: the footer sends what is on screen
       cur = v; go.disabled = v === null; clearTimeout(soon);
+      var auto = ed.pre && ed.pre.go; if (auto) ed.pre.go = 0;      // taken from a sentence and complete: on at once, only this once
       if (v === null) return;
+      if (auto) setTimeout(function () { if (cur === v) go.click(); }, 0);
       if (!p.auto) try { go.scrollIntoView({ block: "nearest" }); } catch (e) {}
       if (p.auto) go.click(); else if (p.w === "rank" || (p.w === "pick" && p.n > 1)) soon = setTimeout(function () { if (box.isConnected && cur === v) go.click(); }, 450);   // a short look at the choice, then on
     }, { doc: ed.doc, m: st.moves, now: now, ed: ed });
@@ -690,11 +703,17 @@ function walk(box, ed) {
   }
   step();
 }
+// The date that leads so far as a calendar file (satz-ui.js builds it on the device).
+function icsRow(p, doc) {
+  var w = el("div", "satz"); w.appendChild(el("button", "chip", "📅 " + L().satz_ics, function () { Kit.sfx.tap(); window.Parts.use("satz", function () { window.SatzUI.ics(doc); }).catch(function () {}); }));
+  p.appendChild(w);
+}
 A.TABS.turn = ["Move", "Text", "Color"];
 A.PANEL.Move = function (p) {
   var ed = A.ed(), doc = ed.doc, st = Tn.state(doc), left = Tn.gate(doc, Tn.today()), res = Tn.result(doc, Kit.lang);
   if (res) {
     p.appendChild(el("p", "qtext", res.h)); res.lines.forEach(function (s) { p.appendChild(el("p", "note", s)); });
+    if (doc.g === "termin") icsRow(p, doc);
     if (res.copy) { p.appendChild(el("button", "btn hot", L().sor_copy, async function () { if (await Kit.copy(res.copy)) Kit.toast(t("copied")); })); p.appendChild(el("p", "note", res.note)); return; }
     if (res.note) p.appendChild(el("p", "note", res.note));
     p.appendChild(el("button", "btn hot", L()[word(doc, "rematch")], function () { var d = Tn.fresh(doc, seed()); A.openEditor(d, { idea: d.i ? D.byId(d.i) : null }); }));
@@ -702,6 +721,7 @@ A.PANEL.Move = function (p) {
   }
   if (left) { p.appendChild(el("p", "qtext", say("note_wait", { n: left }))); return; }
   var w = Tn.whole(doc, Kit.lang); if (w) p.appendChild(el("p", "qtext", w));
+  if (doc.g === "termin" && st.moves.length) { icsRow(p, doc); var inner = el("div"); p.appendChild(inner); p = inner; }   // walk() clears its box
   if (ed.next && !st.prompts.some(function (x) { return x.live; })) { p.appendChild(el("p", "lbl", L()[word(doc, "ready")])); p.appendChild(el("button", "btn", L().redo, function () { ed.next = null; A.changed(); A.tab("Move"); })); return; }
   // Quiz cards: a question pack (part "quiz") before the first move; Team- and Typen-Quiz need one.
   if (!st.turn && window.QuizPack.GAMES[doc.g]) {
