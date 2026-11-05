@@ -1,11 +1,18 @@
-/* A card table for three or four players, live, without a game server. No DOM: table-ui.js draws it.
+/* A card table for two, three or four players, live, without a game server. No DOM: table-ui.js draws it.
    Network: a full mesh of the two-player links from live.js (one WebRTC data channel per pair, set up through the
    bridge, TURN only as fallback). Whoever already sits at the table invites the next player with a link; the newcomer
    then opens links to everyone else, the invite tokens for those travel inside the existing channels. A closed link
    frees the seat; a running hand is dropped, because its cards stay locked without that player's keys.
    Cards: mpoker.js. Every seat shuffles and locks, each player only ever gets the keys of their own positions, a played
    card publishes all keys of its position, and after the hand all secrets are revealed and the deal is replayed.
-   Rules: doko.js / skat.js, run identically on every device. Messages from one sender are handled strictly in the
+   Bauernskat (bauernskat.js, two seats, one pair link, no hands): a stack card is opened by everyone publishing their
+   key for that position when the rules list it in reveals() - the face-up row after the deal, a face-down card only once
+   the trick that took the card above it is over. No device ever sends a key for a face-down card before that; every
+   device then applies the same "turn" action. Standing up during such a hand does not hand the face-down keys over at
+   once: the device stays at the table on Auto (only the screen closes) and keeps releasing each key when reveals() names
+   it; when the hand is over it leaves. A key that does not open its card is the other seat's fault (my own key is the one
+   I made): the hand stops there, and view().hand.flags says who.
+   Rules: doko.js / skat.js / bauernskat.js, run identically on every device. Messages from one sender are handled strictly in the
    order sent (calls in Doppelkopf depend on how many cards the caller had played); a message that arrives before what
    it builds on (another player's card on a different link) waits until it fits.
    Group invite: one link with a one-time token for every free seat (the bridge burns a token on first use, so two
@@ -22,7 +29,10 @@
   var node = typeof module !== "undefined" && module.exports;
   var MP = node ? require("./mpoker.js") : root.MPoker;
   var B = node ? require("./ballduell.js") : root.Ballduell;
-  function rules(game) { return game === "skat" ? (node ? require("./skat.js") : root.Skat) : (node ? require("./doko.js") : root.Doko); }
+  function rules(game) {
+    if (game === "bauernskat") return node ? require("./bauernskat.js") : root.Bauernskat;
+    return game === "skat" ? (node ? require("./skat.js") : root.Skat) : (node ? require("./doko.js") : root.Doko);
+  }
   var BLOCK_MS = 30000, AUTO_MS = 20000, AUTO_FAST = 1500, HANDOVER_MS = 2000, WAIT = {}, ID_RE = /^[0-9a-f]{16}$/;
   var TABLE_TYPES = ["me", "seat", "join", "hold", "unhold", "gone", "peers", "ready", "fwd", "link", "full", "auto", "rules"];
 
@@ -45,6 +55,7 @@
     // House rules: the same list on every device. Set between hands by anyone seated; the higher version wins, on a tie
     // the smaller player id, so two taps at once still end in one list. A hand only starts once every ready names it.
     var house = R.rules(o.rules), rulesV = 0, rulesBy = "";
+    var leaving = false;   // Bauernskat: stood up, plays the hand to its end on Auto, then leaves
     var no = 0, hand = null, last = null, want = true, lost = false, closed = false, joinVia = null, pumping = false, timer = 0, subs = [], note = "", meReady = null;
 
     // ---------- small helpers ----------
@@ -120,7 +131,7 @@
       var name = members[id].name;
       delete members[id]; delete readies[id]; delete queues[id]; delete scores[id];
       if (links[id]) { var c = links[id]; delete links[id]; try { c.close(); } catch (e) {} }
-      if (hand) { hand = null; no++; last = { aborted: true, who: name }; want = true; }
+      if (hand) { hand = null; no++; last = { aborted: true, who: name }; want = true; if (leaving) setTimeout(function () { leaving = false; leave(true); }, 0); }
       all(peersMsg()); emit(); maybeReady();
     }
 
@@ -175,7 +186,7 @@
         if (!mine || x.seat < me.seat) holds[m.seat] = from;           // two holds on one seat: the lower seat keeps it
         if (mine && x.seat < me.seat) { var s = free(); invites.forEach(function (i) { if (i.seat === m.seat) i.seat = s; }); if (s >= 0) { holds[s] = me.id; all({ t: "hold", seat: s }); } }
       } else if (m.t === "unhold" && holds[m.seat] === from) delete holds[m.seat];
-      else if (m.t === "gone" && ID_RE.test(m.id || "")) { if (m.id === me.id) { lost = true; leave(); } else remove(m.id); }
+      else if (m.t === "gone" && ID_RE.test(m.id || "")) { if (m.id === me.id) { lost = true; leave(true); } else remove(m.id); }
       else if (m.t === "peers" && x) {
         x.peers = (Array.isArray(m.ids) ? m.ids : []).filter(function (y) { return ID_RE.test(y); }).slice(0, SEATS);
         x.ch = (Array.isArray(m.ch) ? m.ch : []).slice(0, SEATS); maybeReady();
@@ -219,7 +230,7 @@
     function begin() {
       var lay = R.layout();
       hand = { no: no, roster: roster(), lay: lay, d1: [], d2: [], sec: MP.secrets(N), keys: {}, own: lay.hands[me.seat].slice(), open: {}, played: {}, pushed: [],
-        rev: {}, state: R.start({ dealer: no % SEATS, rules: house }), flags: [], ghost: {}, moves: 0 };
+        rev: {}, state: R.start({ dealer: no % SEATS, rules: house }), flags: [], ghost: {}, moves: 0, pub: {}, sent: {}, bad: {} };
       want = false; meReady = null; readies = {}; last = null;
       step(); emit();
     }
@@ -231,7 +242,7 @@
       if (h.d2.length === n && !h.dealt) {
         h.dealt = true;
         for (var s = 0; s < n; s++) if (s !== me.seat) send(h.roster[s], { t: "keys", no: h.no, pos: h.lay.hands[s], k: h.lay.hands[s].map(function (p) { return h.sec.ki[p]; }) });
-        openOwn();
+        openOwn(); bare();
       }
     }
     function final() { return hand.d2.length === SEATS ? hand.d2[SEATS - 1] : null; }
@@ -247,12 +258,38 @@
       var f = final(); if (!f) return;
       hand.own.forEach(function (p) { if (hand.open[p] == null) { var k = keysFor(p); if (k) hand.open[p] = MP.open(f[p], k, N); } });
     }
+    // ---------- Bauernskat: the stack cards everyone may see ----------
+    // My key for every position the rules let open now goes to everyone (once); a position whose keys are all in is
+    // opened and turned up in the state on every device alike.
+    function bare() {
+      var h = hand, f = final(); if (!h || !f || !R.reveals) return;
+      for (var moved = true; moved && hand === h;) {
+        moved = false;
+        var list = R.reveals(h.state).map(function (r) { r.p = h.lay.stacks[r.seat][r.i][r.kind]; return r; });
+        list.forEach(function (r) { if (!h.sent[r.p]) { h.sent[r.p] = 1; all({ t: "keys", no: h.no, pos: [r.p], k: [h.sec.ki[r.p]] }); } });
+        list.forEach(function (r) {
+          var k = keysFor(r.p); if (!k || h.bad[r.p]) return;
+          var id = MP.open(f[r.p], k, N), x = id >= 0 ? R.apply(h.state, { t: "turn", seat: r.seat, i: r.i, card: R.DECK[id] }) : null;
+          // my key is the one I made, so with two seats a key that does not fit is the other one's
+          if (!x || !x.ok) { h.bad[r.p] = 1; flag(SEATS === 2 ? 1 - me.seat : r.seat, "key"); note = "badkey"; return; }
+          h.state = x.state; h.pub[r.p] = id; moved = true;
+        });
+      }
+    }
+    // the position of the card showing on a stack, or -1
+    function topPos(seat, i) { var x = hand.state.stacks && hand.state.stacks[seat][i]; return !x || x.top == null ? -1 : hand.lay.stacks[seat][i][x.under ? "up" : "down"]; }
+    function stackPos(seat, card) {
+      if (!hand.lay.stacks) return -1;
+      for (var i = 0; i < hand.lay.stacks[seat].length; i++) { var p = topPos(seat, i); if (p >= 0 && hand.state.stacks[seat][i].top === card) return p; }
+      return -1;
+    }
     function live_(p) { return hand.open[p] != null && hand.open[p] >= 0 && hand.played[p] == null && hand.pushed.indexOf(p) < 0; }
     function myCards() { return hand ? hand.own.filter(live_).map(function (p) { return R.DECK[hand.open[p]]; }) : []; }
-    function cardPos(card) { for (var i = 0; i < hand.own.length; i++) { var p = hand.own[i]; if (live_(p) && R.DECK[hand.open[p]] === card) return p; } return -1; }
+    function cardPos(card) { for (var i = 0; i < hand.own.length; i++) { var p = hand.own[i]; if (live_(p) && R.DECK[hand.open[p]] === card) return p; } return stackPos(me.seat, card); }
     function allowed(seat, p) {
       if (hand.played[p] != null) return false;
       if (hand.lay.hands[seat].indexOf(p) >= 0) return true;
+      if (hand.lay.stacks) return hand.lay.stacks[seat].some(function (x, i) { return topPos(seat, i) === p; });
       var st = hand.state;
       return !!hand.lay.skat && hand.lay.skat.indexOf(p) >= 0 && st.declarer === seat && !!st.pickedUp;
     }
@@ -282,7 +319,7 @@
       if (m.t === "keys") {
         if (!Array.isArray(m.pos) || !Array.isArray(m.k) || m.pos.length !== m.k.length) return null;
         m.pos.forEach(function (p, i) { if (p >= 0 && p < N && MP.isPoint(m.k[i])) (h.keys[p] = h.keys[p] || {})[seat] = m.k[i]; });
-        openOwn(); return null;
+        openOwn(); settle(); return null;
       }
       if (m.t === "rev") {
         if (!R.done(h.state)) return WAIT;
@@ -302,6 +339,7 @@
         if (!(m.pos >= 0 && m.pos < N) || !allowed(seat, m.pos)) { if (R.turn(h.state) !== seat) return WAIT; flag(seat, "card"); return null; }
         var id = reveal(m.pos, m.keys, seat); if (id < 0) { flag(seat, "card"); return null; }
         a.card = R.DECK[id];
+        if (h.pub[m.pos] != null && h.pub[m.pos] !== id) { flag(seat, "card"); return null; }   // a stack card is what lies open
         r = R.apply(h.state, a); if (!r.ok) return WAIT;
         h.played[m.pos] = seat; h.state = r.state;
       } else if (a.t === "show") {
@@ -352,15 +390,16 @@
     // After every move: handed-over seats move at once, the same on every device; at the end all secrets go round.
     function settle() {
       var h = hand;
+      bare();
       while (hand === h && !R.done(h.state)) {
         var s = R.turn(h.state), g = h.ghost[s]; if (!g || s === me.seat) break;
         var cs = ghostCards(s), a = R.auto(h.state, s, cs.map(function (x) { return x.card; }));
         if (!a) break;
-        var at = function (c) { return cs.filter(function (x) { return x.card === c; })[0].p; };
+        var at = function (c) { var x = cs.filter(function (y) { return y.card === c; })[0]; return x ? x.p : stackPos(s, c); };
         if (a.t === "play") h.played[at(a.card)] = s;
         if (a.t === "push") g.pushed = a.cards.map(at);
         var r = R.apply(h.state, a); if (!r.ok) { flag(s, "auto"); break; }
-        h.state = r.state; h.moves++;
+        h.state = r.state; h.moves++; bare();
       }
       if (hand === h && R.done(h.state)) {
         Object.keys(h.ghost).forEach(function (s) { h.rev[s] = { sec: h.ghost[s].sec, pushed: h.ghost[s].pushed }; });
@@ -377,6 +416,7 @@
       if (!v.ok) out.cheat = v.seat;
       else {
         var full = { hands: h.lay.hands.map(function (ps) { return ps.map(function (p) { return R.DECK[v.deck[p]]; }); }) };
+        if (h.lay.stacks) full.stacks = h.lay.stacks.map(function (row) { return row.map(function (x) { return { up: R.DECK[v.deck[x.up]], down: R.DECK[v.deck[x.down]] }; }); });
         if (h.lay.skat) {
           full.skat = h.lay.skat.map(function (p) { return R.DECK[v.deck[p]]; });
           var d = h.state.declarer;
@@ -391,6 +431,7 @@
       }
       out.names = h.roster.map(function (id) { var x = id === me.id ? me : members[id]; return x ? x.emoji + " " + x.name : "?"; });
       last = out; hand = null; no++;
+      if (leaving) setTimeout(function () { leaving = false; leave(true); }, 0);   // stood up during the hand: now it is over
       Object.keys(members).forEach(function (id) { if (members[id].gone) remove(id); });   // a handed-over seat is free now
       emit();
     }
@@ -469,8 +510,13 @@
       if (!h || !final() || me.seat < 0 || R.done(h.state) || h.own.some(function (p) { return h.open[p] == null; })) return null;
       return { t: "handover", no: h.no, sec: h.sec, pushed: h.pushed, open: h.own.map(function (p) { return [p, keysFor(p)]; }) };
     }
-    function leave() {
+    // now: leave at once (Bauernskat against the bot on this device: both go together)
+    function leave(now) {
       if (closed) return;
+      if (now !== true && R.reveals && hand && final() && me.seat >= 0 && !R.done(hand.state)) {
+        if (!leaving) { leaving = true; setAuto(true); }
+        return;
+      }
       var ho = handover(), ls = links;
       closed = true; clearTimeout(timer); clearTimeout(autoT); links = {};
       function shut() { Object.keys(ls).forEach(function (id) { try { ls[id].close(); } catch (e) {} }); }
@@ -499,8 +545,8 @@
           return { id: id, name: x.name, emoji: x.emoji, me: id === me.id, linked: id === me.id || !!links[id], score: scores[id] || 0, auto: !!x.auto, gone: !!x.gone };
         }),
         invites: invites.map(function (i) { return { token: i.token, expires: i.expires, seat: i.seat, group: i.group }; }),
-        hand: hand ? { no: hand.no, dealt: !!final() && !hand.own.some(function (p) { return hand.open[p] == null; }), state: st, turn: R.turn(st), cards: myCards(), actions: actions(), roster: hand.roster,
-          ghosts: Object.keys(hand.ghost).map(function (s) { return { seat: +s, cards: ghostCards(+s).map(function (x) { return x.card; }) }; }) } : null,
+        hand: hand ? { no: hand.no, dealt: !!final() && !hand.own.some(function (p) { return hand.open[p] == null; }) && st.phase !== "deal", state: st, turn: R.turn(st), cards: myCards(), actions: actions(), roster: hand.roster,
+          flags: hand.flags.slice(), ghosts: Object.keys(hand.ghost).map(function (s) { return { seat: +s, cards: ghostCards(+s).map(function (x) { return x.card; }) }; }) } : null,
         want: want, last: last
       };
     }

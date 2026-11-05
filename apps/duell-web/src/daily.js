@@ -311,7 +311,7 @@
     } else if (o.k === "turn") {
       Turns.sanitize(o, d);
     } else if (o.k === "table") {
-      d.g = o.g === "skat" ? "skat" : "doko";
+      d.g = o.g === "skat" || o.g === "bauernskat" ? o.g : "doko";
     } else {
       var g = C.sanitizeState({ v: 1, seed: o.g && o.g.seed, params: o.g && o.g.params, theme: o.g && o.g.theme, title: o.g && o.g.title, emoji: o.g && o.g.emoji, look: o.g && o.g.look, route: o.g && o.g.route });
       d.g = { seed: g.seed, params: g.params, theme: g.theme, title: g.title, emoji: g.emoji };
