@@ -7,7 +7,7 @@ const { chromium, devices } = require("playwright");
 // The option hashes as the server computes them, fixed here and not recomputed with the page's own canonical(): sha256 over
 // canonical() from CADS-DEMO-wrapper lib/duell-seal.mjs, base64url, 43 characters.
 // H_WELT is the hash the live server sent with this very option (2026-11-05, "hashes"), so it also checks canonical().
-const H_WISH = "DW_OmSXV_rx6BCXNzLlcYiO2vjKxt5zg3PHI0YWqxmU", H_WELT = "3tcKq21IwdMq89hVw0ASV5MnYO6RX-JkYugqLugtlsA", H_A1 = "macQPQ6HVOj2G8RGlyaJu8hYLaUhlUg1-bNH1Afhfzw", H_B2 = "iesb_yN0JfIuZ06yVvHEmZrv8or8KsDjYN3eaVEj6Yk";
+const H_WISH = "DW_OmSXV_rx6BCXNzLlcYiO2vjKxt5zg3PHI0YWqxmU", H_WELT = "3tcKq21IwdMq89hVw0ASV5MnYO6RX-JkYugqLugtlsA", H_A1 = "asJ4aPWdc5Trd1BDmMIfIx2J4nDtTckXhCLKhpOleeU", H_B2 = "z11WpVDZ1RrrQn4TIOXG0sDEiqtSUPvXYbKxtqg3Alw";
 const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
 const API = "https://demos-34a13a96.bunsenbrenner.org/api/duell/";
 let b;
@@ -115,12 +115,13 @@ test("Wunsch ohne Aenderung wird nicht abgebucht: /ai/discard statt /ai/accept",
 test("Optionen: genau ein /ai/accept je Antwort, auch bei mehreren Tipps; unberuehrte Optionen gehen per /ai/discard zurueck; Siegel der getippten Option", async () => {
   let n = 0;
   const { p, errs, sent } = await phone((path0) => {
-    if (path0 === "ai") { n++; return [200, { kind: "line", options: ["Zeile A" + n, "Zeile B" + n], seals: ["s1.line.a.sigA000" + n, "s1.line.b.sigB000" + n], cost: 1, receipt: "rc-line-" + n, meter: { free: 7, remaining: 6, period: "week" } }]; }
+    if (path0 === "ai") { n++; return [200, { kind: "text", options: [{ x: "Zeile A" + n }, { x: "Zeile B" + n }], seals: ["s2.text.a.sigA000" + n, "s2.text.b.sigB000" + n], cost: 1, receipt: "rc-line-" + n, meter: { free: 7, remaining: 6, period: "week" } }]; }
     if (path0 === "ai/accept" || path0 === "ai/discard") return [200, { meter: { free: 7, remaining: 6, period: "week" } }];
     return null;
   });
   await openCard(p, "Text");
-  const ask = p.getByRole("button", { name: /^✨ / });
+  await p.locator(".txan button", { hasText: "Lob" }).tap();             // the card text needs its occasion (texte.js)
+  const ask = p.getByRole("button", { name: "✨ Persönlicher Text" });
   await ask.tap(); await p.getByRole("button", { name: "Zeile A1" }).waitFor();
   await ask.tap(); await p.getByRole("button", { name: "Zeile A2" }).waitFor();          // the first answer stayed untouched
   await p.getByRole("button", { name: "Zeile B2" }).tap(); await p.getByRole("button", { name: "Zeile A2" }).tap(); await p.getByRole("button", { name: "Zeile B2" }).tap();
@@ -129,20 +130,21 @@ test("Optionen: genau ein /ai/accept je Antwort, auch bei mehreren Tipps; unberu
   const paths = sent.map((x) => x.path + ":" + (x.body.receipt || ""));
   assert.deepEqual(paths.filter((x) => x.startsWith("ai/")).sort(), ["ai/accept:rc-line-2", "ai/discard:rc-line-1"]);
   const doc = await p.evaluate(() => window.DailyDebug.doc());
-  assert.equal(doc.x, "Zeile B2"); assert.deepEqual(doc.ki, { k: "line", s: "s1.line.b.sigB0002", h: H_B2 });
+  assert.equal(doc.x, "Zeile B2"); assert.deepEqual(doc.ki, { k: "text", s: "s2.text.b.sigB0002", h: H_B2 });
   assert.deepEqual(errs, []); await p.context().close();
 });
 
 test("Zweiter Tipp waehrend die Optionen noch gehasht werden: der Knopf bleibt gesperrt, nie zwei Antwort-Saetze, kein kostenloses Uebernehmen", async () => {
   let n = 0;
   const { p, errs, sent } = await phone((path0) => {
-    if (path0 === "ai") { n++; return [200, { kind: "line", options: ["Zeile A" + n, "Zeile B" + n], seals: ["s1.line.a.sigA000" + n, "s1.line.b.sigB000" + n], cost: 1, receipt: "rc-line-" + n, meter: { free: 7, remaining: 6, period: "week" } }]; }
+    if (path0 === "ai") { n++; return [200, { kind: "text", options: [{ x: "Zeile A" + n }, { x: "Zeile B" + n }], seals: ["s2.text.a.sigA000" + n, "s2.text.b.sigB000" + n], cost: 1, receipt: "rc-line-" + n, meter: { free: 7, remaining: 6, period: "week" } }]; }
     if (path0 === "ai/accept" || path0 === "ai/discard") return [200, { meter: { free: 7, remaining: 6, period: "week" } }];
     return null;
   });
   // only the digest of the first answer's option is slow; the proof of work and everything else run at full speed
-  await p.evaluate(() => { const d = crypto.subtle.digest.bind(crypto.subtle); crypto.subtle.digest = async (a, x) => { if (window.__slow && new TextDecoder().decode(x) === "\"Zeile A1\"") await new Promise((ok) => setTimeout(ok, window.__slow)); return d(a, x); }; });
+  await p.evaluate(() => { const d = crypto.subtle.digest.bind(crypto.subtle); crypto.subtle.digest = async (a, x) => { if (window.__slow && new TextDecoder().decode(x) === "{\"x\":\"Zeile A1\"}") await new Promise((ok) => setTimeout(ok, window.__slow)); return d(a, x); }; });
   await openCard(p, "Text");
+  await p.locator(".txan button", { hasText: "Lob" }).tap();
   const ask = p.locator(".aibox button.chip:not(.aiopt)").first();
   await p.evaluate(() => { window.__slow = 1500; });
   await ask.tap();
@@ -159,7 +161,7 @@ test("Zweiter Tipp waehrend die Optionen noch gehasht werden: der Knopf bleibt g
   while (sent.length < 2) await p.waitForTimeout(20);
   assert.deepEqual(sent.map((x) => x.path + ":" + (x.body.receipt || "")), ["ai:", "ai/accept:rc-line-1"]);
   const doc = await p.evaluate(() => window.DailyDebug.doc());
-  assert.equal(doc.x, "Zeile A1"); assert.deepEqual(doc.ki, { k: "line", s: "s1.line.a.sigA0001", h: H_A1 });
+  assert.equal(doc.x, "Zeile A1"); assert.deepEqual(doc.ki, { k: "text", s: "s2.text.a.sigA0001", h: H_A1 });
   assert.deepEqual(errs, []); await p.context().close();
 });
 
