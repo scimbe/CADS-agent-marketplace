@@ -64,6 +64,7 @@ function fillSheet(root, h, still) {
   if (h.note) { from.textContent = h.note; from.hidden = false; } else from.hidden = true;
   if (mode) { from.textContent = mode.note; from.hidden = false; }
   preview(root, doc || D.docFromIdea(idea, me, Kit.lang), still);
+  picture(root, idea, doc, still);
   fitHero(hero);
   return { kind: kind, mode: mode, got: got };
 }
@@ -100,6 +101,29 @@ function preview(root, doc, still) {
     if (doc.k === "arcade") return;
     R.draw(c, doc, { me: me, photo: doc.k === "photo" ? R.botFace(C.hash32(doc.x || "x"), doc.col[1]) : null, peaks: null, x: {} });
   } catch (e) { box.hidden = true; }
+}
+// A card of the day may have a picture (AI-made, src/thumbs.json): it comes from the gallery server, never inside this file,
+// and stands in for the drawn preview once it has loaded. Not for games, not on the greyed sheet, not for something
+// received, not with Save-Data; offline or missing, the sheet stays as it is. No cookies go along (crossOrigin).
+var THUMBS = window.DailyThumbs || [], picFor = null;
+function thumbUrl(id) { return new URL(C.DEFAULT_API).origin + "/duell/img/" + id + ".jpg"; }
+function saveData() {
+  try { var c = navigator.connection; return !!(c && c.saveData) || !!(window.matchMedia && matchMedia("(prefers-reduced-data: reduce)").matches); } catch (e) { return false; }
+}
+function picture(root, idea, doc, still) {
+  var box = root.querySelector(".pv"), f = root.querySelector(".pvimg"), img = f && f.querySelector("img");
+  if (!img) return;
+  box.classList.remove("pic");
+  var id = !still && idea && !doc && THUMBS.indexOf(idea.id) >= 0 && !saveData() ? idea.id : null;
+  if (!still) picFor = id;
+  if (!id) return;
+  f.querySelector(".kitag").textContent = t("aiPic");
+  img.onload = function () { if (picFor === id && !box.hidden) box.classList.add("pic"); };
+  img.onerror = function () { if (picFor === id) box.classList.remove("pic"); };
+  img.crossOrigin = "anonymous"; img.referrerPolicy = "no-referrer";
+  // Only after the page has loaded: a network that silently drops the request must not hold up the page's load.
+  var go = function () { if (picFor !== id) return; if (img.getAttribute("src") !== thumbUrl(id)) img.src = thumbUrl(id); else if (img.complete && img.naturalWidth) img.onload(); };
+  if (document.readyState === "complete") go(); else window.addEventListener("load", go, { once: true });
 }
 // A flavor (the business app) may show only some of these buttons.
 function shown(k) { var F = window.DailyFlavor; return !F || !F.feats || F.feats.indexOf(k) >= 0; }
@@ -698,6 +722,7 @@ function openStyle() {
     chips(b, Object.keys(D.SETS).map(function (s) { return { v: s, l: D.SETS[s][0] + " " + t("set_" + s) }; }), me.set, function (v) { me.set = v; saveMe(); });
     b.appendChild(el("label", "lbl", t("pf_title")));
     var pf = el("div", "pfbox"); b.appendChild(pf); prefs(pf);
+    b.appendChild(el("p", "note", t("aiPicNote")));
     b.appendChild(el("button", "btn", t("licenses"), function () { window.Parts.use("licenses", function () { var l = el("pre", "note", window.DailyLicenses); l.style.whiteSpace = "pre-wrap"; b.textContent = ""; b.appendChild(l); }).catch(function () {}); }));
   });
 }
@@ -963,7 +988,7 @@ var CU = window.CollabUI.init({
 var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
-window.DailyApp = { prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { unpic: function () { picFor = null; document.querySelector("#leaf .pv").classList.remove("pic"); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 /* test hook, used by browser checks: read-only snapshot */
 window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); }, collab: function () { return CU.engine(); } };
