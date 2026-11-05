@@ -53,9 +53,10 @@ const fontCss = "/* Anton, Copyright 2020 The Anton Project Authors (https://git
   '@font-face{font-family:"Anton";font-style:normal;font-weight:400 900;font-display:block;src:url(data:font/woff2;base64,' + fs.readFileSync(fontFile).toString("base64") + ") format(\"woff2\")}\n";
 let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + read("src/style.css") + (has("style.css") ? "\n" + read(fl("style.css")) : ""));
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
-// Our own sources lose their comment-only lines in the page (about 55 KB); third-party code (QR code) and the data stay as they are.
+// Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
+// code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
 const KEEP = new Set(["DATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA"]);
-const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).join("\n");
+const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "")).join("\n");
 const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));
 // Each part: its sources one after the other, each closed with ";" like the separate <script> blocks they were. The name
