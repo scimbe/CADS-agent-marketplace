@@ -207,7 +207,7 @@ test("Krise: der zentrale Hinweis aus ai.js (aiCrisis), lokal erkannt geht nicht
   await f.fill("Ich ritze am Samstag"); await p.getByRole("button", { name: "✨ Vorschlag" }).tap();
   await waitSent(sent, "ai"); for (let i = 0; i < 100 && asked() < 2; i++) await p.waitForTimeout(30);
   await p.locator(".aistate", { hasText: "116 111" }).waitFor();
-  assert.equal(await p.locator(".aistate").textContent(), T.de.aiCrisis); assert.equal(await p.getByText("SERVERTEXT").count(), 0, "nie der Text des Servers");
+  assert.equal(await p.locator(".aistate").textContent(), T.de.aiCrisis); assert.equal(await p.getByText("SERVERTEXT").count(), 0, "nie der Text des Servers"); assert.equal(await p.locator(".aihelp").count(), 0, "kein zweiter Absatz, kein roher Textschluessel"); assert.equal(await p.getByText("aiHelp").count(), 0);
   await f.fill("Mutprobe am Samstag"); await p.getByRole("button", { name: "✨ Vorschlag" }).tap();
   await p.locator(".aistate", { hasText: T.de.aiKind }).waitFor();
   assert.equal(await p.locator(".satzrev").count(), 0); assert.equal(await next(p), null);
