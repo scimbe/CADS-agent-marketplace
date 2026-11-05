@@ -116,7 +116,8 @@ test("Fensterebene: Kreuz schliesst, Merken legt die Arbeit auf die Wand und oef
   const bar = await p.evaluate(() => { const f = document.getElementById("feat"), tr = f.querySelector(".track"); return { shown: getComputedStyle(f).display !== "none", anim: getComputedStyle(tr).animationName, hidden: tr.querySelectorAll("[aria-hidden=true]").length, all: tr.children.length }; });
   assert.ok(bar.shown); assert.equal(bar.anim, "ticker"); assert.equal(bar.hidden * 2, bar.all, "zweite Kopie nur fuers Auge");
   await p.locator("#feat").hover();   // like a finger on it: the ticker stands still
-  await p.getByRole("button", { name: /Meme bauen/ }).click();
+  // the bar's button, not #go: on a day whose sheet is a meme (5 Nov) that one says "Meme bauen" too
+  await p.locator("#feat").getByRole("button", { name: /Meme bauen/ }).click();
   await p.locator("#editor").waitFor();
   assert.equal(await p.locator("#edback").getAttribute("aria-label"), "Schließen"); assert.equal(await p.locator("#edback").textContent(), "✕");
   await p.locator("#edsave").click();
