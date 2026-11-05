@@ -266,28 +266,6 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .tbacts{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;width:100%}.tbacts .btn{min-height:44px;padding:6px 12px;font-size:16px}
 .tbauto{min-height:40px;padding:6px 12px;font-size:15px}.tbclock{font-size:16px}.tbghost{margin:0;font-weight:900}
 @media (max-width:420px){.tbcard{width:52px;height:78px}}
-/* Bauernskat (table-ui.js playBs): phone first, portrait 360-412 px; the other's stacks small on top, mine and the hand big
-   below. --cw: my card width, from the screen's width and height so that a 360x740 phone shows everything without scrolling. */
-.bsov{--cw:min(84px,9.3vh,calc((100vw - 48px)/4));--ow:min(48px,6vh);--tw:min(62px,7.6vh);padding:0 12px max(12px,env(safe-area-inset-bottom));overflow-x:hidden}
-.bsov .tbbody{max-width:480px;gap:6px;padding-top:12px}.bsov .tbbody>.lbl:first-child{margin:0 56px 0 0;align-self:flex-start;font-size:16px;min-height:44px;line-height:44px}
-.bsplay{width:100%;display:flex;flex-direction:column;gap:6px}.bsleft,.bsright{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
-.bstop{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:2px 8px}.bstop .tbinfo{font-weight:800;text-align:left;margin:0}
-.bsov .tbturn{font-size:17px;min-height:0}.bsov .tbturn.hot{color:var(--ink);background:var(--paper);border:2px solid var(--ink);padding:0 6px}
-.bswho{margin:0;font:800 15px var(--ui);align-self:flex-start}
-.bsstacks{display:grid;grid-template-columns:repeat(4,var(--cw));gap:6px;justify-content:center}.bsstacks.theirs{grid-template-columns:repeat(4,var(--ow));gap:8px}
-.bsstack{position:relative;width:100%;aspect-ratio:2/3.3}
-.bsstack .tbcard{position:absolute;left:0;top:0;width:100%;height:auto;aspect-ratio:2/3;z-index:1}.bsstack .bsback{top:auto;bottom:0;z-index:0}
-.bsstack.empty{border:2px dashed rgba(17,17,17,.5);border-radius:6px;aspect-ratio:2/3}
-.bsback{border-radius:6px;border:2px solid #111;background:#0d5c2e repeating-linear-gradient(45deg,transparent 0 6px,rgba(255,255,255,.18) 6px 9px)}
-.bshand{display:grid;grid-template-columns:repeat(4,var(--cw));gap:6px;justify-content:center;width:100%}
-.bshand .tbcard{width:100%;height:auto;aspect-ratio:2/3;min-width:44px}.bsstacks .tbcard.ok,.bshand .tbcard.ok{outline:3px solid var(--ink);outline-offset:1px;border-radius:6px}
-.bsmid{width:100%;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px 14px}.bsmid .tbexplain{flex-basis:100%}
-.bstrick{min-height:calc(var(--tw)*1.5 + 16px);gap:12px;width:auto}.bstrick .tbcard{width:var(--tw);height:calc(var(--tw)*1.5)}.bsdeclare{margin:0;font-weight:900}
-.bsov .tbacts .btn{min-height:48px;min-width:72px;font-size:17px}.bsfoot{width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px}.bsfoot .tbauto{min-height:44px}.bsfoot .tbscore{margin:0;text-align:right}
-.bsprev{width:min(100%,320px);height:auto;border:3px solid var(--ink)}
-@media (orientation:landscape) and (max-height:520px){.bsov{--cw:min(60px,14vh);--ow:min(40px,10vh);--tw:min(52px,13vh)}.bsov .tbbody{max-width:920px}
-.bsplay{display:grid;grid-template-columns:1fr 1.3fr;gap:12px;align-items:start}.bshand{grid-template-columns:repeat(8,var(--cw))}}
-@media (prefers-reduced-motion:reduce){.tbcard{transition:none}.tbcard.ok:active,.tbcard.sel{transform:none}}
 /* Advent door from a link (door.js): closed, one tap, two leaves swing open; with reduced motion it only fades */
 #door{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));background:var(--da);color:#fffaf0;text-align:center;overflow:auto}
 .dtitle{margin:0;font:900 clamp(28px,8vw,44px)/1 var(--disp);text-transform:uppercase;text-shadow:0 3px 0 rgba(0,0,0,.35)}

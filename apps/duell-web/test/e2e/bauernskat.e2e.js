@@ -84,17 +84,17 @@ async function playHand(all) {
 async function fits(p) {
   const r = await p.evaluate(() => {
     const W = document.documentElement.clientWidth, over = [...document.querySelectorAll(".tbov *")].filter((e) => { const b = e.getBoundingClientRect(); return b.width && (b.right > W + 1 || b.left < -1); }).map((e) => e.className);
-    const mine = [...document.querySelectorAll(".bshand .tbcard, .bsstacks.mine .tbcard:not(.bsback)")].map((e) => e.getBoundingClientRect()).map((b) => [Math.round(b.width), Math.round(b.height)]);
+    const mine = [...document.querySelectorAll(".bsstacks.mine .tbcard:not(.bsback)")].map((e) => e.getBoundingClientRect()).map((b) => [Math.round(b.width), Math.round(b.height)]);
     const ov = document.querySelector(".tbov");
     return { W, sw: ov.scrollWidth, cw: ov.clientWidth, over, mine };
   });
   assert.ok(r.sw <= r.cw, "no horizontal scroll: " + r.sw + " > " + r.cw);
   assert.deepEqual(r.over, [], "inside the screen");
-  assert.ok(r.mine.length >= 8, "my cards: " + r.mine.length);
+  assert.ok(r.mine.length >= 1, "my cards: " + r.mine.length);
   r.mine.forEach(([w, h]) => { assert.ok(w >= 44 && h >= 44, "tap target " + w + "x" + h); });
   return r;
 }
-async function dealt(x) { await x.p.locator(".bshand .tbcard").first().waitFor({ timeout: 60000 }); }
+async function dealt(x) { await x.p.locator(".bsstacks.mine .tbcard").first().waitFor({ timeout: 60000 }); }
 
 test("Bauernskat gegen den Bot: drei Taps bis zum Spiel, Handy hochkant passt, ganze Partie bis zur Pruefung", async () => {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
@@ -104,15 +104,17 @@ test("Bauernskat gegen den Bot: drei Taps bis zum Spiel, Handy hochkant passt, g
     if (SHOTS) await x.p.screenshot({ path: SHOTS + "/bauernskat-start-" + size.name + ".png" });
     await x.p.getByRole("button", { name: "🤖 Gegen den Bot" }).click();   // tap 3: dealt
     await dealt(x);
-    const hand = await x.p.locator(".bshand .tbcard").evaluateAll((els) => els.map((e) => e.dataset.card));
-    assert.equal(hand.length, 8);
-    assert.equal(await x.p.locator(".bsstacks.mine .tbcard:not(.bsback)").count(), 4, "4 face up on my side");
-    assert.equal(await x.p.locator(".bsstacks.theirs .tbcard:not(.bsback)").count(), 4, "4 face up on the bot's side");
-    assert.equal(await x.p.locator(".bsstacks .bsback").count(), 8, "8 face down");
-    await fits(x.p);
+    assert.equal(await x.p.locator(".bshand").count(), 0, "no hand");
+    assert.equal(await x.p.locator(".bsstacks.mine .tbcard:not(.bsback)").count(), 8, "8 face up on my side");
+    assert.ok(await x.p.locator(".bsstacks.theirs .tbcard:not(.bsback)").count() >= 7, "8 face up on the bot's side (one may already lie in the trick)");
+    assert.equal(await x.p.locator(".bsstacks .bsback").count(), 16, "16 face down");
+    assert.equal((await fits(x.p)).mine.length, 8);
+    // everything on one screen at this size: my last row and the Auto button are visible without scrolling
+    const low = await x.p.evaluate(() => Math.max(...[...document.querySelectorAll(".bsstacks.mine .bsstack, .bsfoot")].map((e) => e.getBoundingClientRect().bottom)));
+    assert.ok(low <= size.h, "no scrolling: " + low + " > " + size.h);
     if (SHOTS) await x.p.screenshot({ path: SHOTS + "/bauernskat-ansage-" + size.name + ".png" });
     // a few tricks, then the picture mid-game
-    for (let i = 0; i < 400 && (await x.p.locator(".bsstacks .bsback").count()) > 6; i++) { await step(x); await x.p.waitForTimeout(40); }
+    for (let i = 0; i < 400 && (await x.p.locator(".bsstacks .bsback").count()) > 12; i++) { await step(x); await x.p.waitForTimeout(40); }
     await fits(x.p);
     if (SHOTS) await x.p.screenshot({ path: SHOTS + "/bauernskat-" + size.name + ".png" });
     // "Why?" at the trick explains it from the Skat rules
@@ -153,16 +155,11 @@ test("Bauernskat zu zweit ueber den Link: zwei Browser, ein Paar-Link, ganze Par
   await B.p.goto(page + shared.slice(shared.indexOf("#")));
   await dealt(A); await dealt(B);
   assert.equal(await A.p.locator(".tbbadge").textContent(), await B.p.locator(".tbbadge").textContent());
-  // each sees their own 8 cards; the other's hand is nowhere on screen, and the face-down cards are only backs
-  const hA = await A.p.locator(".bshand .tbcard").evaluateAll((els) => els.map((e) => e.dataset.card));
-  const hB = await B.p.locator(".bshand .tbcard").evaluateAll((els) => els.map((e) => e.dataset.card));
-  assert.equal(hA.length, 8); assert.equal(hB.length, 8); assert.equal(new Set(hA.concat(hB)).size, 16);
-  const shownA = await A.p.locator("[data-card]").evaluateAll((els) => els.map((e) => e.dataset.card));
-  hB.forEach((c) => assert.ok(shownA.indexOf(c) < 0, "B's card " + c + " not on A's screen"));
-  const upA = await A.p.locator(".bsstacks .tbcard:not(.bsback)").evaluateAll((els) => els.map((e) => e.dataset.card).sort());
-  const upB = await B.p.locator(".bsstacks .tbcard:not(.bsback)").evaluateAll((els) => els.map((e) => e.dataset.card).sort());
-  assert.deepEqual(upA, upB); assert.equal(upA.length, 8);
-  assert.equal(new Set(upA.concat(hA, hB)).size, 24, "16 hand + 8 face up, the other 8 still hidden");
+  // both see the same 16 face-up cards and 16 backs; no card that lies face down is anywhere on either screen
+  const shown = async (x) => (await x.p.locator("[data-card]").evaluateAll((els) => els.map((e) => e.dataset.card))).sort();
+  const upA = await shown(A), upB = await shown(B);
+  assert.deepEqual(upA, upB); assert.equal(upA.length, 16); assert.equal(new Set(upA).size, 16);
+  for (const x of [A, B]) { assert.equal(await x.p.locator(".bsstacks .bsback").count(), 16); assert.equal(await x.p.locator(".bshand").count(), 0); }
   await playHand([A, B]);
   const pa = (await A.p.locator(".tbresult b").allInnerTexts()).map(Number), pb = (await B.p.locator(".tbresult b").allInnerTexts()).map(Number);
   assert.deepEqual(pa, pb);

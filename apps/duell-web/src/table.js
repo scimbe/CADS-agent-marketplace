@@ -5,10 +5,13 @@
    frees the seat; a running hand is dropped, because its cards stay locked without that player's keys.
    Cards: mpoker.js. Every seat shuffles and locks, each player only ever gets the keys of their own positions, a played
    card publishes all keys of its position, and after the hand all secrets are revealed and the deal is replayed.
-   Bauernskat (bauernskat.js, two seats, one pair link): the face-up stack cards are opened by everyone publishing their
+   Bauernskat (bauernskat.js, two seats, one pair link, no hands): a stack card is opened by everyone publishing their
    key for that position when the rules list it in reveals() - the face-up row after the deal, a face-down card only once
-   the trick that took the face-up card above it is over. No device ever sends a key for a face-down card before that,
-   and the hands go only to their owners as in Skat; every device then applies the same "turn" action.
+   the trick that took the card above it is over. No device ever sends a key for a face-down card before that; every
+   device then applies the same "turn" action. Standing up during such a hand does not hand the face-down keys over at
+   once: the device stays at the table on Auto (only the screen closes) and keeps releasing each key when reveals() names
+   it; when the hand is over it leaves. A key that does not open its card is the other seat's fault (my own key is the one
+   I made): the hand stops there, and view().hand.flags says who.
    Rules: doko.js / skat.js / bauernskat.js, run identically on every device. Messages from one sender are handled strictly in the
    order sent (calls in Doppelkopf depend on how many cards the caller had played); a message that arrives before what
    it builds on (another player's card on a different link) waits until it fits.
@@ -52,6 +55,7 @@
     // House rules: the same list on every device. Set between hands by anyone seated; the higher version wins, on a tie
     // the smaller player id, so two taps at once still end in one list. A hand only starts once every ready names it.
     var house = R.rules(o.rules), rulesV = 0, rulesBy = "";
+    var leaving = false;   // Bauernskat: stood up, plays the hand to its end on Auto, then leaves
     var no = 0, hand = null, last = null, want = true, lost = false, closed = false, joinVia = null, pumping = false, timer = 0, subs = [], note = "", meReady = null;
 
     // ---------- small helpers ----------
@@ -127,7 +131,7 @@
       var name = members[id].name;
       delete members[id]; delete readies[id]; delete queues[id]; delete scores[id];
       if (links[id]) { var c = links[id]; delete links[id]; try { c.close(); } catch (e) {} }
-      if (hand) { hand = null; no++; last = { aborted: true, who: name }; want = true; }
+      if (hand) { hand = null; no++; last = { aborted: true, who: name }; want = true; if (leaving) setTimeout(function () { leaving = false; leave(true); }, 0); }
       all(peersMsg()); emit(); maybeReady();
     }
 
@@ -182,7 +186,7 @@
         if (!mine || x.seat < me.seat) holds[m.seat] = from;           // two holds on one seat: the lower seat keeps it
         if (mine && x.seat < me.seat) { var s = free(); invites.forEach(function (i) { if (i.seat === m.seat) i.seat = s; }); if (s >= 0) { holds[s] = me.id; all({ t: "hold", seat: s }); } }
       } else if (m.t === "unhold" && holds[m.seat] === from) delete holds[m.seat];
-      else if (m.t === "gone" && ID_RE.test(m.id || "")) { if (m.id === me.id) { lost = true; leave(); } else remove(m.id); }
+      else if (m.t === "gone" && ID_RE.test(m.id || "")) { if (m.id === me.id) { lost = true; leave(true); } else remove(m.id); }
       else if (m.t === "peers" && x) {
         x.peers = (Array.isArray(m.ids) ? m.ids : []).filter(function (y) { return ID_RE.test(y); }).slice(0, SEATS);
         x.ch = (Array.isArray(m.ch) ? m.ch : []).slice(0, SEATS); maybeReady();
@@ -266,7 +270,8 @@
         list.forEach(function (r) {
           var k = keysFor(r.p); if (!k || h.bad[r.p]) return;
           var id = MP.open(f[r.p], k, N), x = id >= 0 ? R.apply(h.state, { t: "turn", seat: r.seat, i: r.i, card: R.DECK[id] }) : null;
-          if (!x || !x.ok) { h.bad[r.p] = 1; flag(r.seat, "deal"); return; }
+          // my key is the one I made, so with two seats a key that does not fit is the other one's
+          if (!x || !x.ok) { h.bad[r.p] = 1; flag(SEATS === 2 ? 1 - me.seat : r.seat, "key"); note = "badkey"; return; }
           h.state = x.state; h.pub[r.p] = id; moved = true;
         });
       }
@@ -426,6 +431,7 @@
       }
       out.names = h.roster.map(function (id) { var x = id === me.id ? me : members[id]; return x ? x.emoji + " " + x.name : "?"; });
       last = out; hand = null; no++;
+      if (leaving) setTimeout(function () { leaving = false; leave(true); }, 0);   // stood up during the hand: now it is over
       Object.keys(members).forEach(function (id) { if (members[id].gone) remove(id); });   // a handed-over seat is free now
       emit();
     }
@@ -504,8 +510,13 @@
       if (!h || !final() || me.seat < 0 || R.done(h.state) || h.own.some(function (p) { return h.open[p] == null; })) return null;
       return { t: "handover", no: h.no, sec: h.sec, pushed: h.pushed, open: h.own.map(function (p) { return [p, keysFor(p)]; }) };
     }
-    function leave() {
+    // now: leave at once (Bauernskat against the bot on this device: both go together)
+    function leave(now) {
       if (closed) return;
+      if (now !== true && R.reveals && hand && final() && me.seat >= 0 && !R.done(hand.state)) {
+        if (!leaving) { leaving = true; setAuto(true); }
+        return;
+      }
       var ho = handover(), ls = links;
       closed = true; clearTimeout(timer); clearTimeout(autoT); links = {};
       function shut() { Object.keys(ls).forEach(function (id) { try { ls[id].close(); } catch (e) {} }); }
@@ -535,7 +546,7 @@
         }),
         invites: invites.map(function (i) { return { token: i.token, expires: i.expires, seat: i.seat, group: i.group }; }),
         hand: hand ? { no: hand.no, dealt: !!final() && !hand.own.some(function (p) { return hand.open[p] == null; }) && st.phase !== "deal", state: st, turn: R.turn(st), cards: myCards(), actions: actions(), roster: hand.roster,
-          ghosts: Object.keys(hand.ghost).map(function (s) { return { seat: +s, cards: ghostCards(+s).map(function (x) { return x.card; }) }; }) } : null,
+          flags: hand.flags.slice(), ghosts: Object.keys(hand.ghost).map(function (s) { return { seat: +s, cards: ghostCards(+s).map(function (x) { return x.card; }) }; }) } : null,
         want: want, last: last
       };
     }

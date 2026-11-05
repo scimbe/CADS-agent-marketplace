@@ -12,8 +12,9 @@ var TX = {
     shareText: { doko: "Doppelkopf live! Mir fehlt noch wer am Tisch – tippen und hinsetzen (15 Min):", skat: "Skat live! Mir fehlt noch wer am Tisch – tippen und hinsetzen (15 Min):", bauernskat: "Bauernskat zu zweit! Tippen und hinsetzen (15 Min):" },
     inviteAll: "👥 Alle einladen", shareAll: "Gruppenlink nochmal teilen",
     shareGroup: { doko: "Doppelkopf live! Wer zuerst tippt, sitzt am Tisch (15 Min):", skat: "Skat live! Wer zuerst tippt, sitzt am Tisch (15 Min):", bauernskat: "Bauernskat zu zweit! Wer zuerst tippt, spielt gegen mich (15 Min):" },
-    bsBot: "🤖 Gegen den Bot", bsLink: "🔗 Freund per Link", bsHow: "Skat zu zweit: 8 Karten auf der Hand, 4 offen auf 4 verdeckten. Vorhand sagt an, 61 Augen gewinnen.",
-    bsHand: "{n} auf der Hand", bsDeclare: "Sag das Spiel an:", botName: "Bot", r_null: "Null erlaubt",
+    bsBot: "🤖 Gegen den Bot", bsLink: "🔗 Freund per Link", bsHow: "Skat zu zweit: 8 Stapel, je eine Karte offen auf einer verdeckten. Vorhand sagt an, 61 Augen gewinnen.",
+    bsDeclare: "Sag das Spiel an:", botName: "Bot", r_null: "Null erlaubt",
+    bsBad: "⚠ {n} hat einen falschen Schlüssel geschickt – dieses Spiel zählt nicht. Aufstehen beendet es.",
     autoOff: "🤖 Auto: aus", autoOn: "🤖 Auto: an", autoIn: "Auto in {n} s", ghost: "🤖 spielt offen für {n}",
     guest: "Gast {n}", total: "Gesamt", free: "frei", held: "eingeladen …", you: "Du", wait: "Es fehlen noch {n}.", mesh: "Alle verbinden sich …", shuffle: "Alle mischen gemeinsam …",
     badgeNote: "Seht ihr alle dieselben drei Bilder? Dann sitzt ihr am selben Tisch.", ipNote: "Live-Spiele laufen möglichst direkt zwischen euren Geräten. Dabei können die Geräte die IP-Adressen der anderen sehen.",
@@ -39,8 +40,9 @@ var TX = {
     shareText: { doko: "Doppelkopf live! I'm missing a player – tap and take a seat (15 min):", skat: "Skat live! I'm missing a player – tap and take a seat (15 min):", bauernskat: "Bauernskat for two! Tap and take a seat (15 min):" },
     inviteAll: "👥 Invite everyone", shareAll: "Share group link again",
     shareGroup: { doko: "Doppelkopf live! First to tap gets a seat (15 min):", skat: "Skat live! First to tap gets a seat (15 min):", bauernskat: "Bauernskat for two! First to tap plays me (15 min):" },
-    bsBot: "🤖 Play the bot", bsLink: "🔗 Friend via link", bsHow: "Skat for two: 8 cards in hand, 4 face up on 4 face down. Forehand names the game, 61 card points win.",
-    bsHand: "{n} in hand", bsDeclare: "Name the game:", botName: "Bot", r_null: "Null allowed",
+    bsBot: "🤖 Play the bot", bsLink: "🔗 Friend via link", bsHow: "Skat for two: 8 stacks, each one card face up on one face down. Forehand names the game, 61 card points win.",
+    bsDeclare: "Name the game:", botName: "Bot", r_null: "Null allowed",
+    bsBad: "⚠ {n} sent a wrong key – this game does not count. Stand up to end it.",
     autoOff: "🤖 Auto: off", autoOn: "🤖 Auto: on", autoIn: "Auto in {n} s", ghost: "🤖 plays {n}'s cards face up",
     guest: "Guest {n}", total: "Total", free: "free", held: "invited …", you: "You", wait: "{n} missing.", mesh: "Everyone is connecting …", shuffle: "Shuffling together …",
     badgeNote: "Do you all see the same three pictures? Then you sit at the same table.", ipNote: "Live games run directly between your devices where possible. The devices may see each other's IP addresses.",
@@ -117,7 +119,30 @@ function pickGame(g) { return g === "skat" || g === "bauernskat" ? g : "doko"; }
 // ---------- the layer ----------
 var ov = null, tb = null, robot = null, game = "doko", pick = [], tick = 0, whyAt = "";
 var mine = [];   // the tokens of this table's links that I made or came in with: tapped again, they lead back here
+// Bauernskat (playBs): phone first, portrait 360-412 px - the other's 8 stacks small on top, the trick, my 8 stacks below
+// (4 x 2, or 8 in a row where there is room). --cw: my card width from the screen's width and height, so 360x740 needs
+// no scrolling. Lives here, in the table part, not in the page's core CSS.
+var CSS = ".bsov{--cw:min(84px,10.8vh,calc((100vw - 48px)/4));--ow:min(46px,5.6vh,calc((100vw - 56px)/8));--tw:min(64px,8vh);padding:0 12px max(12px,env(safe-area-inset-bottom));overflow-x:hidden}" +
+  ".bsov .tbbody{max-width:480px;gap:6px;padding-top:12px}.bsov .tbbody>.lbl:first-child{margin:0 56px 0 0;align-self:flex-start;font-size:16px;min-height:44px;line-height:44px}" +
+  ".bsplay{width:100%;display:flex;flex-direction:column;gap:6px}.bsleft,.bsright{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}" +
+  ".bstop{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:2px 8px}.bstop .tbinfo{font-weight:800;text-align:left;margin:0}" +
+  ".bsov .tbturn{font-size:17px;min-height:0}.bsov .tbturn.hot{color:var(--ink);background:var(--paper);border:2px solid var(--ink);padding:0 6px}.bswho{margin:0;font:800 15px var(--ui);align-self:flex-start}" +
+  ".bsstacks{display:grid;grid-template-columns:repeat(4,var(--cw));gap:6px;justify-content:center}.bsstacks.theirs{grid-template-columns:repeat(8,var(--ow));gap:4px}" +
+  ".bsstack{position:relative;width:100%;aspect-ratio:2/3.3}.bsstack .tbcard{position:absolute;left:0;top:0;width:100%;height:auto;aspect-ratio:2/3;z-index:1}.bsstack .bsback{top:auto;bottom:0;z-index:0}" +
+  ".bsstack.empty{border:2px dashed rgba(17,17,17,.5);border-radius:6px;aspect-ratio:2/3}" +
+  ".bsback{border-radius:6px;border:2px solid #111;background:#0d5c2e repeating-linear-gradient(45deg,transparent 0 6px,rgba(255,255,255,.18) 6px 9px)}" +
+  ".bsstacks.mine .tbcard{min-width:44px}.bsstacks .tbcard.ok{outline:3px solid var(--ink);outline-offset:1px;border-radius:6px}" +
+  ".bsmid{width:100%;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px 14px}.bsmid .tbexplain{flex-basis:100%}" +
+  ".bstrick{min-height:calc(var(--tw)*1.5 + 16px);gap:12px;width:auto}.bstrick .tbcard{width:var(--tw);height:calc(var(--tw)*1.5)}.bsdeclare,.bsbad{margin:0;font-weight:900}" +
+  ".bsov .tbacts .btn{min-height:48px;min-width:72px;font-size:17px}.bsfoot{width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px}.bsfoot .tbauto{min-height:44px}.bsfoot .tbscore{margin:0;text-align:right}" +
+  ".bsprev{width:min(100%,320px);height:auto;border:3px solid var(--ink)}" +
+  "@media (min-width:700px){.bsov .tbbody{max-width:720px}.bsstacks.mine{grid-template-columns:repeat(8,var(--cw))}}" +
+  "@media (orientation:landscape) and (max-height:520px){.bsov{--cw:min(60px,14vh);--ow:min(36px,9vh);--tw:min(52px,13vh)}.bsov .tbbody{max-width:920px}" +
+  ".bsplay{display:grid;grid-template-columns:1fr 1.3fr;gap:12px;align-items:start}.bsstacks.mine{grid-template-columns:repeat(8,var(--cw))}}" +
+  "@media (prefers-reduced-motion:reduce){.tbcard{transition:none}.tbcard.ok:active,.tbcard.sel{transform:none}}";
+function css() { if (document.getElementById("bscss")) return; var st = document.createElement("style"); st.id = "bscss"; st.textContent = CSS; document.head.appendChild(st); }
 function layer() {
+  css();
   if (!ov) {
     ov = el("div", "liveov tbov" + (game === "bauernskat" ? " bsov" : "")); ov.setAttribute("role", "dialog");
     ov.appendChild(el("button", "liveback", "✕", function () { Kit.sfx.tap(); close(); }));
@@ -127,8 +152,9 @@ function layer() {
 }
 function close() {
   clearInterval(tick); tick = 0;
-  if (tb) { try { tb.leave(); } catch (e) {} tb = null; }
-  if (robot) { try { robot.leave(); } catch (e) {} robot = null; }
+  // against the bot both leave at once; at a live Bauernskat table my device plays the hand out on Auto first (table.js)
+  if (tb) { try { tb.leave(!!robot); } catch (e) {} tb = null; }
+  if (robot) { try { robot.leave(true); } catch (e) {} robot = null; }
   if (ov) { ov.remove(); ov = null; }
 }
 // one token, or a group link with one token per seat (tried in order by whoever opens it)
@@ -280,28 +306,22 @@ function play(b, v) {
   b.appendChild(el("p", "note tbscore", v.seats.map(function (x, s) { return x.free ? "" : (x.me ? t("you") : nick(x, s)) + (x.auto ? " 🤖" : "") + " " + x.score; }).join(" · ")));
 }
 // ---------- Bauernskat: phone first ----------
-// Top: the other player's four stacks, small, and how many cards are in their hand. Middle: the trick. Bottom: my four
-// stacks and my eight cards, big enough to tap. A stack shows its card; a face-down card under it peeks out below.
-function stack(x, playable, mine) {
+// Top: the other player's eight stacks, small. Middle: the trick. Bottom: my eight stacks, big enough to tap. A stack
+// shows its card; a face-down card under it peeks out below.
+function stack(x, playable, mine, dim) {
   var w = el("div", "bsstack" + (x.under ? " under" : "") + (!x.top && !x.under ? " empty" : ""));
   if (x.under) w.appendChild(el("span", "tbcard bsback"));
   if (x.top) {
     var a = playable[x.top];
-    w.appendChild(cardEl(x.top, a ? function () { Kit.sfx.tap(); tb.act(a); } : null, mine ? (a ? "ok" : "") : ""));
+    w.appendChild(cardEl(x.top, a ? function () { Kit.sfx.tap(); tb.act(a); } : null, mine ? (a ? "ok" : dim ? "no" : "") : ""));
   }
   return w;
 }
-function stackRow(row, playable, mine, label) {
+function stackRow(row, playable, mine, label, dim) {
   var r = el("div", "bsstacks" + (mine ? " mine" : " theirs"));
   r.setAttribute("role", "group"); r.setAttribute("aria-label", label);
-  row.forEach(function (x) { r.appendChild(stack(x, playable, mine)); });
+  row.forEach(function (x) { r.appendChild(stack(x, playable, mine, dim)); });
   return r;
-}
-function handLeft(st, seat) {
-  var n = 0, open = 0;
-  st.tricks.concat(st.trick ? [st.trick] : []).forEach(function (tr) { tr.cards.forEach(function (x) { if (x.seat === seat) n++; }); });
-  st.stacks[seat].forEach(function (x) { open += x.under ? (x.top ? 0 : 1) : (x.top ? 1 : 2); });
-  return 8 - (n - open);
 }
 function playBs(b, v) {
   var h = v.hand, st = h.state, acts = h.actions, mine = h.turn === v.mySeat, op = 1 - v.mySeat, box = el("div", "bsplay");
@@ -312,8 +332,9 @@ function playBs(b, v) {
   if (mine) { turn.appendChild(document.createTextNode(" · ")); turn.appendChild(el("span", "tbclock", clock(v))); }
   top.appendChild(turn);
   left.appendChild(top);
-  var who = el("p", "bswho", seatName(v, op) + " · " + t("bsHand", { n: handLeft(st, op) }));
-  left.appendChild(who);
+  // a key that did not open its card: the hand cannot go on, and everyone sees whose key it was
+  if ((h.flags || []).length) left.appendChild(el("p", "note tbwarn bsbad", t("bsBad", { n: seatName(v, h.flags[0].seat) })));
+  left.appendChild(el("p", "bswho", seatName(v, op)));
   left.appendChild(stackRow(st.stacks[op], {}, false, seatName(v, op)));
   var tr = st.trick && st.trick.cards.length ? st.trick : st.tricks.length ? st.tricks[st.tricks.length - 1] : null, tbox = el("div", "tbtrick bstrick");
   if (tr) tr.cards.forEach(function (x) { var w = el("div", "tbplayed"); w.appendChild(cardEl(x.card)); w.appendChild(el("small", "", seatName(v, x.seat))); tbox.appendChild(w); });
@@ -321,15 +342,10 @@ function playBs(b, v) {
   if (tr) why(mid, v, st, tr);
   left.appendChild(mid);
   var playable = {}; acts.forEach(function (a) { if (a.t === "play") playable[a.card] = a; });
-  right.appendChild(stackRow(st.stacks[v.mySeat], playable, true, t("you")));
-  var hand = el("div", "tbhand bshand");
-  sortHand(st, h.cards).forEach(function (c) {
-    var a = playable[c];
-    hand.appendChild(cardEl(c, a ? function () { Kit.sfx.tap(); tb.act(a); } : null, a ? "ok" : mine && st.phase === "play" ? "no" : ""));
-  });
-  right.appendChild(hand);
-  var row = el("div", "tbacts"), decl = acts.filter(function (a) { return a.t === "declare"; });
-  if (decl.length) right.appendChild(el("p", "note bsdeclare", t("bsDeclare")));
+  // my turn: what I may not play is greyed, so the cards I must follow with stand out
+  right.appendChild(stackRow(st.stacks[v.mySeat], playable, true, t("you"), mine && Object.keys(playable).length > 0));
+  var row = el("div", "tbacts");
+  if (acts.some(function (a) { return a.t === "declare"; })) right.appendChild(el("p", "note bsdeclare", t("bsDeclare")));
   acts.filter(function (a) { return a.t !== "play"; }).forEach(function (a) { row.appendChild(button(a, st)); });
   right.appendChild(row);
   var foot = el("div", "bsfoot");

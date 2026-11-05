@@ -1,25 +1,26 @@
 /* Bauernskat: Skat for two (pure rules, no DOM, no network). Also called Offiziersskat, Zweimann-Skat or Skat zu zweit
-   (de.wikipedia.org/wiki/Offiziersskat, en.wikipedia.org/wiki/Officers%27_Skat). This app plays one fixed variant:
-   - 32 cards, 16 each: 4 face down in a row, 4 face up on top of them (the stacks), 8 in the hand.
-   - The dealer alternates. Forehand (the other player) is the declarer: after seeing his hand and both rows of face-up
-     cards he names the game - a suit (Kreuz 12, Pik 11, Herz 10, Karo 9: jacks and that suit are trump) or Grand (24, only
-     the jacks); Null (23, no trumps, the declarer must not take a trick) only with the house rule "null".
-   - Forehand leads. A player plays from the hand or a face-up stack card. Suit and trump must be followed as in Skat;
-     a face-up stack card counts as held. The face-down card under a played stack card is turned up after the trick.
+   (de.wikipedia.org/wiki/Offiziersskat, en.wikipedia.org/wiki/Officers%27_Skat). The base form from there:
+   - 32 cards, 16 each, no hand: 8 stacks per player, a face-down card with a face-up card on top.
+   - The dealer alternates. Forehand (the other player) is the declarer: after seeing his face-up row (and the other's)
+     he names the game - a suit (Kreuz 12, Pik 11, Herz 10, Karo 9: jacks and that suit are trump) or Grand (24, only the
+     jacks); Null (23, no trumps, the declarer must not take a trick) only with the house rule "null".
+   - Forehand leads. A player plays the face-up top card of one of his stacks. Suit and trump must be followed as in
+     Skat, judged over all his face-up cards. The face-down card under a played card is turned up after the trick.
    - Card points as in Skat (A 11, 10 10, K 4, D 3, B 2), 120 in all; the declarer needs 61 (60:60 is lost).
-   - Game value as in Skat: base value x (tops + 1), tops counted from the declarer's 16 cards (with or without, jacks then
-     the trump suit), +1 schneider (90 or 30 or fewer card points), +1 schwarz (all or no tricks). A won game scores its
-     value, a lost one twice the value against the declarer; a Null always 23.
+   - Game value as in Skat: base value x (tops + 1), tops counted from all 16 of the declarer's cards (with or without,
+     jacks then the trump suit), +1 schneider (90 or 30 or fewer card points), +1 schwarz (all or no tricks). A won game
+     scores its value, a lost one twice the value against the declarer; a Null always 23.
    - House rule "kontra": the defender may say Kontra before his first card, the declarer Re before his second; each
      doubles the value.
-   Secrecy: the hands and the face-down cards are not in the state. A face-up card enters it through a "turn" action, which
-   the table applies once every seat has published its key for that card (reveals() says which ones may be opened now);
-   a hand card enters only when it is played. Following suit with a hand card can only be checked after the reveal (audit). */
+   Secrecy: the face-down cards are not in the state. A card enters it through a "turn" action, which the table applies
+   once every seat has published its key for that card; reveals() says which ones may be opened now - the face-up row
+   after the deal, a face-down card only once the trick that took the card above it is over. Since every card a player
+   may play lies open, following suit is checked at once. */
 (function (root) {
   "use strict";
   var node = typeof module !== "undefined" && module.exports;
   var Sk = node ? require("./skat.js") : root.Skat;
-  var SEATS = 2, HAND = 8, STACKS = 4, TRICKS = 16, DECK = Sk.DECK, EYES = Sk.EYES, BASE = Sk.BASE, NULLV = 23;
+  var SEATS = 2, HAND = 0, STACKS = 8, TRICKS = 16, DECK = Sk.DECK, EYES = Sk.EYES, BASE = Sk.BASE, NULLV = 23;
   var RULES = ["null", "kontra"], GAMES = ["C", "S", "H", "D", "G"];
   var PLAIN = ["A", "T", "K", "Q", "9", "8", "7"], NULLRANK = ["A", "K", "Q", "J", "T", "9", "8", "7"];
   function rules(r) { r = Array.isArray(r) ? r : []; return RULES.filter(function (k) { return r.indexOf(k) >= 0; }); }
@@ -28,13 +29,12 @@
   function isCard(c) { return typeof c === "string" && DECK.indexOf(c) >= 0; }
   function forehand(dealer) { return (dealer + 1) % 2; }
 
-  // Positions in the jointly shuffled deck: seat s holds 16*s .. 16*s+15 - hand first, then the face-up and face-down rows.
+  // Positions in the jointly shuffled deck: seat s holds 16*s .. 16*s+15 - the face-up row, then the face-down row. No hands.
   function layout() {
-    var hands = [], stacks = [];
+    var hands = [], stacks = [];   // hands stay empty: table.js deals hand positions privately, Bauernskat has none
     for (var s = 0; s < SEATS; s++) {
       var b = s * 16, h = [], st = [];
-      for (var i = 0; i < HAND; i++) h.push(b + i);
-      for (var j = 0; j < STACKS; j++) st.push({ up: b + HAND + j, down: b + HAND + STACKS + j });
+      for (var j = 0; j < STACKS; j++) st.push({ up: b + j, down: b + STACKS + j });
       hands.push(h); stacks.push(st);
     }
     return { hands: hands, stacks: stacks };
@@ -86,13 +86,13 @@
     return t === "re" && s.kontra === 1 && seat === s.declarer && playedBy(s, seat) <= 1;
   }
   function games(s) { return GAMES.concat(has(s, "null") ? ["N"] : []); }
-  // hand: the seat's own hand cards (secret); the face-up stack cards come from the state.
-  function actions(s, seat, hand) {
+  // Everything a seat may play lies open in the state (the third argument of the other rules, a hand, is not used).
+  function actions(s, seat) {
     var out = [];
     if (s.phase === "declare" && seat === s.declarer) games(s).forEach(function (g) { out.push({ t: "declare", seat: seat, game: g, hand: false, schneider: false, schwarz: false, ouvert: false }); });
     else if (s.phase === "play") {
       if (seat === s.next && !s.flip.length) {
-        var avail = (hand || []).concat(tops(s, seat));
+        var avail = tops(s, seat);
         avail.forEach(function (c) { if (mayPlay(s.contract.game, avail, c, s.trick)) out.push({ t: "play", seat: seat, card: c }); });
       }
       ["kontra", "re"].forEach(function (t) { if (kontraOk(s, seat, t)) out.push({ t: t, seat: seat }); });
@@ -138,15 +138,11 @@
     var c = a.card, game = s.contract.game, seat = a.seat;
     if (s.flip.length) return fail("flip");                        // a face-down card still has to be turned up
     if (!isCard(c) || played(s).indexOf(c) >= 0) return fail("card");
-    var mine = tops(s, seat), si = -1;
+    var si = -1;
     s.stacks[seat].forEach(function (x, i) { if (x.top === c) si = i; });
-    if (si < 0 && visible(s).indexOf(c) >= 0) return fail("card");  // lies open on the other player's stacks
-    // following suit: what lies open is checked now, the hand only after the reveal (audit)
-    if (s.trick.cards.length) {
-      var led = suitOf(game, s.trick.cards[0].card);
-      if (suitOf(game, c) !== led && mine.some(function (x) { return suitOf(game, x) === led; })) return fail("follow");
-    }
-    if (si >= 0) s.stacks[seat][si].top = null;
+    if (si < 0) return fail("card");                               // only a face-up card of one's own stacks
+    if (!mayPlay(game, tops(s, seat), c, s.trick)) return fail("follow");
+    s.stacks[seat][si].top = null;
     s.trick.cards.push({ seat: seat, card: c });
     if (s.trick.cards.length < SEATS) { s.next = 1 - seat; return ok(s); }
     var w = Sk.trickWinner(game, s.trick.cards);
@@ -159,8 +155,8 @@
   }
 
   // ---------- scoring ----------
-  // full: { hands: [[8 cards] x2], stacks: [[{up, down} x4] x2] } from the reveal.
-  function cardsOf(full, seat) { return full.hands[seat].concat(full.stacks[seat].reduce(function (a, x) { return a.concat([x.up, x.down]); }, [])); }
+  // full: { hands: [[], []], stacks: [[{up, down} x8] x2] } from the reveal.
+  function cardsOf(full, seat) { return (full.hands ? full.hands[seat] : []).concat(full.stacks[seat].reduce(function (a, x) { return a.concat([x.up, x.down]); }, [])); }
   function result(s, full) {
     var d = s.declarer, c = s.contract, lines = [], value, won;
     var mine = s.tricks.filter(function (t) { return t.winner === d; });
@@ -190,7 +186,6 @@
     var game = s.contract.game, all = [];
     for (var q = 0; q < SEATS; q++) all = all.concat(cardsOf(full, q));
     if (all.length !== 32 || new Set(all).size !== 32 || !all.every(isCard)) { bad(-1, "deck"); return out; }
-    var hands = full.hands.map(function (h) { return h.slice(); });
     var st = full.stacks.map(function (row) { return row.map(function (x) { return { top: x.up, under: true, down: x.down }; }); });
     // what lay open must be what the deal says
     for (var z = 0; z < SEATS; z++) for (var i = 0; i < STACKS; i++) {
@@ -200,12 +195,10 @@
     var tricks = s.tricks.concat(s.trick && s.trick.cards.length ? [s.trick] : []);
     tricks.forEach(function (t) {
       t.cards.forEach(function (y, k) {
-        var open = st[y.seat].map(function (r) { return r.top; }).filter(Boolean), avail = hands[y.seat].concat(open);
+        var avail = st[y.seat].map(function (r) { return r.top; }).filter(Boolean);
         if (avail.indexOf(y.card) < 0) { bad(y.seat, "notInHand"); return; }
         if (!mayPlay(game, avail, y.card, { cards: t.cards.slice(0, k) })) bad(y.seat, "follow");
-        var hi = hands[y.seat].indexOf(y.card);
-        if (hi >= 0) hands[y.seat].splice(hi, 1);
-        else st[y.seat].forEach(function (r) { if (r.top === y.card) r.top = null; });
+        st[y.seat].forEach(function (r) { if (r.top === y.card) r.top = null; });
       });
       if (t.cards.length === SEATS) st.forEach(function (row) { row.forEach(function (r) { if (r.top == null && r.under) { r.top = r.down; r.under = false; } }); });
     });
@@ -213,20 +206,19 @@
   }
 
   // ---------- Auto: one legal move, fully determined by the public state and the seat's own cards ----------
-  // Declaring: Grand with three or four jacks, else the suit it holds most trumps of (hand and face-up cards); playing:
+  // Declaring: Grand with three or four jacks, else the suit it holds most trumps of (its face-up row); playing:
   // always the weakest card it may (lowest in the trick's order, then fewest card points, then the card's name).
   function cmp(a, b) { for (var i = 0; i < a.length; i++) { if (a[i] < b[i]) return -1; if (a[i] > b[i]) return 1; } return 0; }
-  function auto(s, seat, hand) {
+  function auto(s, seat) {
     if (turn(s) !== seat) return null;
-    hand = hand || [];
     if (s.phase === "declare") {
-      var mine = hand.concat(tops(s, seat)), g = "C", most = -1;
+      var mine = tops(s, seat), g = "C", most = -1;
       if (mine.filter(function (c) { return c[1] === "J"; }).length >= 3) g = "G";
       else ["C", "S", "H", "D"].forEach(function (x) { var n = mine.filter(function (c) { return isTrump(x, c); }).length; if (n > most) { most = n; g = x; } });
       return { t: "declare", seat: seat, game: g, hand: false, schneider: false, schwarz: false, ouvert: false };
     }
     if (s.phase !== "play" || s.flip.length) return null;
-    var game = s.contract.game, avail = hand.concat(tops(s, seat)), okc = avail.filter(function (c) { return mayPlay(game, avail, c, s.trick); });
+    var game = s.contract.game, avail = tops(s, seat), okc = avail.filter(function (c) { return mayPlay(game, avail, c, s.trick); });
     var led = s.trick && s.trick.cards.length ? suitOf(game, s.trick.cards[0].card) : null;
     okc.sort(function (a, b) { return cmp([power(game, a, led || suitOf(game, a)), EYES[a[1]], a], [power(game, b, led || suitOf(game, b)), EYES[b[1]], b]); });
     return okc.length ? { t: "play", seat: seat, card: okc[0] } : null;
