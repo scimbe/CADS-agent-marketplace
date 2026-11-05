@@ -73,7 +73,7 @@ test("KI-Bild: Karte mit Bild zeigt es statt der Zeichnung, mit lesbarem 'KI-Bil
   await p.locator("#warmname").fill("");
   await p.locator("#lang").click();
   await p.locator("#leaf .pv.pic").waitFor();
-  assert.equal(await p.locator(".kitag").textContent(), "AI image");
+  assert.equal(await p.locator(".pvimg .kitag").textContent(), "AI image");
   for (const [m, d, n] of shot ? [[10, 25, "plan-24"], [11, 18, "warm-freunde"]] : []) {
     const q = await open(MAIN, [m, d]); await q.locator("#leaf .pv.pic").waitFor(); await q.screenshot({ path: shot + "/thumb-" + n + ".png" }); await q.close();
   }

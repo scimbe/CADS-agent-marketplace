@@ -137,6 +137,42 @@
     return Object.keys(l).length ? l : null;
   }
 
+  // A route: exactly 3 sections from start to end (the welt kind). Each one moves the physics by a fixed step d (the
+  // server's table, never a number the model chose), shows its own world t and drifting emoji e; p names the step.
+  // The page clamps base + d to RANGES, so no section can leave the playable range.
+  var STEPS = ["normal", "ruhig", "schnell", "eng", "schwebend", "schwer", "sturm"], SECTIONS = 3;
+  var DELTA_MAX = { gravity: 800, jump: 120, gap: 60, speed: 80 };
+  function sanitizeRoute(r) {
+    if (!Array.isArray(r) || r.length !== SECTIONS) return null;
+    var out = r.map(function (a) {
+      if (!a || typeof a !== "object") return null;
+      var d = {}, src = a.d || a.delta || {};
+      Object.keys(DELTA_MAX).forEach(function (k) {
+        var v = src[k] !== undefined ? src[k] : src[ALIAS[k]];
+        v = Math.round(clampNum(v, -DELTA_MAX[k], DELTA_MAX[k], 0)); if (v) d[k] = v;
+      });
+      var t = a.t || a.thema, e = emo(a.e || a.emoji);
+      if (typeof t !== "string" || THEME_NAMES.indexOf(t) < 0 || !e) return null;
+      return { p: STEPS.indexOf(a.p || a.physik) >= 0 ? a.p || a.physik : "normal", d: d, t: t, e: e };
+    });
+    return out.every(Boolean) ? out : null;
+  }
+  // The physics of section i: base + its step, clamped to RANGES.
+  function sectionParams(params, route, i) {
+    var d = route && route[i] ? route[i].d : {}, p = {};
+    Object.keys(RANGES).forEach(function (k) { p[k] = params[k] + (d[k] || 0); });
+    return sanitizeParams(p);
+  }
+  function routeParams(st) { return st && st.route ? st.route.map(function (x, i) { return sectionParams(st.params, st.route, i); }) : null; }
+  // The AI mark of a world: kind, seal and option hash, the same form as a sheet's ki (daily.js sanitizeKi).
+  function sanitizeKiMark(o) {
+    if (!o || typeof o !== "object" || o.k !== "welt") return null;
+    var r = { k: "welt" };
+    if (typeof o.s === "string" && /^[A-Za-z0-9._~-]{8,200}$/.test(o.s)) r.s = o.s; else return null;
+    if (typeof o.h === "string" && /^[A-Za-z0-9_-]{43}$/.test(o.h)) r.h = o.h;
+    return r;
+  }
+
   // ---------- state (the shared contract) ----------
   function sanitizeState(o) {
     if (!o || typeof o !== "object" || Array.isArray(o)) return null;
@@ -153,6 +189,10 @@
     if (skin) st.skin = skin;
     var lk = sanitizeLook(o.look);
     if (lk) st.look = lk;
+    var rt = sanitizeRoute(o.route);
+    if (rt) st.route = rt;
+    var ki = sanitizeKiMark(o.ki);
+    if (ki) st.ki = ki;
     if (o.score !== undefined && o.score !== null) {
       var sc = clampNum(o.score, 0, MAX_SCORE, NaN);
       if (!isNaN(sc)) st.score = Math.floor(sc);
@@ -197,7 +237,7 @@
   }
   function configKey(st) {
     var p = st.params;
-    return [st.seed, p.gravity, p.jump, p.gap, p.speed, st.theme].join(".");
+    return [st.seed, p.gravity, p.jump, p.gap, p.speed, st.theme].join(".") + (st.route ? "." + hash32(JSON.stringify(st.route)) : "");
   }
 
   // ---------- seeds ----------
@@ -262,7 +302,7 @@
     [/mond|moon|float|schweb|feder|feather|weltall|\bspace/, { gravity: 0.7, jump: 0.85 }]
   ];
   var THEME_RULES = [
-    ["night", /nacht|night|dark|dunkel|mitternacht|mond|moon|vampir|fledermaus|\bbat\b/],
+    ["night", /nacht|night|dark|dunkel|mitternacht|mond|moon|vampir|fledermaus|\bbat\b|weltraum|weltall|\bspace\b|alien|\bsterne?n?\b|\bstars?\b|galax|planet|rakete|rocket|\bufo/],   // space: a sky of stars
     ["sunset", /sonnenuntergang|sunset|abend|dusk|golden|sommer|summer/],
     ["retro", /retro|8.?bit|pixel|arcade|oldschool/],
     ["candy", /candy|zuckerl|suss|sweet|bonbon|pink|einhorn|unicorn|zuckerwatte/],
@@ -301,7 +341,7 @@
     if (!resp || typeof resp !== "object" || !resp.params || typeof resp.params !== "object") return null;
     var st = sanitizeState({
       v: 1, seed: hash32("p:" + foldText(sanitizePrompt(prompt))), params: resp.params,
-      theme: resp.theme, title: resp.title, emoji: resp.emoji
+      theme: resp.theme, title: resp.title, emoji: resp.emoji, route: resp.abschnitte || resp.route
     });
     return st;
   }
@@ -322,7 +362,7 @@
     isClean: isClean, sanitizeName: sanitizeName, sanitizeTitle: sanitizeTitle, sanitizeEmoji: sanitizeEmoji, sanitizePrompt: sanitizePrompt,
     sanitizeState: sanitizeState, encodeState: encodeState, decodeState: decodeState, parseHash: parseHash, buildUrl: buildUrl,
     configKey: configKey, hash32: hash32, mulberry32: mulberry32, dailyKey: dailyKey, dailySeed: dailySeed, dailyConfig: dailyConfig,
-    sanitizeLook: sanitizeLook, DECOS: DECOS, FORMS: FORMS, presetState: presetState, localConfig: localConfig, stateFromApi: stateFromApi, CONF_BASE: CONF_BASE, confLink: confLink
+    sanitizeLook: sanitizeLook, sanitizeRoute: sanitizeRoute, sectionParams: sectionParams, routeParams: routeParams, STEPS: STEPS, SECTIONS: SECTIONS, DECOS: DECOS, FORMS: FORMS, presetState: presetState, localConfig: localConfig, stateFromApi: stateFromApi, CONF_BASE: CONF_BASE, confLink: confLink
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.DuellCore = api;

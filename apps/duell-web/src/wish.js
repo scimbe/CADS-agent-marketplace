@@ -1,5 +1,5 @@
-/* My Daily Idea: the wish and the dice. A wish (AI) is only offered where the model does real work: the flight game's world
-   from one sentence, a beat, a duel, a channel. The server returns validated changes; this file applies them 1:1 to a
+/* My Daily Idea: the wish and the dice. A wish (AI) is only offered where the model does real work: a beat, a duel, a
+   channel (the flight game's world from one sentence is its own AI kind, welt-ui.js). The server returns validated changes; this file applies them 1:1 to a
    creation and keeps the state before, so every wish can be undone. Colours, stickers and style are never worth an AI
    call: the dice rolls them on the device from a seed, the same seed always gives the same look. */
 (function (root) {
@@ -46,26 +46,6 @@
     }
     return D.sanitizeDoc(d);
   }
-  // Fixed worlds for the case without a model, so a wish still changes sky, figure, obstacles and ground.
-  var LOOKS = [
-    [/welt|all\b|space|rakete|alien|stern/i, "🚀", { a: "#060a2a", b: "#2a1a5e", d: "stars", e: ["🪐", "🌟"], p: "#9aa7c7", q: "#4d5878", f: "block", g: "#1a1a33", h: "#7a6cff", m: "✨" }],
-    [/wasser|meer|ocean|sea|fisch|fish/i, "🐠", { a: "#03466e", b: "#1fa8b8", d: "bubbles", e: ["🐟", "🪼"], p: "#ff7f6b", q: "#b74a3a", f: "round", g: "#e6d29a", h: "#b89c5e", m: "🫧" }],
-    [/grusel|spook|halloween|horror|nacht|night|geist/i, "👻", { a: "#120a1f", b: "#3d1a4f", d: "stars", e: ["🦇", "🌙"], p: "#ff7a1a", q: "#7a2f00", o: "🎃", f: "emoji", g: "#1b1020", h: "#6b2fa0", m: "🦇" }],
-    [/s(ü|ue)ß|suess|candy|sweet|keks|kuchen|bonbon/i, "🍩", { a: "#ff9ad5", b: "#ffe3f2", d: "clouds", e: ["🍬", "🍭"], p: "#7a5cff", q: "#4a2fb0", o: "🍫", f: "emoji", g: "#ffc0e6", h: "#e59ccf", m: "🍬" }],
-    [/winter|schnee|snow|eis\b|ice/i, "⛄", { a: "#bfe3ff", b: "#f4fbff", d: "snow", e: ["❄️"], p: "#3f7fb5", q: "#1f4f7a", f: "block", g: "#ffffff", h: "#a8cfe8", m: "❄️" }],
-    [/wald|forest|natur|baum|dschungel|jungle/i, "🦉", { a: "#2f7a4a", b: "#c4e6a8", d: "clouds", e: ["🍃", "🦋"], p: "#6b4226", q: "#3a2212", o: "🌲", f: "emoji", g: "#3f6b2a", h: "#2a4a1c", m: "🍃" }]
-  ];
-  function localLook(wish, pick) {
-    var hit = LOOKS.filter(function (x) { return x[0].test(wish); })[0] || LOOKS[pick(LOOKS.length)];
-    return { fig: hit[1], look: hit[2] };
-  }
-  // Without the model the flight game still understands a sentence: fixed rules for physics (core.js) and keywords for
-  // the world. Shown as "without AI", never as an AI answer. Other kinds have no such rules: there the dice is the way without AI.
-  function local(doc, wish, lang, pick) {
-    if (doc.k !== "game") return null;
-    var s = C.localConfig(wish, lang), P = s.params || {}, L = localLook(wish, pick);
-    return { gravity: P.gravity, jump: P.jump, gap: P.gap, speed: P.speed, theme: s.theme, emoji: L.fig || s.emoji, look: L.look };
-  }
   // The dice: seed -> changes for the look of a sheet, the same seed always the same roll. pairs: the app's colour pairs;
   // lines: the idea's own lines, so a card that still shows one of them rolls another (the title variant).
   var XMAS_PAIRS = [["#0f5132", "#ffd400"], ["#b3001b", "#ffffff"], ["#1b3a6b", "#ffd400"], ["#ffffff", "#b3001b"]];
@@ -98,7 +78,7 @@
     var ks = Object.keys(rolls); while (ks.length > ROLL_KEYS) delete rolls[ks.shift()];
     return n;
   }
-  var api = { KINDS: KINDS, DICE: DICE, request: request, apply: apply, local: local, dice: dice, nextRoll: nextRoll };
+  var api = { KINDS: KINDS, DICE: DICE, request: request, apply: apply, dice: dice, nextRoll: nextRoll };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Wish = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

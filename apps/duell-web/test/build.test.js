@@ -24,7 +24,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // Sizes at the split: core 693 KB, parts 310 KB (play 140, table 104, qr 59, licenses 6), together 1003 KB.
   assert.ok(Buffer.byteLength(html) < 700 * 1024, "Kern ueber 700 KB: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["licenses", "play", "qr", "table"]);
+  assert.deepEqual(Object.keys(man).sort(), ["licenses", "play", "qr", "table", "welt"]);
   assert.equal(files.length, Object.keys(man).length, "nur die Teile aus dem Manifest liegen in dist/parts");
   let sum = 0;
   for (const [name, p] of Object.entries(man)) {
@@ -40,6 +40,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   const part = (n) => fs.readFileSync(path.join(path.dirname(dist), man[n].f), "utf8");
   assert.match(part("play"), /window\.ArcadeUI = \{/); assert.match(part("play"), /window\.LiveUI = \{/);
   assert.match(part("table"), /window\.TableUI = \{/); assert.match(part("qr"), /root\.StatusCard =/);
+  assert.match(part("welt"), /root\.WeltUI = \{/); assert.ok(!/root\.WeltUI = \{/.test(html), "Flugspiel-Einstieg nur im Teil");
   assert.ok(!/window\.ArcadeUI = \{ menu|window\.TableUI = \{ open|root\.StatusCard =/.test(html), "verschobener Code steckt nicht doppelt im Kern");
   assert.match(html, /<title>My Daily Idea<\/title>/);
   assert.match(html, /Content-Security-Policy[^>]*default-src 'none'/);

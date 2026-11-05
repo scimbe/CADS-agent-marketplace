@@ -26,10 +26,9 @@ test("Anwenden: nur Felder des Typs wirken, Ergebnis ist bereinigt, Original ble
   assert.equal(s.bpm, 150); assert.equal(s.p.k, "x-x-x-x-x-x-x-x-");
   assert.equal(W.apply(d, { st: "kaputt" }, PAIRS, rand).st, "druck", "unbekannter Stil faellt zurueck");
 });
-test("Ohne KI: nur das Flugspiel erkennt einen Satz mit festen Regeln, sonst gibt es keinen Ersatz, der wie eine KI-Antwort aussieht", () => {
-  const g = of("game"), n = W.apply(g, W.local(g, "viel schwerer und schnell", "de", () => 1), PAIRS, rand);
-  assert.ok(D.changedAreas(g, n).includes("regeln"));
-  for (const k of ["card", "photo", "sound", "duel", "quest", "turn"]) assert.equal(W.local(of(k), "mach es gruseliger", "de", () => 0), null, k);
+test("Ohne KI: kein Ersatz, der wie eine KI-Antwort aussieht; das Flugspiel hat seine eigene Art welt (welt-ui.js), ohne Zufallswelt", () => {
+  assert.equal(W.local, undefined);
+  assert.ok(!/LOOKS|localLook/.test(require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/wish.js"), "utf8")), "keine gewuerfelte Spielwelt mehr");
 });
 test("Wuerfel: jede Art mit Look aendert sichtbar etwas, ohne Netz; gleicher Seed, gleicher Wurf", () => {
   for (const k of W.DICE) {
@@ -71,10 +70,6 @@ test("Wunsch Spiel: Hindernis in Himmelsfarbe bleibt sichtbar, kaputte Werte fal
   assert.equal(C.sanitizeLook({ a: "#101010", b: "#101010", p: "#121212" }).p, "#f2f2f2");
   assert.equal(C.sanitizeLook({ a: "#ffffff", p: "#fefefe" }).p, "#1f1f2e");
   assert.equal(C.sanitizeLook({ a: "red", d: "feuer", e: "x", f: "emoji" }), null);
-});
-test("Wunsch ohne Modell: Spiel bekommt trotzdem eine ganze Welt", () => {
-  const g = of("game"), n = W.apply(g, W.local(g, "Unter Wasser", "de", () => 0), PAIRS, rand);
-  assert.equal(n.g.look.d, "bubbles"); assert.equal(n.g.emoji, "🐠");
 });
 test("Wunsch: freie Farben auf Karte, Foto und Sound", () => {
   assert.deepEqual(W.apply(of("card"), { colors: ["#112233", "#445566"] }, PAIRS, rand).col, ["#112233", "#445566"]);
