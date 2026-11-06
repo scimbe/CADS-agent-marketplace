@@ -91,15 +91,28 @@ function setHome(h, animate) {
   // A received card counts once per link on this device (short link id, else a hash of the card).
   if (h.doc && h.note) { window.Stat.open(store, h.doc, h.link || "h" + C.hash32(docFragment(h.doc))); Kit.save(); }
 }
-// Thumbs up or down for the day's card and for a received one: kept on this device, no counts shown; a second tap takes it back.
-function voteCard() { var h = home; return h && (h.doc ? h.note && h.doc.i && h.doc : h.idea); }
-function votes() {
-  var c = voteCard(), v = c ? ((store.votes || {})[c.i || c.id] | 0) : 0;
+// Thumbs up or down for the day's card and for a received one. Only votes of signed-in accounts count (src/stat.js): a vote
+// shows as given only once the server took it; without an account a short line links to the sign-in. No counts shown;
+// a second tap takes it back.
+function voteCard() { var h = home; return !window.Stat.off() && h && (h.doc ? h.note && h.doc.i && h.doc : h.idea); }
+var voting = false, voteHint = 0;
+function votes(hint) {
+  var c = voteCard(), v = c ? ((store.votes || {})[c.i || c.id] | 0) : 0, a = $("votelogin");
   $("votes").hidden = !c; $("votes").setAttribute("aria-label", t("vote_q"));
   [["voteup", 1, "vote_up"], ["votedown", -1, "vote_down"]].forEach(function (b) { var e = $(b[0]); e.setAttribute("aria-label", t(b[2])); e.title = t(b[2]); e.setAttribute("aria-pressed", String(v === b[1])); });
+  clearTimeout(voteHint); a.hidden = !hint; a.textContent = t("vote_login");
+  // the sign-in of the API host, as in ai.js; the app shells send no cookie, so there the line has no link
+  if (window.DuellHost) a.removeAttribute("href"); else a.href = (location.protocol === "https:" ? "" : new URL(C.DEFAULT_API).origin) + "/auth/login?return=" + encodeURIComponent("/duell");
+  if (hint) voteHint = setTimeout(function () { a.hidden = true; }, 8000);
 }
 [["voteup", 1], ["votedown", -1]].forEach(function (b) {
-  $(b[0]).addEventListener("click", function () { var c = voteCard(); if (!c) return; Kit.sfx.tap(); window.Stat.vote(store, c, b[1]); Kit.save(); votes(); });
+  $(b[0]).addEventListener("click", async function () {
+    var c = voteCard(); if (!c || voting) return;
+    Kit.sfx.tap();
+    if (window.DuellHost) { votes(true); return; }
+    voting = true;
+    try { var r = await window.Stat.vote(store, c, b[1]); if (!r.login) Kit.save(); votes(!!r.login); } finally { voting = false; }
+  });
 });
 // An invitation shows its languages before the first tap, each in its own name ("Deutsch", "English").
 function langPick(on) {

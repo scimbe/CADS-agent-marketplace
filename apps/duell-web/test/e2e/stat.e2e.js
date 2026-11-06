@@ -11,9 +11,13 @@ const STAT = NL.ORIGIN + "/api/duell/stat";
 // plan-09 as a friend sends it (home.e2e.js): a card of the catalog, received.
 const GOT = "#c=eyJ2IjoxLCJkIjp7ImsiOiJjYXJkIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMDkiLCJ4IjoiSGV1dGUgMjAgVWhyLiBWaWRlbyBhbi4gS2VpbmUgQXVzcmVkZW4uIiwic3QiOiJzdGVtcGVsIiwic2siOltdfX0";
 const TIME = "2026-11-05T10:00:00Z";
-// Every stat request of a context, as sent (the test's own route wins over the hook's).
+// Every stat request of a context, as sent (the test's own route wins over the hook's). CORS as the server's corsFor: no
+// credentials, no echoed origin. 204 without X-Stat: what the server answers for a signed-in account.
 async function stats(ctx) {
-  const got = []; await ctx.route(STAT, (r) => { got.push(JSON.parse(r.request().postData())); return r.fulfill({ status: 204, headers: { "Access-Control-Allow-Origin": r.request().headers().origin || "*", "Access-Control-Allow-Credentials": "true" } }); });
+  const got = []; Object.defineProperty(got, "cred", { value: [] });   // the cookie header of each, kept apart from the bodies
+  await ctx.route(STAT, (r) => { got.push(JSON.parse(r.request().postData()));
+    got.cred.push(r.request().headers().cookie || "");
+    return r.fulfill({ status: 204, headers: { "Access-Control-Allow-Origin": "*" } }); });
   return got;
 }
 const until = async (fn, ms) => { const end = Date.now() + (ms || 5000); while (!fn()) { if (Date.now() > end) return false; await new Promise((r) => setTimeout(r, 50)); } return true; };
@@ -72,7 +76,7 @@ test("Eine empfangene Karte meldet open einmal je Link und Geraet; ein anderes G
   assert.deepEqual([...p.errs, ...p2.errs, ...q.errs], []); await b.close();
 });
 
-test("Daumen: setzen, wechseln, zuruecknehmen schickt v und p, bleibt lokal, ohne Zahlen; auch fuer empfangene Karten", async () => {
+test("Daumen (angemeldet): setzen, wechseln, zuruecknehmen schickt v und p, zeigt die Stimme erst nach der Antwort, ohne Zahlen", async () => {
   const b = await G.launch(), ctx = await G.person(b, { time: TIME }), got = await stats(ctx);
   const p = await G.open(ctx, "");
   const id = await p.evaluate(() => window.DailyDebug.home().idea.id);
@@ -80,26 +84,63 @@ test("Daumen: setzen, wechseln, zuruecknehmen schickt v und p, bleibt lokal, ohn
   await up.waitFor();
   assert.equal(await up.getAttribute("aria-label"), "Gefällt mir"); assert.equal(await down.getAttribute("aria-label"), "Gefällt mir nicht");
   assert.equal(await p.locator("#votes").getAttribute("aria-label"), "Wie findest du diese Karte?");
-  const pressed = async () => [await up.getAttribute("aria-pressed"), await down.getAttribute("aria-pressed")];
-  assert.deepEqual(await pressed(), ["false", "false"]);
-  await up.tap(); assert.deepEqual(await pressed(), ["true", "false"]);
-  await down.tap(); assert.deepEqual(await pressed(), ["false", "true"]);
-  await down.tap(); assert.deepEqual(await pressed(), ["false", "false"]);
-  await up.tap();
-  assert.ok(await until(() => got.length >= 4));
+  const pressed = (a, c) => p.waitForFunction(([x, y]) => document.getElementById("voteup").getAttribute("aria-pressed") === x && document.getElementById("votedown").getAttribute("aria-pressed") === y, [a, c]);
+  await pressed("false", "false");
+  await up.tap(); await pressed("true", "false");
+  await down.tap(); await pressed("false", "true");
+  await down.tap(); await pressed("false", "false");
+  await up.tap(); await pressed("true", "false");
   assert.deepEqual(got, [{ i: id, e: "vote", v: 1, p: 0 }, { i: id, e: "vote", v: -1, p: 1 }, { i: id, e: "vote", v: 0, p: -1 }, { i: id, e: "vote", v: 1, p: 0 }]);
-  assert.equal(await p.evaluate(() => window.DailyDebug.home().idea && document.body.getAttribute("data-state")), "home", "ein Daumen oeffnet die Karte nicht");
+  assert.equal(await p.evaluate(() => document.body.getAttribute("data-state")), "home", "ein Daumen oeffnet die Karte nicht");
+  assert.equal(await p.locator("#votelogin").isVisible(), false, "angemeldet kein Hinweis");
   assert.deepEqual(await p.evaluate((k) => JSON.parse(localStorage.getItem("daily.v1")).votes[k], id), 1);
   assert.deepEqual(await p.evaluate(() => [...document.querySelectorAll("#votes button")].map((x) => x.textContent)), ["👍", "👎"], "keine Zaehler");
-  await p.reload(); await up.waitFor(); assert.deepEqual(await pressed(), ["true", "false"], "die Stimme bleibt auf dem Geraet");
+  await p.reload(); await up.waitFor(); await pressed("true", "false");
   assert.equal(await p.locator("#pad .ghost .votes").count(), 0, "das graue Blatt darunter hat keine Daumen");
   // A received card: its own vote, under its catalog id; English labels.
   const ctx2 = await G.person(b, { time: TIME, lang: "en" }), got2 = await stats(ctx2), q = await G.open(ctx2, GOT);
   await q.locator("#leaf.got").waitFor(); await until(() => got2.length); got2.length = 0;
   assert.equal(await q.locator("#votedown").getAttribute("aria-label"), "Not for me");
-  await q.locator("#votedown").tap(); assert.ok(await until(() => got2.length));
+  await q.locator("#votedown").tap(); await q.waitForFunction(() => document.getElementById("votedown").getAttribute("aria-pressed") === "true");
   assert.deepEqual(got2, [{ i: "plan-09", e: "vote", v: -1, p: 0 }]);
   assert.deepEqual([...p.errs, ...q.errs], []); await b.close();
+});
+
+test("Daumen ohne Anmeldung: kurzer Hinweis mit Link zur Anmeldung, nichts als gezaehlt markiert, nichts gemerkt", async () => {
+  const b = await G.launch();
+  for (const lang of G.LANGS) {
+    // no route of its own: the hook answers as the server does without the gate cookie (X-Stat: login)
+    const ctx = await G.person(b, { time: TIME, lang }), got = [], p = await G.open(ctx, "");
+    Object.defineProperty(got, "cred", { value: [] });
+    ctx.on("request", (r) => { if (r.url() === STAT) { got.push(JSON.parse(r.postData())); got.cred.push(r.headers().cookie || ""); } });
+    const id = await p.evaluate(() => window.DailyDebug.home().idea.id), hint = p.locator("#votelogin");
+    await p.locator("#voteup").tap(); await hint.waitFor();
+    assert.equal(await hint.textContent(), lang === "de" ? "Zum Abstimmen anmelden" : "Sign in to vote");
+    assert.equal(await hint.getAttribute("href"), NL.ORIGIN + "/auth/login?return=%2Fduell", "dieselbe Anmeldung wie ai.js, auf dem API-Host");
+    assert.deepEqual(await G.covered(p), [], "der Hinweis verdeckt keinen Knopf");
+    for (const s of ["#voteup", "#votedown"]) assert.equal(await p.locator(s).getAttribute("aria-pressed"), "false", s + " nicht als abgegeben");
+    await p.locator("#votedown").tap(); await until(() => got.length === 2);
+    assert.deepEqual(got, [{ i: id, e: "vote", v: 1, p: 0 }, { i: id, e: "vote", v: -1, p: 0 }], "jede Stimme startet bei 0: nichts gezaehlt");
+    assert.deepEqual(got.cred, ["", ""], "keine Cookies von fremden Seiten");
+    assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem("daily.v1") || "{}").votes), undefined, "nichts gemerkt");
+    await p.reload(); await p.locator("#voteup").waitFor();
+    assert.equal(await hint.isVisible(), false, "der Hinweis ist kurz, kein Druck");
+    assert.deepEqual(await p.evaluate(() => [...document.querySelectorAll("#votes button")].map((x) => x.getAttribute("aria-pressed"))), ["false", "false"]);
+    assert.deepEqual(p.errs, []); await ctx.close();
+  }
+  await b.close();
+});
+
+test("Daumen in der App-Huelle (Origin null, kein Cookie): immer der Hinweis, ohne Link, keine Stimme geht raus", async () => {
+  const b = await G.launch(), ctx = await G.person(b, { time: TIME }), votes = [];
+  await ctx.addInitScript(() => { window.DuellHost = {}; });
+  ctx.on("request", (r) => { if (r.url() === STAT && /"e":"vote"/.test(r.postData() || "")) votes.push(r.postData()); });
+  const p = await G.open(ctx, "");
+  await p.locator("#voteup").tap(); await p.locator("#votelogin").waitFor();
+  assert.equal(await p.locator("#votelogin").getAttribute("href"), null, "die Huelle kann sich nicht anmelden");
+  assert.equal(await p.locator("#voteup").getAttribute("aria-pressed"), "false");
+  await p.waitForTimeout(300); assert.deepEqual(votes, []);
+  assert.deepEqual(p.errs, []); await b.close();
 });
 
 test("Layout: die Daumen liegen frei auf dem Blatt und verdecken bei 390x844 und 512x384 nichts", async () => {

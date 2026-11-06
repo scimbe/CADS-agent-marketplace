@@ -1,38 +1,52 @@
-/* Card numbers: which cards get shared, opened and liked. Only the card id, the event and, for share, the changed areas;
-   never a name, a text or a link. Fire and forget: any failure is ignored, nothing waits for it. */
+/* Card numbers: which cards get shared, opened and liked. Only the card id, the event, for share the changed areas, for a
+   vote the vote. Never a name, a text or a link. One POST per event; any failure is ignored. share and open go without
+   cookies; a vote goes with the login cookie of this origin, because only votes of signed-in accounts count (the server
+   checks the gate itself and answers "X-Stat: login" without one). A flavor with stat: false in its flavor.json (business) sends nothing. */
 (function (root) {
   "use strict";
-  var C = typeof module !== "undefined" && module.exports ? require("./core.js") : root.DuellCore;
+  var node = typeof module !== "undefined" && module.exports;
+  var C = node ? require("./core.js") : root.DuellCore;
   var URL_ = C.DEFAULT_API.replace(/\/api\/.*$/, "") + "/api/duell/stat", SEEN = 100;
+  function off() { var F = root.DailyFlavor; return !!(F && F.stat === false); }
+  function areas() { var D = node ? require("./daily.js") : root.Daily; return (D && D.AREAS) || []; }
   function id(c) { return (c && (c.i || c.id)) || "own"; }   // doc.i or idea.id
-  function send(p, o) {
-    var n = (o && o.nav) || root.navigator, b = JSON.stringify(p);
-    try { if (n && n.sendBeacon && n.sendBeacon(URL_, new Blob([b], { type: "application/json" }))) return p; } catch (e) {}
+  // -> a promise of the response, or of null when nothing went out or it failed.
+  function post(p, o, cred) {
+    if (off()) return Promise.resolve(null);
     var go = (o && o.fetch) || function (u, x) { return fetch(u, x); };
-    try { go(URL_, { method: "POST", keepalive: true, credentials: "omit", headers: { "Content-Type": "application/json" }, body: b }).catch(function () {}); } catch (e) {}
-    return p;
+    try {
+      return Promise.resolve(go(URL_, { method: "POST", keepalive: true, credentials: cred || "omit", referrerPolicy: "no-referrer", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) })).catch(function () { return null; });
+    } catch (e) { return Promise.resolve(null); }
   }
-  // The areas the last person changed (the doc's trail), when there is one.
+  // The areas the last person changed (the doc's trail), only those the contract knows.
   function share(doc, o) {
-    var by = doc && doc.by, w = by && by.length && by[by.length - 1].w, p = { i: id(doc), e: "share" };
-    if (w && w.length) p.w = w.slice();
-    return send(p, o);
+    var by = doc && doc.by, w = by && by.length && by[by.length - 1].w, A = areas(), p = { i: id(doc), e: "share" };
+    w = Array.isArray(w) ? w.filter(function (x, i) { return A.indexOf(x) >= 0 && w.indexOf(x) === i; }) : [];
+    if (w.length) p.w = w;
+    post(p, o);
+    return p;
   }
   // Once per link on this device: store.seen keeps the last link ids (or hashes) already counted.
   function open(store, doc, key, o) {
     var s = Array.isArray(store.seen) ? store.seen : [];
     if (s.indexOf(key) >= 0) return null;
     store.seen = s.concat([key]).slice(-SEEN);
-    return send({ i: id(doc), e: "open" }, o);
+    var p = { i: id(doc), e: "open" };
+    post(p, o);
+    return p;
   }
-  // A tap on the vote it already has takes it back (0). store.votes[id] keeps 1 or -1.
-  function vote(store, card, v, o) {
-    var k = id(card), vs = store.votes = store.votes && typeof store.votes === "object" ? store.votes : {}, p = vs[k] === 1 || vs[k] === -1 ? vs[k] : 0;
+  // A tap on the vote it already has takes it back (0). Kept in store.votes[id] only once the server counted it:
+  // -> { v: the vote now shown, login: true when the server wants an account }.
+  async function vote(store, card, v, o) {
+    var k = id(card), vs = store.votes && typeof store.votes === "object" ? store.votes : {}, p = vs[k] === 1 || vs[k] === -1 ? vs[k] : 0;
     v = v === p ? 0 : v;
+    var r = await post({ i: k, e: "vote", v: v, p: p }, o, "same-origin");
+    if (r && (r.status === 401 || (r.headers && r.headers.get && r.headers.get("X-Stat") === "login"))) return { v: p, login: true };
+    if (!r || !(r.status >= 200 && r.status < 300)) return { v: p };
+    store.votes = vs;
     if (v) vs[k] = v; else delete vs[k];
-    send({ i: k, e: "vote", v: v, p: p }, o);
-    return v;
+    return { v: v };
   }
-  var api = { URL: URL_, id: id, send: send, share: share, open: open, vote: vote };
-  if (typeof module !== "undefined" && module.exports) module.exports = api; else root.Stat = api;
+  var api = { URL: URL_, off: off, id: id, share: share, open: open, vote: vote };
+  if (node) module.exports = api; else root.Stat = api;
 })(typeof window !== "undefined" ? window : globalThis);
