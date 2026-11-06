@@ -88,8 +88,24 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .kitag{position:absolute;right:6px;bottom:6px;padding:3px 7px;border-radius:5px;background:#111;color:#fff;font:700 12px/1.2 var(--ui);letter-spacing:.3px}
 .pv:not([hidden]) ~ .hero{flex:0 0 84px}
 .hero[hidden]{display:none}
-/* 200 % zoom, phone on its side: the start page scrolls instead of squeezing the sheet (WCAG 1.4.4, 1.4.10) */
-@media (max-height:520px){#home{overflow:hidden auto}#home::before{position:fixed}#pad{flex:none;height:400px}}
+/* Short sheet (200 % zoom, phone on its side, a small window): the main button stays on screen without scrolling and
+   nothing on the sheet reaches over the buttons below it (WCAG 1.4.4, 1.4.10). The picture gives way first: it shrinks
+   while the title keeps 64 px, and where the sheet is too short for both it is left out; on a tiny sheet the title
+   stays and the date line goes. On low screens the date line and the margins get smaller too. */
+#leaf,.ghost{container-type:size}   /* .ghost: the greyed next day under the sheet, filled by the same code */
+.pv.pic{flex-shrink:1;min-height:0}
+.pv.pic .pvimg{max-height:100%}
+.pv.pic:not([hidden]) ~ .hero{flex:1 1 0;min-height:64px}
+@container (max-height:250px){
+  .pv{display:none}.pv:not([hidden]) ~ .hero,.pv.pic:not([hidden]) ~ .hero{flex:1 1 0;min-height:0}
+  .teaser{margin-top:2px;font-size:15px}
+}
+@container (max-height:140px){.dateline,.teaser,.from{display:none}}
+@media (max-height:520px){
+  #pad{margin:2px 14px 10px}#leaf,#pad .ghost{padding:18px 12px 8px;overflow:hidden}
+  .dateline{flex:none;min-height:0}.dnum{font-size:40px}.dmon{font-size:12px}.burst{width:58px;height:58px;margin-top:-4px;font-size:10px}
+  .holes{top:4px}
+}
 #tools{position:relative;display:grid;grid-template-columns:repeat(4,1fr);padding:0 10px 8px;flex:none}
 #tools button{min-height:48px;border:0;background:transparent;color:var(--on);font:800 13px/1.1 var(--ui);padding:2px}
 #stagewrap{position:relative;flex:0 1 38%;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 12px;background:var(--a)}

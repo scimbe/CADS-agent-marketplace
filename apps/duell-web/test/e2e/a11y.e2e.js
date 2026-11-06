@@ -20,7 +20,7 @@ test("Zoom frei, color-scheme gesetzt, Burst-Text AA, Labels in EN, Ton-Schalter
   const errs = []; p.on("pageerror", (e) => errs.push(e.message));
   await p.goto(daily);
   const v = await p.evaluate(() => ({ vp: document.querySelector("meta[name=viewport]").content, cs: document.querySelector("meta[name=color-scheme]").content, css: getComputedStyle(document.documentElement).colorScheme }));
-  assert.doesNotMatch(v.vp, /user-scalable|maximum-scale/); assert.equal(v.cs, "light"); assert.equal(v.css, "light");
+  assert.doesNotMatch(v.vp, /user-scalable|maximum-scale/); assert.equal(v.cs, "light dark"); assert.equal(v.css, "light dark");
   const burst = await p.evaluate(() => { const s = getComputedStyle(document.getElementById("dkind")); return [s.color, s.backgroundColor]; });
   assert.ok(ratio(burst[0], burst[1]) >= 4.5, "Burst " + burst.join(" auf "));
   const name = (id) => p.locator("#" + id).getAttribute("aria-label");
