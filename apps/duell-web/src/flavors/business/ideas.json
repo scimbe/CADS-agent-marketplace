@@ -322,6 +322,87 @@
     "f": "star",
     "grip": "pause"
    }
+  },
+  {
+   "tags": ["phishing","it-sicherheit","sicherheit","e-mail","betrug","schulung","quiz","business","security","email","scam","fraud","training"],
+   "id": "biz-quiz-phishing",
+   "kind": "turn",
+   "min": 120,
+   "on": "11-18",
+   "de": {
+    "t": "Echt oder|Phishing?",
+    "s": "Zehn ausgedachte Mails und SMS. Ohne Namen, ohne Rangliste."
+   },
+   "en": {
+    "t": "Real or|phishing?",
+    "s": "Ten made-up mails and texts. No names, no ranking."
+   },
+   "turn": {
+    "g": "phish",
+    "f": "ring",
+    "grip": "pause"
+   }
+  },
+  {
+   "tags": ["wichteln","wichtelgeschenk","geschenkidee","budget","kollegen","jahresende","team","secret santa","gift idea","budget gift","colleagues","year end"],
+   "id": "biz-wichtel-ideen",
+   "kind": "turn",
+   "min": 120,
+   "on": "11-20",
+   "de": {
+    "t": "Wichtelideen|nach Budget",
+    "s": "Budget und zwei Stichworte. Fünf neutrale Ideen."
+   },
+   "en": {
+    "t": "Gift ideas|on a budget",
+    "s": "Budget and two keywords. Five neutral ideas."
+   },
+   "turn": {
+    "g": "wichtelidee",
+    "f": "star",
+    "grip": "geschenk"
+   }
+  },
+  {
+   "tags": ["wichteln","losen","ziehung","geschenk","budget","team","kollegen","jahresende","secret santa","draw","gift swap","colleagues","year end"],
+   "id": "biz-wichteln",
+   "kind": "turn",
+   "min": 120,
+   "on": "11-23",
+   "de": {
+    "t": "Büro-|Wichteln",
+    "s": "Budget und Tag. Alle tragen sich selbst ein, jede Person sieht nur den eigenen Zettel."
+   },
+   "en": {
+    "t": "Office|Secret Santa",
+    "s": "Budget and day. Everyone signs up, each person sees only their own slip."
+   },
+   "turn": {
+    "g": "bwichteln",
+    "f": "heart",
+    "grip": "geschenk"
+   }
+  },
+  {
+   "tags": ["weihnachtsfeier","jahresabschlussfeier","betriebsfeier","firmenfeier","feier","termin","ort","kosten","pro kopf","freibetrag","barrierefrei","essen","christmas party","year-end party","office party","company party","scheduling","venue","cost per head","accessible","food"],
+   "needs": ["crypto"],
+   "id": "biz-weihnachtsfeier",
+   "kind": "turn",
+   "min": 120,
+   "on": "11-16",
+   "de": {
+    "t": "Weihnachtsfeier|planen",
+    "s": "Termin, Ort und Kosten pro Kopf in einem Link."
+   },
+   "en": {
+    "t": "Plan the|holiday party",
+    "s": "Date, place and cost per head in one link."
+   },
+   "turn": {
+    "g": "feier",
+    "f": "star",
+    "grip": "abend"
+   }
   }
  ],
  "gated": []

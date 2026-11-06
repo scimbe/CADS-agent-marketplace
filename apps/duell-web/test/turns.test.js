@@ -3,12 +3,14 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const D = require("../src/daily.js");
 const Tn = require("../src/turns.js");
+const QS = require("../src/quizspiele.js");   // the quiz cards Echt oder Phishing? (Business) and Was kostet das? join the table
 const me = { emoji: "🐙", nick: "M", colors: ["#2b4bff", "#ffe600"], set: "tiere" };
 const ideas = D.IDEAS.filter((i) => i.kind === "turn");
 const through = (d) => { const hash = D.docUrl(d).split("#")[1]; const r = D.parseRoute("#" + hash); assert.equal(r.type, "doc"); return r.doc; };
 // Team-Quiz and Typen-Quiz only run with a question pack (quizpack.js): the first night pack that fits.
 const PACKS = require("../src/quiz-packs.json").packs, QP = require("../src/quizpack.js");
-const fresh = (g, seed) => { const d = D.docFromIdea(ideas.find((i) => i.turn.g === g), me, "de"); if (Tn.GAMES[g].needs) { d.pk = PACKS.map((x) => QP.sanitize(x.pk)).find((p) => QP.fits(g, p)); d.pk.q = d.pk.q.slice(0, 3); } return Tn.fresh(d, seed); };
+const BIZ = require("../src/flavors/business/ideas.json").ideas.filter((i) => i.kind === "turn");
+const fresh = (g, seed) => { const d = D.docFromIdea(ideas.concat(BIZ).find((i) => i.turn.g === g), me, "de"); if (Tn.GAMES[g].needs) { d.pk = PACKS.map((x) => QP.sanitize(x.pk)).find((p) => QP.fits(g, p)); d.pk.q = d.pk.q.slice(0, 3); } return Tn.fresh(d, seed); };
 const LINES = {
   deal: [[[4], [3, 6], [5]]], einig: [[[["Pizza", "Sushi", "Döner", "Pommes", "Nudeln"], [0, 1, 2, 3, 4]], [[4, 0, 1, 2, 3]]]],
   wort: [[[[0, 1, 2], "Zzzz"], [[0, 1, 5]]]], schmuggel: [[[0], [0, [0, 1, 2]], [[3, 4, 5]]]],
@@ -35,6 +37,8 @@ const LINES = {
   wichteln: [[[["Ana", "Ben", "Cem", "", "", "", "", "", "", "", "", ""]], [[0], 0]]],
   sammeln: [[["maxmuster", "Pizza-Abend", 4, 3750], [0]]],
   einkauf: [[[[[], [["Milch", 0, 2, []], ["Brot", 1, 1, []]]]], [[[["Ana", 0]], [["Milch", 0, 2, [[0, 5]]], ["Brot", 1, 1, [[0, 5]]]]]]]],
+  wunsch: [[[[[], [["Hörbuch", 0, 1, []], ["Rad", 1, 1, []]]]], [[[["Ana", 0]], [["Hörbuch", 0, 1, [[0, 1]]], ["Rad", 1, 1, [[0, 1]]]]]]]],
+  geschenk: [[[[0], [1], [2, 5], [["Tee-Probierset", "Notizbuch", "Kartenspiel"], 1]], [[2]]]],
   rangliste: [[[[0, 1, 2, 3, 4, 5, 6, 7]], [[7, 1, 2, 3, 4, 5, 6, 0]]]],
   schaetzen: [[[1, 1, 1, 1, 1]]],
   reihum: [[[[0], "dein Lachen", "Ana"], [[1], "Toast machen", "Ben"], [[2], "wir lachten", "Cem"], [[4], "alles", "Dag"]]],
@@ -59,13 +63,19 @@ const LINES = {
   tuer: [[[[2, 15, 20]]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]],
   quiz: [[[[0], [1], [2]], [[1], [1], [1]]]],
-  typen: [[[0], [[0], [1], [2], 0]]]
+  typen: [[[0], [[0], [1], [2], 0]]],
+  phish: [Array.from({ length: QS.PEOPLE }, (x, i) => QS.full((i * 37) % 1024))],
+  preis: [[Array(QS.PREIS_N).fill(100), Array(QS.PREIS_N).fill(50)]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
-  assert.deepEqual(ideas.map((i) => i.turn.g).sort(), [...Tn.IDS].sort());
+  // phish is a card of the Business catalog (src/flavors/business/ideas.json), every other game has a daily card
+  assert.deepEqual(ideas.map((i) => i.turn.g).concat(["phish"]).sort(), [...Tn.IDS].sort());
   for (const g of Tn.IDS) {
     let d = fresh(g, 12345);
     for (const answers of LINES[g][0]) { const n = Tn.play(d, answers, 100); assert.ok(n, g); d = through(n); }
+    // A game its owner ends by hand (the wish list) is still open after every move and ends with that one tap
+    if (Tn.GAMES[g].close) { assert.equal(Tn.state(d).over, false, g + " endet nicht von allein"); d = through(Tn.close(d)); }
+    else assert.equal(Tn.close(d), null, g);
     assert.equal(Tn.state(d).over, true, g);
     const r = Tn.result(d, "de"), e = Tn.result(d, "en");
     assert.ok(r.h && r.lines.length, g); assert.ok(e.h && e.lines.length, g);
@@ -498,4 +508,26 @@ test("Einkaufszettel: kein Kalendertag, im Business-Flavor als Mitbringliste", (
   assert.equal(idea.on, undefined); assert.equal(idea.turn.g, "einkauf");
   const biz = require("../src/flavors/business/ideas.json").ideas.find((i) => i.turn && i.turn.g === "einkauf");
   assert.ok(biz && biz.turn.grip === "raum");
+});
+
+test("Wunschzettel: endet nie dadurch, dass alles vergeben ist, nur durch Schliessen; danach geht kein Zug mehr", () => {
+  let d = fresh("wunsch", 7);
+  assert.equal(Tn.close(d), null, "leerer Zettel schliesst nicht");
+  d = through(Tn.play(d, [[[], [["Rad", 0, 1, []], ["Buch", 1, 1, []]]]], 100));
+  const all = through(Tn.play(d, [[[["Ana", 0], ["Ben", 1]], [["Rad", 0, 1, [[0, 1]]], ["Buch", 1, 1, [[1, 1]]]]]], 100));
+  assert.equal(Tn.state(all).over, false, "alles vergeben, Zettel bleibt offen");
+  assert.equal(Tn.result(all, "de"), null);
+  assert.deepEqual(Tn.face(all, "de"), Tn.face(d, "de"), "Blatt sieht gleich aus mit 0 und allen Reservierungen");
+  // still open: a giver lets go again
+  const back = Tn.play(all, [[[["Ana", 0], ["Ben", 1]], [["Rad", 0, 1, [[0, 3]]], ["Buch", 1, 1, [[1, 1]]]]]], 100);
+  assert.ok(back && !Tn.shopRows(Tn.moves(back)[0][0], Tn.WISH)[0].bring.length, "Freigeben geht weiter");
+  const own = Object.assign({}, all, { o: 1 });
+  assert.equal(Tn.state(through(own)).over, false, "ihr eigener Link (o: 1) endet nicht");
+  const shut = through(Tn.close(all));
+  assert.equal(shut.o, 2); assert.equal(Tn.state(shut).over, true);
+  assert.equal(Tn.result(shut, "de").h, "Wunschzettel geschlossen");
+  assert.deepEqual(Tn.result(shut, "de").lines, ["Rad", "Buch"], "nur die Wünsche, kein Name");
+  assert.deepEqual(Tn.result(through(Tn.close(d)), "de"), Tn.result(shut, "de"), "geschlossen sieht gleich aus mit 0 und allen Reservierungen");
+  assert.equal(Tn.play(shut, [[[], [["Rad", 0, 1, []]]]], 100), null, "nach dem Schliessen kein Zug");
+  assert.equal(Tn.close(shut), null);
 });
