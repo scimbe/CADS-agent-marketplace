@@ -1,6 +1,6 @@
 "use strict";
 // Katalog v2, wave V1, PR "wichteln": geschenk-finder and zug-wunschzettel (daily), biz-wichtel-ideen and biz-wichteln
-// (Daily Business). Each card runs end to end over real links between 2-3 browser contexts (own storage, own language),
+// (Daily Business). Each card runs end to end over real links between 2-6 browser contexts (own storage, own language),
 // pinned with #i=<id>, never through the day's sheet. The AI is mocked in the exact shape of CADS-DEMO-wrapper kind liste;
 // every card also runs with no network at all. Screenshots go to SHOT_DIR when it is set.
 const test = require("node:test");
@@ -97,6 +97,7 @@ test("Wunschzettel mit Geheimnis: Kind schreibt, Familie reserviert verdeckt üb
 
   const m = await G.open(mom, hash(B0));
   await m.locator("#go").click();
+  await panel(m).getByRole("button", { name: "I'm giving something → show reservations" }).click();   // a new phone asks first
   await panel(m).locator("input.field").last().fill("Mom");
   await panel(m).getByRole("button", { name: "I'll give this: Hörbuch" }).click();
   await panel(m).getByText("You're giving this").waitFor();
@@ -105,6 +106,7 @@ test("Wunschzettel mit Geheimnis: Kind schreibt, Familie reserviert verdeckt üb
 
   const o = await G.open(oma, hash(B1));
   await o.locator("#go").click();
+  await panel(o).getByRole("button", { name: "Ich schenke etwas → Reservierungen zeigen" }).click();
   const taken = panel(o).getByRole("button", { name: "Ich schenke das: Hörbuch" });
   assert.equal(await taken.getAttribute("aria-disabled"), "true", "vergeben sieht gesperrt aus");
   await panel(o).getByText("Schon vergeben").waitFor();
@@ -164,10 +166,12 @@ test("Wunschzettel: das Gerät des Kindes sieht mit keiner und mit allen Reservi
   await none.p.close();
 
   const m = await G.open(mom, hash(L0)); await m.locator("#go").click();
+  await panel(m).getByRole("button", { name: /→ (show reservations|Reservierungen zeigen)$/ }).click();   // a new phone asks first
   await panel(m).locator("input.field").last().fill("Mom");
   await panel(m).getByRole("button", { name: "I'll give this: Lego" }).click();
   const L1 = await send(m);
   const o = await G.open(opa, hash(L1)); await o.locator("#go").click();
+  await panel(o).getByRole("button", { name: /→ (show reservations|Reservierungen zeigen)$/ }).click();
   await panel(o).locator("input.field").last().fill("Opa");
   await o.waitForTimeout(300);
   await panel(o).getByRole("button", { name: "Ich schenke das: Buch" }).click();
@@ -262,57 +266,155 @@ test("Business Wichtelideen: ohne KI fünf Ideen im Budget, mit KI (gemockt) nur
   await tanja.close(); await kemal.close();
 });
 
-test("Büro-Wichteln: Gruppenlink, jede Person tippt den eigenen Namen und sieht nur den eigenen Zettel, ein Gerät bleibt bei einem Namen (3 Geräte, de/en)", async () => {
-  const [org, ben, cem] = await G.people(b, 3, { lang: ["de", "en", "de"], view: ["quer", "phone390", "phone328"], time: "2026-11-23T09:00:00+01:00" });
-  const o = await G.open(org, "#i=biz-wichteln", { flavor: "business" });
+test("Büro-Wichteln: fünf Personen tragen sich auf fünf Geräten selbst ein, die Organisatorin zieht, jedes Gerät öffnet nur den eigenen Zettel; ein sechstes Gerät öffnet keinen (de/en)", async () => {
+  const time = "2026-11-23T09:00:00+01:00";
+  const [org, ben, cem, dag, eva, fremd] = await G.people(b, 6, { lang: ["de", "en", "de", "en", "de", "de"], view: ["quer", "phone390", "phone328", "phone390", "zoom200", "phone390"], time });
+  const biz = { flavor: "business" };
+  const unsealed = (p, u) => p.evaluate((x) => { const r = window.Daily.parseRoute("#" + x.split("#")[1]); return { seed: r.doc.seed, m: window.Turns.unseal(r.doc.q, r.doc.seed) }; }, u);
+  // 1. the organiser: budget, kind, day; the group link carries no names yet
+  const o = await G.open(org, "#i=biz-wichteln", biz);
   await o.locator("#go").click();
-  const f = panel(o).locator("input.field"); for (const [i, n] of ["Ana", "Ben", "Cem", "Dag"].entries()) await f.nth(i).fill(n);
-  await snap(o, "wichteln-1-namen");
-  await next(o);
   await tap(o, "bis 15 €");
   await tap(o, "Selbstgemacht");
   const day = await panel(o).locator('input[type="date"]').inputValue();
   assert.equal(day, "2026-12-11", "vorbelegt: ein Freitag gut zwei Wochen voraus");
   await panel(o).locator('input[type="date"]').fill("2026-12-18"); await panel(o).locator('input[type="date"]').dispatchEvent("change");
-  await snap(o, "wichteln-2-tag");
+  await snap(o, "wichteln-1-tag");
   await next(o);
-  await panel(o).getByText("Fertig. Den Link in die Teamgruppe schicken.").waitFor();
-  const link = await send(o);
-  assert.match(link, /^https:\/\/bunsenbrenner\.org\/business#c=/);
-  assert.ok(!/Ana|Ben|Cem|Dag/.test(decoded(link)), "keine Namen lesbar im Link");
-  await snap(o, "wichteln-3-teilen");
-
-  const slips = {};
-  for (const [ctx, me, lang] of [[ben, "Ben", "en"], [cem, "Cem", "de"]]) {
-    const p = await G.open(ctx, hash(link), { flavor: "business" });
+  await panel(o).getByText("Fertig. Den Link in die Teamgruppe schicken, damit sich alle eintragen.").waitFor();
+  const L0 = await send(o);
+  assert.match(L0, /^https:\/\/bunsenbrenner\.org\/business#c=/);
+  // 2. the organiser signs up herself on her own phone (she opens the group link like everyone)
+  const o1 = await G.open(org, hash(L0), biz);
+  await o1.locator("#go").click();
+  await panel(o1).getByText("Noch niemand eingetragen.").waitFor();
+  await panel(o1).getByText(/Dieses Gerät hat das Wichteln angelegt und zieht/).waitFor();
+  assert.equal(await panel(o1).getByRole("button", { name: "Jetzt ziehen (0 dabei)" }).getAttribute("aria-disabled"), "true");
+  await panel(o1).locator("input.field").fill("Ana"); await panel(o1).getByRole("button", { name: "Mitmachen", exact: true }).click();
+  await panel(o1).getByText("Auf diesem Gerät eingetragen: Ana.").waitFor();
+  // 3. four more people, each on their own phone, each from the group link, each sends their own link back
+  const back = [];
+  for (const [ctx, me, lang] of [[ben, "Ben", "en"], [cem, "Cem", "de"], [dag, "Dag", "en"], [eva, "Eva", "de"]]) {
+    const p = await G.open(ctx, hash(L0), biz);
     await p.locator("#go").click();
-    await panel(p).getByRole("button", { name: me, exact: true }).click();
-    const txt = await panel(p).innerText();
-    const who = txt.match(lang === "en" ? /Gift for: (\w+)/ : /Zu beschenken: (\w+)/)[1];
-    assert.notEqual(who, me, me + " zieht sich nicht selbst");
-    assert.match(txt, lang === "en" ? /Budget: up to €15/ : /Budget: bis 15 €/);
-    assert.match(txt, lang === "en" ? /Swap: Fri 12\/18/ : /Übergabe: Fr 18\.12\./);
-    assert.match(txt, lang === "en" ? /Anyone who decodes the link/ : /Wer den Link technisch ausliest/);
-    const others = ["Ana", "Ben", "Cem", "Dag"].filter((n) => n !== who && n !== me);
-    for (const n of others) assert.ok(!new RegExp("(Gift for|Zu beschenken): " + n).test(txt));
-    slips[me] = who;
-    await snap(p, "wichteln-4-zettel-" + me.toLowerCase());
+    await panel(p).getByText(lang === "en" ? "The draw happens on the device that set up the Secret Santa." : "Gezogen wird auf dem Gerät, das das Wichteln angelegt hat.").waitFor();
+    assert.equal(await panel(p).getByRole("button", { name: /Jetzt ziehen|Draw now/ }).count(), 0, "nur das anlegende Gerät zieht");
+    await panel(p).locator("input.field").fill(me);
+    await panel(p).getByRole("button", { name: lang === "en" ? "Take part" : "Mitmachen", exact: true }).click();
+    await panel(p).getByText(lang === "en" ? "Signed up as " + me + "." : "Eingetragen als " + me + ".", { exact: false }).waitFor();
+    if (me === "Ben") await snap(p, "wichteln-2-eingetragen-en");
+    if (me === "Cem") await snap(p, "wichteln-2-eingetragen-328");
+    const u = await send(p); back.push(u);
+    const x = await unsealed(p, u);
+    assert.equal(x.m[1][0][0][0], me, "der eigene Eintrag steht vorn"); assert.match(x.m[1][0][0][1], /^[A-Za-z0-9_-]{87}$/, "mit dem öffentlichen Schlüssel dieses Geräts");
+    const st = await p.evaluate((s) => JSON.parse(localStorage.getItem("daily.v1")).bwk["s" + s], x.seed);
+    assert.ok(st.k && st.k.d && st.p === x.m[1][0][0][1], "der private Schlüssel bleibt auf dem Gerät");
     assert.deepEqual(p.errs, []);
   }
-  assert.notEqual(slips.Ben, slips.Cem, "zwei Personen, zwei verschiedene Zettel");
-  // Ben's phone keeps to Ben: another name is locked and says why
-  const again = await G.open(ben, hash(link), { flavor: "business" }); await again.locator("#go").click();
-  await panel(again).getByText("Ben is already set on this device.").waitFor();
-  const ana = panel(again).getByRole("button", { name: "Ana", exact: true });
-  assert.equal(await ana.getAttribute("aria-disabled"), "true");
-  await again.waitForTimeout(300); await ana.click({ force: true });   // a tap on it still answers, with the reason
-  assert.equal(await again.locator("#toast").textContent(), "Ben is already set on this device.");
-  assert.ok(!(await panel(again).innerText()).includes("Gift for"), "kein zweiter Zettel auf demselben Gerät");
-  await snap(again, "wichteln-5-gesperrt-en");
-  await panel(again).getByRole("button", { name: "Ben", exact: true }).click();
-  await panel(again).getByText("Gift for: " + slips.Ben).waitFor();
-  assert.deepEqual(again.errs, []);
-  for (const c of [org, ben, cem]) await c.close();
+  // 4. the organiser opens every link sent back: the sign-ups come together, then she draws
+  let last;
+  for (const u of back) { last = await G.open(org, hash(u), biz); await last.locator("#go").click(); }
+  await panel(last).getByText(/^Dabei \(5\): /).waitFor();
+  const inList = await panel(last).getByText(/^Dabei \(5\): /).textContent();
+  for (const n of ["Ana", "Ben", "Cem", "Dag", "Eva"]) assert.ok(inList.includes(n), inList);
+  await snap(last, "wichteln-3-organisatorin-vor-ziehung");
+  await panel(last).getByRole("button", { name: "Jetzt ziehen (5 dabei)" }).click();
+  await panel(last).getByText(/Gezogen und versiegelt/).waitFor();
+  await snap(last, "wichteln-4-gezogen");
+  const D = await send(last);
+  // 5. the draw link: names, one ephemeral key, five boxes of the same length; no keys of the people, no pairs
+  const x = await unsealed(last, D), dr = x.m[1][0];
+  assert.equal(x.m.length, 2); assert.equal(dr.length, 3);
+  assert.deepEqual([...dr[0]].sort(), ["Ana", "Ben", "Cem", "Dag", "Eva"]);
+  assert.match(dr[1], /^[A-Za-z0-9_-]{87}$/); assert.equal(dr[2].length, 5); assert.ok(dr[2].every((c) => /^[A-Za-z0-9_-]{12}$/.test(c)), "alle Zettel gleich lang");
+  const raw = JSON.stringify(x.m);
+  for (const n of ["Ana", "Ben", "Cem", "Dag", "Eva"]) assert.equal(raw.split(n).length - 1, 1, n + " nur einmal im Link, in der Namensliste");
+  assert.ok(!/(Zu beschenken|Gift for)/.test(raw) && !/"[A-Za-z0-9_-]{87}"[^\]]*"[A-Za-z0-9_-]{87}"/.test(raw), "keine Zuordnung Name -> Empfänger im Link");
+  // the drawing phone keeps no pairs: only what is in the link (names, sealed boxes) and its own key
+  const orec = await last.evaluate((s) => JSON.parse(localStorage.getItem("daily.v1")).bwk["s" + s], x.seed);
+  assert.deepEqual(Object.keys(orec).sort(), ["k", "n", "o", "p", "r", "z", "zd"]); assert.deepEqual(orec.zd, dr);
+  // 6. each of the five opens the draw link and only their own slip; another name says it belongs to another device
+  const got = {}, ctxOf = { Ana: org, Ben: ben, Cem: cem, Dag: dag, Eva: eva }, en = { Ben: 1, Dag: 1 };
+  for (const [me, ctx] of Object.entries(ctxOf)) {
+    const p = await G.open(ctx, hash(D), biz);
+    await p.locator("#go").click();
+    await panel(p).getByText(en[me] ? "Tap your own name" : "Eigenen Namen antippen").first().waitFor();
+    assert.ok(await p.locator("#edmain").isHidden(), "nach der Ziehung geht nichts mehr raus");
+    await panel(p).getByRole("button", { name: me, exact: true }).click();
+    const line = panel(p).locator(".bwslip .qtext");
+    await line.waitFor();
+    const who = (await line.textContent()).match(en[me] ? /^Gift for: (\w+)$/ : /^Zu beschenken: (\w+)$/)[1];
+    assert.notEqual(who, me, me + " zieht sich nicht selbst");
+    const txt = await panel(p).innerText();
+    assert.match(txt, en[me] ? /Budget: up to €15/ : /Budget: bis 15 €/); assert.match(txt, en[me] ? /Swap: Fri 12\/18/ : /Übergabe: Fr 18\.12\./);
+    assert.match(txt, en[me] ? /Even someone who decodes the link sees no pairs/ : /Auch wer den Link ausliest, sieht keine Paare/);
+    got[me] = who;
+    await snap(p, "wichteln-5-zettel-" + me.toLowerCase());
+    const other = Object.keys(ctxOf).find((n) => n !== me);
+    await panel(p).getByRole("button", { name: other, exact: true }).click();
+    await panel(p).getByText(en[me] ? "This slip belongs to another device." : "Dieser Zettel gehört zu einem anderen Gerät.").first().waitFor();
+    assert.equal(await panel(p).locator(".bwslip .qtext").count(), 0, "kein fremder Zettel");
+    if (me === "Ben") await snap(p, "wichteln-6-fremder-zettel-en");
+    assert.deepEqual(p.errs, []);
+  }
+  const names = Object.keys(ctxOf), to = names.map((n) => names.indexOf(got[n]));
+  assert.equal(new Set(to).size, 5, "jeder Name genau einmal zu beschenken: " + JSON.stringify(got));
+  let at = 0, steps = 0; do { at = to[at]; steps++; } while (at !== 0 && steps <= 5); assert.equal(steps, 5, "ein Kreis durch alle: " + JSON.stringify(got));
+  // 7. a sixth browser with the draw link opens no slip at all
+  const f = await G.open(fremd, hash(D), biz);
+  await f.locator("#go").click();
+  for (const n of names) {
+    await panel(f).getByRole("button", { name: n, exact: true }).click();
+    await panel(f).getByText("Dieser Zettel gehört zu einem anderen Gerät.").first().waitFor();
+    assert.ok(!/Zu beschenken/.test(await panel(f).innerText()), n);
+  }
+  await snap(f, "wichteln-7-sechstes-geraet");
+  assert.deepEqual(f.errs, []);
+  // 8. older sign-up links after the draw: no new sign-up, no second draw; the drawing phone can send the draw again
+  const old = await G.open(org, hash(L0), biz); await old.locator("#go").click();
+  await panel(old).getByText("Hier wurde schon gezogen. Der Ziehungslink lässt sich noch einmal in die Teamgruppe schicken.").waitFor();
+  assert.equal(await panel(old).getByRole("button", { name: /Jetzt ziehen/ }).count(), 0);
+  const again = await send(old);
+  assert.deepEqual((await unsealed(old, again)).m, x.m, "derselbe Ziehungslink, keine neue Ziehung");
+  const bOld = await G.open(ben, hash(back[0]), biz); await bOld.locator("#go").click();
+  await panel(bOld).getByText("The draw already happened here. Please open the draw link from the team group.").waitFor();
+  assert.equal(await panel(bOld).locator("input.field").count(), 0);
+  for (const p of [o, o1, last, old, bOld]) assert.deepEqual(p.errs, []);
+  for (const c of [org, ben, cem, dag, eva, fremd]) await c.close();
+});
+
+test("Wunschzettel auf einem zweiten Gerät der wünschenden Person: erst die Frage, dann ohne Reservierungen", async () => {
+  const [kid, mom, kid2] = await G.people(b, 3, { lang: ["de", "en", "de"], view: ["phone390", "phone390", "phone328"] });
+  const k = await G.open(kid, "#i=zug-wunschzettel");
+  await k.locator("#go").click();
+  const add = async (p, s) => { const f = panel(p).locator("form.shopadd input"); await f.fill(s); await f.press("Enter"); };
+  for (const w of ["Hörbuch", "Puzzle"]) await add(k, w);
+  const B0 = await send(k);
+  const m = await G.open(mom, hash(B0)); await m.locator("#go").click();
+  await panel(m).getByRole("button", { name: "I'm giving something → show reservations" }).click();
+  await panel(m).locator("input.field").last().fill("Mom");
+  await panel(m).getByRole("button", { name: "I'll give this: Hörbuch" }).click();
+  const B1 = await send(m);
+  // the kid's second phone does not know the list: it asks before it shows anything about reservations
+  const k2 = await G.open(kid2, hash(B1)); await k2.locator("#go").click();
+  await panel(k2).getByText("Wer bist du?").waitFor();
+  const first = await panel(k2).innerText();
+  assert.ok(!/vergeben|Hörbuch|🎁/.test(first), "vor der Antwort keine Reservierung und kein Wunsch: " + first);
+  await snap(k2, "wunsch-6-zweites-geraet-frage");
+  await panel(k2).getByRole("button", { name: "Ich bin die Person mit dem Wunschzettel → Reservierungen ausblenden" }).click();
+  await panel(k2).locator(".shoprow").first().waitFor();
+  const seen = await panel(k2).innerText();
+  assert.ok(!/vergeben|Du schenkst|Mom|🎁/.test(seen), seen);
+  assert.deepEqual(await panel(k2).locator(".shoprow b").allInnerTexts(), ["Hörbuch", "Puzzle"]);
+  await snap(k2, "wunsch-7-zweites-geraet-ohne-reservierungen");
+  const own = await k2.evaluate(() => { const s = JSON.parse(localStorage.getItem("daily.v1")).wown; return s[Object.keys(s)[0]]; });
+  assert.equal(own.o, 1); await k2.waitForFunction(() => { const s = JSON.parse(localStorage.getItem("daily.v1")).wown; return !!s[Object.keys(s)[0]].p; });
+  // the same phone opens it again: no question any more
+  const k3 = await G.open(kid2, hash(B1)); await k3.locator("#go").click();
+  await panel(k3).locator(".shoprow").first().waitFor();
+  assert.equal(await panel(k3).getByText("Wer bist du?").count(), 0);
+  for (const p of [k, m, k2, k3]) assert.deepEqual(p.errs, []);
+  await kid.close(); await mom.close(); await kid2.close();
 });
 
 // Rule A4 / hard rule: the main button is on screen and free at 328x700, 390x844, 640x400 and 512x384 (200 % zoom), on the
