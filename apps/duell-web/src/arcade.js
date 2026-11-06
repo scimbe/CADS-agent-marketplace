@@ -5,7 +5,7 @@
    send() and receive(), so the bot is simply a second side in the same page, and tests can pipe two sides together. */
 (function (root) {
   "use strict";
-  var W = 1000, H = 1600, STEP = 1 / 120, NET_P = 0.05, NET_ST = 0.1, SERVE_PAUSE = 0.9, FIN_WAIT = 2;
+  var W = 1000, H = 1600, STEP = 1 / 120, NET_P = 0.05, NET_ST = 0.1, SERVE_PAUSE = 0.9, FIN_WAIT = 6;   // FIN_WAIT: a stall of up to about 5 s still ends alike; an older app costs it once
 
   function hash32(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   function unit(seed, key) { return hash32(seed + "|" + key) / 4294967296; }               // 0..1, fixed by the seed
@@ -46,12 +46,14 @@
     };
     S.fin = function (m) {
       if (m.t !== "fin") return false;
-      if (num(m.c) && m.c >= 0 && m.c < 100 && S.oppFin === null) { S.oppFin = m.c | 0; S.check(); }
+      // Only an end that can be: the other one took WIN hits, or gave this one WIN already. At most WIN hits count.
+      if (num(m.c) && m.c >= 0 && S.oppFin === null && (m.c >= G.WIN || S.score[1] >= G.WIN)) { S.oppFin = Math.min(G.WIN, m.c | 0); S.check(); }
       return true;
     };
     S.finWait = function (dt) { S.t += dt; if (S.t - S.endAt > FIN_WAIT) finish(); };
     // This phone let the point go: the other one scores, and the one who lost the point serves the next ball.
-    S.concede = function (x, y) { S.score[1]++; S.send({ t: "pt" }); S.fx("lose", x, y); S.check(); if (!S.over && G.serves) S.serveAt = S.t + SERVE_PAUSE; };
+    S.concede = function (x, y) { if (S.over || S.ending) return;   // after "fin" nothing more is taken
+      S.score[1]++; S.send({ t: "pt" }); S.fx("lose", x, y); S.check(); if (!S.over && G.serves) S.serveAt = S.t + SERVE_PAUSE; };
     S.gain = function () { S.score[0]++; S.fx("score", W / 2, H / 4); S.check(); };
     S.start = function () { S.started = true; if (o.serving && G.serves) S.serveAt = S.t + 0.01; };
     // How much finger time the other player's next move may use. Time saved up while no report came (up to half a
@@ -69,7 +71,7 @@
     if (S.over) return;
     if (S.ending) { S.finWait(Math.min(dt, 0.25)); return; }   // frozen until the other phone's last word
     dt = Math.min(dt, 0.25);
-    while (dt > 1e-9) { var d = Math.min(STEP, dt); dt -= d; S.t += d; sub(d); if (S.over) break; }
+    while (dt > 1e-9) { var d = Math.min(STEP, dt); dt -= d; S.t += d; sub(d); if (S.over || S.ending) break; }
   }
   function report(S, sendP, sendSt) {
     if (S.t - S.sentP >= NET_P) { S.sentP = S.t; sendP(); }
@@ -447,7 +449,7 @@
         fire = false;
         for (var k = st.shells.length - 1; k >= 0; k--) {
           var sh = st.shells[k], r = shellStep(T, sh, d);
-          if (r) { st.shells.splice(k, 1); land(sh, { k: r, x: sh.x, y: sh.y }); if (S.over) return; }
+          if (r) { st.shells.splice(k, 1); land(sh, { k: r, x: sh.x, y: sh.y }); if (S.over || S.ending) return; }
         }
         st.reload = clamp((S.t - last) / P.RELOAD, 0, 1);
       });
@@ -455,6 +457,7 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over || S.fin(m)) return;
+      if (S.ending && m.t !== "boom") return;   // at the end only the hit count still matters
       if (m.t === "p" && num(m.vx) && num(m.vy)) { st.oppAim = cap({ x: 0, y: 0, vx: m.vx, vy: m.vy }, P.VSHOT); return; }
       if (m.t === "shot") {
         if (!plausibleShot(m, oppLast, S.t)) return S.reject();

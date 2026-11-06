@@ -223,13 +223,14 @@
           if (b2.mine || b2.y < H / 2) continue;               // only what flies at this phone is decided here
           var w = null; st.mine.forEach(function (x, j) { if (w === null && inWall(b2, x)) w = j; });
           if (w !== null) { st.mine[w].hp--; st.balls.splice(k, 1); S.send({ t: "wall", i: b2.i, k: w }); S.fx("wall", b2.x, b2.y, { mine: true, hp: st.mine[w].hp }); continue; }
-          if (Math.abs(b2.x - st.me.x) <= N.FR + N.R && Math.abs(b2.y - N.FY) <= N.FR + N.R) { st.balls.splice(k, 1); S.send({ t: "hit", i: b2.i }); S.fx("splat", st.me.x, N.FY, { mine: true }); S.concede(st.me.x, N.FY); if (S.over) return; }
+          if (Math.abs(b2.x - st.me.x) <= N.FR + N.R && Math.abs(b2.y - N.FY) <= N.FR + N.R) { st.balls.splice(k, 1); S.send({ t: "hit", i: b2.i }); S.fx("splat", st.me.x, N.FY, { mine: true }); S.concede(st.me.x, N.FY); if (S.over || S.ending) return; }
         }
       });
       A._.report(S, function () { S.send({ t: "p", x: Math.round(W - st.me.x) }); });
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over || S.fin(m)) return;
+      if (S.ending && m.t !== "hit") return;   // at the end only the hit count still matters
       if (m.t === "p" && num(m.x)) { st.opp = clamp(reach(st.opp, m.x, S.oppDt(Math.abs(m.x - st.opp), N.VF * 1.25), N.VF * 1.25), N.FR, W - N.FR); return; }
       if (m.t === "throw") {
         // A throw starts where the other figure can be, with the same speed for everyone, and only with a snowball in hand.
