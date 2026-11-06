@@ -371,11 +371,11 @@
    "on": "11-23",
    "de": {
     "t": "Büro-|Wichteln",
-    "s": "Namen, Budget, Tag. Jede Person sieht nur den eigenen Zettel."
+    "s": "Budget und Tag. Alle tragen sich selbst ein, jede Person sieht nur den eigenen Zettel."
    },
    "en": {
     "t": "Office|Secret Santa",
-    "s": "Names, budget, day. Each person sees only their own slip."
+    "s": "Budget and day. Everyone signs up, each person sees only their own slip."
    },
    "turn": {
     "g": "bwichteln",

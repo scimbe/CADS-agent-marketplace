@@ -60,16 +60,29 @@
     box.appendChild(row); sync();
   });
 
-  // ---------- wish: the wish list (turns.js WISH), merged like the shopping list. The wisher's phone (she wrote it, opened
-  // her own link o: 1, or sent it once) shows the wishes only. The family sees one gift button per wish and others' marks
-  // only as "taken", never by whom. ----------
-  function wishOwn(doc, m) {
-    var K = root.Kit, s = K.store.wown && typeof K.store.wown === "object" ? K.store.wown : {}, own = !m.length || doc.o === 1 || !!s["s" + doc.seed];
-    if (own && !s["s" + doc.seed]) { s["s" + doc.seed] = 1; var k = Object.keys(s); while (k.length > 12) delete s[k.shift()]; K.store.wown = s; K.save(); }
-    return own;
+  // ---------- wish: the wish list (turns.js WISH), merged like the shopping list. The wisher's phone shows the wishes only;
+  // the family sees one gift button per wish and others' marks only as "taken", never by whom. Whose phone is it: the
+  // wisher's phone keeps a device key for the list (made like Büro-Wichteln's, src/siegel.js; it stays on the phone, the
+  // link has no key) from writing it, opening her own link (o: 1) or saying so. A phone with neither key nor answer asks
+  // first, before it shows any reservation: a wisher on a second phone hides them with one tap. A request, not a lock. ----------
+  function wishWho(doc, m) {
+    var K = root.Kit, s = K.store.wown && typeof K.store.wown === "object" ? K.store.wown : (K.store.wown = {}), v = s["s" + doc.seed];
+    if (v === 1 || (v && v.o === 1)) return 1;
+    if (!m.length || doc.o === 1) { wishMark(doc, 1); return 1; }
+    return v && v.o === 0 ? 0 : -1;
+  }
+  function wishMark(doc, own) {
+    var K = root.Kit, S = root.Siegel, s = K.store.wown, key = "s" + doc.seed, k;
+    delete s[key]; s[key] = { o: own }; k = Object.keys(s); while (k.length > 12) delete s[k.shift()]; K.save();
+    if (own && S.ok()) S.keys().then(function (kp) { if (s[key] && s[key].o === 1) { s[key].k = kp.k; s[key].p = kp.p; K.save(); } }).catch(function () {});
   }
   root.Turn2.add("widget", "wish", function (box, p, set, ctx) {
-    var K = root.Kit, Tn = root.Turns, Q = root.Quest, X = L(), cf = p.cfg, own = wishOwn(ctx.doc, ctx.m), base = ctx.m.length ? ctx.m[0][0] : null;
+    var K = root.Kit, Tn = root.Turns, Q = root.Quest, X = L(), cf = p.cfg, who0 = wishWho(ctx.doc, ctx.m), own = who0 === 1, base = ctx.m.length ? ctx.m[0][0] : null;
+    if (who0 < 0) {   // a new phone: who is this, before any reservation shows
+      var q = box.querySelector(".lbl"); if (q) q.textContent = X.wun_who; else box.appendChild(el("p", "lbl", X.wun_who));
+      [[X.wun_iam, 1], [X.wun_igive, 0]].forEach(function (c) { box.appendChild(el("button", "btn", c[0], function () { K.sfx.tap(); wishMark(ctx.doc, c[1]); A().tab("Move"); })); });
+      box.appendChild(el("p", "note", X.wun_who_why)); set(null); return;
+    }
     var e = ctx.ed.shop || (ctx.ed.shop = { name: "", face: Math.max(0, Tn.FACES.indexOf(A().me().emoji)), adds: [], marks: {} });
     var form = el("form", "shopadd"), f = el("input", "field"), plus = el("button", "chip", "+"), rows = el("div", "shoplist"), who = el("input", "field"), pn = document.getElementById("panel");
     if (pn) pn.dataset.size = "big";
@@ -149,8 +162,9 @@
   });
 
   // ---------- day: one calendar day, tapped in the date field; set in advance to a Friday two weeks ahead ----------
-  root.Turn2.add("widget", "day", function (box, p, set) {
+  root.Turn2.add("widget", "day", function (box, p, set, ctx) {
     var f = el("input", "field"), t0 = today(), def = t0 + 14;
+    if (p.org) { bwRec(ctx.doc.seed).o = 1; root.Kit.save(); }   // this phone sets the group up, so it is the one that draws
     while (new Date(def * DAY).getUTCDay() !== 5) def++;
     f.type = "date"; f.min = iso(t0); f.value = iso(def); f.setAttribute("aria-label", L()[p.l]);
     f.addEventListener("change", function () {
@@ -160,20 +174,104 @@
     box.appendChild(f); set(def);
   });
 
-  // ---------- me: one's own name, once per phone. The phone keeps the name it opened a slip for and keeps to it. ----------
-  root.Turn2.add("widget", "me", function (box, p, set, ctx) {
-    var K = root.Kit, X = L(), names = p.from(ctx.doc, ctx.m, ctx.now, K.lang), s = K.store.wic && typeof K.store.wic === "object" ? K.store.wic : {}, key = "s" + ctx.doc.seed;
-    var mine = Number.isInteger(s[key]) && names[s[key]] ? s[key] : -1, row = el("div", "chips");
-    if (mine >= 0) { var n = el("p", "note", fmt(X.bw_locked, { n: names[mine] })); n.setAttribute("role", "status"); box.appendChild(n); }
-    names.forEach(function (name, i) {
-      var shut = mine >= 0 && i !== mine, b = el("button", "chip", name, function () {
-        if (shut) { K.toast(fmt(X.bw_locked, { n: names[mine] })); return; }
-        K.sfx.tap(); s[key] = i; var k = Object.keys(s); while (k.length > 12) delete s[k.shift()];
-        K.store.wic = s; K.save(); set([i]);
-      });
-      if (shut) { b.setAttribute("aria-disabled", "true"); b.title = fmt(X.bw_locked, { n: names[mine] }); }
-      row.appendChild(b);
-    });
-    box.appendChild(row); set(null);
+  // ---------- bw: Büro-Wichteln after the setup (BizGames, Siegel). Each phone signs up with a key made on it and sends
+  // its link back; the phone that set the group up merges the sign-ups it is sent and draws; then each phone opens only
+  // the slip sealed to its key. What this phone knows of a group stays in Kit.store.bwk under the link's seed: o (set it
+  // up), k/p (its key), n (the name it signed up with), r (the sign-ups seen, merged like the shopping list), z (drawn:
+  // this phone drew or saw the draw, so an older sign-up link no longer takes sign-ups or a second draw), zd (on the
+  // drawing phone: the draw as it is in the link, names and sealed boxes, to send it again).
+  // Never the pairs. ----------
+  function bwRec(seed) {
+    var K = root.Kit, s = K.store.bwk && typeof K.store.bwk === "object" ? K.store.bwk : (K.store.bwk = {}), key = "s" + seed, k;
+    if (!s[key] || typeof s[key] !== "object") { s[key] = {}; k = Object.keys(s); while (k.length > 12) delete s[k.shift()]; }
+    return s[key];
+  }
+  function bwUnion(a, b) {
+    var out = a.slice(), BG = root.BizGames;
+    (Array.isArray(b) ? b : []).forEach(function (e) { if (out.length < BG.MAX && BG.roster(out.concat([e]))) out.push(e); });
+    return out;
+  }
+  function fits(d) { var u = d && root.Daily.docUrl(d); return !!u && d.q.length <= 900 && u.split("#c=")[1].length <= root.DuellCore.MAX_FRAGMENT; }
+  root.Turn2.add("widget", "bw", function (box, p, set, ctx) {
+    var K = root.Kit, S = root.Siegel, BG = root.BizGames, Tn = root.Turns, Q = root.Quest, X = L(), doc = ctx.doc, m = ctx.m;
+    var rec = bwRec(doc.seed), drawn = BG.drawn(m), link = m.length > 1 && !drawn ? m[1][0] : [], info = "bwichtel:" + doc.seed, w = el("div", "bw");
+    var list = drawn || rec.z ? link : bwUnion(link, rec.r);
+    if (drawn) rec.z = 1; else if (!rec.z) rec.r = list;
+    K.save(); box.appendChild(w);
+    function mine() { for (var i = 0; i < list.length; i++) if (rec.p && list[i][1] === rec.p) return i; return -1; }
+    function note(s, cls, role) { var n = el("p", cls || "note", s); if (role) n.setAttribute("role", role); w.appendChild(n); return n; }
+    // what goes back: this phone's sign-up first, then the others it knows, as many as fit a link
+    function out() {
+      var me = mine(), v = me >= 0 ? [list[me]].concat(list.filter(function (e, i) { return i !== me; })) : list.slice(), d = Tn.play(doc, [v], Tn.today());
+      while (v.length > 1 && !fits(d)) { v.pop(); d = Tn.play(doc, [v], Tn.today()); }
+      return d;
+    }
+    function slipOf(i, box2) {
+      box2.textContent = "";
+      function say(s) { box2.appendChild(el("p", "note", s)); }
+      function other() { say(X.bw_other); K.toast(X.bw_other); }
+      if (!rec.k) { other(); return; }
+      S.open(rec.k, drawn[1], drawn[2][i], info + ":" + i, rec.p).then(function (to) {
+        if (!(to >= 0 && to < drawn[0].length && to !== i)) { say(X.bw_broken); return; }
+        BG.slip(doc, m, to, K.lang).forEach(function (s, j) { box2.appendChild(el("p", j ? "note" : "qtext", s)); });
+        say(X.bw_honest);
+      }, other);
+    }
+    function draw() {
+      w.textContent = "";
+      if (!S.ok()) { note(X.bw_nokey, "note", "alert"); set(null); return; }
+      if (drawn) {   // the draw is in the link: tap one's own name, only the key of the phone that signed up opens it
+        var row = el("div", "chips"), box2 = el("div", "bwslip");
+        box2.setAttribute("aria-live", "polite");
+        drawn[0].forEach(function (n, i) { row.appendChild(el("button", "chip", n, function () { K.sfx.tap(); slipOf(i, box2); })); });
+        w.appendChild(row); w.appendChild(box2);
+        if (rec.n && rec.k) note(fmt(X.bw_mine, { n: rec.n }), "note", "status");
+        set(null); return;
+      }
+      if (rec.z) {   // an older sign-up link after the draw: no sign-up, no second draw; the drawing phone can send the draw again
+        var again = BG.isDraw(rec.zd) && Tn.play(doc, [rec.zd], Tn.today());
+        note(again ? X.bw_again_send : X.bw_was, "note", "status");
+        if (again) { ctx.ed.next = again; A().changed(); } else set(null);
+        return;
+      }
+      var me = mine();
+      note(list.length ? fmt(X.bw_in, { n: list.length, s: list.map(function (e) { return e[0]; }).join(", ") }) : X.bw_nobody, "note", "status");
+      if (me >= 0) note(fmt(rec.o ? X.bw_mine : X.bw_added, { n: list[me][0] }), "note", "status");
+      else {
+        var f = el("input", "field"), add = el("button", "btn", X.bw_add, async function () {
+          var name = Q.clean(f.value, 12);
+          if (!name) { K.toast(f.value.trim() ? K.t("filter") : X.bw_name); f.focus(); return; }
+          if (list.some(function (e) { return Q.fold(e[0]) === Q.fold(name); })) { K.toast(X.bw_twice); return; }
+          if (list.length >= BG.MAX) { K.toast(X.bw_full); return; }
+          add.disabled = true;
+          try { if (!rec.k || !rec.p) { var kp = await S.keys(); rec.k = kp.k; rec.p = kp.p; } } catch (e) { add.disabled = false; K.toast(X.bw_nokey); return; }
+          rec.n = name; list = list.concat([[name, rec.p]]); rec.r = list; K.save(); K.sfx.pop(); draw();
+        });
+        f.maxLength = 12; f.autocomplete = "off"; f.placeholder = X.bw_name; f.setAttribute("aria-label", X.bw_name);
+        var nick = A().me().nick; if (nick && Q.clean(nick, 12) === nick) f.value = nick;
+        w.appendChild(f); w.appendChild(add); note(X.bw_add_hint);
+      }
+      if (rec.o) {
+        note(X.bw_org);
+        var go = el("button", "btn hot", fmt(X.bw_draw, { n: list.length }), async function () {
+          if (list.length < 3) { K.toast(X.bw_least); return; }
+          go.disabled = true;
+          var d = null;
+          try {
+            var sealed = await S.draw(list.map(function (e) { return e[1]; }), info, BG.circle);
+            d = Tn.play(doc, [[list.map(function (e) { return e[0]; }), sealed[0], sealed[1]]], Tn.today()); sealed = null;
+          } catch (e) { d = null; }
+          if (!d || !fits(d)) { go.disabled = false; K.toast(d ? X.bw_big : X.bw_nokey); return; }
+          rec.z = 1; rec.zd = Tn.moves(d)[1][0]; K.save(); K.sfx.pop();   // only the boxes, as in the link
+          ctx.ed.next = d; A().changed();
+          w.textContent = ""; note(X.bw_drawn, "note", "status");
+        });
+        if (list.length < 3) { go.setAttribute("aria-disabled", "true"); go.title = X.bw_least; }
+        w.appendChild(go); if (list.length < 3) note(X.bw_least);
+      } else note(X.bw_wait);
+      // a phone that signed up sends its sign-up back; the setting-up phone can pass the list on to those still missing
+      if (list.length && (me >= 0 || rec.o)) { ctx.ed.next = out(); A().changed(); } else set(null);
+    }
+    draw();
   });
 })(window);
