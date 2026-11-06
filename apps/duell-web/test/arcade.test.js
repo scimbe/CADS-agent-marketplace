@@ -117,3 +117,39 @@ test("Panzer: wer getroffen wird, entscheidet; Krater bleiben in seiner Haelfte"
   const boom = out.find((m) => m.t === "boom");
   assert.ok(boom && boom.hit === true); assert.deepEqual(S.score, [0, 1]);
 });
+
+// Wired like playBot in arcade-ui.js: the player stands still (S idle), the bot plays B, 60 frames per second.
+function panzerVsIdle(seed, max) {
+  const toMe = [], toBot = [];
+  const S = A.side("panzer", { seed, serving: true, send: (m) => toBot.push(JSON.parse(JSON.stringify(m))) });
+  const B = A.side("panzer", { seed, serving: false, send: (m) => toMe.push(JSON.parse(JSON.stringify(m))) });
+  const bot = A.bot("panzer", B, seed);
+  S.start(); B.start();
+  let t = 0;
+  while (t < max && !S.over) { S.tick(1 / 60); while (toBot.length) B.receive(toBot.shift()); bot(1 / 60); B.tick(1 / 60); B.ev.length = 0; while (toMe.length) S.receive(toMe.shift()); S.ev.length = 0; t += 1 / 60; }
+  return { S, t };
+}
+
+test("Panzer: ein Krater sinkt nie unter die Wasserlinie, der Panzer bleibt im tiefsten Loch treffbar", () => {
+  const T = A.island("tief"), P = A.PANZER, sea = T.slice();
+  for (let k = 0; k < 40; k++) { const tk = A.tankPos(T, true); A.crater(T, tk.x + ((k % 5) - 2) * 20, tk.y + P.TH, true); }
+  for (let i = 0; i < T.length; i++) {
+    if (sea[i] < P.SEA) assert.ok(T[i] < P.SEA, "Kraterboden bleibt Land, Feld " + i);
+    else assert.equal(T[i], sea[i], "der Meeresboden wird nie angehoben, Feld " + i);
+  }
+  const out = [], S = A.side("panzer", { seed: "tief", serving: false, send: (m) => out.push(m) });
+  S.st.T.splice(0, T.length, ...T); S.start();
+  const tk = A.tankPos(S.st.T, true);
+  S.st.shells.push({ x: tk.x, y: tk.y - 5, vx: 0, vy: 10, w: 0, mine: false, i: 0 });
+  for (let i = 0; i < 60 && !out.some((m) => m.t === "boom"); i++) S.tick(1 / 60);
+  const boom = out.find((m) => m.t === "boom");
+  assert.ok(boom && boom.hit === true, "Treffer statt Platschen im tiefen Krater");
+});
+
+test("Panzer: der Bot beendet jede Partie gegen einen stillstehenden Spieler in unter 120 s (e2e-0..39)", () => {
+  for (let n = 0; n < 40; n++) {
+    const r = panzerVsIdle("e2e-" + n, 120);
+    assert.ok(r.S.over, "e2e-" + n + " endet nicht in 120 s, Stand " + r.S.score);
+    assert.deepEqual(r.S.score, [0, A.PANZER.WIN], "e2e-" + n);
+  }
+});

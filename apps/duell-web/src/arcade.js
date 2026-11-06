@@ -351,7 +351,7 @@
   }
 
   // ======================= Insel-Panzer: side view, one island, a tank on each shore, shells with gravity and wind =======================
-  var PANZER = { id: "panzer", WIN: 3, serves: false, N: 100, SEA: H - 110, TX: 160, G: 620, WMAX: 140, VSHOT: 1350, VMIN: 220, RELOAD: 1.5, CR: 72, HR: 74, TH: 26 };
+  var PANZER = { id: "panzer", WIN: 3, serves: false, N: 100, SEA: H - 110, TX: 160, G: 620, WMAX: 140, VSHOT: 1350, VMIN: 220, RELOAD: 1.5, CR: 72, HR: 74, TH: 26, FLOOR: 12 };
   // The island is mirror-symmetric, so both phones stand on the same shore; its hill and bumps come from the seed.
   function island(seed) {
     var P = PANZER, u1 = unit(seed, "isl|hill"), u2 = unit(seed, "isl|width"), u3 = unit(seed, "isl|bump"), a = [];
@@ -373,13 +373,14 @@
     return null;
   }
   function flight(T, s, max) { var p = { x: s.x, y: s.y, vx: s.vx, vy: s.vy, w: s.w }; for (var i = 0; i < (max || 1200); i++) { var r = shellStep(T, p, 1 / 120); if (r) return { k: r, x: p.x, y: p.y, t: i / 120 }; } return { k: "sea", x: p.x, y: p.y, t: max / 120 }; }
-  // A crater only bites into the half of the phone that decided about it.
+  // A crater only bites into the half of the phone that decided about it. Its floor stays above the waterline: a shell
+  // that lands below SEA counts as a splash, so a tank sunk that deep could never be hit again. It never raises ground.
   function crater(T, x, y, mine) {
     var P = PANZER, c = W / P.N;
     for (var i = 0; i < P.N; i++) {
       var cx = (i + 0.5) * c; if (mine ? cx > W / 2 : cx < W / 2) continue;
       var dx = cx - x; if (Math.abs(dx) >= P.CR) continue;
-      T[i] = Math.min(Math.max(T[i], Math.round(y + Math.sqrt(P.CR * P.CR - dx * dx) * 0.7)), P.SEA + 20);
+      T[i] = Math.max(T[i], Math.min(Math.round(y + Math.sqrt(P.CR * P.CR - dx * dx) * 0.7), P.SEA - P.FLOOR));
     }
   }
   function muzzle(T, mine) { var t = tankPos(T, mine); return { x: t.x, y: t.y - 22 }; }
@@ -442,6 +443,16 @@
     };
     return S;
   }
+  // Binary search over the speed at one angle; miss is how far the shell actually lands from aimX.
+  function speedFor(T, mz, ang, aimX, w) {
+    var lo = PANZER.VMIN, hi = PANZER.VSHOT, v = hi, f;
+    for (var it = 0; it < 18; it++) {
+      v = (lo + hi) / 2;
+      f = flight(T, { x: mz.x, y: mz.y, vx: Math.cos(ang) * v, vy: -Math.sin(ang) * v, w: w }, 900);
+      if (f.x < aimX) lo = v; else hi = v;
+    }
+    return { ang: ang, v: v, miss: f.k === "land" ? Math.abs(f.x - aimX) : Infinity };
+  }
   function panzerBot(S, r) {
     var wait = 1.6 + r() * 1.0, spread = 340, shots = 0, ang = 0;
     return function (dt) {
@@ -449,14 +460,12 @@
       var st = S.st, T = st.T, mz = muzzle(T, true), tgt = tankPos(T, false);
       if (st.reload < 1) return;
       // Take a steep angle and search the speed whose shell lands at the target plus an error that shrinks shot by shot.
+      // With a strong tailwind no speed at that angle may land there (slower shells hit the hill, faster ones blow out
+      // to sea); then it tries other angles, as a player would, and keeps the one that lands closest.
       ang = (48 + r() * 18) * Math.PI / 180;
-      var aimX = tgt.x + (r() - 0.5) * spread, lo = PANZER.VMIN, hi = PANZER.VSHOT, v = hi;
-      for (var it = 0; it < 18; it++) {
-        v = (lo + hi) / 2;
-        var f = flight(T, { x: mz.x, y: mz.y, vx: Math.cos(ang) * v, vy: -Math.sin(ang) * v, w: st.wind }, 900);
-        if (f.x < aimX) lo = v; else hi = v;
-      }
-      S.input({ aim: { vx: Math.cos(ang) * v, vy: -Math.sin(ang) * v }, fire: true });
+      var aimX = tgt.x + (r() - 0.5) * spread, best = speedFor(T, mz, ang, aimX, st.wind);
+      for (var a = 30; a <= 84 && best.miss > 24; a += 6) { var c = speedFor(T, mz, a * Math.PI / 180, aimX, st.wind); if (c.miss < best.miss) best = c; }
+      S.input({ aim: { vx: Math.cos(best.ang) * best.v, vy: -Math.sin(best.ang) * best.v }, fire: true });
       shots++; spread = Math.max(50, 340 * Math.pow(0.72, shots));
       wait = PANZER.RELOAD + 1.2 + r() * 1.4;
     };
