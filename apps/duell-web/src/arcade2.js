@@ -193,7 +193,7 @@
   }
 
   // ======================= Schnee-Schlacht: dodge along your line, throw straight ahead, walls wear down =======================
-  var SNOW = { id: "snow", WIN: 5, serves: false, FY: H - 130, FR: 46, VF: 760, R: 16, V: 980, AMMO: 3, RELOAD: 0.9, WW: 150, WH: 44, HP: 3 };
+  var SNOW = { id: "snow", WIN: 5, serves: false, fin: true, FY: H - 130, FR: 46, VF: 760, R: 16, V: 980, AMMO: 3, RELOAD: 0.9, WW: 150, WH: 44, HP: 3 };
   function snowWalls(seed) {   // the own half; the other half has the same ones turned around
     var out = [];
     for (var k = 0; k < 3; k++) out.push({ x: 170 + k * 330 + (unit(seed, "wall|x|" + k) - 0.5) * 90, y: H / 2 + 230 + unit(seed, "wall|y|" + k) * 140, hp: SNOW.HP });
@@ -223,13 +223,14 @@
           if (b2.mine || b2.y < H / 2) continue;               // only what flies at this phone is decided here
           var w = null; st.mine.forEach(function (x, j) { if (w === null && inWall(b2, x)) w = j; });
           if (w !== null) { st.mine[w].hp--; st.balls.splice(k, 1); S.send({ t: "wall", i: b2.i, k: w }); S.fx("wall", b2.x, b2.y, { mine: true, hp: st.mine[w].hp }); continue; }
-          if (Math.abs(b2.x - st.me.x) <= N.FR + N.R && Math.abs(b2.y - N.FY) <= N.FR + N.R) { st.balls.splice(k, 1); S.send({ t: "hit", i: b2.i }); S.fx("splat", st.me.x, N.FY, { mine: true }); S.concede(st.me.x, N.FY); if (S.over) return; }
+          if (Math.abs(b2.x - st.me.x) <= N.FR + N.R && Math.abs(b2.y - N.FY) <= N.FR + N.R) { st.balls.splice(k, 1); S.send({ t: "hit", i: b2.i }); S.fx("splat", st.me.x, N.FY, { mine: true }); S.concede(st.me.x, N.FY); if (S.over || S.ending) return; }
         }
       });
       A._.report(S, function () { S.send({ t: "p", x: Math.round(W - st.me.x) }); });
     };
     S.receive = function (m) {
-      var st = S.st; if (!m || S.over) return;
+      var st = S.st; if (!m || S.over || S.fin(m)) return;
+      if (S.ending && m.t !== "hit") return;   // at the end only the hit count still matters
       if (m.t === "p" && num(m.x)) { st.opp = clamp(reach(st.opp, m.x, S.oppDt(Math.abs(m.x - st.opp), N.VF * 1.25), N.VF * 1.25), N.FR, W - N.FR); return; }
       if (m.t === "throw") {
         // A throw starts where the other figure can be, with the same speed for everyone, and only with a snowball in hand.
