@@ -62,7 +62,7 @@
   ];
   var WHO = { kind: "k", teen: "t", partner: "a", eltern: "a", oma: "o", freund: "a", kollege: "b" };
   // Not a gift here, whatever the AI says: drink, smoking, gambling, body and diet, underwear and innuendo.
-  var NOT = /alkohol|(^|[^a-z])(wein|bier|sekt)|(wein|bier|sekt)($|[^a-z])|schnaps|likor|likoer|gin\b|whisk|rum\b|vodka|wodka|prosecco|zigar|tabak|vape|shisha|casino|wett|lotto|diat|diaet|abnehm|kalorie|waage|parfum|deo\b|dessous|unterwasche|unterwaesche|erotik|sex|wine|beer|liquor|spirit|cigar|tobacco|gambl|betting|diet|weight|scale|perfume|lingerie|underwear|erotic/;
+  var NOT = /alkohol|(^|[^a-z])(wein|bier|sekt)|(wein|bier|sekt)($|[^a-z])|schnaps|likor|likoer|(^|[^a-z])gin\b|whisk|rum\b|vodka|wodka|prosecco|zigar|tabak|vape|shisha|casino|sportwett|(^|[^a-z])wett(e|en|schein|buro|buero)?($|[^a-z])|lotto|diat|diaet|abnehm|kalorie|waage|parfum|deo\b|dessous|unterwasche|unterwaesche|erotik|(^|[^a-z])sex|wine|beer|liquor|spirits|cigar|tobacco|gambl|betting|diet|(^|[^a-z])weight|scale|perfume|lingerie|underwear|erotic/;
   function col(lang) { var i = LANGS.indexOf(lang); return i < 0 ? 0 : i; }
   function fold(s) { return String(s).toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/ß/g, "ss"); }
   // ask: { who, euro, likes: [key, key] } (turns.js giftGame) -> five texts in the language.

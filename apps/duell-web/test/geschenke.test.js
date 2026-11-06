@@ -94,6 +94,9 @@ test("KI-Art liste: nur saubere, neue, harmlose Texte, höchstens fünf; Alkohol
   assert.equal(got.length, 5);
   assert.deepEqual(got.slice(0, 2), ["Teesorten-Set", "Sukkulente im Topf"], "doppelt fällt weg, Reihenfolge bleibt");
   for (const t of got) { assert.ok(!/wein|diät|gin|[<>]/i.test(t), t); assert.equal(Q.clean(t, 40), t); }
+  // the stop words hit words, not parts of harmless ones (Wetterstation, paperweight, origin, team spirit)
+  for (const t of ["Wetterstation", "Paperweight", "Origami-Set", "Origin-Puzzle", "Team spirit mug", "Essex tea"]) assert.ok(G.ok(t), "harmlos: " + t);
+  for (const t of ["Sportwetten-Gutschein", "Wette", "Spirits sampler", "Weight loss book", "Sexy socks", "Gin Tonic"]) assert.ok(!G.ok(t), "fällt weg: " + t);
   assert.deepEqual(G.fromAi(null, "de"), []); assert.deepEqual(G.fromAi({ posten: [{ n: "Bier" }, { n: "Lingerie" }] }, "en"), []);
 });
 
