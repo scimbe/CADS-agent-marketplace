@@ -201,7 +201,7 @@
   }
   function inWall(b, w) { return w.hp > 0 && Math.abs(b.x - w.x) <= SNOW.WW / 2 + SNOW.R && Math.abs(b.y - w.y) <= SNOW.WH / 2 + SNOW.R; }
   function snowSide(o) {
-    var N = SNOW, S = A._.base(N, o), aim = W / 2, throwIt = false, oppAmmo = N.AMMO, id = 0, oppClock = null;
+    var N = SNOW, S = A._.base(N, o), aim = W / 2, throwIt = false, oppAmmo = N.AMMO, id = 0, oppClock = null, oldBurst = -1;
     var mine = snowWalls(S.seed), theirs = snowWalls(S.seed).map(function (w) { return { x: W - w.x, y: H - w.y, hp: w.hp }; });
     S.st = { me: { x: W / 2, vx: 0 }, opp: W / 2, ammo: N.AMMO, load: 0, balls: [], mine: mine, theirs: theirs };
     S.input = function (i) { if (!i) return; if (num(i.x)) aim = clamp(i.x, N.FR, W - N.FR); if (i.fire) throwIt = true; };
@@ -230,21 +230,25 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
+      S.heard();
       if (m.t === "p" && num(m.x)) { st.opp = clamp(reach(st.opp, m.x, S.oppDt(Math.abs(m.x - st.opp), N.VF * 1.25), N.VF * 1.25), N.FR, W - N.FR); return; }
       if (m.t === "throw") {
         // A throw starts where the other figure can be, with the same speed for everyone, and only with a snowball in hand.
         // The other hand reloads on its own clock: throws made apart during a stall arrive together. The reload time
-        // granted that way comes out of a budget that fills with the time passing here but holds at most a full
-        // magazine's reload plus one second of stall, so neither a clock set forward nor a long pause before a burst
-        // gives more than about four snowballs beyond the three in hand. Throws without a clock (an older app) keep
-        // reloading on arrival.
+        // granted that way comes out of a budget that fills with the time passing on this phone's clock and holds a
+        // full magazine's reload plus one second, plus the length of a stall this phone itself saw (up to 6 s). So a
+        // clock set forward or a long pause before a burst still gives only about four snowballs beyond the three in
+        // hand; only a real gap in the arrivals buys more. Throws without a clock (an older app) reload on arrival.
+        var extra = S.stall();
         if (m.t === "throw" && num(m.ms)) {
-          var CAP = N.AMMO * N.RELOAD + 1;
-          if (!oppClock) oppClock = { last: m.ms, budget: CAP, at: S.t };
-          oppClock.budget = Math.min(CAP, oppClock.budget + S.t - oppClock.at); oppClock.at = S.t;
+          var CAP = N.AMMO * N.RELOAD + 1 + extra, now = S.clock();
+          if (!oppClock) oppClock = { last: m.ms, budget: CAP, at: now };
+          oppClock.budget = Math.min(CAP, oppClock.budget + now - oppClock.at); oppClock.at = now;
           var give = Math.min(Math.max(0, m.ms - oppClock.last) / 1000, oppClock.budget);
           oppClock.budget -= give; oppClock.last = Math.max(oppClock.last, m.ms);
           oppAmmo = Math.min(N.AMMO, oppAmmo + give / N.RELOAD);
+        } else if (!oppClock && extra && oldBurst !== S.burst.at) {   // an older app: once per stall, what it reloaded meanwhile
+          oldBurst = S.burst.at; oppAmmo = Math.min(N.AMMO + extra / N.RELOAD, oppAmmo + extra / N.RELOAD);
         }
         if (!num(m.x) || !num(m.vx) || !num(m.i) || Math.abs(m.vx) > 221 || Math.abs(m.x - st.opp) > 260 || oppAmmo < 0.95) return S.reject();
         oppAmmo -= 1;

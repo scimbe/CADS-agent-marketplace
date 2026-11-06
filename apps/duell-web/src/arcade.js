@@ -5,7 +5,7 @@
    send() and receive(), so the bot is simply a second side in the same page, and tests can pipe two sides together. */
 (function (root) {
   "use strict";
-  var W = 1000, H = 1600, STEP = 1 / 120, NET_P = 0.05, NET_ST = 0.1, SERVE_PAUSE = 0.9;
+  var W = 1000, H = 1600, STEP = 1 / 120, NET_P = 0.05, NET_ST = 0.1, SERVE_PAUSE = 0.9, STALL_MAX = 6;
 
   function hash32(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   function unit(seed, key) { return hash32(seed + "|" + key) / 4294967296; }               // 0..1, fixed by the seed
@@ -46,6 +46,15 @@
     };
     // Something the other phone claims that cannot be: ignored, and counted so the screen can say so.
     S.reject = function () { S.rejected++; return false; };
+    // A stall as this phone saw it: the gap between two arrivals on its own clock (the sender's clock could be faked).
+    // For the burst that follows it (half a second), what the other one did during the gap may arrive at once.
+    S.lastIn = null; S.burst = { len: 0, at: -1 };
+    S.heard = function () {
+      var now = S.clock();
+      if (S.lastIn !== null && now - S.lastIn > 0.3) S.burst = { len: Math.min(now - S.lastIn, STALL_MAX), at: now };
+      S.lastIn = now;
+    };
+    S.stall = function () { return S.clock() - S.burst.at < 0.5 ? S.burst.len : 0; };
     return S;
   }
   function loop(S, dt, sub) {
@@ -401,7 +410,7 @@
     return now - last >= P.RELOAD * 0.6;   // nobody reloads faster than the barrel allows
   }
   function panzerSide(o) {
-    var P = PANZER, S = base(P, o), T = island(S.seed), last = -9, oppLast = -9, fire = false;
+    var P = PANZER, S = base(P, o), T = island(S.seed), last = -9, fire = false, tokens = 1, tokAt = null, RATE = P.RELOAD * 0.6;
     S.st = { T: T, aim: { vx: 0, vy: 0 }, oppAim: { vx: -500, vy: -600 }, shells: [], id: 0, wind: wind(S.seed, 0), reload: 0 };
     S.input = function (i) {
       if (!i) return;
@@ -437,10 +446,15 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
+      if (tokAt === null) tokAt = S.clock();   // the barrel fills from the first word of the other phone
+      S.heard();
       if (m.t === "p" && num(m.vx) && num(m.vy)) { st.oppAim = cap({ x: 0, y: 0, vx: m.vx, vy: m.vy }, P.VSHOT); return; }
       if (m.t === "shot") {
-        if (!plausibleShot(m, oppLast, S.t)) return S.reject();
-        oppLast = S.t; var mz = muzzle(T, false);
+        // Nobody reloads faster than the barrel allows: one shot per RATE of this phone's time, a single one in hand;
+        // after a stall seen here, the shots fired during it may come together.
+        var now = S.clock(); tokens = Math.min(1 + S.stall() / RATE, tokens + (now - tokAt) / RATE); tokAt = now;
+        if (!plausibleShot(m, -Infinity, 0) || tokens < 1) return S.reject();
+        tokens -= 1; var mz = muzzle(T, false);
         st.shells.push({ x: mz.x, y: mz.y, vx: m.vx, vy: m.vy, w: m.w, mine: false, i: m.i });
         st.oppAim = { vx: m.vx, vy: m.vy }; S.fx("fire", mz.x, mz.y, { mine: false });
         return;
