@@ -489,11 +489,16 @@ function closeOwn() { if (ov) { ov.remove(); ov = null; } again = null; }
 var again = null;
 window.addEventListener("daily:lang", function () { if (ov && again) again(); });
 // o: { body, g, S, other(dt) runs the bot side in the page, startOther, them, badge, onEnd(won) }
+function wall() { return performance.now() / 1000; }
 function match(o) {
   var body = o.body, g = o.g, S = o.S, cv = el("canvas", "livecv arccv"), info = el("p", "livescore", ""), note = el("p", "note arcnote", t("arc_how_" + g)), X = {};
   if (o.badge) body.appendChild(el("p", "livemini", o.badge));   // the three pictures stay up the whole game
   body.appendChild(info); body.appendChild(cv); body.appendChild(note);
   var P = Painter(cv, g), start = performance.now() + 3000, last = performance.now(), ended = false, warned = false;
+  // What the other phone moves is drawn through smooth.js (jitter buffer, capped carrying-on, no snaps); the rules
+  // still see the plain state. Both phones stamp and play back on their own real clock (wall), which keeps running
+  // when a frame hangs or the game pauses.
+  var V = window.Smooth ? window.Smooth.view(A, g, S, wall) : null;
   controls(cv, g, S, X);
   (function frame(now) {
     if (!cv.isConnected) return;
@@ -503,7 +508,7 @@ function match(o) {
     // Tests can fix the clock: window.__arcadeSpeed fixed steps of 1/60 s per frame, the same game on every machine.
     var fix = typeof window.__arcadeSpeed === "number" ? window.__arcadeSpeed : 0;
     if (S.started && !o.paused) { if (fix) for (var q = 0; q < fix; q++) { S.tick(1 / 60); if (o.other) o.other(1 / 60); } else { S.tick(dt); if (o.other) o.other(dt); } }
-    P.frame(S, dt, X);
+    P.frame(V ? V.frame(dt) : S, dt, X);
     info.textContent = t("arc_you") + " " + S.score[0] + " : " + S.score[1] + " " + o.them;
     if (S.started && !S.over) {
       if (S.mineTurn) note.textContent = S.mineTurn() ? t("arc_yourTurn") : t("arc_theirTurn");
@@ -524,8 +529,8 @@ function endText(body, won, s, live) {
 function playBot(g) {
   var seed = typeof window.__arcadeSeed === "string" ? window.__arcadeSeed : "bot|" + g + "|" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);   // tests fix the seed
   var body = layer(g), toMe = [], toBot = [];
-  var S = A.side(g, { seed: seed, serving: true, send: function (m) { toBot.push(JSON.parse(JSON.stringify(m))); } });
-  var B = A.side(g, { seed: seed, serving: false, send: function (m) { toMe.push(JSON.parse(JSON.stringify(m))); } });
+  var S = A.side(g, { seed: seed, serving: true, clock: wall, send: function (m) { toBot.push(JSON.parse(JSON.stringify(m))); } });
+  var B = A.side(g, { seed: seed, serving: false, clock: wall, send: function (m) { toMe.push(JSON.parse(JSON.stringify(m))); } });
   var bot = A.bot(g, B, seed);
   match({ body: body, g: g, S: S, them: t("arc_botName"), startOther: function () { B.start(); },
     other: function (dt) { while (toBot.length) B.receive(toBot.shift()); bot(dt); B.tick(dt); B.ev.length = 0; while (toMe.length) S.receive(toMe.shift()); },
@@ -540,7 +545,7 @@ function playLive(g) {
   return function live(api, serving, round) {
     round = round || 0;
     var body = api.layer(), conn = api.conn, again = [false, false];
-    var S = A.side(g, { seed: conn.channel + "|" + g + "|" + round, serving: serving, send: function (m) { conn.send(m); } });
+    var S = A.side(g, { seed: conn.channel + "|" + g + "|" + round, serving: serving, clock: wall, send: function (m) { conn.send(m); } });
     var o = { body: body, g: g, S: S, them: t("arc_friend"), badge: api.badge, onEnd: function (won) {
       endText(body, won, S.score, true);
       var more = el("button", "btn hot", t("live_more"), function () { more.disabled = true; more.textContent = t("live_moreWait"); again[0] = true; conn.send({ t: "again" }); restart(); });

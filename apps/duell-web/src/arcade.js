@@ -27,14 +27,23 @@
   // What every side shares: score, serves, the clock, events for the screen, and the regular position report.
   function base(G, o) {
     var S = { g: G.id, WIN: G.WIN, seed: String(o.seed), score: [0, 0], over: false, started: false, n: 0, t: 0, ev: [], serveAt: 0, oppAt: 0, sentP: 0, sentSt: 0, rejected: 0 };
-    S.send = function (m) { if (o.send) o.send(m); };
+    // Position reports and shots carry the sender's clock (ms), so the other screen can place them in time despite
+    // jitter. o.clock (seconds) is a real clock on the phone, which keeps running when a frame hangs; tests pass their own.
+    S.clock = o.clock || function () { return S.t; };
+    S.send = function (m) { if (m.t === "p" || m.t === "shot" || m.t === "throw") m.ms = Math.round(S.clock() * 1000); if (o.send) o.send(m); };
     S.fx = function (k, x, y, more) { var e = { k: k, x: x, y: y }; if (more) for (var q in more) e[q] = more[q]; S.ev.push(e); if (S.ev.length > 80) S.ev.shift(); };
     S.check = function () { if (S.score[0] >= G.WIN || S.score[1] >= G.WIN) { S.over = true; S.serveAt = 0; S.fx(S.score[0] > S.score[1] ? "won" : "lost", W / 2, H / 2); } };
     // This phone let the point go: the other one scores, and the one who lost the point serves the next ball.
     S.concede = function (x, y) { S.score[1]++; S.send({ t: "pt" }); S.fx("lose", x, y); S.check(); if (!S.over && G.serves) S.serveAt = S.t + SERVE_PAUSE; };
     S.gain = function () { S.score[0]++; S.fx("score", W / 2, H / 4); S.check(); };
     S.start = function () { S.started = true; if (o.serving && G.serves) S.serveAt = S.t + 0.01; };
-    S.oppDt = function () { var dt = S.t - S.oppAt; S.oppAt = S.t; return dt; };
+    // How much finger time the other player's next move may use. Time saved up while no report came (up to half a
+    // second) covers a burst of reports that arrive together after the network stalled; each report uses up what its
+    // distance needs, so on average the figure is still never faster than a finger.
+    S.oppDt = function (dist, vmax) {
+      S.credit = Math.min(0.5, (S.credit == null ? 0.1 : S.credit) + S.t - S.oppAt); S.oppAt = S.t;
+      var use = Math.min(S.credit, Math.max(0.016, dist / vmax)); S.credit -= use; return use;
+    };
     // Something the other phone claims that cannot be: ignored, and counted so the screen can say so.
     S.reject = function () { S.rejected++; return false; };
     return S;
@@ -125,7 +134,7 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
-      if (m.t === "p" && num(m.x) && num(m.y)) { st.opp = plausibleMallet(st.opp, m, S.oppDt()); return; }
+      if (m.t === "p" && num(m.x) && num(m.y)) { st.opp = plausibleMallet(st.opp, m, S.oppDt(Math.max(Math.abs(m.x - st.opp.x), Math.abs(m.y - st.opp.y)), PUCK.MMAX * 1.25)); return; }
       if (m.t === "pt") { st.p = null; st.own = false; S.gain(); return; }
       // Serves and hand-overs lie where the seed says: anything else is not believed.
       if (m.t === "serve" && num(m.n)) { if (!same(m.b, mirror(puckServe(S.seed, m.n)))) return S.reject(); st.p = copy(m.b); st.own = false; st.held = false; S.n = m.n + 1; return; }
@@ -178,7 +187,10 @@
     var off = b.x - paddleX;
     if (Math.abs(off) > Z.PW / 2 + Z.R) return { hit: false };
     var out = cap({ x: b.x, y: Z.PY - Z.R, vx: b.vx + off * Z.SPIN, vy: -Math.abs(b.vy) * Z.UP }, Z.VMAX);
-    if (Math.abs(out.vy) < Z.V0 * 0.6) out.vy = -Z.V0 * 0.6;
+    if (Math.abs(out.vy) < Z.V0 * 0.6) {   // never a ball that crawls sideways forever, and never faster than VMAX
+      out.vy = -Z.V0 * 0.6; var side = Math.sqrt(Z.VMAX * Z.VMAX - out.vy * out.vy);
+      if (Math.abs(out.vx) > side) out.vx = Math.sign(out.vx) * side;
+    }
     return { hit: true, ball: out };
   }
   function plausiblePaddle(prev, next, dt) { return clamp(reach(prev, next, dt, ZIEGEL.PMAX * 1.25), ZIEGEL.PW / 2, W - ZIEGEL.PW / 2); }
@@ -217,7 +229,7 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
-      if (m.t === "p" && num(m.x)) { st.opp = plausiblePaddle(st.opp, m.x, S.oppDt()); return; }
+      if (m.t === "p" && num(m.x)) { st.opp = plausiblePaddle(st.opp, m.x, S.oppDt(Math.abs(m.x - st.opp), Z.PMAX * 1.25)); return; }
       if (m.t === "pt") { st.b = null; S.gain(); return; }
       if (m.t === "serve" && num(m.n)) { if (!same(m.b, mirror(ziegelServe(S.seed, m.n)))) return S.reject(); st.b = copy(m.b); st.held = false; st.past = false; S.n = m.n + 1; return; }
       if (m.t === "hit" || m.t === "brk") {
@@ -324,7 +336,7 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
-      if (m.t === "p" && num(m.x) && num(m.y)) { st.opp = plausibleFigure(st.opp, m, S.oppDt()); return; }
+      if (m.t === "p" && num(m.x) && num(m.y)) { st.opp = plausibleFigure(st.opp, m, S.oppDt(Math.abs(m.x - st.opp.x), V.VMOVE * 1.25)); return; }
       if (m.t === "pt") { st.b = null; st.own = false; S.gain(); return; }
       if (m.t === "serve" && num(m.n)) { if (!same(m.b, mirrorX(volleyServe(S.seed, m.n)))) return S.reject(); st.b = copy(m.b); st.own = false; st.held = false; S.n = m.n + 1; return; }
       if (m.t === "hit" || m.t === "st" || m.t === "pass") {
