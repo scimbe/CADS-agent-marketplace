@@ -1,11 +1,10 @@
 // Katalog v2, W0: the catalog as a part, the parts turn2/logik/daten, the font token in Mein Stil, the privacy line,
 // "Daten fehlen" and the k=5 threshold, on the screens and in the languages of test/e2e/lib/grund.js.
 const test = require("node:test"), assert = require("node:assert/strict"), path = require("node:path"), fs = require("node:fs"), http = require("node:http");
-const { execFileSync } = require("node:child_process");
+const { ensureBuilt } = require("../../scripts/ensure-build.js");
 const G = require("./lib/grund.js");
 const root = path.join(__dirname, "../..");
-execFileSync(process.execPath, [path.join(root, "scripts/build.js")]);
-execFileSync(process.execPath, [path.join(root, "scripts/build.js"), "--flavor", "business"]);
+ensureBuilt(""); ensureBuilt("business");   // dist as npm run test:e2e built it; a build only after an edit
 const shot = process.env.W0_SHOTS;
 const snap = (p, n) => (shot ? p.screenshot({ path: path.join(shot, "w0-grundlagen-nachher-" + n + ".png") }) : null);
 const loaded = (p) => p.evaluate(() => [...document.querySelectorAll("script[src]")].map((s) => s.getAttribute("src").replace(/^.*\/parts\//, "").split(".")[0]));

@@ -133,12 +133,20 @@ test("Aufstehen mitten im Spiel: das Geraet spielt auf Auto zu Ende und gibt jed
   const sent = [], bad = [], live = fakeLive({ sent }), T = await pair(live);
   watch(T, bad);
   await until(() => T.every((t) => t.view().hand && t.view().hand.dealt));
+  // Stand up in the middle, not at the end: on Auto (5 ms a move) a whole hand is over in well under a second, and under
+  // load the 10 ms poll could first look when the hand is already done; then leave() closes at once (nothing left to play)
+  // and the seat never shows Auto. So the moment the second trick is over (on the screen update itself, not on a poll)
+  // both devices go off Auto: the next move then waits for the 20 s clock, and the test stands up in that pause.
+  let paused = false;
+  T[0].on((v) => { if (!paused && v.hand && v.hand.state.tricks.length >= 2) { paused = true; T[0].auto(false); T[1].auto(false); } });
   T[0].auto(true); T[1].auto(true);
-  await until(() => T[0].view().hand && T[0].view().hand.state.tricks.length >= 2);
+  await until(() => paused);
+  assert.ok(!B.done(T[0]._debug().hand.state), "mitten im Spiel");
   const seat = T[1].view().mySeat;
   T[1].leave();                                             // the screen closes; the device stays until the hand is over
   assert.equal(T[1].view().closed, false);
   await until(() => T[0].view().seats[seat].auto);
+  T[0].auto(true);                                          // the one who stays plays on quickly too
   assert.equal(T[0]._debug().hand.ghost[seat], undefined, "keine Uebergabe aller Schluessel");
   await until(() => T[0].view().last && T[0].view().last.result, 60000);
   assert.deepEqual(T[0].view().last.audit, []);

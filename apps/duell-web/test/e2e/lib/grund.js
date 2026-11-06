@@ -9,6 +9,30 @@ const path = require("node:path");
 const { chromium } = require("playwright-core");
 
 const DIST = path.join(__dirname, "../../../dist");
+const http = require("node:http"), fs = require("node:fs");
+// The web route for a device with several pages open (person({ web: true })): dist served from 127.0.0.1, like a phone
+// browser on the gallery's /duell. Under file:// Chromium does not reliably share localStorage between the pages of one
+// context: under load a new page now and then gets a storage of its own (empty, and its writes reach no other page) for
+// as long as it lives, so a device would forget what another of its pages stored a moment ago. Over http it does not
+// (repro under load: 102 of 1440 new file:// pages without the stored key, 0 of 720 over http). The app in the iOS/Android
+// shells is one file:// page per device, so the one-page tests stay on file://.
+let web = null;
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".json": "application/json" };
+function serve() {
+  if (web) return web;
+  web = new Promise((ok) => {
+    const srv = http.createServer((req, res) => {
+      const rel = decodeURIComponent(new URL(req.url, "http://x").pathname), f = path.join(DIST, rel);
+      if (!f.startsWith(DIST + path.sep) || !fs.existsSync(f) || !fs.statSync(f).isFile()) { res.writeHead(404).end(); return; }
+      res.writeHead(200, { "Content-Type": TYPES[path.extname(f)] || "application/octet-stream", "Cache-Control": "no-store" });
+      res.end(fs.readFileSync(f));
+    });
+    srv.listen(0, "127.0.0.1", () => { srv.unref(); ok("http://127.0.0.1:" + srv.address().port); });
+  });
+  return web;
+}
+// For a test's own routes that refuse every other host: the page itself (and its parts) still comes from here.
+const isLocal = (u) => /^http:\/\/127\.0\.0\.1:\d+\//.test(u);
 // The screens from the rules (Katalog v2 A1, A4, A9): smallest phone 328x568, a common phone 390x844, a tablet or laptop
 // across 1024x768, and 200 % zoom (WCAG 1.4.4). A browser at 200 % lays out half as many CSS pixels at twice the device
 // pixels, which is what zoom() builds; the default is the 1024x768 screen at 200 %, i.e. 512x384 CSS pixels.
@@ -34,7 +58,7 @@ async function person(browser, o) {
   delete opt.zoom;
   const ctx = await browser.newContext(opt);
   ctx.setDefaultTimeout(o.timeout || 20000);
-  ctx.lang = lang; ctx.view = o.view || "phone390";
+  ctx.lang = lang; ctx.view = o.view || "phone390"; ctx.web = !!o.web;
   // The language as a person would have set it in the app (Kit reads it from storage before the system language).
   await ctx.addInitScript((l) => { try { const s = JSON.parse(localStorage.getItem("daily.v1") || "{}"); if (!s.lang) { s.lang = l; localStorage.setItem("daily.v1", JSON.stringify(s)); } } catch (e) {} }, lang);
   if (o.time) await ctx.addInitScript((t) => { const T = Date.parse(t), D = Date; window.Date = class extends D { constructor(...a) { super(...(a.length ? a : [T])); } static now() { return T; } }; }, o.time);
@@ -53,7 +77,8 @@ async function open(ctx, hash, o) {
   o = o || {};
   const p = await ctx.newPage();
   p.errs = []; p.on("pageerror", (e) => p.errs.push(String(e)));
-  await p.goto("file://" + path.join(DIST, o.flavor || "", "index.html") + (hash || ""));
+  const file = (o.flavor ? o.flavor + "/" : "") + "index.html";
+  await p.goto((ctx.web ? (await serve()) + "/" + file : "file://" + path.join(DIST, file)) + (hash || ""));
   if (o.wait !== false) await p.waitForFunction(() => document.body.getAttribute("data-state") !== "boot");
   return p;
 }
@@ -77,4 +102,19 @@ async function smallTargets(p, root, min) {
     .map((b) => [b, b.getBoundingClientRect()]).filter(([, x]) => x.width > 0 && (x.width < m - 0.5 || x.height < m - 0.5))
     .map(([b, x]) => (b.getAttribute("aria-label") || b.textContent).trim().slice(0, 30) + " " + Math.round(x.width) + "x" + Math.round(x.height)), [root, min || 44]);
 }
-module.exports = { DIST, VIEWS, LANGS, LOCALE, zoom, launch, person, people, open, inView, covered, smallTargets };
+// Wait for a state instead of a fixed pause (like expect.poll): f() is read again every 50 ms until ok(value) holds;
+// on timeout the error shows the last value read.
+async function poll(f, ok, o) {
+  o = o || {}; const until = Date.now() + (o.timeout || 20000); let v;
+  for (;;) {
+    try { v = await f(); if (ok(v)) return v; } catch (e) { v = e; }
+    if (Date.now() > until) throw new Error((o.what || "poll") + ": " + String(v instanceof Error ? v.message : JSON.stringify(v)).slice(0, 600));
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+// What a page shows once it has settled: the same value twice in a row, 100 ms apart (a picture drawn, an animation over).
+async function settled(f, o) {
+  let last = await f();
+  return poll(async () => { await new Promise((r) => setTimeout(r, 100)); const v = await f(), same = v === last; last = v; return same ? { v } : null; }, Boolean, o).then((x) => x.v);
+}
+module.exports = { DIST, isLocal, poll, settled, VIEWS, LANGS, LOCALE, zoom, launch, person, people, open, inView, covered, smallTargets };

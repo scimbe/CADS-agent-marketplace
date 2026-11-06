@@ -1,4 +1,5 @@
 "use strict";
+const { ensureBuilt } = require("../../scripts/ensure-build.js");
 // KI-Bilder auf dem Kalenderblatt: eine Karte mit Bild zeigt es (mit "KI-Bild"), ein Spiel behaelt seine Vorschau, ohne
 // Server, mit Datensparmodus oder beim Tippen eines Namens bleibt das gezeichnete Blatt. Der Server wird hier gespielt:
 // THUMB_DIR (echte Bilder, fuer Screenshots) oder ein kleines erzeugtes JPEG.
@@ -6,14 +7,13 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { execFileSync } = require("node:child_process");
 const { chromium, devices } = require("playwright");
 const root = path.resolve(__dirname, "../..");
 const MAIN = "file://" + path.join(root, "dist/index.html"), BIZ = "file://" + path.join(root, "dist/business/index.html");
 const IMG = /^https:\/\/demos-34a13a96\.bunsenbrenner\.org\/duell\/img\/([a-z0-9-]+)\.jpg$/;
 const shot = process.env.SHOT_DIR, dir = process.env.THUMB_DIR;
 const GAMES = ["turn", "arcade", "game", "table", "duel"];
-execFileSync(process.execPath, [path.join(root, "scripts/build.js"), "--flavor", "business"]);
+ensureBuilt("business");   // dist as npm run test:e2e built it; a build only after an edit
 
 let fixture = null;
 async function setup(server) {
@@ -193,9 +193,18 @@ test("Tap auf das Blatt: Tap oeffnet, Swipe blaettert ohne zu oeffnen, Tap waehr
   const p = await open(MAIN, [11, 6]);
   const day = () => p.evaluate(() => window.DailyApp.home().date.toISOString().slice(0, 10));
   const box = await p.locator("#leaf").boundingBox(), cx = box.x + box.width / 2, cy = box.y + box.height / 2, d0 = await day();
+  // The app ignores a tap that starts within 760 ms of the tear (src/app.js tear(), measured with Date.now): the old sheet
+  // flies off for 300 ms, then the next one lands under the finger. Each mouse step of the test reaches the page with a
+  // delay that grows under load, so the "tap in flight" sent right after the swipe met nothing (the sheet still away),
+  // the landed sheet (what the guard is for) or, more than 760 ms later, a sheet that rightly opened. Now the page's
+  // clock stands still from the swipe to the tap, and the tap goes onto the landed sheet: it starts, for the app, at
+  // the instant of the tear, like a quick finger, and only the guard keeps the card closed.
+  await p.evaluate(() => { const t = Date.now(); window.__realNow = Date.now; Date.now = () => t; });
   await p.mouse.move(cx, cy); await p.mouse.down(); await p.mouse.move(cx - 80, cy, { steps: 5 }); await p.mouse.move(cx - 150, cy, { steps: 5 }); await p.mouse.up();
-  await p.mouse.click(cx, cy);   // while the torn sheet flies
-  await p.waitForTimeout(900);
+  await p.waitForFunction((d) => window.DailyApp.home().date.toISOString().slice(0, 10) !== d && !document.getElementById("leaf").classList.contains("gone"), d0);
+  await p.mouse.click(cx, cy);   // onto the landed sheet, still within the 760 ms
+  await p.evaluate(() => { Date.now = window.__realNow; });
+  await p.waitForTimeout(900);   // nothing may open: give a wrongly counted tap the time to show (and let the sheet land)
   assert.ok(await p.locator("#home").isVisible(), "Swipe + Tap im Flug: kein Editor");
   assert.notEqual(await day(), d0, "geblaettert");
   // the button inside the sheet area is no tap on the sheet; a plain tap opens like #go

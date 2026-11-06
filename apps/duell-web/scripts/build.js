@@ -83,14 +83,20 @@ const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));
 // Each part: its sources one after the other, each closed with ";" like the separate <script> blocks they were. The name
 // carries the content hash (a new build never meets an old cached file); the manifest carries the SRI hash.
-fs.rmSync(path.join(outDir, "parts"), { recursive: true, force: true });
+// Other processes may load dist while this runs (the E2E files run in parallel): every file is first written in full into
+// a temporary folder next to dist and then renamed into place (atomic on one file system), new parts before the page that
+// names them, and only then the parts no page names any more are removed. A reader never meets a half-written page or a
+// missing part. With unchanged sources the part names stay the same and nothing is removed.
+fs.mkdirSync(path.join(root, "dist"), { recursive: true });
+const tmpDir = fs.mkdtempSync(path.join(root, "dist/.build-"));
+const put = (rel, body) => { const t = path.join(tmpDir, rel.replace(/[\/]/g, "_")); fs.writeFileSync(t, body); fs.renameSync(t, path.join(outDir, rel)); };
 fs.mkdirSync(path.join(outDir, "parts"), { recursive: true });
 const manifest = {};
 let partBytes = 0;
 for (const name of Object.keys(PARTS)) {
   const body = PARTS[name].src.map((k) => { const c = code(k); delete parts[k]; return c; }).join("\n;\n") + "\n";
   const file = "parts/" + name + "." + crypto.createHash("sha256").update(body).digest("hex").slice(0, 12) + ".js";
-  fs.writeFileSync(path.join(outDir, file), body);
+  put(file, body);
   manifest[name] = { f: file, h: "sha384-" + crypto.createHash("sha384").update(body).digest("base64"), d: PARTS[name].d };
   if (name === "turnzwei") manifest[name].g = twoGames;
   partBytes += Buffer.byteLength(body);
@@ -98,7 +104,9 @@ for (const name of Object.keys(PARTS)) {
 }
 parts.DATA = "window.DailyParts=" + JSON.stringify(manifest) + ";" + parts.DATA;
 for (const k of Object.keys(parts)) html = html.replace("/*@" + k + "@*/", () => code(k));
-fs.writeFileSync(path.join(root, out), html);
+put(path.basename(out), html);
+const keep = new Set(Object.values(manifest).map((m) => path.basename(m.f)));
+for (const f of fs.readdirSync(path.join(outDir, "parts"))) if (!keep.has(f)) fs.rmSync(path.join(outDir, "parts", f), { force: true });
 console.log(out, Buffer.byteLength(html), "bytes (core); parts", partBytes, "bytes; together", Buffer.byteLength(html) + partBytes);
 
 // Fast Easy Protokoll: its own page, because whisper.cpp needs a cross-origin isolated page and connect-src 'self' (served by
@@ -106,6 +114,9 @@ console.log(out, Buffer.byteLength(html), "bytes (core); parts", partBytes, "byt
 const prot = { CSS: read("src/protokoll.css"), DATA: "window.ProtokollTexts=" + JSON.stringify(JSON.parse(read("src/protokoll.json"))) + ";", PROTOKOLL: read("src/protokoll.js"), PAGE: read("src/protokoll-page.js") };
 let ph = read("src/protokoll.template.html");
 for (const k of Object.keys(prot)) ph = ph.replace("/*@" + k + "@*/", () => (k === "CSS" ? prot[k] : safe(prot[k])));
-fs.writeFileSync(path.join(root, path.dirname(out), "protokoll.html"), ph);
-fs.copyFileSync(path.join(root, "src/protokoll-worker.js"), path.join(root, path.dirname(out), "protokoll-worker.js"));
+put("protokoll.html", ph);
+put("protokoll-worker.js", read("src/protokoll-worker.js"));
+// The stamp last: scripts/ensure-build.js skips a build whose stamp still matches the sources.
+put(".stamp", require("./ensure-build.js").stamp(flavor));
+fs.rmSync(tmpDir, { recursive: true, force: true });
 console.log(path.dirname(out) + "/protokoll.html", Buffer.byteLength(ph), "bytes");

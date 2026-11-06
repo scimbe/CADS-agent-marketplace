@@ -1,11 +1,11 @@
 "use strict";
+const { ensureBuilt } = require("../../scripts/ensure-build.js");
 // Satz zu Formular (MVP 3): a sentence in, the card filled after a visible check. The server is mocked with answers in
 // the exact shape of CADS-DEMO-wrapper kinds plan/liste; the date is fixed to Thursday 5.11.2026 in Berlin, so the dates
 // the page computes are known here. Time from opening the card to the share screen is measured with typing at a human pace.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
-const { execFileSync } = require("node:child_process");
 const { chromium, devices } = require("playwright");
 const root = path.resolve(__dirname, "../..");
 const page = "file://" + path.join(root, "dist/index.html");
@@ -320,7 +320,7 @@ test("Abnahme: ueber 70 % der Vorschlaege mit hoechstens 1 Aenderung uebernommen
 });
 
 test("Business: Aufgabenliste fuers Event aus einem Satz, Fristen vom Event-Tag zurueckgerechnet, wird ein Abhak-Link mit .ics", async () => {
-  execFileSync(process.execPath, [path.join(root, "scripts/build.js"), "--flavor", "business"]);
+  ensureBuilt("business");
   const A = { art: "aufgaben", titel: "Sommerfest", personen: 0, vegetarisch: 0, posten: [], aufgaben: [
     { was: "Raum buchen", frist: "2_wochen_vorher", wer: "" }, { was: "Location anfragen", frist: "2_wochen_vorher", wer: "" }, { was: "Einladungen verschicken", frist: "2_wochen_vorher", wer: "" }, { was: "Catering bestellen", frist: "1_woche_vorher", wer: "" },
     { was: "Deko besorgen", frist: "3_tage_vorher", wer: "" }, { was: "Aufbauen", frist: "am_tag", wer: "" }, { was: "Fotos teilen", frist: "danach", wer: "" }] };
