@@ -381,12 +381,14 @@
   function shellStep(T, s, dt) {
     s.vx += s.w * dt; s.vy += PANZER.G * dt; s.x += s.vx * dt; s.y += s.vy * dt;
     if (s.x < -60 || s.x > W + 60 || s.y > H) return "sea";
-    if (s.x >= 0 && s.x <= W && s.y >= surface(T, s.x)) return s.y >= PANZER.SEA ? "sea" : "land";
+    // Sea or land is the ground under the shell, not how deep it fell within this step: a fast shell that overshoots
+    // the floor of a crater still lands on the island.
+    if (s.x >= 0 && s.x <= W) { var g = surface(T, s.x); if (s.y >= g) return g >= PANZER.SEA ? "sea" : "land"; }
     return null;
   }
   function flight(T, s, max) { var p = { x: s.x, y: s.y, vx: s.vx, vy: s.vy, w: s.w }; for (var i = 0; i < (max || 1200); i++) { var r = shellStep(T, p, 1 / 120); if (r) return { k: r, x: p.x, y: p.y, t: i / 120 }; } return { k: "sea", x: p.x, y: p.y, t: max / 120 }; }
-  // A crater only bites into the half of the phone that decided about it. Its floor stays above the waterline: a shell
-  // that lands below SEA counts as a splash, so a tank sunk that deep could never be hit again. It never raises ground.
+  // A crater only bites into the half of the phone that decided about it. Its floor stays above the waterline, else
+  // that ground would count as sea and a tank sunk that deep could never be hit again. It never raises ground.
   function crater(T, x, y, mine) {
     var P = PANZER, c = W / P.N;
     for (var i = 0; i < P.N; i++) {

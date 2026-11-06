@@ -146,6 +146,19 @@ test("Panzer: ein Krater sinkt nie unter die Wasserlinie, der Panzer bleibt im t
   assert.ok(boom && boom.hit === true, "Treffer statt Platschen im tiefen Krater");
 });
 
+test("Panzer: ein schneller Schuss, der im Schritt unter den Kraterboden faellt, landet trotzdem auf der Insel", () => {
+  const T = A.island("tief"), P = A.PANZER;
+  for (let k = 0; k < 40; k++) { const tk = A.tankPos(T, true); A.crater(T, tk.x + ((k % 5) - 2) * 20, tk.y + P.TH, true); }
+  const floor = A.surface(T, P.TX);
+  assert.ok(floor > P.SEA - P.FLOOR - 1 && floor < P.SEA, "Boden knapp ueber der Wasserlinie: " + floor);
+  // falls 20 px per step (faster than FLOOR), starts just above the floor, so its next position is below SEA
+  const f = A.flight(T, { x: P.TX, y: floor - 2, vx: 0, vy: 20 * 120, w: 0 }, 10);
+  assert.equal(f.k, "land", "kein Platschen auf Land");
+  assert.ok(f.y >= P.SEA, "der Schritt endet wirklich unter SEA: " + f.y);
+  const g = A.flight(T, { x: 30, y: P.SEA - 2, vx: 0, vy: 2400, w: 0 }, 10);
+  assert.equal(g.k, "sea", "ueber dem Wasser bleibt es Platschen");
+});
+
 test("Panzer: der Bot beendet jede Partie gegen einen stillstehenden Spieler in unter 120 s (e2e-0..39)", () => {
   for (let n = 0; n < 40; n++) {
     const r = panzerVsIdle("e2e-" + n, 120);
