@@ -961,6 +961,7 @@ $("edtitle").after(Kit.langBtn("ico")); $("edtitle").nextSibling.id = "edlang";
 // A new language redraws what is open: the chrome, the sheet, and in the editor its title, tabs, panel and picture.
 window.addEventListener("daily:lang", function () {
   labels();
+  if (home && home.noteOf) home.note = home.noteOf();   // the invitation's own line too ("Geschickt bekommen." / "Sent to you.")
   if (home && screen === "home") setHome(home, false);
   if (ed && screen === "editor") {
     $("edtitle").textContent = edTitle(); Array.from($("tabs").children).forEach(function (b) { b.textContent = tabText(b.dataset.k); });
@@ -1029,10 +1030,10 @@ function route() {
     delete st.score; delete st.name; show("game"); G.play(st, riv, { own: true }); return true;
   }
   if ((r && r.type === "idea" && !D.available(D.byId(r.id))) || (r && r.type === "doc" && !D.docAvailable(r.doc))) { home = dayHome(); goHomeKeep(); Kit.toast(t("notHere")); return true; }
-  if (r && r.type === "idea") { home = { date: today, idea: D.byId(r.id), note: t("invite") }; goHomeKeep(); return true; }
+  if (r && r.type === "idea") { home = { date: today, idea: D.byId(r.id), note: t("invite"), noteOf: function () { return t("invite"); } }; goHomeKeep(); return true; }
   if (r && r.type === "doc") {
     var lastBy = r.doc.by.length ? r.doc.by[r.doc.by.length - 1].n : r.doc.n;
-    home = { date: today, doc: r.doc, note: t("remixOf", { n: lastBy || t("someone") }), link: shortId || undefined }; shortId = null; goHomeKeep();
+    home = { date: today, doc: r.doc, note: t("remixOf", { n: lastBy || t("someone") }), noteOf: function () { return t("remixOf", { n: lastBy || t("someone") }); }, link: shortId || undefined }; shortId = null; goHomeKeep();
     if (r.doc.k === "card" && r.doc.nr && window.Door) window.Door.show(r.doc);   // an Advent door comes closed first
     return true;
   }

@@ -93,6 +93,7 @@ test("Einladung: Sprachwahl vor dem ersten Tipp, Wechsel zeichnet Blatt und Edit
   await pick.getByRole("button", { name: "English" }).click();
   await p.getByRole("group", { name: "Choose language" }).waitFor();
   assert.notEqual(await p.locator("#go").textContent(), de);
+  assert.equal(await p.locator("#from").textContent(), "Sent to you. Make it yours.", "die Zeile der Einladung wechselt mit");
   assert.equal(await p.evaluate(() => document.documentElement.lang), "en");
   assert.equal(await p.getByRole("button", { name: "English" }).getAttribute("aria-pressed"), "true");
   await p.locator("#go").click();
