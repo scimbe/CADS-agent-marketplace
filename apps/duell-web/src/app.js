@@ -1039,6 +1039,7 @@ function labels() {
   [["lang", "a_lang"], ["mute", "a_mute"], ["me", "style"], ["edstyle", "style"], ["pvgame", "a_preview"], ["pvcard", "a_preview"], ["stage", "a_preview"], ["demo", "a_gamePreview"],
     ["feat", "a_feat"], ["edback", "a_close"], ["shback", "a_close"], ["gback", "a_close"], ["edsave", "a_keep"], ["cv", "a_field"], ["coqr", "a_qr"]].forEach(function (x) { $(x[0]).setAttribute("aria-label", t(x[1])); });
   $("mute").setAttribute("aria-pressed", String(!!Kit.muted));
+  var ct = $("create"); ct.hidden = !shown("f_create"); ct.textContent = ""; ct.appendChild(el("b", "", "✨ " + t("create_tile"))); ct.appendChild(el("span", "", t("create_sub")));   // the free card (part erschaffen)
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
   $("tostatus").textContent = t("sh_status"); $("tostory").textContent = t("sh_story"); $("shnote").textContent = t("sh_note");
   $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home"); $("playit").textContent = "🕹 " + t("playIt");
@@ -1069,6 +1070,7 @@ $("more").addEventListener("click", function () { tear(1); });
 $("past").addEventListener("click", function () { Kit.sfx.tap(); openPast(); });
 $("wall").addEventListener("click", function () { Kit.sfx.tap(); openWall(); });
 $("own").addEventListener("click", function () { Kit.sfx.tap(); openOwn(); });
+$("create").addEventListener("click", function () { Kit.sfx.tap(); window.Parts.use("erschaffen", function () { window.CreateUI.open(); }).catch(function () {}); });
 function start(tabName) {
   if (!home.doc && twoIdea(home.idea)) { window.Parts.use("turnzwei", function () { start(tabName); }).catch(function () {}); return; }
   Kit.sfx.thud();

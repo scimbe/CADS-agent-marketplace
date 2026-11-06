@@ -24,7 +24,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // Sizes at the split: core 693 KB, parts 310 KB (play 140, table 104, qr 59, licenses 6), together 1003 KB.
   assert.ok(Buffer.byteLength(html) < 700 * 1024, "Kern ueber 700 KB: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["daten", "katalog", "licenses", "logik", "play", "qr", "quiz", "satz", "table", "texte", "turnzwei", "welt"]);
+  assert.deepEqual(Object.keys(man).sort(), ["daten", "erschaffen", "katalog", "licenses", "logik", "play", "qr", "quiz", "satz", "table", "texte", "turnzwei", "welt"]);
   for (const n of Object.keys(man)) assert.match(n, /^[a-z]{1,20}$/, "Teilname nur Buchstaben (Galerie-Server und Android lassen nur [a-z]{1,20} durch): " + n);
   assert.equal(files.length, Object.keys(man).length, "nur die Teile aus dem Manifest liegen in dist/parts");
   let sum = 0;
