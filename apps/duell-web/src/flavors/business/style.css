@@ -39,7 +39,7 @@ h1{transform:none;text-transform:none;font:650 19px/1 var(--disp);letter-spacing
 .btn.hot{background:var(--org);border-color:var(--org);color:var(--onorg);font:600 17px var(--disp);text-transform:none;min-height:52px}
 .lbl{color:var(--muted);font-weight:600;text-transform:none}
 .qtext{font-weight:600}
-#shtitle,#edtitle{font:650 18px/1.15 var(--disp);text-transform:none}
+#shtitle,#edtitle{font:650 clamp(15px,4.6vw,18px)/1.15 var(--disp);text-transform:none}
 .mech{border:1px solid var(--line);border-radius:10px;box-shadow:none;background:var(--card)}
 .mech canvas{display:none}
 .day b{font:650 28px/1 var(--disp)}

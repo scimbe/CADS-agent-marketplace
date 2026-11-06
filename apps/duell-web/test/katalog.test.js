@@ -101,6 +101,8 @@ test("Gegenprobe: jede Regel erkennt ihren Bruch", () => {
   for (const [want, mut] of cases) { const c = clone(DAILY); mut(c); assert.ok(pruefe(c, "daily").some((e) => e.includes(want)), want + ": " + pruefe(c, "daily").join(" | ")); }
   const b = clone(BIZ); b.ideas[0].on = "11-21";   // Saturday 21.11.2026
   assert.ok(pruefe(b, "business").some((e) => e.startsWith("Business am Wochenende 11-21")));
-  b.ideas[0].on = "11-23"; assert.deepEqual(pruefe(b, "business"), [], "Montag geht");
+  // a Monday no card has yet (11-23 is biz-wichteln's)
+  const mon = ["11-30", "12-07", "12-14", "12-21", "01-11", "01-18"].find((d) => { const c = clone(BIZ); c.ideas[0].on = d; return !pruefe(c, "business").length; });
+  assert.ok(mon, "ein freier Montag"); b.ideas[0].on = mon; assert.deepEqual(pruefe(b, "business"), [], "Montag geht");
 });
 module.exports = { pruefe };
