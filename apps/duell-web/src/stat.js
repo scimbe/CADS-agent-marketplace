@@ -23,7 +23,8 @@
   }
   // The areas the last person changed (the doc's trail), only those the contract knows.
   function share(doc, o) {
-    var by = doc && doc.by, w = by && by.length && by[by.length - 1].w, A = areas(), p = { i: id(doc), e: "share" };
+    // a free card (AI kind "karte") counts in its own deck, not as the catalog card it came from
+    var by = doc && doc.by, w = by && by.length && by[by.length - 1].w, A = areas(), p = { i: doc && doc.ki && doc.ki.k === "karte" ? "own" : id(doc), e: "share" };
     w = Array.isArray(w) ? w.filter(function (x, i) { return A.indexOf(x) >= 0 && w.indexOf(x) === i; }) : [];
     if (w.length) p.w = w;
     post(p, o);

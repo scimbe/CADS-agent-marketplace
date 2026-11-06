@@ -33,18 +33,22 @@ test("stat: ein fetch an den Origin der API, POST keepalive, ohne Cookie und Ref
   await tick();   // a rejected fetch is caught: no unhandled rejection
 });
 
-test("stat: share traegt die geaenderten Bereiche des letzten Trail-Eintrags, nur bekannte AREAS; i ist doc.i, idea.id oder own", () => {
+test("stat: share traegt die geaenderten Bereiche des letzten Trail-Eintrags, nur bekannte AREAS; i ist doc.i, idea.id oder own (auch fuer eine freie KI-Karte)", () => {
   const n = net(204);
   assert.deepEqual(D.AREAS, ["text", "farbe", "stil", "sticker", "foto", "beat", "stimme", "regeln", "figur", "welt", "idee"]);
   St.share({ i: "plan-09", by: [{ n: "Ana", w: ["text"] }, { n: "Ben", w: ["farbe", "sticker", "beat", "idee"] }], x: "geheim" }, n.o);
   St.share({ i: "plan-09", by: [{ n: "Ben", w: ["farbe", "<script>", "farbe", "toString", 7] }] }, n.o);
   St.share({ k: "card", by: [{ n: "Ana", w: [] }] }, n.o);
   St.share({ i: "x", by: [{ n: "Ana", w: ["unbekannt"] }] }, n.o);
+  St.share({ i: "plan-09", ki: { k: "karte", s: "s1" }, by: [{ n: "Ana", w: ["text"] }] }, n.o);
+  St.share({ i: "plan-09", ki: { k: "wish", s: "s1" }, by: [] }, n.o);
   assert.deepEqual(n.sent.map((s) => s.body), [
     { i: "plan-09", e: "share", w: ["farbe", "sticker", "beat", "idee"] },
     { i: "plan-09", e: "share", w: ["farbe"] },
     { i: "own", e: "share" },
-    { i: "x", e: "share" }]);
+    { i: "x", e: "share" },
+    { i: "own", e: "share", w: ["text"] },
+    { i: "plan-09", e: "share" }]);
   assert.equal(St.id({ id: "quiz-chaos", kind: "turn" }), "quiz-chaos"); assert.equal(St.id(null), "own");
 });
 
