@@ -63,6 +63,7 @@ function fillSheet(root, h, still) {
   // when the sheet has one of its own.
   var got = !!(doc && h.note && !mode); root.classList.toggle("got", got);
   var ks = q("kiseal"); ks.hidden = !(doc && doc.ki && doc.ki.s); ks.textContent = t("kiBadge"); ks.title = t("kiBadgeL"); ks.setAttribute("aria-label", t("kiBadgeL"));
+  if (doc) window.Deck.seen(doc, ks);   // a free card: its use (login only) and a revoked seal (src/deck.js)
   var hero = q("hero"); hero.textContent = ""; hero.hidden = got && !doc.t;
   title.filter(Boolean).forEach(function (l, i) { var s = el("span", "", l); s.style.setProperty("--i", i); hero.appendChild(s); });
   q("teaser").textContent = sub;
@@ -948,6 +949,7 @@ function openPast() {
     var q = el("input", "field"), list = el("div"), T = window.DailyTexts, names = {};
     q.type = "search"; q.id = "pastq"; q.placeholder = t("pastSearch"); q.setAttribute("aria-label", t("pastSearch")); q.autocomplete = "off"; q.enterKeyHint = "search";
     D.KINDS.forEach(function (k) { names[k] = [T.de[k], T.en[k]]; });
+    var Dk = window.Deck; Dk.load();
     function row(e) {
       var made = wall.some(function (w) { return w.id === e.idea.id; }), r = el("button", "day", null, function () { Kit.sfx.tap(); home = { date: e.date || today, idea: e.idea }; goHome(); });
       r.appendChild(el("b", "", e.date ? String(e.date.getUTCDate()).padStart(2, "0") : "✦"));
@@ -959,12 +961,14 @@ function openPast() {
     function fill() {
       list.textContent = "";
       if (!q.value.trim()) { D.lastDays(today, 7).forEach(row); return; }
-      var hits = D.searchIdeas(q.value, today, names);
-      if (!hits.length) { list.appendChild(el("div", "empty", t("pastNone"))); return; }
+      var hits = D.searchIdeas(q.value, today, names), dk = Dk.search(q.value);
+      if (!hits.length && !dk.length) { list.appendChild(el("div", "empty", t("pastNone"))); return; }
       hits.forEach(function (h) { h.found = true; row(h); });
+      dk.forEach(function (e) { var r = el("button", "day", null, function () { Kit.sfx.tap(); Dk.open(e); }); r.appendChild(el("b", "", "✦")); r.appendChild(el("span", "", D.plainTitle(e.doc.t || e.doc.x || ""))); r.appendChild(el("small", "", t("deck_open"))); list.appendChild(r); });
     }
     q.addEventListener("input", fill);
     b.appendChild(q); b.appendChild(list); fill();
+    b.appendChild(el("button", "btn", t("deck_open"), function () { Kit.sfx.tap(); Dk.shelf(); }));
   });
 }
 function openWall(which) {

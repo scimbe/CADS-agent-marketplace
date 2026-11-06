@@ -57,6 +57,14 @@
   });
   // Doppelkopf and Skat (table-ui.js), which play over live.js.
   stand("table", "TableUI", ["open", "accept"], { close: function () {} });
+  // The community deck of free cards (deck.js). search() and revoked() answer from nothing until the part is there; seen()
+  // of a free card (doc.ki.k "karte") loads the part, which reports a use (login only) and marks a revoked seal.
+  var dk = stand("deck", "Deck", ["shelf", "open", "vote", "load"], {
+    search: function () { return []; }, revoked: function () { return false; },
+    seen: function (doc, badge) {
+      if (doc && doc.ki && doc.ki.k === "karte" && LIST.deck) need("deck").then(function () { if (root.Deck !== dk) root.Deck.seen(doc, badge); }, function () {});
+    }
+  });
   // On the web: everything once the page is idle (see above). In the apps the files are on the device anyway.
   if (/^https?:$/.test(location.protocol) && location.hostname !== "appassets.androidplatform.net") {
     root.addEventListener("load", function () {
