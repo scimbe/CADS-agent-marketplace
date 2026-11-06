@@ -36,13 +36,14 @@
     return p;
   }
   // A tap on the vote it already has takes it back (0); the server keeps the vote per account and card. Kept in
-  // store.votes[id] only when it counted (2xx without X-Stat): -> { v: the vote now shown, why: "login" | "dup" | "full" |
+  // store.votes[id] only when it counted (2xx without X-Stat, or "same"): -> { v: the vote now shown, why: "login" | "dup" | "full" |
   // "unavailable" | "" (offline, any other failure) when it did not }.
   async function vote(store, card, v, o) {
     var k = id(card), vs = store.votes && typeof store.votes === "object" ? store.votes : {}, p = vs[k] === 1 || vs[k] === -1 ? vs[k] : 0;
     v = v === p ? 0 : v;
     var r = await post({ i: k, e: "vote", v: v }, o, "same-origin"), x = r && r.headers && r.headers.get ? r.headers.get("X-Stat") : null;
     if (r && r.status === 401) x = "login";
+    if (x === "same") x = null;   // the account gave this vote already (another device): it stands
     if (!r || x || !(r.status >= 200 && r.status < 300)) return { v: p, why: x || "" };
     store.votes = vs;
     if (v) vs[k] = v; else delete vs[k];

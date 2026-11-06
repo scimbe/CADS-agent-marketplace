@@ -6,24 +6,20 @@
 (function (root) {
   "use strict";
   var Kit = root.Kit, C = root.DuellCore, D = root.Daily, S = root.Stat, t = Kit.t, home = null, voting = false, timer = 0;
-  // In the sheet's own ink like its other marks. A tiny received sheet keeps its card, the thumbs go to the corner; a
-  // sheet squeezed to a strip (200 % zoom under an invitation) has no room left for them.
-  var CSS = ".votes{flex:none;display:flex;gap:6px;margin-top:4px;align-self:flex-start;position:relative;z-index:3}.votes[hidden],.votelogin[hidden]{display:none}" +
-    ".votes button{min-width:44px;min-height:44px;padding:0;border:2px solid var(--ink);border-radius:6px;background:var(--paper);color:var(--ink);font:900 18px/1 var(--ui)}" +
-    ".votes button[aria-pressed=true]{background:var(--ink);box-shadow:inset 0 0 0 2px var(--paper)}.votelogin{align-self:center;font:800 14px/1.2 var(--ui);color:var(--ink);text-decoration:underline}" +
-    "@container (max-height:140px){#leaf.got .votes{position:absolute;top:4px;right:8px;margin:0}}@container (max-height:40px){.votes{display:none}}";
+  // In the sheet's own ink like its other marks; the row itself and its place on small sheets are in the core (style.css).
+  var CSS = ".votelogin[hidden]{display:none}.votes button{min-width:44px;min-height:44px;padding:0;border:2px solid var(--ink);border-radius:6px;background:var(--paper);color:var(--ink);font:900 18px/1 var(--ui)}" +
+    ".votes button[aria-pressed=true]{background:var(--ink);box-shadow:inset 0 0 0 2px var(--paper)}.votelogin{align-self:center;font:800 14px/1.2 var(--ui);color:var(--ink);text-decoration:underline}";
   var $ = function (id) { return document.getElementById(id); };
+  // The row is in the page (index.template.html, kept hidden or shown by app.js); the part fills it once.
   function box() {
-    var b = $("votes"), leaf = $("leaf");
-    if (b) return b;
+    var b = $("votes");
+    if (b.firstChild) return b;
     var st = document.createElement("style"); st.textContent = CSS; document.head.appendChild(st);
-    b = document.createElement("div"); b.id = "votes"; b.className = "votes"; b.setAttribute("role", "group"); b.hidden = true;
     [["voteup", "👍", 1], ["votedown", "👎", -1]].forEach(function (x) {
       var e = document.createElement("button"); e.type = "button"; e.id = x[0]; e.textContent = x[1];
       e.addEventListener("click", function () { tap(x[2]); }); b.appendChild(e);
     });
     var a = document.createElement("a"); a.id = "votelogin"; a.className = "votelogin"; a.hidden = true; b.appendChild(a);
-    leaf.insertBefore(b, leaf.querySelector(".kiseal"));
     return b;
   }
   function card() { var h = home; return !S.off() && h && (h.doc ? h.note && h.doc.i && h.doc : h.idea); }

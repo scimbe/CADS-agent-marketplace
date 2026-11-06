@@ -395,3 +395,5 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .txan{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}.txan .chip{flex:0 0 auto}
 .chip[aria-pressed=true]{outline:3px solid var(--ink);outline-offset:1px}
 .txvor{flex-basis:100%;margin:6px 0 2px}
+.votes{flex:none;display:flex;gap:6px;margin-top:4px;min-height:44px;align-self:flex-start;position:relative;z-index:3}.votes[hidden]{display:none}
+@container (max-height:140px){#leaf.got .votes{position:absolute;top:4px;right:8px;margin:0}}@container (max-height:40px){.votes{display:none}}

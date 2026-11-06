@@ -312,3 +312,19 @@ test("Folgetermin aus dem Protokoll: offene Aufgaben werden ohne KI zur Agenda-K
   assert.deepEqual(sent, [], "nichts an den KI-Server");
   assert.deepEqual(errs, []); await b.close();
 });
+
+test("Ohne Server (ADR 0005): kein Teil stimme im Business-Build, keine Daumen, kein Request darauf oder an die Statistik", async () => {
+  const dir = path.join(root, "dist/business/parts"), files = require("node:fs").readdirSync(dir);
+  assert.ok(files.length > 5 && !files.some((f) => /^stimme\./.test(f)), files.join(" "));
+  assert.ok(!/"stimme":|vote_q|root\.Stimme/.test(require("node:fs").readFileSync(path.join(root, "dist/business/index.html"), "utf8")), "nicht im Manifest, nicht im Kern");
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), asked = [], errs = [];
+  ctx.on("request", (r) => { if (/\/parts\/stimme\.|\/api\/duell\/stat/.test(r.url())) asked.push(r.url()); });
+  const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e)));
+  await p.goto(page); await p.waitForFunction(() => document.body.getAttribute("data-state") !== "boot");
+  await p.waitForTimeout(500);
+  assert.equal(await p.locator("#votes").isHidden(), true);
+  assert.deepEqual(await p.evaluate(() => window.Parts.names().filter((n) => n === "stimme")), [], "das Vorladen im Web (parts.js) kennt ihn nicht");
+  assert.deepEqual(asked, []); assert.deepEqual(errs, []);
+  await b.close();
+});

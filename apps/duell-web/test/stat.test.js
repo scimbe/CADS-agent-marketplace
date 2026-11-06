@@ -103,6 +103,12 @@ test("stat: X-Stat dup, full, unavailable: 2xx zaehlt trotzdem nicht, der alte S
   assert.deepEqual(await St.vote(store, { id: "a" }, -1, o), { v: 1, why: "full" }); assert.deepEqual(store.votes, { a: 1 });
 });
 
+test("stat: X-Stat same (dieselbe Stimme schon von einem anderen Geraet des Kontos) gilt als bestaetigt, ohne Hinweis", async () => {
+  const store = {};
+  assert.deepEqual(await St.vote(store, { id: "a" }, 1, net(204, "same").o), { v: 1 }); assert.deepEqual(store.votes, { a: 1 });
+  assert.deepEqual(await St.vote(store, { id: "a" }, 1, net(200, "same").o), { v: 0 }, "zuruecknehmen, schon so gespeichert"); assert.deepEqual(store.votes, {});
+});
+
 test("stat: Daily Business (flavor stat: false) schickt nichts", async () => {
   globalThis.DailyFlavor = { id: "business", stat: false };
   try {

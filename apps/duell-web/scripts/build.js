@@ -59,8 +59,9 @@ const PARTS = {
   turnzwei: { d: ["katalog"], src: ["SIEGEL", "GESCHENKE", "TURN2", "FEIERDATA", "FEIER", "FEIERUI"] },   // "turn2" of the card plan: rules and widgets of the new turn cards (src/turn2.js), gift ideas (src/geschenke.js), device keys (src/siegel.js), the party poll (src/feier.js)
   logik: { d: [], src: ["LOGIK"] },                                                                    // puzzle generators, e.g. Sudoku (src/logik.js)
   daten: { d: [], src: ["KALENDERDATA", "KALENDER"] },                                                 // public and school holidays (src/kalender.json)
-  stimme: { d: [], src: ["STIMMEDATA", "STAT", "STIMMEUI"] },                                          // thumbs on the sheet and the card numbers (src/stimme-ui.js, src/stat.js)
 };
+// Thumbs on the sheet and the card numbers (src/stimme-ui.js, src/stat.js); not built for a flavor without them (stat: false).
+if (!(conf && conf.stat === false)) PARTS.stimme = { d: [], src: ["STIMMEDATA", "STAT", "STIMMEUI"] };
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
 if (has("biz-ui.js")) { PARTS.biz = { d: [], src: ["BIZ", "BIZUI"] }; parts.BIZ = read("src/biz.js"); parts.BIZUI = read(fl("biz-ui.js")); }
 parts.KATALOG = "window.DuellIdeasFull=" + JSON.stringify(catalog) + ";window.Daily&&window.Daily.fill();";
