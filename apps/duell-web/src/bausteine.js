@@ -8,7 +8,7 @@
    All words come from texts.json through Kit.t and Kit.t.plural (no language branches here). */
 (function (root) {
   "use strict";
-  var LINK = ["name", "stimme", "text", "termin", "zahl", "bild"];
+  var LINK = ["name", "stimme", "text", "termin", "zahl", "bild", "antwort"];
   function kit() { return root.Kit; }
   function list(items) {
     var K = kit();

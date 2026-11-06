@@ -121,15 +121,27 @@ window.TurnShop = { draw: drawShop };
 
 /* ---------- one prompt ---------- */
 var draw = {
+  // p.show(v, lang) writes the value (e.g. as money), p.defOf(doc) is where it starts, p.step adds − and + buttons
   slide: function (box, p, set, ctx) {
-    var v = p.def || p.min || 0, row = el("label", "slide"), r = el("input"), u = p.unit ? " " + p.unit : "", b = el("b", "", v + u);
-    row.appendChild(el("span", "", "")); r.type = "range"; r.min = p.min || 0; r.max = p.maxOf ? p.maxOf(ctx.doc) : p.max; r.value = v; r.setAttribute("aria-label", L()[p.l]);
-    r.addEventListener("input", function () { b.textContent = r.value + u; set(Number(r.value)); });
-    row.appendChild(r); row.appendChild(b); box.appendChild(row); set(v);
+    var v = p.defOf ? p.defOf(ctx.doc) : p.def || p.min || 0, row = el("label", "slide"), r = el("input"), u = p.unit ? " " + p.unit : "", b = el("b", "", "");
+    function shown(x) { b.textContent = p.show ? p.show(x, Kit.lang) : x + u; r.setAttribute("aria-valuetext", b.textContent); }
+    if (p.show) row.classList.add("money");
+    row.appendChild(el("span", "", "")); r.type = "range"; r.min = p.min || 0; r.max = p.maxOf ? p.maxOf(ctx.doc) : p.max; if (p.step) r.step = p.step; r.value = v; r.setAttribute("aria-label", p.title ? p.title(ctx.doc, Kit.lang) : L()[p.l]);
+    r.addEventListener("input", function () { shown(Number(r.value)); set(Number(r.value)); });
+    row.appendChild(r); row.appendChild(b); box.appendChild(row); shown(v); set(v);
+    if (p.step) {
+      var nb = el("div", "chips");
+      [["sl_less", -1, "−"], ["sl_more", 1, "+"]].forEach(function (x) {
+        var c = el("button", "chip", x[2], function () { Kit.sfx.tap(); var n = Math.min(Number(r.max), Math.max(Number(r.min), Number(r.value) + x[1] * p.step)); r.value = n; shown(Number(r.value)); set(Number(r.value)); });
+        c.setAttribute("aria-label", L()[x[0]]); nb.appendChild(c);
+      });
+      box.appendChild(nb);
+    }
   },
   show: function (box, p, set, ctx) {
     p.list(ctx.doc, ctx.m, ctx.now, Kit.lang).forEach(function (s) { box.appendChild(el("p", "qtext", s)); });
-    if (p.notes) p.notes(ctx.doc, ctx.m, ctx.now).forEach(function (s) { box.appendChild(el("p", "note", s)); });   // e.g. what a quiz still has open
+    if (p.card) p.card(box, ctx.doc, ctx.m, ctx.now, Kit.lang);   // a picture of what is asked about, drawn by the game's part
+    if (p.notes) p.notes(ctx.doc, ctx.m, ctx.now, Kit.lang).forEach(function (s) { box.appendChild(el("p", "note", s)); });   // e.g. what a quiz still has open
     if (p.later) box.appendChild(el("p", "note", L()[p.later]));
     set(0);
   },
@@ -182,6 +194,7 @@ var draw = {
   pick: function (box, p, set, ctx) {
     var on = [], row = el("div", "chips"), items = p.from(ctx.doc, ctx.m, ctx.now, Kit.lang);
     if (p.top) box.appendChild(el("p", "qtext", p.top(ctx.doc, ctx.m, Kit.lang)));
+    if (p.card) p.card(box, ctx.doc, ctx.m, ctx.now, Kit.lang);
     items.forEach(function (s, i) {
       var b = el("button", "chip", s, function () {
         Kit.sfx.tap(); var at = on.indexOf(i);
@@ -717,7 +730,14 @@ function icsRow(p, doc) {
 A.TABS.turn = ["Move", "Text", "Color"];
 A.PANEL.Move = function (p) {
   var ed = A.ed(); ed.step = null;
-  var doc = ed.doc, st = Tn.state(doc), left = Tn.gate(doc, Tn.today()), res = Tn.result(doc, Kit.lang);
+  var doc = ed.doc, gm = Tn.game(doc);
+  // A game whose texts come with a part (GAMES[g].part, e.g. the quiz cards of quizspiele.js): load it first, then draw.
+  if (gm.part && !window.Parts.ready(gm.part)) {
+    p.appendChild(el("p", "note", t("part_wait")));
+    window.Parts.use(gm.part, function () { if (A.ed() === ed) A.tab("Move"); }).catch(function () { if (A.ed() === ed && p.isConnected) p.lastChild.textContent = t("part_fail"); });
+    return;
+  }
+  var st = Tn.state(doc), left = Tn.gate(doc, Tn.today()), res = Tn.result(doc, Kit.lang);
   if (res) {
     p.appendChild(el("p", "qtext", res.h)); res.lines.forEach(function (s) { p.appendChild(el("p", "note", s)); });
     if (doc.g === "termin") icsRow(p, doc);

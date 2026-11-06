@@ -83,7 +83,8 @@ test("KI-Bild: Karte mit Bild zeigt es statt der Zeichnung, mit lesbarem 'KI-Bil
 
 test("KI-Bild: ein Spiel behaelt seine Vorschau und fragt kein Bild an", async () => {
   const { b, open, errs, asked } = await setup("on");
-  for (const day of [[11, 7], [10, 6], [11, 30]]) {
+  // calendar days with a fixed game (on), not a day of the rotation: a new card in the pool moves the rotation
+  for (const day of [[11, 7], [10, 6], [11, 15]]) {
     const p = await open(MAIN, day), s = await state(p);
     assert.ok(GAMES.includes(s.kind), s.id + " " + s.kind);
     assert.ok(!s.pic, s.id);
