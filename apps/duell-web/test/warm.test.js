@@ -55,3 +55,19 @@ test("Kein Kettenbrief: keine Weiterschick-Aufforderung, kein Zaehler in Texten 
   const all = JSON.stringify(Wm.list()) + JSON.stringify(Object.keys(T.de).filter((k) => /^warm_/.test(k)).map((k) => [T.de[k], T.en[k]])) + fs.readFileSync(path.join(__dirname, "../src/warm.js"), "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
   assert.ok(!/an \d+ leute|weiterschicken|weiterleiten|send (it )?to \d+|forward this|streak|counter|z(ä|ae)hler/i.test(all));
 });
+test("Empfangene Karte in der Sprache des Lesers: Katalogsatz uebersetzt, Name bleibt, eigener Text bleibt", () => {
+  for (const i of Wm.list()) for (const who of ["", "Lea"]) {
+    const de = Wm.cardFor(i, who, me, "de"), en = Wm.cardFor(i, who, me, "en");
+    assert.equal(D.localDoc(de, "en").x, en.x, i.id + " de->en " + who);
+    assert.equal(D.localDoc(en, "de").x, de.x, i.id + " en->de " + who);
+    assert.equal(D.localDoc(de, "de"), de, "gleiche Sprache: unveraendert");
+  }
+  const own = Object.assign({}, Wm.cardFor(D.byId("warm-toll"), "", me, "de"), { x: "Selbst geschrieben." });
+  assert.equal(D.localDoc(own, "en").x, "Selbst geschrieben.");
+  assert.equal(D.localDoc({ k: "card", x: "Ohne Idee" }, "en").x, "Ohne Idee");
+  const toll = Wm.cardFor(D.byId("warm-toll"), "", me, "de").x, rest = toll.charAt(0).toLowerCase() + toll.slice(1);
+  for (const pre of ["Hallo zusammen und danke 2025", "Ja wirklich, ehrlich", "0170 123"]) {
+    const d = Object.assign({}, Wm.cardFor(D.byId("warm-toll"), "", me, "de"), { x: pre + ", " + rest });
+    assert.equal(D.localDoc(d, "en").x, d.x, "selbst geschriebener Anfang bleibt: " + pre);
+  }
+});
