@@ -19,7 +19,9 @@ over(turnData.text, "turn.json");
 // A flavor may list cards whose game another branch still brings (termin, sammeln): until it is there, they stay out.
 require("../src/office.js"); require("../src/quizspiele.js");
 if (has("games.js")) require("../" + fl("games.js"));   // games only this flavor has (business: Secret Santa), before its catalog is filtered
-const games = require("../src/turns.js").GAMES, catalog = json(has("ideas.json") ? fl("ideas.json") : "src/ideas.json");
+// Cards of the part turnzwei (src/turn2.js): their games go into the manifest, so the page loads the part only for them.
+const coreGames = Object.keys(require("../src/turns.js").GAMES); require("../src/feier.js");
+const games = require("../src/turns.js").GAMES, twoGames = Object.keys(games).filter((g) => coreGames.indexOf(g) < 0), catalog = json(has("ideas.json") ? fl("ideas.json") : "src/ideas.json");
 if (flavor) catalog.ideas = catalog.ideas.filter((i) => !i.turn || games[i.turn.g]);
 // Pictures of the day's cards (AI-made, see src/thumbs.json): only the ids go in, the images stay on the gallery server.
 const thumbs = Object.keys(json(has("thumbs.json") ? fl("thumbs.json") : "src/thumbs.json").items);
@@ -51,14 +53,14 @@ const PARTS = {
   texte: { d: [], src: ["TEXTEDATA", "TEXTE"] },                                                       // Worte finden, card text, song (texte.js + ready-made texts)
   quiz: { d: [], src: ["QUIZDATA", "QUIZMAKE", "QUIZUI", "QUIZSPIELEDATA", "QUIZSPIELEUI"] },                     // question packs: night packs, AI pack, check list; texts of the fixed quiz cards
   satz: { d: [], src: ["SATZ", "SATZUI"] },                                                            // Satz zu Formular: date, list, round and tasks from one sentence
-  turnzwei: { d: ["katalog"], src: ["SIEGEL", "GESCHENKE", "TURN2"] },   // "turn2" of the card plan: rules and widgets of the new turn cards (src/turn2.js), gift ideas (src/geschenke.js), device keys (src/siegel.js)
+  turnzwei: { d: ["katalog"], src: ["SIEGEL", "GESCHENKE", "TURN2", "FEIERDATA", "FEIER", "FEIERUI"] },   // "turn2" of the card plan: rules and widgets of the new turn cards (src/turn2.js), gift ideas (src/geschenke.js), device keys (src/siegel.js), the party poll (src/feier.js)
   logik: { d: [], src: ["LOGIK"] },                                                                    // puzzle generators, e.g. Sudoku (src/logik.js)
   daten: { d: [], src: ["KALENDERDATA", "KALENDER"] },                                                 // public and school holidays (src/kalender.json)
 };
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
 if (has("biz-ui.js")) { PARTS.biz = { d: [], src: ["BIZ", "BIZUI"] }; parts.BIZ = read("src/biz.js"); parts.BIZUI = read(fl("biz-ui.js")); }
 parts.KATALOG = "window.DuellIdeasFull=" + JSON.stringify(catalog) + ";window.Daily&&window.Daily.fill();";
-parts.TURN2 = read("src/turn2.js"); parts.SIEGEL = read("src/siegel.js"); parts.GESCHENKE = "window.GeschenkeData=" + JSON.stringify(json("src/geschenke.json")) + ";" + read("src/geschenke.js"); parts.LOGIK = read("src/logik.js"); parts.KALENDER = read("src/kalender.js");
+parts.TURN2 = read("src/turn2.js"); parts.SIEGEL = read("src/siegel.js"); parts.GESCHENKE = "window.GeschenkeData=" + JSON.stringify(json("src/geschenke.json")) + ";" + read("src/geschenke.js"); parts.FEIERDATA = "window.FeierData=" + JSON.stringify(json("src/feier.json")) + ";"; parts.FEIER = read("src/feier.js"); parts.FEIERUI = read("src/feier-ui.js"); parts.LOGIK = read("src/logik.js"); parts.KALENDER = read("src/kalender.js");
 parts.KALENDERDATA = "window.KalenderData=" + JSON.stringify(json("src/kalender.json")) + ";";
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
 parts.TEXTE = read("src/texte.js");
@@ -75,7 +77,7 @@ let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + 
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
 // code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
-const KEEP = new Set(["DATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA"]);
+const KEEP = new Set(["DATA", "FEIERDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA"]);
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "")).join("\n");
 const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));
@@ -90,6 +92,7 @@ for (const name of Object.keys(PARTS)) {
   const file = "parts/" + name + "." + crypto.createHash("sha256").update(body).digest("hex").slice(0, 12) + ".js";
   fs.writeFileSync(path.join(outDir, file), body);
   manifest[name] = { f: file, h: "sha384-" + crypto.createHash("sha384").update(body).digest("base64"), d: PARTS[name].d };
+  if (name === "turnzwei") manifest[name].g = twoGames;
   partBytes += Buffer.byteLength(body);
   console.log(path.dirname(out) + "/" + file, Buffer.byteLength(body), "bytes");
 }

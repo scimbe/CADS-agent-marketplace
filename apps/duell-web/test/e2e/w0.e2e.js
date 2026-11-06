@@ -135,7 +135,8 @@ test("Bausteine: Datenschutz-Zeile aus Kartenfeldern (de/en, Plural), Daten-Teil
       const miss = await p.evaluate(async () => { const box = document.createElement("div"); document.body.appendChild(box); await window.Bausteine.daten(box, (K) => K.feiertage("BY", "2031", "de")); return box.innerText; });
       assert.equal(miss, lang === "de" ? "Daten fehlen" : "Data missing");
       for (const n of ["turnzwei", "logik"]) await p.evaluate((x) => window.Parts.need(x), n);
-      assert.deepEqual(await p.evaluate(() => [window.Turn2.kinds(), window.Logik.kinds(), window.Turn2.list("rule"), window.Logik.list("gen")]), [["rule", "widget"], ["gen"], [], []]);
+      assert.deepEqual(await p.evaluate(() => [window.Turn2.kinds(), window.Logik.kinds(), window.Logik.list("gen")]), [["rule", "widget"], ["gen"], []]);
+      assert.ok(await p.evaluate(() => window.Turn2.list("rule").includes("feier") && window.Turn2.list("widget").every((w) => /^[a-z][a-z0-9-]*$/.test(w))), "Karten registrieren sich im Teil (biz-weihnachtsfeier: feier)");
       assert.deepEqual(p.errs, []); await ctx.close();
     }
     // the part file itself missing (web): "Daten fehlen" on the card, nothing else breaks

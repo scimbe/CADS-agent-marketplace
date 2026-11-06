@@ -83,7 +83,7 @@ R.extra.turn = function (c, W, H, doc) {
     y = text(c, s, p, y, W - 2 * p, W * (i ? 0.04 : 0.045), i ? 500 : 600, i ? "#374151" : "#111827", 3) + W * 0.018;
   });
   c.font = "500 " + W * 0.03 + "px " + FONT; c.fillStyle = "#5b6472"; c.textAlign = "left"; c.textBaseline = "alphabetic";
-  if (st.over || st.turn) c.fillText(st.over ? L.note_over : String(L.picture_turn).replace("{n}", st.turn).replace("{m}", st.total), p, H - p * 1.1);
+  if (st.over || (st.turn && !Tn.game(doc).snap)) c.fillText(st.over ? L.note_over : String(L.picture_turn).replace("{n}", st.turn).replace("{m}", st.total), p, H - p * 1.1);
 };
 
 /* ---------- company networks: only 443, often a proxy, sometimes the conference or PayPal is blocked ---------- */
