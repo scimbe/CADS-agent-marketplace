@@ -36,7 +36,7 @@ test("W3: jede Art hat Knopf und Beispiele in beiden Sprachen; die Vorschau nimm
     assert.equal((TX[l][art === "card" ? "create_ex" : "create_ex_" + art] || "").split("|").length, 3, l + " Beispiele " + art);
   }
   const ui = fs.readFileSync(path.join(__dirname, "../src/create-ui.js"), "utf8");
-  assert.ok(!/"arcade"/.test(ui.match(/var KINDS = \[[^\]]*\]/)[0]), "arcade nie");
+  assert.ok(!/arcade/.test(ui.match(/var KIND_OF = \{[^}]*\}/)[0]), "arcade nie");
 });
 
 test("W4: das Siegel einer freien Karte behaelt den Ersteller-Tag o, aber nur neben einem Siegel und nur in der richtigen Form", () => {
@@ -55,4 +55,12 @@ test("docUrl: bei einer freien Karte faellt der Hash h zuletzt weg, bei anderen 
   const dec = (u) => JSON.parse(Buffer.from(u.split("#c=")[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8")).d;
   const free = dec(D.docUrl({ ...big, ki: { k: "karte", ...ki } })), other = dec(D.docUrl({ ...big, ki: { k: "welt", ...ki } }));
   assert.equal(free.ki.h, ki.h, "Hash bleibt"); assert.equal(free.s, undefined, "dafuer faellt s"); assert.equal(other.ki.h, undefined, "andere Karten wie bisher");
+});
+
+test("Review: Vorschau-CSS steckt im Teil, nicht im Kern; falsche Art wird abgelehnt; Platzhalter ohne Namen", () => {
+  const core = fs.readFileSync(path.join(__dirname, "../src/style.css"), "utf8"), ui = fs.readFileSync(path.join(__dirname, "../src/create-ui.js"), "utf8");
+  assert.ok(!/\.createpv/.test(core), "kein .createpv im Kern"); assert.ok(/\.createpv\{/.test(ui), "im Teil");
+  assert.match(ui, /opt\.art !== state\.art \|\| !kindOk\(state\.art, doc\)/);
+  assert.ok(!/Lea|Sam\b/.test(TX.de.create_ph + TX.en.create_ph));
+  assert.ok(TX.de.create_bad && TX.en.create_bad);
 });
