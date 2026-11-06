@@ -15,7 +15,8 @@
       s = s == null ? k : s; return s.replace(/\{(\w+)\}/g, function (_, x) { return o && o[x] != null ? o[x] : ""; });
     },
     loc: function () { return C.locale(Kit.lang); },
-    num: function (x, d) { return C.num(x, d, Kit.lang); },
+    // Kit.num(x) / Kit.num(x, {Intl options}): as the language writes it, grouped ("1.234,5"); Kit.num(x, 2): two decimals, no grouping.
+    num: function (x, d) { if (typeof d === "number") return C.num(x, d, Kit.lang); try { return new Intl.NumberFormat(Kit.loc(), d).format(x); } catch (e) { return String(x); } },
     // Switching the language redraws what is open: the app and every layer listen to "daily:lang".
     setLang: function (l) {
       if (Kit.langs.indexOf(l) < 0 || l === Kit.lang) return;
@@ -47,13 +48,11 @@
   // Numbers and plurals through Intl (Katalog v2, rule 27): t.plural("key", n) picks key_one, key_few, ... key_other
   // by the language's plural rules (Intl.PluralRules), with German as the fallback for a missing word; {n} is the number
   // written the way the language writes it ("1,5" in de, "1.5" in en). New texts never branch on the language.
-  // Kit.num writes without grouping (scores, seconds); counts in a sentence group like the language does ("1,500").
-  function fmtN(n) { try { return new Intl.NumberFormat(Kit.loc()).format(n); } catch (e) { return String(n); } }
   Kit.t.plural = function (k, n, o) {
     var cat = "other", L = T[Kit.lang] || {}, D = T.de || {};
     try { cat = new Intl.PluralRules(Kit.loc()).select(n); } catch (e) {}
     var key = [k + "_" + cat, k + "_other"].filter(function (x) { return L[x] != null || D[x] != null; })[0] || k;
-    var s = L[key] != null ? L[key] : D[key] != null ? D[key] : key, v = Object.assign({}, o, { n: fmtN(n) });
+    var s = L[key] != null ? L[key] : D[key] != null ? D[key] : key, v = Object.assign({}, o, { n: Kit.num(n) });
     return s.replace(/\{(\w+)\}/g, function (_, x) { return v[x] != null ? v[x] : ""; });
   };
   // Font size token --fs (rule 2): normal / gross / sehr gross = 1 / 1.25 / 1.5 times the system's size (1rem follows

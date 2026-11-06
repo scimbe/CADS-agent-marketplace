@@ -19,7 +19,7 @@ function page(lang, store) {
     Intl, Object, JSON, Promise, Array, String, Math, Error, setTimeout, clearTimeout
   };
   w.window = w;
-  vm.runInNewContext(src("kit.js") + "\n" + src("bausteine.js"), w);
+  vm.runInNewContext(src("core.js") + "\n" + src("kit.js") + "\n" + src("bausteine.js"), w);   // kit.js reads its languages through DuellCore
   return { w, ls, rootStyle, attrs };
 }
 
