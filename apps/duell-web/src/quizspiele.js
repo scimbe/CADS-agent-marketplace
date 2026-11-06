@@ -84,7 +84,7 @@
     }, card: draw(function (doc, now, lang) { return phishCard(doc, i, true, lang); }) };
   }
   function mine() {
-    return { w: "show", l: "pk_you", list: function (doc, m, now, lang) { return [say(lang, "phi_mine", { n: hits(doc, picks(now)), m: PHISH_N })]; },
+    return { w: "show", l: "phi_you", list: function (doc, m, now, lang) { return [say(lang, "phi_mine", { n: hits(doc, picks(now)), m: PHISH_N })]; },
       notes: function (doc, m, now, lang) { var all = m.concat([now]); return [T(lang).phi_only_me, teamLine(doc, all, lang), hardest(doc, all, lang)].filter(Boolean); } };
   }
   var phishTurn = [intro()].concat(times(PHISH_N, function (i) { return [ask(i), why(i)]; }).reduce(function (a, b) { return a.concat(b); }, [])).concat([mine()]);

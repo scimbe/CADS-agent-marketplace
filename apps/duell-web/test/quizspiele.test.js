@@ -92,7 +92,7 @@ test("Team-Ergebnis erst ab 5 Personen (k=5), nie je Person; das eigene Ergebnis
   const notes = last.notes(d, Tn.moves(d), now, "de");
   assert.equal(notes[0], "Das eigene Ergebnis steht nur auf diesem Gerät. Im Link stehen die Antworten ohne Namen.");
   assert.equal(notes[1], "Team: im Schnitt 7 von 10 erkannt · 6 Teilnahmen");
-  assert.match(notes[2], /^Am häufigsten verwechselt: „.+“ \(\d+ % richtig\)$/);
+  assert.match(notes[2], /^Am häufigsten verwechselt: „.+“ \(\d+\u00a0% richtig\)$/);
   assert.match(last.notes(d, Tn.moves(d), now, "en")[2], /^Mixed up most: “.+” \(\d+% right\)$/);
 });
 
