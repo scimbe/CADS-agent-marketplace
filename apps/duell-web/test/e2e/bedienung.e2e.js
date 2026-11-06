@@ -94,7 +94,7 @@ test("Tippflaechen >= 44 px: Funktionsleiste, Regler, Kartentisch, Einladung ent
 
 test("Escape schliesst wie das ✕ (Editor, Regal, Fertig-Seite, Kartentisch mit Nachfrage); ✕ oben links mit Namen, auch EN", async () => {
   const { b, open, errs } = await setup(360, 740);
-  const p = await open(page);
+  const p = await open(page + "#i=karte-spruch");   // a fixed card: today's card may be a game on a layer
   const state = () => p.evaluate(() => document.body.dataset.state);
   await p.locator("#go").click(); await p.locator("#editor:not([hidden])").waitFor();
   await p.keyboard.press("Escape"); await p.waitForFunction(() => document.body.dataset.state === "home");

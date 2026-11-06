@@ -305,7 +305,7 @@ test("Stufe 5: Pommes gegen Bot bis zum Ende, Uhr und Pokal messen", async () =>
 });
 test("Doppeltipp oeffnet die Tageskarte, eine Karte geht unveraendert raus", async () => {
   const { b, open, errs } = await setup();
-  const h = await open(""); await h.locator("#leaf").dblclick(); await h.locator("#edmain").waitFor();
+  const h = await open("#i=karte-spruch"); await h.locator("#leaf").dblclick(); await h.locator("#edmain").waitFor();   // a fixed card: today's may be a game on a layer
   const c = await open("#i=quiz-chaos"); await c.locator("#go").click(); await c.locator("#edmain").click(); await c.locator("#share").waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
