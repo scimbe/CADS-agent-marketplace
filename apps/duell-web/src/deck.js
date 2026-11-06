@@ -38,7 +38,7 @@
   // ---- the deck: only data, checked like a link ----
   function sane(j) {
     if (!j || typeof j !== "object" || !Number.isInteger(j.v) || j.v < 0 || j.v > 1e9 || !Array.isArray(j.cards)) return null;
-    var revoked = (Array.isArray(j.revoked) ? j.revoked : []).filter(function (c) { return typeof c === "string" && CID.test(c); }).slice(-500);
+    var revoked = (Array.isArray(j.revoked) ? j.revoked : []).filter(function (c) { return typeof c === "string" && CID.test(c); }).slice(-2000);
     var cards = [];
     j.cards.slice(0, MAX).forEach(function (e) {
       if (!e || !CID.test(e.cid) || revoked.indexOf(e.cid) >= 0) return;
