@@ -98,7 +98,10 @@ test("Mehrfachversuche: nach drei falschen gibt es keine Anfrage, auch nicht nac
   await answer(n.b, ["a", "b", "c"]);
   await n.b.page.waitForFunction(() => document.getElementById("cotext").textContent.includes("Keine Versuche"));
   await quiz(n.b, frag); await answer(n.b, right);
-  await n.b.page.waitForFunction(() => document.getElementById("cotext").textContent.includes("Keine Versuche"));
+  await n.b.page.waitForFunction(() => document.getElementById("cotext").textContent.includes("Keine Versuche"), null, { timeout: 10000 }).catch(async (e) => {
+    const s = await n.b.page.evaluate(() => ({ co: document.getElementById("cotext").textContent, res: (document.getElementById("ccres") || {}).textContent, book: (JSON.parse(localStorage.getItem("daily.v1") || "{}").ccBook) || null, scr: [...document.querySelectorAll(".scr")].filter((x) => !x.hidden).map((x) => x.id) }));
+    throw new Error("nach Neuladen: " + JSON.stringify(s) + " " + n.b.errors.join(" | ") + " " + e.message);
+  });
   assert.ok(!n.b.calls.includes("accept"));
   await n.a.ctx.close(); await n.b.ctx.close();
 });

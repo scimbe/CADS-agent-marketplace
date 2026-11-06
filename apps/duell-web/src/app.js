@@ -142,7 +142,9 @@ function loadPic(box, f, id, lazy) {
     var hero = box.classList.contains("pv") && box.parentNode.querySelector(".hero"); if (hero) fitHero(hero);   // the title's room changed
   };
   img.onerror = function () { if (box._pic === id) box.classList.remove("pic"); };
-  img.crossOrigin = "anonymous"; img.referrerPolicy = "no-referrer";
+  // set once: changing either attribute makes the browser load the picture anew
+  if (img.getAttribute("crossorigin") !== "anonymous") img.crossOrigin = "anonymous";
+  if (img.getAttribute("referrerpolicy") !== "no-referrer") img.referrerPolicy = "no-referrer";
   // Only after the page has loaded: a network that silently drops the request must not hold up the page's load.
   var go = function () { if (box._pic !== id) return; if (img.getAttribute("src") !== thumbUrl(id)) img.src = thumbUrl(id); else if (img.complete && img.naturalWidth) img.onload(); };
   if (lazy) box._go = go; else if (document.readyState === "complete") go(); else window.addEventListener("load", go, { once: true });
@@ -255,9 +257,11 @@ function nextSheet(step) {
 function peek(step, lazy) {
   var under = document.querySelector("#pad .u1"), g = under.querySelector(".ghost");
   if (!g) {
-    g = $("leaf").cloneNode(true); g.removeAttribute("id"); g.removeAttribute("style"); g.className = "ghost"; g.setAttribute("aria-hidden", "true");
+    // copied through a document without a window and without src: a cloned <img> would fetch today's picture again
+    var c = document.implementation.createHTMLDocument("").importNode($("leaf"), true);
+    c.querySelectorAll("img").forEach(function (x) { x.removeAttribute("src"); });
+    g = document.importNode(c, true); g.removeAttribute("id"); g.removeAttribute("style"); g.className = "ghost"; g.setAttribute("aria-hidden", "true");
     g.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); });
-    g.querySelectorAll("img").forEach(function (x) { x.removeAttribute("src"); });   // the copy must not fetch today's picture again
     under.appendChild(g);
   }
   var n = nextSheet(step); fillSheet(g, { date: n.date, idea: n.idea, lazy: lazy }, true);
