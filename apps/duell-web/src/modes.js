@@ -111,8 +111,9 @@ A.PANEL.Agent = function (p) {
 A.PANEL.Rival = function (p) {
   var d = A.ed().doc;
   p.appendChild(el("button", "chip", "🎲 " + t("agRandom"), function () {
-    var r = Math.random, L = DD.rivals[Kit.lang] || DD.rivals.de; Kit.sfx.pop();
-    d.b = { n: L[Math.floor(r() * L.length)], e: DD.emoji[Math.floor(r() * DD.emoji.length)], r: Math.floor(r() * 101), c: Math.floor(r() * 101), p: Math.floor(r() * 101) };
+    // from the sheet's seed and the roll, never Math.random
+    var ed = A.ed(); ed.rolls = (ed.rolls || 0) + 1; Kit.sfx.pop();
+    d.b = Duel.rival(d.seed, ed.rolls, DD.rivals[Kit.lang] || DD.rivals.de, DD.emoji);
     A.tab("Rival"); A.changed();
   }));
   nameField(p, d.b); sliders(p, d.b, Duel.SLIDERS[d.m]); look(p, d.b);
@@ -228,13 +229,14 @@ function start(ed) {
   })();
 }
 function mindStart(ed, p) {
-  var d = ed.doc, hist = [], m = { sa: 0, sb: 0, last: null };
+  // the bot's hand: from the seed
+  var d = ed.doc, hist = [], m = { sa: 0, sb: 0, last: null }, rnd = Duel.rng(d);
   ed.x = { mind: m, res: { rounds: [], sa: 0, sb: 0 }, running: true, title: title(ed) };
   var left = el("p", "note", t("mindPick")), row = el("div", "chips");
   p.appendChild(left); p.appendChild(row);
   DD.sets[d.set].forEach(function (face, i) {
     row.appendChild(el("button", "chip em hand", face, function () {
-      var y = Duel.mindHand(hist, d.b.c, Math.random()), o = Duel.outcome(i, y);
+      var y = Duel.mindHand(hist, d.b.c, rnd()), o = Duel.outcome(i, y);
       hist.push(i); if (o > 0) m.sa++; else if (o < 0) m.sb++; m.last = [i, y]; Kit.sfx.tap();
       left.textContent = t("mindLeft", { n: Duel.ROUNDS.mind - hist.length }); A.changed();
       if (hist.length >= Duel.ROUNDS.mind) { row.remove(); end(ed, { rounds: [], sa: m.sa, sb: m.sb }); }
