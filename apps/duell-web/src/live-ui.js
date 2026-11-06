@@ -110,20 +110,28 @@ function play(serving) {
   cv.width = B.W / 2; cv.height = B.H / 2;
   // The three pictures stay up the whole game: the invited player cannot hold the start screen to compare them.
   body.appendChild(el("p", "livemini", B.badge(conn.channel))); body.appendChild(info); body.appendChild(cv);
-  var seed = conn.channel, s = { me: B.W / 2, opp: B.W / 2, oppAt: performance.now(), ball: null, score: [0, 0], n: 0, held: false, again: [false, false], done: false };
+  var seed = conn.channel, s = { me: B.W / 2, opp: B.W / 2, oppAt: performance.now(), credit: 0.1, ball: null, score: [0, 0], n: 0, held: false, again: [false, false], done: false };
+  // The other paddle is drawn from a small jitter buffer (smooth.js): no steps at the report rate, no jumps after a stall.
+  var T = window.Smooth ? window.Smooth.track(1, { lo: [B.PW / 2], hi: [B.W - B.PW / 2] }) : null, t0 = performance.now();
   var countdown = performance.now() + 3000, last = performance.now();
   function toX(e) { var r = cv.getBoundingClientRect(); return Math.min(B.W - B.PW / 2, Math.max(B.PW / 2, (e.clientX - r.left) / r.width * B.W)); }
   cv.addEventListener("pointerdown", function (e) { s.me = toX(e); cv.setPointerCapture(e.pointerId); });
   cv.addEventListener("pointermove", function (e) { if (e.buttons || e.pointerType === "touch") s.me = toX(e); });
   function serveNow() { s.ball = B.serve(seed, s.n); conn.send({ t: "serve", n: s.n, b: B.mirror(s.ball) }); s.n++; }
   conn.on(function (m) {
-    if (m.t === "p" && typeof m.x === "number") { var now = performance.now(); s.opp = B.plausiblePaddle(s.opp, B.W - m.x, (now - s.oppAt) / 1000); s.oppAt = now; }
+    if (m.t === "p" && typeof m.x === "number") {
+      // Finger time saved up while nothing came (up to half a second) covers a burst after a stall, step by step.
+      var now = performance.now(), x = B.W - m.x; s.credit = Math.min(0.5, s.credit + (now - s.oppAt) / 1000); s.oppAt = now;
+      var use = Math.min(s.credit, Math.max(0.016, Math.abs(x - s.opp) / B.PMAX)); s.credit -= use;
+      s.opp = B.plausiblePaddle(s.opp, x, use);
+      if (T) T.push((now - t0) / 1000, typeof m.ms === "number" && isFinite(m.ms) ? m.ms / 1000 : null, [s.opp]);
+    }
     else if ((m.t === "hit" || m.t === "serve") && m.b) { s.ball = m.b; s.held = false; if (m.t === "serve") s.n = m.n + 1; }   // already mirrored by the sender into this frame
     else if (m.t === "miss") { s.score[0]++; s.ball = null; Kit.sfx.pop(); check(); }
     else if (m.t === "again") { s.again[1] = true; restart(); }
     else if (m.t === "pause") info.textContent = t("live_pause");
   });
-  net = setInterval(function () { conn && conn.send({ t: "p", x: Math.round(s.me) }); }, 50);
+  net = setInterval(function () { conn && conn.send({ t: "p", x: Math.round(s.me), ms: Math.round(performance.now() - t0) }); }, 50);
   function check() {
     if (B.over(s.score)) { s.done = true; s.ball = null; end(); return; }
     // whoever just lost the point serves the next ball
@@ -157,7 +165,8 @@ function play(serving) {
     var k = 0.5; c.fillStyle = "#111"; c.fillRect(0, 0, cv.width, cv.height);
     c.strokeStyle = "#333"; c.setLineDash([12, 12]); c.beginPath(); c.moveTo(0, cv.height / 2); c.lineTo(cv.width, cv.height / 2); c.stroke(); c.setLineDash([]);
     c.fillStyle = "#ffd400"; c.fillRect((s.me - B.PW / 2) * k, B.PY * k, B.PW * k, 14);
-    c.fillStyle = "#ff3b1d"; c.fillRect((s.opp - B.PW / 2) * k, (B.H - B.PY) * k - 14, B.PW * k, 14);
+    var sm = T && T.at((now - t0) / 1000, [B.PMAX]), opp = sm ? sm.v[0] : s.opp;
+    c.fillStyle = "#ff3b1d"; c.fillRect((opp - B.PW / 2) * k, (B.H - B.PY) * k - 14, B.PW * k, 14);
     if (s.ball) { c.fillStyle = "#fff"; c.beginPath(); c.arc(s.ball.x * k, s.ball.y * k, B.R * k, 0, 6.3); c.fill(); }
     info.textContent = now < countdown && !s.ball ? String(Math.ceil((countdown - now) / 1000)) : t("live_score", { a: s.score[0], b: s.score[1] });
   }
