@@ -114,7 +114,7 @@ test("Vier Geraete, de und en: versiegelt abstimmen, Orga sieht erst ab fuenf Su
     const a = await G.open(ana, "#i=biz-weihnachtsfeier", BIZ);
     assert.match(await a.locator("#hero").textContent(), /Weihnachtsfeier/);
     const one = await setUp(a, { shot: "ana" });
-    assert.match(one, /^https:\/\/bunsenbrenner\.org\/business#c=/, "langer Link, laeuft ohne Kurzlink-Server");
+    assert.match(one, /^https:\/\/demos-34a13a96\.bunsenbrenner\.org\/duell\/business\/#c=/, "langer Link, laeuft ohne Kurzlink-Server");
     const keys = await a.evaluate(() => JSON.parse(localStorage.getItem("daily.v1")).feiorg);
     const ex = Object.keys(keys)[0], P1 = payload(one);
     assert.deepEqual(P1.state[2].slice(0, 2).map((x) => Buffer.from(x, "base64url").length), [32, 32], "zwei oeffentliche Schluessel im Link");
