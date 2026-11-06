@@ -342,6 +342,46 @@
     "f": "ring",
     "grip": "pause"
    }
+  },
+  {
+   "tags": ["wichteln","wichtelgeschenk","geschenkidee","budget","kollegen","jahresende","team","secret santa","gift idea","budget gift","colleagues","year end"],
+   "id": "biz-wichtel-ideen",
+   "kind": "turn",
+   "min": 120,
+   "on": "11-20",
+   "de": {
+    "t": "Wichtelideen|nach Budget",
+    "s": "Budget und zwei Stichworte. Fünf neutrale Ideen."
+   },
+   "en": {
+    "t": "Gift ideas|on a budget",
+    "s": "Budget and two keywords. Five neutral ideas."
+   },
+   "turn": {
+    "g": "wichtelidee",
+    "f": "star",
+    "grip": "geschenk"
+   }
+  },
+  {
+   "tags": ["wichteln","losen","ziehung","geschenk","budget","team","kollegen","jahresende","secret santa","draw","gift swap","colleagues","year end"],
+   "id": "biz-wichteln",
+   "kind": "turn",
+   "min": 120,
+   "on": "11-23",
+   "de": {
+    "t": "Büro-|Wichteln",
+    "s": "Namen, Budget, Tag. Jede Person sieht nur den eigenen Zettel."
+   },
+   "en": {
+    "t": "Office|Secret Santa",
+    "s": "Names, budget, day. Each person sees only their own slip."
+   },
+   "turn": {
+    "g": "bwichteln",
+    "f": "heart",
+    "grip": "geschenk"
+   }
   }
  ],
  "gated": []

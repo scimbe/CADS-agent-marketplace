@@ -374,6 +374,9 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .shoptext small{font-size:13px;font-weight:700;overflow-wrap:anywhere}
 .shoprow.done b{text-decoration:line-through}
 .shoplist{margin-bottom:8px}
+.chip[aria-disabled=true]{opacity:.45;cursor:not-allowed}
+.turnfoot{margin-top:14px;padding-top:6px;border-top:2px dashed var(--ink)}.turnfoot .note{margin:4px 0}
+.gfrow{display:flex;flex-wrap:wrap;gap:8px}.gfrow .chip{flex:1 1 100%;text-align:left;min-height:48px}
 .kiseal{position:absolute;bottom:10px;right:12px;z-index:2;background:#111;color:#fff;font:900 13px/1 var(--ui);padding:5px 8px;border-radius:4px;letter-spacing:.04em}
 .kiseal[hidden]{display:none}
 .kitag{background:#111;color:#fff;font:900 12px/1 var(--ui);padding:4px 6px;border-radius:4px;letter-spacing:.04em;flex:none}

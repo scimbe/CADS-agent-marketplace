@@ -74,7 +74,7 @@ var SHOP_KEEP = 12;
 function shopStore() { var s = Kit.store.shop; return s && typeof s === "object" && !Array.isArray(s) ? s : {}; }
 // Shopping list and task list share the merging; listOf gives the game's caps, words picks its words (ein_ / tdo_).
 function listOf(doc) { var g = Tn.GAMES[doc.g]; return g && g.list ? g.list : null; }
-function words(doc) { return doc.g === "todo" ? "tdo" : "ein"; }
+function words(doc) { return doc.g === "todo" ? "tdo" : doc.g === "wunsch" ? "wun" : "ein"; }
 function shopKept(doc) { var v = shopStore()["s" + doc.seed]; return Tn.shopOk(v, listOf(doc)) ? v : null; }
 function shopKeep(doc, v) {
   var s = shopStore(), k; delete s["s" + doc.seed]; s["s" + doc.seed] = v;
@@ -92,18 +92,18 @@ function fit(c, s, w) { s = String(s); if (c.measureText(s).width <= w) return s
 // The card picture is the list itself on a sheet of paper: dark ink on white, whatever colours the card has. No emoji in exports.
 function drawShop(c, W, H, doc) {
   var ed = A.ed(), out = ed && ed.doc === doc && ed.next ? ed.next : doc;   // in the editor: the list as it will go out, in the colours chosen now
-  var cf = listOf(doc), K = words(doc), a = doc.col[0], b = doc.col[1], ink = inkOn(a), v = out === doc ? shopSeen(doc) : Tn.moves(out)[0][0], res = Tn.result(out, Kit.lang), rows = v ? Tn.shopRows(v, cf) : [], i0 = doc.i ? D.byId(doc.i) : null;
+  var cf = listOf(doc), K = words(doc), hide = !!(cf && cf.wish), a = doc.col[0], b = doc.col[1], ink = inkOn(a), v = out === doc ? shopSeen(doc) : Tn.moves(out)[0][0], res = Tn.result(out, Kit.lang), rows = v ? Tn.shopRows(v, cf) : [], i0 = doc.i ? D.byId(doc.i) : null;
   c.fillStyle = a; c.fillRect(0, 0, W, H); R.rays(c, W, H, "rgba(0,0,0,.05)", 0.2);
   R.block(c, res ? res.h : title(doc), W * 0.07, H * 0.035, W * 0.86, H * 0.15, ink, null);
   c.font = "800 " + Math.round(W * 0.036) + "px system-ui,sans-serif"; c.fillStyle = ink; c.textAlign = "center"; c.textBaseline = "middle";
-  c.fillText(fit(c, v ? Tn.shopCount(v, Kit.lang, cf) : doc.s || (i0 ? (i0[Kit.lang] || i0.de).s : ""), W * 0.86), W / 2, H * 0.205);
+  c.fillText(fit(c, v ? (hide ? say("wun_count", { n: v[1].length }) : Tn.shopCount(v, Kit.lang, cf)) : doc.s || (i0 ? (i0[Kit.lang] || i0.de).s : ""), W * 0.86), W / 2, H * 0.205);
   var x0 = W * 0.06, y0 = H * 0.235, pw = W * 0.88, ph = H - W * 0.085 - y0, n = Math.max(rows.length, 1), rh = Math.min(ph * 0.92 / n, W * 0.08), fs = Math.round(rh * 0.5), pad = W * 0.045;
   c.fillStyle = b; c.fillRect(x0 + W * 0.014, y0 + W * 0.014, pw, ph);
   c.fillStyle = "#fffdf7"; c.fillRect(x0, y0, pw, ph); c.strokeStyle = "#111111"; c.lineWidth = W * 0.004; c.strokeRect(x0, y0, pw, ph);
   var y = y0 + ph * 0.04 + rh / 2;
   if (!rows.length) { c.font = "700 " + Math.round(W * 0.04) + "px system-ui,sans-serif"; c.fillStyle = "#4b5563"; c.fillText(L()[K + "_empty"], W / 2, y0 + ph / 2); }
   rows.forEach(function (r) {
-    var done = r.bought.length > 0, box = fs * 1.05, bx = x0 + pad, who = done ? say(K + "_got", { n: r.bought.map(function (p) { return p[0]; }).join(", ") }) : r.bring.length ? say(K + "_brings", { n: r.bring.map(function (p) { return p[0]; }).join(", ") }) : r.due ? Tn.dueText(r.due, Kit.lang) : "";
+    var done = !hide && r.bought.length > 0, box = fs * 1.05, bx = x0 + pad, who = hide ? "" : done ? say(K + "_got", { n: r.bought.map(function (p) { return p[0]; }).join(", ") }) : r.bring.length ? say(K + "_brings", { n: r.bring.map(function (p) { return p[0]; }).join(", ") }) : r.due ? Tn.dueText(r.due, Kit.lang) : "";
     c.strokeStyle = "#dbe4f0"; c.lineWidth = Math.max(1, W * 0.002); c.beginPath(); c.moveTo(x0 + pad * 0.5, y + rh / 2); c.lineTo(x0 + pw - pad * 0.5, y + rh / 2); c.stroke();
     c.lineWidth = W * 0.004; c.strokeStyle = "#111111"; c.strokeRect(bx, y - box / 2, box, box);
     if (done) { c.fillStyle = "#111111"; c.fillRect(bx, y - box / 2, box, box); c.strokeStyle = "#ffffff"; c.lineWidth = box * 0.16; c.beginPath(); c.moveTo(bx + box * 0.2, y); c.lineTo(bx + box * 0.42, y + box * 0.22); c.lineTo(bx + box * 0.8, y - box * 0.24); c.stroke(); }
@@ -117,7 +117,7 @@ function drawShop(c, W, H, doc) {
   shape(c, doc.f, W * 0.92, H * 0.2, W * 0.035, b);
   return ink;
 }
-window.TurnShop = { draw: drawShop };
+window.TurnShop = { draw: drawShop, keep: shopKeep };
 
 /* ---------- one prompt ---------- */
 var draw = {
@@ -709,8 +709,9 @@ function walk(box, ed) {
     if (i === 0 && SATZ[ed.doc.g] && (!st.turn || p.live)) satz(box, ed);
     if (p.peek) box.appendChild(el("p", "qtext", p.peek(ed.doc, st.moves, now, Kit.lang)));
     if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("label", "lbl", p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "")));
-    var soon = 0;
-    draw[p.w](box, p, function (v) {
+    var soon = 0, dw = draw[p.w] || (window.Turn2 && window.Turn2.get("widget", p.w));
+    if (!dw) { box.appendChild(el("p", "note", "…")); window.Parts.use("turnzwei", function () { if (box.isConnected && i === at) step(); }).catch(function () {}); return; }   // a widget of the new cards, from its part
+    dw(box, p, function (v) {
       if (p.live) { ed.next = v === null ? null : Tn.play(ed.doc, [v], Tn.today()); A.changed(); return; }   // no Weiter: the footer sends what is on screen
       cur = v; clearTimeout(soon); A.footer();
       var auto = ed.pre && ed.pre.go; if (auto) ed.pre.go = 0;      // taken from a sentence and complete: on at once, only this once
@@ -730,7 +731,7 @@ function icsRow(p, doc) {
 A.TABS.turn = ["Move", "Text", "Color"];
 A.PANEL.Move = function (p) {
   var ed = A.ed(); ed.step = null;
-  var doc = ed.doc, gm = Tn.game(doc);
+  var doc = ed.doc, gm = Tn.game(doc), g = gm;
   // A game whose texts come with a part (GAMES[g].part, e.g. the quiz cards of quizspiele.js): load it first, then draw.
   if (gm.part && !window.Parts.ready(gm.part)) {
     p.appendChild(el("p", "note", t("part_wait")));
@@ -738,11 +739,19 @@ A.PANEL.Move = function (p) {
     return;
   }
   var st = Tn.state(doc), left = Tn.gate(doc, Tn.today()), res = Tn.result(doc, Kit.lang);
+  // New cards (Katalog v2, rules 16, 19): "Wer sieht was?" and the card's notes below the steps, which never clear them.
+  if (g.wsw || g.notes) {
+    var foot = el("div", "turnfoot"), top = el("div"); p.appendChild(top); p.appendChild(foot); p = top;
+    if (g.wsw) foot.appendChild(window.Bausteine.wswRow(g.wsw));
+    (g.notes || []).forEach(function (k) { foot.appendChild(el("p", "note", L()[k])); });
+  }
   if (res) {
     p.appendChild(el("p", "qtext", res.h)); res.lines.forEach(function (s) { p.appendChild(el("p", "note", s)); });
     if (doc.g === "termin") icsRow(p, doc);
     if (res.copy) { p.appendChild(el("button", "btn hot", L().sor_copy, async function () { if (await Kit.copy(res.copy)) Kit.toast(t("copied")); })); p.appendChild(el("p", "note", res.note)); return; }
     if (res.note) p.appendChild(el("p", "note", res.note));
+    var nx = res.open && D.byId(res.open.i);   // a card to go on with, e.g. collecting the money for a gift
+    if (nx) p.appendChild(el("button", "btn", L()[res.open.l], function () { Kit.sfx.tap(); A.openEditor(D.docFromIdea(nx, A.me(), Kit.lang), { idea: nx }); }));
     p.appendChild(el("button", "btn hot", L()[word(doc, "rematch")], function () { var d = Tn.fresh(doc, seed()); A.openEditor(d, { idea: d.i ? D.byId(d.i) : null }); }));
     return;
   }

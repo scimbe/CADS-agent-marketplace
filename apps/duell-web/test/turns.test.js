@@ -37,6 +37,8 @@ const LINES = {
   wichteln: [[[["Ana", "Ben", "Cem", "", "", "", "", "", "", "", "", ""]], [[0], 0]]],
   sammeln: [[["maxmuster", "Pizza-Abend", 4, 3750], [0]]],
   einkauf: [[[[[], [["Milch", 0, 2, []], ["Brot", 1, 1, []]]]], [[[["Ana", 0]], [["Milch", 0, 2, [[0, 5]]], ["Brot", 1, 1, [[0, 5]]]]]]]],
+  wunsch: [[[[[], [["Hörbuch", 0, 1, []], ["Rad", 1, 1, []]]]], [[[["Ana", 0]], [["Hörbuch", 0, 1, [[0, 1]]], ["Rad", 1, 1, [[0, 1]]]]]]]],
+  geschenk: [[[[0], [1], [2, 5], [["Tee-Probierset", "Notizbuch", "Kartenspiel"], 1]], [[2]]]],
   rangliste: [[[[0, 1, 2, 3, 4, 5, 6, 7]], [[7, 1, 2, 3, 4, 5, 6, 0]]]],
   schaetzen: [[[1, 1, 1, 1, 1]]],
   reihum: [[[[0], "dein Lachen", "Ana"], [[1], "Toast machen", "Ben"], [[2], "wir lachten", "Cem"], [[4], "alles", "Dag"]]],
