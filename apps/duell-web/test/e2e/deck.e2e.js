@@ -45,7 +45,7 @@ async function device(state, dev) {
     if (p0 === "deck/key") return j(200, { kid, alg: "Ed25519", pub: Buffer.from(pubRaw).toString("base64url") });
     if (p0 === "deck/use") return body.ev === "start" ? j(200, { t: "mh1.ABCDEFGHIJKLMNOPQRSTUV" }) : j(204);
     if (p0 === "deck/vote") return j(204);
-    if (p0 === "deck/me") return j(200, { cards: [{ cid: "Sxxxxx", st: "pruefung" }], credit: { balance: 2, items: [{ cid: "Sxxxxx", reason: "use", n: 2, at: "2026-11-05T00:00:00.000Z", revoked: false }], transferable: false, purchasable: false, payable: false, abo: { offered: false } }, mod: { st: state.st || "ok" } });
+    if (p0 === "deck/me") return j(200, { cards: [{ cid: "Sxxxxx", st: "pruefung" }], credit: { balance: state.balance === undefined ? 2 : state.balance, items: [{ cid: "Sxxxxx", reason: "use", n: 2, at: "2026-11-05T00:00:00.000Z", revoked: false }], transferable: false, purchasable: false, payable: false, abo: { offered: false } }, mod: { st: state.st || "ok" } });
     if (p0 === "mod/me") return j(200, { st: state.st || "ok", until: state.st === "paused" ? PAUSE.until : undefined, notices: state.notices || [] });
     if (p0 === "mod/appeal") return j(202, { nid: body.nid });
     return r.abort();
@@ -127,12 +127,12 @@ test("Nutzung zaehlt erst nach 20 s mit Handlung, Daumen nur nach dem Oeffnen; B
 });
 
 test("Pausiertes Konto: Begruendung mit Grundlage, automatisch, Frist; Widerspruch geht an den Server, Guthaben ohne Kauf", async () => {
-  const state = { deck: signed(1, [C1]), st: "paused", notices: [HIDDEN, PAUSE] };
+  const state = { deck: signed(1, [C1]), st: "paused", notices: [HIDDEN, PAUSE], balance: 1 };
   const { p, errs, sent, ctx } = await device(state);
   await openDeck(p);
   await p.getByText("Dein Konto ist bis").waitFor();
   const body = await p.locator("#shbody").innerText();
-  assert.match(body, /Guthaben: 2 freie Karten/); assert.match(body, /nicht kaufbar, nicht übertragbar und nicht auszahlbar/);
+  assert.match(body, /Guthaben: 1 freie Karte\n/, "singular for 1"); assert.match(body, /nicht kaufbar, nicht übertragbar und nicht auszahlbar/);
   assert.match(body, /Konto pausiert/); assert.match(body, /9 Konten haben „Gefällt mir nicht“ gewählt \(75 % der Stimmen\)/);
   assert.match(body, /Automatisch erkannt und entschieden/); assert.match(body, /Nutzungsbedingungen, Abschnitt „Community-Karten“/);
   assert.match(body, /Widerspruch möglich bis/); assert.match(body, /Gericht/);

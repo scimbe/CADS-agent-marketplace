@@ -32,7 +32,7 @@ function deckOf(v, cards, revoked = [], key = keys.privateKey) {
   return { ...body, sig: crypto.sign(null, Buffer.from(canonical(body)), key).toString("base64url") };
 }
 
-function load(fetchImpl, store = {}) {
+function load(fetchImpl, store = {}, extra = {}) {
   const posts = [], listeners = {};
   const w = {
     Kit: { t: (k) => k, store, save() {}, loc: () => "de-DE", toast() {}, sfx: { tap() {} } }, Daily: D, DuellCore: C, DailyTexts: { de: {}, en: {} },
@@ -41,6 +41,7 @@ function load(fetchImpl, store = {}) {
     document: { addEventListener: (e, f) => { listeners[e] = f; }, createElement: () => ({}), head: { appendChild() {} } },
     fetch: async (url, opt) => { if (opt && opt.method === "POST") posts.push({ url, opt, body: JSON.parse(opt.body) }); return fetchImpl(url, opt); },
   };
+  Object.assign(w, extra);
   w.window = w;
   vm.runInNewContext(code, w);
   return { Deck: w.Deck, w, posts, listeners };
@@ -85,6 +86,12 @@ test("Deck: Signatur gilt, gleiche Version ist auf jedem Geraet gleich; falsche 
   assert.equal(a.Deck.list()[0].doc.onload, undefined); assert.equal(a.Deck.list()[0].doc.html, undefined);
   st.deck = { v: 8, kid, cards: entries, revoked: [] };
   await a.Deck.load(true); assert.equal(a.Deck.version(), 7, "no signature: refused");
+  st.deck = deckOf(2 ** 40, entries);
+  await a.Deck.load(true); assert.equal(a.Deck.version(), 7, "an absurd version cannot lock out every later deck");
+  // a device that cannot check Ed25519 takes no deck at all, signed or not
+  const old = load(server({ deck: deckOf(5, entries) }), {}, { crypto: { getRandomValues: () => {} } });
+  await old.Deck.load(true);
+  assert.equal(old.Deck.version(), -1); assert.equal(old.Deck.list().length, 0);
 });
 
 test("Block: die naechste Version ohne die Karte, ihr Siegel als widerrufen markiert, Suche findet sie nicht mehr", async () => {
@@ -120,6 +127,33 @@ test("Nutzung und Daumen: nur mit Login und Token, nur Siegel und Hash, kein Ger
   assert.ok(x.posts.every((p) => /\/api\/duell\/(deck|mod)\//.test(p.url)));
   x.Deck.seen({ k: "card", x: "ohne Siegel", st: "druck", col: ["#000000", "#ffffff"], by: [] });
   assert.equal(x.posts.length, 2, "a sheet that is no free card sends nothing");
+});
+
+test("Nutzung: nur eine Handlung auf dem Blatt nach 20 s zaehlt; wer vorher weggeht oder ausserhalb tippt, zaehlt nicht", async () => {
+  const st = { deck: deckOf(1, []), login: true };
+  let now = 1000;
+  const clock = { now: () => now };
+  const on = (inSheet) => ({ target: { closest: () => (inSheet ? {} : null) } });
+  const x = load(server(st), {}, { Date: Object.assign(function () {}, { now: clock.now }) });
+  x.Deck.seen(card("Sternfang", H1));
+  await new Promise((r) => setTimeout(r, 20));
+  now += 25000;
+  x.listeners.pointerdown(on(false));
+  assert.equal(x.posts.filter((p) => p.body.ev === "done").length, 0, "a tap outside the sheet (shelf, back) is no use");
+  x.Deck.seen({ k: "card", x: "andere Seite", st: "druck", col: ["#000000", "#ffffff"], by: [] });
+  x.listeners.pointerdown(on(true));
+  assert.equal(x.posts.filter((p) => p.body.ev === "done").length, 0, "the free card is gone: nothing counts");
+  const y = load(server(st), {}, { Date: Object.assign(function () {}, { now: clock.now }) });
+  y.Deck.seen(card("Sternfang", H1));
+  await new Promise((r) => setTimeout(r, 20));
+  y.listeners.pointerdown(on(true));
+  assert.equal(y.posts.filter((p) => p.body.ev === "done").length, 0, "before 20 s: not yet");
+  now += 21000;
+  y.listeners.keydown(on(true));
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal(y.posts.filter((p) => p.body.ev === "done").length, 1, "after 20 s and a tap on the sheet: one use");
+  y.listeners.keydown(on(true));
+  assert.equal(y.posts.filter((p) => p.body.ev === "done").length, 1, "once");
 });
 
 test("Texte: deck_, mod_, credit_ in beiden Sprachen; keine Rangliste, kein Zaehler, kein Weiterleiten", () => {
