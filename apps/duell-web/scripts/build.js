@@ -51,14 +51,14 @@ const PARTS = {
   texte: { d: [], src: ["TEXTEDATA", "TEXTE"] },                                                       // Worte finden, card text, song (texte.js + ready-made texts)
   quiz: { d: [], src: ["QUIZDATA", "QUIZMAKE", "QUIZUI", "QUIZSPIELEDATA", "QUIZSPIELEUI"] },                     // question packs: night packs, AI pack, check list; texts of the fixed quiz cards
   satz: { d: [], src: ["SATZ", "SATZUI"] },                                                            // Satz zu Formular: date, list, round and tasks from one sentence
-  turnzwei: { d: ["katalog"], src: ["GESCHENKE", "TURN2"] },   // "turn2" of the card plan: rules and widgets of the new turn cards (src/turn2.js), gift ideas (src/geschenke.js)
+  turnzwei: { d: ["katalog"], src: ["SIEGEL", "GESCHENKE", "TURN2"] },   // "turn2" of the card plan: rules and widgets of the new turn cards (src/turn2.js), gift ideas (src/geschenke.js), device keys (src/siegel.js)
   logik: { d: [], src: ["LOGIK"] },                                                                    // puzzle generators, e.g. Sudoku (src/logik.js)
   daten: { d: [], src: ["KALENDERDATA", "KALENDER"] },                                                 // public and school holidays (src/kalender.json)
 };
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
 if (has("biz-ui.js")) { PARTS.biz = { d: [], src: ["BIZ", "BIZUI"] }; parts.BIZ = read("src/biz.js"); parts.BIZUI = read(fl("biz-ui.js")); }
 parts.KATALOG = "window.DuellIdeasFull=" + JSON.stringify(catalog) + ";window.Daily&&window.Daily.fill();";
-parts.TURN2 = read("src/turn2.js"); parts.GESCHENKE = "window.GeschenkeData=" + JSON.stringify(json("src/geschenke.json")) + ";" + read("src/geschenke.js"); parts.LOGIK = read("src/logik.js"); parts.KALENDER = read("src/kalender.js");
+parts.TURN2 = read("src/turn2.js"); parts.SIEGEL = read("src/siegel.js"); parts.GESCHENKE = "window.GeschenkeData=" + JSON.stringify(json("src/geschenke.json")) + ";" + read("src/geschenke.js"); parts.LOGIK = read("src/logik.js"); parts.KALENDER = read("src/kalender.js");
 parts.KALENDERDATA = "window.KalenderData=" + JSON.stringify(json("src/kalender.json")) + ";";
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
 parts.TEXTE = read("src/texte.js");

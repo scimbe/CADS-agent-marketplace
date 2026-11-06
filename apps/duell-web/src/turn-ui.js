@@ -688,6 +688,8 @@ function satz(box, ed) {
   });
   w.appendChild(b); box.appendChild(w);
 }
+// A step that only hands over or shows (paying, a sealed slip): no main button. end may depend on the moves.
+function ends(p, doc) { return typeof p.end === "function" ? p.end(doc, Tn.moves(doc)) : p.end; }
 // Goes through the turn's prompts one by one; each screen shows only what that step may know. "Weiter" is the footer's
 // main button (ed.step): locked until the step has an answer, so it never hides below the fold of the panel.
 function walk(box, ed) {
@@ -719,7 +721,7 @@ function walk(box, ed) {
       if (auto) setTimeout(function () { if (cur === v) go(); }, 0);
       if (p.auto) go(); else if (p.w === "rank" || (p.w === "pick" && p.n > 1)) soon = setTimeout(function () { if (box.isConnected && cur === v) go(); }, 450);   // a short look at the choice, then on
     }, { doc: ed.doc, m: st.moves, now: now, ed: ed });
-    if (!p.end && box.isConnected && i === at) { ed.step = me; A.footer(); }   // unless the step already went on by itself
+    if (!ends(p, ed.doc) && box.isConnected && i === at) { ed.step = me; A.footer(); }   // unless the step already went on by itself
   }
   step();
 }
@@ -814,7 +816,7 @@ X.turn = {
   // (waiting for a day, a pack to pick, the phone to pass on) there is no button at all rather than a dummy one.
   footer: function (b, ed) {
     var over = !!Tn.result(ed.doc, Kit.lang), s = !over && ed.step, walking = s && !s.live && !ed.next;
-    b.hidden = (ed.doc.g === "sorry" && over) || Tn.state(ed.doc).prompts.some(function (p) { return p.end; }) || (!over && !ed.next && !s);   // a last step that only hands over, like paying
+    b.hidden = (ed.doc.g === "sorry" && over) || Tn.state(ed.doc).prompts.some(function (p) { return ends(p, ed.doc); }) || (!over && !ed.next && !s);   // a last step that only hands over, like paying
     b.classList.toggle("wait", walking ? !s.ok() : !over && !ed.next);
     b.textContent = over ? L().result_pic : walking ? L().next : L()[word(ed.doc, "send")];
     if (s) b.dataset.why = s.why;

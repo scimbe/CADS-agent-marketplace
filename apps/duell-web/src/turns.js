@@ -1140,7 +1140,7 @@
     if (p.w === "doors") return v === 0;
     if (p.w === "freeze") return intIn(v, 0, p.max);
     if (p.w === "rec" || p.w === "once" || p.w === "parrot" || p.w === "pay") return v === 0;
-    if (p.w === "slots" || p.w === "vote") return p.ok(v, m);
+    if (p.w === "slots" || p.w === "vote" || p.w === "bw") return p.ok(v, m);
     if (p.w === "shop" || p.w === "wish") return shopOk(v, p.cfg);
     if (p.w === "opts") return Array.isArray(v) && v.length === p.n && distinct(v) && v.every(function (x) { return intIn(x, 0, p.keys.length - 1); });
     if (p.w === "whose") return intIn(v, 0, 2);
@@ -1162,7 +1162,7 @@
     var n = p.from ? p.from(doc, m, now, lang).length : 0;
     if (p.w === "ideas") return Array.isArray(v) && v.length === 2 && Array.isArray(v[0]) && v[0].length >= 1 && v[0].length <= 5 && distinct(v[0].map(Q.fold)) && v[0].every(function (x) { return typeof x === "string" && !!Q.clean(x, 40) && Q.clean(x, 40) === x; }) && intIn(v[1], 0, v[0].length - 1);
     if (p.w === "day") return intIn(v, 20000, 30000);
-    if (p.w === "pick" || p.w === "me") return Array.isArray(v) && v.length === p.n && distinct(v) && v.every(function (x) { return intIn(x, 0, n - 1); });
+    if (p.w === "pick") return Array.isArray(v) && v.length === p.n && distinct(v) && v.every(function (x) { return intIn(x, 0, n - 1); });
     if (p.w === "rank") return Array.isArray(v) && v.length === n && distinct(v) && v.every(function (x) { return intIn(x, 0, n - 1); });
     if (p.w === "alloc") return Array.isArray(v) && v.length === n && v.every(function (x) { return intIn(x, 0, p.sum) && x % p.step === 0; }) && v.reduce(function (a, b) { return a + b; }, 0) <= p.sum;
     return false;
@@ -1198,7 +1198,7 @@
     var st = state(doc); if (st.over || answers.length !== st.prompts.length) return null;
     for (var i = 0; i < answers.length; i++) if (!okAnswer(st.prompts[i], answers[i], doc, "de", st.moves, answers.slice(0, i))) return null;
     var d = JSON.parse(JSON.stringify(doc));
-    var g = game(d), out = g.snap ? [answers] : st.moves.concat([answers]);
+    var g = game(d), out = g.snap ? st.moves.slice(0, g.snap === true ? 0 : g.snap).concat([answers]) : st.moves.concat([answers]);
     if (g.list && g.list.wish) delete d.o;   // the wisher's own link (o: 1) never goes on as the family's
     d.q = seal(g.store ? out.map(function (x, t) { return g.store(t, x); }) : out, d.seed);
     if (g.gateFrom && st.turn === 0) d.o = today + answers[1];
