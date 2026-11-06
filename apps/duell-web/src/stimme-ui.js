@@ -22,7 +22,7 @@
     var a = document.createElement("a"); a.id = "votelogin"; a.className = "votelogin"; a.hidden = true; b.appendChild(a);
     return b;
   }
-  function card() { var h = home; return !S.off() && h && (h.doc ? h.note && h.doc.i && h.doc : h.idea); }
+  function card() { return S.off() ? null : S.card(home); }
   function paint(why) {
     var b = box(), c = card(), v = c ? ((Kit.store.votes || {})[c.i || c.id] | 0) : 0, a = $("votelogin");
     b.hidden = !c; b.setAttribute("aria-label", t("vote_q"));
@@ -43,7 +43,7 @@
   // Every sheet; a received card counts once per link on this device (short link id, else a hash of the card).
   function sheet(h) {
     home = h; paint();
-    if (h.doc && h.note) {
+    if (h.doc && S.card(h)) {
       var u = D.docUrl(h.doc);
       S.open(Kit.store, h.doc, h.link || "h" + C.hash32(u.slice(u.indexOf("#") + 1))); Kit.save();
     }

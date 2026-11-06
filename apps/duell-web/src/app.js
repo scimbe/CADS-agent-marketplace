@@ -88,7 +88,7 @@ function setHome(h, animate) {
   WM.sheet(h, s.got, animate);
   langPick(!!h.note);
   // The thumbs keep their row from the first paint (.votes in style.css), so the sheet does not move when their part arrives.
-  var F = window.DailyFlavor, off = F && F.stat === false; $("votes").hidden = off || !(h.doc ? h.note && h.doc.i : h.idea);
+  var F = window.DailyFlavor, off = F && F.stat === false; $("votes").hidden = off || !(h.doc ? h.note && h.doc.i && !(h.doc.ki && h.doc.ki.k === "karte") : h.idea);   // as Stat.card
   stimme(function (S) { S.sheet(h); }, h);
 }
 // Thumbs and card numbers live in the part "stimme" (src/stimme-ui.js, src/stat.js); a flavor with stat: false has neither.
@@ -1203,8 +1203,14 @@ labels();
 function boot() { if (!route()) goHome(); }
 // The rules of the new turn cards (part turnzwei) only when the link or the day's card is one of them (two()).
 window.Parts.need("katalog").then(function () { return two(location.hash) || twoIdea(D.ideaForDay(today)) ? window.Parts.need("turnzwei").catch(function () {}) : 0; }).then(boot, function () { Kit.toast(t("part_fail")); boot(); });
-// The embedded display font loads after the first paint: draw the sheet again once it is there (its headline and the card's
-// picture, which a canvas would otherwise keep in the fallback font).
-if (document.fonts && document.fonts.load) document.fonts.load('900 40px Anton').then(function () { if (screen === "home" && home) setHome(home, false); }, function () {});
+// The embedded display font loads after the first paint: fit the headline again once it is there, and draw the sheet's
+// picture and the editor's again. A canvas keeps the letters it was drawn with: on a slow phone the sheet drawn before the
+// font was there kept the fallback font for good (and looked different from the same sheet drawn a moment later).
+if (document.fonts && document.fonts.load) document.fonts.load('900 40px Anton').then(function () {
+  if (screen === "home") fitHero();
+  var leaf = $("leaf"), c = leaf.querySelector(".pvcard"), d = home && (home.doc || D.docFromIdea(home.idea, me, Kit.lang));
+  if (d && !c.hidden && d.k !== "game" && d.k !== "arcade") preview(leaf, d, false);   // only a drawn card, no game, no picture
+  if (ed) changed();
+}, function () {});
 });
 })();

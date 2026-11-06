@@ -9,6 +9,9 @@
   var URL_ = C.DEFAULT_API.replace(/\/api\/.*$/, "") + "/api/duell/stat", SEEN = 100;
   function off() { var F = root.DailyFlavor; return !!(F && F.stat === false); }
   function areas() { var D = node ? require("./daily.js") : root.Daily; return (D && D.AREAS) || []; }
+  // The card a sheet can be voted on and counted as: the day's card, or a received one of the catalog. A free card (AI kind
+  // "karte") keeps the id of the card it came from, but is not that card: it counts in its own deck, not here.
+  function card(h) { return (h && (h.doc ? h.note && h.doc.i && !(h.doc.ki && h.doc.ki.k === "karte") && h.doc : h.idea)) || null; }
   function id(c) { return (c && (c.i || c.id)) || "own"; }   // doc.i or idea.id
   // -> a promise of the response, or of null when nothing went out or it failed.
   function post(p, o, cred) {
@@ -49,6 +52,6 @@
     if (v) vs[k] = v; else delete vs[k];
     return { v: v };
   }
-  var api = { URL: URL_, off: off, id: id, share: share, open: open, vote: vote };
+  var api = { URL: URL_, off: off, card: card, id: id, share: share, open: open, vote: vote };
   if (node) module.exports = api; else root.Stat = api;
 })(typeof window !== "undefined" ? window : globalThis);

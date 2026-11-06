@@ -109,6 +109,17 @@ test("stat: X-Stat same (dieselbe Stimme schon von einem anderen Geraet des Kont
   assert.deepEqual(await St.vote(store, { id: "a" }, 1, net(200, "same").o), { v: 0 }, "zuruecknehmen, schon so gespeichert"); assert.deepEqual(store.votes, {});
 });
 
+test("stat: card — Tageskarte und empfangene Katalogkarte ja; eigene Karte, Einladung ohne Doc-ID und freie KI-Karte nein", () => {
+  const idea = { id: "plan-09" }, got = { i: "plan-09", by: [] };
+  assert.equal(St.card({ idea }), idea);
+  assert.equal(St.card({ doc: got, note: "Von Ana" }), got);
+  assert.equal(St.card({ doc: got }), null, "ohne note: nichts Empfangenes");
+  assert.equal(St.card({ doc: { by: [] }, note: "x" }), null, "eigene Karte ohne Katalog-ID");
+  assert.equal(St.card({ doc: { i: "plan-09", ki: { k: "wish", s: "s1" } }, note: "x" }).i, "plan-09", "Wunsch-KI bleibt die Katalogkarte");
+  assert.equal(St.card({ doc: { i: "plan-09", ki: { k: "karte", s: "s1" } }, note: "x" }), null, "freie Karte: ihr Deck zaehlt, nicht die Katalogkarte");
+  assert.equal(St.card(null), null);
+});
+
 test("stat: Daily Business (flavor stat: false) schickt nichts", async () => {
   globalThis.DailyFlavor = { id: "business", stat: false };
   try {
