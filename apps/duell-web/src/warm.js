@@ -165,5 +165,11 @@
     A.quick(doc, h.idea).then(function () { var s = document.getElementById("share"); s.click(); s.focus(); });
     return true;
   }
-  Object.assign(api, { draw: draw, sheet: sheet, start: start });
+  // Once the display font is there (app.js): the own card's picture again, with the name typed so far. Only the picture:
+  // no animation, no class, no text of the sheet changes. true when it drew.
+  function redraw(h) {
+    if (!field || box.hidden || !h || !h.idea || h.doc || !is(h.idea)) return false;
+    preview(h); return true;
+  }
+  Object.assign(api, { draw: draw, sheet: sheet, start: start, redraw: redraw });
 })(typeof globalThis !== "undefined" ? globalThis : this);

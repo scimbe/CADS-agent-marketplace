@@ -132,3 +132,33 @@ test("Lizenzen: Volltexte von Anton und qrcode-generator stecken im Bundle (Teil
   const html = bundle();
   assert.match(html, /SIL OPEN FONT LICENSE Version 1\.1/); assert.match(html, /Permission is hereby granted, free of charge/);
 });
+
+// node --test runs the E2E files in parallel, and pages of one file load dist while another file may build: a reader must
+// never meet a half-written page or a part the page names but which is missing (the build used to delete dist/parts first).
+test("Build waehrend andere lesen: nie eine halbe Seite, nie ein fehlender Teil; ensureBuilt baut nur nach einer Aenderung", async () => {
+  const { spawn } = require("node:child_process"), E = require("../scripts/ensure-build.js");
+  const dir = path.dirname(dist), bad = [];
+  let reads = 0;
+  for (let round = 0; round < 3; round++) {
+    const b = spawn(process.execPath, [path.join(__dirname, "../scripts/build.js")], { stdio: "ignore" });
+    let done = false; const exit = new Promise((ok) => b.on("exit", (c) => { done = true; ok(c); }));
+    while (!done) {
+      let html = "";
+      try { html = fs.readFileSync(dist, "utf8"); } catch (e) { bad.push("Seite fehlt: " + e.code); }
+      if (html) {
+        reads++;
+        if (!/<\/html>\s*$/.test(html)) bad.push("halbe Seite: " + html.length + " Zeichen");
+        const m = html.match(/window\.DailyParts=(\{.*?\});window\./);
+        if (m) for (const p of Object.values(JSON.parse(m[1]))) if (!fs.existsSync(path.join(dir, p.f))) bad.push("Teil fehlt: " + p.f);
+      }
+      await new Promise((ok) => setImmediate(ok));
+    }
+    assert.equal(await exit, 0);
+  }
+  assert.ok(reads > 3, "waehrend der Builds gelesen: " + reads);
+  assert.deepEqual([...new Set(bad)], []);
+  assert.deepEqual(fs.readdirSync(dir).filter((f) => f.startsWith(".build-")), [], "kein Zwischenordner bleibt liegen");
+  assert.equal(E.upToDate(""), true, "Stempel passt nach dem Build");
+  assert.equal(E.ensureBuilt(""), false, "kein zweiter Build ohne Aenderung");
+  assert.notEqual(E.stamp(""), E.stamp("business"), "jede Variante hat ihren Stempel");
+});
