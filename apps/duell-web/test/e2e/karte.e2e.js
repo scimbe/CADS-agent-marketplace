@@ -105,3 +105,34 @@ test("Verwerfen gibt die Einheit zurueck; eine Krise bleibt auf dem Geraet und z
   assert.equal(sent.filter((s) => s.path === "ai").length, before, "nichts gesendet");
   assert.deepEqual(errs, []);
 });
+
+// W3: game, quiz and an ability of an existing card (here: Termin finden), as lib/duell-karte.mjs compose() builds them
+const W3 = {"game":{"k":"game","col":["#ffd400","#ff3b1d"],"by":[],"t":"Tiefsee-Sturm","g":{"seed":4242,"params":{"gravity":1800,"jump":430,"gap":140,"speed":130},"theme":"ocean","title":"Tiefsee-Sturm","emoji":"🐠","look":{"d":"bubbles"},"route":[{"p":"ruhig","d":{"gravity":-200,"gap":20,"speed":-20},"t":"ocean","e":"🐟"},{"p":"sturm","d":{"gap":-15,"speed":30},"t":"night","e":"⚡"},{"p":"schnell","d":{"speed":40},"t":"ocean","e":"🐳"}]}},"quiz":{"k":"turn","col":["#ff6a1f","#1b2bd8"],"by":[],"t":"Unser Sonnensystem","g":"quiz","seed":4242,"q":"","f":"bolt","pk":{"t":"Unser Sonnensystem","m":"l","q":[["Welcher Planet ist der Sonne am nächsten?","Merkur","Venus","Mars","Erde"],["Welcher Planet ist der größte?","Jupiter","Saturn","Neptun","Erde"],["Wie heißt der rote Planet?","Mars","Venus","Uranus","Merkur"]]}},"faehigkeit":{"k":"turn","col":["#ff4fa3","#0a7f55"],"by":[],"i":"zug-termin","t":"Grillabend","s":"Termine antippen, alle stimmen ab.","g":"termin","seed":4242,"q":"","f":"star"}};
+test("W3: Spiel, Quiz und eine vorhandene Kartenart (Termin) kommen als Vorschau und oeffnen sich als echte Karte", async () => {
+  for (const [art, doc, label, shows] of [["game", W3.game, "🕹 Spiel", /🐠 Tiefsee-Sturm.*🐟 → ⚡ → 🐳/], ["quiz", W3.quiz, "❓ Quiz", /3 Fragen.*Merkur|3 Fragen.*nächsten/], ["faehigkeit", W3.faehigkeit, "🧩 Wie eine Karte", /Termine antippen.*nutzt: Wann könnt ihr alle\?/]]) {
+    const { p, errs, sent } = await phone((p0) => {
+      if (p0 === "ai/status") return [200, { meter: METER, create: CREATE(5) }];
+      if (p0 === "ai") return [200, { kind: "karte", options: [{ art, doc }], seals: [SEAL], hashes: ["h".repeat(43)], cost: 1, receipt: "rc-" + art, meter: METER, create: CREATE(4) }];
+      if (p0 === "ai/accept") return [200, { final: true, meter: METER, create: CREATE(4) }];
+      return null;
+    });
+    await p.evaluate(() => { window.DailyApp.me().pref = { age: "a18" }; });
+    await p.locator("#create").tap();
+    await p.getByRole("button", { name: label }).tap();
+    const ta = p.getByLabel("Deine Beschreibung");
+    await ta.waitFor();
+    await ta.fill("Beschreibung für " + art);
+    await p.getByRole("button", { name: "✨ Erschaffen" }).tap();
+    const pv = p.locator(".createpv");
+    await pv.waitFor();
+    assert.match((await pv.textContent()).replace(/\s+/g, " "), shows, art);
+    assert.equal(sent.find((s) => s.path === "ai").body.input.art, art);
+    await p.getByRole("button", { name: "Übernehmen" }).tap();
+    assert.ok(await until(() => sent.some((s) => s.path === "ai/accept")), art + " gebucht");
+    const got = await p.evaluate(() => window.DailyDebug.doc());
+    assert.equal(got.k, doc.k, art); assert.equal(got.ki.k, "karte", art);
+    if (art === "faehigkeit") assert.equal(got.i, "zug-termin");
+    assert.deepEqual(errs, [], art);
+    await p.context().close();
+  }
+});

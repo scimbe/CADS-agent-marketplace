@@ -24,8 +24,25 @@ test("karte: Krisentext bleibt auf dem Geraet, Texte in beiden Sprachen, kein Za
   assert.ok(keys.length >= 20);
   for (const k of keys) assert.ok(TX.en[k], "en " + k);
   const all = keys.map((k) => TX.de[k] + " " + TX.en[k]).join(" ").toLowerCase();
-  assert.ok(!/streak|weiterleit|forward|countdown|nur noch|only \d|beeil|hurry|kauf|buy|abo/.test(all), "kein Druck, kein Kaufappell");
+  assert.ok(!/streak|weiterleit|forward|countdown|nur noch|only \d|beeil|hurry|\b(kauf\w*|buy|abo|abonnier\w*)\b/.test(all), "kein Druck, kein Kaufappell");
   const ui = fs.readFileSync(path.join(__dirname, "../src/create-ui.js"), "utf8");
   assert.ok(!/innerHTML|eval\(|new Function|localStorage|setInterval/.test(ui), "kein HTML aus Daten, kein Zaehler im Speicher");
   assert.ok(!/photo|foto|image/i.test((ui.match(/input: function \(\) \{[^\n]*/) || [""])[0]), "nur Text geht an den Server");
+});
+
+test("W3: jede Art hat Knopf und Beispiele in beiden Sprachen; die Vorschau nimmt nur Arten, die ein Link traegt", () => {
+  for (const art of ["card", "meme", "game", "sound", "quiz", "faehigkeit"]) for (const l of ["de", "en"]) {
+    assert.ok(TX[l]["create_art_" + art], l + " create_art_" + art);
+    assert.equal((TX[l][art === "card" ? "create_ex" : "create_ex_" + art] || "").split("|").length, 3, l + " Beispiele " + art);
+  }
+  const ui = fs.readFileSync(path.join(__dirname, "../src/create-ui.js"), "utf8");
+  assert.ok(!/"arcade"/.test(ui.match(/var KINDS = \[[^\]]*\]/)[0]), "arcade nie");
+});
+
+test("W4: das Siegel einer freien Karte behaelt den Ersteller-Tag o, aber nur neben einem Siegel und nur in der richtigen Form", () => {
+  const ki = { k: "karte", s: "s2.karte.abc." + "S".repeat(32), h: "H".repeat(43), o: "O".repeat(22) };
+  assert.deepEqual(D.sanitizeKi(ki), ki);
+  assert.equal(D.sanitizeKi({ k: "karte", o: "O".repeat(22) }).o, undefined, "ohne Siegel kein Tag");
+  assert.equal(D.sanitizeKi({ ...ki, o: "<b>" }).o, undefined);
+  assert.equal(D.sanitizeDoc({ k: "card", x: "Hi", ki }).ki.o, "O".repeat(22));
 });

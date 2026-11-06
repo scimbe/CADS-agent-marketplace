@@ -6,7 +6,9 @@
    a photo: a meme gets its captions, the photo is added in the editor. No count of views, no streak, no countdown. */
 (function (root) {
   "use strict";
-  var ARTS = ["card", "meme"];
+  var ARTS = ["card", "meme", "game", "sound", "quiz", "faehigkeit"];
+  // what a free card may come back as: every kind a link carries, never arcade (played only, never sent)
+  var KINDS = ["card", "photo", "game", "sound", "turn", "duel", "quest", "table"];
   var A, Kit, t, el, D;
   var state = { art: "card", age: "", meter: null, account: false, net: true };
 
@@ -68,7 +70,7 @@
     ta.id = "createtext"; ta.rows = 3; ta.maxLength = 200; ta.placeholder = t("create_ph"); ta.setAttribute("aria-label", t("create_label"));
     b.appendChild(ta);
     var ex = el("div", "chips");
-    t(state.art === "meme" ? "create_ex_meme" : "create_ex").split("|").forEach(function (s) { ex.appendChild(el("button", "chip", s, function () { ta.value = s; ta.focus(); })); });
+    t(state.art === "card" ? "create_ex" : "create_ex_" + state.art).split("|").forEach(function (s) { ex.appendChild(el("button", "chip", s, function () { ta.value = s; ta.focus(); })); });
     b.appendChild(ex);
     var left = el("p", "aicount create-left", line(state.meter)); left.setAttribute("aria-live", "polite");
     b.appendChild(left);
@@ -86,17 +88,19 @@
       // one card comes back: shown as a preview; the promise says whether it was taken (true) or thrown away (false)
       auto: function (opt, ki, res) {
         var doc = opt && opt.doc ? D.sanitizeDoc(opt.doc) : null;
-        if (!doc || (doc.k !== "card" && doc.k !== "photo") || !ki || !ki.s) return false;
+        if (!doc || KINDS.indexOf(doc.k) < 0 || !ki || !ki.s) return false;
         return new Promise(function (done) {
           res.textContent = "";
           res.appendChild(preview(doc));
           var row = el("div", "row");
           row.appendChild(el("button", "btn hot", t("create_take"), function () {
             Kit.sfx.pop();
-            var d = JSON.parse(JSON.stringify(doc)); d.ki = { k: "karte", s: ki.s, h: ki.h };
+            // with the deck (W4) the server seals the frozen card itself (ki with the creator tag o); else the page's own hash
+            var sk = opt.ki && opt.ki.k === "karte" ? D.sanitizeKi(opt.ki) : null;
+            var d = JSON.parse(JSON.stringify(doc)); d.ki = sk && sk.s ? sk : { k: "karte", s: ki.s, h: ki.h };
             // first the receipt is settled as taken (ai.js, in the promise's then), only then the editor: openEditor drops every
             // receipt still open, and this one would be given back instead of booked
-            done(true); setTimeout(function () { A.openEditor(d, { own: true }); }, 0);
+            done(true); setTimeout(function () { A.openEditor(d, { own: true, idea: d.i ? D.byId(d.i) : null }); }, 0);
           }));
           row.appendChild(el("button", "btn", t("create_drop"), function () {
             Kit.sfx.tap(); res.textContent = ""; var was = state.meter ? state.meter.remaining : 0;
@@ -114,9 +118,18 @@
     return go;
   }
 
+  // What a card that is no plain card shows in the preview: its game, beat, questions or the existing card it uses.
+  function lines(doc) {
+    if (doc.k === "game" && doc.g) return [doc.g.emoji + " " + doc.g.title, (doc.g.route || []).map(function (r) { return r.e; }).join(" → ")];
+    if (doc.k === "sound") return [doc.x + " · " + doc.bpm + " BPM"].concat(doc.ly || []);
+    if (doc.k === "turn" && doc.pk) return [t("create_questions", { n: doc.pk.q.length }), doc.pk.q[0][0]];
+    var idea = doc.i ? D.byId(doc.i) : null, L = idea ? idea[Kit.lang] || idea.de : null;
+    return [doc.s || "", L ? t("create_uses", { x: D.plainTitle(L.t) }) : ""].filter(Boolean);
+  }
   // The card as a small sheet in its colours, with its stickers and the badge. A meme shows where the own photo will go.
   function preview(doc) {
-    var box = el("figure", "createpv"), txt = doc.k === "photo" ? [doc.x, doc.y].filter(Boolean).join(" … ") : doc.x;
+    var plain = doc.k === "card" || doc.k === "photo";
+    var box = el("figure", "createpv"), txt = doc.k === "photo" ? [doc.x, doc.y].filter(Boolean).join(" … ") : plain ? doc.x : lines(doc).join(". ");
     box.style.background = doc.col[0]; box.style.color = doc.col[1];
     box.setAttribute("role", "img"); box.setAttribute("aria-label", [doc.t, txt, t("kiBadgeL")].filter(Boolean).join(". "));
     if (doc.t) box.appendChild(el("b", "createpv-t", doc.t));
@@ -124,7 +137,8 @@
       box.appendChild(el("span", "createpv-x", doc.x || ""));
       box.appendChild(el("span", "createpv-photo", t("create_photo")));
       box.appendChild(el("span", "createpv-x", doc.y || ""));
-    } else box.appendChild(el("span", "createpv-x", doc.x));
+    } else if (plain) box.appendChild(el("span", "createpv-x", doc.x));
+    else lines(doc).forEach(function (l) { box.appendChild(el("span", "createpv-x", l)); });
     if (doc.sk && doc.sk.length) box.appendChild(el("span", "createpv-sk", doc.sk.map(function (s) { return s.e; }).join(" ")));
     box.appendChild(el("span", "createpv-ki", t("kiBadgeL")));
     return box;
