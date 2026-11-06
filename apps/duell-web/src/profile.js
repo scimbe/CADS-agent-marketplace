@@ -31,6 +31,8 @@
   }
   // What both sides agreed on after a sync: the base of the next three-way merge.
   function snapshot(p) { return { me: JSON.stringify(p.me), wall: p.wall.map(wallKey), saved: p.saved.map(savedKey) }; }
+  // What came from the server is checked like a device entry before it reaches the store.
+  function cleanWall(list) { return (Array.isArray(list) ? list : []).filter(function (e) { return sendsWall(e) && typeof e.id === "string" && typeof e.ts === "number"; }); }
   // Three-way merge of a list: keep what both have, plus what is new on either side since the base. Gone on one side = gone.
   function merge3(local, remote, base, key) {
     var inR = {}, inL = {}, inB = {}, out = [];
@@ -48,11 +50,11 @@
       var m = s.me && typeof s.me === "object" ? s.me : {}, r = remote.me;
       out.me = { nick: r.nick || m.nick, emoji: r.emoji || m.emoji, colors: r.colors || m.colors, set: r.set || m.set };
     }
-    var wall = merge3(Array.isArray(s.wall) ? s.wall : [], remote.wall || [], base && base.wall, wallKey).slice(0, MAX_WALL);
+    var wall = merge3(Array.isArray(s.wall) ? s.wall : [], cleanWall(remote.wall), base && base.wall, wallKey).slice(0, MAX_WALL);
     if (JSON.stringify(wall) !== JSON.stringify(merge3(Array.isArray(s.wall) ? s.wall : [], [], null, wallKey))) out.wall = wall;   // order alone is no change
-    var saved = merge3(cleanSaved(s.saved), remote.saved || [], base && base.saved, savedKey).slice(0, MAX_SAVED);
+    var saved = merge3(cleanSaved(s.saved), cleanSaved(remote.saved), base && base.saved, savedKey).slice(0, MAX_SAVED);
     if (JSON.stringify(saved) !== JSON.stringify(merge3(cleanSaved(s.saved), [], null, savedKey))) out.saved = saved;
-    if (via === "code" && remote.ai && CODE_RE.test(remote.ai.dev) && remote.ai.dev !== s.aiDev) { out.aiDev = remote.ai.dev; out.aiProof = remote.ai.proof; }
+    if (via === "code" && remote.ai && CODE_RE.test(remote.ai.dev) && remote.ai.dev !== s.aiDev) { out.aiDev = remote.ai.dev; out.aiProof = typeof remote.ai.proof === "string" ? remote.ai.proof : undefined; }
     return out;
   }
   var api = { newCode: newCode, fmtCode: fmtCode, parseCode: parseCode, pack: pack, snapshot: snapshot, merge3: merge3, merge: merge, sendsWall: sendsWall, THUMB_MAX: THUMB_MAX };
@@ -83,6 +85,7 @@
     if (navigator.onLine === false) return (state = "offline");
     for (var round = 0; round < 2; round++) {
       var g = await call("get", who(p));
+      if (link() !== p) return (state = "");   // unlinked or deleted meanwhile: write nothing
       if (g.status === 401) return (state = "login");
       if (g.status !== 200) return (state = "error");
       if (g.json.gone && p.base) { unlink(); onChange(); Kit.toast(t("ac_gone")); return (state = "gone"); }   // deleted on another device: stay local, do not upload it again
@@ -92,6 +95,7 @@
       if (!g.json.profile || JSON.stringify(out) !== JSON.stringify(stripV(g.json.profile))) {
         var body = who(p); body.rev = rev; body.profile = out; if (!p.base) body.fresh = true; if (p.via === "account" && p.age16) body.age16 = true;
         var w = await call("put", body);
+        if (link() !== p) return (state = "");
         if (w.status === 409) continue;
         if (w.status === 410) { unlink(); onChange(); Kit.toast(t("ac_gone")); return (state = "gone"); }
         if (w.status === 401) return (state = "login");

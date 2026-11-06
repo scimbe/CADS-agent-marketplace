@@ -25,6 +25,9 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   assert.ok(Buffer.byteLength(html) < 700 * 1024, "Kern ueber 700 KB: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
   assert.deepEqual(Object.keys(man).sort(), ["daten", "katalog", "konto", "licenses", "logik", "play", "qr", "quiz", "satz", "table", "texte", "turnzwei", "welt"]);
+  // "Anmelden / Registrieren": its texts (ac_) only in the part konto, none in the core
+  assert.ok(!/"ac_[a-z]/.test(html), "ac_-Texte im Kern");
+  assert.match(fs.readFileSync(partFiles().find((f) => /\/konto\.[0-9a-f]{12}\.js$/.test(f)), "utf8"), /window\.KontoTexts=\{"de":\{"ac_title":"Anmelden \/ Registrieren"/);
   for (const n of Object.keys(man)) assert.match(n, /^[a-z]{1,20}$/, "Teilname nur Buchstaben (Galerie-Server und Android lassen nur [a-z]{1,20} durch): " + n);
   assert.equal(files.length, Object.keys(man).length, "nur die Teile aus dem Manifest liegen in dist/parts");
   let sum = 0;

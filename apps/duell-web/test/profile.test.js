@@ -80,3 +80,13 @@ test("Look-Cookie: nur auf bunsenbrenner.org, nur zwei Farben als Kleinbuchstabe
   assert.equal(P.lookCookie(['#2b4bff"; Domain=x', "#ffe600"], "a.bunsenbrenner.org"), "ct_look=daily.ffd400.ff3b1d" + tail);
   for (const h of ["", "127.0.0.1", "localhost", "evilbunsenbrenner.org", "bunsenbrenner.org.evil.com"]) assert.equal(P.lookCookie(["#2b4bff", "#ffe600"], h), null, h);
 });
+
+test("Vom Server: Wand und Gemerktes werden geprueft wie auf dem Geraet, Fotowerke und Unsinn kommen nicht in den Speicher", () => {
+  const s = { me, wall: [], saved: [] };
+  const remote = { me, wall: [card("own", 5), { id: "own", ts: 6, k: "photo", th: TH }, { id: "own", ts: "x", k: "card", th: TH }, { id: "own", ts: 7, k: "card", th: PNG }, null],
+    saved: [{ id: "quiz-chaos", ts: 1 }, { id: "Bad Id!", ts: 2 }, { id: "x", ts: "3" }], ai: { dev: "5e".repeat(16), proof: { evil: 1 } } };
+  const ch = P.merge(s, remote, null, "code");
+  assert.deepEqual(ch.wall, [card("own", 5)]);
+  assert.deepEqual(ch.saved, [{ id: "quiz-chaos", ts: 1 }]);
+  assert.equal(ch.aiDev, "5e".repeat(16)); assert.equal(ch.aiProof, undefined);
+});

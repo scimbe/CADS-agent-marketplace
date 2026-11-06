@@ -58,8 +58,8 @@ const PARTS = {
   satz: { d: [], src: ["SATZ", "SATZUI"] },                                                            // Satz zu Formular: date, list, round and tasks from one sentence
   turnzwei: { d: ["katalog"], src: ["SIEGEL", "GESCHENKE", "TURN2", "FEIERDATA", "FEIER", "FEIERUI"] },   // "turn2" of the card plan: rules and widgets of the new turn cards (src/turn2.js), gift ideas (src/geschenke.js), device keys (src/siegel.js), the party poll (src/feier.js)
   logik: { d: [], src: ["LOGIK"] },                                                                    // puzzle generators, e.g. Sudoku (src/logik.js)
-  daten: { d: [], src: ["KALENDERDATA", "KALENDER"] },
-  konto: { d: [], src: ["KONTODATA", "PROFILE"] },                                                     // "Anmelden / Registrieren" in My style: account or sync code (src/profile.js)                                                 // public and school holidays (src/kalender.json)
+  daten: { d: [], src: ["KALENDERDATA", "KALENDER"] },                                                 // public and school holidays (src/kalender.json)
+  konto: { d: [], src: ["KONTODATA", "PROFILE"] },                                                     // "Anmelden / Registrieren" in My style: account or sync code (src/profile.js)
 };
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
 if (has("biz-ui.js")) { PARTS.biz = { d: [], src: ["BIZ", "BIZUI"] }; parts.BIZ = read("src/biz.js"); parts.BIZUI = read(fl("biz-ui.js")); }
