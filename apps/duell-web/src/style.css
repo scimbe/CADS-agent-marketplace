@@ -257,8 +257,6 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 /* AI actions */
 .aibox{margin-top:10px;padding-top:8px;border-top:2px dashed var(--ink)}.aibox.flat{margin-top:6px;padding-top:0;border-top:0}
 .wishtips{margin-top:12px}
-.profile .btn,.profile .field{margin-bottom:8px}.accheck{display:flex;gap:8px;align-items:center;font-weight:700;margin:6px 0 8px;min-height:44px}.accheck input{width:24px;height:24px}
-.accode{font:800 13px ui-monospace,Menlo,monospace;overflow-wrap:break-word;margin:0 0 6px}
 .airow{display:flex;gap:8px;align-items:center}
 .aicount{margin:0;font-size:13px;font-weight:800;flex:1}
 .aiopt,.txopt{display:block;width:100%;text-align:left;white-space:normal;height:auto;min-height:44px;padding:8px 10px;margin-bottom:6px}

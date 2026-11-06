@@ -141,7 +141,5 @@
     setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
     Kit.toast(Kit.t("saved"));
   };
-  // Right before any jump to sign in / register / the account (profile.js, ai.js): the login pages in my colours.
-  Kit.look = function () { if (window.DuellHost) return; var k = window.DuellCore.lookCookie(Kit.store.me && Kit.store.me.colors, location.hostname); if (k) document.cookie = k; };
   window.Kit = Kit;
 })();

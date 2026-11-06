@@ -379,19 +379,8 @@
   // Cents as money: "7 €" / "9,37 €" in German, "€7" / "€9.37" in English.
   function money(c, l) { return sp(new Intl.NumberFormat(locale(l), { style: "currency", currency: "EUR", minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 }).format(c / 100)); }
 
-  // The login pages (Keycloak, CADS-Tunnel #890) wear the My Daily Idea look only with the cookie ct_look = "daily.<a>.<b>"
-  // (a = background, b = accent, lower-case hex), set for bunsenbrenner.org right before the jump (Kit.look). Only the two
-  // colours go. host: location.hostname. -> the cookie string, or null away from bunsenbrenner.org (file:, app shells, tests).
-  function lookCookie(colors, host) {
-    host = String(host || "").toLowerCase();
-    if (host !== "bunsenbrenner.org" && !/\.bunsenbrenner\.org$/.test(host)) return null;
-    var c = Array.isArray(colors) ? colors.map(function (x) { return String(x || "").toLowerCase(); }) : [];
-    if (!/^#[0-9a-f]{6}$/.test(c[0]) || !/^#[0-9a-f]{6}$/.test(c[1])) c = ["#ffd400", "#ff3b1d"];
-    return "ct_look=daily." + c[0].slice(1) + "." + c[1].slice(1) + "; Domain=bunsenbrenner.org; Path=/; Max-Age=86400; Secure; SameSite=Lax";
-  }
-
   var api = {
-    lookCookie: lookCookie, locale: locale, langsOf: langsOf, textsFor: textsFor, column: column, pick: pick, plural: plural, form: form, num: num, money: money,
+    locale: locale, langsOf: langsOf, textsFor: textsFor, column: column, pick: pick, plural: plural, form: form, num: num, money: money,
     SHARE_BASE: SHARE_BASE, SHORT_BASE: SHORT_BASE, DEFAULT_API: DEFAULT_API, MAX_FRAGMENT: MAX_FRAGMENT, MAX_NAME: MAX_NAME, MAX_TITLE: MAX_TITLE,
     MAX_PROMPT: MAX_PROMPT, MAX_SCORE: MAX_SCORE, RANGES: RANGES, THEME_NAMES: THEME_NAMES, PRESETS: PRESETS,
     clampNum: clampNum, sanitizeParams: sanitizeParams, sanitizeTheme: sanitizeTheme, sanitizeSeed: sanitizeSeed,

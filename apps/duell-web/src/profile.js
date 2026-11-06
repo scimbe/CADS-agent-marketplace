@@ -57,11 +57,26 @@
     if (via === "code" && remote.ai && CODE_RE.test(remote.ai.dev) && remote.ai.dev !== s.aiDev) { out.aiDev = remote.ai.dev; out.aiProof = typeof remote.ai.proof === "string" ? remote.ai.proof : undefined; }
     return out;
   }
-  var api = { newCode: newCode, fmtCode: fmtCode, parseCode: parseCode, pack: pack, snapshot: snapshot, merge3: merge3, merge: merge, sendsWall: sendsWall, THUMB_MAX: THUMB_MAX };
+  // The login pages (Keycloak, CADS-Tunnel #890) wear the My Daily Idea look only with the cookie ct_look = "daily.<a>.<b>"
+  // (a = background, b = accent, lower-case hex), set for bunsenbrenner.org right before the jump (look below). Only the two
+  // colours go. host: location.hostname. -> the cookie string, or null away from bunsenbrenner.org (file:, app shells, tests).
+  function lookCookie(colors, host) {
+    host = String(host || "").toLowerCase();
+    if (host !== "bunsenbrenner.org" && !/\.bunsenbrenner\.org$/.test(host)) return null;
+    var c = Array.isArray(colors) ? colors.map(function (x) { return String(x || "").toLowerCase(); }) : [];
+    if (!/^#[0-9a-f]{6}$/.test(c[0]) || !/^#[0-9a-f]{6}$/.test(c[1])) c = ["#ffd400", "#ff3b1d"];
+    return "ct_look=daily." + c[0].slice(1) + "." + c[1].slice(1) + "; Domain=bunsenbrenner.org; Path=/; Max-Age=86400; Secure; SameSite=Lax";
+  }
+
+  var api = { lookCookie: lookCookie, newCode: newCode, fmtCode: fmtCode, parseCode: parseCode, pack: pack, snapshot: snapshot, merge3: merge3, merge: merge, sendsWall: sendsWall, THUMB_MAX: THUMB_MAX };
 
   if (typeof window === "undefined") { if (typeof module !== "undefined" && module.exports) module.exports = api; return; }
 
   var Kit = window.Kit, C = window.DuellCore, t = Kit.t, H = window.DuellHost, busy = null, timer = 0, onChange = function () {}, state = "";
+  // The section's own styles come with the part (the core stays small).
+  var css = document.createElement("style"); css.textContent = ".profile .btn,.profile .field{margin-bottom:8px}.accheck{display:flex;gap:8px;align-items:center;font-weight:700;margin:6px 0 8px;min-height:44px}.accheck input{width:24px;height:24px}.accode{font:800 13px ui-monospace,Menlo,monospace;overflow-wrap:break-word;margin:0 0 6px}"; document.head.appendChild(css);
+  // Right before any jump to sign in / register / the account (here and the AI login in ai.js): the login pages in my colours.
+  function look() { if (H) return; var k = lookCookie(Kit.store.me && Kit.store.me.colors, location.hostname); if (k) document.cookie = k; }
   function base() { return (window.DUELL_API || C.DEFAULT_API).replace(/\/config$/, "/profile"); }
   // The iOS shell loads the page from a file with all network blocked (only its AI bridge goes out): no sync there yet.
   var canCode = !(H && typeof H.ai === "function");
@@ -135,7 +150,7 @@
         var go = el("button", "btn", t("ac_login"), function () {
           if (!cb.checked) return;
           Kit.store.profile = { via: "account", rev: 0, base: null, age16: true }; plainSave();
-          Kit.look();
+          look();
           location.href = "/auth/login?return=" + encodeURIComponent("/duell");
         });
         go.disabled = true; cb.addEventListener("change", function () { go.disabled = !cb.checked; });
@@ -168,7 +183,7 @@
     function showState(s) {
       var at = link() && link().at;
       st.textContent = s === "ok" && at ? t("ac_ok", { time: new Date(at).toLocaleTimeString(Kit.lang === "de" ? "de-DE" : "en-GB", { hour: "2-digit", minute: "2-digit" }) }) : s && s !== "ok" ? t(s === "login" ? "ac_relogin_note" : "ac_" + s) : "";
-      if (s === "login" && canAccount) { var a = el("a", "btn", t("ac_relogin")); a.href = "/auth/login?return=" + encodeURIComponent("/duell"); a.addEventListener("click", Kit.look); st.appendChild(document.createTextNode(" ")); st.appendChild(a); }
+      if (s === "login" && canAccount) { var a = el("a", "btn", t("ac_relogin")); a.href = "/auth/login?return=" + encodeURIComponent("/duell"); a.addEventListener("click", look); st.appendChild(document.createTextNode(" ")); st.appendChild(a); }
     }
     showState(state);
     box.appendChild(el("button", "btn", t("ac_sync"), async function () { showState("busy"); var r = await sync(); if (r === "gone") rerender(); else showState(r); }));
@@ -186,5 +201,5 @@
 
   // Back from the login page, or a new start while linked: sync once.
   if (link()) setTimeout(sync, 800);
-  window.Profile = { section: section, sync: sync, linked: function () { return !!link(); }, onChange: function (f) { onChange = f; } };
+  window.Profile = { look: look, section: section, sync: sync, linked: function () { return !!link(); }, onChange: function (f) { onChange = f; } };
 })(typeof globalThis !== "undefined" ? globalThis : this);

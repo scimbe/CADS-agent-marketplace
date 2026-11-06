@@ -271,7 +271,10 @@
     ok.disabled = !!(meter && meter.interest); b.appendChild(ok);
     b.appendChild(el("p", "note", t("aiWantNote")));
     if (meter && meter.canLogin && !window.DuellHost) {
-      var a = el("a", "btn", t("aiLogin")); a.href = "/auth/login?return=" + encodeURIComponent("/duell"); a.addEventListener("click", Kit.look); b.appendChild(a);
+      var a = el("a", "btn", t("aiLogin")); a.href = "/auth/login?return=" + encodeURIComponent("/duell"); a.addEventListener("click", function (e) {   // the look cookie comes with the part konto: load it, set it, then go
+        e.preventDefault(); var go = function () { location.href = a.href; };
+        window.Parts.use("konto", function () { window.Profile.look(); }).then(go, go);
+      }); b.appendChild(a);
     }
   }
   // Report a shared sheet: only after the person chose a reason and said yes in the dialog. -> true when the server took it.

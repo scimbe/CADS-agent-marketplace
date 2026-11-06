@@ -73,7 +73,7 @@ test("Texte: Abschnitt in beiden Sprachen, gleiche Schluessel, kein Druck, Alter
 });
 
 test("Look-Cookie: nur auf bunsenbrenner.org, nur zwei Farben als Kleinbuchstaben-Hex, sonst Standardfarben", () => {
-  const P = require("../src/core.js"), tail = "; Domain=bunsenbrenner.org; Path=/; Max-Age=86400; Secure; SameSite=Lax";
+  const tail = "; Domain=bunsenbrenner.org; Path=/; Max-Age=86400; Secure; SameSite=Lax";
   assert.equal(P.lookCookie(["#2B4BFF", "#ffe600"], "demos-34a13a96.bunsenbrenner.org"), "ct_look=daily.2b4bff.ffe600" + tail);
   assert.equal(P.lookCookie(null, "bunsenbrenner.org"), "ct_look=daily.ffd400.ff3b1d" + tail);
   assert.equal(P.lookCookie(["#fff", "red"], "a.bunsenbrenner.org"), "ct_look=daily.ffd400.ff3b1d" + tail);

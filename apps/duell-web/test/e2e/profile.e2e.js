@@ -193,3 +193,32 @@ test("Frosch -> Anmelden / Registrieren -> Keycloak, mit dem Look-Cookie in mein
   assert.deepEqual(errs, []);
   await ctx.close();
 });
+
+// The AI's login link (ai.js): the look cookie lives in the part konto, so the tap loads it, sets the cookie, then goes.
+test("KI-Login: der Teil konto kommt vor dem Sprung, das Look-Cookie ist schon beim /auth/login da", async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 780 }, locale: "de-DE" }), p = await ctx.newPage();
+  const errs = [], toLogin = []; let kontoOk = false;   // the idle preload of the web is refused until the tap: the tap itself must load it p.on("pageerror", (e) => errs.push(e.message));
+  await ctx.route((u) => u.origin === DEMOS, (route) => {
+    const u = new URL(route.request().url());
+    if (u.pathname === "/duell") return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: fs.readFileSync(DIST, "utf8") });
+    if (u.pathname.startsWith("/duell/parts/konto.") && !kontoOk) return route.fulfill({ status: 503, body: "" });
+    if (u.pathname.startsWith("/duell/parts/")) return route.fulfill({ status: 200, contentType: "text/javascript", body: fs.readFileSync(path.join(PARTS, path.basename(u.pathname))) });
+    if (u.pathname === "/auth/login") { toLogin.push({ url: u.href, cookie: route.request().headers().cookie || "" }); return route.fulfill({ status: 200, contentType: "text/html", body: "<p>login</p>" }); }
+    return route.fulfill({ status: 503, contentType: "application/json", body: '{"error":"off"}' });
+  });
+  await ctx.addInitScript((seed) => { if (!localStorage.getItem("daily.v1")) localStorage.setItem("daily.v1", JSON.stringify(seed)); }, { ...SEED, aiMeter: { free: 3, canLogin: true } });
+  await p.goto(DEMOS + "/duell");
+  await p.locator("#go").waitFor();
+  await p.waitForFunction(() => window.Parts.names().filter((n) => n !== "konto").every((n) => window.Parts.ready(n)));
+  assert.equal(await p.evaluate(() => window.Parts.ready("konto")), false, "no konto part before");
+  await p.evaluate(() => {   // the AI wall as the page shows it (app.js openAiWall), here in a plain box
+    const el = (tag, cls, text, on) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; if (on) e.addEventListener("click", on); return e; };
+    const b = el("div"); b.id = "aiwalltest"; document.body.prepend(b); window.Ai.wall(b, el);
+  });
+  kontoOk = true;
+  await Promise.all([p.waitForURL(DEMOS + "/auth/login?return=%2Fduell", { waitUntil: "commit" }), p.locator("#aiwalltest").getByRole("link", { name: "Mit Konto anmelden" }).evaluate((a) => a.click())]);   // the box sits under the page's screens
+  assert.equal(toLogin.length, 1);
+  assert.match(toLogin[0].cookie, /ct_look=daily\.2b4bff\.ffe600/, "cookie set before the jump");
+  assert.deepEqual(errs, []);
+  await ctx.close();
+});
