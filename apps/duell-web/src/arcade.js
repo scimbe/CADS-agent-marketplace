@@ -410,7 +410,7 @@
     return now - last >= P.RELOAD * 0.6;   // nobody reloads faster than the barrel allows
   }
   function panzerSide(o) {
-    var P = PANZER, S = base(P, o), T = island(S.seed), last = -9, fire = false, tokens = 1, tokAt = null, RATE = P.RELOAD * 0.6;
+    var P = PANZER, S = base(P, o), T = island(S.seed), last = -9, fire = false, tokens = 1, tokAt = null, RATE = P.RELOAD;
     S.st = { T: T, aim: { vx: 0, vy: 0 }, oppAim: { vx: -500, vy: -600 }, shells: [], id: 0, wind: wind(S.seed, 0), reload: 0 };
     S.input = function (i) {
       if (!i) return;
@@ -452,7 +452,7 @@
       if (m.t === "shot") {
         // Nobody reloads faster than the barrel allows: one shot per RATE of this phone's time, a single one in hand;
         // after a stall seen here, the shots fired during it may come together.
-        var now = S.clock(); tokens = Math.min(1 + S.stall() / RATE, tokens + (now - tokAt) / RATE); tokAt = now;
+        var now = S.clock(); tokens = Math.min(1.5 + S.stall() / P.RELOAD + 1e-6, tokens + (now - tokAt) / RATE); tokAt = now;   // half a shot of slack for jitter; a gap holds what a barrel reloads in it
         if (!plausibleShot(m, -Infinity, 0) || tokens < 1) return S.reject();
         tokens -= 1; var mz = muzzle(T, false);
         st.shells.push({ x: mz.x, y: mz.y, vx: m.vx, vy: m.vy, w: m.w, mine: false, i: m.i });

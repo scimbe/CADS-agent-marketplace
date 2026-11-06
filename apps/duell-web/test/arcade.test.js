@@ -211,7 +211,7 @@ test("Panzer: nach gemessenem Stocken kommen die Schuesse der Luecke zusammen an
   S.receive({ t: "p", vx: -500, vy: -700 });
   wall += 4.5;                                                  // nothing arrived for 4.5 s here
   let got = 0; for (let i = 0; i < 10; i++) got += shot(i);
-  assert.ok(got >= 4 && got <= 1 + Math.floor(4.5 / (A.PANZER.RELOAD * 0.6)) + 1, "Schuesse der Luecke: " + got);
+  assert.ok(got >= 4 && got <= 1 + Math.floor(4.5 / A.PANZER.RELOAD) + 1, "Schuesse der Luecke: " + got);
   let tight = 0; for (let k = 0; k < 20; k++) { wall += 0.05; S.receive({ t: "p", vx: -500, vy: -700 }); tight += shot(100 + k); }
   assert.ok(tight <= 2, "ohne Stocken kein Dauerfeuer: " + tight);
 });

@@ -238,7 +238,8 @@
         // granted that way comes out of a budget that fills with the time passing on this phone's clock and holds a
         // full magazine's reload plus one second, plus the length of a stall this phone itself saw (up to 6 s). So a
         // clock set forward or a long pause before a burst still gives only about four snowballs beyond the three in
-        // hand; only a real gap in the arrivals buys more. Throws without a clock (an older app) reload on arrival.
+        // hand. Only a gap in the arrivals buys more, a stall of the network as well as a sender that falls silent on
+        // purpose; either way never more than the gap lasted. Throws without a clock (an older app) reload on arrival.
         var extra = S.stall();
         if (m.t === "throw" && num(m.ms)) {
           var CAP = N.AMMO * N.RELOAD + 1 + extra, now = S.clock();
