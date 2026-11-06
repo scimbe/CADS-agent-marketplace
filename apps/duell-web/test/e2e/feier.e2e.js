@@ -89,6 +89,15 @@ async function answer(p, o) {
 }
 // What a page shows of the poll, wherever it is: the sheet, the step, the picture's lines.
 const shown = async (p) => (await p.locator("body").innerText()) + "\n" + JSON.stringify(await p.evaluate(() => { const d = window.DailyDebug.home() && window.DailyDebug.home().doc; return d ? window.Turns.face(d, "de") : null; }));
+// Open a link on a device that just stored something in another tab (the organiser's keys, the own box): Chromium hands
+// localStorage writes to other pages of the context asynchronously and the app reads its storage once at start, so wait
+// until the key is there, then load again (in real use the link is opened much later).
+async function openWith(ctx, h, key) {
+  const p = await G.open(ctx, h, BIZ);
+  await p.waitForFunction((k) => !!JSON.parse(localStorage.getItem("daily.v1") || "{}")[k], key);
+  await p.reload(); await p.waitForFunction(() => document.body.getAttribute("data-state") !== "boot");
+  return p;
+}
 // A wait that, when it fails, says what the page shows instead (CI runs on Linux only).
 async function see(p, loc, what) {
   try { await loc.waitFor(); } catch (e) {
@@ -136,7 +145,7 @@ test("Vier Geraete, de und en: versiegelt abstimmen, Orga sieht erst ab fuenf Su
 
     // no browser but the organiser's sees a total: not on the sheet, not in the step, not in the picture
     for (const [ctx, en] of [[ben, true], [cem, false], [dana, false]]) {
-      const q = await G.open(ctx, hash(four), BIZ);
+      const q = await openWith(ctx, hash(four), "fei");
       assert.doesNotMatch(await shown(q), TOTALS, "Startblatt ohne Summen");
       await q.locator("#go").click();
       await q.locator("#panel").getByText(en ? "This device has already answered." : "Von diesem Gerät ist schon eine Antwort drin.").first().waitFor({ state: "attached" });   // the wide layout may scroll it out of view
@@ -147,7 +156,7 @@ test("Vier Geraete, de und en: versiegelt abstimmen, Orga sieht erst ab fuenf Su
     }
 
     // the organiser with three answers: below five no total, and no end
-    const o4 = await G.open(ana, hash(four), BIZ);
+    const o4 = await openWith(ana, hash(four), "feiorg");
     await o4.locator("#go").click();
     const dash = o4.locator("#panel .feiorg");
     await see(o4, dash.getByText("Noch zu wenig Stimmen: 3 von 5", { exact: true }), "Orga mit drei Antworten");
@@ -157,14 +166,14 @@ test("Vier Geraete, de und en: versiegelt abstimmen, Orga sieht erst ab fuenf Su
     await snap(o4, "ana-3-zu-wenig");
 
     // two answers on the same link at once (a fork): Ben and Cem answer for another person each
-    const p5a = await G.open(ben, hash(four), BIZ);
+    const p5a = await openWith(ben, hash(four), "fei");
     const fiveA = await answer(p5a, { en: true, other: true, dates: [0, 2, 2], place: "Zum Hirsch" });
-    const p5b = await G.open(cem, hash(four), BIZ);
+    const p5b = await openWith(cem, hash(four), "fei");
     const fiveB = await answer(p5b, { other: true, dates: [1, 1, 2], place: "Bei uns im Büro", menu: ["Vegan"] });
     assert.equal(payload(fiveA).state[2][2], 4); assert.equal(payload(fiveB).state[2][2], 4, "jede Gabel zaehlt vier");
 
     // Ana opens one fork, pastes the other: the device takes the missing box, no double, and from five shows the totals
-    const o5 = await G.open(ana, hash(fiveA), BIZ);
+    const o5 = await openWith(ana, hash(fiveA), "feiorg");
     await o5.locator("#go").click();
     const d5 = o5.locator("#panel .feiorg");
     await see(o5, d5.getByText("Noch zu wenig Stimmen: 4 von 5", { exact: true }), "Orga mit vier Antworten");
