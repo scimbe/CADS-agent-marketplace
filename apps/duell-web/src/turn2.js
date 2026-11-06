@@ -133,6 +133,18 @@
       d.o = 1; root.Turn2.ownLink = root.Daily.docUrl(d);
       if (await K.copy(root.Turn2.ownLink)) K.toast(X.wun_mine_ok);
     }));
+    // Only her phone ends the list, after one more tap to be sure; reservations never end it (turns.js GAMES.wunsch.ends).
+    if (own && base) {
+      var ask = el("div", "wunclose"), shut = el("button", "chip", "🔒 " + X.wun_close, function () { K.sfx.tap(); shut.hidden = true; ask.hidden = false; });
+      ask.hidden = true; ask.setAttribute("role", "group"); ask.appendChild(el("p", "note", X.wun_close_q));
+      ask.appendChild(el("button", "chip", X.wun_close_yes, function () {
+        var v = now(), d = Tn.shopOk(v, cf) && Tn.play(ctx.doc, [v], Tn.today()), c = d && Tn.close(d);
+        if (!c) return;
+        K.sfx.tap(); root.TurnShop.keep(c, v); ctx.ed.next = null; ctx.ed.doc = c; A().changed(); A().tab("Move");
+      }));
+      ask.appendChild(el("button", "chip", X.wun_close_no, function () { K.sfx.tap(); ask.hidden = true; shut.hidden = false; }));
+      box.appendChild(shut); box.appendChild(ask);
+    }
     up();
   });
 

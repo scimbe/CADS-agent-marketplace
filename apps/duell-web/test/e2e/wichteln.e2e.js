@@ -139,6 +139,75 @@ test("Wunschzettel mit Geheimnis: Kind schreibt, Familie reserviert verdeckt üb
   await kid.close(); await mom.close(); await oma.close();
 });
 
+// HOLD fix: reservations never end the list. Her phone looks the same with no wish and with every wish reserved (sheet,
+// editor, card picture); only her own tap on "Wunschzettel schließen" ends it, and until then givers can still let go.
+test("Wunschzettel: das Gerät des Kindes sieht mit keiner und mit allen Reservierungen gleich aus, nur das Kind schließt (3 Geräte, de/en)", async () => {
+  const [kid, mom, opa] = await G.people(b, 3, { lang: ["de", "en", "de"], view: ["phone390", "phone390", "phone328"] });
+  const k = await G.open(kid, "#i=zug-wunschzettel");
+  await k.locator("#go").click();
+  for (const w of ["Lego", "Buch"]) { const f = panel(k).locator("form.shopadd input"); await f.fill(w); await f.press("Enter"); }
+  const L0 = await send(k);
+  // what the kid's phone shows of a family link: the sheet, its picture, the editor, its picture and the main button
+  const look = async (link, name) => {
+    const p = await G.open(kid, hash(link));
+    await p.waitForTimeout(200);
+    const sheet = await p.locator("#leaf").innerText(), sheetPic = await p.evaluate(() => document.querySelector("#leaf .pvcard").toDataURL());
+    await snap(p, name + "-blatt");
+    await p.locator("#go").click(); await panel(p).locator(".shoprow").first().waitFor(); await p.waitForTimeout(200);
+    const out = { sheet, sheetPic, editor: await panel(p).innerText(), main: await p.locator("#edmain").textContent(),
+      pic: await p.evaluate(() => document.getElementById("stage").toDataURL()), face: await p.evaluate(() => JSON.stringify(window.Turns.face(window.DailyDebug.doc(), "de"))) };
+    await snap(p, name + "-editor");
+    assert.deepEqual(p.errs, []);
+    return { p, out };
+  };
+  const none = await look(L0, "wunsch-gleich-0-reserviert");
+  await none.p.close();
+
+  const m = await G.open(mom, hash(L0)); await m.locator("#go").click();
+  await panel(m).locator("input.field").last().fill("Mom");
+  await panel(m).getByRole("button", { name: "I'll give this: Lego" }).click();
+  const L1 = await send(m);
+  const o = await G.open(opa, hash(L1)); await o.locator("#go").click();
+  await panel(o).locator("input.field").last().fill("Opa");
+  await o.waitForTimeout(300);
+  await panel(o).getByRole("button", { name: "Ich schenke das: Buch" }).click();
+  const L2 = await send(o);
+  assert.equal(await o.evaluate((u) => { const r = window.Daily.parseRoute("#" + u.split("#")[1]); return window.Turns.state(r.doc).over; }, L2), false, "alles vergeben, Zettel bleibt offen");
+
+  const all = await look(L2, "wunsch-gleich-alle-reserviert");
+  for (const k2 of Object.keys(none.out)) assert.deepEqual(all.out[k2], none.out[k2], "Kind sieht dasselbe: " + k2);
+  assert.ok(!/vergeben|Ergebnis|Mom|Opa|🎁/.test(all.out.sheet + all.out.editor), all.out.sheet + " | " + all.out.editor);
+  assert.equal(all.out.main, "Einladung schicken");
+
+  // a giver can still let go and take the other wish (the list is not locked)
+  const m2 = await G.open(mom, hash(L2)); await m2.locator("#go").click();
+  await panel(m2).getByRole("button", { name: "I'll give this: Lego" }).click();
+  await panel(m2).getByText("You're giving this").waitFor({ state: "detached" });
+  await m2.close();
+
+  // only the kid closes: one tap, then a second to be sure
+  const kp = all.p;
+  await kp.waitForTimeout(300);
+  await panel(kp).getByRole("button", { name: "🔒 Wunschzettel schließen" }).click();
+  await panel(kp).getByText("Schließen? Danach ändert niemand mehr etwas am Zettel, auch du nicht.").waitFor();
+  await snap(kp, "wunsch-gleich-schliessen-frage");
+  await panel(kp).getByRole("button", { name: "Ja, schließen" }).click();
+  await panel(kp).getByText("Wunschzettel geschlossen").waitFor();
+  assert.deepEqual((await panel(kp).locator(".note").allInnerTexts()).filter((x) => x === "Lego" || x === "Buch"), ["Lego", "Buch"]);
+  await snap(kp, "wunsch-gleich-geschlossen");
+  const L3 = await send(kp);
+  // the family gets the closed list: no gift buttons any more, nobody named
+  const m3 = await G.open(mom, hash(L3));
+  assert.match(await m3.locator("#leaf").innerText(), /The wish list is closed\./);
+  await m3.locator("#go").click();
+  await panel(m3).getByText("Wish list closed").waitFor();
+  assert.equal(await panel(m3).getByRole("button", { name: /I'll give this/ }).count(), 0);
+  assert.ok(!/Mom|Opa/.test(await panel(m3).innerText()));
+  await snap(m3, "wunsch-gleich-familie-geschlossen-en");
+  for (const p of [k, m, o, kp, m3]) assert.deepEqual(p.errs, []);
+  await kid.close(); await mom.close(); await opa.close();
+});
+
 test("Business Wichtelideen: ohne KI fünf Ideen im Budget, mit KI (gemockt) nur harmlose Ideen, Kollegin wählt per Link (en)", async () => {
   const [tanja, kemal] = await G.people(b, 2, { lang: ["de", "en"], view: ["quer", "phone390"] });
   const sent = [];

@@ -39,6 +39,10 @@
   "wun_both": "Du und noch jemand. Sprecht euch ab.",
   "wun_mine": "Mein Link (nur Wünsche) kopieren",
   "wun_mine_ok": "Kopiert. Dieser Link zeigt nur deine Wünsche.",
+  "wun_close": "Wunschzettel schließen",
+  "wun_close_q": "Schließen? Danach ändert niemand mehr etwas am Zettel, auch du nicht.",
+  "wun_close_yes": "Ja, schließen",
+  "wun_close_no": "Offen lassen",
   "gf_satz": "Kleine Geschenkideen für {w}, {b}, mag: {l}"
  },
  "en": {
@@ -81,6 +85,10 @@
   "wun_both": "You and someone else. Talk it over.",
   "wun_mine": "Copy my link (wishes only)",
   "wun_mine_ok": "Copied. This link only shows your wishes.",
+  "wun_close": "Close the wish list",
+  "wun_close_q": "Close it? After that nobody can change the list, not even you.",
+  "wun_close_yes": "Yes, close it",
+  "wun_close_no": "Keep it open",
   "gf_satz": "Small gift ideas for {w}, {b}, likes: {l}"
  }
 }

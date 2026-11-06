@@ -1001,7 +1001,8 @@
   GAMES.wunsch = {
     snap: true, list: WISH,
     turns: [[{ w: "wish", l: "wun_make", live: true, k: "wun", cfg: WISH }], [{ w: "wish", l: "wun_go", live: true, k: "wun", cfg: WISH }]],
-    ends: function (doc, m) { return m.length > 0 && shopRows(m[0][0], WISH).every(function (r) { return r.bring.length > 0; }); },
+    // Over only once the wisher's phone closed it (o: 2, see close), never because every wish has a giver: that would tell her.
+    ends: function (doc, m) { return m.length > 0 && doc.o === 2; }, close: 2,
     words: { you_start: "wun_start", go_first: "wun_go_first", go_play: "wun_go_play", note_turn: "wun_note", note_over: "wun_over", ready: "wun_ready", send: "inv_send", rematch: "wun_again" },
     face: function (doc, m, lang) { return m.length ? [wishCount(m[0][0], lang)] : null; },
     result: function (doc, m, lang) { return { h: T(lang).wun_done_h, lines: shopRows(m[0][0], WISH).map(function (r) { return r.label; }) }; },
@@ -1210,6 +1211,8 @@
   }
   function face(doc, lang) { var g = game(doc); return g.face ? g.face(doc, moves(doc), lang) : null; }
   function whole(doc, lang) { var g = game(doc); return g.peekWhole ? g.peekWhole(doc, moves(doc), lang) : ""; }
+  // A game the owner ends by hand (GAMES[g].close): the same list, marked closed outside the moves; null if there is nothing to close.
+  function close(doc) { var g = game(doc), st = state(doc); if (!g.close || st.over || !st.turn) return null; var d = JSON.parse(JSON.stringify(doc)); d.o = g.close; return d; }
   function fresh(doc, seed) { var d = JSON.parse(JSON.stringify(doc)); d.seed = seed >>> 0; d.q = ""; delete d.o; return d; }
   function today(date) { return Math.floor((date || new Date()).getTime() / DAY); }
   function strings() {
@@ -1217,6 +1220,6 @@
     (function walk(v) { if (typeof v === "string") v.split("|").forEach(function (x) { out.push(x); }); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.keys(v).forEach(function (k) { walk(v[k]); }); })(DATA);
     return out;
   }
-  var api = { game: game, HOURS: HOURS, dayText: dayText, hourText: hourText, slotText: slotText, termDates: termDates, voted: voted, doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, face: face, whole: whole, payLink: payLink, parseCents: parseCents, euros: euros, split: split, moneyLine: moneyLine, PAYERS: PAYERS, SHOP: SHOP, WISH: WISH, wishBare: wishBare, GIFT: GIFT, giftGame: giftGame, upTo: upTo, FACES: FACES, nameOk: nameOk, shopOk: shopOk, shopMerge: shopMerge, shopApply: shopApply, shopParse: shopParse, shopRows: shopRows, shopMark: shopMark, shopKey: shopKey, shopDone: shopDone, shopCount: shopCount, TODO: TODO, todoFrom: todoFrom, todoIcs: todoIcs, todoAgenda: todoAgenda, dueText: dueText, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
+  var api = { game: game, HOURS: HOURS, dayText: dayText, hourText: hourText, slotText: slotText, termDates: termDates, voted: voted, doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, close: close, gate: gate, face: face, whole: whole, payLink: payLink, parseCents: parseCents, euros: euros, split: split, moneyLine: moneyLine, PAYERS: PAYERS, SHOP: SHOP, WISH: WISH, wishBare: wishBare, GIFT: GIFT, giftGame: giftGame, upTo: upTo, FACES: FACES, nameOk: nameOk, shopOk: shopOk, shopMerge: shopMerge, shopApply: shopApply, shopParse: shopParse, shopRows: shopRows, shopMark: shopMark, shopKey: shopKey, shopDone: shopDone, shopCount: shopCount, TODO: TODO, todoFrom: todoFrom, todoIcs: todoIcs, todoAgenda: todoAgenda, dueText: dueText, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
   if (node) module.exports = api; else root.Turns = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

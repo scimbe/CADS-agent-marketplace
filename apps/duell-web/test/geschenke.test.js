@@ -144,8 +144,10 @@ test("Wunschzettel: der eigene Link trägt nur Wünsche, der Familienlink verdec
     const f = Tn.face(b1, lang).join(" "); assert.ok(!f.includes("Mama")); assert.match(f, /^3 (Wünsche|wishes)$/);
   }
   const all = Tn.shopApply(Tn.moves(b1)[0][0], { name: "Oma", face: 1, adds: [], marks: { [Tn.shopKey("Fahrradlicht")]: 1, [Tn.shopKey("Puzzle")]: 1 } }, W);
-  const done = Tn.play(b1, [all], 0);
-  assert.equal(Tn.state(done).over, true);
+  const full = Tn.play(b1, [all], 0);
+  assert.equal(Tn.state(full).over, false, "alles vergeben beendet den Zettel nicht (das würde es ihr verraten)");
+  const done = Tn.close(full);
+  assert.equal(Tn.state(done).over, true, "erst ihr Schließen");
   assert.ok(!/Mama|Oma/.test(JSON.stringify(Tn.result(done, "de"))));
   assert.equal(Tn.face(run("wunsch", 1, [[[[], [["Rad", 0, 1, []]]]]]), "de")[0], "1 Wunsch");
   // a count or a second item with the same text is no wish

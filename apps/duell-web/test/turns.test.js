@@ -73,6 +73,9 @@ test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne
   for (const g of Tn.IDS) {
     let d = fresh(g, 12345);
     for (const answers of LINES[g][0]) { const n = Tn.play(d, answers, 100); assert.ok(n, g); d = through(n); }
+    // A game its owner ends by hand (the wish list) is still open after every move and ends with that one tap
+    if (Tn.GAMES[g].close) { assert.equal(Tn.state(d).over, false, g + " endet nicht von allein"); d = through(Tn.close(d)); }
+    else assert.equal(Tn.close(d), null, g);
     assert.equal(Tn.state(d).over, true, g);
     const r = Tn.result(d, "de"), e = Tn.result(d, "en");
     assert.ok(r.h && r.lines.length, g); assert.ok(e.h && e.lines.length, g);
@@ -505,4 +508,26 @@ test("Einkaufszettel: kein Kalendertag, im Business-Flavor als Mitbringliste", (
   assert.equal(idea.on, undefined); assert.equal(idea.turn.g, "einkauf");
   const biz = require("../src/flavors/business/ideas.json").ideas.find((i) => i.turn && i.turn.g === "einkauf");
   assert.ok(biz && biz.turn.grip === "raum");
+});
+
+test("Wunschzettel: endet nie dadurch, dass alles vergeben ist, nur durch Schliessen; danach geht kein Zug mehr", () => {
+  let d = fresh("wunsch", 7);
+  assert.equal(Tn.close(d), null, "leerer Zettel schliesst nicht");
+  d = through(Tn.play(d, [[[], [["Rad", 0, 1, []], ["Buch", 1, 1, []]]]], 100));
+  const all = through(Tn.play(d, [[[["Ana", 0], ["Ben", 1]], [["Rad", 0, 1, [[0, 1]]], ["Buch", 1, 1, [[1, 1]]]]]], 100));
+  assert.equal(Tn.state(all).over, false, "alles vergeben, Zettel bleibt offen");
+  assert.equal(Tn.result(all, "de"), null);
+  assert.deepEqual(Tn.face(all, "de"), Tn.face(d, "de"), "Blatt sieht gleich aus mit 0 und allen Reservierungen");
+  // still open: a giver lets go again
+  const back = Tn.play(all, [[[["Ana", 0], ["Ben", 1]], [["Rad", 0, 1, [[0, 3]]], ["Buch", 1, 1, [[1, 1]]]]]], 100);
+  assert.ok(back && !Tn.shopRows(Tn.moves(back)[0][0], Tn.WISH)[0].bring.length, "Freigeben geht weiter");
+  const own = Object.assign({}, all, { o: 1 });
+  assert.equal(Tn.state(through(own)).over, false, "ihr eigener Link (o: 1) endet nicht");
+  const shut = through(Tn.close(all));
+  assert.equal(shut.o, 2); assert.equal(Tn.state(shut).over, true);
+  assert.equal(Tn.result(shut, "de").h, "Wunschzettel geschlossen");
+  assert.deepEqual(Tn.result(shut, "de").lines, ["Rad", "Buch"], "nur die Wünsche, kein Name");
+  assert.deepEqual(Tn.result(through(Tn.close(d)), "de"), Tn.result(shut, "de"), "geschlossen sieht gleich aus mit 0 und allen Reservierungen");
+  assert.equal(Tn.play(shut, [[[], [["Rad", 0, 1, []]]]], 100), null, "nach dem Schliessen kein Zug");
+  assert.equal(Tn.close(shut), null);
 });
