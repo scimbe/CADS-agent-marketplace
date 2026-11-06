@@ -1,16 +1,16 @@
 "use strict";
+const { ensureBuilt } = require("../../scripts/ensure-build.js");
 // Business flavor: the same engine with its own catalog and look. Each phone is its own browser context, so the only
 // thing that reaches the next person is the link.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
-const { execFileSync } = require("node:child_process");
 const { chromium, devices } = require("playwright");
 const root = path.resolve(__dirname, "../..");
 const page = "file://" + path.join(root, "dist/business/index.html");
 const shot = process.env.SHOT_DIR;
 const hash = (u) => "#" + u.split("#")[1];
-execFileSync(process.execPath, [path.join(root, "scripts/build.js"), "--flavor", "business"]);
+ensureBuilt("business");   // dist as npm run test:e2e built it; a build only after an edit
 
 async function setup() {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }), errs = [];
@@ -83,7 +83,7 @@ test("Aufgaben verteilen bis keine mehr offen ist, Agenda bietet die Webconferen
 });
 
 test("Die Jugend-App bleibt wie sie ist und oeffnet trotzdem einen Business-Link", async () => {
-  execFileSync(process.execPath, [path.join(root, "scripts/build.js")]);
+  ensureBuilt("");
   const { b, open, errs } = await setup();
   const g = await open("#i=biz-feedback-meeting");
   await g.locator("#go").click(); await type(g, "Workshop Montag");
