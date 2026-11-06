@@ -29,3 +29,11 @@ test("karte: Krisentext bleibt auf dem Geraet, Texte in beiden Sprachen, kein Za
   assert.ok(!/innerHTML|eval\(|new Function|localStorage|setInterval/.test(ui), "kein HTML aus Daten, kein Zaehler im Speicher");
   assert.ok(!/photo|foto|image/i.test((ui.match(/input: function \(\) \{[^\n]*/) || [""])[0]), "nur Text geht an den Server");
 });
+
+test("Review: Vorschau-CSS steckt im Teil, nicht im Kern; falsche Art wird abgelehnt; Platzhalter ohne Namen", () => {
+  const core = fs.readFileSync(path.join(__dirname, "../src/style.css"), "utf8"), ui = fs.readFileSync(path.join(__dirname, "../src/create-ui.js"), "utf8");
+  assert.ok(!/\.createpv/.test(core), "kein .createpv im Kern"); assert.ok(/\.createpv\{/.test(ui), "im Teil");
+  assert.match(ui, /opt\.art !== state\.art \|\| doc\.k !== KIND_OF\[state\.art\]/);
+  assert.ok(!/Lea|Sam\b/.test(TX.de.create_ph + TX.en.create_ph));
+  assert.ok(TX.de.create_bad && TX.en.create_bad);
+});

@@ -7,6 +7,11 @@
 (function (root) {
   "use strict";
   var ARTS = ["card", "meme"];
+  // the kind of doc each art comes back as: anything else is refused and given back, never shown or booked
+  var KIND_OF = { card: "card", meme: "photo" };
+  // the preview's own look, part of this part and not of the core (scripts/build.js budget)
+  var CSS = ".createpv{position:relative;margin:10px 0;padding:18px 16px 30px;border:3px solid #111;border-radius:6px;display:flex;flex-direction:column;gap:8px;min-height:150px;box-shadow:0 5px 0 #111}.createpv-t{font:900 20px/1.1 var(--disp);text-transform:uppercase}.createpv-x{font:800 18px/1.25 var(--ui)}.createpv-sk{font-size:26px}.createpv-photo{border:2px dashed currentColor;padding:18px 8px;font:700 13px/1.3 var(--ui);text-align:center}.createpv-ki{position:absolute;right:8px;bottom:6px;background:#111;color:#fff;font:800 11px/1 var(--ui);padding:4px 6px;border-radius:4px}";
+  function style() { if (document.getElementById("createcss")) return; var s = document.createElement("style"); s.id = "createcss"; s.textContent = CSS; document.head.appendChild(s); }
   var A, Kit, t, el, D;
   var state = { art: "card", age: "", meter: null, account: false, net: true };
 
@@ -37,7 +42,7 @@
   }
 
   function open() {
-    A = root.DailyApp; Kit = root.Kit; t = Kit.t; el = A.el; D = root.Daily;
+    A = root.DailyApp; Kit = root.Kit; t = Kit.t; el = A.el; D = root.Daily; style();
     A.shelf(t("create_title"), function (b) { b.appendChild(el("p", "note", "…")); status().then(function () { fill(b); }); });
   }
 
@@ -86,10 +91,12 @@
       // one card comes back: shown as a preview; the promise says whether it was taken (true) or thrown away (false)
       auto: function (opt, ki, res) {
         var doc = opt && opt.doc ? D.sanitizeDoc(opt.doc) : null;
-        if (!doc || (doc.k !== "card" && doc.k !== "photo") || !ki || !ki.s) return false;
+        // what came back must be what was asked for (art and kind); otherwise said so, given back, nothing booked
+        if (!doc || !opt || opt.art !== state.art || doc.k !== KIND_OF[state.art] || !ki || !ki.s) { res.textContent = ""; res.appendChild(el("p", "note aistate", t("create_bad"))); return false; }
         return new Promise(function (done) {
           res.textContent = "";
-          res.appendChild(preview(doc));
+          var pv = preview(doc); pv.tabIndex = -1; res.appendChild(pv);
+          try { pv.focus(); } catch (e) {}
           var row = el("div", "row");
           row.appendChild(el("button", "btn hot", t("create_take"), function () {
             Kit.sfx.pop();
@@ -111,13 +118,21 @@
     });
     // the count of ai.js is the weekly free pot of the other AI actions; this card has its own (create-left above)
     var other = b.querySelector(".aibox .aicount"); if (other) other.hidden = true;
+    var region = b.querySelector(".aibox .chips:last-child"); if (region) region.setAttribute("aria-live", "polite");   // the preview is announced
     return go;
   }
 
   // The card as a small sheet in its colours, with its stickers and the badge. A meme shows where the own photo will go.
+  // WCAG contrast of two #rrggbb colours
+  function contrast(a, b) {
+    var L = function (h) { var v = [1, 3, 5].map(function (i) { var c = parseInt(h.substr(i, 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+    var x = L(a), y = L(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+  }
   function preview(doc) {
     var box = el("figure", "createpv"), txt = doc.k === "photo" ? [doc.x, doc.y].filter(Boolean).join(" … ") : doc.x;
-    box.style.background = doc.col[0]; box.style.color = doc.col[1];
+    // the model's colour pair as it is when the text stays readable (AA for large text), else the print look
+    var ok = contrast(doc.col[0], doc.col[1]) >= 3;
+    box.style.background = ok ? doc.col[0] : "#ffd400"; box.style.color = ok ? doc.col[1] : "#111111";
     box.setAttribute("role", "img"); box.setAttribute("aria-label", [doc.t, txt, t("kiBadgeL")].filter(Boolean).join(". "));
     if (doc.t) box.appendChild(el("b", "createpv-t", doc.t));
     if (doc.k === "photo") {
