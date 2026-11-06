@@ -51,6 +51,17 @@ test("Wohlfuehlkarte auf Deutsch geschickt, Empfaenger tippt English: der Satz s
   assert.equal((await r.evaluate(() => window.__x)).pop(), "Lea, just wanted to tell you: You're awesome.");
   await r.locator("#langpick button", { hasText: "Deutsch" }).click();
   assert.equal((await r.evaluate(() => window.__x)).pop(), "Lea, ich wollte dir nur mal sagen: Du bist toll.");
+
+  // Eine normale Spruchkarte, auf Deutsch geschickt: nach "English" zeigt auch der Editor (Remix) den englischen Satz.
+  const k = await open("#i=karte-spruch");
+  await k.locator("#go").click(); await k.locator("#edmain").click(); await k.locator("#share").waitFor();
+  const ku = await k.evaluate(() => window.DailyDebug.result().url);
+  assert.equal(await k.evaluate(() => window.DailyDebug.result().keep.doc.x), "Heute nicht.");
+  const q = await open(ku.slice(ku.indexOf("#")));
+  await q.locator("#langpick button", { hasText: "English" }).click();
+  await q.locator("#go").click();
+  await q.waitForFunction(() => window.DailyDebug.doc());
+  assert.equal(await q.evaluate(() => window.DailyDebug.doc().x), "Not today.");
   assert.deepEqual(errs, []); await b.close();
 });
 test("Wohlfuehlkarte: Beleidigung als Name wird gemeldet und nicht verschickt; Wuerfel laesst sie warm; ruhig ohne Bewegung", async () => {

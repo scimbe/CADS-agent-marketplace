@@ -377,8 +377,13 @@
         var line = L.lines[j], nl = to.lines[j]; if (!line || !nl) continue;
         var x = null;
         if (doc.x === line) x = nl;
-        else if (doc.x.length > line.length + 2 && doc.x.slice(-rest(line).length - 2) === ", " + rest(line)) x = doc.x.slice(0, -rest(line).length) + rest(nl);
-        if (x != null) { var c = cleanInput(x, 90); return c ? Object.assign({}, doc, { x: c }) : doc; }
+        else if (idea.warm && doc.x.slice(-rest(line).length - 2) === ", " + rest(line)) {
+          // Only the name a feel-good card puts in front (warm.js named): one plain first name, nothing the sender wrote.
+          var who = doc.x.slice(0, -rest(line).length - 2);
+          if (who.length <= 14 && /^[\p{L}][\p{L} .'-]*$/u.test(who) && cleanInput(who, 14) === who) x = who + ", " + rest(nl);
+        }
+        // Too long or filtered in the other language: the card stays as it was sent, never cut off.
+        if (x != null) return cleanInput(x, 90) === x ? Object.assign({}, doc, { x: x }) : doc;
       }
     }
     return doc;

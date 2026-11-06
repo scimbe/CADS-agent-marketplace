@@ -65,4 +65,9 @@ test("Empfangene Karte in der Sprache des Lesers: Katalogsatz uebersetzt, Name b
   const own = Object.assign({}, Wm.cardFor(D.byId("warm-toll"), "", me, "de"), { x: "Selbst geschrieben." });
   assert.equal(D.localDoc(own, "en").x, "Selbst geschrieben.");
   assert.equal(D.localDoc({ k: "card", x: "Ohne Idee" }, "en").x, "Ohne Idee");
+  const toll = Wm.cardFor(D.byId("warm-toll"), "", me, "de").x, rest = toll.charAt(0).toLowerCase() + toll.slice(1);
+  for (const pre of ["Hallo zusammen und danke 2025", "Ja wirklich, ehrlich", "0170 123"]) {
+    const d = Object.assign({}, Wm.cardFor(D.byId("warm-toll"), "", me, "de"), { x: pre + ", " + rest });
+    assert.equal(D.localDoc(d, "en").x, d.x, "selbst geschriebener Anfang bleibt: " + pre);
+  }
 });
