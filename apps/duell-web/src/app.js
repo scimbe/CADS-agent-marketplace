@@ -87,7 +87,20 @@ function setHome(h, animate) {
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
   WM.sheet(h, s.got, animate);
   langPick(!!h.note);
+  votes();
+  // A received card counts once per link on this device (short link id, else a hash of the card).
+  if (h.doc && h.note) { window.Stat.open(store, h.doc, h.link || "h" + C.hash32(docFragment(h.doc))); Kit.save(); }
 }
+// Thumbs up or down for the day's card and for a received one: kept on this device, no counts shown; a second tap takes it back.
+function voteCard() { var h = home; return h && (h.doc ? h.note && h.doc.i && h.doc : h.idea); }
+function votes() {
+  var c = voteCard(), v = c ? ((store.votes || {})[c.i || c.id] | 0) : 0;
+  $("votes").hidden = !c; $("votes").setAttribute("aria-label", t("vote_q"));
+  [["voteup", 1, "vote_up"], ["votedown", -1, "vote_down"]].forEach(function (b) { var e = $(b[0]); e.setAttribute("aria-label", t(b[2])); e.title = t(b[2]); e.setAttribute("aria-pressed", String(v === b[1])); });
+}
+[["voteup", 1], ["votedown", -1]].forEach(function (b) {
+  $(b[0]).addEventListener("click", function () { var c = voteCard(); if (!c) return; Kit.sfx.tap(); window.Stat.vote(store, c, b[1]); Kit.save(); votes(); });
+});
 // An invitation shows its languages before the first tap, each in its own name ("Deutsch", "English").
 function langPick(on) {
   var box = $("langpick");
@@ -262,6 +275,7 @@ function peek(step, lazy) {
     var c = document.implementation.createHTMLDocument("").importNode($("leaf"), true);
     c.querySelectorAll("img").forEach(function (x) { x.removeAttribute("src"); });
     g = document.importNode(c, true); g.removeAttribute("id"); g.removeAttribute("style"); g.className = "ghost"; g.setAttribute("aria-hidden", "true");
+    g.querySelectorAll(".votes").forEach(function (x) { x.remove(); });
     g.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); });
     under.appendChild(g);
   }
@@ -280,7 +294,7 @@ function tear(step) {
 }
 (function drag() {
   var leaf = $("leaf"), sx = 0, sy = 0, on = false, t0 = 0, far = false, shown = 0;
-  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; t0 = Date.now(); far = false; shown = 1; try { peek(1, true); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
+  leaf.addEventListener("pointerdown", function (e) { if (e.target.closest("button")) return; on = true; sx = e.clientX; sy = e.clientY; t0 = Date.now(); far = false; shown = 1; try { peek(1, true); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
   leaf.addEventListener("pointermove", function (e) {
     if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy, step = dx > 0 ? -1 : 1;
     if (Math.abs(dx) >= 10 || Math.abs(dy) >= 10) far = true;   // moved once: never a tap, even when let go where it began
@@ -718,7 +732,7 @@ async function finish(doc, idea, pictureDoc) {
     file = new Blob([S.wav(pcm)], { type: "audio/wav" }); name = "my-daily-idea.wav";
   }
   var url = D.docUrl(doc);
-  result = { url: url, file: file, name: name, png: png, keep: ed, canvas: c, kind: doc.k };
+  result = { url: url, file: file, name: name, png: png, keep: ed, canvas: c, kind: doc.k, doc: doc };
   wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c) }); store.wall = wall; Kit.save();
   if (!Kit.persisted) Kit.toast(t("wallFull"));
   var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png);
@@ -756,6 +770,7 @@ $("playit").addEventListener("click", function () { ed = result.keep; ed.sel = -
 async function shortLink() {
   if (!result.link) {
     result.link = await window.ShortLink.shorten(result.url, { k: result.kind, l: Kit.lang }, store);
+    window.Stat.share(result.doc);   // the card's id and what the last person changed, nothing else (src/stat.js)
     var mine = result.link.short && store.links.filter(function (e) { return e.id === result.link.id; })[0];
     if (mine && result.canvas) { mine.th = tinyThumb(result.canvas); mine.k = result.kind; }   // only on this phone, for the list of invitations
     Kit.save();

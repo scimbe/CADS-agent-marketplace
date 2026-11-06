@@ -21,8 +21,9 @@ const locked = (p) => p.locator("#edmain").getAttribute("aria-disabled");
 // Screens of the task: 328x700 and 390x844 (phones), 640x400 (a 1280x800 laptop at 200 %), 512x384 (1024x768 at 200 %).
 G.VIEWS.phone328h = { viewport: { width: 328, height: 700 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
 const SCREENS = ["phone328h", "phone390", "zoom200quer", "zoom200"];
-// Only the page itself: every other host is refused and noted (company network, nothing goes out).
-async function closed(ctx) { const asked = []; await ctx.route(/^(https?|wss?):/, (r) => { asked.push(r.request().url()); return r.abort("blockedbyclient"); }); return asked; }
+// Only the page itself: every other host is refused and noted (company network, nothing goes out). The card numbers
+// (src/stat.js, refused here as well) are no part of the card and have their own test (stat.e2e.js).
+async function closed(ctx) { const asked = []; await ctx.route(/^(https?|wss?):/, (r) => { if (!r.request().url().endsWith("/api/duell/stat")) asked.push(r.request().url()); return r.abort("blockedbyclient"); }); return asked; }
 
 // Organiser: two places, the first one renamed, accessibility tapped (required), costs typed. Neutral name on request.
 async function setUp(p, o) {

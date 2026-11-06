@@ -74,7 +74,7 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
   // Every call site by name; a new one fails here until it is argued for and listed.
   // protokoll-page.js is its own page (dist/protokoll.html, connect-src 'self'): one GET for the speech model from this
   // domain, one POST with the redacted text after the explicit yes. Neither is in the app build below.
-  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1, "protokoll-page.js": 2 }, short = /\(fetchFn \|\| fetch\)\(/g;
+  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1, "stat.js": 1, "protokoll-page.js": 2 }, short = /\(fetchFn \|\| fetch\)\(/g;
   assert.match(src("protokoll-page.js"), /fetch\(url, \{ signal: ctl\.signal, credentials: "same-origin", cache: "no-store" \}\)/, "Modell nur per GET");
   assert.match(src("protokoll-page.js"), /input: P\.aiInput\(rec\.segs, rec\.names\)/, "an die KI nur der geschwaerzte Text");
   assert.ok(!/deviceMemory|hardwareConcurrency|userAgent/.test(src("protokoll-page.js").match(/JSON\.stringify\(\{ kind: "protokoll"[^\n]*/)[0]), "Geraetedaten bleiben auf dem Geraet");
@@ -82,7 +82,7 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
     assert.equal((noComments(src(f)).match(/\bfetch\(/g) || []).length, allowed[f] || 0, "direktes fetch( in " + f);
     assert.equal((noComments(src(f)).match(short) || []).length, f === "shortlink.js" ? 1 : 0, "Kurzlink-fetch in " + f);
   }
-  assert.equal((html.match(/\bfetch\(/g) || []).length, allowed["game.js"] + allowed["ai.js"] + allowed["live.js"], "direkte fetch( im Build (Kern + Teile)");
+  assert.equal((html.match(/\bfetch\(/g) || []).length, allowed["game.js"] + allowed["ai.js"] + allowed["live.js"] + allowed["stat.js"], "direkte fetch( im Build (Kern + Teile)");
   const ph = noComments(fs.readFileSync(path.join(path.dirname(dist), "protokoll.html"), "utf8"));
   assert.equal((ph.match(/\bfetch\(/g) || []).length, 2, "Protokoll-Seite: Modell + KI-Text");
   assert.ok(!/XMLHttpRequest|sendBeacon|EventSource|WebSocket|RTCPeerConnection|analytics|serviceWorker/.test(ph), "Protokoll-Seite: kein weiterer Ausgang");
@@ -94,7 +94,12 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
   assert.ok(src("game.js").includes("await fetch("), "fetch gehoert ins Spiel");
   const body = src("game.js").match(/fetch\([^\n]*/)[0];
   assert.match(body, /JSON\.stringify\(\{ prompt: prompt, lang: lang \}\)/, "nur Satz + Sprache");
-  assert.ok(!/XMLHttpRequest|sendBeacon|EventSource|importScripts|new Worker/.test(html), "weiterer Ausgang");
+  assert.ok(!/XMLHttpRequest|EventSource|importScripts|new Worker/.test(html), "weiterer Ausgang");
+  // Card numbers (stat.js): one beacon, its fetch fallback to /api/duell/stat only, and only id, event, areas and vote.
+  assert.equal((html.match(/sendBeacon/g) || []).length, 2, "ein Beacon (Pruefung + Aufruf), nur in stat.js");
+  for (const f of fs.readdirSync(path.join(__dirname, "../src")).filter((n) => n.endsWith(".js") && n !== "stat.js")) assert.ok(!/sendBeacon/.test(noComments(src(f))), "Beacon in " + f);
+  assert.match(src("stat.js"), /"\/api\/duell\/stat"/); assert.match(src("stat.js"), /credentials: "omit"/);
+  assert.deepEqual(noComments(src("stat.js")).match(/\{ i: [^}]*\}/g), ['{ i: id(doc), e: "share" }', '{ i: id(doc), e: "open" }', '{ i: k, e: "vote", v: v, p: p }'], "nur Karte, Ereignis, Stimme");
   // Live games: one WebSocket to the edge and one peer connection, both only in live.js, and its one fetch goes to the play API.
   for (const f of fs.readdirSync(path.join(__dirname, "../src")).filter((n) => n.endsWith(".js") && n !== "live.js")) assert.ok(!/WebSocket|RTCPeerConnection/.test(noComments(src(f))), "Live-Ausgang in " + f);
   assert.equal((html.match(/new WebSocket\(/g) || []).length, 1, "ein WebSocket"); assert.equal((html.match(/new RTCPeerConnection\(/g) || []).length, 1, "eine Peer-Verbindung");
