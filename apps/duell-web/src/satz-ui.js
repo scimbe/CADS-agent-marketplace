@@ -239,7 +239,7 @@ function lead(doc) {
   }).sort(function (a, b) { return b.pts - a.pts || a.s - b.s; })[0].s;
 }
 function ics(doc) {
-  var e = A.ed(), i = doc.i ? D.byId(doc.i) : null, title = doc.t || (i ? (i[Kit.lang] || i.de).t.replace("|", " ") : "Termin");
+  var e = A.ed(), i = doc.i ? D.byId(doc.i) : null, title = doc.t || (i ? D.plainTitle((i[Kit.lang] || i.de).t) : "Termin");
   var text = S.ics(lead(doc), title, e && e.doc === doc && e.satzMins ? e.satzMins : 60);
   var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "text/calendar;charset=utf-8" })); a.download = L().ics;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);

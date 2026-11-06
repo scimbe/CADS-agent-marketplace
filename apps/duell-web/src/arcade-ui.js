@@ -559,7 +559,7 @@ A.IDS.forEach(function (g) { (window.LiveGames = window.LiveGames || {})[g] = pl
 
 function menu(g) {
   var body = layer(g), i = idea(g), L = i ? (i[Kit.lang] || i.de) : { t: t("arc_" + g), s: "" };
-  body.appendChild(el("p", "livebig", L.t.replace("|", " ")));
+  body.appendChild(el("p", "livebig", window.Daily.plainTitle(L.t)));
   var cv = el("canvas", "arcdemo"); cv.width = 300; cv.height = 480; body.appendChild(cv);
   body.appendChild(el("p", "note", L.s + " " + t("arc_how_" + g)));
   body.appendChild(el("button", "btn hot", t("arc_bot"), function () { Kit.sfx.thud(); playBot(g); }));
@@ -592,7 +592,7 @@ function tiles(box) {
     c.width = c.height = 96;
     x.fillStyle = rad(x, 40, 40, 60, m.a, m.b); x.beginPath(); x.arc(48, 48, 44, 0, 6.283); x.fill();
     x.font = "48px system-ui, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(m.e, 48, 52);
-    b.appendChild(c); b.appendChild(el("b", "", L.t.replace("|", " "))); b.appendChild(el("small", "", L.s)); b.dataset.g = g;
+    b.appendChild(c); b.appendChild(el("b", "", window.Daily.plainTitle(L.t))); b.appendChild(el("small", "", L.s)); b.dataset.g = g;
     grid.appendChild(b);
   });
   box.appendChild(grid);

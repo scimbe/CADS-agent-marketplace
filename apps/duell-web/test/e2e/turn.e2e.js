@@ -24,7 +24,8 @@ const send = (p) => p.locator("#edmain").click();
 test("Zwei Geraete: Keks-Deal laeuft nur ueber Links bis zum Ergebnisbild", async () => {
   const { b, open, errs } = await setup();
   const a = await open("#i=zug-deal"); await a.locator("#go").click();
-  assert.match(await a.locator("#edmain").textContent(), /Erst oben fertig/);
+  assert.equal(await a.locator("#edmain").textContent(), "Weiter");   // the step's Weiter sits in the footer, locked until answered
+  assert.equal(await a.locator("#edmain").getAttribute("aria-disabled"), "false");   // the slider starts with a value
   await slide(a, 4); await next(a); await a.getByText("Zug steht").waitFor(); await send(a); await a.locator("#share").waitFor();
   const one = await url(a); assert.ok(!/"?offer/.test(one));
   const c = await open(hash(one));
@@ -304,7 +305,7 @@ test("Stufe 5: Pommes gegen Bot bis zum Ende, Uhr und Pokal messen", async () =>
 });
 test("Doppeltipp oeffnet die Tageskarte, eine Karte geht unveraendert raus", async () => {
   const { b, open, errs } = await setup();
-  const h = await open(""); await h.locator("#leaf").dblclick(); await h.locator("#edmain").waitFor();
+  const h = await open("#i=karte-spruch"); await h.locator("#leaf").dblclick(); await h.locator("#edmain").waitFor();   // a fixed card: today's may be a game on a layer
   const c = await open("#i=quiz-chaos"); await c.locator("#go").click(); await c.locator("#edmain").click(); await c.locator("#share").waitFor();
   assert.deepEqual(errs, []); await b.close();
 });

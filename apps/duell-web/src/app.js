@@ -233,9 +233,25 @@ function touched() { var ok = areas().length > 0; return ed.own ? ok && !!ed.doc
 function ready() { return ed.own ? touched() : true; }
 function footer() {
   var b = $("edmain"), ok = ready(), g = ed.doc.k === "game";
-  if (X[ed.doc.k]) { X[ed.doc.k].footer(b, ed, ok); return; }
-  b.classList.toggle("wait", !ok && !g);
-  b.textContent = g ? t("play") : ok ? t(ed.doc.nr ? "doorSend" : "done") : t("needOwn");
+  b.hidden = false; delete b.dataset.why;
+  if (X[ed.doc.k]) X[ed.doc.k].footer(b, ed, ok);
+  else {
+    b.classList.toggle("wait", !ok && !g);
+    b.textContent = g ? t("play") : t(ed.doc.nr ? "doorSend" : "done");
+    if (!ok && !g) b.dataset.why = t("needOwn");
+  }
+  // A locked main button stays in place and looks locked; the line above it names what is still open (read out once).
+  var w = !b.hidden && b.classList.contains("wait"), why = w ? b.dataset.why || "" : "";
+  b.setAttribute("aria-disabled", String(w));
+  if ($("edwhy").textContent !== why) $("edwhy").textContent = why;
+}
+// A tap on the locked button: to the first open field, focus there, and say again what is missing.
+function nudge() {
+  Kit.tone(200, 160, 0.1, "square", 0.06);
+  var p = $("panel"), all = Array.from(p.querySelectorAll("input:not([type=hidden]),textarea,select,button")).filter(function (x) { return !x.disabled && x.getClientRects().length && !x.closest(".satz"); });
+  var g = all.filter(function (x) { return /^(INPUT|TEXTAREA)$/.test(x.tagName) && x.type !== "range" && !x.value; })[0] || all.filter(function (x) { return !x.classList.contains("on"); })[0];
+  if (g) { try { g.scrollIntoView({ block: "center" }); } catch (e) {} g.focus({ preventScroll: true }); g.classList.add("nudge"); setTimeout(function () { g.classList.remove("nudge"); }, 700); }
+  var w = $("edwhy"), s = w.textContent; w.textContent = ""; setTimeout(function () { w.textContent = s; }, 60);
 }
 // The line above the link says what the receiver gets: a move to make, a result, or something made for them.
 function shareLine(doc) {
@@ -258,7 +274,7 @@ function openEditor(doc, opt) {
   $("tabs").hidden = false;
   if (X[ed.doc.k]) X[ed.doc.k].open(ed);
   cv.hidden = g; $("gamestage").hidden = !g;
-  $("edtitle").textContent = ed.own ? t("own") : (ed.idea ? ideaText(ed.idea).t.replace("|", " ") : t(ed.doc.k));
+  $("edtitle").textContent = ed.own ? t("own") : (ed.idea ? D.plainTitle(ideaText(ed.idea).t) : t(ed.doc.k));
   $("edstyle").textContent = me.emoji;
   stopSound(); show("editor", true); trailLine();
   var tabs = $("tabs"); tabs.textContent = "";
@@ -389,7 +405,7 @@ var PANEL = {
     var f = field(p, t("wishL"), "", 100, function () {}, true), box = el("div", "chips");
     var want = function () { return D.cleanInput(f.value, 100); };
     var go = aiBlock(p, {
-      kind: "wish", label: t("wishGo"), noteLast: true, input: function () { var v = want(); return v ? W.request(ed.doc, v, ed.idea ? ideaText(ed.idea).t.replace("|", " ") : "") : null; },
+      kind: "wish", label: t("wishGo"), noteLast: true, input: function () { var v = want(); return v ? W.request(ed.doc, v, ed.idea ? D.plainTitle(ideaText(ed.idea).t) : "") : null; },
       auto: function (o, ki, res) {
         var before = JSON.stringify(ed.doc), next = W.apply(ed.doc, o.changes || {}, PAIRS, seeded(want() + "|sk"));
         if (ki) markKi(next, ki);
@@ -614,6 +630,7 @@ async function finish(doc, idea, pictureDoc) {
 }
 $("edmain").addEventListener("click", function () {
   if (!ed) return;
+  if ($("edmain").getAttribute("aria-disabled") === "true") { var x = X[ed.doc.k]; if (!(x && x.nudge && x.nudge(ed))) nudge(); return; }
   if (X[ed.doc.k]) { X[ed.doc.k].main(ed); return; }
   if (ed.doc.k === "game") { if (ed.pv && ed.fly) ed.fly(); else playGame(); return; }   // an open preview: PLAY flies it, like "Fly"
   if (!ready()) { Kit.tone(200, 160, 0.1, "square", 0.06); return; }
@@ -678,6 +695,7 @@ function backToEditor() {
   ed = result.keep; ed.sel = -1; show("editor"); if (ed.doc.k === "game") G.demo($("demo"), gameState()); changed();
 }
 $("dhome").addEventListener("click", goHome);
+$("dback").addEventListener("click", function () { Kit.sfx.tap(); goHome(); });
 $("edback").addEventListener("click", function () { Kit.sfx.tap(); goHome(); });
 // Merken: the work as it is now lands on the wall, with its link, so it opens again in the editor later.
 function savedNow() { var f = docFragment(ed.doc); return !!f && wall.some(function (w) { return w.f === f; }); }
@@ -836,7 +854,7 @@ function openPast() {
     function row(e) {
       var made = wall.some(function (w) { return w.id === e.idea.id; }), r = el("button", "day", null, function () { Kit.sfx.tap(); home = { date: e.date || today, idea: e.idea }; goHome(); });
       r.appendChild(el("b", "", e.date ? String(e.date.getUTCDate()).padStart(2, "0") : "✦"));
-      r.appendChild(el("span", "", ideaText(e.idea).t.replace("|", " ")));
+      r.appendChild(el("span", "", D.plainTitle(ideaText(e.idea).t)));
       if (e.found) r.appendChild(el("small", "", e.date ? monthLines(e.date).split("\n")[0] + " " + e.date.getUTCFullYear() : t("pastNew")));
       if (made) r.appendChild(el("i", "", "✓"));
       list.appendChild(r);
@@ -903,9 +921,9 @@ function openOwn() {
       b.appendChild(el("button", "mech", m[1] + " " + t(m[0]), function () { Kit.sfx.thud(); openEditor(D.blankDoc(m[0], me, Kit.lang), { own: true }); }));
     });
     var door = D.byId("advent-tuer");   // an Advent door can be made any day, not only on its calendar days
-    if (door) b.appendChild(el("button", "mech", "🎄 " + ideaText(door).t.replace("|", " "), function () { Kit.sfx.thud(); openEditor(D.docFromIdea(door, me, Kit.lang), { idea: door }); }));
+    if (door) b.appendChild(el("button", "mech", "🎄 " + D.plainTitle(ideaText(door).t), function () { Kit.sfx.thud(); openEditor(D.docFromIdea(door, me, Kit.lang), { idea: door }); }));
     var shop = D.IDEAS.filter(function (i) { return i.turn && i.turn.g === "einkauf"; })[0];   // a shopping list is needed any day, too
-    if (shop) b.appendChild(el("button", "mech", "🛒 " + ideaText(shop).t.replace("|", " "), function () { Kit.sfx.thud(); openEditor(D.docFromIdea(shop, me, Kit.lang), { idea: shop }); }));
+    if (shop) b.appendChild(el("button", "mech", "🛒 " + D.plainTitle(ideaText(shop).t), function () { Kit.sfx.thud(); openEditor(D.docFromIdea(shop, me, Kit.lang), { idea: shop }); }));
     CC.tile(b);
   });
 }
@@ -917,7 +935,7 @@ function labels() {
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
   $("tostatus").textContent = t("sh_status"); $("tostory").textContent = t("sh_story"); $("shnote").textContent = t("sh_note");
   $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home"); $("playit").textContent = "🕹 " + t("playIt");
-  $("save").hidden = !Kit.canSave(); SK.labels(); CU.labels();
+  $("save").hidden = !Kit.canSave(); SK.labels(); CU.labels(); $("dback").setAttribute("aria-label", t("xClose"));
   // Inside the app shells (DuellHost.more) a quiet "more" opens the native extras; in a browser it stays hidden.
   var host = window.DuellHost && typeof window.DuellHost.more === "function";
   $("host").hidden = !host; $("host").setAttribute("aria-label", t("hostMore"));
@@ -948,6 +966,21 @@ $("livego").addEventListener("click", function () { Kit.sfx.tap(); openLive($("l
 document.addEventListener("visibilitychange", newDay);
 setInterval(newDay, 60000);
 window.addEventListener("resize", function () { if (screen === "home") fitHero(); });
+// Escape does what the visible ✕ does, on every level. A game on a layer (live, table, arcade) asks first: a second Escape leaves.
+var escAt = 0;
+document.addEventListener("keydown", function (e) {
+  if (e.key !== "Escape" || e.defaultPrevented || document.querySelector("dialog[open]") || document.getElementById("door")) return;
+  var a = document.activeElement; if (a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && a.type !== "range") { a.blur(); return; }   // first out of the field, the typing stays
+  var co = $("cosheet"), ovs = document.querySelectorAll(".liveov"), ov = ovs[ovs.length - 1], x = null;
+  if (!co.hidden) { var no = Array.from($("coacts").querySelectorAll(".btn:not(.hot)")).pop(); if (no) no.click(); else co.hidden = true; e.preventDefault(); return; }
+  if (ov) {
+    x = ov.querySelector(".arcx, .liveback"); e.preventDefault(); if (!x) return;
+    if (Date.now() - escAt > 3000) { escAt = Date.now(); Kit.toast(t("xAgain")); return; }
+    escAt = 0; x.click(); return;
+  }
+  x = { editor: "edback", shelf: "shback", game: "gback", done: "dback" }[screen];
+  if (x && !$(x).hidden) { e.preventDefault(); $(x).click(); }
+});
 window.addEventListener("popstate", function () { if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
 
 function route() {
@@ -1014,7 +1047,7 @@ var CU = window.CollabUI.init({
 var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
-window.DailyApp = { aiBlock: aiBlock, unpic: function () { picFor = null; document.querySelector("#leaf .pv").classList.remove("pic"); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { picFor = null; document.querySelector("#leaf .pv").classList.remove("pic"); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 /* test hook, used by browser checks: read-only snapshot */
 window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); }, collab: function () { return CU.engine(); } };

@@ -39,7 +39,10 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .from{margin:4px 0 0;font-size:14px;text-align:center}
 .press{display:block;margin:0 18px 8px;width:calc(100% - 36px);min-height:68px;border:3px solid var(--ink);border-radius:6px;background:var(--ink);color:var(--btn);font:900 30px/1 var(--disp);text-transform:uppercase;letter-spacing:.6px;box-shadow:0 6px 0 var(--b);transition:transform 90ms ease-out,box-shadow 90ms ease-out;position:relative;flex:none}
 .press:active{transform:translateY(5px);box-shadow:0 1px 0 var(--b)}
-.press.wait{background:transparent;color:#111;border-style:dashed;box-shadow:none;font-size:22px}
+/* a locked button looks locked; the line above it (#edwhy) says what is still open, a tap jumps there */
+.press.wait,.press:disabled,.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.press.wait:active{transform:none}
+.why{margin:0 18px 6px;font:800 15px/1.2 var(--ui);text-align:center;color:var(--ink)}.why:empty{display:none}
 #homerow{position:relative;flex:none;display:flex;gap:8px;margin:2px 18px 6px}
 #homerow button{flex:1;min-height:44px;border:2px solid var(--on);border-radius:6px;background:transparent;color:var(--on);font:900 14px/1.1 var(--ui);padding:2px 6px}
 #homerow button[hidden]{display:none}
@@ -62,7 +65,7 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .wh{position:absolute;bottom:16%;left:calc(14% + var(--i) * 13%);color:var(--b);font:900 34px/1 var(--ui);pointer-events:none;animation:rise 1.7s calc(var(--i) * 110ms + .35s) ease-out both}
 @keyframes rise{from{transform:translateY(0) scale(.6);opacity:0}25%{opacity:1}to{transform:translateY(-240px) scale(1.15);opacity:0}}
 @media (prefers-reduced-motion:reduce){#leaf.warmin{animation:none}.wh{display:none}}
-#feat button{flex:none;min-height:40px;padding:0 11px;border:2px solid var(--ink);border-radius:20px;background:var(--paper);color:var(--ink);font:800 13px var(--ui);white-space:nowrap}
+#feat button{flex:none;min-height:44px;padding:0 11px;border:2px solid var(--ink);border-radius:20px;background:var(--paper);color:var(--ink);font:800 13px var(--ui);white-space:nowrap}
 .pv{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;margin:2px 0 6px}
 .pv[hidden]{display:none}
 .pv canvas{max-width:100%;max-height:100%;border:2px solid var(--ink);display:block}
@@ -81,7 +84,7 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .hero[hidden]{display:none}
 #tools{position:relative;display:grid;grid-template-columns:repeat(4,1fr);padding:0 10px 8px;flex:none}
 #tools button{min-height:48px;border:0;background:transparent;color:var(--on);font:800 13px/1.1 var(--ui);padding:2px}
-#stagewrap{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 12px;background:var(--a)}
+#stagewrap{position:relative;flex:0 1 38%;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 12px;background:var(--a)}
 #stage{max-width:100%;max-height:100%;aspect-ratio:4/5;border:3px solid var(--ink);box-shadow:4px 5px 0 var(--ink);touch-action:none;background:#fff}
 #gamestage{height:100%;aspect-ratio:288/512;max-width:100%;border:3px solid var(--ink);box-shadow:4px 5px 0 var(--ink);overflow:hidden;position:relative}
 #demo{display:block}
@@ -90,8 +93,7 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 #tabs button{flex:1 0 auto;min-height:46px;padding:0 13px;border:0;background:transparent;color:#fff;font:800 14px var(--ui);opacity:.7}
 #tabs button.hot{opacity:1;color:var(--btn)}
 #tabs button[aria-selected=true]{opacity:1;background:var(--paper);color:var(--ink)}
-#panel.tall{height:246px}
-#panel{flex:none;height:190px;overflow-y:auto;background:var(--paper);color:var(--ink);padding:10px 12px;touch-action:pan-y;user-select:auto;-webkit-user-select:auto}
+#panel{flex:1 1 0;min-height:96px;overflow-y:auto;background:var(--paper);color:var(--ink);padding:10px 12px;touch-action:pan-y;user-select:auto;-webkit-user-select:auto}
 .foot{flex:none;background:var(--paper);padding:8px 0 4px}
 .foot.col{background:var(--a);padding-top:10px}
 .foot .press{margin-bottom:8px}
@@ -106,8 +108,8 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .sw.on{box-shadow:0 0 0 3px var(--paper),0 0 0 6px var(--ink)}
 .sw i{position:absolute;inset:0 0 50% 0}
 input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radius:4px;padding:0;background:#fff}
-.slide{display:grid;grid-template-columns:62px 1fr 42px;align-items:center;gap:6px;min-height:40px;font-size:13px}
-.slide input{width:100%;accent-color:#111;height:36px}
+.slide{display:grid;grid-template-columns:62px 1fr 42px;align-items:center;gap:6px;min-height:44px;font-size:13px}
+.slide input{width:100%;accent-color:#111;height:44px;margin:0}
 .slide b{text-align:right;font-variant-numeric:tabular-nums}
 .grid{display:grid;grid-template-columns:30px repeat(8,1fr);gap:3px;margin-bottom:6px}
 .grid span{align-self:center;font-size:16px;text-align:center}
@@ -125,7 +127,8 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 #donewrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:14px 18px 4px}
 #doneimg{max-width:100%;max-height:100%;border:3px solid var(--ink);box-shadow:6px 7px 0 var(--ink);animation:slap .45s cubic-bezier(.2,1.5,.4,1) both;transform:rotate(-1deg)}
 #shelf{background:var(--paper)}
-#shtitle,#edtitle{font:900 21px/1 var(--disp);text-transform:uppercase;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--on)}
+/* a long title breaks onto a second line instead of ending in "…"; 1.15 keeps umlaut dots and descenders whole */
+#shtitle,#edtitle{flex:1 1 auto;min-width:0;font:900 clamp(15px,5vw,21px)/1.15 var(--disp);text-transform:uppercase;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow-wrap:break-word;color:var(--on)}
 #shbody{flex:1;overflow-y:auto;padding:12px 14px;touch-action:pan-y;user-select:auto;-webkit-user-select:auto}
 .day{display:flex;width:100%;align-items:center;gap:12px;padding:8px 10px;min-height:62px;border:0;border-bottom:3px solid var(--ink);background:transparent;text-align:left}
 .day b{font:900 34px/1 var(--disp);min-width:46px;font-variant-numeric:tabular-nums}
@@ -140,7 +143,7 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 #cv{position:absolute;left:50%;bottom:0;transform:translateX(-50%);display:block}
 .top{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 6px) 8px 0;display:flex;align-items:center;gap:6px}
 .top .ico{color:#fff;background:rgba(0,0,0,.45)}
-#title{font-weight:900;font-size:15px;max-width:68vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 2px 0 rgba(0,0,0,.45)}
+#title{font-weight:900;font-size:15px;line-height:1.15;max-width:68vw;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;text-shadow:0 2px 0 rgba(0,0,0,.45)}
 #hud{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 58px);text-align:center;pointer-events:none}
 #score{font:900 68px/1 var(--disp);text-shadow:0 4px 0 rgba(0,0,0,.4);display:inline-block}
 #score.pop{animation:pp .22s ease-out}
@@ -163,7 +166,7 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 #cobar{flex:none;display:flex;align-items:center;gap:8px;min-height:38px;padding:2px 8px 2px 14px;background:var(--ink);color:#fff;font:800 13px var(--ui)}
 #costatus{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 #cobar.off{background:#7a1f12}
-#coleave{min-height:34px;padding:0 10px;border:2px solid #fff;border-radius:4px;background:transparent;color:#fff;font:800 13px var(--ui)}
+#coleave{min-height:44px;padding:0 10px;border:2px solid #fff;border-radius:4px;background:transparent;color:#fff;font:800 13px var(--ui)}
 #cosheet{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.6)}
 #cosheet[hidden]{display:none}
 #cobox{width:100%;max-width:360px;max-height:100%;overflow-y:auto;background:var(--paper);color:var(--ink);border:3px solid var(--ink);border-radius:6px;padding:14px;box-shadow:6px 7px 0 var(--ink)}
@@ -229,7 +232,7 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .nudge{outline:4px solid var(--b);outline-offset:2px}
 .liveov{position:fixed;inset:0;z-index:50;background:var(--a);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px}
 .livebody{width:100%;max-width:440px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
-.liveback{position:absolute;top:12px;right:12px;width:44px;height:44px;border:3px solid var(--ink);background:var(--paper);font:900 20px var(--ui)}
+.liveback{position:absolute;top:calc(env(safe-area-inset-top) + 6px);left:8px;z-index:1;width:44px;height:44px;border:0;border-radius:50%;background:transparent;color:var(--on);font:900 20px var(--ui)}
 .livebig{font:400 36px/1.05 var(--disp);text-transform:uppercase}.livebadge{font-size:48px;letter-spacing:8px}.livemini{font-size:22px;letter-spacing:6px;margin:0}.livecount{font:900 28px var(--ui)}
 .livecv{width:min(92vw,46vh);aspect-ratio:1000/1600;border:3px solid var(--ink);touch-action:none;background:#111}.livescore{font:900 22px var(--ui)}
 .rpslast{font-size:56px;letter-spacing:24px;min-height:64px;margin:0}.livebody .chips{width:100%}
@@ -244,7 +247,7 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .walltabs{margin-bottom:10px}.inv .invcell{position:relative;display:flex;flex-direction:column;gap:4px}
 .inv .invcell>button:first-child{display:block;padding:0;border:2px solid var(--ink);background:var(--paper);aspect-ratio:4/5;width:100%;overflow:hidden}
 .inv img{width:100%;height:100%;object-fit:cover;display:block}.invicon{display:grid;place-items:center;height:100%;font-size:40px}
-.invx{position:absolute;top:-8px;right:-8px;width:36px;height:36px;border-radius:50%;border:2px solid var(--ink);background:#fff;color:#111;font:900 16px var(--ui);display:grid;place-items:center}
+.invx{position:absolute;top:4px;right:4px;width:44px;height:44px;border-radius:50%;border:2px solid var(--ink);background:#fff;color:#111;font:900 16px var(--ui);display:grid;place-items:center}
 .invdate{font:700 12px var(--ui);text-align:center}
 .arcov{background:#0b0b12;color:#fff;justify-content:flex-start;padding:0 16px max(16px,env(safe-area-inset-bottom));overflow-y:auto}.arcov .note,.arcov .livescore{color:#fff}.arcov .livebody{gap:8px;margin:auto 0;padding-top:14px}
 /* arcade banner: the home page's brand line in the user's colours, its lower edge torn off the calendar block */
@@ -259,9 +262,9 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .arcdemo{width:min(56vw,30vh);aspect-ratio:300/480;border:3px solid #fff;background:#07070b}.arcnote{min-height:2.4em;margin:0}
 @media (prefers-reduced-motion:reduce){.arccv,.arcdemo{animation:none;transition:none}}
 /* card tables (table-ui.js) */
-.tbov{justify-content:flex-start;overflow-y:auto}.tbbody{padding-top:44px;gap:10px}.tbbadge{font-size:26px}
+.tbov{justify-content:flex-start;overflow-y:auto}.tbbody{padding-top:56px;gap:10px}.tbbadge{font-size:26px}
 .tbseats{width:100%;display:flex;flex-direction:column;gap:6px}.tbseat{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:3px solid var(--ink);background:var(--paper);font:900 18px var(--ui);text-align:left}
-.tbseat.me{outline:3px solid var(--b)}.tbseat .btn{min-height:40px;padding:6px 10px;font-size:15px}.tbwarn{font-weight:900}
+.tbseat.me{outline:3px solid var(--b)}.tbseat .btn{min-height:48px;padding:6px 10px;font-size:15px}.tbwarn{font-weight:900}
 .tbturn{font:900 22px var(--ui);margin:0;min-height:28px}.tbturn.hot{color:var(--b)}.tbinfo{margin:0;min-height:20px}
 .tbrules{justify-content:center}.tbrules .chip:disabled{opacity:.6}.tbwhy{align-self:center}.tbhouse{margin:0;font-weight:800}.tbexplain{width:100%;margin:0;padding:8px 10px;border:3px solid var(--ink);background:var(--paper);color:var(--ink);text-align:left}.tbexplain p{margin:2px 0}
 .tbtrick{display:flex;justify-content:center;gap:8px;min-height:118px;flex-wrap:wrap}.tbplayed{display:flex;flex-direction:column;align-items:center;gap:2px;font:700 12px var(--ui)}
@@ -269,7 +272,7 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .tbcard{display:inline-block;width:64px;height:96px;padding:0;border:0;background:none;line-height:0;transition:transform .12s}.tbcard svg{width:100%;height:100%}
 .tbcard.small{width:40px;height:60px}.tbcard.no{opacity:.45}.tbcard.ok{cursor:pointer}.tbcard.ok:active{transform:translateY(-4px)}.tbcard.sel{transform:translateY(-12px)}
 .tbacts{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;width:100%}.tbacts .btn{min-height:44px;padding:6px 12px;font-size:16px}
-.tbauto{min-height:40px;padding:6px 12px;font-size:15px}.tbclock{font-size:16px}.tbghost{margin:0;font-weight:900}
+.tbauto{min-height:48px;padding:6px 12px;font-size:15px}.tbclock{font-size:16px}.tbghost{margin:0;font-weight:900}
 @media (max-width:420px){.tbcard{width:52px;height:78px}}
 /* Advent door from a link (door.js): closed, one tap, two leaves swing open; with reduced motion it only fades */
 #door{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));background:var(--da);color:#fffaf0;text-align:center;overflow:auto}

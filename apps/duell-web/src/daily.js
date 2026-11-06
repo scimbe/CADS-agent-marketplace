@@ -346,10 +346,12 @@
     }
     return d;
   }
+  // A title as one line: "|" marks the break on the sheet. "Tür-|steher" joins to "Türsteher", "Winter-|Tunnel" keeps its hyphen.
+  function plainTitle(s) { return String(s || "").replace(/-\|(\p{Ll})/gu, "$1").replace(/-\|/g, "-").replace(/\|/g, " ").trim(); }
   function docFromIdea(idea, profile, lang) {
     // Without the catalog part (a broken bundle) the day still shows: its title as a plain card.
-    if (!FULL) return sanitizeDoc({ k: "card", i: idea.id, col: profile.colors, by: [], x: (idea[lang] || idea.de).t.replace(/-?\|/g, function (m) { return m === "|" ? " " : ""; }), st: "druck", sk: [] });
-    var L = idea[lang] || idea.de, plain = L.t.replace("|", " ").trim(), base = { k: idea.kind, i: idea.id, col: profile.colors, by: [] };
+    if (!FULL) return sanitizeDoc({ k: "card", i: idea.id, col: profile.colors, by: [], x: plainTitle((idea[lang] || idea.de).t), st: "druck", sk: [] });
+    var L = idea[lang] || idea.de, plain = plainTitle(L.t), base = { k: idea.kind, i: idea.id, col: profile.colors, by: [] };
     if (idea.kind === "card") { base.x = L.lines[0]; base.st = idea.style || "druck"; base.sk = []; if (idea.col) base.col = idea.col; if (idea.door) base.nr = doorNumber(); }
     if (idea.kind === "photo") { base.x = L.top; base.y = L.bottom; base.st = idea.photo.mode; base.sk = []; }
     if (idea.kind === "sound") { var s = idea.sound; base.m = s.mode; base.x = plain.slice(0, 28); base.fx = s.fx || "chip"; base.bpm = s.bpm || 110; base.p = { k: s.k || "x---x---x---x---", s: s.s || "----x-------x---", h: s.h || "x-x-x-x-x-x-x-x-", b: s.b || "----------------" }; }
@@ -430,7 +432,7 @@
   }
 
   var api = {
-    IDEAS: IDEAS, fill: fill, index: index, full: function () { return FULL; }, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, PLAY: PLAY, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays, fold: fold, searchIdeas: searchIdeas,
+    IDEAS: IDEAS, plainTitle: plainTitle, fill: fill, index: index, full: function () { return FULL; }, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, PLAY: PLAY, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays, fold: fold, searchIdeas: searchIdeas,
     randomIdea: randomIdea, paperIndex: paperIndex, sanitizeId: sanitizeId, parseRoute: parseRoute, inviteUrl: inviteUrl, challengeUrl: challengeUrl,
     cleanInput: cleanInput, sanitizeProfile: sanitizeProfile, sanitizePref: sanitizePref, prefChips: prefChips, dropPref: dropPref, prefContext: prefContext, adult: adult, dietOk: dietOk, PREF: { AGES: AGES, DIETS: DIETS, NOTIMES: NOTIMES }, sanitizeDoc: sanitizeDoc, sanitizeKi: sanitizeKi, doorNumber: doorNumber, docFromIdea: docFromIdea, blankDoc: blankDoc,
     changedAreas: changedAreas, withTrail: withTrail, docUrl: docUrl, SETS: SETS, STYLES: STYLES, FX: FX, MAX_STICKERS: MAX_STICKERS, sanitizeWall: sanitizeWall, addToWall: addToWall, ideaStrings: ideaStrings

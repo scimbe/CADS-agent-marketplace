@@ -14,7 +14,7 @@ function layer() {
   ov = el("div", "liveov"); ov.setAttribute("role", "dialog");
   var body = el("div", "livebody"); ov.appendChild(body);
   // An arcade duel wears the arcade banner with its ✕ (arcade-ui.js); every other live game keeps the plain ✕.
-  if (!(game && window.ArcadeUI && window.ArcadeUI.dress(ov, close, game.g))) ov.insertBefore(el("button", "liveback", "✕", function () { Kit.sfx.tap(); close(); }), body);
+  if (!(game && window.ArcadeUI && window.ArcadeUI.dress(ov, close, game.g))) { var x = el("button", "liveback", "✕", function () { Kit.sfx.tap(); close(); }); x.setAttribute("aria-label", t("xClose")); ov.insertBefore(x, body); }
   document.body.appendChild(ov);
   return body;
 }

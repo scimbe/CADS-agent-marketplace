@@ -21,7 +21,7 @@ test("Letzte Tage: Karte suchen, Treffer antippen, ihr Blatt liegt oben; ohne Tr
   assert.equal(await p.locator("#shbody .day").count(), 0);
 
   await q.fill("KONFERENZ");
-  const hit = p.locator("#shbody .day", { hasText: "Gruppen- Konferenz" });
+  const hit = p.locator("#shbody .day", { hasText: "Gruppen-Konferenz" });
   await hit.waitFor();
   const shown = await hit.locator("b").textContent();
   await hit.tap();

@@ -20,7 +20,7 @@ function apply() {
   var o = org() || DEF, r = document.body.style, b = $("orglogo");   // body: the flavor CSS sets its defaults there
   r.setProperty("--org", o.c); r.setProperty("--onorg", R.ink(o.c));
   var m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", o.c);
-  if (b) b.textContent = o.n || "·";
+  if (b) b.textContent = o.n || "🏢";
 }
 
 /* ---------- the link: {v, d} plus o, which the daily app ignores ---------- */
@@ -69,7 +69,7 @@ function text(c, s, x, y, w, size, weight, col, max) {
   wrap(c, s, w).slice(0, max || 9).forEach(function (l) { c.fillText(l, x, y); y += size * 1.25; });
   return y;
 }
-function heading(doc) { var i = doc.i ? D.byId(doc.i) : null, T = i ? (i[Kit.lang] || i.de) : null; return { t: doc.t || (T ? T.t.replace("|", " ") : t("turn")), s: doc.s || (T ? T.s : "") }; }
+function heading(doc) { var i = doc.i ? D.byId(doc.i) : null, T = i ? (i[Kit.lang] || i.de) : null; return { t: doc.t || (T ? D.plainTitle(T.t) : t("turn")), s: doc.s || (T ? T.s : "") }; }
 R.extra.turn = function (c, W, H, doc) {
   if (doc.g === "einkauf" && window.TurnShop) return window.TurnShop.draw(c, W, H, doc);   // the list is the picture, on white paper already
   var o = org() || DEF, st = Tn.state(doc), res = Tn.result(doc, Kit.lang), face = res ? null : O.face(doc, Kit.lang), h = heading(doc), L = Tn.T(Kit.lang), p = W * 0.08, y;
@@ -124,7 +124,7 @@ function biz(p, what) { var box = el("div", "bizbox"); p.appendChild(box); windo
 function boarding(ed) { return !!ed && ed.doc.g === "todo" && ed.doc.i === "biz-onboarding" && !Tn.moves(ed.doc).length; }
 // Onboarding before its list exists: the main button makes the checklist from the plan on screen.
 var TM = window.DailyModes.turn, foot = TM.footer, main = TM.main;
-TM.footer = function (b, ed) { foot.apply(TM, arguments); if (boarding(ed)) { b.classList.remove("wait"); b.textContent = t("biz_ob_make"); } };
+TM.footer = function (b, ed) { foot.apply(TM, arguments); if (boarding(ed)) { b.hidden = false; b.classList.remove("wait"); b.textContent = t("biz_ob_make"); } };
 TM.main = function (ed) { if (!boarding(ed)) { main.apply(TM, arguments); return; } window.Parts.use("biz", function () { window.BizUI.make(); }).catch(function () {}); };
 A.PANEL.Move = function (p) {
   var e0 = A.ed();
