@@ -27,7 +27,7 @@ test("Plural ueber Intl.PluralRules: 1 Stimme, 2 Stimmen; fehlt die Form, gilt d
   assert.equal(C.plural("uk", 3), "few", "Sprachen mit mehr Formen bekommen ihre Kategorie");
   for (const l of ["de", "en"]) {
     assert.match(TEXTS[l].cc_wrong_one, /\{n\}/); assert.match(TEXTS[l].cc_wrong, /\{n\}/);
-    for (const k of ["lang_to", "lang_pick", "rotate", "vote_q", "vote_up", "vote_down", "vote_login"]) assert.ok(TEXTS[l][k], l + " " + k);
+    for (const k of ["lang_to", "lang_pick", "rotate", "vote_q", "vote_up", "vote_down", "vote_login", "vote_often"]) assert.ok(TEXTS[l][k], l + " " + k);
   }
 });
 

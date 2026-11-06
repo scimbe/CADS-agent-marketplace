@@ -63,29 +63,44 @@ test("stat: open nur einmal je Link auf einem Geraet, gemerkt in store.seen (beg
   const bad = { seen: "kaputt" }; assert.ok(St.open(bad, { i: "x" }, "k", n.o)); assert.deepEqual(bad.seen, ["k"]);
 });
 
-test("stat: Stimme setzen, wechseln und zuruecknehmen schickt v und die vorherige p, mit dem Login dieser Seite", async () => {
+test("stat: Stimme setzen, wechseln und zuruecknehmen schickt nur v, mit dem Login dieser Seite", async () => {
   const n = net(204), store = {}, card = { id: "plan-09" };
   assert.deepEqual(await St.vote(store, card, 1, n.o), { v: 1 }); assert.deepEqual(store.votes, { "plan-09": 1 });
   assert.deepEqual(await St.vote(store, card, -1, n.o), { v: -1 }); assert.deepEqual(store.votes, { "plan-09": -1 });
   assert.deepEqual(await St.vote(store, card, -1, n.o), { v: 0 }, "noch einmal: zurueck"); assert.deepEqual(store.votes, {});
   assert.deepEqual(await St.vote(store, { i: "plan-09" }, 1, n.o), { v: 1 }, "doc.i und idea.id sind dieselbe Karte");
-  assert.deepEqual(n.sent.map((s) => s.body), [{ i: "plan-09", e: "vote", v: 1, p: 0 }, { i: "plan-09", e: "vote", v: -1, p: 1 }, { i: "plan-09", e: "vote", v: 0, p: -1 }, { i: "plan-09", e: "vote", v: 1, p: 0 }]);
+  assert.deepEqual(n.sent.map((s) => s.body), [{ i: "plan-09", e: "vote", v: 1 }, { i: "plan-09", e: "vote", v: -1 }, { i: "plan-09", e: "vote", v: 0 }, { i: "plan-09", e: "vote", v: 1 }], "kein p: der Server kennt die Stimme je Konto");
   assert.ok(n.sent.every((s) => s.o.credentials === "same-origin" && s.o.referrerPolicy === "no-referrer"));
   const odd = { votes: { a: 7 } }; await St.vote(odd, { id: "a" }, -1, n.o);
-  assert.deepEqual(n.sent[4].body, { i: "a", e: "vote", v: -1, p: 0 }, "Unsinn im Speicher gilt als keine Stimme");
+  assert.deepEqual(n.sent[4].body, { i: "a", e: "vote", v: -1 }, "Unsinn im Speicher gilt als keine Stimme");
 });
 
 test("stat: ohne Konto (X-Stat: login oder 401) zaehlt die Stimme nicht und wird nicht gemerkt; offline ebenso, ohne Hinweis", async () => {
   for (const [s, x] of [[202, "login"], [204, "login"], [401, null]]) {
     const store = { votes: { b: 1 } };
-    assert.deepEqual(await St.vote(store, { id: "a" }, 1, net(s, x).o), { v: 0, login: true }, s + " " + x);
-    assert.deepEqual(await St.vote(store, { id: "b" }, -1, net(s, x).o), { v: 1, login: true });
+    assert.deepEqual(await St.vote(store, { id: "a" }, 1, net(s, x).o), { v: 0, why: "login" }, s + " " + x);
+    assert.deepEqual(await St.vote(store, { id: "b" }, -1, net(s, x).o), { v: 1, why: "login" });
     assert.deepEqual(store.votes, { b: 1 }, "nichts als abgegeben gemerkt");
   }
   for (const s of ["offline", "throw", 500, 429]) {
     const store = {};
-    assert.deepEqual(await St.vote(store, { id: "a" }, 1, net(s).o), { v: 0 }, String(s)); assert.equal(store.votes, undefined);
+    assert.deepEqual(await St.vote(store, { id: "a" }, 1, net(s).o), { v: 0, why: "" }, String(s)); assert.equal(store.votes, undefined);
   }
+});
+
+test("stat: X-Stat dup, full, unavailable: 2xx zaehlt trotzdem nicht, der alte Stand bleibt (auch beim 4. Wechsel)", async () => {
+  for (const x of ["dup", "full", "unavailable"]) {
+    const store = { votes: { a: -1 } };
+    assert.deepEqual(await St.vote(store, { id: "a" }, 1, net(204, x).o), { v: -1, why: x }, x);
+    assert.deepEqual(await St.vote(store, { id: "a" }, -1, net(200, x).o), { v: -1, why: x }, x + ": zuruecknehmen ebenso nicht");
+    assert.deepEqual(store.votes, { a: -1 });
+  }
+  // three changes count, the fourth is refused: the shown vote stays the third
+  const store = {}, answers = [null, null, null, "full"]; let i = 0;
+  const o = { fetch: () => Promise.resolve({ status: 204, headers: { get: () => answers[i++] } }) };
+  for (const v of [1, -1, 1]) await St.vote(store, { id: "a" }, v, o);
+  assert.deepEqual(store.votes, { a: 1 });
+  assert.deepEqual(await St.vote(store, { id: "a" }, -1, o), { v: 1, why: "full" }); assert.deepEqual(store.votes, { a: 1 });
 });
 
 test("stat: Daily Business (flavor stat: false) schickt nichts", async () => {
@@ -94,7 +109,7 @@ test("stat: Daily Business (flavor stat: false) schickt nichts", async () => {
     const n = net(204), store = {};
     assert.equal(St.off(), true);
     St.share({ i: "x" }, n.o); St.open(store, { i: "x" }, "k", n.o);
-    assert.deepEqual(await St.vote(store, { id: "x" }, 1, n.o), { v: 0 });
+    assert.deepEqual(await St.vote(store, { id: "x" }, 1, n.o), { v: 0, why: "" });
     assert.equal(n.sent.length, 0);
   } finally { delete globalThis.DailyFlavor; }
   assert.equal(St.off(), false);

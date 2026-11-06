@@ -13,11 +13,13 @@ const GOT = "#c=eyJ2IjoxLCJkIjp7ImsiOiJjYXJkIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFk
 const TIME = "2026-11-05T10:00:00Z";
 // Every stat request of a context, as sent (the test's own route wins over the hook's). CORS as the server's corsFor: no
 // credentials, no echoed origin. 204 without X-Stat: what the server answers for a signed-in account.
-async function stats(ctx) {
+// x: the X-Stat the server sets on the n-th stat request (null: counted).
+async function stats(ctx, x) {
   const got = []; Object.defineProperty(got, "cred", { value: [] });   // the cookie header of each, kept apart from the bodies
   await ctx.route(STAT, (r) => { got.push(JSON.parse(r.request().postData()));
     got.cred.push(r.request().headers().cookie || "");
-    return r.fulfill({ status: 204, headers: { "Access-Control-Allow-Origin": "*" } }); });
+    const h = x && x(got.length - 1);
+    return r.fulfill({ status: 204, headers: { "Access-Control-Allow-Origin": "*", ...(h ? { "Access-Control-Expose-Headers": "X-Stat", "X-Stat": h } : {}) } }); });
   return got;
 }
 const until = async (fn, ms) => { const end = Date.now() + (ms || 5000); while (!fn()) { if (Date.now() > end) return false; await new Promise((r) => setTimeout(r, 50)); } return true; };
@@ -76,7 +78,7 @@ test("Eine empfangene Karte meldet open einmal je Link und Geraet; ein anderes G
   assert.deepEqual([...p.errs, ...p2.errs, ...q.errs], []); await b.close();
 });
 
-test("Daumen (angemeldet): setzen, wechseln, zuruecknehmen schickt v und p, zeigt die Stimme erst nach der Antwort, ohne Zahlen", async () => {
+test("Daumen (angemeldet): setzen, wechseln, zuruecknehmen schickt v (ohne p), zeigt die Stimme erst nach der Antwort, ohne Zahlen", async () => {
   const b = await G.launch(), ctx = await G.person(b, { time: TIME }), got = await stats(ctx);
   const p = await G.open(ctx, "");
   const id = await p.evaluate(() => window.DailyDebug.home().idea.id);
@@ -90,7 +92,7 @@ test("Daumen (angemeldet): setzen, wechseln, zuruecknehmen schickt v und p, zeig
   await down.tap(); await pressed("false", "true");
   await down.tap(); await pressed("false", "false");
   await up.tap(); await pressed("true", "false");
-  assert.deepEqual(got, [{ i: id, e: "vote", v: 1, p: 0 }, { i: id, e: "vote", v: -1, p: 1 }, { i: id, e: "vote", v: 0, p: -1 }, { i: id, e: "vote", v: 1, p: 0 }]);
+  assert.deepEqual(got, [{ i: id, e: "vote", v: 1 }, { i: id, e: "vote", v: -1 }, { i: id, e: "vote", v: 0 }, { i: id, e: "vote", v: 1 }]);
   assert.equal(await p.evaluate(() => document.body.getAttribute("data-state")), "home", "ein Daumen oeffnet die Karte nicht");
   assert.equal(await p.locator("#votelogin").isVisible(), false, "angemeldet kein Hinweis");
   assert.deepEqual(await p.evaluate((k) => JSON.parse(localStorage.getItem("daily.v1")).votes[k], id), 1);
@@ -102,7 +104,7 @@ test("Daumen (angemeldet): setzen, wechseln, zuruecknehmen schickt v und p, zeig
   await q.locator("#leaf.got").waitFor(); await until(() => got2.length); got2.length = 0;
   assert.equal(await q.locator("#votedown").getAttribute("aria-label"), "Not for me");
   await q.locator("#votedown").tap(); await q.waitForFunction(() => document.getElementById("votedown").getAttribute("aria-pressed") === "true");
-  assert.deepEqual(got2, [{ i: "plan-09", e: "vote", v: -1, p: 0 }]);
+  assert.deepEqual(got2, [{ i: "plan-09", e: "vote", v: -1 }]);
   assert.deepEqual([...p.errs, ...q.errs], []); await b.close();
 });
 
@@ -120,7 +122,7 @@ test("Daumen ohne Anmeldung: kurzer Hinweis mit Link zur Anmeldung, nichts als g
     assert.deepEqual(await G.covered(p), [], "der Hinweis verdeckt keinen Knopf");
     for (const s of ["#voteup", "#votedown"]) assert.equal(await p.locator(s).getAttribute("aria-pressed"), "false", s + " nicht als abgegeben");
     await p.locator("#votedown").tap(); await until(() => got.length === 2);
-    assert.deepEqual(got, [{ i: id, e: "vote", v: 1, p: 0 }, { i: id, e: "vote", v: -1, p: 0 }], "jede Stimme startet bei 0: nichts gezaehlt");
+    assert.deepEqual(got, [{ i: id, e: "vote", v: 1 }, { i: id, e: "vote", v: -1 }], "nichts gezaehlt: der zweite Tipp ist wieder eine neue Stimme, kein Zuruecknehmen");
     assert.deepEqual(got.cred, ["", ""], "keine Cookies von fremden Seiten");
     assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem("daily.v1") || "{}").votes), undefined, "nichts gemerkt");
     await p.reload(); await p.locator("#voteup").waitFor();
@@ -129,6 +131,30 @@ test("Daumen ohne Anmeldung: kurzer Hinweis mit Link zur Anmeldung, nichts als g
     assert.deepEqual(p.errs, []); await ctx.close();
   }
   await b.close();
+});
+
+// Signed in; the server counts the first vote, then answers with the given X-Stat: the shown vote stays the counted one.
+async function refused(x) {
+  const b = await G.launch(), ctx = await G.person(b, { time: TIME }), got = await stats(ctx, (n) => (n === 0 ? null : x)), p = await G.open(ctx, "");
+  const id = await p.evaluate(() => window.DailyDebug.home().idea.id), hint = p.locator("#votelogin");
+  const pressed = () => p.evaluate(() => [...document.querySelectorAll("#votes button")].map((e) => e.getAttribute("aria-pressed")));
+  await p.locator("#voteup").tap(); await p.waitForFunction(() => document.getElementById("voteup").getAttribute("aria-pressed") === "true");
+  await p.locator("#votedown").tap(); await until(() => got.length === 2); await p.waitForTimeout(200);
+  assert.deepEqual(got, [{ i: id, e: "vote", v: 1 }, { i: id, e: "vote", v: -1 }]);
+  assert.deepEqual(await pressed(), ["true", "false"], x + ": der alte Stand bleibt");
+  assert.deepEqual(await p.evaluate((k) => JSON.parse(localStorage.getItem("daily.v1")).votes[k], id), 1);
+  return { b, p, hint };
+}
+test("Daumen, Server sagt dup: alter Stand bleibt, kurzer Hinweis 'Heute schon oft geändert' ohne Link", async () => {
+  const { b, p, hint } = await refused("dup");
+  await hint.waitFor(); assert.equal(await hint.textContent(), "Heute schon oft geändert"); assert.equal(await hint.getAttribute("href"), null);
+  assert.deepEqual(await G.covered(p), []);
+  assert.deepEqual(p.errs, []); await b.close();
+});
+test("Daumen, Server sagt unavailable: alter Stand bleibt, kein Login-Hinweis", async () => {
+  const { b, p, hint } = await refused("unavailable");
+  assert.equal(await hint.isVisible(), false);
+  assert.deepEqual(p.errs, []); await b.close();
 });
 
 test("Daumen in der App-Huelle (Origin null, kein Cookie): immer der Hinweis, ohne Link, keine Stimme geht raus", async () => {

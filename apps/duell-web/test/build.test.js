@@ -101,8 +101,8 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
   assert.match(stat, /"\/api\/duell\/stat"/);
   assert.match(stat, /go\(URL_, \{ method: "POST", keepalive: true, credentials: cred \|\| "omit", referrerPolicy: "no-referrer", headers: \{ "Content-Type": "application\/json" \}, body: JSON\.stringify\(p\) \}\)/);
   assert.equal((stat.match(/post\(p, o\)/g) || []).length, 2, "share und open ohne Cookie");
-  assert.match(stat, /post\(\{ i: k, e: "vote", v: v, p: p \}, o, "same-origin"\)/, "nur die Stimme mit dem Login dieser Seite");
-  assert.deepEqual(stat.match(/\{ i: [^}]*\}/g), ['{ i: id(doc), e: "share" }', '{ i: id(doc), e: "open" }', '{ i: k, e: "vote", v: v, p: p }'], "nur Karte, Ereignis, Stimme");
+  assert.match(stat, /post\(\{ i: k, e: "vote", v: v \}, o, "same-origin"\)/, "nur die Stimme mit dem Login dieser Seite");
+  assert.deepEqual(stat.match(/\{ i: [^}]*\}/g), ['{ i: id(doc), e: "share" }', '{ i: id(doc), e: "open" }', '{ i: k, e: "vote", v: v }'], "nur Karte, Ereignis, Stimme");
   assert.equal(require("../src/flavors/business/flavor.json").stat, false, "Daily Business kommt ohne Server aus (ADR 0005)");
   // Live games: one WebSocket to the edge and one peer connection, both only in live.js, and its one fetch goes to the play API.
   for (const f of fs.readdirSync(path.join(__dirname, "../src")).filter((n) => n.endsWith(".js") && n !== "live.js")) assert.ok(!/WebSocket|RTCPeerConnection/.test(noComments(src(f))), "Live-Ausgang in " + f);

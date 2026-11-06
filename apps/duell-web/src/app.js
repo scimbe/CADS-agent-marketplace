@@ -96,22 +96,23 @@ function setHome(h, animate) {
 // a second tap takes it back.
 function voteCard() { var h = home; return !window.Stat.off() && h && (h.doc ? h.note && h.doc.i && h.doc : h.idea); }
 var voting = false, voteHint = 0;
-function votes(hint) {
+function votes(why) {
   var c = voteCard(), v = c ? ((store.votes || {})[c.i || c.id] | 0) : 0, a = $("votelogin");
   $("votes").hidden = !c; $("votes").setAttribute("aria-label", t("vote_q"));
   [["voteup", 1, "vote_up"], ["votedown", -1, "vote_down"]].forEach(function (b) { var e = $(b[0]); e.setAttribute("aria-label", t(b[2])); e.title = t(b[2]); e.setAttribute("aria-pressed", String(v === b[1])); });
-  clearTimeout(voteHint); a.hidden = !hint; a.textContent = t("vote_login");
-  // the sign-in of the API host, as in ai.js; the app shells send no cookie, so there the line has no link
-  if (window.DuellHost) a.removeAttribute("href"); else a.href = (location.protocol === "https:" ? "" : new URL(C.DEFAULT_API).origin) + "/auth/login?return=" + encodeURIComponent("/duell");
+  // login: the sign-in of the API host, as in ai.js (the app shells send no cookie: no link there); dup/full: changed often today
+  var hint = why === "login" ? "vote_login" : why === "dup" || why === "full" ? "vote_often" : "";
+  clearTimeout(voteHint); a.hidden = !hint; a.textContent = hint ? t(hint) : "";
+  if (hint !== "vote_login" || window.DuellHost) a.removeAttribute("href"); else a.href = (location.protocol === "https:" ? "" : new URL(C.DEFAULT_API).origin) + "/auth/login?return=" + encodeURIComponent("/duell");
   if (hint) voteHint = setTimeout(function () { a.hidden = true; }, 8000);
 }
 [["voteup", 1], ["votedown", -1]].forEach(function (b) {
   $(b[0]).addEventListener("click", async function () {
     var c = voteCard(); if (!c || voting) return;
     Kit.sfx.tap();
-    if (window.DuellHost) { votes(true); return; }
+    if (window.DuellHost) { votes("login"); return; }
     voting = true;
-    try { var r = await window.Stat.vote(store, c, b[1]); if (!r.login) Kit.save(); votes(!!r.login); } finally { voting = false; }
+    try { var r = await window.Stat.vote(store, c, b[1]); Kit.save(); votes(r.why); } finally { voting = false; }
   });
 });
 // An invitation shows its languages before the first tap, each in its own name ("Deutsch", "English").
