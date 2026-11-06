@@ -364,6 +364,30 @@
     if (idea.kind === "arcade") { base.a = idea.arcade.g; return base; }
     return sanitizeDoc(base);
   }
+  // A card that still says a catalog line, sent in one language, reads in the viewer's: the same line of that idea in
+  // the other language, with the name in front kept ("Lea, ich wollte ..." -> "Lea, I just wanted ..."). Text the sender
+  // wrote or changed stays as it was sent.
+  function localDoc(doc, lang) {
+    var idea = doc && doc.k === "card" && typeof doc.x === "string" && doc.i ? byId(doc.i) : null, to = idea && idea[lang];
+    if (!to || !to.lines) return doc;
+    function rest(l) { return /^I\b/.test(l) ? l : l.charAt(0).toLowerCase() + l.slice(1); }
+    for (var k in idea) {
+      var L = idea[k]; if (k === lang || !L || !Array.isArray(L.lines)) continue;
+      for (var j = 0; j < L.lines.length; j++) {
+        var line = L.lines[j], nl = to.lines[j]; if (!line || !nl) continue;
+        var x = null;
+        if (doc.x === line) x = nl;
+        else if (idea.warm && doc.x.slice(-rest(line).length - 2) === ", " + rest(line)) {
+          // Only the name a feel-good card puts in front (warm.js named): one plain first name, nothing the sender wrote.
+          var who = doc.x.slice(0, -rest(line).length - 2);
+          if (who.length <= 14 && /^[\p{L}][\p{L} .'-]*$/u.test(who) && cleanInput(who, 14) === who) x = who + ", " + rest(nl);
+        }
+        // Too long or filtered in the other language: the card stays as it was sent, never cut off.
+        if (x != null) return cleanInput(x, 90) === x ? Object.assign({}, doc, { x: x }) : doc;
+      }
+    }
+    return doc;
+  }
   function blankDoc(kind, profile, lang) {
     var pool = IDEAS.filter(function (i) { return i.kind === kind; }), d = docFromIdea(pool[0], profile, lang);
     delete d.i; d.t = ""; return d;
@@ -433,7 +457,7 @@
   }
 
   var api = {
-    IDEAS: IDEAS, plainTitle: plainTitle, fill: fill, index: index, full: function () { return FULL; }, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, PLAY: PLAY, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays, fold: fold, searchIdeas: searchIdeas,
+    IDEAS: IDEAS, plainTitle: plainTitle, fill: fill, index: index, full: function () { return FULL; }, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, PLAY: PLAY, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, localDoc: localDoc, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays, fold: fold, searchIdeas: searchIdeas,
     randomIdea: randomIdea, paperIndex: paperIndex, sanitizeId: sanitizeId, parseRoute: parseRoute, fromB64: fromB64, inviteUrl: inviteUrl, challengeUrl: challengeUrl,
     cleanInput: cleanInput, sanitizeProfile: sanitizeProfile, sanitizePref: sanitizePref, prefChips: prefChips, dropPref: dropPref, prefContext: prefContext, adult: adult, dietOk: dietOk, PREF: { AGES: AGES, DIETS: DIETS, NOTIMES: NOTIMES }, sanitizeDoc: sanitizeDoc, sanitizeKi: sanitizeKi, doorNumber: doorNumber, docFromIdea: docFromIdea, blankDoc: blankDoc,
     changedAreas: changedAreas, withTrail: withTrail, docUrl: docUrl, SETS: SETS, STYLES: STYLES, FX: FX, MAX_STICKERS: MAX_STICKERS, sanitizeWall: sanitizeWall, addToWall: addToWall, ideaStrings: ideaStrings

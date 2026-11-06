@@ -50,7 +50,7 @@ function fitHero(box) {
 // One calendar sheet: the real one on top and the greyed next day below it are filled by the same code.
 function fillSheet(root, h, still) {
   var q = function (k) { return root.querySelector("." + k); };
-  var d = h.date || today, idea = h.idea, doc = h.doc;
+  var d = h.date || today, idea = h.idea, doc = h.doc && D.localDoc(h.doc, Kit.lang);
   q("dnum").textContent = String(d.getUTCDate()).padStart(2, "0");
   q("dmon").textContent = monthLines(d);
   var title, sub, kind, min;
@@ -1088,7 +1088,7 @@ function start(tabName) {
   if (home.doc && X[home.doc.k] && X[home.doc.k].incoming && X[home.doc.k].incoming(home.doc)) return;
   if (!home.doc && home.idea && home.idea.protokoll) { var u = protokollUrl(); if (location.protocol === "https:") location.href = u; else openLive(u); return; }
   if (!home.doc && home.idea && home.idea.kind === "arcade" && window.ArcadeUI) { window.ArcadeUI.menu(home.idea.arcade.g); return; }
-  if (home.doc) openEditor(home.doc, { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName, got: !!home.note });
+  if (home.doc) openEditor(D.localDoc(home.doc, Kit.lang), { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName, got: !!home.note });
   else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea, tab: tabName, got: !!home.note });
 }
 $("go").addEventListener("click", function () { start(); });
