@@ -27,7 +27,9 @@ test("Packen: Fotos und Eintraege ohne Art bleiben auf dem Geraet, nur JPEG bis 
   assert.equal(P.pack(s, "account").ai, undefined);
   const big = { wall: Array.from({ length: 30 }, (_, i) => ({ id: "x" + i, ts: i, k: "card", th: "data:image/jpeg;base64," + "A".repeat(29000) })) };
   const w = P.pack(big, "code").wall;
-  assert.ok(w.length < 30 && w.length > 10, "size limit keeps the newest");
+  // the server keeps at most 128 KB per profile (CADS-DEMO-wrapper #82): thumbs and links together up to 100 000 characters
+  assert.equal(w.length, 3, "size limit keeps the newest");
+  assert.ok(JSON.stringify(P.pack({ ...big, saved: Array.from({ length: 200 }, (_, i) => ({ id: "x".repeat(36) + i, ts: 1762164000000 + i })), me: { nick: "x".repeat(16), emoji: "🦖", colors: ["#2b4bff", "#ffe600"], set: "weltall" }, wall: big.wall.map((e) => ({ ...e, th: "data:image/jpeg;base64," + "A".repeat(2900), f: "c=" + "B".repeat(1198) })) }, "code")).length < 128 * 1024, "the fullest profile the app sends fits the server's 128 KB");
   assert.equal(w[0].ts, 29);
 });
 

@@ -35,6 +35,7 @@ function fakeServer() {
       if (rec && rec.gone && !b.fresh) return json(410, { error: "gone", rev });
       if (b.rev !== rev) return json(409, { error: "stale", rev });
       if (b.via === "account" && (!rec || rec.gone) && b.age16 !== true) return json(403, { error: "age16" });
+      if (b.via === "code" && (!rec || rec.gone) && !cookie) return json(403, { error: "code-needs-login" });   // a new code needs an account
       db.set(key, { rev: rev + 1, p: { v: 1, ...b.profile }, c: b.via === "account" ? (rec && rec.c) || "2026-11-03" : undefined });
       json(200, { rev: rev + 1, via: b.via });
     });
@@ -46,8 +47,9 @@ let browser, srv;
 test.before(async () => { browser = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }); srv = await fakeServer(); });
 test.after(async () => { await browser.close(); srv.close(); });
 
-async function phone({ seed, host } = {}) {
+async function phone({ seed, host, login } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 780 }, locale: "de-DE" }), p = await ctx.newPage();
+  if (login) await ctx.addCookies([{ name: "ct_gate_session", value: "t1", url: srv.base }]);
   const errs = []; p.on("pageerror", (e) => errs.push(e.message));
   await ctx.addInitScript(([api, seed, host]) => {
     window.DUELL_API = api;
@@ -60,10 +62,12 @@ async function phone({ seed, host } = {}) {
 }
 
 test("Sync-Code: zwei Geraete, Stil und Wand kommen an, Fotowerke nie, Loeschen wirkt auf beiden", async () => {
-  const a = await phone({ seed: SEED });
+  const a = await phone({ seed: SEED, login: true });
   await a.style();
   await a.p.getByText("Ohne Anmeldung bleibt alles nur auf diesem Gerät.").waitFor();
   assert.equal(srv.log.length, 0, "nothing leaves the device before a tap");
+  assert.equal(await a.p.getByRole("button", { name: "Sync-Code anlegen" }).isDisabled(), true, "a new code only after the 16+ statement");
+  await a.p.getByLabel("Ich bin 16 oder älter.").check();
   await a.p.getByRole("button", { name: "Sync-Code anlegen" }).click();
   await a.p.getByText("Verbunden per Sync-Code:").waitFor();
   const shown = await a.p.locator(".accode").textContent();
@@ -102,8 +106,8 @@ test("Sync-Code: zwei Geraete, Stil und Wand kommen an, Fotowerke nie, Loeschen 
 });
 
 test("Sync-Code: Aenderung auf einem Geraet kommt beim anderen an", async () => {
-  const a = await phone({ seed: SEED }), b = await phone();
-  await a.style(); await a.p.getByRole("button", { name: "Sync-Code anlegen" }).click(); await a.p.getByText("Verbunden per Sync-Code:").waitFor();
+  const a = await phone({ seed: SEED, login: true }), b = await phone();
+  await a.style(); await a.p.getByLabel("Ich bin 16 oder älter.").check(); await a.p.getByRole("button", { name: "Sync-Code anlegen" }).click(); await a.p.getByText("Verbunden per Sync-Code:").waitFor();
   const code = await a.p.locator(".accode").textContent();
   await b.style(); await b.p.getByPlaceholder("Code von deinem anderen Gerät").fill(code); await b.p.getByRole("button", { name: "Mit Code verbinden" }).click(); await b.p.getByText("Verbunden per Sync-Code:").waitFor();
   await b.p.getByLabel("Spitzname").fill("Kiwi");
@@ -120,7 +124,7 @@ test("Konto: erst nach 16+, Anmelden ueber /auth/login, danach liegt das Profil 
   await c.style();
   const go = c.p.getByRole("button", { name: "Mit bunsenbrenner-Konto anmelden oder registrieren" });
   assert.equal(await go.isDisabled(), true, "no login before the 16+ statement");
-  await c.p.getByText("Unter 16? Nimm den Sync-Code.", { exact: false }).waitFor();
+  await c.p.getByText("Unter 16? Jemand ab 16, zum Beispiel deine Eltern, legt mit Konto einen Sync-Code an.", { exact: false }).waitFor();
   await c.p.getByLabel("Ich bin 16 oder älter.").check();
   await Promise.all([c.p.waitForURL(srv.base + "/duell"), go.click()]);
   for (let i = 0; i < 50 && !srv.db.get("acc"); i++) await c.p.waitForTimeout(100);
@@ -133,6 +137,28 @@ test("Konto: erst nach 16+, Anmelden ueber /auth/login, danach liegt das Profil 
   await c.ctx.close();
 });
 
+test("Neuer Sync-Code ohne Anmeldung: erst zum Login, zurueck wird der Code angelegt; ein unbekannter Code legt nichts an", async () => {
+  const d = await phone({ seed: SEED });
+  await d.style();
+  await d.p.getByText("Einen neuen Code legt man mit bunsenbrenner-Konto an", { exact: false }).waitFor();
+  await d.p.getByLabel("Ich bin 16 oder älter.").check();
+  await Promise.all([d.p.waitForURL(srv.base + "/duell"), d.p.getByRole("button", { name: "Sync-Code anlegen" }).click()]);   // 403 -> /auth/login -> back
+  let s = {};
+  for (let i = 0; i < 80; i++) { s = await d.store(); if (s.profile && s.profile.code && srv.db.get("code:" + s.profile.code)) break; await d.p.waitForTimeout(100); }
+  assert.equal(s.profile.via, "code"); assert.match(s.profile.code, /^[0-9a-f]{32}$/);
+  assert.equal(srv.db.get("code:" + s.profile.code).p.me.nick, "Mira", "made after the login, once");
+  await d.style(); await d.p.getByText("Verbunden per Sync-Code:").waitFor();
+  const e = await phone();
+  await e.style();
+  await e.p.getByPlaceholder("Code von deinem anderen Gerät").fill("ab".repeat(16));
+  await e.p.getByRole("button", { name: "Mit Code verbinden" }).click();
+  await e.p.getByText("Zu diesem Code gibt es kein Profil.", { exact: false }).waitFor();
+  assert.equal(srv.db.get("code:" + "ab".repeat(16)), undefined, "a typo creates nothing");
+  assert.equal((await e.store()).profile, undefined);
+  assert.deepEqual([...d.errs, ...e.errs], []);
+  await d.ctx.close(); await e.ctx.close();
+});
+
 test("App-Huellen: iOS ohne Netz zeigt nur Hinweise und fragt nichts, Android hat den Code, aber kein Konto", async () => {
   const before = srv.log.length;
   const ios = await phone({ seed: SEED, host: "ios" });
@@ -143,7 +169,8 @@ test("App-Huellen: iOS ohne Netz zeigt nur Hinweise und fragt nichts, Android ha
   assert.equal(await ios.p.getByRole("button", { name: /bunsenbrenner-Konto/ }).count(), 0);
   const android = await phone({ seed: SEED, host: "android" });
   await android.style();
-  await android.p.getByRole("button", { name: "Sync-Code anlegen" }).waitFor();
+  await android.p.getByRole("button", { name: "Mit Code verbinden" }).waitFor();
+  assert.equal(await android.p.getByRole("button", { name: "Sync-Code anlegen" }).count(), 0, "a new code needs the login cookie, the shells send none");
   assert.equal(await android.p.getByRole("button", { name: /bunsenbrenner-Konto/ }).count(), 0, "the shells send no cookie");
   assert.equal(srv.log.length, before, "no request from merely opening My style");
   assert.deepEqual([...ios.errs, ...android.errs], []);

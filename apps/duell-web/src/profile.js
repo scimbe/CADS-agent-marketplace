@@ -7,7 +7,7 @@
    A part of its own (konto, scripts/build.js): loaded when My style opens, or at start while linked (app.js konto). */
 (function (root) {
   "use strict";
-  var CODE_RE = /^[a-f0-9]{32}$/, THUMB_MAX = 30000, BODY_MAX = 560000, MAX_WALL = 30, MAX_SAVED = 200, ID_RE = /^[a-z0-9-]{1,40}$/;
+  var CODE_RE = /^[a-f0-9]{32}$/, THUMB_MAX = 30000, BODY_MAX = 100000, MAX_WALL = 30, MAX_SAVED = 200, ID_RE = /^[a-z0-9-]{1,40}$/;
 
   function newCode(bytes) { return Array.from(bytes).map(function (x) { return (x + 256).toString(16).slice(1); }).join(""); }
   function fmtCode(c) { return (c.match(/.{4}/g) || []).join("-"); }
@@ -23,7 +23,7 @@
   // The profile as it goes to the server, from the device store. Newest wall pictures first, inside the size limit.
   function pack(s, via) {
     var me = s.me && typeof s.me === "object" ? s.me : {}, size = 0;
-    var wall = (Array.isArray(s.wall) ? s.wall : []).filter(sendsWall).sort(function (a, b) { return b.ts - a.ts; }).filter(function (e) { size += e.th.length; return size <= BODY_MAX; })
+    var wall = (Array.isArray(s.wall) ? s.wall : []).filter(sendsWall).sort(function (a, b) { return b.ts - a.ts; }).filter(function (e) { size += e.th.length + (typeof e.f === "string" ? e.f.length : 0); return size <= BODY_MAX; })   // the server keeps 128 KB per profile (CADS-DEMO-wrapper #82)
       .map(function (e) { var o = { id: e.id, ts: e.ts, k: e.k, th: e.th }; if (typeof e.f === "string" && e.f.length <= 1200 && /^c=[A-Za-z0-9_-]+={0,2}$/.test(e.f)) o.f = e.f; return o; });   // f: the Merken link, checked as the server does
     var p = { me: { nick: me.nick || "", emoji: me.emoji || "", colors: me.colors || null, set: me.set || "" }, wall: wall, saved: cleanSaved(s.saved).map(function (e) { return { id: e.id, ts: e.ts }; }) };
     if (via === "code" && typeof s.aiDev === "string") { p.ai = { dev: s.aiDev }; if (typeof s.aiProof === "string") p.ai.proof = s.aiProof; }
@@ -114,6 +114,7 @@
         if (w.status === 409) continue;
         if (w.status === 410) { unlink(); onChange(); Kit.toast(t("ac_gone")); return (state = "gone"); }
         if (w.status === 401) return (state = "login");
+        if (w.status === 403 && w.json.error === "code-needs-login") return (state = "codeLogin");   // a new code needs an account (server #82)
         if (w.status !== 200) return (state = w.status === 429 ? "busy" : "error");
         rev = w.json.rev;
       }
@@ -132,6 +133,15 @@
 
   function unlink() { delete Kit.store.profile; plainSave(); state = ""; }
   function startCode(code) { Kit.store.profile = { via: "code", code: code, rev: 0, base: null }; plainSave(); return sync(); }
+  // A new sync code needs a signed-in account (16+, e.g. a parent for a child; the server does not keep who). Not signed in:
+  // the login first; the mark { via: "start" } brings the page back here (app.js loads this part while store.profile is set).
+  async function newCodeNow(rerender) {
+    var b16 = new Uint8Array(16); crypto.getRandomValues(b16);
+    var s = await startCode(newCode(b16));
+    if (s === "ok") { Kit.toast(t("ac_linked")); onChange(); }
+    else { unlink(); if (s === "codeLogin" && canAccount && !rerender.again) { Kit.store.profile = { via: "start", at: Date.now() }; plainSave(); look(); location.href = "/auth/login?return=" + encodeURIComponent("/duell"); return; } Kit.toast(t(s === "codeLogin" ? "ac_codeLogin" : "ac_err")); }
+    if (rerender) rerender();
+  }
 
   // The section in My style. el(tag, cls, text, onClick) is the page's element helper. It redraws itself in place.
   function section(b, el) {
@@ -159,15 +169,17 @@
       if (canCode) {
         box.appendChild(el("label", "lbl", t("ac_code")));
         box.appendChild(el("p", "note", t("ac_codeNote")));
-        box.appendChild(el("button", "btn", t("ac_new"), async function () {
-          var b16 = new Uint8Array(16); crypto.getRandomValues(b16);
-          var s = await startCode(newCode(b16)); Kit.toast(t(s === "ok" ? "ac_linked" : "ac_err")); if (s !== "ok") unlink(); rerender();
-        }));
+        box.appendChild(el("p", "note", t("ac_codeNew")));
+        if (canAccount) {   // creating needs the login cookie: only in the browser on this host, and only after the 16+ statement
+          var mk = el("button", "btn", t("ac_new"), function () { if (cb.checked) newCodeNow(rerender); });
+          mk.disabled = true; cb.addEventListener("change", function () { mk.disabled = !cb.checked; });
+          box.appendChild(mk);
+        }
         var f = el("input", "field"); f.placeholder = t("ac_enter"); f.setAttribute("aria-label", t("ac_enter")); f.autocomplete = "off"; f.spellcheck = false;
         box.appendChild(f);
         box.appendChild(el("button", "btn", t("ac_join"), async function () {
           var c = parseCode(f.value); if (!c) { Kit.toast(t("ac_bad")); return; }
-          var s = await startCode(c); Kit.toast(t(s === "ok" ? "ac_linked" : "ac_err")); if (s !== "ok") unlink(); rerender();
+          var s = await startCode(c); Kit.toast(t(s === "ok" ? "ac_linked" : s === "codeLogin" ? "ac_unknown" : "ac_err")); if (s !== "ok") unlink(); rerender();   // codeLogin here: no profile with this code
         }));
       } else box.appendChild(el("p", "note", t("ac_noCode")));
       return box;
@@ -199,7 +211,11 @@
     }
   }
 
-  // Back from the login page, or a new start while linked: sync once.
+  // Back from the login page, or a new start while linked: sync once. Back from the login for a new code: make it now, once.
   if (link()) setTimeout(sync, 800);
+  else if (Kit.store.profile && Kit.store.profile.via === "start") {
+    var mark = Kit.store.profile; delete Kit.store.profile; plainSave();
+    if (Date.now() - mark.at < 1800000) setTimeout(function () { newCodeNow(Object.assign(function () { var o = document.getElementById("acbox"); if (o) onChange(); }, { again: true })); }, 800);
+  }
   window.Profile = { look: look, section: section, sync: sync, linked: function () { return !!link(); }, onChange: function (f) { onChange = f; } };
 })(typeof globalThis !== "undefined" ? globalThis : this);
