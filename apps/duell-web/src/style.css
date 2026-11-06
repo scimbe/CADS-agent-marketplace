@@ -104,12 +104,13 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 #leaf,.ghost{container-type:size}   /* .ghost: the greyed next day under the sheet, filled by the same code */
 .pv.pic{flex-shrink:1;min-height:0}
 .pv.pic .pvimg{max-height:100%}
-.pv.pic:not([hidden]) ~ .hero{flex:1 1 0;min-height:64px}
+.pv.pic:not(.with):not([hidden]) ~ .hero{flex:1 1 0;min-height:64px}
 @container (max-height:250px){
-  .pv{display:none}.pv:not([hidden]) ~ .hero,.pv.pic:not([hidden]) ~ .hero{flex:1 1 0;min-height:0}
+  .pv:not(.with){display:none}.pv:not([hidden]) ~ .hero,.pv.pic:not(.with):not([hidden]) ~ .hero{flex:1 1 0;min-height:0}
+  .pv.pic.with .pvimg{display:none}   /* something received keeps its drawn card, the picture goes */
   .teaser{margin-top:2px;font-size:15px}
 }
-@container (max-height:140px){.dateline,.teaser,.from{display:none}}
+@container (max-height:140px){.dateline,.teaser,.from{display:none}}   /* the title (or a received card) says more than the date */
 @media (max-height:520px){
   #pad{margin:2px 14px 10px}#leaf,#pad .ghost{padding:18px 12px 8px;overflow:hidden}
   .dateline{flex:none;min-height:0}.dnum{font-size:40px}.dmon{font-size:12px}.burst{width:58px;height:58px;margin-top:-4px;font-size:10px}

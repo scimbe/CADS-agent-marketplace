@@ -41,14 +41,18 @@ test("Alle Bildschirme x de/en: erstes Blatt erst mit dem Katalog-Teil, Hauptkno
 // A card with a picture (the gallery server is played here with a generated JPEG): on a short screen the picture shrinks
 // or steps aside, the main button stays visible without scrolling, nothing lies on it or on the buttons below, and the
 // sheet's text stays on the sheet. Fixed cards, not the card of the day: lob (picture + dice), danke (name field too),
-// lava (a game: drawn preview, no picture).
+// lava (a game: drawn preview, no picture), and a received lob (drawn card with the picture above it).
 test("Karte mit Bild auf allen Bildschirmen: Hauptknopf ohne Scrollen, Bild und Blatt decken keinen Knopf zu", async () => {
   const b = await G.launch(); try {
     const pic = await (async () => { const c = await b.newContext({ viewport: { width: 320, height: 180 } }), p = await c.newPage(); await p.setContent('<body style="margin:0;background:linear-gradient(90deg,#ffd400,#ff3b1d)">'); const j = await p.screenshot({ type: "jpeg", quality: 70 }); await c.close(); return j; })();
-    for (const card of ["karte-lob", "warm-danke", "spiel-lava"]) for (const view of Object.keys(G.VIEWS)) {
+    for (const card of ["karte-lob", "warm-danke", "spiel-lava", "empfangen"]) for (const view of Object.keys(G.VIEWS)) {
       const ctx = await G.person(b, { view, lang: "de" });
       await ctx.route(/^https?:/, (r) => (/\/duell\/img\/[a-z0-9-]+\.jpg$/.test(r.request().url()) ? r.fulfill({ status: 200, headers: { "Content-Type": "image/jpeg", "Access-Control-Allow-Origin": "*" }, body: pic }) : r.abort()));
-      const p = await G.open(ctx, "#i=" + card), at = card + " " + view;
+      const p = await G.open(ctx, card === "empfangen" ? "" : "#i=" + card), at = card + " " + view;
+      if (card === "empfangen") {   // a card someone sent: its drawn card and the picture above it
+        await p.evaluate(() => { const D = window.Daily, d = D.docFromIdea(D.byId("karte-lob"), D.sanitizeProfile({ nick: "Ben" }), "de"); location.hash = D.docUrl(D.withTrail(d, "Ben", ["text"])).split("#")[1]; });
+        await p.locator("#leaf .pv.pic.with").waitFor({ state: "attached" });
+      }
       if (card !== "spiel-lava") await p.waitForFunction(() => document.querySelector("#leaf .pvimg img").complete);
       await p.waitForTimeout(600);   // the sheet's entry animation
       if (view === "phone390" && card !== "spiel-lava") assert.ok(await p.locator("#leaf .pv.pic .pvimg").isVisible(), "das Bild steht auf dem Blatt: " + at);
