@@ -282,7 +282,8 @@ function tear(step) {
   function up(e) {
     if (!on) return; on = false; leaf.classList.remove("drag");
     var dx = e.clientX - sx, dy = e.clientY - sy;
-    if (Math.abs(dx) > 90) { tear(dx > 0 ? -1 : 1); return; }
+    // a cancelled pointer (the browser took it over, its position reads 0,0) only puts the sheet back
+    if (e.type === "pointerup" && Math.abs(dx) > 90) { tear(dx > 0 ? -1 : 1); return; }
     leaf.style.transform = ""; leaf.style.opacity = "";
     // A tap (no move, short, not on a control of the sheet, not while a torn sheet flies) opens the card like #go; a swipe turns the day.
     if (e.type === "pointerup" && !far && Math.abs(dx) < 10 && Math.abs(dy) < 10 && Date.now() - t0 < 500 && t0 > busy && !(e.target.closest && e.target.closest("a,button,input,textarea,select,label"))) start();
@@ -335,7 +336,8 @@ function nudge() {
   var p = $("panel"), all = Array.from(p.querySelectorAll("input:not([type=hidden]),textarea,select,button")).filter(function (x) { return !x.disabled && x.getClientRects().length && !x.closest(".satz"); });
   var g = all.filter(function (x) { return /^(INPUT|TEXTAREA)$/.test(x.tagName) && x.type !== "range" && !x.value; })[0] || all.filter(function (x) { return !x.classList.contains("on"); })[0];
   if (g) { try { g.scrollIntoView({ block: "center" }); } catch (e) {} g.focus({ preventScroll: true }); g.classList.add("nudge"); setTimeout(function () { g.classList.remove("nudge"); }, 700); }
-  var w = $("edwhy"), s = w.textContent; w.textContent = ""; setTimeout(function () { w.textContent = s; }, 60);
+  // said again: empty for a moment, then the reason as it is by then (fields filled meanwhile may have unlocked it)
+  $("edwhy").textContent = ""; setTimeout(function () { if (ed) footer(); }, 60);
 }
 // The line above the link says what the receiver gets: a move to make, a result, or something made for them.
 function shareLine(doc) {
