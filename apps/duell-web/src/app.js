@@ -50,7 +50,7 @@ function fitHero(box) {
 // One calendar sheet: the real one on top and the greyed next day below it are filled by the same code.
 function fillSheet(root, h, still) {
   var q = function (k) { return root.querySelector("." + k); };
-  var d = h.date || today, idea = h.idea, doc = h.doc;
+  var d = h.date || today, idea = h.idea, doc = h.doc && D.localDoc(h.doc, Kit.lang);
   q("dnum").textContent = String(d.getUTCDate()).padStart(2, "0");
   q("dmon").textContent = monthLines(d);
   var title, sub, kind, min;

@@ -36,6 +36,23 @@ test("Wohlfuehlkarte: Name rein, zwei Tipps bis Teilen; Empfaenger sieht die Kar
   assert.deepEqual(errs, []); await b.close();
 });
 
+test("Wohlfuehlkarte auf Deutsch geschickt, Empfaenger tippt English: der Satz steht auf Englisch, der Name bleibt", async () => {
+  const { b, open, errs } = await setup();
+  const s = await open("#i=warm-toll");
+  await s.getByLabel("Für wen? (optional)").fill("Lea");
+  await s.locator("#go").click();
+  await s.locator("#share").filter({ hasText: "Jetzt teilen" }).waitFor();
+  const url = await s.evaluate(() => window.DailyDebug.result().url);
+  const r = await open(url.slice(url.indexOf("#")));
+  await r.locator("#from").filter({ hasText: "für dich" }).waitFor();
+  await r.evaluate(() => { const d = window.Render.draw; window.__x = []; window.Render.draw = function (c, doc) { window.__x.push(doc.x); return d.apply(this, arguments); }; });
+  await r.locator("#langpick button", { hasText: "English" }).click();
+  await r.locator("#from").filter({ hasText: "for you" }).waitFor();
+  assert.equal((await r.evaluate(() => window.__x)).pop(), "Lea, just wanted to tell you: You're awesome.");
+  await r.locator("#langpick button", { hasText: "Deutsch" }).click();
+  assert.equal((await r.evaluate(() => window.__x)).pop(), "Lea, ich wollte dir nur mal sagen: Du bist toll.");
+  assert.deepEqual(errs, []); await b.close();
+});
 test("Wohlfuehlkarte: Beleidigung als Name wird gemeldet und nicht verschickt; Wuerfel laesst sie warm; ruhig ohne Bewegung", async () => {
   const { b, open, errs } = await setup("reduce");
   const s = await open("#i=warm-denke");
