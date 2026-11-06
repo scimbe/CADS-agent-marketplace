@@ -217,27 +217,29 @@ function tickRun() {   // start, or go on from where the strip stands
   if (tr) tr.style.animationDelay = half ? -(lane.scrollLeft % half) / half * 45 + "s" : "";
   tick.run = true; tickSync();
 }
-function tickHalt() {   // stops for good, the buttons stay exactly where they are
+function tickHalt(to) {   // stops for good, the buttons stay exactly where they are (to: a button that got the focus)
   var bar = $("feat"), lane = bar.querySelector(".lane"), tr = bar.querySelector(".track"), was = tick.run && tr, x = 0;
   clearTimeout(tick.timer);
   if (was) { try { x = -new DOMMatrixReadOnly(getComputedStyle(tr).transform).m41; } catch (e) {} bar.classList.add("was"); }
   tick.run = false; tick.stop = true;
   if (was) bar.classList.add("hold");   // no snap in this frame: the buttons stay exactly where they are ...
   tickSync();
-  if (was) { lane.scrollLeft = x; requestAnimationFrame(function () { tickSnap(bar, lane); }); }
+  if (was) { lane.scrollLeft = x; requestAnimationFrame(function () { tickSnap(bar, lane, to); }); } else if (to) tickSnap(bar, lane, to);
 }
-// ... and then glide to the nearest button edge, so the strip rests with a whole button on the left (style.css: snap)
-function tickSnap(bar, lane) {
+// ... and then glide to the nearest button edge (or the focused button), so the strip rests with a whole button on the
+// left (style.css: snap); with reduced motion it jumps there
+function tickSnap(bar, lane, to) {
   var l = lane.getBoundingClientRect().left, d = 1e9, done = function () { bar.classList.remove("hold"); };
-  lane.querySelectorAll("button").forEach(function (b) { var v = b.getBoundingClientRect().left - l; if (Math.abs(v) < Math.abs(d)) d = v; });
+  if (to) d = to.getBoundingClientRect().left - l;
+  else lane.querySelectorAll("button").forEach(function (b) { var v = b.getBoundingClientRect().left - l; if (Math.abs(v) < Math.abs(d)) d = v; });
   if (Math.abs(d) < 1) return done();
   lane.addEventListener("scrollend", done, { once: true }); setTimeout(done, 700);
-  lane.scrollTo({ left: lane.scrollLeft + d, behavior: "smooth" });
+  lane.scrollTo({ left: lane.scrollLeft + d, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 }
 function tickWait() { clearTimeout(tick.timer); if (!tick.run && !tick.stop) tick.timer = setTimeout(tickRun, 3000); }
 (function () {
   $("feat").addEventListener("pointerdown", function (e) { if (!e.target.closest("#tickpause")) tickHalt(); });
-  $("feat").addEventListener("focusin", function (e) { if (!e.target.closest("#tickpause")) tickHalt(); });
+  $("feat").addEventListener("focusin", function (e) { if (!e.target.closest("#tickpause")) tickHalt(e.target.closest(".lane button")); });
   ["pointerdown", "keydown"].forEach(function (e) { document.addEventListener(e, tickWait, true); });
   tickWait();
 })();

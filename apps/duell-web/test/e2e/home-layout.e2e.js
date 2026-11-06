@@ -17,8 +17,8 @@ const VIEWS = {
 // 6 Dec is the feel-good card "Du bist toll" (with the name field), 5 Nov a day card without it.
 const CARDS = { warm: "2026-12-06T10:00:00Z", tag: "2026-11-05T10:00:00Z" };
 
-async function home(b, view, lang, day) {
-  const opt = Object.assign({}, VIEWS[view], { locale: G.LOCALE[lang] });
+async function home(b, view, lang, day, extra) {
+  const opt = Object.assign({}, VIEWS[view], { locale: G.LOCALE[lang] }, extra);
   delete opt.zoom;
   const ctx = await b.newContext(opt);
   await ctx.addInitScript((l) => { localStorage.setItem("daily.v1", JSON.stringify({ lang: l })); }, lang);
@@ -111,6 +111,25 @@ test("Leiste: nach dem Anhalten im Lauf ruht sie mit einem ganzen Knopf am linke
       assert.ok(Math.abs(firstCut(x)) <= 1, at + ": ganzer Knopf links nach dem Anhalten: " + firstCut(x));
       assert.deepEqual(x.hidden, [], at + ": kein Knopf der Leiste verdeckt (Pause-Knopf)");
       assert.deepEqual(await G.covered(p), [], at);
+      assert.deepEqual(p.errs, [], at);
+      await ctx.close();
+    }
+  } finally { await b.close(); }
+});
+
+test("Leiste: ein Chip mit Fokus rueckt an den linken Rand; bei reduzierter Bewegung ohne Gleiten", async () => {
+  const b = await G.launch();
+  try {
+    for (const motion of ["no-preference", "reduce"]) {
+      const { ctx, p } = await home(b, "pixel7", "de", CARDS.tag, { reducedMotion: motion }), at = motion;
+      const n = await p.locator("#feat .lane button:not([aria-hidden])").count();
+      const i = Math.min(3, n - 1), btn = p.locator("#feat .lane button:not([aria-hidden])").nth(i);
+      await btn.focus();
+      if (motion === "reduce") await p.evaluate(() => new Promise((ok) => requestAnimationFrame(() => ok())));   // no glide: there at once
+      else await p.waitForTimeout(700);
+      const x = await p.evaluate((k) => { const l = document.querySelector("#feat .lane"), c = l.querySelectorAll("button:not([aria-hidden])")[k];
+        return { d: c.getBoundingClientRect().left - l.getBoundingClientRect().left, end: l.scrollLeft >= l.scrollWidth - l.clientWidth - 1, cr: c.getBoundingClientRect().right, lr: l.getBoundingClientRect().right }; }, i);
+      assert.ok(Math.abs(x.d) <= 1 || (x.end && x.cr <= x.lr - 15), at + ": Chip mit Fokus links und ganz sichtbar: " + JSON.stringify(x));
       assert.deepEqual(p.errs, [], at);
       await ctx.close();
     }
