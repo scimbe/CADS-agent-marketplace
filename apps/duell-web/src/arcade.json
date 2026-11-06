@@ -37,7 +37,8 @@
     "arc_yourTurn": "Du bist dran.",
     "arc_theirTurn": "Gegner ist dran …",
     "arc_shoot": "Du schießt – wischen!",
-    "arc_keep": "Du hältst – ziehen!"
+    "arc_keep": "Du hältst – ziehen!",
+    "arc_draw": "Unentschieden {a}:{b}!"
   },
   "en": {
     "arcade": "Arcade",
@@ -77,6 +78,7 @@
     "arc_yourTurn": "Your turn.",
     "arc_theirTurn": "Their turn …",
     "arc_shoot": "You shoot – swipe!",
-    "arc_keep": "You keep – drag!"
+    "arc_keep": "You keep – drag!",
+    "arc_draw": "A draw {a}:{b}!"
   }
 }

@@ -170,7 +170,7 @@ test("Schnee: nachgeladen wird nach der Uhr des Werfers, aber eine vorgestellte 
 
 test("Schnee: ein alter Werfer ohne Uhr in den Wuerfen gegen einen neuen Empfaenger verliert keinen ehrlichen Wurf", () => {
   // the older app stamps its position reports (from the smoothing) but not its throws
-  const S = A.side("snow", { seed: "o", serving: false }); S.start();
+  const S = A.side("snow", { seed: "o", serving: false }); S.start(); S.input({ x: 900 });   // out of the line of fire
   let t = 0, i = 0;
   for (let f = 0; f < 60 * 30; f++) {
     t += 1 / 60; S.tick(1 / 60);
@@ -178,4 +178,56 @@ test("Schnee: ein alter Werfer ohne Uhr in den Wuerfen gegen einen neuen Empfaen
     if (f % 60 === 0) S.receive({ t: "throw", i: i++, x: 500, vx: 0 });   // one per second, slower than a reload
   }
   assert.equal(S.rejected, 0);
+});
+
+// Two sides over the bad network (150 ms +-80 ms, 5 % loss resent after 250 ms, one stall: 500 ms or o.stall seconds);
+// o.old: "A" or "B" is an older app that neither sends nor understands "fin"; o.hang: that side's frames hang 0.25 s now and then.
+function overBad(g, seed, o) {
+  o = o || {};
+  const N = require("./netsim.js"), r = N.rng(seed), net = Object.assign({}, N.BAD, o.stall ? { stall: [20, 20 + o.stall] } : {});
+  const ab = N.channel(r, net), ba = N.channel(r, net); let now = 0;
+  const clock = () => now, oldA = o.old === "A", oldB = o.old === "B";
+  const SA = A.side(g, { seed: "d" + seed, serving: true, clock, send: (m) => { if (!(oldA && m.t === "fin")) ab.send(now, m); } });
+  const SB = A.side(g, { seed: "d" + seed, serving: false, clock, send: (m) => { if (!(oldB && m.t === "fin")) ba.send(now, m); } });
+  for (const [S, old] of [[SA, oldA], [SB, oldB]]) if (old) { const rc = S.receive; S.receive = (m) => { if (m.t !== "fin") rc(m); }; }
+  const a = A.bot(g, SA, "a"), b = A.bot(g, SB, "b"); SA.start(); SB.start();
+  let f = 0;
+  for (; f < 60 * 120 && !(SA.over && SB.over); f++) {
+    now += 1 / 60; ba.due(now, (m) => SA.receive(m)); ab.due(now, (m) => SB.receive(m)); a(1 / 60); b(1 / 60);
+    const hang = o.hang && f % 97 === 0 ? 0.25 : 1 / 60;   // a hanging frame: one big step on side A
+    SA.tick(hang); SB.tick(1 / 60); SA.ev.length = 0; SB.ev.length = 0;
+  }
+  return { SA, SB, t: f / 60 };
+}
+function same(SA, SB, what) {
+  assert.ok(SA.over && SB.over, what + " endet");
+  assert.deepEqual(SA.score, [SB.score[1], SB.score[0]], what + ": gleicher Endstand");
+  assert.equal(SA.draw, SB.draw, what);
+  assert.ok(Math.max(...SA.score) <= A.GAMES[SA.g].rules.WIN, what + ": nie ueber WIN " + SA.score);
+}
+test("Doppel-K.o.: beide Seiten enden im schlechten Netz gleich, gleichzeitige letzte Treffer sind ein Unentschieden", () => {
+  let draws = 0;
+  for (const g of ["snow", "panzer"]) for (let seed = 1; seed <= 30; seed++) {
+    const { SA, SB } = overBad(g, seed); same(SA, SB, g + " " + seed); if (SA.draw) draws++;
+  }
+  assert.ok(draws >= 1, "der Doppel-K.o. kommt in den 60 Partien vor und endet unentschieden");
+});
+test("Doppel-K.o. auch nach 4 s Stocken und mit haengenden Bildern: gleich, nie ueber WIN", () => {
+  for (const g of ["snow", "panzer"]) for (let seed = 1; seed <= 15; seed++) {
+    let r = overBad(g, seed, { stall: 4 }); same(r.SA, r.SB, g + " " + seed + " Stocken");
+    r = overBad(g, seed, { hang: true }); same(r.SA, r.SB, g + " " + seed + " Haenger");
+  }
+});
+test("Doppel-K.o. mit einer alten App ohne fin, auf jeder Seite: niemand bleibt haengen", () => {
+  for (const g of ["snow", "panzer"]) for (const old of ["A", "B"]) for (let seed = 1; seed <= 8; seed++) {
+    const { SA, SB } = overBad(g, seed, { old });
+    assert.ok(SA.over && SB.over, g + " alt " + old + " seed " + seed);
+  }
+});
+test("fin gilt nur fuer ein Ende, das sein kann", () => {
+  const S = A.side("snow", { seed: "f", serving: false }); S.start();
+  S.receive({ t: "fin", c: 2 }); S.tick(0.1);
+  assert.equal(S.over, false, "zwei Treffer sind kein Ende");
+  S.receive({ t: "fin", c: 99 });
+  assert.equal(S.over, true); assert.equal(S.score[0], A.SNOW.WIN, "hoechstens WIN");
 });
