@@ -70,7 +70,7 @@ function fillSheet(root, h, still) {
   if (h.note) { from.textContent = h.note; from.hidden = false; } else from.hidden = true;
   if (mode) { from.textContent = mode.note; from.hidden = false; }
   preview(root, doc || D.docFromIdea(idea, me, Kit.lang), still);
-  picture(root, idea, doc, still);
+  picture(root, idea, doc, h.lazy, mode);
   fitHero(hero);
   return { kind: kind, mode: mode, got: got };
 }
@@ -121,27 +121,62 @@ function preview(root, doc, still) {
   } catch (e) { box.hidden = true; }
 }
 // A card of the day may have a picture (AI-made, src/thumbs.json): it comes from the gallery server, never inside this file,
-// and stands in for the drawn preview once it has loaded. Not for games, not on the greyed sheet, not for something
-// received, not with Save-Data; offline or missing, the sheet stays as it is. No cookies go along (crossOrigin).
-var THUMBS = window.DailyThumbs || [], picFor = null;
+// and stands in for the drawn preview once it has loaded (on the greyed sheet too). Something received keeps its drawn
+// card and shows the picture above it, never when the sender used an own photo. Not for games (not in the list), not with
+// Save-Data; offline or missing, the sheet stays as it is. No cookies go along (crossOrigin).
+var THUMBS = window.DailyThumbs || [];
 function thumbUrl(id) { return new URL(C.DEFAULT_API).origin + "/duell/img/" + id + ".jpg"; }
 function saveData() {
   try { var c = navigator.connection; return !!(c && c.saveData) || !!(window.matchMedia && matchMedia("(prefers-reduced-data: reduce)").matches); } catch (e) { return false; }
 }
-function picture(root, idea, doc, still) {
-  var box = root.querySelector(".pv"), f = root.querySelector(".pvimg"), img = f && f.querySelector("img");
-  if (!img) return;
-  box.classList.remove("pic");
-  var id = !still && idea && !doc && THUMBS.indexOf(idea.id) >= 0 && !saveData() ? idea.id : null;
-  if (!still) picFor = id;
+function picId(id) { return id && THUMBS.indexOf(id) >= 0 && !saveData() ? id : null; }
+function docPic(doc) { return doc && !(doc.by || []).some(function (e) { return (e.w || []).indexOf("foto") >= 0; }) ? doc.i : null; }
+// box gets "pic" once the picture of id is there; box._pic is the id it waits for, box._go starts a lazy load.
+function loadPic(box, f, id, lazy) {
+  var img = f.querySelector("img"); box._pic = id; box._go = null; box.classList.remove("pic");
   if (!id) return;
   f.querySelector(".kitag").textContent = t("aiPic");
-  img.onload = function () { if (picFor === id && !box.hidden) { box.classList.add("pic"); fitHero(root.querySelector(".hero")); } };   // the title's room changed
-  img.onerror = function () { if (picFor === id) box.classList.remove("pic"); };
-  img.crossOrigin = "anonymous"; img.referrerPolicy = "no-referrer";
+  img.onload = function () {
+    if (box._pic !== id || box.hidden) return;
+    box.classList.add("pic");
+    var hero = box.classList.contains("pv") && box.parentNode.querySelector(".hero"); if (hero) fitHero(hero);   // the title's room changed
+  };
+  img.onerror = function () { if (box._pic === id) box.classList.remove("pic"); };
+  // set once: changing either attribute makes the browser load the picture anew
+  if (img.getAttribute("crossorigin") !== "anonymous") img.crossOrigin = "anonymous";
+  if (img.getAttribute("referrerpolicy") !== "no-referrer") img.referrerPolicy = "no-referrer";
   // Only after the page has loaded: a network that silently drops the request must not hold up the page's load.
-  var go = function () { if (picFor !== id) return; if (img.getAttribute("src") !== thumbUrl(id)) img.src = thumbUrl(id); else if (img.complete && img.naturalWidth) img.onload(); };
-  if (document.readyState === "complete") go(); else window.addEventListener("load", go, { once: true });
+  var go = function () { if (box._pic !== id) return; if (img.getAttribute("src") !== thumbUrl(id)) img.src = thumbUrl(id); else if (img.complete && img.naturalWidth) img.onload(); };
+  if (lazy) box._go = go; else if (document.readyState === "complete") go(); else window.addEventListener("load", go, { once: true });
+}
+function picture(root, idea, doc, lazy, mode) {
+  var box = root.querySelector(".pv"), f = root.querySelector(".pvimg");
+  if (!f) return;
+  box.classList.toggle("with", !!doc);
+  loadPic(box, f, picId(!doc ? idea && idea.id : !mode && docPic(doc)), lazy);
+}
+// In the editor the picture stays above the card; the user's own photo takes its place once taken.
+function edPic() {
+  var w = $("stagewrap"), id = ed && !ed.ownPhoto && !cv.hidden ? picId(docPic(ed.doc)) : null;
+  if (!id || w._pic !== id) loadPic(w, $("edpic"), id);
+}
+// The finished picture carries it too, above the card, when it can be drawn without tainting the canvas (CORS image on
+// the web and in the Android shell; the iOS shell blocks the network, so there is none). Anything wrong: the card alone.
+function withPic(c, doc) {
+  var id = !(ed && ed.ownPhoto) && picId(docPic(doc)), img = id && [$("edpic"), document.querySelector("#leaf .pvimg")].map(function (f) { return f.querySelector("img"); })
+    .filter(function (i) { return i.complete && i.naturalWidth && i.getAttribute("src") === thumbUrl(id); })[0];
+  if (!img) return c;
+  try {
+    var o = document.createElement("canvas"), x = o.getContext("2d"), W = c.width, H = c.height, ink = "#111";
+    var pw = Math.round(W * 2 / 3), ph = Math.round(pw * 9 / 16), px = Math.round((W - pw) / 2), py = 40, cy = py + ph + 46, ch = H - cy - 40, cw = Math.round(ch * W / H), cx = Math.round((W - cw) / 2);
+    o.width = W; o.height = H; x.fillStyle = doc.col[0]; x.fillRect(0, 0, W, H);
+    x.fillStyle = ink; x.fillRect(px + 6, py + 9, pw + 9, ph + 9); x.fillRect(px - 9, py - 9, pw + 18, ph + 18); x.drawImage(img, px, py, pw, ph);
+    x.font = "700 34px system-ui, sans-serif"; var tw = x.measureText(t("aiPic")).width;
+    x.fillRect(px + pw - tw - 42, py + ph - 66, tw + 28, 50); x.fillStyle = "#fff"; x.textBaseline = "middle"; x.fillText(t("aiPic"), px + pw - tw - 28, py + ph - 41);
+    x.fillStyle = ink; x.fillRect(cx + 3, cy + 6, cw + 9, ch + 9); x.fillRect(cx - 9, cy - 9, cw + 18, ch + 18); x.drawImage(c, cx, cy, cw, ch);
+    x.getImageData(0, 0, 1, 1);   // throws on a tainted canvas
+    return o;
+  } catch (e) { return c; }
 }
 // A flavor (the business app) may show only some of these buttons.
 function shown(k) { var F = window.DailyFlavor; return !F || !F.feats || F.feats.indexOf(k) >= 0; }
@@ -219,15 +254,22 @@ function nextSheet(step) {
   return (upcoming[step] = { after: page, page: p, date: d, idea: D.ideaForDay(d) || D.randomIdea(Math.random, "") });
 }
 // While the sheet is pulled, the one below already is the day it turns to: the same sheet, only greyed out.
-function peek(step) {
+function peek(step, lazy) {
   var under = document.querySelector("#pad .u1"), g = under.querySelector(".ghost");
   if (!g) {
-    g = $("leaf").cloneNode(true); g.removeAttribute("id"); g.removeAttribute("style"); g.className = "ghost"; g.setAttribute("aria-hidden", "true");
-    g.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); }); under.appendChild(g);
+    // copied through a document without a window and without src: a cloned <img> would fetch today's picture again
+    var c = document.implementation.createHTMLDocument("").importNode($("leaf"), true);
+    c.querySelectorAll("img").forEach(function (x) { x.removeAttribute("src"); });
+    g = document.importNode(c, true); g.removeAttribute("id"); g.removeAttribute("style"); g.className = "ghost"; g.setAttribute("aria-hidden", "true");
+    g.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); });
+    under.appendChild(g);
   }
-  var n = nextSheet(step); fillSheet(g, { date: n.date, idea: n.idea }, true);
+  var n = nextSheet(step); fillSheet(g, { date: n.date, idea: n.idea, lazy: lazy }, true);
 }
+function wake() { var b = document.querySelector("#pad .ghost .pv"), go = b && b._go; if (go) { b._go = null; go(); } }   // the greyed sheet's picture once it shows
+var busy = 0;   // until then the sheet is torn off and the next one lands: a tap there is no choice
 function tear(step) {
+  busy = Date.now() + 760;
   var leaf = $("leaf"), dir = step < 0 ? 1 : -1; Kit.rip(); Kit.haptic(18);   // forward flies off to the left, back to the right
   leaf.className = "gone"; leaf.style.transform = "translate(" + dir * 130 + "%,-20%) rotate(" + dir * 26 + "deg)";
   setTimeout(function () {
@@ -236,18 +278,21 @@ function tear(step) {
   }, 300);
 }
 (function drag() {
-  var leaf = $("leaf"), sx = 0, sy = 0, on = false, last = 0, shown = 0;
-  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; shown = 1; try { peek(1); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
+  var leaf = $("leaf"), sx = 0, sy = 0, on = false, t0 = 0, far = false, shown = 0;
+  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; t0 = Date.now(); far = false; shown = 1; try { peek(1, true); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
   leaf.addEventListener("pointermove", function (e) {
     if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy, step = dx > 0 ? -1 : 1;
-    if (Math.abs(dx) > 8 && step !== shown) { shown = step; try { peek(step); } catch (x) {} }
+    if (Math.abs(dx) >= 10 || Math.abs(dy) >= 10) far = true;   // moved once: never a tap, even when let go where it began
+    if (Math.abs(dx) > 8) { try { if (step !== shown) { shown = step; peek(step); } else wake(); } catch (x) {} }
     leaf.style.transform = "translate(" + dx + "px," + dy * 0.4 + "px) rotate(" + dx / 16 + "deg)"; leaf.style.opacity = String(1 - Math.min(0.7, Math.abs(dx) / 220)); });
   function up(e) {
     if (!on) return; on = false; leaf.classList.remove("drag");
     var dx = e.clientX - sx, dy = e.clientY - sy;
-    if (Math.abs(dx) > 90) { tear(dx > 0 ? -1 : 1); return; }
+    // a cancelled pointer (the browser took it over, its position reads 0,0) only puts the sheet back
+    if (e.type === "pointerup" && Math.abs(dx) > 90) { tear(dx > 0 ? -1 : 1); return; }
     leaf.style.transform = ""; leaf.style.opacity = "";
-    if (Math.abs(dx) < 12 && Math.abs(dy) < 12) { var now = Date.now(); if (now - last < 400) { last = 0; start(); } else last = now; }   // a double tap opens the card, a swipe turns the day
+    // A tap (no move, short, not on a control of the sheet, not while a torn sheet flies) opens the card like #go; a swipe turns the day.
+    if (e.type === "pointerup" && !far && Math.abs(dx) < 10 && Math.abs(dy) < 10 && Date.now() - t0 < 500 && t0 > busy && !(e.target.closest && e.target.closest("a,button,input,textarea,select,label"))) start();
   }
   leaf.addEventListener("pointerup", up); leaf.addEventListener("pointercancel", up);
 })();
@@ -262,7 +307,7 @@ function paint() {
   timer = 0; if (!ed) return;
   ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1]);
   if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks, x: ed.x, lyr: ed.lyr }); }
-  SK.sync(); footer(); CU.local(); saveMark();
+  edPic(); SK.sync(); footer(); CU.local(); saveMark();
 }
 function changed() {           // every control ends up here: redraw within the next moment
   if (!timer) timer = setTimeout(paint, 16);
@@ -297,7 +342,8 @@ function nudge() {
   var p = $("panel"), all = Array.from(p.querySelectorAll("input:not([type=hidden]),textarea,select,button")).filter(function (x) { return !x.disabled && x.getClientRects().length && !x.closest(".satz"); });
   var g = all.filter(function (x) { return /^(INPUT|TEXTAREA)$/.test(x.tagName) && x.type !== "range" && !x.value; })[0] || all.filter(function (x) { return !x.classList.contains("on"); })[0];
   if (g) { try { g.scrollIntoView({ block: "center" }); } catch (e) {} g.focus({ preventScroll: true }); g.classList.add("nudge"); setTimeout(function () { g.classList.remove("nudge"); }, 700); }
-  var w = $("edwhy"), s = w.textContent; w.textContent = ""; setTimeout(function () { w.textContent = s; }, 60);
+  // said again: empty for a moment, then the reason as it is by then (fields filled meanwhile may have unlocked it)
+  $("edwhy").textContent = ""; setTimeout(function () { if (ed) footer(); }, 60);
 }
 // The line above the link says what the receiver gets: a move to make, a result, or something made for them.
 function shareLine(doc) {
@@ -664,6 +710,7 @@ async function finish(doc, idea, pictureDoc) {
   var c = document.createElement("canvas"); c.width = 1080; c.height = 1350;
   R.exporting = true;
   try { R.draw(c, pictureDoc || doc, { me: me, photo: ed && ed.photo, peaks: ed && ed.peaks }); } finally { R.exporting = false; }
+  c = withPic(c, doc);
   var png = await makeBlob(c), file = png, name = "my-daily-idea.png";
   if (doc.k === "sound") {
     var pcm = doc.m === "beat" ? beatPcm(2) : (ed.pcm || S.warp(S.dummyVoice(), doc.fx));
@@ -1113,7 +1160,7 @@ var CU = window.CollabUI.init({
 var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
-window.DailyApp = { aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { picFor = null; document.querySelector("#leaf .pv").classList.remove("pic"); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 /* test hook, used by browser checks: read-only snapshot */
 window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); }, collab: function () { return CU.engine(); } };

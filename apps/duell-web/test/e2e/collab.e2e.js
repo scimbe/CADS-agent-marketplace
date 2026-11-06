@@ -166,7 +166,7 @@ test("Fremde Nachrichten: Markup im Namen und Text wird nie Markup, die Seite la
   for (const f of evil) await b.push({ t: "msg", body: JSON.stringify(f) });
   await b.push({ t: "msg", body: "not json" }); await b.push({ t: "msg", body: "x".repeat(70000) }); await b.push({ t: "text", text: "Freitext" });
   assert.equal(await b.page.evaluate(() => window.__pwned), undefined);
-  assert.equal(await b.page.evaluate(() => document.querySelectorAll("#editor img, #cobar img, #cobar b").length), 0);
+  assert.equal(await b.page.evaluate(() => [...document.querySelectorAll("#editor img, #cobar img, #cobar b")].filter((e) => !e.closest("#edpic")).length), 0);   // #edpic: the card's own AI picture
   assert.ok(!(await doc(b)).x.includes("<"));
   assert.ok(!(await b.page.textContent("body")).includes("Freitext"));
   assert.deepEqual(b.errors, []);
