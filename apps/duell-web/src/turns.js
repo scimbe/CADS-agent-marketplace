@@ -1134,6 +1134,7 @@
   function distinct(a) { return new Set(a).size === a.length; }
   function okAnswer(p, v, doc, lang, m, now) {
     if (p.bytes && Array.isArray(v) && new TextEncoder().encode(v.join("")).length > p.bytes) return false;   // the whole game has to fit into the link
+    if (p.check) return !!p.check(v, doc, m || [], now || []);   // a prompt of a card from the part turnzwei checks itself (src/feier.js)
     if (p.w === "show" || p.w === "touch" || p.w === "clock" || p.w === "blow") return v === 0;
     if (p.w === "hunt") return intIn(v, 1, p.max);
     if (p.w === "drop") return intIn(v, 0, p.max);

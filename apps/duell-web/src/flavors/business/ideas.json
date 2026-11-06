@@ -382,6 +382,27 @@
     "f": "heart",
     "grip": "geschenk"
    }
+  },
+  {
+   "tags": ["weihnachtsfeier","jahresabschlussfeier","betriebsfeier","firmenfeier","feier","termin","ort","kosten","pro kopf","freibetrag","barrierefrei","essen","christmas party","year-end party","office party","company party","scheduling","venue","cost per head","accessible","food"],
+   "needs": ["crypto"],
+   "id": "biz-weihnachtsfeier",
+   "kind": "turn",
+   "min": 120,
+   "on": "11-16",
+   "de": {
+    "t": "Weihnachtsfeier|planen",
+    "s": "Termin, Ort und Kosten pro Kopf in einem Link."
+   },
+   "en": {
+    "t": "Plan the|holiday party",
+    "s": "Date, place and cost per head in one link."
+   },
+   "turn": {
+    "g": "feier",
+    "f": "star",
+    "grip": "abend"
+   }
   }
  ],
  "gated": []
