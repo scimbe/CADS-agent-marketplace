@@ -16,6 +16,9 @@ if (flavor && !has("flavor.json")) throw new Error("Unbekannter Flavor: " + flav
 const over = (base, f) => { if (has(f)) { const o = json(fl(f)); for (const l of Object.keys(o)) Object.assign(base[l], o[l]); } return base; };
 const conf = flavor ? json(fl("flavor.json")) : null, texts = over(json("src/texts.json"), "texts.json"), turnData = json("src/turn.json");
 over(turnData.text, "turn.json");
+// The thumbs' words (vote_*) travel with their part (stimme), not in the core.
+const voteTexts = {};
+for (const l of Object.keys(texts)) { voteTexts[l] = {}; for (const k of Object.keys(texts[l]).filter((x) => /^vote_/.test(x))) { voteTexts[l][k] = texts[l][k]; delete texts[l][k]; } }
 // A flavor may list cards whose game another branch still brings (termin, sammeln): until it is there, they stay out.
 require("../src/office.js"); require("../src/quizspiele.js");
 if (has("games.js")) require("../" + fl("games.js"));   // games only this flavor has (business: Secret Santa), before its catalog is filtered
@@ -56,11 +59,13 @@ const PARTS = {
   turnzwei: { d: ["katalog"], src: ["SIEGEL", "GESCHENKE", "TURN2", "FEIERDATA", "FEIER", "FEIERUI"] },   // "turn2" of the card plan: rules and widgets of the new turn cards (src/turn2.js), gift ideas (src/geschenke.js), device keys (src/siegel.js), the party poll (src/feier.js)
   logik: { d: [], src: ["LOGIK"] },                                                                    // puzzle generators, e.g. Sudoku (src/logik.js)
   daten: { d: [], src: ["KALENDERDATA", "KALENDER"] },                                                 // public and school holidays (src/kalender.json)
+  stimme: { d: [], src: ["STIMMEDATA", "STAT", "STIMMEUI"] },                                          // thumbs on the sheet and the card numbers (src/stimme-ui.js, src/stat.js)
 };
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
 if (has("biz-ui.js")) { PARTS.biz = { d: [], src: ["BIZ", "BIZUI"] }; parts.BIZ = read("src/biz.js"); parts.BIZUI = read(fl("biz-ui.js")); }
 parts.KATALOG = "window.DuellIdeasFull=" + JSON.stringify(catalog) + ";window.Daily&&window.Daily.fill();";
 parts.TURN2 = read("src/turn2.js"); parts.SIEGEL = read("src/siegel.js"); parts.GESCHENKE = "window.GeschenkeData=" + JSON.stringify(json("src/geschenke.json")) + ";" + read("src/geschenke.js"); parts.FEIERDATA = "window.FeierData=" + JSON.stringify(json("src/feier.json")) + ";"; parts.FEIER = read("src/feier.js"); parts.FEIERUI = read("src/feier-ui.js"); parts.LOGIK = read("src/logik.js"); parts.KALENDER = read("src/kalender.js");
+parts.STIMMEUI = read("src/stimme-ui.js"); parts.STIMMEDATA = "window.StimmeTexts=" + JSON.stringify(voteTexts) + ";" + merge("StimmeTexts");
 parts.KALENDERDATA = "window.KalenderData=" + JSON.stringify(json("src/kalender.json")) + ";";
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
 parts.TEXTE = read("src/texte.js");
@@ -77,7 +82,7 @@ let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + 
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
 // code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
-const KEEP = new Set(["DATA", "FEIERDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA"]);
+const KEEP = new Set(["DATA", "STIMMEDATA", "FEIERDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA"]);
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "")).join("\n");
 const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));

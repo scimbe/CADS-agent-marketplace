@@ -87,34 +87,13 @@ function setHome(h, animate) {
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
   WM.sheet(h, s.got, animate);
   langPick(!!h.note);
-  votes();
-  // A received card counts once per link on this device (short link id, else a hash of the card).
-  if (h.doc && h.note) { window.Stat.open(store, h.doc, h.link || "h" + C.hash32(docFragment(h.doc))); Kit.save(); }
+  stimme(function (S) { S.sheet(h); }, h);
 }
-// Thumbs up or down for the day's card and for a received one. Only votes of signed-in accounts count (src/stat.js): a vote
-// shows as given only once the server took it; without an account a short line links to the sign-in. No counts shown;
-// a second tap takes it back.
-function voteCard() { var h = home; return !window.Stat.off() && h && (h.doc ? h.note && h.doc.i && h.doc : h.idea); }
-var voting = false, voteHint = 0;
-function votes(why) {
-  var c = voteCard(), v = c ? ((store.votes || {})[c.i || c.id] | 0) : 0, a = $("votelogin");
-  $("votes").hidden = !c; $("votes").setAttribute("aria-label", t("vote_q"));
-  [["voteup", 1, "vote_up"], ["votedown", -1, "vote_down"]].forEach(function (b) { var e = $(b[0]); e.setAttribute("aria-label", t(b[2])); e.title = t(b[2]); e.setAttribute("aria-pressed", String(v === b[1])); });
-  // login: the sign-in of the API host, as in ai.js (the app shells send no cookie: no link there); dup/full: changed often today
-  var hint = why === "login" ? "vote_login" : why === "dup" || why === "full" ? "vote_often" : "";
-  clearTimeout(voteHint); a.hidden = !hint; a.textContent = hint ? t(hint) : "";
-  if (hint !== "vote_login" || window.DuellHost) a.removeAttribute("href"); else a.href = (location.protocol === "https:" ? "" : new URL(C.DEFAULT_API).origin) + "/auth/login?return=" + encodeURIComponent("/duell");
-  if (hint) voteHint = setTimeout(function () { a.hidden = true; }, 8000);
+// Thumbs and card numbers live in the part "stimme" (src/stimme-ui.js, src/stat.js); a flavor with stat: false has neither.
+function stimme(fn, h) {
+  var F = window.DailyFlavor; if (F && F.stat === false) return;
+  window.Parts.need("stimme").then(function () { if (!h || h === home) fn(window.Stimme); }, function () {});
 }
-[["voteup", 1], ["votedown", -1]].forEach(function (b) {
-  $(b[0]).addEventListener("click", async function () {
-    var c = voteCard(); if (!c || voting) return;
-    Kit.sfx.tap();
-    if (window.DuellHost) { votes("login"); return; }
-    voting = true;
-    try { var r = await window.Stat.vote(store, c, b[1]); Kit.save(); votes(r.why); } finally { voting = false; }
-  });
-});
 // An invitation shows its languages before the first tap, each in its own name ("Deutsch", "English").
 function langPick(on) {
   var box = $("langpick");
@@ -784,7 +763,7 @@ $("playit").addEventListener("click", function () { ed = result.keep; ed.sel = -
 async function shortLink() {
   if (!result.link) {
     result.link = await window.ShortLink.shorten(result.url, { k: result.kind, l: Kit.lang }, store);
-    window.Stat.share(result.doc);   // the card's id and what the last person changed, nothing else (src/stat.js)
+    var doc = result.doc; stimme(function (S) { S.share(doc); });   // the card's id and what the last person changed, nothing else (src/stat.js)
     var mine = result.link.short && store.links.filter(function (e) { return e.id === result.link.id; })[0];
     if (mine && result.canvas) { mine.th = tinyThumb(result.canvas); mine.k = result.kind; }   // only on this phone, for the list of invitations
     Kit.save();
