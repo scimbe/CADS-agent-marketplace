@@ -46,3 +46,13 @@ test("W4: das Siegel einer freien Karte behaelt den Ersteller-Tag o, aber nur ne
   assert.equal(D.sanitizeKi({ ...ki, o: "<b>" }).o, undefined);
   assert.equal(D.sanitizeDoc({ k: "card", x: "Hi", ki }).ki.o, "O".repeat(22));
 });
+
+test("docUrl: bei einer freien Karte faellt der Hash h zuletzt weg, bei anderen Karten wie bisher zuerst", () => {
+  const q = (i) => ["Frage " + i + " " + "ä".repeat(10), "Antwort " + "ö".repeat(30), "Falsch eins " + i, "Falsch zwei " + i, "Falsch drei " + i];
+  const big = { k: "turn", g: "quiz", seed: 1, q: "", f: "bolt", t: "T".repeat(40), s: "S".repeat(70), by: [{ n: "Lea", w: ["text"] }], pk: { t: "Quiz", m: "l", q: [1, 2, 3, 4].map(q) } };
+  assert.ok(D.sanitizeDoc(big).pk, "the pack is valid");
+  const ki = { s: "s2.karte.abc." + "S".repeat(32), h: "H".repeat(43) };
+  const dec = (u) => JSON.parse(Buffer.from(u.split("#c=")[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8")).d;
+  const free = dec(D.docUrl({ ...big, ki: { k: "karte", ...ki } })), other = dec(D.docUrl({ ...big, ki: { k: "welt", ...ki } }));
+  assert.equal(free.ki.h, ki.h, "Hash bleibt"); assert.equal(free.s, undefined, "dafuer faellt s"); assert.equal(other.ki.h, undefined, "andere Karten wie bisher");
+});
