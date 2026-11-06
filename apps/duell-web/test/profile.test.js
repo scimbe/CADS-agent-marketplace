@@ -90,3 +90,11 @@ test("Vom Server: Wand und Gemerktes werden geprueft wie auf dem Geraet, Fotower
   assert.deepEqual(ch.saved, [{ id: "quiz-chaos", ts: 1 }]);
   assert.equal(ch.aiDev, "5e".repeat(16)); assert.equal(ch.aiProof, undefined);
 });
+
+test("Merken: der Link f reist mit (Server: CADS-DEMO-wrapper #82), ein gemerktes Fotowerk bleibt auf dem Geraet", () => {
+  const s = { me, wall: [{ id: "own", ts: 3, k: "card", th: TH, f: "c=eyJrIjoiY2FyZCJ9" }, { id: "own", ts: 2, k: "photo", th: TH, f: "c=eyJrIjoicGhvdG8ifQ" }, { id: "own", ts: 1, th: TH, f: "c=old" }] };
+  assert.deepEqual(P.pack(s, "code").wall, [{ id: "own", ts: 3, k: "card", th: TH, f: "c=eyJrIjoiY2FyZCJ9" }], "kind photo and entries without kind stay here");
+  const ch = P.merge({ me, wall: [] }, { me, wall: P.pack(s, "code").wall, saved: [] }, null, "code");
+  assert.equal(ch.wall[0].f, "c=eyJrIjoiY2FyZCJ9", "the second device gets the link");
+  assert.deepEqual(D.sanitizeWall(ch.wall)[0], { id: "own", ts: 3, th: TH, f: "c=eyJrIjoiY2FyZCJ9", k: "card" });
+});

@@ -807,7 +807,7 @@ $("edsave").addEventListener("click", function () {
     var c = document.createElement("canvas"); c.width = 540; c.height = 675;
     if (ed.doc.k === "game") { var g = $("demo"); c.getContext("2d").drawImage(g, 0, 0, c.width, c.height); }
     else R.draw(c, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks });
-    wall = D.addToWall(wall, { id: ed.doc.i || "own", ts: Date.now(), th: thumb(c), f: f }); Kit.toast(t("saved"));
+    wall = D.addToWall(wall, { id: ed.doc.i || "own", ts: Date.now(), th: thumb(c), f: f, k: ed.doc.k === "photo" || ed.photo ? "photo" : ed.doc.k }); Kit.toast(t("saved"));   // k: a photo work never leaves the device (profile.js)
   }
   store.wall = wall; Kit.save(); saveMark();
 });

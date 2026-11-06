@@ -24,7 +24,7 @@
   function pack(s, via) {
     var me = s.me && typeof s.me === "object" ? s.me : {}, size = 0;
     var wall = (Array.isArray(s.wall) ? s.wall : []).filter(sendsWall).sort(function (a, b) { return b.ts - a.ts; }).filter(function (e) { size += e.th.length; return size <= BODY_MAX; })
-      .map(function (e) { return { id: e.id, ts: e.ts, k: e.k, th: e.th }; });
+      .map(function (e) { var o = { id: e.id, ts: e.ts, k: e.k, th: e.th }; if (typeof e.f === "string" && e.f.length <= 1200 && /^c=[A-Za-z0-9_-]+={0,2}$/.test(e.f)) o.f = e.f; return o; });   // f: the Merken link, checked as the server does
     var p = { me: { nick: me.nick || "", emoji: me.emoji || "", colors: me.colors || null, set: me.set || "" }, wall: wall, saved: cleanSaved(s.saved).map(function (e) { return { id: e.id, ts: e.ts }; }) };
     if (via === "code" && typeof s.aiDev === "string") { p.ai = { dev: s.aiDev }; if (typeof s.aiProof === "string") p.ai.proof = s.aiProof; }
     return p;
