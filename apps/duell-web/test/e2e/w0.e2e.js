@@ -97,7 +97,8 @@ test("Ohne Katalog-Teil (Web, Datei fehlt): das Blatt steht trotzdem, als Karte 
 test("Mein Stil: Schriftgroesse normal / gross / sehr gross setzt --fs, bleibt nach dem Neuladen, de und en", async () => {
   const b = await G.launch(); try {
     for (const [lang, big, huge] of [["de", "Groß", "Sehr groß"], ["en", "Large", "Extra large"]]) {
-      const ctx = await G.person(b, { view: "phone390", lang }), p = await G.open(ctx, "");
+      // web: the page is reloaded and must find what it stored (see lib/grund.js webUrl)
+      const ctx = await G.person(b, { view: "phone390", lang, web: true }), p = await G.open(ctx, "");
       await p.locator("#me").click();
       await p.locator("#shbody .chip.fs").first().waitFor();
       if (lang === "de") { await p.locator("#shbody .chip.fs").first().scrollIntoViewIfNeeded(); await snap(p, "stil-normal"); }

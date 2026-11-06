@@ -7,7 +7,8 @@
 const fs = require("fs"), path = require("path"), crypto = require("crypto");
 const { execFileSync } = require("child_process");
 const root = path.join(__dirname, "..");
-const INPUTS = ["src", "licenses", "scripts/build.js", "node_modules/@fontsource/anton/files/anton-latin-400-normal.woff2"];
+// Everything scripts/build.js reads: own sources, licences, the build itself, the embedded font and the QR code library.
+const INPUTS = ["src", "licenses", "scripts/build.js", "node_modules/@fontsource/anton/files/anton-latin-400-normal.woff2", "node_modules/qrcode-generator/qrcode.js"];
 function files(p) {
   const abs = path.join(root, p);
   if (!fs.existsSync(abs)) return [];

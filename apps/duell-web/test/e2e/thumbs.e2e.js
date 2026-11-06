@@ -13,7 +13,7 @@ const MAIN = "file://" + path.join(root, "dist/index.html"), BIZ = "file://" + p
 const IMG = /^https:\/\/demos-34a13a96\.bunsenbrenner\.org\/duell\/img\/([a-z0-9-]+)\.jpg$/;
 const shot = process.env.SHOT_DIR, dir = process.env.THUMB_DIR;
 const GAMES = ["turn", "arcade", "game", "table", "duel"];
-ensureBuilt("business");   // dist as npm run test:e2e built it; a build only after an edit
+ensureBuilt(""); ensureBuilt("business");   // dist as npm run test:e2e built it; a build only after an edit
 
 let fixture = null;
 async function setup(server) {
@@ -199,14 +199,18 @@ test("Tap auf das Blatt: Tap oeffnet, Swipe blaettert ohne zu oeffnen, Tap waehr
   // the landed sheet (what the guard is for) or, more than 760 ms later, a sheet that rightly opened. Now the page's
   // clock stands still from the swipe to the tap, and the tap goes onto the landed sheet: it starts, for the app, at
   // the instant of the tear, like a quick finger, and only the guard keeps the card closed.
-  await p.evaluate(() => { const t = Date.now(); window.__realNow = Date.now; Date.now = () => t; });
+  // A second tap at t+800 ms on the same stopped clock checks the other end: by then the guard is over and the card opens.
+  await p.evaluate(() => { window.__t = Date.now(); window.__dt = 0; window.__realNow = Date.now; Date.now = () => window.__t + window.__dt; });
   await p.mouse.move(cx, cy); await p.mouse.down(); await p.mouse.move(cx - 80, cy, { steps: 5 }); await p.mouse.move(cx - 150, cy, { steps: 5 }); await p.mouse.up();
   await p.waitForFunction((d) => window.DailyApp.home().date.toISOString().slice(0, 10) !== d && !document.getElementById("leaf").classList.contains("gone"), d0);
-  await p.mouse.click(cx, cy);   // onto the landed sheet, still within the 760 ms
-  await p.evaluate(() => { Date.now = window.__realNow; });
-  await p.waitForTimeout(900);   // nothing may open: give a wrongly counted tap the time to show (and let the sheet land)
+  await p.mouse.click(cx, cy);   // onto the landed sheet, at t: within the 760 ms
+  await p.waitForTimeout(900);   // nothing may open: give a wrongly counted tap the time to show
   assert.ok(await p.locator("#home").isVisible(), "Swipe + Tap im Flug: kein Editor");
   assert.notEqual(await day(), d0, "geblaettert");
+  await p.evaluate(() => { window.__dt = 800; });
+  await p.mouse.click(cx, cy); await p.locator("#editor").waitFor({ state: "visible" });   // at t+800 ms: the guard is over
+  await p.evaluate(() => { Date.now = window.__realNow; });
+  await p.locator("#edback").click(); await p.locator("#home").waitFor({ state: "visible" });
   // the button inside the sheet area is no tap on the sheet; a plain tap opens like #go
   await p.mouse.click(cx, cy); await p.locator("#editor").waitFor({ state: "visible" });
   await p.locator("#edback").click(); await p.locator("#home").waitFor({ state: "visible" });

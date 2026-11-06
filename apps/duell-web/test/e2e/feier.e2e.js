@@ -135,10 +135,11 @@ test("Vier Geraete, de und en: versiegelt abstimmen, Orga sieht erst ab fuenf Su
     assert.deepEqual(P4.state[0], P1.state[0]); assert.deepEqual(P4.state[1], P1.state[1], "Termine und Orte wie angelegt, ohne Zaehler");
     assert.deepEqual([P4.state[2][2], P4.state[2][3].length / 56, P4.state[2][4]], [3, 3, 0], "drei Antworten, drei Bloecke, kein Ende");
     assert.equal(P4.state[2][3].slice(0, 112), P3.state[2][3], "der naechste Link haengt nur einen versiegelten Block an");
-    // Only what stands in the clear: keys, sealed boxes and the seal are base64url runs, and random base64 spells "ben" or
-    // "ANA" now and then (about one link in ten), which is no name. A word in the clear never runs 16 such characters long.
-    const clear = (x) => x.replace(/[A-Za-z0-9_-]{16,}/g, " ");
-    assert.ok(!/Ana|Ben|Cem|Dana|Vegetari|Alkohol|alcohol/i.test(clear(P4.text + JSON.stringify(P4.state))), "keine Namen, keine Wuensche im Link");
+    // Only what stands in the clear: the two public keys, the sealed boxes and the seal itself are random base64url, which
+    // spells "ben" or "ANA" now and then (about one link in ten) and is no name. Exactly these fields are blanked; every
+    // other field of the link and of the opened state is checked, so a name in the clear anywhere else is still seen.
+    const clear = (P) => { const raw = JSON.parse(JSON.stringify(P.raw)), st = JSON.parse(JSON.stringify(P.state)); raw.d.q = ""; st[2][0] = st[2][1] = st[2][3] = ""; return JSON.stringify(raw) + JSON.stringify(st); };
+    assert.ok(!/Ana|Ben|Cem|Dana|Vegetari|Alkohol|alcohol/i.test(clear(P4)), "keine Namen, keine Wuensche im Link");
     assert.ok(!(P4.raw.d.by || []).length, "keine Spur mit Namen");
     for (const u of [two, three, four]) {   // [neutral, dates], two places, [key, key, count, boxes, 0]: nothing else, no list of counts
       const st = payload(u).state;

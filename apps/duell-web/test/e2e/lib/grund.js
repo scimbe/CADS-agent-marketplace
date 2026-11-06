@@ -31,6 +31,10 @@ function serve() {
   });
   return web;
 }
+// The page of the web route for tests with their own browser setup: webUrl("index.html"), webUrl("business/index.html").
+// Also for a page that is reloaded: a reload under file:// now and then comes back without what the page had just
+// stored (repro: 2 of 720 reloads under load, 0 of 720 over http).
+const webUrl = async (file) => (await serve()) + "/" + file;
 // For a test's own routes that refuse every other host: the page itself (and its parts) still comes from here.
 const isLocal = (u) => /^http:\/\/127\.0\.0\.1:\d+\//.test(u);
 // The screens from the rules (Katalog v2 A1, A4, A9): smallest phone 328x568, a common phone 390x844, a tablet or laptop
@@ -78,7 +82,8 @@ async function open(ctx, hash, o) {
   const p = await ctx.newPage();
   p.errs = []; p.on("pageerror", (e) => p.errs.push(String(e)));
   const file = (o.flavor ? o.flavor + "/" : "") + "index.html";
-  await p.goto((ctx.web ? (await serve()) + "/" + file : "file://" + path.join(DIST, file)) + (hash || ""));
+  // o.until: "domcontentloaded" for a page whose load event waits on purpose (a font held back)
+  await p.goto((ctx.web ? (await serve()) + "/" + file : "file://" + path.join(DIST, file)) + (hash || ""), { waitUntil: o.until || "load" });
   if (o.wait !== false) await p.waitForFunction(() => document.body.getAttribute("data-state") !== "boot");
   return p;
 }
@@ -117,4 +122,4 @@ async function settled(f, o) {
   let last = await f();
   return poll(async () => { await new Promise((r) => setTimeout(r, 100)); const v = await f(), same = v === last; last = v; return same ? { v } : null; }, Boolean, o).then((x) => x.v);
 }
-module.exports = { DIST, isLocal, poll, settled, VIEWS, LANGS, LOCALE, zoom, launch, person, people, open, inView, covered, smallTargets };
+module.exports = { DIST, isLocal, webUrl, poll, settled, VIEWS, LANGS, LOCALE, zoom, launch, person, people, open, inView, covered, smallTargets };

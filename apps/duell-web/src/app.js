@@ -47,10 +47,13 @@ function fitHero(box) {
   var k = sum > h ? h / sum : 1;
   ls.forEach(function (s) { s.style.fontSize = s.size * k + "px"; s.style.lineHeight = "1"; });
 }
+// The card a sheet draws: what was received, in the reader's language (#151), or the day's card. fillSheet and the redraw
+// once the display font is there both take it from here, so the two never draw different cards.
+function sheetDoc(h) { return h.doc ? D.localDoc(h.doc, Kit.lang) : D.docFromIdea(h.idea, me, Kit.lang); }
 // One calendar sheet: the real one on top and the greyed next day below it are filled by the same code.
 function fillSheet(root, h, still) {
   var q = function (k) { return root.querySelector("." + k); };
-  var d = h.date || today, idea = h.idea, doc = h.doc && D.localDoc(h.doc, Kit.lang);
+  var d = h.date || today, idea = h.idea, doc = h.doc && sheetDoc(h);
   q("dnum").textContent = String(d.getUTCDate()).padStart(2, "0");
   q("dmon").textContent = monthLines(d);
   var title, sub, kind, min;
@@ -69,8 +72,8 @@ function fillSheet(root, h, still) {
   var from = q("from");
   if (h.note) { from.textContent = h.note; from.hidden = false; } else from.hidden = true;
   if (mode) { from.textContent = mode.note; from.hidden = false; }
-  if (!doc && twoIdea(idea)) { root.querySelector(".pv").hidden = true; window.Parts.need("turnzwei").then(function () { if ((root.id === "leaf" ? home : h) === h) preview(root, D.docFromIdea(idea, me, Kit.lang), still); }, function () {}); }
-  else preview(root, doc || D.docFromIdea(idea, me, Kit.lang), still);
+  if (!doc && twoIdea(idea)) { root.querySelector(".pv").hidden = true; window.Parts.need("turnzwei").then(function () { if ((root.id === "leaf" ? home : h) === h) preview(root, sheetDoc(h), still); }, function () {}); }
+  else preview(root, sheetDoc(h), still);
   picture(root, idea, doc, h.lazy, mode);
   fitHero(hero);
   return { kind: kind, mode: mode, got: got };
@@ -1194,12 +1197,14 @@ function boot() { if (!route()) goHome(); }
 // The rules of the new turn cards (part turnzwei) only when the link or the day's card is one of them (two()).
 window.Parts.need("katalog").then(function () { return two(location.hash) || twoIdea(D.ideaForDay(today)) ? window.Parts.need("turnzwei").catch(function () {}) : 0; }).then(boot, function () { Kit.toast(t("part_fail")); boot(); });
 // The embedded display font loads after the first paint: fit the headline again once it is there, and draw the sheet's
-// picture and the editor's again. A canvas keeps the letters it was drawn with: on a slow phone the sheet drawn before the
-// font was there kept the fallback font for good (and looked different from the same sheet drawn a moment later).
+// card and the editor's picture again. A canvas keeps the letters it was drawn with: on a slow phone the sheet drawn before
+// the font was there kept the fallback font for good. Only the pictures are drawn again, the same card as fillSheet
+// (sheetDoc); the sheet itself (texts, classes, the hearts of a received feel-good card) stays as it is.
 if (document.fonts && document.fonts.load) document.fonts.load('900 40px Anton').then(function () {
   if (screen === "home") fitHero();
-  var leaf = $("leaf"), c = leaf.querySelector(".pvcard"), d = home && (home.doc || D.docFromIdea(home.idea, me, Kit.lang));
-  if (d && !c.hidden && d.k !== "game" && d.k !== "arcade") preview(leaf, d, false);   // only a drawn card, no game, no picture
+  var c = $("leaf").querySelector(".pvcard"), d = home && !c.hidden ? sheetDoc(home) : null;
+  if (d && d.k !== "game" && d.k !== "arcade") preview($("leaf"), d, false);   // a drawn card only: no game, no arcade duel
+  if (home) WM.redraw(home);   // the own feel-good card: again with the name typed so far
   if (ed) changed();
 }, function () {});
 });

@@ -11,6 +11,9 @@ const json = (p) => JSON.parse(read(p));
 // A flavor (`--flavor business`) is the same app with its own catalog, words and look: src/flavors/<name>/ replaces
 // ideas.json, lays texts.json and turn.json over the shared ones key by key, adds its CSS and script last.
 const arg = process.argv.slice(2).join("=").match(/--flavor=([a-z]+)/), flavor = arg ? arg[1] : "";
+// The stamp of the sources as they are before anything is read (scripts/ensure-build.js): a source changed during the
+// build makes the next ensureBuilt() build again instead of trusting a page made from the older one.
+const STAMP = require("./ensure-build.js").stamp(flavor);
 const fl = (f) => "src/flavors/" + flavor + "/" + f, has = (f) => flavor && fs.existsSync(path.join(root, fl(f)));
 if (flavor && !has("flavor.json")) throw new Error("Unbekannter Flavor: " + flavor);
 const over = (base, f) => { if (has(f)) { const o = json(fl(f)); for (const l of Object.keys(o)) Object.assign(base[l], o[l]); } return base; };
@@ -117,6 +120,6 @@ for (const k of Object.keys(prot)) ph = ph.replace("/*@" + k + "@*/", () => (k =
 put("protokoll.html", ph);
 put("protokoll-worker.js", read("src/protokoll-worker.js"));
 // The stamp last: scripts/ensure-build.js skips a build whose stamp still matches the sources.
-put(".stamp", require("./ensure-build.js").stamp(flavor));
+put(".stamp", STAMP);
 fs.rmSync(tmpDir, { recursive: true, force: true });
 console.log(path.dirname(out) + "/protokoll.html", Buffer.byteLength(ph), "bytes");
