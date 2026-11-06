@@ -98,8 +98,8 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
-      if (m.t === "p" && num(m.c)) { st.opp = clamp(reach(st.opp, m.c, S.oppDt(), K.RMAX * 1.25), K.GAP + 40, W - K.GAP - 40); st.oppKick = m.k ? 1 : 0; return; }
-      ball.receive(m, function (b) { return kickRods(st.opp).some(function (f) { var y = H - f.y; return Math.abs(b.x - f.x) <= K.R + K.FR + 300 && Math.abs(b.y - y) <= K.R + K.FR + 120; }); });
+      if (m.t === "p" && num(m.c)) { st.opp = clamp(reach(st.opp, m.c, S.oppDt(Math.abs(m.c - st.opp), K.RMAX * 1.25), K.RMAX * 1.25), K.GAP + 40, W - K.GAP - 40); st.oppKick = m.k ? 1 : 0; return; }
+      ball.receive(m, function (b) { return kickRods(st.opp).some(function (f) { var y = H - f.y; return Math.abs(b.x - f.x) <= K.R + K.FR + 450   /* rods move 2400 per second: a report 100 ms old is 240 off */ && Math.abs(b.y - y) <= K.R + K.FR + 120; }); });
     };
     return S;
   }
@@ -230,7 +230,7 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
-      if (m.t === "p" && num(m.x)) { st.opp = clamp(reach(st.opp, m.x, S.oppDt(), N.VF * 1.25), N.FR, W - N.FR); return; }
+      if (m.t === "p" && num(m.x)) { st.opp = clamp(reach(st.opp, m.x, S.oppDt(Math.abs(m.x - st.opp), N.VF * 1.25), N.VF * 1.25), N.FR, W - N.FR); return; }
       if (m.t === "throw") {
         // A throw starts where the other figure can be, with the same speed for everyone, and only with a snowball in hand.
         if (!num(m.x) || !num(m.vx) || !num(m.i) || Math.abs(m.vx) > 221 || Math.abs(m.x - st.opp) > 260 || oppAmmo < 0.95) return S.reject();
@@ -308,7 +308,7 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
-      if (m.t === "p" && num(m.x)) { st.opp = clamp(reach(st.opp, m.x, S.oppDt(), E.VK * 1.25), W / 2 - E.GW / 2, W / 2 + E.GW / 2); st.oppV = num(m.v) ? m.v : 0; return; }
+      if (m.t === "p" && num(m.x)) { st.opp = clamp(reach(st.opp, m.x, S.oppDt(Math.abs(m.x - st.opp), E.VK * 1.25), E.VK * 1.25), W / 2 - E.GW / 2, W / 2 + E.GW / 2); st.oppV = num(m.v) ? m.v : 0; return; }
       if (m.t === "shot") {
         if (st.shooting || st.phase === "fly" || m.n !== st.n || !num(m.vx) || !num(m.vy) || !num(m.c)) return S.reject();
         if (Math.hypot(m.vx, m.vy) > E.VMAX * 1.01 || m.vy < E.VMIN * 0.7 - 1 || Math.abs(m.c) > E.CMAX) return S.reject();
