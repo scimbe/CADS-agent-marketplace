@@ -253,7 +253,7 @@ test("Business Wichtelideen: ohne KI fünf Ideen im Budget, mit KI (gemockt) nur
   await G.poll(() => sent.some((x) => x.path === "ai/accept"), Boolean, { what: "erst die gewählte KI-Idee wird abgerechnet" });
   await next(t);
   const one = await send(t);
-  assert.match(one, /^https:\/\/bunsenbrenner\.org\/business#c=/, "Langlink im Firmennetz");
+  assert.match(one, /^https:\/\/demos-34a13a96\.bunsenbrenner\.org\/duell\/business\/#c=/, "Langlink im Firmennetz");
 
   const k = await G.open(kemal, hash(one), { flavor: "business" });
   await k.locator("#go").click();
@@ -287,7 +287,7 @@ test("Büro-Wichteln: fünf Personen tragen sich auf fünf Geräten selbst ein, 
   await next(o);
   await panel(o).getByText("Fertig. Den Link in die Teamgruppe schicken, damit sich alle eintragen.").waitFor();
   const L0 = await send(o);
-  assert.match(L0, /^https:\/\/bunsenbrenner\.org\/business#c=/);
+  assert.match(L0, /^https:\/\/demos-34a13a96\.bunsenbrenner\.org\/duell\/business\/#c=/);
   // 2. the organiser signs up herself on her own phone (she opens the group link like everyone)
   const o1 = await G.open(org, hash(L0), biz);
   await o1.locator("#go").click();

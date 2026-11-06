@@ -155,3 +155,14 @@ test("Meldung: optionHash nur neben einem Siegel und nur mit genau 43 base64url-
   for (const bad of [h.slice(1), h + "A", h.slice(1) + "+", h.slice(1) + "=", 42]) assert.equal(A.reportBody({ k: "game", ki: { ...ki, h: bad } }, "harm").optionHash, undefined, String(bad));
   assert.equal("optionHash" in A.reportBody({ k: "game", ki: { k: "wish", s: "s1.wish.abc.defgh" } }, "harm"), false);
 });
+
+test("loginReturn: der Login fuehrt zur Seite des eigenen Builds zurueck, nur als Pfad; ohne Flavor zu /duell", () => {
+  const biz = require("../src/flavors/business/flavor.json");
+  assert.equal(A.loginReturn(biz), "/duell/business");
+  assert.equal(A.loginReturn(undefined), "/duell");
+  assert.equal(A.loginReturn({ id: "x" }), "/duell");
+  assert.equal(A.loginReturn({ shareBase: "https://bunsenbrenner.org/business" }), "/business");
+  for (const bad of ["https://host/", "https://host", "http://host/duell/business/", "//evil.example/x", "https://host//evil.example", "javascript:alert(1)", 42, null]) {
+    assert.equal(A.loginReturn({ shareBase: bad }), "/duell", String(bad));
+  }
+});

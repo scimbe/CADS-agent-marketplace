@@ -44,7 +44,7 @@ test("Umfrage ueber drei Geraete: Firmenfarbe reist im Link, Empfaenger stimmen 
   await pick(a, "Sushi"); await a.getByText("Eingetragen").waitFor(); await snap(a, "biz-poll-editor");
   const one = await send(a);
   assert.deepEqual(org(one), { c: "#0f766e", n: "ACM" });
-  assert.ok(one.startsWith("https://bunsenbrenner.org/business#c="), "eigener Pfad, langer Link: " + one.slice(0, 50));
+  assert.ok(one.startsWith("https://demos-34a13a96.bunsenbrenner.org/duell/business/#c="), "eigener Pfad, langer Link: " + one.slice(0, 50));
 
   const c = await open(hash(one));
   assert.equal(await c.locator("#orglogo").textContent(), "ACM", "Empfaenger sieht die Firma des Absenders");
