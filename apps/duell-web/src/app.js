@@ -256,7 +256,9 @@ function peek(step, lazy) {
   var under = document.querySelector("#pad .u1"), g = under.querySelector(".ghost");
   if (!g) {
     g = $("leaf").cloneNode(true); g.removeAttribute("id"); g.removeAttribute("style"); g.className = "ghost"; g.setAttribute("aria-hidden", "true");
-    g.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); }); under.appendChild(g);
+    g.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); });
+    g.querySelectorAll("img").forEach(function (x) { x.removeAttribute("src"); });   // the copy must not fetch today's picture again
+    under.appendChild(g);
   }
   var n = nextSheet(step); fillSheet(g, { date: n.date, idea: n.idea, lazy: lazy }, true);
 }
