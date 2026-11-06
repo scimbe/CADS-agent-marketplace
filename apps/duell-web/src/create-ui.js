@@ -8,7 +8,7 @@
   "use strict";
   var ARTS = ["card", "meme"];
   var A, Kit, t, el, D;
-  var state = { art: "card", age: "", meter: null, account: false };
+  var state = { art: "card", age: "", meter: null, account: false, net: true };
 
   function line(m) {
     if (!m) return "";
@@ -18,9 +18,10 @@
   async function status() {
     try {
       var r = await root.Ai.post("/status", { device: Kit.store.aiDev || undefined });
+      state.net = r.status > 0 && r.status < 500;
       state.account = !!(r.json && r.json.create);
       state.meter = state.account ? r.json.create : null;
-    } catch (e) { state.account = false; state.meter = null; }
+    } catch (e) { state.net = false; state.account = false; state.meter = null; }   // offline: said as such, not "sign in"
   }
   function ageOf() {
     var a = (A.me().pref || {}).age;
@@ -43,6 +44,7 @@
   function fill(b) {
     b.textContent = "";
     b.classList.add("create");
+    if (!state.net) { b.appendChild(el("p", "note", t("aiNet"))); return; }
     // without an account: the way to sign in (the app shells send no cookie, so there it is the browser)
     if (!state.account) {
       b.appendChild(el("p", "note", t("create_login_h", { m: 5 })));
@@ -72,12 +74,13 @@
     b.appendChild(left);
     b.appendChild(el("p", "note", t("create_rules")));
     if (state.meter && state.meter.remaining <= 0) return;
+    if (state.meter && state.meter.paused) { b.appendChild(el("p", "note", t("create_paused"))); return; }
 
     var go = root.Ai.block(b, {
       kind: "karte", label: t("create_go"), el: el, noteLast: true,
       raw: function () { return ta.value; },
       input: function () { var s = String(ta.value || "").trim(); return s.length >= 3 ? { text: s.slice(0, 200), art: state.art, age: age } : null; },
-      wall: function () {},
+      wall: function () { left.textContent = line(state.meter); },
       show: function () { return ""; },
       apply: function () { return false; },
       // one card comes back: shown as a preview; the promise says whether it was taken (true) or thrown away (false)
@@ -95,7 +98,12 @@
             // receipt still open, and this one would be given back instead of booked
             done(true); setTimeout(function () { A.openEditor(d, { own: true }); }, 0);
           }));
-          row.appendChild(el("button", "btn", t("create_drop"), function () { Kit.sfx.tap(); res.textContent = ""; done(false); status().then(function () { left.textContent = line(state.meter); }); }));
+          row.appendChild(el("button", "btn", t("create_drop"), function () {
+            Kit.sfx.tap(); res.textContent = ""; var was = state.meter ? state.meter.remaining : 0;
+            done(false);
+            // the discard is sent in ai.js; the count is asked again after it. A discard past the limit gives nothing back: said so.
+            setTimeout(function () { status().then(function () { left.textContent = line(state.meter); if (state.meter && state.meter.remaining <= was) res.appendChild(el("p", "note", t("create_norefund"))); }); }, 700);
+          }));
           res.appendChild(row);
           status().then(function () { left.textContent = line(state.meter); });
         });
