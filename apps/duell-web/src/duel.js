@@ -68,11 +68,11 @@
   function pick(list, rnd) { return list[Math.floor(rnd() * list.length)]; }
   function fill(s, ag, doc) { return s.replace(/\{w\}/g, doc.w || "").replace(/\{n\}/g, ag.n || ag.e); }
   function rapLine(ag, foe, doc, rnd, lang) {
-    var T = DATA.rap[lang], x = rnd(), kind = x < ag.c / (ag.c + ag.p + 1) ? "boast" : "calm", list = doc.w ? T[kind].concat(T.word) : T[kind];
-    var pts = 3 + Math.floor(rnd() * (2 + (ag.r / 100) * 7)) + (ag.p > 60 ? 1 : 0);
-    if (kind === "boast" && foe.p < 40) pts++;       // cheek lands best on an impatient rival
-    if (kind === "calm" && foe.c > 60) pts++;        // staying calm answers cheek
-    return { text: fill(pick(list, rnd), ag, doc), pts: pts };
+    var T = DATA.rap[lang] || DATA.rap.de, x = rnd(), kind = x < ag.c / (ag.c + ag.p + 1) ? "boast" : "calm", list = doc.w ? T[kind].concat(T.word) : T[kind];
+    var base = 3 + Math.floor(rnd() * (2 + (ag.r / 100) * 7)), pat = ag.p > 60 ? 1 : 0, bon = 0;
+    if (kind === "boast" && foe.p < 40) bon++;       // cheek lands best on an impatient rival
+    if (kind === "calm" && foe.c > 60) bon++;        // staying calm answers cheek
+    return { text: fill(pick(list, rnd), ag, doc), pts: base + pat + bon, base: base, pat: pat, bon: bon };
   }
   function playRap(doc, rnd, lang) {
     var out = [], sa = 0, sb = 0, flip = !canonical(doc.a, doc.b);
@@ -88,7 +88,7 @@
     return Math.max(0, Math.min(left, Math.round(Math.min(raw, left - keep))));
   }
   function playAuction(doc, rnd, lang) {
-    var flip = !canonical(doc.a, doc.b), left = [100, 100], gain = [0, 0], out = [], items = DATA.items[lang].slice(), list = [];
+    var flip = !canonical(doc.a, doc.b), left = [100, 100], gain = [0, 0], out = [], items = (DATA.items[lang] || DATA.items.de).slice(), list = [];
     while (list.length < ROUNDS.auction) list.push(items.splice(Math.floor(rnd() * items.length), 1)[0]);
     if (doc.w) list[0] = doc.w;
     list.forEach(function (item, i) {
@@ -97,7 +97,7 @@
       var win = bids[0] === bids[1] ? -1 : bids[0] > bids[1] ? 0 : 1;
       if (win >= 0) { left[win] -= bids[win]; gain[win] += vals[win] - bids[win]; }   // the winner pays the own bid: too much courage overpays
       var A = flip ? 1 : 0, B = 1 - A;
-      out.push({ item: item, ba: bids[A], bb: bids[B], o: win < 0 ? 0 : win === A ? 1 : -1, sa: gain[A], sb: gain[B], la: left[A], lb: left[B] });
+      out.push({ item: item, ba: bids[A], bb: bids[B], va: vals[A], vb: vals[B], o: win < 0 ? 0 : win === A ? 1 : -1, sa: gain[A], sb: gain[B], la: left[A], lb: left[B] });
     });
     return { rounds: out, sa: out[out.length - 1].sa, sb: out[out.length - 1].sb };
   }
@@ -150,6 +150,52 @@
     return { rounds: [], sa: 0, sb: 0 };
   }
   function winner(res) { return res.sa === res.sb ? 0 : res.sa > res.sb ? 1 : -1; }
+
+  // ---------- after the match: why it ended like this, read from the match itself and the sliders, no AI ----------
+  // -> { k: reason, w: "a"|"b" (winner, "" on a draw), v: numbers for the sentence, tip: what the loser could change }
+  // or null where nothing can be said (mind, deck). Ties between reasons go to the one listed first.
+  function explain(doc, res) {
+    var w = winner(res), W = w > 0 ? "a" : w < 0 ? "b" : "", Lo = W === "a" ? "b" : W === "b" ? "a" : "", m = doc.m, R = res.rounds || [];
+    function out(k, v, tip) { return { k: k, w: W, v: Object.assign({ a: res.sa, b: res.sb }, v || {}), tip: W ? tip || null : null }; }
+    function best(list) { var top = null; list.forEach(function (c) { if (c[1] > 0 && (!top || c[1] > top[1])) top = c; }); return top; }
+    if (!W && m !== "flappy") return out("draw");
+    if (m === "rps") {
+      var me = function (r) { return Lo === "a" ? r.x : r.y; }, foe = function (r) { return Lo === "a" ? r.y : r.x; }, lost = function (r) { return Lo === "a" ? r.o < 0 : r.o > 0; };
+      var counter = 0, again = 0, lead = 0, L = doc[Lo], Wg = doc[W];
+      R.forEach(function (r, i) {
+        if (me(r) === 0) lead++;
+        if (!i || !lost(r)) return;
+        var p = R[i - 1];
+        if (foe(r) === (me(p) + 1) % HANDS) counter++;
+        if (me(r) === me(p) && (Lo === "a" ? p.o > 0 : p.o < 0)) again++;
+      });
+      var top = best([["rpsCounter", counter, { n: counter, p: Wg.p }, "tipCounter"], ["rpsRepeat", again, { n: again, c: L.c }, "tipRepeat"],
+        ["rpsLead", lead >= 5 ? lead : 0, { n: lead, h: 0, r: L.r }, "tipLead"]]);
+      return top ? out(top[0], top[2], top[3]) : out("luck");
+    }
+    if (m === "rap") {
+      var sum = function (side, f) { return R.reduce(function (s, r) { return s + r[side][f]; }, 0); }, ws = W === "a" ? "x" : "y", ls = W === "a" ? "y" : "x";
+      var t2 = best([["rapCourage", sum(ws, "base") - sum(ls, "base"), { r: doc[W].r, s: doc[Lo].r }, "tipCourage"], ["rapPatience", sum(ws, "pat") - sum(ls, "pat"), { p: doc[W].p }, "tipPatience"],
+        ["rapCounter", sum(ws, "bon") - sum(ls, "bon"), { n: sum(ws, "bon") }, "tipCheek"]]);
+      return t2 ? out(t2[0], t2[2], t2[3]) : out("luck");
+    }
+    if (m === "auction") {
+      var lw = Lo === "a" ? 1 : -1, over = R.filter(function (r) { return r.o === lw && (Lo === "a" ? r.ba > r.va : r.bb > r.vb); }).length;
+      var left = R.length ? (Lo === "a" ? R[R.length - 1].la : R[R.length - 1].lb) : 0;
+      var got = function (o) { return R.filter(function (r) { return r.o === o; }).length; };
+      if (over) return out("aucOver", { n: over, r: doc[Lo].r }, "tipOver");
+      if (left >= 30) return out("aucLeft", { m: left, p: doc[Lo].p }, "tipLeft");
+      return out("aucFew", { k: got(-lw), j: got(lw) }, "tipFew");
+    }
+    if (m === "flappy") {
+      if (!W) return out("draw");
+      var ls2 = doc[Lo], ws2 = doc[W], n = (Lo === "a" ? res.sa : res.sb) + 1;
+      if (ls2.p + 10 <= ws2.p) return out("flyShaky", { p: ls2.p, n: n }, "tipShaky");
+      if (Math.abs(ls2.r - 50) >= Math.abs(ws2.r - 50) + 10) return out("flyClose", { r: ls2.r, n: n }, "tipClose");
+      return out("flyLuck", { n: n, m: (W === "a" ? res.sa : res.sb) + 1 });
+    }
+    return null;
+  }
   function strings() {
     var out = [];
     (function walk(v) { if (typeof v === "string") out.push(v); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.keys(v).forEach(function (k) { walk(v[k]); }); })(DATA);
@@ -158,7 +204,7 @@
 
   var api = {
     MODES: MODES, SLIDERS: SLIDERS, ROUNDS: ROUNDS, FLY_CAP: FLY_CAP, DATA: DATA, sanitize: sanitize, sanitizeAgent: sanitizeAgent, fromIdea: fromIdea,
-    play: play, winner: winner, outcome: outcome, fly: fly, flySim: flySim, flyRnd: flyRnd, flyStep: flyStep, flyLine: flyLine, learnFlap: learnFlap, predict: predict, mindHand: mindHand, strings: strings
+    play: play, winner: winner, explain: explain, outcome: outcome, fly: fly, flySim: flySim, flyRnd: flyRnd, flyStep: flyStep, flyLine: flyLine, learnFlap: learnFlap, predict: predict, mindHand: mindHand, strings: strings
   };
   if (node) module.exports = api; else root.Duel = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

@@ -2,7 +2,7 @@
 (function (root) {
   "use strict";
 
-  var SHARE_BASE = "https://bunsenbrenner.org/duell";
+  var SHARE_BASE = (root.DailyFlavor && root.DailyFlavor.shareBase) || "https://bunsenbrenner.org/duell";   // a flavor build is shared under its own path
   var SHORT_BASE = "https://bunsenbrenner.org/s/";
   var DEFAULT_API = "https://demos-34a13a96.bunsenbrenner.org/api/duell/config";
   var MAX_FRAGMENT = 1200;       // hard cap on the encoded payload we are willing to parse
@@ -137,6 +137,42 @@
     return Object.keys(l).length ? l : null;
   }
 
+  // A route: exactly 3 sections from start to end (the welt kind). Each one moves the physics by a fixed step d (the
+  // server's table, never a number the model chose), shows its own world t and drifting emoji e; p names the step.
+  // The page clamps base + d to RANGES, so no section can leave the playable range.
+  var STEPS = ["normal", "ruhig", "schnell", "eng", "schwebend", "schwer", "sturm"], SECTIONS = 3;
+  var DELTA_MAX = { gravity: 800, jump: 120, gap: 60, speed: 80 };
+  function sanitizeRoute(r) {
+    if (!Array.isArray(r) || r.length !== SECTIONS) return null;
+    var out = r.map(function (a) {
+      if (!a || typeof a !== "object") return null;
+      var d = {}, src = a.d || a.delta || {};
+      Object.keys(DELTA_MAX).forEach(function (k) {
+        var v = src[k] !== undefined ? src[k] : src[ALIAS[k]];
+        v = Math.round(clampNum(v, -DELTA_MAX[k], DELTA_MAX[k], 0)); if (v) d[k] = v;
+      });
+      var t = a.t || a.thema, e = emo(a.e || a.emoji);
+      if (typeof t !== "string" || THEME_NAMES.indexOf(t) < 0 || !e) return null;
+      return { p: STEPS.indexOf(a.p || a.physik) >= 0 ? a.p || a.physik : "normal", d: d, t: t, e: e };
+    });
+    return out.every(Boolean) ? out : null;
+  }
+  // The physics of section i: base + its step, clamped to RANGES.
+  function sectionParams(params, route, i) {
+    var d = route && route[i] ? route[i].d : {}, p = {};
+    Object.keys(RANGES).forEach(function (k) { p[k] = params[k] + (d[k] || 0); });
+    return sanitizeParams(p);
+  }
+  function routeParams(st) { return st && st.route ? st.route.map(function (x, i) { return sectionParams(st.params, st.route, i); }) : null; }
+  // The AI mark of a world: kind, seal and option hash, the same form as a sheet's ki (daily.js sanitizeKi).
+  function sanitizeKiMark(o) {
+    if (!o || typeof o !== "object" || o.k !== "welt") return null;
+    var r = { k: "welt" };
+    if (typeof o.s === "string" && /^[A-Za-z0-9._~-]{8,200}$/.test(o.s)) r.s = o.s; else return null;
+    if (typeof o.h === "string" && /^[A-Za-z0-9_-]{43}$/.test(o.h)) r.h = o.h;
+    return r;
+  }
+
   // ---------- state (the shared contract) ----------
   function sanitizeState(o) {
     if (!o || typeof o !== "object" || Array.isArray(o)) return null;
@@ -153,6 +189,10 @@
     if (skin) st.skin = skin;
     var lk = sanitizeLook(o.look);
     if (lk) st.look = lk;
+    var rt = sanitizeRoute(o.route);
+    if (rt) st.route = rt;
+    var ki = sanitizeKiMark(o.ki);
+    if (ki) st.ki = ki;
     if (o.score !== undefined && o.score !== null) {
       var sc = clampNum(o.score, 0, MAX_SCORE, NaN);
       if (!isNaN(sc)) st.score = Math.floor(sc);
@@ -197,7 +237,7 @@
   }
   function configKey(st) {
     var p = st.params;
-    return [st.seed, p.gravity, p.jump, p.gap, p.speed, st.theme].join(".");
+    return [st.seed, p.gravity, p.jump, p.gap, p.speed, st.theme].join(".") + (st.route ? "." + hash32(JSON.stringify(st.route)) : "");
   }
 
   // ---------- seeds ----------
@@ -262,7 +302,7 @@
     [/mond|moon|float|schweb|feder|feather|weltall|\bspace/, { gravity: 0.7, jump: 0.85 }]
   ];
   var THEME_RULES = [
-    ["night", /nacht|night|dark|dunkel|mitternacht|mond|moon|vampir|fledermaus|\bbat\b/],
+    ["night", /nacht|night|dark|dunkel|mitternacht|mond|moon|vampir|fledermaus|\bbat\b|weltraum|weltall|\bspace\b|alien|\bsterne?n?\b|\bstars?\b|galax|planet|rakete|rocket|\bufo/],   // space: a sky of stars
     ["sunset", /sonnenuntergang|sunset|abend|dusk|golden|sommer|summer/],
     ["retro", /retro|8.?bit|pixel|arcade|oldschool/],
     ["candy", /candy|zuckerl|suss|sweet|bonbon|pink|einhorn|unicorn|zuckerwatte/],
@@ -301,19 +341,64 @@
     if (!resp || typeof resp !== "object" || !resp.params || typeof resp.params !== "object") return null;
     var st = sanitizeState({
       v: 1, seed: hash32("p:" + foldText(sanitizePrompt(prompt))), params: resp.params,
-      theme: resp.theme, title: resp.title, emoji: resp.emoji
+      theme: resp.theme, title: resp.title, emoji: resp.emoji, route: resp.abschnitte || resp.route
     });
     return st;
   }
 
+  // The web conference wears the app's look in the player's own two colours (theme.js in CADS-webconference-demo).
+  // Only "rrggbb" goes into the link; anything else falls back to the app's yellow and red.
+  var CONF_BASE = "https://webconference.bunsenbrenner.org/";
+  function confLink(colors) {
+    var c = Array.isArray(colors) ? colors : [], hex = /^#[0-9a-fA-F]{6}$/;
+    var a = hex.test(c[0]) ? c[0] : "#ffd400", b = hex.test(c[1]) ? c[1] : "#ff3b1d";
+    return CONF_BASE + "?look=daily&a=" + a.slice(1).toLowerCase() + "&b=" + b.slice(1).toLowerCase();
+  }
+
+  // Languages, as many as the text data has: every text table is { de: {...}, en: {...}, ... }, so a further language is
+  // one more block of data. A gap in a block falls back to German; in a "de|en|..." pair a language reads its own
+  // column (its place in the table), German where the pair has none. Plurals, numbers and money go through Intl.
+  var LOCALE = { de: "de-DE", en: "en-GB" };
+  function locale(l) { return LOCALE[l] || l || "de-DE"; }
+  function langsOf(tab) { return Object.keys(tab || {}).filter(function (k) { return /^[a-z]{2,3}$/.test(k); }); }
+  // The block for a language; what it lacks it reads from the German block below it (also keys added later).
+  function textsFor(tab, l) {
+    var b = tab[l], de = tab.de;
+    if (!b || !de) return de || b;
+    if (b !== de && Object.getPrototypeOf(b) === Object.prototype) Object.setPrototypeOf(b, de);
+    return b;
+  }
+  function column(tab, l) { var i = langsOf(tab).indexOf(l); return i < 0 ? 0 : i; }
+  function pick(s, i) { var p = String(s).split("|"); return p[i] != null && p[i] !== "" ? p[i] : p[0]; }
+  function plural(l, n) { try { return new Intl.PluralRules(locale(l)).select(n); } catch (e) { return n === 1 ? "one" : "other"; } }
+  // "off_count" with n = 1 reads "off_count_one" where the block has it ("1 Stimme"), otherwise "off_count".
+  function form(block, k, n, l) { var s = typeof n === "number" ? block[k + "_" + plural(l, n)] : null; return s != null ? s : block[k]; }
+  function sp(s) { return s.replace(/[\u00a0\u202f]/g, " "); }
+  // A number with d decimals as the language writes it ("1,23" / "1.23"); d null: as many as it has, up to 3.
+  function num(x, d, l) { return sp(Number(x).toLocaleString(locale(l), d == null ? { maximumFractionDigits: 3, useGrouping: false } : { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: false })); }
+  // Cents as money: "7 €" / "9,37 €" in German, "€7" / "€9.37" in English.
+  function money(c, l) { return sp(new Intl.NumberFormat(locale(l), { style: "currency", currency: "EUR", minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 }).format(c / 100)); }
+
+  // The login pages (Keycloak, CADS-Tunnel #890) wear the My Daily Idea look only with the cookie ct_look = "daily.<a>.<b>"
+  // (a = background, b = accent, lower-case hex), set for bunsenbrenner.org right before the jump (Kit.look). Only the two
+  // colours go. host: location.hostname. -> the cookie string, or null away from bunsenbrenner.org (file:, app shells, tests).
+  function lookCookie(colors, host) {
+    host = String(host || "").toLowerCase();
+    if (host !== "bunsenbrenner.org" && !/\.bunsenbrenner\.org$/.test(host)) return null;
+    var c = Array.isArray(colors) ? colors.map(function (x) { return String(x || "").toLowerCase(); }) : [];
+    if (!/^#[0-9a-f]{6}$/.test(c[0]) || !/^#[0-9a-f]{6}$/.test(c[1])) c = ["#ffd400", "#ff3b1d"];
+    return "ct_look=daily." + c[0].slice(1) + "." + c[1].slice(1) + "; Domain=bunsenbrenner.org; Path=/; Max-Age=86400; Secure; SameSite=Lax";
+  }
+
   var api = {
+    lookCookie: lookCookie, locale: locale, langsOf: langsOf, textsFor: textsFor, column: column, pick: pick, plural: plural, form: form, num: num, money: money,
     SHARE_BASE: SHARE_BASE, SHORT_BASE: SHORT_BASE, DEFAULT_API: DEFAULT_API, MAX_FRAGMENT: MAX_FRAGMENT, MAX_NAME: MAX_NAME, MAX_TITLE: MAX_TITLE,
     MAX_PROMPT: MAX_PROMPT, MAX_SCORE: MAX_SCORE, RANGES: RANGES, THEME_NAMES: THEME_NAMES, PRESETS: PRESETS,
     clampNum: clampNum, sanitizeParams: sanitizeParams, sanitizeTheme: sanitizeTheme, sanitizeSeed: sanitizeSeed,
     isClean: isClean, sanitizeName: sanitizeName, sanitizeTitle: sanitizeTitle, sanitizeEmoji: sanitizeEmoji, sanitizePrompt: sanitizePrompt,
     sanitizeState: sanitizeState, encodeState: encodeState, decodeState: decodeState, parseHash: parseHash, buildUrl: buildUrl,
     configKey: configKey, hash32: hash32, mulberry32: mulberry32, dailyKey: dailyKey, dailySeed: dailySeed, dailyConfig: dailyConfig,
-    sanitizeLook: sanitizeLook, DECOS: DECOS, FORMS: FORMS, presetState: presetState, localConfig: localConfig, stateFromApi: stateFromApi
+    sanitizeLook: sanitizeLook, sanitizeRoute: sanitizeRoute, sectionParams: sectionParams, routeParams: routeParams, STEPS: STEPS, SECTIONS: SECTIONS, DECOS: DECOS, FORMS: FORMS, presetState: presetState, localConfig: localConfig, stateFromApi: stateFromApi, CONF_BASE: CONF_BASE, confLink: confLink
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.DuellCore = api;

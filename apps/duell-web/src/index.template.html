@@ -2,8 +2,9 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://webconference.bunsenbrenner.org 'wasm-unsafe-eval'; style-src 'unsafe-inline'; font-src data:; img-src data: blob:; media-src blob:; connect-src https://demos-34a13a96.bunsenbrenner.org https://webconference.bunsenbrenner.org wss://webconference.bunsenbrenner.org; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'self' https://webconference.bunsenbrenner.org 'wasm-unsafe-eval'; style-src 'unsafe-inline'; font-src data:; img-src data: blob: https://demos-34a13a96.bunsenbrenner.org; media-src blob:; connect-src https://demos-34a13a96.bunsenbrenner.org https://webconference.bunsenbrenner.org wss://webconference.bunsenbrenner.org; base-uri 'none'; form-action 'none'">
 <meta name="theme-color" content="#ffd400">
 <meta name="referrer" content="no-referrer">
 <title>My Daily Idea</title>
@@ -11,9 +12,9 @@
 /*@CSS@*/
 </style>
 </head>
-<body data-state="home">
+<body data-state="boot">
 <div id="root">
-  <section id="home" class="scr">
+  <section id="home" class="scr" hidden>
     <header class="bar">
       <h1 id="brand"></h1>
       <div class="mini"><button id="lang" aria-label="Sprache"></button><button id="mute" aria-label="Ton"></button><button id="host" aria-label="Mehr" hidden>⋯</button><button id="me" aria-label="Mein Stil"></button></div>
@@ -23,14 +24,15 @@
       <article id="leaf">
         <div class="holes" aria-hidden="true"></div>
         <div class="dateline"><b id="dnum" class="dnum"></b><span id="dmon" class="dmon"></span><span id="dkind" class="dkind burst"></span></div>
-        <div id="pv" class="pv" hidden><canvas id="pvgame" class="pvgame" aria-label="Vorschau"></canvas><canvas id="pvcard" class="pvcard" width="540" height="675" aria-label="Vorschau"></canvas></div>
+        <div id="pv" class="pv" hidden><canvas id="pvgame" class="pvgame" aria-label="Vorschau"></canvas><canvas id="pvcard" class="pvcard" width="540" height="675" aria-label="Vorschau"></canvas><figure class="pvimg"><img alt="" width="960" height="540" decoding="async" draggable="false"><figcaption class="kitag"></figcaption></figure></div>
         <div id="hero" class="hero"></div>
         <p id="teaser" class="teaser"></p>
         <p id="from" class="from" hidden></p>
+        <span class="kiseal" role="img" hidden></span>
       </article>
     </div>
     <button id="go" class="press"></button>
-    <div id="homerow"><button id="wishgo" hidden></button><button id="livego" hidden></button></div>
+    <div id="homerow"><button id="wishgo" hidden></button><button id="livego" hidden></button><button id="kireport" hidden></button></div>
     <nav id="feat" aria-label="Funktionen"></nav>
     <nav id="tools">
       <button id="more"></button><button id="own"></button><button id="past"></button><button id="wall"></button>
@@ -38,17 +40,18 @@
   </section>
 
   <section id="editor" class="scr" hidden>
-    <header class="bar tight"><button id="edback" class="ico" aria-label="Zurück">←</button><div id="edtitle"></div><button id="cogo" class="ico" aria-label="Zusammen bauen">👥</button><button id="edstyle" class="ico" aria-label="Mein Stil"></button></header>
+    <header class="bar tight"><button id="edback" class="ico" aria-label="Schließen">✕</button><div id="edtitle"></div><button id="edsave" class="ico" aria-label="Merken" aria-pressed="false">♡</button><button id="cogo" class="ico" aria-label="Zusammen bauen">👥</button><button id="edstyle" class="ico" aria-label="Mein Stil"></button></header>
     <div id="cobar" role="status" hidden><span id="costatus"></span><button id="coleave" type="button"></button></div>
-    <div id="stagewrap"><canvas id="stage" width="540" height="675" aria-label="Vorschau"></canvas><div id="gamestage"><canvas id="demo" aria-label="Spielvorschau"></canvas></div></div>
+    <div id="stagewrap"><figure id="edpic" class="pvimg"><img alt="" width="960" height="540" decoding="async" draggable="false"><figcaption class="kitag"></figcaption></figure><canvas id="stage" width="540" height="675" aria-label="Vorschau"></canvas><div id="gamestage"><canvas id="demo" aria-label="Spielvorschau"></canvas></div></div>
     <div id="trail" hidden></div>
     <div id="tabs" role="tablist"></div>
     <div id="panel"></div>
-    <div class="foot"><button id="edmain" class="press"></button></div>
+    <div class="foot"><p id="edwhy" class="why" aria-live="polite"></p><button id="edmain" class="press"></button></div>
     <input id="file" type="file" accept="image/*" hidden>
   </section>
 
   <section id="done" class="scr" hidden>
+    <header class="bar tight"><button id="dback" class="ico" aria-label="Schließen">✕</button></header>
     <div id="donewrap"><img id="doneimg" alt=""></div>
     <div class="foot col">
       <button id="share" class="press"></button>
@@ -60,13 +63,13 @@
   </section>
 
   <section id="shelf" class="scr" hidden>
-    <header class="bar tight"><button id="shback" class="ico" aria-label="Zurück">←</button><div id="shtitle"></div><span class="ico"></span></header>
+    <header class="bar tight"><button id="shback" class="ico" aria-label="Schließen">✕</button><div id="shtitle"></div><span class="ico"></span></header>
     <div id="shbody"></div>
   </section>
 
   <section id="game" hidden>
     <canvas id="cv" aria-label="Spielfeld"></canvas>
-    <div class="top"><button id="gback" class="ico" aria-label="Zurück">←</button><div id="title"></div></div>
+    <div class="top"><button id="gback" class="ico" aria-label="Schließen">✕</button><div id="title"></div><span id="gki" class="kitag" role="img" hidden></span></div>
     <div id="hud"><div id="score" data-score="0">0</div><div id="bestchip"></div></div>
     <div id="banner" hidden></div>
     <div id="hint"></div>
@@ -81,33 +84,36 @@
   <div id="toast" role="status"></div>
 </div>
 <script>/*@DATA@*/</script>
-<script>/*@QRCODE@*/</script>
+<script>/*@PARTS@*/</script>
 <script>/*@CORE@*/</script>
 <script>/*@ENGINE@*/</script>
 <script>/*@DUEL@*/</script>
 <script>/*@QUEST@*/</script>
+<script>/*@QUIZPACK@*/</script>
 <script>/*@TURNS@*/</script>
+<script>/*@OFFICE@*/</script>
+<script>/*@QUIZSPIELE@*/</script>
 <script>/*@DAILY@*/</script>
 <script>/*@STUDIO@*/</script>
 <script>/*@KIT@*/</script>
+<script>/*@BAUSTEINE@*/</script>
 <script>/*@STICKERS@*/</script>
 <script>/*@COLLAB@*/</script>
 <script>/*@COLLABUI@*/</script>
 <script>/*@CALLCARD@*/</script>
 <script>/*@CALLCARDUI@*/</script>
 <script>/*@AI@*/</script>
-<script>/*@PROFILE@*/</script>
 <script>/*@WISH@*/</script>
 <script>/*@SHORT@*/</script>
-<script>/*@STATUSCARD@*/</script>
+<script>/*@OWN@*/</script>
 <script>/*@RENDER@*/</script>
+<script>/*@WARM@*/</script>
 <script>/*@PLAYABLE@*/</script>
 <script>/*@GAME@*/</script>
-<script>/*@BALLDUELL@*/</script>
-<script>/*@LIVE@*/</script>
-<script>/*@LIVEUI@*/</script>
 <script>/*@APP@*/</script>
 <script>/*@MODES@*/</script>
+<script>/*@DOOR@*/</script>
 <script>/*@TURNUI@*/</script>
+<script>/*@FLAVOR@*/</script>
 </body>
 </html>

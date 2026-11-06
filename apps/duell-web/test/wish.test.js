@@ -16,8 +16,8 @@ test("Anfrage: nur Typ, Wunsch, Grundidee und Texte; kein Bild, keine Sticker, k
 });
 test("Anwenden: nur Felder des Typs wirken, Ergebnis ist bereinigt, Original bleibt unberuehrt", () => {
   const d = of("card"), before = JSON.stringify(d);
-  const n = W.apply(d, { x: "Neu", st: "neon", palette: 1, stickers: ["🐸"], gravity: 2000, bpm: 150, y: "weg" }, PAIRS, rand);
-  assert.equal(n.x, "Neu"); assert.equal(n.st, "neon"); assert.deepEqual(n.col, PAIRS[1]); assert.equal(n.sk.length, 1);
+  const n = W.apply(d, { x: "Neu", st: "neon", palette: 0, stickers: ["🐸"], gravity: 2000, bpm: 150, y: "weg" }, PAIRS, rand);
+  assert.equal(n.x, "Neu"); assert.equal(n.st, "neon"); assert.deepEqual(n.col, PAIRS[0]); assert.equal(n.sk.length, 1);
   assert.equal(n.y, undefined); assert.equal(n.bpm, undefined); assert.equal(n.g, undefined);
   assert.equal(JSON.stringify(d), before);
   const g = W.apply(of("game"), { gravity: 99999, theme: "lava", emoji: "🚀", title: "Lava", x: "weg" }, PAIRS, rand);
@@ -26,11 +26,19 @@ test("Anwenden: nur Felder des Typs wirken, Ergebnis ist bereinigt, Original ble
   assert.equal(s.bpm, 150); assert.equal(s.p.k, "x-x-x-x-x-x-x-x-");
   assert.equal(W.apply(d, { st: "kaputt" }, PAIRS, rand).st, "druck", "unbekannter Stil faellt zurueck");
 });
-test("Lokal: jede Mechanik aendert sichtbar etwas ohne Server", () => {
-  for (const k of W.KINDS) {
-    const d = of(k), n = W.apply(d, W.local(d, "viel schwerer und schnell", "de", () => 1), [PAIRS[0], PAIRS[1]], rand);
+test("Ohne KI: kein Ersatz, der wie eine KI-Antwort aussieht; das Flugspiel hat seine eigene Art welt (welt-ui.js), ohne Zufallswelt", () => {
+  assert.equal(W.local, undefined);
+  assert.ok(!/LOOKS|localLook/.test(require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/wish.js"), "utf8")), "keine gewuerfelte Spielwelt mehr");
+});
+test("Wuerfel: jede Art mit Look aendert sichtbar etwas, ohne Netz; gleicher Seed, gleicher Wurf", () => {
+  for (const k of W.DICE) {
+    const d = of(k), a = W.dice(d, "seed|1", PAIRS), n = W.apply(d, a, PAIRS, rand);
     assert.ok(D.changedAreas(d, n).length, k);
+    assert.deepEqual(W.dice(d, "seed|1", PAIRS), a, k + ": deterministisch aus dem Seed");
   }
+  const d = of("card"), rolls = new Set([1, 2, 3, 4, 5, 6].map((i) => JSON.stringify(W.dice(d, "plan-09|" + i, PAIRS))));
+  assert.ok(rolls.size >= 4, "verschiedene Wuerfe sehen verschieden aus");
+  assert.equal(require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/wish.js"), "utf8").includes("Math.random"), false, "Zufall nur aus dem Seed");
 });
 test("Wetter: Wunsch kann die Zahlen nie aendern, kaputte Werte fallen weg, Text bleibt daneben frei", () => {
   const w = { p: "Hamburg", d: "2026-11-02", hi: 12, lo: 7, rn: 40, c: 61 }, d = D.sanitizeDoc({ k: "card", x: "Hallo", col: ["#ffd400", "#ff3b1d"], w });
@@ -42,8 +50,10 @@ test("Wetter: Wunsch kann die Zahlen nie aendern, kaputte Werte fallen weg, Text
   assert.equal(D.sanitizeDoc({ k: "card", w: { p: "x", d: "2026-11-02", hi: "viel", lo: 1 } }).w, undefined);
   assert.equal(D.changedAreas(D.sanitizeDoc({ k: "card" }), d).includes("text"), true);
 });
-test("Grenze: jede Art hat einen Wunsch, Raetsel und Antworten eines Kanals gehen nicht an den Server", () => {
-  assert.deepEqual([...W.KINDS].sort(), [...D.KINDS].sort());
+test("Grenze: KI-Wunsch nur wo die KI echte Arbeit macht, Kosmetik wuerfelt lokal; Raetsel eines Kanals gehen nicht an den Server", () => {
+  assert.deepEqual([...W.KINDS].sort(), ["duel", "game", "quest", "sound"]);
+  for (const k of ["card", "photo", "turn"]) assert.ok(!W.KINDS.includes(k) && W.DICE.includes(k), k + ": kein KI-Umfaerben");
+  assert.deepEqual([...new Set([...W.KINDS, ...W.DICE])].sort(), D.KINDS.filter((k) => k !== "table" && k !== "arcade").sort());   // a card table and arcade have no editor
   const q = Object.assign(of("quest"), { q0: "Geheimfrage", h0: "abc", c: ["Z2VoZWlt"] }), r = JSON.stringify(W.request(q, "x", ""));
   assert.ok(!/Geheimfrage|Z2VoZWlt/.test(r));
 });
@@ -61,10 +71,6 @@ test("Wunsch Spiel: Hindernis in Himmelsfarbe bleibt sichtbar, kaputte Werte fal
   assert.equal(C.sanitizeLook({ a: "#ffffff", p: "#fefefe" }).p, "#1f1f2e");
   assert.equal(C.sanitizeLook({ a: "red", d: "feuer", e: "x", f: "emoji" }), null);
 });
-test("Wunsch ohne Modell: Spiel bekommt trotzdem eine ganze Welt", () => {
-  const g = of("game"), n = W.apply(g, W.local(g, "Unter Wasser", "de", () => 0), PAIRS, rand);
-  assert.equal(n.g.look.d, "bubbles"); assert.equal(n.g.emoji, "🐠");
-});
 test("Wunsch: freie Farben auf Karte, Foto und Sound", () => {
   assert.deepEqual(W.apply(of("card"), { colors: ["#112233", "#445566"] }, PAIRS, rand).col, ["#112233", "#445566"]);
 });
@@ -74,4 +80,67 @@ test("Wunsch: Duell und Kanal aendern vier Bereiche, Raetsel bleiben unberuehrt 
   const q = of("quest"), m = W.apply(q, { t: "Schatz", s: "Grab", e: "🗺️", colors: ["#112233", "#445566"], q0: "fremd", c: [] }, PAIRS, rand);
   assert.equal(m.t, "Schatz"); assert.equal(m.e, "🗺️"); assert.equal(m.q0, q.q0);
   assert.ok(!JSON.stringify(W.request(q, "x", "")).includes(q.q0));
+});
+test("Wurf aendert den ganzen Look, Wunsch dazu Titel und Untertitel des Blatts", () => {
+  const want = { card: ["stil", "farbe", "sticker"], photo: ["stil", "farbe", "sticker"], sound: ["stimme", "farbe"], duel: ["farbe", "regeln"], quest: ["farbe", "figur"], turn: ["farbe", "figur"] };
+  for (const k of W.DICE) {
+    const d = of(k), n = W.apply(d, W.dice(d, k + "|1", PAIRS), PAIRS, rand), got = D.changedAreas(d, n);
+    for (const a of want[k]) assert.ok(got.includes(a), k + ": " + a + " fehlt in " + got);
+    const ts = W.apply(d, { t: "Gruselnacht", s: "Nur fuer Mutige" }, PAIRS, rand);
+    assert.equal(ts.t, "Gruselnacht", k); assert.equal(ts.s, "Nur fuer Mutige", k); assert.ok(D.changedAreas(d, ts).includes("idee"), k);
+  }
+  const c = W.apply(of("card"), { stickers: ["🎃", "👻"] }, PAIRS, rand), c2 = W.apply(c, { stickers: ["🦇"] }, PAIRS, rand);
+  assert.deepEqual(c2.sk.map((s) => s.e), ["🦇"], "ein zweiter Wunsch stapelt keine Sticker");
+});
+test("Farbe: ein Wunsch bekommt genau das Farbpaar, das die KI nennt, kein erzwungener Wechsel; ein Wurf wechselt immer", () => {
+  const d = Object.assign(of("card"), { col: PAIRS[1].slice() });
+  assert.deepEqual(W.apply(d, { palette: 1 }, PAIRS, rand).col, PAIRS[1]);
+  assert.deepEqual(W.apply(d, { palette: 0 }, PAIRS, rand).col, PAIRS[0]);
+  for (let i = 0; i < 20; i++) assert.notDeepEqual(W.dice(d, "x|" + i, PAIRS).colors, d.col);
+});
+test("Wurf: eine Karte mit dem Text ihrer Idee bekommt eine andere Zeile derselben Idee, eigener Text bleibt", () => {
+  const idea = D.IDEAS.find((i) => i.kind === "card" && i.de.lines.length > 2), d = D.docFromIdea(idea, me, "de"), L = idea.de.lines;
+  const x = W.dice(d, "t|1", PAIRS, L).x; assert.ok(L.includes(x) && x !== d.x);
+  assert.equal(W.dice({ ...d, x: "Mein eigener Satz" }, "t|1", PAIRS, L).x, undefined);
+});
+test("Adventstuerchen: Wunsch aendert Botschaft, Farben, Sticker, Stil und Titel/Untertitel auf einmal, Nummer bleibt", () => {
+  const d = D.sanitizeDoc({ ...D.docFromIdea(D.byId("advent-tuer"), me, "de"), st: "zettel" }), nr = d.nr;
+  const n = W.apply(d, { x: "Frohe Weihnachten!", st: "advent", colors: ["#b3001b", "#ffffff"], stickers: ["🎄", "⭐", "🎁"], t: "Tür voller Schnee", s: "Tipp drauf, es schneit.", nr: 3 }, PAIRS, rand);
+  assert.equal(n.x, "Frohe Weihnachten!"); assert.equal(n.st, "advent"); assert.deepEqual(n.col, ["#b3001b", "#ffffff"]);
+  assert.deepEqual(n.sk.map((s) => s.e), ["🎄", "⭐", "🎁"]); assert.equal(n.t, "Tür voller Schnee"); assert.equal(n.s, "Tipp drauf, es schneit.");
+  assert.equal(n.nr, nr, "die Nummer waehlt nur der Mensch");
+  assert.deepEqual(D.changedAreas(d, n).sort(), ["farbe", "idee", "sticker", "stil", "text"]);
+});
+test("Adventstuerchen: der Wurf bleibt weihnachtlich, Stil, Nummer und Botschaft bleiben", () => {
+  const d = D.sanitizeDoc({ ...D.docFromIdea(D.byId("advent-tuer"), me, "de"), st: "advent", col: ["#ffd400", "#ff3b1d"], x: "Für dich" });
+  for (let i = 1; i <= 5; i++) {
+    const n = W.apply(d, W.dice(d, "advent|" + i, PAIRS), PAIRS, rand);
+    assert.equal(n.st, "advent"); assert.equal(n.nr, d.nr); assert.equal(n.x, "Für dich");
+    assert.ok(n.sk.length && n.sk.every((s) => D.SETS.advent.includes(s.e)), "Sticker aus dem Advent-Set");
+    assert.notDeepEqual(n.col, d.col);
+  }
+});
+test("KI-Siegel: reist im Link mit, fremde Zeichen fallen weg, ohne Siegel nur die Art", () => {
+  const g = Object.assign(of("game"), { ki: { k: "wish", s: "v1.k1.abcDEF-123_x" } }), url = D.docUrl(g);
+  assert.deepEqual(D.parseRoute("#" + url.split("#")[1]).doc.ki, { k: "wish", s: "v1.k1.abcDEF-123_x" });
+  assert.deepEqual(D.sanitizeDoc({ ...g, ki: { k: "wish", s: "<b>x</b>" } }).ki, { k: "wish" });
+  assert.equal(D.sanitizeDoc({ ...g, ki: { k: "Wish!" } }).ki, undefined);
+  assert.equal(D.sanitizeDoc(of("card")).ki, undefined, "ohne KI kein Siegel");
+});
+test("KI-Siegel mit Options-Hash h: optional, genau 43 base64url-Zeichen, nur neben einem Siegel", () => {
+  const h = "Y-feMaAnaOXUrB2BxPv3vUTgMan0NNfOQmA6jhDp_Tc", g = Object.assign(of("game"), { ki: { k: "wish", s: "s1.wish.k1.abcDEF-123_x", h } });
+  assert.deepEqual(D.parseRoute("#" + D.docUrl(g).split("#")[1]).doc.ki, { k: "wish", s: "s1.wish.k1.abcDEF-123_x", h });
+  for (const bad of [h.slice(1), h + "x", h.slice(1) + "/", h.slice(1) + "=", "<b>" + h.slice(3), 1]) assert.deepEqual(D.sanitizeKi({ k: "wish", s: "s1.wish.k1.abcDEF-123_x", h: bad }), { k: "wish", s: "s1.wish.k1.abcDEF-123_x" }, String(bad));
+  assert.deepEqual(D.sanitizeKi({ k: "wish", h }), { k: "wish" }, "h ohne Siegel faellt weg");
+  assert.deepEqual(D.sanitizeKi({ k: "wish", s: "s1.wish.k1.abcDEF-123_x" }), { k: "wish", s: "s1.wish.k1.abcDEF-123_x" }, "alte Blaetter ohne h");
+});
+
+test("Wurfnummer: bleibt auf dem Geraet je Blatt, weiter statt von vorn; begrenzt, kaputte Werte fangen bei 1 an", () => {
+  const rolls = {};
+  assert.deepEqual([W.nextRoll(rolls, "card-1"), W.nextRoll(rolls, "card-1"), W.nextRoll(rolls, "game-2"), W.nextRoll(rolls, "card-1")], [1, 2, 1, 3]);
+  const again = JSON.parse(JSON.stringify(rolls));   // the editor closed and opened again: the store is the same
+  assert.equal(W.nextRoll(again, "card-1"), 4, "nicht wieder Wurf 1");
+  assert.equal(W.nextRoll({ x: -3 }, "x"), 1); assert.equal(W.nextRoll({ x: "zwei" }, "x"), 1);
+  const many = {}; for (let i = 0; i < 100; i++) W.nextRoll(many, "k" + i);
+  assert.equal(Object.keys(many).length, 60); assert.ok(!("k0" in many) && "k99" in many, "die aeltesten gehen");
 });

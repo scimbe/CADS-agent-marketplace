@@ -86,7 +86,7 @@
       var go = el("button", "btn hot", t("cc_check")); go.type = "button"; go.id = "cccheck";
       go.addEventListener("click", function () {
         var r = CC.answer(c, fields.map(function (f) { return f.value; }), book(), now()); Kit.save();
-        if (r.state === "wrong") { res.textContent = t("cc_wrong", { h: r.hit, left: r.left }); return; }
+        if (r.state === "wrong") { res.textContent = t("cc_wrong", { h: r.hit, n: r.left }); return; }
         if (r.state === "passed") { say(t("cc_passed", { n: who() }), [ui.btn(t("cc_request"), true, function () { request(frag); }), ui.btn(t("co_no"), false, ui.close)]); return; }
         say(t(r.state === "expired" ? "cc_expired" : r.state === "used" ? "co_used" : "cc_locked"), [closeBtn()]);
       });

@@ -314,7 +314,7 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
 ///  `-DuellChallenge <fragment>`  open with a link fragment, like a Universal Link would
 ///  `-DuellMicDeny`               refuse microphone requests (exercises the fallback without a system dialog)
 ///  `-DuellScenario <name>`       after load, run a scripted flow in the page and write Documents/duell-scenario.json.
-///                                names: probe, more, share, save, mic
+///                                names: probe, more, share, save, mic, parts
 enum DuellDebug {
     private static var notes: [String: Any] = [:]
 
@@ -389,6 +389,16 @@ enum DuellDebug {
             log('toast', $('#toast').textContent);
             await clickEl(btn(/Silly voice|Quatschstimme/)); await clickEl(btn(/^Echo$/));
             log('footer', $('#edmain').textContent); await clickEl($('#edmain'), 1500); await clickEl($('#save'), 1500);
+            """,
+        // The page's parts (duell/parts/*.js next to index.html, script-src 'self' on the file:// page): the arcade
+        // menu needs the play part; then every part, and the licence texts from theirs.
+        "parts": """
+            await openIdea('arcade-puck'); await sleep(1500);
+            log('arcadeMenu', !!btn(/Gegen den Bot|Against the bot/));
+            try { await Promise.all(window.Parts.names().map(n => window.Parts.need(n))); log('parts', window.Parts.names().filter(n => window.Parts.ready(n)).sort().join(',')); }
+            catch (e) { log('parts', 'error: ' + String(e && e.message || e)); }
+            log('licenses', typeof window.DailyLicenses === 'string' && /SIL OPEN FONT LICENSE/.test(window.DailyLicenses));
+            log('qr', typeof window.qrcode === 'function' && typeof window.StatusCard === 'object');
             """,
     ]
 

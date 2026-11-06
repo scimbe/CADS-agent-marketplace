@@ -3,7 +3,9 @@
 "use strict";
 var A = window.DailyApp, X = window.DailyModes, Tn = window.Turns, Q = window.Quest, C = window.DuellCore, D = window.Daily, R = window.Render, Kit = window.Kit, t = Kit.t, el = A.el;
 function L() { return Tn.T(Kit.lang); }
-function say(k, o) { return String(L()[k]).replace(/\{(\w+)\}/g, function (m, n) { return o[n]; }); }
+function say(k, o) { return String(C.form(L(), k, o && o.n, Kit.lang)).replace(/\{(\w+)\}/g, function (m, n) { return o[n]; }); }
+// A game may name its own words for the shared buttons (GAMES[g].words), so a date poll does not speak of moves.
+function word(doc, k) { var w = Tn.GAMES[doc.g] && Tn.GAMES[doc.g].words; return (w && w[k]) || k; }
 function seed() { var a = new Uint32Array(1); window.crypto.getRandomValues(a); return a[0]; }
 
 /* ---------- voices: only in this tab's memory, overwritten after use ---------- */
@@ -39,6 +41,7 @@ function shape(c, f, x, y, r, col) {
   else if (f === "heart") { c.moveTo(0, r * 0.9); c.bezierCurveTo(-r * 1.5, -r * 0.1, -r * 0.6, -r * 1.1, 0, -r * 0.35); c.bezierCurveTo(r * 0.6, -r * 1.1, r * 1.5, -r * 0.1, 0, r * 0.9); c.fill(); }
   else if (f === "bolt") { [[0.2, -1], [-0.55, 0.15], [-0.05, 0.15], [-0.2, 1], [0.55, -0.2], [0.05, -0.2]].forEach(function (p) { c.lineTo(p[0] * r, p[1] * r); }); c.closePath(); c.fill(); }
   else if (f === "ring") { c.arc(0, 0, r * 0.8, 0, 6.3); c.stroke(); }
+  else if (f === "coin") { c.arc(0, 0, r, 0, 6.3); c.fill(); c.fillStyle = "rgba(0,0,0,.35)"; c.font = "900 " + Math.round(r * 1.2) + "px system-ui,sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("€", 0, r * 0.06); }
   else if (f === "drop") { c.moveTo(0, -r); c.bezierCurveTo(r * 1.1, 0, r * 0.7, r, 0, r); c.bezierCurveTo(-r * 0.7, r, -r * 1.1, 0, 0, -r); c.fill(); }
   else { c.arc(0, 0, r, 0, 6.3); c.fill(); c.fillStyle = "rgba(0,0,0,.35)"; [[-0.4, -0.3], [0.35, -0.45], [0.05, 0.1], [-0.3, 0.5], [0.5, 0.4]].forEach(function (p) { c.beginPath(); c.arc(p[0] * r, p[1] * r, r * 0.13, 0, 6.3); c.fill(); }); }
   c.restore();
@@ -52,45 +55,146 @@ function lines(c, list, W, y, size, col) {
   });
   return y;
 }
-function title(doc) { var i = doc.i ? D.byId(doc.i) : null, T = i ? (i[Kit.lang] || i.de).t.replace("|", " ") : ""; return doc.t || T || t("turn"); }
+function title(doc) { var i = doc.i ? D.byId(doc.i) : null, T = i ? D.plainTitle((i[Kit.lang] || i.de).t) : ""; return doc.t || T || t("turn"); }
 R.extra.turn = function (c, W, H, doc) {
+  if (listOf(doc)) return drawShop(c, W, H, doc);
   var a = doc.col[0], b = doc.col[1], ink = R.ink(a), st = Tn.state(doc), res = Tn.result(doc, Kit.lang);
   c.fillStyle = a; c.fillRect(0, 0, W, H); R.rays(c, W, H, "rgba(0,0,0,.05)", 0.2);
   shape(c, doc.f, W * 0.84, H * 0.84, W * 0.08, b); shape(c, doc.f, W * 0.14, H * 0.8, W * 0.05, b);
   R.block(c, res ? res.h : title(doc), W * 0.07, H * 0.1, W * 0.86, H * 0.34, ink, null);
+  var face = res ? null : Tn.face(doc, Kit.lang);
   if (res) lines(c, res.lines, W, H * 0.5, W * 0.038, ink);
-  else if (!st.turn) { var i0 = doc.i ? D.byId(doc.i) : null; lines(c, [doc.s || (i0 ? (i0[Kit.lang] || i0.de).s : ""), L().you_start], W, H * 0.52, W * 0.05, ink); }   // the goal, not the machinery
+  else if (face) lines(c, face, W, H * 0.5, W * 0.045, ink);   // the standing so far, which is what the group wants to see
+  else if (!st.turn) { var i0 = doc.i ? D.byId(doc.i) : null; lines(c, [doc.s || (i0 ? (i0[Kit.lang] || i0.de).s : ""), L()[word(doc, "you_start")]], W, H * 0.52, W * 0.05, ink); }   // the goal, not the machinery
   else lines(c, [say("picture_turn", { n: st.turn + 1, m: st.total })], W, H * 0.56, W * 0.05, ink);
 };
 
+/* ---------- the shopping list: this phone keeps what it knows of each list, so a reply merges instead of replacing ---------- */
+var SHOP_KEEP = 12;
+function shopStore() { var s = Kit.store.shop; return s && typeof s === "object" && !Array.isArray(s) ? s : {}; }
+// Shopping list and task list share the merging; listOf gives the game's caps, words picks its words (ein_ / tdo_).
+function listOf(doc) { var g = Tn.GAMES[doc.g]; return g && g.list ? g.list : null; }
+function words(doc) { return doc.g === "todo" ? "tdo" : doc.g === "wunsch" ? "wun" : "ein"; }
+function shopKept(doc) { var v = shopStore()["s" + doc.seed]; return Tn.shopOk(v, listOf(doc)) ? v : null; }
+function shopKeep(doc, v) {
+  var s = shopStore(), k; delete s["s" + doc.seed]; s["s" + doc.seed] = v;
+  for (k = Object.keys(s); k.length > SHOP_KEEP; k.shift()) delete s[k[0]];
+  Kit.store.shop = s; Kit.save();
+}
+// The list as this phone sees it: the link merged with what it knew of the same list before.
+function shopSeen(doc) { var m = Tn.moves(doc), mine = shopKept(doc); return m.length ? (mine ? Tn.shopMerge(m[0][0], mine, listOf(doc)) : m[0][0]) : null; }
+function shopSync(ed) { var v = shopSeen(ed.doc); if (!v) return; ed.doc.q = Tn.seal([[v]], ed.doc.seed); ed.base.q = ed.doc.q; shopKeep(ed.doc, v); }
+function myFace() { var i = Tn.FACES.indexOf(A.me().emoji); return i < 0 ? 0 : i; }
+// WCAG contrast: black or white, whichever reads better on this colour.
+function rl(hex) { var v = [1, 3, 5].map(function (i) { var x = parseInt(hex.slice(i, i + 2), 16) / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; }
+function inkOn(hex) { var l = rl(hex); return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? "#000000" : "#ffffff"; }   // the better of the two is always at least 4.58:1
+function fit(c, s, w) { s = String(s); if (c.measureText(s).width <= w) return s; while (s.length > 1 && c.measureText(s + "…").width > w) s = s.slice(0, -1); return s + "…"; }
+// The card picture is the list itself on a sheet of paper: dark ink on white, whatever colours the card has. No emoji in exports.
+function drawShop(c, W, H, doc) {
+  var ed = A.ed(), out = ed && ed.doc === doc && ed.next ? ed.next : doc;   // in the editor: the list as it will go out, in the colours chosen now
+  var cf = listOf(doc), K = words(doc), hide = !!(cf && cf.wish), a = doc.col[0], b = doc.col[1], ink = inkOn(a), v = out === doc ? shopSeen(doc) : Tn.moves(out)[0][0], res = Tn.result(out, Kit.lang), rows = v ? Tn.shopRows(v, cf) : [], i0 = doc.i ? D.byId(doc.i) : null;
+  c.fillStyle = a; c.fillRect(0, 0, W, H); R.rays(c, W, H, "rgba(0,0,0,.05)", 0.2);
+  R.block(c, res ? res.h : title(doc), W * 0.07, H * 0.035, W * 0.86, H * 0.15, ink, null);
+  c.font = "800 " + Math.round(W * 0.036) + "px system-ui,sans-serif"; c.fillStyle = ink; c.textAlign = "center"; c.textBaseline = "middle";
+  c.fillText(fit(c, v ? (hide ? say("wun_count", { n: v[1].length }) : Tn.shopCount(v, Kit.lang, cf)) : doc.s || (i0 ? (i0[Kit.lang] || i0.de).s : ""), W * 0.86), W / 2, H * 0.205);
+  var x0 = W * 0.06, y0 = H * 0.235, pw = W * 0.88, ph = H - W * 0.085 - y0, n = Math.max(rows.length, 1), rh = Math.min(ph * 0.92 / n, W * 0.08), fs = Math.round(rh * 0.5), pad = W * 0.045;
+  c.fillStyle = b; c.fillRect(x0 + W * 0.014, y0 + W * 0.014, pw, ph);
+  c.fillStyle = "#fffdf7"; c.fillRect(x0, y0, pw, ph); c.strokeStyle = "#111111"; c.lineWidth = W * 0.004; c.strokeRect(x0, y0, pw, ph);
+  var y = y0 + ph * 0.04 + rh / 2;
+  if (!rows.length) { c.font = "700 " + Math.round(W * 0.04) + "px system-ui,sans-serif"; c.fillStyle = "#4b5563"; c.fillText(L()[K + "_empty"], W / 2, y0 + ph / 2); }
+  rows.forEach(function (r) {
+    var done = !hide && r.bought.length > 0, box = fs * 1.05, bx = x0 + pad, who = hide ? "" : done ? say(K + "_got", { n: r.bought.map(function (p) { return p[0]; }).join(", ") }) : r.bring.length ? say(K + "_brings", { n: r.bring.map(function (p) { return p[0]; }).join(", ") }) : r.due ? Tn.dueText(r.due, Kit.lang) : "";
+    c.strokeStyle = "#dbe4f0"; c.lineWidth = Math.max(1, W * 0.002); c.beginPath(); c.moveTo(x0 + pad * 0.5, y + rh / 2); c.lineTo(x0 + pw - pad * 0.5, y + rh / 2); c.stroke();
+    c.lineWidth = W * 0.004; c.strokeStyle = "#111111"; c.strokeRect(bx, y - box / 2, box, box);
+    if (done) { c.fillStyle = "#111111"; c.fillRect(bx, y - box / 2, box, box); c.strokeStyle = "#ffffff"; c.lineWidth = box * 0.16; c.beginPath(); c.moveTo(bx + box * 0.2, y); c.lineTo(bx + box * 0.42, y + box * 0.22); c.lineTo(bx + box * 0.8, y - box * 0.24); c.stroke(); }
+    var tx = bx + box + pad * 0.5, right = x0 + pw - pad * 0.6, roomWho = who ? pw * 0.36 : 0;
+    c.textAlign = "left"; c.textBaseline = "middle"; c.font = "800 " + fs + "px system-ui,sans-serif"; c.fillStyle = done ? "#4b5563" : "#111111";
+    var s = fit(c, r.label, right - tx - roomWho - pad * 0.3); c.fillText(s, tx, y);
+    if (done) { var w = c.measureText(s).width; c.strokeStyle = "#4b5563"; c.lineWidth = Math.max(2, fs * 0.08); c.beginPath(); c.moveTo(tx, y); c.lineTo(tx + w, y); c.stroke(); }
+    if (who) { c.textAlign = "right"; c.font = "700 " + Math.round(fs * 0.72) + "px system-ui,sans-serif"; c.fillStyle = done ? "#166534" : "#1d4ed8"; c.fillText(fit(c, who, roomWho), right, y); }
+    y += rh;
+  });
+  shape(c, doc.f, W * 0.92, H * 0.2, W * 0.035, b);
+  return ink;
+}
+window.TurnShop = { draw: drawShop, keep: shopKeep };
+
 /* ---------- one prompt ---------- */
 var draw = {
+  // p.show(v, lang) writes the value (e.g. as money), p.defOf(doc) is where it starts, p.step adds − and + buttons
   slide: function (box, p, set, ctx) {
-    var v = p.def || p.min || 0, row = el("label", "slide"), r = el("input"), b = el("b", "", v);
-    row.appendChild(el("span", "", "")); r.type = "range"; r.min = p.min || 0; r.max = p.maxOf ? p.maxOf(ctx.doc) : p.max; r.value = v; r.setAttribute("aria-label", L()[p.l]);
-    r.addEventListener("input", function () { b.textContent = r.value; set(Number(r.value)); });
-    row.appendChild(r); row.appendChild(b); box.appendChild(row); set(v);
+    var v = p.defOf ? p.defOf(ctx.doc) : p.def || p.min || 0, row = el("label", "slide"), r = el("input"), u = p.unit ? " " + p.unit : "", b = el("b", "", "");
+    function shown(x) { b.textContent = p.show ? p.show(x, Kit.lang) : x + u; r.setAttribute("aria-valuetext", b.textContent); }
+    if (p.show) row.classList.add("money");
+    row.appendChild(el("span", "", "")); r.type = "range"; r.min = p.min || 0; r.max = p.maxOf ? p.maxOf(ctx.doc) : p.max; if (p.step) r.step = p.step; r.value = v; r.setAttribute("aria-label", p.title ? p.title(ctx.doc, Kit.lang) : L()[p.l]);
+    r.addEventListener("input", function () { shown(Number(r.value)); set(Number(r.value)); });
+    row.appendChild(r); row.appendChild(b); box.appendChild(row); shown(v); set(v);
+    if (p.step) {
+      var nb = el("div", "chips");
+      [["sl_less", -1, "−"], ["sl_more", 1, "+"]].forEach(function (x) {
+        var c = el("button", "chip", x[2], function () { Kit.sfx.tap(); var n = Math.min(Number(r.max), Math.max(Number(r.min), Number(r.value) + x[1] * p.step)); r.value = n; shown(Number(r.value)); set(Number(r.value)); });
+        c.setAttribute("aria-label", L()[x[0]]); nb.appendChild(c);
+      });
+      box.appendChild(nb);
+    }
   },
   show: function (box, p, set, ctx) {
     p.list(ctx.doc, ctx.m, ctx.now, Kit.lang).forEach(function (s) { box.appendChild(el("p", "qtext", s)); });
+    if (p.card) p.card(box, ctx.doc, ctx.m, ctx.now, Kit.lang);   // a picture of what is asked about, drawn by the game's part
+    if (p.notes) p.notes(ctx.doc, ctx.m, ctx.now, Kit.lang).forEach(function (s) { box.appendChild(el("p", "note", s)); });   // e.g. what a quiz still has open
     if (p.later) box.appendChild(el("p", "note", L()[p.later]));
     set(0);
   },
   text: function (box, p, set, ctx) {
+    if (p.adult && minor()) { box.appendChild(el("p", "qtext", L().sam_minor)); set(null); return; }   // a PayPal name: 18+ only
     if (p.top) box.appendChild(el("p", "qtext", p.top(ctx.doc, ctx.m, Kit.lang)));
-    var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l]);
-    f.addEventListener("input", function () { var v = f.value.trim(), ok = Tn.okAnswer(p, v, ctx.doc, Kit.lang, ctx.m, ctx.now); set(ok ? v : null); });
-    box.appendChild(f); set(null);
+    var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l]); if (p.hint) f.placeholder = L()[p.hint];
+    function check() { var v = f.value.trim(), ok = Tn.okAnswer(p, v, ctx.doc, Kit.lang, ctx.m, ctx.now); set(ok ? v : null); }
+    f.addEventListener("input", check);
+    var mine = p.pref && A.me().pref && A.me().pref[p.pref];   // my own default (Profil), visible in the field and changeable
+    box.appendChild(f); set(null); if (mine) { f.value = mine; check(); }
   },
-  list: function (box, p, set) {
-    var fs = [];
+  // An amount in euros and cents; under the field what each person pays and the cents left over.
+  money: function (box, p, set, ctx) {
+    var f = el("input", "field"), info = el("p", "note", "");
+    f.inputMode = "decimal"; f.maxLength = 9; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l]); if (p.hint) f.placeholder = L()[p.hint];
+    f.addEventListener("input", function () {
+      var c = Tn.parseCents(f.value), ok = c !== null && Tn.okAnswer(p, c, ctx.doc, Kit.lang, ctx.m, ctx.now);
+      info.textContent = ok ? p.line(c, ctx.now, Kit.lang) : ""; set(ok ? c : null);
+    });
+    box.appendChild(f); box.appendChild(info); set(null);
+  },
+  // A plain link to PayPal.me: the shells hand it to the browser or the PayPal app. Nothing comes back, nobody counts who paid.
+  // Under 18 there is no PayPal link: the age band comes from my defaults (Profil); without one, a note and one tap to say 18+.
+  pay: function (box, p, set, ctx) {
+    var url = p.link(ctx.doc, ctx.m), after = el("p", "note", L().sam_after), gate = el("div"), more = p.more ? p.more(ctx.m, Kit.lang) : "";
+    if (more) box.appendChild(el("p", "note", more));
+    box.appendChild(el("p", "note", L().sam_safe));
+    function link() {
+      gate.textContent = "";
+      if (!url) return;
+      if (minor()) { gate.appendChild(el("p", "qtext", L().sam_minor)); return; }
+      if (!D.adult(A.me())) {
+        gate.appendChild(el("p", "note", L().sam_age));
+        gate.appendChild(el("button", "chip", L().sam_adult, function () { Kit.sfx.tap(); var f = Object.assign({}, A.me().pref || {}); f.age = "a18"; A.savePref(f); link(); }));
+        return;
+      }
+      var a = el("a", "btn hot", say("sam_btn", { e: p.share(ctx.m, Kit.lang) })); a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.id = "paylink";
+      a.addEventListener("click", function () { Kit.sfx.tap(); after.hidden = false; }); gate.appendChild(a);
+    }
+    box.appendChild(gate); link();
+    after.hidden = true; box.appendChild(after); set(0);
+  },
+  list: function (box, p, set, ctx) {
+    var fs = [], pre = ctx && ctx.ed.pre && ctx.ed.pre[p.l];
     function up() { var v = fs.map(function (f) { return Q.clean(f.value, p.max); }), have = v.filter(Boolean); if (p.least && (have.length < p.least || new Set(have.map(Q.fold)).size < have.length)) { set(null); return; } set(p.loose ? fs.map(function (f, i) { return f.value.trim() ? v[i] : ""; }) : v.every(Boolean) && (p.same || new Set(v.map(Q.fold)).size === p.n) && (!p.bytes || new TextEncoder().encode(v.join("")).length <= p.bytes) ? v : null); }
-    for (var i = 0; i < p.n; i++) { var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l] + " " + (i + 1)); if (p.hints) f.placeholder = p.hints(Kit.lang)[i]; f.addEventListener("input", up); box.appendChild(f); fs.push(f); }
-    if (p.loose) up(); else set(null);
+    for (var i = 0; i < p.n; i++) { var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l] + " " + (i + 1)); if (p.hints) f.placeholder = p.hints(Kit.lang)[i]; f.addEventListener("input", up); if (pre && pre[i]) f.value = pre[i]; box.appendChild(f); fs.push(f); }
+    if (p.loose || pre) up(); else set(null);
   },
   pick: function (box, p, set, ctx) {
     var on = [], row = el("div", "chips"), items = p.from(ctx.doc, ctx.m, ctx.now, Kit.lang);
     if (p.top) box.appendChild(el("p", "qtext", p.top(ctx.doc, ctx.m, Kit.lang)));
+    if (p.card) p.card(box, ctx.doc, ctx.m, ctx.now, Kit.lang);
     items.forEach(function (s, i) {
       var b = el("button", "chip", s, function () {
         Kit.sfx.tap(); var at = on.indexOf(i);
@@ -203,7 +307,7 @@ var draw = {
     b.addEventListener("click", function () {
       var d = Math.round(performance.now() - t0); if (!t0 || d < 2000) return; t0 = 0;
       n++; if (!best || Math.abs(d - p.goal) < Math.abs(best - p.goal)) best = Math.min(30000, d);
-      info.textContent = say("pok_got", { n: (d / 1000).toFixed(2) }); Kit.sfx.pop();
+      info.textContent = say("pok_got", { n: Kit.num(d / 1000, 2) }); Kit.sfx.pop();
       if (n >= p.tries) { b.disabled = true; set(best); } else go();
     });
     box.appendChild(q); box.appendChild(b); box.appendChild(info); go(); set(null);
@@ -242,7 +346,7 @@ var draw = {
     var plan = p.plan(ctx.doc), r = 0, k = 0, sum = 0, t0 = 0, star = false, timer = 0, pad = el("button", "touchpad react", ""), info = el("p", "lbl", L().rea_rule), SH = ["●", "▲", "■"];
     function next() {
       clearTimeout(timer); pad.textContent = ""; star = false; t0 = 0;
-      if (r >= plan.length) { set(Math.min(60000, Math.round(sum))); info.textContent = say("rea_done", { n: (sum / 1000).toFixed(2) }); return; }
+      if (r >= plan.length) { set(Math.min(60000, Math.round(sum))); info.textContent = say("rea_done", { n: Kit.num(sum / 1000, 2) }); return; }
       timer = setTimeout(function () {
         if (!box.isConnected) return;
         if (k < plan[r].decoys) { pad.textContent = SH[(r + k) % 3]; k++; timer = setTimeout(next, 650); return; }
@@ -255,7 +359,7 @@ var draw = {
       if (star) { clearTimeout(timer); sum += performance.now() - t0; r++; k = 0; Kit.sfx.pop(); next(); }
       else if (pad.textContent) { sum += 500; Kit.tone(200, 90, 0.08, "square", 0.05); info.textContent = L().rea_wrong; }
     });
-    box.appendChild(info); box.appendChild(pad); next(); set(null);
+    pad.setAttribute("aria-label", L().a_pad); box.appendChild(info); box.appendChild(pad); next(); set(null);
   },
   // The bouncer: a being at the door, "out" left and "in" right; the being keeps its frame for a moment after each tap.
   door: function (box, p, set, ctx) {
@@ -419,20 +523,154 @@ var draw = {
     show(); set(null);
   },
   alloc: function (box, p, set, ctx) {
-    var items = p.from(ctx.doc, ctx.m, ctx.now, Kit.lang), vals = p.vals(ctx.doc), bids = items.map(function () { return 0; }), left = el("p", "lbl", "");
+    var items = p.from(ctx.doc, ctx.m, ctx.now, Kit.lang), vals = p.vals ? p.vals(ctx.doc) : null, bids = items.map(function () { return 0; }), left = el("p", "lbl", "");
     function sum() { return bids.reduce(function (a, b) { return a + b; }, 0); }
     function up() { left.textContent = say("left", { n: p.sum - sum() }); set(bids.slice()); }
     items.forEach(function (s, i) {
-      box.appendChild(el("p", "lbl", s + " · " + vals[i]));
+      box.appendChild(el("p", "lbl", vals ? s + " · " + vals[i] : s));
       var row = el("div", "chips"), n = el("b", "", "0");
-      row.appendChild(el("button", "chip", "−", function () { if (bids[i] >= p.step) { bids[i] -= p.step; n.textContent = bids[i]; up(); Kit.sfx.tap(); } }));
-      row.appendChild(n);
-      row.appendChild(el("button", "chip", "+", function () { if (sum() + p.step <= p.sum) { bids[i] += p.step; n.textContent = bids[i]; up(); Kit.sfx.tap(); } }));
+      var less = el("button", "chip", "−", function () { if (bids[i] >= p.step) { bids[i] -= p.step; n.textContent = bids[i]; up(); Kit.sfx.tap(); } });
+      var more = el("button", "chip", "+", function () { if (sum() + p.step <= p.sum) { bids[i] += p.step; n.textContent = bids[i]; up(); Kit.sfx.tap(); } });
+      less.setAttribute("aria-label", say("a_less", { s: s })); more.setAttribute("aria-label", say("a_more", { s: s }));
+      row.appendChild(less); row.appendChild(n); row.appendChild(more);
       box.appendChild(row);
     });
     box.appendChild(left); up();
+  },
+  // The shopping list: one field, Enter adds ("2× Milch" counts 2). Each row: I'll bring it, or bought. set() gets the whole list as
+  // it would go out: what came in, merged with this phone's copy, plus this person's changes. Text only ever goes in as textContent.
+  shop: function (box, p, set, ctx) {
+    var cf = p.cfg, K = p.k || "ein", W = function (x) { return L()[K + "_" + x] || L()["ein_" + x]; };
+    var base = ctx.m.length ? ctx.m[0][0] : null, e = ctx.ed.shop || (ctx.ed.shop = { name: "", face: myFace(), adds: [], marks: {} });
+    var form = el("form", "shopadd"), f = el("input", "field"), plus = el("button", "chip", "+"), rows = el("div", "shoplist"), who = el("input", "field"), pn = document.getElementById("panel");
+    if (pn) pn.dataset.size = "big";
+    f.maxLength = cf ? cf.text + 4 : 40; f.autocomplete = "off"; f.enterKeyHint = "enter"; f.placeholder = W("ph"); f.setAttribute("aria-label", W("field"));
+    plus.type = "submit"; plus.setAttribute("aria-label", W("add"));
+    who.maxLength = 12; who.autocomplete = "off"; who.setAttribute("aria-label", W("name")); who.placeholder = L().ter_name;
+    var nick = A.me().nick; if (!e.name && nick && Tn.nameOk(nick)) e.name = nick; who.value = e.name;
+    function now() { return Tn.shopApply(base, e, cf); }
+    // a task is its text (no count in front); a shopping item may start with a count
+    function parse(v) { if (!cf || !cf.due) return Tn.shopParse(v); var x = Q.clean(v, cf.text); return x && Tn.shopKey(x) ? { text: x, qty: 0 } : null; }
+    function named() { return Tn.nameOk(e.name); }
+    function people(l) { return l.map(function (x) { return Tn.FACES[x[1]] + " " + x[0]; }).join(", "); }
+    function sent(k) { return !!base && base[1].some(function (it) { return Tn.shopKey(it[0]) === k; }); }
+    function mark(k, s) {
+      if (!named()) { Kit.toast(L().ein_need_name); who.focus(); who.classList.add("nudge"); setTimeout(function () { who.classList.remove("nudge"); }, 700); return; }
+      e.marks[k] = s; Kit.sfx.tap(); up();
+    }
+    function row(r, v) {
+      var me = named() ? Tn.shopMark(v, e.name, r.key) % 3 : 0, d = el("div", "shoprow" + (r.bought.length ? " done" : "")), txt = el("div", "shoptext");
+      txt.appendChild(el("b", "", r.label));
+      var line = [r.bought.length ? say(K + "_got", { n: people(r.bought) }) : r.bring.length ? say(K + "_brings", { n: people(r.bring) }) : cf && cf.due ? L().tdo_open : "", r.due ? Tn.dueText(r.due, Kit.lang) : ""].filter(Boolean).join(" · ");
+      if (line) txt.appendChild(el("small", "", line));
+      d.appendChild(txt);
+      [[1, "🙋", K + "_bring"], [2, "✓", K + "_bought"]].forEach(function (x) {
+        var b = el("button", "chip" + (me === x[0] ? " on" : ""), x[1], function () { mark(r.key, me === x[0] ? 0 : x[0]); });
+        b.setAttribute("aria-label", L()[x[2]] + ": " + r.label); b.setAttribute("aria-pressed", String(me === x[0])); d.appendChild(b);
+      });
+      if (!sent(r.key)) {
+        var x = el("button", "chip", "✕", function () { e.adds = e.adds.filter(function (a) { return Tn.shopKey(a.text) !== r.key; }); delete e.marks[r.key]; Kit.sfx.tap(); up(); });
+        x.setAttribute("aria-label", W("drop") + ": " + r.label); d.appendChild(x);
+      }
+      return d;
+    }
+    function up() {
+      var v = now();
+      rows.textContent = "";
+      if (!v[1].length) rows.appendChild(el("p", "note", W("empty")));
+      Tn.shopRows(v, cf).forEach(function (r) { rows.appendChild(row(r, v)); });
+      set(Tn.shopOk(v, cf) ? v : null);
+    }
+    form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var a = parse(f.value); if (!a) { if (f.value.trim()) Kit.toast(t("filter")); return; }
+      var k = Tn.shopKey(a.text), had = now()[1].filter(function (it) { return Tn.shopKey(it[0]) === k; })[0];
+      f.value = ""; f.focus();
+      if (had && had[2] >= a.qty) { Kit.toast(W("have")); return; }
+      e.adds.push(a);
+      if (!now()[1].some(function (it) { return Tn.shopKey(it[0]) === k; })) { e.adds.pop(); f.value = a.qty > 1 ? a.qty + "× " + a.text : a.text; Kit.toast(W("full")); return; }
+      Kit.sfx.pop(); up();
+    });
+    who.addEventListener("input", function () { e.name = who.value.trim(); up(); });
+    form.appendChild(f); form.appendChild(plus); box.appendChild(form); box.appendChild(rows);
+    box.appendChild(el("label", "lbl", W("name"))); box.appendChild(who);
+    box.appendChild(el("p", "note", W("hint")));
+    if (cf && cf.due) todoTools(box, ctx.doc, now);
+    up();
+  },
+  // The time is picked once, then every tapped day adds that time. Dates are taps, never text.
+  slots: function (box, p, set, ctx) {
+    var pre = ctx && ctx.ed.pre && ctx.ed.pre.slots, today = localDay(), picked = pre ? pre.slice(0, 5) : [], h = picked.length ? picked[0] % 10 : 6, times = el("div", "chips"), days = el("div", "chips"), mine = el("div", "chips"), name = nameField(up);
+    function up() {
+      picked.sort(function (a, b) { return a - b; });
+      Array.from(times.children).forEach(function (b, i) { b.classList.toggle("on", i === h); });
+      Array.from(days.children).forEach(function (b, i) { b.classList.toggle("on", picked.indexOf((today + i) * 10 + h) >= 0); });
+      mine.textContent = "";
+      picked.forEach(function (s) { mine.appendChild(el("button", "chip on", Tn.slotText(s, Kit.lang) + " ✕", function () { picked.splice(picked.indexOf(s), 1); Kit.sfx.tap(); up(); })); });
+      var v = [name.value.trim(), picked.slice()]; set(p.ok(v, []) ? v : null);
+    }
+    Tn.HOURS.forEach(function (x, i) { times.appendChild(el("button", "chip", Tn.hourText(i, Kit.lang), function () { h = i; Kit.sfx.tap(); up(); })); });
+    for (var k = 0; k < 14; k++) (function (s) {
+      days.appendChild(el("button", "chip", Tn.dayText(Math.floor(s / 10), Kit.lang), function () {
+        var at = picked.indexOf(s + h);
+        if (at >= 0) picked.splice(at, 1); else if (picked.length >= 5) { Kit.toast(L().ter_max); return; } else picked.push(s + h);
+        Kit.sfx.tap(); up();
+      }));
+    })((today + k) * 10);
+    box.appendChild(el("label", "lbl", L().ter_time)); box.appendChild(times);
+    box.appendChild(el("label", "lbl", L().ter_days_l)); box.appendChild(days);
+    box.appendChild(el("label", "lbl", L().ter_chosen)); box.appendChild(mine);
+    box.appendChild(el("label", "lbl", L().ter_name)); box.appendChild(name); up();
+  },
+  // Name and an answer per date on one screen. No answer is set in advance: a silent no would look like a real one.
+  vote: function (box, p, set, ctx) {
+    var list = Tn.termDates(ctx.m), v = list.map(function () { return -1; }), rows = [], taken = el("p", "note", ""), name = nameField(up);
+    function up() {
+      rows.forEach(function (r, i) { Array.from(r.children).forEach(function (b, k) { b.classList.toggle("on", v[i] === k); }); });
+      var a = [name.value.trim(), v.slice()], f = Q.fold(a[0]);
+      taken.textContent = f && Tn.voted(ctx.m).some(function (x) { return Q.fold(x) === f; }) ? L().ter_taken : "";
+      set(v.every(function (x) { return x >= 0; }) && p.ok(a, ctx.m) ? a : null);
+    }
+    box.appendChild(el("label", "lbl", L().ter_name)); box.appendChild(name); box.appendChild(taken);
+    box.appendChild(el("button", "chip", L().ter_all_yes, function () { v = v.map(function () { return 0; }); Kit.sfx.tap(); up(); }));
+    list.forEach(function (s, i) {
+      var row = el("div", "chips");
+      box.appendChild(el("p", "lbl", Tn.slotText(s, Kit.lang)));
+      [L().ter_yes, L().ter_maybe, L().ter_no].forEach(function (w, k) { row.appendChild(el("button", "chip", w, function () { v[i] = k; Kit.sfx.tap(); up(); })); });
+      rows.push(row); box.appendChild(row);
+    });
+    box.appendChild(el("p", "note", L().ter_hint)); up();
   }
 };
+// Under a task list: the open deadlines as a calendar file, and the next meeting's agenda from the open tasks (no AI).
+function todoTools(box, doc, now) {
+  var row = el("div", "chips"), out = el("div", "todoagenda"), title = doc.t || L().tdo_title;
+  row.appendChild(el("button", "chip", L().tdo_ics, function () {
+    var ics = Tn.todoIcs(now(), title, Kit.lang); Kit.sfx.tap();
+    if (!ics) { Kit.toast(L().tdo_ics_none); return; }
+    var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" })); a.download = "aufgaben.ics";
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+  }));
+  row.appendChild(el("button", "chip", L().tdo_next, function () {
+    Kit.sfx.tap(); out.textContent = "";
+    var text = Tn.todoAgenda(now(), title, Kit.lang);
+    out.appendChild(el("p", "agendatext", text));
+    out.appendChild(el("button", "chip", L().tdo_copy, async function () { if (await Kit.copy(text)) Kit.toast(t("copied")); }));
+  }));
+  box.appendChild(row); box.appendChild(out);
+}
+// A known age band under 18 (my defaults); an adult build never asks.
+function minor() { var f = A.me().pref; return !D.adult(A.me()) && !!f && (f.age === "u16" || f.age === "u18"); }
+// The calendar day on this phone, counted like Turns.today but from local midnight.
+function localDay() { return Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000); }
+// A name field filled with the profile's nick when the filter lets it through.
+function nameField(up) {
+  var f = el("input", "field"), nick = A.me().nick;
+  f.maxLength = 12; f.autocomplete = "off"; f.setAttribute("aria-label", L().ter_name); f.placeholder = L().ter_name;
+  if (nick && Q.clean(nick, 12) === nick) f.value = nick;
+  f.addEventListener("input", function () { up(); });
+  return f;
+}
 // The next move on the same phone: nobody sees the last one, the phone changes hands first.
 function pass(box, ed) {
   var d = ed.next; if (!d) return; ed.next = null; ed.doc = d; A.changed();
@@ -440,44 +678,95 @@ function pass(box, ed) {
   box.textContent = ""; box.appendChild(el("p", "qtext", L().hand));
   box.appendChild(el("button", "btn hot", L().hand_go, function () { Kit.sfx.tap(); walk(box, ed); }));
 }
-// Goes through the turn's prompts one by one; each screen shows only what that step may know.
+// Satz zu Formular (satz-ui.js, its own part): one tap above the first step opens it. It fills the step below (ed.pre, the
+// shopping list's own changes) after the person checked it; it never sends a move by itself.
+var SATZ = { termin: 1, einkauf: 1, wichteln: 1, reihum: 1, aufgaben: 1 };
+function satz(box, ed) {
+  var w = el("div", "satz"), b = el("button", "btn satzgo", "✨ " + L().satz_go, function () {
+    Kit.sfx.tap(); b.disabled = true;
+    window.Parts.use("satz", function () { b.remove(); window.SatzUI.open(w, ed, function () { A.tab("Move"); }); }).catch(function () { b.disabled = false; });
+  });
+  w.appendChild(b); box.appendChild(w);
+}
+// A step that only hands over or shows (paying, a sealed slip): no main button. end may depend on the moves.
+function ends(p, doc) { return typeof p.end === "function" ? p.end(doc, Tn.moves(doc)) : p.end; }
+// Goes through the turn's prompts one by one; each screen shows only what that step may know. "Weiter" is the footer's
+// main button (ed.step): locked until the step has an answer, so it never hides below the fold of the panel.
 function walk(box, ed) {
   var st = Tn.state(ed.doc), now = [], i = 0;
   function step() {
+    ed.step = null;
     box.textContent = ""; box.style.pointerEvents = "none"; setTimeout(function () { box.style.pointerEvents = ""; }, 250);
-    if (i >= st.prompts.length && Tn.GAMES[ed.doc.g].stay && st.turn) { ed.next = null; A.changed(); box.appendChild(el("p", "lbl", L().stay_note)); return; }   // the same link goes on to the next person
+    if (i >= st.prompts.length && Tn.game(ed.doc).stay && st.turn) { ed.next = null; A.changed(); box.appendChild(el("p", "lbl", L().stay_note)); return; }   // the same link goes on to the next person
     if (i >= st.prompts.length) { ed.move = now; ed.next = Tn.play(ed.doc, now, Tn.today());
-      if (Tn.GAMES[ed.doc.g].local || (ed.next && Tn.state(ed.next).over)) { pass(box, ed); return; }
-      A.changed(); box.appendChild(el("p", "lbl", L().ready)); box.appendChild(el("button", "btn", L().hand_same, function () { pass(box, ed); })); return; }
-    var p = st.prompts[i], cur = null, go = el("button", "btn hot", L().next, function () {
-      if (cur === null || !go.isConnected) return; Kit.sfx.pop(); now.push(cur); cur = null; i++; step();
-    });
+      if (Tn.game(ed.doc).local || (ed.next && Tn.state(ed.next).over)) { pass(box, ed); return; }
+      A.changed(); box.appendChild(el("p", "lbl", L()[word(ed.doc, "ready")])); box.appendChild(el("button", "btn", L().hand_same, function () { pass(box, ed); })); return; }
+    var p = st.prompts[i], at = i, cur = null, me = { box: box, live: !!p.live, ok: function () { return cur !== null; },
+      why: t("whyOpen", { s: p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "").replace(/:\s*$/, "") }), go: go };
+    function go() {   // the main button takes no tap for a moment: the second tap of a double tap does not take the next step too
+      if (cur === null || ed.step !== me || !box.isConnected) return; Kit.sfx.pop(); now.push(cur); cur = null; i++;
+      var b = document.getElementById("edmain"); b.style.pointerEvents = "none"; setTimeout(function () { b.style.pointerEvents = ""; }, 250);
+      step(); A.footer();
+    }
+    if (i === 0 && SATZ[ed.doc.g] && (!st.turn || p.live)) satz(box, ed);
     if (p.peek) box.appendChild(el("p", "qtext", p.peek(ed.doc, st.moves, now, Kit.lang)));
     if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("label", "lbl", p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "")));
-    var soon = 0;
-    draw[p.w](box, p, function (v) {
-      cur = v; go.disabled = v === null; clearTimeout(soon);
+    var soon = 0, dw = draw[p.w] || (window.Turn2 && window.Turn2.get("widget", p.w));
+    if (!dw) { box.appendChild(el("p", "note", "…")); window.Parts.use("turnzwei", function () { if (box.isConnected && i === at) step(); }).catch(function () {}); return; }   // a widget of the new cards, from its part
+    dw(box, p, function (v) {
+      if (p.live) { ed.next = v === null ? null : Tn.play(ed.doc, [v], Tn.today()); A.changed(); return; }   // no Weiter: the footer sends what is on screen
+      cur = v; clearTimeout(soon); A.footer();
+      var auto = ed.pre && ed.pre.go; if (auto) ed.pre.go = 0;      // taken from a sentence and complete: on at once, only this once
       if (v === null) return;
-      if (!p.auto) try { go.scrollIntoView({ block: "nearest" }); } catch (e) {}
-      if (p.auto) go.click(); else if (p.w === "rank" || (p.w === "pick" && p.n > 1)) soon = setTimeout(function () { if (box.isConnected && cur === v) go.click(); }, 450);   // a short look at the choice, then on
-    }, { doc: ed.doc, m: st.moves, now: now });
-    box.appendChild(go);
+      if (auto) setTimeout(function () { if (cur === v) go(); }, 0);
+      if (p.auto) go(); else if (p.w === "rank" || (p.w === "pick" && p.n > 1)) soon = setTimeout(function () { if (box.isConnected && cur === v) go(); }, 450);   // a short look at the choice, then on
+    }, { doc: ed.doc, m: st.moves, now: now, ed: ed });
+    if (!ends(p, ed.doc) && box.isConnected && i === at) { ed.step = me; A.footer(); }   // unless the step already went on by itself
   }
   step();
 }
+// The date that leads so far as a calendar file (satz-ui.js builds it on the device).
+function icsRow(p, doc) {
+  var w = el("div", "satz"); w.appendChild(el("button", "chip", "📅 " + L().satz_ics, function () { Kit.sfx.tap(); window.Parts.use("satz", function () { window.SatzUI.ics(doc); }).catch(function () {}); }));
+  p.appendChild(w);
+}
 A.TABS.turn = ["Move", "Text", "Color"];
 A.PANEL.Move = function (p) {
-  var ed = A.ed(), doc = ed.doc, st = Tn.state(doc), left = Tn.gate(doc, Tn.today()), res = Tn.result(doc, Kit.lang);
+  var ed = A.ed(); ed.step = null;
+  var doc = ed.doc, gm = Tn.game(doc), g = gm;
+  // A game whose texts come with a part (GAMES[g].part, e.g. the quiz cards of quizspiele.js): load it first, then draw.
+  if (gm.part && !window.Parts.ready(gm.part)) {
+    p.appendChild(el("p", "note", t("part_wait")));
+    window.Parts.use(gm.part, function () { if (A.ed() === ed) A.tab("Move"); }).catch(function () { if (A.ed() === ed && p.isConnected) p.lastChild.textContent = t("part_fail"); });
+    return;
+  }
+  var st = Tn.state(doc), left = Tn.gate(doc, Tn.today()), res = Tn.result(doc, Kit.lang);
+  // New cards (Katalog v2, rules 16, 19): "Wer sieht was?" and the card's notes below the steps, which never clear them.
+  if (g.wsw || g.notes) {
+    var foot = el("div", "turnfoot"), top = el("div"); p.appendChild(top); p.appendChild(foot); p = top;
+    if (g.wsw) foot.appendChild(window.Bausteine.wswRow(g.wsw));
+    (g.notes || []).forEach(function (k) { foot.appendChild(el("p", "note", L()[k])); });
+  }
   if (res) {
     p.appendChild(el("p", "qtext", res.h)); res.lines.forEach(function (s) { p.appendChild(el("p", "note", s)); });
+    if (doc.g === "termin") icsRow(p, doc);
     if (res.copy) { p.appendChild(el("button", "btn hot", L().sor_copy, async function () { if (await Kit.copy(res.copy)) Kit.toast(t("copied")); })); p.appendChild(el("p", "note", res.note)); return; }
     if (res.note) p.appendChild(el("p", "note", res.note));
-    p.appendChild(el("button", "btn hot", L().rematch, function () { var d = Tn.fresh(doc, seed()); A.openEditor(d, { idea: d.i ? D.byId(d.i) : null }); }));
+    var nx = res.open && D.byId(res.open.i);   // a card to go on with, e.g. collecting the money for a gift
+    if (nx) p.appendChild(el("button", "btn", L()[res.open.l], function () { Kit.sfx.tap(); A.openEditor(D.docFromIdea(nx, A.me(), Kit.lang), { idea: nx }); }));
+    p.appendChild(el("button", "btn hot", L()[word(doc, "rematch")], function () { var d = Tn.fresh(doc, seed()); A.openEditor(d, { idea: d.i ? D.byId(d.i) : null }); }));
     return;
   }
   if (left) { p.appendChild(el("p", "qtext", say("note_wait", { n: left }))); return; }
   var w = Tn.whole(doc, Kit.lang); if (w) p.appendChild(el("p", "qtext", w));
-  if (ed.next) { p.appendChild(el("p", "lbl", L().ready)); p.appendChild(el("button", "btn", L().redo, function () { ed.next = null; A.changed(); A.tab("Move"); })); return; }
+  if (doc.g === "termin" && st.moves.length) { icsRow(p, doc); var inner = el("div"); p.appendChild(inner); p = inner; }   // walk() clears its box
+  if (ed.next && !st.prompts.some(function (x) { return x.live; })) { p.appendChild(el("p", "lbl", L()[word(doc, "ready")])); p.appendChild(el("button", "btn", L().redo, function () { ed.next = null; A.changed(); A.tab("Move"); })); return; }
+  // Quiz cards: a question pack (part "quiz") before the first move; Team- and Typen-Quiz need one.
+  if (!st.turn && window.QuizPack.GAMES[doc.g]) {
+    p.appendChild(el("button", "btn qzbtn", "📦 " + (doc.pk ? doc.pk.t + " · " + L().pk_change : L().pk_btn), function () { Kit.sfx.tap(); window.Parts.use("quiz", function () { window.QuizUI.open(ed); }).catch(function () {}); }));
+    if (Tn.GAMES[doc.g].needs && !doc.pk) { p.appendChild(el("p", "note", L().pk_need)); return; }
+    var box = el("div"); p.appendChild(box); p = box;
+  }
   walk(p, ed);
 };
 A.PANEL.Text = (function (old) {
@@ -497,9 +786,14 @@ X.turn = {
   menu: function () {
     var all = D.IDEAS.filter(function (i) { return i.kind === "turn"; }), COL = { streit: "#ff3b1d", pause: "#1d7cff", abend: "#7a3bff", geschenk: "#ff5fa2", raum: "#12a150" };
     function start(i) { Kit.sfx.thud(); A.openEditor(D.docFromIdea(i, A.me(), Kit.lang), { idea: i }); }
-    A.shelf(say("turn_all", { n: all.length }), function (b) {
+    var arcade = window.ArcadeUI ? window.ArcadeUI.count() : 0;
+    A.shelf(say("turn_all", { n: all.length + arcade }), function (b) {
       b.appendChild(el("p", "note", t("turnH")));
       if (window.LiveUI && window.LiveUI.on()) b.appendChild(el("button", "btn hot live", t("live_tile"), function () { Kit.sfx.thud(); window.LiveUI.invite(); }));
+      // The arcade tiles come with their part (parts.js): a slot keeps their place on the shelf until then.
+      if (arcade) { var slot = el("div", ""); slot.style.display = "contents"; b.appendChild(slot); window.ArcadeUI.tiles(slot); }
+      if (window.TableUI && window.LiveUI && window.LiveUI.on()) [["doko", "tb_doko"], ["skat", "tb_skat"]].forEach(function (g) { b.appendChild(el("button", "btn hot live", t(g[1]), function () { Kit.sfx.thud(); window.TableUI.open(g[0]); })); });
+      if (window.TableUI) b.appendChild(el("button", "btn hot", t("tb_bauernskat"), function () { Kit.sfx.thud(); window.TableUI.open("bauernskat"); }));   // also offline, against the bot
       b.appendChild(el("button", "btn hot", "🎲 " + L().turn_any, function () { start(all[seed() % all.length]); }));
       ["streit", "pause", "abend", "geschenk", "raum"].forEach(function (g) {
         b.appendChild(el("label", "lbl", L()["grip_" + g]));
@@ -507,29 +801,41 @@ X.turn = {
         all.filter(function (i) { return i.turn.grip === g; }).forEach(function (i) {
           var T = i[Kit.lang] || i.de, m = el("button", "mech tile", null, function () { start(i); }), c = document.createElement("canvas");
           c.width = c.height = 96; shape(c.getContext("2d"), i.turn.f, 48, 48, 30, COL[g]);
-          m.appendChild(c); m.appendChild(el("b", "", T.t.replace("|", " "))); m.appendChild(el("small", "", T.s)); box.appendChild(m);
+          m.appendChild(c); m.appendChild(el("b", "", D.plainTitle(T.t))); m.appendChild(el("small", "", T.s)); box.appendChild(m);
         });
         b.appendChild(box);
       });
     });
   },
-  open: function (ed) { ed.next = null; if (!Tn.state(ed.doc).turn) { ed.doc.seed = Tn.GAMES[ed.doc.g].daily ? Tn.today() : seed(); ed.base.seed = ed.doc.seed; ed.doc.q = ""; ed.base.q = ""; } },
-  areas: function (ed) { return ed.next ? ["regeln"] : []; },
-  footer: function (b, ed) {
-    var over = !!Tn.result(ed.doc, Kit.lang), ok = over || !!ed.next;
-    b.hidden = ed.doc.g === "sorry" && over;
-    b.classList.toggle("wait", !ok); b.textContent = over ? L().result_pic : ed.next ? L().send : L().need;
+  open: function (ed) {
+    ed.next = null; if (!Tn.state(ed.doc).turn) { ed.doc.seed = Tn.GAMES[ed.doc.g].daily ? Tn.today() : seed(); ed.base.seed = ed.doc.seed; ed.doc.q = ""; ed.base.q = ""; }
+    if (listOf(ed.doc)) shopSync(ed);
   },
+  areas: function (ed) { return ed.next ? ["regeln"] : []; },
+  // The main button is the next step ("Weiter", locked until answered), then sending; with nothing to do here
+  // (waiting for a day, a pack to pick, the phone to pass on) there is no button at all rather than a dummy one.
+  footer: function (b, ed) {
+    var over = !!Tn.result(ed.doc, Kit.lang), s = !over && ed.step, walking = s && !s.live && !ed.next;
+    b.hidden = (ed.doc.g === "sorry" && over) || Tn.state(ed.doc).prompts.some(function (p) { return ends(p, ed.doc); }) || (!over && !ed.next && !s);   // a last step that only hands over, like paying
+    b.classList.toggle("wait", walking ? !s.ok() : !over && !ed.next);
+    b.textContent = over ? L().result_pic : walking ? L().next : L()[word(ed.doc, "send")];
+    if (s) b.dataset.why = s.why;
+  },
+  nudge: function (ed) { if (ed.step && !ed.step.box.isConnected) A.tab("Move"); return false; },
   main: function (ed) {
-    var over = !!Tn.result(ed.doc, Kit.lang);
-    if (!over && !ed.next) { Kit.tone(200, 160, 0.1, "square", 0.06); var g = document.querySelector("#panel .btn.hot, #panel .chip, #panel .field"); if (g) { g.scrollIntoView({ block: "center" }); g.classList.add("nudge"); setTimeout(function () { g.classList.remove("nudge"); }, 700); } return; }
+    var over = !!Tn.result(ed.doc, Kit.lang), s = ed.step;
+    if (!over && s && !s.live && !ed.next) { if (!s.box.isConnected) A.tab("Move"); else s.go(); return; }
+    if (!over && !ed.next) return;
+    if (!over && listOf(ed.doc)) {   // the list on screen in the colours and words chosen since; what goes out is what this phone knows now
+      ed.next = Tn.play(ed.doc, [Tn.moves(ed.next)[0][0]], Tn.today()) || ed.next; shopKeep(ed.next, Tn.moves(ed.next)[0][0]);
+    }
     Kit.sfx.thud(); A.finish(over ? ed.doc : ed.next);
   },
   label: function (doc) {
     var st = Tn.state(doc), left = Tn.gate(doc, Tn.today());
-    if (st.over) return { go: L().go_view, note: L().note_over };
-    if (left) return { go: L().go_play, note: say("note_wait", { n: left }) };
-    return st.turn ? { go: L().go_play, note: say("note_turn", { n: st.turn + 1, m: st.total }) } : { go: L().go_first, note: "" };
+    if (st.over) return { go: L().go_view, note: L()[word(doc, "note_over")] };
+    if (left) return { go: L()[word(doc, "go_play")], note: say("note_wait", { n: left }) };
+    return st.turn ? { go: L()[word(doc, "go_play")], note: say(word(doc, "note_turn"), { n: st.turn + 1, m: st.total, v: st.turn }) } : { go: L()[word(doc, "go_first")], note: "" };
   }
 };
 })();

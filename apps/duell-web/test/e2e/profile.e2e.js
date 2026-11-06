@@ -9,6 +9,7 @@ const path = require("node:path");
 const { chromium } = require("playwright");
 
 const DIST = path.join(__dirname, "../../dist/index.html");
+const PARTS = path.join(__dirname, "../../dist/parts");
 const JPEG = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQ==";
 const SEED = { me: { nick: "Mira", emoji: "🦖", colors: ["#2b4bff", "#ffe600"], set: "weltall" },
   wall: [{ id: "own", ts: 3, k: "photo", th: JPEG }, { id: "own", ts: 2, k: "card", th: JPEG }], saved: [{ id: "quiz-chaos", ts: 1 }], aiDev: "5e".repeat(16) };
@@ -19,6 +20,7 @@ function fakeServer() {
     const u = new URL(req.url, "http://x"), json = (s, b, h = {}) => res.writeHead(s, { "Content-Type": "application/json", ...h }).end(JSON.stringify(b));
     // The page allows only the demos host in connect-src; served from here, this test server stands in for it.
     if (u.pathname === "/duell") return res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(fs.readFileSync(DIST, "utf8").replace("connect-src ", "connect-src 'self' "));
+    if (u.pathname.startsWith("/duell/parts/")) return res.writeHead(200, { "Content-Type": "text/javascript" }).end(fs.readFileSync(path.join(PARTS, path.basename(u.pathname))));
     if (u.pathname === "/auth/login") return res.writeHead(302, { "Set-Cookie": "ct_gate_session=t1; Path=/; HttpOnly; SameSite=Lax", Location: u.searchParams.get("return") || "/" }).end();
     const m = u.pathname.match(/^\/api\/duell\/profile\/(get|put|delete)$/);
     if (!m) return json(503, { error: "off" });
@@ -64,7 +66,7 @@ test("Sync-Code: zwei Geraete, Stil und Wand kommen an, Fotowerke nie, Loeschen 
   assert.equal(srv.log.length, 0, "nothing leaves the device before a tap");
   await a.p.getByRole("button", { name: "Sync-Code anlegen" }).click();
   await a.p.getByText("Verbunden per Sync-Code:").waitFor();
-  const shown = await a.p.locator(".pfcode").textContent();
+  const shown = await a.p.locator(".accode").textContent();
   assert.match(shown, /^([0-9a-f]{4}-){7}[0-9a-f]{4}$/);
   const code = shown.replace(/-/g, ""), saved = srv.db.get("code:" + code);
   assert.equal(saved.p.me.nick, "Mira");
@@ -102,7 +104,7 @@ test("Sync-Code: zwei Geraete, Stil und Wand kommen an, Fotowerke nie, Loeschen 
 test("Sync-Code: Aenderung auf einem Geraet kommt beim anderen an", async () => {
   const a = await phone({ seed: SEED }), b = await phone();
   await a.style(); await a.p.getByRole("button", { name: "Sync-Code anlegen" }).click(); await a.p.getByText("Verbunden per Sync-Code:").waitFor();
-  const code = await a.p.locator(".pfcode").textContent();
+  const code = await a.p.locator(".accode").textContent();
   await b.style(); await b.p.getByPlaceholder("Code von deinem anderen Gerät").fill(code); await b.p.getByRole("button", { name: "Mit Code verbinden" }).click(); await b.p.getByText("Verbunden per Sync-Code:").waitFor();
   await b.p.getByLabel("Spitzname").fill("Kiwi");
   for (let i = 0; i < 60 && srv.db.get("code:" + code.replace(/-/g, "")).p.me.nick !== "Kiwi"; i++) await b.p.waitForTimeout(100);
@@ -146,4 +148,48 @@ test("App-Huellen: iOS ohne Netz zeigt nur Hinweise und fragt nichts, Android ha
   assert.equal(srv.log.length, before, "no request from merely opening My style");
   assert.deepEqual([...ios.errs, ...android.errs], []);
   await ios.ctx.close(); await android.ctx.close();
+});
+
+// The live path: the page as on the demos host (served here, everything else of that host answered locally), a tap on the
+// frog, "Anmelden / Registrieren" in view, the 16+ statement, the button. From /auth/login on the real chain runs:
+// gate/start -> Keycloak (realm ct-demo, client ct-portal). Only the target URL is checked; nothing is typed there.
+const DEMOS = "https://demos-34a13a96.bunsenbrenner.org";
+test("Frosch -> Anmelden / Registrieren -> Keycloak, mit dem Look-Cookie in meinen Farben", async (t) => {
+  try { await require("node:dns").promises.lookup("auth.bunsenbrenner.org"); } catch (e) { return t.skip("kein Netz zu bunsenbrenner.org"); }
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 780 }, locale: "de-DE" }), p = await ctx.newPage();
+  const errs = [], toLogin = [], toAuth = []; p.on("pageerror", (e) => errs.push(e.message));
+  await ctx.route((u) => u.origin === DEMOS, (route) => {
+    const u = new URL(route.request().url());
+    if (u.pathname === "/duell") return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: fs.readFileSync(DIST, "utf8") });
+    if (u.pathname.startsWith("/duell/parts/")) return route.fulfill({ status: 200, contentType: "text/javascript", body: fs.readFileSync(path.join(PARTS, path.basename(u.pathname))) });
+    if (u.pathname === "/auth/login") { toLogin.push({ url: u.href, cookie: route.request().headers().cookie || "" }); return route.continue(); }
+    return route.fulfill({ status: 503, contentType: "application/json", body: '{"error":"off"}' });
+  });
+  p.on("request", async (r) => { if (r.url().startsWith("https://auth.bunsenbrenner.org/")) toAuth.push({ url: r.url(), cookie: (await r.allHeaders()).cookie || "" }); });
+  await ctx.addInitScript((seed) => { if (!localStorage.getItem("daily.v1")) localStorage.setItem("daily.v1", JSON.stringify(seed)); }, SEED);
+  await p.goto(DEMOS + "/duell");
+  await p.locator("#me").click();
+  const title = p.getByRole("heading", { name: "Anmelden / Registrieren" });
+  await title.scrollIntoViewIfNeeded();
+  assert.equal(await title.isVisible(), true, "the frog leads to Anmelden / Registrieren");
+  const go = p.getByRole("button", { name: "Mit bunsenbrenner-Konto anmelden oder registrieren" });
+  assert.equal(await go.isDisabled(), true);
+  assert.equal((await ctx.cookies("https://bunsenbrenner.org")).filter((c) => c.name === "ct_look").length, 0, "no cookie before the tap");
+  await p.getByLabel("Ich bin 16 oder älter.").check();
+  await Promise.all([p.waitForURL(/^https:\/\/auth\.bunsenbrenner\.org\//, { timeout: 30000, waitUntil: "commit" }), go.click()]);
+  assert.equal(toLogin.length, 1); assert.equal(toLogin[0].url, DEMOS + "/auth/login?return=%2Fduell");
+  const k = new URL(p.url());
+  assert.equal(k.origin + k.pathname, "https://auth.bunsenbrenner.org/realms/ct-demo/protocol/openid-connect/auth");
+  assert.equal(k.searchParams.get("client_id"), "ct-portal");
+  assert.equal(k.searchParams.get("redirect_uri"), "https://bunsenbrenner.org/gate/callback");
+  assert.equal(k.searchParams.get("response_type"), "code");
+  const look = (await ctx.cookies("https://auth.bunsenbrenner.org")).find((c) => c.name === "ct_look");
+  assert.ok(look, "ct_look is set");
+  assert.equal(look.value, "daily.2b4bff.ffe600", "my colours: a = background, b = accent");
+  assert.equal(look.domain, ".bunsenbrenner.org"); assert.equal(look.path, "/"); assert.equal(look.secure, true); assert.equal(look.sameSite, "Lax");
+  assert.ok(look.expires > Date.now() / 1000 + 86000 && look.expires < Date.now() / 1000 + 86500, "short life, one day");
+  assert.match(toLogin[0].cookie, /ct_look=daily\.2b4bff\.ffe600/, "already there on the way to the login");
+  assert.ok(toAuth.some((r) => /ct_look=daily\.2b4bff\.ffe600/.test(r.cookie)), "Keycloak gets the look");
+  assert.deepEqual(errs, []);
+  await ctx.close();
 });

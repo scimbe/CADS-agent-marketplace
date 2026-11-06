@@ -106,9 +106,30 @@
     c.closePath();
   }
 
+  // Snow from a fixed seed: the same card always shows the same flakes, in the editor and in the picture.
+  function snow(c, W, H, seed) {
+    var r = C.mulberry32(seed); c.fillStyle = "rgba(255,255,255,.75)";
+    for (var i = 0; i < 70; i++) { c.beginPath(); c.arc(r() * W, r() * H, W * (0.003 + r() * 0.007), 0, 6.3); c.fill(); }
+  }
+  function star(c, x, y, r, col) { burstPath(c, x, y, r, 5, 0.45); c.fillStyle = col; c.fill(); }
+  // A ribbon across the card with a bow on top, like a parcel.
+  function bow(c, W, H, col) {
+    c.fillStyle = col; c.fillRect(W * 0.47, 0, W * 0.06, H); c.fillRect(0, H * 0.13, W, W * 0.05);
+    [-1, 1].forEach(function (s) { c.beginPath(); c.moveTo(W / 2, H * 0.15); c.lineTo(W / 2 + s * W * 0.16, H * 0.06); c.lineTo(W / 2 + s * W * 0.16, H * 0.2); c.closePath(); c.fill(); });
+    c.beginPath(); c.arc(W / 2, H * 0.15, W * 0.04, 0, 6.3); c.fill();
+  }
+  // The door number, top left, readable on every style.
+  function doorBadge(c, W, H, nr, a, b) {
+    var r = W * 0.1, x = W * 0.15, y = H * 0.12;
+    c.fillStyle = b; c.strokeStyle = a; c.lineWidth = W * 0.012; c.beginPath(); c.arc(x, y, r, 0, 6.3); c.fill(); c.stroke();
+    c.fillStyle = ink(b); c.font = "900 " + r * 1.1 + "px " + FONT; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(String(nr), x, y + r * 0.04);
+    c.textBaseline = "alphabetic";
+  }
+
   function drawCard(c, W, H, doc) {
     var a = doc.col[0], b = doc.col[1], tx = doc.x || "…";
-    if (doc.st === "zettel") {
+    if (Render.styles[doc.st]) Render.styles[doc.st](c, W, H, doc);     // a style from its own file, e.g. "herz" in warm.js
+    else if (doc.st === "zettel") {
       c.fillStyle = b; c.fillRect(0, 0, W, H); dots(c, W, H, a, W * 0.05, 0.9);
       c.save(); c.translate(W / 2, H * 0.47); c.rotate(-0.04);
       c.fillStyle = "#fff8e4"; c.fillRect(-W * 0.42, -H * 0.38, W * 0.84, H * 0.76);
@@ -123,6 +144,13 @@
       c.strokeStyle = b; c.lineWidth = W * 0.022; c.strokeRect(-W * 0.4, -H * 0.32, W * 0.8, H * 0.64); c.lineWidth = W * 0.006; c.strokeRect(-W * 0.375, -H * 0.3, W * 0.75, H * 0.6);
       block(c, tx, -W * 0.34, -H * 0.27, W * 0.68, H * 0.54, b, null);
       c.restore();
+    } else if (doc.st === "advent") {
+      c.fillStyle = a; c.fillRect(0, 0, W, H); snow(c, W, H, C.hash32(doc.x + "|" + (doc.nr || 0)));
+      bow(c, W, H, b);
+      c.fillStyle = "rgba(0,0,0,.28)"; c.fillRect(W * 0.08, H * 0.27, W * 0.84, H * 0.56);
+      c.strokeStyle = b; c.lineWidth = W * 0.01; c.strokeRect(W * 0.08, H * 0.27, W * 0.84, H * 0.56);
+      [[0.13, 0.31], [0.87, 0.31], [0.13, 0.79], [0.87, 0.79]].forEach(function (p) { star(c, W * p[0], H * p[1], W * 0.035, b); });
+      block(c, tx, W * 0.13, H * 0.32, W * 0.74, H * 0.46, "#fffaf0", "rgba(0,0,0,.35)", W * 0.008);
     } else if (doc.st === "neon") {
       c.fillStyle = "#0c0a14"; c.fillRect(0, 0, W, H); dots(c, W, H, "rgba(255,255,255,.07)", W * 0.03, 2);
       c.save(); c.shadowColor = a; c.shadowBlur = W * 0.04;
@@ -161,18 +189,34 @@
       c.fillStyle = "#000"; c.fillRect(W * 0.28, H * 0.82, W * 0.72, H * 0.09); block(c, doc.y, W * 0.31, H * 0.825, W * 0.66, H * 0.08, a, null);
     }
   }
-  function drawSound(c, W, H, doc, pk) {
-    var a = doc.col[0], b = doc.col[1], fg = ink(a);
+  // A song's hook (doc.ly): every line, the one at the beat's bar (lyr, -1 when nothing plays) big on a band of the
+  // second colour, so the text runs along with the beat (texte.js). Its ink is picked for contrast on that band.
+  function lyrics(c, W, H, doc, lyr) {
+    var a = doc.col[0], b = doc.col[1], top = H * 0.5, step = H * 0.085, n = doc.ly.length;
+    c.textAlign = "center"; c.textBaseline = "middle";
+    for (var i = 0; i < n; i++) {
+      var on = i === lyr, y = top + i * step, size = W * (on ? 0.062 : 0.05);
+      c.font = "900 " + size + "px " + FONT;
+      while (size > W * 0.03 && c.measureText(doc.ly[i]).width > W * 0.86) { size *= 0.92; c.font = "900 " + size + "px " + FONT; }
+      if (on) { c.fillStyle = b; c.fillRect(W * 0.04, y - step * 0.46, W * 0.92, step * 0.92); }
+      c.fillStyle = on ? ink(b) : ink(a); c.globalAlpha = lyr >= 0 && !on ? 0.75 : 1;
+      c.fillText(doc.ly[i], W / 2, y); c.globalAlpha = 1;
+    }
+    c.textBaseline = "alphabetic";
+  }
+  function drawSound(c, W, H, doc, pk, lyr) {
+    var a = doc.col[0], b = doc.col[1], fg = ink(a), song = doc.ly && doc.ly.length;
     c.fillStyle = a; c.fillRect(0, 0, W, H);
-    block(c, doc.x || "…", W * 0.06, H * 0.05, W * 0.88, H * 0.3, fg, softDots(c, W, H, b, W * 0.03, 0.4, fg), W * 0.01);
-    var n = 40, bw = W * 0.88 / n, cy = H * 0.64, amp = H * 0.2;
+    block(c, doc.x || "…", W * 0.06, H * 0.05, W * 0.88, H * (song ? 0.22 : 0.3), fg, softDots(c, W, H, b, W * 0.03, 0.4, fg), W * 0.01);
+    var n = 40, bw = W * 0.88 / n, cy = H * (song ? 0.36 : 0.64), amp = H * (song ? 0.07 : 0.2);
     c.fillStyle = fg;
     for (var i = 0; i < n; i++) {
       var v = pk && pk.length ? pk[Math.floor(i * pk.length / n)] : 0.05, bh = Math.max(W * 0.008, v * amp);
       c.fillRect(W * 0.06 + i * bw, cy - bh, bw * 0.62, bh * 2);
     }
+    if (song) lyrics(c, W, H, doc, lyr == null ? -1 : lyr);
     if (doc.m === "beat") {
-      c.font = "900 " + W * 0.05 + "px " + FONT; c.textAlign = "center"; c.fillText(doc.bpm + " BPM", W / 2, H * 0.9);
+      c.fillStyle = fg; c.font = "900 " + W * 0.05 + "px " + FONT; c.textAlign = "center"; c.fillText(doc.bpm + " BPM", W / 2, H * 0.9);
     }
   }
 
@@ -180,13 +224,13 @@
   function draw(cv, doc, opt) {
     var c = cv.getContext("2d"), W = cv.width, H = cv.height, me = opt.me;
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, H); c.shadowBlur = 0;
-    if (Render.extra[doc.k]) { Render.extra[doc.k](c, W, H, doc, opt); credit(c, W, H, doc, me, "#fff"); return; }
-    if (doc.k === "card") drawCard(c, W, H, doc);
+    if (Render.extra[doc.k]) { var inkx = Render.extra[doc.k](c, W, H, doc, opt); credit(c, W, H, doc, me, typeof inkx === "string" ? inkx : "#fff"); return; }   // an extra may name the colour its corner text reads in
+    if (doc.k === "card") { drawCard(c, W, H, doc); if (doc.nr) doorBadge(c, W, H, doc.nr, doc.col[0], doc.col[1]); }
     else if (doc.k === "photo") drawPhoto(c, W, H, doc, opt.photo);
-    else if (doc.k === "sound") drawSound(c, W, H, doc, opt.peaks);
+    else if (doc.k === "sound") drawSound(c, W, H, doc, opt.peaks, opt.lyr);
     stickers(c, W, H, doc.sk);
     weather(c, W, H, doc.w);          // last: stickers must never cover the source line
-    credit(c, W, H, doc, me, doc.k === "card" && doc.st === "neon" ? "#fff" : (doc.k === "photo" && doc.st !== "sticker" ? "#fff" : ink(doc.k === "card" && doc.st === "zettel" ? doc.col[1] : doc.col[0])));
+    credit(c, W, H, doc, me, doc.k === "card" && (doc.st === "neon" || doc.st === "advent") ? "#fff" : (doc.k === "photo" && doc.st !== "sticker" ? "#fff" : ink(doc.k === "card" && doc.st === "zettel" ? doc.col[1] : doc.col[0])));
   }
   // The bot face: a stand-in when there is no photo, drawn from the seed so it is never quite the same.
   function botFace(seed, col) {
@@ -202,5 +246,5 @@
     cv._id = "bot" + seed;
     return cv;
   }
-  var Render = window.Render = { extra: {}, stickers: stickers, draw: draw, lum: lum, block: block, ink: ink, botFace: botFace, dots: dots, rays: rays, FONT: FONT };
+  var Render = window.Render = { extra: {}, styles: {}, layout: layout, stickers: stickers, draw: draw, lum: lum, block: block, ink: ink, botFace: botFace, dots: dots, rays: rays, FONT: FONT };
 })();

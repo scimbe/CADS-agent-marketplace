@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- connect-src 'self': the browser itself refuses to send anything to another host. The server repeats this as a header. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self' blob:; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#1f2a44">
+<title>Fast Easy Protokoll</title>
+<style>
+/*@CSS@*/
+</style>
+</head>
+<body>
+<main>
+  <header><h1 data-t="title"></h1><p class="claim" data-t="claim"></p></header>
+
+  <section id="intro">
+    <ul class="facts">
+      <li data-t="factAudio"></li>
+      <li data-t="factModel"></li>
+      <li data-t="factAi"></li>
+      <li data-t="factYours"></li>
+    </ul>
+    <p id="fit"></p>
+    <label class="field"><span data-t="model"></span>
+      <select id="model"><option value="tiny" data-t="modelTiny"></option><option value="base" data-t="modelBase"></option></select></label>
+    <label class="field"><span data-t="names"></span><input id="names" type="text" maxlength="400" autocomplete="off"></label>
+    <div class="consent">
+      <p class="say"><b data-t="sayHead"></b> <span data-t="say"></span></p>
+      <label class="check"><input id="consent" type="checkbox"> <span data-t="consent"></span></label>
+    </div>
+    <button id="start" class="btn big" type="button" data-t="start"></button>
+    <div id="load" hidden><progress id="loadbar" max="1" value="0"></progress><p id="loadtext" class="note"></p></div>
+    <div id="savedbox" hidden>
+      <h2 data-t="saved"></h2>
+      <ul id="saved" class="saved"></ul>
+      <button id="delall" class="small danger" type="button" data-t="deleteAll"></button>
+    </div>
+  </section>
+
+  <section id="rec" hidden>
+    <div class="live" role="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><b id="recstate" data-t="recording"></b><span id="clock">00:00</span></div>
+    <p class="note" id="recnames"></p>
+    <meter id="level" min="0" max="1" value="0" aria-hidden="true"></meter>
+    <p id="lag" class="warn" hidden></p>
+    <ol id="lines" class="lines" aria-live="polite"></ol>
+    <div class="row"><button id="pause" class="btn" type="button" data-t="pause"></button><button id="stop" class="btn stop" type="button" data-t="stop"></button></div>
+    <p class="note" data-t="recNote"></p>
+  </section>
+
+  <section id="review" hidden>
+    <h2 data-t="review"></h2>
+    <p id="finishing" class="note" data-t="finishing" hidden></p>
+    <label class="field"><span data-t="transcript"></span><textarea id="transcript" rows="10"></textarea></label>
+    <label class="field"><span data-t="names"></span><input id="rnames" type="text" maxlength="400" autocomplete="off"></label>
+    <div class="row"><button id="mklocal" class="btn" type="button" data-t="mkLocal"></button><button id="mkai" class="btn" type="button" data-t="mkAi"></button></div>
+    <div id="aiask" class="consent" hidden>
+      <p data-t="aiWhat"></p>
+      <p id="aisize" class="note"></p>
+      <details><summary data-t="aiShow"></summary><pre id="aipreview"></pre></details>
+      <label class="check"><input id="aiok" type="checkbox"> <span data-t="aiConsent"></span></label>
+      <button id="aisend" class="btn" type="button" data-t="aiSend"></button>
+    </div>
+    <button id="discard" class="small danger" type="button" data-t="discard"></button>
+  </section>
+
+  <section id="result" hidden>
+    <p id="note" class="warn" hidden></p>
+    <article id="protocol" class="protocol"></article>
+    <button id="todo" class="btn big" type="button" data-t="todoLink" hidden></button>
+    <label class="check"><input id="withtext" type="checkbox"> <span data-t="withText"></span></label>
+    <div class="row wrap">
+      <button id="copy" class="btn" type="button" data-t="copy"></button>
+      <button id="download" class="btn" type="button" data-t="download"></button>
+      <button id="share" class="btn" type="button" data-t="share"></button>
+    </div>
+    <div class="row"><button id="again" class="small" type="button" data-t="again"></button><button id="del" class="small danger" type="button" data-t="delete"></button></div>
+  </section>
+  <p class="foot" data-t="foot"></p>
+</main>
+<div id="toast" role="alert" hidden></div>
+<script>
+/*@DATA@*/
+</script>
+<script>
+/*@PROTOKOLL@*/
+</script>
+<script>
+/*@PAGE@*/
+</script>
+</body>
+</html>

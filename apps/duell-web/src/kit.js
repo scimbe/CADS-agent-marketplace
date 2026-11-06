@@ -1,13 +1,40 @@
 /* Shared page helpers: language, storage, sound, haptics, sharing. */
 (function () {
   "use strict";
-  var T = window.DailyTexts, mem = {}, store = {};
+  var T = window.DailyTexts, C = window.DuellCore, mem = {}, store = {};
   try { var j = JSON.parse(localStorage.getItem("daily.v1") || "{}"); if (j && typeof j === "object") store = j; } catch (e) { store = mem; }
   var Kit = {
     store: store, persisted: true,
-    lang: store.lang === "en" || store.lang === "de" ? store.lang : ((navigator.language || "de").toLowerCase().indexOf("de") === 0 ? "de" : "en"),
+    // Every language with a block in texts.json is offered, in the order of the file; German is the fallback.
+    langs: C.langsOf(T),
+    lang: "de",
     muted: !!store.muted,
-    t: function (k, o) { var s = T[Kit.lang][k]; s = s == null ? k : s; return s.replace(/\{(\w+)\}/g, function (_, x) { return o && o[x] != null ? o[x] : ""; }); },
+    t: function (k, o) {
+      var b = T[Kit.lang] || T.de, s = C.form(b, k, o && o.n, Kit.lang);
+      if (s == null) s = C.form(T.de, k, o && o.n, "de");
+      s = s == null ? k : s; return s.replace(/\{(\w+)\}/g, function (_, x) { return o && o[x] != null ? o[x] : ""; });
+    },
+    loc: function () { return C.locale(Kit.lang); },
+    // Kit.num(x) / Kit.num(x, {Intl options}): as the language writes it, grouped ("1.234,5"); Kit.num(x, 2): two decimals, no grouping.
+    num: function (x, d) { if (typeof d === "number") return C.num(x, d, Kit.lang); try { return new Intl.NumberFormat(Kit.loc(), d).format(x); } catch (e) { return String(x); } },
+    // Switching the language redraws what is open: the app and every layer listen to "daily:lang".
+    setLang: function (l) {
+      if (Kit.langs.indexOf(l) < 0 || l === Kit.lang) return;
+      Kit.lang = store.lang = l; Kit.save(); document.documentElement.lang = l;
+      try { window.dispatchEvent(new CustomEvent("daily:lang")); } catch (e) {}
+    },
+    nextLang: function () { var L = Kit.langs; return L[(L.indexOf(Kit.lang) + 1) % L.length]; },
+    langName: function (l) { try { var n = new Intl.DisplayNames([l], { type: "language" }).of(l); return n.charAt(0).toLocaleUpperCase(l) + n.slice(1); } catch (e) { return l.toUpperCase(); } },
+    // The language switch for a layer of its own (table, live game, arcade), like the one on the home page: it shows the
+    // language in use and says which one a tap switches to.
+    langBtn: function (cls) {
+      var b = document.createElement("button"); b.type = "button"; b.className = "langbtn " + (cls || "");
+      function fill() { var n = Kit.nextLang(); b.textContent = Kit.lang.toUpperCase(); b.setAttribute("aria-label", Kit.t("lang_to", { l: Kit.langName(n) })); }
+      b.addEventListener("click", function () { Kit.sfx.tap(); Kit.setLang(Kit.nextLang()); });
+      function on() { if (b.isConnected) fill(); else window.removeEventListener("daily:lang", on); }
+      window.addEventListener("daily:lang", on); fill();
+      return b;
+    },
     save: function () { try { localStorage.setItem("daily.v1", JSON.stringify(store)); Kit.persisted = true; } catch (e) { Kit.persisted = false; } },
     toast: function (msg) { var el = document.getElementById("toast"); el.textContent = msg; el.classList.add("show"); clearTimeout(Kit._t); Kit._t = setTimeout(function () { el.classList.remove("show"); }, 2400); },
     haptic: function (p) {
@@ -15,6 +42,29 @@
       try { if (window.DuellHost && window.DuellHost.haptic) { window.DuellHost.haptic(); return; } if (navigator.vibrate) navigator.vibrate(p || 8); } catch (e) {}
     }
   };
+  // The saved choice first, then the device's languages in order, then English, then German.
+  Kit.lang = [store.lang].concat(navigator.languages || [navigator.language || ""]).map(function (l) { return String(l || "").toLowerCase().split("-")[0]; })
+    .filter(function (l) { return Kit.langs.indexOf(l) >= 0; })[0] || (Kit.langs.indexOf("en") >= 0 ? "en" : "de");
+  // Numbers and plurals through Intl (Katalog v2, rule 27): t.plural("key", n) picks key_one, key_few, ... key_other
+  // by the language's plural rules (Intl.PluralRules), with German as the fallback for a missing word; {n} is the number
+  // written the way the language writes it ("1,5" in de, "1.5" in en). New texts never branch on the language.
+  Kit.t.plural = function (k, n, o) {
+    var cat = "other", L = T[Kit.lang] || {}, D = T.de || {};
+    try { cat = new Intl.PluralRules(Kit.loc()).select(n); } catch (e) {}
+    var key = [k + "_" + cat, k + "_other"].filter(function (x) { return L[x] != null || D[x] != null; })[0] || k;
+    var s = L[key] != null ? L[key] : D[key] != null ? D[key] : key, v = Object.assign({}, o, { n: Kit.num(n) });
+    return s.replace(/\{(\w+)\}/g, function (_, x) { return v[x] != null ? v[x] : ""; });
+  };
+  // Font size token --fs (rule 2): normal / gross / sehr gross = 1 / 1.25 / 1.5 times the system's size (1rem follows
+  // the system setting). Only on this device, chosen in Mein Stil; new cards size their text in rem through var(--fs).
+  Kit.FS = { n: 1, g: 1.25, sg: 1.5 };
+  Kit.fs = Object.prototype.hasOwnProperty.call(Kit.FS, store.fs) ? store.fs : "n";
+  Kit.setFs = function (v) {
+    if (!Object.prototype.hasOwnProperty.call(Kit.FS, v)) return;
+    Kit.fs = v; if (v === "n") delete store.fs; else store.fs = v; Kit.save();
+    var r = document.documentElement; r.style.setProperty("--fs", String(Kit.FS[v])); r.setAttribute("data-fs", v);
+  };
+  try { document.documentElement.style.setProperty("--fs", String(Kit.FS[Kit.fs])); document.documentElement.setAttribute("data-fs", Kit.fs); } catch (e) {}
   var actx = null;
   Kit.audio = function (force) {
     if (Kit.muted && !force) return null;
@@ -91,5 +141,7 @@
     setTimeout(function () { URL.revokeObjectURL(u); }, 4000);
     Kit.toast(Kit.t("saved"));
   };
+  // Right before any jump to sign in / register / the account (profile.js, ai.js): the login pages in my colours.
+  Kit.look = function () { if (window.DuellHost) return; var k = window.DuellCore.lookCookie(Kit.store.me && Kit.store.me.colors, location.hostname); if (k) document.cookie = k; };
   window.Kit = Kit;
 })();

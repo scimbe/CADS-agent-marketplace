@@ -3,7 +3,8 @@
    - bunsenbrenner account, only after "I am 16 or older"; the login cookie works only where the page comes from the API host.
    - sync code without account: 128 random bits made here; whoever has the code has the profile. No e-mail, no name.
    What travels: nickname, emoji, colours, sticker set, "Meine Wand" without photo works, saved cards, and with the code the AI
-   device id. Photos and wall pictures of photo works never leave the device. Server: CADS-DEMO-wrapper lib/duell-profile.mjs. */
+   device id. Photos and wall pictures of photo works never leave the device. Server: CADS-DEMO-wrapper lib/duell-profile.mjs.
+   A part of its own (konto, scripts/build.js): loaded when My style opens, or at start while linked (app.js konto). */
 (function (root) {
   "use strict";
   var CODE_RE = /^[a-f0-9]{32}$/, THUMB_MAX = 30000, BODY_MAX = 560000, MAX_WALL = 30, MAX_SAVED = 200, ID_RE = /^[a-z0-9-]{1,40}$/;
@@ -84,7 +85,7 @@
       var g = await call("get", who(p));
       if (g.status === 401) return (state = "login");
       if (g.status !== 200) return (state = "error");
-      if (g.json.gone && p.base) { unlink(); onChange(); Kit.toast(t("pf_gone")); return (state = "gone"); }   // deleted on another device: stay local, do not upload it again
+      if (g.json.gone && p.base) { unlink(); onChange(); Kit.toast(t("ac_gone")); return (state = "gone"); }   // deleted on another device: stay local, do not upload it again
       var ch = merge(Kit.store, g.json.profile, p.base, p.via);
       if (Object.keys(ch).length) { Object.keys(ch).forEach(function (k) { Kit.store[k] = ch[k]; }); if (ch.aiDev) delete Kit.store.aiMeter; plainSave(); onChange(); }
       var out = pack(Kit.store, p.via), rev = g.json.rev;
@@ -92,7 +93,7 @@
         var body = who(p); body.rev = rev; body.profile = out; if (!p.base) body.fresh = true; if (p.via === "account" && p.age16) body.age16 = true;
         var w = await call("put", body);
         if (w.status === 409) continue;
-        if (w.status === 410) { unlink(); onChange(); Kit.toast(t("pf_gone")); return (state = "gone"); }
+        if (w.status === 410) { unlink(); onChange(); Kit.toast(t("ac_gone")); return (state = "gone"); }
         if (w.status === 401) return (state = "login");
         if (w.status !== 200) return (state = w.status === 429 ? "busy" : "error");
         rev = w.json.rev;
@@ -116,62 +117,63 @@
   // The section in My style. el(tag, cls, text, onClick) is the page's element helper. It redraws itself in place.
   function section(b, el) {
     b.appendChild(draw());
-    function rerender() { var old = document.getElementById("pfbox"); if (old) old.replaceWith(draw()); }   // the page may have redrawn the panel meanwhile
+    function rerender() { var old = document.getElementById("acbox"); if (old) old.replaceWith(draw()); }   // the page may have redrawn the panel meanwhile
     function draw() {
     var box = el("div", "aibox profile"), p = link();
-    box.id = "pfbox";
-    box.appendChild(el("h3", "lbl", t("pf_title")));
+    box.id = "acbox";
+    box.appendChild(el("h3", "lbl", t("ac_title")));
     if (!p) {
-      box.appendChild(el("p", "note", t("pf_local")));
-      box.appendChild(el("p", "note", t("pf_what")));
+      box.appendChild(el("p", "note", t("ac_local")));
+      box.appendChild(el("p", "note", t("ac_what")));
       if (canAccount) {
-        var lab = el("label", "pfcheck"), cb = el("input"); cb.type = "checkbox"; cb.id = "pf16";
-        lab.appendChild(cb); lab.appendChild(document.createTextNode(" " + t("pf_16")));
-        var go = el("button", "btn", t("pf_login"), function () {
+        var lab = el("label", "accheck"), cb = el("input"); cb.type = "checkbox"; cb.id = "ac16";
+        lab.appendChild(cb); lab.appendChild(document.createTextNode(" " + t("ac_16")));
+        var go = el("button", "btn", t("ac_login"), function () {
           if (!cb.checked) return;
           Kit.store.profile = { via: "account", rev: 0, base: null, age16: true }; plainSave();
+          Kit.look();
           location.href = "/auth/login?return=" + encodeURIComponent("/duell");
         });
         go.disabled = true; cb.addEventListener("change", function () { go.disabled = !cb.checked; });
-        box.appendChild(lab); box.appendChild(go); box.appendChild(el("p", "note", t("pf_under16")));
-      } else box.appendChild(el("p", "note", t("pf_browser")));
+        box.appendChild(lab); box.appendChild(go); box.appendChild(el("p", "note", t("ac_under16")));
+      } else box.appendChild(el("p", "note", t("ac_browser")));
       if (canCode) {
-        box.appendChild(el("label", "lbl", t("pf_code")));
-        box.appendChild(el("p", "note", t("pf_codeNote")));
-        box.appendChild(el("button", "btn", t("pf_new"), async function () {
+        box.appendChild(el("label", "lbl", t("ac_code")));
+        box.appendChild(el("p", "note", t("ac_codeNote")));
+        box.appendChild(el("button", "btn", t("ac_new"), async function () {
           var b16 = new Uint8Array(16); crypto.getRandomValues(b16);
-          var s = await startCode(newCode(b16)); Kit.toast(t(s === "ok" ? "pf_linked" : "pf_err")); if (s !== "ok") unlink(); rerender();
+          var s = await startCode(newCode(b16)); Kit.toast(t(s === "ok" ? "ac_linked" : "ac_err")); if (s !== "ok") unlink(); rerender();
         }));
-        var f = el("input", "field"); f.placeholder = t("pf_enter"); f.setAttribute("aria-label", t("pf_enter")); f.autocomplete = "off"; f.spellcheck = false;
+        var f = el("input", "field"); f.placeholder = t("ac_enter"); f.setAttribute("aria-label", t("ac_enter")); f.autocomplete = "off"; f.spellcheck = false;
         box.appendChild(f);
-        box.appendChild(el("button", "btn", t("pf_join"), async function () {
-          var c = parseCode(f.value); if (!c) { Kit.toast(t("pf_bad")); return; }
-          var s = await startCode(c); Kit.toast(t(s === "ok" ? "pf_linked" : "pf_err")); if (s !== "ok") unlink(); rerender();
+        box.appendChild(el("button", "btn", t("ac_join"), async function () {
+          var c = parseCode(f.value); if (!c) { Kit.toast(t("ac_bad")); return; }
+          var s = await startCode(c); Kit.toast(t(s === "ok" ? "ac_linked" : "ac_err")); if (s !== "ok") unlink(); rerender();
         }));
-      } else box.appendChild(el("p", "note", t("pf_noCode")));
+      } else box.appendChild(el("p", "note", t("ac_noCode")));
       return box;
     }
-    box.appendChild(el("p", "note", t(p.via === "code" ? "pf_viaCode" : "pf_viaAccount")));
+    box.appendChild(el("p", "note", t(p.via === "code" ? "ac_viaCode" : "ac_viaAccount")));
     if (p.via === "code") {
-      box.appendChild(el("p", "pfcode", fmtCode(p.code)));
-      box.appendChild(el("button", "chip", t("pf_copy"), function () { Kit.copy(fmtCode(p.code)).then(function (ok) { Kit.toast(t(ok ? "copied" : "shareFail")); }); }));
-      box.appendChild(el("p", "note", t("pf_secret")));
+      box.appendChild(el("p", "accode", fmtCode(p.code)));
+      box.appendChild(el("button", "chip", t("ac_copy"), function () { Kit.copy(fmtCode(p.code)).then(function (ok) { Kit.toast(t(ok ? "copied" : "shareFail")); }); }));
+      box.appendChild(el("p", "note", t("ac_secret")));
     }
-    box.appendChild(el("p", "note", t("pf_what")));
-    var st = el("p", "note pfstate", ""); st.setAttribute("role", "status"); box.appendChild(st);
+    box.appendChild(el("p", "note", t("ac_what")));
+    var st = el("p", "note acstate", ""); st.setAttribute("role", "status"); box.appendChild(st);
     function showState(s) {
       var at = link() && link().at;
-      st.textContent = s === "ok" && at ? t("pf_ok", { time: new Date(at).toLocaleTimeString(Kit.lang === "de" ? "de-DE" : "en-GB", { hour: "2-digit", minute: "2-digit" }) }) : s && s !== "ok" ? t(s === "login" ? "pf_relogin_note" : "pf_" + s) : "";
-      if (s === "login" && canAccount) { var a = el("a", "btn", t("pf_relogin")); a.href = "/auth/login?return=" + encodeURIComponent("/duell"); st.appendChild(document.createTextNode(" ")); st.appendChild(a); }
+      st.textContent = s === "ok" && at ? t("ac_ok", { time: new Date(at).toLocaleTimeString(Kit.lang === "de" ? "de-DE" : "en-GB", { hour: "2-digit", minute: "2-digit" }) }) : s && s !== "ok" ? t(s === "login" ? "ac_relogin_note" : "ac_" + s) : "";
+      if (s === "login" && canAccount) { var a = el("a", "btn", t("ac_relogin")); a.href = "/auth/login?return=" + encodeURIComponent("/duell"); a.addEventListener("click", Kit.look); st.appendChild(document.createTextNode(" ")); st.appendChild(a); }
     }
     showState(state);
-    box.appendChild(el("button", "btn", t("pf_sync"), async function () { showState("busy"); var r = await sync(); if (r === "gone") rerender(); else showState(r); }));
-    box.appendChild(el("button", "btn", t("pf_unlink"), function () { unlink(); Kit.toast(t("pf_unlinked")); rerender(); }));
-    var del = el("button", "btn", t("pf_delete"), async function () {
-      if (!del.dataset.sure) { del.dataset.sure = "1"; del.textContent = t("pf_sure"); return; }
+    box.appendChild(el("button", "btn", t("ac_sync"), async function () { showState("busy"); var r = await sync(); if (r === "gone") rerender(); else showState(r); }));
+    box.appendChild(el("button", "btn", t("ac_unlink"), function () { unlink(); Kit.toast(t("ac_unlinked")); rerender(); }));
+    var del = el("button", "btn", t("ac_delete"), async function () {
+      if (!del.dataset.sure) { del.dataset.sure = "1"; del.textContent = t("ac_sure"); return; }
       del.disabled = true;
-      try { var r = await call("delete", who(p)); if (r.status !== 200) throw new Error(String(r.status)); unlink(); Kit.toast(t("pf_deleted")); rerender(); }
-      catch (e) { del.disabled = false; Kit.toast(t("pf_err")); }
+      try { var r = await call("delete", who(p)); if (r.status !== 200) throw new Error(String(r.status)); unlink(); Kit.toast(t("ac_deleted")); rerender(); }
+      catch (e) { del.disabled = false; Kit.toast(t("ac_err")); }
     });
     box.appendChild(del);
     return box;

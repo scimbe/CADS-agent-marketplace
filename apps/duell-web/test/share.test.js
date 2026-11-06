@@ -91,3 +91,17 @@ test("Adresse auf dem Bild: Kopf und id getrennt, Rueckfall ohne id", () => {
   assert.deepEqual(Card.splitUrl("https://bunsenbrenner.org/s/" + ID), { head: "bunsenbrenner.org/s/", id: ID });
   assert.deepEqual(Card.splitUrl("https://bunsenbrenner.org/duell"), { head: "bunsenbrenner.org/duell", id: "" });
 });
+test("Vorschaubild: nur mit dem eigenen Token, als JPEG an /img; ohne Eintrag, ohne Bild oder bei Fehler bleibt das feste Bild", async () => {
+  const s = { links: [{ id: ID, t: "tok", exp: 1e15, f: F }] }, blob = { size: 1 };
+  let sent; assert.equal(await S.picture(ID, blob, s, { fetch: async (u, o) => { sent = { u, o }; return { status: 204 }; } }), true);
+  assert.ok(sent.u.endsWith("/api/s/" + ID + "/img")); assert.equal(sent.o.method, "PUT");
+  assert.equal(sent.o.headers.Authorization, "Bearer tok"); assert.equal(sent.o.headers["Content-Type"], "image/jpeg"); assert.equal(sent.o.body, blob);
+  assert.equal(await S.picture("22222222", blob, s, { fetch: async () => ({ status: 204 }) }), false, "fremder Link: kein Token, keine Anfrage");
+  assert.equal(await S.picture(ID, null, s, { fetch: async () => ({ status: 204 }) }), false);
+  for (const f of [async () => ({ status: 403 }), async () => ({ status: 413 }), async () => { throw 1; }]) assert.equal(await S.picture(ID, blob, s, { fetch: f }), false);
+});
+test("Vorschaubild: Foto-Poster laden nie ein Bild hoch, nur shortLink() tut es", () => {
+  const app = require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/app.js"), "utf8");
+  assert.equal((app.match(/ShortLink\.picture\(/g) || []).length, 1);
+  assert.match(app, /result\.kind !== "photo" && result\.canvas\) \{\s*try \{ await window\.ShortLink\.picture/);
+});

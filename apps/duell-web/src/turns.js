@@ -7,10 +7,15 @@
   var C = node ? require("./core.js") : root.DuellCore;
   var Q = node ? require("./quest.js") : root.Quest;
   var DATA = node ? require("./turn.json") : root.TurnData;
-  var BLOB = /^[A-Za-z0-9_-]{0,900}$/, SHAPES = ["cookie", "star", "heart", "bolt", "ring", "drop"], DAY = 86400000;
+  var P = node ? require("./quizpack.js") : root.QuizPack;
+  var BLOB = /^[A-Za-z0-9_-]{0,900}$/, SHAPES = ["cookie", "star", "heart", "bolt", "ring", "drop", "coin"], DAY = 86400000;
 
-  function T(lang) { return DATA.text[lang === "en" ? "en" : "de"]; }
-  function pair(list, i, lang) { return list[i].split("|")[lang === "en" ? 1 : 0]; }
+  function T(lang) { return C.textsFor(DATA.text, lang); }
+  // "de|en" pairs and [de, en] lists: a language reads its own column, German where there is none yet
+  function col(lang) { return C.column(DATA.text, lang); }
+  function pk(s, lang) { return C.pick(s, col(lang)); }
+  function alt(a, lang) { var x = a[col(lang)]; return x != null ? x : a[0]; }
+  function pair(list, i, lang) { return pk(list[i], lang); }
   function mix(doc, tag, n) {          // the same order on both phones, from the seed in the link
     var r = C.mulberry32(C.hash32("turn|" + doc.seed + "|" + tag)), a = [], i, j, t;
     for (i = 0; i < n; i++) a.push(i);
@@ -126,7 +131,7 @@
       }
     }
   };
-  function side(s, lang) { var a = s.split("||"); return a[lang === "en" ? 1 : 0].split("|"); }
+  function side(s, lang) { return alt(s.split("||"), lang).split("|"); }
   function asks(doc) { return mix(doc, "frag", DATA.ask.length).slice(0, 5); }
   function askText(doc, i, lang) { return side(DATA.ask[asks(doc)[i]], lang); }
   function fives(key, l) {
@@ -175,15 +180,15 @@
     ],
     gate: function (doc, m) { return m.length === 1 ? doc.o : 0; },
     peekWhole: function (doc, m, lang) { return m.length === 1 ? pair(DATA.vows, m[0][0][0], lang) : ""; },
-    result: function (doc, m, lang) { var X = T(lang); return { h: m[1][0][0] === 0 ? X.wet_done : X.wet_fail, lines: [pair(DATA.vows, m[0][0][0], lang)].concat(m[1][0][0] === 0 ? [] : [DATA.forfeit[0].split("|")[lang === "en" ? 1 : 0]]) }; }
+    result: function (doc, m, lang) { var X = T(lang); return { h: m[1][0][0] === 0 ? X.wet_done : X.wet_fail, lines: [pair(DATA.vows, m[0][0][0], lang)].concat(m[1][0][0] === 0 ? [] : [pk(DATA.forfeit[0], lang)]) }; }
   };
   GAMES.luecke = {
     turns: [
-      [{ w: "pick", l: "luck_pick", n: 1, from: function (doc, m, now, lang) { return DATA.stories.map(function (s, i) { return s.split("||")[lang === "en" ? 1 : 0].split(" ").slice(0, 3).join(" ") + " ..."; }); } }],
+      [{ w: "pick", l: "luck_pick", n: 1, from: function (doc, m, now, lang) { return DATA.stories.map(function (s, i) { return alt(s.split("||"), lang).split(" ").slice(0, 3).join(" ") + " ..."; }); } }],
       [{ w: "list", l: "luck_fill", n: 6, max: 18, hints: function (lang) { return side(DATA.hints[0], lang); } }]
     ],
     result: function (doc, m, lang) {
-      var s = DATA.stories[m[0][0][0]].split("||")[lang === "en" ? 1 : 0], w = m[1][0];
+      var s = alt(DATA.stories[m[0][0][0]].split("||"), lang), w = m[1][0];
       return { h: T(lang).luck_h, lines: [s.replace(/\{(\d)\}/g, function (x, i) { return w[i]; })] };
     }
   };
@@ -376,7 +381,7 @@
     turns: [0, 1, 2, 3, 4, 5].map(politeTurn),
     ends: function (doc, m) { return politeLevel(m) > politeLimit(doc); },
     result: function (doc, m, lang) {
-      var X = T(lang), at = m.length - 1, burst = politeLevel(m) > politeLimit(doc), a = 0, b = 0, last = politeRow(doc, at)[m[at][0][0]].split("|")[lang === "en" ? 1 : 0];
+      var X = T(lang), at = m.length - 1, burst = politeLevel(m) > politeLimit(doc), a = 0, b = 0, last = pk(politeRow(doc, at)[m[at][0][0]], lang);
       m.forEach(function (x, i) { if (i % 2) b += x[0][0] + 1; else a += x[0][0] + 1; });
       if (burst) return { h: fmt(X.hof_burst, { w: at % 2 ? X.first : X.second }), lines: [fmt(X.hof_line, { l: last }), fmt(X.hof_limit, { n: politeLimit(doc) })] };
       return { h: a === b ? X.hof_tie : fmt(X.hof_win, { w: a > b ? X.first : X.second, a: a, b: b }), lines: [fmt(X.hof_limit, { n: politeLimit(doc) })] };
@@ -540,6 +545,48 @@
     turns: [signTurn(), signTurn(), signTurn(), signTurn()],
     result: function (doc, m, lang) { return { h: T(lang).rei_h, lines: m.map(function (x) { return signedLine(x, lang); }) }; }
   };
+  // ---------- finding a date: dates are tapped, never typed, so no place or time of day slips in as free text ----------
+  // A date is day * 10 + hour slot. Whoever asks chose the dates and counts as yes everywhere; up to ten people in one link.
+  var HOURS = [10, 12, 14, 15, 16, 17, 18, 19, 20], VOTERS = 10;
+  function dayText(day, lang) { var X = T(lang), d = new Date(day * DAY); return fmt(X.ter_day, { w: X.ter_days.split("|")[d.getUTCDay()], d: d.getUTCDate(), m: d.getUTCMonth() + 1 }); }
+  function hourText(i, lang) { var h = HOURS[i]; return lang === "en" ? (h > 12 ? h - 12 : h) + (h < 12 ? " am" : " pm") : fmt(T(lang).ter_hour, { h: h }); }
+  function slotText(s, lang) { return dayText(Math.floor(s / 10), lang) + ", " + hourText(s % 10, lang); }
+  function nameOk(v) { return typeof v === "string" && !!Q.fold(v) && Q.clean(v, 12) === v && new TextEncoder().encode(v).length <= 24; }
+  function termDates(m) { return m[0][0][1]; }
+  function voted(m) { return m.map(function (t) { return t[0][0]; }); }
+  function tally(m) {
+    return termDates(m).map(function (s, i) {
+      var c = { s: s, yes: 1, maybe: 0, who: [m[0][0][0]] };
+      m.slice(1).forEach(function (t) { var v = t[0][1][i]; if (v === 0) { c.yes++; c.who.push(t[0][0]); } else if (v === 1) c.maybe++; });
+      c.pts = (c.yes * 2 + c.maybe) * 100 + c.yes;
+      return c;
+    }).sort(function (a, b) { return b.pts - a.pts || a.s - b.s; });
+  }
+  function few(names) { return names.slice(0, 3).join(", ") + (names.length > 3 ? " +" + (names.length - 3) : ""); }
+  function termHead(m, lang) {
+    var X = T(lang), l = tally(m), top = l.filter(function (c) { return c.pts === l[0].pts; });
+    if (m.length === 1) return fmt(X.ter_open, { s: termDates(m).map(function (s) { return slotText(s, lang); }).join(" · ") });   // only the one who asks so far
+    if (top.length > 1) return fmt(X.ter_tie, { s: top.map(function (c) { return slotText(c.s, lang); }).join(" · ") });
+    return fmt(l[0].yes === m.length ? X.ter_all : X.ter_most, { s: slotText(l[0].s, lang) });
+  }
+  function ballot() {
+    return { w: "vote", l: "ter_vote", peek: function (doc, m, now, lang) { return termHead(m, lang); }, ok: function (v, m) {
+      return Array.isArray(v) && v.length === 2 && nameOk(v[0]) && voted(m).every(function (n) { return Q.fold(n) !== Q.fold(v[0]); }) &&
+        Array.isArray(v[1]) && v[1].length === termDates(m).length && v[1].every(function (x) { return intIn(x, 0, 2); });
+    } };
+  }
+  GAMES.termin = {
+    turns: [[{ w: "slots", l: "ter_pick", ok: function (v) {
+      var s = Array.isArray(v) && v.length === 2 && v[1];
+      return !!s && nameOk(v[0]) && Array.isArray(s) && s.length >= 2 && s.length <= 5 && s.every(function (x, i) { return intIn(x, 0, 9999999) && x % 10 < HOURS.length && (!i || x > s[i - 1]); });
+    } }]].concat(Array.apply(null, Array(VOTERS - 1)).map(function () { return [ballot()]; })),
+    words: { you_start: "ter_start", go_first: "ter_go_first", go_play: "ter_go", note_turn: "ter_note", note_over: "ter_over", ready: "ter_ready", send: "ter_send", rematch: "ter_again" },
+    face: function (doc, m, lang) { return m.length ? [termHead(m, lang), fmt(T(lang).ter_count, { n: m.length }), T(lang).ter_you] : null; },
+    result: function (doc, m, lang) {
+      var X = T(lang), l = tally(m);
+      return { h: termHead(m, lang), lines: l.slice(0, 2).map(function (c) { return fmt(X.ter_line, { s: slotText(c.s, lang), y: c.yes, v: c.maybe }); }).concat([fmt(X.ter_can, { w: few(l[0].who) })]) };
+    }
+  };
   // ---------- thanks, candles, a secret alphabet, a letter to yourself ----------
   GAMES.danke = {
     turns: [[{ w: "text", l: "dan_why", max: 44 }, { w: "text", l: "dan_from", max: 12 }], [{ w: "show", l: "dan_got", list: function (doc, m, now, lang) { return [fmt(T(lang).dan_h, { s: m[0][0] }), m[0][1]]; } }]],
@@ -626,7 +673,7 @@
   };
   var RAPTYPE = [0, 0, 1, 1, 2, 2];
   function rapFam(doc, who) { return mix(doc, "rap", DATA.rap.de.length)[who]; }
-  function rapLine(doc, who, i, lang) { return DATA.rap[lang === "en" ? "en" : "de"][rapFam(doc, who)][i]; }
+  function rapLine(doc, who, i, lang) { return (DATA.rap[lang] || DATA.rap.de)[rapFam(doc, who)][i]; }
   function rapCards(doc, who, k, avoid) { return mix(doc, "karte" + who + k, 6).filter(function (i) { return i !== avoid; }).slice(0, 3); }
   function rapPick(who, k) {
     return { w: "pick", l: "rap_pick", n: 1, auto: true, peek: function (doc, m, now, lang) { return rapSoFar(doc, m, now, lang) || T(lang).rap_start; },
@@ -653,7 +700,7 @@
   function pauseAt(doc, r) { return 4 + mix(doc, "pause" + r, 9)[0]; }          // seconds of music before the next stop, from the seed
   GAMES.disco = {
     local: true,
-    turns: [[{ w: "pick", l: "dis_beat", n: 1, auto: true, from: function (doc, m, now, lang) { return DATA.discoBeats.map(function (b) { return b[lang === "en" ? 1 : 0]; }); } },
+    turns: [[{ w: "pick", l: "dis_beat", n: 1, auto: true, from: function (doc, m, now, lang) { return DATA.discoBeats.map(function (b) { return alt(b, lang); }); } },
       { w: "freeze", l: "dis_go", auto: true, max: 99, beat: function (i) { return DATA.discoBeats[i][2]; }, statue: statue, pause: pauseAt }]],
     result: function (doc, m, lang) { return { h: fmt(T(lang).dis_h, { n: m[0][1] }), lines: [T(lang).dis_note] }; }
   };
@@ -705,11 +752,11 @@
     turns: [[{ w: "inner", l: "uhr_go", auto: true, targets: uhrTargets }]],
     result: function (doc, m, lang) {
       var X = T(lang), d = m[0][0], mean = Math.round(d.reduce(function (a, b) { return a + b; }, 0) / d.length / 100) / 10;
-      var h = Math.abs(mean) < 0.1 ? X.uhr_spot : fmt(mean < 0 ? X.uhr_early : X.uhr_late, { n: String(Math.abs(mean)).replace(".", lang === "en" ? "." : ",") });
-      return { h: h, lines: d.map(function (x, i) { return fmt(X.uhr_line, { i: i + 1, t: uhrTargets(doc)[i] / 1000, n: (x > 0 ? "+" : "") + (x / 1000).toFixed(1) }); }) };
+      var h = Math.abs(mean) < 0.1 ? X.uhr_spot : fmt(mean < 0 ? X.uhr_early : X.uhr_late, { n: C.num(Math.abs(mean), null, lang) });
+      return { h: h, lines: d.map(function (x, i) { return fmt(X.uhr_line, { i: i + 1, t: C.num(uhrTargets(doc)[i] / 1000, null, lang), n: (x > 0 ? "+" : "") + C.num(x / 1000, 1, lang) }); }) };
     }
   };
-  function secs(ms, lang) { var s = (ms / 1000).toFixed(2); return lang === "en" ? s : s.replace(".", ","); }
+  function secs(ms, lang) { return C.num(ms / 1000, 2, lang); }
   GAMES.pokal = {
     turns: [[{ w: "blind", l: "pok_go", auto: true, tries: 3, goal: 10000 }],
       [{ w: "blind", l: "pok_go", auto: true, tries: 3, goal: 10000, peek: function (doc, m, now, lang) { return fmt(T(lang).pok_beat, { n: secs(m[0][0], lang) }); } }]],
@@ -791,15 +838,275 @@
     local: true, turns: [[{ w: "explain", l: "exp_go", auto: true, secs: 60, max: 99, list: function (doc, lang) { return mix(doc, "erkl", DATA.words.length).map(function (i) { return pair(DATA.words, i, lang); }); } }]],
     result: function (doc, m, lang) { return { h: fmt(T(lang).exp_h, { n: m[0][0] }), lines: [T(lang).exp_note] }; }
   };
-  function sorryAsk(i) { return { w: "pick", l: "sor_" + (i + 1), n: 1, auto: true, from: function (doc, m, now, lang) { return DATA.sorry[i][lang === "en" ? 1 : 0].split("|"); } }; }
+  function sorryAsk(i) { return { w: "pick", l: "sor_" + (i + 1), n: 1, auto: true, from: function (doc, m, now, lang) { return alt(DATA.sorry[i], lang).split("|"); } }; }
   GAMES.sorry = {
     local: true, turns: [[sorryAsk(0), sorryAsk(1), sorryAsk(2)]],
     result: function (doc, m, lang) {
-      var text = m[0].map(function (a, i) { return DATA.sorry[i][lang === "en" ? 1 : 0].split("|")[a[0]]; }).join(" ");
+      var text = m[0].map(function (a, i) { return alt(DATA.sorry[i], lang).split("|")[a[0]]; }).join(" ");
       return { h: T(lang).sor_h, lines: [text], copy: text, note: T(lang).sor_note };
     }
   };
+  // ---------- collecting money: the card only builds a PayPal.me link, the money never touches us ----------
+  // Only the public PayPal.me name travels, and only the characters PayPal allows there. The total is in cents and is
+  // split over 1 to 20 people: everyone pays the same whole-cent share, the cents left over (fewer than the people) stay
+  // with whoever collects, and the card says so. EUR caps the share per person; a build flavor (adults) may raise it,
+  // baked in at build time, a link cannot change it. Links from before the split ([name, what, euros]) still open.
+  var PPME = /^[A-Za-z0-9]{1,20}$/, FL = root.DailyFlavor && root.DailyFlavor.eur, PAYERS = 20;
+  var EUR = Array.isArray(FL) && FL.length === 2 && Number.isInteger(FL[0]) && Number.isInteger(FL[1]) && FL[0] >= 1 && FL[0] <= FL[1] && FL[1] <= 500 ? FL : [1, 50];
+  function payName(v) { return typeof v === "string" && PPME.test(v); }
+  function split(c, k) { var e = Math.floor(c / k); return { c: c, k: k, e: e, r: c - e * k }; }
+  function moneyOk(c, k) { return intIn(k, 1, PAYERS) && intIn(c, EUR[0] * 100, EUR[1] * 100 * k) && split(c, k).e >= 1; }
+  // "37,50", "37.5", "37 €" -> 3750; anything else -> null
+  function parseCents(s) {
+    var m = String(s == null ? "" : s).trim().match(/^(\d{1,5})(?:[.,](\d{1,2}))?\s*(?:€|eur)?$/i);
+    return m ? +m[1] * 100 + (m[2] ? +(m[2] + "0").slice(0, 2) : 0) : null;
+  }
+  // The amount for a paypal.me link ("9.37"), or money as the language writes it ("9,37 €", "€9.37")
+  function euros(c, lang) { return lang === "url" ? (c % 100 ? (c / 100).toFixed(2) : String(c / 100)) : C.money(c, lang); }
+  function sam(m) { var a = m[0] || []; return { n: a[0], w: a[1], k: a[2], c: a[3] }; }
+  function payLink(m) {
+    var x = sam(m);
+    return payName(x.n) && moneyOk(x.c, x.k) ? "https://paypal.me/" + x.n + "/" + euros(split(x.c, x.k).e, "url") + "EUR" : "";
+  }
+  function moneyLine(c, k, lang, bare) {
+    var X = T(lang), p = split(c, k), s = bare ? "" : fmt(X.sam_share, { e: euros(p.e, lang) });
+    if (k > 1) s = fmt(X.sam_split, { t: euros(c, lang), k: k }) + (s ? " · " + s : "");
+    return p.r ? s + " · " + fmt(X.sam_rest, { r: p.r }) : s;
+  }
+  function payLine(m, lang) { var x = sam(m); return fmt(T(lang).sam_line, { e: euros(split(x.c, x.k).e, lang), w: x.w, n: x.n }); }
+  function payLines(m, lang) { var x = sam(m); return x.k > 1 || split(x.c, x.k).r ? [payLine(m, lang), moneyLine(x.c, x.k, lang, true)] : [payLine(m, lang)]; }
+  function payShare(m, lang) { var x = sam(m); return euros(split(x.c, x.k).e, lang); }
+  GAMES.sammeln = {
+    stay: true,
+    turns: [
+      [{ w: "text", l: "sam_name", max: 20, oneWord: true, hint: "sam_name_hint", adult: true, pref: "pp", bad: function (v) { return !payName(v); } },
+       { w: "text", l: "sam_what", max: 30, hint: "sam_what_hint" },
+       { w: "slide", l: "sam_who", min: 1, max: PAYERS, def: 1, unit: "👤" },
+       { w: "money", l: "sam_eur", hint: "sam_eur_hint", ok: function (v, now) { return moneyOk(v, now[2]); }, line: function (v, now, lang) { return moneyLine(v, now[2], lang); } }],
+      [{ w: "pay", l: "sam_pay", end: true, link: function (doc, m) { return payLink(m); }, share: payShare, more: function (m, lang) { return payLines(m, lang)[1] || ""; }, peek: function (doc, m, now, lang) { return payLine(m, lang); } }]
+    ],
+    // An older app (the store shell updates later) only reads [name, what, euros]: that form whenever it says everything.
+    store: function (t, v) { return t === 0 && Array.isArray(v) && v.length === 4 && v[2] === 1 && v[3] % 100 === 0 && intIn(v[3] / 100, EUR[0], EUR[1]) ? [v[0], v[1], v[3] / 100] : v; },
+    legacy: function (t, got) { return t === 0 && Array.isArray(got) && got.length === 3 && Number.isInteger(got[2]) && Math.abs(got[2]) < 1e6 ? [got[0], got[1], 1, got[2] * 100] : got; },
+    face: function (doc, m, lang) { return m.length ? payLines(m, lang).concat([T(lang).sam_face]) : null; },
+    result: function (doc, m, lang) { return { h: T(lang).sam_h, lines: payLines(m, lang), note: T(lang).sam_safe }; }
+  };
+  // ---------- a shopping list for the group: the whole list travels in the link, and every reply merges into what this phone knows ----------
+  // A list is [people, items]. people: [[name, face]], face an index into FACES. items: [[text, t, qty, marks]]; t orders the items
+  // (whoever adds puts the item after everything they saw), marks: [[person, x]] with x = version * 3 + s, s 0 nothing, 1 "I'll bring
+  // it", 2 "bought". Merging is a union: one item per folded text (smaller t, larger quantity, smaller text on a tie), one mark per
+  // item and person, the larger x wins: the later version, on equal versions the stronger state. So it does not matter in which
+  // order replies arrive or how often the same one comes back. Nothing is ever deleted once it went out, so nothing comes back
+  // from the dead either. Only the caps cut: whatever sorts last does not fit into a link.
+  // The same machinery carries the task list from a protocol (todo below): there the number is a due day (0 = none),
+  // marks mean "I'll do it" and "done". Every list function takes that config as an optional last argument.
+  var SHOP = { items: 20, text: 24, people: 8, min: 1, qty: 99, ver: 999, t: 999, bytes: 560 }, FACES = ["🐸", "🦝", "🐙", "🦖", "🍕", "👽", "🤖", "👻", "🔥", "🌈", "🦄", "🐝"];
+  function shopKey(s) { return Q.fold(s); }
+  function shopBytes(v) { return new TextEncoder().encode(JSON.stringify(v)).length; }
+  function cmp(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
+  function shopOk(v, cf) {
+    var S = cf || SHOP;
+    if (!Array.isArray(v) || v.length !== 2 || !Array.isArray(v[0]) || !Array.isArray(v[1])) return false;
+    var P = v[0], I = v[1];
+    if (P.length > S.people || !I.length || I.length > S.items || shopBytes(v) > S.bytes) return false;
+    var okP = P.every(function (p) { return Array.isArray(p) && p.length === 2 && nameOk(p[0]) && intIn(p[1], 0, FACES.length - 1); });
+    var okI = okP && I.every(function (it) {
+      if (!Array.isArray(it) || it.length !== 4 || typeof it[0] !== "string" || Q.clean(it[0], S.text) !== it[0] || !shopKey(it[0])) return false;
+      if (!intIn(it[1], 0, S.t) || !intIn(it[2], S.min, S.qty) || !Array.isArray(it[3])) return false;
+      return it[3].every(function (k) { return Array.isArray(k) && k.length === 2 && intIn(k[0], 0, P.length - 1) && intIn(k[1], 1, S.ver * 3 + 2); }) && distinct(it[3].map(function (k) { return k[0]; }));
+    });
+    return okI && distinct(P.map(function (p) { return Q.fold(p[0]); })) && distinct(I.map(function (it) { return shopKey(it[0]); }));
+  }
+  // Into maps keyed by folded text and folded name, and back into the one order every phone builds.
+  function shopOpen(list, into) {
+    var o = into || { people: {}, items: {} };
+    if (!list) return o;
+    list[1].forEach(function (it) {
+      var k = shopKey(it[0]), x = o.items[k];
+      if (!x) x = o.items[k] = { text: it[0], t: it[1], qty: it[2], marks: {} };
+      else { if (it[0] < x.text) x.text = it[0]; x.t = Math.min(x.t, it[1]); x.qty = Math.max(x.qty, it[2]); }
+      it[3].forEach(function (m) { var pk = Q.fold(list[0][m[0]][0]); x.marks[pk] = Math.max(x.marks[pk] || 0, m[1]); });
+    });
+    list[0].forEach(function (p) { var pk = Q.fold(p[0]), x = o.people[pk]; if (!x) o.people[pk] = [p[0], p[1]]; else { if (p[0] < x[0]) x[0] = p[0]; x[1] = Math.min(x[1], p[1]); } });
+    return o;
+  }
+  function shopClose(o, cf) {
+    var S = cf || SHOP, keys = Object.keys(o.items).sort(function (a, b) { return o.items[a].t - o.items[b].t || cmp(a, b); }).slice(0, S.items);
+    for (;;) {
+      var used = Object.keys(o.people).filter(function (pk) { return keys.some(function (k) { return o.items[k].marks[pk] > 0; }); }).sort(cmp).slice(0, S.people);
+      var v = [used.map(function (pk) { return o.people[pk].slice(); }), keys.map(function (k) {
+        var x = o.items[k];
+        return [x.text, x.t, x.qty, used.map(function (pk, i) { return [i, x.marks[pk] || 0]; }).filter(function (m) { return m[1] > 0; })];
+      })];
+      if (shopBytes(v) <= S.bytes || keys.length <= 1) return v;
+      keys.pop();
+    }
+  }
+  function shopMerge(a, b, cf) { return shopClose(shopOpen(b, shopOpen(a)), cf); }
+  // "2× Milch", "2x Milch", "2 Milch": a count of 1 to 99 in front, the rest is the text.
+  function shopParse(s) {
+    var raw = String(s == null ? "" : s).trim(), m = raw.match(/^(\d{1,2})\s*[x×*]?\s+(\S.*)$/i) || raw.match(/^(\d{1,2})\s*[x×*]\s*(\S.*)$/i), qty = 1;
+    if (m && +m[1] >= 1) { qty = +m[1]; raw = m[2]; }
+    var text = Q.clean(raw, SHOP.text);
+    return text && shopKey(text) ? { text: text, qty: qty } : null;
+  }
+  function shopMark(list, name, key) { var at = -1, pk = Q.fold(name); list[0].forEach(function (p, i) { if (Q.fold(p[0]) === pk) at = i; }); var it = list[1].filter(function (x) { return shopKey(x[0]) === key; })[0], m = it && it[3].filter(function (k) { return k[0] === at; })[0]; return m ? m[1] : 0; }
+  // One person's changes on top of what they got: new items after everything they saw, then their own marks, each one version
+  // above the mark they got, so the change wins against what they saw and loses against what someone else did later.
+  function shopApply(base, e, cf) {
+    var S = cf || SHOP, o = shopOpen(base), t = 0, pk = nameOk(e.name) ? Q.fold(e.name) : "";
+    Object.keys(o.items).forEach(function (k) { t = Math.max(t, o.items[k].t + 1); });
+    (e.adds || []).forEach(function (a) { shopOpen([[], [[a.text, Math.min(S.t, t++), a.qty, []]]], o); });
+    if (pk) {
+      if (!o.people[pk]) o.people[pk] = [e.name, intIn(e.face, 0, FACES.length - 1) ? e.face : 0];
+      Object.keys(e.marks || {}).forEach(function (k) {
+        var s = e.marks[k], had = base ? shopMark(base, e.name, k) : 0;
+        if (!o.items[k] || !intIn(s, 0, 2) || (had ? had % 3 === s : s === 0)) return;
+        o.items[k].marks[pk] = Math.min(S.ver, Math.floor(had / 3) + 1) * 3 + s;
+      });
+    }
+    return shopClose(o, S);
+  }
+  // A task list shows the text alone (its number is the due day, label stays the text); a shopping list "2× Milch".
+  function shopRows(list, cf) {
+    return list[1].map(function (it) {
+      var who = function (s) { return it[3].filter(function (m) { return m[1] % 3 === s; }).map(function (m) { return list[0][m[0]]; }); };
+      return { key: shopKey(it[0]), text: it[0], qty: it[2], label: (cf && cf.due) || it[2] <= 1 ? it[0] : it[2] + "× " + it[0], due: cf && cf.due ? it[2] : 0, bought: who(2), bring: who(1) };
+    });
+  }
+  function shopDone(list) { return !!list && list[1].length > 0 && shopRows(list).every(function (r) { return r.bought.length > 0; }); }
+  function shopCount(list, lang, cf) {
+    var r = shopRows(list, cf);
+    return fmt(T(lang)[cf && cf.due ? "tdo_count" : "ein_count"], { n: r.length, b: r.filter(function (x) { return x.bought.length; }).length, c: r.filter(function (x) { return !x.bought.length && x.bring.length; }).length });
+  }
+  function shopNames(l) { return l.map(function (p) { return p[0]; }).join(", "); }
+  GAMES.einkauf = {
+    snap: true,           // the link holds the list as it is now, not the way there
+    turns: [[{ w: "shop", l: "ein_make", live: true }], [{ w: "shop", l: "ein_go", live: true }]],
+    ends: function (doc, m) { return m.length > 0 && shopDone(m[0][0]); },
+    words: { you_start: "ein_start", go_first: "ein_go_first", go_play: "ein_go_play", note_turn: "ein_note", note_over: "ein_over", ready: "ein_ready", send: "ein_send", rematch: "ein_again" },
+    face: function (doc, m, lang) { return m.length ? [shopCount(m[0][0], lang)] : null; },
+    result: function (doc, m, lang) {
+      var X = T(lang);
+      return { h: X.ein_done_h, lines: shopRows(m[0][0]).map(function (r) { return fmt(X.ein_line, { s: r.label, n: shopNames(r.bought) }); }) };
+    }
+  };
+  GAMES.einkauf.list = SHOP;
+
+  // ---------- a wish list (widget "wish", part turnzwei): the wisher never sees a mark, her own link has the wishes only ----------
+  // A mark is the shopping list's "bring" (1): "I give this". The page names no giver, not even to the family.
+  var WISH = { items: 10, text: 32, people: 10, min: 1, qty: 1, ver: 999, t: 999, bytes: 600, wish: true };
+  function wishBare(v) { return [[], v[1].map(function (it) { return [it[0], it[1], 1, []]; })]; }
+  function wishCount(v, lang) { return fmt(C.form(T(lang), "wun_count", v[1].length, lang), { n: v[1].length }); }
+  GAMES.wunsch = {
+    snap: true, list: WISH,
+    turns: [[{ w: "wish", l: "wun_make", live: true, k: "wun", cfg: WISH }], [{ w: "wish", l: "wun_go", live: true, k: "wun", cfg: WISH }]],
+    // Over only once the wisher's phone closed it (o: 2, see close), never because every wish has a giver: that would tell her.
+    ends: function (doc, m) { return m.length > 0 && doc.o === 2; }, close: 2,
+    words: { you_start: "wun_start", go_first: "wun_go_first", go_play: "wun_go_play", note_turn: "wun_note", note_over: "wun_over", ready: "wun_ready", send: "inv_send", rematch: "wun_again" },
+    face: function (doc, m, lang) { return m.length ? [wishCount(m[0][0], lang)] : null; },
+    result: function (doc, m, lang) { return { h: T(lang).wun_done_h, lines: shopRows(m[0][0], WISH).map(function (r) { return r.label; }) }; },
+    wsw: { link: ["text", "name"], tage: 0 }, notes: ["wun_secret"]
+  };
+  // ---------- gifts in three questions: whom, how much, two likes -> five ideas (widgets "opts", "ideas"), a second vote ----------
+  // Lists, labels and the optional AI live in the part turnzwei; the link carries the five texts shown and the one tapped.
+  var GIFT = { who: ["kind", "teen", "partner", "eltern", "oma", "freund", "kollege"], likes: ["tee", "pflanze", "lesen", "kochen", "spiel", "musik", "basteln", "sport", "technik", "reisen", "gemuet", "suess"] };
+  function upTo(n, lang) { return fmt(T(lang).gf_upto, { n: C.money(n * 100, lang) }); }
+  function giftLast(m) { return m[0][m[0].length - 1]; }
+  function giftGame(euro, who, extra) {
+    var o = who ? 1 : 0, ask = who ? [{ w: "opts", l: "gf_who", n: 1, auto: true, keys: GIFT.who, pre: "gfw_" }] : [];
+    ask.push({ w: "pick", l: "gf_budget", n: 1, auto: true, from: function (doc, m, now, lang) { return euro.map(function (n) { return upTo(n, lang); }); } },
+      { w: "opts", l: "gf_like", n: 2, keys: GIFT.likes, pre: "gfl_" },
+      { w: "ideas", l: "gf_ideas", ask: function (now) { return { who: who ? GIFT.who[now[0][0]] : "kollege", euro: euro[now[o][0]], likes: now[o + 1].map(function (i) { return GIFT.likes[i]; }) }; } });
+    return Object.assign({
+      turns: [ask, [{ w: "pick", l: "gf_fav", n: 1, auto: true, top: function (doc, m, lang) { var x = giftLast(m); return fmt(T(lang).gf_their, { s: x[0][x[1]] }); }, from: function (doc, m) { return giftLast(m)[0]; } }]],
+      words: { you_start: "gf_start", go_first: "gf_go_first", go_play: "gf_go_play", note_turn: "gf_note", note_over: "gf_over", ready: "gf_ready", send: "inv_send", rematch: "gf_again" },
+      face: function (doc, m, lang) { if (!m.length) return null; var x = giftLast(m); return [fmt(T(lang).gf_face, { s: x[0][x[1]] }), upTo(euro[m[0][o][0]], lang)]; },
+      result: function (doc, m, lang) {
+        var X = T(lang), x = giftLast(m), a = x[0][x[1]], b = x[0][m[1][0][0]];
+        return { h: a === b ? fmt(X.gf_same, { s: a }) : X.gf_two, lines: (a === b ? [] : [fmt(X.gf_first, { s: a }), fmt(X.gf_second, { s: b })]).concat([upTo(euro[m[0][o][0]], lang)]), open: who ? { i: "zug-sammeln", l: "gf_pool" } : null };
+      },
+      wsw: { link: ["text"], ki: "opt", tage: 0 }, notes: ["gf_lang"]
+    }, extra);
+  }
+  GAMES.geschenk = giftGame([10, 20, 30, 50], true);
+
+  // ---------- tasks from a meeting (the card itself is in office.js): the shopping list's links and merging, a due
+  // day per task. Marks: 1 "I'll do it", 2 "done". A person is only named where the protocol named them for that task.
+  var TODO = { items: 12, text: 48, people: 8, min: 0, qty: 99999, ver: 999, t: 999, bytes: 540, due: true };
+  function todoNames(l) { return l.map(function (p) { return p[0]; }).join(", "); }
+  function dueText(day, lang) { return day ? fmt(T(lang).tdo_due, { d: dayText(day, lang) }) : ""; }
+  // The hand-over from the protocol page: { t: title, i: [[what, who, due day]] } -> a list that fits a link, and how
+  // many tasks did not make it (filtered text, no room). A name only stands where the protocol gave one.
+  // "… bis Freitag" / "… by 14.11." at the very end, when the deadline came as a day anyway: a separate word, then a day the
+  // protocol page can read (dueDay). "Lobby", "Ruby" or "Tische 1 bis 5 aufstellen" stay as they are.
+  var DUE_DAY = "(?:(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)(?:s|morgens?|vormittags?|mittags?|nachmittags?|abends?|nachts?)?|monday|tuesday|wednesday|thursday|friday|saturday|sunday" +
+    "|übermorgen|morgen|heute|tomorrow|today|eod|woche|week|wochenende|weekend|monatsende|monat|month|kw ?\\d{1,2}|\\d{1,2}\\.\\s?\\d{1,2}\\.?(?:\\s?\\d{2,4})?|\\d{1,2}/\\d{1,2}(?:/\\d{2,4})?)";
+  var DUE_TAIL = new RegExp("(?:^|[\\s(,;–-])\\s*[(,;–-]?\\s*(?:bis|by)\\s+(?:(?:spätestens|zum|zur|am|kommenden?|nächsten?|naechsten?|diesen?|next|this|the|end of|ende(?: der| des| dieser)?)\\s+)*" +
+    DUE_DAY + "(?:\\s+(?:morgen|früh|mittag|abend|morning|noon|evening|\\d{1,2}(?::\\d{2})?\\s?uhr))?[\\s.)]*$", "iu");
+  function todoFrom(o) {
+    o = o && typeof o === "object" ? o : {};
+    var items = (Array.isArray(o.i) ? o.i : []).slice(0, 20), people = [], adds = [], marks = [], lost = 0;
+    items.forEach(function (x, i) {
+      x = Array.isArray(x) ? x : [];
+      var due = intIn(x[2], 1, TODO.qty) ? x[2] : 0, text = Q.clean(due ? String(x[0] || "").replace(DUE_TAIL, "") : String(x[0] || ""), TODO.text);
+      if (!text || !shopKey(text) || adds.some(function (a) { return shopKey(a[0]) === shopKey(text); })) { lost++; return; }
+      var full = typeof x[1] === "string" ? x[1].trim() : "", who = nameOk(full) ? full : full.split(/\s+/)[0];   // too long: the first name
+      if (who && nameOk(who)) {
+        var at = people.map(function (p) { return Q.fold(p[0]); }).indexOf(Q.fold(who));
+        if (at < 0 && people.length < TODO.people) { people.push([who, people.length % FACES.length]); at = people.length - 1; }
+        if (at >= 0) marks.push([adds.length, at]);
+      }
+      adds.push([text, adds.length, due, []]);
+    });
+    if (!adds.length) return { list: null, lost: lost, t: "" };
+    marks.forEach(function (m) { adds[m[0]][3].push([m[1], 1]); });
+    var v = shopClose(shopOpen([people, adds]), TODO);
+    return { list: shopOk(v, TODO) ? v : null, lost: lost + adds.length - (v ? v[1].length : 0), t: Q.clean(o.t, 40) || "" };
+  }
+  // RFC 5545 3.1: a content line longer than 75 octets goes on in lines that start with a space; never inside a UTF-8 character.
+  function icsFold(line) {
+    var out = [], cur = "", n = 0, max = 75;
+    Array.from(line).forEach(function (ch) {
+      var b = new TextEncoder().encode(ch).length;
+      if (n + b > max) { out.push(cur); cur = " "; n = 1; max = 75; }
+      cur += ch; n += b;
+    });
+    out.push(cur);
+    return out.join("\r\n");
+  }
+  // .ics with one all-day entry per open task that has a due day; nothing about who else is on the list.
+  function todoIcs(list, title, lang, stamp) {
+    var X = T(lang), d8 = function (day) { return new Date(day * DAY).toISOString().slice(0, 10).replace(/-/g, ""); };
+    var esc = function (v) { return String(v).replace(/[\\;,]/g, function (c) { return "\\" + c; }).replace(/\n/g, "\\n"); };
+    var now = new Date(stamp || Date.now()).toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z", ev = [];
+    shopRows(list, TODO).forEach(function (r, i) {
+      if (!r.due || r.bought.length) return;
+      ev.push("BEGIN:VEVENT", "UID:todo-" + C.hash32(title + "|" + r.key + "|" + r.due) + "@bunsenbrenner.org", "DTSTAMP:" + now,
+        "DTSTART;VALUE=DATE:" + d8(r.due), "DTEND;VALUE=DATE:" + d8(r.due + 1),
+        "SUMMARY:" + esc(r.text + (r.bring.length ? " (" + todoNames(r.bring) + ")" : "")), "DESCRIPTION:" + esc(title || X.tdo_title), "END:VEVENT");
+    });
+    if (!ev.length) return "";
+    return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//My Daily Idea//Aufgaben//DE", "CALSCALE:GREGORIAN"].concat(ev, ["END:VCALENDAR"]).map(icsFold).join("\r\n") + "\r\n";
+  }
+  // The next meeting's agenda from what is still open, without AI: a look back, the open tasks, room for new points.
+  function todoAgenda(list, title, lang) {
+    var X = T(lang), rows = shopRows(list, TODO), open = rows.filter(function (r) { return !r.bought.length; }), out = [fmt(X.tdo_agenda_h, { t: title || X.tdo_title })], n = 1;
+    out.push(n++ + ". " + fmt(X.tdo_agenda_back, { b: rows.length - open.length, n: rows.length }));
+    open.forEach(function (r) {
+      var who = r.bring.length ? todoNames(r.bring) : X.tdo_open, due = r.due ? ", " + dueText(r.due, lang) : "";
+      out.push(n++ + ". " + fmt(X.tdo_agenda_item, { s: r.text, w: who, d: due }));
+    });
+    out.push(n + ". " + X.tdo_agenda_new);
+    return out.join("\n");
+  }
+
   GAMES.kapsel.gateFrom = 1;
+  // Team-Quiz and Typen-Quiz only run with a question pack (quizpack.js, doc.pk); without one no answer is ever valid.
+  GAMES.quiz = { needs: true, turns: [[{ w: "pk", l: "pk_need" }]], result: function () { return { h: "", lines: [] }; } };
+  GAMES.typen = { needs: true, turns: [[{ w: "pk", l: "pk_need" }]], result: function () { return { h: "", lines: [] }; } };
+  // The game as this doc plays it: with a pack that fits, the pack's turns (QuizPack.game), else the card's own.
+  function game(doc) { return (doc.pk && P.game(doc)) || GAMES[doc.g]; }
   var IDS = Object.keys(GAMES);
   function dealLine(doc, offer, floor, i, lang) {
     var X = T(lang), w = things(doc, lang);
@@ -827,12 +1134,16 @@
   function distinct(a) { return new Set(a).size === a.length; }
   function okAnswer(p, v, doc, lang, m, now) {
     if (p.bytes && Array.isArray(v) && new TextEncoder().encode(v.join("")).length > p.bytes) return false;   // the whole game has to fit into the link
+    if (p.check) return !!p.check(v, doc, m || [], now || []);   // a prompt of a card from the part turnzwei checks itself (src/feier.js)
     if (p.w === "show" || p.w === "touch" || p.w === "clock" || p.w === "blow") return v === 0;
     if (p.w === "hunt") return intIn(v, 1, p.max);
     if (p.w === "drop") return intIn(v, 0, p.max);
     if (p.w === "doors") return v === 0;
     if (p.w === "freeze") return intIn(v, 0, p.max);
-    if (p.w === "rec" || p.w === "once" || p.w === "parrot") return v === 0;
+    if (p.w === "rec" || p.w === "once" || p.w === "parrot" || p.w === "pay") return v === 0;
+    if (p.w === "slots" || p.w === "vote" || p.w === "bw") return p.ok(v, m);
+    if (p.w === "shop" || p.w === "wish") return shopOk(v, p.cfg);
+    if (p.w === "opts") return Array.isArray(v) && v.length === p.n && distinct(v) && v.every(function (x) { return intIn(x, 0, p.keys.length - 1); });
     if (p.w === "whose") return intIn(v, 0, 2);
     if (p.w === "inner") return Array.isArray(v) && v.length === 5 && v.every(function (x) { return Number.isInteger(x) && x >= -20000 && x <= 20000; });
     if (p.w === "blind") return intIn(v, 2000, 30000);
@@ -845,19 +1156,22 @@
     if (p.w === "explain") return intIn(v, 0, p.max);
     if (p.w === "blocks") return Array.isArray(v) && v.length <= p.max && v.every(function (x) { return intIn(x, 0, 63); }) && !!replay(doc, v);
     if (p.w === "slide") return intIn(v, p.min || 0, p.maxOf ? p.maxOf(doc) : p.max);
-    if (p.w === "text") return typeof v === "string" && !!Q.clean(v, p.max) && Q.clean(v, p.max) === v && !(p.oneWord && /\s/.test(v)) && !(p.bad && p.bad(v, doc, lang));
+    if (p.w === "money") return Number.isInteger(v) && p.ok(v, now || []);
+    if (p.w === "text") return typeof v === "string" && !!Q.clean(v, p.max) && Q.clean(v, p.max) === v && !(p.oneWord && /\s/.test(v)) && !(p.bad && p.bad(v, doc, lang, m));
     if (p.w === "list" && p.loose) return Array.isArray(v) && v.length === p.n && (!p.least || (v.filter(Boolean).length >= p.least && distinct(v.filter(Boolean).map(Q.fold)))) && v.every(function (x) { return x === "" || (typeof x === "string" && Q.clean(x, p.max) === x); });
     if (p.w === "list") return Array.isArray(v) && v.length === p.n && v.every(function (x) { return typeof x === "string" && !!Q.clean(x, p.max) && Q.clean(x, p.max) === x; }) && (p.same || distinct(v.map(Q.fold)));
     var n = p.from ? p.from(doc, m, now, lang).length : 0;
+    if (p.w === "ideas") return Array.isArray(v) && v.length === 2 && Array.isArray(v[0]) && v[0].length >= 1 && v[0].length <= 5 && distinct(v[0].map(Q.fold)) && v[0].every(function (x) { return typeof x === "string" && !!Q.clean(x, 40) && Q.clean(x, 40) === x; }) && intIn(v[1], 0, v[0].length - 1);
+    if (p.w === "day") return intIn(v, 20000, 30000);
     if (p.w === "pick") return Array.isArray(v) && v.length === p.n && distinct(v) && v.every(function (x) { return intIn(x, 0, n - 1); });
     if (p.w === "rank") return Array.isArray(v) && v.length === n && distinct(v) && v.every(function (x) { return intIn(x, 0, n - 1); });
     if (p.w === "alloc") return Array.isArray(v) && v.length === n && v.every(function (x) { return intIn(x, 0, p.sum) && x % p.step === 0; }) && v.reduce(function (a, b) { return a + b; }, 0) <= p.sum;
     return false;
   }
   function checked(doc, raw) {
-    var g = GAMES[doc.g], out = [];
+    var g = game(doc), out = [];
     for (var t = 0; t < raw.length && t < g.turns.length && !(g.ends && g.ends(doc, out)); t++) {
-      var want = g.turns[t], got = raw[t];
+      var want = g.turns[t], got = g.legacy ? g.legacy(t, raw[t]) : raw[t];
       if (!Array.isArray(got) || got.length !== want.length) return out;
       for (var i = 0; i < want.length; i++) if (!okAnswer(want[i], got[i], doc, "de", out, got.slice(0, i))) return out;
       out.push(got);
@@ -871,12 +1185,13 @@
     d.f = SHAPES.indexOf(o.f) >= 0 ? o.f : SHAPES[0];
     var w = Q.clean(o.w, 14); if (w) d.w = w;
     if (typeof o.o === "number" && intIn(o.o, 0, 99999)) d.o = o.o;
+    var pk = P.sanitize(o.pk); if (pk && P.fits(d.g, pk)) d.pk = pk;
     return d;
   }
   function fromIdea(idea, lang, base) { base.g = idea.turn.g; base.seed = C.hash32("turn-" + idea.id); base.q = ""; base.f = idea.turn.f; if (idea.turn.w) base.w = (idea.turn.w[lang] || idea.turn.w.de); return base; }
   function moves(doc) { return checked(doc, unseal(doc.q, doc.seed)); }
   function state(doc) {
-    var g = GAMES[doc.g], m = moves(doc), over = m.length >= g.turns.length || !!(g.ends && g.ends(doc, m));
+    var g = game(doc), m = moves(doc), over = m.length >= g.turns.length || !!(g.ends && g.ends(doc, m));
     return { moves: m, turn: m.length, total: g.turns.length, who: m.length % 2, over: over, prompts: over ? [] : g.turns[m.length] };
   }
   // The next doc, or null if the answers do not fit the turn.
@@ -884,16 +1199,21 @@
     var st = state(doc); if (st.over || answers.length !== st.prompts.length) return null;
     for (var i = 0; i < answers.length; i++) if (!okAnswer(st.prompts[i], answers[i], doc, "de", st.moves, answers.slice(0, i))) return null;
     var d = JSON.parse(JSON.stringify(doc));
-    d.q = seal(st.moves.concat([answers]), d.seed);
-    if (GAMES[d.g].gateFrom && st.turn === 0) d.o = today + answers[1];
+    var g = game(d), out = g.snap ? st.moves.slice(0, g.snap === true ? 0 : g.snap).concat([answers]) : st.moves.concat([answers]);
+    if (g.list && g.list.wish) delete d.o;   // the wisher's own link (o: 1) never goes on as the family's
+    d.q = seal(g.store ? out.map(function (x, t) { return g.store(t, x); }) : out, d.seed);
+    if (g.gateFrom && st.turn === 0) d.o = today + answers[1];
     return d;
   }
-  function result(doc, lang) { var st = state(doc); return st.over ? GAMES[doc.g].result(doc, st.moves, lang) : null; }
+  function result(doc, lang) { var st = state(doc); return st.over ? game(doc).result(doc, st.moves, lang) : null; }
   function gate(doc, today) {
-    var g = GAMES[doc.g], at = g.gate ? g.gate(doc, moves(doc)) : 0, left = at ? at - today : 0;
+    var g = game(doc), at = g.gate ? g.gate(doc, moves(doc)) : 0, left = at ? at - today : 0;
     return left > 0 ? left : 0;
   }
-  function whole(doc, lang) { var g = GAMES[doc.g]; return g.peekWhole ? g.peekWhole(doc, moves(doc), lang) : ""; }
+  function face(doc, lang) { var g = game(doc); return g.face ? g.face(doc, moves(doc), lang) : null; }
+  function whole(doc, lang) { var g = game(doc); return g.peekWhole ? g.peekWhole(doc, moves(doc), lang) : ""; }
+  // A game the owner ends by hand (GAMES[g].close): the same list, marked closed outside the moves; null if there is nothing to close.
+  function close(doc) { var g = game(doc), st = state(doc); if (!g.close || st.over || !st.turn) return null; var d = JSON.parse(JSON.stringify(doc)); d.o = g.close; return d; }
   function fresh(doc, seed) { var d = JSON.parse(JSON.stringify(doc)); d.seed = seed >>> 0; d.q = ""; delete d.o; return d; }
   function today(date) { return Math.floor((date || new Date()).getTime() / DAY); }
   function strings() {
@@ -901,6 +1221,6 @@
     (function walk(v) { if (typeof v === "string") v.split("|").forEach(function (x) { out.push(x); }); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") Object.keys(v).forEach(function (k) { walk(v[k]); }); })(DATA);
     return out;
   }
-  var api = { doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, gate: gate, whole: whole, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
+  var api = { game: game, HOURS: HOURS, dayText: dayText, hourText: hourText, slotText: slotText, termDates: termDates, voted: voted, doorOrder: doorOrder, doorBeing: doorBeing, doorIn: doorIn, nimMove: nimMove, sockAnswer: sockAnswer, glyphs: glyphs, IDS: IDS, SHAPES: SHAPES, GAMES: GAMES, T: T, sanitize: sanitize, fromIdea: fromIdea, seal: seal, unseal: unseal, moves: moves, state: state, play: play, result: result, close: close, gate: gate, face: face, whole: whole, payLink: payLink, parseCents: parseCents, euros: euros, split: split, moneyLine: moneyLine, PAYERS: PAYERS, SHOP: SHOP, WISH: WISH, wishBare: wishBare, GIFT: GIFT, giftGame: giftGame, upTo: upTo, FACES: FACES, nameOk: nameOk, shopOk: shopOk, shopMerge: shopMerge, shopApply: shopApply, shopParse: shopParse, shopRows: shopRows, shopMark: shopMark, shopKey: shopKey, shopDone: shopDone, shopCount: shopCount, TODO: TODO, todoFrom: todoFrom, todoIcs: todoIcs, todoAgenda: todoAgenda, dueText: dueText, fresh: fresh, today: today, SIZE: SIZE, blockAt: blockAt, fits: fits, drop: drop, replay: replay, canMove: canMove, okAnswer: okAnswer, strings: strings };
   if (node) module.exports = api; else root.Turns = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

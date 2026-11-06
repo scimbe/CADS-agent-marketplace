@@ -166,7 +166,7 @@ test("Fremde Nachrichten: Markup im Namen und Text wird nie Markup, die Seite la
   for (const f of evil) await b.push({ t: "msg", body: JSON.stringify(f) });
   await b.push({ t: "msg", body: "not json" }); await b.push({ t: "msg", body: "x".repeat(70000) }); await b.push({ t: "text", text: "Freitext" });
   assert.equal(await b.page.evaluate(() => window.__pwned), undefined);
-  assert.equal(await b.page.evaluate(() => document.querySelectorAll("#editor img, #cobar img, #cobar b").length), 0);
+  assert.equal(await b.page.evaluate(() => [...document.querySelectorAll("#editor img, #cobar img, #cobar b")].filter((e) => !e.closest("#edpic")).length), 0);   // #edpic: the card's own AI picture
   assert.ok(!(await doc(b)).x.includes("<"));
   assert.ok(!(await b.page.textContent("body")).includes("Freitext"));
   assert.deepEqual(b.errors, []);
@@ -196,7 +196,9 @@ test("Zurueck aus dem Editor beendet die Sitzung und sagt es der Huelle", async 
 
 test("Reine Web-Fassung: sagt ehrlich, dass es nur in der App geht, und sendet nichts", async () => {
   const ctx = await browser.newContext({ locale: "de-DE", viewport: { width: 390, height: 780 } }), page = await ctx.newPage(), out = [];
-  page.on("request", (r) => { if (!r.url().startsWith("file:") && !r.url().startsWith("data:")) out.push(r.url()); });
+  const pic = /^https:\/\/demos-34a13a96\.bunsenbrenner\.org\/duell\/img\/[a-z0-9-]+\.jpg$/;   // the day's KI-Bild, see thumbs.e2e.js
+  page.on("request", (r) => { if (!r.url().startsWith("file:") && !r.url().startsWith("data:") && !pic.test(r.url())) out.push(r.url()); });
+  await page.route(pic, (r) => r.abort());
   await page.goto(PAGE + "#i=" + CARD); await page.click("#go"); await page.click("#cogo");
   assert.equal(await page.textContent("#cotext"), "Zusammen bauen geht in der App.");
   assert.ok(await page.locator("#coqr").isHidden());

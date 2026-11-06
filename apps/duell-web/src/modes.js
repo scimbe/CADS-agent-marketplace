@@ -7,7 +7,7 @@ var FONT = R.FONT, EMO = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji
 var $ = function (id) { return document.getElementById(id); };
 var reduce = false, timer = 0, raf = 0, beat = null;
 try { reduce = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
-function title(ed) { return ed.idea ? (ed.idea[Kit.lang] || ed.idea.de).t.replace("|", " ") : ""; }
+function title(ed) { return ed.idea ? D.plainTitle((ed.idea[Kit.lang] || ed.idea.de).t) : ""; }
 function nameOf(a, fb) { return a.n || fb || a.e; }
 function stopAll() { clearTimeout(timer); clearInterval(timer); cancelAnimationFrame(raf); if (beat) { try { beat.stop(); } catch (e) {} beat = null; } }
 function setTabs(on) { $("tabs").hidden = !on; }
@@ -101,13 +101,16 @@ function nameField(p, ag) { A.field(p, t("agName"), ag.n, 16, function (v) { ag.
 A.TABS.duel = ["Agent", "Rival", "Arena", "Color"];
 A.TABS.quest = ["Riddle", "End", "Color"];
 A.PANEL.Agent = function (p) {
-  var d = A.ed().doc; nameField(p, d.a); sliders(p, d.a, Duel.SLIDERS[d.m].filter(function (k) { return d.m !== "mind"; })); look(p, d.a);
+  var d = A.ed().doc;
+  // Rock-paper-scissors also runs live against a real person; the footer button stays the match against the bot.
+  if (d.m === "rps" && window.LiveUI && window.LiveUI.on()) p.appendChild(el("button", "btn hot live", t("duelLive"), function () { Kit.sfx.thud(); Kit.store.agent = d.a; Kit.save(); window.LiveUI.invite({ g: "rps", set: d.set }); }));
+  nameField(p, d.a); sliders(p, d.a, Duel.SLIDERS[d.m].filter(function (k) { return d.m !== "mind"; })); look(p, d.a);
   p.appendChild(el("p", "note", t("agLocal")));
 };
 A.PANEL.Rival = function (p) {
   var d = A.ed().doc;
   p.appendChild(el("button", "chip", "🎲 " + t("agRandom"), function () {
-    var r = Math.random, L = DD.rivals[Kit.lang]; Kit.sfx.pop();
+    var r = Math.random, L = DD.rivals[Kit.lang] || DD.rivals.de; Kit.sfx.pop();
     d.b = { n: L[Math.floor(r() * L.length)], e: DD.emoji[Math.floor(r() * DD.emoji.length)], r: Math.floor(r() * 101), c: Math.floor(r() * 101), p: Math.floor(r() * 101) };
     A.tab("Rival"); A.changed();
   }));
@@ -186,10 +189,20 @@ function end(ed, res) {
   if (x.sa) { x.sa = null; x.sb = null; }
   ed.x = x; stopBeat(); Kit.sfx.win(); A.changed();
   var p = $("panel"); log(p, x.verdict, "duelres");
+  if (!x.mind) why(d, res, p);
   var row = el("div", "chips");
   if (d.m === "flappy") row.appendChild(el("button", "chip", t("flyMe", { n: nameOf(d.b) }), function () { flyAgainst(ed); }));
   row.appendChild(el("button", "chip", "↩ " + t("duelAgain"), function () { reset(ed); }));
   p.appendChild(row); p.scrollTop = p.scrollHeight;
+}
+// Why it ended like this: duel.js reads it from the match and the sliders (no AI); a tip only when my agent lost.
+function why(d, res, p) {
+  var w = Duel.explain(d, res); if (!w) return;
+  var who = function (k) { var ag = d[k]; return (ag.e + " " + (ag.n || "")).trim(); };
+  var v = Object.assign({}, w.v, { w: w.w ? who(w.w) : "", l: w.w ? who(w.w === "a" ? "b" : "a") : "" });
+  if (v.h != null) v.h = handFace(d, v.h);
+  log(p, "❓ " + t("why_" + w.k, v), "duelwhy");
+  if (w.tip && w.w === "b") log(p, t("tip_" + w.tip), "duelwhy");
 }
 function stopBeat() { if (beat) { try { beat.stop(); } catch (e) {} beat = null; } }
 function flyAgainst(ed) {
@@ -228,7 +241,7 @@ function mindStart(ed, p) {
   });
 }
 function deckStart(ed, p) {
-  var d = ed.doc, list = (d.w ? [d.w] : []).concat(DD.deck[Kit.lang]), i = 0, deck = { left: 60, text: list[0] };
+  var d = ed.doc, list = (d.w ? [d.w] : []).concat(DD.deck[Kit.lang] || DD.deck.de), i = 0, deck = { left: 60, text: list[0] };
   ed.x = { deck: deck, res: { rounds: [], sa: 0, sb: 0 }, running: true, title: title(ed) };
   p.appendChild(el("button", "chip", t("deckNext"), function () { i = (i + 1) % list.length; deck.text = list[i]; Kit.sfx.tap(); A.changed(); }));
   timer = setInterval(function () {
@@ -284,7 +297,7 @@ A.PANEL.Riddle = function (p) {
   var row = el("div", "chips");
   dr.stops.forEach(function (_, n) { row.appendChild(el("button", "chip" + (n === i ? " on" : ""), String(n + 1), function () { ed.stop = n; A.tab("Riddle"); })); });
   if (dr.stops.length < Q.MAX_STOPS) row.appendChild(el("button", "chip", "＋ " + t("questAdd"), function () { dr.stops.push({ q: "", a: "" }); ed.stop = dr.stops.length - 1; reseal(ed); A.tab("Riddle"); }));
-  if (dr.stops.length > 1) row.appendChild(el("button", "chip", "－", function () { dr.stops.splice(i, 1); ed.stop = 0; reseal(ed); A.tab("Riddle"); }));
+  if (dr.stops.length > 1) { var del = el("button", "chip", "－", function () { dr.stops.splice(i, 1); ed.stop = 0; reseal(ed); A.tab("Riddle"); }); del.setAttribute("aria-label", t("a_questDel", { n: i + 1 })); row.appendChild(del); }
   p.appendChild(row);
   A.field(p, t("questQ", { n: i + 1 }), s.q, Q.MAX_Q, safe(ed, function (v) { s.q = v; }));
   A.field(p, t("questA"), s.a, Q.MAX_A, safe(ed, function (v) { s.a = v; }));
@@ -299,7 +312,7 @@ A.PANEL.End = function (p) {
 X.quest = {
   open: function (ed) { ed.draft = draftOf(ed); ed.stop = 0; ed.sealed = null; ed.x = null; ed.doc.c = []; setTabs(true); },
   areas: function (ed) { return ed.draft && ed.draft.stops.some(function (s) { return s.a; }) ? ["text"] : []; },
-  footer: function (b, ed, ok) { var c = Q.complete(ed.draft) && ok; b.classList.toggle("wait", !c); b.textContent = c ? t("questLock") : t("questNeed"); },
+  footer: function (b, ed, ok) { var c = Q.complete(ed.draft) && ok; b.classList.toggle("wait", !c); b.textContent = t("questLock"); if (!c) b.dataset.why = t("questNeed"); },
   main: async function (ed) {
     if (!Q.complete(ed.draft)) { Kit.tone(200, 160, 0.1, "square", 0.06); return; }
     var s = await Q.seal(ed.draft); if (!s || A.ed() !== ed) return;

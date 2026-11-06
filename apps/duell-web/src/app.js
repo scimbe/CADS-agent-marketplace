@@ -1,7 +1,7 @@
 /* Calendar, remix editor, my style, wall. All text goes in as text nodes, never as markup. */
 (function () {
 "use strict";
-var C = window.DuellCore, D = window.Daily, W = window.Wish, P = window.Playable, S = window.Studio, Kit = window.Kit, G = window.Game, R = window.Render, t = Kit.t;
+var C = window.DuellCore, D = window.Daily, W = window.Wish, WM = window.Warm, P = window.Playable, S = window.Studio, Kit = window.Kit, G = window.Game, R = window.Render, t = Kit.t;
 var $ = function (id) { return document.getElementById(id); };
 function el(tag, cls, text, on) {
   var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text;
@@ -16,9 +16,15 @@ var EMOJI = ["🐸", "🦝", "🐙", "🦖", "🍕", "👽", "🤖", "👻", "�
 var today = new Date(), home = null, screen = "home", ed = null, result = null;
 
 function saveMe() { store.me = me; Kit.save(); }
+// Text on the second colour (the burst on the leaf): black or white by the WCAG contrast ratio, whichever is higher.
+function onCol(h) {
+  var l = [1, 3, 5].map(function (i) { var c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
+  var y = 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2];
+  return (y + 0.05) / 0.0556 >= 1.0092 / (y + 0.05) ? "#111111" : "#fffaf0";   // relative luminance: #111 0.0056, #fffaf0 0.9592
+}
 function setInk(a, b) {
   var r = document.documentElement.style;
-  r.setProperty("--a", a); r.setProperty("--b", b); r.setProperty("--on", R.ink(a)); r.setProperty("--onb", R.ink(b)); r.setProperty("--btn", R.lum(a) > 0.45 ? a : "#fffaf0");
+  r.setProperty("--a", a); r.setProperty("--b", b); r.setProperty("--on", R.ink(a)); r.setProperty("--onb", onCol(b)); r.setProperty("--btn", R.lum(a) > 0.45 ? a : "#fffaf0");
   var m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", a);
 }
 function show(name, push) {
@@ -32,7 +38,7 @@ function clearLink() { try { if (location.hash) history.replaceState(null, "", l
 /* ---------- calendar ---------- */
 function ideaText(i) { return i[Kit.lang] || i.de; }
 function monthLines(d) {
-  var loc = Kit.lang === "de" ? "de-DE" : "en-GB";
+  var loc = Kit.loc();
   return d.toLocaleDateString(loc, { month: "short", timeZone: "UTC" }).replace(".", "") + "\n" + d.toLocaleDateString(loc, { weekday: "long", timeZone: "UTC" });
 }
 function fitHero(box) {
@@ -52,28 +58,55 @@ function fillSheet(root, h, still) {
   else if (doc.k === "turn" && !doc.t && D.byId(doc.i)) { var Li = ideaText(D.byId(doc.i)); title = Li.t.split("|"); sub = doc.s || Li.s; kind = doc.k; min = D.byId(doc.i).min; }
   else { title = (doc.t || doc.x || (doc.g && doc.g.title) || t("own")).split(/\s+/).reduce(function (a, w) { if (a.length && (a[a.length - 1] + " " + w).length < 13) a[a.length - 1] += " " + w; else a.push(w); return a; }, []).slice(0, 4); sub = doc.s || ""; kind = doc.k; min = 60; }
   q("dkind").textContent = t(kind) + "\n" + (min >= 120 ? t("mins", { n: Math.round(min / 60) }) : t("sec", { n: min }));
-  var hero = q("hero"); hero.textContent = "";
+  var mode = doc && X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
+  // Something sent by a friend: the sheet is that work, big. Its text stands in the picture, so the title shows only
+  // when the sheet has one of its own.
+  var got = !!(doc && h.note && !mode); root.classList.toggle("got", got);
+  var ks = q("kiseal"); ks.hidden = !(doc && doc.ki && doc.ki.s); ks.textContent = t("kiBadge"); ks.title = t("kiBadgeL"); ks.setAttribute("aria-label", t("kiBadgeL"));
+  var hero = q("hero"); hero.textContent = ""; hero.hidden = got && !doc.t;
   title.filter(Boolean).forEach(function (l, i) { var s = el("span", "", l); s.style.setProperty("--i", i); hero.appendChild(s); });
   q("teaser").textContent = sub;
   var from = q("from");
   if (h.note) { from.textContent = h.note; from.hidden = false; } else from.hidden = true;
-  var mode = doc && X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
   if (mode) { from.textContent = mode.note; from.hidden = false; }
-  preview(root, doc || D.docFromIdea(idea, me, Kit.lang), still);
+  if (!doc && twoIdea(idea)) { root.querySelector(".pv").hidden = true; window.Parts.need("turnzwei").then(function () { if ((root.id === "leaf" ? home : h) === h) preview(root, D.docFromIdea(idea, me, Kit.lang), still); }, function () {}); }
+  else preview(root, doc || D.docFromIdea(idea, me, Kit.lang), still);
+  picture(root, idea, doc, h.lazy, mode);
   fitHero(hero);
-  return { kind: kind, mode: mode };
+  return { kind: kind, mode: mode, got: got };
 }
 function setHome(h, animate) {
   home = h;
   var s = fillSheet($("leaf"), h, false), kind = s.kind, mode = s.mode, idea = h.idea;
-  $("go").textContent = mode ? mode.go : t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
-  $("wishgo").textContent = t("wishHome"); $("wishgo").hidden = !!mode || W.KINDS.indexOf(kind) < 0;
+  $("go").textContent = mode ? mode.go : idea && idea.protokoll && !h.doc ? t("go_protokoll") : s.got ? t("remixGo") : t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
+  var wk = W.KINDS.indexOf(kind) >= 0, wb = $("wishgo");   // AI where it does real work, otherwise the dice
+  wb.dataset.tab = wk ? "Wish" : "Dice"; wb.textContent = t(wk ? "wishHome" : "diceHome"); wb.hidden = !!mode || (!wk && W.DICE.indexOf(kind) < 0);
+  var kr = $("kireport"), done = h.doc && reported(h.doc); kr.textContent = t(done ? "kiReported" : "kiReport"); kr.disabled = !!done; kr.hidden = !h.doc;   // every shared sheet can be reported
   var live = idea && idea.live, lb = $("livego"); lb.hidden = !live; if (live) { lb.textContent = t("live_" + live); lb.dataset.u = LIVE[live]; }
-  var leaf = $("leaf"); leaf.className = ""; leaf.style.transform = ""; leaf.style.opacity = "";
+  var leaf = $("leaf"); leaf.className = s.got ? "got" : ""; leaf.style.transform = ""; leaf.style.opacity = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
+  WM.sheet(h, s.got, animate);
+  langPick(!!h.note);
+}
+// An invitation shows its languages before the first tap, each in its own name ("Deutsch", "English").
+function langPick(on) {
+  var box = $("langpick");
+  if (!box) { box = el("div", "langpick"); box.id = "langpick"; box.setAttribute("role", "group"); $("go").before(box); }
+  box.hidden = !on || Kit.langs.length < 2; box.textContent = ""; box.setAttribute("aria-label", t("lang_pick"));
+  if (box.hidden) return;
+  Kit.langs.forEach(function (l) {
+    var b = el("button", "chip" + (l === Kit.lang ? " on" : ""), Kit.langName(l), function () { Kit.sfx.tap(); Kit.setLang(l); });
+    b.lang = l; b.setAttribute("aria-pressed", String(l === Kit.lang)); box.appendChild(b);
+  });
 }
 var LIVE = { conf: "https://webconference.bunsenbrenner.org/", tunnel: "https://bunsenbrenner.org/", demos: "https://demos-34a13a96.bunsenbrenner.org/", nordwind: "https://a2a-demo.bunsenbrenner.org/" };
-function openLive(url) { if (!window.open(url, "_blank", "noopener")) location.href = url; }
+function openLive(url) { if (url === LIVE.conf) url = C.confLink(me.colors); if (!window.open(url, "_blank", "noopener")) location.href = url; }
+// Fast Easy Protokoll records on its own page (cross-origin isolated, connect-src 'self'), on the gallery's origin.
+// From the web page that is this origin; from an app shell (file:, appassets) it is the origin of the gallery API.
+function protokollUrl() {
+  var base = location.protocol === "https:" ? "" : new URL(C.DEFAULT_API).origin;
+  return base + "/duell/protokoll?lang=" + Kit.lang;
+}
 // The day is shown as the real thing: a game flies by itself (on the greyed sheet it stands still), everything else is
 // drawn like its finished picture.
 function preview(root, doc, still) {
@@ -83,17 +116,118 @@ function preview(root, doc, still) {
   try {
     if (doc.k === "game") { g.hidden = false; var st = C.sanitizeState(Object.assign({ v: 1 }, doc.g)); if (still) G.still(g, st); else G.demo(g, st); return; }
     c.hidden = false;
+    if (window.ArcadeUI) window.ArcadeUI.demo(c, doc.k === "arcade" ? doc.a : null, still);   // null ends a running duel preview
+    if (doc.k === "arcade") return;
     R.draw(c, doc, { me: me, photo: doc.k === "photo" ? R.botFace(C.hash32(doc.x || "x"), doc.col[1]) : null, peaks: null, x: {} });
   } catch (e) { box.hidden = true; }
 }
-function feats() {
-  var box = $("feat"); box.textContent = "";
-  [["f_two", "🤝", function () { X.turn.menu(); }], ["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
-    ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].forEach(function (f) {
-    var n = D.IDEAS.filter(function (i) { return i.kind === "turn"; }).length;
-    box.appendChild(el("button", f[0] === "f_two" ? "hot" : "", f[0] === "f_two" ? "🎲 " + t("f_twoN", { n: n }) : f[1] + " " + t(f[0]), function () { Kit.sfx.tap(); f[2](); }));
-  });
+// A card of the day may have a picture (AI-made, src/thumbs.json): it comes from the gallery server, never inside this file,
+// and stands in for the drawn preview once it has loaded (on the greyed sheet too). Something received keeps its drawn
+// card and shows the picture above it, never when the sender used an own photo. Not for games (not in the list), not with
+// Save-Data; offline or missing, the sheet stays as it is. No cookies go along (crossOrigin).
+var THUMBS = window.DailyThumbs || [];
+function thumbUrl(id) { return new URL(C.DEFAULT_API).origin + "/duell/img/" + id + ".jpg"; }
+function saveData() {
+  try { var c = navigator.connection; return !!(c && c.saveData) || !!(window.matchMedia && matchMedia("(prefers-reduced-data: reduce)").matches); } catch (e) { return false; }
 }
+function picId(id) { return id && THUMBS.indexOf(id) >= 0 && !saveData() ? id : null; }
+function docPic(doc) { return doc && !(doc.by || []).some(function (e) { return (e.w || []).indexOf("foto") >= 0; }) ? doc.i : null; }
+// box gets "pic" once the picture of id is there; box._pic is the id it waits for, box._go starts a lazy load.
+function loadPic(box, f, id, lazy) {
+  var img = f.querySelector("img"); box._pic = id; box._go = null; box.classList.remove("pic");
+  if (!id) return;
+  f.querySelector(".kitag").textContent = t("aiPic");
+  img.onload = function () {
+    if (box._pic !== id || box.hidden) return;
+    box.classList.add("pic");
+    var hero = box.classList.contains("pv") && box.parentNode.querySelector(".hero"); if (hero) fitHero(hero);   // the title's room changed
+  };
+  img.onerror = function () { if (box._pic === id) box.classList.remove("pic"); };
+  // set once: changing either attribute makes the browser load the picture anew
+  if (img.getAttribute("crossorigin") !== "anonymous") img.crossOrigin = "anonymous";
+  if (img.getAttribute("referrerpolicy") !== "no-referrer") img.referrerPolicy = "no-referrer";
+  // Only after the page has loaded: a network that silently drops the request must not hold up the page's load.
+  var go = function () { if (box._pic !== id) return; if (img.getAttribute("src") !== thumbUrl(id)) img.src = thumbUrl(id); else if (img.complete && img.naturalWidth) img.onload(); };
+  if (lazy) box._go = go; else if (document.readyState === "complete") go(); else window.addEventListener("load", go, { once: true });
+}
+function picture(root, idea, doc, lazy, mode) {
+  var box = root.querySelector(".pv"), f = root.querySelector(".pvimg");
+  if (!f) return;
+  box.classList.toggle("with", !!doc);
+  loadPic(box, f, picId(!doc ? idea && idea.id : !mode && docPic(doc)), lazy);
+}
+// In the editor the picture stays above the card; the user's own photo takes its place once taken.
+function edPic() {
+  var w = $("stagewrap"), id = ed && !ed.ownPhoto && !cv.hidden ? picId(docPic(ed.doc)) : null;
+  if (!id || w._pic !== id) loadPic(w, $("edpic"), id);
+}
+// The finished picture carries it too, above the card, when it can be drawn without tainting the canvas (CORS image on
+// the web and in the Android shell; the iOS shell blocks the network, so there is none). Anything wrong: the card alone.
+function withPic(c, doc) {
+  var id = !(ed && ed.ownPhoto) && picId(docPic(doc)), img = id && [$("edpic"), document.querySelector("#leaf .pvimg")].map(function (f) { return f.querySelector("img"); })
+    .filter(function (i) { return i.complete && i.naturalWidth && i.getAttribute("src") === thumbUrl(id); })[0];
+  if (!img) return c;
+  try {
+    var o = document.createElement("canvas"), x = o.getContext("2d"), W = c.width, H = c.height, ink = "#111";
+    var pw = Math.round(W * 2 / 3), ph = Math.round(pw * 9 / 16), px = Math.round((W - pw) / 2), py = 40, cy = py + ph + 46, ch = H - cy - 40, cw = Math.round(ch * W / H), cx = Math.round((W - cw) / 2);
+    o.width = W; o.height = H; x.fillStyle = doc.col[0]; x.fillRect(0, 0, W, H);
+    x.fillStyle = ink; x.fillRect(px + 6, py + 9, pw + 9, ph + 9); x.fillRect(px - 9, py - 9, pw + 18, ph + 18); x.drawImage(img, px, py, pw, ph);
+    x.font = "700 34px system-ui, sans-serif"; var tw = x.measureText(t("aiPic")).width;
+    x.fillRect(px + pw - tw - 42, py + ph - 66, tw + 28, 50); x.fillStyle = "#fff"; x.textBaseline = "middle"; x.fillText(t("aiPic"), px + pw - tw - 28, py + ph - 41);
+    x.fillStyle = ink; x.fillRect(cx + 3, cy + 6, cw + 9, ch + 9); x.fillRect(cx - 9, cy - 9, cw + 18, ch + 18); x.drawImage(c, cx, cy, cw, ch);
+    x.getImageData(0, 0, 1, 1);   // throws on a tainted canvas
+    return o;
+  } catch (e) { return c; }
+}
+// A flavor (the business app) may show only some of these buttons.
+function shown(k) { var F = window.DailyFlavor; return !F || !F.feats || F.feats.indexOf(k) >= 0; }
+// The games button stays put on the left; the rest is a strip that can run by as a ticker (WCAG 2.2.2): it starts only
+// after 3 s without a touch or key, a touch on the bar stops it for good where it stands (then it is a strip to swipe),
+// and the switch next to it stops and restarts it. With fewer than 3 entries there is no ticker and no copy. Two copies
+// in one track make it seamless; the second is only for the eye, not for screen readers or Tab.
+var tick = { many: false, run: false, stop: false, timer: 0 };
+function feats() {
+  var bar = $("feat"), lane = el("div", "lane"), box = el("div", "track"), n = D.IDEAS.filter(function (i) { return i.kind === "turn" || i.kind === "arcade"; }).length;
+  var list = [["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
+    ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].filter(function (f) { return shown(f[0]); });
+  bar.textContent = ""; tick.many = list.length >= 3;
+  if (shown("f_two")) bar.appendChild(el("button", "hot", "🎲 " + t("f_twoN", { n: n }), function () { Kit.sfx.tap(); X.turn.menu(); }));
+  lane.appendChild(box); bar.appendChild(lane);
+  (tick.many ? [0, 1] : [0]).forEach(function (copy) { list.forEach(function (f) {
+    var b = el("button", "", f[1] + " " + t(f[0]), function () { Kit.sfx.tap(); f[2](); });
+    if (copy) { b.setAttribute("aria-hidden", "true"); b.tabIndex = -1; }
+    box.appendChild(b);
+  }); });
+  if (tick.many) { var sw = el("button", "tickpause", "", function () { if (tick.stop) { tick.stop = false; tickRun(); } else tickHalt(); }); sw.id = "tickpause"; bar.appendChild(sw); }
+  tickSync();
+}
+function tickSync() {
+  var bar = $("feat"), sw = $("tickpause"), on = tick.many && tick.run;
+  bar.classList.toggle("run", on);
+  if (on) bar.querySelector(".lane").scrollLeft = 0;
+  if (sw) { sw.textContent = tick.stop ? "▶" : "⏸"; sw.setAttribute("aria-label", t("a_tick")); sw.setAttribute("aria-pressed", String(tick.stop)); }
+}
+function tickRun() {   // start, or go on from where the strip stands
+  var bar = $("feat"), lane = bar.querySelector(".lane"), tr = bar.querySelector(".track"), half = tr ? tr.scrollWidth / 2 : 0;
+  clearTimeout(tick.timer);
+  if (tick.stop || !tick.many || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (tr) tr.style.animationDelay = half ? -(lane.scrollLeft % half) / half * 45 + "s" : "";
+  tick.run = true; tickSync();
+}
+function tickHalt() {   // stops for good, the buttons stay exactly where they are
+  var bar = $("feat"), lane = bar.querySelector(".lane"), tr = bar.querySelector(".track"), was = tick.run && tr, x = 0;
+  clearTimeout(tick.timer);
+  if (was) { try { x = -new DOMMatrixReadOnly(getComputedStyle(tr).transform).m41; } catch (e) {} bar.classList.add("was"); }
+  tick.run = false; tick.stop = true; tickSync();
+  if (was) lane.scrollLeft = x;   // a strip that stood still keeps its own scroll position
+}
+function tickWait() { clearTimeout(tick.timer); if (!tick.run && !tick.stop) tick.timer = setTimeout(tickRun, 3000); }
+(function () {
+  $("feat").addEventListener("pointerdown", function (e) { if (!e.target.closest("#tickpause")) tickHalt(); });
+  $("feat").addEventListener("focusin", function (e) { if (!e.target.closest("#tickpause")) tickHalt(); });
+  ["pointerdown", "keydown"].forEach(function (e) { document.addEventListener(e, tickWait, true); });
+  tickWait();
+})();
 function blank(kind) { Kit.sfx.thud(); openEditor(D.blankDoc(kind, me, Kit.lang), { own: true }); }
 var page = 0, PLAN_DAYS = 31;
 function dayHome() { return { date: today, idea: D.ideaForDay(today) }; }
@@ -101,49 +235,65 @@ function dayHome() { return { date: today, idea: D.ideaForDay(today) }; }
 function newDay() {
   var n = new Date();
   if (D.dayNumber(n) === D.dayNumber(today)) return;
-  today = n; page = 0; upcoming = null;
+  today = n; page = 0; upcoming = {};
   if (home && (home.note || home.doc)) return;   // an invitation or a creation from a link stays until it is left
   home = dayHome();
   if (screen === "home") setHome(home, true);
 }
 function goHome() {
-  CU.end(); stopSound(); G.stop(); ed = null; played = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
+  CU.end(); stopSound(); G.stop(); ed = null; window.Ai.drop(); played = null; clearLink(); setInk(me.colors[0], me.colors[1]); show("home");
   if (!home) home = dayHome(); setHome(home, true);
 }
-// The next sheet is chosen once, so the greyed preview and the sheet that lands after tearing are the same.
-var upcoming = null;
-function nextSheet() {
-  if (upcoming && upcoming.after === page) return upcoming;
-  var p = (page + 1) % PLAN_DAYS, d = D.dayDate(today, -p);
-  return (upcoming = { after: page, page: p, date: d, idea: D.ideaForDay(d) || D.randomIdea(Math.random, "") });
+// Swiping to the left turns to the next day, to the right back to the day before, like the pages of a book.
+// The sheet is chosen once per direction, so the greyed preview and the sheet that lands after tearing are the same.
+var upcoming = {};
+function nextSheet(step) {
+  step = step < 0 ? -1 : 1;
+  var u = upcoming[step]; if (u && u.after === page) return u;
+  var p = page + step; if (Math.abs(p) >= PLAN_DAYS) p = 0;
+  var d = D.dayDate(today, -p);
+  return (upcoming[step] = { after: page, page: p, date: d, idea: D.ideaForDay(d) || D.randomIdea(Math.random, "") });
 }
-// While the sheet is pulled, the one below already is the next day: the same sheet, only greyed out.
-function peek() {
+// While the sheet is pulled, the one below already is the day it turns to: the same sheet, only greyed out.
+function peek(step, lazy) {
   var under = document.querySelector("#pad .u1"), g = under.querySelector(".ghost");
   if (!g) {
-    g = $("leaf").cloneNode(true); g.removeAttribute("id"); g.removeAttribute("style"); g.className = "ghost"; g.setAttribute("aria-hidden", "true");
-    g.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); }); under.appendChild(g);
+    // copied through a document without a window and without src: a cloned <img> would fetch today's picture again
+    var c = document.implementation.createHTMLDocument("").importNode($("leaf"), true);
+    c.querySelectorAll("img").forEach(function (x) { x.removeAttribute("src"); });
+    g = document.importNode(c, true); g.removeAttribute("id"); g.removeAttribute("style"); g.className = "ghost"; g.setAttribute("aria-hidden", "true");
+    g.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); });
+    under.appendChild(g);
   }
-  var n = nextSheet(); fillSheet(g, { date: n.date, idea: n.idea }, true);
+  var n = nextSheet(step); fillSheet(g, { date: n.date, idea: n.idea, lazy: lazy }, true);
 }
-function tear(dir) {
-  var leaf = $("leaf"); Kit.rip(); Kit.haptic(18);
+function wake() { var b = document.querySelector("#pad .ghost .pv"), go = b && b._go; if (go) { b._go = null; go(); } }   // the greyed sheet's picture once it shows
+var busy = 0;   // until then the sheet is torn off and the next one lands: a tap there is no choice
+function tear(step) {
+  busy = Date.now() + 760;
+  var leaf = $("leaf"), dir = step < 0 ? 1 : -1; Kit.rip(); Kit.haptic(18);   // forward flies off to the left, back to the right
   leaf.className = "gone"; leaf.style.transform = "translate(" + dir * 130 + "%,-20%) rotate(" + dir * 26 + "deg)";
   setTimeout(function () {
-    var n = nextSheet(); page = n.page;                   // the calendar: a torn sheet shows the next day, then back to today
+    var n = nextSheet(step); page = n.page;
     setHome({ date: n.date, idea: n.idea }, true); Kit.sfx.thud();
   }, 300);
 }
 (function drag() {
-  var leaf = $("leaf"), sx = 0, sy = 0, on = false, last = 0;
-  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; try { peek(); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
-  leaf.addEventListener("pointermove", function (e) { if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy; leaf.style.transform = "translate(" + dx + "px," + dy * 0.4 + "px) rotate(" + dx / 16 + "deg)"; leaf.style.opacity = String(1 - Math.min(0.7, Math.abs(dx) / 220)); });
+  var leaf = $("leaf"), sx = 0, sy = 0, on = false, t0 = 0, far = false, shown = 0;
+  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; t0 = Date.now(); far = false; shown = 1; try { peek(1, true); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
+  leaf.addEventListener("pointermove", function (e) {
+    if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy, step = dx > 0 ? -1 : 1;
+    if (Math.abs(dx) >= 10 || Math.abs(dy) >= 10) far = true;   // moved once: never a tap, even when let go where it began
+    if (Math.abs(dx) > 8) { try { if (step !== shown) { shown = step; peek(step); } else wake(); } catch (x) {} }
+    leaf.style.transform = "translate(" + dx + "px," + dy * 0.4 + "px) rotate(" + dx / 16 + "deg)"; leaf.style.opacity = String(1 - Math.min(0.7, Math.abs(dx) / 220)); });
   function up(e) {
     if (!on) return; on = false; leaf.classList.remove("drag");
     var dx = e.clientX - sx, dy = e.clientY - sy;
-    if (Math.abs(dx) > 90) { tear(dx > 0 ? 1 : -1); return; }
+    // a cancelled pointer (the browser took it over, its position reads 0,0) only puts the sheet back
+    if (e.type === "pointerup" && Math.abs(dx) > 90) { tear(dx > 0 ? -1 : 1); return; }
     leaf.style.transform = ""; leaf.style.opacity = "";
-    if (Math.abs(dx) < 12 && Math.abs(dy) < 12) { var now = Date.now(); if (now - last < 400) { last = 0; start(); } else last = now; }   // a double tap opens the card, a swipe turns the day
+    // A tap (no move, short, not on a control of the sheet, not while a torn sheet flies) opens the card like #go; a swipe turns the day.
+    if (e.type === "pointerup" && !far && Math.abs(dx) < 10 && Math.abs(dy) < 10 && Date.now() - t0 < 500 && t0 > busy && !(e.target.closest && e.target.closest("a,button,input,textarea,select,label"))) start();
   }
   leaf.addEventListener("pointerup", up); leaf.addEventListener("pointercancel", up);
 })();
@@ -157,27 +307,49 @@ var cv = $("stage"), timer = 0;
 function paint() {
   timer = 0; if (!ed) return;
   ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1]);
-  if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks, x: ed.x }); }
-  SK.sync(); footer(); CU.local();
+  if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks, x: ed.x, lyr: ed.lyr }); }
+  edPic(); SK.sync(); footer(); CU.local(); saveMark();
 }
 function changed() {           // every control ends up here: redraw within the next moment
   if (!timer) timer = setTimeout(paint, 16);
 }
-function gameState() { return C.sanitizeState(Object.assign({ v: 1 }, ed.doc.g)); }
+function gameState() { return C.sanitizeState(Object.assign({ v: 1 }, ed.doc.g, { ki: ed.doc.ki })); }
+// A change by hand to a game the AI made: the sheet is no longer what the seal was made for, so the AI mark goes.
+function byHand() { delete ed.doc.ki; }
+function playGame() { Kit.sfx.thud(); G.stop(); show("game", true); G.play(gameState(), null, { own: touched() }); }
+// A game state (played, or from a challenge) back into a sheet: route and AI mark go along.
+function gameDoc(s) { var d = { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji, route: s.route } }; if (s.ki) d.ki = s.ki; return d; }
 function areas() { var w = D.changedAreas(ed.base, ed.doc); if (X[ed.doc.k] && X[ed.doc.k].areas) w = w.concat(X[ed.doc.k].areas(ed)); if (ed.ownPhoto) w.push("foto"); if (ed.ownVoice) w.push("stimme"); return w; }
 function touched() { var ok = areas().length > 0; return ed.own ? ok && !!ed.doc.t : ok; }
 // The idea of the day can go out as it is; only a blank one needs something of your own first.
 function ready() { return ed.own ? touched() : true; }
 function footer() {
   var b = $("edmain"), ok = ready(), g = ed.doc.k === "game";
-  if (X[ed.doc.k]) { X[ed.doc.k].footer(b, ed, ok); return; }
-  b.classList.toggle("wait", !ok && !g);
-  b.textContent = g ? t("play") : ok ? t("done") : t("needOwn");
+  b.hidden = false; delete b.dataset.why;
+  if (X[ed.doc.k]) X[ed.doc.k].footer(b, ed, ok);
+  else {
+    b.classList.toggle("wait", !ok && !g);
+    b.textContent = g ? t("play") : t(ed.doc.nr ? "doorSend" : "done");
+    if (!ok && !g) b.dataset.why = t("needOwn");
+  }
+  // A locked main button stays in place and looks locked; the line above it names what is still open (read out once).
+  var w = !b.hidden && b.classList.contains("wait"), why = w ? b.dataset.why || "" : "";
+  b.setAttribute("aria-disabled", String(w));
+  if ($("edwhy").textContent !== why) $("edwhy").textContent = why;
+}
+// A tap on the locked button: to the first open field, focus there, and say again what is missing.
+function nudge() {
+  Kit.tone(200, 160, 0.1, "square", 0.06);
+  var p = $("panel"), all = Array.from(p.querySelectorAll("input:not([type=hidden]),textarea,select,button")).filter(function (x) { return !x.disabled && x.getClientRects().length && !x.closest(".satz"); });
+  var g = all.filter(function (x) { return /^(INPUT|TEXTAREA)$/.test(x.tagName) && x.type !== "range" && !x.value; })[0] || all.filter(function (x) { return !x.classList.contains("on"); })[0];
+  if (g) { try { g.scrollIntoView({ block: "center" }); } catch (e) {} g.focus({ preventScroll: true }); g.classList.add("nudge"); setTimeout(function () { g.classList.remove("nudge"); }, 700); }
+  // said again: empty for a moment, then the reason as it is by then (fields filled meanwhile may have unlocked it)
+  $("edwhy").textContent = ""; setTimeout(function () { if (ed) footer(); }, 60);
 }
 // The line above the link says what the receiver gets: a move to make, a result, or something made for them.
 function shareLine(doc) {
   if (doc && doc.k === "turn") { var st = window.Turns.state(doc); return t(st.over ? "shareResult" : "shareTurn"); }
-  return t(doc && (doc.k === "card" || doc.k === "photo") ? "shareCard" : "shareText");
+  return t(doc && doc.nr ? "shareDoor" : doc && (doc.k === "card" || doc.k === "photo") ? "shareCard" : "shareText");
 }
 function trailLine() {
   var box = $("trail"), by = ed.doc.by; box.textContent = ""; box.hidden = !by.length; if (!by.length) return;
@@ -185,6 +357,8 @@ function trailLine() {
 }
 function openEditor(doc, opt) {
   opt = opt || {};
+  if (doc && doc.k === "table") { if (window.TableUI) window.TableUI.open(doc.g); return; }   // a card table is played live, there is nothing to edit
+  window.Ai.drop();
   ed = { doc: D.sanitizeDoc(doc), base: D.sanitizeDoc(doc), own: !!opt.own, photo: null, peaks: null, pcm: null, tab: null, sel: -1, page: 0, line: 0, idea: opt.idea || null };
   if (opt.own) ed.doc.n = me.nick;
   if (ed.doc.k === "sound" && ed.doc.m === "beat") beatPeaks();
@@ -193,22 +367,25 @@ function openEditor(doc, opt) {
   $("tabs").hidden = false;
   if (X[ed.doc.k]) X[ed.doc.k].open(ed);
   cv.hidden = g; $("gamestage").hidden = !g;
-  $("edtitle").textContent = ed.own ? t("own") : (ed.idea ? ideaText(ed.idea).t.replace("|", " ") : t(ed.doc.k));
+  $("edtitle").textContent = edTitle(); $("edlang").hidden = !opt.got;   // opened from an invitation: its language can change here
   $("edstyle").textContent = me.emoji;
   stopSound(); show("editor", true); trailLine();
   var tabs = $("tabs"); tabs.textContent = "";
-  var list = (ed.own ? ["Idea"] : []).concat(W.KINDS.indexOf(ed.doc.k) >= 0 ? ["Wish"] : [], TABS[ed.doc.k]);
+  var list = (ed.own ? ["Idea"] : []).concat(W.KINDS.indexOf(ed.doc.k) >= 0 ? ["Wish"] : [], W.DICE.indexOf(ed.doc.k) >= 0 ? ["Dice"] : [], ed.doc.nr ? ["Door"] : [], TABS[ed.doc.k]);
   list.forEach(function (k) {
-    var b = el("button", k === "Wish" ? "hot" : "", t("tab" + (k === "Sound" ? (ed.doc.m === "beat" ? "Beat" : "Voice") : k === "Idea" ? "Idea" : k)), function () { Kit.sfx.tap(); tab(k); });
+    var b = el("button", k === "Wish" ? "hot" : "", tabText(k), function () { Kit.sfx.tap(); tab(k); });
     b.setAttribute("role", "tab"); b.dataset.k = k; tabs.appendChild(b);
   });
-  tab(list.indexOf(opt.tab) >= 0 ? opt.tab : list[0] === "Wish" ? list[1] : list[0]);
+  tab(list.indexOf(opt.tab) >= 0 ? opt.tab : g ? "Wish" : list.filter(function (k) { return k !== "Wish" && k !== "Dice"; })[0]);
   if (g) G.demo($("demo"), gameState());
   paint(); CU.editor();
 }
+function edTitle() { return ed.own ? t("own") : (ed.idea ? D.plainTitle(ideaText(ed.idea).t) : t(ed.doc.k)); }
+function tabText(k) { return t("tab" + (k === "Sound" ? (ed.doc.m === "beat" ? "Beat" : "Voice") : k)); }
 function tab(k) {
+  if (ed.pv) { ed.pv = false; ed.fly = null; window.Ai.drop(); G.update(gameState()); }
   ed.tab = k; Array.from($("tabs").children).forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.k === k)); });
-  var p = $("panel"); p.textContent = ""; p.classList.toggle("tall", (k === "Sound" && ed.doc.m === "beat") || (k === "Text" && ed.doc.k !== "game") || k === "Wish"); PANEL[k](p); p.scrollTop = 0;
+  var p = $("panel"); p.textContent = ""; p.removeAttribute("data-size"); p.classList.toggle("tall", (k === "Sound" && ed.doc.m === "beat") || (k === "Text" && ed.doc.k !== "game") || k === "Wish" || k === "Dice"); PANEL[k](p); p.scrollTop = 0;
 }
 function setDoc(d) {        // a whole creation replaced by a wish or its undo; the canvas state follows
   ed.doc = d; ed.sel = -1; if (d.k === "sound" && d.m === "beat") beatPeaks();
@@ -239,7 +416,7 @@ function weatherBlock(p) {
   box.appendChild(row); box.appendChild(el("p", "note", t("wxNote"))); p.appendChild(box);
 }
 // The creation becomes the game: same engine, its colours, picture and figure. Back leads to the creation, not home.
-var played = null;
+var played = null, shortId = null;   // shortId: the short link a shared sheet came through, so a report can name it
 function makePlayable() {
   var d = ed.doc, photo = ed.ownPhoto ? ed.photo : null, st = P.fromDoc(d, me);
   var o = { own: true, bg: P.backdrop(function (c, doc, m) { R.draw(c, doc, { me: m, photo: ed.photo, peaks: ed.peaks }); }, d, me), figure: photo ? P.figure(photo) : null };
@@ -250,7 +427,28 @@ function backFromPlay() {
   if (!played) return false;
   ed = played; played = null; G.stop(); show("editor"); changed(); return true;
 }
-function aiBlock(p, o) { o.el = el; o.wall = openAiWall; window.Ai.block(p, o); }
+// The panel belongs to the sheet open now; an answer that comes back after it was left is dropped, not applied elsewhere.
+function aiBlock(p, o) { var mine = ed; o.el = el; o.wall = openAiWall; o.alive = function () { return !!mine && ed === mine; }; return window.Ai.block(p, o); }
+function markKi(d, ki) { var k = D.sanitizeKi(ki); if (k) d.ki = k; }
+// Texte und Song (texte.js) are a part of their own: the slot stands in the panel now, its content follows with the part.
+function textePart(p, what, f) {
+  var slot = el("div"); p.appendChild(slot);
+  window.Parts.use("texte", function () {
+    if (slot.isConnected && ed) window.TexteUI[what](slot, { f: f, aiBlock: aiBlock, markKi: markKi, setDoc: setDoc, play: function () { beatPeaks(); playBeat(); tab(ed.tab); }, stop: stopSound });
+  }).catch(function () {});
+}
+// "Geändert: …" and the undo, after a wish or a roll. before: the doc as JSON before the change. -> false when nothing changed.
+function didLine(res, before, next, lead) {
+  var was = JSON.parse(before), what = D.changedAreas(was, next);
+  if (next.k === "sound" && next.fx !== was.fx && what.indexOf("stimme") < 0) what.push("stimme");
+  if (!what.length) { res.appendChild(el("p", "note", t("wishSame"))); return false; }
+  setDoc(next); (ed.wishes = ed.wishes || []).push(before);
+  res.appendChild(el("p", "aicount", (lead ? lead + " · " : "") + t("wishDid") + ": " + what.map(function (w) { return t("a_" + w); }).join(", ")));
+  res.appendChild(el("button", "chip", "↶ " + t("skUndo"), function () { setDoc(JSON.parse(ed.wishes.pop())); Kit.sfx.pop(); res.textContent = ""; }));
+  return true;
+}
+// Random only from a seed: the same wish text or the same roll of the same sheet always gives the same result.
+function seeded(s) { return C.mulberry32(C.hash32(String(s))); }
 function field(p, label, value, max, on, area) {
   p.appendChild(el("label", "lbl", label));
   var f = el(area ? "textarea" : "input", "field"); f.value = value || ""; f.maxLength = max; if (area) f.rows = 2; f.autocomplete = "off"; f.setAttribute("aria-label", label);
@@ -286,25 +484,51 @@ function colors(p, get, set) {
   p.appendChild(row);
 }
 var PANEL = {
+  // Type a wish and apply it right below, or tap a suggestion: that applies it at once. The AI's answer is applied as it
+  // came, nothing mixed in. The flight game's one way in, "What do you want to fly?", is the part welt-ui.js.
   Wish: function (p) {
+    if (ed.doc.k === "game") {   // the flight game's one way in lives in a part (welt-ui.js)
+      var mine = ed, hooks = { el: el, field: field, aiBlock: aiBlock, didLine: didLine, tab: tab, play: playGame, ed: function () { return ed; },
+        preview: function (st, fly) { ed.pv = !!st; ed.fly = st && fly || null; G.update(st || gameState()); } };
+      window.Parts.use("welt", function () { if (ed === mine && ed.tab === "Wish") window.WeltUI.panel(p, hooks); }).catch(function () {
+        if (ed !== mine || ed.tab !== "Wish") return;      // the part did not load (offline without a cache, SRI): the way without AI stays
+        p.appendChild(el("p", "note aistate", t("welt_noPart")));
+        p.appendChild(el("button", "chip", "🎚 " + t("welt_rules"), function () { Kit.sfx.tap(); tab("Rules"); }));
+      });
+      return;
+    }
     var f = field(p, t("wishL"), "", 100, function () {}, true), box = el("div", "chips");
-    p.appendChild(el("p", "note", t("wishH_" + ed.doc.k)));
-    t("wishTips_" + ed.doc.k).split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; })); });
-    p.appendChild(box);
-    aiBlock(p, {
-      kind: "wish", label: t("wishGo"), input: function () { var v = D.cleanInput(f.value, 100); return v ? W.request(ed.doc, v, ed.idea ? ideaText(ed.idea).t.replace("|", " ") : "") : null; },
-      fallback: function () { return [{ changes: W.local(ed.doc, D.cleanInput(f.value, 100), Kit.lang, function (n) { return Math.floor(Math.random() * n); }), note: "" }]; },
-      auto: function (o, real, res) {
-        var before = JSON.stringify(ed.doc), next = W.apply(ed.doc, o.changes, PAIRS, Math.random), was = JSON.parse(before), what = D.changedAreas(was, next);
-        if (ed.doc.k === "sound" && next.fx !== was.fx && what.indexOf("stimme") < 0) what.push("stimme");
-        res.textContent = "";
-        if (!what.length) { res.appendChild(el("p", "note", t("wishSame"))); return; }
-        setDoc(next); (ed.wishes = ed.wishes || []).push(before);
-        res.appendChild(el("p", "aicount", (real && o.note ? o.note + " · " : "") + t("wishDid") + ": " + what.map(function (w) { return t("a_" + w); }).join(", ")));
-        var un = el("button", "chip", "↶ " + t("skUndo"), function () { setDoc(JSON.parse(ed.wishes.pop())); Kit.sfx.pop(); res.textContent = ""; });
-        res.appendChild(un);
+    var want = function () { return D.cleanInput(f.value, 100); };
+    var go = aiBlock(p, {
+      kind: "wish", label: t("wishGo"), noteLast: true, input: function () { var v = want(); return v ? W.request(ed.doc, v, ed.idea ? D.plainTitle(ideaText(ed.idea).t) : "") : null; },
+      auto: function (o, ki, res) {
+        var before = JSON.stringify(ed.doc), next = W.apply(ed.doc, o.changes || {}, PAIRS, seeded(want() + "|sk"));
+        if (ki) markKi(next, ki);
+        return didLine(res, before, next, ki ? (o.note || "") : t("aiNoAi"));
       }
     });
+    p.appendChild(el("label", "lbl wishtips", t("wishOr")));
+    t("wishTips_" + ed.doc.k).split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; go(); })); });
+    p.appendChild(box);
+    p.appendChild(el("p", "note", t("wishH_" + ed.doc.k) + " " + t("aiNote")));
+  },
+  // The dice: style, colours, stickers (and a card's line from its idea) rolled on the device. No AI, no network, no count.
+  Dice: function (p) {
+    var res = el("div", "chips");
+    p.appendChild(el("button", "chip hot", "🎲 " + t("diceGo"), function () {
+      Kit.sfx.pop();
+      var d = ed.doc, key = d.seed != null ? d.seed : d.i || d.k, n = roll(key), seed = key + "|" + n;
+      var before = JSON.stringify(d), lines = ed.idea && d.k === "card" ? ideaText(ed.idea).lines : null;
+      res.textContent = ""; didLine(res, before, W.apply(d, W.dice(d, seed, PAIRS, lines), PAIRS, seeded(seed + "|sk")));
+    }));
+    p.appendChild(res);
+    p.appendChild(el("p", "note", t("diceNote")));
+  },
+  // Advent door: only its number; 1-24 as plain buttons, no typing.
+  Door: function (p) {
+    p.appendChild(el("label", "lbl", t("doorPick")));
+    chips(p, Array.from({ length: 24 }, function (x, i) { return { v: i + 1, l: String(i + 1) }; }), ed.doc.nr, function (v) { ed.doc.nr = v; }, "em");
+    p.appendChild(el("p", "note", t("doorNote")));
   },
   Idea: function (p) {
     p.appendChild(el("p", "note", t("ownH")));
@@ -315,19 +539,18 @@ var PANEL = {
     var d = ed.doc;
     if (d.k === "card") {
       var f = field(p, t("line"), d.x, 90, function (v) { d.x = v; }, true), L = ed.idea ? ideaText(ed.idea).lines : null;
-      if (L) p.appendChild(el("button", "chip", "🎲 " + t("dice"), function () { Kit.sfx.pop(); ed.line = (ed.line + 1) % L.length; d.x = L[ed.line]; f.value = d.x; changed(); }));
-      aiBlock(p, { kind: "line", label: t("aiLine"), input: function () { var x = D.cleanInput(d.x, 90) || t("own"); return { text: x, style: d.st }; }, show: String, apply: function (o) { var v = D.cleanInput(o, 90); if (v) { d.x = v; f.value = v; changed(); } } });
-      weatherBlock(p);
+      if (L) p.appendChild(el("button", "chip", "↻ " + t("nextLine"), function () { Kit.sfx.pop(); ed.line = (ed.line + 1) % L.length; d.x = L[ed.line]; f.value = d.x; changed(); }));
+      textePart(p, "card", f);
+      if (!d.nr) weatherBlock(p);
     } else if (d.k === "photo") {
       var top = field(p, t("top"), d.x, 28, function (v) { d.x = v; }), low = field(p, t("bottom"), d.y, 28, function (v) { d.y = v; });
       var what = field(p, t("aiDesc"), "", 100, function () {});
-      aiBlock(p, { kind: "meme", label: t("aiMeme"), input: function () { var v = D.cleanInput(what.value, 100); return v ? { desc: v } : null; }, show: function (o) { return o.top + " / " + o.bottom; }, apply: function (o) { d.x = D.cleanInput(o.top, 28); d.y = D.cleanInput(o.bottom, 28); top.value = d.x; low.value = d.y; changed(); } });
+      aiBlock(p, { kind: "meme", label: t("aiMeme"), input: function () { var v = D.cleanInput(what.value, 100); return v ? { desc: v } : null; }, show: function (o) { return o.top + " / " + o.bottom; }, apply: function (o, ki) { d.x = D.cleanInput(o.top, 28); d.y = D.cleanInput(o.bottom, 28); top.value = d.x; low.value = d.y; markKi(d, ki); changed(); } });
     } else if (d.k === "sound") {
-      var name = field(p, t("titleL"), d.x, 28, function (v) { d.x = v; }), topic = field(p, t("aiTopic"), "", 60, function () {}), song = el("p", "lyrics"); song.hidden = true;
-      aiBlock(p, { kind: "lyrics", label: t("aiLyrics"), input: function () { var v = D.cleanInput(topic.value, 60); return v ? { topic: v, bpm: d.bpm || 110 } : null; }, show: function (o) { return o.title; }, apply: function (o) { var v = D.cleanInput(o.title, 28); if (v) { d.x = v; name.value = v; } song.textContent = o.lines.join("\n"); song.hidden = false; changed(); } });
-      p.appendChild(song);
+      field(p, t("titleL"), d.x, 28, function (v) { d.x = v; });
+      if (d.ly) p.appendChild(el("button", "chip", "✕ " + t("lyOff"), function () { delete d.ly; changed(); tab("Text"); }));
     }
-    else field(p, t("titleL"), d.g.title, 28, function (v) { d.g.title = v || "Duell"; });
+    else field(p, t("titleL"), d.g.title, 28, function (v) { d.g.title = v || "Duell"; byHand(); });
   },
   Style: function (p) {
     var d = ed.doc;
@@ -354,11 +577,12 @@ var PANEL = {
     });
     p.appendChild(mine);
     var row = el("div", "chips");
-    [["−", function (s) { s.z = Math.max(0.5, s.z - 0.2); }], ["+", function (s) { s.z = Math.min(2.5, s.z + 0.2); }], ["↻", function (s) { s.r = s.r > 2.9 ? -3 : s.r + 0.25; }], ["✕", null]].forEach(function (x) {
+    [["−", function (s) { s.z = Math.max(0.5, s.z - 0.2); }, "a_skSmall"], ["+", function (s) { s.z = Math.min(2.5, s.z + 0.2); }, "a_skBig"], ["↻", function (s) { s.r = s.r > 2.9 ? -3 : s.r + 0.25; }, "a_skTurn"], ["✕", null, "skDelete"]].forEach(function (x) {
       var b = el("button", "chip em", x[0], function () {
         if (!d.sk[ed.sel]) return; Kit.sfx.tap();
         if (x[1]) SK.step(function (l) { x[1](l[ed.sel]); }); else SK.remove(ed.sel);
       });
+      b.setAttribute("aria-label", t(x[2]));
       b.disabled = !d.sk[ed.sel]; row.appendChild(b);
     });
     p.appendChild(row);
@@ -369,32 +593,25 @@ var PANEL = {
     p.appendChild(el("p", "note", t("photoNote") + " " + t("noPick")));
     chips(p, D.STYLES.photo.map(function (s) { return { v: s, l: t("st_" + s) }; }), ed.doc.st, function (v) { ed.doc.st = v; });
   },
-  Sound: function (p) { if (ed.doc.m === "beat") beatPanel(p); else voicePanel(p); },
+  Sound: function (p) { if (ed.doc.m === "beat") { textePart(p, "song"); beatPanel(p); } else voicePanel(p); },
   Rules: function (p) {
     var g = ed.doc.g, ranges = C.RANGES;
     ["gravity", "jump", "gap", "speed"].forEach(function (k) {
       var row = el("label", "slide"), r = el("input"), v = el("b", "", g.params[k]);
       row.appendChild(el("span", "", t(k))); r.type = "range"; r.min = ranges[k][0]; r.max = ranges[k][1]; r.value = g.params[k]; r.setAttribute("aria-label", t(k));
-      r.addEventListener("input", function () { g.params[k] = Number(r.value); v.textContent = r.value; changed(); });
+      r.addEventListener("input", function () { g.params[k] = Number(r.value); v.textContent = r.value; byHand(); changed(); });
       row.appendChild(r); row.appendChild(v); p.appendChild(row);
     });
-    var f = field(p, t("describe"), "", 80, function () {});
-    p.appendChild(el("button", "chip", "✨ " + t("describeGo"), async function (e) {
-      var v = D.cleanInput(f.value, 80); if (!v) { Kit.toast(t("filter")); return; }
-      var b = e.currentTarget; b.disabled = true;
-      var st = await G.fromSentence(v, Kit.lang); b.disabled = false;
-      if (!ed || !st || st.rejected) { Kit.toast(t("filter")); return; }
-      ed.doc.g = { seed: st.seed, params: st.params, theme: st.theme, title: st.title, emoji: st.emoji }; tab("Rules"); changed();
-    }));
-    p.appendChild(el("p", "note", t("netNote")));
+    p.appendChild(el("button", "chip", "✨ " + t("wishL_game"), function () { Kit.sfx.tap(); tab("Wish"); }));   // the one way in, not a second one
   },
   Figure: function (p) {
     var g = ed.doc.g, list = EMOJI.indexOf(me.emoji) < 0 ? [me.emoji].concat(EMOJI) : EMOJI;
-    chips(p, list.map(function (e) { return { v: e, l: e }; }), g.emoji, function (v) { g.emoji = v; }, "em");
+    chips(p, list.map(function (e) { return { v: e, l: e }; }), g.emoji, function (v) { g.emoji = v; byHand(); }, "em");
   },
+  // A world chosen here replaces a world built by a wish or the idea (its look), which would otherwise cover every theme.
   World: function (p) {
     var g = ed.doc.g;
-    var b = chips(p, G.THEMES.map(function (n) { return { v: n, l: t("w_" + n) }; }), g.theme, function (v) { g.theme = v; });
+    var b = chips(p, G.THEMES.map(function (n) { return { v: n, l: t("w_" + n) }; }), g.look || g.route ? null : g.theme, function (v) { g.theme = v; delete g.look; delete g.route; byHand(); });
     Array.from(b.children).forEach(function (c, i) { c.style.borderBottom = "8px solid " + G.themeColor(G.THEMES[i]); });
   }
 };
@@ -419,15 +636,16 @@ $("file").addEventListener("change", async function () {
 
 /* sound */
 var loop = null, playTimer = 0;
-function stopSound() { clearInterval(playTimer); playTimer = 0; if (loop) { try { loop.stop(); } catch (e) {} loop = null; } clearNow(); }
+function stopSound() { clearInterval(playTimer); playTimer = 0; if (loop) { try { loop.stop(); } catch (e) {} loop = null; } clearNow(); if (ed && ed.lyr >= 0) { ed.lyr = -1; changed(); } }
 function clearNow() { document.querySelectorAll(".step.now").forEach(function (x) { x.classList.remove("now"); }); }
 function beatPcm(loops) { return S.renderBeat(ed.doc.p, ed.doc.bpm, loops || 2); }
 function beatPeaks() { ed.peaks = S.peaks(beatPcm(1), 40); }
 function playBeat() {
   stopSound(); var pcm = beatPcm(1); loop = Kit.playPcm(pcm, S.SR, true); if (!loop) return;
-  var i = 0, ms = 60000 / ed.doc.bpm / 4;
+  var i = 0, bar = 0, ms = 60000 / ed.doc.bpm / 4;
   playTimer = setInterval(function () {
     clearNow();
+    if (i === 0 && ed.doc.ly) { ed.lyr = bar++ % ed.doc.ly.length; changed(); }   // a song's hook: one line per bar
     var page = Math.floor(i / 8); if (page === ed.page) document.querySelectorAll('.step[data-c="' + (i % 8) + '"]').forEach(function (x) { x.classList.add("now"); });
     i = (i + 1) % 16;
   }, ms);
@@ -455,7 +673,7 @@ function beatPanel(p) {
   row.appendChild(r); row.appendChild(v); p.appendChild(row);
   var bar = el("div", "chips");
   bar.appendChild(el("button", "chip", "1–8 / 9–16", function () { ed.page = 1 - ed.page; fill(); }));
-  var pl = el("button", "chip", "▶ " + t("listen"), function () { if (loop) { stopSound(); pl.textContent = "▶ " + t("listen"); } else { playBeat(); pl.textContent = "■ " + t("stop"); } });
+  var pl = el("button", "chip", loop ? "■ " + t("stop") : "▶ " + t("listen"), function () { if (loop) { stopSound(); pl.textContent = "▶ " + t("listen"); } else { playBeat(); pl.textContent = "■ " + t("stop"); } });
   bar.appendChild(pl); p.appendChild(bar);
 }
 function setVoice(pcm, mine) { ed.raw = pcm; if (mine) ed.ownVoice = true; applyFx(); }
@@ -487,11 +705,13 @@ function voicePanel(p) {
 
 /* ---------- finish ---------- */
 function makeBlob(c, type, q) { return new Promise(function (ok) { c.toBlob(ok, type || "image/png", q); }); }
+function tinyThumb(c) { var s = document.createElement("canvas"); s.width = 135; s.height = 169; s.getContext("2d").drawImage(c, 0, 0, 135, 169); return s.toDataURL("image/jpeg", 0.6); }
 function thumb(c) { var s = document.createElement("canvas"); s.width = 270; s.height = 338; s.getContext("2d").drawImage(c, 0, 0, 270, 338); return s.toDataURL("image/jpeg", 0.6); }
 async function finish(doc, idea, pictureDoc) {
   var c = document.createElement("canvas"); c.width = 1080; c.height = 1350;
   R.exporting = true;
   try { R.draw(c, pictureDoc || doc, { me: me, photo: ed && ed.photo, peaks: ed && ed.peaks }); } finally { R.exporting = false; }
+  c = withPic(c, doc);
   var png = await makeBlob(c), file = png, name = "my-daily-idea.png";
   if (doc.k === "sound") {
     var pcm = doc.m === "beat" ? beatPcm(2) : (ed.pcm || S.warp(S.dummyVoice(), doc.fx));
@@ -508,12 +728,18 @@ async function finish(doc, idea, pictureDoc) {
 }
 $("edmain").addEventListener("click", function () {
   if (!ed) return;
+  if ($("edmain").getAttribute("aria-disabled") === "true") { var x = X[ed.doc.k]; if (!(x && x.nudge && x.nudge(ed))) nudge(); return; }
   if (X[ed.doc.k]) { X[ed.doc.k].main(ed); return; }
-  if (ed.doc.k === "game") { Kit.sfx.thud(); G.stop(); show("game", true); G.play(gameState(), null, { own: touched() }); return; }
+  if (ed.doc.k === "game") { if (ed.pv && ed.fly) ed.fly(); else playGame(); return; }   // an open preview: PLAY flies it, like "Fly"
   if (!ready()) { Kit.tone(200, 160, 0.1, "square", 0.06); return; }
   Kit.sfx.thud();
   finish(D.withTrail(ed.doc, me.nick, areas()));
 });
+// A card finished straight from the sheet, without the editor (feel-good cards); Edit then opens it there.
+function quick(doc, idea) {
+  ed = { doc: D.sanitizeDoc(doc), base: D.docFromIdea(idea, me, Kit.lang), own: false, photo: null, peaks: null, idea: idea, quick: true };
+  return finish(D.withTrail(ed.doc, me.nick, D.changedAreas(ed.base, ed.doc)));
+}
 // Two steps when the short link is not there yet: the first tap makes it, the second shares it. Sharing and copying need a fresh
 // tap in most browsers, and the wait for the server would use it up, which sent an old or no link before.
 var sharing = false;
@@ -526,16 +752,32 @@ $("share").addEventListener("click", async function () {
   await Kit.share({ url: link.url, text: shareLine(result.keep && result.keep.doc) });
 });
 $("playit").addEventListener("click", function () { ed = result.keep; ed.sel = -1; makePlayable(); });
-// Reaches the server only from here, that is after a tap on one of the share buttons.
+// Reaches the server only from here, that is after a tap on one of the share buttons (or on "finish the card" of a feel-good card, see warm.js). The chat preview then shows the
+// finished picture, before anyone can send the link; a photo poster keeps the fixed picture, photos stay on the phone.
 async function shortLink() {
-  if (!result.link) { result.link = await window.ShortLink.shorten(result.url, { k: result.kind, l: Kit.lang }, store); Kit.save(); }
+  if (!result.link) {
+    result.link = await window.ShortLink.shorten(result.url, { k: result.kind, l: Kit.lang }, store);
+    var mine = result.link.short && store.links.filter(function (e) { return e.id === result.link.id; })[0];
+    if (mine && result.canvas) { mine.th = tinyThumb(result.canvas); mine.k = result.kind; }   // only on this phone, for the list of invitations
+    Kit.save();
+    if (result.link.short && result.kind !== "photo" && result.canvas) {
+      try { await window.ShortLink.picture(result.link.id, await makeBlob(chatPicture(result.canvas, result.keep ? result.keep.doc.col : me.colors), "image/jpeg", 0.82), store); } catch (e) {}
+    }
+  }
   return result.link;
+}
+// 1200x630, the size chat apps show large: the work in the middle on its own colour, so a square crop still shows it whole.
+function chatPicture(c, col) {
+  var o = document.createElement("canvas"), x = o.getContext("2d"), h = 590, w = Math.round(h * c.width / c.height);
+  o.width = 1200; o.height = 630; x.fillStyle = col[0]; x.fillRect(0, 0, 1200, 630); x.drawImage(c, (1200 - w) / 2, 20, w, h);
+  return o;
 }
 /* Status and story: pictures cannot carry a tappable link, so the picture shows the address and a code, and the text goes to the clipboard.
    Without a short link the long one would be an unreadable code: the picture then points to the app, the long link stays in the text. */
 async function exportStory(kind) {
   Kit.sfx.tap();
   var link = await shortLink(), shown = link.short ? link.url : C.SHARE_BASE, cols = result.keep ? result.keep.doc.col : me.colors;
+  try { await window.Parts.use("qr", function () {}); } catch (e) { return; }   // statuscard.js and the QR code are a part of their own
   var cv = window.StatusCard.draw(result.canvas, { url: shown, bg: cols[0], ink: R.ink(cols[0]), cta: t(link.short ? "sh_cta" : "sh_ctaApp") });
   var blob = await makeBlob(cv, "image/jpeg", 0.92);
   var text = kind === "story" ? link.url : t("shareText") + " " + link.url;
@@ -547,10 +789,28 @@ $("tostory").addEventListener("click", function () { exportStory("story"); });
 $("save").addEventListener("click", function () { Kit.sfx.tap(); Kit.saveFile(result.file, result.name); });
 $("keep").addEventListener("click", function () { Kit.sfx.tap(); backToEditor(); });
 function backToEditor() {
+  if (result.keep.quick) { openEditor(result.keep.doc, { idea: result.keep.idea }); return; }
   ed = result.keep; ed.sel = -1; show("editor"); if (ed.doc.k === "game") G.demo($("demo"), gameState()); changed();
 }
 $("dhome").addEventListener("click", goHome);
+$("dback").addEventListener("click", function () { Kit.sfx.tap(); goHome(); });
 $("edback").addEventListener("click", function () { Kit.sfx.tap(); goHome(); });
+// Merken: the work as it is now lands on the wall, with its link, so it opens again in the editor later.
+function savedNow() { var f = docFragment(ed.doc); return !!f && wall.some(function (w) { return w.f === f; }); }
+function docFragment(doc) { var u = D.docUrl(doc), i = u.indexOf("#"); return i < 0 ? "" : u.slice(i + 1); }
+function saveMark() { var on = !!ed && savedNow(); $("edsave").textContent = on ? "♥" : "♡"; $("edsave").setAttribute("aria-pressed", String(on)); }
+$("edsave").addEventListener("click", function () {
+  if (!ed) return; Kit.sfx.pop(); Kit.haptic(12);
+  var f = docFragment(ed.doc);
+  if (savedNow()) { wall = wall.filter(function (w) { return w.f !== f; }); Kit.toast(t("unsaved")); }
+  else {
+    var c = document.createElement("canvas"); c.width = 540; c.height = 675;
+    if (ed.doc.k === "game") { var g = $("demo"); c.getContext("2d").drawImage(g, 0, 0, c.width, c.height); }
+    else R.draw(c, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks });
+    wall = D.addToWall(wall, { id: ed.doc.i || "own", ts: Date.now(), th: thumb(c), f: f }); Kit.toast(t("saved"));
+  }
+  store.wall = wall; Kit.save(); saveMark();
+});
 $("shback").addEventListener("click", function () { Kit.sfx.tap(); if (!backFromStyle()) goHome(); });
 // My style opened from the editor returns there with the work intact; new colours apply unless they were chosen by hand.
 function backFromStyle() {
@@ -564,23 +824,31 @@ function backFromStyle() {
 $("gback").addEventListener("click", function () { Kit.sfx.tap(); if (!backFromPlay()) goHome(); });
 function gameToEditor() {
   if (backFromPlay()) return;
-  var s = G.current(), d = { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji } };
+  var d = gameDoc(G.current());
   if (ed && ed.doc.k === "game") { var keep = ed; G.stop(); show("editor"); ed = keep; G.demo($("demo"), gameState()); changed(); return; }
   G.stop(); openEditor(d);
 }
 $("remixbtn").addEventListener("click", function () { Kit.sfx.tap(); gameToEditor(); });
 $("toremix").addEventListener("click", function () { Kit.sfx.tap(); gameToEditor(); });
 $("image").addEventListener("click", function () {
-  var s = G.current(), sc = G.score(), base = ed && ed.doc.k === "game" ? ed.doc : { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji } };
+  var s = G.current(), sc = G.score(), base = ed && ed.doc.k === "game" ? ed.doc : gameDoc(s);
   if (!ed) ed = { doc: D.sanitizeDoc(base), base: D.sanitizeDoc(base), photo: null, peaks: null };
   var pic = { k: "card", st: "druck", col: base.col, x: sc + " " + s.title, sk: [] };
   finish(D.withTrail(base, me.nick, D.changedAreas(ed.base, ed.doc)), base.i, pic);
 });
 
 /* ---------- my style ---------- */
+// The roll number lives on the device, so closing and opening again goes on with the next roll instead of the first.
+function roll(key) { var s = Kit.store; if (!s.rolls || typeof s.rolls !== "object" || Array.isArray(s.rolls)) s.rolls = {}; var n = W.nextRoll(s.rolls, key); Kit.save(); return n; }
 var styleFill = null;
 function openStyle() {
   shelf(t("style"), styleFill = function (b) {
+    // The dice for my style: figure, colours and sticker set from a seed (name + roll), on the device, no AI.
+    b.appendChild(el("button", "chip", "🎲 " + t("diceGo"), function () {
+      var r = seeded("me|" + me.nick + "|" + roll("me|" + me.nick)), pick = function (n) { return Math.floor(r() * n); }, sets = Object.keys(D.SETS);
+      Kit.sfx.pop(); me.emoji = EMOJI[pick(EMOJI.length)]; me.colors = PAIRS[pick(PAIRS.length)].slice(); me.set = sets[pick(sets.length)];
+      saveMe(); $("me").textContent = me.emoji; setInk(me.colors[0], me.colors[1]); openStyle();
+    }));
     b.appendChild(el("label", "lbl", t("nick")));
     var f = el("input", "field"); f.value = me.nick; f.maxLength = 16; f.setAttribute("aria-label", t("nick"));
     f.addEventListener("input", function () { var v = C.sanitizeName(f.value); if (f.value.trim() && !v) { Kit.toast(t("filter")); return; } me.nick = v; saveMe(); });
@@ -591,59 +859,175 @@ function openStyle() {
     colors(b, function () { return me.colors; }, function (c) { me.colors = c; saveMe(); setInk(c[0], c[1]); });
     b.appendChild(el("label", "lbl", t("set")));
     chips(b, Object.keys(D.SETS).map(function (s) { return { v: s, l: D.SETS[s][0] + " " + t("set_" + s) }; }), me.set, function (v) { me.set = v; saveMe(); });
-    window.Profile.section(b, el);
-    b.appendChild(el("button", "btn", t("licenses"), function () { var l = el("pre", "note", window.DailyLicenses); l.style.whiteSpace = "pre-wrap"; b.textContent = ""; b.appendChild(l); }));
+    var acHold = el("div"); b.appendChild(acHold); konto(function () { window.Profile.section(acHold, el); });
+    b.appendChild(el("label", "lbl", t("fs_title")));
+    chips(b, ["n", "g", "sg"].map(function (v) { return { v: v, l: t("fs_" + v) }; }), Kit.fs, function (v) { Kit.setFs(v); if (screen === "home") fitHero(); }, "fs");
+    b.appendChild(el("label", "lbl", t("pf_title")));
+    var pf = el("div", "pfbox"); b.appendChild(pf); prefs(pf);
+    b.appendChild(el("p", "note", t("aiPicNote")));
+    b.appendChild(el("button", "btn", t("licenses"), function () { window.Parts.use("licenses", function () { var l = el("pre", "note", window.DailyLicenses); l.style.whiteSpace = "pre-wrap"; b.textContent = ""; b.appendChild(l); }).catch(function () {}); }));
   });
 }
 // A sync brought style, wall or saved cards from another device: the open My style shows them at once.
-window.Profile.onChange(function () {
+function profileChanged() {
   me = D.sanitizeProfile(store.me); wall = D.sanitizeWall(store.wall); $("me").textContent = me.emoji;
-  if (screen === "home" || (screen === "shelf" && $("pfbox"))) setInk(me.colors[0], me.colors[1]);
-  if (screen === "shelf" && $("pfbox")) { var b = $("shbody"); b.textContent = ""; styleFill(b); }
-});
+  if (screen === "home" || (screen === "shelf" && $("acbox"))) setInk(me.colors[0], me.colors[1]);
+  if (screen === "shelf" && $("acbox")) { var b = $("shbody"); b.textContent = ""; styleFill(b); }
+}
+// "Anmelden / Registrieren" (src/profile.js) is the part konto: loaded when My style opens, and at start while linked.
+function konto(fn) { return window.Parts.use("konto", function () { window.Profile.onChange(profileChanged); if (fn) fn(); }).catch(function () {}); }
+if (store.profile) konto();
+// My defaults (daily.js): the ones set stand on top as chips with ✕; below, what can be set. Only on this device.
+function prefs(box) {
+  var f = me.pref || {}, P = D.PREF;
+  function put(g) { me.pref = D.sanitizePref(g); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); prefs(box); }
+  function edit(fn) { var g = JSON.parse(JSON.stringify(me.pref || {})); fn(g); put(g); }
+  function group(label, items, isOn, pick) {
+    box.appendChild(el("p", "lbl", label));
+    var r = el("div", "chips");
+    items.forEach(function (it) { var c = el("button", "chip" + (isOn(it.v) ? " on" : ""), it.l, function () { Kit.sfx.tap(); edit(function (g) { pick(g, it.v); }); }); c.setAttribute("aria-pressed", String(isOn(it.v))); r.appendChild(c); });
+    box.appendChild(r);
+  }
+  box.textContent = "";
+  var on = el("div", "chips"), list = D.prefChips(me, Kit.lang);
+  if (!list.length) on.appendChild(el("p", "note", t("pf_none")));
+  list.forEach(function (c) { var x = el("button", "chip on", c.l + " ✕", function () { Kit.sfx.tap(); put(D.dropPref(me, c.k, c.v)); }); on.appendChild(x); });
+  box.appendChild(on); box.appendChild(el("p", "note", t("pf_note")));
+  if (!(window.DailyFlavor && window.DailyFlavor.adult)) group(t("pf_age"), P.AGES.map(function (a) { return { v: a, l: t("pf_age_" + a) }; }), function (v) { return f.age === v; }, function (g, v) { if (g.age === v) delete g.age; else g.age = v; });
+  group(t("pf_hh"), [1, 2, 3, 4, 5, 6].map(function (n) { return { v: n, l: n === 6 ? "6+" : String(n) }; }), function (v) { return f.hh === v; }, function (g, v) { if (g.hh === v) delete g.hh; else g.hh = v; });
+  if (D.dietOk(me)) group(t("pf_diet"), P.DIETS.map(function (d) { return { v: d, l: t("pf_diet_" + d) }; }), function (v) { return f.diet === v; }, function (g, v) { if (g.diet === v) delete g.diet; else g.diet = v; });
+  else box.appendChild(el("p", "note", t("pf_diet_later")));
+  group(t("pf_no"), P.NOTIMES.map(function (k) { return { v: k, l: t("pf_no_" + k) }; }), function (v) { return (f.no || []).indexOf(v) >= 0; }, function (g, v) { var n = g.no || []; g.no = n.indexOf(v) >= 0 ? n.filter(function (x) { return x !== v; }) : n.concat([v]); });
+  if (D.adult(me)) {
+    box.appendChild(el("label", "lbl", t("pf_pp")));
+    var pp = el("input", "field"); pp.value = f.pp || ""; pp.maxLength = 20; pp.autocomplete = "off"; pp.setAttribute("aria-label", t("pf_pp")); pp.placeholder = "paypal.me/…";
+    pp.addEventListener("change", function () { var v = pp.value.trim().replace(/^(https?:\/\/)?(www\.)?paypal\.me\//i, ""); if (v && !/^[A-Za-z0-9]{1,20}$/.test(v)) { Kit.toast(t("filter")); return; } edit(function (g) { if (v) g.pp = v; else delete g.pp; }); });
+    box.appendChild(pp);
+  } else box.appendChild(el("p", "note", t("pf_pp_later")));
+}
+// For an AI feature (next wave): the defaults that would go along, shown as chips where the request is made; a tap
+// leaves one out for this request only. use.context() is the short text (D.prefContext) with what is still on.
+function prefUse(box, keys) {
+  var off = {}, row = el("div", "chips pfuse");
+  D.prefChips(me, Kit.lang).filter(function (c) { return keys.indexOf(c.k) >= 0; }).forEach(function (c) {
+    var id = c.k + ":" + c.v, b = el("button", "chip on", c.l, function () { off[id] = !off[id]; b.classList.toggle("on", !off[id]); b.setAttribute("aria-pressed", String(!off[id])); Kit.sfx.tap(); });
+    b.setAttribute("aria-pressed", "true"); row.appendChild(b);
+  });
+  if (row.children.length) box.appendChild(row);
+  function on() {
+    var p = { pref: JSON.parse(JSON.stringify(me.pref || {})) };
+    Object.keys(off).forEach(function (id) { if (off[id]) { var k = id.split(":")[0]; p.pref = D.dropPref(p, k, id.slice(k.length + 1)); } });
+    return p;
+  }
+  // pref(): the defaults still on, for what the page computes itself (household size, times without time).
+  return { context: function () { return D.prefContext(on(), Kit.lang, keys); }, pref: function () { return on().pref; } };
+}
+// Report a shared sheet: a dialog says what goes out (the sheet's texts, its seal if it has one), asks for the reason,
+// and only "Melden" sends it. A sheet goes out once from this device; the server limits the rest.
+function reportKey(doc) { return String(C.hash32(JSON.stringify([doc.k, doc.t, doc.s, doc.x, doc.y, doc.g && doc.g.title, doc.ki && doc.ki.s]))); }
+function reported(doc) { return Array.isArray(Kit.store.reported) && Kit.store.reported.indexOf(reportKey(doc)) >= 0; }
+function reportKi(doc, link) {
+  if (reported(doc)) return;
+  var dlg = el("dialog", "kidlg"), h = el("h2", "", t("kiAsk")), msg = el("p", "note"), row = el("div", "chips"), why = null;
+  h.id = "kidlgh"; dlg.setAttribute("aria-labelledby", "kidlgh"); msg.setAttribute("role", "status");
+  var reasons = el("div", "chips"); reasons.setAttribute("role", "radiogroup"); reasons.setAttribute("aria-label", t("kiWhy"));
+  window.Ai.REASONS.forEach(function (r) {
+    var b = el("button", "chip", t("kiWhy_" + r), function () { Kit.sfx.tap(); why = r; Array.from(reasons.children).forEach(function (x) { x.setAttribute("aria-checked", String(x === b)); x.classList.toggle("on", x === b); }); send.disabled = false; });
+    b.setAttribute("role", "radio"); b.setAttribute("aria-checked", "false"); reasons.appendChild(b);
+  });
+  var send = el("button", "btn", t("kiSend"), async function () {
+    if (!why) return;
+    send.disabled = true; msg.textContent = "…";
+    var ok = await window.Ai.report(doc, why, link);
+    msg.textContent = t(ok ? "kiThanks" : "kiOffline");
+    if (ok) {
+      var s = Kit.store; s.reported = (Array.isArray(s.reported) ? s.reported : []).concat(reportKey(doc)).slice(-50); Kit.save();
+      send.hidden = true; no.textContent = t("kiClose"); var kr = $("kireport"); kr.textContent = t("kiReported"); kr.disabled = true;
+    } else send.disabled = false;
+  });
+  send.disabled = true;
+  var no = el("button", "chip", t("kiCancel"), function () { dlg.close(); });
+  dlg.addEventListener("close", function () { dlg.remove(); });
+  row.appendChild(send); row.appendChild(no);
+  [h, el("p", "", t("kiConsent")), el("p", "lbl", t("kiWhy")), reasons, row, msg].forEach(function (x) { dlg.appendChild(x); });
+  document.body.appendChild(dlg); dlg.showModal();
+}
 function shelf(title, fill) { stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
 function openAiWall() { ed.styling = true; shelf(t("aiTitle"), function (b) { window.Ai.wall(b, el); }); }
+// The last week, and above it a search over every sheet: one word, one tap on a hit, and that sheet is back.
 function openPast() {
   shelf(t("past"), function (b) {
-    D.lastDays(today, 7).forEach(function (e) {
-      var made = wall.some(function (w) { return w.id === e.idea.id; }), row = el("button", "day", null, function () { Kit.sfx.tap(); home = { date: e.date, idea: e.idea }; goHome(); });
-      row.appendChild(el("b", "", String(e.date.getUTCDate()).padStart(2, "0")));
-      row.appendChild(el("span", "", ideaText(e.idea).t.replace("|", " ")));
-      if (made) row.appendChild(el("i", "", "✓"));
-      b.appendChild(row);
-    });
+    var q = el("input", "field"), list = el("div"), T = window.DailyTexts, names = {};
+    q.type = "search"; q.id = "pastq"; q.placeholder = t("pastSearch"); q.setAttribute("aria-label", t("pastSearch")); q.autocomplete = "off"; q.enterKeyHint = "search";
+    D.KINDS.forEach(function (k) { names[k] = [T.de[k], T.en[k]]; });
+    function row(e) {
+      var made = wall.some(function (w) { return w.id === e.idea.id; }), r = el("button", "day", null, function () { Kit.sfx.tap(); home = { date: e.date || today, idea: e.idea }; goHome(); });
+      r.appendChild(el("b", "", e.date ? String(e.date.getUTCDate()).padStart(2, "0") : "✦"));
+      r.appendChild(el("span", "", D.plainTitle(ideaText(e.idea).t)));
+      if (e.found) r.appendChild(el("small", "", e.date ? monthLines(e.date).split("\n")[0] + " " + e.date.getUTCFullYear() : t("pastNew")));
+      if (made) r.appendChild(el("i", "", "✓"));
+      list.appendChild(r);
+    }
+    function fill() {
+      list.textContent = "";
+      if (!q.value.trim()) { D.lastDays(today, 7).forEach(row); return; }
+      var hits = D.searchIdeas(q.value, today, names);
+      if (!hits.length) { list.appendChild(el("div", "empty", t("pastNone"))); return; }
+      hits.forEach(function (h) { h.found = true; row(h); });
+    }
+    q.addEventListener("input", fill);
+    b.appendChild(q); b.appendChild(list); fill();
   });
 }
-function openWall() {
+function openWall(which) {
   shelf(t("wall"), function (b) {
-    if (!wall.length) { b.appendChild(el("div", "empty", t("wallEmpty"))); linksList(b); return; }
+    var links = window.ShortLink.kept(store.links, Date.now()), tabs = el("div", "chips walltabs");
+    [["wall", t("wall")], ["links", t("invites") + " (" + links.length + ")"]].forEach(function (x) {
+      var on = (which || "wall") === x[0], c = el("button", "chip" + (on ? " on" : ""), x[1], function () { Kit.sfx.tap(); openWall(x[0]); });
+      c.setAttribute("role", "tab"); c.setAttribute("aria-selected", String(on)); tabs.appendChild(c);
+    });
+    b.appendChild(tabs);
+    if (which === "links") { invites(b, links); return; }
+    if (!wall.length) { b.appendChild(el("div", "empty", t("wallEmpty"))); return; }
     var g = el("div", "wallgrid");
     wall.forEach(function (w, i) {
       var c = el("button", "", null, function () {
         Kit.sfx.tap(); b.textContent = ""; var im = el("img", "big"); im.src = w.th; im.alt = ""; b.appendChild(im);
+        var r = w.f ? D.parseRoute("#" + w.f) : null;
+        if ((r && r.type === "doc") || two("#" + w.f)) b.appendChild(el("button", "btn hot", t("openAgain"), function () { Kit.sfx.thud(); if (two("#" + w.f)) window.Parts.use("turnzwei", function () { again(w.f); }).catch(function () {}); else again(w.f); }));
         b.appendChild(el("button", "btn", t("gone"), function () { wall.splice(i, 1); store.wall = wall; Kit.save(); openWall(); }));
       });
       var im = el("img"); im.src = w.th; im.alt = ""; c.appendChild(im); g.appendChild(c);
     });
     b.appendChild(g);
-    linksList(b);
   });
 }
-function linksList(b) {
-  var list = window.ShortLink.kept(store.links, Date.now());
-  if (!list.length) return;
-  b.appendChild(el("h3", "note", t("sh_mine")));
+// A saved work opened again; a turn card that checks a signature first (prepare) waits for it.
+function again(f) {
+  var r = D.parseRoute("#" + f), pre = r && r.type === "doc" && r.doc.k === "turn" && window.Turns.game(r.doc).prepare, wait = pre && pre(r.doc);
+  if (wait && wait.then) { wait.then(function () { again(f); }); return; }
+  if (r && r.type === "doc") openEditor(r.doc, { idea: r.doc.i ? D.byId(r.doc.i) : null, own: !r.doc.i });
+}
+// Invitations: every short link made on this phone, as its picture with the date it runs out and a cross that deletes it.
+function invites(b, list) {
+  if (!list.length) { b.appendChild(el("div", "empty", t("invEmpty"))); return; }
+  var g = el("div", "wallgrid inv"), ICON = { card: "🃏", photo: "📷", sound: "🥁", game: "🕹", idea: "💡" };
   list.forEach(function (l) {
-    var row = el("div", "day"), when = new Date(l.exp).toLocaleDateString(Kit.lang === "de" ? "de-DE" : "en-GB");
-    row.appendChild(el("span", "", "/s/" + l.id + " · " + t("sh_until", { d: when })));
-    row.appendChild(el("button", "chip", t("gone"), async function () {
-      Kit.sfx.tap();
+    var url = C.SHORT_BASE + l.id, when = new Date(l.exp).toLocaleDateString(Kit.loc()), cell = el("div", "invcell");
+    var open = el("button", "", null, function () { Kit.sfx.tap(); Kit.share({ url: url, text: t("shareText") }); });
+    open.setAttribute("aria-label", t("invShare", { d: when }));
+    if (typeof l.th === "string" && l.th.length < 30000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(l.th)) { var im = el("img"); im.src = l.th; im.alt = ""; open.appendChild(im); }
+    else open.appendChild(el("span", "invicon", ICON[l.k] || "🔗"));
+    var x = el("button", "invx", "✕", async function () {
+      Kit.sfx.tap(); x.disabled = true;
       var ok = await window.ShortLink.remove(l.id, store);
       Kit.save(); Kit.toast(t(ok ? "sh_deleted" : "sh_deleteFail"));
-      if (ok) openWall();
-    }));
-    b.appendChild(row);
+      openWall("links");
+    });
+    x.setAttribute("aria-label", t("invDelete", { d: when }));
+    cell.appendChild(open); cell.appendChild(x); cell.appendChild(el("span", "invdate", t("sh_until", { d: when }))); g.appendChild(cell);
   });
+  b.appendChild(g);
 }
 function openOwn() {
   shelf(t("own"), function (b) {
@@ -651,6 +1035,10 @@ function openOwn() {
     [["card", "🃏"], ["photo", "📷"], ["sound", "🥁"], ["game", "🕹"], ["duel", "🤖"]].concat(D.caps().crypto ? [["quest", "🗝️"]] : []).forEach(function (m) {
       b.appendChild(el("button", "mech", m[1] + " " + t(m[0]), function () { Kit.sfx.thud(); openEditor(D.blankDoc(m[0], me, Kit.lang), { own: true }); }));
     });
+    var door = D.byId("advent-tuer");   // an Advent door can be made any day, not only on its calendar days
+    if (door) b.appendChild(el("button", "mech", "🎄 " + D.plainTitle(ideaText(door).t), function () { Kit.sfx.thud(); openEditor(D.docFromIdea(door, me, Kit.lang), { idea: door }); }));
+    var shop = D.IDEAS.filter(function (i) { return i.turn && i.turn.g === "einkauf"; })[0];   // a shopping list is needed any day, too
+    if (shop) b.appendChild(el("button", "mech", "🛒 " + D.plainTitle(ideaText(shop).t), function () { Kit.sfx.thud(); openEditor(D.docFromIdea(shop, me, Kit.lang), { idea: shop }); }));
     CC.tile(b);
   });
 }
@@ -659,15 +1047,32 @@ function openOwn() {
 function labels() {
   document.documentElement.lang = Kit.lang;
   feats(); $("brand").textContent = t("brand"); $("lang").textContent = Kit.lang.toUpperCase(); $("me").textContent = me.emoji;
+  // Screen reader names in the language of the page (the template holds the German ones until this runs).
+  [["lang", "a_lang"], ["mute", "a_mute"], ["me", "style"], ["edstyle", "style"], ["pvgame", "a_preview"], ["pvcard", "a_preview"], ["stage", "a_preview"], ["demo", "a_gamePreview"],
+    ["feat", "a_feat"], ["edback", "a_close"], ["shback", "a_close"], ["gback", "a_close"], ["edsave", "a_keep"], ["cv", "a_field"], ["coqr", "a_qr"]].forEach(function (x) { $(x[0]).setAttribute("aria-label", t(x[1])); });
+  $("mute").setAttribute("aria-pressed", String(!!Kit.muted));
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
   $("tostatus").textContent = t("sh_status"); $("tostory").textContent = t("sh_story"); $("shnote").textContent = t("sh_note");
   $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home"); $("playit").textContent = "🕹 " + t("playIt");
-  $("save").hidden = !Kit.canSave(); SK.labels(); CU.labels();
+  $("save").hidden = !Kit.canSave(); SK.labels(); CU.labels(); $("dback").setAttribute("aria-label", t("xClose"));
   // Inside the app shells (DuellHost.more) a quiet "more" opens the native extras; in a browser it stays hidden.
   var host = window.DuellHost && typeof window.DuellHost.more === "function";
   $("host").hidden = !host; $("host").setAttribute("aria-label", t("hostMore"));
+  $("game").dataset.rot = "📱 " + t("rotate");   // shown over a game when the phone lies sideways (style.css)
 }
-$("lang").addEventListener("click", function () { Kit.lang = Kit.lang === "de" ? "en" : "de"; store.lang = Kit.lang; Kit.save(); labels(); if (home) setHome(home, false); });
+$("lang").addEventListener("click", function () { Kit.setLang(Kit.nextLang()); });
+// The editor's own switch, shown when an invitation opened it (the home page's switch is out of sight there).
+$("edtitle").after(Kit.langBtn("ico")); $("edtitle").nextSibling.id = "edlang";
+// A new language redraws what is open: the chrome, the sheet, and in the editor its title, tabs, panel and picture.
+window.addEventListener("daily:lang", function () {
+  labels();
+  if (home && home.noteOf) home.note = home.noteOf();   // the invitation's own line too ("Geschickt bekommen." / "Sent to you.")
+  if (home && screen === "home") setHome(home, false);
+  if (ed && screen === "editor") {
+    $("edtitle").textContent = edTitle(); Array.from($("tabs").children).forEach(function (b) { b.textContent = tabText(b.dataset.k); });
+    var p = $("panel"), top = p.scrollTop; tab(ed.tab); p.scrollTop = top; paint();
+  }
+});
 $("host").addEventListener("click", function () { Kit.sfx.tap(); try { window.DuellHost.more(); } catch (e) {} });
 $("mute").addEventListener("click", function () { Kit.muted = !Kit.muted; store.muted = Kit.muted; Kit.save(); labels(); Kit.sfx.tap(); });
 $("me").addEventListener("click", function () { Kit.sfx.tap(); openStyle(); });
@@ -677,30 +1082,53 @@ $("past").addEventListener("click", function () { Kit.sfx.tap(); openPast(); });
 $("wall").addEventListener("click", function () { Kit.sfx.tap(); openWall(); });
 $("own").addEventListener("click", function () { Kit.sfx.tap(); openOwn(); });
 function start(tabName) {
+  if (!home.doc && twoIdea(home.idea)) { window.Parts.use("turnzwei", function () { start(tabName); }).catch(function () {}); return; }
   Kit.sfx.thud();
+  if (WM.start(home, tabName)) return;
   if (home.doc && X[home.doc.k] && X[home.doc.k].incoming && X[home.doc.k].incoming(home.doc)) return;
-  if (home.doc) openEditor(home.doc, { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName });
-  else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea, tab: tabName });
+  if (!home.doc && home.idea && home.idea.protokoll) { var u = protokollUrl(); if (location.protocol === "https:") location.href = u; else openLive(u); return; }
+  if (!home.doc && home.idea && home.idea.kind === "arcade" && window.ArcadeUI) { window.ArcadeUI.menu(home.idea.arcade.g); return; }
+  if (home.doc) openEditor(home.doc, { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName, got: !!home.note });
+  else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea, tab: tabName, got: !!home.note });
 }
 $("go").addEventListener("click", function () { start(); });
-$("wishgo").addEventListener("click", function () { start("Wish"); });
+$("wishgo").addEventListener("click", function () { start($("wishgo").dataset.tab || "Wish"); });
+$("kireport").addEventListener("click", function () { Kit.sfx.tap(); if (home && home.doc) reportKi(home.doc, home.link); });
 $("livego").addEventListener("click", function () { Kit.sfx.tap(); openLive($("livego").dataset.u); });
 ["focus", "pageshow"].forEach(function (e) { window.addEventListener(e, newDay); });
 document.addEventListener("visibilitychange", newDay);
 setInterval(newDay, 60000);
 window.addEventListener("resize", function () { if (screen === "home") fitHero(); });
+// Escape does what the visible ✕ does, on every level. A game on a layer (live, table, arcade) asks first: a second Escape leaves.
+var escAt = 0;
+document.addEventListener("keydown", function (e) {
+  if (e.key !== "Escape" || e.defaultPrevented || document.querySelector("dialog[open]") || document.getElementById("door")) return;
+  var a = document.activeElement; if (a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && a.type !== "range") { a.blur(); return; }   // first out of the field, the typing stays
+  var co = $("cosheet"), ovs = document.querySelectorAll(".liveov"), ov = ovs[ovs.length - 1], x = null;
+  if (!co.hidden) { var no = Array.from($("coacts").querySelectorAll(".btn:not(.hot)")).pop(); if (no) no.click(); else co.hidden = true; e.preventDefault(); return; }
+  if (ov) {
+    x = ov.querySelector(".arcx, .liveback"); e.preventDefault(); if (!x) return;
+    if (Date.now() - escAt > 3000) { escAt = Date.now(); Kit.toast(t("xAgain")); return; }
+    escAt = 0; x.click(); return;
+  }
+  x = { editor: "edback", shelf: "shback", game: "gback", done: "dback" }[screen];
+  if (x && !$(x).hidden) { e.preventDefault(); $(x).click(); }
+});
 window.addEventListener("popstate", function () { if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
 
 function route() {
   var card = CC.route(location.hash);
   if (card) { clearLink(); if (!card.keep && screen !== "editor") goHomeKeep(); return true; }
   if (CU.route(location.hash)) { clearLink(); if (screen !== "editor") goHomeKeep(); return true; }
-  var live = location.hash.match(/^#live=([A-Za-z0-9_-]{22})$/);
-  if (live && window.LiveUI) { history.replaceState(null, "", location.pathname); window.LiveUI.accept(live[1]); }
+  var live = location.hash.match(/^#live=([A-Za-z0-9_-]{22})(?:&g=([a-z]{2,12}))?$/);
+  if (live && window.LiveUI) { history.replaceState(null, "", location.pathname); window.LiveUI.accept(live[1], live[2]); }
+  var seat = location.hash.match(/^#tisch=(doko|skat|bauernskat)\.([A-Za-z0-9_-]{22}(?:\.[A-Za-z0-9_-]{22}){0,2})(?:&r=([a-z]{1,8}(?:\.[a-z]{1,8}){0,3}))?$/);   // one token, or one per free seat; the house rules
+  if (seat && window.TableUI) { history.replaceState(null, "", location.pathname); window.TableUI.accept(seat[1], seat[2], seat[3]); }
+  if (todoLink()) return true;
   var r = D.parseRoute(location.hash);
   if (r && r.type === "short") {
     goHome();
-    window.ShortLink.resolve(r.id).then(function (f) { if (f) location.hash = f; else Kit.toast(t("sh_gone")); });
+    window.ShortLink.resolve(r.id).then(function (f) { if (f) { shortId = r.id; location.hash = f; } else Kit.toast(t("sh_gone")); });
     return true;
   }
   if (r && r.type === "challenge") {
@@ -708,20 +1136,49 @@ function route() {
     delete st.score; delete st.name; show("game"); G.play(st, riv, { own: true }); return true;
   }
   if ((r && r.type === "idea" && !D.available(D.byId(r.id))) || (r && r.type === "doc" && !D.docAvailable(r.doc))) { home = dayHome(); goHomeKeep(); Kit.toast(t("notHere")); return true; }
-  if (r && r.type === "idea") { home = { date: today, idea: D.byId(r.id), note: t("invite") }; goHomeKeep(); return true; }
+  if (r && r.type === "idea") { home = { date: today, idea: D.byId(r.id), note: t("invite"), noteOf: function () { return t("invite"); } }; goHomeKeep(); return true; }
+  // A turn card that checks a signature first (feier: the signed end) reads its link only once that is done.
+  var pre = r && r.type === "doc" && r.doc.k === "turn" && window.Turns.game(r.doc).prepare, wait = pre && pre(r.doc);
+  if (wait && wait.then) { wait.then(route, route); return true; }
   if (r && r.type === "doc") {
     var lastBy = r.doc.by.length ? r.doc.by[r.doc.by.length - 1].n : r.doc.n;
-    home = { date: today, doc: r.doc, note: t("remixOf", { n: lastBy || t("someone") }) }; goHomeKeep(); return true;
+    home = { date: today, doc: r.doc, note: t("remixOf", { n: lastBy || t("someone") }), noteOf: function () { return t("remixOf", { n: lastBy || t("someone") }); }, link: shortId || undefined }; shortId = null; goHomeKeep();
+    if (r.doc.k === "card" && r.doc.nr && window.Door) window.Door.show(r.doc);   // an Advent door comes closed first
+    return true;
   }
   return false;
 }
-function goHomeKeep() { if (!home) home = dayHome(); stopSound(); G.stop(); ed = null; setInk(me.colors[0], me.colors[1]); show("home"); setHome(home, true); }
-window.addEventListener("hashchange", route);
+// Fast Easy Protokoll hands its tasks over as #todo=: they become a task list (turns.js todo) on this device, ready to
+// share. Nothing is sent anywhere by opening it; the hash is dropped from the address at once.
+function todoLink() {
+  var m = location.hash.match(/^#todo=([A-Za-z0-9_-]{1,6000})$/), Tn = window.Turns, got = null;
+  if (!m) return false;
+  history.replaceState(null, "", location.pathname + location.search);
+  try { var b = m[1].replace(/-/g, "+").replace(/_/g, "/"); got = Tn.todoFrom(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(atob(b + "===".slice(0, (4 - b.length % 4) % 4)), function (c) { return c.charCodeAt(0); })))); } catch (e) { got = null; }
+  if (!got || !got.list) { goHome(); Kit.toast(t("filter")); return true; }
+  var seed = crypto.getRandomValues(new Uint32Array(1))[0], X = Tn.T(Kit.lang);
+  var doc = D.sanitizeDoc({ k: "turn", g: "todo", seed: seed, q: Tn.seal([[got.list]], seed), f: "bolt", col: me.colors, by: [], t: got.t || X.tdo_title, s: X.tdo_from });
+  openEditor(doc, { idea: null });
+  if (got.lost) Kit.toast(X.tdo_lost.replace("{n}", got.lost));
+  return true;
+}
+function goHomeKeep() { if (!home) home = dayHome(); stopSound(); G.stop(); ed = null; window.Ai.drop(); setInk(me.colors[0], me.colors[1]); show("home"); setHome(home, true); }
+window.addEventListener("hashchange", function () { if (two(location.hash)) window.Parts.use("turnzwei", route).catch(route); else route(); });
+// The new turn cards bring their rules in the part turnzwei (scripts/build.js lists their games in its manifest): a sheet,
+// link or saved work of one of them waits for the part; every other start loads only the catalog.
+function twoGame(g) { var p = window.DailyParts && window.DailyParts.turnzwei; return !!(p && p.g && p.g.indexOf(g) >= 0 && !window.Turns.GAMES[g]); }
+function twoIdea(i) { return !!(i && i.turn && twoGame(i.turn.g)); }
+function two(hash) {
+  var s = String(hash || "").replace(/^#/, ""), i = s.match(/(?:^|&)i=([^&]*)/), c = s.match(/(?:^|&)c=([A-Za-z0-9_-]{1,1200})(?:&|$)/), raw = null;
+  if (i) return twoIdea(D.byId(i[1]));
+  try { raw = c && JSON.parse(D.fromB64(c[1])); } catch (e) { raw = null; }
+  return !!(raw && raw.v === 1 && (raw.d ? raw.d.k === "turn" && twoGame(raw.d.g) : twoIdea(D.byId(raw.i))));
+}
 
 /* Zusammen bauen (collab-ui.js) reaches the editor only through these. */
 var CU = window.CollabUI.init({
   ed: function () { return ed; }, me: function () { return me; }, changed: changed,
-  open: function (doc) { openEditor(doc, { idea: doc.i ? D.byId(doc.i) : null }); },
+  open: function (doc) { openEditor(doc, { idea: doc.i ? D.byId(doc.i) : null, got: true }); },
   // A remote change arrived: redraw, and rebuild the open panel unless someone is typing or dragging in it.
   remote: function (keys) {
     if (ed.doc.k === "sound" && ed.doc.m === "beat") { beatPeaks(); if (loop) playBeat(); }
@@ -736,14 +1193,18 @@ var CU = window.CollabUI.init({
 var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
-window.DailyApp = { TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 /* test hook, used by browser checks: read-only snapshot */
 window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); }, collab: function () { return CU.engine(); } };
 
 window.addEventListener("DOMContentLoaded", function () {
 labels();
-if (!route()) goHome();
+// The first sheet waits for the catalog part (src/parts.js asks for it at once; in the apps it is a file next to the page).
+// Without it the day still shows from the core's index, as a plain card, and the page says the part is missing.
+function boot() { if (!route()) goHome(); }
+// The rules of the new turn cards (part turnzwei) only when the link or the day's card is one of them (two()).
+window.Parts.need("katalog").then(function () { return two(location.hash) || twoIdea(D.ideaForDay(today)) ? window.Parts.need("turnzwei").catch(function () {}) : 0; }).then(boot, function () { Kit.toast(t("part_fail")); boot(); });
 // The embedded display font loads after the first paint: fit the headline again once it is there.
 if (document.fonts && document.fonts.load) document.fonts.load('900 40px Anton').then(function () { if (screen === "home") fitHero(); }, function () {});
 });

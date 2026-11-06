@@ -64,10 +64,19 @@ test("Wand: die Art der Kreation bleibt beim Bereinigen erhalten", () => {
 
 test("Texte: Abschnitt in beiden Sprachen, gleiche Schluessel, kein Druck, Altersgrenze und Fotos klar benannt", () => {
   const T = require("../src/texts.json");
-  const keys = (l) => Object.keys(T[l]).filter((k) => k.startsWith("pf_")).sort();
+  const keys = (l) => Object.keys(T[l]).filter((k) => k.startsWith("ac_")).sort();
   assert.deepEqual(keys("de"), keys("en"));
   assert.ok(keys("de").length >= 30);
-  assert.match(T.de.pf_16, /16/); assert.match(T.en.pf_16, /16/);
-  assert.match(T.de.pf_what, /Fotos bleiben auf dem Gerät/); assert.match(T.en.pf_what, /Photos stay on the device/);
+  assert.match(T.de.ac_16, /16/); assert.match(T.en.ac_16, /16/);
+  assert.match(T.de.ac_what, /Fotos bleiben auf dem Gerät/); assert.match(T.en.ac_what, /Photos stay on the device/);
   for (const l of ["de", "en"]) for (const k of keys(l)) assert.ok(!/€|\$|countdown|hurry|letzte chance|nur noch/i.test(T[l][k]), k);
+});
+
+test("Look-Cookie: nur auf bunsenbrenner.org, nur zwei Farben als Kleinbuchstaben-Hex, sonst Standardfarben", () => {
+  const P = require("../src/core.js"), tail = "; Domain=bunsenbrenner.org; Path=/; Max-Age=86400; Secure; SameSite=Lax";
+  assert.equal(P.lookCookie(["#2B4BFF", "#ffe600"], "demos-34a13a96.bunsenbrenner.org"), "ct_look=daily.2b4bff.ffe600" + tail);
+  assert.equal(P.lookCookie(null, "bunsenbrenner.org"), "ct_look=daily.ffd400.ff3b1d" + tail);
+  assert.equal(P.lookCookie(["#fff", "red"], "a.bunsenbrenner.org"), "ct_look=daily.ffd400.ff3b1d" + tail);
+  assert.equal(P.lookCookie(['#2b4bff"; Domain=x', "#ffe600"], "a.bunsenbrenner.org"), "ct_look=daily.ffd400.ff3b1d" + tail);
+  for (const h of ["", "127.0.0.1", "localhost", "evilbunsenbrenner.org", "bunsenbrenner.org.evil.com"]) assert.equal(P.lookCookie(["#2b4bff", "#ffe600"], h), null, h);
 });

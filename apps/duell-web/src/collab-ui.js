@@ -19,11 +19,14 @@
   function sheet(title, text, acts, qr) {
     $("cotitle").textContent = title; $("cotext").textContent = text;
     var box = $("coacts"); box.textContent = ""; (acts || []).forEach(function (a) { box.appendChild(a); });
-    var c = $("coqr"); c.hidden = !qr; if (qr) drawQr(c, qr);
+    var c = $("coqr"); c.hidden = true; c.dataset.qr = qr || ""; if (qr) drawQr(c, qr);
     $("cosheet").hidden = false;
   }
   function closeSheet() { $("cosheet").hidden = true; }
-  function drawQr(c, text) {
+  // The QR code is a part of its own (parts.js): the sheet stands at once, the code shows once it is loaded and drawn
+  // (and only if the sheet still wants this one).
+  function drawQr(c, text) { window.Parts.use("qr", function () { if (c.dataset.qr !== text || $("cosheet").hidden) return; qrDraw(c, text); c.hidden = false; }).catch(function () {}); }
+  function qrDraw(c, text) {
     var q = window.qrcode(0, "L"); q.addData(text, "Byte"); q.make();
     var n = q.getModuleCount(), k = Math.floor(c.width / (n + 8)), o = Math.floor((c.width - k * n) / 2), g = c.getContext("2d");
     g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.fillStyle = "#000";

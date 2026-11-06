@@ -1,0 +1,789 @@
+{
+ "_doc": "Texte und Song: Woerter des Teils 'texte' (t) und die Standardtexte (vor). vor: mit dem echten Modell ueber den Server-Pfad der Art 'text' erzeugt (scripts/texte-gen.mjs, je Anlass 3 Runden), von Hand ausgewaehlt, Wortlaut unveraendert; worte je Ton eine Variante.",
+ "t": {
+  "de": {
+   "worte": "Worte finden",
+   "spruch": "Text für die Karte",
+   "song": "Song bauen",
+   "vor": "Fertige KI-Vorschläge, vorab geprüft. Kostet nichts.",
+   "name": "Für wen? (Name bleibt auf dem Handy)",
+   "namePh": "Name",
+   "insider": "Etwas Persönliches (optional, nur Nettes)",
+   "insiderPh_worte": "z. B. hat morgen die Prüfung",
+   "insiderPh_spruch": "z. B. backt den besten Kuchen",
+   "insiderPh_song": "z. B. liebt Pizza",
+   "go_worte": "Eigene Worte",
+   "go_spruch": "Persönlicher Text",
+   "go_song": "Song bauen",
+   "pick": "Erst einen Anlass wählen",
+   "video": "Als Video sichern",
+   "videoing": "Nimmt auf …",
+   "videoFail": "Video geht auf diesem Gerät nicht.",
+   "ton_warm": "warm",
+   "ton_locker": "locker",
+   "ton_kurz": "kurz",
+   "a_trost": "Trost",
+   "a_danke": "Danke",
+   "a_entschuldigung": "Entschuldigung",
+   "a_mut": "Mut",
+   "a_vermissen": "Vermissen",
+   "a_freude": "Freude",
+   "a_gute_besserung": "Gute Besserung",
+   "a_glueckwunsch": "Glückwunsch",
+   "a_freundschaft": "Freundschaft",
+   "a_abschied": "Abschied",
+   "a_geburtstag": "Geburtstag",
+   "a_lob": "Lob",
+   "a_urkunde": "Urkunde",
+   "a_motivation": "Motivation",
+   "a_willkommen": "Willkommen",
+   "a_weihnachten": "Weihnachten",
+   "a_neujahr": "Neujahr",
+   "a_pruefung": "Prüfung",
+   "a_einfach_so": "Einfach so",
+   "a_party": "Party",
+   "a_chill": "Chill",
+   "a_sport": "Sport",
+   "a_schule": "Schule",
+   "a_sommer": "Sommer",
+   "a_winter": "Winter",
+   "a_tiere": "Tiere",
+   "a_essen": "Essen"
+  },
+  "en": {
+   "worte": "Find the words",
+   "spruch": "Text for the card",
+   "song": "Build a song",
+   "vor": "Ready-made AI suggestions, checked in advance. Free.",
+   "name": "For whom? (the name stays on your phone)",
+   "namePh": "Name",
+   "insider": "Something personal (optional, only nice things)",
+   "insiderPh_worte": "e.g. has an exam tomorrow",
+   "insiderPh_spruch": "e.g. bakes the best cake",
+   "insiderPh_song": "e.g. loves pizza",
+   "go_worte": "Own words",
+   "go_spruch": "Personal text",
+   "go_song": "Build a song",
+   "pick": "Pick an occasion first",
+   "video": "Save as video",
+   "videoing": "Recording …",
+   "videoFail": "Video does not work on this device.",
+   "ton_warm": "warm",
+   "ton_locker": "casual",
+   "ton_kurz": "short",
+   "a_trost": "Comfort",
+   "a_danke": "Thanks",
+   "a_entschuldigung": "Sorry",
+   "a_mut": "Courage",
+   "a_vermissen": "Missing you",
+   "a_freude": "Joy",
+   "a_gute_besserung": "Get well",
+   "a_glueckwunsch": "Congrats",
+   "a_freundschaft": "Friendship",
+   "a_abschied": "Goodbye",
+   "a_geburtstag": "Birthday",
+   "a_lob": "Praise",
+   "a_urkunde": "Certificate",
+   "a_motivation": "Motivation",
+   "a_willkommen": "Welcome",
+   "a_weihnachten": "Christmas",
+   "a_neujahr": "New Year",
+   "a_pruefung": "Exam",
+   "a_einfach_so": "Just because",
+   "a_party": "Party",
+   "a_chill": "Chill",
+   "a_sport": "Sport",
+   "a_schule": "School",
+   "a_sommer": "Summer",
+   "a_winter": "Winter",
+   "a_tiere": "Animals",
+   "a_essen": "Food"
+  }
+ },
+ "vor": {
+  "de": {
+   "worte": {
+    "trost": [
+     {
+      "ton": "warm",
+      "x": "Ich bin für dich da. Wir schaffen das zusammen."
+     },
+     {
+      "ton": "locker",
+      "x": "Kummer geht rum. Du packst das. Wir halten zusammen."
+     },
+     {
+      "ton": "kurz",
+      "x": "Trost: Du musst das nicht allein tragen."
+     }
+    ],
+    "danke": [
+     {
+      "ton": "warm",
+      "x": "Danke für deine Hilfe!"
+     },
+     {
+      "ton": "locker",
+      "x": "Danke, du Rockstar!"
+     },
+     {
+      "ton": "kurz",
+      "x": "Danke, echt nett!"
+     }
+    ],
+    "entschuldigung": [
+     {
+      "ton": "warm",
+      "x": "Tut mir leid. Ich bin für dich da."
+     },
+     {
+      "ton": "locker",
+      "x": "Sorry! Alles wieder gut?"
+     },
+     {
+      "ton": "kurz",
+      "x": "Tut mir leid, war falsch."
+     }
+    ],
+    "mut": [
+     {
+      "ton": "warm",
+      "x": "Mut! Du bist stark. Wir glauben an dich!"
+     },
+     {
+      "ton": "locker",
+      "x": "Kopf hoch! Du packst das."
+     },
+     {
+      "ton": "kurz",
+      "x": "Mut! Du bist stark."
+     }
+    ],
+    "vermissen": [
+     {
+      "ton": "warm",
+      "x": "Ich vermisse dich sehr. Denk an dich."
+     },
+     {
+      "ton": "locker",
+      "x": "Hey! Vermisse dich. Alles klar?"
+     },
+     {
+      "ton": "kurz",
+      "x": "Vermiss dich sehr."
+     }
+    ],
+    "freude": [
+     {
+      "ton": "warm",
+      "x": "Deine Freude ist ansteckend. Strahl weiter!"
+     },
+     {
+      "ton": "locker",
+      "x": "Boah, mega! Das ist ja super. Genieß es!"
+     },
+     {
+      "ton": "kurz",
+      "x": "Freude pur. Weiter so!"
+     }
+    ],
+    "gute_besserung": [
+     {
+      "ton": "warm",
+      "x": "Gute Besserung! Du schaffst das!"
+     },
+     {
+      "ton": "locker",
+      "x": "Stark bleiben, bald wieder fit!"
+     },
+     {
+      "ton": "kurz",
+      "x": "Gute Besserung! Alles wird gut."
+     }
+    ],
+    "glueckwunsch": [
+     {
+      "ton": "warm",
+      "x": "Herzlichen Glückwunsch!"
+     },
+     {
+      "ton": "locker",
+      "x": "Glückwunsch! Mega gemacht!"
+     },
+     {
+      "ton": "kurz",
+      "x": "Glückwunsch! Bravo!"
+     }
+    ],
+    "freundschaft": [
+     {
+      "ton": "warm",
+      "x": "Deine Freundschaft ist mir wichtig."
+     },
+     {
+      "ton": "locker",
+      "x": "Hey Freund, du bist super!"
+     },
+     {
+      "ton": "kurz",
+      "x": "Danke für die Freundschaft."
+     }
+    ],
+    "abschied": [
+     {
+      "ton": "warm",
+      "x": "Abschied ist schwer, aber du schaffst das!"
+     },
+     {
+      "ton": "locker",
+      "x": "Tschüss! Bleib cool und hab Spaß."
+     },
+     {
+      "ton": "kurz",
+      "x": "Tschüss! Alles Gute für dich!"
+     }
+    ]
+   },
+   "spruch": {
+    "geburtstag": [
+     {
+      "t": "Feste Grüße zum Geburtstag",
+      "x": "Herzlichen Glückwunsch zum Geburtstag! Mach einen super Tag und genieße jede Minute."
+     },
+     {
+      "t": "Happy Birthday!",
+      "x": "Alles Liebe zum Geburtstag! Bleib so cool und lustig wie du bist. Genieße deinen Tag!"
+     },
+     {
+      "t": "Super Tag",
+      "x": "Zum Geburtstag wünsche ich dir nur das Beste. Lass dich feiern und hab richtig Spaß!"
+     }
+    ],
+    "danke": [
+     {
+      "t": "Danke für alles!",
+      "x": "Deine Hilfe ist super. Danke, dass du immer für mich da bist!"
+     },
+     {
+      "t": "Vielen Dank",
+      "x": "Deine Unterstützung bedeutet mir viel. Ich freue mich über dich!"
+     },
+     {
+      "t": "Vielen Dank",
+      "x": "Danke für deine Unterstützung! Du machst die Welt ein Stückchen besser."
+     }
+    ],
+    "lob": [
+     {
+      "t": "Genial gemacht!",
+      "x": "Du hast das super hingekriegt. Wirklich stolz auf dich. Weiter so!"
+     },
+     {
+      "t": "Top Leistung",
+      "x": "Respekt für dein Engagement. Du bist ein echtes Talent!"
+     },
+     {
+      "t": "Stolz auf dich",
+      "x": "Was du geschafft hast, ist mega. Genieße den Moment, du hast es verdient!"
+     }
+    ],
+    "urkunde": [
+     {
+      "t": "Schöner Erfolg",
+      "x": "Toll gemacht! Diese Urkunde ist für dich, weil du super bist. Weiter so!"
+     },
+     {
+      "t": "Großer Job",
+      "x": "Wow, was du kannst! Diese Urkunde ehrt dich. Wir sind stolz auf dich!"
+     },
+     {
+      "t": "Zeichen der Anerkennung",
+      "x": "Du hast dich hervorragend engagiert. Diese Urkunde ist ein kleines Dankeschön für dich."
+     }
+    ],
+    "glueckwunsch": [
+     {
+      "t": "Happy Success",
+      "x": "Herzlichen Glückwunsch! Dein Erfolg strahlt, wir sind stolz auf dich. Weiter so!"
+     },
+     {
+      "t": "Top Leistung",
+      "x": "Wow, Glückwunsch! Du hast hart gearbeitet und es geschafft. Genieße den Moment!"
+     },
+     {
+      "t": "Juhu, Glückwunsch!",
+      "x": "Hurra! Herzlichen Glückwunsch. Genieß den Moment und strahl weiter, du bist toll!"
+     }
+    ],
+    "gute_besserung": [
+     {
+      "t": "Gleich wieder fit",
+      "x": "Gib dir Zeit zum Heilen. Du bist stark und bald wieder fit!"
+     },
+     {
+      "t": "Alles Gute",
+      "x": "Fühl dich bald wieder rundum gut. Alles Liebe für dich!"
+     },
+     {
+      "t": "Kraft tanken",
+      "x": "Gute Besserung! Lass dich verwöhnen und stark werden. Wir freuen uns auf dich."
+     }
+    ],
+    "freundschaft": [
+     {
+      "t": "Für dich",
+      "x": "Dein Lachen ist mein Lieblingsgeräusch. Danke, dass du immer da bist!"
+     },
+     {
+      "t": "Super Freund",
+      "x": "Du bist ein Geschenk. Lass uns noch viele lustige Abenteuer erleben!"
+     },
+     {
+      "t": "Du bist klasse",
+      "x": "Deine Freundschaft macht mich glücklich. Danke!"
+     }
+    ],
+    "motivation": [
+     {
+      "t": "Dein Erfolg",
+      "x": "Jeder kleine Schritt zählt. Du machst das super, weiter so!"
+     },
+     {
+      "t": "Mutig voran",
+      "x": "Trau dich! Du hast das Zeug dazu und schaffst das."
+     },
+     {
+      "t": "Weiter so!",
+      "x": "Jeder Schritt zählt. Du bist auf dem richtigen Weg, bleib dran!"
+     }
+    ],
+    "willkommen": [
+     {
+      "t": "Willkommen!",
+      "x": "Mach's dir gemütlich. Wir freuen uns, dass du da bist!"
+     },
+     {
+      "t": "Hey Welcome",
+      "x": "Toll, dass du dabei bist! Lass uns gemeinsam starten."
+     },
+     {
+      "t": "Gute Ankunft",
+      "x": "Herzlich willkommen! Wir freuen uns sehr auf dich und deine neuen Abenteuer."
+     }
+    ],
+    "abschied": [
+     {
+      "t": "Neue Level freigeschaltet",
+      "x": "Abschied bedeutet auch neue Chancen. Du schaffst das! Bis bald!"
+     },
+     {
+      "t": "Mach's gut!",
+      "x": "Abschied ist nur ein Zwischenstopp. Bis bald, du bist klasse!"
+     },
+     {
+      "t": "Auf Wiedersehen",
+      "x": "Ein fettes Tschüss für dich! Bleib gesund und hab weiterhin viel Erfolg."
+     }
+    ],
+    "weihnachten": [
+     {
+      "t": "Frohe Weihnachten",
+      "x": "Weihnachten bringt Freude, Lachen und die schönste Zeit des Jahres mit dir zusammen."
+     },
+     {
+      "t": "Weihnachtszauber",
+      "x": "Weihnachten ist da! Genieße die warmen Kerzen, leckere Plätzchen und die Zeit mit Familie."
+     },
+     {
+      "t": "Frohe Feiertage",
+      "x": "Frohe Weihnachten! Alles Gute, Gesundheit und ganz viel Liebe in der kalten Jahreszeit."
+     }
+    ],
+    "neujahr": [
+     {
+      "t": "Neues Jahr, neue Chancen",
+      "x": "Starte ins neue Jahr mit einem Lächeln. Es wird super, versprochen!"
+     },
+     {
+      "t": "Happy New Year!",
+      "x": "Ein neues Jahr bringt neue Abenteuer. Sei mutig und hab Spaß!"
+     },
+     {
+      "t": "Guten Rutsch",
+      "x": "Alles Gute zum Jahreswechsel. Du schaffst das, wir glauben an dich!"
+     }
+    ],
+    "pruefung": [
+     {
+      "t": "Prüfung: Du packst das!",
+      "x": "Keine Panik. Du hast gut gelernt. Atme tief durch und zeig, was in dir steckt."
+     },
+     {
+      "t": "Mut für die Prüfung",
+      "x": "Du schaffst das! Atme tief durch, gib dein Bestes und lass dich nicht stressen."
+     },
+     {
+      "t": "Mach die Prüfung",
+      "x": "Keine Panik. Du bist bereit. Vertrau auf dein Wissen und gib dein Bestes. Du kannst das!"
+     }
+    ],
+    "einfach_so": [
+     {
+      "t": "Kleine Schritte",
+      "x": "Du musst nicht alles auf einmal schaffen. Ein Schritt nach dem anderen reicht."
+     },
+     {
+      "t": "Einfach du",
+      "x": "Sei freundlich zu dir selbst. Du bist genau richtig, so wie du jetzt bist."
+     },
+     {
+      "t": "Einfach du",
+      "x": "Sei stolz auf dich. Dein einzigartiges Ich ist ein Geschenk."
+     }
+    ]
+   }
+  },
+  "en": {
+   "worte": {
+    "trost": [
+     {
+      "ton": "warm",
+      "x": "You are not alone. I am here for you."
+     },
+     {
+      "ton": "locker",
+      "x": "Life is tough, but so are you. Keep going!"
+     },
+     {
+      "ton": "kurz",
+      "x": "Here for you."
+     }
+    ],
+    "danke": [
+     {
+      "ton": "warm",
+      "x": "Your kindness makes my day. Thank you!"
+     },
+     {
+      "ton": "locker",
+      "x": "You're the best! Thanks for everything."
+     },
+     {
+      "ton": "kurz",
+      "x": "Big thanks! You're awesome."
+     }
+    ],
+    "entschuldigung": [
+     {
+      "ton": "warm",
+      "x": "Sorry! You matter. Hope you're okay."
+     },
+     {
+      "ton": "locker",
+      "x": "Oops! My bad. Fixing it now!"
+     },
+     {
+      "ton": "kurz",
+      "x": "My mistake. Sorry. I value our friendship."
+     }
+    ],
+    "mut": [
+     {
+      "ton": "warm",
+      "x": "You are strong. You can do this."
+     },
+     {
+      "ton": "locker",
+      "x": "Just breathe. You got this!"
+     },
+     {
+      "ton": "kurz",
+      "x": "Be brave. You can."
+     }
+    ],
+    "vermissen": [
+     {
+      "ton": "warm",
+      "x": "Thinking of you. You're missed!"
+     },
+     {
+      "ton": "locker",
+      "x": "Hey! Where'd you go? Miss ya!"
+     },
+     {
+      "ton": "kurz",
+      "x": "Miss you!"
+     }
+    ],
+    "freude": [
+     {
+      "ton": "warm",
+      "x": "Your joy is contagious. Keep shining bright."
+     },
+     {
+      "ton": "locker",
+      "x": "Yay! So happy for you. This calls for dancing."
+     },
+     {
+      "ton": "kurz",
+      "x": "Wow, congrats! So glad you're happy."
+     }
+    ],
+    "gute_besserung": [
+     {
+      "ton": "warm",
+      "x": "Sending you cozy vibes. Rest up and feel better soon!"
+     },
+     {
+      "ton": "locker",
+      "x": "Get well! The games can wait. Rest up!"
+     },
+     {
+      "ton": "kurz",
+      "x": "Hope you feel better soon!"
+     }
+    ],
+    "glueckwunsch": [
+     {
+      "ton": "warm",
+      "x": "You did it! So proud of you."
+     },
+     {
+      "ton": "locker",
+      "x": "Big congrats! You crushed it!"
+     },
+     {
+      "ton": "kurz",
+      "x": "Big congrats! You rock."
+     }
+    ],
+    "freundschaft": [
+     {
+      "ton": "warm",
+      "x": "You're a gem. Grateful for you."
+     },
+     {
+      "ton": "locker",
+      "x": "You rock. Let's hang soon!"
+     },
+     {
+      "ton": "kurz",
+      "x": "Best friend forever."
+     }
+    ],
+    "abschied": [
+     {
+      "ton": "warm",
+      "x": "You are amazing. Keep shining bright!"
+     },
+     {
+      "ton": "locker",
+      "x": "Bye! Stay awesome, friend."
+     },
+     {
+      "ton": "kurz",
+      "x": "Stay awesome. See you later!"
+     }
+    ]
+   },
+   "spruch": {
+    "geburtstag": [
+     {
+      "t": "You're Awesome",
+      "x": "Keep shining bright and being your wonderful self. Have a fantastic birthday!"
+     },
+     {
+      "t": "Happy Birthday!",
+      "x": "Hope your day is as awesome as you are!"
+     },
+     {
+      "t": "Big Day!",
+      "x": "Wishing you a day filled with laughter, fun, and all your favorite treats. Enjoy!"
+     }
+    ],
+    "danke": [
+     {
+      "t": "You're Awesome!",
+      "x": "Thanks for being you. Your kindness makes the world brighter every single day."
+     },
+     {
+      "t": "You're a star",
+      "x": "Thanks for your help. You make everyone's day better."
+     },
+     {
+      "t": "Big thanks!",
+      "x": "Your help means the world. You are truly special!"
+     }
+    ],
+    "lob": [
+     {
+      "t": "You're Doing Great",
+      "x": "Your hard work shines bright. Keep going, you are awesome and capable of amazing things!"
+     },
+     {
+      "t": "So proud of you",
+      "x": "You handled that with grace. Your talent is truly inspiring to see."
+     },
+     {
+      "t": "Totally proud",
+      "x": "Your effort shines. You are capable, kind, and truly special!"
+     }
+    ],
+    "urkunde": [
+     {
+      "t": "Great Job Award",
+      "x": "Congratulations on this achievement! Your dedication is inspiring. Stay curious and brave!"
+     },
+     {
+      "t": "You Rock Certificate",
+      "x": "Well done! You showed great effort and spirit. This is just the beginning of your journey!"
+     },
+     {
+      "t": "Star Performer",
+      "x": "Well done! Your dedication is inspiring. Keep up the great spirit!"
+     }
+    ],
+    "glueckwunsch": [
+     {
+      "t": "You Did It!",
+      "x": "Huge congrats! Keep shining bright and chasing your dreams. You are awesome!"
+     },
+     {
+      "t": "Way to Go",
+      "x": "Amazing job on this milestone. Stay curious, keep going, and enjoy the moment!"
+     },
+     {
+      "t": "Big Win",
+      "x": "You nailed it! Celebrate hard and keep that great energy flowing. Well done!"
+     }
+    ],
+    "gute_besserung": [
+     {
+      "t": "Feel Better Soon",
+      "x": "Take it easy and rest up. You will bounce back quickly! Hang in there."
+     },
+     {
+      "t": "Cheer up soon",
+      "x": "Sending good vibes for a speedy recovery!"
+     },
+     {
+      "t": "Get Well Fast",
+      "x": "Take it easy today. Drink water, nap, and let your body heal quickly!"
+     }
+    ],
+    "freundschaft": [
+     {
+      "t": "Thanks for being you",
+      "x": "Your kindness and laughter are a gift. I am so lucky to have you in my corner. You rock!"
+     },
+     {
+      "t": "Besties Forever",
+      "x": "Good friends make life better. Thanks for being awesome and always having my back!"
+     },
+     {
+      "t": "Friendship Joy",
+      "x": "Laughter and fun are best with you. Thanks for being such a great friend to me!"
+     }
+    ],
+    "motivation": [
+     {
+      "t": "You Got This, Friend!",
+      "x": "Small steps count. Keep going, you are doing great!"
+     },
+     {
+      "t": "Keep Shining On",
+      "x": "Mistakes are just lessons. You are growing strong."
+     },
+     {
+      "t": "You Got This",
+      "x": "Small steps still move you forward. Trust your pace and keep going."
+     }
+    ],
+    "willkommen": [
+     {
+      "t": "You made it!",
+      "x": "Welcome aboard! Bring your energy and smile. This is going to be awesome!"
+     },
+     {
+      "t": "Welcome to the crew!",
+      "x": "You made it! Get ready for fun, friends, and new adventures together."
+     },
+     {
+      "t": "A warm welcome awaits",
+      "x": "You belong here. Take a deep breath, smile, and let the best times begin with us."
+     }
+    ],
+    "abschied": [
+     {
+      "t": "You Will Be Missed",
+      "x": "Thank you for the fun times! Good luck with everything ahead. Stay awesome!"
+     },
+     {
+      "t": "New Adventures",
+      "x": "Goodbye for now! Can't wait to see all the amazing things you do."
+     },
+     {
+      "t": "Onward and Upward",
+      "x": "Wishing you fun times ahead. Stay kind, stay brave, and keep being you."
+     }
+    ],
+    "weihnachten": [
+     {
+      "t": "Happy Holidays, Friend!",
+      "x": "Wishing you cozy moments and joy this season. You are amazing and deserve the best!"
+     },
+     {
+      "t": "Christmas Cheer",
+      "x": "Sending you smiles and warmth this festive season."
+     },
+     {
+      "t": "Happy Holidays",
+      "x": "Enjoy the magic and peace of this special time."
+     }
+    ],
+    "neujahr": [
+     {
+      "t": "New Year, New You",
+      "x": "Happy New Year! Let this be your best chapter yet. You've got this!"
+     },
+     {
+      "t": "Happy New Year!",
+      "x": "Wishing you joy, laughs, and awesome adventures in the coming year. Stay cool!"
+     },
+     {
+      "t": "Fresh Start Vibes",
+      "x": "Wishing you a year full of joy, laughter, and amazing moments!"
+     }
+    ],
+    "pruefung": [
+     {
+      "t": "You've Got This!",
+      "x": "Take a deep breath. You know this stuff. Trust your prep."
+     },
+     {
+      "t": "One Step at a Time",
+      "x": "Breathe. Focus on the next question. You are ready."
+     },
+     {
+      "t": "Breathe and shine",
+      "x": "It's just a test, not a definition of you. Stay calm, focus, and let your knowledge flow."
+     }
+    ],
+    "einfach_so": [
+     {
+      "t": "You Are Enough",
+      "x": "Take a breath. You're doing great. Keep shining bright, no matter what."
+     },
+     {
+      "t": "Happy day",
+      "x": "Smile! You make the world a better place."
+     },
+     {
+      "t": "You got this",
+      "x": "Be kind to yourself. You are doing great."
+     }
+    ]
+   }
+  }
+ }
+}

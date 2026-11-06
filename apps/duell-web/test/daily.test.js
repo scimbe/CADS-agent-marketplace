@@ -11,7 +11,7 @@ const UNSAFE = /alkohol|bier\b|schnaps|vodka|wodka|zigarett|rauch|droge|kiffen|n
 
 test("Daten: mindestens 40 Tagesideen als Daten, 4 Mechaniken, Ids eindeutig, DE und EN vollstaendig", () => {
   assert.ok(D.IDEAS.length >= 40);
-  assert.deepEqual([...new Set(D.IDEAS.map((i) => i.kind))].sort(), [...D.KINDS].sort());
+  assert.deepEqual([...new Set(D.IDEAS.map((i) => i.kind))].sort(), [...D.KINDS, ...D.PLAY].sort());
   assert.equal(new Set(D.IDEAS.map((i) => i.id)).size, D.IDEAS.length);
   for (const i of D.IDEAS) {
     assert.ok(/^[a-z0-9-]{1,32}$/.test(i.id), i.id);
@@ -126,6 +126,27 @@ test("Remix: voll beladen bleibt der Link unter der Grenze, die die Seite annimm
   assert.ok(f.length <= C.MAX_FRAGMENT, String(f.length));
   assert.equal(D.parseRoute("#c=" + f).type, "doc");
 });
+test("Remix: Linkbudget – erst Sticker, dann der Options-Hash h, dann die Spur; das Siegel bleibt pruefbar, solange Sticker weichen koennen", () => {
+  const ki = { k: "line", s: "s1.line.mhl2x0ab.ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef", h: "Y-feMaAnaOXUrB2BxPv3vUTgMan0NNfOQmA6jhDp_Tc" };
+  const load = (trail) => {
+    const d = D.docFromIdea(D.byId("foto-boss"), me, "de");
+    d.t = "Ü".repeat(40); d.s = "Ö".repeat(70); d.x = "Ä".repeat(28); d.y = "Ä".repeat(28);
+    d.sk = Array.from({ length: 8 }, (_, i) => ({ e: "🍕", x: 0.123456789 + i / 10, y: 0.987654321 - i / 10, r: 0.5555555, z: 1.2345678 }));
+    d.by = Array.from({ length: trail }, () => ({ n: "Ü".repeat(16), w: ["text", "farbe", "stil", "sticker", "foto"] }));
+    d.ki = { ...ki };
+    return d;
+  };
+  const back = (d) => { const u = D.docUrl(d), f = u.slice(u.indexOf("#c=") + 3); assert.ok(f.length <= C.MAX_FRAGMENT, String(f.length)); return D.parseRoute("#c=" + f).doc; };
+  let partly = 0;
+  for (let trail = 0; trail <= 5; trail++) {
+    const d = load(trail), r = back(d);
+    assert.equal(r.ki.s, ki.s, "das Siegel bleibt immer");
+    if (r.sk.length) assert.equal(r.ki.h, ki.h, "h bleibt, solange noch ein Sticker weichen koennte (Spur " + trail + ")");
+    if (r.by.length < trail) assert.equal(r.ki.h, undefined, "die Spur weicht erst nach h");
+    if (r.sk.length > 0 && r.sk.length < 8) partly++;
+  }
+  assert.ok(partly > 0, "mindestens ein Fall, in dem nur ein Teil der Sticker weicht und h bleibt");
+});
 test("Link-Inhalte: Markup, Schimpfwoerter, Mist werden entfernt oder abgelehnt", () => {
   const evil = { k: "card", x: "<img src=x onerror=alert(1)>", st: "<script>", col: ["red", "javascript:x"], t: "fuck you", n: "<b>x", sk: [{ e: "<svg>", x: 99, y: -9, r: 9, z: 99 }], by: [{ n: "<i>", w: ["text", "<x>"] }], evil: 1 };
   const r = D.parseRoute("#c=" + b64({ v: 1, d: evil }));
@@ -173,11 +194,70 @@ test("Kalenderidee: Halloween erscheint genau am 31.10. und sonst nie", () => {
   assert.ok(D.SETS.grusel.includes("🎃"));
 });
 test("Plan: 30 Tage ab 2. November, jeden Tag eine eigene Idee, nie zweimal dieselbe Art hintereinander", () => {
+  // ab dem 6. November wechseln sich Arcade-Spiele und Karten ab, damit die Spiele nicht erst im Dezember auftauchen
+  for (let d = 6; d <= 18; d += 2) assert.equal(D.ideaForDay(new Date(Date.UTC(2026, 10, d)), { crypto: true }).kind, "arcade", "11-" + d);
   const seen = new Set(); let prev = "";
   for (let i = 0; i < 30; i++) {
     const day = new Date(Date.UTC(2026, 10, 2 + i)), idea = D.ideaForDay(day, { crypto: true, channel: false, call: false });
-    assert.match(idea.id, /^(plan|zug)-/, day.toISOString()); assert.ok(!seen.has(idea.id)); seen.add(idea.id);
+    assert.match(idea.id, /^(plan|zug|arcade)-/, day.toISOString()); assert.ok(!seen.has(idea.id)); seen.add(idea.id);
     assert.notEqual(idea.kind, prev, idea.id); prev = idea.kind;
   }
   assert.ok(D.IDEAS.filter((i) => /^plan-/.test(i.id) && i.live).length >= 15, "mindestens die Haelfte fuehrt zu einem echten Dienst");
+});
+test("Adventstuerchen: nur am 22. und 24. Dezember zwischen zwei Arcade-Tagen, der Dezember-Plan bleibt, wie er ist", () => {
+  const DAYS = ["12-22", "12-24"], CAPS = [{ crypto: true }, { crypto: false }, { crypto: true, call: true }, { crypto: true, channel: false, call: false }];
+  // every other calendar idea still owns its day: plan-30, Geld einsammeln, Termin finden, Wohlfuehl- und Arcade-Tage
+  for (const i of D.IDEAS.filter((x) => x.on && x.id !== "advent-tuer")) for (const md of [].concat(i.on)) assert.equal(D.ideaForDay(new Date("2026-" + md + "T12:00:00Z")).id, i.id, md);
+  for (const year of [2026, 2027, 2030]) {
+    let prev = null;
+    for (let d = 0; d < 34; d++) {
+      const day = new Date(Date.UTC(year, 10, 29 + d, 12)), key = day.toISOString().slice(5, 10);
+      for (const c of CAPS) {
+        const idea = D.ideaForDay(day, c);
+        if (DAYS.includes(key)) {
+          assert.equal(idea.id, "advent-tuer", year + "-" + key);
+          for (const n of [-1, 1]) assert.notEqual(D.ideaForDay(new Date(day.getTime() + n * 86400000), c).kind, "card", year + "-" + key + " Nachbar");
+          assert.equal(D.ideaForDay(new Date(day.getTime() - 86400000), c).kind, "arcade", "davor wird gespielt");
+        } else assert.notEqual(idea.id, "advent-tuer", year + "-" + key);
+      }
+      const idea = D.ideaForDay(day, { crypto: true });
+      if (prev) assert.notEqual(idea.kind, prev.kind, year + "-" + key + ": " + prev.id + " und " + idea.id);
+      prev = idea;
+    }
+  }
+  assert.equal(D.ideaForDay(new Date("2026-12-23T12:00:00Z")).kind, "arcade", "zwischen den beiden Tuerchen-Tagen wird gespielt");
+  for (let i = 0; i < 2000; i++) assert.notEqual(D.randomIdea(Math.random, "").id, "advent-tuer");
+  assert.ok(D.searchIdeas("Adventstürchen", new Date("2026-11-03T12:00:00Z")).some((h) => h.idea.id === "advent-tuer"), "jederzeit ueber die Suche");
+  assert.ok(D.searchIdeas("tuerchen", new Date("2026-07-01T12:00:00Z")).some((h) => h.idea.id === "advent-tuer"));
+});
+test("Adventstuerchen: Nummer 1 bis 24 reist im Link, Vorbelegung ist der Dezembertag, sonst 1", () => {
+  assert.equal(D.doorNumber(new Date("2026-12-06T10:00:00Z")), 6);
+  assert.equal(D.doorNumber(new Date("2026-12-24T23:59:00Z")), 24);
+  assert.equal(D.doorNumber(new Date("2026-12-25T10:00:00Z")), 1);
+  assert.equal(D.doorNumber(new Date("2026-11-03T10:00:00Z")), 1);
+  const doc = D.docFromIdea(D.byId("advent-tuer"), D.sanitizeProfile({}), "de");
+  assert.equal(doc.k, "card"); assert.equal(doc.st, "advent"); assert.ok(doc.nr >= 1 && doc.nr <= 24);
+  assert.deepEqual(doc.col, ["#0f5132", "#ffd400"]); assert.ok(D.STYLES.card.includes("advent"));
+  for (const e of ["🎄", "⭐", "🎁", "❄️", "⛄"]) assert.ok(D.SETS.advent.includes(e), e);
+  for (const [v, want] of [[7, 7], [0, 1], [99, 24], ["12", 12], [3.6, 4], ["x", 1]]) assert.equal(D.sanitizeDoc({ ...doc, nr: v }).nr, want, String(v));
+  assert.equal(D.sanitizeDoc({ k: "card", x: "Hallo" }).nr, undefined, "normale Karte bekommt keine Nummer");
+  assert.equal(D.sanitizeDoc({ k: "photo", nr: 5 }).nr, undefined);
+  const r = D.parseRoute(D.docUrl({ ...doc, nr: 17, x: "Für dich" }).split("#")[1].replace(/^/, "#"));
+  assert.equal(r.type, "doc"); assert.equal(r.doc.nr, 17); assert.equal(r.doc.x, "Für dich"); assert.equal(r.doc.st, "advent");
+  assert.deepEqual(D.changedAreas(doc, { ...doc, nr: doc.nr % 24 + 1 }), ["text"]);
+});
+
+test("plainTitle: Bindestrich-Titel einzeilig richtig zusammengesetzt (Tür-|steher, Winter-|Tunnel), kein \"|\" in Titeln", () => {
+  assert.equal(D.plainTitle("Tür-|steher"), "Türsteher");
+  assert.equal(D.plainTitle("Geister-|schicht"), "Geisterschicht");
+  assert.equal(D.plainTitle("Winter-|Tunnel"), "Winter-Tunnel");
+  assert.equal(D.plainTitle("Rätsel-|Staffel"), "Rätsel-Staffel");
+  assert.equal(D.plainTitle("Letzte Socke|unterm Hammer"), "Letzte Socke unterm Hammer");
+  assert.equal(D.plainTitle("Ghost|shift"), "Ghost shift");
+  for (const i of D.IDEAS) for (const l of ["de", "en"]) {
+    const s = D.plainTitle(i[l].t);
+    assert.ok(!/\||- /.test(s), i.id + " " + l + ": " + s);
+  }
+  const geist = D.IDEAS.find((i) => i.id === "spiel-geist");
+  if (geist) assert.equal(D.docFromIdea(geist, me, "de").g.title, "Geisterschicht");
 });

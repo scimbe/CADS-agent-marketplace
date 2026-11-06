@@ -16,6 +16,7 @@ var TH = {
 var skinTh = null;   // a game made from a card has that card's colours instead of a named world
 function look() {
   if (cur.skin) return skinTh || (skinTh = P.skinTheme(cur.skin));
+  if (cur.route) return TH[cur.route[sim ? sim.section : 0].t] || TH[cur.theme];   // a route shows each section's own world
   var l = cur.look, base = TH[cur.theme];
   if (!l) return base;
   if (cur.drawn) return cur.drawn;
@@ -91,7 +92,8 @@ function draw() {
   if (opts.bg) { ctx.globalAlpha = 0.45; ctx.drawImage(opts.bg, 0, 0, W, H - G); ctx.globalAlpha = 1; }
   // backdrop: stars / bubbles / soft clouds (visual only)
   var i, x, y;
-  var lk = !cur.skin && cur.look || {};
+  var lk = !cur.skin && !cur.route && cur.look || {};
+  if (cur.route) lk = { e: [cur.route[p.section].e] };
   if (th.bare) { /* just the sky */ }
   else if (th.snow) { ctx.fillStyle = "rgba(255,255,255,.85)"; for (i = 0; i < 30; i++) { x = (i * 89 + Math.sin(clock + i) * 12 + W) % W; y = (clock * (18 + i % 9) + i * 61) % (H - G); ctx.beginPath(); ctx.arc(x, y, 1.5 + i % 3, 0, 7); ctx.fill(); } }
   else if (th.rain) { ctx.strokeStyle = "rgba(255,255,255,.4)"; ctx.lineWidth = 1; for (i = 0; i < 34; i++) { x = (i * 83) % W; y = (clock * (240 + i % 7 * 20) + i * 47) % (H - G); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 2, y + 11); ctx.stroke(); } }
@@ -100,9 +102,9 @@ function draw() {
   else { ctx.fillStyle = "rgba(255,255,255,.35)"; for (i = 0; i < 4; i++) { x = ((i * 130 - clock * (6 + i * 3)) % (W + 120) + (W + 120)) % (W + 120) - 60; y = 70 + i * 62; ctx.beginPath(); ctx.ellipse(x, y, 34, 11, 0, 0, 7); ctx.ellipse(x + 20, y - 8, 22, 10, 0, 0, 7); ctx.fill(); } }
   if (lk.e) { ctx.font = "22px " + EMO; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.globalAlpha = 0.75; for (i = 0; i < 6; i++) { x = ((i * 67 - clock * (9 + i * 4)) % (W + 40) + W + 40) % (W + 40) - 20; ctx.fillText(lk.e[i % lk.e.length], x, 44 + (i * 73) % (H - G - 90)); } ctx.globalAlpha = 1; }
   // pipes
-  var P = E.PIPE_W, cap = 14, gap = p.params.gap;
+  var P = E.PIPE_W, cap = 14;
   for (i = 0; i < p.pipes.length; i++) {
-    var pp = p.pipes[i], by = pp.top + gap;
+    var pp = p.pipes[i], by = pp.top + pp.gap;
     if (lk.f && lk.f !== "tube" || lk.o) { var form = lk.o && !lk.f ? "emoji" : lk.f; column(pp.x, 0, pp.top, true, th, form, lk.o); column(pp.x, by, H - G - by, false, th, form, lk.o); continue; }
     if (th.glow) { ctx.shadowColor = th.pipe; ctx.shadowBlur = 12; }
     ctx.fillStyle = th.pipe; ctx.strokeStyle = th.pipeEdge; ctx.lineWidth = 2;
@@ -150,12 +152,12 @@ function updateBanner() {
 }
 function newRun() {
   clearTimeout(resultTimer);
-  rng = C.mulberry32(cur.seed); sim = E.createSim(cur.params, rng);
+  rng = C.mulberry32(cur.seed); sim = E.createSim(cur.params, rng, C.routeParams(cur));
   parts.length = 0; trail.length = 0; floaters.length = 0; shake = 0; flash = 0;
   if (mode === "demo") { sim.flap(); return; }
   prevBest = bestFor(cur); isRecord = false; recordShown = false;
   setScore(0, false);
-  $("result").classList.remove("show");
+  $("result").classList.remove("show"); $("game").style.background = look().skyTop;
   $("hint").hidden = false; $("dock").hidden = false; updateBanner();
   document.body.setAttribute("data-state", "ready");
   var b = bestFor(cur); $("bestchip").textContent = b ? t("bestN", { n: b }) : "";
@@ -170,6 +172,10 @@ function handle(ev) {
       burst(86, b.y, 10, CONF, 150, 300);
       floaters.push({ x: 86, y: b.y - 28, t: "+1", c: "#fff", size: 20, life: 0.8, vy: -50 });
       if (prevBest > 0 && sim.score > prevBest && !recordShown) { recordShown = true; burst(E.W / 2, 200, 40, CONF, 260, 260); SFX.record(); }
+    } else if (ev[i] === "section") {
+      var se = cur.route[sim.section];
+      floaters.push({ x: E.W / 2, y: 120, t: se.e + " " + (sim.section + 1) + "/" + sim.sections, c: "#fff", size: 26, life: 1.4, vy: -16 });
+      burst(E.W / 2, 120, 24, [look().accent, "#fff"], 200, 200); Kit.haptic(20); $("game").style.background = look().skyTop;
     } else if (ev[i] === "dead") onDead();
   }
 }
@@ -198,7 +204,7 @@ function showResult() {
 function bot() {
   var nx = null;
   for (var i = 0; i < sim.pipes.length; i++) if (sim.pipes[i].x + E.PIPE_W >= E.BX - E.R) { nx = sim.pipes[i]; break; }
-  var mid = nx ? nx.top + sim.params.gap * 0.62 : E.H * 0.45;
+  var mid = nx ? nx.top + nx.gap * 0.62 : E.H * 0.45;
   if (sim.bird.y > mid && sim.bird.vy > 0) sim.flap();
 }
 function advance(dt) {
@@ -257,7 +263,8 @@ window.Game = {
   THEMES: Object.keys(TH), themeColor: function (n) { return TH[n].skyTop; }, fromSentence: fromSentence,
   play: function (st, riv, o) {
     opts = o || {}; rival = riv || null; cur = st; skinTh = null; mode = "play";
-    attach($("cv")); $("game").style.background = look().skyTop; $("title").textContent = cur.title; $("hint").textContent = t("hint"); $("remixbtn").textContent = "✨ " + t("remix");
+    sim = null; attach($("cv")); $("game").style.background = look().skyTop; $("title").textContent = cur.title;
+    var ks = $("gki"); if (ks) { ks.hidden = !cur.ki; ks.textContent = t("kiBadge"); ks.title = t("kiBadgeL"); ks.setAttribute("aria-label", t("kiBadgeL")); } $("hint").textContent = t("hint"); $("remixbtn").textContent = "✨ " + t("remix");
     $("challenge").textContent = t("challenge"); $("again").textContent = t("again"); $("image").textContent = t("image"); $("toremix").textContent = t("remix");
     newRun(); run();
   },
@@ -268,7 +275,7 @@ window.Game = {
   // One standing frame on another canvas (the greyed next sheet); a running demo keeps its canvas and its run.
   still: function (host, st) {
     var keep = [cv, ctx, scale, cur, sim];
-    try { cur = st; attach(host); sim = E.createSim(st.params, C.mulberry32(st.seed)); draw(); }
+    try { cur = st; attach(host); sim = E.createSim(st.params, C.mulberry32(st.seed), C.routeParams(st)); draw(); }
     finally { cv = keep[0]; ctx = keep[1]; scale = keep[2]; cur = keep[3]; sim = keep[4]; }
   },
   current: function () { return cur; }, score: function () { return sim ? sim.score : 0; }
@@ -277,7 +284,7 @@ window.Game = {
 window.DuellDebug = {
   snap: function () {
     var nx = null; for (var i = 0; i < sim.pipes.length; i++) if (sim.pipes[i].x + E.PIPE_W >= 86 - 15) { nx = sim.pipes[i]; break; }
-    return { mode: mode, state: sim.state, score: sim.score, y: sim.bird.y, vy: sim.bird.vy, next: nx ? { x: nx.x, top: nx.top, gap: sim.params.gap } : null, cfg: cur, rival: rival };
+    return { mode: mode, state: sim.state, score: sim.score, y: sim.bird.y, vy: sim.bird.vy, next: nx ? { x: nx.x, top: nx.top, gap: nx.gap } : null, cfg: cur, rival: rival, section: sim.section, params: sim.params };
   },
   tick: function (sec) { for (var i = 0; i < sec * 60; i++) advance(1 / 60); draw(); }, flap: doFlap
 };
