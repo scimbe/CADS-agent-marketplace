@@ -22,11 +22,12 @@ function channel(r, o) {
 }
 
 class Meter {
-  constructor(vmax) { this.lim = vmax / 60 * 1.5; this.n = 0; this.jump = 0; this.still = 0; this.jerk = 0; this.err = 0; this.p = null; this.d = null; }
+  // strict: also count steps over 1.6 x top speed per frame (teleports of 400 and more, serves and hand-offs, left out)
+  constructor(vmax, strict) { this.lim = vmax / 60 * 1.5; this.slim = strict ? strict / 60 * 1.6 : Infinity; this.n = 0; this.jump = 0; this.strict = 0; this.still = 0; this.jerk = 0; this.err = 0; this.p = null; this.d = null; }
   add(p, real) {   // p, real: { x, y } of what is drawn and where it really is
     if (this.p) {
       const d = Math.hypot(p.x - this.p.x, p.y - this.p.y), rd = Math.hypot(real.x - this.r.x, real.y - this.r.y);
-      this.n++; if (d > this.lim) this.jump++;
+      this.n++; if (d > this.lim) this.jump++; if (d > this.slim && d < 400) this.strict++;
       if (d < 0.5 && rd > 2) this.still++;
       if (this.d !== null) this.jerk += Math.abs(d - this.d);
       this.err += Math.hypot(p.x - real.x, p.y - real.y); this.d = d;
@@ -34,7 +35,7 @@ class Meter {
     this.p = p; this.r = real;
   }
   cut() { this.p = null; this.d = null; }
-  sum() { const n = Math.max(1, this.n); return { frames: this.n, jump: this.jump / n, still: this.still / n, jerk: this.jerk / n, err: this.err / n }; }
+  sum() { const n = Math.max(1, this.n); return { frames: this.n, strict: this.strict, jump: this.jump / n, still: this.still / n, jerk: this.jerk / n, err: this.err / n }; }
 }
 // Where side B really has its own figure, in A's frame.
 const REAL = {
@@ -65,7 +66,7 @@ function play(A, Smooth, g, o) {
   let heard = 0; const rec = SA.receive; SA.receive = (m) => { if (m && m.t === "p") heard = now; rec(m); };
   const botA = A.bot(g, SA, "na"), botB = A.bot(g, SB, "nb"), V = Smooth ? Smooth.view(A, g, SA, clock) : null;
   const flip = g === "volley" ? (p) => ({ x: A.W - p.x, y: p.y }) : (p) => ({ x: A.W - p.x, y: A.H - p.y });
-  const fig = new Meter(VFIG[g](A)), ball = new Meter(A.GAMES[g].rules.VMAX * 1.6);
+  const fig = new Meter(VFIG[g](A)), ball = new Meter(A.GAMES[g].rules.VMAX * 1.6), whole = new Meter(A.GAMES[g].rules.VMAX * 1.6, A.GAMES[g].rules.VMAX);
   let frames = 0, empty = 0;
   SA.start(); SB.start();
   for (let f = 0; f < secs * 60 && !SA.over && !SB.over; f++) {
@@ -79,8 +80,11 @@ function play(A, Smooth, g, o) {
     // the ball while the other phone moves it (in the Ziegel-Duell: while it flies away from A)
     const theirs = k && (g === "ziegel" ? bB && bB.vy > 0 : SB.st.own && !SA.st.own);
     if (bA && bB && theirs) ball.add({ x: bA.x, y: bA.y }, flip(bB)); else ball.cut();
+    // the ball the whole rally through, hand-overs and releases at the middle line included: real is whoever decides
+    const raw = k && SA.st[k], mine = raw && (g === "ziegel" ? raw.vy > 0 : SA.st.own);
+    if (bA && bB) whole.add({ x: bA.x, y: bA.y }, mine ? { x: raw.x, y: raw.y } : flip(bB)); else whole.cut();
   }
-  return { fig: fig.sum(), ball: ball.sum(), empty: empty / Math.max(1, frames), score: SA.score.slice(), t: SA.t };
+  return { fig: fig.sum(), ball: ball.sum(), whole: whole.sum(), empty: empty / Math.max(1, frames), score: SA.score.slice(), t: SA.t };
 }
 const BAD = { base: 0.15, jitter: 0.08, loss: 0.05, rto: 0.25, stall: [20, 20.5] };
 module.exports = { play, channel, rng, BAD, GAMES: Object.keys(REAL) };

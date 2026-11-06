@@ -17,7 +17,10 @@
     // local: arrival time in seconds; sender: the sender's clock in seconds (null: none sent, the arrival time stands in).
     function push(local, sender, v) {
       var s = sender == null ? local : sender;
-      if (buf.length && s <= buf[buf.length - 1].s) return;   // old or doubled: the newer one is there already
+      if (buf.length && s <= buf[buf.length - 1].s) {          // old or doubled: the newer one is there already,
+        if (sender == null) buf[buf.length - 1].v = v.slice();  // unless it came at the same moment without a clock
+        return;
+      }
       var o1 = local - s;
       if (off === null || o1 < off) off = o1; else off += (o1 - off) * 0.002;   // the fastest path seen, drifting slowly
       var ex = o1 - off;                                                       // how much later than that this one came
@@ -72,17 +75,17 @@
   // One side for the screen. now(): seconds. Returns { frame(dt) -> a stand-in for the side to draw }.
   function view(A, g, S, now) {
     var F = figure(A)[g]; if (!F) return { frame: function () { return S; }, track: null };
-    var T = track(F.get(S.st).length, { lo: F.lo, hi: F.hi }), fix = { x: 0, y: 0 }, wait = 0, rec = S.receive;
+    var VB = (A.GAMES[g] && A.GAMES[g].rules.VMAX) || 1500, T = track(F.get(S.st).length, { lo: F.lo, hi: F.hi }), fix = { x: 0, y: 0 }, wait = 0, held = false, shown = null, rec = S.receive;
     S.receive = function (m) {
-      var key = F.ball, b0 = key && S.st[key] ? { x: S.st[key].x, y: S.st[key].y } : null;
+      var key = F.ball, b0 = key && S.st[key] ? shown : null;   // where the ball was last drawn, carrying-on included
       rec(m);
       if (!m) return;
       if (m.t === "p" || m.t === "shot") T.push(now(), typeof m.ms === "number" && isFinite(m.ms) ? m.ms / 1000 : null, F.get(S.st));
       // The other phone's ball state replaces the one flown along here: keep the picture where it was and fade over.
       var b1 = key && S.st[key];
-      if (b0 && b1 && (m.t === "st" || m.t === "hit" || m.t === "pass")) {
+      if (b0 && b1 && (m.t === "st" || m.t === "hit" || m.t === "pass" || m.t === "brk")) {
         var dx = b0.x - b1.x, dy = b0.y - b1.y;
-        if (dx * dx + dy * dy < 400 * 400) { fix.x += dx; fix.y += dy; }
+        if (dx * dx + dy * dy < 400 * 400) { fix.x = dx; fix.y = dy; wait = 0; }
       }
     };
     return {
@@ -90,14 +93,16 @@
       frame: function (dt) {
         var st = Object.assign({}, S.st), r = T.at(now(), F.vmax);
         if (r) F.set(st, r.v);
-        var b = F.ball && S.st[F.ball], f = Math.exp(-dt / FADE);
-        fix.x *= f; fix.y *= f;
-        if (!b) { fix.x = fix.y = 0; wait = 0; }
+        // The correction fades within FADE, but never faster than half the ball's top speed: no step of its own.
+        var b = F.ball && S.st[F.ball], len = Math.hypot(fix.x, fix.y), cut = Math.min(len * (1 - Math.exp(-dt / FADE)), VB * 0.5 * dt), k = len ? (len - cut) / len : 0;
+        fix.x *= k; fix.y *= k;
+        if (!b) { fix.x = fix.y = 0; wait = 0; held = false; shown = null; }
         else {
           // Waiting at the middle line for the hand-over: carry the ball on for a moment instead of freezing it.
-          wait = S.st.held ? wait + dt : 0;
+          wait = S.st.held ? (held ? wait + dt : 0) : 0; held = !!S.st.held;   // from the frame after it stopped
           var go = Math.min(wait, 0.1);
-          st[F.ball] = Object.assign({}, b, { x: b.x + fix.x + b.vx * go, y: b.y + fix.y + b.vy * go });
+          shown = { x: b.x + fix.x + b.vx * go, y: b.y + fix.y + b.vy * go };
+          st[F.ball] = Object.assign({}, b, shown);
         }
         var v = Object.create(S); v.st = st;
         return v;

@@ -44,6 +44,13 @@ test("Schlechtes Netz (150 +- 80 ms, 5 % Verlust, 500 ms Aussetzer): weniger Spr
     assert.ok(smooth.fig.jump <= plain.fig.jump, g + ": Figur " + smooth.fig.jump + " statt " + plain.fig.jump);
     assert.ok(smooth.fig.jerk < plain.fig.jerk, g + ": Ruck " + smooth.fig.jerk + " statt " + plain.fig.jerk);
     if (smooth.ball.frames > 60) assert.ok(smooth.ball.jump <= Math.max(0.02, plain.ball.jump), g + ": Ball springt in " + smooth.ball.jump);
+    // through hand-overs and releases at the middle line too, the drawn ball jumps no more than the plain one
+    if (smooth.whole.frames > 60) {
+      assert.ok(smooth.whole.jump <= plain.whole.jump, g + ": Ball ueber Uebergaben " + smooth.whole.jump + " statt " + plain.whole.jump);
+      // strict count (steps over 1.6 x top speed): far fewer than the plain picture; Ziegel's release at the line has none
+      assert.ok(smooth.whole.strict <= plain.whole.strict, g + ": streng " + smooth.whole.strict + " statt " + plain.whole.strict);
+      if (g === "ziegel") assert.equal(smooth.whole.strict, 0, "Ziegel: Freigabe an der Linie ohne Sprung");
+    }
   }
 });
 
