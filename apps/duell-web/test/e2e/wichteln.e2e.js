@@ -10,6 +10,8 @@ const G = require("./lib/grund.js");
 const shot = process.env.SHOT_DIR;
 const API = "https://demos-34a13a96.bunsenbrenner.org/api/duell/";
 const hash = (u) => "#" + u.split("#")[1];
+// Every person here is one device with several pages open (each link opens a new page) that relies on what its other
+// pages stored, so the pages come from G's local web origin, not file:// (see lib/grund.js, person({ web: true })).
 const url = (p) => p.evaluate(() => window.DailyDebug.result().url);
 const send = async (p) => { await p.locator("#edmain").click(); await p.locator("#share").waitFor(); return url(p); };
 const panel = (p) => p.locator("#panel");
@@ -32,7 +34,7 @@ test.before(async () => { b = await G.launch(); });
 test.after(async () => { await b.close(); });
 
 test("Geschenk in drei Fragen: drei Fragen, fünf Ideen ohne KI, Einladung an eine zweite Person (en), Ergebnis zurück, weiter zu Geld einsammeln", async () => {
-  const [ana, ben] = await G.people(b, 2, { lang: ["de", "en"], view: ["phone390", "phone328"] });
+  const [ana, ben] = await G.people(b, 2, { lang: ["de", "en"], view: ["phone390", "phone328"], web: true });
   const a = await G.open(ana, "#i=geschenk-finder");
   await a.locator("#go").click();
   assert.equal(await a.locator("#edmain").getAttribute("aria-disabled"), "true", "Weiter gesperrt, bis gewählt ist");
@@ -74,14 +76,13 @@ test("Geschenk in drei Fragen: drei Fragen, fünf Ideen ohne KI, Einladung an ei
   await panel(r).getByText("Erste Wahl: " + ideas[1]).waitFor(); await panel(r).getByText("Zweite Stimme: " + ideas[3]).waitFor(); await panel(r).getByText("bis 30 €").waitFor();
   await snap(r, "geschenk-6-ergebnis");
   await panel(r).getByRole("button", { name: "Gemeinsam bezahlen: Geld einsammeln" }).click();
-  await a.waitForTimeout(0);
-  assert.equal(await r.evaluate(() => window.DailyDebug.doc().g), "sammeln", "weiter zur Karte Geld einsammeln");
+  await G.poll(() => r.evaluate(() => window.DailyDebug.doc().g), (g) => g === "sammeln", { what: "weiter zur Karte Geld einsammeln" });
   for (const p of [a, c, r]) assert.deepEqual(p.errs, []);
   await ana.close(); await ben.close();
 });
 
 test("Wunschzettel mit Geheimnis: Kind schreibt, Familie reserviert verdeckt über Links (3 Geräte, de/en), das Kind sieht nie, wer was schenkt", async () => {
-  const [kid, mom, oma] = await G.people(b, 3, { lang: ["de", "en", "de"], view: ["phone390", "phone390", "phone328"] });
+  const [kid, mom, oma] = await G.people(b, 3, { lang: ["de", "en", "de"], view: ["phone390", "phone390", "phone328"], web: true });
   const k = await G.open(kid, "#i=zug-wunschzettel");
   await k.locator("#go").click();
   const add = async (p, s) => { const f = panel(p).locator("form.shopadd input"); await f.fill(s); await f.press("Enter"); };
@@ -120,7 +121,8 @@ test("Wunschzettel mit Geheimnis: Kind schreibt, Familie reserviert verdeckt üb
 
   // Mom again: her own reservation stays, Oma's shows as taken
   const m2 = await G.open(mom, hash(B2)); await m2.locator("#go").click();
-  const rows = await panel(m2).locator(".shoprow").allInnerTexts();
+  // the list is drawn after the tap: read it once all three rows and Mom's own mark are there
+  const rows = await G.poll(() => panel(m2).locator(".shoprow").allInnerTexts(), (r) => r.length === 3 && /You're giving this/.test(r[0]), { what: "Mamas Liste" });
   assert.match(rows[0], /Hörbuch\s+You're giving this/); assert.match(rows[2], /Puzzle\s+Already taken/); assert.doesNotMatch(rows[1], /taken|giving/);
 
   // The kid's phone opens the family link: wishes only, no mark, no name, no gift button
@@ -144,7 +146,7 @@ test("Wunschzettel mit Geheimnis: Kind schreibt, Familie reserviert verdeckt üb
 // HOLD fix: reservations never end the list. Her phone looks the same with no wish and with every wish reserved (sheet,
 // editor, card picture); only her own tap on "Wunschzettel schließen" ends it, and until then givers can still let go.
 test("Wunschzettel: das Gerät des Kindes sieht mit keiner und mit allen Reservierungen gleich aus, nur das Kind schließt (3 Geräte, de/en)", async () => {
-  const [kid, mom, opa] = await G.people(b, 3, { lang: ["de", "en", "de"], view: ["phone390", "phone390", "phone328"] });
+  const [kid, mom, opa] = await G.people(b, 3, { lang: ["de", "en", "de"], view: ["phone390", "phone390", "phone328"], web: true });
   const k = await G.open(kid, "#i=zug-wunschzettel");
   await k.locator("#go").click();
   for (const w of ["Lego", "Buch"]) { const f = panel(k).locator("form.shopadd input"); await f.fill(w); await f.press("Enter"); }
@@ -152,12 +154,14 @@ test("Wunschzettel: das Gerät des Kindes sieht mit keiner und mit allen Reservi
   // what the kid's phone shows of a family link: the sheet, its picture, the editor, its picture and the main button
   const look = async (link, name) => {
     const p = await G.open(kid, hash(link));
-    await p.waitForTimeout(200);
-    const sheet = await p.locator("#leaf").innerText(), sheetPic = await p.evaluate(() => document.querySelector("#leaf .pvcard").toDataURL());
+    // sheet and pictures once they have settled (drawn and no longer changing), not after a fixed pause
+    const sheetPic = await G.settled(() => p.evaluate(() => document.querySelector("#leaf .pvcard").toDataURL()), { what: "Blatt-Bild" });
+    const sheet = await p.locator("#leaf").innerText();
     await snap(p, name + "-blatt");
-    await p.locator("#go").click(); await panel(p).locator(".shoprow").first().waitFor(); await p.waitForTimeout(200);
+    await p.locator("#go").click(); await panel(p).locator(".shoprow").first().waitFor();
+    const pic = await G.settled(() => p.evaluate(() => document.getElementById("stage").toDataURL()), { what: "Editor-Bild" });
     const out = { sheet, sheetPic, editor: await panel(p).innerText(), main: await p.locator("#edmain").textContent(),
-      pic: await p.evaluate(() => document.getElementById("stage").toDataURL()), face: await p.evaluate(() => JSON.stringify(window.Turns.face(window.DailyDebug.doc(), "de"))) };
+      pic, face: await p.evaluate(() => JSON.stringify(window.Turns.face(window.DailyDebug.doc(), "de"))) };
     await snap(p, name + "-editor");
     assert.deepEqual(p.errs, []);
     return { p, out };
@@ -213,11 +217,12 @@ test("Wunschzettel: das Gerät des Kindes sieht mit keiner und mit allen Reservi
 });
 
 test("Business Wichtelideen: ohne KI fünf Ideen im Budget, mit KI (gemockt) nur harmlose Ideen, Kollegin wählt per Link (en)", async () => {
-  const [tanja, kemal] = await G.people(b, 2, { lang: ["de", "en"], view: ["quer", "phone390"] });
+  const [tanja, kemal] = await G.people(b, 2, { lang: ["de", "en"], view: ["quer", "phone390"], web: true });
   const sent = [];
   await tanja.addInitScript(() => { try { const s = JSON.parse(localStorage.getItem("daily.v1") || "{}"); s.aiDev = "0123456789abcdef0123456789abcdef"; s.aiProof = "e2e"; s.muted = true; localStorage.setItem("daily.v1", JSON.stringify(s)); } catch (e) {} });
   await tanja.route(/^https?:/, async (r) => {
     const u = r.request().url();
+    if (G.isLocal(u)) return r.fallback();   // the page itself
     if (!u.startsWith(API)) return r.abort();
     const path = u.slice(API.length), body = JSON.parse(r.request().postData() || "null"); sent.push({ path, body });
     const meter = { free: 7, remaining: 6, period: "week" };
@@ -245,8 +250,7 @@ test("Business Wichtelideen: ohne KI fünf Ideen im Budget, mit KI (gemockt) nur
   await snap(t, "wichtelideen-2-mit-ki");
   await panel(t).getByRole("button", { name: "Sukkulente im Topf", exact: true }).click();
   await t.waitForFunction(() => window.DailyDebug.doc().ki && window.DailyDebug.doc().ki.k === "liste");
-  await t.waitForTimeout(100);
-  assert.ok(sent.some((x) => x.path === "ai/accept"), "erst die gewählte KI-Idee wird abgerechnet");
+  await G.poll(() => sent.some((x) => x.path === "ai/accept"), Boolean, { what: "erst die gewählte KI-Idee wird abgerechnet" });
   await next(t);
   const one = await send(t);
   assert.match(one, /^https:\/\/demos-34a13a96\.bunsenbrenner\.org\/duell\/business\/#c=/, "Langlink im Firmennetz");
@@ -268,7 +272,7 @@ test("Business Wichtelideen: ohne KI fünf Ideen im Budget, mit KI (gemockt) nur
 
 test("Büro-Wichteln: fünf Personen tragen sich auf fünf Geräten selbst ein, die Organisatorin zieht, jedes Gerät öffnet nur den eigenen Zettel; ein sechstes Gerät öffnet keinen (de/en)", async () => {
   const time = "2026-11-23T09:00:00+01:00";
-  const [org, ben, cem, dag, eva, fremd] = await G.people(b, 6, { lang: ["de", "en", "de", "en", "de", "de"], view: ["quer", "phone390", "phone328", "phone390", "zoom200", "phone390"], time });
+  const [org, ben, cem, dag, eva, fremd] = await G.people(b, 6, { lang: ["de", "en", "de", "en", "de", "de"], view: ["quer", "phone390", "phone328", "phone390", "zoom200", "phone390"], time, web: true });
   const biz = { flavor: "business" };
   const unsealed = (p, u) => p.evaluate((x) => { const r = window.Daily.parseRoute("#" + x.split("#")[1]); return { seed: r.doc.seed, m: window.Turns.unseal(r.doc.q, r.doc.seed) }; }, u);
   // 1. the organiser: budget, kind, day; the group link carries no names yet
@@ -384,7 +388,7 @@ test("Büro-Wichteln: fünf Personen tragen sich auf fünf Geräten selbst ein, 
 });
 
 test("Wunschzettel auf einem zweiten Gerät der wünschenden Person: erst die Frage, dann ohne Reservierungen", async () => {
-  const [kid, mom, kid2] = await G.people(b, 3, { lang: ["de", "en", "de"], view: ["phone390", "phone390", "phone328"] });
+  const [kid, mom, kid2] = await G.people(b, 3, { lang: ["de", "en", "de"], view: ["phone390", "phone390", "phone328"], web: true });
   const k = await G.open(kid, "#i=zug-wunschzettel");
   await k.locator("#go").click();
   const add = async (p, s) => { const f = panel(p).locator("form.shopadd input"); await f.fill(s); await f.press("Enter"); };

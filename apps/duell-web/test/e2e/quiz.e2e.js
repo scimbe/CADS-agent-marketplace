@@ -254,7 +254,7 @@ test("Typen-Quiz: Gruppenpaket, wer es macht sendet nur, jede Person sieht nur i
 });
 
 test("Team-Quiz im Business-Flavor: Modus firma, Firmenpakete, jede Person sieht nur das eigene Ergebnis, keine Rangliste", async () => {
-  require("node:child_process").execFileSync(process.execPath, [path.resolve(__dirname, "../../scripts/build.js"), "--flavor", "business"]);
+  require("../../scripts/ensure-build.js").ensureBuilt("business");
   const biz = "file://" + path.resolve(__dirname, "../../dist/business/index.html");
   const { p, errs, sent } = await phone((path0) => (path0 === "ai" ? [503, {}] : null), biz);
   await openTurn(p, "quiz");

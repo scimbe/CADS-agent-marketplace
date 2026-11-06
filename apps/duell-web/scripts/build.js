@@ -11,6 +11,9 @@ const json = (p) => JSON.parse(read(p));
 // A flavor (`--flavor business`) is the same app with its own catalog, words and look: src/flavors/<name>/ replaces
 // ideas.json, lays texts.json and turn.json over the shared ones key by key, adds its CSS and script last.
 const arg = process.argv.slice(2).join("=").match(/--flavor=([a-z]+)/), flavor = arg ? arg[1] : "";
+// The stamp of the sources as they are before anything is read (scripts/ensure-build.js): a source changed during the
+// build makes the next ensureBuilt() build again instead of trusting a page made from the older one.
+const STAMP = require("./ensure-build.js").stamp(flavor);
 const fl = (f) => "src/flavors/" + flavor + "/" + f, has = (f) => flavor && fs.existsSync(path.join(root, fl(f)));
 if (flavor && !has("flavor.json")) throw new Error("Unbekannter Flavor: " + flavor);
 const over = (base, f) => { if (has(f)) { const o = json(fl(f)); for (const l of Object.keys(o)) Object.assign(base[l], o[l]); } return base; };
@@ -38,14 +41,14 @@ const merge = (v) => "Object.keys(window." + v + ").forEach(function(l){window.D
 const quizSpiele = json("src/quizspiele.json");
 const dataAll = data + "window.QuizFacts=" + JSON.stringify({ phish: quizSpiele.phish, preis: quizSpiele.preis }) + ";window.TurnData=" + JSON.stringify(turnData) + ";window.DuelData=" + JSON.stringify(duelData) + ";" + merge("DuelData.texts") +
   "window.ArcadeTexts=" + JSON.stringify(JSON.parse(read("src/arcade.json"))) + ";" + merge("ArcadeTexts");
-const parts = { DATA: dataAll, DUEL: read("src/duel.js"), QUEST: read("src/quest.js"), MODES: read("src/modes.js"), DOOR: read("src/door.js"), QUIZPACK: read("src/quizpack.js"), TURNS: read("src/turns.js"), QUIZMAKE: read("src/quizmake.js"), QUIZUI: read("src/quiz-ui.js"), OFFICE: read("src/office.js"), QUIZSPIELE: read("src/quizspiele.js"), FLAVOR: (has("games.js") ? read(fl("games.js")) + "\n;\n" : "") + (has("flavor.js") ? read(fl("flavor.js")) : ""), WARM: read("src/warm.js"), TURNUI: read("src/turn-ui.js"), PARTS: read("src/parts.js"), ARCADE: read("src/arcade.js"), ARCADE2: read("src/arcade2.js"), ARCADEUI: read("src/arcade-ui.js"), MPOKER: read("src/mpoker.js"), DOKO: read("src/doko.js"), SKAT: read("src/skat.js"), BAUERNSKAT: read("src/bauernskat.js"), TABLE: read("src/table.js"), TABLEUI: read("src/table-ui.js"), RPSLIVE: read("src/rpslive.js"), BALLDUELL: read("src/ballduell.js"), LIVE: read("src/live.js"), LIVEUI: read("src/live-ui.js"), QRCODE: read("node_modules/qrcode-generator/qrcode.js"), SHORT: read("src/shortlink.js"), OWN: read("src/own.js"), STATUSCARD: read("src/statuscard.js"), CORE: read("src/core.js"), ENGINE: read("src/engine.js"), DAILY: read("src/daily.js"), STUDIO: read("src/studio.js"), KIT: read("src/kit.js"), BAUSTEINE: read("src/bausteine.js"), COLLAB: read("src/collab.js"), COLLABUI: read("src/collab-ui.js"), CALLCARD: read("src/callcard.js"), CALLCARDUI: read("src/callcard-ui.js"), STICKERS: read("src/stickers.js"), AI: read("src/ai.js"), WISH: read("src/wish.js"), WELTUI: read("src/welt-ui.js"), RENDER: read("src/render.js"), PLAYABLE: read("src/playable.js"), GAME: read("src/game.js"), SATZ: read("src/satz.js"), SATZUI: read("src/satz-ui.js"), APP: read("src/app.js") };
+const parts = { DATA: dataAll, DUEL: read("src/duel.js"), QUEST: read("src/quest.js"), MODES: read("src/modes.js"), DOOR: read("src/door.js"), QUIZPACK: read("src/quizpack.js"), TURNS: read("src/turns.js"), QUIZMAKE: read("src/quizmake.js"), QUIZUI: read("src/quiz-ui.js"), OFFICE: read("src/office.js"), QUIZSPIELE: read("src/quizspiele.js"), FLAVOR: (has("games.js") ? read(fl("games.js")) + "\n;\n" : "") + (has("flavor.js") ? read(fl("flavor.js")) : ""), WARM: read("src/warm.js"), TURNUI: read("src/turn-ui.js"), PARTS: read("src/parts.js"), SMOOTH: read("src/smooth.js"), ARCADE: read("src/arcade.js"), ARCADE2: read("src/arcade2.js"), ARCADEUI: read("src/arcade-ui.js"), MPOKER: read("src/mpoker.js"), DOKO: read("src/doko.js"), SKAT: read("src/skat.js"), BAUERNSKAT: read("src/bauernskat.js"), TABLE: read("src/table.js"), TABLEUI: read("src/table-ui.js"), RPSLIVE: read("src/rpslive.js"), BALLDUELL: read("src/ballduell.js"), LIVE: read("src/live.js"), LIVEUI: read("src/live-ui.js"), QRCODE: read("node_modules/qrcode-generator/qrcode.js"), SHORT: read("src/shortlink.js"), OWN: read("src/own.js"), STATUSCARD: read("src/statuscard.js"), CORE: read("src/core.js"), ENGINE: read("src/engine.js"), DAILY: read("src/daily.js"), STUDIO: read("src/studio.js"), KIT: read("src/kit.js"), BAUSTEINE: read("src/bausteine.js"), COLLAB: read("src/collab.js"), COLLABUI: read("src/collab-ui.js"), CALLCARD: read("src/callcard.js"), CALLCARDUI: read("src/callcard-ui.js"), STICKERS: read("src/stickers.js"), AI: read("src/ai.js"), WISH: read("src/wish.js"), WELTUI: read("src/welt-ui.js"), RENDER: read("src/render.js"), PLAYABLE: read("src/playable.js"), GAME: read("src/game.js"), SATZ: read("src/satz.js"), SATZUI: read("src/satz-ui.js"), APP: read("src/app.js") };
 // Parts: past 1 MB the page is split instead of growing. The core (home, calendar sheet, editor, sharing) stays inline in
 // index.html; what only some people open lands in parts/<name>.<hash>.js next to it and is loaded on first use. The apps
 // ship the folder in their bundle (Android assets, iOS bundle), the web gets it from /duell/parts/. `d`: parts it needs first.
 // New, rarely used code goes into a part here (or a new one), not into the core: test/build.test.js holds the budgets.
 const PARTS = {
   katalog: { d: [], src: ["KATALOG"] },                                                               // the full catalog (see the index above)
-  play: { d: ["katalog"], src: ["BALLDUELL", "RPSLIVE", "LIVE", "LIVEUI", "ARCADE", "ARCADE2", "ARCADEUI"] },   // live and arcade duels
+  play: { d: ["katalog"], src: ["BALLDUELL", "RPSLIVE", "LIVE", "SMOOTH", "LIVEUI", "ARCADE", "ARCADE2", "ARCADEUI"] },   // live and arcade duels
   table: { d: ["play"], src: ["MPOKER", "DOKO", "SKAT", "BAUERNSKAT", "TABLE", "TABLEUI"] },                        // Doppelkopf and Skat live (over live.js)
   qr: { d: [], src: ["QRCODE", "STATUSCARD"] },                                                        // status picture and invite code with a QR code
   licenses: { d: [], src: ["LICENSES"] },                                                              // the licence texts, shown on request
@@ -83,14 +86,20 @@ const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));
 // Each part: its sources one after the other, each closed with ";" like the separate <script> blocks they were. The name
 // carries the content hash (a new build never meets an old cached file); the manifest carries the SRI hash.
-fs.rmSync(path.join(outDir, "parts"), { recursive: true, force: true });
+// Other processes may load dist while this runs (the E2E files run in parallel): every file is first written in full into
+// a temporary folder next to dist and then renamed into place (atomic on one file system), new parts before the page that
+// names them, and only then the parts no page names any more are removed. A reader never meets a half-written page or a
+// missing part. With unchanged sources the part names stay the same and nothing is removed.
+fs.mkdirSync(path.join(root, "dist"), { recursive: true });
+const tmpDir = fs.mkdtempSync(path.join(root, "dist/.build-"));
+const put = (rel, body) => { const t = path.join(tmpDir, rel.replace(/[\/]/g, "_")); fs.writeFileSync(t, body); fs.renameSync(t, path.join(outDir, rel)); };
 fs.mkdirSync(path.join(outDir, "parts"), { recursive: true });
 const manifest = {};
 let partBytes = 0;
 for (const name of Object.keys(PARTS)) {
   const body = PARTS[name].src.map((k) => { const c = code(k); delete parts[k]; return c; }).join("\n;\n") + "\n";
   const file = "parts/" + name + "." + crypto.createHash("sha256").update(body).digest("hex").slice(0, 12) + ".js";
-  fs.writeFileSync(path.join(outDir, file), body);
+  put(file, body);
   manifest[name] = { f: file, h: "sha384-" + crypto.createHash("sha384").update(body).digest("base64"), d: PARTS[name].d };
   if (name === "turnzwei") manifest[name].g = twoGames;
   partBytes += Buffer.byteLength(body);
@@ -98,7 +107,9 @@ for (const name of Object.keys(PARTS)) {
 }
 parts.DATA = "window.DailyParts=" + JSON.stringify(manifest) + ";" + parts.DATA;
 for (const k of Object.keys(parts)) html = html.replace("/*@" + k + "@*/", () => code(k));
-fs.writeFileSync(path.join(root, out), html);
+put(path.basename(out), html);
+const keep = new Set(Object.values(manifest).map((m) => path.basename(m.f)));
+for (const f of fs.readdirSync(path.join(outDir, "parts"))) if (!keep.has(f)) fs.rmSync(path.join(outDir, "parts", f), { force: true });
 console.log(out, Buffer.byteLength(html), "bytes (core); parts", partBytes, "bytes; together", Buffer.byteLength(html) + partBytes);
 
 // Fast Easy Protokoll: its own page, because whisper.cpp needs a cross-origin isolated page and connect-src 'self' (served by
@@ -106,6 +117,9 @@ console.log(out, Buffer.byteLength(html), "bytes (core); parts", partBytes, "byt
 const prot = { CSS: read("src/protokoll.css"), DATA: "window.ProtokollTexts=" + JSON.stringify(JSON.parse(read("src/protokoll.json"))) + ";", PROTOKOLL: read("src/protokoll.js"), PAGE: read("src/protokoll-page.js") };
 let ph = read("src/protokoll.template.html");
 for (const k of Object.keys(prot)) ph = ph.replace("/*@" + k + "@*/", () => (k === "CSS" ? prot[k] : safe(prot[k])));
-fs.writeFileSync(path.join(root, path.dirname(out), "protokoll.html"), ph);
-fs.copyFileSync(path.join(root, "src/protokoll-worker.js"), path.join(root, path.dirname(out), "protokoll-worker.js"));
+put("protokoll.html", ph);
+put("protokoll-worker.js", read("src/protokoll-worker.js"));
+// The stamp last: scripts/ensure-build.js skips a build whose stamp still matches the sources.
+put(".stamp", STAMP);
+fs.rmSync(tmpDir, { recursive: true, force: true });
 console.log(path.dirname(out) + "/protokoll.html", Buffer.byteLength(ph), "bytes");

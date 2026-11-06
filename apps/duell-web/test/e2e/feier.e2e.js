@@ -1,14 +1,12 @@
 "use strict";
+const { ensureBuilt } = require("../../scripts/ensure-build.js");
 // biz-weihnachtsfeier (Katalog v2, V1): Termin + Ort + Kosten pro Kopf in einem Link, mit versiegelten Stimmen, ueber
 // vier Geraete (eigene Browser-Kontexte, de und en): nur das Geraet der Orga oeffnet die Antworten und zeigt Summen erst
 // ab fuenf; das Ende ist signiert. Fest auf die Karte gepinnt (#i=biz-weihnachtsfeier) und auf den 16.11.2026.
 const test = require("node:test"), assert = require("node:assert/strict"), path = require("node:path");
-const { execFileSync } = require("node:child_process");
 const G = require("./lib/grund.js");
 const Tn = require("../../src/turns.js");
-const root = path.join(__dirname, "../..");
-execFileSync(process.execPath, [path.join(root, "scripts/build.js")]);
-execFileSync(process.execPath, [path.join(root, "scripts/build.js"), "--flavor", "business"]);
+ensureBuilt(""); ensureBuilt("business");   // dist as npm run test:e2e built it; a build only after an edit
 const shot = process.env.FEI_SHOTS;
 const snap = (p, n) => (shot ? p.screenshot({ path: path.join(shot, "fei-" + n + ".png") }) : null);
 const TIME = "2026-11-16T09:00:00Z", BIZ = { flavor: "business" };
@@ -22,7 +20,7 @@ const locked = (p) => p.locator("#edmain").getAttribute("aria-disabled");
 G.VIEWS.phone328h = { viewport: { width: 328, height: 700 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
 const SCREENS = ["phone328h", "phone390", "zoom200quer", "zoom200"];
 // Only the page itself: every other host is refused and noted (company network, nothing goes out).
-async function closed(ctx) { const asked = []; await ctx.route(/^(https?|wss?):/, (r) => { asked.push(r.request().url()); return r.abort("blockedbyclient"); }); return asked; }
+async function closed(ctx) { const asked = []; await ctx.route(/^(https?|wss?):/, (r) => { if (G.isLocal(r.request().url())) return r.fallback(); asked.push(r.request().url()); return r.abort("blockedbyclient"); }); return asked; }
 
 // Organiser: two places, the first one renamed, accessibility tapped (required), costs typed. Neutral name on request.
 async function setUp(p, o) {
@@ -109,7 +107,8 @@ const TOTALS = /Termin vorne|Leading date|Zusage|pro Kopf bei|per head with|\d+ 
 
 test("Vier Geraete, de und en: versiegelt abstimmen, Orga sieht erst ab fuenf Summen, fuehrt Gabelungen zusammen, beendet signiert; ein Ende von Hand gilt nicht", async () => {
   const b = await G.launch(); try {
-    const [ana, ben, cem, dana] = await G.people(b, 4, { lang: ["de", "en", "de", "de"], view: ["phone390", "phone328h", "quer", "phone390"], time: TIME });
+    // web: each device keeps several pages open and relies on what another of its pages stored (see grund.js)
+    const [ana, ben, cem, dana] = await G.people(b, 4, { lang: ["de", "en", "de", "de"], view: ["phone390", "phone328h", "quer", "phone390"], time: TIME, web: true });
     const out = [await closed(ben), await closed(cem), await closed(dana)];
     const a = await G.open(ana, "#i=biz-weihnachtsfeier", BIZ);
     assert.match(await a.locator("#hero").textContent(), /Weihnachtsfeier/);
@@ -136,7 +135,11 @@ test("Vier Geraete, de und en: versiegelt abstimmen, Orga sieht erst ab fuenf Su
     assert.deepEqual(P4.state[0], P1.state[0]); assert.deepEqual(P4.state[1], P1.state[1], "Termine und Orte wie angelegt, ohne Zaehler");
     assert.deepEqual([P4.state[2][2], P4.state[2][3].length / 56, P4.state[2][4]], [3, 3, 0], "drei Antworten, drei Bloecke, kein Ende");
     assert.equal(P4.state[2][3].slice(0, 112), P3.state[2][3], "der naechste Link haengt nur einen versiegelten Block an");
-    assert.ok(!/Ana|Ben|Cem|Dana|Vegetari|Alkohol|alcohol/i.test(P4.text + JSON.stringify(P4.state)), "keine Namen, keine Wuensche im Link");
+    // Only what stands in the clear: the two public keys, the sealed boxes and the seal itself are random base64url, which
+    // spells "ben" or "ANA" now and then (about one link in ten) and is no name. Exactly these fields are blanked; every
+    // other field of the link and of the opened state is checked, so a name in the clear anywhere else is still seen.
+    const clear = (P) => { const raw = JSON.parse(JSON.stringify(P.raw)), st = JSON.parse(JSON.stringify(P.state)); raw.d.q = ""; st[2][0] = st[2][1] = st[2][3] = ""; return JSON.stringify(raw) + JSON.stringify(st); };
+    assert.ok(!/Ana|Ben|Cem|Dana|Vegetari|Alkohol|alcohol/i.test(clear(P4)), "keine Namen, keine Wuensche im Link");
     assert.ok(!(P4.raw.d.by || []).length, "keine Spur mit Namen");
     for (const u of [two, three, four]) {   // [neutral, dates], two places, [key, key, count, boxes, 0]: nothing else, no list of counts
       const st = payload(u).state;
