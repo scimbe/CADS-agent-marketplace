@@ -16,9 +16,15 @@ var EMOJI = ["🐸", "🦝", "🐙", "🦖", "🍕", "👽", "🤖", "👻", "�
 var today = new Date(), home = null, screen = "home", ed = null, result = null;
 
 function saveMe() { store.me = me; Kit.save(); }
+// Text on the second colour (the burst on the leaf): black or white by the WCAG contrast ratio, whichever is higher.
+function onCol(h) {
+  var l = [1, 3, 5].map(function (i) { var c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
+  var y = 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2];
+  return (y + 0.05) / 0.0556 >= 1.0092 / (y + 0.05) ? "#111111" : "#fffaf0";   // relative luminance: #111 0.0056, #fffaf0 0.9592
+}
 function setInk(a, b) {
   var r = document.documentElement.style;
-  r.setProperty("--a", a); r.setProperty("--b", b); r.setProperty("--on", R.ink(a)); r.setProperty("--onb", R.ink(b)); r.setProperty("--btn", R.lum(a) > 0.45 ? a : "#fffaf0");
+  r.setProperty("--a", a); r.setProperty("--b", b); r.setProperty("--on", R.ink(a)); r.setProperty("--onb", onCol(b)); r.setProperty("--btn", R.lum(a) > 0.45 ? a : "#fffaf0");
   var m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", a);
 }
 function show(name, push) {
@@ -139,24 +145,52 @@ function picture(root, idea, doc, still) {
 }
 // A flavor (the business app) may show only some of these buttons.
 function shown(k) { var F = window.DailyFlavor; return !F || !F.feats || F.feats.indexOf(k) >= 0; }
-// The games button stays put on the left; the rest runs by as a ticker. Two copies in one track make it seamless;
-// the second is only for the eye, not for screen readers or Tab.
+// The games button stays put on the left; the rest is a strip that can run by as a ticker (WCAG 2.2.2): it starts only
+// after 3 s without a touch or key, a touch on the bar stops it for good where it stands (then it is a strip to swipe),
+// and the switch next to it stops and restarts it. With fewer than 3 entries there is no ticker and no copy. Two copies
+// in one track make it seamless; the second is only for the eye, not for screen readers or Tab.
+var tick = { many: false, run: false, stop: false, timer: 0 };
 function feats() {
   var bar = $("feat"), lane = el("div", "lane"), box = el("div", "track"), n = D.IDEAS.filter(function (i) { return i.kind === "turn" || i.kind === "arcade"; }).length;
-  bar.textContent = "";
+  var list = [["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
+    ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].filter(function (f) { return shown(f[0]); });
+  bar.textContent = ""; tick.many = list.length >= 3;
   if (shown("f_two")) bar.appendChild(el("button", "hot", "🎲 " + t("f_twoN", { n: n }), function () { Kit.sfx.tap(); X.turn.menu(); }));
   lane.appendChild(box); bar.appendChild(lane);
-  [0, 1].forEach(function (copy) { [["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
-    ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].filter(function (f) { return shown(f[0]); }).forEach(function (f) {
+  (tick.many ? [0, 1] : [0]).forEach(function (copy) { list.forEach(function (f) {
     var b = el("button", "", f[1] + " " + t(f[0]), function () { Kit.sfx.tap(); f[2](); });
     if (copy) { b.setAttribute("aria-hidden", "true"); b.tabIndex = -1; }
     box.appendChild(b);
   }); });
+  if (tick.many) { var sw = el("button", "tickpause", "", function () { if (tick.stop) { tick.stop = false; tickRun(); } else tickHalt(); }); sw.id = "tickpause"; bar.appendChild(sw); }
+  tickSync();
 }
-(function () {   // a finger on the ticker holds it, so the button under it does not run away
-  var bar = $("feat"), off = function () { bar.classList.remove("hold"); };
-  bar.addEventListener("pointerdown", function () { bar.classList.add("hold"); });
-  ["pointerup", "pointercancel", "pointerleave"].forEach(function (e) { bar.addEventListener(e, function () { setTimeout(off, 1500); }); });
+function tickSync() {
+  var bar = $("feat"), sw = $("tickpause"), on = tick.many && tick.run;
+  bar.classList.toggle("run", on);
+  if (on) bar.querySelector(".lane").scrollLeft = 0;
+  if (sw) { sw.textContent = tick.stop ? "▶" : "⏸"; sw.setAttribute("aria-label", t("a_tick")); sw.setAttribute("aria-pressed", String(tick.stop)); }
+}
+function tickRun() {   // start, or go on from where the strip stands
+  var bar = $("feat"), lane = bar.querySelector(".lane"), tr = bar.querySelector(".track"), half = tr ? tr.scrollWidth / 2 : 0;
+  clearTimeout(tick.timer);
+  if (tick.stop || !tick.many || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (tr) tr.style.animationDelay = half ? -(lane.scrollLeft % half) / half * 45 + "s" : "";
+  tick.run = true; tickSync();
+}
+function tickHalt() {   // stops for good, the buttons stay exactly where they are
+  var bar = $("feat"), lane = bar.querySelector(".lane"), tr = bar.querySelector(".track"), was = tick.run && tr, x = 0;
+  clearTimeout(tick.timer);
+  if (was) { try { x = -new DOMMatrixReadOnly(getComputedStyle(tr).transform).m41; } catch (e) {} bar.classList.add("was"); }
+  tick.run = false; tick.stop = true; tickSync();
+  if (was) lane.scrollLeft = x;   // a strip that stood still keeps its own scroll position
+}
+function tickWait() { clearTimeout(tick.timer); if (!tick.run && !tick.stop) tick.timer = setTimeout(tickRun, 3000); }
+(function () {
+  $("feat").addEventListener("pointerdown", function (e) { if (!e.target.closest("#tickpause")) tickHalt(); });
+  $("feat").addEventListener("focusin", function (e) { if (!e.target.closest("#tickpause")) tickHalt(); });
+  ["pointerdown", "keydown"].forEach(function (e) { document.addEventListener(e, tickWait, true); });
+  tickWait();
 })();
 function blank(kind) { Kit.sfx.thud(); openEditor(D.blankDoc(kind, me, Kit.lang), { own: true }); }
 var page = 0, PLAN_DAYS = 31;
@@ -496,11 +530,12 @@ var PANEL = {
     });
     p.appendChild(mine);
     var row = el("div", "chips");
-    [["−", function (s) { s.z = Math.max(0.5, s.z - 0.2); }], ["+", function (s) { s.z = Math.min(2.5, s.z + 0.2); }], ["↻", function (s) { s.r = s.r > 2.9 ? -3 : s.r + 0.25; }], ["✕", null]].forEach(function (x) {
+    [["−", function (s) { s.z = Math.max(0.5, s.z - 0.2); }, "a_skSmall"], ["+", function (s) { s.z = Math.min(2.5, s.z + 0.2); }, "a_skBig"], ["↻", function (s) { s.r = s.r > 2.9 ? -3 : s.r + 0.25; }, "a_skTurn"], ["✕", null, "skDelete"]].forEach(function (x) {
       var b = el("button", "chip em", x[0], function () {
         if (!d.sk[ed.sel]) return; Kit.sfx.tap();
         if (x[1]) SK.step(function (l) { x[1](l[ed.sel]); }); else SK.remove(ed.sel);
       });
+      b.setAttribute("aria-label", t(x[2]));
       b.disabled = !d.sk[ed.sel]; row.appendChild(b);
     });
     p.appendChild(row);
@@ -946,6 +981,10 @@ function openOwn() {
 function labels() {
   document.documentElement.lang = Kit.lang;
   feats(); $("brand").textContent = t("brand"); $("lang").textContent = Kit.lang.toUpperCase(); $("me").textContent = me.emoji;
+  // Screen reader names in the language of the page (the template holds the German ones until this runs).
+  [["lang", "a_lang"], ["mute", "a_mute"], ["me", "style"], ["edstyle", "style"], ["pvgame", "a_preview"], ["pvcard", "a_preview"], ["stage", "a_preview"], ["demo", "a_gamePreview"],
+    ["feat", "a_feat"], ["edback", "a_close"], ["shback", "a_close"], ["gback", "a_close"], ["edsave", "a_keep"], ["cv", "a_field"], ["coqr", "a_qr"]].forEach(function (x) { $(x[0]).setAttribute("aria-label", t(x[1])); });
+  $("mute").setAttribute("aria-pressed", String(!!Kit.muted));
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
   $("tostatus").textContent = t("sh_status"); $("tostory").textContent = t("sh_story"); $("shnote").textContent = t("sh_note");
   $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home"); $("playit").textContent = "🕹 " + t("playIt");

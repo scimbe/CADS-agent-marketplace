@@ -17,7 +17,8 @@ const VIEWS = {
   phone328: { viewport: { width: 328, height: 568 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
   phone390: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
   quer: { viewport: { width: 1024, height: 768 }, deviceScaleFactor: 1, hasTouch: true },
-  zoom200: zoom({ width: 1024, height: 768 }, 2)
+  zoom200: zoom({ width: 1024, height: 768 }, 2),
+  zoom200quer: zoom({ width: 1280, height: 800 }, 2)   // a 1280x800 laptop at 200 %: 640x400, the two-column layout
 };
 const LANGS = ["de", "en"];
 const LOCALE = { de: "de-DE", en: "en-GB" };
@@ -60,10 +61,20 @@ async function open(ctx, hash, o) {
 async function inView(p, sel) {
   return p.evaluate((s) => { const e = document.querySelector(s); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight + 0.5 && r.right <= innerWidth + 0.5; }, sel);
 }
+// The main button and the buttons under it on the start page whose centre something else lies over (a picture, the
+// sheet's text), as "id or text: what covers it" lines; a button below the screen counts as covered too.
+async function covered(p) {
+  return p.evaluate(() => [document.getElementById("go"), ...document.querySelectorAll("#homerow button, #tools button")]
+    .filter((e) => e && e.offsetParent && !e.closest("[hidden]")).map((e) => {
+      const r = e.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2, hit = document.elementFromPoint(x, y);
+      if (hit && (hit === e || e.contains(hit))) return null;
+      return (e.id || e.textContent.trim().slice(0, 20)) + ": " + (hit ? hit.id || hit.className || hit.tagName : "ausserhalb");
+    }).filter(Boolean));
+}
 // Every visible button smaller than the rule's 44x44 px (rule A6), as "text WxH" lines.
 async function smallTargets(p, root, min) {
   return p.evaluate(([r, m]) => [...document.querySelectorAll((r || "body") + " button")].filter((b) => b.offsetParent && !b.closest("[hidden]"))
     .map((b) => [b, b.getBoundingClientRect()]).filter(([, x]) => x.width > 0 && (x.width < m - 0.5 || x.height < m - 0.5))
     .map(([b, x]) => (b.getAttribute("aria-label") || b.textContent).trim().slice(0, 30) + " " + Math.round(x.width) + "x" + Math.round(x.height)), [root, min || 44]);
 }
-module.exports = { DIST, VIEWS, LANGS, LOCALE, zoom, launch, person, people, open, inView, smallTargets };
+module.exports = { DIST, VIEWS, LANGS, LOCALE, zoom, launch, person, people, open, inView, covered, smallTargets };

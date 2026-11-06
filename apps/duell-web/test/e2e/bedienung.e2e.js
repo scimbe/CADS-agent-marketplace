@@ -68,7 +68,7 @@ test("Titel: Zeilenhoehe 1.15, zweizeilig statt \"…\", Bindestrich-Titel ueber
 test("Tippflaechen >= 44 px: Funktionsleiste, Regler, Kartentisch, Einladung entfernen, Zusammen-bauen-Leiste, Firmenlogo", async () => {
   const { b, open, errs } = await setup(360, 800);
   const p = await open(page);
-  const feat = await p.locator("#feat button").evaluateAll((l) => l.map((e) => e.getBoundingClientRect().height));
+  const feat = await p.locator("#feat button").evaluateAll((l) => l.filter((e) => e.getClientRects().length).map((e) => e.getBoundingClientRect().height));   // the ticker copies show only while it runs
   assert.ok(feat.length && feat.every((h) => h >= 44), "Funktionsleiste " + feat);
   const g = await open(page + "#i=spiel-lava"); await g.locator("#go").click();
   await g.getByRole("tab", { name: /Regeln/ }).click();

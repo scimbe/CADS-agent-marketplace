@@ -273,6 +273,9 @@ fun DuellScreen(
                     @Suppress("DEPRECATION") saveFormData = false
                     safeBrowsingEnabled = true
                     mediaPlaybackRequiresUserGesture = true
+                    // Pinch zoom like in the browser (WCAG 1.4.4); the page no longer locks it, the +/- overlay stays off.
+                    builtInZoomControls = true
+                    displayZoomControls = false
                 }
                 WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
                 web.overScrollMode = View.OVER_SCROLL_NEVER

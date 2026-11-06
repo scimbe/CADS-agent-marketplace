@@ -498,6 +498,7 @@
       if (!n || me.seat < 0 || closed) throw new Error("full");
       var g = ++groups, tries = [];
       for (var i = 0; i < n; i++) tries.push(inviteSeat(g));
+      tries.forEach(function (x) { x.catch(function () {}); });   // handled below, one by one; no unhandled rejection meanwhile
       var got = [], err = null;
       for (var j = 0; j < tries.length; j++) { try { got.push(await tries[j]); } catch (e) { err = err || e; } }
       if (!got.length) throw err;

@@ -30,9 +30,34 @@ test("Alle Bildschirme x de/en: erstes Blatt erst mit dem Katalog-Teil, Hauptkno
       const go = (await p.locator("#go").innerText()).trim();
       assert.ok(go.length > 0, "Hauptknopf beschriftet");
       assert.ok(await G.inView(p, "#go"), "Hauptknopf sichtbar: " + view + " " + lang);
+      assert.deepEqual(await G.covered(p), [], "nichts liegt auf den Knoepfen: " + view + " " + lang);
       assert.equal(await p.evaluate(() => window.Kit.lang), lang);
       await snap(p, "start-" + view + "-" + lang);
       assert.deepEqual(p.errs, [], view + " " + lang); await ctx.close();
+    }
+  } finally { await b.close(); }
+});
+
+// A card with a picture (the gallery server is played here with a generated JPEG): on a short screen the picture shrinks
+// or steps aside, the main button stays visible without scrolling, nothing lies on it or on the buttons below, and the
+// sheet's text stays on the sheet. Fixed cards, not the card of the day: lob (picture + dice), danke (name field too),
+// lava (a game: drawn preview, no picture).
+test("Karte mit Bild auf allen Bildschirmen: Hauptknopf ohne Scrollen, Bild und Blatt decken keinen Knopf zu", async () => {
+  const b = await G.launch(); try {
+    const pic = await (async () => { const c = await b.newContext({ viewport: { width: 320, height: 180 } }), p = await c.newPage(); await p.setContent('<body style="margin:0;background:linear-gradient(90deg,#ffd400,#ff3b1d)">'); const j = await p.screenshot({ type: "jpeg", quality: 70 }); await c.close(); return j; })();
+    for (const card of ["karte-lob", "warm-danke", "spiel-lava"]) for (const view of Object.keys(G.VIEWS)) {
+      const ctx = await G.person(b, { view, lang: "de" });
+      await ctx.route(/^https?:/, (r) => (/\/duell\/img\/[a-z0-9-]+\.jpg$/.test(r.request().url()) ? r.fulfill({ status: 200, headers: { "Content-Type": "image/jpeg", "Access-Control-Allow-Origin": "*" }, body: pic }) : r.abort()));
+      const p = await G.open(ctx, "#i=" + card), at = card + " " + view;
+      if (card !== "spiel-lava") await p.waitForFunction(() => document.querySelector("#leaf .pvimg img").complete);
+      await p.waitForTimeout(600);   // the sheet's entry animation
+      if (view === "phone390" && card !== "spiel-lava") assert.ok(await p.locator("#leaf .pv.pic .pvimg").isVisible(), "das Bild steht auf dem Blatt: " + at);
+      assert.ok(await G.inView(p, "#go"), "Hauptknopf sichtbar: " + at);
+      assert.deepEqual(await G.covered(p), [], "nichts liegt auf den Knoepfen: " + at);
+      const leaf = await p.evaluate(() => { const l = document.getElementById("leaf"); return [l.scrollHeight, l.clientHeight]; });
+      assert.ok(leaf[0] <= leaf[1] + 1, "der Text bleibt auf dem Blatt: " + at + " " + leaf.join(">"));
+      await snap(p, "bild-" + card + "-" + view);
+      assert.deepEqual(p.errs, [], at); await ctx.close();
     }
   } finally { await b.close(); }
 });

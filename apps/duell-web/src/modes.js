@@ -297,7 +297,7 @@ A.PANEL.Riddle = function (p) {
   var row = el("div", "chips");
   dr.stops.forEach(function (_, n) { row.appendChild(el("button", "chip" + (n === i ? " on" : ""), String(n + 1), function () { ed.stop = n; A.tab("Riddle"); })); });
   if (dr.stops.length < Q.MAX_STOPS) row.appendChild(el("button", "chip", "＋ " + t("questAdd"), function () { dr.stops.push({ q: "", a: "" }); ed.stop = dr.stops.length - 1; reseal(ed); A.tab("Riddle"); }));
-  if (dr.stops.length > 1) row.appendChild(el("button", "chip", "－", function () { dr.stops.splice(i, 1); ed.stop = 0; reseal(ed); A.tab("Riddle"); }));
+  if (dr.stops.length > 1) { var del = el("button", "chip", "－", function () { dr.stops.splice(i, 1); ed.stop = 0; reseal(ed); A.tab("Riddle"); }); del.setAttribute("aria-label", t("a_questDel", { n: i + 1 })); row.appendChild(del); }
   p.appendChild(row);
   A.field(p, t("questQ", { n: i + 1 }), s.q, Q.MAX_Q, safe(ed, function (v) { s.q = v; }));
   A.field(p, t("questA"), s.a, Q.MAX_A, safe(ed, function (v) { s.a = v; }));
