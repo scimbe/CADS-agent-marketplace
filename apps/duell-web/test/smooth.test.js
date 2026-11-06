@@ -73,3 +73,12 @@ test("Zeitstempel kommen von der echten Uhr: haengt ein Bild, laeuft die Senderz
   const p = out.filter((m) => m.t === "p");
   assert.ok(p.length >= 2 && p[p.length - 1].ms - p[0].ms >= 3000, "Abstand " + (p[p.length - 1].ms - p[0].ms));
 });
+
+test("Mehrere Ballmeldungen in einem Frame: endet es mit einem neuen Ballwechsel, bleibt kein alter Versatz stehen", () => {
+  const S = A.side("puck", { seed: "f", serving: false, clock: () => 0 }), V = Sm.view(A, "puck", S, () => 0);
+  S.receive({ t: "st", b: { x: 500, y: 400, vx: 0, vy: 0 } }); V.frame(0);
+  S.receive({ t: "st", b: { x: 520, y: 400, vx: 0, vy: 0 } });     // a small correction: faded over
+  S.receive({ t: "st", b: { x: 100, y: 780, vx: 0, vy: 0 } });     // then far away in the same frame: shown where it is
+  const b = V.frame(0).st.p;
+  assert.deepEqual([b.x, b.y], [100, 780]);
+});

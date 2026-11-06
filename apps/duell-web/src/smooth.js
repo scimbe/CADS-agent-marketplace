@@ -85,7 +85,7 @@
       var b1 = key && S.st[key];
       if (b0 && b1 && (m.t === "st" || m.t === "hit" || m.t === "pass" || m.t === "brk")) {
         var dx = b0.x - b1.x, dy = b0.y - b1.y;
-        if (dx * dx + dy * dy < 400 * 400) { fix.x = dx; fix.y = dy; wait = 0; }
+        if (dx * dx + dy * dy < 400 * 400) { fix.x = dx; fix.y = dy; wait = 0; } else { fix.x = fix.y = 0; }   // a new rally: show it where it is
       }
     };
     return {
@@ -93,7 +93,8 @@
       frame: function (dt) {
         var st = Object.assign({}, S.st), r = T.at(now(), F.vmax);
         if (r) F.set(st, r.v);
-        // The correction fades within FADE, but never faster than half the ball's top speed: no step of its own.
+        // The correction fades with time constant FADE, but never faster than half the ball's top speed, so it makes no
+        // step of its own; a large one (up to the 400 cut-off) can take about half a second to fade.
         var b = F.ball && S.st[F.ball], len = Math.hypot(fix.x, fix.y), cut = Math.min(len * (1 - Math.exp(-dt / FADE)), VB * 0.5 * dt), k = len ? (len - cut) / len : 0;
         fix.x *= k; fix.y *= k;
         if (!b) { fix.x = fix.y = 0; wait = 0; held = false; shown = null; }
