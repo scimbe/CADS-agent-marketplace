@@ -156,5 +156,26 @@ test("Schnee: nachgeladen wird nach der Uhr des Werfers, aber eine vorgestellte 
   const C = A.side("snow", { seed: "c", serving: false }); C.start();
   for (let k = 0; k < 10; k++) { C.receive({ t: "p", x: 500, ms: 1000 + k * 50 }); C.tick(0.05); }
   for (let i = 0; i < 10; i++) C.receive({ t: "throw", i, x: 500, vx: 0, ms: 1500 + i * 10000 });
-  assert.ok(10 - C.rejected <= 4, "drei in der Hand und hoechstens einer durch die vorgestellte Uhr: " + (10 - C.rejected));
+  assert.ok(10 - C.rejected <= 7, "drei in der Hand und hoechstens vier aus dem Guthaben: " + (10 - C.rejected));
+  // a long pause and then a burst whose clock steps 0.9 s per throw: the pause does not pile up, round after round
+  const P = A.side("snow", { seed: "p", serving: false }); P.start(); P.input({ x: 900 });   // out of the line of fire
+  let ms = 1000, got = 0, sent = 0;
+  for (let round = 0; round < 8; round++) {
+    for (let k = 0; k < 200; k++) P.tick(0.05);                        // ten seconds without a throw
+    for (let i = 0; i < 40; i++) { const r = P.rejected; P.receive({ t: "throw", i: sent++, x: 500, vx: 0, ms: (ms += 900) }); if (P.rejected === r) got++; }
+  }
+  assert.equal(P.over, false); assert.equal(P.score[1], 0, "kein Treffer: gezaehlt wird nur das Annehmen");
+  assert.ok(got <= 40, "acht Pausen, je hoechstens fuenf statt vierzig: " + got);
+});
+
+test("Schnee: ein alter Werfer ohne Uhr in den Wuerfen gegen einen neuen Empfaenger verliert keinen ehrlichen Wurf", () => {
+  // the older app stamps its position reports (from the smoothing) but not its throws
+  const S = A.side("snow", { seed: "o", serving: false }); S.start();
+  let t = 0, i = 0;
+  for (let f = 0; f < 60 * 30; f++) {
+    t += 1 / 60; S.tick(1 / 60);
+    if (f % 3 === 0) S.receive({ t: "p", x: 500, ms: Math.round(t * 1000) });
+    if (f % 60 === 0) S.receive({ t: "throw", i: i++, x: 500, vx: 0 });   // one per second, slower than a reload
+  }
+  assert.equal(S.rejected, 0);
 });

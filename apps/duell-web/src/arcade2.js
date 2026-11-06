@@ -230,17 +230,20 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
-      if (num(m.ms) && !oppClock) oppClock = { t0: S.t, last: null, granted: 0 };   // from the first report with a clock
       if (m.t === "p" && num(m.x)) { st.opp = clamp(reach(st.opp, m.x, S.oppDt(Math.abs(m.x - st.opp), N.VF * 1.25), N.VF * 1.25), N.FR, W - N.FR); return; }
       if (m.t === "throw") {
         // A throw starts where the other figure can be, with the same speed for everyone, and only with a snowball in hand.
-        // The other hand reloads on its own clock: throws made apart during a stall arrive together. All reload time
-        // granted that way never exceeds the time that really passed here (plus one second), so a clock set forward
-        // gains no more than about one snowball over the whole game.
-        if (num(m.ms) && oppClock) {
-          if (oppClock.last === null) oppClock.last = m.ms;
-          var give = Math.min(Math.max(0, m.ms - oppClock.last) / 1000, Math.max(0, S.t - oppClock.t0 + 1 - oppClock.granted));
-          oppClock.granted += give; oppClock.last = Math.max(oppClock.last, m.ms);
+        // The other hand reloads on its own clock: throws made apart during a stall arrive together. The reload time
+        // granted that way comes out of a budget that fills with the time passing here but holds at most a full
+        // magazine's reload plus one second of stall, so neither a clock set forward nor a long pause before a burst
+        // gives more than about four snowballs beyond the three in hand. Throws without a clock (an older app) keep
+        // reloading on arrival.
+        if (m.t === "throw" && num(m.ms)) {
+          var CAP = N.AMMO * N.RELOAD + 1;
+          if (!oppClock) oppClock = { last: m.ms, budget: CAP, at: S.t };
+          oppClock.budget = Math.min(CAP, oppClock.budget + S.t - oppClock.at); oppClock.at = S.t;
+          var give = Math.min(Math.max(0, m.ms - oppClock.last) / 1000, oppClock.budget);
+          oppClock.budget -= give; oppClock.last = Math.max(oppClock.last, m.ms);
           oppAmmo = Math.min(N.AMMO, oppAmmo + give / N.RELOAD);
         }
         if (!num(m.x) || !num(m.vx) || !num(m.i) || Math.abs(m.vx) > 221 || Math.abs(m.x - st.opp) > 260 || oppAmmo < 0.95) return S.reject();
