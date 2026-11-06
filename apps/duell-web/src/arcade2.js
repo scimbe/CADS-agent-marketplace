@@ -163,7 +163,7 @@
           for (var k = 0; k < 2; k++) if (segHit(b, flipSeg(k === 0, st.a[k]), F.R, F.T, k === 0 ? st.w[k] : -st.w[k], k === 0 ? F.PX : W - F.PX, F.PY, 0.55)) hit = "flip";
           for (var l = 0; l < 2; l++) if (segHit(b, lanes[l], F.R, 6, 0, 0, 0, 0.5)) hit = hit || "wall";
           bumps.forEach(function (c, j) { if (bounce(b, F.R, c, F.BR, 0, 0, 1)) { st.lit[j] = 1; hit = "bump"; var s = speed(b); b.vx *= 1.08; b.vy *= 1.08; if (s < F.VMIN) { b.vx *= F.VMIN / s; b.vy *= F.VMIN / s; } } });
-          if (hit) { cap(b, F.VMAX); if (Math.abs(b.vy) < 220) b.vy = b.vy < 0 ? -220 : 220; }
+          if (hit) { if (Math.abs(b.vy) < 220) b.vy = b.vy < 0 ? -220 : 220; cap(b, F.VMAX); }   // the floor first: the cap is the last word
           return hit === "wall" ? false : hit;
         });
       });
@@ -201,7 +201,7 @@
   }
   function inWall(b, w) { return w.hp > 0 && Math.abs(b.x - w.x) <= SNOW.WW / 2 + SNOW.R && Math.abs(b.y - w.y) <= SNOW.WH / 2 + SNOW.R; }
   function snowSide(o) {
-    var N = SNOW, S = A._.base(N, o), aim = W / 2, throwIt = false, oppAmmo = N.AMMO, id = 0;
+    var N = SNOW, S = A._.base(N, o), aim = W / 2, throwIt = false, oppAmmo = N.AMMO, id = 0, oppClock = null;
     var mine = snowWalls(S.seed), theirs = snowWalls(S.seed).map(function (w) { return { x: W - w.x, y: H - w.y, hp: w.hp }; });
     S.st = { me: { x: W / 2, vx: 0 }, opp: W / 2, ammo: N.AMMO, load: 0, balls: [], mine: mine, theirs: theirs };
     S.input = function (i) { if (!i) return; if (num(i.x)) aim = clamp(i.x, N.FR, W - N.FR); if (i.fire) throwIt = true; };
@@ -210,7 +210,7 @@
       A._.loop(S, dt, function (d) {
         var nx = reach(st.me.x, aim, d, N.VF); st.me.vx = (nx - st.me.x) / d; st.me.x = nx;
         if (st.ammo < N.AMMO) { st.load += d / N.RELOAD; if (st.load >= 1) { st.load = 0; st.ammo++; } }
-        oppAmmo = Math.min(N.AMMO, oppAmmo + d / N.RELOAD);
+        if (!oppClock) oppAmmo = Math.min(N.AMMO, oppAmmo + d / N.RELOAD);   // no clock in the throws: reload on arrival
         if (throwIt && S.started && st.ammo > 0) {
           st.ammo--; var b = { x: st.me.x, y: N.FY - N.FR, vx: clamp(st.me.vx * 0.25, -220, 220), vy: -N.V, mine: true, i: id++ };
           st.balls.push(b); S.send({ t: "throw", i: b.i, x: Math.round(W - b.x), vx: -b.vx }); S.fx("throw", b.x, b.y, { mine: true });
@@ -230,9 +230,19 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
+      if (num(m.ms) && !oppClock) oppClock = { t0: S.t, last: null, granted: 0 };   // from the first report with a clock
       if (m.t === "p" && num(m.x)) { st.opp = clamp(reach(st.opp, m.x, S.oppDt(Math.abs(m.x - st.opp), N.VF * 1.25), N.VF * 1.25), N.FR, W - N.FR); return; }
       if (m.t === "throw") {
         // A throw starts where the other figure can be, with the same speed for everyone, and only with a snowball in hand.
+        // The other hand reloads on its own clock: throws made apart during a stall arrive together. All reload time
+        // granted that way never exceeds the time that really passed here (plus one second), so a clock set forward
+        // gains no more than about one snowball over the whole game.
+        if (num(m.ms) && oppClock) {
+          if (oppClock.last === null) oppClock.last = m.ms;
+          var give = Math.min(Math.max(0, m.ms - oppClock.last) / 1000, Math.max(0, S.t - oppClock.t0 + 1 - oppClock.granted));
+          oppClock.granted += give; oppClock.last = Math.max(oppClock.last, m.ms);
+          oppAmmo = Math.min(N.AMMO, oppAmmo + give / N.RELOAD);
+        }
         if (!num(m.x) || !num(m.vx) || !num(m.i) || Math.abs(m.vx) > 221 || Math.abs(m.x - st.opp) > 260 || oppAmmo < 0.95) return S.reject();
         oppAmmo -= 1;
         st.balls.push({ x: m.x, y: H - N.FY + N.FR, vx: m.vx, vy: N.V, mine: false, i: m.i }); S.fx("throw", m.x, H - N.FY, { mine: false });

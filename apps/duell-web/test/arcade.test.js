@@ -117,3 +117,44 @@ test("Panzer: wer getroffen wird, entscheidet; Krater bleiben in seiner Haelfte"
   const boom = out.find((m) => m.t === "boom");
   assert.ok(boom && boom.hit === true); assert.deepEqual(S.score, [0, 1]);
 });
+
+test("Kein Ball wird von den eigenen Regeln schneller als VMAX, sonst verwirft ihn die Gegenseite als Schummelei", () => {
+  // Ziegel: every paddle hit, also the steep ones whose upward speed is raised to the minimum
+  for (let off = -118; off <= 118; off += 2) for (const vx of [-1250, -600, 0, 600, 1250]) for (const vy of [100, 400, 900, 1250]) {
+    const r = A.ziegelDefend({ x: 500 + off, y: A.ZIEGEL.PY, vx, vy }, 500);
+    if (r && r.hit) assert.ok(Math.hypot(r.ball.vx, r.ball.vy) <= A.ZIEGEL.VMAX + 1e-9, off + " " + vx + " " + vy);
+  }
+  // Flipper: whole bot games, the ball never above its top speed on the side that moves it
+  for (let seed = 1; seed <= 6; seed++) {
+    const P = A.pair("flipper", "v" + seed, 0), ba = A.bot("flipper", P.A, "a"), bb = A.bot("flipper", P.B, "b"); P.start();
+    for (let f = 0; f < 60 * 60 && !P.A.over; f++) {
+      ba(1 / 60); bb(1 / 60); P.tick(1 / 60);
+      for (const S of [P.A, P.B]) if (S.st.b && S.st.own) assert.ok(Math.hypot(S.st.b.vx, S.st.b.vy) <= A.FLIP.VMAX + 1e-9, "seed " + seed);
+    }
+    assert.equal(P.A.rejected + P.B.rejected, 0);
+  }
+});
+
+test("Flipper: ein zu schneller oder ein von nirgends kommender Ball wird weiter verworfen", () => {
+  const S = A.side("flipper", { seed: "x", serving: false }); S.start();
+  S.receive({ t: "st", b: { x: 500, y: 400, vx: 0, vy: A.FLIP.VMAX * 1.05 } });
+  assert.equal(S.rejected, 1, "zu schnell");
+  S.receive({ t: "hit", b: { x: 500, y: 760, vx: 0, vy: 900 } });   // mid-field, far from flippers and bumpers
+  assert.equal(S.rejected, 2, "Treffer ohne Klappe oder Bumper");
+  S.receive({ t: "st", b: { x: 500, y: 400, vx: 0, vy: A.FLIP.VMAX } });
+  assert.equal(S.rejected, 2, "ein ehrlicher Zustand an der Grenze geht durch");
+});
+
+test("Schnee: nachgeladen wird nach der Uhr des Werfers, aber eine vorgestellte Uhr bringt keine Munition", () => {
+  // honest: reports flow, then a stall of 5 s in which six throws are made 0.9 s apart; all arrive together
+  const S = A.side("snow", { seed: "s", serving: false }); S.start();
+  for (let k = 0; k < 10; k++) { S.receive({ t: "p", x: 500, ms: 1000 + k * 50 }); S.tick(0.05); }
+  for (let k = 0; k < 100; k++) S.tick(0.05);   // the stall: five seconds, in frames
+  for (let i = 0; i < 6; i++) S.receive({ t: "throw", i, x: 500, vx: 0, ms: 1500 + i * 900 });
+  assert.equal(S.rejected, 0, "ehrlicher Stau nach dem Stocken");
+  // cheat: the same moment, but the clock jumps ten seconds per throw
+  const C = A.side("snow", { seed: "c", serving: false }); C.start();
+  for (let k = 0; k < 10; k++) { C.receive({ t: "p", x: 500, ms: 1000 + k * 50 }); C.tick(0.05); }
+  for (let i = 0; i < 10; i++) C.receive({ t: "throw", i, x: 500, vx: 0, ms: 1500 + i * 10000 });
+  assert.ok(10 - C.rejected <= 4, "drei in der Hand und hoechstens einer durch die vorgestellte Uhr: " + (10 - C.rejected));
+});

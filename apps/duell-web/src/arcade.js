@@ -30,7 +30,7 @@
     // Position reports and shots carry the sender's clock (ms), so the other screen can place them in time despite
     // jitter. o.clock (seconds) is a real clock on the phone, which keeps running when a frame hangs; tests pass their own.
     S.clock = o.clock || function () { return S.t; };
-    S.send = function (m) { if (m.t === "p" || m.t === "shot") m.ms = Math.round(S.clock() * 1000); if (o.send) o.send(m); };
+    S.send = function (m) { if (m.t === "p" || m.t === "shot" || m.t === "throw") m.ms = Math.round(S.clock() * 1000); if (o.send) o.send(m); };
     S.fx = function (k, x, y, more) { var e = { k: k, x: x, y: y }; if (more) for (var q in more) e[q] = more[q]; S.ev.push(e); if (S.ev.length > 80) S.ev.shift(); };
     S.check = function () { if (S.score[0] >= G.WIN || S.score[1] >= G.WIN) { S.over = true; S.serveAt = 0; S.fx(S.score[0] > S.score[1] ? "won" : "lost", W / 2, H / 2); } };
     // This phone let the point go: the other one scores, and the one who lost the point serves the next ball.
@@ -187,7 +187,10 @@
     var off = b.x - paddleX;
     if (Math.abs(off) > Z.PW / 2 + Z.R) return { hit: false };
     var out = cap({ x: b.x, y: Z.PY - Z.R, vx: b.vx + off * Z.SPIN, vy: -Math.abs(b.vy) * Z.UP }, Z.VMAX);
-    if (Math.abs(out.vy) < Z.V0 * 0.6) out.vy = -Z.V0 * 0.6;
+    if (Math.abs(out.vy) < Z.V0 * 0.6) {   // never a ball that crawls sideways forever, and never faster than VMAX
+      out.vy = -Z.V0 * 0.6; var side = Math.sqrt(Z.VMAX * Z.VMAX - out.vy * out.vy);
+      if (Math.abs(out.vx) > side) out.vx = Math.sign(out.vx) * side;
+    }
     return { hit: true, ball: out };
   }
   function plausiblePaddle(prev, next, dt) { return clamp(reach(prev, next, dt, ZIEGEL.PMAX * 1.25), ZIEGEL.PW / 2, W - ZIEGEL.PW / 2); }
