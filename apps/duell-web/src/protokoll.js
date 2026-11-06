@@ -224,7 +224,9 @@
     var y = base.getFullYear(), mo = base.getMonth(), d = base.getDate(), today = Math.floor(Date.UTC(y, mo, d) / 864e5), m;
     if ((m = s.match(DATE_DE)) || (lang === "en" && (m = s.match(/(?:^|[^\d/])(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?(?![\d/])/)))) {
       var dd = +m[1], mm = +m[2] - 1, yy = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : y;
-      if (s.indexOf("/") >= 0 && lang === "en") { var tmp = dd; dd = mm + 1; mm = tmp - 1; }
+      // "5/11" is read as the app shows dates in English (en-GB): 5 November. Only where that cannot be a day ("11/14")
+      // is it month/day.
+      if (s.indexOf("/") >= 0 && lang === "en" && mm > 11 && dd <= 12) { var tmp = dd; dd = mm + 1; mm = tmp - 1; }
       if (mm < 0 || mm > 11 || dd < 1 || dd > 31) return 0;
       if (new Date(Date.UTC(yy, mm, dd)).getUTCDate() !== dd) return 0;          // 31.2. is no day
       var day = dayNo(yy, mm, dd);

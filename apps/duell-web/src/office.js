@@ -4,7 +4,7 @@
 (function (root) {
   "use strict";
   var node = typeof module !== "undefined" && module.exports;
-  var Tn = node ? require("./turns.js") : root.Turns;
+  var Tn = node ? require("./turns.js") : root.Turns, C = node ? require("./core.js") : root.DuellCore;
   var Q = node ? require("./quest.js") : root.Quest;
   var TEXT = node ? require("./office.json") : root.OfficeData;
   // Up to this many people in one link: with the longest answers the whole card still fits the link (core.js MAX_FRAGMENT)
@@ -45,17 +45,17 @@
         return [nameField("umf_name", pollNames), { w: "pick", l: "umf_pick", n: 1, top: function (doc, m) { return m[0][1]; }, from: function (doc, m) { return pollOpts(m); },
           peek: function (doc, m, now, lang) { return pollHead(m, lang); } }];
       })),
-    face: function (doc, m, lang) { return m.length ? [m[0][1], pollHead(m, lang), fmt(T(lang).off_count, { n: m.length })] : null; },
+    face: function (doc, m, lang) { return m.length ? [m[0][1], pollHead(m, lang), fmt(C.form(T(lang), "off_count", m.length, lang), { n: m.length })] : null; },
     result: function (doc, m, lang) { return { h: pollHead(m, lang), lines: [m[0][1]].concat(pollLines(m, lang)) }; }
   };
 
   // ---------- feedback: a topic, then a score from 1 to 5 and an optional note, without names ----------
   function rates(m) { return m.slice(1).map(function (t) { return t[0]; }); }
   function notes(m) { return filled(m.slice(1).map(function (t) { return t[1][0]; })); }
-  function mean(m, lang) { var r = rates(m), s = r.reduce(function (a, b) { return a + b; }, 0) / r.length; return s.toLocaleString(lang === "en" ? "en-GB" : "de-DE", { maximumFractionDigits: 1 }); }
+  function mean(m, lang) { var r = rates(m), s = r.reduce(function (a, b) { return a + b; }, 0) / r.length; return s.toLocaleString(C.locale(lang), { maximumFractionDigits: 1 }); }
   function fbHead(m, lang) {
     var n = m.length - 1;
-    return !n ? T(lang).fb_none : anon(n) ? fmt(T(lang).fb_mean, { a: mean(m, lang), n: n }) : fmt(T(lang).fb_few, { n: n, k: K });
+    return !n ? T(lang).fb_none : anon(n) ? fmt(C.form(T(lang), "fb_mean", n, lang), { a: mean(m, lang), n: n }) : fmt(T(lang).fb_few, { n: n, k: K });
   }
   var feedback = {
     turns: [[{ w: "text", l: "fb_topic", max: 60 }]].concat(times(RATERS, function () {
@@ -92,7 +92,7 @@
   var agenda = {
     turns: [[{ w: "text", l: "age_title", max: 40 }, { w: "list", l: "age_first", n: 3, max: 30, loose: true, least: 1 }, { w: "text", l: "age_name", max: 16 }]].concat(times(HELPERS, function () {
       return [{ w: "text", l: "age_name", max: 16 }, { w: "text", l: "age_add", max: 30, top: function (doc, m) { return m[0][0]; },
-        peek: function (doc, m, now, lang) { return fmt(T(lang).age_count, { n: points(m).length }); },
+        peek: function (doc, m, now, lang) { return fmt(C.form(T(lang), "age_count", points(m).length, lang), { n: points(m).length }); },
         bad: function (v, doc, lang, m) { return points(m).some(function (p) { return same(p.s, v); }); } }];
     })),
     face: function (doc, m, lang) { return m.length ? [m[0][0]].concat(agendaLines(m, lang).slice(-4)) : null; },

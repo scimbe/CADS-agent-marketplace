@@ -473,7 +473,7 @@ function dress(o, close, g) {
   var bar = el("header", "bar tight arcbar"), x = el("button", "ico arcx", "✕", function () { Kit.sfx.tap(); close(); });
   x.type = "button"; x.setAttribute("aria-label", t("arc_close"));
   bar.appendChild(x); bar.appendChild(el("div", "arcbrand", t("brand")));
-  var tag = el("span", "burst arcburst", META[g] ? META[g].e : "🎮"); tag.setAttribute("aria-hidden", "true"); bar.appendChild(tag);
+  var tag = el("span", "burst arcburst", META[g] ? META[g].e : "🎮"); tag.setAttribute("aria-hidden", "true"); bar.appendChild(Kit.langBtn("ico")); bar.appendChild(tag);
   o.classList.add("arcov"); o.insertBefore(bar, o.firstChild);
   return true;
 }
@@ -484,7 +484,10 @@ function layer(g) {
   var body = el("div", "livebody"); ov.appendChild(body); dress(ov, closeOwn, g); document.body.appendChild(ov);
   return body;
 }
-function closeOwn() { if (ov) { ov.remove(); ov = null; } }
+function closeOwn() { if (ov) { ov.remove(); ov = null; } again = null; }
+// Another language: the start screen of a game draws itself again (a running match draws live).
+var again = null;
+window.addEventListener("daily:lang", function () { if (ov && again) again(); });
 // o: { body, g, S, other(dt) runs the bot side in the page, startOther, them, badge, onEnd(won) }
 function match(o) {
   var body = o.body, g = o.g, S = o.S, cv = el("canvas", "livecv arccv"), info = el("p", "livescore", ""), note = el("p", "note arcnote", t("arc_how_" + g)), X = {};
@@ -558,7 +561,8 @@ function playLive(g) {
 A.IDS.forEach(function (g) { (window.LiveGames = window.LiveGames || {})[g] = playLive(g); });
 
 function menu(g) {
-  var body = layer(g), i = idea(g), L = i ? (i[Kit.lang] || i.de) : { t: t("arc_" + g), s: "" };
+  var body = layer(g); again = function () { menu(g); };
+  var i = idea(g), L = i ? (i[Kit.lang] || i.de) : { t: t("arc_" + g), s: "" };
   body.appendChild(el("p", "livebig", window.Daily.plainTitle(L.t)));
   var cv = el("canvas", "arcdemo"); cv.width = 300; cv.height = 480; body.appendChild(cv);
   body.appendChild(el("p", "note", L.s + " " + t("arc_how_" + g)));

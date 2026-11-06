@@ -178,6 +178,36 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 #toast{position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 56px);bottom:auto;transform:translate(-50%,16px);background:var(--ink);color:#fff;padding:11px 14px;font-weight:800;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:86vw;text-align:center;z-index:9;border-radius:4px}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 @media (min-width:600px){.scr,#game{left:50%;right:auto;width:440px;margin-left:-220px}}
+/* Wide screens and phones held sideways (H2, N7): two columns, the sheet or the preview on the left, buttons, tabs and
+   panel on the right. The shelf stays one column; a game keeps its upright frame and says so when the phone lies.
+   "Sideways" also needs 560 px of width: the Android shell's WebView, held upright, can report a short viewport. */
+@media (min-width:900px),(orientation:landscape) and (max-height:500px) and (min-width:560px){
+  #home,#editor,#done{left:0;right:0;width:auto;max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,420px);grid-template-rows:repeat(7,auto) 1fr;column-gap:8px}
+  #home>*,#editor>*,#done>*{grid-column:2;min-width:0}
+  #home>#pad{grid-column:1;grid-row:1/-1;margin:12px 10px 16px 18px}
+  #editor{grid-template-rows:auto auto auto auto 1fr auto}
+  #editor>.bar{grid-row:1}#cobar{grid-row:2}#trail{grid-row:3}#tabs{grid-row:4}#editor>.foot{grid-row:6}
+  #panel,#panel.tall,#panel[data-size=big]{grid-row:5;height:auto;min-height:0}
+  #stagewrap{grid-column:1;grid-row:1/-1;padding:10px 12px}
+  #done{grid-template-rows:1fr auto 1fr}#donewrap{grid-column:1;grid-row:1/-1}#done>.foot{grid-row:2}
+}
+@media (orientation:landscape) and (max-height:500px) and (min-width:560px){
+  #home>#pad{margin:8px 8px 10px 14px}#leaf{padding:20px 14px 10px}.dnum{font-size:44px}.burst{width:66px;height:66px;font-size:11px}
+  .pv.pic{flex:1 1 0;min-height:0}.pv.pic .pvimg{width:auto;height:100%;max-width:100%}.pv.pic:not([hidden]) ~ .hero{flex:0 0 64px}
+  #game:not([hidden])::after{content:attr(data-rot);position:absolute;inset:56px 0 0;z-index:9;display:grid;place-items:center;padding:24px;background:rgba(0,0,0,.88);color:#fff;font:800 20px/1.3 var(--ui);text-align:center}
+}
+/* Language: a switch on every layer of its own, and the choice on a received invitation (i18n #6) */
+.livelang{position:absolute;top:12px;right:64px;min-width:44px;height:44px;border:3px solid var(--ink);background:var(--paper);color:var(--ink);font:900 15px var(--ui)}
+.arcbar .langbtn{margin-left:auto;margin-right:6px}
+#edlang[hidden],#langpick[hidden]{display:none}
+.langpick{flex:none;display:flex;gap:8px;margin:0 18px 8px}.langpick .chip{flex:1}
+/* Dark (M8): the calendar sheet turns dark, pictures and the chosen colours stay as they are. */
+:root{color-scheme:light dark}
+@media (prefers-color-scheme:dark){
+  #leaf,.under{--paper:#1f1d1a;--ink:#f3ead2;color:var(--ink);border-color:#0b0b0b}
+  #leaf{box-shadow:5px 6px 0 #0b0b0b}
+  .holes{background:radial-gradient(circle at 50% 50%,var(--a) 0 5px,#0b0b0b 5px 6.5px,transparent 7px) 0 0/25px 13px repeat-x}
+}
 @media (prefers-reduced-motion:reduce){#home::before,#hint,.enter .hero span,.enter .burst,#leaf.enter,#doneimg{animation:none}.panel,#leaf{transition:none}}
 /* stickers: selection chrome above the canvas, never part of the picture */
 #skui{position:absolute;pointer-events:none;touch-action:none}

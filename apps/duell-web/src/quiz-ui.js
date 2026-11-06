@@ -23,7 +23,7 @@ var TX = {
     take: "Use it", drop: "Discard", fit: "{n} of {m} questions fit into the link.", fitAll: "All {n} questions fit into the link.", few: "Too few questions: at least 3.", long: "Too long for one link: shorten texts or strike questions.", sub: "Question pack with {n} questions", nums: "Guessing needs 3 questions with a number as the answer.",
     took: "Pack taken", noAi: "Without AI you can go on: ready packs or the card without a pack." }
 };
-function L() { return TX[Kit.lang === "en" ? "en" : "de"]; }
+function L() { return window.DuellCore.textsFor(TX, Kit.lang); }
 function say(k, o) { return String(L()[k]).replace(/\{(\w+)\}/g, function (m, n) { return o[n]; }); }
 function modus(g) { return g === "typen" ? "gruppe" : window.DailyFlavor && window.DailyFlavor.id === "business" ? "firma" : "lernen"; }
 // A crisis is not for a quiz: Ai.block (kind quiz) checks the typed text with the one list in ai.js and shows the one help

@@ -32,7 +32,7 @@ function clearLink() { try { if (location.hash) history.replaceState(null, "", l
 /* ---------- calendar ---------- */
 function ideaText(i) { return i[Kit.lang] || i.de; }
 function monthLines(d) {
-  var loc = Kit.lang === "de" ? "de-DE" : "en-GB";
+  var loc = Kit.loc();
   return d.toLocaleDateString(loc, { month: "short", timeZone: "UTC" }).replace(".", "") + "\n" + d.toLocaleDateString(loc, { weekday: "long", timeZone: "UTC" });
 }
 function fitHero(box) {
@@ -79,6 +79,18 @@ function setHome(h, animate) {
   var leaf = $("leaf"); leaf.className = s.got ? "got" : ""; leaf.style.transform = ""; leaf.style.opacity = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
   WM.sheet(h, s.got, animate);
+  langPick(!!h.note);
+}
+// An invitation shows its languages before the first tap, each in its own name ("Deutsch", "English").
+function langPick(on) {
+  var box = $("langpick");
+  if (!box) { box = el("div", "langpick"); box.id = "langpick"; box.setAttribute("role", "group"); $("go").before(box); }
+  box.hidden = !on || Kit.langs.length < 2; box.textContent = ""; box.setAttribute("aria-label", t("lang_pick"));
+  if (box.hidden) return;
+  Kit.langs.forEach(function (l) {
+    var b = el("button", "chip" + (l === Kit.lang ? " on" : ""), Kit.langName(l), function () { Kit.sfx.tap(); Kit.setLang(l); });
+    b.lang = l; b.setAttribute("aria-pressed", String(l === Kit.lang)); box.appendChild(b);
+  });
 }
 var LIVE = { conf: "https://webconference.bunsenbrenner.org/", tunnel: "https://bunsenbrenner.org/", demos: "https://demos-34a13a96.bunsenbrenner.org/", nordwind: "https://a2a-demo.bunsenbrenner.org/" };
 function openLive(url) { if (url === LIVE.conf) url = C.confLink(me.colors); if (!window.open(url, "_blank", "noopener")) location.href = url; }
@@ -118,7 +130,7 @@ function picture(root, idea, doc, still) {
   if (!still) picFor = id;
   if (!id) return;
   f.querySelector(".kitag").textContent = t("aiPic");
-  img.onload = function () { if (picFor === id && !box.hidden) box.classList.add("pic"); };
+  img.onload = function () { if (picFor === id && !box.hidden) { box.classList.add("pic"); fitHero(root.querySelector(".hero")); } };   // the title's room changed
   img.onerror = function () { if (picFor === id) box.classList.remove("pic"); };
   img.crossOrigin = "anonymous"; img.referrerPolicy = "no-referrer";
   // Only after the page has loaded: a network that silently drops the request must not hold up the page's load.
@@ -274,19 +286,21 @@ function openEditor(doc, opt) {
   $("tabs").hidden = false;
   if (X[ed.doc.k]) X[ed.doc.k].open(ed);
   cv.hidden = g; $("gamestage").hidden = !g;
-  $("edtitle").textContent = ed.own ? t("own") : (ed.idea ? D.plainTitle(ideaText(ed.idea).t) : t(ed.doc.k));
+  $("edtitle").textContent = edTitle(); $("edlang").hidden = !opt.got;   // opened from an invitation: its language can change here
   $("edstyle").textContent = me.emoji;
   stopSound(); show("editor", true); trailLine();
   var tabs = $("tabs"); tabs.textContent = "";
   var list = (ed.own ? ["Idea"] : []).concat(W.KINDS.indexOf(ed.doc.k) >= 0 ? ["Wish"] : [], W.DICE.indexOf(ed.doc.k) >= 0 ? ["Dice"] : [], ed.doc.nr ? ["Door"] : [], TABS[ed.doc.k]);
   list.forEach(function (k) {
-    var b = el("button", k === "Wish" ? "hot" : "", t("tab" + (k === "Sound" ? (ed.doc.m === "beat" ? "Beat" : "Voice") : k === "Idea" ? "Idea" : k)), function () { Kit.sfx.tap(); tab(k); });
+    var b = el("button", k === "Wish" ? "hot" : "", tabText(k), function () { Kit.sfx.tap(); tab(k); });
     b.setAttribute("role", "tab"); b.dataset.k = k; tabs.appendChild(b);
   });
   tab(list.indexOf(opt.tab) >= 0 ? opt.tab : g ? "Wish" : list.filter(function (k) { return k !== "Wish" && k !== "Dice"; })[0]);
   if (g) G.demo($("demo"), gameState());
   paint(); CU.editor();
 }
+function edTitle() { return ed.own ? t("own") : (ed.idea ? D.plainTitle(ideaText(ed.idea).t) : t(ed.doc.k)); }
+function tabText(k) { return t("tab" + (k === "Sound" ? (ed.doc.m === "beat" ? "Beat" : "Voice") : k)); }
 function tab(k) {
   if (ed.pv) { ed.pv = false; ed.fly = null; window.Ai.drop(); G.update(gameState()); }
   ed.tab = k; Array.from($("tabs").children).forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.k === k)); });
@@ -898,7 +912,7 @@ function invites(b, list) {
   if (!list.length) { b.appendChild(el("div", "empty", t("invEmpty"))); return; }
   var g = el("div", "wallgrid inv"), ICON = { card: "🃏", photo: "📷", sound: "🥁", game: "🕹", idea: "💡" };
   list.forEach(function (l) {
-    var url = C.SHORT_BASE + l.id, when = new Date(l.exp).toLocaleDateString(Kit.lang === "de" ? "de-DE" : "en-GB"), cell = el("div", "invcell");
+    var url = C.SHORT_BASE + l.id, when = new Date(l.exp).toLocaleDateString(Kit.loc()), cell = el("div", "invcell");
     var open = el("button", "", null, function () { Kit.sfx.tap(); Kit.share({ url: url, text: t("shareText") }); });
     open.setAttribute("aria-label", t("invShare", { d: when }));
     if (typeof l.th === "string" && l.th.length < 30000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(l.th)) { var im = el("img"); im.src = l.th; im.alt = ""; open.appendChild(im); }
@@ -939,8 +953,21 @@ function labels() {
   // Inside the app shells (DuellHost.more) a quiet "more" opens the native extras; in a browser it stays hidden.
   var host = window.DuellHost && typeof window.DuellHost.more === "function";
   $("host").hidden = !host; $("host").setAttribute("aria-label", t("hostMore"));
+  $("game").dataset.rot = "📱 " + t("rotate");   // shown over a game when the phone lies sideways (style.css)
 }
-$("lang").addEventListener("click", function () { Kit.lang = Kit.lang === "de" ? "en" : "de"; store.lang = Kit.lang; Kit.save(); labels(); if (home) setHome(home, false); });
+$("lang").addEventListener("click", function () { Kit.setLang(Kit.nextLang()); });
+// The editor's own switch, shown when an invitation opened it (the home page's switch is out of sight there).
+$("edtitle").after(Kit.langBtn("ico")); $("edtitle").nextSibling.id = "edlang";
+// A new language redraws what is open: the chrome, the sheet, and in the editor its title, tabs, panel and picture.
+window.addEventListener("daily:lang", function () {
+  labels();
+  if (home && home.noteOf) home.note = home.noteOf();   // the invitation's own line too ("Geschickt bekommen." / "Sent to you.")
+  if (home && screen === "home") setHome(home, false);
+  if (ed && screen === "editor") {
+    $("edtitle").textContent = edTitle(); Array.from($("tabs").children).forEach(function (b) { b.textContent = tabText(b.dataset.k); });
+    var p = $("panel"), top = p.scrollTop; tab(ed.tab); p.scrollTop = top; paint();
+  }
+});
 $("host").addEventListener("click", function () { Kit.sfx.tap(); try { window.DuellHost.more(); } catch (e) {} });
 $("mute").addEventListener("click", function () { Kit.muted = !Kit.muted; store.muted = Kit.muted; Kit.save(); labels(); Kit.sfx.tap(); });
 $("me").addEventListener("click", function () { Kit.sfx.tap(); openStyle(); });
@@ -955,8 +982,8 @@ function start(tabName) {
   if (home.doc && X[home.doc.k] && X[home.doc.k].incoming && X[home.doc.k].incoming(home.doc)) return;
   if (!home.doc && home.idea && home.idea.protokoll) { var u = protokollUrl(); if (location.protocol === "https:") location.href = u; else openLive(u); return; }
   if (!home.doc && home.idea && home.idea.kind === "arcade" && window.ArcadeUI) { window.ArcadeUI.menu(home.idea.arcade.g); return; }
-  if (home.doc) openEditor(home.doc, { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName });
-  else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea, tab: tabName });
+  if (home.doc) openEditor(home.doc, { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName, got: !!home.note });
+  else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea, tab: tabName, got: !!home.note });
 }
 $("go").addEventListener("click", function () { start(); });
 $("wishgo").addEventListener("click", function () { start($("wishgo").dataset.tab || "Wish"); });
@@ -1003,10 +1030,10 @@ function route() {
     delete st.score; delete st.name; show("game"); G.play(st, riv, { own: true }); return true;
   }
   if ((r && r.type === "idea" && !D.available(D.byId(r.id))) || (r && r.type === "doc" && !D.docAvailable(r.doc))) { home = dayHome(); goHomeKeep(); Kit.toast(t("notHere")); return true; }
-  if (r && r.type === "idea") { home = { date: today, idea: D.byId(r.id), note: t("invite") }; goHomeKeep(); return true; }
+  if (r && r.type === "idea") { home = { date: today, idea: D.byId(r.id), note: t("invite"), noteOf: function () { return t("invite"); } }; goHomeKeep(); return true; }
   if (r && r.type === "doc") {
     var lastBy = r.doc.by.length ? r.doc.by[r.doc.by.length - 1].n : r.doc.n;
-    home = { date: today, doc: r.doc, note: t("remixOf", { n: lastBy || t("someone") }), link: shortId || undefined }; shortId = null; goHomeKeep();
+    home = { date: today, doc: r.doc, note: t("remixOf", { n: lastBy || t("someone") }), noteOf: function () { return t("remixOf", { n: lastBy || t("someone") }); }, link: shortId || undefined }; shortId = null; goHomeKeep();
     if (r.doc.k === "card" && r.doc.nr && window.Door) window.Door.show(r.doc);   // an Advent door comes closed first
     return true;
   }
@@ -1032,7 +1059,7 @@ window.addEventListener("hashchange", route);
 /* Zusammen bauen (collab-ui.js) reaches the editor only through these. */
 var CU = window.CollabUI.init({
   ed: function () { return ed; }, me: function () { return me; }, changed: changed,
-  open: function (doc) { openEditor(doc, { idea: doc.i ? D.byId(doc.i) : null }); },
+  open: function (doc) { openEditor(doc, { idea: doc.i ? D.byId(doc.i) : null, got: true }); },
   // A remote change arrived: redraw, and rebuild the open panel unless someone is typing or dragging in it.
   remote: function (keys) {
     if (ed.doc.k === "sound" && ed.doc.m === "beat") { beatPeaks(); if (loop) playBeat(); }

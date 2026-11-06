@@ -12,7 +12,7 @@
   // or 0 (Schätzen), y [[type, strength]] for g. Short caps: the whole sheet fits into one link (core.js MAX_FRAGMENT).
   var MODES = { lernen: "l", firma: "f", gruppe: "g" }, MAX_Q = 8, MIN_Q = 3, F = 120, A = 60, ZMAX = 999999;
   var GAMES = { abfragen: 1, luecke: 1, woerter: 1, schaetzen: 1, quiz: 1, typen: 1 };
-  function T(lang) { return DATA.text[lang === "en" ? "en" : "de"]; }
+  function T(lang) { return C.textsFor(DATA.text, lang); }
   function fmt(s, o) { return String(s).replace(/\{(\w+)\}/g, function (m, k) { return o[k]; }); }
   function txt(v, max) {
     var s = Array.from(String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f<>]/g, " ").replace(/\s+/g, " ").trim()).slice(0, max).join("").trim();

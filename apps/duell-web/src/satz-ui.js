@@ -38,7 +38,7 @@ var TX = {
     idee: { buch: "book", spiel: "game", suesses: "sweets", kreatives: "creative", selbstgemacht: "homemade", erlebnis: "experience", pflanze: "plant", kuscheliges: "cosy", kleine_technik: "small gadget", lustiges: "funny", schreibwaren: "stationery", wellness: "wellness" }
   }
 };
-function L() { return TX[Kit.lang === "en" ? "en" : "de"]; }
+function L() { return window.DuellCore.textsFor(TX, Kit.lang); }
 function say(k, o) { return String(L()[k]).replace(/\{(\w+)\}/g, function (m, n) { return o[n]; }); }
 function today() { return Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000); }
 function business() { return !!(window.DailyFlavor && window.DailyFlavor.adult === true); }

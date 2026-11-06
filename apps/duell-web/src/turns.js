@@ -10,8 +10,12 @@
   var P = node ? require("./quizpack.js") : root.QuizPack;
   var BLOB = /^[A-Za-z0-9_-]{0,900}$/, SHAPES = ["cookie", "star", "heart", "bolt", "ring", "drop", "coin"], DAY = 86400000;
 
-  function T(lang) { return DATA.text[lang === "en" ? "en" : "de"]; }
-  function pair(list, i, lang) { return list[i].split("|")[lang === "en" ? 1 : 0]; }
+  function T(lang) { return C.textsFor(DATA.text, lang); }
+  // "de|en" pairs and [de, en] lists: a language reads its own column, German where there is none yet
+  function col(lang) { return C.column(DATA.text, lang); }
+  function pk(s, lang) { return C.pick(s, col(lang)); }
+  function alt(a, lang) { var x = a[col(lang)]; return x != null ? x : a[0]; }
+  function pair(list, i, lang) { return pk(list[i], lang); }
   function mix(doc, tag, n) {          // the same order on both phones, from the seed in the link
     var r = C.mulberry32(C.hash32("turn|" + doc.seed + "|" + tag)), a = [], i, j, t;
     for (i = 0; i < n; i++) a.push(i);
@@ -127,7 +131,7 @@
       }
     }
   };
-  function side(s, lang) { var a = s.split("||"); return a[lang === "en" ? 1 : 0].split("|"); }
+  function side(s, lang) { return alt(s.split("||"), lang).split("|"); }
   function asks(doc) { return mix(doc, "frag", DATA.ask.length).slice(0, 5); }
   function askText(doc, i, lang) { return side(DATA.ask[asks(doc)[i]], lang); }
   function fives(key, l) {
@@ -176,15 +180,15 @@
     ],
     gate: function (doc, m) { return m.length === 1 ? doc.o : 0; },
     peekWhole: function (doc, m, lang) { return m.length === 1 ? pair(DATA.vows, m[0][0][0], lang) : ""; },
-    result: function (doc, m, lang) { var X = T(lang); return { h: m[1][0][0] === 0 ? X.wet_done : X.wet_fail, lines: [pair(DATA.vows, m[0][0][0], lang)].concat(m[1][0][0] === 0 ? [] : [DATA.forfeit[0].split("|")[lang === "en" ? 1 : 0]]) }; }
+    result: function (doc, m, lang) { var X = T(lang); return { h: m[1][0][0] === 0 ? X.wet_done : X.wet_fail, lines: [pair(DATA.vows, m[0][0][0], lang)].concat(m[1][0][0] === 0 ? [] : [pk(DATA.forfeit[0], lang)]) }; }
   };
   GAMES.luecke = {
     turns: [
-      [{ w: "pick", l: "luck_pick", n: 1, from: function (doc, m, now, lang) { return DATA.stories.map(function (s, i) { return s.split("||")[lang === "en" ? 1 : 0].split(" ").slice(0, 3).join(" ") + " ..."; }); } }],
+      [{ w: "pick", l: "luck_pick", n: 1, from: function (doc, m, now, lang) { return DATA.stories.map(function (s, i) { return alt(s.split("||"), lang).split(" ").slice(0, 3).join(" ") + " ..."; }); } }],
       [{ w: "list", l: "luck_fill", n: 6, max: 18, hints: function (lang) { return side(DATA.hints[0], lang); } }]
     ],
     result: function (doc, m, lang) {
-      var s = DATA.stories[m[0][0][0]].split("||")[lang === "en" ? 1 : 0], w = m[1][0];
+      var s = alt(DATA.stories[m[0][0][0]].split("||"), lang), w = m[1][0];
       return { h: T(lang).luck_h, lines: [s.replace(/\{(\d)\}/g, function (x, i) { return w[i]; })] };
     }
   };
@@ -377,7 +381,7 @@
     turns: [0, 1, 2, 3, 4, 5].map(politeTurn),
     ends: function (doc, m) { return politeLevel(m) > politeLimit(doc); },
     result: function (doc, m, lang) {
-      var X = T(lang), at = m.length - 1, burst = politeLevel(m) > politeLimit(doc), a = 0, b = 0, last = politeRow(doc, at)[m[at][0][0]].split("|")[lang === "en" ? 1 : 0];
+      var X = T(lang), at = m.length - 1, burst = politeLevel(m) > politeLimit(doc), a = 0, b = 0, last = pk(politeRow(doc, at)[m[at][0][0]], lang);
       m.forEach(function (x, i) { if (i % 2) b += x[0][0] + 1; else a += x[0][0] + 1; });
       if (burst) return { h: fmt(X.hof_burst, { w: at % 2 ? X.first : X.second }), lines: [fmt(X.hof_line, { l: last }), fmt(X.hof_limit, { n: politeLimit(doc) })] };
       return { h: a === b ? X.hof_tie : fmt(X.hof_win, { w: a > b ? X.first : X.second, a: a, b: b }), lines: [fmt(X.hof_limit, { n: politeLimit(doc) })] };
@@ -669,7 +673,7 @@
   };
   var RAPTYPE = [0, 0, 1, 1, 2, 2];
   function rapFam(doc, who) { return mix(doc, "rap", DATA.rap.de.length)[who]; }
-  function rapLine(doc, who, i, lang) { return DATA.rap[lang === "en" ? "en" : "de"][rapFam(doc, who)][i]; }
+  function rapLine(doc, who, i, lang) { return (DATA.rap[lang] || DATA.rap.de)[rapFam(doc, who)][i]; }
   function rapCards(doc, who, k, avoid) { return mix(doc, "karte" + who + k, 6).filter(function (i) { return i !== avoid; }).slice(0, 3); }
   function rapPick(who, k) {
     return { w: "pick", l: "rap_pick", n: 1, auto: true, peek: function (doc, m, now, lang) { return rapSoFar(doc, m, now, lang) || T(lang).rap_start; },
@@ -696,7 +700,7 @@
   function pauseAt(doc, r) { return 4 + mix(doc, "pause" + r, 9)[0]; }          // seconds of music before the next stop, from the seed
   GAMES.disco = {
     local: true,
-    turns: [[{ w: "pick", l: "dis_beat", n: 1, auto: true, from: function (doc, m, now, lang) { return DATA.discoBeats.map(function (b) { return b[lang === "en" ? 1 : 0]; }); } },
+    turns: [[{ w: "pick", l: "dis_beat", n: 1, auto: true, from: function (doc, m, now, lang) { return DATA.discoBeats.map(function (b) { return alt(b, lang); }); } },
       { w: "freeze", l: "dis_go", auto: true, max: 99, beat: function (i) { return DATA.discoBeats[i][2]; }, statue: statue, pause: pauseAt }]],
     result: function (doc, m, lang) { return { h: fmt(T(lang).dis_h, { n: m[0][1] }), lines: [T(lang).dis_note] }; }
   };
@@ -748,11 +752,11 @@
     turns: [[{ w: "inner", l: "uhr_go", auto: true, targets: uhrTargets }]],
     result: function (doc, m, lang) {
       var X = T(lang), d = m[0][0], mean = Math.round(d.reduce(function (a, b) { return a + b; }, 0) / d.length / 100) / 10;
-      var h = Math.abs(mean) < 0.1 ? X.uhr_spot : fmt(mean < 0 ? X.uhr_early : X.uhr_late, { n: String(Math.abs(mean)).replace(".", lang === "en" ? "." : ",") });
-      return { h: h, lines: d.map(function (x, i) { return fmt(X.uhr_line, { i: i + 1, t: uhrTargets(doc)[i] / 1000, n: (x > 0 ? "+" : "") + (x / 1000).toFixed(1) }); }) };
+      var h = Math.abs(mean) < 0.1 ? X.uhr_spot : fmt(mean < 0 ? X.uhr_early : X.uhr_late, { n: C.num(Math.abs(mean), null, lang) });
+      return { h: h, lines: d.map(function (x, i) { return fmt(X.uhr_line, { i: i + 1, t: C.num(uhrTargets(doc)[i] / 1000, null, lang), n: (x > 0 ? "+" : "") + C.num(x / 1000, 1, lang) }); }) };
     }
   };
-  function secs(ms, lang) { var s = (ms / 1000).toFixed(2); return lang === "en" ? s : s.replace(".", ","); }
+  function secs(ms, lang) { return C.num(ms / 1000, 2, lang); }
   GAMES.pokal = {
     turns: [[{ w: "blind", l: "pok_go", auto: true, tries: 3, goal: 10000 }],
       [{ w: "blind", l: "pok_go", auto: true, tries: 3, goal: 10000, peek: function (doc, m, now, lang) { return fmt(T(lang).pok_beat, { n: secs(m[0][0], lang) }); } }]],
@@ -834,11 +838,11 @@
     local: true, turns: [[{ w: "explain", l: "exp_go", auto: true, secs: 60, max: 99, list: function (doc, lang) { return mix(doc, "erkl", DATA.words.length).map(function (i) { return pair(DATA.words, i, lang); }); } }]],
     result: function (doc, m, lang) { return { h: fmt(T(lang).exp_h, { n: m[0][0] }), lines: [T(lang).exp_note] }; }
   };
-  function sorryAsk(i) { return { w: "pick", l: "sor_" + (i + 1), n: 1, auto: true, from: function (doc, m, now, lang) { return DATA.sorry[i][lang === "en" ? 1 : 0].split("|"); } }; }
+  function sorryAsk(i) { return { w: "pick", l: "sor_" + (i + 1), n: 1, auto: true, from: function (doc, m, now, lang) { return alt(DATA.sorry[i], lang).split("|"); } }; }
   GAMES.sorry = {
     local: true, turns: [[sorryAsk(0), sorryAsk(1), sorryAsk(2)]],
     result: function (doc, m, lang) {
-      var text = m[0].map(function (a, i) { return DATA.sorry[i][lang === "en" ? 1 : 0].split("|")[a[0]]; }).join(" ");
+      var text = m[0].map(function (a, i) { return alt(DATA.sorry[i], lang).split("|")[a[0]]; }).join(" ");
       return { h: T(lang).sor_h, lines: [text], copy: text, note: T(lang).sor_note };
     }
   };
@@ -857,7 +861,8 @@
     var m = String(s == null ? "" : s).trim().match(/^(\d{1,5})(?:[.,](\d{1,2}))?\s*(?:€|eur)?$/i);
     return m ? +m[1] * 100 + (m[2] ? +(m[2] + "0").slice(0, 2) : 0) : null;
   }
-  function euros(c, lang) { var s = c % 100 ? (c / 100).toFixed(2) : String(c / 100); return lang === "url" || lang === "en" ? s : s.replace(".", ","); }
+  // The amount for a paypal.me link ("9.37"), or money as the language writes it ("9,37 €", "€9.37")
+  function euros(c, lang) { return lang === "url" ? (c % 100 ? (c / 100).toFixed(2) : String(c / 100)) : C.money(c, lang); }
   function sam(m) { var a = m[0] || []; return { n: a[0], w: a[1], k: a[2], c: a[3] }; }
   function payLink(m) {
     var x = sam(m);

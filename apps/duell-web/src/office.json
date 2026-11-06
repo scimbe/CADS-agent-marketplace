@@ -1,22 +1,22 @@
 {
   "de": {
     "umf_name": "Dein Name", "umf_q": "Die Frage", "umf_opts": "Antwort", "umf_mine": "Deine Stimme", "umf_pick": "Deine Stimme",
-    "umf_line": "{s}: {n}", "umf_lead": "Vorne: {s}", "umf_tie": "Gleichstand: {s}", "off_count": "{n} Stimmen bisher",
+    "umf_line": "{s}: {n}", "umf_lead": "Vorne: {s}", "umf_tie": "Gleichstand: {s}", "off_count": "{n} Stimmen bisher", "off_count_one": "{n} Stimme bisher",
     "fb_topic": "Wozu willst du Feedback?", "fb_rate": "Wie gut war es? 1 bis 5", "fb_note": "Ein Satz dazu (optional)",
-    "fb_mean": "Ø {a} von 5 · {n} Rückmeldungen", "fb_none": "Noch keine Rückmeldung", "fb_anon": "Ohne Namen", "fb_few": "Noch zu wenig Stimmen: {n} von {k}. Das Ergebnis zeigt sich ab {k}.",
+    "fb_mean": "Ø {a} von 5 · {n} Rückmeldungen", "fb_mean_one": "Ø {a} von 5 · {n} Rückmeldung", "fb_none": "Noch keine Rückmeldung", "fb_anon": "Ohne Namen", "fb_few": "Noch zu wenig Stimmen: {n} von {k}. Das Ergebnis zeigt sich ab {k}.",
     "auf_what": "Wofür?", "auf_jobs": "Aufgabe", "auf_name": "Dein Name", "auf_pick": "Was übernimmst du?",
     "auf_left": "{n} von {m} Aufgaben vergeben", "auf_done": "Alle Aufgaben vergeben", "auf_line": "{s} → {n}", "auf_free": "{s} → offen",
     "age_title": "Meeting", "age_first": "Punkt", "age_name": "Dein Name", "age_add": "Dein Punkt für die Agenda",
-    "age_count": "{n} Punkte auf der Agenda", "age_line": "{i}. {s} ({n})", "age_call": "Webconference starten"
+    "age_count": "{n} Punkte auf der Agenda", "age_count_one": "{n} Punkt auf der Agenda", "age_line": "{i}. {s} ({n})", "age_call": "Webconference starten"
   },
   "en": {
     "umf_name": "Your name", "umf_q": "The question", "umf_opts": "Answer", "umf_mine": "Your vote", "umf_pick": "Your vote",
-    "umf_line": "{s}: {n}", "umf_lead": "Ahead: {s}", "umf_tie": "Tie: {s}", "off_count": "{n} votes so far",
+    "umf_line": "{s}: {n}", "umf_lead": "Ahead: {s}", "umf_tie": "Tie: {s}", "off_count": "{n} votes so far", "off_count_one": "{n} vote so far",
     "fb_topic": "What do you want feedback on?", "fb_rate": "How good was it? 1 to 5", "fb_note": "One sentence (optional)",
-    "fb_mean": "Avg {a} of 5 · {n} responses", "fb_none": "No feedback yet", "fb_anon": "No names", "fb_few": "Not enough votes yet: {n} of {k}. The result shows from {k}.",
+    "fb_mean": "Avg {a} of 5 · {n} responses", "fb_mean_one": "Avg {a} of 5 · {n} response", "fb_none": "No feedback yet", "fb_anon": "No names", "fb_few": "Not enough votes yet: {n} of {k}. The result shows from {k}.",
     "auf_what": "What for?", "auf_jobs": "Task", "auf_name": "Your name", "auf_pick": "What will you take?",
     "auf_left": "{n} of {m} tasks taken", "auf_done": "All tasks taken", "auf_line": "{s} → {n}", "auf_free": "{s} → open",
     "age_title": "Meeting", "age_first": "Item", "age_name": "Your name", "age_add": "Your item for the agenda",
-    "age_count": "{n} items on the agenda", "age_line": "{i}. {s} ({n})", "age_call": "Start web conference"
+    "age_count": "{n} items on the agenda", "age_count_one": "{n} item on the agenda", "age_line": "{i}. {s} ({n})", "age_call": "Start web conference"
   }
 }

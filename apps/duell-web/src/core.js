@@ -355,7 +355,32 @@
     return CONF_BASE + "?look=daily&a=" + a.slice(1).toLowerCase() + "&b=" + b.slice(1).toLowerCase();
   }
 
+  // Languages, as many as the text data has: every text table is { de: {...}, en: {...}, ... }, so a further language is
+  // one more block of data. A gap in a block falls back to German; in a "de|en|..." pair a language reads its own
+  // column (its place in the table), German where the pair has none. Plurals, numbers and money go through Intl.
+  var LOCALE = { de: "de-DE", en: "en-GB" };
+  function locale(l) { return LOCALE[l] || l || "de-DE"; }
+  function langsOf(tab) { return Object.keys(tab || {}).filter(function (k) { return /^[a-z]{2,3}$/.test(k); }); }
+  // The block for a language; what it lacks it reads from the German block below it (also keys added later).
+  function textsFor(tab, l) {
+    var b = tab[l], de = tab.de;
+    if (!b || !de) return de || b;
+    if (b !== de && Object.getPrototypeOf(b) === Object.prototype) Object.setPrototypeOf(b, de);
+    return b;
+  }
+  function column(tab, l) { var i = langsOf(tab).indexOf(l); return i < 0 ? 0 : i; }
+  function pick(s, i) { var p = String(s).split("|"); return p[i] != null && p[i] !== "" ? p[i] : p[0]; }
+  function plural(l, n) { try { return new Intl.PluralRules(locale(l)).select(n); } catch (e) { return n === 1 ? "one" : "other"; } }
+  // "off_count" with n = 1 reads "off_count_one" where the block has it ("1 Stimme"), otherwise "off_count".
+  function form(block, k, n, l) { var s = typeof n === "number" ? block[k + "_" + plural(l, n)] : null; return s != null ? s : block[k]; }
+  function sp(s) { return s.replace(/[\u00a0\u202f]/g, " "); }
+  // A number with d decimals as the language writes it ("1,23" / "1.23"); d null: as many as it has, up to 3.
+  function num(x, d, l) { return sp(Number(x).toLocaleString(locale(l), d == null ? { maximumFractionDigits: 3, useGrouping: false } : { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: false })); }
+  // Cents as money: "7 €" / "9,37 €" in German, "€7" / "€9.37" in English.
+  function money(c, l) { return sp(new Intl.NumberFormat(locale(l), { style: "currency", currency: "EUR", minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 }).format(c / 100)); }
+
   var api = {
+    locale: locale, langsOf: langsOf, textsFor: textsFor, column: column, pick: pick, plural: plural, form: form, num: num, money: money,
     SHARE_BASE: SHARE_BASE, SHORT_BASE: SHORT_BASE, DEFAULT_API: DEFAULT_API, MAX_FRAGMENT: MAX_FRAGMENT, MAX_NAME: MAX_NAME, MAX_TITLE: MAX_TITLE,
     MAX_PROMPT: MAX_PROMPT, MAX_SCORE: MAX_SCORE, RANGES: RANGES, THEME_NAMES: THEME_NAMES, PRESETS: PRESETS,
     clampNum: clampNum, sanitizeParams: sanitizeParams, sanitizeTheme: sanitizeTheme, sanitizeSeed: sanitizeSeed,

@@ -14,7 +14,7 @@ function layer() {
   ov = el("div", "liveov"); ov.setAttribute("role", "dialog");
   var body = el("div", "livebody"); ov.appendChild(body);
   // An arcade duel wears the arcade banner with its ✕ (arcade-ui.js); every other live game keeps the plain ✕.
-  if (!(game && window.ArcadeUI && window.ArcadeUI.dress(ov, close, game.g))) { var x = el("button", "liveback", "✕", function () { Kit.sfx.tap(); close(); }); x.setAttribute("aria-label", t("xClose")); ov.insertBefore(x, body); }
+  if (!(game && window.ArcadeUI && window.ArcadeUI.dress(ov, close, game.g))) { var x = el("button", "liveback", "✕", function () { Kit.sfx.tap(); close(); }); x.setAttribute("aria-label", t("xClose")); ov.insertBefore(x, body); ov.insertBefore(Kit.langBtn("livelang"), body); }
   document.body.appendChild(ov);
   return body;
 }
@@ -22,7 +22,11 @@ function close(keepLink) {
   cancelAnimationFrame(loop); clearInterval(net); clearTimeout(net); loop = net = 0; busy = false;
   if (conn && !keepLink) { try { conn.close(); } catch (e) {} conn = null; }
   if (ov) { ov.remove(); ov = null; }
+  again = null;
 }
+// The invited player's screen before the game draws itself again in another language (the game itself draws live).
+var again = null;
+window.addEventListener("daily:lang", function () { if (ov && again) again(); });
 function screen(lines, buttons) {
   var b = layer();
   lines.forEach(function (l) { b.appendChild(el(l[0], l[1], l[2])); });
@@ -95,7 +99,7 @@ async function accept(token, g) {
   screen([["p", "livebig", t("live_challenged")], ["p", "note", t("live_connecting")]]);
   try { conn = await window.Live.accept(token, onState); } catch (e) { fail(e); return; }
   conn.onClose(lost);
-  screen([["p", "livebig", t("live_challenged")], ["p", "livebadge", B.badge(conn.channel)], ["p", "note", t("live_badgeNote")], ["p", "note", game ? own("live_" + game.g + "Howto", "arc_how_" + game.g) : t("live_howto")], ["p", "lbl", t("live_waitStart")]]);
+  (function ready() { screen([["p", "livebig", t("live_challenged")], ["p", "livebadge", B.badge(conn.channel)], ["p", "note", t("live_badgeNote")], ["p", "note", game ? own("live_" + game.g + "Howto", "arc_how_" + game.g) : t("live_howto")], ["p", "lbl", t("live_waitStart")]]); again = ready; })();
   conn.on(function (m) { if (m.t !== "go" || !ov || loop || busy) return; game = pick(m.g, m.set); begin(false); });
 }
 function onState(s) { var n = ov && ov.querySelector(".note"); if (n && t("live_s_" + s) !== "live_s_" + s) n.textContent = t("live_s_" + s); }
