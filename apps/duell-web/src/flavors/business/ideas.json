@@ -322,6 +322,26 @@
     "f": "star",
     "grip": "pause"
    }
+  },
+  {
+   "tags": ["phishing","it-sicherheit","sicherheit","e-mail","betrug","schulung","quiz","business","security","email","scam","fraud","training"],
+   "id": "biz-quiz-phishing",
+   "kind": "turn",
+   "min": 120,
+   "on": "11-18",
+   "de": {
+    "t": "Echt oder|Phishing?",
+    "s": "Zehn ausgedachte Mails und SMS. Ohne Namen, ohne Rangliste."
+   },
+   "en": {
+    "t": "Real or|phishing?",
+    "s": "Ten made-up mails and texts. No names, no ranking."
+   },
+   "turn": {
+    "g": "phish",
+    "f": "ring",
+    "grip": "pause"
+   }
   }
  ],
  "gated": []

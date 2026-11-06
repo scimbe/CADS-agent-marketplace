@@ -3,12 +3,14 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const D = require("../src/daily.js");
 const Tn = require("../src/turns.js");
+const QS = require("../src/quizspiele.js");   // the quiz cards Echt oder Phishing? (Business) and Was kostet das? join the table
 const me = { emoji: "🐙", nick: "M", colors: ["#2b4bff", "#ffe600"], set: "tiere" };
 const ideas = D.IDEAS.filter((i) => i.kind === "turn");
 const through = (d) => { const hash = D.docUrl(d).split("#")[1]; const r = D.parseRoute("#" + hash); assert.equal(r.type, "doc"); return r.doc; };
 // Team-Quiz and Typen-Quiz only run with a question pack (quizpack.js): the first night pack that fits.
 const PACKS = require("../src/quiz-packs.json").packs, QP = require("../src/quizpack.js");
-const fresh = (g, seed) => { const d = D.docFromIdea(ideas.find((i) => i.turn.g === g), me, "de"); if (Tn.GAMES[g].needs) { d.pk = PACKS.map((x) => QP.sanitize(x.pk)).find((p) => QP.fits(g, p)); d.pk.q = d.pk.q.slice(0, 3); } return Tn.fresh(d, seed); };
+const BIZ = require("../src/flavors/business/ideas.json").ideas.filter((i) => i.kind === "turn");
+const fresh = (g, seed) => { const d = D.docFromIdea(ideas.concat(BIZ).find((i) => i.turn.g === g), me, "de"); if (Tn.GAMES[g].needs) { d.pk = PACKS.map((x) => QP.sanitize(x.pk)).find((p) => QP.fits(g, p)); d.pk.q = d.pk.q.slice(0, 3); } return Tn.fresh(d, seed); };
 const LINES = {
   deal: [[[4], [3, 6], [5]]], einig: [[[["Pizza", "Sushi", "Döner", "Pommes", "Nudeln"], [0, 1, 2, 3, 4]], [[4, 0, 1, 2, 3]]]],
   wort: [[[[0, 1, 2], "Zzzz"], [[0, 1, 5]]]], schmuggel: [[[0], [0, [0, 1, 2]], [[3, 4, 5]]]],
@@ -59,10 +61,13 @@ const LINES = {
   tuer: [[[[2, 15, 20]]]],
   luecke: [[[[0]], [["Lama", "Nudeln", "Knopf", "Heissa", "tanzen", "Riese"]]]],
   quiz: [[[[0], [1], [2]], [[1], [1], [1]]]],
-  typen: [[[0], [[0], [1], [2], 0]]]
+  typen: [[[0], [[0], [1], [2], 0]]],
+  phish: [Array.from({ length: QS.PEOPLE }, (x, i) => QS.full((i * 37) % 1024))],
+  preis: [[Array(QS.PREIS_N).fill(100), Array(QS.PREIS_N).fill(50)]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
-  assert.deepEqual(ideas.map((i) => i.turn.g).sort(), [...Tn.IDS].sort());
+  // phish is a card of the Business catalog (src/flavors/business/ideas.json), every other game has a daily card
+  assert.deepEqual(ideas.map((i) => i.turn.g).concat(["phish"]).sort(), [...Tn.IDS].sort());
   for (const g of Tn.IDS) {
     let d = fresh(g, 12345);
     for (const answers of LINES[g][0]) { const n = Tn.play(d, answers, 100); assert.ok(n, g); d = through(n); }
