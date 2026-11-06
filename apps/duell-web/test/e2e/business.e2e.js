@@ -312,3 +312,23 @@ test("Folgetermin aus dem Protokoll: offene Aufgaben werden ohne KI zur Agenda-K
   assert.deepEqual(sent, [], "nichts an den KI-Server");
   assert.deepEqual(errs, []); await b.close();
 });
+
+// Daily Business has no free card (feats without f_create): no deck part in dist, no button under "Vergangene", no deck request.
+test("Business ohne freie Karte: kein Teil deck im dist, kein Knopf Community-Karten, keine Abfrage von deck, deck/me, mod/me", async () => {
+  const fs = require("node:fs");
+  assert.ok(!fs.readdirSync(path.join(root, "dist/business/parts")).some((f) => f.startsWith("deck.")), "dist/business/parts ohne deck");
+  const { b, open, errs } = await setup(), asked = [];
+  try {
+    const p = await open();
+    p.on("request", (r) => { if (/^https?:/.test(r.url())) asked.push(r.url()); });
+    assert.equal(await p.evaluate(() => "deck" in window.DailyParts), false);
+    await p.locator("#past").tap();
+    await p.locator("#pastq").waitFor();
+    await p.locator("#pastq").fill("stern");
+    assert.equal(await p.getByRole("button", { name: "Community-Karten" }).count(), 0);
+    await p.waitForTimeout(300);
+    assert.deepEqual(asked.filter((u) => /\/api\/duell\/(deck|mod)/.test(u)), []);
+    assert.notEqual(await p.locator("#toast").textContent(), "Dieser Teil fehlt gerade. Bitte die Seite neu laden.");
+    assert.deepEqual(errs, []);
+  } finally { await b.close(); }
+});

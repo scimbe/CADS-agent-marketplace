@@ -141,3 +141,13 @@ test("Registrierungs-API (turnzwei, logik): je Art ein Name nur einmal, nur guel
     assert.deepEqual([...p[name].kinds()], kinds); assert.deepEqual(kinds.map((k) => [...p[name].list(k)]), has);
   }
 });
+
+// A build without the deck part (business: no free card) keeps window.Deck, and every call is quiet: no script, no toast.
+test("ohne Teil deck im Manifest: Deck-Namen bleiben, laden nichts, kein Hinweis auf dem Schirm", async () => {
+  const { w, added } = page("https://bunsenbrenner.org/business/");
+  for (const m of ["shelf", "open", "vote", "load"]) w.Deck[m]();
+  w.Deck.seen({ ki: { k: "karte" } }, {});
+  assert.equal(w.Deck.search("x").length, 0); assert.equal(w.Deck.revoked({}), false);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(added.length, 0); assert.equal(w.toasts.length, 0);
+});

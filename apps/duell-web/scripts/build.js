@@ -59,7 +59,6 @@ const PARTS = {
   turnzwei: { d: ["katalog"], src: ["SIEGEL", "GESCHENKE", "TURN2", "FEIERDATA", "FEIER", "FEIERUI"] },   // "turn2" of the card plan: rules and widgets of the new turn cards (src/turn2.js), gift ideas (src/geschenke.js), device keys (src/siegel.js), the party poll (src/feier.js)
   logik: { d: [], src: ["LOGIK"] },                                                                    // puzzle generators, e.g. Sudoku (src/logik.js)
   daten: { d: [], src: ["KALENDERDATA", "KALENDER"] },                                                 // public and school holidays (src/kalender.json)
-  deck: { d: [], src: ["DECKTEXTS", "DECK"] },                                                         // community deck of free cards: signed deck, use, thumbs, credit, decisions (src/deck.js)
 };
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
 if (has("biz-ui.js")) { PARTS.biz = { d: [], src: ["BIZ", "BIZUI"] }; parts.BIZ = read("src/biz.js"); parts.BIZUI = read(fl("biz-ui.js")); }
@@ -67,7 +66,12 @@ parts.KATALOG = "window.DuellIdeasFull=" + JSON.stringify(catalog) + ";window.Da
 parts.TURN2 = read("src/turn2.js"); parts.SIEGEL = read("src/siegel.js"); parts.GESCHENKE = "window.GeschenkeData=" + JSON.stringify(json("src/geschenke.json")) + ";" + read("src/geschenke.js"); parts.FEIERDATA = "window.FeierData=" + JSON.stringify(json("src/feier.json")) + ";"; parts.FEIER = read("src/feier.js"); parts.FEIERUI = read("src/feier-ui.js"); parts.LOGIK = read("src/logik.js"); parts.KALENDER = read("src/kalender.js");
 parts.KALENDERDATA = "window.KalenderData=" + JSON.stringify(json("src/kalender.json")) + ";";
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
-parts.DECKTEXTS = "window.DeckTexts=" + JSON.stringify(deckTexts) + ";"; parts.DECK = read("src/deck.js");
+// Community deck of free cards: signed deck, use, thumbs, credit, decisions (src/deck.js). Only where the free card is on:
+// a flavor whose feats leave out f_create (the business app) neither builds nor preloads it, like "stimme" with stat: false.
+if (!(conf && conf.feats && conf.feats.indexOf("f_create") < 0)) {
+  PARTS.deck = { d: [], src: ["DECKTEXTS", "DECK"] };
+  parts.DECKTEXTS = "window.DeckTexts=" + JSON.stringify(deckTexts) + ";"; parts.DECK = read("src/deck.js");
+}
 parts.TEXTE = read("src/texte.js");
 parts.TEXTEDATA = "window.TexteData=" + JSON.stringify(json("src/texte.json")) + ";";
 parts.QUIZDATA = "window.QuizPacks=" + JSON.stringify(json("src/quiz-packs.json")) + ";";

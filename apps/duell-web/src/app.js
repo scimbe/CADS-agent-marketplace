@@ -949,7 +949,8 @@ function openPast() {
     var q = el("input", "field"), list = el("div"), T = window.DailyTexts, names = {};
     q.type = "search"; q.id = "pastq"; q.placeholder = t("pastSearch"); q.setAttribute("aria-label", t("pastSearch")); q.autocomplete = "off"; q.enterKeyHint = "search";
     D.KINDS.forEach(function (k) { names[k] = [T.de[k], T.en[k]]; });
-    window.Deck.load();
+    var deck = shown("f_create");   // the community deck only where the free card is on (not in the business app)
+    if (deck) window.Deck.load();
     function row(e) {
       var made = wall.some(function (w) { return w.id === e.idea.id; }), r = el("button", "day", null, function () { Kit.sfx.tap(); home = { date: e.date || today, idea: e.idea }; goHome(); });
       r.appendChild(el("b", "", e.date ? String(e.date.getUTCDate()).padStart(2, "0") : "✦"));
@@ -961,14 +962,14 @@ function openPast() {
     function fill() {
       list.textContent = "";
       if (!q.value.trim()) { D.lastDays(today, 7).forEach(row); return; }
-      var hits = D.searchIdeas(q.value, today, names), dk = window.Deck.search(q.value);
+      var hits = D.searchIdeas(q.value, today, names), dk = deck ? window.Deck.search(q.value) : [];
       if (!hits.length && !dk.length) { list.appendChild(el("div", "empty", t("pastNone"))); return; }
       hits.forEach(function (h) { h.found = true; row(h); });
       dk.forEach(function (e) { var r = el("button", "day", null, function () { Kit.sfx.tap(); window.Deck.open(e); }); r.appendChild(el("b", "", "✦")); r.appendChild(el("span", "", D.plainTitle(e.doc.t || e.doc.x || ""))); r.appendChild(el("small", "", t("deck_open"))); list.appendChild(r); });
     }
     q.addEventListener("input", fill);
     b.appendChild(q); b.appendChild(list); fill();
-    b.appendChild(el("button", "btn", t("deck_open"), function () { Kit.sfx.tap(); window.Deck.shelf(); }));
+    if (deck) b.appendChild(el("button", "btn", t("deck_open"), function () { Kit.sfx.tap(); window.Deck.shelf(); }));
   });
 }
 function openWall(which) {

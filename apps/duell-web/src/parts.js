@@ -59,7 +59,10 @@
   stand("table", "TableUI", ["open", "accept"], { close: function () {} });
   // The community deck of free cards (deck.js). search() and revoked() answer from nothing until the part is there; seen()
   // of a free card (doc.ki.k "karte") loads the part, which reports a use (login only) and marks a revoked seal.
-  var dk = stand("deck", "Deck", ["shelf", "open", "vote", "load"], {
+  // A build without the part (the business app) keeps the names, and they do nothing: no request, no word on screen.
+  var dk = !LIST.deck ? { shelf: function () {}, open: function () {}, vote: function () {}, load: function () {} } : null;
+  if (dk) root.Deck = Object.assign(dk, { search: function () { return []; }, revoked: function () { return false; }, seen: function () {} });
+  else dk = stand("deck", "Deck", ["shelf", "open", "vote", "load"], {
     search: function () { return []; }, revoked: function () { return false; },
     seen: function (doc, badge) {
       if (doc && doc.ki && doc.ki.k === "karte" && LIST.deck) need("deck").then(function () { if (root.Deck !== dk) root.Deck.seen(doc, badge); }, function () {});
