@@ -102,8 +102,11 @@
       var g = await call("get", who(p));
       if (link() !== p) return (state = "");   // unlinked or deleted meanwhile: write nothing
       if (g.status === 401) return (state = "login");
+      if (g.status === 429) return (state = "limit");
       if (g.status !== 200) return (state = "error");
       if (g.json.gone && p.base) { unlink(); onChange(); Kit.toast(t("ac_gone")); return (state = "gone"); }   // deleted on another device: stay local, do not upload it again
+      // Joining with a code never creates: no profile behind it, nothing goes out (only "Sync-Code anlegen" makes one).
+      if (p.via === "code" && !p.base && !p.make && !g.json.profile) { unlink(); return (state = "unknown"); }
       var ch = merge(Kit.store, g.json.profile, p.base, p.via);
       if (Object.keys(ch).length) { Object.keys(ch).forEach(function (k) { Kit.store[k] = ch[k]; }); if (ch.aiDev) delete Kit.store.aiMeter; plainSave(); onChange(); }
       var out = pack(Kit.store, p.via), rev = g.json.rev;
@@ -115,7 +118,7 @@
         if (w.status === 410) { unlink(); onChange(); Kit.toast(t("ac_gone")); return (state = "gone"); }
         if (w.status === 401) return (state = "login");
         if (w.status === 403 && w.json.error === "code-needs-login") return (state = "codeLogin");   // a new code needs an account (server #82)
-        if (w.status !== 200) return (state = w.status === 429 ? "busy" : "error");
+        if (w.status !== 200) return (state = w.status === 429 ? "limit" : "error");   // 429: store full or a limit, not "syncing"
         rev = w.json.rev;
       }
       p.rev = rev; p.base = snapshot(out); p.at = Date.now(); plainSave();
@@ -132,12 +135,12 @@
   Kit.save = function () { plainSave(); if (link()) { clearTimeout(timer); timer = setTimeout(sync, 2500); } };
 
   function unlink() { delete Kit.store.profile; plainSave(); state = ""; }
-  function startCode(code) { Kit.store.profile = { via: "code", code: code, rev: 0, base: null }; plainSave(); return sync(); }
+  function startCode(code, make) { Kit.store.profile = { via: "code", code: code, rev: 0, base: null }; if (make) Kit.store.profile.make = true; plainSave(); return sync(); }
   // A new sync code needs a signed-in account (16+, e.g. a parent for a child; the server does not keep who). Not signed in:
   // the login first; the mark { via: "start" } brings the page back here (app.js loads this part while store.profile is set).
   async function newCodeNow(rerender) {
     var b16 = new Uint8Array(16); crypto.getRandomValues(b16);
-    var s = await startCode(newCode(b16));
+    var s = await startCode(newCode(b16), true);
     if (s === "ok") { Kit.toast(t("ac_linked")); onChange(); }
     else { unlink(); if (s === "codeLogin" && canAccount && !rerender.again) { Kit.store.profile = { via: "start", at: Date.now() }; plainSave(); look(); location.href = "/auth/login?return=" + encodeURIComponent("/duell"); return; } Kit.toast(t(s === "codeLogin" ? "ac_codeLogin" : "ac_err")); }
     if (rerender) rerender();
@@ -179,7 +182,7 @@
         box.appendChild(f);
         box.appendChild(el("button", "btn", t("ac_join"), async function () {
           var c = parseCode(f.value); if (!c) { Kit.toast(t("ac_bad")); return; }
-          var s = await startCode(c); Kit.toast(t(s === "ok" ? "ac_linked" : s === "codeLogin" ? "ac_unknown" : "ac_err")); if (s !== "ok") unlink(); rerender();   // codeLogin here: no profile with this code
+          var s = await startCode(c); Kit.toast(t(s === "ok" ? "ac_linked" : s === "unknown" ? "ac_unknown" : s === "limit" ? "ac_limit" : "ac_err")); if (s !== "ok") unlink(); rerender();
         }));
       } else box.appendChild(el("p", "note", t("ac_noCode")));
       return box;

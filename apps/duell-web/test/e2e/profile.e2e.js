@@ -15,7 +15,7 @@ const SEED = { me: { nick: "Mira", emoji: "🦖", colors: ["#2b4bff", "#ffe600"]
   wall: [{ id: "own", ts: 3, k: "photo", th: JPEG }, { id: "own", ts: 2, k: "card", th: JPEG }], saved: [{ id: "quiz-chaos", ts: 1 }], aiDev: "5e".repeat(16) };
 
 function fakeServer() {
-  const db = new Map(), log = [];
+  const db = new Map(), log = [], conf = { full: false };
   const srv = http.createServer((req, res) => {
     const u = new URL(req.url, "http://x"), json = (s, b, h = {}) => res.writeHead(s, { "Content-Type": "application/json", ...h }).end(JSON.stringify(b));
     // The page allows only the demos host in connect-src; served from here, this test server stands in for it.
@@ -32,6 +32,7 @@ function fakeServer() {
       if (m[1] === "get") return json(200, rec && !rec.gone ? { profile: rec.p, rev: rec.rev, via: b.via } : { profile: null, rev: rec ? rec.rev : 0, via: b.via, gone: !!(rec && rec.gone) || undefined });
       if (m[1] === "delete") { if (rec) db.set(key, { rev: rec.rev + 1, gone: true }); return json(200, { deleted: true }); }
       const rev = rec ? rec.rev : 0;
+      if (conf.full) return json(429, { error: "full" });   // store full (CADS-DEMO-wrapper #82, fail-closed)
       if (rec && rec.gone && !b.fresh) return json(410, { error: "gone", rev });
       if (b.rev !== rev) return json(409, { error: "stale", rev });
       if (b.via === "account" && (!rec || rec.gone) && b.age16 !== true) return json(403, { error: "age16" });
@@ -40,7 +41,7 @@ function fakeServer() {
       json(200, { rev: rev + 1, via: b.via });
     });
   });
-  return new Promise((ok) => srv.listen(0, "127.0.0.1", () => ok({ db, log, base: "http://127.0.0.1:" + srv.address().port, close: () => { srv.close(); srv.closeAllConnections(); } })));
+  return new Promise((ok) => srv.listen(0, "127.0.0.1", () => ok({ db, log, conf, base: "http://127.0.0.1:" + srv.address().port, close: () => { srv.close(); srv.closeAllConnections(); } })));
 }
 
 let browser, srv;
@@ -137,26 +138,42 @@ test("Konto: erst nach 16+, Anmelden ueber /auth/login, danach liegt das Profil 
   await c.ctx.close();
 });
 
-test("Neuer Sync-Code ohne Anmeldung: erst zum Login, zurueck wird der Code angelegt; ein unbekannter Code legt nichts an", async () => {
-  const d = await phone({ seed: SEED });
-  await d.style();
-  await d.p.getByText("Einen neuen Code legt man mit bunsenbrenner-Konto an", { exact: false }).waitFor();
-  await d.p.getByLabel("Ich bin 16 oder älter.").check();
-  await Promise.all([d.p.waitForURL(srv.base + "/duell"), d.p.getByRole("button", { name: "Sync-Code anlegen" }).click()]);   // 403 -> /auth/login -> back
-  let s = {};
-  for (let i = 0; i < 80; i++) { s = await d.store(); if (s.profile && s.profile.code && srv.db.get("code:" + s.profile.code)) break; await d.p.waitForTimeout(100); }
-  assert.equal(s.profile.via, "code"); assert.match(s.profile.code, /^[0-9a-f]{32}$/);
-  assert.equal(srv.db.get("code:" + s.profile.code).p.me.nick, "Mira", "made after the login, once");
-  await d.style(); await d.p.getByText("Verbunden per Sync-Code:").waitFor();
-  const e = await phone();
-  await e.style();
-  await e.p.getByPlaceholder("Code von deinem anderen Gerät").fill("ab".repeat(16));
-  await e.p.getByRole("button", { name: "Mit Code verbinden" }).click();
-  await e.p.getByText("Zu diesem Code gibt es kein Profil.", { exact: false }).waitFor();
-  assert.equal(srv.db.get("code:" + "ab".repeat(16)), undefined, "a typo creates nothing");
-  assert.equal((await e.store()).profile, undefined);
-  assert.deepEqual([...d.errs, ...e.errs], []);
-  await d.ctx.close(); await e.ctx.close();
+test("Neuer Sync-Code ohne Anmeldung: erst zum Login, zurueck wird der Code angelegt; Verbinden mit einem unbekannten Code legt nie an", async () => {
+  const d = await phone({ seed: SEED }), e = await phone(), f = await phone({ login: true });
+  try {
+    await d.style();
+    await d.p.getByText("Einen neuen Code legt man mit bunsenbrenner-Konto an", { exact: false }).waitFor();
+    await d.p.getByLabel("Ich bin 16 oder älter.").check();
+    // 403 code-needs-login -> /auth/login -> 302 back to /duell: wait for the login request and the new page, not the URL (it is /duell already)
+    const login = d.p.waitForRequest((r) => new URL(r.url()).pathname === "/auth/login");
+    await d.p.getByRole("button", { name: "Sync-Code anlegen" }).click();
+    await login;
+    await d.p.waitForResponse((r) => r.url() === srv.base + "/duell" && r.request().resourceType() === "document");
+    await d.p.locator("#go").waitFor();
+    let s = {};
+    for (let i = 0; i < 80; i++) { s = await d.store(); if (s.profile && s.profile.code && srv.db.get("code:" + s.profile.code)) break; await d.p.waitForTimeout(100); }
+    assert.equal(s.profile.via, "code"); assert.match(s.profile.code, /^[0-9a-f]{32}$/);
+    assert.equal(srv.db.get("code:" + s.profile.code).p.me.nick, "Mira", "made after the login, once");
+    await d.style(); await d.p.getByText("Verbunden per Sync-Code:").waitFor();
+    // joining with a code nobody has: never creates, also not with a login cookie in the browser
+    for (const [x, code] of [[e, "ab".repeat(16)], [f, "cd".repeat(16)]]) {
+      const n = srv.log.length;
+      await x.style();
+      await x.p.getByPlaceholder("Code von deinem anderen Gerät").fill(code);
+      await x.p.getByRole("button", { name: "Mit Code verbinden" }).click();
+      await x.p.getByText("Zu diesem Code gibt es kein Profil.", { exact: false }).waitFor();
+      assert.equal(srv.db.get("code:" + code), undefined, "a typo creates nothing");
+      assert.deepEqual(srv.log.slice(n).map((r) => r.op), ["get"], "only the look-up went out");
+      assert.equal((await x.store()).profile, undefined);
+    }
+    // store full (429): its own note, not "Gleiche ab ..."
+    srv.conf.full = true;
+    await d.p.getByLabel("Spitzname").fill("Kiwi");
+    await d.p.getByRole("button", { name: "Jetzt abgleichen" }).click();
+    await d.p.getByText("Der Abgleich ist gerade begrenzt.", { exact: false }).waitFor();
+    assert.equal(await d.p.getByText("Gleiche ab …").count(), 0);
+    assert.deepEqual([...d.errs, ...e.errs, ...f.errs], []);
+  } finally { srv.conf.full = false; await d.ctx.close(); await e.ctx.close(); await f.ctx.close(); }
 });
 
 test("App-Huellen: iOS ohne Netz zeigt nur Hinweise und fragt nichts, Android hat den Code, aber kein Konto", async () => {
