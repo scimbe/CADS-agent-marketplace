@@ -179,3 +179,33 @@ test("Schnee: ein alter Werfer ohne Uhr in den Wuerfen gegen einen neuen Empfaen
   }
   assert.equal(S.rejected, 0);
 });
+
+// Two sides over the bad network (150 ms +-80 ms, 5 % loss resent after 250 ms, one 500 ms stall); oldA: side A is an
+// older app that neither sends nor understands "fin".
+function overBad(g, seed, oldA) {
+  const N = require("./netsim.js"), r = N.rng(seed), ab = N.channel(r, N.BAD), ba = N.channel(r, N.BAD); let now = 0;
+  const clock = () => now;
+  const SA = A.side(g, { seed: "d" + seed, serving: true, clock, send: (m) => { if (!(oldA && m.t === "fin")) ab.send(now, m); } });
+  const SB = A.side(g, { seed: "d" + seed, serving: false, clock, send: (m) => ba.send(now, m) });
+  if (oldA) { const rc = SA.receive; SA.receive = (m) => { if (m.t !== "fin") rc(m); }; }
+  const a = A.bot(g, SA, "a"), b = A.bot(g, SB, "b"); SA.start(); SB.start();
+  let f = 0;
+  for (; f < 60 * 120 && !(SA.over && SB.over); f++) { now += 1 / 60; ba.due(now, (m) => SA.receive(m)); ab.due(now, (m) => SB.receive(m)); a(1 / 60); b(1 / 60); SA.tick(1 / 60); SB.tick(1 / 60); SA.ev.length = 0; SB.ev.length = 0; }
+  return { SA, SB, t: f / 60 };
+}
+test("Doppel-K.o.: beide Seiten enden im schlechten Netz gleich, gleichzeitige letzte Treffer sind ein Unentschieden", () => {
+  let draws = 0;
+  for (const g of ["snow", "panzer"]) for (let seed = 1; seed <= 30; seed++) {
+    const { SA, SB } = overBad(g, seed, false);
+    assert.ok(SA.over && SB.over, g + " " + seed + " endet");
+    assert.deepEqual(SA.score, [SB.score[1], SB.score[0]], g + " " + seed + ": gleicher Endstand");
+    assert.equal(SA.draw, SB.draw); if (SA.draw) draws++;
+  }
+  assert.ok(draws >= 1, "der Doppel-K.o. kommt in den 60 Partien vor und endet unentschieden");
+});
+test("Doppel-K.o. mit einer alten App ohne fin: niemand bleibt haengen", () => {
+  for (let seed = 1; seed <= 10; seed++) {
+    const { SA, SB } = overBad("snow", seed, true);
+    assert.ok(SA.over && SB.over, "beide Seiten sind fertig, seed " + seed);
+  }
+});

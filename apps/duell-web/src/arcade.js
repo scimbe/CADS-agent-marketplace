@@ -5,7 +5,7 @@
    send() and receive(), so the bot is simply a second side in the same page, and tests can pipe two sides together. */
 (function (root) {
   "use strict";
-  var W = 1000, H = 1600, STEP = 1 / 120, NET_P = 0.05, NET_ST = 0.1, SERVE_PAUSE = 0.9;
+  var W = 1000, H = 1600, STEP = 1 / 120, NET_P = 0.05, NET_ST = 0.1, SERVE_PAUSE = 0.9, FIN_WAIT = 2;
 
   function hash32(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   function unit(seed, key) { return hash32(seed + "|" + key) / 4294967296; }               // 0..1, fixed by the seed
@@ -32,7 +32,24 @@
     S.clock = o.clock || function () { return S.t; };
     S.send = function (m) { if (m.t === "p" || m.t === "shot" || m.t === "throw") m.ms = Math.round(S.clock() * 1000); if (o.send) o.send(m); };
     S.fx = function (k, x, y, more) { var e = { k: k, x: x, y: y }; if (more) for (var q in more) e[q] = more[q]; S.ev.push(e); if (S.ev.length > 80) S.ev.shift(); };
-    S.check = function () { if (S.score[0] >= G.WIN || S.score[1] >= G.WIN) { S.over = true; S.serveAt = 0; S.fx(S.score[0] > S.score[1] ? "won" : "lost", W / 2, H / 2); } };
+    function finish() { S.over = true; S.ending = false; S.serveAt = 0; S.draw = S.score[0] === S.score[1]; S.fx(S.draw ? "draw" : S.score[0] > S.score[1] ? "won" : "lost", W / 2, H / 2); }
+    // Where both phones can take the last hit at once (G.fin: several snowballs or shells in the air), each one
+    // freezes at the end and sends how many hits it took ("fin"); the channel is ordered, so its earlier hit reports are
+    // in by then. With both numbers in, both phones end alike: equal is a draw. An older app sends no "fin": after
+    // FIN_WAIT the score as it stands counts.
+    S.ending = false; S.oppFin = null; S.draw = false;
+    S.check = function () {
+      if (S.over || !(S.score[0] >= G.WIN || S.score[1] >= G.WIN || S.oppFin !== null)) return;
+      if (!G.fin) { finish(); return; }
+      if (!S.ending) { S.ending = true; S.endAt = S.t; S.serveAt = 0; S.send({ t: "fin", c: S.score[1] }); }
+      if (S.oppFin !== null) { S.score[0] = Math.max(S.score[0], S.oppFin); finish(); }   // a hit reported is never taken back
+    };
+    S.fin = function (m) {
+      if (m.t !== "fin") return false;
+      if (num(m.c) && m.c >= 0 && m.c < 100 && S.oppFin === null) { S.oppFin = m.c | 0; S.check(); }
+      return true;
+    };
+    S.finWait = function (dt) { S.t += dt; if (S.t - S.endAt > FIN_WAIT) finish(); };
     // This phone let the point go: the other one scores, and the one who lost the point serves the next ball.
     S.concede = function (x, y) { S.score[1]++; S.send({ t: "pt" }); S.fx("lose", x, y); S.check(); if (!S.over && G.serves) S.serveAt = S.t + SERVE_PAUSE; };
     S.gain = function () { S.score[0]++; S.fx("score", W / 2, H / 4); S.check(); };
@@ -50,6 +67,7 @@
   }
   function loop(S, dt, sub) {
     if (S.over) return;
+    if (S.ending) { S.finWait(Math.min(dt, 0.25)); return; }   // frozen until the other phone's last word
     dt = Math.min(dt, 0.25);
     while (dt > 1e-9) { var d = Math.min(STEP, dt); dt -= d; S.t += d; sub(d); if (S.over) break; }
   }
@@ -363,7 +381,7 @@
   }
 
   // ======================= Insel-Panzer: side view, one island, a tank on each shore, shells with gravity and wind =======================
-  var PANZER = { id: "panzer", WIN: 3, serves: false, N: 100, SEA: H - 110, TX: 160, G: 620, WMAX: 140, VSHOT: 1350, VMIN: 220, RELOAD: 1.5, CR: 72, HR: 74, TH: 26 };
+  var PANZER = { id: "panzer", WIN: 3, serves: false, fin: true, N: 100, SEA: H - 110, TX: 160, G: 620, WMAX: 140, VSHOT: 1350, VMIN: 220, RELOAD: 1.5, CR: 72, HR: 74, TH: 26 };
   // The island is mirror-symmetric, so both phones stand on the same shore; its hill and bumps come from the seed.
   function island(seed) {
     var P = PANZER, u1 = unit(seed, "isl|hill"), u2 = unit(seed, "isl|width"), u3 = unit(seed, "isl|bump"), a = [];
@@ -436,7 +454,7 @@
       report(S, function () { S.send({ t: "p", vx: Math.round(-st.aim.vx), vy: Math.round(st.aim.vy) }); });
     };
     S.receive = function (m) {
-      var st = S.st; if (!m || S.over) return;
+      var st = S.st; if (!m || S.over || S.fin(m)) return;
       if (m.t === "p" && num(m.vx) && num(m.vy)) { st.oppAim = cap({ x: 0, y: 0, vx: m.vx, vy: m.vy }, P.VSHOT); return; }
       if (m.t === "shot") {
         if (!plausibleShot(m, oppLast, S.t)) return S.reject();
