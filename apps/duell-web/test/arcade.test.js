@@ -118,6 +118,60 @@ test("Panzer: wer getroffen wird, entscheidet; Krater bleiben in seiner Haelfte"
   assert.ok(boom && boom.hit === true); assert.deepEqual(S.score, [0, 1]);
 });
 
+// Wired like playBot in arcade-ui.js: the player stands still (S idle), the bot plays B, 60 frames per second.
+function panzerVsIdle(seed, max) {
+  const toMe = [], toBot = [];
+  const S = A.side("panzer", { seed, serving: true, send: (m) => toBot.push(JSON.parse(JSON.stringify(m))) });
+  const B = A.side("panzer", { seed, serving: false, send: (m) => toMe.push(JSON.parse(JSON.stringify(m))) });
+  const bot = A.bot("panzer", B, seed);
+  S.start(); B.start();
+  let t = 0;
+  while (t < max && !S.over) { S.tick(1 / 60); while (toBot.length) B.receive(toBot.shift()); bot(1 / 60); B.tick(1 / 60); B.ev.length = 0; while (toMe.length) S.receive(toMe.shift()); S.ev.length = 0; t += 1 / 60; }
+  return { S, t, shots: B.st.id };
+}
+
+test("Panzer: ein Krater sinkt nie unter die Wasserlinie, der Panzer bleibt im tiefsten Loch treffbar", () => {
+  const T = A.island("tief"), P = A.PANZER, sea = T.slice();
+  for (let k = 0; k < 40; k++) { const tk = A.tankPos(T, true); A.crater(T, tk.x + ((k % 5) - 2) * 20, tk.y + P.TH, true); }
+  for (let i = 0; i < T.length; i++) {
+    if (sea[i] < P.SEA) assert.ok(T[i] < P.SEA, "Kraterboden bleibt Land, Feld " + i);
+    else assert.equal(T[i], sea[i], "der Meeresboden wird nie angehoben, Feld " + i);
+  }
+  const out = [], S = A.side("panzer", { seed: "tief", serving: false, send: (m) => out.push(m) });
+  S.st.T.splice(0, T.length, ...T); S.start();
+  const tk = A.tankPos(S.st.T, true);
+  S.st.shells.push({ x: tk.x, y: tk.y - 5, vx: 0, vy: 10, w: 0, mine: false, i: 0 });
+  for (let i = 0; i < 60 && !out.some((m) => m.t === "boom"); i++) S.tick(1 / 60);
+  const boom = out.find((m) => m.t === "boom");
+  assert.ok(boom && boom.hit === true, "Treffer statt Platschen im tiefen Krater");
+});
+
+test("Panzer: ein schneller Schuss, der im Schritt unter den Kraterboden faellt, landet trotzdem auf der Insel", () => {
+  const T = A.island("tief"), P = A.PANZER;
+  for (let k = 0; k < 40; k++) { const tk = A.tankPos(T, true); A.crater(T, tk.x + ((k % 5) - 2) * 20, tk.y + P.TH, true); }
+  const floor = A.surface(T, P.TX);
+  assert.ok(floor > P.SEA - P.FLOOR - 1 && floor < P.SEA, "Boden knapp ueber der Wasserlinie: " + floor);
+  // falls 20 px per step (faster than FLOOR), starts just above the floor, so its next position is below SEA
+  const f = A.flight(T, { x: P.TX, y: floor - 2, vx: 0, vy: 20 * 120, w: 0 }, 10);
+  assert.equal(f.k, "land", "kein Platschen auf Land");
+  assert.ok(f.y >= P.SEA, "der Schritt endet wirklich unter SEA: " + f.y);
+  const g = A.flight(T, { x: 30, y: P.SEA - 2, vx: 0, vy: 2400, w: 0 }, 10);
+  assert.equal(g.k, "sea", "ueber dem Wasser bleibt es Platschen");
+});
+
+test("Panzer: der Bot beendet jede Partie gegen einen stillstehenden Spieler in unter 120 s (e2e-0..39), und trifft nicht besser als frueher", () => {
+  let shots = 0, hits = 0, time = 0;
+  for (let n = 0; n < 40; n++) {
+    const r = panzerVsIdle("e2e-" + n, 120);
+    assert.ok(r.S.over, "e2e-" + n + " endet nicht in 120 s, Stand " + r.S.score);
+    assert.deepEqual(r.S.score, [0, A.PANZER.WIN], "e2e-" + n);
+    shots += r.shots; hits += r.S.score[1]; time += r.t;
+  }
+  // as strong as before the fix (about 3.3 shots per hit, 30-35 s per game), not a sharpshooter
+  assert.ok(shots / hits >= 2.7 && shots / hits <= 4, "Schuss je Treffer " + (shots / hits).toFixed(2));
+  assert.ok(time / 40 >= 25 && time / 40 <= 45, "mittlere Partie " + (time / 40).toFixed(1) + " s");
+});
+
 test("Kein Ball wird von den eigenen Regeln schneller als VMAX, sonst verwirft ihn die Gegenseite als Schummelei", () => {
   // Ziegel: every paddle hit, also the steep ones whose upward speed is raised to the minimum
   for (let off = -118; off <= 118; off += 2) for (const vx of [-1250, -600, 0, 600, 1250]) for (const vy of [100, 400, 900, 1250]) {
