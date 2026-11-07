@@ -330,10 +330,12 @@
       var st = S.st; if (!m || S.over) return;
       if (m.t === "p" && num(m.x)) { st.opp = clamp(reach(st.opp, m.x, S.oppDt(Math.abs(m.x - st.opp), E.VK * 1.25), E.VK * 1.25), W / 2 - E.GW / 2, W / 2 + E.GW / 2); st.oppV = num(m.v) ? m.v : 0; return; }
       if (m.t === "shot") {
-        // This phone still waits after the last result (it came late) while the other one already shoots the next: move on.
-        if (st.phase === "done" && m.n === st.n + 1) next();
-        if (st.shooting || st.phase === "fly" || m.n !== st.n || !num(m.vx) || !num(m.vy) || !num(m.c)) return S.reject();
-        if (Math.hypot(m.vx, m.vy) > E.VMAX * 1.01 || m.vy < E.VMIN * 0.7 - 1 || Math.abs(m.c) > E.CMAX) return S.reject();
+        if (!num(m.vx) || !num(m.vy) || !num(m.c) || Math.hypot(m.vx, m.vy) > E.VMAX * 1.01 || m.vy < E.VMIN * 0.7 - 1 || Math.abs(m.c) > E.CMAX) return S.reject();
+        // This phone still waits after the last result (it came late) while the other one already shoots the next one,
+        // which is a shot for this phone to keep: move on. Only a shot that passed the checks above does that.
+        if (st.phase === "done" && m.n === st.n + 1 && !elfShooter(m.n, o.serving)) next();
+        // One shot per turn, taken only while it is awaited: a repeat in the pause after its result does not count again.
+        if (st.shooting || st.phase !== "aim" || m.n !== st.n) return S.reject();
         var sp = elfSpot(S.seed, st.n); st.b = { x: W - sp.x, y: H - sp.y, vx: m.vx, vy: m.vy, c: m.c }; st.phase = "fly"; S.fx("kick", st.b.x, st.b.y);
         return;
       }
@@ -426,6 +428,11 @@
       var expect = st.n + queue.length;
       // The other one may throw only on its turn, from its own line, towards this side, and not harder than a hand can.
       if (m.n !== expect || !num(m.x) || !num(m.vx) || !num(m.vy) || m.x !== D.fromX(m.x) || Math.sqrt(m.vx * m.vx + m.vy * m.vy) > D.VMAX * 1.001) return S.reject();
+      // With the round settled here, whose turn it is is known now: check at once, so a throw out of turn never waits
+      // in the queue and blocks this phone's own turn. Only while a stone still rolls or another throw waits is it put
+      // off; then at most two can wait (the last of a round and the first of the next, both by the same player).
+      if (!st.rolling && !queue.length) { var who = D.turnOf(st, st.n); if (who === me || (who === 0 ? m.vy > 0 : m.vy < 0)) return S.reject(); }
+      else if (queue.length >= 2) return S.reject();
       queue.push({ x: m.x, vx: m.vx, vy: m.vy });
     };
     // Points in the shared frame: player 0 is the inviter; this phone counts itself first.

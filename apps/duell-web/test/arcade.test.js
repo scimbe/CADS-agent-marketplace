@@ -292,3 +292,29 @@ test("Elfer und Eis-Stock: wer hinterherhaengt, holt auf, aber Zuege ueberspring
   K.receive({ t: "throw", n: 0, x: 500, vx: 0, vy: 500 }); K.tick(0.05);                  // player 0 must throw upwards
   assert.equal(K.rejected, 1, "falsche Richtung"); assert.equal(K.st.list.length, 0);
 });
+
+test("Eis-Stock: eine Flut von Wuerfen ausser der Reihe blockiert den eigenen Zug nicht", () => {
+  const out = [], K = A.side("stock", { seed: "f", serving: true, send: (m) => out.push(m) }); K.start();   // player 0: first turn
+  for (let f = 0; f < 30; f++) {
+    for (const n of [K.st.n, K.st.n + 1]) K.receive({ t: "throw", n, x: 500, vx: 0, vy: 600 });         // every frame, out of turn
+    if (f === 10) K.input({ shot: { vx: 0, vy: -560 } });
+    K.tick(1 / 60);
+  }
+  const mine = out.filter((m) => m.t === "throw");
+  assert.equal(mine.length, 1, "der eigene Wurf ging los"); assert.equal(mine[0].vy, -560, "und zwar der eigene, kein weicher Spaetwurf");
+  assert.equal(K.st.list.length, 1, "nur dieser Stein liegt");
+});
+test("Elfer: ein Schuss zaehlt einmal, und ein ungueltiger naechster Schuss beendet die Pause nicht", () => {
+  const K = A.side("elfer", { seed: "r", serving: false, send: () => {} }); K.start();   // keeper of shot 0
+  K.input({ x: A.W / 2 });
+  K.receive({ t: "shot", n: 0, vx: 380, vy: 1600, c: 0 });                          // a shot into the corner
+  for (let i = 0; i < 60 && K.st.phase === "fly"; i++) K.tick(1 / 60);
+  assert.equal(K.st.phase, "done"); const score = K.score.slice();
+  for (let i = 0; i < 4; i++) K.receive({ t: "shot", n: 0, vx: 380, vy: 1600, c: 0 }); // repeated in the pause
+  for (let i = 0; i < 30; i++) K.tick(1 / 60);
+  assert.deepEqual(K.score, score, "keine Tore aus Wiederholungen"); assert.equal(K.rejected, 4);
+  const L = A.side("elfer", { seed: "s", serving: true, send: () => {} }); L.start();    // shooter of shot 0, keeper of shot 1
+  L.input({ shot: { vx: 0, vy: -1200, c: 0 } }); L.tick(0.02); L.receive({ t: "res", n: 0, r: "miss" });
+  L.receive({ t: "shot", n: 1, vx: 0, vy: 99999, c: 0 });                            // impossible
+  assert.equal(L.st.n, 0, "die Pause laeuft weiter"); assert.equal(L.st.phase, "done");
+});
