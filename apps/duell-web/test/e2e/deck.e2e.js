@@ -24,7 +24,7 @@ function signed(v, cards, revoked = []) {
   const body = { v, at: "2026-11-06T10:00:00.000Z", kid, cards: cards.map((d) => ({ cid: d.ki.h.slice(0, 22), doc: d })), revoked };
   return { ...body, sig: crypto.sign(null, Buffer.from(canonical(body)), keys.privateKey).toString("base64url") };
 }
-const PAUSE = { nid: "nidPause01", at: "2026-11-06T09:00:00.000Z", type: "pause", scope: "account", facts: { cards: ["x"], heavy: false }, ground: "terms:community-cards", automated: { detected: true, decided: true }, until: "2026-11-20T09:00:00.000Z", redress: ["appeal", "court"], appealUntil: "2027-05-08T09:00:00.000Z" };
+const PAUSE = { nid: "nidPause01", at: "2026-11-06T09:00:00.000Z", type: "pause", scope: "account", facts: { cards: ["x"], by: "human" }, ground: "terms:community-cards", automated: { detected: false, decided: false }, until: "2026-11-20T09:00:00.000Z", redress: ["appeal", "court"], appealUntil: "2027-05-08T09:00:00.000Z" };
 const HIDDEN = { nid: "nidHidden1", at: "2026-11-06T08:00:00.000Z", type: "card-hidden", scope: "card", cid: "x", facts: { down: 9, share: 0.75, why: "thumbs" }, ground: "terms:community-cards", automated: { detected: true, decided: true }, redress: ["appeal", "court"], appealUntil: "2027-05-08T08:00:00.000Z" };
 
 let b;
@@ -96,6 +96,7 @@ test("Nutzung zaehlt erst nach 20 s mit Handlung, Daumen nur nach dem Oeffnen; B
   await openDeck(p);
   await p.locator(".decklist .day", { hasText: "Sternfang" }).waitFor();
   assert.equal(await p.getByRole("button", { name: "Gefällt mir nicht" }).count(), 0, "no thumbs before opening");
+  assert.equal(await p.locator(".decklist .deckrow").first().getByRole("button", { name: "Melden", exact: true }).count(), 1, "report is there without thumbs");
   await p.locator(".decklist .day", { hasText: "Sternfang" }).tap();
   await p.locator("#home").waitFor();
   await p.clock.runFor(500);
@@ -109,6 +110,10 @@ test("Nutzung zaehlt erst nach 20 s mit Handlung, Daumen nur nach dem Oeffnen; B
   const done = sent.find((s) => s.body && s.body.ev === "done");
   assert.ok(done, "a use after 20 s and a tap"); assert.equal(done.body.t, "mh1.ABCDEFGHIJKLMNOPQRSTUV");
   await p.evaluate(() => window.Deck.shelf());
+  // report next to the thumbs, same kind of button (chip), in the same row
+  const row = p.locator(".decklist .deckrow").first();
+  const kinds = await row.locator("button.chip").evaluateAll((bs) => bs.map((b) => b.getAttribute("aria-label")));
+  assert.deepEqual(kinds, ["Gefällt mir", "Gefällt mir nicht", "Melden"], "report as visible as the thumbs");
   await p.getByRole("button", { name: "Gefällt mir nicht" }).tap();
   await p.clock.runFor(200);
   await p.waitForTimeout(100);
@@ -126,6 +131,21 @@ test("Nutzung zaehlt erst nach 20 s mit Handlung, Daumen nur nach dem Oeffnen; B
   await ctx.close();
 });
 
+test("Melden an jeder Community-Karte: ⚑ in der Zeile oeffnet die Karte und den Melde-Dialog, auch ohne Daumen", async () => {
+  const state = { deck: signed(1, [C1]) };
+  const { p, errs, ctx } = await device(state);
+  await openDeck(p);
+  const rp = p.locator(".decklist .deckrow").first().getByRole("button", { name: "Melden", exact: true });
+  await rp.waitFor();
+  assert.equal(await rp.isVisible(), true);
+  await rp.tap();
+  await p.locator("#home").waitFor();
+  await p.locator("dialog.kidlg[open]").waitFor();
+  assert.match(await p.locator("#from").textContent(), /Community-Karten/, "the deck card is open behind the dialog");
+  assert.deepEqual(errs, []);
+  await ctx.close();
+});
+
 test("Pausiertes Konto: Begruendung mit Grundlage, automatisch, Frist; Widerspruch geht an den Server, Guthaben ohne Kauf", async () => {
   const state = { deck: signed(1, [C1]), st: "paused", notices: [HIDDEN, PAUSE], balance: 1 };
   const { p, errs, sent, ctx } = await device(state);
@@ -134,7 +154,8 @@ test("Pausiertes Konto: Begruendung mit Grundlage, automatisch, Frist; Widerspru
   const body = await p.locator("#shbody").innerText();
   assert.match(body, /Guthaben: 1 freie Karte\n/, "singular for 1"); assert.match(body, /nicht kaufbar, nicht übertragbar und nicht auszahlbar/);
   assert.match(body, /Konto pausiert/); assert.match(body, /9 Konten haben „Gefällt mir nicht“ gewählt \(75 % der Stimmen\)/);
-  assert.match(body, /Automatisch erkannt und entschieden/); assert.match(body, /Nutzungsbedingungen, Abschnitt „Community-Karten“/);
+  assert.match(body, /Automatisch erkannt und entschieden/); assert.match(body, /Von einem Menschen entschieden/, "a pause is a human's decision");
+  assert.match(body, /Nutzungsbedingungen, Abschnitt „Community-Karten“/);
   assert.match(body, /Widerspruch möglich bis/); assert.match(body, /Gericht/);
   assert.match(body, /in Prüfung/); assert.doesNotMatch(body, /\b\d+ (Spieler|Nutzungen|mal gespielt)/, "no count of players");
   await p.getByRole("button", { name: "Widersprechen" }).first().tap();

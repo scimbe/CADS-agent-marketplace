@@ -156,6 +156,9 @@
       var th = el("button", "chip", x[1], function () { th.disabled = true; vote(e.doc, x[0]).then(function (ok) { Kit.toast(t(ok ? "deck_thanks" : "mod_fail")); if (!ok) th.disabled = false; }); });
       th.setAttribute("aria-label", t(x[2])); r.appendChild(th);
     });
+    // Report stays on every row, as visible as the thumbs and next to them, with or without a thumb (operator 08.11.).
+    var rp = el("button", "chip", "⚑", function () { Kit.sfx.tap(); open(e); A().report(); });
+    rp.setAttribute("aria-label", t("deck_report")); rp.title = t("deck_report"); r.appendChild(rp);
     list.appendChild(r);
   }
   function fact(n) {
@@ -197,7 +200,7 @@
     box.appendChild(el("h3", "", t("deck_mine")));
     var out = el("div"); out.setAttribute("aria-live", "polite"); box.appendChild(out);
     var wait = el("div", "empty", "…"); out.appendChild(wait); box = out;
-    var ST = ["privat", "pruefung", "deck", "pausiert", "entfernt"], RS = ["use", "reach", "deck"];
+    var ST = ["privat", "pruefung", "deck", "pausiert", "entfernt"], RS = ["use", "deck"];   // credit only for real use (no reach)
     Promise.all([post("/deck/me", {}), post("/mod/me", {})]).then(function (rs) {
       wait.remove();
       var me = rs[0], md = rs[1];
