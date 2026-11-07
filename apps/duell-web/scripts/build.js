@@ -19,6 +19,9 @@ if (flavor && !has("flavor.json")) throw new Error("Unbekannter Flavor: " + flav
 const over = (base, f) => { if (has(f)) { const o = json(fl(f)); for (const l of Object.keys(o)) Object.assign(base[l], o[l]); } return base; };
 const conf = flavor ? json(fl("flavor.json")) : null, texts = over(json("src/texts.json"), "texts.json"), turnData = json("src/turn.json");
 over(turnData.text, "turn.json");
+// The texts of the free card travel with its part; the core keeps only the tile's two (create_tile, create_sub).
+const createTexts = {};
+for (const l of Object.keys(texts)) for (const k of Object.keys(texts[l])) if (/^create_/.test(k) && k !== "create_tile" && k !== "create_sub") { (createTexts[l] = createTexts[l] || {})[k] = texts[l][k]; delete texts[l][k]; }
 // The thumbs' words (vote_*) travel with their part (stimme), not in the core.
 const voteTexts = {};
 for (const l of Object.keys(texts)) { voteTexts[l] = {}; for (const k of Object.keys(texts[l]).filter((x) => /^vote_/.test(x))) { voteTexts[l][k] = texts[l][k]; delete texts[l][k]; } }
@@ -78,6 +81,7 @@ const PARTS = {
   turnzwei: { d: ["katalog"], src: ["SIEGEL", "GESCHENKE", "TURN2", "FEIERDATA", "FEIER", "FEIERUI"] },   // "turn2" of the card plan: rules and widgets of the new turn cards (src/turn2.js), gift ideas (src/geschenke.js), device keys (src/siegel.js), the party poll (src/feier.js)
   logik: { d: [], src: ["LOGIK"] },                                                                    // puzzle generators, e.g. Sudoku (src/logik.js)
   daten: { d: [], src: ["KALENDERDATA", "KALENDER"] },                                                 // public and school holidays (src/kalender.json)
+  erschaffen: { d: [], src: ["CREATEUI"] },                                                            // "Create your own card": the form and preview of the AI kind karte (src/create-ui.js)
   konto: { d: [], src: ["KONTODATA", "PROFILE"] },                                                     // "Anmelden / Registrieren" in My style: account or sync code (src/profile.js)
   stil: { d: [], src: ["STILDATA", "STIL"] },                                                          // My style itself (src/stil.js); app.js openStyle asks for konto first
   melden: { d: [], src: ["MELDENDATA", "MELDEN"] },                                                    // the report dialog of a shared sheet (src/melden.js)
@@ -98,6 +102,7 @@ parts.MELDENDATA = "window.MeldenTexts=" + JSON.stringify(partTexts.melden) + ";
 if (PARTS.wetter) { parts.WETTERDATA = "window.WetterTexts=" + JSON.stringify(partTexts.wetter) + ";" + merge("WetterTexts"); parts.WETTER = read("src/wetter.js"); }
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
 parts.TEXTE = read("src/texte.js");
+parts.CREATEUI = "window.CreateTexts=" + JSON.stringify(createTexts) + ";" + merge("CreateTexts") + "\n;\n" + read("src/create-ui.js");
 parts.TEXTEDATA = "window.TexteData=" + JSON.stringify(json("src/texte.json")) + ";";
 parts.QUIZDATA = "window.QuizPacks=" + JSON.stringify(json("src/quiz-packs.json")) + ";";
 parts.QUIZSPIELEDATA = "window.QuizSpieleData=" + JSON.stringify(quizSpiele) + ";"; parts.QUIZSPIELEUI = read("src/quizspiele-ui.js");

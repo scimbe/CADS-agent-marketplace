@@ -353,7 +353,8 @@ function gameDoc(s) { var d = { k: "game", col: me.colors, by: [], g: { seed: s.
 function areas() { var w = D.changedAreas(ed.base, ed.doc); if (X[ed.doc.k] && X[ed.doc.k].areas) w = w.concat(X[ed.doc.k].areas(ed)); if (ed.ownPhoto) w.push("foto"); if (ed.ownVoice) w.push("stimme"); return w; }
 function touched() { var ok = areas().length > 0; return ed.own ? ok && !!ed.doc.t : ok; }
 // The idea of the day can go out as it is; only a blank one needs something of your own first.
-function ready() { return ed.own ? touched() : true; }
+// made: a free card (create-ui.js) is whole as it comes, nothing has to change before it goes out
+function ready() { return ed.own && !ed.made ? touched() : true; }
 function footer() {
   var b = $("edmain"), ok = ready(), g = ed.doc.k === "game";
   b.hidden = false; delete b.dataset.why;
@@ -392,7 +393,7 @@ function openEditor(doc, opt) {
   opt = opt || {};
   if (doc && doc.k === "table") { if (window.TableUI) window.TableUI.open(doc.g); return; }   // a card table is played live, there is nothing to edit
   window.Ai.drop();
-  ed = { doc: D.sanitizeDoc(doc), base: D.sanitizeDoc(doc), own: !!opt.own, photo: null, peaks: null, pcm: null, tab: null, sel: -1, page: 0, line: 0, idea: opt.idea || null };
+  ed = { doc: D.sanitizeDoc(doc), base: D.sanitizeDoc(doc), own: !!opt.own, made: !!opt.made, photo: null, peaks: null, pcm: null, tab: null, sel: -1, page: 0, line: 0, idea: opt.idea || null };
   if (opt.own) ed.doc.n = me.nick;
   if (ed.doc.k === "sound" && ed.doc.m === "beat") beatPeaks();
   if (ed.doc.k === "photo") { ed.photo = R.botFace(C.hash32(me.nick + Date.now()), ed.doc.col[1]); }
@@ -1026,6 +1027,7 @@ function labels() {
   [["lang", "a_lang"], ["mute", "a_mute"], ["me", "style"], ["edstyle", "style"], ["pvgame", "a_preview"], ["pvcard", "a_preview"], ["stage", "a_preview"], ["demo", "a_gamePreview"],
     ["feat", "a_feat"], ["edback", "a_close"], ["shback", "a_close"], ["gback", "a_close"], ["edsave", "a_keep"], ["cv", "a_field"], ["coqr", "a_qr"]].forEach(function (x) { $(x[0]).setAttribute("aria-label", t(x[1])); });
   $("mute").setAttribute("aria-pressed", String(!!Kit.muted));
+  var ct = $("create"); ct.hidden = !shown("f_create"); ct.textContent = "✨ " + t("create_tile"); ct.appendChild(el("span", "", t("create_sub")));
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
   $("tostatus").textContent = t("sh_status"); $("tostory").textContent = t("sh_story"); $("dmore").textContent = t("mehr"); $("dmore").parentNode.hidden = !allow("done", "status");
   // what the other side gets: a photo or a voice stays on this phone, the link carries a bot face or only the effect
@@ -1059,6 +1061,7 @@ $("more").addEventListener("click", function () { tear(1); });
 $("past").addEventListener("click", function () { Kit.sfx.tap(); openPast(); });
 $("wall").addEventListener("click", function () { Kit.sfx.tap(); openWall(); });
 $("own").addEventListener("click", function () { Kit.sfx.tap(); openOwn(); });
+$("create").addEventListener("click", function () { Kit.sfx.tap(); window.Parts.use("erschaffen", function () { window.CreateUI.open(); }).catch(function () {}); });
 function start(tabName) {
   if (!home.doc && twoIdea(home.idea)) { window.Parts.use("turnzwei", function () { start(tabName); }).catch(function () {}); return; }
   Kit.sfx.thud();
