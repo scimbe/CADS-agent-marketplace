@@ -1,13 +1,16 @@
 """Makes src/noto-stickers.png, the sheet of sticker emoji for the finished picture (src/noto.js, part "noto").
 
 Source: googlefonts/noto-emoji, tag v2026-09-24-unicode18_0, commit e20cbc2bbec1926686be9f9bee7d1d2cfa1fea0e,
-folder 2D/png/72 (SIL Open Font License 1.1, LICENSE of that commit = licenses/NotoEmoji-OFL.txt).
+folder 2D/png/128. The images are under the Apache License 2.0 (2D/svg/LICENSE of that commit, "Copyright 2013
+Google, Inc."; README: "image resources are under the Apache license"): licenses/NotoEmoji-Apache-2.0.txt. The
+repo's root LICENSE names the SIL OFL 1.1 since 2024 (licenses/NotoEmoji-OFL.txt); both are listed in the app.
+Changed here: the tiles are put together into one sheet with a transparent 2 px edge and reduced to 256 colours.
 The downloaded files are untrusted: fetch them into a new, empty folder, then run this script from elsewhere with
-python3 -I (Pillow needed). Only the pixels are taken over: each file must decode as a 72x72 image, it is pasted
-into the sheet and the sheet is written anew (no metadata, chunks or anything else of the source files).
+python3 -I (made with Pillow 12.2.0). Only the pixels are taken over: each file must decode as a 128x128 PNG, it is
+pasted into the sheet and the sheet is written anew (no metadata, chunks or anything else of the source files).
 
   C=e20cbc2bbec1926686be9f9bee7d1d2cfa1fea0e; mkdir dl && cd dl
-  for k in <KEYS of src/noto.js>; do curl -sfLO https://raw.githubusercontent.com/googlefonts/noto-emoji/$C/2D/png/72/emoji_u$k.png; done
+  for k in <KEYS of src/noto.js>; do curl -sfLO https://raw.githubusercontent.com/googlefonts/noto-emoji/$C/2D/png/128/emoji_u$k.png; done
   python3 -I path/to/scripts/noto-sprite.py path/to/dl
 """
 import os

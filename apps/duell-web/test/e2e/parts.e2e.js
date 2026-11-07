@@ -68,15 +68,19 @@ test("file://: der Knopf Status-Bild holt den QR-Teil und teilt ein Bild 1080x19
   } finally { await b.close(); }
 });
 
-test("Web /duell: nach dem Laden alle Teile mit SRI vorab; danach offline Arcade-Menue und Lizenzen", async () => {
+test("Web /duell: nach dem Laden alle Teile ausser noto mit SRI vorab; danach offline Arcade-Menue und Lizenzen", async () => {
   const srv = await serve(), base = "http://127.0.0.1:" + srv.address().port;
   const b = await launch(), ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);
   const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
   await p.goto(base + "/duell");   // without the slash: the parts still come from /duell/parts/
-  await p.waitForFunction(() => window.Parts.names().every((n) => window.Parts.ready(n)));
+  // all but noto (Noto Emoji for stickers in the picture): only the editor asks for it, at its first sticker
+  await p.waitForFunction(() => window.Parts.names().filter((n) => n !== "noto").every((n) => window.Parts.ready(n)));
   const got = await loaded(p);
-  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "direkt", "katalog", "konto", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.ok(await p.evaluate(() => window.Parts.names().includes("noto") && !window.Parts.ready("noto")), "noto nicht vorab");
+  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "direkt", "katalog", "konto", "licenses", "logik", "malen", "melden", "play", "qr", "quiz", "regler", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   for (const s of got) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
+  await p.evaluate(() => window.Parts.need("noto"));   // asked for (as the editor does): also with its SRI hash
+  assert.match((await loaded(p)).find((s) => /^noto\./.test(s.src)).sri, /^sha384-[A-Za-z0-9+/]{64}$/);
   assert.equal(await p.evaluate(() => typeof window.TableUI.preview + typeof window.StatusCard.draw), "functionfunction", "echte Module statt Platzhalter");
   await ctx.setOffline(true);
   await p.locator("#me").click(); await p.getByRole("button", { name: "Lizenzen" }).click();

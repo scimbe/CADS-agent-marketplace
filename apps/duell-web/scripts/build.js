@@ -55,7 +55,7 @@ for (const l of Object.keys(texts)) {
 const kontoTexts = partTexts.konto;
 const data = "window.DailyThumbs=" + JSON.stringify(thumbs) + ";" + (conf ? "window.DailyFlavor=" + JSON.stringify(conf) + ";" : "") + "window.DuellIdeas=" + JSON.stringify(index) + ";window.DailyTexts=" + JSON.stringify(coreTexts) + ";window.OfficeData=" + JSON.stringify(json("src/office.json")) + ";";
 const duelData = JSON.parse(read("src/duel.json"));
-const licenses = ["Anton-OFL.txt", "qrcode-generator-MIT.txt", "Kartendeck-CC0.txt", "NotoEmoji-OFL.txt"].map((f) => read("licenses/" + f)).join("\n\n");
+const licenses = ["Anton-OFL.txt", "qrcode-generator-MIT.txt", "Kartendeck-CC0.txt", "NotoEmoji-Apache-2.0.txt", "NotoEmoji-OFL.txt"].map((f) => read("licenses/" + f)).join("\n\n");
 // Further texts join DailyTexts language by language: whatever languages a file has (a new one is just a new block).
 const merge = (v) => "Object.keys(window." + v + ").forEach(function(l){window.DailyTexts[l]=Object.assign(window.DailyTexts[l]||{},window." + v + "[l]);});";
 // The quiz cards' facts (which example is phishing, the estimated prices) stay in the core, their texts go into the part quiz.

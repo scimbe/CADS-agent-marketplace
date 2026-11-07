@@ -1,4 +1,4 @@
-Noto Emoji (https://github.com/googlefonts/noto-emoji, commit e20cbc2bbec1926686be9f9bee7d1d2cfa1fea0e): the sticker pictures in shared images
+Noto Emoji (https://github.com/googlefonts/noto-emoji, commit e20cbc2bbec1926686be9f9bee7d1d2cfa1fea0e): the repository's root LICENSE names the SIL Open Font License 1.1 since 2024 (text below). The sticker images used in shared pictures come from 2D/png/128, which the repository still puts under the Apache License 2.0: see NotoEmoji-Apache-2.0.txt.
 
 Copyright 2013 Google LLC
 

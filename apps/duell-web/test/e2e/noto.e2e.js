@@ -35,7 +35,7 @@ function measure(p, doc) {
       if (!N.has(s.e)) continue;
       const r = W * 0.1 * s.z; w.save(); w.translate(s.x * W, s.y * H); w.rotate(s.r);
       w.fillStyle = "#fff"; w.strokeStyle = "#111"; w.lineWidth = W * 0.006; w.beginPath(); w.arc(0, 0, r, 0, 6.3); w.fill(); w.stroke();
-      N.draw(w, s.e, 0, 0, r * 1.25); w.restore();
+      N.draw(w, s.e, 0, -r * 0.09, r * 1.25); w.restore();
     }
     const exp = w.getImageData(0, 0, W, H).data, px = (im, x, y) => Array.from(im.data.slice((y * W + x) * 4, (y * W + x) * 4 + 3));
     const sk = d.sk.map((s) => {
@@ -131,5 +131,57 @@ test("Exportbild: Teil noto laedt nie fertig -> nach 3 s Bild ohne Sticker, kein
     assert.ok(m.ms > 2900 && m.ms < 8000, "wartet hoechstens 3 s: " + Math.round(m.ms) + " ms");
     assert.deepEqual(errs, []);
     await ctx.close();
+  } finally { await b.close(); }
+});
+
+// The editor asks for noto at its first sticker (app.js paint), not before: a card without stickers never loads it.
+test("Editor: noto erst beim ersten Sticker angefragt (hinzugefuegt oder im Doc mitgebracht)", async () => {
+  const b = await chromium.launch();
+  try {
+    const { ctx, p, errs } = await open(b, "de-DE");
+    await p.evaluate((d) => window.DailyApp.openEditor(d), CARD);
+    await p.locator("#edmain").waitFor();
+    await p.waitForTimeout(300);
+    assert.equal(await p.evaluate(() => window.Parts.ready("noto")), false, "ohne Sticker kein noto");
+    await p.evaluate((s) => { window.DailyDebug.doc().sk.push(s); window.DailyApp.changed(); }, FROG);
+    await p.waitForFunction(() => window.Parts.ready("noto"));
+    const second = await open(b, "en-US");
+    await second.p.evaluate((d) => window.DailyApp.openEditor(d), { ...CARD, sk: [FROG] });
+    await second.p.waitForFunction(() => window.Parts.ready("noto"));
+    assert.deepEqual(errs.concat(second.errs), []);
+    await second.ctx.close(); await ctx.close();
+  } finally { await b.close(); }
+});
+
+// noto hangs: three taps on "finish" make one picture and one entry on the wall; the button shows the wait. Leaving the
+// editor during the wait makes no picture and does not jump to "done".
+test("Fertig bei haengendem noto: drei Tipps = ein Bild, ein Wand-Eintrag; wer weggeht, bekommt kein Bild", async () => {
+  const b = await chromium.launch();
+  const hang = () => { const need = window.Parts.need; window.Parts.need = (n) => (n === "noto" ? new Promise(() => {}) : need(n)); };
+  try {
+    for (const locale of ["de-DE", "en-US"]) {
+      const { ctx, p, errs } = await open(b, locale, hang);
+      await p.evaluate(() => { window.__done = 0; new MutationObserver(() => { if (document.body.dataset.state === "done") window.__done++; }).observe(document.body, { attributes: true, attributeFilter: ["data-state"] }); });
+      await p.evaluate((d) => window.DailyApp.openEditor(d), { ...CARD, sk: [FROG] });
+      const wall0 = await p.evaluate(() => window.DailyDebug.wall().length);
+      for (let i = 0; i < 3; i++) await p.locator("#edmain").click();
+      assert.equal(await p.locator("#edmain").getAttribute("aria-busy"), "true", "Knopf zeigt das Warten");
+      await p.waitForFunction(() => document.body.dataset.state === "done", null, { timeout: 8000 });
+      await p.waitForTimeout(500);
+      assert.equal(await p.evaluate(() => window.DailyDebug.wall().length - 0), wall0 + 1, "genau ein Wand-Eintrag");
+      assert.equal(await p.evaluate(() => window.__done), 1, "genau einmal fertig");
+      assert.equal(await p.locator("#edmain").getAttribute("aria-busy"), null);
+      // again from the editor, then home during the wait
+      await p.evaluate((d) => window.DailyApp.openEditor(d), { ...CARD, sk: [FROG] });
+      const wall1 = await p.evaluate(() => window.DailyDebug.wall().length);
+      await p.locator("#edmain").click();
+      await p.evaluate(() => window.DailyApp.goHome());
+      await p.waitForTimeout(3600);
+      assert.equal(await p.evaluate(() => document.body.dataset.state), "home", "bleibt auf der Startseite");
+      assert.equal(await p.evaluate(() => window.DailyDebug.wall().length), wall1, "kein Bild, kein Wand-Eintrag");
+      assert.equal(await p.evaluate(() => window.__done), 1);
+      assert.deepEqual(errs, []);
+      await ctx.close();
+    }
   } finally { await b.close(); }
 });

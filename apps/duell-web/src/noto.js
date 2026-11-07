@@ -1,7 +1,8 @@
 /* Stickers in the finished picture: the system's emoji glyphs (Apple, Google) are not ours to publish, so the picture draws
-   the app's sticker emoji from Noto Emoji instead (Google, SIL Open Font License 1.1, licenses/NotoEmoji-OFL.txt).
+   the app's sticker emoji from Noto Emoji instead: the images of googlefonts/noto-emoji (2D/png/128), Apache License 2.0
+   (licenses/NotoEmoji-Apache-2.0.txt; the repo's root LICENSE names the OFL since 2024, licenses/NotoEmoji-OFL.txt).
    Part "noto" (scripts/build.js): this file plus the sheet src/noto-stickers.png (window.NotoData), made by
-   scripts/noto-sprite.py from googlefonts/noto-emoji at a fixed commit. Only the emoji the app offers as stickers
+   scripts/noto-sprite.py from that repo at a fixed commit. Only the emoji the app offers as stickers
    (daily.js SETS, app.js EMOJI, core.js DEFAULT_EMOJI); any other emoji has no tile and stays out of the picture. */
 (function (root) {
   "use strict";
@@ -10,7 +11,7 @@
     "1f680", "1f6f8", "1f47d", "1fa90", "1f31f", "2604", "1f4a5", "1f525", "1f480", "1f921", "1f300", "26a1",
     "1f383", "1f47b", "1f987", "1f577", "1f9db", "1f578", "1f49b", "1f33b", "2728", "1faf6", "1f308", "2600",
     "1f384", "2b50", "1f381", "2744", "26c4", "1f36a", "1f916", "1f984", "1f41d", "1fa81"];
-  var TILE = 72, PAD = 2, COLS = 8, CELL = TILE + 2 * PAD;   // a transparent gutter, so scaling never bleeds a neighbour in
+  var TILE = 128, PAD = 2, COLS = 8, CELL = TILE + 2 * PAD;   // a transparent gutter, so scaling never bleeds a neighbour in
 
   function key(e) {
     return Array.from(typeof e === "string" ? e : "").map(function (c) { return c.codePointAt(0).toString(16); }).filter(function (h) { return h !== "fe0f"; }).join("_");

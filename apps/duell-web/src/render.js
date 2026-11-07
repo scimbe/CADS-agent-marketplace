@@ -65,7 +65,8 @@
       var r = W * 0.1 * s.z;
       c.save(); c.translate(s.x * W, s.y * H); c.rotate(s.r);
       c.fillStyle = "#fff"; c.strokeStyle = "#111"; c.lineWidth = W * 0.006; c.beginPath(); c.arc(0, 0, r, 0, 6.3); c.fill(); c.stroke();
-      if (Render.exporting) noto.draw(c, s.e, 0, 0, r * 1.25);
+      // -0.09 r: where the system glyph lands with textBaseline "middle" and r * 0.06 (measured, Apple Color Emoji: 0.09-0.1 r up)
+      if (Render.exporting) noto.draw(c, s.e, 0, -r * 0.09, r * 1.25);
       else { c.font = r * 1.25 + "px " + EMO; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#000"; c.fillText(s.e, 0, r * 0.06); }
       c.restore();
     });

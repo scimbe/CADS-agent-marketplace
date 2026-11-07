@@ -64,8 +64,9 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // Stickers in the picture: the Noto Emoji sheet and its code only in the part noto, in the core only the hook (app.js notoFor).
   assert.match(part("noto"), /^window\.NotoData="iVBORw0KGgo[A-Za-z0-9+/=]+";/); assert.match(part("noto"), /root\.NotoStickers = api/);
   assert.ok(!/NotoData=|root\.NotoStickers = api/.test(html), "Noto-Bogen nur im Teil"); assert.match(html, /Parts\.need\("noto"\)/);
-  assert.ok(part("noto").length < 64 * 1024, "noto klein: " + part("noto").length);
+  assert.ok(part("noto").length < 128 * 1024, "noto klein: " + part("noto").length);
   assert.match(part("licenses"), /Noto Emoji \(https:\/\/github\.com\/googlefonts\/noto-emoji, commit e20cbc2b/);
+  assert.match(part("licenses"), /Noto Emoji images[\s\S]*2D\/png\/128[\s\S]*Copyright 2013 Google, Inc\.[\s\S]*Modifications by My Daily Idea[\s\S]*TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION/, "Bilder: Apache 2.0 mit Quelle und Aenderungshinweis");
   assert.match(part("welt"), /root\.WeltUI = \{/); assert.ok(!/root\.WeltUI = \{/.test(html), "Flugspiel-Einstieg nur im Teil");
   assert.match(part("texte"), /root\.TexteUI = \{/); assert.match(part("texte"), /window\.TexteData=\{/); assert.ok(!/root\.TexteUI = \{|window\.TexteData=/.test(html), "Texte und Song nur im Teil");
   assert.match(part("stimme"), /root\.Stimme = \{/); assert.match(part("stimme"), /root\.Stat = api/); assert.match(part("stimme"), /^window\.StimmeTexts=\{"de":\{"vote_/);

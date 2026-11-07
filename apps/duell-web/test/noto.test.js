@@ -48,7 +48,7 @@ test("Bogen: PNG, alle Kacheln liegen ganz darin", () => {
     const t = N.tile(String.fromCodePoint(...k.split("_").map((x) => parseInt(x, 16))));
     assert.ok(t.x >= 0 && t.y >= 0 && t.x + t.s <= w && t.y + t.s <= h, k);
   }
-  assert.ok(sheet.length < 50 * 1024, "Bogen klein: " + sheet.length);
+  assert.ok(sheet.length < 96 * 1024, "Bogen klein: " + sheet.length);
 });
 
 test("Zeichnen: erst nach ready(), Quelle = Kachel, Ziel = Quadrat um den Mittelpunkt; ohne Daten scheitert ready()", async () => {
