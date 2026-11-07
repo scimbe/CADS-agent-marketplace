@@ -38,9 +38,22 @@ const thumbs = Object.keys(json(has("thumbs.json") ? fl("thumbs.json") : "src/th
 // day's sheet (id, kind, calendar day, title) and the search (x: the tags of both languages folded, daily.js fold); the rest
 // of every entry (texts, rules, pictures) comes with the part and is merged into the same objects (Daily.fill).
 const index = require("../src/daily.js").index(catalog);
-// The texts of "Anmelden / Registrieren" (keys ac_) go with the part konto, not into the core.
-const kontoTexts = {}, coreTexts = {};
-for (const l of Object.keys(texts)) { kontoTexts[l] = {}; coreTexts[l] = {}; for (const k of Object.keys(texts[l])) (k.startsWith("ac_") ? kontoTexts : coreTexts)[l][k] = texts[l][k]; }
+// Words only a part shows go with it, not into the core: "Anmelden / Registrieren" (ac_) with konto, My style with stil
+// (pf_ only those daily.js prefChips/prefContext do not use, those stay), the report dialog with melden (kiBadge,
+// kiReport, kiReported stay: the sheet and the button), the weather card with wetter (wx).
+const WORDS = {
+  konto: /^ac_/,
+  stil: /^(nick|nickNote|set|set_[a-z]+|fs_(title|n|g|sg)|pf_(title|note|none|hh|diet|pp|pp_later)|aiPicNote|licenses)$/,
+  melden: /^ki(Ask|Consent|Why|Why_[a-z]+|Send|Cancel|Close|Thanks|Offline)$/,
+  wetter: /^wx[A-Z]/,
+};
+const partTexts = {}, coreTexts = {};
+for (const n of Object.keys(WORDS)) partTexts[n] = {};
+for (const l of Object.keys(texts)) {
+  coreTexts[l] = {}; for (const n of Object.keys(WORDS)) partTexts[n][l] = {};
+  for (const k of Object.keys(texts[l])) { const n = Object.keys(WORDS).find((x) => WORDS[x].test(k)); (n ? partTexts[n] : coreTexts)[l][k] = texts[l][k]; }
+}
+const kontoTexts = partTexts.konto;
 const data = "window.DailyThumbs=" + JSON.stringify(thumbs) + ";" + (conf ? "window.DailyFlavor=" + JSON.stringify(conf) + ";" : "") + "window.DuellIdeas=" + JSON.stringify(index) + ";window.DailyTexts=" + JSON.stringify(coreTexts) + ";window.OfficeData=" + JSON.stringify(json("src/office.json")) + ";";
 const duelData = JSON.parse(read("src/duel.json"));
 const licenses = ["Anton-OFL.txt", "qrcode-generator-MIT.txt", "Kartendeck-CC0.txt"].map((f) => read("licenses/" + f)).join("\n\n");
@@ -69,7 +82,11 @@ const PARTS = {
   logik: { d: [], src: ["LOGIK"] },                                                                    // puzzle generators, e.g. Sudoku (src/logik.js)
   daten: { d: [], src: ["KALENDERDATA", "KALENDER"] },                                                 // public and school holidays (src/kalender.json)
   konto: { d: [], src: ["KONTODATA", "PROFILE"] },                                                     // "Anmelden / Registrieren" in My style: account or sync code (src/profile.js)
+  stil: { d: [], src: ["STILDATA", "STIL"] },                                                          // My style itself (src/stil.js); app.js openStyle asks for konto first
+  melden: { d: [], src: ["MELDENDATA", "MELDEN"] },                                                    // the report dialog of a shared sheet (src/melden.js)
 };
+// The weather card's block (src/wetter.js); not built for a flavor whose catalog has no cards (Daily Business: turns only).
+if (catalog.ideas.some((i) => i.kind === "card")) PARTS.wetter = { d: [], src: ["WETTERDATA", "WETTER"] };
 // Thumbs on the sheet and the card numbers (src/stimme-ui.js, src/stat.js); not built for a flavor without them (stat: false).
 if (!(conf && conf.stat === false)) PARTS.stimme = { d: [], src: ["STIMMEDATA", "STAT", "STIMMEUI"] };
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
@@ -79,6 +96,9 @@ parts.TURN2 = read("src/turn2.js"); parts.SIEGEL = read("src/siegel.js"); parts.
 parts.STIMMEUI = read("src/stimme-ui.js"); parts.STIMMEDATA = "window.StimmeTexts=" + JSON.stringify(voteTexts) + ";" + merge("StimmeTexts");
 parts.KALENDERDATA = "window.KalenderData=" + JSON.stringify(json("src/kalender.json")) + ";";
 parts.KONTODATA = "window.KontoTexts=" + JSON.stringify(kontoTexts) + ";" + merge("KontoTexts"); parts.PROFILE = read("src/profile.js");
+parts.STILDATA = "window.StilTexts=" + JSON.stringify(partTexts.stil) + ";" + merge("StilTexts"); parts.STIL = read("src/stil.js");
+parts.MELDENDATA = "window.MeldenTexts=" + JSON.stringify(partTexts.melden) + ";" + merge("MeldenTexts"); parts.MELDEN = read("src/melden.js");
+if (PARTS.wetter) { parts.WETTERDATA = "window.WetterTexts=" + JSON.stringify(partTexts.wetter) + ";" + merge("WetterTexts"); parts.WETTER = read("src/wetter.js"); }
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
 // Community deck of free cards: signed deck, use, thumbs, credit, decisions (src/deck.js). Only where the free card is on:
 // a flavor whose feats leave out f_create (the business app) neither builds nor preloads it, like "stimme" with stat: false.
@@ -100,7 +120,7 @@ let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + 
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
 // code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
-const KEEP = new Set(["DECKTEXTS", "DATA", "STIMMEDATA", "FEIERDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA"]);
+const KEEP = new Set(["DECKTEXTS", "DATA", "STIMMEDATA", "FEIERDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA"]);
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "")).join("\n");
 const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));
