@@ -42,7 +42,8 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .press{display:block;margin:0 18px 8px;width:calc(100% - 36px);min-height:68px;border:3px solid var(--ink);border-radius:6px;background:var(--ink);color:var(--btn);font:900 30px/1 var(--disp);text-transform:uppercase;letter-spacing:.6px;box-shadow:0 6px 0 var(--b);transition:transform 90ms ease-out,box-shadow 90ms ease-out;position:relative;flex:none}
 .press:active{transform:translateY(5px);box-shadow:0 1px 0 var(--b)}
 /* a locked button looks locked; the line above it (#edwhy) says what is still open, a tap jumps there */
-.press.wait,.press:disabled,.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.press:disabled,.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.press.wait{background:var(--paper);color:var(--ink);border-style:dashed;cursor:not-allowed;box-shadow:none}
 .press.wait:active{transform:none}
 .why{margin:0 18px 6px;font:800 .94rem/1.2 var(--ui);text-align:center;color:var(--ink)}.why:empty{display:none}
 #homerow{position:relative;flex:none;display:flex;gap:8px;margin:2px 18px 6px}
@@ -129,8 +130,8 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 #gamestage{height:100%;aspect-ratio:288/512;max-width:100%;border:3px solid var(--ink);box-shadow:4px 5px 0 var(--ink);overflow:hidden;position:relative}
 #demo{display:block}
 #trail{flex:none;padding:0 14px 4px;font-size:12px;color:var(--on);white-space:nowrap;overflow-x:auto}
-#tabs{flex:none;display:flex;overflow-x:auto;background:var(--ink);scrollbar-width:none}
-#tabs button{flex:1 0 auto;min-height:46px;padding:0 13px;border:0;background:transparent;color:#fff;font:800 14px var(--ui);opacity:.7}
+#tabs{flex:none;display:flex;flex-wrap:wrap;background:var(--ink)}
+#tabs button{flex:1 0 auto;min-width:44px;min-height:46px;padding:0 9px;border:0;background:transparent;color:#c4c4c4;font:800 14px var(--ui)}
 #tabs button.hot{opacity:1;color:var(--btn)}
 #tabs button[aria-selected=true]{opacity:1;background:var(--paper);color:var(--ink)}
 #panel{flex:1 1 0;min-height:96px;overflow-y:auto;background:var(--paper);color:var(--ink);padding:10px 12px;touch-action:pan-y;user-select:auto;-webkit-user-select:auto}
@@ -152,9 +153,9 @@ input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radi
 .slide{display:grid;grid-template-columns:62px 1fr 42px;align-items:center;gap:6px;min-height:44px;font-size:.81rem}
 .slide input{width:100%;accent-color:#111;height:44px;margin:0}
 .slide b{text-align:right;font-variant-numeric:tabular-nums}
-.grid{display:grid;grid-template-columns:30px repeat(8,1fr);gap:3px;margin-bottom:6px}
+.grid{display:grid;grid-template-columns:30px repeat(4,1fr);gap:4px;margin-bottom:6px}
 .grid span{align-self:center;font-size:16px;text-align:center}
-.step{height:34px;border:2px solid var(--ink);border-radius:3px;background:#fff;padding:0}
+.step{height:44px;border:2px solid var(--ink);border-radius:3px;background:#fff;padding:0}
 .step.q{background:#eadfc0}.step.on{background:var(--b)}
 .step.now{outline:3px solid var(--ink)}
 .note{font-size:.75rem;font-weight:600;margin:0 0 6px}

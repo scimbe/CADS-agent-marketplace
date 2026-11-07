@@ -41,7 +41,7 @@ test("file:// (Apps, Tests): Start nur mit dem Katalog-Teil; Spiele-Regal holt A
   await p.getByRole("button", { name: "Lizenzen" }).click();
   await p.getByText(/SIL OPEN FONT LICENSE Version 1\.1/).waitFor();
   // My style comes as the part stil, which brings "Anmelden / Registrieren" (konto) first; the button its licence texts
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "stimme", "play", "konto", "stil", "licenses"]);
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "stimme", "play", "konto", "stil", "direkt", "licenses"], "Mein Stil holt auch direkt (Schalter Einfache Sprache)");
   assert.deepEqual(errs, []); await b.close();
 });
 
@@ -61,7 +61,7 @@ test("file://: der Knopf Status-Bild holt den QR-Teil und teilt ein Bild 1080x19
   await p.locator("#tostatus").evaluate((e) => e.click());
   await p.waitForFunction(() => window.__shared.length > 0);
   // the card editor's text tab has loaded "texte" (Worte finden, card text) and "wetter" on the way; the button only adds "qr"
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "stimme", "texte", "wetter", "qr"]);
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "stimme", "texte", "wetter", "direkt", "qr"], "der Editor holt direkt");
   const f = await p.evaluate(async () => { const f = window.__shared[0], i = await createImageBitmap(f); return { type: f.type, name: f.name, w: i.width, h: i.height }; });
   assert.deepEqual(f, { type: "image/jpeg", name: "my-daily-idea-status.jpg", w: 1080, h: 1920 });
   assert.deepEqual(errs, []);
@@ -75,7 +75,7 @@ test("Web /duell: nach dem Laden alle Teile mit SRI vorab; danach offline Arcade
   await p.goto(base + "/duell");   // without the slash: the parts still come from /duell/parts/
   await p.waitForFunction(() => window.Parts.names().every((n) => window.Parts.ready(n)));
   const got = await loaded(p);
-  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "katalog", "konto", "licenses", "logik", "melden", "play", "qr", "quiz", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "direkt", "katalog", "konto", "licenses", "logik", "melden", "play", "qr", "quiz", "regler", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   for (const s of got) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
   assert.equal(await p.evaluate(() => typeof window.TableUI.preview + typeof window.StatusCard.draw), "functionfunction", "echte Module statt Platzhalter");
   await ctx.setOffline(true);

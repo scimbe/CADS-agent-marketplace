@@ -24,7 +24,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // Sizes at the split: core 693 KB, parts 310 KB (play 140, table 104, qr 59, licenses 6), together 1003 KB.
   assert.ok(Buffer.byteLength(html) < 700 * 1024, "Kern ueber 700 KB: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["daten", "katalog", "konto", "licenses", "logik", "melden", "play", "qr", "quiz", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(Object.keys(man).sort(), ["daten", "direkt", "katalog", "konto", "licenses", "logik", "melden", "play", "qr", "quiz", "regler", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   // "Anmelden / Registrieren": its texts (ac_) only in the part konto, none in the core
   assert.ok(!/"ac_[a-z]/.test(html), "ac_-Texte im Kern");
   assert.match(fs.readFileSync(partFiles().find((f) => /\/konto\.[0-9a-f]{12}\.js$/.test(f)), "utf8"), /window\.KontoTexts=\{"de":\{"ac_title":"Anmelden \/ Registrieren"/);
@@ -68,6 +68,14 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   assert.match(part("satz"), /window\.SatzUI = \{/); assert.match(part("satz"), /root\.SatzLogic = api/);
   assert.ok(!/window\.SatzUI = \{|root\.SatzLogic = api/.test(html), "Satz zu Formular steckt nur im Teil, im Kern nur der Haken");
   assert.ok(!/window\.ArcadeUI = \{ menu|window\.TableUI = \{ open|root\.StatusCard =/.test(html), "verschobener Code steckt nicht doppelt im Kern");
+  // Editor E1: undo, sticker tools, layer list, description and plain language in the part direkt, the named slider
+  // steps in regler; the core keeps only the hooks (Parts.need at openEditor, Direkt.paint, the style slot).
+  assert.match(part("direkt"), /root\.EditModel = api/); assert.match(part("direkt"), /root\.Direkt = \{ paint: paint/); assert.match(part("direkt"), /window\.DirektData=\{/);
+  assert.match(part("regler"), /root\.Regeln = api/); assert.match(part("regler"), /A\.PANEL\.Rules = function/);
+  assert.deepEqual(man.direkt.d, []); assert.deepEqual(man.regler.d, []);
+  assert.ok(!/root\.EditModel = api|root\.Regeln = api|window\.DirektData=/.test(html), "Editor-Teile nicht im Kern");
+  assert.match(html, /window\.Parts\.need\("direkt"\)/); assert.match(html, /if \(window\.Direkt\) window\.Direkt\.paint\(ed\);/);
+  assert.ok(!/axe-core|axe\.run/.test(bundle()), "axe-core ist nur Testwerkzeug, nie ausgeliefert");
   assert.match(html, /<title>My Daily Idea<\/title>/);
   assert.match(html, /Content-Security-Policy[^>]*default-src 'none'/);
   // Parts come only from the page's own origin ('self'); on http(s) each with its SRI hash (src/parts.js).

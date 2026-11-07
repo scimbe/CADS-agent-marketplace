@@ -282,7 +282,7 @@ function nextSheet(step) {
   var u = upcoming[step]; if (u && u.after === page) return u;
   var p = page + step; if (Math.abs(p) >= PLAN_DAYS) p = 0;
   var d = D.dayDate(today, -p);
-  return (upcoming[step] = { after: page, page: p, date: d, idea: D.ideaForDay(d) || D.randomIdea(Math.random, "") });
+  return (upcoming[step] = { after: page, page: p, date: d, idea: D.ideaForDay(d) || D.randomIdea(seeded(+d), "") });
 }
 // While the sheet is pulled, the one below already is the day it turns to: the same sheet, only greyed out.
 function peek(step, lazy) {
@@ -339,7 +339,7 @@ function paint() {
   timer = 0; if (!ed) return;
   ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1]);
   if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks, x: ed.x, lyr: ed.lyr }); }
-  edPic(); SK.sync(); footer(); CU.local(); saveMark();
+  edPic(); SK.sync(); footer(); CU.local(); saveMark(); if (window.Direkt) window.Direkt.paint(ed);
 }
 function changed() {           // every control ends up here: redraw within the next moment
   if (!timer) timer = setTimeout(paint, 16);
@@ -395,7 +395,7 @@ function openEditor(doc, opt) {
   ed = { doc: D.sanitizeDoc(doc), base: D.sanitizeDoc(doc), own: !!opt.own, photo: null, peaks: null, pcm: null, tab: null, sel: -1, page: 0, line: 0, idea: opt.idea || null };
   if (opt.own) ed.doc.n = me.nick;
   if (ed.doc.k === "sound" && ed.doc.m === "beat") beatPeaks();
-  if (ed.doc.k === "photo") { ed.photo = R.botFace(C.hash32(me.nick + Date.now()), ed.doc.col[1]); }
+  if (ed.doc.k === "photo") { ed.photo = R.botFace(D.botSeed(me.nick, ed.doc, 0), ed.doc.col[1]); }
   var g = ed.doc.k === "game";
   $("tabs").hidden = false;
   if (X[ed.doc.k]) X[ed.doc.k].open(ed);
@@ -408,18 +408,25 @@ function openEditor(doc, opt) {
   if (mine.length) list = mine;   // a flavor's list never leaves a kind it does not know (a duel link in Business) without tabs
   list.forEach(function (k) {
     var b = el("button", k === "Wish" ? "hot" : "", tabText(k), function () { Kit.sfx.tap(); tab(k); });
-    b.setAttribute("role", "tab"); b.dataset.k = k; tabs.appendChild(b);
+    b.setAttribute("role", "tab"); b.setAttribute("aria-controls", "panel"); b.id = "tab" + k; b.dataset.k = k; tabs.appendChild(b);
   });
   tab(list.indexOf(opt.tab) >= 0 ? opt.tab : g ? "Wish" : list.filter(function (k) { return k !== "Wish" && k !== "Dice"; })[0]);
   if (g) G.demo($("demo"), gameState());
   paint(); CU.editor();
+  // Parts direkt (one undo, stickers without dragging, layers, description) and regler (named steps); without them the tabs stay the editor.
+  window.Parts.need("direkt").catch(function () {}); if (g) window.Parts.need("regler").catch(function () {});
 }
 function edTitle() { return ed.own ? t("own") : (ed.idea ? D.plainTitle(ideaText(ed.idea).t) : t(ed.doc.k)); }
 function tabText(k) { return t("tab" + (k === "Sound" ? (ed.doc.m === "beat" ? "Beat" : "Voice") : k)); }
+// The tabs are one stop for Tab; the arrows (Home, End) move along and open the tab they land on.
+$("tabs").addEventListener("keydown", function (e) {
+  var l = Array.from($("tabs").children), i = l.indexOf(document.activeElement), n = l.length, j = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: n - 1 }[e.key];
+  if (i < 0 || j == null) return; e.preventDefault(); l = l[(j + n) % n]; l.focus(); l.click();
+});
 function tab(k) {
   if (ed.pv) { ed.pv = false; ed.fly = null; window.Ai.drop(); G.update(gameState()); }
-  ed.tab = k; Array.from($("tabs").children).forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.k === k)); });
-  var p = $("panel"); p.textContent = ""; p.removeAttribute("data-size"); p.classList.toggle("tall", (k === "Sound" && ed.doc.m === "beat") || (k === "Text" && ed.doc.k !== "game") || k === "Wish" || k === "Dice"); PANEL[k](p); p.scrollTop = 0;
+  ed.tab = k; Array.from($("tabs").children).forEach(function (b) { var on = b.dataset.k === k; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; });
+  var p = $("panel"); p.textContent = ""; p.setAttribute("aria-labelledby", "tab" + k); p.removeAttribute("data-size"); p.classList.toggle("tall", (k === "Sound" && ed.doc.m === "beat") || (k === "Text" && ed.doc.k !== "game") || k === "Wish" || k === "Dice"); PANEL[k](p); p.scrollTop = 0;
 }
 function setDoc(d) {        // a whole creation replaced by a wish or its undo; the canvas state follows
   ed.doc = d; ed.sel = -1; if (d.k === "sound" && d.m === "beat") beatPeaks();
@@ -617,7 +624,7 @@ var PANEL = {
   },
   Photo: function (p) {
     p.appendChild(el("button", "chip", "📷 " + t("pick"), function () { Kit.sfx.tap(); $("file").click(); }));
-    p.appendChild(el("button", "chip", "🤖 " + t("noPhoto"), function () { Kit.sfx.pop(); ed.photo = R.botFace(C.hash32(String(Math.random())), ed.doc.col[1]); changed(); }));
+    p.appendChild(el("button", "chip", "🤖 " + t("noPhoto"), function () { Kit.sfx.pop(); ed.bots = (ed.bots || 0) + 1; ed.photo = R.botFace(D.botSeed(me.nick, ed.doc, ed.bots), ed.doc.col[1]); changed(); }));
     p.appendChild(el("p", "note", t("photoNote") + " " + t("noPick")));
     chips(p, D.STYLES.photo.map(function (s) { return { v: s, l: t("st_" + s) }; }), ed.doc.st, function (v) { ed.doc.st = v; });
   },
@@ -674,35 +681,36 @@ function playBeat() {
   playTimer = setInterval(function () {
     clearNow();
     if (i === 0 && ed.doc.ly) { ed.lyr = bar++ % ed.doc.ly.length; changed(); }   // a song's hook: one line per bar
-    var page = Math.floor(i / 8); if (page === ed.page) document.querySelectorAll('.step[data-c="' + (i % 8) + '"]').forEach(function (x) { x.classList.add("now"); });
+    if (i >> 2 === ed.page) document.querySelectorAll('.step[data-c="' + (i % 4) + '"]').forEach(function (x) { x.classList.add("now"); });
     i = (i + 1) % 16;
   }, ms);
 }
 function beatPanel(p) {
-  var rows = [["k", "🥁"], ["s", "👏"], ["h", "✨"], ["b", "🎹"]], grid = el("div", "grid");
+  // 4 steps a row (44 px on the smallest phone), 4 pages of one beat each; every step says its sound, its beat and its state.
+  var rows = [["k", "🥁"], ["s", "👏"], ["h", "✨"], ["b", "🎹"]], grid = el("div", "grid"), pages = el("div", "chips");
   function fill() {
-    grid.textContent = "";
+    grid.textContent = ""; pages.textContent = "";
     rows.forEach(function (r) {
       grid.appendChild(el("span", "", r[1]));
-      for (var c = 0; c < 8; c++) (function (c) {
-        var i = ed.page * 8 + c, b = el("button", "step" + (c % 4 === 0 ? " q" : "") + (ed.doc.p[r[0]][i] === "x" ? " on" : ""), null, function () {
+      for (var c = 0; c < 4; c++) (function (c) {
+        var i = ed.page * 4 + c, on = ed.doc.p[r[0]][i] === "x", b = el("button", "step" + (c ? "" : " q") + (on ? " on" : ""), null, function () {
           var v = ed.doc.p[r[0]]; ed.doc.p[r[0]] = v.slice(0, i) + (v[i] === "x" ? "-" : "x") + v.slice(i + 1);
-          b.classList.toggle("on"); Kit.sfx.tap(); beatPeaks(); changed(); if (loop) playBeat();
+          on = !on; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); Kit.sfx.tap(); beatPeaks(); changed(); if (loop) playBeat();
         });
-        b.dataset.c = c; b.setAttribute("aria-label", r[0] + " " + (i + 1)); grid.appendChild(b);
+        b.dataset.c = c; b.setAttribute("aria-label", t("bt_" + r[0]) + ", " + t("btN", { n: i + 1 })); b.setAttribute("aria-pressed", String(on)); grid.appendChild(b);
       })(c);
     });
+    [0, 1, 2, 3].forEach(function (n) { var b = el("button", "chip" + (n === ed.page ? " on" : ""), n * 4 + 1 + "–" + (n * 4 + 4), function () { ed.page = n; fill(); }); b.setAttribute("aria-label", t("btN", { n: n * 4 + 1 + "–" + (n * 4 + 4) })); b.setAttribute("aria-pressed", String(n === ed.page)); pages.appendChild(b); });
   }
-  fill(); p.appendChild(grid);
+  var bar = el("div", "chips");
+  fill(); p.appendChild(pages); p.appendChild(bar); p.appendChild(grid);
   var row = el("label", "slide"), r = el("input"), v = el("b", "", ed.doc.bpm);
   row.appendChild(el("span", "", t("bpm"))); r.type = "range"; r.min = 70; r.max = 170; r.value = ed.doc.bpm; r.setAttribute("aria-label", t("bpm"));
   r.addEventListener("input", function () { ed.doc.bpm = Number(r.value); v.textContent = r.value; beatPeaks(); changed(); });
   r.addEventListener("change", function () { if (loop) playBeat(); });
   row.appendChild(r); row.appendChild(v); p.appendChild(row);
-  var bar = el("div", "chips");
-  bar.appendChild(el("button", "chip", "1–8 / 9–16", function () { ed.page = 1 - ed.page; fill(); }));
   var pl = el("button", "chip", loop ? "■ " + t("stop") : "▶ " + t("listen"), function () { if (loop) { stopSound(); pl.textContent = "▶ " + t("listen"); } else { playBeat(); pl.textContent = "■ " + t("stop"); } });
-  bar.appendChild(pl); p.appendChild(bar);
+  bar.appendChild(pl);
 }
 function setVoice(pcm, mine) { ed.raw = pcm; if (mine) ed.ownVoice = true; applyFx(); }
 function applyFx() { if (!ed.raw) return; ed.pcm = S.warp(ed.raw, ed.doc.fx); ed.peaks = S.peaks(ed.pcm, 40); changed(); }
@@ -1181,7 +1189,7 @@ var CU = window.CollabUI.init({
 var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
-window.DailyApp = { style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 window.DailyApp.allow = allow;
 
@@ -1189,7 +1197,8 @@ window.DailyApp.allow = allow;
 window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); }, collab: function () { return CU.engine(); } };
 
 window.addEventListener("DOMContentLoaded", function () {
-labels();
+// plain language switched on: its words come with the part direkt
+labels(); if (store.ez) window.Parts.need("direkt").catch(function () {});
 // The first sheet waits for the catalog part (src/parts.js asks for it at once; in the apps it is a file next to the page).
 // Without it the day still shows from the core's index, as a plain card, and the page says the part is missing.
 function boot() { if (!route()) goHome(); }

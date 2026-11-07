@@ -81,6 +81,8 @@ const PARTS = {
   konto: { d: [], src: ["KONTODATA", "PROFILE"] },                                                     // "Anmelden / Registrieren" in My style: account or sync code (src/profile.js)
   stil: { d: [], src: ["STILDATA", "STIL"] },                                                          // My style itself (src/stil.js); app.js openStyle asks for konto first
   melden: { d: [], src: ["MELDENDATA", "MELDEN"] },                                                    // the report dialog of a shared sheet (src/melden.js)
+  direkt: { d: [], src: ["DIREKTDATA", "EDITMODEL", "DIREKTUI"] },                                     // editor E1: one undo, stickers without dragging, layer list, description, plain language
+  regler: { d: [], src: ["REGLERDATA", "REGELN", "REGLERUI"] },                                        // the flight game's sliders in named steps
 };
 // The weather card's block (src/wetter.js); not built for a flavor whose catalog has no cards (Daily Business: turns only).
 if (catalog.ideas.some((i) => i.kind === "card")) PARTS.wetter = { d: [], src: ["WETTERDATA", "WETTER"] };
@@ -96,6 +98,8 @@ parts.KONTODATA = "window.KontoTexts=" + JSON.stringify(kontoTexts) + ";" + merg
 parts.STILDATA = "window.StilTexts=" + JSON.stringify(partTexts.stil) + ";" + merge("StilTexts"); parts.STIL = read("src/stil.js");
 parts.MELDENDATA = "window.MeldenTexts=" + JSON.stringify(partTexts.melden) + ";" + merge("MeldenTexts"); parts.MELDEN = read("src/melden.js");
 if (PARTS.wetter) { parts.WETTERDATA = "window.WetterTexts=" + JSON.stringify(partTexts.wetter) + ";" + merge("WetterTexts"); parts.WETTER = read("src/wetter.js"); }
+parts.DIREKTDATA = "window.DirektData=" + JSON.stringify(json("src/direkt.json")) + ";" + merge("DirektData.texts"); parts.EDITMODEL = read("src/editmodel.js"); parts.DIREKTUI = read("src/direkt-ui.js");
+parts.REGLERDATA = "window.ReglerTexts=" + JSON.stringify(json("src/regler.json")) + ";" + merge("ReglerTexts"); parts.REGELN = read("src/regeln.js"); parts.REGLERUI = read("src/regler-ui.js");
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
 parts.TEXTE = read("src/texte.js");
 parts.TEXTEDATA = "window.TexteData=" + JSON.stringify(json("src/texte.json")) + ";";
@@ -111,7 +115,7 @@ let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + 
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
 // code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
-const KEEP = new Set(["DATA", "STIMMEDATA", "FEIERDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA"]);
+const KEEP = new Set(["DATA", "STIMMEDATA", "FEIERDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA"]);
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "")).join("\n");
 const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));
