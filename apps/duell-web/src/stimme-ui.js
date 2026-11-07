@@ -48,5 +48,16 @@
       S.open(Kit.store, h.doc, h.link || "h" + C.hash32(u.slice(u.indexOf("#") + 1))); Kit.save();
     }
   }
-  root.Stimme = { sheet: sheet, share: function (doc) { S.share(doc); } };
+  // "Wer sieht was?" (Bausteine.wswRow p of the card's fields f): the sentence vote_wsw on what is counted, and the switch
+  // "Karten-Statistik aus": pressed = no share and no open from this device (src/stat.js off), kept in the store; thumbs
+  // still go out, the sentence says so.
+  function row(p, f) {
+    p.lastChild.textContent = root.Bausteine.wsw(f);   // now with vote_wsw
+    var b = document.createElement("button"); b.type = "button"; b.className = "chip statoff"; b.textContent = t("vote_off");
+    function set() { b.setAttribute("aria-pressed", String(!!Kit.store.statOff)); }
+    b.addEventListener("click", function () { if (Kit.store.statOff) delete Kit.store.statOff; else Kit.store.statOff = true; Kit.save(); set(); });
+    set(); p.appendChild(document.createTextNode(" ")); p.appendChild(b);
+    return b;
+  }
+  root.Stimme = { sheet: sheet, row: row, share: function (doc) { S.share(doc); } };
 })(window);

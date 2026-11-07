@@ -48,13 +48,33 @@ test("Schrift-Token --fs: normal/gross/sehr gross = 1/1,25/1,5, nur auf dem Gera
 });
 test("Wer sieht was?: ein Satz aus den Kartenfeldern, de und en, KI mit Anbieter und Ort, Server, Verfall", () => {
   const de = page("de").w.Bausteine, en = page("en").w.Bausteine;
-  assert.equal(de.wsw({}), "Im Link steht nur die Karte. Keine KI. Kein Server speichert etwas. Der Link verfällt nicht.");
+  assert.equal(de.wsw({}), "Im Link steht nur die Karte. Keine KI. Inhalte speichert ein Server nur im Kurzlink, 90 Tage. Der Link verfällt nicht.");
   assert.equal(de.wsw({ link: ["name", "text", "termin"], ki: { a: "Mistral", o: "Frankreich" }, server: ["text"], tage: 7 }),
     "Im Link stehen Namen, eure Texte und Termine. Text geht an die KI (Mistral, Server in Frankreich). Ein Server speichert eure Texte. Der Link verfällt nach 7 Tagen. Wer den Link sieht, sieht das auch, zum Beispiel im Gruppenchat.");
-  assert.equal(en.wsw({ link: ["stimme"], tage: 1 }), "The link carries votes. No AI. No server keeps anything. The link expires after 1 day. Anyone who sees the link sees this too, for example in a group chat.");
+  assert.equal(en.wsw({ link: ["stimme"], tage: 1 }), "The link carries votes. No AI. A server keeps content only in a short link, 90 days. The link expires after 1 day. Anyone who sees the link sees this too, for example in a group chat.");
   assert.equal(de.wsw({ link: ["passwort", "<b>"] }), de.wsw({}), "nur bekannte Felder");
   for (const k of Object.keys(TEXTS.de).filter((x) => /^(wsw_|data_missing|fs_)/.test(x))) assert.ok(TEXTS.en[k], "en fehlt: " + k);
   for (const k of Object.keys(TEXTS.en).filter((x) => /^(wsw_|data_missing|fs_)/.test(x))) assert.ok(TEXTS.de[k], "de fehlt: " + k);
+  // With the part stimme (window.Stimme): the sentence on the card numbers right after the server's.
+  const p = page("de"); p.w.Stimme = {};
+  assert.equal(p.w.Bausteine.wsw({}), "Im Link steht nur die Karte. Keine KI. Inhalte speichert ein Server nur im Kurzlink, 90 Tage. " + TEXTS.de.vote_wsw + " Der Link verfällt nicht.");
+});
+// M7: no line may say a server keeps nothing while the card numbers count (src/stat.js) and sharing makes a short link.
+// Only Daily Business (stat: false, short: false) keeps the old words, there they are true.
+test("Ehrlich: kein \"Kein Server speichert etwas\" ohne Einschraenkung, ausser im Flavor ohne Statistik und Kurzlink", () => {
+  const bad = /kein server speichert (etwas|nichts|ihn)|speichert kein server etwas|no server (keeps|stores) (anything|nothing)|no server keeps it/i;
+  const json = (f) => JSON.parse(src(f)), hits = (o, at, out) => {
+    if (typeof o === "string") { if (bad.test(o)) out.push(at); } else if (o && typeof o === "object") for (const k of Object.keys(o)) hits(o[k], at + "." + k, out);
+    return out;
+  };
+  for (const f of fs.readdirSync(path.join(__dirname, "../src")).filter((x) => x.endsWith(".json"))) assert.deepEqual(hits(json(f), f, []), [], f);
+  const biz = JSON.parse(src("flavors/business/flavor.json"));
+  assert.equal(biz.stat, false); assert.equal(biz.short, false);
+  assert.deepEqual(hits(json("flavors/business/texts.json"), "biz", []).sort(), ["biz.de.turnH", "biz.de.wsw_nosrv", "biz.de.wsw_nosrv_else", "biz.en.turnH", "biz.en.wsw_nosrv", "biz.en.wsw_nosrv_else"]);
+  for (const l of ["de", "en"]) {
+    assert.match(TEXTS[l].vote_wsw, l === "de" ? /geteilt und geöffnet.*ohne Namen.*IP-Adresse.*Daumen.*pseudonym.*Konto.*Statistik aus/ : /shared and opened.*without names.*IP address.*thumb.*pseudonym.*account.*statistics off/);
+    assert.ok(TEXTS[l].vote_off, l);
+  }
 });
 test("Neue Texte nur ueber Schluessel: keine Sprachzweige und keine de|en-Paare in den W0-Dateien", () => {
   for (const f of ["bausteine.js", "kalender.js", "turn2.js", "logik.js"]) {

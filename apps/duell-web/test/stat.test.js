@@ -135,3 +135,23 @@ test("stat: Daily Business (flavor stat: false) schickt nichts", async () => {
   } finally { delete globalThis.DailyFlavor; }
   assert.equal(St.off(), false);
 });
+
+// M7: the switch "Karten-Statistik aus" (store.statOff, stimme-ui.js row): no share and no open, a vote still goes out.
+test("stat: Schalter aus (store.statOff) schickt kein share und kein open, merkt nichts als gesehen; Daumen gehen weiter", async () => {
+  const n = net(204), store = { statOff: true };
+  assert.equal(St.off("share", { store }), true); assert.equal(St.off("open", { store }), true);
+  assert.equal(St.off("vote", { store }), false, "eine Stimme ist eine bewusste Handlung"); assert.equal(St.off(), false, "ohne Ereignis: nur der Flavor");
+  assert.equal(St.share({ i: "plan-09", by: [{ n: "Ana", w: ["text"] }] }, { ...n.o, store }), null);
+  assert.equal(St.open(store, { i: "plan-09" }, "aB3dE5gH", n.o), null);
+  assert.equal(store.seen, undefined, "nicht als gesehen gemerkt: wieder an zaehlt der Link einmal");
+  assert.deepEqual(await St.vote(store, { id: "plan-09" }, 1, n.o), { v: 1 });
+  assert.deepEqual(n.sent.map((s) => s.body), [{ i: "plan-09", e: "vote", v: 1 }]);
+  // The store of the page (window.Kit.store) when the caller passes none, as app.js and stimme-ui.js do.
+  globalThis.Kit = { store };
+  try { assert.equal(St.share({ i: "x" }, n.o), null); assert.equal(n.sent.length, 1); } finally { delete globalThis.Kit; }
+  // on again: share and open as before
+  delete store.statOff;
+  assert.deepEqual(St.share({ i: "x" }, n.o), { i: "x", e: "share" });
+  assert.ok(St.open(store, { i: "plan-09" }, "aB3dE5gH", n.o));
+  assert.deepEqual(n.sent.slice(1).map((s) => s.body), [{ i: "x", e: "share" }, { i: "plan-09", e: "open" }]);
+});

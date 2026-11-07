@@ -196,3 +196,50 @@ test("Layout: die Daumen liegen frei auf dem Blatt und verdecken bei 390x844 und
   assert.deepEqual(bad, []);
   await b.close();
 });
+
+// M7: the switch "Karten-Statistik aus" under "Wer sieht was?" (Bausteine.wswRow, stimme-ui.js row, store.statOff). Off: no
+// share and no open leaves this device; a thumb is a deliberate tap and still goes out. Web route: several pages of one device.
+test("Karten-Statistik aus: Schalter unter Wer sieht was? (de/en, Tastatur, 44 px); aus: kein share, kein open, Daumen weiter; wieder an: open zaehlt", async () => {
+  const b = await G.launch();
+  for (const lang of G.LANGS) {
+    const ctx = await G.person(b, { time: TIME, lang, web: true }), got = await stats(ctx), all = [];
+    ctx.on("request", (r) => { if (r.url().startsWith(STAT)) all.push(r.method() + " " + r.resourceType()); });   // a beacon too
+    const p = await G.open(ctx, "#i=zug-wunschzettel");
+    await p.locator("#go").click(); await p.locator("#panel details.more summary").first().click();
+    const row = p.locator("#panel .wsw"), sw = row.locator("button.statoff");
+    await sw.waitFor();
+    assert.equal(await sw.textContent(), lang === "de" ? "Karten-Statistik aus" : "Card statistics off");
+    assert.equal(await sw.getAttribute("aria-pressed"), "false");
+    const box = await sw.boundingBox(); assert.ok(box.width >= 44 && box.height >= 44, JSON.stringify(box));
+    const text = await row.textContent();
+    assert.match(text, lang === "de" ? /Inhalte speichert ein Server nur im Kurzlink, 90 Tage\. Gezählt wird nur, welche Karte .* geteilt und geöffnet wird, ohne Namen und ohne gespeicherte IP-Adresse\. Ein Daumen ist eine Abstimmung: Der Server merkt ihn pseudonym zu deinem Konto, auch bei Statistik aus\./
+      : /A server keeps content only in a short link, 90 days\. Counted is only which card .* without storing the IP address\. A thumb is a vote: the server keeps it under a pseudonym of your account, also with statistics off\./);
+    assert.doesNotMatch(await p.locator("body").innerText(), /Kein Server speichert etwas|speichert kein Server etwas|No server keeps anything/i);
+    // keyboard: Space switches it off, the choice stays on this device
+    await sw.focus(); await p.keyboard.press("Space");
+    await p.waitForFunction(() => document.querySelector("#panel .wsw .statoff").getAttribute("aria-pressed") === "true");
+    assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem("daily.v1")).statOff), true);
+    await p.waitForTimeout(300); got.length = 0; all.length = 0;
+    // off: a received card sends no open, sharing no share; a thumb still goes out
+    const q = await G.open(ctx, GOT); await q.locator("#leaf.got").waitFor(); await q.waitForTimeout(500);
+    const r = await G.open(ctx, "#i=quiz-chaos");
+    await r.locator("#go").click(); await r.locator("#edmain").click(); await r.locator("#share").click();
+    await r.waitForFunction(() => { const x = window.DailyDebug.result(); return x && x.link; }); await r.waitForTimeout(500);
+    assert.deepEqual(got, [], "aus: nichts an die Statistik");
+    await q.locator("#voteup").tap(); await until(() => got.length);
+    assert.deepEqual(got, [{ i: "plan-09", e: "vote", v: 1 }], "die Stimme geht weiter raus");
+    assert.deepEqual(all, ["POST fetch"], "genau ein Request, kein Beacon: " + all.join(", "));
+    assert.equal(await q.evaluate(() => (JSON.parse(localStorage.getItem("daily.v1")).seen || []).length), 0, "nicht als gesehen gemerkt");
+    // on again (Enter on the switch of a fresh row): the same received link now counts once
+    await p.reload(); await p.locator("#go").click(); await p.locator("#panel details.more summary").first().click();
+    await sw.waitFor(); assert.equal(await sw.getAttribute("aria-pressed"), "true", "nach dem Neuladen noch aus");
+    await sw.focus(); await p.keyboard.press("Enter");
+    await p.waitForFunction(() => document.querySelector("#panel .wsw .statoff").getAttribute("aria-pressed") === "false");
+    assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem("daily.v1")).statOff), undefined);
+    got.length = 0;
+    const q2 = await G.open(ctx, GOT); await q2.locator("#leaf.got").waitFor();
+    assert.ok(await until(() => got.length)); assert.deepEqual(got, [{ i: "plan-09", e: "open" }]);
+    assert.deepEqual([...p.errs, ...q.errs, ...r.errs, ...q2.errs], [], lang); await ctx.close();
+  }
+  await b.close();
+});
