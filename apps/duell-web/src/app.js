@@ -74,7 +74,7 @@ function fillSheet(root, h, still) {
   var from = q("from");
   if (h.note) { from.textContent = h.note; from.hidden = false; } else from.hidden = true;
   if (mode) { from.textContent = mode.note; from.hidden = false; }
-  if (!doc && twoIdea(idea)) { root.querySelector(".pv").hidden = true; window.Parts.need("turnzwei").then(function () { if ((root.id === "leaf" ? home : h) === h) preview(root, sheetDoc(h), still); }, function () {}); }
+  if (!doc && twoIdea(idea)) { root.querySelector(".pv").hidden = true; window.Parts.need(twoIdea(idea)).then(function () { if ((root.id === "leaf" ? home : h) === h) preview(root, sheetDoc(h), still); }, function () {}); }
   else preview(root, sheetDoc(h), still);
   picture(root, idea, doc, h.lazy, mode);
   fitHero(hero);
@@ -987,7 +987,7 @@ function openWall(which) {
       var c = el("button", "", null, function () {
         Kit.sfx.tap(); b.textContent = ""; var im = el("img", "big"); im.src = w.th; im.alt = ""; b.appendChild(im);
         var r = w.f ? D.parseRoute("#" + w.f) : null;
-        if ((r && r.type === "doc") || two("#" + w.f)) b.appendChild(el("button", "btn hot", t("openAgain"), function () { Kit.sfx.thud(); if (two("#" + w.f)) window.Parts.use("turnzwei", function () { again(w.f); }).catch(function () {}); else again(w.f); }));
+        if ((r && r.type === "doc") || two("#" + w.f)) b.appendChild(el("button", "btn hot", t("openAgain"), function () { Kit.sfx.thud(); if (two("#" + w.f)) window.Parts.use(two("#" + w.f), function () { again(w.f); }).catch(function () {}); else again(w.f); }));
         b.appendChild(el("button", "btn", t("gone"), function () { wall.splice(i, 1); store.wall = wall; Kit.save(); openWall(); }));
       });
       var im = el("img"); im.src = w.th; im.alt = ""; c.appendChild(im); g.appendChild(c);
@@ -1078,7 +1078,7 @@ $("past").addEventListener("click", function () { Kit.sfx.tap(); openPast(); });
 $("wall").addEventListener("click", function () { Kit.sfx.tap(); openWall(); });
 $("own").addEventListener("click", function () { Kit.sfx.tap(); openOwn(); });
 function start(tabName) {
-  if (!home.doc && twoIdea(home.idea)) { window.Parts.use("turnzwei", function () { start(tabName); }).catch(function () {}); return; }
+  if (!home.doc && twoIdea(home.idea)) { window.Parts.use(twoIdea(home.idea), function () { start(tabName); }).catch(function () {}); return; }
   Kit.sfx.thud();
   if (WM.start(home, tabName)) return;
   if (home.doc && X[home.doc.k] && X[home.doc.k].incoming && X[home.doc.k].incoming(home.doc)) return;
@@ -1159,16 +1159,16 @@ function todoLink() {
   return true;
 }
 function goHomeKeep() { if (!home) home = dayHome(); stopSound(); G.stop(); ed = null; window.Ai.drop(); setInk(me.colors[0], me.colors[1]); show("home"); setHome(home, true); }
-window.addEventListener("hashchange", function () { if (two(location.hash)) window.Parts.use("turnzwei", route).catch(route); else route(); });
-// The new turn cards bring their rules in the part turnzwei (scripts/build.js lists their games in its manifest): a sheet,
-// link or saved work of one of them waits for the part; every other start loads only the catalog.
-function twoGame(g) { var p = window.DailyParts && window.DailyParts.turnzwei; return !!(p && p.g && p.g.indexOf(g) >= 0 && !window.Turns.GAMES[g]); }
-function twoIdea(i) { return !!(i && i.turn && twoGame(i.turn.g)); }
+window.addEventListener("hashchange", function () { var n = two(location.hash); if (n) window.Parts.use(n, route).catch(route); else route(); });
+// The new turn cards bring their rules in a part (turnzwei, malen; scripts/build.js lists their games in its manifest): a
+// sheet, link or saved work of one of them waits for that part, named by these; every other start loads only the catalog.
+function twoGame(g) { var P = window.DailyParts || {}; for (var n in P) if (P[n].g && P[n].g.indexOf(g) >= 0 && !window.Turns.GAMES[g]) return n; return ""; }
+function twoIdea(i) { return i && i.turn ? twoGame(i.turn.g) : ""; }
 function two(hash) {
   var s = String(hash || "").replace(/^#/, ""), i = s.match(/(?:^|&)i=([^&]*)/), c = s.match(/(?:^|&)c=([A-Za-z0-9_-]{1,1200})(?:&|$)/), raw = null;
   if (i) return twoIdea(D.byId(i[1]));
   try { raw = c && JSON.parse(D.fromB64(c[1])); } catch (e) { raw = null; }
-  return !!(raw && raw.v === 1 && (raw.d ? raw.d.k === "turn" && twoGame(raw.d.g) : twoIdea(D.byId(raw.i))));
+  return raw && raw.v === 1 ? (raw.d ? (raw.d.k === "turn" ? twoGame(raw.d.g) : "") : twoIdea(D.byId(raw.i))) : "";
 }
 
 /* Zusammen bauen (collab-ui.js) reaches the editor only through these. */
@@ -1189,7 +1189,7 @@ var CU = window.CollabUI.init({
 var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
-window.DailyApp = { style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { part: twoIdea, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 window.DailyApp.allow = allow;
 
@@ -1202,8 +1202,8 @@ labels(); if (store.ez) window.Parts.need("direkt").catch(function () {});
 // The first sheet waits for the catalog part (src/parts.js asks for it at once; in the apps it is a file next to the page).
 // Without it the day still shows from the core's index, as a plain card, and the page says the part is missing.
 function boot() { if (!route()) goHome(); }
-// The rules of the new turn cards (part turnzwei) only when the link or the day's card is one of them (two()).
-window.Parts.need("katalog").then(function () { return two(location.hash) || twoIdea(D.ideaForDay(today)) ? window.Parts.need("turnzwei").catch(function () {}) : 0; }).then(boot, function () { Kit.toast(t("part_fail")); boot(); });
+// The rules of the new turn cards (their part) only when the link or the day's card is one of them (two()).
+window.Parts.need("katalog").then(function () { var n = two(location.hash) || twoIdea(D.ideaForDay(today)); return n ? window.Parts.need(n).catch(function () {}) : 0; }).then(boot, function () { Kit.toast(t("part_fail")); boot(); });
 // The embedded display font loads after the first paint: fit the headline again once it is there, and draw the sheet's
 // card and the editor's picture again. A canvas keeps the letters it was drawn with: on a slow phone the sheet drawn before
 // the font was there kept the fallback font for good. Only the pictures are drawn again, the same card as fillSheet
