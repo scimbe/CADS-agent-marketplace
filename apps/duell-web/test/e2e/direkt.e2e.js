@@ -195,6 +195,7 @@ test("Ohne Teil direkt: die heutigen Reiter bleiben, Sticker per Panel, kein Feh
 
     const c2 = await G.person(b, { view: "phone390", lang: "en" }), q = await G.open(c2, "");
     await editor(q, "card"); await tabTo(q, "Sticker"); await q.locator('#panel [data-dk="add0"]').click();
+    await q.waitForFunction(() => /Sticker /.test(document.getElementById("dkdesc").textContent));   // the description follows with the next redraw (16 ms)
     const desc = await q.evaluate(() => { const c = document.getElementById("stage"); return [c.getAttribute("role"), document.getElementById(c.getAttribute("aria-describedby")).textContent]; });
     assert.equal(desc[0], "img"); assert.match(desc[1], /^Card\. Text: “.+”\. Background: \w+ and \w+, style .+\. 1 stickers?: Sticker .+, (top|bottom|left|right|in the middle)/); assert.doesNotMatch(desc[1], /#[0-9a-f]{3}/i);
     const opts = await q.locator("#panel [role=listbox] [role=option]").allTextContents();
