@@ -115,7 +115,7 @@ test("Daumen ohne Anmeldung: kurzer Hinweis mit Link zur Anmeldung, nichts als g
   const b = await G.launch();
   for (const lang of G.LANGS) {
     // no route of its own: the hook answers as the server does without the gate cookie (X-Stat: login)
-    const ctx = await G.person(b, { time: TIME, lang }), got = [], p = await G.open(ctx, "");
+    const ctx = await G.person(b, { time: TIME, lang, web: true }), got = [], p = await G.open(ctx, "");   // reloaded below: web route
     Object.defineProperty(got, "cred", { value: [] });
     ctx.on("request", (r) => { if (r.url() === STAT) { got.push(JSON.parse(r.postData())); got.cred.push(r.headers().cookie || ""); } });
     const id = await p.evaluate(() => window.DailyDebug.home().idea.id), hint = p.locator("#votelogin");
@@ -160,6 +160,7 @@ test("Daumen, Server sagt unavailable: alter Stand bleibt, kein Login-Hinweis", 
   assert.deepEqual(p.errs, []); await b.close();
 });
 
+// file:// on purpose: the app shell (origin null, no cookie); one page, never reloaded (lib/grund.js).
 test("Daumen in der App-Huelle (Origin null, kein Cookie): immer der Hinweis, ohne Link, keine Stimme geht raus", async () => {
   const b = await G.launch(), ctx = await G.person(b, { time: TIME }), votes = [];
   await ctx.addInitScript(() => { window.DuellHost = {}; });
