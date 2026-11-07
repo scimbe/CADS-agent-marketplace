@@ -385,10 +385,13 @@
     var V = VOLLEY, ground = V.FY - V.PRAD;
     return { x: clamp(reach(prev.x, m.x, dt, vmax), V.NX + V.NW + V.PRAD, W - V.PRAD), y: clamp(m.y, ground - 340, ground) };
   }
-  // Until OLD_UNTIL an app from before the touching figure was sent along (no fx) still has its hits taken as it made
-  // them: its figure walked up to FIG_OLD, and the short rest of a frame gave its bump any sideways push. From then on
-  // its hits must fit the same bounds as everyone's.
-  var OLD_UNTIL = Date.UTC(2027, 0, 31);
+  // Until OLD_UNTIL an app from before the touching figure and the game time were sent along (no fx, no gt) still has
+  // its moves taken as it made them: its figure walked up to FIG_OLD, the short rest of a frame gave its bump any push,
+  // and its bigger frame steps bounce off the net where this one does not. So for it only where the ball and its
+  // figure met counts, not how - no better guarded than before these checks. Two weeks after the release of
+  // 2026-11-08; from then on its moves must fit the same bounds as everyone's.
+  var OLD_UNTIL = Date.UTC(2026, 10, 22);
+  var OLD_SLACK = 10, OLD_NET = 130;   // its reach a little further (frames up to 34 ms); off the net only within 130 of the path
   var HIT_T = 0.1, GT_LEAD = 0.6;   // seconds from the last position report to a hit, at most: a report beat and a frame at 30 fps
   var VFALL = Math.sqrt(VOLLEY.VMAX * VOLLEY.VMAX + 2 * VOLLEY.G * VOLLEY.FY);   // a ball may fall faster than any hit sends it
   // slack: how far the figure may have walked since its last report arrived here (a phone that hung reports late).
@@ -421,14 +424,15 @@
     // pick by naming F anyway. Tolerances: rounding of F and the substeps of the sender's frames.
     var RB = V.BR + V.PRAD, TQ = 4, TV = 30;
     function figBox(f, laxA) {
-      var h = ground - f.y; if (h < -1.5 || h > 300 || f.x < V.NX + V.NW + V.PRAD - 2 || f.x > W - V.PRAD + 2) return null;
+      // an older app's bigger frame steps carry its jump higher (up to the 340 its reports are kept within)
+      var h = ground - f.y; if (h < -1.5 || h > (laxA ? 340 : 300) || f.x < V.NX + V.NW + V.PRAD - 2 || f.x > W - V.PRAD + 2) return null;
       var cm = h < 0.75 ? 20 : Math.sqrt(Math.max(0, V.JUMP * V.JUMP - 2 * V.PG * Math.max(0, h - 12))) + 40;   // standing: not moving up or down
       var am = laxA ? 1e5 : V.FIG * 1.02; return [-am, am, -cm, cm];
     }
     // ok(f): a further condition on where the figure stood (the check with its next report). True if some place fits.
     function hitFits(b, F, opp, rx, ry, laxA, path, ok) {
       // an older app's flight depends on its frame rate (most of all after the net top): wider bounds for it until OLD_UNTIL
-      var qs = [], i, j, q, fv = Math.hypot(laxA ? V.FIG_OLD : V.FIG, V.JUMP), tq = laxA ? (path.net !== undefined ? 30 : 10) : TQ, tv = laxA ? (path.net !== undefined ? 90 : 45) : TV;
+      var qs = [], i, j, q, fv = Math.hypot(laxA ? V.FIG_OLD : V.FIG, V.JUMP), tq = laxA ? (path.near !== undefined ? 30 : 10) : TQ, tv = laxA ? (path.near !== undefined ? 90 : 45) : TV;
       for (i = 0; i < path.length; i++) for (j = 0; j < (i + 1 < path.length ? 4 : 1); j++) {   // the flight, in quarter substeps
         var p0 = path[i], p1 = path[i + 1] || p0, u = j / 4;
         q = { x: p0.x + (p1.x - p0.x) * u, y: p0.y + (p1.y - p0.y) * u, vx: p0.vx + (p1.vx - p0.vx) * u, vy: p0.vy + (p1.vy - p0.vy) * u };
@@ -440,6 +444,7 @@
         var f = { x: b.x - RB * nx, y: b.y - RB * ny };
         if (Math.abs(f.x - opp.x) > rx || Math.abs(f.y - opp.y) > ry || (ok && !ok(f))) return false;
         var box = figBox(f, laxA); if (!box) return false;
+        if (laxA) return true;
         for (var k = 0; k < qs.length; k++) {
           var c = qs[k]; if (onlyQ && c !== onlyQ) continue;
           var dx = b.x - c.x, dy = b.y - c.y, al = dx * nx + dy * ny;
@@ -449,6 +454,15 @@
           if (c.px !== undefined && Math.hypot(c.px - f.x, c.py - f.y) < RB - fv * STEP - tq) continue;
           if (bumpFit(c.vx, c.vy, nx, ny, b.vx, b.vy, box) <= tv) return true;
         }
+        return false;
+      }
+      // An older app's bump depends on its frame rate (its figure takes uneven steps, and a bump and a bounce off the
+      // net can fall into one frame): until OLD_UNTIL only where it touched counts for it - its figure in reach, RB from
+      // the ball, near the flight - and what holds at any frame rate: the ball leaves upwards and lively (volleyBump).
+      // With fx and gt the bump has to follow from ball and figure.
+      if (laxA) {
+        var sb = speed(b); if (!(b.vy < 0 && (b.vy <= -499 || sb >= V.VMAX * 0.99) && sb >= V.VMIN * 0.99 && sb <= V.VMAX * 1.01)) return false;
+        for (i = 0; i < 1571; i++) if (tryN(Math.cos(i * 0.004), Math.sin(i * 0.004), null)) return true;
         return false;
       }
       if (F) {
@@ -474,14 +488,20 @@
     function laterFits(now) {
       if (!pend) return true;
       var P = pend; pend = null;
-      var w = lax() ? Math.hypot(V.FIG_OLD, V.JUMP) * 1.25 * S.gap() : 0, lx = (lax() ? V.FIG_OLD : V.FIG) * HIT_T + 4 + w, ly = V.JUMP * HIT_T + 4 + w;
+      var w = lax() ? Math.hypot(V.FIG_OLD, V.JUMP) * 1.25 * S.gap() + OLD_SLACK : 0, lx = (lax() ? V.FIG_OLD : V.FIG) * HIT_T + 4 + w, ly = V.JUMP * HIT_T + 4 + w;
       return hitFits(P.b, P.F, P.from, P.rx, P.ry, P.laxA, P.path, function (f) {
         return Math.abs(f.x - P.from.x) + Math.abs(now.x - f.x) <= lx && Math.abs(f.y - P.from.y) + Math.abs(now.y - f.y) <= ly;
       });
     }
     function keep(b) {
       var q = { x: b.x, y: b.y, vx: b.vx, vy: b.vy }; path = [copy(q)];
-      for (var i = 0; i < 120 * (STALL_MAX + 2) && q.y + V.BR < V.FY + 60; i++) { if (volleyStep(q, 1 / 120) === "net" && path.net === undefined) path.net = i + 1; path.push(copy(q)); }
+      // near: from where the flight touches the net or passes within 40 px of it (an older app's bigger frame steps may
+      // touch it there, or miss it where this one does)
+      for (var i = 0; i < 120 * (STALL_MAX + 2) && q.y + V.BR < V.FY + 60; i++) {
+        if (volleyStep(q, 1 / 120) === "net" && path.net === undefined) path.net = i + 1;
+        if (path.near === undefined && Math.hypot(q.x - V.NX, Math.min(0, q.y - V.NT)) < V.NW + V.BR + 40) path.near = i + 1;
+        path.push(copy(q));
+      }
     }
     S.st = { b: null, own: false, held: false, me: { x: 250, y: ground, vx: 0, vy: 0 }, opp: { x: W - 250, y: ground } };
     S.input = function (i) { if (!i) return; if (num(i.x)) aim = i.x; if (i.jump) jump = true; };
@@ -555,11 +575,11 @@
               if (!walkable(trk, F.x, F.y, gh) || !hitFits(m.b, F, F, 3, 3, false, path)) return S.reject();
               trk = { x: F.x, y: F.y, g: gh };
             } else {
-              var wk = lax() ? walked : 0, vx0 = lax() ? V.FIG_OLD : V.FIG, H = { b: copy(m.b), F: F, from: { x: st.opp.x, y: st.opp.y }, rx: vx0 * HIT_T + 2 + wk, ry: V.JUMP * HIT_T + 2 + wk, laxA: !F && lax(), path: path };
+              var wk = lax() ? walked + OLD_SLACK : 0, vx0 = lax() ? V.FIG_OLD : V.FIG, H = { b: copy(m.b), F: F, from: { x: st.opp.x, y: st.opp.y }, rx: vx0 * HIT_T + 2 + wk, ry: V.JUMP * HIT_T + 2 + wk, laxA: !F && lax(), path: path };
               if (!hitFits(H.b, H.F, H.from, H.rx, H.ry, H.laxA, H.path)) return S.reject();
               if (!pend) pend = H;   // a hit right after a hit: the first one counts
             }
-          } else if (!along(m.b, 40, 45) && !(lax() && path.net !== undefined && along(m.b, 80, null, path.net))) return S.reject();   // free flight: on the path, at its speed (an older app's bounce off the net depends on its frame rate: after it only near the path)
+          } else if (!along(m.b, 40, 45) && !(lax() && path.near !== undefined && along(m.b, OLD_NET, null, path.near))) return S.reject();   // free flight: on the path, at its speed (an older app's bounce off the net depends on its frame rate: from where the flight comes near the net only near the path)
         }
         st.b = copy(m.b); st.held = false; keep(st.b);
         if (m.t === "pass") st.own = true; else if (m.t === "hit") S.fx("ohit", st.b.x, st.b.y, { v: speed(st.b) });

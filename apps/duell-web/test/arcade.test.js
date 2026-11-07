@@ -378,7 +378,7 @@ test("Volley: ein Treffer muss aus Ball und Figur folgen, mit gemeldeter Figur g
     S = setup(); S.receive({ t: "hit", b: fake, fx: 760, fy: y }); assert.equal(S.rejected, 1, "erfunden, mit Figur");
     S = setup({ date: Date.UTC(2027, 5, 1) }); S.receive({ t: "hit", b: fake }); assert.equal(S.rejected, 1, "erfunden, ohne Figur: ebenso");
   }
-  S = setup(); S.receive({ t: "hit", b: Object.assign({}, real, { vx: -300, vy: 200 }) }); assert.equal(S.rejected, 1, "nach unten geht auch in der Uebergangsfrist nicht");
+  S = setup({ date: Date.UTC(2026, 10, 10) }); S.receive({ t: "hit", b: Object.assign({}, real, { vx: -300, vy: 200 }) }); assert.equal(S.rejected, 1, "nach unten geht auch in der Uebergangsfrist nicht");
   // steeper than this standing figure gives it: with the figure named, refused; without, the receiver has to allow every
   // figure in reach (one in the air could) - which is what a sender could also claim by naming that one
   const steep = Object.assign({}, real, { vx: 0, vy: -1700 });
@@ -430,9 +430,29 @@ test("Volley: eine aeltere App ohne Figur im Treffer hat bis zur Uebergangsfrist
     S.receive({ t: "p", x: 700, y }); S.receive({ t: "st", b: b0 });
     S.receive(withFx ? { t: "hit", b: q, fx: 700, fy: y } : { t: "hit", b: q }); return S.rejected;
   };
-  assert.equal(run(Date.UTC(2026, 11, 1), false), 0, "vor der Frist: ohne Figur so angenommen, wie die alte App es machte");
-  assert.equal(run(Date.UTC(2027, 1, 1), false), 1, "nach der Frist: dieselbe Grenze wie fuer alle");
-  assert.equal(run(Date.UTC(2026, 11, 1), true), 1, "wer die Figur mitschickt, ist eine neue App: die strenge Grenze gilt sofort");
+  const before = Date.UTC(2026, 10, 21, 23, 59), after = Date.UTC(2026, 10, 22);   // OLD_UNTIL: 2026-11-22 00:00 UTC
+  assert.equal(run(before, false), 0, "vor der Frist: ohne Figur so angenommen, wie die alte App es machte");
+  assert.equal(run(after, false), 1, "ab der Frist: dieselbe Grenze wie fuer alle");
+  assert.equal(run(before, true), 1, "wer die Figur mitschickt, ist eine neue App: die strenge Grenze gilt sofort");
+  // in the period only where it touched counts, upwards and lively (as every bump leaves): any such push is taken then
+  const odd = Object.assign({}, q, { vx: 900, vy: -1000 });
+  const run2 = (date, b) => {
+    const S = A.side("volley", { seed: "o", serving: false, clock: () => 0, date }); S.start();
+    S.receive({ t: "p", x: 700, y }); S.receive({ t: "st", b: b0 }); S.receive({ t: "hit", b }); return S.rejected;
+  };
+  assert.equal(run2(before, odd), 0, "vor der Frist: ein Stoss nach oben, wo Ball und Figur sich trafen");
+  assert.equal(run2(after, odd), 1, "ab der Frist: muss aus Ball und Figur folgen");
+  assert.equal(run2(before, Object.assign({}, odd, { x: odd.x + 200 })), 1, "auch vor der Frist: nicht da, wo sie sich trafen");
+  // an older app's bigger frame steps may bounce the ball off the net top where this phone's flight just passes it
+  const graze = (date) => {
+    const S = A.side("volley", { seed: "o", serving: false, clock: () => 0, date }); S.start();
+    const b = { x: V.NX + 200, y: V.NT - 150, vx: -1000, vy: 300 }, c = Object.assign({}, b);
+    S.receive({ t: "p", x: 700, y }); S.receive({ t: "st", b });
+    for (let i = 0; i < 24; i++) A.volleyStep(c, 1 / 120);   // near the net top, then pushed back up as by a bounce
+    S.receive({ t: "st", b: Object.assign({}, c, { vx: -c.vx * 0.4, vy: -Math.abs(c.vy) }) }); return S.rejected;
+  };
+  assert.equal(graze(before), 0, "vor der Frist: am Netz nur nahe der Bahn");
+  assert.equal(graze(after), 1, "ab der Frist: auch dort auf der Bahn und in ihrem Tempo");
 });
 test("Volley: im ehrlichen Spiel mit echten Bildzeiten (8-34 ms) wird nichts abgelehnt", () => {
   const N = require("./netsim.js");
