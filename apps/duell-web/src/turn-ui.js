@@ -710,7 +710,8 @@ X.turn = {
   // Every game on one shelf as a tile with its own sign, grouped by when it fits, plus one button for a surprise.
   menu: function () {
     var all = D.IDEAS.filter(function (i) { return i.kind === "turn"; }), COL = { streit: "#ff3b1d", pause: "#1d7cff", abend: "#7a3bff", geschenk: "#ff5fa2", raum: "#12a150" };
-    function start(i) { Kit.sfx.thud(); A.openEditor(D.docFromIdea(i, A.me(), Kit.lang), { idea: i }); }
+    // a card whose rule comes in a part (turnzwei, malen) waits for it
+    function start(i) { var n = A.part(i); if (n) { window.Parts.use(n, function () { start(i); }).catch(function () {}); return; } Kit.sfx.thud(); A.openEditor(D.docFromIdea(i, A.me(), Kit.lang), { idea: i }); }
     var arcade = window.ArcadeUI ? window.ArcadeUI.count() : 0;
     A.shelf(say("turn_all", { n: all.length + arcade }), function (b) {
       b.appendChild(el("p", "note", t("turnH")));
