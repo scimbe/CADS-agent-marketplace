@@ -92,10 +92,10 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .pv.pic{flex:0 0 auto;margin-top:10px}
 .pv.pic:not([hidden]) ~ .hero{flex:1 1 auto}
 /* E1.5: the live card has the sheet, the AI picture a thumbnail (.swap) */
-.pv.pic.live{position:relative;flex:1 1 0;min-height:0;flex-direction:column;padding:0 6px 4px 0}
+.pv.pic.live{position:relative;flex:1 1 0;min-height:0;flex-direction:column;padding:0 104px 4px 0}
 .pv.pic.live canvas:not([hidden]),.pv.tight.peek canvas:not([hidden]){display:block!important;flex:1 1 0;min-height:0;height:auto}
-.pv.pic.live .pvimg{position:absolute;right:2px;top:0;border:0;outline:3px solid var(--ink);width:auto;height:clamp(44px,26%,72px);box-shadow:3px 4px 0 var(--ink)}
-.pv.pic.swap .pvimg{position:static!important;width:100%!important;height:auto!important}.pv.pic.swap canvas:not([hidden]){display:none!important}
+.pv.pic.live .pvimg{position:absolute;right:3px;top:3px;border:0;outline:3px solid var(--ink);width:auto;height:52px;box-shadow:3px 4px 0 var(--ink)}
+.pv.pic.live.swap{padding-right:6px}.pv.pic.swap .pvimg{position:static!important;width:100%!important;height:auto!important}.pv.pic.swap canvas:not([hidden]){display:none!important}
 .pv.pic.with ~ .hero{flex:0 0 auto}
 .pv.tight:not(.peek){display:none!important}#pvpeek{position:absolute;right:14px;bottom:12px;z-index:7;min-height:44px;margin:0}#leaf:has(#pvpeek:not([hidden])):not(:has(.votes:not([hidden]))){padding-bottom:62px}
 .pv.tight.peek{display:flex!important;position:absolute!important;inset:10px!important;z-index:6;margin:0;padding:8px!important;background:var(--paper);border:3px solid var(--ink);flex-direction:column}

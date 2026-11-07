@@ -165,3 +165,31 @@ test("Kurzes Blatt (328 px, Sprachwahl und Daumen): die Live-Karte weicht ganz, 
     assert.deepEqual(p.errs, []); await ctx.close();
   } finally { await b.close(); }
 });
+
+// B1: the 60 px rule measures the layout (offsetHeight), not the sheet's landing animation (transform scale 1.25); both
+// directions: a card shown is >= 60 px once the sheet has landed, and a card left out would really be under 60 px.
+test("60-px-Regel nach der Landeanimation: sichtbare Live-Karte >= 60 px, ausgeblendete waere < 60 px (640x400 en Einladung und weitere)", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  try {
+    const bad = [];
+    const VIEW = Object.assign({}, VIEWS, { "640x400": { viewport: { width: 640, height: 400 }, deviceScaleFactor: 2, hasTouch: true } });
+    for (const [v, lang, hash, day] of [["640x400", "en", "#i=zug-termin", [11, 8]], ["640x400", "de", "#i=karte-lob", [11, 7]], ["640x400", "en", "", [11, 6]], ["328x568", "de", "#i=karte-lob", [11, 7]],
+      ["360x800", "en", "#i=zug-termin", [11, 8]], ["390x844", "de", "", [11, 6]], ["512x384", "de", "#i=zug-termin", [11, 8]]]) {
+      VIEWS[v] = VIEW[v];
+      const { ctx, p } = await ctxFor(b, v, { locale: lang === "en" ? "en-GB" : "de-DE" });
+      await ctx.addInitScript((l) => { try { localStorage.setItem("daily.v1", JSON.stringify({ lang: l })); } catch (e) {} }, lang);
+      await goto(p, hash, day);
+      await p.waitForFunction(() => !document.getElementById("leaf").getAnimations().some((a) => a.playState === "running"));   // the sheet has landed await p.waitForTimeout(200);
+      const r = await p.evaluate(() => {
+        const pv = document.getElementById("pv"), c = document.getElementById("pvcard"), tight = pv.classList.contains("tight");
+        const shown = c.getClientRects().length ? c.getBoundingClientRect().height : 0;
+        pv.classList.remove("tight"); const would = c.getClientRects().length ? c.offsetHeight : 0; if (tight) pv.classList.add("tight");
+        return { tight, shown: Math.round(shown), would, live: pv.classList.contains("live") || !document.getElementById("langpick").hidden };
+      });
+      if (r.live && !r.tight && r.shown < 60) bad.push(v + " " + lang + " " + hash + ": Karte nur " + r.shown + " px");
+      if (r.tight && r.would >= 60) bad.push(v + " " + lang + " " + hash + ": faelschlich ausgeblendet, waere " + r.would + " px");
+      assert.deepEqual(p.errs, [], v); await ctx.close();
+    }
+    assert.deepEqual(bad, []);
+  } finally { await b.close(); }
+});

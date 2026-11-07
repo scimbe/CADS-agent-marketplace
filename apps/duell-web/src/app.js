@@ -188,14 +188,14 @@ if (window.ResizeObserver) new ResizeObserver(function () { fitCard(); picThumb(
 var peekB = el("button", "chip pvpeek", null, function () { Kit.sfx.tap(); peek2(!$("pv").classList.contains("peek")); });
 peekB.id = "pvpeek"; peekB.hidden = true; $("pv").after(peekB);
 // Escape closes an open preview while the sheet is on screen, the focus goes back to its button
-document.addEventListener("keydown", function (e) { if (e.key === "Escape" && screen === "home" && !peekB.hidden && $("pv").classList.contains("peek")) { e.preventDefault(); peek2(false); peekB.focus(); } }, true);
+document.addEventListener("keydown", function (e) { if (e.key === "Escape" && screen === "home" && !peekB.hidden && !document.querySelector("dialog[open]") && !$("door") && $("pv").classList.contains("peek")) { e.preventDefault(); peek2(false); peekB.focus(); } }, true);
 // while it is open, everything under it on the sheet (title, thumbs …) is inert; the button stays usable
 function peek2(on) { Array.from($("leaf").children).forEach(function (c) { if (c !== peekB && c.id !== "pv") c.inert = on; }); $("pv").classList.toggle("peek", on); peekB.setAttribute("aria-expanded", String(on)); peekB.textContent = t("pv_peek"); }
 function fitCard() {
   var pv = $("pv"), c = $("pvcard"), w = $("warmto"), lp = $("langpick"), mehr = !!(lp && !lp.hidden) || !!(w && !w.hidden), live = !pv.hidden && (pv.classList.contains("with") || mehr);
   $("home").classList.toggle("mehr", mehr); pv.classList.toggle("live", live);
   pv.classList.remove("tight"); peekB.hidden = true;
-  var tight = live && !c.hidden && (!c.getClientRects().length || c.getBoundingClientRect().height < 60);
+  var tight = live && !c.hidden && (!c.getClientRects().length || c.offsetHeight < 60);
   pv.classList.toggle("tight", tight); peekB.hidden = !tight; if (!tight || !peekB.getAttribute("aria-expanded")) peek2(false);
 }
 // In the editor the picture stays above the card; the user's own photo takes its place once taken.
