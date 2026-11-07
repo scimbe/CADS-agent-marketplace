@@ -43,7 +43,7 @@ await p.getByText('Abo kommt bald').waitFor();
 const wall = await p.textContent('#shbody');
 assert.match(wall, /3 KI-Versuche genutzt/); assert.ok(!/€|\d+[,.]\d\d|Countdown/.test(wall));
 if (shot) await p.screenshot({ path: shot + '-wall.png' });
-await p.getByText('Ich hätte Interesse').tap(); await p.getByText('Notiert, danke').waitFor();
+await p.getByText('Ich hätte Interesse').tap(); await p.getByText('Danke', { exact: true }).waitFor();
 await tap('#shback'); assert.ok(await p.locator('#stage').isVisible(), 'zurueck im Editor');
 await p.locator('.aiopt').first().waitFor();
 // bypass of the page: server still refuses
