@@ -98,8 +98,8 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
-      if (m.t === "p" && num(m.c)) { st.opp = clamp(reach(st.opp, m.c, S.oppDt(), K.RMAX * 1.25), K.GAP + 40, W - K.GAP - 40); st.oppKick = m.k ? 1 : 0; return; }
-      ball.receive(m, function (b) { return kickRods(st.opp).some(function (f) { var y = H - f.y; return Math.abs(b.x - f.x) <= K.R + K.FR + 300 && Math.abs(b.y - y) <= K.R + K.FR + 120; }); });
+      if (m.t === "p" && num(m.c)) { st.opp = clamp(reach(st.opp, m.c, S.oppDt(Math.abs(m.c - st.opp), K.RMAX * 1.25), K.RMAX * 1.25), K.GAP + 40, W - K.GAP - 40); st.oppKick = m.k ? 1 : 0; return; }
+      ball.receive(m, function (b) { return kickRods(st.opp).some(function (f) { var y = H - f.y; return Math.abs(b.x - f.x) <= K.R + K.FR + 450   /* rods move 2400 per second: a report 100 ms old is 240 off */ && Math.abs(b.y - y) <= K.R + K.FR + 120; }); });
     };
     return S;
   }
@@ -163,7 +163,7 @@
           for (var k = 0; k < 2; k++) if (segHit(b, flipSeg(k === 0, st.a[k]), F.R, F.T, k === 0 ? st.w[k] : -st.w[k], k === 0 ? F.PX : W - F.PX, F.PY, 0.55)) hit = "flip";
           for (var l = 0; l < 2; l++) if (segHit(b, lanes[l], F.R, 6, 0, 0, 0, 0.5)) hit = hit || "wall";
           bumps.forEach(function (c, j) { if (bounce(b, F.R, c, F.BR, 0, 0, 1)) { st.lit[j] = 1; hit = "bump"; var s = speed(b); b.vx *= 1.08; b.vy *= 1.08; if (s < F.VMIN) { b.vx *= F.VMIN / s; b.vy *= F.VMIN / s; } } });
-          if (hit) { cap(b, F.VMAX); if (Math.abs(b.vy) < 220) b.vy = b.vy < 0 ? -220 : 220; }
+          if (hit) { if (Math.abs(b.vy) < 220) b.vy = b.vy < 0 ? -220 : 220; cap(b, F.VMAX); }   // the floor first: the cap is the last word
           return hit === "wall" ? false : hit;
         });
       });
@@ -193,7 +193,7 @@
   }
 
   // ======================= Schnee-Schlacht: dodge along your line, throw straight ahead, walls wear down =======================
-  var SNOW = { id: "snow", WIN: 5, serves: false, FY: H - 130, FR: 46, VF: 760, R: 16, V: 980, AMMO: 3, RELOAD: 0.9, WW: 150, WH: 44, HP: 3 };
+  var SNOW = { id: "snow", WIN: 5, serves: false, fin: true, FY: H - 130, FR: 46, VF: 760, R: 16, V: 980, AMMO: 3, RELOAD: 0.9, WW: 150, WH: 44, HP: 3 };
   function snowWalls(seed) {   // the own half; the other half has the same ones turned around
     var out = [];
     for (var k = 0; k < 3; k++) out.push({ x: 170 + k * 330 + (unit(seed, "wall|x|" + k) - 0.5) * 90, y: H / 2 + 230 + unit(seed, "wall|y|" + k) * 140, hp: SNOW.HP });
@@ -201,7 +201,7 @@
   }
   function inWall(b, w) { return w.hp > 0 && Math.abs(b.x - w.x) <= SNOW.WW / 2 + SNOW.R && Math.abs(b.y - w.y) <= SNOW.WH / 2 + SNOW.R; }
   function snowSide(o) {
-    var N = SNOW, S = A._.base(N, o), aim = W / 2, throwIt = false, oppAmmo = N.AMMO, id = 0;
+    var N = SNOW, S = A._.base(N, o), aim = W / 2, throwIt = false, oppAmmo = N.AMMO, id = 0, oppClock = null, oldBurst = -1;
     var mine = snowWalls(S.seed), theirs = snowWalls(S.seed).map(function (w) { return { x: W - w.x, y: H - w.y, hp: w.hp }; });
     S.st = { me: { x: W / 2, vx: 0 }, opp: W / 2, ammo: N.AMMO, load: 0, balls: [], mine: mine, theirs: theirs };
     S.input = function (i) { if (!i) return; if (num(i.x)) aim = clamp(i.x, N.FR, W - N.FR); if (i.fire) throwIt = true; };
@@ -210,7 +210,7 @@
       A._.loop(S, dt, function (d) {
         var nx = reach(st.me.x, aim, d, N.VF); st.me.vx = (nx - st.me.x) / d; st.me.x = nx;
         if (st.ammo < N.AMMO) { st.load += d / N.RELOAD; if (st.load >= 1) { st.load = 0; st.ammo++; } }
-        oppAmmo = Math.min(N.AMMO, oppAmmo + d / N.RELOAD);
+        if (!oppClock) oppAmmo = Math.min(N.AMMO, oppAmmo + d / N.RELOAD);   // no clock in the throws: reload on arrival
         if (throwIt && S.started && st.ammo > 0) {
           st.ammo--; var b = { x: st.me.x, y: N.FY - N.FR, vx: clamp(st.me.vx * 0.25, -220, 220), vy: -N.V, mine: true, i: id++ };
           st.balls.push(b); S.send({ t: "throw", i: b.i, x: Math.round(W - b.x), vx: -b.vx }); S.fx("throw", b.x, b.y, { mine: true });
@@ -223,16 +223,36 @@
           if (b2.mine || b2.y < H / 2) continue;               // only what flies at this phone is decided here
           var w = null; st.mine.forEach(function (x, j) { if (w === null && inWall(b2, x)) w = j; });
           if (w !== null) { st.mine[w].hp--; st.balls.splice(k, 1); S.send({ t: "wall", i: b2.i, k: w }); S.fx("wall", b2.x, b2.y, { mine: true, hp: st.mine[w].hp }); continue; }
-          if (Math.abs(b2.x - st.me.x) <= N.FR + N.R && Math.abs(b2.y - N.FY) <= N.FR + N.R) { st.balls.splice(k, 1); S.send({ t: "hit", i: b2.i }); S.fx("splat", st.me.x, N.FY, { mine: true }); S.concede(st.me.x, N.FY); if (S.over) return; }
+          if (Math.abs(b2.x - st.me.x) <= N.FR + N.R && Math.abs(b2.y - N.FY) <= N.FR + N.R) { st.balls.splice(k, 1); S.send({ t: "hit", i: b2.i }); S.fx("splat", st.me.x, N.FY, { mine: true }); S.concede(st.me.x, N.FY); if (S.over || S.ending) return; }
         }
       });
       A._.report(S, function () { S.send({ t: "p", x: Math.round(W - st.me.x) }); });
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
-      if (m.t === "p" && num(m.x)) { st.opp = clamp(reach(st.opp, m.x, S.oppDt(), N.VF * 1.25), N.FR, W - N.FR); return; }
+      S.heard();                               // every arrival counts for the gap, the last word too
+      if (S.fin(m)) return;
+      if (S.ending && m.t !== "hit") return;   // at the end only the hit count still matters
+      if (m.t === "p" && num(m.x)) { st.opp = clamp(reach(st.opp, m.x, S.oppDt(Math.abs(m.x - st.opp), N.VF * 1.25), N.VF * 1.25), N.FR, W - N.FR); return; }
       if (m.t === "throw") {
         // A throw starts where the other figure can be, with the same speed for everyone, and only with a snowball in hand.
+        // The other hand reloads on its own clock: throws made apart during a stall arrive together. The reload time
+        // granted that way comes out of a budget that fills with the time passing on this phone's clock and holds a
+        // full magazine's reload plus one second, plus the length of a stall this phone itself saw (up to 6 s). So a
+        // clock set forward or a long pause before a burst still gives only about four snowballs beyond the three in
+        // hand. Only a gap in the arrivals buys more, a stall of the network as well as a sender that falls silent on
+        // purpose; either way never more than the gap lasted. Throws without a clock (an older app) reload on arrival.
+        var extra = S.stall();
+        if (m.t === "throw" && num(m.ms)) {
+          var CAP = N.AMMO * N.RELOAD + 1 + extra, now = S.clock();
+          if (!oppClock) oppClock = { last: m.ms, budget: CAP, at: now };
+          oppClock.budget = Math.min(CAP, oppClock.budget + now - oppClock.at); oppClock.at = now;
+          var give = Math.min(Math.max(0, m.ms - oppClock.last) / 1000, oppClock.budget);
+          oppClock.budget -= give; oppClock.last = Math.max(oppClock.last, m.ms);
+          oppAmmo = Math.min(N.AMMO, oppAmmo + give / N.RELOAD);
+        } else if (!oppClock && extra && oldBurst !== S.burst.at) {   // an older app: once per stall, what it reloaded meanwhile
+          oldBurst = S.burst.at; oppAmmo = Math.min(N.AMMO + extra / N.RELOAD, oppAmmo + extra / N.RELOAD);
+        }
         if (!num(m.x) || !num(m.vx) || !num(m.i) || Math.abs(m.vx) > 221 || Math.abs(m.x - st.opp) > 260 || oppAmmo < 0.95) return S.reject();
         oppAmmo -= 1;
         st.balls.push({ x: m.x, y: H - N.FY + N.FR, vx: m.vx, vy: N.V, mine: false, i: m.i }); S.fx("throw", m.x, H - N.FY, { mine: false });
@@ -308,10 +328,14 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
-      if (m.t === "p" && num(m.x)) { st.opp = clamp(reach(st.opp, m.x, S.oppDt(), E.VK * 1.25), W / 2 - E.GW / 2, W / 2 + E.GW / 2); st.oppV = num(m.v) ? m.v : 0; return; }
+      if (m.t === "p" && num(m.x)) { st.opp = clamp(reach(st.opp, m.x, S.oppDt(Math.abs(m.x - st.opp), E.VK * 1.25), E.VK * 1.25), W / 2 - E.GW / 2, W / 2 + E.GW / 2); st.oppV = num(m.v) ? m.v : 0; return; }
       if (m.t === "shot") {
-        if (st.shooting || st.phase === "fly" || m.n !== st.n || !num(m.vx) || !num(m.vy) || !num(m.c)) return S.reject();
-        if (Math.hypot(m.vx, m.vy) > E.VMAX * 1.01 || m.vy < E.VMIN * 0.7 - 1 || Math.abs(m.c) > E.CMAX) return S.reject();
+        if (!num(m.vx) || !num(m.vy) || !num(m.c) || Math.hypot(m.vx, m.vy) > E.VMAX * 1.01 || m.vy < E.VMIN * 0.7 - 1 || Math.abs(m.c) > E.CMAX) return S.reject();
+        // This phone still waits after the last result (it came late) while the other one already shoots the next one,
+        // which is a shot for this phone to keep: move on. Only a shot that passed the checks above does that.
+        if (st.phase === "done" && m.n === st.n + 1 && !elfShooter(m.n, o.serving)) next();
+        // One shot per turn, taken only while it is awaited: a repeat in the pause after its result does not count again.
+        if (st.shooting || st.phase !== "aim" || m.n !== st.n) return S.reject();
         var sp = elfSpot(S.seed, st.n); st.b = { x: W - sp.x, y: H - sp.y, vx: m.vx, vy: m.vy, c: m.c }; st.phase = "fly"; S.fx("kick", st.b.x, st.b.y);
         return;
       }
@@ -384,7 +408,12 @@
     S.tick = function (dt) {
       var st = S.st; if (S.over) return;
       dt = Math.min(dt, 0.25); S.t += dt;
-      if (S.started && !st.rolling && queue.length) { var q = queue.shift(); launch(q.p, q.x, q.vx, q.vy); }
+      // Whose turn it is and which way a waiting throw must go are checked only now, with the round as it stands here;
+      // the queue is worked off until a stone rolls, so throws out of turn never hold up this phone's own turn.
+      while (S.started && !st.rolling && queue.length) {
+        var q = queue.shift(), who = D.turnOf(st, st.n);
+        if (who === me || (who === 0 ? q.vy > 0 : q.vy < 0)) S.reject(); else launch(who, q.x, q.vx, q.vy);
+      }
       if (S.mineTurn()) {
         if (!throwIt && S.t - st.at > D.LATE) throwIt = D.late(S.seed, st.n, me);   // too slow: a soft one goes off by itself
         // Only towards the other side counts as a throw.
@@ -397,10 +426,15 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over || m.t !== "throw") return;
-      var expect = st.n + queue.length, who = D.turnOf(st, expect);
+      var expect = st.n + queue.length;
       // The other one may throw only on its turn, from its own line, towards this side, and not harder than a hand can.
-      if (m.n !== expect || who === me || !num(m.x) || !num(m.vx) || !num(m.vy) || m.x !== D.fromX(m.x) || Math.sqrt(m.vx * m.vx + m.vy * m.vy) > D.VMAX * 1.001 || (who === 0 ? m.vy > 0 : m.vy < 0)) return S.reject();
-      queue.push({ p: who, x: m.x, vx: m.vx, vy: m.vy });
+      if (m.n !== expect || !num(m.x) || !num(m.vx) || !num(m.vy) || m.x !== D.fromX(m.x) || Math.sqrt(m.vx * m.vx + m.vy * m.vy) > D.VMAX * 1.001) return S.reject();
+      // With the round settled here, whose turn it is is known now: check at once, so a throw out of turn never waits
+      // in the queue and blocks this phone's own turn. Only while a stone still rolls or another throw waits is it put
+      // off; then at most two can wait (the last of a round and the first of the next, both by the same player).
+      if (!st.rolling && !queue.length) { var who = D.turnOf(st, st.n); if (who === me || (who === 0 ? m.vy > 0 : m.vy < 0)) return S.reject(); }
+      else if (queue.length >= 2) return S.reject();
+      queue.push({ x: m.x, vx: m.vx, vy: m.vy });
     };
     // Points in the shared frame: player 0 is the inviter; this phone counts itself first.
     S.point = function (p, k) { var mine = p === me; S.score[mine ? 0 : 1] += k || 1; S.fx(mine ? "score" : "lose", W / 2, H / 2, { n: k || 1 }); S.check(); };

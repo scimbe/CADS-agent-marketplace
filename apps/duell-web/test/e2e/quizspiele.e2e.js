@@ -1,14 +1,13 @@
 "use strict";
+const { ensureBuilt } = require("../../scripts/ensure-build.js");
 // The quiz cards with a fixed pack (src/quizspiele.js) over real links between devices, pinned to the cards (#i=), never to
 // today: Echt oder Phishing? in the Business build with three colleagues (de/en/de, phone, laptop across, 200 % zoom), the
 // team result from 5 on; Was kostet das? in the Daily build as a pair (invite, second phone answers, result back to the first).
 // On every screen the main button is visible without scrolling and nothing lies on it. QUIZ_SHOTS=<dir> keeps screenshots.
 const test = require("node:test"), assert = require("node:assert/strict"), path = require("node:path");
-const { execFileSync } = require("node:child_process");
 const G = require("./lib/grund.js");
 const root = path.join(__dirname, "../..");
-execFileSync(process.execPath, [path.join(root, "scripts/build.js")]);
-execFileSync(process.execPath, [path.join(root, "scripts/build.js"), "--flavor", "business"]);
+ensureBuilt(""); ensureBuilt("business");   // dist as npm run test:e2e built it; a build only after an edit
 const SHOTS = process.env.QUIZ_SHOTS || "";
 const snap = (p, n) => (SHOTS ? p.screenshot({ path: path.join(SHOTS, "quizpack-" + n + ".png") }) : null);
 // the screens of the task: 328x700 and 390x844 phones, 1280x800 at 200 % (640x400) and 1024x768 at 200 % (512x384)
@@ -31,7 +30,8 @@ async function homeFree(p, at) {
 // one colleague plays all ten: answers from `pick(i, isPhish)`, checks each answer screen (the detail marked, the reason)
 async function playPhish(p, pick, at, shots) {
   await p.locator("#go").click();
-  await p.locator("#panel .note", { hasText: /Wer sieht was\?|Who sees what\?/ }).waitFor();
+  await p.locator("#panel .note", { hasText: /Wer sieht was\?|Who sees what\?/ }).first().waitFor();
+  await p.locator("#panel details.more summary").click();   // the rest of the privacy text behind "ⓘ Mehr" (PLAN D1)
   const intro = await p.locator("#panel").innerText();
   assert.match(intro, /Nicht-Teilnahme hat keine Folgen|Not taking part has no consequences/);
   assert.match(intro, /Pflichtschulung|mandatory training/); assert.match(intro, /Betriebsrat|works council/);
@@ -47,7 +47,7 @@ async function playPhish(p, pick, at, shots) {
     assert.equal(await main(p).getAttribute("aria-disabled"), "true", "Weiter gesperrt, bis geantwortet");
     if (i === 0) {
       await main(p).click({ force: true });   // a tap on the locked button says why
-      assert.match(await p.locator("#edwhy").textContent(), /^(Noch offen|Still open): /);
+      await G.poll(() => p.locator("#edwhy").textContent(), (s) => /^(Noch offen|Still open): /.test(s), { what: "Sperrgrund" });   // nudge() empties the line for 60 ms, then says it again
       assert.deepEqual(await G.smallTargets(p, "#panel", 48), [], "Antworten mindestens 48 px: " + at);
       // the answers stay in view while the example is longer than the panel (sticky at its foot)
       await p.waitForTimeout(500);
@@ -71,7 +71,8 @@ async function playPhish(p, pick, at, shots) {
 
 test("Echt oder Phishing? (Business): drei Geraete reichen den Link weiter, jede Person sieht nur das eigene Ergebnis, das Team-Ergebnis ab 5", async () => {
   const b = await G.launch(); try {
-    const [ana, ben, cem] = await G.people(b, 3, { lang: ["de", "en", "de"], view: ["phone328h", "zoom200quer", "zoom200"] });
+    // web route: Ana opens a second page later (lib/grund.js)
+    const [ana, ben, cem] = await G.people(b, 3, { lang: ["de", "en", "de"], view: ["phone328h", "zoom200quer", "zoom200"], web: true });
     const a = await G.open(ana, "#i=biz-quiz-phishing", { flavor: "business" });
     assert.equal((await a.locator("#hero").textContent()).replace(/\s+/g, ""), "EchtoderPhishing?");
     await homeFree(a, "ana start"); await snap(a, "phish-0-karte-de-328x700");
@@ -124,7 +125,8 @@ test("Echt oder Phishing? (Business): drei Geraete reichen den Link weiter, jede
 
 test("Was kostet das? (Daily): Einladung, zweites Handy schaetzt dieselben 8 Preise, Ergebnis mit Quelle und Stand zurueck zum ersten, de/en", async () => {
   const b = await G.launch(); try {
-    const [mia, jon] = await G.people(b, 2, { lang: ["de", "en"], view: ["phone390", "phone328h"] });
+    // web route: Mia opens a second page later (lib/grund.js)
+    const [mia, jon] = await G.people(b, 2, { lang: ["de", "en"], view: ["phone390", "phone328h"], web: true });
     const a = await G.open(mia, "#i=quiz-preis");
     assert.equal((await a.locator("#hero").textContent()).replace(/\s+/g, ""), "Waskostetdas?");
     await homeFree(a, "mia de 390"); await snap(a, "preis-0-karte-de-390x844");

@@ -24,7 +24,10 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // Sizes at the split: core 693 KB, parts 310 KB (play 140, table 104, qr 59, licenses 6), together 1003 KB.
   assert.ok(Buffer.byteLength(html) < 700 * 1024, "Kern ueber 700 KB: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["daten", "erschaffen", "katalog", "licenses", "logik", "play", "qr", "quiz", "satz", "table", "texte", "turnzwei", "welt"]);
+  assert.deepEqual(Object.keys(man).sort(), ["daten", "erschaffen", "katalog", "konto", "licenses", "logik", "play", "qr", "quiz", "satz", "stimme", "table", "texte", "turnzwei", "welt"]);
+  // "Anmelden / Registrieren": its texts (ac_) only in the part konto, none in the core
+  assert.ok(!/"ac_[a-z]/.test(html), "ac_-Texte im Kern");
+  assert.match(fs.readFileSync(partFiles().find((f) => /\/konto\.[0-9a-f]{12}\.js$/.test(f)), "utf8"), /window\.KontoTexts=\{"de":\{"ac_title":"Anmelden \/ Registrieren"/);
   for (const n of Object.keys(man)) assert.match(n, /^[a-z]{1,20}$/, "Teilname nur Buchstaben (Galerie-Server und Android lassen nur [a-z]{1,20} durch): " + n);
   assert.equal(files.length, Object.keys(man).length, "nur die Teile aus dem Manifest liegen in dist/parts");
   let sum = 0;
@@ -52,6 +55,8 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   assert.match(html, /root\.Bausteine = \{/);
   assert.match(part("welt"), /root\.WeltUI = \{/); assert.ok(!/root\.WeltUI = \{/.test(html), "Flugspiel-Einstieg nur im Teil");
   assert.match(part("texte"), /root\.TexteUI = \{/); assert.match(part("texte"), /window\.TexteData=\{/); assert.ok(!/root\.TexteUI = \{|window\.TexteData=/.test(html), "Texte und Song nur im Teil");
+  assert.match(part("stimme"), /root\.Stimme = \{/); assert.match(part("stimme"), /root\.Stat = api/); assert.match(part("stimme"), /^window\.StimmeTexts=\{"de":\{"vote_/);
+  assert.ok(!/root\.Stimme = \{|root\.Stat = api|"vote_q"/.test(html), "Daumen, Statistik und ihre Texte nur im Teil");
   assert.match(part("satz"), /window\.SatzUI = \{/); assert.match(part("satz"), /root\.SatzLogic = api/);
   assert.ok(!/window\.SatzUI = \{|root\.SatzLogic = api/.test(html), "Satz zu Formular steckt nur im Teil, im Kern nur der Haken");
   assert.ok(!/window\.ArcadeUI = \{ menu|window\.TableUI = \{ open|root\.StatusCard =/.test(html), "verschobener Code steckt nicht doppelt im Kern");
@@ -69,12 +74,12 @@ test("Datenschutz: Kurzlink nur ueber shortlink.js, nur nach einem Tipp auf Teil
   const game = src("game.js"), at = game.indexOf("ShortLink.shorten");
   assert.ok(at > game.indexOf('$("challenge").addEventListener("click"'), "game.js: nur im Klick");
 });
-test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldung, Kurzlink), nur getippter Text; kein anderer Weg nach draussen", () => {
+test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldung, Kurzlink, Profil), nur getippter Text; kein anderer Weg nach draussen", () => {
   const html = noComments(bundle());
   // Every call site by name; a new one fails here until it is argued for and listed.
   // protokoll-page.js is its own page (dist/protokoll.html, connect-src 'self'): one GET for the speech model from this
   // domain, one POST with the redacted text after the explicit yes. Neither is in the app build below.
-  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1, "protokoll-page.js": 2 }, short = /\(fetchFn \|\| fetch\)\(/g;
+  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1, "stat.js": 1, "profile.js": 1, "protokoll-page.js": 2 }, short = /\(fetchFn \|\| fetch\)\(/g;
   assert.match(src("protokoll-page.js"), /fetch\(url, \{ signal: ctl\.signal, credentials: "same-origin", cache: "no-store" \}\)/, "Modell nur per GET");
   assert.match(src("protokoll-page.js"), /input: P\.aiInput\(rec\.segs, rec\.names\)/, "an die KI nur der geschwaerzte Text");
   assert.ok(!/deviceMemory|hardwareConcurrency|userAgent/.test(src("protokoll-page.js").match(/JSON\.stringify\(\{ kind: "protokoll"[^\n]*/)[0]), "Geraetedaten bleiben auf dem Geraet");
@@ -82,7 +87,7 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
     assert.equal((noComments(src(f)).match(/\bfetch\(/g) || []).length, allowed[f] || 0, "direktes fetch( in " + f);
     assert.equal((noComments(src(f)).match(short) || []).length, f === "shortlink.js" ? 1 : 0, "Kurzlink-fetch in " + f);
   }
-  assert.equal((html.match(/\bfetch\(/g) || []).length, allowed["game.js"] + allowed["ai.js"] + allowed["live.js"], "direkte fetch( im Build (Kern + Teile)");
+  assert.equal((html.match(/\bfetch\(/g) || []).length, allowed["game.js"] + allowed["ai.js"] + allowed["live.js"] + allowed["stat.js"] + allowed["profile.js"], "direkte fetch( im Build (Kern + Teile)");
   const ph = noComments(fs.readFileSync(path.join(path.dirname(dist), "protokoll.html"), "utf8"));
   assert.equal((ph.match(/\bfetch\(/g) || []).length, 2, "Protokoll-Seite: Modell + KI-Text");
   assert.ok(!/XMLHttpRequest|sendBeacon|EventSource|WebSocket|RTCPeerConnection|analytics|serviceWorker/.test(ph), "Protokoll-Seite: kein weiterer Ausgang");
@@ -91,10 +96,23 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
   for (const call of src("ai.js").match(/await fetch\([^\n]*/g)) assert.match(call, /body: text/, "nur der gepruefte Text");   // eine Stelle fuer KI-Aufruf, Warteschlange, Abrechnung und Meldung (nach Ja)
   assert.match(src("ai.js"), /fetch\(endpoint\(api0\(\), path\)[^\n]*credentials: path === "\/report" \? "omit" : "same-origin"/, "Meldung ohne Cookie, ueber dieselbe eine Stelle");
   assert.ok(!/toDataURL|toBlob|drawImage|getImageData/.test(src("ai.js")), "KI fasst kein Bild an");
+  // Profile: only the opt-in sync of the profile; it never draws or reads a picture and leaves photo works out.
+  assert.ok(!/toDataURL|toBlob|drawImage|getImageData|\.photo\b|ownPhoto/.test(noComments(src("profile.js"))), "Profil fasst kein Foto an");
+  assert.match(src("profile.js"), /e\.k !== "photo"/, "Fotowerke bleiben auf dem Geraet");
+  assert.match(src("profile.js"), /fetch\(base\(\) \+ "\/" \+ op/, "Profil spricht nur mit /api/duell/profile");
   assert.ok(src("game.js").includes("await fetch("), "fetch gehoert ins Spiel");
   const body = src("game.js").match(/fetch\([^\n]*/)[0];
   assert.match(body, /JSON\.stringify\(\{ prompt: prompt, lang: lang \}\)/, "nur Satz + Sprache");
   assert.ok(!/XMLHttpRequest|sendBeacon|EventSource|importScripts|new Worker/.test(html), "weiterer Ausgang");
+  // Card numbers (stat.js): one fetch to /api/duell/stat, without referrer, without cookies; only the vote carries the login
+  // cookie of this origin (only signed-in votes count). Only id, event, areas and vote go out; Business sends nothing.
+  const stat = noComments(src("stat.js"));
+  assert.match(stat, /"\/api\/duell\/stat"/);
+  assert.match(stat, /go\(URL_, \{ method: "POST", keepalive: true, credentials: cred \|\| "omit", referrerPolicy: "no-referrer", headers: \{ "Content-Type": "application\/json" \}, body: JSON\.stringify\(p\) \}\)/);
+  assert.equal((stat.match(/post\(p, o\)/g) || []).length, 2, "share und open ohne Cookie");
+  assert.match(stat, /post\(\{ i: k, e: "vote", v: v \}, o, "same-origin"\)/, "nur die Stimme mit dem Login dieser Seite");
+  assert.deepEqual(stat.match(/\{ i: [^}]*\}/g), ['{ i: doc && doc.ki && doc.ki.k === "karte" ? "own" : id(doc), e: "share" }', '{ i: id(doc), e: "open" }', '{ i: k, e: "vote", v: v }'], "nur Karte, Ereignis, Stimme");
+  assert.equal(require("../src/flavors/business/flavor.json").stat, false, "Daily Business kommt ohne Server aus (ADR 0005)");
   // Live games: one WebSocket to the edge and one peer connection, both only in live.js, and its one fetch goes to the play API.
   for (const f of fs.readdirSync(path.join(__dirname, "../src")).filter((n) => n.endsWith(".js") && n !== "live.js")) assert.ok(!/WebSocket|RTCPeerConnection/.test(noComments(src(f))), "Live-Ausgang in " + f);
   assert.equal((html.match(/new WebSocket\(/g) || []).length, 1, "ein WebSocket"); assert.equal((html.match(/new RTCPeerConnection\(/g) || []).length, 1, "eine Peer-Verbindung");
@@ -120,4 +138,51 @@ test("Schrift: Anton als data:-URL eingebettet, Lizenzhinweis im Build, Volltext
 test("Lizenzen: Volltexte von Anton und qrcode-generator stecken im Bundle (Teil licenses)", () => {
   const html = bundle();
   assert.match(html, /SIL OPEN FONT LICENSE Version 1\.1/); assert.match(html, /Permission is hereby granted, free of charge/);
+});
+
+// node --test runs the E2E files in parallel, and pages of one file load dist while another file may build: a reader must
+// never meet a half-written page or a part the page names but which is missing (the build used to delete dist/parts first).
+test("Build waehrend andere lesen: nie eine halbe Seite, nie ein fehlender Teil; ensureBuilt baut nur nach einer Aenderung", async () => {
+  const { spawn } = require("node:child_process"), E = require("../scripts/ensure-build.js");
+  const dir = path.dirname(dist), bad = [];
+  let reads = 0;
+  for (let round = 0; round < 3; round++) {
+    const b = spawn(process.execPath, [path.join(__dirname, "../scripts/build.js")], { stdio: "ignore" });
+    let done = false; const exit = new Promise((ok) => b.on("exit", (c) => { done = true; ok(c); }));
+    while (!done) {
+      let html = "";
+      try { html = fs.readFileSync(dist, "utf8"); } catch (e) { bad.push("Seite fehlt: " + e.code); }
+      if (html) {
+        reads++;
+        if (!/<\/html>\s*$/.test(html)) bad.push("halbe Seite: " + html.length + " Zeichen");
+        const m = html.match(/window\.DailyParts=(\{.*?\});window\./);
+        if (m) for (const p of Object.values(JSON.parse(m[1]))) if (!fs.existsSync(path.join(dir, p.f))) bad.push("Teil fehlt: " + p.f);
+      }
+      await new Promise((ok) => setImmediate(ok));
+    }
+    assert.equal(await exit, 0);
+  }
+  assert.ok(reads > 3, "waehrend der Builds gelesen: " + reads);
+  assert.deepEqual([...new Set(bad)], []);
+  assert.deepEqual(fs.readdirSync(dir).filter((f) => f.startsWith(".build-")), [], "kein Zwischenordner bleibt liegen");
+  assert.equal(E.upToDate(""), true, "Stempel passt nach dem Build");
+  assert.equal(E.ensureBuilt(""), false, "kein zweiter Build ohne Aenderung");
+  assert.notEqual(E.stamp(""), E.stamp("business"), "jede Variante hat ihren Stempel");
+});
+// Under file:// Chromium now and then starts a reloaded page with an empty storage of its own (test/e2e/lib/grund.js):
+// a test that reloads a page, or loads it again after about:blank, does so over the web route. The scan reads every E2E
+// file test by test; a test passes when its file loads its pages from G.webUrl (and names no file:// page), when the test
+// itself asks for the web route (web: true, G.webUrl), or when a helper checks for it (ctx.web).
+test("E2E: Neuladen nur ueber die Web-Route, nie auf einer file://-Seite", () => {
+  const dir = path.join(__dirname, "e2e"), bad = [];
+  for (const f of fs.readdirSync(dir).filter((n) => n.endsWith(".e2e.js")).sort()) {
+    const code = fs.readFileSync(path.join(dir, f), "utf8").replace(/^\s*\/\/[^\n]*$/gm, "");
+    const fileWeb = /=\s*await G\.webUrl\(/.test(code) && !/"file:\/\/"/.test(code);
+    for (const b of code.split(/\n(?=\s*test\()/)) {
+      if (!/\.reload\(|\.goto\("about:blank"\)/.test(b)) continue;
+      const name = (b.match(/test\(\s*"([^"]+)/) || [null, "(Hilfsfunktionen)"])[1];
+      if (!(fileWeb || /web: true|G\.webUrl\(|ctx\.web\b/.test(b))) bad.push(f + ": " + name);
+    }
+  }
+  assert.deepEqual(bad, []);
 });

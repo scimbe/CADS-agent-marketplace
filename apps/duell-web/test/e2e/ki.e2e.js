@@ -4,6 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium, devices } = require("playwright");
+const G = require("./lib/grund.js");
 // The option hashes as the server computes them, fixed here and not recomputed with the page's own canonical(): sha256 over
 // canonical() from CADS-DEMO-wrapper lib/duell-seal.mjs, base64url, 43 characters.
 // H_WELT is the hash the live server sent with this very option (2026-11-05, "hashes"), so it also checks canonical().
@@ -14,15 +15,17 @@ let b;
 test.before(async () => { b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }); });
 test.after(async () => { await b.close(); });
 
-async function phone(api) {
+// o.web: from G's local web origin instead of file:// (for a test that reloads the page, see lib/grund.js webUrl)
+async function phone(api, o) {
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), p = await ctx.newPage(), errs = [], sent = [];
   p.on("pageerror", (e) => errs.push(e.message));
   await ctx.route(/^https?:/, async (r) => {
     const u = r.request().url();
-    if (api && u.startsWith(API)) { const path0 = u.slice(API.length), body = JSON.parse(r.request().postData() || "null"); sent.push({ path: path0, body }); const a = api(path0, body); if (a) return r.fulfill({ status: a[0], contentType: "application/json", body: JSON.stringify(a[1]) }); }
+    if (G.isLocal(u)) return r.fallback();   // the page itself (o.web)
+    if (api && u.startsWith(API) && u !== API + "stat") { const path0 = u.slice(API.length), body = JSON.parse(r.request().postData() || "null"); sent.push({ path: path0, body }); const a = api(path0, body); if (a) return r.fulfill({ status: a[0], contentType: "application/json", body: JSON.stringify(a[1]) }); }
     return r.abort();
   });
-  await p.goto(page);
+  await p.goto(o && o.web ? await G.webUrl("index.html") : page);
   return { p, errs, sent };
 }
 const openGame = (p) => p.evaluate(() => { const D = window.Daily, i = D.IDEAS.find((x) => x.kind === "game"); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i, tab: "Rules" }); });
@@ -201,7 +204,7 @@ test("Blatt verlassen, nach Hause: kein TypeError, wenn die Antwort spaeter komm
 });
 
 test("Melden: jedes geteilte Blatt; 'KI' nur mit Siegel; Grund noetig; Body nach Server-Protokoll; einmal je Blatt; offline freundlich", async () => {
-  const { p, errs, sent } = await phone((path0) => (path0 === "report" ? [202, { id: "r1" }] : null));
+  const { p, errs, sent } = await phone((path0) => (path0 === "report" ? [202, { id: "r1" }] : null), { web: true });   // reloads below
   await p.evaluate((h) => { location.hash = h; }, await sharedHash(p, { k: "wish" }));
   const rep = p.locator("#kireport");
   await rep.waitFor();
@@ -256,6 +259,7 @@ test("Melden mit Options-Hash: das Blatt traegt h neben dem Siegel, die Meldung 
   assert.deepEqual(errs, []); await p.context().close();
 });
 
+// file:// on purpose: the iOS shell (DuellHost.ai, no network); one page, never reloaded (lib/grund.js).
 test("iOS-Huelle (DuellHost.ai, Seite ohne Netz): Warteschlange, Abrechnung und Melden laufen ueber die Huelle mit ihren festen Pfaden", async () => {
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), p = await ctx.newPage(), errs = [], host = [];
   p.on("pageerror", (e) => errs.push(e.message));

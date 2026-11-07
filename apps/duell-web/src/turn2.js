@@ -274,4 +274,128 @@
     }
     draw();
   });
+
+  // ---------- timed games (moved from the core, turn-ui.js walk() loads this part for them) ----------
+  // No clock runs before "Los": a tap, then 3-2-1 read out (Kit.speak), then the game. Its box hides the card while it
+  // runs (style.css .timed), so every button is in sight.
+  function say(k, o) { return String(root.DuellCore.form(L(), k, o && o.n, root.Kit.lang)).replace(/\{(\w+)\}/g, function (m, n) { return o[n]; }); }
+  function gate(f) {
+    return function (box, p, set, ctx) {
+      var w = el("div", "timed"), n = 3, s = el("p", "qtext", L().rdy), b = el("button", "btn hot big", L().rdy_go, function () {
+        b.remove(); (function c() { if (!w.isConnected) return; if (n) { s.textContent = n; Kit.speak(n--); Kit.sfx.tap(); setTimeout(c, 700); } else { s.remove(); f(w, p, set, ctx); } })();
+      });
+      w.appendChild(s); w.appendChild(b); box.appendChild(w); set(null);
+    };
+  }
+  var Kit = root.Kit, Tn = root.Turns, C = root.DuellCore, TIMED = {
+    explain: gate(function (box, p, set, ctx) {
+      var words = p.list(ctx.doc, Kit.lang), at = 0, hits = 0, w = el("p", "qtext", words[0]), left = el("p", "lbl", String(p.secs)), n = el("p", "lbl", "0"), t0 = Date.now(), row = el("div", "chips");
+      var tick = setInterval(function () {
+        var s = p.secs - Math.floor((Date.now() - t0) / 1000); left.textContent = String(Math.max(0, s));
+        if (s <= 0 || !box.isConnected) { clearInterval(tick); if (box.isConnected) set(hits); }
+      }, 250);
+      function step(hit) { if (hit) { hits = Math.min(p.max, hits + 1); Kit.sfx.pop(); } at = (at + 1) % words.length; w.textContent = words[at]; n.textContent = String(hits); }
+      row.appendChild(el("button", "chip", L().exp_hit, function () { step(true); })); row.appendChild(el("button", "chip", L().exp_skip, function () { step(false); }));
+      box.appendChild(left); box.appendChild(w); box.appendChild(row); box.appendChild(n); set(null);
+    }),
+    clock: function (box, p, set, ctx) {
+      box.appendChild(el("p", "qtext", p.text(ctx.doc, ctx.m, Kit.lang)));
+      gate(function (box) {
+        var left = el("p", "lbl", String(p.secs)), t0 = Date.now(), tick = setInterval(function () {
+          var s = p.secs - Math.floor((Date.now() - t0) / 1000); left.textContent = String(Math.max(0, s));
+          if (s <= 0 || !box.isConnected) { clearInterval(tick); if (box.isConnected) set(0); }
+        }, 250);
+        box.appendChild(left); box.appendChild(el("button", "chip", L().clk_done, function () { clearInterval(tick); set(0); }));
+      })(box, p, set, ctx);
+    },
+    // Five rounds: the target shows and stays, a tap starts the time, the next tap stops it. Nothing else is shown while it runs.
+    inner: function (box, p, set, ctx) {
+      var tg = p.targets(ctx.doc), r = 0, out = [], q = el("p", "qtext", ""), fake = el("p", "lbl fakeno", ""), b = el("button", "btn hot big", ""), t0 = 0, flick = 0, rnd = C.mulberry32(C.hash32("uhr" + ctx.doc.seed));
+      function round() {
+        clearInterval(flick); fake.textContent = ""; t0 = 0; b.textContent = L().rdy_go;
+        q.textContent = say("uhr_target", { n: tg[r] / 1000 }) + (r === 1 ? " " + L().uhr_warn : "");
+      }
+      function go() {
+        t0 = performance.now(); b.textContent = L().uhr_stop; q.textContent = say("uhr_target", { n: tg[r] / 1000 }) + " " + L().uhr_count;
+        if (r) flick = setInterval(function () { fake.textContent = String(1 + Math.floor(rnd() * 9)); }, 700);   // a distraction, never a hint: it does not follow the time; from the seed
+      }
+      b.addEventListener("click", function () {
+        if (!t0) { go(); return; }
+        var d = performance.now() - t0; if (d < 500) return;
+        clearInterval(flick); out.push(Math.max(-20000, Math.min(20000, Math.round(d - tg[r])))); Kit.sfx.pop(); r++;
+        if (r >= tg.length) { b.disabled = true; set(out); } else round();
+      });
+      box.appendChild(q); box.appendChild(fake); box.appendChild(b); round(); set(null);
+    },
+    // Stop at the goal without seeing a clock; each try starts on a tap, a stop under two seconds does not count.
+    blind: function (box, p, set) {
+      var n = 0, best = 0, q = el("p", "qtext", L().pok_ready), info = el("p", "lbl", ""), b = el("button", "btn hot big", ""), t0 = 0;
+      function go() { t0 = 0; b.textContent = L().rdy_go; q.textContent = say("pok_try", { n: n + 1, m: p.tries }); }
+      b.addEventListener("click", function () {
+        if (!t0) { t0 = performance.now(); b.textContent = L().pok_stop; return; }
+        var d = Math.round(performance.now() - t0); if (d < 2000) return; t0 = 0;
+        n++; if (!best || Math.abs(d - p.goal) < Math.abs(best - p.goal)) best = Math.min(30000, d);
+        info.textContent = say("pok_got", { n: Kit.num(d / 1000, 2) }); Kit.sfx.pop();
+        if (n >= p.tries) { b.disabled = true; set(best); } else go();
+      });
+      box.appendChild(q); box.appendChild(b); box.appendChild(info); go(); set(null);
+    },
+    // Five rounds: shapes come one after the other, only the star counts. A wrong tap costs half a second.
+    react: gate(function (box, p, set, ctx) {
+      var plan = p.plan(ctx.doc), r = 0, k = 0, sum = 0, t0 = 0, star = false, timer = 0, pad = el("button", "touchpad react", ""), info = el("p", "lbl", L().rea_rule), SH = ["●", "▲", "■"];
+      function next() {
+        clearTimeout(timer); pad.textContent = ""; star = false; t0 = 0;
+        if (r >= plan.length) { set(Math.min(60000, Math.round(sum))); info.textContent = say("rea_done", { n: Kit.num(sum / 1000, 2) }); return; }
+        timer = setTimeout(function () {
+          if (!box.isConnected) return;
+          if (k < plan[r].decoys) { pad.textContent = SH[(r + k) % 3]; k++; timer = setTimeout(next, 650); return; }
+          pad.textContent = "★"; star = true; t0 = performance.now();
+          timer = setTimeout(function () { sum += 2000; r++; k = 0; next(); }, 2000);
+        }, plan[r].pause);
+      }
+      pad.addEventListener("pointerdown", function (e) {
+        e.preventDefault(); if (r >= plan.length) return;
+        if (star) { clearTimeout(timer); sum += performance.now() - t0; r++; k = 0; Kit.sfx.pop(); next(); }
+        else if (pad.textContent) { sum += 500; Kit.tone(200, 90, 0.08, "square", 0.05); info.textContent = L().rea_wrong; }
+      });
+      pad.setAttribute("aria-label", L().a_pad); box.appendChild(info); box.appendChild(pad); next(); set(null);
+    }),
+    // The bouncer: a being at the door, "out" left and "in" right; the being keeps its frame for a moment after each tap.
+    door: gate(function (box, p, set, ctx) {
+      var doc = ctx.doc, order = Tn.doorOrder(doc), k = 0, i = 0, right = 0, total = 0, run = 0, prev = [], lock = false, t0 = Date.now(), cur;
+      var ANI = ["🐱", "🐶", "🐸", "🐰"], COL = ["#e53935", "#1e63d6", "#f2c200"], PAT = ["", "repeating-linear-gradient(45deg,rgba(255,255,255,.35) 0 6px,transparent 6px 12px)", "radial-gradient(rgba(255,255,255,.45) 2px,transparent 3px) 0 0/12px 12px"];
+      var clock = el("p", "lbl", ""), dots = el("p", "doordots", ""), news = el("p", "qtext", ""), being = el("div", "being"), row = el("div", "doorrow");
+      function show() {
+        cur = Tn.doorBeing(doc, order[k], i, prev);
+        being.className = "being"; being.textContent = "";
+        being.appendChild(el("div", "bhat", cur[1] ? "🎩" : ""));
+        var face = el("div", "bface", ANI[cur[0]]); face.style.background = COL[cur[2]]; if (PAT[cur[2]]) face.style.backgroundImage = PAT[cur[2]]; being.appendChild(face);
+        being.appendChild(el("div", "bsocks", cur[3] ? "🧦🧦" : ""));
+        dots.textContent = "●".repeat(run) + "○".repeat(p.streak - run) + "   " + say("tue_found", { n: k });
+      }
+      function done() { lock = true; set([k, right, total]); }
+      function tap(inside) {
+        if (lock) return; lock = true; total++;
+        var ok = Tn.doorIn(order[k], cur) === inside; prev.push(Tn.doorIn(order[k], cur));
+        if (ok) { right++; run++; Kit.sfx.pop(); } else { run = 0; Kit.tone(200, 90, 0.08, "square", 0.05); }
+        being.classList.add(ok ? "ok" : "no");
+        setTimeout(function () {
+          if (!box.isConnected) return;
+          i++; news.textContent = "";
+          if (run >= p.streak) { k++; run = 0; prev = []; i = 0; news.textContent = L().tue_new; Kit.haptic(30); }
+          if (k >= order.length) { done(); return; }
+          lock = false; show();
+        }, 600);
+      }
+      row.appendChild(el("button", "btn doorout", L().tue_out, function () { tap(false); }));
+      row.appendChild(el("button", "btn doorin", L().tue_in, function () { tap(true); }));
+      box.appendChild(clock); box.appendChild(dots); box.appendChild(news); box.appendChild(being); box.appendChild(row);
+      var tick = setInterval(function () {
+        var left = p.secs - Math.floor((Date.now() - t0) / 1000); clock.textContent = String(Math.max(0, left));
+        if (left <= 0 || !box.isConnected) { clearInterval(tick); if (box.isConnected && !lock) done(); else if (box.isConnected) setTimeout(function () { if (box.isConnected) set([k, right, total]); }, 650); }
+      }, 250);
+      show(); set(null);
+    })
+  };
+  Object.keys(TIMED).forEach(function (k) { root.Turn2.add("widget", k, TIMED[k]); });
 })(window);

@@ -47,17 +47,21 @@ function fitHero(box) {
   var k = sum > h ? h / sum : 1;
   ls.forEach(function (s) { s.style.fontSize = s.size * k + "px"; s.style.lineHeight = "1"; });
 }
+// The card a sheet draws: what was received, in the reader's language (#151), or the day's card. fillSheet and the redraw
+// once the display font is there both take it from here, so the two never draw different cards.
+function sheetDoc(h) { return h.doc ? D.localDoc(h.doc, Kit.lang) : D.docFromIdea(h.idea, me, Kit.lang); }
 // One calendar sheet: the real one on top and the greyed next day below it are filled by the same code.
 function fillSheet(root, h, still) {
   var q = function (k) { return root.querySelector("." + k); };
-  var d = h.date || today, idea = h.idea, doc = h.doc && D.localDoc(h.doc, Kit.lang);
+  var d = h.date || today, idea = h.idea, doc = h.doc && sheetDoc(h);
   q("dnum").textContent = String(d.getUTCDate()).padStart(2, "0");
   q("dmon").textContent = monthLines(d);
   var title, sub, kind, min;
   if (idea) { var L = ideaText(idea); title = L.t.split("|"); sub = L.s; kind = idea.kind; min = idea.min; }
   else if (doc.k === "turn" && !doc.t && D.byId(doc.i)) { var Li = ideaText(D.byId(doc.i)); title = Li.t.split("|"); sub = doc.s || Li.s; kind = doc.k; min = D.byId(doc.i).min; }
   else { title = (doc.t || doc.x || (doc.g && doc.g.title) || t("own")).split(/\s+/).reduce(function (a, w) { if (a.length && (a[a.length - 1] + " " + w).length < 13) a[a.length - 1] += " " + w; else a.push(w); return a; }, []).slice(0, 4); sub = doc.s || ""; kind = doc.k; min = 60; }
-  q("dkind").textContent = t(kind) + "\n" + (min >= 120 ? t("mins", { n: Math.round(min / 60) }) : t("sec", { n: min }));
+  var g = kind === "turn" && (idea ? idea.turn && idea.turn.g : doc.g);
+  q("dkind").textContent = t(g ? "bdg_" + window.Turns.who(g) : kind) + "\n" + (min >= 120 ? t("mins", { n: Math.round(min / 60) }) : t("sec", { n: min }));
   var mode = doc && X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
   // Something sent by a friend: the sheet is that work, big. Its text stands in the picture, so the title shows only
   // when the sheet has one of its own.
@@ -65,12 +69,13 @@ function fillSheet(root, h, still) {
   var ks = q("kiseal"); ks.hidden = !(doc && doc.ki && doc.ki.s); ks.textContent = t("kiBadge"); ks.title = t("kiBadgeL"); ks.setAttribute("aria-label", t("kiBadgeL"));
   var hero = q("hero"); hero.textContent = ""; hero.hidden = got && !doc.t;
   title.filter(Boolean).forEach(function (l, i) { var s = el("span", "", l); s.style.setProperty("--i", i); hero.appendChild(s); });
+  if (mode && !sub && D.byId(doc.i)) sub = ideaText(D.byId(doc.i)).s;
   q("teaser").textContent = sub;
   var from = q("from");
   if (h.note) { from.textContent = h.note; from.hidden = false; } else from.hidden = true;
   if (mode) { from.textContent = mode.note; from.hidden = false; }
-  if (!doc && twoIdea(idea)) { root.querySelector(".pv").hidden = true; window.Parts.need("turnzwei").then(function () { if ((root.id === "leaf" ? home : h) === h) preview(root, D.docFromIdea(idea, me, Kit.lang), still); }, function () {}); }
-  else preview(root, doc || D.docFromIdea(idea, me, Kit.lang), still);
+  if (!doc && twoIdea(idea)) { root.querySelector(".pv").hidden = true; window.Parts.need("turnzwei").then(function () { if ((root.id === "leaf" ? home : h) === h) preview(root, sheetDoc(h), still); }, function () {}); }
+  else preview(root, sheetDoc(h), still);
   picture(root, idea, doc, h.lazy, mode);
   fitHero(hero);
   return { kind: kind, mode: mode, got: got };
@@ -80,13 +85,21 @@ function setHome(h, animate) {
   var s = fillSheet($("leaf"), h, false), kind = s.kind, mode = s.mode, idea = h.idea;
   $("go").textContent = mode ? mode.go : idea && idea.protokoll && !h.doc ? t("go_protokoll") : s.got ? t("remixGo") : t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
   var wk = W.KINDS.indexOf(kind) >= 0, wb = $("wishgo");   // AI where it does real work, otherwise the dice
-  wb.dataset.tab = wk ? "Wish" : "Dice"; wb.textContent = t(wk ? "wishHome" : "diceHome"); wb.hidden = !!mode || (!wk && W.DICE.indexOf(kind) < 0);
+  wb.dataset.tab = wk ? "Wish" : "Dice"; wb.textContent = t(wk ? "wishHome" : "diceHome"); wb.hidden = !!mode || !allow("tabs", wb.dataset.tab) || (!wk && W.DICE.indexOf(kind) < 0);
   var kr = $("kireport"), done = h.doc && reported(h.doc); kr.textContent = t(done ? "kiReported" : "kiReport"); kr.disabled = !!done; kr.hidden = !h.doc;   // every shared sheet can be reported
   var live = idea && idea.live, lb = $("livego"); lb.hidden = !live; if (live) { lb.textContent = t("live_" + live); lb.dataset.u = LIVE[live]; }
   var leaf = $("leaf"); leaf.className = s.got ? "got" : ""; leaf.style.transform = ""; leaf.style.opacity = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
   WM.sheet(h, s.got, animate);
   langPick(!!h.note);
+  // The thumbs keep their row from the first paint (.votes in style.css), so the sheet does not move when their part arrives.
+  var F = window.DailyFlavor, off = F && F.stat === false; $("votes").hidden = off || !(h.doc ? h.note && h.doc.i && !(h.doc.ki && h.doc.ki.k === "karte") : h.idea);   // as Stat.card
+  stimme(function (S) { S.sheet(h); }, h);
+}
+// Thumbs and card numbers live in the part "stimme" (src/stimme-ui.js, src/stat.js); a flavor with stat: false has neither.
+function stimme(fn, h) {
+  var F = window.DailyFlavor; if (F && F.stat === false) return;
+  window.Parts.need("stimme").then(function () { if (!h || h === home) fn(window.Stimme); }, function () {});
 }
 // An invitation shows its languages before the first tap, each in its own name ("Deutsch", "English").
 function langPick(on) {
@@ -170,7 +183,7 @@ function withPic(c, doc) {
   try {
     var o = document.createElement("canvas"), x = o.getContext("2d"), W = c.width, H = c.height, ink = "#111";
     var pw = Math.round(W * 2 / 3), ph = Math.round(pw * 9 / 16), px = Math.round((W - pw) / 2), py = 40, cy = py + ph + 46, ch = H - cy - 40, cw = Math.round(ch * W / H), cx = Math.round((W - cw) / 2);
-    o.width = W; o.height = H; x.fillStyle = doc.col[0]; x.fillRect(0, 0, W, H);
+    o.width = W; o.height = H; x.fillStyle = (window.DailyFlavor || {}).bg || doc.col[0]; x.fillRect(0, 0, W, H);
     x.fillStyle = ink; x.fillRect(px + 6, py + 9, pw + 9, ph + 9); x.fillRect(px - 9, py - 9, pw + 18, ph + 18); x.drawImage(img, px, py, pw, ph);
     x.font = "700 34px system-ui, sans-serif"; var tw = x.measureText(t("aiPic")).width;
     x.fillRect(px + pw - tw - 42, py + ph - 66, tw + 28, 50); x.fillStyle = "#fff"; x.textBaseline = "middle"; x.fillText(t("aiPic"), px + pw - tw - 28, py + ph - 41);
@@ -179,10 +192,12 @@ function withPic(c, doc) {
     return o;
   } catch (e) { return c; }
 }
-// A flavor (the business app) may show only some of these buttons.
-function shown(k) { var F = window.DailyFlavor; return !F || !F.feats || F.feats.indexOf(k) >= 0; }
+// A flavor (the business app) may show only some of these buttons, and only the tabs, tools and done buttons it lists.
+function allow(w, k) { var F = window.DailyFlavor; return !F || !F[w] || F[w].indexOf(k) >= 0; }
+function shown(k) { return allow("feats", k); }
 // The games button stays put on the left; the rest is a strip that can run by as a ticker (WCAG 2.2.2): it starts only
-// after 3 s without a touch or key, a touch on the bar stops it for good where it stands (then it is a strip to swipe),
+// after 3 s without a key, never with reduced motion or big type, and the first touch (on the bar or anywhere) stops it for
+// good where it stands (then it is a strip to swipe),
 // and the switch next to it stops and restarts it. With fewer than 3 entries there is no ticker and no copy. Two copies
 // in one track make it seamless; the second is only for the eye, not for screen readers or Tab.
 var tick = { many: false, run: false, stop: false, timer: 0 };
@@ -210,22 +225,37 @@ function tickSync() {
 function tickRun() {   // start, or go on from where the strip stands
   var bar = $("feat"), lane = bar.querySelector(".lane"), tr = bar.querySelector(".track"), half = tr ? tr.scrollWidth / 2 : 0;
   clearTimeout(tick.timer);
-  if (tick.stop || !tick.many || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (tick.stop || !tick.many || Kit.fs !== "n" || matchMedia("(prefers-reduced-motion: reduce)").matches) return;   // nothing runs by with big type either
   if (tr) tr.style.animationDelay = half ? -(lane.scrollLeft % half) / half * 45 + "s" : "";
   tick.run = true; tickSync();
 }
-function tickHalt() {   // stops for good, the buttons stay exactly where they are
+function tickHalt(to) {   // stops for good, the buttons stay exactly where they are (to: a button that got the focus)
   var bar = $("feat"), lane = bar.querySelector(".lane"), tr = bar.querySelector(".track"), was = tick.run && tr, x = 0;
   clearTimeout(tick.timer);
   if (was) { try { x = -new DOMMatrixReadOnly(getComputedStyle(tr).transform).m41; } catch (e) {} bar.classList.add("was"); }
-  tick.run = false; tick.stop = true; tickSync();
-  if (was) lane.scrollLeft = x;   // a strip that stood still keeps its own scroll position
+  tick.run = false; tick.stop = true;
+  if (was) bar.classList.add("hold");   // no snap in this frame: the buttons stay exactly where they are ...
+  tickSync();
+  if (was) { lane.scrollLeft = x; requestAnimationFrame(function () { tickSnap(bar, lane, to); }); } else if (to) tickSnap(bar, lane, to);
+}
+// ... and then glide to the nearest button edge (or the focused button), so the strip rests with a whole button on the
+// left (style.css: snap); with reduced motion it jumps there
+function tickSnap(bar, lane, to) {
+  var l = lane.getBoundingClientRect().left, d = 1e9, done = function () { bar.classList.remove("hold"); };
+  if (to) d = to.getBoundingClientRect().left - l;
+  else lane.querySelectorAll("button").forEach(function (b) { var v = b.getBoundingClientRect().left - l; if (Math.abs(v) < Math.abs(d)) d = v; });
+  if (Math.abs(d) < 1) return done();
+  lane.addEventListener("scrollend", done, { once: true }); setTimeout(done, 700);
+  lane.scrollTo({ left: lane.scrollLeft + d, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 }
 function tickWait() { clearTimeout(tick.timer); if (!tick.run && !tick.stop) tick.timer = setTimeout(tickRun, 3000); }
 (function () {
   $("feat").addEventListener("pointerdown", function (e) { if (!e.target.closest("#tickpause")) tickHalt(); });
-  $("feat").addEventListener("focusin", function (e) { if (!e.target.closest("#tickpause")) tickHalt(); });
-  ["pointerdown", "keydown"].forEach(function (e) { document.addEventListener(e, tickWait, true); });
+  // a button reached by key scrolls into place; one under a finger stays put, so the tap lands where it began
+  $("feat").addEventListener("focusin", function (e) { if (!e.target.closest("#tickpause")) tickHalt(e.target.matches(":focus-visible") && e.target.closest(".lane button")); });
+  // the first touch anywhere stops it for good too (a moving target is hard to hit); a key only starts the 3 s again
+  document.addEventListener("pointerdown", function (e) { if (!tick.touched && !e.target.closest("#tickpause")) { tick.touched = 1; tickHalt(); } }, true);
+  document.addEventListener("keydown", tickWait, true);
   tickWait();
 })();
 function blank(kind) { Kit.sfx.thud(); openEditor(D.blankDoc(kind, me, Kit.lang), { own: true }); }
@@ -262,6 +292,7 @@ function peek(step, lazy) {
     var c = document.implementation.createHTMLDocument("").importNode($("leaf"), true);
     c.querySelectorAll("img").forEach(function (x) { x.removeAttribute("src"); });
     g = document.importNode(c, true); g.removeAttribute("id"); g.removeAttribute("style"); g.className = "ghost"; g.setAttribute("aria-hidden", "true");
+    g.querySelectorAll(".votes").forEach(function (x) { x.remove(); });
     g.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); });
     under.appendChild(g);
   }
@@ -280,7 +311,7 @@ function tear(step) {
 }
 (function drag() {
   var leaf = $("leaf"), sx = 0, sy = 0, on = false, t0 = 0, far = false, shown = 0;
-  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; t0 = Date.now(); far = false; shown = 1; try { peek(1, true); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
+  leaf.addEventListener("pointerdown", function (e) { if (e.target.closest("button")) return; on = true; sx = e.clientX; sy = e.clientY; t0 = Date.now(); far = false; shown = 1; try { peek(1, true); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
   leaf.addEventListener("pointermove", function (e) {
     if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy, step = dx > 0 ? -1 : 1;
     if (Math.abs(dx) >= 10 || Math.abs(dy) >= 10) far = true;   // moved once: never a tap, even when let go where it began
@@ -332,6 +363,8 @@ function footer() {
     b.textContent = g ? t("play") : t(ed.doc.nr ? "doorSend" : "done");
     if (!ok && !g) b.dataset.why = t("needOwn");
   }
+  var bad = $("panel").querySelector('[aria-invalid="true"]');   // a blocked entry (field above): nothing goes out until it is seen
+  if (bad && !b.hidden) { b.classList.add("wait"); b.dataset.why = t("whyOpen", { s: bad.getAttribute("aria-label") }); }
   // A locked main button stays in place and looks locked; the line above it names what is still open (read out once).
   var w = !b.hidden && b.classList.contains("wait"), why = w ? b.dataset.why || "" : "";
   b.setAttribute("aria-disabled", String(w));
@@ -341,7 +374,7 @@ function footer() {
 function nudge() {
   Kit.tone(200, 160, 0.1, "square", 0.06);
   var p = $("panel"), all = Array.from(p.querySelectorAll("input:not([type=hidden]),textarea,select,button")).filter(function (x) { return !x.disabled && x.getClientRects().length && !x.closest(".satz"); });
-  var g = all.filter(function (x) { return /^(INPUT|TEXTAREA)$/.test(x.tagName) && x.type !== "range" && !x.value; })[0] || all.filter(function (x) { return !x.classList.contains("on"); })[0];
+  var g = p.querySelector('[aria-invalid="true"]') || all.filter(function (x) { return /^(INPUT|TEXTAREA)$/.test(x.tagName) && x.type !== "range" && !x.value; })[0] || all.filter(function (x) { return !x.classList.contains("on"); })[0];
   if (g) { try { g.scrollIntoView({ block: "center" }); } catch (e) {} g.focus({ preventScroll: true }); g.classList.add("nudge"); setTimeout(function () { g.classList.remove("nudge"); }, 700); }
   // said again: empty for a moment, then the reason as it is by then (fields filled meanwhile may have unlocked it)
   $("edwhy").textContent = ""; setTimeout(function () { if (ed) footer(); }, 60);
@@ -371,7 +404,8 @@ function openEditor(doc, opt) {
   $("edstyle").textContent = me.emoji;
   stopSound(); show("editor", true); trailLine();
   var tabs = $("tabs"); tabs.textContent = "";
-  var list = (ed.own ? ["Idea"] : []).concat(W.KINDS.indexOf(ed.doc.k) >= 0 ? ["Wish"] : [], W.DICE.indexOf(ed.doc.k) >= 0 ? ["Dice"] : [], ed.doc.nr ? ["Door"] : [], TABS[ed.doc.k]);
+  var list = (ed.own ? ["Idea"] : []).concat(W.KINDS.indexOf(ed.doc.k) >= 0 ? ["Wish"] : [], W.DICE.indexOf(ed.doc.k) >= 0 ? ["Dice"] : [], ed.doc.nr ? ["Door"] : [], TABS[ed.doc.k]), mine = list.filter(function (k) { return allow("tabs", k); });
+  if (mine.length) list = mine;   // a flavor's list never leaves a kind it does not know (a duel link in Business) without tabs
   list.forEach(function (k) {
     var b = el("button", k === "Wish" ? "hot" : "", tabText(k), function () { Kit.sfx.tap(); tab(k); });
     b.setAttribute("role", "tab"); b.dataset.k = k; tabs.appendChild(b);
@@ -451,21 +485,30 @@ function didLine(res, before, next, lead) {
 function seeded(s) { return C.mulberry32(C.hash32(String(s))); }
 function field(p, label, value, max, on, area) {
   p.appendChild(el("label", "lbl", label));
-  var f = el(area ? "textarea" : "input", "field"); f.value = value || ""; f.maxLength = max; if (area) f.rows = 2; f.autocomplete = "off"; f.setAttribute("aria-label", label);
-  f.addEventListener("input", function () {
-    var v = D.cleanInput(f.value, max);
-    if (f.value.trim() && !v) { Kit.toast(t("filter")); return; }
-    on(v); changed();
-  });
+  var f = el(area ? "textarea" : "input", "field"), last = f.value = value || "", why = ""; f.maxLength = max; if (area) f.rows = 2; f.autocomplete = "off"; f.setAttribute("aria-label", label);
+  // What is kept is what the field shows: a blocked entry is not kept (on() may block too and answer with its reason) and,
+  // once the field is left, the field goes back to the last entry kept, with a note. While typing it stays, so a word whose
+  // first letters are blocked can still be finished; a word being composed (IME) is never judged half-way.
+  // While a field is marked (aria-invalid) the main button stays locked and names it (footer): a tap on "Fertig" right after a
+  // blocked word never sends the cut one. After the field went back it stays marked until it has the focus again.
+  function check(e) {
+    if (e.isComposing) return;   // compositionend checks the word once it is complete
+    var v = D.cleanInput(f.value, max), r = f.value.trim() && !v ? t("filter") : on(v);
+    why = typeof r === "string" ? r : ""; f.setAttribute("aria-invalid", String(!!why));
+    if (!why) { last = f.value; changed(); } else if (ed) footer();
+  }
+  f.addEventListener("input", check); f.addEventListener("compositionend", check);
+  f.addEventListener("change", function () { if (why) { f.value = last; Kit.toast(why); why = ""; } });
+  f.addEventListener("focus", function () { if (!why && f.getAttribute("aria-invalid") === "true") { f.setAttribute("aria-invalid", "false"); if (ed) footer(); } });
   p.appendChild(f); return f;
 }
 function chips(p, items, cur, on, cls) {
   var box = el("div", "chips");
   items.forEach(function (it) {
     var b = el("button", "chip " + (cls || "") + (it.v === cur ? " on" : ""), it.l, function () {
-      Kit.sfx.tap(); Array.from(box.children).forEach(function (x) { x.classList.remove("on"); }); b.classList.add("on"); on(it.v); changed();
+      Kit.sfx.tap(); Array.from(box.children).forEach(function (x) { x.classList.remove("on"); x.setAttribute("aria-pressed", "false"); }); b.classList.add("on"); b.setAttribute("aria-pressed", "true"); on(it.v); changed();
     });
-    box.appendChild(b);
+    b.setAttribute("aria-pressed", String(it.v === cur)); box.appendChild(b);
   });
   p.appendChild(box); return box;
 }
@@ -558,7 +601,7 @@ var PANEL = {
   },
   Color: function (p) { colors(p, function () { return ed.doc.col; }, function (c) { ed.doc.col = c; if (ed.doc.k === "photo") ed.photo._id += ""; }); },
   Sticker: function (p) {
-    var d = ed.doc, own = D.byId(d.i), set = D.SETS[(own && own.set) || me.set].concat([me.emoji]);
+    var d = ed.doc, own = D.byId(d.i), set = D.SETS[(own && own.set) || me.set], set = set.concat(set.indexOf(me.emoji) < 0 ? [me.emoji] : []);
     var box = el("div", "chips");
     set.forEach(function (e) {
       box.appendChild(el("button", "chip em", e, function () {
@@ -678,21 +721,27 @@ function beatPanel(p) {
 }
 function setVoice(pcm, mine) { ed.raw = pcm; if (mine) ed.ownVoice = true; applyFx(); }
 function applyFx() { if (!ed.raw) return; ed.pcm = S.warp(ed.raw, ed.doc.fx); ed.peaks = S.peaks(ed.pcm, 40); changed(); }
+// 3-2-1 read out, then up to 4 s with a ring that fills (style.css .ring); a tap on the same button stops it early.
+var recNow = null;
 async function record(b) {
-  var n = S.SR, ms = 4000;
+  if (recNow) { if (recNow.stop) recNow.stop(); return; }
+  var n = S.SR, ms = 4000, ring = 0, t0;
   try {
+    recNow = {};
     if (!navigator.mediaDevices || !window.MediaRecorder) throw new Error("no mic");
     var st = await navigator.mediaDevices.getUserMedia({ audio: true }), rec = new MediaRecorder(st), parts = [];
-    b.textContent = "● " + t("recing");
+    for (var k = 3; k; k--) { b.textContent = k; Kit.speak(k); await new Promise(function (ok) { setTimeout(ok, 700); }); }
+    b.textContent = "■ " + t("stop"); Kit.speak(t("recing")); b.classList.add("ring"); recNow = rec;
     rec.ondataavailable = function (e) { parts.push(e.data); };
     rec.onstop = async function () {
-      st.getTracks().forEach(function (x) { x.stop(); });
-      var buf = await Kit.audio(true).decodeAudioData(await new Blob(parts).arrayBuffer()), src = buf.getChannelData(0), k = buf.sampleRate / n, o = new Float32Array(Math.floor(src.length / k));
+      recNow = null; clearInterval(ring); b.classList.remove("ring"); b.style.setProperty("--p", 0); b.textContent = "🎙 " + t("rec"); st.getTracks().forEach(function (x) { x.stop(); });
+      try { var buf = await Kit.audio(true).decodeAudioData(await new Blob(parts).arrayBuffer()), src = buf.getChannelData(0), k = buf.sampleRate / n, o = new Float32Array(Math.floor(src.length / k)); } catch (e) { return; }   // stopped at once: nothing to keep
       for (var i = 0; i < o.length; i++) o[i] = src[Math.floor(i * k)];
-      b.textContent = "🎙 " + t("rec"); if (ed) setVoice(o, true);
+      if (ed) setVoice(o, true);
     };
-    rec.start(); setTimeout(function () { if (rec.state === "recording") rec.stop(); }, ms);
-  } catch (e) { Kit.toast(t("noMic")); }
+    rec.start(); t0 = Date.now();
+    ring = setInterval(function () { var f = Math.min(1, (Date.now() - t0) / ms); b.style.setProperty("--p", f); if (f >= 1 && rec.state === "recording") rec.stop(); }, 100);
+  } catch (e) { recNow = null; Kit.toast(t("noMic")); }
 }
 function voicePanel(p) {
   var b = el("button", "chip", "🎙 " + t("rec"), function () { Kit.sfx.tap(); record(b); });
@@ -718,8 +767,9 @@ async function finish(doc, idea, pictureDoc) {
     file = new Blob([S.wav(pcm)], { type: "audio/wav" }); name = "my-daily-idea.wav";
   }
   var url = D.docUrl(doc);
-  result = { url: url, file: file, name: name, png: png, keep: ed, canvas: c, kind: doc.k };
-  wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c) }); store.wall = wall; Kit.save();
+  result = { url: url, file: file, name: name, png: png, keep: ed, canvas: c, kind: doc.k, doc: doc };
+  var made = pictureDoc || doc;
+  wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c), k: made.k === "photo" || (ed && ed.photo) ? "photo" : made.k }); store.wall = wall; Kit.save();
   if (!Kit.persisted) Kit.toast(t("wallFull"));
   var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png);
   $("playit").hidden = true;   // a card is not a level: whoever does not fly far would never see it
@@ -740,12 +790,13 @@ function quick(doc, idea) {
   return finish(D.withTrail(ed.doc, me.nick, D.changedAreas(ed.base, ed.doc)));
 }
 // Two steps when the short link is not there yet: the first tap makes it, the second shares it. Sharing and copying need a fresh
-// tap in most browsers, and the wait for the server would use it up, which sent an old or no link before.
+// tap in most browsers, and the wait for the server would use it up, which sent an old or no link before. The button keeps
+// its name through both; a note says when the link is ready.
 var sharing = false;
 $("share").addEventListener("click", async function () {
   var b = $("share"); if (sharing) return;
   Kit.sfx.tap();
-  if (!result.link) { sharing = true; b.disabled = true; b.textContent = t("sh_making"); try { await shortLink(); } finally { sharing = false; b.disabled = false; b.textContent = t("sh_ready"); } return; }
+  if (!result.link) { sharing = true; b.disabled = true; b.setAttribute("aria-busy", "true"); try { await shortLink(); } finally { sharing = false; b.disabled = false; b.removeAttribute("aria-busy"); } Kit.toast(t("sh_ready")); return; }
   var link = result.link;
   // Only the link: chat apps such as WhatsApp drop the link when a picture comes along. The picture stays one tap away under Save.
   await Kit.share({ url: link.url, text: shareLine(result.keep && result.keep.doc) });
@@ -756,6 +807,7 @@ $("playit").addEventListener("click", function () { ed = result.keep; ed.sel = -
 async function shortLink() {
   if (!result.link) {
     result.link = await window.ShortLink.shorten(result.url, { k: result.kind, l: Kit.lang }, store);
+    var doc = result.doc; stimme(function (S) { S.share(doc); });   // the card's id and what the last person changed, nothing else (src/stat.js)
     var mine = result.link.short && store.links.filter(function (e) { return e.id === result.link.id; })[0];
     if (mine && result.canvas) { mine.th = tinyThumb(result.canvas); mine.k = result.kind; }   // only on this phone, for the list of invitations
     Kit.save();
@@ -806,7 +858,7 @@ $("edsave").addEventListener("click", function () {
     var c = document.createElement("canvas"); c.width = 540; c.height = 675;
     if (ed.doc.k === "game") { var g = $("demo"); c.getContext("2d").drawImage(g, 0, 0, c.width, c.height); }
     else R.draw(c, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks });
-    wall = D.addToWall(wall, { id: ed.doc.i || "own", ts: Date.now(), th: thumb(c), f: f }); Kit.toast(t("saved"));
+    wall = D.addToWall(wall, { id: ed.doc.i || "own", ts: Date.now(), th: thumb(c), f: f, k: ed.doc.k === "photo" || ed.photo ? "photo" : ed.doc.k }); Kit.toast(t("saved"));   // k: a photo work never leaves the device (profile.js)
   }
   store.wall = wall; Kit.save(); saveMark();
 });
@@ -839,8 +891,9 @@ $("image").addEventListener("click", function () {
 /* ---------- my style ---------- */
 // The roll number lives on the device, so closing and opening again goes on with the next roll instead of the first.
 function roll(key) { var s = Kit.store; if (!s.rolls || typeof s.rolls !== "object" || Array.isArray(s.rolls)) s.rolls = {}; var n = W.nextRoll(s.rolls, key); Kit.save(); return n; }
+var styleFill = null;
 function openStyle() {
-  shelf(t("style"), function (b) {
+  shelf(t("style"), styleFill = function (b) {
     // The dice for my style: figure, colours and sticker set from a seed (name + roll), on the device, no AI.
     b.appendChild(el("button", "chip", "🎲 " + t("diceGo"), function () {
       var r = seeded("me|" + me.nick + "|" + roll("me|" + me.nick)), pick = function (n) { return Math.floor(r() * n); }, sets = Object.keys(D.SETS);
@@ -857,6 +910,7 @@ function openStyle() {
     colors(b, function () { return me.colors; }, function (c) { me.colors = c; saveMe(); setInk(c[0], c[1]); });
     b.appendChild(el("label", "lbl", t("set")));
     chips(b, Object.keys(D.SETS).map(function (s) { return { v: s, l: D.SETS[s][0] + " " + t("set_" + s) }; }), me.set, function (v) { me.set = v; saveMe(); });
+    var acHold = el("div"); b.appendChild(acHold); konto(function () { window.Profile.section(acHold, el); });
     b.appendChild(el("label", "lbl", t("fs_title")));
     chips(b, ["n", "g", "sg"].map(function (v) { return { v: v, l: t("fs_" + v) }; }), Kit.fs, function (v) { Kit.setFs(v); if (screen === "home") fitHero(); }, "fs");
     b.appendChild(el("label", "lbl", t("pf_title")));
@@ -865,6 +919,15 @@ function openStyle() {
     b.appendChild(el("button", "btn", t("licenses"), function () { window.Parts.use("licenses", function () { var l = el("pre", "note", window.DailyLicenses); l.style.whiteSpace = "pre-wrap"; b.textContent = ""; b.appendChild(l); }).catch(function () {}); }));
   });
 }
+// A sync brought style, wall or saved cards from another device: the open My style shows them at once.
+function profileChanged() {
+  me = D.sanitizeProfile(store.me); wall = D.sanitizeWall(store.wall); $("me").textContent = me.emoji;
+  if (screen === "home" || (screen === "shelf" && $("acbox"))) setInk(me.colors[0], me.colors[1]);
+  if (screen === "shelf" && $("acbox")) { var b = $("shbody"); b.textContent = ""; styleFill(b); }
+}
+// "Anmelden / Registrieren" (src/profile.js) is the part konto: loaded when My style opens, and at start while linked.
+function konto(fn) { return window.Parts.use("konto", function () { window.Profile.onChange(profileChanged); if (fn) fn(); }).catch(function () {}); }
+if (store.profile) konto();
 // My defaults (daily.js): the ones set stand on top as chips with ✕; below, what can be set. Only on this device.
 function prefs(box) {
   var f = me.pref || {}, P = D.PREF;
@@ -1041,7 +1104,10 @@ function labels() {
   $("mute").setAttribute("aria-pressed", String(!!Kit.muted));
   var ct = $("create"); ct.hidden = !shown("f_create"); ct.textContent = "✨ " + t("create_tile"); ct.appendChild(el("span", "", t("create_sub")));   // the free card (part erschaffen), first in the row under the sheet
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
-  $("tostatus").textContent = t("sh_status"); $("tostory").textContent = t("sh_story"); $("shnote").textContent = t("sh_note");
+  $("tostatus").textContent = t("sh_status"); $("tostory").textContent = t("sh_story"); $("dmore").textContent = t("mehr"); $("dmore").parentNode.hidden = !allow("done", "status");
+  // what the other side gets: a photo or a voice stays on this phone, the link carries a bot face or only the effect
+  var k = result && result.doc && (result.doc.k === "photo" ? "photo" : result.doc.k === "sound" && result.doc.m !== "beat" ? "voice" : "");
+  $("shnote").textContent = [t("sh_note"), k ? t("sh_" + k) : ""].filter(Boolean).join(" ");
   $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home"); $("playit").textContent = "🕹 " + t("playIt");
   $("save").hidden = !Kit.canSave(); SK.labels(); CU.labels(); $("dback").setAttribute("aria-label", t("xClose"));
   // Inside the app shells (DuellHost.more) a quiet "more" opens the native extras; in a browser it stays hidden.
@@ -1185,6 +1251,8 @@ var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, 
 var X = window.DailyModes = {};
 window.DailyApp = { aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
+window.DailyApp.allow = allow;
+
 /* test hook, used by browser checks: read-only snapshot */
 window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); }, collab: function () { return CU.engine(); } };
 
@@ -1195,7 +1263,16 @@ labels();
 function boot() { if (!route()) goHome(); }
 // The rules of the new turn cards (part turnzwei) only when the link or the day's card is one of them (two()).
 window.Parts.need("katalog").then(function () { return two(location.hash) || twoIdea(D.ideaForDay(today)) ? window.Parts.need("turnzwei").catch(function () {}) : 0; }).then(boot, function () { Kit.toast(t("part_fail")); boot(); });
-// The embedded display font loads after the first paint: fit the headline again once it is there.
-if (document.fonts && document.fonts.load) document.fonts.load('900 40px Anton').then(function () { if (screen === "home") fitHero(); }, function () {});
+// The embedded display font loads after the first paint: fit the headline again once it is there, and draw the sheet's
+// card and the editor's picture again. A canvas keeps the letters it was drawn with: on a slow phone the sheet drawn before
+// the font was there kept the fallback font for good. Only the pictures are drawn again, the same card as fillSheet
+// (sheetDoc); the sheet itself (texts, classes, the hearts of a received feel-good card) stays as it is.
+if (document.fonts && document.fonts.load) document.fonts.load('900 40px Anton').then(function () {
+  if (screen === "home") fitHero();
+  var c = $("leaf").querySelector(".pvcard"), d = home && !c.hidden ? sheetDoc(home) : null;
+  if (d && d.k !== "game" && d.k !== "arcade") preview($("leaf"), d, false);   // a drawn card only: no game, no arcade duel
+  if (home) WM.redraw(home);   // the own feel-good card: again with the name typed so far
+  if (ed) changed();
+}, function () {});
 });
 })();
