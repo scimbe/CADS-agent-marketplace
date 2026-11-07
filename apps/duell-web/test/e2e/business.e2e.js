@@ -1,16 +1,16 @@
 "use strict";
+const { ensureBuilt } = require("../../scripts/ensure-build.js");
 // Business flavor: the same engine with its own catalog and look. Each phone is its own browser context, so the only
 // thing that reaches the next person is the link.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
-const { execFileSync } = require("node:child_process");
 const { chromium, devices } = require("playwright");
 const root = path.resolve(__dirname, "../..");
 const page = "file://" + path.join(root, "dist/business/index.html");
 const shot = process.env.SHOT_DIR;
 const hash = (u) => "#" + u.split("#")[1];
-execFileSync(process.execPath, [path.join(root, "scripts/build.js"), "--flavor", "business"]);
+ensureBuilt("business");   // dist as npm run test:e2e built it; a build only after an edit
 
 async function setup() {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }), errs = [];
@@ -44,7 +44,7 @@ test("Umfrage ueber drei Geraete: Firmenfarbe reist im Link, Empfaenger stimmen 
   await pick(a, "Sushi"); await a.getByText("Eingetragen").waitFor(); await snap(a, "biz-poll-editor");
   const one = await send(a);
   assert.deepEqual(org(one), { c: "#0f766e", n: "ACM" });
-  assert.ok(one.startsWith("https://bunsenbrenner.org/business#c="), "eigener Pfad, langer Link: " + one.slice(0, 50));
+  assert.ok(one.startsWith("https://demos-34a13a96.bunsenbrenner.org/duell/business/#c="), "eigener Pfad, langer Link: " + one.slice(0, 50));
 
   const c = await open(hash(one));
   assert.equal(await c.locator("#orglogo").textContent(), "ACM", "Empfaenger sieht die Firma des Absenders");
@@ -83,7 +83,7 @@ test("Aufgaben verteilen bis keine mehr offen ist, Agenda bietet die Webconferen
 });
 
 test("Die Jugend-App bleibt wie sie ist und oeffnet trotzdem einen Business-Link", async () => {
-  execFileSync(process.execPath, [path.join(root, "scripts/build.js")]);
+  ensureBuilt("");
   const { b, open, errs } = await setup();
   const g = await open("#i=biz-feedback-meeting");
   await g.locator("#go").click(); await type(g, "Workshop Montag");
@@ -311,4 +311,20 @@ test("Folgetermin aus dem Protokoll: offene Aufgaben werden ohne KI zur Agenda-K
   await snap(r, "wb2-business-folgetermin-agenda");
   assert.deepEqual(sent, [], "nichts an den KI-Server");
   assert.deepEqual(errs, []); await b.close();
+});
+
+test("Ohne Server (ADR 0005): kein Teil stimme im Business-Build, keine Daumen, kein Request darauf oder an die Statistik", async () => {
+  const dir = path.join(root, "dist/business/parts"), files = require("node:fs").readdirSync(dir);
+  assert.ok(files.length > 5 && !files.some((f) => /^stimme\./.test(f)), files.join(" "));
+  assert.ok(!/"stimme":|vote_q|root\.Stimme/.test(require("node:fs").readFileSync(path.join(root, "dist/business/index.html"), "utf8")), "nicht im Manifest, nicht im Kern");
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), asked = [], errs = [];
+  ctx.on("request", (r) => { if (/\/parts\/stimme\.|\/api\/duell\/stat/.test(r.url())) asked.push(r.url()); });
+  const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e)));
+  await p.goto(page); await p.waitForFunction(() => document.body.getAttribute("data-state") !== "boot");
+  await p.waitForTimeout(500);
+  assert.equal(await p.locator("#votes").isHidden(), true);
+  assert.deepEqual(await p.evaluate(() => window.Parts.names().filter((n) => n === "stimme")), [], "das Vorladen im Web (parts.js) kennt ihn nicht");
+  assert.deepEqual(asked, []); assert.deepEqual(errs, []);
+  await b.close();
 });

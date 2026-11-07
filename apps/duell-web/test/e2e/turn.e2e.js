@@ -3,17 +3,20 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium, devices } = require("playwright");
+const G = require("./lib/grund.js");
 const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
 const shot = process.env.SHOT_DIR;
 const hash = (u) => "#" + u.split("#")[1];
 
-async function setup() {
+// o.web: pages from G's local web origin instead of file:// (for a test that reloads a page, see lib/grund.js webUrl)
+async function setup(o) {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined, args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), errs = [];
   ctx.setDefaultTimeout(15000);
   // macOS gives a headless browser no microphone: a test tone from the audio graph stands in, the recording path stays the real one.
   await ctx.addInitScript(() => { if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = async () => { const a = window.Kit.audio(true), o = a.createOscillator(), d = a.createMediaStreamDestination(); o.connect(d); o.start(); return d.stream; }; });
-  const open = async (h) => { const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e))); await p.goto(page + h); return p; };
+  const base = o && o.web ? await G.webUrl("index.html") : page;
+  const open = async (h) => { const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e))); await p.goto(base + h); return p; };
   return { b, open, errs };
 }
 const url = (p) => p.evaluate(() => window.DailyDebug.result().url);
@@ -366,7 +369,7 @@ test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswa
   assert.deepEqual(errs, []); await b.close();
 });
 test("Geld einsammeln: Name, Zweck, Personen, Betrag mit Cent; alle oeffnen denselben Link, PayPal-Link nur ab 18", async () => {
-  const { b, open, errs } = await setup();
+  const { b, open, errs } = await setup({ web: true });   // several pages of one device, one of them reloaded
   const a = await open("#i=zug-sammeln"); await a.locator("#go").click();
   const f = a.locator("#panel input.field"), weiter = a.getByRole("button", { name: "Weiter", exact: true });
   await f.fill("max muster"); assert.equal(await weiter.isDisabled(), true);

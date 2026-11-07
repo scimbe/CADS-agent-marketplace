@@ -16,7 +16,9 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .mini{display:flex;gap:4px}
 .mini button,.ico{min-width:44px;height:44px;border:0;background:transparent;font-size:17px;font-weight:900;color:var(--on);border-radius:50%;display:grid;place-items:center}
 #me,#edstyle{font-size:24px}
-#pad{position:relative;flex:1;min-height:0;margin:4px 18px 16px}
+/* The sheets under #leaf hang below #pad (u2: 8 px down, turned 2.2 deg: about 2 % of the width more at one corner);
+   the bottom margin grows with the width so what follows (#go, the name field) always starts below the red edge. */
+#pad{position:relative;flex:1;min-height:0;margin:4px 18px calc(10px + 2%)}
 .under,#leaf{position:absolute;inset:0;background:var(--paper);border:3px solid var(--ink);border-radius:6px}
 .under.u1{transform:rotate(1.6deg) translate(3px,5px)}.under.u2{transform:rotate(-2.2deg) translate(-2px,8px);background:var(--b)}
 #leaf{display:flex;flex-direction:column;padding:26px 16px 14px;transform:rotate(-.8deg);box-shadow:5px 6px 0 var(--ink);touch-action:none;will-change:transform;transition:transform .22s cubic-bezier(.2,1.2,.4,1)}
@@ -48,21 +50,24 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 #homerow button[hidden]{display:none}
 /* The feature bar is a strip to swipe; it runs by as a ticker only in .run (app.js: after 3 s, stopped for good by a touch
    or the switch), stands still under the mouse, and on short screens it is left out. */
-#feat{position:relative;flex:none;display:flex;align-items:center;gap:6px;padding:0 0 6px 18px}
-#feat .lane{flex:1;min-width:0;overflow-x:auto;scrollbar-width:none;-webkit-mask:linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 18px),transparent);mask:linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 18px),transparent)}
+/* The fade sits on the right edge only (more to come); on the left the strip starts hard, and a strip that stands
+   still rests with a whole button there (snap). The switch has its own place on the right, in the same 18 px gutter. */
+#feat{position:relative;flex:none;display:flex;align-items:center;gap:6px;padding:0 18px 6px}
+#feat .lane{flex:1;min-width:0;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x mandatory;-webkit-mask:linear-gradient(90deg,#000 calc(100% - 16px),transparent);mask:linear-gradient(90deg,#000 calc(100% - 16px),transparent)}
+#feat .track button{scroll-snap-align:start}#feat.hold .lane{scroll-snap-type:none}
 #feat .lane::-webkit-scrollbar{display:none}
-#feat .track{display:flex;gap:6px;width:max-content;padding-left:8px}
+#feat .track{display:flex;gap:6px;width:max-content;padding-right:16px}
 #feat:not(.run):not(.was) .track [aria-hidden]{display:none}
 #feat.run .lane{overflow:hidden}
 #feat.run .track{animation:ticker 45s linear infinite}
 #feat .lane:hover .track,#feat .lane:focus-within .track{animation-play-state:paused}
-#feat .tickpause{flex:none;min-width:44px;min-height:44px;margin-right:12px;padding:0;border-radius:50%;font-size:15px}
+#feat .tickpause{flex:none;min-width:44px;min-height:44px;padding:0;border-radius:50%;font-size:15px}
 @keyframes ticker{to{transform:translateX(-50%)}}
 @media (max-height:700px){#feat{display:none}}
 @media (prefers-reduced-motion:reduce){#feat .track{animation:none!important}#feat .track [aria-hidden],#feat .tickpause{display:none}}
 #edsave[aria-pressed=true]{color:#ff3d71}
 /* feel-good card: the optional name above the button, and a soft arrival for whoever gets one */
-.warmto{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:-8px 18px 8px;color:var(--on);font:800 14px/1.2 var(--ui)}
+.warmto{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:0 18px 10px;color:var(--on);font:800 14px/1.2 var(--ui)}
 .warmto[hidden]{display:none}
 .warmto .field{flex:1;width:auto;min-width:120px;min-height:44px;margin:0;user-select:text;-webkit-user-select:text}
 .warmwarn{flex-basis:100%;font-size:13px}.warmwarn:empty{display:none}
@@ -113,6 +118,7 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 @container (max-height:140px){.dateline,.teaser,.from{display:none}}   /* the title (or a received card) says more than the date */
 @media (max-height:520px){
   #pad{margin:2px 14px 10px}#leaf,#pad .ghost{padding:18px 12px 8px;overflow:hidden}
+  .under.u1{transform:rotate(.8deg) translate(3px,3px)}.under.u2{transform:rotate(-1deg) translate(-2px,4px)}   /* hang less: 10 px margin */
   .dateline{flex:none;min-height:0}.dnum{font-size:40px}.dmon{font-size:12px}.burst{width:58px;height:58px;margin-top:-4px;font-size:10px}
   .holes{top:4px}
 }
@@ -395,3 +401,5 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .txan{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}.txan .chip{flex:0 0 auto}
 .chip[aria-pressed=true]{outline:3px solid var(--ink);outline-offset:1px}
 .txvor{flex-basis:100%;margin:6px 0 2px}
+.votes{flex:none;display:flex;gap:6px;margin-top:4px;min-height:44px;align-self:flex-start;position:relative;z-index:3}.votes[hidden]{display:none}
+@container (max-height:140px){#leaf.got .votes{position:absolute;top:4px;right:8px;margin:0}}@container (max-height:40px){.votes{display:none}}

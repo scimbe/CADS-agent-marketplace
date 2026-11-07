@@ -28,19 +28,19 @@ test("file:// (Apps, Tests): Start nur mit dem Katalog-Teil; Spiele-Regal holt A
   await p.clock.setFixedTime(new Date("2026-03-03T09:00:00Z"));   // a day whose sheet is no arcade duel
   await p.goto("file://" + path.join(dist, "index.html"));
   await p.locator("#go").waitFor();
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog"], "der Start laedt nur den Katalog (Katalog v2, W0)");
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "stimme"], "der Start laedt nur den Katalog und, fuer das erste Blatt, die Daumen (Katalog v2, W0)");
   assert.equal(await p.evaluate(() => typeof window.Arcade + typeof window.StatusCard + typeof window.DailyLicenses), "undefinedundefinedundefined");
   await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await p.locator(".arctile").first().waitFor();
   assert.equal(await p.locator(".arctile").count(), 10);
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "play"]);
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "stimme", "play"]);
   assert.equal((await loaded(p))[1].sri, "", "file:// ohne SRI (kein CORS-Ursprung)");
   await p.locator("#shback").click();
   await p.locator("#me").click();
   await p.getByRole("button", { name: "Lizenzen" }).click();
   await p.getByText(/SIL OPEN FONT LICENSE Version 1\.1/).waitFor();
   // My style brings "Anmelden / Registrieren" with the part konto, the button its licence texts
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "play", "konto", "licenses"]);
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "stimme", "play", "konto", "licenses"]);
   assert.deepEqual(errs, []); await b.close();
 });
 
@@ -59,7 +59,7 @@ test("file://: der Knopf Status-Bild holt den QR-Teil und teilt ein Bild 1080x19
   await p.locator("#tostatus").evaluate((e) => e.click());
   await p.waitForFunction(() => window.__shared.length > 0);
   // the card editor's text tab has loaded "texte" (Worte finden, card text) on the way; the button only adds "qr"
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "texte", "qr"]);
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "stimme", "texte", "qr"]);
   const f = await p.evaluate(async () => { const f = window.__shared[0], i = await createImageBitmap(f); return { type: f.type, name: f.name, w: i.width, h: i.height }; });
   assert.deepEqual(f, { type: "image/jpeg", name: "my-daily-idea-status.jpg", w: 1080, h: 1920 });
   assert.deepEqual(errs, []);
@@ -73,7 +73,7 @@ test("Web /duell: nach dem Laden alle Teile mit SRI vorab; danach offline Arcade
   await p.goto(base + "/duell");   // without the slash: the parts still come from /duell/parts/
   await p.waitForFunction(() => window.Parts.names().every((n) => window.Parts.ready(n)));
   const got = await loaded(p);
-  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "katalog", "konto", "licenses", "logik", "play", "qr", "quiz", "satz", "table", "texte", "turnzwei", "welt"]);
+  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "katalog", "konto", "licenses", "logik", "play", "qr", "quiz", "satz", "stimme", "table", "texte", "turnzwei", "welt"]);
   for (const s of got) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
   assert.equal(await p.evaluate(() => typeof window.TableUI.preview + typeof window.StatusCard.draw), "functionfunction", "echte Module statt Platzhalter");
   await ctx.setOffline(true);

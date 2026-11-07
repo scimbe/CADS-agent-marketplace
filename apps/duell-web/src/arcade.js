@@ -5,7 +5,7 @@
    send() and receive(), so the bot is simply a second side in the same page, and tests can pipe two sides together. */
 (function (root) {
   "use strict";
-  var W = 1000, H = 1600, STEP = 1 / 120, NET_P = 0.05, NET_ST = 0.1, SERVE_PAUSE = 0.9;
+  var W = 1000, H = 1600, STEP = 1 / 120, NET_P = 0.05, NET_ST = 0.1, SERVE_PAUSE = 0.9, STALL_MAX = 6, FIN_WAIT = 6;   // FIN_WAIT: a stall of up to about 5 s still ends alike; an older app costs it once
 
   function hash32(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   function unit(seed, key) { return hash32(seed + "|" + key) / 4294967296; }               // 0..1, fixed by the seed
@@ -32,9 +32,28 @@
     S.clock = o.clock || function () { return S.t; };
     S.send = function (m) { if (m.t === "p" || m.t === "shot" || m.t === "throw") m.ms = Math.round(S.clock() * 1000); if (o.send) o.send(m); };
     S.fx = function (k, x, y, more) { var e = { k: k, x: x, y: y }; if (more) for (var q in more) e[q] = more[q]; S.ev.push(e); if (S.ev.length > 80) S.ev.shift(); };
-    S.check = function () { if (S.score[0] >= G.WIN || S.score[1] >= G.WIN) { S.over = true; S.serveAt = 0; S.fx(S.score[0] > S.score[1] ? "won" : "lost", W / 2, H / 2); } };
+    function finish() { S.over = true; S.ending = false; S.serveAt = 0; S.draw = S.score[0] === S.score[1]; S.fx(S.draw ? "draw" : S.score[0] > S.score[1] ? "won" : "lost", W / 2, H / 2); }
+    // Where both phones can take the last hit at once (G.fin: several snowballs or shells in the air), each one
+    // freezes at the end and sends how many hits it took ("fin"); the channel is ordered, so its earlier hit reports are
+    // in by then. With both numbers in, both phones end alike: equal is a draw. An older app sends no "fin": after
+    // FIN_WAIT the score as it stands counts.
+    S.ending = false; S.oppFin = null; S.draw = false;
+    S.check = function () {
+      if (S.over || !(S.score[0] >= G.WIN || S.score[1] >= G.WIN || S.oppFin !== null)) return;
+      if (!G.fin) { finish(); return; }
+      if (!S.ending) { S.ending = true; S.endAt = S.t; S.serveAt = 0; S.send({ t: "fin", c: S.score[1] }); }
+      if (S.oppFin !== null) { S.score[0] = Math.max(S.score[0], S.oppFin); finish(); }   // a hit reported is never taken back
+    };
+    S.fin = function (m) {
+      if (m.t !== "fin") return false;
+      // Only an end that can be: the other one took WIN hits, or gave this one WIN already. At most WIN hits count.
+      if (num(m.c) && m.c >= 0 && S.oppFin === null && (m.c >= G.WIN || S.score[1] >= G.WIN)) { S.oppFin = Math.min(G.WIN, m.c | 0); S.check(); }
+      return true;
+    };
+    S.finWait = function (dt) { S.t += dt; if (S.t - S.endAt > FIN_WAIT) finish(); };
     // This phone let the point go: the other one scores, and the one who lost the point serves the next ball.
-    S.concede = function (x, y) { S.score[1]++; S.send({ t: "pt" }); S.fx("lose", x, y); S.check(); if (!S.over && G.serves) S.serveAt = S.t + SERVE_PAUSE; };
+    S.concede = function (x, y) { if (S.over || S.ending) return;   // after "fin" nothing more is taken
+      S.score[1]++; S.send({ t: "pt" }); S.fx("lose", x, y); S.check(); if (!S.over && G.serves) S.serveAt = S.t + SERVE_PAUSE; };
     S.gain = function () { S.score[0]++; S.fx("score", W / 2, H / 4); S.check(); };
     S.start = function () { S.started = true; if (o.serving && G.serves) S.serveAt = S.t + 0.01; };
     // How much finger time the other player's next move may use. Time saved up while no report came (up to half a
@@ -46,12 +65,22 @@
     };
     // Something the other phone claims that cannot be: ignored, and counted so the screen can say so.
     S.reject = function () { S.rejected++; return false; };
+    // A stall as this phone saw it: the gap between two arrivals on its own clock (the sender's clock could be faked).
+    // For the burst that follows it (half a second), what the other one did during the gap may arrive at once.
+    S.lastIn = null; S.burst = { len: 0, at: -1 };
+    S.heard = function () {
+      var now = S.clock();
+      if (S.lastIn !== null && now - S.lastIn > 0.3) S.burst = { len: Math.min(now - S.lastIn, STALL_MAX), at: now };
+      S.lastIn = now;
+    };
+    S.stall = function () { return S.clock() - S.burst.at < 0.5 ? S.burst.len : 0; };
     return S;
   }
   function loop(S, dt, sub) {
     if (S.over) return;
+    if (S.ending) { S.finWait(Math.min(dt, 0.25)); return; }   // frozen until the other phone's last word
     dt = Math.min(dt, 0.25);
-    while (dt > 1e-9) { var d = Math.min(STEP, dt); dt -= d; S.t += d; sub(d); if (S.over) break; }
+    while (dt > 1e-9) { var d = Math.min(STEP, dt); dt -= d; S.t += d; sub(d); if (S.over || S.ending) break; }
   }
   function report(S, sendP, sendSt) {
     if (S.t - S.sentP >= NET_P) { S.sentP = S.t; sendP(); }
@@ -363,7 +392,7 @@
   }
 
   // ======================= Insel-Panzer: side view, one island, a tank on each shore, shells with gravity and wind =======================
-  var PANZER = { id: "panzer", WIN: 3, serves: false, N: 100, SEA: H - 110, TX: 160, G: 620, WMAX: 140, VSHOT: 1350, VMIN: 220, RELOAD: 1.5, CR: 72, HR: 74, TH: 26 };
+  var PANZER = { id: "panzer", WIN: 3, serves: false, fin: true, N: 100, SEA: H - 110, TX: 160, G: 620, WMAX: 140, VSHOT: 1350, VMIN: 220, RELOAD: 1.5, CR: 72, HR: 74, TH: 26 };
   // The island is mirror-symmetric, so both phones stand on the same shore; its hill and bumps come from the seed.
   function island(seed) {
     var P = PANZER, u1 = unit(seed, "isl|hill"), u2 = unit(seed, "isl|width"), u3 = unit(seed, "isl|bump"), a = [];
@@ -401,7 +430,7 @@
     return now - last >= P.RELOAD * 0.6;   // nobody reloads faster than the barrel allows
   }
   function panzerSide(o) {
-    var P = PANZER, S = base(P, o), T = island(S.seed), last = -9, oppLast = -9, fire = false;
+    var P = PANZER, S = base(P, o), T = island(S.seed), last = -9, fire = false, tokens = 1, tokAt = null, RATE = P.RELOAD;
     S.st = { T: T, aim: { vx: 0, vy: 0 }, oppAim: { vx: -500, vy: -600 }, shells: [], id: 0, wind: wind(S.seed, 0), reload: 0 };
     S.input = function (i) {
       if (!i) return;
@@ -429,7 +458,7 @@
         fire = false;
         for (var k = st.shells.length - 1; k >= 0; k--) {
           var sh = st.shells[k], r = shellStep(T, sh, d);
-          if (r) { st.shells.splice(k, 1); land(sh, { k: r, x: sh.x, y: sh.y }); if (S.over) return; }
+          if (r) { st.shells.splice(k, 1); land(sh, { k: r, x: sh.x, y: sh.y }); if (S.over || S.ending) return; }
         }
         st.reload = clamp((S.t - last) / P.RELOAD, 0, 1);
       });
@@ -437,10 +466,17 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
+      if (tokAt === null) tokAt = S.clock();   // the barrel fills from the first word of the other phone
+      S.heard();                               // every arrival counts for the gap, the last word too
+      if (S.fin(m)) return;
+      if (S.ending && m.t !== "boom") return;   // at the end only the hit count still matters
       if (m.t === "p" && num(m.vx) && num(m.vy)) { st.oppAim = cap({ x: 0, y: 0, vx: m.vx, vy: m.vy }, P.VSHOT); return; }
       if (m.t === "shot") {
-        if (!plausibleShot(m, oppLast, S.t)) return S.reject();
-        oppLast = S.t; var mz = muzzle(T, false);
+        // Nobody reloads faster than the barrel allows: one shot per RATE of this phone's time, a single one in hand;
+        // after a stall seen here, the shots fired during it may come together.
+        var now = S.clock(); tokens = Math.min(1.5 + S.stall() / P.RELOAD + 1e-6, tokens + (now - tokAt) / RATE); tokAt = now;   // half a shot of slack for jitter; a gap holds what a barrel reloads in it
+        if (!plausibleShot(m, -Infinity, 0) || tokens < 1) return S.reject();
+        tokens -= 1; var mz = muzzle(T, false);
         st.shells.push({ x: mz.x, y: mz.y, vx: m.vx, vy: m.vy, w: m.w, mine: false, i: m.i });
         st.oppAim = { vx: m.vx, vy: m.vy }; S.fx("fire", mz.x, mz.y, { mine: false });
         return;

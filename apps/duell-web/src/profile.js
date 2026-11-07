@@ -76,6 +76,8 @@
   // The section's own styles come with the part (the core stays small).
   var css = document.createElement("style"); css.textContent = ".profile .btn,.profile .field{margin-bottom:8px}.accheck{display:flex;gap:8px;align-items:center;font-weight:700;margin:6px 0 8px;min-height:44px}.accheck input{width:24px;height:24px}.accode{font:800 13px ui-monospace,Menlo,monospace;overflow-wrap:break-word;margin:0 0 6px}"; document.head.appendChild(css);
   // Right before any jump to sign in / register / the account (here and the AI login in ai.js): the login pages in my colours.
+  // Back from the login to the page of this build: /duell, Daily Business /duell/business (ai.js loginReturn, #154).
+  var back = function () { return window.Ai && window.Ai.loginReturn ? window.Ai.loginReturn(window.DailyFlavor) : "/duell"; };
   function look() { if (H) return; var k = lookCookie(Kit.store.me && Kit.store.me.colors, location.hostname); if (k) document.cookie = k; }
   function base() { return (window.DUELL_API || C.DEFAULT_API).replace(/\/config$/, "/profile"); }
   // The iOS shell loads the page from a file with all network blocked (only its AI bridge goes out): no sync there yet.
@@ -142,7 +144,7 @@
     var b16 = new Uint8Array(16); crypto.getRandomValues(b16);
     var s = await startCode(newCode(b16), true);
     if (s === "ok") { Kit.toast(t("ac_linked")); onChange(); }
-    else { unlink(); if (s === "codeLogin" && canAccount && !rerender.again) { Kit.store.profile = { via: "start", at: Date.now() }; plainSave(); look(); location.href = "/auth/login?return=" + encodeURIComponent("/duell"); return; } Kit.toast(t(s === "codeLogin" ? "ac_codeLogin" : "ac_err")); }
+    else { unlink(); if (s === "codeLogin" && canAccount && !rerender.again) { Kit.store.profile = { via: "start", at: Date.now() }; plainSave(); look(); location.href = "/auth/login?return=" + encodeURIComponent(back()); return; } Kit.toast(t(s === "codeLogin" ? "ac_codeLogin" : "ac_err")); }
     if (rerender) rerender();
   }
 
@@ -164,7 +166,7 @@
           if (!cb.checked) return;
           Kit.store.profile = { via: "account", rev: 0, base: null, age16: true }; plainSave();
           look();
-          location.href = "/auth/login?return=" + encodeURIComponent("/duell");
+          location.href = "/auth/login?return=" + encodeURIComponent(back());
         });
         go.disabled = true; cb.addEventListener("change", function () { go.disabled = !cb.checked; });
         box.appendChild(lab); box.appendChild(go); box.appendChild(el("p", "note", t("ac_under16")));
@@ -198,7 +200,7 @@
     function showState(s) {
       var at = link() && link().at;
       st.textContent = s === "ok" && at ? t("ac_ok", { time: new Date(at).toLocaleTimeString(Kit.lang === "de" ? "de-DE" : "en-GB", { hour: "2-digit", minute: "2-digit" }) }) : s && s !== "ok" ? t(s === "login" ? "ac_relogin_note" : "ac_" + s) : "";
-      if (s === "login" && canAccount) { var a = el("a", "btn", t("ac_relogin")); a.href = "/auth/login?return=" + encodeURIComponent("/duell"); a.addEventListener("click", look); st.appendChild(document.createTextNode(" ")); st.appendChild(a); }
+      if (s === "login" && canAccount) { var a = el("a", "btn", t("ac_relogin")); a.href = "/auth/login?return=" + encodeURIComponent(back()); a.addEventListener("click", look); st.appendChild(document.createTextNode(" ")); st.appendChild(a); }
     }
     showState(state);
     box.appendChild(el("button", "btn", t("ac_sync"), async function () { showState("busy"); var r = await sync(); if (r === "gone") rerender(); else showState(r); }));

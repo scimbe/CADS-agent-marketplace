@@ -24,7 +24,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // Sizes at the split: core 693 KB, parts 310 KB (play 140, table 104, qr 59, licenses 6), together 1003 KB.
   assert.ok(Buffer.byteLength(html) < 700 * 1024, "Kern ueber 700 KB: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["daten", "katalog", "konto", "licenses", "logik", "play", "qr", "quiz", "satz", "table", "texte", "turnzwei", "welt"]);
+  assert.deepEqual(Object.keys(man).sort(), ["daten", "katalog", "konto", "licenses", "logik", "play", "qr", "quiz", "satz", "stimme", "table", "texte", "turnzwei", "welt"]);
   // "Anmelden / Registrieren": its texts (ac_) only in the part konto, none in the core
   assert.ok(!/"ac_[a-z]/.test(html), "ac_-Texte im Kern");
   assert.match(fs.readFileSync(partFiles().find((f) => /\/konto\.[0-9a-f]{12}\.js$/.test(f)), "utf8"), /window\.KontoTexts=\{"de":\{"ac_title":"Anmelden \/ Registrieren"/);
@@ -55,6 +55,8 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   assert.match(html, /root\.Bausteine = \{/);
   assert.match(part("welt"), /root\.WeltUI = \{/); assert.ok(!/root\.WeltUI = \{/.test(html), "Flugspiel-Einstieg nur im Teil");
   assert.match(part("texte"), /root\.TexteUI = \{/); assert.match(part("texte"), /window\.TexteData=\{/); assert.ok(!/root\.TexteUI = \{|window\.TexteData=/.test(html), "Texte und Song nur im Teil");
+  assert.match(part("stimme"), /root\.Stimme = \{/); assert.match(part("stimme"), /root\.Stat = api/); assert.match(part("stimme"), /^window\.StimmeTexts=\{"de":\{"vote_/);
+  assert.ok(!/root\.Stimme = \{|root\.Stat = api|"vote_q"/.test(html), "Daumen, Statistik und ihre Texte nur im Teil");
   assert.match(part("satz"), /window\.SatzUI = \{/); assert.match(part("satz"), /root\.SatzLogic = api/);
   assert.ok(!/window\.SatzUI = \{|root\.SatzLogic = api/.test(html), "Satz zu Formular steckt nur im Teil, im Kern nur der Haken");
   assert.ok(!/window\.ArcadeUI = \{ menu|window\.TableUI = \{ open|root\.StatusCard =/.test(html), "verschobener Code steckt nicht doppelt im Kern");
@@ -77,7 +79,7 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
   // Every call site by name; a new one fails here until it is argued for and listed.
   // protokoll-page.js is its own page (dist/protokoll.html, connect-src 'self'): one GET for the speech model from this
   // domain, one POST with the redacted text after the explicit yes. Neither is in the app build below.
-  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1, "profile.js": 1, "protokoll-page.js": 2 }, short = /\(fetchFn \|\| fetch\)\(/g;
+  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1, "stat.js": 1, "profile.js": 1, "protokoll-page.js": 2 }, short = /\(fetchFn \|\| fetch\)\(/g;
   assert.match(src("protokoll-page.js"), /fetch\(url, \{ signal: ctl\.signal, credentials: "same-origin", cache: "no-store" \}\)/, "Modell nur per GET");
   assert.match(src("protokoll-page.js"), /input: P\.aiInput\(rec\.segs, rec\.names\)/, "an die KI nur der geschwaerzte Text");
   assert.ok(!/deviceMemory|hardwareConcurrency|userAgent/.test(src("protokoll-page.js").match(/JSON\.stringify\(\{ kind: "protokoll"[^\n]*/)[0]), "Geraetedaten bleiben auf dem Geraet");
@@ -85,7 +87,7 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
     assert.equal((noComments(src(f)).match(/\bfetch\(/g) || []).length, allowed[f] || 0, "direktes fetch( in " + f);
     assert.equal((noComments(src(f)).match(short) || []).length, f === "shortlink.js" ? 1 : 0, "Kurzlink-fetch in " + f);
   }
-  assert.equal((html.match(/\bfetch\(/g) || []).length, allowed["game.js"] + allowed["ai.js"] + allowed["live.js"] + allowed["profile.js"], "direkte fetch( im Build (Kern + Teile)");
+  assert.equal((html.match(/\bfetch\(/g) || []).length, allowed["game.js"] + allowed["ai.js"] + allowed["live.js"] + allowed["stat.js"] + allowed["profile.js"], "direkte fetch( im Build (Kern + Teile)");
   const ph = noComments(fs.readFileSync(path.join(path.dirname(dist), "protokoll.html"), "utf8"));
   assert.equal((ph.match(/\bfetch\(/g) || []).length, 2, "Protokoll-Seite: Modell + KI-Text");
   assert.ok(!/XMLHttpRequest|sendBeacon|EventSource|WebSocket|RTCPeerConnection|analytics|serviceWorker/.test(ph), "Protokoll-Seite: kein weiterer Ausgang");
@@ -102,6 +104,15 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
   const body = src("game.js").match(/fetch\([^\n]*/)[0];
   assert.match(body, /JSON\.stringify\(\{ prompt: prompt, lang: lang \}\)/, "nur Satz + Sprache");
   assert.ok(!/XMLHttpRequest|sendBeacon|EventSource|importScripts|new Worker/.test(html), "weiterer Ausgang");
+  // Card numbers (stat.js): one fetch to /api/duell/stat, without referrer, without cookies; only the vote carries the login
+  // cookie of this origin (only signed-in votes count). Only id, event, areas and vote go out; Business sends nothing.
+  const stat = noComments(src("stat.js"));
+  assert.match(stat, /"\/api\/duell\/stat"/);
+  assert.match(stat, /go\(URL_, \{ method: "POST", keepalive: true, credentials: cred \|\| "omit", referrerPolicy: "no-referrer", headers: \{ "Content-Type": "application\/json" \}, body: JSON\.stringify\(p\) \}\)/);
+  assert.equal((stat.match(/post\(p, o\)/g) || []).length, 2, "share und open ohne Cookie");
+  assert.match(stat, /post\(\{ i: k, e: "vote", v: v \}, o, "same-origin"\)/, "nur die Stimme mit dem Login dieser Seite");
+  assert.deepEqual(stat.match(/\{ i: [^}]*\}/g), ['{ i: doc && doc.ki && doc.ki.k === "karte" ? "own" : id(doc), e: "share" }', '{ i: id(doc), e: "open" }', '{ i: k, e: "vote", v: v }'], "nur Karte, Ereignis, Stimme");
+  assert.equal(require("../src/flavors/business/flavor.json").stat, false, "Daily Business kommt ohne Server aus (ADR 0005)");
   // Live games: one WebSocket to the edge and one peer connection, both only in live.js, and its one fetch goes to the play API.
   for (const f of fs.readdirSync(path.join(__dirname, "../src")).filter((n) => n.endsWith(".js") && n !== "live.js")) assert.ok(!/WebSocket|RTCPeerConnection/.test(noComments(src(f))), "Live-Ausgang in " + f);
   assert.equal((html.match(/new WebSocket\(/g) || []).length, 1, "ein WebSocket"); assert.equal((html.match(/new RTCPeerConnection\(/g) || []).length, 1, "eine Peer-Verbindung");
@@ -127,4 +138,34 @@ test("Schrift: Anton als data:-URL eingebettet, Lizenzhinweis im Build, Volltext
 test("Lizenzen: Volltexte von Anton und qrcode-generator stecken im Bundle (Teil licenses)", () => {
   const html = bundle();
   assert.match(html, /SIL OPEN FONT LICENSE Version 1\.1/); assert.match(html, /Permission is hereby granted, free of charge/);
+});
+
+// node --test runs the E2E files in parallel, and pages of one file load dist while another file may build: a reader must
+// never meet a half-written page or a part the page names but which is missing (the build used to delete dist/parts first).
+test("Build waehrend andere lesen: nie eine halbe Seite, nie ein fehlender Teil; ensureBuilt baut nur nach einer Aenderung", async () => {
+  const { spawn } = require("node:child_process"), E = require("../scripts/ensure-build.js");
+  const dir = path.dirname(dist), bad = [];
+  let reads = 0;
+  for (let round = 0; round < 3; round++) {
+    const b = spawn(process.execPath, [path.join(__dirname, "../scripts/build.js")], { stdio: "ignore" });
+    let done = false; const exit = new Promise((ok) => b.on("exit", (c) => { done = true; ok(c); }));
+    while (!done) {
+      let html = "";
+      try { html = fs.readFileSync(dist, "utf8"); } catch (e) { bad.push("Seite fehlt: " + e.code); }
+      if (html) {
+        reads++;
+        if (!/<\/html>\s*$/.test(html)) bad.push("halbe Seite: " + html.length + " Zeichen");
+        const m = html.match(/window\.DailyParts=(\{.*?\});window\./);
+        if (m) for (const p of Object.values(JSON.parse(m[1]))) if (!fs.existsSync(path.join(dir, p.f))) bad.push("Teil fehlt: " + p.f);
+      }
+      await new Promise((ok) => setImmediate(ok));
+    }
+    assert.equal(await exit, 0);
+  }
+  assert.ok(reads > 3, "waehrend der Builds gelesen: " + reads);
+  assert.deepEqual([...new Set(bad)], []);
+  assert.deepEqual(fs.readdirSync(dir).filter((f) => f.startsWith(".build-")), [], "kein Zwischenordner bleibt liegen");
+  assert.equal(E.upToDate(""), true, "Stempel passt nach dem Build");
+  assert.equal(E.ensureBuilt(""), false, "kein zweiter Build ohne Aenderung");
+  assert.notEqual(E.stamp(""), E.stamp("business"), "jede Variante hat ihren Stempel");
 });

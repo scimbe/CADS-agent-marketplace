@@ -1,14 +1,13 @@
 "use strict";
+const { ensureBuilt } = require("../../scripts/ensure-build.js");
 // The quiz cards with a fixed pack (src/quizspiele.js) over real links between devices, pinned to the cards (#i=), never to
 // today: Echt oder Phishing? in the Business build with three colleagues (de/en/de, phone, laptop across, 200 % zoom), the
 // team result from 5 on; Was kostet das? in the Daily build as a pair (invite, second phone answers, result back to the first).
 // On every screen the main button is visible without scrolling and nothing lies on it. QUIZ_SHOTS=<dir> keeps screenshots.
 const test = require("node:test"), assert = require("node:assert/strict"), path = require("node:path");
-const { execFileSync } = require("node:child_process");
 const G = require("./lib/grund.js");
 const root = path.join(__dirname, "../..");
-execFileSync(process.execPath, [path.join(root, "scripts/build.js")]);
-execFileSync(process.execPath, [path.join(root, "scripts/build.js"), "--flavor", "business"]);
+ensureBuilt(""); ensureBuilt("business");   // dist as npm run test:e2e built it; a build only after an edit
 const SHOTS = process.env.QUIZ_SHOTS || "";
 const snap = (p, n) => (SHOTS ? p.screenshot({ path: path.join(SHOTS, "quizpack-" + n + ".png") }) : null);
 // the screens of the task: 328x700 and 390x844 phones, 1280x800 at 200 % (640x400) and 1024x768 at 200 % (512x384)
