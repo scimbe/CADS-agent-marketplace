@@ -50,15 +50,23 @@
   }
   // "Wer sieht was?" (Bausteine.wswRow p of the card's fields f): the sentence vote_wsw on what is counted, and the switch
   // "Karten-Statistik aus": pressed = no share and no open from this device (src/stat.js off), kept in the store; thumbs
-  // still go out, the sentence says so.
+  // still go out, the sentence says so. My style has the same switch (src/stil.js), with the same class.
+  function mark() { [].forEach.call(document.querySelectorAll("button.statoff"), function (b) { b.setAttribute("aria-pressed", String(!!Kit.store.statOff)); }); }
   function row(p, f) {
     p.lastChild.textContent = root.Bausteine.wsw(f);   // now with vote_wsw
     var b = document.createElement("button"); b.type = "button"; b.className = "chip statoff"; b.textContent = t("vote_off");
-    function set() { b.setAttribute("aria-pressed", String(!!Kit.store.statOff)); }
-    b.addEventListener("click", function () { if (Kit.store.statOff) delete Kit.store.statOff; else Kit.store.statOff = true; Kit.save(); set(); });
-    set(); p.appendChild(document.createTextNode(" ")); p.appendChild(b);
+    b.addEventListener("click", function () { if (Kit.store.statOff) delete Kit.store.statOff; else Kit.store.statOff = true; Kit.save(); mark(); });
+    p.appendChild(document.createTextNode(" ")); p.appendChild(b); mark();
     return b;
   }
-  root.Bausteine.stat = row;   // the core's Bausteine knows no part by name (business.e2e.js: nothing of stimme in its core)
+  // Another tab of this device switched it: take over its choice (only statOff, the rest of this tab's store stays).
+  root.addEventListener("storage", function (e) {
+    if (e.key !== "daily.v1") return;
+    try { if (JSON.parse(e.newValue || "{}").statOff) Kit.store.statOff = true; else delete Kit.store.statOff; } catch (x) { return; }
+    mark();
+  });
+  // The core calls this part only through Parts.need("stimme") and finds the switch under Bausteine.stat; it never names
+  // root.Stimme, so the Business core, built without this part, carries nothing of it (business.e2e.js).
+  root.Bausteine.stat = row;
   root.Stimme = { sheet: sheet, share: function (doc) { S.share(doc); } };
 })(window);

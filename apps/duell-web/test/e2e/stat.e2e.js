@@ -212,8 +212,8 @@ test("Karten-Statistik aus: Schalter unter Wer sieht was? (de/en, Tastatur, 44 p
     assert.equal(await sw.getAttribute("aria-pressed"), "false");
     const box = await sw.boundingBox(); assert.ok(box.width >= 44 && box.height >= 44, JSON.stringify(box));
     const text = await row.textContent();
-    assert.match(text, lang === "de" ? /Inhalte speichert ein Server nur im Kurzlink, 90 Tage\. Gezählt wird nur, welche Karte .* geteilt und geöffnet wird, ohne Namen und ohne gespeicherte IP-Adresse\. Ein Daumen ist eine Abstimmung: Der Server merkt ihn pseudonym zu deinem Konto, auch bei Statistik aus\./
-      : /A server keeps content only in a short link, 90 days\. Counted is only which card .* without storing the IP address\. A thumb is a vote: the server keeps it under a pseudonym of your account, also with statistics off\./);
+    assert.match(text, lang === "de" ? /Inhalte speichert ein Server nur im Kurzlink, 90 Tage\. Gezählt wird nur, welche Karte an welchem Tag geteilt \(mit den geänderten Bereichen, ohne Inhalt\) und geöffnet wird, ohne Namen und ohne gespeicherte IP-Adresse\. Wie bei jedem Abruf sieht der Server dabei IP-Adresse und Uhrzeit\. Ein geteiltes Spiel zählt der Kurzlink-Dienst immer als KI- oder Regler-Welt\. Ein Daumen ist eine Abstimmung: Der Server merkt ihn pseudonym zu deinem Konto, auch bei Statistik aus\./
+      : /A server keeps content only in a short link, 90 days\. Counted is only which card is shared \(with the changed areas, no content\) and opened on which day, without names and without storing the IP address\. As with every request, the server sees the IP address and time\. The short-link service always counts a shared game as an AI or slider world\. A thumb is a vote: the server keeps it under a pseudonym of your account, also with statistics off\./);
     assert.doesNotMatch(await p.locator("body").innerText(), /Kein Server speichert etwas|speichert kein Server etwas|No server keeps anything/i);
     // keyboard: Space switches it off, the choice stays on this device
     await sw.focus(); await p.keyboard.press("Space");
@@ -240,6 +240,43 @@ test("Karten-Statistik aus: Schalter unter Wer sieht was? (de/en, Tastatur, 44 p
     const q2 = await G.open(ctx, GOT); await q2.locator("#leaf.got").waitFor();
     assert.ok(await until(() => got.length)); assert.deepEqual(got, [{ i: "plan-09", e: "open" }]);
     assert.deepEqual([...p.errs, ...q.errs, ...r.errs, ...q2.errs], [], lang); await ctx.close();
+  }
+  await b.close();
+});
+
+// M7 review: the same switch in My style (src/stil.js, part stil). Off there: sharing the day's card and opening its link on
+// another page of this device send no request to the statistics at all.
+test("Karten-Statistik aus in Mein Stil: Tageskarte teilen und ihren Link oeffnen schickt 0 Statistik-Requests (de/en)", async () => {
+  const b = await G.launch();
+  for (const lang of G.LANGS) {
+    const ctx = await G.person(b, { time: TIME, lang, web: true }), all = [];
+    ctx.on("request", (r) => { if (r.url().startsWith(STAT)) all.push(r.method() + " " + (r.postData() || "")); });
+    // a second tab of this device with the row "Wer sieht was?" open: it takes the switch over (storage event, stimme-ui.js)
+    const r = await G.open(ctx, "#i=zug-wunschzettel");
+    await r.locator("#go").click(); await r.locator("#panel details.more summary").first().click(); await r.locator("#panel .wsw button.statoff").waitFor();
+    const p = await G.open(ctx, "");
+    await p.locator("#me").click();
+    const sw = p.locator("#shbody button.statoff");
+    await sw.waitFor();
+    assert.equal(await sw.textContent(), lang === "de" ? "Karten-Statistik aus" : "Card statistics off");
+    assert.equal(await sw.getAttribute("aria-pressed"), "false");
+    const box = await sw.boundingBox(); assert.ok(box.width >= 44 && box.height >= 44, JSON.stringify(box));
+    assert.match(await p.locator("#shbody").innerText(), lang === "de" ? /Ein Daumen ist eine Abstimmung und geht auch dann\./ : /A thumb is a vote and still goes out\./);
+    await sw.focus(); await p.keyboard.press("Space");
+    await p.waitForFunction(() => document.querySelector("#shbody button.statoff").getAttribute("aria-pressed") === "true");
+    assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem("daily.v1")).statOff), true);
+    await r.waitForFunction(() => document.querySelector("#panel .wsw button.statoff").getAttribute("aria-pressed") === "true");
+    assert.equal(await r.evaluate(() => window.Kit.store.statOff), true, "der andere Tab sendet auch nichts mehr");
+    await p.locator("#shback").click();
+    const id = await p.evaluate(() => window.DailyDebug.home().idea.id);
+    await p.locator("#go").click(); await p.locator("#edmain").click(); await p.locator("#share").click();
+    await p.waitForFunction(() => { const r = window.DailyDebug.result(); return r && r.link; });
+    const url = await p.evaluate(() => window.DailyDebug.result().url);
+    const q = await G.open(ctx, "#" + url.split("#")[1]); await q.locator("#leaf.got").waitFor();
+    assert.equal(await q.evaluate(() => window.DailyDebug.home().doc.i), id, "der eigene Link der Tageskarte");
+    await q.waitForTimeout(800);
+    assert.deepEqual(all, [], "aus: kein einziger Statistik-Request");
+    assert.deepEqual([...p.errs, ...q.errs, ...r.errs], [], lang); await ctx.close();
   }
   await b.close();
 });

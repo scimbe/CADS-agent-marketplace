@@ -72,8 +72,11 @@ test("Ehrlich: kein \"Kein Server speichert etwas\" ohne Einschraenkung, ausser 
   assert.equal(biz.stat, false); assert.equal(biz.short, false);
   assert.deepEqual(hits(json("flavors/business/texts.json"), "biz", []).sort(), ["biz.de.turnH", "biz.de.wsw_nosrv", "biz.de.wsw_nosrv_else", "biz.en.turnH", "biz.en.wsw_nosrv", "biz.en.wsw_nosrv_else"]);
   for (const l of ["de", "en"]) {
-    assert.match(TEXTS[l].vote_wsw, l === "de" ? /geteilt und geöffnet.*ohne Namen.*IP-Adresse.*Daumen.*pseudonym.*Konto.*Statistik aus/ : /shared and opened.*without names.*IP address.*thumb.*pseudonym.*account.*statistics off/);
-    assert.ok(TEXTS[l].vote_off, l);
+    assert.match(TEXTS[l].vote_wsw, l === "de" ? /geteilt .*und geöffnet.*ohne Namen.*IP-Adresse.*Daumen.*pseudonym.*Konto.*Statistik aus/ : /shared .*and opened.*without names.*IP address.*thumb.*pseudonym.*account.*statistics off/);
+    assert.ok(TEXTS[l].vote_off && TEXTS[l].set_stat && TEXTS[l].set_statnote, l);
+    assert.match(TEXTS[l].vote_wsw, l === "de" ? /geänderten Bereichen, ohne Inhalt.*IP-Adresse und Uhrzeit.*KI- oder Regler-Welt/ : /changed areas, no content.*IP address and time.*AI or slider world/);
+    // /api/duell/ai/interest keeps nothing (wrapper lib/duell-ai.mjs: it only answers the meter)
+    assert.doesNotMatch(TEXTS[l].aiWantNote + TEXTS[l].aiNoted, /anonym|notiert|noted/i, l);
   }
 });
 test("Neue Texte nur ueber Schluessel: keine Sprachzweige und keine de|en-Paare in den W0-Dateien", () => {
