@@ -559,7 +559,7 @@
               if (!hitFits(H.b, H.F, H.from, H.rx, H.ry, H.laxA, H.path)) return S.reject();
               if (!pend) pend = H;   // a hit right after a hit: the first one counts
             }
-          } else if (!along(m.b, 40, 45) && !(lax() && along(m.b, 80, null, path.net))) return S.reject();   // free flight: on the path, at its speed (an older app's bounce off the net depends on its frame rate: after it only near the path)
+          } else if (!along(m.b, 40, 45) && !(lax() && path.net !== undefined && along(m.b, 80, null, path.net))) return S.reject();   // free flight: on the path, at its speed (an older app's bounce off the net depends on its frame rate: after it only near the path)
         }
         st.b = copy(m.b); st.held = false; keep(st.b);
         if (m.t === "pass") st.own = true; else if (m.t === "hit") S.fx("ohit", st.b.x, st.b.y, { v: speed(st.b) });
