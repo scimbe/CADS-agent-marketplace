@@ -131,7 +131,7 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 #demo{display:block}
 #trail{flex:none;padding:0 14px 4px;font-size:12px;color:var(--on);white-space:nowrap;overflow-x:auto}
 #tabs{flex:none;display:flex;flex-wrap:wrap;background:var(--ink)}
-#tabs button{flex:1 0 auto;min-height:46px;padding:0 9px;border:0;background:transparent;color:#c4c4c4;font:800 14px var(--ui)}
+#tabs button{flex:1 0 auto;min-width:44px;min-height:46px;padding:0 9px;border:0;background:transparent;color:#c4c4c4;font:800 14px var(--ui)}
 #tabs button.hot{opacity:1;color:var(--btn)}
 #tabs button[aria-selected=true]{opacity:1;background:var(--paper);color:var(--ink)}
 #panel{flex:1 1 0;min-height:96px;overflow-y:auto;background:var(--paper);color:var(--ink);padding:10px 12px;touch-action:pan-y;user-select:auto;-webkit-user-select:auto}

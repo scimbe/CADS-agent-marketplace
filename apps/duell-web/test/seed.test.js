@@ -38,6 +38,17 @@ test("Mind (modes.js:236): die Hand des Bots kommt aus dem Seed des Blatts; glei
   assert.ok(a.every((h) => h >= 0 && h <= 2));
   assert.match(src("modes.js"), /Duel\.mindHand\(hist, d\.b\.c, rnd\(\)\)/);
 });
+test("Wohlfuehlkarte zurueck (warm.js) und Bot-Spiele (arcade-ui.js): aus dem Seed, nicht aus Math.random", () => {
+  const Wm = require("../src/warm.js");
+  const doc = { k: "card", i: Wm.list()[0].id, n: "Ana", x: "Du bist toll" };
+  const a = noRandom(() => Wm.answer(doc));
+  assert.equal(a, Wm.answer(doc)); assert.notEqual(a.id, doc.i); assert.ok(a.warm);
+  assert.ok(new Set(["A", "B", "C", "D", "E", "F", "G", "H"].map((n) => Wm.answer(Object.assign({}, doc, { n })).id)).size > 1, "anderer Absender, andere Karte moeglich");
+  assert.doesNotMatch(src("warm.js").replace(/\/\/[^\n]*/g, ""), /Math\.random/);
+  const arc = src("arcade-ui.js").replace(/\/\/[^\n]*/g, "");
+  assert.match(arc, /"bot\|" \+ g \+ "\|" \+ \(Kit\.store\.arcN = /); assert.match(arc, /fresh\(seed \+ "\|" \+ \+\+round\)/);
+  for (const l of arc.split("\n").filter((x) => /Math\.random/.test(x))) assert.match(l, /P\.add|rnd\(a, b\)|d\[i\] =/, "nur Partikel und Rauschen: " + l.trim().slice(0, 80));
+});
 test("Kein Math.random mehr in app.js und modes.js (auch nicht beim Ersatzblatt eines Tages ohne Idee)", () => {
   for (const f of ["app.js", "modes.js"]) assert.doesNotMatch(src(f).replace(/\/\/[^\n]*/g, ""), /Math\.random/, f);
   assert.doesNotMatch(src("app.js"), /botFace\([^)]*Date\.now/, "das Bot-Gesicht haengt nicht an der Uhr");

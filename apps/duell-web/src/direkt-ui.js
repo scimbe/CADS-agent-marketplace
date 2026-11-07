@@ -12,7 +12,7 @@
 
   var css = document.createElement("style");
   css.textContent = "#editor.dk #stagewrap{padding-left:56px;padding-right:56px}#editor.dk .skundo{display:none!important}" +
-    "#dkbar{position:absolute;left:6px;top:6px;display:flex;flex-direction:column;gap:8px;z-index:3}" +
+    "#editor.dk #stagewrap{min-height:56px}#dkbar{position:absolute;left:6px;top:6px;bottom:6px;display:flex;flex-direction:column;flex-wrap:wrap;align-content:flex-start;gap:6px 8px;z-index:3}" +
     "#dkbar button,.dkhold{width:44px;height:44px;padding:0;border:3px solid var(--ink);border-radius:50%;background:#fff;color:#111;font:900 21px/1 var(--ui)}" +
     "#dkbar button[aria-disabled=true]{opacity:.4;cursor:default}.dkhold{position:absolute;right:6px;top:6px;z-index:2;font-size:17px}" +
     ".dkl{margin:8px 0;border:2px solid var(--ink);border-radius:6px;background:#fff;color:#111}.dkl:focus-visible{outline:3px solid var(--ink);outline-offset:2px}" +
@@ -37,6 +37,8 @@
   function tell(s) { say.textContent = ""; setTimeout(function () { say.textContent = s; }, 40); }
 
   // ---------- one history over the whole sheet ----------
+  // The doc is the history: what lives outside it stays as it is on undo and redo (an own photo or the bot face, a
+  // recorded voice, the panel's page, a running match), and none of it is kept by the history.
   function active(ed) { return !!ed && UNDO.indexOf(ed.doc.k) >= 0 && !$("tabs").hidden && $("cobar").hidden; }   // not while a match runs or someone builds along
   // Which steps join: one finger on the preview, or one text field or slider while it is used.
   function key() {
@@ -51,6 +53,7 @@
   ["pointerup", "pointercancel"].forEach(function (n) { window.addEventListener(n, function () { var mine = ptr; setTimeout(function () { if (ptr === mine) ptr = null; }, 40); }, true); });
   function go(dir) {
     var ed = A.ed(); if (!active(ed) || !ed.dk) return;
+    A.paint();   // a change still waiting for its redraw (16 ms) becomes its step first, so a quick undo never skips it
     var s = dir < 0 ? M.undo(ed.dk) : M.redo(ed.dk); if (s == null) return;
     var p = $("panel"), top = p.scrollTop, sel = ed.sel, all = function () { return Array.from(p.querySelectorAll("button,input,textarea,select,[tabindex]")); }, at = all().indexOf(document.activeElement);
     Kit.sfx.tap(); A.setDoc(JSON.parse(s));

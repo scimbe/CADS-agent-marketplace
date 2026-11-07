@@ -26,7 +26,12 @@ test("Gesten auf vier Bildschirmen: Tippen waehlt, Ziehen und Pinch, Verschieben
   try {
     for (const view of ["phone390", "phone328", "quer", "zoom200"]) {
       const ctx = await G.person(b, { view, lang: "de" }), p = await G.open(ctx, "");
-      await editor(p, "card"); await tabTo(p, "Sticker");
+      await editor(p, "card");
+      // the undo buttons never lie over the tabs, the preview or the header (WCAG 1.4.4, 2.4.11), also at 200 %
+      const over = await p.evaluate(() => { const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+        return [...document.querySelectorAll("#dkbar button")].flatMap((x) => ["#tabs", "#stage", "#editor > .bar"].filter((s) => hit(x.getBoundingClientRect(), document.querySelector(s).getBoundingClientRect()))); });
+      assert.deepEqual(over, [], view + ": Undo-Leiste verdeckt");
+      await tabTo(p, "Sticker");
       await p.locator('#panel [data-dk="add0"]').click();
       let d = await doc(p); assert.equal(d.sk.length, 1, view);
       // a tap next to the sticker drops the choice, a tap on it chooses it again
@@ -77,6 +82,11 @@ test("Gesten auf vier Bildschirmen: Tippen waehlt, Ziehen und Pinch, Verschieben
       for (let i = 9; i >= 0; i--) { await p.locator("#dkbar button").first().click(); assert.deepEqual(await doc(p), states[i], view + ": Undo bis Stand " + i); }
       for (let i = 1; i <= 10; i++) { await p.locator("#dkbar button").nth(1).click(); assert.deepEqual(await doc(p), states[i], view + ": Redo bis Stand " + i); }
       assert.equal(await p.locator("#dkbar button").nth(1).getAttribute("aria-disabled"), "true");
+      // a step and at once an undo (inside the 16 ms redraw): the step is not lost
+      await p.evaluate(() => { document.querySelector('#panel [data-dk="up"]').click(); window.Direkt.go(-1); });
+      assert.deepEqual(await doc(p), states[10], view + ": schnelles Undo nimmt genau den neuen Schritt zurueck");
+      await p.evaluate(() => window.Direkt.go(1)); assert.notDeepEqual((await doc(p)).sk, states[10].sk);
+      await p.evaluate(() => window.Direkt.go(-1));
       // typing a word is one step; Ctrl+Z outside the field undoes it, Ctrl+Shift+Z brings it back
       await tabTo(p, "Text");
       const x0 = (await doc(p)).x, f = p.locator("#panel textarea").first();
@@ -101,7 +111,7 @@ test("Reiter: Pfeiltasten, ein Tab-Stopp, aria-controls/tabpanel; kein Reiter au
         const tabs = [...document.querySelectorAll("#tabs [role=tab]")], W = innerWidth, panel = document.getElementById("panel");
         return { n: tabs.length, out: tabs.filter((x) => { const q = x.getBoundingClientRect(); return q.left < -0.5 || q.right > W + 0.5 || q.width < 20; }).map((x) => x.textContent),
           zero: tabs.filter((x) => x.tabIndex === 0).length, ctl: tabs.every((x) => x.getAttribute("aria-controls") === "panel"), role: panel.getAttribute("role"),
-          by: panel.getAttribute("aria-labelledby"), sel: tabs.find((x) => x.getAttribute("aria-selected") === "true").id, small: tabs.filter((x) => x.getBoundingClientRect().height < 44).length };
+          by: panel.getAttribute("aria-labelledby"), sel: tabs.find((x) => x.getAttribute("aria-selected") === "true").id, small: tabs.filter((x) => x.getBoundingClientRect().height < 44 || x.getBoundingClientRect().width < 44).length };
       });
       assert.deepEqual(r.out, [], view + " " + kind + ": unsichtbare Reiter");
       assert.equal(r.zero, 1, "roving tabindex"); assert.ok(r.ctl); assert.equal(r.role, "tabpanel"); assert.equal(r.by, r.sel); assert.equal(r.small, 0);

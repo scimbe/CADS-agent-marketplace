@@ -188,7 +188,7 @@ test("Song: ohne MediaRecorder kein Video-Knopf; ohne KI bleibt der Beat-Baukast
   await p.locator(".aiopt").first().tap();
   await p.waitForTimeout(300);
   assert.equal(await p.getByRole("button", { name: /Video/ }).count(), 0);
-  assert.ok((await p.locator("#panel .grid .step").count()) >= 32, "Beat-Raster bleibt");
+  assert.equal(await p.locator("#panel .grid .step").count(), 16, "Beat-Raster bleibt (4 Klaenge x 4 Schritte je Seite)");
   await p.getByRole("button", { name: /^■ / }).first().tap();
   assert.equal(await p.evaluate(() => window.DailyApp.ed().lyr), -1, "Stopp: keine Zeile mehr hervorgehoben");
   assert.deepEqual(errs, []); await p.context().close();
