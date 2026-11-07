@@ -60,7 +60,10 @@ test("KI-Bild: Karte mit Bild zeigt es statt der Zeichnung, mit lesbarem 'KI-Bil
   const s = await state(p);
   assert.equal(s.id, "warm-toll");
   assert.ok(s.pic && s.shown && s.w > 0, JSON.stringify(s));
-  assert.ok(!s.card, "die Zeichnung macht Platz");
+  // E1.5 "the picture gives way": the name field stands under the sheet, so the live card has the sheet, the picture is a thumbnail (16:9) that swaps
+  assert.ok(s.card, "mit Namensfeld: die Live-Karte bleibt"); assert.ok(await p.evaluate(() => { const f = document.querySelector("#leaf .pvimg"), i = f.getBoundingClientRect(), c = document.getElementById("pvcard").getBoundingClientRect();
+    const ov = Math.max(0, Math.min(i.right, c.right) - Math.max(i.left, c.left)) * Math.max(0, Math.min(i.bottom, c.bottom) - Math.max(i.top, c.top)) / (c.width * c.height);
+    return f.getAttribute("role") === "button" && i.height < c.height && ov <= 0.1; }), "Bild als Vorschaubild, deckt hoechstens 10 % der Karte");
   assert.ok(Math.abs(s.ratio - 16 / 9) < 0.05, "16:9 " + s.ratio);
   assert.equal(s.tag, "KI-Bild");
   assert.ok(contrast(s.fg, s.bg) >= 4.5, "Kontrast " + contrast(s.fg, s.bg));
@@ -139,7 +142,9 @@ test("KI-Bild: Business zeigt Bilder aus dem eigenen Satz", async () => {
 const edState = (p) => p.evaluate(() => {
   const w = document.getElementById("stagewrap"), f = document.getElementById("edpic"), r = f.getBoundingClientRect(), s = document.getElementById("stage").getBoundingClientRect();
   return { open: !document.getElementById("editor").hidden, pic: w.classList.contains("pic"), shown: r.width > 0 && r.height > 0, ratio: r.width / Math.max(1, r.height),
-    tag: f.querySelector(".kitag").textContent, stage: s.width > 0 && s.height > 0, above: r.bottom <= s.top + 1, over: document.documentElement.scrollWidth > innerWidth };
+    tag: f.querySelector(".kitag").textContent, stage: s.width > 0 && s.height > 0, above: r.bottom <= s.top + 1, over: document.documentElement.scrollWidth > innerWidth,
+    thumb: f.getAttribute("role") === "button" && r.height <= 60 && s.height > r.height * 3,   // E1.5: the live card has the stage, the picture is a thumbnail
+    overlap: Math.max(0, Math.min(r.right, s.right) - Math.max(r.left, s.left)) * Math.max(0, Math.min(r.bottom, s.bottom) - Math.max(r.top, s.top)) / Math.max(1, s.width * s.height) };
 });
 // share picture: does the finished picture differ from the card drawn alone (= picture composed in)?
 const exported = (p) => p.evaluate(() => {
@@ -174,12 +179,14 @@ test("KI-Bild: das graue Folgeblatt zeigt sein Bild, erst wenn es sichtbar wird;
   if (shot) await p.screenshot({ path: shot + "/pic-ghost.png" });
   await p.mouse.move(cx, cy, { steps: 3 }); await p.mouse.up(); await p.waitForTimeout(400);
   assert.ok(await p.locator("#home").isVisible(), "zurueckgelegt, kein Tap");
-  // tap without moving: the card opens, the picture stays above it
+  // tap without moving: the card opens; the picture is a thumbnail beside the live card (E1.5), a tap lays it over in 16:9
   await p.locator("#leaf").click({ position: { x: box.width / 2, y: box.height * 0.6 } });
-  await p.locator("#stagewrap.pic").waitFor();
+  await p.locator("#editor.dk #stagewrap.pic").waitFor();   // the thumbnail look comes with the part direkt
   const e = await edState(p);
-  assert.ok(e.open && e.pic && e.shown && e.stage && e.above && !e.over, JSON.stringify(e));
-  assert.ok(Math.abs(e.ratio - 16 / 9) < 0.05, "16:9 " + e.ratio); assert.equal(e.tag, "KI-Bild");
+  assert.ok(e.open && e.pic && e.shown && e.stage && e.thumb && !e.over, JSON.stringify(e));
+  assert.ok(e.overlap <= 0.1, "das Vorschaubild deckt hoechstens 10 % der Karte: " + e.overlap);
+  await p.locator("#edpic").press("Enter"); const e2 = await edState(p);
+  assert.ok(Math.abs(e2.ratio - 16 / 9) < 0.05, "16:9 " + e2.ratio); assert.equal(e2.tag, "KI-Bild"); await p.locator("#edpic").press("Enter");
   if (shot) await p.screenshot({ path: shot + "/pic-editor.png" });
   // the finished picture of a card carries it too (CORS image: the canvas stays clean)
   await p.evaluate(() => { const D = window.Daily, i = D.byId("karte-lob"); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i }); });
@@ -231,8 +238,10 @@ test("KI-Bild: empfangene Karte zeigt Karte und Bild, auch im Editor; mit Foto d
   await p.evaluate(() => { const D = window.Daily, d = D.docFromIdea(D.byId("karte-lob"), D.sanitizeProfile({ nick: "Ben" }), "de"); location.hash = D.docUrl(D.withTrail(d, "Ben", ["text"])).split("#")[1]; });
   await p.locator("#leaf .pv.pic.with").waitFor(); await p.waitForTimeout(600);   // the sheet's landing animation
   const r = await p.evaluate(() => { const v = document.querySelector("#leaf .pv"), i = v.querySelector(".pvimg").getBoundingClientRect(), c = v.querySelector(".pvcard").getBoundingClientRect();
-    return { img: i.width > 0, card: c.width > 0 && c.height > 0, above: i.bottom <= c.top + 1, ratio: i.width / i.height, note: !document.getElementById("from").hidden, over: document.documentElement.scrollWidth > innerWidth }; });
-  assert.ok(r.img && r.card && r.above && r.note && !r.over && Math.abs(r.ratio - 16 / 9) < 0.05, JSON.stringify(r));
+    const ov = Math.max(0, Math.min(i.right, c.right) - Math.max(i.left, c.left)) * Math.max(0, Math.min(i.bottom, c.bottom) - Math.max(i.top, c.top)) / Math.max(1, c.width * c.height);
+    return { img: i.width > 0, card: c.width > 0 && c.height > 0, small: i.height < c.height / 2, ov: ov <= 0.1, ratio: i.width / i.height, note: !document.getElementById("from").hidden, over: document.documentElement.scrollWidth > innerWidth }; });
+  // E1.5: the received card keeps the sheet, its picture is a 16:9 thumbnail in the corner
+  assert.ok(r.img && r.card && r.small && r.ov && r.note && !r.over && Math.abs(r.ratio - 16 / 9) < 0.05, JSON.stringify(r));
   assert.deepEqual(asked.map((a) => a.id), ["karte-lob"]);
   if (shot) await p.screenshot({ path: shot + "/pic-received.png" });
   await p.locator("#go").click(); await p.locator("#stagewrap.pic").waitFor();
