@@ -60,7 +60,8 @@
     // second) covers a burst of reports that arrive together after the network stalled; each report uses up what its
     // distance needs, so on average the figure is still never faster than a finger.
     S.oppDt = function (dist, vmax) {
-      S.credit = Math.min(0.5, (S.credit == null ? 0.1 : S.credit) + S.t - S.oppAt); S.oppAt = S.t;
+      // on this phone's real clock: a phone that hung and then works off its queue still counts the time that passed
+      var now = S.clock(); S.credit = Math.min(0.5, (S.credit == null ? 0.1 : S.credit) + Math.max(0, now - S.oppAt)); S.oppAt = now;
       var use = Math.min(S.credit, Math.max(0.016, dist / vmax)); S.credit -= use; return use;
     };
     // Something the other phone claims that cannot be: ignored, and counted so the screen can say so.
@@ -331,14 +332,15 @@
     return { x: clamp(reach(prev.x, m.x, dt, V.VMOVE * 1.25), V.NX + V.NW + V.PRAD, W - V.PRAD), y: clamp(m.y, ground - 340, ground) };
   }
   var VFALL = Math.sqrt(VOLLEY.VMAX * VOLLEY.VMAX + 2 * VOLLEY.G * VOLLEY.FY);   // a ball may fall faster than any hit sends it
-  function plausibleVolley(kind, b, opp) {
+  // slack: how far the figure may have walked since its last report arrived here (a phone that hung reports late).
+  function plausibleVolley(kind, b, opp, slack) {
     var V = VOLLEY; if (!body(b) || speed(b) > (kind === "hit" ? V.VMAX * 1.01 : VFALL)) return false;
     if (kind === "pass") return Math.abs(b.x - V.NX) <= V.BR + V.NW + 90 && b.vx < 0;
     if (b.x < V.NX - V.BR) return false;
-    return kind !== "hit" || Math.hypot(b.x - opp.x, b.y - opp.y) <= V.BR + V.PRAD + 260;
+    return kind !== "hit" || Math.hypot(b.x - opp.x, b.y - opp.y) <= V.BR + V.PRAD + 260 + (slack || 0);
   }
   function volleySide(o) {
-    var V = VOLLEY, S = base(V, o), aim = 250, jump = false, ground = V.FY - V.PRAD;
+    var V = VOLLEY, S = base(V, o), aim = 250, jump = false, ground = V.FY - V.PRAD, pAt = null;
     S.st = { b: null, own: false, held: false, me: { x: 250, y: ground, vx: 0, vy: 0 }, opp: { x: W - 250, y: ground } };
     S.input = function (i) { if (!i) return; if (num(i.x)) aim = i.x; if (i.jump) jump = true; };
     function serve() { var st = S.st; st.b = volleyServe(S.seed, S.n); st.own = true; st.held = false; S.send({ t: "serve", n: S.n, b: mirrorX(st.b) }); S.n++; S.serveAt = 0; S.fx("serve", st.b.x, st.b.y); }
@@ -365,12 +367,13 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
-      if (m.t === "p" && num(m.x) && num(m.y)) { st.opp = plausibleFigure(st.opp, m, S.oppDt(Math.abs(m.x - st.opp.x), V.VMOVE * 1.25)); return; }
+      if (m.t === "p" && num(m.x) && num(m.y)) { pAt = S.clock(); st.opp = plausibleFigure(st.opp, m, S.oppDt(Math.abs(m.x - st.opp.x), V.VMOVE * 1.25)); return; }
       if (m.t === "pt") { st.b = null; st.own = false; S.gain(); return; }
       if (m.t === "serve" && num(m.n)) { if (!same(m.b, mirrorX(volleyServe(S.seed, m.n)))) return S.reject(); st.b = copy(m.b); st.own = false; st.held = false; S.n = m.n + 1; return; }
       if (m.t === "hit" || m.t === "st" || m.t === "pass") {
         if (st.own) return;
-        if (!plausibleVolley(m.t, m.b, st.opp)) return S.reject();
+        var walked = pAt === null ? 0 : V.VMOVE * 1.25 * Math.min(STALL_MAX, Math.max(0, S.clock() - pAt - NET_P));   // measured here
+        if (!plausibleVolley(m.t, m.b, st.opp, walked)) return S.reject();
         st.b = copy(m.b); st.held = false;
         if (m.t === "pass") st.own = true; else if (m.t === "hit") S.fx("ohit", st.b.x, st.b.y, { v: speed(st.b) });
       }

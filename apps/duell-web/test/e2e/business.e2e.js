@@ -6,8 +6,11 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium, devices } = require("playwright");
+const G = require("./lib/grund.js");
 const root = path.resolve(__dirname, "../..");
-const page = "file://" + path.join(root, "dist/business/index.html");
+let page;
+// Web route (lib/grund.js): pages here are reloaded or a device opens several pages; under file:// such a page now and then starts with an empty storage of its own.
+test.before(async () => { page = await G.webUrl("business/index.html"); });
 const shot = process.env.SHOT_DIR;
 const hash = (u) => "#" + u.split("#")[1];
 ensureBuilt("business");   // dist as npm run test:e2e built it; a build only after an edit
@@ -111,11 +114,14 @@ async function firewalled(b, mode) {
   await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 600, downloadThroughput: 32 * 1024, uploadThroughput: 16 * 1024 });
   return { p, errs, asked };
 }
+// file:// on purpose: the app from its bundle in a company network (throttled, every host blocked); one document, the
+// second goto only changes the hash (lib/grund.js: the web route is for reloads and several pages).
+const FILE = "file://" + path.join(root, "dist/business/index.html");
 for (const mode of ["refuse", "drop"]) {
   test("Firmennetz (" + mode + "): Karten laufen ohne Netz, Webconference sagt in Sekunden, dass sie gesperrt ist", async () => {
     const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
     const { p, errs, asked } = await firewalled(b, mode);
-    const t0 = Date.now(); await p.goto(page); await p.locator("#go").waitFor();
+    const t0 = Date.now(); await p.goto(FILE); await p.locator("#go").waitFor();
     assert.ok(Date.now() - t0 < 5000, "Startseite haengt am Netz");
     assert.equal(await p.locator("#cogo").isVisible(), false); assert.equal(await p.locator("#livego").isVisible(), false);
     const t1 = Date.now();
@@ -127,7 +133,7 @@ for (const mode of ["refuse", "drop"]) {
     assert.ok(asked.every((u) => u.startsWith("https://webconference.bunsenbrenner.org/") || pic.test(u)), "nur der eine Tipp geht raus: " + asked.join(" "));
     assert.ok(asked.filter((u) => pic.test(u)).length <= 1, "hoechstens das eine Bild");
     if (shot && mode === "refuse") await p.screenshot({ path: shot + "/biz-blocked.png" });
-    await p.goto(page + "#i=biz-aufgaben"); await p.locator("#go").click();
+    await p.goto(FILE + "#i=biz-aufgaben"); await p.locator("#go").click();
     await type(p, "Umzug"); const f = p.locator("#panel input.field"); await f.nth(0).fill("Kisten"); await f.nth(1).fill("Transporter"); await next(p);
     assert.match(await send(p), /#c=/);
     assert.deepEqual(errs, []); await b.close();
@@ -153,6 +159,7 @@ async function phoneApi(b, api) {
   ctx.setDefaultTimeout(15000);
   await ctx.route(/^https?:/, async (r) => {
     const u = r.request().url();
+    if (G.isLocal(u)) return r.fallback();   // the page itself (web route)
     if (u.startsWith(API)) { const p0 = u.slice(API.length), body = JSON.parse(r.request().postData() || "null"); sent.push({ path: p0, body }); const a = api && api(p0, body); if (a) return r.fulfill({ status: a[0], contentType: "application/json", body: JSON.stringify(a[1]) }); }
     return r.abort();
   });
@@ -205,7 +212,7 @@ test("Onboarding: Startdatum + Rolle -> feste Checkliste mit Fristen; KI ergaenz
   assert.equal(await r.locator("#leaf .kiseal").isVisible(), true, "Empfaenger sieht 'KI'");
   await snap(r, "wb2-business-onboard-received");
   // without a server: the plan alone, no seal
-  await ctx.unroute(/^https?:/); await ctx.route(/^https?:/, (x) => x.abort());
+  await ctx.unroute(/^https?:/); await ctx.route(/^https?:/, (x) => (G.isLocal(x.request().url()) ? x.fallback() : x.abort()));
   const o = await open("#i=biz-onboarding"); await o.locator("#go").click();
   await o.getByRole("button", { name: "✨ Aufgaben für die Rolle ergänzen" }).click();
   await o.locator(".aistate").getByText("KI gerade nicht erreichbar. Nichts verbraucht.").waitFor();

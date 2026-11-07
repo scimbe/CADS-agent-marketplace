@@ -8,8 +8,11 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { chromium, devices } = require("playwright");
+const G = require("./lib/grund.js");
 const root = path.resolve(__dirname, "../..");
-const MAIN = "file://" + path.join(root, "dist/index.html"), BIZ = "file://" + path.join(root, "dist/business/index.html");
+// Web route (lib/grund.js): a device here opens several pages; under file:// such a page now and then starts with an empty storage of its own.
+let MAIN, BIZ;
+test.before(async () => { MAIN = await G.webUrl("index.html"); BIZ = await G.webUrl("business/index.html"); });
 const IMG = /^https:\/\/demos-34a13a96\.bunsenbrenner\.org\/duell\/img\/([a-z0-9-]+)\.jpg$/;
 const shot = process.env.SHOT_DIR, dir = process.env.THUMB_DIR;
 const GAMES = ["turn", "arcade", "game", "table", "duel"];
@@ -22,7 +25,7 @@ async function setup(server) {
   if (!fixture) { const p = await ctx.newPage(); await p.setContent('<body style="margin:0;background:linear-gradient(90deg,#ffd400,#ff3b1d)">'); await p.setViewportSize({ width: 320, height: 180 }); fixture = await p.screenshot({ type: "jpeg", quality: 70 }); await p.close(); }
   await ctx.route("**/*", (r) => {
     const u = r.request().url(), m = u.match(IMG);
-    if (u.startsWith("file:") || u.startsWith("data:") || u.startsWith("blob:")) return r.continue();
+    if (u.startsWith("file:") || u.startsWith("data:") || u.startsWith("blob:") || G.isLocal(u)) return r.continue();
     if (!m) return r.abort();
     asked.push({ id: m[1], cookie: r.request().headers().cookie || "" });
     if (server === "off") return r.abort("internetdisconnected");

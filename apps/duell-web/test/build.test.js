@@ -177,3 +177,20 @@ test("Build waehrend andere lesen: nie eine halbe Seite, nie ein fehlender Teil;
   assert.equal(E.ensureBuilt(""), false, "kein zweiter Build ohne Aenderung");
   assert.notEqual(E.stamp(""), E.stamp("business"), "jede Variante hat ihren Stempel");
 });
+// Under file:// Chromium now and then starts a reloaded page with an empty storage of its own (test/e2e/lib/grund.js):
+// a test that reloads a page, or loads it again after about:blank, does so over the web route. The scan reads every E2E
+// file test by test; a test passes when its file loads its pages from G.webUrl (and names no file:// page), when the test
+// itself asks for the web route (web: true, G.webUrl), or when a helper checks for it (ctx.web).
+test("E2E: Neuladen nur ueber die Web-Route, nie auf einer file://-Seite", () => {
+  const dir = path.join(__dirname, "e2e"), bad = [];
+  for (const f of fs.readdirSync(dir).filter((n) => n.endsWith(".e2e.js")).sort()) {
+    const code = fs.readFileSync(path.join(dir, f), "utf8").replace(/^\s*\/\/[^\n]*$/gm, "");
+    const fileWeb = /=\s*await G\.webUrl\(/.test(code) && !/"file:\/\/"/.test(code);
+    for (const b of code.split(/\n(?=\s*test\()/)) {
+      if (!/\.reload\(|\.goto\("about:blank"\)/.test(b)) continue;
+      const name = (b.match(/test\(\s*"([^"]+)/) || [null, "(Hilfsfunktionen)"])[1];
+      if (!(fileWeb || /web: true|G\.webUrl\(|ctx\.web\b/.test(b))) bad.push(f + ": " + name);
+    }
+  }
+  assert.deepEqual(bad, []);
+});
