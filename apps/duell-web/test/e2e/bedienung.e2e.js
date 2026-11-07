@@ -29,7 +29,8 @@ test("Gesperrter Hauptknopf: sichtbar gesperrt, Grund in aria-live, Tippen sprin
   assert.equal(await main.getAttribute("aria-disabled"), "true");
   assert.ok(await inView(p, "#edmain"), "Hauptknopf ohne Scrollen sichtbar bei 328x568");
   assert.equal(await p.locator("#panel").getByRole("button", { name: "Weiter", exact: true }).count(), 0, "kein zweites Weiter im Eingabefeld");
-  assert.equal(Number(await main.evaluate((e) => getComputedStyle(e).opacity)), 0.45);
+  // locked, but readable (editor E1, WCAG 1.4.3): full opacity, dashed frame on paper instead of a faded button
+  assert.equal(Number(await main.evaluate((e) => getComputedStyle(e).opacity)), 1); assert.equal(await main.evaluate((e) => getComputedStyle(e).borderStyle), "dashed");
   assert.equal(await main.evaluate((e) => getComputedStyle(e).cursor), "not-allowed");
   assert.equal(await p.locator("#edwhy").getAttribute("aria-live"), "polite");
   assert.match(await p.locator("#edwhy").textContent(), /^Noch offen: \S/);

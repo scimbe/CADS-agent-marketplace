@@ -29,8 +29,10 @@ for (const l of Object.keys(texts)) { voteTexts[l] = {}; for (const k of Object.
 require("../src/office.js"); require("../src/quizspiele.js");
 if (has("games.js")) require("../" + fl("games.js"));   // games only this flavor has (business: Secret Santa), before its catalog is filtered
 // Cards of the part turnzwei (src/turn2.js): their games go into the manifest, so the page loads the part only for them.
+// Mal & Rat (src/malrat.js) brings its game in a part of its own (malen), listed the same way.
 const coreGames = Object.keys(require("../src/turns.js").GAMES); require("../src/feier.js");
-const games = require("../src/turns.js").GAMES, twoGames = Object.keys(games).filter((g) => coreGames.indexOf(g) < 0), catalog = json(has("ideas.json") ? fl("ideas.json") : "src/ideas.json");
+const twoGames = Object.keys(require("../src/turns.js").GAMES).filter((g) => coreGames.indexOf(g) < 0); require("../src/malrat.js");
+const games = require("../src/turns.js").GAMES, malGames = Object.keys(games).filter((g) => coreGames.indexOf(g) < 0 && twoGames.indexOf(g) < 0), catalog = json(has("ideas.json") ? fl("ideas.json") : "src/ideas.json");
 if (flavor) catalog.ideas = catalog.ideas.filter((i) => !i.turn || games[i.turn.g]);
 // Pictures of the day's cards (AI-made, see src/thumbs.json): only the ids go in, the images stay on the gallery server.
 const thumbs = Object.keys(json(has("thumbs.json") ? fl("thumbs.json") : "src/thumbs.json").items);
@@ -56,7 +58,7 @@ for (const l of Object.keys(texts)) {
 const kontoTexts = partTexts.konto;
 const data = "window.DailyThumbs=" + JSON.stringify(thumbs) + ";" + (conf ? "window.DailyFlavor=" + JSON.stringify(conf) + ";" : "") + "window.DuellIdeas=" + JSON.stringify(index) + ";window.DailyTexts=" + JSON.stringify(coreTexts) + ";window.OfficeData=" + JSON.stringify(json("src/office.json")) + ";";
 const duelData = JSON.parse(read("src/duel.json"));
-const licenses = ["Anton-OFL.txt", "qrcode-generator-MIT.txt", "Kartendeck-CC0.txt"].map((f) => read("licenses/" + f)).join("\n\n");
+const licenses = ["Anton-OFL.txt", "qrcode-generator-MIT.txt", "Kartendeck-CC0.txt", "NotoEmoji-Apache-2.0.txt", "NotoEmoji-OFL.txt"].map((f) => read("licenses/" + f)).join("\n\n");
 // Further texts join DailyTexts language by language: whatever languages a file has (a new one is just a new block).
 const merge = (v) => "Object.keys(window." + v + ").forEach(function(l){window.DailyTexts[l]=Object.assign(window.DailyTexts[l]||{},window." + v + "[l]);});";
 // The quiz cards' facts (which example is phishing, the estimated prices) stay in the core, their texts go into the part quiz.
@@ -85,9 +87,17 @@ const PARTS = {
   konto: { d: [], src: ["KONTODATA", "PROFILE"] },                                                     // "Anmelden / Registrieren" in My style: account or sync code (src/profile.js)
   stil: { d: [], src: ["STILDATA", "STIL"] },                                                          // My style itself (src/stil.js); app.js openStyle asks for konto first
   melden: { d: [], src: ["MELDENDATA", "MELDEN"] },                                                    // the report dialog of a shared sheet (src/melden.js)
+  direkt: { d: [], src: ["DIREKTDATA", "EDITMODEL", "DIREKTUI"] },                                     // editor E1: one undo, stickers without dragging, layer list, description, plain language
+  regler: { d: [], src: ["REGLERDATA", "REGELN", "REGLERUI"] },                                        // the flight game's sliders in named steps
 };
 // The weather card's block (src/wetter.js); not built for a flavor whose catalog has no cards (Daily Business: turns only).
+// Stickers in the finished picture (src/noto.js, Noto Emoji sheet src/noto-stickers.png); only where cards and photo posters
+// carry stickers (not for Daily Business: turns only; app.js notoFor then makes the picture without, as before).
+if (catalog.ideas.some((i) => i.kind === "card" || i.kind === "photo")) PARTS.noto = { d: [], src: ["NOTODATA", "NOTO"] };
 if (catalog.ideas.some((i) => i.kind === "card")) PARTS.wetter = { d: [], src: ["WETTERDATA", "WETTER"] };
+// Mal & Rat: draw a word, the others guess (src/malrat.js, src/malrat-ui.js, words in src/malrat.json); only built when the
+// catalog has a card with its game (not in Daily Business).
+if (catalog.ideas.some((i) => i.turn && malGames.indexOf(i.turn.g) >= 0)) PARTS.malen = { d: ["katalog"], src: ["MALRATDATA", "MALRAT", "MALRATUI"] };
 // Thumbs on the sheet and the card numbers (src/stimme-ui.js, src/stat.js); not built for a flavor without them (stat: false).
 if (!(conf && conf.stat === false)) PARTS.stimme = { d: [], src: ["STIMMEDATA", "STAT", "STIMMEUI"] };
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
@@ -100,6 +110,10 @@ parts.KONTODATA = "window.KontoTexts=" + JSON.stringify(kontoTexts) + ";" + merg
 parts.STILDATA = "window.StilTexts=" + JSON.stringify(partTexts.stil) + ";" + merge("StilTexts"); parts.STIL = read("src/stil.js");
 parts.MELDENDATA = "window.MeldenTexts=" + JSON.stringify(partTexts.melden) + ";" + merge("MeldenTexts"); parts.MELDEN = read("src/melden.js");
 if (PARTS.wetter) { parts.WETTERDATA = "window.WetterTexts=" + JSON.stringify(partTexts.wetter) + ";" + merge("WetterTexts"); parts.WETTER = read("src/wetter.js"); }
+parts.DIREKTDATA = "window.DirektData=" + JSON.stringify(json("src/direkt.json")) + ";" + merge("DirektData.texts"); parts.EDITMODEL = read("src/editmodel.js"); parts.DIREKTUI = read("src/direkt-ui.js");
+parts.REGLERDATA = "window.ReglerTexts=" + JSON.stringify(json("src/regler.json")) + ";" + merge("ReglerTexts"); parts.REGELN = read("src/regeln.js"); parts.REGLERUI = read("src/regler-ui.js");
+if (PARTS.malen) { parts.MALRATDATA = "window.MalratData=" + JSON.stringify(json("src/malrat.json")) + ";"; parts.MALRAT = read("src/malrat.js"); parts.MALRATUI = read("src/malrat-ui.js"); }
+parts.NOTODATA = "window.NotoData=\"" + fs.readFileSync(path.join(root, "src/noto-stickers.png")).toString("base64") + "\";"; parts.NOTO = read("src/noto.js");
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
 parts.TEXTE = read("src/texte.js");
 parts.CREATEUI = "window.CreateTexts=" + JSON.stringify(createTexts) + ";" + merge("CreateTexts") + "\n;\n" + read("src/create-ui.js");
@@ -116,7 +130,7 @@ let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + 
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
 // code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
-const KEEP = new Set(["DATA", "STIMMEDATA", "FEIERDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA"]);
+const KEEP = new Set(["DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "NOTODATA"]);
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "")).join("\n");
 const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));
@@ -138,6 +152,7 @@ for (const name of Object.keys(PARTS)) {
   put(file, body);
   manifest[name] = { f: file, h: "sha384-" + crypto.createHash("sha384").update(body).digest("base64"), d: PARTS[name].d };
   if (name === "turnzwei") manifest[name].g = twoGames;
+  if (name === "malen") manifest[name].g = malGames;
   partBytes += Buffer.byteLength(body);
   console.log(path.dirname(out) + "/" + file, Buffer.byteLength(body), "bytes");
 }

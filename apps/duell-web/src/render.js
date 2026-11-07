@@ -57,13 +57,17 @@
     for (var i = 0; i < 14; i++) { c.rotate(6.2832 / 14); c.beginPath(); c.moveTo(0, 0); c.lineTo(H * 1.2, -H * 0.13); c.lineTo(H * 1.2, H * 0.13); c.fill(); }
     c.restore();
   }
-  function stickers(c, W, H, list) {
-    if (Render.exporting) return;      // system emoji glyphs are not ours to publish in a picture
+  // noto: the part's drawings (src/noto.js). System emoji glyphs are not ours to publish in a picture: the export draws a
+  // sticker only from Noto Emoji, a sticker without one (no part, an emoji the sheet lacks) stays out, circle and all.
+  function stickers(c, W, H, list, noto) {
     (list || []).forEach(function (s) {
+      if (Render.exporting && !(noto && noto.has(s.e))) return;
       var r = W * 0.1 * s.z;
       c.save(); c.translate(s.x * W, s.y * H); c.rotate(s.r);
       c.fillStyle = "#fff"; c.strokeStyle = "#111"; c.lineWidth = W * 0.006; c.beginPath(); c.arc(0, 0, r, 0, 6.3); c.fill(); c.stroke();
-      c.font = r * 1.25 + "px " + EMO; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#000"; c.fillText(s.e, 0, r * 0.06);
+      // -0.09 r: where the system glyph lands with textBaseline "middle" and r * 0.06 (measured, Apple Color Emoji: 0.09-0.1 r up)
+      if (Render.exporting) noto.draw(c, s.e, 0, -r * 0.09, r * 1.25);
+      else { c.font = r * 1.25 + "px " + EMO; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#000"; c.fillText(s.e, 0, r * 0.06); }
       c.restore();
     });
   }
@@ -228,7 +232,7 @@
     if (doc.k === "card") { drawCard(c, W, H, doc); if (doc.nr) doorBadge(c, W, H, doc.nr, doc.col[0], doc.col[1]); }
     else if (doc.k === "photo") drawPhoto(c, W, H, doc, opt.photo);
     else if (doc.k === "sound") drawSound(c, W, H, doc, opt.peaks, opt.lyr);
-    stickers(c, W, H, doc.sk);
+    stickers(c, W, H, doc.sk, opt.noto);
     weather(c, W, H, doc.w);          // last: stickers must never cover the source line
     credit(c, W, H, doc, me, doc.k === "card" && (doc.st === "neon" || doc.st === "advent") ? "#fff" : (doc.k === "photo" && doc.st !== "sticker" ? "#fff" : ink(doc.k === "card" && doc.st === "zettel" ? doc.col[1] : doc.col[0])));
   }

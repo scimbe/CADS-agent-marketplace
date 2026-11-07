@@ -182,7 +182,8 @@ test("Befund 2: eigene Aenderungen (Regler, Figur, Welt, Name) nehmen das KI-Zei
   const keep = async () => { await p.getByRole("tab", { name: "✨ Wunsch" }).tap(); await build(p); await p.getByRole("button", { name: "✓ Übernehmen" }).tap(); assert.deepEqual((await doc()).ki, { k: "welt", s: SEAL, h: HASH }); };
   await keep();
   await p.getByRole("tab", { name: "Regeln" }).tap();
-  await p.locator("#panel input[type=range]").first().evaluate((r) => { r.value = "900"; r.dispatchEvent(new Event("input", { bubbles: true })); });
+  // the lowest step: 0 on the named slider (part regler), 900 on the core's number slider; both mean gravity 900
+  await p.locator("#panel input[type=range]").first().evaluate((r) => { r.value = r.max === "4" ? "0" : "900"; r.dispatchEvent(new Event("input", { bubbles: true })); });
   assert.equal((await doc()).g.params.gravity, 900); assert.equal((await doc()).ki, undefined, "Regler");
   assert.ok((await doc()).g.route, "die Strecke bleibt, nur das Zeichen geht");
   await keep();
