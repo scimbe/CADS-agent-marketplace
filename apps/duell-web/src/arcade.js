@@ -404,7 +404,7 @@
     return kind !== "hit" || Math.hypot(b.x - opp.x, b.y - opp.y) <= V.BR + V.PRAD + 260 + (slack || 0);
   }
   function volleySide(o) {
-    var V = VOLLEY, S = base(V, o), aim = 250, jump = false, ground = V.FY - V.PRAD, pAt = null, path = [], fxSeen = false;
+    var V = VOLLEY, S = base(V, o), aim = 250, jump = false, ground = V.FY - V.PRAD, pAt = null, path = [], fxSeen = false, forged = 0, waitServe = null;
     var until = num(o.oldUntil) ? o.oldUntil : OLD_UNTIL;   // o.oldUntil, o.date: a test sets the end of the period and the day
     var oldOk = until === null || (num(o.date) ? o.date : Date.now()) < until;
     function lax() { return oldOk && !fxSeen && !gtSeen; }   // the other one may be an older app
@@ -418,6 +418,41 @@
         if (Math.abs(q.x - b.x) <= dPos && Math.abs(q.y - b.y) <= dPos && (dVel === null || (Math.abs(q.vx - b.vx) <= dVel && Math.abs(q.vy - b.vy) <= dVel))) return true;
       }
       return false;
+    }
+    // A state from over there that cannot be. This phone rules on what it found itself, and on nothing else:
+    // - the rally: where its own physics lets the ball land without that state (pre: the flight before a hit that only
+    //   the next report showed up). In the other half it is this phone's point; coming over the net it could still
+    //   have been played here, so nobody scores. Either way the other side serves again; "award" tells it so.
+    // - the game: at the third such state, or when no serve comes within 8 s after one, it counts for this side.
+    // What the other phone sends about this can never count against this one (see receive): honest play never
+    // gets here, not with stalls of 0-6 s, a phone that hangs, or real frame times (tests).
+    function forged1(pre) {
+      var st = S.st, fl = pre || path; S.reject(); forged++; S.forged = forged; pend = null;
+      // An older app (no gt, no fx) knows neither "award" nor "forfeit": without a rule both sides share, this side never
+      // books anything for itself; the game ends without a winner.
+      if (!gtSeen && !fxSeen) { st.b = null; S.over = true; S.ending = false; S.serveAt = 0; waitServe = null; S.draw = false; S.voided = true; S.fx("draw", W / 2, H / 2); return; }
+      if (forged >= 3) { forfeit(); return; }
+      var land = null; for (var i = 0; i < fl.length; i++) if (fl[i].y + V.BR >= V.FY) { land = fl[i]; break; }
+      var mine = !!land && land.x > V.NX;
+      S.send({ t: "award", w: mine ? 1 : 0 }); st.b = null; st.own = false; st.held = false; S.serveAt = 0; waitServe = S.clock();
+      if (mine) S.gain();
+    }
+    function forfeit() {   // counts for this side: it found the other one's moves did not fit together
+      S.send({ t: "forfeit" });
+      S.st.b = null; S.forfeit = "me"; S.endBy = "rule"; S.draw = false; S.over = true; S.ending = false; S.serveAt = 0; waitServe = null;
+      S.fx("won", W / 2, H / 2);
+    }
+    // The other phone ended the game ("forfeit" or "void"): that can never make this side lose. Ahead, it counts for
+    // this side as if the other one had left; otherwise the game ends without a winner.
+    function endedThere() {
+      S.st.b = null; S.over = true; S.ending = false; S.serveAt = 0; waitServe = null; S.draw = false;
+      if (S.score[0] > S.score[1]) { S.forfeit = "me"; S.endBy = "left"; S.fx("won", W / 2, H / 2); }
+      else { S.voided = true; S.fx("draw", W / 2, H / 2); }
+    }
+    // Where a ball flown on here lands with nobody touching it: true if in this side's own half.
+    function landsHere(b) {
+      var q = copy(b); for (var i = 0; i < 120 * 10 && q.y + V.BR < V.FY; i++) volleyStep(q, STEP);
+      return q.x < V.NX;
     }
     // A hit from over there has to be one a figure could make, the same with or without the touching figure sent along:
     // the ball before it lies on the free flight worked out here (q), the ball after it sits right on the figure's
@@ -511,6 +546,7 @@
     function serve() { var st = S.st; st.b = volleyServe(S.seed, S.n); st.own = true; st.held = false; S.send({ t: "serve", n: S.n, b: mirrorX(st.b) }); S.n++; S.serveAt = 0; S.fx("serve", st.b.x, st.b.y); }
     S.tick = function (dt) {
       var st = S.st;
+      if (waitServe !== null && !S.over && S.clock() - waitServe > 8) { waitServe = null; forfeit(); }   // no serve after an award: it counts for this side
       loop(S, dt, function (d) {
         if (volleyMove(st.me, aim, jump, d)) S.fx("land", st.me.x, V.FY);
         if (jump && st.me.vy < 0) S.fx("jump", st.me.x, V.FY);
@@ -551,38 +587,52 @@
           var g = gtime(m), px = clamp(m.x, V.NX + V.NW + V.PRAD, W - V.PRAD), py = clamp(m.y, ground - 340, ground);
           // from its last report, or from where it touched the ball since, in the game time between
           if (trk && !walkable(trk, px, py, g)) {   // faster than a figure: kept where it could have got to
-            S.reject(); var t = g - trk.g;
+            var hit = trk.hit, t = g - trk.g;
             px = clamp(px, trk.x - V.FIG * t, trk.x + V.FIG * t); py = clamp(py, trk.y - (V.JUMP + 30) * t, trk.y + (V.JUMP + 30) * t);
+            trk = { x: px, y: py, g: g };
+            if (hit && hit.n === S.n && waitServe === null) forged1(hit.pre); else S.reject();   // it could not have made that hit
+            return;
           }
           trk = { x: px, y: py, g: g };
-        } else if (!laterFits(st.opp)) S.reject();
+        } else { var P = pend; if (!laterFits(st.opp)) { if (P && P.n === S.n && waitServe === null) forged1(P.path); else S.reject(); } }
         return;
       }
-      if (m.t === "pt") { st.b = null; st.own = false; S.gain(); return; }
-      if (m.t === "serve" && num(m.n)) { if (!same(m.b, mirrorX(volleyServe(S.seed, m.n)))) return S.reject(); st.b = copy(m.b); st.own = false; st.held = false; S.n = m.n + 1; keep(st.b); return; }
+      if (m.t === "pt") { if (waitServe !== null) return; st.b = null; st.own = false; S.gain(); return; }   // after an award that rally is ruled on
+      if (m.t === "void" || m.t === "forfeit") { endedThere(); return; }
+      if (m.t === "award") {
+        // Taken only where it can help this side: its own ball would land in its own half, so the rally is lost here
+        // anyway, and serving again costs nothing. No point is ever booked against this side for it.
+        if (waitServe === null && st.own && st.b && landsHere(st.b)) { st.b = null; st.own = false; st.held = false; S.serveAt = S.t + SERVE_PAUSE; }
+        return;
+      }
+      if (m.t === "serve" && num(m.n)) {
+        // only when a serve from over there is due: no ball in play here and none to serve here, and never an old one
+        if (st.b || S.serveAt || m.n < S.n || !same(m.b, mirrorX(volleyServe(S.seed, m.n)))) return S.reject();
+        waitServe = null; st.b = copy(m.b); st.own = false; st.held = false; S.n = m.n + 1; keep(st.b); return;
+      }
       if (m.t === "hit" || m.t === "st" || m.t === "pass") {
-        if (st.own) return;
+        if (st.own || waitServe !== null) return;   // after an award: what was still on its way from that rally does not count
         // How far the figure may have got since its report: only after a real gap in all arrivals (a stall of the network
         // or a phone that hung), measured here; a sender that only holds back its reports gains nothing.
         var walked = Math.hypot(lax() ? V.FIG_OLD : V.FIG, V.JUMP) * 1.25 * S.gap();
-        if (!plausibleVolley(m.t, m.b, st.opp, walked)) return S.reject();
+        if (!plausibleVolley(m.t, m.b, st.opp, walked)) return forged1();
         if (path.length && body(m.b)) {
           if (m.t === "hit") {
             // contact: the ball near its path (the bump only pushes it out a little) and at the reported figure
             // in reach: walking and jumping in the time from its last report to the hit, and what a stall measured here adds
             var F = num(m.fx) && num(m.fy) ? { x: m.fx, y: m.fy } : null; if (F) fxSeen = true;
-            if ((!F && fxSeen) || (gtSeen && !num(m.gt))) return S.reject();   // an app that once told where (and when) it touched always does
+            if ((!F && fxSeen) || (gtSeen && !num(m.gt))) return forged1();   // an app that once told where (and when) it touched always does
             if (F && num(m.gt) && trk) {
               // where and when it touched: walkable from its last report, the ball right at it, and on to its next report
               var gh = gtime(m);
-              if (!walkable(trk, F.x, F.y, gh) || !hitFits(m.b, F, F, 3, 3, false, path)) return S.reject();
-              trk = { x: F.x, y: F.y, g: gh };
+              if (!walkable(trk, F.x, F.y, gh) || !hitFits(m.b, F, F, 3, 3, false, path)) return forged1();
+              trk = { x: F.x, y: F.y, g: gh, hit: { pre: path, n: S.n } };
             } else {
               var wk = lax() ? walked + OLD_SLACK : 0, vx0 = lax() ? V.FIG_OLD : V.FIG, H = { b: copy(m.b), F: F, from: { x: st.opp.x, y: st.opp.y }, rx: vx0 * HIT_T + 2 + wk, ry: V.JUMP * HIT_T + 2 + wk, laxA: !F && lax(), path: path };
-              if (!hitFits(H.b, H.F, H.from, H.rx, H.ry, H.laxA, H.path)) return S.reject();
+              if (!hitFits(H.b, H.F, H.from, H.rx, H.ry, H.laxA, H.path)) return forged1();
               if (!pend) pend = H;   // a hit right after a hit: the first one counts
             }
-          } else if (!along(m.b, 40, 45) && !(lax() && path.near !== undefined && along(m.b, OLD_NET, null, path.near))) return S.reject();   // free flight: on the path, at its speed (an older app's bounce off the net depends on its frame rate: from where the flight comes near the net only near the path)
+          } else if (!along(m.b, 40, 45) && !(lax() && path.near !== undefined && along(m.b, OLD_NET, null, path.near))) return forged1();   // free flight: on the path, at its speed (an older app's bounce off the net depends on its frame rate: from where the flight comes near the net only near the path)
         }
         st.b = copy(m.b); st.held = false; keep(st.b);
         if (m.t === "pass") st.own = true; else if (m.t === "hit") S.fx("ohit", st.b.x, st.b.y, { v: speed(st.b) });
