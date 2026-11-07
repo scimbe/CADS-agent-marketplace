@@ -37,11 +37,14 @@ test("Rechtsseiten: freie Karte – Anthropic USA, ab 16, Guthaben, Melden, Sper
   const de = (p) => JSON.stringify(L.de[p]), en = (p) => JSON.stringify(L.en[p]);
   for (const s of ["Anthropic", "USA", "ab 16", "{anthropicTransfer}", "Auftragsverarbeiter", "Guthaben", "Meldest du eine Karte", "183 Tage"]) assert.ok(de("datenschutz").includes(s), "Datenschutz: " + s);
   for (const s of ["Anthropic", "USA", "16 and over", "{anthropicTransferEn}", "processor", "credit", "report a card", "183-day"]) assert.ok(en("datenschutz").includes(s), "privacy: " + s);
-  for (const s of ["ab 16", "Guthaben", "keinen Geldwert", "„Melden“", "pausiert", "Sperre", "Art. 17 DSA", "Art. 20 DSA", "183 Tagen"]) assert.ok(de("agb").includes(s), "AGB: " + s);
-  for (const s of ["from 16", "credit", "no monetary value", "“Report”", "paused", "block", "Art. 17 DSA", "Art. 20 DSA", "183 days"]) assert.ok(en("agb").includes(s), "terms: " + s);
+  for (const s of ["ab 16", "Guthaben", "keinen Geldwert", "„Melden“", "Pause", "Sperre", "nur ein Mensch nach Prüfung", "nur für echte Nutzung", "ändern nur die Reihenfolge", "Art. 17 DSA", "Art. 20 DSA", "183 Tagen"]) assert.ok(de("agb").includes(s), "AGB: " + s);
+  for (const s of ["from 16", "credit", "no monetary value", "“Report”", "pause", "block", "Only a human decides, after review", "only for real use", "only change the order", "Art. 17 DSA", "Art. 20 DSA", "183 days"]) assert.ok(en("agb").includes(s), "terms: " + s);
   // the old sentences that the free card would make wrong are narrowed, not left as they were
   assert.ok(!de("datenschutz").includes("Daten gehen nicht in Länder außerhalb der EU bzw. des EWR, außer wenn du selbst über einen Messenger teilst.\""), "Drittland-Satz eingeschraenkt");
   assert.ok(de("datenschutz").includes("Außerhalb der freien Karte gibt es keine automatisierte Entscheidung"));
+  // operator 08.11.: no automatic account sanction, no credit for reach
+  for (const s of ["automatisch pausiert", "sperren wir sofort, auch automatisch", "100 verschiedenen Konten"]) assert.ok(!de("agb").includes(s), "AGB ohne: " + s);
+  for (const s of ["paused automatically", "block at once, also automatically", "100 different accounts"]) assert.ok(!en("agb").includes(s), "terms without: " + s);
   // the transfer basis is the operator's: a placeholder until filled, and its own confirmation
   assert.ok(Legal.missing(OP).includes("anthropicTransfer") && Legal.missing(OP).includes("bestaetigt.anthropic"));
   const filled = Legal.html(L, FILLED, "datenschutz", "de", []);
