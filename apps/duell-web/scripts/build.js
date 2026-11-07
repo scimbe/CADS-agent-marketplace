@@ -19,7 +19,7 @@ if (flavor && !has("flavor.json")) throw new Error("Unbekannter Flavor: " + flav
 const over = (base, f) => { if (has(f)) { const o = json(fl(f)); for (const l of Object.keys(o)) Object.assign(base[l], o[l]); } return base; };
 const conf = flavor ? json(fl("flavor.json")) : null, texts = over(json("src/texts.json"), "texts.json"), turnData = json("src/turn.json");
 // The words of the community deck (deck_, mod_, credit_) travel in the part deck; the core keeps the two it shows itself.
-const DECK_CORE = ["deck_open", "deck_revoked", "deck_gone", "deck_nocheck"], deckTexts = {};
+const DECK_CORE = [], deckTexts = {};
 for (const l of Object.keys(texts)) for (const k of Object.keys(texts[l])) if (/^(deck|mod|credit)_/.test(k) && DECK_CORE.indexOf(k) < 0) { (deckTexts[l] = deckTexts[l] || {})[k] = texts[l][k]; delete texts[l][k]; }
 over(turnData.text, "turn.json");
 // The texts of the free card travel with its part; the core keeps only the tile's two (create_tile, create_sub).

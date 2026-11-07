@@ -134,14 +134,23 @@
   }
   // An open free card (sheet or game) asks again at the next tap once its "ok" is older than 30 s; blocked: it closes.
   // still on screen and not "ok": the app closes it (DailyApp.gone: the day's sheet with the line, no content)
-  function shut(d, s) { var a = A(), h = a && a.home(); if (s !== "ok" && h && h.doc === d) a.gone(s); }
+  function shut(d, s) { var a = A(), h = a && a.home(); if (s !== "ok" && h && h.doc === d) gone(s); }
+  function free(d) { return !!(d && (d.fr || (d.ki && d.ki.k === "karte"))); }
+  // Blocked or unknown: the day's sheet with a friendly line, never the card's content.
+  function gone(s) { var n = t(s === "blocked" ? "deck_gone" : "deck_nocheck"), d = new Date(); A().sheet({ date: d, idea: D.ideaForDay(d), note: n, noteOf: function () { return n; } }); Kit.toast(n); }
+  // The app's route asks here before it shows a free card from a link: true = wait for the server, then go() or gone().
+  function gate(doc, go) {
+    if (!free(doc) || ok(doc)) return false;
+    check(doc).then(function (s) { if (s === "ok") go(); else gone(s); });
+    return true;
+  }
   function again() {
     var h = A() && A().home(), d = h && h.doc;
-    if (!d || !(d.fr || (d.ki && d.ki.k === "karte")) || ok(d) || asking) return;
+    if (!free(d) || ok(d) || asking) return;
     asking = check(d).then(function (s) { asking = null; shut(d, s); });
   }
   function seen(doc, badge) {
-    if ((doc.fr || (doc.ki && doc.ki.k === "karte")) && !ok(doc)) check(doc).then(function (s) { shut(doc, s); });
+    if (free(doc) && !ok(doc)) check(doc).then(function (s) { shut(doc, s); });
     if (badge && revoked(doc)) { badge.hidden = false; badge.textContent = t("deck_revoked"); badge.title = t("deck_revoked"); badge.setAttribute("aria-label", t("deck_revoked")); }
     var cid = cidOf(doc);
     if (cur && cur.cid === cid) return;
@@ -185,7 +194,7 @@
       th.setAttribute("aria-label", t(x[2])); r.appendChild(th);
     });
     // Report stays on every row, as visible as the thumbs and next to them, with or without a thumb (operator 08.11.).
-    var rp = el("button", "chip", "⚑", function () { Kit.sfx.tap(); open(e); A().report(); });
+    var rp = el("button", "chip", "⚑", function () { Kit.sfx.tap(); open(e); var kr = document.getElementById("kireport"); if (kr && !kr.hidden && !kr.disabled) kr.click(); });
     rp.setAttribute("aria-label", t("deck_report")); rp.title = t("deck_report"); r.appendChild(rp);
     list.appendChild(r);
   }
@@ -274,5 +283,7 @@
     });
   }
   load();
-  root.Deck = { ok: ok, check: check, load: load, list: function () { return deck.cards.slice(); }, version: function () { return deck.v; }, search: search, hits: hits, revoked: revoked, seen: seen, vote: vote, open: open, shelf: shelf, cidOf: cidOf, _sane: sane, _canonical: canonical };
+  // The button under "Vergangene" (app.js openPast); the deck itself loads for the search there.
+  function btn(box) { load(); box.appendChild(el("button", "btn", t("deck_open"), function () { Kit.sfx.tap(); shelf(); })); }
+  root.Deck = { ok: ok, check: check, gate: gate, btn: btn, load: load, list: function () { return deck.cards.slice(); }, version: function () { return deck.v; }, search: search, hits: hits, revoked: revoked, seen: seen, vote: vote, open: open, shelf: shelf, cidOf: cidOf, _sane: sane, _canonical: canonical };
 })(window);

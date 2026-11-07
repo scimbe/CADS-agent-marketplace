@@ -145,9 +145,16 @@ test("Registrierungs-API (turnzwei, logik): je Art ein Name nur einmal, nur guel
 // A build without the deck part (business: no free card) keeps window.Deck, and every call is quiet: no script, no toast.
 test("ohne Teil deck im Manifest: Deck-Namen bleiben, laden nichts, kein Hinweis auf dem Schirm", async () => {
   const { w, added } = page("https://bunsenbrenner.org/business/");
-  for (const m of ["shelf", "open", "vote", "load"]) w.Deck[m]();
+  for (const m of ["shelf", "load", "btn"]) w.Deck[m]({});
   w.Deck.seen({ ki: { k: "karte" } }, {});
-  assert.equal(w.Deck.search("x").length, 0); assert.equal(w.Deck.revoked({}), false);
+  assert.equal(w.Deck.hits("x", {}), 0);
+  assert.equal(w.Deck.gate({ k: "card", x: "x" }, () => {}), false, "an ordinary card opens as before");
   await new Promise((r) => setImmediate(r));
   assert.equal(added.length, 0); assert.equal(w.toasts.length, 0);
+  // a free card's link without the part: it stays closed (fail closed), with the part's line
+  let went = 0;
+  assert.equal(w.Deck.gate({ k: "card", x: "x", ki: { k: "karte", s: "s2.x", h: "H".repeat(43) } }, () => { went++; }), true);
+  assert.equal(w.Deck.gate({ k: "card", x: "x", fr: "F".repeat(22) }, () => { went++; }), true, "a remix too");
+  await new Promise((r) => setImmediate(r));
+  assert.equal(went, 0); assert.equal(added.length, 0);
 });
