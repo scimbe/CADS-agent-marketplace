@@ -74,6 +74,9 @@ test("Ehrlich: kein \"Kein Server speichert etwas\" ohne Einschraenkung, ausser 
   for (const l of ["de", "en"]) {
     assert.match(TEXTS[l].vote_wsw, l === "de" ? /geteilt .*und geöffnet.*ohne Namen.*IP-Adresse.*Daumen.*pseudonym.*Konto.*Statistik aus/ : /shared .*and opened.*without names.*IP address.*thumb.*pseudonym.*account.*statistics off/);
     assert.ok(TEXTS[l].vote_off && TEXTS[l].set_stat && TEXTS[l].set_statnote, l);
+    // every sentence on what is counted names the changed areas that go with a share (src/stat.js share: w)
+    for (const k of Object.keys(TEXTS[l]).filter((x) => /(gezählt|counted)/i.test(TEXTS[l][x]) && /(geteilt|shared)/i.test(TEXTS[l][x])))
+      assert.match(TEXTS[l][k], l === "de" ? /geteilt \(mit den geänderten Bereichen/ : /shared \(with the changed areas/, l + "." + k);
     assert.match(TEXTS[l].vote_wsw, l === "de" ? /geänderten Bereichen, ohne Inhalt.*IP-Adresse und Uhrzeit.*KI- oder Regler-Welt/ : /changed areas, no content.*IP address and time.*AI or slider world/);
     // /api/duell/ai/interest keeps nothing (wrapper lib/duell-ai.mjs: it only answers the meter)
     assert.doesNotMatch(TEXTS[l].aiWantNote + TEXTS[l].aiNoted, /anonym|notiert|noted/i, l);
