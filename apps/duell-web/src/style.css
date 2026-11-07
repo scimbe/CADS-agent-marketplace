@@ -91,15 +91,20 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 /* with a picture the sheet is picture + title: the picture keeps its 16:9 height, the title takes the rest (no empty bands) */
 .pv.pic{flex:0 0 auto;margin-top:10px}
 .pv.pic:not([hidden]) ~ .hero{flex:1 1 auto}
-/* something received: its drawn card stays, the picture goes above it */
-.pv.pic.with{flex:1 1 auto;flex-direction:column;gap:8px;padding:0 6px 4px 0}
-.pv.pic.with canvas:not([hidden]){display:block;flex:1 1 0;min-height:0;height:auto}
-.pv.pic.with .pvimg{order:-1;flex:none;width:auto;max-width:100%;height:36%;box-shadow:3px 4px 0 var(--ink)}
+/* E1.5: the live card has the sheet, the AI picture a thumbnail (.swap) */
+.pv.pic.live{position:relative;flex:1 1 0;min-height:0;flex-direction:column;padding:0 6px 4px 0}
+.pv.pic.live canvas:not([hidden]),.pv.tight.peek canvas:not([hidden]){display:block!important;flex:1 1 0;min-height:0;height:auto}
+.pv.pic.live .pvimg{position:absolute;right:2px;top:0;border:0;outline:3px solid var(--ink);width:auto;height:clamp(44px,26%,72px);box-shadow:3px 4px 0 var(--ink)}
+.pv.pic.swap .pvimg{position:static!important;width:100%!important;height:auto!important}.pv.pic.swap canvas:not([hidden]){display:none!important}
 .pv.pic.with ~ .hero{flex:0 0 auto}
-/* editor: the picture above the card */
+.pv.tight:not(.peek){display:none!important}#pvpeek{position:absolute;right:14px;bottom:12px;z-index:7;min-height:44px;margin:0}#leaf:has(#pvpeek:not([hidden])):not(:has(.votes:not([hidden]))){padding-bottom:62px}
+.pv.tight.peek{display:flex!important;position:absolute!important;inset:10px!important;z-index:6;margin:0;padding:8px!important;background:var(--paper);border:3px solid var(--ink);flex-direction:column}
+.pv.tight.peek .pvimg{display:none!important}#home.mehr .pv.pic:not(.with) ~ .hero{flex:1 1 0;min-height:64px}
+/* editor: the picture above the card (E1.5 with the part direkt: a thumbnail beside it) */
 #stagewrap.pic{flex-direction:column;gap:10px}
 #stagewrap.pic .pvimg{display:block;flex:none;width:auto;height:30%;max-width:100%;box-shadow:4px 5px 0 var(--ink)}
 #stagewrap.pic #stage{flex:1 1 0;min-height:0;height:auto}
+.thumb{cursor:pointer}.thumb:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
 .kitag{position:absolute;right:6px;bottom:6px;padding:3px 7px;border-radius:5px;background:#111;color:#fff;font:700 12px/1.2 var(--ui);letter-spacing:.3px}
 .pv:not([hidden]) ~ .hero{flex:0 0 84px}
 .hero[hidden]{display:none}
@@ -113,7 +118,7 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .pv.pic:not(.with):not([hidden]) ~ .hero{flex:1 1 0;min-height:64px}
 @container (max-height:250px){
   .pv:not(.with){display:none}.pv:not([hidden]) ~ .hero,.pv.pic:not(.with):not([hidden]) ~ .hero{flex:1 1 0;min-height:0}
-  .pv.pic.with .pvimg{display:none}   /* something received keeps its drawn card, the picture goes */
+  .pv.pic.live:not([hidden]){display:flex}#home .pv.pic.live:not([hidden]) ~ .hero{flex:1 1 0;min-height:0}
   .teaser{margin-top:2px;font-size:.94rem}
 }
 @container (max-height:140px){.dateline,.teaser,.from{display:none}}   /* the title (or a received card) says more than the date */
@@ -150,7 +155,7 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .sw.on{box-shadow:0 0 0 3px var(--paper),0 0 0 6px var(--ink)}
 .sw i{position:absolute;inset:0 0 50% 0}
 input[type=color]{width:64px;height:44px;border:3px solid var(--ink);border-radius:4px;padding:0;background:#fff}
-.slide{display:grid;grid-template-columns:62px 1fr 42px;align-items:center;gap:6px;min-height:44px;font-size:.81rem}
+.slide{display:grid;grid-template-columns:62px 1fr auto;align-items:center;gap:6px;min-height:44px;font-size:.81rem}
 .slide input{width:100%;accent-color:#111;height:44px;margin:0}
 .slide b{text-align:right;font-variant-numeric:tabular-nums}
 .grid{display:grid;grid-template-columns:30px repeat(4,1fr);gap:4px;margin-bottom:6px}
@@ -404,7 +409,7 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .chip[aria-pressed=true]{outline:3px solid var(--ink);outline-offset:1px}
 .txvor{flex-basis:100%;margin:6px 0 2px}
 .votes{flex:none;display:flex;gap:6px;margin-top:4px;min-height:44px;align-self:flex-start;position:relative;z-index:3}.votes[hidden]{display:none}
-@container (max-height:140px){#leaf.got .votes{position:absolute;top:4px;right:8px;margin:0}}@container (max-height:40px){.votes{display:none}}
+@container (max-height:140px){#leaf.got .votes{position:absolute;top:4px;right:8px;margin:0}#pvpeek{left:14px;right:auto}}@container (max-height:40px){.votes{display:none}}
 .chip[aria-pressed],.bcell[aria-pressed]{position:relative}.chip[aria-pressed=true]::before,.bcell[aria-pressed=true]::before{content:"✓"/"";position:absolute;top:0;left:3px;font-size:.75rem}
 #editor:has(.timed) #stagewrap{display:none}
 .ring{background:conic-gradient(var(--b) calc(var(--p,0)*1turn),#fff 0)}
