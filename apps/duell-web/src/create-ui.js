@@ -103,7 +103,7 @@
             var d = JSON.parse(JSON.stringify(doc)); d.ki = { k: "karte", s: ki.s, h: ki.h };
             // first the receipt is settled as taken (ai.js, in the promise's then), only then the editor: openEditor drops every
             // receipt still open, and this one would be given back instead of booked
-            done(true); setTimeout(function () { A.openEditor(d, { own: true }); }, 0);
+            done(true); setTimeout(function () { A.openEditor(d, { own: true, made: true }); }, 0);
           }));
           row.appendChild(el("button", "btn", t("create_drop"), function () {
             Kit.sfx.tap(); res.textContent = ""; var was = state.meter ? state.meter.remaining : 0;

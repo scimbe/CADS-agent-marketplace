@@ -77,6 +77,10 @@ test("Mit Konto: Alter 16-17, ein Satz, Vorschau mit Badge, Uebernehmen -> Edito
   // h: the page hashes the option itself (ai.js optionHash), the same rule as the server's seal
   const h = await require("../../src/ai.js").optionHash(OPT, require("node:crypto").webcrypto.subtle);
   assert.equal(doc.x, DOC.x); assert.deepEqual(doc.ki, { k: "karte", s: SEAL, h });
+  // a free card is whole as it comes: "Fertig" is not locked behind "Erst was ändern"
+  await p.locator("#edmain").waitFor();
+  assert.equal(await p.locator("#edmain").getAttribute("aria-disabled"), "false");
+  assert.equal(await p.locator("#edwhy").textContent(), "");
   assert.deepEqual(errs, []);
 });
 
