@@ -130,3 +130,33 @@ test("Web: Mein Stil und KI melden bei blockiertem Teil: Hinweis statt Fehler, d
   assert.deepEqual(errs, []);
   } finally { await b.close(); srv.close(); }
 });
+
+// konto hangs (no answer, no abort), stil comes after 1.5 s: My style opens anyway, konto's script still before stil's.
+// The weather part missing alone: one word on screen per session, the card's text tab works on.
+test("Web: konto haengt, stil kommt nach 1,5 s: Mein Stil oeffnet; fehlt nur wetter, ein Hinweis je Sitzung", async () => {
+  const srv = await serve(), base = "http://127.0.0.1:" + srv.address().port;
+  const b = await launch(); try {
+  const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);
+  const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
+  await ctx.route(/\/duell\/parts\/konto\./, () => {});   // never answered
+  await ctx.route(/\/duell\/parts\/stil\./, async (r) => { await new Promise((ok) => setTimeout(ok, 1500)); return r.fallback(); });
+  await ctx.route(/\/duell\/parts\/wetter\./, (r) => r.abort());
+  await p.goto(base + "/duell/");
+  await p.locator("#go").waitFor();
+  const t0 = Date.now();
+  await p.locator("#me").click();
+  await p.locator("#shbody").getByRole("textbox", { name: "Spitzname" }).waitFor({ timeout: 8000 });
+  assert.ok(Date.now() - t0 < 8000, "Mein Stil wartet nicht auf konto");
+  assert.equal(await p.evaluate(() => window.Parts.ready("konto")), false, "konto haengt noch");
+  const order = (await loaded(p)).map((s) => s.src.split(".")[0]);
+  assert.ok(order.indexOf("konto") >= 0 && order.indexOf("konto") < order.indexOf("stil"), order.join(" "));
+  await p.locator("#shback").click(); await p.locator("#home").waitFor();
+  await p.evaluate(() => { const D = window.Daily, i = D.IDEAS.find((x) => x.kind === "card"); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i, tab: "Text" }); });
+  await p.locator("#toast.show", { hasText: "Dieser Teil fehlt gerade" }).waitFor();
+  const toasts = await p.evaluate(async () => { let n = 0; const tt = document.getElementById("toast"); new MutationObserver(() => n++).observe(tt, { childList: true, characterData: true, subtree: true });
+    for (let i = 0; i < 3; i++) { window.DailyDebug.tab("Text"); await new Promise((ok) => setTimeout(ok, 300)); } return n; });
+  assert.equal(toasts, 0, "kein zweiter Hinweis beim Tab-Wechsel");
+  assert.equal(await p.locator("#panel input[aria-label=\"Ort\"]").count(), 0, "kein Wetter-Block ohne Teil"); assert.ok(await p.locator("#panel .field").count() > 0, "der Text-Tab steht");
+  assert.deepEqual(errs, []);
+  } finally { await b.close(); srv.close(); }
+});

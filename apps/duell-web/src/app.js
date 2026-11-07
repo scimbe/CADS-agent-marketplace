@@ -417,11 +417,12 @@ function setDoc(d) {        // a whole creation replaced by a wish or its undo; 
   $("edstyle").textContent = me.emoji; trailLine(); changed();
 }
 // Weather card (src/wetter.js, the part wetter): a slot in the text tab now, the block follows with the part. A flavor
-// without cards does not build the part (scripts/build.js), so there is nothing to load. Silent when it does not come:
-// the text tab's texte part already says so, and the card works without the weather.
+// without cards does not build the part (scripts/build.js), so there is nothing to load. When it does not come the card
+// works without the weather; a short word on screen once per session, not on every tab switch.
+var wxSaid = false;
 function weatherBlock(p) {
   var slot = el("div"); p.appendChild(slot);
-  if (window.Parts.names().indexOf("wetter") >= 0) window.Parts.need("wetter").then(function () { if (slot.isConnected && ed) window.Wetter.block(slot); }).catch(function () {});
+  if (window.Parts.names().indexOf("wetter") >= 0) window.Parts.need("wetter").then(function () { if (slot.isConnected && ed) window.Wetter.block(slot); }).catch(function () { if (!wxSaid) { wxSaid = true; Kit.toast(t("part_fail")); } });
 }
 // The creation becomes the game: same engine, its colours, picture and figure. Back leads to the creation, not home.
 var played = null, shortId = null;   // shortId: the short link a shared sheet came through, so a report can name it
@@ -850,15 +851,17 @@ $("image").addEventListener("click", function () {
 // The roll number lives on the device, so closing and opening again goes on with the next roll instead of the first.
 function roll(key) { var s = Kit.store; if (!s.rolls || typeof s.rolls !== "object" || Array.isArray(s.rolls)) s.rolls = {}; var n = W.nextRoll(s.rolls, key); Kit.save(); return n; }
 // My style (src/stil.js) is the part stil: the shelf opens at once, its content follows with the part (at once when it is
-// there); without the part the shelf says so. konto (its account section) is asked for first, so it loads once and before
-// stil; when only konto is missing, My style still opens without that section, as before (konto() below).
+// there); without the part the shelf says so. konto (its account section) is asked for first and stil right after, so each
+// loads once and konto's script comes before stil's; stil does not wait for it: a missing or hanging konto still opens My
+// style, without that section, as before (konto() below).
 var styleFill = null, shelves = 0;
 function openStyle() {
   shelf(t("style"), function (b) {
     var n = shelves, put = function () { b.textContent = ""; (styleFill = window.StilUI.fill)(b); };
     if (window.StilUI) { put(); return; }
     b.appendChild(el("p", "note", "…"));
-    window.Parts.need("konto").catch(function () {}).then(function () { return window.Parts.need("stil"); }).then(function () { if (n === shelves && screen === "shelf") put(); }).catch(function () { if (n === shelves) { b.textContent = ""; b.appendChild(el("p", "note", t("part_fail"))); } });
+    window.Parts.need("konto").catch(function () {});
+    window.Parts.need("stil").then(function () { if (n === shelves && screen === "shelf") put(); }).catch(function () { if (n === shelves) { b.textContent = ""; b.appendChild(el("p", "note", t("part_fail"))); } });
   });
 }
 // A sync brought style, wall or saved cards from another device: the open My style shows them at once.
