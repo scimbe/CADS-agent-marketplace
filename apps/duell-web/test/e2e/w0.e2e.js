@@ -3,6 +3,7 @@
 const test = require("node:test"), assert = require("node:assert/strict"), path = require("node:path"), fs = require("node:fs"), http = require("node:http");
 const { ensureBuilt } = require("../../scripts/ensure-build.js");
 const G = require("./lib/grund.js");
+const TEXTS = require("../../src/texts.json");
 const root = path.join(__dirname, "../..");
 ensureBuilt(""); ensureBuilt("business");   // dist as npm run test:e2e built it; a build only after an edit
 const shot = process.env.W0_SHOTS;
@@ -122,10 +123,11 @@ test("Bausteine: Datenschutz-Zeile aus Kartenfeldern (de/en, Plural), Daten-Teil
   const b = await G.launch(), srv = await serve("daten"); try {
     for (const lang of G.LANGS) {
       const ctx = await G.person(b, { view: "phone328", lang }), p = await G.open(ctx, "");
-      const line = await p.evaluate(() => { const r = window.Bausteine.wswRow({ link: ["name", "stimme"], ki: false, server: false, tage: 1 }); document.querySelector("#home").prepend(r); return r.innerText; });
+      // with the part stimme: its sentence on the card numbers and the switch "Karten-Statistik aus" (stat.e2e.js)
+      const line = await p.evaluate(async () => { await window.Parts.need("stimme"); const r = window.Bausteine.wswRow({ link: ["name", "stimme"], ki: false, server: false, tage: 1 }); document.querySelector("#home").prepend(r); await new Promise((ok) => setTimeout(ok, 0)); return r.firstChild.textContent + r.childNodes[1].textContent; });
       assert.equal(line, lang === "de"
-        ? "Wer sieht was? Im Link stehen Namen und Stimmen. Keine KI. Kein Server speichert etwas. Der Link verfällt nach 1 Tag. Wer den Link sieht, sieht das auch, zum Beispiel im Gruppenchat."
-        : "Who sees what? The link carries names and votes. No AI. No server keeps anything. The link expires after 1 day. Anyone who sees the link sees this too, for example in a group chat.");
+        ? "Wer sieht was? Im Link stehen Namen und Stimmen. Keine KI. Inhalte speichert ein Server nur im Kurzlink, 90 Tage. " + TEXTS.de.vote_wsw + " Der Link verfällt nach 1 Tag. Wer den Link sieht, sieht das auch, zum Beispiel im Gruppenchat."
+        : "Who sees what? The link carries names and votes. No AI. A server keeps content only in a short link, 90 days. " + TEXTS.en.vote_wsw + " The link expires after 1 day. Anyone who sees the link sees this too, for example in a group chat.");
       assert.match(await p.evaluate(() => window.Bausteine.wsw({ tage: 30 })), lang === "de" ? /nach 30 Tagen\./ : /after 30 days\./);
       if (lang === "de") { await p.waitForTimeout(800); await snap(p, "wsw-zeile"); }
       const r = await p.evaluate(() => { const box = document.createElement("div"); document.body.appendChild(box); return window.Bausteine.daten(box, (K) => K.feiertage("BY", "2027", "de").map((h) => h.d + " " + h.name)); });

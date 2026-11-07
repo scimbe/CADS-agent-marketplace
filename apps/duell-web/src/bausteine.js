@@ -23,6 +23,8 @@
     out.push(f.ki === "opt" ? t("wsw_kiopt") : f.ki && f.ki.a ? t("wsw_ki", { a: String(f.ki.a), o: String(f.ki.o || "") }) : t("wsw_noki"));
     var srv = (f.server || []).filter(function (k) { return LINK.indexOf(k) >= 0; });
     out.push(srv.length ? t("wsw_srv", { s: words(srv) }) : t(f.ki === "opt" ? "wsw_nosrv_else" : "wsw_nosrv"));
+    // what the card numbers count (src/stat.js), once their part stimme is there (it sets B.stat, stimme-ui.js row)
+    if (B.stat) out.push(t("vote_wsw"));
     out.push(f.tage > 0 ? t.plural("wsw_exp", f.tage) : t("wsw_noexp"));
     if (f.plus) out.push(f.plus(K.lang));
     if (link.length) out.push(t("wsw_chat"));
@@ -32,6 +34,8 @@
     var p = document.createElement("p"), b = document.createElement("b");
     p.className = "wsw"; b.textContent = kit().t("wsw_h") + " ";
     p.appendChild(b); p.appendChild(document.createTextNode(wsw(f)));
+    // With the part stimme (none in a flavor without card numbers): what they count, and the switch "Karten-Statistik aus".
+    if (root.Parts) root.Parts.need("stimme").then(function () { B.stat(p, f); }, Boolean);
     return p;
   }
   function daten(box, fn) {
@@ -46,5 +50,5 @@
       return r;
     }, function () { missing(); return null; });
   }
-  root.Bausteine = { wsw: wsw, wswRow: wswRow, daten: daten, LINK: LINK };
+  var B = root.Bausteine = { wsw: wsw, wswRow: wswRow, daten: daten, LINK: LINK };
 })(window);
