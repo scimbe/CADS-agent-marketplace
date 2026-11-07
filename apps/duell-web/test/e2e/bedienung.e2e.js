@@ -5,8 +5,11 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium } = require("playwright");
-const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
-const biz = "file://" + path.resolve(__dirname, "../../dist/business/index.html");
+const G = require("./lib/grund.js");
+let page;
+let biz;
+// Web route (lib/grund.js): pages here are reloaded or a device opens several pages; under file:// such a page now and then starts with an empty storage of its own.
+test.before(async () => { page = await G.webUrl("index.html"); biz = await G.webUrl("business/index.html"); });
 
 async function setup(w, h, locale) {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });

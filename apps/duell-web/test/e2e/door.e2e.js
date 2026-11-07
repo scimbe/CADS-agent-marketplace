@@ -5,8 +5,11 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium, devices } = require("playwright");
+const G = require("./lib/grund.js");
 
-const PAGE = "file://" + path.resolve(__dirname, "../../dist/index.html");
+let PAGE;
+// Web route (lib/grund.js): pages here are reloaded or a device opens several pages; under file:// such a page now and then starts with an empty storage of its own.
+test.before(async () => { PAGE = await G.webUrl("index.html"); });
 const shots = process.env.DOOR_SHOTS;
 let b;
 test.before(async () => { b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }); });
@@ -15,7 +18,7 @@ test.after(async () => { await b.close(); });
 async function phone(opt, when) {
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE", ...opt }), p = await ctx.newPage(), errs = [];
   p.on("pageerror", (e) => errs.push(String(e)));
-  await ctx.route(/^https?:/, (r) => r.abort());          // no server: the dice needs none
+  await ctx.route(/^https?:/, (r) => (G.isLocal(r.request().url()) ? r.fallback() : r.abort()));          // no server: the dice needs none (the page itself comes from the web route)
   await ctx.addInitScript("try{localStorage.setItem('daily.v1',JSON.stringify({muted:true,me:{nick:'Ada'}}))}catch(e){}");
   await p.clock.install({ time: new Date(when || "2026-12-22T10:00:00Z") });
   return { p, errs };

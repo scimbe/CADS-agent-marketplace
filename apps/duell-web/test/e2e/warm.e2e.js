@@ -3,7 +3,10 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium, devices } = require("playwright");
-const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
+const G = require("./lib/grund.js");
+let page;
+// Web route (lib/grund.js): pages here are reloaded or a device opens several pages; under file:// such a page now and then starts with an empty storage of its own.
+test.before(async () => { page = await G.webUrl("index.html"); });
 
 async function setup(motion) {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
@@ -20,7 +23,8 @@ test("Wohlfuehlkarte: Name rein, zwei Tipps bis Teilen; Empfaenger sieht die Kar
   assert.equal(await s.locator("#go").textContent(), "💛 Karte fertig machen");
   await s.getByLabel("Für wen? (optional)").fill("Lea");
   await s.locator("#go").click();                                                  // Tipp 1: Bild und Link
-  await s.locator("#share").filter({ hasText: "Jetzt teilen" }).waitFor();          // Tipp 2 teilt
+  await s.waitForFunction(() => window.DailyDebug.result() && window.DailyDebug.result().link);   // Tipp 2 teilt; der Knopf heisst weiter "Teilen"
+  assert.equal(await s.locator("#share").textContent(), "Teilen");
   const url = await s.evaluate(() => window.DailyDebug.result().url);
   assert.match(await s.evaluate(() => window.DailyDebug.result().keep.doc.x), /^Lea, ich wollte dir nur mal sagen: Du bist toll\.$/);
 
@@ -41,7 +45,7 @@ test("Wohlfuehlkarte auf Deutsch geschickt, Empfaenger tippt English: der Satz s
   const s = await open("#i=warm-toll");
   await s.getByLabel("Für wen? (optional)").fill("Lea");
   await s.locator("#go").click();
-  await s.locator("#share").filter({ hasText: "Jetzt teilen" }).waitFor();
+  await s.waitForFunction(() => window.DailyDebug.result() && window.DailyDebug.result().link);
   const url = await s.evaluate(() => window.DailyDebug.result().url);
   const r = await open(url.slice(url.indexOf("#")));
   await r.locator("#from").filter({ hasText: "für dich" }).waitFor();

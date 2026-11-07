@@ -462,7 +462,8 @@
       if (key === autoKey) return;
       autoKey = key; clearTimeout(autoT); deadline = 0;
       if (!mine) return;
-      var ms = me.auto ? autoFast : autoMs; deadline = Date.now() + ms;
+      var ms = me.auto ? autoFast : autoMs; if (ms < 0) return;   // autoMs -1: no clock for me (a game against the bot)
+      deadline = Date.now() + ms;
       autoT = setTimeout(fire, ms);
     }
     function fire() {

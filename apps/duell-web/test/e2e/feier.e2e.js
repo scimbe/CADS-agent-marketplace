@@ -1,14 +1,12 @@
 "use strict";
+const { ensureBuilt } = require("../../scripts/ensure-build.js");
 // biz-weihnachtsfeier (Katalog v2, V1): Termin + Ort + Kosten pro Kopf in einem Link, mit versiegelten Stimmen, ueber
 // vier Geraete (eigene Browser-Kontexte, de und en): nur das Geraet der Orga oeffnet die Antworten und zeigt Summen erst
 // ab fuenf; das Ende ist signiert. Fest auf die Karte gepinnt (#i=biz-weihnachtsfeier) und auf den 16.11.2026.
 const test = require("node:test"), assert = require("node:assert/strict"), path = require("node:path");
-const { execFileSync } = require("node:child_process");
 const G = require("./lib/grund.js");
 const Tn = require("../../src/turns.js");
-const root = path.join(__dirname, "../..");
-execFileSync(process.execPath, [path.join(root, "scripts/build.js")]);
-execFileSync(process.execPath, [path.join(root, "scripts/build.js"), "--flavor", "business"]);
+ensureBuilt(""); ensureBuilt("business");   // dist as npm run test:e2e built it; a build only after an edit
 const shot = process.env.FEI_SHOTS;
 const snap = (p, n) => (shot ? p.screenshot({ path: path.join(shot, "fei-" + n + ".png") }) : null);
 const TIME = "2026-11-16T09:00:00Z", BIZ = { flavor: "business" };
@@ -22,7 +20,7 @@ const locked = (p) => p.locator("#edmain").getAttribute("aria-disabled");
 G.VIEWS.phone328h = { viewport: { width: 328, height: 700 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
 const SCREENS = ["phone328h", "phone390", "zoom200quer", "zoom200"];
 // Only the page itself: every other host is refused and noted (company network, nothing goes out).
-async function closed(ctx) { const asked = []; await ctx.route(/^(https?|wss?):/, (r) => { asked.push(r.request().url()); return r.abort("blockedbyclient"); }); return asked; }
+async function closed(ctx) { const asked = []; await ctx.route(/^(https?|wss?):/, (r) => { if (G.isLocal(r.request().url())) return r.fallback(); asked.push(r.request().url()); return r.abort("blockedbyclient"); }); return asked; }
 
 // Organiser: two places, the first one renamed, accessibility tapped (required), costs typed. Neutral name on request.
 async function setUp(p, o) {
@@ -93,6 +91,7 @@ const shown = async (p) => (await p.locator("body").innerText()) + "\n" + JSON.s
 // localStorage writes to other pages of the context asynchronously and the app reads its storage once at start, so wait
 // until the key is there, then load again (in real use the link is opened much later).
 async function openWith(ctx, h, key) {
+  assert.ok(ctx.web, "openWith laedt neu: nur ueber die Web-Route (lib/grund.js)");
   const p = await G.open(ctx, h, BIZ);
   await p.waitForFunction((k) => !!JSON.parse(localStorage.getItem("daily.v1") || "{}")[k], key);
   await p.reload(); await p.waitForFunction(() => document.body.getAttribute("data-state") !== "boot");
@@ -109,12 +108,13 @@ const TOTALS = /Termin vorne|Leading date|Zusage|pro Kopf bei|per head with|\d+ 
 
 test("Vier Geraete, de und en: versiegelt abstimmen, Orga sieht erst ab fuenf Summen, fuehrt Gabelungen zusammen, beendet signiert; ein Ende von Hand gilt nicht", async () => {
   const b = await G.launch(); try {
-    const [ana, ben, cem, dana] = await G.people(b, 4, { lang: ["de", "en", "de", "de"], view: ["phone390", "phone328h", "quer", "phone390"], time: TIME });
+    // web: each device keeps several pages open and relies on what another of its pages stored (see grund.js)
+    const [ana, ben, cem, dana] = await G.people(b, 4, { lang: ["de", "en", "de", "de"], view: ["phone390", "phone328h", "quer", "phone390"], time: TIME, web: true });
     const out = [await closed(ben), await closed(cem), await closed(dana)];
     const a = await G.open(ana, "#i=biz-weihnachtsfeier", BIZ);
     assert.match(await a.locator("#hero").textContent(), /Weihnachtsfeier/);
     const one = await setUp(a, { shot: "ana" });
-    assert.match(one, /^https:\/\/bunsenbrenner\.org\/business#c=/, "langer Link, laeuft ohne Kurzlink-Server");
+    assert.match(one, /^https:\/\/demos-34a13a96\.bunsenbrenner\.org\/duell\/business\/#c=/, "langer Link, laeuft ohne Kurzlink-Server");
     const keys = await a.evaluate(() => JSON.parse(localStorage.getItem("daily.v1")).feiorg);
     const ex = Object.keys(keys)[0], P1 = payload(one);
     assert.deepEqual(P1.state[2].slice(0, 2).map((x) => Buffer.from(x, "base64url").length), [32, 32], "zwei oeffentliche Schluessel im Link");
@@ -136,7 +136,11 @@ test("Vier Geraete, de und en: versiegelt abstimmen, Orga sieht erst ab fuenf Su
     assert.deepEqual(P4.state[0], P1.state[0]); assert.deepEqual(P4.state[1], P1.state[1], "Termine und Orte wie angelegt, ohne Zaehler");
     assert.deepEqual([P4.state[2][2], P4.state[2][3].length / 56, P4.state[2][4]], [3, 3, 0], "drei Antworten, drei Bloecke, kein Ende");
     assert.equal(P4.state[2][3].slice(0, 112), P3.state[2][3], "der naechste Link haengt nur einen versiegelten Block an");
-    assert.ok(!/Ana|Ben|Cem|Dana|Vegetari|Alkohol|alcohol/i.test(P4.text + JSON.stringify(P4.state)), "keine Namen, keine Wuensche im Link");
+    // Only what stands in the clear: the two public keys, the sealed boxes and the seal itself are random base64url, which
+    // spells "ben" or "ANA" now and then (about one link in ten) and is no name. Exactly these fields are blanked; every
+    // other field of the link and of the opened state is checked, so a name in the clear anywhere else is still seen.
+    const clear = (P) => { const raw = JSON.parse(JSON.stringify(P.raw)), st = JSON.parse(JSON.stringify(P.state)); raw.d.q = ""; st[2][0] = st[2][1] = st[2][3] = ""; return JSON.stringify(raw) + JSON.stringify(st); };
+    assert.ok(!/Ana|Ben|Cem|Dana|Vegetari|Alkohol|alcohol/i.test(clear(P4)), "keine Namen, keine Wuensche im Link");
     assert.ok(!(P4.raw.d.by || []).length, "keine Spur mit Namen");
     for (const u of [two, three, four]) {   // [neutral, dates], two places, [key, key, count, boxes, 0]: nothing else, no list of counts
       const st = payload(u).state;
@@ -221,7 +225,7 @@ test("Vier Geraete, de und en: versiegelt abstimmen, Orga sieht erst ab fuenf Su
 
 test("Neutral: Jahresabschlussfeier reist als Titel mit; die Jugend-App oeffnet den Link mit derselben Karte", async () => {
   const b = await G.launch(); try {
-    const [ana, ben] = await G.people(b, 2, { lang: ["en", "de"], view: "phone390", time: TIME });
+    const [ana, ben] = await G.people(b, 2, { lang: ["en", "de"], view: "phone390", time: TIME, web: true });   // Ben opens two pages: web route
     const a = await G.open(ana, "#i=biz-weihnachtsfeier", BIZ);
     const one = await setUp(a, { en: true, neutral: true, shot: "neutral" });
     const p = await G.open(ben, hash(one), BIZ);
@@ -242,7 +246,7 @@ test("Hauptknopf ohne Scrollen und unverdeckt auf 328x700, 390x844, 640x400, 512
     const link = hash(await setUp(await G.open(maker, "#i=biz-weihnachtsfeier", BIZ)));
     const free = (p) => p.evaluate(() => { const e = document.getElementById("edmain"), r = e.getBoundingClientRect(), h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!h && (h === e || e.contains(h)); });
     for (const view of SCREENS) for (const lang of G.LANGS) {
-      const at = view + " " + lang, ctx = await G.person(b, { view, lang, time: TIME });
+      const at = view + " " + lang, ctx = await G.person(b, { view, lang, time: TIME, web: true });   // sheet and received link on one device: web route
       const home = await G.open(ctx, "#i=biz-weihnachtsfeier", BIZ);
       await home.waitForTimeout(500);
       assert.ok(await G.inView(home, "#go"), "Blatt: " + at); assert.deepEqual(await G.covered(home), [], "Blatt: " + at);

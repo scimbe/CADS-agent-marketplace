@@ -135,8 +135,8 @@ test("Registrierungs-API (turnzwei, logik): je Art ein Name nur einmal, nur guel
   assert.throws(() => R.add("rule", "checkin", {}), /twice/); assert.throws(() => R.add("rule", "Gross", {}), /bad id/);
   assert.throws(() => R.add("gen", "x", {}), /unknown kind/); assert.throws(() => R.get("gen", "x"), /unknown kind/);
   const fs0 = require("node:fs"), rd = (f) => fs0.readFileSync(path.join(__dirname, "../src", f), "utf8");
-  // the parts as they ship: turnzwei with the widgets of the gift and Secret Santa cards, logik still empty
-  for (const [f, name, kinds, has] of [["turn2.js", "Turn2", ["rule", "widget"], [[], ["bw", "day", "ideas", "opts", "wish"]]], ["logik.js", "Logik", ["gen"], [[]]]]) {
+  // the parts as they ship: turnzwei with the widgets of the gift and Secret Santa cards and the timed games, logik still empty
+  for (const [f, name, kinds, has] of [["turn2.js", "Turn2", ["rule", "widget"], [[], ["blind", "bw", "clock", "day", "door", "explain", "ideas", "inner", "opts", "react", "wish"]]], ["logik.js", "Logik", ["gen"], [[]]]]) {
     const p = page("file:///x/index.html").w; vm.runInNewContext(rd(f), { window: p });
     assert.deepEqual([...p[name].kinds()], kinds); assert.deepEqual(kinds.map((k) => [...p[name].list(k)]), has);
   }

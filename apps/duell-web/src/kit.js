@@ -57,6 +57,8 @@
   };
   // Font size token --fs (rule 2): normal / gross / sehr gross = 1 / 1.25 / 1.5 times the system's size (1rem follows
   // the system setting). Only on this device, chosen in Mein Stil; new cards size their text in rem through var(--fs).
+  // A line for the screen reader only (#sr, aria-live): a countdown, a result.
+  Kit.speak = function (s) { var x = document.getElementById("sr"); if (x) { x.textContent = ""; setTimeout(function () { x.textContent = s; }, 50); } };
   Kit.FS = { n: 1, g: 1.25, sg: 1.5 };
   Kit.fs = Object.prototype.hasOwnProperty.call(Kit.FS, store.fs) ? store.fs : "n";
   Kit.setFs = function (v) {
