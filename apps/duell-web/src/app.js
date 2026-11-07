@@ -738,6 +738,16 @@ function voicePanel(p) {
 }
 
 /* ---------- finish ---------- */
+// AI Act Art. 50: a picture of a sheet that AI made (or helped to make: wish, AI picture, free card) says so in the picture
+// itself, not only in the link's seal. White on black (contrast 18:1), bottom left inside the picture, clear of the
+// "my daily idea" mark bottom right, so a crop of the card keeps it.
+function aiMark(c, doc) {
+  if (!doc || !doc.ki) return c;
+  var x = c.getContext("2d"), s = t("kiBadgeL"), H = c.height;
+  x.save(); x.font = "700 40px system-ui, sans-serif"; var w = x.measureText(s).width;
+  x.fillStyle = "#111"; x.fillRect(40, H - 112, w + 40, 64); x.fillStyle = "#fff"; x.textBaseline = "middle"; x.textAlign = "left"; x.fillText(s, 60, H - 80);
+  x.restore(); return c;
+}
 function makeBlob(c, type, q) { return new Promise(function (ok) { c.toBlob(ok, type || "image/png", q); }); }
 function tinyThumb(c) { var s = document.createElement("canvas"); s.width = 135; s.height = 169; s.getContext("2d").drawImage(c, 0, 0, 135, 169); return s.toDataURL("image/jpeg", 0.6); }
 function thumb(c) { var s = document.createElement("canvas"); s.width = 270; s.height = 338; s.getContext("2d").drawImage(c, 0, 0, 270, 338); return s.toDataURL("image/jpeg", 0.6); }
@@ -745,7 +755,7 @@ async function finish(doc, idea, pictureDoc) {
   var c = document.createElement("canvas"); c.width = 1080; c.height = 1350;
   R.exporting = true;
   try { R.draw(c, pictureDoc || doc, { me: me, photo: ed && ed.photo, peaks: ed && ed.peaks }); } finally { R.exporting = false; }
-  c = withPic(c, doc);
+  c = aiMark(withPic(c, doc), doc);
   var png = await makeBlob(c), file = png, name = "my-daily-idea.png";
   if (doc.k === "sound") {
     var pcm = doc.m === "beat" ? beatPcm(2) : (ed.pcm || S.warp(S.dummyVoice(), doc.fx));
