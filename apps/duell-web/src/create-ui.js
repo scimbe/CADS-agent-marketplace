@@ -34,10 +34,9 @@
       state.meter = state.account ? r.json.create : null;
     } catch (e) { state.net = false; state.account = false; state.meter = null; }   // offline: said as such, not "sign in"
   }
-  function ageOf() {
-    var a = (A.me().pref || {}).age;
-    return a === "u18" || a === "a18" || a === "u16" ? a : state.age;
-  }
+  // 16+ is the server's to check (the account's own statement in its profile, "Mein Stil"); the band of the profile here only
+  // opens the abilities from 18 (money), and only when it says 18+.
+  function ageOf() { return (A.me().pref || {}).age === "a18" ? "a18" : "u18"; }
   function chipRow(list, now, label, pick) {
     var row = el("div", "chips"); row.setAttribute("role", "group"); row.setAttribute("aria-label", label);
     list.forEach(function (c) {
@@ -63,14 +62,11 @@
       var a = el("a", "btn hot", t("create_login")); a.href = "/auth/login?return=" + encodeURIComponent("/duell"); b.appendChild(a);
       return;
     }
-    // 16 and older, as the profile says or as asked here (only for this request, nothing is stored)
+    // switched off on the server (DUELL_KARTE_OFF): said kindly, nothing else
+    if (state.meter && state.meter.off) { b.appendChild(el("p", "note", t("create_off"))); return; }
+    // 16+ only with the account's own statement (Mein Stil, Anmelden / Registrieren); there is no way past it here
+    if (!state.meter || state.meter.age16 !== true) { b.appendChild(el("p", "note", t("create_age16"))); return; }
     var age = ageOf();
-    if (!age) {
-      b.appendChild(el("p", "note", t("create_age")));
-      b.appendChild(chipRow([["u16", t("create_age_u16")], ["u18", t("create_age_u18")], ["a18", t("create_age_a18")]], "", t("create_age"), function (v) { state.age = v; fill(b); }));
-      return;
-    }
-    if (age === "u16") { b.appendChild(el("p", "note", t("create_young"))); return; }
 
     b.appendChild(el("p", "note", t("create_h")));
     b.appendChild(el("p", "note", t("create_art")));
@@ -84,6 +80,8 @@
     var left = el("p", "aicount create-left", line(state.meter)); left.setAttribute("aria-live", "polite");
     b.appendChild(left);
     b.appendChild(el("p", "note", t("create_rules")));
+    // before anything is made: what a discard gives back (no hidden cost)
+    if (state.meter && state.meter.remaining > 0) b.appendChild(el("p", "note", state.meter.refundsLeft > 0 ? t("create_drop_n", { n: state.meter.refundsLeft }) : t("create_drop_0")));
     if (state.meter && state.meter.remaining <= 0) return;
     if (state.meter && state.meter.paused) { b.appendChild(el("p", "note", t("create_paused"))); return; }
 

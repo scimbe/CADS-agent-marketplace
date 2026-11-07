@@ -13,7 +13,7 @@ const DOC = { k: "card", col: ["#ffd400", "#ff3b1d"], by: [], t: "Sonnenblumen-T
 const OPT = { art: "card", doc: DOC };
 const SEAL = "s2.karte.mw3abcde.AnlRQb9jJYrLILMRBtJj7yR1qlhJF0ER";
 const METER = { free: 7, remaining: 7, size: 7, period: "week", pot: "free" };
-const CREATE = (n) => ({ size: 5, remaining: n, pot: "create", period: "ever" });
+const CREATE = (n, extra) => ({ size: 5, remaining: n, pot: "create", period: "ever", refundsLeft: 2, age16: true, ...extra });
 let b;
 test.before(async () => { b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }); });
 test.after(async () => { await b.close(); });
@@ -48,7 +48,7 @@ test("Kachel steht fest unter der Tageskarte, ist ein Knopf im Druckstil und oef
   assert.deepEqual(errs, []);
 });
 
-test("Mit Konto: Alter 16-17, ein Satz, Vorschau mit Badge, Uebernehmen -> Editor mit Siegel karte; nur der Text geht raus", async () => {
+test("Mit Konto und 16+-Erklaerung: ein Satz, Vorschau mit Badge, Uebernehmen -> Editor mit Siegel karte; nur der Text geht raus", async () => {
   let left = 5;
   const { p, errs, sent } = await phone((p0) => {
     if (p0 === "ai/status") return [200, { meter: METER, create: CREATE(left) }];
@@ -57,7 +57,6 @@ test("Mit Konto: Alter 16-17, ein Satz, Vorschau mit Badge, Uebernehmen -> Edito
     return null;
   });
   await p.locator("#create").tap();
-  await p.getByRole("button", { name: "16–17" }).tap();
   const ta = p.getByLabel("Deine Beschreibung");
   await ta.waitFor();
   assert.match(await p.locator(".create-left").textContent(), /5 von 5 frei/);
@@ -70,7 +69,7 @@ test("Mit Konto: Alter 16-17, ein Satz, Vorschau mit Badge, Uebernehmen -> Edito
   assert.equal(await pv.getAttribute("role"), "img");
   const req = sent.find((s) => s.path === "ai");
   assert.equal(req.body.kind, "karte");
-  assert.deepEqual(req.body.input, { text: "Geburtstagskarte für meine beste Freundin, sie liebt Sonnenblumen", art: "card", age: "u18" });
+  assert.deepEqual(req.body.input, { text: "Geburtstagskarte für meine beste Freundin, sie liebt Sonnenblumen", art: "card", age: "u18" }, "ohne 18+ im Profil: u18");
   await p.getByRole("button", { name: "Übernehmen" }).tap();
   assert.ok(await until(() => sent.some((s) => s.path === "ai/accept")), "gebucht beim Uebernehmen");
   const doc = await p.evaluate(() => window.DailyDebug.doc());
@@ -139,4 +138,22 @@ test("W3: Spiel, Quiz und eine vorhandene Kartenart (Termin) kommen als Vorschau
     assert.deepEqual(errs, [], art);
     await p.context().close();
   }
+});
+
+test("Ethik-Audit: ohne 16+-Erklaerung kein Formular; Notschalter sagt freundlich ab; Verwerfen-Regel steht vor dem Erstellen", async () => {
+  for (const [extra, want] of [[{ age16: false }, /ab 16.*Mein Stil/], [{ off: true }, /gerade nicht verfügbar/]]) {
+    const { p, errs, sent } = await phone((p0) => (p0 === "ai/status" ? [200, { meter: METER, create: CREATE(5, extra) }] : null));
+    await p.locator("#create").tap();
+    await p.locator("#shbody .note").first().waitFor();
+    assert.match((await p.locator("#shbody").innerText()).replace(/\s+/g, " "), want);
+    assert.equal(await p.getByLabel("Deine Beschreibung").count(), 0, "kein Formular");
+    assert.ok(!sent.some((s) => s.path === "ai"));
+    assert.deepEqual(errs, []);
+    await p.context().close();
+  }
+  const { p } = await phone((p0) => (p0 === "ai/status" ? [200, { meter: METER, create: CREATE(5) }] : null));
+  await p.locator("#create").tap();
+  await p.getByLabel("Deine Beschreibung").waitFor();
+  assert.match(await p.locator("#shbody").innerText(), /Verwerfen gibt die Karte zurück – noch 2×/);
+  await p.context().close();
 });
