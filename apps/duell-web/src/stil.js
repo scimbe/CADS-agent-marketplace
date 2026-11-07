@@ -29,6 +29,11 @@
     A.chips(b, ["n", "g", "sg"].map(function (v) { return { v: v, l: t("fs_" + v) }; }), Kit.fs, function (v) { Kit.setFs(v); S.fit(); }, "fs");
     // the plain-language switch comes with the part direkt (editor E1)
     var ez = el("div"); b.appendChild(ez); root.Parts.need("direkt").then(function () { root.Direkt.style(ez); }, function () {});
+    // Card numbers (src/stat.js): the same switch as under "Wer sieht was?" (stimme-ui.js row); none in a flavor without them.
+    if (!(root.DailyFlavor && root.DailyFlavor.stat === false)) {
+      var so = el("button", "chip statoff", t("set_stat"), function () { Kit.sfx.tap(); if (Kit.store.statOff) delete Kit.store.statOff; else Kit.store.statOff = true; Kit.save(); so.setAttribute("aria-pressed", String(!!Kit.store.statOff)); });
+      so.setAttribute("aria-pressed", String(!!Kit.store.statOff)); b.appendChild(so); b.appendChild(el("p", "note", t("set_statnote")));
+    }
     b.appendChild(el("label", "lbl", t("pf_title")));
     var pf = el("div", "pfbox"); b.appendChild(pf); prefs(pf);
     b.appendChild(el("p", "note", t("aiPicNote")));
