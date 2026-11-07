@@ -135,6 +135,11 @@ test("W3: Spiel, Quiz und eine vorhandene Kartenart (Termin) kommen als Vorschau
     const got = await p.evaluate(() => window.DailyDebug.doc());
     assert.equal(got.k, doc.k, art); assert.equal(got.ki.k, "karte", art);
     if (art === "faehigkeit") assert.equal(got.i, "zug-termin");
+    if (art === "game") {   // the game says it was made by AI (AI Act Art. 50), like a world (welt.e2e.js)
+      await p.locator("#edmain").waitFor(); await p.locator("#edmain").tap();
+      await p.locator("#game:not([hidden])").waitFor();
+      assert.equal(await p.locator("#gki").isVisible(), true, "KI-Zeichen im Spiel"); assert.equal(await p.locator("#gki").textContent(), "KI");
+    }
     assert.deepEqual(errs, [], art);
     await p.context().close();
   }

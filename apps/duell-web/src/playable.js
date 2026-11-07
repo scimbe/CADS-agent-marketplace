@@ -16,7 +16,7 @@
       v: 1, seed: C.hash32("spiel:" + line + doc.col.join("")), theme: "day",
       params: { gravity: pace.gravity, jump: 430, gap: pace.gap, speed: pace.speed },
       title: shortTitle(line, "Mein Spiel"), emoji: doc.sk && doc.sk.length ? doc.sk[0].e : me.emoji,
-      skin: { c: doc.col, l: line }
+      skin: { c: doc.col, l: line }, ki: doc.ki
     });
   }
   function rgb(h) { return [1, 3, 5].map(function (i) { return parseInt(h.slice(i, i + 2), 16); }); }

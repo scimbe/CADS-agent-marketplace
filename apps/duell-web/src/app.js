@@ -93,7 +93,7 @@ function setHome(h, animate) {
   var leaf = $("leaf"); leaf.className = s.got ? "got" : ""; leaf.style.transform = ""; leaf.style.opacity = "";
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
   WM.sheet(h, s.got, animate);
-  langPick(!!h.note);
+  langPick(!!h.note); $("pv").classList.remove("swap"); peek2(false); fitCard(); picThumb(document.querySelector("#leaf .pvimg"));
   // The thumbs keep their row from the first paint (.votes in style.css), so the sheet does not move when their part arrives.
   var F = window.DailyFlavor, off = F && F.stat === false; $("votes").hidden = off || !(h.doc ? h.note && h.doc.i && !(h.doc.ki && h.doc.ki.k === "karte") : h.idea);   // as Stat.card
   stimme(function (S) { S.sheet(h); }, h);
@@ -154,7 +154,7 @@ function loadPic(box, f, id, lazy) {
   f.querySelector(".kitag").textContent = t("aiPic");
   img.onload = function () {
     if (box._pic !== id || box.hidden) return;
-    box.classList.add("pic");
+    box.classList.add("pic"); if (box.id === "pv") fitCard(); picThumb(f);
     var hero = box.classList.contains("pv") && box.parentNode.querySelector(".hero"); if (hero) fitHero(hero);   // the title's room changed
   };
   img.onerror = function () { if (box._pic === id) box.classList.remove("pic"); };
@@ -171,10 +171,39 @@ function picture(root, idea, doc, lazy, mode) {
   box.classList.toggle("with", !!doc);
   loadPic(box, f, picId(!doc ? idea && idea.id : !mode && docPic(doc)), lazy);
 }
+// Room (E1.5): where the AI picture is only a thumbnail (style.css), it is a switch: a tap, Enter or Space lays it over
+// the live card and back (.swap on its box); aria-pressed says which one is large.
+function picThumb(f) {
+  var box = f.parentNode, on = !!f.getClientRects().length && (box.classList.contains("swap") || getComputedStyle(f).position === "absolute");
+  if (!on) box.classList.remove("swap");
+  f.classList.toggle("thumb", on);
+  [["role", "button"], ["tabindex", 0], ["aria-label", t("pic_big")], ["aria-pressed", box.classList.contains("swap")]].forEach(function (a) { if (on) f.setAttribute(a[0], a[1]); else f.removeAttribute(a[0]); });
+}
+function picSwap(f) { Kit.sfx.tap(); f.parentNode.classList.toggle("swap"); picThumb(f); }
+document.querySelector("#leaf .pvimg").addEventListener("keydown", function (e) { if (this.classList.contains("thumb") && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); picSwap(this); } });
+// on the sheet a finger goes through the leaf's tap (below); a screen reader's double tap is a plain click (detail 0)
+document.querySelector("#leaf .pvimg").addEventListener("click", function (e) { if (e.detail === 0 && this.classList.contains("thumb")) picSwap(this); });
+// the sheet's room changes (a field or the language choice shows, the phone turns): the picture may become a thumbnail
+if (window.ResizeObserver) new ResizeObserver(function () { fitCard(); picThumb(document.querySelector("#leaf .pvimg")); }).observe($("leaf"));
+// The live card on the sheet (with a field or the language choice under it, or received) either has a useful height
+// (60 px) or steps aside whole: the title keeps the room and "Vorschau" lays the card over the sheet (.peek).
+var peekB = el("button", "chip pvpeek", null, function () { Kit.sfx.tap(); peek2(!$("pv").classList.contains("peek")); });
+peekB.id = "pvpeek"; peekB.hidden = true; $("pv").after(peekB);
+// Escape closes an open preview while the sheet is on screen, the focus goes back to its button
+document.addEventListener("keydown", function (e) { if (e.key === "Escape" && screen === "home" && !peekB.hidden && !document.querySelector("dialog[open]") && !$("door") && $("pv").classList.contains("peek")) { e.preventDefault(); peek2(false); peekB.focus(); } }, true);
+// while it is open, everything under it on the sheet (title, thumbs …) is inert; the button stays usable
+function peek2(on) { Array.from($("leaf").children).forEach(function (c) { if (c !== peekB && c.id !== "pv") c.inert = on; }); $("pv").classList.toggle("peek", on); peekB.setAttribute("aria-expanded", String(on)); peekB.textContent = t("pv_peek"); }
+function fitCard() {
+  var pv = $("pv"), c = $("pvcard"), w = $("warmto"), lp = $("langpick"), mehr = !!(lp && !lp.hidden) || !!(w && !w.hidden), live = !pv.hidden && (pv.classList.contains("with") || mehr);
+  $("home").classList.toggle("mehr", mehr); pv.classList.toggle("live", live);
+  pv.classList.remove("tight"); peekB.hidden = true;
+  var tight = live && !c.hidden && (!c.getClientRects().length || c.offsetHeight < 60);
+  pv.classList.toggle("tight", tight); peekB.hidden = !tight; if (!tight || !peekB.getAttribute("aria-expanded")) peek2(false);
+}
 // In the editor the picture stays above the card; the user's own photo takes its place once taken.
 function edPic() {
   var w = $("stagewrap"), id = ed && !ed.ownPhoto && !cv.hidden ? picId(docPic(ed.doc)) : null;
-  if (!id || w._pic !== id) loadPic(w, $("edpic"), id);
+  if (!id || w._pic !== id) { w.classList.remove("swap"); loadPic(w, $("edpic"), id); picThumb($("edpic")); }
 }
 // The finished picture carries it too, above the card, when it can be drawn without tainting the canvas (CORS image on
 // the web and in the Android shell; the iOS shell blocks the network, so there is none). Anything wrong: the card alone.
@@ -315,8 +344,8 @@ function tear(step) {
   }, 300);
 }
 (function drag() {
-  var leaf = $("leaf"), sx = 0, sy = 0, on = false, t0 = 0, far = false, shown = 0;
-  leaf.addEventListener("pointerdown", function (e) { if (e.target.closest("button")) return; on = true; sx = e.clientX; sy = e.clientY; t0 = Date.now(); far = false; shown = 1; try { peek(1, true); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
+  var leaf = $("leaf"), dt = null, sx = 0, sy = 0, on = false, t0 = 0, far = false, shown = 0;
+  leaf.addEventListener("pointerdown", function (e) { if (e.target.closest("button")) return; dt = e.target; on = true; sx = e.clientX; sy = e.clientY; t0 = Date.now(); far = false; shown = 1; try { peek(1, true); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
   leaf.addEventListener("pointermove", function (e) {
     if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy, step = dx > 0 ? -1 : 1;
     if (Math.abs(dx) >= 10 || Math.abs(dy) >= 10) far = true;   // moved once: never a tap, even when let go where it began
@@ -329,7 +358,7 @@ function tear(step) {
     if (e.type === "pointerup" && Math.abs(dx) > 90) { tear(dx > 0 ? -1 : 1); return; }
     leaf.style.transform = ""; leaf.style.opacity = "";
     // A tap (no move, short, not on a control of the sheet, not while a torn sheet flies) opens the card like #go; a swipe turns the day.
-    if (e.type === "pointerup" && !far && Math.abs(dx) < 10 && Math.abs(dy) < 10 && Date.now() - t0 < 500 && t0 > busy && !(e.target.closest && e.target.closest("a,button,input,textarea,select,label"))) start();
+    if (e.type === "pointerup" && !far && Math.abs(dx) < 10 && Math.abs(dy) < 10 && Date.now() - t0 < 500 && t0 > busy && !(e.target.closest && e.target.closest("a,button,input,textarea,select,label"))) { if (dt && dt.closest && dt.closest(".thumb")) picSwap(dt.closest(".thumb")); else if (dt && dt.closest && dt.closest(".pv.peek")) peek2(false); else start(); }
   }
   leaf.addEventListener("pointerup", up); leaf.addEventListener("pointercancel", up);
 })();
@@ -400,6 +429,7 @@ function openEditor(doc, opt) {
   opt = opt || {};
   if (doc && doc.k === "table") { if (window.TableUI) window.TableUI.open(doc.g); return; }   // a card table is played live, there is nothing to edit
   window.Ai.drop();
+  $("stagewrap").classList.remove("swap");
   ed = { doc: D.sanitizeDoc(doc), base: D.sanitizeDoc(doc), own: !!opt.own, made: !!opt.made, photo: null, peaks: null, pcm: null, tab: null, sel: -1, page: 0, line: 0, idea: opt.idea || null };
   if (opt.own) ed.doc.n = me.nick;
   if (ed.doc.k === "sound" && ed.doc.m === "beat") beatPeaks();
@@ -574,9 +604,10 @@ var PANEL = {
     p.appendChild(el("p", "note", t("doorNote")));
   },
   Idea: function (p) {
-    p.appendChild(el("p", "note", t("ownH")));
+    // the title field first (it is what "Fertig" waits for), the hint below it
     field(p, t("ideaT"), ed.doc.t, 40, function (v) { ed.doc.t = v; });
     field(p, t("ideaS"), ed.doc.s, 70, function (v) { ed.doc.s = v; });
+    p.appendChild(el("p", "note", t("ownH")));
   },
   Text: function (p) {
     var d = ed.doc;
@@ -636,7 +667,8 @@ var PANEL = {
     p.appendChild(el("p", "note", t("photoNote") + " " + t("noPick")));
     chips(p, D.STYLES.photo.map(function (s) { return { v: s, l: t("st_" + s) }; }), ed.doc.st, function (v) { ed.doc.st = v; });
   },
-  Sound: function (p) { if (ed.doc.m === "beat") { textePart(p, "song"); beatPanel(p); } else voicePanel(p); },
+  // the grid first (the tool of the tab), the song below it
+  Sound: function (p) { if (ed.doc.m === "beat") { beatPanel(p); textePart(p, "song"); } else voicePanel(p); },
   Rules: function (p) {
     var g = ed.doc.g, ranges = C.RANGES;
     ["gravity", "jump", "gap", "speed"].forEach(function (k) {
@@ -710,8 +742,9 @@ function beatPanel(p) {
     });
     [0, 1, 2, 3].forEach(function (n) { var b = el("button", "chip" + (n === ed.page ? " on" : ""), n * 4 + 1 + "–" + (n * 4 + 4), function () { ed.page = n; fill(); }); b.setAttribute("aria-label", t("btN", { n: n * 4 + 1 + "–" + (n * 4 + 4) })); b.setAttribute("aria-pressed", String(n === ed.page)); pages.appendChild(b); });
   }
+  // the grid first (the tab's tool), page choice and listening right below it (E1.5)
   var bar = el("div", "chips");
-  fill(); p.appendChild(pages); p.appendChild(bar); p.appendChild(grid);
+  fill(); p.appendChild(grid); p.appendChild(pages); p.appendChild(bar);
   var row = el("label", "slide"), r = el("input"), v = el("b", "", ed.doc.bpm);
   row.appendChild(el("span", "", t("bpm"))); r.type = "range"; r.min = 70; r.max = 170; r.value = ed.doc.bpm; r.setAttribute("aria-label", t("bpm"));
   r.addEventListener("input", function () { ed.doc.bpm = Number(r.value); v.textContent = r.value; beatPeaks(); changed(); });
@@ -1227,7 +1260,7 @@ var CU = window.CollabUI.init({
 var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
-window.DailyApp = { gone: freeNo, report: function () { if (home && home.doc && screen === "home") reportKi(home); }, part: twoIdea, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { gone: freeNo, report: function () { if (home && home.doc && screen === "home") reportKi(home); }, part: twoIdea, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, picSwap: picSwap, picThumb: picThumb, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 window.DailyApp.allow = allow;
 

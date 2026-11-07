@@ -64,3 +64,17 @@ test("Review: Vorschau-CSS steckt im Teil, nicht im Kern; falsche Art wird abgel
   assert.ok(!/Lea|Sam\b/.test(TX.de.create_ph + TX.en.create_ph));
   assert.ok(TX.de.create_bad && TX.en.create_bad);
 });
+
+test("KI-Zeichen im Spiel: der Spielzustand traegt ki.k karte wie welt, eine fremde Art faellt weg; eine Karte als Spiel nimmt es mit", () => {
+  const C = require("../src/core.js");
+  const P = require("../src/playable.js");
+  const base = { v: 1, seed: 7, params: { gravity: 1800, jump: 430, gap: 140, speed: 130 }, theme: "day", title: "Tiefsee", emoji: "🐠" };
+  const s = "s1.karte.abc.defgh";
+  assert.deepEqual(C.sanitizeState({ ...base, ki: { k: "karte", s } }).ki, { k: "karte", s });
+  assert.deepEqual(C.sanitizeState({ ...base, ki: { k: "welt", s } }).ki, { k: "welt", s });
+  assert.equal(C.sanitizeState({ ...base, ki: { k: "fremd", s } }).ki, undefined);
+  assert.equal(C.sanitizeState({ ...base, ki: { k: "karte" } }).ki, undefined, "ohne Siegel kein Zeichen");
+  const doc = { k: "card", x: "Hallo Welt", col: ["#111111", "#ffd400"], ki: { k: "karte", s } };
+  assert.deepEqual(P.fromDoc(doc, { emoji: "🙂" }).ki, { k: "karte", s });
+  assert.equal(P.fromDoc({ ...doc, ki: undefined }, { emoji: "🙂" }).ki, undefined);
+});
