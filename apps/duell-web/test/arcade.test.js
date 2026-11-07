@@ -87,8 +87,9 @@ test("Anti-Schummeln: Spruenge, Raketen-Baelle, Dauerfeuer und fremde Zuege werd
   E.start(); E.receive({ t: "shot", n: 0, vx: 0, vy: 1000, c: 0 });
   assert.equal(E.rejected, 1, "wer selbst schiesst, bekommt keinen fremden Schuss");
   const K = A.side("stock", { seed: "k", serving: true });
-  K.start(); K.receive({ t: "throw", n: 0, x: 500, vx: 0, vy: 500 });
+  K.start(); K.receive({ t: "throw", n: 0, x: 500, vx: 0, vy: 500 }); K.tick(0.05);   // checked when it would be thrown
   assert.equal(K.rejected, 1, "nicht am Zug");
+  assert.equal(K.st.list.length, 0, "und nicht geworfen");
 });
 
 test("Rundenspiele: jeder Wurf ergibt auf beiden Handys Bit fuer Bit dasselbe Bild", () => {
@@ -320,4 +321,77 @@ test("fin gilt nur fuer ein Ende, das sein kann", () => {
   assert.equal(S.over, false, "zwei Treffer sind kein Ende");
   S.receive({ t: "fin", c: 99 });
   assert.equal(S.over, true); assert.equal(S.score[0], A.SNOW.WIN, "hoechstens WIN");
+});
+
+test("Volley: ein Treffer weit weg von der gemeldeten Figur gilt nur, soweit sie seit ihrer letzten Meldung laufen konnte", () => {
+  let wall = 0; const V = A.VOLLEY, S = A.side("volley", { seed: "v", serving: false, clock: () => wall }); S.start();
+  const far = { x: 600, y: 900, vx: -400, vy: -600 };                                    // about 600 from the figure below
+  S.receive({ t: "p", x: 900, y: V.FY - V.PRAD }); wall += 0.05;
+  S.receive({ t: "hit", b: far }); assert.equal(S.rejected, 1, "Meldungen laufen: zu weit weg");
+  S.receive({ t: "p", x: 900, y: V.FY - V.PRAD }); wall += 0.4;                            // the other phone hung 0.4 s
+  S.receive({ t: "hit", b: far }); assert.equal(S.rejected, 1, "nach 0,4 s ohne Meldung konnte sie so weit laufen");
+  const T = A.side("volley", { seed: "w", serving: false, clock: () => wall }); T.start();
+  T.receive({ t: "p", x: 900, y: V.FY - V.PRAD }); wall += 0.1;
+  T.receive({ t: "hit", b: far }); assert.equal(T.rejected, 1, "nach 0,1 s noch nicht");
+});
+test("Elfer und Eis-Stock: wer hinterherhaengt, holt auf, aber Zuege ueberspringen oder vertauschen geht nicht", () => {
+  // Elfer: the shooter of shot 0 still waits after its result; the next shot (1) moves it on, shot 2 does not
+  const E = A.side("elfer", { seed: "e", serving: true, send: () => {} }); E.start();
+  E.input({ shot: { vx: 0, vy: -1200, c: 0 } }); E.tick(0.02);
+  E.receive({ t: "res", n: 0, r: "miss" }); assert.equal(E.st.phase, "done");
+  E.receive({ t: "shot", n: 2, vx: 0, vy: 1200, c: 0 }); assert.equal(E.rejected, 1, "nicht zwei weiter");
+  E.receive({ t: "shot", n: 1, vx: 0, vy: 1200, c: 0 }); assert.equal(E.rejected, 1); assert.equal(E.st.n, 1); assert.equal(E.st.phase, "fly");
+  // Eis-Stock: a throw the wrong way round is dropped when its turn comes
+  const K = A.side("stock", { seed: "k", serving: false }); K.start();
+  K.receive({ t: "throw", n: 0, x: 500, vx: 0, vy: 500 }); K.tick(0.05);                  // player 0 must throw upwards
+  assert.equal(K.rejected, 1, "falsche Richtung"); assert.equal(K.st.list.length, 0);
+});
+
+test("Eis-Stock: eine Flut von Wuerfen ausser der Reihe blockiert den eigenen Zug nicht", () => {
+  const out = [], K = A.side("stock", { seed: "f", serving: true, send: (m) => out.push(m) }); K.start();   // player 0: first turn
+  for (let f = 0; f < 30; f++) {
+    for (const n of [K.st.n, K.st.n + 1]) K.receive({ t: "throw", n, x: 500, vx: 0, vy: 600 });         // every frame, out of turn
+    if (f === 10) K.input({ shot: { vx: 0, vy: -560 } });
+    K.tick(1 / 60);
+  }
+  const mine = out.filter((m) => m.t === "throw");
+  assert.equal(mine.length, 1, "der eigene Wurf ging los"); assert.equal(mine[0].vy, -560, "und zwar der eigene, kein weicher Spaetwurf");
+  assert.equal(K.st.list.length, 1, "nur dieser Stein liegt");
+});
+test("Elfer: ein Schuss zaehlt einmal, und ein ungueltiger naechster Schuss beendet die Pause nicht", () => {
+  const K = A.side("elfer", { seed: "r", serving: false, send: () => {} }); K.start();   // keeper of shot 0
+  K.input({ x: A.W / 2 });
+  K.receive({ t: "shot", n: 0, vx: 380, vy: 1600, c: 0 });                          // a shot into the corner
+  for (let i = 0; i < 60 && K.st.phase === "fly"; i++) K.tick(1 / 60);
+  assert.equal(K.st.phase, "done"); const score = K.score.slice();
+  for (let i = 0; i < 4; i++) K.receive({ t: "shot", n: 0, vx: 380, vy: 1600, c: 0 }); // repeated in the pause
+  for (let i = 0; i < 30; i++) K.tick(1 / 60);
+  assert.deepEqual(K.score, score, "keine Tore aus Wiederholungen"); assert.equal(K.rejected, 4);
+  const L = A.side("elfer", { seed: "s", serving: true, send: () => {} }); L.start();    // shooter of shot 0, keeper of shot 1
+  L.input({ shot: { vx: 0, vy: -1200, c: 0 } }); L.tick(0.02); L.receive({ t: "res", n: 0, r: "miss" });
+  L.receive({ t: "shot", n: 1, vx: 0, vy: 99999, c: 0 });                            // impossible
+  assert.equal(L.st.n, 0, "die Pause laeuft weiter"); assert.equal(L.st.phase, "done");
+});
+
+test("Eis-Stock und Murmel: auch wenn die Gegenseite waehrend ihres rollenden Steins flutet, geht der eigene Wurf binnen 2 s los", () => {
+  const N = require("./netsim.js");
+  for (const g of ["stock", "murmel"]) for (const net of [{ base: 0.01, jitter: 0.001, loss: 0, rto: 0.2 }, { base: 0.03, jitter: 0.005, loss: 0, rto: 0.2 }]) {
+    const r = N.rng(5), ab = N.channel(r, net), ba = N.channel(r, net); let now = 0, sent = [];
+    const SA = A.side(g, { seed: "fl", serving: false, clock: () => now, send: (m) => ab.send(now, m) });   // the one who floods
+    const SB = A.side(g, { seed: "fl", serving: true, clock: () => now, send: (m) => { if (m.t === "throw") sent.push(now); ba.send(now, m); } });
+    const bot = A.bot(g, SA, "a"); SA.start(); SB.start();
+    let turnAt = null, worst = 0;
+    for (let f = 0; f < 60 * 40 && !SB.over; f++) {
+      now += 1 / 60; ba.due(now, (m) => SA.receive(m)); ab.due(now, (m) => SB.receive(m));
+      for (const q of [0, 1]) ab.send(now, { t: "throw", n: SB.st.n + q, x: A.GAMES[g].rules.fromX(500), vx: 0, vy: 600 });   // every frame, also while a stone rolls
+      const myTurn = SB.st.turn === 0 && !SB.st.rolling;
+      if (myTurn && turnAt === null) turnAt = now;
+      if (myTurn) SB.input({ shot: { x: 500, vx: 0, vy: -700 } });
+      const before = sent.length; bot(1 / 60); SA.tick(1 / 60); SB.tick(1 / 60); SA.ev.length = 0; SB.ev.length = 0;
+      if (sent.length > before && turnAt !== null) { worst = Math.max(worst, now - turnAt); turnAt = null; }
+      if (turnAt !== null) worst = Math.max(worst, now - turnAt);
+    }
+    assert.ok(sent.length >= 3, g + ": eigene Wuerfe " + sent.length);
+    assert.ok(worst <= 2, g + " (" + net.base + " s): laengste Wartezeit auf den eigenen Wurf " + worst.toFixed(2) + " s");
+  }
 });
