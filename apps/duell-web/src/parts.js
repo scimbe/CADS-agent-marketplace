@@ -63,9 +63,11 @@
   // of a free card (doc.ki.k "karte") loads the part, which reports a use (login only) and marks a revoked seal.
   // A build without the part (the business app): every call stays quiet, see stand().
   var dk = stand("deck", "Deck", ["shelf", "open", "vote", "load"], {
-    search: function () { return []; }, hits: function () { return 0; }, revoked: function () { return false; },
+    search: function () { return []; }, hits: function () { return 0; }, revoked: function () { return false; }, ok: function () { return false; },
+    // a free card's status comes from the server (part deck); without the part it is unknown, so the card stays closed
+    check: function (doc) { return LIST.deck ? need("deck").then(function () { return root.Deck !== dk ? root.Deck.check(doc) : "unknown"; }, function () { return "unknown"; }) : Promise.resolve("unknown"); },
     seen: function (doc, badge) {
-      if (doc && doc.ki && doc.ki.k === "karte" && LIST.deck) need("deck").then(function () { if (root.Deck !== dk) root.Deck.seen(doc, badge); }, function () {});
+      if (doc && (doc.fr || (doc.ki && doc.ki.k === "karte")) && LIST.deck) need("deck").then(function () { if (root.Deck !== dk) root.Deck.seen(doc, badge); }, function () {});
     }
   });
   // On the web: everything once the page is idle (see above). In the apps the files are on the device anyway.

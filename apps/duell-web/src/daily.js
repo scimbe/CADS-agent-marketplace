@@ -318,6 +318,7 @@
     var t = txt(o.t, 40), s = txt(o.s, 70), n = C.sanitizeName(o.n);
     if (t) d.t = t; if (s) d.s = s; if (n) d.n = n;    // t/s: an own idea of the day, n: who made it
     var ki = sanitizeKi(o.ki); if (ki) d.ki = ki;
+    if (typeof o.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(o.fr)) d.fr = o.fr;   // remix of a free card: its id (part deck)
     if (o.k === "card") {
       d.x = txt(o.x, MAX_TEXT); d.st = STYLES.card.indexOf(o.st) >= 0 ? o.st : "druck"; d.sk = sanitizeStickers(o.sk);
       var w = sanitizeWeather(o.w); if (w) d.w = w;
@@ -423,7 +424,7 @@
   function docUrl(doc) {
     var d = sanitizeDoc(doc), enc = function () { return toB64(JSON.stringify({ v: 1, d: d })); };
     while (enc().length > C.MAX_FRAGMENT && d.sk && d.sk.length) d.sk.pop();
-    if (enc().length > C.MAX_FRAGMENT && d.ki) delete d.ki.h;
+    if (enc().length > C.MAX_FRAGMENT && d.ki) { if (d.ki.k === "karte" && d.ki.h && !d.fr) d.fr = d.ki.h.slice(0, 22); delete d.ki.h; }
     while (enc().length > C.MAX_FRAGMENT && d.by.length) d.by.shift();
     if (enc().length > C.MAX_FRAGMENT) delete d.s;
     if (enc().length > C.MAX_FRAGMENT) delete d.t;

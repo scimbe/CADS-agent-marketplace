@@ -263,6 +263,9 @@ function tickWait() { clearTimeout(tick.timer); if (!tick.run && !tick.stop) tic
 function blank(kind) { Kit.sfx.thud(); openEditor(D.blankDoc(kind, me, Kit.lang), { own: true }); }
 var page = 0, PLAN_DAYS = 31;
 function dayHome() { return { date: today, idea: D.ideaForDay(today) }; }
+function free(d) { return !!(d && (d.fr || (d.ki && d.ki.k === "karte"))); }
+// Blocked, or not checkable now (fail closed): the day's sheet with a friendly line, never the card's content.
+function freeNo(s) { var n = t(s === "blocked" ? "deck_gone" : "deck_nocheck"); home = Object.assign(dayHome(), { note: n, noteOf: function () { return n; } }); goHomeKeep(); Kit.toast(n); }
 // The page can stay open for days, above all in an app shell: a new day shows up when it comes back or while it is open.
 function newDay() {
   var n = new Date();
@@ -348,7 +351,7 @@ function changed() {           // every control ends up here: redraw within the 
 }
 function gameState() { return C.sanitizeState(Object.assign({ v: 1 }, ed.doc.g, { ki: ed.doc.ki })); }
 // A change by hand to a game the AI made: the sheet is no longer what the seal was made for, so the AI mark goes.
-function byHand() { delete ed.doc.ki; }
+function byHand() { var k = ed.doc.ki; if (k && k.k === "karte" && k.h && !ed.doc.fr) ed.doc.fr = k.h.slice(0, 22); delete ed.doc.ki; }   // a remix keeps the free card's id (doc.fr)
 function playGame() { Kit.sfx.thud(); G.stop(); show("game", true); G.play(gameState(), null, { own: touched() }); }
 // A game state (played, or from a challenge) back into a sheet: route and AI mark go along.
 function gameDoc(s) { var d = { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji, route: s.route } }; if (s.ki) d.ki = s.ki; return d; }
@@ -1124,6 +1127,8 @@ function route() {
   // A turn card that checks a signature first (feier: the signed end) reads its link only once that is done.
   var pre = r && r.type === "doc" && r.doc.k === "turn" && window.Turns.game(r.doc).prepare, wait = pre && pre(r.doc);
   if (wait && wait.then) { wait.then(route, route); return true; }
+  // A free card (doc.ki.k "karte") or a remix of one (doc.fr) opens only after the server says it is not blocked (part deck).
+  if (r && r.type === "doc" && free(r.doc) && !window.Deck.ok(r.doc)) { home = dayHome(); goHomeKeep(); window.Deck.check(r.doc).then(function (s) { if (s === "ok") route(); else freeNo(s); }, freeNo); return true; }
   if (r && r.type === "doc") {
     var lastBy = r.doc.by.length ? r.doc.by[r.doc.by.length - 1].n : r.doc.n;
     home = { date: today, doc: r.doc, note: t("remixOf", { n: lastBy || t("someone") }), noteOf: function () { return t("remixOf", { n: lastBy || t("someone") }); }, link: shortId || undefined }; shortId = null; goHomeKeep();
@@ -1177,7 +1182,7 @@ var CU = window.CollabUI.init({
 var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
-window.DailyApp = { report: function () { if (home && home.doc && screen === "home") reportKi(home); }, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { gone: freeNo, report: function () { if (home && home.doc && screen === "home") reportKi(home); }, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 window.DailyApp.allow = allow;
 

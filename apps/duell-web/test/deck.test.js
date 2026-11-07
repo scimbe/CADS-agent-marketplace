@@ -37,7 +37,7 @@ function load(fetchImpl, store = {}, extra = {}) {
   const w = {
     Kit: { t: (k) => k, store, save() {}, loc: () => "de-DE", toast() {}, sfx: { tap() {} } }, Daily: D, DuellCore: C, DailyTexts: { de: {}, en: {} },
     DeckTexts: { de: { deck_title: "Community-Karten" }, en: { deck_title: "Community cards" } },
-    crypto: crypto.webcrypto, navigator: { onLine: true }, TextEncoder, atob, btoa, setTimeout: (f, ms) => setTimeout(f, Math.min(ms, 5)), Promise, Date, JSON, Object, Array, Math, Uint8Array, String, Number, Error,
+    crypto: crypto.webcrypto, navigator: { onLine: true }, TextEncoder, atob, btoa, setTimeout: (f, ms) => setTimeout(f, Math.min(ms, 5)), clearTimeout, Promise, Date, JSON, Object, Array, Math, Uint8Array, String, Number, Error,
     document: { addEventListener: (e, f) => { listeners[e] = f; }, createElement: () => ({}), head: { appendChild() {} } },
     fetch: async (url, opt) => { if (opt && opt.method === "POST") posts.push({ url, opt, body: JSON.parse(opt.body) }); return fetchImpl(url, opt); },
   };
@@ -164,4 +164,33 @@ test("Texte: deck_, mod_, credit_ in beiden Sprachen; keine Rangliste, kein Zaeh
   assert.ok(!/rangliste|ranking|leaderboard|bestenliste|streak|weiterleiten|weiterschicken|forward this|z(ä|ae)hler|counter|platz \d|top ?\d/i.test(all));
   assert.match(T.de.credit_note, /nicht kaufbar, nicht übertragbar und nicht auszahlbar/);
   for (const k of ["mod_ground", "mod_appeal_until", "mod_court", "mod_auto", "mod_manual"]) assert.ok(T.de[k] && T.en[k], k);
+});
+
+test("Widerruf (Teil deck): check() ist fail-closed – Fehler, Muell, fremde ID, kein Netz -> unknown; ok gilt 30 s, Remix (fr) fragt nach der Karten-ID", async () => {
+  let now = 1000, answer = null, asked = [];
+  const srv = async (url, opt) => {
+    if (url.includes("/deck/status?c=")) { asked.push(url.split("c=")[1]); if (answer instanceof Error) throw answer; return typeof answer === "function" ? answer(url) : answer; }
+    return server({ deck: deckOf(1, []) })(url, opt);
+  };
+  const x = load(srv, {}, { Date: Object.assign(function () {}, { now: () => now }) });
+  const doc = card("Sternfang", H1), cid = H1.slice(0, 22);
+  for (const [a, why] of [[json({}, 500), "500"], [json({ c: cid, st: "vielleicht" }), "unknown word"], [json({ c: "X".repeat(22), st: "ok" }), "another card's answer"], [new Error("offline"), "no network"]]) {
+    answer = a;
+    assert.equal(await x.Deck.check(doc), "unknown", why);
+    assert.equal(x.Deck.ok(doc), false, why);
+  }
+  answer = json({ c: cid, st: "blocked" });
+  assert.equal(await x.Deck.check(doc), "blocked");
+  answer = json({ c: cid, st: "ok" });
+  assert.equal(await x.Deck.check(doc), "ok");
+  assert.equal(x.Deck.ok(doc), true);
+  now += 31000;
+  assert.equal(x.Deck.ok(doc), false, "after 30 s it asks again");
+  // a remix without seal: the id from doc.fr
+  const remix = { k: "card", x: "anders", st: "druck", col: ["#000000", "#ffffff"], by: [], fr: cid };
+  asked = [];
+  answer = json({ c: cid, st: "blocked" });
+  assert.equal(await x.Deck.check(remix), "blocked");
+  assert.deepEqual(asked, [cid]);
+  assert.equal(await x.Deck.check({ k: "card", x: "x", st: "druck", col: ["#000000", "#ffffff"], by: [], ki: { k: "karte", s: "s2.x" } }), "unknown", "a free card without any id stays closed");
 });

@@ -110,10 +110,38 @@
     done[c.cid] = 1; cur = null;
     post("/deck/use", { ki: c.ki, ev: "done", t: c.t }).then(function (r) { if (r.status !== 204) delete done[c.cid]; });
   }
-  document.addEventListener("pointerdown", acted, true);
-  document.addEventListener("keydown", acted, true);
+  // one listener per event: a tap counts towards a use, and an open free card asks again whether it is still there
+  function tap(e) { acted(e); again(); }
+  document.addEventListener("pointerdown", tap, true);
+  document.addEventListener("keydown", tap, true);
   /* A sheet shows (home or editor): mark a revoked seal, and for a free card begin a use. */
+  // ---- revocation (operator 08.11.): a shared free card or a remix of it opens only after the server says "ok" ----
+  // GET <api>/deck/status?c=<cid>, no-store, no cookie. "ok" holds 30 s; after that the next tap asks again. Anything but
+  // a clear answer is "unknown", and the card stays closed (fail closed).
+  var okAt = {}, OK_MS = 30000, asking = null;
+  function freeId(doc) { return (doc && typeof doc.fr === "string" && CID.test(doc.fr) && doc.fr) || cidOf(doc) || (doc && doc.ki && doc.ki.k === "karte" && typeof doc.ki.h === "string" ? doc.ki.h.slice(0, 22) : ""); }
+  function ok(doc) { var id = freeId(doc); return !!id && okAt[id] !== undefined && Date.now() - okAt[id] < OK_MS; }
+  function check(doc) {
+    var id = freeId(doc);
+    if (!CID.test(id)) return Promise.resolve("unknown");
+    var stop, late = new Promise(function (res) { stop = setTimeout(function () { res(null); }, 6000); });
+    return Promise.race([net("/deck/status?c=" + id).then(function (r) { return r.ok ? r.json() : null; }), late]).then(function (j) {
+      clearTimeout(stop);
+      var s = j && j.c === id && (j.st === "ok" || j.st === "blocked") ? j.st : "unknown";
+      if (s === "ok") okAt[id] = Date.now(); else delete okAt[id];
+      return s;
+    }, function () { clearTimeout(stop); delete okAt[id]; return "unknown"; });
+  }
+  // An open free card (sheet or game) asks again at the next tap once its "ok" is older than 30 s; blocked: it closes.
+  // still on screen and not "ok": the app closes it (DailyApp.gone: the day's sheet with the line, no content)
+  function shut(d, s) { var a = A(), h = a && a.home(); if (s !== "ok" && h && h.doc === d) a.gone(s); }
+  function again() {
+    var h = A() && A().home(), d = h && h.doc;
+    if (!d || !(d.fr || (d.ki && d.ki.k === "karte")) || ok(d) || asking) return;
+    asking = check(d).then(function (s) { asking = null; shut(d, s); });
+  }
   function seen(doc, badge) {
+    if ((doc.fr || (doc.ki && doc.ki.k === "karte")) && !ok(doc)) check(doc).then(function (s) { shut(doc, s); });
     if (badge && revoked(doc)) { badge.hidden = false; badge.textContent = t("deck_revoked"); badge.title = t("deck_revoked"); badge.setAttribute("aria-label", t("deck_revoked")); }
     var cid = cidOf(doc);
     if (cur && cur.cid === cid) return;
@@ -164,7 +192,9 @@
   function fact(n) {
     var f = n.facts || {}, out = [];
     if (f.why === "thumbs") out.push(t("mod_f_thumbs", { n: f.down, p: Math.round((f.share || 0) * 100) }));
-    if (f.why === "reports") out.push(t("mod_f_reports", { n: f.reports }));
+    if (f.why === "reports") out.push(f.accounts ? t("mod_f_reported", { n: f.accounts, d: f.days }) : t("mod_f_reports", { n: f.reports }));
+    if (f.provisional) out.push(t("mod_f_held"));
+    if (f.src) out.push(t(f.src === "holds" ? "mod_f_holds" : "mod_f_confirmed") + " " + t("mod_f_lapses", { d: day(f.lapses) }));
     if (f.why === "ai-recheck" || f.by === "ai-recheck") out.push(t("mod_f_ai"));
     if (f.cards) out.push(t("mod_f_cards"));
     if (f.why === "pause-ended") out.push(t("mod_f_end"));
@@ -172,7 +202,7 @@
     return out.join(" ");
   }
   function notice(n, box) {
-    var TY = { "card-hidden": "mod_hidden", "card-removed": "mod_removed", pause: "mod_pause", ban: "mod_ban", lift: "mod_lift" };
+    var TY = { "card-hidden": "mod_hidden", "card-held": "mod_held", "card-removed": "mod_removed", strike: "mod_strike", pause: "mod_pause", ban: "mod_ban", lift: "mod_lift" };
     if (!n || typeof n.nid !== "string" || !TY[n.type]) return;
     var c = el("div", "decknote"); c.appendChild(el("h4", "", t(TY[n.type]) + " · " + day(n.at)));
     c.appendChild(el("p", "", fact(n) + (n.until ? " " + t("mod_until", { d: day(n.until) }) : "")));
@@ -200,7 +230,7 @@
     box.appendChild(el("h3", "", t("deck_mine")));
     var out = el("div"); out.setAttribute("aria-live", "polite"); box.appendChild(out);
     var wait = el("div", "empty", "…"); out.appendChild(wait); box = out;
-    var ST = ["privat", "pruefung", "deck", "pausiert", "entfernt"], RS = ["use", "deck"];   // credit only for real use (no reach)
+    var ST = ["privat", "pruefung", "deck", "pausiert", "gesperrt", "entfernt"], RS = ["use", "deck"];   // credit only for real use (no reach)
     Promise.all([post("/deck/me", {}), post("/mod/me", {})]).then(function (rs) {
       wait.remove();
       var me = rs[0], md = rs[1];
@@ -244,5 +274,5 @@
     });
   }
   load();
-  root.Deck = { load: load, list: function () { return deck.cards.slice(); }, version: function () { return deck.v; }, search: search, hits: hits, revoked: revoked, seen: seen, vote: vote, open: open, shelf: shelf, cidOf: cidOf, _sane: sane, _canonical: canonical };
+  root.Deck = { ok: ok, check: check, load: load, list: function () { return deck.cards.slice(); }, version: function () { return deck.v; }, search: search, hits: hits, revoked: revoked, seen: seen, vote: vote, open: open, shelf: shelf, cidOf: cidOf, _sane: sane, _canonical: canonical };
 })(window);

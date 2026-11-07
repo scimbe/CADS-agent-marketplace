@@ -42,6 +42,15 @@ async function device(state, dev) {
     sent.push({ path: p0, body, method: r.request().method() });
     const j = (s, o) => r.fulfill({ status: s, contentType: "application/json", body: o === undefined ? "" : JSON.stringify(o) });
     if (p0 === "deck") return j(200, state.deck);
+    if (p0.startsWith("deck/status?")) {
+      const c = new URL(u).searchParams.get("c");
+      state.asked = (state.asked || 0) + 1;
+      if (state.hold) await state.hold;
+      const st = (state.status || {})[c] || "ok";
+      if (st === "fail") return r.fulfill({ status: 500, body: "" });
+      if (st === "abort") return r.abort();
+      return r.fulfill({ status: 200, contentType: "application/json", headers: { "Cache-Control": "no-store" }, body: JSON.stringify({ c, st }) });
+    }
     if (p0 === "deck/key") return j(200, { kid, alg: "Ed25519", pub: Buffer.from(pubRaw).toString("base64url") });
     if (p0 === "deck/use") return body.ev === "start" ? j(200, { t: "mh1.ABCDEFGHIJKLMNOPQRSTUV" }) : j(204);
     if (p0 === "deck/vote") return j(204);
@@ -164,6 +173,67 @@ test("Pausiertes Konto: Begruendung mit Grundlage, automatisch, Frist; Widerspru
   await p.getByText("Dein Widerspruch ist angekommen").waitFor();
   const ap = sent.find((s) => s.path === "mod/appeal");
   assert.deepEqual(ap.body, { nid: PAUSE.nid, text: "Das war eine Gruppe aus meiner Klasse." });
+  assert.deepEqual(errs, []);
+  await ctx.close();
+});
+
+// Revocation (operator 08.11.): a shared free card, and every remix of it, opens only after the server says "ok".
+const linkOf = (p, d) => p.evaluate((x) => "#" + window.Daily.docUrl(window.Daily.sanitizeDoc(x)).split("#")[1], d);
+const SHOWN = async (p) => (await p.locator("#home").innerText());
+test("Widerruf: geteilte freie Karte oeffnet nur nach ok; gesperrt -> nicht mehr verfuegbar, ohne Inhalt; Serverfehler -> kann nicht geprueft werden; offene Karte prueft beim naechsten Tippen; Remix mit gleicher Karten-ID gesperrt", async () => {
+  const cid = H1.slice(0, 22), state = { deck: signed(1, []), status: {} };
+  const { p, errs, ctx } = await device(state);
+  const link = await linkOf(p, C1);
+  // ok: nothing of the card shows while the server has not answered; then it opens
+  let release; state.hold = new Promise((r) => { release = r; });
+  await p.evaluate((h) => { location.hash = h; }, link);
+  await p.waitForTimeout(400);
+  assert.equal(await p.locator("#home .kiseal").first().isVisible(), false, "no card before the answer");
+  assert.doesNotMatch(await SHOWN(p), /Sternfang|Wer zuerst den Stern/, "no content before the answer");
+  release(); state.hold = null;
+  await p.locator("#home .kiseal").first().waitFor();
+  assert.ok(state.asked >= 1, "asked the server first");
+  assert.match(await p.locator("#from").textContent(), /.+/);
+  // blocked: a fresh open shows the day's sheet with the line, never the card's text
+  state.status[cid] = "blocked";
+  await p.evaluate(() => { location.hash = ""; });
+  await p.clock.runFor(31000);
+  await p.evaluate((h) => { location.hash = h; }, link);
+  await p.getByText("Diese Karte ist nicht mehr verfügbar.").first().waitFor();
+  assert.doesNotMatch(await SHOWN(p), /Wer zuerst den Stern/, "no content of a blocked card");
+  // server error: fail closed with a friendly line
+  state.status[cid] = "fail";
+  await p.evaluate(() => { location.hash = ""; });
+  await p.evaluate((h) => { location.hash = h; }, link);
+  await p.getByText("kann gerade nicht geprüft werden").first().waitFor();
+  assert.doesNotMatch(await SHOWN(p), /Wer zuerst den Stern/, "no content while unknown");
+  state.status[cid] = "abort";
+  await p.evaluate(() => { location.hash = ""; });
+  await p.evaluate((h) => { location.hash = h; }, link);
+  await p.getByText("kann gerade nicht geprüft werden").first().waitFor();
+  // an open card: blocked meanwhile -> the next tap after 30 s closes it
+  state.status[cid] = "ok";
+  await p.evaluate(() => { location.hash = ""; });
+  await p.evaluate((h) => { location.hash = h; }, link);
+  await p.locator("#home .kiseal").first().waitFor();
+  state.status[cid] = "blocked";
+  await p.mouse.click(20, 400);   // any tap: the part listens in the capture phase
+  await p.waitForTimeout(150);
+  assert.match(await p.locator("#from").textContent(), /^(?!.*nicht mehr verfügbar)/, "within 30 s the last ok holds");
+  await p.clock.runFor(31000);
+  await p.mouse.click(20, 400);   // any tap: the part listens in the capture phase
+  await p.getByText("Diese Karte ist nicht mehr verfügbar.").first().waitFor();
+  // red team: a remix (text sharpened, seal gone) keeps the card's id in doc.fr and is blocked with it
+  const remix = { k: "card", t: "Sternfang", x: "verschaerfter Text", st: "druck", col: ["#ffd400", "#ff3b1d"], by: [{ n: "x" }], fr: cid };
+  const rl = await linkOf(p, remix);
+  assert.match(Buffer.from(rl.split("#c=")[1], "base64url").toString(), /"fr":"S{22}"/, "the id survives the link");
+  await p.evaluate(() => { location.hash = ""; });
+  await p.evaluate((h) => { location.hash = h; }, rl);
+  await p.getByText("Diese Karte ist nicht mehr verfügbar.").first().waitFor();
+  assert.doesNotMatch(await SHOWN(p), /verschaerfter Text/);
+  // a remix by hand in the editor keeps the id (byHand -> doc.fr), and a link too long for the hash keeps it as well
+  const kept = await p.evaluate((d) => { const s = window.Daily.sanitizeDoc(Object.assign({}, d, { ki: undefined, fr: d.ki.h.slice(0, 22) })); return s.fr; }, C1);
+  assert.equal(kept, cid);
   assert.deepEqual(errs, []);
   await ctx.close();
 });
