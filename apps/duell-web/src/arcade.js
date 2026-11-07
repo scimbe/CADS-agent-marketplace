@@ -342,7 +342,7 @@
     return kind !== "hit" || Math.hypot(b.x - opp.x, b.y - opp.y) <= V.BR + V.PRAD + 260 + (slack || 0);
   }
   function volleySide(o) {
-    var V = VOLLEY, S = base(V, o), aim = 250, jump = false, ground = V.FY - V.PRAD, pAt = null, path = [], fxSeen = false;
+    var V = VOLLEY, S = base(V, o), aim = 250, jump = false, ground = V.FY - V.PRAD, pAt = null, path = [], fxSeen = false, forged = 0, waitServe = null;
     // From every state of the ball the other phone moves, this one works out its free flight for the next seconds with
     // the same physics. A state from over there has to lie on that path (a hit only near it, and in reach of the
     // reported figure): no clock is needed, so none can be faked, and late or early arrival does not matter.
@@ -353,6 +353,19 @@
       }
       return false;
     }
+    // A state from over there that cannot be: the point goes where this phone's own physics lets the ball land, and that
+    // is sent as binding ("award"). In the other half it is this phone's point; coming over the net it could still have
+    // been played here, so then nobody scores and the other side serves again. At the third such state in one game the
+    // game ends without a winner ("void"): the connection was not stable enough to play it out.
+    function forged1() {
+      var st = S.st; S.reject(); forged++;
+      if (forged >= 3) { voidGame(true); return; }
+      var land = null; for (var i = 0; i < path.length; i++) if (path[i].y + V.BR >= V.FY) { land = path[i]; break; }
+      var mine = !!land && land.x > V.NX;
+      S.send({ t: "award", w: mine ? 1 : 0 }); st.b = null; st.own = false; st.held = false; waitServe = S.clock();
+      if (mine) S.gain();
+    }
+    function voidGame(send) { if (send) S.send({ t: "void" }); S.st.b = null; S.voided = true; S.over = true; S.serveAt = 0; S.fx("draw", W / 2, H / 2); }
     function keep(b) {
       var q = { x: b.x, y: b.y, vx: b.vx, vy: b.vy }; path = [copy(q)];
       for (var i = 0; i < 120 * (STALL_MAX + 2) && q.y + V.BR < V.FY + 60; i++) { volleyStep(q, 1 / 120); path.push(copy(q)); }
@@ -362,6 +375,7 @@
     function serve() { var st = S.st; st.b = volleyServe(S.seed, S.n); st.own = true; st.held = false; S.send({ t: "serve", n: S.n, b: mirrorX(st.b) }); S.n++; S.serveAt = 0; S.fx("serve", st.b.x, st.b.y); }
     S.tick = function (dt) {
       var st = S.st;
+      if (waitServe !== null && S.clock() - waitServe > 8) voidGame(true);   // the other side never served again after an award
       loop(S, dt, function (d) {
         if (volleyMove(st.me, aim, jump, d)) S.fx("land", st.me.x, V.FY);
         if (jump && st.me.vy < 0) S.fx("jump", st.me.x, V.FY);
@@ -386,23 +400,30 @@
       S.heard();
       if (m.t === "p" && num(m.x) && num(m.y)) { pAt = S.clock(); st.opp = plausibleFigure(st.opp, m, S.oppDt(Math.abs(m.x - st.opp.x), V.VMOVE * 1.25)); return; }
       if (m.t === "pt") { st.b = null; st.own = false; S.gain(); return; }
-      if (m.t === "serve" && num(m.n)) { if (!same(m.b, mirrorX(volleyServe(S.seed, m.n)))) return S.reject(); st.b = copy(m.b); st.own = false; st.held = false; S.n = m.n + 1; keep(st.b); return; }
+      if (m.t === "void") { voidGame(false); return; }
+      if (m.t === "award") {   // the other phone ruled on a state from here it could not accept: taken as it is
+        st.b = null; st.own = false; st.held = false;
+        if (m.w === 1) { S.score[1]++; S.fx("lose", W / 2, V.FY); S.check(); }
+        if (!S.over) S.serveAt = S.t + SERVE_PAUSE;
+        return;
+      }
+      if (m.t === "serve" && num(m.n)) { if (!same(m.b, mirrorX(volleyServe(S.seed, m.n)))) return S.reject(); waitServe = null; st.b = copy(m.b); st.own = false; st.held = false; S.n = m.n + 1; keep(st.b); return; }
       if (m.t === "hit" || m.t === "st" || m.t === "pass") {
-        if (st.own) return;
+        if (st.own || waitServe !== null) return;   // after an award: what was still on its way from that rally does not count
         // How far the figure may have got since its report: only after a real gap in all arrivals (a stall of the network
         // or a phone that hung), measured here; a sender that only holds back its reports gains nothing.
         var walked = Math.hypot(V.VMOVE, V.JUMP) * 1.25 * S.gap();
-        if (!plausibleVolley(m.t, m.b, st.opp, walked)) return S.reject();
+        if (!plausibleVolley(m.t, m.b, st.opp, walked)) return forged1();
         if (path.length && body(m.b)) {
           if (m.t === "hit") {
             // contact: the ball near its path (the bump only pushes it out a little) and at the reported figure
             var reach = Math.hypot(V.VMOVE, V.JUMP) * 1.25 * NET_P * 1.2 + walked;   // walking and jumping since its report
-            if (!along(m.b, 90, null)) return S.reject();
+            if (!along(m.b, 90, null)) return forged1();
             if (num(m.fx) && num(m.fy)) {   // the figure where it touched: reachable from its report, and the ball right at it
               fxSeen = true;
-              if (Math.hypot(m.fx - st.opp.x, m.fy - st.opp.y) > reach + 20 || Math.hypot(m.b.x - m.fx, m.b.y - m.fy) > V.BR + V.PRAD + 15) return S.reject();
-            } else if (fxSeen || Math.hypot(m.b.x - st.opp.x, m.b.y - st.opp.y) > V.BR + V.PRAD + 40 + reach) return S.reject();   // an older app (one that once told where it touched always does)
-          } else if (!along(m.b, 40, 45)) return S.reject();   // free flight: on the path, at its speed
+              if (Math.hypot(m.fx - st.opp.x, m.fy - st.opp.y) > reach + 20 || Math.hypot(m.b.x - m.fx, m.b.y - m.fy) > V.BR + V.PRAD + 15) return forged1();
+            } else if (fxSeen || Math.hypot(m.b.x - st.opp.x, m.b.y - st.opp.y) > V.BR + V.PRAD + 40 + reach) return forged1();   // an older app (one that once told where it touched always does)
+          } else if (!along(m.b, 40, 45)) return forged1();   // free flight: on the path, at its speed
         }
         st.b = copy(m.b); st.held = false; keep(st.b);
         if (m.t === "pass") st.own = true; else if (m.t === "hit") S.fx("ohit", st.b.x, st.b.y, { v: speed(st.b) });

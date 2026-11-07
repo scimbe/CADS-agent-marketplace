@@ -289,9 +289,10 @@ test("Volley: ein Zustand muss auf der Flugbahn liegen, ein Treffer am gemeldete
   const later = Object.assign({}, b0); for (let i = 0; i < 24; i++) A.volleyStep(later, 1 / 120);
   S.receive({ t: "st", b: later }); assert.equal(S.rejected, 0, "auf der Bahn");
   S.receive({ t: "st", b: { x: later.x, y: later.y, vx: later.vx, vy: -1300 } }); assert.equal(S.rejected, 1, "umgedreht: nicht auf der Bahn");
-  const f = { x: 700, y }, touch = { x: later.x, y: later.y };
-  S.receive({ t: "hit", b: { x: touch.x, y: touch.y, vx: 300, vy: -900 }, fx: f.x, fy: f.y });
-  assert.equal(S.rejected, 2, "die gemeldete Figur ist weit weg vom Ball: kein Kontakt");
+  const T = A.side("volley", { seed: "z", serving: false, clock: () => 0 }); T.start();
+  T.receive({ t: "p", x: 700, y }); T.receive({ t: "st", b: b0 });
+  T.receive({ t: "hit", b: { x: later.x, y: later.y, vx: 300, vy: -900 }, fx: 700, fy: y });
+  assert.equal(T.rejected, 1, "die gemeldete Figur ist weit weg vom Ball: kein Kontakt");
 });
 test("Elfer und Eis-Stock: wer hinterherhaengt, holt auf, aber Zuege ueberspringen oder vertauschen geht nicht", () => {
   // Elfer: the shooter of shot 0 still waits after its result; the next shot (1) moves it on, shot 2 does not
@@ -330,4 +331,33 @@ test("Elfer: ein Schuss zaehlt einmal, und ein ungueltiger naechster Schuss been
   L.input({ shot: { vx: 0, vy: -1200, c: 0 } }); L.tick(0.02); L.receive({ t: "res", n: 0, r: "miss" });
   L.receive({ t: "shot", n: 1, vx: 0, vy: 99999, c: 0 });                            // impossible
   assert.equal(L.st.n, 0, "die Pause laeuft weiter"); assert.equal(L.st.phase, "done");
+});
+
+test("Volley-Faelschung: der Punkt faellt, wo die eigene Physik den Ball landen laesst; ab der dritten endet die Partie neutral", () => {
+  const V = A.VOLLEY, y = V.FY - V.PRAD; let wall = 0; const out = [];
+  const S = A.side("volley", { seed: "g", serving: false, clock: () => wall, send: (m) => out.push(m) }); S.start();
+  const rally = () => { S.receive({ t: "p", x: 700, y }); S.receive({ t: "st", b: { x: 700, y: 900, vx: 0, vy: 600 } }); };   // falling in their half
+  const forge = () => S.receive({ t: "st", b: { x: 700, y: 1300, vx: 300, vy: -1300 } });                                      // turned up near the floor
+  rally(); forge();
+  assert.deepEqual(out.filter((m) => m.t === "award"), [{ t: "award", w: 1 }], "verbindlich gemeldet: Punkt hier");
+  assert.deepEqual(S.score, [1, 0]);
+  S.receive({ t: "st", b: { x: 700, y: 1300, vx: 300, vy: -1300 } });   // still on its way from that rally: not counted again
+  assert.equal(S.rejected, 1);
+  // the other side takes the award as binding and serves
+  const O = A.side("volley", { seed: "g", serving: true, send: () => {} }); O.start();
+  O.receive({ t: "award", w: 1 }); assert.deepEqual(O.score, [0, 1]); assert.ok(O.serveAt > 0, "wer verliert, schlaegt auf");
+  // a second and a third forgery: the game ends without a winner
+  S.receive({ t: "serve", n: 0, b: A.mirrorX(A.volleyServe("g", 0)) }); rally(); forge();
+  S.receive({ t: "serve", n: 1, b: A.mirrorX(A.volleyServe("g", 1)) }); rally(); forge();
+  assert.equal(S.over, true); assert.equal(S.voided, true); assert.ok(out.some((m) => m.t === "void"));
+  const Q = A.side("volley", { seed: "g", serving: true }); Q.start(); Q.receive({ t: "void" });
+  assert.equal(Q.over, true); assert.equal(Q.voided, true, "beide Seiten enden neutral");
+});
+test("Volley: kommt nach einem Award kein Aufschlag mehr, endet die Partie neutral statt zu haengen", () => {
+  const V = A.VOLLEY, y = V.FY - V.PRAD; let wall = 0;
+  const S = A.side("volley", { seed: "h", serving: false, clock: () => wall }); S.start();
+  S.receive({ t: "p", x: 700, y }); S.receive({ t: "st", b: { x: 700, y: 900, vx: 0, vy: 600 } });
+  S.receive({ t: "st", b: { x: 700, y: 1300, vx: 300, vy: -1300 } });
+  for (let k = 0; k < 200 && !S.over; k++) { wall += 0.05; S.tick(0.05); }
+  assert.equal(S.voided, true);
 });
