@@ -353,7 +353,8 @@ function gameDoc(s) { var d = { k: "game", col: me.colors, by: [], g: { seed: s.
 function areas() { var w = D.changedAreas(ed.base, ed.doc); if (X[ed.doc.k] && X[ed.doc.k].areas) w = w.concat(X[ed.doc.k].areas(ed)); if (ed.ownPhoto) w.push("foto"); if (ed.ownVoice) w.push("stimme"); return w; }
 function touched() { var ok = areas().length > 0; return ed.own ? ok && !!ed.doc.t : ok; }
 // The idea of the day can go out as it is; only a blank one needs something of your own first.
-function ready() { return ed.own ? touched() : true; }
+// made: a free card (create-ui.js) is whole as it comes, nothing has to change before it goes out
+function ready() { return ed.own && !ed.made ? touched() : true; }
 function footer() {
   var b = $("edmain"), ok = ready(), g = ed.doc.k === "game";
   b.hidden = false; delete b.dataset.why;
@@ -392,7 +393,7 @@ function openEditor(doc, opt) {
   opt = opt || {};
   if (doc && doc.k === "table") { if (window.TableUI) window.TableUI.open(doc.g); return; }   // a card table is played live, there is nothing to edit
   window.Ai.drop();
-  ed = { doc: D.sanitizeDoc(doc), base: D.sanitizeDoc(doc), own: !!opt.own, photo: null, peaks: null, pcm: null, tab: null, sel: -1, page: 0, line: 0, idea: opt.idea || null };
+  ed = { doc: D.sanitizeDoc(doc), base: D.sanitizeDoc(doc), own: !!opt.own, made: !!opt.made, photo: null, peaks: null, pcm: null, tab: null, sel: -1, page: 0, line: 0, idea: opt.idea || null };
   if (opt.own) ed.doc.n = me.nick;
   if (ed.doc.k === "sound" && ed.doc.m === "beat") beatPeaks();
   if (ed.doc.k === "photo") { ed.photo = R.botFace(C.hash32(me.nick + Date.now()), ed.doc.col[1]); }
