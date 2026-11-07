@@ -347,6 +347,107 @@ test("Volley: ein Zustand muss auf der Flugbahn liegen, ein Treffer am gemeldete
   S.receive({ t: "hit", b: { x: touch.x, y: touch.y, vx: 300, vy: -900 }, fx: f.x, fy: f.y });
   assert.equal(S.rejected, 2, "die gemeldete Figur ist weit weg vom Ball: kein Kontakt");
 });
+test("Fester Zeitschritt: wie die Bilder eines Handys fallen, aendert keinen Flug", () => {
+  const fly = (frames) => {
+    const S = A.side("volley", { seed: "t", serving: false, clock: () => 0 }); S.start();
+    S.receive({ t: "st", b: { x: 760, y: 300, vx: -900, vy: 200 } });   // over the net top and on
+    for (const d of frames) S.tick(d);
+    return S.st.b;
+  };
+  const even = [], odd = [], r = require("./netsim.js").rng(4); let sum = 0;
+  for (let i = 0; i < 30; i++) even.push(1 / 60);
+  while (sum < 0.5 - 0.034) { const d = 0.008 + r() * 0.026; odd.push(d); sum += d; }
+  odd.push(0.5 + 1 / 240 - sum); even.push(1 / 240);   // both end in the middle of a step: the same steps were run
+  assert.deepEqual(fly(odd), fly(even));
+});
+test("Volley: ein Treffer muss aus Ball und Figur folgen, mit gemeldeter Figur genauso wie ohne", () => {
+  const V = A.VOLLEY, y = V.FY - V.PRAD, RB = V.BR + V.PRAD;
+  // a ball falling onto the figure over there (it stands at 760, walking left at full speed), and the bump it really gets
+  const setup = (o) => { const S = A.side("volley", Object.assign({ seed: "h", serving: false, clock: () => 0 }, o)); S.start(); S.receive({ t: "p", x: 760, y }); S.receive({ t: "st", b: { x: 800, y: 900, vx: -60, vy: 400 } }); return S; };
+  const bump = (fvx) => {
+    const q = { x: 800, y: 900, vx: -60, vy: 400 }, f = { x: 760, y, vx: fvx, vy: 0 };
+    while (Math.hypot(q.x - f.x, q.y - f.y) >= RB) A.volleyStep(q, 1 / 120);
+    A.volleyBump(q, f); return q;
+  };
+  const real = bump(-V.FIG);
+  let S = setup(); S.receive({ t: "hit", b: real, fx: 760, fy: y }); assert.equal(S.rejected, 0, "echt, mit Figur");
+  S = setup({ date: Date.UTC(2027, 5, 1) }); S.receive({ t: "hit", b: real }); assert.equal(S.rejected, 0, "echt, ohne Figur, auch nach der Uebergangsfrist");
+  // made up: speeds no figure in reach gives (a bump always sends the ball up by 500 at least; nor flat at full speed)
+  for (const v of [{ vx: -300, vy: 200 }, { vx: -1700, vy: -30 }]) {
+    const fake = Object.assign({}, real, v);
+    S = setup(); S.receive({ t: "hit", b: fake, fx: 760, fy: y }); assert.equal(S.rejected, 1, "erfunden, mit Figur");
+    S = setup({ date: Date.UTC(2027, 5, 1) }); S.receive({ t: "hit", b: fake }); assert.equal(S.rejected, 1, "erfunden, ohne Figur: ebenso");
+  }
+  S = setup(); S.receive({ t: "hit", b: Object.assign({}, real, { vx: -300, vy: 200 }) }); assert.equal(S.rejected, 1, "nach unten geht auch in der Uebergangsfrist nicht");
+  // steeper than this standing figure gives it: with the figure named, refused; without, the receiver has to allow every
+  // figure in reach (one in the air could) - which is what a sender could also claim by naming that one
+  const steep = Object.assign({}, real, { vx: 0, vy: -1700 });
+  S = setup(); S.receive({ t: "hit", b: steep, fx: 760, fy: y }); assert.equal(S.rejected, 1, "steil, stehende Figur");
+  // the touching figure named where it is not: the ball has to sit right on its body
+  S = setup(); S.receive({ t: "hit", b: real, fx: 700, fy: y }); assert.equal(S.rejected, 1, "Figur daneben");
+  // a figure 160 up in a jump: fine when its last report was up there too, not when it said it stood on the ground
+  const q = { x: 800, y: 900, vx: -60, vy: 400 }, up = { x: 760, y: y - 160, vx: 0, vy: -700 };
+  while (Math.hypot(q.x - up.x, q.y - up.y) >= RB) A.volleyStep(q, 1 / 120);
+  A.volleyBump(q, up);
+  for (const [py, want, why] of [[y - 160, 0, "im Sprung gemeldet"], [y, 1, "am Boden gemeldet: ausser Reichweite"]]) {
+    S = A.side("volley", { seed: "h", serving: false, clock: () => 0 }); S.start(); S.receive({ t: "p", x: 760, y: py });
+    S.receive({ t: "st", b: { x: 800, y: 900, vx: -60, vy: 400 } }); S.receive({ t: "hit", b: q, fx: 760, fy: y - 160 }); assert.equal(S.rejected, want, why);
+  }
+});
+test("Volley mit Spielzeit: die Figur muss zum Kontakt laufen koennen und von dort zur naechsten Meldung", () => {
+  const V = A.VOLLEY, y = V.FY - V.PRAD, RB = V.BR + V.PRAD;
+  // the bump a standing figure at x gives a ball falling from (800, 900)
+  const bump = (x) => { const q = { x: 800, y: 900, vx: -60, vy: 400 }, f = { x, y, vx: 0, vy: 0 }; while (Math.hypot(q.x - f.x, q.y - f.y) >= RB) A.volleyStep(q, 1 / 120); A.volleyBump(q, f); return q; };
+  const run = (reportX, hitX, nextX) => {
+    let wall = 10; const S = A.side("volley", { seed: "g", serving: false, clock: () => wall }); S.start();
+    S.receive({ t: "p", x: reportX, y, gt: 1000 });
+    S.receive({ t: "st", b: { x: 800, y: 900, vx: -60, vy: 400 } });
+    wall += 0.05; S.receive({ t: "hit", b: bump(hitX), fx: hitX, fy: y, gt: 1050 });
+    const atHit = S.rejected;
+    wall += 0.05; S.receive({ t: "p", x: nextX, y, gt: 1100 });
+    return [atHit, S.rejected];
+  };
+  assert.deepEqual(run(760, 760, 760), [0, 0], "steht da und trifft");
+  assert.deepEqual(run(700, 760, 820), [0, 0], "laeuft hindurch: 60 in 50 ms, bis 1824 in der Sekunde");
+  assert.deepEqual(run(640, 760, 760), [1, 1], "120 in 50 ms: so schnell laeuft keine Figur");
+  assert.deepEqual(run(700, 760, 640), [0, 1], "und zurueck: 120 in 50 ms nach dem Kontakt geht auch nicht");
+  // a sender that sets its game clock ahead gains at most GT_LEAD (0.6 s) in all
+  let wall = 10; const S = A.side("volley", { seed: "g", serving: false, clock: () => wall }); S.start();
+  S.receive({ t: "p", x: 640, y, gt: 1000 }); S.receive({ t: "st", b: { x: 800, y: 900, vx: -60, vy: 400 } });
+  wall += 0.05; S.receive({ t: "hit", b: bump(760), fx: 760, fy: y, gt: 5000 });   // claims four seconds passed
+  assert.equal(S.rejected, 0, "einmal: so viel Vorlauf ist noch drin (120 in 0,6 s)");
+  wall += 0.05; S.receive({ t: "p", x: 760, y, gt: 9000 }); wall += 0.05; S.receive({ t: "p", x: 1000, y, gt: 13000 });
+  assert.equal(S.rejected, 1, "danach nicht mehr: die Zeit wird auf die eigene Uhr zurueckgeschnitten");
+});
+test("Volley: eine aeltere App ohne Figur im Treffer hat bis zur Uebergangsfrist ihren alten Seitenstoss, danach nicht mehr", () => {
+  const V = A.VOLLEY, y = V.FY - V.PRAD, RB = V.BR + V.PRAD;
+  // an older app stepped the short rest of a frame like a whole one: its figure seemed to move very fast in that step
+  const b0 = { x: 700, y: 1000, vx: 200, vy: 300 }, q = Object.assign({}, b0), f = { x: 700, y, vx: -6000, vy: 0 };
+  while (Math.hypot(q.x - f.x, q.y - f.y) >= RB) A.volleyStep(q, 1 / 120);
+  A.volleyBump(q, f);
+  const run = (date, withFx) => {
+    const S = A.side("volley", { seed: "o", serving: false, clock: () => 0, date }); S.start();
+    S.receive({ t: "p", x: 700, y }); S.receive({ t: "st", b: b0 });
+    S.receive(withFx ? { t: "hit", b: q, fx: 700, fy: y } : { t: "hit", b: q }); return S.rejected;
+  };
+  assert.equal(run(Date.UTC(2026, 11, 1), false), 0, "vor der Frist: ohne Figur so angenommen, wie die alte App es machte");
+  assert.equal(run(Date.UTC(2027, 1, 1), false), 1, "nach der Frist: dieselbe Grenze wie fuer alle");
+  assert.equal(run(Date.UTC(2026, 11, 1), true), 1, "wer die Figur mitschickt, ist eine neue App: die strenge Grenze gilt sofort");
+});
+test("Volley: im ehrlichen Spiel mit echten Bildzeiten (8-34 ms) wird nichts abgelehnt", () => {
+  const N = require("./netsim.js");
+  for (let seed = 1; seed <= 6; seed++) {
+    const r = N.rng(seed), ab = N.channel(r, N.BAD), ba = N.channel(r, N.BAD), fq = N.rng(seed * 13 + 1); let now = 0;
+    const SA = A.side("volley", { seed: "r" + seed, serving: true, clock: () => now, send: (m) => ab.send(now, m) });
+    const SB = A.side("volley", { seed: "r" + seed, serving: false, clock: () => now, send: (m) => ba.send(now, m) });
+    const P = [[SA, ba, A.bot("volley", SA, "a"), 0], [SB, ab, A.bot("volley", SB, "b"), 0]]; SA.start(); SB.start();
+    for (let k = 0; k < 120000 && !(SA.over && SB.over); k++) {
+      now += 0.001;
+      for (const p of P) if (now >= p[3]) { const d = 0.008 + fq() * 0.026; p[3] = now + d; p[1].due(now, (m) => p[0].receive(m)); p[2](d); p[0].tick(d); p[0].ev.length = 0; }
+    }
+    assert.equal(SA.rejected + SB.rejected, 0, "Seed " + seed);
+  }
+});
 test("Elfer und Eis-Stock: wer hinterherhaengt, holt auf, aber Zuege ueberspringen oder vertauschen geht nicht", () => {
   // Elfer: the shooter of shot 0 still waits after its result; the next shot (1) moves it on, shot 2 does not
   const E = A.side("elfer", { seed: "e", serving: true, send: () => {} }); E.start();
