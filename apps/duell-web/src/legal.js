@@ -8,7 +8,7 @@
   var MARK = "⟦";
   var FIELD = /\{([a-zA-Z]+)\}/g;
   // The sentences in legal.json that state these facts; the operator confirms each one in operator.json.
-  var CONFIRM = ["hosting", "aiModelOwnHardware", "avvHosting", "conference", "channelRelay"];
+  var CONFIRM = ["hosting", "aiModelOwnHardware", "avvHosting", "conference", "channelRelay", "anthropic"];
 
   /** Everything that still keeps the pages from going live: placeholder fields and facts not yet confirmed. */
   function missing(op) {

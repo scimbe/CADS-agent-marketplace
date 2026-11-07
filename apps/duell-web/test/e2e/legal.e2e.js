@@ -46,7 +46,7 @@ test("Rechtliches: von jedem Bildschirm in hoechstens zwei Tipps, Inhalt im App-
   await p.locator("#shback").tap(); await p.locator("#home").waitFor();
   await p.locator("#lang").tap();
   assert.equal(await p.locator("#home .legalrow [data-legal=impressum]").textContent(), "Legal notice");
-  await p.locator("#home .legalrow [data-legal=datenschutz]").tap(); await shelfShows("Privacy", "12. Your rights");
+  await p.locator("#home .legalrow [data-legal=datenschutz]").tap(); await shelfShows("Privacy", "13. Your rights");
   assert.deepEqual(errs, []);
   await b.close();
 });
