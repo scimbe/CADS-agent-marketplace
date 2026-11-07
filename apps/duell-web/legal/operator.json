@@ -11,12 +11,15 @@
   "mstv": "⟦BITTE AUSFÜLLEN: Name und Anschrift der inhaltlich verantwortlichen Person nach § 18 Abs. 2 MStV⟧",
   "dpo": "",
   "hosting": "OVH GmbH, Deutschland",
+  "anthropicTransfer": "⟦BITTE AUSFÜLLEN: Grundlage der Übermittlung an Anthropic in die USA, z. B. „den Angemessenheitsbeschluss zum EU-US Data Privacy Framework (Art. 45 DSGVO)“ oder „die Standardvertragsklauseln der EU-Kommission (Art. 46 Abs. 2 lit. c DSGVO)“ – nur, was im Vertrag mit Anthropic tatsächlich steht⟧",
+  "anthropicTransferEn": "⟦BITTE AUSFÜLLEN: dieselbe Grundlage auf Englisch, z. B. „the adequacy decision on the EU-US Data Privacy Framework (Art. 45 GDPR)“ oder „the standard contractual clauses of the European Commission (Art. 46(2)(c) GDPR)“⟧",
   "proxyLogDays": "⟦BITTE AUSFÜLLEN: Tage, die Zugriffsprotokolle mit IP-Adresse beim Proxy/Webserver aufbewahrt werden (Zahl), oder 0⟧",
   "bestaetigt": {
     "hosting": false,
     "aiModelOwnHardware": false,
     "avvHosting": false,
     "conference": false,
-    "channelRelay": false
+    "channelRelay": false,
+    "anthropic": false
   }
 }
