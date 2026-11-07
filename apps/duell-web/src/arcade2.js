@@ -330,6 +330,8 @@
       var st = S.st; if (!m || S.over) return;
       if (m.t === "p" && num(m.x)) { st.opp = clamp(reach(st.opp, m.x, S.oppDt(Math.abs(m.x - st.opp), E.VK * 1.25), E.VK * 1.25), W / 2 - E.GW / 2, W / 2 + E.GW / 2); st.oppV = num(m.v) ? m.v : 0; return; }
       if (m.t === "shot") {
+        // This phone still waits after the last result (it came late) while the other one already shoots the next: move on.
+        if (st.phase === "done" && m.n === st.n + 1) next();
         if (st.shooting || st.phase === "fly" || m.n !== st.n || !num(m.vx) || !num(m.vy) || !num(m.c)) return S.reject();
         if (Math.hypot(m.vx, m.vy) > E.VMAX * 1.01 || m.vy < E.VMIN * 0.7 - 1 || Math.abs(m.c) > E.CMAX) return S.reject();
         var sp = elfSpot(S.seed, st.n); st.b = { x: W - sp.x, y: H - sp.y, vx: m.vx, vy: m.vy, c: m.c }; st.phase = "fly"; S.fx("kick", st.b.x, st.b.y);
@@ -404,7 +406,11 @@
     S.tick = function (dt) {
       var st = S.st; if (S.over) return;
       dt = Math.min(dt, 0.25); S.t += dt;
-      if (S.started && !st.rolling && queue.length) { var q = queue.shift(); launch(q.p, q.x, q.vx, q.vy); }
+      if (S.started && !st.rolling && queue.length) {
+        // Whose turn it is and which way the throw must go are checked only now, with the round as it stands here.
+        var q = queue.shift(), who = D.turnOf(st, st.n);
+        if (who === me || (who === 0 ? q.vy > 0 : q.vy < 0)) S.reject(); else launch(who, q.x, q.vx, q.vy);
+      }
       if (S.mineTurn()) {
         if (!throwIt && S.t - st.at > D.LATE) throwIt = D.late(S.seed, st.n, me);   // too slow: a soft one goes off by itself
         // Only towards the other side counts as a throw.
@@ -417,10 +423,10 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over || m.t !== "throw") return;
-      var expect = st.n + queue.length, who = D.turnOf(st, expect);
+      var expect = st.n + queue.length;
       // The other one may throw only on its turn, from its own line, towards this side, and not harder than a hand can.
-      if (m.n !== expect || who === me || !num(m.x) || !num(m.vx) || !num(m.vy) || m.x !== D.fromX(m.x) || Math.sqrt(m.vx * m.vx + m.vy * m.vy) > D.VMAX * 1.001 || (who === 0 ? m.vy > 0 : m.vy < 0)) return S.reject();
-      queue.push({ p: who, x: m.x, vx: m.vx, vy: m.vy });
+      if (m.n !== expect || !num(m.x) || !num(m.vx) || !num(m.vy) || m.x !== D.fromX(m.x) || Math.sqrt(m.vx * m.vx + m.vy * m.vy) > D.VMAX * 1.001) return S.reject();
+      queue.push({ x: m.x, vx: m.vx, vy: m.vy });
     };
     // Points in the shared frame: player 0 is the inviter; this phone counts itself first.
     S.point = function (p, k) { var mine = p === me; S.score[mine ? 0 : 1] += k || 1; S.fx(mine ? "score" : "lose", W / 2, H / 2, { n: k || 1 }); S.check(); };

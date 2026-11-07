@@ -87,8 +87,9 @@ test("Anti-Schummeln: Spruenge, Raketen-Baelle, Dauerfeuer und fremde Zuege werd
   E.start(); E.receive({ t: "shot", n: 0, vx: 0, vy: 1000, c: 0 });
   assert.equal(E.rejected, 1, "wer selbst schiesst, bekommt keinen fremden Schuss");
   const K = A.side("stock", { seed: "k", serving: true });
-  K.start(); K.receive({ t: "throw", n: 0, x: 500, vx: 0, vy: 500 });
+  K.start(); K.receive({ t: "throw", n: 0, x: 500, vx: 0, vy: 500 }); K.tick(0.05);   // checked when it would be thrown
   assert.equal(K.rejected, 1, "nicht am Zug");
+  assert.equal(K.st.list.length, 0, "und nicht geworfen");
 });
 
 test("Rundenspiele: jeder Wurf ergibt auf beiden Handys Bit fuer Bit dasselbe Bild", () => {
@@ -266,4 +267,28 @@ test("fin gilt nur fuer ein Ende, das sein kann", () => {
   assert.equal(S.over, false, "zwei Treffer sind kein Ende");
   S.receive({ t: "fin", c: 99 });
   assert.equal(S.over, true); assert.equal(S.score[0], A.SNOW.WIN, "hoechstens WIN");
+});
+
+test("Volley: ein Treffer weit weg von der gemeldeten Figur gilt nur, soweit sie seit ihrer letzten Meldung laufen konnte", () => {
+  let wall = 0; const V = A.VOLLEY, S = A.side("volley", { seed: "v", serving: false, clock: () => wall }); S.start();
+  const far = { x: 600, y: 900, vx: -400, vy: -600 };                                    // about 600 from the figure below
+  S.receive({ t: "p", x: 900, y: V.FY - V.PRAD }); wall += 0.05;
+  S.receive({ t: "hit", b: far }); assert.equal(S.rejected, 1, "Meldungen laufen: zu weit weg");
+  S.receive({ t: "p", x: 900, y: V.FY - V.PRAD }); wall += 0.4;                            // the other phone hung 0.4 s
+  S.receive({ t: "hit", b: far }); assert.equal(S.rejected, 1, "nach 0,4 s ohne Meldung konnte sie so weit laufen");
+  const T = A.side("volley", { seed: "w", serving: false, clock: () => wall }); T.start();
+  T.receive({ t: "p", x: 900, y: V.FY - V.PRAD }); wall += 0.1;
+  T.receive({ t: "hit", b: far }); assert.equal(T.rejected, 1, "nach 0,1 s noch nicht");
+});
+test("Elfer und Eis-Stock: wer hinterherhaengt, holt auf, aber Zuege ueberspringen oder vertauschen geht nicht", () => {
+  // Elfer: the shooter of shot 0 still waits after its result; the next shot (1) moves it on, shot 2 does not
+  const E = A.side("elfer", { seed: "e", serving: true, send: () => {} }); E.start();
+  E.input({ shot: { vx: 0, vy: -1200, c: 0 } }); E.tick(0.02);
+  E.receive({ t: "res", n: 0, r: "miss" }); assert.equal(E.st.phase, "done");
+  E.receive({ t: "shot", n: 2, vx: 0, vy: 1200, c: 0 }); assert.equal(E.rejected, 1, "nicht zwei weiter");
+  E.receive({ t: "shot", n: 1, vx: 0, vy: 1200, c: 0 }); assert.equal(E.rejected, 1); assert.equal(E.st.n, 1); assert.equal(E.st.phase, "fly");
+  // Eis-Stock: a throw the wrong way round is dropped when its turn comes
+  const K = A.side("stock", { seed: "k", serving: false }); K.start();
+  K.receive({ t: "throw", n: 0, x: 500, vx: 0, vy: 500 }); K.tick(0.05);                  // player 0 must throw upwards
+  assert.equal(K.rejected, 1, "falsche Richtung"); assert.equal(K.st.list.length, 0);
 });
