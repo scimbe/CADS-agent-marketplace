@@ -27,6 +27,8 @@
     var acHold = el("div"); b.appendChild(acHold); S.konto(function () { root.Profile.section(acHold, el); });
     b.appendChild(el("label", "lbl", t("fs_title")));
     A.chips(b, ["n", "g", "sg"].map(function (v) { return { v: v, l: t("fs_" + v) }; }), Kit.fs, function (v) { Kit.setFs(v); S.fit(); }, "fs");
+    // the plain-language switch comes with the part direkt (editor E1)
+    var ez = el("div"); b.appendChild(ez); root.Parts.need("direkt").then(function () { root.Direkt.style(ez); }, function () {});
     b.appendChild(el("label", "lbl", t("pf_title")));
     var pf = el("div", "pfbox"); b.appendChild(pf); prefs(pf);
     b.appendChild(el("p", "note", t("aiPicNote")));

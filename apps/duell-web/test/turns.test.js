@@ -68,8 +68,9 @@ const LINES = {
   preis: [[Array(QS.PREIS_N).fill(100), Array(QS.PREIS_N).fill(50)]]
 };
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
-  // phish is a card of the Business catalog (src/flavors/business/ideas.json), every other game has a daily card
-  assert.deepEqual(ideas.map((i) => i.turn.g).concat(["phish"]).sort(), [...Tn.IDS].sort());
+  // phish is a card of the Business catalog (src/flavors/business/ideas.json), every other game has a daily card; Mal & Rat
+  // brings its rule in its own part (src/malrat.js, test/malrat.test.js) and never ends, the next picture is the next move
+  assert.deepEqual(ideas.map((i) => i.turn.g).filter((g) => g !== "malrat").concat(["phish"]).sort(), [...Tn.IDS].sort());
   for (const g of Tn.IDS) {
     let d = fresh(g, 12345);
     for (const answers of LINES[g][0]) { const n = Tn.play(d, answers, 100); assert.ok(n, g); d = through(n); }

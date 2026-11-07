@@ -527,7 +527,8 @@ function endText(body, won, s, live, draw) {
 }
 // Against the bot: the bot's side runs in this page with the very same engine and messages as a live friend.
 function playBot(g) {
-  var seed = typeof window.__arcadeSeed === "string" ? window.__arcadeSeed : "bot|" + g + "|" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);   // tests fix the seed
+  var seed = typeof window.__arcadeSeed === "string" ? window.__arcadeSeed : "bot|" + g + "|" + (Kit.store.arcN = (Kit.store.arcN || 0) + 1);   // tests fix the seed; else the n-th match on this device, never Math.random
+  if (typeof window.__arcadeSeed !== "string") Kit.save();
   var body = layer(g), toMe = [], toBot = [];
   var S = A.side(g, { seed: seed, serving: true, clock: wall, send: function (m) { toBot.push(JSON.parse(JSON.stringify(m))); } });
   var B = A.side(g, { seed: seed, serving: false, clock: wall, send: function (m) { toMe.push(JSON.parse(JSON.stringify(m))); } });
@@ -580,9 +581,9 @@ function demo(cv, g, still) {
   demos = demos.filter(function (d) { if (d.cv === cv) d.stop = true; return !d.stop && d.cv.isConnected; });
   if (!g || !A.GAMES[g]) return;
   var d = { cv: cv, stop: false }; demos.push(d);
-  var seed = "demo|" + g, P = Painter(cv, g, { silent: true, fixed: true }), last = performance.now(), P2, ba, bb;
+  var seed = "demo|" + g, round = 0, P = Painter(cv, g, { silent: true, fixed: true }), last = performance.now(), P2, ba, bb;
   function fresh(s) { P2 = A.pair(g, s, 0); ba = A.bot(g, P2.A, s + "a"); bb = A.bot(g, P2.B, s + "b"); P2.start(); }
-  function run(dt) { ba(dt); bb(dt); P2.tick(dt); P2.B.ev.length = 0; if (P2.A.over) fresh(seed + Math.random()); }
+  function run(dt) { ba(dt); bb(dt); P2.tick(dt); P2.B.ev.length = 0; if (P2.A.over) fresh(seed + "|" + ++round); }
   fresh(seed);
   if (still) { for (var k = 0; k < 240; k++) run(1 / 60); P2.A.ev.length = 0; P.frame(P2.A, 1 / 60, {}); return; }
   (function frame(now) {

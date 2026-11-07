@@ -70,11 +70,13 @@
       if (doc && (doc.fr || (doc.ki && doc.ki.k === "karte")) && LIST.deck) need("deck").then(function () { if (root.Deck !== dk) root.Deck.seen(doc, badge); }, function () {});
     }
   });
-  // On the web: everything once the page is idle (see above). In the apps the files are on the device anyway.
+  // On the web: everything once the page is idle (see above). In the apps the files are on the device anyway. Not noto
+  // (Noto Emoji for stickers in the picture, about 110 KB): the editor asks for it at its first sticker (app.js paint), so
+  // only people with stickers load it; offline without it the picture is made as before, without stickers.
   if (/^https?:$/.test(location.protocol) && location.hostname !== "appassets.androidplatform.net") {
     root.addEventListener("load", function () {
       (root.requestIdleCallback || function (f) { return setTimeout(f, 1500); })(function () {
-        Object.keys(LIST).forEach(function (n) { need(n).catch(function () {}); });
+        Object.keys(LIST).forEach(function (n) { if (n !== "noto") need(n).catch(function () {}); });
       });
     });
   }

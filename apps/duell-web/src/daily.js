@@ -309,6 +309,8 @@
     if (typeof o.s === "string" && /^[A-Za-z0-9._~-]{8,200}$/.test(o.s)) r.s = o.s;
     // h: base64url SHA-256 of the option the seal was made for (Ai.optionHash), only next to a seal. Sheets without it stay valid.
     if (r.s && typeof o.h === "string" && /^[A-Za-z0-9_-]{43}$/.test(o.h)) r.h = o.h;
+    // o: the creator tag of a free card (CADS-DEMO-wrapper lib/duell-deck.mjs), an HMAC that names nobody; only next to a seal
+    if (r.s && typeof o.o === "string" && /^[A-Za-z0-9_-]{22}$/.test(o.o)) r.o = o.o;
     return r;
   }
   function sanitizeDoc(o) {
@@ -348,6 +350,8 @@
     return d;
   }
   // A title as one line: "|" marks the break on the sheet. "Tür-|steher" joins to "Türsteher", "Winter-|Tunnel" keeps its hyphen.
+  // The bot face's seed: the name, the sheet and which face it is (0 first, then each tap), never the clock or Math.random.
+  function botSeed(nick, doc, n) { return C.hash32("bot|" + nick + "|" + (doc.i || doc.k) + "|" + n); }
   function plainTitle(s) { return String(s || "").replace(/-\|(\p{Ll})/gu, "$1").replace(/-\|/g, "-").replace(/\|/g, " ").trim(); }
   function docFromIdea(idea, profile, lang) {
     // Without the catalog part (a broken bundle) the day still shows: its title as a plain card.
@@ -422,12 +426,15 @@
   /* Never over the size the page itself accepts. Stickers give way first, then the option hash h (without it a seal
      that is checked against the option's hash can no longer be checked; the seal itself stays), then the oldest trail. */
   function docUrl(doc) {
-    var d = sanitizeDoc(doc), enc = function () { return toB64(JSON.stringify({ v: 1, d: d })); };
-    while (enc().length > C.MAX_FRAGMENT && d.sk && d.sk.length) d.sk.pop();
-    if (enc().length > C.MAX_FRAGMENT && d.ki) { if (d.ki.k === "karte" && d.ki.h && !d.fr) d.fr = d.ki.h.slice(0, 22); delete d.ki.h; }
-    while (enc().length > C.MAX_FRAGMENT && d.by.length) d.by.shift();
-    if (enc().length > C.MAX_FRAGMENT) delete d.s;
-    if (enc().length > C.MAX_FRAGMENT) delete d.t;
+    var d = sanitizeDoc(doc), enc = function () { return toB64(JSON.stringify({ v: 1, d: d })); }, over = function () { return enc().length > C.MAX_FRAGMENT; };
+    // a free card (ki.k "karte") is known to the deck only by its hash h: there h goes last, after the trail, s and t
+    var late = d.ki && d.ki.k === "karte";
+    while (over() && d.sk && d.sk.length) d.sk.pop();
+    if (!late && over() && d.ki) delete d.ki.h;
+    while (over() && d.by.length) d.by.shift();
+    if (over()) delete d.s;
+    if (over()) delete d.t;
+    if (over() && d.ki) { if (late && d.ki.h && !d.fr) d.fr = d.ki.h.slice(0, 22); delete d.ki.h; }   // the id stays as doc.fr (part deck)
     return C.SHARE_BASE + "#c=" + enc();
   }
 
@@ -459,7 +466,7 @@
 
   var api = {
     IDEAS: IDEAS, plainTitle: plainTitle, fill: fill, index: index, full: function () { return FULL; }, ROUND: ROUND, GATED: GATED, roundOrder: roundOrder, KINDS: KINDS, PLAY: PLAY, caps: caps, available: available, docAvailable: docAvailable, MAX_WALL: MAX_WALL, byId: byId, localDoc: localDoc, dayNumber: dayNumber, ideaForDay: ideaForDay, dayDate: dayDate, lastDays: lastDays, fold: fold, searchIdeas: searchIdeas,
-    randomIdea: randomIdea, paperIndex: paperIndex, sanitizeId: sanitizeId, parseRoute: parseRoute, fromB64: fromB64, inviteUrl: inviteUrl, challengeUrl: challengeUrl,
+    randomIdea: randomIdea, paperIndex: paperIndex, sanitizeId: sanitizeId, parseRoute: parseRoute, botSeed: botSeed, fromB64: fromB64, inviteUrl: inviteUrl, challengeUrl: challengeUrl,
     cleanInput: cleanInput, sanitizeProfile: sanitizeProfile, sanitizePref: sanitizePref, prefChips: prefChips, dropPref: dropPref, prefContext: prefContext, adult: adult, dietOk: dietOk, PREF: { AGES: AGES, DIETS: DIETS, NOTIMES: NOTIMES }, sanitizeDoc: sanitizeDoc, sanitizeKi: sanitizeKi, doorNumber: doorNumber, docFromIdea: docFromIdea, blankDoc: blankDoc,
     changedAreas: changedAreas, withTrail: withTrail, docUrl: docUrl, SETS: SETS, STYLES: STYLES, FX: FX, AREAS: AREAS, MAX_STICKERS: MAX_STICKERS, sanitizeWall: sanitizeWall, addToWall: addToWall, ideaStrings: ideaStrings
   };
