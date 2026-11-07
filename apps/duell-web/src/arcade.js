@@ -355,15 +355,22 @@
     }
     // A state from over there that cannot be: the point goes where this phone's own physics lets the ball land, and that
     // is sent as binding ("award"). In the other half it is this phone's point; coming over the net it could still have
-    // been played here, so then nobody scores and the other side serves again. At the third such state in one game the
-    // game ends without a winner ("void"): the connection was not stable enough to play it out.
+    // been played here, so then nobody scores and the other side serves again. At the third such state in one game,
+    // counted by this phone only, the game ends and counts for this side ("forfeit"), as an ordinary win; honest play
+    // never gets here, not with stalls of 0-6 s and not with a phone that hangs (tests).
     function forged1() {
-      var st = S.st; S.reject(); forged++;
-      if (forged >= 3) { voidGame(true); return; }
+      var st = S.st; S.reject(); forged++; S.forged = forged;
+      if (forged >= 3) { forfeit(true); return; }
       var land = null; for (var i = 0; i < path.length; i++) if (path[i].y + V.BR >= V.FY) { land = path[i]; break; }
       var mine = !!land && land.x > V.NX;
       S.send({ t: "award", w: mine ? 1 : 0 }); st.b = null; st.own = false; st.held = false; waitServe = S.clock();
       if (mine) S.gain();
+    }
+    // forfeit: S.forfeit says who it counts for ("me" here, "them" on the other phone); the score stays as it was.
+    function forfeit(mine) {
+      if (mine) S.send({ t: "forfeit" });
+      S.st.b = null; S.forfeit = mine ? "me" : "them"; S.draw = false; S.over = true; S.ending = false; S.serveAt = 0; waitServe = null;
+      S.fx(mine ? "won" : "lost", W / 2, H / 2);
     }
     function voidGame(send) { if (send) S.send({ t: "void" }); S.st.b = null; S.voided = true; S.over = true; S.serveAt = 0; S.fx("draw", W / 2, H / 2); }
     function keep(b) {
@@ -401,6 +408,7 @@
       if (m.t === "p" && num(m.x) && num(m.y)) { pAt = S.clock(); st.opp = plausibleFigure(st.opp, m, S.oppDt(Math.abs(m.x - st.opp.x), V.VMOVE * 1.25)); return; }
       if (m.t === "pt") { st.b = null; st.own = false; S.gain(); return; }
       if (m.t === "void") { voidGame(false); return; }
+      if (m.t === "forfeit") { forfeit(false); return; }
       if (m.t === "award") {   // the other phone ruled on a state from here it could not accept: taken as it is
         st.b = null; st.own = false; st.held = false;
         if (m.w === 1) { S.score[1]++; S.fx("lose", W / 2, V.FY); S.check(); }
