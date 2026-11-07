@@ -56,7 +56,7 @@ test("Wer sieht was?: ein Satz aus den Kartenfeldern, de und en, KI mit Anbieter
   for (const k of Object.keys(TEXTS.de).filter((x) => /^(wsw_|data_missing|fs_)/.test(x))) assert.ok(TEXTS.en[k], "en fehlt: " + k);
   for (const k of Object.keys(TEXTS.en).filter((x) => /^(wsw_|data_missing|fs_)/.test(x))) assert.ok(TEXTS.de[k], "de fehlt: " + k);
   // With the part stimme (window.Stimme): the sentence on the card numbers right after the server's.
-  const p = page("de"); p.w.Stimme = {};
+  const p = page("de"); p.w.Bausteine.stat = () => {};
   assert.equal(p.w.Bausteine.wsw({}), "Im Link steht nur die Karte. Keine KI. Inhalte speichert ein Server nur im Kurzlink, 90 Tage. " + TEXTS.de.vote_wsw + " Der Link verfällt nicht.");
 });
 // M7: no line may say a server keeps nothing while the card numbers count (src/stat.js) and sharing makes a short link.

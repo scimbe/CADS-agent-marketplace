@@ -59,5 +59,6 @@
     set(); p.appendChild(document.createTextNode(" ")); p.appendChild(b);
     return b;
   }
-  root.Stimme = { sheet: sheet, row: row, share: function (doc) { S.share(doc); } };
+  root.Bausteine.stat = row;   // the core's Bausteine knows no part by name (business.e2e.js: nothing of stimme in its core)
+  root.Stimme = { sheet: sheet, share: function (doc) { S.share(doc); } };
 })(window);
