@@ -5,6 +5,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium } = require("playwright");
+const G = require("./lib/grund.js");
 const jsQR = require("jsqr");
 const D = require("../../src/daily.js");
 
@@ -194,10 +195,11 @@ test("Zurueck aus dem Editor beendet die Sitzung und sagt es der Huelle", async 
   await a.ctx.close(); await b.ctx.close();
 });
 
+// The one test here that loads its page twice: over the web route (lib/grund.js), the rest are one page of an app shell on file://.
 test("Reine Web-Fassung: sagt ehrlich, dass es nur in der App geht, und sendet nichts", async () => {
-  const ctx = await browser.newContext({ locale: "de-DE", viewport: { width: 390, height: 780 } }), page = await ctx.newPage(), out = [];
+  const ctx = await browser.newContext({ locale: "de-DE", viewport: { width: 390, height: 780 } }), page = await ctx.newPage(), out = [], PAGE = await G.webUrl("index.html");
   const pic = /^https:\/\/demos-34a13a96\.bunsenbrenner\.org\/duell\/img\/[a-z0-9-]+\.jpg$/;   // the day's KI-Bild, see thumbs.e2e.js
-  page.on("request", (r) => { if (!r.url().startsWith("file:") && !r.url().startsWith("data:") && !pic.test(r.url())) out.push(r.url()); });
+  page.on("request", (r) => { if (!r.url().startsWith("file:") && !G.isLocal(r.url()) && !r.url().startsWith("data:") && !pic.test(r.url())) out.push(r.url()); });
   await page.route(pic, (r) => r.abort());
   await page.goto(PAGE + "#i=" + CARD); await page.click("#go"); await page.click("#cogo");
   assert.equal(await page.textContent("#cotext"), "Zusammen bauen geht in der App.");

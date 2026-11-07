@@ -259,6 +259,7 @@ test("Melden mit Options-Hash: das Blatt traegt h neben dem Siegel, die Meldung 
   assert.deepEqual(errs, []); await p.context().close();
 });
 
+// file:// on purpose: the iOS shell (DuellHost.ai, no network); one page, never reloaded (lib/grund.js).
 test("iOS-Huelle (DuellHost.ai, Seite ohne Netz): Warteschlange, Abrechnung und Melden laufen ueber die Huelle mit ihren festen Pfaden", async () => {
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), p = await ctx.newPage(), errs = [], host = [];
   p.on("pageerror", (e) => errs.push(e.message));

@@ -91,6 +91,7 @@ const shown = async (p) => (await p.locator("body").innerText()) + "\n" + JSON.s
 // localStorage writes to other pages of the context asynchronously and the app reads its storage once at start, so wait
 // until the key is there, then load again (in real use the link is opened much later).
 async function openWith(ctx, h, key) {
+  assert.ok(ctx.web, "openWith laedt neu: nur ueber die Web-Route (lib/grund.js)");
   const p = await G.open(ctx, h, BIZ);
   await p.waitForFunction((k) => !!JSON.parse(localStorage.getItem("daily.v1") || "{}")[k], key);
   await p.reload(); await p.waitForFunction(() => document.body.getAttribute("data-state") !== "boot");
@@ -224,7 +225,7 @@ test("Vier Geraete, de und en: versiegelt abstimmen, Orga sieht erst ab fuenf Su
 
 test("Neutral: Jahresabschlussfeier reist als Titel mit; die Jugend-App oeffnet den Link mit derselben Karte", async () => {
   const b = await G.launch(); try {
-    const [ana, ben] = await G.people(b, 2, { lang: ["en", "de"], view: "phone390", time: TIME });
+    const [ana, ben] = await G.people(b, 2, { lang: ["en", "de"], view: "phone390", time: TIME, web: true });   // Ben opens two pages: web route
     const a = await G.open(ana, "#i=biz-weihnachtsfeier", BIZ);
     const one = await setUp(a, { en: true, neutral: true, shot: "neutral" });
     const p = await G.open(ben, hash(one), BIZ);
@@ -245,7 +246,7 @@ test("Hauptknopf ohne Scrollen und unverdeckt auf 328x700, 390x844, 640x400, 512
     const link = hash(await setUp(await G.open(maker, "#i=biz-weihnachtsfeier", BIZ)));
     const free = (p) => p.evaluate(() => { const e = document.getElementById("edmain"), r = e.getBoundingClientRect(), h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!h && (h === e || e.contains(h)); });
     for (const view of SCREENS) for (const lang of G.LANGS) {
-      const at = view + " " + lang, ctx = await G.person(b, { view, lang, time: TIME });
+      const at = view + " " + lang, ctx = await G.person(b, { view, lang, time: TIME, web: true });   // sheet and received link on one device: web route
       const home = await G.open(ctx, "#i=biz-weihnachtsfeier", BIZ);
       await home.waitForTimeout(500);
       assert.ok(await G.inView(home, "#go"), "Blatt: " + at); assert.deepEqual(await G.covered(home), [], "Blatt: " + at);

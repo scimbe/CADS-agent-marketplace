@@ -71,7 +71,8 @@ async function playPhish(p, pick, at, shots) {
 
 test("Echt oder Phishing? (Business): drei Geraete reichen den Link weiter, jede Person sieht nur das eigene Ergebnis, das Team-Ergebnis ab 5", async () => {
   const b = await G.launch(); try {
-    const [ana, ben, cem] = await G.people(b, 3, { lang: ["de", "en", "de"], view: ["phone328h", "zoom200quer", "zoom200"] });
+    // web route: Ana opens a second page later (lib/grund.js)
+    const [ana, ben, cem] = await G.people(b, 3, { lang: ["de", "en", "de"], view: ["phone328h", "zoom200quer", "zoom200"], web: true });
     const a = await G.open(ana, "#i=biz-quiz-phishing", { flavor: "business" });
     assert.equal((await a.locator("#hero").textContent()).replace(/\s+/g, ""), "EchtoderPhishing?");
     await homeFree(a, "ana start"); await snap(a, "phish-0-karte-de-328x700");
@@ -124,7 +125,8 @@ test("Echt oder Phishing? (Business): drei Geraete reichen den Link weiter, jede
 
 test("Was kostet das? (Daily): Einladung, zweites Handy schaetzt dieselben 8 Preise, Ergebnis mit Quelle und Stand zurueck zum ersten, de/en", async () => {
   const b = await G.launch(); try {
-    const [mia, jon] = await G.people(b, 2, { lang: ["de", "en"], view: ["phone390", "phone328h"] });
+    // web route: Mia opens a second page later (lib/grund.js)
+    const [mia, jon] = await G.people(b, 2, { lang: ["de", "en"], view: ["phone390", "phone328h"], web: true });
     const a = await G.open(mia, "#i=quiz-preis");
     assert.equal((await a.locator("#hero").textContent()).replace(/\s+/g, ""), "Waskostetdas?");
     await homeFree(a, "mia de 390"); await snap(a, "preis-0-karte-de-390x844");

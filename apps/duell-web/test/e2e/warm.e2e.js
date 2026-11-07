@@ -3,7 +3,10 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium, devices } = require("playwright");
-const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
+const G = require("./lib/grund.js");
+let page;
+// Web route (lib/grund.js): pages here are reloaded or a device opens several pages; under file:// such a page now and then starts with an empty storage of its own.
+test.before(async () => { page = await G.webUrl("index.html"); });
 
 async function setup(motion) {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });

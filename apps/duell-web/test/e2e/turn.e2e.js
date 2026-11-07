@@ -4,18 +4,19 @@ const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium, devices } = require("playwright");
 const G = require("./lib/grund.js");
-const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
+let page;
+// Web route (lib/grund.js): pages here are reloaded or a device opens several pages; under file:// such a page now and then starts with an empty storage of its own.
+test.before(async () => { page = await G.webUrl("index.html"); });
 const shot = process.env.SHOT_DIR;
 const hash = (u) => "#" + u.split("#")[1];
 
-// o.web: pages from G's local web origin instead of file:// (for a test that reloads a page, see lib/grund.js webUrl)
 async function setup(o) {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined, args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), errs = [];
   ctx.setDefaultTimeout(15000);
   // macOS gives a headless browser no microphone: a test tone from the audio graph stands in, the recording path stays the real one.
   await ctx.addInitScript(() => { if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = async () => { const a = window.Kit.audio(true), o = a.createOscillator(), d = a.createMediaStreamDestination(); o.connect(d); o.start(); return d.stream; }; });
-  const base = o && o.web ? await G.webUrl("index.html") : page;
+  const base = page;
   const open = async (h) => { const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e))); await p.goto(base + h); return p; };
   return { b, open, errs };
 }
@@ -532,7 +533,7 @@ test("Profil: Vorgaben als Chips, abwaehlbar, nur lokal; Essen erst ab 16, PayPa
 test("Agent-Duell: nach dem Match steht, warum es so ausging, ohne KI und ohne Netz", async () => {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE", reducedMotion: "reduce" }), errs = [], hosts = new Set();
-  ctx.setDefaultTimeout(15000); ctx.on("request", (r) => { if (/^https?:/.test(r.url())) hosts.add(new URL(r.url()).host); });
+  ctx.setDefaultTimeout(15000); ctx.on("request", (r) => { if (/^https?:/.test(r.url()) && !G.isLocal(r.url())) hosts.add(new URL(r.url()).host); });   // the page itself comes from the web route
   for (const id of ["duell-ssp", "auktion-socke", "rap-agenten"]) {
     const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e))); await p.goto(page + "#i=" + id);
     await p.locator("#go").click(); await p.locator("#edmain").click();

@@ -3,7 +3,10 @@
 // invites from seat to seat, the joint shuffle, the rules, the screens and the score all run for real.
 const test = require("node:test"), assert = require("node:assert/strict"), path = require("node:path");
 const { chromium, devices } = require("playwright-core");
-const page = "file://" + path.join(__dirname, "../../dist/index.html");
+const G = require("./lib/grund.js");
+let page;
+// Web route (lib/grund.js): pages here are reloaded or a device opens several pages; under file:// such a page now and then starts with an empty storage of its own.
+test.before(async () => { page = await G.webUrl("index.html"); });
 
 const FAKE = `(() => {
   window.__liveOn = true;
