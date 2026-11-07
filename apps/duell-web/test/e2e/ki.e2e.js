@@ -22,7 +22,7 @@ async function phone(api, o) {
   await ctx.route(/^https?:/, async (r) => {
     const u = r.request().url();
     if (G.isLocal(u)) return r.fallback();   // the page itself (o.web)
-    if (api && u.startsWith(API)) { const path0 = u.slice(API.length), body = JSON.parse(r.request().postData() || "null"); sent.push({ path: path0, body }); const a = api(path0, body); if (a) return r.fulfill({ status: a[0], contentType: "application/json", body: JSON.stringify(a[1]) }); }
+    if (api && u.startsWith(API) && u !== API + "stat") { const path0 = u.slice(API.length), body = JSON.parse(r.request().postData() || "null"); sent.push({ path: path0, body }); const a = api(path0, body); if (a) return r.fulfill({ status: a[0], contentType: "application/json", body: JSON.stringify(a[1]) }); }
     return r.abort();
   });
   await p.goto(o && o.web ? await G.webUrl("index.html") : page);
