@@ -35,6 +35,8 @@
     var s = extra || {};
     calls.forEach(function (m) {
       s[m] = function () {
+        // Built without it on purpose (no entry in the manifest): quiet, no word on screen.
+        if (!LIST[part]) return Promise.resolve();
         var a = arguments;
         // A part that loaded but did not set its module (it threw while running) gets the same word on screen.
         return use(part, function () { var r = root[key]; if (!r || r === s) { fail(); throw new Error("part " + part + " without " + key); } return r[m].apply(r, a); }).catch(function () {});
@@ -59,11 +61,9 @@
   stand("table", "TableUI", ["open", "accept"], { close: function () {} });
   // The community deck of free cards (deck.js). search() and revoked() answer from nothing until the part is there; seen()
   // of a free card (doc.ki.k "karte") loads the part, which reports a use (login only) and marks a revoked seal.
-  // A build without the part (the business app) keeps the names, and they do nothing: no request, no word on screen.
-  var dk = !LIST.deck ? { shelf: function () {}, open: function () {}, vote: function () {}, load: function () {} } : null;
-  if (dk) root.Deck = Object.assign(dk, { search: function () { return []; }, revoked: function () { return false; }, seen: function () {} });
-  else dk = stand("deck", "Deck", ["shelf", "open", "vote", "load"], {
-    search: function () { return []; }, revoked: function () { return false; },
+  // A build without the part (the business app): every call stays quiet, see stand().
+  var dk = stand("deck", "Deck", ["shelf", "open", "vote", "load"], {
+    search: function () { return []; }, hits: function () { return 0; }, revoked: function () { return false; },
     seen: function (doc, badge) {
       if (doc && doc.ki && doc.ki.k === "karte" && LIST.deck) need("deck").then(function () { if (root.Deck !== dk) root.Deck.seen(doc, badge); }, function () {});
     }

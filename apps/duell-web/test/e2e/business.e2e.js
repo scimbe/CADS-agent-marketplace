@@ -338,6 +338,7 @@ test("Business ohne freie Karte: kein Teil deck im dist, kein Knopf Community-Ka
     assert.notEqual(await p.locator("#toast").textContent(), "Dieser Teil fehlt gerade. Bitte die Seite neu laden.");
     assert.deepEqual(errs, []);
   } finally { await b.close(); }
+});
 
 test("Ohne Server (ADR 0005): kein Teil stimme im Business-Build, keine Daumen, kein Request darauf oder an die Statistik", async () => {
   const dir = path.join(root, "dist/business/parts"), files = require("node:fs").readdirSync(dir);

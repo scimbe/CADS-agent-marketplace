@@ -142,6 +142,12 @@
   function el(tag, cls, text, on) { return A().el(tag, cls, text, on); }
   function day(iso) { var d = new Date(iso); if (isNaN(d)) return ""; try { return d.toLocaleDateString(Kit.loc(), { day: "numeric", month: "long", year: "numeric" }); } catch (e) { return d.toISOString().slice(0, 10); } }
   function open(e) { var h = A().home() || {}; A().sheet({ date: h.date || new Date(), doc: e.doc, note: t("deck_from"), noteOf: function () { return t("deck_from"); } }); }
+  // Hits of the search under "Vergangene", after the daily cards; returns how many, so the shelf knows whether it is empty.
+  function hits(q, list) {
+    var found = search(q);
+    found.forEach(function (e) { var b = el("button", "day", null, function () { Kit.sfx.tap(); open(e); }); b.appendChild(el("b", "", "✦")); b.appendChild(el("span", "", D.plainTitle(e.doc.t || e.doc.x || ""))); b.appendChild(el("small", "", t("deck_open"))); list.appendChild(b); });
+    return found.length;
+  }
   function row(e, list) {
     var r = el("div", "deckrow"), b = el("button", "day", null, function () { Kit.sfx.tap(); open(e); });
     b.appendChild(el("b", "", "✦")); b.appendChild(el("span", "", D.plainTitle(e.doc.t || e.doc.x || "")));
@@ -235,5 +241,5 @@
     });
   }
   load();
-  root.Deck = { load: load, list: function () { return deck.cards.slice(); }, version: function () { return deck.v; }, search: search, revoked: revoked, seen: seen, vote: vote, open: open, shelf: shelf, cidOf: cidOf, _sane: sane, _canonical: canonical };
+  root.Deck = { load: load, list: function () { return deck.cards.slice(); }, version: function () { return deck.v; }, search: search, hits: hits, revoked: revoked, seen: seen, vote: vote, open: open, shelf: shelf, cidOf: cidOf, _sane: sane, _canonical: canonical };
 })(window);
