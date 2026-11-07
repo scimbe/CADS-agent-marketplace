@@ -439,6 +439,7 @@
     }).slice(0, MAX_WALL).map(function (e) {
       var o = { id: e.id, ts: e.ts, th: e.th };   // f: the link of a work kept with Merken, only a c= fragment
       if (typeof e.f === "string" && e.f.length <= C.MAX_FRAGMENT && /^c=[A-Za-z0-9_-]+={0,2}$/.test(e.f)) o.f = e.f;
+      if (typeof e.k === "string" && /^[a-z]{1,12}$/.test(e.k)) o.k = e.k;   // k: what was made; "photo" never leaves the device (profile.js)
       return o;
     });
   }

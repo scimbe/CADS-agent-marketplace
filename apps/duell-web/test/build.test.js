@@ -24,7 +24,10 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // Sizes at the split: core 693 KB, parts 310 KB (play 140, table 104, qr 59, licenses 6), together 1003 KB.
   assert.ok(Buffer.byteLength(html) < 700 * 1024, "Kern ueber 700 KB: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["daten", "katalog", "licenses", "logik", "play", "qr", "quiz", "satz", "stimme", "table", "texte", "turnzwei", "welt"]);
+  assert.deepEqual(Object.keys(man).sort(), ["daten", "katalog", "konto", "licenses", "logik", "play", "qr", "quiz", "satz", "stimme", "table", "texte", "turnzwei", "welt"]);
+  // "Anmelden / Registrieren": its texts (ac_) only in the part konto, none in the core
+  assert.ok(!/"ac_[a-z]/.test(html), "ac_-Texte im Kern");
+  assert.match(fs.readFileSync(partFiles().find((f) => /\/konto\.[0-9a-f]{12}\.js$/.test(f)), "utf8"), /window\.KontoTexts=\{"de":\{"ac_title":"Anmelden \/ Registrieren"/);
   for (const n of Object.keys(man)) assert.match(n, /^[a-z]{1,20}$/, "Teilname nur Buchstaben (Galerie-Server und Android lassen nur [a-z]{1,20} durch): " + n);
   assert.equal(files.length, Object.keys(man).length, "nur die Teile aus dem Manifest liegen in dist/parts");
   let sum = 0;
@@ -71,12 +74,12 @@ test("Datenschutz: Kurzlink nur ueber shortlink.js, nur nach einem Tipp auf Teil
   const game = src("game.js"), at = game.indexOf("ShortLink.shorten");
   assert.ok(at > game.indexOf('$("challenge").addEventListener("click"'), "game.js: nur im Klick");
 });
-test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldung, Kurzlink), nur getippter Text; kein anderer Weg nach draussen", () => {
+test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldung, Kurzlink, Profil), nur getippter Text; kein anderer Weg nach draussen", () => {
   const html = noComments(bundle());
   // Every call site by name; a new one fails here until it is argued for and listed.
   // protokoll-page.js is its own page (dist/protokoll.html, connect-src 'self'): one GET for the speech model from this
   // domain, one POST with the redacted text after the explicit yes. Neither is in the app build below.
-  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1, "stat.js": 1, "protokoll-page.js": 2 }, short = /\(fetchFn \|\| fetch\)\(/g;
+  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1, "stat.js": 1, "profile.js": 1, "protokoll-page.js": 2 }, short = /\(fetchFn \|\| fetch\)\(/g;
   assert.match(src("protokoll-page.js"), /fetch\(url, \{ signal: ctl\.signal, credentials: "same-origin", cache: "no-store" \}\)/, "Modell nur per GET");
   assert.match(src("protokoll-page.js"), /input: P\.aiInput\(rec\.segs, rec\.names\)/, "an die KI nur der geschwaerzte Text");
   assert.ok(!/deviceMemory|hardwareConcurrency|userAgent/.test(src("protokoll-page.js").match(/JSON\.stringify\(\{ kind: "protokoll"[^\n]*/)[0]), "Geraetedaten bleiben auf dem Geraet");
@@ -84,7 +87,7 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
     assert.equal((noComments(src(f)).match(/\bfetch\(/g) || []).length, allowed[f] || 0, "direktes fetch( in " + f);
     assert.equal((noComments(src(f)).match(short) || []).length, f === "shortlink.js" ? 1 : 0, "Kurzlink-fetch in " + f);
   }
-  assert.equal((html.match(/\bfetch\(/g) || []).length, allowed["game.js"] + allowed["ai.js"] + allowed["live.js"] + allowed["stat.js"], "direkte fetch( im Build (Kern + Teile)");
+  assert.equal((html.match(/\bfetch\(/g) || []).length, allowed["game.js"] + allowed["ai.js"] + allowed["live.js"] + allowed["stat.js"] + allowed["profile.js"], "direkte fetch( im Build (Kern + Teile)");
   const ph = noComments(fs.readFileSync(path.join(path.dirname(dist), "protokoll.html"), "utf8"));
   assert.equal((ph.match(/\bfetch\(/g) || []).length, 2, "Protokoll-Seite: Modell + KI-Text");
   assert.ok(!/XMLHttpRequest|sendBeacon|EventSource|WebSocket|RTCPeerConnection|analytics|serviceWorker/.test(ph), "Protokoll-Seite: kein weiterer Ausgang");
@@ -93,6 +96,10 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
   for (const call of src("ai.js").match(/await fetch\([^\n]*/g)) assert.match(call, /body: text/, "nur der gepruefte Text");   // eine Stelle fuer KI-Aufruf, Warteschlange, Abrechnung und Meldung (nach Ja)
   assert.match(src("ai.js"), /fetch\(endpoint\(api0\(\), path\)[^\n]*credentials: path === "\/report" \? "omit" : "same-origin"/, "Meldung ohne Cookie, ueber dieselbe eine Stelle");
   assert.ok(!/toDataURL|toBlob|drawImage|getImageData/.test(src("ai.js")), "KI fasst kein Bild an");
+  // Profile: only the opt-in sync of the profile; it never draws or reads a picture and leaves photo works out.
+  assert.ok(!/toDataURL|toBlob|drawImage|getImageData|\.photo\b|ownPhoto/.test(noComments(src("profile.js"))), "Profil fasst kein Foto an");
+  assert.match(src("profile.js"), /e\.k !== "photo"/, "Fotowerke bleiben auf dem Geraet");
+  assert.match(src("profile.js"), /fetch\(base\(\) \+ "\/" \+ op/, "Profil spricht nur mit /api/duell/profile");
   assert.ok(src("game.js").includes("await fetch("), "fetch gehoert ins Spiel");
   const body = src("game.js").match(/fetch\([^\n]*/)[0];
   assert.match(body, /JSON\.stringify\(\{ prompt: prompt, lang: lang \}\)/, "nur Satz + Sprache");

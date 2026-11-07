@@ -743,7 +743,8 @@ async function finish(doc, idea, pictureDoc) {
   }
   var url = D.docUrl(doc);
   result = { url: url, file: file, name: name, png: png, keep: ed, canvas: c, kind: doc.k, doc: doc };
-  wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c) }); store.wall = wall; Kit.save();
+  var made = pictureDoc || doc;
+  wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c), k: made.k === "photo" || (ed && ed.photo) ? "photo" : made.k }); store.wall = wall; Kit.save();
   if (!Kit.persisted) Kit.toast(t("wallFull"));
   var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png);
   $("playit").hidden = true;   // a card is not a level: whoever does not fly far would never see it
@@ -831,7 +832,7 @@ $("edsave").addEventListener("click", function () {
     var c = document.createElement("canvas"); c.width = 540; c.height = 675;
     if (ed.doc.k === "game") { var g = $("demo"); c.getContext("2d").drawImage(g, 0, 0, c.width, c.height); }
     else R.draw(c, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks });
-    wall = D.addToWall(wall, { id: ed.doc.i || "own", ts: Date.now(), th: thumb(c), f: f }); Kit.toast(t("saved"));
+    wall = D.addToWall(wall, { id: ed.doc.i || "own", ts: Date.now(), th: thumb(c), f: f, k: ed.doc.k === "photo" || ed.photo ? "photo" : ed.doc.k }); Kit.toast(t("saved"));   // k: a photo work never leaves the device (profile.js)
   }
   store.wall = wall; Kit.save(); saveMark();
 });
@@ -864,8 +865,9 @@ $("image").addEventListener("click", function () {
 /* ---------- my style ---------- */
 // The roll number lives on the device, so closing and opening again goes on with the next roll instead of the first.
 function roll(key) { var s = Kit.store; if (!s.rolls || typeof s.rolls !== "object" || Array.isArray(s.rolls)) s.rolls = {}; var n = W.nextRoll(s.rolls, key); Kit.save(); return n; }
+var styleFill = null;
 function openStyle() {
-  shelf(t("style"), function (b) {
+  shelf(t("style"), styleFill = function (b) {
     // The dice for my style: figure, colours and sticker set from a seed (name + roll), on the device, no AI.
     b.appendChild(el("button", "chip", "🎲 " + t("diceGo"), function () {
       var r = seeded("me|" + me.nick + "|" + roll("me|" + me.nick)), pick = function (n) { return Math.floor(r() * n); }, sets = Object.keys(D.SETS);
@@ -882,6 +884,7 @@ function openStyle() {
     colors(b, function () { return me.colors; }, function (c) { me.colors = c; saveMe(); setInk(c[0], c[1]); });
     b.appendChild(el("label", "lbl", t("set")));
     chips(b, Object.keys(D.SETS).map(function (s) { return { v: s, l: D.SETS[s][0] + " " + t("set_" + s) }; }), me.set, function (v) { me.set = v; saveMe(); });
+    var acHold = el("div"); b.appendChild(acHold); konto(function () { window.Profile.section(acHold, el); });
     b.appendChild(el("label", "lbl", t("fs_title")));
     chips(b, ["n", "g", "sg"].map(function (v) { return { v: v, l: t("fs_" + v) }; }), Kit.fs, function (v) { Kit.setFs(v); if (screen === "home") fitHero(); }, "fs");
     b.appendChild(el("label", "lbl", t("pf_title")));
@@ -890,6 +893,15 @@ function openStyle() {
     b.appendChild(el("button", "btn", t("licenses"), function () { window.Parts.use("licenses", function () { var l = el("pre", "note", window.DailyLicenses); l.style.whiteSpace = "pre-wrap"; b.textContent = ""; b.appendChild(l); }).catch(function () {}); }));
   });
 }
+// A sync brought style, wall or saved cards from another device: the open My style shows them at once.
+function profileChanged() {
+  me = D.sanitizeProfile(store.me); wall = D.sanitizeWall(store.wall); $("me").textContent = me.emoji;
+  if (screen === "home" || (screen === "shelf" && $("acbox"))) setInk(me.colors[0], me.colors[1]);
+  if (screen === "shelf" && $("acbox")) { var b = $("shbody"); b.textContent = ""; styleFill(b); }
+}
+// "Anmelden / Registrieren" (src/profile.js) is the part konto: loaded when My style opens, and at start while linked.
+function konto(fn) { return window.Parts.use("konto", function () { window.Profile.onChange(profileChanged); if (fn) fn(); }).catch(function () {}); }
+if (store.profile) konto();
 // My defaults (daily.js): the ones set stand on top as chips with ✕; below, what can be set. Only on this device.
 function prefs(box) {
   var f = me.pref || {}, P = D.PREF;

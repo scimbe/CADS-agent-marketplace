@@ -39,7 +39,8 @@ test("file:// (Apps, Tests): Start nur mit dem Katalog-Teil; Spiele-Regal holt A
   await p.locator("#me").click();
   await p.getByRole("button", { name: "Lizenzen" }).click();
   await p.getByText(/SIL OPEN FONT LICENSE Version 1\.1/).waitFor();
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "stimme", "play", "licenses"]);
+  // My style brings "Anmelden / Registrieren" with the part konto, the button its licence texts
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "stimme", "play", "konto", "licenses"]);
   assert.deepEqual(errs, []); await b.close();
 });
 
@@ -72,7 +73,7 @@ test("Web /duell: nach dem Laden alle Teile mit SRI vorab; danach offline Arcade
   await p.goto(base + "/duell");   // without the slash: the parts still come from /duell/parts/
   await p.waitForFunction(() => window.Parts.names().every((n) => window.Parts.ready(n)));
   const got = await loaded(p);
-  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "katalog", "licenses", "logik", "play", "qr", "quiz", "satz", "stimme", "table", "texte", "turnzwei", "welt"]);
+  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "katalog", "konto", "licenses", "logik", "play", "qr", "quiz", "satz", "stimme", "table", "texte", "turnzwei", "welt"]);
   for (const s of got) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
   assert.equal(await p.evaluate(() => typeof window.TableUI.preview + typeof window.StatusCard.draw), "functionfunction", "echte Module statt Platzhalter");
   await ctx.setOffline(true);
