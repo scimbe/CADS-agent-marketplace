@@ -12,14 +12,16 @@
 
   var css = document.createElement("style");
   css.textContent = "#editor.dk #stagewrap{padding-left:56px;padding-right:56px}#editor.dk .skundo{display:none!important}" +
-    "#editor.dk #stagewrap{min-height:56px}#dkbar{position:absolute;left:6px;top:6px;bottom:6px;display:flex;flex-direction:column;flex-wrap:wrap;align-content:flex-start;gap:6px 8px;z-index:3}" +
-    "#dkbar button,.dkhold{width:44px;height:44px;padding:0;border:3px solid var(--ink);border-radius:50%;background:#fff;color:#111;font:900 21px/1 var(--ui)}" +
+    "#editor.dk #stagewrap{min-height:56px}#dkbar{pointer-events:none;position:absolute;left:6px;top:6px;bottom:6px;display:flex;flex-direction:column;flex-wrap:wrap;align-content:flex-start;gap:6px 8px;z-index:3}" +
+    "#dkbar button{pointer-events:auto}#dkbar button,.dkhold{width:44px;height:44px;padding:0;border:3px solid var(--ink);border-radius:50%;background:#fff;color:#111;font:900 21px/1 var(--ui)}" +
     "#dkbar button[aria-disabled=true]{opacity:.4;cursor:default}.dkhold{position:absolute;right:6px;top:6px;z-index:2;font-size:17px}" +
     ".dkl{margin:8px 0;border:2px solid var(--ink);border-radius:6px;background:#fff;color:#111}.dkl:focus-visible{outline:3px solid var(--ink);outline-offset:2px}" +
     ".dkl [role=option]{min-height:44px;padding:10px 12px;border-top:1px solid #d8d2c2;font-weight:700;cursor:pointer}.dkl [role=option]:first-child{border-top:0}" +
     ".dkl [aria-selected=true]{background:#111;color:#fff;outline:3px solid #111;outline-offset:-3px}" +
     ".dkpad .chip{min-width:48px}#stagewrap.dkplace #stage{cursor:crosshair;outline:4px dashed var(--ink);outline-offset:3px}" +
     ".dkvh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}" +
+    "#editor.dk #stagewrap.pic{flex-direction:row}#editor.dk #stagewrap.pic #stage{flex:0 1 auto;height:auto}#editor.dk #stagewrap.pic .pvimg{position:absolute;right:4px;top:6px;z-index:3;width:48px;height:48px;max-width:none;aspect-ratio:auto;border-width:2px;box-shadow:2px 3px 0 var(--ink)}#editor.dk #stagewrap.pic .pvimg .kitag{right:1px;bottom:1px;padding:1px 2px;font-size:11px;letter-spacing:0}#editor.dk #stagewrap.pic.swap .pvimg{left:12px;right:12px;top:4px;bottom:4px;width:auto;height:auto;margin:auto;aspect-ratio:16/9;max-height:calc(100% - 8px)}#editor.dk #stagewrap.pic.swap #stage{visibility:hidden}#stagewrap{transition:flex-basis .18s ease-out}#editor[data-platz=ruhe] #stagewrap{flex-basis:60%}#editor[data-platz=ruhe] #panel{box-shadow:inset 0 -16px 12px -12px rgba(0,0,0,.3)}#editor[data-platz=sticker] #stagewrap,#editor[data-platz=look] #stagewrap{flex-basis:50%}#editor[data-platz=foto] #stagewrap{flex-basis:48%}#editor[data-platz=text] #stagewrap,#editor[data-platz=regler] #stagewrap{flex-basis:max(calc(40% + 14px),236px)}@media (prefers-reduced-motion:reduce){#stagewrap{transition:none}}@media (max-height:640px){#editor .foot{padding:4px 0 2px}#editor .foot .press{min-height:52px;font-size:25px;margin-bottom:4px}#editor .why{margin-bottom:3px;font-size:14px}}@media (orientation:landscape) and (max-height:500px) and (min-width:480px) and (max-width:559px){#editor[data-platz]{left:0;right:0;width:auto;margin:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,1.3fr);grid-template-rows:auto auto auto auto 1fr auto;column-gap:6px}#editor[data-platz]>*{grid-column:2;min-width:0}#editor[data-platz]>.bar{grid-row:1}#editor[data-platz]>#cobar{grid-row:2}#editor[data-platz]>#trail{grid-row:3}#editor[data-platz]>#tabs{grid-row:4}#editor[data-platz]>.foot{grid-row:6}#editor[data-platz]>#panel{grid-row:5;height:auto;min-height:0}#editor[data-platz]>#stagewrap{grid-column:1;grid-row:1/-1;padding:8px 6px 8px 56px}#editor.dk #stagewrap.pic .pvimg{left:6px;right:auto;top:auto;bottom:8px}}" +
+    "@media (max-width:420px){#tabs button{padding:0 6px;font-size:13px}}@media (max-width:360px){#tabs button{padding:0 4px;font-size:12.5px}}" +
     "@media (forced-colors:active){#dkbar button,.dkhold,.dkl{border-color:CanvasText}.dkl [aria-selected=true]{outline-color:Highlight}}";
   document.head.appendChild(css);
 
@@ -70,10 +72,18 @@
     e.preventDefault(); go(k === "y" || e.shiftKey ? 1 : -1);
   }, true);
 
+  // A change is a step at once (not 16 ms later with the redraw): the buttons are right right away, and two key presses
+  // inside one redraw are two steps. After the event's own handlers (bubbling on the editor).
+  function sync() {
+    var ed = A.ed(); if (!active(ed) || !ed.dk) return;
+    M.record(ed.dk, JSON.stringify(ed.doc), Date.now(), key()); buttons(ed, true);
+  }
+  ["input", "change", "click", "keydown", "pointerup"].forEach(function (n) { $("editor").addEventListener(n, sync); });
   function buttons(ed, on) { undoB.setAttribute("aria-disabled", String(!on || !M.canUndo(ed.dk))); redoB.setAttribute("aria-disabled", String(!on || !M.canRedo(ed.dk))); }
   // ---------- after every redraw of the editor (app.js paint) ----------
   function paint(ed) {
     if (!ed) return;
+    if (roomOf !== ed) { roomOf = ed; $("editor").removeAttribute("data-platz"); platz("ruhe"); }   // a new sheet opens in ruhe, without an announcement
     $("editor").classList.add("dk"); labels();
     var snap = JSON.stringify(ed.doc), on = active(ed);
     if (!ed.dk || !on) ed.dk = M.history(snap); else M.record(ed.dk, snap, Date.now(), key());
@@ -81,6 +91,7 @@
     var d = M.describe(ed.doc, t); if (desc.textContent !== d) desc.textContent = d;
     if (placing && (ed.tab !== "Sticker" || !ed.doc.sk || !ed.doc.sk[ed.sel])) place(false);
     if (ed.tab === "Color") names($("panel"));
+    if ($("stagewrap").classList.contains("pic") && !pic.classList.contains("thumb")) A.picThumb(pic);   // the thumbnail look comes with this part
     holdState();
   }
 
@@ -214,6 +225,30 @@
     slot.appendChild(lbl); slot.appendChild(row); slot.appendChild(el("p", "note", t("dk_ezNote")));
   }
 
+  // the AI picture in the editor: a thumbnail beside the live card (CSS above); a tap, Enter or Space lays it over
+  var pic = $("edpic");
+  pic.addEventListener("click", function () { if (pic.classList.contains("thumb")) A.picSwap(pic); });
+  pic.addEventListener("keydown", function (e) { if (pic.classList.contains("thumb") && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); A.picSwap(pic); } });
+  // ---------- room (E1.5): the tool in use gets the room, the card moves with it (#editor[data-platz]) ----------
+  // ruhe: a new sheet, or the open tab tapped again: the card large. Otherwise the open tab's state. A turn card's panel
+  // is the game itself (its move, its list): it keeps the fixed layout.
+  var PLATZ = { Sticker: "sticker", Style: "look", Color: "look", Figure: "look", World: "look", Photo: "foto", Rules: "regler", Agent: "regler", Rival: "regler", Arena: "regler", Sound: "regler" };
+  var roomOf = null, tabBefore = null, wasRuhe = false;
+  function platz(m) {
+    var ed = A.ed(), e = $("editor");
+    if (!ed || ed.doc.k === "turn") { e.removeAttribute("data-platz"); return; }
+    e.dataset.platz = m || PLATZ[ed.tab] || "text"; if (m !== "ruhe") $("stagewrap").classList.remove("swap");
+  }
+  $("tabs").addEventListener("click", function () { var ed = A.ed(); tabBefore = ed && ed.tab; wasRuhe = $("editor").dataset.platz === "ruhe"; }, true);
+  $("tabs").addEventListener("click", function (e) { var b = e.target.closest("[role=tab]"); if (b) platz(b.dataset.k === tabBefore && !wasRuhe ? "ruhe" : 0); });
+  // using the panel: after a tap has done its work (click, so nothing moves under the finger), or keyboard focus
+  $("panel").addEventListener("click", function () { platz(0); });
+  $("panel").addEventListener("focusin", function (e) { if (e.target.matches(":focus-visible")) platz(0); });
+  // a tab opened by the program (a layer chosen in the list, a wish that leads to Rules) while a tool is in use
+  new MutationObserver(function () { var p = $("editor").dataset.platz; if (p && p !== "ruhe") platz(0); }).observe($("tabs"), { subtree: true, attributes: true, attributeFilter: ["aria-selected"] });
+  // Room (E1.5): back to the large card is said once; a tool getting the room is said by its tab already.
+  new MutationObserver(function (m) { if ($("editor").dataset.platz === "ruhe" && m[0].oldValue && m[0].oldValue !== "ruhe") tell(t("dk_ruhe")); })
+    .observe($("editor"), { attributes: true, attributeFilter: ["data-platz"], attributeOldValue: true });
   root.Direkt = { paint: paint, style: style, go: go };
   if (Kit.store.ez) { ezApply(); redraw(); }
   // The editor that is open now: its history starts here, and an open sticker or colour tab gets its new look.
