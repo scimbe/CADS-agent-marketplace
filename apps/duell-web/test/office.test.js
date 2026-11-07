@@ -88,7 +88,9 @@ test("Flavor-Build: eigener Katalog, Texte, Farben und Pfad; ohne Flag bleibt di
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]);
   for (const p of Object.values(man)) assert.ok(fs.existsSync(path.join(root, "dist/business", p.f)), p.f);
   // Stage 2 (src/biz.js, biz-ui.js): a part of its own, only in this flavor; the core keeps the hooks only.
-  assert.ok(man.biz, "Teil biz"); assert.ok(!html.includes("function onboardPlan") && !html.includes("window.BizUI = {"));
+  assert.ok(man.biz, "Teil biz");
+  // the free card is not unlocked in Business: no part erschaffen, no tile text, nothing preloaded
+  assert.ok(!man.erschaffen && !fs.readdirSync(path.join(root, "dist/business/parts")).some((f) => f.startsWith("erschaffen.")), "kein Teil erschaffen"); assert.ok(!html.includes("function onboardPlan") && !html.includes("window.BizUI = {"));
   assert.match(html, /"id":"biz-onboarding"/);
   const ideas = JSON.parse(fs.readFileSync(path.join(root, "src/flavors/business/ideas.json"), "utf8")).ideas;
   const games = new Set(ideas.map((i) => i.turn.g).filter((g) => Tn.GAMES[g]));

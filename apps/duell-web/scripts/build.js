@@ -81,7 +81,6 @@ const PARTS = {
   turnzwei: { d: ["katalog"], src: ["SIEGEL", "GESCHENKE", "TURN2", "FEIERDATA", "FEIER", "FEIERUI"] },   // "turn2" of the card plan: rules and widgets of the new turn cards (src/turn2.js), gift ideas (src/geschenke.js), device keys (src/siegel.js), the party poll (src/feier.js)
   logik: { d: [], src: ["LOGIK"] },                                                                    // puzzle generators, e.g. Sudoku (src/logik.js)
   daten: { d: [], src: ["KALENDERDATA", "KALENDER"] },                                                 // public and school holidays (src/kalender.json)
-  erschaffen: { d: [], src: ["CREATEUI"] },                                                            // "Create your own card": the form and preview of the AI kind karte (src/create-ui.js)
   konto: { d: [], src: ["KONTODATA", "PROFILE"] },                                                     // "Anmelden / Registrieren" in My style: account or sync code (src/profile.js)
   stil: { d: [], src: ["STILDATA", "STIL"] },                                                          // My style itself (src/stil.js); app.js openStyle asks for konto first
   melden: { d: [], src: ["MELDENDATA", "MELDEN"] },                                                    // the report dialog of a shared sheet (src/melden.js)
@@ -90,6 +89,10 @@ const PARTS = {
 if (catalog.ideas.some((i) => i.kind === "card")) PARTS.wetter = { d: [], src: ["WETTERDATA", "WETTER"] };
 // Thumbs on the sheet and the card numbers (src/stimme-ui.js, src/stat.js); not built for a flavor without them (stat: false).
 if (!(conf && conf.stat === false)) PARTS.stimme = { d: [], src: ["STIMMEDATA", "STAT", "STIMMEUI"] };
+// "Create your own card" (src/create-ui.js): only where the flavor shows the tile. A flavor with its own feats list must
+// name f_create (as app.js shown() does); Daily Business does not, so it neither builds nor preloads the part.
+const creates = !conf || !conf.feats || conf.feats.indexOf("f_create") >= 0;
+if (creates) PARTS.erschaffen = { d: [], src: ["CREATEUI"] };
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
 if (has("biz-ui.js")) { PARTS.biz = { d: [], src: ["BIZ", "BIZUI"] }; parts.BIZ = read("src/biz.js"); parts.BIZUI = read(fl("biz-ui.js")); }
 parts.KATALOG = "window.DuellIdeasFull=" + JSON.stringify(catalog) + ";window.Daily&&window.Daily.fill();";
