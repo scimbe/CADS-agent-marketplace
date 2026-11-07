@@ -161,11 +161,20 @@ test("Schnee: nachgeladen wird nach der Uhr des Werfers, aber eine vorgestellte 
   const P = A.side("snow", { seed: "p", serving: false }); P.start(); P.input({ x: 900 });   // out of the line of fire
   let ms = 1000, got = 0, sent = 0;
   for (let round = 0; round < 8; round++) {
-    for (let k = 0; k < 200; k++) P.tick(0.05);                        // ten seconds without a throw
+    for (let k = 0; k < 200; k++) { P.tick(0.05); P.receive({ t: "p", x: 500, ms: ms }); }   // ten seconds without a throw, reports flow
     for (let i = 0; i < 40; i++) { const r = P.rejected; P.receive({ t: "throw", i: sent++, x: 500, vx: 0, ms: (ms += 900) }); if (P.rejected === r) got++; }
   }
   assert.equal(P.over, false); assert.equal(P.score[1], 0, "kein Treffer: gezaehlt wird nur das Annehmen");
   assert.ok(got <= 40, "acht Pausen, je hoechstens fuenf statt vierzig: " + got);
+  // complete silence: a stall seen here buys at most its own length (up to 6 s), never more than real time allows
+  const Q = A.side("snow", { seed: "q", serving: false, clock: () => Q.t }); Q.start(); Q.input({ x: 900 });
+  let qms = 1000, qgot = 0;
+  for (let round = 0; round < 8; round++) {
+    for (let k = 0; k < 200; k++) Q.tick(0.05);                        // ten seconds of nothing at all
+    for (let i = 0; i < 40; i++) { const r = Q.rejected; Q.receive({ t: "throw", i: sent++, x: 500, vx: 0, ms: (qms += 900) }); if (Q.rejected === r) qgot++; }
+  }
+  assert.ok(qgot <= 8 * Math.ceil(3 + (A.SNOW.AMMO * A.SNOW.RELOAD + 1 + 6) / A.SNOW.RELOAD), "je Stocken gedeckelt: " + qgot);
+  assert.ok(qgot <= 3 + Q.t / A.SNOW.RELOAD, "nie mehr, als in der echten Zeit geht: " + qgot + " in " + Q.t.toFixed(0) + " s");
 });
 
 test("Schnee: ein alter Werfer ohne Uhr in den Wuerfen gegen einen neuen Empfaenger verliert keinen ehrlichen Wurf", () => {
@@ -178,6 +187,33 @@ test("Schnee: ein alter Werfer ohne Uhr in den Wuerfen gegen einen neuen Empfaen
     if (f % 60 === 0) S.receive({ t: "throw", i: i++, x: 500, vx: 0 });   // one per second, slower than a reload
   }
   assert.equal(S.rejected, 0);
+});
+
+// Honest bot games over the bad network with one long stall; old: the other side is an app without clocks in its throws.
+function stallGame(g, seed, stall, old) {
+  const N = require("./netsim.js"), NET = Object.assign({}, N.BAD, { stall: [20, 20 + stall] }), r = N.rng(seed);
+  const ab = N.channel(r, NET), ba = N.channel(r, NET); let now = 0;
+  const SA = A.side(g, { seed: "d" + seed, serving: true, clock: () => now, send: (m) => ab.send(now, m) });
+  const SB = A.side(g, { seed: "d" + seed, serving: false, clock: () => now, send: (m) => { if (old) delete m.ms; ba.send(now, m); } });
+  const a = A.bot(g, SA, "a"), b = A.bot(g, SB, "b"); SA.start(); SB.start();
+  for (let f = 0; f < 60 * 120 && !(SA.over && SB.over); f++) { now += 1 / 60; ba.due(now, (m) => SA.receive(m)); ab.due(now, (m) => SB.receive(m)); a(1 / 60); b(1 / 60); SA.tick(1 / 60); SB.tick(1 / 60); SA.ev.length = 0; SB.ev.length = 0; }
+  return SA.rejected + SB.rejected;
+}
+test("Langes Stocken (bis 6 s): was waehrend der Luecke ehrlich geworfen oder geschossen wurde, gilt", () => {
+  for (const g of ["snow", "panzer"]) for (const stall of [4, 6]) for (let seed = 1; seed <= 8; seed++) {
+    assert.equal(stallGame(g, seed, stall, false), 0, g + " Stocken " + stall + " s, seed " + seed);
+  }
+  for (let seed = 1; seed <= 8; seed++) assert.ok(stallGame("snow", seed, 4, true) <= 1, "alte App: nicht schlechter als vorher, seed " + seed);
+});
+test("Panzer: nach gemessenem Stocken kommen die Schuesse der Luecke zusammen an, ohne Stocken bleibt es einer je Nachladen", () => {
+  let wall = 0; const S = A.side("panzer", { seed: "z", serving: false, clock: () => wall }); S.start();
+  const shot = (i) => { const r = S.rejected; S.receive({ t: "shot", i, vx: -500, vy: -700, w: 0 }); return S.rejected === r ? 1 : 0; };
+  S.receive({ t: "p", vx: -500, vy: -700 });
+  wall += 4.5;                                                  // nothing arrived for 4.5 s here
+  let got = 0; for (let i = 0; i < 10; i++) got += shot(i);
+  assert.ok(got >= 4 && got <= 1 + Math.floor(4.5 / A.PANZER.RELOAD) + 1, "Schuesse der Luecke: " + got);
+  let tight = 0; for (let k = 0; k < 20; k++) { wall += 0.05; S.receive({ t: "p", vx: -500, vy: -700 }); tight += shot(100 + k); }
+  assert.ok(tight <= 2, "ohne Stocken kein Dauerfeuer: " + tight);
 });
 
 // Two sides over the bad network (150 ms +-80 ms, 5 % loss resent after 250 ms, one stall: 500 ms or o.stall seconds);
