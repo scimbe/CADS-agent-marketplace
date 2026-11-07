@@ -24,10 +24,18 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // Sizes at the split: core 693 KB, parts 310 KB (play 140, table 104, qr 59, licenses 6), together 1003 KB.
   assert.ok(Buffer.byteLength(html) < 700 * 1024, "Kern ueber 700 KB: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["daten", "katalog", "konto", "licenses", "logik", "play", "qr", "quiz", "satz", "stimme", "table", "texte", "turnzwei", "welt"]);
+  assert.deepEqual(Object.keys(man).sort(), ["daten", "katalog", "konto", "licenses", "logik", "melden", "play", "qr", "quiz", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   // "Anmelden / Registrieren": its texts (ac_) only in the part konto, none in the core
   assert.ok(!/"ac_[a-z]/.test(html), "ac_-Texte im Kern");
   assert.match(fs.readFileSync(partFiles().find((f) => /\/konto\.[0-9a-f]{12}\.js$/.test(f)), "utf8"), /window\.KontoTexts=\{"de":\{"ac_title":"Anmelden \/ Registrieren"/);
+  // My style, the report dialog and the weather card: code and words only in their parts, in the core
+  // only the hooks; the words the sheet and daily.js prefChips still use stay in the core.
+  assert.deepEqual(man.stil.d, [], "ohne konto oeffnet Mein Stil weiter, nur ohne Konto-Abschnitt (app.js openStyle)");
+  for (const [n, re, words] of [["stil", /root\.StilUI = \{/, /"(nickNote|fs_title|pf_title|pf_pp_later|set_tiere)":/], ["melden", /root\.Melden = \{/, /"(kiAsk|kiConsent|kiWhy_harm|kiThanks)":/], ["wetter", /root\.Wetter = \{/, /"wx[A-Z]\w*":/]]) {
+    const body = fs.readFileSync(partFiles().find((f) => new RegExp("/" + n + "\\.[0-9a-f]{12}\\.js$").test(f)), "utf8");
+    assert.match(body, re, n); assert.match(body, words, n + ": Texte im Teil"); assert.ok(!re.test(html) && !words.test(html), n + ": nur der Haken im Kern");
+  }
+  assert.match(html, /"kiReported":/); assert.match(html, /"pf_age_u16":/); assert.match(html, /"pf_ctx_hh":/);
   for (const n of Object.keys(man)) assert.match(n, /^[a-z]{1,20}$/, "Teilname nur Buchstaben (Galerie-Server und Android lassen nur [a-z]{1,20} durch): " + n);
   assert.equal(files.length, Object.keys(man).length, "nur die Teile aus dem Manifest liegen in dist/parts");
   let sum = 0;

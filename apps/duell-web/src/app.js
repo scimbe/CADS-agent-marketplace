@@ -416,28 +416,12 @@ function setDoc(d) {        // a whole creation replaced by a wish or its undo; 
   if (d.k === "sound" && ed.raw) applyFx();
   $("edstyle").textContent = me.emoji; trailLine(); changed();
 }
-// Weather card: place and day in, real figures out. No figures without the service.
+// Weather card (src/wetter.js, the part wetter): a slot in the text tab now, the block follows with the part. A flavor
+// without cards does not build the part (scripts/build.js), so there is nothing to load. Silent when it does not come:
+// the text tab's texte part already says so, and the card works without the weather.
 function weatherBlock(p) {
-  var box = el("div", "aibox"), place = el("input", "field"), days = el("div", "chips"), when = 0, row = el("div", "chips");
-  place.maxLength = 40; place.autocomplete = "off"; place.setAttribute("aria-label", t("wxPlace")); place.placeholder = t("wxPlace");
-  box.appendChild(el("label", "lbl", t("wxTitle"))); box.appendChild(place);
-  [t("wxToday"), t("wxTomorrow"), t("wxAfter")].forEach(function (l, i) {
-    var b = el("button", "chip" + (i ? "" : " on"), l, function () { when = i; Array.from(days.children).forEach(function (x) { x.classList.remove("on"); }); b.classList.add("on"); });
-    days.appendChild(b);
-  });
-  box.appendChild(days);
-  var go = el("button", "chip", "🌦 " + t("wxGo"), async function () {
-    var v = D.cleanInput(place.value, 40); if (!v) { Kit.toast(t("filter")); return; }
-    go.disabled = true;
-    var day = new Date(Date.now() + when * 86400000).toISOString().slice(0, 10), r = null;
-    try { r = await window.Ai.post("/weather", { place: v, date: day }); } catch (e) { r = null; }
-    go.disabled = false;
-    if (!r || r.status !== 200 || !r.json) { Kit.toast(r && r.status === 404 ? t("wxNoPlace") : r && r.status === 422 ? t("filter") : t("wxFail")); return; }
-    var j = r.json; ed.doc.w = D.sanitizeDoc({ k: "card", w: { p: j.place, d: j.date, hi: j.hi, lo: j.lo, rn: j.rain, c: j.code } }).w; Kit.sfx.pop(); changed(); tab("Text");
-  });
-  row.appendChild(go);
-  if (ed.doc.w) row.appendChild(el("button", "chip", "✕ " + t("wxOff"), function () { delete ed.doc.w; changed(); tab("Text"); }));
-  box.appendChild(row); box.appendChild(el("p", "note", t("wxNote"))); p.appendChild(box);
+  var slot = el("div"); p.appendChild(slot);
+  if (window.Parts.names().indexOf("wetter") >= 0) window.Parts.need("wetter").then(function () { if (slot.isConnected && ed) window.Wetter.block(slot); }).catch(function () {});
 }
 // The creation becomes the game: same engine, its colours, picture and figure. Back leads to the creation, not home.
 var played = null, shortId = null;   // shortId: the short link a shared sheet came through, so a report can name it
@@ -865,71 +849,27 @@ $("image").addEventListener("click", function () {
 /* ---------- my style ---------- */
 // The roll number lives on the device, so closing and opening again goes on with the next roll instead of the first.
 function roll(key) { var s = Kit.store; if (!s.rolls || typeof s.rolls !== "object" || Array.isArray(s.rolls)) s.rolls = {}; var n = W.nextRoll(s.rolls, key); Kit.save(); return n; }
-var styleFill = null;
+// My style (src/stil.js) is the part stil: the shelf opens at once, its content follows with the part (at once when it is
+// there); without the part the shelf says so. konto (its account section) is asked for first, so it loads once and before
+// stil; when only konto is missing, My style still opens without that section, as before (konto() below).
+var styleFill = null, shelves = 0;
 function openStyle() {
-  shelf(t("style"), styleFill = function (b) {
-    // The dice for my style: figure, colours and sticker set from a seed (name + roll), on the device, no AI.
-    b.appendChild(el("button", "chip", "🎲 " + t("diceGo"), function () {
-      var r = seeded("me|" + me.nick + "|" + roll("me|" + me.nick)), pick = function (n) { return Math.floor(r() * n); }, sets = Object.keys(D.SETS);
-      Kit.sfx.pop(); me.emoji = EMOJI[pick(EMOJI.length)]; me.colors = PAIRS[pick(PAIRS.length)].slice(); me.set = sets[pick(sets.length)];
-      saveMe(); $("me").textContent = me.emoji; setInk(me.colors[0], me.colors[1]); openStyle();
-    }));
-    b.appendChild(el("label", "lbl", t("nick")));
-    var f = el("input", "field"); f.value = me.nick; f.maxLength = 16; f.setAttribute("aria-label", t("nick"));
-    f.addEventListener("input", function () { var v = C.sanitizeName(f.value); if (f.value.trim() && !v) { Kit.toast(t("filter")); return; } me.nick = v; saveMe(); });
-    b.appendChild(f); b.appendChild(el("p", "note", t("nickNote")));
-    b.appendChild(el("label", "lbl", t("emoji")));
-    chips(b, EMOJI.map(function (e) { return { v: e, l: e }; }), me.emoji, function (v) { me.emoji = v; saveMe(); $("me").textContent = v; }, "em");
-    b.appendChild(el("label", "lbl", t("colors")));
-    colors(b, function () { return me.colors; }, function (c) { me.colors = c; saveMe(); setInk(c[0], c[1]); });
-    b.appendChild(el("label", "lbl", t("set")));
-    chips(b, Object.keys(D.SETS).map(function (s) { return { v: s, l: D.SETS[s][0] + " " + t("set_" + s) }; }), me.set, function (v) { me.set = v; saveMe(); });
-    var acHold = el("div"); b.appendChild(acHold); konto(function () { window.Profile.section(acHold, el); });
-    b.appendChild(el("label", "lbl", t("fs_title")));
-    chips(b, ["n", "g", "sg"].map(function (v) { return { v: v, l: t("fs_" + v) }; }), Kit.fs, function (v) { Kit.setFs(v); if (screen === "home") fitHero(); }, "fs");
-    b.appendChild(el("label", "lbl", t("pf_title")));
-    var pf = el("div", "pfbox"); b.appendChild(pf); prefs(pf);
-    b.appendChild(el("p", "note", t("aiPicNote")));
-    b.appendChild(el("button", "btn", t("licenses"), function () { window.Parts.use("licenses", function () { var l = el("pre", "note", window.DailyLicenses); l.style.whiteSpace = "pre-wrap"; b.textContent = ""; b.appendChild(l); }).catch(function () {}); }));
+  shelf(t("style"), function (b) {
+    var n = shelves, put = function () { b.textContent = ""; (styleFill = window.StilUI.fill)(b); };
+    if (window.StilUI) { put(); return; }
+    b.appendChild(el("p", "note", "…"));
+    window.Parts.need("konto").catch(function () {}).then(function () { return window.Parts.need("stil"); }).then(function () { if (n === shelves && screen === "shelf") put(); }).catch(function () { if (n === shelves) { b.textContent = ""; b.appendChild(el("p", "note", t("part_fail"))); } });
   });
 }
 // A sync brought style, wall or saved cards from another device: the open My style shows them at once.
 function profileChanged() {
   me = D.sanitizeProfile(store.me); wall = D.sanitizeWall(store.wall); $("me").textContent = me.emoji;
   if (screen === "home" || (screen === "shelf" && $("acbox"))) setInk(me.colors[0], me.colors[1]);
-  if (screen === "shelf" && $("acbox")) { var b = $("shbody"); b.textContent = ""; styleFill(b); }
+  if (screen === "shelf" && $("acbox")) { var b = $("shbody"); b.textContent = ""; styleFill(b); }   // acbox comes only with a filled My style, so styleFill is set
 }
 // "Anmelden / Registrieren" (src/profile.js) is the part konto: loaded when My style opens, and at start while linked.
 function konto(fn) { return window.Parts.use("konto", function () { window.Profile.onChange(profileChanged); if (fn) fn(); }).catch(function () {}); }
 if (store.profile) konto();
-// My defaults (daily.js): the ones set stand on top as chips with ✕; below, what can be set. Only on this device.
-function prefs(box) {
-  var f = me.pref || {}, P = D.PREF;
-  function put(g) { me.pref = D.sanitizePref(g); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); prefs(box); }
-  function edit(fn) { var g = JSON.parse(JSON.stringify(me.pref || {})); fn(g); put(g); }
-  function group(label, items, isOn, pick) {
-    box.appendChild(el("p", "lbl", label));
-    var r = el("div", "chips");
-    items.forEach(function (it) { var c = el("button", "chip" + (isOn(it.v) ? " on" : ""), it.l, function () { Kit.sfx.tap(); edit(function (g) { pick(g, it.v); }); }); c.setAttribute("aria-pressed", String(isOn(it.v))); r.appendChild(c); });
-    box.appendChild(r);
-  }
-  box.textContent = "";
-  var on = el("div", "chips"), list = D.prefChips(me, Kit.lang);
-  if (!list.length) on.appendChild(el("p", "note", t("pf_none")));
-  list.forEach(function (c) { var x = el("button", "chip on", c.l + " ✕", function () { Kit.sfx.tap(); put(D.dropPref(me, c.k, c.v)); }); on.appendChild(x); });
-  box.appendChild(on); box.appendChild(el("p", "note", t("pf_note")));
-  if (!(window.DailyFlavor && window.DailyFlavor.adult)) group(t("pf_age"), P.AGES.map(function (a) { return { v: a, l: t("pf_age_" + a) }; }), function (v) { return f.age === v; }, function (g, v) { if (g.age === v) delete g.age; else g.age = v; });
-  group(t("pf_hh"), [1, 2, 3, 4, 5, 6].map(function (n) { return { v: n, l: n === 6 ? "6+" : String(n) }; }), function (v) { return f.hh === v; }, function (g, v) { if (g.hh === v) delete g.hh; else g.hh = v; });
-  if (D.dietOk(me)) group(t("pf_diet"), P.DIETS.map(function (d) { return { v: d, l: t("pf_diet_" + d) }; }), function (v) { return f.diet === v; }, function (g, v) { if (g.diet === v) delete g.diet; else g.diet = v; });
-  else box.appendChild(el("p", "note", t("pf_diet_later")));
-  group(t("pf_no"), P.NOTIMES.map(function (k) { return { v: k, l: t("pf_no_" + k) }; }), function (v) { return (f.no || []).indexOf(v) >= 0; }, function (g, v) { var n = g.no || []; g.no = n.indexOf(v) >= 0 ? n.filter(function (x) { return x !== v; }) : n.concat([v]); });
-  if (D.adult(me)) {
-    box.appendChild(el("label", "lbl", t("pf_pp")));
-    var pp = el("input", "field"); pp.value = f.pp || ""; pp.maxLength = 20; pp.autocomplete = "off"; pp.setAttribute("aria-label", t("pf_pp")); pp.placeholder = "paypal.me/…";
-    pp.addEventListener("change", function () { var v = pp.value.trim().replace(/^(https?:\/\/)?(www\.)?paypal\.me\//i, ""); if (v && !/^[A-Za-z0-9]{1,20}$/.test(v)) { Kit.toast(t("filter")); return; } edit(function (g) { if (v) g.pp = v; else delete g.pp; }); });
-    box.appendChild(pp);
-  } else box.appendChild(el("p", "note", t("pf_pp_later")));
-}
 // For an AI feature (next wave): the defaults that would go along, shown as chips where the request is made; a tap
 // leaves one out for this request only. use.context() is the short text (D.prefContext) with what is still on.
 function prefUse(box, keys) {
@@ -947,37 +887,18 @@ function prefUse(box, keys) {
   // pref(): the defaults still on, for what the page computes itself (household size, times without time).
   return { context: function () { return D.prefContext(on(), Kit.lang, keys); }, pref: function () { return on().pref; } };
 }
-// Report a shared sheet: a dialog says what goes out (the sheet's texts, its seal if it has one), asks for the reason,
-// and only "Melden" sends it. A sheet goes out once from this device; the server limits the rest.
+// Report a shared sheet (src/melden.js, the part melden): the dialog comes with the part, a missing part says so (Parts.use).
+// A sheet goes out once from this device: reported() keeps the button greyed without the part.
 function reportKey(doc) { return String(C.hash32(JSON.stringify([doc.k, doc.t, doc.s, doc.x, doc.y, doc.g && doc.g.title, doc.ki && doc.ki.s]))); }
 function reported(doc) { return Array.isArray(Kit.store.reported) && Kit.store.reported.indexOf(reportKey(doc)) >= 0; }
-function reportKi(doc, link) {
-  if (reported(doc)) return;
-  var dlg = el("dialog", "kidlg"), h = el("h2", "", t("kiAsk")), msg = el("p", "note"), row = el("div", "chips"), why = null;
-  h.id = "kidlgh"; dlg.setAttribute("aria-labelledby", "kidlgh"); msg.setAttribute("role", "status");
-  var reasons = el("div", "chips"); reasons.setAttribute("role", "radiogroup"); reasons.setAttribute("aria-label", t("kiWhy"));
-  window.Ai.REASONS.forEach(function (r) {
-    var b = el("button", "chip", t("kiWhy_" + r), function () { Kit.sfx.tap(); why = r; Array.from(reasons.children).forEach(function (x) { x.setAttribute("aria-checked", String(x === b)); x.classList.toggle("on", x === b); }); send.disabled = false; });
-    b.setAttribute("role", "radio"); b.setAttribute("aria-checked", "false"); reasons.appendChild(b);
-  });
-  var send = el("button", "btn", t("kiSend"), async function () {
-    if (!why) return;
-    send.disabled = true; msg.textContent = "…";
-    var ok = await window.Ai.report(doc, why, link);
-    msg.textContent = t(ok ? "kiThanks" : "kiOffline");
-    if (ok) {
-      var s = Kit.store; s.reported = (Array.isArray(s.reported) ? s.reported : []).concat(reportKey(doc)).slice(-50); Kit.save();
-      send.hidden = true; no.textContent = t("kiClose"); var kr = $("kireport"); kr.textContent = t("kiReported"); kr.disabled = true;
-    } else send.disabled = false;
-  });
-  send.disabled = true;
-  var no = el("button", "chip", t("kiCancel"), function () { dlg.close(); });
-  dlg.addEventListener("close", function () { dlg.remove(); });
-  row.appendChild(send); row.appendChild(no);
-  [h, el("p", "", t("kiConsent")), el("p", "lbl", t("kiWhy")), reasons, row, msg].forEach(function (x) { dlg.appendChild(x); });
-  document.body.appendChild(dlg); dlg.showModal();
+// One dialog at a time: a second tap while the part is still on its way does nothing.
+var reporting = false;
+function reportKi(h) {
+  if (reported(h.doc) || reporting) return;
+  reporting = true;
+  window.Parts.use("melden", function () { reporting = false; if (home === h && screen === "home") window.Melden.open(h.doc, h.link); }).catch(function () { reporting = false; });
 }
-function shelf(title, fill) { stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
+function shelf(title, fill) { shelves++; stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
 function openAiWall() { ed.styling = true; shelf(t("aiTitle"), function (b) { window.Ai.wall(b, el); }); }
 // The last week, and above it a search over every sheet: one word, one tap on a hit, and that sheet is back.
 function openPast() {
@@ -1118,7 +1039,7 @@ function start(tabName) {
 }
 $("go").addEventListener("click", function () { start(); });
 $("wishgo").addEventListener("click", function () { start($("wishgo").dataset.tab || "Wish"); });
-$("kireport").addEventListener("click", function () { Kit.sfx.tap(); if (home && home.doc) reportKi(home.doc, home.link); });
+$("kireport").addEventListener("click", function () { Kit.sfx.tap(); if (home && home.doc) reportKi(home); });
 $("livego").addEventListener("click", function () { Kit.sfx.tap(); openLive($("livego").dataset.u); });
 ["focus", "pageshow"].forEach(function (e) { window.addEventListener(e, newDay); });
 document.addEventListener("visibilitychange", newDay);
@@ -1218,7 +1139,7 @@ var CU = window.CollabUI.init({
 var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
-window.DailyApp = { aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 /* test hook, used by browser checks: read-only snapshot */
 window.DailyDebug = { me: function () { return me; }, doc: function () { return ed && ed.doc; }, wall: function () { return wall; }, result: function () { return result; }, home: function () { return home; }, areas: function () { return ed ? areas() : []; }, tab: function (k) { tab(k); }, collab: function () { return CU.engine(); } };
