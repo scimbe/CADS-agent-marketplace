@@ -326,3 +326,24 @@ test("axe-core: keine Verstoesse (wcag2a/aa, 21aa, 22aa) im Editor, 18 Zustaende
     assert.deepEqual(p.errs, []);
   } finally { await b.close(); }
 });
+
+test("Undo sofort: nach einer Aenderung ist ↶ gleich bereit; zwei Schritte in einem Neuzeichnen sind zwei Undo-Schritte; Stufennamen ragen nicht aus der Zeile (328-512 px)", async () => {
+  const b = await G.launch();
+  try {
+    const ctx = await G.person(b, { view: "phone390", lang: "de" }), p = await G.open(ctx, "");
+    await editor(p, "card"); await tabTo(p, "Sticker"); await p.locator('#panel [data-dk="add0"]').click(); await p.waitForTimeout(60);
+    const s0 = await doc(p);
+    const r = await p.evaluate(() => { const a = () => document.querySelector('#panel [data-dk="right"]'); a().click(); const dis = document.querySelector("#dkbar button").getAttribute("aria-disabled"); a().click(); return dis; });
+    assert.equal(r, "false", "↶ gleich nach dem Schritt bereit, nicht erst nach dem Neuzeichnen");
+    await p.locator("#dkbar button").first().click();
+    const s1 = await doc(p); assert.notDeepEqual(s1.sk, s0.sk, "ein Undo nimmt nur den zweiten Schritt");
+    await p.locator("#dkbar button").first().click(); assert.deepEqual((await doc(p)).sk, s0.sk, "das zweite Undo den ersten");
+    assert.deepEqual(p.errs, []); await ctx.close();
+    for (const view of ["phone328", "zoom200"]) {
+      const c2 = await G.person(b, { view, lang: "de" }), q = await G.open(c2, "");
+      await editor(q, "game"); await tabTo(q, "Rules"); await q.waitForFunction(() => document.querySelector("#panel input[type=range]").max === "4");
+      const out = await q.evaluate(() => [...document.querySelectorAll("#panel .slide")].filter((row) => { const x = row.querySelector("b").getBoundingClientRect(), i = row.querySelector("input").getBoundingClientRect(), r = row.getBoundingClientRect(); return x.left < i.right - 0.5 || x.right > r.right + 0.5; }).map((row) => row.textContent));
+      assert.deepEqual(out, [], view + ": Stufenname ragt heraus"); await c2.close();
+    }
+  } finally { await b.close(); }
+});
