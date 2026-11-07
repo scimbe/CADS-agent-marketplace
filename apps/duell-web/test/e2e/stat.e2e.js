@@ -61,8 +61,10 @@ test("Teilen schickt share mit den geaenderten Bereichen des letzten Trail-Eintr
   assert.deepEqual(p.errs, []); await b.close();
 });
 
+// Reload and a second page of one device: over the web route (grund.js), since under file:// a reload or a new page now
+// and then starts with an empty storage of its own and would rightly count the link again (seen 1 of 48 under load).
 test("Eine empfangene Karte meldet open einmal je Link und Geraet; ein anderes Geraet zaehlt", async () => {
-  const b = await G.launch(), ctx = await G.person(b, { time: TIME }), got = await stats(ctx);
+  const b = await G.launch(), ctx = await G.person(b, { time: TIME, web: true }), got = await stats(ctx);
   const p = await G.open(ctx, GOT); await p.locator("#leaf.got").waitFor();
   assert.ok(await until(() => got.length)); assert.deepEqual(got, [{ i: "plan-09", e: "open" }]);
   await p.locator("#lang").click(); await p.locator("#lang").click();   // the sheet is drawn again: still one
@@ -72,14 +74,15 @@ test("Eine empfangene Karte meldet open einmal je Link und Geraet; ein anderes G
   assert.ok(await p.evaluate(() => JSON.parse(localStorage.getItem("daily.v1")).seen.length === 1));
   const day = await G.open(ctx, ""); await day.waitForTimeout(400);
   assert.equal(got.length, 1, "die Tageskarte ist nichts Empfangenes");
-  const ctx2 = await G.person(b, { time: TIME }), got2 = await stats(ctx2);
+  const ctx2 = await G.person(b, { time: TIME, web: true }), got2 = await stats(ctx2);
   const q = await G.open(ctx2, GOT); await q.locator("#leaf.got").waitFor();
   assert.ok(await until(() => got2.length)); assert.deepEqual(got2, [{ i: "plan-09", e: "open" }]);
   assert.deepEqual([...p.errs, ...p2.errs, ...q.errs], []); await b.close();
 });
 
+// Web route: the reload below must find the vote it stored (under file:// a reload now and then starts with empty storage).
 test("Daumen (angemeldet): setzen, wechseln, zuruecknehmen schickt v (ohne p), zeigt die Stimme erst nach der Antwort, ohne Zahlen", async () => {
-  const b = await G.launch(), ctx = await G.person(b, { time: TIME }), got = await stats(ctx);
+  const b = await G.launch(), ctx = await G.person(b, { time: TIME, web: true }), got = await stats(ctx);
   const p = await G.open(ctx, "");
   const id = await p.evaluate(() => window.DailyDebug.home().idea.id);
   const up = p.locator("#voteup"), down = p.locator("#votedown");
