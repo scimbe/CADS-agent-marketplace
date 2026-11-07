@@ -324,6 +324,9 @@ test("Ohne Server (ADR 0005): kein Teil stimme im Business-Build, keine Daumen, 
   const dir = path.join(root, "dist/business/parts"), files = require("node:fs").readdirSync(dir);
   assert.ok(files.length > 5 && !files.some((f) => /^stimme\./.test(f)), files.join(" "));
   assert.ok(!/"stimme":|vote_q|root\.Stimme/.test(require("node:fs").readFileSync(path.join(root, "dist/business/index.html"), "utf8")), "nicht im Manifest, nicht im Kern");
+  // no cards in Business: no weather part, its words neither in the core; My style and the report dialog are there
+  assert.ok(!files.some((f) => /^wetter\./.test(f)) && files.some((f) => /^stil\./.test(f)) && files.some((f) => /^melden\./.test(f)), files.join(" "));
+  assert.ok(!/"wetter":|"wx[A-Z]/.test(require("node:fs").readFileSync(path.join(root, "dist/business/index.html"), "utf8")), "kein Wetter im Business-Kern");
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), asked = [], errs = [];
   ctx.on("request", (r) => { if (/\/parts\/stimme\.|\/api\/duell\/stat/.test(r.url())) asked.push(r.url()); });
