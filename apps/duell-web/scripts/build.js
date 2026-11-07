@@ -55,7 +55,7 @@ for (const l of Object.keys(texts)) {
 const kontoTexts = partTexts.konto;
 const data = "window.DailyThumbs=" + JSON.stringify(thumbs) + ";" + (conf ? "window.DailyFlavor=" + JSON.stringify(conf) + ";" : "") + "window.DuellIdeas=" + JSON.stringify(index) + ";window.DailyTexts=" + JSON.stringify(coreTexts) + ";window.OfficeData=" + JSON.stringify(json("src/office.json")) + ";";
 const duelData = JSON.parse(read("src/duel.json"));
-const licenses = ["Anton-OFL.txt", "qrcode-generator-MIT.txt", "Kartendeck-CC0.txt"].map((f) => read("licenses/" + f)).join("\n\n");
+const licenses = ["Anton-OFL.txt", "qrcode-generator-MIT.txt", "Kartendeck-CC0.txt", "NotoEmoji-OFL.txt"].map((f) => read("licenses/" + f)).join("\n\n");
 // Further texts join DailyTexts language by language: whatever languages a file has (a new one is just a new block).
 const merge = (v) => "Object.keys(window." + v + ").forEach(function(l){window.DailyTexts[l]=Object.assign(window.DailyTexts[l]||{},window." + v + "[l]);});";
 // The quiz cards' facts (which example is phishing, the estimated prices) stay in the core, their texts go into the part quiz.
@@ -87,6 +87,9 @@ const PARTS = {
   regler: { d: [], src: ["REGLERDATA", "REGELN", "REGLERUI"] },                                        // the flight game's sliders in named steps
 };
 // The weather card's block (src/wetter.js); not built for a flavor whose catalog has no cards (Daily Business: turns only).
+// Stickers in the finished picture (src/noto.js, Noto Emoji sheet src/noto-stickers.png); only where cards and photo posters
+// carry stickers (not for Daily Business: turns only; app.js notoFor then makes the picture without, as before).
+if (catalog.ideas.some((i) => i.kind === "card" || i.kind === "photo")) PARTS.noto = { d: [], src: ["NOTODATA", "NOTO"] };
 if (catalog.ideas.some((i) => i.kind === "card")) PARTS.wetter = { d: [], src: ["WETTERDATA", "WETTER"] };
 // Mal & Rat: draw a word, the others guess (src/malrat.js, src/malrat-ui.js, words in src/malrat.json); only built when the
 // catalog has a card with its game (not in Daily Business).
@@ -106,6 +109,7 @@ if (PARTS.wetter) { parts.WETTERDATA = "window.WetterTexts=" + JSON.stringify(pa
 parts.DIREKTDATA = "window.DirektData=" + JSON.stringify(json("src/direkt.json")) + ";" + merge("DirektData.texts"); parts.EDITMODEL = read("src/editmodel.js"); parts.DIREKTUI = read("src/direkt-ui.js");
 parts.REGLERDATA = "window.ReglerTexts=" + JSON.stringify(json("src/regler.json")) + ";" + merge("ReglerTexts"); parts.REGELN = read("src/regeln.js"); parts.REGLERUI = read("src/regler-ui.js");
 if (PARTS.malen) { parts.MALRATDATA = "window.MalratData=" + JSON.stringify(json("src/malrat.json")) + ";"; parts.MALRAT = read("src/malrat.js"); parts.MALRATUI = read("src/malrat-ui.js"); }
+parts.NOTODATA = "window.NotoData=\"" + fs.readFileSync(path.join(root, "src/noto-stickers.png")).toString("base64") + "\";"; parts.NOTO = read("src/noto.js");
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
 parts.TEXTE = read("src/texte.js");
 parts.TEXTEDATA = "window.TexteData=" + JSON.stringify(json("src/texte.json")) + ";";
@@ -121,7 +125,7 @@ let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + 
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
 // code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
-const KEEP = new Set(["DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA"]);
+const KEEP = new Set(["DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "NOTODATA"]);
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "")).join("\n");
 const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));

@@ -759,10 +759,17 @@ function aiMark(c, doc) {
 function makeBlob(c, type, q) { return new Promise(function (ok) { c.toBlob(ok, type || "image/png", q); }); }
 function tinyThumb(c) { var s = document.createElement("canvas"); s.width = 135; s.height = 169; s.getContext("2d").drawImage(c, 0, 0, 135, 169); return s.toDataURL("image/jpeg", 0.6); }
 function thumb(c) { var s = document.createElement("canvas"); s.width = 270; s.height = 338; s.getContext("2d").drawImage(c, 0, 0, 270, 338); return s.toDataURL("image/jpeg", 0.6); }
+// Stickers in the picture come from Noto Emoji (part noto, src/noto.js). Missing part, a broken sheet or more than 3 s:
+// the picture is made as before, without stickers, and nothing is said (it never waits longer, never fails for it).
+function notoFor(d) {
+  if (!d || !d.sk || !d.sk.length) return Promise.resolve(null);
+  var late = new Promise(function (ok) { setTimeout(ok, 3000, null); });
+  return Promise.race([window.Parts.need("noto").then(function () { return window.NotoStickers.ready(); }), late]).catch(function () { return null; });
+}
 async function finish(doc, idea, pictureDoc) {
-  var c = document.createElement("canvas"); c.width = 1080; c.height = 1350;
+  var noto = await notoFor(pictureDoc || doc), c = document.createElement("canvas"); c.width = 1080; c.height = 1350;
   R.exporting = true;
-  try { R.draw(c, pictureDoc || doc, { me: me, photo: ed && ed.photo, peaks: ed && ed.peaks }); } finally { R.exporting = false; }
+  try { R.draw(c, pictureDoc || doc, { me: me, photo: ed && ed.photo, peaks: ed && ed.peaks, noto: noto }); } finally { R.exporting = false; }
   c = aiMark(withPic(c, doc), doc);
   var png = await makeBlob(c), file = png, name = "my-daily-idea.png";
   if (doc.k === "sound") {
