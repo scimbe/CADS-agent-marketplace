@@ -515,13 +515,16 @@ function match(o) {
       else if (g === "elfer") note.textContent = S.st.shooting ? t("arc_shoot") : t("arc_keep");
     }
     if (S.rejected && !warned) { warned = true; Kit.toast(t("arc_odd")); }
-    if (S.over && !ended) { ended = true; setTimeout(function () { if (cv.isConnected) o.onEnd(S.score[0] > S.score[1], S.draw); }, 1400); }
+    if (S.over && !ended) { ended = true; setTimeout(function () { if (cv.isConnected) o.onEnd(S.forfeit ? S.forfeit === "me" : S.score[0] > S.score[1], S.draw, S.voided, S.forfeit); }, 1400); }
     requestAnimationFrame(frame);
   })(performance.now());
   return P;
 }
-function endText(body, won, s, live, draw) {
+function endText(body, won, s, live, draw, voided, forfeit) {
   body.textContent = "";
+  if (voided) { body.appendChild(el("p", "livebig", t("arc_void"))); return; }   // no winner, no blame
+  // ended by the rule for moves that did not fit together: said as it is, without blame, and won like any other game
+  if (forfeit) { body.appendChild(el("p", "livebig", t(won ? "arc_forfeitWon" : "arc_forfeitLost"))); if (won) Kit.sfx.win(); return; }
   body.appendChild(el("p", "livebig", t(draw ? "arc_draw" : won ? (live ? "live_won" : "arc_won") : (live ? "live_lostGame" : "arc_lost"), { a: s[0], b: s[1] })));
   if (won) Kit.sfx.win();
 }
@@ -534,8 +537,8 @@ function playBot(g) {
   var bot = A.bot(g, B, seed);
   match({ body: body, g: g, S: S, them: t("arc_botName"), startOther: function () { B.start(); },
     other: function (dt) { while (toBot.length) B.receive(toBot.shift()); bot(dt); B.tick(dt); B.ev.length = 0; while (toMe.length) S.receive(toMe.shift()); },
-    onEnd: function (won, draw) {
-      endText(body, won, S.score, false, draw);
+    onEnd: function (won, draw, voided, forfeit) {
+      endText(body, won, S.score, false, draw, voided, forfeit);
       body.appendChild(el("button", "btn hot", t("arc_again"), function () { Kit.sfx.thud(); playBot(g); }));
       if (window.LiveUI && window.LiveUI.on()) body.appendChild(el("button", "btn hot live", t("arc_live"), function () { Kit.sfx.thud(); closeOwn(); window.LiveUI.invite({ g: g }); }));
     } });
@@ -546,8 +549,8 @@ function playLive(g) {
     round = round || 0;
     var body = api.layer(), conn = api.conn, again = [false, false];
     var S = A.side(g, { seed: conn.channel + "|" + g + "|" + round, serving: serving, clock: wall, send: function (m) { conn.send(m); } });
-    var o = { body: body, g: g, S: S, them: t("arc_friend"), badge: api.badge, onEnd: function (won, draw) {
-      endText(body, won, S.score, true, draw);
+    var o = { body: body, g: g, S: S, them: t("arc_friend"), badge: api.badge, onEnd: function (won, draw, voided, forfeit) {
+      endText(body, won, S.score, true, draw, voided, forfeit);
       var more = el("button", "btn hot", t("live_more"), function () { more.disabled = true; more.textContent = t("live_moreWait"); again[0] = true; conn.send({ t: "again" }); restart(); });
       body.appendChild(more);
     } };
