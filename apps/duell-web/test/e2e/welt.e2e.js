@@ -192,7 +192,7 @@ test("Befund 2: eigene Aenderungen (Regler, Figur, Welt, Name) nehmen das KI-Zei
   await p.getByRole("tab", { name: "Welt" }).tap(); await p.getByRole("button", { name: "Lava" }).tap();
   const d = await doc(); assert.equal(d.ki, undefined, "Welt"); assert.equal(d.g.route, undefined);
   await keep();
-  await p.getByRole("tab", { name: "Text" }).tap(); await p.getByLabel("Name").fill("Mein Flug");
+  await p.getByRole("tab", { name: "Text" }).tap(); await p.getByLabel("Titel auf der Karte").fill("Mein Flug");
   assert.equal((await doc()).ki, undefined, "Name");
   await p.locator("#edmain").tap(); await p.locator("#game:not([hidden])").waitFor();
   assert.equal(await p.locator("#gki").isVisible(), false, "das Spiel zeigt kein KI mehr");

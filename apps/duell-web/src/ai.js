@@ -15,6 +15,12 @@
   var CRISIS_KINDS = ["plan", "liste", "quiz", "welt", "text"];
   var CRISIS = /suizid|selbstmord|selbstverletz|umbring|umzubring|nicht mehr leben|will sterben|sterben will|lebensmud|\bbringe? mich um\b|\b(will|mochte|ware|war) (einfach |lieber )?tot( sein)?\b|\britz(e|te)? mich\b|\b(lust|bock|sinn|grund) mehr (zu|auf|aufs) leben\b|\bhasse mein leben\b|\btu(e|n)? mir (was|etwas) an\b|\bmir (was|etwas) (an ?tun|anzutun)\b|\bkys\b|kill myself|suicid|self.?harm|want to die|end my life/;
   var LEET = { 0: "o", 1: "i", 3: "e", 4: "a", 5: "s", 7: "t", 8: "b", "@": "a", $: "s", "\u20ac": "e", "!": "i" };
+  // Where the login brings the person back: the page of the own build, taken from the flavor's share address (business:
+  // /duell/business), else the game at /duell. Only a path, never another host, so the return stays on this site.
+  function loginReturn(flavor) {
+    var b = flavor && flavor.shareBase, m = typeof b === "string" && /^https:\/\/[^/?#]+(\/[A-Za-z0-9/_-]*)/.exec(b), p = m ? m[1].replace(/\/+$/, "") : "";
+    return p && p.charAt(1) !== "/" ? p : "/duell";
+  }
   function crisis(text) {
     var f = String(text == null ? "" : text).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\u00df/g, "ss");
     return CRISIS.test(f.replace(/[0134578@$\u20ac!]/g, function (c) { return LEET[c]; }).replace(/\s+/g, " "));
@@ -131,7 +137,7 @@
     if (meter.abo) return t("aiCountAbo", { n: meter.remaining });
     return t(meter.period === "week" ? "aiCountWeek" : "aiCount", { n: meter.remaining, m: meter.free });
   }
-  var api = { verdict: verdict, place: place, endpoint: endpoint, client: client, reportBody: reportBody, REASONS: REASONS, solve: solve, count: count, canonical: canonical, optionHash: optionHash, crisis: crisis, texts: texts, CRISIS_KINDS: CRISIS_KINDS };
+  var api = { verdict: verdict, place: place, endpoint: endpoint, client: client, reportBody: reportBody, REASONS: REASONS, solve: solve, count: count, canonical: canonical, optionHash: optionHash, crisis: crisis, loginReturn: loginReturn, texts: texts, CRISIS_KINDS: CRISIS_KINDS };
 
   if (typeof window === "undefined") { if (typeof module !== "undefined" && module.exports) module.exports = api; return; }
 
@@ -271,7 +277,10 @@
     ok.disabled = !!(meter && meter.interest); b.appendChild(ok);
     b.appendChild(el("p", "note", t("aiWantNote")));
     if (meter && meter.canLogin && !window.DuellHost) {
-      var a = el("a", "btn", t("aiLogin")); a.href = "/auth/login?return=" + encodeURIComponent("/duell"); b.appendChild(a);
+      var a = el("a", "btn", t("aiLogin")); a.href = "/auth/login?return=" + encodeURIComponent(loginReturn(window.DailyFlavor)); a.addEventListener("click", function (e) {   // the look cookie comes with the part konto: load it, set it, then go
+        e.preventDefault(); var go = function () { location.href = a.href; };
+        window.Parts.use("konto", function () { window.Profile.look(); }).then(go, go);
+      }); b.appendChild(a);
     }
   }
   // Report a shared sheet: only after the person chose a reason and said yes in the dialog. -> true when the server took it.
@@ -280,5 +289,5 @@
     if (!body) return false;
     try { var r = await post("/report", body); return r.status >= 200 && r.status < 300; } catch (e) { return false; }
   }
-  window.Ai = { block: block, wall: wall, count: line, post: post, report: report, drop: drop, crisis: crisis, REASONS: REASONS };
+  window.Ai = { block: block, wall: wall, count: line, post: post, report: report, drop: drop, crisis: crisis, REASONS: REASONS, loginReturn: loginReturn };
 })(typeof globalThis !== "undefined" ? globalThis : this);

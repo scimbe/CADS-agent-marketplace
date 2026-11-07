@@ -1,16 +1,19 @@
 "use strict";
+const { ensureBuilt } = require("../../scripts/ensure-build.js");
 // Business flavor: the same engine with its own catalog and look. Each phone is its own browser context, so the only
 // thing that reaches the next person is the link.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
-const { execFileSync } = require("node:child_process");
 const { chromium, devices } = require("playwright");
+const G = require("./lib/grund.js");
 const root = path.resolve(__dirname, "../..");
-const page = "file://" + path.join(root, "dist/business/index.html");
+let page;
+// Web route (lib/grund.js): pages here are reloaded or a device opens several pages; under file:// such a page now and then starts with an empty storage of its own.
+test.before(async () => { page = await G.webUrl("business/index.html"); });
 const shot = process.env.SHOT_DIR;
 const hash = (u) => "#" + u.split("#")[1];
-execFileSync(process.execPath, [path.join(root, "scripts/build.js"), "--flavor", "business"]);
+ensureBuilt("business");   // dist as npm run test:e2e built it; a build only after an edit
 
 async function setup() {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }), errs = [];
@@ -44,7 +47,7 @@ test("Umfrage ueber drei Geraete: Firmenfarbe reist im Link, Empfaenger stimmen 
   await pick(a, "Sushi"); await a.getByText("Eingetragen").waitFor(); await snap(a, "biz-poll-editor");
   const one = await send(a);
   assert.deepEqual(org(one), { c: "#0f766e", n: "ACM" });
-  assert.ok(one.startsWith("https://bunsenbrenner.org/business#c="), "eigener Pfad, langer Link: " + one.slice(0, 50));
+  assert.ok(one.startsWith("https://demos-34a13a96.bunsenbrenner.org/duell/business/#c="), "eigener Pfad, langer Link: " + one.slice(0, 50));
 
   const c = await open(hash(one));
   assert.equal(await c.locator("#orglogo").textContent(), "ACM", "Empfaenger sieht die Firma des Absenders");
@@ -83,7 +86,7 @@ test("Aufgaben verteilen bis keine mehr offen ist, Agenda bietet die Webconferen
 });
 
 test("Die Jugend-App bleibt wie sie ist und oeffnet trotzdem einen Business-Link", async () => {
-  execFileSync(process.execPath, [path.join(root, "scripts/build.js")]);
+  ensureBuilt("");
   const { b, open, errs } = await setup();
   const g = await open("#i=biz-feedback-meeting");
   await g.locator("#go").click(); await type(g, "Workshop Montag");
@@ -111,11 +114,14 @@ async function firewalled(b, mode) {
   await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 600, downloadThroughput: 32 * 1024, uploadThroughput: 16 * 1024 });
   return { p, errs, asked };
 }
+// file:// on purpose: the app from its bundle in a company network (throttled, every host blocked); one document, the
+// second goto only changes the hash (lib/grund.js: the web route is for reloads and several pages).
+const FILE = "file://" + path.join(root, "dist/business/index.html");
 for (const mode of ["refuse", "drop"]) {
   test("Firmennetz (" + mode + "): Karten laufen ohne Netz, Webconference sagt in Sekunden, dass sie gesperrt ist", async () => {
     const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
     const { p, errs, asked } = await firewalled(b, mode);
-    const t0 = Date.now(); await p.goto(page); await p.locator("#go").waitFor();
+    const t0 = Date.now(); await p.goto(FILE); await p.locator("#go").waitFor();
     assert.ok(Date.now() - t0 < 5000, "Startseite haengt am Netz");
     assert.equal(await p.locator("#cogo").isVisible(), false); assert.equal(await p.locator("#livego").isVisible(), false);
     const t1 = Date.now();
@@ -127,7 +133,7 @@ for (const mode of ["refuse", "drop"]) {
     assert.ok(asked.every((u) => u.startsWith("https://webconference.bunsenbrenner.org/") || pic.test(u)), "nur der eine Tipp geht raus: " + asked.join(" "));
     assert.ok(asked.filter((u) => pic.test(u)).length <= 1, "hoechstens das eine Bild");
     if (shot && mode === "refuse") await p.screenshot({ path: shot + "/biz-blocked.png" });
-    await p.goto(page + "#i=biz-aufgaben"); await p.locator("#go").click();
+    await p.goto(FILE + "#i=biz-aufgaben"); await p.locator("#go").click();
     await type(p, "Umzug"); const f = p.locator("#panel input.field"); await f.nth(0).fill("Kisten"); await f.nth(1).fill("Transporter"); await next(p);
     assert.match(await send(p), /#c=/);
     assert.deepEqual(errs, []); await b.close();
@@ -153,6 +159,7 @@ async function phoneApi(b, api) {
   ctx.setDefaultTimeout(15000);
   await ctx.route(/^https?:/, async (r) => {
     const u = r.request().url();
+    if (G.isLocal(u)) return r.fallback();   // the page itself (web route)
     if (u.startsWith(API)) { const p0 = u.slice(API.length), body = JSON.parse(r.request().postData() || "null"); sent.push({ path: p0, body }); const a = api && api(p0, body); if (a) return r.fulfill({ status: a[0], contentType: "application/json", body: JSON.stringify(a[1]) }); }
     return r.abort();
   });
@@ -205,7 +212,7 @@ test("Onboarding: Startdatum + Rolle -> feste Checkliste mit Fristen; KI ergaenz
   assert.equal(await r.locator("#leaf .kiseal").isVisible(), true, "Empfaenger sieht 'KI'");
   await snap(r, "wb2-business-onboard-received");
   // without a server: the plan alone, no seal
-  await ctx.unroute(/^https?:/); await ctx.route(/^https?:/, (x) => x.abort());
+  await ctx.unroute(/^https?:/); await ctx.route(/^https?:/, (x) => (G.isLocal(x.request().url()) ? x.fallback() : x.abort()));
   const o = await open("#i=biz-onboarding"); await o.locator("#go").click();
   await o.getByRole("button", { name: "✨ Aufgaben für die Rolle ergänzen" }).click();
   await o.locator(".aistate").getByText("KI gerade nicht erreichbar. Nichts verbraucht.").waitFor();
@@ -331,4 +338,19 @@ test("Business ohne freie Karte: kein Teil deck im dist, kein Knopf Community-Ka
     assert.notEqual(await p.locator("#toast").textContent(), "Dieser Teil fehlt gerade. Bitte die Seite neu laden.");
     assert.deepEqual(errs, []);
   } finally { await b.close(); }
+
+test("Ohne Server (ADR 0005): kein Teil stimme im Business-Build, keine Daumen, kein Request darauf oder an die Statistik", async () => {
+  const dir = path.join(root, "dist/business/parts"), files = require("node:fs").readdirSync(dir);
+  assert.ok(files.length > 5 && !files.some((f) => /^stimme\./.test(f)), files.join(" "));
+  assert.ok(!/"stimme":|vote_q|root\.Stimme/.test(require("node:fs").readFileSync(path.join(root, "dist/business/index.html"), "utf8")), "nicht im Manifest, nicht im Kern");
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+  const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), asked = [], errs = [];
+  ctx.on("request", (r) => { if (/\/parts\/stimme\.|\/api\/duell\/stat/.test(r.url())) asked.push(r.url()); });
+  const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e)));
+  await p.goto(page); await p.waitForFunction(() => document.body.getAttribute("data-state") !== "boot");
+  await p.waitForTimeout(500);
+  assert.equal(await p.locator("#votes").isHidden(), true);
+  assert.deepEqual(await p.evaluate(() => window.Parts.names().filter((n) => n === "stimme")), [], "das Vorladen im Web (parts.js) kennt ihn nicht");
+  assert.deepEqual(asked, []); assert.deepEqual(errs, []);
+  await b.close();
 });
