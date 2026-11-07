@@ -48,6 +48,7 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 #homerow{position:relative;flex:none;display:flex;gap:8px;margin:2px 18px 6px}
 #homerow button{flex:1;min-height:44px;border:2px solid var(--on);border-radius:6px;background:transparent;color:var(--on);font:900 .88rem/1.1 var(--ui);padding:2px 6px}
 #homerow button[hidden]{display:none}
+#homerow #create{flex:1.4;background:#ffd400;color:#111;border:3px solid;box-shadow:0 3px 0 #ff3b1d;font:900 13px/1.05 var(--disp);text-transform:uppercase}#create span{display:block;font:700 10px/1.1 var(--ui);text-transform:none}
 /* The feature bar is a strip to swipe; it runs by as a ticker only in .run (app.js: after 3 s, stopped for good by a touch
    or the switch), stands still under the mouse, and on short screens it is left out. */
 /* The fade sits on the right edge only (more to come); on the left the strip starts hard, and a strip that stands

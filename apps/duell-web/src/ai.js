@@ -12,7 +12,7 @@
   // context around it; that stays with the server (selfCut). The page adds a few frequent words of young people the server
   // list lacks ("ich ritze mich", "keinen Bock mehr zu leben", "hasse mein Leben"): stricter here only means the help comes
   // sooner and nothing is sent. The help is always our own text aiCrisis, never the server's.
-  var CRISIS_KINDS = ["plan", "liste", "quiz", "welt", "text"];
+  var CRISIS_KINDS = ["plan", "liste", "quiz", "welt", "text", "karte"];
   var CRISIS = /suizid|selbstmord|selbstverletz|umbring|umzubring|nicht mehr leben|will sterben|sterben will|lebensmud|\bbringe? mich um\b|\b(will|mochte|ware|war) (einfach |lieber )?tot( sein)?\b|\britz(e|te)? mich\b|\b(lust|bock|sinn|grund) mehr (zu|auf|aufs) leben\b|\bhasse mein leben\b|\btu(e|n)? mir (was|etwas) an\b|\bmir (was|etwas) (an ?tun|anzutun)\b|\bkys\b|kill myself|suicid|self.?harm|want to die|end my life/;
   var LEET = { 0: "o", 1: "i", 3: "e", 4: "a", 5: "s", 7: "t", 8: "b", "@": "a", $: "s", "\u20ac": "e", "!": "i" };
   // Where the login brings the person back: the page of the own build, taken from the flavor's share address (business:
