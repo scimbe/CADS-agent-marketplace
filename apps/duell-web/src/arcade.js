@@ -68,13 +68,15 @@
     S.reject = function () { S.rejected++; return false; };
     // A stall as this phone saw it: the gap between two arrivals on its own clock (the sender's clock could be faked).
     // For the burst that follows it (half a second), what the other one did during the gap may arrive at once.
-    S.lastIn = null; S.burst = { len: 0, at: -1 };
+    S.lastIn = null; S.burst = { len: 0, at: -1 }; S.pause = { len: 0, at: -1 };
     S.heard = function () {
       var now = S.clock();
       if (S.lastIn !== null && now - S.lastIn > 0.3) S.burst = { len: Math.min(now - S.lastIn, STALL_MAX), at: now };
+      if (S.lastIn !== null && now - S.lastIn > 2 * NET_P) S.pause = { len: Math.min(now - S.lastIn, STALL_MAX), at: now };   // shorter ones too
       S.lastIn = now;
     };
     S.stall = function () { return S.clock() - S.burst.at < 0.5 ? S.burst.len : 0; };
+    S.gap = function () { return S.clock() - S.pause.at < 0.5 ? S.pause.len : 0; };   // any gap over two report beats
     return S;
   }
   function loop(S, dt, sub) {
@@ -340,7 +342,21 @@
     return kind !== "hit" || Math.hypot(b.x - opp.x, b.y - opp.y) <= V.BR + V.PRAD + 260 + (slack || 0);
   }
   function volleySide(o) {
-    var V = VOLLEY, S = base(V, o), aim = 250, jump = false, ground = V.FY - V.PRAD, pAt = null;
+    var V = VOLLEY, S = base(V, o), aim = 250, jump = false, ground = V.FY - V.PRAD, pAt = null, path = [], fxSeen = false;
+    // From every state of the ball the other phone moves, this one works out its free flight for the next seconds with
+    // the same physics. A state from over there has to lie on that path (a hit only near it, and in reach of the
+    // reported figure): no clock is needed, so none can be faked, and late or early arrival does not matter.
+    function along(b, dPos, dVel) {
+      for (var i = path.length - 1; i >= 0; i--) {
+        var q = path[i];
+        if (Math.abs(q.x - b.x) <= dPos && Math.abs(q.y - b.y) <= dPos && (dVel === null || (Math.abs(q.vx - b.vx) <= dVel && Math.abs(q.vy - b.vy) <= dVel))) return true;
+      }
+      return false;
+    }
+    function keep(b) {
+      var q = { x: b.x, y: b.y, vx: b.vx, vy: b.vy }; path = [copy(q)];
+      for (var i = 0; i < 120 * (STALL_MAX + 2) && q.y + V.BR < V.FY + 60; i++) { volleyStep(q, 1 / 120); path.push(copy(q)); }
+    }
     S.st = { b: null, own: false, held: false, me: { x: 250, y: ground, vx: 0, vy: 0 }, opp: { x: W - 250, y: ground } };
     S.input = function (i) { if (!i) return; if (num(i.x)) aim = i.x; if (i.jump) jump = true; };
     function serve() { var st = S.st; st.b = volleyServe(S.seed, S.n); st.own = true; st.held = false; S.send({ t: "serve", n: S.n, b: mirrorX(st.b) }); S.n++; S.serveAt = 0; S.fx("serve", st.b.x, st.b.y); }
@@ -354,9 +370,9 @@
         var b = st.b; if (!b || st.held) return;
         if (st.own) {
           var w = volleyStep(b, d); if (w) S.fx(w, b.x, b.y);
-          if (volleyBump(b, st.me)) { S.send({ t: "hit", b: mirrorX(b) }); S.fx("hit", b.x, b.y, { v: speed(b) }); }
+          if (volleyBump(b, st.me)) { S.send({ t: "hit", b: mirrorX(b), fx: Math.round(W - st.me.x), fy: Math.round(st.me.y) }); S.fx("hit", b.x, b.y, { v: speed(b) }); }   // with where the figure touched it
           if (b.y + V.BR >= V.FY) { st.b = null; S.concede(b.x, V.FY); return; }
-          if (b.x > V.NX) { st.own = false; S.send({ t: "pass", b: mirrorX(b) }); }
+          if (b.x > V.NX) { st.own = false; S.send({ t: "pass", b: mirrorX(b) }); keep(b); }
         } else {
           volleyStep(b, d);
           if (b.x <= V.NX && b.vx < 0) { b.x = V.NX; st.held = true; }                    // handed over; wait for it
@@ -367,14 +383,28 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
+      S.heard();
       if (m.t === "p" && num(m.x) && num(m.y)) { pAt = S.clock(); st.opp = plausibleFigure(st.opp, m, S.oppDt(Math.abs(m.x - st.opp.x), V.VMOVE * 1.25)); return; }
       if (m.t === "pt") { st.b = null; st.own = false; S.gain(); return; }
-      if (m.t === "serve" && num(m.n)) { if (!same(m.b, mirrorX(volleyServe(S.seed, m.n)))) return S.reject(); st.b = copy(m.b); st.own = false; st.held = false; S.n = m.n + 1; return; }
+      if (m.t === "serve" && num(m.n)) { if (!same(m.b, mirrorX(volleyServe(S.seed, m.n)))) return S.reject(); st.b = copy(m.b); st.own = false; st.held = false; S.n = m.n + 1; keep(st.b); return; }
       if (m.t === "hit" || m.t === "st" || m.t === "pass") {
         if (st.own) return;
-        var walked = pAt === null ? 0 : V.VMOVE * 1.25 * Math.min(STALL_MAX, Math.max(0, S.clock() - pAt - NET_P));   // measured here
+        // How far the figure may have got since its report: only after a real gap in all arrivals (a stall of the network
+        // or a phone that hung), measured here; a sender that only holds back its reports gains nothing.
+        var walked = Math.hypot(V.VMOVE, V.JUMP) * 1.25 * S.gap();
         if (!plausibleVolley(m.t, m.b, st.opp, walked)) return S.reject();
-        st.b = copy(m.b); st.held = false;
+        if (path.length && body(m.b)) {
+          if (m.t === "hit") {
+            // contact: the ball near its path (the bump only pushes it out a little) and at the reported figure
+            var reach = Math.hypot(V.VMOVE, V.JUMP) * 1.25 * NET_P * 1.2 + walked;   // walking and jumping since its report
+            if (!along(m.b, 90, null)) return S.reject();
+            if (num(m.fx) && num(m.fy)) {   // the figure where it touched: reachable from its report, and the ball right at it
+              fxSeen = true;
+              if (Math.hypot(m.fx - st.opp.x, m.fy - st.opp.y) > reach + 20 || Math.hypot(m.b.x - m.fx, m.b.y - m.fy) > V.BR + V.PRAD + 15) return S.reject();
+            } else if (fxSeen || Math.hypot(m.b.x - st.opp.x, m.b.y - st.opp.y) > V.BR + V.PRAD + 40 + reach) return S.reject();   // an older app (one that once told where it touched always does)
+          } else if (!along(m.b, 40, 45)) return S.reject();   // free flight: on the path, at its speed
+        }
+        st.b = copy(m.b); st.held = false; keep(st.b);
         if (m.t === "pass") st.own = true; else if (m.t === "hit") S.fx("ohit", st.b.x, st.b.y, { v: speed(st.b) });
       }
     };
