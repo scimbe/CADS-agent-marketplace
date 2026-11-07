@@ -35,6 +35,8 @@
     var s = extra || {};
     calls.forEach(function (m) {
       s[m] = function () {
+        // Built without it on purpose (no entry in the manifest): quiet, no word on screen.
+        if (!LIST[part]) return Promise.resolve();
         var a = arguments;
         // A part that loaded but did not set its module (it threw while running) gets the same word on screen.
         return use(part, function () { var r = root[key]; if (!r || r === s) { fail(); throw new Error("part " + part + " without " + key); } return r[m].apply(r, a); }).catch(function () {});
@@ -57,6 +59,15 @@
   });
   // Doppelkopf and Skat (table-ui.js), which play over live.js.
   stand("table", "TableUI", ["open", "accept"], { close: function () {} });
+  // The community deck of free cards (deck.js). search() and revoked() answer from nothing until the part is there; seen()
+  // of a free card (doc.ki.k "karte") loads the part, which reports a use (login only) and marks a revoked seal.
+  // A build without the part (the business app): every call stays quiet, see stand().
+  var dk = stand("deck", "Deck", ["shelf", "open", "vote", "load"], {
+    search: function () { return []; }, hits: function () { return 0; }, revoked: function () { return false; },
+    seen: function (doc, badge) {
+      if (doc && doc.ki && doc.ki.k === "karte" && LIST.deck) need("deck").then(function () { if (root.Deck !== dk) root.Deck.seen(doc, badge); }, function () {});
+    }
+  });
   // On the web: everything once the page is idle (see above). In the apps the files are on the device anyway.
   if (/^https?:$/.test(location.protocol) && location.hostname !== "appassets.androidplatform.net") {
     root.addEventListener("load", function () {

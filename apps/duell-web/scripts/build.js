@@ -18,6 +18,9 @@ const fl = (f) => "src/flavors/" + flavor + "/" + f, has = (f) => flavor && fs.e
 if (flavor && !has("flavor.json")) throw new Error("Unbekannter Flavor: " + flavor);
 const over = (base, f) => { if (has(f)) { const o = json(fl(f)); for (const l of Object.keys(o)) Object.assign(base[l], o[l]); } return base; };
 const conf = flavor ? json(fl("flavor.json")) : null, texts = over(json("src/texts.json"), "texts.json"), turnData = json("src/turn.json");
+// The words of the community deck (deck_, mod_, credit_) travel in the part deck; the core keeps the two it shows itself.
+const DECK_CORE = ["deck_open", "deck_revoked"], deckTexts = {};
+for (const l of Object.keys(texts)) for (const k of Object.keys(texts[l])) if (/^(deck|mod|credit)_/.test(k) && DECK_CORE.indexOf(k) < 0) { (deckTexts[l] = deckTexts[l] || {})[k] = texts[l][k]; delete texts[l][k]; }
 over(turnData.text, "turn.json");
 // The thumbs' words (vote_*) travel with their part (stimme), not in the core.
 const voteTexts = {};
@@ -97,6 +100,12 @@ parts.STILDATA = "window.StilTexts=" + JSON.stringify(partTexts.stil) + ";" + me
 parts.MELDENDATA = "window.MeldenTexts=" + JSON.stringify(partTexts.melden) + ";" + merge("MeldenTexts"); parts.MELDEN = read("src/melden.js");
 if (PARTS.wetter) { parts.WETTERDATA = "window.WetterTexts=" + JSON.stringify(partTexts.wetter) + ";" + merge("WetterTexts"); parts.WETTER = read("src/wetter.js"); }
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
+// Community deck of free cards: signed deck, use, thumbs, credit, decisions (src/deck.js). Only where the free card is on:
+// a flavor whose feats leave out f_create (the business app) neither builds nor preloads it, like "stimme" with stat: false.
+if (!(conf && conf.feats && conf.feats.indexOf("f_create") < 0)) {
+  PARTS.deck = { d: [], src: ["DECKTEXTS", "DECK"] };
+  parts.DECKTEXTS = "window.DeckTexts=" + JSON.stringify(deckTexts) + ";"; parts.DECK = read("src/deck.js");
+}
 parts.TEXTE = read("src/texte.js");
 parts.TEXTEDATA = "window.TexteData=" + JSON.stringify(json("src/texte.json")) + ";";
 parts.QUIZDATA = "window.QuizPacks=" + JSON.stringify(json("src/quiz-packs.json")) + ";";
@@ -111,7 +120,7 @@ let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + 
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
 // code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
-const KEEP = new Set(["DATA", "STIMMEDATA", "FEIERDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA"]);
+const KEEP = new Set(["DECKTEXTS", "DATA", "STIMMEDATA", "FEIERDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA"]);
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "")).join("\n");
 const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));

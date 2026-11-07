@@ -67,6 +67,8 @@ function fillSheet(root, h, still) {
   // when the sheet has one of its own.
   var got = !!(doc && h.note && !mode); root.classList.toggle("got", got);
   var ks = q("kiseal"); ks.hidden = !(doc && doc.ki && doc.ki.s); ks.textContent = t("kiBadge"); ks.title = t("kiBadgeL"); ks.setAttribute("aria-label", t("kiBadgeL"));
+  // A free card: its use (login only) and a revoked seal (src/deck.js).
+  if (doc) window.Deck.seen(doc, ks);
   var hero = q("hero"); hero.textContent = ""; hero.hidden = got && !doc.t;
   title.filter(Boolean).forEach(function (l, i) { var s = el("span", "", l); s.style.setProperty("--i", i); hero.appendChild(s); });
   if (mode && !sub && D.byId(doc.i)) sub = ideaText(D.byId(doc.i)).s;
@@ -935,6 +937,8 @@ function openPast() {
     var q = el("input", "field"), list = el("div"), T = window.DailyTexts, names = {};
     q.type = "search"; q.id = "pastq"; q.placeholder = t("pastSearch"); q.setAttribute("aria-label", t("pastSearch")); q.autocomplete = "off"; q.enterKeyHint = "search";
     D.KINDS.forEach(function (k) { names[k] = [T.de[k], T.en[k]]; });
+    // A build without the part deck (the business app) does nothing here (src/parts.js).
+    window.Deck.load();
     function row(e) {
       var made = wall.some(function (w) { return w.id === e.idea.id; }), r = el("button", "day", null, function () { Kit.sfx.tap(); home = { date: e.date || today, idea: e.idea }; goHome(); });
       r.appendChild(el("b", "", e.date ? String(e.date.getUTCDate()).padStart(2, "0") : "✦"));
@@ -947,11 +951,13 @@ function openPast() {
       list.textContent = "";
       if (!q.value.trim()) { D.lastDays(today, 7).forEach(row); return; }
       var hits = D.searchIdeas(q.value, today, names);
-      if (!hits.length) { list.appendChild(el("div", "empty", t("pastNone"))); return; }
       hits.forEach(function (h) { h.found = true; row(h); });
+      // Community cards after the daily ones.
+      if (!window.Deck.hits(q.value, list) && !hits.length) list.appendChild(el("div", "empty", t("pastNone")));
     }
     q.addEventListener("input", fill);
     b.appendChild(q); b.appendChild(list); fill();
+    if (shown("f_create")) b.appendChild(el("button", "btn", t("deck_open"), function () { Kit.sfx.tap(); window.Deck.shelf(); }));
   });
 }
 function openWall(which) {

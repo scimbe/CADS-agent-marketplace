@@ -75,7 +75,7 @@ test("Web /duell: nach dem Laden alle Teile mit SRI vorab; danach offline Arcade
   await p.goto(base + "/duell");   // without the slash: the parts still come from /duell/parts/
   await p.waitForFunction(() => window.Parts.names().every((n) => window.Parts.ready(n)));
   const got = await loaded(p);
-  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "katalog", "konto", "licenses", "logik", "melden", "play", "qr", "quiz", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "deck", "katalog", "konto", "licenses", "logik", "melden", "play", "qr", "quiz", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   for (const s of got) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
   assert.equal(await p.evaluate(() => typeof window.TableUI.preview + typeof window.StatusCard.draw), "functionfunction", "echte Module statt Platzhalter");
   await ctx.setOffline(true);
