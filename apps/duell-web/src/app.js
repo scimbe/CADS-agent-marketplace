@@ -90,6 +90,14 @@ function setHome(h, animate) {
   if (animate) { void leaf.offsetWidth; leaf.classList.add("enter"); }
   WM.sheet(h, s.got, animate);
   langPick(!!h.note);
+  // The thumbs keep their row from the first paint (.votes in style.css), so the sheet does not move when their part arrives.
+  var F = window.DailyFlavor, off = F && F.stat === false; $("votes").hidden = off || !(h.doc ? h.note && h.doc.i && !(h.doc.ki && h.doc.ki.k === "karte") : h.idea);   // as Stat.card
+  stimme(function (S) { S.sheet(h); }, h);
+}
+// Thumbs and card numbers live in the part "stimme" (src/stimme-ui.js, src/stat.js); a flavor with stat: false has neither.
+function stimme(fn, h) {
+  var F = window.DailyFlavor; if (F && F.stat === false) return;
+  window.Parts.need("stimme").then(function () { if (!h || h === home) fn(window.Stimme); }, function () {});
 }
 // An invitation shows its languages before the first tap, each in its own name ("Deutsch", "English").
 function langPick(on) {
@@ -277,6 +285,7 @@ function peek(step, lazy) {
     var c = document.implementation.createHTMLDocument("").importNode($("leaf"), true);
     c.querySelectorAll("img").forEach(function (x) { x.removeAttribute("src"); });
     g = document.importNode(c, true); g.removeAttribute("id"); g.removeAttribute("style"); g.className = "ghost"; g.setAttribute("aria-hidden", "true");
+    g.querySelectorAll(".votes").forEach(function (x) { x.remove(); });
     g.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); });
     under.appendChild(g);
   }
@@ -295,7 +304,7 @@ function tear(step) {
 }
 (function drag() {
   var leaf = $("leaf"), sx = 0, sy = 0, on = false, t0 = 0, far = false, shown = 0;
-  leaf.addEventListener("pointerdown", function (e) { on = true; sx = e.clientX; sy = e.clientY; t0 = Date.now(); far = false; shown = 1; try { peek(1, true); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
+  leaf.addEventListener("pointerdown", function (e) { if (e.target.closest("button")) return; on = true; sx = e.clientX; sy = e.clientY; t0 = Date.now(); far = false; shown = 1; try { peek(1, true); } catch (x) {} leaf.classList.add("drag"); try { leaf.setPointerCapture(e.pointerId); } catch (x) {} });
   leaf.addEventListener("pointermove", function (e) {
     if (!on) return; var dx = e.clientX - sx, dy = e.clientY - sy, step = dx > 0 ? -1 : 1;
     if (Math.abs(dx) >= 10 || Math.abs(dy) >= 10) far = true;   // moved once: never a tap, even when let go where it began
@@ -733,7 +742,7 @@ async function finish(doc, idea, pictureDoc) {
     file = new Blob([S.wav(pcm)], { type: "audio/wav" }); name = "my-daily-idea.wav";
   }
   var url = D.docUrl(doc);
-  result = { url: url, file: file, name: name, png: png, keep: ed, canvas: c, kind: doc.k };
+  result = { url: url, file: file, name: name, png: png, keep: ed, canvas: c, kind: doc.k, doc: doc };
   wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c) }); store.wall = wall; Kit.save();
   if (!Kit.persisted) Kit.toast(t("wallFull"));
   var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png);
@@ -771,6 +780,7 @@ $("playit").addEventListener("click", function () { ed = result.keep; ed.sel = -
 async function shortLink() {
   if (!result.link) {
     result.link = await window.ShortLink.shorten(result.url, { k: result.kind, l: Kit.lang }, store);
+    var doc = result.doc; stimme(function (S) { S.share(doc); });   // the card's id and what the last person changed, nothing else (src/stat.js)
     var mine = result.link.short && store.links.filter(function (e) { return e.id === result.link.id; })[0];
     if (mine && result.canvas) { mine.th = tinyThumb(result.canvas); mine.k = result.kind; }   // only on this phone, for the list of invitations
     Kit.save();
