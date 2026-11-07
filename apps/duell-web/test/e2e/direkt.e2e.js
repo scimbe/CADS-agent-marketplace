@@ -239,7 +239,8 @@ test("Einfache Sprache: Schalter in Mein Stil, standardmaessig aus, bleibt nach 
   const b = await G.launch();
   try {
     for (const [lang, on, off, word] of [["de", "An", "Aus", "Titel"], ["en", "On", "Off", "Title"]]) {
-      const ctx = await G.person(b, { view: "phone390", lang }), p = await G.open(ctx, "");
+      // reloads: over the web route (file:// pages may start with a storage of their own, test/e2e/lib/grund.js)
+      const ctx = await G.person(b, { view: "phone390", lang, web: true }), p = await G.open(ctx, "");
       const before = await (async () => { await editor(p, "card"); return p.locator('#tabs [data-k="Idea"]').textContent(); })();
       await p.locator("#edback").click(); await p.locator("#me").click();
       const grp = p.getByRole("group", { name: lang === "de" ? "Einfache Sprache" : "Plain language" });
