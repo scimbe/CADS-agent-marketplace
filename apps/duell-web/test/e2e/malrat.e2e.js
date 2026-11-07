@@ -59,6 +59,13 @@ async function drawAndSend(p, o, bad) {
   assert.equal(await lines(p), 4);
   await p.getByRole("button", { name: L.mr_undo }).click();
   assert.equal(await lines(p), 3, "Rueckgaengig nimmt genau den letzten Strich");
+  // the keyboard stays in the layer: from the body (where drawing leaves the focus) and round past its last and first control
+  await p.evaluate(() => document.activeElement && document.activeElement.blur());
+  const stops = await p.evaluate(() => Array.from(document.querySelectorAll(".mrov button, .mrov input")).filter((n) => !n.disabled && n.getClientRects().length).length);
+  for (const k of ["Tab", "Shift+Tab", "Shift+Tab"].concat(Array(stops + 2).fill("Tab"))) {
+    await p.keyboard.press(k);
+    assert.ok(await p.evaluate(() => { const a = document.activeElement; return !!a && a !== document.body && !!a.closest(".mrov"); }), k + ": Fokus bleibt im Malen-Dialog");
+  }
   assert.match(await p.locator(".mrroom").textContent(), o.lang === "de" ? /^Platz im Link: \d+ % belegt$/ : /^Room in the link: \d+ % used$/);
   assert.deepEqual(await G.smallTargets(p, ".mrov"), [], "Ziele >= 44 px");
   if (o.shot) await snap(p, o.shot + "-malen");

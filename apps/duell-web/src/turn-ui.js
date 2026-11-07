@@ -625,7 +625,8 @@ function walk(box, ed) {
     var soon = 0, dw = draw[p.w] || (window.Turn2 && window.Turn2.get("widget", p.w));
     if (!dw) {   // its part: until it is there the main button stays locked and says why; a part that failed can be tried again
       var miss = el("p", "note", "…"); box.appendChild(miss); ed.step = { box: box, ok: function () { return false; }, why: t("part_wait"), go: function () {} }; A.footer();
-      window.Parts.use("turnzwei", function () { if (box.isConnected && i === at) step(); }).catch(function () {
+      var P = window.DailyParts || {}, part = Object.keys(P).filter(function (n) { return P[n].g && P[n].g.indexOf(ed.doc.g) >= 0; })[0] || "turnzwei";   // the game's part in the manifest
+      window.Parts.use(part, function () { if (box.isConnected && i === at) step(); }).catch(function () {
         if (!box.isConnected || i !== at) return; miss.textContent = ed.step.why = t("part_fail"); A.footer(); box.appendChild(el("button", "btn", t("retry"), function () { Kit.sfx.tap(); step(); }));
       });
       return;

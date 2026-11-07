@@ -49,7 +49,7 @@ test("Wortlisten de/en: mindestens 150 je Sprache in drei Stufen, einzelne Woert
     const w = M.ALL.map((e) => e[l]);
     assert.ok(w.length >= 150, l + " " + w.length);
     for (const lvl of [0, 1, 2]) assert.ok(M.ALL.filter((e) => e.lvl === lvl).length >= 50, l + " Stufe " + lvl);
-    assert.equal(new Set(w.map(Q.fold)).size, w.length, l + " doppelt");
+    assert.equal(new Set(w.map(M.fold)).size, w.length, l + " doppelt");
     for (const x of w) {
       assert.match(x, /^\p{L}{2,16}$/u, x);
       assert.equal(D.cleanInput(x, 16), x, "Wortfilter " + x);
@@ -105,6 +105,29 @@ test("Link: ein volles Bild passt in 1200 Zeichen; was nicht passt, wird nicht a
   const full = await draw(doc, "Schildkröte", scribble(n, 80, 7));
   full.by = [{ n: "Annabellchen", w: ["regeln"] }];
   assert.ok(D.docUrl(full).split("#c=")[1].length <= C.MAX_FRAGMENT); assert.equal(D.parseRoute("#" + D.docUrl(full).split("#")[1]).type, "doc");
+  const fm = Tn.moves(through(full));
+  assert.equal(fm.length, 1, "der Zug kommt mit"); assert.equal(M.decode(fm[0][0][3]).length, n, "alle " + n + " Striche kommen an");
+});
+
+test("Link: kein Bild geht still verloren – passt es, kommt nach dem Link genau ein Zug an; ab 600 Zeichen Strichen ist es kein Bild", async () => {
+  // Lines of an exact length (each 1 + 2k characters), without simplifying: the window from 600 to 900 characters, in which
+  // the sealed move once grew past the 900 characters of the doc's blob, was dropped and left a link without a move.
+  const doc = fresh(20448), line = (k, o) => ({ c: o % 8, w: o % 3, p: Array.from({ length: k }, (_, j) => [((j * 7 + o) % 64) / 63, ((j * 13 + o * 5) % 64) / 63]) });
+  const lines = (len) => { const out = []; let left = len; while (left > 0) { const k = Math.min(20, Math.max(1, Math.floor((left - 1 - (out.length ? 1 : 0)) / 2))); out.push(line(k, out.length)); left -= 1 + 2 * k + (out.length > 1 ? 1 : 0); } return out; };
+  let fitted = 0, refused = 0;
+  for (let len = 300; len <= 900; len += 10) {
+    const s = M.encode(lines(len), -1);
+    for (const word of ["Hund", "Schildkröte", "Öl"]) {
+      const r = M.round(Tn.moves(doc)), v = M.move(await M.check(word, doc.seed, r), word, "de", s, 3600, r);
+      if (!M.fits(doc, word, "de", s)) { refused++; assert.ok(M.size(doc, v) > C.MAX_FRAGMENT, s.length + " Zeichen: abgelehnt, weil zu lang"); continue; }
+      fitted++;
+      const n = Tn.play(doc, [v], Tn.today()), got = Tn.moves(through(n));
+      assert.equal(got.length, 1, s.length + " Zeichen, " + word + ": genau ein Zug nach dem Link");
+      assert.equal(got[0][0][3], s, "die Striche kommen unveraendert an");
+    }
+    if (s.length > 600) assert.equal(M.decode(s), null, s.length + " Zeichen sind kein Bild");
+  }
+  assert.ok(fitted > 0 && refused > 0, fitted + " passen, " + refused + " abgelehnt");
 });
 
 test("Hash statt Klartext: das Wort steht nie im Link, nur Pruefwert und Hinweis; Gross-/Kleinschreibung und Umlaute zaehlen nicht", async () => {
@@ -120,6 +143,11 @@ test("Hash statt Klartext: das Wort steht nie im Link, nur Pruefwert und Hinweis
     assert.deepEqual((await M.find(mv, doc.seed)).w, w, "Wort aus der Liste wird auf dem Geraet wiedergefunden");
   }
   assert.equal(await M.right("schildkrote", M.move(await M.check("Schildkröte", 1, 1), "Schildkröte", "de", "AAA", 0, 1), 1), true, "ö wie o");
+  const sk = M.move(await M.check("Schildkröte", 1, 1), "Schildkröte", "de", "AAA", 0, 1);
+  for (const g of ["Schildkroete", "SCHILDKROETE"]) assert.equal(await M.right(g, sk, 1), true, g + ": oe wie ö");
+  for (const [w, g] of [["Bär", "Baer"], ["Tür", "Tuer"], ["Fuß", "Fuss"], ["Feuer", "feuer"], ["Strauß", "Strauss"]])
+    assert.equal(await M.right(g, M.move(await M.check(w, 1, 1), w, "de", "AAA", 0, 1), 1), true, g + " fuer " + w);
+  assert.equal(await M.right("Schildkrate", sk, 1), false, "ae ist nicht oe");
   // the salt from the doc: another seed or round, another check value
   const a = await M.check("Hund", 1, 1), b = await M.check("Hund", 2, 1), c = await M.check("Hund", 1, 2);
   assert.ok(a !== b && a !== c && b !== c);

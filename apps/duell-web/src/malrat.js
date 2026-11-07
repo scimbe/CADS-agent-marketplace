@@ -2,12 +2,13 @@
    guessed it draws back. Part "malen" (scripts/build.js); logic and WebCrypto, no DOM. The rule joins the turn table
    (Turns.GAMES) like feier.js, its screen is malrat-ui.js.
    A move is the picture, nothing else:  [check, hint, language, lines, seconds, round]
-     check    PBKDF2-SHA-256 over the folded word (Quest.fold), salt "malrat|<seed>|<round>" from the doc, 30000 rounds as
+     check    PBKDF2-SHA-256 over the folded word (fold: Quest.fold, and ae/oe/ue count as
+              ä/ö/ü the way ß and ss are alike there), salt "malrat|<seed>|<round>" from the doc, 30000 rounds as
               in Quest; 64 bits as 11 base64url characters. The word itself never stands in the link.
      hint     first letter and length, like Quest's hint of a riddle ("K5")
      language 0 German, 1 English: the language the word was chosen in (the guesser types in that one)
      lines    base64url, "." between two lines; each line one character for colour and width (colour * 3 + width), then
-              its points, two characters each (x, y on a 64 x 64 grid), simplified (Douglas-Peucker) and rounded first
+              its points, two characters each (x, y on a 64 x 64 grid), simplified (Douglas-Peucker) and rounded first; 600 characters at most
      seconds  how fast the last picture was guessed (0: not guessed, or the first picture)
      round    1 for the first picture, one more for every picture drawn back (the salt changes with it)
    snap: the link holds only the latest picture. The words on offer come from the doc's seed (the day's seed, daily) and
@@ -18,7 +19,7 @@
   var Tn = node ? require("./turns.js") : root.Turns, C = node ? require("./core.js") : root.DuellCore;
   var Q = node ? require("./quest.js") : root.Quest, D = node ? require("./daily.js") : root.Daily;
   var DATA = node ? require("./malrat.json") : root.MalratData;
-  var ITER = 30000, GRID = 64, MAXW = 16, MAX_LINES = 80, MAX_CHARS = 900, MAX_SECS = 3600, MAX_ROUND = 999;
+  var ITER = 30000, GRID = 64, MAXW = 16, MAX_LINES = 80, MAX_CHARS = 600, MAX_SECS = 3600, MAX_ROUND = 999;
   var ABC = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
   // Colours and widths of the pens; widths as a share of the picture's side.
   var COLORS = ["#1a1a1a", "#e53935", "#fb8c00", "#fdd835", "#43a047", "#1e88e5", "#8e24aa", "#6d4c41"], WIDTHS = [0.014, 0.032, 0.07];
@@ -49,8 +50,11 @@
   // A word of one's own: one word, letters only, through the word filter; "" when it may not be drawn.
   function own(s) {
     var w = String(s == null ? "" : s).trim(), c = D.cleanInput(w, MAXW);
-    return c && c === w && /^\p{L}+$/u.test(c) && letters(c).length >= 2 && Q.fold(c).length >= 2 ? c : "";
+    return c && c === w && /^\p{L}+$/u.test(c) && letters(c).length >= 2 && fold(c).length >= 2 ? c : "";
   }
+  // The word as the check value sees it: Quest.fold (case, ä as a, ß as ss), and the spelling without umlauts counts too, so
+  // "Schildkroete" is "Schildkröte". Both sides are folded alike, so a word with a real "ue" (Feuer) is still found.
+  function fold(w) { return Q.fold(w).replace(/ae/g, "a").replace(/oe/g, "o").replace(/ue/g, "u"); }
   // A guess as it is compared: through the same filter; "" when the filter takes it out.
   function guess(s) { return D.cleanInput(s, 24); }
   function upper(ch) { var u = ch.toUpperCase(); return Array.from(u).length === 1 ? u : ch; }
@@ -62,12 +66,12 @@
   function subtle() { var c = root.crypto; return c && c.subtle ? c.subtle : null; }
   function b64(bytes) { var s = ""; bytes.forEach(function (b) { s += String.fromCharCode(b); }); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
   async function check(word, seed, round) {
-    var raw = await subtle().importKey("raw", new TextEncoder().encode(Q.fold(word)), "PBKDF2", false, ["deriveBits"]);
+    var raw = await subtle().importKey("raw", new TextEncoder().encode(fold(word)), "PBKDF2", false, ["deriveBits"]);
     var bits = await subtle().deriveBits({ name: "PBKDF2", salt: new TextEncoder().encode("malrat|" + seed + "|" + round), iterations: ITER, hash: "SHA-256" }, raw, 64);
     return b64(new Uint8Array(bits));
   }
   // Is this the word of the move? Only the check value decides.
-  async function right(word, mv, seed) { var g = guess(word); return !!g && Q.fold(g).length >= 1 && (await check(g, seed, mv[5])) === mv[0]; }
+  async function right(word, mv, seed) { var g = guess(word); return !!g && fold(g).length >= 1 && (await check(g, seed, mv[5])) === mv[0]; }
   // The word behind a move, if it is one from the list: only words with the same hint are tried (one to three).
   async function find(mv, seed) {
     var h = hintParts(mv[1]), lang = langOf(mv[2]); if (!h) return null;
@@ -134,9 +138,11 @@
     return m && m.length ? v[5] === round(m) && v[5] <= MAX_ROUND : intIn(v[5], 1, MAX_ROUND);
   }
   // Characters after #c= for the doc with this move (without the trail, which Daily.docUrl drops first when it is long).
+  // A sealed move longer than the doc's blob (Turns, 900 characters) would leave the link without its move, so it counts as
+  // too long; MAX_CHARS (600) keeps the lines short enough that this cannot happen, the check stays as the safety net.
   function size(doc, v) {
     var n = Tn.play(doc, [v], Tn.today()); if (!n) return Infinity;
-    var d = D.sanitizeDoc(Object.assign({}, n, { by: [] }));
+    var d = D.sanitizeDoc(Object.assign({}, n, { by: [] })); if (d.q !== n.q) return Infinity;
     return Math.ceil(new TextEncoder().encode(JSON.stringify({ v: 1, d: d })).length * 4 / 3);
   }
   // Does this picture, with this word, fit into the link of doc? (the check value has a fixed length, a stand-in will do)
@@ -163,7 +169,7 @@
   // The turn editor finds widgets in the registry of the new turn cards (src/turn2.js); this part adds to the same one.
   if (!node && root.Parts) { root.Turn2 = root.Turn2 || root.Parts.registry("turnzwei", ["rule", "widget"]); if (!root.Turn2.get("rule", "malrat")) root.Turn2.add("rule", "malrat", game); }
   var api = { game: game, ALL: ALL, CATS: CATS, COLORS: COLORS, WIDTHS: WIDTHS, EPS: EPS, GRID: GRID, MAXW: MAXW, ITER: ITER, MAX_LINES: MAX_LINES,
-    suggest: suggest, own: own, guess: guess, letters: letters, hintOf: hintOf, hintParts: hintParts, check: check, right: right, find: find,
+    suggest: suggest, fold: fold, own: own, guess: guess, letters: letters, hintOf: hintOf, hintParts: hintParts, check: check, right: right, find: find,
     simplify: simplify, encode: encode, decode: decode, pack: pack, used: used, move: move, round: round, ok: ok, size: size, fits: fits, order: order, bank: bank,
     supported: function () { return !!subtle(); }, langOf: langOf };
   if (node) module.exports = api; else root.Malrat = api;

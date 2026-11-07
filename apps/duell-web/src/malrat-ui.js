@@ -68,7 +68,17 @@
     return { ov: ov, pad: pad, tools: tools, x: x };
   }
   // Escape closes the layer wherever the focus is (also on the page body after drawing on the canvas, which takes no focus).
-  function esc(e) { if (e.key === "Escape" && ov) { e.preventDefault(); e.stopPropagation(); shut(); } }
+  // Tab and Shift+Tab go round inside the layer: from the last control to the first and back, and from the body (after
+  // drawing) into the layer, never onto the page behind it or the body.
+  function esc(e) {
+    if (!ov) return;
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); shut(); return; }
+    if (e.key !== "Tab") return;
+    var all = Array.prototype.filter.call(ov.querySelectorAll("button, input, select, textarea, a[href], [tabindex]"), function (n) { return !n.disabled && n.tabIndex >= 0 && n.getClientRects().length; });
+    if (!all.length) return;
+    var a = document.activeElement, i = all.indexOf(a), inside = ov.contains(a);
+    if (!inside || (e.shiftKey && i === 0) || (!e.shiftKey && i === all.length - 1)) { e.preventDefault(); (e.shiftKey ? all[all.length - 1] : all[0]).focus(); }
+  }
   function shut() {
     if (!ov) return;
     var o = ov, f = o.done; ov = null; document.removeEventListener("keydown", esc, true); if (o.stop) o.stop(); o.remove();
@@ -213,6 +223,8 @@
         letters(); hintList();
       });
     });
+    // "Schildkroete" was right for "S11": the tiles show it with its umlauts, when that gives the length of the hint.
+    function spelt(g, n) { var u = g.replace(/ae/g, "ä").replace(/oe/g, "ö").replace(/ue/g, "ü"); return M.letters(g).length !== n && M.letters(u).length === n ? u : g; }
     form.addEventListener("submit", function (e) {
       e.preventDefault();
       var g = M.guess(inp.value);
@@ -222,7 +234,7 @@
       M.right(g, v, seed).then(function (yes) {
         go.disabled = false; st.tries++;
         if (!yes) { Kit.sfx.thud(); msg.textContent = fmt(X.mr_wrong, { w: g }); inp.select(); return; }
-        st.secs = Math.max(1, Math.min(3600, Math.round((st.spent + Date.now() - st.at) / 1000))); st.word = st.known ? st.known.w : h.first + M.letters(g).slice(1).join("").toLowerCase(); st.solved = true;
+        st.secs = Math.max(1, Math.min(3600, Math.round((st.spent + Date.now() - st.at) / 1000))); st.word = st.known ? st.known.w : h.first + M.letters(spelt(g, h.n)).slice(1).join("").toLowerCase(); st.solved = true;
         Kit.sfx.pop(); solved();
       });
     });

@@ -85,10 +85,12 @@ const PARTS = {
   melden: { d: [], src: ["MELDENDATA", "MELDEN"] },                                                    // the report dialog of a shared sheet (src/melden.js)
   direkt: { d: [], src: ["DIREKTDATA", "EDITMODEL", "DIREKTUI"] },                                     // editor E1: one undo, stickers without dragging, layer list, description, plain language
   regler: { d: [], src: ["REGLERDATA", "REGELN", "REGLERUI"] },                                        // the flight game's sliders in named steps
-  malen: { d: ["katalog"], src: ["MALRATDATA", "MALRAT", "MALRATUI"] },                                 // Mal & Rat: draw a word, the others guess (src/malrat.js, src/malrat-ui.js, words in src/malrat.json)
 };
 // The weather card's block (src/wetter.js); not built for a flavor whose catalog has no cards (Daily Business: turns only).
 if (catalog.ideas.some((i) => i.kind === "card")) PARTS.wetter = { d: [], src: ["WETTERDATA", "WETTER"] };
+// Mal & Rat: draw a word, the others guess (src/malrat.js, src/malrat-ui.js, words in src/malrat.json); only built when the
+// catalog has a card with its game (not in Daily Business).
+if (catalog.ideas.some((i) => i.turn && malGames.indexOf(i.turn.g) >= 0)) PARTS.malen = { d: ["katalog"], src: ["MALRATDATA", "MALRAT", "MALRATUI"] };
 // Thumbs on the sheet and the card numbers (src/stimme-ui.js, src/stat.js); not built for a flavor without them (stat: false).
 if (!(conf && conf.stat === false)) PARTS.stimme = { d: [], src: ["STIMMEDATA", "STAT", "STIMMEUI"] };
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
@@ -103,7 +105,7 @@ parts.MELDENDATA = "window.MeldenTexts=" + JSON.stringify(partTexts.melden) + ";
 if (PARTS.wetter) { parts.WETTERDATA = "window.WetterTexts=" + JSON.stringify(partTexts.wetter) + ";" + merge("WetterTexts"); parts.WETTER = read("src/wetter.js"); }
 parts.DIREKTDATA = "window.DirektData=" + JSON.stringify(json("src/direkt.json")) + ";" + merge("DirektData.texts"); parts.EDITMODEL = read("src/editmodel.js"); parts.DIREKTUI = read("src/direkt-ui.js");
 parts.REGLERDATA = "window.ReglerTexts=" + JSON.stringify(json("src/regler.json")) + ";" + merge("ReglerTexts"); parts.REGELN = read("src/regeln.js"); parts.REGLERUI = read("src/regler-ui.js");
-parts.MALRATDATA = "window.MalratData=" + JSON.stringify(json("src/malrat.json")) + ";"; parts.MALRAT = read("src/malrat.js"); parts.MALRATUI = read("src/malrat-ui.js");
+if (PARTS.malen) { parts.MALRATDATA = "window.MalratData=" + JSON.stringify(json("src/malrat.json")) + ";"; parts.MALRAT = read("src/malrat.js"); parts.MALRATUI = read("src/malrat-ui.js"); }
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
 parts.TEXTE = read("src/texte.js");
 parts.TEXTEDATA = "window.TexteData=" + JSON.stringify(json("src/texte.json")) + ";";
