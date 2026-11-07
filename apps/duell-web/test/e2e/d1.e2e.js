@@ -243,3 +243,56 @@ test("Nr. 15: Abzeichen aus der Spielart; Duell-Einladung und Gegner mit Spitzna
   }
   await b.close();
 });
+
+test("Nr. 5 auf dem natuerlichen Weg: „Am Bahnhof“ und gleich „Abschließen“ (Touch, Maus, click() ohne Tab) versiegelt nichts, der Grund nennt das Feld", async () => {
+  const b = await G.launch();
+  for (const how of ["tap", "mouse", "click"]) {
+    const ctx = await person(b), p = await G.open(ctx, "#i=kanal-drei"); await p.locator("#go").click();
+    for (const [i, a] of [[1, "Pizza Party"], [2, "Oma Gerda"]]) { await p.locator("#panel .chips .chip").nth(i).click(); const x = p.locator("#panel input.field").nth(1); await x.fill(""); await x.click(); await p.keyboard.type(a, { delay: 5 }); await p.keyboard.press("Tab"); }
+    await p.locator("#panel .chips .chip").nth(0).click();
+    const f = p.locator("#panel input.field").nth(1); await f.click(); await p.keyboard.type("Am Bahnhof", { delay: 10 });
+    const m = p.locator("#edmain");
+    assert.equal(await m.getAttribute("aria-disabled"), "true", how + ": gesperrt, solange das Feld markiert ist");
+    assert.match(await p.locator("#edwhy").textContent(), /^Noch offen: Antwort/, how);
+    if (how === "tap") await m.tap({ force: true }); else if (how === "mouse") await m.click({ force: true }); else await m.evaluate((e) => e.click());
+    await p.waitForTimeout(600);
+    assert.equal(await p.locator("#share").isVisible(), false, how + ": nichts versiegelt");
+    assert.equal(await p.evaluate(() => window.DailyDebug.result()), null, how);
+    const s = await p.evaluate(() => ({ field: document.querySelectorAll("#panel input.field")[1].value, draft: window.DailyApp.ed().draft.stops[0].a }));
+    if (how !== "click") assert.deepEqual(s, { field: "Am Bahnho", draft: "Am Bahnho" }, how + ": das Feld zeigt, was gilt");
+    // seen again (the nudge put the focus there): now it may go out, as shown
+    await f.press("Tab"); await f.focus(); await p.waitForTimeout(100);
+    assert.equal(await m.getAttribute("aria-disabled"), "false", how + ": wieder frei, sobald das Feld gesehen wurde");
+    await p.waitForTimeout(300); await m.click(); await p.locator("#share").waitFor();
+    assert.match(await p.evaluate(() => window.DailyDebug.result().url), /#c=/);
+    assert.deepEqual(p.errs, []); await ctx.close();
+  }
+  await b.close();
+});
+
+test("IME: das zuletzt zusammengesetzte Wort wird gespeichert (compositionend)", async () => {
+  const b = await G.launch(), ctx = await person(b), p = await G.open(ctx, "#i=zug-kennst");
+  await p.locator("#go").click(); await p.getByRole("tab", { name: "Text" }).click();
+  const f = p.locator("#panel input.field").first(); await f.click(); await f.fill("Gute"); await p.keyboard.press("End");
+  const s = await p.context().newCDPSession(p);
+  await s.send("Input.imeSetComposition", { text: " Nacht", selectionStart: 6, selectionEnd: 6 });
+  await s.send("Input.insertText", { text: " Nacht" });
+  await p.waitForTimeout(200);
+  assert.deepEqual(await p.evaluate(() => [document.querySelector("#panel input.field").value, window.DailyApp.ed().doc.t]), ["Gute Nacht", "Gute Nacht"]);
+  assert.deepEqual(p.errs, []); await b.close();
+});
+
+test("Teil fehlt: Hauptknopf gesperrt mit Grund, „Nochmal versuchen“ laedt ihn; Fokus bleibt nach Enter auf einer Form", async () => {
+  const b = await G.launch(), ctx = await G.person(b, { lang: "de", view: "phone390", web: true });
+  let block = true; await ctx.route(/\/parts\/turnzwei\./, (r) => (block ? r.abort() : r.continue()));
+  const p = await G.open(ctx, "#i=raum-tuer"); await p.locator("#go").click();
+  await p.getByRole("button", { name: "Nochmal versuchen" }).waitFor();
+  assert.equal(await p.locator("#edmain").getAttribute("aria-disabled"), "true");
+  assert.match(await p.locator("#edwhy").textContent(), /Teil fehlt/);
+  block = false; await p.getByRole("button", { name: "Nochmal versuchen" }).click();
+  await p.getByRole("button", { name: T.rdy_go }).waitFor();
+  await p.getByRole("tab", { name: "Text" }).click();
+  await p.getByRole("button", { name: "Stern" }).focus(); await p.keyboard.press("Enter");
+  assert.equal(await p.evaluate(() => document.activeElement.getAttribute("aria-label")), "Stern", "der Fokus bleibt auf der Form");
+  await b.close();
+});

@@ -623,7 +623,13 @@ function walk(box, ed) {
     if (p.peek) box.appendChild(el("p", "qtext", p.peek(ed.doc, st.moves, now, Kit.lang)));
     if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("h3", "lbl", p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "")));
     var soon = 0, dw = draw[p.w] || (window.Turn2 && window.Turn2.get("widget", p.w));
-    if (!dw) { box.appendChild(el("p", "note", "…")); window.Parts.use("turnzwei", function () { if (box.isConnected && i === at) step(); }).catch(function () { if (box.isConnected && box.lastChild) box.lastChild.textContent = t("part_fail"); }); return; }   // a widget of the new cards, from its part
+    if (!dw) {   // its part: until it is there the main button stays locked and says why; a part that failed can be tried again
+      var miss = el("p", "note", "…"); box.appendChild(miss); ed.step = { box: box, ok: function () { return false; }, why: t("part_wait"), go: function () {} }; A.footer();
+      window.Parts.use("turnzwei", function () { if (box.isConnected && i === at) step(); }).catch(function () {
+        if (!box.isConnected || i !== at) return; miss.textContent = ed.step.why = t("part_fail"); A.footer(); box.appendChild(el("button", "btn", t("retry"), function () { Kit.sfx.tap(); step(); }));
+      });
+      return;
+    }   // a widget of the new cards, from its part
     dw(box, p, function (v) {
       if (p.live) { ed.next = v === null ? null : Tn.play(ed.doc, [v], Tn.today()); A.changed(); return; }   // no Weiter: the footer sends what is on screen
       cur = v; clearTimeout(soon); A.footer();
@@ -692,7 +698,7 @@ A.PANEL.Text = (function (old) {
     p.appendChild(el("h3", "lbl", L().fly));
     var box = el("div", "chips"), N = L().shp.split("|");
     Tn.SHAPES.forEach(function (f, i) {
-      var c = document.createElement("canvas"), x = c.getContext("2d"), b = el("button", "chip", null, function () { d.f = f; A.changed(); A.tab("Text"); });
+      var c = document.createElement("canvas"), x = c.getContext("2d"), b = el("button", "chip", null, function () { d.f = f; A.changed(); A.tab("Text"); var x = document.querySelector('#panel [aria-label="' + N[i] + '"]'); if (x) x.focus(); });
       c.width = c.height = 30; x.fillStyle = d.col[0]; x.fillRect(0, 0, 30, 30); shape(x, f, 15, 15, 11, d.col[1]);
       b.appendChild(c); b.setAttribute("aria-label", N[i]); press(b, d.f === f); box.appendChild(b);
     });

@@ -363,6 +363,8 @@ function footer() {
     b.textContent = g ? t("play") : t(ed.doc.nr ? "doorSend" : "done");
     if (!ok && !g) b.dataset.why = t("needOwn");
   }
+  var bad = $("panel").querySelector('[aria-invalid="true"]');   // a blocked entry (field above): nothing goes out until it is seen
+  if (bad && !b.hidden) { b.classList.add("wait"); b.dataset.why = t("whyOpen", { s: bad.getAttribute("aria-label") }); }
   // A locked main button stays in place and looks locked; the line above it names what is still open (read out once).
   var w = !b.hidden && b.classList.contains("wait"), why = w ? b.dataset.why || "" : "";
   b.setAttribute("aria-disabled", String(w));
@@ -372,7 +374,7 @@ function footer() {
 function nudge() {
   Kit.tone(200, 160, 0.1, "square", 0.06);
   var p = $("panel"), all = Array.from(p.querySelectorAll("input:not([type=hidden]),textarea,select,button")).filter(function (x) { return !x.disabled && x.getClientRects().length && !x.closest(".satz"); });
-  var g = all.filter(function (x) { return /^(INPUT|TEXTAREA)$/.test(x.tagName) && x.type !== "range" && !x.value; })[0] || all.filter(function (x) { return !x.classList.contains("on"); })[0];
+  var g = p.querySelector('[aria-invalid="true"]') || all.filter(function (x) { return /^(INPUT|TEXTAREA)$/.test(x.tagName) && x.type !== "range" && !x.value; })[0] || all.filter(function (x) { return !x.classList.contains("on"); })[0];
   if (g) { try { g.scrollIntoView({ block: "center" }); } catch (e) {} g.focus({ preventScroll: true }); g.classList.add("nudge"); setTimeout(function () { g.classList.remove("nudge"); }, 700); }
   // said again: empty for a moment, then the reason as it is by then (fields filled meanwhile may have unlocked it)
   $("edwhy").textContent = ""; setTimeout(function () { if (ed) footer(); }, 60);
@@ -487,13 +489,17 @@ function field(p, label, value, max, on, area) {
   // What is kept is what the field shows: a blocked entry is not kept (on() may block too and answer with its reason) and,
   // once the field is left, the field goes back to the last entry kept, with a note. While typing it stays, so a word whose
   // first letters are blocked can still be finished; a word being composed (IME) is never judged half-way.
-  f.addEventListener("input", function (e) {
-    if (e.isComposing) return;
+  // While a field is marked (aria-invalid) the main button stays locked and names it (footer): a tap on "Fertig" right after a
+  // blocked word never sends the cut one. After the field went back it stays marked until it has the focus again.
+  function check(e) {
+    if (e.isComposing) return;   // compositionend checks the word once it is complete
     var v = D.cleanInput(f.value, max), r = f.value.trim() && !v ? t("filter") : on(v);
     why = typeof r === "string" ? r : ""; f.setAttribute("aria-invalid", String(!!why));
-    if (!why) { last = f.value; changed(); }
-  });
-  f.addEventListener("change", function () { if (why) { f.value = last; Kit.toast(why); why = ""; f.setAttribute("aria-invalid", "false"); } });
+    if (!why) { last = f.value; changed(); } else if (ed) footer();
+  }
+  f.addEventListener("input", check); f.addEventListener("compositionend", check);
+  f.addEventListener("change", function () { if (why) { f.value = last; Kit.toast(why); why = ""; } });
+  f.addEventListener("focus", function () { if (!why && f.getAttribute("aria-invalid") === "true") { f.setAttribute("aria-invalid", "false"); if (ed) footer(); } });
   p.appendChild(f); return f;
 }
 function chips(p, items, cur, on, cls) {
