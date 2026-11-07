@@ -408,8 +408,9 @@
     S.tick = function (dt) {
       var st = S.st; if (S.over) return;
       dt = Math.min(dt, 0.25); S.t += dt;
-      if (S.started && !st.rolling && queue.length) {
-        // Whose turn it is and which way the throw must go are checked only now, with the round as it stands here.
+      // Whose turn it is and which way a waiting throw must go are checked only now, with the round as it stands here;
+      // the queue is worked off until a stone rolls, so throws out of turn never hold up this phone's own turn.
+      while (S.started && !st.rolling && queue.length) {
         var q = queue.shift(), who = D.turnOf(st, st.n);
         if (who === me || (who === 0 ? q.vy > 0 : q.vy < 0)) S.reject(); else launch(who, q.x, q.vx, q.vy);
       }

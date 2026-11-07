@@ -331,3 +331,26 @@ test("Elfer: ein Schuss zaehlt einmal, und ein ungueltiger naechster Schuss been
   L.receive({ t: "shot", n: 1, vx: 0, vy: 99999, c: 0 });                            // impossible
   assert.equal(L.st.n, 0, "die Pause laeuft weiter"); assert.equal(L.st.phase, "done");
 });
+
+test("Eis-Stock und Murmel: auch wenn die Gegenseite waehrend ihres rollenden Steins flutet, geht der eigene Wurf binnen 2 s los", () => {
+  const N = require("./netsim.js");
+  for (const g of ["stock", "murmel"]) for (const net of [{ base: 0.01, jitter: 0.001, loss: 0, rto: 0.2 }, { base: 0.03, jitter: 0.005, loss: 0, rto: 0.2 }]) {
+    const r = N.rng(5), ab = N.channel(r, net), ba = N.channel(r, net); let now = 0, sent = [];
+    const SA = A.side(g, { seed: "fl", serving: false, clock: () => now, send: (m) => ab.send(now, m) });   // the one who floods
+    const SB = A.side(g, { seed: "fl", serving: true, clock: () => now, send: (m) => { if (m.t === "throw") sent.push(now); ba.send(now, m); } });
+    const bot = A.bot(g, SA, "a"); SA.start(); SB.start();
+    let turnAt = null, worst = 0;
+    for (let f = 0; f < 60 * 40 && !SB.over; f++) {
+      now += 1 / 60; ba.due(now, (m) => SA.receive(m)); ab.due(now, (m) => SB.receive(m));
+      for (const q of [0, 1]) ab.send(now, { t: "throw", n: SB.st.n + q, x: A.GAMES[g].rules.fromX(500), vx: 0, vy: 600 });   // every frame, also while a stone rolls
+      const myTurn = SB.st.turn === 0 && !SB.st.rolling;
+      if (myTurn && turnAt === null) turnAt = now;
+      if (myTurn) SB.input({ shot: { x: 500, vx: 0, vy: -700 } });
+      const before = sent.length; bot(1 / 60); SA.tick(1 / 60); SB.tick(1 / 60); SA.ev.length = 0; SB.ev.length = 0;
+      if (sent.length > before && turnAt !== null) { worst = Math.max(worst, now - turnAt); turnAt = null; }
+      if (turnAt !== null) worst = Math.max(worst, now - turnAt);
+    }
+    assert.ok(sent.length >= 3, g + ": eigene Wuerfe " + sent.length);
+    assert.ok(worst <= 2, g + " (" + net.base + " s): laengste Wartezeit auf den eigenen Wurf " + worst.toFixed(2) + " s");
+  }
+});
