@@ -151,6 +151,12 @@ test("Kurzes Blatt (328 px, Sprachwahl und Daumen): die Live-Karte weicht ganz, 
     await p.keyboard.press("Enter");   // the same button closes it again, the focus stays on it
     assert.equal(await peek.getAttribute("aria-expanded"), "false"); assert.equal(await p.evaluate(() => document.activeElement.id), "pvpeek");
     await p.keyboard.press("Enter"); assert.equal(await peek.getAttribute("aria-expanded"), "true");
+    // open: what lies under it (thumbs, title) is inert, Tab never lands on the thumbs; the button stays usable
+    assert.equal(await p.evaluate(() => document.querySelector(".votes").inert), true, "Daumen inert");
+    for (let i = 0; i < 12; i++) { await p.keyboard.press("Tab"); assert.ok(!(await p.evaluate(() => !!document.activeElement.closest(".votes, #hero"))), "Tab springt nicht auf die Daumen"); }
+    await peek.focus(); await p.keyboard.press("Enter"); assert.equal(await peek.getAttribute("aria-expanded"), "false");
+    assert.equal(await p.evaluate(() => document.querySelector(".votes").inert), false, "beim Schliessen wieder frei");
+    await p.keyboard.press("Enter"); assert.equal(await peek.getAttribute("aria-expanded"), "true");
     await p.locator("#langpick button").first().focus(); await p.keyboard.press("Escape");   // Escape from elsewhere on the sheet
     assert.equal(await peek.getAttribute("aria-expanded"), "false", "Escape schliesst die Vorschau"); assert.equal(await p.evaluate(() => document.activeElement.id), "pvpeek", "Fokus zurueck auf Vorschau");
     assert.ok(await p.locator("#home").isVisible(), "nur die Vorschau zu, kein Editor");

@@ -189,7 +189,8 @@ var peekB = el("button", "chip pvpeek", null, function () { Kit.sfx.tap(); peek2
 peekB.id = "pvpeek"; peekB.hidden = true; $("pv").after(peekB);
 // Escape closes an open preview while the sheet is on screen, the focus goes back to its button
 document.addEventListener("keydown", function (e) { if (e.key === "Escape" && screen === "home" && !peekB.hidden && $("pv").classList.contains("peek")) { e.preventDefault(); peek2(false); peekB.focus(); } }, true);
-function peek2(on) { $("pv").classList.toggle("peek", on); peekB.setAttribute("aria-expanded", String(on)); peekB.textContent = t("pv_peek"); }
+// while it is open, everything under it on the sheet (title, thumbs …) is inert; the button stays usable
+function peek2(on) { Array.from($("leaf").children).forEach(function (c) { if (c !== peekB && c.id !== "pv") c.inert = on; }); $("pv").classList.toggle("peek", on); peekB.setAttribute("aria-expanded", String(on)); peekB.textContent = t("pv_peek"); }
 function fitCard() {
   var pv = $("pv"), c = $("pvcard"), w = $("warmto"), lp = $("langpick"), mehr = !!(lp && !lp.hidden) || !!(w && !w.hidden), live = !pv.hidden && (pv.classList.contains("with") || mehr);
   $("home").classList.toggle("mehr", mehr); pv.classList.toggle("live", live);
