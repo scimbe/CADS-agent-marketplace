@@ -68,7 +68,8 @@
    "dk_c_pink": "Pink",
    "dk_moveT": "Sticker verschieben",
    "dk_arrowsT": "Sticker in Schritten bewegen",
-   "dk_sizeT": "Größe, Drehung, Löschen"
+   "dk_sizeT": "Größe, Drehung, Löschen",
+   "dk_ruhe": "Karte groß. Tippe einen Reiter für sein Werkzeug."
   },
   "en": {
    "dk_undo": "Step back",
@@ -138,7 +139,8 @@
    "dk_c_pink": "pink",
    "dk_moveT": "Move sticker",
    "dk_arrowsT": "Move sticker in steps",
-   "dk_sizeT": "Size, turn, delete"
+   "dk_sizeT": "Size, turn, delete",
+   "dk_ruhe": "Card large. Tap a tab for its tool."
   }
  },
  "einfach": {
