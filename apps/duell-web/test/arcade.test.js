@@ -269,16 +269,29 @@ test("fin gilt nur fuer ein Ende, das sein kann", () => {
   assert.equal(S.over, true); assert.equal(S.score[0], A.SNOW.WIN, "hoechstens WIN");
 });
 
-test("Volley: ein Treffer weit weg von der gemeldeten Figur gilt nur, soweit sie seit ihrer letzten Meldung laufen konnte", () => {
-  let wall = 0; const V = A.VOLLEY, S = A.side("volley", { seed: "v", serving: false, clock: () => wall }); S.start();
-  const far = { x: 600, y: 900, vx: -400, vy: -600 };                                    // about 600 from the figure below
-  S.receive({ t: "p", x: 900, y: V.FY - V.PRAD }); wall += 0.05;
+test("Volley: ein Treffer weit weg von der gemeldeten Figur gilt nur, soweit sie in einer echten Luecke laufen konnte", () => {
+  let wall = 0; const V = A.VOLLEY, y = V.FY - V.PRAD, far = { x: 600, y: 900, vx: -400, vy: -600 };   // ~600 from the figure
+  const S = A.side("volley", { seed: "v", serving: false, clock: () => wall }); S.start();
+  S.receive({ t: "p", x: 900, y }); wall += 0.05;
   S.receive({ t: "hit", b: far }); assert.equal(S.rejected, 1, "Meldungen laufen: zu weit weg");
-  S.receive({ t: "p", x: 900, y: V.FY - V.PRAD }); wall += 0.4;                            // the other phone hung 0.4 s
-  S.receive({ t: "hit", b: far }); assert.equal(S.rejected, 1, "nach 0,4 s ohne Meldung konnte sie so weit laufen");
+  S.receive({ t: "p", x: 900, y }); wall += 0.4;                                          // nothing at all for 0.4 s
+  S.receive({ t: "hit", b: far }); assert.equal(S.rejected, 1, "nach 0,4 s ohne jede Ankunft konnte sie so weit laufen");
+  // a sender that only holds back its position while other messages keep coming gains nothing
   const T = A.side("volley", { seed: "w", serving: false, clock: () => wall }); T.start();
-  T.receive({ t: "p", x: 900, y: V.FY - V.PRAD }); wall += 0.1;
-  T.receive({ t: "hit", b: far }); assert.equal(T.rejected, 1, "nach 0,1 s noch nicht");
+  T.receive({ t: "p", x: 900, y });
+  for (let k = 0; k < 8; k++) { wall += 0.05; T.receive({ t: "pause" }); }   // other messages keep arriving
+  T.receive({ t: "hit", b: far }); assert.equal(T.rejected, 1, "keine Luecke, keine Zusatzweite");
+});
+test("Volley: ein Zustand muss auf der Flugbahn liegen, ein Treffer am gemeldeten Kontakt", () => {
+  const V = A.VOLLEY, y = V.FY - V.PRAD, S = A.side("volley", { seed: "z", serving: false, clock: () => 0 }); S.start();
+  S.receive({ t: "p", x: 700, y });
+  const b0 = { x: 700, y: 600, vx: -200, vy: 300 }; S.receive({ t: "st", b: b0 });        // first state: the path starts here
+  const later = Object.assign({}, b0); for (let i = 0; i < 24; i++) A.volleyStep(later, 1 / 120);
+  S.receive({ t: "st", b: later }); assert.equal(S.rejected, 0, "auf der Bahn");
+  S.receive({ t: "st", b: { x: later.x, y: later.y, vx: later.vx, vy: -1300 } }); assert.equal(S.rejected, 1, "umgedreht: nicht auf der Bahn");
+  const f = { x: 700, y }, touch = { x: later.x, y: later.y };
+  S.receive({ t: "hit", b: { x: touch.x, y: touch.y, vx: 300, vy: -900 }, fx: f.x, fy: f.y });
+  assert.equal(S.rejected, 2, "die gemeldete Figur ist weit weg vom Ball: kein Kontakt");
 });
 test("Elfer und Eis-Stock: wer hinterherhaengt, holt auf, aber Zuege ueberspringen oder vertauschen geht nicht", () => {
   // Elfer: the shooter of shot 0 still waits after its result; the next shot (1) moves it on, shot 2 does not
