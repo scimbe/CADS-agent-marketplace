@@ -65,7 +65,10 @@ test("Nr. 5: eine gesperrte Eingabe bleibt nicht im Feld: field() setzt zurueck,
   assert.match(app, /querySelector\('\[aria-invalid="true"\]'\);[^\n]*\n\s*if \(bad && !b\.hidden\) \{ b\.classList\.add\("wait"\)/, "Hauptknopf gesperrt, solange ein Feld markiert ist");
   const sh = fs.readFileSync(path.join(__dirname, "../../android/emulator-smoke.sh"), "utf8");
   assert.doesNotMatch(sh, /tap_node '\(Jetzt teilen\|Share now\)'/, "Android-Smoke tippt nicht auf den Hinweis");
-  assert.match(sh, /tap_node '\^\(Share\|Teilen\)\$'/);
+  assert.match(sh, /tap_node '\^\\s\*\(Share\|Teilen\)\\s\*\$'/);
+  // the selector against what the emulator listed in CI (find_node: text + " " + description, re.I): the button, not the toast
+  const sel = new RegExp(sh.match(/tap_node '(\^\\s\*\(Share\|Teilen\)\\s\*\$)'/)[1], "i");
+  assert.ok(sel.test("SHARE ") && sel.test("Teilen ") && !sel.test("Share now ") && !sel.test("Jetzt teilen "));
   assert.match(modes, /if \(v && !c\) return t\("questBlocked"\);/);
   // the words that are blocked are blocked for the receiver too: what the field keeps is what opens the lock
   const Q = require("../src/quest.js");
