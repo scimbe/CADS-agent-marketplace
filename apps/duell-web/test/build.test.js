@@ -194,3 +194,13 @@ test("E2E: Neuladen nur ueber die Web-Route, nie auf einer file://-Seite", () =>
   }
   assert.deepEqual(bad, []);
 });
+// The catalog E2E is split into files (test/e2e/cards-*.e2e.js): together they still open every card, each once.
+test("E2E-Katalog: die Dateien cards-* oeffnen zusammen jede Karte genau einmal", () => {
+  const { slice, FLAVORS } = require("./e2e/lib/katalog.js"), dir = path.join(__dirname, "e2e"), seen = {};
+  for (const f of fs.readdirSync(dir).filter((n) => /^cards-.*\.e2e\.js$/.test(n))) {
+    for (const m of fs.readFileSync(path.join(dir, f), "utf8").matchAll(/^katalog\("(\w+)", "([\w-]+)"(?:, (\d+), (\d+))?\);$/gm)) {
+      const k = m[1] + " " + m[2]; seen[k] = (seen[k] || []).concat(slice(FLAVORS[m[1]][1], +(m[3] || 1), +(m[4] || 1)));
+    }
+  }
+  for (const name of Object.keys(FLAVORS)) for (const l of ["de-DE", "en-US"]) assert.deepEqual(seen[name + " " + l], FLAVORS[name][1], name + " " + l);
+});
