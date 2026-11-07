@@ -22,6 +22,7 @@ function serve(tamper) {
   return new Promise((ok) => srv.listen(0, "127.0.0.1", () => ok(srv)));
 }
 
+// file:// on purpose: how the app shells load their parts; one page, never reloaded (lib/grund.js).
 test("file:// (Apps, Tests): Start nur mit dem Katalog-Teil; Spiele-Regal holt Arcade+Live, Lizenzen ihren Teil", async () => {
   const b = await launch(), ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);
   const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
@@ -44,6 +45,7 @@ test("file:// (Apps, Tests): Start nur mit dem Katalog-Teil; Spiele-Regal holt A
   assert.deepEqual(errs, []); await b.close();
 });
 
+// file:// on purpose: the app shells' parts; one page, never reloaded (lib/grund.js).
 test("file://: der Knopf Status-Bild holt den QR-Teil und teilt ein Bild 1080x1920", async () => {
   const b = await launch(); try {   // closed also when a step fails, so the file does not hang
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);

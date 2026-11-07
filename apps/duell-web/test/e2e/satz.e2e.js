@@ -7,8 +7,11 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium, devices } = require("playwright");
+const G = require("./lib/grund.js");
 const root = path.resolve(__dirname, "../..");
-const page = "file://" + path.join(root, "dist/index.html");
+let page;
+// Web route (lib/grund.js): pages here are reloaded or a device opens several pages; under file:// such a page now and then starts with an empty storage of its own.
+test.before(async () => { page = await G.webUrl("index.html"); });
 const API = "https://demos-34a13a96.bunsenbrenner.org/api/duell/";
 const shot = process.env.SHOT_DIR;
 const NOW = new Date("2026-11-05T12:00:00+01:00");
@@ -39,6 +42,7 @@ async function phone(answers, o = {}) {
   let n = 0;
   await ctx.route(/^https?:/, async (r) => {
     const u = r.request().url();
+    if (G.isLocal(u)) return r.fallback();   // the page itself (web route)
     if (answers && u.startsWith(API)) {
       const p0 = u.slice(API.length), body = JSON.parse(r.request().postData() || "null"); sent.push({ path: p0, body });
       const meter = { free: 7, remaining: 6, period: "week" };
