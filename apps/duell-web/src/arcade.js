@@ -383,7 +383,7 @@
   }
 
   // ======================= Insel-Panzer: side view, one island, a tank on each shore, shells with gravity and wind =======================
-  var PANZER = { id: "panzer", WIN: 3, serves: false, fin: true, N: 100, SEA: H - 110, TX: 160, G: 620, WMAX: 140, VSHOT: 1350, VMIN: 220, RELOAD: 1.5, CR: 72, HR: 74, TH: 26, FLOOR: 12 };
+  var PANZER = { id: "panzer", WIN: 3, serves: false, fin: true, N: 100, SEA: H - 110, TX: 160, G: 620, WMAX: 140, VSHOT: 1350, VMIN: 220, RELOAD: 1.5, CR: 72, HR: 74, TH: 26, FLOOR: 12, AIM: 420 };
   // The island is mirror-symmetric, so both phones stand on the same shore; its hill and bumps come from the seed.
   function island(seed) {
     var P = PANZER, u1 = unit(seed, "isl|hill"), u2 = unit(seed, "isl|width"), u3 = unit(seed, "isl|bump"), a = [];
@@ -489,19 +489,19 @@
     return { ang: ang, v: v, miss: f.k === "land" ? Math.abs(f.x - aimX) : Infinity };
   }
   function panzerBot(S, r) {
-    var wait = 1.6 + r() * 1.0, spread = 340, shots = 0, ang = 0;
+    var wait = 1.6 + r() * 1.0, ang = 0;
     return function (dt) {
       wait -= dt; if (wait > 0 || !S.started) return;
       var st = S.st, T = st.T, mz = muzzle(T, true), tgt = tankPos(T, false);
       if (st.reload < 1) return;
-      // Take a steep angle and search the speed whose shell lands at the target plus an error that shrinks shot by shot.
+      // Take a steep angle and search the speed whose shell lands at the target plus an aiming error from the dice
+      // (PANZER.AIM wide, the same on every shot: about one hit in three or four, never adjusted to the score).
       // With a strong tailwind no speed at that angle may land there (slower shells hit the hill, faster ones blow out
       // to sea); then it tries other angles, as a player would, and keeps the one that lands closest.
       ang = (48 + r() * 18) * Math.PI / 180;
-      var aimX = tgt.x + (r() - 0.5) * spread, best = speedFor(T, mz, ang, aimX, st.wind);
+      var aimX = tgt.x + (r() - 0.5) * PANZER.AIM, best = speedFor(T, mz, ang, aimX, st.wind);
       for (var a = 30; a <= 84 && best.miss > 24; a += 6) { var c = speedFor(T, mz, a * Math.PI / 180, aimX, st.wind); if (c.miss < best.miss) best = c; }
       S.input({ aim: { vx: Math.cos(best.ang) * best.v, vy: -Math.sin(best.ang) * best.v }, fire: true });
-      shots++; spread = Math.max(50, 340 * Math.pow(0.72, shots));
       wait = PANZER.RELOAD + 1.2 + r() * 1.4;
     };
   }

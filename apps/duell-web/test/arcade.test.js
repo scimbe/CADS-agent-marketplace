@@ -127,7 +127,7 @@ function panzerVsIdle(seed, max) {
   S.start(); B.start();
   let t = 0;
   while (t < max && !S.over) { S.tick(1 / 60); while (toBot.length) B.receive(toBot.shift()); bot(1 / 60); B.tick(1 / 60); B.ev.length = 0; while (toMe.length) S.receive(toMe.shift()); S.ev.length = 0; t += 1 / 60; }
-  return { S, t };
+  return { S, t, shots: B.st.id };
 }
 
 test("Panzer: ein Krater sinkt nie unter die Wasserlinie, der Panzer bleibt im tiefsten Loch treffbar", () => {
@@ -159,12 +159,17 @@ test("Panzer: ein schneller Schuss, der im Schritt unter den Kraterboden faellt,
   assert.equal(g.k, "sea", "ueber dem Wasser bleibt es Platschen");
 });
 
-test("Panzer: der Bot beendet jede Partie gegen einen stillstehenden Spieler in unter 120 s (e2e-0..39)", () => {
+test("Panzer: der Bot beendet jede Partie gegen einen stillstehenden Spieler in unter 120 s (e2e-0..39), und trifft nicht besser als frueher", () => {
+  let shots = 0, hits = 0, time = 0;
   for (let n = 0; n < 40; n++) {
     const r = panzerVsIdle("e2e-" + n, 120);
     assert.ok(r.S.over, "e2e-" + n + " endet nicht in 120 s, Stand " + r.S.score);
     assert.deepEqual(r.S.score, [0, A.PANZER.WIN], "e2e-" + n);
+    shots += r.shots; hits += r.S.score[1]; time += r.t;
   }
+  // as strong as before the fix (about 3.3 shots per hit, 30-35 s per game), not a sharpshooter
+  assert.ok(shots / hits >= 2.7 && shots / hits <= 4, "Schuss je Treffer " + (shots / hits).toFixed(2));
+  assert.ok(time / 40 >= 25 && time / 40 <= 45, "mittlere Partie " + (time / 40).toFixed(1) + " s");
 });
 
 test("Kein Ball wird von den eigenen Regeln schneller als VMAX, sonst verwirft ihn die Gegenseite als Schummelei", () => {
