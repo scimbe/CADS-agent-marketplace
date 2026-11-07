@@ -423,15 +423,15 @@
   /* Never over the size the page itself accepts. Stickers give way first, then the option hash h (without it a seal
      that is checked against the option's hash can no longer be checked; the seal itself stays), then the oldest trail. */
   function docUrl(doc) {
-    var d = sanitizeDoc(doc), enc = function () { return toB64(JSON.stringify({ v: 1, d: d })); };
+    var d = sanitizeDoc(doc), enc = function () { return toB64(JSON.stringify({ v: 1, d: d })); }, over = function () { return enc().length > C.MAX_FRAGMENT; };
     // a free card (ki.k "karte") is known to the deck only by its hash h: there h goes last, after the trail, s and t
-    var late = !!(d.ki && d.ki.k === "karte");
-    while (enc().length > C.MAX_FRAGMENT && d.sk && d.sk.length) d.sk.pop();
-    if (late) { while (enc().length > C.MAX_FRAGMENT && d.by.length) d.by.shift(); if (enc().length > C.MAX_FRAGMENT) delete d.s; if (enc().length > C.MAX_FRAGMENT) delete d.t; }
-    if (enc().length > C.MAX_FRAGMENT && d.ki) delete d.ki.h;
-    while (enc().length > C.MAX_FRAGMENT && d.by.length) d.by.shift();
-    if (enc().length > C.MAX_FRAGMENT) delete d.s;
-    if (enc().length > C.MAX_FRAGMENT) delete d.t;
+    var late = d.ki && d.ki.k === "karte";
+    while (over() && d.sk && d.sk.length) d.sk.pop();
+    if (!late && over() && d.ki) delete d.ki.h;
+    while (over() && d.by.length) d.by.shift();
+    if (over()) delete d.s;
+    if (over()) delete d.t;
+    if (over() && d.ki) delete d.ki.h;
     return C.SHARE_BASE + "#c=" + enc();
   }
 
