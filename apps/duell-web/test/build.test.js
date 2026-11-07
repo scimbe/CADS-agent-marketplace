@@ -24,7 +24,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // Sizes at the split: core 693 KB, parts 310 KB (play 140, table 104, qr 59, licenses 6), together 1003 KB.
   assert.ok(Buffer.byteLength(html) < 700 * 1024, "Kern ueber 700 KB: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["daten", "direkt", "katalog", "konto", "licenses", "logik", "malen", "melden", "play", "qr", "quiz", "regler", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(Object.keys(man).sort(), ["daten", "direkt", "katalog", "konto", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   // "Anmelden / Registrieren": its texts (ac_) only in the part konto, none in the core
   assert.ok(!/"ac_[a-z]/.test(html), "ac_-Texte im Kern");
   assert.match(fs.readFileSync(partFiles().find((f) => /\/konto\.[0-9a-f]{12}\.js$/.test(f)), "utf8"), /window\.KontoTexts=\{"de":\{"ac_title":"Anmelden \/ Registrieren"/);
@@ -47,7 +47,11 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
     for (const d of p.d) assert.ok(man[d], "Abhaengigkeit " + d);
     sum += body.length;
   }
-  assert.ok(Buffer.byteLength(html) + sum < 1.5 * 1024 * 1024, "Kern + Teile: " + (Buffer.byteLength(html) + sum));
+  // 1.6 MiB (was 1.5 MiB until #174): the part noto (Noto Emoji for stickers in the picture, about 110 KB) is not in the
+  // web's idle preload (src/parts.js, checked below and in test/e2e/parts.e2e.js), only people with stickers load it, and
+  // the core stays under its own budget (700 KiB above, 716 800 B in test/quizspiele.test.js). Without that, back to 1.5.
+  assert.ok(Buffer.byteLength(html) + sum < 1.6 * 1024 * 1024, "Kern + Teile: " + (Buffer.byteLength(html) + sum));
+  assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(n !== "noto"\) need\(n\)/, "noto nicht im Leerlauf-Vorladen");
   // Each part runs where it ran inside the page: the module code, not a stand-in. Spot checks on what moved.
   const part = (n) => fs.readFileSync(path.join(path.dirname(dist), man[n].f), "utf8");
   assert.match(part("play"), /window\.ArcadeUI = \{/); assert.match(part("play"), /window\.LiveUI = \{/);
@@ -61,6 +65,12 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   assert.match(part("turnzwei"), /root\.Turn2 = root\.Parts\.registry\("turnzwei"/); assert.match(part("logik"), /root\.Logik = root\.Parts\.registry\("logik"/);
   assert.match(part("daten"), /window\.KalenderData=\{/); assert.match(part("daten"), /root\.Kalender = api/); assert.ok(!/KalenderData=/.test(html));
   assert.match(html, /root\.Bausteine = \{/);
+  // Stickers in the picture: the Noto Emoji sheet and its code only in the part noto, in the core only the hook (app.js notoFor).
+  assert.match(part("noto"), /^window\.NotoData="iVBORw0KGgo[A-Za-z0-9+/=]+";/); assert.match(part("noto"), /root\.NotoStickers = api/);
+  assert.ok(!/NotoData=|root\.NotoStickers = api/.test(html), "Noto-Bogen nur im Teil"); assert.match(html, /Parts\.need\("noto"\)/);
+  assert.ok(part("noto").length < 128 * 1024, "noto klein: " + part("noto").length);
+  assert.match(part("licenses"), /Noto Emoji \(https:\/\/github\.com\/googlefonts\/noto-emoji, commit e20cbc2b/);
+  assert.match(part("licenses"), /Noto Emoji images[\s\S]*2D\/png\/128[\s\S]*Copyright 2013 Google, Inc\.[\s\S]*Modifications by My Daily Idea[\s\S]*TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION/, "Bilder: Apache 2.0 mit Quelle und Aenderungshinweis");
   assert.match(part("welt"), /root\.WeltUI = \{/); assert.ok(!/root\.WeltUI = \{/.test(html), "Flugspiel-Einstieg nur im Teil");
   assert.match(part("texte"), /root\.TexteUI = \{/); assert.match(part("texte"), /window\.TexteData=\{/); assert.ok(!/root\.TexteUI = \{|window\.TexteData=/.test(html), "Texte und Song nur im Teil");
   assert.match(part("stimme"), /root\.Stimme = \{/); assert.match(part("stimme"), /root\.Stat = api/); assert.match(part("stimme"), /^window\.StimmeTexts=\{"de":\{"vote_/);

@@ -334,11 +334,13 @@ var TABS = {
   card: ["Text", "Style", "Color", "Sticker"], photo: ["Photo", "Text", "Style", "Color", "Sticker"],
   sound: ["Sound", "Text", "Color"], game: ["Rules", "Figure", "World", "Text"]
 };
-var cv = $("stage"), timer = 0;
+var cv = $("stage"), timer = 0, notoAsked = false;
 function paint() {
   timer = 0; if (!ed) return;
   ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1]);
   if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks, x: ed.x, lyr: ed.lyr }); }
+  // The first sticker in the editor (added, or in a doc that came in) asks for noto, so the picture need not wait for it.
+  if (!notoAsked && ed.doc.sk && ed.doc.sk.length && window.Parts.names().indexOf("noto") >= 0) { notoAsked = true; window.Parts.need("noto").catch(function () {}); }
   edPic(); SK.sync(); footer(); CU.local(); saveMark(); if (window.Direkt) window.Direkt.paint(ed);
 }
 function changed() {           // every control ends up here: redraw within the next moment
@@ -759,20 +761,39 @@ function aiMark(c, doc) {
 function makeBlob(c, type, q) { return new Promise(function (ok) { c.toBlob(ok, type || "image/png", q); }); }
 function tinyThumb(c) { var s = document.createElement("canvas"); s.width = 135; s.height = 169; s.getContext("2d").drawImage(c, 0, 0, 135, 169); return s.toDataURL("image/jpeg", 0.6); }
 function thumb(c) { var s = document.createElement("canvas"); s.width = 270; s.height = 338; s.getContext("2d").drawImage(c, 0, 0, 270, 338); return s.toDataURL("image/jpeg", 0.6); }
-async function finish(doc, idea, pictureDoc) {
+// Stickers in the picture come from Noto Emoji (part noto, src/noto.js). Missing part, a broken sheet or more than 3 s:
+// the picture is made as before, without stickers, and nothing is said (it never waits longer, never fails for it).
+function notoFor(d) {
+  if (!d || !d.sk || !d.sk.length) return Promise.resolve(null);
+  var late = new Promise(function (ok) { setTimeout(ok, 3000, null); });
+  return Promise.race([window.Parts.need("noto").then(function () { return window.NotoStickers.ready(); }), late]).catch(function () { return null; });
+}
+// One picture at a time: while one is being made (it may wait for noto), every further call gets the same promise, so
+// three taps make one picture and one entry on the wall. The main button shows the wait (aria-busy).
+var finishing = null;
+function finish(doc, idea, pictureDoc) {
+  if (finishing) return finishing;
+  var b = $("edmain"); b.setAttribute("aria-busy", "true");
+  finishing = makePicture(doc, idea, pictureDoc).finally(function () { finishing = null; b.removeAttribute("aria-busy"); });
+  return finishing;
+}
+async function makePicture(doc, idea, pictureDoc) {
+  // The editor's values as they are now; whoever leaves the editor or the screen during the wait gets no picture.
+  var mine = ed, from = screen, photo = ed && ed.photo, peaks = ed && ed.peaks, noto = await notoFor(pictureDoc || doc);
+  if (ed !== mine || screen !== from) return;
   var c = document.createElement("canvas"); c.width = 1080; c.height = 1350;
   R.exporting = true;
-  try { R.draw(c, pictureDoc || doc, { me: me, photo: ed && ed.photo, peaks: ed && ed.peaks }); } finally { R.exporting = false; }
+  try { R.draw(c, pictureDoc || doc, { me: me, photo: photo, peaks: peaks, noto: noto }); } finally { R.exporting = false; }
   c = aiMark(withPic(c, doc), doc);
   var png = await makeBlob(c), file = png, name = "my-daily-idea.png";
   if (doc.k === "sound") {
-    var pcm = doc.m === "beat" ? beatPcm(2) : (ed.pcm || S.warp(S.dummyVoice(), doc.fx));
+    var pcm = doc.m === "beat" ? beatPcm(2) : (mine.pcm || S.warp(S.dummyVoice(), doc.fx));
     file = new Blob([S.wav(pcm)], { type: "audio/wav" }); name = "my-daily-idea.wav";
   }
   var url = D.docUrl(doc);
-  result = { url: url, file: file, name: name, png: png, keep: ed, canvas: c, kind: doc.k, doc: doc };
+  result = { url: url, file: file, name: name, png: png, keep: mine, canvas: c, kind: doc.k, doc: doc };
   var made = pictureDoc || doc;
-  wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c), k: made.k === "photo" || (ed && ed.photo) ? "photo" : made.k }); store.wall = wall; Kit.save();
+  wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c), k: made.k === "photo" || photo ? "photo" : made.k }); store.wall = wall; Kit.save();
   if (!Kit.persisted) Kit.toast(t("wallFull"));
   var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png);
   $("playit").hidden = true;   // a card is not a level: whoever does not fly far would never see it
@@ -784,11 +805,13 @@ $("edmain").addEventListener("click", function () {
   if (X[ed.doc.k]) { X[ed.doc.k].main(ed); return; }
   if (ed.doc.k === "game") { if (ed.pv && ed.fly) ed.fly(); else playGame(); return; }   // an open preview: PLAY flies it, like "Fly"
   if (!ready()) { Kit.tone(200, 160, 0.1, "square", 0.06); return; }
+  if (finishing) return;            // a picture is on its way (the button says so)
   Kit.sfx.thud();
   finish(D.withTrail(ed.doc, me.nick, areas()));
 });
 // A card finished straight from the sheet, without the editor (feel-good cards); Edit then opens it there.
 function quick(doc, idea) {
+  if (finishing) return finishing;
   ed = { doc: D.sanitizeDoc(doc), base: D.docFromIdea(idea, me, Kit.lang), own: false, photo: null, peaks: null, idea: idea, quick: true };
   return finish(D.withTrail(ed.doc, me.nick, D.changedAreas(ed.base, ed.doc)));
 }
@@ -885,6 +908,7 @@ function gameToEditor() {
 $("remixbtn").addEventListener("click", function () { Kit.sfx.tap(); gameToEditor(); });
 $("toremix").addEventListener("click", function () { Kit.sfx.tap(); gameToEditor(); });
 $("image").addEventListener("click", function () {
+  if (finishing) return;
   var s = G.current(), sc = G.score(), base = ed && ed.doc.k === "game" ? ed.doc : gameDoc(s);
   if (!ed) ed = { doc: D.sanitizeDoc(base), base: D.sanitizeDoc(base), photo: null, peaks: null };
   var pic = { k: "card", st: "druck", col: base.col, x: sc + " " + s.title, sk: [] };
