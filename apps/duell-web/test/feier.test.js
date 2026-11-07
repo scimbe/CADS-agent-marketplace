@@ -217,6 +217,8 @@ test("Kern: nur die Haken (Pruefung je Eingabe, Feldarten aus dem Teil, Start wa
   const src = (f) => fs.readFileSync(path.join(__dirname, "..", f), "utf8");
   assert.match(src("src/turns.js"), /if \(p\.check\) return !!p\.check\(v, doc, m \|\| \[\], now \|\| \[\]\);/);
   assert.match(src("src/turn-ui.js"), /draw\[p\.w\] \|\| \(window\.Turn2 && window\.Turn2\.get\("widget", p\.w\)\)/);
-  assert.match(src("src/app.js"), /window\.Parts\.need\("turnzwei"\)/);
+  // the part comes from the manifest (turnzwei for these cards, malen for Mal & Rat): twoIdea() names it
+  assert.match(src("src/app.js"), /window\.Parts\.need\(twoIdea\(idea\)\)/);
+  assert.match(src("src/app.js"), /function twoGame\(g\) \{ var P = window\.DailyParts \|\| \{\}; for \(var n in P\) if \(P\[n\]\.g && P\[n\]\.g\.indexOf\(g\) >= 0/);
   assert.match(src("scripts/build.js"), /turnzwei: \{ d: \["katalog"\], src: \["SIEGEL", "GESCHENKE", "TURN2", "FEIERDATA", "FEIER", "FEIERUI"\] \}/);
 });

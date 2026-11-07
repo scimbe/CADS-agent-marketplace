@@ -117,8 +117,9 @@ test("Text auf A: in unter 1 s auf B im Dokument, im Eingabefeld und im Bild; St
   await b.page.click('#tabs button[data-k="Sticker"]'); await b.page.click("#panel .chips button");
   await waitDoc(a, () => window.DailyDebug.doc().sk.length === 1);
   await a.page.click('#tabs button[data-k="Sticker"]');
-  await a.page.locator("#panel .chips").nth(1).locator("button").first().click();
-  await a.page.locator("#panel .chips").last().locator("button").last().click();
+  await a.page.waitForFunction(() => window.Direkt);   // editor E1: the sticker is chosen in the layer list, deleted with its ✕
+  await a.page.locator("#panel [role=listbox] [role=option]").nth(1).click();
+  await a.page.locator('#panel [data-dk="del"]').click();
   await waitDoc(b, () => window.DailyDebug.doc().sk.length === 0);
   await b.page.waitForTimeout(3500);
   assert.equal((await doc(a)).sk.length, 0); assert.equal((await doc(b)).sk.length, 0, "taucht nicht wieder auf");
@@ -131,7 +132,7 @@ test("Beat: beide tippen verschiedene Schritte, beide behalten beide", async () 
   const net = channel(), { a, b } = await session(browser, net, SOUND);
   await a.page.waitForSelector(".step"); await b.page.waitForSelector(".step");
   const base = (await doc(a)).p.h;
-  const stepOf = (p, i) => p.page.locator('.step[aria-label="h ' + (i + 1) + '"]').click();
+  const stepOf = (p, i) => p.page.locator('.step[aria-label="Glitzer, Schritt ' + (i + 1) + '"]').click();
   await Promise.all([stepOf(a, 1), stepOf(b, 3)]);
   const want = base.split(""); want[1] = want[1] === "x" ? "-" : "x"; want[3] = want[3] === "x" ? "-" : "x";
   for (const p of [a, b]) await waitDoc(p, (w) => window.DailyDebug.doc().p.h === w, want.join(""), 2000);

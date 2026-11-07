@@ -56,7 +56,8 @@ var SFX = {
   record: function () { Kit.sfx.win(); }
 };
 var cur, rival = null, sim, rng, prevBest = 0, isRecord = false, recordShown = false, resultTimer = 0, mode = "off", opts = {}, raf = 0;
-var reduce = false;
+// held: the editor's demo stands still (reduced motion, or the pause button of the part direkt)
+var reduce = false, held = false;
 try { reduce = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
 var best = function () { if (!Kit.store.best || typeof Kit.store.best !== "object") Kit.store.best = {}; return Kit.store.best; };
 function bestFor(st) { var b = best()[C.configKey(st)]; return typeof b === "number" ? b : 0; }
@@ -220,7 +221,7 @@ function advance(dt) {
   shake = Math.max(0, shake - dt * 60); flash = Math.max(0, flash - dt * 2.5);
 }
 function frame(ts) {
-  if (mode === "off") { raf = 0; return; }
+  if (mode === "off" || (mode === "demo" && held)) { raf = 0; return; }
   var dt = Math.min(0.05, (ts - (last || ts)) / 1000); last = ts;
   advance(dt); draw();
   raf = requestAnimationFrame(frame);
@@ -268,8 +269,9 @@ window.Game = {
     $("challenge").textContent = t("challenge"); $("again").textContent = t("again"); $("image").textContent = t("image"); $("toremix").textContent = t("remix");
     newRun(); run();
   },
-  demo: function (host, st) { cur = st; rival = null; mode = "demo"; attach(host); newRun(); run(); },
-  update: function (st) { cur = st; if (mode === "demo") newRun(); },   // every change shows at once
+  demo: function (host, st) { cur = st; rival = null; mode = "demo"; held = reduce; attach(host); newRun(); if (held) draw(); else run(); },
+  update: function (st) { cur = st; if (mode === "demo") { newRun(); if (held) draw(); } },
+  hold: function (h) { if (h != null) { held = !!h; if (mode === "demo" && !held) run(); } return held; },   // every change shows at once
   stop: function () { mode = "off"; clearTimeout(resultTimer); },
   stopDemo: function () { if (mode === "demo") mode = "off"; },
   // One standing frame on another canvas (the greyed next sheet); a running demo keeps its canvas and its run.
