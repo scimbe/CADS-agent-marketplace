@@ -461,7 +461,8 @@ function localLive() {
 }
 function vsBot() {
   return start(function () {
-    var lv = localLive(), x = T.create(Object.assign({ game: game, live: lv, rules: saved() }, me()));
+    // against the bot nobody waits: my turn has no clock and no auto move (autoMs -1)
+    var lv = localLive(), x = T.create(Object.assign({ game: game, live: lv, rules: saved(), autoMs: -1 }, me()));
     return x.invite().then(function (inv) {
       return T.join(inv.token, { game: game, live: lv, name: t("botName"), emoji: "🧑‍🌾", autoFast: 900 });
     }).then(function (b) {

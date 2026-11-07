@@ -7,6 +7,12 @@ function say(k, o) { return String(C.form(L(), k, o && o.n, Kit.lang)).replace(/
 // A game may name its own words for the shared buttons (GAMES[g].words), so a date poll does not speak of moves.
 function word(doc, k) { var w = Tn.GAMES[doc.g] && Tn.GAMES[doc.g].words; return (w && w[k]) || k; }
 function seed() { var a = new Uint32Array(1); window.crypto.getRandomValues(a); return a[0]; }
+// What a step asks, in words: its own title when the text has a gap to fill ({l}, {n}), else the plain text.
+function ask(p, doc, m) { return p.title ? p.title(doc, Kit.lang) : p.top ? p.top(doc, m, Kit.lang) : L()[p.l].replace(": {q}", "").replace(/:\s*$/, ""); }
+// A choice's state for the screen reader (and a tick, style.css), on chips and cells alike.
+function press(b, on) { b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); }
+// The socks' cells by row and column, A-E and 1-5.
+function cell(c, i) { c.setAttribute("aria-label", say("cell", { r: "ABCDE"[Math.floor(i / 5)], c: i % 5 + 1 })); }
 
 /* ---------- voices: only in this tab's memory, overwritten after use ---------- */
 var VOICE = {};
@@ -141,14 +147,15 @@ var draw = {
   show: function (box, p, set, ctx) {
     p.list(ctx.doc, ctx.m, ctx.now, Kit.lang).forEach(function (s) { box.appendChild(el("p", "qtext", s)); });
     if (p.card) p.card(box, ctx.doc, ctx.m, ctx.now, Kit.lang);   // a picture of what is asked about, drawn by the game's part
-    if (p.notes) p.notes(ctx.doc, ctx.m, ctx.now, Kit.lang).forEach(function (s) { box.appendChild(el("p", "note", s)); });   // e.g. what a quiz still has open
+    var n = p.notes ? p.notes(ctx.doc, ctx.m, ctx.now, Kit.lang).filter(Boolean) : [];   // e.g. what a quiz still has open; a long privacy text folds
+    if (n.join("").length > 160) brief(box, n[0], n, n[0].indexOf(t("wsw_h")) === 0); else n.forEach(function (s) { box.appendChild(el("p", "note", s)); });
     if (p.later) box.appendChild(el("p", "note", L()[p.later]));
     set(0);
   },
   text: function (box, p, set, ctx) {
     if (p.adult && minor()) { box.appendChild(el("p", "qtext", L().sam_minor)); set(null); return; }   // a PayPal name: 18+ only
     if (p.top) box.appendChild(el("p", "qtext", p.top(ctx.doc, ctx.m, Kit.lang)));
-    var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l]); if (p.hint) f.placeholder = L()[p.hint];
+    var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", ask(p, ctx.doc, ctx.m)); if (p.hint) f.placeholder = L()[p.hint];
     function check() { var v = f.value.trim(), ok = Tn.okAnswer(p, v, ctx.doc, Kit.lang, ctx.m, ctx.now); set(ok ? v : null); }
     f.addEventListener("input", check);
     var mine = p.pref && A.me().pref && A.me().pref[p.pref];   // my own default (Profil), visible in the field and changeable
@@ -188,7 +195,7 @@ var draw = {
   list: function (box, p, set, ctx) {
     var fs = [], pre = ctx && ctx.ed.pre && ctx.ed.pre[p.l];
     function up() { var v = fs.map(function (f) { return Q.clean(f.value, p.max); }), have = v.filter(Boolean); if (p.least && (have.length < p.least || new Set(have.map(Q.fold)).size < have.length)) { set(null); return; } set(p.loose ? fs.map(function (f, i) { return f.value.trim() ? v[i] : ""; }) : v.every(Boolean) && (p.same || new Set(v.map(Q.fold)).size === p.n) && (!p.bytes || new TextEncoder().encode(v.join("")).length <= p.bytes) ? v : null); }
-    for (var i = 0; i < p.n; i++) { var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", L()[p.l] + " " + (i + 1)); if (p.hints) f.placeholder = p.hints(Kit.lang)[i]; f.addEventListener("input", up); if (pre && pre[i]) f.value = pre[i]; box.appendChild(f); fs.push(f); }
+    for (var i = 0; i < p.n; i++) { var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", ask(p, ctx.doc, ctx.m) + " " + (i + 1)); if (p.hints) f.placeholder = p.hints(Kit.lang)[i]; f.addEventListener("input", up); if (pre && pre[i]) f.value = pre[i]; box.appendChild(f); fs.push(f); }
     if (p.loose || pre) up(); else set(null);
   },
   pick: function (box, p, set, ctx) {
@@ -198,10 +205,10 @@ var draw = {
     items.forEach(function (s, i) {
       var b = el("button", "chip", s, function () {
         Kit.sfx.tap(); var at = on.indexOf(i);
-        if (at >= 0) on.splice(at, 1); else { if (on.length >= p.n) Array.from(row.children)[on.shift()].classList.remove("on"); on.push(i); }
-        b.classList.toggle("on", on.indexOf(i) >= 0); set(on.length === p.n ? on.slice() : null);
+        if (at >= 0) on.splice(at, 1); else { if (on.length >= p.n) press(row.children[on.shift()], false); on.push(i); }
+        press(b, on.indexOf(i) >= 0); set(on.length === p.n ? on.slice() : null);
       });
-      row.appendChild(b);
+      press(b, false); row.appendChild(b);
     });
     box.appendChild(row); set(null);
   },
@@ -210,11 +217,11 @@ var draw = {
     items.forEach(function (s, i) {
       var b = el("button", "chip", s, function () {
         Kit.sfx.tap(); var at = order.indexOf(i); if (at >= 0) order.splice(at, 1); else order.push(i);
-        Array.from(row.children).forEach(function (x, n) { var w = order.indexOf(n); x.textContent = (w >= 0 ? w + 1 + ". " : "") + items[n]; x.classList.toggle("on", w >= 0); });
-        if (order.length === items.length - 1) { order.push(items.findIndex(function (x, n) { return order.indexOf(n) < 0; })); Array.from(row.children).forEach(function (x, n) { x.textContent = order.indexOf(n) + 1 + ". " + items[n]; x.classList.add("on"); }); }
+        Array.from(row.children).forEach(function (x, n) { var w = order.indexOf(n); x.textContent = (w >= 0 ? w + 1 + ". " : "") + items[n]; press(x, w >= 0); });
+        if (order.length === items.length - 1) { order.push(items.findIndex(function (x, n) { return order.indexOf(n) < 0; })); Array.from(row.children).forEach(function (x, n) { x.textContent = order.indexOf(n) + 1 + ". " + items[n]; press(x, true); }); }
         set(order.length === items.length ? order.slice() : null);
       });
-      row.appendChild(b);
+      press(b, false); row.appendChild(b);
     });
     box.appendChild(row); set(null);
   },
@@ -232,24 +239,6 @@ var draw = {
     function up(e) { if (on[e.pointerId]) { on[e.pointerId].remove(); delete on[e.pointerId]; arm(); } }
     pad.addEventListener("pointerup", up); pad.addEventListener("pointercancel", up);
     box.appendChild(pad); set(null);
-  },
-  explain: function (box, p, set, ctx) {
-    var words = p.list(ctx.doc, Kit.lang), at = 0, hits = 0, w = el("p", "qtext", words[0]), left = el("p", "lbl", String(p.secs)), n = el("p", "lbl", "0"), t0 = Date.now(), row = el("div", "chips");
-    var tick = setInterval(function () {
-      var s = p.secs - Math.floor((Date.now() - t0) / 1000); left.textContent = String(Math.max(0, s));
-      if (s <= 0 || !box.isConnected) { clearInterval(tick); if (box.isConnected) set(hits); }
-    }, 250);
-    function step(hit) { if (hit) { hits = Math.min(p.max, hits + 1); Kit.sfx.pop(); } at = (at + 1) % words.length; w.textContent = words[at]; n.textContent = String(hits); }
-    row.appendChild(el("button", "chip", L().exp_hit, function () { step(true); })); row.appendChild(el("button", "chip", L().exp_skip, function () { step(false); }));
-    box.appendChild(left); box.appendChild(w); box.appendChild(row); box.appendChild(n); set(null);
-  },
-  clock: function (box, p, set, ctx) {
-    var left = el("p", "lbl", String(p.secs)), t0 = Date.now(), tick = setInterval(function () {
-      var s = p.secs - Math.floor((Date.now() - t0) / 1000); left.textContent = String(Math.max(0, s));
-      if (s <= 0 || !box.isConnected) { clearInterval(tick); if (box.isConnected) set(0); }
-    }, 250);
-    box.appendChild(el("p", "qtext", p.text(ctx.doc, ctx.m, Kit.lang))); box.appendChild(left);
-    box.appendChild(el("button", "chip", L().clk_done, function () { clearInterval(tick); set(0); })); set(null);
   },
   rec: function (box, p, set, ctx) {
     var b = el("button", "btn hot", "🎙 " + L().rec_go, function () {
@@ -282,36 +271,6 @@ var draw = {
     p.from(ctx.doc, ctx.m).forEach(function (n, i) { row.appendChild(el("button", "chip", n, function () { Kit.sfx.tap(); if (i === 2 || ctx.now.length === 2) wipe(s); set(i); })); });
     box.appendChild(row); set(null);
   },
-  // Five rounds: the target shows, the time runs by itself after a second, one tap stops it. Nothing is shown while it runs.
-  inner: function (box, p, set, ctx) {
-    var tg = p.targets(ctx.doc), r = 0, out = [], q = el("p", "qtext", ""), fake = el("p", "lbl fakeno", ""), b = el("button", "btn hot big", L().uhr_stop), t0 = 0, flick = 0;
-    function round() {
-      clearInterval(flick); fake.textContent = ""; b.disabled = true; t0 = 0;
-      q.textContent = say("uhr_target", { n: tg[r] / 1000 }) + (r === 1 ? " " + L().uhr_warn : "");
-      setTimeout(function () {
-        if (!box.isConnected) return; t0 = performance.now(); b.disabled = false; q.textContent = L().uhr_count;
-        if (r) flick = setInterval(function () { fake.textContent = String(1 + Math.floor(Math.random() * 9)); }, 700);   // a distraction, never a hint: it does not follow the time
-      }, 1000);
-    }
-    b.addEventListener("click", function () {
-      var d = performance.now() - t0; if (!t0 || d < 500) return;
-      clearInterval(flick); out.push(Math.max(-20000, Math.min(20000, Math.round(d - tg[r])))); Kit.sfx.pop(); r++;
-      if (r >= tg.length) { b.disabled = true; set(out); } else round();
-    });
-    box.appendChild(q); box.appendChild(fake); box.appendChild(b); round(); set(null);
-  },
-  // Stop at the goal without seeing a clock; the next try starts by itself, a stop under two seconds does not count.
-  blind: function (box, p, set) {
-    var n = 0, best = 0, q = el("p", "qtext", L().pok_ready), info = el("p", "lbl", ""), b = el("button", "btn hot big", L().pok_stop), t0 = 0;
-    function go() { b.disabled = true; setTimeout(function () { if (!box.isConnected) return; t0 = performance.now(); b.disabled = false; q.textContent = say("pok_try", { n: n + 1, m: p.tries }); }, 1000); }
-    b.addEventListener("click", function () {
-      var d = Math.round(performance.now() - t0); if (!t0 || d < 2000) return; t0 = 0;
-      n++; if (!best || Math.abs(d - p.goal) < Math.abs(best - p.goal)) best = Math.min(30000, d);
-      info.textContent = say("pok_got", { n: Kit.num(d / 1000, 2) }); Kit.sfx.pop();
-      if (n >= p.tries) { b.disabled = true; set(best); } else go();
-    });
-    box.appendChild(q); box.appendChild(b); box.appendChild(info); go(); set(null);
-  },
   // Tap a fry to mark it and all to its right, tap it again to take them; the bot answers after a short look.
   nim: function (box, p, set, ctx) {
     var h = p.heaps.slice(), good = ctx.now[0][0] === 1, mark = null, step = 0, wrap = el("div", "nim"), info = el("p", "lbl", L().pom_you);
@@ -340,62 +299,6 @@ var draw = {
       setTimeout(function () { if (!box.isConnected) return; delete info.dataset.busy; var mv = p.bot(ctx.doc, h, step, good); take(mv[0], mv[1], true); }, 600);
     }
     box.appendChild(info); box.appendChild(wrap); draw(); set(null);
-  },
-  // Five rounds: shapes come one after the other, only the star counts. A wrong tap costs half a second.
-  react: function (box, p, set, ctx) {
-    var plan = p.plan(ctx.doc), r = 0, k = 0, sum = 0, t0 = 0, star = false, timer = 0, pad = el("button", "touchpad react", ""), info = el("p", "lbl", L().rea_rule), SH = ["●", "▲", "■"];
-    function next() {
-      clearTimeout(timer); pad.textContent = ""; star = false; t0 = 0;
-      if (r >= plan.length) { set(Math.min(60000, Math.round(sum))); info.textContent = say("rea_done", { n: Kit.num(sum / 1000, 2) }); return; }
-      timer = setTimeout(function () {
-        if (!box.isConnected) return;
-        if (k < plan[r].decoys) { pad.textContent = SH[(r + k) % 3]; k++; timer = setTimeout(next, 650); return; }
-        pad.textContent = "★"; star = true; t0 = performance.now();
-        timer = setTimeout(function () { sum += 2000; r++; k = 0; next(); }, 2000);
-      }, plan[r].pause);
-    }
-    pad.addEventListener("pointerdown", function (e) {
-      e.preventDefault(); if (r >= plan.length) return;
-      if (star) { clearTimeout(timer); sum += performance.now() - t0; r++; k = 0; Kit.sfx.pop(); next(); }
-      else if (pad.textContent) { sum += 500; Kit.tone(200, 90, 0.08, "square", 0.05); info.textContent = L().rea_wrong; }
-    });
-    pad.setAttribute("aria-label", L().a_pad); box.appendChild(info); box.appendChild(pad); next(); set(null);
-  },
-  // The bouncer: a being at the door, "out" left and "in" right; the being keeps its frame for a moment after each tap.
-  door: function (box, p, set, ctx) {
-    var doc = ctx.doc, order = Tn.doorOrder(doc), k = 0, i = 0, right = 0, total = 0, run = 0, prev = [], lock = false, t0 = Date.now(), cur;
-    var ANI = ["🐱", "🐶", "🐸", "🐰"], COL = ["#e53935", "#1e63d6", "#f2c200"], PAT = ["", "repeating-linear-gradient(45deg,rgba(255,255,255,.35) 0 6px,transparent 6px 12px)", "radial-gradient(rgba(255,255,255,.45) 2px,transparent 3px) 0 0/12px 12px"];
-    var clock = el("p", "lbl", ""), dots = el("p", "doordots", ""), news = el("p", "qtext", ""), being = el("div", "being"), row = el("div", "doorrow");
-    function show() {
-      cur = Tn.doorBeing(doc, order[k], i, prev);
-      being.className = "being"; being.textContent = "";
-      being.appendChild(el("div", "bhat", cur[1] ? "🎩" : ""));
-      var face = el("div", "bface", ANI[cur[0]]); face.style.background = COL[cur[2]]; if (PAT[cur[2]]) face.style.backgroundImage = PAT[cur[2]]; being.appendChild(face);
-      being.appendChild(el("div", "bsocks", cur[3] ? "🧦🧦" : ""));
-      dots.textContent = "●".repeat(run) + "○".repeat(p.streak - run) + "   " + say("tue_found", { n: k });
-    }
-    function done() { lock = true; set([k, right, total]); }
-    function tap(inside) {
-      if (lock) return; lock = true; total++;
-      var ok = Tn.doorIn(order[k], cur) === inside; prev.push(Tn.doorIn(order[k], cur));
-      if (ok) { right++; run++; Kit.sfx.pop(); } else { run = 0; Kit.tone(200, 90, 0.08, "square", 0.05); }
-      being.classList.add(ok ? "ok" : "no");
-      setTimeout(function () {
-        if (!box.isConnected) return;
-        i++; news.textContent = "";
-        if (run >= p.streak) { k++; run = 0; prev = []; i = 0; news.textContent = L().tue_new; Kit.haptic(30); }
-        if (k >= order.length) { done(); return; }
-        lock = false; show();
-      }, 600);
-    }
-    row.appendChild(el("button", "btn doorout", L().tue_out, function () { tap(false); }));
-    row.appendChild(el("button", "btn doorin", L().tue_in, function () { tap(true); }));
-    box.appendChild(clock); box.appendChild(dots); box.appendChild(news); box.appendChild(being); box.appendChild(row);
-    var tick = setInterval(function () {
-      var left = p.secs - Math.floor((Date.now() - t0) / 1000); clock.textContent = String(Math.max(0, left));
-      if (left <= 0 || !box.isConnected) { clearInterval(tick); if (box.isConnected && !lock) done(); else if (box.isConnected) setTimeout(function () { if (box.isConnected) set([k, right, total]); }, 650); }
-    }, 250);
-    show(); set(null);
   },
   // The beat plays and breaks off; the stop card names the statue. People judge the wobbling, the phone sees nothing.
   freeze: function (box, p, set, ctx) {
@@ -449,21 +352,21 @@ var draw = {
   grid: function (box, p, set) {
     var on = [], g = el("div", "bgrid sgrid");
     for (var i = 0; i < 25; i++) (function (i) {
-      var c = el("button", "bcell", null, function () { var at = on.indexOf(i); if (at >= 0) on.splice(at, 1); else if (on.length < p.n) on.push(i); c.classList.toggle("on", on.indexOf(i) >= 0); Kit.sfx.tap(); set(on.length === p.n ? on.slice() : null); });
-      c.setAttribute("aria-label", String(i + 1)); g.appendChild(c);
+      var c = el("button", "bcell", null, function () { var at = on.indexOf(i); if (at >= 0) on.splice(at, 1); else if (on.length < p.n) on.push(i); press(c, on.indexOf(i) >= 0); Kit.sfx.tap(); set(on.length === p.n ? on.slice() : null); });
+      cell(c, i); press(c, false); g.appendChild(c);
     })(i);
     box.appendChild(g); set(null);
   },
   // The answers come from the other side's hidden socks in the link: found, near or far.
   probe: function (box, p, set, ctx) {
     var socks = p.socks(ctx.doc, ctx.m), old = p.before(ctx.doc, ctx.m), taps = [], g = el("div", "bgrid sgrid"), mark = ["·", "~", "🧦"], info = el("p", "lbl", say("sok_left", { n: p.n }));
-    function show(c, i) { var a = Tn.sockAnswer(socks, i); c.textContent = mark[a]; c.classList.add("a" + a); c.disabled = true; }
+    function show(c, i) { var a = Tn.sockAnswer(socks, i); c.textContent = mark[a]; c.classList.add("a" + a); c.disabled = true; c.setAttribute("aria-label", c.getAttribute("aria-label") + ": " + mark[a]); }
     for (var i = 0; i < 25; i++) (function (i) {
       var c = el("button", "bcell", null, function () {
         if (taps.length >= p.n) return; taps.push(i); show(c, i); Kit.sfx[Tn.sockAnswer(socks, i) === 2 ? "pop" : "tap"]();
         info.textContent = say("sok_left", { n: p.n - taps.length }); set(taps.slice());
       });
-      c.setAttribute("aria-label", String(i + 1)); if (old.indexOf(i) >= 0) show(c, i); g.appendChild(c);
+      cell(c, i); if (old.indexOf(i) >= 0) show(c, i); g.appendChild(c);
     })(i);
     box.appendChild(info); box.appendChild(g); box.appendChild(el("p", "note", L().sok_key)); set(null);
   },
@@ -659,6 +562,14 @@ function todoTools(box, doc, now) {
   }));
   box.appendChild(row); box.appendChild(out);
 }
+// "Wer sieht was?" and the card's notes before the action: one line in sight (lead, cut after its first sentence, or after
+// the first two when it starts with the question "Wer sieht was?"), all of it under "ⓘ Mehr".
+function brief(box, lead, list, two) {
+  var d = el("details", "more");
+  if (!list.length) return;
+  box.appendChild(el("p", "note", String(lead).replace(two ? /^(.+?[.!?]\s.+?[.!?])\s.*$/ : /^(.+?[.!?])\s.*$/, "$1"))); d.appendChild(el("summary", "", "ⓘ " + t("mehr")));
+  list.forEach(function (x) { d.appendChild(typeof x === "string" ? el("p", "note", x) : x); }); box.appendChild(d);
+}
 // A known age band under 18 (my defaults); an adult build never asks.
 function minor() { var f = A.me().pref; return !D.adult(A.me()) && !!f && (f.age === "u16" || f.age === "u18"); }
 // The calendar day on this phone, counted like Turns.today but from local midnight.
@@ -702,7 +613,7 @@ function walk(box, ed) {
       if (Tn.game(ed.doc).local || (ed.next && Tn.state(ed.next).over)) { pass(box, ed); return; }
       A.changed(); box.appendChild(el("p", "lbl", L()[word(ed.doc, "ready")])); box.appendChild(el("button", "btn", L().hand_same, function () { pass(box, ed); })); return; }
     var p = st.prompts[i], at = i, cur = null, me = { box: box, live: !!p.live, ok: function () { return cur !== null; },
-      why: t("whyOpen", { s: p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "").replace(/:\s*$/, "") }), go: go };
+      why: t("whyOpen", { s: ask(p, ed.doc, st.moves) }), go: go };
     function go() {   // the main button takes no tap for a moment: the second tap of a double tap does not take the next step too
       if (cur === null || ed.step !== me || !box.isConnected) return; Kit.sfx.pop(); now.push(cur); cur = null; i++;
       var b = document.getElementById("edmain"); b.style.pointerEvents = "none"; setTimeout(function () { b.style.pointerEvents = ""; }, 250);
@@ -710,9 +621,9 @@ function walk(box, ed) {
     }
     if (i === 0 && SATZ[ed.doc.g] && (!st.turn || p.live)) satz(box, ed);
     if (p.peek) box.appendChild(el("p", "qtext", p.peek(ed.doc, st.moves, now, Kit.lang)));
-    if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("label", "lbl", p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "")));
+    if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("h3", "lbl", p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "")));
     var soon = 0, dw = draw[p.w] || (window.Turn2 && window.Turn2.get("widget", p.w));
-    if (!dw) { box.appendChild(el("p", "note", "…")); window.Parts.use("turnzwei", function () { if (box.isConnected && i === at) step(); }).catch(function () {}); return; }   // a widget of the new cards, from its part
+    if (!dw) { box.appendChild(el("p", "note", "…")); window.Parts.use("turnzwei", function () { if (box.isConnected && i === at) step(); }).catch(function () { if (box.isConnected && box.lastChild) box.lastChild.textContent = t("part_fail"); }); return; }   // a widget of the new cards, from its part
     dw(box, p, function (v) {
       if (p.live) { ed.next = v === null ? null : Tn.play(ed.doc, [v], Tn.today()); A.changed(); return; }   // no Weiter: the footer sends what is on screen
       cur = v; clearTimeout(soon); A.footer();
@@ -744,8 +655,8 @@ A.PANEL.Move = function (p) {
   // New cards (Katalog v2, rules 16, 19): "Wer sieht was?" and the card's notes below the steps, which never clear them.
   if (g.wsw || g.notes) {
     var foot = el("div", "turnfoot"), top = el("div"); p.appendChild(top); p.appendChild(foot); p = top;
-    if (g.wsw) foot.appendChild(window.Bausteine.wswRow(g.wsw));
-    (g.notes || []).forEach(function (k) { foot.appendChild(el("p", "note", L()[k])); });
+    var n = (g.notes || []).map(function (k) { return L()[k]; });
+    brief(foot, g.wsw ? t("wsw_h") + " " + window.Bausteine.wsw(g.wsw) : n[0] || "", (g.wsw ? [window.Bausteine.wswRow(g.wsw)] : []).concat(n), !!g.wsw);
   }
   if (res) {
     p.appendChild(el("p", "qtext", res.h)); res.lines.forEach(function (s) { p.appendChild(el("p", "note", s)); });
@@ -775,8 +686,16 @@ A.PANEL.Text = (function (old) {
     var d = A.ed().doc;
     A.field(p, t("ideaT"), d.t, 40, function (v) { d.t = v; });
     A.field(p, t("ideaS"), d.s, 70, function (v) { d.s = v; });
-    A.field(p, L().things, d.w, 14, function (v) { if (v) d.w = v; else delete d.w; });
-    var box = el("div", "chips"); Tn.SHAPES.forEach(function (f) { box.appendChild(el("button", "chip" + (d.f === f ? " on" : ""), f, function () { d.f = f; A.changed(); A.tab("Text"); })); });
+    if (d.g === "deal") A.field(p, L().things, d.w, 14, function (v) { if (v) d.w = v; else delete d.w; });   // only the deal speaks of its things
+    if (!A.allow("tools", "shapes")) return;   // a flavor whose picture has no shapes (Business)
+    // the shape that flies across the card, each drawn as on the card, with its name
+    p.appendChild(el("h3", "lbl", L().fly));
+    var box = el("div", "chips"), N = L().shp.split("|");
+    Tn.SHAPES.forEach(function (f, i) {
+      var c = document.createElement("canvas"), x = c.getContext("2d"), b = el("button", "chip", null, function () { d.f = f; A.changed(); A.tab("Text"); });
+      c.width = c.height = 30; x.fillStyle = d.col[0]; x.fillRect(0, 0, 30, 30); shape(x, f, 15, 15, 11, d.col[1]);
+      b.appendChild(c); b.setAttribute("aria-label", N[i]); press(b, d.f === f); box.appendChild(b);
+    });
     p.appendChild(box);
   };
 })(A.PANEL.Text);

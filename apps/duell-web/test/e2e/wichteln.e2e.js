@@ -39,7 +39,7 @@ test("Geschenk in drei Fragen: drei Fragen, fünf Ideen ohne KI, Einladung an ei
   await a.locator("#go").click();
   assert.equal(await a.locator("#edmain").getAttribute("aria-disabled"), "true", "Weiter gesperrt, bis gewählt ist");
   assert.match(await a.locator("#edwhy").textContent(), /Noch offen: Für wen\?/);
-  await panel(a).getByText(/^Wer sieht was\?/).waitFor();
+  await panel(a).getByText(/^Wer sieht was\?/).first().waitFor();   // one line in sight, the rest behind "ⓘ Mehr" (PLAN D1)
   await snap(a, "geschenk-1-fuer-wen");
   await tap(a, "Oma oder Opa");                          // one tap, on by itself
   await tap(a, "bis 30 €");
@@ -233,6 +233,7 @@ test("Business Wichtelideen: ohne KI fünf Ideen im Budget, mit KI (gemockt) nur
   });
   const t = await G.open(tanja, "#i=biz-wichtel-ideen", { flavor: "business" });
   await t.locator("#go").click();
+  await panel(t).locator("details.more summary").click();   // behind "ⓘ Mehr" (PLAN D1)
   await panel(t).getByText("Nicht-Teilnahme hat keine Folgen.").waitFor();
   await panel(t).getByText(/Betriebsrat/).waitFor();
   await tap(t, "bis 10 €");
@@ -258,6 +259,7 @@ test("Business Wichtelideen: ohne KI fünf Ideen im Budget, mit KI (gemockt) nur
   const k = await G.open(kemal, hash(one), { flavor: "business" });
   await k.locator("#go").click();
   await panel(k).getByText("Suggested: Sukkulente im Topf. Which idea is best?").waitFor();
+  await panel(k).locator("details.more summary").click();   // behind "ⓘ More" (PLAN D1)
   await panel(k).getByText("Not taking part has no consequences.").waitFor();
   await snap(k, "wichtelideen-3-kollegin-en");
   await panel(k).getByRole("button", { name: "Sukkulente im Topf", exact: true }).click();

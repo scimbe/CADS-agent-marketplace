@@ -13,5 +13,13 @@
   1,
   500
  ],
- "adult": true
+ "adult": true,
+ "tabs": [
+  "Idea",
+  "Move",
+  "Text"
+ ],
+ "tools": [],
+ "done": [],
+ "bg": "#f4f5f7"
 }
