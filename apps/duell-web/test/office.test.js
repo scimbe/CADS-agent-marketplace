@@ -100,6 +100,7 @@ test("Flavor-Build: eigener Katalog, Texte, Farben und Pfad; ohne Flag bleibt di
   assert.equal((flavorJs.match(/\bfetch\(/g) || []).length, 1);
   assert.match(flavorJs, /return fetch\(url, \{ mode: "no-cors", cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer"/);
   assert.match(flavorJs, /reach\(CONF\)/); assert.equal((flavorJs.match(/reach\(/g) || []).length, 2, "nur die Webconference wird geprobt");
+  assert.match(html, /"shareBase":"https:\/\/demos-34a13a96\.bunsenbrenner\.org\/duell\/business\/"/, "geteilt wird direkt die Business-Seite des Wrappers");
   assert.match(html, /"short":false/, "Kurzlinks aus, solange der Server nur \/duell kennt");
   assert.throws(() => execFileSync(process.execPath, [path.join(root, "scripts/build.js"), "--flavor", "nichtda"], { stdio: "pipe" }));
   execFileSync(process.execPath, [path.join(root, "scripts/build.js")]);

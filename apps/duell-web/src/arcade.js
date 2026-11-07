@@ -5,7 +5,7 @@
    send() and receive(), so the bot is simply a second side in the same page, and tests can pipe two sides together. */
 (function (root) {
   "use strict";
-  var W = 1000, H = 1600, STEP = 1 / 120, NET_P = 0.05, NET_ST = 0.1, SERVE_PAUSE = 0.9;
+  var W = 1000, H = 1600, STEP = 1 / 120, NET_P = 0.05, NET_ST = 0.1, SERVE_PAUSE = 0.9, STALL_MAX = 6, FIN_WAIT = 6;   // FIN_WAIT: a stall of up to about 5 s still ends alike; an older app costs it once
 
   function hash32(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   function unit(seed, key) { return hash32(seed + "|" + key) / 4294967296; }               // 0..1, fixed by the seed
@@ -27,22 +27,61 @@
   // What every side shares: score, serves, the clock, events for the screen, and the regular position report.
   function base(G, o) {
     var S = { g: G.id, WIN: G.WIN, seed: String(o.seed), score: [0, 0], over: false, started: false, n: 0, t: 0, ev: [], serveAt: 0, oppAt: 0, sentP: 0, sentSt: 0, rejected: 0 };
-    S.send = function (m) { if (o.send) o.send(m); };
+    // Position reports and shots carry the sender's clock (ms), so the other screen can place them in time despite
+    // jitter. o.clock (seconds) is a real clock on the phone, which keeps running when a frame hangs; tests pass their own.
+    S.clock = o.clock || function () { return S.t; };
+    S.send = function (m) { if (m.t === "p" || m.t === "shot" || m.t === "throw") m.ms = Math.round(S.clock() * 1000); if (o.send) o.send(m); };
     S.fx = function (k, x, y, more) { var e = { k: k, x: x, y: y }; if (more) for (var q in more) e[q] = more[q]; S.ev.push(e); if (S.ev.length > 80) S.ev.shift(); };
-    S.check = function () { if (S.score[0] >= G.WIN || S.score[1] >= G.WIN) { S.over = true; S.serveAt = 0; S.fx(S.score[0] > S.score[1] ? "won" : "lost", W / 2, H / 2); } };
+    function finish() { S.over = true; S.ending = false; S.serveAt = 0; S.draw = S.score[0] === S.score[1]; S.fx(S.draw ? "draw" : S.score[0] > S.score[1] ? "won" : "lost", W / 2, H / 2); }
+    // Where both phones can take the last hit at once (G.fin: several snowballs or shells in the air), each one
+    // freezes at the end and sends how many hits it took ("fin"); the channel is ordered, so its earlier hit reports are
+    // in by then. With both numbers in, both phones end alike: equal is a draw. An older app sends no "fin": after
+    // FIN_WAIT the score as it stands counts.
+    S.ending = false; S.oppFin = null; S.draw = false;
+    S.check = function () {
+      if (S.over || !(S.score[0] >= G.WIN || S.score[1] >= G.WIN || S.oppFin !== null)) return;
+      if (!G.fin) { finish(); return; }
+      if (!S.ending) { S.ending = true; S.endAt = S.t; S.serveAt = 0; S.send({ t: "fin", c: S.score[1] }); }
+      if (S.oppFin !== null) { S.score[0] = Math.max(S.score[0], S.oppFin); finish(); }   // a hit reported is never taken back
+    };
+    S.fin = function (m) {
+      if (m.t !== "fin") return false;
+      // Only an end that can be: the other one took WIN hits, or gave this one WIN already. At most WIN hits count.
+      if (num(m.c) && m.c >= 0 && S.oppFin === null && (m.c >= G.WIN || S.score[1] >= G.WIN)) { S.oppFin = Math.min(G.WIN, m.c | 0); S.check(); }
+      return true;
+    };
+    S.finWait = function (dt) { S.t += dt; if (S.t - S.endAt > FIN_WAIT) finish(); };
     // This phone let the point go: the other one scores, and the one who lost the point serves the next ball.
-    S.concede = function (x, y) { S.score[1]++; S.send({ t: "pt" }); S.fx("lose", x, y); S.check(); if (!S.over && G.serves) S.serveAt = S.t + SERVE_PAUSE; };
+    S.concede = function (x, y) { if (S.over || S.ending) return;   // after "fin" nothing more is taken
+      S.score[1]++; S.send({ t: "pt" }); S.fx("lose", x, y); S.check(); if (!S.over && G.serves) S.serveAt = S.t + SERVE_PAUSE; };
     S.gain = function () { S.score[0]++; S.fx("score", W / 2, H / 4); S.check(); };
     S.start = function () { S.started = true; if (o.serving && G.serves) S.serveAt = S.t + 0.01; };
-    S.oppDt = function () { var dt = S.t - S.oppAt; S.oppAt = S.t; return dt; };
+    // How much finger time the other player's next move may use. Time saved up while no report came (up to half a
+    // second) covers a burst of reports that arrive together after the network stalled; each report uses up what its
+    // distance needs, so on average the figure is still never faster than a finger.
+    S.oppDt = function (dist, vmax) {
+      // on this phone's real clock: a phone that hung and then works off its queue still counts the time that passed
+      var now = S.clock(); S.credit = Math.min(0.5, (S.credit == null ? 0.1 : S.credit) + Math.max(0, now - S.oppAt)); S.oppAt = now;
+      var use = Math.min(S.credit, Math.max(0.016, dist / vmax)); S.credit -= use; return use;
+    };
     // Something the other phone claims that cannot be: ignored, and counted so the screen can say so.
     S.reject = function () { S.rejected++; return false; };
+    // A stall as this phone saw it: the gap between two arrivals on its own clock (the sender's clock could be faked).
+    // For the burst that follows it (half a second), what the other one did during the gap may arrive at once.
+    S.lastIn = null; S.burst = { len: 0, at: -1 };
+    S.heard = function () {
+      var now = S.clock();
+      if (S.lastIn !== null && now - S.lastIn > 0.3) S.burst = { len: Math.min(now - S.lastIn, STALL_MAX), at: now };
+      S.lastIn = now;
+    };
+    S.stall = function () { return S.clock() - S.burst.at < 0.5 ? S.burst.len : 0; };
     return S;
   }
   function loop(S, dt, sub) {
     if (S.over) return;
+    if (S.ending) { S.finWait(Math.min(dt, 0.25)); return; }   // frozen until the other phone's last word
     dt = Math.min(dt, 0.25);
-    while (dt > 1e-9) { var d = Math.min(STEP, dt); dt -= d; S.t += d; sub(d); if (S.over) break; }
+    while (dt > 1e-9) { var d = Math.min(STEP, dt); dt -= d; S.t += d; sub(d); if (S.over || S.ending) break; }
   }
   function report(S, sendP, sendSt) {
     if (S.t - S.sentP >= NET_P) { S.sentP = S.t; sendP(); }
@@ -125,7 +164,7 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
-      if (m.t === "p" && num(m.x) && num(m.y)) { st.opp = plausibleMallet(st.opp, m, S.oppDt()); return; }
+      if (m.t === "p" && num(m.x) && num(m.y)) { st.opp = plausibleMallet(st.opp, m, S.oppDt(Math.max(Math.abs(m.x - st.opp.x), Math.abs(m.y - st.opp.y)), PUCK.MMAX * 1.25)); return; }
       if (m.t === "pt") { st.p = null; st.own = false; S.gain(); return; }
       // Serves and hand-overs lie where the seed says: anything else is not believed.
       if (m.t === "serve" && num(m.n)) { if (!same(m.b, mirror(puckServe(S.seed, m.n)))) return S.reject(); st.p = copy(m.b); st.own = false; st.held = false; S.n = m.n + 1; return; }
@@ -178,7 +217,10 @@
     var off = b.x - paddleX;
     if (Math.abs(off) > Z.PW / 2 + Z.R) return { hit: false };
     var out = cap({ x: b.x, y: Z.PY - Z.R, vx: b.vx + off * Z.SPIN, vy: -Math.abs(b.vy) * Z.UP }, Z.VMAX);
-    if (Math.abs(out.vy) < Z.V0 * 0.6) out.vy = -Z.V0 * 0.6;
+    if (Math.abs(out.vy) < Z.V0 * 0.6) {   // never a ball that crawls sideways forever, and never faster than VMAX
+      out.vy = -Z.V0 * 0.6; var side = Math.sqrt(Z.VMAX * Z.VMAX - out.vy * out.vy);
+      if (Math.abs(out.vx) > side) out.vx = Math.sign(out.vx) * side;
+    }
     return { hit: true, ball: out };
   }
   function plausiblePaddle(prev, next, dt) { return clamp(reach(prev, next, dt, ZIEGEL.PMAX * 1.25), ZIEGEL.PW / 2, W - ZIEGEL.PW / 2); }
@@ -217,7 +259,7 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
-      if (m.t === "p" && num(m.x)) { st.opp = plausiblePaddle(st.opp, m.x, S.oppDt()); return; }
+      if (m.t === "p" && num(m.x)) { st.opp = plausiblePaddle(st.opp, m.x, S.oppDt(Math.abs(m.x - st.opp), Z.PMAX * 1.25)); return; }
       if (m.t === "pt") { st.b = null; S.gain(); return; }
       if (m.t === "serve" && num(m.n)) { if (!same(m.b, mirror(ziegelServe(S.seed, m.n)))) return S.reject(); st.b = copy(m.b); st.held = false; st.past = false; S.n = m.n + 1; return; }
       if (m.t === "hit" || m.t === "brk") {
@@ -290,14 +332,15 @@
     return { x: clamp(reach(prev.x, m.x, dt, V.VMOVE * 1.25), V.NX + V.NW + V.PRAD, W - V.PRAD), y: clamp(m.y, ground - 340, ground) };
   }
   var VFALL = Math.sqrt(VOLLEY.VMAX * VOLLEY.VMAX + 2 * VOLLEY.G * VOLLEY.FY);   // a ball may fall faster than any hit sends it
-  function plausibleVolley(kind, b, opp) {
+  // slack: how far the figure may have walked since its last report arrived here (a phone that hung reports late).
+  function plausibleVolley(kind, b, opp, slack) {
     var V = VOLLEY; if (!body(b) || speed(b) > (kind === "hit" ? V.VMAX * 1.01 : VFALL)) return false;
     if (kind === "pass") return Math.abs(b.x - V.NX) <= V.BR + V.NW + 90 && b.vx < 0;
     if (b.x < V.NX - V.BR) return false;
-    return kind !== "hit" || Math.hypot(b.x - opp.x, b.y - opp.y) <= V.BR + V.PRAD + 260;
+    return kind !== "hit" || Math.hypot(b.x - opp.x, b.y - opp.y) <= V.BR + V.PRAD + 260 + (slack || 0);
   }
   function volleySide(o) {
-    var V = VOLLEY, S = base(V, o), aim = 250, jump = false, ground = V.FY - V.PRAD;
+    var V = VOLLEY, S = base(V, o), aim = 250, jump = false, ground = V.FY - V.PRAD, pAt = null;
     S.st = { b: null, own: false, held: false, me: { x: 250, y: ground, vx: 0, vy: 0 }, opp: { x: W - 250, y: ground } };
     S.input = function (i) { if (!i) return; if (num(i.x)) aim = i.x; if (i.jump) jump = true; };
     function serve() { var st = S.st; st.b = volleyServe(S.seed, S.n); st.own = true; st.held = false; S.send({ t: "serve", n: S.n, b: mirrorX(st.b) }); S.n++; S.serveAt = 0; S.fx("serve", st.b.x, st.b.y); }
@@ -324,12 +367,13 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
-      if (m.t === "p" && num(m.x) && num(m.y)) { st.opp = plausibleFigure(st.opp, m, S.oppDt()); return; }
+      if (m.t === "p" && num(m.x) && num(m.y)) { pAt = S.clock(); st.opp = plausibleFigure(st.opp, m, S.oppDt(Math.abs(m.x - st.opp.x), V.VMOVE * 1.25)); return; }
       if (m.t === "pt") { st.b = null; st.own = false; S.gain(); return; }
       if (m.t === "serve" && num(m.n)) { if (!same(m.b, mirrorX(volleyServe(S.seed, m.n)))) return S.reject(); st.b = copy(m.b); st.own = false; st.held = false; S.n = m.n + 1; return; }
       if (m.t === "hit" || m.t === "st" || m.t === "pass") {
         if (st.own) return;
-        if (!plausibleVolley(m.t, m.b, st.opp)) return S.reject();
+        var walked = pAt === null ? 0 : V.VMOVE * 1.25 * Math.min(STALL_MAX, Math.max(0, S.clock() - pAt - NET_P));   // measured here
+        if (!plausibleVolley(m.t, m.b, st.opp, walked)) return S.reject();
         st.b = copy(m.b); st.held = false;
         if (m.t === "pass") st.own = true; else if (m.t === "hit") S.fx("ohit", st.b.x, st.b.y, { v: speed(st.b) });
       }
@@ -351,7 +395,7 @@
   }
 
   // ======================= Insel-Panzer: side view, one island, a tank on each shore, shells with gravity and wind =======================
-  var PANZER = { id: "panzer", WIN: 3, serves: false, N: 100, SEA: H - 110, TX: 160, G: 620, WMAX: 140, VSHOT: 1350, VMIN: 220, RELOAD: 1.5, CR: 72, HR: 74, TH: 26 };
+  var PANZER = { id: "panzer", WIN: 3, serves: false, fin: true, N: 100, SEA: H - 110, TX: 160, G: 620, WMAX: 140, VSHOT: 1350, VMIN: 220, RELOAD: 1.5, CR: 72, HR: 74, TH: 26, FLOOR: 12, AIM: 420 };
   // The island is mirror-symmetric, so both phones stand on the same shore; its hill and bumps come from the seed.
   function island(seed) {
     var P = PANZER, u1 = unit(seed, "isl|hill"), u2 = unit(seed, "isl|width"), u3 = unit(seed, "isl|bump"), a = [];
@@ -369,17 +413,20 @@
   function shellStep(T, s, dt) {
     s.vx += s.w * dt; s.vy += PANZER.G * dt; s.x += s.vx * dt; s.y += s.vy * dt;
     if (s.x < -60 || s.x > W + 60 || s.y > H) return "sea";
-    if (s.x >= 0 && s.x <= W && s.y >= surface(T, s.x)) return s.y >= PANZER.SEA ? "sea" : "land";
+    // Sea or land is the ground under the shell, not how deep it fell within this step: a fast shell that overshoots
+    // the floor of a crater still lands on the island.
+    if (s.x >= 0 && s.x <= W) { var g = surface(T, s.x); if (s.y >= g) return g >= PANZER.SEA ? "sea" : "land"; }
     return null;
   }
   function flight(T, s, max) { var p = { x: s.x, y: s.y, vx: s.vx, vy: s.vy, w: s.w }; for (var i = 0; i < (max || 1200); i++) { var r = shellStep(T, p, 1 / 120); if (r) return { k: r, x: p.x, y: p.y, t: i / 120 }; } return { k: "sea", x: p.x, y: p.y, t: max / 120 }; }
-  // A crater only bites into the half of the phone that decided about it.
+  // A crater only bites into the half of the phone that decided about it. Its floor stays above the waterline, else
+  // that ground would count as sea and a tank sunk that deep could never be hit again. It never raises ground.
   function crater(T, x, y, mine) {
     var P = PANZER, c = W / P.N;
     for (var i = 0; i < P.N; i++) {
       var cx = (i + 0.5) * c; if (mine ? cx > W / 2 : cx < W / 2) continue;
       var dx = cx - x; if (Math.abs(dx) >= P.CR) continue;
-      T[i] = Math.min(Math.max(T[i], Math.round(y + Math.sqrt(P.CR * P.CR - dx * dx) * 0.7)), P.SEA + 20);
+      T[i] = Math.max(T[i], Math.min(Math.round(y + Math.sqrt(P.CR * P.CR - dx * dx) * 0.7), P.SEA - P.FLOOR));
     }
   }
   function muzzle(T, mine) { var t = tankPos(T, mine); return { x: t.x, y: t.y - 22 }; }
@@ -389,7 +436,7 @@
     return now - last >= P.RELOAD * 0.6;   // nobody reloads faster than the barrel allows
   }
   function panzerSide(o) {
-    var P = PANZER, S = base(P, o), T = island(S.seed), last = -9, oppLast = -9, fire = false;
+    var P = PANZER, S = base(P, o), T = island(S.seed), last = -9, fire = false, tokens = 1, tokAt = null, RATE = P.RELOAD;
     S.st = { T: T, aim: { vx: 0, vy: 0 }, oppAim: { vx: -500, vy: -600 }, shells: [], id: 0, wind: wind(S.seed, 0), reload: 0 };
     S.input = function (i) {
       if (!i) return;
@@ -417,7 +464,7 @@
         fire = false;
         for (var k = st.shells.length - 1; k >= 0; k--) {
           var sh = st.shells[k], r = shellStep(T, sh, d);
-          if (r) { st.shells.splice(k, 1); land(sh, { k: r, x: sh.x, y: sh.y }); if (S.over) return; }
+          if (r) { st.shells.splice(k, 1); land(sh, { k: r, x: sh.x, y: sh.y }); if (S.over || S.ending) return; }
         }
         st.reload = clamp((S.t - last) / P.RELOAD, 0, 1);
       });
@@ -425,10 +472,17 @@
     };
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
+      if (tokAt === null) tokAt = S.clock();   // the barrel fills from the first word of the other phone
+      S.heard();                               // every arrival counts for the gap, the last word too
+      if (S.fin(m)) return;
+      if (S.ending && m.t !== "boom") return;   // at the end only the hit count still matters
       if (m.t === "p" && num(m.vx) && num(m.vy)) { st.oppAim = cap({ x: 0, y: 0, vx: m.vx, vy: m.vy }, P.VSHOT); return; }
       if (m.t === "shot") {
-        if (!plausibleShot(m, oppLast, S.t)) return S.reject();
-        oppLast = S.t; var mz = muzzle(T, false);
+        // Nobody reloads faster than the barrel allows: one shot per RATE of this phone's time, a single one in hand;
+        // after a stall seen here, the shots fired during it may come together.
+        var now = S.clock(); tokens = Math.min(1.5 + S.stall() / P.RELOAD + 1e-6, tokens + (now - tokAt) / RATE); tokAt = now;   // half a shot of slack for jitter; a gap holds what a barrel reloads in it
+        if (!plausibleShot(m, -Infinity, 0) || tokens < 1) return S.reject();
+        tokens -= 1; var mz = muzzle(T, false);
         st.shells.push({ x: mz.x, y: mz.y, vx: m.vx, vy: m.vy, w: m.w, mine: false, i: m.i });
         st.oppAim = { vx: m.vx, vy: m.vy }; S.fx("fire", mz.x, mz.y, { mine: false });
         return;
@@ -442,22 +496,30 @@
     };
     return S;
   }
+  // Binary search over the speed at one angle; miss is how far the shell actually lands from aimX.
+  function speedFor(T, mz, ang, aimX, w) {
+    var lo = PANZER.VMIN, hi = PANZER.VSHOT, v = hi, f;
+    for (var it = 0; it < 18; it++) {
+      v = (lo + hi) / 2;
+      f = flight(T, { x: mz.x, y: mz.y, vx: Math.cos(ang) * v, vy: -Math.sin(ang) * v, w: w }, 900);
+      if (f.x < aimX) lo = v; else hi = v;
+    }
+    return { ang: ang, v: v, miss: f.k === "land" ? Math.abs(f.x - aimX) : Infinity };
+  }
   function panzerBot(S, r) {
-    var wait = 1.6 + r() * 1.0, spread = 340, shots = 0, ang = 0;
+    var wait = 1.6 + r() * 1.0, ang = 0;
     return function (dt) {
       wait -= dt; if (wait > 0 || !S.started) return;
       var st = S.st, T = st.T, mz = muzzle(T, true), tgt = tankPos(T, false);
       if (st.reload < 1) return;
-      // Take a steep angle and search the speed whose shell lands at the target plus an error that shrinks shot by shot.
+      // Take a steep angle and search the speed whose shell lands at the target plus an aiming error from the dice
+      // (PANZER.AIM wide, the same on every shot: about one hit in three or four, never adjusted to the score).
+      // With a strong tailwind no speed at that angle may land there (slower shells hit the hill, faster ones blow out
+      // to sea); then it tries other angles, as a player would, and keeps the one that lands closest.
       ang = (48 + r() * 18) * Math.PI / 180;
-      var aimX = tgt.x + (r() - 0.5) * spread, lo = PANZER.VMIN, hi = PANZER.VSHOT, v = hi;
-      for (var it = 0; it < 18; it++) {
-        v = (lo + hi) / 2;
-        var f = flight(T, { x: mz.x, y: mz.y, vx: Math.cos(ang) * v, vy: -Math.sin(ang) * v, w: st.wind }, 900);
-        if (f.x < aimX) lo = v; else hi = v;
-      }
-      S.input({ aim: { vx: Math.cos(ang) * v, vy: -Math.sin(ang) * v }, fire: true });
-      shots++; spread = Math.max(50, 340 * Math.pow(0.72, shots));
+      var aimX = tgt.x + (r() - 0.5) * PANZER.AIM, best = speedFor(T, mz, ang, aimX, st.wind);
+      for (var a = 30; a <= 84 && best.miss > 24; a += 6) { var c = speedFor(T, mz, a * Math.PI / 180, aimX, st.wind); if (c.miss < best.miss) best = c; }
+      S.input({ aim: { vx: Math.cos(best.ang) * best.v, vy: -Math.sin(best.ang) * best.v }, fire: true });
       wait = PANZER.RELOAD + 1.2 + r() * 1.4;
     };
   }

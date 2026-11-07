@@ -3,17 +3,21 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium, devices } = require("playwright");
-const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
+const G = require("./lib/grund.js");
+let page;
+// Web route (lib/grund.js): pages here are reloaded or a device opens several pages; under file:// such a page now and then starts with an empty storage of its own.
+test.before(async () => { page = await G.webUrl("index.html"); });
 const shot = process.env.SHOT_DIR;
 const hash = (u) => "#" + u.split("#")[1];
 
-async function setup() {
+async function setup(o) {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined, args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), errs = [];
   ctx.setDefaultTimeout(15000);
   // macOS gives a headless browser no microphone: a test tone from the audio graph stands in, the recording path stays the real one.
   await ctx.addInitScript(() => { if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = async () => { const a = window.Kit.audio(true), o = a.createOscillator(), d = a.createMediaStreamDestination(); o.connect(d); o.start(); return d.stream; }; });
-  const open = async (h) => { const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e))); await p.goto(page + h); return p; };
+  const base = page;
+  const open = async (h) => { const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e))); await p.goto(base + h); return p; };
   return { b, open, errs };
 }
 const url = (p) => p.evaluate(() => window.DailyDebug.result().url);
@@ -206,7 +210,8 @@ test("Runde im Raum: Verkaufen, Maschine und Such-Zettel laufen bis zum Ergebnis
   const { b, open, errs } = await setup(); const hand = (p) => p.getByRole("button", { name: require("../../src/turn.json").text.de.hand_go }).click();
   const names = async (p) => { const f = p.locator("#panel input.field"); for (let i = 0; i < 3; i++) await f.nth(i).fill(["Ana", "Ben", "Cem"][i]); await next(p); await hand(p); };
   const w = await open("#i=mut-werbung"); await w.locator("#go").click(); await names(w);
-  for (let i = 0; i < 3; i++) { await w.getByRole("button", { name: "Fertig", exact: true }).click(); await hand(w); }
+  // no clock before "Los": the pitch's 30 s start after a tap and 3-2-1 (PLAN D1 Nr. 8)
+  for (let i = 0; i < 3; i++) { await w.getByRole("button", { name: "▶ Los" }).click(); await w.getByRole("button", { name: "Fertig", exact: true }).click(); await hand(w); }
   for (let i = 0; i < 3; i++) { await w.locator("#panel .chip").first().click(); if (i < 2) await hand(w); }
   await w.locator("#panel").getByText("Ana: 2").waitFor();
   const m = await open("#i=raum-maschine"); await m.locator("#go").click(); await names(m);
@@ -296,10 +301,11 @@ test("Stufe 5: Pommes gegen Bot bis zum Ende, Uhr und Pokal messen", async () =>
   }
   await p.locator("#panel").getByText(/Gewonnen|Verloren/).first().waitFor();
   const u = await open("#i=raum-uhr"); await u.locator("#go").click();
-  for (let i = 0; i < 5; i++) { await u.getByRole("button", { name: "Stopp" }).click({ trial: true }); await u.waitForFunction(() => !document.querySelector("#panel .btn.big").disabled); await u.waitForTimeout(600); await u.getByRole("button", { name: "Stopp" }).click(); }
+  // each round starts on a tap, the target stays in sight (PLAN D1 Nr. 8)
+  for (let i = 0; i < 5; i++) { await u.getByRole("button", { name: "▶ Los" }).click(); await u.waitForTimeout(600); await u.getByRole("button", { name: "Stopp" }).click(); }
   await u.locator("#panel").getByText(/im Schnitt|auf den Punkt/).waitFor();
   const k = await open("#i=zug-pokal"); await k.locator("#go").click();
-  for (let i = 0; i < 3; i++) { await k.waitForFunction(() => !document.querySelector("#panel .btn.big").disabled); await k.waitForTimeout(2100); await k.getByRole("button", { name: "Stopp" }).click(); }
+  for (let i = 0; i < 3; i++) { await k.getByRole("button", { name: "▶ Los" }).click(); await k.waitForTimeout(2100); await k.getByRole("button", { name: "Stopp" }).click(); }
   await k.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
@@ -322,7 +328,7 @@ test("Nutzertest: Weiter nach automatischem Weiter zaehlt nicht doppelt, Teilen 
 test("Tuersteher: Wesen an der Tuer, Rein und Raus bis zum Ende", async () => {
   const { b, open, errs } = await setup();
   const p = await open("#i=raum-tuer"); await p.locator("#go").click();
-  await p.locator(".bface").waitFor();
+  await p.getByRole("button", { name: "▶ Los" }).click(); await p.locator(".bface").waitFor();
   for (let i = 0; i < 12; i++) { await p.getByRole("button", { name: i % 2 ? "✋ Raus" : "✅ Rein" }).click(); await p.waitForTimeout(650); }
   await p.locator("#panel").getByText(/Regeln geknackt/).waitFor({ timeout: 70000 }); await p.locator("#panel").getByText(/von \d+ richtig/).waitFor();
   assert.deepEqual(errs, []); await b.close();
@@ -366,7 +372,7 @@ test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswa
   assert.deepEqual(errs, []); await b.close();
 });
 test("Geld einsammeln: Name, Zweck, Personen, Betrag mit Cent; alle oeffnen denselben Link, PayPal-Link nur ab 18", async () => {
-  const { b, open, errs } = await setup();
+  const { b, open, errs } = await setup({ web: true });   // several pages of one device, one of them reloaded
   const a = await open("#i=zug-sammeln"); await a.locator("#go").click();
   const f = a.locator("#panel input.field"), weiter = a.getByRole("button", { name: "Weiter", exact: true });
   await f.fill("max muster"); assert.equal(await weiter.isDisabled(), true);
@@ -527,7 +533,7 @@ test("Profil: Vorgaben als Chips, abwaehlbar, nur lokal; Essen erst ab 16, PayPa
 test("Agent-Duell: nach dem Match steht, warum es so ausging, ohne KI und ohne Netz", async () => {
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE", reducedMotion: "reduce" }), errs = [], hosts = new Set();
-  ctx.setDefaultTimeout(15000); ctx.on("request", (r) => { if (/^https?:/.test(r.url())) hosts.add(new URL(r.url()).host); });
+  ctx.setDefaultTimeout(15000); ctx.on("request", (r) => { if (/^https?:/.test(r.url()) && !G.isLocal(r.url())) hosts.add(new URL(r.url()).host); });   // the page itself comes from the web route
   for (const id of ["duell-ssp", "auktion-socke", "rap-agenten"]) {
     const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e))); await p.goto(page + "#i=" + id);
     await p.locator("#go").click(); await p.locator("#edmain").click();

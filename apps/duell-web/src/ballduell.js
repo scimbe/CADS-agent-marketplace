@@ -43,6 +43,6 @@
   var EMO = ["🦊", "🐢", "🍕", "🚀", "🌵", "🎸", "🐙", "🍩", "⚽", "🦄", "🌈", "🐝", "🍉", "🎈", "🐳", "🥨"];
   function badge(channelHex) { var h = hash32("badge|" + channelHex); return [0, 1, 2].map(function (i) { return EMO[(h >>> (i * 5)) % EMO.length]; }).join(" "); }
 
-  var api = { W: W, H: H, R: R, PW: PW, PY: PY, TOP: TOP, WIN: WIN, V0: V0, VMAX: VMAX, mirror: mirror, serve: serve, step: step, defend: defend, plausiblePaddle: plausiblePaddle, over: over, badge: badge, hash32: hash32 };
+  var api = { W: W, H: H, R: R, PW: PW, PY: PY, TOP: TOP, WIN: WIN, V0: V0, VMAX: VMAX, PMAX: PMAX, mirror: mirror, serve: serve, step: step, defend: defend, plausiblePaddle: plausiblePaddle, over: over, badge: badge, hash32: hash32 };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.Ballduell = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

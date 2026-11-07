@@ -28,11 +28,12 @@
         <div id="hero" class="hero"></div>
         <p id="teaser" class="teaser"></p>
         <p id="from" class="from" hidden></p>
+        <div id="votes" class="votes" role="group" hidden></div>
         <span class="kiseal" role="img" hidden></span>
       </article>
     </div>
     <button id="go" class="press"></button>
-    <div id="homerow"><button id="create" class="createtile" hidden></button><button id="wishgo" hidden></button><button id="livego" hidden></button><button id="kireport" hidden></button></div>
+    <div id="homerow"><button id="create" hidden></button><button id="wishgo" hidden></button><button id="livego" hidden></button><button id="kireport" hidden></button></div>
     <nav id="feat" aria-label="Funktionen"></nav>
     <nav id="tools">
       <button id="more"></button><button id="own"></button><button id="past"></button><button id="wall"></button>
@@ -56,7 +57,7 @@
     <div class="foot col">
       <button id="share" class="press"></button>
       <button id="playit" class="btn" hidden></button>
-      <div class="row"><button id="tostatus" class="btn"></button><button id="tostory" class="btn"></button></div>
+      <details class="more"><summary id="dmore"></summary><div class="row"><button id="tostatus" class="btn"></button><button id="tostory" class="btn"></button></div></details>
       <p id="shnote" class="note"></p>
       <div class="row"><button id="save" class="btn"></button><button id="keep" class="btn"></button><button id="dhome" class="btn"></button></div>
     </div>
@@ -82,6 +83,7 @@
   </section>
   <div id="cosheet" role="dialog" aria-modal="true" aria-labelledby="cotitle" hidden><div id="cobox"><h2 id="cotitle"></h2><p id="cotext"></p><canvas id="coqr" width="330" height="330" aria-label="QR-Code" hidden></canvas><div id="coacts"></div></div></div>
   <div id="toast" role="status"></div>
+  <p id="sr" class="dmsg" aria-live="polite"></p>
 </div>
 <script>/*@DATA@*/</script>
 <script>/*@PARTS@*/</script>

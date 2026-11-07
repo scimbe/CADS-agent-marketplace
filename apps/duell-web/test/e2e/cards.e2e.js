@@ -6,6 +6,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium, devices } = require("playwright");
+const G = require("./lib/grund.js");
 const dist = path.resolve(__dirname, "../../dist");
 const catalog = (f) => { const c = require(f); return c.ideas.concat(c.gated || []).map((i) => i.id); };
 const FLAVORS = [["daily", "index.html", catalog("../../src/ideas.json")], ["business", "business/index.html", catalog("../../src/flavors/business/ideas.json")]];
@@ -20,7 +21,8 @@ for (const [name, file, ids] of FLAVORS) for (const locale of ["de-DE", "en-US"]
       let k = 0;
       for (const id of ids) {
         // a fresh document each time (the query makes it one), so an open table or game from the card before is gone
-        await p.goto("file://" + path.join(dist, file) + "?n=" + (k++) + "#i=" + id);
+        // over the web route (lib/grund.js): one page loaded again and again, under file:// it now and then lost its storage
+        await p.goto((await G.webUrl(file)) + "?n=" + (k++) + "#i=" + id);
         const at = await p.waitForFunction((x) => {
           const h = window.DailyDebug && window.DailyDebug.home();
           if (h && h.idea && h.idea.id === x && h.note) return "sheet";

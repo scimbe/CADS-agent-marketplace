@@ -47,7 +47,7 @@ test("Laufband: steht 3 s, laeuft dann, Beruehrung haelt es dauerhaft an Ort und
   let s = await st();
   assert.equal(s.anim, "none", "steht zuerst"); assert.equal(s.copies, 0, "keine Kopie, solange es steht");
   assert.equal(s.label, "Laufband anhalten"); assert.equal(s.pressed, "false"); assert.ok(s.h >= 44 && s.w >= 44, "Schalter 44 px");
-  await p.clock.runFor(2000); await p.locator("#brand").tap();   // a touch elsewhere starts the 3 s again
+  await p.clock.runFor(2000); await p.keyboard.press("Shift");   // a key starts the 3 s again
   await p.clock.runFor(2500); assert.equal((await st()).anim, "none");
   await p.clock.runFor(1000); s = await st();
   assert.equal(s.anim, "ticker", "laeuft nach 3 s ohne Beruehrung"); assert.equal(s.copies * 2, s.all, "zweite Kopie nur fuers Auge");

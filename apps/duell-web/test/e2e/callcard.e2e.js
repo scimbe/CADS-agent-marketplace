@@ -4,8 +4,11 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium } = require("playwright");
+const G = require("./lib/grund.js");
 
-const PAGE = "file://" + path.join(__dirname, "../../dist/index.html");
+let PAGE;
+// Web route (lib/grund.js): pages here are reloaded or a device opens several pages; under file:// such a page now and then starts with an empty storage of its own. The app shell stays stubbed (DuellHost), the same on either origin.
+test.before(async () => { PAGE = await G.webUrl("index.html"); });
 const shots = process.env.COLLAB_SHOTS;
 const FRAG = "A".repeat(20) + "bC1_".repeat(90), LINK = "https://bunsenbrenner.org/duell#p=" + FRAG;
 const QA = [["Mein Lieblingsessen?", "Käsespätzle"], ["Wie heißt mein Kater?", "Mütze"], ["Wo war ich im Urlaub?", "Am Meer"]];

@@ -9,6 +9,7 @@ var reduce = false, timer = 0, raf = 0, beat = null;
 try { reduce = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
 function title(ed) { return ed.idea ? D.plainTitle((ed.idea[Kit.lang] || ed.idea.de).t) : ""; }
 function nameOf(a, fb) { return a.n || fb || a.e; }
+function sender(doc) { var b = doc.by || [], n = b.length && b[b.length - 1].n; return n || t("friend"); }
 function stopAll() { clearTimeout(timer); clearInterval(timer); cancelAnimationFrame(raf); if (beat) { try { beat.stop(); } catch (e) {} beat = null; } }
 function setTabs(on) { $("tabs").hidden = !on; }
 
@@ -188,7 +189,7 @@ function end(ed, res) {
   if (x.mind) x.verdict = res.sa >= res.sb ? t("mindBeat") : t("mindRead");
   if (x.sa) { x.sa = null; x.sb = null; }
   ed.x = x; stopBeat(); Kit.sfx.win(); A.changed();
-  var p = $("panel"); log(p, x.verdict, "duelres");
+  var p = $("panel"); log(p, x.verdict, "duelres"); Kit.speak(x.verdict);
   if (!x.mind) why(d, res, p);
   var row = el("div", "chips");
   if (d.m === "flappy") row.appendChild(el("button", "chip", t("flyMe", { n: nameOf(d.b) }), function () { flyAgainst(ed); }));
@@ -254,6 +255,7 @@ function share(ed) {
   var d = ed.doc; if (!d.t && ed.idea) { d.t = title(ed).slice(0, 40); ed.base.t = d.t; }
   d.ch = d.m === "deck" ? 0 : 1;
   var doc = D.withTrail(d, A.me().nick, D.changedAreas(ed.base, d)), pic = Object.assign({}, doc, { _x: ed.x });
+  if (!doc.a.n) doc.a.n = C.sanitizeName(A.me().nick);   // the challenge carries my nickname (Einladung mit Gesicht), not an edit of mine
   A.finish(doc, null, pic);
 }
 X.duel = {
@@ -267,12 +269,12 @@ X.duel = {
     if (!ed.x) { Kit.sfx.thud(); start(ed); return; }
     if (ed.x.done) { Kit.sfx.thud(); share(ed); }
   },
-  label: function (doc) { return doc.ch ? { go: t("duelTake"), note: t("duelInvite", { n: nameOf(doc.a, t("someone")) }) } : null; },
+  label: function (doc) { return doc.ch ? { go: t("duelTake"), note: t("duelInvite", { n: nameOf(doc.a, sender(doc)) }) } : null; },
   // A challenge link: the sender's agent becomes the rival, mine comes from my phone.
   incoming: function (doc) {
     if (!doc.ch) return false;
     var me = A.me(), d = D.sanitizeDoc(doc);
-    d.b = doc.a; d.a = Duel.sanitizeAgent(Kit.store.agent, { n: me.nick, e: me.emoji }); d.ch = 0;
+    d.b = Object.assign({}, doc.a, { n: nameOf(doc.a, sender(doc)) }); d.a = Duel.sanitizeAgent(Kit.store.agent, { n: me.nick, e: me.emoji }); d.ch = 0;
     A.openEditor(d, { idea: doc.i ? D.byId(doc.i) : null }); return true;
   }
 };
@@ -291,7 +293,9 @@ function reseal(ed) {
     ed.doc.q0 = (ed.draft.stops[0] && ed.draft.stops[0].q) || ""; ed.doc.c = s ? s.c : []; ed.doc.h0 = s ? s.h0 : ""; A.changed();
   }, 180);
 }
-function safe(ed, set) { return function (v) { var c = Q.clean(v, Q.MAX_Q); if (v && !c) { Kit.toast(t("questBlocked")); return; } set(c); reseal(ed); }; }
+// A blocked answer is not kept: safe answers with the reason, the field goes back to what is kept when it is left (app.js
+// field). What the sender sees is what opens the lock.
+function safe(ed, set) { return function (v) { var c = Q.clean(v, Q.MAX_Q); if (v && !c) return t("questBlocked"); set(c); reseal(ed); }; }
 A.PANEL.Riddle = function (p) {
   var ed = A.ed(), dr = ed.draft, i = Math.min(ed.stop || 0, dr.stops.length - 1), s = dr.stops[i];
   var row = el("div", "chips");
@@ -320,7 +324,7 @@ X.quest = {
     if (!ed.doc.t && ed.idea) { ed.doc.t = title(ed).slice(0, 40); ed.base.t = ed.doc.t; }
     A.finish(D.withTrail(ed.doc, A.me().nick, A.areas()));
   },
-  label: function (doc) { return doc.c.length ? { go: t("questTry"), note: t("questInvite") } : null; },
+  label: function (doc) { return doc.c.length ? { go: t("questTry"), note: t("questInvite", { n: sender(doc) }) } : null; },
   incoming: function (doc) { if (!doc.c.length) return false; solve(doc); return true; }
 };
 function solve(doc) {
@@ -331,15 +335,16 @@ function solve(doc) {
       b.appendChild(el("div", "qlock", doc.e));
       b.appendChild(el("p", "lbl", t("questStep", { n: at + 1, m: total })));
       b.appendChild(el("p", "qtext", q));
-      var f = el("input", "field"); f.maxLength = 24; f.autocomplete = "off"; f.setAttribute("aria-label", t("questAns")); f.placeholder = t("questAns"); b.appendChild(f);
-      var tip = el("p", "note", ""); b.appendChild(tip);
+      var f = el("input", "field"); f.maxLength = 24; f.autocomplete = "off"; f.enterKeyHint = "go"; f.setAttribute("aria-label", t("questAns")); f.placeholder = t("questAns"); b.appendChild(f);
+      f.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); go.click(); } });
+      var tip = el("p", "note", ""); tip.setAttribute("role", "status"); b.appendChild(tip);
       if (wrong >= 2 && h) { var m = h.match(/^(.+?)(\d+)$/); if (m) tip.textContent = t("questTip", { l: m[1], n: m[2] }); }
       var go = el("button", "btn hot", t("questTry"), async function () {
         go.disabled = true; var r = await Q.open(doc.c[at], f.value); go.disabled = false;
         if (r && r.blocked) { done(t("questGone"), false); return; }
-        if (!r) { wrong++; Kit.tone(200, 120, 0.2, "square", 0.08); Kit.haptic(40); tip.textContent = t("questWrong"); if (wrong >= 2) { draw(); } return; }
+        if (!r) { wrong++; Kit.tone(200, 120, 0.2, "square", 0.08); Kit.haptic(40); Kit.speak(t("questWrong")); if (wrong >= 2) draw(); else tip.textContent = t("questWrong"); b.querySelector(".field").focus(); return; }
         wrong = 0; Kit.sfx.pop(); at++;
-        if (r.e) done(r.e, true); else { q = r.q; h = r.h; draw(); }
+        if (r.e) done(r.e, true); else { q = r.q; h = r.h; draw(); b.querySelector(".field").focus(); }
       });
       b.appendChild(go);
     }
