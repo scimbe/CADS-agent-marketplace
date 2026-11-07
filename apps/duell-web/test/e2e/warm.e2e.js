@@ -23,7 +23,8 @@ test("Wohlfuehlkarte: Name rein, zwei Tipps bis Teilen; Empfaenger sieht die Kar
   assert.equal(await s.locator("#go").textContent(), "💛 Karte fertig machen");
   await s.getByLabel("Für wen? (optional)").fill("Lea");
   await s.locator("#go").click();                                                  // Tipp 1: Bild und Link
-  await s.locator("#share").filter({ hasText: "Jetzt teilen" }).waitFor();          // Tipp 2 teilt
+  await s.waitForFunction(() => window.DailyDebug.result() && window.DailyDebug.result().link);   // Tipp 2 teilt; der Knopf heisst weiter "Teilen"
+  assert.equal(await s.locator("#share").textContent(), "Teilen");
   const url = await s.evaluate(() => window.DailyDebug.result().url);
   assert.match(await s.evaluate(() => window.DailyDebug.result().keep.doc.x), /^Lea, ich wollte dir nur mal sagen: Du bist toll\.$/);
 
@@ -44,7 +45,7 @@ test("Wohlfuehlkarte auf Deutsch geschickt, Empfaenger tippt English: der Satz s
   const s = await open("#i=warm-toll");
   await s.getByLabel("Für wen? (optional)").fill("Lea");
   await s.locator("#go").click();
-  await s.locator("#share").filter({ hasText: "Jetzt teilen" }).waitFor();
+  await s.waitForFunction(() => window.DailyDebug.result() && window.DailyDebug.result().link);
   const url = await s.evaluate(() => window.DailyDebug.result().url);
   const r = await open(url.slice(url.indexOf("#")));
   await r.locator("#from").filter({ hasText: "für dich" }).waitFor();

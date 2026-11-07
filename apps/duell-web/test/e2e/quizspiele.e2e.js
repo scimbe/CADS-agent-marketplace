@@ -30,7 +30,8 @@ async function homeFree(p, at) {
 // one colleague plays all ten: answers from `pick(i, isPhish)`, checks each answer screen (the detail marked, the reason)
 async function playPhish(p, pick, at, shots) {
   await p.locator("#go").click();
-  await p.locator("#panel .note", { hasText: /Wer sieht was\?|Who sees what\?/ }).waitFor();
+  await p.locator("#panel .note", { hasText: /Wer sieht was\?|Who sees what\?/ }).first().waitFor();
+  await p.locator("#panel details.more summary").click();   // the rest of the privacy text behind "ⓘ Mehr" (PLAN D1)
   const intro = await p.locator("#panel").innerText();
   assert.match(intro, /Nicht-Teilnahme hat keine Folgen|Not taking part has no consequences/);
   assert.match(intro, /Pflichtschulung|mandatory training/); assert.match(intro, /Betriebsrat|works council/);
@@ -46,7 +47,7 @@ async function playPhish(p, pick, at, shots) {
     assert.equal(await main(p).getAttribute("aria-disabled"), "true", "Weiter gesperrt, bis geantwortet");
     if (i === 0) {
       await main(p).click({ force: true });   // a tap on the locked button says why
-      assert.match(await p.locator("#edwhy").textContent(), /^(Noch offen|Still open): /);
+      await G.poll(() => p.locator("#edwhy").textContent(), (s) => /^(Noch offen|Still open): /.test(s), { what: "Sperrgrund" });   // nudge() empties the line for 60 ms, then says it again
       assert.deepEqual(await G.smallTargets(p, "#panel", 48), [], "Antworten mindestens 48 px: " + at);
       // the answers stay in view while the example is longer than the panel (sticky at its foot)
       await p.waitForTimeout(500);

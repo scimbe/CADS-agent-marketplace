@@ -42,13 +42,15 @@
     var pool = list().filter(function (i) { return i.id !== (doc && doc.i); });
     return pool[Math.floor(rnd() * pool.length)];
   }
+  // The card offered back: from the card that came (sender, text, idea), never Math.random.
+  function answer(doc) { return reply(doc, C.mulberry32(C.hash32("warm|" + (doc.i || "") + "|" + (doc.n || "") + "|" + (doc.x || "")))); }
   function cardFor(idea, who, me, lang) {
     var d = D.docFromIdea(idea, me, lang);
     d.x = named(d.x, who); if (me.nick) d.n = me.nick;
     return D.sanitizeDoc(d);
   }
 
-  var api = { MOTIFS: MOTIFS, MAX_NAME: MAX_NAME, list: list, motif: motif, is: is, name: name, named: named, sender: sender, reply: reply, cardFor: cardFor };
+  var api = { MOTIFS: MOTIFS, MAX_NAME: MAX_NAME, list: list, motif: motif, is: is, name: name, named: named, sender: sender, reply: reply, answer: answer, cardFor: cardFor };
   if (node) { module.exports = api; return; }
   root.Warm = api;
 
@@ -153,7 +155,7 @@
   function start(h, tabName) {
     var A = app(), me = A.me();
     if (h.doc && h.note && is(h.doc) && !tabName) {
-      A.sheet({ date: h.date, idea: reply(h.doc, Math.random), to: sender(h.doc) });
+      A.sheet({ date: h.date, idea: answer(h.doc), to: sender(h.doc) });
       return true;
     }
     if (!h.idea || h.doc || !is(h.idea)) return false;

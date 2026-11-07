@@ -210,7 +210,8 @@ test("Runde im Raum: Verkaufen, Maschine und Such-Zettel laufen bis zum Ergebnis
   const { b, open, errs } = await setup(); const hand = (p) => p.getByRole("button", { name: require("../../src/turn.json").text.de.hand_go }).click();
   const names = async (p) => { const f = p.locator("#panel input.field"); for (let i = 0; i < 3; i++) await f.nth(i).fill(["Ana", "Ben", "Cem"][i]); await next(p); await hand(p); };
   const w = await open("#i=mut-werbung"); await w.locator("#go").click(); await names(w);
-  for (let i = 0; i < 3; i++) { await w.getByRole("button", { name: "Fertig", exact: true }).click(); await hand(w); }
+  // no clock before "Los": the pitch's 30 s start after a tap and 3-2-1 (PLAN D1 Nr. 8)
+  for (let i = 0; i < 3; i++) { await w.getByRole("button", { name: "▶ Los" }).click(); await w.getByRole("button", { name: "Fertig", exact: true }).click(); await hand(w); }
   for (let i = 0; i < 3; i++) { await w.locator("#panel .chip").first().click(); if (i < 2) await hand(w); }
   await w.locator("#panel").getByText("Ana: 2").waitFor();
   const m = await open("#i=raum-maschine"); await m.locator("#go").click(); await names(m);
@@ -300,10 +301,11 @@ test("Stufe 5: Pommes gegen Bot bis zum Ende, Uhr und Pokal messen", async () =>
   }
   await p.locator("#panel").getByText(/Gewonnen|Verloren/).first().waitFor();
   const u = await open("#i=raum-uhr"); await u.locator("#go").click();
-  for (let i = 0; i < 5; i++) { await u.getByRole("button", { name: "Stopp" }).click({ trial: true }); await u.waitForFunction(() => !document.querySelector("#panel .btn.big").disabled); await u.waitForTimeout(600); await u.getByRole("button", { name: "Stopp" }).click(); }
+  // each round starts on a tap, the target stays in sight (PLAN D1 Nr. 8)
+  for (let i = 0; i < 5; i++) { await u.getByRole("button", { name: "▶ Los" }).click(); await u.waitForTimeout(600); await u.getByRole("button", { name: "Stopp" }).click(); }
   await u.locator("#panel").getByText(/im Schnitt|auf den Punkt/).waitFor();
   const k = await open("#i=zug-pokal"); await k.locator("#go").click();
-  for (let i = 0; i < 3; i++) { await k.waitForFunction(() => !document.querySelector("#panel .btn.big").disabled); await k.waitForTimeout(2100); await k.getByRole("button", { name: "Stopp" }).click(); }
+  for (let i = 0; i < 3; i++) { await k.getByRole("button", { name: "▶ Los" }).click(); await k.waitForTimeout(2100); await k.getByRole("button", { name: "Stopp" }).click(); }
   await k.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
@@ -326,7 +328,7 @@ test("Nutzertest: Weiter nach automatischem Weiter zaehlt nicht doppelt, Teilen 
 test("Tuersteher: Wesen an der Tuer, Rein und Raus bis zum Ende", async () => {
   const { b, open, errs } = await setup();
   const p = await open("#i=raum-tuer"); await p.locator("#go").click();
-  await p.locator(".bface").waitFor();
+  await p.getByRole("button", { name: "▶ Los" }).click(); await p.locator(".bface").waitFor();
   for (let i = 0; i < 12; i++) { await p.getByRole("button", { name: i % 2 ? "✋ Raus" : "✅ Rein" }).click(); await p.waitForTimeout(650); }
   await p.locator("#panel").getByText(/Regeln geknackt/).waitFor({ timeout: 70000 }); await p.locator("#panel").getByText(/von \d+ richtig/).waitFor();
   assert.deepEqual(errs, []); await b.close();
