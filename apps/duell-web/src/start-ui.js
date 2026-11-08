@@ -126,6 +126,9 @@
     var slot = $("startslot"); if (slot) slot.replaceWith(box); else $("homerow").after(box);
     micCheck(mic);
     openAll(!!Kit.store.alle, true);
+    // the start page scrolls: a field that gets the focus comes into sight (the keyboard covers the lower half), as the
+    // scrolling sheet does it (app.js, .roll)
+    $("home").addEventListener("focusin", function (e) { if (this.classList.contains("neu") && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) e.target.scrollIntoView({ block: "nearest" }); });
     return box;
   }
   // Open or closed is remembered on this device only (a convenience, not a setting): whoever opened it once finds it open.
