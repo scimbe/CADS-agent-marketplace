@@ -12,8 +12,10 @@ test("Golden-Links: jede Kartenart, mit Stickern, Wetter, Tuer, Siegel, eigenem 
   const kinds = new Set();
   for (const g of G.links) {
     const r = D.parseRoute(g.hash);
-    assert.equal(r && r.type, "doc", g.name); assert.deepEqual(r.doc, g.doc, g.name); kinds.add(g.doc.k);
-    const again = D.docUrl(r.doc); assert.deepEqual(D.parseRoute(again.slice(again.indexOf("#"))).doc, g.doc, g.name + ": wieder geteilt bleibt es gleich");
+    // a card merged into another (D.MOVED, e.g. the three voice cards into "stimme-verzerren") reads as the new card, the rest as it was
+    const want = D.MOVED[g.doc.i] ? Object.assign({}, g.doc, { i: D.MOVED[g.doc.i][0] }) : g.doc;
+    assert.equal(r && r.type, "doc", g.name); assert.deepEqual(r.doc, want, g.name); kinds.add(g.doc.k);
+    const again = D.docUrl(r.doc); assert.deepEqual(D.parseRoute(again.slice(again.indexOf("#"))).doc, want, g.name + ": wieder geteilt bleibt es gleich");
   }
   for (const k of D.KINDS.filter((k) => k !== "table")) assert.ok(kinds.has(k), "Art " + k);
   assert.ok(!("tp" in G.links.find((g) => g.name === "card:unknown-keys").doc), "unbekannter Schluessel faellt weg");
