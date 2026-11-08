@@ -388,9 +388,11 @@
   // Until OLD_UNTIL an app from before the touching figure and the game time were sent along (no fx, no gt) still has
   // its moves taken as it made them: its figure walked up to FIG_OLD, the short rest of a frame gave its bump any push,
   // and its bigger frame steps bounce off the net where this one does not. So for it only where the ball and its
-  // figure met counts, not how - no better guarded than before these checks. Two weeks after the release of
-  // 2026-11-08; from then on its moves must fit the same bounds as everyone's.
-  var OLD_UNTIL = Date.UTC(2026, 10, 22);
+  // figure met counts, not how - no better guarded than before these checks. From OLD_UNTIL on its moves must fit the
+  // same bounds as everyone's. The Android app bundles this page and does not update itself (0.3.4/0.3.5 have the
+  // older moves), so OLD_UNTIL is set only with the Android release that carries these checks: its release date plus
+  // two weeks (as Date.UTC(...), in the commit that raises versionName). Until then null: no end to the period.
+  var OLD_UNTIL = null;
   var OLD_SLACK = 10, OLD_NET = 130;   // its reach a little further (frames up to 34 ms); off the net only within 130 of the path
   var HIT_T = 0.1, GT_LEAD = 0.6;   // seconds from the last position report to a hit, at most: a report beat and a frame at 30 fps
   var VFALL = Math.sqrt(VOLLEY.VMAX * VOLLEY.VMAX + 2 * VOLLEY.G * VOLLEY.FY);   // a ball may fall faster than any hit sends it
@@ -403,7 +405,8 @@
   }
   function volleySide(o) {
     var V = VOLLEY, S = base(V, o), aim = 250, jump = false, ground = V.FY - V.PRAD, pAt = null, path = [], fxSeen = false;
-    var oldOk = (num(o.date) ? o.date : Date.now()) < OLD_UNTIL;
+    var until = num(o.oldUntil) ? o.oldUntil : OLD_UNTIL;   // o.oldUntil, o.date: a test sets the end of the period and the day
+    var oldOk = until === null || (num(o.date) ? o.date : Date.now()) < until;
     function lax() { return oldOk && !fxSeen && !gtSeen; }   // the other one may be an older app
     // From every state of the ball the other phone moves, this one works out its free flight for the next seconds with
     // the same physics. A state from over there has to lie on that path (a hit only near it, and in reach of the

@@ -1,5 +1,9 @@
 const test = require("node:test"), assert = require("node:assert/strict");
 const A = require("../src/arcade2.js");   // loads arcade.js and adds the six further duels
+// The period for an older app ends at OLD_UNTIL, set with the next Android release: these tests take its end as
+// 2026-11-22 and, unless they set o.date, a day within it, so they give the same result on every day.
+const CUT = Date.UTC(2026, 10, 22), sideOn = A.side;
+A.side = (g, o) => sideOn(g, Object.assign({ oldUntil: CUT, date: Date.UTC(2026, 10, 10) }, o));
 
 // Two bots play a whole game over a pipe; lag holds every message back that many frames (6 frames = 100 ms).
 function play(g, seed, lag, max) {
@@ -430,10 +434,14 @@ test("Volley: eine aeltere App ohne Figur im Treffer hat bis zur Uebergangsfrist
     S.receive({ t: "p", x: 700, y }); S.receive({ t: "st", b: b0 });
     S.receive(withFx ? { t: "hit", b: q, fx: 700, fy: y } : { t: "hit", b: q }); return S.rejected;
   };
-  const before = Date.UTC(2026, 10, 21, 23, 59), after = Date.UTC(2026, 10, 22);   // OLD_UNTIL: 2026-11-22 00:00 UTC
+  const before = CUT - 60000, after = CUT;   // the end of the period, as these tests take it
   assert.equal(run(before, false), 0, "vor der Frist: ohne Figur so angenommen, wie die alte App es machte");
   assert.equal(run(after, false), 1, "ab der Frist: dieselbe Grenze wie fuer alle");
   assert.equal(run(before, true), 1, "wer die Figur mitschickt, ist eine neue App: die strenge Grenze gilt sofort");
+  // OLD_UNTIL itself is set only with the Android release that carries these checks: until then the period has no end
+  const S0 = sideOn("volley", { seed: "o", serving: false, clock: () => 0, date: Date.UTC(2030, 0, 1) }); S0.start();
+  S0.receive({ t: "p", x: 700, y }); S0.receive({ t: "st", b: b0 }); S0.receive({ t: "hit", b: q });
+  assert.equal(S0.rejected, 0, "ohne gesetztes OLD_UNTIL: auch 2030 noch wie die alte App es machte");
   // in the period only where it touched counts, upwards and lively (as every bump leaves): any such push is taken then
   const odd = Object.assign({}, q, { vx: 900, vy: -1000 });
   const run2 = (date, b) => {
