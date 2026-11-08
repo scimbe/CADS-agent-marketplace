@@ -164,7 +164,7 @@ test("Ethik-Audit: ohne 16+-Erklaerung kein Formular; Notschalter sagt freundlic
 });
 
 test("Kein Alkohol auf Karten: der Server laesst das Getraenk weg (note drinks), die Vorschau sagt es einmal; ohne note kein Hinweis", async () => {
-  for (const note of [["drinks", "days:14", "people:4", "money18", "nosend", "async", "x:9"], "drinks", undefined]) {
+  for (const note of [["drinks", "days:14", "people:4", "money18", "nosend", "async", "duel", "x:9"], "drinks", undefined]) {
     const doc = { k: "card", col: ["#ffd400", "#ff3b1d"], by: [], t: "Chorprobe", x: "Chorprobe am Freitag, danach gemütliches Beisammensein.", st: "herz", sk: [] };
     const { p, errs } = await phone((p0) => {
       if (p0 === "ai/status") return [200, { meter: METER, create: CREATE(5) }];
@@ -184,6 +184,7 @@ test("Kein Alkohol auf Karten: der Server laesst das Getraenk weg (note drinks),
     assert.equal(await p.getByText("Geld sammeln geht erst ab 18, deshalb plant diese Karte das Geschenk ohne Geld.").count(), Array.isArray(note) ? 1 : 0);
     assert.equal(await p.getByText("Die App schreibt niemandem selbst: Du teilst den Link.").count(), Array.isArray(note) ? 1 : 0);
     assert.equal(await p.getByText("Diese Karte läuft per Link, ein Zug nach dem anderen, nicht gleichzeitig live.").count(), Array.isArray(note) ? 1 : 0);
+    assert.equal(await p.getByText("Ein Duell zu zweit bringt sein eigenes Spiel mit, dein Thema steht nicht auf der Karte.").count(), Array.isArray(note) ? 1 : 0);
     assert.equal(await p.locator(".createpv ~ p.note, p.note").filter({ hasText: "x:9" }).count(), 0);
     assert.deepEqual(errs, []); await p.context().close();
   }
