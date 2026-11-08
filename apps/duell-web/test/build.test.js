@@ -47,11 +47,14 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
     for (const d of p.d) assert.ok(man[d], "Abhaengigkeit " + d);
     sum += body.length;
   }
-  // 1.6 MiB (was 1.5 MiB until #174): the part noto (Noto Emoji for stickers in the picture, about 110 KB) is not in the
-  // web's idle preload (src/parts.js, checked below and in test/e2e/parts.e2e.js), only people with stickers load it, and
-  // the core stays under its own budget (700 KiB above, 716 800 B in test/quizspiele.test.js). Without that, back to 1.5.
-  assert.ok(Buffer.byteLength(html) + sum < 1.6 * 1024 * 1024, "Kern + Teile: " + (Buffer.byteLength(html) + sum));
-  assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(n !== "noto"\) need\(n\)/, "noto nicht im Leerlauf-Vorladen");
+  // 1.75 MiB (was 1.6 MiB until #183, 1.5 MiB until #174). The sum grows with parts that only some people open: noto (Noto
+  // Emoji for stickers in the picture, about 110 KB) and dart (the dartboard, about 50 KB). Neither is in the web's idle
+  // preload (src/parts.js, checked below and in test/e2e/parts.e2e.js): noto comes with the first sticker, dart with a dart
+  // card or link, so a visitor who opens neither never downloads them. With #180-#183 together the sum was 1 696 049 B,
+  // over 1.6 MiB; the core keeps its own budget (700 KiB above, 716 800 B in test/quizspiele.test.js). A large part that
+  // would be preloaded on idle does not get this room: then back to 1.6 MiB.
+  assert.ok(Buffer.byteLength(html) + sum < 1.75 * 1024 * 1024, "Kern + Teile: " + (Buffer.byteLength(html) + sum));
+  assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(n !== "noto" && n !== "dart"\) need\(n\)/, "noto und dart nicht im Leerlauf-Vorladen");
   // Each part runs where it ran inside the page: the module code, not a stand-in. Spot checks on what moved.
   const part = (n) => fs.readFileSync(path.join(path.dirname(dist), man[n].f), "utf8");
   assert.match(part("play"), /window\.ArcadeUI = \{/); assert.match(part("play"), /window\.LiveUI = \{/);

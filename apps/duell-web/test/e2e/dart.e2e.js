@@ -64,6 +64,12 @@ async function turn(ctx, where, o, bad) {
   }
   await p.getByRole("button", { name: L.da_open, exact: true }).click();
   await p.locator(".daov[role=dialog]").waitFor();
+  assert.ok(await G.inView(p, "#dapw") && await G.inView(p, "#dathrow"), "Kraft starten und Werfen ohne Scrollen sichtbar");
+  if (o.first) {
+    // a tap is no throw: a fixed power by a quick click does not exist
+    const b = await p.locator(".dacv").boundingBox(); await p.mouse.click(b.x + b.width / 2, b.y + b.height / 3);
+    await p.locator("#dasay").getByText(L.da_quick).waitFor(); assert.equal(await shown(p), 0);
+  }
   if (o.shots) { await p.waitForTimeout(150); await snap(p, o.shots + "-scheibe"); }
   const said = await mouseTurn(p, o);
   said.forEach((s, i) => assert.match(s, i === said.length - 1 ? (ctx.lang === "de" ? /^Deine Aufnahme: .+ (= \d+ Punkte?|überworfen, zurück auf \d+)$|gewinnt!$/ : /^Your turn: .+ (= \d+ points?|bust, back to \d+)$|wins!$/)
@@ -107,7 +113,7 @@ test("Dart 301 per Link: A wirft per Maus und schickt, B wirft und schickt zurue
     await b.close();
     let who = [ben, ana], n = 1, last = r;
     while (!last.g.over) {
-      assert.ok(n < 20, "spaetestens nach zehn Runden ist Schluss");
+      assert.ok(n < 2 * M.ROUNDS, "spaetestens nach " + M.ROUNDS + " Runden ist Schluss");
       const ctx = who[(n + 1) % 2];
       last = await turn(ctx, hash(last.url), { calm: n > 1, shots: n === 1 ? "b-en-zoom200" : null, axe: n === 1 ? "B en 200%" : null }, bad);
       if (n === 1) assert.equal(last.g.turns.length, 2);
@@ -116,7 +122,7 @@ test("Dart 301 per Link: A wirft per Maus und schickt, B wirft und schickt zurue
     }
     // the last thrower's main button made the result picture: the board with the darts, the result as headline
     const g = last.g, res = Tn.result(docOf(last.url), last.p.context().lang);
-    assert.ok(g.over && (g.capped || g.turns[g.turns.length - 1].out), "301 vorbei: ausgecheckt oder zehn Runden");
+    assert.ok(g.over && (g.capped || g.turns[g.turns.length - 1].out), "301 vorbei: ausgecheckt oder letzte Runde");
     assert.equal(last.over, X[last.p.context().lang].da_send, "auch der letzte Wurf geht als Link");
     assert.ok(await last.p.locator("#doneimg").evaluate((i) => i.complete && i.naturalWidth === 1080 && i.naturalHeight === 1350));
     assert.equal(await last.p.evaluate(() => !!window.DailyDebug.result().doc.ki), false, "nicht per KI erstellt: kein KI-Hinweis");
@@ -162,10 +168,14 @@ test("Dart nur mit Tastatur gegen Bert (reduzierte Bewegung): Pfeiltasten, Leert
     await darts(1);
     assert.match(await p.locator("#dasay").textContent(), /^((Single|Double|Triple) \d+|Bull 25|Bullseye|Daneben), \d+ Punkte?$/);
     // the list "Aim at" and the power button, as a switch would use them
+    // without any timing (switch): "Aim at", the power slider in steps, "Throw"
     await p.locator("#daaim").focus(); await p.locator("#daaim").selectOption("t20");
-    await p.locator("#dapw").focus(); await p.keyboard.press("Enter"); await p.waitForTimeout(900); await p.keyboard.press("Enter");
+    await p.locator("#dalv").focus(); await p.keyboard.press("Home"); for (let i = 0; i < 4; i++) await p.keyboard.press("ArrowRight");
+    assert.equal(await p.locator("#dalv").getAttribute("aria-valuetext"), L.da_lv_mid);
+    await p.locator("#dathrow").focus(); await p.keyboard.press("Enter");
     await darts(2);
-    await p.locator(".dacv").focus(); await p.keyboard.press("Enter"); await p.waitForTimeout(900); await p.keyboard.press("Enter");
+    assert.equal(await p.locator("#dalv").getAttribute("aria-valuetext") !== null, true);
+    await p.locator("#dapw").focus(); await p.keyboard.press("Enter"); await p.waitForTimeout(900); await p.keyboard.press("Enter");
     await darts(3);
     // Bert throws his three after a short look, each one said
     await G.poll(() => shown(p), (v) => v >= 6, { what: "Bert" });
@@ -224,3 +234,25 @@ for (const view of ["phone328", "phone390", "zoom200"]) {
     } finally { await br.close(); }
   });
 }
+
+test("Dart: ein Link, der meine eigenen Wuerfe umschreibt, wird nicht gewertet", async () => {
+  const br = await G.launch();
+  try {
+    const [ana, ben] = await G.people(br, 2, { lang: "de", view: "phone390", web: true });
+    const r = await turn(ana, "#i=spiel-dart", { first: true }, []);
+    // B "answers" with a link whose first turn is not A's: all misses, then his own three darts
+    const d = docOf(r.url), g = r.g, seed = d.seed, bad = M.head("a", false) + [0, 1, 2].map(() => M.enc(M.dart(1.9, 1.9, M.MID))).join("") + [0, 1, 2].map(() => M.enc(M.dart(0, -0.6, M.MID))).join("");
+    const forged = Object.assign({}, d, { q: Tn.seal([[[bad, 180, ["", "Ben"]]]], seed) });
+    assert.equal(Tn.moves(forged).length, 1, "fuer sich ein gueltiger Spielstand");
+    const u = D.docUrl(forged), a2 = await G.open(ana, hash(u));
+    await a2.locator("#go").click();
+    await a2.locator("#panel .dawarn").getByText(X.de.da_foreign).waitFor();
+    assert.equal(await a2.getByRole("button", { name: X.de.da_open, exact: true }).count(), 0, "kein Weiterwerfen auf dem fremden Stand");
+    // the own standing counts: A's 3 darts as sent
+    await a2.locator("#panel").getByText(M.stand(g, 0, "de", ["", ""], 0)).waitFor();
+    // the same link on another phone (B never sent anything for this game) is just a game
+    const b = await G.open(ben, hash(u)); await b.locator("#go").click(); await b.getByRole("button", { name: X.de.da_open, exact: true }).waitFor();
+    assert.equal(await b.locator("#panel .dawarn").count(), 0);
+    for (const p of [a2, b]) assert.deepEqual(p.errs, []);
+  } finally { await br.close(); }
+});

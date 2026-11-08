@@ -1,22 +1,25 @@
 /* Dart (spiel-dart): a real dartboard, by link or against the bot Bert. Part "dart" (scripts/build.js); logic only, no
    DOM, the screen is dart-ui.js. The rule joins the turn table (Turns.GAMES) like malrat.js.
    No score ever stands in the link: a move says what the hand did, and every phone that opens it counts the hits again.
-   A move is  [darts, claim]
+   A move is  [darts, claim, names]
      darts  base64url, the whole game so far (snap: the link holds only the latest move, which carries every dart):
               2 characters header  mode (a 301 double out, b 301 for beginners without double out, c Around the Clock 1-20,
                                    d highest score in 3 rounds) and opponent (l by link, b against the bot Bert)
-              6 characters a dart  aim x, aim y (2 each: 0..4095, thousandths of the board's radius around 2048),
-                                   power (0..63, 32 flies straight), moment (0..63, the step of the hand's wobble)
+              5 characters a dart  aim x, aim y (2 each: 0..4095, thousandths of the board's radius around 2048),
+                                   power (one of 9 steps, 0..8; 4 flies straight)
             Against the bot only the person's darts stand there: Bert's come from the seed, like everything else.
      claim  the points the thrower's screen showed for the last turn (against the bot: all of the person's points). It is
             never counted; the phone that opens the link counts again and says when the two differ.
-   Where a dart lands: aim + wobble (seed, dart number, moment) + power (too strong flies high, too weak low) + a small
-   scatter (seed, dart number). Only + - * / on literals and an integer sine table, no Math.sin: every phone gets the
-   same numbers. There is no steered difficulty: the hand, the scatter and Bert's hand never change with the score. */
+     names  the two nicknames ("" when none), each thrower fills in their own; the other one stays as it was
+   Where a dart lands: aim + power (each step off the middle about 9 mm too high or too low) + the hand's scatter from the
+   seed and the dart number (about 15 mm either way: a pub player, not a pro). The moment of the throw changes nothing:
+   the wobbling crosshair only shows how far the hand drifts, so no timing helps, with or without motion. Only + - * / on
+   literals and an integer sine table, no Math.sin: every phone gets the same numbers. There is no steered difficulty:
+   the scatter and Bert's hand never change with the score. */
 (function (root) {
   "use strict";
   var node = typeof module !== "undefined" && module.exports;
-  var Tn = node ? require("./turns.js") : root.Turns, C = node ? require("./core.js") : root.DuellCore;
+  var Tn = node ? require("./turns.js") : root.Turns, C = node ? require("./core.js") : root.DuellCore, Q = node ? require("./quest.js") : root.Quest;
   var DATA = node ? require("./dart.json") : root.DartData;
   var ABC = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
   // the numbers clockwise from the top
@@ -28,8 +31,9 @@
   var W16 = [0, 98, 195, 290, 383, 471, 556, 634, 707, 773, 831, 882, 924, 957, 981, 995, 1000];
   // the rings of a tournament board in mm; the outer edge of the double ring (170 mm) is 1
   var MM = 170, BULL = 6.35 / MM, OUTER = 15.9 / MM, T_IN = 99 / MM, T_OUT = 107 / MM, D_IN = 162 / MM;
-  var KIND = { a: "x01", b: "x01", c: "atc", d: "high" }, MODES = ["a", "b", "c", "d"], START = 301, ROUNDS = 10, HIGH = 3;
-  var WOB = 0.055, POWER = 0.0115, SCAT = 0.04, STEPS = 64, STEP_MS = 70, MAXLEN = 2 + 6 * 3 * ROUNDS * 2;
+  var KIND = { a: "x01", b: "x01", c: "atc", d: "high" }, MODES = ["a", "b", "c", "d"], START = 301, ROUNDS = 12, HIGH = 3;
+  // SCAT: the spread of one axis (Irwin-Hall of 4, scaled to that standard deviation), 0.09 = 15 mm; LEVELS power steps
+  var WOB = 0.09, POWER = 0.055, SCAT = 0.09, LEVELS = 9, MID = 4, STEPS = 64, STEP_MS = 70, NAME = 12, MAXLEN = 2 + 5 * 3 * ROUNDS * 2;
   var RADIUS = { s: (T_OUT + D_IN) / 2, i: (OUTER + T_IN) / 2, t: (T_IN + T_OUT) / 2, d: (D_IN + 1) / 2 };
 
   Object.keys(DATA.text).forEach(function (l) { Object.assign(Tn.T(l), DATA.text[l]); });
@@ -68,39 +72,49 @@
 
   // ---------- the hand ----------
   function w64(i) { i = ((i % 64) + 64) % 64; var q = i >> 4, r = i & 15; return (q === 0 ? W16[r] : q === 1 ? W16[16 - r] : q === 2 ? -W16[r] : -W16[16 - r]) / 1000; }
-  // dart number k of the game (both players counted, Bert too): the phase of its wobble and its scatter
+  // dart number k of the game (both players counted, Bert too): its scatter, the phase of the crosshair's wobble on screen
+  // and the power step the power bar starts on (so it never stands on the middle by itself)
+  var IH = SCAT / 0.5773502691896258;
   function hand(seed, k) {
     var r = rng(seed + "|" + k), ph = [0, 0, 0, 0].map(function () { return Math.floor(r() * STEPS); });
-    return { ph: ph, sx: (r() + r() + r() + r() - 2) * SCAT, sy: (r() + r() + r() + r() - 2) * SCAT };
+    return { ph: ph, sx: (r() + r() + r() + r() - 2) * IH, sy: (r() + r() + r() + r() - 2) * IH, lv: Math.floor(r() * LEVELS) };
   }
-  // where the hand has drifted at moment t (0..63; between two steps the screen draws the line between them)
+  // where the crosshair drifts on screen at moment t (0..63; between two steps the line between them): only a picture of
+  // the hand, the throw does not depend on it
   function wobble(h, t) {
     if (t !== Math.floor(t)) { var a = wobble(h, Math.floor(t)), b = wobble(h, Math.floor(t) + 1), f = t - Math.floor(t); return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; }
     return [WOB * (0.6 * w64(3 * t + h.ph[0]) + 0.4 * w64(7 * t + h.ph[1])), WOB * (0.6 * w64(2 * t + h.ph[2]) + 0.4 * w64(5 * t + h.ph[3]))];
   }
+  // The power bar while held (pointer) or after the space bar (keyboard): the same pendulum for every input, one step every
+  // SWING ms, up to the strongest step and back down without stopping at either end, from the step this dart starts on
+  // (hand().lv, from the seed: a quick tap gives no fixed step). ms: how long it has swung.
+  var SWING = 160, QUICK = 150;
+  function swing(lv, ms) { var n = 2 * (LEVELS - 1), i = ((lv + Math.floor(Math.max(0, ms) / SWING)) % n + n) % n; return i < LEVELS ? i : n - i; }
   function aimOf(d) { return [(d.ax - 2048) / 1000, (d.ay - 2048) / 1000]; }
   function grid(v) { return Math.max(0, Math.min(4095, Math.round(v * 1000) + 2048)); }
   // a dart's landing: { x, y, n, m, p, d (the input) }
   function land(seed, k, d) {
-    var h = hand(seed, k), w = wobble(h, d.t), a = aimOf(d), x = a[0] + w[0] + h.sx, y = a[1] + w[1] - (d.p - 32) * POWER + h.sy, s = score(x, y);
+    var h = hand(seed, k), a = aimOf(d), x = a[0] + h.sx, y = a[1] - (d.p - MID) * POWER + h.sy, s = score(x, y);
     return { x: x, y: y, n: s.n, m: s.m, p: s.p, d: d };
   }
 
   // ---------- the link's characters ----------
-  function enc(d) { return ABC[d.ax >> 6] + ABC[d.ax & 63] + ABC[d.ay >> 6] + ABC[d.ay & 63] + ABC[d.p] + ABC[d.t]; }
+  function enc(d) { return ABC[d.ax >> 6] + ABC[d.ax & 63] + ABC[d.ay >> 6] + ABC[d.ay & 63] + ABC[d.p]; }
   function dec(s) {
-    if (typeof s !== "string" || s.length % 6) return null;
+    if (typeof s !== "string" || s.length % 5) return null;
     var out = [];
-    for (var i = 0; i < s.length; i += 6) {
-      var c = []; for (var j = 0; j < 6; j++) { var v = ABC.indexOf(s[i + j]); if (v < 0) return null; c.push(v); }
-      out.push({ ax: c[0] * 64 + c[1], ay: c[2] * 64 + c[3], p: c[4], t: c[5] });
+    for (var i = 0; i < s.length; i += 5) {
+      var c = []; for (var j = 0; j < 5; j++) { var v = ABC.indexOf(s[i + j]); if (v < 0) return null; c.push(v); }
+      if (c[4] >= LEVELS) return null;
+      out.push({ ax: c[0] * 64 + c[1], ay: c[2] * 64 + c[3], p: c[4] });
     }
     return out;
   }
-  function dart(ax, ay, p, t) { return { ax: grid(ax), ay: grid(ay), p: Math.max(0, Math.min(63, Math.round(p))), t: ((Math.round(t) % STEPS) + STEPS) % STEPS }; }
+  function dart(ax, ay, p) { return { ax: grid(ax), ay: grid(ay), p: Math.max(0, Math.min(LEVELS - 1, Math.round(p))) }; }
   function head(mode, bot) { return mode + (bot ? "b" : "l"); }
 
-  // ---------- Bert, the bot: a fixed hand, aims like a pub regular, never adapts to the score ----------
+  // ---------- Bert, the bot: a pub regular. The same scatter as everybody, aims like a regular, gets the power step wrong
+  // now and then (2 in 5 darts one step off), and never adapts to the score ----------
   function aimFor(g, p) {
     if (g.kind === "atc") return { n: g.next[p], r: "s" };
     if (g.kind === "high") return { n: 20, r: "t" };
@@ -118,8 +132,8 @@
     return L % 2 === 0 ? { n: L / 2, r: "d" } : { n: 1, r: "s" };
   }
   function botDart(seed, k, at) {
-    var r = rng("bert|" + seed + "|" + k), c = centre(at.n, at.r), t = Math.floor(r() * STEPS), p = 32 + (r() + r() + r() - 1.5) * 7;
-    return dart(c[0], c[1], p, t);
+    var r = rng("bert|" + seed + "|" + k), c = centre(at.n, at.r), u = r();
+    return dart(c[0], c[1], u < 0.2 ? MID - 1 : u < 0.4 ? MID + 1 : MID);
   }
 
   // ---------- the game: every turn worked out again from the darts ----------
@@ -128,7 +142,7 @@
   function sim(seed, s) {
     if (typeof s !== "string" || s.length < 2 || s.length > MAXLEN || !KIND[s[0]] || "lb".indexOf(s[1]) < 0) return null;
     var ds = dec(s.slice(2)); if (!ds) return null;
-    var g = { mode: s[0], kind: KIND[s[0]], bot: s[1] === "b", left: [START, START], next: [1, 1], total: [0, 0], turns: [], k: 0, over: false, win: -1, capped: false, partial: false, extra: false }, i = 0;
+    var g = { mode: s[0], kind: KIND[s[0]], bot: s[1] === "b", left: [START, START], next: [1, 1], total: [0, 0], done: [0, 0], turns: [], k: 0, over: false, win: -1, capped: false, partial: false, extra: false }, i = 0;
     while (!g.over) {
       var p = g.turns.length % 2, bert = g.bot && p === 1;
       if (!bert && i >= ds.length) break;
@@ -147,11 +161,17 @@
         var L = g.left[p] - h.p;
         if (L < 0 || (g.mode === "a" && (L === 1 || (L === 0 && h.m !== 2)))) { t.bust = true; t.pts = 0; g.left[p] = t.from; break; }
         g.left[p] = L; t.pts += h.p;
-        if (!L) { t.out = true; g.over = true; g.win = p; break; }
+        if (!L) { t.out = true; g.done[p] = g.k; break; }
       } else if (g.kind === "atc") {
         if (h.n === g.next[p]) { h.ok = true; g.next[p]++; t.pts++; }
-        if (g.next[p] > 20) { t.out = true; g.over = true; g.win = p; break; }
+        if (g.next[p] > 20) { t.out = true; g.done[p] = g.k; break; }
       } else { g.total[p] += h.p; t.pts += h.p; }
+    }
+    // Both always get as many turns (301 and Around the Clock): whoever starts and finishes first waits for the other's turn
+    // of that round; if both finish in it, fewer darts win, the same number is a draw. Starting is no advantage.
+    if (g.turns.length % 2 === 0 && (g.done[0] || g.done[1])) {
+      var d0 = g.done[0] ? darts(g, 0) : 1e9, d1 = g.done[1] ? darts(g, 1) : 1e9;
+      g.over = true; g.win = d0 < d1 ? 0 : d1 < d0 ? 1 : -1;
     }
     if (!g.over && g.turns.length >= 2 * (g.kind === "high" ? HIGH : ROUNDS)) {
       g.over = true; g.capped = g.kind !== "high";
@@ -160,6 +180,7 @@
     }
     return true;
   }
+  function darts(g, p) { return g.turns.reduce(function (a, t) { return a + (t.p === p ? t.d.length : 0); }, 0); }
   function rounds(g) { return g.kind === "high" ? HIGH : ROUNDS; }
   function last(m) { return m && m.length ? m[m.length - 1][0] : null; }
   function gameOf(doc, m) { var v = last(m); return v ? sim(doc.seed, v[0]) : null; }
@@ -168,15 +189,19 @@
   // m: the moves before. Reading a link (Turns.moves) checks its one stored move without one before it (snap), so then any
   // whole game will do; a new move (Turns.play) adds exactly one turn to the one before, or is the first turn of a doc
   // without moves (doc.q empty). Against Bert the one move is the whole game.
+  function nameOk(n) { return n === "" || (typeof n === "string" && Q.clean(n, NAME) === n); }
   function ok(v, doc, m) {
-    if (!Array.isArray(v) || v.length !== 2 || !intIn(v[1], 0, 999)) return false;
+    if (!Array.isArray(v) || v.length !== 3 || !intIn(v[1], 0, 999) || !Array.isArray(v[2]) || v[2].length !== 2 || !nameOk(v[2][0]) || !nameOk(v[2][1])) return false;
     var g = sim(doc.seed, v[0]), prev = last(m);
     if (!g || g.partial || g.extra || !g.turns.length) return false;
     if (g.bot) return !prev && g.over;
     if (!prev) return !!doc.q || g.turns.length === 1;
-    var pg = sim(doc.seed, prev[0]);
-    return !!pg && !pg.over && v[0].slice(0, prev[0].length) === prev[0] && g.turns.length === pg.turns.length + 1;
+    var pg = sim(doc.seed, prev[0]), me = pg ? pg.turns.length % 2 : 0;
+    return !!pg && !pg.over && v[0].slice(0, prev[0].length) === prev[0] && g.turns.length === pg.turns.length + 1 && v[2][1 - me] === prev[2][1 - me];
   }
+  // A link that comes back has to go on from the darts this phone sent last (mine): the other side may only add a turn.
+  // Anything else (my darts rewritten, an older or a strange game) is not counted: the phone keeps its own standing.
+  function trust(mine, v) { return !mine || (!!v && typeof v[0] === "string" && v[0].slice(0, mine.length) === mine); }
   // What the link says the last turn brought, against what it brought: null when they agree.
   function claimed(g) { return g.bot ? g.turns.filter(function (t) { return t.p === 0; }).reduce(function (a, t) { return a + t.pts; }, 0) : g.turns[g.turns.length - 1].pts; }
   function fixed(v, g) { var n = claimed(g); return v[1] === n ? null : { c: v[1], n: n }; }
@@ -186,10 +211,11 @@
   function field(h, lang) { var X = T(lang); return h.n === 0 ? X.da_s_0 : h.n === 25 ? X[h.m === 2 ? "da_s_50" : "da_s_25"] : fmt(X["da_s_" + h.m], { n: h.n }); }
   // "Triple 20, 60 Punkte": what the screen reader says for a dart
   function spoken(h, lang) { return say(lang, "da_sp", h.p, { h: field(h, lang), p: h.p }); }
-  function who(g, p, lang) { var X = T(lang); return g.bot ? (p ? X.da_bot : X.da_me) : X["da_p" + (p + 1)]; }
+  // a player's name: against Bert "Du" and "Bert"; by link the nickname from the move, else "Spieler 1/2"; me: who throws here
+  function who(g, p, lang, names, me) { var X = T(lang); return g.bot ? (p ? X.da_bot : X.da_me) : p === me ? X.da_me : (names && names[p]) || X["da_p" + (p + 1)]; }
   function modeName(m, lang) { return T(lang)["da_m_" + m]; }
-  function stand(g, p, lang) {
-    var w = who(g, p, lang);
+  function stand(g, p, lang, names, me) {
+    var w = who(g, p, lang, names, me);
     if (g.kind === "x01") return fmt(T(lang).da_left, { p: w, n: g.left[p] });
     if (g.kind === "atc") return g.next[p] > 20 ? fmt(T(lang).da_next_done, { p: w }) : fmt(T(lang).da_next, { p: w, n: g.next[p] });
     return say(lang, "da_total", g.total[p], { p: w });
@@ -203,13 +229,13 @@
 
   function face(doc, m, lang) {
     var v = last(m), g = v && sim(doc.seed, v[0]); if (!g) return null;
-    var out = [head1(g, lang), stand(g, 0, lang) + " · " + stand(g, 1, lang), who(g, g.turns[g.turns.length - 1].p, lang) + ": " + turnLine(g.turns[g.turns.length - 1], g, lang)], f = fixed(v, g);
+    var n = v[2], out = [head1(g, lang), stand(g, 0, lang, n) + " · " + stand(g, 1, lang, n), who(g, g.turns[g.turns.length - 1].p, lang, n) + ": " + turnLine(g.turns[g.turns.length - 1], g, lang)], f = fixed(v, g);
     if (f) out.push(fmt(T(lang).da_fixed, f));
     return out;
   }
   function result(doc, m, lang) {
     var v = last(m), g = v && sim(doc.seed, v[0]), X = T(lang); if (!g) return { h: "", lines: [] };
-    var h = g.win < 0 ? X.da_draw : g.bot ? X[g.win ? "da_win_bot" : "da_win_you"] : fmt(X.da_win, { p: who(g, g.win, lang) }), lines = [modeName(g.mode, lang), stand(g, 0, lang) + " · " + stand(g, 1, lang)];
+    var n = v[2], h = g.win < 0 ? X.da_draw : g.bot ? X[g.win ? "da_win_bot" : "da_win_you"] : fmt(X.da_win, { p: who(g, g.win, lang, n) }), lines = [modeName(g.mode, lang), stand(g, 0, lang, n) + " · " + stand(g, 1, lang, n)];
     var end = g.turns[g.turns.length - 1];
     if (end.out && g.kind === "x01") lines.push(fmt(X.da_out_with, { h: field(end.d[end.d.length - 1], lang) }));
     if (g.capped) lines.push(fmt(X.da_cap, { n: ROUNDS }));
@@ -222,13 +248,13 @@
   var game = {
     snap: true, turns: [[prompt], [prompt]], part: "dart",
     ends: function (doc, m) { var g = gameOf(doc, m); return !!(g && g.over); },
-    wsw: { link: ["zahl"], tage: 0, plus: function (lang) { return T(lang).da_wsw; } }, notes: ["da_n1", "da_n2"],
+    wsw: { link: ["zahl", "name"], tage: 0, plus: function (lang) { return T(lang).da_wsw; } }, notes: ["da_n1", "da_n2"],
     words: { you_start: "da_you", go_first: "da_go_first", go_play: "da_go", note_turn: "da_note", note_over: "da_over", ready: "da_ready", send: "da_send", rematch: "da_again" },
     face: face, result: result
   };
   if (!Tn.GAMES.dart) { Tn.GAMES.dart = game; Tn.IDS.push("dart"); }
   if (!node && root.Parts) { root.Turn2 = root.Turn2 || root.Parts.registry("turnzwei", ["rule", "widget"]); if (!root.Turn2.get("rule", "dart")) root.Turn2.add("rule", "dart", game); }
-  var api = { game: game, ORDER: ORDER, MODES: MODES, KIND: KIND, START: START, ROUNDS: ROUNDS, HIGH: HIGH, STEPS: STEPS, STEP_MS: STEP_MS, WOB: WOB, POWER: POWER, MAXLEN: MAXLEN,
+  var api = { game: game, ORDER: ORDER, MODES: MODES, KIND: KIND, START: START, ROUNDS: ROUNDS, HIGH: HIGH, STEPS: STEPS, STEP_MS: STEP_MS, WOB: WOB, POWER: POWER, SCAT: SCAT, LEVELS: LEVELS, MID: MID, NAME: NAME, MAXLEN: MAXLEN, trust: trust, nameOk: nameOk, darts: darts, swing: swing, SWING: SWING, QUICK: QUICK,
     R: { BULL: BULL, OUTER: OUTER, T_IN: T_IN, T_OUT: T_OUT, D_IN: D_IN }, sd: sd, dir: dir, score: score, centre: centre, hand: hand, wobble: wobble, land: land,
     enc: enc, dec: dec, dart: dart, head: head, aimOf: aimOf, aimFor: aimFor, botDart: botDart, sim: sim, ok: ok, claimed: claimed, fixed: fixed, rounds: rounds,
     short: short, field: field, spoken: spoken, who: who, modeName: modeName, stand: stand, turnLine: turnLine, head1: head1, last: last, gameOf: gameOf,
