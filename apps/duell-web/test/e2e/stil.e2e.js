@@ -298,6 +298,17 @@ test("Business: nur Vorteile und Zeilen, die es dort gibt (keine Abstimmung, kei
   assert.deepEqual(errs, []); await ctx.close();
 });
 
+test("Business im Dark Mode: axe ohne Verstoesse, Kartenueberschrift in Tinte (Kontrast >= 4,5:1)", async () => {
+  const { ctx, p, errs } = await open({ page: "/duell/business/", dark: true });
+  const c = await p.locator("#achead").evaluate((e) => { const L = (s) => { const v = s.match(/\d+/g).slice(0, 3).map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+    const a = L(getComputedStyle(e).color), b = L(getComputedStyle(document.getElementById("acbox")).backgroundColor); return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); });
+  assert.ok(c >= 4.5, "Kontrast #achead " + c);
+  await p.locator("#stdata summary").click(); await p.locator(".stmore").click();
+  await p.addScriptTag({ content: AXE });
+  const v = await p.evaluate(() => window.axe.run(document.getElementById("shelf"), { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } }).then((r) => r.violations.map((x) => x.id + ": " + x.nodes.slice(0, 3).map((n) => n.target.join(" ")).join(" | "))));
+  assert.deepEqual(v, []); assert.deepEqual(errs, []); await ctx.close();
+});
+
 test("Dark Mode: das leere 16+-Kaestchen sieht leer aus, angehakt dunkel; axe ohne Verstoesse", async () => {
   const { ctx, p, errs } = await open({ dark: true });
   const cb = p.locator("#ac16");

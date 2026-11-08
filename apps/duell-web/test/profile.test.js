@@ -103,6 +103,7 @@ test("Merken: der Link f reist mit (Server: CADS-DEMO-wrapper #82), ein gemerkte
 
 test("Gate-Abmelden: nur von einer bunsenbrenner.org-Seite, Ziel /gate/logout mit Host und sicherem Rueckweg", () => {
   assert.equal(P.logoutUrl("demos-34a13a96.bunsenbrenner.org", "/duell/business"), "https://bunsenbrenner.org/gate/logout?host=demos-34a13a96.bunsenbrenner.org&return=%2Fduell%2Fbusiness");
+  for (const r of ["//evil", "//evil.example", "/\\evil", "https://evil.example", "/duell?x=1"]) assert.match(P.logoutUrl("demos-34a13a96.bunsenbrenner.org", r), /&return=%2Fduell$/, r);
   assert.equal(P.logoutUrl("Demos-34A13A96.bunsenbrenner.org", "//evil.example"), "https://bunsenbrenner.org/gate/logout?host=demos-34a13a96.bunsenbrenner.org&return=%2Fduell");
   for (const h of ["127.0.0.1", "bunsenbrenner.org.evil.example", "evilbunsenbrenner.org", "", null]) assert.equal(P.logoutUrl(h, "/duell"), null, String(h));
 });

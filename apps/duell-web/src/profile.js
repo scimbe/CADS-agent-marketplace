@@ -73,7 +73,7 @@
   function logoutUrl(host, ret) {
     host = String(host || "").toLowerCase();
     if (!/^[a-z0-9-]+(\.[a-z0-9-]+)*\.bunsenbrenner\.org$/.test(host)) return null;
-    return "https://bunsenbrenner.org/gate/logout?host=" + encodeURIComponent(host) + "&return=" + encodeURIComponent(/^\/[\w\/-]*$/.test(ret || "") ? ret : "/duell");
+    return "https://bunsenbrenner.org/gate/logout?host=" + encodeURIComponent(host) + "&return=" + encodeURIComponent(/^\/(?!\/)[\w\/-]*$/.test(ret || "") ? ret : "/duell");
   }
   // An account link counts once a first sync went through (base/at). Before that it is an attempt, made by the tap on the
   // button (t0, with the 16+ statement of that very tap). An attempt older than 30 minutes is dropped, its 16+ statement
@@ -93,7 +93,7 @@
     ".accheck{display:flex;gap:12px;align-items:center;font-weight:600;margin:10px 0;min-height:44px;cursor:pointer}.accheck input{width:28px;height:28px;margin:0;flex:none;accent-color:#17140f}" +
     ".accode{font:800 .94rem ui-monospace,Menlo,monospace;overflow-wrap:break-word;margin:0 0 6px}.accard{border:3px solid #17140f;border-radius:22px;background:#fff;color:#17140f;padding:16px 18px;margin:0 0 18px;font-family:Inter,var(--ui)}.accard .note{font-size:.875rem;line-height:1.45;color:#4a4436}" +
     ".acwhy{list-style:none;margin:8px 0 6px;padding:0;font-weight:600;line-height:1.3}.acwhy li{display:flex;align-items:center;gap:10px;margin:6px 0}.acwhy svg{flex:none}" +
-    ".accard,.profile{color-scheme:light}.acgo,.accancel{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;border:2px solid #17140f;border-radius:16px;background:#fff;color:#17140f;font:700 1rem Inter,var(--ui);margin:6px 0;padding:8px 14px}.accancel{border-style:dashed;font-weight:600}" +
+    ".accard,.profile{color-scheme:light}.accard .lbl,.accard h3{color:#17140f}.acgo,.accancel{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;border:2px solid #17140f;border-radius:16px;background:#fff;color:#17140f;font:700 1rem Inter,var(--ui);margin:6px 0;padding:8px 14px}.accancel{border-style:dashed;font-weight:600}" +
     ".accheck.want{outline:3px solid #b3321f;outline-offset:4px;border-radius:8px}.acneed{margin:0;color:#b3321f;font-weight:700;font-size:.875rem}.acneed:empty{display:none}" +
     ".accard .note{font-size:.8125rem}.acok{margin:4px 0 2px;font-weight:700;font-size:1.06rem}.aclink{min-height:44px;padding:0;border:0;background:none;color:#b3321f;font:600 .875rem Inter,var(--ui);text-decoration:underline;text-underline-offset:3px;text-align:left}"; document.head.appendChild(css);
   // Right before any jump to sign in / register / the account (here and the AI login in ai.js): the login pages in my colours.
