@@ -251,14 +251,15 @@
   // the screen's own words for the players, in every language, as skeletons: no nickname may be one of them
   var TAKEN = {}; Object.keys(DATA.text).forEach(function (l) { ["da_me", "da_bot", "da_p1", "da_p2"].forEach(function (k) { if (DATA.text[l][k]) TAKEN[foldName(DATA.text[l][k])] = 1; }); ["da_opp"].forEach(function (k) { if (DATA.text[l][k]) TAKEN[foldName(DATA.text[l][k])] = 1; }); });
   ["bert", "bot", "du", "you", "ich", "me", "spieler", "player", "gegner", "opponent"].forEach(function (w) { TAKEN[w] = 1; });
-  // No brackets (the screen's "(du)" mark is not to be had), no word of a name that is a screen word ("Anna Du",
-  // "Du-Anna"), and no name glued to the mark words: a skeleton that starts or ends with "du" or "you" ("annadu", "duanna",
-  // "annayou"). Only the two mark words: the other screen words would sweep away real names (Robert, Albert, Erich, Melanie).
-  var MARK = ["du", "you"];
-  function taken(f) { return !!TAKEN[f] || MARK.some(function (w) { return f.length > w.length && (f.slice(0, w.length) === w || f.slice(-w.length) === w); }); }
+  // No brackets (the screen's "(du)" mark is not to be had), and no word of a name that is a screen word ("Anna Du",
+  // "Du-Anna"). A capital glued on at the end that reads as the mark ("AnnaDu", "AnnaYou") counts as a word of its own;
+  // inside a name nothing else is cut off, so Duncan, Dustin, Youssef, Pandu or DuBois stay what they are.
+  var MARK = { du: 1, you: 1 };
   function nameOk(n) {
     if (n === "") return true;
-    if (typeof n !== "string" || plainName(n) !== n || /[()[\]{}]/.test(n) || Q.clean(n, NAME) !== n || !oneScript(n) || !foldName(n) || taken(foldName(n))) return false;
+    if (typeof n !== "string" || plainName(n) !== n || /[()[\]{}]/.test(n) || Q.clean(n, NAME) !== n || !oneScript(n) || !foldName(n) || TAKEN[foldName(n)]) return false;
+    var tail = /\p{Ll}(\p{Lu}\p{Ll}*)$/u.exec(n.normalize("NFKC"));
+    if (tail && MARK[foldName(tail[1])]) return false;
     return !n.normalize("NFKC").split(/[\s\-_.,;:'’·]+/).some(function (w) { var f = foldName(w); return f && TAKEN[f]; });
   }
   function namesOk(a) { return Array.isArray(a) && a.length === 2 && nameOk(a[0]) && nameOk(a[1]) && !(a[0] && a[1] && foldName(a[0]) === foldName(a[1])); }

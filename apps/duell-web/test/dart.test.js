@@ -402,9 +402,11 @@ test("Meine Seite steht fest: \"(du)\" und zuerst, auch wenn ein Doppelgaenger-N
   assert.equal(Tn.face(through(t), "de")[1], "Ana: noch 121 · Ben: noch 298");
 });
 
-test("Review 4: keine Klammern, keine angeklebten Markierungswoerter; eigener Sieg heisst \"Du gewinnst!\"", () => {
-  for (const n of ["Anna (du)", "Anna(du)", "Du (du)", "Gegner (du)", "Anna (you)", "Anna [du]", "Anna {du}", "annadu", "duanna", "annayou", "Anna Du", "Du-Anna", "Anna you"]) assert.equal(M.nameOk(n), false, n);
-  for (const n of ["Anna", "Robert", "Albert", "Erich", "Melanie", "Ελένη", "José María", "O'Neil", "Anne-Marie"]) assert.equal(M.nameOk(n), true, n);
+test("Review 4: keine Klammern, keine Markierungswoerter als Wort im Namen; eigener Sieg heisst \"Du gewinnst!\"", () => {
+  for (const n of ["Anna (du)", "Anna(du)", "Du (du)", "Gegner (du)", "Anna (you)", "Anna [du]", "Anna {du}", "Anna Du", "Du-Anna", "Anna you", "AnnaDu", "AnnaYou"]) assert.equal(M.nameOk(n), false, n);
+  // real names that start or end like the marks stay allowed (inclusion): only whole words count
+  for (const n of ["Duncan", "Dustin", "Duc", "Dulce", "Duygu", "Dumitru", "Youssef", "Younes", "Yousra", "Pandu", "Kudu", "DuBois", "McDonald",
+    "Anna", "Robert", "Albert", "Erich", "Melanie", "Ελένη", "José María", "O'Neil", "Anne-Marie"]) assert.equal(M.nameOk(n), true, n);
   // a link that names B "Anna (du)" or "Du (du)" is no move
   const seed = 12, a1 = "al" + throws(seed, 0, ["S1", "S1", "S1"]), b1 = a1 + throws(seed, 3, ["S1", "S1", "S1"]), dA = through(play(fresh(seed), a1, null, ["Anna", ""]));
   for (const n of ["Anna (du)", "Du (du)"]) assert.equal(Tn.play(dA, [[b1, 3, ["Anna", n]]], 100), null, n);
