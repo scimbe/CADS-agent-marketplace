@@ -21,7 +21,7 @@ test("Ein Satz -> Absicht, Empfaenger und die passende Karte zuerst", () => {
     ["Mitbringliste für den Kindergeburtstag", "planen", "zug-einkauf", null],
     ["Quiz über unsere Familie", "spielen", "zug-kennst", "Familie"],
     ["Kartenspiel mit Opa", "spielen", "tisch-skat", "Opa"],
-    ["Stimme wie ein Monster", "stimme", "stimme-monster", null],
+    ["Stimme wie ein Monster", "stimme", "stimme-verzerren", null],   // one voice card since #181 (stimme-monster leads there)
     ["Thank you to Grandma", "gruss", "warm-danke", "Oma"]
   ];
   for (const [text, intent, first, who] of cases) {
@@ -54,7 +54,9 @@ test("Stimmt nicht? Aendern: eine erzwungene Absicht zeigt nur deren Karten, die
   assert.equal(r.intent, "planen");
   assert.ok(r.top.length >= 3 && r.top.every((x) => S.intentOf(x.idea) === "planen"));
   assert.deepEqual(ids(S.understand("", { intent: "stimme" })), S.cardsOf("stimme").slice(0, 4).map((i) => i.id));
-  for (const n of S.INTENTS) assert.ok(S.cardsOf(n).length >= 3, n + ": genug Karten fuer die Kachel");
+  for (const n of ["gruss", "planen", "spielen"]) assert.ok(S.cardsOf(n).length >= 3, n + ": genug Karten fuer die Kachel");
+  assert.ok(S.cardsOf("stimme").map((i) => i.id).includes("stimme-verzerren"), "Stimme: die (seit #181 eine) Stimmkarte");
+  for (const n of S.INTENTS) { const l = S.cardsOf(n).map((i) => i.id); assert.equal(new Set(l).size, l.length, n + ": keine Karte doppelt"); }
 });
 
 test("Name auf der Karte: nur ein Vorname oder eine Anrede (Oma, Papa), nie Bruder oder Kollegen", () => {

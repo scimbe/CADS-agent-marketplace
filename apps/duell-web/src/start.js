@@ -29,7 +29,8 @@
     return "spielen";
   }
   // The cards of an intent, as the tiles and "Stimmt nicht? Ändern" offer them: those that exist in this build.
-  function cardsOf(intent) { return ((DATA.intents[intent] || {}).ids || []).map(avail).filter(Boolean); }
+  // Old ids that now lead to one card (the three voice cards are one since #181) count once.
+  function cardsOf(intent) { return ((DATA.intents[intent] || {}).ids || []).map(avail).filter(function (i, k, a) { return i && a.indexOf(i) === k; }); }
   // A first name after "an", "für", "to", "for" ("Danke an Lea"), when it is no word the tables know ("für Geburtstag").
   function nameIn(text, known) {
     var m = String(text || "").match(/(?:^|\s)(?:an|für|fuer|to|for)\s+(?:meine[nmrs]?\s+|my\s+|unsere[nmrs]?\s+|our\s+)?(\p{L}[\p{L}'-]{1,13})(?=$|[\s.,!?])/iu);
