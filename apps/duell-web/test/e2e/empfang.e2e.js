@@ -103,6 +103,8 @@ test("Empfang: „Von Ana, für dich“, die Karte gross, Antworten als Hauptakt
   for (const view of ["phone390", "phone328", "tablet820", "desk1280", "zoom200"]) {
     const ctx = await phone(b, { view }), p = await G.open(ctx, url.slice(url.indexOf("#")));
     await p.locator("#recvhead").waitFor();
+    // the received card arrives with an animation (scale .9 -> 1, style.css lift): measure once it has landed
+    await p.waitForFunction(() => !document.getElementById("leaf").getAnimations({ subtree: true }).some((x) => x.playState === "running"), null, { polling: 50 });
     assert.equal(await p.locator("#recvwho").textContent(), "Von Ana, für dich");
     assert.equal(await p.locator("#recvhead .recvav").textContent(), "A");
     assert.equal(await p.locator("#go").textContent(), "Antworten");
