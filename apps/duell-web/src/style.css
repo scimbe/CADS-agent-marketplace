@@ -97,8 +97,8 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 .pv.pic.live .pvimg{position:absolute;right:3px;top:3px;border:0;outline:3px solid var(--ink);width:auto;height:52px;box-shadow:3px 4px 0 var(--ink)}
 .pv.pic.live.swap{padding-right:6px}.pv.pic.swap .pvimg{position:static!important;width:100%!important;height:auto!important}.pv.pic.swap canvas:not([hidden]){display:none!important}
 .pv.pic.with ~ .hero{flex:0 0 auto}
-.pv.tight:not(.peek){display:none!important}#pvpeek{position:absolute;right:14px;bottom:12px;z-index:7;min-height:44px;margin:0}#leaf:has(#pvpeek:not([hidden])):not(:has(.votes:not([hidden]))){padding-bottom:62px}
-.pv.tight.peek{display:flex!important;position:absolute!important;inset:10px!important;z-index:6;margin:0;padding:8px!important;background:var(--paper);border:3px solid var(--ink);flex-direction:column}
+.pv.tight:not(.peek){display:none!important}#pvpeek{position:relative;order:9;align-self:flex-end;flex:none;z-index:7;min-height:44px;margin:4px 0 0}#leaf:has(.pv.tight) .dateline{display:none}@container (min-width:20rem){#leaf:has(.votes:not([hidden])) #pvpeek{position:absolute;right:14px;bottom:12px;margin:0}}
+.pv.tight.peek{display:flex!important;position:absolute!important;inset:10px 10px 62px!important;z-index:6;margin:0;padding:8px!important;background:var(--paper);border:3px solid var(--ink);flex-direction:column}
 .pv.tight.peek .pvimg{display:none!important}#home.mehr .pv.pic:not(.with) ~ .hero{flex:1 1 0;min-height:64px}
 /* editor: the picture above the card (E1.5 with the part direkt: a thumbnail beside it) */
 #stagewrap.pic{flex-direction:column;gap:10px}
@@ -128,6 +128,8 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
   .dateline{flex:none;min-height:0}.dnum{font-size:40px}.dmon{font-size:12px}.burst{width:58px;height:58px;margin-top:-4px;font-size:10px}
   .holes{top:4px}
 }
+#home.roll{overflow-y:auto;scroll-padding:8px 0}#home.roll>*{flex-shrink:0}#home.roll::before{position:fixed}#home.roll #pad{min-height:22rem}
+#home.roll .got .dateline,#home.roll .got .hero,#home.roll:has(.got) #langpick{display:none!important}
 #tools{position:relative;display:grid;grid-template-columns:repeat(4,1fr);padding:0 10px 8px;flex:none}
 #tools button{min-height:48px;border:0;background:transparent;color:var(--on);font:800 .85rem/1.1 var(--ui);padding:2px}
 #stagewrap{position:relative;flex:0 1 38%;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 12px;background:var(--a)}
@@ -139,7 +141,7 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 #tabs button{flex:1 0 auto;min-width:44px;min-height:46px;padding:0 9px;border:0;background:transparent;color:#c4c4c4;font:800 14px var(--ui)}
 #tabs button.hot{opacity:1;color:var(--btn)}
 #tabs button[aria-selected=true]{opacity:1;background:var(--paper);color:var(--ink)}
-#panel{flex:1 1 0;min-height:96px;overflow-y:auto;background:var(--paper);color:var(--ink);padding:10px 12px;touch-action:pan-y;user-select:auto;-webkit-user-select:auto}
+#panel{flex:1 1 0;min-height:96px;overflow-y:auto;scroll-padding:8px 0;background:var(--paper);color:var(--ink);padding:10px 12px;touch-action:pan-y;user-select:auto;-webkit-user-select:auto}
 .foot{flex:none;background:var(--paper);padding:8px 0 4px}
 .foot.col{background:var(--a);padding-top:10px}
 .foot .press{margin-bottom:8px}
@@ -409,7 +411,7 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .chip[aria-pressed=true]{outline:3px solid var(--ink);outline-offset:1px}
 .txvor{flex-basis:100%;margin:6px 0 2px}
 .votes{flex:none;display:flex;gap:6px;margin-top:4px;min-height:44px;align-self:flex-start;position:relative;z-index:3}.votes[hidden]{display:none}
-@container (max-height:140px){#leaf.got .votes{position:absolute;top:4px;right:8px;margin:0}#leaf.got #pvpeek{left:14px;right:auto}}@container (max-height:40px){.votes{display:none}}
+@container (max-height:140px){#leaf.got .votes{position:absolute;top:4px;right:8px;margin:0}}@container (max-height:40px){.votes{display:none}}
 .chip[aria-pressed],.bcell[aria-pressed]{position:relative}.chip[aria-pressed=true]::before,.bcell[aria-pressed=true]::before{content:"✓"/"";position:absolute;top:0;left:3px;font-size:.75rem}
 #editor:has(.timed) #stagewrap{display:none}
 .ring{background:conic-gradient(var(--b) calc(var(--p,0)*1turn),#fff 0)}
