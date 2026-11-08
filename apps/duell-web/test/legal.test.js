@@ -98,7 +98,10 @@ test("Statische Seiten: jede verlinkt alle anderen, die andere Sprache und zurue
 test("Erreichbarkeit: die Rechtsseiten sind statische Seiten der Galerie, die App verlinkt sie mit fester Adresse (kein Byte im Kern ausser dem Link)", () => {
   const tpl = read("src/index.template.html");
   const sec = (id) => { const a = tpl.indexOf('<section id="' + id + '"'); return tpl.slice(a, tpl.indexOf("</section>", a)); };
-  assert.match(sec("home"), /<a id="legal" class="note" href="https:\/\/demos-34a13a96\.bunsenbrenner\.org\/duell\/impressum" target="_blank" rel="noopener">Impressum · Datenschutz<\/a>/);
+  // the finished picture: one tap; home: My style (part stil) lists the link, two taps; the home sheet keeps its height
+  assert.match(sec("done"), /<a id="legal" class="note" href="https:\/\/demos-34a13a96\.bunsenbrenner\.org\/duell\/impressum" target="_blank" rel="noopener">Impressum · Datenschutz<\/a>/);
+  assert.ok(!sec("home").includes('id="legal"'), "nothing on home: the thumbs need the room (test/e2e/stat.e2e.js Layout)");
+  assert.match(read("src/stil.js"), /lg\.href = "https:\/\/demos-34a13a96\.bunsenbrenner\.org\/duell\/" \+ \(root\.Kit\.lang === "en" \? "en\/" : ""\) \+ "impressum"/);
   // the rest is one tap back home: editor, game and every shelf have their back button
   for (const [id, b] of [["editor", "edback"], ["game", "gback"], ["shelf", "shback"]]) assert.match(sec(id), new RegExp('id="' + b + '"'), id);
   // the pages are not in the app bundle (core or parts): only the link

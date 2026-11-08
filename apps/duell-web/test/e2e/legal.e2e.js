@@ -14,13 +14,24 @@ test("Rechtliches: Link auf der Startseite mit fester Adresse; statische Seiten 
   const errs = []; p.on("pageerror", (e) => errs.push(e.message));
   await ctx.route(/^https?:/, (r) => r.abort());
   try {
+    // home -> My style: the link, with the fixed address; offline a friendly line with it instead of a browser error
     await p.goto("file://" + path.join(dist, "index.html"));
-    const a = p.locator("#home #legal");
-    await a.waitFor();
+    await p.locator("#me").tap();
+    const s = p.getByRole("link", { name: "Impressum, Datenschutz, Nutzungsbedingungen" });
+    await s.waitFor();
+    assert.equal(await s.getAttribute("href"), "https://demos-34a13a96.bunsenbrenner.org/duell/impressum");
+    assert.equal(await s.getAttribute("target"), "_blank");
+    await ctx.setOffline(true);
+    await s.click();
+    await p.getByText("Die Seiten stehen unter https://demos-34a13a96.bunsenbrenner.org/duell/impressum").first().waitFor();
+    assert.equal(ctx.pages().length, 1, "offline no new tab");
+    await ctx.setOffline(false);
+    // the finished picture: one tap
+    await p.goto("file://" + path.join(dist, "index.html") + "#i=quiz-chaos"); await p.locator("#go").tap(); await p.locator("#edmain").tap(); await p.locator("#share").waitFor();
+    const a = p.locator("#done #legal");
     assert.equal(await a.textContent(), "Impressum · Datenschutz");
     assert.equal(await a.getAttribute("href"), "https://demos-34a13a96.bunsenbrenner.org/duell/impressum");
-    assert.equal(await a.getAttribute("target"), "_blank");
-    assert.ok(await a.isVisible(), "visible on home");
+    assert.ok(await a.isVisible(), "visible on the finished picture");
     // the static pages (as the server sends them): content, links to all pages, other language, no script
     for (const [file, text] of [["impressum.html", "Angaben nach § 5 DDG"], ["datenschutz.html", "12. Freie Karte und Community-Karten"], ["agb.html", "10. Moderation, Sperre und Beschwerde"], ["en/datenschutz.html", "13. Your rights"], ["en/agb.html", "Warnings (strikes)"]]) {
       await p.goto("file://" + path.join(dist, "legal", file));

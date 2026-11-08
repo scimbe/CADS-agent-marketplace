@@ -48,7 +48,7 @@ const index = require("../src/daily.js").index(catalog);
 // kiReport, kiReported stay: the sheet and the button), the weather card with wetter (wx).
 const WORDS = {
   konto: /^ac_/,
-  stil: /^(nick|nickNote|set|set_[a-z]+|fs_(title|n|g|sg)|pf_(title|note|none|hh|diet|pp|pp_later)|aiPicNote|licenses)$/,
+  stil: /^(nick|nickNote|set|set_[a-z]+|fs_(title|n|g|sg)|pf_(title|note|none|hh|diet|pp|pp_later)|aiPicNote|licenses|legal|legal_off)$/,
   melden: /^ki(Ask|Consent|Why|Why_[a-z]+|Send|Cancel|Close|Thanks|Offline)$/,
   wetter: /^wx[A-Z]/,
 };

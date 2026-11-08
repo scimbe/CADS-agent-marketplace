@@ -37,6 +37,10 @@
     b.appendChild(el("label", "lbl", t("pf_title")));
     var pf = el("div", "pfbox"); b.appendChild(pf); prefs(pf);
     b.appendChild(el("p", "note", t("aiPicNote")));
+    // Legal pages: static pages of the gallery (scripts/build.js, /duell/<page>); offline a friendly line with the address
+    var lg = el("a", "btn", t("legal"), function (e) { if (!navigator.onLine) { e.preventDefault(); root.Kit.toast(t("legal_off", { u: lg.href })); } });
+    lg.href = "https://demos-34a13a96.bunsenbrenner.org/duell/" + (root.Kit.lang === "en" ? "en/" : "") + "impressum"; lg.target = "_blank"; lg.rel = "noopener";
+    b.appendChild(lg);
     b.appendChild(el("button", "btn", t("licenses"), function () { root.Parts.use("licenses", function () { var l = el("pre", "note", root.DailyLicenses); l.style.whiteSpace = "pre-wrap"; b.textContent = ""; b.appendChild(l); }).catch(function () {}); }));
   }
   // My defaults (daily.js): the ones set stand on top as chips with ✕; below, what can be set. Only on this device.
