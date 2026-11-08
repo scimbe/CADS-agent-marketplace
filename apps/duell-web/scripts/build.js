@@ -182,6 +182,26 @@ let ph = read("src/protokoll.template.html");
 for (const k of Object.keys(prot)) ph = ph.replace("/*@" + k + "@*/", () => (k === "CSS" ? prot[k] : safe(prot[k])));
 put("protokoll.html", ph);
 put("protokoll-worker.js", read("src/protokoll-worker.js"));
+// Legal pages (src/legal.js, src/legal.json, legal/operator.json): static pages the gallery serves at /duell/<page> and
+// /duell/en/<page> (CADS-DEMO-wrapper lib/legal-pages.mjs; a page with a placeholder answers 503). Not in the core and not a
+// part: the app only links them (footer row). scripts/check-legal.js keeps placeholders from going live.
+const Legal = require("../src/legal.js");
+const legalTexts = json("src/legal.json"), operator = Object.fromEntries(Object.entries(json("legal/operator.json")).filter(([k]) => k[0] !== "_"));
+// every third-party piece in the build; test/legal.test.js checks that each node_modules file read here is listed
+const THIRD_PARTY = [
+  { name: "Anton", license: "SIL Open Font License 1.1", url: "https://github.com/googlefonts/AntonFont", file: "Anton-OFL.txt", from: "node_modules/@fontsource/anton" },
+  { name: "qrcode-generator", license: "MIT", url: "https://github.com/kazuhikoarase/qrcode-generator", file: "qrcode-generator-MIT.txt", from: "node_modules/qrcode-generator" },
+  { name: "Kartendeck von My Daily Idea", license: "CC0 1.0", url: "licenses/Kartendeck-CC0.txt", file: "Kartendeck-CC0.txt" },
+  { name: "Noto Emoji (Bilder)", license: "Apache License 2.0", url: "https://github.com/googlefonts/noto-emoji", file: "NotoEmoji-Apache-2.0.txt" },
+  { name: "Noto Emoji", license: "SIL Open Font License 1.1", url: "https://github.com/googlefonts/noto-emoji", file: "NotoEmoji-OFL.txt" },
+];
+if (!flavor) {
+  const lic = THIRD_PARTY.map((l) => ({ name: l.name, license: l.license, url: l.url, text: read("licenses/" + l.file) }));
+  fs.mkdirSync(path.join(outDir, "legal/en"), { recursive: true });
+  for (const lang of ["de", "en"]) for (const page of Legal.PAGES) put("legal/" + (lang === "en" ? "en/" : "") + page + ".html", Legal.html(legalTexts, operator, page, lang, lic));
+  const openLegal = Legal.missing(operator);
+  if (openLegal.length) console.log("Rechtsseiten: noch offen (nicht live-faehig):", openLegal.join(", "));
+}
 // The stamp last: scripts/ensure-build.js skips a build whose stamp still matches the sources.
 put(".stamp", STAMP);
 fs.rmSync(tmpDir, { recursive: true, force: true });
