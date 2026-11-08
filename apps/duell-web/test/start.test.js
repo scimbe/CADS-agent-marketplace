@@ -91,7 +91,8 @@ test("Kern: nur die Haken; ohne Teil bleibt die Startseite wie sie war", () => {
   assert.match(app, /if \(window\.StartUI\) window\.StartUI\.home\(h\);/);
   assert.match(app, /if \(window\.StartUI\) window\.StartUI\.labels\(\);/);
   // asked for right after the catalog, the first sheet does not wait for it; its place is kept (#startslot), so nothing moves
-  assert.match(app, /window\.Parts\.need\("katalog"\)\.then\(function \(\) \{ startPart\(\);/);
+  assert.match(app, /window\.Parts\.need\("katalog"\)\.then\(function \(\) \{ var s = got \|\| startPart\(\),/);
+  assert.match(app, /var got = \/\^#\(\?:\.\*&\)\?\[cis\]=\/\.test\(location\.hash\) && startPart\(\);/, "ein Link wartet auf den Teil, der Tagesstart nicht");
   assert.match(app, /else \$\("home"\)\.classList\.toggle\("neu", !!\(window\.DailyParts \|\| \{\}\)\.start && !h\.note && !h\.doc\);/);
   assert.match(src("index.template.html"), /<div id="startslot" aria-hidden="true"><\/div>/);
   assert.match(src("style.css"), /#home\.neu #startslot\{display:block;min-height:33rem\}/);

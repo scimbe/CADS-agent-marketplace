@@ -1252,8 +1252,11 @@ function boot() { if (!route()) goHome(); }
 // The new start (part start) is asked for right after the catalog, not while it loads (the first sheet waits for the catalog
 // only, as before) and not when idle; the sheet already has its final place (#startslot, style.css), the part fills it.
 // Missing, the page stays as it was.
-function startPart() { if ((window.DailyParts || {}).start) window.Parts.need("start").then(function () { window.StartUI.labels(); if (home && screen === "home") window.StartUI.home(home); }, function () { $("home").classList.remove("neu"); }); }
-window.Parts.need("katalog").then(function () { startPart(); var n = two(location.hash) || twoIdea(D.ideaForDay(today)); return n ? window.Parts.need(n).catch(function () {}) : 0; }).then(boot, function () { Kit.toast(t("part_fail")); boot(); });
+// A link (c=, i=, s=) opens straight on a received card: that page waits for the part too (asked for at once), so its
+// sender line and the card's room are there with the first paint and nothing moves afterwards.
+function startPart() { return (window.DailyParts || {}).start ? window.Parts.need("start").then(function () { window.StartUI.labels(); if (home && screen === "home") window.StartUI.home(home); }, function () { $("home").classList.remove("neu"); }) : 0; }
+var got = /^#(?:.*&)?[cis]=/.test(location.hash) && startPart();
+window.Parts.need("katalog").then(function () { var s = got || startPart(), n = two(location.hash) || twoIdea(D.ideaForDay(today)); return Promise.all([n ? window.Parts.need(n).catch(function () {}) : 0, got ? s : 0]); }).then(boot, function () { Kit.toast(t("part_fail")); boot(); });
 // The embedded display font loads after the first paint: fit the headline again once it is there, and draw the sheet's
 // card and the editor's picture again. A canvas keeps the letters it was drawn with: on a slow phone the sheet drawn before
 // the font was there kept the fallback font for good. Only the pictures are drawn again, the same card as fillSheet
