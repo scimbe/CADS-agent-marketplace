@@ -163,7 +163,7 @@ test("Kacheln: jede fuehrt zu ihren Karten, eine Karte oeffnet sich mit einem Ti
   const b = await G.launch(), ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY });
   await ctx.route(/^https?:/, (r) => r.abort());
   const p = await G.open(ctx, "");
-  const want = { gruss: /Kleiner Gruß für deinen Tag/, planen: /Wann könnt ihr alle\?/, spielen: /Mal & Rat|Kennst du mich/, stimme: /Stimme: Monster|Stimme verzerren/ };
+  const want = { gruss: /Kleiner Gruß für deinen Tag/, planen: /Wann könnt ihr alle\?/, spielen: /Dart im Wohnzimmer|Mal & Rat|Kennst du mich/, stimme: /Stimme: Monster|Stimme verzerren/ };
   for (const [k, re] of Object.entries(want)) {
     await p.locator(".sttile[data-i=" + k + "]").click();
     await p.locator("#shelf:not([hidden]) #stres .stcard").first().waitFor();
