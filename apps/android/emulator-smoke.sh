@@ -245,7 +245,7 @@ echo "save: PNG written to Pictures/My Daily Idea and read back"
 
 # 5. Voice idea: refuse the microphone -> the page stays usable with the silly voice; the sound is saved as WAV.
 open_idea stimme-monster 'Stimme|Voice|Hamster|Monster|Mouse|Maus|Robo'
-tap_web '(^|\s)(Record|Aufnehmen)$' 10   # the button ("🎙 Aufnehmen"), not the microphone note above it
+tap_web '(^|\s)(Record|Aufnehmen)\s*$' 10   # the button ("🎙 Aufnehmen"), not the microphone note above it
 wait_focus 'permissioncontroller|GrantPermissionsActivity' 15
 shot 12-mikro-abfrage
 tap_node "Don.t allow|Nicht zulassen|Deny"
