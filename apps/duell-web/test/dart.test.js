@@ -300,10 +300,13 @@ test("Texte: de und en mit denselben Schluesseln, Ansage wie \"Triple 20, 60 Pun
 test("Eigene Wuerfe nicht umschreibbar: Schritt, Ende, Ergebnis und Bild zaehlen den eigenen Stand, wenn der Link nicht weitergeht", () => {
   const seed = 31, a1 = "al" + throws(seed, 0, ["T20", "S5", "S1"]), b1 = a1 + throws(seed, 3, ["S20", "S20", "S20"]);
   const forged = "al" + throws(seed, 0, ["0", "0", "0"]) + throws(seed, 3, ["S20", "S20", "S20"]);
-  assert.equal(M.trust(a1, [b1, 60, NAMES]), true, "B hat nur angehaengt");
-  assert.equal(M.trust(a1, [forged, 60, NAMES]), false, "As Pfeile umgeschrieben");
-  assert.equal(M.trust(b1, [a1, 66, NAMES]), true, "ein frueherer Link desselben Spiels (eigene Geschichte)");
-  assert.equal(M.trust("", [forged, 60, NAMES]), true, "nichts gesendet: nichts zu vergleichen");
+  assert.equal(M.trust(a1, [b1, 60, NAMES], seed), true, "B hat nur angehaengt");
+  assert.equal(M.trust(a1, [forged, 60, NAMES], seed), false, "As Pfeile umgeschrieben");
+  assert.equal(M.trust(b1, [a1, 66, NAMES], seed), true, "ein frueherer Link desselben Spiels (eigene Geschichte)");
+  assert.equal(M.trust("", [forged, 60, NAMES], seed), true, "nichts gesendet: nichts zu vergleichen");
+  // my move kept, but more than one turn added: B's turn, made-up misses of A, B again -> not mine to count
+  const more = b1 + throws(seed, 6, ["0", "0", "0"]) + throws(seed, 9, ["S20", "S20", "S20"]);
+  assert.equal(M.trust(a1, [more, 0, NAMES], seed), false, "mehr als eine Aufnahme angehaengt");
   // a finished game made up by B: A's darts all misses, B checks out. Without A's store it is a game like any other ...
   let s = "al"; for (let i = 0; i < 400; i++) { const g = M.sim(seed, s); if (g.over) break; const p = g.partial ? g.turns[g.turns.length - 1].p : g.turns.length % 2; if (!p) { s += throws(seed, g.k, ["0"]); continue; } const at = M.aimFor(g, 1), c = M.centre(at.n, at.r); s += throws(seed, g.k, [c[1] < -0.9 || at.r === "d" ? "D" + at.n : at.r === "t" ? "T" + at.n : at.n === 25 ? "B" : "S" + at.n]); }
   const made = M.sim(seed, s); assert.ok(made.over && made.win === 1, "erfundener Sieg von B");
@@ -323,26 +326,41 @@ test("Eigene Wuerfe nicht umschreibbar: Schritt, Ende, Ergebnis und Bild zaehlen
     // B's honest answer is counted as it is
     M.setOwn(() => ({ s: a1, n: ["Ana", ""] }));
     const ok = through(play(through(play(d, a1)), b1)); assert.equal(M.view(ok, Tn.moves(ok)).foreign, false); assert.equal(Tn.face(ok, "de").length, 3);
+    // my move + B's turn + made-up turns of mine + B's checkout: a finished game that is not counted on my phone
+    let ext = a1; for (let i = 0; i < 400; i++) { const g = M.sim(seed, ext); if (g.over) break; const p = g.partial ? g.turns[g.turns.length - 1].p : g.turns.length % 2; if (!p) { ext += throws(seed, g.k, ["0"]); continue; } const at = M.aimFor(g, 1); ext += throws(seed, g.k, [at.r === "d" ? "D" + at.n : at.r === "t" ? "T" + at.n : at.n === 25 ? "B" : "S" + at.n]); }
+    assert.ok(M.sim(seed, ext).over && M.sim(seed, ext).win === 1);
+    const xd = JSON.parse(JSON.stringify(d)); xd.q = Tn.seal([[[ext, 0, ["Ana", "Ben"]]]], seed); const ex = through(xd);
+    assert.equal(Tn.state(ex).over, false); assert.equal(Tn.result(ex, "de"), null); assert.equal(Tn.face(ex, "de").pop(), "Dieser Link passt nicht zu deinem letzten Wurf. Gewertet wird dein eigener Stand.");
+    // my own name comes from my store, not from the link
+    const rn = JSON.parse(JSON.stringify(d)); rn.q = Tn.seal([[[b1, 60, ["Verlierer", "Ben"]]]], seed);
+    assert.equal(Tn.face(through(rn), "de")[1], "Ana: noch 235 · Ben: noch 241");
   } finally { M.setOwn(null); }
   const ui = require("fs").readFileSync(require("path").join(__dirname, "../src/dart-ui.js"), "utf8");
   assert.match(ui, /M\.setOwn\(mineOf\)/); assert.match(ui, /keep\(ctx\.doc\.seed, st\.s, st\.names\)/);
   assert.match(ui, /w = M\.view\(d, Tn\.moves\(d\)\)/, "das Bild zaehlt ueber view");
 });
 
-test("Spitznamen: keine Bildschirmwoerter, nicht der Name der Gegenseite (auch verkleidet), keine Bidi- und Nullbreitenzeichen", () => {
-  for (const n of ["Du", "du", "DU", "Bert", "bert", "Bert (Bot)", "Bert (bot)", "Spieler 1", "Spieler 2", "You", "Player 1", "Player 2", "Bот", "Вert"]) assert.equal(M.nameOk(n), false, n);
-  for (const n of ["Ana", "Ben", "Tom", "Zoë"]) assert.equal(M.nameOk(n), true, n);
-  for (const n of ["\u202Eana", "an\u200Ba", "ana\u2066", "\uFEFFana", "an\u00ADa"]) assert.equal(M.nameOk(n), false, JSON.stringify(n));
-  assert.equal(M.namesOk(["Anna", "Аnna"]), false, "kyrillisches A"); assert.equal(M.namesOk(["Anna", "ANNA"]), false, "Gross und klein");
-  assert.equal(M.namesOk(["Anna", "Ａｎｎａ"]), false, "Vollbreite (NFKC)"); assert.equal(M.namesOk(["Anna", "Ánna"]), false, "Akzent");
-  assert.equal(M.namesOk(["Anna", "4nna"]), false, "Ziffer als Buchstabe"); assert.equal(M.namesOk(["Anna", "Ben"]), true); assert.equal(M.namesOk(["", ""]), true);
+test("Spitznamen: jede Schrift, aber eine je Name; Vergleich ueber ein Skelett; keine versteckten Zeichen", () => {
+  // inclusion: names in their own script
+  for (const n of ["Ελένη", "Олег", "محمد", "지민", "Zoë", "Ana", "山田はな", "ᎠᎪᎳ"]) assert.equal(M.nameOk(n), true, n);
+  // the screen's words and their look-alikes (Cherokee, Armenian, Lisu, Roman numerals, Cyrillic, Greek, digits, full width)
+  for (const n of ["Du", "du", "DU", "Bert", "Bert (Bot)", "Spieler 1", "Spieler 2", "You", "Player 1", "Player 2", "Ꭰu", "Dս", "Ⅾu", "Ⅾᥙ", "Ᏼert", "Bеrt", "Вert", "B3rt",
+    "Bот", "ꓓu", "ｄｕ", "Du.", "D u", "Spie1er 2", "Bot", "B0t"]) assert.equal(M.nameOk(n), false, n);
+  assert.equal(M.foldName("Ꭰu"), "du"); assert.equal(M.foldName("Dս"), "du"); assert.equal(M.foldName("Ᏼert"), "bert"); assert.equal(M.foldName("Ꭺnna"), "anna");
+  // one script per name
+  for (const n of ["Аnna", "Ꭺnna", "Annaα", "Олегx"]) assert.equal(M.nameOk(n), false, "gemischt: " + n);
+  // the other's name in disguise
+  for (const n of ["Ꭺnna", "Аnna", "ANNA", "Ａｎｎａ", "Ánna", "4nna", "ꓮnna"]) assert.equal(M.namesOk(["Anna", n]), false, n);
+  assert.equal(M.namesOk(["Anna", "Ben"]), true); assert.equal(M.namesOk(["Олег", "Ελένη"]), true); assert.equal(M.namesOk(["", ""]), true);
+  // hidden characters: format and control characters, Braille blank, Hangul fillers
+  for (const n of ["\u202Eana", "an\u200Ba", "ana\u2066", "\uFEFFana", "an\u00ADa", "Anna\u2800", "\u3164", "Du\u3164", "an\u2061a", "a\u0007na"]) assert.equal(M.nameOk(n), false, JSON.stringify(n));
+  assert.equal(M.plainName("A\u2800n\u3164na\u200D"), "Anna");
   // my own name: hidden characters dropped, taken or the other's in disguise -> none
-  assert.equal(M.myName("\u202EBen\u200B", "Ana"), "Ben"); assert.equal(M.myName("Ana", "Аna"), ""); assert.equal(M.myName("Du", ""), ""); assert.equal(M.myName("Bert", ""), "");
+  assert.equal(M.myName("\u202EBen\u200B", "Ana"), "Ben"); assert.equal(M.myName("Ana", "Аna"), ""); assert.equal(M.myName("Du", ""), ""); assert.equal(M.myName("Ᏼert", ""), ""); assert.equal(M.myName("지민", "Ana"), "지민");
   // in a link: a move with such a name is no move; B may not rename A
   const seed = 8, a1 = "al" + throws(seed, 0, ["S1", "S1", "S1"]), b1 = a1 + throws(seed, 3, ["S1", "S1", "S1"]), dA = through(play(fresh(seed), a1, null, ["Anna", ""]));
-  for (const n of ["Du", "Bert", "Spieler 1", "Аnna", "Anna", "\u202Eben"]) assert.equal(Tn.play(dA, [[b1, 3, ["Anna", n]]], 100), null, "B heisst " + JSON.stringify(n));
-  assert.equal(Tn.play(dA, [[b1, 3, ["Ben", "Ben"]]], 100), null, "A umbenannt"); assert.ok(Tn.play(dA, [[b1, 3, ["Anna", "Ben"]]], 100));
-  // on screen: hidden characters never shown
+  for (const n of ["Du", "Bert", "Spieler 1", "Аnna", "Anna", "Ꭺnna", "\u202Eben"]) assert.equal(Tn.play(dA, [[b1, 3, ["Anna", n]]], 100), null, "B heisst " + JSON.stringify(n));
+  assert.equal(Tn.play(dA, [[b1, 3, ["Ben", "Ben"]]], 100), null, "A umbenannt"); assert.ok(Tn.play(dA, [[b1, 3, ["Anna", "Олег"]]], 100));
   assert.equal(M.who(M.sim(seed, b1), 1, "de", ["Anna", "Be\u200Bn"]), "Ben");
 });
 

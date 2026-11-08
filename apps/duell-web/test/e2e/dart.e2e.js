@@ -276,6 +276,27 @@ test("Dart: ein Link, der meine eigenen Wuerfe umschreibt, wird nicht gewertet â
       CanvasRenderingContext2D.prototype.fillText = function (t) { said.push(String(t)); return f.apply(this, arguments); };
       try { window.Render.draw(c, d, { me: window.DailyApp.me() }); } finally { CanvasRenderingContext2D.prototype.fillText = f; } return said.join(" | "); });
     assert.ok(!/gewinnt|GEWINNT/.test(pic) && pic.includes(X.de.da_foreign.slice(0, 30)), pic.slice(0, 300));
-    for (const p of [a2, b, a3]) assert.deepEqual(p.errs, []);
+    // A's darts kept, but more than one turn added (B's turn, made-up misses of A, B's checkout): refused on A's phone
+    const mine = M.last(Tn.moves(d))[0]; let ext = mine;
+    for (let i = 0; i < 400; i++) {
+      const fg = M.sim(seed, ext); if (fg.over) break;
+      const p = fg.partial ? fg.turns[fg.turns.length - 1].p : fg.turns.length % 2, h = M.hand(seed, fg.k);
+      if (!p) { ext += T(1.9, 1.9); continue; }
+      const at = M.aimFor(fg, 1), c = M.centre(at.n, at.r); ext += T(c[0] - h.sx, c[1] - h.sy);
+    }
+    const longer = Object.assign({}, d, { q: Tn.seal([[[ext, 0, ["", "Ben"]]]], seed) });
+    assert.ok(Tn.state(longer).over && M.sim(seed, ext).turns.length > 2, "fuer sich: Ben gewinnt nach vielen Aufnahmen");
+    const a4 = await G.open(ana, hash(D.docUrl(longer)));
+    const seen4 = await a4.evaluate(() => { const d = window.DailyDebug.home().doc; return { over: window.Turns.state(d).over, res: window.Turns.result(d, "de"), face: window.Turns.face(d, "de") }; });
+    assert.deepEqual([seen4.over, seen4.res], [false, null], "angehaengte fremde Aufnahmen: kein Ende, kein Ergebnis");
+    assert.equal(seen4.face[seen4.face.length - 1], X.de.da_foreign);
+    // exactly one real turn of B after A's: counted, no note, and A throws on
+    const one = Object.assign({}, d, { q: Tn.seal([[[mine + T(0, -0.6) + T(0, -0.6) + T(0, -0.6), 30, ["", "Ben"]]]], seed) });
+    const a5 = await G.open(ana, hash(D.docUrl(one)));
+    const seen5 = await a5.evaluate(() => window.Turns.face(window.DailyDebug.home().doc, "de"));
+    assert.ok(!seen5.includes(X.de.da_foreign), "eine echte Aufnahme: kein Hinweis");
+    await a5.locator("#go").click(); await a5.getByRole("button", { name: X.de.da_open, exact: true }).waitFor();
+    assert.equal(await a5.locator("#panel .dawarn").count(), 0);
+    for (const p of [a2, b, a3, a4, a5]) assert.deepEqual(p.errs, []);
   } finally { await br.close(); }
 });

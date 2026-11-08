@@ -202,21 +202,49 @@
   // whole game will do; a new move (Turns.play) adds exactly one turn to the one before, or is the first turn of a doc
   // without moves (doc.q empty). Against Bert the one move is the whole game.
   // ---------- nicknames ----------
-  var HIDDEN = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF\u00AD]/g;
+  // Names in any script (Greek, Cyrillic, Arabic, Korean ... as well as Latin), but one script per name, and compared by a
+  // skeleton, so that a look-alike of a screen word or of the other's name is caught.
+  // Hidden characters: format and control characters, Braille blank and the Hangul fillers (they look like nothing).
+  var HIDDEN = /[\p{Cf}\p{Cc}⠀ㅤᅟᅠﾠ]/gu;
+  // look-alikes of Latin letters in other scripts (lower case, after NFKC): Cyrillic, Greek, Armenian, Lisu, Tai Le, digits
   var LOOK = { "а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "у": "y", "х": "x", "і": "i", "ј": "j", "ѕ": "s", "к": "k", "м": "m", "н": "h", "т": "t", "в": "b",
-    "ԁ": "d", "ӏ": "l", "ь": "b", "г": "r", "α": "a", "β": "b", "ε": "e", "η": "n", "ι": "i", "κ": "k", "μ": "m", "ν": "v", "ο": "o", "ρ": "p", "τ": "t", "υ": "u", "χ": "x",
+    "ԁ": "d", "ӏ": "l", "ь": "b", "г": "r", "ԛ": "q", "ԝ": "w", "α": "a", "β": "b", "ε": "e", "η": "n", "ι": "i", "κ": "k", "μ": "m", "ν": "v", "ο": "o", "ρ": "p", "τ": "t", "υ": "u", "χ": "x", "γ": "y",
+    "ս": "u", "օ": "o", "հ": "h", "ո": "n", "զ": "q", "ց": "g", "ա": "w", "ք": "p", "ւ": "l", "ᥙ": "u", "ᥒ": "n", "ᥐ": "g",
     "0": "o", "1": "l", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", "$": "s", "ß": "ss" };
-  // a name without bidi and zero-width characters (the screen never shows them)
+  // Cherokee capitals (U+13A0..) and Lisu letters that look like Latin capitals; Cherokee small letters (U+AB70..) count as capitals
+  var CHER = { "Ꭰ": "d", "Ꭱ": "r", "Ꭲ": "t", "Ꭵ": "i", "Ꭺ": "a", "Ꭻ": "j", "Ꭼ": "e", "Ꮃ": "w", "Ꮇ": "m", "Ꮋ": "h", "Ꮐ": "g", "Ꮓ": "z", "Ꮤ": "w", "Ꮩ": "v",
+    "Ꮪ": "s", "Ꮮ": "l", "Ꮯ": "c", "Ꮲ": "p", "Ꮶ": "k", "Ᏼ": "b", "Ᏻ": "g", "Ꮍ": "y", "Ꮑ": "n", "Ꮻ": "o", "Ꮜ": "u",
+    "ꓐ": "b", "ꓑ": "p", "ꓒ": "d", "ꓓ": "d", "ꓔ": "t", "ꓖ": "g", "ꓗ": "k", "ꓙ": "j", "ꓚ": "c", "ꓜ": "z", "ꓝ": "f", "ꓟ": "m", "ꓠ": "n", "ꓡ": "l", "ꓢ": "s",
+    "ꓣ": "r", "ꓦ": "v", "ꓧ": "h", "ꓪ": "w", "ꓫ": "x", "ꓬ": "y", "ꓮ": "a", "ꓰ": "e", "ꓲ": "i", "ꓳ": "o", "ꓴ": "u" };
+  function cher(c) { var k = c.codePointAt(0); return k >= 0xAB70 && k <= 0xABBF ? String.fromCodePoint(k - 0xAB70 + 0x13A0) : c; }
+  // a name without hidden characters (the screen never shows them)
   function plainName(n) { return String(n == null ? "" : n).replace(HIDDEN, ""); }
-  // a name as two names are compared: NFKC, lower case, look-alikes as Latin, accents and everything but a-z dropped
+  // the skeleton two names are compared by: NFKC (Roman numerals become letters), look-alikes as Latin, lower case,
+  // accents, spaces and punctuation dropped; letters of every script stay
   function foldName(n) {
-    return Array.from(plainName(n).normalize("NFKC").toLowerCase()).map(function (c) { return LOOK[c] || c; }).join("")
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z]/g, "");
+    return Array.from(plainName(n).normalize("NFKC")).map(function (c) { var u = cher(c); return CHER[u] || LOOK[u.toLowerCase()] || u.toLowerCase(); }).join("")
+      .normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]/gu, "");
   }
-  // the screen's own words for the players, in every language: no nickname may be one of them
-  var TAKEN = {}; ["de", "en"].concat(Object.keys(DATA.text)).forEach(function (l) { ["da_me", "da_bot", "da_p1", "da_p2"].forEach(function (k) { if (DATA.text[l] && DATA.text[l][k]) TAKEN[foldName(DATA.text[l][k])] = 1; }); });
-  TAKEN.bert = TAKEN.bot = 1;
-  function nameOk(n) { return n === "" || (typeof n === "string" && plainName(n) === n && Q.clean(n, NAME) === n && !!foldName(n) && !TAKEN[foldName(n)]); }
+  // One script per name (Script_Extensions; Common and Inherited go with any). Japanese may mix Han, Hiragana and
+  // Katakana, Korean Hangul and Han (UTS #39 "augmented" scripts).
+  var SCRIPTS = ["Latin", "Greek", "Cyrillic", "Armenian", "Hebrew", "Arabic", "Syriac", "Thaana", "Devanagari", "Bengali", "Gurmukhi", "Gujarati", "Oriya", "Tamil", "Telugu",
+    "Kannada", "Malayalam", "Sinhala", "Thai", "Lao", "Tibetan", "Myanmar", "Georgian", "Hangul", "Ethiopic", "Cherokee", "Khmer", "Mongolian", "Hiragana", "Katakana", "Han", "Lisu", "Tai_Le", "Bopomofo"]
+    .map(function (x) { return [x, new RegExp("\\p{scx=" + x + "}", "u")]; });
+  var AUG = { Han: ["Jpan", "Kore", "Hanb"], Hiragana: ["Jpan"], Katakana: ["Jpan"], Hangul: ["Kore"], Bopomofo: ["Hanb"] };
+  function oneScript(n) {
+    var left = null;
+    Array.from(n.normalize("NFKC")).forEach(function (c) {
+      if (/[\p{scx=Common}\p{scx=Inherited}]/u.test(c) && !SCRIPTS.some(function (x) { return x[1].test(c); })) return;
+      var set = {}; SCRIPTS.forEach(function (x) { if (x[1].test(c)) { set[x[0]] = 1; (AUG[x[0]] || []).forEach(function (a) { set[a] = 1; }); } });
+      if (!Object.keys(set).length) set["?" + c] = 1;
+      if (!left) left = set; else Object.keys(left).forEach(function (k) { if (!set[k]) delete left[k]; });
+    });
+    return !left || Object.keys(left).length > 0;
+  }
+  // the screen's own words for the players, in every language, as skeletons: no nickname may be one of them
+  var TAKEN = {}; Object.keys(DATA.text).forEach(function (l) { ["da_me", "da_bot", "da_p1", "da_p2"].forEach(function (k) { if (DATA.text[l][k]) TAKEN[foldName(DATA.text[l][k])] = 1; }); });
+  ["bert", "bot", "du", "you", "ich", "me", "spieler", "player"].forEach(function (w) { TAKEN[w] = 1; });
+  function nameOk(n) { return n === "" || (typeof n === "string" && plainName(n) === n && Q.clean(n, NAME) === n && oneScript(n) && !!foldName(n) && !TAKEN[foldName(n)]); }
   function namesOk(a) { return Array.isArray(a) && a.length === 2 && nameOk(a[0]) && nameOk(a[1]) && !(a[0] && a[1] && foldName(a[0]) === foldName(a[1])); }
   // my nickname for the move: hidden characters dropped, through the filter; "" when it is taken or the other's in disguise
   function myName(nick, other) { var n = Q.clean(plainName(nick), NAME); return n && nameOk(n) && !(other && foldName(other) === foldName(n)) ? n : ""; }
@@ -232,18 +260,31 @@
   // A link that comes back has to go on from the darts this phone sent last (mine): the other side may only add a turn.
   // An earlier link of the same game (a beginning of mine: this phone's own history, e.g. the link it answered) is fine
   // too. Anything else (my darts rewritten, a strange game with this seed) is not counted: the phone keeps its own standing.
-  function trust(mine, v) {
+  // seed: to count the turns. A link that goes on from mine may add one turn (the other's) and no more: more would be
+  // turns of mine I never threw.
+  function trust(mine, v, seed) {
     if (!mine) return true;
     var s = v && typeof v[0] === "string" ? v[0] : null;
-    return !!s && (s.slice(0, mine.length) === mine || mine.slice(0, s.length) === s);
+    if (!s) return false;
+    if (mine.slice(0, s.length) === s) return true;
+    if (s.slice(0, mine.length) !== mine) return false;
+    var a = sim(seed, mine), b = sim(seed, s);
+    return !!a && !!b && b.turns.length <= a.turns.length + 1;
   }
   // What this phone counts for doc: { v, g, foreign } or null. own(seed) -> { s, n } is what this phone sent last for that
-  // game (dart-ui.js sets it, from the phone's storage); a link that does not go on from it is not counted.
+  // game (dart-ui.js sets it, from the phone's storage); a link that does not go on from it is not counted. My own name
+  // always comes from that store, never from the link.
   var own = null;
   function view(doc, m) {
     var v = last(m), o = own && v ? own(doc.seed) : null;
-    if (o && o.s && !trust(o.s, v)) { var og = sim(doc.seed, o.s); if (og && !og.partial) return { v: [o.s, claimed(og), namesOk(o.n) ? o.n : ["", ""]], g: og, foreign: true }; }
-    return v ? { v: v, g: sim(doc.seed, v[0]), foreign: false } : null;
+    if (o && o.s && !trust(o.s, v, doc.seed)) { var og = sim(doc.seed, o.s); if (og && !og.partial) return { v: [o.s, claimed(og), namesOk(o.n) ? o.n : ["", ""]], g: og, foreign: true }; }
+    if (!v) return null;
+    var g = sim(doc.seed, v[0]);
+    if (o && o.s && g && !g.bot) {
+      var mg = sim(doc.seed, o.s), me = mg && mg.turns.length ? mg.turns[mg.turns.length - 1].p : -1;
+      if (me >= 0 && Array.isArray(o.n) && v[2][me] !== o.n[me] && nameOk(o.n[me])) { var n = v[2].slice(); n[me] = o.n[me]; v = [v[0], v[1], n]; }
+    }
+    return { v: v, g: g, foreign: false };
   }
   // What the link says the last turn brought, against what it brought: null when they agree.
   function claimed(g) { return g.bot ? g.turns.filter(function (t) { return t.p === 0; }).reduce(function (a, t) { return a + t.pts; }, 0) : g.turns[g.turns.length - 1].pts; }
