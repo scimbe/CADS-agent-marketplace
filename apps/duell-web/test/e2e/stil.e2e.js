@@ -135,7 +135,7 @@ test("Konto-Karte abgemeldet (de/en): drei Vorteile, 16+ vor dem Knopf, ohne Dru
     await card.getByRole("alert").filter({ hasText: T.need }).waitFor();
     assert.equal(await p.evaluate(() => document.activeElement.id), "ac16", "Fokus auf dem Haken");
     assert.equal(p.url(), url, "ohne Haken kein Sprung zur Anmeldung");
-    assert.match(await p.locator("#" + (await go.getAttribute("aria-describedby"))).textContent(), /bunsenbrenner\.org/, "sagt, wohin es geht");
+    assert.equal(await p.locator("#" + (await go.getAttribute("aria-describedby"))).textContent(), lang === "de" ? "Anmeldung über unseren Anmeldedienst (bunsenbrenner.org)." : "Sign-in via our sign-in service (bunsenbrenner.org).", "sagt, wohin es geht und was das ist");
     await card.getByText(T.ok).waitFor();
     // no pressure: nothing counts down, nothing is pre-ticked, the card sits below the preview
     assert.equal(await p.getByLabel(T.age).isChecked(), false);
@@ -215,6 +215,30 @@ test("axe: Mein Stil ohne Verstoesse, abgemeldet und angemeldet, mit offenen Abs
     assert.deepEqual(errs, []); await ctx.close();
   }
   for (const k of [...srv.db.keys()]) srv.db.delete(k);
+});
+
+// P7 (Gisela, iPad at 200 %): the font size stands right under the preview, before the account, and is in view without scrolling.
+test("Schrift direkt unter der Vorschau: bei 200 % ohne Scrollen sichtbar, vor der Konto-Karte, und sie wirkt sofort", async () => {
+  for (const [w, h, lang] of [[810, 1080, "de"], [1280, 800, "de"], [810, 1080, "en"]]) {
+    const { ctx, p, errs } = await open({ w, h, zoom: 2, lang }), tag = w + "@200% " + lang;
+    const g = group(p, lang === "de" ? "Schrift" : "Text size");
+    assert.deepEqual(await g.getByRole("radio").allTextContents(), lang === "de" ? ["Normal", "Groß", "Sehr groß"] : ["Normal", "Large", "Extra large"], tag);
+    const r = await p.evaluate(() => {
+      const b = document.getElementById("shbody"), fs = document.querySelector(".stfs").getBoundingClientRect(), pv = document.querySelector(".stpvw").getBoundingClientRect(), ac = document.getElementById("acbox").getBoundingClientRect();
+      return { top: b.scrollTop, bottom: fs.bottom, vh: innerHeight, after: fs.top >= pv.bottom - 1, before: fs.bottom <= ac.top + 1 };
+    });
+    assert.equal(r.top, 0, tag + ": nicht gescrollt");
+    assert.ok(r.bottom <= r.vh, tag + ": ganz im Bild " + r.bottom + " > " + r.vh);
+    assert.ok(r.after && r.before, tag + ": zwischen Vorschau und Konto");
+    if (lang === "de" && w === 810) {
+      const f0 = await p.evaluate(() => parseFloat(getComputedStyle(document.querySelector("#acbox .note")).fontSize));
+      await g.getByRole("radio", { name: "Sehr groß" }).click();
+      assert.ok(await p.evaluate(() => parseFloat(getComputedStyle(document.querySelector("#acbox .note")).fontSize)) > f0, "die Schrift wird groesser");
+      assert.equal(await g.getByRole("radio", { checked: true }).textContent(), "Sehr groß");
+      assert.equal(await p.locator(".stread").getByRole("radiogroup").count(), 0, "unter Lesen & Bedienen nur noch Einfache Sprache");
+    }
+    assert.deepEqual(errs, [], tag); await ctx.close();
+  }
 });
 
 test("Bewegung reduziert: die Vorschau springt nicht", async () => {

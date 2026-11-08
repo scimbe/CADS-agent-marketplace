@@ -24,7 +24,8 @@
     ".strg .stsw{width:48px;height:48px;padding:0;border-radius:50%;overflow:hidden}.strg .stsw i{position:absolute;inset:0 0 50% 0}.strg .stsw[aria-checked=true]{box-shadow:0 0 0 3px #fbf5dd,0 0 0 6px var(--sk)}.strg .stsw[aria-checked=true]::after{content:'✓';position:absolute;inset:0;display:grid;place-items:center;color:#17140f;font:900 20px var(--ui);text-shadow:0 0 3px #fff,0 0 3px #fff}" +
     ".strg .stset{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;padding:6px 14px;text-align:left}.strg .stset small{font-size:1rem;letter-spacing:2px}" +
     ".stread{margin-top:22px;padding:14px 16px 6px;border:2px solid var(--sk);border-radius:20px;background:#fff}.stread h3.lbl{margin:0 0 4px;font-size:1.125rem}.stread .lbl{margin:10px 0 6px;font-size:.94rem}.stread .chips,.stread .strg{margin-bottom:6px}.stread .chip{min-height:44px}.stread .note{font-size:.8125rem}" +
-    "@media (min-width:600px){.stread{display:grid;grid-template-columns:auto 1fr;column-gap:28px}.stread h3{grid-column:1/-1}}" +
+    "" +
+    ".stfs{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:0 0 18px}.stfs .lbl{margin:0;display:flex;align-items:center;gap:6px}.stfs .staa{font:400 1.375rem/1 var(--disp)}.stfs .strg{margin:0}.stfs .chip{min-height:44px}" +
     ".stemrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.stemrow .strg{margin:0;flex:0 1 auto;min-width:0}.stmore{min-height:52px;padding:0 16px;border:2px solid var(--sk);border-radius:16px;background:transparent;color:var(--sk);font:600 .94rem Inter,var(--ui)}" +
     ".stil details{margin:10px 0}.stil summary{min-height:48px;display:flex;align-items:center;gap:10px;font-weight:700;cursor:pointer;list-style:none}.stil summary::-webkit-details-marker{display:none}.stil summary svg{flex:none;transition:transform .15s}.stil details[open]>summary svg{transform:rotate(90deg)}" +
     ".stil .stsec{border-top:2px dashed #c9c0a3;margin-top:20px;padding-top:4px}.stil .stsec>summary{font-size:1.06rem;flex-wrap:wrap;row-gap:0;padding:6px 0}.stil .stsec>summary small{flex-basis:100%;padding-left:30px;font-weight:500;font-size:.875rem;color:var(--sm)}" +
@@ -113,6 +114,11 @@
     function changed(pop) { var m = me(); S.save(); $("me").textContent = m.emoji; S.ink(m.colors[0], m.colors[1]); paint(pop); }
 
     // ---------- the account card (part konto); its details go under "Konto & Daten" below ----------
+    // ---------- font size right under the preview, before the account: whoever sees badly finds it at once ----------
+    var fs = radios(t("fs_title"), ["n", "g", "sg"].map(function (v) { return { v: v, l: t("fs_" + v), c: "chip fs" }; }), Kit.fs, function (v) { Kit.setFs(v); S.fit(); });
+    var fsr = el("div", "stfs"); fs.label.insertBefore(el("span", "staa", "Aa"), fs.label.firstChild); fs.label.lastChild.textContent = " " + t("fs_title");
+    fs.label.firstChild.setAttribute("aria-hidden", "true"); fsr.appendChild(fs.label); fsr.appendChild(fs.box); left.appendChild(fsr);
+
     var acHold = el("div"), data = el("details", "stsec"), dataBody = el("div");
     left.appendChild(acHold);
 
@@ -160,11 +166,10 @@
     }), me().set, function (v) { me().set = v; changed(true); });
     right.appendChild(stk.label); right.appendChild(stk.box);
 
-    // ---------- "Lesen & Bedienen": font size and plain language, one block under one heading ----------
-    var rd = el("section", "stread"), rh = el("h3", "lbl", t("ms_read")), r1 = el("div"), ez = el("div");
+    // ---------- "Lesen & Bedienen": plain language (the font size sits under the preview) ----------
+    var rd = el("section", "stread"), rh = el("h3", "lbl", t("ms_read")), ez = el("div");
     rh.id = "streadh"; rd.setAttribute("aria-labelledby", "streadh"); rd.appendChild(rh);
-    var fs = radios(t("fs_title"), ["n", "g", "sg"].map(function (v) { return { v: v, l: t("fs_" + v), c: "chip fs" }; }), Kit.fs, function (v) { Kit.setFs(v); S.fit(); });
-    r1.appendChild(fs.label); r1.appendChild(fs.box); rd.appendChild(r1); rd.appendChild(ez); right.appendChild(rd);
+    rd.appendChild(ez); right.appendChild(rd);
     // the plain-language switch comes with the part direkt (editor E1)
     root.Parts.need("direkt").then(function () { root.Direkt.style(ez); }, function () {});
 
