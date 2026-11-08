@@ -282,7 +282,8 @@
       mine(b);
     });
   }
-  load();
+  // No fetch when the part starts: it loads with every sheet (parts.js seen); the deck comes when it is used (btn, shelf),
+  // a free card's status only for a free card (check).
   // The button under "Vergangene" (app.js openPast); the deck itself loads for the search there.
   function btn(box) { load(); box.appendChild(el("button", "btn", t("deck_open"), function () { Kit.sfx.tap(); shelf(); })); }
   root.Deck = { ok: ok, check: check, gate: gate, btn: btn, load: load, list: function () { return deck.cards.slice(); }, version: function () { return deck.v; }, search: search, hits: hits, revoked: revoked, seen: seen, vote: vote, open: open, shelf: shelf, cidOf: cidOf, _sane: sane, _canonical: canonical };
