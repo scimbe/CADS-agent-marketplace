@@ -96,8 +96,8 @@ function setHome(h, animate) {
   var F = window.DailyFlavor, off = F && F.stat === false; $("votes").hidden = off || !(h.doc ? h.note && h.doc.i && !(h.doc.ki && h.doc.ki.k === "karte") : h.idea);   // as Stat.card
   stimme(function (S) { S.sheet(h); }, h);
   if (kind === "sound" && (h.doc ? h.doc.m : idea && idea.sound && idea.sound.mode) === "voice") window.Parts.need("klang").catch(function () {});   // not in the idle preload (parts.js)
-  if (window.StartUI) window.StartUI.home(h);   // the new start (part start, src/start-ui.js); without it the page as before
-  else $("home").classList.toggle("neu", !!(window.DailyParts || {}).start && !h.note && !h.doc);   // its place, until it is there
+  if (window.StartUI) window.StartUI.home(h);
+  else $("home").classList.toggle("neu", !!(window.DailyParts || {}).start && !h.note && !h.doc);
 }
 // A voice sent by a friend: the main button answers with my own voice (the part klang records after this tap, once the
 // microphone is allowed; before that it explains first and waits for the record button).
@@ -1252,11 +1252,11 @@ function boot() { if (!route()) goHome(); }
 // The new start (part start) is asked for right after the catalog, not while it loads (the first sheet waits for the catalog
 // only, as before) and not when idle; the sheet already has its final place (#startslot, style.css), the part fills it.
 // Missing, the page stays as it was.
-// A link (c=, i=, s=) opens straight on a received card: that page waits for the part too (asked for at once), so its
-// sender line and the card's room are there with the first paint and nothing moves afterwards.
+// A link (c=, i=, s=) opens straight on a received card: that page waits for the part too (asked for at once, at most 2.5 s),
+// so its sender line and the card's room are there with the first paint and nothing moves afterwards.
 function startPart() { return (window.DailyParts || {}).start ? window.Parts.need("start").then(function () { window.StartUI.labels(); if (home && screen === "home") window.StartUI.home(home); }, function () { $("home").classList.remove("neu"); }) : 0; }
 var got = /^#(?:.*&)?[cis]=/.test(location.hash) && startPart();
-window.Parts.need("katalog").then(function () { var s = got || startPart(), n = two(location.hash) || twoIdea(D.ideaForDay(today)); return Promise.all([n ? window.Parts.need(n).catch(function () {}) : 0, got ? s : 0]); }).then(boot, function () { Kit.toast(t("part_fail")); boot(); });
+window.Parts.need("katalog").then(function () { var s = got || startPart(), n = two(location.hash) || twoIdea(D.ideaForDay(today)); return Promise.all([n ? window.Parts.need(n).catch(function () {}) : 0, got ? Promise.race([s, new Promise(function (ok) { setTimeout(ok, 2500); })]) : 0]); }).then(boot, function () { Kit.toast(t("part_fail")); boot(); });
 // The embedded display font loads after the first paint: fit the headline again once it is there, and draw the sheet's
 // card and the editor's picture again. A canvas keeps the letters it was drawn with: on a slow phone the sheet drawn before
 // the font was there kept the fallback font for good. Only the pictures are drawn again, the same card as fillSheet

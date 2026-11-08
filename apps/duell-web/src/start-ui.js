@@ -37,30 +37,30 @@
     "#home.neu{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scroll-padding:12px 0}",
     "#home.neu>*{flex-shrink:0}#home.neu::before{display:none}",
     /* a phone at 150 % zoom and more (narrow): the intentions first, the day's card after them */
-    "@media (max-width:300px){#home.neu:not(.recv)>.bar{order:-2}#home.neu:not(.recv)>#startbox{order:-1}}",
+    "@media (max-width:300px){#home.neu:not(.recv)>.bar{order:-2}#home.neu:not(.recv)>#startbox{order:-1}.stform>.sti{display:none}.stform{padding-left:10px}}",
     /* a tall phone: the sheet gives room, so the question and the tiles are on the first screen; a short one (200 % zoom, a
        small phone) keeps sheet and main button on the first screen as before (rule A4) and the start follows below it */
     "#home.neu #feat{padding:0}@media (max-height:700px){#allcards{display:none}}",
     "@media (orientation:landscape) and (max-height:500px) and (min-width:560px){#home #startbox{display:none}}",
-    "#startbox{position:relative;display:flex;flex-direction:column;gap:14px;margin:4px 18px 10px;font-family:var(--st);color:var(--on)}",
+    "#startbox{position:relative;display:flex;flex-direction:column;gap:14px;margin:6px 0 0;padding:16px 18px 14px;border-top:3px solid var(--sk);border-radius:26px 26px 0 0;background:var(--sc);font-family:var(--st);color:var(--sk)}#home.neu #tools{background:var(--sc);flex:1 0 auto;align-content:start;padding-bottom:16px}#home.neu #tools button{color:var(--sk)}",
     "#starth{margin:6px 0 0;font:400 1.75rem/1.06 var(--disp);text-transform:uppercase;letter-spacing:.3px;overflow-wrap:anywhere}",
-    ".stform{display:flex;align-items:center;gap:6px;min-height:56px;padding:5px 5px 5px 14px;border:2px solid var(--sk);border-radius:18px;background:#fff;color:var(--sk);box-shadow:4px 4px 0 var(--sk)}",
+    ".stform{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px;min-height:56px;padding:5px 5px 5px 14px;border:2px solid var(--sk);border-radius:18px;background:#fff;color:var(--sk);box-shadow:4px 4px 0 var(--sk)}",
     ".stform:focus-within{outline:3px solid var(--sk);outline-offset:3px}",
-    ".stform>.sti{color:var(--sr)}",
-    ".stin{flex:1;min-width:0;min-height:44px;border:0;background:transparent;color:var(--sk);font:600 1rem/1.3 var(--st);padding:0;outline:none;user-select:text;-webkit-user-select:text}",
+    ".stform>.sti{color:var(--sr);align-self:center}",
+    ".stin{flex:1 1 9rem;min-width:0;min-height:44px;border:0;background:transparent;color:var(--sk);font:600 1rem/1.3 var(--st);padding:0;outline:none;user-select:text;-webkit-user-select:text}",
     ".stin::placeholder{color:var(--sm);opacity:1}",
     ".stico{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;border:0;background:transparent;color:var(--sk);padding:0}",
     ".stico.go{background:var(--sk);color:var(--sy)}.stico.mic{background:var(--sr);color:var(--sc)}.stico.mic[aria-pressed=true]{outline:3px solid var(--sk);outline-offset:2px}",
     ".sttiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(9.5rem,100%),1fr));gap:12px}",
-    ".sttile{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:104px;padding:14px;border:2px solid var(--sk);border-radius:22px;background:#fff;color:var(--sk);text-align:left;box-shadow:4px 4px 0 var(--sk);font-family:var(--st);transition:transform 90ms ease-out}",
+    ".sttile{display:grid;grid-template-columns:auto 1fr;align-content:start;align-items:center;gap:4px 8px;min-height:88px;padding:12px;border:2px solid var(--sk);border-radius:22px;background:#fff;color:var(--sk);text-align:left;box-shadow:4px 4px 0 var(--sk);font-family:var(--st);transition:transform 90ms ease-out}",
     ".sttile:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--sk)}",
-    ".sttile b{font:800 1rem/1.2 var(--st);overflow-wrap:anywhere}.sttile small{font:500 .875rem/1.3 var(--st);overflow-wrap:anywhere}",
+    ".sttile b{font:800 1rem/1.2 var(--st);overflow-wrap:break-word;hyphens:auto}.sttile small{grid-column:1/-1;font:500 .875rem/1.3 var(--st);overflow-wrap:anywhere}",
     ".sttile.t0{background:var(--sy)}.sttile.t3{background:var(--sr);color:var(--sc)}",
-    ".stall{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:6px 16px;border:2px solid currentColor;border-radius:16px;background:transparent;color:var(--on);font:700 1rem/1.2 var(--st)}",
+    ".stall{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:6px 16px;border:2px solid currentColor;border-radius:16px;background:transparent;color:var(--sk);font:700 1rem/1.2 var(--st)}",
     ".stall[aria-expanded=true]{background:var(--sk);color:var(--sy);border-color:var(--sk)}",
     "#allbox{display:flex;flex-direction:column;gap:8px}",
     "#home.neu #tools button{font-family:var(--st);font-weight:700;text-decoration:underline;text-underline-offset:3px}",
-    "@media (min-width:900px),(orientation:landscape) and (max-height:500px) and (min-width:560px){#startbox{margin:4px 10px 10px}#starth{font-size:1.5rem}}",
+    "@media (min-width:900px),(orientation:landscape) and (max-height:500px) and (min-width:560px){#startbox{margin:4px 10px 10px;border:3px solid var(--sk);border-radius:22px}#home.neu #tools{background:none}#home.neu #tools button{color:var(--on)}#starth{font-size:1.5rem}}",
     "@media (prefers-reduced-motion:reduce){.sttile{transition:none}}",
     /* the sheet "Deine Karte" */
     ".stc{display:flex;flex-direction:column;gap:16px;padding:6px 2px 18px;font-family:var(--st);color:var(--sk)}",
@@ -83,9 +83,10 @@
     ".stcard.alt .badge{width:44px;height:44px;border-radius:12px}",
     ".stcard span{display:flex;flex-direction:column;gap:3px;min-width:0}",
     ".stcard b{font:800 1.05rem/1.2 var(--st);overflow-wrap:anywhere}.stcard small{font:500 .88rem/1.3 var(--st);color:#4a4436;overflow-wrap:anywhere}",
-    ".stcard i{font:700 .875rem/1.2 var(--st);font-style:normal;color:#1e5631}.stcard i.near{color:#7a4a00}",
+    ".stcard q{font:600 .95rem/1.35 var(--st);quotes:\"„\" \"“\";overflow-wrap:anywhere}.stcard i{font:700 .875rem/1.2 var(--st);font-style:normal;color:#1e5631}.stcard i.near{color:#7a4a00}",
     ".sthonest{margin:0;padding:12px 14px;border-radius:16px;background:#fff1c2;color:var(--sk);font:500 .92rem/1.4 var(--st)}",
-    ".stmake{display:flex;align-items:center;justify-content:center;min-height:60px;border:0;border-radius:16px;background:var(--sk);color:var(--sy);font:400 1.5rem/1 var(--disp);letter-spacing:.5px;text-transform:uppercase}",
+    ".stmakebar{--sy:#F9D84A;--sc:#FBF5DD;--sk:#17140F;--sm:#4A4436;--st:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif;display:flex;flex-direction:column;gap:6px;flex:none;padding:8px 14px calc(10px + env(safe-area-inset-bottom));border-top:2px solid var(--sk);background:var(--sc);text-align:center}",
+    ".stmake{width:100%;display:flex;align-items:center;justify-content:center;min-height:60px;border:0;border-radius:16px;background:var(--sk);color:var(--sy);font:400 1.5rem/1 var(--disp);letter-spacing:.5px;text-transform:uppercase}",
     ".stmake[aria-disabled=true]{background:transparent;color:var(--sk);border:2px dashed var(--sk)}"
   ].join("\n");
   function style() {
@@ -167,6 +168,11 @@
     if (H.hidden || !H.classList.contains("neu") || getComputedStyle(H).display === "grid") return;
     var recv = !box || box.hidden;
     if (!recv && innerHeight > 700) return;
+    // the big-type order (intentions first, <= 300 px): the day's card keeps a real size below them, it is not squeezed
+    if (!recv && innerWidth <= 300) { pad.style.flex = "none"; pad.style.height = Math.round(Math.min(Math.max(240, innerHeight * 0.7), 480)) + "px"; if (A().style && A().style.fit) A().style.fit(); return; }
+    // measured with everything shown: the sheet's own fitting (app.js fitCard, .lean/.roll) decides again afterwards
+    var had = ["lean", "roll"].filter(function (c) { return H.classList.contains(c); });
+    H.classList.remove("lean", "roll");
     var used = 0, e = pad.nextElementSibling, ps = getComputedStyle(pad);
     for (; e; e = e.nextElementSibling) {
       var cs = getComputedStyle(e);
@@ -174,6 +180,7 @@
       if (e === go) break;
     }
     var room = H.clientHeight - pad.offsetTop - parseFloat(ps.marginBottom) - used - 8;   // 8: the shadow under the main button
+    had.forEach(function (c) { H.classList.add(c); });
     pad.style.flex = "none"; pad.style.height = Math.max(96, Math.floor(room)) + "px";
     if (A().style && A().style.fit) A().style.fit();
   }
@@ -188,17 +195,22 @@
   // browser said, for this language, that it recognises on the device (SpeechRecognition.available with processLocally) and
   // with processLocally set. Asked only after a tap on the microphone, never at load (a browser without the speech service
   // may fall over on the question). The app shells keep the phone's own dictation on the keyboard instead.
+  // The answer is remembered on this device (Kit.store.mic "ok" | "no"): the microphone shows only once it is known to work
+  // here; before that the sheet "Deine Karte" offers a neutral check, and "no" is said once and never offered again.
   function micOk() { return !!SR && typeof SR.available === "function" && !root.DuellHost && location.hostname !== "appassets.androidplatform.net"; }
-  function micCheck(b) { b.hidden = !micOk(); }
-  function off(b) { b.hidden = true; b.setAttribute("aria-pressed", "false"); Kit.toast(t("st_micOff")); }
+  function micCheck(b) { b.hidden = !(micOk() && Kit.store.mic === "ok"); }
+  function off(b) { b.hidden = true; b.setAttribute("aria-pressed", "false"); Kit.store.mic = "no"; Kit.save(); Kit.toast(t("st_micOff")); }
+  function probe() {
+    var ask;
+    try { ask = Promise.resolve(SR.available({ langs: [Kit.loc()], processLocally: true })); } catch (e) { ask = Promise.resolve(""); }
+    return ask.then(function (s) { Kit.store.mic = s === "available" ? "ok" : "no"; Kit.save(); return Kit.store.mic === "ok"; }, function () { Kit.store.mic = "no"; Kit.save(); return false; });
+  }
   function listen(field, b, done) {
     if (!micOk() || b.getAttribute("aria-pressed") === "true") return;
     b.setAttribute("aria-pressed", "true");
-    var ask;
-    try { ask = Promise.resolve(SR.available({ langs: [Kit.loc()], processLocally: true })); } catch (e) { ask = Promise.resolve(""); }
-    ask.then(function (s) {
+    probe().then(function (ok) {
       var r = null;
-      if (s === "available") try { r = new SR(); r.lang = Kit.loc(); r.processLocally = true; r.interimResults = false; r.maxAlternatives = 1; } catch (e) { r = null; }
+      if (ok) try { r = new SR(); r.lang = Kit.loc(); r.processLocally = true; r.interimResults = false; r.maxAlternatives = 1; } catch (e) { r = null; }
       if (!r || r.processLocally !== true) return off(b);   // no promise of the device: no listening
       Kit.toast(t("st_micOn"));
       r.onresult = function (e) { var x = e.results && e.results[0] && e.results[0][0]; if (x && x.transcript) { field.value = String(x.transcript).slice(0, 120); done(); } };
@@ -211,18 +223,22 @@
   /* ---------- "Deine Karte": one sentence -> the card that fits ---------- */
   function ideaText(i) { return i[Kit.lang] || i.de; }
   function badge(intent) { var s = el("span", "badge"); s.appendChild(icon(intent || "star", 30)); return s; }
-  // Opens a card the way a tap on its main button does (feel-good: finished at once, with the name in front; the rest:
-  // its editor or game). The sheet stays the chosen card, as after "Letzte Tage".
+  // Opens a card: a feel-good card as its sheet with the name already in front (its button "Karte fertig machen" is the
+  // "Fertig" that makes the link); every other card its editor or game, as a tap on its main button. Nothing goes to the
+  // server here. The sheet stays the chosen card, as after "Letzte Tage".
+  function callTo(idea, r) { var to = r && W.is(idea) ? SI.callName(r, Kit.lang) : ""; return to && W.name(to) ? to : ""; }
   function openCard(idea, r) {
-    var to = r && W.is(idea) ? SI.callName(r, Kit.lang) : "";
-    if (to && !W.name(to)) to = "";
+    var to = callTo(idea, r);
     A().sheet({ date: new Date(), idea: idea, to: to || undefined });
-    $("go").click();
+    if (W.is(idea)) { var g = $("go"); if (g) g.focus(); } else $("go").click();
   }
+  // the line the card will carry, as it comes out ("Oma, danke, dass es dich gibt.")
+  function lineOf(idea, r) { try { return W.is(idea) ? W.cardFor(idea, callTo(idea, r), A().me(), Kit.lang).x : ""; } catch (e) { return ""; } }
   function cardRow(x, intent, r, alt) {
     var i = x.idea, L = ideaText(i), b = el("button", "stcard" + (alt ? " alt" : ""), null, function () { Kit.sfx.thud(); openCard(i, r); });
     b.appendChild(badge(intent || SI.intentOf(i)));
-    var s = el("span"); s.appendChild(el("b", "", D.plainTitle(L.t))); if (L.s) s.appendChild(el("small", "", L.s));
+    var s = el("span"), line = !alt && lineOf(i, r); s.appendChild(el("b", "", D.plainTitle(L.t)));
+    if (line) s.appendChild(el("q", "", line)); else if (L.s) s.appendChild(el("small", "", L.s));
     if (!alt) s.appendChild(el("i", x.exact ? "" : "near", t(x.exact ? "st_exact" : "st_near")));
     b.appendChild(s);
     return b;
@@ -245,7 +261,14 @@
         if (make.getAttribute("aria-disabled") === "true") { ta.focus(); return; }
         Kit.sfx.thud(); openCard(last.top[0].idea, last);
       });
-      c.appendChild(make);
+      var bar = el("div", "stmakebar"); bar.appendChild(make); bar.appendChild(el("p", "stnote stfree", t("st_free")));
+      document.querySelectorAll("#shelf .stmakebar").forEach(function (x) { x.remove(); });
+      $("shbody").after(bar);
+      var mo = new MutationObserver(function () { if (!c.isConnected) { bar.remove(); mo.disconnect(); } }); mo.observe($("shbody"), { childList: true });
+      if (micOk() && !Kit.store.mic) {
+        var chk = el("button", "stbtn stghost", t("st_micAsk"), function () { Kit.sfx.tap(); probe().then(function (ok) { chk.remove(); if (ok) { micCheck(mic); micCheck(refs.mic); mic.focus(); } else c.insertBefore(el("p", "stnote", t("st_micNo")), c.children[2]); }); });
+        chk.id = "micask"; c.insertBefore(chk, c.children[2]);
+      }
       b.appendChild(c);
       var timer = 0;
       ta.addEventListener("input", function () { clearTimeout(timer); timer = setTimeout(function () { forced = ""; show(); }, 220); });
@@ -285,7 +308,8 @@
         }
       }
       show();
-      if (!text && !intent) setTimeout(function () { ta.focus(); }, 0);
+      // the focus goes along to the new sheet: into the field when it is empty, else to its title (WCAG 2.4.3)
+      setTimeout(function () { if (!text && !intent) ta.focus(); else { var tt = $("shtitle"); tt.tabIndex = -1; tt.focus(); } }, 0);
     });
   }
 

@@ -131,10 +131,8 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 #home.roll #pad{overflow-y:auto;scroll-padding:8px 0}#home.roll #leaf{position:relative;height:max(100%,22rem);touch-action:pan-y}#home.roll .under{display:none}
 #home.lean .got .dateline,#home.lean .got .hero,#home.lean #langpick,#home.roll #brand{display:none!important}
 @media (max-height:520px){#home.lean .got{flex-flow:column wrap;align-content:flex-start;column-gap:12px;padding-top:8px}#home.lean .got .holes{display:none}#home.lean .got .pv{flex:none;height:100%;margin:0}}
-/* The new start (part start): on a tall phone the sheet takes its final height at once and #startslot keeps the start's
-   place until the part fills it, so nothing moves when it arrives; elsewhere the slot takes no room. */
 #startslot{display:none}
-@media (max-width:899px) and (min-height:701px){#home.neu{overflow-y:auto;overflow-x:hidden}#home.neu>*{flex-shrink:0}#home.neu::before{display:none}#home.neu #pad{flex:none;height:clamp(15rem,58svh,34rem)}#home.neu #startslot{display:block;min-height:33rem}}
+@media (max-width:899px) and (min-height:701px){#home.neu{overflow-y:auto;overflow-x:hidden}#home.neu>*{flex-shrink:0}#home.neu::before{display:none}#home.neu #pad{flex:none;height:max(15rem,calc(100svh - 35rem))}#home.neu:has(.pv.pic,#warmto:not([hidden])) #pad{height:clamp(15rem,58svh,34rem)}#home.neu #startslot{display:block;min-height:30rem;background:#FBF5DD}}
 #tools{position:relative;display:grid;grid-template-columns:repeat(4,1fr);padding:0 10px 8px;flex:none}
 #tools button{min-height:48px;border:0;background:transparent;color:var(--on);font:800 .85rem/1.1 var(--ui);padding:2px}
 #stagewrap{position:relative;flex:0 1 38%;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 12px;background:var(--a)}

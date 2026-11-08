@@ -15,6 +15,9 @@ const DAY = "2026-11-08T10:00:00Z";   // Sunday 8 Nov: the arcade card "Ziegel D
 // Pixel 7 at 150 % (persona P6): 275x610 CSS px, the big-type order (intentions first); only here, not in every W0 screen,
 // since that order puts the main button below the first screen on purpose.
 G.VIEWS.zoom150 = Object.assign(G.zoom({ width: 412, height: 915 }, 1.5), { isMobile: true, hasTouch: true });
+// phones at 200 % (review #185): 195x422 and 180x400 CSS px
+G.VIEWS.p390z200 = Object.assign(G.zoom({ width: 390, height: 844 }, 2), { isMobile: true, hasTouch: true });
+G.VIEWS.p360z200 = Object.assign(G.zoom({ width: 360, height: 800 }, 2), { isMobile: true, hasTouch: true });
 const JARGON = /Arcade|Webconference|Web conference|Tunnel|Alle Demos|\d+ Spiele|Agent|Meme/;
 
 async function axe(p, sel) {
@@ -111,6 +114,7 @@ test("Deine Karte: Satz -> So verstehe ich dich -> Daraus wird -> die Karte pass
     const p = await G.open(ctx, "");
     await p.locator("#satz").fill("Danke an Oma"); await p.locator("#satz").press("Enter");
     await p.locator("#shelf:not([hidden]) #wunsch").waitFor();
+    await p.waitForFunction(() => document.activeElement && document.activeElement.id === "shtitle");   // WCAG 2.4.3
     assert.equal(await p.locator("#wunsch").inputValue(), "Danke an Oma");
     assert.deepEqual(await p.locator("#stres .stchip").allTextContents(), ["Gruß schicken", "Für: Oma"]);
     assert.match(await p.locator("#stres .stcard").first().textContent(), /Danke, dass es dich gibt.*Passt genau/);
@@ -135,7 +139,15 @@ test("Deine Karte: Satz -> So verstehe ich dich -> Daraus wird -> die Karte pass
     assert.deepEqual(sent, [], view + ": Tippen und Verstehen bleiben auf dem Geraet");
     // result, not status: the card that comes out carries the sentence's person in front
     await p.locator("#wunsch").fill("Danke an Oma"); await p.locator("#stres .stchip", { hasText: "Für: Oma" }).waitFor();
+    assert.match(await p.locator("#stres .stcard q").first().textContent(), /^Oma, danke, dass es dich gibt\.$/, "Vorschau mit dem Ergebnistext");
+    assert.equal(await p.locator(".stfree").textContent(), "Frei für dich");
     await p.locator("#stmake").click();
+    await p.locator("#warmname").waitFor();
+    assert.equal(await p.locator("#warmname").inputValue(), "Oma", "die Karte steht mit dem Namen bereit");
+    assert.equal(await p.evaluate(() => document.activeElement && document.activeElement.id), "go", "der Fokus steht auf Fertig machen");
+    await p.waitForTimeout(300);
+    assert.deepEqual(sent.filter((u) => /\/api\/s/.test(u)), [], view + ": vor Fertig kein Kurzlink");
+    await p.locator("#go").click();
     await p.locator("#done:not([hidden])").waitFor();
     assert.equal(await p.evaluate(() => window.DailyDebug.result().keep.doc.x), "Oma, danke, dass es dich gibt.");
     assert.equal(await p.evaluate(() => window.DailyDebug.result().keep.doc.i), "warm-danke");
@@ -165,22 +177,29 @@ test("Kacheln: jede fuehrt zu ihren Karten, eine Karte oeffnet sich mit einem Ti
   assert.deepEqual(p.errs, []); await b.close();
 });
 
-test("Mikrofon: ohne Spracherkennung ausgeblendet; hoert nur mit Erkennung auf dem Geraet zu; sonst ehrlich aus", async () => {
+test("Mikrofon: nur, wenn Erkennung auf dem Geraet hier bekannt geht; vorher eine neutrale Pruefung im Blatt, das Ergebnis bleibt gemerkt", async () => {
   ensureBuilt("");
   const b = await G.launch();
-  // no speech recognition at all: no microphone
+  // no speech recognition at all: no microphone, no check
   const none = await G.person(b, { lang: "de", view: "phone390", time: DAY });
   await none.addInitScript(() => { delete window.SpeechRecognition; delete window.webkitSpeechRecognition; });
   let p = await G.open(none, "");
   await p.locator("#startbox").waitFor();
   assert.equal(await p.locator("#satzmic").isVisible(), false);
+  await p.locator(".sttile[data-i=gruss]").click(); await p.locator("#wunsch").waitFor();
+  assert.equal(await p.locator("#micask").count(), 0);
   await none.close();
-  // a browser that recognises on the device: the sentence comes from the voice and leads on
-  const on = await G.person(b, { lang: "de", view: "phone390", time: DAY });
+  // recognition on the device: not shown before it is known; the neutral check in the sheet, then the microphone, remembered
+  const on = await G.person(b, { lang: "de", view: "phone390", time: DAY, web: true });
   await on.addInitScript(speech, "available");
   p = await G.open(on, "");
-  await p.locator("#satzmic").waitFor();
+  assert.equal(await p.locator("#satzmic").isVisible(), false, "unbekannt: kein Knopf, der dann geht nicht sagt");
   assert.equal(await p.evaluate(() => window.__sr.asked), null, "beim Laden wird nichts gefragt");
+  await p.locator(".sttile[data-i=gruss]").click();
+  await p.locator("#micask").filter({ hasText: "Spracheingabe auf diesem Gerät prüfen" }).click();
+  await p.locator("#shelf .stico.mic:not([hidden])").waitFor();
+  await p.reload(); await p.locator("#startbox").waitFor();
+  await p.locator("#satzmic").waitFor();
   assert.equal(await p.locator("#satzmic").getAttribute("aria-label"), "Spracheingabe");
   await p.locator("#satzmic").click();
   await p.locator("#shelf:not([hidden]) #wunsch").waitFor();
@@ -189,15 +208,45 @@ test("Mikrofon: ohne Spracherkennung ausgeblendet; hoert nur mit Erkennung auf d
   const sr = await p.evaluate(() => window.__sr);
   assert.equal(sr.asked.processLocally, true); assert.match(sr.asked.langs[0], /^de/); assert.equal(sr.local, true); assert.equal(sr.started, 1);
   assert.deepEqual(p.errs, []); await on.close();
-  // not on the device ("downloadable"): it does not listen, says so and steps aside
-  const srv = await G.person(b, { lang: "de", view: "phone390", time: DAY });
+  // not on the device ("downloadable"): said once in plain words, no microphone, never offered again
+  const srv = await G.person(b, { lang: "de", view: "phone390", time: DAY, web: true });
   await srv.addInitScript(speech, "downloadable");
   p = await G.open(srv, "");
-  await p.locator("#satzmic").click();
-  await p.locator("#toast").filter({ hasText: "Spracheingabe geht hier gerade nicht." }).waitFor();
-  assert.equal(await p.locator("#satzmic").isVisible(), false);
+  await p.locator(".sttile[data-i=gruss]").click(); await p.locator("#micask").click();
+  await p.locator(".stnote").filter({ hasText: "gibt es hier nicht" }).waitFor();
+  assert.equal(await p.locator("#shelf .stico.mic").isVisible(), false);
   assert.equal(await p.evaluate(() => window.__sr.started), 0, "kein Zuhoeren ohne Zusage des Geraets");
+  await p.reload(); await p.locator("#startbox").waitFor();
+  await p.locator(".sttile[data-i=gruss]").click(); await p.locator("#wunsch").waitFor();
+  assert.equal(await p.locator("#micask").count(), 0, "einmal gesagt, nicht wieder angeboten");
+  assert.equal(await p.locator("#satzmic").isVisible(), false);
   assert.deepEqual(p.errs, []); await b.close();
+});
+
+test("Review #185: Feld bei 200 % auf dem Handy breit genug, Tageskarte bei 150 %/200 % nicht gequetscht, Kacheln bei 390x844 im ersten Bild, Letzte Tage erreichbar, Fokus nach Kachel", async () => {
+  ensureBuilt("");
+  const b = await G.launch(), bad = [];
+  for (const view of ["p390z200", "p360z200", "zoom150", "zoom200"]) {
+    const ctx = await G.person(b, { lang: "de", view, time: DAY }); await ctx.route(/^https?:/, (r) => r.abort());
+    const p = await G.open(ctx, ""); await p.locator("#startbox").waitFor(); await p.waitForTimeout(300);
+    const m = await p.evaluate(() => ({ field: document.getElementById("satz").getBoundingClientRect().width, leaf: document.getElementById("leaf").getBoundingClientRect().height, card: (() => { const c = document.querySelector("#leaf .pvcard, #leaf .pvgame"); const r = c && c.getClientRects().length ? c.getBoundingClientRect() : null; return r ? r.height : 0; })() }));
+    if (m.field < 120) bad.push(view + ": Satzfeld " + Math.round(m.field) + " px");
+    if (m.leaf < 200) bad.push(view + ": Tageskarte " + Math.round(m.leaf) + " px");
+    (await G.smallTargets(p, "#startbox")).forEach((v) => bad.push(view + " zu klein: " + v));
+    assert.deepEqual(p.errs, [], view); await ctx.close();
+  }
+  // 390x844 as on the canvas: the four tiles and the day's main button on the first screen, the start on cream
+  const ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY }); await ctx.route(/^https?:/, (r) => r.abort());
+  const p = await G.open(ctx, ""); await p.locator("#startbox").waitFor(); await p.waitForTimeout(300);
+  for (const sel of ["#go", ".sttile[data-i=gruss]", ".sttile[data-i=planen]", ".sttile[data-i=spielen]", ".sttile[data-i=stimme]"]) if (!(await G.inView(p, sel))) bad.push("390x844: nicht im ersten Bild: " + sel);
+  assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById("startbox")).backgroundColor), "rgb(251, 245, 221)", "Creme #FBF5DD");
+  // below the first screen now: Nächster Tag, Selber bauen, Letzte Tage, Meine Wand (#tools) and "Alle Karten"; reachable:
+  await p.locator("#past").click(); await p.locator("#shelf:not([hidden]) #pastq").waitFor();
+  await p.locator("#shback").click(); await p.locator("#startbox").waitFor();
+  // a tile: the focus goes along to the sheet
+  await p.locator(".sttile[data-i=planen]").click(); await p.waitForFunction(() => document.activeElement && document.activeElement.id === "shtitle");
+  assert.deepEqual(p.errs, []); await b.close();
+  assert.deepEqual(bad, []);
 });
 
 test("Daily Business bleibt wie es war: kein neuer Start, die Leiste steht offen", async () => {

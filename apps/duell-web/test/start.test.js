@@ -80,9 +80,10 @@ test("Nur auf dem Geraet: kein fetch, keine KI; Mikrofon nur mit Erkennung auf d
   for (const f of ["start.js", "start-ui.js"]) assert.doesNotMatch(src(f).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ""), /fetch\(|XMLHttpRequest|sendBeacon|WebSocket|\.Ai\.|Math\.random/, f);
   const ui = src("start-ui.js");
   assert.match(ui, /SR\.available\(\{ langs: \[Kit\.loc\(\)\], processLocally: true \}\)/);
-  assert.match(ui, /if \(s === "available"\) try \{ r = new SR\(\); r\.lang = Kit\.loc\(\); r\.processLocally = true;/);
+  assert.match(ui, /return ask\.then\(function \(s\) \{ Kit\.store\.mic = s === "available" \? "ok" : "no";/, "das Ergebnis bleibt auf dem Geraet gemerkt");
+  assert.match(ui, /if \(ok\) try \{ r = new SR\(\); r\.lang = Kit\.loc\(\); r\.processLocally = true;/);
+  assert.match(ui, /function micCheck\(b\) \{ b\.hidden = !\(micOk\(\) && Kit\.store\.mic === "ok"\); \}/, "Mikrofon nur, wenn es hier bekannt geht");
   assert.match(ui, /if \(!r \|\| r\.processLocally !== true\) return off\(b\);/, "ohne Zusage des Geraets wird nicht zugehoert");
-  assert.match(ui, /function micCheck\(b\) \{ b\.hidden = !micOk\(\); \}/, "beim Laden wird nichts gefragt");
   assert.match(ui, /!root\.DuellHost && location\.hostname !== "appassets\.androidplatform\.net"/, "die App-Huellen behalten das Diktat der Tastatur");
 });
 
@@ -95,7 +96,27 @@ test("Kern: nur die Haken; ohne Teil bleibt die Startseite wie sie war", () => {
   assert.match(app, /var got = \/\^#\(\?:\.\*&\)\?\[cis\]=\/\.test\(location\.hash\) && startPart\(\);/, "ein Link wartet auf den Teil, der Tagesstart nicht");
   assert.match(app, /else \$\("home"\)\.classList\.toggle\("neu", !!\(window\.DailyParts \|\| \{\}\)\.start && !h\.note && !h\.doc\);/);
   assert.match(src("index.template.html"), /<div id="startslot" aria-hidden="true"><\/div>/);
-  assert.match(src("style.css"), /#home\.neu #startslot\{display:block;min-height:33rem\}/);
+  assert.match(src("style.css"), /#home\.neu #startslot\{display:block;min-height:30rem;background:#FBF5DD\}/);
+  assert.match(src("style.css"), /#home\.neu:has\(\.pv\.pic,#warmto:not\(\[hidden\]\)\) #pad\{height:clamp\(15rem,58svh,34rem\)\}/, "Tage mit Bild oder Namensfeld behalten ein grosses Blatt");
   assert.match(src("start-ui.js"), /var slot = \$\("startslot"\); if \(slot\) slot\.replaceWith\(box\);/);
   assert.match(src("../scripts/build.js"), /if \(!flavor\) PARTS\.start = \{ d: \[\], src: \["STARTDATA", "START", "STARTUI"\] \};/, "Daily Business ohne den Teil");
+});
+
+test("Review #185: Wochenende ist planen, Enkelin bleibt Enkelin, Komposita, Namen klein geschrieben, Sport zuerst Duelle, ehrliche Texte", () => {
+  assert.equal(S.understand("Ein schönes Wochenende planen").intent, "planen");
+  assert.equal(S.understand("Gruß an meine Enkelin").who.de, "Enkelin");
+  assert.equal(S.understand("Gruß an meinen Enkel").who.de, "Enkel");
+  assert.equal(ids(S.understand("Kindergeburtstag Mitbringliste"))[0], "zug-einkauf", "Teilwort ab 5 Zeichen");
+  assert.equal(S.understand("Mitbringliste Kindergeburtstag").missing, null, "kein Geburtstag-fehlt im Kompositum");
+  assert.equal(S.understand("danke an lea").name, "Lea", "klein getippt");
+  assert.equal(S.understand("Termin für den Spieleabend").name, "", "ein Artikel ist kein Name");
+  const bowl = S.understand("Bowling mit Kollegen");
+  assert.equal(bowl.missing.de, "Bowling"); assert.deepEqual(ids(bowl).slice(0, 2), ["arcade-puck", "arcade-elfer"], "Sport: zuerst die Duelle");
+  assert.match(DATA.texts.de.st_missing, /Stattdessen:$/); assert.match(DATA.texts.de.st_none, /tippe auf „Ändern“/);
+  assert.equal(DATA.texts.de.st_local, "Dein Satz bleibt auf dem Gerät. Erst bei „Fertig“ legen wir einen kurzen Link zu deiner Karte an.");
+  assert.equal(DATA.texts.de.st_free, "Frei für dich");
+  const ui = src("start-ui.js");
+  assert.match(ui, /if \(W\.is\(idea\)\) \{ var g = \$\("go"\); if \(g\) g\.focus\(\); \} else \$\("go"\)\.click\(\);/, "Karte machen fertigt nichts und legt keinen Link an");
+  assert.match(ui, /tt\.tabIndex = -1; tt\.focus\(\);/, "Fokus geht mit ins Blatt");
+  assert.match(src("app.js"), /got \? Promise\.race\(\[s, new Promise\(function \(ok\) \{ setTimeout\(ok, 2500\); \}\)\]\) : 0/, "Link-Seiten warten hoechstens 2,5 s");
 });

@@ -47,8 +47,6 @@
     "love",
     "herz",
     "sonntag",
-    "wochenende",
-    "weekend",
     "weihnacht",
     "ostern",
     "neujahr",
@@ -103,7 +101,9 @@
     "vote",
     "schedul",
     "meet",
-    "shopping"
+    "shopping",
+    "wochenende",
+    "weekend"
    ]
   },
   "spielen": {
@@ -262,12 +262,6 @@
    "warm-gruss"
   ],
   "sonntag": [
-   "warm-gruss"
-  ],
-  "wochenende": [
-   "warm-gruss"
-  ],
-  "weekend": [
    "warm-gruss"
   ],
   "toll": [
@@ -477,19 +471,23 @@
   },
   "dart": {
    "de": "Dart",
-   "en": "Darts"
+   "en": "Darts",
+   "sport": true
   },
   "bowling": {
    "de": "Bowling",
-   "en": "Bowling"
+   "en": "Bowling",
+   "sport": true
   },
   "tennis": {
    "de": "Tennis",
-   "en": "Tennis"
+   "en": "Tennis",
+   "sport": true
   },
   "minigolf": {
    "de": "Minigolf",
-   "en": "Mini golf"
+   "en": "Mini golf",
+   "sport": true
   },
   "schach": {
    "de": "Schach",
@@ -630,9 +628,13 @@
    "de": "Nachbarn",
    "en": "neighbours"
   },
-  "enkel": {
+  "enkel$": {
    "de": "Enkel",
    "en": "grandchild"
+  },
+  "enkelin": {
+   "de": "Enkelin",
+   "en": "granddaughter"
   },
   "tochter": {
    "de": "Tochter",
@@ -689,11 +691,11 @@
    "st_micOn": "Ich höre zu …",
    "st_micOff": "Spracheingabe geht hier gerade nicht.",
    "st_gruss": "Gruß schicken",
-   "st_gruss_s": "Danke, Gute Besserung, einfach so",
+   "st_gruss_s": "Danke, Besserung, einfach so",
    "st_planen": "Zusammen planen",
-   "st_planen_s": "Termin, Abstimmung, Wichteln",
+   "st_planen_s": "Termin, Umfrage, Wichteln",
    "st_spielen": "Gegeneinander spielen",
-   "st_spielen_s": "Quiz, Mal & Rat, Duelle",
+   "st_spielen_s": "Quiz, Mal & Rat, Duell",
    "st_stimme": "Stimme",
    "st_stimme_s": "Monster, Hamster, Roboter",
    "st_all": "Alle Karten",
@@ -707,15 +709,15 @@
    "st_more": "Passt auch",
    "st_exact": "Passt genau",
    "st_near": "Passt ungefähr",
-   "st_none": "Dazu habe ich noch keine passende Karte. Probier ein anderes Wort oder tippe oben eine Absicht an.",
-   "st_missing": "{w} habe ich noch nicht. Ähnlich:",
+   "st_none": "Dazu habe ich noch keine passende Karte. Probier ein anderes Wort oder tippe auf „Ändern“.",
+   "st_missing": "{w} habe ich noch nicht. Stattdessen:",
    "st_empty": "Schreib einen Satz oder wähle unten eine Idee.",
    "st_ideas": "Oder los mit einer Idee",
    "st_ex1": "Danke an Oma",
    "st_ex2": "Termin für den Spieleabend",
    "st_ex3": "Quiz über unsere Familie",
    "st_make": "Karte machen",
-   "st_local": "Das verstehe ich hier auf dem Gerät. Dein Satz geht nirgendwohin.",
+   "st_local": "Dein Satz bleibt auf dem Gerät. Erst bei „Fertig“ legen wir einen kurzen Link zu deiner Karte an.",
    "st_from": "Von {n}, für dich",
    "st_self": "Selbst eine machen",
    "st_reply": "Antworten",
@@ -729,7 +731,10 @@
    "st_shortLong": "Diese Karte geht als langer Link raus, ohne unseren Server.",
    "st_k_arcade": "Spiel",
    "st_k_photo": "Bild",
-   "st_k_sound": "Ton"
+   "st_k_sound": "Ton",
+   "st_free": "Frei für dich",
+   "st_micAsk": "Spracheingabe auf diesem Gerät prüfen",
+   "st_micNo": "Eine Spracheingabe, die auf dem Gerät bleibt, gibt es hier nicht. Die Diktierfunktion deiner Tastatur geht trotzdem."
   },
   "en": {
    "st_ask": "Who do you want to make happy today?",
@@ -742,9 +747,9 @@
    "st_gruss": "Send a greeting",
    "st_gruss_s": "Thanks, get well, just because",
    "st_planen": "Plan together",
-   "st_planen_s": "Date, vote, Secret Santa",
+   "st_planen_s": "Date, poll, Secret Santa",
    "st_spielen": "Play against each other",
-   "st_spielen_s": "Quiz, Draw & Guess, duels",
+   "st_spielen_s": "Quiz, draw & guess, duel",
    "st_stimme": "Voice",
    "st_stimme_s": "Monster, hamster, robot",
    "st_all": "All cards",
@@ -758,15 +763,15 @@
    "st_more": "Also fits",
    "st_exact": "Fits exactly",
    "st_near": "Fits roughly",
-   "st_none": "I have no card for that yet. Try another word or tap an intention above.",
-   "st_missing": "{w}: not here yet. Similar:",
+   "st_none": "I have no card for that yet. Try another word or tap “Change”.",
+   "st_missing": "{w}: not here yet. Instead:",
    "st_empty": "Write a sentence or pick an idea below.",
    "st_ideas": "Or start with an idea",
    "st_ex1": "Thank you to Grandma",
    "st_ex2": "A date for games night",
    "st_ex3": "A quiz about our family",
    "st_make": "Make the card",
-   "st_local": "I understand this here on the device. Your sentence goes nowhere.",
+   "st_local": "Your sentence stays on the device. Only at “Done” do we make a short link to your card.",
    "st_from": "From {n}, for you",
    "st_self": "Make one yourself",
    "st_reply": "Reply",
@@ -780,7 +785,10 @@
    "st_shortLong": "This card goes out as a long link, without our server.",
    "st_k_arcade": "Game",
    "st_k_photo": "Picture",
-   "st_k_sound": "Sound"
+   "st_k_sound": "Sound",
+   "st_free": "Free for you",
+   "st_micAsk": "Check voice input on this device",
+   "st_micNo": "There is no voice input here that stays on the device. Your keyboard's dictation still works."
   }
  }
 }
