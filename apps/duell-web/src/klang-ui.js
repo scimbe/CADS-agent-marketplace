@@ -274,8 +274,16 @@
     row.appendChild(el("button", "btn", "🔊 " + t("kl_audio"), function () { Kit.sfx.tap(); send(new Blob([root.Studio.wav(voice(result))], { type: "audio/wav" }), name("wav"), text()); }));
     if (Kit.canSave()) row.appendChild(el("button", "btn", "💾 " + t("kl_save"), function () { Kit.sfx.tap(); Kit.saveFile(result.file, result.name); }));
     d.appendChild(row);
-    d.addEventListener("close", function () { if (opener.isConnected) opener.focus(); });
-    document.body.appendChild(d); d.showModal();
+    // Placed from the visible viewport, not from the layout viewport's bottom: in the Android web view the latter lies
+    // below the screen (the sheet showed only its top edge there).
+    var vv = root.visualViewport;
+    function place() {
+      var h = vv ? vv.height : innerHeight, top = vv ? vv.offsetTop : 0;
+      d.style.maxHeight = Math.round(h * 0.88) + "px"; d.style.top = Math.max(top, Math.round(top + h - d.offsetHeight)) + "px"; d.style.bottom = "auto";
+    }
+    if (vv) vv.addEventListener("resize", place);
+    d.addEventListener("close", function () { if (vv) vv.removeEventListener("resize", place); if (opener.isConnected) opener.focus(); });
+    document.body.appendChild(d); d.showModal(); place();
   }
   root.Klang = { apply: K.apply, panel: panel, done: done, video: video, send: send, frame: frame };
 })(typeof globalThis !== "undefined" ? globalThis : this);
