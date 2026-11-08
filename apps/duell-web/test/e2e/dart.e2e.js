@@ -235,7 +235,7 @@ for (const view of ["phone328", "phone390", "zoom200"]) {
   });
 }
 
-test("Dart: ein Link, der meine eigenen Wuerfe umschreibt, wird nicht gewertet", async () => {
+test("Dart: ein Link, der meine eigenen Wuerfe umschreibt, wird nicht gewertet – weder im Schritt noch als fertiges Spiel, Ergebnis oder Bild", async () => {
   const br = await G.launch();
   try {
     const [ana, ben] = await G.people(br, 2, { lang: "de", view: "phone390", web: true });
@@ -253,6 +253,29 @@ test("Dart: ein Link, der meine eigenen Wuerfe umschreibt, wird nicht gewertet",
     // the same link on another phone (B never sent anything for this game) is just a game
     const b = await G.open(ben, hash(u)); await b.locator("#go").click(); await b.getByRole("button", { name: X.de.da_open, exact: true }).waitFor();
     assert.equal(await b.locator("#panel .dawarn").count(), 0);
-    for (const p of [a2, b]) assert.deepEqual(p.errs, []);
+    // a finished game made up by B (A's darts all misses, B checks out): on A's phone no end, no result, no result picture
+    let fake = M.head("a", false); const T = (x, y) => M.enc(M.dart(x, y, M.MID));
+    for (let i = 0; i < 400; i++) {
+      const fg = M.sim(seed, fake); if (fg.over) break;
+      const p = fg.partial ? fg.turns[fg.turns.length - 1].p : fg.turns.length % 2, h = M.hand(seed, fg.k);
+      if (!p) { fake += T(1.9, 1.9); continue; }
+      const at = M.aimFor(fg, 1), c = M.centre(at.n, at.r); fake += T(c[0] - h.sx, c[1] - h.sy);
+    }
+    const won = Object.assign({}, d, { q: Tn.seal([[[fake, 0, ["", "Ben"]]]], seed) });
+    assert.ok(Tn.state(won).over && /Ben/.test(Tn.result(won, "de").h), "fuer sich ein fertiges Spiel, Ben gewinnt");
+    const a3 = await G.open(ana, hash(D.docUrl(won)));
+    const seen = await a3.evaluate(() => { const d = window.DailyDebug.home().doc; return { over: window.Turns.state(d).over, res: window.Turns.result(d, "de"), face: window.Turns.face(d, "de") }; });
+    assert.deepEqual([seen.over, seen.res], [false, null], "kein Ende, kein Ergebnis");
+    assert.equal(seen.face[seen.face.length - 1], X.de.da_foreign);
+    assert.equal((await a3.locator("#go").textContent()).trim(), X.de.da_go, "kein Ergebnis ansehen");
+    await a3.locator("#go").click();
+    await a3.locator("#panel .dawarn").getByText(X.de.da_foreign).waitFor();
+    assert.equal(await a3.locator("#panel").getByText(/gewinnt/).count(), 0, "kein Sieg von Ben im Schritt");
+    // the picture this phone would make of the link: the own standing with the note, not Ben's win
+    const pic = await a3.evaluate(() => { const c = document.createElement("canvas"); c.width = 1080; c.height = 1350; const d = window.DailyDebug.home().doc, said = [], f = CanvasRenderingContext2D.prototype.fillText;
+      CanvasRenderingContext2D.prototype.fillText = function (t) { said.push(String(t)); return f.apply(this, arguments); };
+      try { window.Render.draw(c, d, { me: window.DailyApp.me() }); } finally { CanvasRenderingContext2D.prototype.fillText = f; } return said.join(" | "); });
+    assert.ok(!/gewinnt|GEWINNT/.test(pic) && pic.includes(X.de.da_foreign.slice(0, 30)), pic.slice(0, 300));
+    for (const p of [a2, b, a3]) assert.deepEqual(p.errs, []);
   } finally { await br.close(); }
 });

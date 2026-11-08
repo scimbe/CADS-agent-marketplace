@@ -84,7 +84,7 @@ test("Wurf: Kraft in 9 Stufen, zu stark fliegt hoch, zu schwach tief; der Moment
   assert.notDeepEqual([hit(8).n, hit(8).m], [20, 3]); assert.notDeepEqual([hit(0).n, hit(0).m], [20, 3]);
   // the input has no moment any more: the wobble on screen is a picture of the hand, the throw does not depend on it
   assert.deepEqual(Object.keys(M.dec(M.enc(M.dart(0, 0, 4)))[0]).sort(), ["ax", "ay", "p"]);
-  assert.equal(M.dec("AAAAJ"), null, "Stufe 9 gibt es nicht");
+  assert.equal(M.dec("AAAAS"), null, "Stufe 18 gibt es nicht"); assert.deepEqual(M.dec("AAAAJ")[0], { ax: 0, ay: 0, p: 0, f: 1 }, "9..17: Regler");
   const other = M.hand(seed + 1, k); assert.notDeepEqual([h.sx, h.sy, h.ph], [other.sx, other.sy, other.ph], "anderer Seed, andere Hand");
   assert.deepEqual(M.wobble(h, 5), M.wobble(h, 5.0)); const a = M.wobble(h, 5), b = M.wobble(h, 6), m = M.wobble(h, 5.5);
   assert.ok(Math.abs(m[0] - (a[0] + b[0]) / 2) < 1e-12 && Math.abs(m[1] - (a[1] + b[1]) / 2) < 1e-12);
@@ -297,17 +297,80 @@ test("Texte: de und en mit denselben Schluesseln, Ansage wie \"Triple 20, 60 Pun
   assert.equal(M.short(h, "de"), "T20"); assert.equal(M.short(M.score(0, 0), "de"), "Bull");
 });
 
-test("Eigene Wuerfe nicht umschreibbar: ein Link muss mit dem zuletzt gesendeten Zug dieses Handys beginnen", () => {
+test("Eigene Wuerfe nicht umschreibbar: Schritt, Ende, Ergebnis und Bild zaehlen den eigenen Stand, wenn der Link nicht weitergeht", () => {
   const seed = 31, a1 = "al" + throws(seed, 0, ["T20", "S5", "S1"]), b1 = a1 + throws(seed, 3, ["S20", "S20", "S20"]);
   const forged = "al" + throws(seed, 0, ["0", "0", "0"]) + throws(seed, 3, ["S20", "S20", "S20"]);
   assert.equal(M.trust(a1, [b1, 60, NAMES]), true, "B hat nur angehaengt");
   assert.equal(M.trust(a1, [forged, 60, NAMES]), false, "As Pfeile umgeschrieben");
-  assert.equal(M.trust(a1, ["al", 0, NAMES]), false, "aelterer Stand");
+  assert.equal(M.trust(b1, [a1, 66, NAMES]), true, "ein frueherer Link desselben Spiels (eigene Geschichte)");
   assert.equal(M.trust("", [forged, 60, NAMES]), true, "nichts gesendet: nichts zu vergleichen");
-  // the forged link is a well-formed game: only this phone can tell (dart-ui.js keeps what it sent, per seed)
-  const d = fresh(seed), x = JSON.parse(JSON.stringify(d)); x.q = Tn.seal([[[forged, 60, NAMES]]], seed);
-  assert.equal(Tn.moves(through(x)).length, 1);
+  // a finished game made up by B: A's darts all misses, B checks out. Without A's store it is a game like any other ...
+  let s = "al"; for (let i = 0; i < 400; i++) { const g = M.sim(seed, s); if (g.over) break; const p = g.partial ? g.turns[g.turns.length - 1].p : g.turns.length % 2; if (!p) { s += throws(seed, g.k, ["0"]); continue; } const at = M.aimFor(g, 1), c = M.centre(at.n, at.r); s += throws(seed, g.k, [c[1] < -0.9 || at.r === "d" ? "D" + at.n : at.r === "t" ? "T" + at.n : at.n === 25 ? "B" : "S" + at.n]); }
+  const made = M.sim(seed, s); assert.ok(made.over && made.win === 1, "erfundener Sieg von B");
+  const d = fresh(seed), x = JSON.parse(JSON.stringify(d)); x.q = Tn.seal([[[s, 0, NAMES]]], seed); const doc = through(x);
+  assert.ok(Tn.state(doc).over); assert.match(Tn.result(doc, "de").h, /^Ben gewinnt!$/);
+  // ... on A's phone, which sent a1, it is not counted anywhere: not over, no result, the face shows A's own standing and the note
+  try {
+    M.setOwn((sd) => (sd === seed ? { s: a1, n: ["Ana", ""] } : null));
+    assert.equal(Tn.state(doc).over, false, "kein Ende"); assert.equal(Tn.result(doc, "de"), null, "kein Ergebnis");
+    const f = Tn.face(doc, "de"); assert.equal(f[1], "Ana: noch 235 · Spieler 2: noch 301"); assert.equal(f[f.length - 1], "Dieser Link passt nicht zu deinem letzten Wurf. Gewertet wird dein eigener Stand.");
+    const w = M.view(doc, Tn.moves(doc)); assert.deepEqual([w.foreign, w.v[0]], [true, a1]);
+    // the own game finished, a link with another ending: the result is the own one, with the note
+    let mine = "al"; for (let i = 0; i < 400; i++) { const g = M.sim(seed, mine); if (g.over) break; const p = g.partial ? g.turns[g.turns.length - 1].p : g.turns.length % 2; const at = M.aimFor(g, p), c = M.centre(at.n, at.r); mine += throws(seed, g.k, [p ? "0" : at.r === "d" ? "D" + at.n : at.r === "t" ? "T" + at.n : at.n === 25 ? "B" : "S" + at.n]); }
+    assert.equal(M.sim(seed, mine).win, 0);
+    M.setOwn(() => ({ s: mine, n: ["Ana", "Ben"] }));
+    const r = Tn.result(doc, "de"); assert.equal(r.h, "Ana gewinnt!"); assert.equal(r.lines[r.lines.length - 1], "Dieser Link passt nicht zu deinem letzten Wurf. Gewertet wird dein eigener Stand.");
+    // B's honest answer is counted as it is
+    M.setOwn(() => ({ s: a1, n: ["Ana", ""] }));
+    const ok = through(play(through(play(d, a1)), b1)); assert.equal(M.view(ok, Tn.moves(ok)).foreign, false); assert.equal(Tn.face(ok, "de").length, 3);
+  } finally { M.setOwn(null); }
   const ui = require("fs").readFileSync(require("path").join(__dirname, "../src/dart-ui.js"), "utf8");
-  assert.match(ui, /foreign = !!prev && !M\.trust\(own, prev\)/); assert.match(ui, /keep\(ctx\.doc\.seed, st\.s\)/);
-  assert.equal(require("../src/dart.json").text.de.da_foreign, "Dieser Link passt nicht zu deinem letzten Wurf. Gewertet wird dein eigener Stand.");
+  assert.match(ui, /M\.setOwn\(mineOf\)/); assert.match(ui, /keep\(ctx\.doc\.seed, st\.s, st\.names\)/);
+  assert.match(ui, /w = M\.view\(d, Tn\.moves\(d\)\)/, "das Bild zaehlt ueber view");
+});
+
+test("Spitznamen: keine Bildschirmwoerter, nicht der Name der Gegenseite (auch verkleidet), keine Bidi- und Nullbreitenzeichen", () => {
+  for (const n of ["Du", "du", "DU", "Bert", "bert", "Bert (Bot)", "Bert (bot)", "Spieler 1", "Spieler 2", "You", "Player 1", "Player 2", "Bот", "Вert"]) assert.equal(M.nameOk(n), false, n);
+  for (const n of ["Ana", "Ben", "Tom", "Zoë"]) assert.equal(M.nameOk(n), true, n);
+  for (const n of ["\u202Eana", "an\u200Ba", "ana\u2066", "\uFEFFana", "an\u00ADa"]) assert.equal(M.nameOk(n), false, JSON.stringify(n));
+  assert.equal(M.namesOk(["Anna", "Аnna"]), false, "kyrillisches A"); assert.equal(M.namesOk(["Anna", "ANNA"]), false, "Gross und klein");
+  assert.equal(M.namesOk(["Anna", "Ａｎｎａ"]), false, "Vollbreite (NFKC)"); assert.equal(M.namesOk(["Anna", "Ánna"]), false, "Akzent");
+  assert.equal(M.namesOk(["Anna", "4nna"]), false, "Ziffer als Buchstabe"); assert.equal(M.namesOk(["Anna", "Ben"]), true); assert.equal(M.namesOk(["", ""]), true);
+  // my own name: hidden characters dropped, taken or the other's in disguise -> none
+  assert.equal(M.myName("\u202EBen\u200B", "Ana"), "Ben"); assert.equal(M.myName("Ana", "Аna"), ""); assert.equal(M.myName("Du", ""), ""); assert.equal(M.myName("Bert", ""), "");
+  // in a link: a move with such a name is no move; B may not rename A
+  const seed = 8, a1 = "al" + throws(seed, 0, ["S1", "S1", "S1"]), b1 = a1 + throws(seed, 3, ["S1", "S1", "S1"]), dA = through(play(fresh(seed), a1, null, ["Anna", ""]));
+  for (const n of ["Du", "Bert", "Spieler 1", "Аnna", "Anna", "\u202Eben"]) assert.equal(Tn.play(dA, [[b1, 3, ["Anna", n]]], 100), null, "B heisst " + JSON.stringify(n));
+  assert.equal(Tn.play(dA, [[b1, 3, ["Ben", "Ben"]]], 100), null, "A umbenannt"); assert.ok(Tn.play(dA, [[b1, 3, ["Anna", "Ben"]]], 100));
+  // on screen: hidden characters never shown
+  assert.equal(M.who(M.sim(seed, b1), 1, "de", ["Anna", "Be\u200Bn"]), "Ben");
+});
+
+test("Regler ohne Timing wirft mit derselben Unsicherheit wie das Pendel: 1 von 5 eine Stufe weniger, 1 von 5 eine mehr", () => {
+  const T20 = M.centre(20, "t"), N = 3000;
+  // the flag survives the link; the step itself is shaken by the seed, the same on every phone
+  const d = M.dart(0, 0, 4, true); assert.deepEqual(M.dec(M.enc(d))[0], d); assert.equal(M.dec(M.enc(M.dart(0, 0, 4)))[0].f, undefined);
+  let c = { "-1": 0, 0: 0, 1: 0 }; for (let k = 0; k < N; k++) c[M.shake(99, k)]++;
+  assert.ok(Math.abs(c[-1] / N - 0.2) < 0.03 && Math.abs(c[1] / N - 0.2) < 0.03 && Math.abs(c[0] / N - 0.6) < 0.03, JSON.stringify(c));
+  assert.equal(M.level(99, 5, { p: 4 }), 4, "Pendel: die Stufe, die es zeigte"); assert.equal(M.level(99, 5, { p: 8, f: 1 }) <= 8, true);
+  // the slider on the middle gives what a person with the pendulum gets who meets the middle 3 times in 5
+  let slider = 0, swing = 0;
+  for (let i = 0; i < N; i++) {
+    const s = 41000 + i, k = i % 60;
+    if ((x => x.n === 20 && x.m === 3)(M.land(s, k, M.dart(T20[0], T20[1], M.MID, true)))) slider++;
+    const u = C.mulberry32(s * 7 + k)(), p = u < 0.6 ? M.MID : u < 0.8 ? M.MID - 1 : M.MID + 1;
+    if ((x => x.n === 20 && x.m === 3)(M.land(s, k, M.dart(T20[0], T20[1], p)))) swing++;
+  }
+  assert.ok(Math.abs(slider - swing) / N < 0.02, "T20 Regler " + (slider / N).toFixed(3) + " / Pendel " + (swing / N).toFixed(3));
+  // Around the Clock: a slider player against a pendulum player (3 in 5 on the middle) wins about half
+  let w = 0, l = 0;   // w: games the slider player won, l: games the pendulum player won
+  for (let i = 0; i < 300; i++) {
+    let st = "cl";
+    for (let j = 0; j < 400; j++) {
+      const g = M.sim(i + 90000, st); if (g.over) { if (g.win === i % 2) w++; else if (g.win >= 0) l++; break; }
+      const p = g.partial ? g.turns[g.turns.length - 1].p : g.turns.length % 2, at = M.aimFor(g, p), cc = M.centre(at.n, at.r), u = C.mulberry32((i + 90000) * 131 + g.k)();
+      st += M.enc(p === (i % 2) ? M.dart(cc[0], cc[1], M.MID, true) : M.dart(cc[0], cc[1], u < 0.6 ? M.MID : u < 0.8 ? M.MID - 1 : M.MID + 1));
+    }
+  }
+  assert.ok(w / (w + l) >= 0.4 && w / (w + l) <= 0.6, "Regler gegen Pendel " + w + ":" + l);
 });

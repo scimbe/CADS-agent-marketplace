@@ -118,13 +118,16 @@
 
   // ---------- what this phone sent last, per game (seed): a link that comes back has to go on from it ----------
   function sent() { var s = Kit.store.dart; return s && typeof s === "object" && !Array.isArray(s) ? s : {}; }
-  function keep(seed, str) {
-    var s = sent(), k; delete s["s" + seed]; s["s" + seed] = str;
+  function keep(seed, str, names) {
+    var s = sent(), k, now = s["s" + seed]; if (now && now.s === str) return;
+    delete s["s" + seed]; s["s" + seed] = { s: str, n: names.slice() };
     for (k = Object.keys(s); k.length > KEEP; k.shift()) delete s[k[0]];
     Kit.store.dart = s; Kit.save();
   }
-  function mineOf(seed) { var v = sent()["s" + seed]; return typeof v === "string" ? v : ""; }
-  function myName() { var n = A.me().nick; return n && Q.clean(n, M.NAME) === n ? n : ""; }
+  function mineOf(seed) { var v = sent()["s" + seed]; return v && typeof v.s === "string" ? { s: v.s, n: Array.isArray(v.n) ? v.n : ["", ""] } : null; }
+  // every count of a dart game on this phone (step, end, result, picture) goes through Dart.view, which asks this
+  M.setOwn(mineOf);
+  function myName(other) { return M.myName(A.me().nick, other); }
 
   // ---------- the layer over the whole screen (like Mal & Rat's) ----------
   var ov = null, hidden = [];
@@ -161,10 +164,10 @@
 
   // ---------- the state of a turn: ed.dart ----------
   function sim(st, ctx) { return M.sim(ctx.doc.seed, st.s); }
-  function base(ctx) { var g = M.gameOf(ctx.doc, ctx.m); return g ? g.turns.length : 0; }
+  function base(ctx) { var w = M.view(ctx.doc, ctx.m); return w && w.g ? w.g.turns.length : 0; }
   // my turn is over (by link: one turn more than the link had; against Bert: the game is over) and every dart was shown
   function done(st, ctx, g) { g = g || sim(st, ctx); return !!g && !st.foreign && flat(g).length <= st.shown && (st.bot ? g.over : !g.partial && g.turns.length > base(ctx)); }
-  function value(st, ctx) { var g = sim(st, ctx); if (!done(st, ctx, g)) return null; keep(ctx.doc.seed, st.s); return [st.s, M.claimed(g), st.names.slice()]; }
+  function value(st, ctx) { var g = sim(st, ctx); if (!done(st, ctx, g)) return null; keep(ctx.doc.seed, st.s, st.names); return [st.s, M.claimed(g), st.names.slice()]; }
   function line(g, st, p, me) { return M.stand(g, p, Kit.lang, st.names, me); }
 
   // ---------- throwing ----------
@@ -187,7 +190,7 @@
     // the power and its buttons first: in sight without scrolling, also at 200 %
     [sayp, pow, row, aimBox, score, throws, help, fin].forEach(function (x) { o.tools.appendChild(x); });
     var aim = st.aim || [0, -0.62], charge = null, fly = null, timer = 0, raf = 0, t0 = performance.now(), hand = null;
-    st.shown = Math.max(st.shown || 0, flat(M.gameOf(ctx.doc, ctx.m)).length);
+    var w0 = M.view(ctx.doc, ctx.m); st.shown = Math.max(st.shown || 0, flat(w0 && w0.g).length);
     var memo = { s: null, list: [] };
     function all() { if (memo.s !== st.s) { memo.s = st.s; memo.list = flat(sim(st, ctx)); } return memo.list; }
     function can() { return !fly && !timer && !done(st, ctx) && !st.foreign && !(st.bot && all().length > st.shown); }
@@ -209,9 +212,9 @@
     function tnow(now) { return (now - t0) / M.STEP_MS; }
     function swing(now) { return M.swing(charge.from, now - charge.at); }
     function start(hold, id) { charge = { hold: hold, id: id, at: performance.now(), from: +lvl.value }; Kit.sfx.tap(); table(); }
-    function throwNow(p) {
+    function throwNow(p, slider) {
       if (!can()) return;
-      charge = null; st.aim = aim.slice(); st.s += M.enc(M.dart(aim[0], aim[1], p));
+      charge = null; st.aim = aim.slice(); st.s += M.enc(M.dart(aim[0], aim[1], p, slider));
       advance();
     }
     function release() {
@@ -292,7 +295,7 @@
       if (k === " " || k === "Enter") { e.preventDefault(); if (!e.repeat) toggle(); }
     });
     pb.addEventListener("click", toggle);
-    tb.addEventListener("click", function () { if (charge) { charge = null; } throwNow(+lvl.value); });   // no timing: the step on the slider
+    tb.addEventListener("click", function () { if (charge) { charge = null; } throwNow(+lvl.value, true); });   // no timing: the step on the slider, shaken by the seed (Dart.shake)
     lvl.addEventListener("input", function () { if (charge) charge = null; level(+lvl.value); table(); });
     sel.addEventListener("change", function () {
       var v = sel.value; if (!v) return;
@@ -312,14 +315,12 @@
   // ---------- the step in the turn editor ----------
   root.Turn2.add("widget", "dart", function (box, p, set, ctx) {
     css();
-    var X = L(), ed = ctx.ed, seed = ed.doc.seed, prev = M.last(ctx.m), key = seed + "|" + (prev ? prev[0] : "");
-    var st = ed.dart && ed.dart.key === key ? ed.dart : null;
+    var X = L(), ed = ctx.ed, seed = ed.doc.seed, w = M.view(ed.doc, ctx.m), key = seed + "|" + (w ? w.v[0] + (w.foreign ? "|f" : "") : "");
+    // a link back has to go on from what this phone sent last; if not (Dart.view), my own last throw counts and nothing is thrown here
+    var prev = w && !w.foreign ? w.v : null, st = ed.dart && ed.dart.key === key ? ed.dart : null;
     if (!st) {
-      // a link back has to go on from what this phone sent last; if not, my own last throw counts and nothing is thrown here
-      var own = mineOf(seed), foreign = !!prev && !M.trust(own, prev);
-      st = ed.dart = { key: key, mode: prev ? prev[0][0] : "a", bot: prev ? prev[0][1] === "b" : false, s: foreign ? own : prev ? prev[0] : M.head("a", false), shown: 0, foreign: foreign,
-        names: prev && !foreign ? prev[2].slice() : ["", ""] };
-      if (!st.foreign) st.names[base(ctx) % 2] = st.bot ? "" : myName();
+      st = ed.dart = { key: key, mode: w ? w.v[0][0] : "a", bot: w ? w.v[0][1] === "b" : false, s: w ? w.v[0] : M.head("a", false), shown: 0, foreign: !!(w && w.foreign), names: w ? w.v[2].slice() : ["", ""] };
+      if (!st.foreign) { var me0 = base(ctx) % 2; st.names[me0] = st.bot ? "" : myName(st.names[1 - me0]); }
     }
     ctx.set = set;
     function fresh() { return st.s.length <= 2; }
@@ -334,14 +335,15 @@
           b.appendChild(document.createTextNode(M.modeName(m, Kit.lang))); b.appendChild(el("small", "", X["da_mi_" + m])); press(b, st.mode === m); modes.appendChild(b);
         });
         [[false, X.da_o_l], [true, X.da_o_b]].forEach(function (x) {
-          var b = el("button", "chip", x[1], function () { Kit.sfx.tap(); st.bot = x[0]; st.s = M.head(st.mode, st.bot); st.names = ["", ""]; st.names[0] = st.bot ? "" : myName(); render(); opp.querySelector(".chip.on").focus(); });
+          var b = el("button", "chip", x[1], function () { Kit.sfx.tap(); st.bot = x[0]; st.s = M.head(st.mode, st.bot); st.names = ["", ""]; st.names[0] = st.bot ? "" : myName(""); render(); opp.querySelector(".chip.on").focus(); });
           press(b, st.bot === x[0]); opp.appendChild(b);
         });
         steps.appendChild(el("h4", "lbl", X.da_mode_h)); steps.appendChild(modes); steps.appendChild(el("h4", "lbl", X.da_opp_h)); steps.appendChild(opp);
         if (st.bot) { var bn = el("p", "note dabot"); bn.appendChild(svg(ICON.bot, 22)); bn.appendChild(el("span", "", X.da_bot_note)); steps.appendChild(bn); }
         box.appendChild(steps);
       }
-      var g = M.sim(seed, st.s), me = base(ctx) % 2, seen = Math.max(st.shown, prev && !st.foreign ? flat(M.sim(seed, prev[0])).length : flat(g).length), state = el("div", "dastate"), th = el("canvas", "dathumb"), info = el("div");
+      // me: the one who throws here; on a link that is not counted, the one who threw my own last turn
+      var g = M.sim(seed, st.s), me = st.foreign && g && g.turns.length ? g.turns[g.turns.length - 1].p : base(ctx) % 2, seen = Math.max(st.shown, prev ? flat(M.sim(seed, prev[0])).length : flat(g).length), state = el("div", "dastate"), th = el("canvas", "dathumb"), info = el("div");
       th.width = th.height = 240; th.setAttribute("aria-hidden", "true");
       var c = th.getContext("2d"), r = 120 / EXT; board(c, 120, 120, r); darts(c, 120, 120, r, flat(g), seen);
       state.appendChild(th); state.appendChild(info);
@@ -352,7 +354,7 @@
         if (lt) info.appendChild(el("p", "note", M.who(g, lt.p, Kit.lang, st.names, me) + ": " + M.turnLine(lt, g, Kit.lang)));
       } else info.appendChild(el("p", "note", X.da_you));
       box.appendChild(state);
-      if (prev && !st.foreign) { var pg = M.sim(seed, prev[0]), f = pg && M.fixed(prev, pg); if (f) { var fx = el("p", "note", fmt(X.da_fixed, f)); fx.setAttribute("role", "status"); box.appendChild(fx); } }
+      if (prev) { var pg = M.sim(seed, prev[0]), f = pg && M.fixed(prev, pg); if (f) { var fx = el("p", "note", fmt(X.da_fixed, f)); fx.setAttribute("role", "status"); box.appendChild(fx); } }
       if (st.foreign) { set(null); return; }
       var fin = done(st, ctx), go = el("button", fin ? "btn" : "btn hot", X[fin ? "da_view" : fresh() || (g && g.turns.length === base(ctx)) ? "da_open" : "da_open_more"], function () {
         Kit.sfx.thud(); throwLayer(st, ctx, function () { render(true); });
@@ -369,9 +371,9 @@
 
   // ---------- the card picture: the board with the darts, the standing or the result ----------
   M.game.pic = function (c, W, H, doc) {
-    var a = doc.col[0], ink = R.ink(a), res = Tn.result(doc, Kit.lang), v = M.last(Tn.moves(doc)), ed = A.ed();
-    if (ed && ed.doc === doc && ed.next && Tn.GAMES.dart) { var nv = M.last(Tn.moves(ed.next)); if (nv) { v = nv; res = Tn.result(ed.next, Kit.lang); } }   // in the editor: the turn as it will go out
-    var g = v ? M.sim(doc.seed, v[0]) : null, i0 = doc.i ? D.byId(doc.i) : null, title = doc.t || (i0 ? D.plainTitle((i0[Kit.lang] || i0.de).t) : "Dart");
+    var ed = A.ed(), d = ed && ed.doc === doc && ed.next ? ed.next : doc;   // in the editor: the turn as it will go out
+    var a = doc.col[0], ink = R.ink(a), res = Tn.result(d, Kit.lang), w = M.view(d, Tn.moves(d)), v = w && w.v;   // what this phone counts (Dart.view)
+    var g = w ? w.g : null, i0 = doc.i ? D.byId(doc.i) : null, title = doc.t || (i0 ? D.plainTitle((i0[Kit.lang] || i0.de).t) : "Dart");
     c.fillStyle = a; c.fillRect(0, 0, W, H); R.rays(c, W, H, "rgba(0,0,0,.05)", 0.2);
     R.block(c, res ? res.h : title, W * 0.07, H * 0.03, W * 0.86, H * 0.17, ink, null);
     // the board on a cream card with a hard ink shadow, like the design's cards
@@ -383,7 +385,8 @@
     // every dart of the game as a mark (the starter's a red dot, the other's a cream square), the last turns as darts
     list.forEach(function (x) { mark(c, cx + px(x.h.x) * r, cy + px(x.h.y) * r, W * 0.0065, x.t.p); });
     darts(c, cx, cy, r, list, list.length);
-    var lines = res ? res.lines : g ? Tn.GAMES.dart.face(doc, [[v]], Kit.lang) || [] : [doc.s || (i0 ? (i0[Kit.lang] || i0.de).s : ""), L().da_you];
+    var lines = res ? res.lines : g ? Tn.face(d, Kit.lang) || [] : [doc.s || (i0 ? (i0[Kit.lang] || i0.de).s : ""), L().da_you];
+    if (w && w.foreign) lines = [lines[0], lines[1], L().da_foreign];   // the note always in the picture
     c.font = "800 " + Math.round(W * 0.032) + "px system-ui, sans-serif"; c.fillStyle = ink; c.textAlign = "center"; c.textBaseline = "top";
     lines.slice(0, 3).forEach(function (s, i) { var t = String(s); while (t.length > 4 && c.measureText(t).width > W * 0.88) t = t.slice(0, -2) + "…"; c.fillText(t, W / 2, H * 0.84 + i * W * 0.041); });
     return ink;
