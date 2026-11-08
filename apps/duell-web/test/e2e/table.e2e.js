@@ -57,7 +57,7 @@ async function setup(b, br, nick) {
 }
 async function openTable(x, label) {
   await x.p.goto(page);
-  await x.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
+  await G.alle(x.p); await x.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await x.p.getByRole("button", { name: label }).click();
   await x.p.locator(".tbseats").waitFor();
 }

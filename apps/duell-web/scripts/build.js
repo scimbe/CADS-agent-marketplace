@@ -94,6 +94,9 @@ const PARTS = {
 // carry stickers (not for Daily Business: turns only; app.js notoFor then makes the picture without, as before).
 if (catalog.ideas.some((i) => i.kind === "card" || i.kind === "photo")) PARTS.noto = { d: [], src: ["NOTODATA", "NOTO"] };
 if (catalog.ideas.some((i) => i.kind === "card")) PARTS.wetter = { d: [], src: ["WETTERDATA", "WETTER"] };
+// The new start (redesign wave 1): intention tiles, one sentence to the fitting card, "Alle Karten" (src/start.js,
+// src/start-ui.js, words and keywords in src/start.json). Only where the four intentions exist (not in Daily Business).
+if (!flavor) PARTS.start = { d: [], src: ["STARTDATA", "START", "STARTUI"] };
 // Mal & Rat: draw a word, the others guess (src/malrat.js, src/malrat-ui.js, words in src/malrat.json); only built when the
 // catalog has a card with its game (not in Daily Business).
 if (catalog.ideas.some((i) => i.turn && malGames.indexOf(i.turn.g) >= 0)) PARTS.malen = { d: ["katalog"], src: ["MALRATDATA", "MALRAT", "MALRATUI"] };
@@ -122,6 +125,7 @@ if (PARTS.malen) { parts.MALRATDATA = "window.MalratData=" + JSON.stringify(json
 if (PARTS.dart) { parts.DARTDATA = "window.DartData=" + JSON.stringify(json("src/dart.json")) + ";"; parts.DART = read("src/dart.js"); parts.DARTUI = read("src/dart-ui.js"); }
 parts.NOTODATA = "window.NotoData=\"" + fs.readFileSync(path.join(root, "src/noto-stickers.png")).toString("base64") + "\";"; parts.NOTO = read("src/noto.js");
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
+if (PARTS.start) { const sd = json("src/start.json"); parts.STARTDATA = "window.StartData=" + JSON.stringify(Object.assign({}, sd, { texts: undefined })) + ";window.StartTexts=" + JSON.stringify(sd.texts) + ";" + merge("StartTexts"); parts.START = read("src/start.js"); parts.STARTUI = read("src/start-ui.js"); }
 parts.TEXTE = read("src/texte.js");
 parts.TEXTEDATA = "window.TexteData=" + JSON.stringify(json("src/texte.json")) + ";";
 parts.QUIZDATA = "window.QuizPacks=" + JSON.stringify(json("src/quiz-packs.json")) + ";";
@@ -136,7 +140,7 @@ let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + 
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
 // code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
-const KEEP = new Set(["DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "DARTDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "NOTODATA", "KLANGDATA"]);
+const KEEP = new Set(["STARTDATA", "DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "DARTDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "NOTODATA", "KLANGDATA"]);
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "")).join("\n");
 const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));

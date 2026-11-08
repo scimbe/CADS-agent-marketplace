@@ -3,6 +3,7 @@
 // http is the web route /duell of the gallery (every part preloaded once idle, with SRI, then usable offline).
 const test = require("node:test"), assert = require("node:assert/strict"), path = require("node:path"), fs = require("node:fs"), http = require("node:http");
 const { chromium, devices } = require("playwright-core");
+const G = require("./lib/grund.js");
 const dist = path.join(__dirname, "../../dist");
 const launch = () => chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
 const loaded = (p) => p.evaluate(() => [...document.querySelectorAll("script[src]")].map((s) => ({ src: s.getAttribute("src").replace(/^.*\/parts\//, ""), sri: s.integrity })));
@@ -29,19 +30,19 @@ test("file:// (Apps, Tests): Start nur mit dem Katalog-Teil; Spiele-Regal holt A
   await p.clock.setFixedTime(new Date("2026-03-03T09:00:00Z"));   // a day whose sheet is no arcade duel
   await p.goto("file://" + path.join(dist, "index.html"));
   await p.locator("#go").waitFor();
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "stimme"], "der Start laedt nur den Katalog und, fuer das erste Blatt, die Daumen (Katalog v2, W0)");
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme"], "der Start laedt nur den Katalog, den neuen Start (Redesign W1, sofort statt im Leerlauf) und, fuer das erste Blatt, die Daumen (Katalog v2, W0)");
   assert.equal(await p.evaluate(() => typeof window.Arcade + typeof window.StatusCard + typeof window.DailyLicenses), "undefinedundefinedundefined");
-  await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
+  await G.alle(p); await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await p.locator(".arctile").first().waitFor();
   assert.equal(await p.locator(".arctile").count(), 10);
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "stimme", "play"]);
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "play"]);
   assert.equal((await loaded(p))[1].sri, "", "file:// ohne SRI (kein CORS-Ursprung)");
   await p.locator("#shback").click();
   await p.locator("#me").click();
   await p.locator("#stdata summary").click(); await p.getByRole("button", { name: "Lizenzen" }).click();   // under "Konto & Daten"
   await p.getByText(/SIL OPEN FONT LICENSE Version 1\.1/).waitFor();
   // My style comes as the part stil, which brings its account card (konto) first; the button its licence texts
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "stimme", "play", "konto", "stil", "direkt", "licenses"], "Mein Stil holt auch direkt (Schalter Einfache Sprache)");
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "play", "konto", "stil", "direkt", "licenses"], "Mein Stil holt auch direkt (Schalter Einfache Sprache)");
   assert.deepEqual(errs, []); await b.close();
 });
 
@@ -61,7 +62,7 @@ test("file://: der Knopf Status-Bild holt den QR-Teil und teilt ein Bild 1080x19
   await p.locator("#tostatus").evaluate((e) => e.click());
   await p.waitForFunction(() => window.__shared.length > 0);
   // the card editor's text tab has loaded "texte" (Worte finden, card text) and "wetter" on the way; the button only adds "qr"
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "stimme", "texte", "wetter", "direkt", "qr"], "der Editor holt direkt");
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "texte", "wetter", "direkt", "qr"], "der Editor holt direkt");
   const f = await p.evaluate(async () => { const f = window.__shared[0], i = await createImageBitmap(f); return { type: f.type, name: f.name, w: i.width, h: i.height }; });
   assert.deepEqual(f, { type: "image/jpeg", name: "my-daily-idea-status.jpg", w: 1080, h: 1920 });
   assert.deepEqual(errs, []);
@@ -80,7 +81,7 @@ test("Web /duell: nach dem Laden alle Teile ausser noto, dart und klang mit SRI 
   assert.ok(await p.evaluate(() => window.Parts.names().includes("noto") && !window.Parts.ready("noto")), "noto nicht vorab");
   assert.ok(await p.evaluate(() => window.Parts.names().includes("dart") && !window.Parts.ready("dart")), "dart nicht vorab");
   assert.ok(await p.evaluate(() => window.Parts.names().includes("klang") && !window.Parts.ready("klang")), "klang nicht vorab");
-  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "direkt", "katalog", "konto", "licenses", "logik", "malen", "melden", "play", "qr", "quiz", "regler", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "direkt", "katalog", "konto", "licenses", "logik", "malen", "melden", "play", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   for (const s of got) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
   await p.evaluate(() => window.Parts.need("noto"));   // asked for (as the editor does): also with its SRI hash
   assert.match((await loaded(p)).find((s) => /^noto\./.test(s.src)).sri, /^sha384-[A-Za-z0-9+/]{64}$/);

@@ -2,6 +2,7 @@
 // pipe between the pages; screens, commit-reveal, points, cheating and closing run for real.
 const test = require("node:test"), assert = require("node:assert/strict"), path = require("node:path");
 const { chromium, devices } = require("playwright-core");
+const G = require("./lib/grund.js");
 const page = "file://" + path.join(__dirname, "../../dist/index.html");
 const TOKEN = "R".repeat(22), CH = "5eed".padEnd(64, "0");
 const FAKE = (side) => `(() => {
@@ -27,7 +28,7 @@ async function setup(b, tamper) {
   await B.p.exposeFunction("__liveBye", () => A.p.evaluate(() => window.__liveEnd()).catch(() => {}));
   // A opens the agent duel, picks "live" instead of the bot and shares the invite; B opens the link
   // "🤖 Agent" runs in the ticker: a finger on the lane holds it, the copy for the eye is aria-hidden
-  await A.p.goto(page); await A.p.locator("#feat .lane").hover(); await A.p.locator("#feat .lane button:not([aria-hidden])", { hasText: "🤖 Agent" }).click();
+  await A.p.goto(page); await G.alle(A.p); await A.p.locator("#feat .lane").hover(); await A.p.locator("#feat .lane button:not([aria-hidden])", { hasText: "🤖 Agent" }).click();
   await A.p.getByRole("button", { name: "Duell starten" }).waitFor(); await A.p.locator("#tabs button", { hasText: "Mein Agent" }).click();
   await A.p.getByRole("button", { name: /Live gegen Freund/ }).click();
   await A.p.getByText("Warte auf deinen Freund").waitFor();

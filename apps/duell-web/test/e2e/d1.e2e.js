@@ -147,7 +147,7 @@ test("Nr. 7: bei „Sehr groß“ wachsen Arbeitsanweisung und #tools (≥ 20 px
   assert.ok(tools.length && tools.every((x) => x >= 20), "#tools " + tools);
   await p.waitForTimeout(3600);
   assert.equal(await p.evaluate(() => getComputedStyle(document.querySelector("#feat .track")).animationName), "none", "kein Laufband bei grosser Schrift");
-  await p.locator("#feat .lane button:not([aria-hidden])").nth(1).click({ timeout: 3000 });   // a plain click hits, no pause switch needed
+  await G.alle(p); await p.locator("#feat .lane button:not([aria-hidden])").nth(1).click({ timeout: 3000 });   // a plain click hits, no pause switch needed
   const e = await G.open(ctx, "#i=zug-lob"); await e.locator("#go").click();
   const lbl = await e.locator("#panel .lbl").first().evaluate((x) => parseFloat(getComputedStyle(x).fontSize));
   assert.ok(lbl >= 20, ".lbl " + lbl);
@@ -161,7 +161,7 @@ test("Nr. 7: Laufband steht bei reduzierter Bewegung und nach dem ersten Tippen;
     if (how === "reduce") await p.emulateMedia({ reducedMotion: "reduce" }); else await p.locator("#brand").click();
     await p.waitForTimeout(3600);
     assert.equal(await p.evaluate(() => getComputedStyle(document.querySelector("#feat .track")).animationName), "none", how);
-    await p.locator("#feat .lane button:not([aria-hidden])", { hasText: "Karte" }).click({ timeout: 3000 }); await p.locator("#editor").waitFor();
+    await G.alle(p); await p.locator("#feat .lane button:not([aria-hidden])", { hasText: "Karte" }).click({ timeout: 3000 }); await p.locator("#editor").waitFor();
     assert.deepEqual(p.errs, []); await ctx.close();
   }
   await b.close();
@@ -200,7 +200,7 @@ test("Nr. 8: keine Uhr ohne „Los“ (10 s nach dem Oeffnen), Karte eingeklappt
 
 test("Nr. 8: Bauernskat gegen den Bot ohne Auto-Countdown", async () => {
   const b = await G.launch(), ctx = await person(b), p = await G.open(ctx, "");
-  await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
+  await G.alle(p); await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await p.getByRole("button", { name: "🃏 Bauernskat (2)" }).click();
   await p.getByRole("button", { name: "🤖 Gegen den Bot" }).click();
   await G.poll(() => p.locator("body").innerText(), (s) => /Du bist dran/.test(s), { what: "ich bin dran", timeout: 30000 });

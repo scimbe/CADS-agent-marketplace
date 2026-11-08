@@ -1,0 +1,290 @@
+/* Start (redesign wave 1, the part start): below the day's card the question "Wem willst du heute eine Freude machen?",
+   one sentence field (with a microphone only where the browser recognises speech on the device), four intention tiles and
+   "Alle Karten", behind which the demo strip waits (Arcade, Webconference, Tunnel: nothing a first visit needs). The
+   sentence leads to the card that fits (src/start.js) on the sheet "Deine Karte": "So verstehe ich dich", "Daraus wird".
+   The core only calls home() and labels() (app.js); without this part the start page stays as it was. */
+(function (root) {
+  "use strict";
+  var Kit = root.Kit, D = root.Daily, SI = root.StartIntent, W = root.Warm;
+  function A() { return root.DailyApp; }
+  function t(k, o) { return Kit.t(k, o); }
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text, on) { return A().el(tag, cls, text, on); }
+
+  /* ---------- stroke icons (24 x 24, the colour of the text): no emoji in the controls ---------- */
+  var P = {
+    gruss: "M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z",
+    planen: "M6 8a3 3 0 1 0 6 0a3 3 0 1 0-6 0M14.5 9a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M3 20c.8-3.4 3.2-5 6-5s5.2 1.6 6 5M15 15.5c2.4 0 4.3 1.4 5 4.5",
+    spielen: "M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M7 12a5 5 0 1 0 10 0a5 5 0 1 0-10 0M10.5 12a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0",
+    stimme: "M9 6a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0zM5 11a7 7 0 0 0 14 0M12 18v3",
+    go: "M5 12h14M13 6l6 6-6 6",
+    star: "M12 3l2.2 5.6L20 9l-4.5 3.8L17 19l-5-3.2L7 19l1.5-6.2L4 9l5.8-.4z",
+    grid: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+    sound: "M4 9v6h4l5 4V5L8 9zM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11",
+    mute: "M4 9v6h4l5 4V5L8 9zM16 9l5 6M21 9l-5 6"
+  };
+  function icon(name, size) {
+    var NS = "http://www.w3.org/2000/svg", s = document.createElementNS(NS, "svg"), p = document.createElementNS(NS, "path");
+    s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("width", size || 24); s.setAttribute("height", size || 24); s.setAttribute("aria-hidden", "true");
+    s.setAttribute("class", "sti"); p.setAttribute("d", P[name]); s.appendChild(p);
+    return s;
+  }
+
+  /* ---------- look: the canvas the user approved (yellow, cream, ink, red; hard shadows; cards 22, buttons 16, chips round) ---------- */
+  var CSS = [
+    "#home.neu,.stc{--sy:#F9D84A;--sc:#FBF5DD;--sk:#17140F;--sr:#B3321F;--sm:#4A4436;--st:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif}",
+    ".sti{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}",
+    "#home.neu{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scroll-padding:12px 0}",
+    "#home.neu>*{flex-shrink:0}#home.neu::before{display:none}",
+    /* a phone at 150 % zoom and more (narrow): the intentions first, the day's card after them */
+    "@media (max-width:300px){#home.neu:not(.recv)>.bar{order:-2}#home.neu:not(.recv)>#startbox{order:-1}}",
+    /* a tall phone: the sheet gives room, so the question and the tiles are on the first screen; a short one (200 % zoom, a
+       small phone) keeps sheet and main button on the first screen as before (rule A4) and the start follows below it */
+    "#home.neu #feat{padding:0}@media (max-height:700px){#allcards{display:none}}",
+    "@media (orientation:landscape) and (max-height:500px) and (min-width:560px){#home #startbox{display:none}}",
+    "#startbox{position:relative;display:flex;flex-direction:column;gap:14px;margin:4px 18px 10px;font-family:var(--st);color:var(--on)}",
+    "#starth{margin:6px 0 0;font:400 1.75rem/1.06 var(--disp);text-transform:uppercase;letter-spacing:.3px;overflow-wrap:anywhere}",
+    ".stform{display:flex;align-items:center;gap:6px;min-height:56px;padding:5px 5px 5px 14px;border:2px solid var(--sk);border-radius:18px;background:#fff;color:var(--sk);box-shadow:4px 4px 0 var(--sk)}",
+    ".stform:focus-within{outline:3px solid var(--sk);outline-offset:3px}",
+    ".stform>.sti{color:var(--sr)}",
+    ".stin{flex:1;min-width:0;min-height:44px;border:0;background:transparent;color:var(--sk);font:600 1rem/1.3 var(--st);padding:0;outline:none;user-select:text;-webkit-user-select:text}",
+    ".stin::placeholder{color:var(--sm);opacity:1}",
+    ".stico{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;border:0;background:transparent;color:var(--sk);padding:0}",
+    ".stico.go{background:var(--sk);color:var(--sy)}.stico.mic{background:var(--sr);color:var(--sc)}.stico.mic[aria-pressed=true]{outline:3px solid var(--sk);outline-offset:2px}",
+    ".sttiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(9.5rem,100%),1fr));gap:12px}",
+    ".sttile{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:104px;padding:14px;border:2px solid var(--sk);border-radius:22px;background:#fff;color:var(--sk);text-align:left;box-shadow:4px 4px 0 var(--sk);font-family:var(--st);transition:transform 90ms ease-out}",
+    ".sttile:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--sk)}",
+    ".sttile b{font:800 1rem/1.2 var(--st);overflow-wrap:anywhere}.sttile small{font:500 .875rem/1.3 var(--st);overflow-wrap:anywhere}",
+    ".sttile.t0{background:var(--sy)}.sttile.t3{background:var(--sr);color:var(--sc)}",
+    ".stall{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:6px 16px;border:2px solid currentColor;border-radius:16px;background:transparent;color:var(--on);font:700 1rem/1.2 var(--st)}",
+    ".stall[aria-expanded=true]{background:var(--sk);color:var(--sy);border-color:var(--sk)}",
+    "#allbox{display:flex;flex-direction:column;gap:8px}",
+    "#home.neu #tools button{font-family:var(--st);font-weight:700;text-decoration:underline;text-underline-offset:3px}",
+    "@media (min-width:900px),(orientation:landscape) and (max-height:500px) and (min-width:560px){#startbox{margin:4px 10px 10px}#starth{font-size:1.5rem}}",
+    "@media (prefers-reduced-motion:reduce){.sttile{transition:none}}",
+    /* the sheet "Deine Karte" */
+    ".stc{display:flex;flex-direction:column;gap:16px;padding:6px 2px 18px;font-family:var(--st);color:var(--sk)}",
+    ".stc h3{margin:0;font:800 .875rem/1.2 var(--st);letter-spacing:.6px;text-transform:uppercase;color:var(--sm)}",
+    ".stbox{display:flex;flex-direction:column;gap:8px;padding:14px 14px 10px;border:2px solid var(--sk);border-radius:22px;background:#fff}",
+    ".stbox label{font:600 .9rem var(--st);color:var(--sm)}",
+    ".stbox .strow{display:flex;gap:10px;align-items:flex-start}",
+    ".stta{flex:1;min-width:0;min-height:3.2em;border:0;resize:none;background:transparent;color:var(--sk);font:600 1.2rem/1.3 var(--st);padding:0;user-select:text;-webkit-user-select:text}",
+    ".stta:focus-visible{outline:3px solid var(--sk);outline-offset:4px}",
+    ".stnote{margin:0;font:500 .875rem/1.35 var(--st);color:var(--sm)}",
+    ".stchips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}",
+    ".stchip{display:inline-flex;align-items:center;min-height:40px;padding:6px 14px;border:2px solid #8a8064;border-radius:999px;background:#fff;color:var(--sk);font:600 .9rem/1.2 var(--st)}",
+    ".stbtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:6px 16px;border:2px solid var(--sk);border-radius:999px;background:#fff;color:var(--sk);font:700 .9rem/1.2 var(--st);text-align:center}",
+    ".stbtn[aria-pressed=true]{background:var(--sk);color:var(--sy)}",
+    ".stbtn.stghost{background:transparent}",
+    ".stlist{display:flex;flex-direction:column;gap:10px}",
+    ".stcard{display:flex;align-items:center;gap:14px;width:100%;padding:14px;border:3px solid var(--sk);border-radius:22px;background:#fff;color:var(--sk);text-align:left;box-shadow:5px 5px 0 var(--sk);font-family:var(--st)}",
+    ".stcard.alt{border-width:2px;box-shadow:3px 3px 0 var(--sk);padding:10px 12px}",
+    ".stcard .badge{flex:none;display:grid;place-items:center;width:64px;height:64px;border-radius:16px;background:var(--sk);color:var(--sy)}",
+    ".stcard.alt .badge{width:44px;height:44px;border-radius:12px}",
+    ".stcard span{display:flex;flex-direction:column;gap:3px;min-width:0}",
+    ".stcard b{font:800 1.05rem/1.2 var(--st);overflow-wrap:anywhere}.stcard small{font:500 .88rem/1.3 var(--st);color:#4a4436;overflow-wrap:anywhere}",
+    ".stcard i{font:700 .875rem/1.2 var(--st);font-style:normal;color:#1e5631}.stcard i.near{color:#7a4a00}",
+    ".sthonest{margin:0;padding:12px 14px;border-radius:16px;background:#fff1c2;color:var(--sk);font:500 .92rem/1.4 var(--st)}",
+    ".stmake{display:flex;align-items:center;justify-content:center;min-height:60px;border:0;border-radius:16px;background:var(--sk);color:var(--sy);font:400 1.5rem/1 var(--disp);letter-spacing:.5px;text-transform:uppercase}",
+    ".stmake[aria-disabled=true]{background:transparent;color:var(--sk);border:2px dashed var(--sk)}"
+  ].join("\n");
+  function style() {
+    if ($("startcss")) return;
+    var s = document.createElement("style"); s.id = "startcss"; s.textContent = CSS; document.head.appendChild(s);
+  }
+
+  /* ---------- the start page ---------- */
+  var box = null, refs = {};
+  var TILES = ["gruss", "planen", "spielen", "stimme"];
+  function build() {
+    if (box) return box;
+    style();
+    box = el("section"); box.id = "startbox"; box.setAttribute("aria-labelledby", "starth");
+    var h = el("h2"); h.id = "starth"; box.appendChild(h);
+    var f = el("form", "stform"); f.setAttribute("role", "search"); f.noValidate = true;
+    f.appendChild(icon("star", 20));
+    var inp = el("input", "stin"); inp.id = "satz"; inp.type = "text"; inp.autocomplete = "off"; inp.enterKeyHint = "go"; inp.maxLength = 120;
+    var mic = el("button", "stico mic"); mic.id = "satzmic"; mic.hidden = true; mic.setAttribute("aria-pressed", "false"); mic.appendChild(icon("stimme", 22));
+    var go = el("button", "stico go"); go.type = "submit"; go.id = "satzgo"; go.appendChild(icon("go", 22));
+    f.appendChild(inp); f.appendChild(mic); f.appendChild(go);
+    f.addEventListener("submit", function (e) { e.preventDefault(); Kit.sfx.tap(); create(inp.value, ""); });
+    mic.addEventListener("click", function () { listen(inp, mic, function () { create(inp.value, ""); }); });
+    box.appendChild(f);
+    var grid = el("div", "sttiles"); grid.setAttribute("role", "group");
+    TILES.forEach(function (k, i) {
+      var b = el("button", "sttile t" + i, null, function () { Kit.sfx.tap(); create("", k); });
+      b.dataset.i = k; b.appendChild(icon(k, 26)); b.appendChild(el("b")); b.appendChild(el("small"));
+      grid.appendChild(b);
+    });
+    box.appendChild(grid);
+    var all = el("button", "stall"); all.id = "allcards"; all.setAttribute("aria-controls", "allbox"); all.appendChild(icon("grid", 20)); all.appendChild(el("span"));
+    var drawer = el("div"); drawer.id = "allbox";
+    drawer.appendChild($("feat"));   // the demo strip (app.js feats) lives here now, out of a first visit's sight
+    all.addEventListener("click", function () { Kit.sfx.tap(); openAll(all.getAttribute("aria-expanded") !== "true"); });
+    box.appendChild(all); box.appendChild(drawer);
+    refs = { h: h, inp: inp, mic: mic, go: go, grid: grid, all: all, drawer: drawer };
+    var slot = $("startslot"); if (slot) slot.replaceWith(box); else $("homerow").after(box);
+    micCheck(mic);
+    openAll(!!Kit.store.alle, true);
+    return box;
+  }
+  // Open or closed is remembered on this device only (a convenience, not a setting): whoever opened it once finds it open.
+  function openAll(on, quiet) {
+    refs.all.setAttribute("aria-expanded", String(on)); refs.drawer.hidden = !on;
+    if (quiet) return;
+    if (on) Kit.store.alle = true; else delete Kit.store.alle;
+    Kit.save();
+  }
+  function paint() {
+    if (!box) return;
+    refs.h.textContent = t("st_ask");
+    refs.inp.placeholder = t("st_hint"); refs.inp.setAttribute("aria-label", t("st_field"));
+    refs.mic.setAttribute("aria-label", t("st_mic")); refs.go.setAttribute("aria-label", t("st_go"));
+    refs.grid.setAttribute("aria-label", t("st_ask"));
+    Array.from(refs.grid.children).forEach(function (b) { b.querySelector("b").textContent = t("st_" + b.dataset.i); b.querySelector("small").textContent = t("st_" + b.dataset.i + "_s"); });
+    refs.all.lastChild.textContent = t("st_all");
+  }
+  // The day's sheet and every sheet chosen from here get the new start; whatever came by link keeps its own page.
+  function home(h) {
+    build(); paint(); mute();
+    var on = !!h && !h.note && !h.doc;
+    $("home").classList.add("neu"); box.hidden = !on;
+    first(); requestAnimationFrame(first);
+    // the burst on the sheet in plain words for a first visit: "Spiel", not "Arcade"; "Bild", not "Meme"
+    var k = on && h.idea && h.idea.kind, dk = document.querySelector("#leaf .dkind");
+    if (dk && (k === "arcade" || k === "photo" || k === "sound")) dk.textContent = dk.textContent.replace(/^[^\n]*/, t("st_k_" + k));
+  }
+  function labels() { paint(); mute(); }
+  // Rule A4: the main button is on the first screen without scrolling. A short screen (a small phone, 200 % zoom) and a card
+  // that came by link give the sheet exactly the room left above the main button; what follows is reached by scrolling. A
+  // tall phone keeps the fixed sheet height from the CSS, a wide screen its two columns.
+  function first() {
+    var H = $("home"), pad = $("pad"), go = $("go");
+    pad.style.height = ""; pad.style.flex = "";
+    if (H.hidden || !H.classList.contains("neu") || getComputedStyle(H).display === "grid") return;
+    var recv = !box || box.hidden;
+    if (!recv && innerHeight > 700) return;
+    var used = 0, e = pad.nextElementSibling, ps = getComputedStyle(pad);
+    for (; e; e = e.nextElementSibling) {
+      var cs = getComputedStyle(e);
+      if (e.getClientRects().length) used += e.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
+      if (e === go) break;
+    }
+    var room = H.clientHeight - pad.offsetTop - parseFloat(ps.marginBottom) - used - 8;   // 8: the shadow under the main button
+    pad.style.flex = "none"; pad.style.height = Math.max(96, Math.floor(room)) + "px";
+    if (A().style && A().style.fit) A().style.fit();
+  }
+  addEventListener("resize", function () { if (box) first(); });
+  // the display font arrives after the first paint and changes the heights above the main button
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (box) first(); });
+  function mute() { var m = $("mute"); if (m && box) { m.textContent = ""; m.appendChild(icon(Kit.muted ? "mute" : "sound", 22)); } }
+
+  /* ---------- speech: only where the browser says it recognises on the device (audio never leaves it) ---------- */
+  var SR = root.SpeechRecognition || root.webkitSpeechRecognition;
+  // Server-side recognition (Chrome's default, Safari's Siri) would send the voice away: listening starts only after the
+  // browser said, for this language, that it recognises on the device (SpeechRecognition.available with processLocally) and
+  // with processLocally set. Asked only after a tap on the microphone, never at load (a browser without the speech service
+  // may fall over on the question). The app shells keep the phone's own dictation on the keyboard instead.
+  function micOk() { return !!SR && typeof SR.available === "function" && !root.DuellHost && location.hostname !== "appassets.androidplatform.net"; }
+  function micCheck(b) { b.hidden = !micOk(); }
+  function off(b) { b.hidden = true; b.setAttribute("aria-pressed", "false"); Kit.toast(t("st_micOff")); }
+  function listen(field, b, done) {
+    if (!micOk() || b.getAttribute("aria-pressed") === "true") return;
+    b.setAttribute("aria-pressed", "true");
+    var ask;
+    try { ask = Promise.resolve(SR.available({ langs: [Kit.loc()], processLocally: true })); } catch (e) { ask = Promise.resolve(""); }
+    ask.then(function (s) {
+      var r = null;
+      if (s === "available") try { r = new SR(); r.lang = Kit.loc(); r.processLocally = true; r.interimResults = false; r.maxAlternatives = 1; } catch (e) { r = null; }
+      if (!r || r.processLocally !== true) return off(b);   // no promise of the device: no listening
+      Kit.toast(t("st_micOn"));
+      r.onresult = function (e) { var x = e.results && e.results[0] && e.results[0][0]; if (x && x.transcript) { field.value = String(x.transcript).slice(0, 120); done(); } };
+      r.onerror = function () { off(b); };
+      r.onend = function () { b.setAttribute("aria-pressed", "false"); };
+      try { r.start(); } catch (e) { off(b); }
+    }, function () { off(b); });
+  }
+
+  /* ---------- "Deine Karte": one sentence -> the card that fits ---------- */
+  function ideaText(i) { return i[Kit.lang] || i.de; }
+  function badge(intent) { var s = el("span", "badge"); s.appendChild(icon(intent || "star", 30)); return s; }
+  // Opens a card the way a tap on its main button does (feel-good: finished at once, with the name in front; the rest:
+  // its editor or game). The sheet stays the chosen card, as after "Letzte Tage".
+  function openCard(idea, r) {
+    var to = r && W.is(idea) ? SI.callName(r, Kit.lang) : "";
+    if (to && !W.name(to)) to = "";
+    A().sheet({ date: new Date(), idea: idea, to: to || undefined });
+    $("go").click();
+  }
+  function cardRow(x, intent, r, alt) {
+    var i = x.idea, L = ideaText(i), b = el("button", "stcard" + (alt ? " alt" : ""), null, function () { Kit.sfx.thud(); openCard(i, r); });
+    b.appendChild(badge(intent || SI.intentOf(i)));
+    var s = el("span"); s.appendChild(el("b", "", D.plainTitle(L.t))); if (L.s) s.appendChild(el("small", "", L.s));
+    if (!alt) s.appendChild(el("i", x.exact ? "" : "near", t(x.exact ? "st_exact" : "st_near")));
+    b.appendChild(s);
+    return b;
+  }
+  function create(text, intent) {
+    A().shelf(t("st_title"), function (b) {
+      var c = el("div", "stc"), forced = intent || "", last = null;
+      var bx = el("div", "stbox"), lab = el("label", "", t("st_what")), row = el("div", "strow"), ta = el("textarea", "stta");
+      ta.id = "wunsch"; ta.rows = 2; ta.maxLength = 120; ta.value = text || ""; lab.htmlFor = "wunsch"; ta.setAttribute("enterkeyhint", "done");
+      var mic = el("button", "stico mic"); mic.setAttribute("aria-label", t("st_mic")); mic.setAttribute("aria-pressed", "false"); mic.appendChild(icon("stimme", 22)); micCheck(mic);
+      mic.addEventListener("click", function () { listen(ta, mic, function () { forced = ""; show(); }); });
+      row.appendChild(ta); row.appendChild(mic); bx.appendChild(lab); bx.appendChild(row);
+      c.appendChild(bx); c.appendChild(el("p", "stnote", t("st_local")));
+      var res = el("section"); res.id = "stres"; res.setAttribute("aria-live", "polite"); c.appendChild(res);
+      var ideas = el("div", "stchips");
+      ["st_ex1", "st_ex2", "st_ex3"].forEach(function (k) { ideas.appendChild(el("button", "stbtn", t(k), function () { Kit.sfx.tap(); ta.value = t(k); forced = ""; show(); })); });
+      c.appendChild(el("h3", "", t("st_ideas"))); c.appendChild(ideas);
+      var make = el("button", "stmake"); make.id = "stmake"; make.textContent = t("st_make");
+      make.addEventListener("click", function () {
+        if (make.getAttribute("aria-disabled") === "true") { ta.focus(); return; }
+        Kit.sfx.thud(); openCard(last.top[0].idea, last);
+      });
+      c.appendChild(make);
+      b.appendChild(c);
+      var timer = 0;
+      ta.addEventListener("input", function () { clearTimeout(timer); timer = setTimeout(function () { forced = ""; show(); }, 220); });
+      ta.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); clearTimeout(timer); forced = ""; show(); if (last && last.top.length) make.focus(); } });
+      function show() {
+        res.textContent = "";
+        var r = last = SI.understand(ta.value, { intent: forced, date: new Date() }), any = !!ta.value.trim() || !!forced;
+        make.setAttribute("aria-disabled", String(!r.top.length));
+        if (!any) { res.appendChild(el("p", "stnote", t("st_empty"))); return; }
+        // what was understood, as plain chips; the change offers the four intentions, one tap each
+        res.appendChild(el("h3", "", t("st_heard")));
+        var chips = el("div", "stchips");
+        if (r.intent) chips.appendChild(el("span", "stchip", t("st_" + r.intent)));
+        var who = r.name || (r.who && (r.who[Kit.lang] || r.who.de));
+        if (who) chips.appendChild(el("span", "stchip", t("st_for", { n: who })));
+        var g = r.top[0] && r.top[0].idea.turn && r.top[0].idea.turn.g;
+        if (g && root.Turns && root.Turns.GAMES[g]) chips.appendChild(el("span", "stchip", t("bdg_" + root.Turns.who(g))));
+        var ch = el("button", "stbtn stghost", t("st_change")); ch.setAttribute("aria-expanded", "false"); ch.setAttribute("aria-controls", "stpick");
+        chips.appendChild(ch); res.appendChild(chips);
+        var pick = el("div", "stchips"); pick.id = "stpick"; pick.hidden = true; pick.setAttribute("role", "group"); pick.setAttribute("aria-label", t("st_pick"));
+        TILES.forEach(function (k) {
+          var p = el("button", "stbtn", t("st_" + k), function () { Kit.sfx.tap(); forced = k; show(); var f = res.querySelector(".stcard"); if (f) f.focus(); });
+          p.setAttribute("aria-pressed", String(k === r.intent)); pick.appendChild(p);
+        });
+        ch.addEventListener("click", function () { var on = pick.hidden; pick.hidden = !on; ch.setAttribute("aria-expanded", String(on)); if (on) pick.firstChild.focus(); });
+        res.appendChild(pick);
+        // honest: what is not here yet is named, and no card at all is said plainly
+        if (r.missing) res.appendChild(el("p", "sthonest", t("st_missing", { w: r.missing[Kit.lang] || r.missing.de })));
+        if (!r.top.length) { res.appendChild(el("p", "sthonest", t("st_none"))); return; }
+        res.appendChild(el("h3", "", t("st_becomes")));
+        res.appendChild(cardRow(r.top[0], r.intent, r, false));
+        if (r.top.length > 1) {
+          res.appendChild(el("h3", "", t("st_more")));
+          var more = el("div", "stlist");
+          r.top.slice(1, 4).forEach(function (x) { more.appendChild(cardRow(x, r.intent, r, true)); });
+          res.appendChild(more);
+        }
+      }
+      show();
+      if (!text && !intent) setTimeout(function () { ta.focus(); }, 0);
+    });
+  }
+
+  root.StartUI = { home: home, labels: labels, create: create, icon: icon };
+})(typeof globalThis !== "undefined" ? globalThis : this);

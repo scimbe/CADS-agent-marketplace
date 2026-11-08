@@ -1,0 +1,100 @@
+"use strict";
+// Start (redesign wave 1): one sentence -> intention, for whom, the cards that fit (src/start.js); only on the device,
+// and honest when a card is missing. The screen itself: test/e2e/start.e2e.js.
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const S = require("../src/start.js");
+const D = require("../src/daily.js");
+const Wm = require("../src/warm.js");
+const DATA = require("../src/start.json");
+const src = (f) => fs.readFileSync(path.join(__dirname, "../src", f), "utf8");
+const ids = (r) => r.top.map((x) => x.idea.id);
+
+test("Ein Satz -> Absicht, Empfaenger und die passende Karte zuerst", () => {
+  const cases = [
+    ["Danke an Oma", "gruss", "warm-danke", "Oma"],
+    ["Gute Besserung Papa", "gruss", "warm-besserung", "Papa"],
+    ["Termin für den Spieleabend", "planen", "zug-termin", null],
+    ["Wer kann wann grillen", "planen", "zug-termin", null],
+    ["Mitbringliste für den Kindergeburtstag", "planen", "zug-einkauf", null],
+    ["Quiz über unsere Familie", "spielen", "zug-kennst", "Familie"],
+    ["Kartenspiel mit Opa", "spielen", "tisch-skat", "Opa"],
+    ["Stimme wie ein Monster", "stimme", "stimme-monster", null],
+    ["Thank you to Grandma", "gruss", "warm-danke", "Oma"]
+  ];
+  for (const [text, intent, first, who] of cases) {
+    const r = S.understand(text);
+    assert.equal(r.intent, intent, text);
+    assert.equal(ids(r)[0], first, text + ": " + ids(r));
+    assert.equal(r.top[0].exact, true, text + ": genannt, also passt genau");
+    assert.equal(r.who ? r.who.de : null, who, text);
+    assert.ok(r.top.every((x) => S.intentOf(x.idea) === intent), text + ": nur Karten dieser Absicht");
+  }
+});
+
+test("Ehrlich: fehlende Karte wird genannt, nichts passt genau; Unsinn ergibt keine Karte", () => {
+  const g = S.understand("Gruß zum Geburtstag für Lea");
+  assert.equal(g.intent, "gruss"); assert.equal(g.missing.de, "Eine Geburtstagskarte"); assert.equal(g.name, "Lea");
+  assert.ok(g.top.length > 0 && g.top.every((x) => !x.exact), "Aehnliches, aber nie als genau");
+  if (!D.byId("spiel-dart")) {   // until the dart card is there (PR #183): named as missing, never pretended
+    const d = S.understand("Ein Dartspiel gegen meinen Bruder");
+    assert.equal(d.intent, "spielen"); assert.equal(d.missing.de, "Dart"); assert.ok(d.top.every((x) => !x.exact));
+  }
+  for (const nonsense of ["xyz qwert", "leider keine Zeit", ""]) {
+    const r = S.understand(nonsense);
+    assert.equal(r.intent, "", nonsense); assert.deepEqual(r.top, [], nonsense);
+  }
+  assert.ok(!ids(S.understand("Superkraft")).includes("warm-super"), "super$ nur als ganzes Wort");
+});
+
+test("Stimmt nicht? Aendern: eine erzwungene Absicht zeigt nur deren Karten, die kuratierten zuerst", () => {
+  const r = S.understand("Danke an Oma", { intent: "planen" });
+  assert.equal(r.intent, "planen");
+  assert.ok(r.top.length >= 3 && r.top.every((x) => S.intentOf(x.idea) === "planen"));
+  assert.deepEqual(ids(S.understand("", { intent: "stimme" })), S.cardsOf("stimme").slice(0, 4).map((i) => i.id));
+  for (const n of S.INTENTS) assert.ok(S.cardsOf(n).length >= 3, n + ": genug Karten fuer die Kachel");
+});
+
+test("Name auf der Karte: nur ein Vorname oder eine Anrede (Oma, Papa), nie Bruder oder Kollegen", () => {
+  assert.equal(S.callName(S.understand("Danke an Oma"), "de"), "Oma");
+  assert.equal(S.callName(S.understand("Danke an Lea"), "de"), "Lea");
+  assert.equal(S.callName(S.understand("Danke an meinen Bruder"), "de"), "");
+  assert.equal(S.callName(S.understand("Gruß an die Kollegen"), "de"), "");
+  assert.equal(S.understand("Gruß für Geburtstag").name, "", "ein bekanntes Wort ist kein Name");
+  assert.equal(Wm.named("Danke, dass es dich gibt.", S.callName(S.understand("Danke an Oma"), "de")), "Oma, danke, dass es dich gibt.");
+});
+
+test("Jede Karte in start.json gibt es (oder sie kommt mit einem offenen PR); Texte in beiden Sprachen", () => {
+  const later = ["spiel-dart", "stimme-verzerren"];   // PR #183, PR #181
+  const all = new Set(Object.values(DATA.intents).flatMap((i) => i.ids).concat(Object.values(DATA.cards).flat()));
+  for (const id of all) assert.ok(D.byId(id) || later.includes(id), id);
+  assert.deepEqual(Object.keys(DATA.texts.de).sort(), Object.keys(DATA.texts.en).sort());
+  for (const l of ["de", "en"]) for (const [k, v] of Object.entries(DATA.texts[l])) assert.ok(v && v.length < 200, l + " " + k);
+  // plain German on the start page: no Arcade, Webconference, Tunnel, Demo, Agent, Meme
+  for (const k of ["st_ask", "st_hint", "st_gruss", "st_gruss_s", "st_planen", "st_planen_s", "st_spielen", "st_spielen_s", "st_stimme", "st_stimme_s", "st_all"]) assert.doesNotMatch(DATA.texts.de[k], /arcade|webconf|tunnel|demo|agent|meme|share/i, k);
+});
+
+test("Nur auf dem Geraet: kein fetch, keine KI; Mikrofon nur mit Erkennung auf dem Geraet und erst nach dem Tipp", () => {
+  for (const f of ["start.js", "start-ui.js"]) assert.doesNotMatch(src(f).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ""), /fetch\(|XMLHttpRequest|sendBeacon|WebSocket|\.Ai\.|Math\.random/, f);
+  const ui = src("start-ui.js");
+  assert.match(ui, /SR\.available\(\{ langs: \[Kit\.loc\(\)\], processLocally: true \}\)/);
+  assert.match(ui, /if \(s === "available"\) try \{ r = new SR\(\); r\.lang = Kit\.loc\(\); r\.processLocally = true;/);
+  assert.match(ui, /if \(!r \|\| r\.processLocally !== true\) return off\(b\);/, "ohne Zusage des Geraets wird nicht zugehoert");
+  assert.match(ui, /function micCheck\(b\) \{ b\.hidden = !micOk\(\); \}/, "beim Laden wird nichts gefragt");
+  assert.match(ui, /!root\.DuellHost && location\.hostname !== "appassets\.androidplatform\.net"/, "die App-Huellen behalten das Diktat der Tastatur");
+});
+
+test("Kern: nur die Haken; ohne Teil bleibt die Startseite wie sie war", () => {
+  const app = src("app.js");
+  assert.match(app, /if \(window\.StartUI\) window\.StartUI\.home\(h\);/);
+  assert.match(app, /if \(window\.StartUI\) window\.StartUI\.labels\(\);/);
+  // asked for right after the catalog, the first sheet does not wait for it; its place is kept (#startslot), so nothing moves
+  assert.match(app, /window\.Parts\.need\("katalog"\)\.then\(function \(\) \{ startPart\(\);/);
+  assert.match(app, /else \$\("home"\)\.classList\.toggle\("neu", !!\(window\.DailyParts \|\| \{\}\)\.start && !h\.note && !h\.doc\);/);
+  assert.match(src("index.template.html"), /<div id="startslot" aria-hidden="true"><\/div>/);
+  assert.match(src("style.css"), /#home\.neu #startslot\{display:block;min-height:33rem\}/);
+  assert.match(src("start-ui.js"), /var slot = \$\("startslot"\); if \(slot\) slot\.replaceWith\(box\);/);
+  assert.match(src("../scripts/build.js"), /if \(!flavor\) PARTS\.start = \{ d: \[\], src: \["STARTDATA", "START", "STARTUI"\] \};/, "Daily Business ohne den Teil");
+});

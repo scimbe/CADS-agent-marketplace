@@ -3,6 +3,7 @@
 // preview with its AI mark, a route of 3 sections in the game and in the challenge link, the way without AI.
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const G = require("./lib/grund.js");
 const path = require("node:path");
 const { chromium, devices } = require("playwright");
 const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
@@ -39,7 +40,7 @@ test("3 Klicks: Flugspiel -> Vorschlag antippen -> Fliegen; Antwort 1:1 mit KI-Z
   const { p, errs, sent } = await phone((path0) => (path0 === "ai" ? OK() : path0 === "ai/accept" ? [200, { final: true, meter: METER }] : null));
   const colors = await p.evaluate(() => window.DailyApp.me().colors);
   // click 1: the flight game from the start screen opens on its one way in
-  await p.getByRole("button", { name: /^🕹/ }).first().dispatchEvent("click");
+  await G.alle(p); await p.getByRole("button", { name: /^🕹/ }).first().dispatchEvent("click");   // the strip lives behind "Alle Karten" (redesign wave 1)
   await p.getByRole("tab", { name: "✨ Wunsch" }).and(p.locator("[aria-selected=true]")).waitFor();
   await p.getByLabel("Was willst du fliegen?").waitFor();
   await shot(p, "1-einstieg");

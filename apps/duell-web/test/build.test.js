@@ -24,7 +24,12 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // Sizes at the split: core 693 KB, parts 310 KB (play 140, table 104, qr 59, licenses 6), together 1003 KB.
   assert.ok(Buffer.byteLength(html) < 700 * 1024, "Kern ueber 700 KB: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["dart", "daten", "direkt", "katalog", "klang", "konto", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(Object.keys(man).sort(), ["dart", "daten", "direkt", "katalog", "klang", "konto", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  // The new start (redesign wave 1) is a part: its code, keywords and words only there, in the core only the hooks.
+  const startBody = fs.readFileSync(partFiles().find((f) => /\/start\.[0-9a-f]{12}\.js$/.test(f)), "utf8");
+  assert.match(startBody, /root\.StartUI = \{/); assert.match(startBody, /root\.StartIntent = api/); assert.match(startBody, /window\.StartTexts=\{"de":\{"st_ask":"Wem willst du heute eine Freude machen\?"/);
+  assert.ok(!/StartUI = \{|"st_ask":|"st_shortOk":/.test(html), "start: nur die Haken im Kern");
+  assert.match(html, /if \(window\.StartUI\) window\.StartUI\.home\(h\);/);
   // The account card: its texts (ac_) only in the part konto, none in the core
   assert.ok(!/"ac_[a-z]/.test(html), "ac_-Texte im Kern");
   assert.match(fs.readFileSync(partFiles().find((f) => /\/konto\.[0-9a-f]{12}\.js$/.test(f)), "utf8"), /window\.KontoTexts=\{"de":\{"ac_title":"Konto \(freiwillig\)"/);

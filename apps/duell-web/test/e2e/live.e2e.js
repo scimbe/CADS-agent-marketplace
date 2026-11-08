@@ -2,6 +2,7 @@
 // so screens, rules, points and the end run for real; the real edge path is checked separately against the server.
 const test = require("node:test"), assert = require("node:assert/strict"), path = require("node:path");
 const { chromium, devices } = require("playwright-core");
+const G = require("./lib/grund.js");
 const page = "file://" + path.join(__dirname, "../../dist/index.html");
 const TOKEN = "T".repeat(22), CH = "c0ffee".padEnd(64, "0");
 const FAKE = (side) => `(() => {
@@ -20,7 +21,7 @@ test("Ballduell live: einladen, ankommen, gleiche Erkennungsbilder, ein ganzes S
   await A.p.exposeFunction("__liveOut", (s) => B.p.evaluate((m) => window.__liveIn(m), s).catch(() => {}));
   await B.p.exposeFunction("__liveOut", (s) => A.p.evaluate((m) => window.__liveIn(m), s).catch(() => {}));
   await B.p.exposeFunction("__liveJoined", () => A.p.evaluate(() => window.__liveReady()).catch(() => {}));
-  await A.p.goto(page); await A.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
+  await A.p.goto(page); await G.alle(A.p); await A.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await A.p.getByRole("button", { name: /Ballduell live/ }).click();
   await A.p.getByText("Warte auf deinen Freund").waitFor(); await A.p.getByText(/noch \d+:\d\d/).waitFor();
   await B.p.goto(page + "#live=" + TOKEN);
