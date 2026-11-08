@@ -125,10 +125,15 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   assert.match(src("parts.js"), /s\.integrity = p\.h;/); assert.match(src("parts.js"), /s\.src = dir\(\) \+ p\.f;/);
   assert.match(html, /connect-src https:\/\/demos-34a13a96\.bunsenbrenner\.org https:\/\/webconference\.bunsenbrenner\.org wss:\/\/webconference\.bunsenbrenner\.org;/, "der eigene Host und fuer Live-Spiele nur die Webconference");
 });
-test("Datenschutz: Kurzlink nur ueber shortlink.js, nur nach einem Tipp auf Teilen; p= bleibt draussen", () => {
+test("Datenschutz: Kurzlink nur ueber shortlink.js, nur bei Fertig (Nutzerentscheidung Redesign W1, der Hinweis sagt es) und fuer Status/Story; p= bleibt draussen", () => {
   assert.ok(src("shortlink.js").includes("(fetchFn || fetch)(API + path"));
-  assert.ok(!/ShortLink\.shorten/.test(src("app.js").replace(/async function shortLink\(\)[\s\S]*?\n\}/, "")), "app.js: nur shortLink() kuerzt");
-  for (const m of src("app.js").matchAll(/shortLink\(\)/g)) assert.ok(/await shortLink\(\)|function shortLink\(\)/.test(src("app.js").slice(m.index - 15, m.index + 11)));
+  const app = src("app.js");
+  assert.ok(!/ShortLink\.shorten/.test(app.replace(/function shortLink\(r\) \{[\s\S]*?\n\}/, "")), "app.js: nur shortLink() kuerzt");
+  // exactly two callers: the finished screen (after the tap on "Fertig") and the status/story picture (after its tap)
+  const calls = [...app.matchAll(/shortLink\(/g)].map((m) => app.slice(m.index - 25, m.index + 12)).filter((x) => !/function shortLink\(/.test(x));
+  assert.equal(calls.length, 2, calls.join(" | "));
+  assert.match(app, /show\("done", true\); Kit\.sfx\.win\(\);\n[^\n]*\n  var r = result; shortLink\(r\)/, "beim Fertig-Bildschirm");
+  assert.match(app, /async function exportStory\(kind\) \{\n  Kit\.sfx\.tap\(\);\n  var link = await shortLink\(\)/, "Status/Story: nach dem Tipp");
   const game = src("game.js"), at = game.indexOf("ShortLink.shorten");
   assert.ok(at > game.indexOf('$("challenge").addEventListener("click"'), "game.js: nur im Klick");
 });

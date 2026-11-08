@@ -42,15 +42,18 @@
     var pool = list().filter(function (i) { return i.id !== (doc && doc.i); });
     return pool[Math.floor(rnd() * pool.length)];
   }
-  // The card offered back: from the card that came (sender, text, idea), never Math.random.
-  function answer(doc) { return reply(doc, C.mulberry32(C.hash32("warm|" + (doc.i || "") + "|" + (doc.n || "") + "|" + (doc.x || "")))); }
+  // The card offered back fits the one that came (catalog field re, redesign wave 1): thanks or a greeting back for a
+  // greeting, thanks for "Gute Besserung", friendship for an apology; never "Tut mir leid" or "Gute Besserung" out of the
+  // blue. Without re (a card from before): the old pick from the card itself, never Math.random.
+  function answers(doc) { var i = doc && doc.i && D.byId(doc.i); return ((i && i.re) || []).map(D.byId).filter(function (x) { return x && x.warm; }); }
+  function answer(doc) { var r = answers(doc); return r.length ? r[0] : reply(doc, C.mulberry32(C.hash32("warm|" + (doc.i || "") + "|" + (doc.n || "") + "|" + (doc.x || "")))); }
   function cardFor(idea, who, me, lang) {
     var d = D.docFromIdea(idea, me, lang);
     d.x = named(d.x, who); if (me.nick) d.n = me.nick;
     return D.sanitizeDoc(d);
   }
 
-  var api = { MOTIFS: MOTIFS, MAX_NAME: MAX_NAME, list: list, motif: motif, is: is, name: name, named: named, sender: sender, reply: reply, answer: answer, cardFor: cardFor };
+  var api = { MOTIFS: MOTIFS, MAX_NAME: MAX_NAME, list: list, motif: motif, is: is, name: name, named: named, sender: sender, reply: reply, answer: answer, answers: answers, cardFor: cardFor };
   if (node) { module.exports = api; return; }
   root.Warm = api;
 
@@ -163,8 +166,8 @@
     if (who === null) { root.Kit.toast(t("filter")); field.focus(); return true; }
     var doc = cardFor(h.idea, who, me, root.Kit.lang);
     if (tabName) { A.openEditor(doc, { idea: h.idea, tab: tabName }); return true; }
-    // "Finish the card" means sending it: the short link is made right away, so the next tap shares.
-    A.quick(doc, h.idea).then(function () { var s = document.getElementById("share"); s.click(); s.focus(); });
+    // "Finish the card": the finished screen, its short link already on the way (app.js), so one tap on "Teilen" sends it.
+    A.quick(doc, h.idea).then(function () { var s = document.getElementById("share"); if (s) s.focus(); });
     return true;
   }
   // Once the display font is there (app.js): the own card's picture again, with the name typed so far. Only the picture:

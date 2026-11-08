@@ -72,7 +72,7 @@ test("Schrift kommt spaet: das Blatt wird mit Anton neu gezeichnet, dieselbe Kar
     // a German feel-good card read in English: English text, the name, and the hearts stay (no new sheet, no class gone)
     const warm = await sent(b, "warm-toll", "Lea");
     const c2 = await slowFont(b, "en"), r = await G.open(c2, hash(warm), LATE);
-    await r.locator("#from").filter({ hasText: "for you" }).waitFor();
+    await r.locator("#recvwho").filter({ hasText: "for you" }).waitFor();   // the sender on top (redesign wave 1)
     assert.equal(await r.locator("#leaf").evaluate((e) => e.classList.contains("warmin")), true);
     const s2 = await afterFont(c2, r);
     assert.match(s2, /awesome/i, "englisch: " + s2); assert.match(s2, /Lea/i); assert.doesNotMatch(s2, /\btoll\b/i);

@@ -23,17 +23,17 @@ test("Wohlfuehlkarte: Name rein, zwei Tipps bis Teilen; Empfaenger sieht die Kar
   assert.equal(await s.locator("#go").textContent(), "💛 Karte fertig machen");
   await s.getByLabel("Für wen? (optional)").fill("Lea");
   await s.locator("#go").click();                                                  // Tipp 1: Bild und Link
-  await s.waitForFunction(() => window.DailyDebug.result() && window.DailyDebug.result().link);   // Tipp 2 teilt; der Knopf heisst weiter "Teilen"
-  assert.equal(await s.locator("#share").textContent(), "Teilen");
+  await s.waitForFunction(() => window.DailyDebug.result() && window.DailyDebug.result().link);   // Tipp 2 teilt (Redesign W1: der Link entstand bei Fertig)
+  assert.equal(await s.locator("#share").textContent(), "An Lea schicken");
   const url = await s.evaluate(() => window.DailyDebug.result().url);
   assert.match(await s.evaluate(() => window.DailyDebug.result().keep.doc.x), /^Lea, ich wollte dir nur mal sagen: Du bist toll\.$/);
 
   const r = await open(url.slice(url.indexOf("#")));
-  await r.locator("#from").filter({ hasText: "Von Ana, für dich." }).waitFor();
+  await r.locator("#recvwho").filter({ hasText: "Von Ana, für dich" }).waitFor();   // Redesign W1: der Absender oben statt in #from
   assert.equal(await r.locator("#leaf").evaluate((e) => e.classList.contains("warmin")), true);
   assert.ok(await r.locator("#leaf .wh").count() > 0, "kleine Herzen steigen auf");
   assert.equal(await r.locator("#wishgo").isHidden(), true, "fremde Karte wird nicht per KI umgebaut");
-  await r.locator("#go").filter({ hasText: "Auch eine schicken" }).click();
+  await r.locator("#go").filter({ hasText: "Antworten" }).click();
   assert.equal(await r.getByLabel("Für wen? (optional)").inputValue(), "Ana");
   assert.notEqual(await r.evaluate(() => window.DailyDebug.home().idea.id), "warm-toll");
   assert.equal(await r.locator("#go").textContent(), "💛 Karte fertig machen");
@@ -48,10 +48,10 @@ test("Wohlfuehlkarte auf Deutsch geschickt, Empfaenger tippt English: der Satz s
   await s.waitForFunction(() => window.DailyDebug.result() && window.DailyDebug.result().link);
   const url = await s.evaluate(() => window.DailyDebug.result().url);
   const r = await open(url.slice(url.indexOf("#")));
-  await r.locator("#from").filter({ hasText: "für dich" }).waitFor();
+  await r.locator("#recvwho").filter({ hasText: "für dich" }).waitFor();
   await r.evaluate(() => { const d = window.Render.draw; window.__x = []; window.Render.draw = function (c, doc) { window.__x.push(doc.x); return d.apply(this, arguments); }; });
   await r.locator("#langpick button", { hasText: "English" }).click();
-  await r.locator("#from").filter({ hasText: "for you" }).waitFor();
+  await r.locator("#recvwho").filter({ hasText: "for you" }).waitFor();
   assert.equal((await r.evaluate(() => window.__x)).pop(), "Lea, just wanted to tell you: You're awesome.");
   await r.locator("#langpick button", { hasText: "Deutsch" }).click();
   assert.equal((await r.evaluate(() => window.__x)).pop(), "Lea, ich wollte dir nur mal sagen: Du bist toll.");
@@ -83,7 +83,7 @@ test("Wohlfuehlkarte: Beleidigung als Name wird gemeldet und nicht verschickt; W
   assert.equal(await s.evaluate(() => window.DailyDebug.doc().st), "herz");
   const r = await open("#i=warm-sorry");
   await r.evaluate(() => { const D = window.Daily; location.hash = D.docUrl(window.Warm.cardFor(D.byId("warm-sorry"), "", D.sanitizeProfile({ nick: "Ben" }), "de")).split("#")[1]; });
-  await r.locator("#from").filter({ hasText: "Von Ben, für dich." }).waitFor();
+  await r.locator("#recvwho").filter({ hasText: "Von Ben, für dich" }).waitFor();
   assert.equal(await r.locator("#leaf").evaluate((e) => getComputedStyle(e).animationName), "none");
   assert.equal(await r.locator("#leaf .wh").first().isVisible(), false);
   assert.deepEqual(errs, []); await b.close();

@@ -43,7 +43,9 @@ test("Wohlfuehlkarte zurueck (warm.js) und Bot-Spiele (arcade-ui.js): aus dem Se
   const doc = { k: "card", i: Wm.list()[0].id, n: "Ana", x: "Du bist toll" };
   const a = noRandom(() => Wm.answer(doc));
   assert.equal(a, Wm.answer(doc)); assert.notEqual(a.id, doc.i); assert.ok(a.warm);
-  assert.ok(new Set(["A", "B", "C", "D", "E", "F", "G", "H"].map((n) => Wm.answer(Object.assign({}, doc, { n })).id)).size > 1, "anderer Absender, andere Karte moeglich");
+  // Redesign W1: the reply fits the card that came (catalog field re), so another sender gets the same fitting card
+  assert.equal(new Set(["A", "B", "C", "D", "E", "F", "G", "H"].map((n) => Wm.answer(Object.assign({}, doc, { n })).id)).size, 1, "Bezug zum Inhalt, nicht zum Namen");
+  assert.ok(Wm.answers(doc).map((x) => x.id).includes(a.id));
   assert.doesNotMatch(src("warm.js").replace(/\/\/[^\n]*/g, ""), /Math\.random/);
   const arc = src("arcade-ui.js").replace(/\/\/[^\n]*/g, "");
   assert.match(arc, /"bot\|" \+ g \+ "\|" \+ \(Kit\.store\.arcN = /); assert.match(arc, /fresh\(seed \+ "\|" \+ \+\+round\)/);
