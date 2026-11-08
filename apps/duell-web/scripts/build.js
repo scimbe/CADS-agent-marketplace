@@ -29,7 +29,9 @@ if (has("games.js")) require("../" + fl("games.js"));   // games only this flavo
 // Mal & Rat (src/malrat.js) brings its game in a part of its own (malen), listed the same way.
 const coreGames = Object.keys(require("../src/turns.js").GAMES); require("../src/feier.js");
 const twoGames = Object.keys(require("../src/turns.js").GAMES).filter((g) => coreGames.indexOf(g) < 0); require("../src/malrat.js");
-const games = require("../src/turns.js").GAMES, malGames = Object.keys(games).filter((g) => coreGames.indexOf(g) < 0 && twoGames.indexOf(g) < 0), catalog = json(has("ideas.json") ? fl("ideas.json") : "src/ideas.json");
+const malGames = Object.keys(require("../src/turns.js").GAMES).filter((g) => coreGames.indexOf(g) < 0 && twoGames.indexOf(g) < 0); require("../src/dart.js");
+// Dart (src/dart.js) brings its game in a part of its own (dart), listed the same way.
+const games = require("../src/turns.js").GAMES, dartGames = Object.keys(games).filter((g) => coreGames.indexOf(g) < 0 && twoGames.indexOf(g) < 0 && malGames.indexOf(g) < 0), catalog = json(has("ideas.json") ? fl("ideas.json") : "src/ideas.json");
 if (flavor) catalog.ideas = catalog.ideas.filter((i) => !i.turn || games[i.turn.g]);
 // Pictures of the day's cards (AI-made, see src/thumbs.json): only the ids go in, the images stay on the gallery server.
 const thumbs = Object.keys(json(has("thumbs.json") ? fl("thumbs.json") : "src/thumbs.json").items);
@@ -94,6 +96,9 @@ if (catalog.ideas.some((i) => i.kind === "card")) PARTS.wetter = { d: [], src: [
 // Mal & Rat: draw a word, the others guess (src/malrat.js, src/malrat-ui.js, words in src/malrat.json); only built when the
 // catalog has a card with its game (not in Daily Business).
 if (catalog.ideas.some((i) => i.turn && malGames.indexOf(i.turn.g) >= 0)) PARTS.malen = { d: ["katalog"], src: ["MALRATDATA", "MALRAT", "MALRATUI"] };
+// Dart: a real dartboard by link or against the bot (src/dart.js, src/dart-ui.js, texts in src/dart.json); only built when the
+// catalog has a card with its game (not in Daily Business).
+if (catalog.ideas.some((i) => i.turn && dartGames.indexOf(i.turn.g) >= 0)) PARTS.dart = { d: ["katalog"], src: ["DARTDATA", "DART", "DARTUI"] };
 // Thumbs on the sheet and the card numbers (src/stimme-ui.js, src/stat.js); not built for a flavor without them (stat: false).
 if (!(conf && conf.stat === false)) PARTS.stimme = { d: [], src: ["STIMMEDATA", "STAT", "STIMMEUI"] };
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
@@ -109,6 +114,7 @@ if (PARTS.wetter) { parts.WETTERDATA = "window.WetterTexts=" + JSON.stringify(pa
 parts.DIREKTDATA = "window.DirektData=" + JSON.stringify(json("src/direkt.json")) + ";" + merge("DirektData.texts"); parts.EDITMODEL = read("src/editmodel.js"); parts.DIREKTUI = read("src/direkt-ui.js");
 parts.REGLERDATA = "window.ReglerTexts=" + JSON.stringify(json("src/regler.json")) + ";" + merge("ReglerTexts"); parts.REGELN = read("src/regeln.js"); parts.REGLERUI = read("src/regler-ui.js");
 if (PARTS.malen) { parts.MALRATDATA = "window.MalratData=" + JSON.stringify(json("src/malrat.json")) + ";"; parts.MALRAT = read("src/malrat.js"); parts.MALRATUI = read("src/malrat-ui.js"); }
+if (PARTS.dart) { parts.DARTDATA = "window.DartData=" + JSON.stringify(json("src/dart.json")) + ";"; parts.DART = read("src/dart.js"); parts.DARTUI = read("src/dart-ui.js"); }
 parts.NOTODATA = "window.NotoData=\"" + fs.readFileSync(path.join(root, "src/noto-stickers.png")).toString("base64") + "\";"; parts.NOTO = read("src/noto.js");
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
 parts.TEXTE = read("src/texte.js");
@@ -125,7 +131,7 @@ let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + 
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
 // code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
-const KEEP = new Set(["DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "NOTODATA"]);
+const KEEP = new Set(["DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "DARTDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "NOTODATA"]);
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "")).join("\n");
 const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));
@@ -148,6 +154,7 @@ for (const name of Object.keys(PARTS)) {
   manifest[name] = { f: file, h: "sha384-" + crypto.createHash("sha384").update(body).digest("base64"), d: PARTS[name].d };
   if (name === "turnzwei") manifest[name].g = twoGames;
   if (name === "malen") manifest[name].g = malGames;
+  if (name === "dart") manifest[name].g = dartGames;
   partBytes += Buffer.byteLength(body);
   console.log(path.dirname(out) + "/" + file, Buffer.byteLength(body), "bytes");
 }
