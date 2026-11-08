@@ -100,8 +100,13 @@
         return new Promise(function (done) {
           res.textContent = "";
           var pv = preview(doc); pv.tabIndex = -1; res.appendChild(pv);
-          // the server left a drink with alcohol out of the card (no alcohol on cards, they reach teenagers too): said once, plainly
-          if (note === "drinks") res.appendChild(el("p", "note", t("create_drinks")));
+          // what the server says about the card, once each: a drink with alcohol left out (cards reach teenagers too), and the
+          // limits of the ability the wish asks beyond ("days:14", "people:4"); unknown codes are not shown
+          [].concat(note || []).forEach(function (c) {
+            var m = /^(days|people):(\d{1,3})$/.exec(String(c));
+            if (c === "drinks") res.appendChild(el("p", "note", t("create_drinks")));
+            else if (m) res.appendChild(el("p", "note", t("create_lim_" + m[1], { n: Number(m[2]) })));
+          });
           try { pv.focus(); } catch (e) {}
           var row = el("div", "row");
           row.appendChild(el("button", "btn hot", t("create_take"), function () {

@@ -164,7 +164,7 @@ test("Ethik-Audit: ohne 16+-Erklaerung kein Formular; Notschalter sagt freundlic
 });
 
 test("Kein Alkohol auf Karten: der Server laesst das Getraenk weg (note drinks), die Vorschau sagt es einmal; ohne note kein Hinweis", async () => {
-  for (const note of ["drinks", undefined]) {
+  for (const note of [["drinks", "days:14", "people:4", "x:9"], "drinks", undefined]) {
     const doc = { k: "card", col: ["#ffd400", "#ff3b1d"], by: [], t: "Chorprobe", x: "Chorprobe am Freitag, danach gemütliches Beisammensein.", st: "herz", sk: [] };
     const { p, errs } = await phone((p0) => {
       if (p0 === "ai/status") return [200, { meter: METER, create: CREATE(5) }];
@@ -178,6 +178,10 @@ test("Kein Alkohol auf Karten: der Server laesst das Getraenk weg (note drinks),
     await p.locator(".createpv").waitFor();
     const hint = p.getByText("Getränke mit Alkohol nennen wir auf Karten nicht, weil sie auch Jugendliche erreichen.");
     assert.equal(await hint.count(), note ? 1 : 0, String(note));
+    // the limits of the ability, once each; an unknown code shows nothing
+    assert.equal(await p.getByText("Diese Karte plant höchstens 14 Tage im Voraus.").count(), Array.isArray(note) ? 1 : 0);
+    assert.equal(await p.getByText("Diese Karte schafft bis zu 4 Personen.").count(), Array.isArray(note) ? 1 : 0);
+    assert.equal(await p.locator(".createpv ~ p.note, p.note").filter({ hasText: "x:9" }).count(), 0);
     assert.deepEqual(errs, []); await p.context().close();
   }
 });
