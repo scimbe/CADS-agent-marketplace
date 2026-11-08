@@ -274,6 +274,6 @@ const Z = require("./lib/zoom.js");
 for (const [base, z] of [[{ width: 810, height: 1080 }, 1], [{ width: 810, height: 1080 }, 1.5], [{ width: 810, height: 1080 }, 2], [{ width: 1024, height: 768 }, 1], [{ width: 1024, height: 768 }, 1.5], [{ width: 1024, height: 768 }, 2]])
   test("Zoom-Matrix " + base.width + "x" + base.height + " bei " + z * 100 + " % (de/en; empfangen, Tageskarte, Einladungen): empfangene Karte >= 120 px, keine Ueberlappung, Titel ganz, Feld im Fokus frei, axe sauber", async () => {
     const r = await Z.matrix(base, z, false);
-    assert.ok(r.got === 2 && r.n >= 6, "Matrix zu klein: " + JSON.stringify(r));
+    assert.ok(r.got === 4 && r.n >= 6, "Matrix zu klein: " + JSON.stringify(r));
     assert.deepEqual(r.bad, []);
   });

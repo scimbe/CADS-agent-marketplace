@@ -54,7 +54,8 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // over 1.6 MiB; the core keeps its own budget (700 KiB above, 716 800 B in test/quizspiele.test.js). A large part that
   // would be preloaded on idle does not get this room: then back to 1.6 MiB.
   assert.ok(Buffer.byteLength(html) + sum < 1.75 * 1024 * 1024, "Kern + Teile: " + (Buffer.byteLength(html) + sum));
-  assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(n !== "noto" && n !== "dart"\) need\(n\)/, "noto und dart nicht im Leerlauf-Vorladen");
+  assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(n !== "noto" && n !== "dart" && n !== "klang"\) need\(n\)/, "noto, dart und klang nicht im Leerlauf-Vorladen");
+  assert.match(src("app.js"), /=== "voice"\) window\.Parts\.need\("klang"\)/, "klang kommt mit einem Stimm-Blatt");
   // Each part runs where it ran inside the page: the module code, not a stand-in. Spot checks on what moved.
   const part = (n) => fs.readFileSync(path.join(path.dirname(dist), man[n].f), "utf8");
   assert.match(part("play"), /window\.ArcadeUI = \{/); assert.match(part("play"), /window\.LiveUI = \{/);

@@ -16,7 +16,7 @@ const G = require("./grund.js");
 const DIST = path.join(__dirname, "../../../dist/index.html");
 const AXE = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
 const RULES = { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } };
-const SCEN = { empfangen: [[10, 8], ""], tageskarte: [[11, 6], ""], einladung: [[11, 7], "#i=karte-lob"], termin: [[11, 8], "#i=zug-termin"] };
+const SCEN = { empfangen: [[10, 8], ""], stimme: [[10, 8], ""], tageskarte: [[11, 6], ""], einladung: [[11, 7], "#i=karte-lob"], termin: [[11, 8], "#i=zug-termin"] };
 
 // what the screen shows now: controls that overlap, the card, the title, the preview button
 const look = (p) => p.evaluate(() => {
@@ -68,12 +68,16 @@ async function one(b, base, z, phone, lang, sn) {
     const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
     await p.clock.install({ time: new Date(Date.UTC(2026, day[0], day[1], 10)) });
     await p.goto("file://" + DIST + hash); await p.waitForFunction(() => document.body.getAttribute("data-state") !== "boot"); await p.waitForTimeout(900);
-    if (sn === "empfangen") {   // Lena's card to her grandmother (P7): a feel-good card with her own text, sent on
-      await p.evaluate((l) => { const D = window.Daily, d = D.docFromIdea(D.byId("warm-denke"), D.sanitizeProfile({ nick: "Lena" }), l); d.x = "Ich denk an dich, Oma! Kuss, Lena"; location.hash = D.docUrl(D.withTrail(d, "Lena", ["text"])).split("#")[1]; }, lang);
+    // received (P7): Lena's feel-good card to her grandmother with her own text, or her distorted voice (Stimme verzerren)
+    const RECV = { empfangen: ["warm-denke", "Ich denk an dich, Oma! Kuss, Lena", "text", ""], stimme: ["stimme-verzerren", "Hör mal, Oma!", "stimme", "robot"] }, recv = RECV[sn];
+    if (recv) {
+      await p.evaluate(([l, r]) => { const D = window.Daily, d = D.docFromIdea(D.byId(r[0]), D.sanitizeProfile({ nick: "Lena" }), l, r[3] || undefined); d.x = r[1]; location.hash = D.docUrl(D.withTrail(d, "Lena", [r[2]])).split("#")[1]; }, [lang, recv]);
       await p.waitForFunction(() => document.getElementById("leaf").classList.contains("got")); await p.waitForTimeout(900);
     }
     const s = await look(p);
-    if (sn === "empfangen" && (!s.got || s.peek || (s.card = await seen(p)) < 120)) bad.push(at + ": empfangene Karte " + JSON.stringify(s));
+    if (recv && (!s.got || s.peek || (s.card = await seen(p)) < 120)) bad.push(at + ": empfangene Karte " + JSON.stringify(s));
+    // the answer to a voice is one line with its microphone ("🎙 Antworten"), not a four-line block
+    if (sn === "stimme") { const g = await p.evaluate(() => { const e = document.getElementById("go"), r = e.getBoundingClientRect(), lh = parseFloat(getComputedStyle(e).lineHeight) || 30; return { h: Math.round(r.height), lines: Math.round((e.scrollHeight - 8) / lh), t: e.textContent }; }); if (!/^🎙/.test(g.t) || g.h > 80) bad.push(at + ": Antwortknopf " + JSON.stringify(g)); }
     if (s.over.length) bad.push(at + ": Ueberlappung " + s.over.join(", "));
     if (s.cut) bad.push(at + ": Titel abgeschnitten");
     if (s.peek) {   // the last resort on a tiny sheet: opened, its button says how to close it
@@ -84,7 +88,7 @@ async function one(b, base, z, phone, lang, sn) {
     let f = await fields(p, "#home input, #home textarea"), n = f.n; f.bad.forEach((x) => bad.push(at + " Blatt: " + x));
     await p.addScriptTag({ content: AXE });
     (await p.evaluate((o) => window.axe.run(document.getElementById("home"), o).then((r) => r.violations.map((x) => x.id + ": " + x.nodes.slice(0, 2).map((m) => m.target.join(" ")).join(" | "))), RULES)).forEach((x) => bad.push(at + " axe: " + x));
-    if (sn !== "empfangen") {   // the editor behind the main button
+    if (!recv) {   // the editor behind the main button
       await p.locator("#go").click(); await p.locator("#editor:not([hidden]), #done:not([hidden])").first().waitFor();
       if (await p.locator("#done").isVisible()) { await p.locator("#keep").click(); await p.locator("#editor").waitFor(); }
       await p.waitForTimeout(400);
@@ -94,7 +98,7 @@ async function one(b, base, z, phone, lang, sn) {
       }
     }
     if (errs.length) bad.push(at + ": " + errs.join(" | "));
-    return { bad, got: sn === "empfangen" ? 1 : 0, n };
+    return { bad, got: recv ? 1 : 0, n };
   } finally { await ctx.close(); }
 }
 // all languages and cases of one screen at one zoom, four at a time in one browser

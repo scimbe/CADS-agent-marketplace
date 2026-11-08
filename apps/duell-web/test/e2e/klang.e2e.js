@@ -56,6 +56,8 @@ test("Stimme verzerren: Aufnahme nur nach Tipp, Effekt + Tempo sofort hoerbar, Z
   const b = await launch(), ctx = await G.person(b, { lang: "de", view: "phone390", web: true });
   await ctx.addInitScript(SPY);
   const p = await G.open(ctx, "#i=stimme-verzerren");
+  // klang is not in the idle preload (parts.js); a voice sheet asks for it as soon as it is shown
+  await G.poll(() => p.evaluate(() => window.Parts.ready("klang")), Boolean, { what: "klang mit dem Stimm-Blatt" });
   await editor(p, "de");
   const panel = await p.locator("#panel").innerText();
   assert.match(panel, /braucht die App dein Mikrofon/); assert.match(panel, /Nimm nur dich selbst auf, oder frag vorher\./); assert.match(panel, /Bis zu 10 Sekunden/);

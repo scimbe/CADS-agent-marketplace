@@ -95,6 +95,7 @@ function setHome(h, animate) {
   // The thumbs keep their row from the first paint (.votes in style.css), so the sheet does not move when their part arrives.
   var F = window.DailyFlavor, off = F && F.stat === false; $("votes").hidden = off || !(h.doc ? h.note && h.doc.i && !(h.doc.ki && h.doc.ki.k === "karte") : h.idea);   // as Stat.card
   stimme(function (S) { S.sheet(h); }, h);
+  if (kind === "sound" && (h.doc ? h.doc.m : idea && idea.sound && idea.sound.mode) === "voice") window.Parts.need("klang").catch(function () {});   // not in the idle preload (parts.js)
 }
 // A voice sent by a friend: the main button answers with my own voice (the part klang records after this tap, once the
 // microphone is allowed; before that it explains first and waits for the record button).
