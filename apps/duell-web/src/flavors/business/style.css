@@ -20,6 +20,7 @@ h1{transform:none;text-transform:none;font:650 19px/1 var(--disp);letter-spacing
 .teaser{font:500 1rem/1.35 var(--disp);color:var(--muted)}
 .press{border:0;border-radius:10px;background:var(--org);color:var(--onorg);font:600 1.12rem/1 var(--disp);text-transform:none;letter-spacing:0;box-shadow:0 1px 2px rgba(16,24,40,.15);min-height:54px}
 .press:active{transform:translateY(1px);box-shadow:none}
+.press.wait{border:2px dashed var(--org)}
 
 #homerow button{border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font:600 .88rem var(--disp)}
 #feat button{border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--text);font:600 .81rem var(--disp)}
