@@ -199,7 +199,8 @@
     function table() {
       var g = sim(st, ctx) || g0, list = all().slice(0, st.shown), last = list.length ? list[list.length - 1] : null, nx = all()[st.shown], cur = nx ? nx.t.p : g.partial ? g.turns[g.turns.length - 1].p : g.turns.length % 2;
       score.textContent = "";
-      [0, 1].forEach(function (p) { var r = el("p", p === cur && !g.over ? "on" : ""); r.appendChild(sign(p)); r.appendChild(document.createTextNode(line(g, st, p, mine))); score.appendChild(r); });
+      // my side always first, with "(du)" (Dart.who); each side keeps its sign (solid red / striped cream)
+      (mine === 1 ? [1, 0] : [0, 1]).forEach(function (p) { var r = el("p", p === cur && !g.over ? "on" : ""); r.appendChild(sign(p)); r.appendChild(document.createTextNode(line(g, st, p, mine))); score.appendChild(r); });
       throws.textContent = ""; throws.setAttribute("aria-label", X.da_last);
       var ti = last ? last.ti : -1, inTurn = list.filter(function (x) { return x.ti === ti; });
       for (var i = 0; i < 3; i++) { var x = inTurn[i], li = el("li", x ? "hit" : "", x ? M.short(x.h, Kit.lang) : String(i + 1)); li.setAttribute("aria-label", x ? M.field(x.h, Kit.lang) : fmt(X.da_dart_of, { n: i + 1 })); throws.appendChild(li); }
@@ -349,7 +350,7 @@
       state.appendChild(th); state.appendChild(info);
       if (g && g.turns.length) {
         info.appendChild(el("p", "note", M.head1(g, Kit.lang)));
-        [0, 1].forEach(function (q) { info.appendChild(el("p", "note", line(g, st, q, me))); });
+        (me === 1 ? [1, 0] : [0, 1]).forEach(function (q) { info.appendChild(el("p", "note", line(g, st, q, me))); });
         var list = flat(g).slice(0, seen), lt = list.length ? list[list.length - 1].t : null;
         if (lt) info.appendChild(el("p", "note", M.who(g, lt.p, Kit.lang, st.names, me) + ": " + M.turnLine(lt, g, Kit.lang)));
       } else info.appendChild(el("p", "note", X.da_you));

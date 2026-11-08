@@ -316,13 +316,13 @@ test("Eigene Wuerfe nicht umschreibbar: Schritt, Ende, Ergebnis und Bild zaehlen
   try {
     M.setOwn((sd) => (sd === seed ? { s: a1, n: ["Ana", ""] } : null));
     assert.equal(Tn.state(doc).over, false, "kein Ende"); assert.equal(Tn.result(doc, "de"), null, "kein Ergebnis");
-    const f = Tn.face(doc, "de"); assert.equal(f[1], "Ana: noch 235 · Spieler 2: noch 301"); assert.equal(f[f.length - 1], "Dieser Link passt nicht zu deinem letzten Wurf. Gewertet wird dein eigener Stand.");
+    const f = Tn.face(doc, "de"); assert.equal(f[1], "Ana (du): noch 235 · Gegner: noch 301"); assert.equal(f[f.length - 1], "Dieser Link passt nicht zu deinem letzten Wurf. Gewertet wird dein eigener Stand.");
     const w = M.view(doc, Tn.moves(doc)); assert.deepEqual([w.foreign, w.v[0]], [true, a1]);
     // the own game finished, a link with another ending: the result is the own one, with the note
     let mine = "al"; for (let i = 0; i < 400; i++) { const g = M.sim(seed, mine); if (g.over) break; const p = g.partial ? g.turns[g.turns.length - 1].p : g.turns.length % 2; const at = M.aimFor(g, p), c = M.centre(at.n, at.r); mine += throws(seed, g.k, [p ? "0" : at.r === "d" ? "D" + at.n : at.r === "t" ? "T" + at.n : at.n === 25 ? "B" : "S" + at.n]); }
     assert.equal(M.sim(seed, mine).win, 0);
-    M.setOwn(() => ({ s: mine, n: ["Ana", "Ben"] }));
-    const r = Tn.result(doc, "de"); assert.equal(r.h, "Ana gewinnt!"); assert.equal(r.lines[r.lines.length - 1], "Dieser Link passt nicht zu deinem letzten Wurf. Gewertet wird dein eigener Stand.");
+    M.setOwn(() => ({ s: mine, n: ["Ana", "Ben"] }));   // the last turn of this made-up store is B's: this phone is B's
+    const r = Tn.result(doc, "de"); assert.equal(r.h, "Ana gewinnt!"); assert.match(r.lines[1], /^Ben \(du\): /); assert.equal(r.lines[r.lines.length - 1], "Dieser Link passt nicht zu deinem letzten Wurf. Gewertet wird dein eigener Stand.");
     // B's honest answer is counted as it is
     M.setOwn(() => ({ s: a1, n: ["Ana", ""] }));
     const ok = through(play(through(play(d, a1)), b1)); assert.equal(M.view(ok, Tn.moves(ok)).foreign, false); assert.equal(Tn.face(ok, "de").length, 3);
@@ -333,7 +333,13 @@ test("Eigene Wuerfe nicht umschreibbar: Schritt, Ende, Ergebnis und Bild zaehlen
     assert.equal(Tn.state(ex).over, false); assert.equal(Tn.result(ex, "de"), null); assert.equal(Tn.face(ex, "de").pop(), "Dieser Link passt nicht zu deinem letzten Wurf. Gewertet wird dein eigener Stand.");
     // my own name comes from my store, not from the link
     const rn = JSON.parse(JSON.stringify(d)); rn.q = Tn.seal([[[b1, 60, ["Verlierer", "Ben"]]]], seed);
-    assert.equal(Tn.face(through(rn), "de")[1], "Ana: noch 235 · Ben: noch 241");
+    assert.equal(Tn.face(through(rn), "de")[1], "Ana (du): noch 235 · Ben: noch 241");
+    // B empties A's name and calls himself A's name (also in Greek capitals): the other's name is dropped, my side keeps "(du)"
+    for (const fake of ["Ana", "ΑΝΑ", "ᴀna", "ɑna"]) {
+      const t = JSON.parse(JSON.stringify(d)); t.q = Tn.seal([[[b1, 60, ["", fake]]]], seed); const td = through(t);
+      assert.equal(Tn.face(td, "de")[1], "Ana (du): noch 235 · Gegner: noch 241", fake);
+      assert.deepEqual(M.view(td, Tn.moves(td)).v[2], ["Ana", ""], fake);
+    }
   } finally { M.setOwn(null); }
   const ui = require("fs").readFileSync(require("path").join(__dirname, "../src/dart-ui.js"), "utf8");
   assert.match(ui, /M\.setOwn\(mineOf\)/); assert.match(ui, /keep\(ctx\.doc\.seed, st\.s, st\.names\)/);
@@ -362,6 +368,38 @@ test("Spitznamen: jede Schrift, aber eine je Name; Vergleich ueber ein Skelett; 
   for (const n of ["Du", "Bert", "Spieler 1", "Аnna", "Anna", "Ꭺnna", "\u202Eben"]) assert.equal(Tn.play(dA, [[b1, 3, ["Anna", n]]], 100), null, "B heisst " + JSON.stringify(n));
   assert.equal(Tn.play(dA, [[b1, 3, ["Ben", "Ben"]]], 100), null, "A umbenannt"); assert.ok(Tn.play(dA, [[b1, 3, ["Anna", "Олег"]]], 100));
   assert.equal(M.who(M.sim(seed, b1), 1, "de", ["Anna", "Be\u200Bn"]), "Ben");
+});
+
+test("Skelett aus Review 3: Grossbuchstaben vor dem Kleinschreiben, Kapitaelchen, Cherokee", () => {
+  const sk = { "ΑΝΝΑ": "anna", "ᴅᴜ": "du", "ɑnna": "anna", "ᏴᎬᏒᎢ": "bert", "ВОТ": "bot", "ΜΕ": "me", "Ꭰu": "du", "Dս": "du", "ꓓu": "du", "Ⅾu": "du", "Bеrt": "bert", "Ᏼert": "bert",
+    "ɢʀɪɴ": "grin", "ʙᴇʀᴛ": "bert", "Ꮢ": "r", "Дu": "du" };
+  for (const [n, f] of Object.entries(sk)) assert.equal(M.foldName(n), f, n);
+  for (const n of ["ᴅᴜ", "ᏴᎬᏒᎢ", "ВОТ", "ΜΕ", "ʙᴇʀᴛ", "Ꭰu", "Dս", "ꓓu", "Ⅾu", "Bеrt", "Ᏼert", "Дu", "Du\u2800", "\u3164", "Anna\u200D", "Gegner", "Opponent"]) assert.equal(M.nameOk(n), false, n);
+  for (const n of ["ΑΝΝΑ", "ɑnna", "ᴀnna"]) { assert.equal(M.namesOk(["Anna", n]), false, n); assert.equal(M.namesOk(["ANNA", n]), false, n); }
+  for (const n of ["Ελένη", "Олег", "محمد", "지민", "Zoë", "李小龍", "さくら", "José María", "Anne-Marie", "O'Neil", "Дмитрий"]) assert.equal(M.nameOk(n), true, n);
+});
+
+test("Meine Seite steht fest: \"(du)\" und zuerst, auch wenn ein Doppelgaenger-Name durchrutscht", () => {
+  const seed = 77, a1 = "al" + throws(seed, 0, ["T20", "T20", "T20"]), b1 = a1 + throws(seed, 3, ["S1", "S1", "S1"]), d = fresh(seed);
+  const x = JSON.parse(JSON.stringify(d)); x.q = Tn.seal([[[b1, 3, ["Ana", "Ана"]]]], seed);   // Cyrillic "Ана": not the same skeleton, slips through
+  assert.equal(M.namesOk(["Ana", "Ана"]), true);
+  try {
+    // A's phone (sent a1 as player 1 of 2): my side first with "(du)", whatever the other calls himself
+    M.setOwn(() => ({ s: a1, n: ["Ana", ""] }));
+    const f = Tn.face(through(x), "de"); assert.match(f[1], /^Ana \(du\): noch 121 · /);
+    // B's phone (sent b1 as player 2): his side first
+    M.setOwn(() => ({ s: b1, n: ["Ana", "Ben"] }));
+    const y = JSON.parse(JSON.stringify(d)); y.q = Tn.seal([[[b1, 3, ["Ana", "Ben"]]]], seed);
+    assert.equal(Tn.face(through(y), "en")[1], "Ben (you): 298 to go · Ana: 121 to go");
+    // the result names the winner with the mark on the winner's own phone
+    let r = "dl"; for (let t = 0; t < 6; t++) r += throws(seed, t * 3, t % 2 ? ["S1", "S1", "S1"] : ["T20", "T20", "T20"]);
+    const z = JSON.parse(JSON.stringify(d)); z.q = Tn.seal([[[r, 3, ["Ana", "Ben"]]]], seed);
+    M.setOwn(() => ({ s: r.slice(0, 2 + 15 * 5), n: ["Ana", ""] })); assert.equal(Tn.result(through(z), "de").h, "Ana (du) gewinnt!");
+    M.setOwn(() => ({ s: r, n: ["Ana", "Ben"] })); assert.equal(Tn.result(through(z), "de").h, "Ana gewinnt!");
+  } finally { M.setOwn(null); }
+  // a third phone without a store: no mark, plain names
+  const t = JSON.parse(JSON.stringify(d)); t.q = Tn.seal([[[b1, 3, ["Ana", "Ben"]]]], seed);
+  assert.equal(Tn.face(through(t), "de")[1], "Ana: noch 121 · Ben: noch 298");
 });
 
 test("Regler ohne Timing wirft mit derselben Unsicherheit wie das Pendel: 1 von 5 eine Stufe weniger, 1 von 5 eine mehr", () => {

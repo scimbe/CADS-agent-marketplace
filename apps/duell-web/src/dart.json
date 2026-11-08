@@ -89,7 +89,11 @@
       "da_lv_mid": "Stufe 5 von 9, gerade",
       "da_throw": "Werfen",
       "da_foreign": "Dieser Link passt nicht zu deinem letzten Wurf. Gewertet wird dein eigener Stand.",
-      "da_quick": "Zu kurz – halte, bis die Kraft passt."
+      "da_quick": "Zu kurz – halte, bis die Kraft passt.",
+      "da_mark": "{p} (du)",
+      "da_opp": "Gegner",
+      "da_win_me": "{p} gewinnt!",
+      "da_win_self": "Du gewinnst!"
     },
     "en": {
       "da_l": "Throw your three darts.",
@@ -180,7 +184,11 @@
       "da_lv_mid": "Step 5 of 9, straight",
       "da_throw": "Throw",
       "da_foreign": "This link does not match your last throw. Your own standing counts.",
-      "da_quick": "Too short – hold until the power is right."
+      "da_quick": "Too short – hold until the power is right.",
+      "da_mark": "{p} (you)",
+      "da_opp": "Opponent",
+      "da_win_me": "{p} wins!",
+      "da_win_self": "You win!"
     }
   },
   "quips": {

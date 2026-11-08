@@ -216,13 +216,20 @@
     "Ꮪ": "s", "Ꮮ": "l", "Ꮯ": "c", "Ꮲ": "p", "Ꮶ": "k", "Ᏼ": "b", "Ᏻ": "g", "Ꮍ": "y", "Ꮑ": "n", "Ꮻ": "o", "Ꮜ": "u",
     "ꓐ": "b", "ꓑ": "p", "ꓒ": "d", "ꓓ": "d", "ꓔ": "t", "ꓖ": "g", "ꓗ": "k", "ꓙ": "j", "ꓚ": "c", "ꓜ": "z", "ꓝ": "f", "ꓟ": "m", "ꓠ": "n", "ꓡ": "l", "ꓢ": "s",
     "ꓣ": "r", "ꓦ": "v", "ꓧ": "h", "ꓪ": "w", "ꓫ": "x", "ꓬ": "y", "ꓮ": "a", "ꓰ": "e", "ꓲ": "i", "ꓳ": "o", "ꓴ": "u" };
+  // capitals that look like Latin ones, folded before lower case (else Greek "ΑΝΝΑ" would become "αννα" -> "avva"), and
+  // Latin small capitals and letter variants (U+1D00..1D22, ɑ ɡ ʀ ɪ ...)
+  var UP = { "Α": "a", "Β": "b", "Ε": "e", "Ζ": "z", "Η": "h", "Ι": "i", "Κ": "k", "Μ": "m", "Ν": "n", "Ο": "o", "Ρ": "p", "Τ": "t", "Υ": "y", "Χ": "x",
+    "А": "a", "В": "b", "Е": "e", "К": "k", "М": "m", "Н": "h", "О": "o", "Р": "p", "С": "c", "Т": "t", "Х": "x", "У": "y", "Ѕ": "s", "І": "i", "Ј": "j", "Ԁ": "d", "Ԛ": "q", "Ԝ": "w", "Д": "d", "д": "d",
+    "Ꮢ": "r", "ᴀ": "a", "ᴁ": "ae", "ᴃ": "b", "ᴄ": "c", "ᴅ": "d", "ᴆ": "d", "ᴇ": "e", "ᴉ": "i", "ᴊ": "j", "ᴋ": "k", "ᴌ": "l", "ᴍ": "m", "ᴎ": "n", "ᴏ": "o", "ᴐ": "o",
+    "ᴑ": "o", "ᴓ": "o", "ᴘ": "p", "ᴙ": "r", "ᴚ": "r", "ᴛ": "t", "ᴜ": "u", "ᴠ": "v", "ᴡ": "w", "ᴢ": "z", "ɑ": "a", "ɡ": "g", "ʀ": "r", "ɪ": "i", "ʙ": "b", "ɢ": "g",
+    "ʜ": "h", "ʟ": "l", "ɴ": "n", "ʏ": "y", "ꜱ": "s", "ꜰ": "f", "ı": "i", "ȷ": "j" };
   function cher(c) { var k = c.codePointAt(0); return k >= 0xAB70 && k <= 0xABBF ? String.fromCodePoint(k - 0xAB70 + 0x13A0) : c; }
   // a name without hidden characters (the screen never shows them)
   function plainName(n) { return String(n == null ? "" : n).replace(HIDDEN, ""); }
   // the skeleton two names are compared by: NFKC (Roman numerals become letters), look-alikes as Latin, lower case,
   // accents, spaces and punctuation dropped; letters of every script stay
   function foldName(n) {
-    return Array.from(plainName(n).normalize("NFKC")).map(function (c) { var u = cher(c); return CHER[u] || LOOK[u.toLowerCase()] || u.toLowerCase(); }).join("")
+    return Array.from(plainName(n).normalize("NFKC")).map(function (c) { var u = cher(c); return CHER[u] || UP[u] || LOOK[u.toLowerCase()] || UP[u.toLowerCase()] || u.toLowerCase(); }).join("")
       .normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]/gu, "");
   }
   // One script per name (Script_Extensions; Common and Inherited go with any). Japanese may mix Han, Hiragana and
@@ -242,8 +249,8 @@
     return !left || Object.keys(left).length > 0;
   }
   // the screen's own words for the players, in every language, as skeletons: no nickname may be one of them
-  var TAKEN = {}; Object.keys(DATA.text).forEach(function (l) { ["da_me", "da_bot", "da_p1", "da_p2"].forEach(function (k) { if (DATA.text[l][k]) TAKEN[foldName(DATA.text[l][k])] = 1; }); });
-  ["bert", "bot", "du", "you", "ich", "me", "spieler", "player"].forEach(function (w) { TAKEN[w] = 1; });
+  var TAKEN = {}; Object.keys(DATA.text).forEach(function (l) { ["da_me", "da_bot", "da_p1", "da_p2"].forEach(function (k) { if (DATA.text[l][k]) TAKEN[foldName(DATA.text[l][k])] = 1; }); ["da_opp"].forEach(function (k) { if (DATA.text[l][k]) TAKEN[foldName(DATA.text[l][k])] = 1; }); });
+  ["bert", "bot", "du", "you", "ich", "me", "spieler", "player", "gegner", "opponent"].forEach(function (w) { TAKEN[w] = 1; });
   function nameOk(n) { return n === "" || (typeof n === "string" && plainName(n) === n && Q.clean(n, NAME) === n && oneScript(n) && !!foldName(n) && !TAKEN[foldName(n)]); }
   function namesOk(a) { return Array.isArray(a) && a.length === 2 && nameOk(a[0]) && nameOk(a[1]) && !(a[0] && a[1] && foldName(a[0]) === foldName(a[1])); }
   // my nickname for the move: hidden characters dropped, through the filter; "" when it is taken or the other's in disguise
@@ -277,14 +284,20 @@
   var own = null;
   function view(doc, m) {
     var v = last(m), o = own && v ? own(doc.seed) : null;
-    if (o && o.s && !trust(o.s, v, doc.seed)) { var og = sim(doc.seed, o.s); if (og && !og.partial) return { v: [o.s, claimed(og), namesOk(o.n) ? o.n : ["", ""]], g: og, foreign: true }; }
+    // me: my side of the game (the one who threw my last turn), -1 when this phone sent nothing for it or against Bert
+    var mg = o && o.s ? sim(doc.seed, o.s) : null, me = mg && !mg.bot && mg.turns.length ? mg.turns[mg.turns.length - 1].p : -1;
+    if (mg && !trust(o.s, v, doc.seed)) { if (!mg.partial) return { v: [o.s, claimed(mg), namesOk(o.n) ? o.n : ["", ""]], g: mg, foreign: true, me: me }; }
     if (!v) return null;
     var g = sim(doc.seed, v[0]);
-    if (o && o.s && g && !g.bot) {
-      var mg = sim(doc.seed, o.s), me = mg && mg.turns.length ? mg.turns[mg.turns.length - 1].p : -1;
-      if (me >= 0 && Array.isArray(o.n) && v[2][me] !== o.n[me] && nameOk(o.n[me])) { var n = v[2].slice(); n[me] = o.n[me]; v = [v[0], v[1], n]; }
+    if (me >= 0 && g && !g.bot) {
+      // my name from my store; if the other's name then clashes with it (a look-alike, or mine taken over), the other's
+      // is dropped: the screen says "Gegner" instead, and my side carries "(du)" anyway
+      var n = v[2].slice(); if (Array.isArray(o.n) && nameOk(o.n[me])) n[me] = o.n[me];
+      if (!namesOk(n)) n[1 - me] = "";
+      if (!namesOk(n)) n[me] = "";
+      v = [v[0], v[1], n];
     }
-    return { v: v, g: g, foreign: false };
+    return { v: v, g: g, foreign: false, me: me };
   }
   // What the link says the last turn brought, against what it brought: null when they agree.
   function claimed(g) { return g.bot ? g.turns.filter(function (t) { return t.p === 0; }).reduce(function (a, t) { return a + t.pts; }, 0) : g.turns[g.turns.length - 1].pts; }
@@ -296,7 +309,16 @@
   // "Triple 20, 60 Punkte": what the screen reader says for a dart
   function spoken(h, lang) { return say(lang, "da_sp", h.p, { h: field(h, lang), p: h.p }); }
   // a player's name: against Bert "Du" and "Bert"; by link the nickname from the move, else "Spieler 1/2"; me: who throws here
-  function who(g, p, lang, names, me) { var X = T(lang); return g.bot ? (p ? X.da_bot : X.da_me) : p === me ? X.da_me : (names && plainName(names[p])) || X["da_p" + (p + 1)]; }
+  // a player's name: against Bert "Du" and "Bert"; by link my side always with the fixed mark "(du)" (or "Du" without a
+  // nickname), the other side by its nickname, else "Gegner" (when this phone knows its side) or "Spieler 1/2"
+  function who(g, p, lang, names, me) {
+    var X = T(lang), nm = names ? plainName(names[p]) : "";
+    if (g.bot) return p ? X.da_bot : X.da_me;
+    if (p === me) return nm ? fmt(X.da_mark, { p: nm }) : X.da_me;
+    return nm || (me === 0 || me === 1 ? X.da_opp : X["da_p" + (p + 1)]);
+  }
+  // both standings, my side always first
+  function pair(g, lang, names, me) { var a = me === 1 ? [1, 0] : [0, 1]; return stand(g, a[0], lang, names, me) + " · " + stand(g, a[1], lang, names, me); }
   function modeName(m, lang) { return T(lang)["da_m_" + m]; }
   function stand(g, p, lang, names, me) {
     var w = who(g, p, lang, names, me);
@@ -313,14 +335,14 @@
 
   function face(doc, m, lang) {
     var w = view(doc, m), v = w && w.v, g = w && w.g; if (!g) return null;
-    var n = v[2], out = [head1(g, lang), stand(g, 0, lang, n) + " · " + stand(g, 1, lang, n), who(g, g.turns[g.turns.length - 1].p, lang, n) + ": " + turnLine(g.turns[g.turns.length - 1], g, lang)], f = fixed(v, g);
+    var n = v[2], me = w.me, out = [head1(g, lang), pair(g, lang, n, me), who(g, g.turns[g.turns.length - 1].p, lang, n, me) + ": " + turnLine(g.turns[g.turns.length - 1], g, lang)], f = fixed(v, g);
     if (f) out.push(fmt(T(lang).da_fixed, f));
     if (w.foreign) out.push(T(lang).da_foreign);
     return out;
   }
   function result(doc, m, lang) {
     var w = view(doc, m), v = w && w.v, g = w && w.g, X = T(lang); if (!g) return { h: "", lines: [] };
-    var n = v[2], h = g.win < 0 ? X.da_draw : g.bot ? X[g.win ? "da_win_bot" : "da_win_you"] : fmt(X.da_win, { p: who(g, g.win, lang, n) }), lines = [modeName(g.mode, lang), stand(g, 0, lang, n) + " · " + stand(g, 1, lang, n)];
+    var n = v[2], me = w.me, h = g.win < 0 ? X.da_draw : g.bot ? X[g.win ? "da_win_bot" : "da_win_you"] : g.win === me ? (n[me] ? fmt(X.da_win_me, { p: who(g, me, lang, n, me) }) : X.da_win_self) : fmt(X.da_win, { p: who(g, g.win, lang, n, me) }), lines = [modeName(g.mode, lang), pair(g, lang, n, me)];
     var end = g.turns[g.turns.length - 1];
     if (end.out && g.kind === "x01") lines.push(fmt(X.da_out_with, { h: field(end.d[end.d.length - 1], lang) }));
     if (g.capped) lines.push(fmt(X.da_cap, { n: ROUNDS }));
@@ -340,7 +362,7 @@
   };
   if (!Tn.GAMES.dart) { Tn.GAMES.dart = game; Tn.IDS.push("dart"); }
   if (!node && root.Parts) { root.Turn2 = root.Turn2 || root.Parts.registry("turnzwei", ["rule", "widget"]); if (!root.Turn2.get("rule", "dart")) root.Turn2.add("rule", "dart", game); }
-  var api = { game: game, ORDER: ORDER, MODES: MODES, KIND: KIND, START: START, ROUNDS: ROUNDS, HIGH: HIGH, STEPS: STEPS, STEP_MS: STEP_MS, WOB: WOB, POWER: POWER, SCAT: SCAT, LEVELS: LEVELS, MID: MID, NAME: NAME, MAXLEN: MAXLEN, trust: trust, view: view, setOwn: function (f) { own = f; }, nameOk: nameOk, namesOk: namesOk, foldName: foldName, plainName: plainName, myName: myName, shake: shake, level: level, darts: darts, swing: swing, SWING: SWING, QUICK: QUICK,
+  var api = { game: game, ORDER: ORDER, MODES: MODES, KIND: KIND, START: START, ROUNDS: ROUNDS, HIGH: HIGH, STEPS: STEPS, STEP_MS: STEP_MS, WOB: WOB, POWER: POWER, SCAT: SCAT, LEVELS: LEVELS, MID: MID, NAME: NAME, MAXLEN: MAXLEN, trust: trust, view: view, setOwn: function (f) { own = f; }, nameOk: nameOk, namesOk: namesOk, foldName: foldName, plainName: plainName, myName: myName, pair: pair, shake: shake, level: level, darts: darts, swing: swing, SWING: SWING, QUICK: QUICK,
     R: { BULL: BULL, OUTER: OUTER, T_IN: T_IN, T_OUT: T_OUT, D_IN: D_IN }, sd: sd, dir: dir, score: score, centre: centre, hand: hand, wobble: wobble, land: land,
     enc: enc, dec: dec, dart: dart, head: head, aimOf: aimOf, aimFor: aimFor, botDart: botDart, sim: sim, ok: ok, claimed: claimed, fixed: fixed, rounds: rounds,
     short: short, field: field, spoken: spoken, who: who, modeName: modeName, stand: stand, turnLine: turnLine, head1: head1, last: last, gameOf: gameOf,

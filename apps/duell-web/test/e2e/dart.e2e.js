@@ -130,8 +130,11 @@ test("Dart 301 per Link: A wirft per Maus und schickt, B wirft und schickt zurue
     // the other device opens the finished game: the result, and the result picture
     const other = who[n % 2], o = await G.open(other, hash(last.url)), L = X[other.lang];
     await o.locator("#go").click();
-    await o.locator("#panel").getByText(Tn.result(docOf(last.url), other.lang).h).waitFor();
-    for (const line of Tn.result(docOf(last.url), other.lang).lines) await o.locator("#panel").getByText(line, { exact: true }).first().waitFor();
+    // the result as this phone counts it: its own side marked "(du)/(you)" (Dart.view), the same game and winner as here
+    const seenRes = await o.evaluate((l) => window.Turns.result(window.DailyDebug.home().doc, l), other.lang), plain = Tn.result(docOf(last.url), other.lang);
+    assert.equal(seenRes.lines[0], plain.lines[0]); assert.ok(/\((du|you)\)|^(You|Du):? /.test(seenRes.lines[1]) || /^(You|Du) /.test(seenRes.lines[1]), seenRes.lines[1]);
+    await o.locator("#panel").getByText(seenRes.h).waitFor();
+    for (const line of seenRes.lines) await o.locator("#panel").getByText(line, { exact: true }).first().waitFor();
     await o.locator("#edmain").click(); await o.locator("#doneimg").waitFor();
     await G.poll(() => o.locator("#doneimg").evaluate((i) => i.complete && i.naturalWidth), (w) => w === 1080, { what: "Ergebnisbild" });
     await savePng(o, "ergebnisbild-" + other.lang);
@@ -298,5 +301,31 @@ test("Dart: ein Link, der meine eigenen Wuerfe umschreibt, wird nicht gewertet �
     await a5.locator("#go").click(); await a5.getByRole("button", { name: X.de.da_open, exact: true }).waitFor();
     assert.equal(await a5.locator("#panel .dawarn").count(), 0);
     for (const p of [a2, b, a3, a4, a5]) assert.deepEqual(p.errs, []);
+  } finally { await br.close(); }
+});
+
+test("Dart: B leert As Namen und nennt sich selbst „Anna“ – auf As Handy bleibt As Seite „Anna (du)“, B wird „Gegner“", async () => {
+  const br = await G.launch();
+  try {
+    const [ana] = await G.people(br, 1, { lang: "de", view: "phone390", web: true });
+    await ana.addInitScript(() => { try { const s = JSON.parse(localStorage.getItem("daily.v1") || "{}"); s.me = Object.assign({}, s.me, { nick: "Anna" }); localStorage.setItem("daily.v1", JSON.stringify(s)); } catch (e) {} });
+    const r = await turn(ana, "#i=spiel-dart", { first: true }, []);
+    const d = docOf(r.url), seed = d.seed, mine = M.last(Tn.moves(d));
+    assert.deepEqual(mine[2], ["Anna", ""], "As Name im Zug");
+    const reply = mine[0] + [0, 1, 2].map(() => M.enc(M.dart(0, -0.6, M.MID))).join("");
+    for (const fake of ["Anna", "ΑΝΝΑ"]) {
+      const forged = Object.assign({}, d, { q: Tn.seal([[[reply, 0, ["", fake]]]], seed) });
+      assert.equal(Tn.moves(forged).length, 1, "fuer sich ein gueltiger Zug (As Name leer)");
+      const p = await G.open(ana, hash(D.docUrl(forged)));
+      const face = await p.evaluate(() => window.Turns.face(window.DailyDebug.home().doc, "de"));
+      assert.match(face[1], /^Anna \(du\): noch \d+ · Gegner: noch \d+$/, fake + ": " + face[1]);
+      await p.locator("#go").click(); await p.getByRole("button", { name: X.de.da_open, exact: true }).waitFor();
+      const lines = await p.locator("#panel .dastate .note").allTextContents();
+      assert.match(lines[1], /^Anna \(du\): noch \d+$/, "meine Seite zuerst"); assert.match(lines[2], /^Gegner: noch \d+$/);
+      await p.getByRole("button", { name: X.de.da_open, exact: true }).click(); await p.locator(".daov[role=dialog]").waitFor();
+      const cards = await p.locator(".dascore p").allTextContents();
+      assert.match(cards[0], /^Anna \(du\): noch \d+$/); assert.match(cards[1], /^Gegner: noch \d+$/);
+      assert.deepEqual(p.errs, []); await p.close();
+    }
   } finally { await br.close(); }
 });
