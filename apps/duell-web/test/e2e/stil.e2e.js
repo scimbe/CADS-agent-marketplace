@@ -10,22 +10,26 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("playwright");
 
-const DIST = path.join(__dirname, "../../dist/index.html");
+const DIST = path.join(__dirname, "../../dist/index.html"), BIZ = path.join(__dirname, "../../dist/business");
 const PARTS = path.join(__dirname, "../../dist/parts");
 const AXE = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
 const SEED = { me: { nick: "Mira", emoji: "🦖", colors: ["#ffd400", "#ff3b1d"], set: "tiere" } };
 
 function gate() {
-  const db = new Map(), log = [];
+  const db = new Map(), log = [], bodies = [], conf = { cancel: false };
   const srv = http.createServer((req, res) => {
     const u = new URL(req.url, "http://x"), json = (s, b) => res.writeHead(s, { "Content-Type": "application/json" }).end(JSON.stringify(b));
     if (u.pathname === "/duell") return res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(fs.readFileSync(DIST, "utf8").replace("connect-src ", "connect-src 'self' "));
     if (u.pathname.startsWith("/duell/parts/")) return res.writeHead(200, { "Content-Type": "text/javascript" }).end(fs.readFileSync(path.join(PARTS, path.basename(u.pathname))));
+    if (u.pathname === "/duell/business/") return res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(fs.readFileSync(path.join(BIZ, "index.html"), "utf8").replace("connect-src ", "connect-src 'self' "));
+    if (u.pathname.startsWith("/duell/business/parts/")) return res.writeHead(200, { "Content-Type": "text/javascript" }).end(fs.readFileSync(path.join(BIZ, "parts", path.basename(u.pathname))));
+    // cancel: the sign-in page that is never finished (no cookie, no way back but the browser's)
+    if (u.pathname === "/auth/login" && conf.cancel) { log.push("login"); return res.writeHead(200, { "Content-Type": "text/html" }).end("<h1>Anmeldung</h1>"); }
     if (u.pathname === "/auth/login") return res.writeHead(302, { "Set-Cookie": "ct_gate_session=t1; Path=/; HttpOnly; SameSite=Lax", Location: u.searchParams.get("return") || "/" }).end();
     const m = u.pathname.match(/^\/api\/duell\/profile\/(get|put|delete)$/);
     if (!m) return json(503, { error: "off" });
     let raw = ""; req.on("data", (c) => (raw += c)); req.on("end", () => {
-      const b = JSON.parse(raw), rec = db.get("acc"); log.push(m[1]);
+      const b = JSON.parse(raw), rec = db.get("acc"); log.push(m[1]); bodies.push(b);
       if (!/ct_gate_session=t1/.test(req.headers.cookie || "")) return json(401, { error: "login-required" });
       if (m[1] === "get") return json(200, rec ? { profile: rec.p, rev: rec.rev } : { profile: null, rev: 0 });
       if (m[1] === "delete") { db.delete("acc"); return json(200, { deleted: true }); }
@@ -34,7 +38,7 @@ function gate() {
       db.set("acc", { rev: b.rev + 1, p: { v: 1, ...b.profile } }); json(200, { rev: b.rev + 1 });
     });
   });
-  return new Promise((ok) => srv.listen(0, "127.0.0.1", () => ok({ db, log, base: "http://127.0.0.1:" + srv.address().port, close: () => { srv.close(); srv.closeAllConnections(); } })));
+  return new Promise((ok) => srv.listen(0, "127.0.0.1", () => ok({ db, log, bodies, conf, base: "http://127.0.0.1:" + srv.address().port, close: () => { srv.close(); srv.closeAllConnections(); } })));
 }
 
 let browser, srv;
@@ -42,12 +46,12 @@ test.before(async () => { browser = await chromium.launch({ executablePath: proc
 test.after(async () => { await browser.close(); srv.close(); });
 
 // zoom: CSS px shrink by the factor, the device pixels stay (what the browser's zoom does to a page)
-async function open({ w = 390, h = 844, zoom = 1, lang = "de", seed = SEED, login = false, fs: size } = {}) {
-  const ctx = await browser.newContext({ viewport: { width: Math.round(w / zoom), height: Math.round(h / zoom) }, deviceScaleFactor: zoom, locale: lang === "de" ? "de-DE" : "en-GB" });
+async function open({ w = 390, h = 844, zoom = 1, lang = "de", seed = SEED, login = false, fs: size, dark = false, page = "/duell" } = {}) {
+  const ctx = await browser.newContext({ viewport: { width: Math.round(w / zoom), height: Math.round(h / zoom) }, deviceScaleFactor: zoom, locale: lang === "de" ? "de-DE" : "en-GB", colorScheme: dark ? "dark" : "light" });
   if (login) await ctx.addCookies([{ name: "ct_gate_session", value: "t1", url: srv.base }]);
   await ctx.addInitScript(([api, seed]) => { window.DUELL_API = api; if (!localStorage.getItem("daily.v1")) localStorage.setItem("daily.v1", JSON.stringify(seed)); }, [srv.base + "/api/duell/config", { ...seed, ...(size ? { fs: size } : {}) }]);
   const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(e.message));
-  await p.goto(srv.base + "/duell"); await p.locator("#go").waitFor();
+  await p.goto(srv.base + page); await p.locator("#go").waitFor();
   if (lang === "en" && (await p.evaluate(() => window.Kit.lang)) !== "en") await p.locator("#lang").click();
   await p.locator("#me").click(); await p.locator("#acbox").waitFor();
   return { ctx, p, errs, store: () => p.evaluate(() => JSON.parse(localStorage.getItem("daily.v1") || "{}")) };
@@ -120,8 +124,8 @@ test("Konto-Karte abgemeldet (de/en): drei Vorteile, 16+ vor dem Knopf, ohne Dru
     const n = srv.log.length, { ctx, p, errs } = await open({ lang });
     const card = p.locator("#acbox");
     const T = lang === "de"
-      ? { h: "Konto (freiwillig)", b: ["Deine Karten auf allen Geräten", "Eigene KI-Karten (ab 16)", "Über Karten abstimmen"], need: "Bitte zuerst bestätigen: Ich bin 16 oder älter.", go: "Anmelden oder Konto anlegen", ok: "Geht auch ohne. Dann bleibt alles nur auf diesem Gerät.", u16: "Unter 16? Mit einem Geräte-Code geht es ohne Konto.", code: "Code von deinem anderen Gerät", age: "Ich bin 16 oder älter." }
-      : { h: "Account (optional)", b: ["Your cards on every device", "Your own AI cards (16+)", "Vote on cards"], need: "Please confirm first: I am 16 or older.", go: "Sign in or create an account", ok: "Works without, too. Then everything stays on this device only.", u16: "Under 16? A device code works without an account.", code: "Code from your other device", age: "I am 16 or older." };
+      ? { h: "Konto (freiwillig)", b: ["Deine Karten auf allen Geräten (ohne Fotos)", "Deine KI-Versuche gelten auf jedem Gerät", "Über Karten abstimmen"], need: "Bitte zuerst bestätigen: Ich bin 16 oder älter.", go: "Anmelden oder Konto anlegen", ok: "Geht auch ohne. Dann bleibt alles nur auf diesem Gerät.", u16: "Unter 16? Mit einem Geräte-Code geht es ohne Konto.", code: "Code von deinem anderen Gerät", age: "Ich bin 16 oder älter." }
+      : { h: "Account (optional)", b: ["Your cards on every device (no photos)", "Your AI tries count on every device", "Vote on cards"], need: "Please confirm first: I am 16 or older.", go: "Sign in or create an account", ok: "Works without, too. Then everything stays on this device only.", u16: "Under 16? A device code works without an account.", code: "Code from your other device", age: "I am 16 or older." };
     assert.equal(await p.getByRole("region", { name: T.h }).count(), 1, "die Karte ist eine benannte Region");
     assert.deepEqual(await card.locator(".acwhy li").allTextContents(), T.b);
     assert.equal(await card.locator(".acwhy svg[aria-hidden=true]").count(), 3, "Strich-Icons statt Emoji");
@@ -129,10 +133,18 @@ test("Konto-Karte abgemeldet (de/en): drei Vorteile, 16+ vor dem Knopf, ohne Dru
     const go = card.getByRole("button", { name: T.go });
     // the main button never looks locked: a tap without the tick says why (alert) and puts the focus on the tick; nothing goes out
     assert.equal(await go.isDisabled(), false);
-    const look = await go.evaluate((b) => { const s = getComputedStyle(b); return [s.backgroundColor, s.color, s.borderStyle, s.opacity]; });
-    assert.deepEqual(look, ["rgb(23, 20, 15)", "rgb(249, 216, 74)", "none", "1"], "voller Hauptknopf: Tinte, gelbe Schrift");
+    // outlined as in the canvas (Share): clearly there, not louder than "Überrasch mich"
+    const st = (sel) => p.locator(sel).evaluate((b) => { const s = getComputedStyle(b), r = b.getBoundingClientRect(); return { bg: s.backgroundColor, fg: s.color, border: s.borderTopWidth + " " + s.borderTopStyle, size: parseFloat(s.fontSize), weight: +s.fontWeight, h: Math.round(r.height), shadow: s.boxShadow }; });
+    const g = await st("#acbox .acgo"), d = await st("#stdice");
+    assert.deepEqual([g.bg, g.fg, g.border, g.shadow], ["rgb(255, 255, 255)", "rgb(23, 20, 15)", "2px solid", "none"], "umrandet, kein voller Tintenknopf");
+    assert.ok(g.size <= d.size && g.weight <= d.weight && g.h <= d.h && g.bg === d.bg, "nicht lauter als Ueberrasch mich: " + JSON.stringify([g, d]));
     const url = p.url(); await go.click();
     await card.getByRole("alert").filter({ hasText: T.need }).waitFor();
+    // a second tap says it again (the text is emptied and set anew, so screen readers announce it)
+    const again = await p.evaluate(() => new Promise((ok) => { const a = document.querySelector("#acbox .acneed"), seen = [];
+      new MutationObserver(() => seen.push(a.textContent)).observe(a, { childList: true, characterData: true, subtree: true });
+      document.querySelector("#acbox .acgo").click(); setTimeout(() => ok(seen), 400); }));
+    assert.deepEqual([again[0], again[again.length - 1]], ["", T.need], "erneut angesagt: " + JSON.stringify(again));
     assert.equal(await p.evaluate(() => document.activeElement.id), "ac16", "Fokus auf dem Haken");
     assert.equal(p.url(), url, "ohne Haken kein Sprung zur Anmeldung");
     assert.equal(await p.locator("#" + (await go.getAttribute("aria-describedby"))).textContent(), lang === "de" ? "Anmeldung über unseren Anmeldedienst (bunsenbrenner.org)." : "Sign-in via our sign-in service (bunsenbrenner.org).", "sagt, wohin es geht und was das ist");
@@ -176,9 +188,14 @@ test("Konto-Karte angemeldet: Anmelden ueber das Gate, zurueck steht kompakt ✓
   await p.getByRole("textbox", { name: "Spitzname" }).fill("Kiwi");
   for (let i = 0; i < 60 && srv.db.get("acc").p.me.nick !== "Kiwi"; i++) await p.waitForTimeout(100);
   assert.equal(srv.db.get("acc").p.me.nick, "Kiwi", "gesichert ohne Knopf");
-  await data.getByRole("button", { name: "Abmelden (alles bleibt auf diesem Gerät)" }).click();
+  // honest: the button says what it does; the gate's sign-in stays (no logout link off bunsenbrenner.org)
+  assert.doesNotMatch(await p.locator("#shbody").innerText(), /Abmelden \(|Sichern, Abmelden/);
+  await data.getByText("Bei bunsenbrenner.org bleibst du dabei angemeldet.").waitFor();
+  assert.equal(await data.getByRole("link", { name: "Auch bei bunsenbrenner.org abmelden" }).count(), 0, "kein Gate-Link ausserhalb von bunsenbrenner.org");
+  await data.getByRole("button", { name: "Auf diesem Gerät nicht mehr sichern" }).click();
   await card.getByRole("button", { name: "Anmelden oder Konto anlegen" }).waitFor();
   const s = await store(); assert.equal(s.profile, undefined); assert.equal(s.me.nick, "Kiwi", "alles bleibt auf dem Geraet");
+  assert.ok((await ctx.cookies(srv.base)).some((c) => c.name === "ct_gate_session"), "das Gate-Cookie bleibt, wie der Text sagt");
   assert.deepEqual(errs, []);
   srv.db.delete("acc"); await ctx.close();
 });
@@ -204,7 +221,7 @@ test("Layout: Mein Stil nutzt die Breite ohne Streifen dahinter, 320–1280 px u
 test("axe: Mein Stil ohne Verstoesse, abgemeldet und angemeldet, mit offenen Abschnitten (de/en)", async () => {
   const RULES = { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } };
   for (const [lang, login] of [["de", false], ["en", false], ["de", true]]) {
-    const seed = login ? { ...SEED, profile: { via: "account", rev: 0, base: null, age16: true } } : SEED;
+    const seed = login ? { ...SEED, profile: { via: "account", rev: 0, base: null, age16: true, t0: Date.now() } } : SEED;
     const { ctx, p, errs } = await open({ lang, login, seed });
     if (login) await p.locator("#acbox .acstate").filter({ hasText: /\d\d:\d\d/ }).waitFor();
     await p.locator(".stmore").click();
@@ -239,6 +256,60 @@ test("Schrift direkt unter der Vorschau: bei 200 % ohne Scrollen sichtbar, vor d
     }
     assert.deepEqual(errs, [], tag); await ctx.close();
   }
+});
+
+test("Abgebrochene Anmeldung: kein ✓ Angemeldet, sondern Weiter/Abbrechen; der 16+-Haken muss neu gesetzt werden; ein alter Versuch geht nie mit", async () => {
+  srv.conf.cancel = true; const b0 = srv.bodies.length;
+  try {
+    const { ctx, p, errs, store } = await open();
+    await p.getByLabel("Ich bin 16 oder älter.").check();
+    await Promise.all([p.waitForURL(/\/auth\/login/), p.locator("#acbox .acgo").click()]);
+    await p.goBack(); await p.locator("#go").waitFor(); await p.waitForTimeout(1500);   // the start sync runs (and gets 401)
+    await p.locator("#me").click();
+    const card = p.locator("#acbox");
+    await card.getByText("Anmeldung nicht abgeschlossen. Du bist noch nicht angemeldet.").waitFor();
+    assert.doesNotMatch(await card.innerText(), /Angemeldet als|Gesichert um/);
+    assert.equal(await p.getByLabel("Ich bin 16 oder älter.").isChecked(), false, "der Haken von vorhin gilt nicht");
+    const weiter = card.getByRole("button", { name: "Weiter" });
+    await weiter.click(); await card.getByRole("alert").filter({ hasText: "Bitte zuerst bestätigen" }).waitFor();
+    assert.ok(!srv.bodies.slice(b0).some((b) => b.age16), "nichts mit 16+ geschrieben");
+    await card.getByRole("button", { name: "Abbrechen" }).click();
+    await card.getByRole("button", { name: "Anmelden oder Konto anlegen" }).waitFor();
+    assert.equal((await store()).profile, undefined, "Abbrechen raeumt den Versuch weg");
+    assert.deepEqual(errs, []); await ctx.close();
+    // an attempt older than 30 minutes: dropped at start, its 16+ statement never travels, also not with a cookie
+    const n = srv.log.length, old = await open({ login: true, seed: { ...SEED, profile: { via: "account", rev: 0, base: null, age16: true, t0: Date.now() - 31 * 60000 } } });
+    await old.p.locator("#acbox .acgo").waitFor(); await old.p.waitForTimeout(1200);
+    assert.equal((await old.store()).profile, undefined);
+    assert.deepEqual(srv.log.slice(n), [], "kein Request aus einem alten Versuch");
+    assert.equal(srv.db.get("acc"), undefined);
+    await old.ctx.close();
+  } finally { srv.conf.cancel = false; }
+});
+
+test("Business: nur Vorteile und Zeilen, die es dort gibt (keine Abstimmung, keine Statistik)", async () => {
+  const { ctx, p, errs } = await open({ page: "/duell/business/" });
+  const card = p.locator("#acbox");
+  assert.deepEqual(await card.locator(".acwhy li").allTextContents(), ["Deine Karten auf allen Geräten (ohne Fotos)", "Deine KI-Versuche gelten auf jedem Gerät"]);
+  const all = await p.locator("#shbody").innerText();
+  assert.doesNotMatch(all, /abstimm|Statistik/i);
+  assert.equal(await p.locator("#stdata summary small").textContent(), "Sichern, Lizenzen");
+  assert.equal(await p.locator("button.statoff").count(), 0);
+  assert.deepEqual(errs, []); await ctx.close();
+});
+
+test("Dark Mode: das leere 16+-Kaestchen sieht leer aus, angehakt dunkel; axe ohne Verstoesse", async () => {
+  const { ctx, p, errs } = await open({ dark: true });
+  const cb = p.locator("#ac16");
+  const centre = async () => { const png = (await cb.screenshot()).toString("base64");
+    return p.evaluate((src) => new Promise((ok) => { const i = new Image(); i.onload = () => { const c = document.createElement("canvas"); c.width = i.width; c.height = i.height; const x = c.getContext("2d"); x.drawImage(i, 0, 0);
+      const d = x.getImageData(0, 0, i.width, i.height).data; let t = 0; for (let k = 0; k < d.length; k += 4) t += (d[k] + d[k + 1] + d[k + 2]) / 3; ok(t / (d.length / 4)); }; i.src = "data:image/png;base64," + src; }), png); };
+  assert.equal(await cb.evaluate((e) => getComputedStyle(e).colorScheme), "light");
+  const off = await centre(); assert.ok(off > 190, "leer = hell (Mittel aller Pixel): " + off);
+  await cb.check(); const on = await centre(); assert.ok(on < 120 && off - on > 90, "angehakt = dunkel: " + on);
+  await p.addScriptTag({ content: AXE });
+  const v = await p.evaluate(() => window.axe.run(document.getElementById("shelf"), { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } }).then((r) => r.violations.map((x) => x.id)));
+  assert.deepEqual(v, []); assert.deepEqual(errs, []); await ctx.close();
 });
 
 test("Bewegung reduziert: die Vorschau springt nicht", async () => {

@@ -13,19 +13,19 @@
   var css = document.createElement("style");
   // The look of the approved design (Mein Stil neu): cream page, ink #17140F, yellow #F9D84A, red #B3321F for links, hard
   // shadows, radii 16-22 px, Anton for headings, Inter where the device has it (not embedded: the core stays as it is).
-  css.textContent = "#shelf:has(.stil){background:#fbf5dd}#shbody .stil{--sk:#17140f;--sy:#f9d84a;--sr:#b3321f;--sm:#4a4436;max-width:720px;margin:0 auto;color:var(--sk);font-family:Inter,var(--ui)}" +
+  css.textContent = "#shelf:has(.stil){background:#fbf5dd}#shbody .stil{--sk:#17140f;--sy:#f9d84a;--sr:#b3321f;--sm:#4a4436;max-width:720px;margin:0 auto;color:var(--sk);font-family:Inter,var(--ui);color-scheme:light}" +
     ".stil .lbl{margin:18px 0 8px;font-weight:700;font-size:1rem}.stil .note{font-size:.875rem;line-height:1.45;font-weight:500;color:var(--sm)}.stil h3.lbl{font:400 1.375rem/1.05 var(--disp);text-transform:uppercase;letter-spacing:.3px}.stil .accard>.lbl{margin-top:0}" +
     ".stpvw{margin:0 0 18px}.stpvw .lbl{margin-top:4px}.stpv{position:relative;height:160px;border:3px solid var(--sk);border-radius:22px;overflow:hidden;box-shadow:5px 5px 0 var(--sk);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}" +
     ".stpv .stem{font-size:52px;line-height:1}.stpv .stnm{font:400 1.6rem/1.1 var(--disp);text-transform:uppercase;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
     ".stpv .stbar{position:absolute;left:0;right:0;bottom:0;height:16px}.stpv .stsk{position:absolute;font-size:26px;line-height:1}.stpv .k0{left:14px;top:12px;transform:rotate(-12deg)}.stpv .k1{right:16px;top:14px;transform:rotate(10deg)}.stpv .k2{left:18px;bottom:24px;transform:rotate(8deg)}.stpv .k3{right:18px;bottom:26px;transform:rotate(-8deg)}" +
-    ".stdice{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:52px;margin-top:14px;border:2px solid var(--sk);border-radius:16px;background:#fff;color:var(--sk);font:700 1rem Inter,var(--ui)}.stdice svg{flex:none}" +
+    ".stdice{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:52px;margin-top:12px;border:2px solid var(--sk);border-radius:16px;background:#fff;color:var(--sk);font:700 1rem Inter,var(--ui)}.stdice svg{flex:none}" +
     ".strg{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 4px;padding:3px}.strg [role=radio]{position:relative;min-width:48px;min-height:48px;border:2px solid var(--sk);border-radius:16px;background:#fff;color:var(--sk);font:600 .94rem Inter,var(--ui);padding:0 14px}" +
-    ".strg [aria-checked=true]{background:var(--sk);color:var(--sy);box-shadow:3px 3px 0 var(--sy),3px 3px 0 2px var(--sk)}.strg .stemo{width:50px;height:50px;padding:0;font-size:28px}" +
+    ".strg [aria-checked=true],.stread .chip.on{background:var(--sy);color:var(--sk);border-color:var(--sk);box-shadow:6px 6px 0 var(--sk)}.strg{padding:3px 9px 9px 3px}.strg .stemo{width:50px;height:50px;padding:0;font-size:28px}" +
     ".strg .stsw{width:48px;height:48px;padding:0;border-radius:50%;overflow:hidden}.strg .stsw i{position:absolute;inset:0 0 50% 0}.strg .stsw[aria-checked=true]{box-shadow:0 0 0 3px #fbf5dd,0 0 0 6px var(--sk)}.strg .stsw[aria-checked=true]::after{content:'✓';position:absolute;inset:0;display:grid;place-items:center;color:#17140f;font:900 20px var(--ui);text-shadow:0 0 3px #fff,0 0 3px #fff}" +
     ".strg .stset{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;padding:6px 14px;text-align:left}.strg .stset small{font-size:1rem;letter-spacing:2px}" +
-    ".stread{margin-top:22px;padding:14px 16px 6px;border:2px solid var(--sk);border-radius:20px;background:#fff}.stread h3.lbl{margin:0 0 4px;font-size:1.125rem}.stread .lbl{margin:10px 0 6px;font-size:.94rem}.stread .chips,.stread .strg{margin-bottom:6px}.stread .chip{min-height:44px}.stread .note{font-size:.8125rem}" +
+    ".stread{margin-top:22px;padding:14px 16px 6px;border:2px solid var(--sk);border-radius:20px;background:#fff}.stread h3.lbl{margin:0 0 4px;font-size:1.125rem}.stread .lbl{margin:10px 0 6px;font-size:.94rem}.stread .chips,.stread .strg{margin-bottom:6px}.stread .chip{min-height:44px;min-width:56px;border:2px solid var(--sk);border-radius:16px;background:#fff;color:var(--sk);font:600 .94rem Inter,var(--ui);outline:0}.stread .chips{gap:10px;padding:0 6px 6px 0}.stread .note{font-size:.8125rem}" +
     "" +
-    ".stfs{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:0 0 18px}.stfs .lbl{margin:0;display:flex;align-items:center;gap:6px}.stfs .staa{font:400 1.375rem/1 var(--disp)}.stfs .strg{margin:0}.stfs .chip{min-height:44px}" +
+    ".stfs{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:0 0 18px}.stfs .lbl{margin:0;display:flex;align-items:center;gap:6px}.stfs .staa{font:400 1.375rem/1 var(--disp)}.stfs .strg{margin:0;padding-bottom:6px}.stfs .chip{min-height:44px}" +
     ".stemrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.stemrow .strg{margin:0;flex:0 1 auto;min-width:0}.stmore{min-height:52px;padding:0 16px;border:2px solid var(--sk);border-radius:16px;background:transparent;color:var(--sk);font:600 .94rem Inter,var(--ui)}" +
     ".stil details{margin:10px 0}.stil summary{min-height:48px;display:flex;align-items:center;gap:10px;font-weight:700;cursor:pointer;list-style:none}.stil summary::-webkit-details-marker{display:none}.stil summary svg{flex:none;transition:transform .15s}.stil details[open]>summary svg{transform:rotate(90deg)}" +
     ".stil .stsec{border-top:2px dashed #c9c0a3;margin-top:20px;padding-top:4px}.stil .stsec>summary{font-size:1.06rem;flex-wrap:wrap;row-gap:0;padding:6px 0}.stil .stsec>summary small{flex-basis:100%;padding-left:30px;font-weight:500;font-size:.875rem;color:var(--sm)}" +
@@ -178,7 +178,7 @@
     pfd.appendChild(pfs); keep(pfd, "stpf"); pfd.appendChild(pf); right.appendChild(pfd); prefs(pf);
 
     // ---------- "Konto & Daten" (closed): account details, card statistics, AI pictures, licences ----------
-    var ds = summary(t("ms_data")); ds.appendChild(el("small", "", t("ms_dataSub")));
+    var ds = summary(t("ms_data")); ds.appendChild(el("small", "", t(root.DailyFlavor && root.DailyFlavor.stat === false ? "ms_dataSubB" : "ms_dataSub")));
     keep(data, "stdata"); data.appendChild(ds); data.appendChild(dataBody); right.appendChild(data);
     var acMore = el("div"); dataBody.appendChild(acMore);
     S.konto(function () { root.Profile.section(acHold, el, acMore, function () { data.open = true; }); });

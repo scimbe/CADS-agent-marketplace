@@ -1,7 +1,7 @@
-/* My Daily Idea: "Anmelden / Registrieren" under My style. Without it everything stays on this device, as before.
+/* My Daily Idea: the account card under My style (src/stil.js). Without it everything stays on this device, as before.
    Two ways, both optional (decision in the PR, Art. 8 GDPR):
    - bunsenbrenner account, only after "I am 16 or older"; the login cookie works only where the page comes from the API host.
-   - sync code without account: 128 random bits made here; whoever has the code has the profile. No e-mail, no name.
+   - device code ("Geräte-Code") without account: 128 random bits made here; whoever has the code has the profile. No e-mail, no name.
    What travels: nickname, emoji, colours, sticker set, "Meine Wand" without photo works, saved cards, and with the code the AI
    device id. Photos and wall pictures of photo works never leave the device. Server: CADS-DEMO-wrapper lib/duell-profile.mjs.
    A part of its own (konto, scripts/build.js): loaded when My style opens, or at start while linked (app.js konto). */
@@ -68,7 +68,21 @@
     return "ct_look=daily." + c[0].slice(1) + "." + c[1].slice(1) + "; Domain=bunsenbrenner.org; Path=/; Max-Age=86400; Secure; SameSite=Lax";
   }
 
-  var api = { lookCookie: lookCookie, newCode: newCode, fmtCode: fmtCode, parseCode: parseCode, pack: pack, snapshot: snapshot, merge3: merge3, merge: merge, sendsWall: sendsWall, THUMB_MAX: THUMB_MAX };
+  // Signing out at the gate (CADS-Tunnel control plane, GET /gate/logout?host=&return=): clears the gate cookie for every
+  // demo on bunsenbrenner.org, not the Keycloak session. Only from a page on a bunsenbrenner.org host, else null.
+  function logoutUrl(host, ret) {
+    host = String(host || "").toLowerCase();
+    if (!/^[a-z0-9-]+(\.[a-z0-9-]+)*\.bunsenbrenner\.org$/.test(host)) return null;
+    return "https://bunsenbrenner.org/gate/logout?host=" + encodeURIComponent(host) + "&return=" + encodeURIComponent(/^\/[\w\/-]*$/.test(ret || "") ? ret : "/duell");
+  }
+  // An account link counts once a first sync went through (base/at). Before that it is an attempt, made by the tap on the
+  // button (t0, with the 16+ statement of that very tap). An attempt older than 30 minutes is dropped, its 16+ statement
+  // with it: a later sign-in never carries a statement nobody made this time.
+  var ATTEMPT = 1800000;
+  function done(p) { return !!(p && (p.via !== "account" || p.base || p.at)); }
+  function stale(p, now) { return !!(p && p.via === "account" && !done(p) && !((now || Date.now()) - (p.t0 || 0) < ATTEMPT)); }
+
+  var api = { logoutUrl: logoutUrl, done: done, stale: stale, lookCookie: lookCookie, newCode: newCode, fmtCode: fmtCode, parseCode: parseCode, pack: pack, snapshot: snapshot, merge3: merge3, merge: merge, sendsWall: sendsWall, THUMB_MAX: THUMB_MAX };
 
   if (typeof window === "undefined") { if (typeof module !== "undefined" && module.exports) module.exports = api; return; }
 
@@ -79,7 +93,7 @@
     ".accheck{display:flex;gap:12px;align-items:center;font-weight:600;margin:10px 0;min-height:44px;cursor:pointer}.accheck input{width:28px;height:28px;margin:0;flex:none;accent-color:#17140f}" +
     ".accode{font:800 .94rem ui-monospace,Menlo,monospace;overflow-wrap:break-word;margin:0 0 6px}.accard{border:3px solid #17140f;border-radius:22px;background:#fff;color:#17140f;padding:16px 18px;margin:0 0 18px;font-family:Inter,var(--ui)}.accard .note{font-size:.875rem;line-height:1.45;color:#4a4436}" +
     ".acwhy{list-style:none;margin:8px 0 6px;padding:0;font-weight:600;line-height:1.3}.acwhy li{display:flex;align-items:center;gap:10px;margin:6px 0}.acwhy svg{flex:none}" +
-    ".acgo{display:flex;align-items:center;justify-content:center;width:100%;min-height:60px;border:0;border-radius:18px;background:#17140f;color:#f9d84a;font:400 1.3rem/1.1 var(--disp);text-transform:uppercase;letter-spacing:.4px;margin:6px 0;padding:8px 14px}" +
+    ".accard,.profile{color-scheme:light}.acgo,.accancel{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;border:2px solid #17140f;border-radius:16px;background:#fff;color:#17140f;font:700 1rem Inter,var(--ui);margin:6px 0;padding:8px 14px}.accancel{border-style:dashed;font-weight:600}" +
     ".accheck.want{outline:3px solid #b3321f;outline-offset:4px;border-radius:8px}.acneed{margin:0;color:#b3321f;font-weight:700;font-size:.875rem}.acneed:empty{display:none}" +
     ".accard .note{font-size:.8125rem}.acok{margin:4px 0 2px;font-weight:700;font-size:1.06rem}.aclink{min-height:44px;padding:0;border:0;background:none;color:#b3321f;font:600 .875rem Inter,var(--ui);text-decoration:underline;text-underline-offset:3px;text-align:left}"; document.head.appendChild(css);
   // Right before any jump to sign in / register / the account (here and the AI login in ai.js): the login pages in my colours.
@@ -90,7 +104,7 @@
   // The iOS shell loads the page from a file with all network blocked (only its AI bridge goes out): no sync there yet.
   var canCode = !(H && typeof H.ai === "function");
   var canAccount = !H && (function () { try { return new URL(base()).origin === location.origin; } catch (e) { return false; } })();
-  var link = function () { var p = Kit.store.profile; return p && (p.via === "account" || (p.via === "code" && CODE_RE.test(p.code))) ? p : null; };
+  var link = function () { var p = Kit.store.profile; if (stale(p)) { delete Kit.store.profile; plainSave(); return null; } return p && (p.via === "account" || (p.via === "code" && CODE_RE.test(p.code))) ? p : null; };
 
   async function call(op, body) {
     var ctl = new AbortController(), tm = setTimeout(function () { ctl.abort(); }, 20000);
@@ -114,7 +128,7 @@
       if (g.status === 429) return (state = "limit");
       if (g.status !== 200) return (state = "error");
       if (g.json.gone && p.base) { unlink(); onChange(); Kit.toast(t("ac_gone")); return (state = "gone"); }   // deleted on another device: stay local, do not upload it again
-      // Joining with a code never creates: no profile behind it, nothing goes out (only "Sync-Code anlegen" makes one).
+      // Joining with a code never creates: no profile behind it, nothing goes out (only "Geräte-Code anlegen" makes one).
       if (p.via === "code" && !p.base && !p.make && !g.json.profile) { unlink(); return (state = "unknown"); }
       var ch = merge(Kit.store, g.json.profile, p.base, p.via);
       if (Object.keys(ch).length) { Object.keys(ch).forEach(function (k) { Kit.store[k] = ch[k]; }); if (ch.aiDev) delete Kit.store.aiMeter; plainSave(); onChange(); }
@@ -141,11 +155,11 @@
     return busy;
   }
   // Every save of the page may change the profile: sync a little later, only while linked.
-  Kit.save = function () { plainSave(); if (link()) { clearTimeout(timer); timer = setTimeout(sync, 2500); } };
+  Kit.save = function () { plainSave(); if (link() && done(link())) { clearTimeout(timer); timer = setTimeout(sync, 2500); } };
 
   function unlink() { delete Kit.store.profile; plainSave(); state = ""; }
   function startCode(code, make) { Kit.store.profile = { via: "code", code: code, rev: 0, base: null }; if (make) Kit.store.profile.make = true; plainSave(); return sync(); }
-  // A new sync code needs a signed-in account (16+, e.g. a parent for a child; the server does not keep who). Not signed in:
+  // A new device code needs a signed-in account (16+, e.g. a parent for a child; the server does not keep who). Not signed in:
   // the login first; the mark { via: "start" } brings the page back here (app.js loads this part while store.profile is set).
   async function newCodeNow(rerender) {
     var b16 = new Uint8Array(16); crypto.getRandomValues(b16);
@@ -171,30 +185,39 @@
     function draw() {
     var box = el("section", "accard"), info = el("div", "profile"), p = link(), m = Kit.store.me || {};
     box.id = "acbox"; info.id = "acmore"; box.setAttribute("aria-labelledby", "achead");
-    var head = el("h3", "lbl", t(p ? "ac_titleOn" : "ac_title")); head.id = "achead"; box.appendChild(head);
-    if (!p) {
+    var wait = !!p && !done(p);   // tapped "Anmelden", but the sign-in did not finish (cancelled, back, still on its way)
+    var head = el("h3", "lbl", t(p && !wait ? "ac_titleOn" : "ac_title")); head.id = "achead"; box.appendChild(head);
+    if (!p || wait) {
       var cb = null;
+      if (wait) {
+        var pn = el("p", "acok", t("ac_pending")); pn.setAttribute("role", "status"); box.appendChild(pn);
+        shown = function () { if (box.isConnected && done(link())) rerender(); };   // the first sync went through: signed in
+      }
       if (canAccount) {
-        // what an account brings: three short lines, each with a stroke icon (no emoji in the list)
-        var ul = el("ul", "acwhy");
-        [["ac_b1", "M3 5h12v9H3zM1 18h16M18 8h5v11h-5z"], ["ac_b2", "M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"], ["ac_b3", "M7 11v9H3v-9zM7 11l4-8c1.3 0 2.5 1 2.5 2.5V9h5.4a2 2 0 0 1 2 2.4l-1.3 6.8a2 2 0 0 1-2 1.8H7"]].forEach(function (x) {
+        // what an account brings: short lines with a stroke icon each (no emoji), only what this build has (no votes without stat)
+        var ul = el("ul", "acwhy"), votes = !(window.DailyFlavor && window.DailyFlavor.stat === false);
+        if (!wait) [["ac_b1", "M3 5h12v9H3zM1 18h16M18 8h5v11h-5z"], ["ac_b2", "M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"], ["ac_b3", "M7 11v9H3v-9zM7 11l4-8c1.3 0 2.5 1 2.5 2.5V9h5.4a2 2 0 0 1 2 2.4l-1.3 6.8a2 2 0 0 1-2 1.8H7"]].filter(function (x) { return votes || x[0] !== "ac_b3"; }).forEach(function (x) {
           var li = el("li", "", t(x[0])); li.prepend(icon(x[1], "currentColor", 2)); ul.appendChild(li);
         });
-        box.appendChild(ul);
+        if (ul.children.length) box.appendChild(ul);
         var lab = el("label", "accheck"); cb = el("input"); cb.type = "checkbox"; cb.id = "ac16";
         lab.appendChild(cb); lab.appendChild(document.createTextNode(" " + t("ac_16")));
         // The main button never looks locked: without the 16+ tick a tap says so (alert) and puts the focus on the tick.
         var need = el("p", "acneed", ""); need.setAttribute("role", "alert");
-        var go = el("button", "acgo", t("ac_login"), function () {
-          if (!cb.checked) { need.textContent = t("ac_need"); lab.classList.add("want"); cb.focus(); return; }
-          Kit.store.profile = { via: "account", rev: 0, base: null, age16: true }; plainSave();
+        var go = el("button", "acgo", t(wait ? "ac_continue" : "ac_login"), function () {
+          if (!cb.checked) {   // emptied first, so a second tap is announced again
+            need.textContent = ""; lab.classList.add("want"); cb.focus(); setTimeout(function () { need.textContent = t("ac_need"); }, 80); return;
+          }
+          Kit.store.profile = { via: "account", rev: 0, base: null, age16: true, t0: Date.now() }; plainSave();
           look();
           location.href = "/auth/login?return=" + encodeURIComponent(back());
         });
         go.setAttribute("aria-describedby", "acwhere");
         cb.addEventListener("change", function () { if (cb.checked) { need.textContent = ""; lab.classList.remove("want"); } });
         var wh = el("p", "note", t("ac_where")); wh.id = "acwhere";
-        box.appendChild(lab); box.appendChild(need); box.appendChild(go); box.appendChild(wh);
+        box.appendChild(lab); box.appendChild(need); box.appendChild(go);
+        if (wait) box.appendChild(el("button", "btn accancel", t("ac_cancel"), function () { unlink(); rerender(); var g = document.querySelector("#acbox .acgo"); if (g) g.focus(); }));
+        box.appendChild(wh);
       } else box.appendChild(el("p", "note", t("ac_browser")));
       box.appendChild(el("p", "note acquiet", t("ac_local")));
       if (canCode && open) box.appendChild(el("button", "aclink", t(canAccount ? "ac_u16" : "ac_toCode"), function () { open(); var f = document.getElementById("accodein"); if (f) f.focus(); }));
@@ -239,7 +262,16 @@
     }
     info.appendChild(el("p", "note", t("ac_what")));
     info.appendChild(el("button", "btn", t("ac_sync"), async function () { showState("busy"); var r = await sync(); if (r === "gone") rerender(); else showState(r); }));
+    // Honest: this only stops saving from here. The gate's sign-in stays; signing out there is its own step (logoutUrl).
     info.appendChild(el("button", "btn", t("ac_unlink"), function () { unlink(); Kit.toast(t("ac_unlinked")); rerender(); }));
+    if (p.via === "account") {
+      info.appendChild(el("p", "note", t("ac_stay")));
+      var out = canAccount && logoutUrl(location.hostname, back());
+      if (out) {
+        var lo = el("a", "btn", t("ac_logout")); lo.href = out; lo.addEventListener("click", function () { unlink(); });
+        info.appendChild(lo); info.appendChild(el("p", "note", t("ac_logoutNote")));
+      }
+    }
     var del = el("button", "btn", t("ac_delete"), async function () {
       if (!del.dataset.sure) { del.dataset.sure = "1"; del.textContent = t("ac_sure"); return; }
       del.disabled = true;
