@@ -93,13 +93,15 @@
       show: function () { return ""; },
       apply: function () { return false; },
       // one card comes back: shown as a preview; the promise says whether it was taken (true) or thrown away (false)
-      auto: function (opt, ki, res) {
+      auto: function (opt, ki, res, note) {
         var doc = opt && opt.doc ? D.sanitizeDoc(opt.doc) : null;
         // what came back must be what was asked for (art and kind); otherwise said so, given back, nothing booked
         if (!doc || !opt || opt.art !== state.art || !kindOk(state.art, doc) || !ki || !ki.s) { res.textContent = ""; res.appendChild(el("p", "note aistate", t("create_bad"))); return false; }
         return new Promise(function (done) {
           res.textContent = "";
           var pv = preview(doc); pv.tabIndex = -1; res.appendChild(pv);
+          // the server left a drink with alcohol out of the card (no alcohol on cards, they reach teenagers too): said once, plainly
+          if (note === "drinks") res.appendChild(el("p", "note", t("create_drinks")));
           try { pv.focus(); } catch (e) {}
           var row = el("div", "row");
           row.appendChild(el("button", "btn hot", t("create_take"), function () {

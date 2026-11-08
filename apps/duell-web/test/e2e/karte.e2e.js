@@ -162,3 +162,22 @@ test("Ethik-Audit: ohne 16+-Erklaerung kein Formular; Notschalter sagt freundlic
   assert.match(await p.locator("#shbody").innerText(), /Verwerfen gibt die Karte zurück – noch 2×/);
   await p.context().close();
 });
+
+test("Kein Alkohol auf Karten: der Server laesst das Getraenk weg (note drinks), die Vorschau sagt es einmal; ohne note kein Hinweis", async () => {
+  for (const note of ["drinks", undefined]) {
+    const doc = { k: "card", col: ["#ffd400", "#ff3b1d"], by: [], t: "Chorprobe", x: "Chorprobe am Freitag, danach gemütliches Beisammensein.", st: "herz", sk: [] };
+    const { p, errs } = await phone((p0) => {
+      if (p0 === "ai/status") return [200, { meter: METER, create: CREATE(5) }];
+      if (p0 === "ai") return [200, { kind: "karte", options: [{ art: "card", doc }], seals: [SEAL], hashes: ["h".repeat(43)], cost: 1, receipt: "rc-drink", meter: METER, create: CREATE(4), ...(note ? { note } : {}) }];
+      return null;
+    });
+    await p.locator("#create").tap();
+    const ta = p.getByLabel("Deine Beschreibung"); await ta.waitFor();
+    await ta.fill("Einladung zur Chorprobe, danach Punsch");
+    await p.getByRole("button", { name: "✨ Erschaffen" }).tap();
+    await p.locator(".createpv").waitFor();
+    const hint = p.getByText("Getränke mit Alkohol nennen wir auf Karten nicht, weil sie auch Jugendliche erreichen.");
+    assert.equal(await hint.count(), note ? 1 : 0, String(note));
+    assert.deepEqual(errs, []); await p.context().close();
+  }
+});

@@ -95,7 +95,7 @@
         try { r = await o.send("/queue", { ticket: tk }); } catch (e) { return none("off"); }
       }
       if (how !== "result") { var no = none(how, how === "busy" ? place(r.json) || last : 0); no.why = how === "blocked" && r.json && (r.json.why === "crisis" || r.json.why === "kind_ok") ? r.json.why : ""; return no; }
-      return { how: how, options: r.json.options, seals: seals(r.json), receipt: receipt(r.json), position: 0 };
+      return { how: how, options: r.json.options, seals: seals(r.json), receipt: receipt(r.json), position: 0, note: r.json.note };
     }
     // Settle a handed-out result once: accept (taken) or discard (nothing taken, nothing changed). -> true when the server said yes.
     async function settle(path, device, rc) {
@@ -226,7 +226,7 @@
         var took = function (opt, i) {
           if (!alive()) return;
           var ki = { k: o.kind, s: r.seals[i] || "", h: hs[i] };
-          var did = o.auto ? o.auto(opt, ki, res) : o.apply(opt, ki);
+          var did = o.auto ? o.auto(opt, ki, res, r.note) : o.apply(opt, ki);
           if (did && typeof did.then === "function") { did.then(function (x) { if (mine === rc) mine = null; settle(rc, x !== false); }, function () { if (mine === rc) mine = null; settle(rc, false); }); return; }
           if (mine === rc) mine = null;
           settle(rc, did !== false);
