@@ -251,7 +251,16 @@
   // the screen's own words for the players, in every language, as skeletons: no nickname may be one of them
   var TAKEN = {}; Object.keys(DATA.text).forEach(function (l) { ["da_me", "da_bot", "da_p1", "da_p2"].forEach(function (k) { if (DATA.text[l][k]) TAKEN[foldName(DATA.text[l][k])] = 1; }); ["da_opp"].forEach(function (k) { if (DATA.text[l][k]) TAKEN[foldName(DATA.text[l][k])] = 1; }); });
   ["bert", "bot", "du", "you", "ich", "me", "spieler", "player", "gegner", "opponent"].forEach(function (w) { TAKEN[w] = 1; });
-  function nameOk(n) { return n === "" || (typeof n === "string" && plainName(n) === n && Q.clean(n, NAME) === n && oneScript(n) && !!foldName(n) && !TAKEN[foldName(n)]); }
+  // No brackets (the screen's "(du)" mark is not to be had), no word of a name that is a screen word ("Anna Du",
+  // "Du-Anna"), and no name glued to the mark words: a skeleton that starts or ends with "du" or "you" ("annadu", "duanna",
+  // "annayou"). Only the two mark words: the other screen words would sweep away real names (Robert, Albert, Erich, Melanie).
+  var MARK = ["du", "you"];
+  function taken(f) { return !!TAKEN[f] || MARK.some(function (w) { return f.length > w.length && (f.slice(0, w.length) === w || f.slice(-w.length) === w); }); }
+  function nameOk(n) {
+    if (n === "") return true;
+    if (typeof n !== "string" || plainName(n) !== n || /[()[\]{}]/.test(n) || Q.clean(n, NAME) !== n || !oneScript(n) || !foldName(n) || taken(foldName(n))) return false;
+    return !n.normalize("NFKC").split(/[\s\-_.,;:'’·]+/).some(function (w) { var f = foldName(w); return f && TAKEN[f]; });
+  }
   function namesOk(a) { return Array.isArray(a) && a.length === 2 && nameOk(a[0]) && nameOk(a[1]) && !(a[0] && a[1] && foldName(a[0]) === foldName(a[1])); }
   // my nickname for the move: hidden characters dropped, through the filter; "" when it is taken or the other's in disguise
   function myName(nick, other) { var n = Q.clean(plainName(nick), NAME); return n && nameOk(n) && !(other && foldName(other) === foldName(n)) ? n : ""; }
@@ -342,7 +351,7 @@
   }
   function result(doc, m, lang) {
     var w = view(doc, m), v = w && w.v, g = w && w.g, X = T(lang); if (!g) return { h: "", lines: [] };
-    var n = v[2], me = w.me, h = g.win < 0 ? X.da_draw : g.bot ? X[g.win ? "da_win_bot" : "da_win_you"] : g.win === me ? (n[me] ? fmt(X.da_win_me, { p: who(g, me, lang, n, me) }) : X.da_win_self) : fmt(X.da_win, { p: who(g, g.win, lang, n, me) }), lines = [modeName(g.mode, lang), pair(g, lang, n, me)];
+    var n = v[2], me = w.me, h = g.win < 0 ? X.da_draw : g.bot ? X[g.win ? "da_win_bot" : "da_win_you"] : g.win === me ? X.da_win_self : fmt(X.da_win, { p: who(g, g.win, lang, n, me) }), lines = [modeName(g.mode, lang), pair(g, lang, n, me)];
     var end = g.turns[g.turns.length - 1];
     if (end.out && g.kind === "x01") lines.push(fmt(X.da_out_with, { h: field(end.d[end.d.length - 1], lang) }));
     if (g.capped) lines.push(fmt(X.da_cap, { n: ROUNDS }));

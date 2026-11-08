@@ -394,12 +394,31 @@ test("Meine Seite steht fest: \"(du)\" und zuerst, auch wenn ein Doppelgaenger-N
     // the result names the winner with the mark on the winner's own phone
     let r = "dl"; for (let t = 0; t < 6; t++) r += throws(seed, t * 3, t % 2 ? ["S1", "S1", "S1"] : ["T20", "T20", "T20"]);
     const z = JSON.parse(JSON.stringify(d)); z.q = Tn.seal([[[r, 3, ["Ana", "Ben"]]]], seed);
-    M.setOwn(() => ({ s: r.slice(0, 2 + 15 * 5), n: ["Ana", ""] })); assert.equal(Tn.result(through(z), "de").h, "Ana (du) gewinnt!");
+    M.setOwn(() => ({ s: r.slice(0, 2 + 15 * 5), n: ["Ana", ""] })); assert.equal(Tn.result(through(z), "de").h, "Du gewinnst!", "mein Sieg: ohne Namen");
     M.setOwn(() => ({ s: r, n: ["Ana", "Ben"] })); assert.equal(Tn.result(through(z), "de").h, "Ana gewinnt!");
   } finally { M.setOwn(null); }
   // a third phone without a store: no mark, plain names
   const t = JSON.parse(JSON.stringify(d)); t.q = Tn.seal([[[b1, 3, ["Ana", "Ben"]]]], seed);
   assert.equal(Tn.face(through(t), "de")[1], "Ana: noch 121 · Ben: noch 298");
+});
+
+test("Review 4: keine Klammern, keine angeklebten Markierungswoerter; eigener Sieg heisst \"Du gewinnst!\"", () => {
+  for (const n of ["Anna (du)", "Anna(du)", "Du (du)", "Gegner (du)", "Anna (you)", "Anna [du]", "Anna {du}", "annadu", "duanna", "annayou", "Anna Du", "Du-Anna", "Anna you"]) assert.equal(M.nameOk(n), false, n);
+  for (const n of ["Anna", "Robert", "Albert", "Erich", "Melanie", "Ελένη", "José María", "O'Neil", "Anne-Marie"]) assert.equal(M.nameOk(n), true, n);
+  // a link that names B "Anna (du)" or "Du (du)" is no move
+  const seed = 12, a1 = "al" + throws(seed, 0, ["S1", "S1", "S1"]), b1 = a1 + throws(seed, 3, ["S1", "S1", "S1"]), dA = through(play(fresh(seed), a1, null, ["Anna", ""]));
+  for (const n of ["Anna (du)", "Du (du)"]) assert.equal(Tn.play(dA, [[b1, 3, ["Anna", n]]], 100), null, n);
+  // my own win: "Du gewinnst!" / "You win!" without a name, in the headline (and so in the picture); the other's win keeps his name
+  let r = "dl"; for (let t = 0; t < 6; t++) r += throws(seed, t * 3, t % 2 ? ["S1", "S1", "S1"] : ["T20", "T20", "T20"]);
+  const z = JSON.parse(JSON.stringify(fresh(seed))); z.q = Tn.seal([[[r, 3, ["Anna", "Ben"]]]], seed);
+  try {
+    M.setOwn(() => ({ s: r.slice(0, 2 + 15 * 5), n: ["Anna", ""] }));
+    assert.equal(Tn.result(through(z), "de").h, "Du gewinnst!"); assert.equal(Tn.result(through(z), "en").h, "You win!");
+    assert.match(Tn.result(through(z), "de").lines[1], /^Anna \(du\): \d+ Punkte · Ben: \d+ Punkte$/);
+    M.setOwn(() => ({ s: r, n: ["Anna", "Ben"] })); assert.equal(Tn.result(through(z), "de").h, "Anna gewinnt!", "der Gegner gewinnt: sein Name bleibt");
+  } finally { M.setOwn(null); }
+  const ui = require("fs").readFileSync(require("path").join(__dirname, "../src/dart-ui.js"), "utf8");
+  assert.match(ui, /R\.block\(c, res \? res\.h : title/, "das Ergebnisbild nimmt die Ueberschrift aus result");
 });
 
 test("Regler ohne Timing wirft mit derselben Unsicherheit wie das Pendel: 1 von 5 eine Stufe weniger, 1 von 5 eine mehr", () => {
