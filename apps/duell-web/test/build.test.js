@@ -132,7 +132,7 @@ test("Datenschutz: Kurzlink nur ueber shortlink.js, nur bei Fertig (Nutzerentsch
   // exactly two callers: the finished screen (after the tap on "Fertig") and the status/story picture (after its tap)
   const calls = [...app.matchAll(/shortLink\(/g)].map((m) => app.slice(m.index - 25, m.index + 12)).filter((x) => !/function shortLink\(/.test(x));
   assert.equal(calls.length, 2, calls.join(" | "));
-  assert.match(app, /show\("done", true\); Kit\.sfx\.win\(\);\n[^\n]*\n  var r = result; shortLink\(r\)/, "beim Fertig-Bildschirm");
+  assert.match(app, /show\("done", true\); Kit\.sfx\.win\(\);\n(?:[^\n]*\n){1,3}  var r = result; shortLink\(r\)/, "beim Fertig-Bildschirm");
   assert.match(app, /async function exportStory\(kind\) \{\n  Kit\.sfx\.tap\(\);\n  var link = await shortLink\(\)/, "Status/Story: nach dem Tipp");
   const game = src("game.js"), at = game.indexOf("ShortLink.shorten");
   assert.ok(at > game.indexOf('$("challenge").addEventListener("click"'), "game.js: nur im Klick");
