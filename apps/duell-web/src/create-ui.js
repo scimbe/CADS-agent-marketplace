@@ -106,7 +106,7 @@
             var m = /^(days|people):(\d{1,3})$/.exec(String(c));
             if (c === "drinks") res.appendChild(el("p", "note", t("create_drinks")));
             else if (m) res.appendChild(el("p", "note", t("create_lim_" + m[1], { n: Number(m[2]) })));
-            else if (c === "money18" || c === "nosend") res.appendChild(el("p", "note", t("create_lim_" + c)));
+            else if (c === "money18" || c === "nosend" || c === "async") res.appendChild(el("p", "note", t("create_lim_" + c)));
           });
           try { pv.focus(); } catch (e) {}
           var row = el("div", "row");
