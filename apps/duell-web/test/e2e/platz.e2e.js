@@ -194,83 +194,11 @@ test("60-px-Regel nach der Landeanimation: sichtbare Live-Karte >= 60 px, ausgeb
   } finally { await b.close(); }
 });
 
-// Zoom (personas P6/P7, 2026-11): an old phone (412x839) and an iPad (810x1080) at 100/150/200 % page zoom, a laptop
-// (1024x768) at 100/150/200 % and the smallest phone (320x568) at 100 %: CSS widths 206 to 1024. In German and English,
-// on a received card, the card of the day and an invitation: the received card is never hidden ("Wo ist denn die
-// Karte?") but at least 120 px high, no two controls (buttons, fields) lie over each other, a title is never cut, a
-// field in focus is not covered (on the sheet and in the editor behind it, P5-P8: FERTIG/WEITER over the field), axe clean.
-const G = require("./lib/grund.js");
-const AXE = require("node:fs").readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
-const RULES = { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } };
-const DEV = [[{ width: 412, height: 839 }, [1, 1.5, 2], true], [{ width: 810, height: 1080 }, [1, 1.5, 2]], [{ width: 1024, height: 768 }, [1, 1.5, 2]], [{ width: 320, height: 568 }, [1], true]];
-// one test per screen and zoom (each well under the 5-minute limit per test)
-for (const [base, zs, phone] of DEV) for (const z of zs) test("Zoom-Matrix " + base.width + "x" + base.height + " bei " + z * 100 + " %: empfangene Karte sichtbar >= 120 px, keine Ueberlappung, Titel ganz, fokussiertes Feld frei, axe sauber", async () => {
-  const SCEN = { empfangen: [[10, 8], ""], tageskarte: [[11, 6], ""], einladung: [[11, 7], "#i=karte-lob"], termin: [[11, 8], "#i=zug-termin"] };
-  // what the screen shows now: controls that overlap (clipped by their scrolling boxes), the card, the title
-  const look = (p) => p.evaluate(() => {
-    const s = document.querySelector(".scr:not([hidden])"), box = (e) => { if (!e.getClientRects().length || e.closest("[hidden],[inert]") || getComputedStyle(e).visibility === "hidden") return null;
-      const r = e.getBoundingClientRect(), b = { l: r.left, t: r.top, r: r.right, b: r.bottom };
-      for (let a = e.parentElement; a; a = a.parentElement) { const c = getComputedStyle(a); if (c.overflowX !== "visible" || c.overflowY !== "visible") { const q = a.getBoundingClientRect(); b.l = Math.max(b.l, q.left); b.t = Math.max(b.t, q.top); b.r = Math.min(b.r, q.right); b.b = Math.min(b.b, q.bottom); } }
-      return b.r - b.l > 1 && b.b - b.t > 1 ? b : null; };
-    const n = (e) => e.id || (e.textContent || e.tagName).trim().slice(0, 14), els = [...s.querySelectorAll("button, input, textarea, select, [role=button]")].map((e) => [e, box(e)]).filter((x) => x[1]), over = [];
-    els.forEach(([a, A], i) => els.slice(i + 1).forEach(([b, B]) => { if (!a.contains(b) && !b.contains(a) && Math.min(A.r, B.r) - Math.max(A.l, B.l) > 1 && Math.min(A.b, B.b) - Math.max(A.t, B.t) > 1) over.push(n(a) + " ueber " + n(b)); }));
-    const c = document.getElementById("pvcard"), hero = document.getElementById("hero"), H = hero.getBoundingClientRect();
-    const cut = !!hero.getClientRects().length && [...hero.children].some((x) => { const r = x.getBoundingClientRect(); return r.top < H.top - 1 || r.bottom > H.bottom + 1 || r.left < H.left - 1 || r.right > H.right + 1; });
-    return { over, cut, got: document.getElementById("leaf").classList.contains("got"), card: c.getClientRects().length && getComputedStyle(c).visibility !== "hidden" ? Math.round(c.getBoundingClientRect().height) : 0, peek: !document.getElementById("pvpeek").hidden };
+// Zoom (personas P6/P7): phones (412x839 at 100/150/200 %, 320x568 at 100 %, CSS widths 206 to 412); the rules in lib/zoom.js.
+const Z = require("./lib/zoom.js");
+for (const [base, z] of [[{ width: 412, height: 839 }, 1], [{ width: 412, height: 839 }, 1.5], [{ width: 412, height: 839 }, 2], [{ width: 320, height: 568 }, 1]])
+  test("Zoom-Matrix " + base.width + "x" + base.height + " bei " + z * 100 + " % (de/en; empfangen, Tageskarte, Einladungen): empfangene Karte >= 120 px, keine Ueberlappung, Titel ganz, Feld im Fokus frei, axe sauber", async () => {
+    const r = await Z.matrix(base, z, true);
+    assert.ok(r.got === 2 && r.n >= 6, "Matrix zu klein: " + JSON.stringify(r));
+    assert.deepEqual(r.bad, []);
   });
-  // every field of the screen in focus (without the browser's own scrolling): fully in its box, in sight, nothing over its middle
-  const fields = (p, sel) => p.evaluate(async (sel) => {
-    const bad = [], fs = [...document.querySelectorAll(sel)].filter((f) => f.getClientRects().length && !f.closest("[hidden],[inert]"));
-    for (const f of fs) {
-      f.focus({ preventScroll: true }); await new Promise((r) => setTimeout(r, 400));
-      const r = f.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, Math.min(r.bottom - 4, r.top + r.height / 2));
-      let ok = r.top >= -0.5 && r.bottom <= innerHeight + 0.5 && !!hit && (hit === f || f.contains(hit));
-      for (let a = f.parentElement; a && ok; a = a.parentElement) { const c = getComputedStyle(a); if (c.overflowY !== "visible") { const q = a.getBoundingClientRect(); ok = r.top >= q.top - 0.5 && r.bottom <= q.bottom + 0.5; } }
-      if (!ok) bad.push((f.id || f.placeholder || f.type) + " " + Math.round(r.top) + "-" + Math.round(r.bottom) + " unter " + (hit ? hit.id || hit.className || hit.tagName : "-"));
-      f.blur();
-    }
-    return { bad, n: fs.length };
-  }, sel);
-  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }), bad = [];
-  let got = 0, focused = 0;
-  try {
-    for (const lang of ["de", "en"]) for (const [sn, [day, hash]] of Object.entries(SCEN)) {
-      const v = Object.assign(G.zoom(base, z), phone ? { isMobile: true } : {}, { hasTouch: true, locale: G.LOCALE[lang] }), at = base.width + "x" + base.height + "@" + z * 100 + "% " + lang + " " + sn;
-      delete v.zoom; v.deviceScaleFactor *= phone ? 2 : 1;
-      const ctx = await b.newContext(v);
-      await ctx.addInitScript((l) => { try { localStorage.setItem("daily.v1", JSON.stringify({ lang: l })); } catch (e) {} }, lang);
-      await ctx.route("**/*", (r) => (/^(file|data|blob):/.test(r.request().url()) ? r.continue() : r.abort()));
-      const p = await ctx.newPage(); p.errs = []; p.on("pageerror", (e) => p.errs.push(String(e)));
-      await goto(p, hash, day);
-      if (sn === "empfangen") {   // Lena's card to her grandmother (P7): a feel-good card with her own text, sent on
-        await p.evaluate((l) => { const D = window.Daily, d = D.docFromIdea(D.byId("warm-denke"), D.sanitizeProfile({ nick: "Lena" }), l); d.x = "Ich denk an dich, Oma! Kuss, Lena"; location.hash = D.docUrl(D.withTrail(d, "Lena", ["text"])).split("#")[1]; }, lang);
-        await p.waitForFunction(() => document.getElementById("leaf").classList.contains("got")); await p.waitForTimeout(900);
-      }
-      const s = await look(p);
-      if (sn === "empfangen") { got++; if (!s.got || s.peek || s.card < 120) bad.push(at + ": empfangene Karte " + JSON.stringify(s)); }
-      if (s.over.length) bad.push(at + ": Ueberlappung " + s.over.join(", "));
-      if (s.cut) bad.push(at + ": Titel abgeschnitten");
-      if (s.peek) {   // the last resort on a tiny sheet: opened, its button says how to close it
-        await p.locator("#pvpeek").click(); const t = await p.locator("#pvpeek").textContent();
-        if (!/Schließen|Close/.test(t) || (await p.locator("#pvpeek").getAttribute("aria-expanded")) !== "true") bad.push(at + ": Vorschau offen heisst " + t);
-        await p.locator("#pvpeek").click(); if (!/Vorschau|Preview/.test(await p.locator("#pvpeek").textContent())) bad.push(at + ": Vorschau zu");
-      }
-      let f = await fields(p, "#home input, #home textarea"); focused += f.n; f.bad.forEach((x) => bad.push(at + " Blatt: " + x));
-      await p.addScriptTag({ content: AXE });
-      (await p.evaluate((o) => window.axe.run(document.getElementById("home"), o).then((r) => r.violations.map((x) => x.id + ": " + x.nodes.slice(0, 2).map((n) => n.target.join(" ")).join(" | "))), RULES)).forEach((x) => bad.push(at + " axe: " + x));
-      if (sn !== "empfangen") {   // the editor behind the main button: FERTIG / WEITER never over a field in focus
-        await p.locator("#go").click(); await p.locator("#editor:not([hidden]), #done:not([hidden])").first().waitFor();
-        if (await p.locator("#done").isVisible()) { await p.locator("#keep").click(); await p.locator("#editor").waitFor(); }
-        await p.waitForTimeout(400);
-        for (const tab of await p.$$eval("#tabs [role=tab]", (xs) => xs.map((x) => x.dataset.k))) {
-          await p.locator('#tabs [data-k="' + tab + '"]').click(); await p.waitForTimeout(260);
-          f = await fields(p, "#panel input:not([type=range]):not([type=color]):not([type=file]), #panel textarea"); focused += f.n; f.bad.forEach((x) => bad.push(at + " Editor " + tab + ": " + x));
-        }
-      }
-      if (p.errs.length) bad.push(at + ": " + p.errs.join(" | "));
-      await ctx.close();
-    }
-  } finally { await b.close(); }
-  assert.ok(got === 2 && focused >= 6, "Matrix zu klein: " + got + " empfangen, " + focused + " Felder");
-  assert.deepEqual(bad, []);
-});

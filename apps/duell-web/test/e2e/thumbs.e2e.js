@@ -268,3 +268,12 @@ test("KI-Bild: empfangene Karte zeigt Karte und Bild, auch im Editor; mit Foto d
   assert.deepEqual(errs, []);
   await b.close();
 });
+
+// Zoom (personas P6/P7): iPad (810x1080) and laptop (1024x768) at 100/150/200 % (CSS widths 405 to 1024); rules in lib/zoom.js.
+const Z = require("./lib/zoom.js");
+for (const [base, z] of [[{ width: 810, height: 1080 }, 1], [{ width: 810, height: 1080 }, 1.5], [{ width: 810, height: 1080 }, 2], [{ width: 1024, height: 768 }, 1], [{ width: 1024, height: 768 }, 1.5], [{ width: 1024, height: 768 }, 2]])
+  test("Zoom-Matrix " + base.width + "x" + base.height + " bei " + z * 100 + " % (de/en; empfangen, Tageskarte, Einladungen): empfangene Karte >= 120 px, keine Ueberlappung, Titel ganz, Feld im Fokus frei, axe sauber", async () => {
+    const r = await Z.matrix(base, z, false);
+    assert.ok(r.got === 2 && r.n >= 6, "Matrix zu klein: " + JSON.stringify(r));
+    assert.deepEqual(r.bad, []);
+  });

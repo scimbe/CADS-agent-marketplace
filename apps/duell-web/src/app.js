@@ -195,10 +195,10 @@ function fitCard() {
   var pv = $("pv"), c = $("pvcard"), w = $("warmto"), lp = $("langpick"), mehr = !!(lp && !lp.hidden) || !!(w && !w.hidden), live = !pv.hidden && (pv.classList.contains("with") || mehr);
   var H = $("home"), got = $("leaf").classList.contains("got"), low = function (n) { return live && !c.hidden && (!c.getClientRects().length || c.offsetHeight < n); };
   H.classList.toggle("mehr", mehr); pv.classList.toggle("live", live);
-  pv.classList.remove("tight"); H.classList.remove("roll"); peekB.hidden = true;
+  pv.classList.remove("tight"); H.classList.remove("roll", "lean"); peekB.hidden = true;
   // Received (P6/P7, 150-200 % zoom): the card is what matters, it is never hidden. Date, title and language choice
-  // give way and the page scrolls (.roll); "Vorschau" stays the last resort for everything else.
-  if (got && low(120)) H.classList.add("roll");
+  // give way first (.lean), then the sheet scrolls (.roll); "Vorschau" stays the last resort for everything else.
+  if (got && low(120)) { H.classList.add("lean"); if (low(120)) H.classList.add("roll"); }
   var tight = !got && low(60), L = $("leaf");
   pv.classList.toggle("tight", tight); peekB.hidden = !tight;
   // still more than the sheet holds (a narrow phone at 200 % with field and language choice): the page scrolls here too
