@@ -93,6 +93,19 @@
       show: function () { return ""; },
       apply: function () { return false; },
       // one card comes back: shown as a preview; the promise says whether it was taken (true) or thrown away (false)
+      // a game the wish names that is no flying game: said plainly, never a flying game instead; the catalog cards that have it
+      notyet: function (r, res) {
+        res.textContent = "";
+        var n = r.notyet && typeof r.notyet.name === "string" ? r.notyet.name.slice(0, 30) : "";
+        res.appendChild(el("p", "note aistate", n ? t("create_notyet_game", { name: n }) : t("create_notyet")));
+        var cs = (Array.isArray(r.catalog) ? r.catalog : []).map(function (id) { return D.byId(String(id)); }).filter(Boolean);
+        if (!cs.length) { res.appendChild(el("p", "note", t("create_notyet_none"))); return; }
+        res.appendChild(el("p", "note", t("create_notyet_catalog")));
+        cs.forEach(function (idea) {
+          var L = idea[Kit.lang] || idea.de;
+          res.appendChild(el("button", "chip", "→ " + D.plainTitle(L.t), function () { Kit.sfx.thud(); A.openEditor(D.docFromIdea(idea, A.me(), Kit.lang), { idea: idea }); }));
+        });
+      },
       auto: function (opt, ki, res, note) {
         var doc = opt && opt.doc ? D.sanitizeDoc(opt.doc) : null;
         // what came back must be what was asked for (art and kind); otherwise said so, given back, nothing booked

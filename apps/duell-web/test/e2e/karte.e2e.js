@@ -190,3 +190,24 @@ test("Kein Alkohol auf Karten: der Server laesst das Getraenk weg (note drinks),
     assert.deepEqual(errs, []); await p.context().close();
   }
 });
+
+test("Art Spiel mit genanntem Spiel (Dart, Doppelkopf): kein Flugspiel, ehrlich noch nicht, Katalogkarte oeffnet sich, nichts gebucht", async () => {
+  for (const [name, catalog, tile] of [["Dart", [], null], ["Kartenspiel", ["tisch-doko"], /Doppel ?kopf/i]]) {
+    const { p, errs, sent } = await phone((p0) => {
+      if (p0 === "ai/status") return [200, { meter: METER, create: CREATE(5) }];
+      if (p0 === "ai") return [200, { kind: "karte", options: [], notyet: { what: "game", name }, catalog, meter: METER, create: CREATE(5) }];
+      return null;
+    });
+    await p.locator("#create").tap();
+    await p.getByRole("button", { name: "🕹 Spiel" }).tap();
+    const ta = p.getByLabel("Deine Beschreibung"); await ta.waitFor();
+    await ta.fill(name === "Dart" ? "Erstelle ein Dart Spiel" : "Doppelkopf-Runde");
+    await p.getByRole("button", { name: "✨ Erschaffen" }).tap();
+    await p.getByText("„" + name + "“ kann die freie Karte noch nicht.", { exact: false }).waitFor();
+    assert.equal(await p.locator(".createpv").count(), 0, "no preview, no flying game");
+    assert.equal(sent.filter((x) => x.path === "ai/accept").length, 0, "nothing booked");
+    if (!tile) assert.equal(await p.getByText("Im Katalog gibt es dafür noch keine Karte.").count(), 1);
+    else { await p.getByRole("button", { name: tile }).first().tap(); await p.waitForTimeout(400); }
+    assert.deepEqual(errs, [], name); await p.context().close();
+  }
+});

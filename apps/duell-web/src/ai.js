@@ -30,6 +30,7 @@
   // What the server's answer means for the page.
   function verdict(status, json) {
     if (status === 200 && json && Array.isArray(json.options) && json.options.length) return "result";
+    if (status === 200 && json && json.notyet) return "notyet";       // the free card cannot make this yet (a named game)
     if (status === 202 && json && ticket(json)) return "queued";
     if (status === 429 && json && json.error === "quota") return "quota";
     if (status === 422) return "blocked";
@@ -94,7 +95,7 @@
         if (now() - started >= max) return none("busy", last);
         try { r = await o.send("/queue", { ticket: tk }); } catch (e) { return none("off"); }
       }
-      if (how !== "result") { var no = none(how, how === "busy" ? place(r.json) || last : 0); no.why = how === "blocked" && r.json && (r.json.why === "crisis" || r.json.why === "kind_ok") ? r.json.why : ""; return no; }
+      if (how !== "result") { var no = none(how, how === "busy" ? place(r.json) || last : 0); no.why = how === "blocked" && r.json && (r.json.why === "crisis" || r.json.why === "kind_ok") ? r.json.why : ""; if (how === "notyet") { no.notyet = r.json.notyet; no.catalog = r.json.catalog; } return no; }
       return { how: how, options: r.json.options, seals: seals(r.json), receipt: receipt(r.json), position: 0, note: r.json.note };
     }
     // Settle a handed-out result once: accept (taken) or discard (nothing taken, nothing changed). -> true when the server said yes.
@@ -243,6 +244,7 @@
         }
         Kit.sfx.pop(); return;
       }
+      if (r.how === "notyet" && o.notyet) { o.notyet(r, res); return; }
       if (r.how === "blocked" && r.why === "crisis") { help(res); return; }
       res.appendChild(el("p", "note aistate", stateText(r)));
       if (r.how === "quota") res.appendChild(el("button", "chip", "ⓘ " + t("aiTitle"), o.wall));
