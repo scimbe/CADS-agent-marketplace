@@ -190,14 +190,25 @@ peekB.id = "pvpeek"; peekB.hidden = true; $("pv").after(peekB);
 // Escape closes an open preview while the sheet is on screen, the focus goes back to its button
 document.addEventListener("keydown", function (e) { if (e.key === "Escape" && screen === "home" && !peekB.hidden && !document.querySelector("dialog[open]") && !$("door") && $("pv").classList.contains("peek")) { e.preventDefault(); peek2(false); peekB.focus(); } }, true);
 // while it is open, everything under it on the sheet (title, thumbs …) is inert; the button stays usable
-function peek2(on) { Array.from($("leaf").children).forEach(function (c) { if (c !== peekB && c.id !== "pv") c.inert = on; }); $("pv").classList.toggle("peek", on); peekB.setAttribute("aria-expanded", String(on)); peekB.textContent = t("pv_peek"); }
+function peek2(on) { Array.from($("leaf").children).forEach(function (c) { if (c !== peekB && c.id !== "pv") c.inert = on; }); $("pv").classList.toggle("peek", on); peekB.setAttribute("aria-expanded", String(on)); peekB.textContent = t(on ? "pv_shut" : "pv_peek"); }
 function fitCard() {
   var pv = $("pv"), c = $("pvcard"), w = $("warmto"), lp = $("langpick"), mehr = !!(lp && !lp.hidden) || !!(w && !w.hidden), live = !pv.hidden && (pv.classList.contains("with") || mehr);
-  $("home").classList.toggle("mehr", mehr); pv.classList.toggle("live", live);
-  pv.classList.remove("tight"); peekB.hidden = true;
-  var tight = live && !c.hidden && (!c.getClientRects().length || c.offsetHeight < 60);
-  pv.classList.toggle("tight", tight); peekB.hidden = !tight; if (!tight || !peekB.getAttribute("aria-expanded")) peek2(false);
+  var H = $("home"), got = $("leaf").classList.contains("got"), low = function (n) { return live && !c.hidden && (!c.getClientRects().length || c.offsetHeight < n); };
+  H.classList.toggle("mehr", mehr); pv.classList.toggle("live", live);
+  pv.classList.remove("tight"); H.classList.remove("roll", "lean"); peekB.hidden = true;
+  // Received (P6/P7, 150-200 % zoom): the card is what matters, it is never hidden. Date, title and language choice
+  // give way first (.lean), then the sheet scrolls (.roll); "Vorschau" stays the last resort for everything else.
+  if (got && low(120)) { H.classList.add("lean"); if (low(120)) H.classList.add("roll"); }
+  var tight = !got && low(60), L = $("leaf");
+  pv.classList.toggle("tight", tight); peekB.hidden = !tight;
+  // still more than the sheet holds (a narrow phone at 200 % with field and language choice): the page scrolls here too
+  if (tight && L.scrollHeight > L.clientHeight + 1) { H.classList.add("roll"); pv.classList.remove("tight"); tight = low(60); pv.classList.toggle("tight", tight); peekB.hidden = !tight; }
+  if (!tight || !peekB.getAttribute("aria-expanded")) peek2(false);
+  // the title's room changed: it fits again instead of being cut
+  fitHero();
 }
+// a scrolling sheet (.roll) brings a field in focus into sight (the name field under the fold at 200 %)
+$("home").addEventListener("focusin", function (e) { if (this.classList.contains("roll")) e.target.scrollIntoView({ block: "nearest" }); });
 // In the editor the picture stays above the card; the user's own photo takes its place once taken.
 function edPic() {
   var w = $("stagewrap"), id = ed && !ed.ownPhoto && !cv.hidden ? picId(docPic(ed.doc)) : null;

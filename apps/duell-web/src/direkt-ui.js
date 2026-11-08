@@ -244,6 +244,16 @@
   // using the panel: after a tap has done its work (click, so nothing moves under the finger), or keyboard focus
   $("panel").addEventListener("click", function () { platz(0); });
   $("panel").addEventListener("focusin", function (e) { if (e.target.matches(":focus-visible")) platz(0); });
+  // A field in focus is never under FERTIG / WEITER (.foot under the panel) nor under the on-screen keyboard
+  // (visualViewport, P5-P8): the panel moves it into sight, at once and once the room has settled (platz: 180 ms).
+  function keep() {
+    var f = document.activeElement, P = $("panel"), V = root.visualViewport;
+    if (!f || !P.contains(f) || !f.matches("input:not([type=range]):not([type=color]),textarea")) return;
+    var r = f.getBoundingClientRect(), q = P.getBoundingClientRect(), lo = Math.min(q.bottom, V ? V.offsetTop + V.height : innerHeight) - 6, hi = Math.max(q.top, V ? V.offsetTop : 0) + 6;
+    if (r.bottom > lo) P.scrollTop += Math.min(r.bottom - lo, r.top - hi); else if (r.top < hi) P.scrollTop -= hi - r.top;
+  }
+  $("panel").addEventListener("focusin", function () { setTimeout(keep, 0); setTimeout(keep, 260); });
+  if (root.visualViewport) root.visualViewport.addEventListener("resize", keep);
   // a tab opened by the program (a layer chosen in the list, a wish that leads to Rules) while a tool is in use
   new MutationObserver(function () { var p = $("editor").dataset.platz; if (p && p !== "ruhe") platz(0); }).observe($("tabs"), { subtree: true, attributes: true, attributeFilter: ["aria-selected"] });
   // Room (E1.5): back to the large card is said once; a tool getting the room is said by its tab already.
