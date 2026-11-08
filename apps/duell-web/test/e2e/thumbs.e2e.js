@@ -157,10 +157,11 @@ const exported = (p) => p.evaluate(() => {
 
 test("KI-Bild: das graue Folgeblatt zeigt sein Bild, erst wenn es sichtbar wird; ein Tap oeffnet die Karte mit Bild im Editor", async () => {
   const { b, open, errs, asked } = await setup("on");
-  // a day with a picture whose next day has one too (the plan moves when ideas are added, so it is looked up); not a
+  // a day with a picture whose next day has one too (the plan moves when ideas are added or merged, so it is looked up,
+  // over four years: since the three voice cards became one the first such day is in 2028); not a
   // feel-good card, whose main action finishes the card at once instead of opening the editor
   const q = await open(MAIN, [10, 1]);
-  const day = await q.evaluate(() => { const D = window.Daily, T = window.DailyThumbs; for (let k = 0; k < 400; k++) { const x = new Date(Date.UTC(2026, 9, 1 + k, 10)), a = D.ideaForDay(x), n = D.ideaForDay(D.dayDate(x, -1)); if (a && n && !a.warm && T.includes(a.id) && T.includes(n.id)) return [x.getUTCMonth() + 12 * (x.getUTCFullYear() - 2026), x.getUTCDate(), n.id]; } return null; });
+  const day = await q.evaluate(() => { const D = window.Daily, T = window.DailyThumbs; for (let k = 0; k < 1500; k++) { const x = new Date(Date.UTC(2026, 9, 1 + k, 10)), a = D.ideaForDay(x), n = D.ideaForDay(D.dayDate(x, -1)); if (a && n && !a.warm && T.includes(a.id) && T.includes(n.id)) return [x.getUTCMonth() + 12 * (x.getUTCFullYear() - 2026), x.getUTCDate(), n.id]; } return null; });
   await q.close();
   assert.ok(day, "ein Tag mit Bild, dessen Folgetag ein Bild hat");
   const p = await open(MAIN, day.slice(0, 2)), next = { next: day[2] };
@@ -274,6 +275,6 @@ const Z = require("./lib/zoom.js");
 for (const [base, z] of [[{ width: 810, height: 1080 }, 1], [{ width: 810, height: 1080 }, 1.5], [{ width: 810, height: 1080 }, 2], [{ width: 1024, height: 768 }, 1], [{ width: 1024, height: 768 }, 1.5], [{ width: 1024, height: 768 }, 2]])
   test("Zoom-Matrix " + base.width + "x" + base.height + " bei " + z * 100 + " % (de/en; empfangen, Tageskarte, Einladungen): empfangene Karte >= 120 px, keine Ueberlappung, Titel ganz, Feld im Fokus frei, axe sauber", async () => {
     const r = await Z.matrix(base, z, false);
-    assert.ok(r.got === 2 && r.n >= 6, "Matrix zu klein: " + JSON.stringify(r));
+    assert.ok(r.got === 4 && r.n >= 6, "Matrix zu klein: " + JSON.stringify(r));
     assert.deepEqual(r.bad, []);
   });

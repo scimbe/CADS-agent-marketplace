@@ -24,7 +24,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // Sizes at the split: core 693 KB, parts 310 KB (play 140, table 104, qr 59, licenses 6), together 1003 KB.
   assert.ok(Buffer.byteLength(html) < 700 * 1024, "Kern ueber 700 KB: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["dart", "daten", "direkt", "katalog", "konto", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(Object.keys(man).sort(), ["dart", "daten", "direkt", "katalog", "klang", "konto", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   // The account card: its texts (ac_) only in the part konto, none in the core
   assert.ok(!/"ac_[a-z]/.test(html), "ac_-Texte im Kern");
   assert.match(fs.readFileSync(partFiles().find((f) => /\/konto\.[0-9a-f]{12}\.js$/.test(f)), "utf8"), /window\.KontoTexts=\{"de":\{"ac_title":"Konto \(freiwillig\)"/);
@@ -54,7 +54,8 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // over 1.6 MiB; the core keeps its own budget (700 KiB above, 716 800 B in test/quizspiele.test.js). A large part that
   // would be preloaded on idle does not get this room: then back to 1.6 MiB.
   assert.ok(Buffer.byteLength(html) + sum < 1.75 * 1024 * 1024, "Kern + Teile: " + (Buffer.byteLength(html) + sum));
-  assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(n !== "noto" && n !== "dart"\) need\(n\)/, "noto und dart nicht im Leerlauf-Vorladen");
+  assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(n !== "noto" && n !== "dart" && n !== "klang"\) need\(n\)/, "noto, dart und klang nicht im Leerlauf-Vorladen");
+  assert.match(src("app.js"), /=== "voice"\) window\.Parts\.need\("klang"\)/, "klang kommt mit einem Stimm-Blatt");
   // Each part runs where it ran inside the page: the module code, not a stand-in. Spot checks on what moved.
   const part = (n) => fs.readFileSync(path.join(path.dirname(dist), man[n].f), "utf8");
   assert.match(part("play"), /window\.ArcadeUI = \{/); assert.match(part("play"), /window\.LiveUI = \{/);
@@ -78,6 +79,11 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   assert.match(part("texte"), /root\.TexteUI = \{/); assert.match(part("texte"), /window\.TexteData=\{/); assert.ok(!/root\.TexteUI = \{|window\.TexteData=/.test(html), "Texte und Song nur im Teil");
   assert.match(part("stimme"), /root\.Stimme = \{/); assert.match(part("stimme"), /root\.Stat = api/); assert.match(part("stimme"), /^window\.StimmeTexts=\{"de":\{"vote_/);
   assert.ok(!/root\.Stimme = \{|root\.Stat = api|"vote_q"/.test(html), "Daumen, Statistik und ihre Texte nur im Teil");
+  // Stimme verzerren: effects, recording, video and file sharing only in the part klang, in the core only the hooks
+  // (app.js voicePanel, applyFx, done); its words (kl_, rec, recing, dummy) travel with it.
+  assert.match(part("klang"), /^window\.KlangTexts=\{"de":\{/); assert.match(part("klang"), /root\.KlangFx = api/); assert.match(part("klang"), /root\.Klang = \{ apply: K\.apply/);
+  assert.ok(!/root\.KlangFx = api|root\.Klang = \{|"kl_note":|"recing":|new MediaRecorder\(st\)/.test(html), "Stimme verzerren nur im Teil");
+  assert.match(html, /window\.Parts\.use\("klang"/); assert.deepEqual(man.klang.d, []);
   // Mal & Rat: rule, screen and word lists only in the part malen; the manifest names its game, so a link waits for it
   assert.deepEqual([man.malen.d, man.malen.g], [["katalog"], ["malrat"]]);
   assert.match(part("malen"), /^window\.MalratData=\{"text":\{"de":\{"mr_l_draw"/); assert.match(part("malen"), /root\.Malrat = api/); assert.match(part("malen"), /root\.Turn2\.add\("widget", "malrat"/);

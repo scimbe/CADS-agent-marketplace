@@ -47,6 +47,7 @@ const WORDS = {
   stil: /^(ms_[a-zA-Z]+|nick|nickNote|set|set_[a-z]+|fs_(title|n|g|sg)|pf_(title|note|none|hh|diet|pp|pp_later)|aiPicNote|licenses)$/,
   melden: /^ki(Ask|Consent|Why|Why_[a-z]+|Send|Cancel|Close|Thanks|Offline)$/,
   wetter: /^wx[A-Z]/,
+  klang: /^(kl_[a-z_]+|rec|recing|dummy|sh_voice)$/,
 };
 const partTexts = {}, coreTexts = {};
 for (const n of Object.keys(WORDS)) partTexts[n] = {};
@@ -99,6 +100,9 @@ if (catalog.ideas.some((i) => i.turn && malGames.indexOf(i.turn.g) >= 0)) PARTS.
 // Dart: a real dartboard by link or against the bot (src/dart.js, src/dart-ui.js, texts in src/dart.json); only built when the
 // catalog has a card with its game (not in Daily Business).
 if (catalog.ideas.some((i) => i.turn && dartGames.indexOf(i.turn.g) >= 0)) PARTS.dart = { d: ["katalog"], src: ["DARTDATA", "DART", "DARTUI"] };
+// "Stimme verzerren": recording, the voice effects, the voice as a video or sound file (src/klang.js, src/klang-ui.js);
+// only where the catalog has a voice card (not in Daily Business: turns only).
+if (catalog.ideas.some((i) => i.kind === "sound" && i.sound.mode === "voice")) PARTS.klang = { d: [], src: ["KLANGDATA", "KLANG", "KLANGUI"] };
 // Thumbs on the sheet and the card numbers (src/stimme-ui.js, src/stat.js); not built for a flavor without them (stat: false).
 if (!(conf && conf.stat === false)) PARTS.stimme = { d: [], src: ["STIMMEDATA", "STAT", "STIMMEUI"] };
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
@@ -112,6 +116,7 @@ parts.STILDATA = "window.StilTexts=" + JSON.stringify(partTexts.stil) + ";" + me
 parts.MELDENDATA = "window.MeldenTexts=" + JSON.stringify(partTexts.melden) + ";" + merge("MeldenTexts"); parts.MELDEN = read("src/melden.js");
 if (PARTS.wetter) { parts.WETTERDATA = "window.WetterTexts=" + JSON.stringify(partTexts.wetter) + ";" + merge("WetterTexts"); parts.WETTER = read("src/wetter.js"); }
 parts.DIREKTDATA = "window.DirektData=" + JSON.stringify(json("src/direkt.json")) + ";" + merge("DirektData.texts"); parts.EDITMODEL = read("src/editmodel.js"); parts.DIREKTUI = read("src/direkt-ui.js");
+parts.KLANGDATA = "window.KlangTexts=" + JSON.stringify(partTexts.klang) + ";" + merge("KlangTexts"); parts.KLANG = read("src/klang.js"); parts.KLANGUI = read("src/klang-ui.js");
 parts.REGLERDATA = "window.ReglerTexts=" + JSON.stringify(json("src/regler.json")) + ";" + merge("ReglerTexts"); parts.REGELN = read("src/regeln.js"); parts.REGLERUI = read("src/regler-ui.js");
 if (PARTS.malen) { parts.MALRATDATA = "window.MalratData=" + JSON.stringify(json("src/malrat.json")) + ";"; parts.MALRAT = read("src/malrat.js"); parts.MALRATUI = read("src/malrat-ui.js"); }
 if (PARTS.dart) { parts.DARTDATA = "window.DartData=" + JSON.stringify(json("src/dart.json")) + ";"; parts.DART = read("src/dart.js"); parts.DARTUI = read("src/dart-ui.js"); }
@@ -131,7 +136,7 @@ let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + 
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
 // code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
-const KEEP = new Set(["DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "DARTDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "NOTODATA"]);
+const KEEP = new Set(["DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "DARTDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "NOTODATA", "KLANGDATA"]);
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "")).join("\n");
 const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));
