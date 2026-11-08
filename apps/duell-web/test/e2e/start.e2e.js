@@ -270,9 +270,11 @@ test("Review #185 Runde 2: eine empfangene Karte bei 195 px Breite (390 bei 200 
   const s = await G.person(b, { lang: "de", view: "phone390", time: DAY }); await s.route(/^https?:/, (r) => r.abort());
   const sp = await G.open(s, "#i=warm-gruss"); await sp.locator("#go").click(); await sp.locator("#done:not([hidden])").waitFor();
   const url = await sp.evaluate(() => window.DailyDebug.result().url); await s.close();
-  const ctx = await G.person(b, { lang: "de", view: "p390z200", time: DAY }); await ctx.route(/^https?:/, (r) => r.abort());
-  const p = await G.open(ctx, url.slice(url.indexOf("#"))); await p.locator("#votes:not([hidden])").waitFor(); await p.waitForTimeout(600);
-  const m = await p.evaluate(() => { const r = (e) => e.getBoundingClientRect(); const c = [...document.querySelectorAll("#leaf .pvcard, #leaf .pvgame, #leaf .pvimg")].find((e) => e.getClientRects().length && e.offsetHeight > 0); if (!c) return { none: true }; const cr = r(c); const v = r(document.getElementById("votes")); return { w: innerWidth, card: [cr.top, cr.bottom, cr.left, cr.right], votes: [v.top, v.bottom, v.left, v.right] }; });
+  // the card's picture (KI-Bild) loads here as on a phone: the sheet then shows card and picture together (.pv.pic)
+  const ctx = await G.person(b, { lang: "de", view: "p390z200", time: DAY });
+  const p = await G.open(ctx, url.slice(url.indexOf("#"))); await p.locator("#votes:not([hidden])").waitFor(); await p.locator("#pv.pic").waitFor(); await p.waitForTimeout(600);
+  const m = await p.evaluate(() => { const r = (e) => e.getBoundingClientRect(); const cr = r(document.getElementById("pv")), cv = r(document.getElementById("pvcard")), v = r(document.getElementById("votes")); return { w: innerWidth, h: innerHeight, cardH: Math.round(cv.height), card: [cr.top, cr.bottom, cr.left, cr.right], votes: [v.top, v.bottom, v.left, v.right] }; });
+  assert.ok(m.cardH >= 140 && m.card[1] <= m.h, "Karte >= 140 px im ersten Bild: " + JSON.stringify(m));
   assert.ok(m.w <= 200, "195 px breit: " + m.w);
   const over = !(m.votes[0] >= m.card[1] - 1 || m.votes[1] <= m.card[0] + 1 || m.votes[2] >= m.card[3] - 1 || m.votes[3] <= m.card[2] + 1);
   assert.equal(over, false, "Daumen ueber der Karte: " + JSON.stringify(m));
