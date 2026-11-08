@@ -100,3 +100,19 @@ test("Merken: der Link f reist mit (Server: CADS-DEMO-wrapper #82), ein gemerkte
   assert.equal(ch.wall[0].f, "c=eyJrIjoiY2FyZCJ9", "the second device gets the link");
   assert.deepEqual(D.sanitizeWall(ch.wall)[0], { id: "own", ts: 3, th: TH, f: "c=eyJrIjoiY2FyZCJ9", k: "card" });
 });
+
+test("Gate-Abmelden: nur von einer bunsenbrenner.org-Seite, Ziel /gate/logout mit Host und sicherem Rueckweg", () => {
+  assert.equal(P.logoutUrl("demos-34a13a96.bunsenbrenner.org", "/duell/business"), "https://bunsenbrenner.org/gate/logout?host=demos-34a13a96.bunsenbrenner.org&return=%2Fduell%2Fbusiness");
+  for (const r of ["//evil", "//evil.example", "/\\evil", "https://evil.example", "/duell?x=1"]) assert.match(P.logoutUrl("demos-34a13a96.bunsenbrenner.org", r), /&return=%2Fduell$/, r);
+  assert.equal(P.logoutUrl("Demos-34A13A96.bunsenbrenner.org", "//evil.example"), "https://bunsenbrenner.org/gate/logout?host=demos-34a13a96.bunsenbrenner.org&return=%2Fduell");
+  for (const h of ["127.0.0.1", "bunsenbrenner.org.evil.example", "evilbunsenbrenner.org", "", null]) assert.equal(P.logoutUrl(h, "/duell"), null, String(h));
+});
+
+test("Anmeldeversuch: zaehlt erst nach dem ersten Abgleich als angemeldet; nach 30 Minuten verfaellt er samt 16+-Angabe", () => {
+  const now = 1e12, att = { via: "account", rev: 0, base: null, age16: true, t0: now - 60000 };
+  assert.equal(P.done(att), false); assert.equal(P.stale(att, now), false);
+  assert.equal(P.stale({ ...att, t0: now - 31 * 60000 }, now), true);
+  assert.equal(P.stale({ via: "account", rev: 0, base: null, age16: true }, now), true, "ohne Zeitpunkt (alter Stand) verfaellt");
+  assert.equal(P.done({ ...att, base: { me: "{}" }, at: now }), true); assert.equal(P.stale({ ...att, at: now, base: {} }, now + 1e9), false, "fertig verfaellt nie");
+  assert.equal(P.done({ via: "code", code: "ab".repeat(16) }), true);
+});

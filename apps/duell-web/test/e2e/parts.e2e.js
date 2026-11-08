@@ -38,9 +38,9 @@ test("file:// (Apps, Tests): Start nur mit dem Katalog-Teil; Spiele-Regal holt A
   assert.equal((await loaded(p))[1].sri, "", "file:// ohne SRI (kein CORS-Ursprung)");
   await p.locator("#shback").click();
   await p.locator("#me").click();
-  await p.getByRole("button", { name: "Lizenzen" }).click();
+  await p.locator("#stdata summary").click(); await p.getByRole("button", { name: "Lizenzen" }).click();   // under "Konto & Daten"
   await p.getByText(/SIL OPEN FONT LICENSE Version 1\.1/).waitFor();
-  // My style comes as the part stil, which brings "Anmelden / Registrieren" (konto) first; the button its licence texts
+  // My style comes as the part stil, which brings its account card (konto) first; the button its licence texts
   assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "stimme", "play", "konto", "stil", "direkt", "licenses"], "Mein Stil holt auch direkt (Schalter Einfache Sprache)");
   assert.deepEqual(errs, []); await b.close();
 });
@@ -83,7 +83,7 @@ test("Web /duell: nach dem Laden alle Teile ausser noto mit SRI vorab; danach of
   assert.match((await loaded(p)).find((s) => /^noto\./.test(s.src)).sri, /^sha384-[A-Za-z0-9+/]{64}$/);
   assert.equal(await p.evaluate(() => typeof window.TableUI.preview + typeof window.StatusCard.draw), "functionfunction", "echte Module statt Platzhalter");
   await ctx.setOffline(true);
-  await p.locator("#me").click(); await p.getByRole("button", { name: "Lizenzen" }).click();
+  await p.locator("#me").click(); await p.locator("#stdata summary").click(); await p.getByRole("button", { name: "Lizenzen" }).click();   // under "Konto & Daten"
   await p.getByText(/Permission is hereby granted, free of charge/).first().waitFor();
   await p.evaluate(() => window.ArcadeUI.menu("puck"));
   await p.getByRole("button", { name: /Gegen den Bot/ }).waitFor();
@@ -96,7 +96,7 @@ test("Web: eine veraenderte Teildatei wird abgelehnt (SRI), die Seite sagt es un
   const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
   await p.goto(base + "/duell/");
   await p.waitForFunction(() => ["play", "qr", "table"].every((n) => window.Parts.ready(n)));
-  await p.locator("#me").click(); await p.getByRole("button", { name: "Lizenzen" }).click();
+  await p.locator("#me").click(); await p.locator("#stdata summary").click(); await p.getByRole("button", { name: "Lizenzen" }).click();   // under "Konto & Daten"
   await p.getByText("Dieser Teil fehlt gerade. Bitte die Seite neu laden.").waitFor();
   assert.equal(await p.evaluate(() => window.__tampered === undefined && window.DailyLicenses === undefined && !window.Parts.ready("licenses")), true);
   assert.deepEqual(errs, []); await b.close(); srv.close();
