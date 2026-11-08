@@ -103,7 +103,7 @@
           // what the server says about the card, once each: a drink with alcohol left out (cards reach teenagers too), and the
           // limits of the ability the wish asks beyond ("days:14", "people:4"); unknown codes are not shown
           [].concat(note || []).forEach(function (c) {
-            var m = /^(days|people):(\d{1,3})$/.exec(String(c));
+            var m = /^(days|people|chars):(\d{1,3})$/.exec(String(c));
             if (c === "drinks") res.appendChild(el("p", "note", t("create_drinks")));
             else if (m) res.appendChild(el("p", "note", t("create_lim_" + m[1], { n: Number(m[2]) })));
             else if (c === "money18" || c === "nosend" || c === "async" || c === "duel") res.appendChild(el("p", "note", t("create_lim_" + c)));
