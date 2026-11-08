@@ -24,7 +24,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // Sizes at the split: core 693 KB, parts 310 KB (play 140, table 104, qr 59, licenses 6), together 1003 KB.
   assert.ok(Buffer.byteLength(html) < 700 * 1024, "Kern ueber 700 KB: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["daten", "direkt", "katalog", "konto", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(Object.keys(man).sort(), ["dart", "daten", "direkt", "katalog", "konto", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   // The account card: its texts (ac_) only in the part konto, none in the core
   assert.ok(!/"ac_[a-z]/.test(html), "ac_-Texte im Kern");
   assert.match(fs.readFileSync(partFiles().find((f) => /\/konto\.[0-9a-f]{12}\.js$/.test(f)), "utf8"), /window\.KontoTexts=\{"de":\{"ac_title":"Konto \(freiwillig\)"/);
@@ -79,6 +79,11 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   assert.deepEqual([man.malen.d, man.malen.g], [["katalog"], ["malrat"]]);
   assert.match(part("malen"), /^window\.MalratData=\{"text":\{"de":\{"mr_l_draw"/); assert.match(part("malen"), /root\.Malrat = api/); assert.match(part("malen"), /root\.Turn2\.add\("widget", "malrat"/);
   assert.ok(!/MalratData=|root\.Malrat = api|"mr_l_draw"/.test(html), "Mal & Rat nur im Teil");
+  // Dart: rule, board, bot and texts only in the part dart; in the core only the card's index entry and the picture hook
+  assert.deepEqual([man.dart.d, man.dart.g], [["katalog"], ["dart"]]);
+  assert.match(part("dart"), /^window\.DartData=\{"text":\{"de":\{"da_l"/); assert.match(part("dart"), /root\.Dart = api/); assert.match(part("dart"), /root\.Turn2\.add\("widget", "dart"/);
+  assert.ok(!/DartData=|root\.Dart = api|"da_l"|root\.DartUI/.test(html), "Dart nur im Teil");
+  assert.match(html, /var own = Tn\.GAMES\[doc\.g\] && Tn\.GAMES\[doc\.g\]\.pic; if \(own\) return own\(c, W, H, doc\);/, "Bild-Haken im Kern");
   assert.match(part("satz"), /window\.SatzUI = \{/); assert.match(part("satz"), /root\.SatzLogic = api/);
   assert.ok(!/window\.SatzUI = \{|root\.SatzLogic = api/.test(html), "Satz zu Formular steckt nur im Teil, im Kern nur der Haken");
   assert.ok(!/window\.ArcadeUI = \{ menu|window\.TableUI = \{ open|root\.StatusCard =/.test(html), "verschobener Code steckt nicht doppelt im Kern");
