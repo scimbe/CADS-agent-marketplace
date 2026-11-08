@@ -99,12 +99,18 @@
     ".recvtx{display:flex;flex-direction:column;gap:2px;min-width:0}.recvtx strong{font:800 1.125rem/1.25 var(--st);overflow-wrap:anywhere}.recvtx span{font:500 .875rem/1.3 var(--st);overflow-wrap:anywhere}",
     "#home.recv #wishgo,#home.recv #livego,#home.recv #from.stdup,#home.recv #leaf .dateline{display:none!important}#home.recv #homerow{justify-content:space-between}",
     "#home.recv #homerow button{flex:0 1 auto;min-height:44px;padding:0 6px;border:0;background:transparent;color:var(--on);font:700 .9375rem/1.2 var(--st);text-decoration:underline;text-underline-offset:3px}",
+    "@media (max-width:300px){#recvhead{margin:2px 14px 4px}.recvav{display:none}.recvtx strong{font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.recvtx span{display:none}}",
     "@media (max-height:560px){#recvhead{margin:2px 18px 4px;gap:8px}.recvav{width:36px;height:36px;font-size:1.1rem}.recvtx strong{font-size:1rem}}",
     "#home.recv #kireport{font-weight:500;font-size:.875rem}#home.recv #kireport:disabled{text-decoration:none;opacity:1}",
     /* Fertig: "Wer bekommt sie?", one button that opens the share menu, an honest line about the link */
     "#donetitle{flex:1;margin:0 4px;font:400 1.5rem/1.05 var(--disp);text-transform:uppercase;color:var(--on);overflow-wrap:anywhere}",
     "#share.st1{display:flex;align-items:center;justify-content:center;gap:12px;font-size:1.6rem}",
     "#share.st1::before{content:\"\";flex:none;width:1em;height:1em;background:currentColor;-webkit-mask:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12M7 8l5-5 5 5M5 14v6h14v-6'/%3E%3C/svg%3E\") center/contain no-repeat;mask:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12M7 8l5-5 5 5M5 14v6h14v-6'/%3E%3C/svg%3E\") center/contain no-repeat}",
+    /* Fertig on a phone: the picture keeps a real size above "Teilen" (the main button stays on the first screen); Mehr,
+       the note, the row and the account offer follow by scrolling instead of squeezing the picture */
+    "@media (max-width:899px){#done:has(#share.st1){overflow-y:auto}#done:has(#share.st1) #donewrap{flex:1 0 auto;min-height:min(18rem,calc(100svh - 9rem))}}",
+    "#staccount{margin:4px 18px 12px;padding:12px 14px;border:2px solid var(--sk);border-radius:16px;color:var(--sk);font:500 .875rem/1.45 var(--st)}#staccount[hidden]{display:none}#staccount p{margin:0 0 8px}",
+    "#staccount button{min-height:44px;padding:0 18px;border:2px solid var(--sk);border-radius:999px;background:transparent;color:var(--sk);font:700 .95rem var(--st);cursor:pointer}",
     "#shnote.st1{margin:0 18px 8px;padding:12px 14px;border-radius:16px;background:#fff;color:var(--sk);font:500 .875rem/1.45 var(--st)}"
   ].join("\n");
   function style() {
@@ -197,16 +203,18 @@
     recvBuild();
     var on = !!(h && h.doc && h.note);
     $("home").classList.toggle("recv", on); head.hidden = !on; selbst.hidden = !on;
-    if (!on) return;
+    if (!on) { var lb = $("langpick"); if (lb && lb.nextElementSibling !== $("go")) $("go").before(lb); return; }
     var doc = h.doc, n = W.sender(doc) || t("someone"), X = root.DailyModes || {}, mode = X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
     head.firstChild.textContent = n.charAt(0).toUpperCase();
     $("recvwho").textContent = t("st_from", { n: n });
     // a turn card says where it stands in its own line (#from); otherwise that line would only name the sender again
     var sub = $("recvsub"); sub.textContent = ""; sub.hidden = true; $("from").classList.toggle("stdup", !mode);
-    // one main action by kind; a turn card keeps its own words (Wann kannst du?, Raten …)
-    if (!mode) $("go").textContent = t(PLAY.indexOf(doc.k) >= 0 ? "st_play" : "st_reply");
+    // one main action by kind; a turn card keeps its own words (Wann kannst du?, Raten …), a voice card its "🎙 Antworten"
+    if (!mode && !(doc.k === "sound" && doc.m === "voice")) $("go").textContent = t(PLAY.indexOf(doc.k) >= 0 ? "st_play" : "st_reply");
     selbst.textContent = t("st_self");
     var kr = $("kireport"); if (!kr.disabled) kr.textContent = t("st_report");
+    // the language choice is not what a received card is about: below "Melden", out of the first screen
+    var lp = $("langpick"); if (lp && lp.previousElementSibling !== $("homerow")) $("homerow").after(lp);
   }
 
   /* ---------- Fertig: one tap to the share menu ---------- */
@@ -220,16 +228,24 @@
     var sh = $("share"), h = A().home(), to = r.doc && W.is(r.doc) && h && h.to ? W.name(h.to) : "";
     sh.classList.add("st1"); sh.textContent = to ? t("st_sendTo", { n: to }) : t("share");
     // honest about the link: made at "Fertig", how long it stays (24 hours until opened, then 90 days), or the long link
-    var note = $("shnote"), k = r.doc && (r.doc.k === "photo" ? "photo" : r.doc.k === "sound" && r.doc.m !== "beat" ? "voice" : ""), line;
+    var note = $("shnote"), k = r.doc && r.doc.k === "photo" ? "photo" : "", line;   // the voice: the sheet "Als Datei verschicken" says it
     if (!r.link) line = t("st_shortWait");
     else if (r.link.short) { var e = (Kit.store.links || []).filter(function (x) { return x.id === r.link.id; })[0]; line = t(e && e.exp - Date.now() < 2 * 86400000 ? "st_shortDay" : "st_shortOk"); }
     else line = t(root.ShortLink && !root.ShortLink.fragmentOf(r.url) ? "st_shortLong" : "st_shortNo");
     if (t("sh_note")) { note.classList.add("st1"); note.textContent = [line, k ? t("sh_" + k) : ""].filter(Boolean).join(" "); }
     if (!copyB) {
-      copyB = el("button", "btn", null, function () { Kit.sfx.tap(); var x = A().res(), u = x && (x.link ? x.link.url : x.url); if (u) Kit.copy(u).then(function (ok) { Kit.toast(t(ok ? "st_copied" : "shareFail")); }); });
-      copyB.id = "copylink"; $("save").after(copyB);
+      copyB = el("button", "btn", null, function () { Kit.sfx.tap(); var x = A().res(), u = x && (x.link ? x.link.url : x.url); if (u) Kit.copy(u).then(function (ok) { Kit.toast(t(ok ? "st_copied" : "shareFail")); if (ok && A().count) A().count("copy"); }); });
+      copyB.id = "copylink"; $("tostory").after(copyB);   // with Status and Story under "Mehr": the row below keeps its three buttons
     }
     copyB.textContent = t("st_copy");
+    // without a login: an offer, quiet and below the rest (no pressure, nothing changes without it); linked: nothing
+    var acc = $("staccount"), p = Kit.store.profile, linked = !!(p && (p.via === "account" || p.via === "code"));
+    if (!acc) {
+      acc = el("div"); acc.id = "staccount"; acc.appendChild(el("p"));
+      acc.appendChild(el("button", "", null, function () { Kit.sfx.tap(); A().style.open(); }));
+      $("dhome").parentNode.after(acc);
+    }
+    acc.hidden = linked; acc.firstChild.textContent = t("st_acc"); acc.lastChild.textContent = t("st_accGo");
   }
   // Rule A4: the main button is on the first screen without scrolling. A short screen (a small phone, 200 % zoom) and a card
   // that came by link give the sheet exactly the room left above the main button; what follows is reached by scrolling. A
@@ -249,7 +265,7 @@
     for (; e; e = e.nextElementSibling) {
       var cs = getComputedStyle(e);
       if (e.getClientRects().length) used += e.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
-      if (e === go) break;
+      if (e === (recv ? $("homerow") : go)) break;   // received: "Selbst eine machen" and "Melden" on the first screen too
     }
     var room = H.clientHeight - pad.offsetTop - parseFloat(ps.marginBottom) - used - 8;   // 8: the shadow under the main button
     had.forEach(function (c) { H.classList.add(c); });

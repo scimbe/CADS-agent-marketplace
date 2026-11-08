@@ -107,7 +107,11 @@ test("Stimme verzerren: Aufnahme nur nach Tipp, Effekt + Tempo sofort hoerbar, Z
   const sec = await length(p, vid.url);
   assert.ok(Math.abs(sec - pcm / 22050) < 1, "Videolaenge " + sec + " s, Ton " + (pcm / 22050).toFixed(2) + " s");
   assert.equal(wav.type, "audio/wav"); assert.equal(wav.name, "my-daily-voice.wav"); assert.equal(wav.size, 44 + pcm * 2); assert.ok(wav.size < 2 * 1024 * 1024);
-  assert.match(vid.text, /Antworte mit deiner Stimme: \S+#c=/, "im Text der Link zum Zuruecksprechen");
+  // the link to answer with: the short link made at "Fertig" (Redesign Welle 1) when there is one, its target the sheet's #c= link
+  const lk = await ed(p, () => { const r = window.DailyDebug.result(); return { url: r.url, short: r.link && r.link.short ? r.link.url : "" }; });
+  assert.match(lk.url, /#c=/, "das Ziel ist der Link zum Zuruecksprechen");
+  assert.match(vid.text, /Antworte mit deiner Stimme: \S+$/, vid.text);
+  assert.ok(vid.text.endsWith(" " + (lk.short || lk.url)), "im Text der Link zum Zuruecksprechen: " + vid.text);
   // the network over the whole sharing: nothing with a body, nothing that is sound or video, no other host
   const out = reqs.filter((r) => !/^(blob|data):/.test(r.url));
   assert.deepEqual(out.filter((r) => r.body > 0 || r.method !== "GET" || r.type === "media" || r.type === "fetch" || r.type === "xhr" || !G.isLocal(r.url)), [], "0 Requests mit Ton oder Video");

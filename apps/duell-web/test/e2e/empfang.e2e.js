@@ -51,7 +51,7 @@ test("Teilen: Kurzlink schon bei Fertig, „An Lea schicken“ oeffnet mit einem
     await p.waitForFunction(() => window.DailyDebug.result().link && window.DailyDebug.result().link.short);
     assert.equal(posts(ctx).length, 1, view + ": der Kurzlink entstand bei Fertig, ohne Tipp auf Teilen");
     assert.equal(stats(ctx).length, 0, view + ": Anlegen ist noch kein Teilen");
-    await p.locator("#shnote").filter({ hasText: "beim Tippen auf „Fertig“" }).waitFor();
+    await p.locator("#shnote").filter({ hasText: "bei „Fertig“ angelegt" }).waitFor();
     assert.match(await p.locator("#shnote").textContent(), /90 Tage/);
     (await axe(p, "#done")).forEach((v) => bad.push(view + " axe: " + v));
     (await G.smallTargets(p, "#done")).forEach((v) => bad.push(view + " zu klein: " + v));
@@ -63,7 +63,11 @@ test("Teilen: Kurzlink schon bei Fertig, „An Lea schicken“ oeffnet mit einem
     assert.match(r.keep.doc.x, /^Lea, ich wollte dir nur mal sagen/, "der Link traegt, was gemacht wurde");
     await p.waitForTimeout(300); assert.equal(stats(ctx).length, 1, view + ": einmal gezaehlt, beim Teilen");
     assert.equal(posts(ctx).length, 1, "kein zweiter Kurzlink");
-    await p.locator("#copylink").click(); await p.locator("#toast").filter({ hasText: /Link kopiert|nicht/ }).waitFor();
+    // "Link kopieren" is a way of its own: it counts once (when the copy works), a second copy does not count again
+    await p.locator("#dmore").click(); await p.locator("#copylink").click(); await p.locator("#toast").filter({ hasText: /Link kopiert|nicht/ }).waitFor();
+    assert.match(await p.locator("#toast").textContent(), /Link kopiert/);
+    await p.waitForTimeout(300); assert.equal(stats(ctx).length, 2, view + ": Kopieren zaehlt einmal");
+    await p.locator("#copylink").click(); await p.waitForTimeout(400); assert.equal(stats(ctx).length, 2, view + ": nicht zweimal");
     assert.deepEqual(p.errs, [], view); await ctx.close();
   }
   await b.close();
@@ -114,7 +118,7 @@ test("Empfang: „Von Ana, für dich“, die Karte gross, Antworten als Hauptakt
     assert.equal(await p.locator("#from").isVisible(), false, "der Absender steht einmal, oben");
     // the card big: drawn, no "Vorschau" needed, main button on the first screen (rule A4)
     const card = await p.evaluate(() => { const c = document.querySelector("#leaf .pvcard"), r = c.getBoundingClientRect(); return { h: Math.round(r.height), peek: !document.getElementById("pvpeek").hidden }; });
-    assert.ok(card.h >= (view === "zoom200" ? 80 : 100) && !card.peek, view + ": Karte sichtbar " + JSON.stringify(card));
+    assert.ok(card.h >= 140 && !card.peek, view + ": Karte sichtbar " + JSON.stringify(card));
     assert.equal(await G.inView(p, "#go"), true, view + ": Antworten ohne Scrollen");
     const bg = await p.evaluate(() => [getComputedStyle(document.getElementById("kireport")).backgroundColor, getComputedStyle(document.getElementById("go")).backgroundColor]);
     assert.notEqual(bg[0], bg[1], "Melden ist leise, kein zweiter Hauptknopf");
@@ -163,4 +167,40 @@ test("Empfang je Art: ein Spiel heisst Mitspielen", async () => {
   assert.equal(await p.locator("#go").textContent(), "Mitspielen");
   assert.equal(await p.locator("#recvwho").textContent(), "Von Ana, für dich");
   assert.deepEqual(p.errs, []); await b.close();
+});
+
+test("Review #186 Runde 2: Konto-Angebot bei Fertig nur ohne Anmeldung und leise; Empfang bei 195 px einzeilig mit Karte >= 140 px; 390x844: Selbst eine machen und Melden im ersten Bild, die Sprachwahl unter Melden", async () => {
+  ensureBuilt("");
+  G.VIEWS.p390z200 = Object.assign(G.zoom({ width: 390, height: 844 }, 2), { isMobile: true, hasTouch: true });
+  const b = await G.launch();
+  try {
+    // 6: Fertig without a login: the offer below the rest, outlined, it opens My style (with the account); no pressure
+    const ana = await phone(b, { nick: "Ana" }), s = await made(ana, "warm-toll", "Lea"), url = await s.evaluate(() => window.DailyDebug.result().url);
+    assert.equal(await s.locator("#staccount p").textContent(), "Damit sie dir nicht verloren geht. Mit einem Konto liegt sie auch auf deinem Tablet. Geht auch ohne.");
+    assert.equal(await s.locator("#staccount button").textContent(), "Konto anlegen");
+    const acc = await s.evaluate(() => { const a = document.getElementById("staccount"), r = document.getElementById("dhome").parentNode; return { after: !!(r.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING), bg: getComputedStyle(a.querySelector("button")).backgroundColor }; });
+    assert.ok(acc.after, "unter der Zeile Speichern / Weiter aendern"); assert.equal(acc.bg, "rgba(0, 0, 0, 0)", "umrandet, kein zweiter Hauptknopf");
+    assert.equal(await G.inView(s, "#share"), true, "Teilen bleibt im ersten Bild");
+    await s.locator("#staccount button").click(); await s.locator("#shelf:not([hidden])").waitFor();
+    assert.deepEqual(s.errs, []); await ana.close();
+    // ... with a login (account or device code): no offer
+    const linked = await phone(b, { nick: "Ana" });
+    await linked.addInitScript(() => { const st = JSON.parse(localStorage.getItem("daily.v1") || "{}"); st.profile = { via: "code", code: "0123456789abcdef0123456789abcdef" }; localStorage.setItem("daily.v1", JSON.stringify(st)); });
+    const l = await made(linked, "warm-toll", "Lea");
+    assert.equal(await l.locator("#staccount").isVisible(), false, "angemeldet: kein Angebot"); await linked.close();
+    // 7: received at 195 px (390 at 200 %): the head in one line, the card at least 140 px
+    const z = await phone(b, { view: "p390z200" }), q = await G.open(z, url.slice(url.indexOf("#")));
+    await q.locator("#recvhead").waitFor();
+    await q.waitForFunction(() => !document.getElementById("leaf").getAnimations({ subtree: true }).some((x) => x.playState === "running"), null, { polling: 50 });
+    const m = await q.evaluate(() => { const w = document.getElementById("recvwho"), lh = parseFloat(getComputedStyle(w).lineHeight); return { lines: Math.round(w.getBoundingClientRect().height / lh), card: Math.round(document.querySelector("#leaf .pvcard").getBoundingClientRect().height) }; });
+    assert.equal(m.lines, 1, "Kopf einzeilig " + JSON.stringify(m)); assert.ok(m.card >= 140, "Karte " + JSON.stringify(m));
+    assert.equal(await G.inView(q, "#go"), true, "Antworten ohne Scrollen");
+    assert.deepEqual(q.errs, []); await z.close();
+    // 8: 390x844: the quiet row on the first screen, the language choice below "Melden"
+    const r = await phone(b, { view: "phone390" }), p = await G.open(r, url.slice(url.indexOf("#")));
+    await p.locator("#recvhead").waitFor(); await p.waitForTimeout(400);
+    for (const sel of ["#go", "#selbst", "#kireport"]) assert.equal(await G.inView(p, sel), true, "390x844 im ersten Bild: " + sel);
+    assert.equal(await p.evaluate(() => document.getElementById("langpick").previousElementSibling.id), "homerow", "Sprachwahl unter Melden");
+    assert.deepEqual(p.errs, []); await r.close();
+  } finally { await b.close(); }
 });

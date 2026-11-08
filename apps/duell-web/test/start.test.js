@@ -147,7 +147,9 @@ test("Teilen mit 1 Tipp: Kurzlink bei Fertig, der Tipp wartet nie auf den Server
   assert.doesNotMatch(click, /await|shortLink\(|disabled|sh_ready/, "der Tipp teilt sofort, ohne zweiten Schritt");
   assert.match(click, /var r = result, link = r\.link \|\| \{ url: r\.url, short: false \};/, "ohne Kurzlink der lange");
   assert.match(click, /counted\(r\);/);
-  assert.match(app, /function counted\(r\) \{ if \(r\.counted\) return; r\.counted = true;/, "einmal je Ergebnis");
+  assert.match(app, /function counted\(r, way\) \{ way = way \|\| "share"; if \(!r\) return; var c = r\.counted \|\| \(r\.counted = \{\}\); if \(c\[way\]\) return; c\[way\] = 1;/, "einmal je Ergebnis und Weg");
+  assert.match(src("start-ui.js"), /if \(ok && A\(\)\.count\) A\(\)\.count\("copy"\);/, "Link kopieren zaehlt als Teilen, nur wenn das Kopieren klappt");
+  assert.match(app, /counted\(result, kind\);/, "Status und Story je ein Weg");
   assert.doesNotMatch(app.slice(app.indexOf("function shortLink(r)"), app.indexOf("function chatPicture")), /S\.share\(/, "Anlegen zaehlt nicht als Teilen");
   assert.match(app, /if \(link\.short && r\.kind !== "photo" && r\.canvas && !\(r\.keep && r\.keep\.photo\)\)/, "ein eigenes Foto bleibt auf dem Geraet");
   assert.match(src("warm.js"), /A\.quick\(doc, h\.idea\)\.then\(function \(\) \{ var s = document\.getElementById\("share"\); if \(s\) s\.focus\(\); \}\);/, "kein Klick ohne Nutzer-Tipp");

@@ -204,7 +204,7 @@ function fitCard() {
   pv.classList.remove("tight"); H.classList.remove("roll", "lean"); peekB.hidden = true;
   // Received (P6/P7, 150-200 % zoom): the card is what matters, it is never hidden. Date, title and language choice
   // give way first (.lean), then the sheet scrolls (.roll); "Vorschau" stays the last resort for everything else.
-  if (got && low(120)) { H.classList.add("lean"); if (low(120)) H.classList.add("roll"); }
+  if (got && low(140)) { H.classList.add("lean"); if (low(140)) H.classList.add("roll"); }
   var tight = !got && low(60), L = $("leaf");
   pv.classList.toggle("tight", tight); peekB.hidden = !tight;
   // still more than the sheet holds (a narrow phone at 200 % with field and language choice): the page scrolls here too
@@ -841,7 +841,8 @@ function quick(doc, idea) {
 }
 // One tap: the short link was made at "Fertig" (makePicture). Sharing needs a fresh tap in most browsers, so the tap never
 // waits for the server: not there yet, or no server, the long link goes out, which works the same (the note says which).
-function counted(r) { if (r.counted) return; r.counted = true; var doc = r.doc; stimme(function (S) { S.share(doc); }); }   // once per result, only when it really goes out
+// once per result and per way (the share menu, "Link kopieren", status, story), only when it really goes out
+function counted(r, way) { way = way || "share"; if (!r) return; var c = r.counted || (r.counted = {}); if (c[way]) return; c[way] = 1; var doc = r.doc; stimme(function (S) { S.share(doc); }); }
 $("share").addEventListener("click", function () {
   Kit.sfx.tap();
   var r = result, link = r.link || { url: r.url, short: false };
@@ -880,7 +881,7 @@ function chatPicture(c, col) {
 async function exportStory(kind) {
   Kit.sfx.tap();
   var link = await shortLink(), shown = link.short ? link.url : C.SHARE_BASE, cols = result.keep ? result.keep.doc.col : me.colors;
-  counted(result);
+  counted(result, kind);
   try { await window.Parts.use("qr", function () {}); } catch (e) { return; }   // statuscard.js and the QR code are a part of their own
   var cv = window.StatusCard.draw(result.canvas, { url: shown, bg: cols[0], ink: R.ink(cols[0]), cta: t(link.short ? "sh_cta" : "sh_ctaApp") });
   var blob = await makeBlob(cv, "image/jpeg", 0.92);
@@ -1240,7 +1241,7 @@ var CU = window.CollabUI.init({
 var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
-window.DailyApp = { part: twoIdea, stopSound: stopSound, playPcm: function (pcm) { stopSound(); return (loop = Kit.playPcm(pcm, S.SR, false)); }, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, res: function () { return result; }, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, picSwap: picSwap, picThumb: picThumb, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { part: twoIdea, stopSound: stopSound, playPcm: function (pcm) { stopSound(); return (loop = Kit.playPcm(pcm, S.SR, false)); }, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, res: function () { return result; }, count: function (way) { counted(result, way); }, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, picSwap: picSwap, picThumb: picThumb, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 window.DailyApp.allow = allow;
 
