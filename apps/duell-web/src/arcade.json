@@ -41,7 +41,9 @@
     "arc_draw": "Unentschieden {a}:{b}!",
     "arc_void": "Verbindung nicht stabil – Partie beendet",
     "arc_forfeitWon": "Partie beendet: Die Spielzüge der Gegenseite passten nicht zusammen – gewertet für dich.",
-    "arc_endLead": "Partie von der Gegenseite beendet – du lagst vorn, gewertet für dich."
+    "arc_endLead": "Partie von der Gegenseite beendet – du lagst vorn, gewertet für dich.",
+    "arc_old": "Die Gegenseite hat eine ältere App – bitte aktualisieren. Die Partie ist ohne Wertung beendet.",
+    "arc_oldLead": "Die Gegenseite hat eine ältere App – bitte aktualisieren. Du lagst vorn, gewertet für dich."
   },
   "en": {
     "arcade": "Arcade",
@@ -85,6 +87,8 @@
     "arc_draw": "A draw {a}:{b}!",
     "arc_void": "Connection not stable – game ended",
     "arc_forfeitWon": "Game over: the other side's moves did not fit together – counted for you.",
-    "arc_endLead": "The other side ended the game – you were ahead, counted for you."
+    "arc_endLead": "The other side ended the game – you were ahead, counted for you.",
+    "arc_old": "The other side has an older app – please update. The game ended without a result.",
+    "arc_oldLead": "The other side has an older app – please update. You were ahead, counted for you."
   }
 }

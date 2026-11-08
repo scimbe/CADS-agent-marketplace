@@ -514,7 +514,7 @@ function match(o) {
       if (S.mineTurn) note.textContent = S.mineTurn() ? t("arc_yourTurn") : t("arc_theirTurn");
       else if (g === "elfer") note.textContent = S.st.shooting ? t("arc_shoot") : t("arc_keep");
     }
-    if (S.rejected && !warned) { warned = true; Kit.toast(t("arc_odd")); }
+    if (S.rejected && !warned && S.endBy !== "old") { warned = true; Kit.toast(t("arc_odd")); }   // an older app is asked to update instead
     if (S.over && !ended) { ended = true; setTimeout(function () { if (cv.isConnected) o.onEnd(S.forfeit ? S.forfeit === "me" : S.score[0] > S.score[1], S.draw, S.voided, S.endBy); }, 1400); }
     requestAnimationFrame(frame);
   })(performance.now());
@@ -522,6 +522,8 @@ function match(o) {
 }
 function endText(body, won, s, live, draw, voided, endBy) {
   body.textContent = "";
+  // the other side has an older app: asked to update, ahead it counts for this side, otherwise no winner
+  if (endBy === "old") { body.appendChild(el("p", "livebig", t(won ? "arc_oldLead" : "arc_old"))); if (won) Kit.sfx.win(); return; }
   if (voided) { body.appendChild(el("p", "livebig", t("arc_void"))); return; }   // no winner, no blame
   // ended by the rule for moves that did not fit together: said as it is, without blame, and won like any other game
   if (endBy) { body.appendChild(el("p", "livebig", t(endBy === "rule" ? "arc_forfeitWon" : "arc_endLead"))); Kit.sfx.win(); return; }   // both count for this side
@@ -552,6 +554,7 @@ function playLive(g) {
     var S = A.side(g, { seed: conn.channel + "|" + g + "|" + round, serving: serving, clock: wall, send: function (m) { conn.send(m); } });
     var o = { body: body, g: g, S: S, them: t("arc_friend"), badge: api.badge, onEnd: function (won, draw, voided, endBy) {
       endText(body, won, S.score, true, draw, voided, endBy);
+      if (endBy === "old") { try { conn.close(); } catch (e) {} return; }   // no rematch with an older app: it has to update first
       var more = el("button", "btn hot", t("live_more"), function () { more.disabled = true; more.textContent = t("live_moreWait"); again[0] = true; conn.send({ t: "again" }); restart(); });
       body.appendChild(more);
     } };

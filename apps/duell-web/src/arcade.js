@@ -404,7 +404,7 @@
     return kind !== "hit" || Math.hypot(b.x - opp.x, b.y - opp.y) <= V.BR + V.PRAD + 260 + (slack || 0);
   }
   function volleySide(o) {
-    var V = VOLLEY, S = base(V, o), aim = 250, jump = false, ground = V.FY - V.PRAD, pAt = null, path = [], fxSeen = false, forged = 0, waitServe = null;
+    var V = VOLLEY, S = base(V, o), aim = 250, jump = false, ground = V.FY - V.PRAD, pAt = null, path = [], fxSeen = false, forged = 0, waitServe = null, pIn = 0, idleAt = null, idleP = 0;
     var until = num(o.oldUntil) ? o.oldUntil : OLD_UNTIL;   // o.oldUntil, o.date: a test sets the end of the period and the day
     var oldOk = until === null || (num(o.date) ? o.date : Date.now()) < until;
     function lax() { return oldOk && !fxSeen && !gtSeen; }   // the other one may be an older app
@@ -422,15 +422,16 @@
     // A state from over there that cannot be. This phone rules on what it found itself, and on nothing else:
     // - the rally: where its own physics lets the ball land without that state (pre: the flight before a hit that only
     //   the next report showed up). In the other half it is this phone's point; coming over the net it could still
-    //   have been played here, so nobody scores. Either way the other side serves again; "award" tells it so.
+    //   have been played here, so nobody scores. Either way the other side serves next; "award" tells it so, but
+    //   it never has to follow it (see receive): this side waits for that serve.
     // - the game: at the third such state, or when no serve comes within 8 s after one, it counts for this side.
     // What the other phone sends about this can never count against this one (see receive): honest play never
     // gets here, not with stalls of 0-6 s, a phone that hangs, or real frame times (tests).
     function forged1(pre) {
+      // An older app (no gt, no fx) knows neither "award" nor "forfeit": without a rule both sides share, this side
+      // books nothing for it and ends the game as with an older app (oldEnd); the page says nothing about odd moves then.
+      if (!gtSeen && !fxSeen) { S.reject(); oldEnd(); return; }
       var st = S.st, fl = pre || path; S.reject(); forged++; S.forged = forged; pend = null;
-      // An older app (no gt, no fx) knows neither "award" nor "forfeit": without a rule both sides share, this side never
-      // books anything for itself; the game ends without a winner.
-      if (!gtSeen && !fxSeen) { st.b = null; S.over = true; S.ending = false; S.serveAt = 0; waitServe = null; S.draw = false; S.voided = true; S.fx("draw", W / 2, H / 2); return; }
       if (forged >= 3) { forfeit(); return; }
       var land = null; for (var i = 0; i < fl.length; i++) if (fl[i].y + V.BR >= V.FY) { land = fl[i]; break; }
       var mine = !!land && land.x > V.NX;
@@ -449,10 +450,12 @@
       if (S.score[0] > S.score[1]) { S.forfeit = "me"; S.endBy = "left"; S.fx("won", W / 2, H / 2); }
       else { S.voided = true; S.fx("draw", W / 2, H / 2); }
     }
-    // Where a ball flown on here lands with nobody touching it: true if in this side's own half.
-    function landsHere(b) {
-      var q = copy(b); for (var i = 0; i < 120 * 10 && q.y + V.BR < V.FY; i++) volleyStep(q, STEP);
-      return q.x < V.NX;
+    // The other side has an older app (no gt): from OLD_UNTIL on at its first report, before that at a move that does
+    // not fit. The game ends at once (the page closes the connection and asks to update); ahead it counts for this side
+    // as if the other one had left, otherwise without a winner.
+    function oldEnd() {
+      S.st.b = null; S.over = true; S.ending = false; S.serveAt = 0; waitServe = null; pend = null; S.draw = false; S.endBy = "old";
+      if (S.score[0] > S.score[1]) { S.forfeit = "me"; S.fx("won", W / 2, H / 2); } else S.fx("draw", W / 2, H / 2);
     }
     // A hit from over there has to be one a figure could make, the same with or without the touching figure sent along:
     // the ball before it lies on the free flight worked out here (q), the ball after it sits right on the figure's
@@ -547,6 +550,14 @@
     S.tick = function (dt) {
       var st = S.st;
       if (waitServe !== null && !S.over && S.clock() - waitServe > 8) { waitServe = null; forfeit(); }   // no serve after an award: it counts for this side
+      // Nothing to do here (the ball held for the other side's call, or no ball and none to serve here) while its
+      // reports keep coming: an honest app makes its call at once, and the channel brings it before the reports
+      // after it, even after a stall. 8 s and 100 reports without it are withheld: it counts for this side (an older
+      // app is asked to update), the same as no serve after an award.
+      var idle = S.started && !S.over && !S.ending && (st.held || (!st.b && !S.serveAt));
+      if (!idle) idleAt = null;
+      else if (idleAt === null) { idleAt = S.clock(); idleP = pIn; }
+      else if (S.clock() - idleAt > 8 && pIn - idleP >= 100) { idleAt = null; if (!gtSeen && !fxSeen) oldEnd(); else forfeit(); }
       loop(S, dt, function (d) {
         if (volleyMove(st.me, aim, jump, d)) S.fx("land", st.me.x, V.FY);
         if (jump && st.me.vy < 0) S.fx("jump", st.me.x, V.FY);
@@ -582,6 +593,7 @@
       var st = S.st; if (!m || S.over) return;
       S.heard();
       if (m.t === "p" && num(m.x) && num(m.y)) {
+        pIn++; if (!num(m.gt) && !gtSeen && !oldOk) { oldEnd(); return; }   // an older app after OLD_UNTIL: asked to update
         pAt = S.clock(); var vf = (lax() ? V.FIG_OLD : V.FIG) * 1.25; st.opp = plausibleFigure(st.opp, m, S.oppDt(Math.abs(m.x - st.opp.x), vf), vf);
         if (num(m.gt)) {
           var g = gtime(m), px = clamp(m.x, V.NX + V.NW + V.PRAD, W - V.PRAD), py = clamp(m.y, ground - 340, ground);
@@ -598,13 +610,12 @@
         return;
       }
       if (m.t === "pt") { if (waitServe !== null) return; st.b = null; st.own = false; S.gain(); return; }   // after an award that rally is ruled on
-      if (m.t === "void" || m.t === "forfeit") { endedThere(); return; }
-      if (m.t === "award") {
-        // Taken only where it can help this side: its own ball would land in its own half, so the rally is lost here
-        // anyway, and serving again costs nothing. No point is ever booked against this side for it.
-        if (waitServe === null && st.own && st.b && landsHere(st.b)) { st.b = null; st.own = false; st.held = false; S.serveAt = S.t + SERVE_PAUSE; }
-        return;
-      }
+      // Ended over there: never against this side. If this side has been waiting for the other one's call while its
+      // reports kept coming, the other one withheld it (an honest app calls at once): it counts for this side.
+      if (m.t === "void" || m.t === "forfeit") { if (idleAt !== null && pIn - idleP >= 20) forfeit(); else endedThere(); return; }
+      // "award" is only what the other side ruled for itself: never followed here. Followed, it would let a cheat take
+      // away every ball this side could still reach. Its rule needs nothing from this side (it waits for the serve).
+      if (m.t === "award") return;
       if (m.t === "serve" && num(m.n)) {
         // only when a serve from over there is due: no ball in play here and none to serve here, and never an old one
         if (st.b || S.serveAt || m.n < S.n || !same(m.b, mirrorX(volleyServe(S.seed, m.n)))) return S.reject();
