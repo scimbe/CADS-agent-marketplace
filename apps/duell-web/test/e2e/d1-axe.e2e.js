@@ -22,6 +22,9 @@ test("axe: 0 Verstoesse auf Blatt, Editor und Fertig-Bildschirm, 10 Stichproben 
   await h.close();
   const bad = [];
   async function run(p, where, sel) {
+  // the sheet lands with an entry animation from opacity 0 (style.css slap, stamp): measure once it has landed, as
+  // test/e2e/home-layout.e2e.js does; mid-animation the text would be half transparent
+  await p.waitForFunction(() => { const l = document.getElementById("leaf"); return !l || !l.getAnimations({ subtree: true }).some((a) => a.playState === "running"); }, null, { polling: 50 });
     if (!(await p.evaluate(() => !!window.axe))) await p.addScriptTag({ content: AXE });
     const v = await p.evaluate(([s, o]) => window.axe.run(document.querySelector(s), o).then((r) => r.violations.map((x) => x.id + " (" + x.nodes.length + "): " + x.nodes.slice(0, 2).map((n) => n.target.join(" ")).join(" | "))), [sel, RULES]);
     v.forEach((x) => bad.push(where + ": " + x));
