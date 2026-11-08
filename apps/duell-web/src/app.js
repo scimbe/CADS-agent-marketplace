@@ -96,7 +96,8 @@ function setHome(h, animate) {
   var F = window.DailyFlavor, off = F && F.stat === false; $("votes").hidden = off || !(h.doc ? h.note && h.doc.i && !(h.doc.ki && h.doc.ki.k === "karte") : h.idea);   // as Stat.card
   stimme(function (S) { S.sheet(h); }, h);
 }
-// A voice sent by a friend: the main button answers with my own voice (the part klang records at once after this tap).
+// A voice sent by a friend: the main button answers with my own voice (the part klang records after this tap, once the
+// microphone is allowed; before that it explains first and waits for the record button).
 function voiceGot() { return !!(home.note && home.doc && home.doc.k === "sound" && home.doc.m === "voice"); }
 // Thumbs and card numbers live in the part "stimme" (src/stimme-ui.js, src/stat.js); a flavor with stat: false has neither.
 function stimme(fn, h) {
@@ -1088,9 +1089,8 @@ function labels() {
   $("mute").setAttribute("aria-pressed", String(!!Kit.muted));
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
   $("tostatus").textContent = t("sh_status"); $("tostory").textContent = t("sh_story"); $("dmore").textContent = t("mehr"); $("dmore").parentNode.hidden = !allow("done", "status");
-  // what the other side gets: a photo or a voice stays on this phone, the link carries a bot face or only the effect
-  var k = result && result.doc && (result.doc.k === "photo" ? "photo" : result.doc.k === "sound" && result.doc.m !== "beat" ? "voice" : "");
-  $("shnote").textContent = [t("sh_note"), k ? t("sh_" + k) : ""].filter(Boolean).join(" ");
+  // what the other side gets: a photo stays on this phone, the link carries a bot face (a voice: the part klang says it in its sheet)
+  $("shnote").textContent = t("sh_note") + (result && result.doc && result.doc.k === "photo" ? " " + t("sh_photo") : "");
   $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home"); $("playit").textContent = "🕹 " + t("playIt");
   $("save").hidden = !Kit.canSave(); SK.labels(); CU.labels(); $("dback").setAttribute("aria-label", t("xClose"));
   // Inside the app shells (DuellHost.more) a quiet "more" opens the native extras; in a browser it stays hidden.
@@ -1119,17 +1119,17 @@ $("more").addEventListener("click", function () { tear(1); });
 $("past").addEventListener("click", function () { Kit.sfx.tap(); openPast(); });
 $("wall").addEventListener("click", function () { Kit.sfx.tap(); openWall(); });
 $("own").addEventListener("click", function () { Kit.sfx.tap(); openOwn(); });
-function start(tabName) {
+function start(tabName, go) {
   if (!home.doc && twoIdea(home.idea)) { window.Parts.use(twoIdea(home.idea), function () { start(tabName); }).catch(function () {}); return; }
   Kit.sfx.thud();
   if (WM.start(home, tabName)) return;
   if (home.doc && X[home.doc.k] && X[home.doc.k].incoming && X[home.doc.k].incoming(home.doc)) return;
   if (!home.doc && home.idea && home.idea.protokoll) { var u = protokollUrl(); if (location.protocol === "https:") location.href = u; else openLive(u); return; }
   if (!home.doc && home.idea && home.idea.kind === "arcade" && window.ArcadeUI) { window.ArcadeUI.menu(home.idea.arcade.g); return; }
-  if (home.doc) openEditor(D.localDoc(home.doc, Kit.lang), { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName, got: !!home.note, rec: !tabName && voiceGot() });
+  if (home.doc) openEditor(D.localDoc(home.doc, Kit.lang), { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName, got: !!home.note, rec: go && voiceGot() });
   else openEditor(D.docFromIdea(home.idea, me, Kit.lang, home.fx), { idea: home.idea, tab: tabName, got: !!home.note });
 }
-$("go").addEventListener("click", function () { start(); });
+$("go").addEventListener("click", function () { start(null, true); });   // only this button answers a voice at once (not a tap on the sheet)
 $("wishgo").addEventListener("click", function () { start($("wishgo").dataset.tab || "Wish"); });
 $("kireport").addEventListener("click", function () { Kit.sfx.tap(); if (home && home.doc) reportKi(home); });
 $("livego").addEventListener("click", function () { Kit.sfx.tap(); openLive($("livego").dataset.u); });

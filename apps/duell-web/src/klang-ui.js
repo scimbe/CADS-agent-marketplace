@@ -11,8 +11,13 @@
   function el(tag, cls, text, on) { return A().el(tag, cls, text, on); }
   var ICON = { chip: "🐹", monster: "👹", robot: "🤖", echo: "🏔️", rev: "⏪", alien: "👽", tel: "📞", chor: "🎶" }, TP = [["", "kl_tp_norm", "🚶"], ["slow", "kl_tp_slow", "🐢"], ["fast", "kl_tp_fast", "🐿️"]];
   var CSS = ".klmic{font-size:.875rem;font-weight:700;margin:0 0 8px}.klplay{display:block;width:100%;min-height:64px;margin:0 0 10px;border:3px solid var(--ink);border-radius:6px;background:var(--ink);color:var(--paper);font:900 1.375rem var(--ui)}" +
-    ".klgrp{border:0;margin:0 0 6px;padding:0;min-width:0}.klgrp legend{font-weight:800;font-size:.875rem;margin:0 0 4px;padding:0}.klrec{font-size:1rem}.klsend{border:3px solid var(--ink);border-radius:6px;margin:0 18px 8px;background:var(--paper);color:var(--ink)}" +
-    ".klsend summary{min-height:44px;display:flex;align-items:center;padding:0 10px;font-weight:900;cursor:pointer}.klsend>div{padding:0 10px 10px}.klsend .row{flex-wrap:wrap;gap:8px;padding:0}.klsend .btn{flex:1 1 9rem;min-height:44px}.klsub{display:flex;align-items:center;gap:8px;min-height:44px;font-weight:700}.klsub input{width:24px;height:24px}";
+    ".klgrp{border:0;margin:0 0 6px;padding:0;min-width:0}.klgrp legend{font-weight:800;font-size:.875rem;margin:0 0 4px;padding:0}.klrec{font-size:1rem}.klmic.first{font-size:1rem;border:3px solid var(--ink);border-radius:6px;padding:8px;background:#fff;color:#111}" +
+    // the file sheet: a bottom sheet over the finished screen (the picture keeps its room), the card's colours, no native blue
+    ".klsheet{inset:auto 0 0 0;margin:0 auto;width:100%;max-width:520px;max-height:88vh;overflow:auto;border:3px solid var(--ink);border-bottom:0;border-radius:12px 12px 0 0;padding:12px 16px 16px;background:var(--paper);color:var(--ink);box-sizing:border-box}" +
+    "#klopen{flex:1.6 1 0;min-width:0;line-height:1.1}.klsheet::backdrop{background:rgba(0,0,0,.5)}.klsheet h2{font:900 1.125rem var(--ui);margin:6px 52px 8px 0}.klsheet .note{font-size:.875rem}.klx{position:absolute;top:8px;right:8px;width:44px;height:44px;border:3px solid var(--ink);border-radius:4px;background:var(--paper);color:var(--ink);font:900 1.125rem var(--ui)}" +
+    ".klsheet .row{flex-wrap:wrap;gap:8px;padding:0}.klsheet .btn{flex:1 1 9rem;min-height:48px}.klsub{display:flex;align-items:center;gap:10px;min-height:44px;font-weight:800;margin:4px 0 8px}" +
+    ".klsub input{appearance:none;-webkit-appearance:none;flex:none;width:28px;height:28px;margin:0;border:3px solid var(--ink);border-radius:4px;background:var(--paper);display:grid;place-content:center}.klsub input:checked{background:var(--ink)}" +
+    ".klsub input:checked::after{content:\"✓\";color:var(--paper);font:900 18px/1 var(--ui)}.klsub input:focus-visible{outline:3px solid var(--ink);outline-offset:2px}";
   function css() { if (document.getElementById("klcss")) return; var s = document.createElement("style"); s.id = "klcss"; s.textContent = CSS; document.head.appendChild(s); }
   function still() { try { return root.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } }
   function wait(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
@@ -70,6 +75,11 @@
     return o;
   }
 
+  // Allowed before (the system will not ask)? Unknown counts as no: then the page explains first.
+  function micAllowed() {
+    try { return navigator.permissions.query({ name: "microphone" }).then(function (s) { return s.state === "granted"; }, function () { return false; }); } catch (e) { return Promise.resolve(false); }
+  }
+
   /* ---------- the voice tab ---------- */
   function group(p, label, items, cur, pick) {
     var g = el("fieldset", "klgrp"), box = el("div", "chips"); g.appendChild(el("legend", "", label)); g.appendChild(box);
@@ -84,7 +94,7 @@
   function panel(p) {
     css();
     var ed = A().ed(), D = root.Daily;
-    p.appendChild(el("p", "klmic", t("kl_mic") + " " + t("kl_others")));
+    var mic = el("p", "klmic", t("kl_mic") + " " + t("kl_others")); p.appendChild(mic);
     var row = el("div", "chips"), rb = el("button", "chip klrec", "🎙 " + t(ed.raw && ed.ownVoice ? "kl_again" : "rec"), function () { Kit.sfx.tap(); record(rb, ed, redo); });
     var ub = el("button", "chip", "↶ " + t("kl_undo"), function () { Kit.sfx.tap(); if (undo(ed)) redo(); });
     row.appendChild(rb);
@@ -99,8 +109,15 @@
     group(p, t("kl_tempo"), TP.map(function (x) { return { v: x[0], l: x[2] + " " + t(x[1]) }; }), ed.doc.tp || "", choose(function (v) { if (v) ed.doc.tp = v; else delete ed.doc.tp; }));
     p.appendChild(el("p", "note", t("kl_len")));
     function redo() { if (p.isConnected && A().ed() === ed) { p.textContent = ""; panel(p); } }
-    // "Answer with my own voice" on a received voice was the tap: the take starts here (3-2-1, a tap stops it).
-    if (ed.rec) { ed.rec = false; record(rb, ed, redo); }
+    // "Answer" on a received voice: with the microphone already allowed the take starts here (3-2-1, a tap stops it);
+    // otherwise the explanation comes first, big, and the record button waits for its own tap (then the system asks).
+    if (ed.rec) {
+      ed.rec = false;
+      micAllowed().then(function (yes) {
+        if (!rb.isConnected || A().ed() !== ed) return;
+        if (yes) record(rb, ed, redo); else { mic.classList.add("first"); mic.setAttribute("role", "note"); rb.focus(); Kit.speak(mic.textContent); }
+      });
+    }
   }
 
   /* ---------- the video: the sheet, the frog that speaks, the moving wave, "voice distorted" ---------- */
@@ -160,13 +177,14 @@
     c.width = 480; c.height = 720;
     for (var i = 0; i < types.length; i++) {
       for (var tries = 0, br = K.bitrate(sec + 0.5); tries < 2; tries++, br = Math.floor(br / 2)) {
-        var blob = await once(ac, c, pic, doc, pcm, env, types[i], br, sub, onp);
+        var blob = await once(ac, c, pic, doc, pcm, env, types[i], br, sub, onp);   // a time-out throws: no further try
         if (!blob.size) break;
         if (blob.size < 2 * 1024 * 1024) return blob;
       }
     }
     throw new Error("no video");
   }
+  var LIMIT = 5;   // seconds a video may take beyond its sound
   function once(ac, c, pic, doc, pcm, env, type, br, sub, onp) {
     return new Promise(function (ok, no) {
       var buf = ac.createBuffer(1, pcm.length, SR); buf.getChannelData(0).set(pcm);
@@ -181,8 +199,17 @@
         frame(c, pic, doc, { f: Math.min(1, at / len), v: env[k] || 0, wave: env.slice(Math.max(0, k - 23), k + 1).concat(new Array(Math.max(0, 23 - k)).fill(0)).slice(-24), sub: sub, still: ss });
         if (onp) onp(Math.min(1, at / len));
       }
+      // One end only: the recorder's stop, or the time limit (sound length + 5 s) when the audio clock stands still (iOS
+      // interrupted it, a call came in) or the recorder never says it stopped. Then everything is stopped and dropped.
+      var over = false, guard = 0;
+      function end(fn, v) {
+        if (over) return; over = true; clearInterval(tick); clearTimeout(guard);
+        src.onended = null; try { src.stop(); } catch (e) { /* not started or already over */ }
+        stream.getTracks().forEach(function (tr) { tr.stop(); }); fn(v);
+      }
       mr.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
-      mr.onstop = function () { clearInterval(tick); stream.getTracks().forEach(function (tr) { tr.stop(); }); ok(new Blob(chunks, { type: type.split(";")[0] })); };
+      mr.onstop = function () { end(ok, new Blob(chunks, { type: type.split(";")[0] })); };
+      guard = setTimeout(function () { try { if (mr.state !== "inactive") mr.stop(); } catch (e) { /* gone */ } end(no, new Error("timeout")); }, (len + LIMIT) * 1000);
       draw(); mr.start(250); t0 = ac.currentTime; src.start(); tick = setInterval(draw, 33);
       src.onended = function () { draw(); setTimeout(function () { if (mr.state !== "inactive") mr.stop(); }, 300); };
     });
@@ -201,15 +228,31 @@
   }
 
   /* ---------- the finished sheet: send as a file ---------- */
+  // A button in the row of Save / Edit / Home, in Save's place (the sheet saves too), so the finished picture is as big
+  // as with any other card; it opens a bottom sheet with the notes first, then the subtitle switch and the file buttons.
+  function clear() {
+    ["klopen", "klsheet"].forEach(function (id) { var x = document.getElementById(id); if (x) x.remove(); });
+    var sv = document.getElementById("save"); if (sv) sv.hidden = !Kit.canSave();
+  }
   function done(result) {
-    var old = document.getElementById("klsend"); if (old) old.remove();
-    var doc = result && result.doc, at = document.getElementById("shnote");
-    if (!doc || doc.k !== "sound" || doc.m !== "voice" || !at) return;
+    clear();
+    var doc = result && result.doc, sv = document.getElementById("save");
+    if (!doc || doc.k !== "sound" || doc.m !== "voice" || !sv) return;
     css();
-    // folded like "More", so the picture keeps its room on a small phone; opened, the note stands before the buttons
-    var det = el("details", "klsend"), box = el("div"), row = el("div", "row"), made = null, busy = false;
-    det.id = "klsend"; det.appendChild(el("summary", "", "🎙 " + t("kl_send"))); det.appendChild(box);
-    box.appendChild(el("p", "note", t("kl_note")));
+    var open = el("button", "btn", "🎙 " + t("kl_send"), function () { Kit.sfx.tap(); sheet(result, open); });
+    open.id = "klopen"; open.setAttribute("aria-haspopup", "dialog"); sv.before(open); sv.hidden = true;
+  }
+  addEventListener("daily:lang", function () {   // labels() of the core shows Save again and the words change
+    var o = document.getElementById("klopen"), sv = document.getElementById("save"); if (!o) return;
+    o.textContent = "🎙 " + t("kl_send"); if (sv) sv.hidden = true; var d = document.getElementById("klsheet"); if (d) { d.close(); d.remove(); }
+  });
+  function sheet(result, opener) {
+    var old = document.getElementById("klsheet"); if (old) old.remove();
+    var d = el("dialog", "klsheet"), row = el("div", "row"), made = result.klVideo || null, busy = false, h = el("h2", "", "🎙 " + t("kl_send"));
+    d.id = "klsheet"; h.id = "klsheeth"; d.setAttribute("aria-labelledby", "klsheeth");
+    var x = el("button", "klx", "✕", function () { d.close(); }); x.setAttribute("aria-label", t("kl_close"));
+    d.appendChild(h); d.appendChild(x);
+    d.appendChild(el("p", "note", t("kl_note") + " " + t("kl_link"))); d.appendChild(el("p", "note", t("kl_warn")));
     var text = function () { return t("kl_shareText") + " " + (result.link ? result.link.url : result.url); };
     var name = function (ext) { return "my-daily-voice." + ext; };
     if (canVideo()) {
@@ -219,17 +262,20 @@
         if (made) { await send(made, name(/mp4/.test(made.type) ? "mp4" : "webm"), text()); return; }
         busy = true; vb.setAttribute("aria-busy", "true"); cb.disabled = true;
         try {
-          made = await video(result, cb.checked, function (f) { vb.textContent = "● " + t("kl_making", { n: Math.round(f * 100) }); });
+          made = result.klVideo = await video(result, cb.checked, function (f) { vb.textContent = "● " + t("kl_making", { n: Math.round(f * 100) }); });
           vb.textContent = "📤 " + t("kl_videoShare"); Kit.speak(t("kl_ready"));
-        } catch (e) { made = null; vb.textContent = "🎬 " + t("kl_video"); Kit.toast(t("kl_fail")); }
+        } catch (e) { made = result.klVideo = null; vb.textContent = "🎬 " + t("kl_video"); Kit.toast(t("kl_fail")); }   // a new try is one tap away
         busy = false; vb.removeAttribute("aria-busy"); cb.disabled = false;
       });
-      cb.addEventListener("change", function () { if (made) { made = null; vb.textContent = "🎬 " + t("kl_video"); } });
-      row.appendChild(vb); box.appendChild(lab);
+      if (made) vb.textContent = "📤 " + t("kl_videoShare");
+      cb.addEventListener("change", function () { if (made) { made = result.klVideo = null; vb.textContent = "🎬 " + t("kl_video"); } });
+      row.appendChild(vb); d.appendChild(lab);
     }
     row.appendChild(el("button", "btn", "🔊 " + t("kl_audio"), function () { Kit.sfx.tap(); send(new Blob([root.Studio.wav(voice(result))], { type: "audio/wav" }), name("wav"), text()); }));
-    box.appendChild(row);
-    at.before(det);
+    if (Kit.canSave()) row.appendChild(el("button", "btn", "💾 " + t("kl_save"), function () { Kit.sfx.tap(); Kit.saveFile(result.file, result.name); }));
+    d.appendChild(row);
+    d.addEventListener("close", function () { if (opener.isConnected) opener.focus(); });
+    document.body.appendChild(d); d.showModal();
   }
   root.Klang = { apply: K.apply, panel: panel, done: done, video: video, send: send, frame: frame };
 })(typeof globalThis !== "undefined" ? globalThis : this);

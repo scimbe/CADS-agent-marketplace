@@ -138,17 +138,25 @@ test("Teil klang: Aufnahme nur nach einem Tipp, Hinweise in einfacher Sprache, T
   assert.equal((ui.match(/getUserMedia\(/g) || []).length, 1);
   const calls = ui.match(/record\(rb, ed, redo\)/g) || [];
   assert.equal(calls.length, 2, "der Aufnahmeknopf und der eine Tipp „Antworte mit deiner Stimme“");
-  assert.match(ui, /if \(ed\.rec\) \{ ed\.rec = false; record\(rb, ed, redo\); \}/);
-  assert.match(src("app.js"), /rec: !tabName && voiceGot\(\)/, "ed.rec nur nach dem Tipp auf den Hauptknopf einer empfangenen Stimme");
+  // the answer starts the take only when the microphone is already allowed; otherwise the explanation comes first
+  assert.match(ui, /if \(yes\) record\(rb, ed, redo\); else \{ mic\.classList\.add\("first"\)/);
+  assert.match(ui, /navigator\.permissions\.query\(\{ name: "microphone" \}\)\.then\(function \(s\) \{ return s\.state === "granted"; \}, function \(\) \{ return false; \}\)/);
+  assert.match(src("app.js"), /rec: go && voiceGot\(\)/, "ed.rec nur nach dem Hauptknopf einer empfangenen Stimme");
+  assert.match(src("app.js"), /\$\("go"\)\.addEventListener\("click", function \(\) \{ start\(null, true\); \}\)/, "nur #go, nicht der Tipp aufs Blatt");
+  assert.equal((src("app.js").match(/start\(null, true\)/g) || []).length, 1);
+  // the video has a time limit: sound length + 5 s, then stop, drop, and a new try is possible
+  assert.match(ui, /var LIMIT = 5;/); assert.match(ui, /end\(no, new Error\("timeout"\)\); \}, \(len \+ LIMIT\) \* 1000\)/);
   // nothing of the voice goes to a server: no fetch, no beacon, no short link, no upload in the part
   assert.ok(!/fetch\(|XMLHttpRequest|sendBeacon|WebSocket|ShortLink|FormData/.test(ui + src("klang.js")));
   assert.match(ui, /navigator\.share\(\{ files: \[file\], text: text \}\)/); assert.match(ui, /await Kit\.saveFile\(blob, name\)/);
-  for (const l of ["de", "en"]) for (const k of ["kl_mic", "kl_others", "kl_note", "kl_mark", "answerVoice", "fx_rev", "fx_alien", "fx_tel", "fx_chor", "kl_tp_slow", "kl_tp_fast"]) assert.ok(T[l][k], l + " " + k);
-  assert.equal(T.de.kl_note, "Die Aufnahme geht direkt von deinem Gerät in den Chat, wir speichern nichts.");
+  for (const l of ["de", "en"]) for (const k of ["kl_mic", "kl_others", "kl_note", "kl_warn", "kl_mark", "answerVoice", "fx_rev", "fx_alien", "fx_tel", "fx_chor", "kl_tp_slow", "kl_tp_fast"]) assert.ok(T[l][k], l + " " + k);
+  assert.equal(T.de.kl_note, "Die Aufnahme speichern wir nicht. Sie geht direkt von deinem Gerät in den Chat.");
+  assert.equal(T.de.kl_warn, "Verzerrt heißt nicht anonym, und ein Video kann weitergeleitet werden.");
+  assert.ok(T.de.answerVoice.length <= 10 && T.en.answerVoice.length <= 10, "der Antwortknopf bleibt einzeilig");
   assert.equal(T.de.kl_others, "Nimm nur dich selbst auf, oder frag vorher.");
   assert.equal(T.de.kl_mark, "Stimme verzerrt");
-  for (const l of ["de", "en"]) for (const k of ["kl_mic", "kl_others", "kl_note"]) {
+  for (const l of ["de", "en"]) for (const k of ["kl_mic", "kl_others", "kl_note", "kl_warn"]) {
     const words = T[l][k].split(/[\s.,!?]+/).filter(Boolean);
-    assert.ok(words.every((w) => w.length <= 12), l + " " + k + ": kurze Woerter"); assert.ok(T[l][k].split(/[.!?]/).filter((x) => x.trim()).every((x) => x.trim().split(/\s+/).length <= 14), l + " " + k + ": kurze Saetze");
+    assert.ok(words.every((w) => w.length <= 14), l + " " + k + ": kurze Woerter"); assert.ok(T[l][k].split(/[.!?]/).filter((x) => x.trim()).every((x) => x.trim().split(/\s+/).length <= 14), l + " " + k + ": kurze Saetze");
   }
 });

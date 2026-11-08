@@ -47,7 +47,7 @@ const WORDS = {
   stil: /^(ms_[a-zA-Z]+|nick|nickNote|set|set_[a-z]+|fs_(title|n|g|sg)|pf_(title|note|none|hh|diet|pp|pp_later)|aiPicNote|licenses)$/,
   melden: /^ki(Ask|Consent|Why|Why_[a-z]+|Send|Cancel|Close|Thanks|Offline)$/,
   wetter: /^wx[A-Z]/,
-  klang: /^(kl_[a-z_]+|rec|recing|dummy)$/,
+  klang: /^(kl_[a-z_]+|rec|recing|dummy|sh_voice)$/,
 };
 const partTexts = {}, coreTexts = {};
 for (const n of Object.keys(WORDS)) partTexts[n] = {};

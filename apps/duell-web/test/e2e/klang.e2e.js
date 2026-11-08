@@ -2,7 +2,8 @@
 // Stimme verzerren (part klang) in a real Chromium with a fake microphone (--use-fake-device-for-media-stream and
 // --use-file-for-fake-audio-capture with a synthetic voice): record only after the tap, effect and tempo chips that
 // play at once, undo, the video (type, size, length) and the sound file through the share menu or as a download, and
-// over the whole sharing not one request with sound or video to any host. Received: "Answer with your voice" is one tap.
+// over the whole sharing not one request with sound or video to any host; a video that hangs ends after its time limit.
+// Received: "Answer" (only the button, not a tap on the card) records at once where the microphone is allowed, else explains first.
 // Old links of the three merged cards open the new one with their effect. axe, de/en, 328/390 px and 200 % zoom.
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -81,13 +82,13 @@ test("Stimme verzerren: Aufnahme nur nach Tipp, Effekt + Tempo sofort hoerbar, Z
   await p.getByRole("button", { name: /Zeitlupe/ }).click();
   assert.deepEqual(await G.smallTargets(p, "#panel"), [], "44 px");
   // finished: the link carries effect, tempo and text only; the file buttons with the note before them
-  await p.locator("#edmain").click(); await p.locator("#klsend").waitFor(); await p.locator("#klsend summary").click();
+  await p.locator("#edmain").click(); await p.locator("#klopen").click(); await p.locator("#klsheet[open]").waitFor();
   const link = await ed(p, () => window.DailyDebug.result().url), doc = require("../../src/daily.js").parseRoute(link.slice(link.indexOf("#"))).doc;
   assert.equal(doc.fx, "alien"); assert.equal(doc.tp, "slow"); assert.equal(doc.i, "stimme-verzerren");
   assert.ok(link.length < 1500 && !/UklGR|audio|webm|mp4/.test(link), "kein Ton im Link");
-  const box = await p.locator("#klsend").innerText();
-  assert.match(box, /Die Aufnahme geht direkt von deinem Gerät in den Chat, wir speichern nichts\./);
-  assert.ok(box.indexOf("wir speichern nichts") < box.indexOf("Video machen"), "der Hinweis steht vor den Knoepfen");
+  const box = await p.locator("#klsheet").innerText();
+  assert.match(box, /Die Aufnahme speichern wir nicht\. Sie geht direkt von deinem Gerät in den Chat\./); assert.match(box, /Verzerrt heißt nicht anonym, und ein Video kann weitergeleitet werden\./);
+  assert.ok(box.indexOf("speichern wir nicht") < box.indexOf("Video machen") && box.indexOf("nicht anonym") < box.indexOf("Video machen"), "die Hinweise stehen vor den Knoepfen");
   // every request from here on (all hosts), with its body
   const reqs = []; ctx.on("request", (r) => reqs.push({ url: r.url(), method: r.method(), type: r.resourceType(), body: r.postDataBuffer() ? r.postDataBuffer().length : 0 }));
   const vb = p.getByRole("button", { name: /Video machen/ });
@@ -121,15 +122,17 @@ test("Stimme verzerren: ohne Teilen-Menue ein Download; Empfaenger antwortet mit
   assert.equal(await ed(p, () => window.DailyApp.ed().doc.fx), "chip", "der alte Hamster-Link oeffnet den Hamster");
   assert.equal(await ed(p, () => window.DailyApp.ed().doc.i), "stimme-verzerren");
   await p.getByRole("button", { name: /Quatschstimme/ }).click();
-  await p.locator("#edmain").click(); await p.locator("#klsend").waitFor(); await p.locator("#klsend summary").click();
+  await p.locator("#edmain").click(); await p.locator("#klopen").click(); await p.locator("#klsheet[open]").waitFor();
   const [dl] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: /Nur Ton teilen/ }).click()]);
   assert.equal(dl.suggestedFilename(), "my-daily-voice.wav");
   const bytes = fs.readFileSync(await dl.path()); assert.equal(bytes.slice(0, 4).toString(), "RIFF");
   const link = await ed(p, () => window.DailyDebug.result().url);
   // the longest file: 10 s of voice, echo with its tail, slow motion (about 18 s): still under 2 MB
+  await p.keyboard.press("Escape"); await p.locator("#klsheet[open]").waitFor({ state: "detached" }).catch(() => {});
+  assert.equal(await p.locator("#klsheet[open]").count(), 0, "Esc schliesst das Blatt");
   await p.locator("#keep").click(); await p.locator("#panel .klplay").waitFor();
   await ed(p, () => { const e = window.DailyApp.ed(), a = new Float32Array(22050 * 10); for (let i = 0; i < a.length; i++) a[i] = 0.4 * Math.sin(i * 0.07) * Math.sin(i * 0.0004); e.raw = a; e.doc.fx = "echo"; e.doc.tp = "slow"; window.Klang.apply(a, e.doc); e.pcm = window.Klang.apply(a, e.doc); });
-  await p.locator("#edmain").click(); await p.locator("#klsend").waitFor(); await p.locator("#klsend summary").click();
+  await p.locator("#edmain").click(); await p.locator("#klopen").click(); await p.locator("#klsheet[open]").waitFor();
   const big = await ed(p, async () => { const r = window.DailyDebug.result(), v = await window.Klang.video(r, true); return { type: v.type, size: v.size, url: URL.createObjectURL(v), sec: r.keep.pcm.length / 22050 }; });
   assert.ok(big.sec > 17, "laengste Aufnahme " + big.sec + " s"); assert.ok(big.size < 2 * 1024 * 1024, "laengstes Video " + big.size + " B");
   const bigSec = await length(p, big.url); assert.ok(Math.abs(bigSec - big.sec) < 1, bigSec + " s");
@@ -143,18 +146,33 @@ test("Stimme verzerren: ohne Teilen-Menue ein Download; Empfaenger antwortet mit
     const o = await G.open(ctx, "#i=" + old); await editor(o, "de");
     assert.equal(await ed(o, () => window.DailyApp.ed().doc.fx), fx, old); await o.close();
   }
-  // the friend: English, the main button answers with their own voice, one tap starts the take (3-2-1)
+  // the friend, English: a tap on the card itself never records; the main button "Answer" does
   const fr = await G.person(b, { lang: "en", view: "phone390" }); await fr.addInitScript(SPY);
+  const t = await G.open(fr, link.slice(link.indexOf("#")));
+  const pv = await t.locator("#pv").boundingBox(); await t.mouse.click(pv.x + pv.width / 2, pv.y + pv.height / 2); await t.waitForTimeout(3000);
+  assert.equal(await ed(t, () => window.__mic), 0, "Tipp auf die Karte: kein Mikrofon"); await t.close();
+  // microphone not allowed yet: the explanation first (big, read out, the record button in focus), no system question
   const q = await G.open(fr, link.slice(link.indexOf("#")));
-  assert.equal(await q.locator("#go").textContent(), "🎙 Answer with your voice");
+  assert.equal(await q.locator("#go").textContent(), "🎙 Answer");
   assert.equal(await ed(q, () => window.__mic), 0);
-  await q.locator("#go").click();
-  await q.locator("#panel .ring").waitFor({ timeout: 8000 });
-  assert.equal(await ed(q, () => window.__mic), 1, "ein Tipp: Aufnahme laeuft");
-  assert.match(await q.locator("#panel").innerText(), /Only record yourself, or ask first\./);
+  await q.locator("#go").click(); await q.locator("#panel .klmic.first").waitFor(); await q.waitForTimeout(1500);
+  assert.equal(await ed(q, () => window.__mic), 0, "erst die Erklaerung, dann fragt das System");
+  assert.match(await q.locator("#panel .klmic.first").innerText(), /needs your microphone[\s\S]*Only record yourself, or ask first\./);
+  assert.equal(await ed(q, () => document.activeElement.classList.contains("klrec")), true, "der Aufnahmeknopf hat den Fokus");
+  await q.keyboard.press("Enter"); await q.locator("#panel .ring").waitFor({ timeout: 8000 });
+  assert.equal(await ed(q, () => window.__mic), 1);
   await q.locator("#panel .ring").click();
   await G.poll(() => ed(q, () => !!window.DailyApp.ed().ownVoice), Boolean, { what: "eigene Stimme" });
   assert.equal(await ed(q, () => window.DailyApp.ed().doc.fx), "chip", "mit dem Effekt des Absenders");
+  // microphone allowed before (web route, permission granted): "Answer" is the one tap, the take starts (3-2-1)
+  const gr = await G.person(b, { lang: "de", view: "phone390", web: true }); await gr.addInitScript(SPY);
+  await gr.grantPermissions(["microphone"], { origin: new URL(await G.webUrl("index.html")).origin });
+  const w = await G.open(gr, link.slice(link.indexOf("#")));
+  assert.equal(await w.locator("#go").textContent(), "🎙 Antworten");
+  await w.locator("#go").click(); await w.locator("#panel .ring").waitFor({ timeout: 8000 });
+  assert.equal(await ed(w, () => window.__mic), 1, "ein Tipp: Aufnahme laeuft");
+  await w.locator("#panel .ring").click();
+  q.errs.push(...w.errs);
   assert.deepEqual(p.errs.concat(q.errs), []); await b.close();
 });
 
@@ -175,10 +193,49 @@ test("Stimme verzerren: axe 0 Verstoesse, 44 px, kein Querscrollen – de/en, 32
       if (await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)) bad.push(lang + " " + view + " " + where + ": quer scrollen");
     };
     await check("Editor", "#panel");
-    await p.locator("#edmain").click(); await p.locator("#klsend").waitFor(); await p.locator("#klsend summary").click(); await p.waitForTimeout(300);
-    await check("Fertig", "#done");
-    assert.match(await p.locator("#klsend").innerText(), lang === "de" ? /wir speichern nichts/ : /we store nothing/);
+    await p.locator("#edmain").click(); await p.locator("#klopen").click(); await p.locator("#klsheet[open]").waitFor(); await p.waitForTimeout(300);
+    await check("Fertig-Blatt", "#klsheet");
+    assert.match(await p.locator("#klsheet").innerText(), lang === "de" ? /Die Aufnahme speichern wir nicht/ : /We do not store the recording/);
+    // the subtitle switch in the card's look, not the browser's blue
+    assert.equal(await p.evaluate(() => getComputedStyle(document.querySelector(".klsub input")).appearance), "none");
+    await p.keyboard.press("Escape"); await p.waitForTimeout(200); await check("Fertig", "#done");
+    // the finished picture as big as with any other card: the file button sits in Save's place
+    const pic = async (q) => q.evaluate(() => Math.round(document.getElementById("doneimg").getBoundingClientRect().height));
+    const mine = await pic(p), o = await G.open(ctx, "#i=karte-lob"); await o.locator("#go").click(); await o.locator("#edmain").click(); await o.locator("#share").waitFor(); await o.waitForTimeout(800);
+    const other = await pic(o); await o.close();
+    if (mine < other - 1) bad.push(lang + " " + view + ": Fertig-Bild " + mine + " px, andere Karte " + other + " px");
+    console.log("klang Fertig-Bild " + lang + " " + view + ": " + mine + " px (Karte: " + other + " px)");
     assert.deepEqual(p.errs, [], lang + " " + view); await ctx.close();
   }
   assert.deepEqual(bad, []); await b.close();
+});
+
+test("Stimme verzerren: ein Video, das haengt (Audio-Uhr steht, Recorder meldet kein Ende), bricht nach Tonlaenge + 5 s ab; neuer Versuch geht", async () => {
+  ensureBuilt("");
+  const b = await launch();
+  const STALL = () => {
+    const P = AudioBufferSourceNode.prototype.start; AudioBufferSourceNode.prototype.start = function () { if (window.__stall === "clock") return; return P.apply(this, arguments); };
+    addEventListener("DOMContentLoaded", () => { const st = MediaRecorder.prototype.stop; MediaRecorder.prototype.stop = function () { if (window.__stall === "stop" && this.stream.getVideoTracks().length) return; return st.apply(this, arguments); }; });
+  };
+  for (const kind of ["clock", "stop"]) {
+    const ctx = await G.person(b, { lang: "de", view: "phone390" }); await ctx.addInitScript(SPY); await ctx.addInitScript(STALL);
+    const p = await G.open(ctx, "#i=stimme-verzerren"); await editor(p, "de");
+    await p.getByRole("button", { name: /Quatschstimme/ }).click();
+    await p.locator("#edmain").click(); await p.locator("#klopen").click(); await p.locator("#klsheet[open]").waitFor();
+    const sec = await ed(p, () => window.DailyDebug.result().keep.pcm.length / 22050);
+    await p.evaluate((k) => { window.__stall = k; }, kind);
+    const t0 = Date.now(); await p.getByRole("button", { name: /Video machen/ }).click();
+    await p.locator("#klsheet .btn[aria-busy=true]").waitFor();
+    await p.locator("#klsheet .btn[aria-busy=true]").waitFor({ state: "detached", timeout: (sec + 12) * 1000 });
+    const took = (Date.now() - t0) / 1000;
+    assert.ok(took >= sec + 4 && took < sec + 9, kind + ": Abbruch nach " + took.toFixed(1) + " s (Ton " + sec.toFixed(1) + " s + 5 s)");
+    assert.match(await p.locator("#klsheet").innerText(), /Video machen/, kind + ": der Knopf ist wieder da");
+    assert.match(await p.locator("#toast").textContent(), /Ein Video geht hier nicht/, kind + ": kl_fail");
+    await ed(p, () => { window.__stall = ""; });
+    await p.getByRole("button", { name: /Video machen/ }).click();
+    await p.getByRole("button", { name: /Video teilen/ }).waitFor({ timeout: 30000 });
+    console.log("klang Abbruch " + kind + ": nach " + took.toFixed(1) + " s, zweiter Versuch fertig");
+    assert.deepEqual(p.errs, [], kind); await ctx.close();
+  }
+  await b.close();
 });
