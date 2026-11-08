@@ -191,7 +191,8 @@ test("Review #186 Runde 2: Konto-Angebot bei Fertig nur ohne Anmeldung und leise
     // 7: received at 195 px (390 at 200 %): the head in one line, the card at least 140 px
     const z = await phone(b, { view: "p390z200" }), q = await G.open(z, url.slice(url.indexOf("#")));
     await q.locator("#recvhead").waitFor();
-    await q.waitForFunction(() => !document.getElementById("leaf").getAnimations({ subtree: true }).some((x) => x.playState === "running"), null, { polling: 50 });
+    // the card lands with an animation that may not have started yet: measure once its height holds over two reads
+    await G.poll(async () => { const a = await q.evaluate(() => document.querySelector("#leaf .pvcard").getBoundingClientRect().height); await q.waitForTimeout(250); return a === (await q.evaluate(() => document.querySelector("#leaf .pvcard").getBoundingClientRect().height)) && a > 0; }, Boolean, { what: "Karte steht" });
     const m = await q.evaluate(() => { const w = document.getElementById("recvwho"), lh = parseFloat(getComputedStyle(w).lineHeight); return { lines: Math.round(w.getBoundingClientRect().height / lh), card: Math.round(document.querySelector("#leaf .pvcard").getBoundingClientRect().height) }; });
     assert.equal(m.lines, 1, "Kopf einzeilig " + JSON.stringify(m)); assert.ok(m.card >= 140, "Karte " + JSON.stringify(m));
     assert.equal(await G.inView(q, "#go"), true, "Antworten ohne Scrollen");

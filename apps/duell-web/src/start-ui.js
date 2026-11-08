@@ -109,8 +109,8 @@
     /* Fertig on a phone: the picture keeps a real size above "Teilen" (the main button stays on the first screen); Mehr,
        the note, the row and the account offer follow by scrolling instead of squeezing the picture */
     "@media (max-width:899px){#done:has(#share.st1){overflow-y:auto}#done:has(#share.st1) #donewrap{flex:1 0 auto;min-height:min(18rem,calc(100svh - 9rem))}}",
-    "#staccount{margin:4px 18px 12px;padding:12px 14px;border:2px solid var(--sk);border-radius:16px;color:var(--sk);font:500 .875rem/1.45 var(--st)}#staccount[hidden]{display:none}#staccount p{margin:0 0 8px}",
-    "#staccount button{min-height:44px;padding:0 18px;border:2px solid var(--sk);border-radius:999px;background:transparent;color:var(--sk);font:700 .95rem var(--st);cursor:pointer}",
+    "#staccount{margin:4px 18px 12px;padding:12px 14px;border:2px solid var(--on);border-radius:16px;color:var(--on);font:500 .875rem/1.45 var(--st)}#staccount[hidden]{display:none}#staccount p{margin:0 0 8px}",
+    "#staccount button{min-height:44px;padding:0 18px;border:2px solid var(--on);border-radius:999px;background:transparent;color:var(--on);font:700 .95rem var(--st);cursor:pointer}",
     "#shnote.st1{margin:0 18px 8px;padding:12px 14px;border-radius:16px;background:#fff;color:var(--sk);font:500 .875rem/1.45 var(--st)}"
   ].join("\n");
   function style() {
@@ -261,13 +261,16 @@
     // measured with everything shown: the sheet's own fitting (app.js fitCard, .lean/.roll) decides again afterwards
     var had = ["lean", "roll"].filter(function (c) { return H.classList.contains(c); });
     H.classList.remove("lean", "roll");
-    var used = 0, e = pad.nextElementSibling, ps = getComputedStyle(pad);
+    var used = 0, quiet = 0, e = pad.nextElementSibling, ps = getComputedStyle(pad), row = $("homerow");
     for (; e; e = e.nextElementSibling) {
-      var cs = getComputedStyle(e);
-      if (e.getClientRects().length) used += e.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
-      if (e === (recv ? $("homerow") : go)) break;   // received: "Selbst eine machen" and "Melden" on the first screen too
+      var cs = getComputedStyle(e), hh = e.getClientRects().length ? e.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom) : 0;
+      if (e === row) { quiet = hh; break; }
+      used += hh;
+      if (e === go && !recv) break;
     }
     var room = H.clientHeight - pad.offsetTop - parseFloat(ps.marginBottom) - used - 8;   // 8: the shadow under the main button
+    // received: "Selbst eine machen" and "Melden" on the first screen too, as long as the card keeps its room (sheet >= 200 px)
+    if (recv && room - quiet >= 200) room -= quiet;
     had.forEach(function (c) { H.classList.add(c); });
     pad.style.flex = "none"; pad.style.height = Math.max(96, Math.floor(room)) + "px";
     if (A().style && A().style.fit) A().style.fit();
