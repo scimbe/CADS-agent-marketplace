@@ -506,7 +506,7 @@ test("Aufgaben aus dem Protokoll: Link oeffnet die Liste, Namen nur wo genannt, 
 test("Profil: Vorgaben als Chips, abwaehlbar, nur lokal; Essen erst ab 16, PayPal-Name ab 18 fuellt Geld einsammeln vor", async () => {
   const { b, open, errs } = await setup();
   const p = await open(""); await p.locator("#me").click();
-  await p.getByText("Meine Vorgaben").waitFor(); await p.getByText("Noch keine.").waitFor();
+  await p.getByText("Meine Vorgaben").click(); await p.getByText("Noch keine.").waitFor();   // a closed section in My style
   await p.getByText("Essen fragen wir erst ab 16.").waitFor(); await p.getByText("PayPal gibt es erst ab 18.").waitFor();
   const box = p.locator(".pfbox");
   await box.getByRole("button", { name: "13–15", exact: true }).click();

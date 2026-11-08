@@ -256,6 +256,8 @@ test("Karten-Statistik aus in Mein Stil: Tageskarte teilen und ihren Link oeffne
     await r.locator("#go").click(); await r.locator("#panel details.more summary").first().click(); await r.locator("#panel .wsw button.statoff").waitFor();
     const p = await G.open(ctx, "");
     await p.locator("#me").click();
+    await p.locator("#stdata summary").click();   // the switch sits under "Konto & Daten" / "Account & data"
+    assert.match(await p.locator("#stdata summary").innerText(), lang === "de" ? /^Konto & Daten/ : /^Account & data/);
     const sw = p.locator("#shbody button.statoff");
     await sw.waitFor();
     assert.equal(await sw.textContent(), lang === "de" ? "Karten-Statistik aus" : "Card statistics off");
