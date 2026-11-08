@@ -100,7 +100,7 @@ test("Kern: nur die Haken; ohne Teil bleibt die Startseite wie sie war", () => {
   assert.match(src("index.template.html"), /<div id="startslot" aria-hidden="true"><\/div>/);
   assert.match(src("style.css"), /#home\.neu #startslot\{display:block;min-height:30rem;background:#FBF5DD\}/);
   assert.match(src("style.css"), /#home\.neu:has\(\.pv\.pic,#warmto:not\(\[hidden\]\)\) #pad\{height:clamp\(15rem,58svh,34rem\)\}/, "Tage mit Bild oder Namensfeld behalten ein grosses Blatt");
-  assert.match(src("style.css"), /@media \(max-width:899px\) and \(min-height:701px\) and \(max-height:819px\)\{#home\.neu:not\(:has\(\.pv\.pic,#warmto:not\(\[hidden\]\)\)\) #pad\{height:max\(12rem,calc\(100svh - 37rem\)\)\}\}/, "unter 820 px Hoehe staerker gestaucht (360x800)");
+  assert.match(src("start-ui.js"), /@media \(max-width:899px\) and \(min-height:701px\) and \(max-height:819px\)\{\.sttile\{min-height:72px\}\.sttile small\{display:none\}\}/, "unter 820 px Hoehe flachere Kacheln statt eines gestauchten Blatts");
   assert.match(src("start-ui.js"), /var slot = \$\("startslot"\); if \(slot\) slot\.replaceWith\(box\);/);
   assert.match(src("../scripts/build.js"), /if \(!flavor\) PARTS\.start = \{ d: \[\], src: \["STARTDATA", "START", "STARTUI"\] \};/, "Daily Business ohne den Teil");
 });
@@ -111,7 +111,7 @@ test("Review #185: Wochenende ist planen, Enkelin bleibt Enkelin, Komposita, Nam
   assert.equal(S.understand("Gruß an meinen Enkel").who.de, "Enkel");
   assert.equal(ids(S.understand("Kindergeburtstag Mitbringliste"))[0], "zug-einkauf", "Teilwort ab 5 Zeichen");
   assert.equal(S.understand("Mitbringliste Kindergeburtstag").missing, null, "kein Geburtstag-fehlt im Kompositum");
-  assert.equal(S.understand("danke an lea").name, "Lea", "klein getippt");
+  assert.equal(S.understand("danke an lea").name, "", "klein geschrieben: im Zweifel kein Name");
   assert.equal(S.understand("Termin für den Spieleabend").name, "", "ein Artikel ist kein Name");
   const bowl = S.understand("Bowling mit Kollegen");
   assert.equal(bowl.missing.de, "Bowling"); assert.deepEqual(ids(bowl).slice(0, 2), ["arcade-puck", "arcade-elfer"], "Sport: zuerst die Duelle");
@@ -119,7 +119,20 @@ test("Review #185: Wochenende ist planen, Enkelin bleibt Enkelin, Komposita, Nam
   assert.equal(DATA.texts.de.st_local, "Dein Satz bleibt auf dem Gerät. Erst bei „Fertig“ legen wir einen kurzen Link zu deiner Karte an.");
   assert.equal(DATA.texts.de.st_free, "Frei für dich");
   const ui = src("start-ui.js");
-  assert.match(ui, /if \(W\.is\(idea\)\) \{ var g = \$\("go"\); if \(g\) g\.focus\(\); \} else \$\("go"\)\.click\(\);/, "Karte machen fertigt nichts und legt keinen Link an");
+  assert.match(ui, /if \(W\.is\(idea\)\) \{ var g = \$\("go"\); if \(g\) \{ g\.focus\(\); g\.scrollIntoView\(\{ block: "nearest" \}\); \} \} else \$\("go"\)\.click\(\);/, "Karte machen fertigt nichts und legt keinen Link an; Fertig machen kommt ins Bild");
   assert.match(ui, /tt\.tabIndex = -1; tt\.focus\(\);/, "Fokus geht mit ins Blatt");
   assert.match(src("app.js"), /got \? Promise\.race\(\[s, new Promise\(function \(ok\) \{ setTimeout\(ok, 2500\); \}\)\]\) : 0/, "Link-Seiten warten hoechstens 2,5 s");
+});
+
+test("Review #185 Runde 2: Namen nur grossgeschrieben und nie ein Pronomen, Name nach der Beziehung; Kompositum nach seinem Kopf", () => {
+  for (const t of ["Danke an dich", "Gruß an alles", "Grüße an Euch", "Danke an Gestern", "Gruß an Alle", "Danke an Mich", "Gruß an Heute", "Thanks to You"]) assert.equal(S.understand(t).name, "", t);
+  assert.equal(S.callName(S.understand("Danke an dich"), "de"), "", "kein „Dich, danke …“");
+  assert.equal(S.understand("Gruß an meine Enkelin Lena").name, "Lena"); assert.equal(S.understand("Enkelin Lena").name, "Lena");
+  assert.equal(S.understand("Danke an Lea").name, "Lea");
+  assert.equal(S.understand("Danke an Mama").name, "", "Mama nur als Anrede"); assert.equal(S.callName(S.understand("Danke an Mama"), "de"), "Mama");
+  const daniel = S.understand("Kindergeburtstag Samstag wer bringt was mit");
+  assert.equal(daniel.intent, "planen"); assert.equal(ids(daniel)[0], "zug-einkauf"); assert.equal(daniel.missing, null);
+  assert.equal(ids(S.understand("Adventsrätsel"))[0], "zug-advent");
+  assert.equal(S.understand("Termin für den Spieleabend").intent, "planen");
+  assert.equal(DATA.texts.de.st_hint.length <= 14, true, "Platzhalter passt bei 200 %");
 });

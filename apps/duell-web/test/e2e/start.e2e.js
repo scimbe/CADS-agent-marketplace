@@ -236,11 +236,17 @@ test("Review #185: Feld bei 200 % auf dem Handy breit genug, Tageskarte bei 150 
     (await G.smallTargets(p, "#startbox")).forEach((v) => bad.push(view + " zu klein: " + v));
     assert.deepEqual(p.errs, [], view); await ctx.close();
   }
-  // 360x800 (Galaxy A, common) as well: both rows of tiles and the day's main button on the first screen
-  {
-    const c3 = await G.person(b, { lang: "de", view: "p360", time: DAY }); await c3.route(/^https?:/, (r) => r.abort());
+  // 360x800 (Galaxy A, common) and 360x780 (Galaxy S24): the day's title (minimum content), both rows of tiles and the
+  // day's main button on the first screen; where room is short the tiles get flatter, never the title goes
+  for (const h of [780, 800]) {
+    G.VIEWS["p360h" + h] = { viewport: { width: 360, height: h }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
+    const c3 = await G.person(b, { lang: "de", view: "p360h" + h, time: DAY }); await c3.route(/^https?:/, (r) => r.abort());
     const q = await G.open(c3, ""); await q.locator("#startbox").waitFor(); await q.waitForTimeout(300);
-    for (const sel of ["#go", ".sttile[data-i=gruss]", ".sttile[data-i=planen]", ".sttile[data-i=spielen]", ".sttile[data-i=stimme]"]) if (!(await G.inView(q, sel))) bad.push("360x800: nicht im ersten Bild: " + sel);
+    for (const sel of ["#hero", "#go", ".sttile[data-i=gruss]", ".sttile[data-i=planen]", ".sttile[data-i=spielen]", ".sttile[data-i=stimme]"]) if (!(await G.inView(q, sel))) bad.push("360x" + h + ": nicht im ersten Bild: " + sel);
+    const t = await q.evaluate(() => { const e = document.getElementById("hero"); const r = e.getBoundingClientRect(); return { h: r.height, txt: e.textContent.trim(), vis: getComputedStyle(e).visibility, disp: getComputedStyle(e).display }; });
+    if (!t.txt || t.h < 16 || t.vis !== "visible" || t.disp === "none") bad.push("360x" + h + ": Titel der Tageskarte fehlt " + JSON.stringify(t));
+    const tile = await q.evaluate(() => document.querySelector(".sttile").getBoundingClientRect().height);
+    if (tile < 44) bad.push("360x" + h + ": Kachel " + tile + " px");
     assert.deepEqual(q.errs, []); await c3.close();
   }
   // 390x844 as on the canvas: the four tiles and the day's main button on the first screen, the start on cream
@@ -255,6 +261,24 @@ test("Review #185: Feld bei 200 % auf dem Handy breit genug, Tageskarte bei 150 
   await p.locator(".sttile[data-i=planen]").click(); await p.waitForFunction(() => document.activeElement && document.activeElement.id === "shtitle");
   assert.deepEqual(p.errs, []); await b.close();
   assert.deepEqual(bad, []);
+});
+
+test("Review #185 Runde 2: eine empfangene Karte bei 195 px Breite (390 bei 200 %): die Daumen stehen unter der Karte, nie darauf", async () => {
+  ensureBuilt("");
+  const b = await G.launch();
+  try {
+  const s = await G.person(b, { lang: "de", view: "phone390", time: DAY }); await s.route(/^https?:/, (r) => r.abort());
+  const sp = await G.open(s, "#i=warm-gruss"); await sp.locator("#go").click(); await sp.locator("#done:not([hidden])").waitFor();
+  const url = await sp.evaluate(() => window.DailyDebug.result().url); await s.close();
+  const ctx = await G.person(b, { lang: "de", view: "p390z200", time: DAY }); await ctx.route(/^https?:/, (r) => r.abort());
+  const p = await G.open(ctx, url.slice(url.indexOf("#"))); await p.locator("#votes:not([hidden])").waitFor(); await p.waitForTimeout(600);
+  const m = await p.evaluate(() => { const r = (e) => e.getBoundingClientRect(); const c = [...document.querySelectorAll("#leaf .pvcard, #leaf .pvgame, #leaf .pvimg")].find((e) => e.getClientRects().length && e.offsetHeight > 0); if (!c) return { none: true }; const cr = r(c); const v = r(document.getElementById("votes")); return { w: innerWidth, card: [cr.top, cr.bottom, cr.left, cr.right], votes: [v.top, v.bottom, v.left, v.right] }; });
+  assert.ok(m.w <= 200, "195 px breit: " + m.w);
+  const over = !(m.votes[0] >= m.card[1] - 1 || m.votes[1] <= m.card[0] + 1 || m.votes[2] >= m.card[3] - 1 || m.votes[3] <= m.card[2] + 1);
+  assert.equal(over, false, "Daumen ueber der Karte: " + JSON.stringify(m));
+  assert.ok(m.votes[0] >= m.card[1] - 1, "Daumen unter der Karte: " + JSON.stringify(m));
+  assert.deepEqual(p.errs, []);
+  } finally { await b.close(); }
 });
 
 test("Daily Business bleibt wie es war: kein neuer Start, die Leiste steht offen", async () => {

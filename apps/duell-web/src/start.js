@@ -10,11 +10,14 @@
   var INTENTS = ["gruss", "planen", "spielen", "stimme"];
   // Words that carry no wish of their own; they never go to the search ("Ich will meiner Schwester ...").
   var STOP = " ich du er sie es wir ihr mein meine meinen meiner meinem dein deine deinen unser unsere euer will moechte mag mal bitte schick schicken senden machen mach heute morgen jetzt einen einer einem eines kein keine keinen nicht noch auch nur ganz sehr wer wie was wo wann kann koennen soll ueber gegen zeit leider einfach so schnell kurz the a an and to for my our your with want would like please send make some today something about ";
-  var SPECIFIC = 6, ARTICLE = " den die das dem der des ein eine einen einem einer the a an ";   // a word that finds more cards than this says too little to pick one
+  var SPECIFIC = 6, ARTICLE = " den die das dem der des ein eine einen einem einer the a an ";
+  var NOTNAME = " dich dir euch uns alle allen alles gestern heute morgen dein deine deinen deiner mich mir sie ihn ihm ihr jemand jemanden jeden jede jeder you me us all everyone today tomorrow yesterday him her them ";   // a word that finds more cards than this says too little to pick one
 
   // "leid$" matches only the word itself ("leider" is no apology); any other stem matches the start of a word.
-  // A stem of 5 letters or more also counts inside a compound ("Kindergeburtstag", "Spieleabend").
-  function hit(w, stem) { return stem.charAt(stem.length - 1) === "$" ? w === stem.slice(0, -1) : w.indexOf(stem) === 0 || (stem.length >= 5 && w.indexOf(stem) > 0); }
+  // A stem of 5 letters or more also counts as the head of a compound, at the word's end ("Spieleabend" is an evening,
+  // "Kindergeburtstag" a birthday); such a match weighs half (hitW).
+  function hit(w, stem) { return stem.charAt(stem.length - 1) === "$" ? w === stem.slice(0, -1) : w.indexOf(stem) === 0 || (stem.length >= 5 && w.length > stem.length && w.slice(-stem.length) === stem); }
+  function hitW(w, stem) { return stem.charAt(stem.length - 1) !== "$" && w.indexOf(stem) !== 0 ? 0.5 : 1; }
   function len(stem) { return stem.replace(/\$$/, "").length; }
   // The longest stem of a table that matches the word, or "" ("kartenspiel": kartensp beats karte).
   function best(w, stems) { var b = ""; stems.forEach(function (s) { if (hit(w, s) && len(s) > len(b)) b = s; }); return b; }
@@ -33,11 +36,14 @@
   function cardsOf(intent) { return ((DATA.intents[intent] || {}).ids || []).map(avail).filter(function (i, k, a) { return i && a.indexOf(i) === k; }); }
   // A first name after "an", "für", "to", "for" ("Danke an Lea"), when it is no word the tables know ("für Geburtstag").
   function nameIn(text, known) {
-    var m = String(text || "").match(/(?:^|\s)(?:an|für|fuer|to|for)\s+(?:meine[nmrs]?\s+|my\s+|unsere[nmrs]?\s+|our\s+)?(\p{L}[\p{L}'-]{1,13})(?=$|[\s.,!?])/iu);
-    if (!m) return "";
-    var f = D.fold(m[1]);
-    if (known(f) || STOP.indexOf(" " + f + " ") >= 0 || ARTICLE.indexOf(" " + f + " ") >= 0) return "";
-    return m[1].charAt(0).toUpperCase() + m[1].slice(1);
+    var s = String(text || ""), cand = [], m, re = /(?:^|\s)(?:[Aa]n|[Ff]ür|[Ff]uer|[Tt]o|[Ff]or)\s+(?:[Mm]eine[nmrs]?\s+|[Mm]y\s+|[Uu]nsere[nmrs]?\s+|[Oo]ur\s+)?(\p{Lu}[\p{L}'-]{1,13})(?=$|[\s.,!?])/gu;
+    while ((m = re.exec(s))) cand.push(m[1]);
+    // "Enkelin Lena", "meine Schwester Anna": the name right after the relation
+    var rel = /(?:^|\s)(\p{L}+)(?=\s+(\p{Lu}[\p{L}'-]{1,13})(?:$|[\s.,!?]))/gu;
+    while ((m = rel.exec(s))) if (best(D.fold(m[1]), Object.keys(DATA.who))) cand.push(m[2]);
+    // in doubt no name: a word the tables know, a pronoun, a day word or an article is none (ARTICLE, NOTNAME)
+    for (var k = 0; k < cand.length; k++) { var f = D.fold(cand[k]); if (!known(f) && STOP.indexOf(" " + f + " ") < 0 && ARTICLE.indexOf(" " + f + " ") < 0 && NOTNAME.indexOf(" " + f + " ") < 0) return cand[k]; }
+    return "";
   }
 
   /* -> { intent, who: {de, en, call} | null, name, top: [{ idea, exact }], missing: {de, en} | null, words }
@@ -51,9 +57,9 @@
     ws.forEach(function (w) {
       var top = "", n0 = "";
       INTENTS.forEach(function (n) { var s = best(w, DATA.intents[n].keys); if (len(s) > len(top)) { top = s; n0 = n; } });
-      if (n0) score[n0] += 1;
+      if (n0) score[n0] += hitW(w, top);
       var c = best(w, cardStems), ids = c ? DATA.cards[c].map(avail).filter(Boolean) : [];
-      ids.forEach(function (i, k) { if (!(i.id in pts)) { pts[i.id] = 0; order.push(i); } pts[i.id] += k ? 2 : 3; });
+      ids.forEach(function (i, k) { if (!(i.id in pts)) { pts[i.id] = 0; order.push(i); } pts[i.id] += (k ? 2 : 3) * hitW(w, c); });
       // what is missing is named only for the word itself, not inside a compound ("Kindergeburtstag" is no birthday card)
       var m = best(w, missStems.filter(function (x) { return w.indexOf(x.replace(/\$$/, "")) === 0; })); if (m && !ids.length && !missing) missing = DATA.missing[m];
       var h = best(w, whoStems); if (h && !who) who = DATA.who[h];

@@ -62,6 +62,8 @@
     "#home.neu #tools button{font-family:var(--st);font-weight:700;text-decoration:underline;text-underline-offset:3px}",
     "@media (min-width:900px),(orientation:landscape) and (max-height:500px) and (min-width:560px){#startbox{margin:4px 10px 10px;border:3px solid var(--sk);border-radius:22px}#home.neu #tools{background:none}#home.neu #tools button{color:var(--on)}#starth{font-size:1.5rem}}",
     "@media (prefers-reduced-motion:reduce){.sttile{transition:none}}",
+    /* a phone below 820 px height (360x780, 360x800): the day's title stays, the tiles get flatter (no subtitle) */
+    "@media (max-width:899px) and (min-height:701px) and (max-height:819px){.sttile{min-height:72px}.sttile small{display:none}}",
     /* the sheet "Deine Karte" */
     ".stc{display:flex;flex-direction:column;gap:16px;padding:6px 2px 18px;font-family:var(--st);color:var(--sk)}",
     ".stc h3{margin:0;font:800 .875rem/1.2 var(--st);letter-spacing:.6px;text-transform:uppercase;color:var(--sm)}",
@@ -230,7 +232,7 @@
   function openCard(idea, r) {
     var to = callTo(idea, r);
     A().sheet({ date: new Date(), idea: idea, to: to || undefined });
-    if (W.is(idea)) { var g = $("go"); if (g) g.focus(); } else $("go").click();
+    if (W.is(idea)) { var g = $("go"); if (g) { g.focus(); g.scrollIntoView({ block: "nearest" }); } } else $("go").click();
   }
   // the line the card will carry, as it comes out ("Oma, danke, dass es dich gibt.")
   function lineOf(idea, r) { try { return W.is(idea) ? W.cardFor(idea, callTo(idea, r), A().me(), Kit.lang).x : ""; } catch (e) { return ""; } }

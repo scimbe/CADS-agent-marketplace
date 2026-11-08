@@ -103,7 +103,8 @@
     "meet",
     "shopping",
     "wochenende",
-    "weekend"
+    "weekend",
+    "bring"
    ]
   },
   "spielen": {
@@ -446,6 +447,13 @@
   "kartensp": [
    "tisch-skat",
    "tisch-doko"
+  ],
+  "bring": [
+   "zug-einkauf"
+  ],
+  "advent": [
+   "zug-advent",
+   "advent-tuer"
   ]
  },
  "missing": {
@@ -685,7 +693,7 @@
   "de": {
    "st_ask": "Wem willst du heute eine Freude machen?",
    "st_field": "Sag in einem Satz, was du vorhast",
-   "st_hint": "z. B. Danke an Oma",
+   "st_hint": "Danke an Oma",
    "st_go": "Weiter",
    "st_mic": "Spracheingabe",
    "st_micOn": "Ich höre zu …",
@@ -739,7 +747,7 @@
   "en": {
    "st_ask": "Who do you want to make happy today?",
    "st_field": "Say in one sentence what you have in mind",
-   "st_hint": "e.g. Thank you to Grandma",
+   "st_hint": "Thanks, Grandma",
    "st_go": "Next",
    "st_mic": "Voice input",
    "st_micOn": "Listening …",
