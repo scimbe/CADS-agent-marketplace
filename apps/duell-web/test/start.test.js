@@ -98,6 +98,7 @@ test("Kern: nur die Haken; ohne Teil bleibt die Startseite wie sie war", () => {
   assert.match(src("index.template.html"), /<div id="startslot" aria-hidden="true"><\/div>/);
   assert.match(src("style.css"), /#home\.neu #startslot\{display:block;min-height:30rem;background:#FBF5DD\}/);
   assert.match(src("style.css"), /#home\.neu:has\(\.pv\.pic,#warmto:not\(\[hidden\]\)\) #pad\{height:clamp\(15rem,58svh,34rem\)\}/, "Tage mit Bild oder Namensfeld behalten ein grosses Blatt");
+  assert.match(src("style.css"), /@media \(max-width:899px\) and \(min-height:701px\) and \(max-height:819px\)\{#home\.neu:not\(:has\(\.pv\.pic,#warmto:not\(\[hidden\]\)\)\) #pad\{height:max\(12rem,calc\(100svh - 37rem\)\)\}\}/, "unter 820 px Hoehe staerker gestaucht (360x800)");
   assert.match(src("start-ui.js"), /var slot = \$\("startslot"\); if \(slot\) slot\.replaceWith\(box\);/);
   assert.match(src("../scripts/build.js"), /if \(!flavor\) PARTS\.start = \{ d: \[\], src: \["STARTDATA", "START", "STARTUI"\] \};/, "Daily Business ohne den Teil");
 });

@@ -18,6 +18,7 @@ G.VIEWS.zoom150 = Object.assign(G.zoom({ width: 412, height: 915 }, 1.5), { isMo
 // phones at 200 % (review #185): 195x422 and 180x400 CSS px
 G.VIEWS.p390z200 = Object.assign(G.zoom({ width: 390, height: 844 }, 2), { isMobile: true, hasTouch: true });
 G.VIEWS.p360z200 = Object.assign(G.zoom({ width: 360, height: 800 }, 2), { isMobile: true, hasTouch: true });
+G.VIEWS.p360 = { viewport: { width: 360, height: 800 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };   // Galaxy A
 const JARGON = /Arcade|Webconference|Web conference|Tunnel|Alle Demos|\d+ Spiele|Agent|Meme/;
 
 async function axe(p, sel) {
@@ -234,6 +235,13 @@ test("Review #185: Feld bei 200 % auf dem Handy breit genug, Tageskarte bei 150 
     if (m.leaf < 200) bad.push(view + ": Tageskarte " + Math.round(m.leaf) + " px");
     (await G.smallTargets(p, "#startbox")).forEach((v) => bad.push(view + " zu klein: " + v));
     assert.deepEqual(p.errs, [], view); await ctx.close();
+  }
+  // 360x800 (Galaxy A, common) as well: both rows of tiles and the day's main button on the first screen
+  {
+    const c3 = await G.person(b, { lang: "de", view: "p360", time: DAY }); await c3.route(/^https?:/, (r) => r.abort());
+    const q = await G.open(c3, ""); await q.locator("#startbox").waitFor(); await q.waitForTimeout(300);
+    for (const sel of ["#go", ".sttile[data-i=gruss]", ".sttile[data-i=planen]", ".sttile[data-i=spielen]", ".sttile[data-i=stimme]"]) if (!(await G.inView(q, sel))) bad.push("360x800: nicht im ersten Bild: " + sel);
+    assert.deepEqual(q.errs, []); await c3.close();
   }
   // 390x844 as on the canvas: the four tiles and the day's main button on the first screen, the start on cream
   const ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY }); await ctx.route(/^https?:/, (r) => r.abort());
