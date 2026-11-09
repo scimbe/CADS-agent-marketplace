@@ -38,7 +38,9 @@ test("Zoom frei, color-scheme gesetzt, Burst-Text AA, Labels in EN, Ton-Schalter
 });
 
 test("Laufband: steht 3 s, laeuft dann, Beruehrung haelt es dauerhaft an Ort und Stelle, Schalter startet es wieder", async () => {
-  const b = await launch(), ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), p = await ctx.newPage();
+  const b = await launch(), ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" });
+  await ctx.addInitScript(() => localStorage.setItem("daily.v1", JSON.stringify({ alle: true })));   // "Alle Karten" open (redesign wave 1): no tap needed, so the strip may still start
+  const p = await ctx.newPage();
   const errs = []; p.on("pageerror", (e) => errs.push(e.message));
   await p.clock.install({ time: new Date("2026-11-05T10:00:00Z") });
   await p.goto(daily);

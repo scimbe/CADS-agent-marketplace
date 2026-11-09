@@ -146,7 +146,8 @@ test("Beide Builds: Karte im Business-Katalog (11-18), Fakten im Kern, Texte nur
     assert.match(html, /window\.QuizFacts=\{"phish":\{"ok":\[1,0,1/); assert.match(html, /root\.QuizSpiele = api/);
     assert.ok(!html.includes("musterflrma") && !html.includes("Zollgebühr"), "Beispieltexte nicht im Kern");
     assert.match(quiz, /window\.QuizSpieleData=\{/); assert.match(quiz, /root\.QuizSpieleUI = \{/); assert.ok(quiz.includes("musterflrma"));
-    assert.ok(Buffer.byteLength(html) < 716800, f + " Kern " + Buffer.byteLength(html));
+    // 716 800 B raised to 724 992 B until redesign wave R4 (user decision, 8 Nov 2026; reminder: test/build.test.js todo)
+    assert.ok(Buffer.byteLength(html) < 724992, f + " Kern " + Buffer.byteLength(html));
     const kat = fs.readFileSync(path.join(dir, man.katalog.f), "utf8");
     assert.equal(kat.includes('"biz-quiz-phishing"'), f === "business"); assert.equal(kat.includes('"quiz-preis"'), f === "");
   }

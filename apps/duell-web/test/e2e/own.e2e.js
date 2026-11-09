@@ -66,7 +66,7 @@ test("eigene Einladung (Live-Duell): der Einladende landet im eigenen Spiel, der
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }), br = broker(); t.after(() => b.close());
   const ctxA = await context(b), ctxB = await context(b);
   const A = await tab(ctxA, br, "A");
-  await A.p.goto(page); await A.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
+  await A.p.goto(page); await G.alle(A.p); await A.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await A.p.getByRole("button", { name: /Ballduell live/ }).click();
   await A.p.getByText("Warte auf deinen Freund").waitFor();
   const hash = await sharedHash(A.p), token = hash.match(/^#live=([A-Za-z0-9_-]{22})/)[1];
@@ -100,7 +100,7 @@ test("eigene Einladung (Kartentisch, Gruppenlink): der Einladende bleibt am eige
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }), br = broker(); t.after(() => b.close());
   const ctxA = await context(b), ctxB = await context(b);
   const A = await tab(ctxA, br, "A");
-  await A.p.goto(page); await A.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
+  await A.p.goto(page); await G.alle(A.p); await A.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await A.p.getByRole("button", { name: /Doppelkopf live/ }).click();
   await A.p.waitForFunction(() => [...document.querySelectorAll(".tbseat")].filter((e) => /eingeladen/.test(e.textContent)).length === 3 && window.__shared.length);
   const hash = await sharedHash(A.p), tokens = hash.split(".").slice(1);

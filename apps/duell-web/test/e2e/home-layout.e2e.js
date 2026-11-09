@@ -21,7 +21,8 @@ async function home(b, view, lang, day, extra) {
   const opt = Object.assign({}, VIEWS[view], { locale: G.LOCALE[lang] }, extra);
   delete opt.zoom;
   const ctx = await b.newContext(opt);
-  await ctx.addInitScript((l) => { localStorage.setItem("daily.v1", JSON.stringify({ lang: l })); }, lang);
+  // "Alle Karten" open (redesign wave 1), as after a first visit that opened it
+  await ctx.addInitScript((l) => { localStorage.setItem("daily.v1", JSON.stringify({ lang: l, alle: true })); }, lang);
   const p = await ctx.newPage(); p.errs = []; p.on("pageerror", (e) => p.errs.push(String(e)));
   await p.clock.install({ time: new Date(day) });
   await p.goto("file://" + G.DIST + "/index.html");
@@ -78,12 +79,14 @@ test("Startseite: Namensfeld unter dem Blatt, gleicher Abstand wie ohne, Leiste 
         assert.deepEqual(await G.covered(p), [], at + ": #go und die Knoepfe darunter frei");
         assert.ok(x.row.t >= x.go.b, at + ": Look wuerfeln unter #go");
         assert.equal(x.hscroll, false, at + ": kein Querscrollen");
-        if (x.lane) {   // the strip (left out on short screens)
-          assert.ok(firstCut(x) <= 0.5, at + ": erster Knopf der Leiste ganz: " + firstCut(x));
-          assert.match(x.mask, /^linear-gradient\(90deg, rgb\(0, 0, 0\) /, at + ": links keine Ueberblendung");
-          assert.ok(x.pause && x.lane.r <= x.pause.l, at + ": Pause-Knopf rechts neben der Leiste, nicht darueber");
-          assert.deepEqual(x.hidden, [], at + ": kein Knopf der Leiste verdeckt (Pause-Knopf)");
-          assert.ok(Math.abs(x.pause.r - x.go.r) < 1, at + ": Pause-Knopf buendig mit #go");
+        if (x.lane) {   // the strip (left out on short screens); redesign wave 1: it lies further down the scrolling start page
+          await p.evaluate(() => document.getElementById("feat").scrollIntoView({ block: "nearest" }));
+          const y = await boxes(p), z = Object.assign({}, x, { lane: y.lane, chips: y.chips, hidden: y.hidden, pause: y.pause, mask: y.mask });
+          assert.ok(firstCut(z) <= 0.5, at + ": erster Knopf der Leiste ganz: " + firstCut(z));
+          assert.match(z.mask, /^linear-gradient\(90deg, rgb\(0, 0, 0\) /, at + ": links keine Ueberblendung");
+          assert.ok(z.pause && z.lane.r <= z.pause.l, at + ": Pause-Knopf rechts neben der Leiste, nicht darueber");
+          assert.deepEqual(z.hidden, [], at + ": kein Knopf der Leiste verdeckt (Pause-Knopf)");
+          assert.ok(Math.abs(z.pause.r - z.go.r) < 1, at + ": Pause-Knopf buendig mit #go");
         }
         assert.deepEqual(p.errs, [], at);
         await ctx.close(); n++;
@@ -107,6 +110,7 @@ test("Leiste: nach dem Anhalten im Lauf ruht sie mit einem ganzen Knopf am linke
       await p.evaluate(() => document.querySelector("#feat .lane").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
       await until(p, () => !document.getElementById("feat").classList.contains("hold"));
       await p.waitForTimeout(300);   // the glide ends with scrollend (p.clock holds the 700 ms fallback back)
+      await p.evaluate(() => document.getElementById("feat").scrollIntoView({ block: "nearest" }));   // further down the start page (redesign wave 1)
       const x = await boxes(p);
       assert.ok(Math.abs(firstCut(x)) <= 1, at + ": ganzer Knopf links nach dem Anhalten: " + firstCut(x));
       assert.deepEqual(x.hidden, [], at + ": kein Knopf der Leiste verdeckt (Pause-Knopf)");
@@ -122,7 +126,7 @@ test("Leiste: ein Chip mit Fokus rueckt an den linken Rand; bei reduzierter Bewe
   try {
     for (const motion of ["no-preference", "reduce"]) {
       const { ctx, p } = await home(b, "pixel7", "de", CARDS.tag, { reducedMotion: motion }), at = motion;
-      const n = await p.locator("#feat .lane button:not([aria-hidden])").count();
+      await G.alle(p); const n = await p.locator("#feat .lane button:not([aria-hidden])").count();
       const i = Math.min(3, n - 1), btn = p.locator("#feat .lane button:not([aria-hidden])").nth(i);
       await btn.focus();
       if (motion === "reduce") await p.evaluate(() => new Promise((ok) => requestAnimationFrame(() => ok())));   // no glide: there at once

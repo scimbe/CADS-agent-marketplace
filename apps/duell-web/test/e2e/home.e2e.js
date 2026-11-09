@@ -1,6 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const G = require("./lib/grund.js");
 const path = require("node:path");
 const { chromium, devices } = require("playwright");
 const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
@@ -115,9 +116,9 @@ test("Fensterebene: Kreuz schliesst, Merken legt die Arbeit auf die Wand und oef
   await p.goto(page);
   const bar = await p.evaluate(() => { const f = document.getElementById("feat"), tr = f.querySelector(".track"); return { shown: getComputedStyle(f).display !== "none", anim: getComputedStyle(tr).animationName, hidden: Array.from(tr.querySelectorAll("[aria-hidden=true]")).filter((x) => getComputedStyle(x).display !== "none").length, all: tr.children.length }; });
   assert.ok(bar.shown); assert.equal(bar.anim, "none", "das Laufband wartet 3 s (test/e2e/a11y.e2e.js)"); assert.equal(bar.hidden, 0, "keine Kopie, solange es steht");
-  await p.locator("#feat").hover();   // like a finger on it: the ticker stands still
+  await G.alle(p); await p.locator("#feat").hover();   // like a finger on it: the ticker stands still
   // the bar's button, not #go: on a day whose sheet is a meme (5 Nov) that one says "Meme bauen" too
-  await p.locator("#feat").getByRole("button", { name: /Meme bauen/ }).click();
+  await G.alle(p); await p.locator("#feat").getByRole("button", { name: /Meme bauen/ }).click();
   await p.locator("#editor").waitFor();
   assert.equal(await p.locator("#edback").getAttribute("aria-label"), "Schließen"); assert.equal(await p.locator("#edback").textContent(), "✕");
   await p.locator("#edsave").click();
