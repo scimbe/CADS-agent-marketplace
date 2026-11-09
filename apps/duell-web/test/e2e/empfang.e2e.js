@@ -91,8 +91,9 @@ test("Teilen ohne Kurzlink: Server weg -> langer Link, ehrlich gesagt; Server la
   assert.ok(Date.now() - t0 < 1500, "sofort");
   sh = (await p.evaluate(() => window.__shared))[0]; assert.match(sh.url, /#c=/);
   if (hold) hold(); assert.deepEqual(p.errs, []); await ctx.close();
-  // the server says 24 hours (nobody opened it yet): the note says the same
-  ctx = await phone(b, { short: (r) => r.fulfill({ status: 201, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify({ id: "abcdefgh", url: C.SHORT_BASE + "abcdefgh", token: "t-24", exp: Date.now() + 86400000 }) }) });
+  // the server says 24 hours (nobody opened it yet): the note says the same. The page runs on the fixed clock DAY
+  // (G.person time), so the server's exp counts from that clock too, not from the test machine's real time.
+  ctx = await phone(b, { short: (r) => r.fulfill({ status: 201, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify({ id: "abcdefgh", url: C.SHORT_BASE + "abcdefgh", token: "t-24", exp: Date.parse(DAY) + 86400000 }) }) });
   p = await made(ctx);
   await p.locator("#shnote").filter({ hasText: "nach 24 Stunden" }).waitFor();
   assert.match(await p.locator("#shnote").textContent(), /ab dem ersten Öffnen bleibt er 90 Tage/);
