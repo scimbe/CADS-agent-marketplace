@@ -2,7 +2,7 @@
 // Zoom matrix (personas P6/P7, 2026-11), used by platz.e2e.js (phones) and thumbs.e2e.js (iPad, laptop): one screen at
 // 100/150/200 % page zoom (G.zoom: half the CSS pixels at 200 %), in German and English, on a received card, the card of
 // the day, an invitation and an appointment invitation. What has to hold:
-// - the received card is never hidden ("Wo ist denn die Karte?"), it is at least 120 px high and no "Vorschau" stands in;
+// - the received card is never hidden ("Wo ist denn die Karte?"), it is at least 140 px high and no "Vorschau" stands in;
 // - no two controls (buttons, fields, role=button) lie over each other (boxes clipped by their scrolling ancestors);
 // - the title on the sheet is never cut; an opened preview's button says how to close it;
 // - every field in focus is not covered, on the sheet and in every tab of the editor behind it (P5-P8: FERTIG/WEITER
@@ -40,7 +40,7 @@ const seen = (p) => p.evaluate(async () => {
     const r = c.getBoundingClientRect(); let t = Math.max(r.top, 0), b = Math.min(r.bottom, innerHeight);
     for (let a = c.parentElement; a; a = a.parentElement) if (getComputedStyle(a).overflowY !== "visible") { const q = a.getBoundingClientRect(); t = Math.max(t, q.top); b = Math.min(b, q.bottom); }
     return Math.max(0, Math.round(b - t)); };
-  if (h() < 120 && c.getClientRects().length) { c.scrollIntoView({ block: "nearest" }); await new Promise((r) => setTimeout(r, 100)); }
+  if (h() < 140 && c.getClientRects().length) { c.scrollIntoView({ block: "nearest" }); await new Promise((r) => setTimeout(r, 100)); }
   return h();
 });
 // every field matching sel in focus: fully inside its scrolling boxes and the window, nothing over it
@@ -75,7 +75,7 @@ async function one(b, base, z, phone, lang, sn) {
       await p.waitForFunction(() => document.getElementById("leaf").classList.contains("got")); await p.waitForTimeout(900);
     }
     const s = await look(p);
-    if (recv && (!s.got || s.peek || (s.card = await seen(p)) < 120)) bad.push(at + ": empfangene Karte " + JSON.stringify(s));
+    if (recv && (!s.got || s.peek || (s.card = await seen(p)) < 140)) bad.push(at + ": empfangene Karte " + JSON.stringify(s));
     // the answer to a voice is one line with its microphone ("🎙 Antworten"), not a four-line block
     if (sn === "stimme") { const g = await p.evaluate(() => { const e = document.getElementById("go"), r = e.getBoundingClientRect(), lh = parseFloat(getComputedStyle(e).lineHeight) || 30; return { h: Math.round(r.height), lines: Math.round((e.scrollHeight - 8) / lh), t: e.textContent }; }); if (!/^🎙/.test(g.t) || g.h > 80) bad.push(at + ": Antwortknopf " + JSON.stringify(g)); }
     if (s.over.length) bad.push(at + ": Ueberlappung " + s.over.join(", "));

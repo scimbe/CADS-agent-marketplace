@@ -32,7 +32,7 @@
 
   /* ---------- look: the canvas the user approved (yellow, cream, ink, red; hard shadows; cards 22, buttons 16, chips round) ---------- */
   var CSS = [
-    "#home.neu,.stc{--sy:#F9D84A;--sc:#FBF5DD;--sk:#17140F;--sr:#B3321F;--sm:#4A4436;--st:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif}",
+    "#home.neu,#done,.stc{--sy:#F9D84A;--sc:#FBF5DD;--sk:#17140F;--sr:#B3321F;--sm:#4A4436;--st:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif}",
     ".sti{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}",
     "#home.neu{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scroll-padding:12px 0}",
     "#home.neu>*{flex-shrink:0}#home.neu::before{display:none}",
@@ -92,7 +92,26 @@
     ".sthonest{margin:0;padding:12px 14px;border-radius:16px;background:#fff1c2;color:var(--sk);font:500 .92rem/1.4 var(--st)}",
     ".stmakebar{--sy:#F9D84A;--sc:#FBF5DD;--sk:#17140F;--sm:#4A4436;--st:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif;display:flex;flex-direction:column;gap:6px;flex:none;padding:8px 14px calc(10px + env(safe-area-inset-bottom));border-top:2px solid var(--sk);background:var(--sc);text-align:center}",
     ".stmake{width:100%;display:flex;align-items:center;justify-content:center;min-height:60px;border:0;border-radius:16px;background:var(--sk);color:var(--sy);font:400 1.5rem/1 var(--disp);letter-spacing:.5px;text-transform:uppercase}",
-    ".stmake[aria-disabled=true]{background:transparent;color:var(--sk);border:2px dashed var(--sk)}"
+    ".stmake[aria-disabled=true]{background:transparent;color:var(--sk);border:2px dashed var(--sk)}",
+    /* Empfang: who sent it on top, the card big, one main action, the rest quiet */
+    "#recvhead{position:relative;display:flex;align-items:center;gap:12px;margin:4px 18px 8px;color:var(--on);font-family:var(--st)}",
+    ".recvav{flex:none;display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:var(--sk);color:var(--sy);font:400 1.375rem/1 var(--disp)}",
+    ".recvtx{display:flex;flex-direction:column;gap:2px;min-width:0}.recvtx strong{font:800 1.125rem/1.25 var(--st);overflow-wrap:anywhere}.recvtx span{font:500 .875rem/1.3 var(--st);overflow-wrap:anywhere}",
+    "#home.recv #wishgo,#home.recv #livego,#home.recv #from.stdup,#home.recv #leaf .dateline{display:none!important}#home.recv #homerow{justify-content:space-between}",
+    "#home.recv #homerow button{flex:0 1 auto;min-height:44px;padding:0 6px;border:0;background:transparent;color:var(--on);font:700 .9375rem/1.2 var(--st);text-decoration:underline;text-underline-offset:3px}",
+    "@media (max-width:300px){#recvhead{margin:2px 14px 4px}.recvav{display:none}.recvtx strong{font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.recvtx span{display:none}}",
+    "@media (max-height:560px){#recvhead{margin:2px 18px 4px;gap:8px}.recvav{width:36px;height:36px;font-size:1.1rem}.recvtx strong{font-size:1rem}}",
+    "#home.recv #kireport{font-weight:500;font-size:.875rem}#home.recv #kireport:disabled{text-decoration:none;opacity:1}",
+    /* Fertig: "Wer bekommt sie?", one button that opens the share menu, an honest line about the link */
+    "#donetitle{flex:1;margin:0 4px;font:400 1.5rem/1.05 var(--disp);text-transform:uppercase;color:var(--on);overflow-wrap:anywhere}",
+    "#share.st1{display:flex;align-items:center;justify-content:center;gap:12px;font-size:1.6rem}",
+    "#share.st1::before{content:\"\";flex:none;width:1em;height:1em;background:currentColor;-webkit-mask:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12M7 8l5-5 5 5M5 14v6h14v-6'/%3E%3C/svg%3E\") center/contain no-repeat;mask:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12M7 8l5-5 5 5M5 14v6h14v-6'/%3E%3C/svg%3E\") center/contain no-repeat}",
+    /* Fertig on a phone: the picture keeps a real size above "Teilen" (the main button stays on the first screen); Mehr,
+       the note, the row and the account offer follow by scrolling instead of squeezing the picture */
+    "@media (max-width:899px){#done:has(#share.st1){overflow-y:auto}#done:has(#share.st1) #donewrap{flex:1 0 auto;min-height:min(18rem,calc(100svh - 9rem))}}",
+    "#staccount{margin:4px 18px 12px;padding:12px 14px;border:2px solid var(--on);border-radius:16px;color:var(--on);font:500 .875rem/1.45 var(--st)}#staccount[hidden]{display:none}#staccount p{margin:0 0 8px}",
+    "#staccount button{min-height:44px;padding:0 18px;border:2px solid var(--on);border-radius:999px;background:transparent;color:var(--on);font:700 .95rem var(--st);cursor:pointer}",
+    "#shnote.st1{margin:0 18px 8px;padding:12px 14px;border-radius:16px;background:#fff;color:var(--sk);font:500 .875rem/1.45 var(--st)}"
   ].join("\n");
   function style() {
     if ($("startcss")) return;
@@ -158,12 +177,77 @@
     build(); paint(); mute();
     var on = !!h && !h.note && !h.doc;
     $("home").classList.add("neu"); box.hidden = !on;
+    receive(h);
     first(); requestAnimationFrame(first);
     // the burst on the sheet in plain words for a first visit: "Spiel", not "Arcade"; "Bild", not "Meme"
     var k = on && h.idea && h.idea.kind, dk = document.querySelector("#leaf .dkind");
     if (dk && (k === "arcade" || k === "photo" || k === "sound")) dk.textContent = dk.textContent.replace(/^[^\n]*/, t("st_k_" + k));
   }
-  function labels() { paint(); mute(); }
+  function labels() { paint(); mute(); done(); }
+
+  /* ---------- Empfang ---------- */
+  var head = null, selbst = null, PLAY = ["game", "arcade", "duel", "quest", "table"];
+  function recvBuild() {
+    if (head) return;
+    head = el("div"); head.id = "recvhead";
+    var av = el("span", "recvav"); av.setAttribute("aria-hidden", "true");
+    var tx = el("div", "recvtx"), who = el("strong"), sub = el("span"); who.id = "recvwho"; sub.id = "recvsub";
+    tx.appendChild(who); tx.appendChild(sub); head.appendChild(av); head.appendChild(tx);
+    $("pad").before(head);
+    // leave the card, start something of one's own: the day's start page
+    selbst = el("button", "", null, function () { Kit.sfx.tap(); var n = new Date(); A().sheet({ date: n, idea: D.ideaForDay(n) }); });
+    selbst.id = "selbst"; $("homerow").prepend(selbst);
+  }
+  // "Von {Name}, für dich": the name from the sender's field (the trail, warm.js sender: a plain first name), else "Jemand".
+  function receive(h) {
+    recvBuild();
+    var on = !!(h && h.doc && h.note);
+    $("home").classList.toggle("recv", on); head.hidden = !on; selbst.hidden = !on;
+    if (!on) { var lb = $("langpick"); if (lb && lb.nextElementSibling !== $("go")) $("go").before(lb); return; }
+    var doc = h.doc, n = W.sender(doc) || t("someone"), X = root.DailyModes || {}, mode = X[doc.k] && X[doc.k].label && X[doc.k].label(doc);
+    head.firstChild.textContent = n.charAt(0).toUpperCase();
+    $("recvwho").textContent = t("st_from", { n: n });
+    // a turn card says where it stands in its own line (#from); otherwise that line would only name the sender again
+    var sub = $("recvsub"); sub.textContent = ""; sub.hidden = true; $("from").classList.toggle("stdup", !mode);
+    // one main action by kind; a turn card keeps its own words (Wann kannst du?, Raten …), a voice card its "🎙 Antworten"
+    if (!mode && !(doc.k === "sound" && doc.m === "voice")) $("go").textContent = t(PLAY.indexOf(doc.k) >= 0 ? "st_play" : "st_reply");
+    selbst.textContent = t("st_self");
+    var kr = $("kireport"); if (!kr.disabled) kr.textContent = t("st_report");
+    // the language choice is not what a received card is about: below "Melden", out of the first screen
+    var lp = $("langpick"); if (lp && lp.previousElementSibling !== $("homerow")) $("homerow").after(lp);
+  }
+
+  /* ---------- Fertig: one tap to the share menu ---------- */
+  var copyB = null;
+  function done() {
+    var r = A().res && A().res();
+    if (!r || !box) return;
+    var bar = $("dback").parentNode, title = $("donetitle");
+    if (!title) { title = el("h2"); title.id = "donetitle"; bar.insertBefore(title, $("dback").nextSibling); }
+    title.textContent = t("st_done");
+    var sh = $("share"), h = A().home(), to = r.doc && W.is(r.doc) && h && h.to ? W.name(h.to) : "";
+    sh.classList.add("st1"); sh.textContent = to ? t("st_sendTo", { n: to }) : t("share");
+    // honest about the link: made at "Fertig", how long it stays (24 hours until opened, then 90 days), or the long link
+    var note = $("shnote"), k = r.doc && r.doc.k === "photo" ? "photo" : "", line;   // the voice: the sheet "Als Datei verschicken" says it
+    if (!r.link) line = t("st_shortWait");
+    else if (r.link.short) { var e = (Kit.store.links || []).filter(function (x) { return x.id === r.link.id; })[0]; line = t(e && e.exp - Date.now() < 2 * 86400000 ? "st_shortDay" : "st_shortOk"); }
+    else line = t(root.ShortLink && !root.ShortLink.fragmentOf(r.url) ? "st_shortLong" : "st_shortNo");
+    if (t("sh_note")) { note.classList.add("st1"); note.textContent = [line, k ? t("sh_" + k) : ""].filter(Boolean).join(" "); }
+    if (!copyB) {
+      copyB = el("button", "btn", null, function () { Kit.sfx.tap(); var x = A().res(), u = x && (x.link ? x.link.url : x.url); if (u) Kit.copy(u).then(function (ok) { Kit.toast(t(ok ? "st_copied" : "shareFail")); if (ok && A().count) A().count("copy"); }); });
+      copyB.id = "copylink"; $("tostory").after(copyB);   // with Status and Story under "Mehr": the row below keeps its three buttons
+    }
+    copyB.textContent = t("st_copy");
+    // without a login: an offer, quiet and below the rest (no pressure, nothing changes without it); linked: nothing.
+    // Honest about what travels: a photo work stays on this device, so for it the offer names only what does go along.
+    var acc = $("staccount"), p = Kit.store.profile, linked = !!(p && (p.via === "account" || p.via === "code"));
+    if (!acc) {
+      acc = el("div"); acc.id = "staccount"; acc.appendChild(el("p"));
+      acc.appendChild(el("button", "", null, function () { Kit.sfx.tap(); A().style.open(); }));
+      $("dhome").parentNode.after(acc);
+    }
+    acc.hidden = linked; acc.firstChild.textContent = t(k === "photo" ? "st_accPhoto" : "st_acc"); acc.lastChild.textContent = t("st_accGo");
+  }
   // Rule A4: the main button is on the first screen without scrolling. A short screen (a small phone, 200 % zoom) and a card
   // that came by link give the sheet exactly the room left above the main button; what follows is reached by scrolling. A
   // tall phone keeps the fixed sheet height from the CSS, a wide screen its two columns.
@@ -172,22 +256,38 @@
     pad.style.height = ""; pad.style.flex = "";
     if (H.hidden || !H.classList.contains("neu") || getComputedStyle(H).display === "grid") return;
     var recv = !box || box.hidden;
-    if (!recv && innerHeight > 700) return;
+    if (!recv && innerHeight > 700) return legible(pad);
     // the big-type order (intentions first, <= 300 px): the day's card keeps a real size below them, it is not squeezed
     if (!recv && innerWidth <= 300) { pad.style.flex = "none"; pad.style.height = Math.round(Math.min(Math.max(240, innerHeight * 0.7), 480)) + "px"; if (A().style && A().style.fit) A().style.fit(); return; }
     // measured with everything shown: the sheet's own fitting (app.js fitCard, .lean/.roll) decides again afterwards
     var had = ["lean", "roll"].filter(function (c) { return H.classList.contains(c); });
     H.classList.remove("lean", "roll");
-    var used = 0, e = pad.nextElementSibling, ps = getComputedStyle(pad);
+    // only a card someone sent (#leaf.got) gives up room for the quiet row; a catalog link (#i=) keeps its sheet as before
+    var got = recv && $("leaf").classList.contains("got");
+    var used = 0, quiet = 0, e = pad.nextElementSibling, ps = getComputedStyle(pad), row = $("homerow");
     for (; e; e = e.nextElementSibling) {
-      var cs = getComputedStyle(e);
-      if (e.getClientRects().length) used += e.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
-      if (e === go) break;
+      var cs = getComputedStyle(e), hh = e.getClientRects().length ? e.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom) : 0;
+      if (e === row) { quiet = hh; break; }
+      used += hh;
+      if (e === go && !got) break;
     }
     var room = H.clientHeight - pad.offsetTop - parseFloat(ps.marginBottom) - used - 8;   // 8: the shadow under the main button
+    // received: "Selbst eine machen" and "Melden" on the first screen too, as long as the card keeps its room (sheet >= 200 px)
+    if (got && room - quiet >= 200) room -= quiet;
     had.forEach(function (c) { H.classList.add(c); });
     pad.style.flex = "none"; pad.style.height = Math.max(96, Math.floor(room)) + "px";
     if (A().style && A().style.fit) A().style.fit();
+  }
+  // The day's title is never smaller than 14 px (readers up to 85): on a tall phone the sheet has a fixed height from the
+  // CSS, and a long title with a two-line subtitle (11 Nov, "Auktion der Agenten") would shrink to 10 px. The sheet grows
+  // in 4 px steps until every title line has 14 px; what lies below (the second row of tiles) moves down instead.
+  var TITLE_MIN = 14;
+  function titleMin(hero) { var m = Infinity; Array.from(hero.children).forEach(function (s) { var f = parseFloat(s.style.fontSize); if (f) m = Math.min(m, f); }); return m; }
+  function legible(pad) {
+    var hero = $("hero"), fit = A().style && A().style.fit;
+    if (!fit || !hero || !hero.children.length || !hero.getClientRects().length || !hero.clientWidth) return;
+    fit();
+    for (var base = pad.offsetHeight, n = 1; titleMin(hero) < TITLE_MIN && n <= 40; n++) { pad.style.flex = "none"; pad.style.height = base + 4 * n + "px"; fit(); }
   }
   addEventListener("resize", function () { if (box) first(); });
   // the display font arrives after the first paint and changes the heights above the main button

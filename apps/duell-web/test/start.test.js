@@ -139,3 +139,22 @@ test("Review #185 Runde 2: Namen nur grossgeschrieben und nie ein Pronomen, Name
   assert.equal(S.understand("Termin für den Spieleabend").intent, "planen");
   assert.equal(DATA.texts.de.st_hint.length <= 14, true, "Platzhalter passt bei 200 %");
 });
+
+test("Teilen mit 1 Tipp: Kurzlink bei Fertig, der Tipp wartet nie auf den Server (sonst langer Link), Statistik erst beim echten Teilen, nie ein Foto im Vorschaubild", () => {
+  const app = src("app.js");
+  assert.match(app, /var r = result; shortLink\(r\)\.then\(function \(\) \{ if \(result === r && screen === "done" && window\.StartUI\) window\.StartUI\.labels\(\); \}/, "bei Fertig angelegt");
+  const click = app.slice(app.indexOf('$("share").addEventListener("click"'), app.indexOf('$("playit").addEventListener'));
+  assert.doesNotMatch(click, /await|shortLink\(|disabled|sh_ready/, "der Tipp teilt sofort, ohne zweiten Schritt");
+  assert.match(click, /var r = result, link = r\.link \|\| \{ url: r\.url, short: false \};/, "ohne Kurzlink der lange");
+  assert.match(click, /counted\(r\);/);
+  assert.match(app, /function counted\(r, way\) \{ way = way \|\| "share"; if \(!r\) return; var c = r\.counted \|\| \(r\.counted = \{\}\); if \(c\[way\]\) return; c\[way\] = 1;/, "einmal je Ergebnis und Weg");
+  assert.match(src("start-ui.js"), /if \(ok && A\(\)\.count\) A\(\)\.count\("copy"\);/, "Link kopieren zaehlt als Teilen, nur wenn das Kopieren klappt");
+  assert.match(app, /counted\(result, kind\);/, "Status und Story je ein Weg");
+  assert.doesNotMatch(app.slice(app.indexOf("function shortLink(r)"), app.indexOf("function chatPicture")), /S\.share\(/, "Anlegen zaehlt nicht als Teilen");
+  assert.match(app, /if \(link\.short && r\.kind !== "photo" && r\.canvas && !\(r\.keep && r\.keep\.photo\)\)/, "ein eigenes Foto bleibt auf dem Geraet");
+  assert.match(src("warm.js"), /A\.quick\(doc, h\.idea\)\.then\(function \(\) \{ var s = document\.getElementById\("share"\); if \(s\) s\.focus\(\); \}\);/, "kein Klick ohne Nutzer-Tipp");
+  const T = require("../src/texts.json");
+  assert.doesNotMatch(T.de.sh_note, /Teilen legt/); assert.match(T.de.sh_note, /bis zu 90 Tage/);
+  for (const l of ["de", "en"]) for (const k of ["st_shortOk", "st_shortDay", "st_shortWait", "st_shortNo", "st_shortLong"]) assert.ok(DATA.texts[l][k], l + k);
+  assert.match(DATA.texts.de.st_shortDay, /Fertig.*24 Stunden.*90 Tage/); assert.match(DATA.texts.de.st_shortOk, /Fertig/);
+});

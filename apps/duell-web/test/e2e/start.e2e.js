@@ -12,6 +12,7 @@ const { ensureBuilt } = require("../../scripts/ensure-build.js");
 const AXE = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
 const RULES = { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } };
 const DAY = "2026-11-08T10:00:00Z";   // Sunday 8 Nov: the arcade card "Ziegel Duell" (its burst said "Arcade")
+const AUKTION = "2026-11-11T10:00:00Z";   // Wednesday 11 Nov: a live card with a long title and a two-line subtitle
 const LIVE = "2026-11-09T10:00:00Z";  // Monday 9 Nov: a live card, one more row under the sheet (Look würfeln / Anruf öffnen)
 // Pixel 7 at 150 % (persona P6): 275x610 CSS px, the big-type order (intentions first); only here, not in every W0 screen,
 // since that order puts the main button below the first screen on purpose.
@@ -240,7 +241,7 @@ test("Review #185: Feld bei 200 % auf dem Handy breit genug, Tageskarte bei 150 
   // 360x800 (Galaxy A, common) and 360x780 (Galaxy S24): the day's title (minimum content), both rows of tiles and the
   // day's main button on the first screen; where room is short the tiles get flatter, never the title goes
   // the same on a day with a live card (9 Nov), whose extra row under the sheet (Look würfeln / Anruf öffnen) the tiles make room for
-  for (const day of [DAY, LIVE]) for (const h of [780, 800]) {
+  for (const day of [DAY, LIVE, AUKTION]) for (const h of [780, 800]) {
     const tag = "360x" + h + " " + day.slice(5, 10) + ": ";
     G.VIEWS["p360h" + h] = { viewport: { width: 360, height: h }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
     const c3 = await G.person(b, { lang: "de", view: "p360h" + h, time: day }); await c3.route(/^https?:/, (r) => r.abort());
@@ -249,17 +250,23 @@ test("Review #185: Feld bei 200 % auf dem Handy breit genug, Tageskarte bei 150 
     for (const sel of ["#hero", "#go", ".sttile[data-i=gruss]", ".sttile[data-i=planen]", ".sttile[data-i=spielen]", ".sttile[data-i=stimme]"]) if (!(await G.inView(q, sel))) bad.push(tag + "nicht im ersten Bild: " + sel);
     const t = await q.evaluate(() => { const e = document.getElementById("hero"); const r = e.getBoundingClientRect(); return { h: r.height, txt: e.textContent.trim(), vis: getComputedStyle(e).visibility, disp: getComputedStyle(e).display }; });
     if (!t.txt || t.h < 16 || t.vis !== "visible" || t.disp === "none") bad.push(tag + "Titel der Tageskarte fehlt " + JSON.stringify(t));
+    // readable, not only present: every title line at least 14 px (readers up to 85; it shrank to 10.2 px on 11 Nov)
+    const fs = await q.evaluate(() => Math.min(...[...document.getElementById("hero").children].map((e) => parseFloat(getComputedStyle(e).fontSize))));
+    if (!(fs >= 14)) bad.push(tag + "Titel nur " + fs + " px");
     const tile = await q.evaluate(() => Math.min(...[...document.querySelectorAll(".sttile")].map((e) => e.getBoundingClientRect().height)));
     if (tile < 44) bad.push(tag + "Kachel " + tile + " px");
     assert.deepEqual(q.errs, []); await c3.close();
   }
   // 390x844 as on the canvas: the four tiles and the day's main button on the first screen (also with a live card), the start on cream
-  for (const day of [LIVE]) {
+  for (const day of [LIVE, AUKTION]) {
     const c4 = await G.person(b, { lang: "de", view: "phone390", time: day }); await c4.route(/^https?:/, (r) => r.abort());
     const q = await G.open(c4, ""); await q.locator("#startbox").waitFor(); await q.waitForTimeout(300);
-    assert.equal(await q.locator("#livego").isVisible(), true, "390x844 9.11.: Live-Zeile sichtbar");
-    for (const sel of ["#hero", "#go", "#livego", ".sttile[data-i=gruss]", ".sttile[data-i=planen]", ".sttile[data-i=spielen]", ".sttile[data-i=stimme]"]) if (!(await G.inView(q, sel))) bad.push("390x844 9.11.: nicht im ersten Bild: " + sel);
-    (await G.smallTargets(q, "#startbox")).forEach((v) => bad.push("390x844 9.11. zu klein: " + v));
+    const tag = "390x844 " + day.slice(5, 10) + ": ";
+    assert.equal(await q.locator("#livego").isVisible(), true, tag + "Live-Zeile sichtbar");
+    for (const sel of ["#hero", "#go", "#livego", ".sttile[data-i=gruss]", ".sttile[data-i=planen]", ".sttile[data-i=spielen]", ".sttile[data-i=stimme]"]) if (!(await G.inView(q, sel))) bad.push(tag + "nicht im ersten Bild: " + sel);
+    const fs = await q.evaluate(() => Math.min(...[...document.getElementById("hero").children].map((e) => parseFloat(getComputedStyle(e).fontSize))));
+    if (!(fs >= 14)) bad.push(tag + "Titel nur " + fs + " px");
+    (await G.smallTargets(q, "#startbox")).forEach((v) => bad.push(tag + "zu klein: " + v));
     assert.deepEqual(q.errs, []); await c4.close();
   }
   const ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY }); await ctx.route(/^https?:/, (r) => r.abort());
