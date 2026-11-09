@@ -188,6 +188,13 @@ test("Review #186 Runde 2: Konto-Angebot bei Fertig nur ohne Anmeldung und leise
     await linked.addInitScript(() => { const st = JSON.parse(localStorage.getItem("daily.v1") || "{}"); st.profile = { via: "code", code: "0123456789abcdef0123456789abcdef" }; localStorage.setItem("daily.v1", JSON.stringify(st)); });
     const l = await made(linked, "warm-toll", "Lea");
     assert.equal(await l.locator("#staccount").isVisible(), false, "angemeldet: kein Angebot"); await linked.close();
+    // Runde 3: a photo work never leaves the device (profile.js): its offer names only what goes along, never "it is on your tablet"
+    const pho = await phone(b, { nick: "Ana" }), f = await G.open(pho, "#i=foto-boss");
+    await f.locator("#go").click(); await f.locator("#edmain").click(); await f.locator("#share").waitFor();
+    const ft = await f.locator("#staccount p").textContent();
+    assert.equal(ft, "Mit einem Konto hast du Spitzname, Stil und deine anderen Karten auch auf dem Tablet. Dein Foto bleibt nur auf diesem Gerät. Geht auch ohne.");
+    assert.doesNotMatch(ft, /liegt sie auch|nicht verloren/, "kein Versprechen fuer das Foto-Werk");
+    assert.deepEqual(f.errs, []); await pho.close();
     // 7: received at 195 px (390 at 200 %): the head in one line, the card at least 140 px
     const z = await phone(b, { view: "p390z200" }), q = await G.open(z, url.slice(url.indexOf("#")));
     await q.locator("#recvhead").waitFor();

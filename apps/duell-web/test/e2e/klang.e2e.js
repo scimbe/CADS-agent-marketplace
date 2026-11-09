@@ -202,6 +202,11 @@ test("Stimme verzerren: axe 0 Verstoesse, 44 px, kein Querscrollen – de/en, 32
     await p.locator("#edmain").click(); await p.locator("#klopen").click(); await p.locator("#klsheet[open]").waitFor(); await p.waitForTimeout(300);
     await check("Fertig-Blatt", "#klsheet");
     assert.match(await p.locator("#klsheet").innerText(), lang === "de" ? /Die Aufnahme speichern wir nicht/ : /We do not store the recording/);
+    // the sentence about the voice (the recording is not kept, the link carries only effect and text) is in sight when the
+    // sheet opens, before any button that sends the recording; the Fertig note itself no longer carries it (as on main)
+    const say = await p.evaluate(() => { const d = document.getElementById("klsheet"), n = d.querySelector("p.note"), r = n.getBoundingClientRect(), dr = d.getBoundingClientRect(), send = d.querySelector(".btn"); return { txt: n.textContent, inView: r.height > 0 && r.top >= Math.max(0, dr.top) - 0.5 && r.bottom <= Math.min(innerHeight, dr.bottom) + 0.5, before: !!send && !!(n.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING) }; });
+    assert.match(say.txt, lang === "de" ? /Die Aufnahme speichern wir nicht\..*nur Effekt und Text/ : /We do not store the recording\..*only the effect and the text/, lang + " " + view);
+    if (!say.inView || !say.before) bad.push(lang + " " + view + ": Satz zur Stimme nicht vor dem Senden im Bild " + JSON.stringify(say));
     // the subtitle switch in the card's look, not the browser's blue
     assert.equal(await p.evaluate(() => getComputedStyle(document.querySelector(".klsub input")).appearance), "none");
     await p.keyboard.press("Escape"); await p.waitForTimeout(200); await check("Fertig", "#done");

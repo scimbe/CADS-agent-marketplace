@@ -238,14 +238,15 @@
       copyB.id = "copylink"; $("tostory").after(copyB);   // with Status and Story under "Mehr": the row below keeps its three buttons
     }
     copyB.textContent = t("st_copy");
-    // without a login: an offer, quiet and below the rest (no pressure, nothing changes without it); linked: nothing
+    // without a login: an offer, quiet and below the rest (no pressure, nothing changes without it); linked: nothing.
+    // Honest about what travels: a photo work stays on this device, so for it the offer names only what does go along.
     var acc = $("staccount"), p = Kit.store.profile, linked = !!(p && (p.via === "account" || p.via === "code"));
     if (!acc) {
       acc = el("div"); acc.id = "staccount"; acc.appendChild(el("p"));
       acc.appendChild(el("button", "", null, function () { Kit.sfx.tap(); A().style.open(); }));
       $("dhome").parentNode.after(acc);
     }
-    acc.hidden = linked; acc.firstChild.textContent = t("st_acc"); acc.lastChild.textContent = t("st_accGo");
+    acc.hidden = linked; acc.firstChild.textContent = t(k === "photo" ? "st_accPhoto" : "st_acc");   // a photo work never leaves the device (profile.js) acc.lastChild.textContent = t("st_accGo");
   }
   // Rule A4: the main button is on the first screen without scrolling. A short screen (a small phone, 200 % zoom) and a card
   // that came by link give the sheet exactly the room left above the main button; what follows is reached by scrolling. A
