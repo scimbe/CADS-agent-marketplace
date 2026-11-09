@@ -193,3 +193,12 @@ test("60-px-Regel nach der Landeanimation: sichtbare Live-Karte >= 60 px, ausgeb
     assert.deepEqual(bad, []);
   } finally { await b.close(); }
 });
+
+// Zoom (personas P6/P7): phones (412x839 at 100/150/200 %, 320x568 at 100 %, CSS widths 206 to 412); the rules in lib/zoom.js.
+const Z = require("./lib/zoom.js");
+for (const [base, z] of [[{ width: 412, height: 839 }, 1], [{ width: 412, height: 839 }, 1.5], [{ width: 412, height: 839 }, 2], [{ width: 320, height: 568 }, 1]])
+  test("Zoom-Matrix " + base.width + "x" + base.height + " bei " + z * 100 + " % (de/en; empfangen, Tageskarte, Einladungen): empfangene Karte >= 120 px, keine Ueberlappung, Titel ganz, Feld im Fokus frei, axe sauber", async () => {
+    const r = await Z.matrix(base, z, true);
+    assert.ok(r.got === 4 && r.n >= 6, "Matrix zu klein: " + JSON.stringify(r));
+    assert.deepEqual(r.bad, []);
+  });

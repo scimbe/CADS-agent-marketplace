@@ -83,7 +83,7 @@ function fillSheet(root, h, still) {
 function setHome(h, animate) {
   home = h;
   var s = fillSheet($("leaf"), h, false), kind = s.kind, mode = s.mode, idea = h.idea;
-  $("go").textContent = mode ? mode.go : idea && idea.protokoll && !h.doc ? t("go_protokoll") : s.got ? t("remixGo") : t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
+  $("go").textContent = mode ? mode.go : voiceGot() ? "🎙 " + t("answerVoice") : idea && idea.protokoll && !h.doc ? t("go_protokoll") : s.got ? t("remixGo") : t("go_" + kind) !== "go_" + kind && t("go_" + kind) ? t("go_" + kind) : t("go");
   var wk = W.KINDS.indexOf(kind) >= 0, wb = $("wishgo");   // AI where it does real work, otherwise the dice
   wb.dataset.tab = wk ? "Wish" : "Dice"; wb.textContent = t(wk ? "wishHome" : "diceHome"); wb.hidden = !!mode || !allow("tabs", wb.dataset.tab) || (!wk && W.DICE.indexOf(kind) < 0);
   var kr = $("kireport"), done = h.doc && reported(h.doc); kr.textContent = t(done ? "kiReported" : "kiReport"); kr.disabled = !!done; kr.hidden = !h.doc;   // every shared sheet can be reported
@@ -95,7 +95,11 @@ function setHome(h, animate) {
   // The thumbs keep their row from the first paint (.votes in style.css), so the sheet does not move when their part arrives.
   var F = window.DailyFlavor, off = F && F.stat === false; $("votes").hidden = off || !(h.doc ? h.note && h.doc.i && !(h.doc.ki && h.doc.ki.k === "karte") : h.idea);   // as Stat.card
   stimme(function (S) { S.sheet(h); }, h);
+  if (kind === "sound" && (h.doc ? h.doc.m : idea && idea.sound && idea.sound.mode) === "voice") window.Parts.need("klang").catch(function () {});   // not in the idle preload (parts.js)
 }
+// A voice sent by a friend: the main button answers with my own voice (the part klang records after this tap, once the
+// microphone is allowed; before that it explains first and waits for the record button).
+function voiceGot() { return !!(home.note && home.doc && home.doc.k === "sound" && home.doc.m === "voice"); }
 // Thumbs and card numbers live in the part "stimme" (src/stimme-ui.js, src/stat.js); a flavor with stat: false has neither.
 function stimme(fn, h) {
   var F = window.DailyFlavor; if (F && F.stat === false) return;
@@ -190,14 +194,25 @@ peekB.id = "pvpeek"; peekB.hidden = true; $("pv").after(peekB);
 // Escape closes an open preview while the sheet is on screen, the focus goes back to its button
 document.addEventListener("keydown", function (e) { if (e.key === "Escape" && screen === "home" && !peekB.hidden && !document.querySelector("dialog[open]") && !$("door") && $("pv").classList.contains("peek")) { e.preventDefault(); peek2(false); peekB.focus(); } }, true);
 // while it is open, everything under it on the sheet (title, thumbs …) is inert; the button stays usable
-function peek2(on) { Array.from($("leaf").children).forEach(function (c) { if (c !== peekB && c.id !== "pv") c.inert = on; }); $("pv").classList.toggle("peek", on); peekB.setAttribute("aria-expanded", String(on)); peekB.textContent = t("pv_peek"); }
+function peek2(on) { Array.from($("leaf").children).forEach(function (c) { if (c !== peekB && c.id !== "pv") c.inert = on; }); $("pv").classList.toggle("peek", on); peekB.setAttribute("aria-expanded", String(on)); peekB.textContent = t(on ? "pv_shut" : "pv_peek"); }
 function fitCard() {
   var pv = $("pv"), c = $("pvcard"), w = $("warmto"), lp = $("langpick"), mehr = !!(lp && !lp.hidden) || !!(w && !w.hidden), live = !pv.hidden && (pv.classList.contains("with") || mehr);
-  $("home").classList.toggle("mehr", mehr); pv.classList.toggle("live", live);
-  pv.classList.remove("tight"); peekB.hidden = true;
-  var tight = live && !c.hidden && (!c.getClientRects().length || c.offsetHeight < 60);
-  pv.classList.toggle("tight", tight); peekB.hidden = !tight; if (!tight || !peekB.getAttribute("aria-expanded")) peek2(false);
+  var H = $("home"), got = $("leaf").classList.contains("got"), low = function (n) { return live && !c.hidden && (!c.getClientRects().length || c.offsetHeight < n); };
+  H.classList.toggle("mehr", mehr); pv.classList.toggle("live", live);
+  pv.classList.remove("tight"); H.classList.remove("roll", "lean"); peekB.hidden = true;
+  // Received (P6/P7, 150-200 % zoom): the card is what matters, it is never hidden. Date, title and language choice
+  // give way first (.lean), then the sheet scrolls (.roll); "Vorschau" stays the last resort for everything else.
+  if (got && low(120)) { H.classList.add("lean"); if (low(120)) H.classList.add("roll"); }
+  var tight = !got && low(60), L = $("leaf");
+  pv.classList.toggle("tight", tight); peekB.hidden = !tight;
+  // still more than the sheet holds (a narrow phone at 200 % with field and language choice): the page scrolls here too
+  if (tight && L.scrollHeight > L.clientHeight + 1) { H.classList.add("roll"); pv.classList.remove("tight"); tight = low(60); pv.classList.toggle("tight", tight); peekB.hidden = !tight; }
+  if (!tight || !peekB.getAttribute("aria-expanded")) peek2(false);
+  // the title's room changed: it fits again instead of being cut
+  fitHero();
 }
+// a scrolling sheet (.roll) brings a field in focus into sight (the name field under the fold at 200 %)
+$("home").addEventListener("focusin", function (e) { if (this.classList.contains("roll")) e.target.scrollIntoView({ block: "nearest" }); });
 // In the editor the picture stays above the card; the user's own photo takes its place once taken.
 function edPic() {
   var w = $("stagewrap"), id = ed && !ed.ownPhoto && !cv.hidden ? picId(docPic(ed.doc)) : null;
@@ -425,7 +440,7 @@ function openEditor(doc, opt) {
   if (doc && doc.k === "table") { if (window.TableUI) window.TableUI.open(doc.g); return; }   // a card table is played live, there is nothing to edit
   window.Ai.drop();
   $("stagewrap").classList.remove("swap");
-  ed = { doc: D.sanitizeDoc(doc), base: D.sanitizeDoc(doc), own: !!opt.own, made: !!opt.made, photo: null, peaks: null, pcm: null, tab: null, sel: -1, page: 0, line: 0, idea: opt.idea || null };
+  ed = { doc: D.sanitizeDoc(doc), base: D.sanitizeDoc(doc), own: !!opt.own, made: !!opt.made, photo: null, peaks: null, pcm: null, tab: null, sel: -1, page: 0, line: 0, idea: opt.idea || null, rec: opt.rec };
   if (opt.own) ed.doc.n = me.nick;
   if (ed.doc.k === "sound" && ed.doc.m === "beat") beatPeaks();
   if (ed.doc.k === "photo") { ed.photo = R.botFace(D.botSeed(me.nick, ed.doc, 0), ed.doc.col[1]); }
@@ -459,7 +474,7 @@ $("tabs").addEventListener("keydown", function (e) {
 function tab(k) {
   if (ed.pv) { ed.pv = false; ed.fly = null; window.Ai.drop(); G.update(gameState()); }
   ed.tab = k; Array.from($("tabs").children).forEach(function (b) { var on = b.dataset.k === k; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; });
-  var p = $("panel"); p.textContent = ""; p.setAttribute("aria-labelledby", "tab" + k); p.removeAttribute("data-size"); p.classList.toggle("tall", (k === "Sound" && ed.doc.m === "beat") || (k === "Text" && ed.doc.k !== "game") || k === "Wish" || k === "Dice"); PANEL[k](p); p.scrollTop = 0;
+  var p = $("panel"); p.textContent = ""; p.setAttribute("aria-labelledby", "tab" + k); p.removeAttribute("data-size"); p.classList.toggle("tall", k === "Sound" || (k === "Text" && ed.doc.k !== "game") || k === "Wish" || k === "Dice"); PANEL[k](p); p.scrollTop = 0;
 }
 function setDoc(d) {        // a whole creation replaced by a wish or its undo; the canvas state follows
   ed.doc = d; ed.sel = -1; if (d.k === "sound" && d.m === "beat") beatPeaks();
@@ -748,38 +763,9 @@ function beatPanel(p) {
   var pl = el("button", "chip", loop ? "■ " + t("stop") : "▶ " + t("listen"), function () { if (loop) { stopSound(); pl.textContent = "▶ " + t("listen"); } else { playBeat(); pl.textContent = "■ " + t("stop"); } });
   bar.appendChild(pl);
 }
-function setVoice(pcm, mine) { ed.raw = pcm; if (mine) ed.ownVoice = true; applyFx(); }
-function applyFx() { if (!ed.raw) return; ed.pcm = S.warp(ed.raw, ed.doc.fx); ed.peaks = S.peaks(ed.pcm, 40); changed(); }
-// 3-2-1 read out, then up to 4 s with a ring that fills (style.css .ring); a tap on the same button stops it early.
-var recNow = null;
-async function record(b) {
-  if (recNow) { if (recNow.stop) recNow.stop(); return; }
-  var n = S.SR, ms = 4000, ring = 0, t0;
-  try {
-    recNow = {};
-    if (!navigator.mediaDevices || !window.MediaRecorder) throw new Error("no mic");
-    var st = await navigator.mediaDevices.getUserMedia({ audio: true }), rec = new MediaRecorder(st), parts = [];
-    for (var k = 3; k; k--) { b.textContent = k; Kit.speak(k); await new Promise(function (ok) { setTimeout(ok, 700); }); }
-    b.textContent = "■ " + t("stop"); Kit.speak(t("recing")); b.classList.add("ring"); recNow = rec;
-    rec.ondataavailable = function (e) { parts.push(e.data); };
-    rec.onstop = async function () {
-      recNow = null; clearInterval(ring); b.classList.remove("ring"); b.style.setProperty("--p", 0); b.textContent = "🎙 " + t("rec"); st.getTracks().forEach(function (x) { x.stop(); });
-      try { var buf = await Kit.audio(true).decodeAudioData(await new Blob(parts).arrayBuffer()), src = buf.getChannelData(0), k = buf.sampleRate / n, o = new Float32Array(Math.floor(src.length / k)); } catch (e) { return; }   // stopped at once: nothing to keep
-      for (var i = 0; i < o.length; i++) o[i] = src[Math.floor(i * k)];
-      if (ed) setVoice(o, true);
-    };
-    rec.start(); t0 = Date.now();
-    ring = setInterval(function () { var f = Math.min(1, (Date.now() - t0) / ms); b.style.setProperty("--p", f); if (f >= 1 && rec.state === "recording") rec.stop(); }, 100);
-  } catch (e) { recNow = null; Kit.toast(t("noMic")); }
-}
-function voicePanel(p) {
-  var b = el("button", "chip", "🎙 " + t("rec"), function () { Kit.sfx.tap(); record(b); });
-  var row = el("div", "chips"); row.appendChild(b);
-  row.appendChild(el("button", "chip", "🤪 " + t("dummy"), function () { Kit.sfx.pop(); setVoice(S.dummyVoice(), false); }));
-  row.appendChild(el("button", "chip", "▶ " + t("listen"), function () { if (!ed.pcm) setVoice(S.dummyVoice(), false); stopSound(); loop = Kit.playPcm(ed.pcm, S.SR, false); }));
-  p.appendChild(row);
-  chips(p, D.FX.map(function (f) { return { v: f, l: t("fx_" + f) }; }), ed.doc.fx, function (v) { ed.doc.fx = v; applyFx(); });
-}
+function applyFx() { if (!ed.raw) return; ed.pcm = window.Klang ? window.Klang.apply(ed.raw, ed.doc) : S.warp(ed.raw, ed.doc.fx); ed.peaks = S.peaks(ed.pcm, 40); changed(); }
+// Recording, the effects and sending the voice as a file: the part klang (src/klang.js, src/klang-ui.js).
+function voicePanel(p) { window.Parts.use("klang", function () { if (ed && p.isConnected) window.Klang.panel(p); }).catch(function () {}); }
 
 /* ---------- finish ---------- */
 // AI Act Art. 50: a picture of a sheet that AI made (or helped to make: wish, AI picture, free card) says so in the picture
@@ -832,6 +818,7 @@ async function makePicture(doc, idea, pictureDoc) {
   var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png);
   $("playit").hidden = true;   // a card is not a level: whoever does not fly far would never see it
   stopSound(); G.stop(); labels(); show("done", true); Kit.sfx.win();
+  if (window.Klang || (doc.k === "sound" && doc.m === "voice")) window.Parts.use("klang", function () { window.Klang.done(result); }).catch(function () {});
 }
 $("edmain").addEventListener("click", function () {
   if (!ed) return;
@@ -1105,9 +1092,8 @@ function labels() {
   var ct = $("create"); ct.hidden = !shown("f_create"); ct.textContent = "✨ " + t("create_tile"); ct.appendChild(el("span", "", t("create_sub")));
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
   $("tostatus").textContent = t("sh_status"); $("tostory").textContent = t("sh_story"); $("dmore").textContent = t("mehr"); $("dmore").parentNode.hidden = !allow("done", "status");
-  // what the other side gets: a photo or a voice stays on this phone, the link carries a bot face or only the effect
-  var k = result && result.doc && (result.doc.k === "photo" ? "photo" : result.doc.k === "sound" && result.doc.m !== "beat" ? "voice" : "");
-  $("shnote").textContent = [t("sh_note"), k ? t("sh_" + k) : ""].filter(Boolean).join(" ");
+  // what the other side gets: a photo stays on this phone, the link carries a bot face (a voice: the part klang says it in its sheet)
+  $("shnote").textContent = t("sh_note") + (result && result.doc && result.doc.k === "photo" ? " " + t("sh_photo") : "");
   $("share").textContent = t("share"); $("save").textContent = t("save"); $("keep").textContent = t("edit"); $("dhome").textContent = t("home"); $("playit").textContent = "🕹 " + t("playIt");
   $("save").hidden = !Kit.canSave(); SK.labels(); CU.labels(); $("dback").setAttribute("aria-label", t("xClose"));
   // Inside the app shells (DuellHost.more) a quiet "more" opens the native extras; in a browser it stays hidden.
@@ -1137,17 +1123,17 @@ $("past").addEventListener("click", function () { Kit.sfx.tap(); openPast(); });
 $("wall").addEventListener("click", function () { Kit.sfx.tap(); openWall(); });
 $("own").addEventListener("click", function () { Kit.sfx.tap(); openOwn(); });
 $("create").addEventListener("click", function () { Kit.sfx.tap(); window.Parts.use("erschaffen", function () { window.CreateUI.open(); }).catch(function () {}); });
-function start(tabName) {
+function start(tabName, go) {
   if (!home.doc && twoIdea(home.idea)) { window.Parts.use(twoIdea(home.idea), function () { start(tabName); }).catch(function () {}); return; }
   Kit.sfx.thud();
   if (WM.start(home, tabName)) return;
   if (home.doc && X[home.doc.k] && X[home.doc.k].incoming && X[home.doc.k].incoming(home.doc)) return;
   if (!home.doc && home.idea && home.idea.protokoll) { var u = protokollUrl(); if (location.protocol === "https:") location.href = u; else openLive(u); return; }
   if (!home.doc && home.idea && home.idea.kind === "arcade" && window.ArcadeUI) { window.ArcadeUI.menu(home.idea.arcade.g); return; }
-  if (home.doc) openEditor(D.localDoc(home.doc, Kit.lang), { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName, got: !!home.note });
-  else openEditor(D.docFromIdea(home.idea, me, Kit.lang), { idea: home.idea, tab: tabName, got: !!home.note });
+  if (home.doc) openEditor(D.localDoc(home.doc, Kit.lang), { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName, got: !!home.note, rec: go && voiceGot() });
+  else openEditor(D.docFromIdea(home.idea, me, Kit.lang, home.fx), { idea: home.idea, tab: tabName, got: !!home.note });
 }
-$("go").addEventListener("click", function () { start(); });
+$("go").addEventListener("click", function () { start(null, true); });   // only this button answers a voice at once (not a tap on the sheet)
 $("wishgo").addEventListener("click", function () { start($("wishgo").dataset.tab || "Wish"); });
 $("kireport").addEventListener("click", function () { Kit.sfx.tap(); if (home && home.doc) reportKi(home); });
 $("livego").addEventListener("click", function () { Kit.sfx.tap(); openLive($("livego").dataset.u); });
@@ -1192,7 +1178,7 @@ function route() {
     delete st.score; delete st.name; show("game"); G.play(st, riv, { own: true }); return true;
   }
   if ((r && r.type === "idea" && !D.available(D.byId(r.id))) || (r && r.type === "doc" && !D.docAvailable(r.doc))) { home = dayHome(); goHomeKeep(); Kit.toast(t("notHere")); return true; }
-  if (r && r.type === "idea") { home = { date: today, idea: D.byId(r.id), note: t("invite"), noteOf: function () { return t("invite"); } }; goHomeKeep(); return true; }
+  if (r && r.type === "idea") { home = { date: today, idea: D.byId(r.id), fx: r.fx, note: t("invite"), noteOf: function () { return t("invite"); } }; goHomeKeep(); return true; }
   // A turn card that checks a signature first (feier: the signed end) reads its link only once that is done.
   var pre = r && r.type === "doc" && r.doc.k === "turn" && window.Turns.game(r.doc).prepare, wait = pre && pre(r.doc);
   if (wait && wait.then) { wait.then(route, route); return true; }
@@ -1249,7 +1235,7 @@ var CU = window.CollabUI.init({
 var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
-window.DailyApp = { part: twoIdea, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, picSwap: picSwap, picThumb: picThumb, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { part: twoIdea, stopSound: stopSound, playPcm: function (pcm) { stopSound(); return (loop = Kit.playPcm(pcm, S.SR, false)); }, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, picSwap: picSwap, picThumb: picThumb, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 window.DailyApp.allow = allow;
 

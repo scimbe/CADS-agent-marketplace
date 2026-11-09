@@ -325,9 +325,10 @@ test("Ohne Server (ADR 0005): kein Teil stimme im Business-Build, keine Daumen, 
   assert.ok(files.length > 5 && !files.some((f) => /^stimme\./.test(f)), files.join(" "));
   assert.ok(!/"stimme":|vote_q|root\.Stimme/.test(require("node:fs").readFileSync(path.join(root, "dist/business/index.html"), "utf8")), "nicht im Manifest, nicht im Kern");
   // no cards in Business: no weather part, its words neither in the core, no Mal & Rat part; My style and the report dialog are there
-  assert.ok(!files.some((f) => /^(wetter|malen)\./.test(f)) && files.some((f) => /^stil\./.test(f)) && files.some((f) => /^melden\./.test(f)), files.join(" "));
+  assert.ok(!files.some((f) => /^(wetter|malen|dart)\./.test(f)) && files.some((f) => /^stil\./.test(f)) && files.some((f) => /^melden\./.test(f)), files.join(" "));
   assert.ok(!/"wetter":|"wx[A-Z]/.test(require("node:fs").readFileSync(path.join(root, "dist/business/index.html"), "utf8")), "kein Wetter im Business-Kern");
   assert.ok(!/"malen":/.test(require("node:fs").readFileSync(path.join(root, "dist/business/index.html"), "utf8")), "Mal & Rat nicht im Business-Manifest");
+  assert.ok(!/"dart":/.test(require("node:fs").readFileSync(path.join(root, "dist/business/index.html"), "utf8")), "Dart nicht im Business-Manifest");
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }), asked = [], errs = [];
   ctx.on("request", (r) => { if (/\/parts\/stimme\.|\/api\/duell\/stat/.test(r.url())) asked.push(r.url()); });
@@ -338,4 +339,36 @@ test("Ohne Server (ADR 0005): kein Teil stimme im Business-Build, keine Daumen, 
   assert.deepEqual(await p.evaluate(() => window.Parts.names().filter((n) => n === "stimme")), [], "das Vorladen im Web (parts.js) kennt ihn nicht");
   assert.deepEqual(asked, []); assert.deepEqual(errs, []);
   await b.close();
+});
+
+// #164 locks the main button with a dashed frame on paper (core style.css); the flavor's .press{border:0} took the frame's
+// width away, so the locked button read as plain text. Locked: a visible dashed frame in the org colour, text and frame
+// readable (WCAG 1.4.3 text >= 4.5:1, 1.4.11 frame >= 3:1 against the button and the page), axe clean.
+const rgb = (s) => s.match(/[\d.]+/g).slice(0, 3).map(Number);
+const lum = (c) => { const [r, g, b] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const ratio = (a, b) => { const [x, y] = [lum(rgb(a)), lum(rgb(b))].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+test("Gesperrter Hauptknopf im Business-Flavor: gestrichelter Rahmen in der Firmenfarbe, lesbar, axe ohne Verstoesse", async () => {
+  const AXE = require("node:fs").readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+  const { b, open, errs } = await setup();
+  const p = await open("#i=biz-umfrage-lunch"); await p.locator("#go").click();
+  const main = p.locator("#edmain");
+  await p.waitForFunction(() => document.getElementById("edmain").textContent === "Weiter");
+  assert.equal(await main.getAttribute("aria-disabled"), "true");
+  const look = () => main.evaluate((e) => { const s = getComputedStyle(e); return { w: ["Top", "Right", "Bottom", "Left"].map((k) => parseFloat(s["border" + k + "Width"])), st: s.borderTopStyle, bc: s.borderTopColor, bg: s.backgroundColor, fg: s.color, op: s.opacity, page: getComputedStyle(document.querySelector(".foot") || document.body).backgroundColor, org: getComputedStyle(document.body).getPropertyValue("--org").trim() }; });
+  const s = await look(); await snap(p, "biz-press-wait");
+  assert.ok(s.w.every((w) => w > 0), "Rahmenbreite > 0: " + s.w);
+  assert.equal(s.st, "dashed"); assert.equal(Number(s.op), 1);
+  assert.deepEqual(rgb(s.bc), rgb(await p.evaluate((h) => { const d = document.createElement("i"); d.style.color = h; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c; }, s.org)), "Rahmen in der Firmenfarbe");
+  assert.ok(ratio(s.fg, s.bg) >= 4.5, "Text " + ratio(s.fg, s.bg).toFixed(2));
+  assert.ok(ratio(s.bc, s.bg) >= 3 && ratio(s.bc, s.page) >= 3, "Rahmen " + ratio(s.bc, s.bg).toFixed(2) + " / " + ratio(s.bc, s.page).toFixed(2));
+  await p.addScriptTag({ content: AXE });
+  const v = await p.evaluate(() => window.axe.run(document.getElementById("editor"), { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } })
+    .then((r) => r.violations.map((x) => x.id + ": " + x.nodes.slice(0, 3).map((n) => n.target.join(" ")).join(", "))));
+  assert.deepEqual(v, []);
+  // open again: the filled button of the flavor, no frame
+  await p.locator("#panel input.field").first().fill("Ana");
+  await p.waitForFunction(() => document.getElementById("edmain").getAttribute("aria-disabled") === "false");
+  const o = await look();
+  assert.deepEqual(o.w, [0, 0, 0, 0]); assert.deepEqual(rgb(o.bg), rgb(s.bc));
+  assert.deepEqual(errs, []); await b.close();
 });

@@ -387,7 +387,7 @@ enum DuellDebug {
             await openIdea('stimme-monster');
             await clickEl(btn(/Record|Aufnehmen/), 1500);
             log('toast', $('#toast').textContent);
-            await clickEl(btn(/Silly voice|Quatschstimme/)); await clickEl(btn(/^Echo$/));
+            await clickEl(btn(/Silly voice|Quatschstimme/)); await clickEl(btn(/(^|\\s)Echo$/));
             log('footer', $('#edmain').textContent); await clickEl($('#edmain'), 1500); await clickEl($('#save'), 1500);
             """,
         // The page's parts (duell/parts/*.js next to index.html, script-src 'self' on the file:// page): the arcade

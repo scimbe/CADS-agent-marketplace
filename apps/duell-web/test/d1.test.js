@@ -22,7 +22,13 @@ test("Golden-Links: jede Katalogkarte (de, en) und Varianten lesen wie auf main 
   const kinds = new Set();
   for (const [name, hash, want] of G.links) {
     const r = D.parseRoute(hash);
-    assert.equal(r && r.type, "doc", name); assert.equal(sha(r.doc), want, name + ": dasselbe Doc"); kinds.add(r.doc.k);
+    assert.equal(r && r.type, "doc", name); kinds.add(r.doc.k);
+    const old = JSON.parse(Buffer.from(hash.slice(3), "base64url").toString("utf8")).d, to = D.MOVED[old.i];
+    if (to) {   // a card merged into another (D.MOVED): the same doc under the new card's id, shared again with that id
+      assert.deepEqual(r.doc, D.sanitizeDoc(Object.assign({}, old, { i: to[0] })), name + ": dasselbe Doc unter der neuen Karte");
+      assert.equal(D.parseRoute(D.docUrl(r.doc).replace(/^[^#]*/, "")).doc.i, to[0], name); continue;
+    }
+    assert.equal(sha(r.doc), want, name + ": dasselbe Doc");
     const again = D.docUrl(r.doc); assert.equal(again.slice(again.indexOf("#")), hash, name + ": bitgleich wieder geteilt");
   }
   for (const k of D.KINDS.filter((k) => k !== "table" && k !== "arcade")) assert.ok(kinds.has(k), "Art " + k);
