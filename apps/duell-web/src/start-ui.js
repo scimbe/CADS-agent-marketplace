@@ -246,7 +246,7 @@
       acc.appendChild(el("button", "", null, function () { Kit.sfx.tap(); A().style.open(); }));
       $("dhome").parentNode.after(acc);
     }
-    acc.hidden = linked; acc.firstChild.textContent = t(k === "photo" ? "st_accPhoto" : "st_acc");   // a photo work never leaves the device (profile.js) acc.lastChild.textContent = t("st_accGo");
+    acc.hidden = linked; acc.firstChild.textContent = t(k === "photo" ? "st_accPhoto" : "st_acc"); acc.lastChild.textContent = t("st_accGo");
   }
   // Rule A4: the main button is on the first screen without scrolling. A short screen (a small phone, 200 % zoom) and a card
   // that came by link give the sheet exactly the room left above the main button; what follows is reached by scrolling. A
