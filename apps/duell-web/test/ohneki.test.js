@@ -52,7 +52,7 @@ test("Profil: Vorgaben nur aus festen Listen, Essen erst ab 16, PayPal-Name erst
   assert.equal(D.prefContext(a, "en", ["hh", "diet"]), "household of 6+; vegetarian");
   assert.ok(!/mia|18|alter|age/i.test(D.prefContext(a, "de") + D.prefContext(a, "en")), "kein Alter, kein PayPal-Name");
   assert.ok(D.prefContext(a, "de").length <= 120, "rund 60 Token");
-  assert.deepEqual(D.prefChips(a, "de").map((c) => c.l), ["Alter 18+", "6+ Pers.", "vegetarisch", "Keine Zeit werktags 9–17 Uhr", "Keine Zeit sonntags", "paypal.me/mia99"]);
+  assert.deepEqual(D.prefChips(a, "de").map((c) => c.l), ["Alter 18+ (eigene Angabe)", "6+ Pers.", "vegetarisch", "Keine Zeit werktags 9–17 Uhr", "Keine Zeit sonntags", "paypal.me/mia99"]);
   assert.deepEqual(D.dropPref(a, "no", "so"), { age: "a18", hh: 6, diet: "veg", no: ["tag"], pp: "mia99" });
   assert.deepEqual(D.dropPref(a, "age"), { hh: 6, no: ["tag", "so"] }, "Alter weg: Essen und PayPal gehen mit");
   assert.equal(D.adult(a), true); assert.equal(D.adult(p({ age: "u18" })), false); assert.equal(D.dietOk(p({ age: "u16" })), false);
