@@ -212,3 +212,24 @@ test("Review #186 Runde 2: Konto-Angebot bei Fertig nur ohne Anmeldung und leise
     assert.deepEqual(p.errs, []); await r.close();
   } finally { await b.close(); }
 });
+
+test("Review #186 Runde 4: eine Katalog-Karte per Link (#i=) gibt kein Blatt fuer die leise Zeile ab; auch mit breiterer Schrift bleibt der Text auf dem Blatt (328 px)", async () => {
+  ensureBuilt("");
+  const b = await G.launch(), bad = [];
+  try {
+    for (const card of ["spiel-lava", "karte-lob"]) {
+      const ctx = await G.person(b, { lang: "de", view: "phone328", time: DAY }); await ctx.route(/^https?:/, (r) => r.abort());
+      // a wider font than the Mac system font, as on the Linux CI (where 316 > 299 showed up): the sheet's own fitting must hold
+      await ctx.addInitScript(() => document.addEventListener("DOMContentLoaded", () => { const st = document.createElement("style"); st.textContent = "#leaf, #leaf *{font-family:Verdana,'DejaVu Sans',sans-serif!important}"; document.head.appendChild(st); }));
+      const p = await G.open(ctx, "#i=" + card); await p.waitForTimeout(900);
+      const m = await p.evaluate(() => { const l = document.getElementById("leaf"); return { got: l.classList.contains("got"), leaf: [l.scrollHeight, l.clientHeight], go: Math.round(document.getElementById("go").getBoundingClientRect().bottom), h: innerHeight }; });
+      if (m.got) bad.push(card + ": als empfangen markiert");
+      if (m.leaf[0] > m.leaf[1] + 1) bad.push(card + ": Text laeuft ueber das Blatt " + m.leaf.join(">"));
+      // the main button sits at the bottom of the first screen (rule A4), the quiet row is not pulled up into it
+      if (m.go < m.h - 24) bad.push(card + ": Blatt fuer die leise Zeile gekuerzt, #go endet bei " + m.go + " von " + m.h);
+      if (!(await G.inView(p, "#go"))) bad.push(card + ": Hauptknopf nicht im Bild");
+      assert.deepEqual(p.errs, [], card); await ctx.close();
+    }
+  } finally { await b.close(); }
+  assert.deepEqual(bad, []);
+});

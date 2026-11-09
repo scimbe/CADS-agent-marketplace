@@ -256,25 +256,38 @@
     pad.style.height = ""; pad.style.flex = "";
     if (H.hidden || !H.classList.contains("neu") || getComputedStyle(H).display === "grid") return;
     var recv = !box || box.hidden;
-    if (!recv && innerHeight > 700) return;
+    if (!recv && innerHeight > 700) return legible(pad);
     // the big-type order (intentions first, <= 300 px): the day's card keeps a real size below them, it is not squeezed
     if (!recv && innerWidth <= 300) { pad.style.flex = "none"; pad.style.height = Math.round(Math.min(Math.max(240, innerHeight * 0.7), 480)) + "px"; if (A().style && A().style.fit) A().style.fit(); return; }
     // measured with everything shown: the sheet's own fitting (app.js fitCard, .lean/.roll) decides again afterwards
     var had = ["lean", "roll"].filter(function (c) { return H.classList.contains(c); });
     H.classList.remove("lean", "roll");
+    // only a card someone sent (#leaf.got) gives up room for the quiet row; a catalog link (#i=) keeps its sheet as before
+    var got = recv && $("leaf").classList.contains("got");
     var used = 0, quiet = 0, e = pad.nextElementSibling, ps = getComputedStyle(pad), row = $("homerow");
     for (; e; e = e.nextElementSibling) {
       var cs = getComputedStyle(e), hh = e.getClientRects().length ? e.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom) : 0;
       if (e === row) { quiet = hh; break; }
       used += hh;
-      if (e === go && !recv) break;
+      if (e === go && !got) break;
     }
     var room = H.clientHeight - pad.offsetTop - parseFloat(ps.marginBottom) - used - 8;   // 8: the shadow under the main button
     // received: "Selbst eine machen" and "Melden" on the first screen too, as long as the card keeps its room (sheet >= 200 px)
-    if (recv && room - quiet >= 200) room -= quiet;
+    if (got && room - quiet >= 200) room -= quiet;
     had.forEach(function (c) { H.classList.add(c); });
     pad.style.flex = "none"; pad.style.height = Math.max(96, Math.floor(room)) + "px";
     if (A().style && A().style.fit) A().style.fit();
+  }
+  // The day's title is never smaller than 14 px (readers up to 85): on a tall phone the sheet has a fixed height from the
+  // CSS, and a long title with a two-line subtitle (11 Nov, "Auktion der Agenten") would shrink to 10 px. The sheet grows
+  // in 4 px steps until every title line has 14 px; what lies below (the second row of tiles) moves down instead.
+  var TITLE_MIN = 14;
+  function titleMin(hero) { var m = Infinity; Array.from(hero.children).forEach(function (s) { var f = parseFloat(s.style.fontSize); if (f) m = Math.min(m, f); }); return m; }
+  function legible(pad) {
+    var hero = $("hero"), fit = A().style && A().style.fit;
+    if (!fit || !hero || !hero.children.length || !hero.getClientRects().length || !hero.clientWidth) return;
+    fit();
+    for (var base = pad.offsetHeight, n = 1; titleMin(hero) < TITLE_MIN && n <= 40; n++) { pad.style.flex = "none"; pad.style.height = base + 4 * n + "px"; fit(); }
   }
   addEventListener("resize", function () { if (box) first(); });
   // the display font arrives after the first paint and changes the heights above the main button
