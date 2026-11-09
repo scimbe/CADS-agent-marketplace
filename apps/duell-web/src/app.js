@@ -67,6 +67,8 @@ function fillSheet(root, h, still) {
   // when the sheet has one of its own.
   var got = !!(doc && h.note && !mode); root.classList.toggle("got", got);
   var ks = q("kiseal"); ks.hidden = !(doc && doc.ki && doc.ki.s); ks.textContent = t("kiBadge"); ks.title = t("kiBadgeL"); ks.setAttribute("aria-label", t("kiBadgeL"));
+  // A free card: its use (login only) and a revoked seal (src/deck.js).
+  if (doc) window.Deck.seen(doc, ks);
   var hero = q("hero"); hero.textContent = ""; hero.hidden = got && !doc.t;
   title.filter(Boolean).forEach(function (l, i) { var s = el("span", "", l); s.style.setProperty("--i", i); hero.appendChild(s); });
   if (mode && !sub && D.byId(doc.i)) sub = ideaText(D.byId(doc.i)).s;
@@ -392,7 +394,8 @@ function changed() {           // every control ends up here: redraw within the 
 }
 function gameState() { return C.sanitizeState(Object.assign({ v: 1 }, ed.doc.g, { ki: ed.doc.ki })); }
 // A change by hand to a game the AI made: the sheet is no longer what the seal was made for, so the AI mark goes.
-function byHand() { delete ed.doc.ki; }
+// a remix keeps the free card's id (doc.fr)
+function byHand() { var k = ed.doc.ki; if (k && k.k === "karte" && k.h && !ed.doc.fr) ed.doc.fr = k.h.slice(0, 22); delete ed.doc.ki; }
 function playGame() { Kit.sfx.thud(); G.stop(); show("game", true); G.play(gameState(), null, { own: touched() }); }
 // A game state (played, or from a challenge) back into a sheet: route and AI mark go along.
 function gameDoc(s) { var d = { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji, route: s.route } }; if (s.ki) d.ki = s.ki; return d; }
@@ -1010,11 +1013,14 @@ function openPast() {
       list.textContent = "";
       if (!q.value.trim()) { D.lastDays(today, 7).forEach(row); return; }
       var hits = D.searchIdeas(q.value, today, names);
-      if (!hits.length) { list.appendChild(el("div", "empty", t("pastNone"))); return; }
       hits.forEach(function (h) { h.found = true; row(h); });
+      // Community cards after the daily ones.
+      if (!window.Deck.hits(q.value, list) && !hits.length) list.appendChild(el("div", "empty", t("pastNone")));
     }
     q.addEventListener("input", fill);
     b.appendChild(q); b.appendChild(list); fill();
+    // the part adds its button "Community-Karten" and loads the deck for the search (src/deck.js btn)
+    if (shown("f_create")) window.Deck.btn(b);
   });
 }
 function openWall(which) {
@@ -1182,6 +1188,9 @@ function route() {
   // A turn card that checks a signature first (feier: the signed end) reads its link only once that is done.
   var pre = r && r.type === "doc" && r.doc.k === "turn" && window.Turns.game(r.doc).prepare, wait = pre && pre(r.doc);
   if (wait && wait.then) { wait.then(route, route); return true; }
+  // A free card (doc.ki.k "karte") or a remix of one (doc.fr) opens only after the server says it is not blocked (part deck).
+  // until then the day's sheet, never the card (src/deck.js gate, fail closed)
+  if (r && r.type === "doc" && window.Deck.gate(r.doc, route)) { home = dayHome(); goHomeKeep(); return true; }
   if (r && r.type === "doc") {
     var lastBy = r.doc.by.length ? r.doc.by[r.doc.by.length - 1].n : r.doc.n;
     home = { date: today, doc: r.doc, note: t("remixOf", { n: lastBy || t("someone") }), noteOf: function () { return t("remixOf", { n: lastBy || t("someone") }); }, link: shortId || undefined }; shortId = null; goHomeKeep();

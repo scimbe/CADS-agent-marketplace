@@ -326,6 +326,8 @@
     var t = txt(o.t, 40), s = txt(o.s, 70), n = C.sanitizeName(o.n);
     if (t) d.t = t; if (s) d.s = s; if (n) d.n = n;    // t/s: an own idea of the day, n: who made it
     var ki = sanitizeKi(o.ki); if (ki) d.ki = ki;
+    // remix of a free card: its id (part deck)
+    if (typeof o.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(o.fr)) d.fr = o.fr;
     if (o.k === "card") {
       d.x = txt(o.x, MAX_TEXT); d.st = STYLES.card.indexOf(o.st) >= 0 ? o.st : "druck"; d.sk = sanitizeStickers(o.sk);
       var w = sanitizeWeather(o.w); if (w) d.w = w;
@@ -439,7 +441,8 @@
     while (over() && d.by.length) d.by.shift();
     if (over()) delete d.s;
     if (over()) delete d.t;
-    if (over() && d.ki) delete d.ki.h;
+    // the id stays as doc.fr (part deck)
+    if (over() && d.ki) { if (late && d.ki.h && !d.fr) d.fr = d.ki.h.slice(0, 22); delete d.ki.h; }
     return C.SHARE_BASE + "#c=" + enc();
   }
 

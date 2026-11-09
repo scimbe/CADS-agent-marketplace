@@ -80,7 +80,7 @@ test("Web /duell: nach dem Laden alle Teile ausser noto, dart und klang mit SRI 
   assert.ok(await p.evaluate(() => window.Parts.names().includes("noto") && !window.Parts.ready("noto")), "noto nicht vorab");
   assert.ok(await p.evaluate(() => window.Parts.names().includes("dart") && !window.Parts.ready("dart")), "dart nicht vorab");
   assert.ok(await p.evaluate(() => window.Parts.names().includes("klang") && !window.Parts.ready("klang")), "klang nicht vorab");
-  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "direkt", "erschaffen", "katalog", "konto", "licenses", "logik", "malen", "melden", "play", "qr", "quiz", "regler", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "deck", "direkt", "erschaffen", "katalog", "konto", "licenses", "logik", "malen", "melden", "play", "qr", "quiz", "regler", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   for (const s of got) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
   await p.evaluate(() => window.Parts.need("noto"));   // asked for (as the editor does): also with its SRI hash
   assert.match((await loaded(p)).find((s) => /^noto\./.test(s.src)).sri, /^sha384-[A-Za-z0-9+/]{64}$/);
