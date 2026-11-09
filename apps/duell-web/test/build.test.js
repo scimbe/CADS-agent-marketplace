@@ -11,6 +11,11 @@ const noComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "");
 const partFiles = () => fs.readdirSync(path.join(path.dirname(dist), "parts")).map((f) => path.join(path.dirname(dist), "parts", f));
 const bundle = () => [fs.readFileSync(dist, "utf8")].concat(partFiles().map((f) => fs.readFileSync(f, "utf8"))).join("\n");
 
+// The core's budget (see the test below): 700 KiB, raised to 724 992 B until redesign wave R4 (user decision, 8 Nov 2026).
+const CORE_MAX = 724992, CORE_MAX_AFTER_R4 = 700 * 1024;
+test("Kern-Budget zurueck auf 700 KiB, sobald Welle R4 (Editor auf der Karte) gemergt ist", { todo: "befristete Anhebung auf 724 992 B (8. Nov. 2026) wieder auf " + CORE_MAX_AFTER_R4 + " B setzen" }, () => {
+  assert.ok(CORE_MAX - CORE_MAX_AFTER_R4 === 8192, "nur die befristeten 8 KiB");
+});
 test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter ersetzt, Kern unter 700 KB, jede Teildatei unter 300 KB", () => {
   execFileSync(process.execPath, [path.join(__dirname, "../scripts/build.js")]);
   const html = fs.readFileSync(dist, "utf8");
@@ -22,7 +27,11 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // At 998 KB the single page was split (rule: past 1 MB split instead of growing). The core (home, calendar sheet, editor,
   // sharing) stays below 700 KB, every part below 300 KB; new, rarely used code goes into a part (scripts/build.js PARTS).
   // Sizes at the split: core 693 KB, parts 310 KB (play 140, table 104, qr 59, licenses 6), together 1003 KB.
-  assert.ok(Buffer.byteLength(html) < 700 * 1024, "Kern ueber 700 KB: " + Buffer.byteLength(html));
+  // Core budget, raised for a limited time (user decision, 8 Nov 2026): from 716 800 B (700 KiB) to 724 992 B (+8 KiB) until
+  // redesign wave R4 is done. Why: the redesign's start and receive need hooks and the first-paint layout in the core while
+  // the old strip and editor panels (R2/R4) still sit there; R4 moves PANEL/TABS out and must bring it back under 700 KiB.
+  // The reminder is the todo test "Kern-Budget zurueck auf 700 KiB" below.
+  assert.ok(Buffer.byteLength(html) < CORE_MAX, "Kern ueber " + CORE_MAX + " B: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
   assert.deepEqual(Object.keys(man).sort(), ["dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   // The account card: its texts (ac_) only in the part konto, none in the core
