@@ -69,7 +69,7 @@ test("Mit Konto und 16+-Erklaerung: ein Satz, Vorschau mit Badge, Uebernehmen ->
   assert.equal(await pv.getAttribute("role"), "img");
   const req = sent.find((s) => s.path === "ai");
   assert.equal(req.body.kind, "karte");
-  assert.deepEqual(req.body.input, { text: "Geburtstagskarte für meine beste Freundin, sie liebt Sonnenblumen", art: "card", age: "u18" }, "ohne 18+ im Profil: u18");
+  assert.deepEqual(req.body.input, { text: "Geburtstagskarte für meine beste Freundin, sie liebt Sonnenblumen", art: "card" }, "kein Alter im Request: der Server liest 18+ aus dem Kontoprofil");
   await p.getByRole("button", { name: "Übernehmen" }).tap();
   assert.ok(await until(() => sent.some((s) => s.path === "ai/accept")), "gebucht beim Uebernehmen");
   const doc = await p.evaluate(() => window.DailyDebug.doc());
