@@ -64,6 +64,9 @@
     "@media (prefers-reduced-motion:reduce){.sttile{transition:none}}",
     /* a phone below 820 px height (360x780, 360x800): the day's title stays, the tiles get flatter (no subtitle) */
     "@media (max-width:899px) and (min-height:701px) and (max-height:819px){.sttile{min-height:72px}.sttile small{display:none}}",
+    // a day with a live card has one more row under the sheet (Look würfeln / Anruf öffnen): the tiles give up that room
+    "@media (max-width:899px) and (min-height:701px) and (max-height:899px){#home:has(#homerow>:not([hidden])) .sttile{min-height:72px}#home:has(#homerow>:not([hidden])) .sttile small{display:none}}",
+    "@media (max-width:899px) and (min-height:701px) and (max-height:819px){#home:has(#homerow>:not([hidden])) .sttiles{gap:8px}#home:has(#homerow>:not([hidden])) .sttile{min-height:56px;padding:8px 12px}}",
     /* the sheet "Deine Karte" */
     ".stc{display:flex;flex-direction:column;gap:16px;padding:6px 2px 18px;font-family:var(--st);color:var(--sk)}",
     ".stc h3{margin:0;font:800 .875rem/1.2 var(--st);letter-spacing:.6px;text-transform:uppercase;color:var(--sm)}",
@@ -232,7 +235,12 @@
   function openCard(idea, r) {
     var to = callTo(idea, r);
     A().sheet({ date: new Date(), idea: idea, to: to || undefined });
-    if (W.is(idea)) { var g = $("go"); if (g) { g.focus(); g.scrollIntoView({ block: "nearest" }); } } else $("go").click();
+    if (!W.is(idea)) return $("go").click();
+    // the sheet gets its height from first() and the card's fitting in the next frames: the button comes into sight after
+    // that layout, not before (at 150 %/200 % an earlier scroll left it below the screen)
+    var g = $("go"); if (!g) return;
+    g.focus({ preventScroll: true });
+    requestAnimationFrame(function () { first(); requestAnimationFrame(function () { g.scrollIntoView({ block: "nearest" }); }); });
   }
   // the line the card will carry, as it comes out ("Oma, danke, dass es dich gibt.")
   function lineOf(idea, r) { try { return W.is(idea) ? W.cardFor(idea, callTo(idea, r), A().me(), Kit.lang).x : ""; } catch (e) { return ""; } }
