@@ -119,7 +119,10 @@ test("Review #185: Wochenende ist planen, Enkelin bleibt Enkelin, Komposita, Nam
   assert.equal(DATA.texts.de.st_local, "Dein Satz bleibt auf dem Gerät. Erst bei „Fertig“ legen wir einen kurzen Link zu deiner Karte an.");
   assert.equal(DATA.texts.de.st_free, "Frei für dich");
   const ui = src("start-ui.js");
-  assert.match(ui, /if \(W\.is\(idea\)\) \{ var g = \$\("go"\); if \(g\) \{ g\.focus\(\); g\.scrollIntoView\(\{ block: "nearest" \}\); \} \} else \$\("go"\)\.click\(\);/, "Karte machen fertigt nichts und legt keinen Link an; Fertig machen kommt ins Bild");
+  const oc = ui.slice(ui.indexOf("function openCard("), ui.indexOf("function lineOf("));
+  assert.match(oc, /if \(!W\.is\(idea\)\) return \$\("go"\)\.click\(\);/, "nur eine andere Karte als die Wohlfuehlkarte oeffnet ihren Editor per Klick");
+  assert.equal((oc.match(/\.click\(\)/g) || []).length, 1, "Karte machen fertigt nichts und legt keinen Link an");
+  assert.match(oc, /g\.focus\(\{ preventScroll: true \}\);\s*requestAnimationFrame\(function \(\) \{ first\(\); requestAnimationFrame\(function \(\) \{ g\.scrollIntoView\(\{ block: "nearest" \}\); \}\); \}\);/, "Fertig machen kommt ins Bild, erst nach dem Layout (first)");
   assert.match(ui, /tt\.tabIndex = -1; tt\.focus\(\);/, "Fokus geht mit ins Blatt");
   assert.match(src("app.js"), /got \? Promise\.race\(\[s, new Promise\(function \(ok\) \{ setTimeout\(ok, 2500\); \}\)\]\) : 0/, "Link-Seiten warten hoechstens 2,5 s");
 });
