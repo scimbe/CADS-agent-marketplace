@@ -35,6 +35,8 @@
     var s = extra || {};
     calls.forEach(function (m) {
       s[m] = function () {
+        // Built without it on purpose (no entry in the manifest): quiet, no word on screen.
+        if (!LIST[part]) return Promise.resolve();
         var a = arguments;
         // A part that loaded but did not set its module (it threw while running) gets the same word on screen.
         return use(part, function () { var r = root[key]; if (!r || r === s) { fail(); throw new Error("part " + part + " without " + key); } return r[m].apply(r, a); }).catch(function () {});
@@ -57,6 +59,19 @@
   });
   // Doppelkopf and Skat (table-ui.js), which play over live.js.
   stand("table", "TableUI", ["open", "accept"], { close: function () {} });
+  // The community deck of free cards (deck.js). search() and revoked() answer from nothing until the part is there; seen()
+  // of a free card (doc.ki.k "karte") loads the part, which reports a use (login only) and marks a revoked seal.
+  // A build without the part (the business app): every call stays quiet, see stand().
+  // seen() of any sheet loads the part (on the web it comes when the page is idle anyway); deck.js looks only at free cards.
+  var dk = stand("deck", "Deck", ["shelf", "load", "seen", "btn"], {
+    hits: function () { return 0; },
+    // gate(): a free card (or a remix, doc.fr) opens only once the part has asked the server; without the part it stays closed
+    gate: function (doc, go) {
+      if (!(doc.fr || (doc.ki && doc.ki.k === "karte"))) return false;
+      need("deck").then(function () { if (root.Deck !== dk && !root.Deck.gate(doc, go)) go(); }, fail);
+      return true;
+    }
+  });
   // On the web: everything once the page is idle (see above). In the apps the files are on the device anyway. Not noto
   // (Noto Emoji for stickers in the picture, about 110 KB): the editor asks for it at its first sticker (app.js paint), so
   // only people with stickers load it; offline without it the picture is made as before, without stickers. Not dart

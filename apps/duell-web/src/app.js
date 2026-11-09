@@ -67,6 +67,8 @@ function fillSheet(root, h, still) {
   // when the sheet has one of its own.
   var got = !!(doc && h.note && !mode); root.classList.toggle("got", got);
   var ks = q("kiseal"); ks.hidden = !(doc && doc.ki && doc.ki.s); ks.textContent = t("kiBadge"); ks.title = t("kiBadgeL"); ks.setAttribute("aria-label", t("kiBadgeL"));
+  // A free card: its use (login only) and a revoked seal (src/deck.js).
+  if (doc) window.Deck.seen(doc, ks);
   var hero = q("hero"); hero.textContent = ""; hero.hidden = got && !doc.t;
   title.filter(Boolean).forEach(function (l, i) { var s = el("span", "", l); s.style.setProperty("--i", i); hero.appendChild(s); });
   if (mode && !sub && D.byId(doc.i)) sub = ideaText(D.byId(doc.i)).s;
@@ -394,14 +396,16 @@ function changed() {           // every control ends up here: redraw within the 
 }
 function gameState() { return C.sanitizeState(Object.assign({ v: 1 }, ed.doc.g, { ki: ed.doc.ki })); }
 // A change by hand to a game the AI made: the sheet is no longer what the seal was made for, so the AI mark goes.
-function byHand() { delete ed.doc.ki; }
+// a remix keeps the free card's id (doc.fr)
+function byHand() { var k = ed.doc.ki; if (k && k.k === "karte" && k.h && !ed.doc.fr) ed.doc.fr = k.h.slice(0, 22); delete ed.doc.ki; }
 function playGame() { Kit.sfx.thud(); G.stop(); show("game", true); G.play(gameState(), null, { own: touched() }); }
 // A game state (played, or from a challenge) back into a sheet: route and AI mark go along.
 function gameDoc(s) { var d = { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji, route: s.route } }; if (s.ki) d.ki = s.ki; return d; }
 function areas() { var w = D.changedAreas(ed.base, ed.doc); if (X[ed.doc.k] && X[ed.doc.k].areas) w = w.concat(X[ed.doc.k].areas(ed)); if (ed.ownPhoto) w.push("foto"); if (ed.ownVoice) w.push("stimme"); return w; }
 function touched() { var ok = areas().length > 0; return ed.own ? ok && !!ed.doc.t : ok; }
 // The idea of the day can go out as it is; only a blank one needs something of your own first.
-function ready() { return ed.own ? touched() : true; }
+// made: a free card (create-ui.js) is whole as it comes, nothing has to change before it goes out
+function ready() { return ed.own && !ed.made ? touched() : true; }
 function footer() {
   var b = $("edmain"), ok = ready(), g = ed.doc.k === "game";
   b.hidden = false; delete b.dataset.why;
@@ -441,7 +445,7 @@ function openEditor(doc, opt) {
   if (doc && doc.k === "table") { if (window.TableUI) window.TableUI.open(doc.g); return; }   // a card table is played live, there is nothing to edit
   window.Ai.drop();
   $("stagewrap").classList.remove("swap");
-  ed = { doc: D.sanitizeDoc(doc), base: D.sanitizeDoc(doc), own: !!opt.own, photo: null, peaks: null, pcm: null, tab: null, sel: -1, page: 0, line: 0, idea: opt.idea || null, rec: opt.rec };
+  ed = { doc: D.sanitizeDoc(doc), base: D.sanitizeDoc(doc), own: !!opt.own, made: !!opt.made, photo: null, peaks: null, pcm: null, tab: null, sel: -1, page: 0, line: 0, idea: opt.idea || null, rec: opt.rec };
   if (opt.own) ed.doc.n = me.nick;
   if (ed.doc.k === "sound" && ed.doc.m === "beat") beatPeaks();
   if (ed.doc.k === "photo") { ed.photo = R.botFace(D.botSeed(me.nick, ed.doc, 0), ed.doc.col[1]); }
@@ -1017,11 +1021,14 @@ function openPast() {
       list.textContent = "";
       if (!q.value.trim()) { D.lastDays(today, 7).forEach(row); return; }
       var hits = D.searchIdeas(q.value, today, names);
-      if (!hits.length) { list.appendChild(el("div", "empty", t("pastNone"))); return; }
       hits.forEach(function (h) { h.found = true; row(h); });
+      // Community cards after the daily ones.
+      if (!window.Deck.hits(q.value, list) && !hits.length) list.appendChild(el("div", "empty", t("pastNone")));
     }
     q.addEventListener("input", fill);
     b.appendChild(q); b.appendChild(list); fill();
+    // the part adds its button "Community-Karten" and loads the deck for the search (src/deck.js btn)
+    if (shown("f_create")) window.Deck.btn(b);
   });
 }
 function openWall(which) {
@@ -1096,6 +1103,7 @@ function labels() {
   [["lang", "a_lang"], ["mute", "a_mute"], ["me", "style"], ["edstyle", "style"], ["pvgame", "a_preview"], ["pvcard", "a_preview"], ["stage", "a_preview"], ["demo", "a_gamePreview"],
     ["feat", "a_feat"], ["edback", "a_close"], ["shback", "a_close"], ["gback", "a_close"], ["edsave", "a_keep"], ["cv", "a_field"], ["coqr", "a_qr"]].forEach(function (x) { $(x[0]).setAttribute("aria-label", t(x[1])); });
   $("mute").setAttribute("aria-pressed", String(!!Kit.muted));
+  var ct = $("create"); ct.hidden = !shown("f_create"); ct.textContent = "✨ " + t("create_tile"); ct.appendChild(el("span", "", t("create_sub")));
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
   $("tostatus").textContent = t("sh_status"); $("tostory").textContent = t("sh_story"); $("dmore").textContent = t("mehr"); $("dmore").parentNode.hidden = !allow("done", "status");
   // what the other side gets: a photo stays on this phone, the link carries a bot face (a voice: the part klang says it in its sheet)
@@ -1129,6 +1137,7 @@ $("more").addEventListener("click", function () { tear(1); });
 $("past").addEventListener("click", function () { Kit.sfx.tap(); openPast(); });
 $("wall").addEventListener("click", function () { Kit.sfx.tap(); openWall(); });
 $("own").addEventListener("click", function () { Kit.sfx.tap(); openOwn(); });
+$("create").addEventListener("click", function () { Kit.sfx.tap(); window.Parts.use("erschaffen", function () { window.CreateUI.open(); }).catch(function () {}); });
 function start(tabName, go) {
   if (!home.doc && twoIdea(home.idea)) { window.Parts.use(twoIdea(home.idea), function () { start(tabName); }).catch(function () {}); return; }
   Kit.sfx.thud();
@@ -1188,6 +1197,9 @@ function route() {
   // A turn card that checks a signature first (feier: the signed end) reads its link only once that is done.
   var pre = r && r.type === "doc" && r.doc.k === "turn" && window.Turns.game(r.doc).prepare, wait = pre && pre(r.doc);
   if (wait && wait.then) { wait.then(route, route); return true; }
+  // A free card (doc.ki.k "karte") or a remix of one (doc.fr) opens only after the server says it is not blocked (part deck).
+  // until then the day's sheet, never the card (src/deck.js gate, fail closed)
+  if (r && r.type === "doc" && window.Deck.gate(r.doc, route)) { home = dayHome(); goHomeKeep(); return true; }
   if (r && r.type === "doc") {
     var lastBy = r.doc.by.length ? r.doc.by[r.doc.by.length - 1].n : r.doc.n;
     home = { date: today, doc: r.doc, note: t("remixOf", { n: lastBy || t("someone") }), noteOf: function () { return t("remixOf", { n: lastBy || t("someone") }); }, link: shortId || undefined }; shortId = null; goHomeKeep();

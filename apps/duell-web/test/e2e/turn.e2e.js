@@ -516,7 +516,7 @@ test("Profil: Vorgaben als Chips, abwaehlbar, nur lokal; Essen erst ab 16, PayPa
   await box.getByRole("button", { name: "16–17", exact: true }).click();
   await box.getByRole("button", { name: "vegetarisch", exact: true }).click();
   await box.getByRole("button", { name: "Alter 16–17 ✕" }).waitFor(); await box.getByRole("button", { name: "vegetarisch ✕" }).waitFor();
-  await box.getByRole("button", { name: "18+", exact: true }).click();
+  await box.getByRole("button", { name: "18+ (eigene Angabe)", exact: true }).click();   // a self-declaration, like 16+
   await box.getByRole("textbox", { name: "PayPal.me-Name" }).fill("paypal.me/miaMuster"); await box.getByRole("textbox", { name: "PayPal.me-Name" }).press("Enter");
   await box.getByRole("button", { name: "paypal.me/miaMuster ✕" }).waitFor();
   if (shot) await p.screenshot({ path: shot + "/wa-profil.png", fullPage: true });

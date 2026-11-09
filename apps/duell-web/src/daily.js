@@ -315,6 +315,8 @@
     if (typeof o.s === "string" && /^[A-Za-z0-9._~-]{8,200}$/.test(o.s)) r.s = o.s;
     // h: base64url SHA-256 of the option the seal was made for (Ai.optionHash), only next to a seal. Sheets without it stay valid.
     if (r.s && typeof o.h === "string" && /^[A-Za-z0-9_-]{43}$/.test(o.h)) r.h = o.h;
+    // o: the creator tag of a free card (CADS-DEMO-wrapper lib/duell-deck.mjs), an HMAC that names nobody; only next to a seal
+    if (r.s && typeof o.o === "string" && /^[A-Za-z0-9_-]{22}$/.test(o.o)) r.o = o.o;
     return r;
   }
   function sanitizeDoc(o) {
@@ -324,6 +326,8 @@
     var t = txt(o.t, 40), s = txt(o.s, 70), n = C.sanitizeName(o.n);
     if (t) d.t = t; if (s) d.s = s; if (n) d.n = n;    // t/s: an own idea of the day, n: who made it
     var ki = sanitizeKi(o.ki); if (ki) d.ki = ki;
+    // remix of a free card: its id (part deck)
+    if (typeof o.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(o.fr)) d.fr = o.fr;
     if (o.k === "card") {
       d.x = txt(o.x, MAX_TEXT); d.st = STYLES.card.indexOf(o.st) >= 0 ? o.st : "druck"; d.sk = sanitizeStickers(o.sk);
       var w = sanitizeWeather(o.w); if (w) d.w = w;
@@ -429,12 +433,16 @@
   /* Never over the size the page itself accepts. Stickers give way first, then the option hash h (without it a seal
      that is checked against the option's hash can no longer be checked; the seal itself stays), then the oldest trail. */
   function docUrl(doc) {
-    var d = sanitizeDoc(doc), enc = function () { return toB64(JSON.stringify({ v: 1, d: d })); };
-    while (enc().length > C.MAX_FRAGMENT && d.sk && d.sk.length) d.sk.pop();
-    if (enc().length > C.MAX_FRAGMENT && d.ki) delete d.ki.h;
-    while (enc().length > C.MAX_FRAGMENT && d.by.length) d.by.shift();
-    if (enc().length > C.MAX_FRAGMENT) delete d.s;
-    if (enc().length > C.MAX_FRAGMENT) delete d.t;
+    var d = sanitizeDoc(doc), enc = function () { return toB64(JSON.stringify({ v: 1, d: d })); }, over = function () { return enc().length > C.MAX_FRAGMENT; };
+    // a free card (ki.k "karte") is known to the deck only by its hash h: there h goes last, after the trail, s and t
+    var late = d.ki && d.ki.k === "karte";
+    while (over() && d.sk && d.sk.length) d.sk.pop();
+    if (!late && over() && d.ki) delete d.ki.h;
+    while (over() && d.by.length) d.by.shift();
+    if (over()) delete d.s;
+    if (over()) delete d.t;
+    // the id stays as doc.fr (part deck)
+    if (over() && d.ki) { if (late && d.ki.h && !d.fr) d.fr = d.ki.h.slice(0, 22); delete d.ki.h; }
     return C.SHARE_BASE + "#c=" + enc();
   }
 

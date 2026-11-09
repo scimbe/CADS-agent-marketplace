@@ -29,7 +29,7 @@ function fakeServer() {
       log.push({ op: m[1], body: b, cookie });
       if (b.via === "account" && !cookie) return json(401, { error: "login-required" });
       const key = b.via === "account" ? "acc" : "code:" + b.code, rec = db.get(key);
-      if (m[1] === "get") return json(200, rec && !rec.gone ? { profile: rec.p, rev: rec.rev, via: b.via } : { profile: null, rev: rec ? rec.rev : 0, via: b.via, gone: !!(rec && rec.gone) || undefined });
+      if (m[1] === "get") return json(200, rec && !rec.gone ? { profile: rec.p, rev: rec.rev, via: b.via, age18: b.via === "account" ? !!rec.a18 : undefined } : { profile: null, rev: rec ? rec.rev : 0, via: b.via, gone: !!(rec && rec.gone) || undefined });
       if (m[1] === "delete") { if (rec) db.set(key, { rev: rec.rev + 1, gone: true }); return json(200, { deleted: true }); }
       const rev = rec ? rec.rev : 0;
       if (conf.full) return json(429, { error: "full" });   // store full (CADS-DEMO-wrapper #82, fail-closed)
@@ -37,7 +37,9 @@ function fakeServer() {
       if (b.rev !== rev) return json(409, { error: "stale", rev });
       if (b.via === "account" && (!rec || rec.gone) && b.age16 !== true) return json(403, { error: "age16" });
       if (b.via === "code" && (!rec || rec.gone) && !cookie) return json(403, { error: "code-needs-login" });   // a new code needs an account
-      db.set(key, { rev: rev + 1, p: { v: 1, ...b.profile }, c: b.via === "account" ? (rec && rec.c) || "2026-11-03" : undefined });
+      // 18+ as the server keeps it (CADS-DEMO-wrapper lib/duell-profile.mjs): true makes it, false takes it back, absent keeps it
+      const a18 = b.via === "account" ? (b.age18 === true ? true : b.age18 === false ? false : !!(rec && rec.a18)) : undefined;
+      db.set(key, { rev: rev + 1, p: { v: 1, ...b.profile }, c: b.via === "account" ? (rec && rec.c) || "2026-11-03" : undefined, a18 });
       json(200, { rev: rev + 1, via: b.via });
     });
   });
@@ -136,6 +138,17 @@ test("Konto: erst nach 16+, Anmelden ueber /auth/login, danach liegt das Profil 
   assert.ok(srv.log.some((r) => r.op === "put" && r.body.via === "account" && r.body.age16 === true && r.cookie), "first write carries the 16+ statement, with the cookie");
   await c.style();
   await c.p.getByText("Angemeldet mit deinem Konto bei bunsenbrenner.org.").waitFor();
+  // the age band "18 or older" goes to the account as its own statement (the free card reads 18+ only there), any other band
+  // takes it back; the profile itself never carries it
+  assert.equal(srv.db.get("acc").a18, false);
+  await c.p.evaluate(() => window.DailyApp.savePref({ age: "a18" }));
+  for (let i = 0; i < 60 && !srv.db.get("acc").a18; i++) await c.p.waitForTimeout(100);
+  assert.equal(srv.db.get("acc").a18, true, "18+ statement synced");
+  assert.ok(srv.log.some((r) => r.op === "put" && r.body.age18 === true), "sent as age18 true");
+  assert.equal(JSON.stringify(srv.db.get("acc").p).includes("a18"), false, "never inside the profile");
+  await c.p.evaluate(() => window.DailyApp.savePref({ age: "u18" }));
+  for (let i = 0; i < 60 && srv.db.get("acc").a18; i++) await c.p.waitForTimeout(100);
+  assert.equal(srv.db.get("acc").a18, false, "another band takes it back");
   assert.deepEqual(c.errs, []);
   await c.ctx.close();
 });

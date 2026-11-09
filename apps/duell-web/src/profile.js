@@ -133,8 +133,14 @@
       var ch = merge(Kit.store, g.json.profile, p.base, p.via);
       if (Object.keys(ch).length) { Object.keys(ch).forEach(function (k) { Kit.store[k] = ch[k]; }); if (ch.aiDev) delete Kit.store.aiMeter; plainSave(); onChange(); }
       var out = pack(Kit.store, p.via), rev = g.json.rev;
-      if (!g.json.profile || JSON.stringify(out) !== JSON.stringify(stripV(g.json.profile))) {
-        var body = who(p); body.rev = rev; body.profile = out; if (!p.base) body.fresh = true; if (p.via === "account" && p.age16) body.age16 = true;
+      // 18+ lives on the server as the account's own statement, a self-declaration (Selbstauskunft) nobody verifies; the free
+      // card reads it there, never from a request:
+      // the device's age band "18 or older" goes up with the sync, any other band takes it back, no band leaves it; only when
+      // this device's band changed since it last sent it (p.a18), so two devices with different bands do not flip it
+      var pf = Kit.store.me && Kit.store.me.pref, a18 = p.via === "account" && pf && pf.age ? pf.age === "a18" : null;
+      if (a18 !== null && a18 === p.a18) a18 = null;
+      if (!g.json.profile || JSON.stringify(out) !== JSON.stringify(stripV(g.json.profile)) || (a18 !== null && a18 !== !!g.json.age18)) {
+        var body = who(p); body.rev = rev; body.profile = out; if (!p.base) body.fresh = true; if (p.via === "account" && p.age16) body.age16 = true; if (a18 !== null) body.age18 = a18;
         var w = await call("put", body);
         if (link() !== p) return (state = "");
         if (w.status === 409) continue;
@@ -143,7 +149,8 @@
         if (w.status === 403 && w.json.error === "code-needs-login") return (state = "codeLogin");   // a new code needs an account (server #82)
         if (w.status !== 200) return (state = w.status === 429 ? "limit" : "error");   // 429: store full or a limit, not "syncing"
         rev = w.json.rev;
-      }
+        if (a18 !== null) p.a18 = a18;
+      } else if (a18 !== null) p.a18 = a18;   // the server already holds this device's band
       p.rev = rev; p.base = snapshot(out); p.at = Date.now(); plainSave();
       return (state = "ok");
     }

@@ -12,7 +12,7 @@
   // context around it; that stays with the server (selfCut). The page adds a few frequent words of young people the server
   // list lacks ("ich ritze mich", "keinen Bock mehr zu leben", "hasse mein Leben"): stricter here only means the help comes
   // sooner and nothing is sent. The help is always our own text aiCrisis, never the server's.
-  var CRISIS_KINDS = ["plan", "liste", "quiz", "welt", "text"];
+  var CRISIS_KINDS = ["plan", "liste", "quiz", "welt", "text", "karte"];
   var CRISIS = /suizid|selbstmord|selbstverletz|umbring|umzubring|nicht mehr leben|will sterben|sterben will|lebensmud|\bbringe? mich um\b|\b(will|mochte|ware|war) (einfach |lieber )?tot( sein)?\b|\britz(e|te)? mich\b|\b(lust|bock|sinn|grund) mehr (zu|auf|aufs) leben\b|\bhasse mein leben\b|\btu(e|n)? mir (was|etwas) an\b|\bmir (was|etwas) (an ?tun|anzutun)\b|\bkys\b|kill myself|suicid|self.?harm|want to die|end my life/;
   var LEET = { 0: "o", 1: "i", 3: "e", 4: "a", 5: "s", 7: "t", 8: "b", "@": "a", $: "s", "\u20ac": "e", "!": "i" };
   // Where the login brings the person back: the page of the own build, taken from the flavor's share address (business:
@@ -30,6 +30,7 @@
   // What the server's answer means for the page.
   function verdict(status, json) {
     if (status === 200 && json && Array.isArray(json.options) && json.options.length) return "result";
+    if (status === 200 && json && json.notyet) return "notyet";       // the free card cannot make this yet (a named game)
     if (status === 202 && json && ticket(json)) return "queued";
     if (status === 429 && json && json.error === "quota") return "quota";
     if (status === 422) return "blocked";
@@ -94,8 +95,8 @@
         if (now() - started >= max) return none("busy", last);
         try { r = await o.send("/queue", { ticket: tk }); } catch (e) { return none("off"); }
       }
-      if (how !== "result") { var no = none(how, how === "busy" ? place(r.json) || last : 0); no.why = how === "blocked" && r.json && (r.json.why === "crisis" || r.json.why === "kind_ok") ? r.json.why : ""; return no; }
-      return { how: how, options: r.json.options, seals: seals(r.json), receipt: receipt(r.json), position: 0 };
+      if (how !== "result") { var no = none(how, how === "busy" ? place(r.json) || last : 0); no.why = how === "blocked" && r.json && (r.json.why === "crisis" || r.json.why === "kind_ok") ? r.json.why : ""; if (how === "notyet") { no.notyet = r.json.notyet; no.catalog = r.json.catalog; } return no; }
+      return { how: how, options: r.json.options, seals: seals(r.json), receipt: receipt(r.json), position: 0, note: r.json.note };
     }
     // Settle a handed-out result once: accept (taken) or discard (nothing taken, nothing changed). -> true when the server said yes.
     async function settle(path, device, rc) {
@@ -226,7 +227,7 @@
         var took = function (opt, i) {
           if (!alive()) return;
           var ki = { k: o.kind, s: r.seals[i] || "", h: hs[i] };
-          var did = o.auto ? o.auto(opt, ki, res) : o.apply(opt, ki);
+          var did = o.auto ? o.auto(opt, ki, res, r.note) : o.apply(opt, ki);
           if (did && typeof did.then === "function") { did.then(function (x) { if (mine === rc) mine = null; settle(rc, x !== false); }, function () { if (mine === rc) mine = null; settle(rc, false); }); return; }
           if (mine === rc) mine = null;
           settle(rc, did !== false);
@@ -243,6 +244,7 @@
         }
         Kit.sfx.pop(); return;
       }
+      if (r.how === "notyet" && o.notyet) { o.notyet(r, res); return; }
       if (r.how === "blocked" && r.why === "crisis") { help(res); return; }
       res.appendChild(el("p", "note aistate", stateText(r)));
       if (r.how === "quota") res.appendChild(el("button", "chip", "ⓘ " + t("aiTitle"), o.wall));

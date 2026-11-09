@@ -18,7 +18,13 @@ const fl = (f) => "src/flavors/" + flavor + "/" + f, has = (f) => flavor && fs.e
 if (flavor && !has("flavor.json")) throw new Error("Unbekannter Flavor: " + flavor);
 const over = (base, f) => { if (has(f)) { const o = json(fl(f)); for (const l of Object.keys(o)) Object.assign(base[l], o[l]); } return base; };
 const conf = flavor ? json(fl("flavor.json")) : null, texts = over(json("src/texts.json"), "texts.json"), turnData = json("src/turn.json");
+// The words of the community deck (deck_, mod_, credit_) travel in the part deck; the core keeps the two it shows itself.
+const DECK_CORE = [], deckTexts = {};
+for (const l of Object.keys(texts)) for (const k of Object.keys(texts[l])) if (/^(deck|mod|credit)_/.test(k) && DECK_CORE.indexOf(k) < 0) { (deckTexts[l] = deckTexts[l] || {})[k] = texts[l][k]; delete texts[l][k]; }
 over(turnData.text, "turn.json");
+// The texts of the free card travel with its part; the core keeps only the tile's two (create_tile, create_sub).
+const createTexts = {};
+for (const l of Object.keys(texts)) for (const k of Object.keys(texts[l])) if (/^create_/.test(k) && k !== "create_tile" && k !== "create_sub") { (createTexts[l] = createTexts[l] || {})[k] = texts[l][k]; delete texts[l][k]; }
 // The thumbs' words (vote_*) travel with their part (stimme), not in the core.
 const voteTexts = {};
 for (const l of Object.keys(texts)) { voteTexts[l] = {}; for (const k of Object.keys(texts[l]).filter((x) => /^vote_/.test(x))) { voteTexts[l][k] = texts[l][k]; delete texts[l][k]; } }
@@ -108,6 +114,10 @@ if (catalog.ideas.some((i) => i.turn && dartGames.indexOf(i.turn.g) >= 0)) PARTS
 if (catalog.ideas.some((i) => i.kind === "sound" && i.sound.mode === "voice")) PARTS.klang = { d: [], src: ["KLANGDATA", "KLANG", "KLANGUI"] };
 // Thumbs on the sheet and the card numbers (src/stimme-ui.js, src/stat.js); not built for a flavor without them (stat: false).
 if (!(conf && conf.stat === false)) PARTS.stimme = { d: [], src: ["STIMMEDATA", "STAT", "STIMMEUI"] };
+// "Create your own card" (src/create-ui.js): only where the flavor shows the tile. A flavor with its own feats list must
+// name f_create (as app.js shown() does); Daily Business does not, so it neither builds nor preloads the part.
+const creates = !conf || !conf.feats || conf.feats.indexOf("f_create") >= 0;
+if (creates) PARTS.erschaffen = { d: [], src: ["CREATEUI"] };
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
 if (has("biz-ui.js")) { PARTS.biz = { d: [], src: ["BIZ", "BIZUI"] }; parts.BIZ = read("src/biz.js"); parts.BIZUI = read(fl("biz-ui.js")); }
 parts.KATALOG = "window.DuellIdeasFull=" + JSON.stringify(catalog) + ";window.Daily&&window.Daily.fill();";
@@ -125,8 +135,15 @@ if (PARTS.malen) { parts.MALRATDATA = "window.MalratData=" + JSON.stringify(json
 if (PARTS.dart) { parts.DARTDATA = "window.DartData=" + JSON.stringify(json("src/dart.json")) + ";"; parts.DART = read("src/dart.js"); parts.DARTUI = read("src/dart-ui.js"); }
 parts.NOTODATA = "window.NotoData=\"" + fs.readFileSync(path.join(root, "src/noto-stickers.png")).toString("base64") + "\";"; parts.NOTO = read("src/noto.js");
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
+// Community deck of free cards: signed deck, use, thumbs, credit, decisions (src/deck.js). Only where the free card is on:
+// a flavor whose feats leave out f_create (the business app) neither builds nor preloads it, like "stimme" with stat: false.
+if (!(conf && conf.feats && conf.feats.indexOf("f_create") < 0)) {
+  PARTS.deck = { d: [], src: ["DECKTEXTS", "DECK"] };
+  parts.DECKTEXTS = "window.DeckTexts=" + JSON.stringify(deckTexts) + ";"; parts.DECK = read("src/deck.js");
+}
 if (PARTS.start) { const sd = json("src/start.json"); parts.STARTDATA = "window.StartData=" + JSON.stringify(Object.assign({}, sd, { texts: undefined })) + ";window.StartTexts=" + JSON.stringify(sd.texts) + ";" + merge("StartTexts"); parts.START = read("src/start.js"); parts.STARTUI = read("src/start-ui.js"); }
 parts.TEXTE = read("src/texte.js");
+parts.CREATEUI = "window.CreateTexts=" + JSON.stringify(createTexts) + ";" + merge("CreateTexts") + "\n;\n" + read("src/create-ui.js");
 parts.TEXTEDATA = "window.TexteData=" + JSON.stringify(json("src/texte.json")) + ";";
 parts.QUIZDATA = "window.QuizPacks=" + JSON.stringify(json("src/quiz-packs.json")) + ";";
 parts.QUIZSPIELEDATA = "window.QuizSpieleData=" + JSON.stringify(quizSpiele) + ";"; parts.QUIZSPIELEUI = read("src/quizspiele-ui.js");
@@ -140,7 +157,7 @@ let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + 
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
 // code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
-const KEEP = new Set(["STARTDATA", "DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "DARTDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "NOTODATA", "KLANGDATA"]);
+const KEEP = new Set(["STARTDATA", "DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "DARTDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "NOTODATA", "KLANGDATA", "DECKTEXTS"]);
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "")).join("\n");
 const code = (k) => safe(KEEP.has(k) ? parts[k] : lean(parts[k]));
 const out = flavor ? "dist/" + flavor + "/index.html" : "dist/index.html", outDir = path.join(root, path.dirname(out));
