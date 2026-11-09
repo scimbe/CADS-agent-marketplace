@@ -291,6 +291,11 @@ test("Review #185 Runde 2: eine empfangene Karte bei 195 px Breite (390 bei 200 
   const over = !(m.votes[0] >= m.card[1] - 1 || m.votes[1] <= m.card[0] + 1 || m.votes[2] >= m.card[3] - 1 || m.votes[3] <= m.card[2] + 1);
   assert.equal(over, false, "Daumen ueber der Karte: " + JSON.stringify(m));
   assert.ok(m.votes[0] >= m.card[1] - 1, "Daumen unter der Karte: " + JSON.stringify(m));
+  // Runde 3: the AI picture's thumbnail (a button: swap large/small) sits in the card's top corner, over its frame only, never
+  // over the card's text (which starts below the top quarter of the card)
+  const th = await p.evaluate(() => { const i = document.querySelector("#pv .pvimg"), c = document.getElementById("pvcard").getBoundingClientRect(), r = i.getBoundingClientRect(); return { role: i.getAttribute("role"), h: Math.round(r.height), bottom: Math.round(r.bottom), into: Math.round(r.bottom - c.top), limit: Math.round(c.height * 0.25), right: Math.round(r.right), w: innerWidth }; });
+  assert.ok(th.into <= th.limit, "Vorschaubild nur im oberen Rand der Karte: " + JSON.stringify(th));
+  assert.ok(th.h >= 44 && th.right <= th.w, "Vorschaubild 44 px und ganz im Bild: " + JSON.stringify(th));
   assert.deepEqual(p.errs, []);
   } finally { await b.close(); }
 });
