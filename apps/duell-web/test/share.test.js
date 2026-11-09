@@ -103,5 +103,6 @@ test("Vorschaubild: nur mit dem eigenen Token, als JPEG an /img; ohne Eintrag, o
 test("Vorschaubild: Foto-Poster laden nie ein Bild hoch, nur shortLink() tut es", () => {
   const app = require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/app.js"), "utf8");
   assert.equal((app.match(/ShortLink\.picture\(/g) || []).length, 1);
-  assert.match(app, /result\.kind !== "photo" && result\.canvas\) \{\s*try \{ await window\.ShortLink\.picture/);
+  // and never a picture with an own photo in it (a card can carry one): photos stay on the phone
+  assert.match(app, /r\.kind !== "photo" && r\.canvas && !\(r\.keep && r\.keep\.photo\)\) \{\s*try \{ await window\.ShortLink\.picture/);
 });

@@ -71,6 +71,8 @@ test("Nr. 5: eine gesperrte Eingabe bleibt nicht im Feld: field() setzt zurueck,
   assert.match(app, /querySelector\('\[aria-invalid="true"\]'\);[^\n]*\n\s*if \(bad && !b\.hidden\) \{ b\.classList\.add\("wait"\)/, "Hauptknopf gesperrt, solange ein Feld markiert ist");
   const sh = fs.readFileSync(path.join(__dirname, "../../android/emulator-smoke.sh"), "utf8");
   assert.doesNotMatch(sh, /tap_node '\(Jetzt teilen\|Share now\)'/, "Android-Smoke tippt nicht auf den Hinweis");
+  assert.doesNotMatch(sh, /wait_web '\(Jetzt teilen\|Share now\)'/, "ein Tipp teilt (Redesign W1): kein Warten auf einen zweiten Schritt");
+  assert.equal((sh.match(/tap_node '[^']*\(Share\|Teilen\)/g) || []).length, 1, "genau ein Tipp auf Teilen bis zum Teilen-Menue");
   assert.match(sh, /tap_node '\^\\s\*\(Share\|Teilen\)\\s\*\$'/);
   // the selector against what the emulator listed in CI (find_node: text + " " + description, re.I): the button, not the toast
   const sel = new RegExp(sh.match(/tap_node '(\^\\s\*\(Share\|Teilen\)\\s\*\$)'/)[1], "i");

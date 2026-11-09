@@ -49,7 +49,8 @@ test("Teilen schickt share mit den geaenderten Bereichen des letzten Trail-Eintr
   const p = await G.open(ctx, GOT);
   await p.locator("#leaf.got").waitFor(); await until(() => got.length);
   got.length = 0;
-  await p.locator("#wishgo").tap(); await p.getByRole("button", { name: "🎲 Würfeln" }).tap(); await p.locator(".aicount", { hasText: "Geändert" }).waitFor();
+  // Redesign W1: a received card has one main action; the dice are in its editor
+  await p.locator("#go").tap(); await p.getByRole("tab", { name: "🎲 Würfel" }).tap(); await p.getByRole("button", { name: "🎲 Würfeln" }).tap(); await p.locator(".aicount", { hasText: "Geändert" }).waitFor();
   await p.locator("#edmain").click(); await p.locator("#share").click();
   await p.waitForFunction(() => { const r = window.DailyDebug.result(); return r && r.link; });
   assert.ok(await until(() => got.length), "share kam an");

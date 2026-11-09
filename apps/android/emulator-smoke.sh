@@ -225,11 +225,8 @@ read -r sx sy <<<"$STICKER"; adb shell input tap "$sx" "$sy"
 tap_web '(^|\s)(Done|Fertig)(\s|$)' 10
 wait_web '(^|\s)(Share|Teilen)(\s|$)' 15
 shot 9-ergebnis
-tap_node '(^|\s)(Share|Teilen)(\s|$)'
-# the first tap makes the short link (here offline: the long link), the second shares it with a fresh tap. The button keeps
-# its name; a note ("Jetzt teilen", a toast that takes no taps) says the link is ready, then the same button is tapped again.
+# one tap: the short link was made at "Fertig" (here offline: the long link), so the button opens the share sheet at once.
 # find_node reads "text content-desc" (a trailing space when there is no description) and the WebView reports "SHARE".
-wait_web '(Jetzt teilen|Share now)' 15
 tap_node '^\s*(Share|Teilen)\s*$'
 wait_focus 'intentresolver|ChooserActivity|ResolverActivity' 15
 shot 10-share-sheet
@@ -237,7 +234,9 @@ echo "share: result sharing opened the system share sheet ($(focus | grep -oE '[
 adb shell input keyevent KEYCODE_BACK
 wait_focus 'org.bunsenbrenner.cads' 10
 wait_web '(^|\s)(Save|Speichern)(\s|$)' 10
-tap_node '(^|\s)(Save|Speichern)(\s|$)'
+# anchored like Share: on a phone the finished screen scrolls, and the WebView reports the scroll container as one node
+# carrying all its text ("SHARE More … Save Keep changing …") before the button itself; its centre is the picture
+tap_node '^\s*(Save|Speichern)\s*$'
 for _ in $(seq 1 10); do adb shell "content query --uri content://media/external/images/media --projection _id --where \"_display_name LIKE 'my-daily-idea%'\"" | grep -q '^Row' && break; sleep 1; done
 media_check images png
 shot 11-gespeichert
@@ -257,7 +256,7 @@ echo "mic: asked only after the tap; refused -> toast points to the silly voice,
 tap_web '(Silly voice|Quatschstimme)' 10
 tap_web '(^|\s)Echo(\s|$)' 10
 tap_web '(^|\s)(Done|Fertig)(\s|$)' 10
-tap_web '(Send as a file|Als Datei verschicken)' 15   # a voice: Save lives in the file sheet (part klang)
+tap_web '^\W*(Send as a file|Als Datei verschicken)\s*$' 15   # a voice: Save lives in the file sheet (part klang); anchored, as Save above
 # the button ("💾 Speichern"), not the sheet's note ("Die Aufnahme speichern wir nicht", the search ignores case)
 wait_web '(^|\s)(Save|Speichern)\s*$' 15
 tap_node '(^|\s)(Save|Speichern)\s*$'

@@ -71,3 +71,16 @@ test("Empfangene Karte in der Sprache des Lesers: Katalogsatz uebersetzt, Name b
     assert.equal(D.localDoc(d, "en").x, d.x, "selbst geschriebener Anfang bleibt: " + pre);
   }
 });
+
+test("Antwort mit Bezug (Redesign W1): jede Wohlfuehlkarte hat >= 2 passende Antworten; nie Tut mir leid oder Gute Besserung aus dem Nichts", () => {
+  const fit = { "warm-gruss": ["warm-gruss", "warm-danke"], "warm-besserung": ["warm-danke"], "warm-denke": ["warm-denke", "warm-danke"], "warm-sorry": ["warm-freunde", "warm-denke"], "warm-danke": ["warm-toll", "warm-freunde"] };
+  for (const i of Wm.list()) {
+    const a = Wm.answers({ i: i.id }).map((x) => x.id);
+    assert.ok(a.length >= 2, i.id + ": " + a);
+    assert.ok(!a.includes("warm-sorry") && !a.includes("warm-besserung"), i.id + " -> " + a);
+    for (const doc of [{ i: i.id }, { i: i.id, n: "Ana", x: "Irgendein Text" }]) assert.equal(Wm.answer(doc).id, a[0], "dieselbe Karte, dieselbe Antwort, egal wer und welcher Text");
+    if (fit[i.id]) assert.ok(fit[i.id].includes(Wm.answer({ i: i.id }).id), i.id + " -> " + Wm.answer({ i: i.id }).id);
+  }
+  assert.equal(Wm.answer({ i: "warm-gruss" }).id, "warm-gruss", "auf einen Gruss ein Gegengruss");
+  assert.notEqual(Wm.answer({ i: "warm-toll" }).id, "warm-toll");
+});

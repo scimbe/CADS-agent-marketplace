@@ -213,7 +213,7 @@ test("Melden: jedes geteilte Blatt; 'KI' nur mit Siegel; Grund noetig; Body nach
   const seal = p.locator("#leaf .kiseal");
   await seal.waitFor();
   assert.equal(await seal.textContent(), "KI"); assert.equal(await seal.getAttribute("aria-label"), "Mit KI erstellt");
-  assert.equal(await rep.textContent(), "⚑ Melden");
+  assert.equal(await rep.textContent(), "Melden");   // redesign wave 1: quiet, no flag emoji
   await rep.tap();
   const dlg = p.getByRole("dialog", { name: "Blatt melden?" });
   await dlg.waitFor();
