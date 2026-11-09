@@ -133,7 +133,8 @@
       var ch = merge(Kit.store, g.json.profile, p.base, p.via);
       if (Object.keys(ch).length) { Object.keys(ch).forEach(function (k) { Kit.store[k] = ch[k]; }); if (ch.aiDev) delete Kit.store.aiMeter; plainSave(); onChange(); }
       var out = pack(Kit.store, p.via), rev = g.json.rev;
-      // 18+ lives on the server as the account's own statement (the free card reads it there, never from a request):
+      // 18+ lives on the server as the account's own statement, a self-declaration (Selbstauskunft) nobody verifies; the free
+      // card reads it there, never from a request:
       // the device's age band "18 or older" goes up with the sync, any other band takes it back, no band leaves it; only when
       // this device's band changed since it last sent it (p.a18), so two devices with different bands do not flip it
       var pf = Kit.store.me && Kit.store.me.pref, a18 = p.via === "account" && pf && pf.age ? pf.age === "a18" : null;

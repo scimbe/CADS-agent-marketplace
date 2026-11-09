@@ -34,8 +34,8 @@
       state.meter = state.account ? r.json.create : null;
     } catch (e) { state.net = false; state.account = false; state.meter = null; }   // offline: said as such, not "sign in"
   }
-  // 16+ is the server's to check (the account's own statement in its profile, "Mein Stil"); the band of the profile here only
-  // opens the abilities from 18 (money), and only when it says 18+.
+  // 16+ and 18+ are the server's to read: the account's own statement in its profile ("Mein Stil"), a self-declaration
+  // (Selbstauskunft) that nobody verifies; this page sends no age at all.
   function chipRow(list, now, label, pick) {
     var row = el("div", "chips"); row.setAttribute("role", "group"); row.setAttribute("aria-label", label);
     list.forEach(function (c) {
@@ -63,8 +63,8 @@
     }
     // switched off on the server (DUELL_KARTE_OFF): said kindly, nothing else
     if (state.meter && state.meter.off) { b.appendChild(el("p", "note", t("create_off"))); return; }
-    // 16+ only with the account's own statement (Mein Stil, Anmelden / Registrieren); there is no way past it here.
-    // 18+ is never sent: the server reads the account's statement (profile.js syncs the age band "18 or older")
+    // 16+ only with the account's own statement, a self-declaration (Mein Stil, Anmelden / Registrieren); no way past it here.
+    // 18+ is never sent: the server reads the account's self-declaration (profile.js syncs the age band "18+ (eigene Angabe)")
     if (!state.meter || state.meter.age16 !== true) { b.appendChild(el("p", "note", t("create_age16"))); return; }
 
     b.appendChild(el("p", "note", t("create_h")));
