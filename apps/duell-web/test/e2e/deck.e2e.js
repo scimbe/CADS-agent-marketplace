@@ -237,3 +237,42 @@ test("Widerruf: geteilte freie Karte oeffnet nur nach ok; gesperrt -> nicht mehr
   assert.deepEqual(errs, []);
   await ctx.close();
 });
+
+// Umbau 09.11.: "Entfernen + Strike" by the admin on /duell/pruefen (server: CADS-DEMO-wrapper lib/duell-deck.mjs remove).
+test("Entfernen + Strike: geteilte Karte offen -> Admin entfernt -> derselbe Link 'nicht mehr verfuegbar' -> Strike mit Regel, Begruendung und Widerspruch beim Ersteller; nie uebernommen = nicht verfuegbar", async () => {
+  const cid = H1.slice(0, 22), state = { deck: signed(1, []), status: {}, notices: [] };
+  const { p, errs, ctx } = await device(state);
+  const link = await linkOf(p, C1);
+  await p.evaluate((h) => { location.hash = h; }, link);
+  await p.locator("#home .kiseal").first().waitFor();
+  assert.match(await SHOWN(p), /Sternfang/i, "shared and open");
+  // the admin removes it (with ground and reason); the server answers blocked from then on and keeps the notices
+  state.status[cid] = "blocked";
+  const at = "2026-11-06T12:01:00.000Z", until = "2027-05-08T12:01:00.000Z";
+  state.notices = [
+    { nid: "nidRemoved", at, type: "card-removed", scope: "card", cid, facts: { by: "human", ground: "hate", note: "Beleidigt eine Mitschuelerin" }, ground: "terms:community-cards", automated: { detected: false, decided: false }, redress: ["appeal", "court"], appealUntil: until },
+    { nid: "nidStrike1", at, type: "strike", scope: "account", facts: { src: "confirmed", cards: [cid], n: 1, lapses: "2026-12-06T12:01:00.000Z", ground: "hate" }, ground: "terms:community-cards", automated: { detected: false, decided: false }, redress: ["appeal", "court"], appealUntil: until },
+  ];
+  await p.evaluate(() => { location.hash = ""; });
+  await p.clock.runFor(31000);
+  await p.evaluate((h) => { location.hash = h; }, link);
+  await p.getByText("Diese Karte ist nicht mehr verfügbar.").first().waitFor();
+  assert.doesNotMatch(await SHOWN(p), /Wer zuerst den Stern/, "nothing of the removed card");
+  // the creator's view: the strike is counted, with the rule, the reviewer's words, a human decision and the appeal
+  await p.evaluate(() => { location.hash = ""; });
+  await openDeck(p);
+  await p.getByText("Verwarnung (Strike)").first().waitFor();
+  const body = await p.locator("#shbody").innerText();
+  assert.match(body, /Karte entfernt/); assert.match(body, /Regel: Hass\./); assert.match(body, /Begründung: Beleidigt eine Mitschuelerin/);
+  assert.match(body, /Ein Mensch hat die Sperre einer deiner Karten bestätigt\. Die Verwarnung verfällt am .+\. Bei zwei Verwarnungen prüft ein Mensch eine Pause, bei drei eine Sperre\./);
+  assert.match(body, /Von einem Menschen entschieden/); assert.match(body, /Widerspruch möglich bis/);
+  assert.doesNotMatch(body, /Dein Konto ist bis/, "a strike pauses nothing by itself");
+  // a card nobody took over: the server says "unknown", the app shows it as gone, never its content
+  const C3 = card("Nie uebernommen", "Geheimer Text der Karte.", "N".repeat(43));
+  state.status["N".repeat(22)] = "unknown";
+  await p.goto(page + (await linkOf(p, C3)));
+  await p.getByText("Diese Karte ist nicht mehr verfügbar.").first().waitFor();
+  assert.doesNotMatch(await SHOWN(p), /Geheimer Text/);
+  assert.deepEqual(errs, []);
+  await ctx.close();
+});

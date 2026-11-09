@@ -127,7 +127,8 @@
     var stop, late = new Promise(function (res) { stop = setTimeout(function () { res(null); }, 6000); });
     return Promise.race([net("/deck/status?c=" + id).then(function (r) { return r.ok ? r.json() : null; }), late]).then(function (j) {
       clearTimeout(stop);
-      var s = j && j.c === id && (j.st === "ok" || j.st === "blocked") ? j.st : "unknown";
+      // "unknown" from the server: a card nobody took over, never shown (as gone); no clear answer: cannot be checked
+      var s = j && j.c === id && (j.st === "ok" || j.st === "blocked" || j.st === "unknown") ? (j.st === "unknown" ? "blocked" : j.st) : "unknown";
       if (s === "ok") okAt[id] = Date.now(); else delete okAt[id];
       return s;
     }, function () { clearTimeout(stop); delete okAt[id]; return "unknown"; });
@@ -207,6 +208,9 @@
     if (f.why === "ai-recheck" || f.by === "ai-recheck") out.push(t("mod_f_ai"));
     if (f.cards) out.push(t("mod_f_cards"));
     if (f.why === "pause-ended") out.push(t("mod_f_end"));
+    // a human removal (Entfernen + Strike): the rule and the reviewer's words, as the server stored them (DSA Art. 17)
+    if (/^(harm|sex|hate|private|wrong|other)$/.test(f.ground || "")) out.push(t("mod_g_" + f.ground));
+    if (typeof f.note === "string" && f.note) out.push(t("mod_f_note", { s: f.note.slice(0, 300) }));
     out.push(t(n.automated && n.automated.decided ? "mod_auto" : "mod_manual"));
     return out.join(" ");
   }
