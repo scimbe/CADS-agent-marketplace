@@ -14,6 +14,9 @@ let AXE = null;
 try { AXE = fs.readFileSync(process.env.AXE_CORE || require.resolve("axe-core/axe.min.js"), "utf8"); } catch (e) {}
 const RULES = { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } };
 async function axe(p, sel, where, bad) {
+  // the sheet lands with an entry animation from opacity 0 (style.css slap, stamp): measure once it has landed, as
+  // test/e2e/home-layout.e2e.js does; mid-animation the text would be half transparent
+  await p.waitForFunction(() => { const l = document.getElementById("leaf"); return !l || !l.getAnimations({ subtree: true }).some((a) => a.playState === "running"); }, null, { polling: 50 });
   if (!AXE) return;
   if (!(await p.evaluate(() => !!window.axe))) await p.addScriptTag({ content: AXE });
   const v = await p.evaluate(([s, o]) => window.axe.run(document.querySelector(s), o).then((r) => r.violations.map((x) => x.id + " (" + x.nodes.length + "): " + x.nodes.slice(0, 2).map((n) => n.target.join(" ")).join(" | "))), [sel, RULES]);

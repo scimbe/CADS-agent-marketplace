@@ -58,7 +58,7 @@ async function setup(b, br, nick, ctxOpt) {
 }
 async function openBs(x) {
   await x.p.goto(page);
-  await x.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
+  await G.alle(x.p); await x.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await x.p.getByRole("button", { name: "🃏 Bauernskat (2)" }).click();
   await x.p.getByRole("button", { name: "🤖 Gegen den Bot" }).waitFor();
 }

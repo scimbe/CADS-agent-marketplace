@@ -45,6 +45,8 @@ const VIEWS = {
   phone328: { viewport: { width: 328, height: 568 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
   phone390: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
   quer: { viewport: { width: 1024, height: 768 }, deviceScaleFactor: 1, hasTouch: true },
+  tablet820: { viewport: { width: 820, height: 1180 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },   // redesign wave 1: tablet upright
+  desk1280: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 },                                    // and a laptop
   zoom200: zoom({ width: 1024, height: 768 }, 2),
   zoom200quer: zoom({ width: 1280, height: 800 }, 2)   // a 1280x800 laptop at 200 %: 640x400, the two-column layout
 };
@@ -92,11 +94,16 @@ async function inView(p, sel) {
   return p.evaluate((s) => { const e = document.querySelector(s); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight + 0.5 && r.right <= innerWidth + 0.5; }, sel);
 }
 // The main button and the buttons under it on the start page whose centre something else lies over (a picture, the
-// sheet's text), as "id or text: what covers it" lines; a button below the screen counts as covered too.
+// sheet's text), as "id or text: what covers it" lines; a button below the screen counts as covered too. Redesign wave 1:
+// the new start page scrolls (#home.neu), and what lies below the first screen there is reached by scrolling: such a
+// button is scrolled into view and then checked the same way; the main button's own "without scrolling" is G.inView.
 async function covered(p) {
   return p.evaluate(() => [document.getElementById("go"), ...document.querySelectorAll("#homerow button, #tools button")]
     .filter((e) => e && e.offsetParent && !e.closest("[hidden]")).map((e) => {
+      const h = document.getElementById("home"), top = h.scrollTop;
+      if (e.id !== "go" && h.classList.contains("neu") && h.scrollHeight > h.clientHeight && e.getBoundingClientRect().bottom > innerHeight) e.scrollIntoView({ block: "nearest" });
       const r = e.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2, hit = document.elementFromPoint(x, y);
+      h.scrollTop = top;
       if (hit && (hit === e || e.contains(hit))) return null;
       return (e.id || e.textContent.trim().slice(0, 20)) + ": " + (hit ? hit.id || hit.className || hit.tagName : "ausserhalb");
     }).filter(Boolean));
@@ -122,4 +129,12 @@ async function settled(f, o) {
   let last = await f();
   return poll(async () => { await new Promise((r) => setTimeout(r, 100)); const v = await f(), same = v === last; last = v; return same ? { v } : null; }, Boolean, o).then((x) => x.v);
 }
-module.exports = { DIST, isLocal, webUrl, poll, settled, VIEWS, LANGS, LOCALE, zoom, launch, person, people, open, inView, covered, smallTargets };
+// Redesign wave 1: a first visit finds the demo strip (#feat: games, Webconference, Tunnel) behind "Alle Karten" (the part
+// start). A test that goes through the strip opens it first, as a person would; a page without the part (Daily
+// Business) has it open anyway.
+async function alle(p) {
+  await p.waitForFunction(() => document.body.getAttribute("data-state") !== "boot");
+  const a = p.locator("#allcards");
+  if (await a.count() && await a.isVisible() && (await a.getAttribute("aria-expanded")) !== "true") await a.click();
+}
+module.exports = { alle, DIST, isLocal, webUrl, poll, settled, VIEWS, LANGS, LOCALE, zoom, launch, person, people, open, inView, covered, smallTargets };

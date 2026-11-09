@@ -3,6 +3,7 @@
 // game against the bot. Calendar: the day of a duel opens it.
 const test = require("node:test"), assert = require("node:assert/strict"), path = require("node:path");
 const { chromium, devices } = require("playwright-core");
+const G = require("./lib/grund.js");
 const page = "file://" + path.join(__dirname, "../../dist/index.html");
 const TOKEN = "A".repeat(22), CH = "beef".padEnd(64, "0");
 const FAKE = (side) => `(() => {
@@ -25,7 +26,7 @@ async function pair(b) {
 }
 // Inviter opens the shelf, picks the duel, invites; the friend comes in by the link that names the game.
 async function invite(A, B, g) {
-  await A.p.goto(page); await A.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
+  await A.p.goto(page); await G.alle(A.p); await A.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await A.p.locator(".arctile[data-g=" + g + "]").click();
   await A.p.getByRole("button", { name: /Live gegen Freund/ }).click();
   await A.p.getByText("Warte auf deinen Freund").waitFor();
@@ -69,7 +70,7 @@ test("Gegen den Bot: Regal zeigt zehn Arcade-Duelle neben dem Ballduell, Insel-P
   const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
   // Fixed seed and fixed steps: the bot game is the same every run and ends after 11 s of game time (about 3 s here).
   await p.addInitScript(() => { window.__liveOn = true; window.__arcadeSeed = "e2e-28"; window.__arcadeSpeed = 4; });
-  await p.goto(page); await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
+  await p.goto(page); await G.alle(p); await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await p.getByRole("button", { name: /Ballduell live/ }).waitFor();
   await p.locator(".arctile").nth(9).waitFor();   // the tiles come with the lazy play part, after the shelf itself
   assert.equal(await p.locator(".arctile").count(), 10);

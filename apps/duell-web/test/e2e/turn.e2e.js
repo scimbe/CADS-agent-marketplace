@@ -335,7 +335,7 @@ test("Tuersteher: Wesen an der Tuer, Rein und Raus bis zum Ende", async () => {
 });
 test("Alle Eingabearten: Einigung, Wortfeld, Auktion, Kapsel und die Spieleauswahl", async () => {
   const { b, open, errs } = await setup();
-  const m = await open(""); await m.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
+  const m = await open(""); await G.alle(m); await m.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   assert.equal(await m.locator("#shbody .mech:not(.arctile)").count(), await m.evaluate(() => window.Daily.IDEAS.filter((i) => i.kind === "turn").length));
   assert.equal(await m.locator("#shbody .arctile").count(), await m.evaluate(() => window.Daily.IDEAS.filter((i) => i.kind === "arcade").length));
   await m.getByRole("button", { name: /Worauf einigen/ }).click();
