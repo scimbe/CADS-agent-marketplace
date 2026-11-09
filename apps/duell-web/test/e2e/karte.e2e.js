@@ -211,3 +211,20 @@ test("Art Spiel mit genanntem Spiel (Dart, Doppelkopf): kein Flugspiel, ehrlich 
     assert.deepEqual(errs, [], name); await p.context().close();
   }
 });
+
+test("Merkmal fehlt (Zu- und Absagen sammeln): ehrlich noch nicht, aehnliche Katalogkarte, nichts gebucht", async () => {
+  const { p, errs, sent } = await phone((p0) => {
+    if (p0 === "ai/status") return [200, { meter: METER, create: CREATE(5) }];
+    if (p0 === "ai") return [200, { kind: "karte", options: [], notyet: { what: "feature", name: "Zu- und Absagen sammeln" }, catalog: ["zug-termin"], meter: METER, create: CREATE(5) }];
+    return null;
+  });
+  await p.locator("#create").tap();
+  await p.getByRole("button", { name: "🧩 Wie eine Karte" }).tap();
+  const ta = p.getByLabel("Deine Beschreibung"); await ta.waitFor();
+  await ta.fill("Einladung, alle sollen zu- oder absagen");
+  await p.getByRole("button", { name: "✨ Erschaffen" }).tap();
+  await p.getByText("Zu- und Absagen sammeln kann die freie Karte noch nicht. Dafür wird nichts abgebucht.").waitFor();
+  await p.getByText("Ähnlich im Katalog:").waitFor();
+  assert.equal(await p.locator(".createpv").count(), 0); assert.equal(sent.filter((x) => x.path === "ai/accept").length, 0);
+  assert.deepEqual(errs, []); await p.context().close();
+});

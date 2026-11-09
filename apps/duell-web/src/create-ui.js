@@ -97,10 +97,11 @@
       notyet: function (r, res) {
         res.textContent = "";
         var n = r.notyet && typeof r.notyet.name === "string" ? r.notyet.name.slice(0, 30) : "";
-        res.appendChild(el("p", "note aistate", n ? t("create_notyet_game", { name: n }) : t("create_notyet")));
+        var feat = r.notyet && r.notyet.what === "feature";      // a need no ability covers yet (replies, a card game ...)
+        res.appendChild(el("p", "note aistate", n ? t(feat ? "create_notyet_feature" : "create_notyet_game", { name: n }) : t("create_notyet")));
         var cs = (Array.isArray(r.catalog) ? r.catalog : []).map(function (id) { return D.byId(String(id)); }).filter(Boolean);
         if (!cs.length) { res.appendChild(el("p", "note", t("create_notyet_none"))); return; }
-        res.appendChild(el("p", "note", t("create_notyet_catalog")));
+        res.appendChild(el("p", "note", t(feat ? "create_notyet_similar" : "create_notyet_catalog")));
         cs.forEach(function (idea) {
           var L = idea[Kit.lang] || idea.de;
           res.appendChild(el("button", "chip", "→ " + D.plainTitle(L.t), function () { Kit.sfx.thud(); A.openEditor(D.docFromIdea(idea, A.me(), Kit.lang), { idea: idea }); }));
