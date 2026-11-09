@@ -15,7 +15,7 @@ const code = fs.readFileSync(path.join(__dirname, "../src/deck.js"), "utf8");
 
 const h16 = (s) => crypto.createHash("sha256").update(s).digest("hex").slice(0, 16);
 // Snapshot of the daily rotation. A deliberate catalog change updates these numbers in the same commit; the deck never does.
-const ROUND_N = 130, ROUND_IDS = "1d3bbb326a301d35", DAYS_400 = "f8c68c239b3c96f9"; // main since #164/#171 (new ideas, seed); the deck itself never changes it (second assert)
+const ROUND_N = 129, ROUND_IDS = "a498d0aa9b698fad", DAYS_400 = "ba7619c72ca30f0d"; // main since #181/#183 (checked against origin/main alone); the deck itself never changes it (second assert)
 const roundNow = () => [D.ROUND.length, h16(D.ROUND.map((i) => i.id).join(",")), h16(D.lastDays(new Date("2027-01-01T12:00:00Z"), 400).map((d) => d.key + ":" + (d.idea && d.idea.id)).join(","))];
 
 function canonical(v) {
