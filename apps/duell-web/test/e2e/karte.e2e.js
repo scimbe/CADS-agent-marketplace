@@ -38,7 +38,8 @@ test("Kachel steht fest unter der Tageskarte, ist ein Knopf im Druckstil und oef
   assert.match(await tile.textContent(), /Erschaffe deine Karte/);
   const [leaf, go, t, feat] = await Promise.all(["#leaf", "#go", "#create", "#feat"].map((s) => p.locator(s).boundingBox()));
   assert.ok(t.y > leaf.y + leaf.height && t.y > go.y, "unter der Tageskarte");
-  assert.ok(t.y < feat.y, "vor dem Ticker");
+  // the ticker lives behind "Alle Karten" since the new start (#185, redesign wave 1); where it shows, the tile comes first
+  if (feat) assert.ok(t.y < feat.y, "vor dem Ticker");
   assert.equal(await tile.evaluate((e) => getComputedStyle(e).backgroundColor), "rgb(255, 212, 0)");
   await tile.focus(); await p.keyboard.press("Enter");
   const login = p.getByRole("link", { name: "Anmelden" });
