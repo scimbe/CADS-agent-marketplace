@@ -234,7 +234,9 @@ echo "share: result sharing opened the system share sheet ($(focus | grep -oE '[
 adb shell input keyevent KEYCODE_BACK
 wait_focus 'org.bunsenbrenner.cads' 10
 wait_web '(^|\s)(Save|Speichern)(\s|$)' 10
-tap_node '(^|\s)(Save|Speichern)(\s|$)'
+# anchored like Share: on a phone the finished screen scrolls, and the WebView reports the scroll container as one node
+# carrying all its text ("SHARE More … Save Keep changing …") before the button itself; its centre is the picture
+tap_node '^\s*(Save|Speichern)\s*$'
 for _ in $(seq 1 10); do adb shell "content query --uri content://media/external/images/media --projection _id --where \"_display_name LIKE 'my-daily-idea%'\"" | grep -q '^Row' && break; sleep 1; done
 media_check images png
 shot 11-gespeichert
@@ -254,7 +256,7 @@ echo "mic: asked only after the tap; refused -> toast points to the silly voice,
 tap_web '(Silly voice|Quatschstimme)' 10
 tap_web '(^|\s)Echo(\s|$)' 10
 tap_web '(^|\s)(Done|Fertig)(\s|$)' 10
-tap_web '(Send as a file|Als Datei verschicken)' 15   # a voice: Save lives in the file sheet (part klang)
+tap_web '^\W*(Send as a file|Als Datei verschicken)\s*$' 15   # a voice: Save lives in the file sheet (part klang); anchored, as Save above
 # the button ("💾 Speichern"), not the sheet's note ("Die Aufnahme speichern wir nicht", the search ignores case)
 wait_web '(^|\s)(Save|Speichern)\s*$' 15
 tap_node '(^|\s)(Save|Speichern)\s*$'
