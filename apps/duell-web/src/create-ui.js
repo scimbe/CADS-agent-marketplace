@@ -19,7 +19,7 @@
   var CSS = ".createpv{position:relative;margin:10px 0;padding:18px 16px 30px;border:3px solid #111;border-radius:6px;display:flex;flex-direction:column;gap:8px;min-height:150px;box-shadow:0 5px 0 #111}.createpv-t{font:900 20px/1.1 var(--disp);text-transform:uppercase}.createpv-x{font:800 18px/1.25 var(--ui)}.createpv-sk{font-size:26px}.createpv-photo{border:2px dashed currentColor;padding:18px 8px;font:700 13px/1.3 var(--ui);text-align:center}.createpv-ki{position:absolute;right:8px;bottom:6px;background:#111;color:#fff;font:800 11px/1 var(--ui);padding:4px 6px;border-radius:4px}";
   function style() { if (document.getElementById("createcss")) return; var s = document.createElement("style"); s.id = "createcss"; s.textContent = CSS; document.head.appendChild(s); }
   var A, Kit, t, el, D;
-  var state = { art: "card", age: "", meter: null, account: false, net: true };
+  var state = { art: "card", meter: null, account: false, net: true };
 
   function line(m) {
     if (!m) return "";
@@ -36,7 +36,6 @@
   }
   // 16+ is the server's to check (the account's own statement in its profile, "Mein Stil"); the band of the profile here only
   // opens the abilities from 18 (money), and only when it says 18+.
-  function ageOf() { return (A.me().pref || {}).age === "a18" ? "a18" : "u18"; }
   function chipRow(list, now, label, pick) {
     var row = el("div", "chips"); row.setAttribute("role", "group"); row.setAttribute("aria-label", label);
     list.forEach(function (c) {
@@ -64,9 +63,9 @@
     }
     // switched off on the server (DUELL_KARTE_OFF): said kindly, nothing else
     if (state.meter && state.meter.off) { b.appendChild(el("p", "note", t("create_off"))); return; }
-    // 16+ only with the account's own statement (Mein Stil, Anmelden / Registrieren); there is no way past it here
+    // 16+ only with the account's own statement (Mein Stil, Anmelden / Registrieren); there is no way past it here.
+    // 18+ is never sent: the server reads the account's statement (profile.js syncs the age band "18 or older")
     if (!state.meter || state.meter.age16 !== true) { b.appendChild(el("p", "note", t("create_age16"))); return; }
-    var age = ageOf();
 
     b.appendChild(el("p", "note", t("create_h")));
     b.appendChild(el("p", "note", t("create_art")));
@@ -88,7 +87,7 @@
     var go = root.Ai.block(b, {
       kind: "karte", label: t("create_go"), el: el, noteLast: true,
       raw: function () { return ta.value; },
-      input: function () { var s = String(ta.value || "").trim(); return s.length >= 3 ? { text: s.slice(0, 200), art: state.art, age: age } : null; },
+      input: function () { var s = String(ta.value || "").trim(); return s.length >= 3 ? { text: s.slice(0, 200), art: state.art } : null; },
       wall: function () { left.textContent = line(state.meter); },
       show: function () { return ""; },
       apply: function () { return false; },
