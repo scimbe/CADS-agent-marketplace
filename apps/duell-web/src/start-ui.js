@@ -40,7 +40,17 @@
     "@media (max-width:300px){#home.neu:not(.recv)>.bar{order:-2}#home.neu:not(.recv)>#startbox{order:-1}.stform>.sti{display:none}.stform{padding-left:10px}}",
     /* a tall phone: the sheet gives room, so the question and the tiles are on the first screen; a short one (200 % zoom, a
        small phone) keeps sheet and main button on the first screen as before (rule A4) and the start follows below it */
-    "#home.neu #feat{padding:0}@media (max-height:700px){#allcards{display:none}}",
+    "#home.neu #feat{padding:0}#home.neu .pvimg img{object-fit:contain}",
+    /* the card's own extras (Look würfeln, Live ansehen) on the card, next to the thumbs: the row under the main button is the
+       same every day, so the start below does not move with the day's kind */
+    "#stacts{position:absolute;right:14px;bottom:12px;z-index:3;display:flex;gap:6px;max-width:calc(100% - 132px)}#stacts:not(:has(>:not([hidden]))){display:none}",
+    "#stacts button{min-height:44px;padding:2px 8px;border:2px solid #17140f;border-radius:12px;background:#fff;color:#17140f;font:700 .8125rem/1.1 system-ui,sans-serif}#stacts button[hidden]{display:none}",
+    /* "Erschaffe deine Karte": the second main action under the day's main button, full width, the size of the tiles */
+    "#home.neu #homerow{flex-wrap:wrap}#home.neu #homerow #create{flex:1 1 100%;min-height:52px;padding:6px 14px;font:800 1.0625rem/1.2 var(--st);text-transform:none;letter-spacing:0}",
+    /* the gallery of bunsenbrenner (the old strip) only quietly at the foot, closed */
+    ".stmore{display:block;margin:4px auto 12px;min-height:44px;padding:0 12px;border:0;background:none;color:inherit;font:600 .875rem var(--st);text-decoration:underline;text-underline-offset:3px}",
+    ".stfree{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;margin:0 0 12px;padding:10px 14px;border:3px solid #17140f;border-radius:18px;background:#F9D84A;color:#17140f;text-align:left;box-shadow:4px 4px 0 #17140f}.stfree b{display:block;font:800 1.0625rem/1.2 system-ui,sans-serif}.stfree small{font:500 .875rem/1.3 system-ui,sans-serif}",
+    ".stgate .stgo{display:block;width:100%;min-height:52px;margin:8px 0;border:2px solid #17140f;border-radius:16px;background:#17140f;color:#F9D84A;font:800 1.0625rem system-ui,sans-serif}.stgate label{display:flex;gap:12px;align-items:center;min-height:44px;font-weight:600}.stgate input{width:28px;height:28px;margin:0;accent-color:#17140f}.stneed{color:#b3321f;font-weight:700}.stneed:empty{display:none}",
     "@media (orientation:landscape) and (max-height:500px) and (min-width:560px){#home #startbox{display:none}}",
     "#startbox{position:relative;display:flex;flex-direction:column;gap:14px;margin:6px 0 0;padding:16px 18px 14px;border-top:3px solid var(--sk);border-radius:26px 26px 0 0;background:var(--sc);font-family:var(--st);color:var(--sk)}#home.neu #tools{background:var(--sc);flex:1 0 auto;align-content:start;padding-bottom:16px}#home.neu #tools button{color:var(--sk)}",
     "#starth{margin:6px 0 0;font:400 1.75rem/1.06 var(--disp);text-transform:uppercase;letter-spacing:.3px;overflow-wrap:anywhere}",
@@ -57,7 +67,6 @@
     ".sttile b{font:800 1rem/1.2 var(--st);overflow-wrap:break-word;hyphens:auto}.sttile small{grid-column:1/-1;font:500 .875rem/1.3 var(--st);overflow-wrap:anywhere}",
     ".sttile.t0{background:var(--sy)}.sttile.t3{background:var(--sr);color:var(--sc)}",
     ".stall{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:6px 16px;border:2px solid currentColor;border-radius:16px;background:transparent;color:var(--sk);font:700 1rem/1.2 var(--st)}",
-    ".stall[aria-expanded=true]{background:var(--sk);color:var(--sy);border-color:var(--sk)}",
     "#allbox{display:flex;flex-direction:column;gap:8px}",
     "#home.neu #tools button{font-family:var(--st);font-weight:700;text-decoration:underline;text-underline-offset:3px}",
     "@media (min-width:900px),(orientation:landscape) and (max-height:500px) and (min-width:560px){#startbox{margin:4px 10px 10px;border:3px solid var(--sk);border-radius:22px}#home.neu #tools{background:none}#home.neu #tools button{color:var(--on)}#starth{font-size:1.5rem}}",
@@ -142,13 +151,17 @@
       grid.appendChild(b);
     });
     box.appendChild(grid);
-    var all = el("button", "stall"); all.id = "allcards"; all.setAttribute("aria-controls", "allbox"); all.appendChild(icon("grid", 20)); all.appendChild(el("span"));
+    // "Alle Karten": the shelf of every card, with the search and the free card on top; no strip opens here
+    var all = el("button", "stall", null, function () { Kit.sfx.tap(); allShelf(); }); all.id = "allcards"; all.appendChild(icon("grid", 20)); all.appendChild(el("span"));
+    box.appendChild(all);
+    // the old demo strip (app.js feats: games, Webconference, ...) only quietly at the foot, closed; never Tunnel or Alle Demos
+    var more = el("button", "stmore"); more.id = "stmore"; more.setAttribute("aria-controls", "allbox");
     var drawer = el("div"); drawer.id = "allbox";
-    drawer.appendChild($("feat"));   // the demo strip (app.js feats) lives here now, out of a first visit's sight
-    all.addEventListener("click", function () { Kit.sfx.tap(); openAll(all.getAttribute("aria-expanded") !== "true"); });
-    box.appendChild(all); box.appendChild(drawer);
-    refs = { h: h, inp: inp, mic: mic, go: go, grid: grid, all: all, drawer: drawer };
+    drawer.appendChild($("feat"));
+    more.addEventListener("click", function () { Kit.sfx.tap(); openAll(more.getAttribute("aria-expanded") !== "true"); });
+    refs = { h: h, inp: inp, mic: mic, go: go, grid: grid, all: all, more: more, drawer: drawer };
     var slot = $("startslot"); if (slot) slot.replaceWith(box); else $("homerow").after(box);
+    $("tools").after(more); more.after(drawer);
     micCheck(mic);
     openAll(!!Kit.store.alle, true);
     // the start page scrolls: a field that gets the focus comes into sight (the keyboard covers the lower half), as the
@@ -158,7 +171,7 @@
   }
   // Open or closed is remembered on this device only (a convenience, not a setting): whoever opened it once finds it open.
   function openAll(on, quiet) {
-    refs.all.setAttribute("aria-expanded", String(on)); refs.drawer.hidden = !on;
+    refs.more.setAttribute("aria-expanded", String(on)); refs.drawer.hidden = !on || refs.more.hidden;
     if (quiet) return;
     if (on) Kit.store.alle = true; else delete Kit.store.alle;
     Kit.save();
@@ -170,13 +183,20 @@
     refs.mic.setAttribute("aria-label", t("st_mic")); refs.go.setAttribute("aria-label", t("st_go"));
     refs.grid.setAttribute("aria-label", t("st_ask"));
     Array.from(refs.grid.children).forEach(function (b) { b.querySelector("b").textContent = t("st_" + b.dataset.i); b.querySelector("small").textContent = t("st_" + b.dataset.i + "_s"); });
-    refs.all.lastChild.textContent = t("st_all");
+    refs.all.lastChild.textContent = t("st_all"); refs.more.textContent = t("st_more");
   }
   // The day's sheet and every sheet chosen from here get the new start; whatever came by link keeps its own page.
   function home(h) {
     build(); paint(); mute();
     var on = !!h && !h.note && !h.doc;
     $("home").classList.add("neu"); box.hidden = !on;
+    refs.more.hidden = !on; openAll(refs.more.getAttribute("aria-expanded") === "true", true);
+    acts(on);
+    // back from signing in for "Erschaffe deine Karte" (?go=erschaffen): straight into making the free card
+    if (/[?&]go=erschaffen\b/.test(location.search)) {
+      try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
+      root.Parts.use("erschaffen", function () { root.CreateUI.open(); }).catch(function () {});
+    }
     receive(h);
     first(); requestAnimationFrame(first);
     // the burst on the sheet in plain words for a first visit: "Spiel", not "Arcade"; "Bild", not "Meme"
@@ -184,6 +204,73 @@
     if (dk && (k === "arcade" || k === "photo" || k === "sound")) dk.textContent = dk.textContent.replace(/^[^\n]*/, t("st_k_" + k));
   }
   function labels() { paint(); mute(); done(); }
+
+  // On the day's start: "Look würfeln" and "Live ansehen" on the card (bottom right, the thumbs on the left); elsewhere back
+  // in the row under the main button as before.
+  function acts(on) {
+    var a = $("stacts");
+    if (!a) { a = el("div"); a.id = "stacts"; $("leaf").appendChild(a); }
+    ["wishgo", "livego"].forEach(function (id) { var b = $(id); if (on) a.appendChild(b); else if (b.parentNode === a) $("kireport").before(b); });
+  }
+
+  /* ---------- "Alle Karten": every card of the catalog, the search, the free card always on top ---------- */
+  function allShelf() {
+    A().shelf(t("st_all"), function (b) {
+      if (!$("create").hidden) {
+        var fr = el("button", "stfree", null, function () { $("create").click(); }); fr.id = "allfree";
+        var s = el("span"); s.appendChild(el("b", "", t("create_tile"))); s.appendChild(el("small", "", t("create_sub")));
+        fr.appendChild(icon("star", 26)); fr.appendChild(s); b.appendChild(fr);
+      }
+      var q = el("input", "field"), list = el("div"), T = root.DailyTexts || {}, L = T[Kit.lang] || T.de || {};
+      q.type = "search"; q.id = "allq"; q.placeholder = t("pastSearch"); q.setAttribute("aria-label", t("pastSearch")); q.autocomplete = "off"; q.enterKeyHint = "search";
+      list.id = "alllist";
+      function fill() {
+        list.textContent = "";
+        var v = q.value.trim(), c = D.caps();
+        var ideas = v ? D.searchIdeas(v, new Date()).map(function (h) { return h.idea; }) : D.IDEAS.filter(function (i) { return D.available(i, c); });
+        ideas.forEach(function (i) {
+          var r = el("button", "day", null, function () { Kit.sfx.tap(); A().sheet({ date: new Date(), idea: i }); });
+          r.appendChild(el("b", "", "✦")); r.appendChild(el("span", "", D.plainTitle((i[Kit.lang] || i.de || {}).t)));
+          if (L[i.kind]) r.appendChild(el("small", "", L[i.kind]));
+          list.appendChild(r);
+        });
+        if (!ideas.length) list.appendChild(el("div", "empty", t("pastNone")));
+      }
+      q.addEventListener("input", fill);
+      b.appendChild(q); b.appendChild(list); fill();
+    });
+  }
+
+  /* ---------- "Erschaffe deine Karte" without an account: the sign-in first, with the 16+ statement of this tap ---------- */
+  // Signed in (an account whose first sync went through): the core opens the making at once. Otherwise one short step: one
+  // sentence, the tick "Ich bin 16 oder älter." and "Anmelden"; the attempt carries t0 and this statement like the account
+  // card (profile.js), and the way back lands in the making (?go=erschaffen). The app shells keep the core's own note.
+  function account() { var p = Kit.store.profile; return !!(p && p.via === "account" && (p.base || p.at)); }
+  document.addEventListener("click", function (e) {
+    var c = e.target && e.target.closest && e.target.closest("#create");
+    if (!c || !$("home").classList.contains("neu") || root.DuellHost || account()) return;
+    e.preventDefault(); e.stopImmediatePropagation(); Kit.sfx.tap(); gate();
+  }, true);
+  function gate() {
+    A().shelf(t("create_title"), function (b) {
+      b.classList.add("stgate");
+      b.appendChild(el("p", "", t("st_gate")));
+      var lab = el("label"), cb = el("input"), need = el("p", "stneed", "");
+      cb.type = "checkbox"; cb.id = "stage16"; lab.appendChild(cb); lab.appendChild(document.createTextNode(" " + t("ac_16")));
+      need.setAttribute("role", "alert");
+      // never a locked look: without the tick a tap says so and puts the focus on the tick
+      var go = el("button", "stgo", t("create_login"), function () {
+        if (!cb.checked) { need.textContent = ""; cb.focus(); setTimeout(function () { need.textContent = t("ac_need"); }, 80); return; }
+        Kit.store.profile = { via: "account", rev: 0, base: null, age16: true, t0: Date.now() };
+        try { localStorage.setItem("daily.v1", JSON.stringify(Kit.store)); } catch (x) {}
+        var back = (root.Ai && root.Ai.loginReturn ? root.Ai.loginReturn(root.DailyFlavor) : "/duell") + "?go=erschaffen";
+        location.href = "/auth/login?return=" + encodeURIComponent(back);
+      });
+      go.id = "stlogin";
+      cb.addEventListener("change", function () { if (cb.checked) need.textContent = ""; });
+      b.appendChild(lab); b.appendChild(need); b.appendChild(go); b.appendChild(el("p", "note", t("st_gateNo")));
+    });
+  }
 
   /* ---------- Empfang ---------- */
   var head = null, selbst = null, PLAY = ["game", "arcade", "duel", "quest", "table"];

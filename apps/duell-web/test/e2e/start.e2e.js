@@ -49,6 +49,8 @@ const tileOverlap = (p) => p.evaluate(() => {
   return bad;
 });
 const hscroll = (p) => p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 0.5 || document.getElementById("home").scrollWidth > document.getElementById("home").clientWidth + 0.5);
+// The gallery's own links (the old strip's Tunnel and Alle Demos): no element anywhere on the page says them.
+const galleryLinks = (p) => p.evaluate(() => [...document.querySelectorAll("button, a")].map((e) => e.textContent.trim()).filter((x) => /^\W*(Tunnel|Alle Demos|All demos)$/.test(x)));
 // The start begins on the first screen (its question visible), and each tile is reachable below it: scrolled to, it is
 // fully in view and nothing lies over it (10 Nov: the tiles left the first screen for the day's picture or game).
 async function startBegins(p) {
@@ -98,9 +100,11 @@ test("Start fuer den Erstbesuch: Tageskarte oben, Frage, Satzfeld, vier Kacheln,
     assert.equal(await p.locator("#starth").textContent(), "Wem willst du heute eine Freude machen?");
     assert.deepEqual(await p.locator(".sttile b").allTextContents(), ["Gruß schicken", "Zusammen planen", "Gegeneinander spielen", "Stimme"]);
     assert.equal(await p.locator("#satz").getAttribute("aria-label"), "Sag in einem Satz, was du vorhast");
-    // a first visit sees no demo strip, no jargon, no English: it waits behind "Alle Karten"
+    // a first visit sees no demo strip, no jargon, no English; "Alle Karten" opens no strip (11 Nov): the gallery of
+    // bunsenbrenner waits quietly at the foot, closed, and never with its own links Tunnel or Alle Demos
     assert.equal(await p.locator("#feat").isVisible(), false, view);
-    assert.equal(await p.locator("#allcards").getAttribute("aria-expanded"), "false");
+    assert.equal(await p.locator("#allcards").getAttribute("aria-expanded"), null, view + ": Alle Karten klappt nichts auf");
+    assert.deepEqual(await galleryLinks(p), [], view + ": Tunnel / Alle Demos im neuen Start");
     const seen = await p.evaluate(() => document.getElementById("home").innerText);
     assert.doesNotMatch(seen, JARGON, view + ": " + (seen.match(JARGON) || [""])[0]);
     assert.match(await p.locator("#leaf .dkind").textContent(), /^Spiel\n/, "der Stempel sagt Spiel, nicht Arcade");
@@ -111,18 +115,17 @@ test("Start fuer den Erstbesuch: Tageskarte oben, Frage, Satzfeld, vier Kacheln,
     (await G.smallTargets(p, "#startbox")).forEach((v) => bad.push(view + " zu klein: " + v));
     (await tileOverlap(p)).forEach((v) => bad.push(view + " Kacheln ueberlappen: " + v));
     if (await hscroll(p)) bad.push(view + ": seitlich scrollbar");
-    // a short screen (small phone, 200 %) keeps sheet and main button on the first screen (rule A4) and, as before, no strip
-    if (await p.evaluate(() => innerHeight <= 700)) {
-      assert.equal(await p.locator("#allcards").isVisible(), false, view + ": kein Laufband auf kurzem Bildschirm");
-      assert.deepEqual(p.errs, [], view); await ctx.close(); continue;
-    }
-    // "Alle Karten" opens the strip, and this device remembers it
-    await p.locator("#allcards").click();
+    // a short screen (small phone, 200 %) keeps sheet and main button on the first screen (rule A4)
+    if (await p.evaluate(() => innerHeight <= 700)) { assert.deepEqual(p.errs, [], view); await ctx.close(); continue; }
+    // the quiet foot "Mehr von bunsenbrenner" opens the strip, and this device remembers it
+    await p.locator("#stmore").click();
     await p.locator("#feat .lane button:not([aria-hidden])").first().waitFor();
-    assert.equal(await p.locator("#allcards").getAttribute("aria-expanded"), "true");
-    (await axe(p, "#startbox")).forEach((v) => bad.push(view + " axe offen: " + v));
+    assert.equal(await p.locator("#stmore").getAttribute("aria-expanded"), "true");
+    assert.ok(await p.evaluate(() => document.getElementById("stmore").getBoundingClientRect().top > document.getElementById("startbox").getBoundingClientRect().bottom), view + ": im Fuss, unter dem Start");
+    assert.deepEqual(await galleryLinks(p), [], view + ": auch offen kein Tunnel / Alle Demos");
+    (await axe(p, "#home")).forEach((v) => bad.push(view + " axe offen: " + v));
     await p.reload(); await p.locator("#startbox").waitFor();
-    assert.equal(await p.locator("#allcards").getAttribute("aria-expanded"), "true", view + ": bleibt offen");
+    assert.equal(await p.locator("#stmore").getAttribute("aria-expanded"), "true", view + ": bleibt offen");
     assert.equal(await p.locator("#feat").isVisible(), true);
     assert.deepEqual(p.errs, [], view); await ctx.close();
   }
@@ -308,12 +311,12 @@ test("Review #185: Feld bei 200 % auf dem Handy breit genug, Tageskarte bei 150 
   assert.deepEqual(bad, []);
 });
 
-test("Tageskarte auf dem Handy zeigt ihr Spiel oder Bild (10. Nov.: Netz Volley ohne Vorschau bei 375x812); Spielen im ersten Bild, kein Querscrollen", async () => {
+test("Tageskarte auf dem Handy zeigt ihr Spiel oder Bild (10. Nov.: Netz Volley ohne Vorschau bei 375x812), Blatt und Start an jedem Tag an derselben Stelle; Spielen und Erschaffe deine Karte im ersten Bild, kein Querscrollen", async () => {
   ensureBuilt("");
   const b = await G.launch(), bad = [];
   try {
   // 10 Nov: a game (canvas), Netz Volley; 19 Nov: a picture ("Mein Bot sagt"), whose preview was gone at 360x780
-  const SIZES = { p375: [375, 812], p360h780: [360, 780], p320: [320, 568], p414: [414, 896] };
+  const SIZES = { p375: [375, 812], p360h780: [360, 780], p320: [320, 568], p414: [414, 896] }, at = {};
   // the day's picture comes from the image host: a local stand-in answers it (nothing else leaves)
   const q0 = await b.newPage(); await q0.setContent('<body style="margin:0;background:linear-gradient(90deg,#ffd400,#2b4bff)">'); await q0.setViewportSize({ width: 320, height: 180 });
   const jpg = await q0.screenshot({ type: "jpeg" }); await q0.close();
@@ -335,10 +338,81 @@ test("Tageskarte auf dem Handy zeigt ihr Spiel oder Bild (10. Nov.: Netz Volley 
     // where the screen allows, the sentence field follows on the first screen too (375x812, 414x896 on a game day)
     if (kind === "Spiel" && (n === "p375" || n === "p414") && !(await G.inView(p, "#satz"))) bad.push(tag + "Satzfeld nicht im ersten Bild");
     if (h > 700) (await startBegins(p)).forEach((x) => bad.push(tag + x));
+    // one format every day (11 Nov, "Verschiebt Format"): the sheet's height and where the start begins do not depend on game or picture
+    const m = await p.evaluate(() => ({ leaf: Math.round(document.getElementById("leaf").getBoundingClientRect().height), start: Math.round(document.getElementById("startbox").getBoundingClientRect().top + document.getElementById("home").scrollTop) }));
+    if (at[n]) { if (Math.abs(at[n].leaf - m.leaf) > 1 || Math.abs(at[n].start - m.start) > 1) bad.push(tag + "Format springt: Spiel " + JSON.stringify(at[n]) + ", Bild " + JSON.stringify(m)); } else at[n] = m;
+    // "Erschaffe deine Karte": the second main action, full width under the main button, type like the tiles, >= 52 px, on the first screen
+    const c = await p.evaluate(() => { const r = document.getElementById("create").getBoundingClientRect(), g = document.getElementById("go").getBoundingClientRect(); return { fs: parseFloat(getComputedStyle(document.getElementById("create")).fontSize), h: r.height, w: r.width, gw: g.width, below: r.top >= g.bottom - 1 }; });
+    if (!(c.fs >= 16 && c.h >= 52 && c.w >= c.gw - 2 && c.below)) bad.push(tag + "Erschaffe deine Karte " + JSON.stringify(c));
+    if (h > 700 && !(await G.inView(p, "#create"))) bad.push(tag + "Erschaffe deine Karte nicht im ersten Bild");
+    // the card's own extras (19 Nov: Look würfeln, Live ansehen) sit on the card, nothing over them
+    (await blocked(p, "#leaf")).forEach((x) => bad.push(tag + "verdeckt: " + x));
     assert.deepEqual(p.errs, [], tag); await ctx.close();
   }
   } finally { await b.close(); }
   assert.deepEqual(bad, []);
+});
+
+test("Alle Karten: das Regal mit Suche und der freien Karte oben, alle Karten des Katalogs; ein Tipp oeffnet die Karte; keine Leiste", async () => {
+  ensureBuilt("");
+  const b = await G.launch();
+  try {
+    const ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY }); await ctx.route(/^https?:/, (r) => r.abort());
+    const p = await G.open(ctx, ""); await p.locator("#startbox").waitFor();
+    await p.locator("#allcards").click(); await p.locator("#shelf:not([hidden]) #allq").waitFor();
+    assert.equal((await p.locator("#shtitle").textContent()).trim(), "Alle Karten");
+    assert.equal(await p.locator("#feat").isVisible(), false, "keine Leiste");
+    // the free card always on top, before the search
+    const free = await p.evaluate(() => { const f = document.getElementById("allfree"), q = document.getElementById("allq"); return f ? { txt: f.textContent, first: !!(f.compareDocumentPosition(q) & Node.DOCUMENT_POSITION_FOLLOWING) } : null; });
+    assert.ok(free && /Erschaffe deine Karte/.test(free.txt) && free.first, "freie Karte oben: " + JSON.stringify(free));
+    const n = await p.locator("#alllist button.day").count();
+    assert.ok(n >= 50, "mindestens 50 Karten, da sind " + n);
+    await p.locator("#allq").fill("quiz");
+    const hits = await p.locator("#alllist button.day span").allTextContents();
+    assert.ok(hits.length >= 1 && hits.length < n, "Suche grenzt ein: " + hits.length);
+    const pick = hits[0];
+    await p.locator("#alllist button.day").first().click(); await p.locator("#shelf").waitFor({ state: "hidden" });
+    assert.equal((await p.locator("#hero").innerText()).replace(/\s+/g, " ").trim().toLowerCase(), pick.replace(/\s+/g, " ").trim().toLowerCase(), "die gewaehlte Karte auf dem Blatt");
+    assert.deepEqual(await galleryLinks(p), []);
+    (await G.smallTargets(p, "#shelf")).forEach((v) => assert.fail("zu klein: " + v));
+    assert.deepEqual(p.errs, []);
+  } finally { await b.close(); }
+});
+
+test("Erschaffe deine Karte: ohne Konto erst 16+ und Anmelden, der Rueckweg fuehrt ins Erschaffen; mit Konto direkt ins Erschaffen", async () => {
+  ensureBuilt("");
+  const b = await G.launch();
+  try {
+    // without an account: the short step, no way past the 16+ tick, then the sign-in with the way back into the making
+    let ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY, web: true }), login = null;
+    await ctx.route(/^https?:/, (r) => { const u = r.request().url(); if (/\/auth\/login\?/.test(u)) { login = u; return r.fulfill({ status: 200, contentType: "text/html", body: "<p>Login</p>" }); } return G.isLocal(u) ? r.continue() : r.abort(); });
+    let p = await G.open(ctx, ""); await p.locator("#startbox").waitFor();
+    await p.locator("#create").click(); await p.locator("#shelf:not([hidden]) #stlogin").waitFor();
+    await p.locator("#stlogin").click(); await p.locator(".stneed", { hasText: "16" }).waitFor();
+    assert.equal(login, null, "ohne Haken keine Anmeldung");
+    assert.equal(await p.evaluate(() => document.activeElement.id), "stage16", "der Fokus auf dem Haken");
+    await p.locator("#stage16").check();
+    await Promise.all([p.waitForURL(/\/auth\/login\?/), p.locator("#stlogin").click()]);
+    const ret = decodeURIComponent(new URL(login).searchParams.get("return"));
+    assert.match(ret, /^\/duell\/?\?go=erschaffen$/, "Rueckweg ins Erschaffen: " + ret);
+    const prof = await p.evaluate(() => { try { return JSON.parse(localStorage.getItem("daily.v1")).profile; } catch (e) { return null; } });
+    assert.ok(prof && prof.via === "account" && prof.age16 === true && prof.t0 > 0, "Versuch mit der 16+-Aussage dieses Tipps: " + JSON.stringify(prof));
+    await ctx.close();
+    // back from the sign-in (?go=erschaffen): the making opens by itself, and the address is clean again
+    ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY }); await ctx.route(/^https?:/, (r) => r.abort());
+    p = await ctx.newPage(); p.errs = []; p.on("pageerror", (e) => p.errs.push(String(e)));
+    await p.goto("file://" + require("node:path").join(G.DIST, "index.html") + "?go=erschaffen");
+    await p.locator("#shelf:not([hidden])").waitFor(); await p.waitForFunction(() => document.getElementById("shtitle").textContent === "Deine eigene Karte");
+    assert.doesNotMatch(await p.evaluate(() => location.search), /go=/);
+    await ctx.close();
+    // with an account (its first sync went through): straight into the making, no step before it
+    ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY }); await ctx.route(/^https?:/, (r) => r.abort());
+    await ctx.addInitScript(() => { const s = JSON.parse(localStorage.getItem("daily.v1") || "{}"); s.profile = { via: "account", rev: 1, base: {}, at: 1, age16: true }; localStorage.setItem("daily.v1", JSON.stringify(s)); });
+    p = await G.open(ctx, ""); await p.locator("#startbox").waitFor();
+    await p.locator("#create").click(); await p.waitForFunction(() => document.getElementById("shtitle").textContent === "Deine eigene Karte");
+    assert.equal(await p.locator("#stlogin").count(), 0, "kein Zwischenschritt mit Konto");
+    assert.deepEqual(p.errs, []); await ctx.close();
+  } finally { await b.close(); }
 });
 
 test("Review #185 Runde 2: eine empfangene Karte bei 195 px Breite (390 bei 200 %): die Daumen stehen unter der Karte, nie darauf", async () => {
