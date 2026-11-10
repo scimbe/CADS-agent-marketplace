@@ -8,7 +8,10 @@
   "use strict";
   var ARTS = ["card", "meme", "game", "sound", "quiz", "faehigkeit"];
   // the kind of doc each art comes back as: anything else is refused and given back, never shown or booked (never arcade)
-  var KIND_OF = { card: "card", meme: "photo", game: "game", sound: "sound", quiz: "turn" };
+  var KIND_OF = { card: "card", meme: "photo", game: "game", sound: "sound", quiz: "turn", lauf: "lauf" };
+  // asked: the art chosen here; art: the one the server made. A game wish the server reads as a runner or a jump'n'run comes
+  // back as art "lauf" (the second engine, src/lauf.js), never as a flying game; nothing else may change the art.
+  function artOk(asked, art) { return art === asked || (asked === "game" && art === "lauf"); }
   function kindOk(art, doc) {
     if (art === "faehigkeit") return (doc.k === "turn" || doc.k === "duel") && !!doc.i;   // an existing card of the catalog
     if (art === "quiz") return doc.k === "turn" && !!doc.pk;                              // a quiz has its questions
@@ -109,7 +112,7 @@
       auto: function (opt, ki, res, note) {
         var doc = opt && opt.doc ? D.sanitizeDoc(opt.doc) : null;
         // what came back must be what was asked for (art and kind); otherwise said so, given back, nothing booked
-        if (!doc || !opt || opt.art !== state.art || !kindOk(state.art, doc) || !ki || !ki.s) { res.textContent = ""; res.appendChild(el("p", "note aistate", t("create_bad"))); return false; }
+        if (!doc || !opt || !artOk(state.art, opt.art) || !kindOk(opt.art, doc) || !ki || !ki.s) { res.textContent = ""; res.appendChild(el("p", "note aistate", t("create_bad"))); return false; }
         return new Promise(function (done) {
           res.textContent = "";
           var pv = preview(doc); pv.tabIndex = -1; res.appendChild(pv);
@@ -151,6 +154,7 @@
 
   // What a card that is no plain card shows in the preview: its game, beat, questions or the existing card it uses.
   function lines(doc) {
+    if (doc.k === "lauf") return [doc.l.e + " " + (doc.t || ""), t("create_lauf_" + doc.l.m) + " · " + [doc.l.o, doc.l.c, doc.l.f].join(" ")];
     if (doc.k === "game" && doc.g) return [doc.g.emoji + " " + doc.g.title, (doc.g.route || []).map(function (r) { return r.e; }).join(" → ")];
     if (doc.k === "sound") return [doc.x + " · " + doc.bpm + " BPM"].concat(doc.ly || []);
     if (doc.k === "turn" && doc.pk) return [t("create_questions", { n: doc.pk.q.length }), doc.pk.q[0][0]];
