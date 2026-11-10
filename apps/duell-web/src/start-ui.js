@@ -239,6 +239,34 @@
     var day = Math.floor(Date.now() / 864e5), n = Math.min(8, games.length);
     for (var k = 0; k < n; k++) box.appendChild(shotTile(games[(day * n + k) % games.length]));
   }
+  // The day's card on its sheet: its picture in place of the drawn card, on the same canvas (#pvcard, same size and place,
+  // so the sheet's layout stays as it is), the title under it as before. Not for a running game (arcade, the flight game:
+  // the sheet plays it live), not for a card with a name field (warm cards, drawn with the name) and not with Save-Data.
+  // app.js draws the card again when the font has come (fonts.load): the picture follows it.
+  var shotOn = null;
+  function dayShot(h) {
+    var c = $("pvcard"), i = h && h.idea;
+    if (!c) return;
+    if (c.dataset.shot) { delete c.dataset.shot; c.setAttribute("aria-label", t("a_preview")); }
+    shotOn = null;
+    if (!i || h.doc || /^(arcade|game)$/.test(i.kind) || (W && W.is(i)) || !SHOTS[i.id] || lean() || !root.Parts) return;
+    shotOn = h;
+    root.Parts.need(SHOTS[i.id]).then(function () {
+      var u = root.DailyShots && root.DailyShots[i.id], img = new Image();
+      if (!u || shotOn !== h) return;
+      img.onload = function () {
+        var draw = function () {
+          if (shotOn !== h || A().home() !== h) return;
+          var x = c.getContext("2d"), sw = img.width, sh = img.height, r = c.height / c.width;
+          if (sh / sw > r) sh = sw * r; else sw = sh / r;   // cover: the middle of the picture fills the card
+          x.imageSmoothingQuality = "high"; x.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, 0, 0, c.width, c.height);
+          c.dataset.shot = i.id; c.setAttribute("aria-label", t("st_shot", { s: ideaText(i).s || D.plainTitle(ideaText(i).t) }));
+        };
+        draw(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { setTimeout(draw, 0); });
+      };
+      img.src = u;
+    }, function () {});
+  }
   // "Alle Karten": every card with its picture, in the shelf's order, under the demo strip.
   function gallery() {
     if (refs.shots.firstChild) return;
@@ -250,6 +278,7 @@
     var on = !!h && !h.note && !h.doc;
     $("home").classList.add("neu"); box.hidden = !on;
     receive(h);
+    dayShot(on && h);
     first(); requestAnimationFrame(first);
     // the burst on the sheet in plain words for a first visit: "Spiel", not "Arcade"; "Bild", not "Meme"
     var k = on && h.idea && h.idea.kind, dk = document.querySelector("#leaf .dkind");

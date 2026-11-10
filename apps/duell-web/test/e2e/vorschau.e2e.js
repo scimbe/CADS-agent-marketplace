@@ -97,6 +97,41 @@ test("Save-Data: kein Bild-Teil wird geladen, die Kacheln bleiben mit Titel; Eng
   } finally { await b.close(); }
 });
 
+// Where the sheet draws its card (a laptop, a tablet; a phone at 390x844 gives that room to the tiles, review #185), the
+// day's card shows its picture on that canvas instead of the drawing.
+test("Tageskarte: ihr Spielbild gross auf dem Blatt, nicht bei einem laufenden Spiel; Save-Data ohne Bild", async () => {
+  for (const [day, id, big] of [["2026-11-11T10:00:00Z", "foto-alien", true], ["2026-11-12T10:00:00Z", "arcade-panzer", false]]) {
+    const { b, p } = await start({ time: day, view: "desk1280" });
+    try {
+      assert.equal(await p.evaluate(() => window.DailyDebug.home().idea.id), id);
+      if (big) {
+        await p.locator("#pvcard[data-shot]").waitFor();
+        const r = await p.evaluate(() => { const c = document.getElementById("pvcard"), x = c.getBoundingClientRect(), g = document.getElementById("go").getBoundingClientRect(); return { id: c.dataset.shot, label: c.getAttribute("aria-label"), h: x.height, go: g.bottom <= innerHeight }; });
+        assert.equal(r.id, id); assert.match(r.label, /^Bildschirmfoto aus dem Spiel: /);
+        assert.ok(r.h >= 150, "gross: " + JSON.stringify(r)); assert.ok(r.go, "Hauptknopf bleibt auf dem ersten Bildschirm");
+        // the canvas shows the screenshot: its middle pixel is the picture's, not the drawn card's
+        const same = await p.evaluate(async (sid) => {
+          const c = document.getElementById("pvcard"), im = new Image(); im.src = window.DailyShots[sid]; await im.decode();
+          const t = document.createElement("canvas"); t.width = im.width; t.height = im.height; t.getContext("2d").drawImage(im, 0, 0);
+          // 25 points in the middle, the picture scaled up to the card (cover, so its middle is the card's middle)
+          let d = 0; const k = c.width / im.width;
+          for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) {
+            const x = im.width / 2 + i * 20, y = im.height / 2 + j * 20;
+            const a = c.getContext("2d").getImageData(c.width / 2 + (x - im.width / 2) * k, c.height / 2 + (y - im.height / 2) * k, 1, 1).data, b = t.getContext("2d").getImageData(x, y, 1, 1).data;
+            d += Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+          }
+          return d / 25 < 40;
+        }, id);
+        assert.ok(same, "das Spielbild steht auf der Karte");
+        await shot(p, "vorschau-4-tageskarte.png");
+      } else { await p.waitForTimeout(800); assert.equal(await p.locator("#pvcard[data-shot]").count(), 0, "das laufende Spiel bleibt"); }
+      assert.deepEqual(p.errs, []);
+    } finally { await b.close(); }
+  }
+  const { b, p } = await start({ time: "2026-11-11T10:00:00Z", view: "desk1280", saveData: true });
+  try { await p.waitForTimeout(800); assert.equal(await p.locator("#pvcard[data-shot]").count(), 0); } finally { await b.close(); }
+});
+
 // The pictures must show the games as they look now: three cards are taken again the way scripts/shots.js takes them
 // and compared with the stored picture (mean difference per colour channel). A card whose look changed fails here until
 // `npm run shots -- <id>` has taken its picture again.
@@ -104,10 +139,10 @@ test("Screenshot-Vergleich: gespeicherte Vorschaubilder entsprechen dem Spiel, w
   ensureBuilt("");
   const b = await G.launch();
   try {
-    const p = await (await S.context(b)).newPage(), bad = [];
+    const ctx = await S.context(b), p = await ctx.newPage(), bad = [];
     let k = 0;
     for (const id of ["zug-auktion", "zug-steine", "spiel-dart"]) {
-      const now = (await S.shoot(p, id, k++)).buf, was = fs.readFileSync(path.join(S.OUT, id + ".webp"));
+      const now = await S.shoot(ctx, id, k++), was = fs.readFileSync(path.join(S.OUT, id + ".webp"));
       const d = await p.evaluate(async ([a, c]) => {
         const px = async (s) => { const im = new Image(); im.src = "data:image/webp;base64," + s; await im.decode(); const cv = document.createElement("canvas"); cv.width = im.width; cv.height = im.height; const x = cv.getContext("2d"); x.drawImage(im, 0, 0); return x.getImageData(0, 0, im.width, im.height).data; };
         const u = await px(a), v = await px(c);

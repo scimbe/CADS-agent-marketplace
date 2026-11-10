@@ -30,7 +30,8 @@ test("file:// (Apps, Tests): Start nur mit dem Katalog-Teil; Spiele-Regal holt A
   await p.clock.setFixedTime(new Date("2026-03-03T09:00:00Z"));   // a day whose sheet is no arcade duel
   await p.goto("file://" + path.join(dist, "index.html"));
   await p.locator("#go").waitFor();
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme"], "der Start laedt nur den Katalog, den neuen Start (Redesign W1, sofort statt im Leerlauf) und, fuer das erste Blatt, die Daumen (Katalog v2, W0)");
+  // the day's picture (start-ui.js dayShot) brings its own image part; the image parts are not counted here
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]).filter((n) => !/^bild[a-z]$/.test(n)), ["katalog", "start", "stimme"], "der Start laedt nur den Katalog, den neuen Start (Redesign W1, sofort statt im Leerlauf) und, fuer das erste Blatt, die Daumen (Katalog v2, W0)");
   assert.equal(await p.evaluate(() => typeof window.Arcade + typeof window.StatusCard + typeof window.DailyLicenses), "undefinedundefinedundefined");
   await G.alle(p); await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await p.locator(".arctile").first().waitFor();
