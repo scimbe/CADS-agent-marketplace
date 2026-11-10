@@ -1171,7 +1171,7 @@ document.addEventListener("keydown", function (e) {
   x = { editor: "edback", shelf: "shback", game: "gback", done: "dback" }[screen];
   if (x && !$(x).hidden) { e.preventDefault(); $(x).click(); }
 });
-window.addEventListener("popstate", function () { if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
+window.addEventListener("popstate", function () { if (window.ArcadeUI && window.ArcadeUI.back()) return; if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
 
 function route() {
   var card = CC.route(location.hash);
