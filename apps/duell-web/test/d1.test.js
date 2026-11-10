@@ -22,16 +22,20 @@ test("Golden-Links: jede Katalogkarte (de, en) und Varianten lesen wie auf main 
   const kinds = new Set();
   for (const [name, hash, want] of G.links) {
     const r = D.parseRoute(hash);
+    const old = JSON.parse(Buffer.from(hash.slice(3), "base64url").toString("utf8")).d, to = D.MOVED[old.i], gone = D.GONE.includes(old.i);
+    // shelf clean-up (2026-11): a bot card taken off (agent duel, photo meme with a bot face) says honestly that it is gone
+    if (gone && ["duel", "photo"].includes(old.k)) { assert.deepEqual(r, { type: "gone", id: old.i }, name); continue; }
     assert.equal(r && r.type, "doc", name); kinds.add(r.doc.k);
-    const old = JSON.parse(Buffer.from(hash.slice(3), "base64url").toString("utf8")).d, to = D.MOVED[old.i];
-    if (to) {   // a card merged into another (D.MOVED): the same doc under the new card's id, shared again with that id
-      assert.deepEqual(r.doc, D.sanitizeDoc(Object.assign({}, old, { i: to[0] })), name + ": dasselbe Doc unter der neuen Karte");
-      assert.equal(D.parseRoute(D.docUrl(r.doc).replace(/^[^#]*/, "")).doc.i, to[0], name); continue;
+    if (to || gone) {   // merged (D.MOVED) or gone: the same doc under the new card's id if of the same kind, else without an id
+      const id = to && D.byId(to[0]).kind === old.k ? to[0] : undefined, want = D.sanitizeDoc(Object.assign({}, old, { i: id }));
+      assert.deepEqual(r.doc, want, name + ": dasselbe Doc unter der neuen Karte oder ohne Karte");
+      assert.deepEqual(D.parseRoute(D.docUrl(r.doc).replace(/^[^#]*/, "")).doc, want, name + ": wieder geteilt bleibt es gleich"); continue;
     }
     assert.equal(sha(r.doc), want, name + ": dasselbe Doc");
     const again = D.docUrl(r.doc); assert.equal(again.slice(again.indexOf("#")), hash, name + ": bitgleich wieder geteilt");
   }
-  for (const k of D.KINDS.filter((k) => k !== "table" && k !== "arcade")) assert.ok(kinds.has(k), "Art " + k);
+  // the runner (doc.k "lauf") has no catalog card yet: it comes from the free card and "Selber bauen" (test/golden.test.js pins its link)
+  for (const k of D.KINDS.filter((k) => k !== "table" && k !== "arcade" && k !== "lauf")) assert.ok(kinds.has(k), "Art " + k);
 });
 
 test("Nr. 4: kein {x}-Platzhalter in Titel, Hinweis oder Vorlese-Name eines Schritts (alle Spiele, de und en)", () => {
@@ -147,8 +151,7 @@ test("Nr. 11: Business-Whitelist (Reiter, Werkzeuge, Fertig) und ehrlicher Ferti
 
 test("Nr. 12: kein Math.random in warm.js (Antwortkarte, wie in #164) und in den Mitmach-Widgets (turn-ui.js, turn2.js)", () => {
   for (const f of ["warm.js", "turn-ui.js", "turn2.js"]) assert.doesNotMatch(src(f).replace(/\/\/.*$/gm, ""), /Math\.random/, f);
-  const W = require("../src/warm.js"), doc = { i: "warm-toll", n: "Ana", x: "Du bist toll" };
-  assert.equal(W.answer(doc).id, W.answer(doc).id, "dieselbe Karte bringt dieselbe Antwort");
+  // the feel-good cards left the catalog with the shelf clean-up (2026-11), so the reply check by card went with them
 });
 
 test("Nr. 15: Abzeichen aus der Spielart, Einladung mit Spitzname oder neutral", () => {
@@ -170,7 +173,8 @@ test("Nr. 15: Abzeichen aus der Spielart, Einladung mit Spitzname oder neutral",
   assert.match(DD.texts.de.questInvite, /^\{n\} /); assert.match(DD.texts.en.questInvite, /^\{n\} /);
   // durations that can be kept
   const by = (id) => D.IDEAS.find((i) => i.id === id);
-  assert.ok(by("zug-advent").min >= 600); assert.ok(by("tisch-doko").min >= 600); assert.ok(by("tisch-skat").min >= 300); assert.ok(by("tisch-bauernskat").min >= 300);
+  // zug-advent and tisch-doko went into advent-tuer and tisch-skat with the shelf clean-up (2026-11)
+  assert.ok(by("tisch-skat").min >= 300); assert.ok(by("tisch-bauernskat").min >= 300);
 });
 
 test("Zusaetze D1: Untertitel ohne Zeitdruck, quiz-* ohne „Nimm den Treffer“, plan-24 ehrlich, „Titel auf der Karte“, Live-Text ohne JETZT", () => {
@@ -179,8 +183,7 @@ test("Zusaetze D1: Untertitel ohne Zeitdruck, quiz-* ohne „Nimm den Treffer“
     const s = (i[l] && i[l].s) || "";
     assert.doesNotMatch(s, /Heute Nacht zählt|Tonight counts|Sofort\.|\bNow\.$|Nimm den Treffer|Take the hit/, i.id + " " + l);
   }
-  const p24 = cat.find((i) => i.id === "plan-24");
-  assert.doesNotMatch(p24.de.s, /Drei Fragen/); assert.doesNotMatch(p24.en.s, /Three questions/);
+  assert.equal(cat.find((i) => i.id === "plan-24"), undefined, "plan-24 ist in „Kennst du mich wirklich?“ aufgegangen (2026-11)");
   assert.equal(TEXTS.de.titleL, "Titel auf der Karte"); assert.equal(TEXTS.en.titleL, "Title on the card");
   const A = require("../src/arcade.json"), DD = require("../src/duel.json");
   for (const s of [TEXTS.de.live_shareText, TEXTS.en.live_shareText, A.de.arc_share, A.en.arc_share, DD.texts.de.live_rpsShareText, DD.texts.en.live_rpsShareText]) {

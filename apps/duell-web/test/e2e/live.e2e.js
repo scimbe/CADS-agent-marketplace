@@ -22,7 +22,8 @@ test("Ballduell live: einladen, ankommen, gleiche Erkennungsbilder, ein ganzes S
   await B.p.exposeFunction("__liveOut", (s) => A.p.evaluate((m) => window.__liveIn(m), s).catch(() => {}));
   await B.p.exposeFunction("__liveJoined", () => A.p.evaluate(() => window.__liveReady()).catch(() => {}));
   await A.p.goto(page); await G.alle(A.p); await A.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
-  await A.p.getByRole("button", { name: /Ballduell live/ }).click();
+  // no shelf button since the shelf clean-up (2026-11, Ballduell live goes into Stangen-Kick); the invite itself is unchanged
+  await A.p.waitForFunction(() => window.LiveUI && window.LiveUI.on()); await A.p.evaluate(() => { window.LiveUI.invite(); });   // as the button did: not awaited
   await A.p.getByText("Warte auf deinen Freund").waitFor(); await A.p.getByText(/noch \d+:\d\d/).waitFor();
   await B.p.goto(page + "#live=" + TOKEN);
   await B.p.getByText("Du wirst herausgefordert!").first().waitFor();

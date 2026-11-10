@@ -18,7 +18,8 @@ test("axe: 0 Verstoesse auf Blatt, Editor und Fertig-Bildschirm, 10 Stichproben 
   const b = await G.launch(), ctx = await G.person(b, { lang: "de", view: "phone390" });
   await ctx.route(/^https?:/, (r) => r.abort());
   const h = await G.open(ctx, "");
-  const ids = await h.evaluate((K) => K.map((k) => [k, window.Daily.IDEAS.filter((i) => i.kind === k)]).map(([k, l]) => l.filter((x, n) => n % Math.max(1, Math.floor(l.length / 10)) === 0).slice(0, 10).map((i) => i.id)).flat(), KINDS);
+  // the shelf and, since the clean-up (2026-11), the cards taken off it that old links still open
+  const ids = await h.evaluate((K) => K.map((k) => [k, window.Daily.IDEAS.concat(window.Daily.RETIRED).filter((i) => i.kind === k && !(i.needs || []).includes("call"))]).map(([k, l]) => l.filter((x, n) => n % Math.max(1, Math.floor(l.length / 10)) === 0).slice(0, 10).map((i) => i.id)).flat(), KINDS);
   await h.close();
   const bad = [];
   async function run(p, where, sel) {
@@ -42,7 +43,8 @@ test("axe: 0 Verstoesse auf Blatt, Editor und Fertig-Bildschirm, 10 Stichproben 
     await run(p, id + " Fertig", "#done");
     assert.deepEqual(p.errs, [], id); await p.close();
   }
-  assert.ok(ids.length >= 60, "Stichproben: " + ids.length);
+  // 54 since the shelf clean-up (2026-11): photo, sound, duel and quest have fewer than 10 cards each, struck ones are gone
+  assert.ok(ids.length >= 50, "Stichproben: " + ids.length);
   assert.deepEqual(bad, []);
   await b.close();
 });

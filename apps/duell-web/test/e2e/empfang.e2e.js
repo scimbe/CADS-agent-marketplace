@@ -190,7 +190,7 @@ test("Review #186 Runde 2: Konto-Angebot bei Fertig nur ohne Anmeldung und leise
     const l = await made(linked, "warm-toll", "Lea");
     assert.equal(await l.locator("#staccount").isVisible(), false, "angemeldet: kein Angebot"); await linked.close();
     // Runde 3: a photo work never leaves the device (profile.js): its offer names only what goes along, never "it is on your tablet"
-    const pho = await phone(b, { nick: "Ana" }), f = await G.open(pho, "#i=foto-boss");
+    const pho = await phone(b, { nick: "Ana" }), f = await G.open(pho, "#i=foto-alien");
     await f.locator("#go").click(); await f.locator("#edmain").click(); await f.locator("#share").waitFor();
     const ft = await f.locator("#staccount p").textContent();
     assert.equal(ft, "Mit einem Konto hast du Spitzname, Stil und deine anderen Karten auch auf dem Tablet. Dein Foto bleibt nur auf diesem Gerät. Geht auch ohne.");
@@ -233,4 +233,35 @@ test("Review #186 Runde 4: eine Katalog-Karte per Link (#i=) gibt kein Blatt fue
     }
   } finally { await b.close(); }
   assert.deepEqual(bad, []);
+});
+
+test("Screenreader: die empfangene Karte heisst wie ihr Text (mit Name), das fertige Bild hat ihn als alt; ein Spiel heisst wie sein Titel; auch nach dem Sprachwechsel", async () => {
+  ensureBuilt("");
+  const b = await G.launch();
+  try {
+    const ana = await phone(b, { nick: "Ana" }), s = await made(ana, "warm-toll", "Lea");
+    const alt = await s.locator("#doneimg").getAttribute("alt");
+    assert.match(alt || "", /^Lea, ich wollte dir nur mal sagen/, "#doneimg alt traegt den Kartentext, nicht leer");
+    const url = await s.evaluate(() => window.DailyDebug.result().url);
+    const ctx = await phone(b, {}), p = await G.open(ctx, url.slice(url.indexOf("#")));
+    await p.locator("#recvhead").waitFor();
+    const card = p.getByRole("img", { name: /Lea, ich wollte dir nur mal sagen/ });
+    await card.waitFor({ timeout: 5000 }); assert.equal(await card.isVisible(), true, "Karte als Bild mit ihrem Text");
+    // labels() runs again on a language switch: it must not put the bare "Preview" back over the card's own name
+    await p.locator("#lang").click();
+    await p.waitForFunction(() => document.documentElement.lang === "en");
+    assert.match(await p.locator("#pvcard").getAttribute("aria-label"), /^Lea, just wanted to tell you/, "der Kartentext in der neuen Sprache, nicht \"Preview\"");
+    assert.deepEqual(p.errs, []); await ctx.close();
+    // a game: its title
+    const s2 = await G.open(ana, "#i=spiel-lava"); await s2.locator("#go").click(); await s2.locator("#editor:not([hidden])").waitFor();
+    await s2.evaluate(() => window.DailyApp.finish(window.DailyApp.ed().doc)); await s2.locator("#done:not([hidden])").waitFor();
+    const title = await s2.evaluate(() => window.DailyDebug.result().doc.g.title);
+    assert.ok(title, "Spieltitel");
+    assert.equal(await s2.locator("#doneimg").getAttribute("alt"), title);
+    const url2 = await s2.evaluate(() => window.DailyDebug.result().url);
+    const ctx2 = await phone(b, {}), q = await G.open(ctx2, url2.slice(url2.indexOf("#")));
+    await q.locator("#recvhead").waitFor();
+    await q.getByRole("img", { name: title }).first().waitFor({ timeout: 5000 });
+    assert.deepEqual(q.errs, []); await ctx2.close();
+  } finally { await b.close(); }
 });

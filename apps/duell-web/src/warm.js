@@ -10,7 +10,9 @@
   var MAX_NAME = 14, NAME_RE = /^[\p{L}][\p{L} .'-]*$/u;
   var MOTIFS = ["herz", "blume", "stern", "mond", "klee", "regenbogen", "ballon", "sonne", "pflaster", "tasse", "brief"];
 
-  function list() { return D.IDEAS.filter(function (i) { return !!i.warm; }); }
+  // Since the shelf clean-up (2026-11) the feel-good cards are off the shelf (Daily.RETIRED, merged into karte-danke): a card
+  // that came by link still gets its fitting reply among them, until "Schick wem ein Danke" takes them in.
+  function list() { return D.IDEAS.concat(D.RETIRED || []).filter(function (i) { return !!i.warm; }); }
   // A doc ({i}) or an idea ({id, warm}) -> its motif, or null when it is no feel-good card.
   function motif(x) {
     var i = x && (x.warm ? x : x.i ? D.byId(x.i) : null);
@@ -127,7 +129,7 @@
   }
   // The sheet's picture already shows the name while it is typed; a name the filter keeps out is said so, not dropped silently.
   function preview(h) {
-    var n = name(field.value); warnEl.textContent = n === null ? t("filter") : "";
+    var n = name(field.value); warnEl.textContent = n === null ? t(C.filterNote(field.value)) : "";
     if (!h || !h.idea) return;
     if (field.value && app().unpic) app().unpic();   // with a name the drawn card shows it again, in place of the picture
     var cv = document.querySelector("#leaf .pvcard");
@@ -163,7 +165,7 @@
     }
     if (!h.idea || h.doc || !is(h.idea)) return false;
     var who = name(field ? field.value : h.to);
-    if (who === null) { root.Kit.toast(t("filter")); field.focus(); return true; }
+    if (who === null) { root.Kit.toast(t(C.filterNote(field ? field.value : h.to))); field.focus(); return true; }
     var doc = cardFor(h.idea, who, me, root.Kit.lang);
     if (tabName) { A.openEditor(doc, { idea: h.idea, tab: tabName }); return true; }
     // "Finish the card": the finished screen, its short link already on the way (app.js), so one tap on "Teilen" sends it.

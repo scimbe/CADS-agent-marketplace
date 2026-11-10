@@ -64,10 +64,10 @@ async function sent(b, id, name) {
 test("Schrift kommt spaet: das Blatt wird mit Anton neu gezeichnet, dieselbe Karte in der Sprache des Lesers, Name und Herzen bleiben", async () => {
   const b = await G.launch(); try {
     // a German card read in English: after the font the picture stays English
-    const spruch = await sent(b, "karte-spruch");
+    const spruch = await sent(b, "karte-einladung");
     const c1 = await slowFont(b, "en"), q = await G.open(c1, hash(spruch), LATE);
     const s1 = await afterFont(c1, q);
-    assert.match(s1, /Not today/i, "englisch nach der Schrift: " + s1); assert.doesNotMatch(s1, /Heute/i);
+    assert.match(s1, /\bToday\b.*\bUs\b.*\bPlan\b/i, "englisch nach der Schrift: " + s1); assert.doesNotMatch(s1, /Heute/i);   // karte-einladung (2026-11)
 
     // a German feel-good card read in English: English text, the name, and the hearts stay (no new sheet, no class gone)
     const warm = await sent(b, "warm-toll", "Lea");

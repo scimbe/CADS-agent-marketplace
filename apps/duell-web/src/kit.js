@@ -36,7 +36,7 @@
       return b;
     },
     save: function () { try { localStorage.setItem("daily.v1", JSON.stringify(store)); Kit.persisted = true; } catch (e) { Kit.persisted = false; } },
-    toast: function (msg) { var el = document.getElementById("toast"); el.textContent = msg; el.classList.add("show"); clearTimeout(Kit._t); Kit._t = setTimeout(function () { el.classList.remove("show"); }, 2400); },
+    toast: function (msg, ms) { var el = document.getElementById("toast"); el.textContent = msg; el.classList.add("show"); clearTimeout(Kit._t); Kit._t = setTimeout(function () { el.classList.remove("show"); }, ms || 2400); },
     haptic: function (p) {
       if (Kit.muted) return;
       try { if (window.DuellHost && window.DuellHost.haptic) { window.DuellHost.haptic(); return; } if (navigator.vibrate) navigator.vibrate(p || 8); } catch (e) {}
