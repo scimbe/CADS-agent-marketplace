@@ -15,10 +15,11 @@ const bundle = () => [fs.readFileSync(dist, "utf8")].concat(partFiles().map((f) 
 // budget of their own (ONDEMAND_MAX, proposal 512 KiB, awaiting the user's decision); the 1.75 MiB below count only what
 // every web visitor downloads: the core and the parts preloaded on idle.
 const ONDEMAND = JSON.parse(src("parts.js").match(/var ONDEMAND = (\[[^\]]*\]);/)[1]), ONDEMAND_MAX = 512 * 1024;
-// The core's budget (see the test below): 700 KiB, raised to 724 992 B until redesign wave R4 (user decision, 8 Nov 2026).
-const CORE_MAX = 724992, CORE_MAX_AFTER_R4 = 700 * 1024;
-test("Kern-Budget zurueck auf 700 KiB, sobald Welle R4 (Editor auf der Karte) gemergt ist", { todo: "befristete Anhebung auf 724 992 B (8. Nov. 2026) wieder auf " + CORE_MAX_AFTER_R4 + " B setzen" }, () => {
-  assert.ok(CORE_MAX - CORE_MAX_AFTER_R4 === 8192, "nur die befristeten 8 KiB");
+// The core's budget (see the test below): 700 KiB again. It was raised to 724 992 B until redesign wave R4 (user decision,
+// 8 Nov 2026); R4 moved the editor's tabs and panels into the part blasen (src/blasen.js), so the raise is over.
+const CORE_MAX = 700 * 1024;
+test("Kern-Budget wieder 700 KiB (716 800 B): die befristete Anhebung bis Welle R4 ist vorbei", () => {
+  assert.equal(CORE_MAX, 716800);
 });
 test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter ersetzt, Kern unter 700 KB, jede Teildatei unter 300 KB", () => {
   execFileSync(process.execPath, [path.join(__dirname, "../scripts/build.js")]);
@@ -31,13 +32,12 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // At 998 KB the single page was split (rule: past 1 MB split instead of growing). The core (home, calendar sheet, editor,
   // sharing) stays below 700 KB, every part below 300 KB; new, rarely used code goes into a part (scripts/build.js PARTS).
   // Sizes at the split: core 693 KB, parts 310 KB (play 140, table 104, qr 59, licenses 6), together 1003 KB.
-  // Core budget, raised for a limited time (user decision, 8 Nov 2026): from 716 800 B (700 KiB) to 724 992 B (+8 KiB) until
-  // redesign wave R4 is done. Why: the redesign's start and receive need hooks and the first-paint layout in the core while
-  // the old strip and editor panels (R2/R4) still sit there; R4 moves PANEL/TABS out and must bring it back under 700 KiB.
-  // The reminder is the todo test "Kern-Budget zurueck auf 700 KiB" below.
+  // Core budget 700 KiB (716 800 B). From 8 Nov 2026 it was raised to 724 992 B until redesign wave R4; R4 moved PANEL/TABS
+  // into the part blasen and brought the core back under 700 KiB.
+  console.log("Kern " + Buffer.byteLength(html) + " B (< " + CORE_MAX + ")");
   assert.ok(Buffer.byteLength(html) < CORE_MAX, "Kern ueber " + CORE_MAX + " B: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "lauf", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(Object.keys(man).sort(), ["blasen", "dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "lauf", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   // The new start (redesign wave 1) is a part: its code, keywords and words only there, in the core only the hooks.
   const startBody = fs.readFileSync(partFiles().find((f) => /\/start\.[0-9a-f]{12}\.js$/.test(f)), "utf8");
   assert.match(startBody, /root\.StartUI = \{/); assert.match(startBody, /root\.StartIntent = api/); assert.match(startBody, /window\.StartTexts=\{"de":\{"st_ask":"Wem willst du heute eine Freude machen\?"/);
@@ -131,6 +131,12 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   assert.match(part("direkt"), /root\.EditModel = api/); assert.match(part("direkt"), /root\.Direkt = \{ paint: paint/); assert.match(part("direkt"), /window\.DirektData=\{/);
   assert.match(part("regler"), /root\.Regeln = api/); assert.match(part("regler"), /A\.PANEL\.Rules = function/);
   assert.deepEqual(man.direkt.d, []); assert.deepEqual(man.regler.d, []);
+  // R4: the editor's tab bar and panels (TABS, PANEL, tab) only in the part blasen, never preloaded on idle (ONDEMAND);
+  // the core keeps the empty A.TABS/A.PANEL others add to, the stand-in tab() and the hook in openEditor.
+  assert.match(part("blasen"), /root\.Blasen = \{ open: open, tab: tab, PANEL: PANEL/); assert.match(part("blasen"), /^Wish: function \(p\) \{$/m); assert.match(part("blasen"), /^function beatPanel\(p\) \{$/m);
+  assert.deepEqual(man.blasen.d, []); assert.ok(ONDEMAND.includes("blasen"));
+  assert.ok(!/Wish: function \(p\) \{|function beatPanel\(|function didLine\(|card: \["Text", "Style", "Color", "Sticker"\]/.test(html), "Reiter und Blasen nur im Teil");
+  assert.match(html, /var TABS = \{\}, PANEL = \{\};/); assert.match(html, /window\.Parts\.use\("blasen", function \(\) \{ if \(ed === mine\)/);
   assert.ok(!/root\.EditModel = api|root\.Regeln = api|window\.DirektData=/.test(html), "Editor-Teile nicht im Kern");
   assert.match(html, /window\.Parts\.need\("direkt"\)/); assert.match(html, /if \(window\.Direkt\) window\.Direkt\.paint\(ed\);/);
   assert.ok(!/axe-core|axe\.run/.test(bundle()), "axe-core ist nur Testwerkzeug, nie ausgeliefert");
