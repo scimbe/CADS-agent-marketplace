@@ -406,9 +406,6 @@
     "mauer": [
       "arcade-ziegel"
     ],
-    "schere": [
-      "duell-liest"
-    ],
     "verzerr": [
       "mut-tierstory"
     ],
@@ -693,6 +690,7 @@
       "st_all": "Alle Karten",
       "st_look": "So sieht es aus",
       "st_shot": "Bildschirmfoto aus dem Spiel: {s}",
+      "st_gallery": "Mehr von bunsenbrenner",
       "st_title": "Deine Karte",
       "st_what": "Was hast du vor?",
       "st_heard": "So verstehe ich dich",
@@ -755,6 +753,7 @@
       "st_all": "All cards",
       "st_look": "See how it looks",
       "st_shot": "Screenshot from the game: {s}",
+      "st_gallery": "More from bunsenbrenner",
       "st_title": "Your card",
       "st_what": "What do you have in mind?",
       "st_heard": "This is how I understand you",

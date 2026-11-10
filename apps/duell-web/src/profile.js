@@ -172,7 +172,7 @@
     var b16 = new Uint8Array(16); crypto.getRandomValues(b16);
     var s = await startCode(newCode(b16), true);
     if (s === "ok") { Kit.toast(t("ac_linked")); onChange(); }
-    else { unlink(); if (s === "codeLogin" && canAccount && !rerender.again) { Kit.store.profile = { via: "start", at: Date.now() }; plainSave(); look(); location.href = "/auth/login?return=" + encodeURIComponent(back()); return; } Kit.toast(t(s === "codeLogin" ? "ac_codeLogin" : "ac_err")); }
+    else { unlink(); if (s === "codeLogin" && canAccount && !rerender.again) { Kit.store.profile = { via: "start", at: Date.now() }; plainSave(); look(); location.href = C.loginPath(back(), Kit.lang); return; } Kit.toast(t(s === "codeLogin" ? "ac_codeLogin" : "ac_err")); }
     if (rerender) rerender();
   }
 
@@ -217,7 +217,7 @@
           }
           Kit.store.profile = { via: "account", rev: 0, base: null, age16: true, t0: Date.now() }; plainSave();
           look();
-          location.href = "/auth/login?return=" + encodeURIComponent(back());
+          location.href = C.loginPath(back(), Kit.lang);
         });
         go.setAttribute("aria-describedby", "acwhere");
         cb.addEventListener("change", function () { if (cb.checked) { need.textContent = ""; lab.classList.remove("want"); } });
@@ -258,7 +258,7 @@
       if (!link()) return;
       var at = link().at;
       st.textContent = (s === "ok" || !s) && at ? t("ac_ok", { time: new Date(at).toLocaleTimeString(Kit.lang === "de" ? "de-DE" : "en-GB", { hour: "2-digit", minute: "2-digit" }) }) : s && s !== "ok" ? t(s === "login" ? "ac_relogin_note" : "ac_" + s) : "";
-      if (s === "login" && canAccount) { var a = el("a", "btn", t("ac_relogin")); a.href = "/auth/login?return=" + encodeURIComponent(back()); a.addEventListener("click", look); st.appendChild(document.createTextNode(" ")); st.appendChild(a); }
+      if (s === "login" && canAccount) { var a = el("a", "btn", t("ac_relogin")); a.href = C.loginPath(back(), Kit.lang); a.addEventListener("click", look); st.appendChild(document.createTextNode(" ")); st.appendChild(a); }
     }
     showState(state); shown = function (s) { if (st.isConnected) showState(s); };
     info.appendChild(el("p", "note", t(p.via === "code" ? "ac_viaCode" : "ac_viaAccount")));

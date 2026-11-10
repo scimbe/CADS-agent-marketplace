@@ -88,3 +88,21 @@ test("Wohlfuehlkarte: Beleidigung als Name wird gemeldet und nicht verschickt; W
   assert.equal(await r.locator("#leaf .wh").first().isVisible(), false);
   assert.deepEqual(errs, []); await b.close();
 });
+
+test("Kontaktdaten (P-D): Nummer, Handle oder Mail als Name bekommt einen freundlichen eigenen Hinweis und geht nicht mit; ein Schimpfwort den alten", async () => {
+  const { b, open, errs } = await setup("reduce");
+  try {
+    const s = await open("#i=warm-denke");
+    for (const v of ["0176 12345678", "@lea_2011", "lea@gmx.de"]) {
+      await s.locator("#warmname").fill(v);
+      await s.locator(".warmwarn").filter({ hasText: "Nummern, Mail-Adressen, Konto-Namen und Links bleiben draußen" }).waitFor({ timeout: 3000 });
+    }
+    await s.locator("#go").click();
+    assert.equal(await s.locator("#home").isVisible(), true, "nichts wird fertig, die Nummer geht nicht mit");
+    await s.locator("#warmname").fill("Lea");
+    assert.equal(await s.locator(".warmwarn").textContent(), "", "ein Name ist kein Kontakt");
+    await s.locator("#warmname").fill("Arschloch");
+    await s.locator(".warmwarn").filter({ hasText: "Das lassen wir lieber weg." }).waitFor();
+    assert.deepEqual(errs, []);
+  } finally { await b.close(); }
+});

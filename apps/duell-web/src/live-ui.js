@@ -74,8 +74,19 @@ async function invite(opt) {
   try { conn = await inv.ready; } catch (e) { clearInterval(tick); if (mine === me) mine = null; if (window.OwnInvites) window.OwnInvites.drop([inv.token]); fail(e); return; }
   clearInterval(tick); me.wait = null;
   if (window.OwnInvites) window.OwnInvites.drop([inv.token]);   // used by the friend now: a later tap on it is an ordinary used link
+  arrived();
   screen([["p", "livebig", t("live_here")], ["p", "livebadge", B.badge(conn.channel)], ["p", "note", t("live_badgeNote")]], [[t("live_start"), function () { conn.send(Object.assign({ t: "go" }, game)); begin(true); }]]);
   conn.onClose(lost);
+}
+// The friend took the invite: a short rising chime and a buzz (both follow the sound switch, Kit.muted), and while the
+// page waits in the background (the inviter is usually still in the messenger) the tab title says so until it is back.
+function arrived() {
+  [660, 880].forEach(function (f, i) { Kit.tone(f, f, 0.14, "triangle", 0.16, i * 0.12); });
+  Kit.haptic([200, 100, 200]);
+  if (!document.hidden) return;
+  var was = document.title, on = true, blink = setInterval(function () { document.title = (on = !on) ? t("live_here") : was; }, 1000);
+  document.title = t("live_here");
+  document.addEventListener("visibilitychange", function back() { if (document.hidden) return; clearInterval(blink); document.title = was; document.removeEventListener("visibilitychange", back); });
 }
 // My own link, opened on this device: never a join. The waiting screen or the running game if this tab still has it,
 // otherwise a word that the link stays free, with a way to share it again or to invite anew.

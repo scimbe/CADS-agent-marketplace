@@ -10,6 +10,8 @@ const { chromium } = require("playwright");
 
 const DIST = path.join(__dirname, "../../dist/index.html");
 const PARTS = path.join(__dirname, "../../dist/parts");
+// the parts never preloaded on idle (src/parts.js ONDEMAND: noto, dart, klang, the free card's engines)
+const ONDEMAND = JSON.parse(fs.readFileSync(path.join(__dirname, "../../src/parts.js"), "utf8").match(/var ONDEMAND = (\[[^\]]*\]);/)[1]);
 const JPEG = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQ==";
 const SEED = { me: { nick: "Mira", emoji: "🦖", colors: ["#2b4bff", "#ffe600"], set: "weltall" },
   wall: [{ id: "own", ts: 3, k: "photo", th: JPEG }, { id: "own", ts: 2, k: "card", th: JPEG }], saved: [{ id: "quiz-chaos", ts: 1 }], aiDev: "5e".repeat(16) };
@@ -237,10 +239,11 @@ test("Frosch -> Konto-Karte -> Keycloak, mit dem Look-Cookie in meinen Farben", 
   assert.equal((await ctx.cookies("https://bunsenbrenner.org")).filter((c) => c.name === "ct_look").length, 0, "no cookie before the tap");
   await p.getByLabel("Ich bin 16 oder älter.").check();
   await Promise.all([p.waitForURL(/^https:\/\/auth\.bunsenbrenner\.org\//, { timeout: 30000, waitUntil: "commit" }), go.click()]);
-  assert.equal(toLogin.length, 1); assert.equal(toLogin[0].url, DEMOS + "/auth/login?return=%2Fduell");
+  assert.equal(toLogin.length, 1); assert.equal(toLogin[0].url, DEMOS + "/auth/login?return=%2Fduell&lang=de");   // the page language goes along (wrapper -> gate ui_locales)
   const k = new URL(p.url());
   assert.equal(k.origin + k.pathname, "https://auth.bunsenbrenner.org/realms/ct-demo/protocol/openid-connect/auth");
-  assert.equal(k.searchParams.get("client_id"), "ct-portal");
+  // the client is the gate's choice (live: ct-portal, since the own login theme mydailyidea), not the page's
+  assert.match(k.searchParams.get("client_id"), /^(ct-portal|mydailyidea)$/);
   assert.equal(k.searchParams.get("redirect_uri"), "https://bunsenbrenner.org/gate/callback");
   assert.equal(k.searchParams.get("response_type"), "code");
   const look = (await ctx.cookies("https://auth.bunsenbrenner.org")).find((c) => c.name === "ct_look");
@@ -269,15 +272,15 @@ test("KI-Login: der Teil konto kommt vor dem Sprung, das Look-Cookie ist schon b
   await ctx.addInitScript((seed) => { if (!localStorage.getItem("daily.v1")) localStorage.setItem("daily.v1", JSON.stringify(seed)); }, { ...SEED, aiMeter: { free: 3, canLogin: true } });
   await p.goto(DEMOS + "/duell");
   await p.locator("#go").waitFor();
-  // the idle preload: every part but konto (blocked here), noto, dart, klang and the preview pictures (never preloaded: a sticker, a dart card, a voice sheet or a picture in sight asks)
-  await p.waitForFunction(() => window.Parts.names().filter((n) => n !== "konto" && n !== "noto" && n !== "dart" && n !== "klang" && !/^bild[a-z]$/.test(n)).every((n) => window.Parts.ready(n)));
+  // the idle preload: every part but konto (blocked here) and those in ONDEMAND and the preview pictures (never preloaded: a sticker, a dart card, a voice sheet, a game, a picture in sight asks)
+  await p.waitForFunction((od) => window.Parts.names().filter((n) => n !== "konto" && !od.includes(n) && !/^bild[a-z]$/.test(n)).every((n) => window.Parts.ready(n)), ONDEMAND);
   assert.equal(await p.evaluate(() => window.Parts.ready("konto")), false, "no konto part before");
   await p.evaluate(() => {   // the AI wall as the page shows it (app.js openAiWall), here in a plain box
     const el = (tag, cls, text, on) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; if (on) e.addEventListener("click", on); return e; };
     const b = el("div"); b.id = "aiwalltest"; document.body.prepend(b); window.Ai.wall(b, el);
   });
   kontoOk = true;
-  await Promise.all([p.waitForURL(DEMOS + "/auth/login?return=%2Fduell", { waitUntil: "commit" }), p.locator("#aiwalltest").getByRole("link", { name: "Mit Konto anmelden" }).evaluate((a) => a.click())]);   // the box sits under the page's screens
+  await Promise.all([p.waitForURL(DEMOS + "/auth/login?return=%2Fduell&lang=de", { waitUntil: "commit" }), p.locator("#aiwalltest").getByRole("link", { name: "Mit Konto anmelden" }).evaluate((a) => a.click())]);   // the box sits under the page's screens
   assert.equal(toLogin.length, 1);
   assert.match(toLogin[0].cookie, /ct_look=daily\.2b4bff\.ffe600/, "cookie set before the jump");
   assert.deepEqual(errs, []);

@@ -5,6 +5,8 @@ const test = require("node:test"), assert = require("node:assert/strict"), path 
 const { chromium, devices } = require("playwright-core");
 const G = require("./lib/grund.js");
 const dist = path.join(__dirname, "../../dist");
+// the parts never preloaded on idle: the list in src/parts.js (noto, dart, klang, the free card's engines lauf, blasen, bahn, raten)
+const ONDEMAND = JSON.parse(fs.readFileSync(path.join(__dirname, "../../src/parts.js"), "utf8").match(/var ONDEMAND = (\[[^\]]*\]);/)[1]);
 const launch = () => chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
 const loaded = (p) => p.evaluate(() => [...document.querySelectorAll("script[src]")].map((s) => ({ src: s.getAttribute("src").replace(/^.*\/parts\//, ""), sri: s.integrity })));
 
@@ -64,29 +66,33 @@ test("file://: der Knopf Status-Bild holt den QR-Teil und teilt ein Bild 1080x19
   assert.equal(await p.evaluate(() => typeof window.StatusCard), "undefined", "vor dem Knopf kein QR-Teil");
   await p.locator("#tostatus").evaluate((e) => e.click());
   await p.waitForFunction(() => window.__shared.length > 0);
-  // the card editor's text tab has loaded "texte" (Worte finden, card text) and "wetter" on the way; the button only adds "qr"
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "texte", "wetter", "direkt", "qr"], "der Editor holt direkt");
+  // the editor first asks for its tabs (blasen, R4) and direkt; once blasen is there the card's text tab loads "texte"
+  // (Worte finden, card text) and "wetter"; the button only adds "qr"
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "blasen", "direkt", "texte", "wetter", "qr"], "der Editor holt blasen und direkt");
   const f = await p.evaluate(async () => { const f = window.__shared[0], i = await createImageBitmap(f); return { type: f.type, name: f.name, w: i.width, h: i.height }; });
   assert.deepEqual(f, { type: "image/jpeg", name: "my-daily-idea-status.jpg", w: 1080, h: 1920 });
   assert.deepEqual(errs, []);
   } finally { await b.close(); }
 });
 
-test("Web /duell: nach dem Laden alle Teile ausser noto, dart, klang und den Vorschaubildern mit SRI vorab; danach offline Arcade-Menue und Lizenzen", async () => {
+test("Web /duell: nach dem Laden alle Teile ausser denen nur bei Bedarf (noto, dart, klang, ...) und den Vorschaubildern mit SRI vorab, auch nach 10 s Leerlauf keins davon; danach offline Arcade-Menue und Lizenzen", async () => {
   const srv = await serve(), base = "http://127.0.0.1:" + srv.address().port;
   const b = await launch(), ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);
   const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
   await p.goto(base + "/duell");   // without the slash: the parts still come from /duell/parts/
-  // all but noto (Noto Emoji for stickers in the picture: only the editor asks for it, at its first sticker) and dart (the
-  // dartboard: only a dart card or link asks for it) and klang (Stimme verzerren: only a voice sheet asks for it); the
-  // preview pictures (bilda, bildb …) only as far as the start page shows them, never all on idle
-  await p.waitForFunction(() => window.Parts.names().filter((n) => n !== "noto" && n !== "dart" && n !== "klang" && !/^bild[a-z]$/.test(n)).every((n) => window.Parts.ready(n)));
-  const all = await loaded(p), got = all.filter((s) => !/^bild[a-z]\./.test(s.src));
+  // all but those in ONDEMAND: noto (Noto Emoji for stickers in the picture: only the editor asks for it, at its first
+  // sticker), dart (the dartboard: only a dart card or link), klang (Stimme verzerren: only a voice sheet), the game engines;
+  // the preview pictures (bilda, bildb …) only as far as the start page shows them, never all on idle
+  await p.waitForFunction((od) => window.Parts.names().filter((n) => !od.includes(n) && !/^bild[a-z]$/.test(n)).every((n) => window.Parts.ready(n)), ONDEMAND);
+  await p.waitForTimeout(10000);   // 10 s more idle: still none of them (no script tag, not ready)
+  const all = await loaded(p), got = all.filter((s) => !/^bild[a-z]\./.test(s.src)), names = await p.evaluate(() => window.Parts.names());
   assert.ok(await p.evaluate(() => window.Parts.names().filter((n) => /^bild[a-z]$/.test(n)).some((n) => !window.Parts.ready(n))), "Vorschaubilder nicht alle vorab");
   for (const s of all) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
-  assert.ok(await p.evaluate(() => window.Parts.names().includes("noto") && !window.Parts.ready("noto")), "noto nicht vorab");
-  assert.ok(await p.evaluate(() => window.Parts.names().includes("dart") && !window.Parts.ready("dart")), "dart nicht vorab");
-  assert.ok(await p.evaluate(() => window.Parts.names().includes("klang") && !window.Parts.ready("klang")), "klang nicht vorab");
+  for (const n of ["noto", "dart", "klang"]) assert.ok(names.includes(n), n + " im Manifest");
+  for (const n of ONDEMAND.filter((n) => names.includes(n))) {
+    assert.ok(await p.evaluate((n) => !window.Parts.ready(n), n), n + " nicht vorab");
+    assert.ok(!got.some((s) => s.src.startsWith(n + ".")), n + " nach 10 s Leerlauf nicht geladen");
+  }
   assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "deck", "direkt", "erschaffen", "katalog", "konto", "licenses", "logik", "malen", "melden", "play", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   for (const s of got) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
   await p.evaluate(() => window.Parts.need("noto"));   // asked for (as the editor does): also with its SRI hash

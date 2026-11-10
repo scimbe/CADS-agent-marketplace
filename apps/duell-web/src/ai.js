@@ -95,7 +95,7 @@
         if (now() - started >= max) return none("busy", last);
         try { r = await o.send("/queue", { ticket: tk }); } catch (e) { return none("off"); }
       }
-      if (how !== "result") { var no = none(how, how === "busy" ? place(r.json) || last : 0); no.why = how === "blocked" && r.json && (r.json.why === "crisis" || r.json.why === "kind_ok") ? r.json.why : ""; if (how === "notyet") { no.notyet = r.json.notyet; no.catalog = r.json.catalog; } return no; }
+      if (how !== "result") { var no = none(how, how === "busy" ? place(r.json) || last : 0); no.why = how === "blocked" && r.json && (r.json.why === "crisis" || r.json.why === "kind_ok") ? r.json.why : ""; if (how === "notyet") { no.notyet = r.json.notyet; no.catalog = r.json.catalog; no.reason = r.json.reason; no.alt = r.json.alt; } return no; }
       return { how: how, options: r.json.options, seals: seals(r.json), receipt: receipt(r.json), position: 0, note: r.json.note };
     }
     // Settle a handed-out result once: accept (taken) or discard (nothing taken, nothing changed). -> true when the server said yes.
@@ -279,7 +279,7 @@
     ok.disabled = !!(meter && meter.interest); b.appendChild(ok);
     b.appendChild(el("p", "note", t("aiWantNote")));
     if (meter && meter.canLogin && !window.DuellHost) {
-      var a = el("a", "btn", t("aiLogin")); a.href = "/auth/login?return=" + encodeURIComponent(loginReturn(window.DailyFlavor)); a.addEventListener("click", function (e) {   // the look cookie comes with the part konto: load it, set it, then go
+      var a = el("a", "btn", t("aiLogin")); a.href = C.loginPath(loginReturn(window.DailyFlavor), Kit.lang); a.addEventListener("click", function (e) {   // the look cookie comes with the part konto: load it, set it, then go
         e.preventDefault(); var go = function () { location.href = a.href; };
         window.Parts.use("konto", function () { window.Profile.look(); }).then(go, go);
       }); b.appendChild(a);

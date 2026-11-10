@@ -65,6 +65,9 @@ mic("12-mikro-abgelehnt")
 p = load("13-teildateien"); lp = logd(p)
 need("error" not in lp, "parts flow without script error", lp.get("error"))
 need(lp.get("arcadeMenu") is True, "arcade menu from the play part", lp)
-need(lp.get("parts") == "dart,daten,deck,direkt,erschaffen,katalog,klang,konto,licenses,logik,malen,melden,noto,play,qr,quiz,regler,satz,start,stil,stimme,table,texte,turnzwei,welt,wetter", "every part loaded from the bundle", lp.get("parts"))
+# the preview pictures come in as many parts bilda, bildb ... as their size needs: at least one, the rest by name
+shot_parts = [x for x in (lp.get("parts") or "").split(",") if re.fullmatch(r"bild[a-z]", x)]
+other_parts = ",".join(x for x in (lp.get("parts") or "").split(",") if x not in shot_parts)
+need(len(shot_parts) >= 1 and other_parts == "blasen,dart,daten,deck,direkt,erschaffen,katalog,klang,konto,lauf,licenses,logik,malen,melden,noto,play,qr,quiz,regler,satz,start,stil,stimme,table,texte,turnzwei,welt,wetter", "every part loaded from the bundle", lp.get("parts"))
 need(lp.get("licenses") is True and lp.get("qr") is True, "licence texts and QR code came with their parts", lp)
 print("all simulator checks ok")

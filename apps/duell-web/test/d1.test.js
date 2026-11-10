@@ -34,7 +34,8 @@ test("Golden-Links: jede Katalogkarte (de, en) und Varianten lesen wie auf main 
     assert.equal(sha(r.doc), want, name + ": dasselbe Doc");
     const again = D.docUrl(r.doc); assert.equal(again.slice(again.indexOf("#")), hash, name + ": bitgleich wieder geteilt");
   }
-  for (const k of D.KINDS.filter((k) => k !== "table" && k !== "arcade")) assert.ok(kinds.has(k), "Art " + k);
+  // the runner (doc.k "lauf") has no catalog card yet: it comes from the free card and "Selber bauen" (test/golden.test.js pins its link)
+  for (const k of D.KINDS.filter((k) => k !== "table" && k !== "arcade" && k !== "lauf")) assert.ok(kinds.has(k), "Art " + k);
 });
 
 test("Nr. 4: kein {x}-Platzhalter in Titel, Hinweis oder Vorlese-Name eines Schritts (alle Spiele, de und en)", () => {
@@ -140,7 +141,7 @@ test("Nr. 11: Business-Whitelist (Reiter, Werkzeuge, Fertig) und ehrlicher Ferti
   const app = src("app.js"), tpl = src("index.template.html");
   assert.deepEqual(BIZ.tabs, ["Idea", "Move", "Text"]); assert.deepEqual(BIZ.done, []); assert.ok(BIZ.bg);
   assert.equal(BIZT.de.sh_note, ""); assert.equal(BIZT.en.sh_note, "");
-  assert.match(app, /\.filter\(function \(k\) \{ return allow\("tabs", k\); \}\)/);
+  assert.match(src("blasen.js"), /\.filter\(function \(k\) \{ return allow\("tabs", k\); \}\)/, "die Reiterleiste (R4: Teil blasen)");
   assert.match(app, /\$\("dmore"\)\.parentNode\.hidden = !allow\("done", "status"\)/);
   assert.match(tpl, /<details class="more"><summary id="dmore"><\/summary><div class="row"><button id="tostatus"/);
   assert.doesNotMatch(app, /b\.textContent = t\("sh_making"\)|b\.textContent = t\("sh_ready"\)/, "der Teilen-Knopf behaelt seinen Namen");
@@ -188,5 +189,5 @@ test("Zusaetze D1: Untertitel ohne Zeitdruck, quiz-* ohne „Nimm den Treffer“
   for (const s of [TEXTS.de.live_shareText, TEXTS.en.live_shareText, A.de.arc_share, A.en.arc_share, DD.texts.de.live_rpsShareText, DD.texts.en.live_rpsShareText]) {
     assert.doesNotMatch(s, /JETZT|NOW|nur 15|only\)/, s); assert.match(s, /15/);
   }
-  assert.match(src("app.js"), /set = set\.concat\(set\.indexOf\(me\.emoji\) < 0 \? \[me\.emoji\] : \[\]\)/, "das eigene Emoji nur, wenn das Set es nicht hat");
+  assert.match(src("blasen.js"), /set = set\.concat\(set\.indexOf\(me\.emoji\) < 0 \? \[me\.emoji\] : \[\]\)/, "das eigene Emoji nur, wenn das Set es nicht hat");
 });

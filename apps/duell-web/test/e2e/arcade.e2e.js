@@ -17,7 +17,7 @@ const FAKE = (side) => `(() => {
 })();`;
 const launch = () => chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
 async function pair(b) {
-  const mk = async (side) => { const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000); const p = await ctx.newPage(); const errs = []; p.on("pageerror", (e) => errs.push(String(e))); await p.addInitScript(FAKE(side)); return { p, errs }; };
+  const mk = async (side) => { const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000); const p = await ctx.newPage(); const errs = []; p.on("pageerror", (e) => errs.push(String(e))); await p.addInitScript(FAKE(side)); await p.addInitScript(() => { window.__buzz = []; navigator.vibrate = (x) => { window.__buzz.push(x); return true; }; }); return { p, errs }; };
   const A = await mk("a"), B = await mk("b");
   await A.p.exposeFunction("__liveOut", (s) => B.p.evaluate((m) => window.__liveIn(m), s).catch(() => {}));
   await B.p.exposeFunction("__liveOut", (s) => A.p.evaluate((m) => window.__liveIn(m), s).catch(() => {}));
@@ -33,6 +33,7 @@ async function invite(A, B, g) {
   await B.p.goto(page + "#live=" + TOKEN + "&g=" + g);
   await B.p.getByText("Du wirst herausgefordert!").first().waitFor();
   await A.p.getByText("Dein Freund ist da!").waitFor();
+  assert.ok((await A.p.evaluate(() => window.__buzz)).some((x) => JSON.stringify(x) === "[200,100,200]"), "das Handy des Einladenden vibriert, wenn der Freund annimmt");
   const ba = await A.p.locator(".livebadge").textContent(), bb = await B.p.locator(".livebadge").textContent();
   assert.equal(ba, bb); assert.equal(ba.split(" ").length, 3);
   await A.p.getByRole("button", { name: "Starten" }).click();
@@ -81,9 +82,20 @@ test("Gegen den Bot: Regal zeigt die fuenf Arcade-Duelle (Regal-Bereinigung 2026
   await p.getByText(/Gewonnen|Knapp!/).waitFor({ timeout: 30000 });   // standing still, the bot wins 3:0
   assert.match(await p.locator(".livebig").textContent(), /Knapp! 0:3/);
   await p.getByRole("button", { name: "Nochmal" }).waitFor();
-  // one way back: the ✕ in the banner, no second "Zurück" below the game
+  // The way back is plain: "‹ Zurück" in the banner and "Zurück" under "Nochmal".
   assert.equal(await p.locator(".arcov .arcbar").count(), 1);
-  assert.equal(await p.getByRole("button", { name: "Zurück" }).count(), 0);
+  assert.equal(await p.locator(".arcov .arcbar .arcx").textContent(), "‹ Zurück");
+  assert.equal(await p.locator(".arcov .arcleave").textContent(), "Zurück");
+  // The phone's back closes the game layer and stays in the app on the shelf, it does not leave the site.
+  const url = p.url();
+  await p.evaluate(() => history.back());
+  await p.locator(".arcov").waitFor({ state: "detached" });
+  assert.equal(p.url(), url); await p.locator(".arctile[data-g=panzer]").waitFor();
+  // and the button below the result goes back the same way, leaving no stale entry on the history
+  await p.locator(".arctile[data-g=panzer]").click(); await p.getByRole("button", { name: /Gegen den Bot/ }).click();
+  await p.locator(".arcov .arcleave").click({ timeout: 30000 });
+  await p.locator(".arcov").waitFor({ state: "detached" }); await p.locator(".arctile[data-g=panzer]").waitFor();
+  assert.equal(await p.evaluate(() => (history.state && history.state.arc) || null), null, "kein Eintrag der Spielebene bleibt im Verlauf");
   assert.deepEqual(errs, []); await b.close();
 });
 
@@ -98,15 +110,19 @@ test("Kalender: an einem seiner Tage ist Stangen-Kick das Blatt des Tages und oe
   await p.locator("#leaf").getByText("Kick", { exact: true }).waitFor();
   await p.locator("#go").click();
   await p.getByRole("button", { name: /Gegen den Bot/ }).waitFor();
-  // The menu wears the home page's brand as a banner in the user's colour, with the same ✕ as editor and shelf.
+  // The menu wears the home page's brand as a banner in the user's colour, with a labelled way back.
   const bar = p.locator(".arcov .arcbar");
   assert.equal(await bar.locator(".arcbrand").textContent(), "My Daily Idea");
   const look = await bar.evaluate((e) => { const a = getComputedStyle(e), h = getComputedStyle(document.querySelector("#home .bar h1")); return { bg: a.backgroundColor, home: getComputedStyle(document.body).backgroundColor, font: getComputedStyle(e.querySelector(".arcbrand")).fontFamily === h.fontFamily }; });
   assert.equal(look.bg, look.home, "Banner in der Farbe der Startseite"); assert.ok(look.font, "Schrift der Marke wie auf der Startseite");
-  const x = bar.getByRole("button", { name: "Schließen" });
-  assert.equal(await x.textContent(), "✕"); assert.equal(await x.getAttribute("class"), "ico arcx");
-  assert.equal(await p.getByRole("button", { name: "Zurück" }).count(), 0, "nur ein Weg zurück");
+  const x = bar.getByRole("button", { name: "Zurück" });
+  assert.equal(await x.textContent(), "‹ Zurück"); assert.equal(await x.getAttribute("class"), "ico arcx");
   await x.click();
   assert.equal(await p.locator(".arcov").count(), 0); await p.locator("#go").waitFor();
+  // the phone's back from the menu: back on the day's sheet, still in the app
+  await p.locator("#go").click(); await p.getByRole("button", { name: /Gegen den Bot/ }).waitFor();
+  await p.evaluate(() => history.back());
+  await p.locator(".arcov").waitFor({ state: "detached" }); await p.locator("#go").waitFor();
+  assert.ok(p.url().startsWith("file:"), "die Seite wurde nicht verlassen");
   assert.deepEqual(errs, []); await b.close();
 });

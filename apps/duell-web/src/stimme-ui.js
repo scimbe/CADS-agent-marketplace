@@ -30,7 +30,7 @@
     // login: the sign-in of the API host, as in ai.js (the app shells send no cookie: no link there); dup/full: changed often today
     var hint = why === "login" ? "vote_login" : why === "dup" || why === "full" ? "vote_often" : "";
     clearTimeout(timer); a.hidden = !hint; a.textContent = hint ? t(hint) : "";
-    if (hint !== "vote_login" || root.DuellHost) a.removeAttribute("href"); else a.href = (location.protocol === "https:" ? "" : new URL(C.DEFAULT_API).origin) + "/auth/login?return=" + encodeURIComponent("/duell");
+    if (hint !== "vote_login" || root.DuellHost) a.removeAttribute("href"); else a.href = (location.protocol === "https:" ? "" : new URL(C.DEFAULT_API).origin) + C.loginPath("/duell", Kit.lang);
     if (hint) timer = setTimeout(function () { a.hidden = true; }, 8000);
   }
   async function tap(v) {

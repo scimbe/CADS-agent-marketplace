@@ -40,7 +40,17 @@
     "@media (max-width:300px){#home.neu:not(.recv)>.bar{order:-2}#home.neu:not(.recv)>#startbox{order:-1}.stform>.sti{display:none}.stform{padding-left:10px}}",
     /* a tall phone: the sheet gives room, so the question and the tiles are on the first screen; a short one (200 % zoom, a
        small phone) keeps sheet and main button on the first screen as before (rule A4) and the start follows below it */
-    "#home.neu #feat{padding:0}@media (max-height:700px){#allcards{display:none}}",
+    "#home.neu #feat{padding:0}#home.neu .pvimg img{object-fit:contain}",
+    /* the card's own extras (Look würfeln, Live ansehen) on the card, next to the thumbs: the row under the main button is the
+       same every day, so the start below does not move with the day's kind */
+    "#stacts{position:absolute;right:14px;bottom:12px;z-index:3;display:flex;gap:6px;max-width:calc(100% - 132px)}#stacts:not(:has(>:not([hidden]))){display:none}",
+    "#stacts button{min-height:44px;padding:2px 8px;border:2px solid #17140f;border-radius:12px;background:#fff;color:#17140f;font:700 .8125rem/1.1 system-ui,sans-serif}#stacts button[hidden]{display:none}",
+    /* "Erschaffe deine Karte" on a phone upright: the second main action under the day's main button, full width, the size
+       of the tiles (two columns, from 900 px or sideways, keep the row as it was) */
+    "@media (orientation:portrait) and (max-width:899px){#home.neu #homerow{flex-wrap:wrap}#home.neu #homerow #create{flex:1 1 100%;min-height:52px;padding:6px 14px;font:800 1.0625rem/1.2 var(--st);text-transform:none;letter-spacing:0}}",
+    /* the gallery of bunsenbrenner (the old strip) only quietly at the foot, closed */
+    ".stfoot{display:block;margin:4px auto 12px;min-height:44px;padding:0 12px;border:0;background:none;color:inherit;font:600 .875rem var(--st);text-decoration:underline;text-underline-offset:3px}",
+    ".stfree{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;margin:0 0 12px;padding:10px 14px;border:3px solid #17140f;border-radius:18px;background:#F9D84A;color:#17140f;text-align:left;box-shadow:4px 4px 0 #17140f}.stfree b{display:block;font:800 1.0625rem/1.2 system-ui,sans-serif}.stfree small{font:500 .875rem/1.3 system-ui,sans-serif}",
     "@media (orientation:landscape) and (max-height:500px) and (min-width:560px){#home #startbox{display:none}}",
     "#startbox{position:relative;display:flex;flex-direction:column;gap:14px;margin:6px 0 0;padding:16px 18px 14px;border-top:3px solid var(--sk);border-radius:26px 26px 0 0;background:var(--sc);font-family:var(--st);color:var(--sk)}#home.neu #tools{background:var(--sc);flex:1 0 auto;align-content:start;padding-bottom:16px}#home.neu #tools button{color:var(--sk)}",
     "#starth{margin:6px 0 0;font:400 1.75rem/1.06 var(--disp);text-transform:uppercase;letter-spacing:.3px;overflow-wrap:anywhere}",
@@ -57,8 +67,7 @@
     ".sttile b{font:800 1rem/1.2 var(--st);overflow-wrap:break-word;hyphens:auto}.sttile small{grid-column:1/-1;font:500 .875rem/1.3 var(--st);overflow-wrap:anywhere}",
     ".sttile.t0{background:var(--sy)}.sttile.t3{background:var(--sr);color:var(--sc)}",
     ".stall{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:6px 16px;border:2px solid currentColor;border-radius:16px;background:transparent;color:var(--sk);font:700 1rem/1.2 var(--st)}",
-    ".stall[aria-expanded=true]{background:var(--sk);color:var(--sy);border-color:var(--sk)}",
-    "#allbox{display:flex;flex-direction:column;gap:8px}",
+    "#allbox{display:flex;flex-direction:column;gap:8px;margin:0 18px 12px}",
     /* preview pictures (rail under the tiles, the grid in "Alle Karten"): the picture fills the tile, the facts in its corners */
     ".stlook{display:flex;flex-direction:column;gap:8px}.stlook h3{margin:4px 0 0;font:400 1.5rem/1.1 var(--disp);text-transform:uppercase;letter-spacing:.3px}",
     ".strail{display:flex;gap:12px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;margin:0 -18px;padding:2px 18px 10px;scroll-padding:0 18px}",
@@ -157,17 +166,21 @@
       grid.appendChild(b);
     });
     box.appendChild(grid);
+    // "So sieht es aus": real pictures of a few games under the tiles (Vorschaubilder below)
     var look = el("section", "stlook"); look.setAttribute("aria-labelledby", "stlookh"); look.hidden = true;
     var lh = el("h3"); lh.id = "stlookh"; look.appendChild(lh); look.appendChild(el("div", "strail"));
     box.appendChild(look);
-    var all = el("button", "stall"); all.id = "allcards"; all.setAttribute("aria-controls", "allbox"); all.appendChild(icon("grid", 20)); all.appendChild(el("span"));
+    // "Alle Karten": the shelf of every card, with the search and the free card on top; no strip opens here
+    var all = el("button", "stall", null, function () { Kit.sfx.tap(); allShelf(); }); all.id = "allcards"; all.appendChild(icon("grid", 20)); all.appendChild(el("span"));
+    box.appendChild(all);
+    // the old demo strip (app.js feats: games, Webconference, ...) only quietly at the foot, closed; never Tunnel or Alle Demos
+    var more = el("button", "stfoot"); more.id = "stmore"; more.setAttribute("aria-controls", "allbox");
     var drawer = el("div"); drawer.id = "allbox";
-    drawer.appendChild($("feat"));   // the demo strip (app.js feats) lives here now, out of a first visit's sight
-    all.addEventListener("click", function () { Kit.sfx.tap(); openAll(all.getAttribute("aria-expanded") !== "true"); });
-    box.appendChild(all); box.appendChild(drawer);
-    var shots = el("div", "stshots"); shots.id = "allshots"; drawer.appendChild(shots);
-    refs = { h: h, inp: inp, mic: mic, go: go, grid: grid, all: all, drawer: drawer, look: look, shots: shots };
+    drawer.appendChild($("feat"));
+    more.addEventListener("click", function () { Kit.sfx.tap(); openAll(more.getAttribute("aria-expanded") !== "true"); });
+    refs = { h: h, inp: inp, mic: mic, go: go, grid: grid, all: all, more: more, drawer: drawer, look: look };
     var slot = $("startslot"); if (slot) slot.replaceWith(box); else $("homerow").after(box);
+    $("tools").after(more); more.after(drawer);
     micCheck(mic);
     openAll(!!Kit.store.alle || !!window.DailyShelfOpen, true);   // DailyShelfOpen: a link to a card that is gone (app.js route)
     // the start page scrolls: a field that gets the focus comes into sight (the keyboard covers the lower half), as the
@@ -177,8 +190,7 @@
   }
   // Open or closed is remembered on this device only (a convenience, not a setting): whoever opened it once finds it open.
   function openAll(on, quiet) {
-    refs.all.setAttribute("aria-expanded", String(on)); refs.drawer.hidden = !on;
-    if (on) gallery();
+    refs.more.setAttribute("aria-expanded", String(on)); refs.drawer.hidden = !on || refs.more.hidden;
     if (quiet) return;
     if (on) Kit.store.alle = true; else delete Kit.store.alle;
     Kit.save();
@@ -190,9 +202,9 @@
     refs.mic.setAttribute("aria-label", t("st_mic")); refs.go.setAttribute("aria-label", t("st_go"));
     refs.grid.setAttribute("aria-label", t("st_ask"));
     Array.from(refs.grid.children).forEach(function (b) { b.querySelector("b").textContent = t("st_" + b.dataset.i); b.querySelector("small").textContent = t("st_" + b.dataset.i + "_s"); });
-    refs.all.lastChild.textContent = t("st_all");
+    refs.all.lastChild.textContent = t("st_all"); refs.more.textContent = t("st_gallery");
     refs.look.firstChild.textContent = t("st_look");
-    if (shotLang !== Kit.lang) { shotLang = Kit.lang; rail(); refs.shots.textContent = ""; if (!refs.drawer.hidden) gallery(); }
+    if (shotLang !== Kit.lang) { shotLang = Kit.lang; rail(); }
   }
 
   /* ---------- Vorschaubilder: what a game looks like, before it is opened ---------- */
@@ -267,16 +279,18 @@
       img.src = u;
     }, function () {});
   }
-  // "Alle Karten": every card with its picture, in the shelf's order, under the demo strip.
-  function gallery() {
-    if (refs.shots.firstChild) return;
-    D.IDEAS.filter(withShot).forEach(function (i) { refs.shots.appendChild(shotTile(i)); });
-  }
   // The day's sheet and every sheet chosen from here get the new start; whatever came by link keeps its own page.
   function home(h) {
     build(); paint(); mute();
     var on = !!h && !h.note && !h.doc;
     $("home").classList.add("neu"); box.hidden = !on;
+    refs.more.hidden = !on; openAll(refs.more.getAttribute("aria-expanded") === "true", true);
+    acts(on);
+    // back from signing in for "Erschaffe deine Karte" (create-ui.js, ?go=erschaffen): straight into making the free card
+    if (/[?&]go=erschaffen\b/.test(location.search)) {
+      try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
+      root.Parts.use("erschaffen", function () { root.CreateUI.open(); }).catch(function () {});
+    }
     receive(h);
     dayShot(on && h);
     first(); requestAnimationFrame(first);
@@ -285,6 +299,49 @@
     if (dk && (k === "arcade" || k === "photo" || k === "sound")) dk.textContent = dk.textContent.replace(/^[^\n]*/, t("st_k_" + k));
   }
   function labels() { paint(); mute(); done(); }
+
+  // On the day's start: "Look würfeln" and "Live ansehen" on the card (bottom right, the thumbs on the left); elsewhere back
+  // in the row under the main button as before.
+  // Only on a phone upright (301-899 px wide, from 560 px high): with zoom (narrower or lower) or in two columns the row stays.
+  function acts(on) {
+    on = on && matchMedia("(orientation:portrait) and (min-width:301px) and (max-width:899px) and (min-height:560px)").matches;
+    var a = $("stacts");
+    if (!a) { a = el("div"); a.id = "stacts"; $("leaf").appendChild(a); }
+    ["wishgo", "livego"].forEach(function (id) { var b = $(id); if (on) a.appendChild(b); else if (b.parentNode === a) $("kireport").before(b); });
+  }
+
+  /* ---------- "Alle Karten": every card of the catalog, the search, the free card always on top ---------- */
+  function allShelf() {
+    A().shelf(t("st_all"), function (b) {
+      if (!$("create").hidden) {
+        var fr = el("button", "stfree", null, function () { $("create").click(); }); fr.id = "allfree";
+        var s = el("span"); s.appendChild(el("b", "", t("create_tile"))); s.appendChild(el("small", "", t("create_sub")));
+        fr.appendChild(icon("star", 26)); fr.appendChild(s); b.appendChild(fr);
+      }
+      var q = el("input", "field"), list = el("div"), T = root.DailyTexts || {}, L = T[Kit.lang] || T.de || {};
+      q.type = "search"; q.id = "allq"; q.placeholder = t("pastSearch"); q.setAttribute("aria-label", t("pastSearch")); q.autocomplete = "off"; q.enterKeyHint = "search";
+      list.id = "alllist";
+      // without a search: every card of the shelf with its picture (Vorschaubilder; a tile without its picture keeps its
+      // title); a search shows the hits as a list
+      var shots = el("div", "stshots"); shots.id = "allshots";
+      function fill() {
+        list.textContent = "";
+        var v = q.value.trim(), c = D.caps();
+        shots.hidden = !!v;
+        if (!v && !shots.firstChild) D.IDEAS.filter(function (i) { return D.available(i, c); }).forEach(function (i) { shots.appendChild(shotTile(i)); });
+        var ideas = v ? D.searchIdeas(v, new Date()).map(function (h) { return h.idea; }) : D.IDEAS.filter(function (i) { return D.available(i, c); });
+        ideas.forEach(function (i) {
+          var r = el("button", "day", null, function () { Kit.sfx.tap(); A().sheet({ date: new Date(), idea: i }); });
+          r.appendChild(el("b", "", "✦")); r.appendChild(el("span", "", D.plainTitle((i[Kit.lang] || i.de || {}).t)));
+          if (L[i.kind]) r.appendChild(el("small", "", L[i.kind]));
+          list.appendChild(r);
+        });
+        if (!ideas.length) list.appendChild(el("div", "empty", t("pastNone")));
+      }
+      q.addEventListener("input", fill);
+      b.appendChild(q); b.appendChild(list); b.appendChild(shots); fill();
+    });
+  }
 
   /* ---------- Empfang ---------- */
   var head = null, selbst = null, PLAY = ["game", "arcade", "duel", "quest", "table"];
@@ -390,7 +447,7 @@
     fit();
     for (var base = pad.offsetHeight, n = 1; titleMin(hero) < TITLE_MIN && n <= 40; n++) { pad.style.flex = "none"; pad.style.height = base + 4 * n + "px"; fit(); }
   }
-  addEventListener("resize", function () { if (box) first(); });
+  addEventListener("resize", function () { if (box) { acts(!box.hidden); first(); } });
   // the display font arrives after the first paint and changes the heights above the main button
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (box) first(); });
   function mute() { var m = $("mute"); if (m && box) { m.textContent = ""; m.appendChild(icon(Kit.muted ? "mute" : "sound", 22)); } }
