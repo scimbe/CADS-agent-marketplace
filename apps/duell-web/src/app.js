@@ -550,7 +550,8 @@ function field(p, label, value, max, on, area) {
   // blocked word never sends the cut one. After the field went back it stays marked until it has the focus again.
   function check(e) {
     if (e.isComposing) return;   // compositionend checks the word once it is complete
-    var v = D.cleanInput(f.value, max), r = f.value.trim() && !v ? t("filter") : on(v);
+    // contact data gets its own kind note (what stays out and why), never a reproach; nothing is counted against anyone
+    var v = D.cleanInput(f.value, max), r = f.value.trim() && !v ? t(C.filterNote(f.value)) : on(v);
     why = typeof r === "string" ? r : ""; f.setAttribute("aria-invalid", String(!!why));
     if (!why) { last = f.value; changed(); } else if (ed) footer();
   }
