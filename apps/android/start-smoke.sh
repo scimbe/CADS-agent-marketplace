@@ -12,10 +12,11 @@ shot() { adb exec-out screencap -p > "$OUT/$NAME-$1.png"; echo "screenshot $NAME
 fail() { echo "FAIL [$NAME]: $1" >&2; shot fail || true; adb logcat -d -t 300 >&2 || true; exit 1; }
 
 echo "device [$NAME]: android $(adb shell getprop ro.build.version.release | tr -d '\r') (sdk $(adb shell getprop ro.build.version.sdk | tr -d '\r')), $(adb shell wm size | tr -d '\r' | tail -1), $(adb shell wm density | tr -d '\r' | tail -1)"
+adb wait-for-device; adb shell 'while [ "$(getprop sys.boot_completed)" != 1 ]; do sleep 1; done'
 echo "webview [$NAME]: $(adb shell dumpsys webviewupdate | tr -d '\r' | grep -m1 -E 'Current WebView package' || echo unknown)"
 
 adb install -r "$APK" >/dev/null || fail "install refused (ABI or minSdk?)"
-adb logcat -c
+adb logcat -c || true   # API 26 images refuse to clear the main log
 adb shell settings put secure immersive_mode_confirmations confirmed || true
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null || fail "activity did not start"
 
