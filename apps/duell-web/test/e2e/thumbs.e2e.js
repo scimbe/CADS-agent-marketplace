@@ -55,7 +55,7 @@ function contrast(a, b) {
 
 test("KI-Bild: Karte mit Bild zeigt es statt der Zeichnung, mit lesbarem 'KI-Bild'; ohne Cookies", async () => {
   const { b, open, errs, asked } = await setup("on");
-  const p = await open(MAIN, [11, 6]);   // 6.12.: warm-toll
+  const p = await open(MAIN + "#i=warm-toll", [11, 6]);   // warm-toll, by link since the shelf clean-up (2026-11) took it off the calendar
   await p.locator("#leaf .pv.pic").waitFor();
   const s = await state(p);
   assert.equal(s.id, "warm-toll");
@@ -103,14 +103,14 @@ test("KI-Bild: ein Spiel behaelt seine Vorschau und fragt kein Bild an", async (
 
 test("KI-Bild: ohne Server und mit Datensparmodus bleibt das Blatt wie es ist", async () => {
   const off = await setup("off");
-  const p = await off.open(MAIN, [11, 6]); await p.waitForTimeout(500);
+  const p = await off.open(MAIN + "#i=warm-toll", [11, 6]); await p.waitForTimeout(500);
   const s = await state(p);
   assert.ok(!s.pic && s.card, JSON.stringify(s));
   assert.deepEqual(off.asked.map((a) => a.id), ["warm-toll"]);
   assert.deepEqual(off.errs, []);
   await off.b.close();
   const on = await setup("on");
-  const q = await on.open(MAIN, [11, 6], () => Object.defineProperty(navigator, "connection", { value: { saveData: true } }));
+  const q = await on.open(MAIN + "#i=warm-toll", [11, 6], () => Object.defineProperty(navigator, "connection", { value: { saveData: true } }));
   const t = await state(q);
   assert.ok(!t.pic && t.card);
   assert.deepEqual(on.asked, [], "Save-Data: keine Anfrage");
@@ -155,7 +155,9 @@ const exported = (p) => p.evaluate(() => {
   return diff / (x.length / 40);
 });
 
-test("KI-Bild: das graue Folgeblatt zeigt sein Bild, erst wenn es sichtbar wird; ein Tap oeffnet die Karte mit Bild im Editor", async () => {
+// Since the shelf clean-up (2026-11) only two shelf cards have a picture (advent-tuer, beat-pausenhof), never on two days in
+// a row, so the calendar offers no such pair; back on once the carriers bring their cards' pictures along.
+test("KI-Bild: das graue Folgeblatt zeigt sein Bild, erst wenn es sichtbar wird; ein Tap oeffnet die Karte mit Bild im Editor", { skip: "Regal-Bereinigung 2026-11: kein Tagespaar mit Bild im Kalender" }, async () => {
   const { b, open, errs, asked } = await setup("on");
   // a day with a picture whose next day has one too (the plan moves when ideas are added or merged, so it is looked up,
   // over four years: since the three voice cards became one the first such day is in 2028); not a

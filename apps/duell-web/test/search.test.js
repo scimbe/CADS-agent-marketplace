@@ -10,20 +10,21 @@ const ids = (q, c = ALL) => D.searchIdeas(q, day, names, c).map((h) => h.idea.id
 
 test("Suche: Gross-/Kleinschreibung und Umlaute zaehlen nicht", () => {
   assert.equal(D.fold("Rätsel"), "raetsel"); assert.equal(D.fold("SÜẞES"), D.fold("suesses")); assert.equal(D.fold("Gruppen-|Konferenz"), "gruppenkonferenz"); assert.equal(D.fold("Bau dein|Lava-Level"), "bau dein lava level");
-  assert.ok(ids("geisterschicht").includes("spiel-geist"));
+  // examples from the shelf as it is since the clean-up (2026-11): Lava-Level, Stimmen-Rätsel, Drück mich, Wörterbuch
+  assert.ok(ids("lava level").includes("spiel-lava") && ids("LAVA-LEVEL").includes("spiel-lava"));
   assert.deepEqual(ids("konferenz"), ids("KONFERENZ"));
-  assert.ok(ids("Konferenz").includes("plan-09") && ids("Konferenz").includes("plan-17"));
+  assert.ok(ids("Stimmen-Rätsel").includes("zug-stimme") && ids("stimmenraetsel").includes("zug-stimme"));
   assert.deepEqual(ids("Rätsel"), ids("raetsel")); assert.ok(ids("rätsel").length > 0);
-  assert.deepEqual(ids("süß"), ids("suess")); assert.ok(ids("süß").includes("plan-18"));
-  assert.ok(ids("flug").includes("flug-mond") && ids("flight").includes("flug-mond"), "Titel in beiden Sprachen");
+  assert.deepEqual(ids("drück"), ids("drueck")); assert.ok(ids("drück").includes("raum-maus"));
+  assert.ok(ids("lava").includes("spiel-lava") && ids("build your lava").includes("spiel-lava"), "Titel in beiden Sprachen");
 });
 test("Suche: Untertitel, Art und mehrere Woerter (alle muessen passen)", () => {
-  assert.ok(ids("Schwerkraft").includes("spiel-mond"), "Untertitel");
+  assert.ok(ids("Drache").includes("spiel-lava"), "Untertitel");
   const game = ids("spiel");
   for (const i of D.IDEAS.filter((x) => x.kind === "game")) assert.ok(game.includes(i.id), "Art: " + i.id);
   assert.ok(ids("mit freunden").length > 0);
-  assert.deepEqual(ids("flug mond").sort(), ids("mond flug").sort());
-  assert.ok(ids("flug mond").every((id) => ids("flug").includes(id) && ids("mond").includes(id)));
+  assert.deepEqual(ids("wort zug").sort(), ids("zug wort").sort());
+  assert.ok(ids("wort zug").length > 0 && ids("wort zug").every((id) => ids("wort").includes(id) && ids("zug").includes(id)));
 });
 test("Suche: Einkaufszettel ueber deutsche und englische Woerter und Tags", () => {
   for (const q of ["einkauf", "Einkaufszettel", "EINKAUFSLISTE", "shopping", "shopping list", "liste", "mitbringen", "WG"]) assert.ok(ids(q).includes("zug-einkauf"), q);
@@ -53,7 +54,7 @@ test("Suche: jede Karte aus ideas.json ist ueber ihren Titel findbar, neue Eintr
   assert.deepEqual(ids("paypal"), ["zug-sammeln"]);
 });
 test("Suche: Treffer tragen den letzten Tag, an dem die Karte dran war, neueste zuerst", () => {
-  const hits = D.searchIdeas("flug", day, names, NONE), dated = hits.filter((h) => h.date);
+  const hits = D.searchIdeas("wort", day, names, NONE), dated = hits.filter((h) => h.date);
   assert.ok(dated.length > 0);
   for (const h of dated) {
     assert.ok(D.dayNumber(h.date) < D.dayNumber(day));
@@ -66,7 +67,7 @@ test("Suche: Treffer tragen den letzten Tag, an dem die Karte dran war, neueste 
 });
 test("Suche: Fuellwoerter wie fuer/mit/for muessen nicht auf der Karte stehen, allein bleiben sie Suchwort", () => {
   assert.deepEqual(ids("Geld für PayPal"), ids("geld paypal"));
-  assert.deepEqual(ids("game for the moon"), ids("game moon"));
+  assert.deepEqual(ids("game for the lava"), ids("game lava"));
   assert.ok(ids("mit").length > 0, "nur Fuellwort: wird normal gesucht");
 });
 test("Tags: Filter fuer die KI-Vorschlaege (Wortliste, Jugendschutz, Marken, Laenge, doppelt)", () => {
@@ -89,10 +90,12 @@ test("Tags: fast jede Karte hat mindestens 5, keine mehr als 30; alle sauber, ku
   }
 });
 // The cards a person means, not the words on them: each query is only found through the tags (checked without them).
-const EVERYDAY = [["Geschenk für Oma", "zug-gutschein"], ["Mathe lernen", "zug-abfragen"], ["Grillabend", "zug-einkauf"], ["Geburtstag", "zug-kerzen"],
-  ["Klassenfahrt", "raum-erklaeren"], ["Weihnachten", "zug-wichteln"], ["krank", "warm-besserung"], ["Bewerbung", "warm-daumen"], ["Versöhnung", "raum-sorry"],
-  ["Fernbeziehung", "zug-umschlag"], ["Regentag", "raum-finger"], ["birthday party", "zug-kerzen"]];
-const OFFICE = [["Teammeeting", "biz-agenda"], ["Abschied", "biz-sammeln-geschenk"], ["Mittagessen", "biz-umfrage-lunch"]];
+// Since the shelf clean-up (2026-11) the cards behind "Geburtstag" (zug-kerzen), "krank", "Bewerbung" (warm-*), "Regentag"
+// (raum-finger) and "Abschied" (biz-sammeln-geschenk) are gone or merged; their carriers get those words with their own PRs.
+const EVERYDAY = [["Geschenk für Oma", "zug-gutschein"], ["Mathe lernen", "zug-abfragen"], ["Grillabend", "zug-einkauf"], ["Geburtstag", "geschenk-finder"],
+  ["Klassenfahrt", "raum-erklaeren"], ["Weihnachten", "zug-wichteln"], ["Party", "beat-disco"], ["Abschied", "zug-umschlag"], ["Versöhnung", "raum-sorry"],
+  ["Fernbeziehung", "zug-umschlag"], ["Regentag", "raum-streichen"], ["birthday party", "zug-einkauf"]];
+const OFFICE = [["Teammeeting", "biz-agenda"], ["Einarbeitung", "biz-onboarding"], ["Mittagessen", "biz-umfrage-lunch"]];
 function withoutTags(list, fn) {
   const saved = list.map((i) => i.tags);
   list.forEach((i) => delete i.tags);

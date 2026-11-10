@@ -20,13 +20,14 @@ test("Letzte Tage: Karte suchen, Treffer antippen, ihr Blatt liegt oben; ohne Tr
   await p.getByText("Nichts gefunden").waitFor();
   assert.equal(await p.locator("#shbody .day").count(), 0);
 
-  await q.fill("KONFERENZ");
-  const hit = p.locator("#shbody .day", { hasText: "Gruppen-Konferenz" });
+  // a card on the shelf (Gruppen-Konferenz, the example before, was taken off with the shelf clean-up, 2026-11)
+  await q.fill("AUFSTELLUNG");
+  const hit = p.locator("#shbody .day", { hasText: "Tier-Aufstellung" });
   await hit.waitFor();
   const shown = await hit.locator("b").textContent();
   await hit.tap();
   await p.locator("#home").waitFor();
-  assert.equal(await p.locator("#hero").textContent(), "Gruppen-Konferenz");
+  assert.equal(await p.locator("#hero").textContent(), "Tier-Aufstellung");
   assert.equal(await p.locator("#dnum").textContent(), shown, "das Blatt traegt den Tag, an dem die Karte dran war");
 
   await p.locator("#past").tap();

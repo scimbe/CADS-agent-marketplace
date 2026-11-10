@@ -12,8 +12,10 @@ const { ensureBuilt } = require("../../scripts/ensure-build.js");
 const AXE = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
 const RULES = { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } };
 const DAY = "2026-11-08T10:00:00Z";   // Sunday 8 Nov: the arcade card "Ziegel Duell" (its burst said "Arcade")
-const AUKTION = "2026-11-11T10:00:00Z";   // Wednesday 11 Nov: a live card with a long title and a two-line subtitle
-const LIVE = "2026-11-09T10:00:00Z";  // Monday 9 Nov: a live card, one more row under the sheet (Look würfeln / Anruf öffnen)
+// Since the shelf clean-up (2026-11) no shelf card has a live row (the plan-* cards left), so these two days are ordinary
+// days now (11 Nov was "Auktion der Agenten", 9 Nov "Gruppen-Konferenz"); the layout checks keep running on them.
+const AUKTION = "2026-11-11T10:00:00Z";
+const LIVE = "2026-11-09T10:00:00Z";
 // Pixel 7 at 150 % (persona P6): 275x610 CSS px, the big-type order (intentions first); only here, not in every W0 screen,
 // since that order puts the main button below the first screen on purpose.
 G.VIEWS.zoom150 = Object.assign(G.zoom({ width: 412, height: 915 }, 1.5), { isMobile: true, hasTouch: true });
@@ -119,8 +121,9 @@ test("Deine Karte: Satz -> So verstehe ich dich -> Daraus wird -> die Karte pass
     await p.locator("#shelf:not([hidden]) #wunsch").waitFor();
     await p.waitForFunction(() => document.activeElement && document.activeElement.id === "shtitle");   // WCAG 2.4.3
     assert.equal(await p.locator("#wunsch").inputValue(), "Danke an Oma");
-    assert.deepEqual(await p.locator("#stres .stchip").allTextContents(), ["Gruß schicken", "Für: Oma"]);
-    assert.match(await p.locator("#stres .stcard").first().textContent(), /Danke, dass es dich gibt.*Passt genau/);
+    // since the shelf clean-up (2026-11) the feel-good cards are in "Schick wem ein Danke" (a card played by link)
+    assert.deepEqual(await p.locator("#stres .stchip").allTextContents(), ["Gruß schicken", "Für: Oma", "Per Link"]);
+    assert.match(await p.locator("#stres .stcard").first().textContent(), /Schick wem ein Danke.*Passt genau/);
     (await axe(p, "#shelf")).forEach((v) => bad.push(view + " axe: " + v));
     (await blocked(p, "#shbody")).forEach((v) => bad.push(view + " verdeckt: " + v));
     (await G.smallTargets(p, "#shbody")).forEach((v) => bad.push(view + " zu klein: " + v));
@@ -140,20 +143,14 @@ test("Deine Karte: Satz -> So verstehe ich dich -> Daraus wird -> die Karte pass
     assert.equal(await p.locator("#stmake").getAttribute("aria-disabled"), "true");
     assert.equal(await p.locator("#stres .stcard").count(), 0);
     assert.deepEqual(sent, [], view + ": Tippen und Verstehen bleiben auf dem Geraet");
-    // result, not status: the card that comes out carries the sentence's person in front
+    // result, not status: the card that comes out is the one shown, open in its editor
     await p.locator("#wunsch").fill("Danke an Oma"); await p.locator("#stres .stchip", { hasText: "Für: Oma" }).waitFor();
-    assert.match(await p.locator("#stres .stcard q").first().textContent(), /^Oma, danke, dass es dich gibt\.$/, "Vorschau mit dem Ergebnistext");
     assert.equal(await p.locator(".stfree").textContent(), "Frei für dich");
     await p.locator("#stmake").click();
-    await p.locator("#warmname").waitFor();
-    assert.equal(await p.locator("#warmname").inputValue(), "Oma", "die Karte steht mit dem Namen bereit");
-    assert.equal(await p.evaluate(() => document.activeElement && document.activeElement.id), "go", "der Fokus steht auf Fertig machen");
+    await p.locator("#editor:not([hidden])").waitFor();
+    assert.equal(await p.evaluate(() => window.DailyDebug.doc().i), "karte-danke");
     await p.waitForTimeout(300);
     assert.deepEqual(sent.filter((u) => /\/api\/s/.test(u)), [], view + ": vor Fertig kein Kurzlink");
-    await p.locator("#go").click();
-    await p.locator("#done:not([hidden])").waitFor();
-    assert.equal(await p.evaluate(() => window.DailyDebug.result().keep.doc.x), "Oma, danke, dass es dich gibt.");
-    assert.equal(await p.evaluate(() => window.DailyDebug.result().keep.doc.i), "warm-danke");
     assert.deepEqual(p.errs, [], view); await ctx.close();
   }
   await b.close();
@@ -165,7 +162,8 @@ test("Kacheln: jede fuehrt zu ihren Karten, eine Karte oeffnet sich mit einem Ti
   const b = await G.launch(), ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY });
   await ctx.route(/^https?:/, (r) => r.abort());
   const p = await G.open(ctx, "");
-  const want = { gruss: /Kleiner Gruß für deinen Tag/, planen: /Wann könnt ihr alle\?/, spielen: /Dart im Wohnzimmer|Mal & Rat|Kennst du mich/, stimme: /Stimme: Monster|Stimme verzerren/ };
+  // shelf clean-up (2026-11): greetings lead to "Schick wem ein Danke", the voice card to "Tier-Aufstellung"
+  const want = { gruss: /Schick wem ein Danke/, planen: /Wann könnt ihr alle\?/, spielen: /Dart im Wohnzimmer|Mal & Rat|Kennst du mich/, stimme: /Tier-Aufstellung/ };
   for (const [k, re] of Object.entries(want)) {
     await p.locator(".sttile[data-i=" + k + "]").click();
     await p.locator("#shelf:not([hidden]) #stres .stcard").first().waitFor();
@@ -207,7 +205,7 @@ test("Mikrofon: nur, wenn Erkennung auf dem Geraet hier bekannt geht; vorher ein
   await p.locator("#satzmic").click();
   await p.locator("#shelf:not([hidden]) #wunsch").waitFor();
   assert.equal(await p.locator("#wunsch").inputValue(), "Gute Besserung Papa");
-  assert.match(await p.locator("#stres .stcard").first().textContent(), /Gute Besserung/);
+  assert.match(await p.locator("#stres .stcard").first().textContent(), /Schick wem ein Danke/, "Gute Besserung: seit 2026-11 im Traeger");
   const sr = await p.evaluate(() => window.__sr);
   assert.equal(sr.asked.processLocally, true); assert.match(sr.asked.langs[0], /^de/); assert.equal(sr.local, true); assert.equal(sr.started, 1);
   assert.deepEqual(p.errs, []); await on.close();
@@ -246,7 +244,7 @@ test("Review #185: Feld bei 200 % auf dem Handy breit genug, Tageskarte bei 150 
     G.VIEWS["p360h" + h] = { viewport: { width: 360, height: h }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
     const c3 = await G.person(b, { lang: "de", view: "p360h" + h, time: day }); await c3.route(/^https?:/, (r) => r.abort());
     const q = await G.open(c3, ""); await q.locator("#startbox").waitFor(); await q.waitForTimeout(300);
-    if (day === LIVE) assert.equal(await q.locator("#livego").isVisible(), true, tag + "Live-Zeile sichtbar");
+    assert.equal(await q.locator("#livego").isVisible(), false, tag + "keine Live-Zeile: keine Live-Karte mehr im Regal");
     for (const sel of ["#hero", "#go", ".sttile[data-i=gruss]", ".sttile[data-i=planen]", ".sttile[data-i=spielen]", ".sttile[data-i=stimme]"]) if (!(await G.inView(q, sel))) bad.push(tag + "nicht im ersten Bild: " + sel);
     const t = await q.evaluate(() => { const e = document.getElementById("hero"); const r = e.getBoundingClientRect(); return { h: r.height, txt: e.textContent.trim(), vis: getComputedStyle(e).visibility, disp: getComputedStyle(e).display }; });
     if (!t.txt || t.h < 16 || t.vis !== "visible" || t.disp === "none") bad.push(tag + "Titel der Tageskarte fehlt " + JSON.stringify(t));
@@ -262,8 +260,8 @@ test("Review #185: Feld bei 200 % auf dem Handy breit genug, Tageskarte bei 150 
     const c4 = await G.person(b, { lang: "de", view: "phone390", time: day }); await c4.route(/^https?:/, (r) => r.abort());
     const q = await G.open(c4, ""); await q.locator("#startbox").waitFor(); await q.waitForTimeout(300);
     const tag = "390x844 " + day.slice(5, 10) + ": ";
-    assert.equal(await q.locator("#livego").isVisible(), true, tag + "Live-Zeile sichtbar");
-    for (const sel of ["#hero", "#go", "#livego", ".sttile[data-i=gruss]", ".sttile[data-i=planen]", ".sttile[data-i=spielen]", ".sttile[data-i=stimme]"]) if (!(await G.inView(q, sel))) bad.push(tag + "nicht im ersten Bild: " + sel);
+    assert.equal(await q.locator("#livego").isVisible(), false, tag + "keine Live-Zeile: keine Live-Karte mehr im Regal (2026-11)");
+    for (const sel of ["#hero", "#go", ".sttile[data-i=gruss]", ".sttile[data-i=planen]", ".sttile[data-i=spielen]", ".sttile[data-i=stimme]"]) if (!(await G.inView(q, sel))) bad.push(tag + "nicht im ersten Bild: " + sel);
     const fs = await q.evaluate(() => Math.min(...[...document.getElementById("hero").children].map((e) => parseFloat(getComputedStyle(e).fontSize))));
     if (!(fs >= 14)) bad.push(tag + "Titel nur " + fs + " px");
     (await G.smallTargets(q, "#startbox")).forEach((v) => bad.push(tag + "zu klein: " + v));
@@ -307,7 +305,9 @@ test("Review #185 Runde 2: eine empfangene Karte bei 195 px Breite (390 bei 200 
   } finally { await b.close(); }
 });
 
-test("Review #185 Runde 3: nach „Karte machen“ steht „Karte fertig machen“ bei 150 % und 200 % ganz im Bild (erst nach dem Layout gescrollt)", async () => {
+// Since the shelf clean-up (2026-11) "Danke an Oma" makes "Schick wem ein Danke", which opens its editor at once (no
+// feel-good sheet with "Karte fertig machen" in between): the editor's main button has to be in sight instead.
+test("Review #185 Runde 3: nach „Karte machen“ ist der Hauptknopf des Editors bei 150 % und 200 % ganz im Bild", async () => {
   ensureBuilt("");
   G.VIEWS.p390z150 = Object.assign(G.zoom({ width: 390, height: 844 }, 1.5), { isMobile: true, hasTouch: true });
   const b = await G.launch(), bad = [];
@@ -316,14 +316,13 @@ test("Review #185 Runde 3: nach „Karte machen“ steht „Karte fertig machen�
       const ctx = await G.person(b, { lang: "de", view, time: DAY }); await ctx.route(/^https?:/, (r) => r.abort());
       const p = await G.open(ctx, ""); await p.locator("#startbox").waitFor();
       await p.locator("#satz").fill("Danke an Oma"); await p.locator("#satz").press("Enter");
-      await p.locator("#stmake").click(); await p.locator("#shelf").waitFor({ state: "hidden" });
-      await p.waitForFunction(() => document.activeElement && document.activeElement.id === "go");
-      // the button is in sight once the frames after the sheet's layout have passed, and stays there
-      await G.poll(() => G.inView(p, "#go"), (v) => v, { timeout: 3000 }).catch(() => {});
+      await p.locator("#stmake").click(); await p.locator("#editor:not([hidden])").waitFor();
+      await G.poll(() => G.inView(p, "#edmain"), (v) => v, { timeout: 3000 }).catch(() => {});
       await p.waitForTimeout(400);
-      const m = await p.evaluate(() => { const g = document.getElementById("go").getBoundingClientRect(); return { top: Math.round(g.top), bottom: Math.round(g.bottom), h: innerHeight, txt: document.getElementById("go").textContent.trim() }; });
-      if (!(await G.inView(p, "#go"))) bad.push(view + ": " + JSON.stringify(m));
-      if (!/Karte fertig machen/.test(m.txt)) bad.push(view + ": Knopf " + m.txt);
+      const m = await p.evaluate(() => { const g = document.getElementById("edmain").getBoundingClientRect(); return { top: Math.round(g.top), bottom: Math.round(g.bottom), h: innerHeight, txt: document.getElementById("edmain").textContent.trim() }; });
+      if (!(await G.inView(p, "#edmain"))) bad.push(view + ": " + JSON.stringify(m));
+      if (!m.txt) bad.push(view + ": Hauptknopf ohne Text");
+      assert.equal(await p.evaluate(() => window.DailyDebug.doc().i), "karte-danke", view);
       assert.deepEqual(p.errs, [], view); await ctx.close();
     }
   } finally { await b.close(); }

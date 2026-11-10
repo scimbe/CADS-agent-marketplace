@@ -34,7 +34,7 @@ test("file:// (Apps, Tests): Start nur mit dem Katalog-Teil; Spiele-Regal holt A
   assert.equal(await p.evaluate(() => typeof window.Arcade + typeof window.StatusCard + typeof window.DailyLicenses), "undefinedundefinedundefined");
   await G.alle(p); await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await p.locator(".arctile").first().waitFor();
-  assert.equal(await p.locator(".arctile").count(), 10);
+  assert.equal(await p.locator(".arctile").count(), 5, "fuenf Arcade-Duelle seit der Regal-Bereinigung (2026-11)");
   assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "play"]);
   assert.equal((await loaded(p))[1].sri, "", "file:// ohne SRI (kein CORS-Ursprung)");
   await p.locator("#shback").click();
@@ -161,7 +161,8 @@ test("Web: konto haengt, stil kommt nach 1,5 s: Mein Stil oeffnet; fehlt nur wet
   const order = (await loaded(p)).map((s) => s.src.split(".")[0]);
   assert.ok(order.indexOf("konto") >= 0 && order.indexOf("konto") < order.indexOf("stil"), order.join(" "));
   await p.locator("#shback").click(); await p.locator("#home").waitFor();
-  await p.evaluate(() => { const D = window.Daily, i = D.IDEAS.find((x) => x.kind === "card"); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i, tab: "Text" }); });
+  // a text card (since 2026-11 off the shelf, still opened by link)
+  await p.evaluate(() => { const D = window.Daily, i = D.IDEAS.concat(D.RETIRED).find((x) => x.kind === "card" && !x.door); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i, tab: "Text" }); });
   await p.locator("#toast.show", { hasText: "Dieser Teil fehlt gerade" }).waitFor();
   const toasts = await p.evaluate(async () => { let n = 0; const tt = document.getElementById("toast"); new MutationObserver(() => n++).observe(tt, { childList: true, characterData: true, subtree: true });
     for (let i = 0; i < 3; i++) { window.DailyDebug.tab("Text"); await new Promise((ok) => setTimeout(ok, 300)); } return n; });

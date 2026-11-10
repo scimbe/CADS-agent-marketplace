@@ -17,14 +17,14 @@ test("Wohlfuehlkarten: mindestens 8, jede mit eigenem Motiv, warmem Stil und Sae
     const d = D.docFromIdea(i, me, "de"); assert.equal(d.st, "herz"); assert.deepEqual(d.col, i.col); assert.ok(Wm.is(d));
   }
 });
-test("Wohlfuehlkarten im Kalender: 8 Tage, keiner neben einer anderen Karte, Spiel und Kommunikation wechseln", () => {
-  const days = Wm.list().filter((i) => i.on);
-  assert.ok(days.length >= 8);
-  for (const i of days) {
-    const day = new Date("2026-" + i.on + "T12:00:00Z");
-    assert.equal(D.ideaForDay(day).id, i.id);
-    for (const n of [-1, 1]) assert.notEqual(D.ideaForDay(new Date(day.getTime() + n * 86400000)).kind, "card", i.on);
-  }
+test("Wohlfuehlkarten seit der Regal-Bereinigung (2026-11): nicht mehr im Regal und im Kalender, alte Links oeffnen sie weiter", () => {
+  // they went into "Schick wem ein Danke" (karte-danke; "Tut mir leid" into "Der erste Satz"); their December days belong to
+  // the round now
+  const l = Wm.list();
+  assert.ok(l.length >= 8 && l.every((i) => D.RETIRED.includes(i) && D.IDEAS.includes(D.byId(i.to)) && !i.on), l.map((i) => i.id).join());
+  for (const md of ["12-06", "12-08", "12-10", "12-12", "12-14", "12-16", "12-18", "12-20"]) assert.ok(!D.ideaForDay(new Date("2026-" + md + "T12:00:00Z")).warm, md);
+  for (const i of l) assert.deepEqual(D.parseRoute("#i=" + i.id), { type: "idea", id: i.id }, i.id);
+  assert.ok(D.IDEAS.includes(D.byId("karte-danke")));
 });
 test("Name des Empfaengers: vorn eingesetzt, nur ein Vorname, Wortfilter greift", () => {
   assert.equal(Wm.named("Du bist toll.", "Lea"), "Lea, du bist toll.");

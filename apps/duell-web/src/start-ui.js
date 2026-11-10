@@ -150,7 +150,7 @@
     refs = { h: h, inp: inp, mic: mic, go: go, grid: grid, all: all, drawer: drawer };
     var slot = $("startslot"); if (slot) slot.replaceWith(box); else $("homerow").after(box);
     micCheck(mic);
-    openAll(!!Kit.store.alle, true);
+    openAll(!!Kit.store.alle || !!window.DailyShelfOpen, true);   // DailyShelfOpen: a link to a card that is gone (app.js route)
     // the start page scrolls: a field that gets the focus comes into sight (the keyboard covers the lower half), as the
     // scrolling sheet does it (app.js, .roll)
     $("home").addEventListener("focusin", function (e) { if (this.classList.contains("neu") && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) e.target.scrollIntoView({ block: "nearest" }); });
@@ -423,5 +423,5 @@
     });
   }
 
-  root.StartUI = { home: home, labels: labels, create: create, icon: icon };
+  root.StartUI = { home: home, labels: labels, create: create, icon: icon, all: function (on) { if (refs) openAll(on, true); } };
 })(typeof globalThis !== "undefined" ? globalThis : this);

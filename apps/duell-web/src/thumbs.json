@@ -5,11 +5,6 @@
  "size": "960x540 JPEG",
  "style": "youtube thumbnail style, bold graphic composition, one clear hero subject, strong rim light, saturated punchy colours, high contrast, warm palette of sunflower yellow and fiery red with cream highlights and deep black shadows, clean uncluttered background, no text, no letters, no numbers, no logos, no watermark",
  "items": {
-  "plan-04": {
-   "theme": "Freundschaft",
-   "seed": 1201,
-   "prompt": "a smartphone on a small tripod pointed at an empty cozy sofa with yellow and red cushions in front of a plain wall, warm fairy lights, living room in the evening"
-  },
   "plan-09": {
    "theme": "Freundschaft",
    "seed": 1204,
@@ -20,35 +15,15 @@
    "seed": 1103,
    "prompt": "a smartphone lying on a yellow table surrounded by floating colourful paper musical notes and a small red keyboard synthesizer, playful"
   },
-  "plan-17": {
-   "theme": "Freundschaft",
-   "seed": 1104,
-   "prompt": "a round ring light glowing warmly over a tidy desk with a small mirror and a potted sunflower, empty chair, cozy evening room"
-  },
-  "plan-20": {
-   "theme": "Tiere",
-   "seed": 1105,
-   "prompt": "a cute friendly round toy robot with big glowing eyes waving, standing on a desk, sunflower yellow background with red rim light"
-  },
   "plan-24": {
    "theme": "Familie",
    "seed": 1106,
    "prompt": "a cozy family game night table with a red buzzer button, a bowl of popcorn and a stack of blank quiz cards, warm lamp light, living room"
   },
-  "plan-25": {
-   "theme": "Musik",
-   "seed": 1107,
-   "prompt": "a cute small toy robot wearing big red headphones singing into a vintage microphone, yellow and red stage lights, confetti"
-  },
   "plan-30": {
    "theme": "Feiertage/Advent",
    "seed": 1108,
    "prompt": "a little red paper house with one small open door revealing a glowing golden star inside, fir branches and a candle, warm golden light, dark cozy background"
-  },
-  "plan-23": {
-   "theme": "Essen",
-   "seed": 1109,
-   "prompt": "a cute small toy robot sitting next to a plate of chocolate chip cookies with crumbs on its face, kitchen table, warm yellow light, funny"
   },
   "warm-toll": {
    "theme": "Danke/Wohlfühlen",
@@ -124,16 +99,6 @@
    "theme": "Schule/Lernen",
    "seed": 1124,
    "prompt": "a golden medal with a red ribbon lying on a cream velvet cushion, spotlight, sparkles"
-  },
-  "karte-weisheit": {
-   "theme": "Schule/Lernen",
-   "seed": 1125,
-   "prompt": "a wise owl with big round glasses sitting on a stack of old books, warm lamp light"
-  },
-  "karte-horoskop": {
-   "theme": "Natur",
-   "seed": 1126,
-   "prompt": "a starry night sky over a hilltop with a glowing crescent moon and shooting stars, golden stars against a deep red-purple sky"
   },
   "quiz-snack": {
    "theme": "Essen",
