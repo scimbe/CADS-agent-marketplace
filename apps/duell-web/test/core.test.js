@@ -135,3 +135,19 @@ test("Webconference: Link traegt den App-Look und genau die zwei Profilfarben", 
   assert.equal(C.confLink(["red", "#ffd400&x=1"]), "https://webconference.bunsenbrenner.org/?look=daily&a=ffd400&b=ff3b1d", "nur #rrggbb kommt in den Link");
   assert.ok(C.confLink(["#111111", "#eeeeee"]).startsWith(C.CONF_BASE));
 });
+
+test("loginPath: Rueckweg als Pfad, die Seitensprache nur als de|en (Keycloak-Anmeldung in der Sprache der App)", () => {
+  assert.equal(C.loginPath("/duell", "de"), "/auth/login?return=%2Fduell&lang=de");
+  assert.equal(C.loginPath("/duell/business", "en"), "/auth/login?return=%2Fduell%2Fbusiness&lang=en");
+  for (const l of [undefined, null, "", "fr", "DE", "de-DE", "de&prompt=none"]) assert.equal(C.loginPath("/duell", l), "/auth/login?return=%2Fduell", String(l));
+});
+
+test("loginPath: jeder Login-Link der App laeuft darueber, keiner baut /auth/login selbst", () => {
+  const fs = require("node:fs"), path = require("node:path"), dir = path.join(__dirname, "../src");
+  for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".js") && f !== "core.js")) {
+    const s = fs.readFileSync(path.join(dir, f), "utf8");
+    assert.ok(!/["']\/auth\/login\?/.test(s), f + " baut die Login-Adresse selbst");
+  }
+  const users = ["ai.js", "create-ui.js", "profile.js", "stimme-ui.js"].map((f) => (fs.readFileSync(path.join(dir, f), "utf8").match(/loginPath\([^;]*?, Kit\.lang\)/g) || []).length);
+  assert.deepEqual(users, [1, 1, 3, 1], "ai, create-ui, profile x3, stimme reichen Kit.lang mit");
+});
