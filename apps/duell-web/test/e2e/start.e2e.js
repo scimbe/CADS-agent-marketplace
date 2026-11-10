@@ -338,8 +338,9 @@ test("Tageskarte auf dem Handy zeigt ihr Spiel oder Bild (10. Nov.: Netz Volley 
     // where the screen allows, the sentence field follows on the first screen too (375x812, 414x896 on a game day)
     if (kind === "Spiel" && (n === "p375" || n === "p414") && !(await G.inView(p, "#satz"))) bad.push(tag + "Satzfeld nicht im ersten Bild");
     if (h > 700) (await startBegins(p)).forEach((x) => bad.push(tag + x));
-    // one format every day (11 Nov, "Verschiebt Format"): the sheet's height and where the start begins do not depend on game or picture
-    const m = await p.evaluate(() => ({ leaf: Math.round(document.getElementById("leaf").getBoundingClientRect().height), start: Math.round(document.getElementById("startbox").getBoundingClientRect().top + document.getElementById("home").scrollTop) }));
+    // one format every day (11 Nov, "Verschiebt Format"): the sheet's height (its layout height, not the tilted box) and where
+    // the start begins do not depend on game or picture
+    const m = await p.evaluate(() => ({ leaf: document.getElementById("leaf").offsetHeight, start: Math.round(document.getElementById("startbox").getBoundingClientRect().top + document.getElementById("home").scrollTop) }));
     if (at[n]) { if (Math.abs(at[n].leaf - m.leaf) > 1 || Math.abs(at[n].start - m.start) > 1) bad.push(tag + "Format springt: Spiel " + JSON.stringify(at[n]) + ", Bild " + JSON.stringify(m)); } else at[n] = m;
     // "Erschaffe deine Karte": the second main action, full width under the main button, type like the tiles, >= 52 px, on the first screen
     const c = await p.evaluate(() => { const r = document.getElementById("create").getBoundingClientRect(), g = document.getElementById("go").getBoundingClientRect(); return { fs: parseFloat(getComputedStyle(document.getElementById("create")).fontSize), h: r.height, w: r.width, gw: g.width, below: r.top >= g.bottom - 1 }; });
@@ -382,35 +383,39 @@ test("Alle Karten: das Regal mit Suche und der freien Karte oben, alle Karten de
 test("Erschaffe deine Karte: ohne Konto erst 16+ und Anmelden, der Rueckweg fuehrt ins Erschaffen; mit Konto direkt ins Erschaffen", async () => {
   ensureBuilt("");
   const b = await G.launch();
+  // the server's /status says whether there is an account (meter "create"), as it does live
+  const status = (acc) => (r) => { const u = r.request().url(); if (/\/api\/duell\/ai\/status$/.test(u)) return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(acc ? { meter: {}, create: { size: 5, remaining: 5, pot: "create", period: "ever", refundsLeft: 2, age16: true } } : { meter: {} }) }); return null; };
   try {
-    // without an account: the short step, no way past the 16+ tick, then the sign-in with the way back into the making
+    // without an account: the short step in plain words, no way past the 16+ tick, then the sign-in with the way back
     let ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY, web: true }), login = null;
-    await ctx.route(/^https?:/, (r) => { const u = r.request().url(); if (/\/auth\/login\?/.test(u)) { login = u; return r.fulfill({ status: 200, contentType: "text/html", body: "<p>Login</p>" }); } return G.isLocal(u) ? r.continue() : r.abort(); });
+    await ctx.route(/^https?:/, (r) => { const u = r.request().url(); if (/\/auth\/login\?/.test(u)) { login = u; return r.fulfill({ status: 200, contentType: "text/html", body: "<p>Login</p>" }); } return status(false)(r) || (G.isLocal(u) ? r.continue() : r.abort()); });
     let p = await G.open(ctx, ""); await p.locator("#startbox").waitFor();
-    await p.locator("#create").click(); await p.locator("#shelf:not([hidden]) #stlogin").waitFor();
-    await p.locator("#stlogin").click(); await p.locator(".stneed", { hasText: "16" }).waitFor();
+    await p.locator("#create").click(); await p.locator("#shelf:not([hidden]) #createlogin").waitFor();
+    assert.equal((await p.locator("#createlogin").textContent()).trim(), "Anmelden");
+    assert.equal((await p.locator(".cr16").textContent()).trim(), "Ich bin 16 oder älter.");
+    assert.doesNotMatch(await p.locator("#shelf").innerText(), /\b[a-z]+_[a-zA-Z0-9_]+\b/, "kein Textschluessel");
+    await p.locator("#createlogin").click(); await p.locator(".crneed", { hasText: "Ich bin 16 oder älter" }).waitFor();
     assert.equal(login, null, "ohne Haken keine Anmeldung");
-    assert.equal(await p.evaluate(() => document.activeElement.id), "stage16", "der Fokus auf dem Haken");
-    await p.locator("#stage16").check();
-    await Promise.all([p.waitForURL(/\/auth\/login\?/), p.locator("#stlogin").click()]);
+    assert.equal(await p.evaluate(() => document.activeElement.id), "create16", "der Fokus auf dem Haken");
+    await p.locator("#create16").check();
+    await Promise.all([p.waitForURL(/\/auth\/login\?/), p.locator("#createlogin").click()]);
     const ret = decodeURIComponent(new URL(login).searchParams.get("return"));
-    assert.match(ret, /^\/duell\/?\?go=erschaffen$/, "Rueckweg ins Erschaffen: " + ret);
+    assert.equal(ret, "/duell?go=erschaffen", "Rueckweg ins Erschaffen");
     const prof = await p.evaluate(() => { try { return JSON.parse(localStorage.getItem("daily.v1")).profile; } catch (e) { return null; } });
     assert.ok(prof && prof.via === "account" && prof.age16 === true && prof.t0 > 0, "Versuch mit der 16+-Aussage dieses Tipps: " + JSON.stringify(prof));
     await ctx.close();
-    // back from the sign-in (?go=erschaffen): the making opens by itself, and the address is clean again
-    ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY }); await ctx.route(/^https?:/, (r) => r.abort());
+    // back from the sign-in (?go=erschaffen) with the account: the making opens by itself with its form, the address is clean
+    ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY }); await ctx.route(/^https?:/, (r) => status(true)(r) || r.abort());
     p = await ctx.newPage(); p.errs = []; p.on("pageerror", (e) => p.errs.push(String(e)));
     await p.goto("file://" + require("node:path").join(G.DIST, "index.html") + "?go=erschaffen");
-    await p.locator("#shelf:not([hidden])").waitFor(); await p.waitForFunction(() => document.getElementById("shtitle").textContent === "Deine eigene Karte");
+    await p.getByLabel("Deine Beschreibung").waitFor();
     assert.doesNotMatch(await p.evaluate(() => location.search), /go=/);
-    await ctx.close();
-    // with an account (its first sync went through): straight into the making, no step before it
-    ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY }); await ctx.route(/^https?:/, (r) => r.abort());
-    await ctx.addInitScript(() => { const s = JSON.parse(localStorage.getItem("daily.v1") || "{}"); s.profile = { via: "account", rev: 1, base: {}, at: 1, age16: true }; localStorage.setItem("daily.v1", JSON.stringify(s)); });
+    assert.deepEqual(p.errs, []); await ctx.close();
+    // with an account: the tap opens the making at once, no step before it
+    ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY }); await ctx.route(/^https?:/, (r) => status(true)(r) || r.abort());
     p = await G.open(ctx, ""); await p.locator("#startbox").waitFor();
-    await p.locator("#create").click(); await p.waitForFunction(() => document.getElementById("shtitle").textContent === "Deine eigene Karte");
-    assert.equal(await p.locator("#stlogin").count(), 0, "kein Zwischenschritt mit Konto");
+    await p.locator("#create").click(); await p.getByLabel("Deine Beschreibung").waitFor();
+    assert.equal(await p.locator("#createlogin").count(), 0, "kein Zwischenschritt mit Konto");
     assert.deepEqual(p.errs, []); await ctx.close();
   } finally { await b.close(); }
 });

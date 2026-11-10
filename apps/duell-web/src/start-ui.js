@@ -48,9 +48,8 @@
     /* "Erschaffe deine Karte": the second main action under the day's main button, full width, the size of the tiles */
     "#home.neu #homerow{flex-wrap:wrap}#home.neu #homerow #create{flex:1 1 100%;min-height:52px;padding:6px 14px;font:800 1.0625rem/1.2 var(--st);text-transform:none;letter-spacing:0}",
     /* the gallery of bunsenbrenner (the old strip) only quietly at the foot, closed */
-    ".stmore{display:block;margin:4px auto 12px;min-height:44px;padding:0 12px;border:0;background:none;color:inherit;font:600 .875rem var(--st);text-decoration:underline;text-underline-offset:3px}",
+    ".stfoot{display:block;margin:4px auto 12px;min-height:44px;padding:0 12px;border:0;background:none;color:inherit;font:600 .875rem var(--st);text-decoration:underline;text-underline-offset:3px}",
     ".stfree{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;margin:0 0 12px;padding:10px 14px;border:3px solid #17140f;border-radius:18px;background:#F9D84A;color:#17140f;text-align:left;box-shadow:4px 4px 0 #17140f}.stfree b{display:block;font:800 1.0625rem/1.2 system-ui,sans-serif}.stfree small{font:500 .875rem/1.3 system-ui,sans-serif}",
-    ".stgate .stgo{display:block;width:100%;min-height:52px;margin:8px 0;border:2px solid #17140f;border-radius:16px;background:#17140f;color:#F9D84A;font:800 1.0625rem system-ui,sans-serif}.stgate label{display:flex;gap:12px;align-items:center;min-height:44px;font-weight:600}.stgate input{width:28px;height:28px;margin:0;accent-color:#17140f}.stneed{color:#b3321f;font-weight:700}.stneed:empty{display:none}",
     "@media (orientation:landscape) and (max-height:500px) and (min-width:560px){#home #startbox{display:none}}",
     "#startbox{position:relative;display:flex;flex-direction:column;gap:14px;margin:6px 0 0;padding:16px 18px 14px;border-top:3px solid var(--sk);border-radius:26px 26px 0 0;background:var(--sc);font-family:var(--st);color:var(--sk)}#home.neu #tools{background:var(--sc);flex:1 0 auto;align-content:start;padding-bottom:16px}#home.neu #tools button{color:var(--sk)}",
     "#starth{margin:6px 0 0;font:400 1.75rem/1.06 var(--disp);text-transform:uppercase;letter-spacing:.3px;overflow-wrap:anywhere}",
@@ -67,7 +66,7 @@
     ".sttile b{font:800 1rem/1.2 var(--st);overflow-wrap:break-word;hyphens:auto}.sttile small{grid-column:1/-1;font:500 .875rem/1.3 var(--st);overflow-wrap:anywhere}",
     ".sttile.t0{background:var(--sy)}.sttile.t3{background:var(--sr);color:var(--sc)}",
     ".stall{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:6px 16px;border:2px solid currentColor;border-radius:16px;background:transparent;color:var(--sk);font:700 1rem/1.2 var(--st)}",
-    "#allbox{display:flex;flex-direction:column;gap:8px}",
+    "#allbox{display:flex;flex-direction:column;gap:8px;margin:0 18px 12px}",
     "#home.neu #tools button{font-family:var(--st);font-weight:700;text-decoration:underline;text-underline-offset:3px}",
     "@media (min-width:900px),(orientation:landscape) and (max-height:500px) and (min-width:560px){#startbox{margin:4px 10px 10px;border:3px solid var(--sk);border-radius:22px}#home.neu #tools{background:none}#home.neu #tools button{color:var(--on)}#starth{font-size:1.5rem}}",
     "@media (prefers-reduced-motion:reduce){.sttile{transition:none}}",
@@ -155,7 +154,7 @@
     var all = el("button", "stall", null, function () { Kit.sfx.tap(); allShelf(); }); all.id = "allcards"; all.appendChild(icon("grid", 20)); all.appendChild(el("span"));
     box.appendChild(all);
     // the old demo strip (app.js feats: games, Webconference, ...) only quietly at the foot, closed; never Tunnel or Alle Demos
-    var more = el("button", "stmore"); more.id = "stmore"; more.setAttribute("aria-controls", "allbox");
+    var more = el("button", "stfoot"); more.id = "stmore"; more.setAttribute("aria-controls", "allbox");
     var drawer = el("div"); drawer.id = "allbox";
     drawer.appendChild($("feat"));
     more.addEventListener("click", function () { Kit.sfx.tap(); openAll(more.getAttribute("aria-expanded") !== "true"); });
@@ -192,7 +191,7 @@
     $("home").classList.add("neu"); box.hidden = !on;
     refs.more.hidden = !on; openAll(refs.more.getAttribute("aria-expanded") === "true", true);
     acts(on);
-    // back from signing in for "Erschaffe deine Karte" (?go=erschaffen): straight into making the free card
+    // back from signing in for "Erschaffe deine Karte" (create-ui.js, ?go=erschaffen): straight into making the free card
     if (/[?&]go=erschaffen\b/.test(location.search)) {
       try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
       root.Parts.use("erschaffen", function () { root.CreateUI.open(); }).catch(function () {});
@@ -207,7 +206,9 @@
 
   // On the day's start: "Look würfeln" and "Live ansehen" on the card (bottom right, the thumbs on the left); elsewhere back
   // in the row under the main button as before.
+  // Only on a phone upright (301-899 px wide, from 560 px high): with zoom (narrower or lower) the row has room as before.
   function acts(on) {
+    on = on && matchMedia("(min-width:301px) and (max-width:899px) and (min-height:560px)").matches;
     var a = $("stacts");
     if (!a) { a = el("div"); a.id = "stacts"; $("leaf").appendChild(a); }
     ["wishgo", "livego"].forEach(function (id) { var b = $(id); if (on) a.appendChild(b); else if (b.parentNode === a) $("kireport").before(b); });
@@ -238,37 +239,6 @@
       }
       q.addEventListener("input", fill);
       b.appendChild(q); b.appendChild(list); fill();
-    });
-  }
-
-  /* ---------- "Erschaffe deine Karte" without an account: the sign-in first, with the 16+ statement of this tap ---------- */
-  // Signed in (an account whose first sync went through): the core opens the making at once. Otherwise one short step: one
-  // sentence, the tick "Ich bin 16 oder älter." and "Anmelden"; the attempt carries t0 and this statement like the account
-  // card (profile.js), and the way back lands in the making (?go=erschaffen). The app shells keep the core's own note.
-  function account() { var p = Kit.store.profile; return !!(p && p.via === "account" && (p.base || p.at)); }
-  document.addEventListener("click", function (e) {
-    var c = e.target && e.target.closest && e.target.closest("#create");
-    if (!c || !$("home").classList.contains("neu") || root.DuellHost || account()) return;
-    e.preventDefault(); e.stopImmediatePropagation(); Kit.sfx.tap(); gate();
-  }, true);
-  function gate() {
-    A().shelf(t("create_title"), function (b) {
-      b.classList.add("stgate");
-      b.appendChild(el("p", "", t("st_gate")));
-      var lab = el("label"), cb = el("input"), need = el("p", "stneed", "");
-      cb.type = "checkbox"; cb.id = "stage16"; lab.appendChild(cb); lab.appendChild(document.createTextNode(" " + t("ac_16")));
-      need.setAttribute("role", "alert");
-      // never a locked look: without the tick a tap says so and puts the focus on the tick
-      var go = el("button", "stgo", t("create_login"), function () {
-        if (!cb.checked) { need.textContent = ""; cb.focus(); setTimeout(function () { need.textContent = t("ac_need"); }, 80); return; }
-        Kit.store.profile = { via: "account", rev: 0, base: null, age16: true, t0: Date.now() };
-        try { localStorage.setItem("daily.v1", JSON.stringify(Kit.store)); } catch (x) {}
-        var back = (root.Ai && root.Ai.loginReturn ? root.Ai.loginReturn(root.DailyFlavor) : "/duell") + "?go=erschaffen";
-        location.href = "/auth/login?return=" + encodeURIComponent(back);
-      });
-      go.id = "stlogin";
-      cb.addEventListener("change", function () { if (cb.checked) need.textContent = ""; });
-      b.appendChild(lab); b.appendChild(need); b.appendChild(go); b.appendChild(el("p", "note", t("st_gateNo")));
     });
   }
 
@@ -376,7 +346,7 @@
     fit();
     for (var base = pad.offsetHeight, n = 1; titleMin(hero) < TITLE_MIN && n <= 40; n++) { pad.style.flex = "none"; pad.style.height = base + 4 * n + "px"; fit(); }
   }
-  addEventListener("resize", function () { if (box) first(); });
+  addEventListener("resize", function () { if (box) { acts(!box.hidden); first(); } });
   // the display font arrives after the first paint and changes the heights above the main button
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (box) first(); });
   function mute() { var m = $("mute"); if (m && box) { m.textContent = ""; m.appendChild(icon(Kit.muted ? "mute" : "sound", 22)); } }
