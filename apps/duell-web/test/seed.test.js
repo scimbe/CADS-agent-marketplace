@@ -17,7 +17,8 @@ test("Bot-Gesicht (blasen.js, Reiter Foto): gleicher Name, gleiches Blatt, gleic
   assert.equal(a, b); assert.notEqual(a, D.botSeed("Mira", doc, 2)); assert.notEqual(a, D.botSeed("Ben", doc, 1));
   assert.equal(D.botSeed("Mira", { k: "photo" }, 0), D.botSeed("Mira", { k: "photo" }, 0), "eigene Karte ohne Id: Art statt Id");
   assert.ok(Number.isInteger(a) && a >= 0);
-  assert.match(src("blasen.js"), /R\.botFace\(D\.botSeed\(A\.me\(\)\.nick, ed\(\)\.doc, ed\(\)\.bots\)/);   // the photo tab, since R4 in the part blasen assert.match(src("app.js"), /R\.botFace\(D\.botSeed\(me\.nick, ed\.doc, 0\)/);
+  assert.match(src("blasen.js"), /R\.botFace\(D\.botSeed\(A\.me\(\)\.nick, ed\(\)\.doc, ed\(\)\.bots\)/);   // the photo tab, since R4 in the part blasen
+  assert.match(src("app.js"), /R\.botFace\(D\.botSeed\(me\.nick, ed\.doc, 0\)/);
 });
 test("Gegner wuerfeln (modes.js:113): n-ter Wurf eines Seeds gibt immer denselben Gegner, Werte 0-100, Name und Emoji aus den Listen", () => {
   const L = DD.rivals.de, E = DD.emoji, seen = new Set();
