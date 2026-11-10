@@ -51,7 +51,15 @@
    "pre_go": "Schieb auf deinen Tipp.",
    "pre_nr": "Preis {i} von {m}",
    "pre_q": "{s}: Was kostet das?",
-   "pre_line": "{s} {p} (Tipps {a} / {b})"
+   "pre_line": "{s} {p} (Tipps {a} / {b})",
+   "pk_near": "{w}: {s}",
+   "pk_t0": "Alles genau getroffen!",
+   "pk_t1": "Ganz nah dran.",
+   "pk_t2": "Gut geschätzt.",
+   "pk_t3": "Da war noch Luft. Revanche?",
+   "pk_ql": "{q} ({z}): {a}",
+   "pk_dn": "{n} daneben",
+   "pk_d0": "genau getroffen"
   },
   "phish": [
    {
@@ -261,7 +269,15 @@
    "pre_go": "Slide to your guess.",
    "pre_nr": "Price {i} of {m}",
    "pre_q": "{s}: what does it cost?",
-   "pre_line": "{s} {p} (guesses {a} / {b})"
+   "pre_line": "{s} {p} (guesses {a} / {b})",
+   "pk_near": "{w}: {s}",
+   "pk_t0": "Spot on, every one!",
+   "pk_t1": "Very close.",
+   "pk_t2": "Good guessing.",
+   "pk_t3": "Some room left. Rematch?",
+   "pk_ql": "{q} ({z}): {a}",
+   "pk_dn": "{n} off",
+   "pk_d0": "spot on"
   },
   "phish": [
    {

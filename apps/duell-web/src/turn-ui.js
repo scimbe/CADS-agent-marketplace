@@ -130,8 +130,9 @@ window.TurnShop = { draw: drawShop, keep: shopKeep };
 var draw = {
   // p.show(v, lang) writes the value (e.g. as money), p.defOf(doc) is where it starts, p.step adds − and + buttons
   slide: function (box, p, set, ctx) {
-    var v = p.defOf ? p.defOf(ctx.doc) : p.def || p.min || 0, row = el("label", "slide"), r = el("input"), u = p.unit ? " " + p.unit : "", b = el("b", "", "");
-    function shown(x) { b.textContent = p.show ? p.show(x, Kit.lang) : x + u; r.setAttribute("aria-valuetext", b.textContent); }
+    var v = p.defOf ? p.defOf(ctx.doc) : p.def || p.min || 0, row = el("label", "slide"), r = el("input"), b = el("b", "", ""), n = b.appendChild(document.createTextNode("")), u = p.unit && b.appendChild(el("span", "", " " + p.unit));
+    if (u) u.dataset.part = "einheit";
+    function shown(x) { n.nodeValue = p.show ? p.show(x, Kit.lang) : x; r.setAttribute("aria-valuetext", b.textContent); }
     if (p.show) row.classList.add("money");
     row.appendChild(el("span", "", "")); r.type = "range"; r.min = p.min || 0; r.max = p.maxOf ? p.maxOf(ctx.doc) : p.max; if (p.step) r.step = p.step; r.value = v; r.setAttribute("aria-label", p.title ? p.title(ctx.doc, Kit.lang) : L()[p.l]);
     r.addEventListener("input", function () { shown(Number(r.value)); set(Number(r.value)); });
@@ -621,7 +622,7 @@ function walk(box, ed) {
       step(); A.footer();
     }
     if (i === 0 && SATZ[ed.doc.g] && (!st.turn || p.live)) satz(box, ed);
-    if (p.peek) box.appendChild(el("p", "qtext", p.peek(ed.doc, st.moves, now, Kit.lang)));
+    if (p.peek) { var pe = box.appendChild(el("p", "qtext", p.peek(ed.doc, st.moves, now, Kit.lang))); if (p.dp) pe.dataset.part = p.dp; }
     if (!p.top || p.w !== "pick" || !p.auto) box.appendChild(el("h3", "lbl", p.title ? p.title(ed.doc, Kit.lang) : L()[p.l].replace(": {q}", "")));
     var soon = 0, dw = draw[p.w] || (window.Turn2 && window.Turn2.get("widget", p.w));
     if (!dw) {   // its part: until it is there the main button stays locked and says why; a part that failed can be tried again
