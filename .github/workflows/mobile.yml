@@ -186,7 +186,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: api26-minsdk, api-level: 26, target: default, profile: pixel_2 }
+          - { name: api26-minsdk, api-level: 26, target: google_apis, profile: pixel_2 }   # the AOSP image reports no WebView provider (run 42900801199)
           - { name: api30, api-level: 30, target: default, profile: pixel_4 }
           - { name: api35-target, api-level: 35, target: google_apis, profile: pixel_7 }
           - { name: tablet-api34, api-level: 34, target: default, profile: pixel_tablet }

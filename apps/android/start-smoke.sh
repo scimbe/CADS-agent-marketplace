@@ -18,7 +18,7 @@ echo "webview [$NAME]: $(adb shell dumpsys webviewupdate | tr -d '\r' | grep -m1
 adb install -r "$APK" >/dev/null || fail "install refused (ABI or minSdk?)"
 adb logcat -c || true   # API 26 images refuse to clear the main log
 adb shell settings put secure immersive_mode_confirmations confirmed || true
-adb shell am start -W -n "$PKG/.MainActivity" >/dev/null || fail "activity did not start"
+timeout 60 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null || fail "activity did not start within 60 s"
 
 texts() {
   adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true
