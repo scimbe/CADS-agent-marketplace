@@ -98,10 +98,13 @@
     if (want && m.on) s.press(); else if (!want && m.vy > -100) s.release();
   }
   // the card's picture (home sheet, editor stage): the track a moment after the start
-  R.extra.lauf = function (c, cw, ch, doc) {
+  function still(doc) {
     var s = E.createSim(doc.l); s.press();
     for (var i = 0; i < 300 && s.state === "run"; i++) { bot(s); s.step(); }
-    s.state = "run"; draw(c, s, cw, ch, { still: true });
+    s.state = "run"; return s;
+  }
+  R.extra.lauf = function (c, cw, ch, doc) {
+    draw(c, still(doc), cw, ch, { still: true });
     var title = doc.t || t("lf_def"), f = Math.round(cw * 0.075);
     c.font = "900 " + f + "px " + R.FONT; c.textAlign = "center"; c.textBaseline = "middle";
     c.lineWidth = f * 0.25; c.strokeStyle = "#111"; c.strokeText(title.toUpperCase(), cw / 2, ch * 0.1); c.fillStyle = "#fff"; c.fillText(title.toUpperCase(), cw / 2, ch * 0.1);
@@ -321,5 +324,26 @@
   A.PANEL.LText = function (p) { A.field(p, t("lf_title"), A.ed().doc.t, 26, function (v) { var d = A.ed().doc; d.t = v; hand(d); }); };
   // test hook for browser checks: the state, and time without waiting for frames
   root.LaufDebug = { snap: function () { return sim && { state: sim.state, x: sim.me.x, y: sim.me.y, on: sim.me.on, points: sim.points(), meters: sim.meters(), paused: paused, cw: cv.width, ch: cv.height }; }, auto: function (sec) { for (var i = 0; i < sec * 120 && sim.state === "run"; i++) { bot(sim); sim.step(); } paint(); return this.snap(); }, tick: function (sec) { for (var i = 0; i < sec * 120 && sim.state === "run"; i++) if (sim.step().length && sim.state !== "run") end(); paint(); }, sim: function () { return sim; } };
-  root.LaufUI = { play: play, draw: draw, fromWords: fromWords };
+  // Where things stand in the card's still picture (the editor's stage, cw x ch px), the same arithmetic as draw(): the runner,
+  // the items in sight ({t, x, y, w, h}; t as in lauf-engine.js), the title band. The parts of the card (src/teile.js) read it.
+  function view(doc, cw, ch) {
+    cw = cw || 540; ch = ch || 675;
+    var s = still(doc), k = Math.min(ch / E.H, cw / VIEW), oy = oyOf(ch, k), cam = s.me.x - cw / k * 0.28, q = s.height() / E.PH, out = [], ahead = [], got = {};
+    function px(x, y, w, h) { return { x: (x - cam) * k, y: y * k + oy, w: w * k, h: h * k }; }
+    function each(it) {   // ahead: the first one of each sort still to come (the still picture often shows none yet)
+      if (it.live === false || it.t === "g" || got[it.t]) return;
+      var z = Math.max(it.w, it.h) * 1.25, r = it.t === "d" ? px(it.x, it.y, it.w, it.h) : px(it.x + it.w / 2 - z / 2, it.y + it.h / 2 - z / 2, z, z);
+      r.t = it.t;
+      if (r.x + r.w > 0 && r.x < cw && r.y + r.h > 0 && r.y < ch) out.push(r); else if (r.x >= cw) { got[it.t] = 1; ahead.push(r); }
+    }
+    var me = px(s.me.x - 30, s.me.y - 54 * q, 60, 60 * q);   // before the bot below runs on
+    s.items.forEach(each);
+    out.forEach(function (r) { got[r.t] = 1; });
+    // a sort the rules ask for but not yet on the built track: the bot runs on (same seed, same track) until it comes
+    var want = { o: s.p.hi, d: s.p.du, x: s.p.fa, c: s.p.mu, f: s.p.ge }, i, need = function () { for (var q in want) if (want[q] > 0 && !got[q]) return true; return false; };
+    for (i = 0; i < 3000 && s.state === "run" && need(); i++) { bot(s); s.step(); s.items.forEach(each); }
+    var f = Math.round(cw * 0.075);
+    return { me: me, items: out, ahead: ahead, w: cw, h: ch, title: doc.t || t("lf_def"), band: { x: cw * 0.08, y: ch * 0.1 - f * 0.7, w: cw * 0.84, h: f * 1.4 } };
+  }
+  root.LaufUI = { play: play, draw: draw, fromWords: fromWords, view: view };
 })(window);
