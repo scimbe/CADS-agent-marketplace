@@ -10,7 +10,9 @@
   var MAX_NAME = 14, NAME_RE = /^[\p{L}][\p{L} .'-]*$/u;
   var MOTIFS = ["herz", "blume", "stern", "mond", "klee", "regenbogen", "ballon", "sonne", "pflaster", "tasse", "brief"];
 
-  function list() { return D.IDEAS.filter(function (i) { return !!i.warm; }); }
+  // Since the shelf clean-up (2026-11) the feel-good cards are off the shelf (Daily.RETIRED, merged into karte-danke): a card
+  // that came by link still gets its fitting reply among them, until "Schick wem ein Danke" takes them in.
+  function list() { return D.IDEAS.concat(D.RETIRED || []).filter(function (i) { return !!i.warm; }); }
   // A doc ({i}) or an idea ({id, warm}) -> its motif, or null when it is no feel-good card.
   function motif(x) {
     var i = x && (x.warm ? x : x.i ? D.byId(x.i) : null);

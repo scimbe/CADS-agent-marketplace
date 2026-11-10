@@ -31,10 +31,10 @@ test("Nr. 4: Reiter Text einer Mitmach-Karte zeigt Formen als Symbole mit deutsc
   assert.deepEqual(btn.map((x) => x[1]), T.shp.split("|"), "Symbole mit Namen");
   assert.equal(btn.filter((x) => x[2] === "true").length, 1, "die gewaehlte Form ist gedrueckt");
   assert.equal(await p.getByRole("heading", { name: T.fly }).count(), 1);
-  assert.equal(await p.getByLabel("Kekse").count(), 0, "kein Kekse-Feld ausserhalb des Deals");
+  assert.equal(await p.locator("#panel").getByLabel("Kekse").count(), 0, "kein Kekse-Feld ausserhalb des Deals");
   await p.getByRole("button", { name: "Stern" }).click(); assert.equal(await p.evaluate(() => window.DailyApp.ed().doc.f), "star");
   const d = await G.open(ctx, "#i=zug-deal"); await d.locator("#go").click(); await d.getByRole("tab", { name: "Text" }).click();
-  assert.equal(await d.getByLabel("Kekse").count(), 1, "beim Deal steht das Feld, das der Text nutzt");
+  assert.equal(await d.locator("#panel").getByLabel("Kekse").count(), 1, "beim Deal steht das Feld, das der Text nutzt");   // the card itself is named by its text (P-A)
   const z = await G.open(ctx, "#i=biz-termin", { flavor: "business" }); await z.locator("#go").click();
   assert.deepEqual(await z.locator("#tabs button").allTextContents(), ["Eintrag", "Text"], "Business: nur Reiter, die das Bild aendern");
   await z.getByRole("tab", { name: "Text" }).click();
@@ -52,7 +52,8 @@ test("Nr. 4: kein {x}-Platzhalter in Text, Namen oder Hinweis bei allen Mitmach-
   const b = await G.launch();
   for (const lang of ["de", "en"]) {
     const ctx = await person(b, { lang }), h = await G.open(ctx, "");
-    const ids = await h.evaluate(() => window.Daily.IDEAS.filter((i) => i.kind === "turn").map((i) => i.id));
+    // the shelf and the cards taken off it in the shelf clean-up (2026-11), which old links still open
+    const ids = await h.evaluate(() => window.Daily.IDEAS.concat(window.Daily.RETIRED).filter((i) => i.kind === "turn").map((i) => i.id));
     assert.ok(ids.length >= 60);
     for (const id of ids) {
       const p = await G.open(ctx, "#i=" + id);
@@ -210,7 +211,7 @@ test("Nr. 8: Bauernskat gegen den Bot ohne Auto-Countdown", async () => {
 });
 
 test("Nr. 11: Fertig – Teilen behaelt seinen Namen, Status/Story unter „Mehr“, Foto-Zeile; Business ohne 90 Tage und ohne Status", async () => {
-  const b = await G.launch(), ctx = await person(b), p = await G.open(ctx, "#i=foto-boss");
+  const b = await G.launch(), ctx = await person(b), p = await G.open(ctx, "#i=foto-alien");
   await p.locator("#go").click(); await p.locator("#edmain").click(); await p.locator("#share").waitFor();
   assert.equal(await p.locator("#tostatus").isVisible(), false, "Status unter Mehr");
   await p.locator("#dmore").click(); assert.equal(await p.locator("#tostatus").isVisible(), true);
@@ -227,7 +228,8 @@ test("Nr. 11: Fertig – Teilen behaelt seinen Namen, Status/Story unter „Mehr
 
 test("Nr. 15: Abzeichen aus der Spielart; Duell-Einladung und Gegner mit Spitzname, ohne ihn „Ein Freund“", async () => {
   const b = await G.launch(), ctx = await person(b);
-  for (const [id, want] of [["raum-pommes", "Gegen Bot"], ["raum-uhr", "Allein"], ["beat-disco", "Ein Handy, reihum"], ["zug-deal", "Per Link"]]) {
+  // "Gegen Bot" had only raum-pommes, struck with the shelf clean-up (2026-11)
+  for (const [id, want] of [["raum-uhr", "Allein"], ["beat-disco", "Ein Handy, reihum"], ["zug-deal", "Per Link"]]) {
     const p = await G.open(ctx, "#i=" + id); assert.match(await p.locator("#dkind").textContent(), new RegExp("^" + want)); await p.close();
   }
   for (const [nick, who] of [["Ana", "Ana"], ["", "Ein Freund"]]) {

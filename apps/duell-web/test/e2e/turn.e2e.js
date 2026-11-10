@@ -98,9 +98,7 @@ test("Selbes Handy: Weitergeben statt Link, Streichen endet im Beschluss", async
   const s = await open("#i=raum-streichen"); await s.locator("#go").click();
   for (let i = 0; i < 6; i++) { await s.locator("#panel .chip").first().click(); if (i < 5) await s.getByRole("button", { name: "Ich bin dran" }).click(); }
   await s.locator("#panel").getByText(/Beschluss: /).waitFor();
-  const f = await open("#i=raum-finger"); await f.locator("#go").click();
-  await f.locator(".touchpad").evaluate((pad) => { [1, 2].forEach((id) => pad.dispatchEvent(new PointerEvent("pointerdown", { pointerId: id, clientX: 40 * id, clientY: 40, bubbles: true }))); });
-  await f.locator("#panel").getByText("Ein Finger hat entschieden").waitFor();
+  // Alle Finger aufs Handy (raum-finger): struck with the shelf clean-up (2026-11, konzept2 section 4); its rules stay covered by test/turns.test.js (fixture)
   const r = await open("#i=raum-sorry"); await r.locator("#go").click();
   for (let i = 0; i < 3; i++) await r.locator("#panel .chip").first().click();
   await r.getByRole("button", { name: "Kopieren" }).waitFor();
@@ -150,10 +148,7 @@ test("Geschenke: Umschlag zeigt nur den gewaehlten Satz, Rad zieht eine von drei
   const u2 = await open(hash(await url(u))); await u2.locator("#go").click(); await u2.locator("#panel .chip").nth(1).click(); await next(u2); await send(u2); await u2.locator("#share").waitFor();
   const u3 = await open(hash(await url(u2))); await u3.locator("#go").click(); await u3.locator("#panel").getByText("Atme durch").waitFor();
   assert.equal(await u3.locator("#panel").getByText("Spiel was").count(), 0);
-  const r = await open("#i=zug-rad"); await r.locator("#go").click(); for (let i = 0; i < 3; i++) await r.locator("#panel .chip").nth(i).click();
-  await next(r); await send(r); await r.locator("#share").waitFor();
-  const r2 = await open(hash(await url(r))); await r2.locator("#go").click(); await r2.getByRole("button", { name: "Zahl 2" }).click(); await send(r2); await r2.locator("#share").waitFor();
-  const r3 = await open(hash(await url(r2))); await r3.locator("#go").click(); await r3.locator("#panel").getByText("Dein Schicksal").waitFor();
+  // Dein Schicksal von mir (zug-rad): struck with the shelf clean-up (2026-11, konzept2 section 4); its rules stay covered by test/turns.test.js (fixture)
   assert.deepEqual(errs, []); await b.close();
 });
 test("Gleiche Steine: zwei Seiten, gleiche Partie, Ergebnis nachgerechnet", async () => {
@@ -177,11 +172,9 @@ test("Export: Sticker erscheinen nicht im veroeffentlichten Bild, im Editor scho
   assert.deepEqual(same, { export: true, editor: false });
   assert.deepEqual(errs, []); await b.close();
 });
-test("Raum: Unberechenbar und Damals enden im Ergebnis", async () => {
+test("Raum: Damals endet im Ergebnis", async () => {
   const { b, open, errs } = await setup();
-  const u = await open("#i=raum-unlesbar"); await u.locator("#go").click();
-  for (let i = 0; i < 20; i++) await u.getByRole("button", { name: i % 2 ? "Rechts" : "Links" }).click();
-  await u.locator("#panel").getByText(/von 20 richtig/).waitFor();
+  // Sei unberechenbar (raum-unlesbar): struck with the shelf clean-up (2026-11, konzept2 section 4); its rules stay covered by test/turns.test.js (fixture)
   const d = await open("#i=raum-damals"); await d.locator("#go").click();
   await d.locator("#panel").getByText("Lieblingsessen").waitFor();
   for (const x of ["Pudding", "Lesen", "Schlager", "Kaugummi", "Video"]) { await d.locator("#panel input.field").fill(x); await next(d); }
@@ -291,15 +284,9 @@ test("Drueck mich spielt einmal und loescht, Tier-Aufstellung endet im Ergebnis"
   await t.locator("#panel").getByText(/von 3 erkannt/).waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
-test("Stufe 5: Pommes gegen Bot bis zum Ende, Uhr und Pokal messen", async () => {
+test("Stufe 5: Uhr und Pokal messen", async () => {
   const { b, open, errs } = await setup();
-  const p = await open("#i=raum-pommes"); await p.locator("#go").click(); await p.locator("#panel .chip").first().click();
-  for (let i = 0; i < 20; i++) {
-    if (await p.locator("#panel").getByText(/Gewonnen|Verloren/).count()) break;
-    const f = p.locator("#panel .chip.fry"); if (!(await f.count())) break;
-    await f.first().click(); await p.locator("#panel .chip.fry.on").first().click(); await p.waitForTimeout(800);
-  }
-  await p.locator("#panel").getByText(/Gewonnen|Verloren/).first().waitFor();
+  // Letzte Pommes (raum-pommes): struck with the shelf clean-up (2026-11, konzept2 section 4); its rules stay covered by test/turns.test.js (fixture)
   const u = await open("#i=raum-uhr"); await u.locator("#go").click();
   // each round starts on a tap, the target stays in sight (PLAN D1 Nr. 8)
   for (let i = 0; i < 5; i++) { await u.getByRole("button", { name: "▶ Los" }).click(); await u.waitForTimeout(600); await u.getByRole("button", { name: "Stopp" }).click(); }
@@ -311,7 +298,7 @@ test("Stufe 5: Pommes gegen Bot bis zum Ende, Uhr und Pokal messen", async () =>
 });
 test("Tippen aufs Blatt oeffnet die Tageskarte, eine Karte geht unveraendert raus", async () => {
   const { b, open, errs } = await setup();
-  const h = await open("#i=karte-spruch"); await h.locator("#leaf").click(); await h.locator("#edmain").waitFor();   // a fixed card: today's may be a game on a layer
+  const h = await open("#i=karte-einladung"); await h.locator("#leaf").click(); await h.locator("#edmain").waitFor();   // a fixed card: today's may be a game on a layer
   const c = await open("#i=quiz-chaos"); await c.locator("#go").click(); await c.locator("#edmain").click(); await c.locator("#share").waitFor();
   assert.deepEqual(errs, []); await b.close();
 });
@@ -534,12 +521,13 @@ test("Agent-Duell: nach dem Match steht, warum es so ausging, ohne KI und ohne N
   const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
   const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE", reducedMotion: "reduce" }), errs = [], hosts = new Set();
   ctx.setDefaultTimeout(15000); ctx.on("request", (r) => { if (/^https?:/.test(r.url()) && !G.isLocal(r.url())) hosts.add(new URL(r.url()).host); });   // the page itself comes from the web route
-  for (const id of ["duell-ssp", "auktion-socke", "rap-agenten"]) {
+  // the auction and rap duels against an agent were struck (2026-11); the merged ones (into duell-liest) still open by link
+  for (const id of ["duell-ssp", "auktion-quatsch", "rap-hoeflich"]) {
     const p = await ctx.newPage(); p.on("pageerror", (e) => errs.push(String(e))); await p.goto(page + "#i=" + id);
     await p.locator("#go").click(); await p.locator("#edmain").click();
     await p.locator(".duelres").waitFor(); const why = p.locator(".duelwhy").first(); await why.waitFor();
     assert.match(await why.textContent(), /^❓ \S/); assert.ok(!/\{\w+\}|undefined/.test(await p.locator("#panel").innerText()));
-    if (shot && id === "auktion-socke") await p.screenshot({ path: shot + "/wa-duell-warum.png" });
+    if (shot && id === "auktion-quatsch") await p.screenshot({ path: shot + "/wa-duell-warum.png" });
   }
   assert.deepEqual([...hosts], [], "keine Anfrage ins Netz"); assert.deepEqual(errs, []); await b.close();
 });

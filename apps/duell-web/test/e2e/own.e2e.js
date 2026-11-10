@@ -67,7 +67,8 @@ test("eigene Einladung (Live-Duell): der Einladende landet im eigenen Spiel, der
   const ctxA = await context(b), ctxB = await context(b);
   const A = await tab(ctxA, br, "A");
   await A.p.goto(page); await G.alle(A.p); await A.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
-  await A.p.getByRole("button", { name: /Ballduell live/ }).click();
+  // no shelf button since the shelf clean-up (2026-11, Ballduell live goes into Stangen-Kick); the invite itself is unchanged
+  await A.p.waitForFunction(() => window.LiveUI && window.LiveUI.on()); await A.p.evaluate(() => { window.LiveUI.invite(); });   // as the button did: not awaited
   await A.p.getByText("Warte auf deinen Freund").waitFor();
   const hash = await sharedHash(A.p), token = hash.match(/^#live=([A-Za-z0-9_-]{22})/)[1];
   // back from the chat in the same tab: the waiting screen was closed, the own link opens it again
@@ -101,7 +102,8 @@ test("eigene Einladung (Kartentisch, Gruppenlink): der Einladende bleibt am eige
   const ctxA = await context(b), ctxB = await context(b);
   const A = await tab(ctxA, br, "A");
   await A.p.goto(page); await G.alle(A.p); await A.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
-  await A.p.getByRole("button", { name: /Doppelkopf live/ }).click();
+  // no shelf button since the shelf clean-up (2026-11, Doppelkopf goes into the Skat table); the table itself is unchanged
+  await A.p.waitForFunction(() => window.TableUI && window.LiveUI && window.LiveUI.on()); await A.p.evaluate(() => { window.TableUI.open("doko"); });
   await A.p.waitForFunction(() => [...document.querySelectorAll(".tbseat")].filter((e) => /eingeladen/.test(e.textContent)).length === 3 && window.__shared.length);
   const hash = await sharedHash(A.p), tokens = hash.split(".").slice(1);
   assert.match(hash, /^#tisch=doko(\.[A-Za-z0-9_-]{22}){3}$/);

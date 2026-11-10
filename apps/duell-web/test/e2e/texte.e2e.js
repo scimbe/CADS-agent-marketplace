@@ -32,7 +32,7 @@ const shot = (p, name) => (SHOTS ? p.screenshot({ path: path.join(SHOTS, "wb2-wo
 const open = (p, pick, tab) => p.evaluate(([pk, tb]) => {
   const D = window.Daily, A = window.DailyApp;
   if (pk === "sound") { A.openEditor(D.blankDoc("sound", A.me(), "de"), { own: true, tab: tb }); return; }
-  const i = D.IDEAS.find((x) => x.kind === "card" && (pk === "herz" ? x.warm === "herz" || x.style === "herz" : x.style !== "herz"));
+  const i = D.IDEAS.concat(D.RETIRED).find((x) => x.kind === "card" && !x.door && (pk === "herz" ? x.warm === "herz" || x.style === "herz" : x.style !== "herz"));
   A.openEditor(D.docFromIdea(i, A.me(), "de"), { idea: i, tab: tb });
 }, [pick, tab]);
 const doc = (p) => p.evaluate(() => window.DailyDebug.doc());
