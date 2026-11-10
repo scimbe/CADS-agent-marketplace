@@ -37,7 +37,10 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   console.log("Kern " + Buffer.byteLength(html) + " B (< " + CORE_MAX + ")");
   assert.ok(Buffer.byteLength(html) < CORE_MAX, "Kern ueber " + CORE_MAX + " B: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["blasen", "dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "lauf", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  // The preview pictures (scripts/shots.js) come in parts of their own, bilda, bildb … (checked below).
+  const shotParts = Object.keys(man).filter((n) => /^bild[a-z]$/.test(n));
+  assert.ok(shotParts.length >= 1, "Vorschaubilder fehlen");
+  assert.deepEqual(Object.keys(man).filter((n) => shotParts.indexOf(n) < 0).sort(), ["blasen", "dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "lauf", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   // The new start (redesign wave 1) is a part: its code, keywords and words only there, in the core only the hooks.
   const startBody = fs.readFileSync(partFiles().find((f) => /\/start\.[0-9a-f]{12}\.js$/.test(f)), "utf8");
   assert.match(startBody, /root\.StartUI = \{/); assert.match(startBody, /root\.StartIntent = api/); assert.match(startBody, /window\.StartTexts=\{"de":\{"st_ask":"Wem willst du heute eine Freude machen\?"/);
@@ -56,15 +59,29 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   assert.match(html, /"kiReported":/); assert.match(html, /"pf_age_u16":/); assert.match(html, /"pf_ctx_hh":/);
   for (const n of Object.keys(man)) assert.match(n, /^[a-z]{1,20}$/, "Teilname nur Buchstaben (Galerie-Server und Android lassen nur [a-z]{1,20} durch): " + n);
   assert.equal(files.length, Object.keys(man).length, "nur die Teile aus dem Manifest liegen in dist/parts");
-  let sum = 0, onDemand = 0;
+  let sum = 0, onDemand = 0, shotSum = 0;
   for (const [name, p] of Object.entries(man)) {
     assert.match(p.f, new RegExp("^parts/" + name + "\\.[0-9a-f]{12}\\.js$"), "Name mit Inhalts-Hash");
     const body = fs.readFileSync(path.join(path.dirname(dist), p.f));
     assert.ok(body.length < 300 * 1024, "Teil " + name + " ueber 300 KB: " + body.length);
     assert.equal(p.h, "sha384-" + require("node:crypto").createHash("sha384").update(body).digest("base64"), "SRI-Hash von " + name);
     for (const d of p.d) assert.ok(man[d], "Abhaengigkeit " + d);
-    if (ONDEMAND.includes(name)) onDemand += body.length; else sum += body.length;
+    if (shotParts.indexOf(name) >= 0) shotSum += body.length; else if (ONDEMAND.includes(name)) onDemand += body.length; else sum += body.length;
   }
+  // Preview pictures (Nov 2026, "YouTube-Vorschaubilder" on the start page): one real screenshot per shelf card, WebP
+  // 216x288 as data: URLs, about 80 KB per part. They have a budget of their own, outside the 1.75 MiB below: no part of
+  // them is preloaded on idle (src/parts.js), the start page loads a part when one of its pictures comes near the screen, so
+  // a visit that only looks at the rail loads one or two parts (80-160 KB), never all of them.
+  assert.ok(shotSum < 560 * 1024, "Vorschaubilder zusammen: " + shotSum);
+  for (const n of shotParts) {
+    const body = fs.readFileSync(path.join(path.dirname(dist), man[n].f), "utf8");
+    assert.match(body, /^window\.DailyShots=Object\.assign\(window\.DailyShots\|\|\{\},\{("[a-z0-9-]+":"data:image\/webp;base64,[A-Za-z0-9+/=]+",?)+\}\);\n$/, n + ": nur Bilder");
+    assert.ok(body.length < 96 * 1024, n + " klein: " + body.length); assert.deepEqual(man[n].d, [], n);
+  }
+  assert.ok(!/DailyShots=|data:image\/webp/.test(html), "keine Vorschaubilder im Kern");
+  const shotMap = JSON.parse(fs.readFileSync(partFiles().find((f) => /\/start\.[0-9a-f]{12}\.js$/.test(f)), "utf8").match(/"shots":(\{[^}]*\})/)[1]);
+  assert.deepEqual(Object.keys(shotMap).sort(), require("../src/ideas.json").ideas.map((i) => i.id).sort(), "jede Karte im Regal hat ihr Bild (npm run shots)");
+  assert.ok(Object.values(shotMap).every((n) => shotParts.indexOf(n) >= 0), "Bild-Teil im Manifest");
   // Two budgets (A0, Bauplan freie Karte): with #189, #190 and #194 together core + all parts were 1 840 060 B, 5 052 B over
   // 1.75 MiB. (a) What every web visitor downloads: the core plus every part preloaded on idle, below 1.75 MiB (was 1.6 MiB
   // until #183, 1.5 MiB until #174). (b) The parts only some people open (ONDEMAND in src/parts.js: noto, dart, klang and
@@ -76,7 +93,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   assert.ok(onDemand <= ONDEMAND_MAX, "Teile nur bei Bedarf: " + onDemand);
   assert.deepEqual(ONDEMAND, ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten"], "Liste nur bei Bedarf");
   for (const n of ["noto", "dart", "klang"]) assert.ok(man[n], "Teil nur bei Bedarf fehlt im Manifest: " + n);
-  assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(ONDEMAND\.indexOf\(n\) < 0\) need\(n\)/, "Teile aus ONDEMAND nicht im Leerlauf-Vorladen");
+  assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(ONDEMAND\.indexOf\(n\) < 0 && !\/\^bild\[a-z\]\$\/\.test\(n\)\) need\(n\)/, "Teile aus ONDEMAND und die Vorschaubilder nicht im Leerlauf-Vorladen");
   assert.match(src("app.js"), /=== "voice"\) window\.Parts\.need\("klang"\)/, "klang kommt mit einem Stimm-Blatt");
   // Each part runs where it ran inside the page: the module code, not a stand-in. Spot checks on what moved.
   const part = (n) => fs.readFileSync(path.join(path.dirname(dist), man[n].f), "utf8");

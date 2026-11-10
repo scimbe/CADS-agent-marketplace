@@ -272,8 +272,8 @@ test("KI-Login: der Teil konto kommt vor dem Sprung, das Look-Cookie ist schon b
   await ctx.addInitScript((seed) => { if (!localStorage.getItem("daily.v1")) localStorage.setItem("daily.v1", JSON.stringify(seed)); }, { ...SEED, aiMeter: { free: 3, canLogin: true } });
   await p.goto(DEMOS + "/duell");
   await p.locator("#go").waitFor();
-  // the idle preload: every part but konto (blocked here) and those in ONDEMAND (never preloaded: a sticker, a dart card, a voice sheet, a game asks)
-  await p.waitForFunction((od) => window.Parts.names().filter((n) => n !== "konto" && !od.includes(n)).every((n) => window.Parts.ready(n)), ONDEMAND);
+  // the idle preload: every part but konto (blocked here) and those in ONDEMAND and the preview pictures (never preloaded: a sticker, a dart card, a voice sheet, a game, a picture in sight asks)
+  await p.waitForFunction((od) => window.Parts.names().filter((n) => n !== "konto" && !od.includes(n) && !/^bild[a-z]$/.test(n)).every((n) => window.Parts.ready(n)), ONDEMAND);
   assert.equal(await p.evaluate(() => window.Parts.ready("konto")), false, "no konto part before");
   await p.evaluate(() => {   // the AI wall as the page shows it (app.js openAiWall), here in a plain box
     const el = (tag, cls, text, on) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; if (on) e.addEventListener("click", on); return e; };

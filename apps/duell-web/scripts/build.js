@@ -147,7 +147,24 @@ if (!(conf && conf.feats && conf.feats.indexOf("f_create") < 0)) {
   PARTS.deck = { d: [], src: ["DECKTEXTS", "DECK"] };
   parts.DECKTEXTS = "window.DeckTexts=" + JSON.stringify(deckTexts) + ";"; parts.DECK = read("src/deck.js");
 }
-if (PARTS.start) { const sd = json("src/start.json"); parts.STARTDATA = "window.StartData=" + JSON.stringify(Object.assign({}, sd, { texts: undefined })) + ";window.StartTexts=" + JSON.stringify(sd.texts) + ";" + merge("StartTexts"); parts.START = read("src/start.js"); parts.STARTUI = read("src/start-ui.js"); }
+// Preview pictures of the cards (scripts/shots.js: real screenshots of each game, src/shots/<id>.webp): never in the core,
+// packed as data: URLs (img-src allows data:, the page has no image folder of its own on the web or in the apps) into small
+// parts of their own, bilda, bildb, … in catalog order, each about SHOT_PART bytes, so the start page loads only the parts
+// of the pictures it shows. The part start gets the map id -> part (StartData.shots). Not preloaded on idle (src/parts.js).
+const SHOT_DIR = path.join(root, "src/shots"), SHOT_PART = 80 * 1024, shotMap = {};
+if (PARTS.start && fs.existsSync(SHOT_DIR)) {
+  let n = 0, size = 0, body = [];
+  const flush = () => { if (!body.length) return; const name = "bild" + String.fromCharCode(97 + n++); PARTS[name] = { d: [], src: [name.toUpperCase()] }; parts[name.toUpperCase()] = "window.DailyShots=Object.assign(window.DailyShots||{},{" + body.join(",") + "});"; body = []; size = 0; };
+  for (const i of catalog.ideas) {
+    const f = path.join(SHOT_DIR, i.id + ".webp");
+    if (!fs.existsSync(f)) continue;
+    const e = JSON.stringify(i.id) + ":\"data:image/webp;base64," + fs.readFileSync(f).toString("base64") + "\"";
+    if (size + e.length > SHOT_PART) flush();
+    body.push(e); size += e.length; shotMap[i.id] = "bild" + String.fromCharCode(97 + n);
+  }
+  flush();
+}
+if (PARTS.start) { const sd = json("src/start.json"); parts.STARTDATA = "window.StartData=" + JSON.stringify(Object.assign({}, sd, { texts: undefined, shots: shotMap })) + ";window.StartTexts=" + JSON.stringify(sd.texts) + ";" + merge("StartTexts"); parts.START = read("src/start.js"); parts.STARTUI = read("src/start-ui.js"); }
 parts.BLASEN = read("src/blasen.js");
 parts.TEXTE = read("src/texte.js");
 parts.CREATEUI = "window.CreateTexts=" + JSON.stringify(createTexts) + ";" + merge("CreateTexts") + "\n;\n" + read("src/create-ui.js");
