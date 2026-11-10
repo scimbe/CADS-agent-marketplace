@@ -11,7 +11,8 @@ const P = require("../src/quizpack.js");
 require("../src/quizspiele.js");   // die festen Sätze kommen mit dem Teil quiz (quizspiele.json ui), wie in der Seite
 const me = { emoji: "🐙", nick: "M", colors: ["#2b4bff", "#ffe600"], set: "tiere" };
 const through = (d) => { const r = D.parseRoute("#" + D.docUrl(d).split("#")[1]); assert.equal(r.type, "doc"); return r.doc; };
-const idea = D.IDEAS.find((i) => i.turn && i.turn.g === "schaetzen");
+// raum-schaetzen: since Regal 74 off the shelf (retired), a link and the free card still open it
+const idea = D.IDEAS.concat(D.RETIRED).find((i) => i.turn && i.turn.g === "schaetzen");
 const card = (pk, seed) => { const d = D.docFromIdea(idea, me, "de"); d.pk = pk; return Tn.fresh(d, seed || 77); };
 const RAD = { t: "Meine Radtour", m: "l", q: [["Wie viele km bin ich geradelt?"], ["Wie viele Pausen habe ich gemacht?"], ["Wie viele Höhenmeter waren es?"]], z: [42, 3, 350], u: ["km", "", "m"] };
 // Absender sendet (ein Schritt), Empfänger schätzt; alles über echte Links

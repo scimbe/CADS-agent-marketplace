@@ -13,7 +13,7 @@ const hash = (u) => "#" + u.split("#")[1];
 const main = (p) => p.locator("#edmain");
 
 test("G11 Schätzen: Regler mit Frage und Einheit als Teile, Ende mit Abstand und Einheit, kein Prozent", async () => {
-  let d = D.docFromIdea(D.IDEAS.find((i) => i.turn && i.turn.g === "schaetzen"), me, "de");
+  let d = D.docFromIdea(D.IDEAS.concat(D.RETIRED).find((i) => i.turn && i.turn.g === "schaetzen"), me, "de");
   d.pk = P.sanitize(RAD); d = Tn.play(Tn.fresh(d, 77), [0], 100);   // der Absender hat gesendet
   const b = await G.launch(); try {
     const [ana, ben] = await G.people(b, 2, { lang: ["de", "en"], view: "phone390", web: true });
