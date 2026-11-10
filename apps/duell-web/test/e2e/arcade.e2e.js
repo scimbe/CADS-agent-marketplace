@@ -17,7 +17,7 @@ const FAKE = (side) => `(() => {
 })();`;
 const launch = () => chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
 async function pair(b) {
-  const mk = async (side) => { const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000); const p = await ctx.newPage(); const errs = []; p.on("pageerror", (e) => errs.push(String(e))); await p.addInitScript(FAKE(side)); return { p, errs }; };
+  const mk = async (side) => { const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000); const p = await ctx.newPage(); const errs = []; p.on("pageerror", (e) => errs.push(String(e))); await p.addInitScript(FAKE(side)); await p.addInitScript(() => { window.__buzz = []; navigator.vibrate = (x) => { window.__buzz.push(x); return true; }; }); return { p, errs }; };
   const A = await mk("a"), B = await mk("b");
   await A.p.exposeFunction("__liveOut", (s) => B.p.evaluate((m) => window.__liveIn(m), s).catch(() => {}));
   await B.p.exposeFunction("__liveOut", (s) => A.p.evaluate((m) => window.__liveIn(m), s).catch(() => {}));
@@ -33,6 +33,7 @@ async function invite(A, B, g) {
   await B.p.goto(page + "#live=" + TOKEN + "&g=" + g);
   await B.p.getByText("Du wirst herausgefordert!").first().waitFor();
   await A.p.getByText("Dein Freund ist da!").waitFor();
+  assert.ok((await A.p.evaluate(() => window.__buzz)).some((x) => JSON.stringify(x) === "[200,100,200]"), "das Handy des Einladenden vibriert, wenn der Freund annimmt");
   const ba = await A.p.locator(".livebadge").textContent(), bb = await B.p.locator(".livebadge").textContent();
   assert.equal(ba, bb); assert.equal(ba.split(" ").length, 3);
   await A.p.getByRole("button", { name: "Starten" }).click();
