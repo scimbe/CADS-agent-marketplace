@@ -31,7 +31,8 @@ test("Golden-Links: jede Katalogkarte (de, en) und Varianten lesen wie auf main 
     assert.equal(sha(r.doc), want, name + ": dasselbe Doc");
     const again = D.docUrl(r.doc); assert.equal(again.slice(again.indexOf("#")), hash, name + ": bitgleich wieder geteilt");
   }
-  for (const k of D.KINDS.filter((k) => k !== "table" && k !== "arcade")) assert.ok(kinds.has(k), "Art " + k);
+  // the runner (doc.k "lauf") has no catalog card yet: it comes from the free card and "Selber bauen" (test/golden.test.js pins its link)
+  for (const k of D.KINDS.filter((k) => k !== "table" && k !== "arcade" && k !== "lauf")) assert.ok(kinds.has(k), "Art " + k);
 });
 
 test("Nr. 4: kein {x}-Platzhalter in Titel, Hinweis oder Vorlese-Name eines Schritts (alle Spiele, de und en)", () => {

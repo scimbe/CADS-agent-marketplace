@@ -60,7 +60,10 @@ test("docUrl: bei einer freien Karte faellt der Hash h zuletzt weg, bei anderen 
 test("Review: Vorschau-CSS steckt im Teil, nicht im Kern; falsche Art wird abgelehnt; Platzhalter ohne Namen", () => {
   const core = fs.readFileSync(path.join(__dirname, "../src/style.css"), "utf8"), ui = fs.readFileSync(path.join(__dirname, "../src/create-ui.js"), "utf8");
   assert.ok(!/\.createpv/.test(core), "kein .createpv im Kern"); assert.ok(/\.createpv\{/.test(ui), "im Teil");
-  assert.match(ui, /opt\.art !== state\.art \|\| !kindOk\(state\.art, doc\)/);
+  assert.match(ui, /!artOk\(state\.art, opt\.art\) \|\| !kindOk\(opt\.art, doc\)/);
+  // the art may change only from game to lauf (the server's second engine for a runner wish), never anything else
+  const artOk = new Function("return " + ui.match(/function artOk\(asked, art\) \{[^}]*\}/)[0])();
+  assert.ok(artOk("game", "lauf") && artOk("card", "card")); assert.ok(!artOk("game", "card") && !artOk("lauf", "game") && !artOk("card", "lauf"));
   assert.ok(!/Lea|Sam\b/.test(TX.de.create_ph + TX.en.create_ph));
   assert.ok(TX.de.create_bad && TX.en.create_bad);
 });
