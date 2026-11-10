@@ -106,6 +106,9 @@ function Painter(cv, g, opt) {
     });
   };
   P.frame = function (S, dt, extra) {
+    // a frame's time may lie a moment before the last one (the first frame starts with performance.now(), the next rAF
+    // with its frame's start): time never runs backwards here, else a ring or a spark gets a negative radius
+    dt = Math.max(0, dt || 0);
     var c = P.ctx; extra = extra || {}; P.clock += dt; P.fit();
     var key = S.seed + "|" + cv.width + "|" + g; if (P.bgKey !== key) { P.bg = makeBg(P, S); P.bgKey = key; }
     P.events(S);
@@ -513,7 +516,7 @@ function match(o) {
   controls(cv, g, S, X);
   (function frame(now) {
     if (!cv.isConnected) return;
-    var dt = Math.min(0.1, (now - last) / 1000); last = now;
+    var dt = Math.max(0, Math.min(0.1, (now - last) / 1000)); last = Math.max(last, now);
     X.count = now < start ? String(Math.ceil((start - now) / 1000)) : "";
     if (!X.count && !S.started) { S.start(); if (o.startOther) o.startOther(); }
     // Tests can fix the clock: window.__arcadeSpeed fixed steps of 1/60 s per frame, the same game on every machine.
@@ -601,7 +604,7 @@ function demo(cv, g, still) {
   if (still) { for (var k = 0; k < 240; k++) run(1 / 60); P2.A.ev.length = 0; P.frame(P2.A, 1 / 60, {}); return; }
   (function frame(now) {
     if (d.stop || !cv.isConnected) return;
-    var dt = Math.min(0.05, (now - last) / 1000); last = now;
+    var dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = Math.max(last, now);
     if (!document.hidden && cv.offsetParent !== null) { run(dt); P.frame(P2.A, dt, {}); }
     requestAnimationFrame(frame);
   })(performance.now());

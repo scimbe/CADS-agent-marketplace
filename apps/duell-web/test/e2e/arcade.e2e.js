@@ -126,3 +126,23 @@ test("Kalender: an einem seiner Tage ist Stangen-Kick das Blatt des Tages und oe
   assert.ok(p.url().startsWith("file:"), "die Seite wurde nicht verlassen");
   assert.deepEqual(errs, []); await b.close();
 });
+
+// A frame time can lie a moment before the last one: the first frame starts with performance.now(), the next rAF gets its
+// frame's start, which may be earlier (CI: "radius (-0.5) is negative", a ring after a serve at -1 ms). Here every frame is
+// 1 ms before the last one; the shelf's demos and a match must still draw without an error.
+test("Arcade: eine Bildzeit vor der letzten bricht nichts (kein negativer Radius)", async () => {
+  const b = await launch(), ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);
+  const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
+  await p.addInitScript(() => {
+    const raf = window.requestAnimationFrame.bind(window); let t = performance.now() + 100000;
+    window.requestAnimationFrame = (cb) => raf(() => cb((t -= 1)));
+    window.__arcadeSeed = "e2e-dt";
+  });
+  await p.goto(page); await G.alle(p); await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
+  await p.locator(".arctile").nth(4).waitFor();
+  await p.locator(".arctile[data-g=kick]").click(); await p.locator(".arcdemo").waitFor();
+  await p.getByRole("button", { name: /Gegen den Bot/ }).click();
+  await p.waitForTimeout(4000);
+  assert.deepEqual(errs, []);
+  await b.close();
+});
