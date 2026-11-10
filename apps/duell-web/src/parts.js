@@ -72,15 +72,18 @@
       return true;
     }
   });
-  // On the web: everything once the page is idle (see above). In the apps the files are on the device anyway. Not noto
-  // (Noto Emoji for stickers in the picture, about 110 KB): the editor asks for it at its first sticker (app.js paint), so
-  // only people with stickers load it; offline without it the picture is made as before, without stickers. Not dart
-  // either (the dartboard, about 50 KB): a dart card or link asks for it (app.js two()). Nor klang (Stimme verzerren, about
-  // 27 KB): a voice sheet asks for it when it is shown (app.js setHome), the voice tab and the finished voice at the latest.
+  // On the web: everything once the page is idle (see above). In the apps the files are on the device anyway. Not the
+  // parts in ONDEMAND: only a sheet, card or link that needs one asks for it, so a visitor who opens none never downloads
+  // them (test/build.test.js gives them a budget of their own). noto (Noto Emoji for stickers in the picture, about
+  // 110 KB): the editor asks at its first sticker (app.js paint); offline without it the picture is made without stickers.
+  // dart (the dartboard, about 50 KB): a dart card or link (app.js two()). klang (Stimme verzerren, about 27 KB): a voice
+  // sheet when it is shown (app.js setHome). lauf, blasen, bahn, raten: the game engines of the free card, each asked for
+  // by its own card or link. A name without a part in this build stays harmless.
+  var ONDEMAND = ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten"];
   if (/^https?:$/.test(location.protocol) && location.hostname !== "appassets.androidplatform.net") {
     root.addEventListener("load", function () {
       (root.requestIdleCallback || function (f) { return setTimeout(f, 1500); })(function () {
-        Object.keys(LIST).forEach(function (n) { if (n !== "noto" && n !== "dart" && n !== "klang") need(n).catch(function () {}); });
+        Object.keys(LIST).forEach(function (n) { if (ONDEMAND.indexOf(n) < 0) need(n).catch(function () {}); });
       });
     });
   }
