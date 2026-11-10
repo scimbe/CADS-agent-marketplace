@@ -90,10 +90,11 @@
     c.setTransform(1, 0, 0, 1, 0, 0);
     if (o.flash && !reduce) { c.fillStyle = "rgba(255,60,80," + o.flash * 0.4 + ")"; c.fillRect(0, 0, cw, ch); }
   }
-  // A simple player for the still picture: jumps when a gap, a step up or a block comes close (never perfect, never needed)
+  // A simple player for the still picture: jumps when a gap, a step up or a block comes close; before a gap only at the
+  // very edge (the farthest jump: earlier it falls short of a wide gap at high speed). Not perfect with blocks, never needed.
   function bot(s) {
-    var m = s.me, v = s.speed(), near = m.x + v * 0.22, i, want = false;
-    for (i = 0; i < s.spans.length; i++) { var sp = s.spans[i]; if ((sp.x1 > m.x && sp.x1 < near + 20) || (sp.x0 > m.x && sp.x0 < near && sp.y < m.y - 2)) want = true; }
+    var m = s.me, v = s.speed(), near = m.x + v * 0.22, edge = m.x + v * 0.04 + 14, i, want = false;
+    for (i = 0; i < s.spans.length; i++) { var sp = s.spans[i], nx = s.spans[i + 1], lim = nx && nx.x0 > sp.x1 ? edge : near + 20; if ((sp.x1 > m.x && sp.x1 < lim) || (sp.x0 > m.x && sp.x0 < near && sp.y < m.y - 2)) want = true; }
     for (i = 0; i < s.items.length; i++) { var it = s.items[i]; if (it.t !== "c" && it.t !== "d" && it.live !== false && it.x > m.x && it.x < near) want = true; }
     if (want && m.on) s.press(); else if (!want && m.vy > -100) s.release();
   }
