@@ -11,7 +11,7 @@ const UNSAFE = /alkohol|bier\b|schnaps|vodka|wodka|zigarett|rauch|droge|kiffen|n
 
 test("Daten: mindestens 40 Tagesideen als Daten, 4 Mechaniken, Ids eindeutig, DE und EN vollstaendig", () => {
   assert.ok(D.IDEAS.length >= 40);
-  assert.deepEqual([...new Set(D.IDEAS.map((i) => i.kind))].sort(), [...D.KINDS, ...D.PLAY].sort());
+  assert.deepEqual([...new Set(D.IDEAS.map((i) => i.kind))].sort(), [...D.KINDS.filter((k) => k !== "lauf" && k !== "duel"), ...D.PLAY].sort());   // the runner has no catalog card yet; the one duel (duell-liest) is parked until it is rebuilt
   assert.equal(new Set(D.IDEAS.map((i) => i.id)).size, D.IDEAS.length);
   for (const i of D.IDEAS) {
     assert.ok(/^[a-z0-9-]{1,32}$/.test(i.id), i.id);
@@ -272,4 +272,15 @@ test("plainTitle: Bindestrich-Titel einzeilig richtig zusammengesetzt (Tür-|ste
   }
   const geist = D.IDEAS.find((i) => i.id === "spiel-geist");
   if (geist) assert.equal(D.docFromIdea(geist, me, "de").g.title, "Geisterschicht");
+});
+
+test("Geparkte Karte (duell-liest, Bot als Akteur, bis zum Umbau): nie ein Tag, nie im Regal oder in der Suche, alle anderen Tage bleiben", () => {
+  const P = D.byId("duell-liest");
+  assert.ok(P && D.RETIRED.includes(P) && !D.IDEAS.includes(P), "nicht im Regal, Link oeffnet weiter");
+  assert.ok(D.ROUND.includes(P), "behaelt den Platz in der Runde: die Reihenfolge der anderen Tage bleibt");
+  for (const c of [{ crypto: true }, { crypto: false, channel: true, call: true }]) for (let d = 0; d < 1200; d++) {
+    assert.notEqual(D.ideaForDay(new Date(Date.UTC(2026, 10, 10 + d, 10)), c).id, "duell-liest");
+  }
+  assert.deepEqual(D.searchIdeas("liest dich", new Date("2026-11-10T10:00:00Z")), []);
+  const rnd = C.mulberry32(7); for (let k = 0; k < 500; k++) assert.notEqual(D.randomIdea(rnd).id, "duell-liest");
 });

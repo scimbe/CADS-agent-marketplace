@@ -127,7 +127,7 @@
     var nl = el("label", "lbl", t("nick")), f = el("input", "field"), nn = el("p", "note", t("nickNote"));
     f.id = "stnick"; nl.htmlFor = "stnick"; nn.id = "stnicknote"; nl.style.marginTop = "0";
     f.value = me().nick; f.maxLength = 16; f.placeholder = t("ms_nickPh"); f.autocomplete = "nickname"; f.enterKeyHint = "done"; f.setAttribute("aria-describedby", "stnicknote");
-    f.addEventListener("input", function () { var v = C.sanitizeName(f.value); if (f.value.trim() && !v) { Kit.toast(t("filter")); return; } me().nick = v; S.save(); paint(); });
+    f.addEventListener("input", function () { var v = C.sanitizeName(f.value); if (f.value.trim() && !v) { Kit.toast(t(C.filterNote(f.value))); return; } me().nick = v; S.save(); paint(); });
     right.appendChild(nl); right.appendChild(f); right.appendChild(nn);
 
     // ---------- emoji: six at first, the rest behind "Mehr" (the chosen one is always among the six) ----------

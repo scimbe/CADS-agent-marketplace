@@ -6,6 +6,7 @@
   var Duel = typeof module !== "undefined" && module.exports ? require("./duel.js") : root.Duel;
   var Quest = typeof module !== "undefined" && module.exports ? require("./quest.js") : root.Quest;
   var Turns = typeof module !== "undefined" && module.exports ? require("./turns.js") : root.Turns;
+  var Lauf = typeof module !== "undefined" && module.exports ? require("./lauf.js") : root.Lauf;
   var TX = typeof module !== "undefined" && module.exports ? require("./texts.json") : root.DailyTexts;
   var IDEAS = DATA.ideas, GATED = DATA.gated || [], BONUS_EVERY = 6, ORDER_TRIES = 200;
   // Cards taken off the shelf (shelf clean-up 2026-11, konzept2 section 5: merged into a carrier, "to"): never in the round,
@@ -25,13 +26,18 @@
   }
   fill();   // the part may have run before this file
   var ROUND = IDEAS.filter(function (i) { return !i.on; });   // calendar ideas ("on": "MM-DD" or a list of them) only appear on their days
+  // A card taken off the shelf until it is rebuilt keeps its place in the round ("round": its index there): every other
+  // day keeps its card, and on its own days ideaOn gives the day a stand-in, as for a card this device cannot run.
+  var PARKED = RETIRED.filter(function (i) { return i.round >= 0; }).sort(function (a, b) { return a.round - b.round; });
+  PARKED.forEach(function (i) { ROUND.splice(Math.min(i.round, ROUND.length), 0, i); });
+  function parked(i) { return PARKED.indexOf(i) >= 0; }
   // What two days in a row must not share: the kind, and for a turn card (most of the shelf) its situation, turn.grip
   // (raum, abend, pause, geschenk, streit). The core's index carries it as mx (index below), so the order is the same there.
   function mech(i) { return i.mx || (i.kind === "turn" && i.turn && i.turn.grip ? "turn-" + i.turn.grip : i.kind); }
   var ROUND_KINDS = ROUND.map(mech).filter(function (k, i, a) { return a.indexOf(k) === i; }).sort();
   var ID_RE = /^[a-z0-9-]{1,32}$/, MAX_WALL = 30, MAX_THUMB = 60000, MAX_TEXT = 90;
   var DAY = 86400000;
-  var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn", "table"];
+  var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn", "table", "lauf"];
   var PLAY = ["arcade"];   // days that are only played (arcade-ui.js), never edited, wished for or sent as a creation
   var STYLES = { card: ["druck", "zettel", "stempel", "neon", "herz", "advent"], photo: ["poster", "sticker", "meme", "glitch"] };
   // Voice effects (the part klang, src/klang.js) and the tempo on top: one effect plus at most one tempo, nothing else.
@@ -108,7 +114,7 @@
     if (cal && available(cal, c)) return cal;
     var base = baseIdea(n), nextCal = calendarIdea(n + 1), prevCal = calendarIdea(n - 1), next = mech(nextCal || baseIdea(n + 1));
     var clash = (nextCal && mech(nextCal) === mech(base)) || (prevCal && mech(prevCal) === mech(base));
-    var mustMove = !available(base, c) || clash;
+    var mustMove = !available(base, c) || clash || parked(base);
     var extra = C.hash32("bonus-" + n) % BONUS_EVERY === 0 ? GATED.filter(function (x) { return available(x, c); }) : [];
     if (!mustMove && !extra.length) return base;
     var prev = mech(ideaOn(n - 1, c));
@@ -118,7 +124,10 @@
     if (!mustMove) return base;
     var runnable = ROUND.filter(function (x) { return available(x, c); }), pool = runnable.filter(fits);
     if (!pool.length) pool = runnable;
-    return pool.length ? pool[C.hash32("swap-" + n) % pool.length] : null;
+    // a parked card stays in the pool (every other pick stays the same) and hands its pick to the next one
+    var at = C.hash32("swap-" + n) % (pool.length || 1);
+    for (var k = 0; k < pool.length; k++) { var x = pool[(at + k) % pool.length]; if (!parked(x)) return x; }
+    return null;
   }
   function ideaForDay(date, c) { return ideaOn(dayNumber(date), c || caps()); }
   function dayDate(date, back) { return new Date((dayNumber(date) - (back || 0)) * DAY); }
@@ -162,7 +171,7 @@
     function slim(i) {
       var o = { id: i.id, kind: i.kind };
       if (mech(i) !== i.kind) o.mx = mech(i);
-      ["on", "needs", "min"].forEach(function (k) { if (i[k] != null) o[k] = i[k]; });
+      ["on", "needs", "min", "round"].forEach(function (k) { if (i[k] != null) o[k] = i[k]; });
       ["de", "en"].forEach(function (l) { if (i[l]) o[l] = { t: i[l].t }; });
       var x = fold([].concat(i.tags || [], (i.de && i.de.tags) || [], (i.en && i.en.tags) || []).join(" ")).split(" ")
         .filter(function (w, k, a) { return w && a.indexOf(w) === k; }).join(" ");
@@ -176,7 +185,7 @@
     return out;
   }
   function randomIdea(rnd, notId) {
-    var pool = ROUND.concat(GATED).filter(function (i) { return i.id !== notId && available(i); });
+    var pool = ROUND.concat(GATED).filter(function (i) { return i.id !== notId && available(i) && !parked(i); });
     return pool[Math.floor(rnd() * pool.length)];
   }
   function paperIndex(idea, count) { return C.hash32("paper-" + idea.id) % count; }
@@ -373,6 +382,8 @@
       Turns.sanitize(o, d);
     } else if (o.k === "table") {
       d.g = o.g === "skat" || o.g === "bauernskat" ? o.g : "doko";
+    } else if (o.k === "lauf") {
+      d.l = Lauf.sanitize(o.l);   // the second engine (src/lauf.js), played in the part lauf
     } else {
       var g = C.sanitizeState({ v: 1, seed: o.g && o.g.seed, params: o.g && o.g.params, theme: o.g && o.g.theme, title: o.g && o.g.title, emoji: o.g && o.g.emoji, look: o.g && o.g.look, route: o.g && o.g.route });
       d.g = { seed: g.seed, params: g.params, theme: g.theme, title: g.title, emoji: g.emoji };
@@ -429,7 +440,9 @@
     // the start of an empty sheet: the kind's first card. Two of them left the shelf in the clean-up (2026-11) and stay the
     // start, so an empty card or duel begins as before (BLANK); else the first shelf card of the kind without a calendar day.
     var pool = IDEAS.filter(function (i) { return i.kind === kind; }), free = pool.filter(function (i) { return !i.on; });
-    var d = docFromIdea((BLANK[kind] && byId(BLANK[kind])) || free[0] || pool[0], profile, lang);
+    // a kind without any card on the shelf (lauf: only made, never in the catalog) starts from an empty doc
+    var first = (BLANK[kind] && byId(BLANK[kind])) || free[0] || pool[0];
+    var d = first ? docFromIdea(first, profile, lang) : sanitizeDoc({ k: kind, col: profile.colors, by: [] });
     delete d.i; d.t = ""; return d;
   }
   // Which parts differ, in the words the trail shows. The picture itself is never in the doc, so "foto" comes from the editor.

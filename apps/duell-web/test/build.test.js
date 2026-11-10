@@ -37,7 +37,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // The reminder is the todo test "Kern-Budget zurueck auf 700 KiB" below.
   assert.ok(Buffer.byteLength(html) < CORE_MAX, "Kern ueber " + CORE_MAX + " B: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "licenses", "logik", "malen", "melden", "noto", "play", "push", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(Object.keys(man).sort(), ["dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "lauf", "licenses", "logik", "malen", "melden", "noto", "play", "push", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   // The new start (redesign wave 1) is a part: its code, keywords and words only there, in the core only the hooks.
   const startBody = fs.readFileSync(partFiles().find((f) => /\/start\.[0-9a-f]{12}\.js$/.test(f)), "utf8");
   assert.match(startBody, /root\.StartUI = \{/); assert.match(startBody, /root\.StartIntent = api/); assert.match(startBody, /window\.StartTexts=\{"de":\{"st_ask":"Wem willst du heute eine Freude machen\?"/);

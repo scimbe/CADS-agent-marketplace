@@ -406,9 +406,6 @@
     "mauer": [
       "arcade-ziegel"
     ],
-    "schere": [
-      "duell-liest"
-    ],
     "verzerr": [
       "mut-tierstory"
     ],
@@ -691,6 +688,7 @@
       "st_stimme": "Stimme",
       "st_stimme_s": "Monster, Hamster, Roboter",
       "st_all": "Alle Karten",
+      "st_gallery": "Mehr von bunsenbrenner",
       "st_title": "Deine Karte",
       "st_what": "Was hast du vor?",
       "st_heard": "So verstehe ich dich",
@@ -751,6 +749,7 @@
       "st_stimme": "Voice",
       "st_stimme_s": "Monster, hamster, robot",
       "st_all": "All cards",
+      "st_gallery": "More from bunsenbrenner",
       "st_title": "Your card",
       "st_what": "What do you have in mind?",
       "st_heard": "This is how I understand you",

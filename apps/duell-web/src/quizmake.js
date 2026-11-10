@@ -48,6 +48,21 @@
     }
     return null;
   }
-  var api = { fromOption: fromOption, texts: texts, clean: clean, worst: worst, fit: fit };
+  // Schätzen at the end (quizpack.js ende): one fixed sentence per person from the mean distance relative to each number
+  // (all spot on, near, good, room left; never shown as a percentage), then per question the distance with its unit,
+  // "Frage (42 km): 3 km daneben", for two people "… 3 km daneben / genau getroffen". ds: distances per person, who: names.
+  function fmt(s, o) { return String(s).replace(/\{(\w+)\}/g, function (m, k) { return o[k]; }); }
+  function ende(doc, ds, L, who) {
+    var pk = doc.pk, u = pk.u || [], n = P.nums(doc);
+    if (!L.pk_ql) return [];
+    return ds.map(function (d, k) {
+      var r = d.reduce(function (s, x, j) { return s + Math.min(1, x / pk.z[n[j]]); }, 0) / d.length, t = L["pk_t" + (r ? r <= 0.1 ? 1 : r <= 0.3 ? 2 : 3 : 0)];
+      return who[k] ? fmt(L.pk_near, { w: who[k], s: t }) : t;
+    }).concat(n.map(function (i, j) {
+      var U = u[i] ? " " + u[i] : "";
+      return fmt(L.pk_ql, { q: pk.q[i][0], z: pk.z[i] + U, a: ds.map(function (d) { return d[j] ? fmt(L.pk_dn, { n: d[j] + U }) : L.pk_d0; }).join(" / ") });
+    }));
+  }
+  var api = { fromOption: fromOption, texts: texts, clean: clean, worst: worst, fit: fit, ende: ende };
   if (node) module.exports = api; else root.QuizMake = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

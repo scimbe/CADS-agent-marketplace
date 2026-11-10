@@ -8,6 +8,7 @@ const D = require("../src/daily.js");
 const Tn = require("../src/turns.js");
 const P = Object.assign({}, require("../src/quizpack.js"), require("../src/quizmake.js"));
 const J = require("../src/quiz-packs.json");
+require("../src/quizspiele.js");   // the Schätzen sentences come with the part "quiz" (quizspiele.json ui), as in the page
 const me = { emoji: "🐙", nick: "M", colors: ["#2b4bff", "#ffe600"], set: "tiere" };
 const through = (d) => { const r = D.parseRoute("#" + D.docUrl(d).split("#")[1]); assert.equal(r.type, "doc"); return r.doc; };
 const size = (d) => Math.ceil(Buffer.byteLength(JSON.stringify({ v: 1, d: D.sanitizeDoc(d) })) / 3) * 4;
@@ -61,7 +62,9 @@ test("Vier Karten mit Paket: jede Art eigene Mechanik, Ergebnis mit beiden Staen
     const r = Tn.result(d, "de"), e = Tn.result(d, "en");
     assert.ok(Tn.state(d).over, g);
     assert.equal(r.h, "Planeten");
-    assert.match(r.lines[0], g === "schaetzen" ? /^Spieler 1: im Schnitt \d+ Prozent daneben$/ : /^Spieler 1: \d von 5 richtig$/, g);
+    // Schätzen (A6): a fixed sentence per person and the distance per question, never a percentage
+    assert.match(r.lines[0], g === "schaetzen" ? /^Spieler 1: (Alles genau getroffen!|Ganz nah dran\.|Gut geschätzt\.|Da war noch Luft\. Revanche\?)$/ : /^Spieler 1: \d von 5 richtig$/, g);
+    if (g === "schaetzen") assert.ok(r.lines.length === 5 && !/%|Prozent|percent/.test(JSON.stringify([r, e])), JSON.stringify(r));
     assert.ok(!/undefined|\{\w+\}/.test(JSON.stringify([r, e])), g);
   }
 });

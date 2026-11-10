@@ -129,7 +129,7 @@
   }
   // The sheet's picture already shows the name while it is typed; a name the filter keeps out is said so, not dropped silently.
   function preview(h) {
-    var n = name(field.value); warnEl.textContent = n === null ? t("filter") : "";
+    var n = name(field.value); warnEl.textContent = n === null ? t(C.filterNote(field.value)) : "";
     if (!h || !h.idea) return;
     if (field.value && app().unpic) app().unpic();   // with a name the drawn card shows it again, in place of the picture
     var cv = document.querySelector("#leaf .pvcard");
@@ -165,7 +165,7 @@
     }
     if (!h.idea || h.doc || !is(h.idea)) return false;
     var who = name(field ? field.value : h.to);
-    if (who === null) { root.Kit.toast(t("filter")); field.focus(); return true; }
+    if (who === null) { root.Kit.toast(t(C.filterNote(field ? field.value : h.to))); field.focus(); return true; }
     var doc = cardFor(h.idea, who, me, root.Kit.lang);
     if (tabName) { A.openEditor(doc, { idea: h.idea, tab: tabName }); return true; }
     // "Finish the card": the finished screen, its short link already on the way (app.js), so one tap on "Teilen" sends it.

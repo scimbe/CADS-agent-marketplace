@@ -192,7 +192,7 @@ test("Praesenz: da, Spitzname, weg nach Stille", () => {
   n.wire.cut = true; n.t.now += 12000; assert.equal(n.a.c.peerHere(n.t.now), false);
 });
 test("Grenze: Duell und Geheimkanal lassen sich nicht zusammen bauen, auch nicht ueber fremde Metadaten", () => {
-  assert.deepEqual([...S.KINDS].sort(), D.KINDS.filter((k) => k !== "duel" && k !== "quest" && k !== "turn" && k !== "table").sort());   // a card table is played live, never built
+  assert.deepEqual([...S.KINDS].sort(), D.KINDS.filter((k) => k !== "duel" && k !== "quest" && k !== "turn" && k !== "table" && k !== "lauf").sort());   // a card table is played live, never built; the runner (part lauf) is built alone for now
   const src = require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/collab.js"), "utf8");
   assert.match(src, /\|\| KINDS\.indexOf\(m\.k\) < 0\) return false/, "okMeta prueft die eigene Liste");
 });
