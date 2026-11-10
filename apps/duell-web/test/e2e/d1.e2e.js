@@ -31,10 +31,10 @@ test("Nr. 4: Reiter Text einer Mitmach-Karte zeigt Formen als Symbole mit deutsc
   assert.deepEqual(btn.map((x) => x[1]), T.shp.split("|"), "Symbole mit Namen");
   assert.equal(btn.filter((x) => x[2] === "true").length, 1, "die gewaehlte Form ist gedrueckt");
   assert.equal(await p.getByRole("heading", { name: T.fly }).count(), 1);
-  assert.equal(await p.getByLabel("Kekse").count(), 0, "kein Kekse-Feld ausserhalb des Deals");
+  assert.equal(await p.locator("#panel").getByLabel("Kekse").count(), 0, "kein Kekse-Feld ausserhalb des Deals");
   await p.getByRole("button", { name: "Stern" }).click(); assert.equal(await p.evaluate(() => window.DailyApp.ed().doc.f), "star");
   const d = await G.open(ctx, "#i=zug-deal"); await d.locator("#go").click(); await d.getByRole("tab", { name: "Text" }).click();
-  assert.equal(await d.getByLabel("Kekse").count(), 1, "beim Deal steht das Feld, das der Text nutzt");
+  assert.equal(await d.locator("#panel").getByLabel("Kekse").count(), 1, "beim Deal steht das Feld, das der Text nutzt");   // the card itself is named by its text (P-A)
   const z = await G.open(ctx, "#i=biz-termin", { flavor: "business" }); await z.locator("#go").click();
   assert.deepEqual(await z.locator("#tabs button").allTextContents(), ["Eintrag", "Text"], "Business: nur Reiter, die das Bild aendern");
   await z.getByRole("tab", { name: "Text" }).click();

@@ -143,7 +143,7 @@ function preview(root, doc, still) {
   var box = root.querySelector(".pv"), g = root.querySelector(".pvgame"), c = root.querySelector(".pvcard");
   if (!still) G.stopDemo();
   g.hidden = c.hidden = true; box.hidden = false;
-  var name = cardName(doc); nameCanvas(g, name); nameCanvas(c, name);
+  var name = cardName(doc), gm = doc.k === "game"; nameCanvas(g, gm ? name : ""); nameCanvas(c, gm ? "" : name);   // only the one shown
   try {
     if (doc.k === "game") { g.hidden = false; var st = C.sanitizeState(Object.assign({ v: 1 }, doc.g)); if (still) G.still(g, st); else G.demo(g, st); return; }
     c.hidden = false;
