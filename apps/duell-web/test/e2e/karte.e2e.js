@@ -73,6 +73,8 @@ test("Mit Konto und 16+-Erklaerung: ein Satz, Vorschau mit Badge, Uebernehmen ->
   assert.deepEqual(req.body.input, { text: "Geburtstagskarte für meine beste Freundin, sie liebt Sonnenblumen", art: "card" }, "kein Alter im Request: der Server liest 18+ aus dem Kontoprofil");
   await p.getByRole("button", { name: "Übernehmen" }).tap();
   assert.ok(await until(() => sent.some((s) => s.path === "ai/accept")), "gebucht beim Uebernehmen");
+  // the editor opens a moment after the accept (create-ui.js: setTimeout 0 after the receipt is settled)
+  await p.waitForFunction(() => window.DailyDebug.doc());
   const doc = await p.evaluate(() => window.DailyDebug.doc());
   // h: the page hashes the option itself (ai.js optionHash), the same rule as the server's seal
   const h = await require("../../src/ai.js").optionHash(OPT, require("node:crypto").webcrypto.subtle);
@@ -133,6 +135,7 @@ test("W3: Spiel, Quiz und eine vorhandene Kartenart (Termin) kommen als Vorschau
     assert.equal(sent.find((s) => s.path === "ai").body.input.art, art);
     await p.getByRole("button", { name: "Übernehmen" }).tap();
     assert.ok(await until(() => sent.some((s) => s.path === "ai/accept")), art + " gebucht");
+    await p.waitForFunction(() => window.DailyDebug.doc());
     const got = await p.evaluate(() => window.DailyDebug.doc());
     assert.equal(got.k, doc.k, art); assert.equal(got.ki.k, "karte", art);
     if (art === "faehigkeit") assert.equal(got.i, "zug-termin");
@@ -150,7 +153,8 @@ test("Ethik-Audit: ohne 16+-Erklaerung kein Formular; Notschalter sagt freundlic
   for (const [extra, want] of [[{ age16: false }, /ab 16.*Mein Stil/], [{ off: true }, /gerade nicht verfügbar/]]) {
     const { p, errs, sent } = await phone((p0) => (p0 === "ai/status" ? [200, { meter: METER, create: CREATE(5, extra) }] : null));
     await p.locator("#create").tap();
-    await p.locator("#shbody .note").first().waitFor();
+    // the shelf first shows "…" while /status is asked
+    await p.waitForFunction(() => { const b = document.querySelector("#shbody .note"); return b && b.textContent !== "…"; });
     assert.match((await p.locator("#shbody").innerText()).replace(/\s+/g, " "), want);
     assert.equal(await p.getByLabel("Deine Beschreibung").count(), 0, "kein Formular");
     assert.ok(!sent.some((s) => s.path === "ai"));
