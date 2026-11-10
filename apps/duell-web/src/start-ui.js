@@ -68,6 +68,21 @@
     ".sttile.t0{background:var(--sy)}.sttile.t3{background:var(--sr);color:var(--sc)}",
     ".stall{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:6px 16px;border:2px solid currentColor;border-radius:16px;background:transparent;color:var(--sk);font:700 1rem/1.2 var(--st)}",
     "#allbox{display:flex;flex-direction:column;gap:8px;margin:0 18px 12px}",
+    /* preview pictures (rail under the tiles, the grid in "Alle Karten"): the picture fills the tile, the facts in its corners */
+    ".stlook{display:flex;flex-direction:column;gap:8px}.stlook h3{margin:4px 0 0;font:400 1.5rem/1.1 var(--disp);text-transform:uppercase;letter-spacing:.3px}",
+    ".strail{display:flex;gap:12px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;margin:0 -18px;padding:2px 18px 10px;scroll-padding:0 18px}",
+    ".strail .stshot{flex:0 0 min(9.5rem,42%);scroll-snap-align:start}",
+    ".stshots{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(9.5rem,100%),1fr));gap:16px 14px;padding-top:6px}",
+    ".stshot{display:flex;flex-direction:column;gap:6px;min-width:0;padding:0;border:0;background:none;color:var(--sk);text-align:left;font-family:var(--st)}",
+    ".stpic{position:relative;display:block;aspect-ratio:3/4;border:3px solid var(--sk);border-radius:8px;overflow:hidden;background:var(--sy);box-shadow:4px 4px 0 var(--sk)}",
+    ".stpic img{display:block;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .2s}.stpic.on img{opacity:1}",
+    ".stlen{position:absolute;right:6px;bottom:6px;padding:2px 7px;border-radius:5px;background:var(--sk);color:var(--sc);font:800 .8125rem/1.3 var(--st)}",
+    ".stshot small{margin-top:-4px;font:700 .8125rem/1.25 var(--st);color:var(--sm)}",
+    ".stshot b{font:400 1.25rem/1.08 var(--disp);text-transform:uppercase;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}",
+    ".stshot:focus-visible{outline:none}.stshot:focus-visible .stpic{outline:3px solid var(--sk);outline-offset:3px}",
+    "@media (prefers-reduced-motion:reduce){.stpic img{transition:none}}",
+    /* two columns: the right one (start, rail, "Alle Karten") scrolls under a sheet that keeps the screen's height */
+    "@media (min-width:900px),(orientation:landscape) and (max-height:500px) and (min-width:560px){#home.neu>#pad{position:sticky;top:12px;align-self:start;height:calc(100svh - 28px)}}",
     "#home.neu #tools button{font-family:var(--st);font-weight:700;text-decoration:underline;text-underline-offset:3px}",
     "@media (min-width:900px),(orientation:landscape) and (max-height:500px) and (min-width:560px){#startbox{margin:4px 10px 10px;border:3px solid var(--sk);border-radius:22px}#home.neu #tools{background:none}#home.neu #tools button{color:var(--on)}#starth{font-size:1.5rem}}",
     "@media (prefers-reduced-motion:reduce){.sttile{transition:none}}",
@@ -151,6 +166,10 @@
       grid.appendChild(b);
     });
     box.appendChild(grid);
+    // "So sieht es aus": real pictures of a few games under the tiles (Vorschaubilder below)
+    var look = el("section", "stlook"); look.setAttribute("aria-labelledby", "stlookh"); look.hidden = true;
+    var lh = el("h3"); lh.id = "stlookh"; look.appendChild(lh); look.appendChild(el("div", "strail"));
+    box.appendChild(look);
     // "Alle Karten": the shelf of every card, with the search and the free card on top; no strip opens here
     var all = el("button", "stall", null, function () { Kit.sfx.tap(); allShelf(); }); all.id = "allcards"; all.appendChild(icon("grid", 20)); all.appendChild(el("span"));
     box.appendChild(all);
@@ -159,7 +178,7 @@
     var drawer = el("div"); drawer.id = "allbox";
     drawer.appendChild($("feat"));
     more.addEventListener("click", function () { Kit.sfx.tap(); openAll(more.getAttribute("aria-expanded") !== "true"); });
-    refs = { h: h, inp: inp, mic: mic, go: go, grid: grid, all: all, more: more, drawer: drawer };
+    refs = { h: h, inp: inp, mic: mic, go: go, grid: grid, all: all, more: more, drawer: drawer, look: look };
     var slot = $("startslot"); if (slot) slot.replaceWith(box); else $("homerow").after(box);
     $("tools").after(more); more.after(drawer);
     micCheck(mic);
@@ -184,6 +203,81 @@
     refs.grid.setAttribute("aria-label", t("st_ask"));
     Array.from(refs.grid.children).forEach(function (b) { b.querySelector("b").textContent = t("st_" + b.dataset.i); b.querySelector("small").textContent = t("st_" + b.dataset.i + "_s"); });
     refs.all.lastChild.textContent = t("st_all"); refs.more.textContent = t("st_gallery");
+    refs.look.firstChild.textContent = t("st_look");
+    if (shotLang !== Kit.lang) { shotLang = Kit.lang; rail(); }
+  }
+
+  /* ---------- Vorschaubilder: what a game looks like, before it is opened ---------- */
+  // Every card of the shelf has a real screenshot of its game (scripts/shots.js, src/shots/<id>.webp), packed into the parts
+  // bilda, bildb … (scripts/build.js; StartData.shots: id -> part). A tile is the picture, big, with two plain facts in its
+  // corner (how long it takes) and under it the title and how it is played (both from the catalog). Nothing is counted,
+  // nothing urges. A picture's part is loaded when its tile comes near the screen; with Save-Data none are loaded, and a
+  // tile without its picture (offline, part missing) keeps its title on a quiet colour.
+  var SHOTS = (root.StartData && root.StartData.shots) || {}, shotLang = "", seen = null;
+  var KINDS = { arcade: "st_k_arcade", game: "st_k_arcade", photo: "st_k_photo", sound: "st_k_sound", table: "table", card: "card" };
+  function lean() {
+    try { var c = navigator.connection; return !!(c && c.saveData) || !!(root.matchMedia && matchMedia("(prefers-reduced-data: reduce)").matches); } catch (e) { return false; }
+  }
+  function kindOf(i) { var g = i.turn && i.turn.g; return g && root.Turns ? t("bdg_" + root.Turns.who(g)) : t(KINDS[i.kind] || "turn"); }
+  function lenOf(n) { return n >= 120 ? t("mins", { n: Math.round(n / 60) }) : t("sec", { n: n }); }
+  function show(img) {
+    var id = img.dataset.shot, part = SHOTS[id];
+    if (!part || lean() || !root.Parts) return;
+    root.Parts.need(part).then(function () { var u = root.DailyShots && root.DailyShots[id]; if (u) img.src = u; }, function () {});
+  }
+  function watch(img) {
+    if (!root.IntersectionObserver) return show(img);
+    seen = seen || new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { seen.unobserve(e.target); show(e.target); } }); }, { rootMargin: "300px" });
+    seen.observe(img);
+  }
+  function shotTile(i) {
+    var L = ideaText(i), b = el("button", "stshot", null, function () { Kit.sfx.thud(); openCard(i); });
+    var f = el("span", "stpic"), img = document.createElement("img");
+    img.alt = t("st_shot", { s: L.s || D.plainTitle(L.t) }); img.width = 216; img.height = 288; img.decoding = "async"; img.dataset.shot = i.id;
+    img.addEventListener("load", function () { f.classList.add("on"); });
+    f.appendChild(img);
+    if (i.min) f.appendChild(el("span", "stlen", lenOf(i.min)));
+    b.appendChild(f); b.appendChild(el("b", "", D.plainTitle(L.t))); b.appendChild(el("small", "", kindOf(i)));
+    watch(img);
+    return b;
+  }
+  function withShot(i) { return !!SHOTS[i.id]; }
+  // "So sieht es aus": eight games of the shelf under the tiles, a different eight each day (the day number, nothing else),
+  // never the day's own card, which is on the sheet above.
+  function rail() {
+    var today = D.ideaForDay(new Date()), games = D.IDEAS.filter(function (i) { return withShot(i) && /^(turn|arcade|table)$/.test(i.kind) && !(today && today.id === i.id); }), box = refs.look.lastChild;
+    box.textContent = ""; refs.look.hidden = !games.length;
+    if (!games.length) return;
+    var day = Math.floor(Date.now() / 864e5), n = Math.min(8, games.length);
+    for (var k = 0; k < n; k++) box.appendChild(shotTile(games[(day * n + k) % games.length]));
+  }
+  // The day's card on its sheet: its picture in place of the drawn card, on the same canvas (#pvcard, same size and place,
+  // so the sheet's layout stays as it is), the title under it as before. Not for a running game (arcade, the flight game:
+  // the sheet plays it live), not for a card with a name field (warm cards, drawn with the name) and not with Save-Data.
+  // app.js draws the card again when the font has come (fonts.load): the picture follows it.
+  var shotOn = null;
+  function dayShot(h) {
+    var c = $("pvcard"), i = h && h.idea;
+    if (!c) return;
+    if (c.dataset.shot) { delete c.dataset.shot; c.setAttribute("aria-label", t("a_preview")); }
+    shotOn = null;
+    if (!i || h.doc || /^(arcade|game)$/.test(i.kind) || (W && W.is(i)) || !SHOTS[i.id] || lean() || !root.Parts) return;
+    shotOn = h;
+    root.Parts.need(SHOTS[i.id]).then(function () {
+      var u = root.DailyShots && root.DailyShots[i.id], img = new Image();
+      if (!u || shotOn !== h) return;
+      img.onload = function () {
+        var draw = function () {
+          if (shotOn !== h || A().home() !== h) return;
+          var x = c.getContext("2d"), sw = img.width, sh = img.height, r = c.height / c.width;
+          if (sh / sw > r) sh = sw * r; else sw = sh / r;   // cover: the middle of the picture fills the card
+          x.imageSmoothingQuality = "high"; x.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, 0, 0, c.width, c.height);
+          c.dataset.shot = i.id; c.setAttribute("aria-label", t("st_shot", { s: ideaText(i).s || D.plainTitle(ideaText(i).t) }));
+        };
+        draw(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { setTimeout(draw, 0); });
+      };
+      img.src = u;
+    }, function () {});
   }
   // The day's sheet and every sheet chosen from here get the new start; whatever came by link keeps its own page.
   function home(h) {
@@ -198,6 +292,7 @@
       root.Parts.use("erschaffen", function () { root.CreateUI.open(); }).catch(function () {});
     }
     receive(h);
+    dayShot(on && h);
     first(); requestAnimationFrame(first);
     // the burst on the sheet in plain words for a first visit: "Spiel", not "Arcade"; "Bild", not "Meme"
     var k = on && h.idea && h.idea.kind, dk = document.querySelector("#leaf .dkind");
@@ -226,9 +321,14 @@
       var q = el("input", "field"), list = el("div"), T = root.DailyTexts || {}, L = T[Kit.lang] || T.de || {};
       q.type = "search"; q.id = "allq"; q.placeholder = t("pastSearch"); q.setAttribute("aria-label", t("pastSearch")); q.autocomplete = "off"; q.enterKeyHint = "search";
       list.id = "alllist";
+      // without a search: every card of the shelf with its picture (Vorschaubilder; a tile without its picture keeps its
+      // title); a search shows the hits as a list
+      var shots = el("div", "stshots"); shots.id = "allshots";
       function fill() {
         list.textContent = "";
         var v = q.value.trim(), c = D.caps();
+        shots.hidden = !!v;
+        if (!v && !shots.firstChild) D.IDEAS.filter(function (i) { return D.available(i, c); }).forEach(function (i) { shots.appendChild(shotTile(i)); });
         var ideas = v ? D.searchIdeas(v, new Date()).map(function (h) { return h.idea; }) : D.IDEAS.filter(function (i) { return D.available(i, c); });
         ideas.forEach(function (i) {
           var r = el("button", "day", null, function () { Kit.sfx.tap(); A().sheet({ date: new Date(), idea: i }); });
@@ -239,7 +339,7 @@
         if (!ideas.length) list.appendChild(el("div", "empty", t("pastNone")));
       }
       q.addEventListener("input", fill);
-      b.appendChild(q); b.appendChild(list); fill();
+      b.appendChild(q); b.appendChild(list); b.appendChild(shots); fill();
     });
   }
 

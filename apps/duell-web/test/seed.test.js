@@ -11,13 +11,14 @@ const DD = require("../src/duel.json");
 const src = (f) => fs.readFileSync(path.join(__dirname, "../src", f), "utf8");
 function noRandom(fn) { const r = Math.random, now = Date.now; Math.random = () => { throw new Error("Math.random"); }; Date.now = () => { throw new Error("Date.now"); }; try { return fn(); } finally { Math.random = r; Date.now = now; } }
 
-test("Bot-Gesicht (app.js:592): gleicher Name, gleiches Blatt, gleicher Tipp = gleiches Gesicht; der naechste Tipp ein anderes", () => {
+test("Bot-Gesicht (blasen.js, Reiter Foto): gleicher Name, gleiches Blatt, gleicher Tipp = gleiches Gesicht; der naechste Tipp ein anderes", () => {
   const doc = { k: "photo", i: "foto-x" };
   const a = noRandom(() => D.botSeed("Mira", doc, 1)), b = noRandom(() => D.botSeed("Mira", doc, 1));
   assert.equal(a, b); assert.notEqual(a, D.botSeed("Mira", doc, 2)); assert.notEqual(a, D.botSeed("Ben", doc, 1));
   assert.equal(D.botSeed("Mira", { k: "photo" }, 0), D.botSeed("Mira", { k: "photo" }, 0), "eigene Karte ohne Id: Art statt Id");
   assert.ok(Number.isInteger(a) && a >= 0);
-  assert.match(src("app.js"), /R\.botFace\(D\.botSeed\(me\.nick, ed\.doc, ed\.bots\)/); assert.match(src("app.js"), /R\.botFace\(D\.botSeed\(me\.nick, ed\.doc, 0\)/);
+  assert.match(src("blasen.js"), /R\.botFace\(D\.botSeed\(A\.me\(\)\.nick, ed\(\)\.doc, ed\(\)\.bots\)/);   // the photo tab, since R4 in the part blasen
+  assert.match(src("app.js"), /R\.botFace\(D\.botSeed\(me\.nick, ed\.doc, 0\)/);
 });
 test("Gegner wuerfeln (modes.js:113): n-ter Wurf eines Seeds gibt immer denselben Gegner, Werte 0-100, Name und Emoji aus den Listen", () => {
   const L = DD.rivals.de, E = DD.emoji, seen = new Set();
@@ -51,7 +52,7 @@ test("Wohlfuehlkarte zurueck (warm.js) und Bot-Spiele (arcade-ui.js): aus dem Se
   assert.match(arc, /"bot\|" \+ g \+ "\|" \+ \(Kit\.store\.arcN = /); assert.match(arc, /fresh\(seed \+ "\|" \+ \+\+round\)/);
   for (const l of arc.split("\n").filter((x) => /Math\.random/.test(x))) assert.match(l, /P\.add|rnd\(a, b\)|d\[i\] =/, "nur Partikel und Rauschen: " + l.trim().slice(0, 80));
 });
-test("Kein Math.random mehr in app.js und modes.js (auch nicht beim Ersatzblatt eines Tages ohne Idee)", () => {
-  for (const f of ["app.js", "modes.js"]) assert.doesNotMatch(src(f).replace(/\/\/[^\n]*/g, ""), /Math\.random/, f);
-  assert.doesNotMatch(src("app.js"), /botFace\([^)]*Date\.now/, "das Bot-Gesicht haengt nicht an der Uhr");
+test("Kein Math.random mehr in app.js, modes.js und blasen.js (auch nicht beim Ersatzblatt eines Tages ohne Idee)", () => {
+  for (const f of ["app.js", "modes.js", "blasen.js"]) assert.doesNotMatch(src(f).replace(/\/\/[^\n]*/g, ""), /Math\.random/, f);
+  for (const f of ["app.js", "blasen.js"]) assert.doesNotMatch(src(f), /botFace\([^)]*Date\.now/, "das Bot-Gesicht haengt nicht an der Uhr");
 });

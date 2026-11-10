@@ -71,7 +71,7 @@
         if (!cb.checked) { need.textContent = ""; cb.focus(); setTimeout(function () { need.textContent = t("create_need"); }, 80); return; }   // never a locked look
         Kit.store.profile = { via: "account", rev: 0, base: null, age16: true, t0: Date.now() };
         Kit.save();   // an attempt is not synced (profile.js Kit.save: only a done link)
-        location.href = "/auth/login?return=" + encodeURIComponent((root.Ai && root.Ai.loginReturn ? root.Ai.loginReturn(root.DailyFlavor) : "/duell") + "?go=erschaffen");
+        location.href = root.DuellCore.loginPath((root.Ai && root.Ai.loginReturn ? root.Ai.loginReturn(root.DailyFlavor) : "/duell") + "?go=erschaffen", Kit.lang);
       });
       go.id = "createlogin";
       cb.addEventListener("change", function () { if (cb.checked) need.textContent = ""; });

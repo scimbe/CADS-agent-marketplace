@@ -224,7 +224,8 @@ test("Befund 6: Krise ohne Netz: Hilfe auf dem Geraet (116 111 und 0800 111 0 11
 
 test("Befund 9: laedt der Teil welt nicht, sagt der Wunsch-Tab das und bietet die Regler an", async () => {
   const { p, errs } = await phone(null);
-  await p.evaluate(() => { window.Parts.use = () => Promise.reject(new Error("sri")); });
+  // only the part welt fails (SRI); the editor's own tabs come with the part blasen (R4) and must still load
+  await p.evaluate(() => { const use = window.Parts.use; window.Parts.use = (n, f) => (n === "welt" ? Promise.reject(new Error("sri")) : use(n, f)); });
   await openGame(p);
   await p.getByText("Das Flugspiel lädt gerade nicht.", { exact: false }).waitFor();
   await p.getByRole("button", { name: "🎚 Ohne KI: Regler" }).tap();

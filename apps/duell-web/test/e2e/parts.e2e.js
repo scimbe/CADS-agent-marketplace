@@ -32,19 +32,22 @@ test("file:// (Apps, Tests): Start nur mit dem Katalog-Teil; Spiele-Regal holt A
   await p.clock.setFixedTime(new Date("2026-03-03T09:00:00Z"));   // a day whose sheet is no arcade duel
   await p.goto("file://" + path.join(dist, "index.html"));
   await p.locator("#go").waitFor();
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme"], "der Start laedt nur den Katalog, den neuen Start (Redesign W1, sofort statt im Leerlauf) und, fuer das erste Blatt, die Daumen (Katalog v2, W0)");
+  // the day's picture (start-ui.js dayShot) brings its own image part; the image parts are not counted here
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]).filter((n) => !/^bild[a-z]$/.test(n)), ["katalog", "start", "stimme"], "der Start laedt nur den Katalog, den neuen Start (Redesign W1, sofort statt im Leerlauf) und, fuer das erste Blatt, die Daumen (Katalog v2, W0)");
   assert.equal(await p.evaluate(() => typeof window.Arcade + typeof window.StatusCard + typeof window.DailyLicenses), "undefinedundefinedundefined");
   await G.alle(p); await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await p.locator(".arctile").first().waitFor();
   assert.equal(await p.locator(".arctile").count(), 5, "fuenf Arcade-Duelle seit der Regal-Bereinigung (2026-11)");
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "play"]);
+  // "Alle Karten" shows every card's picture: the parts of the pictures in sight come along (bilda, bildb …), not counted here
+  const own = async () => (await loaded(p)).map((s) => s.src.split(".")[0]).filter((n) => !/^bild[a-z]$/.test(n));
+  assert.deepEqual(await own(), ["katalog", "start", "stimme", "play"]);
   assert.equal((await loaded(p))[1].sri, "", "file:// ohne SRI (kein CORS-Ursprung)");
   await p.locator("#shback").click();
   await p.locator("#me").click();
   await p.locator("#stdata summary").click(); await p.getByRole("button", { name: "Lizenzen" }).click();   // under "Konto & Daten"
   await p.getByText(/SIL OPEN FONT LICENSE Version 1\.1/).waitFor();
   // My style comes as the part stil, which brings its account card (konto) first; the button its licence texts
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "play", "konto", "stil", "direkt", "push", "licenses"], "Mein Stil holt auch direkt (Schalter Einfache Sprache)");
+  assert.deepEqual(await own(), ["katalog", "start", "stimme", "play", "konto", "stil", "direkt", "push", "licenses"], "Mein Stil holt auch direkt (Schalter Einfache Sprache)");
   assert.deepEqual(errs, []); await b.close();
 });
 
@@ -63,24 +66,28 @@ test("file://: der Knopf Status-Bild holt den QR-Teil und teilt ein Bild 1080x19
   assert.equal(await p.evaluate(() => typeof window.StatusCard), "undefined", "vor dem Knopf kein QR-Teil");
   await p.locator("#tostatus").evaluate((e) => e.click());
   await p.waitForFunction(() => window.__shared.length > 0);
-  // the card editor's text tab has loaded "texte" (Worte finden, card text) and "wetter" on the way; the button only adds "qr"
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "texte", "wetter", "direkt", "qr"], "der Editor holt direkt");
+  // the editor first asks for its tabs (blasen, R4) and direkt; once blasen is there the card's text tab loads "texte"
+  // (Worte finden, card text) and "wetter"; the button only adds "qr"
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "blasen", "direkt", "texte", "wetter", "qr"], "der Editor holt blasen und direkt");
   const f = await p.evaluate(async () => { const f = window.__shared[0], i = await createImageBitmap(f); return { type: f.type, name: f.name, w: i.width, h: i.height }; });
   assert.deepEqual(f, { type: "image/jpeg", name: "my-daily-idea-status.jpg", w: 1080, h: 1920 });
   assert.deepEqual(errs, []);
   } finally { await b.close(); }
 });
 
-test("Web /duell: nach dem Laden alle Teile ausser denen nur bei Bedarf (noto, dart, klang, ...) mit SRI vorab, auch nach 10 s Leerlauf keins davon; danach offline Arcade-Menue und Lizenzen", async () => {
+test("Web /duell: nach dem Laden alle Teile ausser denen nur bei Bedarf (noto, dart, klang, ...) und den Vorschaubildern mit SRI vorab, auch nach 10 s Leerlauf keins davon; danach offline Arcade-Menue und Lizenzen", async () => {
   const srv = await serve(), base = "http://127.0.0.1:" + srv.address().port;
   const b = await launch(), ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);
   const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
   await p.goto(base + "/duell");   // without the slash: the parts still come from /duell/parts/
   // all but those in ONDEMAND: noto (Noto Emoji for stickers in the picture: only the editor asks for it, at its first
-  // sticker), dart (the dartboard: only a dart card or link), klang (Stimme verzerren: only a voice sheet), the game engines
-  await p.waitForFunction((od) => window.Parts.names().filter((n) => !od.includes(n)).every((n) => window.Parts.ready(n)), ONDEMAND);
+  // sticker), dart (the dartboard: only a dart card or link), klang (Stimme verzerren: only a voice sheet), the game engines;
+  // the preview pictures (bilda, bildb …) only as far as the start page shows them, never all on idle
+  await p.waitForFunction((od) => window.Parts.names().filter((n) => !od.includes(n) && !/^bild[a-z]$/.test(n)).every((n) => window.Parts.ready(n)), ONDEMAND);
   await p.waitForTimeout(10000);   // 10 s more idle: still none of them (no script tag, not ready)
-  const got = await loaded(p), names = await p.evaluate(() => window.Parts.names());
+  const all = await loaded(p), got = all.filter((s) => !/^bild[a-z]\./.test(s.src)), names = await p.evaluate(() => window.Parts.names());
+  assert.ok(await p.evaluate(() => window.Parts.names().filter((n) => /^bild[a-z]$/.test(n)).some((n) => !window.Parts.ready(n))), "Vorschaubilder nicht alle vorab");
+  for (const s of all) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
   for (const n of ["noto", "dart", "klang"]) assert.ok(names.includes(n), n + " im Manifest");
   for (const n of ONDEMAND.filter((n) => names.includes(n))) {
     assert.ok(await p.evaluate((n) => !window.Parts.ready(n), n), n + " nicht vorab");

@@ -17,7 +17,7 @@ const FAKE = (side) => `(() => {
 })();`;
 const launch = () => chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
 async function pair(b) {
-  const mk = async (side) => { const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000); const p = await ctx.newPage(); const errs = []; p.on("pageerror", (e) => errs.push(String(e))); await p.addInitScript(FAKE(side)); return { p, errs }; };
+  const mk = async (side) => { const ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000); const p = await ctx.newPage(); const errs = []; p.on("pageerror", (e) => errs.push(String(e))); await p.addInitScript(FAKE(side)); await p.addInitScript(() => { window.__buzz = []; navigator.vibrate = (x) => { window.__buzz.push(x); return true; }; }); return { p, errs }; };
   const A = await mk("a"), B = await mk("b");
   await A.p.exposeFunction("__liveOut", (s) => B.p.evaluate((m) => window.__liveIn(m), s).catch(() => {}));
   await B.p.exposeFunction("__liveOut", (s) => A.p.evaluate((m) => window.__liveIn(m), s).catch(() => {}));
@@ -33,6 +33,7 @@ async function invite(A, B, g) {
   await B.p.goto(page + "#live=" + TOKEN + "&g=" + g);
   await B.p.getByText("Du wirst herausgefordert!").first().waitFor();
   await A.p.getByText("Dein Freund ist da!").waitFor();
+  assert.ok((await A.p.evaluate(() => window.__buzz)).some((x) => JSON.stringify(x) === "[200,100,200]"), "das Handy des Einladenden vibriert, wenn der Freund annimmt");
   const ba = await A.p.locator(".livebadge").textContent(), bb = await B.p.locator(".livebadge").textContent();
   assert.equal(ba, bb); assert.equal(ba.split(" ").length, 3);
   await A.p.getByRole("button", { name: "Starten" }).click();
@@ -124,4 +125,24 @@ test("Kalender: an einem seiner Tage ist Stangen-Kick das Blatt des Tages und oe
   await p.locator(".arcov").waitFor({ state: "detached" }); await p.locator("#go").waitFor();
   assert.ok(p.url().startsWith("file:"), "die Seite wurde nicht verlassen");
   assert.deepEqual(errs, []); await b.close();
+});
+
+// A frame time can lie a moment before the last one: the first frame starts with performance.now(), the next rAF gets its
+// frame's start, which may be earlier (CI: "radius (-0.5) is negative", a ring after a serve at -1 ms). Here every frame is
+// 1 ms before the last one; the shelf's demos and a match must still draw without an error.
+test("Arcade: eine Bildzeit vor der letzten bricht nichts (kein negativer Radius)", async () => {
+  const b = await launch(), ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);
+  const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
+  await p.addInitScript(() => {
+    const raf = window.requestAnimationFrame.bind(window); let t = performance.now() + 100000;
+    window.requestAnimationFrame = (cb) => raf(() => cb((t -= 1)));
+    window.__arcadeSeed = "e2e-dt";
+  });
+  await p.goto(page); await G.alle(p); await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
+  await p.locator(".arctile").nth(4).waitFor();
+  await p.locator(".arctile[data-g=kick]").click(); await p.locator(".arcdemo").waitFor();
+  await p.getByRole("button", { name: /Gegen den Bot/ }).click();
+  await p.waitForTimeout(4000);
+  assert.deepEqual(errs, []);
+  await b.close();
 });

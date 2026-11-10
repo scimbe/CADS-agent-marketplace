@@ -122,7 +122,7 @@ test("Daumen ohne Anmeldung: kurzer Hinweis mit Link zur Anmeldung, nichts als g
     const id = await p.evaluate(() => window.DailyDebug.home().idea.id), hint = p.locator("#votelogin");
     await p.locator("#voteup").tap(); await hint.waitFor();
     assert.equal(await hint.textContent(), lang === "de" ? "Zum Abstimmen anmelden" : "Sign in to vote");
-    assert.equal(await hint.getAttribute("href"), NL.ORIGIN + "/auth/login?return=%2Fduell", "dieselbe Anmeldung wie ai.js, auf dem API-Host");
+    assert.equal(await hint.getAttribute("href"), NL.ORIGIN + "/auth/login?return=%2Fduell&lang=" + lang, "dieselbe Anmeldung wie ai.js, auf dem API-Host, mit der Seitensprache");
     assert.deepEqual(await G.covered(p), [], "der Hinweis verdeckt keinen Knopf");
     for (const s of ["#voteup", "#votedown"]) assert.equal(await p.locator(s).getAttribute("aria-pressed"), "false", s + " nicht als abgegeben");
     await p.locator("#votedown").tap(); await until(() => got.length === 2);
