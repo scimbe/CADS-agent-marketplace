@@ -103,7 +103,7 @@
         row.appendChild(el("button", "btn", t("create_alt_send"), function () {
           Kit.sfx.tap(); var art = GENRE_ART[alt.id] || state.art;
           if (art !== state.art) { state.art = art; arts.querySelectorAll("button").forEach(function (c, i) { var on = ARTS[i] === art; c.classList.toggle("on", on); c.setAttribute("aria-pressed", String(on)); }); }
-          ta.value = f.value; ask = alt.id; go();
+          ta.value = f.value; ask = alt.id; go(); ask = "";   // a crisis stops before input(): the genre must not ride on the next wish
         }));
       }
       row.appendChild(el("button", "btn", t("create_alt_no"), function () { Kit.sfx.tap(); box.remove(); ta.focus(); }));

@@ -102,3 +102,17 @@ test("A11y-Baum: Grund, Vorschlag und 'Nein danke' stehen als Text da, fuer jede
     assert.deepEqual(errs, [], f.t); await ctx.close();
   }
 });
+
+test("Ein nicht gesendeter Vorschlag (Krise bleibt am Geraet) gibt sein Genre nicht an den naechsten eigenen Wunsch weiter", async () => {
+  const f = fx("zwei bots kämpfen");
+  const { p, ctx, errs, posts, ta } = await refused(f);
+  await p.getByLabel("Vorschlag, du kannst ihn ändern").fill("ich will nicht mehr leben");
+  await p.getByRole("button", { name: "Diesen Satz senden" }).tap();
+  assert.equal(posts().length, 1, "die Krise geht nicht hinaus");
+  await ta.fill("ein Flugspiel ueber den Wolken");
+  await p.getByRole("button", { name: "✨ Erschaffen" }).tap();
+  await p.waitForFunction(() => document.querySelectorAll(".createalt").length > 0);
+  assert.equal(posts().length, 2);
+  assert.deepEqual(posts()[1].body.input, { text: "ein Flugspiel ueber den Wolken", art: "game" }, "kein Genre, das die Person nicht gesendet hat");
+  assert.deepEqual(errs, []); await ctx.close();
+});
