@@ -67,7 +67,7 @@ for (const vp of [[412, 915], [360, 780]]) {
     await p.waitForTimeout(300);
     const [g, c] = [await box(p, "#game"), await box(p, "#lfcv")];
     assert.deepEqual(c, g, "Canvas fuellt den Rahmen");
-    const s0 = await snap(p), dpr = await p.evaluate(() => Math.min(devicePixelRatio, 2));
+    const s0 = await snap(p), dpr = await p.evaluate(() => Math.min(devicePixelRatio, 1.5));
     assert.ok(Math.abs(s0.cw - g[2] * dpr) <= 1 && Math.abs(s0.ch - g[3] * dpr) <= 1, "Pixel passend: " + JSON.stringify([s0.cw, s0.ch, g]));
     assert.equal(s0.state, "ready");
     assert.match(await p.locator(".lfhint").textContent(), /Tippen = springen/);

@@ -23,7 +23,7 @@
     ".lfres{position:absolute;left:0;right:0;bottom:0;background:var(--paper);color:#111;border-top:3px solid #111;padding:14px 18px calc(env(safe-area-inset-bottom) + 12px);display:flex;flex-direction:column;gap:8px}.lfres[hidden],.lfb[hidden]{display:none}.lfsc{text-align:center;font:900 54px/1 var(--disp)}.lfres p{text-align:center;margin:0;font-weight:800}";
   function style() { if ($("lfcss")) return; var s = el("style"); s.id = "lfcss"; s.textContent = CSS; document.head.appendChild(s); }
   // emoji as small pictures, drawn once per size (text drawing every frame is slow on mid-range phones)
-  var SPR = {};
+  var SPR = {}, SKY = {};
   function spr(e, px) {
     px = Math.max(8, Math.round(px)); var k = e + px;
     if (SPR[k]) return SPR[k];
@@ -37,7 +37,9 @@
     // at least VIEW px of the track in sight, also on a narrow phone; the band of the world sits in the lower part
     var w = W[s.l.w], k = Math.min(ch / E.H, cw / VIEW), oy = oyOf(ch, k), vw = cw / k, cam = s.me.x - vw * 0.28, H = E.H, i, x, sp, it, still = reduce || o.still, cl = o.clock || 0;
     c.setTransform(1, 0, 0, 1, 0, 0);
-    var g = c.createLinearGradient(0, 0, 0, ch); g.addColorStop(0, w[0]); g.addColorStop(1, w[1]); c.fillStyle = g; c.fillRect(0, 0, cw, ch);
+    var gk = w[0] + ch, g = SKY[gk];
+    if (!g) { g = SKY[gk] = c.createLinearGradient(0, 0, 0, ch); g.addColorStop(0, w[0]); g.addColorStop(1, w[1]); }
+    c.fillStyle = g; c.fillRect(0, 0, cw, ch);
     var sx = o.shake && !reduce ? (Math.sin(cl * 90) * o.shake) : 0, cs = Math.max(20, cw / 16);
     // clouds (or nothing at night) in the sky above the band
     c.fillStyle = "rgba(255,255,255,.55)";
@@ -111,7 +113,7 @@
   function say(s) { sr.textContent = ""; setTimeout(function () { sr.textContent = s; }, 30); }
   function size() {
     if (!cv) return;
-    var r = box.getBoundingClientRect(), d = Math.min(root.devicePixelRatio || 1, 2);
+    var r = box.getBoundingClientRect(), d = Math.min(root.devicePixelRatio || 1, 1.5);
     cv.width = Math.max(1, Math.round(r.width * d)); cv.height = Math.max(1, Math.round(r.height * d));
     if (sim) paint();
   }
