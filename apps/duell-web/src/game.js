@@ -74,7 +74,7 @@ function doShake(a) { if (!reduce) shake = Math.max(shake, a); }
 var cv = $("cv"), ctx = cv.getContext("2d"), scale = 1;
 var EMO = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 function fit() {
-  var box = cv.parentElement.getBoundingClientRect(), vw = box.width || window.innerWidth, vh = box.height || window.innerHeight;
+  var box = cv.parentElement, vw = box.clientWidth || window.innerWidth, vh = box.clientHeight || window.innerHeight;   // inside the frame's border, else the game sticks out by it and is cut
   scale = Math.min(vw / E.W, vh / E.H);
   var dpr = Math.min(window.devicePixelRatio || 1, 3);
   cv.style.width = E.W * scale + "px"; cv.style.height = E.H * scale + "px";
@@ -82,6 +82,14 @@ function fit() {
   cv.dpr = dpr;
 }
 window.addEventListener("resize", function () { if (mode !== "off") fit(); });
+// The box can grow without a window resize (the editor sheet slides in, the tab bar settles): measured once at attach, the
+// game kept the half-open size and filled only the top left of its frame. Follow the box itself; the canvas size never
+// feeds back into it (#gamestage has its own height and aspect ratio), so this cannot loop.
+var seen = "", ro = window.ResizeObserver ? new ResizeObserver(function () {
+  var b = cv.parentElement && cv.parentElement.getBoundingClientRect(), k = b ? Math.round(b.width) + "x" + Math.round(b.height) : "";
+  if (mode !== "off" && k && k !== seen) { seen = k; fit(); if (sim) draw(); }   // a held or still picture has no loop to repaint it
+}) : null;
+function watch() { if (ro && cv.parentElement) { ro.disconnect(); seen = ""; ro.observe(cv.parentElement); } }
 function draw() {
   var th = look(), p = sim, s = scale * cv.dpr, W = E.W, H = E.H, G = E.GROUND;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -244,7 +252,7 @@ $("challenge").addEventListener("click", async function () {
   Kit.save();
   Kit.share({ url: link.url, text: t("chText", { n: sim.score, t: cur.title }) });
 });
-function attach(host) { cv = host; ctx = cv.getContext("2d"); fit(); }
+function attach(host) { cv = host; ctx = cv.getContext("2d"); fit(); watch(); }
 
 /* The one network call of the game: a sentence typed for a game, only ever in this function, with a local fallback. */
 async function fromSentence(prompt, lang) {
@@ -280,7 +288,8 @@ window.Game = {
     try { cur = st; attach(host); sim = E.createSim(st.params, C.mulberry32(st.seed), C.routeParams(st)); draw(); }
     finally { cv = keep[0]; ctx = keep[1]; scale = keep[2]; cur = keep[3]; sim = keep[4]; }
   },
-  current: function () { return cur; }, score: function () { return sim ? sim.score : 0; }
+  current: function () { return cur; }, score: function () { return sim ? sim.score : 0; },
+  view: function () { return sim && { bird: { x: E.BX, y: sim.bird.y, r: E.R }, pipes: sim.pipes.map(function (p) { return { x: p.x, gapY: p.top, gapH: p.gap }; }), w: E.W, h: E.H, title: cur.title }; }   // raw state: src/teile.js
 };
 /* test hook, used by browser checks: reads the state; tick() advances without waiting for frames */
 window.DuellDebug = {

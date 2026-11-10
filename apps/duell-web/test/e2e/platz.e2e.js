@@ -115,7 +115,7 @@ test("Startblatt: mit Namensfeld oder Sprachwahl zeigt das Blatt die Live-Karte,
     });
     for (const v of Object.keys(VIEWS)) {
       const { ctx, p } = await ctxFor(b, v);
-      await goto(p, "", [11, 6]);   // warm-toll: AI picture and the name field under the sheet
+      await goto(p, "#i=warm-toll", [11, 6]);   // warm-toll (by link since the shelf clean-up, 2026-11): AI picture and the name field under the sheet
       let h = await home(p);
       assert.ok(h.go, v + " #go frei"); // the live card has a useful height (60 px) or steps aside whole for "Vorschau"; never a squeezed strip
       assert.ok((h.card >= 60 && !h.peek) || (h.card === 0 && h.peek), v + " Live-Karte " + JSON.stringify(h));

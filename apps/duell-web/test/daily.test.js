@@ -11,7 +11,7 @@ const UNSAFE = /alkohol|bier\b|schnaps|vodka|wodka|zigarett|rauch|droge|kiffen|n
 
 test("Daten: mindestens 40 Tagesideen als Daten, 4 Mechaniken, Ids eindeutig, DE und EN vollstaendig", () => {
   assert.ok(D.IDEAS.length >= 40);
-  assert.deepEqual([...new Set(D.IDEAS.map((i) => i.kind))].sort(), [...D.KINDS, ...D.PLAY].sort());
+  assert.deepEqual([...new Set(D.IDEAS.map((i) => i.kind))].sort(), [...D.KINDS.filter((k) => k !== "lauf" && k !== "duel"), ...D.PLAY].sort());   // the runner has no catalog card yet; the one duel (duell-liest) is parked until it is rebuilt
   assert.equal(new Set(D.IDEAS.map((i) => i.id)).size, D.IDEAS.length);
   for (const i of D.IDEAS) {
     assert.ok(/^[a-z0-9-]{1,32}$/.test(i.id), i.id);
@@ -38,7 +38,8 @@ test("Tagesidee: gleich fuer alle am selben UTC-Tag, Tageswechsel genau um 0 Uhr
 test("Tagesidee: in einer Runde keine Wiederholung, nie zweimal dieselbe Mechanik hintereinander", () => {
   const n = D.ROUND.length, seq = D.roundOrder(Math.floor(D.dayNumber(new Date("2026-11-01Z")) / n));
   assert.equal(new Set(seq.map((x) => x.id)).size, n);
-  let same = 0; for (let i = 1; i < n; i++) if (seq[i].kind === seq[i - 1].kind) same++;
+  // Mechanik: the kind, for a turn card its situation (D.mech; since the shelf clean-up most cards are turn cards)
+  let same = 0; for (let i = 1; i < n; i++) if (D.mech(seq[i]) === D.mech(seq[i - 1])) same++;
   assert.equal(same, 0);
 });
 test("Tagesfolge: jede Runde enthaelt jede Idee genau einmal, keine Mechanik doppelt, auch nicht ueber die Rundennaht", () => {
@@ -46,11 +47,11 @@ test("Tagesfolge: jede Runde enthaelt jede Idee genau einmal, keine Mechanik dop
   for (let r = 0; r < 1000; r++) {
     const seq = D.roundOrder(r), next = D.roundOrder(r + 1);
     assert.deepEqual(seq.map((x) => x.id).sort(), all, "Runde " + r);
-    for (let i = 1; i < n; i++) assert.notEqual(seq[i].kind, seq[i - 1].kind, "Runde " + r + " Platz " + i);
-    assert.notEqual(next[0].kind, seq[n - 1].kind, "Naht nach Runde " + r);
+    for (let i = 1; i < n; i++) assert.notEqual(D.mech(seq[i]), D.mech(seq[i - 1]), "Runde " + r + " Platz " + i);
+    assert.notEqual(D.mech(next[0]), D.mech(seq[n - 1]), "Naht nach Runde " + r);
   }
 });
-test("Tagesfolge: ueber 30 Jahre nie zweimal dieselbe Mechanik, in jeder Geraeteklasse und um Halloween herum", () => {
+test("Tagesfolge: ueber 30 Jahre nie zweimal dieselbe Mechanik, in jeder Geraeteklasse, nie eine Karte, die aus dem Regal ist", () => {
   const start = Date.UTC(2026, 9, 1), days = 366 * 30;
   const classes = [{ crypto: true }, { crypto: false }, { crypto: true, call: true }, { crypto: false, call: true }, { crypto: true, channel: true, call: true }];
   for (const c of classes) {
@@ -58,8 +59,8 @@ test("Tagesfolge: ueber 30 Jahre nie zweimal dieselbe Mechanik, in jeder Geraete
     for (let n = 0; n < days; n++) {
       const day = new Date(start + n * 86400000), idea = D.ideaForDay(day, c), key = day.toISOString().slice(0, 10);
       assert.ok(idea, key); assert.ok(D.available(idea, c), idea.id + " " + key);
-      if (prev) assert.notEqual(idea.kind, prev.kind, key + ": " + prev.id + " und " + idea.id + " mit " + JSON.stringify(c));
-      if (key.slice(5) === "10-31") assert.equal(idea.id, "halloween", key); else assert.notEqual(idea.id, "halloween", key);
+      if (prev) assert.notEqual(D.mech(idea), D.mech(prev), key + ": " + prev.id + " und " + idea.id + " mit " + JSON.stringify(c));
+      assert.ok(D.IDEAS.includes(idea) || D.GATED.includes(idea), key + ": " + idea.id);
       prev = idea;
     }
   }
@@ -72,7 +73,7 @@ test("Tagesfolge: heute, 2026-11-01, zeigt eine lauffaehige Idee", () => {
   }
 });
 test("Zufallsidee: Kalenderideen bleiben ihrem Tag vorbehalten", () => {
-  for (let i = 0; i < 2000; i++) assert.notEqual(D.randomIdea(Math.random, "").id, "halloween");
+  for (let i = 0; i < 2000; i++) assert.ok(!D.randomIdea(Math.random, "").on);
 });
 test("Archiv: die letzten Tage, neueste zuerst, ohne heute", () => {
   const d = new Date("2026-11-10T12:00:00Z"), l = D.lastDays(d, 7);
@@ -100,7 +101,7 @@ test("Links: #i= Einladung; unbekannte und boese Ids werden verworfen", () => {
   assert.deepEqual(D.parseRoute(host.slice(host.indexOf("#"))), { type: "idea", id });
 });
 test("Remix: Kreation geht durch den Link, Spur bleibt, Link passiert den c=-Filter der Huellen", () => {
-  const base = D.docFromIdea(D.byId("karte-spruch"), me, "de"), doc = D.sanitizeDoc(base);
+  const base = D.docFromIdea(D.byId("advent-tuer"), me, "de"), doc = D.sanitizeDoc(base);
   doc.x = "Mein eigener Satz"; doc.col = ["#14c872", "#ff3da5"]; doc.st = "neon";
   doc.sk = [{ e: "🍕", x: 0.3, y: 0.4, r: 0.1, z: 1 }];
   const areas = D.changedAreas(base, doc);
@@ -114,11 +115,11 @@ test("Remix: Kreation geht durch den Link, Spur bleibt, Link passiert den c=-Fil
   assert.deepEqual(two.by.map((e) => e.n), ["Mira", "Ben"]);
 });
 test("Remix: unveraenderte Idee hat keine eigene Zutat; Wuerfel-Startsatz bleibt Basis", () => {
-  const a = D.docFromIdea(D.byId("foto-boss"), me, "de");
+  const a = D.docFromIdea(D.byId("foto-alien"), me, "de");
   assert.deepEqual(D.changedAreas(a, D.sanitizeDoc(a)), []);
 });
 test("Remix: voll beladen bleibt der Link unter der Grenze, die die Seite annimmt", () => {
-  const d = D.docFromIdea(D.byId("foto-boss"), me, "de");
+  const d = D.docFromIdea(D.byId("foto-alien"), me, "de");
   d.t = "Ü".repeat(40); d.s = "Ö".repeat(70); d.x = "Ä".repeat(28); d.y = "Ä".repeat(28);
   d.sk = Array.from({ length: 8 }, (_, i) => ({ e: "🍕", x: 0.123456789 + i / 10, y: 0.987654321 - i / 10, r: 0.5555555, z: 1.2345678 }));
   d.by = Array.from({ length: 5 }, () => ({ n: "Ü".repeat(16), w: ["text", "farbe", "stil", "sticker", "foto"] }));
@@ -129,7 +130,7 @@ test("Remix: voll beladen bleibt der Link unter der Grenze, die die Seite annimm
 test("Remix: Linkbudget – erst Sticker, dann der Options-Hash h, dann die Spur; das Siegel bleibt pruefbar, solange Sticker weichen koennen", () => {
   const ki = { k: "line", s: "s1.line.mhl2x0ab.ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef", h: "Y-feMaAnaOXUrB2BxPv3vUTgMan0NNfOQmA6jhDp_Tc" };
   const load = (trail) => {
-    const d = D.docFromIdea(D.byId("foto-boss"), me, "de");
+    const d = D.docFromIdea(D.byId("foto-alien"), me, "de");
     d.t = "Ü".repeat(40); d.s = "Ö".repeat(70); d.x = "Ä".repeat(28); d.y = "Ä".repeat(28);
     d.sk = Array.from({ length: 8 }, (_, i) => ({ e: "🍕", x: 0.123456789 + i / 10, y: 0.987654321 - i / 10, r: 0.5555555, z: 1.2345678 }));
     d.by = Array.from({ length: trail }, () => ({ n: "Ü".repeat(16), w: ["text", "farbe", "stil", "sticker", "foto"] }));
@@ -160,7 +161,7 @@ test("Link-Inhalte: Markup, Schimpfwoerter, Mist werden entfernt oder abgelehnt"
   assert.equal(D.parseRoute("#c=!!!"), null);
 });
 test("Link: weder Foto noch Ton reisen mit, nur Einstellungen", () => {
-  const d = D.docFromIdea(D.byId("stimme-monster"), me, "de");
+  const d = D.docFromIdea(D.byId("beat-pausenhof"), me, "de");
   d.pcm = [1, 2, 3]; d.photo = "data:image/png;base64,AAAA"; d.th = "x";
   const s = JSON.stringify(D.sanitizeDoc(d));
   assert.ok(!/pcm|photo|data:|th"/.test(s), s);
@@ -168,7 +169,7 @@ test("Link: weder Foto noch Ton reisen mit, nur Einstellungen", () => {
 test("Mein Stil: nur gueltige Werte, Filter greift beim Spitznamen", () => {
   assert.deepEqual(D.sanitizeProfile({ nick: "Fuck", emoji: "<b>", colors: ["x"], set: "evil" }), { nick: "", emoji: "🪁", colors: ["#ffd400", "#ff3b1d"], set: "tiere" });
   assert.equal(D.sanitizeProfile(null).nick, "");
-  assert.equal(D.docFromIdea(D.byId("karte-spruch"), me, "de").col[0], "#2b4bff", "Stil fliesst in die Idee");
+  assert.equal(D.docFromIdea(D.byId("foto-alien"), me, "de").col[0], "#2b4bff", "Stil fliesst in die Idee");
 });
 test("Eingaben: Filter und Laenge", () => {
   assert.equal(D.cleanInput("scheiße"), ""); assert.equal(D.cleanInput("  hallo   du "), "hallo du");
@@ -182,27 +183,38 @@ test("Wand: nur gueltige Eintraege, Deckel, keine fremden Bildquellen", () => {
   assert.equal(l.length, D.MAX_WALL); assert.equal(l[0].ts, 49);
 });
 
-test("Kalenderidee: Halloween erscheint genau am 31.10. und sonst nie", () => {
-  assert.equal(D.ideaForDay(new Date("2026-10-31T19:00:00Z")).id, "halloween");
-  assert.equal(D.ideaForDay(new Date("2027-10-31T00:00:00Z")).id, "halloween");
-  for (let i = 0; i < 365; i++) {
-    const d = new Date(Date.UTC(2027, 0, 1) + i * 86400000);
-    if (d.toISOString().slice(5, 10) !== "10-31") assert.notEqual(D.ideaForDay(d).id, "halloween");
+test("Regal-Bereinigung (2026-11): freie Kalendertage gehen an den Traeger oder in die Runde, nie an eine entfernte Karte", () => {
+  // the day a merged card had goes to the card it went into, if that one is a calendar card itself (ideas.json retired, to)
+  const own = { "11-09": "zug-termin", "11-20": "zug-einig", "11-30": "zug-auktion", "12-11": "zug-auktion",
+    "11-06": "arcade-kick", "11-10": "arcade-kick", "11-16": "arcade-kick", "11-18": "arcade-panzer", "12-23": "arcade-stock" };
+  for (const [md, id] of Object.entries(own)) assert.equal(D.ideaForDay(new Date("2026-" + md + "T12:00:00Z")).id, id, md);
+  // every other freed day (Halloween, the plan-* days, the eight Wohlfuehl days) is a day of the round: a card that is on the shelf
+  for (const md of ["10-31", "12-01", "11-03", "11-05", "11-07", "11-11", "11-13", "11-15", "11-17", "11-19", "11-21", "11-23", "11-25", "11-27", "11-29", "12-06", "12-08", "12-10", "12-12", "12-14", "12-16", "12-18", "12-20"]) {
+    const idea = D.ideaForDay(new Date("2026-" + md + "T12:00:00Z"));
+    assert.ok(idea && D.IDEAS.includes(idea) && !idea.on, md + ": " + (idea && idea.id));
   }
-  const doc = D.docFromIdea(D.byId("halloween"), D.sanitizeProfile({}), "de");
+  assert.notEqual(D.ideaForDay(new Date("2026-11-11T12:00:00Z")).id, "plan-10", "Auktion der Agenten ist aus dem Kalender");
+  // Halloween is off the shelf (merged into "Mach auf, wenn ..."), a link shared before still opens it with its look
+  assert.deepEqual(D.parseRoute("#i=halloween"), { type: "idea", id: "halloween" });
+  const h = D.byId("halloween"); assert.ok(D.RETIRED.includes(h) && h.to === "zug-umschlag" && !h.on);
+  const doc = D.docFromIdea(h, D.sanitizeProfile({}), "de");
   assert.deepEqual(doc.col, ["#120b1f", "#ff7a00"]); assert.equal(doc.st, "neon");
   assert.ok(D.SETS.grusel.includes("🎃"));
+  // a retired card never comes up by itself: not in the round, not as a random idea, not in the search
+  for (let n = 0; n < 2000; n++) assert.ok(!D.RETIRED.includes(D.randomIdea(Math.random, "")));
+  assert.deepEqual(D.searchIdeas("Halloween", new Date("2026-11-10T12:00:00Z")), []);
 });
-test("Plan: 30 Tage ab 2. November, jeden Tag eine eigene Idee, nie zweimal dieselbe Art hintereinander", () => {
+test("Plan: 30 Tage ab 2. November, jeden Tag eine Karte aus dem Regal, nie zweimal dieselbe Mechanik hintereinander", () => {
   // ab dem 6. November wechseln sich Arcade-Spiele und Karten ab, damit die Spiele nicht erst im Dezember auftauchen
   for (let d = 6; d <= 18; d += 2) assert.equal(D.ideaForDay(new Date(Date.UTC(2026, 10, d)), { crypto: true }).kind, "arcade", "11-" + d);
-  const seen = new Set(); let prev = "";
+  // The plan-* cards (and with them "jeden Tag eine eigene Idee") left with the shelf clean-up: 74 cards instead of 209, the
+  // arcade days of the merged duels belong to Stangen-Kick and Insel-Panzer now, so an arcade card may come twice.
+  let prev = "";
   for (let i = 0; i < 30; i++) {
     const day = new Date(Date.UTC(2026, 10, 2 + i)), idea = D.ideaForDay(day, { crypto: true, channel: false, call: false });
-    assert.match(idea.id, /^(plan|zug|arcade)-/, day.toISOString()); assert.ok(!seen.has(idea.id)); seen.add(idea.id);
-    assert.notEqual(idea.kind, prev, idea.id); prev = idea.kind;
+    assert.ok(D.IDEAS.includes(idea) && !D.GONE.includes(idea.id) && !D.RETIRED.includes(idea), day.toISOString());
+    assert.notEqual(D.mech(idea), prev, idea.id); prev = D.mech(idea);
   }
-  assert.ok(D.IDEAS.filter((i) => /^plan-/.test(i.id) && i.live).length >= 15, "mindestens die Haelfte fuehrt zu einem echten Dienst");
 });
 test("Adventstuerchen: nur am 22. und 24. Dezember zwischen zwei Arcade-Tagen, der Dezember-Plan bleibt, wie er ist", () => {
   const DAYS = ["12-22", "12-24"], CAPS = [{ crypto: true }, { crypto: false }, { crypto: true, call: true }, { crypto: true, channel: false, call: false }];
@@ -221,7 +233,7 @@ test("Adventstuerchen: nur am 22. und 24. Dezember zwischen zwei Arcade-Tagen, d
         } else assert.notEqual(idea.id, "advent-tuer", year + "-" + key);
       }
       const idea = D.ideaForDay(day, { crypto: true });
-      if (prev) assert.notEqual(idea.kind, prev.kind, year + "-" + key + ": " + prev.id + " und " + idea.id);
+      if (prev) assert.notEqual(D.mech(idea), D.mech(prev), year + "-" + key + ": " + prev.id + " und " + idea.id);
       prev = idea;
     }
   }
@@ -260,4 +272,15 @@ test("plainTitle: Bindestrich-Titel einzeilig richtig zusammengesetzt (Tür-|ste
   }
   const geist = D.IDEAS.find((i) => i.id === "spiel-geist");
   if (geist) assert.equal(D.docFromIdea(geist, me, "de").g.title, "Geisterschicht");
+});
+
+test("Geparkte Karte (duell-liest, Bot als Akteur, bis zum Umbau): nie ein Tag, nie im Regal oder in der Suche, alle anderen Tage bleiben", () => {
+  const P = D.byId("duell-liest");
+  assert.ok(P && D.RETIRED.includes(P) && !D.IDEAS.includes(P), "nicht im Regal, Link oeffnet weiter");
+  assert.ok(D.ROUND.includes(P), "behaelt den Platz in der Runde: die Reihenfolge der anderen Tage bleibt");
+  for (const c of [{ crypto: true }, { crypto: false, channel: true, call: true }]) for (let d = 0; d < 1200; d++) {
+    assert.notEqual(D.ideaForDay(new Date(Date.UTC(2026, 10, 10 + d, 10)), c).id, "duell-liest");
+  }
+  assert.deepEqual(D.searchIdeas("liest dich", new Date("2026-11-10T10:00:00Z")), []);
+  const rnd = C.mulberry32(7); for (let k = 0; k < 500; k++) assert.notEqual(D.randomIdea(rnd).id, "duell-liest");
 });

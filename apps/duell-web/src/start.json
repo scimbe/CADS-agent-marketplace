@@ -1,814 +1,797 @@
 {
- "intents": {
-  "gruss": {
-   "ids": [
-    "warm-gruss",
-    "warm-danke",
-    "warm-toll",
-    "warm-denke",
-    "warm-daumen",
-    "warm-besserung",
-    "warm-mutig",
-    "warm-freunde",
-    "warm-super",
-    "warm-lachen",
-    "karte-einladung",
-    "warm-sorry"
-   ],
-   "keys": [
-    "gruss",
-    "gruess",
-    "grues",
-    "hallo$",
-    "hello",
-    "greet",
-    "danke",
-    "dank",
-    "thank",
-    "geburtstag",
-    "birthday",
-    "glueckwunsch",
-    "gratul",
-    "namenstag",
-    "besserung",
-    "krank",
-    "gesund",
-    "sorry",
-    "entschuldig",
-    "leid$",
-    "denk",
-    "vermiss",
-    "miss$",
-    "stolz",
-    "proud",
-    "daumen",
-    "pruefung",
-    "lieb",
-    "love",
-    "herz",
-    "sonntag",
-    "weihnacht",
-    "ostern",
-    "neujahr",
-    "hochzeit",
-    "toll",
-    "super$",
-    "kompliment",
-    "mutig",
-    "einlad",
-    "invit",
-    "freude",
-    "karte",
-    "card"
-   ]
+  "intents": {
+    "gruss": {
+      "ids": [
+        "karte-danke",
+        "raum-sorry",
+        "zug-umschlag"
+      ],
+      "keys": [
+        "gruss",
+        "gruess",
+        "grues",
+        "hallo$",
+        "hello",
+        "greet",
+        "danke",
+        "dank",
+        "thank",
+        "geburtstag",
+        "birthday",
+        "glueckwunsch",
+        "gratul",
+        "namenstag",
+        "besserung",
+        "krank",
+        "gesund",
+        "sorry",
+        "entschuldig",
+        "leid$",
+        "denk",
+        "vermiss",
+        "miss$",
+        "stolz",
+        "proud",
+        "daumen",
+        "pruefung",
+        "lieb",
+        "love",
+        "herz",
+        "sonntag",
+        "weihnacht",
+        "ostern",
+        "neujahr",
+        "hochzeit",
+        "toll",
+        "super$",
+        "kompliment",
+        "mutig",
+        "einlad",
+        "invit",
+        "freude",
+        "karte",
+        "card"
+      ]
+    },
+    "planen": {
+      "ids": [
+        "zug-termin",
+        "zug-einkauf",
+        "zug-wichteln",
+        "zug-einig",
+        "zug-sammeln",
+        "zug-reihum"
+      ],
+      "keys": [
+        "termin",
+        "wann",
+        "datum",
+        "treffen",
+        "verabred",
+        "abstimm",
+        "umfrage",
+        "wichtel",
+        "santa",
+        "mitbring",
+        "einkauf",
+        "liste",
+        "list",
+        "zettel",
+        "party",
+        "feier",
+        "grill",
+        "ausflug",
+        "plan",
+        "organis",
+        "geld",
+        "sammel",
+        "kasse",
+        "collect",
+        "date$",
+        "poll",
+        "vote",
+        "schedul",
+        "meet",
+        "shopping",
+        "wochenende",
+        "weekend",
+        "bring"
+      ]
+    },
+    "spielen": {
+      "ids": [
+        "spiel-dart",
+        "zug-malrat",
+        "zug-kennst",
+        "arcade-kick",
+        "arcade-elfer",
+        "tisch-skat",
+        "zug-abfragen"
+      ],
+      "keys": [
+        "spiel",
+        "game",
+        "play",
+        "duell",
+        "duel",
+        "gegen",
+        "versus",
+        "quiz",
+        "raten",
+        "rate$",
+        "malen",
+        "zeichn",
+        "draw",
+        "guess",
+        "wette",
+        "dart",
+        "ball",
+        "kick",
+        "puck",
+        "volley",
+        "elfer",
+        "fussball",
+        "skat",
+        "doppelkopf",
+        "doko",
+        "poker",
+        "raetsel",
+        "puzzle",
+        "sudoku",
+        "schach",
+        "chess",
+        "match",
+        "runde",
+        "challenge",
+        "battle",
+        "bowling",
+        "tennis",
+        "minigolf",
+        "kartensp"
+      ]
+    },
+    "stimme": {
+      "ids": [
+        "mut-tierstory",
+        "zug-stimme"
+      ],
+      "keys": [
+        "stimme",
+        "voice",
+        "verzerr",
+        "monster",
+        "helium",
+        "hamster",
+        "robot",
+        "roboter",
+        "sprach",
+        "sound",
+        "ton$",
+        "beat",
+        "musik",
+        "music"
+      ]
+    }
   },
-  "planen": {
-   "ids": [
-    "zug-termin",
-    "zug-einkauf",
-    "zug-wichteln",
-    "zug-einig",
-    "zug-sammeln",
-    "zug-reihum"
-   ],
-   "keys": [
-    "termin",
-    "wann",
-    "datum",
-    "treffen",
-    "verabred",
-    "abstimm",
-    "umfrage",
-    "wichtel",
-    "santa",
-    "mitbring",
-    "einkauf",
-    "liste",
-    "list",
-    "zettel",
-    "party",
-    "feier",
-    "grill",
-    "ausflug",
-    "plan",
-    "organis",
-    "geld",
-    "sammel",
-    "kasse",
-    "collect",
-    "date$",
-    "poll",
-    "vote",
-    "schedul",
-    "meet",
-    "shopping",
-    "wochenende",
-    "weekend",
-    "bring"
-   ]
+  "cards": {
+    "danke": [
+      "karte-danke"
+    ],
+    "dank": [
+      "karte-danke"
+    ],
+    "thank": [
+      "karte-danke"
+    ],
+    "besserung": [
+      "karte-danke"
+    ],
+    "krank": [
+      "karte-danke"
+    ],
+    "gesund": [
+      "karte-danke"
+    ],
+    "sorry": [
+      "raum-sorry"
+    ],
+    "entschuldig": [
+      "raum-sorry"
+    ],
+    "leid$": [
+      "raum-sorry"
+    ],
+    "stolz": [
+      "karte-danke"
+    ],
+    "mutig": [
+      "karte-danke"
+    ],
+    "proud": [
+      "karte-danke"
+    ],
+    "daumen": [
+      "karte-danke"
+    ],
+    "pruefung": [
+      "karte-danke"
+    ],
+    "glueck": [
+      "karte-danke"
+    ],
+    "luck": [
+      "karte-danke"
+    ],
+    "denk": [
+      "karte-danke"
+    ],
+    "vermiss": [
+      "karte-danke"
+    ],
+    "miss$": [
+      "karte-danke"
+    ],
+    "gruss": [
+      "karte-danke"
+    ],
+    "gruess": [
+      "karte-danke"
+    ],
+    "grues": [
+      "karte-danke"
+    ],
+    "hallo$": [
+      "karte-danke"
+    ],
+    "hello": [
+      "karte-danke"
+    ],
+    "greet": [
+      "karte-danke"
+    ],
+    "sonntag": [
+      "karte-danke"
+    ],
+    "toll": [
+      "karte-danke"
+    ],
+    "lach": [
+      "karte-danke"
+    ],
+    "laugh": [
+      "karte-danke"
+    ],
+    "geschafft": [
+      "karte-danke"
+    ],
+    "super$": [
+      "karte-danke"
+    ],
+    "einlad": [
+      "zug-termin"
+    ],
+    "invit": [
+      "zug-termin"
+    ],
+    "termin": [
+      "zug-termin"
+    ],
+    "wann": [
+      "zug-termin"
+    ],
+    "datum": [
+      "zug-termin"
+    ],
+    "treffen": [
+      "zug-termin"
+    ],
+    "verabred": [
+      "zug-termin"
+    ],
+    "schedul": [
+      "zug-termin"
+    ],
+    "date$": [
+      "zug-termin"
+    ],
+    "meet": [
+      "zug-termin"
+    ],
+    "einkauf": [
+      "zug-einkauf"
+    ],
+    "mitbring": [
+      "zug-einkauf"
+    ],
+    "shopping": [
+      "zug-einkauf"
+    ],
+    "zettel": [
+      "zug-einkauf"
+    ],
+    "wichtel": [
+      "zug-wichteln"
+    ],
+    "santa": [
+      "zug-wichteln"
+    ],
+    "abstimm": [
+      "zug-einig"
+    ],
+    "umfrage": [
+      "zug-einig"
+    ],
+    "einig": [
+      "zug-einig"
+    ],
+    "vote": [
+      "zug-einig"
+    ],
+    "poll": [
+      "zug-einig"
+    ],
+    "geld": [
+      "zug-sammeln"
+    ],
+    "sammel": [
+      "zug-sammeln"
+    ],
+    "kasse": [
+      "zug-sammeln"
+    ],
+    "collect": [
+      "zug-sammeln"
+    ],
+    "malen": [
+      "zug-malrat"
+    ],
+    "zeichn": [
+      "zug-malrat"
+    ],
+    "draw": [
+      "zug-malrat"
+    ],
+    "quiz": [
+      "zug-kennst",
+      "zug-abfragen"
+    ],
+    "kennst": [
+      "zug-kennst"
+    ],
+    "lern": [
+      "zug-abfragen"
+    ],
+    "vokabel": [
+      "zug-abfragen"
+    ],
+    "skat": [
+      "tisch-skat"
+    ],
+    "doppelkopf": [
+      "tisch-skat"
+    ],
+    "doko": [
+      "tisch-skat"
+    ],
+    "dart": [
+      "spiel-dart"
+    ],
+    "fussball": [
+      "arcade-elfer"
+    ],
+    "elfer": [
+      "arcade-elfer"
+    ],
+    "kicker": [
+      "arcade-kick"
+    ],
+    "volley": [
+      "arcade-kick"
+    ],
+    "hockey": [
+      "arcade-kick"
+    ],
+    "puck": [
+      "arcade-kick"
+    ],
+    "flipper": [
+      "arcade-kick"
+    ],
+    "murmel": [
+      "arcade-stock"
+    ],
+    "ziegel": [
+      "arcade-ziegel"
+    ],
+    "mauer": [
+      "arcade-ziegel"
+    ],
+    "verzerr": [
+      "mut-tierstory"
+    ],
+    "monster": [
+      "mut-tierstory"
+    ],
+    "hamster": [
+      "mut-tierstory"
+    ],
+    "helium": [
+      "mut-tierstory"
+    ],
+    "robot": [
+      "mut-tierstory"
+    ],
+    "roboter": [
+      "mut-tierstory"
+    ],
+    "beat": [
+      "beat-pausenhof"
+    ],
+    "kartensp": [
+      "tisch-skat"
+    ],
+    "bring": [
+      "zug-einkauf"
+    ],
+    "advent": [
+      "advent-tuer"
+    ]
   },
-  "spielen": {
-   "ids": [
-    "spiel-dart",
-    "zug-malrat",
-    "zug-kennst",
-    "arcade-puck",
-    "arcade-elfer",
-    "tisch-skat",
-    "zug-quiz",
-    "arcade-kick"
-   ],
-   "keys": [
-    "spiel",
-    "game",
-    "play",
-    "duell",
-    "duel",
-    "gegen",
-    "versus",
-    "quiz",
-    "raten",
-    "rate$",
-    "malen",
-    "zeichn",
-    "draw",
-    "guess",
-    "wette",
-    "dart",
-    "ball",
-    "kick",
-    "puck",
-    "volley",
-    "elfer",
-    "fussball",
-    "skat",
-    "doppelkopf",
-    "doko",
-    "poker",
-    "raetsel",
-    "puzzle",
-    "sudoku",
-    "schach",
-    "chess",
-    "match",
-    "runde",
-    "challenge",
-    "battle",
-    "bowling",
-    "tennis",
-    "minigolf",
-    "kartensp"
-   ]
+  "missing": {
+    "geburtstag": {
+      "de": "Eine Geburtstagskarte",
+      "en": "A birthday card"
+    },
+    "birthday": {
+      "de": "Eine Geburtstagskarte",
+      "en": "A birthday card"
+    },
+    "glueckwunsch": {
+      "de": "Eine Glückwunschkarte",
+      "en": "A congratulations card"
+    },
+    "hochzeit": {
+      "de": "Eine Hochzeitskarte",
+      "en": "A wedding card"
+    },
+    "ostern": {
+      "de": "Eine Osterkarte",
+      "en": "An Easter card"
+    },
+    "dart": {
+      "de": "Dart",
+      "en": "Darts",
+      "sport": true
+    },
+    "bowling": {
+      "de": "Bowling",
+      "en": "Bowling",
+      "sport": true
+    },
+    "tennis": {
+      "de": "Tennis",
+      "en": "Tennis",
+      "sport": true
+    },
+    "minigolf": {
+      "de": "Minigolf",
+      "en": "Mini golf",
+      "sport": true
+    },
+    "schach": {
+      "de": "Schach",
+      "en": "Chess"
+    },
+    "chess": {
+      "de": "Schach",
+      "en": "Chess"
+    },
+    "poker": {
+      "de": "Poker",
+      "en": "Poker"
+    },
+    "sudoku": {
+      "de": "Sudoku",
+      "en": "Sudoku"
+    }
   },
-  "stimme": {
-   "ids": [
-    "stimme-verzerren",
-    "stimme-monster",
-    "stimme-robo",
-    "stimme-maus",
-    "zug-stimme"
-   ],
-   "keys": [
-    "stimme",
-    "voice",
-    "verzerr",
-    "monster",
-    "helium",
-    "hamster",
-    "robot",
-    "roboter",
-    "sprach",
-    "sound",
-    "ton$",
-    "beat",
-    "musik",
-    "music"
-   ]
+  "who": {
+    "oma": {
+      "de": "Oma",
+      "en": "Grandma",
+      "call": true
+    },
+    "grandma": {
+      "de": "Oma",
+      "en": "Grandma",
+      "call": true
+    },
+    "omi": {
+      "de": "Omi",
+      "en": "Granny",
+      "call": true
+    },
+    "opa": {
+      "de": "Opa",
+      "en": "Grandpa",
+      "call": true
+    },
+    "grandpa": {
+      "de": "Opa",
+      "en": "Grandpa",
+      "call": true
+    },
+    "mama": {
+      "de": "Mama",
+      "en": "Mum",
+      "call": true
+    },
+    "mutter": {
+      "de": "Mama",
+      "en": "Mum",
+      "call": true
+    },
+    "mum": {
+      "de": "Mama",
+      "en": "Mum",
+      "call": true
+    },
+    "mom": {
+      "de": "Mama",
+      "en": "Mom",
+      "call": true
+    },
+    "papa": {
+      "de": "Papa",
+      "en": "Dad",
+      "call": true
+    },
+    "vater": {
+      "de": "Papa",
+      "en": "Dad",
+      "call": true
+    },
+    "dad": {
+      "de": "Papa",
+      "en": "Dad",
+      "call": true
+    },
+    "schatz": {
+      "de": "Schatz",
+      "en": "Darling",
+      "call": true
+    },
+    "bruder": {
+      "de": "Bruder",
+      "en": "brother"
+    },
+    "brother": {
+      "de": "Bruder",
+      "en": "brother"
+    },
+    "schwester": {
+      "de": "Schwester",
+      "en": "sister"
+    },
+    "sister": {
+      "de": "Schwester",
+      "en": "sister"
+    },
+    "tante": {
+      "de": "Tante",
+      "en": "aunt"
+    },
+    "onkel": {
+      "de": "Onkel",
+      "en": "uncle"
+    },
+    "freundin": {
+      "de": "Freundin",
+      "en": "friend"
+    },
+    "freund": {
+      "de": "Freund",
+      "en": "friend"
+    },
+    "friend": {
+      "de": "Freund",
+      "en": "friend"
+    },
+    "kolleg": {
+      "de": "Kollegen",
+      "en": "colleagues"
+    },
+    "colleague": {
+      "de": "Kollegen",
+      "en": "colleagues"
+    },
+    "chef": {
+      "de": "Chef",
+      "en": "boss"
+    },
+    "chefin": {
+      "de": "Chefin",
+      "en": "boss"
+    },
+    "nachbar": {
+      "de": "Nachbarn",
+      "en": "neighbours"
+    },
+    "enkel$": {
+      "de": "Enkel",
+      "en": "grandchild"
+    },
+    "enkelin": {
+      "de": "Enkelin",
+      "en": "granddaughter"
+    },
+    "tochter": {
+      "de": "Tochter",
+      "en": "daughter"
+    },
+    "sohn": {
+      "de": "Sohn",
+      "en": "son"
+    },
+    "familie": {
+      "de": "Familie",
+      "en": "family"
+    },
+    "family": {
+      "de": "Familie",
+      "en": "family"
+    },
+    "clique": {
+      "de": "Clique",
+      "en": "friends"
+    },
+    "gruppe": {
+      "de": "Gruppe",
+      "en": "group"
+    },
+    "group": {
+      "de": "Gruppe",
+      "en": "group"
+    },
+    "klasse$": {
+      "de": "Klasse",
+      "en": "class"
+    },
+    "team$": {
+      "de": "Team",
+      "en": "team"
+    },
+    "eltern": {
+      "de": "Eltern",
+      "en": "parents"
+    },
+    "kinder$": {
+      "de": "Kinder",
+      "en": "kids"
+    }
+  },
+  "texts": {
+    "de": {
+      "st_ask": "Wem willst du heute eine Freude machen?",
+      "st_field": "Sag in einem Satz, was du vorhast",
+      "st_hint": "Danke an Oma",
+      "st_go": "Weiter",
+      "st_mic": "Spracheingabe",
+      "st_micOn": "Ich höre zu …",
+      "st_micOff": "Spracheingabe geht hier gerade nicht.",
+      "st_gruss": "Gruß schicken",
+      "st_gruss_s": "Danke, Besserung, einfach so",
+      "st_planen": "Zusammen planen",
+      "st_planen_s": "Termin, Umfrage, Wichteln",
+      "st_spielen": "Gegeneinander spielen",
+      "st_spielen_s": "Quiz, Mal & Rat, Duell",
+      "st_stimme": "Stimme",
+      "st_stimme_s": "Monster, Hamster, Roboter",
+      "st_all": "Alle Karten",
+      "st_gallery": "Mehr von bunsenbrenner",
+      "st_title": "Deine Karte",
+      "st_what": "Was hast du vor?",
+      "st_heard": "So verstehe ich dich",
+      "st_change": "Stimmt nicht? Ändern",
+      "st_pick": "Was passt besser?",
+      "st_for": "Für: {n}",
+      "st_becomes": "Daraus wird",
+      "st_more": "Passt auch",
+      "st_exact": "Passt genau",
+      "st_near": "Passt ungefähr",
+      "st_none": "Dazu habe ich noch keine passende Karte. Probier ein anderes Wort oder tippe auf „Ändern“.",
+      "st_missing": "{w} habe ich noch nicht. Stattdessen:",
+      "st_empty": "Schreib einen Satz oder wähle unten eine Idee.",
+      "st_ideas": "Oder los mit einer Idee",
+      "st_ex1": "Danke an Oma",
+      "st_ex2": "Termin für den Spieleabend",
+      "st_ex3": "Quiz über unsere Familie",
+      "st_make": "Karte machen",
+      "st_local": "Dein Satz bleibt auf dem Gerät. Erst bei „Fertig“ legen wir einen kurzen Link zu deiner Karte an.",
+      "st_from": "Von {n}, für dich",
+      "st_self": "Selbst eine machen",
+      "st_reply": "Antworten",
+      "st_play": "Mitspielen",
+      "st_done": "Fertig. Wer bekommt sie?",
+      "st_sendTo": "An {n} schicken",
+      "st_copy": "Link kopieren",
+      "st_acc": "Damit sie dir nicht verloren geht. Mit einem Konto liegt sie auch auf deinem Tablet. Geht auch ohne.",
+      "st_accPhoto": "Mit einem Konto hast du Spitzname, Stil und deine anderen Karten auch auf dem Tablet. Dein Foto bleibt nur auf diesem Gerät. Geht auch ohne.",
+      "st_accGo": "Konto anlegen",
+      "st_shortOk": "Kurzer Link bei „Fertig“ angelegt, bis zu 90 Tage auf unserem Server. Löschen: Meine Wand.",
+      "st_shortWait": "Der kurze Link wird gerade angelegt. Tippst du jetzt, geht der lange Link raus. Er funktioniert genauso.",
+      "st_shortNo": "Kein kurzer Link: Unser Server ist gerade nicht erreichbar. Der lange Link funktioniert genauso.",
+      "st_shortLong": "Diese Karte geht als langer Link raus, ohne unseren Server.",
+      "st_k_arcade": "Spiel",
+      "st_k_photo": "Bild",
+      "st_k_sound": "Ton",
+      "st_free": "Frei für dich",
+      "st_micAsk": "Spracheingabe auf diesem Gerät prüfen",
+      "st_micNo": "Eine Spracheingabe, die auf dem Gerät bleibt, gibt es hier nicht. Die Diktierfunktion deiner Tastatur geht trotzdem.",
+      "st_shortDay": "Schon beim Tippen auf „Fertig“ angelegt. Öffnet ihn niemand, löscht unser Server den kurzen Link nach 24 Stunden; ab dem ersten Öffnen bleibt er 90 Tage. Löschen: Meine Wand.",
+      "st_report": "Melden",
+      "st_copied": "Link kopiert."
+    },
+    "en": {
+      "st_ask": "Who do you want to make happy today?",
+      "st_field": "Say in one sentence what you have in mind",
+      "st_hint": "Thanks, Grandma",
+      "st_go": "Next",
+      "st_mic": "Voice input",
+      "st_micOn": "Listening …",
+      "st_micOff": "Voice input does not work here right now.",
+      "st_gruss": "Send a greeting",
+      "st_gruss_s": "Thanks, get well, just because",
+      "st_planen": "Plan together",
+      "st_planen_s": "Date, poll, Secret Santa",
+      "st_spielen": "Play against each other",
+      "st_spielen_s": "Quiz, draw & guess, duel",
+      "st_stimme": "Voice",
+      "st_stimme_s": "Monster, hamster, robot",
+      "st_all": "All cards",
+      "st_gallery": "More from bunsenbrenner",
+      "st_title": "Your card",
+      "st_what": "What do you have in mind?",
+      "st_heard": "This is how I understand you",
+      "st_change": "Not right? Change",
+      "st_pick": "What fits better?",
+      "st_for": "For: {n}",
+      "st_becomes": "This becomes",
+      "st_more": "Also fits",
+      "st_exact": "Fits exactly",
+      "st_near": "Fits roughly",
+      "st_none": "I have no card for that yet. Try another word or tap “Change”.",
+      "st_missing": "{w}: not here yet. Instead:",
+      "st_empty": "Write a sentence or pick an idea below.",
+      "st_ideas": "Or start with an idea",
+      "st_ex1": "Thank you to Grandma",
+      "st_ex2": "A date for games night",
+      "st_ex3": "A quiz about our family",
+      "st_make": "Make the card",
+      "st_local": "Your sentence stays on the device. Only at “Done” do we make a short link to your card.",
+      "st_from": "From {n}, for you",
+      "st_self": "Make one yourself",
+      "st_reply": "Reply",
+      "st_play": "Play along",
+      "st_done": "Done. Who gets it?",
+      "st_sendTo": "Send to {n}",
+      "st_copy": "Copy link",
+      "st_acc": "So it does not get lost. With an account it is on your tablet too. Works without one as well.",
+      "st_accPhoto": "With an account your nickname, style and other cards are on your tablet too. Your photo stays on this device only. Works without one as well.",
+      "st_accGo": "Create an account",
+      "st_shortOk": "Short link made at “Done”, up to 90 days on our server. Delete it: My wall.",
+      "st_shortWait": "The short link is being made. If you tap now, the long link goes out. It works just the same.",
+      "st_shortNo": "No short link: our server cannot be reached right now. The long link works just the same.",
+      "st_shortLong": "This card goes out as a long link, without our server.",
+      "st_k_arcade": "Game",
+      "st_k_photo": "Picture",
+      "st_k_sound": "Sound",
+      "st_free": "Free for you",
+      "st_micAsk": "Check voice input on this device",
+      "st_micNo": "There is no voice input here that stays on the device. Your keyboard's dictation still works.",
+      "st_shortDay": "Already made when you tapped “Done”. If nobody opens it, our server deletes the short link after 24 hours; from the first open it stays 90 days. Delete it: My wall.",
+      "st_report": "Report",
+      "st_copied": "Link copied."
+    }
   }
- },
- "cards": {
-  "danke": [
-   "warm-danke"
-  ],
-  "dank": [
-   "warm-danke"
-  ],
-  "thank": [
-   "warm-danke"
-  ],
-  "besserung": [
-   "warm-besserung"
-  ],
-  "krank": [
-   "warm-besserung"
-  ],
-  "gesund": [
-   "warm-besserung"
-  ],
-  "sorry": [
-   "warm-sorry"
-  ],
-  "entschuldig": [
-   "warm-sorry"
-  ],
-  "leid$": [
-   "warm-sorry"
-  ],
-  "stolz": [
-   "warm-mutig"
-  ],
-  "mutig": [
-   "warm-mutig"
-  ],
-  "proud": [
-   "warm-mutig"
-  ],
-  "daumen": [
-   "warm-daumen"
-  ],
-  "pruefung": [
-   "warm-daumen"
-  ],
-  "glueck": [
-   "warm-daumen"
-  ],
-  "luck": [
-   "warm-daumen"
-  ],
-  "denk": [
-   "warm-denke"
-  ],
-  "vermiss": [
-   "warm-denke"
-  ],
-  "miss$": [
-   "warm-denke"
-  ],
-  "gruss": [
-   "warm-gruss"
-  ],
-  "gruess": [
-   "warm-gruss"
-  ],
-  "grues": [
-   "warm-gruss"
-  ],
-  "hallo$": [
-   "warm-gruss"
-  ],
-  "hello": [
-   "warm-gruss"
-  ],
-  "greet": [
-   "warm-gruss"
-  ],
-  "sonntag": [
-   "warm-gruss"
-  ],
-  "toll": [
-   "warm-toll"
-  ],
-  "lach": [
-   "warm-lachen"
-  ],
-  "laugh": [
-   "warm-lachen"
-  ],
-  "geschafft": [
-   "warm-super"
-  ],
-  "super$": [
-   "warm-super"
-  ],
-  "einlad": [
-   "karte-einladung"
-  ],
-  "invit": [
-   "karte-einladung"
-  ],
-  "termin": [
-   "zug-termin"
-  ],
-  "wann": [
-   "zug-termin"
-  ],
-  "datum": [
-   "zug-termin"
-  ],
-  "treffen": [
-   "zug-termin"
-  ],
-  "verabred": [
-   "zug-termin"
-  ],
-  "schedul": [
-   "zug-termin"
-  ],
-  "date$": [
-   "zug-termin"
-  ],
-  "meet": [
-   "zug-termin"
-  ],
-  "einkauf": [
-   "zug-einkauf"
-  ],
-  "mitbring": [
-   "zug-einkauf"
-  ],
-  "shopping": [
-   "zug-einkauf"
-  ],
-  "zettel": [
-   "zug-einkauf"
-  ],
-  "wichtel": [
-   "zug-wichteln"
-  ],
-  "santa": [
-   "zug-wichteln"
-  ],
-  "abstimm": [
-   "zug-einig"
-  ],
-  "umfrage": [
-   "zug-einig"
-  ],
-  "einig": [
-   "zug-einig"
-  ],
-  "vote": [
-   "zug-einig"
-  ],
-  "poll": [
-   "zug-einig"
-  ],
-  "geld": [
-   "zug-sammeln"
-  ],
-  "sammel": [
-   "zug-sammeln"
-  ],
-  "kasse": [
-   "zug-sammeln"
-  ],
-  "collect": [
-   "zug-sammeln"
-  ],
-  "malen": [
-   "zug-malrat"
-  ],
-  "zeichn": [
-   "zug-malrat"
-  ],
-  "draw": [
-   "zug-malrat"
-  ],
-  "quiz": [
-   "zug-kennst",
-   "zug-quiz"
-  ],
-  "kennst": [
-   "zug-kennst"
-  ],
-  "lern": [
-   "zug-quiz"
-  ],
-  "vokabel": [
-   "zug-abfragen"
-  ],
-  "skat": [
-   "tisch-skat"
-  ],
-  "doppelkopf": [
-   "tisch-doko"
-  ],
-  "doko": [
-   "tisch-doko"
-  ],
-  "dart": [
-   "spiel-dart"
-  ],
-  "fussball": [
-   "arcade-elfer"
-  ],
-  "elfer": [
-   "arcade-elfer"
-  ],
-  "kicker": [
-   "arcade-kick"
-  ],
-  "volley": [
-   "arcade-volley"
-  ],
-  "hockey": [
-   "arcade-puck"
-  ],
-  "puck": [
-   "arcade-puck"
-  ],
-  "flipper": [
-   "arcade-flipper"
-  ],
-  "murmel": [
-   "arcade-murmel"
-  ],
-  "ziegel": [
-   "arcade-ziegel"
-  ],
-  "mauer": [
-   "arcade-ziegel"
-  ],
-  "schere": [
-   "duell-ssp"
-  ],
-  "verzerr": [
-   "stimme-verzerren",
-   "stimme-monster"
-  ],
-  "monster": [
-   "stimme-monster"
-  ],
-  "hamster": [
-   "stimme-maus"
-  ],
-  "helium": [
-   "stimme-maus"
-  ],
-  "robot": [
-   "stimme-robo"
-  ],
-  "roboter": [
-   "stimme-robo"
-  ],
-  "beat": [
-   "beat-pausenhof"
-  ],
-  "kartensp": [
-   "tisch-skat",
-   "tisch-doko"
-  ],
-  "bring": [
-   "zug-einkauf"
-  ],
-  "advent": [
-   "zug-advent",
-   "advent-tuer"
-  ]
- },
- "missing": {
-  "geburtstag": {
-   "de": "Eine Geburtstagskarte",
-   "en": "A birthday card"
-  },
-  "birthday": {
-   "de": "Eine Geburtstagskarte",
-   "en": "A birthday card"
-  },
-  "glueckwunsch": {
-   "de": "Eine Glückwunschkarte",
-   "en": "A congratulations card"
-  },
-  "hochzeit": {
-   "de": "Eine Hochzeitskarte",
-   "en": "A wedding card"
-  },
-  "ostern": {
-   "de": "Eine Osterkarte",
-   "en": "An Easter card"
-  },
-  "dart": {
-   "de": "Dart",
-   "en": "Darts",
-   "sport": true
-  },
-  "bowling": {
-   "de": "Bowling",
-   "en": "Bowling",
-   "sport": true
-  },
-  "tennis": {
-   "de": "Tennis",
-   "en": "Tennis",
-   "sport": true
-  },
-  "minigolf": {
-   "de": "Minigolf",
-   "en": "Mini golf",
-   "sport": true
-  },
-  "schach": {
-   "de": "Schach",
-   "en": "Chess"
-  },
-  "chess": {
-   "de": "Schach",
-   "en": "Chess"
-  },
-  "poker": {
-   "de": "Poker",
-   "en": "Poker"
-  },
-  "sudoku": {
-   "de": "Sudoku",
-   "en": "Sudoku"
-  }
- },
- "who": {
-  "oma": {
-   "de": "Oma",
-   "en": "Grandma",
-   "call": true
-  },
-  "grandma": {
-   "de": "Oma",
-   "en": "Grandma",
-   "call": true
-  },
-  "omi": {
-   "de": "Omi",
-   "en": "Granny",
-   "call": true
-  },
-  "opa": {
-   "de": "Opa",
-   "en": "Grandpa",
-   "call": true
-  },
-  "grandpa": {
-   "de": "Opa",
-   "en": "Grandpa",
-   "call": true
-  },
-  "mama": {
-   "de": "Mama",
-   "en": "Mum",
-   "call": true
-  },
-  "mutter": {
-   "de": "Mama",
-   "en": "Mum",
-   "call": true
-  },
-  "mum": {
-   "de": "Mama",
-   "en": "Mum",
-   "call": true
-  },
-  "mom": {
-   "de": "Mama",
-   "en": "Mom",
-   "call": true
-  },
-  "papa": {
-   "de": "Papa",
-   "en": "Dad",
-   "call": true
-  },
-  "vater": {
-   "de": "Papa",
-   "en": "Dad",
-   "call": true
-  },
-  "dad": {
-   "de": "Papa",
-   "en": "Dad",
-   "call": true
-  },
-  "schatz": {
-   "de": "Schatz",
-   "en": "Darling",
-   "call": true
-  },
-  "bruder": {
-   "de": "Bruder",
-   "en": "brother"
-  },
-  "brother": {
-   "de": "Bruder",
-   "en": "brother"
-  },
-  "schwester": {
-   "de": "Schwester",
-   "en": "sister"
-  },
-  "sister": {
-   "de": "Schwester",
-   "en": "sister"
-  },
-  "tante": {
-   "de": "Tante",
-   "en": "aunt"
-  },
-  "onkel": {
-   "de": "Onkel",
-   "en": "uncle"
-  },
-  "freundin": {
-   "de": "Freundin",
-   "en": "friend"
-  },
-  "freund": {
-   "de": "Freund",
-   "en": "friend"
-  },
-  "friend": {
-   "de": "Freund",
-   "en": "friend"
-  },
-  "kolleg": {
-   "de": "Kollegen",
-   "en": "colleagues"
-  },
-  "colleague": {
-   "de": "Kollegen",
-   "en": "colleagues"
-  },
-  "chef": {
-   "de": "Chef",
-   "en": "boss"
-  },
-  "chefin": {
-   "de": "Chefin",
-   "en": "boss"
-  },
-  "nachbar": {
-   "de": "Nachbarn",
-   "en": "neighbours"
-  },
-  "enkel$": {
-   "de": "Enkel",
-   "en": "grandchild"
-  },
-  "enkelin": {
-   "de": "Enkelin",
-   "en": "granddaughter"
-  },
-  "tochter": {
-   "de": "Tochter",
-   "en": "daughter"
-  },
-  "sohn": {
-   "de": "Sohn",
-   "en": "son"
-  },
-  "familie": {
-   "de": "Familie",
-   "en": "family"
-  },
-  "family": {
-   "de": "Familie",
-   "en": "family"
-  },
-  "clique": {
-   "de": "Clique",
-   "en": "friends"
-  },
-  "gruppe": {
-   "de": "Gruppe",
-   "en": "group"
-  },
-  "group": {
-   "de": "Gruppe",
-   "en": "group"
-  },
-  "klasse$": {
-   "de": "Klasse",
-   "en": "class"
-  },
-  "team$": {
-   "de": "Team",
-   "en": "team"
-  },
-  "eltern": {
-   "de": "Eltern",
-   "en": "parents"
-  },
-  "kinder$": {
-   "de": "Kinder",
-   "en": "kids"
-  }
- },
- "texts": {
-  "de": {
-   "st_ask": "Wem willst du heute eine Freude machen?",
-   "st_field": "Sag in einem Satz, was du vorhast",
-   "st_hint": "Danke an Oma",
-   "st_go": "Weiter",
-   "st_mic": "Spracheingabe",
-   "st_micOn": "Ich höre zu …",
-   "st_micOff": "Spracheingabe geht hier gerade nicht.",
-   "st_gruss": "Gruß schicken",
-   "st_gruss_s": "Danke, Besserung, einfach so",
-   "st_planen": "Zusammen planen",
-   "st_planen_s": "Termin, Umfrage, Wichteln",
-   "st_spielen": "Gegeneinander spielen",
-   "st_spielen_s": "Quiz, Mal & Rat, Duell",
-   "st_stimme": "Stimme",
-   "st_stimme_s": "Monster, Hamster, Roboter",
-   "st_all": "Alle Karten",
-   "st_title": "Deine Karte",
-   "st_what": "Was hast du vor?",
-   "st_heard": "So verstehe ich dich",
-   "st_change": "Stimmt nicht? Ändern",
-   "st_pick": "Was passt besser?",
-   "st_for": "Für: {n}",
-   "st_becomes": "Daraus wird",
-   "st_more": "Passt auch",
-   "st_exact": "Passt genau",
-   "st_near": "Passt ungefähr",
-   "st_none": "Dazu habe ich noch keine passende Karte. Probier ein anderes Wort oder tippe auf „Ändern“.",
-   "st_missing": "{w} habe ich noch nicht. Stattdessen:",
-   "st_empty": "Schreib einen Satz oder wähle unten eine Idee.",
-   "st_ideas": "Oder los mit einer Idee",
-   "st_ex1": "Danke an Oma",
-   "st_ex2": "Termin für den Spieleabend",
-   "st_ex3": "Quiz über unsere Familie",
-   "st_make": "Karte machen",
-   "st_local": "Dein Satz bleibt auf dem Gerät. Erst bei „Fertig“ legen wir einen kurzen Link zu deiner Karte an.",
-   "st_from": "Von {n}, für dich",
-   "st_self": "Selbst eine machen",
-   "st_reply": "Antworten",
-   "st_play": "Mitspielen",
-   "st_done": "Fertig. Wer bekommt sie?",
-   "st_sendTo": "An {n} schicken",
-   "st_copy": "Link kopieren",
-   "st_acc": "Damit sie dir nicht verloren geht. Mit einem Konto liegt sie auch auf deinem Tablet. Geht auch ohne.",
-   "st_accPhoto": "Mit einem Konto hast du Spitzname, Stil und deine anderen Karten auch auf dem Tablet. Dein Foto bleibt nur auf diesem Gerät. Geht auch ohne.",
-   "st_accGo": "Konto anlegen",
-   "st_shortOk": "Kurzer Link bei „Fertig“ angelegt, bis zu 90 Tage auf unserem Server. Löschen: Meine Wand.",
-   "st_shortWait": "Der kurze Link wird gerade angelegt. Tippst du jetzt, geht der lange Link raus. Er funktioniert genauso.",
-   "st_shortNo": "Kein kurzer Link: Unser Server ist gerade nicht erreichbar. Der lange Link funktioniert genauso.",
-   "st_shortLong": "Diese Karte geht als langer Link raus, ohne unseren Server.",
-   "st_k_arcade": "Spiel",
-   "st_k_photo": "Bild",
-   "st_k_sound": "Ton",
-   "st_free": "Frei für dich",
-   "st_micAsk": "Spracheingabe auf diesem Gerät prüfen",
-   "st_micNo": "Eine Spracheingabe, die auf dem Gerät bleibt, gibt es hier nicht. Die Diktierfunktion deiner Tastatur geht trotzdem.",
-   "st_shortDay": "Schon beim Tippen auf „Fertig“ angelegt. Öffnet ihn niemand, löscht unser Server den kurzen Link nach 24 Stunden; ab dem ersten Öffnen bleibt er 90 Tage. Löschen: Meine Wand.",
-   "st_report": "Melden",
-   "st_copied": "Link kopiert."
-  },
-  "en": {
-   "st_ask": "Who do you want to make happy today?",
-   "st_field": "Say in one sentence what you have in mind",
-   "st_hint": "Thanks, Grandma",
-   "st_go": "Next",
-   "st_mic": "Voice input",
-   "st_micOn": "Listening …",
-   "st_micOff": "Voice input does not work here right now.",
-   "st_gruss": "Send a greeting",
-   "st_gruss_s": "Thanks, get well, just because",
-   "st_planen": "Plan together",
-   "st_planen_s": "Date, poll, Secret Santa",
-   "st_spielen": "Play against each other",
-   "st_spielen_s": "Quiz, draw & guess, duel",
-   "st_stimme": "Voice",
-   "st_stimme_s": "Monster, hamster, robot",
-   "st_all": "All cards",
-   "st_title": "Your card",
-   "st_what": "What do you have in mind?",
-   "st_heard": "This is how I understand you",
-   "st_change": "Not right? Change",
-   "st_pick": "What fits better?",
-   "st_for": "For: {n}",
-   "st_becomes": "This becomes",
-   "st_more": "Also fits",
-   "st_exact": "Fits exactly",
-   "st_near": "Fits roughly",
-   "st_none": "I have no card for that yet. Try another word or tap “Change”.",
-   "st_missing": "{w}: not here yet. Instead:",
-   "st_empty": "Write a sentence or pick an idea below.",
-   "st_ideas": "Or start with an idea",
-   "st_ex1": "Thank you to Grandma",
-   "st_ex2": "A date for games night",
-   "st_ex3": "A quiz about our family",
-   "st_make": "Make the card",
-   "st_local": "Your sentence stays on the device. Only at “Done” do we make a short link to your card.",
-   "st_from": "From {n}, for you",
-   "st_self": "Make one yourself",
-   "st_reply": "Reply",
-   "st_play": "Play along",
-   "st_done": "Done. Who gets it?",
-   "st_sendTo": "Send to {n}",
-   "st_copy": "Copy link",
-   "st_acc": "So it does not get lost. With an account it is on your tablet too. Works without one as well.",
-   "st_accPhoto": "With an account your nickname, style and other cards are on your tablet too. Your photo stays on this device only. Works without one as well.",
-   "st_accGo": "Create an account",
-   "st_shortOk": "Short link made at “Done”, up to 90 days on our server. Delete it: My wall.",
-   "st_shortWait": "The short link is being made. If you tap now, the long link goes out. It works just the same.",
-   "st_shortNo": "No short link: our server cannot be reached right now. The long link works just the same.",
-   "st_shortLong": "This card goes out as a long link, without our server.",
-   "st_k_arcade": "Game",
-   "st_k_photo": "Picture",
-   "st_k_sound": "Sound",
-   "st_free": "Free for you",
-   "st_micAsk": "Check voice input on this device",
-   "st_micNo": "There is no voice input here that stays on the device. Your keyboard's dictation still works.",
-   "st_shortDay": "Already made when you tapped “Done”. If nobody opens it, our server deletes the short link after 24 hours; from the first open it stays 90 days. Delete it: My wall.",
-   "st_report": "Report",
-   "st_copied": "Link copied."
-  }
- }
 }

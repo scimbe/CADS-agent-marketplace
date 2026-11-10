@@ -57,15 +57,15 @@ test("Wohlfuehlkarte auf Deutsch geschickt, Empfaenger tippt English: der Satz s
   assert.equal((await r.evaluate(() => window.__x)).pop(), "Lea, ich wollte dir nur mal sagen: Du bist toll.");
 
   // Eine normale Spruchkarte, auf Deutsch geschickt: nach "English" zeigt auch der Editor (Remix) den englischen Satz.
-  const k = await open("#i=karte-spruch");
+  const k = await open("#i=karte-einladung");
   await k.locator("#go").click(); await k.locator("#edmain").click(); await k.locator("#share").waitFor();
   const ku = await k.evaluate(() => window.DailyDebug.result().url);
-  assert.equal(await k.evaluate(() => window.DailyDebug.result().keep.doc.x), "Heute nicht.");
+  assert.equal(await k.evaluate(() => window.DailyDebug.result().keep.doc.x), "Heute. Wir. Kein Plan.");   // karte-einladung (karte-spruch was struck, 2026-11)
   const q = await open(ku.slice(ku.indexOf("#")));
   await q.locator("#langpick button", { hasText: "English" }).click();
   await q.locator("#go").click();
   await q.waitForFunction(() => window.DailyDebug.doc());
-  assert.equal(await q.evaluate(() => window.DailyDebug.doc().x), "Not today.");
+  assert.equal(await q.evaluate(() => window.DailyDebug.doc().x), "Today. Us. No plan.");
   assert.deepEqual(errs, []); await b.close();
 });
 test("Wohlfuehlkarte: Beleidigung als Name wird gemeldet und nicht verschickt; Wuerfel laesst sie warm; ruhig ohne Bewegung", async () => {
@@ -87,4 +87,22 @@ test("Wohlfuehlkarte: Beleidigung als Name wird gemeldet und nicht verschickt; W
   assert.equal(await r.locator("#leaf").evaluate((e) => getComputedStyle(e).animationName), "none");
   assert.equal(await r.locator("#leaf .wh").first().isVisible(), false);
   assert.deepEqual(errs, []); await b.close();
+});
+
+test("Kontaktdaten (P-D): Nummer, Handle oder Mail als Name bekommt einen freundlichen eigenen Hinweis und geht nicht mit; ein Schimpfwort den alten", async () => {
+  const { b, open, errs } = await setup("reduce");
+  try {
+    const s = await open("#i=warm-denke");
+    for (const v of ["0176 12345678", "@lea_2011", "lea@gmx.de"]) {
+      await s.locator("#warmname").fill(v);
+      await s.locator(".warmwarn").filter({ hasText: "Nummern, Mail-Adressen, Konto-Namen und Links bleiben draußen" }).waitFor({ timeout: 3000 });
+    }
+    await s.locator("#go").click();
+    assert.equal(await s.locator("#home").isVisible(), true, "nichts wird fertig, die Nummer geht nicht mit");
+    await s.locator("#warmname").fill("Lea");
+    assert.equal(await s.locator(".warmwarn").textContent(), "", "ein Name ist kein Kontakt");
+    await s.locator("#warmname").fill("Arschloch");
+    await s.locator(".warmwarn").filter({ hasText: "Das lassen wir lieber weg." }).waitFor();
+    assert.deepEqual(errs, []);
+  } finally { await b.close(); }
 });

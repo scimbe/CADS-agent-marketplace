@@ -153,7 +153,7 @@
           return true;
         },
         engine: function () { return eng; },
-        // For a feature that uses the channel instead of the editor sync, one at a time (callcard-ui.js).
+        // For a feature that uses the channel instead of the editor sync, one at a time (the call card did, until 2026-11).
         channel: {
           bridged: bridged, ready: ready, busy: function () { return phase !== "off" || !!claimed; }, sheet: sheet, close: closeSheet,
           btn: btn, link: function (frag) { return LINK + frag; },

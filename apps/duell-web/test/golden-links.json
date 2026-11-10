@@ -771,6 +771,61 @@
     "st": "zettel",
     "sk": []
    }
+  },
+  {
+   "name": "lauf:bruecken-herausforderung",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJsYXVmIiwiY29sIjpbIiMyYjRiZmYiLCIjZmZlNjAwIl0sImJ5IjpbeyJuIjoiTW8iLCJ3IjpbInJlZ2VsbiJdfV0sInQiOiJCcsO8Y2tlbmxhdWYiLCJraSI6eyJrIjoia2FydGUiLCJzIjoiczIua2FydGUubXczYWJjZGUuQW5sUlFiOWpKWXJMSUxNUkJ0Smo3eVIxcWxoSkYwRVIiLCJoIjoiaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaCJ9LCJsIjp7Im0iOiJlbmRsb3MiLCJzZWVkIjoxMjM0NSwidyI6ImJydWVja2UiLCJlIjoi8J-miiIsIm8iOiLwn5OmIiwiYyI6IvCfqpkiLCJmIjoi8J-QjCIsImZwIjpbImdlaCIsImZsdWciXSwicCI6eyJnIjoyMDAwLCJqIjo3MDAsInYiOjIwMCwiYSI6OSwidm0iOjM2MCwibHUiOjQ1LCJsdyI6NzUsImhpIjo0MCwiZHUiOjAsIm11Ijo2MCwiZ2UiOjMwLCJmYSI6MCwiaHYiOjM1LCJsZW4iOjcwMH0sInIiOjMyMX19fQ",
+   "doc": {
+    "k": "lauf",
+    "col": [
+     "#2b4bff",
+     "#ffe600"
+    ],
+    "by": [
+     {
+      "n": "Mo",
+      "w": [
+       "regeln"
+      ]
+     }
+    ],
+    "t": "Brückenlauf",
+    "ki": {
+     "k": "karte",
+     "s": "s2.karte.mw3abcde.AnlRQb9jJYrLILMRBtJj7yR1qlhJF0ER",
+     "h": "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh"
+    },
+    "l": {
+     "m": "endlos",
+     "seed": 12345,
+     "w": "bruecke",
+     "e": "🦊",
+     "o": "📦",
+     "c": "🪙",
+     "f": "🐌",
+     "fp": [
+      "geh",
+      "flug"
+     ],
+     "p": {
+      "g": 2000,
+      "j": 700,
+      "v": 200,
+      "a": 9,
+      "vm": 360,
+      "lu": 45,
+      "lw": 75,
+      "hi": 40,
+      "du": 0,
+      "mu": 60,
+      "ge": 30,
+      "fa": 0,
+      "hv": 35,
+      "len": 700
+     },
+     "r": 321
+    }
+   }
   }
  ]
 }
