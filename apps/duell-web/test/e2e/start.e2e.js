@@ -49,6 +49,28 @@ const tileOverlap = (p) => p.evaluate(() => {
   return bad;
 });
 const hscroll = (p) => p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 0.5 || document.getElementById("home").scrollWidth > document.getElementById("home").clientWidth + 0.5);
+// The start begins on the first screen (its question visible), and each tile is reachable below it: scrolled to, it is
+// fully in view and nothing lies over it (10 Nov: the tiles left the first screen for the day's picture or game).
+async function startBegins(p) {
+  const out = [];
+  const q = await p.evaluate(() => { const r = document.getElementById("starth").getBoundingClientRect(); return { top: r.top, h: innerHeight }; });
+  if (!(q.top < q.h - 24)) out.push("Start beginnt nicht im ersten Bild (Frage bei " + Math.round(q.top) + " von " + q.h + ")");
+  for (const k of ["gruss", "planen", "spielen", "stimme"]) {
+    const ok = await p.evaluate((k) => {
+      const e = document.querySelector(".sttile[data-i=" + k + "]"); e.scrollIntoView({ block: "nearest" });
+      const r = e.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return r.top >= 0 && r.bottom <= innerHeight + 0.5 && !!hit && (hit === e || e.contains(hit));
+    }, k);
+    if (!ok) out.push("Kachel " + k + " nicht erreichbar");
+  }
+  await p.evaluate(() => document.getElementById("home").scrollTo(0, 0));
+  return out;
+}
+// The day's preview (game or picture) is there and drawn: its box has a real height on the first screen.
+const preview = (p) => p.evaluate(() => {
+  const e = document.getElementById("pv"), r = e.getClientRects().length ? e.getBoundingClientRect() : null;
+  return { kind: e.classList.contains("pic") ? "Bild" : "Spiel", h: r ? Math.round(r.height) : 0, top: r ? Math.round(r.top) : -1, bottom: r ? Math.round(r.bottom) : -1, ih: innerHeight, disp: getComputedStyle(e).display };
+});
 // A stand-in for SpeechRecognition: state is what available() answers; it records what was asked and whether it listened.
 function speech(state) {
   window.__sr = { asked: null, started: 0, local: null };
@@ -238,16 +260,18 @@ test("Review #185: Feld bei 200 % auf dem Handy breit genug, Tageskarte bei 150 
     (await G.smallTargets(p, "#startbox")).forEach((v) => bad.push(view + " zu klein: " + v));
     assert.deepEqual(p.errs, [], view); await ctx.close();
   }
-  // 360x800 (Galaxy A, common) and 360x780 (Galaxy S24): the day's title (minimum content), both rows of tiles and the
-  // day's main button on the first screen; where room is short the tiles get flatter, never the title goes
-  // the same on a day with a live card (9 Nov), whose extra row under the sheet (Look würfeln / Anruf öffnen) the tiles make room for
+  // 360x800 (Galaxy A, common) and 360x780 (Galaxy S24): the day's title (minimum content) and the day's main button on the
+  // first screen, the start begins on it (its question visible) and its tiles are reachable below; never the title goes.
+  // Since 10 Nov the day's card keeps its game or picture (the ritual): all four tiles on the first screen as well left the
+  // sheet under 250 px, where @container hid the preview (Netz Volley at 375x812). The same on a day with a live card (9 Nov).
   for (const day of [DAY, LIVE, AUKTION]) for (const h of [780, 800]) {
     const tag = "360x" + h + " " + day.slice(5, 10) + ": ";
     G.VIEWS["p360h" + h] = { viewport: { width: 360, height: h }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
     const c3 = await G.person(b, { lang: "de", view: "p360h" + h, time: day }); await c3.route(/^https?:/, (r) => r.abort());
     const q = await G.open(c3, ""); await q.locator("#startbox").waitFor(); await q.waitForTimeout(300);
     if (day === LIVE) assert.equal(await q.locator("#livego").isVisible(), true, tag + "Live-Zeile sichtbar");
-    for (const sel of ["#hero", "#go", ".sttile[data-i=gruss]", ".sttile[data-i=planen]", ".sttile[data-i=spielen]", ".sttile[data-i=stimme]"]) if (!(await G.inView(q, sel))) bad.push(tag + "nicht im ersten Bild: " + sel);
+    for (const sel of ["#hero", "#go"]) if (!(await G.inView(q, sel))) bad.push(tag + "nicht im ersten Bild: " + sel);
+    (await startBegins(q)).forEach((v) => bad.push(tag + v));
     const t = await q.evaluate(() => { const e = document.getElementById("hero"); const r = e.getBoundingClientRect(); return { h: r.height, txt: e.textContent.trim(), vis: getComputedStyle(e).visibility, disp: getComputedStyle(e).display }; });
     if (!t.txt || t.h < 16 || t.vis !== "visible" || t.disp === "none") bad.push(tag + "Titel der Tageskarte fehlt " + JSON.stringify(t));
     // readable, not only present: every title line at least 14 px (readers up to 85; it shrank to 10.2 px on 11 Nov)
@@ -257,13 +281,14 @@ test("Review #185: Feld bei 200 % auf dem Handy breit genug, Tageskarte bei 150 
     if (tile < 44) bad.push(tag + "Kachel " + tile + " px");
     assert.deepEqual(q.errs, []); await c3.close();
   }
-  // 390x844 as on the canvas: the four tiles and the day's main button on the first screen (also with a live card), the start on cream
+  // 390x844: the day's main button (and the live row) on the first screen, the start begins on it, its tiles reachable below
   for (const day of [LIVE, AUKTION]) {
     const c4 = await G.person(b, { lang: "de", view: "phone390", time: day }); await c4.route(/^https?:/, (r) => r.abort());
     const q = await G.open(c4, ""); await q.locator("#startbox").waitFor(); await q.waitForTimeout(300);
     const tag = "390x844 " + day.slice(5, 10) + ": ";
     assert.equal(await q.locator("#livego").isVisible(), true, tag + "Live-Zeile sichtbar");
-    for (const sel of ["#hero", "#go", "#livego", ".sttile[data-i=gruss]", ".sttile[data-i=planen]", ".sttile[data-i=spielen]", ".sttile[data-i=stimme]"]) if (!(await G.inView(q, sel))) bad.push(tag + "nicht im ersten Bild: " + sel);
+    for (const sel of ["#hero", "#go", "#livego"]) if (!(await G.inView(q, sel))) bad.push(tag + "nicht im ersten Bild: " + sel);
+    (await startBegins(q)).forEach((v) => bad.push(tag + v));
     const fs = await q.evaluate(() => Math.min(...[...document.getElementById("hero").children].map((e) => parseFloat(getComputedStyle(e).fontSize))));
     if (!(fs >= 14)) bad.push(tag + "Titel nur " + fs + " px");
     (await G.smallTargets(q, "#startbox")).forEach((v) => bad.push(tag + "zu klein: " + v));
@@ -271,7 +296,8 @@ test("Review #185: Feld bei 200 % auf dem Handy breit genug, Tageskarte bei 150 
   }
   const ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY }); await ctx.route(/^https?:/, (r) => r.abort());
   const p = await G.open(ctx, ""); await p.locator("#startbox").waitFor(); await p.waitForTimeout(300);
-  for (const sel of ["#go", ".sttile[data-i=gruss]", ".sttile[data-i=planen]", ".sttile[data-i=spielen]", ".sttile[data-i=stimme]"]) if (!(await G.inView(p, sel))) bad.push("390x844: nicht im ersten Bild: " + sel);
+  for (const sel of ["#go", "#satz"]) if (!(await G.inView(p, sel))) bad.push("390x844: nicht im ersten Bild: " + sel);
+  (await startBegins(p)).forEach((v) => bad.push("390x844: " + v));
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById("startbox")).backgroundColor), "rgb(251, 245, 221)", "Creme #FBF5DD");
   // below the first screen now: Nächster Tag, Selber bauen, Letzte Tage, Meine Wand (#tools) and "Alle Karten"; reachable:
   await p.locator("#past").click(); await p.locator("#shelf:not([hidden]) #pastq").waitFor();
@@ -279,6 +305,39 @@ test("Review #185: Feld bei 200 % auf dem Handy breit genug, Tageskarte bei 150 
   // a tile: the focus goes along to the sheet
   await p.locator(".sttile[data-i=planen]").click(); await p.waitForFunction(() => document.activeElement && document.activeElement.id === "shtitle");
   assert.deepEqual(p.errs, []); await b.close();
+  assert.deepEqual(bad, []);
+});
+
+test("Tageskarte auf dem Handy zeigt ihr Spiel oder Bild (10. Nov.: Netz Volley ohne Vorschau bei 375x812); Spielen im ersten Bild, kein Querscrollen", async () => {
+  ensureBuilt("");
+  const b = await G.launch(), bad = [];
+  try {
+  // 10 Nov: a game (canvas), Netz Volley; 19 Nov: a picture ("Mein Bot sagt"), whose preview was gone at 360x780
+  const SIZES = { p375: [375, 812], p360h780: [360, 780], p320: [320, 568], p414: [414, 896] };
+  // the day's picture comes from the image host: a local stand-in answers it (nothing else leaves)
+  const q0 = await b.newPage(); await q0.setContent('<body style="margin:0;background:linear-gradient(90deg,#ffd400,#2b4bff)">'); await q0.setViewportSize({ width: 320, height: 180 });
+  const jpg = await q0.screenshot({ type: "jpeg" }); await q0.close();
+  for (const [day, kind] of [["2026-11-10T10:00:00Z", "Spiel"], ["2026-11-19T10:00:00Z", "Bild"]]) for (const [n, [w, h]] of Object.entries(SIZES)) {
+    G.VIEWS[n] = { viewport: { width: w, height: h }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
+    const ctx = await G.person(b, { lang: "de", view: n, time: day });
+    await ctx.route(/^https?:/, (r) => (/\/duell\/img\/[\w-]+\.jpg$/.test(r.request().url()) ? r.fulfill({ status: 200, headers: { "Content-Type": "image/jpeg", "Access-Control-Allow-Origin": "*" }, body: jpg }) : r.abort()));
+    const p = await G.open(ctx, ""); await p.locator("#startbox").waitFor();
+    // the picture is there once loaded (#pv.pic); a hidden preview may never ask for it, so wait at most 5 s and say so
+    if (kind === "Bild") await p.locator("#pv.pic").waitFor({ timeout: 5000 }).catch(() => bad.push(w + "x" + h + " " + day.slice(5, 10) + ": Bild nicht geladen"));
+    await p.waitForTimeout(300);
+    const tag = w + "x" + h + " " + day.slice(5, 10) + ": ", v = await preview(p);
+    if (v.kind !== kind) bad.push(tag + "erwartet " + kind + ", da ist " + v.kind);
+    // the reported bug: > 0; and more than a strip, where the screen is tall enough for the ritual (>= 701 px: >= 100 px)
+    if (!(v.h > 0) || (h > 700 && v.h < 100) || v.top < 0 || v.bottom > v.ih) bad.push(tag + "Vorschau " + JSON.stringify(v));
+    if (kind === "Spiel" && !(await p.evaluate(() => { const c = document.getElementById("pvcard"); return !!c && !c.hidden && c.getBoundingClientRect().height > 0; }))) bad.push(tag + "Spielbild nicht gezeichnet");
+    for (const sel of ["#hero", "#go"]) if (!(await G.inView(p, sel))) bad.push(tag + "nicht im ersten Bild: " + sel);
+    if (await hscroll(p)) bad.push(tag + "Querscrollen");
+    // where the screen allows, the sentence field follows on the first screen too (375x812, 414x896 on a game day)
+    if (kind === "Spiel" && (n === "p375" || n === "p414") && !(await G.inView(p, "#satz"))) bad.push(tag + "Satzfeld nicht im ersten Bild");
+    if (h > 700) (await startBegins(p)).forEach((x) => bad.push(tag + x));
+    assert.deepEqual(p.errs, [], tag); await ctx.close();
+  }
+  } finally { await b.close(); }
   assert.deepEqual(bad, []);
 });
 

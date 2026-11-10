@@ -99,6 +99,7 @@ test("Kern: nur die Haken; ohne Teil bleibt die Startseite wie sie war", () => {
   assert.match(app, /else \$\("home"\)\.classList\.toggle\("neu", !!\(window\.DailyParts \|\| \{\}\)\.start && !h\.note && !h\.doc\);/);
   assert.match(src("index.template.html"), /<div id="startslot" aria-hidden="true"><\/div>/);
   assert.match(src("style.css"), /#home\.neu #startslot\{display:block;min-height:30rem;background:#FBF5DD\}/);
+  assert.match(src("style.css"), /#home\.neu #pad\{flex:none;height:clamp\(27rem,calc\(100svh - 23rem\),34rem\)\}/, "jeder Tag behaelt ein Blatt, in dem Spiel oder Bild Platz hat (10. Nov.: das Spiel fehlte unter 250 px)");
   assert.match(src("style.css"), /#home\.neu:has\(\.pv\.pic,#warmto:not\(\[hidden\]\)\) #pad\{height:clamp\(15rem,58svh,34rem\)\}/, "Tage mit Bild oder Namensfeld behalten ein grosses Blatt");
   assert.match(src("start-ui.js"), /@media \(max-width:899px\) and \(min-height:701px\) and \(max-height:819px\)\{\.sttile\{min-height:72px\}\.sttile small\{display:none\}\}/, "unter 820 px Hoehe flachere Kacheln statt eines gestauchten Blatts");
   assert.match(src("start-ui.js"), /var slot = \$\("startslot"\); if \(slot\) slot\.replaceWith\(box\);/);
