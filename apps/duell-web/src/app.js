@@ -128,12 +128,22 @@ function protokollUrl() {
   var base = location.protocol === "https:" ? "" : new URL(C.DEFAULT_API).origin;
   return base + "/duell/protokoll?lang=" + Kit.lang;
 }
+// What a screen reader says for a drawn card: its own text (with the name in front), a game or an arcade duel its title.
+function cardName(doc) {
+  var s = doc.k === "game" ? doc.g && doc.g.title : doc.k === "arcade" ? "" : [doc.x, doc.y].filter(Boolean).join(" ");
+  var idea = !s && doc.i && D.byId(doc.i);
+  if (!s && idea) s = D.plainTitle(ideaText(idea).t);
+  return String(s || "").trim();
+}
+// The canvas keeps its card's name in _name; labels() then leaves it alone (without one it says "Vorschau").
+function nameCanvas(c, name) { c._name = name || ""; c.setAttribute("role", "img"); c.setAttribute("aria-label", name || t("a_preview")); }
 // The day is shown as the real thing: a game flies by itself (on the greyed sheet it stands still), everything else is
 // drawn like its finished picture.
 function preview(root, doc, still) {
   var box = root.querySelector(".pv"), g = root.querySelector(".pvgame"), c = root.querySelector(".pvcard");
   if (!still) G.stopDemo();
   g.hidden = c.hidden = true; box.hidden = false;
+  var name = cardName(doc); nameCanvas(g, name); nameCanvas(c, name);
   try {
     if (doc.k === "game") { g.hidden = false; var st = C.sanitizeState(Object.assign({ v: 1 }, doc.g)); if (still) G.still(g, st); else G.demo(g, st); return; }
     c.hidden = false;
@@ -820,7 +830,7 @@ async function makePicture(doc, idea, pictureDoc) {
   var made = pictureDoc || doc;
   wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c), k: made.k === "photo" || photo ? "photo" : made.k }); store.wall = wall; Kit.save();
   if (!Kit.persisted) Kit.toast(t("wallFull"));
-  var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png);
+  var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png); img.alt = cardName(made) || t("a_preview");
   $("playit").hidden = true;   // a card is not a level: whoever does not fly far would never see it
   stopSound(); G.stop(); labels(); show("done", true); Kit.sfx.win();
   if (window.Klang || (doc.k === "sound" && doc.m === "voice")) window.Parts.use("klang", function () { window.Klang.done(result); }).catch(function () {});
@@ -1101,7 +1111,7 @@ function labels() {
   feats(); $("brand").textContent = t("brand"); $("lang").textContent = Kit.lang.toUpperCase(); $("me").textContent = me.emoji;
   // Screen reader names in the language of the page (the template holds the German ones until this runs).
   [["lang", "a_lang"], ["mute", "a_mute"], ["me", "style"], ["edstyle", "style"], ["pvgame", "a_preview"], ["pvcard", "a_preview"], ["stage", "a_preview"], ["demo", "a_gamePreview"],
-    ["feat", "a_feat"], ["edback", "a_close"], ["shback", "a_close"], ["gback", "a_close"], ["edsave", "a_keep"], ["cv", "a_field"], ["coqr", "a_qr"]].forEach(function (x) { $(x[0]).setAttribute("aria-label", t(x[1])); });
+    ["feat", "a_feat"], ["edback", "a_close"], ["shback", "a_close"], ["gback", "a_close"], ["edsave", "a_keep"], ["cv", "a_field"], ["coqr", "a_qr"]].forEach(function (x) { var e = $(x[0]); if (!e._name) e.setAttribute("aria-label", t(x[1])); });
   $("mute").setAttribute("aria-pressed", String(!!Kit.muted));
   var ct = $("create"); ct.hidden = !shown("f_create"); ct.textContent = "✨ " + t("create_tile"); ct.appendChild(el("span", "", t("create_sub")));
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");

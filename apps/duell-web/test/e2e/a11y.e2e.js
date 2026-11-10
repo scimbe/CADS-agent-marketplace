@@ -25,7 +25,10 @@ test("Zoom frei, color-scheme gesetzt, Burst-Text AA, Labels in EN, Ton-Schalter
   assert.ok(ratio(burst[0], burst[1]) >= 4.5, "Burst " + burst.join(" auf "));
   const name = (id) => p.locator("#" + id).getAttribute("aria-label");
   assert.equal(await name("lang"), "Language: English, switch to German");
-  for (const [id, want] of [["edback", "Close"], ["shback", "Close"], ["gback", "Close"], ["me", "My style"], ["pvcard", "Preview"], ["cv", "Playing field"], ["coqr", "QR code"], ["feat", "Features"], ["edsave", "Keep"]]) assert.equal(await name(id), want, id);
+  for (const [id, want] of [["edback", "Close"], ["shback", "Close"], ["gback", "Close"], ["me", "My style"], ["cv", "Playing field"], ["coqr", "QR code"], ["feat", "Features"], ["edsave", "Keep"]]) assert.equal(await name(id), want, id);
+  // the day's drawn card is named by what it shows (P-A), in the page's language; "Preview" only when it shows nothing
+  const card = await p.evaluate(() => { const c = document.getElementById("pvcard"); return { label: c.getAttribute("aria-label"), role: c.getAttribute("role") }; });
+  assert.equal(card.role, "img"); assert.ok(card.label && card.label !== "Vorschau", JSON.stringify(card));
   const none = await p.evaluate(() => Array.from(document.querySelectorAll("[aria-label]")).map((e) => e.getAttribute("aria-label")).filter((l) => /Schließen|Sprache|Vorschau|Spielfeld|Mein Stil|Merken/.test(l)));
   assert.deepEqual(none, [], "kein deutsches Label in EN");
   assert.equal(await name("mute"), "Mute"); assert.equal(await p.locator("#mute").getAttribute("aria-pressed"), "false");
