@@ -33,7 +33,10 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // The reminder is the todo test "Kern-Budget zurueck auf 700 KiB" below.
   assert.ok(Buffer.byteLength(html) < CORE_MAX, "Kern ueber " + CORE_MAX + " B: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  // The preview pictures (scripts/shots.js) come in parts of their own, bilda, bildb … (checked below).
+  const shotParts = Object.keys(man).filter((n) => /^bild[a-z]$/.test(n));
+  assert.ok(shotParts.length >= 1, "Vorschaubilder fehlen");
+  assert.deepEqual(Object.keys(man).filter((n) => shotParts.indexOf(n) < 0).sort(), ["dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   // The new start (redesign wave 1) is a part: its code, keywords and words only there, in the core only the hooks.
   const startBody = fs.readFileSync(partFiles().find((f) => /\/start\.[0-9a-f]{12}\.js$/.test(f)), "utf8");
   assert.match(startBody, /root\.StartUI = \{/); assert.match(startBody, /root\.StartIntent = api/); assert.match(startBody, /window\.StartTexts=\{"de":\{"st_ask":"Wem willst du heute eine Freude machen\?"/);
@@ -52,15 +55,29 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   assert.match(html, /"kiReported":/); assert.match(html, /"pf_age_u16":/); assert.match(html, /"pf_ctx_hh":/);
   for (const n of Object.keys(man)) assert.match(n, /^[a-z]{1,20}$/, "Teilname nur Buchstaben (Galerie-Server und Android lassen nur [a-z]{1,20} durch): " + n);
   assert.equal(files.length, Object.keys(man).length, "nur die Teile aus dem Manifest liegen in dist/parts");
-  let sum = 0;
+  let sum = 0, shotSum = 0;
   for (const [name, p] of Object.entries(man)) {
     assert.match(p.f, new RegExp("^parts/" + name + "\\.[0-9a-f]{12}\\.js$"), "Name mit Inhalts-Hash");
     const body = fs.readFileSync(path.join(path.dirname(dist), p.f));
     assert.ok(body.length < 300 * 1024, "Teil " + name + " ueber 300 KB: " + body.length);
     assert.equal(p.h, "sha384-" + require("node:crypto").createHash("sha384").update(body).digest("base64"), "SRI-Hash von " + name);
     for (const d of p.d) assert.ok(man[d], "Abhaengigkeit " + d);
-    sum += body.length;
+    if (shotParts.indexOf(name) >= 0) shotSum += body.length; else sum += body.length;
   }
+  // Preview pictures (Nov 2026, "YouTube-Vorschaubilder" on the start page): one real screenshot per shelf card, WebP
+  // 216x288 as data: URLs, about 80 KB per part. They have a budget of their own, outside the 1.75 MiB below: no part of
+  // them is preloaded on idle (src/parts.js), the start page loads a part when one of its pictures comes near the screen, so
+  // a visit that only looks at the rail loads one or two parts (80-160 KB), never all of them.
+  assert.ok(shotSum < 560 * 1024, "Vorschaubilder zusammen: " + shotSum);
+  for (const n of shotParts) {
+    const body = fs.readFileSync(path.join(path.dirname(dist), man[n].f), "utf8");
+    assert.match(body, /^window\.DailyShots=Object\.assign\(window\.DailyShots\|\|\{\},\{("[a-z0-9-]+":"data:image\/webp;base64,[A-Za-z0-9+/=]+",?)+\}\);\n$/, n + ": nur Bilder");
+    assert.ok(body.length < 96 * 1024, n + " klein: " + body.length); assert.deepEqual(man[n].d, [], n);
+  }
+  assert.ok(!/DailyShots=|data:image\/webp/.test(html), "keine Vorschaubilder im Kern");
+  const shotMap = JSON.parse(fs.readFileSync(partFiles().find((f) => /\/start\.[0-9a-f]{12}\.js$/.test(f)), "utf8").match(/"shots":(\{[^}]*\})/)[1]);
+  assert.deepEqual(Object.keys(shotMap).sort(), require("../src/ideas.json").ideas.map((i) => i.id).sort(), "jede Karte im Regal hat ihr Bild (npm run shots)");
+  assert.ok(Object.values(shotMap).every((n) => shotParts.indexOf(n) >= 0), "Bild-Teil im Manifest");
   // 1.75 MiB (was 1.6 MiB until #183, 1.5 MiB until #174). The sum grows with parts that only some people open: noto (Noto
   // Emoji for stickers in the picture, about 110 KB) and dart (the dartboard, about 50 KB). Neither is in the web's idle
   // preload (src/parts.js, checked below and in test/e2e/parts.e2e.js): noto comes with the first sticker, dart with a dart
@@ -68,7 +85,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // over 1.6 MiB; the core keeps its own budget (700 KiB above, 716 800 B in test/quizspiele.test.js). A large part that
   // would be preloaded on idle does not get this room: then back to 1.6 MiB.
   assert.ok(Buffer.byteLength(html) + sum < 1.75 * 1024 * 1024, "Kern + Teile: " + (Buffer.byteLength(html) + sum));
-  assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(n !== "noto" && n !== "dart" && n !== "klang"\) need\(n\)/, "noto, dart und klang nicht im Leerlauf-Vorladen");
+  assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(n !== "noto" && n !== "dart" && n !== "klang" && !\/\^bild\[a-z\]\$\/\.test\(n\)\) need\(n\)/, "noto, dart, klang und die Vorschaubilder nicht im Leerlauf-Vorladen");
   assert.match(src("app.js"), /=== "voice"\) window\.Parts\.need\("klang"\)/, "klang kommt mit einem Stimm-Blatt");
   // Each part runs where it ran inside the page: the module code, not a stand-in. Spot checks on what moved.
   const part = (n) => fs.readFileSync(path.join(path.dirname(dist), man[n].f), "utf8");

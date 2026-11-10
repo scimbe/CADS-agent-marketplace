@@ -59,6 +59,21 @@
     ".stall{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:6px 16px;border:2px solid currentColor;border-radius:16px;background:transparent;color:var(--sk);font:700 1rem/1.2 var(--st)}",
     ".stall[aria-expanded=true]{background:var(--sk);color:var(--sy);border-color:var(--sk)}",
     "#allbox{display:flex;flex-direction:column;gap:8px}",
+    /* preview pictures (rail under the tiles, the grid in "Alle Karten"): the picture fills the tile, the facts in its corners */
+    ".stlook{display:flex;flex-direction:column;gap:8px}.stlook h3{margin:4px 0 0;font:400 1.5rem/1.1 var(--disp);text-transform:uppercase;letter-spacing:.3px}",
+    ".strail{display:flex;gap:12px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;margin:0 -18px;padding:2px 18px 10px;scroll-padding:0 18px}",
+    ".strail .stshot{flex:0 0 min(9.5rem,42%);scroll-snap-align:start}",
+    ".stshots{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(9.5rem,100%),1fr));gap:16px 14px;padding-top:6px}",
+    ".stshot{display:flex;flex-direction:column;gap:6px;min-width:0;padding:0;border:0;background:none;color:var(--sk);text-align:left;font-family:var(--st)}",
+    ".stpic{position:relative;display:block;aspect-ratio:3/4;border:3px solid var(--sk);border-radius:8px;overflow:hidden;background:var(--sy);box-shadow:4px 4px 0 var(--sk)}",
+    ".stpic img{display:block;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .2s}.stpic.on img{opacity:1}",
+    ".stlen{position:absolute;right:6px;bottom:6px;padding:2px 7px;border-radius:5px;background:var(--sk);color:var(--sc);font:800 .8125rem/1.3 var(--st)}",
+    ".stshot small{margin-top:-4px;font:700 .8125rem/1.25 var(--st);color:var(--sm)}",
+    ".stshot b{font:400 1.25rem/1.08 var(--disp);text-transform:uppercase;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}",
+    ".stshot:focus-visible{outline:none}.stshot:focus-visible .stpic{outline:3px solid var(--sk);outline-offset:3px}",
+    "@media (prefers-reduced-motion:reduce){.stpic img{transition:none}}",
+    /* two columns: the right one (start, rail, "Alle Karten") scrolls under a sheet that keeps the screen's height */
+    "@media (min-width:900px),(orientation:landscape) and (max-height:500px) and (min-width:560px){#home.neu>#pad{position:sticky;top:12px;align-self:start;height:calc(100svh - 28px)}}",
     "#home.neu #tools button{font-family:var(--st);font-weight:700;text-decoration:underline;text-underline-offset:3px}",
     "@media (min-width:900px),(orientation:landscape) and (max-height:500px) and (min-width:560px){#startbox{margin:4px 10px 10px;border:3px solid var(--sk);border-radius:22px}#home.neu #tools{background:none}#home.neu #tools button{color:var(--on)}#starth{font-size:1.5rem}}",
     "@media (prefers-reduced-motion:reduce){.sttile{transition:none}}",
@@ -142,12 +157,16 @@
       grid.appendChild(b);
     });
     box.appendChild(grid);
+    var look = el("section", "stlook"); look.setAttribute("aria-labelledby", "stlookh"); look.hidden = true;
+    var lh = el("h3"); lh.id = "stlookh"; look.appendChild(lh); look.appendChild(el("div", "strail"));
+    box.appendChild(look);
     var all = el("button", "stall"); all.id = "allcards"; all.setAttribute("aria-controls", "allbox"); all.appendChild(icon("grid", 20)); all.appendChild(el("span"));
     var drawer = el("div"); drawer.id = "allbox";
     drawer.appendChild($("feat"));   // the demo strip (app.js feats) lives here now, out of a first visit's sight
     all.addEventListener("click", function () { Kit.sfx.tap(); openAll(all.getAttribute("aria-expanded") !== "true"); });
     box.appendChild(all); box.appendChild(drawer);
-    refs = { h: h, inp: inp, mic: mic, go: go, grid: grid, all: all, drawer: drawer };
+    var shots = el("div", "stshots"); shots.id = "allshots"; drawer.appendChild(shots);
+    refs = { h: h, inp: inp, mic: mic, go: go, grid: grid, all: all, drawer: drawer, look: look, shots: shots };
     var slot = $("startslot"); if (slot) slot.replaceWith(box); else $("homerow").after(box);
     micCheck(mic);
     openAll(!!Kit.store.alle || !!window.DailyShelfOpen, true);   // DailyShelfOpen: a link to a card that is gone (app.js route)
@@ -159,6 +178,7 @@
   // Open or closed is remembered on this device only (a convenience, not a setting): whoever opened it once finds it open.
   function openAll(on, quiet) {
     refs.all.setAttribute("aria-expanded", String(on)); refs.drawer.hidden = !on;
+    if (on) gallery();
     if (quiet) return;
     if (on) Kit.store.alle = true; else delete Kit.store.alle;
     Kit.save();
@@ -171,6 +191,58 @@
     refs.grid.setAttribute("aria-label", t("st_ask"));
     Array.from(refs.grid.children).forEach(function (b) { b.querySelector("b").textContent = t("st_" + b.dataset.i); b.querySelector("small").textContent = t("st_" + b.dataset.i + "_s"); });
     refs.all.lastChild.textContent = t("st_all");
+    refs.look.firstChild.textContent = t("st_look");
+    if (shotLang !== Kit.lang) { shotLang = Kit.lang; rail(); refs.shots.textContent = ""; if (!refs.drawer.hidden) gallery(); }
+  }
+
+  /* ---------- Vorschaubilder: what a game looks like, before it is opened ---------- */
+  // Every card of the shelf has a real screenshot of its game (scripts/shots.js, src/shots/<id>.webp), packed into the parts
+  // bilda, bildb … (scripts/build.js; StartData.shots: id -> part). A tile is the picture, big, with two plain facts in its
+  // corner (how long it takes) and under it the title and how it is played (both from the catalog). Nothing is counted,
+  // nothing urges. A picture's part is loaded when its tile comes near the screen; with Save-Data none are loaded, and a
+  // tile without its picture (offline, part missing) keeps its title on a quiet colour.
+  var SHOTS = (root.StartData && root.StartData.shots) || {}, shotLang = "", seen = null;
+  var KINDS = { arcade: "st_k_arcade", game: "st_k_arcade", photo: "st_k_photo", sound: "st_k_sound", table: "table", card: "card" };
+  function lean() {
+    try { var c = navigator.connection; return !!(c && c.saveData) || !!(root.matchMedia && matchMedia("(prefers-reduced-data: reduce)").matches); } catch (e) { return false; }
+  }
+  function kindOf(i) { var g = i.turn && i.turn.g; return g && root.Turns ? t("bdg_" + root.Turns.who(g)) : t(KINDS[i.kind] || "turn"); }
+  function lenOf(n) { return n >= 120 ? t("mins", { n: Math.round(n / 60) }) : t("sec", { n: n }); }
+  function show(img) {
+    var id = img.dataset.shot, part = SHOTS[id];
+    if (!part || lean() || !root.Parts) return;
+    root.Parts.need(part).then(function () { var u = root.DailyShots && root.DailyShots[id]; if (u) img.src = u; }, function () {});
+  }
+  function watch(img) {
+    if (!root.IntersectionObserver) return show(img);
+    seen = seen || new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { seen.unobserve(e.target); show(e.target); } }); }, { rootMargin: "300px" });
+    seen.observe(img);
+  }
+  function shotTile(i) {
+    var L = ideaText(i), b = el("button", "stshot", null, function () { Kit.sfx.thud(); openCard(i); });
+    var f = el("span", "stpic"), img = document.createElement("img");
+    img.alt = t("st_shot", { s: L.s || D.plainTitle(L.t) }); img.width = 216; img.height = 288; img.decoding = "async"; img.dataset.shot = i.id;
+    img.addEventListener("load", function () { f.classList.add("on"); });
+    f.appendChild(img);
+    if (i.min) f.appendChild(el("span", "stlen", lenOf(i.min)));
+    b.appendChild(f); b.appendChild(el("b", "", D.plainTitle(L.t))); b.appendChild(el("small", "", kindOf(i)));
+    watch(img);
+    return b;
+  }
+  function withShot(i) { return !!SHOTS[i.id]; }
+  // "So sieht es aus": eight games of the shelf under the tiles, a different eight each day (the day number, nothing else),
+  // never the day's own card, which is on the sheet above.
+  function rail() {
+    var today = D.ideaForDay(new Date()), games = D.IDEAS.filter(function (i) { return withShot(i) && /^(turn|arcade|table)$/.test(i.kind) && !(today && today.id === i.id); }), box = refs.look.lastChild;
+    box.textContent = ""; refs.look.hidden = !games.length;
+    if (!games.length) return;
+    var day = Math.floor(Date.now() / 864e5), n = Math.min(8, games.length);
+    for (var k = 0; k < n; k++) box.appendChild(shotTile(games[(day * n + k) % games.length]));
+  }
+  // "Alle Karten": every card with its picture, in the shelf's order, under the demo strip.
+  function gallery() {
+    if (refs.shots.firstChild) return;
+    D.IDEAS.filter(withShot).forEach(function (i) { refs.shots.appendChild(shotTile(i)); });
   }
   // The day's sheet and every sheet chosen from here get the new start; whatever came by link keeps its own page.
   function home(h) {

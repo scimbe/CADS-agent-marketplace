@@ -35,14 +35,16 @@ test("file:// (Apps, Tests): Start nur mit dem Katalog-Teil; Spiele-Regal holt A
   await G.alle(p); await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await p.locator(".arctile").first().waitFor();
   assert.equal(await p.locator(".arctile").count(), 5, "fuenf Arcade-Duelle seit der Regal-Bereinigung (2026-11)");
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "play"]);
+  // "Alle Karten" shows every card's picture: the parts of the pictures in sight come along (bilda, bildb …), not counted here
+  const own = async () => (await loaded(p)).map((s) => s.src.split(".")[0]).filter((n) => !/^bild[a-z]$/.test(n));
+  assert.deepEqual(await own(), ["katalog", "start", "stimme", "play"]);
   assert.equal((await loaded(p))[1].sri, "", "file:// ohne SRI (kein CORS-Ursprung)");
   await p.locator("#shback").click();
   await p.locator("#me").click();
   await p.locator("#stdata summary").click(); await p.getByRole("button", { name: "Lizenzen" }).click();   // under "Konto & Daten"
   await p.getByText(/SIL OPEN FONT LICENSE Version 1\.1/).waitFor();
   // My style comes as the part stil, which brings its account card (konto) first; the button its licence texts
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "play", "konto", "stil", "direkt", "licenses"], "Mein Stil holt auch direkt (Schalter Einfache Sprache)");
+  assert.deepEqual(await own(), ["katalog", "start", "stimme", "play", "konto", "stil", "direkt", "licenses"], "Mein Stil holt auch direkt (Schalter Einfache Sprache)");
   assert.deepEqual(errs, []); await b.close();
 });
 
@@ -69,15 +71,18 @@ test("file://: der Knopf Status-Bild holt den QR-Teil und teilt ein Bild 1080x19
   } finally { await b.close(); }
 });
 
-test("Web /duell: nach dem Laden alle Teile ausser noto, dart und klang mit SRI vorab; danach offline Arcade-Menue und Lizenzen", async () => {
+test("Web /duell: nach dem Laden alle Teile ausser noto, dart, klang und den Vorschaubildern mit SRI vorab; danach offline Arcade-Menue und Lizenzen", async () => {
   const srv = await serve(), base = "http://127.0.0.1:" + srv.address().port;
   const b = await launch(), ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);
   const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
   await p.goto(base + "/duell");   // without the slash: the parts still come from /duell/parts/
   // all but noto (Noto Emoji for stickers in the picture: only the editor asks for it, at its first sticker) and dart (the
-  // dartboard: only a dart card or link asks for it) and klang (Stimme verzerren: only a voice sheet asks for it)
-  await p.waitForFunction(() => window.Parts.names().filter((n) => n !== "noto" && n !== "dart" && n !== "klang").every((n) => window.Parts.ready(n)));
-  const got = await loaded(p);
+  // dartboard: only a dart card or link asks for it) and klang (Stimme verzerren: only a voice sheet asks for it); the
+  // preview pictures (bilda, bildb …) only as far as the start page shows them, never all on idle
+  await p.waitForFunction(() => window.Parts.names().filter((n) => n !== "noto" && n !== "dart" && n !== "klang" && !/^bild[a-z]$/.test(n)).every((n) => window.Parts.ready(n)));
+  const all = await loaded(p), got = all.filter((s) => !/^bild[a-z]\./.test(s.src));
+  assert.ok(await p.evaluate(() => window.Parts.names().filter((n) => /^bild[a-z]$/.test(n)).some((n) => !window.Parts.ready(n))), "Vorschaubilder nicht alle vorab");
+  for (const s of all) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
   assert.ok(await p.evaluate(() => window.Parts.names().includes("noto") && !window.Parts.ready("noto")), "noto nicht vorab");
   assert.ok(await p.evaluate(() => window.Parts.names().includes("dart") && !window.Parts.ready("dart")), "dart nicht vorab");
   assert.ok(await p.evaluate(() => window.Parts.names().includes("klang") && !window.Parts.ready("klang")), "klang nicht vorab");

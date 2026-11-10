@@ -77,10 +77,12 @@
   // only people with stickers load it; offline without it the picture is made as before, without stickers. Not dart
   // either (the dartboard, about 50 KB): a dart card or link asks for it (app.js two()). Nor klang (Stimme verzerren, about
   // 27 KB): a voice sheet asks for it when it is shown (app.js setHome), the voice tab and the finished voice at the latest.
+  // Nor the preview pictures (bilda, bildb …, about 80 KB each): the start page asks for a part when one of its pictures
+  // comes into sight (start-ui.js shots); offline without it a tile shows its title on its colour.
   if (/^https?:$/.test(location.protocol) && location.hostname !== "appassets.androidplatform.net") {
     root.addEventListener("load", function () {
       (root.requestIdleCallback || function (f) { return setTimeout(f, 1500); })(function () {
-        Object.keys(LIST).forEach(function (n) { if (n !== "noto" && n !== "dart" && n !== "klang") need(n).catch(function () {}); });
+        Object.keys(LIST).forEach(function (n) { if (n !== "noto" && n !== "dart" && n !== "klang" && !/^bild[a-z]$/.test(n)) need(n).catch(function () {}); });
       });
     });
   }
