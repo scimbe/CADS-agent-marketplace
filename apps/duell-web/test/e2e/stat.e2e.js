@@ -250,7 +250,8 @@ test("Karten-Statistik aus: Schalter unter Wer sieht was? (de/en, Tastatur, 44 p
 test("Karten-Statistik aus in Mein Stil: Tageskarte teilen und ihren Link oeffnen schickt 0 Statistik-Requests (de/en)", async () => {
   const b = await G.launch();
   for (const lang of G.LANGS) {
-    const ctx = await G.person(b, { time: TIME, lang, web: true }), all = [];
+    // 11 Nov: a photo card as the day's card (11-05, the old photo day, is a one-phone game since the shelf clean-up, 2026-11)
+    const ctx = await G.person(b, { time: "2026-11-11T10:00:00Z", lang, web: true }), all = [];
     ctx.on("request", (r) => { if (r.url().startsWith(STAT)) all.push(r.method() + " " + (r.postData() || "")); });
     // a second tab of this device with the row "Wer sieht was?" open: it takes the switch over (storage event, stimme-ui.js)
     const r = await G.open(ctx, "#i=zug-wunschzettel");

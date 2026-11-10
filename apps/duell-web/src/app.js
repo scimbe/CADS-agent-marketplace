@@ -128,15 +128,26 @@ function protokollUrl() {
   var base = location.protocol === "https:" ? "" : new URL(C.DEFAULT_API).origin;
   return base + "/duell/protokoll?lang=" + Kit.lang;
 }
+// What a screen reader says for a drawn card: its own text (with the name in front), a game or an arcade duel its title.
+function cardName(doc) {
+  var s = doc.k === "game" ? doc.g && doc.g.title : doc.k === "arcade" ? "" : [doc.x, doc.y].filter(Boolean).join(" ");
+  var idea = !s && doc.i && D.byId(doc.i);
+  if (!s && idea) s = D.plainTitle(ideaText(idea).t);
+  return String(s || "").trim();
+}
+// The canvas keeps its card's name in _name; labels() then leaves it alone (without one it says "Vorschau").
+function nameCanvas(c, name) { c._name = name || ""; c.setAttribute("role", "img"); c.setAttribute("aria-label", name || t("a_preview")); }
 // The day is shown as the real thing: a game flies by itself (on the greyed sheet it stands still), everything else is
 // drawn like its finished picture.
 function preview(root, doc, still) {
   var box = root.querySelector(".pv"), g = root.querySelector(".pvgame"), c = root.querySelector(".pvcard");
   if (!still) G.stopDemo();
   g.hidden = c.hidden = true; box.hidden = false;
+  var name = cardName(doc), gm = doc.k === "game"; nameCanvas(g, gm ? name : ""); nameCanvas(c, gm ? "" : name);   // only the one shown
   try {
     if (doc.k === "game") { g.hidden = false; var st = C.sanitizeState(Object.assign({ v: 1 }, doc.g)); if (still) G.still(g, st); else G.demo(g, st); return; }
     c.hidden = false;
+    if (doc.k === "lauf" && !R.extra.lauf) { window.Parts.use("lauf", function () { if (root.isConnected) preview(root, doc, still); }).catch(function () {}); return; }   // the second engine is a part
     if (window.ArcadeUI) window.ArcadeUI.demo(c, doc.k === "arcade" ? doc.a : null, still);   // null ends a running duel preview
     if (doc.k === "arcade") return;
     R.draw(c, doc, { me: me, photo: doc.k === "photo" ? R.botFace(C.hash32(doc.x || "x"), doc.col[1]) : null, peaks: null, x: {} });
@@ -252,7 +263,7 @@ var tick = { many: false, run: false, stop: false, timer: 0 };
 function feats() {
   var bar = $("feat"), lane = el("div", "lane"), box = el("div", "track"), n = D.IDEAS.filter(function (i) { return i.kind === "turn" || i.kind === "arcade"; }).length;
   var list = [["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
-    ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].filter(function (f) { return shown(f[0]); });
+    ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].filter(function (f) { return shown(f[0]) && !(window.StartUI && /^f_(tunnel|demos)$/.test(f[0])); });
   bar.textContent = ""; tick.many = list.length >= 3;
   if (shown("f_two")) bar.appendChild(el("button", "hot", "🎲 " + t("f_twoN", { n: n }), function () { Kit.sfx.tap(); X.turn.menu(); }));
   lane.appendChild(box); bar.appendChild(lane);
@@ -378,10 +389,7 @@ function tear(step) {
 })();
 
 /* ---------- editor ---------- */
-var TABS = {
-  card: ["Text", "Style", "Color", "Sticker"], photo: ["Photo", "Text", "Style", "Color", "Sticker"],
-  sound: ["Sound", "Text", "Color"], game: ["Rules", "Figure", "World", "Text"]
-};
+var TABS = {}, PANEL = {};
 var cv = $("stage"), timer = 0, notoAsked = false;
 function paint() {
   timer = 0; if (!ed) return;
@@ -395,9 +403,6 @@ function changed() {           // every control ends up here: redraw within the 
   if (!timer) timer = setTimeout(paint, 16);
 }
 function gameState() { return C.sanitizeState(Object.assign({ v: 1 }, ed.doc.g, { ki: ed.doc.ki })); }
-// A change by hand to a game the AI made: the sheet is no longer what the seal was made for, so the AI mark goes.
-// a remix keeps the free card's id (doc.fr)
-function byHand() { var k = ed.doc.ki; if (k && k.k === "karte" && k.h && !ed.doc.fr) ed.doc.fr = k.h.slice(0, 22); delete ed.doc.ki; }
 function playGame() { Kit.sfx.thud(); G.stop(); show("game", true); G.play(gameState(), null, { own: touched() }); }
 // A game state (played, or from a challenge) back into a sheet: route and AI mark go along.
 function gameDoc(s) { var d = { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji, route: s.route } }; if (s.ki) d.ki = s.ki; return d; }
@@ -443,6 +448,7 @@ function trailLine() {
 function openEditor(doc, opt) {
   opt = opt || {};
   if (doc && doc.k === "table") { if (window.TableUI) window.TableUI.open(doc.g); return; }   // a card table is played live, there is nothing to edit
+  if (doc && doc.k === "lauf" && !X.lauf) { window.Parts.use("lauf", function () { openEditor(doc, opt); }).catch(function () {}); return; }
   window.Ai.drop();
   $("stagewrap").classList.remove("swap");
   ed = { doc: D.sanitizeDoc(doc), base: D.sanitizeDoc(doc), own: !!opt.own, made: !!opt.made, photo: null, peaks: null, pcm: null, tab: null, sel: -1, page: 0, line: 0, idea: opt.idea || null, rec: opt.rec };
@@ -456,43 +462,25 @@ function openEditor(doc, opt) {
   $("edtitle").textContent = edTitle(); $("edlang").hidden = !opt.got;   // opened from an invitation: its language can change here
   $("edstyle").textContent = me.emoji;
   stopSound(); show("editor", true); trailLine();
-  var tabs = $("tabs"); tabs.textContent = "";
-  var list = (ed.own ? ["Idea"] : []).concat(W.KINDS.indexOf(ed.doc.k) >= 0 ? ["Wish"] : [], W.DICE.indexOf(ed.doc.k) >= 0 ? ["Dice"] : [], ed.doc.nr ? ["Door"] : [], TABS[ed.doc.k]), mine = list.filter(function (k) { return allow("tabs", k); });
-  if (mine.length) list = mine;   // a flavor's list never leaves a kind it does not know (a duel link in Business) without tabs
-  list.forEach(function (k) {
-    var b = el("button", k === "Wish" ? "hot" : "", tabText(k), function () { Kit.sfx.tap(); tab(k); });
-    b.setAttribute("role", "tab"); b.setAttribute("aria-controls", "panel"); b.id = "tab" + k; b.dataset.k = k; tabs.appendChild(b);
-  });
-  tab(list.indexOf(opt.tab) >= 0 ? opt.tab : g ? "Wish" : list.filter(function (k) { return k !== "Wish" && k !== "Dice"; })[0]);
+  // The tab bar and the panel come with the part blasen: at the first opening a moment of "…" until it is there. A tab
+  // asked for meanwhile (tab() below keeps it in ed.tab) is the one it opens.
+  var mine = ed;
+  if (window.Blasen) window.Blasen.open(opt);
+  else { $("tabs").textContent = ""; $("panel").textContent = "…"; window.Parts.use("blasen", function () { if (ed === mine) { window.Blasen.open(ed.tab ? Object.assign({}, opt, { tab: ed.tab }) : opt); footer(); } }).catch(function () {}); }
   if (g) G.demo($("demo"), gameState());
   paint(); CU.editor();
   // Parts direkt (one undo, stickers without dragging, layers, description) and regler (named steps); without them the tabs stay the editor.
   window.Parts.need("direkt").catch(function () {}); if (g) window.Parts.need("regler").catch(function () {});
 }
 function edTitle() { return ed.own ? t("own") : (ed.idea ? D.plainTitle(ideaText(ed.idea).t) : t(ed.doc.k)); }
-function tabText(k) { return t("tab" + (k === "Sound" ? (ed.doc.m === "beat" ? "Beat" : "Voice") : k)); }
-// The tabs are one stop for Tab; the arrows (Home, End) move along and open the tab they land on.
-$("tabs").addEventListener("keydown", function (e) {
-  var l = Array.from($("tabs").children), i = l.indexOf(document.activeElement), n = l.length, j = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: n - 1 }[e.key];
-  if (i < 0 || j == null) return; e.preventDefault(); l = l[(j + n) % n]; l.focus(); l.click();
-});
-function tab(k) {
-  if (ed.pv) { ed.pv = false; ed.fly = null; window.Ai.drop(); G.update(gameState()); }
-  ed.tab = k; Array.from($("tabs").children).forEach(function (b) { var on = b.dataset.k === k; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; });
-  var p = $("panel"); p.textContent = ""; p.setAttribute("aria-labelledby", "tab" + k); p.removeAttribute("data-size"); p.classList.toggle("tall", k === "Sound" || (k === "Text" && ed.doc.k !== "game") || k === "Wish" || k === "Dice"); PANEL[k](p); p.scrollTop = 0;
-}
+// The tabs and their panels (TABS, PANEL, tab) are the part blasen (src/blasen.js, R4). Until it is there a tab is only
+// remembered (ed.tab); the part opens it. A.TABS and A.PANEL stay these objects, so modes.js, turn-ui.js, direkt-ui.js
+// and regler-ui.js add to them before or after the part (the part fills in only what is missing).
+function tab(k) { if (window.Blasen) window.Blasen.tab(k); else if (ed) ed.tab = k; }
 function setDoc(d) {        // a whole creation replaced by a wish or its undo; the canvas state follows
   ed.doc = d; ed.sel = -1; if (d.k === "sound" && d.m === "beat") beatPeaks();
   if (d.k === "sound" && ed.raw) applyFx();
   $("edstyle").textContent = me.emoji; trailLine(); changed();
-}
-// Weather card (src/wetter.js, the part wetter): a slot in the text tab now, the block follows with the part. A flavor
-// without cards does not build the part (scripts/build.js), so there is nothing to load. When it does not come the card
-// works without the weather; a short word on screen once per session, not on every tab switch.
-var wxSaid = false;
-function weatherBlock(p) {
-  var slot = el("div"); p.appendChild(slot);
-  if (window.Parts.names().indexOf("wetter") >= 0) window.Parts.need("wetter").then(function () { if (slot.isConnected && ed) window.Wetter.block(slot); }).catch(function () { if (!wxSaid) { wxSaid = true; Kit.toast(t("part_fail")); } });
 }
 // The creation becomes the game: same engine, its colours, picture and figure. Back leads to the creation, not home.
 var played = null, shortId = null;   // shortId: the short link a shared sheet came through, so a report can name it
@@ -509,23 +497,6 @@ function backFromPlay() {
 // The panel belongs to the sheet open now; an answer that comes back after it was left is dropped, not applied elsewhere.
 function aiBlock(p, o) { var mine = ed; o.el = el; o.wall = openAiWall; o.alive = function () { return !!mine && ed === mine; }; return window.Ai.block(p, o); }
 function markKi(d, ki) { var k = D.sanitizeKi(ki); if (k) d.ki = k; }
-// Texte und Song (texte.js) are a part of their own: the slot stands in the panel now, its content follows with the part.
-function textePart(p, what, f) {
-  var slot = el("div"); p.appendChild(slot);
-  window.Parts.use("texte", function () {
-    if (slot.isConnected && ed) window.TexteUI[what](slot, { f: f, aiBlock: aiBlock, markKi: markKi, setDoc: setDoc, play: function () { beatPeaks(); playBeat(); tab(ed.tab); }, stop: stopSound });
-  }).catch(function () {});
-}
-// "Geändert: …" and the undo, after a wish or a roll. before: the doc as JSON before the change. -> false when nothing changed.
-function didLine(res, before, next, lead) {
-  var was = JSON.parse(before), what = D.changedAreas(was, next);
-  if (next.k === "sound" && next.fx !== was.fx && what.indexOf("stimme") < 0) what.push("stimme");
-  if (!what.length) { res.appendChild(el("p", "note", t("wishSame"))); return false; }
-  setDoc(next); (ed.wishes = ed.wishes || []).push(before);
-  res.appendChild(el("p", "aicount", (lead ? lead + " · " : "") + t("wishDid") + ": " + what.map(function (w) { return t("a_" + w); }).join(", ")));
-  res.appendChild(el("button", "chip", "↶ " + t("skUndo"), function () { setDoc(JSON.parse(ed.wishes.pop())); Kit.sfx.pop(); res.textContent = ""; }));
-  return true;
-}
 // Random only from a seed: the same wish text or the same roll of the same sheet always gives the same result.
 function seeded(s) { return C.mulberry32(C.hash32(String(s))); }
 function field(p, label, value, max, on, area) {
@@ -538,7 +509,8 @@ function field(p, label, value, max, on, area) {
   // blocked word never sends the cut one. After the field went back it stays marked until it has the focus again.
   function check(e) {
     if (e.isComposing) return;   // compositionend checks the word once it is complete
-    var v = D.cleanInput(f.value, max), r = f.value.trim() && !v ? t("filter") : on(v);
+    // contact data gets its own kind note (what stays out and why), never a reproach; nothing is counted against anyone
+    var v = D.cleanInput(f.value, max), r = f.value.trim() && !v ? t(C.filterNote(f.value)) : on(v);
     why = typeof r === "string" ? r : ""; f.setAttribute("aria-invalid", String(!!why));
     if (!why) { last = f.value; changed(); } else if (ed) footer();
   }
@@ -571,140 +543,6 @@ function colors(p, get, set) {
   [a, z].forEach(function (x, i) { x.type = "color"; x.value = now[i]; x.setAttribute("aria-label", t("custom")); x.addEventListener("input", function () { set([a.value, z.value]); changed(); }); row.appendChild(x); });
   p.appendChild(row);
 }
-var PANEL = {
-  // Type a wish and apply it right below, or tap a suggestion: that applies it at once. The AI's answer is applied as it
-  // came, nothing mixed in. The flight game's one way in, "What do you want to fly?", is the part welt-ui.js.
-  Wish: function (p) {
-    if (ed.doc.k === "game") {   // the flight game's one way in lives in a part (welt-ui.js)
-      var mine = ed, hooks = { el: el, field: field, aiBlock: aiBlock, didLine: didLine, tab: tab, play: playGame, ed: function () { return ed; },
-        preview: function (st, fly) { ed.pv = !!st; ed.fly = st && fly || null; G.update(st || gameState()); } };
-      window.Parts.use("welt", function () { if (ed === mine && ed.tab === "Wish") window.WeltUI.panel(p, hooks); }).catch(function () {
-        if (ed !== mine || ed.tab !== "Wish") return;      // the part did not load (offline without a cache, SRI): the way without AI stays
-        p.appendChild(el("p", "note aistate", t("welt_noPart")));
-        p.appendChild(el("button", "chip", "🎚 " + t("welt_rules"), function () { Kit.sfx.tap(); tab("Rules"); }));
-      });
-      return;
-    }
-    var f = field(p, t("wishL"), "", 100, function () {}, true), box = el("div", "chips");
-    var want = function () { return D.cleanInput(f.value, 100); };
-    var go = aiBlock(p, {
-      kind: "wish", label: t("wishGo"), noteLast: true, input: function () { var v = want(); return v ? W.request(ed.doc, v, ed.idea ? D.plainTitle(ideaText(ed.idea).t) : "") : null; },
-      auto: function (o, ki, res) {
-        var before = JSON.stringify(ed.doc), next = W.apply(ed.doc, o.changes || {}, PAIRS, seeded(want() + "|sk"));
-        if (ki) markKi(next, ki);
-        return didLine(res, before, next, ki ? (o.note || "") : t("aiNoAi"));
-      }
-    });
-    p.appendChild(el("label", "lbl wishtips", t("wishOr")));
-    t("wishTips_" + ed.doc.k).split("|").forEach(function (x) { box.appendChild(el("button", "chip", x, function () { Kit.sfx.tap(); f.value = x; go(); })); });
-    p.appendChild(box);
-    p.appendChild(el("p", "note", t("wishH_" + ed.doc.k) + " " + t("aiNote")));
-  },
-  // The dice: style, colours, stickers (and a card's line from its idea) rolled on the device. No AI, no network, no count.
-  Dice: function (p) {
-    var res = el("div", "chips");
-    p.appendChild(el("button", "chip hot", "🎲 " + t("diceGo"), function () {
-      Kit.sfx.pop();
-      var d = ed.doc, key = d.seed != null ? d.seed : d.i || d.k, n = roll(key), seed = key + "|" + n;
-      var before = JSON.stringify(d), lines = ed.idea && d.k === "card" ? ideaText(ed.idea).lines : null;
-      res.textContent = ""; didLine(res, before, W.apply(d, W.dice(d, seed, PAIRS, lines), PAIRS, seeded(seed + "|sk")));
-    }));
-    p.appendChild(res);
-    p.appendChild(el("p", "note", t("diceNote")));
-  },
-  // Advent door: only its number; 1-24 as plain buttons, no typing.
-  Door: function (p) {
-    p.appendChild(el("label", "lbl", t("doorPick")));
-    chips(p, Array.from({ length: 24 }, function (x, i) { return { v: i + 1, l: String(i + 1) }; }), ed.doc.nr, function (v) { ed.doc.nr = v; }, "em");
-    p.appendChild(el("p", "note", t("doorNote")));
-  },
-  Idea: function (p) {
-    // the title field first (it is what "Fertig" waits for), the hint below it
-    field(p, t("ideaT"), ed.doc.t, 40, function (v) { ed.doc.t = v; });
-    field(p, t("ideaS"), ed.doc.s, 70, function (v) { ed.doc.s = v; });
-    p.appendChild(el("p", "note", t("ownH")));
-  },
-  Text: function (p) {
-    var d = ed.doc;
-    if (d.k === "card") {
-      var f = field(p, t("line"), d.x, 90, function (v) { d.x = v; }, true), L = ed.idea ? ideaText(ed.idea).lines : null;
-      if (L) p.appendChild(el("button", "chip", "↻ " + t("nextLine"), function () { Kit.sfx.pop(); ed.line = (ed.line + 1) % L.length; d.x = L[ed.line]; f.value = d.x; changed(); }));
-      textePart(p, "card", f);
-      if (!d.nr) weatherBlock(p);
-    } else if (d.k === "photo") {
-      var top = field(p, t("top"), d.x, 28, function (v) { d.x = v; }), low = field(p, t("bottom"), d.y, 28, function (v) { d.y = v; });
-      var what = field(p, t("aiDesc"), "", 100, function () {});
-      aiBlock(p, { kind: "meme", label: t("aiMeme"), input: function () { var v = D.cleanInput(what.value, 100); return v ? { desc: v } : null; }, show: function (o) { return o.top + " / " + o.bottom; }, apply: function (o, ki) { d.x = D.cleanInput(o.top, 28); d.y = D.cleanInput(o.bottom, 28); top.value = d.x; low.value = d.y; markKi(d, ki); changed(); } });
-    } else if (d.k === "sound") {
-      field(p, t("titleL"), d.x, 28, function (v) { d.x = v; });
-      if (d.ly) p.appendChild(el("button", "chip", "✕ " + t("lyOff"), function () { delete d.ly; changed(); tab("Text"); }));
-    }
-    else field(p, t("titleL"), d.g.title, 28, function (v) { d.g.title = v || "Duell"; byHand(); });
-  },
-  Style: function (p) {
-    var d = ed.doc;
-    chips(p, D.STYLES[d.k].map(function (s) { return { v: s, l: t("st_" + s) }; }), d.st, function (v) { d.st = v; });
-  },
-  Color: function (p) { colors(p, function () { return ed.doc.col; }, function (c) { ed.doc.col = c; if (ed.doc.k === "photo") ed.photo._id += ""; }); },
-  Sticker: function (p) {
-    var d = ed.doc, own = D.byId(d.i), set = D.SETS[(own && own.set) || me.set], set = set.concat(set.indexOf(me.emoji) < 0 ? [me.emoji] : []);
-    var box = el("div", "chips");
-    set.forEach(function (e) {
-      box.appendChild(el("button", "chip em", e, function () {
-        if (d.sk.length >= D.MAX_STICKERS) { Kit.toast(t("skFull")); return; }
-        Kit.sfx.pop(); var r = C.mulberry32(C.hash32(me.nick + d.sk.length + e + d.x));
-        SK.step(function (l) { l.push({ e: e, x: 0.15 + r() * 0.7, y: 0.15 + r() * 0.65, r: (r() - 0.5) * 0.7, z: 0.8 + r() * 0.7 }); ed.sel = l.length - 1; });
-      }));
-    });
-    p.appendChild(box);
-    if (!d.sk.length) return;
-    p.appendChild(el("p", "note", t("skHint")));
-    var mine = el("div", "chips");   // also the way to reach a sticker that is hard to tap, and the keyboard's way
-    d.sk.forEach(function (s, i) {
-      var b = el("button", "chip em" + (i === ed.sel ? " on" : ""), s.e, function () { Kit.sfx.tap(); SK.select(i); });
-      b.setAttribute("aria-pressed", String(i === ed.sel)); mine.appendChild(b);
-    });
-    p.appendChild(mine);
-    var row = el("div", "chips");
-    [["−", function (s) { s.z = Math.max(0.5, s.z - 0.2); }, "a_skSmall"], ["+", function (s) { s.z = Math.min(2.5, s.z + 0.2); }, "a_skBig"], ["↻", function (s) { s.r = s.r > 2.9 ? -3 : s.r + 0.25; }, "a_skTurn"], ["✕", null, "skDelete"]].forEach(function (x) {
-      var b = el("button", "chip em", x[0], function () {
-        if (!d.sk[ed.sel]) return; Kit.sfx.tap();
-        if (x[1]) SK.step(function (l) { x[1](l[ed.sel]); }); else SK.remove(ed.sel);
-      });
-      b.setAttribute("aria-label", t(x[2]));
-      b.disabled = !d.sk[ed.sel]; row.appendChild(b);
-    });
-    p.appendChild(row);
-  },
-  Photo: function (p) {
-    p.appendChild(el("button", "chip", "📷 " + t("pick"), function () { Kit.sfx.tap(); $("file").click(); }));
-    p.appendChild(el("button", "chip", "🤖 " + t("noPhoto"), function () { Kit.sfx.pop(); ed.bots = (ed.bots || 0) + 1; ed.photo = R.botFace(D.botSeed(me.nick, ed.doc, ed.bots), ed.doc.col[1]); changed(); }));
-    p.appendChild(el("p", "note", t("photoNote") + " " + t("noPick")));
-    chips(p, D.STYLES.photo.map(function (s) { return { v: s, l: t("st_" + s) }; }), ed.doc.st, function (v) { ed.doc.st = v; });
-  },
-  // the grid first (the tool of the tab), the song below it
-  Sound: function (p) { if (ed.doc.m === "beat") { beatPanel(p); textePart(p, "song"); } else voicePanel(p); },
-  Rules: function (p) {
-    var g = ed.doc.g, ranges = C.RANGES;
-    ["gravity", "jump", "gap", "speed"].forEach(function (k) {
-      var row = el("label", "slide"), r = el("input"), v = el("b", "", g.params[k]);
-      row.appendChild(el("span", "", t(k))); r.type = "range"; r.min = ranges[k][0]; r.max = ranges[k][1]; r.value = g.params[k]; r.setAttribute("aria-label", t(k));
-      r.addEventListener("input", function () { g.params[k] = Number(r.value); v.textContent = r.value; byHand(); changed(); });
-      row.appendChild(r); row.appendChild(v); p.appendChild(row);
-    });
-    p.appendChild(el("button", "chip", "✨ " + t("wishL_game"), function () { Kit.sfx.tap(); tab("Wish"); }));   // the one way in, not a second one
-  },
-  Figure: function (p) {
-    var g = ed.doc.g, list = EMOJI.indexOf(me.emoji) < 0 ? [me.emoji].concat(EMOJI) : EMOJI;
-    chips(p, list.map(function (e) { return { v: e, l: e }; }), g.emoji, function (v) { g.emoji = v; byHand(); }, "em");
-  },
-  // A world chosen here replaces a world built by a wish or the idea (its look), which would otherwise cover every theme.
-  World: function (p) {
-    var g = ed.doc.g;
-    var b = chips(p, G.THEMES.map(function (n) { return { v: n, l: t("w_" + n) }; }), g.look || g.route ? null : g.theme, function (v) { g.theme = v; delete g.look; delete g.route; byHand(); });
-    Array.from(b.children).forEach(function (c, i) { c.style.borderBottom = "8px solid " + G.themeColor(G.THEMES[i]); });
-  }
-};
 
 /* stickers on the preview (stickers.js) */
 var SK = window.Stickers.attach({
@@ -740,37 +578,7 @@ function playBeat() {
     i = (i + 1) % 16;
   }, ms);
 }
-function beatPanel(p) {
-  // 4 steps a row (44 px on the smallest phone), 4 pages of one beat each; every step says its sound, its beat and its state.
-  var rows = [["k", "🥁"], ["s", "👏"], ["h", "✨"], ["b", "🎹"]], grid = el("div", "grid"), pages = el("div", "chips");
-  function fill() {
-    grid.textContent = ""; pages.textContent = "";
-    rows.forEach(function (r) {
-      grid.appendChild(el("span", "", r[1]));
-      for (var c = 0; c < 4; c++) (function (c) {
-        var i = ed.page * 4 + c, on = ed.doc.p[r[0]][i] === "x", b = el("button", "step" + (c ? "" : " q") + (on ? " on" : ""), null, function () {
-          var v = ed.doc.p[r[0]]; ed.doc.p[r[0]] = v.slice(0, i) + (v[i] === "x" ? "-" : "x") + v.slice(i + 1);
-          on = !on; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); Kit.sfx.tap(); beatPeaks(); changed(); if (loop) playBeat();
-        });
-        b.dataset.c = c; b.setAttribute("aria-label", t("bt_" + r[0]) + ", " + t("btN", { n: i + 1 })); b.setAttribute("aria-pressed", String(on)); grid.appendChild(b);
-      })(c);
-    });
-    [0, 1, 2, 3].forEach(function (n) { var b = el("button", "chip" + (n === ed.page ? " on" : ""), n * 4 + 1 + "–" + (n * 4 + 4), function () { ed.page = n; fill(); }); b.setAttribute("aria-label", t("btN", { n: n * 4 + 1 + "–" + (n * 4 + 4) })); b.setAttribute("aria-pressed", String(n === ed.page)); pages.appendChild(b); });
-  }
-  // the grid first (the tab's tool), page choice and listening right below it (E1.5)
-  var bar = el("div", "chips");
-  fill(); p.appendChild(grid); p.appendChild(pages); p.appendChild(bar);
-  var row = el("label", "slide"), r = el("input"), v = el("b", "", ed.doc.bpm);
-  row.appendChild(el("span", "", t("bpm"))); r.type = "range"; r.min = 70; r.max = 170; r.value = ed.doc.bpm; r.setAttribute("aria-label", t("bpm"));
-  r.addEventListener("input", function () { ed.doc.bpm = Number(r.value); v.textContent = r.value; beatPeaks(); changed(); });
-  r.addEventListener("change", function () { if (loop) playBeat(); });
-  row.appendChild(r); row.appendChild(v); p.appendChild(row);
-  var pl = el("button", "chip", loop ? "■ " + t("stop") : "▶ " + t("listen"), function () { if (loop) { stopSound(); pl.textContent = "▶ " + t("listen"); } else { playBeat(); pl.textContent = "■ " + t("stop"); } });
-  bar.appendChild(pl);
-}
 function applyFx() { if (!ed.raw) return; ed.pcm = window.Klang ? window.Klang.apply(ed.raw, ed.doc) : S.warp(ed.raw, ed.doc.fx); ed.peaks = S.peaks(ed.pcm, 40); changed(); }
-// Recording, the effects and sending the voice as a file: the part klang (src/klang.js, src/klang-ui.js).
-function voicePanel(p) { window.Parts.use("klang", function () { if (ed && p.isConnected) window.Klang.panel(p); }).catch(function () {}); }
 
 /* ---------- finish ---------- */
 // AI Act Art. 50: a picture of a sheet that AI made (or helped to make: wish, AI picture, free card) says so in the picture
@@ -820,7 +628,7 @@ async function makePicture(doc, idea, pictureDoc) {
   var made = pictureDoc || doc;
   wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c), k: made.k === "photo" || photo ? "photo" : made.k }); store.wall = wall; Kit.save();
   if (!Kit.persisted) Kit.toast(t("wallFull"));
-  var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png);
+  var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png); img.alt = cardName(made) || t("a_preview");
   $("playit").hidden = true;   // a card is not a level: whoever does not fly far would never see it
   stopSound(); G.stop(); labels(); show("done", true); Kit.sfx.win();
   if (window.Klang || (doc.k === "sound" && doc.m === "voice")) window.Parts.use("klang", function () { window.Klang.done(result); }).catch(function () {});
@@ -1084,14 +892,13 @@ function invites(b, list) {
 function openOwn() {
   shelf(t("own"), function (b) {
     b.appendChild(el("p", "note", t("ownH")));
-    [["card", "🃏"], ["photo", "📷"], ["sound", "🥁"], ["game", "🕹"], ["duel", "🤖"]].concat(D.caps().crypto ? [["quest", "🗝️"]] : []).forEach(function (m) {
+    [["card", "🃏"], ["photo", "📷"], ["sound", "🥁"], ["game", "🕹"], ["lauf", "🏃"], ["duel", "🤖"]].concat(D.caps().crypto ? [["quest", "🗝️"]] : []).forEach(function (m) {
       b.appendChild(el("button", "mech", m[1] + " " + t(m[0]), function () { Kit.sfx.thud(); openEditor(D.blankDoc(m[0], me, Kit.lang), { own: true }); }));
     });
     var door = D.byId("advent-tuer");   // an Advent door can be made any day, not only on its calendar days
     if (door) b.appendChild(el("button", "mech", "🎄 " + D.plainTitle(ideaText(door).t), function () { Kit.sfx.thud(); openEditor(D.docFromIdea(door, me, Kit.lang), { idea: door }); }));
     var shop = D.IDEAS.filter(function (i) { return i.turn && i.turn.g === "einkauf"; })[0];   // a shopping list is needed any day, too
     if (shop) b.appendChild(el("button", "mech", "🛒 " + D.plainTitle(ideaText(shop).t), function () { Kit.sfx.thud(); openEditor(D.docFromIdea(shop, me, Kit.lang), { idea: shop }); }));
-    CC.tile(b);
   });
 }
 
@@ -1101,7 +908,7 @@ function labels() {
   feats(); $("brand").textContent = t("brand"); $("lang").textContent = Kit.lang.toUpperCase(); $("me").textContent = me.emoji;
   // Screen reader names in the language of the page (the template holds the German ones until this runs).
   [["lang", "a_lang"], ["mute", "a_mute"], ["me", "style"], ["edstyle", "style"], ["pvgame", "a_preview"], ["pvcard", "a_preview"], ["stage", "a_preview"], ["demo", "a_gamePreview"],
-    ["feat", "a_feat"], ["edback", "a_close"], ["shback", "a_close"], ["gback", "a_close"], ["edsave", "a_keep"], ["cv", "a_field"], ["coqr", "a_qr"]].forEach(function (x) { $(x[0]).setAttribute("aria-label", t(x[1])); });
+    ["feat", "a_feat"], ["edback", "a_close"], ["shback", "a_close"], ["gback", "a_close"], ["edsave", "a_keep"], ["cv", "a_field"], ["coqr", "a_qr"]].forEach(function (x) { var e = $(x[0]); if (!e._name) e.setAttribute("aria-label", t(x[1])); });
   $("mute").setAttribute("aria-pressed", String(!!Kit.muted));
   var ct = $("create"); ct.hidden = !shown("f_create"); ct.textContent = "✨ " + t("create_tile"); ct.appendChild(el("span", "", t("create_sub")));
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
@@ -1125,7 +932,7 @@ window.addEventListener("daily:lang", function () {
   if (home && home.noteOf) home.note = home.noteOf();   // the invitation's own line too ("Geschickt bekommen." / "Sent to you.")
   if (home && screen === "home") setHome(home, false);
   if (ed && screen === "editor") {
-    $("edtitle").textContent = edTitle(); Array.from($("tabs").children).forEach(function (b) { b.textContent = tabText(b.dataset.k); });
+    $("edtitle").textContent = edTitle(); if (window.Blasen) window.Blasen.relabel();
     var p = $("panel"), top = p.scrollTop; tab(ed.tab); p.scrollTop = top; paint();
   }
 });
@@ -1171,11 +978,12 @@ document.addEventListener("keydown", function (e) {
   x = { editor: "edback", shelf: "shback", game: "gback", done: "dback" }[screen];
   if (x && !$(x).hidden) { e.preventDefault(); $(x).click(); }
 });
-window.addEventListener("popstate", function () { if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
+window.addEventListener("popstate", function () { if (window.ArcadeUI && window.ArcadeUI.back()) return; if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
 
 function route() {
-  var card = CC.route(location.hash);
-  if (card) { clearLink(); if (!card.keep && screen !== "editor") goHomeKeep(); return true; }
+  // The call card ("Ruf mich an, wenn du mich wirklich kennst", #p=<invite>&k=<card>) was struck with the shelf clean-up
+  // (2026-11, konzept2 section 4): it only ever worked while its maker waited, so an old one says honestly that it is gone.
+  if (/^#?p=[A-Za-z0-9_-]{40,1024}&k=[A-Za-z0-9_-]{1,1500}$/.test(location.hash)) { clearLink(); home = dayHome(); goHomeKeep(); window.DailyShelfOpen = true; if (window.StartUI && window.StartUI.all) window.StartUI.all(true); Kit.toast(t("cardGone"), 8000); return true; }
   if (CU.route(location.hash)) { clearLink(); if (screen !== "editor") goHomeKeep(); return true; }
   var live = location.hash.match(/^#live=([A-Za-z0-9_-]{22})(?:&g=([a-z]{2,12}))?$/);
   if (live && window.LiveUI) { history.replaceState(null, "", location.pathname); window.LiveUI.accept(live[1], live[2]); }
@@ -1192,6 +1000,8 @@ function route() {
     var st = Object.assign({}, r.state), riv = typeof st.score === "number" ? { score: st.score, name: st.name || "" } : null;
     delete st.score; delete st.name; show("game"); G.play(st, riv, { own: true }); return true;
   }
+  // A card taken off the shelf (ideas.json gone): say so, show the day's card and open "All cards" (the shelf) right away.
+  if (r && r.type === "gone") { clearLink(); home = dayHome(); goHomeKeep(); window.DailyShelfOpen = true; if (window.StartUI && window.StartUI.all) window.StartUI.all(true); Kit.toast(t("cardGone"), 8000); return true; }
   if ((r && r.type === "idea" && !D.available(D.byId(r.id))) || (r && r.type === "doc" && !D.docAvailable(r.doc))) { home = dayHome(); goHomeKeep(); Kit.toast(t("notHere")); return true; }
   if (r && r.type === "idea") { home = { date: today, idea: D.byId(r.id), fx: r.fx, note: t("invite"), noteOf: function () { return t("invite"); } }; goHomeKeep(); return true; }
   // A turn card that checks a signature first (feier: the signed end) reads its link only once that is done.
@@ -1250,10 +1060,9 @@ var CU = window.CollabUI.init({
   more: function () { try { window.DuellHost.more(); } catch (e) {} }
 });
 
-var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
-window.DailyApp = { part: twoIdea, stopSound: stopSound, playPcm: function (pcm) { stopSound(); return (loop = Kit.playPcm(pcm, S.SR, false)); }, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, res: function () { return result; }, count: function (way) { counted(result, way); }, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, picSwap: picSwap, picThumb: picThumb, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { played: function (e) { played = e; }, part: twoIdea, stopSound: stopSound, playPcm: function (pcm) { stopSound(); return (loop = Kit.playPcm(pcm, S.SR, false)); }, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, res: function () { return result; }, count: function (way) { counted(result, way); }, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, gameState: gameState, playGame: playGame, markKi: markKi, ideaText: ideaText, beatPeaks: beatPeaks, playBeat: playBeat, playing: function () { return !!loop; }, picSwap: picSwap, picThumb: picThumb, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 window.DailyApp.allow = allow;
 
@@ -1272,7 +1081,7 @@ function boot() { if (!route()) goHome(); }
 // Missing, the page stays as it was.
 // A link (c=, i=, s=) opens straight on a received card: that page waits for the part too (asked for at once, at most 2.5 s),
 // so its sender line and the card's room are there with the first paint and nothing moves afterwards.
-function startPart() { return (window.DailyParts || {}).start ? window.Parts.need("start").then(function () { window.StartUI.labels(); if (home && screen === "home") window.StartUI.home(home); }, function () { $("home").classList.remove("neu"); }) : 0; }
+function startPart() { return (window.DailyParts || {}).start ? window.Parts.need("start").then(function () { labels(); if (home && screen === "home") window.StartUI.home(home); }, function () { $("home").classList.remove("neu"); }) : 0; }
 var got = /^#(?:.*&)?[cis]=/.test(location.hash) && startPart();
 window.Parts.need("katalog").then(function () { var s = got || startPart(), n = two(location.hash) || twoIdea(D.ideaForDay(today)); return Promise.all([n ? window.Parts.need(n).catch(function () {}) : 0, got ? Promise.race([s, new Promise(function (ok) { setTimeout(ok, 2500); })]) : 0]); }).then(boot, function () { Kit.toast(t("part_fail")); boot(); });
 // The embedded display font loads after the first paint: fit the headline again once it is there, and draw the sheet's

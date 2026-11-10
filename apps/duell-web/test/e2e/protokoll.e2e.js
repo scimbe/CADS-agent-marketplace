@@ -183,6 +183,8 @@ test("Protokoll -> Aufgaben-Link: Namen nur wo im Meeting genannt, Frist als Tag
     tasks: [{ who: "Anna", what: "Getränke besorgen", due: "Mittwoch" }, { who: "Ben", what: "Raum buchen", due: "" }] }], meter: { remaining: 2, free: 3 } } };
   const { b, p, seen } = await open({ ai });
   await p.route(ORIGIN + "/duell", (r) => r.fulfill({ body: fs.readFileSync(path.join(DIST, "index.html")), headers: { "Content-Type": "text/html; charset=utf-8" } }));
+  // the app's parts next to it, as the gallery serves them: the list opens in the editor, whose tabs are the part blasen (R4)
+  await p.route(ORIGIN + "/duell/parts/*", (r) => r.fulfill({ body: fs.readFileSync(path.join(DIST, "parts", path.basename(new URL(r.request().url()).pathname))), headers: { "Content-Type": "text/javascript" } }));
   await p.getByLabel(CONSENT).check(); await p.getByRole("button", { name: "Mitschrift starten" }).click();
   await p.locator("#lines li").nth(2).waitFor({ timeout: 20000 });
   await p.getByRole("button", { name: "■ Stopp" }).click(); await p.waitForFunction(() => !document.getElementById("transcript").disabled);

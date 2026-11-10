@@ -98,13 +98,13 @@ test("Tippflaechen >= 44 px: Funktionsleiste, Regler, Kartentisch, Einladung ent
 
 test("Escape schliesst wie das ✕ (Editor, Regal, Fertig-Seite, Kartentisch mit Nachfrage); ✕ oben links mit Namen, auch EN", async () => {
   const { b, open, errs } = await setup(360, 740);
-  const p = await open(page + "#i=karte-spruch");   // a fixed card: today's card may be a game on a layer
+  const p = await open(page + "#i=karte-einladung");   // a fixed card: today's card may be a game on a layer
   const state = () => p.evaluate(() => document.body.dataset.state);
   await p.locator("#go").click(); await p.locator("#editor:not([hidden])").waitFor();
   await p.keyboard.press("Escape"); await p.waitForFunction(() => document.body.dataset.state === "home");
   await p.locator("#past").click(); await p.locator("#shelf:not([hidden])").waitFor();
   await p.keyboard.press("Escape"); assert.equal(await state(), "home");
-  await p.goto(page + "#i=karte-spruch"); await p.locator("#go").click(); await p.locator("#edmain").click(); await p.locator("#share").waitFor();
+  await p.goto(page + "#i=karte-einladung"); await p.locator("#go").click(); await p.locator("#edmain").click(); await p.locator("#share").waitFor();
   const x = await p.locator("#dback").evaluate((e) => { const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, w: r.width, h: r.height, n: e.getAttribute("aria-label") }; });
   assert.ok(x.l < 20 && x.t < 20 && x.w >= 44 && x.h >= 44 && x.n === "Schließen", JSON.stringify(x));
   await p.keyboard.press("Escape"); await p.waitForFunction(() => document.body.dataset.state === "home");
@@ -122,7 +122,7 @@ test("Escape schliesst wie das ✕ (Editor, Regal, Fertig-Seite, Kartentisch mit
   const f = p.locator("#panel .field").first(); await f.fill("Hallo"); await f.focus();
   await p.keyboard.press("Escape"); assert.equal(await state(), "editor");
   await p.keyboard.press("Escape"); await p.waitForFunction(() => document.body.dataset.state === "home");
-  const e = await open(page + "#i=karte-spruch"); await e.locator("#lang").click(); await e.locator("#go").click(); await e.locator("#edmain").click(); await e.locator("#share").waitFor();
+  const e = await open(page + "#i=karte-einladung"); await e.locator("#lang").click(); await e.locator("#go").click(); await e.locator("#edmain").click(); await e.locator("#share").waitFor();
   assert.equal(await e.locator("#dback").getAttribute("aria-label"), "Close");
   assert.deepEqual(errs, []);
   await b.close();

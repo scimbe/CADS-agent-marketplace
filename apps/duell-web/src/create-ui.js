@@ -8,7 +8,10 @@
   "use strict";
   var ARTS = ["card", "meme", "game", "sound", "quiz", "faehigkeit"];
   // the kind of doc each art comes back as: anything else is refused and given back, never shown or booked (never arcade)
-  var KIND_OF = { card: "card", meme: "photo", game: "game", sound: "sound", quiz: "turn" };
+  var KIND_OF = { card: "card", meme: "photo", game: "game", sound: "sound", quiz: "turn", lauf: "lauf" };
+  // asked: the art chosen here; art: the one the server made. A game wish the server reads as a runner or a jump'n'run comes
+  // back as art "lauf" (the second engine, src/lauf.js), never as a flying game; nothing else may change the art.
+  function artOk(asked, art) { return art === asked || (asked === "game" && art === "lauf"); }
   function kindOk(art, doc) {
     if (art === "faehigkeit") return (doc.k === "turn" || doc.k === "duel") && !!doc.i;   // an existing card of the catalog
     if (art === "quiz") return doc.k === "turn" && !!doc.pk;                              // a quiz has its questions
@@ -16,7 +19,8 @@
     return doc.k === KIND_OF[art];
   }
   // the preview's own look, part of this part and not of the core (scripts/build.js budget)
-  var CSS = ".createpv{position:relative;margin:10px 0;padding:18px 16px 30px;border:3px solid #111;border-radius:6px;display:flex;flex-direction:column;gap:8px;min-height:150px;box-shadow:0 5px 0 #111}.createpv-t{font:900 20px/1.1 var(--disp);text-transform:uppercase}.createpv-x{font:800 18px/1.25 var(--ui)}.createpv-sk{font-size:26px}.createpv-photo{border:2px dashed currentColor;padding:18px 8px;font:700 13px/1.3 var(--ui);text-align:center}.createpv-ki{position:absolute;right:8px;bottom:6px;background:#111;color:#fff;font:800 11px/1 var(--ui);padding:4px 6px;border-radius:4px}";
+  var CSS = ".cr16{display:flex;gap:12px;align-items:center;min-height:44px;margin:8px 0;font-weight:600}.cr16 input{width:28px;height:28px;margin:0;flex:none;accent-color:#17140f}.crneed{margin:0;color:#b3321f;font-weight:700}.crneed:empty{display:none}" +
+    ".createpv{position:relative;margin:10px 0;padding:18px 16px 30px;border:3px solid #111;border-radius:6px;display:flex;flex-direction:column;gap:8px;min-height:150px;box-shadow:0 5px 0 #111}.createpv-t{font:900 20px/1.1 var(--disp);text-transform:uppercase}.createpv-x{font:800 18px/1.25 var(--ui)}.createpv-sk{font-size:26px}.createpv-photo{border:2px dashed currentColor;padding:18px 8px;font:700 13px/1.3 var(--ui);text-align:center}.createpv-ki{position:absolute;right:8px;bottom:6px;background:#111;color:#fff;font:800 11px/1 var(--ui);padding:4px 6px;border-radius:4px}.createalt{width:100%;box-sizing:border-box;border:3px solid #111;border-radius:6px;padding:12px;margin:10px 0;display:flex;flex-direction:column;gap:8px}.createalt .row{padding:0}";
   function style() { if (document.getElementById("createcss")) return; var s = document.createElement("style"); s.id = "createcss"; s.textContent = CSS; document.head.appendChild(s); }
   var A, Kit, t, el, D;
   var state = { art: "card", meter: null, account: false, net: true };
@@ -58,7 +62,20 @@
     if (!state.account) {
       b.appendChild(el("p", "note", t("create_login_h", { m: 5 })));
       if (root.DuellHost) { b.appendChild(el("p", "note", t("create_app"))); return; }
-      var a = el("a", "btn hot", t("create_login")); a.href = root.DuellCore.loginPath("/duell", Kit.lang); b.appendChild(a);
+      // one short step, no failing later: the 16+ statement of this very tap (as the account card, profile.js: an attempt
+      // with t0 and age16), then the sign-in; the way back (?go=erschaffen, start-ui.js) opens this making again
+      var lab = el("label", "cr16"), cb = el("input"), need = el("p", "crneed", "");
+      cb.type = "checkbox"; cb.id = "create16"; lab.appendChild(cb); lab.appendChild(document.createTextNode(" " + t("create_16")));
+      need.setAttribute("role", "alert");
+      var go = el("button", "btn hot", t("create_login"), function () {
+        if (!cb.checked) { need.textContent = ""; cb.focus(); setTimeout(function () { need.textContent = t("create_need"); }, 80); return; }   // never a locked look
+        Kit.store.profile = { via: "account", rev: 0, base: null, age16: true, t0: Date.now() };
+        Kit.save();   // an attempt is not synced (profile.js Kit.save: only a done link)
+        location.href = root.DuellCore.loginPath((root.Ai && root.Ai.loginReturn ? root.Ai.loginReturn(root.DailyFlavor) : "/duell") + "?go=erschaffen", Kit.lang);
+      });
+      go.id = "createlogin";
+      cb.addEventListener("change", function () { if (cb.checked) need.textContent = ""; });
+      b.appendChild(lab); b.appendChild(need); b.appendChild(go); b.appendChild(el("p", "note", t("create_free")));
       return;
     }
     // switched off on the server (DUELL_KARTE_OFF): said kindly, nothing else
@@ -69,7 +86,8 @@
 
     b.appendChild(el("p", "note", t("create_h")));
     b.appendChild(el("p", "note", t("create_art")));
-    b.appendChild(chipRow(ARTS.map(function (k) { return [k, t("create_art_" + k)]; }), state.art, t("create_art"), function (v) { state.art = v; fill(b); }));
+    var arts = chipRow(ARTS.map(function (k) { return [k, t("create_art_" + k)]; }), state.art, t("create_art"), function (v) { state.art = v; fill(b); });
+    b.appendChild(arts);
     var ta = el("textarea", "field");
     ta.id = "createtext"; ta.rows = 3; ta.maxLength = 200; ta.placeholder = t("create_ph"); ta.setAttribute("aria-label", t("create_label"));
     b.appendChild(ta);
@@ -84,22 +102,52 @@
     if (state.meter && state.meter.remaining <= 0) return;
     if (state.meter && state.meter.paused) { b.appendChild(el("p", "note", t("create_paused"))); return; }
 
+    // alt: a catalog card (opens by id) or a genre with its sentence, editable; only a tap sends it, as a wish in that genre
+    var GENRE_ART = { G1: "game", G2: "game", G11: "quiz" }, ask = "";
+    function altCard(alt) {
+      var idea = alt && alt.kind === "katalog" ? D.byId(String(alt.id)) : null;
+      var gen = alt && alt.kind === "genre" && /^G\d{1,2}$/.test(alt.id) && typeof alt.satz === "string" && alt.satz;
+      if (!idea && !gen) return null;
+      var box = el("div", "createalt"), row = el("div", "row"), f;
+      box.setAttribute("role", "group"); box.setAttribute("aria-label", t("create_alt"));
+      box.appendChild(el("p", "note", t("create_alt")));
+      if (idea) {
+        box.appendChild(el("b", "", D.plainTitle((idea[Kit.lang] || idea.de).t)));
+        row.appendChild(el("button", "btn", t("create_alt_open"), function () { Kit.sfx.thud(); A.openEditor(D.docFromIdea(idea, A.me(), Kit.lang), { idea: idea }); }));
+      } else {
+        f = el("textarea", "field"); f.id = "createalt"; f.rows = 3; f.maxLength = 200; f.value = alt.satz.slice(0, 200); f.setAttribute("aria-label", t("create_alt_edit"));
+        box.appendChild(f);
+        row.appendChild(el("button", "btn", t("create_alt_send"), function () {
+          Kit.sfx.tap(); var art = GENRE_ART[alt.id] || state.art;
+          if (art !== state.art) { state.art = art; arts.querySelectorAll("button").forEach(function (c, i) { var on = ARTS[i] === art; c.classList.toggle("on", on); c.setAttribute("aria-pressed", String(on)); }); }
+          ta.value = f.value; ask = alt.id; go(); ask = "";   // a crisis stops before input(): the genre must not ride on the next wish
+        }));
+      }
+      row.appendChild(el("button", "btn", t("create_alt_no"), function () { Kit.sfx.tap(); box.remove(); ta.focus(); }));
+      box.appendChild(row);
+      return box;
+    }
     var go = root.Ai.block(b, {
       kind: "karte", label: t("create_go"), el: el, noteLast: true,
       raw: function () { return ta.value; },
-      input: function () { var s = String(ta.value || "").trim(); return s.length >= 3 ? { text: s.slice(0, 200), art: state.art } : null; },
+      input: function () { var s = String(ta.value || "").trim(), g = ask; ask = ""; return s.length >= 3 ? Object.assign({ text: s.slice(0, 200), art: state.art }, g ? { genre: g } : {}) : null; },
       wall: function () { left.textContent = line(state.meter); },
       show: function () { return ""; },
       apply: function () { return false; },
       // one card comes back: shown as a preview; the promise says whether it was taken (true) or thrown away (false)
-      // a game the wish names that is no flying game: said plainly, never a flying game instead; the catalog cards that have it
+      // cannot make it: the fixed reason and at most one alt of the server's table (wrapper lib/duell-absage.mjs), never model text
       notyet: function (r, res) {
         res.textContent = "";
         var n = r.notyet && typeof r.notyet.name === "string" ? r.notyet.name.slice(0, 30) : "";
         var feat = r.notyet && r.notyet.what === "feature";      // a need no ability covers yet (replies, a card game ...)
-        res.appendChild(el("p", "note aistate", n ? t(feat ? "create_notyet_feature" : "create_notyet_game", { name: n }) : t("create_notyet")));
-        var cs = (Array.isArray(r.catalog) ? r.catalog : []).map(function (id) { return D.byId(String(id)); }).filter(Boolean);
-        if (!cs.length) { res.appendChild(el("p", "note", t("create_notyet_none"))); return; }
+        // a reason without a full stop is the name of a game: "… kann die freie Karte noch nicht."
+        var k = typeof r.reason === "string" && /^[a-z0-9_]{1,20}$/.test(r.reason) ? "create_absage_" + r.reason : "", why = k && t(k) !== k ? t(k) : "";
+        if (why) why = (/\.$/.test(why) ? why : t("create_absage_n", { x: why })) + " " + t("create_absage_0");
+        res.appendChild(el("p", "note aistate", why || (n ? t(feat ? "create_notyet_feature" : "create_notyet_game", { name: n }) : t("create_notyet"))));
+        var card = altCard(r.alt), aid = card ? r.alt.id : "";
+        if (card) res.appendChild(card);
+        var cs = (Array.isArray(r.catalog) ? r.catalog : []).filter(function (id) { return String(id) !== aid; }).map(function (id) { return D.byId(String(id)); }).filter(Boolean);
+        if (!cs.length) { if (!card) res.appendChild(el("p", "note", t("create_notyet_none"))); return; }
         res.appendChild(el("p", "note", t(feat ? "create_notyet_similar" : "create_notyet_catalog")));
         cs.forEach(function (idea) {
           var L = idea[Kit.lang] || idea.de;
@@ -109,7 +157,7 @@
       auto: function (opt, ki, res, note) {
         var doc = opt && opt.doc ? D.sanitizeDoc(opt.doc) : null;
         // what came back must be what was asked for (art and kind); otherwise said so, given back, nothing booked
-        if (!doc || !opt || opt.art !== state.art || !kindOk(state.art, doc) || !ki || !ki.s) { res.textContent = ""; res.appendChild(el("p", "note aistate", t("create_bad"))); return false; }
+        if (!doc || !opt || !artOk(state.art, opt.art) || !kindOk(opt.art, doc) || !ki || !ki.s) { res.textContent = ""; res.appendChild(el("p", "note aistate", t("create_bad"))); return false; }
         return new Promise(function (done) {
           res.textContent = "";
           var pv = preview(doc); pv.tabIndex = -1; res.appendChild(pv);
@@ -151,6 +199,7 @@
 
   // What a card that is no plain card shows in the preview: its game, beat, questions or the existing card it uses.
   function lines(doc) {
+    if (doc.k === "lauf") return [doc.l.e + " " + (doc.t || ""), t("create_lauf_" + doc.l.m) + " · " + [doc.l.o, doc.l.c, doc.l.f].join(" ")];
     if (doc.k === "game" && doc.g) return [doc.g.emoji + " " + doc.g.title, (doc.g.route || []).map(function (r) { return r.e; }).join(" → ")];
     if (doc.k === "sound") return [doc.x + " · " + doc.bpm + " BPM"].concat(doc.ly || []);
     if (doc.k === "turn" && doc.pk) return [t("create_questions", { n: doc.pk.q.length }), doc.pk.q[0][0]];
