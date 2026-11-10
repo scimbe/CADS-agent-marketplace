@@ -19,7 +19,9 @@ function fakeLive(o = {}) {
         if (me.dead) return;
         if (o.sent && me.owner) { const h = me.owner._debug().hand; o.sent.push({ from: me.owner, m: JSON.parse(JSON.stringify(m)), state: h && JSON.parse(JSON.stringify(h.state)) }); }
         if (o.tamper && me.owner) m = o.tamper(me.owner, JSON.parse(JSON.stringify(m)));
-        const s = JSON.stringify(m); setImmediate(() => { if (!other.dead && other.h) other.h(JSON.parse(s)); });
+        // what was sent before a close still arrives (a real data channel sends its queue before it closes); the
+        // closers run after it (their setImmediate comes later)
+        const s = JSON.stringify(m); setImmediate(() => { if (other.h) other.h(JSON.parse(s)); });
       },
       on: (h) => { me.h = h; }, onClose: (h) => { me.closers.push(h); },
       close: () => { if (me.dead) return; me.dead = other.dead = true; setImmediate(() => { me.closers.forEach((f) => f()); other.closers.forEach((f) => f()); }); }
