@@ -14,15 +14,17 @@ const ids = (r) => r.top.map((x) => x.idea.id);
 
 test("Ein Satz -> Absicht, Empfaenger und die passende Karte zuerst", () => {
   const cases = [
-    ["Danke an Oma", "gruss", "warm-danke", "Oma"],
-    ["Gute Besserung Papa", "gruss", "warm-besserung", "Papa"],
+    // since the shelf clean-up (2026-11) the feel-good cards are in "Schick wem ein Danke" (karte-danke), the voice card in
+    // "Tier-Aufstellung" (mut-tierstory); start.json points at the carriers
+    ["Danke an Oma", "gruss", "karte-danke", "Oma"],
+    ["Gute Besserung Papa", "gruss", "karte-danke", "Papa"],
     ["Termin für den Spieleabend", "planen", "zug-termin", null],
     ["Wer kann wann grillen", "planen", "zug-termin", null],
     ["Mitbringliste für den Kindergeburtstag", "planen", "zug-einkauf", null],
     ["Quiz über unsere Familie", "spielen", "zug-kennst", "Familie"],
     ["Kartenspiel mit Opa", "spielen", "tisch-skat", "Opa"],
-    ["Stimme wie ein Monster", "stimme", "stimme-verzerren", null],   // one voice card since #181 (stimme-monster leads there)
-    ["Thank you to Grandma", "gruss", "warm-danke", "Oma"]
+    ["Stimme wie ein Monster", "stimme", "mut-tierstory", null],
+    ["Thank you to Grandma", "gruss", "karte-danke", "Oma"]
   ];
   for (const [text, intent, first, who] of cases) {
     const r = S.understand(text);
@@ -46,7 +48,7 @@ test("Ehrlich: fehlende Karte wird genannt, nichts passt genau; Unsinn ergibt ke
     const r = S.understand(nonsense);
     assert.equal(r.intent, "", nonsense); assert.deepEqual(r.top, [], nonsense);
   }
-  assert.ok(!ids(S.understand("Superkraft")).includes("warm-super"), "super$ nur als ganzes Wort");
+  assert.equal(S.understand("Superkraft").intent, "", "super$ nur als ganzes Wort");
 });
 
 test("Stimmt nicht? Aendern: eine erzwungene Absicht zeigt nur deren Karten, die kuratierten zuerst", () => {
@@ -55,7 +57,7 @@ test("Stimmt nicht? Aendern: eine erzwungene Absicht zeigt nur deren Karten, die
   assert.ok(r.top.length >= 3 && r.top.every((x) => S.intentOf(x.idea) === "planen"));
   assert.deepEqual(ids(S.understand("", { intent: "stimme" })), S.cardsOf("stimme").slice(0, 4).map((i) => i.id));
   for (const n of ["gruss", "planen", "spielen"]) assert.ok(S.cardsOf(n).length >= 3, n + ": genug Karten fuer die Kachel");
-  assert.ok(S.cardsOf("stimme").map((i) => i.id).includes("stimme-verzerren"), "Stimme: die (seit #181 eine) Stimmkarte");
+  assert.ok(S.cardsOf("stimme").map((i) => i.id).includes("mut-tierstory"), "Stimme: der Traeger der Stimmkarte (2026-11)");
   for (const n of S.INTENTS) { const l = S.cardsOf(n).map((i) => i.id); assert.equal(new Set(l).size, l.length, n + ": keine Karte doppelt"); }
 });
 
@@ -99,7 +101,8 @@ test("Kern: nur die Haken; ohne Teil bleibt die Startseite wie sie war", () => {
   assert.match(app, /else \$\("home"\)\.classList\.toggle\("neu", !!\(window\.DailyParts \|\| \{\}\)\.start && !h\.note && !h\.doc\);/);
   assert.match(src("index.template.html"), /<div id="startslot" aria-hidden="true"><\/div>/);
   assert.match(src("style.css"), /#home\.neu #startslot\{display:block;min-height:30rem;background:#FBF5DD\}/);
-  assert.match(src("style.css"), /#home\.neu:has\(\.pv\.pic,#warmto:not\(\[hidden\]\)\) #pad\{height:clamp\(15rem,58svh,34rem\)\}/, "Tage mit Bild oder Namensfeld behalten ein grosses Blatt");
+  assert.match(src("style.css"), /#home\.neu #pad\{flex:none;height:clamp\(27rem,calc\(100svh - 23\.5rem\),34rem\)\}/, "jeder Tag hat dasselbe Blatt, in dem Spiel oder Bild Platz hat (10. Nov.: das Spiel fehlte unter 250 px)");
+  assert.doesNotMatch(src("style.css"), /#home\.neu:has\(\.pv\.pic/, "kein hoeheres Blatt fuer Bild-Tage: das Format springt nicht");
   assert.match(src("start-ui.js"), /@media \(max-width:899px\) and \(min-height:701px\) and \(max-height:819px\)\{\.sttile\{min-height:72px\}\.sttile small\{display:none\}\}/, "unter 820 px Hoehe flachere Kacheln statt eines gestauchten Blatts");
   assert.match(src("start-ui.js"), /var slot = \$\("startslot"\); if \(slot\) slot\.replaceWith\(box\);/);
   assert.match(src("../scripts/build.js"), /if \(!flavor\) PARTS\.start = \{ d: \[\], src: \["STARTDATA", "START", "STARTUI"\] \};/, "Daily Business ohne den Teil");
@@ -114,7 +117,7 @@ test("Review #185: Wochenende ist planen, Enkelin bleibt Enkelin, Komposita, Nam
   assert.equal(S.understand("danke an lea").name, "", "klein geschrieben: im Zweifel kein Name");
   assert.equal(S.understand("Termin für den Spieleabend").name, "", "ein Artikel ist kein Name");
   const bowl = S.understand("Bowling mit Kollegen");
-  assert.equal(bowl.missing.de, "Bowling"); assert.deepEqual(ids(bowl).slice(0, 2), ["arcade-puck", "arcade-elfer"], "Sport: zuerst die Duelle");
+  assert.equal(bowl.missing.de, "Bowling"); assert.deepEqual(ids(bowl).slice(0, 2), ["arcade-kick", "arcade-elfer"], "Sport: zuerst die Duelle (Puck ist in Stangen-Kick aufgegangen)");
   assert.match(DATA.texts.de.st_missing, /Stattdessen:$/); assert.match(DATA.texts.de.st_none, /tippe auf „Ändern“/);
   assert.equal(DATA.texts.de.st_local, "Dein Satz bleibt auf dem Gerät. Erst bei „Fertig“ legen wir einen kurzen Link zu deiner Karte an.");
   assert.equal(DATA.texts.de.st_free, "Frei für dich");
@@ -135,7 +138,7 @@ test("Review #185 Runde 2: Namen nur grossgeschrieben und nie ein Pronomen, Name
   assert.equal(S.understand("Danke an Mama").name, "", "Mama nur als Anrede"); assert.equal(S.callName(S.understand("Danke an Mama"), "de"), "Mama");
   const daniel = S.understand("Kindergeburtstag Samstag wer bringt was mit");
   assert.equal(daniel.intent, "planen"); assert.equal(ids(daniel)[0], "zug-einkauf"); assert.equal(daniel.missing, null);
-  assert.equal(ids(S.understand("Adventsrätsel"))[0], "zug-advent");
+  assert.equal(ids(S.understand("Adventsrätsel"))[0], "advent-tuer", "zug-advent ist im Adventstürchen aufgegangen (2026-11)");
   assert.equal(S.understand("Termin für den Spieleabend").intent, "planen");
   assert.equal(DATA.texts.de.st_hint.length <= 14, true, "Platzhalter passt bei 200 %");
 });

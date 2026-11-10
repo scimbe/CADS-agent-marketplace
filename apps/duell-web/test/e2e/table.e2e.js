@@ -58,7 +58,9 @@ async function setup(b, br, nick) {
 async function openTable(x, label) {
   await x.p.goto(page);
   await G.alle(x.p); await x.p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
-  await x.p.getByRole("button", { name: label }).click();
+  // Doppelkopf live has no shelf button since the shelf clean-up (2026-11, into the Skat table): opened as the button did
+  if (/Doppelkopf/.test(String(label))) { await x.p.waitForFunction(() => window.TableUI && window.LiveUI && window.LiveUI.on()); await x.p.evaluate(() => { window.TableUI.open("doko"); }); }
+  else await x.p.getByRole("button", { name: label }).click();
   await x.p.locator(".tbseats").waitFor();
 }
 // One move on this page if it has one: the plainest way through a hand.

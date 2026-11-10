@@ -6,7 +6,9 @@ const W = require("../src/wish.js");
 const me = { emoji: "🐙", nick: "M", colors: ["#2b4bff", "#ffe600"], set: "tiere" };
 const PAIRS = [["#ffd400", "#ff3b1d"], ["#2b4bff", "#ffe600"]];
 const rand = () => 0.5;
-const of = (k) => D.docFromIdea(D.IDEAS.find((i) => i.kind === k), me, "de");
+// a card of the kind; the only text card left after the shelf clean-up (2026-11) is the Advent door with its fixed look,
+// so a text card here is the empty one the sound/card/photo buttons open (D.blankDoc)
+const of = (k) => { const i = D.IDEAS.find((x) => x.kind === k && !x.on); return i ? D.docFromIdea(i, me, "de") : D.blankDoc(k, me, "de"); };
 
 test("Anfrage: nur Typ, Wunsch, Grundidee und Texte; kein Bild, keine Sticker, keine Spur", () => {
   const d = of("photo"), r = W.request(d, "lustiger", "Idee");
@@ -53,7 +55,7 @@ test("Wetter: Wunsch kann die Zahlen nie aendern, kaputte Werte fallen weg, Text
 test("Grenze: KI-Wunsch nur wo die KI echte Arbeit macht, Kosmetik wuerfelt lokal; Raetsel eines Kanals gehen nicht an den Server", () => {
   assert.deepEqual([...W.KINDS].sort(), ["duel", "game", "quest", "sound"]);
   for (const k of ["card", "photo", "turn"]) assert.ok(!W.KINDS.includes(k) && W.DICE.includes(k), k + ": kein KI-Umfaerben");
-  assert.deepEqual([...new Set([...W.KINDS, ...W.DICE])].sort(), D.KINDS.filter((k) => k !== "table" && k !== "arcade").sort());   // a card table and arcade have no editor
+  assert.deepEqual([...new Set([...W.KINDS, ...W.DICE])].sort(), D.KINDS.filter((k) => k !== "table" && k !== "arcade" && k !== "lauf").sort());   // a card table and arcade have no editor; the runner reads its wish on the device (part lauf)
   const q = Object.assign(of("quest"), { q0: "Geheimfrage", h0: "abc", c: ["Z2VoZWlt"] }), r = JSON.stringify(W.request(q, "x", ""));
   assert.ok(!/Geheimfrage|Z2VoZWlt/.test(r));
 });

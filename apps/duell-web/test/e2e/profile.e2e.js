@@ -242,7 +242,8 @@ test("Frosch -> Konto-Karte -> Keycloak, mit dem Look-Cookie in meinen Farben", 
   assert.equal(toLogin.length, 1); assert.equal(toLogin[0].url, DEMOS + "/auth/login?return=%2Fduell");
   const k = new URL(p.url());
   assert.equal(k.origin + k.pathname, "https://auth.bunsenbrenner.org/realms/ct-demo/protocol/openid-connect/auth");
-  assert.equal(k.searchParams.get("client_id"), "ct-portal");
+  // the client is the gate's choice (live: ct-portal, since the own login theme mydailyidea), not the page's
+  assert.match(k.searchParams.get("client_id"), /^(ct-portal|mydailyidea)$/);
   assert.equal(k.searchParams.get("redirect_uri"), "https://bunsenbrenner.org/gate/callback");
   assert.equal(k.searchParams.get("response_type"), "code");
   const look = (await ctx.cookies("https://auth.bunsenbrenner.org")).find((c) => c.name === "ct_look");

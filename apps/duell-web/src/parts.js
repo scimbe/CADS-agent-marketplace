@@ -52,6 +52,7 @@
   var pv = 0, arc = stand("play", "ArcadeUI", ["menu", "tiles", "playBot"], {
     count: function () { return ((root.DuellIdeas && root.DuellIdeas.ideas) || []).filter(function (i) { return i.kind === "arcade"; }).length; },
     dress: function () { return false; },
+    back: function () { return false; },   // without the part no arcade layer is open: the phone's back is the app's
     demo: function (c, a, still) {
       var my = ++pv;
       if (a) need("play").then(function () { if (my === pv && root.ArcadeUI !== arc) root.ArcadeUI.demo(c, a, still); }, function () {});

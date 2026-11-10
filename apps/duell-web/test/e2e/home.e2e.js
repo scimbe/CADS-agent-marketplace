@@ -97,7 +97,7 @@ test("Welt: ein Thema im Welt-Tab ersetzt die gebaute Welt eines Spiels sichtbar
   const p = await (await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" })).newPage();
   const errs = []; p.on("pageerror", (e) => errs.push(e.message));
   await p.goto(page);
-  await p.evaluate(() => { const D = window.Daily, i = D.IDEAS.find((x) => x.kind === "game" && x.game.look); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i }); });
+  await p.evaluate(() => { const D = window.Daily, i = D.IDEAS.concat(D.RETIRED).find((x) => x.kind === "game" && x.game.look); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i }); });
   await p.getByRole("tab", { name: "Welt" }).tap();
   assert.equal(await p.locator("#panel .chip.on").count(), 0, "eine gebaute Welt ist keines der Themen");
   const sky = () => p.evaluate(() => { const c = document.getElementById("demo"), d = c.getContext("2d").getImageData(4, 4, 1, 1).data; return [d[0], d[1], d[2]].join(); });

@@ -95,7 +95,7 @@
         if (now() - started >= max) return none("busy", last);
         try { r = await o.send("/queue", { ticket: tk }); } catch (e) { return none("off"); }
       }
-      if (how !== "result") { var no = none(how, how === "busy" ? place(r.json) || last : 0); no.why = how === "blocked" && r.json && (r.json.why === "crisis" || r.json.why === "kind_ok") ? r.json.why : ""; if (how === "notyet") { no.notyet = r.json.notyet; no.catalog = r.json.catalog; } return no; }
+      if (how !== "result") { var no = none(how, how === "busy" ? place(r.json) || last : 0); no.why = how === "blocked" && r.json && (r.json.why === "crisis" || r.json.why === "kind_ok") ? r.json.why : ""; if (how === "notyet") { no.notyet = r.json.notyet; no.catalog = r.json.catalog; no.reason = r.json.reason; no.alt = r.json.alt; } return no; }
       return { how: how, options: r.json.options, seals: seals(r.json), receipt: receipt(r.json), position: 0, note: r.json.note };
     }
     // Settle a handed-out result once: accept (taken) or discard (nothing taken, nothing changed). -> true when the server said yes.
