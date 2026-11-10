@@ -27,8 +27,15 @@ function longest90(k) {
   }
   return (memo[k] = best);
 }
-// The longest Spur sanitize keeps: 2-byte taps until the recorder's cap.
+// The longest Spur the recorder writes: 2-byte taps until its cap (MAX_BYTES - 3, room for the end mark).
 function capSpur() { const r = S.recorder(); for (let t = 0; t <= S.TMAX; t += 64) r.put(t, 1); r.end(S.TMAX); return r.bytes(); }
+// The longest Spur sanitize keeps (a hand-made link): MAX_BYTES of 2-byte taps, 168 x 64 ticks <= TMAX.
+function maxSpur() {
+  const ev = []; for (let i = 1; i <= S.MAX_BYTES / 2; i++) ev.push([i * 64, 1]);
+  const b = S.sanitize(S.encode(ev, null));
+  assert.equal(b && b.length, S.MAX_BYTES, "sanitize behaelt MAX_BYTES");
+  return b;
+}
 
 function report(rows, spur, total) {
   return rows.map(([k, v]) => k + " " + v + " B").join(", ") + ", spur " + spur + " B -> " + total + " Zeichen Base64 (Grenze " + C.MAX_FRAGMENT + ")";
@@ -38,7 +45,7 @@ test("Link-Budget: Worst-Case-Flug (Namen CJK/ZWJ/प्रिया/محمد, k
   const run = longest90(0.5), cap = capSpur();
   assert.ok(run, "kein Bot-Lauf ueber 90 s bei k=0.5");
   assert.ok(run.bytes.length <= S.MAX_BYTES, "90-s-Spur bei k=0.5 wird nicht gekappt: " + run.bytes.length);
-  for (const spur of [run.bytes, cap]) for (const n of NAMES) {
+  for (const spur of [run.bytes, cap, maxSpur()]) for (const n of NAMES) {
     const st = { v: 1, seed: 4294967295, params: { gravity: 2600, jump: 620, gap: 200, speed: 260 }, theme: "sunset", title: n + n, emoji: "👨‍👩‍👧‍👦", name: n, score: 9999, ki: KI, ev: E.EV, k: 0.5, spur };
     const enc = C.encodeState(st), s = C.sanitizeState(st);
     assert.deepEqual([...C.decodeState(enc).spur], [...spur], "Spur kommt an");
@@ -51,7 +58,7 @@ test("Link-Budget: Worst-Case-Flug (Namen CJK/ZWJ/प्रिया/محمد, k
 test("Link-Budget: dieselbe Spur in der freien Karte (#c={v:1,d}, Siegel karte mit h und o) bleibt <= 1200", () => {
   // daily.js carries g without ev/k/spur until A7b; measured here with the same rule as core.js: JSON, a 0, the bytes.
   const run = longest90(0.5), cap = capSpur(), out = [];
-  for (const spur of [run.bytes, cap]) for (const n of NAMES) {
+  for (const spur of [run.bytes, cap, maxSpur()]) for (const n of NAMES) {
     const d = D.sanitizeDoc({ k: "game", col: ["#ffd400", "#ff3b1d"], n, by: [{ n, w: ["text"] }], ki: KI, g: { seed: 4294967295, params: { gravity: 2600, jump: 620, gap: 200, speed: 260 }, theme: "sunset", title: n + n, emoji: "👨‍👩‍👧‍👦" } });
     d.g.ev = E.EV; d.g.k = 0.5;
     const size = () => b64len(B({ v: 1, d }) + 1 + spur.length);
