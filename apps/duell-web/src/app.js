@@ -252,7 +252,7 @@ var tick = { many: false, run: false, stop: false, timer: 0 };
 function feats() {
   var bar = $("feat"), lane = el("div", "lane"), box = el("div", "track"), n = D.IDEAS.filter(function (i) { return i.kind === "turn" || i.kind === "arcade"; }).length;
   var list = [["f_flappy", "🕹", function () { blank("game"); }], ["f_conf", "📞", function () { openLive(LIVE.conf); }], ["f_card", "🃏", function () { blank("card"); }], ["f_photo", "📷", function () { blank("photo"); }],
-    ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].filter(function (f) { return shown(f[0]); });
+    ["f_beat", "🥁", function () { blank("sound"); }], ["f_agent", "🤖", function () { blank("duel"); }], ["f_tunnel", "🌐", function () { openLive(LIVE.tunnel); }], ["f_demos", "🔥", function () { openLive(LIVE.demos); }]].filter(function (f) { return shown(f[0]) && !(window.StartUI && /^f_(tunnel|demos)$/.test(f[0])); });
   bar.textContent = ""; tick.many = list.length >= 3;
   if (shown("f_two")) bar.appendChild(el("button", "hot", "🎲 " + t("f_twoN", { n: n }), function () { Kit.sfx.tap(); X.turn.menu(); }));
   lane.appendChild(box); bar.appendChild(lane);
@@ -1273,7 +1273,7 @@ function boot() { if (!route()) goHome(); }
 // Missing, the page stays as it was.
 // A link (c=, i=, s=) opens straight on a received card: that page waits for the part too (asked for at once, at most 2.5 s),
 // so its sender line and the card's room are there with the first paint and nothing moves afterwards.
-function startPart() { return (window.DailyParts || {}).start ? window.Parts.need("start").then(function () { window.StartUI.labels(); if (home && screen === "home") window.StartUI.home(home); }, function () { $("home").classList.remove("neu"); }) : 0; }
+function startPart() { return (window.DailyParts || {}).start ? window.Parts.need("start").then(function () { labels(); if (home && screen === "home") window.StartUI.home(home); }, function () { $("home").classList.remove("neu"); }) : 0; }
 var got = /^#(?:.*&)?[cis]=/.test(location.hash) && startPart();
 window.Parts.need("katalog").then(function () { var s = got || startPart(), n = two(location.hash) || twoIdea(D.ideaForDay(today)); return Promise.all([n ? window.Parts.need(n).catch(function () {}) : 0, got ? Promise.race([s, new Promise(function (ok) { setTimeout(ok, 2500); })]) : 0]); }).then(boot, function () { Kit.toast(t("part_fail")); boot(); });
 // The embedded display font loads after the first paint: fit the headline again once it is there, and draw the sheet's

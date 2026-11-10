@@ -42,9 +42,15 @@ test("Kachel steht fest unter der Tageskarte, ist ein Knopf im Druckstil und oef
   if (feat) assert.ok(t.y < feat.y, "vor dem Ticker");
   assert.equal(await tile.evaluate((e) => getComputedStyle(e).backgroundColor), "rgb(255, 212, 0)");
   await tile.focus(); await p.keyboard.press("Enter");
-  const login = p.getByRole("link", { name: "Anmelden" });
+  // without an account one short step (11 Nov): the 16+ tick of this tap, "Anmelden", and back straight into the making
+  const login = p.getByRole("button", { name: "Anmelden" });
   await login.waitFor();
-  assert.match(await login.getAttribute("href"), /^\/auth\/login\?return=/);
+  assert.equal(await p.getByLabel("Deine Beschreibung").count(), 0, "kein Formular ohne Konto");
+  await login.click(); await p.locator(".crneed", { hasText: "Ich bin 16 oder älter" }).waitFor();
+  assert.equal(await p.evaluate(() => document.activeElement.id), "create16", "ohne Haken: der Fokus auf dem Haken");
+  await p.getByLabel("Ich bin 16 oder älter.").check();
+  const [nav] = await Promise.all([p.waitForRequest((r) => /\/auth\/login\?return=/.test(r.url())), login.click()]);
+  assert.equal(new URL(nav.url()).searchParams.get("return"), "/duell?go=erschaffen", "Rueckweg ins Erschaffen");
   assert.ok(!sent.some((s) => s.path === "ai"), "ohne Konto kein KI-Aufruf");
   assert.deepEqual(errs, []);
 });
