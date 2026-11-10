@@ -279,7 +279,7 @@
     ok.disabled = !!(meter && meter.interest); b.appendChild(ok);
     b.appendChild(el("p", "note", t("aiWantNote")));
     if (meter && meter.canLogin && !window.DuellHost) {
-      var a = el("a", "btn", t("aiLogin")); a.href = "/auth/login?return=" + encodeURIComponent(loginReturn(window.DailyFlavor)); a.addEventListener("click", function (e) {   // the look cookie comes with the part konto: load it, set it, then go
+      var a = el("a", "btn", t("aiLogin")); a.href = C.loginPath(loginReturn(window.DailyFlavor), Kit.lang); a.addEventListener("click", function (e) {   // the look cookie comes with the part konto: load it, set it, then go
         e.preventDefault(); var go = function () { location.href = a.href; };
         window.Parts.use("konto", function () { window.Profile.look(); }).then(go, go);
       }); b.appendChild(a);

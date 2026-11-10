@@ -58,7 +58,7 @@
     if (!state.account) {
       b.appendChild(el("p", "note", t("create_login_h", { m: 5 })));
       if (root.DuellHost) { b.appendChild(el("p", "note", t("create_app"))); return; }
-      var a = el("a", "btn hot", t("create_login")); a.href = "/auth/login?return=" + encodeURIComponent("/duell"); b.appendChild(a);
+      var a = el("a", "btn hot", t("create_login")); a.href = root.DuellCore.loginPath("/duell", Kit.lang); b.appendChild(a);
       return;
     }
     // switched off on the server (DUELL_KARTE_OFF): said kindly, nothing else

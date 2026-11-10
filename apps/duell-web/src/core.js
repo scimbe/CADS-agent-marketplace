@@ -378,10 +378,13 @@
   // A number with d decimals as the language writes it ("1,23" / "1.23"); d null: as many as it has, up to 3.
   function num(x, d, l) { return sp(Number(x).toLocaleString(locale(l), d == null ? { maximumFractionDigits: 3, useGrouping: false } : { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: false })); }
   // Cents as money: "7 €" / "9,37 €" in German, "€7" / "€9.37" in English.
+  // The sign-in link (DEMO-wrapper /auth/login -> login gate): back to `ret` after the login, and the page language for
+  // the Keycloak sign-in page, only de|en (the gate shows English for anything else).
+  function loginPath(ret, l) { return "/auth/login?return=" + encodeURIComponent(ret) + (l === "de" || l === "en" ? "&lang=" + l : ""); }
   function money(c, l) { return sp(new Intl.NumberFormat(locale(l), { style: "currency", currency: "EUR", minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 }).format(c / 100)); }
 
   var api = {
-    locale: locale, langsOf: langsOf, textsFor: textsFor, column: column, pick: pick, plural: plural, form: form, num: num, money: money,
+    locale: locale, langsOf: langsOf, textsFor: textsFor, column: column, pick: pick, plural: plural, form: form, num: num, money: money, loginPath: loginPath,
     SHARE_BASE: SHARE_BASE, SHORT_BASE: SHORT_BASE, DEFAULT_API: DEFAULT_API, MAX_FRAGMENT: MAX_FRAGMENT, MAX_NAME: MAX_NAME, MAX_TITLE: MAX_TITLE,
     MAX_PROMPT: MAX_PROMPT, MAX_SCORE: MAX_SCORE, RANGES: RANGES, THEME_NAMES: THEME_NAMES, PRESETS: PRESETS,
     clampNum: clampNum, sanitizeParams: sanitizeParams, sanitizeTheme: sanitizeTheme, sanitizeSeed: sanitizeSeed,
