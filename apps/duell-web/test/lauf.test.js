@@ -126,3 +126,10 @@ test("Ohne Engine-Code im Kern: der Kern kennt nur das Doc", () => {
   assert.equal(typeof L.sanitize, "function");
   assert.ok(!/createSim/.test(require("fs").readFileSync(require.resolve("../src/lauf.js"), "utf8")));
 });
+
+test("Selber bauen: ein leeres Laufspiel entsteht ohne Karte im Regal (blankDoc, Regal 74 hat keine lauf-Karte)", () => {
+  const D = require("../src/daily.js");
+  assert.equal(D.IDEAS.filter((i) => i.kind === "lauf").length, 0);
+  const d = D.blankDoc("lauf", D.sanitizeProfile({ nick: "Ada" }), "de");
+  assert.equal(d.k, "lauf"); assert.ok(d.l, "mit Lauf-Teil"); assert.equal(d.t, "");
+});

@@ -432,7 +432,9 @@
     // the start of an empty sheet: the kind's first card. Two of them left the shelf in the clean-up (2026-11) and stay the
     // start, so an empty card or duel begins as before (BLANK); else the first shelf card of the kind without a calendar day.
     var pool = IDEAS.filter(function (i) { return i.kind === kind; }), free = pool.filter(function (i) { return !i.on; });
-    var d = docFromIdea((BLANK[kind] && byId(BLANK[kind])) || free[0] || pool[0], profile, lang);
+    // a kind without any card on the shelf (lauf: only made, never in the catalog) starts from an empty doc
+    var first = (BLANK[kind] && byId(BLANK[kind])) || free[0] || pool[0];
+    var d = first ? docFromIdea(first, profile, lang) : sanitizeDoc({ k: kind, col: profile.colors, by: [] });
     delete d.i; d.t = ""; return d;
   }
   // Which parts differ, in the words the trail shows. The picture itself is never in the doc, so "foto" comes from the editor.
