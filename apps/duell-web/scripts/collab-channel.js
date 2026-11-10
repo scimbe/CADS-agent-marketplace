@@ -8,7 +8,8 @@ const D = require("../src/daily.js");
 const S = require("../src/collab.js");
 
 const [, , fileA, fileB] = process.argv;
-const me = D.sanitizeProfile({ nick: "Ada" }), idea = D.IDEAS.find((i) => i.kind === "card");
+// a plain text card: since the shelf clean-up (2026-11) the only one on the shelf is the Advent door (its nr stays local)
+const me = D.sanitizeProfile({ nick: "Ada" }), idea = D.IDEAS.concat(D.RETIRED).find((i) => i.kind === "card" && !i.door);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(what, fn, ms) {
   const start = Date.now();

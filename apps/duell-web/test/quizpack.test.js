@@ -21,7 +21,10 @@ const LEARN = { modus: "lernen", titel: "Planeten", fragen: [
   { f: "Wie viele Tage hat ein Jahr?", a: "365", d: ["360", "366", "300"], quelle_im_text: false }] };
 const GROUP = { modus: "gruppe", titel: "Wer von uns ist …?", typen: [{ name: "Planerin", staerke: "Du behältst den Überblick." }, { name: "Motor", staerke: "Du steckst alle an." }],
   fragen: [{ f: "Zeltlager: was zuerst?", antworten: [{ t: "Plan", typ: 0 }, { t: "Zelt", typ: 1 }] }, { f: "Regen?", antworten: [{ t: "Spiele", typ: 1 }, { t: "Liste", typ: 0 }] }, { f: "Abends?", antworten: [{ t: "Lagerfeuer", typ: 1 }, { t: "Morgen planen", typ: 0 }] }] };
-const card = (g, pk, seed) => { const idea = D.IDEAS.find((i) => i.turn && i.turn.g === g); const d = D.docFromIdea(idea, me, "de"); d.pk = pk; return Tn.fresh(d, seed || 77); };
+// the shelf's cards and those that left it with the clean-up (2026-11, D.RETIRED and the struck ones): their quiz games
+// still ship for old links
+const SHELF = D.IDEAS.concat(D.RETIRED, require("./fixtures/regal-74-alt.json").daily);
+const card = (g, pk, seed) => { const idea = SHELF.find((i) => i.turn && i.turn.g === g); const d = D.docFromIdea(idea, me, "de"); d.pk = pk; return Tn.fresh(d, seed || 77); };
 // Every turn answered with its first choice (pick 0, slider at its middle, a show step 0).
 const first = (d) => Tn.state(d).prompts.map((p) => (p.w === "pick" ? [0] : p.w === "slide" ? Math.floor(p.maxOf(d) / 2) : 0));
 
@@ -114,7 +117,7 @@ test("Team-Quiz und Typen: jede Person spielt allein, kein Ergebnis kommt zuruec
   const t1 = st.prompts[3].list(g, [], ans, "de"), t2 = st.prompts[3].list(g, [], ans, "de");
   assert.deepEqual(t1, t2); assert.match(t1[0], /^Du bist: (Planerin|Motor)$/); assert.equal(Tn.T("de")[st.prompts[3].later], "Jede Stärke zählt. Niemand wird verglichen.");
   // without a pack Team- and Typen-Quiz have no valid move
-  const none = D.docFromIdea(D.IDEAS.find((i) => i.turn && i.turn.g === "typen"), me, "de");
+  const none = D.docFromIdea(SHELF.find((i) => i.turn && i.turn.g === "typen"), me, "de");
   assert.equal(Tn.play(none, [0], 100), null); assert.equal(Tn.play(none, [[0]], 100), null);
   // a group pack never fits a learning card and the other way round
   assert.equal(P.fits("luecke", P.fromOption(GROUP)), false); assert.equal(P.fits("typen", P.fromOption(LEARN)), false);

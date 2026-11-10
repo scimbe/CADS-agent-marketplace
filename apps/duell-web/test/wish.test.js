@@ -6,7 +6,9 @@ const W = require("../src/wish.js");
 const me = { emoji: "🐙", nick: "M", colors: ["#2b4bff", "#ffe600"], set: "tiere" };
 const PAIRS = [["#ffd400", "#ff3b1d"], ["#2b4bff", "#ffe600"]];
 const rand = () => 0.5;
-const of = (k) => D.docFromIdea(D.IDEAS.find((i) => i.kind === k), me, "de");
+// a card of the kind; the only text card left after the shelf clean-up (2026-11) is the Advent door with its fixed look,
+// so a text card here is the empty one the sound/card/photo buttons open (D.blankDoc)
+const of = (k) => { const i = D.IDEAS.find((x) => x.kind === k && !x.on); return i ? D.docFromIdea(i, me, "de") : D.blankDoc(k, me, "de"); };
 
 test("Anfrage: nur Typ, Wunsch, Grundidee und Texte; kein Bild, keine Sticker, keine Spur", () => {
   const d = of("photo"), r = W.request(d, "lustiger", "Idee");

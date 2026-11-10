@@ -5,6 +5,8 @@ const test = require("node:test"), assert = require("node:assert/strict"), path 
 const { chromium, devices } = require("playwright-core");
 const G = require("./lib/grund.js");
 const dist = path.join(__dirname, "../../dist");
+// the parts never preloaded on idle: the list in src/parts.js (noto, dart, klang, the free card's engines lauf, blasen, bahn, raten)
+const ONDEMAND = JSON.parse(fs.readFileSync(path.join(__dirname, "../../src/parts.js"), "utf8").match(/var ONDEMAND = (\[[^\]]*\]);/)[1]);
 const launch = () => chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
 const loaded = (p) => p.evaluate(() => [...document.querySelectorAll("script[src]")].map((s) => ({ src: s.getAttribute("src").replace(/^.*\/parts\//, ""), sri: s.integrity })));
 
@@ -34,7 +36,7 @@ test("file:// (Apps, Tests): Start nur mit dem Katalog-Teil; Spiele-Regal holt A
   assert.equal(await p.evaluate(() => typeof window.Arcade + typeof window.StatusCard + typeof window.DailyLicenses), "undefinedundefinedundefined");
   await G.alle(p); await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await p.locator(".arctile").first().waitFor();
-  assert.equal(await p.locator(".arctile").count(), 10);
+  assert.equal(await p.locator(".arctile").count(), 5, "fuenf Arcade-Duelle seit der Regal-Bereinigung (2026-11)");
   assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "play"]);
   assert.equal((await loaded(p))[1].sri, "", "file:// ohne SRI (kein CORS-Ursprung)");
   await p.locator("#shback").click();
@@ -69,19 +71,22 @@ test("file://: der Knopf Status-Bild holt den QR-Teil und teilt ein Bild 1080x19
   } finally { await b.close(); }
 });
 
-test("Web /duell: nach dem Laden alle Teile ausser noto, dart und klang mit SRI vorab; danach offline Arcade-Menue und Lizenzen", async () => {
+test("Web /duell: nach dem Laden alle Teile ausser denen nur bei Bedarf (noto, dart, klang, ...) mit SRI vorab, auch nach 10 s Leerlauf keins davon; danach offline Arcade-Menue und Lizenzen", async () => {
   const srv = await serve(), base = "http://127.0.0.1:" + srv.address().port;
   const b = await launch(), ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);
   const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
   await p.goto(base + "/duell");   // without the slash: the parts still come from /duell/parts/
-  // all but noto (Noto Emoji for stickers in the picture: only the editor asks for it, at its first sticker) and dart (the
-  // dartboard: only a dart card or link asks for it) and klang (Stimme verzerren: only a voice sheet asks for it)
-  await p.waitForFunction(() => window.Parts.names().filter((n) => n !== "noto" && n !== "dart" && n !== "klang").every((n) => window.Parts.ready(n)));
-  const got = await loaded(p);
-  assert.ok(await p.evaluate(() => window.Parts.names().includes("noto") && !window.Parts.ready("noto")), "noto nicht vorab");
-  assert.ok(await p.evaluate(() => window.Parts.names().includes("dart") && !window.Parts.ready("dart")), "dart nicht vorab");
-  assert.ok(await p.evaluate(() => window.Parts.names().includes("klang") && !window.Parts.ready("klang")), "klang nicht vorab");
-  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "deck", "direkt", "erschaffen", "katalog", "konto", "lauf", "licenses", "logik", "malen", "melden", "play", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  // all but those in ONDEMAND: noto (Noto Emoji for stickers in the picture: only the editor asks for it, at its first
+  // sticker), dart (the dartboard: only a dart card or link), klang (Stimme verzerren: only a voice sheet), the game engines
+  await p.waitForFunction((od) => window.Parts.names().filter((n) => !od.includes(n)).every((n) => window.Parts.ready(n)), ONDEMAND);
+  await p.waitForTimeout(10000);   // 10 s more idle: still none of them (no script tag, not ready)
+  const got = await loaded(p), names = await p.evaluate(() => window.Parts.names());
+  for (const n of ["noto", "dart", "klang"]) assert.ok(names.includes(n), n + " im Manifest");
+  for (const n of ONDEMAND.filter((n) => names.includes(n))) {
+    assert.ok(await p.evaluate((n) => !window.Parts.ready(n), n), n + " nicht vorab");
+    assert.ok(!got.some((s) => s.src.startsWith(n + ".")), n + " nach 10 s Leerlauf nicht geladen");
+  }
+  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "deck", "direkt", "erschaffen", "katalog", "konto", "licenses", "logik", "malen", "melden", "play", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   for (const s of got) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
   await p.evaluate(() => window.Parts.need("noto"));   // asked for (as the editor does): also with its SRI hash
   assert.match((await loaded(p)).find((s) => /^noto\./.test(s.src)).sri, /^sha384-[A-Za-z0-9+/]{64}$/);
@@ -161,7 +166,8 @@ test("Web: konto haengt, stil kommt nach 1,5 s: Mein Stil oeffnet; fehlt nur wet
   const order = (await loaded(p)).map((s) => s.src.split(".")[0]);
   assert.ok(order.indexOf("konto") >= 0 && order.indexOf("konto") < order.indexOf("stil"), order.join(" "));
   await p.locator("#shback").click(); await p.locator("#home").waitFor();
-  await p.evaluate(() => { const D = window.Daily, i = D.IDEAS.find((x) => x.kind === "card"); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i, tab: "Text" }); });
+  // a text card (since 2026-11 off the shelf, still opened by link)
+  await p.evaluate(() => { const D = window.Daily, i = D.IDEAS.concat(D.RETIRED).find((x) => x.kind === "card" && !x.door); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i, tab: "Text" }); });
   await p.locator("#toast.show", { hasText: "Dieser Teil fehlt gerade" }).waitFor();
   const toasts = await p.evaluate(async () => { let n = 0; const tt = document.getElementById("toast"); new MutationObserver(() => n++).observe(tt, { childList: true, characterData: true, subtree: true });
     for (let i = 0; i < 3; i++) { window.DailyDebug.tab("Text"); await new Promise((ok) => setTimeout(ok, 300)); } return n; });

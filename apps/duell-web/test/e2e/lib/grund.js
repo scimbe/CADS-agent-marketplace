@@ -129,12 +129,12 @@ async function settled(f, o) {
   let last = await f();
   return poll(async () => { await new Promise((r) => setTimeout(r, 100)); const v = await f(), same = v === last; last = v; return same ? { v } : null; }, Boolean, o).then((x) => x.v);
 }
-// Redesign wave 1: a first visit finds the demo strip (#feat: games, Webconference, Tunnel) behind "Alle Karten" (the part
-// start). A test that goes through the strip opens it first, as a person would; a page without the part (Daily
-// Business) has it open anyway.
+// Redesign wave 1: a first visit finds the demo strip (#feat: games, Webconference, ...) quietly at the foot of the new start,
+// behind "Mehr von bunsenbrenner" (the part start; "Alle Karten" is the shelf of cards since 11 Nov). A test that goes
+// through the strip opens it first, as a person would; a page without the part (Daily Business) has it open anyway.
 async function alle(p) {
   await p.waitForFunction(() => document.body.getAttribute("data-state") !== "boot");
-  const a = p.locator("#allcards");
+  const a = p.locator("#stmore");
   if (await a.count() && await a.isVisible() && (await a.getAttribute("aria-expanded")) !== "true") await a.click();
 }
 module.exports = { alle, DIST, isLocal, webUrl, poll, settled, VIEWS, LANGS, LOCALE, zoom, launch, person, people, open, inView, covered, smallTargets };

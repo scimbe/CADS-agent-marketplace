@@ -139,7 +139,11 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 /* a received card on a narrow screen (390 at 200 %): one column, the thumbs below the card, never over it or beside it off screen */
 @media (max-width:300px){#home:has(#leaf.got) #pad{overflow-y:auto}#home #leaf.got{container-type:inline-size;flex-flow:column nowrap;position:relative;inset:auto;height:auto;min-height:100%;padding:4px 12px 4px}#home #leaf.got :is(.holes,.dateline,.hero){display:none}#home #leaf.got .pv{flex:none;height:144px;margin:0;padding:0;align-self:stretch}#home #leaf.got .pvcard{height:100%;width:auto}#home #leaf.got .votes{position:static;margin:2px 0 0}#home #leaf.got .pv.pic.live:not(.swap){height:152px;padding-top:8px}#home #leaf.got .pv.pic.live:not(.swap) .pvimg{top:-4px;right:0;width:44px;height:44px;aspect-ratio:1}}
 #startslot{display:none}
-@media (max-width:899px) and (min-height:701px){#home.neu{overflow-y:auto;overflow-x:hidden}#home.neu>*{flex-shrink:0}#home.neu::before{display:none}#home.neu #pad{flex:none;height:max(15rem,calc(100svh - 35rem))}#home.neu:has(.pv.pic,#warmto:not([hidden])) #pad{height:clamp(15rem,58svh,34rem)}#home.neu #startslot{display:block;min-height:30rem;background:#FBF5DD}}
+/* the new start scrolls: the day's card has one height every day, game, picture or text (no jump when a picture loads,
+   the start below stays in place), with the main button on the first screen; the sentence field follows below it where
+   the screen allows (23.5rem). Never under 27rem: a shorter sheet fell under 250 px and @container hid the preview
+   (10 Nov, Netz Volley at 375x812). The preview fills what the sheet leaves, a picture whole (contain). */
+@media (max-width:899px) and (min-height:701px){#home.neu{overflow-y:auto;overflow-x:hidden}#home.neu>*{flex-shrink:0}#home.neu::before{display:none}#home.neu #pad{flex:none;height:clamp(27rem,calc(100svh - 23.5rem),34rem)}#home.neu #startslot{display:block;min-height:30rem;background:#FBF5DD}}
 #tools{position:relative;display:grid;grid-template-columns:repeat(4,1fr);padding:0 10px 8px;flex:none}
 #tools button{min-height:48px;border:0;background:transparent;color:var(--on);font:800 .85rem/1.1 var(--ui);padding:2px}
 #stagewrap{position:relative;flex:0 1 38%;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 12px;background:var(--a)}

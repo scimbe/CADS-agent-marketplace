@@ -19,7 +19,8 @@
     return doc.k === KIND_OF[art];
   }
   // the preview's own look, part of this part and not of the core (scripts/build.js budget)
-  var CSS = ".createpv{position:relative;margin:10px 0;padding:18px 16px 30px;border:3px solid #111;border-radius:6px;display:flex;flex-direction:column;gap:8px;min-height:150px;box-shadow:0 5px 0 #111}.createpv-t{font:900 20px/1.1 var(--disp);text-transform:uppercase}.createpv-x{font:800 18px/1.25 var(--ui)}.createpv-sk{font-size:26px}.createpv-photo{border:2px dashed currentColor;padding:18px 8px;font:700 13px/1.3 var(--ui);text-align:center}.createpv-ki{position:absolute;right:8px;bottom:6px;background:#111;color:#fff;font:800 11px/1 var(--ui);padding:4px 6px;border-radius:4px}";
+  var CSS = ".cr16{display:flex;gap:12px;align-items:center;min-height:44px;margin:8px 0;font-weight:600}.cr16 input{width:28px;height:28px;margin:0;flex:none;accent-color:#17140f}.crneed{margin:0;color:#b3321f;font-weight:700}.crneed:empty{display:none}" +
+    ".createpv{position:relative;margin:10px 0;padding:18px 16px 30px;border:3px solid #111;border-radius:6px;display:flex;flex-direction:column;gap:8px;min-height:150px;box-shadow:0 5px 0 #111}.createpv-t{font:900 20px/1.1 var(--disp);text-transform:uppercase}.createpv-x{font:800 18px/1.25 var(--ui)}.createpv-sk{font-size:26px}.createpv-photo{border:2px dashed currentColor;padding:18px 8px;font:700 13px/1.3 var(--ui);text-align:center}.createpv-ki{position:absolute;right:8px;bottom:6px;background:#111;color:#fff;font:800 11px/1 var(--ui);padding:4px 6px;border-radius:4px}";
   function style() { if (document.getElementById("createcss")) return; var s = document.createElement("style"); s.id = "createcss"; s.textContent = CSS; document.head.appendChild(s); }
   var A, Kit, t, el, D;
   var state = { art: "card", meter: null, account: false, net: true };
@@ -61,7 +62,20 @@
     if (!state.account) {
       b.appendChild(el("p", "note", t("create_login_h", { m: 5 })));
       if (root.DuellHost) { b.appendChild(el("p", "note", t("create_app"))); return; }
-      var a = el("a", "btn hot", t("create_login")); a.href = "/auth/login?return=" + encodeURIComponent("/duell"); b.appendChild(a);
+      // one short step, no failing later: the 16+ statement of this very tap (as the account card, profile.js: an attempt
+      // with t0 and age16), then the sign-in; the way back (?go=erschaffen, start-ui.js) opens this making again
+      var lab = el("label", "cr16"), cb = el("input"), need = el("p", "crneed", "");
+      cb.type = "checkbox"; cb.id = "create16"; lab.appendChild(cb); lab.appendChild(document.createTextNode(" " + t("create_16")));
+      need.setAttribute("role", "alert");
+      var go = el("button", "btn hot", t("create_login"), function () {
+        if (!cb.checked) { need.textContent = ""; cb.focus(); setTimeout(function () { need.textContent = t("create_need"); }, 80); return; }   // never a locked look
+        Kit.store.profile = { via: "account", rev: 0, base: null, age16: true, t0: Date.now() };
+        Kit.save();   // an attempt is not synced (profile.js Kit.save: only a done link)
+        location.href = "/auth/login?return=" + encodeURIComponent((root.Ai && root.Ai.loginReturn ? root.Ai.loginReturn(root.DailyFlavor) : "/duell") + "?go=erschaffen");
+      });
+      go.id = "createlogin";
+      cb.addEventListener("change", function () { if (cb.checked) need.textContent = ""; });
+      b.appendChild(lab); b.appendChild(need); b.appendChild(go); b.appendChild(el("p", "note", t("create_free")));
       return;
     }
     // switched off on the server (DUELL_KARTE_OFF): said kindly, nothing else

@@ -104,7 +104,9 @@ test("Katalog: eine Karte „Stimme verzerren“ statt drei, alte Links (#i= und
   for (const old of ["stimme-monster", "stimme-maus", "stimme-robo"]) assert.ok(!ids.includes(old), old + " ist zusammengelegt");
   const card = D.byId("stimme-verzerren");
   assert.equal(card.kind, "sound"); assert.equal(card.sound.mode, "voice");
-  assert.equal(D.IDEAS.filter((i) => i.kind === "sound" && i.sound.mode === "voice").length, 1, "eine Stimmkarte");
+  // since the shelf clean-up (2026-11) it is off the shelf (merged into "Tier-Aufstellung"), links still open it
+  assert.equal(D.IDEAS.concat(D.RETIRED).filter((i) => i.kind === "sound" && i.sound.mode === "voice").length, 1, "eine Stimmkarte");
+  assert.ok(D.RETIRED.includes(card) && card.to === "mut-tierstory" && !D.IDEAS.includes(card), "nicht im Regal");
   assert.deepEqual(D.MOVED, { "stimme-monster": ["stimme-verzerren", "monster"], "stimme-maus": ["stimme-verzerren", "chip"], "stimme-robo": ["stimme-verzerren", "robot"] });
   for (const [old, [id, fx]] of Object.entries(D.MOVED)) {
     assert.equal(D.byId(old), card, old);

@@ -7,7 +7,9 @@ const S = require("../src/collab.js");
 
 const me = D.sanitizeProfile({ nick: "Mira" });
 const idea = (k) => D.IDEAS.find((i) => i.kind === k);
-const start = (k) => D.docFromIdea(idea(k), me, "de");
+// a card of the kind; the only text card on the shelf since the clean-up (2026-11) is the Advent door (calendar), so a text
+// card starts as the plain one the card button opens (D.blankDoc), as a catalog text card did before
+const start = (k) => { const i = D.IDEAS.find((x) => x.kind === k && !x.on); return i ? D.docFromIdea(i, me, "de") : Object.assign(D.blankDoc(k, me, "de"), { x: "Hallo" }); };
 function rng(seed) { return C.mulberry32(seed); }
 
 // Two peers over a wire we control: it can reorder, repeat, lose and cut.
