@@ -60,7 +60,15 @@
   }
   // Words are not enough: these sentences are clean word by word and still hurt.
   var HURT = /\b(du|ihr)\s+(bist|seid)\s+((so|voll|echt|total|richtig|einfach)\s+)*(h(ä|ae)sslich|fett|dumm|bl(ö|oe)d|peinlich|eklig|wertlos|nichts|ein\s+opfer|ein\s+loser)|(niemand|keiner)\s+mag\s+(dich|euch)|lachen\s+(alle\s+)?(ü|ue)ber\s+(dich|euch)|hasse\s+dich|geh\s+sterben|bring\s+dich\s+um|solltest\s+(sterben|verschwinden)|\byou\s+are\s+((so|really|just)\s+)*(ugly|fat|stupid|worthless|nothing|a\s+loser)|\byou'?re\s+((so|really|just)\s+)*(ugly|fat|stupid|worthless|nothing|a\s+loser)|nobody\s+likes\s+you|laugh(s|ing)?\s+at\s+you\b|i\s+hate\s+you|kill\s+yourself/;
-  function isClean(input) {
+  // Further checks join here (src/kontakt.js: contact data, insults as an order); each one names why a text stays out.
+  var CHECKS = [];
+  function whyNot(input) {
+    for (var i = 0; i < CHECKS.length; i++) { var r = CHECKS[i](input); if (r) return r; }
+    return words(input) ? "" : "word";
+  }
+  function isClean(input) { return !whyNot(input); }
+  function filterNote(input) { return whyNot(input) === "contact" ? "filter_contact" : "filter"; }
+  function words(input) {
     if (HURT.test(String(input == null ? "" : input).toLowerCase().replace(/\s+/g, " "))) return false;
     var base = foldText(input);
     var leet = base.replace(/[0134578@$!+]/g, function (c) { return LEET[c] || c; });
@@ -385,7 +393,7 @@
     SHARE_BASE: SHARE_BASE, SHORT_BASE: SHORT_BASE, DEFAULT_API: DEFAULT_API, MAX_FRAGMENT: MAX_FRAGMENT, MAX_NAME: MAX_NAME, MAX_TITLE: MAX_TITLE,
     MAX_PROMPT: MAX_PROMPT, MAX_SCORE: MAX_SCORE, RANGES: RANGES, THEME_NAMES: THEME_NAMES, PRESETS: PRESETS,
     clampNum: clampNum, sanitizeParams: sanitizeParams, sanitizeTheme: sanitizeTheme, sanitizeSeed: sanitizeSeed,
-    isClean: isClean, sanitizeName: sanitizeName, sanitizeTitle: sanitizeTitle, sanitizeEmoji: sanitizeEmoji, sanitizePrompt: sanitizePrompt,
+    isClean: isClean, whyNot: whyNot, filterNote: filterNote, CHECKS: CHECKS, foldText: foldText, sanitizeName: sanitizeName, sanitizeTitle: sanitizeTitle, sanitizeEmoji: sanitizeEmoji, sanitizePrompt: sanitizePrompt,
     sanitizeState: sanitizeState, encodeState: encodeState, decodeState: decodeState, parseHash: parseHash, buildUrl: buildUrl,
     configKey: configKey, hash32: hash32, mulberry32: mulberry32, dailyKey: dailyKey, dailySeed: dailySeed, dailyConfig: dailyConfig,
     sanitizeLook: sanitizeLook, sanitizeRoute: sanitizeRoute, sectionParams: sectionParams, routeParams: routeParams, STEPS: STEPS, SECTIONS: SECTIONS, DECOS: DECOS, FORMS: FORMS, presetState: presetState, localConfig: localConfig, stateFromApi: stateFromApi, CONF_BASE: CONF_BASE, confLink: confLink
