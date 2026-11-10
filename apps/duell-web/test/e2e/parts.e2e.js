@@ -63,8 +63,9 @@ test("file://: der Knopf Status-Bild holt den QR-Teil und teilt ein Bild 1080x19
   assert.equal(await p.evaluate(() => typeof window.StatusCard), "undefined", "vor dem Knopf kein QR-Teil");
   await p.locator("#tostatus").evaluate((e) => e.click());
   await p.waitForFunction(() => window.__shared.length > 0);
-  // the card editor's text tab has loaded "texte" (Worte finden, card text) and "wetter" on the way; the button only adds "qr"
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "texte", "wetter", "direkt", "qr"], "der Editor holt direkt");
+  // the editor first asks for its tabs (blasen, R4) and direkt; once blasen is there the card's text tab loads "texte"
+  // (Worte finden, card text) and "wetter"; the button only adds "qr"
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "blasen", "direkt", "texte", "wetter", "qr"], "der Editor holt blasen und direkt");
   const f = await p.evaluate(async () => { const f = window.__shared[0], i = await createImageBitmap(f); return { type: f.type, name: f.name, w: i.width, h: i.height }; });
   assert.deepEqual(f, { type: "image/jpeg", name: "my-daily-idea-status.jpg", w: 1080, h: 1920 });
   assert.deepEqual(errs, []);
