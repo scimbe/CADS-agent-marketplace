@@ -202,30 +202,43 @@
       var nm = sanitizeName(o.name);
       if (nm) st.name = nm;
     }
+    // Ghost: ev engine version, k tempo, spur the run (Spur.sanitize; before spur.js is there unread, bahn checks on load)
+    if (o.ev === (o.ev | 0) && o.ev > 0) st.ev = o.ev;
+    if (o.k === .5 || o.k === .75) st.k = o.k;
+    var S = root.DuellSpur, sp = S ? S.sanitize(o.spur) : o.spur instanceof Uint8Array && o.spur;
+    if (sp) st.spur = sp;
     return st;
   }
-  function toB64url(str) {
+  // spur: raw bytes after a 0 byte, same base64
+  function toB64url(str, sp) {
     var bytes = new TextEncoder().encode(str), bin = "";
     for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    if (sp) bin += "\0" + String.fromCharCode.apply(null, sp);
     return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   }
-  function fromB64url(s) {
+  function fromB64url(s, o) {
     if (!/^[A-Za-z0-9_-]*$/.test(s)) throw new Error("bad charset");
     s = s.replace(/-/g, "+").replace(/_/g, "/");
     while (s.length % 4) s += "=";
     var bin = atob(s), bytes = new Uint8Array(bin.length);
     for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    var z = bytes.indexOf(0);
+    if (z >= 0) o.s = bytes.slice(z + 1), bytes = bytes.slice(0, z);
     return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   }
   function encodeState(state) {
     var st = sanitizeState(state);
     if (!st) throw new Error("invalid state");
-    return toB64url(JSON.stringify(st));
+    var sp = st.spur; delete st.spur;
+    return toB64url(JSON.stringify(st), sp);
   }
   function decodeState(str) {
     try {
       if (typeof str !== "string" || str.length === 0 || str.length > MAX_FRAGMENT) return null;
-      return sanitizeState(JSON.parse(fromB64url(str)));
+      // a spur in the JSON text never counts, only the bytes after the 0
+      var o = {}, j = JSON.parse(fromB64url(str, o));
+      j.spur = o.s;
+      return sanitizeState(j);
     } catch (e) { return null; }
   }
   function parseHash(hash) {
