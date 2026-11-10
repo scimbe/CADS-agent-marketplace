@@ -1,0 +1,21 @@
+{
+  "about": "Bridge contract DuellHost.push() v1, shared by the Android (PushBridgeTest) and iOS (DuellPushTests) shells and the page (src/push.js channel). capability: what push() returns; payload: what a wake-up message may carry and the kind the shell reads from it (null = show the neutral sentence, never anything from the payload).",
+  "capability": [
+    { "kind": "none", "state": "unsupported", "json": "{\"v\":1,\"kind\":\"none\",\"state\":\"unsupported\"}" },
+    { "kind": "fcm", "state": "default", "json": "{\"v\":1,\"kind\":\"fcm\",\"state\":\"default\"}" },
+    { "kind": "unifiedpush", "state": "granted", "json": "{\"v\":1,\"kind\":\"unifiedpush\",\"state\":\"granted\"}" },
+    { "kind": "apns", "state": "denied", "json": "{\"v\":1,\"kind\":\"apns\",\"state\":\"denied\"}" },
+    { "kind": "evil\",\"x\":\"1", "state": "granted", "json": "{\"v\":1,\"kind\":\"none\",\"state\":\"unsupported\"}" },
+    { "kind": "fcm", "state": "maybe", "json": "{\"v\":1,\"kind\":\"none\",\"state\":\"unsupported\"}" }
+  ],
+  "payload": [
+    { "in": "{\"r\":\"reply\"}", "kind": "reply" },
+    { "in": "{\"r\":\"live\"}", "kind": "live" },
+    { "in": "{\"r\":\"reply\",\"name\":\"Mira\",\"text\":\"geheim\"}", "kind": "reply" },
+    { "in": "{\"r\":\"streak\"}", "kind": null },
+    { "in": "{\"r\":\"REPLY\"}", "kind": null },
+    { "in": "{\"r\":1}", "kind": null },
+    { "in": "kaputt", "kind": null },
+    { "in": "", "kind": null }
+  ]
+}

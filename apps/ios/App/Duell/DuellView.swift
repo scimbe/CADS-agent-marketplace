@@ -112,6 +112,7 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
         saveFile: function (b64, typ, name) { h.saveFile.postMessage({ b64: String(b64), typ: String(typ), name: String(name || "") }); },
         haptic: function (style) { h.haptic.postMessage({ style: String(style || "light") }); },
         more: function () { h.more.postMessage({}); },
+        push: function () { return '\(DuellPush.current)'; },
         peerReady: function () { return \(PeerCoreAdapter.fromBuild() != nil); },
         peerInvite: function () { h.peerInvite.postMessage({}); },
         peerAccept: function (link) { h.peerAccept.postMessage({ link: String(link) }); },

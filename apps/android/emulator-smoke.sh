@@ -68,6 +68,19 @@ wait_web() { # regex, tries: the WebView must show matching text
   for _ in $(seq 1 "${2:-30}"); do webtext | grep -Eiq "$1" && return 0; sleep 1; done
   echo "FAIL: Duell page never showed '$1'" >&2; webtext >&2; dump >&2; adb logcat -d -t 200 >&2; shot fail-duell; exit 1
 }
+# save_tap <button regex> <media uri>: taps Save until MediaStore has the file (at most 3 taps, 8 s each). Right after the
+# share sheet closes the WebView may not take the first tap yet (window focus and its accessibility tree come back a moment
+# later), which made this step flaky. A second tap only happens when no file appeared, so it cannot hide a broken Save:
+# media_check below still reads the file back and checks type and size.
+save_tap() {
+  local q="content query --uri $2 --projection _id --where \"_display_name LIKE 'my-daily-idea%'\""
+  for try in 1 2 3; do
+    for _ in $(seq 1 5); do find_node "$1" >/dev/null && break; sleep 1; done
+    tap_node "$1"
+    for _ in $(seq 1 8); do adb shell "$q" | grep -q '^Row' && { [ "$try" = 1 ] || echo "save: file appeared after tap $try"; return 0; }; sleep 1; done
+    echo "save: no file after tap $try" >&2
+  done
+}
 score_of() { webtext | grep -E '^[0-9]+$' | head -1; }
 
 # 1. The app starts in My Daily Idea (the calendar page of the bundled web app), not in the template
@@ -236,8 +249,7 @@ wait_focus 'org.bunsenbrenner.cads' 10
 wait_web '(^|\s)(Save|Speichern)(\s|$)' 10
 # anchored like Share: on a phone the finished screen scrolls, and the WebView reports the scroll container as one node
 # carrying all its text ("SHARE More … Save Keep changing …") before the button itself; its centre is the picture
-tap_node '^\s*(Save|Speichern)\s*$'
-for _ in $(seq 1 10); do adb shell "content query --uri content://media/external/images/media --projection _id --where \"_display_name LIKE 'my-daily-idea%'\"" | grep -q '^Row' && break; sleep 1; done
+save_tap '^\s*(Save|Speichern)\s*$' content://media/external/images/media
 media_check images png
 shot 11-gespeichert
 echo "save: PNG written to Pictures/My Daily Idea and read back"
@@ -259,8 +271,7 @@ tap_web '(^|\s)(Done|Fertig)(\s|$)' 10
 tap_web '^\W*(Send as a file|Als Datei verschicken)\s*$' 15   # a voice: Save lives in the file sheet (part klang); anchored, as Save above
 # the button ("💾 Speichern"), not the sheet's note ("Die Aufnahme speichern wir nicht", the search ignores case)
 wait_web '(^|\s)(Save|Speichern)\s*$' 15
-tap_node '(^|\s)(Save|Speichern)\s*$'
-for _ in $(seq 1 10); do adb shell "content query --uri content://media/external/audio/media --projection _id --where \"_display_name LIKE 'my-daily-idea%'\"" | grep -q '^Row' && break; sleep 1; done
+save_tap '(^|\s)(Save|Speichern)\s*$' content://media/external/audio/media
 media_check audio wav
 echo "save: WAV written to Music/My Daily Idea and read back"
 

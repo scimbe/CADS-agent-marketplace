@@ -42,6 +42,9 @@ import androidx.core.content.FileProvider
 import androidx.webkit.WebViewAssetLoader
 import org.bunsenbrenner.cads.BuildConfig
 import org.bunsenbrenner.cads.R
+import org.bunsenbrenner.cads.push.NoPush
+import org.bunsenbrenner.cads.push.PushBridge
+import org.bunsenbrenner.cads.push.PushChannel
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.net.URI
@@ -51,7 +54,13 @@ import java.net.URI
  * file, a light tick and the quiet "more" that opens the native extras. Everything the page passes is
  * validated here ([DuellLink], [DuellFiles]); the page is the app's own bundled asset, not a trusted caller.
  */
-class DuellHost(private val context: Context, private val view: View, private val peer: PeerBridge, private val onMore: () -> Unit) {
+class DuellHost(
+    private val context: Context,
+    private val view: View,
+    private val peer: PeerBridge,
+    private val pushChannel: PushChannel = NoPush,
+    private val onMore: () -> Unit,
+) {
     private val main = Handler(Looper.getMainLooper())
     private val shareDir = File(context.cacheDir, "share")
 
@@ -138,6 +147,13 @@ class DuellHost(private val context: Context, private val view: View, private va
     fun more() {
         main.post { onMore() }
     }
+
+    /**
+     * "Bescheid geben": how this app can wake the device, as bridge v1 JSON (`{"v":1,"kind":...,"state":...}`,
+     * apps/duell-web/test/fixtures/bridge-push-v1.json). This build has no provider yet ([NoPush]); the page then says so.
+     */
+    @JavascriptInterface
+    fun push(): String = PushBridge.capability(pushChannel)
 
     /** Whether this build has the channel's production values; the page says so honestly when not. */
     @JavascriptInterface
@@ -279,7 +295,7 @@ fun DuellScreen(
                 }
                 WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
                 web.overScrollMode = View.OVER_SCROLL_NEVER
-                web.addJavascriptInterface(DuellHost(ctx, web, peerBridge) { more() }, "DuellHost")
+                web.addJavascriptInterface(DuellHost(ctx, web, peerBridge, NoPush) { more() }, "DuellHost")
                 web.webChromeClient = object : WebChromeClient() {
                     override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
                         chooserCallback[0]?.onReceiveValue(null) // a new request replaces an unanswered one

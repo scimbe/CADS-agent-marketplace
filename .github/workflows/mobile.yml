@@ -173,6 +173,60 @@ jobs:
           name: android-emulator-screenshots
           path: emulator-shots/*.png
 
+  # Device matrix (plan: minSdk, target, tablet, foldable): only the quick start check (start-smoke.sh), the full flows stay
+  # on the one phone above. It logs Android version, WebView provider/version and screen, so the run shows what the page met.
+  # Informative until two green runs (then drop continue-on-error, like gate-windows in ci.yml). No accounts: plain
+  # emulator images; real Samsung/Xiaomi/Huawei devices need a device farm (an account, the owner's decision).
+  android-devices:
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: api26-minsdk, api-level: 26, target: default, profile: pixel_2 }
+          - { name: api30, api-level: 30, target: default, profile: pixel_4 }
+          - { name: api35-target, api-level: 35, target: google_apis, profile: pixel_7 }
+          - { name: tablet-api34, api-level: 34, target: default, profile: pixel_tablet }
+          - { name: foldable-api34, api-level: 34, target: default, profile: pixel_fold }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cads-release-unsigned-apk
+          path: apk
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Sign a copy with a throw-away key (only so the emulator accepts it)
+        run: |
+          set -euo pipefail
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          KS="$RUNNER_TEMP/ci.jks"; PW=$(openssl rand -hex 16); echo "::add-mask::$PW"
+          keytool -genkeypair -keystore "$KS" -storepass "$PW" -keypass "$PW" -alias ci -keyalg RSA -keysize 2048 -validity 2 -dname "CN=ci-only" >/dev/null 2>&1
+          "$BT/apksigner" sign --ks "$KS" --ks-pass "pass:$PW" --out "$RUNNER_TEMP/cads-ci-signed.apk" apk/*.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Start the app on ${{ matrix.name }}
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          target: ${{ matrix.target }}
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          script: apps/android/start-smoke.sh ${{ runner.temp }}/cads-ci-signed.apk device-shots ${{ matrix.name }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: android-devices-${{ matrix.name }}
+          path: device-shots/*.png
+
   ios:
     runs-on: macos-15
     steps:
