@@ -5,11 +5,14 @@ const D = require("../src/daily.js");
 const Tn = require("../src/turns.js");
 const QS = require("../src/quizspiele.js");   // the quiz cards Echt oder Phishing? (Business) and Was kostet das? join the table
 const me = { emoji: "🐙", nick: "M", colors: ["#2b4bff", "#ffe600"], set: "tiere" };
-const ideas = D.IDEAS.filter((i) => i.kind === "turn");
+// The shelf's turn cards, those taken off it (D.RETIRED) and those struck (test/fixtures/regal-74-alt.json) with the shelf
+// clean-up (2026-11): their games still ship, because links shared before keep running, so every game is still played here.
+const ALT = require("./fixtures/regal-74-alt.json");
+const ideas = D.IDEAS.concat(D.RETIRED, ALT.daily).filter((i) => i.kind === "turn");
 const through = (d) => { const hash = D.docUrl(d).split("#")[1]; const r = D.parseRoute("#" + hash); assert.equal(r.type, "doc"); return r.doc; };
 // Team-Quiz and Typen-Quiz only run with a question pack (quizpack.js): the first night pack that fits.
 const PACKS = require("../src/quiz-packs.json").packs, QP = require("../src/quizpack.js");
-const BIZ = require("../src/flavors/business/ideas.json").ideas.filter((i) => i.kind === "turn");
+const BIZ = ((c) => c.ideas.concat(c.retired || []))(require("../src/flavors/business/ideas.json")).filter((i) => i.kind === "turn");
 const fresh = (g, seed) => { const d = D.docFromIdea(ideas.concat(BIZ).find((i) => i.turn.g === g), me, "de"); if (Tn.GAMES[g].needs) { d.pk = PACKS.map((x) => QP.sanitize(x.pk)).find((p) => QP.fits(g, p)); d.pk.q = d.pk.q.slice(0, 3); } return Tn.fresh(d, seed); };
 const LINES = {
   deal: [[[4], [3, 6], [5]]], einig: [[[["Pizza", "Sushi", "Döner", "Pommes", "Nudeln"], [0, 1, 2, 3, 4]], [[4, 0, 1, 2, 3]]]],
@@ -309,7 +312,8 @@ test("Termin finden: Termine nur angetippt, bester Termin gewinnt, Gleichstand e
   assert.equal(de(x).h, "Alle können: Do 5.11., 20 Uhr"); assert.match(de(x).lines.at(-1), /^Können: Mia, Ä[ä]{9}B, Ä[ä]{9}C \+7$/);
   // in the calendar on its day, in the shelf of the evening chat
   const idea = D.IDEAS.find((i) => i.id === "zug-termin");
-  assert.equal(idea.on, "12-04"); assert.equal(D.ideaForDay(new Date(Date.UTC(2026, 11, 4))).id, "zug-termin");
+  // 11-09 came with the merged Gruppen-Konferenz (plan-09, shelf clean-up 2026-11)
+  assert.deepEqual(idea.on, ["11-09", "12-04"]); assert.equal(D.ideaForDay(new Date(Date.UTC(2026, 11, 4))).id, "zug-termin");
 });
 test("Rangliste nennt den groessten Streit", () => {
   let d = Tn.play(fresh("rangliste", 0), [[0, 1, 2, 3, 4, 5, 6, 7]], 0); d = Tn.play(d, [[7, 1, 2, 3, 4, 5, 6, 0]], 0);
@@ -508,8 +512,11 @@ test("Einkaufszettel: Obergrenzen schneiden nach fester Regel, nie zufaellig", (
 test("Einkaufszettel: kein Kalendertag, im Business-Flavor als Mitbringliste", () => {
   const idea = D.IDEAS.find((i) => i.id === "zug-einkauf");
   assert.equal(idea.on, undefined); assert.equal(idea.turn.g, "einkauf");
-  const biz = require("../src/flavors/business/ideas.json").ideas.find((i) => i.turn && i.turn.g === "einkauf");
-  assert.ok(biz && biz.turn.grip === "raum");
+  // the Business shopping list (biz-einkauf) left the Business shelf with the clean-up (2026-11, into zug-einkauf); a link
+  // shared before still opens it (retired)
+  const biz = require("../src/flavors/business/ideas.json");
+  assert.equal(biz.ideas.find((i) => i.turn && i.turn.g === "einkauf"), undefined);
+  const old = biz.retired.find((i) => i.id === "biz-einkauf"); assert.ok(old && old.turn.grip === "raum" && old.to === "zug-einkauf");
 });
 
 test("Wunschzettel: endet nie dadurch, dass alles vergeben ist, nur durch Schliessen; danach geht kein Zug mehr", () => {

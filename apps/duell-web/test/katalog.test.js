@@ -72,7 +72,24 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
 
 test("Katalog daily: ids/Titel eindeutig, de/en vollstaendig, Kalendertage eindeutig, Nachbarregel, Titel <= 28, Gedenktage frei", () => {
   assert.deepEqual(pruefe(DAILY, "daily"), []);
-  assert.ok(DAILY.ideas.length >= 150 && DAILY.ideas.filter((i) => i.on).length >= 40, "der echte Katalog wurde geprueft");
+  // Katalogzaehlung nach der Regal-Bereinigung (2026-11, konzept2: 209 -> 74 = 65 daily + 8 business + die freie Karte)
+  assert.equal(DAILY.ideas.length + (DAILY.gated || []).length, 65, "der echte Katalog wurde geprueft");
+  assert.equal(BIZ.ideas.length + (BIZ.gated || []).length, 8);
+  assert.ok(DAILY.ideas.filter((i) => i.on).length >= 20);
+});
+test("Katalog: entfernte Karten (retired, gone) sind nicht im Regal und ohne Kalendertag, jeder Traeger ist im Regal", () => {
+  const daily = new Set(DAILY.ideas.concat(DAILY.gated || []).map((i) => i.id));
+  for (const c of [DAILY, BIZ]) {
+    const ids = new Set(c.ideas.concat(c.gated || []).map((i) => i.id));
+    for (const i of c.retired || []) {
+      assert.ok(!ids.has(i.id), i.id + " noch im Regal"); assert.equal(i.on, undefined, i.id + " hat noch einen Kalendertag");
+      assert.ok(ids.has(i.to) || daily.has(i.to), i.id + " -> " + i.to + " fehlt");   // a Business card may go into a daily one
+    }
+    const ret = new Set((c.retired || []).map((i) => i.id));
+    for (const id of c.gone || []) { assert.ok(!ids.has(id) && !ret.has(id), id + " noch da"); }
+  }
+  // the retired cards keep the catalog's rules (both languages, same shape, titles), as old links still show them
+  assert.deepEqual(pruefe({ ideas: DAILY.retired }, "daily").filter((e) => !/Titel doppelt/.test(e)), []);
 });
 test("Katalog business: dieselben Regeln, dazu kein Kalendertag am Wochenende", () => {
   assert.deepEqual(pruefe(BIZ, "business"), []);

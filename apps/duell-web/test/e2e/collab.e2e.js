@@ -13,7 +13,8 @@ const PAGE = "file://" + path.join(__dirname, "../../dist/index.html");
 const shots = process.env.COLLAB_SHOTS;
 const FRAG = "A".repeat(20) + "bC1_".repeat(90);    // length of a real invite (364 characters)
 const LINK = "https://bunsenbrenner.org/duell#p=" + FRAG;
-const CARD = D.IDEAS.find((i) => i.kind === "card" && i.de.lines.length > 0).id;
+// a text card: since the shelf clean-up (2026-11) the only one on the shelf is the Advent door, so one that links still open
+const CARD = D.IDEAS.concat(D.RETIRED).find((i) => i.kind === "card" && !i.door && i.de.lines.length > 0).id;
 const SOUND = D.IDEAS.find((i) => i.kind === "sound" && i.sound.mode === "beat").id;
 
 const hostScript = (ready) => `window.DuellHost = {

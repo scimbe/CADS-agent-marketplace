@@ -85,7 +85,15 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // Katalog v2 W0: the catalog is a part, the core keeps its index only; empty parts turnzwei/logik, the data part daten.
   const idx = JSON.parse(html.match(/window\.DuellIdeas=(\{.*?\});window\./)[1]), full = require("../src/ideas.json");
   assert.equal(idx.index, true); assert.equal(idx.ideas.length, full.ideas.length);
-  assert.ok(Buffer.byteLength(JSON.stringify(idx)) < Buffer.byteLength(JSON.stringify(full)) * 0.55, "Index klein: " + Buffer.byteLength(JSON.stringify(idx)));
+  // Shelf clean-up (2026-11, 209 -> 74 cards): what is left on the shelf are mostly turn cards whose rules live in turn.json,
+  // so an entry is short and the shelf's index is a larger share of it than before (0.49 then). Hence two bars: the share of
+  // the shelf alone, and the absolute size with what the core needs for old links (retired without tags, gone), which went
+  // down from 40 307 B to under 27 000 B.
+  const bytes = (x) => Buffer.byteLength(JSON.stringify(x)), shelf = (x) => ({ ideas: x.ideas, gated: x.gated });
+  assert.ok(bytes(shelf(idx)) < bytes(shelf(full)) * 0.65, "Index klein: " + bytes(shelf(idx)));
+  assert.ok(bytes(idx) < 27000, "Index unter 27 000 B: " + bytes(idx));
+  assert.deepEqual(idx.retired.map((i) => i.id), full.retired.map((i) => i.id)); assert.deepEqual(idx.gone, full.gone);
+  assert.ok(idx.retired.every((i) => !i.x), "keine Tags fuer Karten, die niemand mehr sucht");
   assert.match(part("katalog"), /^window\.DuellIdeasFull=\{/); assert.ok(!/"lines":/.test(html), "Kartentexte nur im Teil");
   assert.deepEqual(man.play.d, ["katalog"], "Arcade liest die vollen Eintraege");
   assert.match(part("turnzwei"), /root\.Turn2 = root\.Parts\.registry\("turnzwei"/); assert.match(part("logik"), /root\.Logik = root\.Parts\.registry\("logik"/);

@@ -65,15 +65,15 @@ test("Eis-Stock live: Rundenspiel, wer dran ist wechselt, nachdem der Wurf bei b
   assert.deepEqual(A.errs, []); assert.deepEqual(B.errs, []); await b.close();
 });
 
-test("Gegen den Bot: Regal zeigt zehn Arcade-Duelle neben dem Ballduell, Insel-Panzer bis zum Ende", async () => {
+test("Gegen den Bot: Regal zeigt die fuenf Arcade-Duelle (Regal-Bereinigung 2026-11), kein Ballduell-Knopf mehr, Insel-Panzer bis zum Ende", async () => {
   const b = await launch(), ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);
   const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
   // Fixed seed and fixed steps: the bot game is the same every run and ends after 11 s of game time (about 3 s here).
   await p.addInitScript(() => { window.__liveOn = true; window.__arcadeSeed = "e2e-28"; window.__arcadeSpeed = 4; });
   await p.goto(page); await G.alle(p); await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
-  await p.getByRole("button", { name: /Ballduell live/ }).waitFor();
-  await p.locator(".arctile").nth(9).waitFor();   // the tiles come with the lazy play part, after the shelf itself
-  assert.equal(await p.locator(".arctile").count(), 10);
+  await p.locator(".arctile").nth(4).waitFor();   // the tiles come with the lazy play part, after the shelf itself
+  assert.deepEqual(await p.locator(".arctile").evaluateAll((l) => l.map((e) => e.dataset.g)), ["ziegel", "panzer", "kick", "elfer", "stock"]);
+  assert.equal(await p.getByRole("button", { name: /Ballduell live|Doppelkopf live/ }).count(), 0, "Ballduell und Doppelkopf sind in Stangen-Kick und Skat aufgegangen");
   await p.locator(".arctile[data-g=panzer]").click();
   await p.locator(".arcdemo").waitFor();
   await p.getByRole("button", { name: /Gegen den Bot/ }).click();
@@ -87,13 +87,15 @@ test("Gegen den Bot: Regal zeigt zehn Arcade-Duelle neben dem Ballduell, Insel-P
   assert.deepEqual(errs, []); await b.close();
 });
 
-test("Kalender: an seinem Tag ist das Puck-Duell das Blatt des Tages und oeffnet Bot oder Freund", async () => {
+test("Kalender: an einem seiner Tage ist Stangen-Kick das Blatt des Tages und oeffnet Bot oder Freund (heute, 10.11., der Volley-Tag)", async () => {
   const b = await launch(), ctx = await b.newContext({ ...devices["Pixel 7"], locale: "de-DE" }); ctx.setDefaultTimeout(20000);
   const p = await ctx.newPage(), errs = []; p.on("pageerror", (e) => errs.push(String(e)));
-  const on = require("../../src/ideas.json").ideas.find((i) => i.id === "arcade-puck").on;   // the December plan decides the day
-  await p.clock.setFixedTime(new Date("2026-" + on + "T09:00:00Z"));
+  // the shelf clean-up (2026-11) gave Stangen-Kick the days of Puck, Volley and Flipper, which went into it
+  const on = require("../../src/ideas.json").ideas.find((i) => i.id === "arcade-kick").on;
+  assert.deepEqual(on, ["11-06", "11-10", "11-14", "11-16"]);
+  await p.clock.setFixedTime(new Date("2026-11-10T09:00:00Z"));
   await p.goto(page);
-  await p.locator("#leaf").getByText("Puck", { exact: true }).waitFor();
+  await p.locator("#leaf").getByText("Kick", { exact: true }).waitFor();
   await p.locator("#go").click();
   await p.getByRole("button", { name: /Gegen den Bot/ }).waitFor();
   // The menu wears the home page's brand as a banner in the user's colour, with the same ✕ as editor and shelf.

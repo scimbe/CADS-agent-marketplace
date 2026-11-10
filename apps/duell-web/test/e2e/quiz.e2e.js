@@ -25,7 +25,8 @@ async function phone(api, url) {
   return { p, errs, sent };
 }
 const shot = async (p, name) => { if (SHOTS) await p.screenshot({ path: path.join(SHOTS, "wb2-quiz-" + name + ".png") }); };
-const openTurn = (p, g) => p.evaluate((gg) => { const D = window.Daily, i = D.IDEAS.find((x) => x.turn && x.turn.g === gg); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i, tab: "Move" }); }, g);
+// the quiz cards went into their carriers with the shelf clean-up (2026-11); links still open them (Daily.RETIRED)
+const openTurn = (p, g) => p.evaluate((gg) => { const D = window.Daily, i = D.IDEAS.concat(D.RETIRED).find((x) => x.turn && x.turn.g === gg); window.DailyApp.openEditor(D.docFromIdea(i, window.DailyApp.me(), "de"), { idea: i, tab: "Move" }); }, g);
 const doc = (p) => p.evaluate(() => window.DailyDebug.doc());
 const link = (p) => p.evaluate(() => window.Daily.docUrl(window.DailyDebug.doc()).split("#")[1]);
 const METER = { free: 7, remaining: 5, period: "week" };

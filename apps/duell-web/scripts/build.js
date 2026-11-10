@@ -38,7 +38,10 @@ const twoGames = Object.keys(require("../src/turns.js").GAMES).filter((g) => cor
 const malGames = Object.keys(require("../src/turns.js").GAMES).filter((g) => coreGames.indexOf(g) < 0 && twoGames.indexOf(g) < 0); require("../src/dart.js");
 // Dart (src/dart.js) brings its game in a part of its own (dart), listed the same way.
 const games = require("../src/turns.js").GAMES, dartGames = Object.keys(games).filter((g) => coreGames.indexOf(g) < 0 && twoGames.indexOf(g) < 0 && malGames.indexOf(g) < 0), catalog = json(has("ideas.json") ? fl("ideas.json") : "src/ideas.json");
-if (flavor) catalog.ideas = catalog.ideas.filter((i) => !i.turn || games[i.turn.g]);
+if (flavor) ["ideas", "retired"].forEach((k) => { if (catalog[k]) catalog[k] = catalog[k].filter((i) => !i.turn || games[i.turn.g]); });
+// What the page can open: the shelf and the cards taken off it (ideas.json retired, shelf clean-up 2026-11), which old links
+// still open; a part a retired card needs is built as long as one is there.
+const openable = catalog.ideas.concat(catalog.retired || []);
 // Pictures of the day's cards (AI-made, see src/thumbs.json): only the ids go in, the images stay on the gallery server.
 const thumbs = Object.keys(json(has("thumbs.json") ? fl("thumbs.json") : "src/thumbs.json").items);
 // The catalog is a part of its own (katalog, loaded first, src/parts.js): the core keeps only a small index, enough for the
@@ -71,7 +74,7 @@ const merge = (v) => "Object.keys(window." + v + ").forEach(function(l){window.D
 const quizSpiele = json("src/quizspiele.json");
 const dataAll = data + "window.QuizFacts=" + JSON.stringify({ phish: quizSpiele.phish, preis: quizSpiele.preis }) + ";window.TurnData=" + JSON.stringify(turnData) + ";window.DuelData=" + JSON.stringify(duelData) + ";" + merge("DuelData.texts") +
   "window.ArcadeTexts=" + JSON.stringify(JSON.parse(read("src/arcade.json"))) + ";" + merge("ArcadeTexts");
-const parts = { DATA: dataAll, DUEL: read("src/duel.js"), QUEST: read("src/quest.js"), MODES: read("src/modes.js"), DOOR: read("src/door.js"), QUIZPACK: read("src/quizpack.js"), TURNS: read("src/turns.js"), QUIZMAKE: read("src/quizmake.js"), QUIZUI: read("src/quiz-ui.js"), OFFICE: read("src/office.js"), QUIZSPIELE: read("src/quizspiele.js"), FLAVOR: (has("games.js") ? read(fl("games.js")) + "\n;\n" : "") + (has("flavor.js") ? read(fl("flavor.js")) : ""), WARM: read("src/warm.js"), TURNUI: read("src/turn-ui.js"), PARTS: read("src/parts.js"), SMOOTH: read("src/smooth.js"), ARCADE: read("src/arcade.js"), ARCADE2: read("src/arcade2.js"), ARCADEUI: read("src/arcade-ui.js"), MPOKER: read("src/mpoker.js"), DOKO: read("src/doko.js"), SKAT: read("src/skat.js"), BAUERNSKAT: read("src/bauernskat.js"), TABLE: read("src/table.js"), TABLEUI: read("src/table-ui.js"), RPSLIVE: read("src/rpslive.js"), BALLDUELL: read("src/ballduell.js"), LIVE: read("src/live.js"), LIVEUI: read("src/live-ui.js"), QRCODE: read("node_modules/qrcode-generator/qrcode.js"), SHORT: read("src/shortlink.js"), STAT: read("src/stat.js"), OWN: read("src/own.js"), STATUSCARD: read("src/statuscard.js"), CORE: read("src/core.js"), ENGINE: read("src/engine.js"), DAILY: read("src/daily.js"), STUDIO: read("src/studio.js"), KIT: read("src/kit.js"), BAUSTEINE: read("src/bausteine.js"), COLLAB: read("src/collab.js"), COLLABUI: read("src/collab-ui.js"), CALLCARD: read("src/callcard.js"), CALLCARDUI: read("src/callcard-ui.js"), STICKERS: read("src/stickers.js"), AI: read("src/ai.js"), WISH: read("src/wish.js"), WELTUI: read("src/welt-ui.js"), RENDER: read("src/render.js"), PLAYABLE: read("src/playable.js"), GAME: read("src/game.js"), SATZ: read("src/satz.js"), SATZUI: read("src/satz-ui.js"), APP: read("src/app.js") };
+const parts = { DATA: dataAll, DUEL: read("src/duel.js"), QUEST: read("src/quest.js"), MODES: read("src/modes.js"), DOOR: read("src/door.js"), QUIZPACK: read("src/quizpack.js"), TURNS: read("src/turns.js"), QUIZMAKE: read("src/quizmake.js"), QUIZUI: read("src/quiz-ui.js"), OFFICE: read("src/office.js"), QUIZSPIELE: read("src/quizspiele.js"), FLAVOR: (has("games.js") ? read(fl("games.js")) + "\n;\n" : "") + (has("flavor.js") ? read(fl("flavor.js")) : ""), WARM: read("src/warm.js"), TURNUI: read("src/turn-ui.js"), PARTS: read("src/parts.js"), SMOOTH: read("src/smooth.js"), ARCADE: read("src/arcade.js"), ARCADE2: read("src/arcade2.js"), ARCADEUI: read("src/arcade-ui.js"), MPOKER: read("src/mpoker.js"), DOKO: read("src/doko.js"), SKAT: read("src/skat.js"), BAUERNSKAT: read("src/bauernskat.js"), TABLE: read("src/table.js"), TABLEUI: read("src/table-ui.js"), RPSLIVE: read("src/rpslive.js"), BALLDUELL: read("src/ballduell.js"), LIVE: read("src/live.js"), LIVEUI: read("src/live-ui.js"), QRCODE: read("node_modules/qrcode-generator/qrcode.js"), SHORT: read("src/shortlink.js"), STAT: read("src/stat.js"), OWN: read("src/own.js"), STATUSCARD: read("src/statuscard.js"), CORE: read("src/core.js"), ENGINE: read("src/engine.js"), DAILY: read("src/daily.js"), STUDIO: read("src/studio.js"), KIT: read("src/kit.js"), BAUSTEINE: read("src/bausteine.js"), COLLAB: read("src/collab.js"), COLLABUI: read("src/collab-ui.js"), STICKERS: read("src/stickers.js"), AI: read("src/ai.js"), WISH: read("src/wish.js"), WELTUI: read("src/welt-ui.js"), RENDER: read("src/render.js"), PLAYABLE: read("src/playable.js"), GAME: read("src/game.js"), SATZ: read("src/satz.js"), SATZUI: read("src/satz-ui.js"), APP: read("src/app.js") };
 // Parts: past 1 MB the page is split instead of growing. The core (home, calendar sheet, editor, sharing) stays inline in
 // index.html; what only some people open lands in parts/<name>.<hash>.js next to it and is loaded on first use. The apps
 // ship the folder in their bundle (Android assets, iOS bundle), the web gets it from /duell/parts/. `d`: parts it needs first.
@@ -98,20 +101,20 @@ const PARTS = {
 // The weather card's block (src/wetter.js); not built for a flavor whose catalog has no cards (Daily Business: turns only).
 // Stickers in the finished picture (src/noto.js, Noto Emoji sheet src/noto-stickers.png); only where cards and photo posters
 // carry stickers (not for Daily Business: turns only; app.js notoFor then makes the picture without, as before).
-if (catalog.ideas.some((i) => i.kind === "card" || i.kind === "photo")) PARTS.noto = { d: [], src: ["NOTODATA", "NOTO"] };
-if (catalog.ideas.some((i) => i.kind === "card")) PARTS.wetter = { d: [], src: ["WETTERDATA", "WETTER"] };
+if (openable.some((i) => i.kind === "card" || i.kind === "photo")) PARTS.noto = { d: [], src: ["NOTODATA", "NOTO"] };
+if (openable.some((i) => i.kind === "card")) PARTS.wetter = { d: [], src: ["WETTERDATA", "WETTER"] };
 // The new start (redesign wave 1): intention tiles, one sentence to the fitting card, "Alle Karten" (src/start.js,
 // src/start-ui.js, words and keywords in src/start.json). Only where the four intentions exist (not in Daily Business).
 if (!flavor) PARTS.start = { d: [], src: ["STARTDATA", "START", "STARTUI"] };
 // Mal & Rat: draw a word, the others guess (src/malrat.js, src/malrat-ui.js, words in src/malrat.json); only built when the
 // catalog has a card with its game (not in Daily Business).
-if (catalog.ideas.some((i) => i.turn && malGames.indexOf(i.turn.g) >= 0)) PARTS.malen = { d: ["katalog"], src: ["MALRATDATA", "MALRAT", "MALRATUI"] };
+if (openable.some((i) => i.turn && malGames.indexOf(i.turn.g) >= 0)) PARTS.malen = { d: ["katalog"], src: ["MALRATDATA", "MALRAT", "MALRATUI"] };
 // Dart: a real dartboard by link or against the bot (src/dart.js, src/dart-ui.js, texts in src/dart.json); only built when the
 // catalog has a card with its game (not in Daily Business).
-if (catalog.ideas.some((i) => i.turn && dartGames.indexOf(i.turn.g) >= 0)) PARTS.dart = { d: ["katalog"], src: ["DARTDATA", "DART", "DARTUI"] };
+if (openable.some((i) => i.turn && dartGames.indexOf(i.turn.g) >= 0)) PARTS.dart = { d: ["katalog"], src: ["DARTDATA", "DART", "DARTUI"] };
 // "Stimme verzerren": recording, the voice effects, the voice as a video or sound file (src/klang.js, src/klang-ui.js);
 // only where the catalog has a voice card (not in Daily Business: turns only).
-if (catalog.ideas.some((i) => i.kind === "sound" && i.sound.mode === "voice")) PARTS.klang = { d: [], src: ["KLANGDATA", "KLANG", "KLANGUI"] };
+if (openable.some((i) => i.kind === "sound" && i.sound.mode === "voice")) PARTS.klang = { d: [], src: ["KLANGDATA", "KLANG", "KLANGUI"] };
 // Thumbs on the sheet and the card numbers (src/stimme-ui.js, src/stat.js); not built for a flavor without them (stat: false).
 if (!(conf && conf.stat === false)) PARTS.stimme = { d: [], src: ["STIMMEDATA", "STAT", "STIMMEUI"] };
 // "Create your own card" (src/create-ui.js): only where the flavor shows the tile. A flavor with its own feats list must
