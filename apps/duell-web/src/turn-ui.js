@@ -688,9 +688,10 @@ A.PANEL.Move = function (p) {
   }
   walk(p, ed);
 };
-A.PANEL.Text = (function (old) {
+// The text tab of every other kind is the one of the part blasen (src/blasen.js): it comes with the editor, after this file.
+A.PANEL.Text = (function () {
   return function (p) {
-    if (A.ed().doc.k !== "turn") { old(p); return; }
+    if (A.ed().doc.k !== "turn") { window.Blasen.PANEL.Text(p); return; }
     var d = A.ed().doc;
     A.field(p, t("ideaT"), d.t, 40, function (v) { d.t = v; });
     A.field(p, t("ideaS"), d.s, 70, function (v) { d.s = v; });
@@ -706,7 +707,7 @@ A.PANEL.Text = (function (old) {
     });
     p.appendChild(box);
   };
-})(A.PANEL.Text);
+})();
 X.turn = {
   // Every game on one shelf, each with what it is for.
   // Every game on one shelf as a tile with its own sign, grouped by when it fits, plus one button for a surprise.

@@ -105,8 +105,8 @@
     });
     Array.from(p.querySelectorAll("input[type=color]")).forEach(function (x, n) { x.setAttribute("aria-label", t("dk_custom", { n: n + 1, c: cn(x.value) })); });
   }
-  var oldColor = A.PANEL.Color;
-  A.PANEL.Color = function (p) { oldColor(p); names(p); };
+  // the colour tab of the part blasen (src/blasen.js), which may come before or after this part (blasen keeps this one)
+  A.PANEL.Color = function (p) { window.Blasen.PANEL.Color(p); names(p); };
 
   // ---------- stickers without dragging ----------
   function sticker(s) { return t("dk_sk", { e: s.e, at: t("dk_at" + M.where(s.x, s.y)) }); }
