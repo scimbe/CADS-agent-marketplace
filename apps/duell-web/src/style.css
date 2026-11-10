@@ -352,6 +352,8 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .arcburst{width:46px;height:46px;margin:0;font-size:21px;line-height:1;flex:none}
 .arcov .btn.hot{background:var(--a);border-color:var(--a);color:var(--on);box-shadow:0 5px 0 var(--b);margin-bottom:6px}
 .arcov .btn.hot.live{background:var(--b);border-color:var(--b);color:var(--onb);box-shadow:0 5px 0 var(--a)}
+.arcbar .arcx{width:auto;border-radius:22px;padding:0 14px 0 10px;font-size:1rem;background:rgba(0,0,0,.12);white-space:nowrap}
+.arcov .arcleave{background:transparent;border:2px solid rgba(255,255,255,.55);color:#fff;box-shadow:none}
 .arcov .btn.hot:active{transform:translateY(4px);box-shadow:0 1px 0 var(--b)}
 .arccv{width:min(94vw,60vh);aspect-ratio:1000/1600;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;border-color:#fff;background:#07070b}
 .arcdemo{width:min(56vw,30vh);aspect-ratio:300/480;border:3px solid #fff;background:#07070b}.arcnote{min-height:2.4em;margin:0}

@@ -1183,7 +1183,7 @@ document.addEventListener("keydown", function (e) {
   x = { editor: "edback", shelf: "shback", game: "gback", done: "dback" }[screen];
   if (x && !$(x).hidden) { e.preventDefault(); $(x).click(); }
 });
-window.addEventListener("popstate", function () { if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
+window.addEventListener("popstate", function () { if (window.ArcadeUI && window.ArcadeUI.back()) return; if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
 
 function route() {
   // The call card ("Ruf mich an, wenn du mich wirklich kennst", #p=<invite>&k=<card>) was struck with the shelf clean-up
