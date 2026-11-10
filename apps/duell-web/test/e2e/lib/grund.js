@@ -48,10 +48,7 @@ const VIEWS = {
   tablet820: { viewport: { width: 820, height: 1180 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },   // redesign wave 1: tablet upright
   desk1280: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 },                                    // and a laptop
   zoom200: zoom({ width: 1024, height: 768 }, 2),
-  zoom200quer: zoom({ width: 1280, height: 800 }, 2),   // a 1280x800 laptop at 200 %: 640x400, the two-column layout
-  // phones at 200 % (WCAG 1.4.4/1.4.10): a 360x780 phone leaves 180 CSS pixels, a 412x915 phone 206
-  zoom360: zoom({ width: 360, height: 780 }, 2),
-  zoom412: zoom({ width: 412, height: 915 }, 2)
+  zoom200quer: zoom({ width: 1280, height: 800 }, 2)   // a 1280x800 laptop at 200 %: 640x400, the two-column layout
 };
 const LANGS = ["de", "en"];
 const LOCALE = { de: "de-DE", en: "en-GB" };

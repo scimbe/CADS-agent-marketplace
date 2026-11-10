@@ -10,6 +10,10 @@ const C = require("../../src/core.js");
 const { ensureBuilt } = require("../../scripts/ensure-build.js");
 
 const ORIGIN = new URL(C.DEFAULT_API).origin;
+// Phones at 200 %, built like G.zoom: a 360x780 phone leaves 180x390 CSS pixels, a 412x915 phone 206x457. Only for this
+// file (w0.e2e.js runs all shared views and asks for the main button in the first screen, a question of its own).
+G.VIEWS.zoom360 = G.zoom({ width: 360, height: 780 }, 2);
+G.VIEWS.zoom412 = G.zoom({ width: 412, height: 915 }, 2);
 const DAY = "2026-11-08T10:00:00Z";
 
 // Visible controls of the screen sel whose box leaves [0, innerWidth] (1 px tolerance for rounding) or whose visible
