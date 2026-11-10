@@ -45,8 +45,9 @@
        same every day, so the start below does not move with the day's kind */
     "#stacts{position:absolute;right:14px;bottom:12px;z-index:3;display:flex;gap:6px;max-width:calc(100% - 132px)}#stacts:not(:has(>:not([hidden]))){display:none}",
     "#stacts button{min-height:44px;padding:2px 8px;border:2px solid #17140f;border-radius:12px;background:#fff;color:#17140f;font:700 .8125rem/1.1 system-ui,sans-serif}#stacts button[hidden]{display:none}",
-    /* "Erschaffe deine Karte": the second main action under the day's main button, full width, the size of the tiles */
-    "#home.neu #homerow{flex-wrap:wrap}#home.neu #homerow #create{flex:1 1 100%;min-height:52px;padding:6px 14px;font:800 1.0625rem/1.2 var(--st);text-transform:none;letter-spacing:0}",
+    /* "Erschaffe deine Karte" on a phone upright: the second main action under the day's main button, full width, the size
+       of the tiles (two columns, from 900 px or sideways, keep the row as it was) */
+    "@media (orientation:portrait) and (max-width:899px){#home.neu #homerow{flex-wrap:wrap}#home.neu #homerow #create{flex:1 1 100%;min-height:52px;padding:6px 14px;font:800 1.0625rem/1.2 var(--st);text-transform:none;letter-spacing:0}}",
     /* the gallery of bunsenbrenner (the old strip) only quietly at the foot, closed */
     ".stfoot{display:block;margin:4px auto 12px;min-height:44px;padding:0 12px;border:0;background:none;color:inherit;font:600 .875rem var(--st);text-decoration:underline;text-underline-offset:3px}",
     ".stfree{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;margin:0 0 12px;padding:10px 14px;border:3px solid #17140f;border-radius:18px;background:#F9D84A;color:#17140f;text-align:left;box-shadow:4px 4px 0 #17140f}.stfree b{display:block;font:800 1.0625rem/1.2 system-ui,sans-serif}.stfree small{font:500 .875rem/1.3 system-ui,sans-serif}",
@@ -206,9 +207,9 @@
 
   // On the day's start: "Look würfeln" and "Live ansehen" on the card (bottom right, the thumbs on the left); elsewhere back
   // in the row under the main button as before.
-  // Only on a phone upright (301-899 px wide, from 560 px high): with zoom (narrower or lower) the row has room as before.
+  // Only on a phone upright (301-899 px wide, from 560 px high): with zoom (narrower or lower) or in two columns the row stays.
   function acts(on) {
-    on = on && matchMedia("(min-width:301px) and (max-width:899px) and (min-height:560px)").matches;
+    on = on && matchMedia("(orientation:portrait) and (min-width:301px) and (max-width:899px) and (min-height:560px)").matches;
     var a = $("stacts");
     if (!a) { a = el("div"); a.id = "stacts"; $("leaf").appendChild(a); }
     ["wishgo", "livego"].forEach(function (id) { var b = $(id); if (on) a.appendChild(b); else if (b.parentNode === a) $("kireport").before(b); });
