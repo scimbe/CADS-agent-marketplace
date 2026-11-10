@@ -11,6 +11,10 @@ const noComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "");
 const partFiles = () => fs.readdirSync(path.join(path.dirname(dist), "parts")).map((f) => path.join(path.dirname(dist), "parts", f));
 const bundle = () => [fs.readFileSync(dist, "utf8")].concat(partFiles().map((f) => fs.readFileSync(f, "utf8"))).join("\n");
 
+// Parts that only some people open, never in the web's idle preload: the list ONDEMAND in src/parts.js. They have a
+// budget of their own (ONDEMAND_MAX, proposal 512 KiB, awaiting the user's decision); the 1.75 MiB below count only what
+// every web visitor downloads: the core and the parts preloaded on idle.
+const ONDEMAND = JSON.parse(src("parts.js").match(/var ONDEMAND = (\[[^\]]*\]);/)[1]), ONDEMAND_MAX = 512 * 1024;
 // The core's budget (see the test below): 700 KiB, raised to 724 992 B until redesign wave R4 (user decision, 8 Nov 2026).
 const CORE_MAX = 724992, CORE_MAX_AFTER_R4 = 700 * 1024;
 test("Kern-Budget zurueck auf 700 KiB, sobald Welle R4 (Editor auf der Karte) gemergt ist", { todo: "befristete Anhebung auf 724 992 B (8. Nov. 2026) wieder auf " + CORE_MAX_AFTER_R4 + " B setzen" }, () => {
@@ -52,23 +56,27 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   assert.match(html, /"kiReported":/); assert.match(html, /"pf_age_u16":/); assert.match(html, /"pf_ctx_hh":/);
   for (const n of Object.keys(man)) assert.match(n, /^[a-z]{1,20}$/, "Teilname nur Buchstaben (Galerie-Server und Android lassen nur [a-z]{1,20} durch): " + n);
   assert.equal(files.length, Object.keys(man).length, "nur die Teile aus dem Manifest liegen in dist/parts");
-  let sum = 0;
+  let sum = 0, onDemand = 0;
   for (const [name, p] of Object.entries(man)) {
     assert.match(p.f, new RegExp("^parts/" + name + "\\.[0-9a-f]{12}\\.js$"), "Name mit Inhalts-Hash");
     const body = fs.readFileSync(path.join(path.dirname(dist), p.f));
     assert.ok(body.length < 300 * 1024, "Teil " + name + " ueber 300 KB: " + body.length);
     assert.equal(p.h, "sha384-" + require("node:crypto").createHash("sha384").update(body).digest("base64"), "SRI-Hash von " + name);
     for (const d of p.d) assert.ok(man[d], "Abhaengigkeit " + d);
-    sum += body.length;
+    if (ONDEMAND.includes(name)) onDemand += body.length; else sum += body.length;
   }
-  // 1.75 MiB (was 1.6 MiB until #183, 1.5 MiB until #174). The sum grows with parts that only some people open: noto (Noto
-  // Emoji for stickers in the picture, about 110 KB) and dart (the dartboard, about 50 KB). Neither is in the web's idle
-  // preload (src/parts.js, checked below and in test/e2e/parts.e2e.js): noto comes with the first sticker, dart with a dart
-  // card or link, so a visitor who opens neither never downloads them. With #180-#183 together the sum was 1 696 049 B,
-  // over 1.6 MiB; the core keeps its own budget (700 KiB above, 716 800 B in test/quizspiele.test.js). A large part that
-  // would be preloaded on idle does not get this room: then back to 1.6 MiB.
-  assert.ok(Buffer.byteLength(html) + sum < 1.75 * 1024 * 1024, "Kern + Teile: " + (Buffer.byteLength(html) + sum));
-  assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(n !== "noto" && n !== "dart" && n !== "klang"\) need\(n\)/, "noto, dart und klang nicht im Leerlauf-Vorladen");
+  // Two budgets (A0, Bauplan freie Karte): with #189, #190 and #194 together core + all parts were 1 840 060 B, 5 052 B over
+  // 1.75 MiB. (a) What every web visitor downloads: the core plus every part preloaded on idle, below 1.75 MiB (was 1.6 MiB
+  // until #183, 1.5 MiB until #174). (b) The parts only some people open (ONDEMAND in src/parts.js: noto, dart, klang and
+  // the free card's engines lauf, blasen, bahn, raten): at most ONDEMAND_MAX together, each below 300 KB like every part.
+  // A large part that would be preloaded on idle does not get room from (b): it counts in (a).
+  const preload = Buffer.byteLength(html) + sum;
+  console.log("Byte-Budget: Kern + vorgeladene Teile " + preload + " B (< " + 1.75 * 1024 * 1024 + "), nur bei Bedarf " + onDemand + " B (<= " + ONDEMAND_MAX + "): " + Object.keys(man).filter((n) => ONDEMAND.includes(n)).join(", "));
+  assert.ok(preload < 1.75 * 1024 * 1024, "Kern + vorgeladene Teile: " + preload);
+  assert.ok(onDemand <= ONDEMAND_MAX, "Teile nur bei Bedarf: " + onDemand);
+  assert.deepEqual(ONDEMAND, ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten"], "Liste nur bei Bedarf");
+  for (const n of ["noto", "dart", "klang"]) assert.ok(man[n], "Teil nur bei Bedarf fehlt im Manifest: " + n);
+  assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(ONDEMAND\.indexOf\(n\) < 0\) need\(n\)/, "Teile aus ONDEMAND nicht im Leerlauf-Vorladen");
   assert.match(src("app.js"), /=== "voice"\) window\.Parts\.need\("klang"\)/, "klang kommt mit einem Stimm-Blatt");
   // Each part runs where it ran inside the page: the module code, not a stand-in. Spot checks on what moved.
   const part = (n) => fs.readFileSync(path.join(path.dirname(dist), man[n].f), "utf8");

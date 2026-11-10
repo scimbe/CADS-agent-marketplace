@@ -10,6 +10,8 @@ const { chromium } = require("playwright");
 
 const DIST = path.join(__dirname, "../../dist/index.html");
 const PARTS = path.join(__dirname, "../../dist/parts");
+// the parts never preloaded on idle (src/parts.js ONDEMAND: noto, dart, klang, the free card's engines)
+const ONDEMAND = JSON.parse(fs.readFileSync(path.join(__dirname, "../../src/parts.js"), "utf8").match(/var ONDEMAND = (\[[^\]]*\]);/)[1]);
 const JPEG = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQ==";
 const SEED = { me: { nick: "Mira", emoji: "🦖", colors: ["#2b4bff", "#ffe600"], set: "weltall" },
   wall: [{ id: "own", ts: 3, k: "photo", th: JPEG }, { id: "own", ts: 2, k: "card", th: JPEG }], saved: [{ id: "quiz-chaos", ts: 1 }], aiDev: "5e".repeat(16) };
@@ -269,8 +271,8 @@ test("KI-Login: der Teil konto kommt vor dem Sprung, das Look-Cookie ist schon b
   await ctx.addInitScript((seed) => { if (!localStorage.getItem("daily.v1")) localStorage.setItem("daily.v1", JSON.stringify(seed)); }, { ...SEED, aiMeter: { free: 3, canLogin: true } });
   await p.goto(DEMOS + "/duell");
   await p.locator("#go").waitFor();
-  // the idle preload: every part but konto (blocked here), noto, dart and klang (never preloaded: a sticker, a dart card or a voice sheet asks)
-  await p.waitForFunction(() => window.Parts.names().filter((n) => n !== "konto" && n !== "noto" && n !== "dart" && n !== "klang").every((n) => window.Parts.ready(n)));
+  // the idle preload: every part but konto (blocked here) and those in ONDEMAND (never preloaded: a sticker, a dart card, a voice sheet, a game asks)
+  await p.waitForFunction((od) => window.Parts.names().filter((n) => n !== "konto" && !od.includes(n)).every((n) => window.Parts.ready(n)), ONDEMAND);
   assert.equal(await p.evaluate(() => window.Parts.ready("konto")), false, "no konto part before");
   await p.evaluate(() => {   // the AI wall as the page shows it (app.js openAiWall), here in a plain box
     const el = (tag, cls, text, on) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; if (on) e.addEventListener("click", on); return e; };
