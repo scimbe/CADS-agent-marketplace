@@ -6,6 +6,7 @@
   var Duel = typeof module !== "undefined" && module.exports ? require("./duel.js") : root.Duel;
   var Quest = typeof module !== "undefined" && module.exports ? require("./quest.js") : root.Quest;
   var Turns = typeof module !== "undefined" && module.exports ? require("./turns.js") : root.Turns;
+  var Lauf = typeof module !== "undefined" && module.exports ? require("./lauf.js") : root.Lauf;
   var TX = typeof module !== "undefined" && module.exports ? require("./texts.json") : root.DailyTexts;
   var IDEAS = DATA.ideas, GATED = DATA.gated || [], BONUS_EVERY = 6, ORDER_TRIES = 200;
   // Cards taken off the shelf (shelf clean-up 2026-11, konzept2 section 5: merged into a carrier, "to"): never in the round,
@@ -31,7 +32,7 @@
   var ROUND_KINDS = ROUND.map(mech).filter(function (k, i, a) { return a.indexOf(k) === i; }).sort();
   var ID_RE = /^[a-z0-9-]{1,32}$/, MAX_WALL = 30, MAX_THUMB = 60000, MAX_TEXT = 90;
   var DAY = 86400000;
-  var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn", "table"];
+  var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn", "table", "lauf"];
   var PLAY = ["arcade"];   // days that are only played (arcade-ui.js), never edited, wished for or sent as a creation
   var STYLES = { card: ["druck", "zettel", "stempel", "neon", "herz", "advent"], photo: ["poster", "sticker", "meme", "glitch"] };
   // Voice effects (the part klang, src/klang.js) and the tempo on top: one effect plus at most one tempo, nothing else.
@@ -373,6 +374,8 @@
       Turns.sanitize(o, d);
     } else if (o.k === "table") {
       d.g = o.g === "skat" || o.g === "bauernskat" ? o.g : "doko";
+    } else if (o.k === "lauf") {
+      d.l = Lauf.sanitize(o.l);   // the second engine (src/lauf.js), played in the part lauf
     } else {
       var g = C.sanitizeState({ v: 1, seed: o.g && o.g.seed, params: o.g && o.g.params, theme: o.g && o.g.theme, title: o.g && o.g.title, emoji: o.g && o.g.emoji, look: o.g && o.g.look, route: o.g && o.g.route });
       d.g = { seed: g.seed, params: g.params, theme: g.theme, title: g.title, emoji: g.emoji };
@@ -429,7 +432,9 @@
     // the start of an empty sheet: the kind's first card. Two of them left the shelf in the clean-up (2026-11) and stay the
     // start, so an empty card or duel begins as before (BLANK); else the first shelf card of the kind without a calendar day.
     var pool = IDEAS.filter(function (i) { return i.kind === kind; }), free = pool.filter(function (i) { return !i.on; });
-    var d = docFromIdea((BLANK[kind] && byId(BLANK[kind])) || free[0] || pool[0], profile, lang);
+    // a kind without any card on the shelf (lauf: only made, never in the catalog) starts from an empty doc
+    var first = (BLANK[kind] && byId(BLANK[kind])) || free[0] || pool[0];
+    var d = first ? docFromIdea(first, profile, lang) : sanitizeDoc({ k: kind, col: profile.colors, by: [] });
     delete d.i; d.t = ""; return d;
   }
   // Which parts differ, in the words the trail shows. The picture itself is never in the doc, so "foto" comes from the editor.
