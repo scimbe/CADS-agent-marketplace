@@ -313,12 +313,13 @@ test("Tageskarte auf dem Handy zeigt ihr Spiel oder Bild (10. Nov.: Netz Volley 
   ensureBuilt("");
   const b = await G.launch(), bad = [];
   try {
-  // 10 Nov: a game (canvas), Netz Volley; 19 Nov: a picture ("Mein Bot sagt"), whose preview was gone at 360x780
+  // 10 Nov: a game (canvas); a picture day: 19 Nov ("Mein Bot sagt", whose preview was gone at 360x780) is off the shelf
+  // since Regal 74, the first day with a picture in the calendar is now 22 Dec (the Advent door)
   const SIZES = { p375: [375, 812], p360h780: [360, 780], p320: [320, 568], p414: [414, 896] }, at = {};
   // the day's picture comes from the image host: a local stand-in answers it (nothing else leaves)
   const q0 = await b.newPage(); await q0.setContent('<body style="margin:0;background:linear-gradient(90deg,#ffd400,#2b4bff)">'); await q0.setViewportSize({ width: 320, height: 180 });
   const jpg = await q0.screenshot({ type: "jpeg" }); await q0.close();
-  for (const [day, kind] of [["2026-11-10T10:00:00Z", "Spiel"], ["2026-11-19T10:00:00Z", "Bild"]]) for (const [n, [w, h]] of Object.entries(SIZES)) {
+  for (const [day, kind] of [["2026-11-10T10:00:00Z", "Spiel"], ["2026-12-22T10:00:00Z", "Bild"]]) for (const [n, [w, h]] of Object.entries(SIZES)) {
     G.VIEWS[n] = { viewport: { width: w, height: h }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
     const ctx = await G.person(b, { lang: "de", view: n, time: day });
     await ctx.route(/^https?:/, (r) => (/\/duell\/img\/[\w-]+\.jpg$/.test(r.request().url()) ? r.fulfill({ status: 200, headers: { "Content-Type": "image/jpeg", "Access-Control-Allow-Origin": "*" }, body: jpg }) : r.abort()));
