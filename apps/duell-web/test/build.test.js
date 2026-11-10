@@ -37,7 +37,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // The reminder is the todo test "Kern-Budget zurueck auf 700 KiB" below.
   assert.ok(Buffer.byteLength(html) < CORE_MAX, "Kern ueber " + CORE_MAX + " B: " + Buffer.byteLength(html));
   const man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]), files = partFiles();
-  assert.deepEqual(Object.keys(man).sort(), ["dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(Object.keys(man).sort(), ["dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "licenses", "logik", "malen", "melden", "noto", "play", "push", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   // The new start (redesign wave 1) is a part: its code, keywords and words only there, in the core only the hooks.
   const startBody = fs.readFileSync(partFiles().find((f) => /\/start\.[0-9a-f]{12}\.js$/.test(f)), "utf8");
   assert.match(startBody, /root\.StartUI = \{/); assert.match(startBody, /root\.StartIntent = api/); assert.match(startBody, /window\.StartTexts=\{"de":\{"st_ask":"Wem willst du heute eine Freude machen\?"/);
@@ -160,7 +160,7 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
   // domain, one POST with the redacted text after the explicit yes. Neither is in the app build below.
   // deck.js: one place (net) for the community deck of free cards: GET deck and key without a cookie, POST only its five
   // paths with a seal, thumb, token or the person's own objection (see the assertions below).
-  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1, "deck.js": 1, "stat.js": 1, "profile.js": 1, "protokoll-page.js": 2 }, short = /\(fetchFn \|\| fetch\)\(/g;
+  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1, "deck.js": 1, "stat.js": 1, "profile.js": 1, "push.js": 1, "protokoll-page.js": 2 }, short = /\(fetchFn \|\| fetch\)\(/g;
   assert.match(src("protokoll-page.js"), /fetch\(url, \{ signal: ctl\.signal, credentials: "same-origin", cache: "no-store" \}\)/, "Modell nur per GET");
   assert.match(src("protokoll-page.js"), /input: P\.aiInput\(rec\.segs, rec\.names\)/, "an die KI nur der geschwaerzte Text");
   assert.ok(!/deviceMemory|hardwareConcurrency|userAgent/.test(src("protokoll-page.js").match(/JSON\.stringify\(\{ kind: "protokoll"[^\n]*/)[0]), "Geraetedaten bleiben auf dem Geraet");
@@ -168,7 +168,10 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
     assert.equal((noComments(src(f)).match(/\bfetch\(/g) || []).length, allowed[f] || 0, "direktes fetch( in " + f);
     assert.equal((noComments(src(f)).match(short) || []).length, f === "shortlink.js" ? 1 : 0, "Kurzlink-fetch in " + f);
   }
-  assert.equal((html.match(/\bfetch\(/g) || []).length, allowed["game.js"] + allowed["ai.js"] + allowed["live.js"] + allowed["stat.js"] + allowed["profile.js"] + allowed["deck.js"], "direkte fetch( im Build (Kern + Teile)");
+  assert.equal((html.match(/\bfetch\(/g) || []).length, allowed["game.js"] + allowed["ai.js"] + allowed["live.js"] + allowed["stat.js"] + allowed["profile.js"] + allowed["deck.js"] + allowed["push.js"], "direkte fetch( im Build (Kern + Teile)");
+  // push.js ("Bescheid geben", part push): one place, only key/subscribe/unsubscribe/wake of the push API, never a cookie;
+  // what goes out is the browser's subscription, the mark with its delete key, or { mark, r } (test/push.test.js).
+  assert.match(noComments(src("push.js")), /deps\.fetch\(base\(\) \+ path, body \? \{ method: "POST"[^\n]*credentials: "omit", referrerPolicy: "no-referrer" \} : \{ credentials: "omit" \}\)/, "Push nur ohne Cookie");
   const dk = noComments(src("deck.js"));
   assert.match(dk, /fetch\(base\(\) \+ path, get \? \{ credentials: "omit", referrerPolicy: "no-referrer" \} : \{ method: "POST"[^\n]*credentials: "same-origin"/, "Deck und Schluessel ohne Cookie, POST nur same-origin");
   assert.match(dk, /var POSTS = \["\/deck\/use", "\/deck\/vote", "\/deck\/me", "\/mod\/me", "\/mod\/appeal"\];/, "nur diese fuenf POSTs");
@@ -202,7 +205,14 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
   for (const f of fs.readdirSync(path.join(__dirname, "../src")).filter((n) => n.endsWith(".js") && n !== "live.js")) assert.ok(!/WebSocket|RTCPeerConnection/.test(noComments(src(f))), "Live-Ausgang in " + f);
   assert.equal((html.match(/new WebSocket\(/g) || []).length, 1, "ein WebSocket"); assert.equal((html.match(/new RTCPeerConnection\(/g) || []).length, 1, "eine Peer-Verbindung");
   assert.match(src("live.js"), /API = WC \+ "\/api\/play"/, "Live spricht nur mit /api/play"); assert.ok(!/"turns?:|stun:|iceTransportPolicy: "relay"/.test(src("live.js")), "ICE-Server kommen nur vom Server, kein erzwungenes Relay"); assert.match(src("texts.json"), /IP-Adresse des anderen/, "Hinweis auf die sichtbare IP");
-  assert.ok(!/analytics|\bgtag\b|tracker|Notification\.|serviceWorker/i.test(html), "Tracker/Push");
+  assert.ok(!/analytics|\bgtag\b|tracker/i.test(html), "Tracker");
+  // Push only in the part "push" ("Bescheid geben", product owner's order of 10 Nov 2026): our own question first, only the kind
+  // of event, nothing in the core and no other part asks for notifications or registers a service worker (test/push.test.js).
+  for (const f of [dist].concat(partFiles().filter((x) => !/\/push\.[0-9a-f]{12}\.js$/.test(x)))) assert.ok(!/Notification\.|serviceWorker|PushManager/.test(noComments(fs.readFileSync(f, "utf8"))), "Push ausserhalb des Teils push: " + path.basename(f));
+  const pushPart = partFiles().find((x) => /\/push\.[0-9a-f]{12}\.js$/.test(x));
+  assert.ok(pushPart && /requestPermission/.test(fs.readFileSync(pushPart, "utf8")), "der Teil push fragt das System");
+  assert.ok(/async function enable\(\) \{[\s\S]*?requestPermission\(\)/.test(src("push.js")) && (src("push.js").match(/requestPermission\(/g) || []).length === 1, "nur enable() fragt, und enable() ruft nur der Ja-Knopf");
+  assert.equal((noComments(src("push.js")).match(/P\.enable\(\)/g) || []).length, 1, "ein Aufrufer von enable(): der Ja-Knopf im eigenen Dialog");
 });
 test("XSS: kein HTML-Sink im Seitencode (Kern + Teile)", () => {
   const html = noComments(bundle());

@@ -188,6 +188,8 @@
       var so = el("button", "chip statoff", t("set_stat"), function () { Kit.sfx.tap(); if (Kit.store.statOff) delete Kit.store.statOff; else Kit.store.statOff = true; Kit.save(); so.setAttribute("aria-pressed", String(!!Kit.store.statOff)); });
       so.setAttribute("aria-pressed", String(!!Kit.store.statOff)); dataBody.appendChild(so); dataBody.appendChild(el("p", "note", t("set_statnote")));
     }
+    // "Bescheid geben" (src/push.js, part push): state and one switch; the dialog asks before the system does.
+    var pu = el("div", "stpush"); dataBody.appendChild(pu); root.Parts.need("push").then(function () { root.DuellPush.section(pu); }, function () { pu.remove(); });
     dataBody.appendChild(el("p", "note", t("aiPicNote")));
     dataBody.appendChild(el("button", "btn", t("licenses"), function () { root.Parts.use("licenses", function () { var l = el("pre", "note", root.DailyLicenses); l.style.whiteSpace = "pre-wrap"; b.textContent = ""; b.appendChild(l); }).catch(function () {}); }));
     paint();
