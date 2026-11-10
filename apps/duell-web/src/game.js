@@ -288,7 +288,8 @@ window.Game = {
     try { cur = st; attach(host); sim = E.createSim(st.params, C.mulberry32(st.seed), C.routeParams(st)); draw(); }
     finally { cv = keep[0]; ctx = keep[1]; scale = keep[2]; cur = keep[3]; sim = keep[4]; }
   },
-  current: function () { return cur; }, score: function () { return sim ? sim.score : 0; }
+  current: function () { return cur; }, score: function () { return sim ? sim.score : 0; },
+  view: function () { return sim && { bird: { x: E.BX, y: sim.bird.y, r: E.R }, pipes: sim.pipes.map(function (p) { return { x: p.x, gapY: p.top, gapH: p.gap }; }), w: E.W, h: E.H, title: cur.title }; }   // raw state: src/teile.js
 };
 /* test hook, used by browser checks: reads the state; tick() advances without waiting for frames */
 window.DuellDebug = {
