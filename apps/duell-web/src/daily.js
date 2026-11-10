@@ -26,6 +26,11 @@
   }
   fill();   // the part may have run before this file
   var ROUND = IDEAS.filter(function (i) { return !i.on; });   // calendar ideas ("on": "MM-DD" or a list of them) only appear on their days
+  // A card taken off the shelf until it is rebuilt keeps its place in the round ("round": its index there): every other
+  // day keeps its card, and on its own days ideaOn gives the day a stand-in, as for a card this device cannot run.
+  var PARKED = RETIRED.filter(function (i) { return i.round >= 0; }).sort(function (a, b) { return a.round - b.round; });
+  PARKED.forEach(function (i) { ROUND.splice(Math.min(i.round, ROUND.length), 0, i); });
+  function parked(i) { return PARKED.indexOf(i) >= 0; }
   // What two days in a row must not share: the kind, and for a turn card (most of the shelf) its situation, turn.grip
   // (raum, abend, pause, geschenk, streit). The core's index carries it as mx (index below), so the order is the same there.
   function mech(i) { return i.mx || (i.kind === "turn" && i.turn && i.turn.grip ? "turn-" + i.turn.grip : i.kind); }
@@ -109,7 +114,7 @@
     if (cal && available(cal, c)) return cal;
     var base = baseIdea(n), nextCal = calendarIdea(n + 1), prevCal = calendarIdea(n - 1), next = mech(nextCal || baseIdea(n + 1));
     var clash = (nextCal && mech(nextCal) === mech(base)) || (prevCal && mech(prevCal) === mech(base));
-    var mustMove = !available(base, c) || clash;
+    var mustMove = !available(base, c) || clash || parked(base);
     var extra = C.hash32("bonus-" + n) % BONUS_EVERY === 0 ? GATED.filter(function (x) { return available(x, c); }) : [];
     if (!mustMove && !extra.length) return base;
     var prev = mech(ideaOn(n - 1, c));
@@ -119,7 +124,10 @@
     if (!mustMove) return base;
     var runnable = ROUND.filter(function (x) { return available(x, c); }), pool = runnable.filter(fits);
     if (!pool.length) pool = runnable;
-    return pool.length ? pool[C.hash32("swap-" + n) % pool.length] : null;
+    // a parked card stays in the pool (every other pick stays the same) and hands its pick to the next one
+    var at = C.hash32("swap-" + n) % (pool.length || 1);
+    for (var k = 0; k < pool.length; k++) { var x = pool[(at + k) % pool.length]; if (!parked(x)) return x; }
+    return null;
   }
   function ideaForDay(date, c) { return ideaOn(dayNumber(date), c || caps()); }
   function dayDate(date, back) { return new Date((dayNumber(date) - (back || 0)) * DAY); }
@@ -163,7 +171,7 @@
     function slim(i) {
       var o = { id: i.id, kind: i.kind };
       if (mech(i) !== i.kind) o.mx = mech(i);
-      ["on", "needs", "min"].forEach(function (k) { if (i[k] != null) o[k] = i[k]; });
+      ["on", "needs", "min", "round"].forEach(function (k) { if (i[k] != null) o[k] = i[k]; });
       ["de", "en"].forEach(function (l) { if (i[l]) o[l] = { t: i[l].t }; });
       var x = fold([].concat(i.tags || [], (i.de && i.de.tags) || [], (i.en && i.en.tags) || []).join(" ")).split(" ")
         .filter(function (w, k, a) { return w && a.indexOf(w) === k; }).join(" ");
@@ -177,7 +185,7 @@
     return out;
   }
   function randomIdea(rnd, notId) {
-    var pool = ROUND.concat(GATED).filter(function (i) { return i.id !== notId && available(i); });
+    var pool = ROUND.concat(GATED).filter(function (i) { return i.id !== notId && available(i) && !parked(i); });
     return pool[Math.floor(rnd() * pool.length)];
   }
   function paperIndex(idea, count) { return C.hash32("paper-" + idea.id) % count; }
