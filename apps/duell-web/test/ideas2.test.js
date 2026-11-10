@@ -8,8 +8,12 @@ const Q = require("../src/quest.js");
 const me = D.sanitizeProfile({ nick: "Mira", emoji: "🐙", colors: ["#2b4bff", "#ffe600"], set: "essen" });
 const UNSAFE = /alkohol|bier\b|schnaps|wodka|zigarett|rauch|droge|kiffen|nackt|kuss|küss|sex|waffe|messer|klau|stehl|prügel|dach|gleis|autobahn|fremde|hässlich|fett\b|beer\b|cigarette|smok|drug|naked|kiss|steal|weapon|knife|ugly|\broof|stranger|mutprobe|\bdare\b/i;
 const CAPS = [{ crypto: true }, { crypto: false }, { crypto: true, channel: true }, { crypto: true, call: true }, { crypto: false, call: true }, { crypto: true, channel: true, call: true }];
-const NEW = D.IDEAS.filter((i) => i.kind === "duel" || i.kind === "quest").concat(D.GATED);
-const docOf = (id, patch) => Object.assign(D.docFromIdea(D.byId(id), me, "de"), patch);
+// Since the shelf clean-up (2026-11) the shelf keeps one duel (duell-liest) and one quest (kanal-geheim); the duel and quest
+// cards taken off it (D.RETIRED) or struck (test/fixtures/regal-74-alt.json) still define the mechanics their links use.
+const ALT = D.RETIRED.concat(require("./fixtures/regal-74-alt.json").daily);
+const NEW = D.IDEAS.filter((i) => i.kind === "duel" || i.kind === "quest").concat(D.GATED, ALT.filter((i) => i.kind === "duel" || i.kind === "quest"));
+const card = (id) => D.IDEAS.concat(D.GATED).find((i) => i.id === id) || ALT.find((i) => i.id === id);
+const docOf = (id, patch) => Object.assign(D.docFromIdea(card(id), me, "de"), patch);
 const agent = (r, c, p) => ({ n: "X", e: "🤖", r, c, p });
 const wins = (mk, n = 200) => { let w = 0; for (let i = 0; i < n; i++) { const r = Duel.winner(Duel.play(D.sanitizeDoc(mk(i)), "de")); if (r > 0) w++; } return w / n; };
 
@@ -22,7 +26,7 @@ test("Umfang: mindestens 25 neue Ideen, genau 2 neue Mechaniken, DE und EN, Beda
     for (const n of i.needs || []) assert.ok(["crypto", "channel", "call"].includes(n), i.id);
     const d = D.docFromIdea(i, me, "de"); assert.ok(d, i.id); assert.equal(d.k, i.kind);
   }
-  for (const i of D.GATED) assert.ok(i.needs.length, i.id + " braucht needs");
+  for (const i of D.GATED.concat(ALT.filter((x) => (x.needs || []).includes("call")))) assert.ok(i.needs.length, i.id + " braucht needs");
   for (const i of D.IDEAS.filter((x) => x.kind === "quest")) assert.deepEqual(i.needs, ["crypto"], i.id);
 });
 test("Jeder Tag des Jahres zeigt etwas Lauffaehiges, in jeder Geraeteklasse, auch im Archiv", () => {
@@ -52,16 +56,17 @@ test("Faehigkeiten: unbekannte Kanal-Idee bleibt verborgen, bis sie wirklich da 
   assert.deepEqual([D.caps().channel, D.caps().call], [false, false], "nur echtes true zaehlt");
   delete globalThis.DailyCaps;
 });
-test("Mit Anruf kommen Anruf-Ideen dazu, die Webversion behaelt ihren Tag", () => {
+test("Mit Anruf: seit der Regal-Bereinigung (2026-11) keine Anruf-Karte mehr im Regal, jeder Tag bleibt der der Webversion", () => {
+  assert.deepEqual(D.GATED, [], "anruf-quiz und anruf-stimme sind in „Stimmen-Rätsel“ aufgegangen, anruf-reaktion ist gestrichen");
   const start = Date.UTC(2026, 10, 1); let seen = 0, kept = 0;
   for (let n = 0; n < 366; n++) {
     const d = new Date(start + n * 86400000), w = D.ideaForDay(d, { crypto: true }), c = D.ideaForDay(d, { crypto: true, call: true });
     if (c.needs && c.needs.includes("call")) seen++; else { assert.equal(c.id, w.id); kept++; }
   }
-  assert.ok(seen > 20 && kept > 250, seen + "/" + kept);
+  assert.ok(seen === 0 && kept === 366, seen + "/" + kept);
 });
 test("Links zu Ideen, die das Geraet nicht kann, gelten als nicht verfuegbar", () => {
-  const d = D.sanitizeDoc(D.docFromIdea(D.byId("anruf-quiz"), me, "de"));
+  const d = D.sanitizeDoc(D.docFromIdea(card("anruf-quiz"), me, "de"));
   assert.equal(D.docAvailable(d, { crypto: true }), false); assert.equal(D.docAvailable(d, { crypto: true, call: true }), true);
   const hand = D.sanitizeDoc({ k: "duel", m: "deck" }); assert.equal(D.docAvailable(hand, { crypto: true }), false, "auch ohne Idee-Id");
   const q = D.sanitizeDoc(D.docFromIdea(D.byId("kanal-geheim"), me, "de"));
@@ -143,7 +148,7 @@ test("Geheimkanal: weder Antwort noch Folgetext stehen im Link, jede Versiegelun
 test("Geheimkanal: voll beladen passt in den Link", async () => {
   const stops = [0, 1, 2].map(() => ({ q: "Ü".repeat(44), a: "ä".repeat(24) }));
   const s = await Q.seal({ stops, end: "Ö".repeat(44) });
-  const doc = Object.assign(D.sanitizeDoc(D.docFromIdea(D.byId("kanal-drei"), me, "de")), s, { t: "Ü".repeat(40), s: "Ö".repeat(70) });
+  const doc = Object.assign(D.sanitizeDoc(D.docFromIdea(card("kanal-drei"), me, "de")), s, { t: "Ü".repeat(40), s: "Ö".repeat(70) });
   const url = D.docUrl(doc), f = url.split("#c=")[1];
   assert.ok(f.length <= C.MAX_FRAGMENT, String(f.length));
   const r = D.parseRoute("#c=" + f); assert.equal(r.doc.c.length, 3);

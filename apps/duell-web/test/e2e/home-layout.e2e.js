@@ -15,9 +15,10 @@ const VIEWS = {
   zoom200: Object.assign({}, G.VIEWS.zoom200, { zoom: undefined })
 };
 // 6 Dec is the feel-good card "Du bist toll" (with the name field), 5 Nov a day card without it.
-const CARDS = { warm: "2026-12-06T10:00:00Z", tag: "2026-11-05T10:00:00Z" };
+// Since the shelf clean-up (2026-11) no feel-good card has a calendar day: the name field comes with a link to one (#i=)
+const CARDS = { warm: ["2026-12-06T10:00:00Z", "#i=warm-toll"], tag: ["2026-11-05T10:00:00Z", ""] };
 
-async function home(b, view, lang, day, extra) {
+async function home(b, view, lang, day, extra, hash) {
   const opt = Object.assign({}, VIEWS[view], { locale: G.LOCALE[lang] }, extra);
   delete opt.zoom;
   const ctx = await b.newContext(opt);
@@ -25,7 +26,7 @@ async function home(b, view, lang, day, extra) {
   await ctx.addInitScript((l) => { localStorage.setItem("daily.v1", JSON.stringify({ lang: l, alle: true })); }, lang);
   const p = await ctx.newPage(); p.errs = []; p.on("pageerror", (e) => p.errs.push(String(e)));
   await p.clock.install({ time: new Date(day) });
-  await p.goto("file://" + G.DIST + "/index.html");
+  await p.goto("file://" + G.DIST + "/index.html" + (hash || ""));
   await p.waitForFunction(() => document.body.getAttribute("data-state") !== "boot");
   await until(p, () => !document.getElementById("leaf").getAnimations({ subtree: true }).some((a) => a.playState === "running"));   // the sheet has landed
   return { ctx, p };
@@ -62,8 +63,8 @@ test("Startseite: Namensfeld unter dem Blatt, gleicher Abstand wie ohne, Leiste 
   try {
     for (const view of Object.keys(VIEWS)) for (const lang of G.LANGS) {
       const got = {};
-      for (const [card, day] of Object.entries(CARDS)) {
-        const { ctx, p } = await home(b, view, lang, day), at = view + " " + lang + " " + card, x = await boxes(p);
+      for (const [card, [day, hash]] of Object.entries(CARDS)) {
+        const { ctx, p } = await home(b, view, lang, day, undefined, hash), at = view + " " + lang + " " + card, x = await boxes(p);
         if (SHOTS) await p.screenshot({ path: SHOTS + "/" + view + "-" + lang + "-" + card + ".png" });
         got[card] = x;
         if (card === "warm") {
@@ -103,7 +104,7 @@ test("Leiste: nach dem Anhalten im Lauf ruht sie mit einem ganzen Knopf am linke
   const b = await G.launch();
   try {
     for (const view of ["pixel7", "phone360", "phone390"]) for (const lang of G.LANGS) {
-      const { ctx, p } = await home(b, view, lang, CARDS.warm), at = view + " " + lang;
+      const { ctx, p } = await home(b, view, lang, CARDS.warm[0], undefined, CARDS.warm[1]), at = view + " " + lang;
       await p.clock.runFor(3500);
       assert.equal(await p.evaluate(() => getComputedStyle(document.querySelector("#feat .track")).animationName), "ticker", at + ": laeuft");
       await p.waitForTimeout(2600);   // the CSS animation runs in real time: somewhere inside a button
@@ -125,7 +126,7 @@ test("Leiste: ein Chip mit Fokus rueckt an den linken Rand; bei reduzierter Bewe
   const b = await G.launch();
   try {
     for (const motion of ["no-preference", "reduce"]) {
-      const { ctx, p } = await home(b, "pixel7", "de", CARDS.tag, { reducedMotion: motion }), at = motion;
+      const { ctx, p } = await home(b, "pixel7", "de", CARDS.tag[0], { reducedMotion: motion }), at = motion;
       await G.alle(p); const n = await p.locator("#feat .lane button:not([aria-hidden])").count();
       const i = Math.min(3, n - 1), btn = p.locator("#feat .lane button:not([aria-hidden])").nth(i);
       await btn.focus();

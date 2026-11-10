@@ -1091,7 +1091,6 @@ function openOwn() {
     if (door) b.appendChild(el("button", "mech", "🎄 " + D.plainTitle(ideaText(door).t), function () { Kit.sfx.thud(); openEditor(D.docFromIdea(door, me, Kit.lang), { idea: door }); }));
     var shop = D.IDEAS.filter(function (i) { return i.turn && i.turn.g === "einkauf"; })[0];   // a shopping list is needed any day, too
     if (shop) b.appendChild(el("button", "mech", "🛒 " + D.plainTitle(ideaText(shop).t), function () { Kit.sfx.thud(); openEditor(D.docFromIdea(shop, me, Kit.lang), { idea: shop }); }));
-    CC.tile(b);
   });
 }
 
@@ -1174,8 +1173,9 @@ document.addEventListener("keydown", function (e) {
 window.addEventListener("popstate", function () { if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
 
 function route() {
-  var card = CC.route(location.hash);
-  if (card) { clearLink(); if (!card.keep && screen !== "editor") goHomeKeep(); return true; }
+  // The call card ("Ruf mich an, wenn du mich wirklich kennst", #p=<invite>&k=<card>) was struck with the shelf clean-up
+  // (2026-11, konzept2 section 4): it only ever worked while its maker waited, so an old one says honestly that it is gone.
+  if (/^#?p=[A-Za-z0-9_-]{40,1024}&k=[A-Za-z0-9_-]{1,1500}$/.test(location.hash)) { clearLink(); home = dayHome(); goHomeKeep(); window.DailyShelfOpen = true; if (window.StartUI && window.StartUI.all) window.StartUI.all(true); Kit.toast(t("cardGone"), 8000); return true; }
   if (CU.route(location.hash)) { clearLink(); if (screen !== "editor") goHomeKeep(); return true; }
   var live = location.hash.match(/^#live=([A-Za-z0-9_-]{22})(?:&g=([a-z]{2,12}))?$/);
   if (live && window.LiveUI) { history.replaceState(null, "", location.pathname); window.LiveUI.accept(live[1], live[2]); }
@@ -1192,6 +1192,8 @@ function route() {
     var st = Object.assign({}, r.state), riv = typeof st.score === "number" ? { score: st.score, name: st.name || "" } : null;
     delete st.score; delete st.name; show("game"); G.play(st, riv, { own: true }); return true;
   }
+  // A card taken off the shelf (ideas.json gone): say so, show the day's card and open "All cards" (the shelf) right away.
+  if (r && r.type === "gone") { clearLink(); home = dayHome(); goHomeKeep(); window.DailyShelfOpen = true; if (window.StartUI && window.StartUI.all) window.StartUI.all(true); Kit.toast(t("cardGone"), 8000); return true; }
   if ((r && r.type === "idea" && !D.available(D.byId(r.id))) || (r && r.type === "doc" && !D.docAvailable(r.doc))) { home = dayHome(); goHomeKeep(); Kit.toast(t("notHere")); return true; }
   if (r && r.type === "idea") { home = { date: today, idea: D.byId(r.id), fx: r.fx, note: t("invite"), noteOf: function () { return t("invite"); } }; goHomeKeep(); return true; }
   // A turn card that checks a signature first (feier: the signed end) reads its link only once that is done.
@@ -1250,7 +1252,6 @@ var CU = window.CollabUI.init({
   more: function () { try { window.DuellHost.more(); } catch (e) {} }
 });
 
-var CC = window.CallCardUI.init({ me: function () { return me; }, shelf: shelf, colors: colors, ink: R.ink, more: function () { try { window.DuellHost.more(); } catch (e) {} } }, CU.channel);
 
 var X = window.DailyModes = {};
 window.DailyApp = { part: twoIdea, stopSound: stopSound, playPcm: function (pcm) { stopSound(); return (loop = Kit.playPcm(pcm, S.SR, false)); }, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, res: function () { return result; }, count: function (way) { counted(result, way); }, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, picSwap: picSwap, picThumb: picThumb, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };

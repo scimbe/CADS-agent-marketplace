@@ -52,7 +52,8 @@ test("Nr. 4: kein {x}-Platzhalter in Text, Namen oder Hinweis bei allen Mitmach-
   const b = await G.launch();
   for (const lang of ["de", "en"]) {
     const ctx = await person(b, { lang }), h = await G.open(ctx, "");
-    const ids = await h.evaluate(() => window.Daily.IDEAS.filter((i) => i.kind === "turn").map((i) => i.id));
+    // the shelf and the cards taken off it in the shelf clean-up (2026-11), which old links still open
+    const ids = await h.evaluate(() => window.Daily.IDEAS.concat(window.Daily.RETIRED).filter((i) => i.kind === "turn").map((i) => i.id));
     assert.ok(ids.length >= 60);
     for (const id of ids) {
       const p = await G.open(ctx, "#i=" + id);
@@ -210,7 +211,7 @@ test("Nr. 8: Bauernskat gegen den Bot ohne Auto-Countdown", async () => {
 });
 
 test("Nr. 11: Fertig – Teilen behaelt seinen Namen, Status/Story unter „Mehr“, Foto-Zeile; Business ohne 90 Tage und ohne Status", async () => {
-  const b = await G.launch(), ctx = await person(b), p = await G.open(ctx, "#i=foto-boss");
+  const b = await G.launch(), ctx = await person(b), p = await G.open(ctx, "#i=foto-alien");
   await p.locator("#go").click(); await p.locator("#edmain").click(); await p.locator("#share").waitFor();
   assert.equal(await p.locator("#tostatus").isVisible(), false, "Status unter Mehr");
   await p.locator("#dmore").click(); assert.equal(await p.locator("#tostatus").isVisible(), true);
@@ -227,7 +228,8 @@ test("Nr. 11: Fertig – Teilen behaelt seinen Namen, Status/Story unter „Mehr
 
 test("Nr. 15: Abzeichen aus der Spielart; Duell-Einladung und Gegner mit Spitzname, ohne ihn „Ein Freund“", async () => {
   const b = await G.launch(), ctx = await person(b);
-  for (const [id, want] of [["raum-pommes", "Gegen Bot"], ["raum-uhr", "Allein"], ["beat-disco", "Ein Handy, reihum"], ["zug-deal", "Per Link"]]) {
+  // "Gegen Bot" had only raum-pommes, struck with the shelf clean-up (2026-11)
+  for (const [id, want] of [["raum-uhr", "Allein"], ["beat-disco", "Ein Handy, reihum"], ["zug-deal", "Per Link"]]) {
     const p = await G.open(ctx, "#i=" + id); assert.match(await p.locator("#dkind").textContent(), new RegExp("^" + want)); await p.close();
   }
   for (const [nick, who] of [["Ana", "Ana"], ["", "Ein Freund"]]) {

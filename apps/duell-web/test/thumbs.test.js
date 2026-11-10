@@ -14,17 +14,20 @@ const NO_GAME = ["card", "photo", "sound", "quest"];
 const TOOLS = ["termin", "umfrage", "feedback", "aufgaben", "agenda", "sammeln", "einkauf"];
 
 test("KI-Bilder: jede Karte im Verzeichnis gibt es und sie ist kein Spiel", () => {
-  const all = new Map(ideas.ideas.concat(ideas.gated).map((i) => [i.id, i]));
+  // the shelf and the cards taken off it (retired, 2026-11), which links still open; struck cards lost their pictures
+  const all = new Map(ideas.ideas.concat(ideas.gated, ideas.retired).map((i) => [i.id, i]));
   for (const id of Object.keys(main.items)) {
     assert.ok(all.has(id), "unbekannte Karte " + id);
     assert.ok(NO_GAME.includes(all.get(id).kind), id + " ist " + all.get(id).kind + ", Spiele behalten ihre Vorschau");
   }
-  const b = new Map(bizIdeas.ideas.map((i) => [i.id, i]));
+  const b = new Map(bizIdeas.ideas.concat(bizIdeas.retired).map((i) => [i.id, i]));
   for (const id of Object.keys(biz.items)) {
     assert.ok(b.has(id), "unbekannte Business-Karte " + id);
     assert.ok(TOOLS.includes(b.get(id).turn.g), id + " ist kein Arbeitswerkzeug");
   }
-  assert.ok(Object.keys(main.items).length >= 20 && Object.keys(biz.items).length >= 8);
+  // Shelf clean-up (2026-11): the pictures of the cards that left went with them (35 -> 2 daily, 12 -> 4 business); the
+  // rule above ("every listed card exists") is what keeps a picture from outliving its card.
+  assert.ok(Object.keys(main.items).length >= 2 && Object.keys(biz.items).length >= 4);
 });
 
 test("KI-Bilder: Ids passen in den Pfad des Servers, Prompts ohne Personen-, Marken- oder Text-Wunsch, Modell mit Lizenz", () => {

@@ -163,7 +163,7 @@
     var slot = $("startslot"); if (slot) slot.replaceWith(box); else $("homerow").after(box);
     $("tools").after(more); more.after(drawer);
     micCheck(mic);
-    openAll(!!Kit.store.alle, true);
+    openAll(!!Kit.store.alle || !!window.DailyShelfOpen, true);   // DailyShelfOpen: a link to a card that is gone (app.js route)
     // the start page scrolls: a field that gets the focus comes into sight (the keyboard covers the lower half), as the
     // scrolling sheet does it (app.js, .roll)
     $("home").addEventListener("focusin", function (e) { if (this.classList.contains("neu") && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) e.target.scrollIntoView({ block: "nearest" }); });
@@ -183,7 +183,7 @@
     refs.mic.setAttribute("aria-label", t("st_mic")); refs.go.setAttribute("aria-label", t("st_go"));
     refs.grid.setAttribute("aria-label", t("st_ask"));
     Array.from(refs.grid.children).forEach(function (b) { b.querySelector("b").textContent = t("st_" + b.dataset.i); b.querySelector("small").textContent = t("st_" + b.dataset.i + "_s"); });
-    refs.all.lastChild.textContent = t("st_all"); refs.more.textContent = t("st_more");
+    refs.all.lastChild.textContent = t("st_all"); refs.more.textContent = t("st_gallery");
   }
   // The day's sheet and every sheet chosen from here get the new start; whatever came by link keeps its own page.
   function home(h) {
@@ -481,5 +481,5 @@
     });
   }
 
-  root.StartUI = { home: home, labels: labels, create: create, icon: icon };
+  root.StartUI = { home: home, labels: labels, create: create, icon: icon, all: function (on) { if (refs) openAll(on, true); } };
 })(typeof globalThis !== "undefined" ? globalThis : this);

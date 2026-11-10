@@ -190,7 +190,7 @@ test("Review #186 Runde 2: Konto-Angebot bei Fertig nur ohne Anmeldung und leise
     const l = await made(linked, "warm-toll", "Lea");
     assert.equal(await l.locator("#staccount").isVisible(), false, "angemeldet: kein Angebot"); await linked.close();
     // Runde 3: a photo work never leaves the device (profile.js): its offer names only what goes along, never "it is on your tablet"
-    const pho = await phone(b, { nick: "Ana" }), f = await G.open(pho, "#i=foto-boss");
+    const pho = await phone(b, { nick: "Ana" }), f = await G.open(pho, "#i=foto-alien");
     await f.locator("#go").click(); await f.locator("#edmain").click(); await f.locator("#share").waitFor();
     const ft = await f.locator("#staccount p").textContent();
     assert.equal(ft, "Mit einem Konto hast du Spitzname, Stil und deine anderen Karten auch auf dem Tablet. Dein Foto bleibt nur auf diesem Gerät. Geht auch ohne.");
