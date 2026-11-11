@@ -490,7 +490,7 @@ function trailLine() {
 }
 function openEditor(doc, opt) {
   opt = opt || {};
-  if (doc && doc.k === "table") { if (window.TableUI) window.TableUI.open(doc.g); return; }   // a card table is played live, there is nothing to edit
+  if (doc && doc.k === "table") { if (window.TableUI) window.TableUI.open(doc.g, doc); return; }   // a card table is played live, there is nothing to edit
   if (doc && doc.k === "lauf" && !X.lauf) { window.Parts.use("lauf", function () { openEditor(doc, opt); }).catch(function () {}); return; }
   window.Ai.drop();
   $("stagewrap").classList.remove("swap");

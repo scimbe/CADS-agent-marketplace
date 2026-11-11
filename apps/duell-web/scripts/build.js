@@ -81,7 +81,7 @@ const parts = { DATA: dataAll, DUEL: read("src/duel.js"), QUEST: read("src/quest
 // New, rarely used code goes into a part here (or a new one), not into the core: test/build.test.js holds the budgets.
 const PARTS = {
   katalog: { d: [], src: ["KATALOG"] },                                                               // the full catalog (see the index above)
-  play: { d: ["katalog"], src: ["BALLDUELL", "RPSLIVE", "LIVE", "SMOOTH", "LIVEUI", "ARCADE", "ARCADE2", "ARCADEUI"] },   // live and arcade duels
+  play: { d: ["katalog"], src: ["BALLDUELL", "RPSLIVE", "LIVE", "SMOOTH", "LIVEUI", "ARCADE", "ARCADE2", "FREI", "ARCADEUI"] },   // live and arcade duels
   table: { d: ["play"], src: ["MPOKER", "DOKO", "SKAT", "BAUERNSKAT", "TABLE", "TABLEUI"] },                        // Doppelkopf and Skat live (over live.js)
   qr: { d: [], src: ["QRCODE", "STATUSCARD"] },                                                        // status picture and invite code with a QR code
   licenses: { d: [], src: ["LICENSES"] },                                                              // the licence texts, shown on request
@@ -125,6 +125,10 @@ const creates = !conf || !conf.feats || conf.feats.indexOf("f_create") >= 0;
 if (creates) PARTS.erschaffen = { d: [], src: ["CREATEUI"] };
 // its waiting screen (src/warten.js): only on demand (parts.js ONDEMAND), asked for when the form of the free card is shown
 if (creates) { PARTS.warten = { d: [], src: ["WARTEN"] }; parts.WARTEN = read("src/warten.js"); }
+// The Robot and the Magic (src/robot-ui.js): a deck card becomes a free card through the free card's refine step; only where
+// the free card is, only on demand (a bubble asks for it). src/frei.js, the free part of a card, comes with the part play
+// (the arcade duels play it there, live and against the bot).
+if (creates) PARTS.robot = { d: ["erschaffen", "play"], src: ["ROBOTUI"] };
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
 if (has("biz-ui.js")) { PARTS.biz = { d: [], src: ["BIZ", "BIZUI"] }; parts.BIZ = read("src/biz.js"); parts.BIZUI = read(fl("biz-ui.js")); }
 parts.KATALOG = "window.DuellIdeasFull=" + JSON.stringify(catalog) + ";window.Daily&&window.Daily.fill();";
@@ -168,6 +172,7 @@ if (PARTS.start && fs.existsSync(SHOT_DIR)) {
 }
 if (PARTS.start) { const sd = json("src/start.json"); parts.STARTDATA = "window.StartData=" + JSON.stringify(Object.assign({}, sd, { texts: undefined, shots: shotMap })) + ";window.StartTexts=" + JSON.stringify(sd.texts) + ";" + merge("StartTexts"); parts.START = read("src/start.js"); parts.STARTUI = read("src/start-ui.js"); }
 parts.BLASEN = read("src/blasen.js"); parts.TEILE = read("src/teile.js"); parts.EBENE = read("src/blasen-ebene.js"); parts.BSTART = read("src/blasen-start.js"); parts.DIALOG = read("src/blasen-dialog.js");
+parts.FREI = read("src/frei.js"); parts.ROBOTUI = read("src/robot-ui.js");
 parts.TEXTE = read("src/texte.js");
 parts.CREATEUI = "window.CreateTexts=" + JSON.stringify(createTexts) + ";" + merge("CreateTexts") + "\n;\n" + read("src/create-ui.js");
 parts.TEXTEDATA = "window.TexteData=" + JSON.stringify(json("src/texte.json")) + ";";

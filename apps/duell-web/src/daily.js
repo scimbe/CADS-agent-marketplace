@@ -382,6 +382,9 @@
       Turns.sanitize(o, d);
     } else if (o.k === "table") {
       d.g = o.g === "skat" || o.g === "bauernskat" ? o.g : "doko";
+      // a free card of the table (src/frei.js, wrapper lib/duell-frei.mjs): only house rules its engine knows
+      var hr = { skat: ["ramsch", "kontra"], doko: ["dulle", "nosp"], bauernskat: ["null", "kontra"] }[d.g].filter(function (k) { return o.fa && Array.isArray(o.fa.r) && o.fa.r.indexOf(k) >= 0; });
+      if (hr.length) d.fa = { r: hr };
     } else if (o.k === "lauf") {
       d.l = Lauf.sanitize(o.l);   // the second engine (src/lauf.js), played in the part lauf
     } else {

@@ -24,9 +24,10 @@
   // Anything the other phone moves by finger may only travel as far as a finger can in the time since its last report.
   function reach(prev, next, dt, vmax) { var max = vmax * Math.max(dt, 0.016), d = next - prev; return Math.abs(d) > max ? prev + Math.sign(d) * max : next; }
 
-  // What every side shares: score, serves, the clock, events for the screen, and the regular position report.
+  // What every side shares: score, serves, the clock, events for the screen, and the regular position report. o.win: the
+  // points to win of a free card (src/frei.js, 1-9; both phones get it in the live "go" message), else the game's own WIN.
   function base(G, o) {
-    var S = { g: G.id, WIN: G.WIN, seed: String(o.seed), score: [0, 0], over: false, started: false, n: 0, t: 0, ev: [], serveAt: 0, oppAt: 0, sentP: 0, sentSt: 0, rejected: 0 };
+    var S = { g: G.id, WIN: o.win >= 1 && o.win <= 9 && o.win % 1 === 0 ? o.win : G.WIN, seed: String(o.seed), score: [0, 0], over: false, started: false, n: 0, t: 0, ev: [], serveAt: 0, oppAt: 0, sentP: 0, sentSt: 0, rejected: 0 };
     // Position reports and shots carry the sender's clock (ms), so the other screen can place them in time despite
     // jitter. o.clock (seconds) is a real clock on the phone, which keeps running when a frame hangs; tests pass their own.
     S.clock = o.clock || function () { return S.t; };
@@ -39,7 +40,7 @@
     // FIN_WAIT the score as it stands counts.
     S.ending = false; S.oppFin = null; S.draw = false;
     S.check = function () {
-      if (S.over || !(S.score[0] >= G.WIN || S.score[1] >= G.WIN || S.oppFin !== null)) return;
+      if (S.over || !(S.score[0] >= S.WIN || S.score[1] >= S.WIN || S.oppFin !== null)) return;
       if (!G.fin) { finish(); return; }
       if (!S.ending) { S.ending = true; S.endAt = S.t; S.serveAt = 0; S.send({ t: "fin", c: S.score[1] }); }
       if (S.oppFin !== null) { S.score[0] = Math.max(S.score[0], S.oppFin); finish(); }   // a hit reported is never taken back
@@ -47,7 +48,7 @@
     S.fin = function (m) {
       if (m.t !== "fin") return false;
       // Only an end that can be: the other one took WIN hits, or gave this one WIN already. At most WIN hits count.
-      if (num(m.c) && m.c >= 0 && S.oppFin === null && (m.c >= G.WIN || S.score[1] >= G.WIN)) { S.oppFin = Math.min(G.WIN, m.c | 0); S.check(); }
+      if (num(m.c) && m.c >= 0 && S.oppFin === null && (m.c >= S.WIN || S.score[1] >= S.WIN)) { S.oppFin = Math.min(S.WIN, m.c | 0); S.check(); }
       return true;
     };
     S.finWait = function (dt) { S.t += dt; if (S.t - S.endAt > FIN_WAIT) finish(); };

@@ -51,7 +51,7 @@ function glow(color) {
 function rnd(a, b) { return a + Math.random() * (b - a); }
 function Painter(cv, g, opt) {
   opt = opt || {};
-  var P = { cv: cv, g: g, m: META[g], ctx: cv.getContext("2d"), parts: [], texts: [], shake: 0, flash: 0, flashC: "#fff", trail: [], bg: null, bgKey: "", k: 1, ox: 0, oy: 0, silent: !!opt.silent, clock: 0, ring: null };
+  var P = { cv: cv, g: g, m: window.Frei && opt.free ? window.Frei.arcadeLook(META[g], opt.free) : META[g], ctx: cv.getContext("2d"), parts: [], texts: [], shake: 0, flash: 0, flashC: "#fff", trail: [], bg: null, bgKey: "", k: 1, ox: 0, oy: 0, silent: !!opt.silent, clock: 0, ring: null };
   P.fit = function () {
     if (!opt.fixed) {
       var r = cv.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2), w = Math.max(60, Math.round((r.width || 300) * dpr));
@@ -501,6 +501,11 @@ function back() {
 }
 // Another language: the start screen of a game draws itself again (a running match draws live).
 var again = null;
+// A free card of this duel (src/frei.js, the Robot): its figure, colours, title and points to win. The live duel gets the
+// same values in its "go" message (live-ui.js), the bot plays with them in this page.
+var free = null;
+function freeOf(g, doc) { var d = doc && window.Frei ? window.Frei.sanitize(doc) : null; return d && d.k === "arcade" && d.a === g ? d : null; }
+function winOf(d) { return d && d.fa && d.fa.w ? d.fa.w : undefined; }
 window.addEventListener("daily:lang", function () { if (ov && again) again(); });
 // o: { body, g, S, other(dt) runs the bot side in the page, startOther, them, badge, onEnd(won) }
 function wall() { return performance.now() / 1000; }
@@ -508,7 +513,7 @@ function match(o) {
   var body = o.body, g = o.g, S = o.S, cv = el("canvas", "livecv arccv"), info = el("p", "livescore", ""), note = el("p", "note arcnote", t("arc_how_" + g)), X = {};
   if (o.badge) body.appendChild(el("p", "livemini", o.badge));   // the three pictures stay up the whole game
   body.appendChild(info); body.appendChild(cv); body.appendChild(note);
-  var P = Painter(cv, g), start = performance.now() + 3000, last = performance.now(), ended = false, warned = false;
+  var P = Painter(cv, g, { free: o.free }), start = performance.now() + 3000, last = performance.now(), ended = false, warned = false;
   // What the other phone moves is drawn through smooth.js (jitter buffer, capped carrying-on, no snaps); the rules
   // still see the plain state. Both phones stamp and play back on their own real clock (wall), which keeps running
   // when a frame hangs or the game pauses.
@@ -540,19 +545,21 @@ function endText(body, won, s, live, draw) {
   if (won) Kit.sfx.win();
 }
 // Against the bot: the bot's side runs in this page with the very same engine and messages as a live friend.
-function playBot(g) {
+function playBot(g, doc) {
+  if (doc !== undefined) free = freeOf(g, doc);
+  var fr = free && free.a === g ? free : null;
   var seed = typeof window.__arcadeSeed === "string" ? window.__arcadeSeed : "bot|" + g + "|" + (Kit.store.arcN = (Kit.store.arcN || 0) + 1);   // tests fix the seed; else the n-th match on this device, never Math.random
   if (typeof window.__arcadeSeed !== "string") Kit.save();
   var body = layer(g), toMe = [], toBot = [];
-  var S = A.side(g, { seed: seed, serving: true, clock: wall, send: function (m) { toBot.push(JSON.parse(JSON.stringify(m))); } });
-  var B = A.side(g, { seed: seed, serving: false, clock: wall, send: function (m) { toMe.push(JSON.parse(JSON.stringify(m))); } });
+  var S = A.side(g, { seed: seed, serving: true, clock: wall, win: winOf(fr), send: function (m) { toBot.push(JSON.parse(JSON.stringify(m))); } });
+  var B = A.side(g, { seed: seed, serving: false, clock: wall, win: winOf(fr), send: function (m) { toMe.push(JSON.parse(JSON.stringify(m))); } });
   var bot = A.bot(g, B, seed);
-  match({ body: body, g: g, S: S, them: t("arc_botName"), startOther: function () { B.start(); },
+  match({ body: body, g: g, S: S, free: fr, them: t("arc_botName"), startOther: function () { B.start(); },
     other: function (dt) { while (toBot.length) B.receive(toBot.shift()); bot(dt); B.tick(dt); B.ev.length = 0; while (toMe.length) S.receive(toMe.shift()); },
     onEnd: function (won, draw) {
       endText(body, won, S.score, false, draw);
       body.appendChild(el("button", "btn hot", t("arc_again"), function () { Kit.sfx.thud(); playBot(g); }));
-      if (window.LiveUI && window.LiveUI.on()) body.appendChild(el("button", "btn hot live", t("arc_live"), function () { Kit.sfx.thud(); leave(); window.LiveUI.invite({ g: g }); }));
+      if (window.LiveUI && window.LiveUI.on()) body.appendChild(el("button", "btn hot live", t("arc_live"), function () { Kit.sfx.thud(); leave(); window.LiveUI.invite(inviteOf(g, fr)); }));
       body.appendChild(el("button", "btn arcleave", t("live_home"), function () { Kit.sfx.tap(); leave(); }));
     } });
 }
@@ -561,8 +568,9 @@ function playLive(g) {
   return function live(api, serving, round) {
     round = round || 0;
     var body = api.layer(), conn = api.conn, again = [false, false];
-    var S = A.side(g, { seed: conn.channel + "|" + g + "|" + round, serving: serving, clock: wall, send: function (m) { conn.send(m); } });
-    var o = { body: body, g: g, S: S, them: t("arc_friend"), badge: api.badge, onEnd: function (won, draw) {
+    var fr = api.game && api.game.free ? freeOf(g, api.game.free) : null;   // checked again on this phone (live-ui.js sends it)
+    var S = A.side(g, { seed: conn.channel + "|" + g + "|" + round, serving: serving, clock: wall, win: winOf(fr), send: function (m) { conn.send(m); } });
+    var o = { body: body, g: g, S: S, free: fr, them: t("arc_friend"), badge: api.badge, onEnd: function (won, draw) {
       endText(body, won, S.score, true, draw);
       var more = el("button", "btn hot", t("live_more"), function () { more.disabled = true; more.textContent = t("live_moreWait"); again[0] = true; conn.send({ t: "again" }); restart(); });
       body.appendChild(more);
@@ -582,22 +590,27 @@ function playLive(g) {
 }
 A.IDS.forEach(function (g) { (window.LiveGames = window.LiveGames || {})[g] = playLive(g); });
 
-function menu(g) {
-  var body = layer(g); again = function () { menu(g); };
+function menu(g, doc) {
+  free = freeOf(g, doc); var fr = free;
+  var body = layer(g); again = function () { menu(g, fr); };
   var i = idea(g), L = i ? (i[Kit.lang] || i.de) : { t: t("arc_" + g), s: "" };
-  body.appendChild(el("p", "livebig", window.Daily.plainTitle(L.t)));
+  body.appendChild(el("p", "livebig", fr && fr.t ? fr.t : window.Daily.plainTitle(L.t)));
+  if (fr && fr.s) body.appendChild(el("p", "note arcfree", fr.s));
+  if (fr && fr.fa && fr.fa.w) body.appendChild(el("p", "note arcwin", t("arc_win", { n: fr.fa.w })));
   var cv = el("canvas", "arcdemo"); cv.width = 300; cv.height = 480; body.appendChild(cv);
   body.appendChild(el("p", "note", L.s + " " + t("arc_how_" + g)));
-  body.appendChild(el("button", "btn hot", t("arc_bot"), function () { Kit.sfx.thud(); playBot(g); }));
-  if (window.LiveUI && window.LiveUI.on()) body.appendChild(el("button", "btn hot live", t("arc_live"), function () { Kit.sfx.thud(); leave(); window.LiveUI.invite({ g: g }); }));
-  demo(cv, g, false);
+  body.appendChild(el("button", "btn hot", t("arc_bot"), function () { Kit.sfx.thud(); playBot(g, fr); }));
+  if (window.LiveUI && window.LiveUI.on()) body.appendChild(el("button", "btn hot live", t("arc_live"), function () { Kit.sfx.thud(); leave(); window.LiveUI.invite(inviteOf(g, fr)); }));
+  demo(cv, g, false, fr);
 }
 // A preview that plays itself: two bots, no sound. still: one frame a few seconds in. g = null ends the preview.
-function demo(cv, g, still) {
+// The live invite of a free card carries its free part (the doc without seal and trail), checked again by the friend's phone.
+function inviteOf(g, fr) { return fr ? { g: g, free: { k: "arcade", i: fr.i, a: fr.a, col: fr.col, t: fr.t, s: fr.s, fa: fr.fa } } : { g: g }; }
+function demo(cv, g, still, fr) {
   demos = demos.filter(function (d) { if (d.cv === cv) d.stop = true; return !d.stop && d.cv.isConnected; });
   if (!g || !A.GAMES[g]) return;
   var d = { cv: cv, stop: false }; demos.push(d);
-  var seed = "demo|" + g, round = 0, P = Painter(cv, g, { silent: true, fixed: true }), last = performance.now(), P2, ba, bb;
+  var seed = "demo|" + g, round = 0, P = Painter(cv, g, { silent: true, fixed: true, free: fr }), last = performance.now(), P2, ba, bb;
   function fresh(s) { P2 = A.pair(g, s, 0); ba = A.bot(g, P2.A, s + "a"); bb = A.bot(g, P2.B, s + "b"); P2.start(); }
   function run(dt) { ba(dt); bb(dt); P2.tick(dt); P2.B.ev.length = 0; if (P2.A.over) fresh(seed + "|" + ++round); }
   fresh(seed);
