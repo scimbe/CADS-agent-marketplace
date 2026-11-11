@@ -21,19 +21,21 @@ function title(card, lang) { return card.manifest.title[lang] || card.manifest.t
 export function actionsOf(state) {
   const ctx = state.ctx, X = texts(ctx.lang), L = leaf(state);
   const a = (id, label, ev) => ({ id, label, ev: typeof ev === "string" ? { type: ev } : ev });
+  // Ohne Teilen-Menue wird Kopieren die Hauptaktion (Kritikrunde 3); nach dem Kopieren: gesendet melden
+  const send = (label) => (ctx.shareFailed && !ctx.copied ? a("copy", X.copyLink, "COPY") : ctx.copied ? null : a("share", label, "SHARE"));
   switch (L) {
     case "shelf": return { primary: a("open-" + ORDER[0], title(cardOf(ORDER[0]), ctx.lang), { type: "OPEN", id: ORDER[0] }), secondary: ORDER.slice(1).map((id) => a("open-" + id, title(cardOf(id), ctx.lang), { type: "OPEN", id })) };
     case "card.view": return { primary: a("go", G.card(ctx).manifest.mode === "static" ? X.goSend : X.go, "GO"), secondary: [a("customize", X.customize, "CUSTOMIZE")] };
     case "card.customize.bubbles": return { primary: a("done", X.done, "DONE"), secondary: [] };
     case "card.customize.dialog": return { primary: a("close", X.done, "CLOSE"), secondary: [] };
-    case "card.share": return ctx.link ? { primary: a("share", X.shareLink, "SHARE"), secondary: [a("done", X.done, "DONE")] } : { primary: a("done", X.done, "DONE"), secondary: [] };
+    case "card.share": return ctx.link && send(X.shareLink) ? { primary: send(X.shareLink), secondary: [a("done", X.done, "DONE")] } : { primary: a("done", X.done, "DONE"), secondary: [] };
     case "card.lobby":
       if (ctx.raum && ctx.raum.error) return { primary: a("again", X.again, "AGAIN"), secondary: [] };
-      return { primary: ctx.raum && ctx.raum.inviteLink ? a("share", X.inviteSend, "SHARE") : null, secondary: [] };
+      return { primary: ctx.raum && ctx.raum.inviteLink ? send(X.inviteSend) : null, secondary: [] };
     case "card.play.cover": return { primary: a("cover-ok", fmt(X.coverOk, { s: seatName(G.card(ctx), ctx.lang, G.gameStatus(ctx).turn) }), "COVER_OK"), secondary: [] };
-    case "card.play.send": return { primary: a("share", X.shareLink, "SHARE"), secondary: [a("sent", X.sentAlready, "SENT")] };
+    case "card.play.send": return send(X.shareLink) ? { primary: send(X.shareLink), secondary: [a("sent", X.sentAlready, "SENT")] } : { primary: a("sent", X.sentAlready, "SENT"), secondary: [] };
     case "card.play.over":
-      if (ctx.mode === "link" && ctx.link && !ctx.sent) return { primary: a("share", X.sendResult, "SHARE"), secondary: [a("again", X.again2, "AGAIN")] };
+      if (ctx.mode === "link" && ctx.link && !ctx.sent && send(X.sendResult)) return { primary: send(X.sendResult), secondary: [a("again", X.again2, "AGAIN")] };
       return { primary: a("again", X.again2, "AGAIN"), secondary: [] };
     case "card.play.error": return { primary: a("back", X.back, "BACK"), secondary: [] };
     case "receive.show": return { primary: a("accept", ctx.incoming && ctx.incoming.kind === "card" ? X.acceptCard : X.acceptGame, "ACCEPT"), secondary: [a("decline", X.decline, "BACK")] };
@@ -63,7 +65,6 @@ function linkBox(X, link, ctx, dispatch) {
   const url = linkUrl(link), info = ctx.copied ? X.copied : ctx.copyFailed ? X.copyFail : ctx.shareFailed ? X.shareFail : null;
   return h("div", { class: "linkbox" },
     info ? h("p", { class: "hint strong", role: "status" }, info) : null,
-    ctx.shareFailed && !ctx.copied ? h("button", { type: "button", class: "btn secondary", "data-act": "copy", on: { click: () => dispatch({ type: "COPY" }) } }, X.copyLink) : null,
     h("details", { class: "linkdetails", open: ctx.copyFailed ? true : null },
       h("summary", null, X.shareTitle),
       h("input", { id: "linkfield", class: "linkfield", type: "text", readonly: true, "aria-label": X.shareTitle, value: url, on: { focus: (e) => e.target.select() } })));
@@ -156,7 +157,7 @@ export function view(state, dispatch) {
     const r = ctx.raum || {};
     body = [h("div", { class: "notice" },
       h("h2", { class: "t-title" }, X.lobbyTitle),
-      r.error ? h("p", { class: "warn", role: "alert" }, X.reasons[r.error] || X.reasons.verbindung) : h("p", { role: "status" }, r.step && r.step !== "open" ? X.steps[r.step] || X.lobbyWait : (r.inviteLink ? X.lobbyWait : X.steps.open)),
+      r.error ? h("p", { class: "warn", role: "alert" }, X.reasons[r.error] || X.reasons.verbindung) : h("p", { role: "status" }, r.step && r.step !== "open" ? X.steps[r.step] || X.lobbyWait : (r.inviteLink ? (ctx.copied || ctx.sent ? X.lobbyWait : X.lobbySend) : X.steps.open)),
       r.inviteLink && !r.error ? linkBox(X, r.inviteLink, ctx, dispatch) : null,
       h("p", { class: "hint" }, X.ipHint))];
   } else if (L.startsWith("card.play")) {

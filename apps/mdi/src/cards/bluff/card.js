@@ -16,7 +16,7 @@ const TX = {
     line: "Karte {n}: Ansage {c}, in Wahrheit {t}.",
     score: "{s0} {a} – {s1} {b}", cheat: "Ansage unter dem echten Wert: Die Partie zählt nicht.",
     rule: "So zählt es: Geglaubt – der Bote bekommt die Ansage. Aufgedeckt und ehrlich – der Bote bekommt den Wert plus {b}. Aufgedeckt und gelogen – der Prüfer bekommt die Ansage.",
-    hidden: "verdeckt", card: "Karte {n}"
+    hidden: "verdeckt", card: "Karte {n}", honest: "Alles war ehrlich. Gegen eine ehrliche Hand punktet nur der Bote."
   },
   en: {
     you0: "Announce each card – the same or higher.",
@@ -28,7 +28,7 @@ const TX = {
     line: "Card {n}: announced {c}, really {t}.",
     score: "{s0} {a} – {s1} {b}", cheat: "An announcement below the real value: this game does not count.",
     rule: "How it counts: believed – the messenger scores the announcement. Revealed and honest – the messenger scores the value plus {b}. Revealed and a lie – the checker scores the announcement.",
-    hidden: "face down", card: "Card {n}"
+    hidden: "face down", card: "Card {n}", honest: "Everything was honest. Against an honest hand only the messenger scores."
   }
 };
 function fmt(s, o) { return String(s).replace(/\{(\w+)\}/g, (m, k) => String(o[k])); }
@@ -142,7 +142,10 @@ export default {
         const names = manifest.seats[ctx.lang] || manifest.seats.de;
         kids.push({ t: "text", role: "big", text: p.cheat ? "–" : fmt(X.score, { s0: names[0], a: p.score[0], s1: names[1], b: p.score[1] }) });
         if (p.cheat) kids.push({ t: "text", role: "body", text: X.cheat });
-        else kids.push({ t: "text", role: "small", text: fmt(X.rule, { b: p.bonus }) });
+        else {
+          if (p.say.every((s, k) => s === p.truth[k])) kids.push({ t: "text", role: "body", text: X.honest });
+          kids.push({ t: "text", role: "small", text: fmt(X.rule, { b: p.bonus }) });
+        }
       }
     }
     return { t: "stack", children: kids };
