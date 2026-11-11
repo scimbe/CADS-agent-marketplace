@@ -82,7 +82,7 @@ Die Domain `bunsenbrenner.org` muss unter `https://bunsenbrenner.org/.well-known
 
 ```json
 [{
-  "relation": ["delegate_permission/common/handle_all_urls"],
+  "relation": ["delegate_permission/common.handle_all_urls"],
   "target": {
     "namespace": "android_app",
     "package_name": "org.bunsenbrenner.cads",
@@ -90,6 +90,8 @@ Die Domain `bunsenbrenner.org` muss unter `https://bunsenbrenner.org/.well-known
   }
 }]
 ```
+
+Achtung: die Relation schreibt sich mit **Punkt** (`common.handle_all_urls`). Mit Schraegstrich verwirft Android die ganze Datei; pruefen mit `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://bunsenbrenner.org&relation=delegate_permission/common.handle_all_urls` (muss `statements` liefern, kein `ERROR_CODE_MALFORMED_CONTENT`).
 
 Der Pfad `/app/oauth2redirect` muss serverseitig nicht existieren oder darf eine leere Seite liefern; die App faengt ihn ab. Der Fingerabdruck des Debug-Zertifikats ist fuer Entwicklung zusaetzlich einzutragen.
 
@@ -107,6 +109,7 @@ Die App startet in der Offline-Seite `apps/duell-web/dist/index.html` (zuerst `n
   * `shareFile(b64, typ, name, url, text)`: Share-Sheet mit Datei. Erlaubt sind nur `image/png`, `image/jpeg`, `audio/wav`; die Bytes muessen zur Typangabe passen (Magic Number), hoechstens 8 MiB; der Dateiname wird auf ein Segment aus `[A-Za-z0-9._-]` (max. 64 Zeichen) reduziert, die Endung bestimmt der Typ. Die Datei liegt in `cache/share/` und wird per `FileProvider` (`<applicationId>.fileprovider`, nur `cache/share/`) mit Leserecht fuer das gewaehlte Ziel freigegeben; aufgeraeumt wird beim naechsten Aufruf, nach 10 Minuten und beim App-Start (`DuellFiles.sweep`). Ein `url`, der kein Duell-Link ist, wird weggelassen.
   * `saveFile(b64, typ, name)`: gleiche Pruefungen; Bilder landen ueber MediaStore in `Pictures/My Daily Idea`, Klaenge in `Music/My Daily Idea` (keine Speicher-Berechtigung noetig). Vor Android 10 gibt es dafuer keinen berechtigungsfreien Weg, dort uebernimmt das Share-Sheet.
   * `haptic()`, `more()`.
+  * `push()`: wie die App die Person benachrichtigen kann („Bescheid geben“), als JSON der Bruecke v1 `{"v":1,"kind":"none|fcm|unifiedpush|apns","state":"unsupported|default|granted|denied"}`; nur gelistete Werte, sonst `none`. Vertrag fuer Android, iOS und Seite: `apps/duell-web/test/fixtures/bridge-push-v1.json` (Tests `PushBridgeTest`, `DuellPushTests`). Dieser Build hat keinen Anbieter (`NoPush`, Schnittstelle `push/PushChannel.kt`); FCM braucht ein Firebase-Projekt, APNs das Apple Developer Program, UnifiedPush eine Verteiler-App (z. B. ntfy) auf dem Geraet. Eine Weckmeldung traegt nur ihre Art (`reply` | `live`, `PushMessage.kindOf`), den Satz setzt die App.
   Tests: `DuellFilesTest`, `DuellLinkTest`.
 * **Foto:** `WebChromeClient.onShowFileChooser` oeffnet die System-Auswahl (`ACTION_GET_CONTENT`, `image/*`); die Kamera erscheint darin nur als ein Eintrag (`ACTION_IMAGE_CAPTURE` in den Cache, ohne `CAMERA`-Berechtigung, nur wenn die Person ihn waehlt). Der Rueckruf wird immer beantwortet (Abbruch = `null`).
 * **Zusammen bauen:** `DuellHost.peerReady/peerInvite/peerAccept/peerSend/peerLeave` binden `PeerBridge` (Android und iOS gleich) an `mobile-core` (Feature `peer`); Antworten kommen ueber `window.DuellPeer.onPeerMessage(json)`. Es passieren nur Frames des Namensraums `mdi.collab.v1`, hoechstens 16 KiB; Freitext und Faehigkeitsanfragen enden in der Bruecke, der Kontakt bleibt im Speicher. Einladungslink nach aussen: `https://bunsenbrenner.org/duell#p=<fragment>` (die Bruecke setzt ihn in die `/p#`-Form des Kerns um, der Teil hinter `#` erreicht nie einen Server). Eingeschaltet nur mit `-PcadsPeerFrontDoor=host:443 -PcadsPeerEdgeCaB64=<DER als Base64>` und optional `-PcadsPeerSni=...`, iOS: `CadsPeerFrontDoor`, `CadsPeerEdgeCaBase64`, `CadsPeerSni`; ohne diese Werte meldet die Seite "noch nicht freigeschaltet".
