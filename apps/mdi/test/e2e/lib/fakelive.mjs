@@ -49,8 +49,16 @@ const PAGE_FAKES = () => {
   window.RTCPeerConnection = FakePC;
 };
 
-export function fakeLive() {
-  const invites = new Map(), wire = { dc: [], edge: [], http: [] };
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../dist");
+// Wie die echte Bruecke (bridge/server.js playCors): CORS-Kopfzeilen nur fuer Ursprunge der Allowlist, nie fuer "null"
+const BRIDGE_ALLOWED = new Set(["https://demos-34a13a96.bunsenbrenner.org", "https://bunsenbrenner.org"]);
+
+/** strict: true = CORS wie die echte Bruecke (Realnetz-Pruefung 2026-11-11); false = alles erlaubt (alter Rueckfall). */
+export function fakeLive({ strict = false } = {}) {
+  const invites = new Map(), wire = { dc: [], edge: [], http: [], origins: [], preflights: 0 };
   const sides = {};
   let n = 0;
   const chain = (side, f) => { sides[side].q = sides[side].q.then(f).catch(() => {}); };
@@ -59,12 +67,21 @@ export function fakeLive() {
 
   async function bridge(route) {
     const req = route.request(), url = new URL(req.url()), m = req.method();
-    if (m === "OPTIONS") return route.fulfill({ status: 204, headers: CORS });
+    const origin = req.headers()["origin"] || null;
+    if (url.pathname === "/play-frame.html") {
+      // so, wie der Webkonferenz-Caddy die Datei ausliefert (Kopfzeilen aus dem Build, gleiche Quelle wie das Caddy-Snippet)
+      const hd = JSON.parse(fs.readFileSync(path.join(DIST, "remote/play-frame.headers.json"), "utf8"));
+      const headers = {}; for (const [k, v] of Object.entries(hd)) if (v !== null) headers[k.toLowerCase()] = v;
+      return route.fulfill({ status: 200, contentType: "text/html", headers, body: fs.readFileSync(path.join(DIST, "remote/play-frame.html")) });
+    }
+    if (url.pathname.startsWith("/api/play")) wire.origins.push(origin);
+    const cors = !strict ? CORS : origin && BRIDGE_ALLOWED.has(origin) ? { ...CORS, "access-control-allow-origin": origin } : {};
+    if (m === "OPTIONS") { wire.preflights++; return route.fulfill({ status: 204, headers: cors }); }
     if (url.pathname === "/pkg/ct_agent_wasm.js") return route.fulfill({ status: 200, headers: CORS, contentType: "text/javascript", body: WASM });
     if (url.pathname === "/pkg/ct_agent_wasm_bg.wasm") return route.fulfill({ status: 200, headers: CORS, contentType: "application/wasm", body: "" });
     const body = req.postData() ? JSON.parse(req.postData()) : {};
     wire.http.push(m + " " + url.pathname + url.search + " " + (req.postData() || ""));
-    const json = (status, o) => route.fulfill({ status, headers: CORS, contentType: "application/json", body: JSON.stringify(o) });
+    const json = (status, o) => route.fulfill({ status, headers: url.pathname.startsWith("/api/") ? cors : CORS, contentType: "application/json", body: JSON.stringify(o) });
     const tok = url.searchParams.get("token") || body.token;
     const inv = tok ? invites.get(tok) : null;
     const info = (role) => ({ channel: "c0ffee".padEnd(64, "0"), role, ws: "wss://webconference.bunsenbrenner.org/edge", grant: "fake-grant" });
@@ -78,7 +95,7 @@ export function fakeLive() {
         inv.joined = true; return json(200, info("callee"));
       case "/api/play/attest": if (inv) inv.attested++; return json(200, {});
       case "/api/play/ice": return json(200, { iceServers: [] });
-      case "/api/play/done": return route.fulfill({ status: 204, headers: CORS });
+      case "/api/play/done": return route.fulfill({ status: 204, headers: cors });
       default: return json(404, {});
     }
   }

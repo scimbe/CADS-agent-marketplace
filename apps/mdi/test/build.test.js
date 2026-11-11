@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { build } from "../scripts/build.js";
+import { build, PLAY_PARENTS } from "../scripts/build.js";
 import { generate } from "../scripts/gen.js";
 import { findLegacyRefs } from "../scripts/legacy-check.js";
 import os from "node:os";
@@ -52,7 +52,7 @@ test("Realm-Trennung (Review M4): App ohne Netz und ohne Fremdskript; Live nur i
   const html = fs.readFileSync(path.join(DIST, "index.html"), "utf8");
   const csp = /http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(html)[1];
   assert.match(csp, /connect-src 'none'/);
-  assert.match(csp, /frame-src 'self'/);
+  assert.match(csp, /frame-src 'self' https:\/\/webconference\.bunsenbrenner\.org\/play-frame\.html(;|$)/, "nur genau der Live-Rahmen der Webkonferenz");
   assert.ok(!/https?:|'self'/.test(/script-src ([^;]+)/.exec(csp)[1]), "script-src nur Hash: " + csp);
   const frames = fs.readdirSync(path.join(DIST, "parts")).filter((f) => /^live-frame\./.test(f));
   assert.equal(frames.length, 1);
@@ -61,8 +61,18 @@ test("Realm-Trennung (Review M4): App ohne Netz und ohne Fremdskript; Live nur i
   assert.match(fcsp, /default-src 'none'/);
   assert.match(fcsp, /script-src 'sha256-[^']+' https:\/\/webconference\.bunsenbrenner\.org\/pkg\/ 'wasm-unsafe-eval'/);
   const host = fs.readFileSync(path.join(SRC, "broker/live-host.js"), "utf8");
-  assert.match(host, /setAttribute\("sandbox", "allow-scripts"\)/, "Rahmen ohne allow-same-origin");
-  assert.ok(!/allow-same-origin/.test(host));
+  // allow-same-origin nur fuer den Rahmen vom FREMDEN Ursprung der Webkonferenz (eigener Ursprung, nicht der der App)
+  assert.equal((host.replace(/\/\/.*$/gm, "").match(/allow-same-origin/g) || []).length, 1, "nur im Code-Zweig fuer den fremden Ursprung");
+  assert.match(host, /if \(REMOTE && protocol === "https:"\) return \{ src: REMOTE\.src, origin: REMOTE\.origin, sandbox: "allow-scripts allow-same-origin" \}/);
+  assert.match(host, /e\.source !== f\.contentWindow \|\| e\.origin !== cfg\.origin/, "Absender UND Ursprung geprueft");
+  // Rahmen fuer die Webkonferenz: gleicher Ursprung wie /api/play, Eltern nur laut Allowlist
+  const remote = fs.readFileSync(path.join(DIST, "remote/play-frame.html"), "utf8");
+  const rcsp = /http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(remote)[1];
+  assert.match(rcsp, /connect-src 'self'(;|$)/); assert.match(rcsp, /script-src 'sha256-[^']+' 'self' 'wasm-unsafe-eval'/);
+  const hd = JSON.parse(fs.readFileSync(path.join(DIST, "remote/play-frame.headers.json"), "utf8"));
+  assert.equal(hd["Content-Security-Policy"], "frame-ancestors " + PLAY_PARENTS.join(" ") + "; base-uri 'none'");
+  assert.ok(!/frame-ancestors[^;]*(\*|'self'|null)/.test(hd["Content-Security-Policy"]), "keine offene Einbettung");
+  assert.ok(remote.includes(JSON.stringify(PLAY_PARENTS)), "Eltern-Allowlist im Rahmen");
   const js = /<script>([\s\S]*)<\/script>/.exec(html)[1];
   assert.ok(!/ct_agent_wasm/.test(js), "App-Realm laedt das Webkonferenz-Modul nicht");
 });
@@ -81,12 +91,12 @@ test("Netz und Geraetespeicher nur im Broker (src/broker/*)", () => {
   }
 });
 
-test("Genau EIN WebSocket und EINE RTCPeerConnection im ganzen Bundle, nur im Teil live; keine stun:/turn:-Literale", () => {
+test("Genau EIN WebSocket und EINE RTCPeerConnection je Live-Rahmen, keiner im Kern; keine stun:/turn:-Literale", () => {
   const all = files(DIST, /\.(js|html)$/).map((f) => [rel(f), fs.readFileSync(f, "utf8")]);
-  const count = (re) => all.reduce((n, [, s]) => n + (s.match(re) || []).length, 0);
-  assert.equal(count(/new WebSocket\(/g), 1);
-  assert.equal(count(/new RTCPeerConnection\(/g), 1);
-  for (const [f, s] of all) if (/new (WebSocket|RTCPeerConnection)\(/.test(s)) assert.match(f, /parts[\\/]live-frame\.[0-9a-f]+\.html$/);
+  const frames = all.filter(([f]) => /parts[\\/]live-frame\.[0-9a-f]+\.html$|remote[\\/]play-frame\.html$/.test(f));
+  assert.equal(frames.length, 2, "lokaler Rueckfall + Rahmen fuer die Webkonferenz");
+  for (const [f, s] of frames) { assert.equal((s.match(/new WebSocket\(/g) || []).length, 1, f); assert.equal((s.match(/new RTCPeerConnection\(/g) || []).length, 1, f); }
+  for (const [f, s] of all) if (!frames.some(([g]) => g === f)) assert.ok(!/new (WebSocket|RTCPeerConnection)\(/.test(s), f + " (Kern ohne Netz)");
   for (const [f, s] of all) assert.ok(!/["'`](stun|turns?):/.test(s), f);
   const src = files(path.join(SRC), /\.js$/).map((f) => fs.readFileSync(f, "utf8")).join("\n");
   assert.equal((src.match(/new WebSocket\(/g) || []).length, 1);
