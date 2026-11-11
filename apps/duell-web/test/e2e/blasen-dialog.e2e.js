@@ -137,7 +137,9 @@ test("Tastatur: 'Alle Einstellungen' ist der erste Tab-Stopp nach der Kopfzeile,
 });
 
 test("Magie und Roboter (gestubbt): nur mit ihren Teilen; mit Roboter tritt der rote Wunsch zurueck; auch auf der Tageskarte", async () => {
-  const { p, errs, ctx } = await phone("phone390", () => {
+  const { p, errs, ctx } = await phone("phone390");
+  // the stubs replace the page's own stand-ins (src/parts.js sets window.Magic / window.FreeFromCard while loading, #225)
+  await p.evaluate(() => {
     window.Magic = { can: (d) => !!d, fill: (d) => { d.x = (d.x || "") + " ✨"; window.__magic = (window.__magic || 0) + 1; } };
     window.FreeFromCard = { can: (d) => !!d, open: () => { window.__robot = (window.__robot || 0) + 1; } };
   });
@@ -153,7 +155,7 @@ test("Magie und Roboter (gestubbt): nur mit ihren Teilen; mit Roboter tritt der 
   assert.ok(!ids2.includes("magie") && !ids2.includes("roboter") && ids2.includes("wunsch"), ids2.join());
   assert.deepEqual(errs, []);
   await ctx.close();
-  const s = await phone("phone390", () => { window.Magic = { can: () => true, fill: () => {} }; window.FreeFromCard = { can: () => true, open: () => { window.__robot = 1; } }; });
+  const s = await phone("phone390");   // the day's card with the page's own Magic and Robot (src/parts.js stand-ins, #225)
   await s.p.locator("#hblasenday .blase").first().waitFor({ timeout: 15000 });
   const day = await s.p.evaluate(() => [...document.querySelectorAll("#hblasenday .blase")].map((e) => e.dataset.blase));
   assert.ok(day.includes("day:magie") && day.includes("day:roboter"), day.join());

@@ -13,7 +13,7 @@ const meets = (a, c) => a.x < c.x + c.w && a.x + a.w > c.x && a.y < c.y + c.h &&
 // the bubbles and every word and button they must leave free (page px)
 const look = (p) => p.evaluate(() => {
   const r = (e) => { const q = e.getBoundingClientRect(); return { x: q.left, y: q.top, w: q.width, h: q.height }; }, free = [];
-  for (const box of [document.getElementById("leaf"), document.getElementById("create")]) {
+  for (const box of [document.getElementById("leaf"), document.getElementById("frei")]) {   // #frei holds #create (Startseite #224)
     const tw = document.createTreeWalker(box, NodeFilter.SHOW_TEXT), rg = document.createRange(); let n;
     while ((n = tw.nextNode())) { if (!n.nodeValue.trim() || n.parentNode.closest(".hblasen")) continue; rg.selectNodeContents(n); for (const q of rg.getClientRects()) if (q.width) free.push({ what: n.nodeValue.trim().slice(0, 20), x: q.left + 1, y: q.top + 1, w: q.width - 2, h: q.height - 2 }); }
   }
@@ -39,8 +39,8 @@ async function tap(p, id) { const q = await p.locator(`.hblasen .blase[data-blas
 test("Erste Seite: Blasen auf der Tageskarte (nicht auf der freien Karte), nach dem ersten Bild geladen, nie auf Worten oder Knoepfen", async () => {
   const { p, errs, ctx } = await phone();
   const m = await look(p);
-  assert.deepEqual(m.bubbles.map((x) => x.id).sort(), ["day:farbe", "day:look", "day:titel"]);
-  assert.equal(await p.locator("#homerow .blase").count(), 0, "keine Blasen auf der freien Karte");
+  assert.deepEqual(m.bubbles.map((x) => x.id).sort(), ["day:farbe", "day:look", "day:magie", "day:roboter", "day:titel"]);   // Magie and Mit KI come with the free card's API (#225)
+  assert.equal(await p.locator("#frei .blase, #homerow .blase").count(), 0, "keine Blasen auf der freien Karte");
   m.bubbles.forEach((x) => {
     assert.match(x.round, /50%|px/, x.id + " rund");
     m.free.forEach((f) => assert.ok(!meets(x, f), x.id + " liegt auf " + f.what + " " + JSON.stringify(f)));

@@ -94,6 +94,7 @@ test("Satz ohne Spiel: Flugspiel mit Hinweis, 'Lieber Jump & Run' schickt densel
   await shot(p, "4-hinweis-flug");
   assert.deepEqual(posts()[0].body.input, { text: "Ganz entspannt nach Feierabend", art: "game", genre: "G1" });
   await p.getByRole("button", { name: "Lieber 🏃 Jump & Run" }).tap();
+  await p.getByRole("button", { name: "Zurück zu deinem Satz" }).tap();   // the waiting screen ends with the reason (warten.js, #217)
   await p.getByText("Dieses Spiel gibt es noch nicht", { exact: false }).waitFor();
   assert.deepEqual(posts()[1].body.input, { text: "Ganz entspannt nach Feierabend", art: "game", genre: "G2", fest: true });
   assert.ok(sent.some((s) => s.path === "ai/discard" && s.body.receipt === "rc-1"), "die erste Karte geht zurueck");
@@ -111,6 +112,7 @@ test("Klarer Widerspruch zum Genre: Rueckfrage mit beiden, 'Fliegen behalten' se
   await p.getByRole("button", { name: "✈️ Fliegen" }).tap();
   await p.getByLabel("Deine Beschreibung").fill("Endless Runner über Brücken");
   await p.getByRole("button", { name: "✨ Erschaffen" }).tap();
+  await p.locator("#warten").waitFor({ state: "detached" });   // a question back closes the waiting screen at once (no "Zurück" first)
   await p.getByText("Dein Satz klingt nach Jump & Run, gewählt ist Fliegen. Was soll es werden? Dafür wird nichts abgebucht.").waitFor();
   await shot(p, "5-rueckfrage");
   await p.getByRole("button", { name: "Fliegen behalten" }).tap();
@@ -125,6 +127,7 @@ test("Die letzte Wahl ist nur ein markierter Vorschlag, nie still gewaehlt", asy
   await p.getByRole("button", { name: "✈️ Fliegen" }).tap();
   await p.getByLabel("Deine Beschreibung").fill("Ich möchte mit jemanden übers Netz oder alleine 2024 spielen");
   await p.getByRole("button", { name: "✨ Erschaffen" }).tap();
+  await p.getByRole("button", { name: "Zurück zu deinem Satz" }).tap();   // the waiting screen ends with the reason (warten.js, #217)
   await p.getByText("„Zahlenspiel“ kann die freie Karte noch nicht.", { exact: false }).waitFor();
   assert.equal(await p.locator(".createpv").count(), 0, "kein Flugspiel");
   await shot(p, "6-zahlenspiel");
