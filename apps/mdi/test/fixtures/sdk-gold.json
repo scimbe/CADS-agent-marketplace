@@ -1,0 +1,10 @@
+{
+ "herkunft": "Neu (D0): Goldwerte des SDK, in Node (V8) gemessen; der Browser-Test vergleicht dagegen.",
+ "rng": [
+  2473711870,
+  243433525,
+  3063576089
+ ],
+ "sinTable": "b8eb7f1882e3f8da",
+ "logD": "9.421006401779279"
+}

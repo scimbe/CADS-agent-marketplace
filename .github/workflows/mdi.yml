@@ -1,0 +1,69 @@
+name: mdi
+
+on:
+  push:
+    branches: [main]
+    paths: ["apps/mdi/**", ".github/workflows/mdi.yml"]
+  pull_request:
+    paths: ["apps/mdi/**", ".github/workflows/mdi.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  # Keine Vermischung (06-plan/slices-detail.md S16): der neue Baum verweist nie auf den Altbaum.
+  # Bis zur Umschaltung gilt die Sperre fuer apps/mdi; mit S16 wird der Pfadfilter auf das ganze Repo erweitert
+  # (dann ohne Einschraenkung, nur mit Ausnahme docs/greenfield).
+  no-legacy-refs:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Kein Token des Altbaums in apps/mdi und diesem Workflow (alle Dateiarten und Importformen)
+        run: node apps/mdi/scripts/legacy-check.js apps/mdi .github/workflows/mdi.yml
+      - name: Gegenprobe mit git grep (feste Zeichenkette, portabel; Herkunftsfelder der Fixtures prueft das Skript)
+        run: |
+          T="duell""-web"
+          if git grep -n -i -F "$T" -- apps/mdi .github/workflows/mdi.yml ':!apps/mdi/test/fixtures/*.json'; then
+            echo "::error::Verweis auf den Altbaum"; exit 1
+          fi
+
+  test-build:
+    # Gepinnt: Playwright 1.56 kennt ubuntu-latest (26.04) nicht.
+    runs-on: ubuntu-24.04
+    needs: no-legacy-refs
+    defaults:
+      run:
+        working-directory: apps/mdi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Abhaengigkeiten (gepinnt, Lockfile)
+        run: npm ci --no-audit --no-fund
+      - name: Lizenz- und Sicherheitsaudit der Abhaengigkeiten
+        run: npm run audit
+      - name: Unit-Tests (node --test), inkl. Budgets, CSP, Netz-nur-im-Broker
+        run: npm test
+      - name: Build (eine Offline-HTML-Datei + Teile)
+        run: npm run build
+      - name: E2E (Chromium + WebKit fuer den Engine-Vergleich)
+        env:
+          MDI_SHOTS: ${{ github.workspace }}/mdi-shots
+        run: |
+          npx playwright install --with-deps chromium webkit
+          node --require ./test/e2e/lib/nolive.js --test --test-timeout=300000 --test-force-exit test/e2e/*.e2e.js
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mdi-shots
+          path: mdi-shots
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mdi-dist
+          path: apps/mdi/dist/
+          if-no-files-found: error

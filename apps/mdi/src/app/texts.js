@@ -1,0 +1,81 @@
+// Oberflaechentexte de/en. Praesens, Ist-Zustand, kurze Saetze. Luecke im Englischen -> Deutsch.
+const de = {
+  app: "My Daily Idea", today: "Heute", more: "Noch eine Karte", back: "Zurück", close: "Schließen",
+  modes: { alone: "Ein Gerät", bot: "Gegen den Computer", link: "Abwechselnd per Link", live: "Gleichzeitig (live)" },
+  modeHint: { alone: "Ihr gebt das Gerät weiter.", bot: "Der Computer sieht nur, was er sehen darf.", link: "Jeder spielt, wann er will.", live: "Ihr spielt zur selben Zeit." },
+  mode: "Wie spielst du?", send: "Wie verschickst du?", seat: "Du spielst als", level: "Stärke des Computers", levels: ["Leicht", "Mittel", "Schwer"],
+  go: "Los", goSend: "Senden", customize: "Anpassen", done: "Fertig",
+  bubblesHint: "Tippe auf eine Blase, um diesen Teil zu ändern.", bubble: "{p} ändern",
+  shareTitle: "Oder den Link selbst kopieren", shareLink: "Link senden", sentAlready: "Schon gesendet", copied: "Kopiert. Füge den Link im Chat ein.", shareFail: "Hier öffnet sich kein Teilen-Menü. Kopiere den Link und füge ihn im Chat ein.", copyLink: "Link kopieren", copyFail: "Kopieren geht hier nicht. Halte den Finger auf den Link und wähle Kopieren.",
+  linkTooLong: "Diese Karte ist für einen Link zu groß. Kürze den Text.",
+  lobbyTitle: "Live-Einladung", lobbyWait: "Warte auf deinen Partner …", lobbySend: "Schick die Einladung. Sobald dein Partner sie öffnet, geht es los.", inviteSend: "Einladung senden", again: "Neu einladen",
+  ipHint: "Live verbindet eure Geräte direkt; dabei sieht das andere Gerät deine Internetadresse. Ohne das geht es abwechselnd per Link.",
+  steps: { open: "Einladung wird erstellt …", found: "Partner gefunden …", register: "Kanal wird angemeldet …", join: "Verbindung wird aufgebaut …", rtc: "Direkter Kanal wird geöffnet …" },
+  hand: { bot: "Der Computer nimmt Platz …", live: "Die Partie wird ausgemacht …" },
+  coverTitle: "Gerät weitergeben", coverText: "Gib das Gerät jetzt an: {s}. Die anderen schauen weg.", coverOk: "Ich bin {s} – zeigen",
+  yourSeat: "Du bist: {s}",
+  sendTitle: "Jetzt ist der andere dran", sendText: "Schick den Link. Die Antwort kommt als Link zurück.",
+  waitBot: "Der Computer überlegt …", waitLive: "Warte auf deinen Partner …", waitLink: "Warte auf die Antwort per Link. Du kannst die Seite schließen.",
+  overWin: "Gewonnen!", overLose: "Diesmal gewinnt: {s}.", overWinner: "Es gewinnt: {s}.", overDraw: "Unentschieden.", overAll: "Ergebnis", again2: "Nochmal", sendResult: "Ergebnis senden",
+  sendResultText: "Schick das Ergebnis, damit dein Partner es auch sieht.",
+  errTitle: "Die Partie ist beendet",
+  acceptTitle: "Jemand hat dir eine Karte geschickt", accept: "Annehmen", acceptCard: "Karte übernehmen", acceptGame: "Mitspielen", decline: "Nein danke", challengeFor: "Du wirst herausgefordert", yourTurnAs: "Du spielst als {s}.", resultFor: "Das Ergebnis ist da.", free: "Kostenlos, ohne Anmeldung.",
+  liveInvite: "Einladung zum Spielen", liveInviteText: "Jemand lädt dich ein, gleichzeitig zu spielen.",
+  rejectTitle: "Dieser Link geht nicht", rejectAsk: "Bitte den Absender um einen neuen Link.", toShelf: "Zur Startseite",
+  connected: "Verbunden",
+  names: { yellow: "Gelb", red: "Rot", ink: "Schwarz", paper: "Papier", star: "Stern", heart: "Herz", bolt: "Blitz", drop: "Tropfen", coin: "Münze", ring: "Ring" },
+  dialogHint: "Die Karte ändert sich sofort mit.", maxReached: "Höchstens {n}.",
+  note: { gezeigt: "Die Karte ist beim Partner angekommen.", empfangen: "Diese Karte hat dir jemand geschickt." },
+  reasons: {
+    "zu-lang": "Der Link ist zu lang.", praefix: "Das ist kein Link von My Daily Idea.", typ: "Diese Art Link gibt es nicht.",
+    base64: "Der Link ist beschädigt.", utf8: "Der Link ist beschädigt.", json: "Der Link ist beschädigt.", schema: "Im Link steht etwas, das nicht erlaubt ist.",
+    "karte-unbekannt": "Diese Karte gibt es hier nicht.", version: "Diese Karte hat eine andere Version.", params: "Die Einstellungen im Link sind ungültig.",
+    "zug-ungueltig": "Im Link steht ein ungültiger Zug.", betrug: "Die Aufdeckung passt nicht zur Festlegung am Anfang. Die Partie zählt nicht.",
+    "nicht-deins": "Diese Partie gehört zu einem anderen Gerät.", abweichung: "Die beiden Geräte sehen nicht dasselbe Spiel. Die Partie stoppt.",
+    "partner-weg": "Dein Partner ist nicht mehr da.", verbindung: "Die Verbindung kommt nicht zustande.", gone: "Die Einladung ist vorbei.",
+    expired: "Die Einladung ist abgelaufen.", leer: "Der Link ist leer.", vorbei: "Die Partie ist schon vorbei.", "nicht-am-zug": "Ein Zug kam außer der Reihe.",
+    "zustand-zu-gross": "Die Partie ist zu groß geworden.", manipuliert: "Dieser Link passt nicht zu deinem letzten Stand dieser Partie. Er wurde verändert.", veraltet: "Diesen Stand der Partie kennst du schon weiter. Öffne den neuesten Link.", aufloesung: "Die Aufdeckung fehlt.", eingabe: "Ein Zug ist unvollständig.", commit: "Die Festlegung im Link ist ungültig."
+  }
+};
+const en = {
+  app: "My Daily Idea", today: "Today", more: "One more card", back: "Back", close: "Close",
+  modes: { alone: "One device", bot: "Against the computer", link: "Take turns by link", live: "At the same time (live)" },
+  modeHint: { alone: "You pass the device around.", bot: "The computer only sees what it may see.", link: "Everyone plays when they like.", live: "You play at the same time." },
+  mode: "How do you play?", send: "How do you send it?", seat: "You play as", level: "Computer strength", levels: ["Easy", "Medium", "Hard"],
+  go: "Go", goSend: "Send", customize: "Customise", done: "Done",
+  bubblesHint: "Tap a bubble to change that part.", bubble: "Change {p}",
+  shareTitle: "Or copy the link yourself", shareLink: "Send link", sentAlready: "Already sent", copied: "Copied. Paste the link into your chat.", shareFail: "No share menu opens here. Copy the link and paste it into your chat.", copyLink: "Copy link", copyFail: "Copying does not work here. Long-press the link and choose Copy.",
+  linkTooLong: "This card is too big for a link. Shorten the text.",
+  lobbyTitle: "Live invite", lobbyWait: "Waiting for your partner …", lobbySend: "Send the invite. The game starts as soon as your partner opens it.", inviteSend: "Send invite", again: "Invite again",
+  ipHint: "Live connects your devices directly; the other device sees your internet address. Without that: take turns by link.",
+  steps: { open: "Creating the invite …", found: "Partner found …", register: "Registering the channel …", join: "Connecting …", rtc: "Opening a direct channel …" },
+  hand: { bot: "The computer takes a seat …", live: "Setting up the game …" },
+  coverTitle: "Pass the device", coverText: "Hand the device to: {s}. Everyone else looks away.", coverOk: "I am {s} – show",
+  yourSeat: "You are: {s}",
+  sendTitle: "Now it is the other player's turn", sendText: "Send the link. The answer comes back as a link.",
+  waitBot: "The computer is thinking …", waitLive: "Waiting for your partner …", waitLink: "Waiting for the answer by link. You can close the page.",
+  overWin: "You win!", overLose: "This time the winner is: {s}.", overWinner: "The winner is: {s}.", overDraw: "Draw.", overAll: "Result", again2: "Again", sendResult: "Send result",
+  sendResultText: "Send the result so your partner sees it too.",
+  errTitle: "The game has ended",
+  acceptTitle: "Someone sent you a card", accept: "Accept", acceptCard: "Keep this card", acceptGame: "Play", decline: "No thanks", challengeFor: "You are challenged", yourTurnAs: "You play as {s}.", resultFor: "The result is here.", free: "Free, no sign-up.",
+  liveInvite: "Invitation to play", liveInviteText: "Someone invites you to play at the same time.",
+  rejectTitle: "This link does not work", rejectAsk: "Ask the sender for a new link.", toShelf: "To the start page",
+  connected: "Connected",
+  names: { yellow: "Yellow", red: "Red", ink: "Black", paper: "Paper", star: "Star", heart: "Heart", bolt: "Bolt", drop: "Drop", coin: "Coin", ring: "Ring" },
+  dialogHint: "The card changes right away.", maxReached: "At most {n}.",
+  note: { gezeigt: "The card has reached your partner.", empfangen: "Someone sent you this card." },
+  reasons: {
+    "zu-lang": "The link is too long.", praefix: "This is not a My Daily Idea link.", typ: "This kind of link does not exist.",
+    base64: "The link is damaged.", utf8: "The link is damaged.", json: "The link is damaged.", schema: "The link contains something that is not allowed.",
+    "karte-unbekannt": "This card does not exist here.", version: "This card has a different version.", params: "The settings in the link are invalid.",
+    "zug-ungueltig": "The link contains an invalid move.", betrug: "The reveal does not match the commitment made at the start. The game does not count.",
+    "nicht-deins": "This game belongs to another device.", abweichung: "The two devices do not see the same game. The game stops.",
+    "partner-weg": "Your partner has left.", verbindung: "The connection does not come about.", gone: "The invite is over.",
+    expired: "The invite has expired.", leer: "The link is empty.", vorbei: "The game is already over.", "nicht-am-zug": "A move came out of turn.",
+    "zustand-zu-gross": "The game has grown too big.", manipuliert: "This link does not continue your last state of this game. It was changed.", veraltet: "You already know a later state of this game. Open the newest link.", aufloesung: "The reveal is missing.", eingabe: "A move is incomplete.", commit: "The commitment in the link is invalid."
+  }
+};
+export const TEXTS = { de, en };
+export function texts(lang) { return lang === "en" ? en : de; }
+export function fmt(s, o) { return String(s).replace(/\{(\w+)\}/g, (m, k) => (o[k] === undefined ? m : String(o[k]))); }
+export function langOf(nav) { const l = String((nav && nav.language) || "de").toLowerCase(); return l.startsWith("de") ? "de" : "en"; }

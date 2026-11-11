@@ -1,0 +1,151 @@
+{
+  "$id": "live",
+  "type": "object",
+  "required": [
+    "t"
+  ],
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "required": [
+        "t",
+        "c",
+        "v",
+        "p",
+        "q",
+        "sh",
+        "k"
+      ],
+      "properties": {
+        "t": {
+          "const": "hello"
+        },
+        "c": {
+          "$ref": "link#/$defs/cardId"
+        },
+        "v": {
+          "$ref": "link#/$defs/version"
+        },
+        "p": {
+          "$ref": "link#/$defs/params"
+        },
+        "q": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        },
+        "sh": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "k": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "link#/$defs/commit"
+          }
+        }
+      }
+    },
+    {
+      "additionalProperties": false,
+      "required": [
+        "t",
+        "n",
+        "k"
+      ],
+      "properties": {
+        "t": {
+          "const": "join"
+        },
+        "n": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        "k": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "link#/$defs/commit"
+          }
+        }
+      }
+    },
+    {
+      "additionalProperties": false,
+      "required": [
+        "t",
+        "s"
+      ],
+      "properties": {
+        "t": {
+          "const": "start"
+        },
+        "s": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        }
+      }
+    },
+    {
+      "additionalProperties": false,
+      "required": [
+        "t",
+        "i",
+        "x",
+        "h"
+      ],
+      "properties": {
+        "t": {
+          "const": "in"
+        },
+        "i": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "x": {
+          "$ref": "link#/$defs/input"
+        },
+        "h": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        }
+      }
+    },
+    {
+      "additionalProperties": false,
+      "required": [
+        "t",
+        "c",
+        "v",
+        "p"
+      ],
+      "properties": {
+        "t": {
+          "const": "show"
+        },
+        "c": {
+          "$ref": "link#/$defs/cardId"
+        },
+        "v": {
+          "$ref": "link#/$defs/version"
+        },
+        "p": {
+          "$ref": "link#/$defs/params"
+        }
+      }
+    },
+    {
+      "additionalProperties": false,
+      "required": [
+        "t"
+      ],
+      "properties": {
+        "t": {
+          "const": "bye"
+        }
+      }
+    }
+  ]
+}
