@@ -6,16 +6,16 @@
    a photo: a meme gets its captions, the photo is added in the editor. No count of views, no streak, no countdown. */
 (function (root) {
   "use strict";
-  var ARTS = ["card", "meme", "game", "sound", "quiz", "faehigkeit"];
+  // no "sound" (decision 11.11.2026): the free card makes no sound card; the server refuses it with a fixed reason
+  var ARTS = ["card", "meme", "game", "quiz", "faehigkeit"];
   // the kind of doc each art comes back as: anything else is refused and given back, never shown or booked (never arcade)
-  var KIND_OF = { card: "card", meme: "photo", game: "game", sound: "sound", quiz: "turn", lauf: "lauf" };
+  var KIND_OF = { card: "card", meme: "photo", game: "game", quiz: "turn", lauf: "lauf" };
   // asked: the art chosen here; art: the one the server made. A game wish the server reads as a runner or a jump'n'run comes
   // back as art "lauf" (the second engine, src/lauf.js), never as a flying game; nothing else may change the art.
   function artOk(asked, art) { return art === asked || (asked === "game" && art === "lauf"); }
   function kindOk(art, doc) {
     if (art === "faehigkeit") return (doc.k === "turn" || doc.k === "duel") && !!doc.i;   // an existing card of the catalog
     if (art === "quiz") return doc.k === "turn" && !!doc.pk;                              // a quiz has its questions
-    if (art === "sound") return doc.k === "sound" && !!(doc.ly && doc.ly.length);
     return doc.k === KIND_OF[art];
   }
   // the preview's own look, part of this part and not of the core (scripts/build.js budget)

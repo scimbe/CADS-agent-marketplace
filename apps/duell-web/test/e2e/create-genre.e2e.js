@@ -40,6 +40,8 @@ test("Keine Kategorie vorgewaehlt: Feld und Erschaffen warten mit 'Erst Kategori
   const ta = p.getByLabel("Deine Beschreibung"), go = p.getByRole("button", { name: "✨ Erschaffen" });
   const arts = p.getByRole("group", { name: "Was soll es werden?" });
   assert.equal(await arts.locator("[aria-pressed=true]").count(), 0, "kein Chip vorgewaehlt");
+  // no "Sound" (decision 11.11.2026)
+  assert.deepEqual(await arts.getByRole("button").allTextContents(), ["🃏 Karte", "📷 Meme", "🕹 Spiel", "❓ Quiz", "🧩 Wie eine Karte"]);
   assert.ok(await ta.isDisabled()); assert.ok(await go.isDisabled());
   await p.getByText("Erst Kategorie wählen").waitFor();
   await shot(p, "1-ohne-kategorie");
