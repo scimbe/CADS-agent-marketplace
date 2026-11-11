@@ -255,13 +255,16 @@
   // so the sheet's layout stays as it is), the title under it as before. Not for a running game (arcade, the flight game:
   // the sheet plays it live), not for a card with a name field (warm cards, drawn with the name) and not with Save-Data.
   // app.js draws the card again when the font has come (fonts.load): the picture follows it.
+  // Not either where the picture is a moment later in the game (scripts/shots.js: a turn card's finished game in a shelf
+  // colour pair, Bauernskat mid-hand): what is tapped must be what opens, so those keep the drawn card, the very start
+  // in the person's own colours. Their pictures stay on the tiles ("So sieht es aus", "Alle Karten").
   var shotOn = null;
   function dayShot(h) {
     var c = $("pvcard"), i = h && h.idea;
     if (!c) return;
     if (c.dataset.shot) { delete c.dataset.shot; c.setAttribute("aria-label", t("a_preview")); }
     shotOn = null;
-    if (!i || h.doc || /^(arcade|game)$/.test(i.kind) || (W && W.is(i)) || !SHOTS[i.id] || lean() || !root.Parts) return;
+    if (!i || h.doc || /^(arcade|game)$/.test(i.kind) || i.kind === "turn" || i.id === "tisch-bauernskat" || (W && W.is(i)) || !SHOTS[i.id] || lean() || !root.Parts) return;
     shotOn = h;
     root.Parts.need(SHOTS[i.id]).then(function () {
       var u = root.DailyShots && root.DailyShots[i.id], img = new Image();
