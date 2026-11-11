@@ -148,6 +148,7 @@ function preview(root, doc, still) {
     if (doc.k === "game") { g.hidden = false; var st = C.sanitizeState(Object.assign({ v: 1 }, doc.g)); if (still) G.still(g, st); else G.demo(g, st); return; }
     c.hidden = false;
     if (doc.k === "lauf" && !R.extra.lauf) { window.Parts.use("lauf", function () { if (root.isConnected) preview(root, doc, still); }).catch(function () {}); return; }   // the second engine is a part
+    if (doc.k === "code") { window.CodeUI.preview(c, doc); return; }   // Code-Modus: a poster; the code loads only to play (part code)
     if (window.ArcadeUI) window.ArcadeUI.demo(c, doc.k === "arcade" ? doc.a : null, still);   // null ends a running duel preview
     if (doc.k === "arcade") return;
     R.draw(c, doc, { me: me, photo: doc.k === "photo" ? R.botFace(C.hash32(doc.x || "x"), doc.col[1]) : null, peaks: null, x: {} });
@@ -448,6 +449,7 @@ function trailLine() {
 function openEditor(doc, opt) {
   opt = opt || {};
   if (doc && doc.k === "table") { if (window.TableUI) window.TableUI.open(doc.g); return; }   // a card table is played live, there is nothing to edit
+  if (doc && doc.k === "code") { window.CodeUI.open(doc); return; }   // Code-Modus: played, never edited (nobody sees or changes the code)
   if (doc && doc.k === "lauf" && !X.lauf) { window.Parts.use("lauf", function () { openEditor(doc, opt); }).catch(function () {}); return; }
   window.Ai.drop();
   $("stagewrap").classList.remove("swap");
@@ -985,6 +987,7 @@ function route() {
   // (2026-11, konzept2 section 4): it only ever worked while its maker waited, so an old one says honestly that it is gone.
   if (/^#?p=[A-Za-z0-9_-]{40,1024}&k=[A-Za-z0-9_-]{1,1500}$/.test(location.hash)) { clearLink(); home = dayHome(); goHomeKeep(); window.DailyShelfOpen = true; if (window.StartUI && window.StartUI.all) window.StartUI.all(true); Kit.toast(t("cardGone"), 8000); return true; }
   if (CU.route(location.hash)) { clearLink(); if (screen !== "editor") goHomeKeep(); return true; }
+  if (window.CodeUI && window.CodeUI.fromHash(location.hash)) { clearLink(); return true; }   // Code-Modus: duel by link, live invite
   var live = location.hash.match(/^#live=([A-Za-z0-9_-]{22})(?:&g=([a-z]{2,12}))?$/);
   if (live && window.LiveUI) { history.replaceState(null, "", location.pathname); window.LiveUI.accept(live[1], live[2]); }
   var seat = location.hash.match(/^#tisch=(doko|skat|bauernskat)\.([A-Za-z0-9_-]{22}(?:\.[A-Za-z0-9_-]{22}){0,2})(?:&r=([a-z]{1,8}(?:\.[a-z]{1,8}){0,3}))?$/);   // one token, or one per free seat; the house rules

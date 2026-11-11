@@ -47,6 +47,12 @@
   // Live duels (live-ui.js). on() answers like the switch ON there (true; test/parts.test.js keeps both the same); the
   // stand-in has nothing open to close.
   stand("play", "LiveUI", ["invite", "accept"], { close: function () {}, on: function () { return true; } });
+  // Code-Modus (code-player.js, part code, on demand): a code card or link loads it; the preview needs no part
+  var codeStand = stand("code", "CodeUI", ["open"], {
+    preview: function (cv, doc) { if (LIST.code) use("code", function () { if (root.CodeUI !== codeStand) root.CodeUI.preview(cv, doc); }).catch(function () {}); },
+    // a link "#cg=…" / "#cglive=…" (app.js): true when it is one; the part then opens it
+    fromHash: function (h) { if (!/^#cg(?:live)?=/.test(h || "") || !LIST.code) return false; use("code", function () { if (root.CodeUI !== codeStand) root.CodeUI.fromHash(h); }).catch(function () {}); return true; }
+  });
   // Arcade duels (arcade-ui.js). count() comes from the catalog, so the games shelf shows its number without the part;
   // demo() only loads the part for an arcade sheet, and only the latest call wins (a sheet may change while it loads).
   var pv = 0, arc = stand("play", "ArcadeUI", ["menu", "tiles", "playBot"], {
@@ -82,7 +88,7 @@
   // by its own card or link. A name without a part in this build stays harmless. Nor the preview pictures (bilda, bildb …,
   // about 80 KB each): the start page asks for a part when one of its pictures comes into sight (start-ui.js shots);
   // offline without it a tile shows its title on its colour.
-  var ONDEMAND = ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten"];
+  var ONDEMAND = ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten", "code"];
   if (/^https?:$/.test(location.protocol) && location.hostname !== "appassets.androidplatform.net") {
     root.addEventListener("load", function () {
       (root.requestIdleCallback || function (f) { return setTimeout(f, 1500); })(function () {
