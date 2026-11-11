@@ -497,11 +497,17 @@
     }).slice(0, MAX_WALL).map(function (e) {
       var o = { id: e.id, ts: e.ts, th: e.th };   // f: the link of a work kept with Merken, only a c= fragment
       if (typeof e.f === "string" && e.f.length <= C.MAX_FRAGMENT && /^c=[A-Za-z0-9_-]+={0,2}$/.test(e.f)) o.f = e.f;
-      if (typeof e.k === "string" && /^[a-z]{1,12}$/.test(e.k)) o.k = e.k;   // k: what was made; "photo" never leaves the device (profile.js)
+      if (typeof e.k === "string" && /^[a-z]{1,12}$/.test(e.k)) o.k = e.k;
+      if (typeof e.h === "string" && /^[a-z0-9]{1,8}$/.test(e.h)) o.h = e.h;   // h: content hash of a finished card (addToWall)   // k: what was made; "photo" never leaves the device (profile.js)
       return o;
     });
   }
-  function addToWall(list, entry) { return sanitizeWall([entry].concat(list)); }
+  // The same work twice is one entry: an older one with the same content (h, the hash of the finished card, app.js
+  // makePicture; or the same Merken link f) makes way for the new one on top. Finishing the same card again ("Fertig",
+  // a feel-good card sent a second time) no longer piles up. h stays on the device (profile.js pack sends no h).
+  function addToWall(list, entry) {
+    return sanitizeWall([entry].concat((Array.isArray(list) ? list : []).filter(function (e) { return !e || !((entry.h && e.h === entry.h) || (entry.f && e.f === entry.f)); })));
+  }
 
   // Every text a person can read in an idea, for the content check.
   function ideaStrings(idea) {
