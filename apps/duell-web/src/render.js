@@ -35,8 +35,23 @@
     }
     return best.lines;
   }
+  // The parts of the picture being drawn, for its bubbles (src/teile.js reads cv._teile): where the words, stickers and the
+  // wave landed, in px of the canvas (a rotated box as the box around it). Only while draw() runs.
+  var rec = null;
+  function note(c, id, x, y, w, h) {
+    if (!rec || !(w > 0 && h > 0)) return;
+    var m = c.getTransform(), xs = [], ys = [];
+    [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach(function (q) { xs.push(m.a * q[0] + m.c * q[1] + m.e); ys.push(m.b * q[0] + m.d * q[1] + m.f); });
+    var x0 = Math.min.apply(0, xs), y0 = Math.min.apply(0, ys);
+    rec.push({ id: id, x: x0, y: y0, w: Math.max.apply(0, xs) - x0, h: Math.max.apply(0, ys) - y0 });
+  }
+  function words(c, lines, x, y, w, total) {   // the box of a block of lines, centred in w
+    var mw = 0; lines.forEach(function (l) { c.font = "900 " + l.size + "px " + FONT; mw = Math.max(mw, c.measureText(l.t).width); });
+    note(c, "text", x + (w - mw) / 2, y, mw, total);
+  }
   function block(c, text, x, y, w, h, col, shadow, off) {
     var lines = layout(c, text, w, h), total = lines.reduce(function (a, l) { return a + l.size * 0.98; }, 0), yy = y + (h - total) / 2;
+    if (rec && lines.length) words(c, lines, x, yy, w, total);
     c.textAlign = "center"; c.textBaseline = "alphabetic";
     lines.forEach(function (l) {
       yy += l.size * 0.98; c.font = "900 " + l.size + "px " + FONT;
@@ -63,7 +78,7 @@
     (list || []).forEach(function (s) {
       if (Render.exporting && !(noto && noto.has(s.e))) return;
       var r = W * 0.1 * s.z;
-      c.save(); c.translate(s.x * W, s.y * H); c.rotate(s.r);
+      c.save(); c.translate(s.x * W, s.y * H); c.rotate(s.r); note(c, "sticker", -r, -r, 2 * r, 2 * r);
       c.fillStyle = "#fff"; c.strokeStyle = "#111"; c.lineWidth = W * 0.006; c.beginPath(); c.arc(0, 0, r, 0, 6.3); c.fill(); c.stroke();
       // -0.09 r: where the system glyph lands with textBaseline "middle" and r * 0.06 (measured, Apple Color Emoji: 0.09-0.1 r up)
       if (Render.exporting) noto.draw(c, s.e, 0, -r * 0.09, r * 1.25);
@@ -186,6 +201,7 @@
     } else if (doc.st === "meme") {
       [[doc.x, 0.02], [doc.y, 0.78]].forEach(function (p) {
         var ls = layout(c, p[0], W * 0.92, H * 0.17), yy = H * p[1];
+        if (rec && ls.length) words(c, ls, W * 0.04, yy, W * 0.92, ls.reduce(function (a, l) { return a + l.size * 0.96; }, 0) + ls[ls.length - 1].size * 0.2);
         ls.forEach(function (l) { yy += l.size * 0.96; c.font = "900 " + l.size + "px " + FONT; c.textAlign = "center"; c.lineJoin = "round"; c.lineWidth = l.size * 0.13; c.strokeStyle = "#000"; c.strokeText(l.t, W / 2, yy); c.fillStyle = "#fff"; c.fillText(l.t, W / 2, yy); });
       });
     } else {
@@ -213,7 +229,7 @@
     c.fillStyle = a; c.fillRect(0, 0, W, H);
     block(c, doc.x || "…", W * 0.06, H * 0.05, W * 0.88, H * (song ? 0.22 : 0.3), fg, softDots(c, W, H, b, W * 0.03, 0.4, fg), W * 0.01);
     var n = 40, bw = W * 0.88 / n, cy = H * (song ? 0.36 : 0.64), amp = H * (song ? 0.07 : 0.2);
-    c.fillStyle = fg;
+    c.fillStyle = fg; note(c, "klang", W * 0.06, cy - amp, W * 0.88, amp * 2);
     for (var i = 0; i < n; i++) {
       var v = pk && pk.length ? pk[Math.floor(i * pk.length / n)] : 0.05, bh = Math.max(W * 0.008, v * amp);
       c.fillRect(W * 0.06 + i * bw, cy - bh, bw * 0.62, bh * 2);
@@ -226,6 +242,11 @@
 
   // photo: {width,height,_id} image or canvas. pk: sound peaks. me: my style.
   function draw(cv, doc, opt) {
+    rec = c0(cv) ? [] : null;
+    try { paintDoc(cv, doc, opt); } finally { if (rec) cv._teile = rec; rec = null; }
+  }
+  function c0(cv) { return cv.id === "stage" && !!cv.getContext("2d").getTransform; }   // only the editor's picture tells its parts
+  function paintDoc(cv, doc, opt) {
     var c = cv.getContext("2d"), W = cv.width, H = cv.height, me = opt.me;
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, H); c.shadowBlur = 0;
     if (Render.extra[doc.k]) { var inkx = Render.extra[doc.k](c, W, H, doc, opt); credit(c, W, H, doc, me, typeof inkx === "string" ? inkx : "#fff"); return; }   // an extra may name the colour its corner text reads in
@@ -250,5 +271,5 @@
     cv._id = "bot" + seed;
     return cv;
   }
-  var Render = window.Render = { extra: {}, styles: {}, layout: layout, stickers: stickers, draw: draw, lum: lum, block: block, ink: ink, botFace: botFace, dots: dots, rays: rays, FONT: FONT };
+  var Render = window.Render = { extra: {}, styles: {}, note: note, layout: layout, stickers: stickers, draw: draw, lum: lum, block: block, ink: ink, botFace: botFace, dots: dots, rays: rays, FONT: FONT };
 })();

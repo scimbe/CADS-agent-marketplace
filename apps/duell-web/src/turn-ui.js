@@ -54,11 +54,13 @@ function shape(c, f, x, y, r, col) {
 }
 function lines(c, list, W, y, size, col) {
   c.font = "800 " + size + "px system-ui,sans-serif"; c.fillStyle = col; c.textAlign = "center"; c.textBaseline = "top";
+  var y0 = y;
   list.forEach(function (s) {
     var cur = "";
     String(s).split(" ").forEach(function (w) { var n = cur ? cur + " " + w : w; if (c.measureText(n).width > W * 0.84 && cur) { c.fillText(cur, W / 2, y); y += size * 1.25; cur = w; } else cur = n; });
     if (cur) { c.fillText(cur, W / 2, y); y += size * 1.25; } y += size * 0.4;
   });
+  if (R.note) R.note(c, "worte", W * 0.08, y0, W * 0.84, y - y0);   // words a bubble leaves free (src/teile.js)
   return y;
 }
 function title(doc) { var i = doc.i ? D.byId(doc.i) : null, T = i ? D.plainTitle((i[Kit.lang] || i.de).t) : ""; return doc.t || T || t("turn"); }

@@ -116,7 +116,7 @@ test("Lauf (Zweierrennen): je Teil eine Blase, Muenze oeffnet die Welt, Gegner d
   await ctx.close();
 });
 
-test("Karte ohne gemeldete Teile: keine Blasen, die Reiter bleiben der Weg", async () => {
+test("Karte (A8): die gezeichnete Karte meldet ihre Teile, Blasen und Reiter stehen beide bereit", async () => {
   const { p, errs, ctx } = await (async () => {
     const ctx = await G.person(b, { view: "phone390" }), p = await ctx.newPage(), errs = [];
     p.on("pageerror", (e) => errs.push(String(e)));
@@ -125,7 +125,7 @@ test("Karte ohne gemeldete Teile: keine Blasen, die Reiter bleiben der Weg", asy
     await p.locator("#tabs [role=tab]").first().waitFor(); await p.waitForTimeout(600);
     return { p, errs, ctx };
   })();
-  assert.equal(await p.locator("#blasen .blase:visible").count(), 0);
+  assert.ok(await p.locator("#blasen .blase:visible").count() >= 3, "Text, Stil, Farbe (blasen-alle.e2e.js prueft alle Karten)");
   assert.ok(await p.locator("#tabs [role=tab]").count() >= 3);
   assert.deepEqual(errs, []);
   await ctx.close();
