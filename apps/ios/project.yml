@@ -9,7 +9,6 @@ settings:
     DEVELOPMENT_TEAM: ""
     EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
     CODE_SIGN_STYLE: Automatic
-    ENABLE_USER_SCRIPT_SANDBOXING: NO   # copy-duell.sh reads ../duell-web and writes into the bundle
 targets:
   CadsMarketplace:
     type: application
@@ -20,10 +19,11 @@ targets:
       - path: ../../manifests/prompt-templates   # bundled signed sample templates (no copy)
         type: folder
         buildPhase: resources
-    postCompileScripts:
-      - name: Bundle Duell web game
-        script: ./copy-duell.sh
-        basedOnDependencyAnalysis: false
+      # The WebView page (bundle folder duell/, index.html) is the neutral placeholder until the new client (apps/mdi)
+      # gets its native host (slice D1b). Nothing is copied from another build.
+      - path: ../native-placeholder/duell
+        type: folder
+        buildPhase: resources
     dependencies:
       - framework: Frameworks/MobileCoreFFI.xcframework
         embed: false

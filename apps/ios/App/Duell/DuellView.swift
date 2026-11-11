@@ -195,7 +195,6 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
                  type: WKMediaCaptureType, decisionHandler: @escaping (WKPermissionDecision) -> Void) {
         #if DEBUG
         DuellDebug.note("mediaCaptureRequest", ["type": type.rawValue, "protocol": origin.protocol, "host": origin.host, "main": frame.isMainFrame])
-        if ProcessInfo.processInfo.arguments.contains("-DuellMicDeny") { return decisionHandler(.deny) }
         #endif
         guard type == .microphone, frame.isMainFrame, isOwnOrigin(origin) else { return decisionHandler(.deny) }
         // The system asks the person once (NSMicrophoneUsageDescription); a refusal makes getUserMedia fail
@@ -313,9 +312,8 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
 #if DEBUG
 /// CI helpers (DEBUG builds only; the simulator offers no tap injection, so the page is driven through its DOM):
 ///  `-DuellChallenge <fragment>`  open with a link fragment, like a Universal Link would
-///  `-DuellMicDeny`               refuse microphone requests (exercises the fallback without a system dialog)
 ///  `-DuellScenario <name>`       after load, run a scripted flow in the page and write Documents/duell-scenario.json.
-///                                names: probe, more, share, save, mic, parts
+///                                names: probe, more
 enum DuellDebug {
     private static var notes: [String: Any] = [:]
 
@@ -355,19 +353,15 @@ enum DuellDebug {
         }
     }
 
+    // Generic probes only: the bundled page is the placeholder (#brand, #host), so nothing here knows a game or an editor.
     private static let prelude = """
     const sleep = ms => new Promise(r => setTimeout(r, ms));
     const $ = s => document.querySelector(s);
     const out = { log: [] };
     const log = (k, v) => out.log.push([k, v]);
     const clickEl = async (el, wait) => { if (!el) throw new Error('missing element'); el.click(); await sleep(wait || 350); };
-    const btn = re => [...document.querySelectorAll('button')].find(b => re.test(b.textContent.trim()) && b.offsetParent !== null);
-    const openIdea = async id => { location.hash = 'i=' + id; await sleep(1200); await clickEl($('#go'), 800); };
-    // the scenarios tap the editor's tabs: bubbles off unless a run chose otherwise (as test/e2e/lib/nolive.js does)
-    if (localStorage.getItem('daily.blasen') === null) localStorage.setItem('daily.blasen', 'aus');
     const visits = Number(localStorage.getItem('dbg.visits') || 0); localStorage.setItem('dbg.visits', String(visits + 1));
-    log('env', { href: location.href, origin: location.origin, secure: window.isSecureContext, mediaDevices: typeof navigator.mediaDevices,
-                 getUserMedia: typeof (navigator.mediaDevices && navigator.mediaDevices.getUserMedia), mediaRecorder: typeof MediaRecorder,
+    log('env', { href: location.href, origin: location.origin, secure: window.isSecureContext,
                  navigatorShare: typeof navigator.share, host: typeof window.DuellHost, hostMore: typeof (window.DuellHost && window.DuellHost.more),
                  visitsBefore: visits, lang: navigator.language, brand: ($('#brand') || {}).textContent, hostButtonHidden: ($('#host') || {}).hidden });
     """
@@ -375,34 +369,6 @@ enum DuellDebug {
     private static let flows: [String: String] = [
         "probe": "",
         "more": "await clickEl($('#host'), 1200); log('moreTapped', true);",
-        "share": """
-            await openIdea('quiz-chaos');
-            await clickEl(btn(/^(Stickers|Sticker)$/)); await clickEl($('#panel .chip.em'));
-            log('footer', $('#edmain').textContent); await clickEl($('#edmain'), 1500);
-            log('doneImg', !!$('#doneimg').src); await clickEl($('#share'), 2500); await clickEl($('#share'), 1500);
-            """,
-        "save": """
-            await openIdea('quiz-chaos');
-            await clickEl(btn(/^(Stickers|Sticker)$/)); await clickEl($('#panel .chip.em'));
-            await clickEl($('#edmain'), 1500); log('saveHidden', $('#save').hidden); await clickEl($('#save'), 1500);
-            """,
-        "mic": """
-            await openIdea('stimme-monster');
-            await clickEl(btn(/Record|Aufnehmen/), 1500);
-            log('toast', $('#toast').textContent);
-            await clickEl(btn(/Silly voice|Quatschstimme/)); await clickEl(btn(/(^|\\s)Echo$/));
-            log('footer', $('#edmain').textContent); await clickEl($('#edmain'), 1500); await clickEl($('#save'), 1500);
-            """,
-        // The page's parts (duell/parts/*.js next to index.html, script-src 'self' on the file:// page): the arcade
-        // menu needs the play part; then every part, and the licence texts from theirs.
-        "parts": """
-            await openIdea('arcade-puck'); await sleep(1500);
-            log('arcadeMenu', !!btn(/Gegen den Bot|Against the bot/));
-            try { await Promise.all(window.Parts.names().map(n => window.Parts.need(n))); log('parts', window.Parts.names().filter(n => window.Parts.ready(n)).sort().join(',')); }
-            catch (e) { log('parts', 'error: ' + String(e && e.message || e)); }
-            log('licenses', typeof window.DailyLicenses === 'string' && /SIL OPEN FONT LICENSE/.test(window.DailyLicenses));
-            log('qr', typeof window.qrcode === 'function' && typeof window.StatusCard === 'object');
-            """,
     ]
 
     /// The flow runs as an async function in the page and reports through the `dbgResult` message handler

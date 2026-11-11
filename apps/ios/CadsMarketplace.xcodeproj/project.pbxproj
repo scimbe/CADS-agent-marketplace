@@ -213,7 +213,6 @@
 			buildConfigurationList = 861B3EFD3BF35B22375F140E /* Build configuration list for PBXNativeTarget "CadsMarketplace" */;
 			buildPhases = (
 				07812143DE3DED15D427D05F /* Sources */,
-				84563C1EA68EFA5DE0AFD3D3 /* Bundle Duell web game */,
 				9EBFE8BDC8493C270E7DD77F /* Resources */,
 				DF3B2B9C3372E3E13E192678 /* Frameworks */,
 			);
@@ -281,28 +280,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		84563C1EA68EFA5DE0AFD3D3 /* Bundle Duell web game */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Bundle Duell web game";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "./copy-duell.sh";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		07812143DE3DED15D427D05F /* Sources */ = {

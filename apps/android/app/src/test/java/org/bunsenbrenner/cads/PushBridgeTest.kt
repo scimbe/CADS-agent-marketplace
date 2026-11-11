@@ -8,9 +8,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.io.File
 
-/** The bridge contract shared with iOS and the page: apps/duell-web/test/fixtures/bridge-push-v1.json. */
+/** The bridge contract shared with iOS (DuellPushTests): src/test/resources/bridge-push-v1.json. */
 class PushBridgeTest {
-    private val fixture = JSONObject(File("../../duell-web/test/fixtures/bridge-push-v1.json").readText())
+    private val fixture = JSONObject(File("src/test/resources/bridge-push-v1.json").readText())
 
     @Test fun capabilityMatchesTheSharedContract() {
         val cases = fixture.getJSONArray("capability")
