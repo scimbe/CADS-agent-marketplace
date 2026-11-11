@@ -119,7 +119,7 @@ function build() {
   if (!L) {
     L = st.layer = document.createElement("div"); L.id = "blasen";
     st.svg = svgEl("svg", { "aria-hidden": "true" }); L.appendChild(st.svg);
-    var sw = document.createElement("button"); sw.type = "button"; sw.id = "blasenan";
+    var sw = document.createElement("button"); sw.type = "button"; sw.id = "blasenan"; sw.tabIndex = -1;
     sw.addEventListener("click", function () { Kit.sfx.tap(); st.on = !st.on; if (!st.on) st.open = null; sync(); tick(); });
     L.appendChild(sw);
   }
@@ -131,6 +131,7 @@ function bubble(p) {
   b.type = "button"; b.className = "blase" + (p.id === "wunsch" ? " ki" : ""); b.dataset.blase = p.id; b.dataset.blatt = p.panel;
   b.appendChild(icon(p.id)); var s = document.createElement("span"); s.textContent = label(p); if (s.textContent.length > 7) s.style.fontSize = "9px"; b.appendChild(s);
   b.setAttribute("aria-label", w("set").replace("{x}", label(p)));
+  b.tabIndex = -1;   // no extra Tab stops: the keyboard's way is the tab bar (same sheets); a screen reader still finds the button
   var d = null;
   b.addEventListener("pointerdown", function (e) { d = { x: e.clientX, y: e.clientY, p: st.pos[k], moved: false }; st.dragged = false; try { b.setPointerCapture(e.pointerId); } catch (x) {} });
   b.addEventListener("pointermove", function (e) {
