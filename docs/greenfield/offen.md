@@ -22,3 +22,4 @@
   - Gruß-Karte: fertige Texte zum Antippen, weniger Tipps bis zum Senden?
   - Faires Link-Duell: eine zusätzliche Link-Runde oder Server-Geber?
   - Live-Privatsphäre: „nur über Relay“ anbieten, damit das Gegenüber die eigene Adresse nicht sieht?
+- D0 Live: ct-agent-WASM-Glue aus der Webkonferenz vendoren und per Hash pinnen? (Download vom Webkonferenz-Host; dort fehlt eine LICENSE-Datei) – bis dahin läuft er isoliert in einem Sandbox-iframe, aber ungepinnt.
