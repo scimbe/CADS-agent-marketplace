@@ -11,6 +11,8 @@
     var d = JSON.parse(JSON.stringify(doc));
     d.g = { seed: st.seed, params: st.params, theme: st.theme, title: st.title, emoji: st.emoji };
     if (st.route) d.g.route = st.route;
+    var an = st.anim !== undefined ? st.anim : doc.g && doc.g.anim;   // an answer without an animation keeps the figure's; null takes it away
+    if (an) d.g.anim = an;
     d.t = st.title; delete d.ki;
     if (ki) d.ki = ki;
     return D.sanitizeDoc(d);

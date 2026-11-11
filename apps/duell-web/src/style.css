@@ -431,7 +431,7 @@ a.btn{display:grid;place-items:center;text-decoration:none;margin-top:8px}
 .votes{flex:none;display:flex;gap:6px;margin-top:4px;min-height:44px;align-self:flex-start;position:relative;z-index:3}.votes[hidden]{display:none}
 @container (max-height:140px){#leaf.got .votes{position:absolute;top:4px;right:8px;margin:0}}@container (max-height:40px){.votes{display:none}}
 .chip[aria-pressed],.bcell[aria-pressed]{position:relative}.chip[aria-pressed=true]::before,.bcell[aria-pressed=true]::before{content:"✓"/"";position:absolute;top:0;left:3px;font-size:.75rem}
-#editor:has(.timed) #stagewrap{display:none}
+#editor:has(.timed.run) #stagewrap{display:none}
 .ring{background:conic-gradient(var(--b) calc(var(--p,0)*1turn),#fff 0)}
 #shnote:empty{display:none}
 #done .more summary{padding:0 18px;color:var(--on)}

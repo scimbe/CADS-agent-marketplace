@@ -3,7 +3,7 @@
 // lib/vendor/duell-web): the engine itself (physics, generator, picture, editor) is the part "lauf" (src/lauf-engine.js,
 // src/lauf-ui.js). A game is a small JSON object the AI can fill by schema and a link can carry:
 // { ev?: engine version, m: mode, seed, w: world, e: figure, o: obstacle, c: coin, f: foe, fp: foe patterns, p: numbers (SPEC),
-//   r?: score to beat }
+//   r?: score to beat, anim?: the figure's animation (DuellCore.sanitizeAnim) }
 // A new kind of game is new numbers here (e.g. dodging from above: fa high, the rest low), not new code.
 (function (root) {
   "use strict";
@@ -34,6 +34,8 @@
     var l = { m: one(MODES, o.m), seed: Number.isInteger(o.seed) && o.seed >= 0 && o.seed <= 4294967295 ? o.seed : 1, w: one(WORLDS, o.w), e: one(FIG, o.e), o: one(OBJ, o.o), c: one(COIN, o.c), f: one(FOE, o.f), fp: fp.length ? fp : ["geh"], p: q };
     if (Number.isInteger(o.r) && o.r > 0 && o.r < 1e6) l.r = o.r;
     if (Number.isInteger(o.ev) && o.ev >= 1 && o.ev < 1e3) l.ev = o.ev;
+    var C = root.DuellCore || (typeof require === "function" ? require("./core.js") : null), an = C && C.sanitizeAnim(o.anim);
+    if (an) l.anim = an;
     return l;
   }
   var api = { EV: EV, SPEC: SPEC, MODES: MODES, WORLDS: WORLDS, PATTERNS: PATTERNS, FIG: FIG, OBJ: OBJ, COIN: COIN, FOE: FOE, sanitize: sanitize };

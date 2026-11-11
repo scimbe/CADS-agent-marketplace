@@ -255,13 +255,16 @@
   // so the sheet's layout stays as it is), the title under it as before. Not for a running game (arcade, the flight game:
   // the sheet plays it live), not for a card with a name field (warm cards, drawn with the name) and not with Save-Data.
   // app.js draws the card again when the font has come (fonts.load): the picture follows it.
+  // Not either where the picture is a moment later in the game (scripts/shots.js: a turn card's finished game in a shelf
+  // colour pair, Bauernskat mid-hand): what is tapped must be what opens, so those keep the drawn card, the very start
+  // in the person's own colours. Their pictures stay on the tiles ("So sieht es aus", "Alle Karten").
   var shotOn = null;
   function dayShot(h) {
     var c = $("pvcard"), i = h && h.idea;
     if (!c) return;
     if (c.dataset.shot) { delete c.dataset.shot; c.setAttribute("aria-label", t("a_preview")); }
     shotOn = null;
-    if (!i || h.doc || /^(arcade|game)$/.test(i.kind) || (W && W.is(i)) || !SHOTS[i.id] || lean() || !root.Parts) return;
+    if (!i || h.doc || /^(arcade|game)$/.test(i.kind) || i.kind === "turn" || i.id === "tisch-bauernskat" || (W && W.is(i)) || !SHOTS[i.id] || lean() || !root.Parts) return;
     shotOn = h;
     root.Parts.need(SHOTS[i.id]).then(function () {
       var u = root.DailyShots && root.DailyShots[i.id], img = new Image();
@@ -280,8 +283,16 @@
     }, function () {});
   }
   // The day's sheet and every sheet chosen from here get the new start; whatever came by link keeps its own page.
+  // The bubbles on the day's card and the free card (part blasen, src/blasen-start.js): asked for only after the first
+  // paint, when the page is idle, and not with Save-Data; once there, each new sheet places them anew.
+  function bubbles() {
+    if (root.Blasen && root.Blasen.start) { root.Blasen.start(); return; }
+    if (lean() || !root.Parts || root.Parts.names().indexOf("blasen") < 0) return;
+    var go = function () { root.Parts.use("blasen", function () { if (root.Blasen && root.Blasen.start && !$("home").hidden) root.Blasen.start(); }).catch(function () {}); };
+    if (root.requestIdleCallback) root.requestIdleCallback(go, { timeout: 2000 }); else setTimeout(go, 400);
+  }
   function home(h) {
-    build(); paint(); mute();
+    build(); paint(); mute(); setTimeout(bubbles, 0);
     var on = !!h && !h.note && !h.doc;
     $("home").classList.add("neu"); box.hidden = !on;
     refs.more.hidden = !on; openAll(refs.more.getAttribute("aria-expanded") === "true", true);
