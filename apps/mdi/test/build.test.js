@@ -48,10 +48,13 @@ test("CSP: strikt, ohne unsafe-inline/unsafe-eval; Hashes passen zu Skript und S
 });
 
 const DANGEROUS = /\binnerHTML\b|\bouterHTML\b|insertAdjacentHTML|document\.write|\beval\s*\(|new\s+Function\b|[^.\w]Function\s*\(|setTimeout\s*\(\s*["'`]/;
-test("Realm-Trennung (Review M4): App ohne Netz und ohne Fremdskript; Live nur im abgeschotteten Rahmen mit eigener CSP", () => {
+test("Realm-Trennung (Review M4): App nur zum eigenen Server und ohne Fremdskript; Live nur im abgeschotteten Rahmen mit eigener CSP", () => {
   const html = fs.readFileSync(path.join(DIST, "index.html"), "utf8");
   const csp = /http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(html)[1];
-  assert.match(csp, /connect-src 'none'/);
+  // P1 Konto: genau die eigene Herkunft (/api/duell, /auth/me), sonst nichts – kein Host, kein Schema, kein Wildcard
+  assert.equal(/connect-src ([^;]+)/.exec(csp)[1].trim(), "'self'");
+  for (const d of ["img-src data:", "font-src data:", "default-src 'none'"]) assert.ok(csp.includes(d), d);
+  assert.ok(!/worker-src|manifest-src|media-src/.test(csp), "keine weiteren Quellen: " + csp);
   assert.match(csp, /frame-src 'self' https:\/\/webconference\.bunsenbrenner\.org\/play-frame\.html(;|$)/, "nur genau der Live-Rahmen der Webkonferenz");
   assert.ok(!/https?:|'self'/.test(/script-src ([^;]+)/.exec(csp)[1]), "script-src nur Hash: " + csp);
   const frames = fs.readdirSync(path.join(DIST, "parts")).filter((f) => /^live-frame\./.test(f));
@@ -89,6 +92,17 @@ test("Netz und Geraetespeicher nur im Broker (src/broker/*)", () => {
     const m = NET.exec(fs.readFileSync(f, "utf8"));
     assert.equal(m, null, rel(f) + ": " + (m && m[0]));
   }
+});
+
+test("Server-Aufrufe nur ueber EIN API-Modul (src/broker/api.js); kein fetch sonst, auch nicht im Broker", () => {
+  const hits = files(SRC, /\.js$/).filter((f) => /\bfetch\s*\(/.test(fs.readFileSync(f, "utf8"))).map(rel).sort();
+  // live.js spricht im abgeschotteten Rahmen mit /api/play der Webkonferenz (nicht mit diesem Server)
+  assert.deepEqual(hits, [path.join("src", "broker", "api.js"), path.join("src", "broker", "live.js")].sort());
+  const api = fs.readFileSync(path.join(SRC, "broker/api.js"), "utf8");
+  assert.ok(!/https?:\/\//.test(api.replace(/\/\/.*$/gm, "")), "API nur relativ (gleiche Herkunft)");
+  assert.match(api, /credentials: "same-origin"/);
+  const html = fs.readFileSync(path.join(DIST, "index.html"), "utf8"), js = /<script>([\s\S]*)<\/script>/.exec(html)[1];
+  for (const p of ["/api/duell", "/auth/me", "/auth/login"]) assert.ok(js.includes(p), p + " im Kern");
 });
 
 test("Genau EIN WebSocket und EINE RTCPeerConnection je Live-Rahmen, keiner im Kern; keine stun:/turn:-Literale", () => {

@@ -60,6 +60,9 @@ function demoLinks() {
   };
 }
 const LINKS = demoLinks();
+const KI = { enabled: true, remaining: 7, size: 7, period: "week", resetAt: null };
+const ST_IN = { ok: true, account: true, canLogin: true, ki: KI, karte: { ...KI, period: "ever", credit: 0, voucher: true, age16: true, age18: false, paused: false, off: false } };
+const ST_ANON = { ok: true, account: false, canLogin: true, ki: KI, karte: null };
 const HELLO = (() => { const r = H.hello(cardOf("bluff"), { cards: 3, bonus: 2, accent: "red" }, 0, [counter("c")(), counter("d")()]); return r.msg; })();
 
 function eventsFor(state) {
@@ -70,7 +73,7 @@ function eventsFor(state) {
     { type: "LINK", hash: LINKS.card }, { type: "LINK", hash: LINKS.challenge }, { type: "LINK", hash: LINKS.live }, { type: "LINK", hash: LINKS.bad },
     { type: "LIVE_TOKEN", token: "B".repeat(22) }, { type: "LIVE_UP" }, { type: "LIVE_DOWN" }, { type: "LIVE_FAIL", reason: "gone" },
     { type: "HELLO", msg: HELLO }, { type: "PEER_IN", msg: { t: "in", i: 0, x: { t: "say", seat: 0, v: 6 }, h: "0".repeat(16) } },
-    { type: "KONTO_IN" }, { type: "KONTO_OUT" }
+    { type: "STATUS", result: ST_IN }, { type: "STATUS", result: ST_ANON }, { type: "STIL" }, { type: "DATEN" }
   ];
   if (ctx.cardId) {
     const c = cardOf(ctx.cardId);

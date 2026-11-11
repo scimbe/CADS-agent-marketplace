@@ -9,6 +9,7 @@ import * as S from "../contract/session.js";
 import { rng } from "../contract/sdk.js";
 import { render } from "../render/render.js";
 import { LEVELS } from "../bot/ismcts.js";
+import { stilView, stilActions } from "./stil-view.js";
 
 export function leaf(state) {
   const l = state.config.filter((s) => s.startsWith("inhalt."));
@@ -19,7 +20,8 @@ function title(card, lang) { return card.manifest.title[lang] || card.manifest.t
 
 /** Aktionen je Zustand – Grundlage fuer Knoepfe und fuer den Disclosure-Test. */
 export function actionsOf(state) {
-  const ctx = state.ctx, X = texts(ctx.lang), L = leaf(state);
+  const ctx = state.ctx, X = texts(ctx.lang, ctx.pref && ctx.pref.easy), L = leaf(state);
+  if (L.startsWith("stil.")) return stilActions(state, X, L);
   const a = (id, label, ev) => ({ id, label, ev: typeof ev === "string" ? { type: ev } : ev });
   // Ohne Teilen-Menue wird Kopieren die Hauptaktion (Kritikrunde 3); nach dem Kopieren: gesendet melden
   const send = (label) => (ctx.shareFailed && !ctx.copied ? a("copy", X.copyLink, "COPY") : ctx.copied ? null : a("share", label, "SHARE"));
@@ -113,22 +115,27 @@ function fieldControls(card, part, params, X, lang, dispatch) {
  * @returns vnodes [kopf, hauptbereich, dialogebene?]
  */
 export function view(state, dispatch) {
-  const ctx = state.ctx, X = texts(ctx.lang), L = leaf(state), m = (p) => machine.matches(state, p);
+  const ctx = state.ctx, X = texts(ctx.lang, ctx.pref && ctx.pref.easy), L = leaf(state), m = (p) => machine.matches(state, p);
   const acts = actionsOf(state);
   const canBack = machine.send(state, { type: "BACK" }).consumed;
   const card = ctx.cardId ? cardOf(ctx.cardId) : null;
-  const heading = card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang) : X.app;
+  const heading = L === "stil.start" ? X.stil : L === "stil.daten" ? X.k.data : L === "stil.widerspruch" ? X.k.appealTitle : card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang) : X.app;
   const btn = (act, cls) => h("button", { type: "button", class: "btn " + cls, key: act.id, "data-act": act.id, on: { click: () => dispatch(act.ev) } }, act.label);
 
   const head = h("header", { class: "bar", key: "bar" },
     canBack ? h("button", { type: "button", class: "icon", "aria-label": X.back, "data-act": "back", on: { click: () => dispatch({ type: "BACK" }) } }, "←") : h("span", { class: "icon-gap" }),
     h("h1", { class: "brand" + (L === "shelf" ? " home" : "") }, heading),
-    m("raum.verbunden") ? h("span", { class: "badge", role: "status" }, X.connected) : h("span", { class: "icon-gap" }));
+    m("raum.verbunden") ? h("span", { class: "badge", role: "status" }, X.connected)
+      : L === "shelf" ? h("button", { type: "button", class: "icon me", "aria-label": X.stilOpen, title: X.stil, "data-act": "stil", on: { click: () => dispatch({ type: "STIL" }) } }, ctx.me.emoji)
+        : h("span", { class: "icon-gap" }));
 
   let body = [], panel = [];
   const preview = card ? render(card.view(previewState(card, G.paramsOf(ctx)), 0, { lang: ctx.lang, preview: true }), { onInput: () => {}, disabled: true, idp: "pv" }) : null;
 
-  if (L === "shelf") {
+  if (L.startsWith("stil.")) {
+    const r = stilView(state, X, dispatch, L);
+    body = r.body; panel = r.panel;
+  } else if (L === "shelf") {
     body = [h("p", { class: "lede" }, X.today), h("div", { class: "shelf" }, ORDER.map((id, i) => {
       const c = cardOf(id), prim = i === 0;
       return h("button", { type: "button", key: id, class: "shelf-card " + (prim ? "primary" : "secondary"), "data-act": "open-" + id, on: { click: () => dispatch({ type: "OPEN", id }) } },

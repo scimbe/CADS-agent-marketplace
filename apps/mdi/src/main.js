@@ -8,6 +8,8 @@ import { createStorage } from "./broker/storage.js";
 import { share, copy } from "./broker/share.js";
 import { loadLive } from "./broker/live-host.js";
 import { linkUrl } from "./ui/view.js";
+import { createApi } from "./broker/api.js";
+import { download } from "./broker/share.js";
 
 const root = document.getElementById("app");
 const lang = langOf(navigator);
@@ -16,8 +18,14 @@ document.documentElement.lang = lang;
 function entropy() { const b = new Uint8Array(16); crypto.getRandomValues(b); return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join(""); }
 
 let lastDialog = null, lastDialogRect = null, opener = null;
+// Rueckweg vom Gate: diese Seite, mit dem Hinweis, Mein Stil wieder zu oeffnen (nur ein Pfad, nie ein anderer Host)
+const returnPath = () => location.pathname + "?go=konto";
 const rt = createRuntime({
   lang, entropy, storage: createStorage(),
+  api: createApi({ location }),
+  returnPath,
+  navigate: (url) => { if (!/^https?:$/.test(location.protocol)) return false; location.assign(url); return true; },
+  download,
   live: () => loadLive(),
   share: (fragment) => share(linkUrl(fragment), document.title),
   copy: (fragment) => copy(linkUrl(fragment)),
@@ -83,6 +91,9 @@ function draw(state, info) {
     const m = root.querySelector("#main"); if (m && !m.contains(document.activeElement)) m.focus({ preventScroll: true });
   }
   syncHistory(nowLeaf);
+  // Schriftgroesse aus Mein Stil (Lesen & Bedienen): Projektion des Zustands auf die Wurzel, alles skaliert per rem
+  const fs = { n: "100%", g: "118.75%", sg: "137.5%" }[state.ctx.pref.fs] || "100%";
+  if (document.documentElement.style.getPropertyValue("font-size") !== fs) document.documentElement.style.setProperty("font-size", fs);
 }
 
 // System-Zurueck (Browser/Android): ein Verlaufseintrag, solange die App Zurueck verbrauchen kann.
@@ -107,3 +118,8 @@ addEventListener("hashchange", () => { if (/^#v2\./.test(location.hash)) rt.link
 
 draw(rt.state, null);
 if (location.hash.length > 1) rt.link(location.hash);
+else if (new URLSearchParams(location.search).get("go") === "konto") {
+  // zurueck vom Anmelden: Mein Stil wieder oeffnen, die Adresse ohne ?go= behalten
+  try { history.replaceState(history.state, "", location.pathname); } catch (e) { /* ohne Verlauf */ }
+  rt.dispatch({ type: "STIL" });
+}

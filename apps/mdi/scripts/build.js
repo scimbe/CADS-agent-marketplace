@@ -61,7 +61,9 @@ export async function build() {
     "script-src 'sha256-" + b64(sha("sha256", js)) + "'",
     "style-src 'sha256-" + b64(sha("sha256", css)) + "'",
     "font-src data:", "img-src data:",
-    "connect-src 'none'", "frame-src 'self' " + liveRemote.src,
+    // Konto/Profil/Guthaben: nur der eigene Server (/api/duell, /auth/me, gleiche Herkunft). Live braucht im Kern nichts:
+    // dessen Netz laeuft im abgeschotteten Rahmen mit eigener CSP.
+    "connect-src 'self'", "frame-src 'self' " + liveRemote.src,
     "base-uri 'none'", "form-action 'none'", "object-src 'none'"
   ].join("; ");
   const tpl = fs.readFileSync(path.join(SRC, "index.template.html"), "utf8");
