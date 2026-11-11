@@ -22,3 +22,6 @@
 | 2026-11-11 | Grundstock-Karten und Spiel-Engines neu; Baukasten, der freie Designs/Mechaniken mit Harness und Haiku erlaubt | User |
 | 2026-11-11 | Auf Systemhygiene achten (`00-hygiene.md`) | User |
 | 2026-11-11 | Nahtlose Integration der Webkonferenz (Daten, Sprache, Video, ein Raum über Tätigkeiten hinweg) | User |
+| 2026-11-11 | Kontobild darf aus den 3 freien Bildern pro Monat kommen | User: „JA“ |
+| 2026-11-11 | Fehlgeschlagene Bildaufträge zählen weiter zum Tageslimit (ohne Abbuchung) | User: „JA“ |
+| 2026-11-11 | Preisregeln für Bilder per Konfiguration änderbar bauen | User: „aber bau es so das es noch geandert werden kann“ |
