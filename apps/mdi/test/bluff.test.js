@@ -19,7 +19,7 @@ function play(cards, say, open) {
 }
 
 test("Regel-Paritaet mit der Altkarte zug-bluff (24 Faelle, Fixture mit Herkunft)", () => {
-  assert.match(ALT.herkunft, /Altbaum duell-web/);
+  assert.match(ALT.herkunft, /^Altbaum /);
   for (const f of ALT.faelle) assert.deepEqual(play(f.cards, f.say, f.open).pub.score, f.expect, JSON.stringify(f));
 });
 

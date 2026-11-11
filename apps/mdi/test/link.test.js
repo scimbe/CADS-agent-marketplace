@@ -27,5 +27,5 @@ test("Empfang eines Zug-Duells: Pruefer bekommt seinen Sitz, aber nie die Karten
   assert.equal(r.ok, true);
   assert.deepEqual(r.session.mine, [1]);
   assert.equal(r.session.state.priv[0], null);
-  assert.deepEqual(r.store, { g: "0123456789abcdef", seat: 1 });
+  assert.equal(r.store, undefined, "beim Empfang wird nichts gespeichert, erst beim Annehmen");
 });

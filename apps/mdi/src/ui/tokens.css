@@ -140,5 +140,6 @@ button, input, textarea { font: inherit; color: inherit; }
 .input { width: 100%; min-height: var(--tap); padding: var(--s2) var(--s3); border: 2px solid var(--text); border-radius: var(--r1); background: var(--bg); }
 textarea.input { resize: vertical; }
 .ghost { z-index: 30; }
+.liveframe { position: fixed; left: 0; top: 0; width: 1px; height: 1px; border: 0; opacity: 0; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 @media (forced-colors: active) { .btn, .opt, .seg-opt, .bubble, .tile { border: 2px solid ButtonText; } }

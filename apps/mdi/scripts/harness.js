@@ -40,6 +40,12 @@ export function checkCardSource(src) {
     }
     if (n.type === "Identifier" && n.name === "Math" && !(parent && parent.type === "MemberExpression" && parent.object === n)) out.push("Math als Wert" + at);
     if (n.type === "NewExpression" && n.callee.type === "Identifier" && n.callee.name === "Function") out.push("new Function" + at);
+    // gebietsschema- oder gleitkomma-abhaengige Ausgaben im Spielzustand (Review LOW, determinismus.md Befund 3)
+    if (n.type === "MemberExpression" && !n.computed && n.property.type === "Identifier") {
+      const p = n.property.name;
+      if (["localeCompare", "toLocaleString", "toLocaleUpperCase", "toLocaleLowerCase", "toFixed", "toPrecision", "toExponential"].includes(p)) out.push(p + " nicht erlaubt" + at);
+      if (p === "toString" && parent && parent.type === "CallExpression" && parent.callee === n && parent.arguments.length > 0) out.push("toString(radix) nicht erlaubt" + at);
+    }
   });
   return out;
 }

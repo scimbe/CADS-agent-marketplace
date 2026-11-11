@@ -15,6 +15,8 @@ export function modesOf(card) {
   const m = card.manifest;
   if (m.mode === "static") return ["link", "live"];
   const out = ["alone"];
-  if (m.players.max >= 2) out.push("bot", "link", "live");
+  // Bot und Live sprechen in D0 ein Zwei-Parteien-Protokoll (ein Partner); mehr Sitze erst mit Gruppen (KONZEPT §4)
+  if (m.players.max === 2) out.push("bot", "link", "live");
+  else if (m.players.max > 2) out.push("link");
   return out;
 }

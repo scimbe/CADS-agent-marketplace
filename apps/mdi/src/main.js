@@ -6,7 +6,7 @@ import { patch } from "./ui/dom.js";
 import { grow, shrink } from "./ui/motion.js";
 import { createStorage } from "./broker/storage.js";
 import { share, copy } from "./broker/share.js";
-import { loadPart } from "./broker/parts.js";
+import { loadLive } from "./broker/live-host.js";
 import { linkUrl } from "./ui/view.js";
 
 const root = document.getElementById("app");
@@ -18,7 +18,7 @@ function entropy() { const b = new Uint8Array(16); crypto.getRandomValues(b); re
 let lastDialog = null, lastDialogRect = null, opener = null;
 const rt = createRuntime({
   lang, entropy, storage: createStorage(),
-  live: () => loadPart("live"),
+  live: () => loadLive(),
   share: (fragment) => share(linkUrl(fragment), document.title),
   copy: (fragment) => copy(linkUrl(fragment)),
   clearUrl: () => { try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) { /* file:// in manchen Hosts */ } },

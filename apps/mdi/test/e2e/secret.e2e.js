@@ -80,3 +80,19 @@ test("Netz: live sieht der Kanal vor der Aufloesung weder Salz noch Karten", asy
   for (const m of msgs) assert.ok(m.length < 4096);
   assert.deepEqual([...A.errs, ...B.errs], []);
 });
+
+test("Realm-Trennung (Review M4): Webkonferenz-Modul, Socket und PeerConnection nur im abgeschotteten Rahmen; App-Realm ohne Netz", async () => {
+  const { liveInvite } = await import("./lib/scenarios.mjs");
+  const { A, B } = await liveInvite(b, { view: "phone390", lang: "de" }, "bluff");
+  await B.p.locator("main.s-card-play-wait, main.s-card-play-turn").first().waitFor({ timeout: 20000 });
+  for (const P of [A.p, B.p]) {
+    const main = await P.evaluate(() => ({ ws: typeof globalThis.__fakeWs, pc: typeof globalThis.__fakePc }));
+    assert.deepEqual(main, { ws: "undefined", pc: "undefined" }, "kein Socket/keine PeerConnection im App-Realm");
+    const frames = P.frames().filter((f) => f !== P.mainFrame());
+    assert.equal(frames.length, 1, "genau ein Live-Rahmen");
+    const fr = await frames[0].evaluate(() => ({ origin: self.origin, ws: typeof globalThis.__fakeWs, parent: (() => { try { return typeof parent.document; } catch (e) { return "gesperrt"; } })() }));
+    assert.deepEqual(fr, { origin: "null", ws: "object", parent: "gesperrt" }, "opaker Ursprung, kein Zugriff auf die App");
+    const net = await P.evaluate(() => fetch("https://webconference.bunsenbrenner.org/api/play/ice").then(() => "durch", () => "gesperrt"));
+    assert.equal(net, "gesperrt", "CSP des App-Realms: connect-src 'none'");
+  }
+});

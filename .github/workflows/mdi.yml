@@ -18,15 +18,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Keine Verweise auf den Altbaum in apps/mdi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Kein Token des Altbaums in apps/mdi und diesem Workflow (alle Dateiarten und Importformen)
+        run: node apps/mdi/scripts/legacy-check.js apps/mdi .github/workflows/mdi.yml
+      - name: Gegenprobe mit git grep (feste Zeichenkette, portabel; Herkunftsfelder der Fixtures prueft das Skript)
         run: |
-          if git grep -nE 'apps/duell-web|duell-web/dist|copy-duell\.sh|vendor/duell-web' -- apps/mdi ':!apps/mdi/package-lock.json'; then
-            echo "::error::apps/mdi verweist auf den Altbaum"; exit 1
-          fi
-      - name: Keine Importe aus duell-web
-        run: |
-          if git grep -nE "(from|import\(|require\()\s*['\"][^'\"]*duell-web" -- 'apps/mdi/*.js' 'apps/mdi/*.mjs'; then
-            echo "::error::Import aus dem Altbaum"; exit 1
+          T="duell""-web"
+          if git grep -n -i -F "$T" -- apps/mdi .github/workflows/mdi.yml ':!apps/mdi/test/fixtures/*.json'; then
+            echo "::error::Verweis auf den Altbaum"; exit 1
           fi
 
   test-build:

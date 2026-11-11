@@ -54,7 +54,8 @@ export function fakeLive() {
   const sides = {};
   let n = 0;
   const chain = (side, f) => { sides[side].q = sides[side].q.then(f).catch(() => {}); };
-  const push = (side, fn, arg) => chain(side, () => sides[side].page.evaluate(([f, a]) => window[f](a), [fn, arg]));
+  // Der Broker laeuft im abgeschotteten Rahmen: Antworten gehen an den Rahmen, aus dem der Aufruf kam
+  const push = (side, fn, arg) => chain(side, () => (sides[side].frame || sides[side].page.mainFrame()).evaluate(([f, a]) => window[f](a), [fn, arg]));
 
   async function bridge(route) {
     const req = route.request(), url = new URL(req.url()), m = req.method();
@@ -88,17 +89,17 @@ export function fakeLive() {
     const other = side === "a" ? "b" : "a";
     await ctx.route(WC + "/**", bridge);
     await page.addInitScript(PAGE_FAKES);
-    await page.exposeFunction("__edgeSend", (arr) => {
-      const s = sides[side];
+    await page.exposeBinding("__edgeSend", (src, arr) => {
+      const s = sides[side]; s.frame = src.frame;
       if (s.stage === 0) { s.stage = 1; const ch = new Array(32).fill(0).map((_, i) => (i * 7 + 3) & 255); push(side, "__wsIn", ch); return; }
       if (s.stage === 1) { s.stage = 2; push(side, "__wsIn", Array.from(Buffer.from("OK chan " + "ab".repeat(32) + "\n"))); for (const p of s.pending.splice(0)) push(side, "__wsIn", p); return; }
       wire.edge.push(Buffer.from(arr).toString("latin1"));
       const o = sides[other];
       if (o && o.stage === 2) push(other, "__wsIn", arr); else if (o) o.pending.push(arr);
     });
-    await page.exposeFunction("__rtcReady", () => { sides[side].rtc = true; if (sides[other] && sides[other].rtc) { push("a", "__rtcOpen", null); push("b", "__rtcOpen", null); } });
-    await page.exposeFunction("__dcSend", (s) => { wire.dc.push({ from: side, s }); if (sides[other]) push(other, "__dcIn", s); });
-    await page.exposeFunction("__dcClose", () => { if (sides[other]) push(other, "__dcDown", null); });
+    await page.exposeBinding("__rtcReady", (src) => { sides[side].frame = src.frame; sides[side].rtc = true; if (sides[other] && sides[other].rtc) { push("a", "__rtcOpen", null); push("b", "__rtcOpen", null); } });
+    await page.exposeBinding("__dcSend", (src, s) => { wire.dc.push({ from: side, s }); if (sides[other]) push(other, "__dcIn", s); });
+    await page.exposeBinding("__dcClose", () => { if (sides[other]) push(other, "__dcDown", null); });
   }
   return { attach, wire };
 }

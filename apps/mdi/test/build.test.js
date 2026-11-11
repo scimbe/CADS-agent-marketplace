@@ -7,6 +7,8 @@ import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { build } from "../scripts/build.js";
 import { generate } from "../scripts/gen.js";
+import { findLegacyRefs } from "../scripts/legacy-check.js";
+import os from "node:os";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.join(ROOT, "src"), DIST = path.join(ROOT, "dist");
@@ -46,6 +48,25 @@ test("CSP: strikt, ohne unsafe-inline/unsafe-eval; Hashes passen zu Skript und S
 });
 
 const DANGEROUS = /\binnerHTML\b|\bouterHTML\b|insertAdjacentHTML|document\.write|\beval\s*\(|new\s+Function\b|[^.\w]Function\s*\(|setTimeout\s*\(\s*["'`]/;
+test("Realm-Trennung (Review M4): App ohne Netz und ohne Fremdskript; Live nur im abgeschotteten Rahmen mit eigener CSP", () => {
+  const html = fs.readFileSync(path.join(DIST, "index.html"), "utf8");
+  const csp = /http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(html)[1];
+  assert.match(csp, /connect-src 'none'/);
+  assert.match(csp, /frame-src 'self'/);
+  assert.ok(!/https?:|'self'/.test(/script-src ([^;]+)/.exec(csp)[1]), "script-src nur Hash: " + csp);
+  const frames = fs.readdirSync(path.join(DIST, "parts")).filter((f) => /^live-frame\./.test(f));
+  assert.equal(frames.length, 1);
+  const fr = fs.readFileSync(path.join(DIST, "parts", frames[0]), "utf8");
+  const fcsp = /http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(fr)[1];
+  assert.match(fcsp, /default-src 'none'/);
+  assert.match(fcsp, /script-src 'sha256-[^']+' https:\/\/webconference\.bunsenbrenner\.org\/pkg\/ 'wasm-unsafe-eval'/);
+  const host = fs.readFileSync(path.join(SRC, "broker/live-host.js"), "utf8");
+  assert.match(host, /setAttribute\("sandbox", "allow-scripts"\)/, "Rahmen ohne allow-same-origin");
+  assert.ok(!/allow-same-origin/.test(host));
+  const js = /<script>([\s\S]*)<\/script>/.exec(html)[1];
+  assert.ok(!/ct_agent_wasm/.test(js), "App-Realm laedt das Webkonferenz-Modul nicht");
+});
+
 test("Kein innerHTML/eval/new Function – in Quellen und im Build", () => {
   for (const f of files(SRC, /\.js$/)) assert.ok(!DANGEROUS.test(fs.readFileSync(f, "utf8")), rel(f));
   for (const f of files(DIST, /\.(js|html)$/)) { const m = DANGEROUS.exec(fs.readFileSync(f, "utf8")); assert.equal(m, null, rel(f) + ": " + (m && m[0])); }
@@ -65,7 +86,7 @@ test("Genau EIN WebSocket und EINE RTCPeerConnection im ganzen Bundle, nur im Te
   const count = (re) => all.reduce((n, [, s]) => n + (s.match(re) || []).length, 0);
   assert.equal(count(/new WebSocket\(/g), 1);
   assert.equal(count(/new RTCPeerConnection\(/g), 1);
-  for (const [f, s] of all) if (/new (WebSocket|RTCPeerConnection)\(/.test(s)) assert.match(f, /parts[\\/]live\./);
+  for (const [f, s] of all) if (/new (WebSocket|RTCPeerConnection)\(/.test(s)) assert.match(f, /parts[\\/]live-frame\.[0-9a-f]+\.html$/);
   for (const [f, s] of all) assert.ok(!/["'`](stun|turns?):/.test(s), f);
   const src = files(path.join(SRC), /\.js$/).map((f) => fs.readFileSync(f, "utf8")).join("\n");
   assert.equal((src.match(/new WebSocket\(/g) || []).length, 1);
@@ -86,10 +107,30 @@ test("Kein Zustand in CSS (A2): keine :has()-Regeln, kein Ausblenden per Stil", 
   assert.ok(!/display\s*:\s*none|visibility\s*:\s*hidden/.test(css));
 });
 
-test("Keine Vermischung: nichts im neuen Baum verweist auf den Altbaum (CI no-legacy-refs)", () => {
-  const re = /apps\/duell-web|duell-web\/dist|copy-duell\.sh|vendor\/duell-web/;
-  for (const f of files(ROOT, /\.(js|json|html|css|md|yml)$/)) { if (rel(f) === "package-lock.json") continue; assert.ok(!re.test(fs.readFileSync(f, "utf8")), rel(f)); }
-  for (const f of files(ROOT, /\.js$/)) for (const m of fs.readFileSync(f, "utf8").matchAll(/(?:from\s+|import\s*\(\s*|require\s*\(\s*)["']([^"']+)["']/g)) assert.ok(!/duell-web/.test(m[1]), rel(f) + " importiert " + m[1]);
+test("Keine Vermischung: kein Token des Altbaums im neuen Baum und im Workflow (CI no-legacy-refs)", () => {
+  assert.deepEqual(findLegacyRefs(ROOT, path.join(ROOT, "../../.github/workflows/mdi.yml")), []);
+});
+
+test("Sperre erkennt alle Umgehungen aus dem Review (relativ, nackt, mehrzeilig, Template, readFileSync, Shell)", () => {
+  const T = "duell" + "-web";
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "mdi-legacy-"));
+  const samples = {
+    "src/a.js": 'import "../../../' + T + '/src/engine.js";',
+    "src/b.js": 'import x from\n  "../../../' + T + '/src/engine.js";',
+    "src/c.js": 'import fs from "fs"; fs.readFileSync(new URL("../../' + T + '/src/turns.js", import.meta.url));',
+    "src/d.js": 'export * from "../../' + T + '/src/x.js";',
+    "src/e.js": "const m = await import(`../../" + T + "/${n}.js`);",
+    "scripts/sync.sh": "cp ../" + T + "/src/turns.js src/",
+    "test/fixtures/x.json": JSON.stringify({ herkunft: "Altbaum " + T, wert: "../" + T + "/a" })
+  };
+  try {
+    for (const [f, s] of Object.entries(samples)) { fs.mkdirSync(path.dirname(path.join(tmp, f)), { recursive: true }); fs.writeFileSync(path.join(tmp, f), s); }
+    const hits = findLegacyRefs(tmp).map((h) => path.relative(tmp, h).replace(/\\/g, "/").replace(/:\d+$/, ""));
+    assert.deepEqual([...new Set(hits)].sort(), Object.keys(samples).sort(), "jede Umgehung wird gefunden, Herkunft allein nicht");
+    // Gegenprobe: die alte Regel (Pfadmuster) haette diese Faelle verfehlt
+    const old = new RegExp(["apps/" + T, T + "/dist", "copy-duell\\.sh", "vendor/" + T].join("|"));
+    assert.ok(Object.values(samples).filter((s) => old.test(s)).length === 0, "alte Regel war blind");
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
 test("Kopierte Fixtures tragen einen Herkunftsvermerk", () => {

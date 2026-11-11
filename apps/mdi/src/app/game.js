@@ -5,6 +5,30 @@ import { defaults } from "../contract/fields.js";
 import * as S from "../contract/session.js";
 import * as H from "../contract/handshake.js";
 import { decode } from "./link.js";
+import { stateHash } from "../contract/sdk.js";
+
+// ---------- Geraeteeintrag je Link-Partie (Review H1/M1) ----------
+// Jeder Sitz merkt sich den Stand, den er zuletzt kannte oder verschickt hat: Basis (Karte, Version, Parameter, Seed),
+// Commitments und Hash des Logs. Ein eingehender Link muss diesen Stand unveraendert fortsetzen und darf nur Zuege
+// anderer Sitze anhaengen; sonst wird er abgelehnt, bevor irgendetwas nachgespielt oder aufgedeckt wird.
+function baseHash(w) { return stateHash({ c: w.c, v: w.v, p: w.p, s: w.s }); }
+export function gameEntry(session, gameId) {
+  const seat = session.mine[0];
+  return { g: gameId, seat, salt: session.secrets[seat] || null, n: session.log.length, lh: stateHash(session.log), bh: baseHash(S.toWire(session)), k: session.commits.slice() };
+}
+export function continues(stored, w) {
+  if (!stored || typeof stored.lh !== "string" || !Array.isArray(stored.k)) return "manipuliert";
+  if (stored.bh !== baseHash(w)) return "manipuliert";
+  if (w.k.length !== stored.k.length) return "manipuliert";
+  for (let i = 0; i < w.k.length; i++) {
+    if (stored.k[i] !== null && w.k[i] !== stored.k[i]) return "manipuliert";
+    if (stored.k[i] === null && w.k[i] !== null && i === stored.seat) return "manipuliert";
+  }
+  if (w.m.length < stored.n) return "veraltet";
+  if (stateHash(w.m.slice(0, stored.n)) !== stored.lh) return "manipuliert";
+  if (w.m.slice(stored.n).some((x) => x.seat === stored.seat)) return "manipuliert";
+  return null;
+}
 
 export function card(ctx) { return cardOf(ctx.cardId); }
 export function paramsOf(ctx, id = ctx.cardId) { return (ctx.params && ctx.params[id]) || defaults(cardOf(id).manifest.params); }
@@ -96,7 +120,11 @@ export function receive(hash, stored, rand) {
   const w = d.data;
   try {
     let mine, secrets = {};
-    if (stored && stored.g === w.g) { mine = [stored.seat]; if (stored.salt) secrets[stored.seat] = stored.salt; }
+    if (stored && stored.g === w.g) {
+      const bad = continues(stored, w);
+      if (bad) return { ok: false, reason: bad };
+      mine = [stored.seat]; if (stored.salt) secrets[stored.seat] = stored.salt;
+    }
     else {
       const probe = S.fromWire(c, w, { mine: [] });
       const st = S.status(c, probe);
@@ -114,7 +142,7 @@ export function receive(hash, stored, rand) {
     if (w.h && S.pubHash(session) !== w.h) return { ok: false, reason: "abweichung" };
     const due = applyDue({ cardId: c.manifest.id, session });
     session = due.ctx.session;
-    return { ok: true, kind: "challenge", cardId: c.manifest.id, params: w.p, session, gameId: w.g, store: mine.length && secrets[mine[0]] ? { g: w.g, seat: mine[0], salt: secrets[mine[0]] } : (mine.length ? { g: w.g, seat: mine[0] } : null), revealed: due.out.length > 0 };
+    return { ok: true, kind: "challenge", cardId: c.manifest.id, params: w.p, session, gameId: w.g, revealed: due.out.length > 0 };
   } catch (e) {
     return { ok: false, reason: e.code || "zug-ungueltig" };
   }

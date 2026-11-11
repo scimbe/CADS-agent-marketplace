@@ -34,7 +34,7 @@ const de = {
     "nicht-deins": "Diese Partie gehört zu einem anderen Gerät.", abweichung: "Die beiden Geräte sehen nicht dasselbe Spiel. Die Partie stoppt.",
     "partner-weg": "Dein Partner ist nicht mehr da.", verbindung: "Die Verbindung kommt nicht zustande.", gone: "Die Einladung ist vorbei.",
     expired: "Die Einladung ist abgelaufen.", leer: "Der Link ist leer.", vorbei: "Die Partie ist schon vorbei.", "nicht-am-zug": "Ein Zug kam außer der Reihe.",
-    "zustand-zu-gross": "Die Partie ist zu groß geworden.", aufloesung: "Die Aufdeckung fehlt.", eingabe: "Ein Zug ist unvollständig.", commit: "Die Festlegung im Link ist ungültig."
+    "zustand-zu-gross": "Die Partie ist zu groß geworden.", manipuliert: "Dieser Link passt nicht zu deinem letzten Stand dieser Partie. Er wurde verändert.", veraltet: "Diesen Stand der Partie kennst du schon weiter. Öffne den neuesten Link.", aufloesung: "Die Aufdeckung fehlt.", eingabe: "Ein Zug ist unvollständig.", commit: "Die Festlegung im Link ist ungültig."
   }
 };
 const en = {
@@ -72,7 +72,7 @@ const en = {
     "nicht-deins": "This game belongs to another device.", abweichung: "The two devices do not see the same game. The game stops.",
     "partner-weg": "Your partner has left.", verbindung: "The connection does not come about.", gone: "The invite is over.",
     expired: "The invite has expired.", leer: "The link is empty.", vorbei: "The game is already over.", "nicht-am-zug": "A move came out of turn.",
-    "zustand-zu-gross": "The game has grown too big.", aufloesung: "The reveal is missing.", eingabe: "A move is incomplete.", commit: "The commitment in the link is invalid."
+    "zustand-zu-gross": "The game has grown too big.", manipuliert: "This link does not continue your last state of this game. It was changed.", veraltet: "You already know a later state of this game. Open the newest link.", aufloesung: "The reveal is missing.", eingabe: "A move is incomplete.", commit: "The commitment in the link is invalid."
   }
 };
 export const TEXTS = { de, en };

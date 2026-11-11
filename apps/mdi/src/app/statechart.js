@@ -110,13 +110,14 @@ export function createMachine(def, impl = {}) {
       if (plan.some((p) => p.exitSet.some((s) => exitSet.includes(s)))) continue;
       plan.push({ t, domain, exitSet });
     }
+    // raise wird VOR den Aktionen ausgewertet (Review M2): die Bedingung sieht den Kontext, der zum Ereignis fuehrte
+    const raised = plan.filter((p) => p.t.raise).map((p) => (typeof p.t.raise === "function" ? p.t.raise(ctx, ev) : { type: p.t.raise })).filter(Boolean);
     const exits = [...new Set(plan.flatMap((p) => p.exitSet))].sort(byOrder).reverse();
     for (const s of exits) { ctx = runActions(nodes.get(s).exit, ctx, ev, fx); active.delete(s); }
     for (const p of plan) ctx = runActions(p.t.actions, ctx, ev, fx);
     const enter = new Set();
     for (const p of plan) if (p.t.target) { addDesc(p.t.target, enter); addAnc(p.t.target, p.domain.region ? ROOT : p.domain.id, enter); }
     for (const s of [...enter].sort(byOrder)) { if (s === ROOT) continue; active.add(s); ctx = runActions(nodes.get(s).entry, ctx, ev, fx); }
-    const raised = plan.filter((p) => p.t.raise).map((p) => (typeof p.t.raise === "function" ? p.t.raise(ctx, ev) : { type: p.t.raise })).filter(Boolean);
     return { config: [...active].sort(byOrder), ctx, raised };
   }
 

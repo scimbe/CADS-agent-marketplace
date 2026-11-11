@@ -10,7 +10,9 @@ import { makeSecrets, newSession, playerCount, GameError } from "./session.js";
 export function finalSeed(seedA, nonce) { return sha256(seedA + "|" + nonce).slice(0, 32); }
 function others(card, q) { const out = []; for (let s = 0; s < playerCount(card); s++) if (s !== q) out.push(s); return out; }
 
+function seatOk(card, q) { return Number.isInteger(q) && q >= 0 && q < playerCount(card); }
 export function hello(card, params, q, rand) {
+  if (!seatOk(card, q)) throw new GameError("eingabe", "Sitz " + q);
   const seedA = rand[0];
   const { secrets, commits } = makeSecrets(card, [q], () => rand[1]);
   const msg = { t: "hello", c: card.manifest.id, v: card.manifest.version, p: params, q, sh: sha256(seedA), k: commits };
@@ -19,6 +21,8 @@ export function hello(card, params, q, rand) {
 
 export function join(card, hi, rand) {
   if (hi.c !== card.manifest.id || hi.v !== card.manifest.version) throw new GameError("version");
+  // Schema erlaubt q bis 7; die Karte bestimmt die Sitzzahl (Review LOW)
+  if (!seatOk(card, hi.q) || !Array.isArray(hi.k) || hi.k.length !== playerCount(card)) throw new GameError("eingabe", "Sitz/Commitments");
   const mine = others(card, hi.q), nonce = rand[0];
   const { secrets, commits } = makeSecrets(card, mine, () => rand[1]);
   const merged = hi.k.slice(); for (const s of mine) merged[s] = commits[s];
@@ -26,6 +30,7 @@ export function join(card, hi, rand) {
 }
 
 export function start(card, params, local, jn) {
+  if (!Array.isArray(jn.k) || jn.k.length !== playerCount(card)) throw new GameError("eingabe", "Commitments");
   const commits = local.commits.slice();
   for (let s = 0; s < commits.length; s++) if (!local.mine.includes(s)) commits[s] = jn.k[s] === undefined ? null : jn.k[s];
   const session = newSession(card, { params, seed: finalSeed(local.seedA, jn.n), mine: local.mine, secrets: local.secrets, commits });

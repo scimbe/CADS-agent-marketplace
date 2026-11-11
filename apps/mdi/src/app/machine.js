@@ -21,10 +21,11 @@ export const chart = {
         SHARE_FAIL: { actions: ["markShareFail"] },
         COPY: { actions: ["copyLink"] },
         COPY_FAIL: { actions: ["markCopyFail"] },
+        // Ein neuer Link ersetzt Lobby/Live-Partie ausdruecklich: laufender Raum wird geschlossen (Review M2)
         LINK: [
-          { target: T("inhalt.receive.live"), cond: "linkLive", actions: ["takeLink"] },
-          { target: T("inhalt.receive.show"), cond: "linkOk", actions: ["takeLink"] },
-          { target: T("inhalt.receive.reject"), actions: ["takeLink"] }
+          { target: T("inhalt.receive.live"), cond: "linkLive", actions: ["takeLink"], raise: "LEAVE" },
+          { target: T("inhalt.receive.show"), cond: "linkOk", actions: ["takeLink"], raise: "LEAVE" },
+          { target: T("inhalt.receive.reject"), actions: ["takeLink"], raise: "LEAVE" }
         ]
       },
       states: {
@@ -42,7 +43,7 @@ export const chart = {
                   { target: T("inhalt.card.play"), cond: "goBot", actions: ["startBot"] },
                   { target: T("inhalt.card.play"), cond: "goLocal", actions: ["startLocal"], raise: "SYNC" }
                 ],
-                BACK: T("inhalt.shelf")
+                BACK: { target: T("inhalt.shelf"), raise: "LEAVE" } // zum Regal: offener Raum (z. B. nach Live-Zeigen) schliesst
               }
             },
             customize: {
@@ -97,7 +98,7 @@ export const chart = {
         },
         receive: {
           initial: "show",
-          on: { BACK: { target: T("inhalt.shelf"), actions: ["dropIncoming"], raise: (ctx) => (ctx.incoming && ctx.incoming.kind === "live" ? { type: "LEAVE" } : null) } },
+          on: { BACK: { target: T("inhalt.shelf"), actions: ["dropIncoming"], raise: "LEAVE" } },
           states: {
             show: {
               on: {
@@ -107,7 +108,7 @@ export const chart = {
                 ]
               }
             },
-            reject: { on: { DONE: { target: T("inhalt.shelf"), actions: ["dropIncoming"] } } },
+            reject: { on: { DONE: { target: T("inhalt.shelf"), actions: ["dropIncoming"], raise: "LEAVE" } } },
             live: { on: { ACCEPT: { target: T("inhalt.receive.wait"), raise: (ctx) => ({ type: "JOIN_LIVE", token: ctx.incoming.token }) } } },
             wait: {
               on: {
@@ -127,7 +128,7 @@ export const chart = {
         einladen: { on: { LIVE_TOKEN: { actions: ["setToken"] }, LIVE_STEP: { actions: ["setStep"] }, LIVE_UP: T("raum.verbunden"), LIVE_FAIL: { target: T("raum.getrennt"), actions: ["setRaumError"] }, LEAVE: { target: T("raum.allein"), actions: ["fxClose"] } } },
         beitreten: { on: { LIVE_STEP: { actions: ["setStep"] }, LIVE_UP: T("raum.verbunden"), LIVE_FAIL: { target: T("raum.getrennt"), actions: ["setRaumError"] }, LEAVE: { target: T("raum.allein"), actions: ["fxClose"] } } },
         verbunden: { on: { LIVE_DOWN: T("raum.getrennt"), LEAVE: { target: T("raum.allein"), actions: ["fxClose"] } } },
-        getrennt: { on: { LEAVE: { target: T("raum.allein"), actions: ["fxClose"] }, INVITE: { target: T("raum.einladen"), cond: "raumErlaubt", actions: ["fxClose", "fxInvite"] } } }
+        getrennt: { on: { LEAVE: { target: T("raum.allein"), actions: ["fxClose"] }, INVITE: { target: T("raum.einladen"), cond: "raumErlaubt", actions: ["fxClose", "fxInvite"] }, JOIN_LIVE: { target: T("raum.beitreten"), cond: "raumErlaubt", actions: ["fxClose", "fxAccept"] } } }
       }
     },
     konto: {
@@ -197,12 +198,14 @@ export const actions = {
   markSent: (ctx) => ({ ...ctx, sent: true }),
   startLocal: (ctx, ev, emit) => safe(ctx, () => {
     const n = G.startLocal(ctx, ev.rand);
-    if (n.mode === "link") { const seat = n.session.mine[0]; emit({ type: "store", entry: { g: n.gameId, seat, salt: n.session.secrets[seat] } }); }
+    if (n.mode === "link") emit({ type: "store", entry: G.gameEntry(n.session, n.gameId) });
     return n;
   }),
   startBot: (ctx, ev, emit) => safe(ctx, () => {
     const r = G.helloFor(ctx, ev.rand);
-    emit({ type: "bot.new", seat: 1 - ctx.seat, level: ctx.level || 2 });
+    const n = G.card(ctx).manifest.players.max;
+    if (n !== 2) throw Object.assign(new Error("bot"), { code: "eingabe" }); // Bot ist ein Partner (2 Sitze)
+    emit({ type: "bot.new", seat: [0, 1].find((s) => s !== ctx.seat), level: ctx.level || 2 });
     emit({ type: "peer", msg: r.msg });
     return r.ctx;
   }),
@@ -223,11 +226,12 @@ export const actions = {
     return r.ctx;
   }),
   flipViewer: (ctx) => ({ ...ctx, viewer: G.gameStatus(ctx).turn }),
-  makeChallenge: (ctx) => { try { return { ...ctx, link: encode("challenge", G.challengeOf(ctx)) }; } catch (e) { return { ...ctx, link: null, error: e.code || "zu-lang" }; } },
-  makeChallengeIfPending: (ctx) => {
+  // Jeder erzeugte Link legt den eigenen Stand ab (Review H1): spaetere Links muessen ihn fortsetzen
+  makeChallenge: (ctx, ev, emit) => { try { const link = encode("challenge", G.challengeOf(ctx)); emit({ type: "store", entry: G.gameEntry(ctx.session, ctx.gameId) }); return { ...ctx, link }; } catch (e) { return { ...ctx, link: null, error: e.code || "zu-lang" }; } },
+  makeChallengeIfPending: (ctx, ev, emit) => {
     if (ctx.mode !== "link" || ctx.sent) return ctx;
     const log = ctx.session.log; if (!log.length || !ctx.session.mine.includes(log[log.length - 1].seat)) return { ...ctx, link: null };
-    try { return { ...ctx, link: encode("challenge", G.challengeOf(ctx)) }; } catch (e) { return { ...ctx, link: null }; }
+    try { const link = encode("challenge", G.challengeOf(ctx)); emit({ type: "store", entry: G.gameEntry(ctx.session, ctx.gameId) }); return { ...ctx, link }; } catch (e) { return { ...ctx, link: null }; }
   },
   endGame: (ctx) => ({ ...ctx, session: null, hs: null, error: null, link: null, sent: false }),
   peerGone: (ctx) => (ctx.session && G.gameStatus(ctx).over ? ctx : { ...ctx, error: "partner-weg" }),
@@ -235,13 +239,14 @@ export const actions = {
   takeLink: (ctx, ev, emit) => {
     const r = linkResult(ev);
     emit({ type: "url.clear" });
-    if (r.ok && r.store) emit({ type: "store", entry: r.store });
     return { ...ctx, incoming: r.ok ? r : null, reason: r.ok ? null : r.reason };
   },
   dropIncoming: (ctx) => ({ ...ctx, incoming: null, reason: null }),
   acceptCard: (ctx) => ({ ...ctx, cardId: ctx.incoming.cardId, params: { ...ctx.params, [ctx.incoming.cardId]: ctx.incoming.params }, mode: "link", seat: 0, session: null, note: "empfangen", incoming: null }),
-  acceptChallenge: (ctx) => {
+  // erst beim Annehmen wird gespeichert (Review LOW: nicht angenommene Links verdraengen keine Salze)
+  acceptChallenge: (ctx, ev, emit) => {
     const inc = ctx.incoming, seat = inc.session.mine.length ? inc.session.mine[0] : 0;
+    if (inc.session.mine.length) emit({ type: "store", entry: G.gameEntry(inc.session, inc.gameId) });
     return { ...ctx, cardId: inc.cardId, params: { ...ctx.params, [inc.cardId]: inc.params }, mode: "link", session: inc.session, gameId: inc.gameId, sent: false, error: null, viewer: seat, seat, incoming: null, link: null };
   },
   onHello: (ctx, ev, emit) => { const r = helloResult(ctx, ev); emit({ type: "peer", msg: r.msg }); return { ...r.ctx, mode: "live", incoming: null }; },
