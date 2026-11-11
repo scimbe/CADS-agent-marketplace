@@ -231,7 +231,10 @@ test("App-Huelle: Anmelden ueber die Konto-Bruecke (kein Gate, kein Cookie), Pro
   await act(p, "daten"); await p.locator('[data-k="mod-none"]').waitFor();
   await checks(p, "21-app-daten", found);
   await act(p, "logout");
-  await waitKonto(p, "anonym");
+  for (let i = 0; i < 200 && fw.state.bearers.size; i++) await p.waitForTimeout(25);
+  await p.locator('[data-act="logout"]').waitFor({ state: "detached" });
+  await act(p, "done"); await waitKonto(p, "anonym");
+  assert.ok(await p.locator('[data-act="login"]').count() === 1, "wieder anmeldbar");
   assert.equal(fw.state.bearers.size, 0, "Token bei der Huelle verworfen");
   assert.deepEqual(found, []); assert.deepEqual(errs, []);
   await ctx.close();
