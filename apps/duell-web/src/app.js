@@ -22,15 +22,21 @@ function onCol(h) {
   var y = 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2];
   return (y + 0.05) / 0.0556 >= 1.0092 / (y + 0.05) ? "#111111" : "#fffaf0";   // relative luminance: #111 0.0056, #fffaf0 0.9592
 }
-function setInk(a, b) {
-  var r = document.documentElement.style;
-  r.setProperty("--a", a); r.setProperty("--b", b); r.setProperty("--on", R.ink(a)); r.setProperty("--onb", onCol(b)); r.setProperty("--btn", R.lum(a) > 0.45 ? a : "#fffaf0");
-  var m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", a);
+// The app's colours (My style) sit on :root; a card's colours (card true) only on its own screens, so home, shelf and wall
+// keep the app's. The app's colours drop the last card's, and the browser bar follows the screen that is shown.
+var INKS = ["--a", "--b", "--on", "--onb", "--btn"];
+function setInk(a, b, card) {
+  (card ? ["editor", "done", "game"].map($) : [document.documentElement]).forEach(function (x) {
+    [a, b, R.ink(a), onCol(b), R.lum(a) > 0.45 ? a : "#fffaf0"].forEach(function (v, i) { x.style.setProperty(INKS[i], v); });
+  });
+  if (!card) ["editor", "done", "game"].forEach(function (s) { INKS.forEach(function (p) { $(s).style.removeProperty(p); }); });
+  barInk();
 }
+function barInk() { var m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", getComputedStyle($(screen)).getPropertyValue("--a").trim()); }
 function show(name, push) {
   ["home", "editor", "done", "shelf", "game"].forEach(function (s) { $(s).hidden = s !== name; });
   if (name !== "home") G.stopDemo();
-  screen = name; document.body.setAttribute("data-state", name === "game" ? "ready" : name);
+  screen = name; barInk(); document.body.setAttribute("data-state", name === "game" ? "ready" : name);
   if (push) { try { history.pushState({ s: name }, "", location.href); } catch (e) {} }
 }
 function clearLink() { try { if (location.hash) history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
@@ -393,7 +399,7 @@ var TABS = {}, PANEL = {};
 var cv = $("stage"), timer = 0, notoAsked = false;
 function paint() {
   timer = 0; if (!ed) return;
-  ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1]);
+  ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1], true);
   if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks, x: ed.x, lyr: ed.lyr }); }
   // The first sticker in the editor (added, or in a doc that came in) asks for noto, so the picture need not wait for it.
   if (!notoAsked && ed.doc.sk && ed.doc.sk.length && window.Parts.names().indexOf("noto") >= 0) { notoAsked = true; window.Parts.need("noto").catch(function () {}); }
