@@ -1064,6 +1064,8 @@ function route() {
   // The call card ("Ruf mich an, wenn du mich wirklich kennst", #p=<invite>&k=<card>) was struck with the shelf clean-up
   // (2026-11, konzept2 section 4): it only ever worked while its maker waited, so an old one says honestly that it is gone.
   if (/^#?p=[A-Za-z0-9_-]{40,1024}&k=[A-Za-z0-9_-]{1,1500}$/.test(location.hash)) { clearLink(); home = dayHome(); goHomeKeep(); window.DailyShelfOpen = true; if (window.StartUI && window.StartUI.all) window.StartUI.all(true); Kit.toast(t("cardGone"), 8000); return true; }
+  // #aufladen (tools, the AI picture's hint, any link): the Guthaben view over the sheet, the address stays clean
+  if (location.hash === "#aufladen") { clearLink(); if (screen === "home") goHomeKeep(); window.Guthaben.open({ from: "link" }); return true; }
   if (CU.route(location.hash)) { clearLink(); if (screen !== "editor") goHomeKeep(); return true; }
   var live = location.hash.match(/^#live=([A-Za-z0-9_-]{22})(?:&g=([a-z]{2,12}))?$/);
   if (live && window.LiveUI) { history.replaceState(null, "", location.pathname); window.LiveUI.accept(live[1], live[2]); }

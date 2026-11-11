@@ -69,6 +69,9 @@
   // of a free card (doc.ki.k "karte") loads the part, which reports a use (login only) and marks a revoked seal.
   // A build without the part (the business app): every call stays quiet, see stand().
   // seen() of any sheet loads the part (on the web it comes when the page is idle anyway); deck.js looks only at free cards.
+  // The Guthaben view (credit and voucher, create-ui.js in the part erschaffen): open() from the account card, #aufladen and
+  // other parts; it loads the part on the first call. A build without the free card (the business app) stays quiet.
+  stand("erschaffen", "Guthaben", ["open"]);
   var dk = stand("deck", "Deck", ["shelf", "load", "seen", "btn"], {
     hits: function () { return 0; },
     // gate(): a free card (or a remix, doc.fr) opens only once the part has asked the server; without the part it stays closed
