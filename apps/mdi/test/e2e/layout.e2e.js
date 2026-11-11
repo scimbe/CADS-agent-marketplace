@@ -29,7 +29,7 @@ const covered = (p) => p.evaluate(async () => {
 for (const view of ["phone360", "phone390", "phone412", "desk1280"]) {
   test("kein Bedienelement verdeckt: " + view, async () => {
     const bad = [];
-    const errs = await visitAll(b, { view }, async (name, p) => { for (const x of await covered(p)) bad.push(name + ": " + x); });
+    const errs = await visitAll(b, { view, lang: "de", scheme: "light" }, async (name, p) => { for (const x of await covered(p)) bad.push(name + ": " + x); });
     assert.deepEqual(bad, []);
     assert.deepEqual(errs, []);
   });
