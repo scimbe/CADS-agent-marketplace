@@ -29,3 +29,11 @@
 | 2026-11-11 | Verdeckte Information: Geber dürfen Geräte (P2P) und Server sein | User: „Die Geräte und server“ |
 | 2026-11-11 | Raum und Kontakte nur mit Anmeldung | User: „nur mit anmeldung“ (Auslegung: Raum braucht Konto; Kontakte gehören zum Konto) |
 | 2026-11-11 | Fotos: Nutzer entscheidet je Teilen, ob ein Foto mitreist (Standard: bleibt auf dem Gerät) | User: „man kann es entscheiden“ (Auslegung) |
+| 2026-11-11 | /duell bleibt beim Neuentwurf, kein Rollback auf die alte App bis zur Parität | User: „1 Nein“ |
+| 2026-11-11 | Volles Feature-Set der alten App ist Ziel (Spiele, beste Karten, freie Karte, Konto/Login) | User: „Das Feature Set sollte schon erreicht werden“ |
+| 2026-11-11 | Design-Teile der alten App, die zur Zielgruppe passten, übernehmen (vor P3 gezielt sichten) | User: „die alte app hatte in Teilen ein angemessener Design für die Zielgruppe“ |
+| 2026-11-11 | „Beste Karten“ ohne Nutzungszahlen vom Live-System bestimmen | User: „2. Nein“ |
+| 2026-11-11 | Adventskalender: Türchen gestaltet der Nutzer selbst | User: „So daß Nutzer sich die Türchen selbst gestalten können“ |
+| 2026-11-11 | Thumbnails im Format 16:9 | User: „16:9 Format“ |
+| 2026-11-11 | Spiele bleiben im Umfang: Flipper, Flappy-artiger Flug, Skat, Doppelkopf u. a. | User: „Flipper, flappy bird und Co, wie skat, Doppelkopf … auch gut“ |
+| 2026-11-11 | Freie Karten sollen auch völlig neue Spiele erzeugen können (nicht nur Genres G1/G2) | User: „freie Karten auch völlig neue Spiele erzeugen können“ |
