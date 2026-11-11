@@ -68,20 +68,24 @@
     S.reject = function () { S.rejected++; return false; };
     // A stall as this phone saw it: the gap between two arrivals on its own clock (the sender's clock could be faked).
     // For the burst that follows it (half a second), what the other one did during the gap may arrive at once.
-    S.lastIn = null; S.burst = { len: 0, at: -1 };
+    S.lastIn = null; S.burst = { len: 0, at: -1 }; S.pause = { len: 0, at: -1 };
     S.heard = function () {
       var now = S.clock();
       if (S.lastIn !== null && now - S.lastIn > 0.3) S.burst = { len: Math.min(now - S.lastIn, STALL_MAX), at: now };
+      if (S.lastIn !== null && now - S.lastIn > 2 * NET_P) S.pause = { len: Math.min(now - S.lastIn, STALL_MAX), at: now };   // shorter ones too
       S.lastIn = now;
     };
     S.stall = function () { return S.clock() - S.burst.at < 0.5 ? S.burst.len : 0; };
+    S.gap = function () { return S.clock() - S.pause.at < 0.5 ? S.pause.len : 0; };   // any gap over two report beats
     return S;
   }
   function loop(S, dt, sub) {
     if (S.over) return;
     if (S.ending) { S.finWait(Math.min(dt, 0.25)); return; }   // frozen until the other phone's last word
-    dt = Math.min(dt, 0.25);
-    while (dt > 1e-9) { var d = Math.min(STEP, dt); dt -= d; S.t += d; sub(d); if (S.over || S.ending) break; }
+    // Whole steps only; the rest of a frame waits for the next one. So every phone runs the very same steps whatever its
+    // frame rate, and the other one can work out a flight, a bounce on the net or a bump exactly as it happened here.
+    S.acc = (S.acc || 0) + Math.min(dt, 0.25);
+    while (S.acc > STEP - 1e-9) { S.acc -= STEP; S.t += STEP; sub(STEP); if (S.over || S.ending) break; }
   }
   function report(S, sendP, sendSt) {
     if (S.t - S.sentP >= NET_P) { S.sentP = S.t; sendP(); }
@@ -290,6 +294,9 @@
 
   // ======================= Netz-Volley: side view, a figure on each side of the net, ball with gravity =======================
   var VOLLEY = { id: "volley", WIN: 5, serves: true, FY: H - 150, BR: 46, PRAD: 78, G: 1350, PG: 2900, JUMP: 1280, VMOVE: 950, NX: W / 2, NW: 12, NT: H - 150 - 330, VMAX: 1700, VMIN: 720 };
+  // How fast a figure really walks: VMOVE over a finger frame of 0.016 s, in every 1/120 s step (1824 a second). An
+  // older app also stepped the short rest of a frame that way, so on a phone it walked up to half as fast again.
+  VOLLEY.FIG = VOLLEY.VMOVE * 0.016 / STEP; VOLLEY.FIG_OLD = VOLLEY.FIG * 1.5;
   function volleyServe(seed, n) { var u = unit(seed, "volley|serve|" + n); return { x: 230 + (u - 0.5) * 140, y: VOLLEY.FY - 760, vx: 0, vy: 0 }; }
   // Gravity, side walls, ceiling, and the net (a post with a round top). Returns "net" or "wall" when it bounced.
   function volleyStep(b, dt) {
@@ -327,10 +334,67 @@
     var s = speed(b); if (s < V.VMIN) { b.vx *= V.VMIN / s; b.vy *= V.VMIN / s; }
     cap(b, V.VMAX); return true;
   }
-  function plausibleFigure(prev, m, dt) {
-    var V = VOLLEY, ground = V.FY - V.PRAD;
-    return { x: clamp(reach(prev.x, m.x, dt, V.VMOVE * 1.25), V.NX + V.NW + V.PRAD, W - V.PRAD), y: clamp(m.y, ground - 340, ground) };
+  // The speed volleyBump gives a ball moving at (vx, vy) that meets a figure moving at (fvx, fvy) along the normal n:
+  // the same arithmetic, without the position.
+  function bumpV(vx, vy, nx, ny, fvx, fvy) {
+    var V = VOLLEY, rv = (vx - fvx) * nx + (vy - fvy) * ny;
+    if (rv < 0) { vx -= 2 * rv * nx; vy -= 2 * rv * ny; }
+    vx += fvx * 0.25;
+    if (vy > -500) vy = -500;
+    var s = Math.hypot(vx, vy); if (s < V.VMIN) { vx *= V.VMIN / s; vy *= V.VMIN / s; s = V.VMIN; }
+    if (s > V.VMAX) { vx *= V.VMAX / s; vy *= V.VMAX / s; }
+    return [vx, vy];
   }
+  // How far a ball speed (tx, ty) after a bump is from the nearest one a figure could give: a ball at (vx, vy) before,
+  // normal n, the figure's speed anywhere in box [vx lo, hi, vy lo, hi]. The bump is linear in the figure's speed until
+  // its clamps (upwards at least 500, at least VMIN, at most VMAX); so each speed the clamps could have turned into
+  // (tx, ty) is solved for directly, and only a sideways normal (no unique solution) is searched.
+  function bumpFit(vx, vy, nx, ny, tx, ty, box) {
+    var V = VOLLEY, best = Infinity, ba = 0, bc = 0;
+    function tryAC(a, c) {
+      a = clamp(a, box[0], box[1]); c = clamp(c, box[2], box[3]);
+      var r = bumpV(vx, vy, nx, ny, a, c), e = Math.hypot(r[0] - tx, r[1] - ty); if (e < best) { best = e; ba = a; bc = c; }
+    }
+    var s = Math.hypot(tx, ty) || 1, ux = tx / s, uy = ty / s, list = [], m;
+    function add(x, y) { list.push([x, y]); if (Math.abs(y + 500) < 1.5) for (var t = -450; t <= 2500; t += 150) list.push([x, t]); }
+    add(tx, ty);
+    if (Math.abs(s - V.VMAX) < 1.5) { for (m = V.VMAX; m <= 3 * V.VMAX; m += 100) add(ux * m, uy * m); if (uy < 0 && -500 / uy >= V.VMAX) add(-500 * ux / uy, -500); }
+    if (Math.abs(s - V.VMIN) < 1.5) { for (m = 500; m <= V.VMIN; m += 20) add(ux * m, uy * m); if (uy < 0 && -500 / uy <= V.VMIN) add(-500 * ux / uy, -500); }
+    var k = vx * nx + vy * ny, ox = vx - 2 * k * nx, oy = vy - 2 * k * ny, A = 2 * nx * nx + 0.25, B = 2 * nx * ny, D = 2 * ny * ny, det = A * D - B * B;
+    for (var i = 0; i < list.length; i++) {
+      var x2 = list[i][0], y2 = list[i][1];
+      if (Math.abs(det) > 1e-4) tryAC(((x2 - ox) * D - B * (y2 - oy)) / det, (A * (y2 - oy) - B * (x2 - ox)) / det);   // it bounced off
+      var a = 4 * (x2 - vx); tryAC(a, box[2]); tryAC(a, 0); tryAC(a, box[3]);                                          // it did not
+      // one of the two speeds at a bound of the box (a figure standing, or at full speed), the other one solved from x
+      var cs = [box[2], 0, box[3]], as = [box[0], 0, box[1]];
+      for (var j = 0; j < 3; j++) {
+        tryAC((x2 - ox - cs[j] * B) / A, cs[j]);
+        if (Math.abs(B) > 1e-6) tryAC(as[j], (x2 - ox - as[j] * A) / B);
+        if (Math.abs(D) > 1e-6) tryAC(as[j], (y2 - oy - as[j] * B) / D);
+      }
+    }
+    if (best > 1 && Math.abs(det) <= 0.02) {   // a sideways normal (no unique solution): search around the best so far
+      for (var ia = 0; ia <= 8; ia++) for (var ic = 0; ic <= 8; ic++) tryAC(box[0] + (box[1] - box[0]) * ia / 8, box[2] + (box[3] - box[2]) * ic / 8);
+      for (var h = Math.max(box[1] - box[0], box[3] - box[2]) / 8; h > 0.5; h /= 2) {
+        var a0 = ba, c0 = bc; for (var da = -1; da <= 1; da++) for (var dc = -1; dc <= 1; dc++) tryAC(a0 + da * h, c0 + dc * h);
+      }
+    }
+    return best;
+  }
+  function plausibleFigure(prev, m, dt, vmax) {
+    var V = VOLLEY, ground = V.FY - V.PRAD;
+    return { x: clamp(reach(prev.x, m.x, dt, vmax), V.NX + V.NW + V.PRAD, W - V.PRAD), y: clamp(m.y, ground - 340, ground) };
+  }
+  // Until OLD_UNTIL an app from before the touching figure and the game time were sent along (no fx, no gt) still has
+  // its moves taken as it made them: its figure walked up to FIG_OLD, the short rest of a frame gave its bump any push,
+  // and its bigger frame steps bounce off the net where this one does not. So for it only where the ball and its
+  // figure met counts, not how - no better guarded than before these checks. From OLD_UNTIL on its moves must fit the
+  // same bounds as everyone's. The Android app bundles this page and does not update itself (0.3.4/0.3.5 have the
+  // older moves), so OLD_UNTIL is set only with the Android release that carries these checks: its release date plus
+  // two weeks (as Date.UTC(...), in the commit that raises versionName). Until then null: no end to the period.
+  var OLD_UNTIL = null;
+  var OLD_SLACK = 10, OLD_NET = 130;   // its reach a little further (frames up to 34 ms); off the net only within 130 of the path
+  var HIT_T = 0.1, GT_LEAD = 0.6;   // seconds from the last position report to a hit, at most: a report beat and a frame at 30 fps
   var VFALL = Math.sqrt(VOLLEY.VMAX * VOLLEY.VMAX + 2 * VOLLEY.G * VOLLEY.FY);   // a ball may fall faster than any hit sends it
   // slack: how far the figure may have walked since its last report arrived here (a phone that hung reports late).
   function plausibleVolley(kind, b, opp, slack) {
@@ -340,7 +404,108 @@
     return kind !== "hit" || Math.hypot(b.x - opp.x, b.y - opp.y) <= V.BR + V.PRAD + 260 + (slack || 0);
   }
   function volleySide(o) {
-    var V = VOLLEY, S = base(V, o), aim = 250, jump = false, ground = V.FY - V.PRAD, pAt = null;
+    var V = VOLLEY, S = base(V, o), aim = 250, jump = false, ground = V.FY - V.PRAD, pAt = null, path = [], fxSeen = false;
+    var until = num(o.oldUntil) ? o.oldUntil : OLD_UNTIL;   // o.oldUntil, o.date: a test sets the end of the period and the day
+    var oldOk = until === null || (num(o.date) ? o.date : Date.now()) < until;
+    function lax() { return oldOk && !fxSeen && !gtSeen; }   // the other one may be an older app
+    // From every state of the ball the other phone moves, this one works out its free flight for the next seconds with
+    // the same physics. A state from over there has to lie on that path (a hit only near it, and in reach of the
+    // reported figure): no clock is needed, so none can be faked, and late or early arrival does not matter.
+    function along(b, dPos, dVel, from) {
+      if (from === undefined) from = 0;
+      for (var i = path.length - 1; i >= from; i--) {
+        var q = path[i];
+        if (Math.abs(q.x - b.x) <= dPos && Math.abs(q.y - b.y) <= dPos && (dVel === null || (Math.abs(q.vx - b.vx) <= dVel && Math.abs(q.vy - b.vy) <= dVel))) return true;
+      }
+      return false;
+    }
+    // A hit from over there has to be one a figure could make, the same with or without the touching figure sent along:
+    // the ball before it lies on the free flight worked out here (q), the ball after it sits right on the figure's
+    // body along the normal n, the figure is in reach of its last report, and the new speed follows from the bump for
+    // a figure speed a figure can have (walking at most VMOVE, up or down as fast as its height allows). With the
+    // figure sent (F), n comes from it; without, every normal the flight allows is tried, which is what a sender could
+    // pick by naming F anyway. Tolerances: rounding of F and the substeps of the sender's frames.
+    var RB = V.BR + V.PRAD, TQ = 4, TV = 30;
+    function figBox(f, laxA) {
+      // an older app's bigger frame steps carry its jump higher (up to the 340 its reports are kept within)
+      var h = ground - f.y; if (h < -1.5 || h > (laxA ? 340 : 300) || f.x < V.NX + V.NW + V.PRAD - 2 || f.x > W - V.PRAD + 2) return null;
+      var cm = h < 0.75 ? 20 : Math.sqrt(Math.max(0, V.JUMP * V.JUMP - 2 * V.PG * Math.max(0, h - 12))) + 40;   // standing: not moving up or down
+      var am = laxA ? 1e5 : V.FIG * 1.02; return [-am, am, -cm, cm];
+    }
+    // ok(f): a further condition on where the figure stood (the check with its next report). True if some place fits.
+    function hitFits(b, F, opp, rx, ry, laxA, path, ok) {
+      // an older app's flight depends on its frame rate (most of all after the net top): wider bounds for it until OLD_UNTIL
+      var qs = [], i, j, q, fv = Math.hypot(laxA ? V.FIG_OLD : V.FIG, V.JUMP), tq = laxA ? (path.near !== undefined ? 30 : 10) : TQ, tv = laxA ? (path.near !== undefined ? 90 : 45) : TV;
+      for (i = 0; i < path.length; i++) for (j = 0; j < (i + 1 < path.length ? 4 : 1); j++) {   // the flight, in quarter substeps
+        var p0 = path[i], p1 = path[i + 1] || p0, u = j / 4;
+        q = { x: p0.x + (p1.x - p0.x) * u, y: p0.y + (p1.y - p0.y) * u, vx: p0.vx + (p1.vx - p0.vx) * u, vy: p0.vy + (p1.vy - p0.vy) * u };
+        if (i > 0) { var pp = path[i - 1]; q.px = pp.x + (p0.x - pp.x) * u; q.py = pp.y + (p0.y - pp.y) * u; }   // one step before
+        if (Math.hypot(b.x - q.x, b.y - q.y) <= RB + tq) qs.push(q);
+      }
+      if (!qs.length) return false;
+      function tryN(nx, ny, onlyQ) {
+        var f = { x: b.x - RB * nx, y: b.y - RB * ny };
+        if (Math.abs(f.x - opp.x) > rx || Math.abs(f.y - opp.y) > ry || (ok && !ok(f))) return false;
+        var box = figBox(f, laxA); if (!box) return false;
+        if (laxA) return true;
+        for (var k = 0; k < qs.length; k++) {
+          var c = qs[k]; if (onlyQ && c !== onlyQ) continue;
+          var dx = b.x - c.x, dy = b.y - c.y, al = dx * nx + dy * ny;
+          // q inside the figure on the line along n; a step before it was not touching it yet (unless the flight only
+          // starts there, after a hand-over or a hit), so it went in only as deep as one step brings the two together
+          if (Math.abs(dx * ny - dy * nx) > tq || al < -tq || al > RB + tq) continue;
+          if (c.px !== undefined && Math.hypot(c.px - f.x, c.py - f.y) < RB - fv * STEP - tq) continue;
+          if (bumpFit(c.vx, c.vy, nx, ny, b.vx, b.vy, box) <= tv) return true;
+        }
+        return false;
+      }
+      // An older app's bump depends on its frame rate (its figure takes uneven steps, and a bump and a bounce off the
+      // net can fall into one frame): until OLD_UNTIL only where it touched counts for it - its figure in reach, RB from
+      // the ball, near the flight - and what holds at any frame rate: the ball leaves upwards and lively (volleyBump).
+      // With fx and gt the bump has to follow from ball and figure.
+      if (laxA) {
+        var sb = speed(b); if (!(b.vy < 0 && (b.vy <= -499 || sb >= V.VMAX * 0.99) && sb >= V.VMIN * 0.99 && sb <= V.VMAX * 1.01)) return false;
+        for (i = 0; i < 1571; i++) if (tryN(Math.cos(i * 0.004), Math.sin(i * 0.004), null)) return true;
+        return false;
+      }
+      if (F) {
+        var d = Math.hypot(b.x - F.x, b.y - F.y); if (!d || Math.abs(d - RB) > 1.5) return false;
+        var n0 = Math.atan2(b.y - F.y, b.x - F.x);
+        for (i = -1; i <= 1; i++) if (tryN(Math.cos(n0 + i * 0.006), Math.sin(n0 + i * 0.006), null)) return true;
+        return false;
+      }
+      for (i = 0; i < qs.length; i++) {
+        q = qs[i]; var dq = Math.hypot(b.x - q.x, b.y - q.y); if (dq > RB + tq) continue;
+        var t0 = Math.atan2(b.y - q.y, b.x - q.x), w = dq <= tq ? Math.PI : Math.asin(tq / dq), st = 0.004;
+        for (var k = 0; k * st <= w + 1e-9; k++) {   // from the likeliest normal outwards
+          if (tryN(Math.cos(t0 + k * st), Math.sin(t0 + k * st), q)) return true;
+          if (k && tryN(Math.cos(t0 - k * st), Math.sin(t0 - k * st), q)) return true;
+        }
+      }
+      return false;
+    }
+    // The next position report checks a hit once more: the figure had to get from its report before the hit through
+    // the place it touched the ball to its report after it, in no more time than lies between two reports (plus what a
+    // stall measured here adds). So it cannot be named anywhere in reach and then still be reported where it was.
+    var pend = null;
+    function laterFits(now) {
+      if (!pend) return true;
+      var P = pend; pend = null;
+      var w = lax() ? Math.hypot(V.FIG_OLD, V.JUMP) * 1.25 * S.gap() + OLD_SLACK : 0, lx = (lax() ? V.FIG_OLD : V.FIG) * HIT_T + 4 + w, ly = V.JUMP * HIT_T + 4 + w;
+      return hitFits(P.b, P.F, P.from, P.rx, P.ry, P.laxA, P.path, function (f) {
+        return Math.abs(f.x - P.from.x) + Math.abs(now.x - f.x) <= lx && Math.abs(f.y - P.from.y) + Math.abs(now.y - f.y) <= ly;
+      });
+    }
+    function keep(b) {
+      var q = { x: b.x, y: b.y, vx: b.vx, vy: b.vy }; path = [copy(q)];
+      // near: from where the flight touches the net or passes within 40 px of it (an older app's bigger frame steps may
+      // touch it there, or miss it where this one does)
+      for (var i = 0; i < 120 * (STALL_MAX + 2) && q.y + V.BR < V.FY + 60; i++) {
+        if (volleyStep(q, 1 / 120) === "net" && path.net === undefined) path.net = i + 1;
+        if (path.near === undefined && Math.hypot(q.x - V.NX, Math.min(0, q.y - V.NT)) < V.NW + V.BR + 40) path.near = i + 1;
+        path.push(copy(q));
+      }
+    }
     S.st = { b: null, own: false, held: false, me: { x: 250, y: ground, vx: 0, vy: 0 }, opp: { x: W - 250, y: ground } };
     S.input = function (i) { if (!i) return; if (num(i.x)) aim = i.x; if (i.jump) jump = true; };
     function serve() { var st = S.st; st.b = volleyServe(S.seed, S.n); st.own = true; st.held = false; S.send({ t: "serve", n: S.n, b: mirrorX(st.b) }); S.n++; S.serveAt = 0; S.fx("serve", st.b.x, st.b.y); }
@@ -354,27 +519,72 @@
         var b = st.b; if (!b || st.held) return;
         if (st.own) {
           var w = volleyStep(b, d); if (w) S.fx(w, b.x, b.y);
-          if (volleyBump(b, st.me)) { S.send({ t: "hit", b: mirrorX(b) }); S.fx("hit", b.x, b.y, { v: speed(b) }); }
+          if (volleyBump(b, st.me)) { S.send({ t: "hit", b: mirrorX(b), fx: Math.round(W - st.me.x), fy: Math.round(st.me.y), gt: Math.round(S.t * 1000) }); S.fx("hit", b.x, b.y, { v: speed(b) }); }   // with where and when the figure touched it
           if (b.y + V.BR >= V.FY) { st.b = null; S.concede(b.x, V.FY); return; }
-          if (b.x > V.NX) { st.own = false; S.send({ t: "pass", b: mirrorX(b) }); }
+          if (b.x > V.NX) { st.own = false; S.send({ t: "pass", b: mirrorX(b) }); keep(b); }
         } else {
           volleyStep(b, d);
           if (b.x <= V.NX && b.vx < 0) { b.x = V.NX; st.held = true; }                    // handed over; wait for it
           if (b.y + V.BR >= V.FY) { b.y = V.FY - V.BR; st.held = true; }                 // the other phone counts it
         }
       });
-      report(S, function () { S.send({ t: "p", x: Math.round(W - st.me.x), y: Math.round(st.me.y) }); }, st.own && st.b ? function () { S.send({ t: "st", b: mirrorX(st.b) }); } : null);
+      report(S, function () { S.send({ t: "p", x: Math.round(W - st.me.x), y: Math.round(st.me.y), gt: Math.round(S.t * 1000) }); }, st.own && st.b ? function () { S.send({ t: "st", b: mirrorX(st.b) }); } : null);
     };
+    // The other figure's game time (gt, sent along since this check exists): its reports and hits must follow each other
+    // no faster than a figure walks and jumps in the game time between them, so it can be named only where it could be.
+    // A sender could set its game clock ahead to gain time: here its lead over this phone's clock may grow by GT_LEAD in
+    // all (an honest one grows only as much as the network's delay varies); beyond that its time is cut back.
+    var trk = null, gtOff = null, gtLead = GT_LEAD, gtLast = -Infinity, gtSeen = false;
+    function gtime(m) {
+      var g = m.gt / 1000, d = g - S.clock(); gtSeen = true;
+      if (gtOff === null) gtOff = d;
+      else if (d > gtOff) { var ex = Math.min(d - gtOff, gtLead); gtLead -= ex; gtOff += ex; g = Math.min(g, S.clock() + gtOff); }
+      g = Math.max(g, gtLast); gtLast = g; return g;
+    }
+    function walkable(a, x, y, g) { var t = g - a.g; return Math.abs(x - a.x) <= V.FIG * t + 4 && Math.abs(y - a.y) <= (V.JUMP + 30) * t + 4; }
     S.receive = function (m) {
       var st = S.st; if (!m || S.over) return;
-      if (m.t === "p" && num(m.x) && num(m.y)) { pAt = S.clock(); st.opp = plausibleFigure(st.opp, m, S.oppDt(Math.abs(m.x - st.opp.x), V.VMOVE * 1.25)); return; }
+      S.heard();
+      if (m.t === "p" && num(m.x) && num(m.y)) {
+        pAt = S.clock(); var vf = (lax() ? V.FIG_OLD : V.FIG) * 1.25; st.opp = plausibleFigure(st.opp, m, S.oppDt(Math.abs(m.x - st.opp.x), vf), vf);
+        if (num(m.gt)) {
+          var g = gtime(m), px = clamp(m.x, V.NX + V.NW + V.PRAD, W - V.PRAD), py = clamp(m.y, ground - 340, ground);
+          // from its last report, or from where it touched the ball since, in the game time between
+          if (trk && !walkable(trk, px, py, g)) {   // faster than a figure: kept where it could have got to
+            S.reject(); var t = g - trk.g;
+            px = clamp(px, trk.x - V.FIG * t, trk.x + V.FIG * t); py = clamp(py, trk.y - (V.JUMP + 30) * t, trk.y + (V.JUMP + 30) * t);
+          }
+          trk = { x: px, y: py, g: g };
+        } else if (!laterFits(st.opp)) S.reject();
+        return;
+      }
       if (m.t === "pt") { st.b = null; st.own = false; S.gain(); return; }
-      if (m.t === "serve" && num(m.n)) { if (!same(m.b, mirrorX(volleyServe(S.seed, m.n)))) return S.reject(); st.b = copy(m.b); st.own = false; st.held = false; S.n = m.n + 1; return; }
+      if (m.t === "serve" && num(m.n)) { if (!same(m.b, mirrorX(volleyServe(S.seed, m.n)))) return S.reject(); st.b = copy(m.b); st.own = false; st.held = false; S.n = m.n + 1; keep(st.b); return; }
       if (m.t === "hit" || m.t === "st" || m.t === "pass") {
         if (st.own) return;
-        var walked = pAt === null ? 0 : V.VMOVE * 1.25 * Math.min(STALL_MAX, Math.max(0, S.clock() - pAt - NET_P));   // measured here
+        // How far the figure may have got since its report: only after a real gap in all arrivals (a stall of the network
+        // or a phone that hung), measured here; a sender that only holds back its reports gains nothing.
+        var walked = Math.hypot(lax() ? V.FIG_OLD : V.FIG, V.JUMP) * 1.25 * S.gap();
         if (!plausibleVolley(m.t, m.b, st.opp, walked)) return S.reject();
-        st.b = copy(m.b); st.held = false;
+        if (path.length && body(m.b)) {
+          if (m.t === "hit") {
+            // contact: the ball near its path (the bump only pushes it out a little) and at the reported figure
+            // in reach: walking and jumping in the time from its last report to the hit, and what a stall measured here adds
+            var F = num(m.fx) && num(m.fy) ? { x: m.fx, y: m.fy } : null; if (F) fxSeen = true;
+            if ((!F && fxSeen) || (gtSeen && !num(m.gt))) return S.reject();   // an app that once told where (and when) it touched always does
+            if (F && num(m.gt) && trk) {
+              // where and when it touched: walkable from its last report, the ball right at it, and on to its next report
+              var gh = gtime(m);
+              if (!walkable(trk, F.x, F.y, gh) || !hitFits(m.b, F, F, 3, 3, false, path)) return S.reject();
+              trk = { x: F.x, y: F.y, g: gh };
+            } else {
+              var wk = lax() ? walked + OLD_SLACK : 0, vx0 = lax() ? V.FIG_OLD : V.FIG, H = { b: copy(m.b), F: F, from: { x: st.opp.x, y: st.opp.y }, rx: vx0 * HIT_T + 2 + wk, ry: V.JUMP * HIT_T + 2 + wk, laxA: !F && lax(), path: path };
+              if (!hitFits(H.b, H.F, H.from, H.rx, H.ry, H.laxA, H.path)) return S.reject();
+              if (!pend) pend = H;   // a hit right after a hit: the first one counts
+            }
+          } else if (!along(m.b, 40, 45) && !(lax() && path.near !== undefined && along(m.b, OLD_NET, null, path.near))) return S.reject();   // free flight: on the path, at its speed (an older app's bounce off the net depends on its frame rate: from where the flight comes near the net only near the path)
+        }
+        st.b = copy(m.b); st.held = false; keep(st.b);
         if (m.t === "pass") st.own = true; else if (m.t === "hit") S.fx("ohit", st.b.x, st.b.y, { v: speed(st.b) });
       }
     };
@@ -551,6 +761,6 @@
     ziegelServe: ziegelServe, ziegelDefend: ziegelDefend, plausiblePaddle: plausiblePaddle, plausibleZiegel: plausibleZiegel,
     volleyServe: volleyServe, volleyStep: volleyStep, volleyBump: volleyBump, plausibleFigure: plausibleFigure, plausibleVolley: plausibleVolley,
     island: island, surface: surface, tankPos: tankPos, wind: wind, flight: flight, crater: crater, plausibleShot: plausibleShot,
-    add: add, _: { base: base, loop: loop, report: report, reach: reach, clamp: clamp, num: num, body: body, copy: copy, cap: cap, speed: speed, unit: unit, same: same } };
+    add: add, _: { bumpFit: bumpFit, bumpV: bumpV, base: base, loop: loop, report: report, reach: reach, clamp: clamp, num: num, body: body, copy: copy, cap: cap, speed: speed, unit: unit, same: same } };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.Arcade = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

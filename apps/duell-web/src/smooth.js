@@ -64,7 +64,7 @@
     return {
       puck: { get: function (s) { return [s.opp.x, s.opp.y]; }, set: function (s, v) { s.opp = { x: v[0], y: v[1] }; }, vmax: [A.PUCK.MMAX, A.PUCK.MMAX], lo: [A.PUCK.MR, A.PUCK.MR], hi: [A.W - A.PUCK.MR, A.H / 2 - A.PUCK.MR], ball: "p" },
       ziegel: { get: function (s) { return [s.opp]; }, set: function (s, v) { s.opp = v[0]; }, vmax: [A.ZIEGEL.PMAX], lo: [A.ZIEGEL.PW / 2], hi: [A.W - A.ZIEGEL.PW / 2], ball: "b" },
-      volley: { get: function (s) { return [s.opp.x, s.opp.y]; }, set: function (s, v) { s.opp = { x: v[0], y: v[1] }; }, vmax: [A.VOLLEY.VMOVE, A.VOLLEY.JUMP], lo: [A.VOLLEY.NX + A.VOLLEY.NW + A.VOLLEY.PRAD, A.VOLLEY.FY - A.VOLLEY.PRAD - 340], hi: [A.W - A.VOLLEY.PRAD, A.VOLLEY.FY - A.VOLLEY.PRAD], ball: "b" },
+      volley: { get: function (s) { return [s.opp.x, s.opp.y]; }, set: function (s, v) { s.opp = { x: v[0], y: v[1] }; }, vmax: [A.VOLLEY.FIG, A.VOLLEY.JUMP], lo: [A.VOLLEY.NX + A.VOLLEY.NW + A.VOLLEY.PRAD, A.VOLLEY.FY - A.VOLLEY.PRAD - 340], hi: [A.W - A.VOLLEY.PRAD, A.VOLLEY.FY - A.VOLLEY.PRAD], ball: "b" },
       kick: { get: function (s) { return [s.opp, s.oppKick]; }, set: function (s, v) { s.opp = v[0]; s.oppKick = v[1]; }, vmax: [A.KICK.RMAX, 1e9], lo: [A.KICK.GAP + 40, 0], hi: [A.W - A.KICK.GAP - 40, 1], ball: "b" },
       flipper: { get: function (s) { return [s.opp[0], s.opp[1]]; }, set: function (s, v) { s.opp = [v[0], v[1]]; }, vmax: [A.FLIP.SPIN, A.FLIP.SPIN], lo: [A.FLIP.UP, A.FLIP.UP], hi: [A.FLIP.REST, A.FLIP.REST], ball: "b" },
       snow: { get: function (s) { return [s.opp]; }, set: function (s, v) { s.opp = v[0]; }, vmax: [A.SNOW.VF], lo: [A.SNOW.FR], hi: [A.W - A.SNOW.FR] },
