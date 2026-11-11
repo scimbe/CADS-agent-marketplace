@@ -283,8 +283,16 @@
     }, function () {});
   }
   // The day's sheet and every sheet chosen from here get the new start; whatever came by link keeps its own page.
+  // The bubbles on the day's card and the free card (part blasen, src/blasen-start.js): asked for only after the first
+  // paint, when the page is idle, and not with Save-Data; once there, each new sheet places them anew.
+  function bubbles() {
+    if (root.Blasen && root.Blasen.start) { root.Blasen.start(); return; }
+    if (lean() || !root.Parts || root.Parts.names().indexOf("blasen") < 0) return;
+    var go = function () { root.Parts.use("blasen", function () { if (root.Blasen && root.Blasen.start && !$("home").hidden) root.Blasen.start(); }).catch(function () {}); };
+    if (root.requestIdleCallback) root.requestIdleCallback(go, { timeout: 2000 }); else setTimeout(go, 400);
+  }
   function home(h) {
-    build(); paint(); mute();
+    build(); paint(); mute(); setTimeout(bubbles, 0);
     var on = !!h && !h.note && !h.doc;
     $("home").classList.add("neu"); box.hidden = !on;
     refs.more.hidden = !on; openAll(refs.more.getAttribute("aria-expanded") === "true", true);
