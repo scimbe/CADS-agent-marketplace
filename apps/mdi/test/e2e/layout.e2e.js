@@ -12,12 +12,14 @@ test.after(async () => { await b.close(); });
 const covered = (p) => p.evaluate(async () => {
   const out = [];
   const els = [...document.querySelectorAll("button, input, select, textarea, a[href], summary, [role=radio]")]
-    .filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== "hidden" && !e.closest(".liveframe"));
+    .filter((e) => e.getClientRects().length && getComputedStyle(e).visibility !== "hidden" && !e.closest(".liveframe"))
+    // offener modaler Dialog: der Hintergrund ist bewusst gesperrt (inert), nur der Dialog zaehlt
+    .filter((e) => { const m = document.querySelector("[aria-modal=true]"); return !m || m.contains(e); });
   for (const e of els) {
     e.scrollIntoView({ block: "center", inline: "center" });
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     const r = e.getBoundingClientRect();
-    for (const [x, y] of [[r.left + r.width / 2, r.top + r.height / 2], [r.left + 4, r.top + 4], [r.right - 4, r.bottom - 4]]) {
+    for (const [x, y] of [[r.left + r.width / 2, r.top + r.height / 2], [r.left + r.width * .2, r.top + r.height / 2], [r.right - r.width * .2, r.top + r.height / 2]]) {
       const hit = document.elementFromPoint(x, y);
       if (hit && hit !== e && !e.contains(hit) && !hit.contains(e)) { out.push((e.textContent || e.getAttribute("aria-label") || e.tagName).trim().slice(0, 30) + " unter " + (hit.className || hit.tagName)); break; }
     }

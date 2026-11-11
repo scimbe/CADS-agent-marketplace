@@ -123,7 +123,8 @@ button, input, textarea { font: inherit; color: inherit; }
 .btn.primary { background: var(--primary); color: var(--on-primary); border: 3px solid var(--ink); box-shadow: var(--shadow); text-transform: uppercase; letter-spacing: .03em; }
 .btn.primary:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(17,17,17,.9); }
 .btn.secondary { background: transparent; color: var(--text); border: 2px solid var(--text); }
-@media (max-width: 899px) { .sticky-actions .col-b .actions { position: sticky; bottom: 0; padding: var(--s3) 0 calc(var(--s2) + env(safe-area-inset-bottom)); background: linear-gradient(to bottom, transparent, var(--bg) 20%); } }
+/* Telefon: Karte so gross, dass Wahl und Knoepfe ohne Scrollen darunter passen; keine schwebende Leiste, die Inhalt verdeckt */
+@media (max-width: 899px) { .sticky-actions .stage { max-width: min(520px, calc((100svh - 330px) * .75)); } }
 
 /* Blasen und Dialog */
 .bubbles { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; }
