@@ -82,7 +82,17 @@
   // by its own card or link. A name without a part in this build stays harmless. Nor the preview pictures (bilda, bildb …,
   // about 80 KB each): the start page asks for a part when one of its pictures comes into sight (start-ui.js shots);
   // offline without it a tile shows its title on its colour.
-  var ONDEMAND = ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten"];
+  // KI-Bilder auf Wunsch (src/kibild.js): window.KiBild. can() answers from the last status this device saw (Kit.store.kbSt),
+  // so a button can say at once whether it works; logo() without a logo only takes an old one away, with one it loads the part.
+  var kbStand = stand("kibild", "KiBild", ["open", "refresh", "report", "avatarRow"], {
+    can: function (kind) { var s = root.Kit && root.Kit.store.kbSt; return !!(s && s.on && s.login && s.can && s.can[kind]); },
+    apply: function (doc, use, ref) { if (!doc || !/^[A-Za-z0-9_-]{22}\.(jpg|png)$/.test(ref)) return doc; doc.gi = Object.assign({}, doc.gi); doc.gi[use === "logo" ? "l" : "p"] = ref; return doc; },
+    logo: function (box, doc) {
+      var old = box && box.querySelector(".kblogo"); if (!doc && old) old.remove();
+      if (doc) need("kibild").then(function () { if (root.KiBild !== kbStand) root.KiBild.logo(box, doc); }, function () {});
+    }
+  });
+  var ONDEMAND = ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten", "kibild"];
   if (/^https?:$/.test(location.protocol) && location.hostname !== "appassets.androidplatform.net") {
     root.addEventListener("load", function () {
       (root.requestIdleCallback || function (f) { return setTimeout(f, 1500); })(function () {

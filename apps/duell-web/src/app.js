@@ -158,12 +158,17 @@ function preview(root, doc, still) {
 // card and shows the picture above it, never when the sender used an own photo. Not for games (not in the list), not with
 // Save-Data; offline or missing, the sheet stays as it is. No cookies go along (crossOrigin).
 var THUMBS = window.DailyThumbs || [];
+// an AI picture made on request (doc.gi, part kibild) is "<id>.<jpg|png>" and lives under /duell/bild/ on the same server
+var GI_RE = /^[A-Za-z0-9_-]{22}\.(jpg|png)$/;
 function thumbUrl(id) { return new URL(C.DEFAULT_API).origin + "/duell/img/" + id + ".jpg"; }
+function picUrl(id) { return GI_RE.test(id) ? new URL(C.DEFAULT_API).origin + "/duell/bild/" + id : thumbUrl(id); }
+// a picture this device reported is never shown here again (part kibild keeps the list)
+function giShown(ref) { return GI_RE.test(ref) && (Kit.store.kbHidden || []).indexOf(ref.split(".")[0]) < 0 ? ref : null; }
 function saveData() {
   try { var c = navigator.connection; return !!(c && c.saveData) || !!(window.matchMedia && matchMedia("(prefers-reduced-data: reduce)").matches); } catch (e) { return false; }
 }
-function picId(id) { return id && THUMBS.indexOf(id) >= 0 && !saveData() ? id : null; }
-function docPic(doc) { return doc && !(doc.by || []).some(function (e) { return (e.w || []).indexOf("foto") >= 0; }) ? doc.i : null; }
+function picId(id) { return id && (THUMBS.indexOf(id) >= 0 || giShown(id)) && !saveData() ? id : null; }
+function docPic(doc) { return doc && !(doc.by || []).some(function (e) { return (e.w || []).indexOf("foto") >= 0; }) ? (doc.gi && doc.gi.p) || doc.i : null; }
 // box gets "pic" once the picture of id is there; box._pic is the id it waits for, box._go starts a lazy load.
 function loadPic(box, f, id, lazy) {
   var img = f.querySelector("img"); box._pic = id; box._go = null; box.classList.remove("pic");
@@ -179,7 +184,7 @@ function loadPic(box, f, id, lazy) {
   if (img.getAttribute("crossorigin") !== "anonymous") img.crossOrigin = "anonymous";
   if (img.getAttribute("referrerpolicy") !== "no-referrer") img.referrerPolicy = "no-referrer";
   // Only after the page has loaded: a network that silently drops the request must not hold up the page's load.
-  var go = function () { if (box._pic !== id) return; if (img.getAttribute("src") !== thumbUrl(id)) img.src = thumbUrl(id); else if (img.complete && img.naturalWidth) img.onload(); };
+  var go = function () { if (box._pic !== id) return; if (img.getAttribute("src") !== picUrl(id)) img.src = picUrl(id); else if (img.complete && img.naturalWidth) img.onload(); };
   if (lazy) box._go = go; else if (document.readyState === "complete") go(); else window.addEventListener("load", go, { once: true });
 }
 function picture(root, idea, doc, lazy, mode) {
@@ -187,6 +192,7 @@ function picture(root, idea, doc, lazy, mode) {
   if (!f) return;
   box.classList.toggle("with", !!doc);
   loadPic(box, f, picId(!doc ? idea && idea.id : !mode && docPic(doc)), lazy);
+  if (window.KiBild) window.KiBild.logo(box, doc && doc.gi && doc.gi.l ? doc : null);   // a logo made on request (part kibild)
 }
 // Room (E1.5): where the AI picture is only a thumbnail (style.css), it is a switch: a tap, Enter or Space lays it over
 // the live card and back (.swap on its box); aria-pressed says which one is large.
@@ -237,7 +243,7 @@ function edPic() {
 // the web and in the Android shell; the iOS shell blocks the network, so there is none). Anything wrong: the card alone.
 function withPic(c, doc) {
   var id = !(ed && ed.ownPhoto) && picId(docPic(doc)), img = id && [$("edpic"), document.querySelector("#leaf .pvimg")].map(function (f) { return f.querySelector("img"); })
-    .filter(function (i) { return i.complete && i.naturalWidth && i.getAttribute("src") === thumbUrl(id); })[0];
+    .filter(function (i) { return i.complete && i.naturalWidth && i.getAttribute("src") === picUrl(id); })[0];
   if (!img) return c;
   try {
     var o = document.createElement("canvas"), x = o.getContext("2d"), W = c.width, H = c.height, ink = "#111";
