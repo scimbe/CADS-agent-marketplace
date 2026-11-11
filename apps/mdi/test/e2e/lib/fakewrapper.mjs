@@ -14,8 +14,8 @@ const tpl = (n) => JSON.parse(JSON.stringify(REC.exchanges.find((e) => e.name ==
 export const VOUCHER = "TEST-GUTSCHEIN-1";
 
 export function fakeWrapper({ accounts = { "lea@example.org": "pw-lea", "tom@example.org": "pw-tom" }, gate = "up" } = {}) {
-  const sessions = new Map(), profiles = new Map(), credit = new Map(), tries = new Map(), mod = new Map(), log = [];
-  const S = { gate, next: null, log, profiles, sessions };
+  const sessions = new Map(), bearers = new Map(), profiles = new Map(), credit = new Map(), tries = new Map(), mod = new Map(), log = [];
+  const S = { gate, next: null, log, profiles, sessions, bearers };
   const json = (status, body, extra = {}) => ({ status, contentType: "application/json; charset=utf-8", headers: { "cache-control": "no-store", ...extra }, body: JSON.stringify(body) });
   // Weiterleitung als eigene Navigation (meta refresh) statt 302: Playwright routet bei einer Weiterleitung nur die erste
   // Adresse; die zweite ginge sonst am Doppel vorbei ins echte Netz. Der echte Wrapper antwortet mit 302 (Aufnahme auth-login).
@@ -25,6 +25,8 @@ export function fakeWrapper({ accounts = { "lea@example.org": "pw-lea", "tom@exa
   async function who(req) {
     if (S.gate === "down") return { error: true };
     const h = await req.allHeaders();
+    // App-Huelle: Bearer statt Cookie; wie lib/auth.mjs entscheidet ein Authorization-Header allein
+    if (h.authorization !== undefined) { const t = /^Bearer (\S+)$/.exec(h.authorization); return { email: t && bearers.has(t[1]) ? bearers.get(t[1]) : null, via: "bearer" }; }
     const m = /(?:^|;\s*)ct_gate_session=([^;]+)/.exec(h.cookie || "");
     return { email: m && sessions.has(m[1]) ? sessions.get(m[1]) : null };
   }
@@ -119,7 +121,19 @@ export function fakeWrapper({ accounts = { "lea@example.org": "pw-lea", "tom@exa
       if (p === "/auth/login") return r.fulfill(redirect(loginUrl(safeReturn(u.searchParams.get("return")), u.searchParams.get("lang"))));
       if (p === "/auth/me") {
         const id = await who(req);
-        return r.fulfill(json(id.error ? 503 : 200, { authenticated: !!id.email, login_url: loginUrl(safeReturn(u.searchParams.get("return")), u.searchParams.get("lang")) }));
+        return r.fulfill(json(id.error ? 503 : 200, { authenticated: !!id.email, login_url: loginUrl(safeReturn(u.searchParams.get("return")), u.searchParams.get("lang")), app_login: true }));
+      }
+      // Nur fuer die falsche App-Huelle im Test (test/e2e/lib/fakeshell.mjs): Anmelden beim Anmeldedienst-Doppel liefert ein
+      // Token (in der echten App: OIDC + PKCE im System-Browser, das Token bleibt nativ)
+      if (p === "/__shell/login" && req.method() === "POST") {
+        const email = S.next || Object.keys(accounts)[0], tok = "at-" + Math.random().toString(16).slice(2);
+        bearers.set(tok, email);
+        return r.fulfill(json(200, { token: tok }));
+      }
+      if (p === "/__shell/logout" && req.method() === "POST") {
+        let body = null; try { body = req.postDataJSON(); } catch (e) { body = null; }
+        if (body && body.token) bearers.delete(body.token);
+        return r.fulfill(json(200, { ok: true }));
       }
       if (p.startsWith("/api/")) {
         let body = null; try { body = req.postDataJSON(); } catch (e) { body = null; }

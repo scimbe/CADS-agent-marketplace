@@ -7,6 +7,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { browser, open, VIEWS, act, axe, noOverflow, shotsDir } from "./lib/grund.mjs";
 import { fakeWrapper, APP, VOUCHER } from "./lib/fakewrapper.mjs";
+import { fakeShellScript } from "./lib/fakeshell.mjs";
 
 let b;
 test.before(async () => { b = await browser(); });
@@ -202,6 +203,36 @@ test("Ehrlich bei Ausfall: Anmeldedienst weg -> Hinweis und Nochmal; Seite ohne 
   assert.deepEqual(F.ctx._blocked || [], [], "von file:// kein Netz");
   assert.deepEqual(F.errs, []);
   await F.ctx.close();
+});
+
+test("App-Huelle: Anmelden ueber die Konto-Bruecke (kein Gate, kein Cookie), Profil gesichert, Abmelden ueber die Huelle", async () => {
+  const fw = fakeWrapper(), found = [];
+  const ctx = await b.newContext({ ...VIEWS.phone390, locale: "de-DE" });
+  ctx.setDefaultTimeout(15000);
+  await fw.attach(ctx);
+  await ctx.addInitScript(fakeShellScript());
+  const p = await ctx.newPage(), errs = [];
+  p.on("pageerror", (e) => errs.push("pageerror " + e));
+  p.on("console", (m) => { if (m.type() === "error" && !/^Failed to load resource: the server responded with a status of (401|403|404|409|410|429|503)/.test(m.text())) errs.push("console " + m.text()); });
+  await p.goto(APP + "/duell");
+  await p.locator("header.bar").waitFor();
+  await act(p, "stil"); await waitKonto(p, "anonym");
+  assert.equal(await p.getByText("Anmelden geht im Browser", { exact: false }).count(), 0, "in der App kein Verweis auf den Browser");
+  await p.locator("#k-age16").check();
+  await act(p, "login");
+  await waitKonto(p, "angemeldet");
+  await p.locator('[data-sync="ok"]').waitFor();
+  await checks(p, "20-app-angemeldet", found);
+  assert.ok(!fw.state.log.some((l) => l.startsWith("GATE") || l === "GET /auth/login"), "kein Gate: " + fw.state.log.join(", "));
+  assert.deepEqual((await ctx.cookies(APP)).filter((c) => c.name === "ct_gate_session"), [], "kein Gate-Cookie");
+  const pr = fw.profileOf("lea@example.org");
+  assert.ok(pr && pr.c, "Profil des Kontos mit 16+ angelegt (ueber Bearer)");
+  assert.equal(await p.evaluate(() => Object.keys(window.DuellHost).join()), "account", "die Seite sieht nur die Funktion, kein Token");
+  await act(p, "logout");
+  await waitKonto(p, "anonym");
+  assert.equal(fw.state.bearers.size, 0, "Token bei der Huelle verworfen");
+  assert.deepEqual(found, []); assert.deepEqual(errs, []);
+  await ctx.close();
 });
 
 for (const o of [{ lang: "en", scheme: "dark", view: "phone390" }, { lang: "de", scheme: "light", view: "desk1280" }]) {
