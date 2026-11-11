@@ -15,6 +15,17 @@ export function createStorage() {
     loadGame(g) {
       const s = ls(); if (!s || !/^[0-9a-f]{16}$/.test(g)) return null;
       try { const v = JSON.parse(s.getItem(PREFIX + g) || "null"); return v && v.g === g ? v : null; } catch (e) { return null; }
+    },
+    // Konto auf diesem Geraet: Geraete-id (fuer den KI-Zaehler), Mein Stil, Lesen-Einstellungen, Verknuepfung (Konto oder
+    // Geraete-Code mit Revision), ein offener Anmeldeversuch. Nie E-Mail, nie Fotos. Pruefen und Bereinigen macht der Aufrufer.
+    loadKonto() {
+      const s = ls(); if (!s) return null;
+      try { const v = JSON.parse(s.getItem(KONTO) || "null"); return v && typeof v === "object" && !Array.isArray(v) ? v : null; } catch (e) { return null; }
+    },
+    saveKonto(v) {
+      const s = ls(); if (!s) return false;
+      try { s.setItem(KONTO, JSON.stringify(v)); return true; } catch (e) { return false; }
     }
   };
 }
+const KONTO = "mdi.konto";

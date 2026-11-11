@@ -1,5 +1,51 @@
 // Oberflaechentexte de/en. Praesens, Ist-Zustand, kurze Saetze. Luecke im Englischen -> Deutsch.
 const de = {
+  stil: "Mein Stil", stilOpen: "Mein Stil öffnen",
+  k: {
+    preview: "So sehen deine Karten aus", previewLabel: "Vorschau: {n}, {e}, Farben {c}, Sticker {s}", noName: "Dein Name",
+    nick: "Spitzname", nickNote: "Steht nur auf deinen Karten und in Links, die du schickst.", nickPh: "z. B. Oma Gisela", nickErr: "Keine E-Mail, Telefonnummer oder Adresse im Spitznamen.",
+    emoji: "Dein Emoji", colors: "Deine Farben", pair: "Farbpaar {n}", set: "Deine Sticker",
+    sets: { tiere: "Tiere", essen: "Essen", weltall: "Weltall", chaos: "Chaos", grusel: "Grusel", herz: "Herz", advent: "Advent" },
+    read: "Lesen & Bedienen", fs: "Schrift", fsOpt: { n: "Normal", g: "Groß", sg: "Sehr groß" }, easy: "Einfache Sprache", easyNote: "Kürzere Sätze in der App. Nur auf diesem Gerät.",
+    title: "Konto (freiwillig)", titleOn: "Dein Konto", checking: "Konto wird geprüft …",
+    b1: "Dein Stil auf allen Geräten (ohne Fotos)", b2: "Deine KI-Versuche gelten auf jedem Gerät", b3: "Eigene Karten ab 16",
+    age16: "Ich bin 16 oder älter.", need16: "Bitte zuerst bestätigen: Ich bin 16 oder älter.", login: "Anmelden oder Konto anlegen",
+    where: "Anmeldung über unseren Anmeldedienst (bunsenbrenner.org).", local: "Geht auch ohne. Dann bleibt alles nur auf diesem Gerät.",
+    noLogin: "Anmelden ist hier gerade nicht möglich. Alles bleibt auf diesem Gerät.", cancel: "Abbrechen",
+    onAcc: "Angemeldet als {n}", onAccNoProfile: "Angemeldet. Dein Stil ist noch nicht im Konto gesichert.", onCode: "Verbunden per Geräte-Code als {n}",
+    create: "Profil anlegen", createNote: "Dein Stil wird dann in deinem Konto gesichert. Das ist deine eigene Angabe, wir prüfen sie nicht.", linkAcc: "Im Konto sichern",
+    age18: "Ich bin 18 oder älter (eigene Angabe)", age18Note: "Nötig für Geld-Funktionen wie PayPal.me. Wir prüfen die Angabe nicht.",
+    ki: "KI diese Woche: noch {n} von {m}", kiMonth: "KI diesen Monat: noch {n} von {m}", kiOff: "Die KI ist gerade aus.",
+    karte: "Eigene Karten: noch {n} von {m}", credit: "Guthaben: {n} freie Karten", credit1: "Guthaben: 1 freie Karte", credit0: "Guthaben: keins",
+    creditNote: "Guthaben gibt es für echte Nutzung durch andere und per Gutschein. Es ist nicht kaufbar und nicht auszahlbar.",
+    paused: "Eigene Karten sind für dein Konto gerade pausiert.",
+    top: "Aufladen", topCode: "Gutschein-Code", topGo: "Einlösen", topOk: "{n} Karten aufgeladen.", topBusy: "Wird eingelöst …",
+    topErr: { unknown: "Diesen Code kennen wir nicht. Prüf die Schreibweise.", limit: "Mit diesem Code geht es gerade nicht weiter. Versuch es später noch einmal.", login: "Bitte melde dich zuerst an.", off: "Einlösen geht gerade nicht. Versuch es später noch einmal.", kurz: "Der Code ist zu kurz.", netz: "Keine Verbindung. Versuch es später noch einmal.", server: "Das hat nicht geklappt. Versuch es später noch einmal." },
+    topLogin: "Aufladen geht mit Konto.",
+    sync: { busy: "Wird gesichert …", ok: "Gesichert um {time}.", login: "Die Anmeldung ist abgelaufen. Melde dich neu an.", limit: "Sichern geht gerade nur begrenzt. Alles bleibt auf diesem Gerät.", netz: "Offline. Gesichert wird, wenn du wieder Netz hast.", need16: "Zum Sichern im Konto: bestätige, dass du 16 oder älter bist.", other: "Sichern geht gerade nicht. Alles bleibt auf diesem Gerät." },
+    notes: { unlinked: "Wird hier nicht mehr gesichert. Alles bleibt auf diesem Gerät.", deleted: "Profil gelöscht. Auf diesem Gerät bleibt alles.", gone: "Dieses Profil wurde auf einem anderen Gerät gelöscht. Hier bleibt alles.", exported: "Deine Daten liegen jetzt als Datei bei deinen Downloads.", pending: "Anmeldung nicht abgeschlossen. Du bist noch nicht angemeldet." },
+    err: { "nicht-hier": "Anmelden geht im Browser auf der Seite von My Daily Idea. Hier bleibt alles auf diesem Gerät.", netz: "Keine Verbindung zum Server. Alles bleibt auf diesem Gerät.", "anmeldung-weg": "Der Anmeldedienst ist gerade nicht erreichbar.", other: "Das Konto lässt sich gerade nicht prüfen." },
+    retry: "Nochmal versuchen",
+    data: "Konto & Daten", dataTitle: "Was gespeichert ist", where0: "Nur auf diesem Gerät.", whereAcc: "In deinem Konto bei bunsenbrenner.org und auf diesem Gerät.", whereCode: "Unter einem Geräte-Code und auf diesem Gerät.",
+    what: "Gesichert werden Spitzname, Emoji, Farben und Sticker. Fotos bleiben immer auf dem Gerät.",
+    rows: { nick: "Spitzname", emoji: "Emoji", colors: "Farben", set: "Sticker", wall: "Meine Wand", saved: "Gemerkte Karten", age18: "18 oder älter", rev: "Stand", yes: "ja (eigene Angabe)", no: "nein", n: "{n} Einträge" },
+    export: "Daten herunterladen", del: "Profil löschen", sure: "Wirklich löschen? Nochmal tippen.", syncNow: "Jetzt sichern", unlink: "Auf diesem Gerät nicht mehr sichern",
+    logout: "Abmelden", logoutNote: "Das meldet dich bei allen Demos auf bunsenbrenner.org ab.", logoutNone: "Abmelden geht über den Anmeldedienst bunsenbrenner.org.",
+    code: "Geräte-Code ohne Konto", codeNote: "Ein zufälliger Code verbindet mehrere Geräte von dir. Wer den Code hat, kann dein Profil sehen, ändern und löschen.",
+    codeNew: "Geräte-Code anlegen", codeNewNote: "Einen neuen Code legt jemand ab 16 mit Konto an. Mit einem vorhandenen Code verbinden geht ohne Konto.",
+    codeIn: "Code von deinem anderen Gerät", codeJoin: "Mit Code verbinden", codeShow: "Dein Geräte-Code", codeSecret: "Gib den Code nur auf deinen eigenen Geräten ein.",
+    codeErr: { bad: "Der Code hat 32 Zeichen aus 0–9 und a–f.", unknown: "Zu diesem Code gibt es kein Profil. Prüf die Zeichen oder leg mit Konto einen neuen an.", codeLogin: "Einen neuen Geräte-Code legt jemand ab 16 mit Konto an." },
+    mod: "Entscheidungen zu deinem Konto", modNone: "Keine Entscheidungen. Alles in Ordnung.", modLoad: "Wird geladen …", modErr: "Gerade nicht erreichbar. Versuch es später noch einmal.", modLogin: "Mit Konto siehst du hier Entscheidungen zu deinen Karten.",
+    modType: { "card-hidden": "Karte aus den Community-Karten genommen", "card-held": "Karte vorläufig gesperrt", "card-removed": "Karte entfernt", strike: "Verwarnung (Strike)", pause: "Konto pausiert", ban: "Konto gesperrt", lift: "Einschränkung aufgehoben", other: "Entscheidung" },
+    modSt: { paused: "Dein Konto ist bis {d} pausiert. Bis dahin kannst du keine neuen eigenen Karten erstellen.", banned: "Dein Konto ist gesperrt. Du kannst keine neuen eigenen Karten erstellen." },
+    modThumbs: "{n} Konten haben „Gefällt mir nicht“ gewählt ({p} % der Stimmen).", modLapses: "Die Verwarnung verfällt am {d}.",
+    modGround: { harm: "Regel: Gewalt, Mobbing oder Selbstverletzung.", sex: "Regel: sexuelle Inhalte.", hate: "Regel: Hass.", private: "Regel: fremde Daten oder Bilder.", wrong: "Regel: Irreführung oder Phishing.", other: "Regel: sonstiger Verstoß." },
+    modAuto: "Automatisch erkannt und entschieden.", modManual: "Von einem Menschen entschieden.", modBasis: "Grundlage: Nutzungsbedingungen, Abschnitt „Community-Karten“.",
+    modUntil: "Gilt bis {d}.", modAppealUntil: "Widerspruch möglich bis {d}, kostenlos.", modCourt: "Du kannst dich außerdem an ein Gericht wenden.",
+    modA: { open: "Widerspruch offen: ein Mensch prüft.", upheld: "Widerspruch geprüft: Die Entscheidung bleibt.", lifted: "Widerspruch geprüft: aufgehoben." },
+    appeal: "Widersprechen", appealTitle: "Widerspruch", appealLabel: "Was sollen wir wissen? Höchstens 1000 Zeichen.", appealSend: "Widerspruch senden", appealOk: "Dein Widerspruch ist angekommen. Ein Mensch entscheidet.",
+    appealErr: { leer: "Schreib kurz, warum du widersprichst.", doppelt: "Zu dieser Entscheidung gibt es schon einen Widerspruch.", "zu-spaet": "Die Frist für den Widerspruch ist vorbei.", unbekannt: "Diese Entscheidung gibt es nicht mehr.", other: "Senden geht gerade nicht. Versuch es später noch einmal." }
+  },
   app: "My Daily Idea", today: "Heute", more: "Noch eine Karte", back: "Zurück", close: "Schließen",
   modes: { alone: "Ein Gerät", bot: "Gegen den Computer", link: "Abwechselnd per Link", live: "Gleichzeitig (live)" },
   modeHint: { alone: "Ihr gebt das Gerät weiter.", bot: "Der Computer sieht nur, was er sehen darf.", link: "Jeder spielt, wann er will.", live: "Ihr spielt zur selben Zeit." },
@@ -38,6 +84,52 @@ const de = {
   }
 };
 const en = {
+  stil: "My style", stilOpen: "Open my style",
+  k: {
+    preview: "This is how your cards look", previewLabel: "Preview: {n}, {e}, colours {c}, stickers {s}", noName: "Your name",
+    nick: "Nickname", nickNote: "Only on your cards and in links you send.", nickPh: "e.g. Granny Gisela", nickErr: "No e-mail, phone number or address in the nickname.",
+    emoji: "Your emoji", colors: "Your colours", pair: "Colour pair {n}", set: "Your stickers",
+    sets: { tiere: "Animals", essen: "Food", weltall: "Space", chaos: "Chaos", grusel: "Spooky", herz: "Heart", advent: "Advent" },
+    read: "Reading & controls", fs: "Text size", fsOpt: { n: "Normal", g: "Large", sg: "Extra large" }, easy: "Plain language", easyNote: "Shorter sentences in the app. Only on this device.",
+    title: "Account (optional)", titleOn: "Your account", checking: "Checking your account …",
+    b1: "Your style on all devices (no photos)", b2: "Your AI tries count on every device", b3: "Own cards from 16",
+    age16: "I am 16 or older.", need16: "Please confirm first: I am 16 or older.", login: "Sign in or create an account",
+    where: "Sign-in via our sign-in service (bunsenbrenner.org).", local: "Works without, too. Then everything stays on this device only.",
+    noLogin: "Signing in is not possible here right now. Everything stays on this device.", cancel: "Cancel",
+    onAcc: "Signed in as {n}", onAccNoProfile: "Signed in. Your style is not saved in your account yet.", onCode: "Linked by device code as {n}",
+    create: "Create profile", createNote: "Your style is then saved in your account. This is your own statement; we do not check it.", linkAcc: "Save in my account",
+    age18: "I am 18 or older (own statement)", age18Note: "Needed for money features such as PayPal.me. We do not check it.",
+    ki: "AI this week: {n} of {m} left", kiMonth: "AI this month: {n} of {m} left", kiOff: "The AI is off right now.",
+    karte: "Own cards: {n} of {m} left", credit: "Credit: {n} free cards", credit1: "Credit: 1 free card", credit0: "Credit: none",
+    creditNote: "Credit comes from real use by others and from vouchers. It cannot be bought or paid out.",
+    paused: "Own cards are paused for your account right now.",
+    top: "Top up", topCode: "Voucher code", topGo: "Redeem", topOk: "{n} cards added.", topBusy: "Redeeming …",
+    topErr: { unknown: "We don't know this code. Check the spelling.", limit: "This code can't be used right now. Try again later.", login: "Please sign in first.", off: "Redeeming isn't possible right now. Try again later.", kurz: "The code is too short.", netz: "No connection. Try again later.", server: "That did not work. Try again later." },
+    topLogin: "Topping up needs an account.",
+    sync: { busy: "Saving …", ok: "Saved at {time}.", login: "Your sign-in has expired. Please sign in again.", limit: "Saving is limited right now. Everything stays on this device.", netz: "Offline. Saving resumes when you are back online.", need16: "To save in your account, confirm that you are 16 or older.", other: "Saving does not work right now. Everything stays on this device." },
+    notes: { unlinked: "No longer saved from here. Everything stays on this device.", deleted: "Profile deleted. Everything stays on this device.", gone: "This profile was deleted on another device. Everything stays here.", exported: "Your data is now a file in your downloads.", pending: "Sign-in not finished. You are not signed in yet." },
+    err: { "nicht-hier": "Signing in works in the browser on the My Daily Idea page. Here everything stays on this device.", netz: "No connection to the server. Everything stays on this device.", "anmeldung-weg": "The sign-in service cannot be reached right now.", other: "Your account cannot be checked right now." },
+    retry: "Try again",
+    data: "Account & data", dataTitle: "What is saved", where0: "Only on this device.", whereAcc: "In your account at bunsenbrenner.org and on this device.", whereCode: "Under a device code and on this device.",
+    what: "Saved are nickname, emoji, colours and stickers. Photos always stay on the device.",
+    rows: { nick: "Nickname", emoji: "Emoji", colors: "Colours", set: "Stickers", wall: "My wall", saved: "Saved cards", age18: "18 or older", rev: "Version", yes: "yes (own statement)", no: "no", n: "{n} entries" },
+    export: "Download my data", del: "Delete profile", sure: "Really delete? Tap again.", syncNow: "Save now", unlink: "Stop saving on this device",
+    logout: "Sign out", logoutNote: "This signs you out of all demos on bunsenbrenner.org.", logoutNone: "Signing out works via the sign-in service bunsenbrenner.org.",
+    code: "Device code without an account", codeNote: "A random code links your devices. Whoever has the code can see, change and delete your profile.",
+    codeNew: "Create a device code", codeNewNote: "A new code is created by someone 16 or older with an account. Joining with an existing code needs no account.",
+    codeIn: "Code from your other device", codeJoin: "Link with code", codeShow: "Your device code", codeSecret: "Only enter the code on your own devices.",
+    codeErr: { bad: "The code has 32 characters from 0–9 and a–f.", unknown: "There is no profile for this code. Check the characters or create a new one with an account.", codeLogin: "A new device code is created by someone 16 or older with an account." },
+    mod: "Decisions about your account", modNone: "No decisions. All fine.", modLoad: "Loading …", modErr: "Not reachable right now. Try again later.", modLogin: "With an account you see decisions about your cards here.",
+    modType: { "card-hidden": "Card taken out of the community cards", "card-held": "Card provisionally blocked", "card-removed": "Card removed", strike: "Warning (strike)", pause: "Account paused", ban: "Account blocked", lift: "Restriction lifted", other: "Decision" },
+    modSt: { paused: "Your account is paused until {d}. Until then you cannot create new own cards.", banned: "Your account is blocked. You cannot create new own cards." },
+    modThumbs: "{n} accounts chose “I don't like it” ({p} % of the votes).", modLapses: "The warning lapses on {d}.",
+    modGround: { harm: "Rule: violence, bullying or self-harm.", sex: "Rule: sexual content.", hate: "Rule: hate.", private: "Rule: other people's data or pictures.", wrong: "Rule: deception or phishing.", other: "Rule: other violation." },
+    modAuto: "Detected and decided automatically.", modManual: "Decided by a person.", modBasis: "Ground: terms of use, section “Community cards”.",
+    modUntil: "Valid until {d}.", modAppealUntil: "You can object until {d}, free of charge.", modCourt: "You can also go to court.",
+    modA: { open: "Objection open: a person checks it.", upheld: "Objection checked: the decision stays.", lifted: "Objection checked: lifted." },
+    appeal: "Object", appealTitle: "Objection", appealLabel: "What should we know? At most 1000 characters.", appealSend: "Send objection", appealOk: "Your objection arrived. A person decides.",
+    appealErr: { leer: "Say briefly why you object.", doppelt: "There is already an objection to this decision.", "zu-spaet": "The time to object is over.", unbekannt: "This decision no longer exists.", other: "Sending does not work right now. Try again later." }
+  },
   app: "My Daily Idea", today: "Today", more: "One more card", back: "Back", close: "Close",
   modes: { alone: "One device", bot: "Against the computer", link: "Take turns by link", live: "At the same time (live)" },
   modeHint: { alone: "You pass the device around.", bot: "The computer only sees what it may see.", link: "Everyone plays when they like.", live: "You play at the same time." },
@@ -75,7 +167,30 @@ const en = {
     "zustand-zu-gross": "The game has grown too big.", manipuliert: "This link does not continue your last state of this game. It was changed.", veraltet: "You already know a later state of this game. Open the newest link.", aufloesung: "The reveal is missing.", eingabe: "A move is incomplete.", commit: "The commitment in the link is invalid."
   }
 };
+// Einfache Sprache (Mein Stil, nur auf diesem Geraet): kuerzere Saetze fuer die laengsten Hinweise. Fehlt ein Text hier,
+// gilt der normale.
+const deEasy = {
+  modeHint: { alone: "Ein Handy für alle.", bot: "Du spielst gegen den Computer.", link: "Ihr spielt nacheinander.", live: "Ihr spielt gleichzeitig." },
+  ipHint: "Live: Das andere Handy sieht deine Internet-Adresse. Per Link nicht.",
+  bubblesHint: "Tipp auf eine Blase. Dann änderst du diesen Teil.",
+  dialogHint: "Die Karte ändert sich sofort.",
+  free: "Kostenlos. Ohne Anmelden.",
+  waitLink: "Warte auf die Antwort. Du kannst die Seite zumachen."
+};
+const enEasy = {
+  modeHint: { alone: "One phone for everyone.", bot: "You play against the computer.", link: "You take turns.", live: "You play at the same time." },
+  ipHint: "Live: the other phone sees your internet address. By link it does not.",
+  bubblesHint: "Tap a bubble. Then you change that part.",
+  dialogHint: "The card changes right away.",
+  free: "Free. No sign-in.",
+  waitLink: "Wait for the answer. You can close the page."
+};
+const easyK = {
+  de: { createNote: "Dann ist dein Stil im Konto. Das sagst du selbst. Wir prüfen es nicht.", codeNote: "Ein Code verbindet deine Geräte. Wer den Code hat, sieht dein Profil.", what: "Gesichert: Name, Emoji, Farben, Sticker. Fotos nie.", local: "Ohne Konto bleibt alles auf diesem Gerät." },
+  en: { createNote: "Then your style is in your account. You say this yourself. We do not check it.", codeNote: "A code links your devices. Whoever has the code sees your profile.", what: "Saved: name, emoji, colours, stickers. Never photos.", local: "Without an account everything stays on this device." }
+};
+const EASY = { de: { ...de, ...deEasy, k: { ...de.k, ...easyK.de } }, en: { ...en, ...enEasy, k: { ...en.k, ...easyK.en } } };
 export const TEXTS = { de, en };
-export function texts(lang) { return lang === "en" ? en : de; }
+export function texts(lang, easy = false) { const l = lang === "en" ? "en" : "de"; return easy ? EASY[l] : l === "en" ? en : de; }
 export function fmt(s, o) { return String(s).replace(/\{(\w+)\}/g, (m, k) => (o[k] === undefined ? m : String(o[k]))); }
 export function langOf(nav) { const l = String((nav && nav.language) || "de").toLowerCase(); return l.startsWith("de") ? "de" : "en"; }

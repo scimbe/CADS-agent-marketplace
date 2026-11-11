@@ -7,6 +7,7 @@ import * as G from "./game.js";
 import { cardOf, modesOf, validParams } from "../cards/index.js";
 import { encode } from "./link.js";
 import { paramsForLink } from "../contract/fields.js";
+import { kontoRegion, stilState, kontoGuards, kontoActions, kontoContext } from "./konto-chart.js";
 
 const T = (p) => p; // Lesbarkeit: absolute Zielpfade
 const leaveIfLive = (ctx) => (ctx.mode === "live" ? { type: "LEAVE" } : null);
@@ -29,7 +30,8 @@ export const chart = {
         ]
       },
       states: {
-        shelf: { on: { OPEN: { target: T("inhalt.card"), cond: "cardExists", actions: ["openCard"] } } },
+        shelf: { on: { OPEN: { target: T("inhalt.card"), cond: "cardExists", actions: ["openCard"] }, STIL: T("inhalt.stil") } },
+        stil: stilState,
         card: {
           initial: "view",
           states: {
@@ -131,10 +133,7 @@ export const chart = {
         getrennt: { on: { LEAVE: { target: T("raum.allein"), actions: ["fxClose"] }, INVITE: { target: T("raum.einladen"), cond: "raumErlaubt", actions: ["fxClose", "fxInvite"] }, JOIN_LIVE: { target: T("raum.beitreten"), cond: "raumErlaubt", actions: ["fxClose", "fxAccept"] } } }
       }
     },
-    konto: {
-      initial: "anonym",
-      states: { anonym: { on: { KONTO_IN: T("konto.angemeldet") } }, angemeldet: { on: { KONTO_OUT: T("konto.anonym") } } }
-    }
+    konto: kontoRegion
   }
 };
 
@@ -166,7 +165,8 @@ export const guards = {
   showOk: (ctx, ev) => !!cardOf(ev.msg.c) && cardOf(ev.msg.c).manifest.mode === "static" && validParams(ev.msg.c, ev.msg.p),
   // Entscheidung 2026-11-11: Raum nur mit Anmeldung. D0 hat noch kein Konto (S8); der Live-Datenkanal der Bruecke
   // (/api/play) ist kontofrei. Deshalb steht die Pruefung hier, ist aber per raumBrauchtKonto=false abgeschaltet.
-  raumErlaubt: (ctx, ev, inState) => !ctx.raumBrauchtKonto || inState("konto.angemeldet")
+  raumErlaubt: (ctx, ev, inState) => !ctx.raumBrauchtKonto || inState("konto.angemeldet"),
+  ...kontoGuards
 };
 
 export const actions = {
@@ -260,11 +260,13 @@ export const actions = {
   fxClose: (ctx, ev, emit) => { emit({ type: "live.close" }); return { ...ctx, raum: null }; },
   setToken: (ctx, ev) => { try { return { ...ctx, raum: { ...ctx.raum, token: ev.token, inviteLink: encode("live", { t: ev.token }) } }; } catch (e) { return ctx; } },
   setStep: (ctx, ev) => ({ ...ctx, raum: { ...(ctx.raum || {}), step: ev.step } }),
-  setRaumError: (ctx, ev) => ({ ...ctx, raum: { ...(ctx.raum || {}), error: ev.reason || "verbindung" } })
+  setRaumError: (ctx, ev) => ({ ...ctx, raum: { ...(ctx.raum || {}), error: ev.reason || "verbindung" } }),
+  ...kontoActions
 };
 
 export const machine = createMachine(chart, { guards, actions });
 
-export function initialContext(lang) {
-  return { lang, cardId: null, params: {}, mode: null, seat: 0, level: 2, part: null, session: null, hs: null, error: null, incoming: null, reason: null, link: null, raum: null, note: null, raumBrauchtKonto: false };
+/** @param saved Konto-Daten aus dem Geraetespeicher (oder null) */
+export function initialContext(lang, saved = null) {
+  return { lang, cardId: null, params: {}, mode: null, seat: 0, level: 2, part: null, session: null, hs: null, error: null, incoming: null, reason: null, link: null, raum: null, note: null, raumBrauchtKonto: false, ...kontoContext(saved) };
 }
