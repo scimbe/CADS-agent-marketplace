@@ -276,13 +276,13 @@
   });
 
   // ---------- timed games (moved from the core, turn-ui.js walk() loads this part for them) ----------
-  // No clock runs before "Los": a tap, then 3-2-1 read out (Kit.speak), then the game. Its box hides the card while it
-  // runs (style.css .timed), so every button is in sight.
+  // No clock runs before "Los": a tap, then 3-2-1 read out (Kit.speak), then the game. Before "Los" the card stays in
+  // sight; from the 3-2-1 on its box hides the card (style.css .timed.run), so every button is in sight.
   function say(k, o) { return String(root.DuellCore.form(L(), k, o && o.n, root.Kit.lang)).replace(/\{(\w+)\}/g, function (m, n) { return o[n]; }); }
   function gate(f) {
     return function (box, p, set, ctx) {
       var w = el("div", "timed"), n = 3, s = el("p", "qtext", L().rdy), b = el("button", "btn hot big", L().rdy_go, function () {
-        b.remove(); (function c() { if (!w.isConnected) return; if (n) { s.textContent = n; Kit.speak(n--); Kit.sfx.tap(); setTimeout(c, 700); } else { s.remove(); f(w, p, set, ctx); } })();
+        b.remove(); w.classList.add("run"); (function c() { if (!w.isConnected) return; if (n) { s.textContent = n; Kit.speak(n--); Kit.sfx.tap(); setTimeout(c, 700); } else { s.remove(); f(w, p, set, ctx); } })();
       });
       w.appendChild(s); w.appendChild(b); box.appendChild(w); set(null);
     };
