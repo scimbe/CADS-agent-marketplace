@@ -19,6 +19,8 @@ export const chart = {
       on: {
         COPIED: { actions: ["markCopied"] },
         SHARE_FAIL: { actions: ["markShareFail"] },
+        COPY: { actions: ["copyLink"] },
+        COPY_FAIL: { actions: ["markCopyFail"] },
         LINK: [
           { target: T("inhalt.receive.live"), cond: "linkLive", actions: ["takeLink"] },
           { target: T("inhalt.receive.show"), cond: "linkOk", actions: ["takeLink"] },
@@ -186,9 +188,11 @@ export const actions = {
   },
   share: (ctx, ev, emit) => { if (ctx.link) emit({ type: "share", fragment: ctx.link }); return ctx; },
   // Teilen sofort beim Eintritt (der Tipp auf Senden ist die Nutzergeste fuer das Systemblatt): ein Tipp weniger
-  autoShare: (ctx, ev, emit) => { if (ctx.link) emit({ type: "share", fragment: ctx.link }); return { ...ctx, copied: false, shareFailed: false }; },
+  autoShare: (ctx, ev, emit) => { if (ctx.link) emit({ type: "share", fragment: ctx.link }); return { ...ctx, copied: false, shareFailed: false, copyFailed: false }; },
   markCopied: (ctx) => ({ ...ctx, copied: true, shareFailed: false }),
   markShareFail: (ctx) => ({ ...ctx, shareFailed: true }),
+  copyLink: (ctx, ev, emit) => { const f = ctx.link || (ctx.raum && ctx.raum.inviteLink); if (f) emit({ type: "copy", fragment: f }); return ctx; },
+  markCopyFail: (ctx) => ({ ...ctx, copyFailed: true }),
   shareInvite: (ctx, ev, emit) => { if (ctx.raum && ctx.raum.inviteLink) emit({ type: "share", fragment: ctx.raum.inviteLink }); return ctx; },
   markSent: (ctx) => ({ ...ctx, sent: true }),
   startLocal: (ctx, ev, emit) => safe(ctx, () => {

@@ -58,11 +58,13 @@ function radios(name, label, items, value, onPick) {
 }
 
 // Der Link selbst ist Rueckfall: zugeklappt, ausser Teilen ging nicht (dann offen mit Hinweis)
-function linkBox(X, link, ctx) {
-  const url = linkUrl(link), info = ctx.shareFailed ? X.shareFail : ctx.copied ? X.copied : ctx.sent ? X.copied : null;
+function linkBox(X, link, ctx, dispatch) {
+  // Rueckfall ohne Teilen-Menue: ein Knopf kopiert mit einem Tipp (Kritikrunde 2); markieren nur, wenn auch das scheitert
+  const url = linkUrl(link), info = ctx.copied ? X.copied : ctx.copyFailed ? X.copyFail : ctx.shareFailed ? X.shareFail : null;
   return h("div", { class: "linkbox" },
-    info ? h("p", { class: ctx.shareFailed ? "warn" : "hint", role: "status" }, info) : null,
-    h("details", { class: "linkdetails", open: ctx.shareFailed ? true : null },
+    info ? h("p", { class: "hint strong", role: "status" }, info) : null,
+    ctx.shareFailed && !ctx.copied ? h("button", { type: "button", class: "btn secondary", "data-act": "copy", on: { click: () => dispatch({ type: "COPY" }) } }, X.copyLink) : null,
+    h("details", { class: "linkdetails", open: ctx.copyFailed ? true : null },
       h("summary", null, X.shareTitle),
       h("input", { id: "linkfield", class: "linkfield", type: "text", readonly: true, "aria-label": X.shareTitle, value: url, on: { focus: (e) => e.target.select() } })));
 }
@@ -149,13 +151,13 @@ export function view(state, dispatch) {
     body = [stage(preview, { class: "stage editing" }), h("p", { class: "hint center" }, X.bubblesHint)];
   } else if (L === "card.share") {
     body = [stage(preview)];
-    panel.push(ctx.link ? linkBox(X, ctx.link, ctx) : h("p", { class: "warn", role: "alert" }, X.linkTooLong));
+    panel.push(ctx.link ? linkBox(X, ctx.link, ctx, dispatch) : h("p", { class: "warn", role: "alert" }, X.linkTooLong));
   } else if (L === "card.lobby") {
     const r = ctx.raum || {};
     body = [h("div", { class: "notice" },
       h("h2", { class: "t-title" }, X.lobbyTitle),
       r.error ? h("p", { class: "warn", role: "alert" }, X.reasons[r.error] || X.reasons.verbindung) : h("p", { role: "status" }, r.step && r.step !== "open" ? X.steps[r.step] || X.lobbyWait : (r.inviteLink ? X.lobbyWait : X.steps.open)),
-      r.inviteLink && !r.error ? linkBox(X, r.inviteLink, ctx) : null,
+      r.inviteLink && !r.error ? linkBox(X, r.inviteLink, ctx, dispatch) : null,
       h("p", { class: "hint" }, X.ipHint))];
   } else if (L.startsWith("card.play")) {
     const phase = L.slice("card.play.".length);
@@ -176,13 +178,14 @@ export function view(state, dispatch) {
       if (phase === "send") lines.push(h("div", { class: "notice", key: "send" }, h("h2", { class: "t-title" }, X.sendTitle), h("p", null, X.sendText)));
       if (phase === "over") {
         const me = ctx.mode === "alone" ? -2 : seat;
-        const res = st.winner === -1 ? X.overDraw : me === -2 ? X.overAll : st.winner === me ? X.overWin : X.overLose;
+        const wn = st.winner >= 0 ? seatName(card, ctx.lang, st.winner) : "";
+        const res = st.winner === -1 ? X.overDraw : me === -2 ? fmt(X.overWinner, { s: wn }) : st.winner === me ? X.overWin : fmt(X.overLose, { s: wn });
         lines.push(h("p", { class: "result", role: "status", key: "res" }, res));
         if (ctx.mode === "link" && ctx.link && !ctx.sent) lines.push(h("p", { class: "hint", key: "sr" }, X.sendResultText));
       }
       // beim Senden ist der andere dran: kein Spielfeld, nur die Bitte zu senden (Kritikrunde 1)
       body = phase === "send" ? lines : [...lines, stage(live, { class: "stage play" })];
-      if ((phase === "send" || phase === "over") && ctx.link) panel.push(linkBox(X, ctx.link, ctx));
+      if ((phase === "send" || phase === "over") && ctx.link) panel.push(linkBox(X, ctx.link, ctx, dispatch));
     }
   } else if (L === "receive.show") {
     const inc = ctx.incoming, c = cardOf(inc.cardId);
@@ -210,7 +213,7 @@ export function view(state, dispatch) {
     acts.primary ? btn(acts.primary, "primary") : null,
     acts.secondary.map((s) => btn(s, "secondary")));
 
-  const main = h("main", { id: "main", class: "main s-" + L.replace(/\./g, "-"), key: "main", tabindex: "-1" },
+  const main = h("main", { id: "main", class: "main s-" + L.replace(/\./g, "-") + (L === "card.view" ? " sticky-actions" : ""), key: "main", tabindex: "-1" },
     h("div", { class: "col-a", key: "a" }, body),
     h("div", { class: "col-b", key: "b" }, panel, L === "card.customize.dialog" || L === "shelf" ? null : actions));
 

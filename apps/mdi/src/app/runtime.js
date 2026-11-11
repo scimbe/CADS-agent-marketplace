@@ -76,6 +76,7 @@ export function createRuntime(deps) {
       case "store": deps.storage.saveGame(fx.entry); break;
       // "shared" = Systemblatt abgeschlossen -> gesendet; "copied" = nur in der Zwischenablage; sonst Hinweis + Feld
       case "share": deps.share(fx.fragment).then((r) => dispatch({ type: r === "shared" ? "SENT" : r === "copied" ? "COPIED" : "SHARE_FAIL" })); break;
+      case "copy": (deps.copy || (() => Promise.resolve(false)))(fx.fragment).then((ok) => dispatch({ type: ok ? "COPIED" : "COPY_FAIL" })); break;
       case "url.clear": deps.clearUrl(); break;
       default: throw new Error("Effekt unbekannt: " + fx.type);
     }

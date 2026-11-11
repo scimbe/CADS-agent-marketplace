@@ -12,7 +12,7 @@ const TX = {
     say: "Karte {n}: Du hast {v}. Was sagst du an?",
     see: "Karte {n}: angesagt {v}. Glaubst du das?",
     yes: "Glauben", no: "Aufdecken",
-    said: "Ansage {v}", believed: "geglaubt", opened: "aufgedeckt",
+    said: "Ansage\u00a0{v}", believed: "geglaubt", opened: "aufgedeckt", lie: "gelogen",
     line: "Karte {n}: Ansage {c}, in Wahrheit {t}.",
     score: "{s0} {a} – {s1} {b}", cheat: "Ansage unter dem echten Wert: Die Partie zählt nicht.",
     rule: "So zählt es: Geglaubt – der Bote bekommt die Ansage. Aufgedeckt und ehrlich – der Bote bekommt den Wert plus {b}. Aufgedeckt und gelogen – der Prüfer bekommt die Ansage.",
@@ -24,7 +24,7 @@ const TX = {
     say: "Card {n}: you hold {v}. What do you announce?",
     see: "Card {n}: announced {v}. Do you believe it?",
     yes: "Believe", no: "Reveal",
-    said: "Said {v}", believed: "believed", opened: "revealed",
+    said: "Said\u00a0{v}", believed: "believed", opened: "revealed", lie: "a lie",
     line: "Card {n}: announced {c}, really {t}.",
     score: "{s0} {a} – {s1} {b}", cheat: "An announcement below the real value: this game does not count.",
     rule: "How it counts: believed – the messenger scores the announcement. Revealed and honest – the messenger scores the value plus {b}. Revealed and a lie – the checker scores the announcement.",
@@ -117,10 +117,11 @@ export default {
       const truth = p.truth ? p.truth[i] : obs.mine ? obs.mine.cards[i] : null;
       const said = p.say[i];
       const call = p.call[i];
-      const sub = [said !== undefined ? fmt(X.said, { v: said }) : "", call === undefined ? "" : call ? X.opened : X.believed].filter(Boolean).join(" · ");
+      const lied = p.truth && said !== undefined && said !== truth;
+      const sub = [said !== undefined ? fmt(X.said, { v: said }) : "", call === undefined ? "" : call ? X.opened : X.believed, lied ? X.lie : ""].filter(Boolean).join("\n");
       tiles.push({
         t: "tile", fill: p.accent, ink, value: truth === null ? null : String(truth), sub,
-        mark: p.truth && call !== undefined ? (call ? (said === truth ? "ok" : "hit") : "none") : "none",
+        mark: p.truth && said !== truth ? "hit" : "none", // Luegen nach der Aufloesung sichtbar markieren
         focus: !preview && ((p.phase === "say" && i === p.say.length) || (p.phase === "call" && i === p.call.length)),
         a11y: fmt(X.card, { n: i + 1 }) + ": " + (truth === null ? X.hidden : truth) + (sub ? ", " + sub : ""),
         part: "farbe"

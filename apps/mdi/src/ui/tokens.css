@@ -65,8 +65,8 @@ button, input, textarea { font: inherit; color: inherit; }
 .notice .t-title, .dialog .t-title { font-size: 1.8rem; }
 .t-body { margin: 0; font-size: clamp(1rem, 5.2cqw, 1.35rem); line-height: 1.35; overflow-wrap: anywhere; }
 .t-label { margin: 0; font-weight: 700; font-size: 1.05rem; }
-.t-big { margin: 0; font: 400 3.4rem/1 var(--font-head); text-align: center; }
-.t-small { margin: 0; font-size: .95rem; color: var(--muted); }
+.t-big { margin: 0; font: 400 clamp(1.8rem, 10cqw, 3rem)/1.05 var(--font-head); text-align: center; text-wrap: balance; }
+.t-small { margin: 0; font-size: 1rem; color: var(--text); }
 .shape { width: 22cqw; height: 22cqw; stroke: var(--ink); stroke-width: 4; stroke-linejoin: round; }
 .shape.size-m { width: 15cqw; height: 15cqw; }
 .shape .ring { fill: none !important; stroke-width: 14; }
@@ -85,7 +85,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .tilebox { flex: 1 1 0; min-width: 0; max-width: 96px; display: grid; gap: 6px; justify-items: center; align-content: start; border-radius: var(--r1); }
 .tile { width: 100%; aspect-ratio: 5 / 7; border: 3px solid var(--edge); border-radius: var(--r1); display: grid; place-items: center; padding: 4px; box-shadow: 0 3px 0 var(--edge); }
 .tile .tv { font: 400 clamp(1.8rem, 9cqw, 3rem)/1 var(--font-head); }
-.tilebox .ts { font-size: .875rem; line-height: 1.2; text-align: center; font-weight: 700; color: var(--text); overflow-wrap: anywhere; max-width: 100%; }
+.tilebox .ts { white-space: pre-line; font-size: .875rem; line-height: 1.2; text-align: center; font-weight: 700; color: var(--text); overflow-wrap: anywhere; max-width: 100%; }
 .tile.back { background-image: repeating-linear-gradient(45deg, transparent 0 8px, rgba(17,17,17,.18) 8px 11px); }
 .tilebox.focus .tile { outline: 4px solid var(--focus); outline-offset: 3px; }
 .tile.mark-hit { box-shadow: 0 0 0 4px var(--bg), 0 0 0 7px var(--danger); }
@@ -104,6 +104,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .seg-opt[aria-checked="true"], .seg-opt[aria-pressed="true"] { background: var(--text); color: var(--bg); }
 .seg-opt:disabled { opacity: .45; cursor: default; }
 .hint { margin: 0; color: var(--muted); font-size: .95rem; }
+.hint.strong { color: var(--text); font-weight: 700; font-size: 1rem; }
 .hint.center { text-align: center; }
 .note { margin: 0; padding: var(--s3); border-left: 4px solid var(--yellow); background: var(--surface); }
 .warn { margin: 0; color: var(--danger); font-weight: 700; }
@@ -122,7 +123,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .btn.primary { background: var(--primary); color: var(--on-primary); border: 3px solid var(--ink); box-shadow: var(--shadow); text-transform: uppercase; letter-spacing: .03em; }
 .btn.primary:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(17,17,17,.9); }
 .btn.secondary { background: transparent; color: var(--text); border: 2px solid var(--text); }
-@media (max-width: 899px) { .col-b .actions { position: sticky; bottom: 0; padding: var(--s3) 0 calc(var(--s2) + env(safe-area-inset-bottom)); background: linear-gradient(to bottom, transparent, var(--bg) 20%); } }
+@media (max-width: 899px) { .sticky-actions .col-b .actions { position: sticky; bottom: 0; padding: var(--s3) 0 calc(var(--s2) + env(safe-area-inset-bottom)); background: linear-gradient(to bottom, transparent, var(--bg) 20%); } }
 
 /* Blasen und Dialog */
 .bubbles { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; }

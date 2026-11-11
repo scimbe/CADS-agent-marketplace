@@ -5,7 +5,7 @@ import { view, leaf } from "./ui/view.js";
 import { patch } from "./ui/dom.js";
 import { grow, shrink } from "./ui/motion.js";
 import { createStorage } from "./broker/storage.js";
-import { share } from "./broker/share.js";
+import { share, copy } from "./broker/share.js";
 import { loadPart } from "./broker/parts.js";
 import { linkUrl } from "./ui/view.js";
 
@@ -20,6 +20,7 @@ const rt = createRuntime({
   lang, entropy, storage: createStorage(),
   live: () => loadPart("live"),
   share: (fragment) => share(linkUrl(fragment), document.title),
+  copy: (fragment) => copy(linkUrl(fragment)),
   clearUrl: () => { try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) { /* file:// in manchen Hosts */ } },
   onChange: draw
 });
