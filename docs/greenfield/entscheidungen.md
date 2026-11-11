@@ -25,3 +25,7 @@
 | 2026-11-11 | Kontobild darf aus den 3 freien Bildern pro Monat kommen | User: „JA“ |
 | 2026-11-11 | Fehlgeschlagene Bildaufträge zählen weiter zum Tageslimit (ohne Abbuchung) | User: „JA“ |
 | 2026-11-11 | Preisregeln für Bilder per Konfiguration änderbar bauen | User: „aber bau es so das es noch geandert werden kann“ |
+| 2026-11-11 | TURN-Relay für kleine Spieldaten gratis mit Ratenlimit (Datei-Relay bleibt zahlend) | User: „ja“ |
+| 2026-11-11 | Verdeckte Information: Geber dürfen Geräte (P2P) und Server sein | User: „Die Geräte und server“ |
+| 2026-11-11 | Raum und Kontakte nur mit Anmeldung | User: „nur mit anmeldung“ (Auslegung: Raum braucht Konto; Kontakte gehören zum Konto) |
+| 2026-11-11 | Fotos: Nutzer entscheidet je Teilen, ob ein Foto mitreist (Standard: bleibt auf dem Gerät) | User: „man kann es entscheiden“ (Auslegung) |

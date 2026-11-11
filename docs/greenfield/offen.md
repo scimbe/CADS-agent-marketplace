@@ -5,9 +5,6 @@
 - Signatur: Mosaik-Hintergrund, lange Links bei Fotokarten, Reihenfolge.
 - Umgang mit neckenden Memes.
 - Gold-Liste: 142 offene Einträge bewerten (Voraussetzung für gültige Harness-Belohnung).
-- Datenschutz Fotos/Audio: Altcode schickt Fotos nirgends hin (auch nicht ins Fragment), Audio nur als Datei per Teilen-
-  Menü (daily.js:463, profile.js:17, klang-ui.js:222-226). Soll ein Foto im Neuentwurf im Fragment reisen dürfen
-  (MAX_FRAGMENT 1200) oder gar nicht?
 - Auth: OIDC+PKCE mit Bearer für Web und Apps (Gate-Cookie nur noch für Server-HTML) einverstanden?
 - Zusammen bauen: auch im Browser (über den Live-Broker) oder weiter nur in den Apps?
 - Statechart: Gate am Ende von S1 (Eigenbau vs. XState) einverstanden?
@@ -21,7 +18,3 @@
   `DuellLink.mayLoad`), `live.js` braucht aber `webconference.bunsenbrenner.org` (`/api/play/*`, WASM-Import, WSS) und die
   Bridge-CORS müsste die App-Herkunft zulassen (iOS `null`, Android `https://appassets.androidplatform.net`). Freigeben, oder
   Live in den Apps nativ über die Hülle (wie `DuellHost.relay`)? Ohne das läuft Datei rüber in den Apps nicht (vor #235 auch nicht).
-- Aus der Konzept-Kritik (07-protokoll/2026-11-11-konzept-review.md):
-  - TURN-Relay für kleine Spieldaten gratis (mit Ratenlimit), damit zwei Gratis-Nutzer hinter Mobilfunk-NAT live spielen können? (Datei-Relay bleibt nur zahlend)
-  - Verdeckte Information (Kartenhände, versiegelte Fragen): darf ein Server „Geber“ sein, oder nur Peer-to-Peer (Commit-Reveal / Mental Poker)?
-  - Raum für anonyme Nutzer erlaubt? Kontakte serverseitig speichern oder nur auf dem Gerät?
