@@ -214,6 +214,34 @@ test("Relais nur fuer Zahlende: Guthaben > 0 darf, sonst nur direkt; ein Schalte
   assert.equal(L.relayCandidate("candidate:3 1 udp 2122260223 192.168.1.4 51000 typ host"), false);
   // only the file tool asks for direct; live.js keeps its old calls (no third argument) for games and the note for two
   const ui = require("node:fs").readFileSync(require.resolve("../src/tools-ui.js"), "utf8");
-  assert.match(ui, /function opts\(w\) \{ return \{ direct: w === "datei" && !paid\(\) \}; \}/);
-  assert.match(ui, /window\.Ai\.post\("\/status"/, "Guthaben ueber den vorhandenen Weg (ai.js), kein eigenes fetch");
+  assert.match(ui, /function opts\(w\) \{ var f = w === "datei"; return \{ direct: f && !paid\(\), purpose: f \? "file" : undefined, grant: f && paid\(\) \? grantFor : undefined \}; \}/);
+  assert.match(ui, /window\.Ai\.post\(p, b\)/, "Guthaben und Grant ueber den vorhandenen Weg (ai.js), kein eigenes fetch");
+  // the bridge decides: live.js names the purpose on open/join and hands the grant on to /ice, nothing else
+  const lv = require("node:fs").readFileSync(require.resolve("../src/live.js"), "utf8");
+  assert.match(lv, /call\("\/open", \{ holderPub: me\.hp, noisePub: me\.np, purpose: o\.purpose \}\)/);
+  assert.match(lv, /call\("\/join", \{ token: token, holderPub: me\.hp, noisePub: me\.np, purpose: o\.purpose \}\)/);
+  assert.match(lv, /grant \? \{ "x-relay-grant": grant \} : null/);
+  assert.match(lv, /return connect\(w, me, st, token, onState, o\)/, "the inviter keeps its options (no shadowing by the /open answer)");
+  assert.doesNotMatch(lv, /\bo = await call\(/);
+});
+
+test("Relais-Grant: Browser ueber Ai.post (Cookie), App ueber die Huelle (Bearer); ohne Antwort kein Relais", async () => {
+  const CH = "ab".repeat(32);
+  // browser: Ai.post("/relay-grant", body) -> { status, json }
+  const asked = [];
+  const post = async (p, b) => { asked.push([p, b]); return b.channel ? { status: 200, json: { ok: true, grant: "rg1.x.y" } } : { status: 200, json: { ok: true, credit: 2 } }; };
+  assert.deepEqual(await T.relayAsk({}, { post }), { status: 200, json: { ok: true, credit: 2 } });
+  assert.deepEqual((await T.relayAsk({ channel: CH }, { post })).json.grant, "rg1.x.y");
+  assert.deepEqual(asked, [["/relay-grant", {}], ["/relay-grant", { channel: CH }]], "nur Kanal, kein Dateiname");
+  assert.deepEqual(await T.relayAsk({}, { post: async () => { throw new Error("offline"); } }), { status: 0, json: null });
+  // app shell: DuellHost.relay(id, body), the answer comes back through hostReply(id, status, body)
+  const calls = [];
+  const host = { relay: (id, text) => { calls.push([id, text]); setTimeout(() => T.hostReply(id, 402, '{"ok":false,"error":"credit","credit":0}'), 5); } };
+  assert.deepEqual(await T.relayAsk({}, { host, post }), { status: 402, json: { ok: false, error: "credit", credit: 0 } });
+  assert.match(calls[0][0], /^r\d+$/); assert.equal(calls[0][1], "{}");
+  assert.equal(asked.length, 2, "in der App nie der Cookie-Weg");
+  // a shell that never answers, or throws: status 0 (no relay), and a late answer changes nothing
+  assert.deepEqual(await T.relayAsk({}, { host: { relay: () => {} }, timeout: 20 }), { status: 0, json: null });
+  assert.deepEqual(await T.relayAsk({}, { host: { relay: () => { throw new Error("x"); } } }), { status: 0, json: null });
+  T.hostReply("r999", 200, "{}");
 });

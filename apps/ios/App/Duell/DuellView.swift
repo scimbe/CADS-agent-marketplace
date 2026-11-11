@@ -13,9 +13,13 @@ final class DuellState: ObservableObject {
 /// Full-screen web view that loads only the bundled `duell/index.html` (My Daily Idea).
 struct DuellView: View {
     @EnvironmentObject var state: DuellState
+    @EnvironmentObject var model: AppModel
 
     var body: some View {
-        DuellWebView(pendingFragment: $state.pendingFragment, onMore: { state.showMore = true })
+        let model = model
+        // The relay grant of the file tool goes out with a fresh access token (refreshed when it expires within 60 s).
+        DuellWebView(pendingFragment: $state.pendingFragment, onMore: { state.showMore = true },
+                     relayToken: { await model.prepareRequest(); return AuthService.currentAccessToken() })
             .ignoresSafeArea()   // the page pads itself with env(safe-area-inset-*)
             .background(Color(red: 1.0, green: 0.831, blue: 0.0).ignoresSafeArea())   // brand yellow #FFD400
     }
@@ -24,6 +28,7 @@ struct DuellView: View {
 private struct DuellWebView: UIViewRepresentable {
     @Binding var pendingFragment: String?
     let onMore: () -> Void
+    let relayToken: () async -> String?
 
     func makeCoordinator() -> DuellCoordinator { DuellCoordinator(onMore: onMore) }
 
@@ -31,9 +36,10 @@ private struct DuellWebView: UIViewRepresentable {
         let c = context.coordinator
         let config = WKWebViewConfiguration()
         let ucc = config.userContentController
-        // Only these handlers exist: share sheet (link / file), save, haptics, the quiet "more" and the AI call.
+        // Only these handlers exist: share sheet (link / file), save, haptics, the quiet "more", the AI call and the relay grant.
         for name in DuellCoordinator.handlerNames { ucc.add(WeakHandler(c), name: name) }
         ucc.addScriptMessageHandler(DuellAiBridge(), contentWorld: .page, name: "ai")   // the one network call, made by the shell
+        ucc.addScriptMessageHandler(DuellRelayBridge(token: relayToken), contentWorld: .page, name: "relay")   // relay grant, with the login
         ucc.addUserScript(WKUserScript(source: DuellCoordinator.hostScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         // The page keeps its wall and profile in localStorage; that has to survive a restart.
         config.websiteDataStore = .default()
@@ -117,7 +123,11 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
         peerAccept: function (link) { h.peerAccept.postMessage({ link: String(link) }); },
         peerSend: function (frame) { h.peerSend.postMessage({ frame: String(frame) }); },
         peerLeave: function () { h.peerLeave.postMessage({}); },
-        ai: function (path, body) { return h.ai.postMessage({ path: String(path), body: String(body) }); }
+        ai: function (path, body) { return h.ai.postMessage({ path: String(path), body: String(body) }); },
+        relay: function (id, body) {
+          var done = function (st, b) { if (typeof window.DuellHostReply === "function") window.DuellHostReply(String(id), st, b); };
+          h.relay.postMessage({ body: String(body) }).then(function (r) { done(r.status, r.body); }, function () { done(0, ""); });
+        }
       });
     })();
     """ }

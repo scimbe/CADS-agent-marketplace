@@ -58,19 +58,20 @@ function qr(cv, text) {
 }
 // The inviting device: a QR code (a computer shows it, the phone scans it) and the link to send; then the connection.
 // The file tool goes direct only unless this person may use the relay (Tools.relayFor: credit > 0, or the switch); the
-// note for two keeps the relay as before. credit: null until /ai/status answered (asked when the file tool opens, never on
-// the first paint; without a login or offline it stays 0).
+// note for two keeps the relay as before. credit: null until the wrapper answered (asked when the file tool opens, never on
+// the first paint; without a login or offline it stays 0). The relay itself is the bridge's decision: a file channel gets
+// TURN only against a grant the wrapper signs for this account and this channel (grantFor), so the rule holds in the
+// browser and in the apps alike; the apps ask through the shell with their Bearer login (Tools.relayAsk).
 var credit = null, creditP = null;
+window.DuellHostReply = T.hostReply;
+function ask(body) { return T.relayAsk(body, { host: window.DuellHost, post: function (p, b) { return window.Ai.post(p, b); } }); }
 function askCredit() {
-  creditP = (async function () {
-    try { var r = window.Ai && await window.Ai.post("/status", { device: Kit.store.aiDev || undefined }); var c = r && r.json && r.json.create && r.json.create.credit; credit = typeof c === "number" ? c : 0; }
-    catch (e) { credit = 0; }
-    return credit;
-  })();
+  creditP = ask({}).then(function (r) { var c = r && r.json && r.json.credit; credit = r && r.status === 200 && typeof c === "number" ? c : 0; return credit; }, function () { credit = 0; return credit; });
   return creditP;
 }
+function grantFor(channel) { return ask({ channel: channel }).then(function (r) { return r && r.status === 200 && r.json && typeof r.json.grant === "string" ? r.json.grant : null; }); }
 function paid() { return T.relayFor(credit); }
-function opts(w) { return { direct: w === "datei" && !paid() }; }
+function opts(w) { var f = w === "datei"; return { direct: f && !paid(), purpose: f ? "file" : undefined, grant: f && paid() ? grantFor : undefined }; }
 // before a file connection: the answer about credit, at most 4 s (then direct only)
 function credited(w) { return w === "datei" && creditP ? Promise.race([creditP, new Promise(function (ok) { setTimeout(ok, 4000); })]) : Promise.resolve(); }
 async function host(box, w, shareText, then) {

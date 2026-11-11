@@ -242,6 +242,23 @@
     if (f && typeof f.toolRelay === "boolean") return f.toolRelay;
     return typeof credit === "number" && credit > 0;
   }
+  // The relay grant of the wrapper (POST /api/duell/relay-grant; {} asks whether this account may use the relay, {channel}
+  // gets a grant bound to that channel for the bridge). In the app shells there is no login cookie: the shell asks with its
+  // own Bearer login (DuellHost.relay(id, body), answer through DuellHostReply(id, status, body)); a browser sends the
+  // login cookie through Ai.post (ai.js, the one fetch for the wrapper). Either way -> { status, json }; status 0 when
+  // nothing came back (an older shell, offline): then no relay.
+  var waits = {}, seq = 0;
+  function hostReply(id, status, body) { var f = waits[id]; if (f) { delete waits[id]; f(status, body); } }
+  function relayAsk(body, env) {
+    var text = JSON.stringify(body || {}), H = env.host;
+    if (H && typeof H.relay === "function") return new Promise(function (ok) {
+      var id = "r" + (++seq), tm = setTimeout(function () { hostReply(id, 0, ""); }, env.timeout || 8000);
+      waits[id] = function (st, b) { clearTimeout(tm); var j = null; try { j = JSON.parse(b); } catch (e) { j = null; } ok({ status: Number(st) || 0, json: j }); };
+      try { H.relay(id, text); } catch (e) { hostReply(id, 0, ""); }
+    });
+    return Promise.resolve().then(function () { return env.post("/relay-grant", body || {}); })
+      .then(function (r) { return { status: r && r.status || 0, json: r && r.json || null }; }, function () { return { status: 0, json: null }; });
+  }
   // Sizes as people read them: "830 B", "12,3 MB" (de) / "12.3 MB" (en); decimal units like the phones show them.
   function size(b, lang) {
     var u = ["B", "KB", "MB", "GB"], i = 0, v = b;
@@ -252,7 +269,7 @@
 
   var api = {
     sha256: sha256, COLORS: COLORS, STICKERS: STICKERS, MAX_NOTE: MAX_NOTE, cleanNote: cleanNote, noteCode: noteCode, noteFrom: noteFrom, noteFits: noteFits, noteLoad: noteLoad,
-    shared: shared, transfer: transfer, relayFor: relayFor, cleanName: cleanName, size: size, CHUNK: CHUNK, HIGH: HIGH, LOW: LOW, ACK: ACK, MAX_BYTES: MAX_BYTES
+    shared: shared, transfer: transfer, relayFor: relayFor, relayAsk: relayAsk, hostReply: hostReply, cleanName: cleanName, size: size, CHUNK: CHUNK, HIGH: HIGH, LOW: LOW, ACK: ACK, MAX_BYTES: MAX_BYTES
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Tools = api;

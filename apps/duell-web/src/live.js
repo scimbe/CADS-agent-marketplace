@@ -15,8 +15,8 @@
     await m.default(WC + "/pkg/ct_agent_wasm_bg.wasm");
     wasm = m; return m;
   }
-  async function call(path, body) {
-    var r = await fetch(API + path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {});
+  async function call(path, body, head) {
+    var r = await fetch(API + path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : { headers: head || {} });
     var j = await r.json().catch(function () { return {}; }); j.http = r.status; return j;
   }
   function hex(b) { return Array.from(b, function (x) { return x.toString(16).padStart(2, "0"); }).join(""); }
@@ -108,7 +108,9 @@
     var nt = hs.intoTransport();
     function signal(bytes) { s.send(w.frame_message(nt.encrypt(bytes))); }   // no await inside: the nonce order stays intact
     onState("rtc");
-    var ice = await call("/ice?channel=" + info.channel + "&role=" + info.role + "&token=" + encodeURIComponent(token));
+    // The file tool's relay is the bridge's decision: TURN only against a grant for this channel (o.grant, paying accounts).
+    var grant = o.grant ? await o.grant(info.channel).catch(function () { return null; }) : null;
+    var ice = await call("/ice?channel=" + info.channel + "&role=" + info.role + "&token=" + encodeURIComponent(token), null, grant ? { "x-relay-grant": grant } : null);
     // The server sends STUN plus, as a fallback, a short-lived TURN login: the browser takes the relay only if no direct
     // pair connects. Both players may see each other's IP address; the invite screen says so.
     var pc = new RTCPeerConnection({ iceServers: o.direct ? directServers(ice.iceServers) : ice.iceServers || [] });
@@ -158,9 +160,10 @@
   }
   // Inviter: returns the token at once; the connection follows when the friend opens the link.
   async function invite(onState, o) {
-    var w = await load(), me = ids(w), o = await call("/open", { holderPub: me.hp, noisePub: me.np });
-    if (o.http !== 200 || !o.token) throw new Error(o.code || "open");
-    var token = o.token;
+    o = o || {};
+    var w = await load(), me = ids(w), op = await call("/open", { holderPub: me.hp, noisePub: me.np, purpose: o.purpose });
+    if (op.http !== 200 || !op.token) throw new Error(op.code || "open");
+    var token = op.token;
     var ready = (async function () {
       var until = Date.now() + WAIT_MS;
       while (Date.now() < until) {
@@ -174,7 +177,8 @@
     return { token: token, expires: Date.now() + WAIT_MS, ready: ready };
   }
   async function accept(token, onState, o) {
-    var w = await load(), me = ids(w), j = await call("/join", { token: token, holderPub: me.hp, noisePub: me.np });
+    o = o || {};
+    var w = await load(), me = ids(w), j = await call("/join", { token: token, holderPub: me.hp, noisePub: me.np, purpose: o.purpose });
     if (j.http !== 200) throw new Error(j.code || "join");
     onState("found", j.channel);
     return connect(w, me, j, token, onState, o);

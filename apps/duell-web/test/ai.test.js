@@ -46,6 +46,7 @@ test("Pfade wie im Server-Protokoll: /api/duell/ai, /queue daneben, /ai/accept, 
   assert.equal(A.endpoint(api, "/discard"), "https://h.example/api/duell/ai/discard");
   assert.equal(A.endpoint(api, "/report"), "https://h.example/api/duell/report");
   assert.equal(A.endpoint(api, "/weather"), "https://h.example/api/duell/ai/weather");
+  assert.equal(A.endpoint(api, "/relay-grant"), "https://h.example/api/duell/relay-grant", "Datei rueber: Relais-Grant neben der KI");
 });
 
 test("Adapter, Warteschlange: Platz wird gemeldet, gewartet wird nur mit Ticket an /queue, Ergebnis mit Siegel je Option und Beleg", async () => {

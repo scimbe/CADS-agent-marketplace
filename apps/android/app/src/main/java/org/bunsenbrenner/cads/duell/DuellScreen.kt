@@ -45,13 +45,20 @@ import org.bunsenbrenner.cads.R
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.net.URI
+import kotlinx.coroutines.runBlocking
 
 /**
  * The only bridge the page sees (`window.DuellHost`): share sheet (link, or a file with link), save a
  * file, a light tick and the quiet "more" that opens the native extras. Everything the page passes is
  * validated here ([DuellLink], [DuellFiles]); the page is the app's own bundled asset, not a trusted caller.
  */
-class DuellHost(private val context: Context, private val view: View, private val peer: PeerBridge, private val onMore: () -> Unit) {
+class DuellHost(
+    private val context: Context,
+    private val view: View,
+    private val peer: PeerBridge,
+    private val relayCall: (String, (Int, String) -> Unit) -> Unit = { _, done -> done(0, "") },
+    private val onMore: () -> Unit,
+) {
     private val main = Handler(Looper.getMainLooper())
     private val shareDir = File(context.cacheDir, "share")
 
@@ -159,6 +166,21 @@ class DuellHost(private val context: Context, private val view: View, private va
     @JavascriptInterface
     fun peerLeave() = peer.leave()
 
+    /**
+     * The file tool's relay grant ([DuellRelay]): the shell asks with the app's login, the page gets
+     * `DuellHostReply(id, status, body)`. A bad id or body is dropped (the page then times out: no relay).
+     */
+    @JavascriptInterface
+    fun relay(id: String?, body: String?) {
+        if (!DuellRelay.validId(id)) return
+        val text = DuellRelay.body(body) ?: run { reply(id!!, 0, ""); return }
+        relayCall(text) { st, answer -> reply(id!!, st, answer) }
+    }
+
+    private fun reply(id: String, status: Int, body: String) {
+        main.post { (view as? WebView)?.evaluateJavascript(DuellRelay.reply(id, status, body), null) }
+    }
+
     private fun startChooser(chooser: Intent) {
         val activity = context.findActivity()
         try {
@@ -200,6 +222,7 @@ fun DuellScreen(
     apiBase: String,
     peerToken: () -> String?,
     onMore: () -> Unit,
+    relayToken: suspend () -> String? = { null },
     modifier: Modifier = Modifier,
 ) {
     val apiHost = remember(apiBase) { URI(apiBase).host ?: "" }
@@ -207,6 +230,7 @@ fun DuellScreen(
     val loaded = remember { intArrayOf(-1) }
     val more by rememberUpdatedState(onMore)
     val token by rememberUpdatedState(peerToken)
+    val relayTok by rememberUpdatedState(relayToken)
     // One worker per session step, so a blocking call of the channel never holds the UI or the JS thread.
     val peerBridge = remember {
         val main = Handler(Looper.getMainLooper())
@@ -279,7 +303,12 @@ fun DuellScreen(
                 }
                 WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
                 web.overScrollMode = View.OVER_SCROLL_NEVER
-                web.addJavascriptInterface(DuellHost(ctx, web, peerBridge) { more() }, "DuellHost")
+                // The relay grant leaves on a worker thread with a fresh token (refreshed before, like every account call).
+                val relayCall: (String, (Int, String) -> Unit) -> Unit = { body, done ->
+                    Thread({ val t = try { runBlocking { relayTok() } } catch (_: Exception) { null }; val (st, ans) = DuellRelay.call(apiBase, body, t); done(st, ans) }, "relay")
+                        .apply { isDaemon = true }.start()
+                }
+                web.addJavascriptInterface(DuellHost(ctx, web, peerBridge, relayCall) { more() }, "DuellHost")
                 web.webChromeClient = object : WebChromeClient() {
                     override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
                         chooserCallback[0]?.onReceiveValue(null) // a new request replaces an unanswered one

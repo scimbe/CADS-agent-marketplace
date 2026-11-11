@@ -64,7 +64,7 @@
   // One seal per option (seals[i] belongs to options[i]); a bad one is simply left out.
   function seals(json) { var a = json && Array.isArray(json.seals) ? json.seals : []; return json.options.map(function (x, i) { return okSeal(a[i]); }); }
   // The page names a path; queue and report sit next to the AI on the server, the rest below it. iOS maps the same names.
-  var ROOT = { "/queue": 1, "/report": 1 };
+  var ROOT = { "/queue": 1, "/report": 1, "/relay-grant": 1 };
   function endpoint(api, path) { var r = String(api).replace(/\/(config|ai)$/, ""); return r + (ROOT[path] ? path : "/ai" + path); }
 
   /* The client adapter: one place that speaks the server's protocol (CADS-DEMO-wrapper, "Schnittstellen fuer die App").

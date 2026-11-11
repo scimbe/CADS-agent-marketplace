@@ -116,6 +116,7 @@ fun CadsApp(
                 visible = screen == Screen.Idea,
                 apiBase = BuildConfig.DUELL_API_BASE,
                 peerToken = peerToken,
+                relayToken = { beforeRequest(); peerToken() },
                 onMore = { moreOpen = true },
                 modifier = Modifier.fillMaxSize(),
             )

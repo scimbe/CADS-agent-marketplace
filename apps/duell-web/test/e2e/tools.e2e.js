@@ -28,22 +28,33 @@ const STUB = (side) => `(() => {
       onBin: (f) => { bh = f; }, buffered: () => buf, onLow: (f) => { low = f; }, fp: () => FP
     };
   }
+  // what the page hands live.js: direct only or not, the purpose for the bridge, and whether it asks for a relay grant
+  function seen(o) { o = o || {}; window.__toolGrant = o.grant || null; return { direct: !!o.direct, purpose: o.purpose || null, grant: typeof o.grant === "function" }; }
   window.Live = {
     // what the page asked for (direct only or not); window.__toolNoPath: no direct path, the join ends as live.js ends it ("rtc")
-    invite: async (s, o) => { window.__toolOpts = o || {}; return { token: "${TOKEN}", expires: Date.now() + 900000, ready: new Promise((ok, no) => { window.__toolReady = () => ok(mk()); window.__toolFail = () => no(new Error("rtc")); }) }; },
-    accept: async (t, s, o) => { window.__toolOpts = o || {}; if (t !== "${TOKEN}") throw new Error("gone"); if (window.__toolNoPath) throw new Error("rtc"); const c = mk(); await window.__toolJoined(); return c; }
+    invite: async (s, o) => { window.__toolOpts = seen(o); return { token: "${TOKEN}", expires: Date.now() + 900000, ready: new Promise((ok, no) => { window.__toolReady = () => ok(mk()); window.__toolFail = () => no(new Error("rtc")); }) }; },
+    accept: async (t, s, o) => { window.__toolOpts = seen(o); if (t !== "${TOKEN}") throw new Error("gone"); if (window.__toolNoPath) throw new Error("rtc"); const c = mk(); await window.__toolJoined(); return c; }
   };
   // what would go to the share sheet
   navigator.share = async (o) => { window.__shared = o; };
 })();`;
 
-// credit: what /ai/status says about this account (create.credit; undefined = no login, no create block)
-const STATUS = "https://demos-34a13a96.bunsenbrenner.org/api/duell/ai/status";
+// credit: what the wrapper says about this account on POST /api/duell/relay-grant (undefined = no login: 401; 0: 402)
+const STATUS = "https://demos-34a13a96.bunsenbrenner.org/api/duell/relay-grant";
+const AI_STATUS = "https://demos-34a13a96.bunsenbrenner.org/api/duell/ai/status";
+function relayAnswer(credit, body) {
+  if (credit === undefined) return { status: 401, body: { ok: false, error: "login" } };
+  if (!(credit > 0)) return { status: 402, body: { ok: false, error: "credit", credit: 0 } };
+  const ch = body && body.channel;
+  return { status: 200, body: ch ? { ok: true, relay: true, credit, grant: "rg1.test-" + ch.slice(0, 8), exp: 0 } : { ok: true, relay: true, credit } };
+}
 async function device(b, side, view, credit) {
   const ctx = await G.person(b, { lang: "de", view: view || "phone390", web: true });
   ctx.side = side; ctx.out = []; ctx.status = [];   // requests that leave 127.0.0.1 (other than the credit question)
-  ctx.on("request", (r) => { if (r.url() === STATUS) ctx.status.push(r.postData() || ""); else if (!G.isLocal(r.url()) && !/^(data|blob):/.test(r.url())) ctx.out.push(r.url()); });
-  await ctx.route(STATUS, (r) => r.fulfill({ status: 200, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify(credit === undefined ? {} : { create: { size: 5, remaining: 0, credit } }) }));
+  // AI_STATUS: the free card's own status, asked when "Guthaben aufladen" opens it (create-ui.js), never by the tool
+  ctx.on("request", (r) => { if (r.url() === STATUS) ctx.status.push(r.postData() || ""); else if (r.url() !== AI_STATUS && !G.isLocal(r.url()) && !/^(data|blob):/.test(r.url())) ctx.out.push(r.url()); });
+  await ctx.route(AI_STATUS, (r) => r.fulfill({ status: 200, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" }, body: "{}" }));
+  await ctx.route(STATUS, (r) => { let b = {}; try { b = JSON.parse(r.request().postData() || "{}"); } catch (e) { b = {}; } const a = relayAnswer(credit, b); return r.fulfill({ status: a.status, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify(a.body) }); });
   await ctx.addInitScript(STUB(side));
   return ctx;
 }
@@ -156,12 +167,12 @@ test("Datei rueber: Code am Rechner, Handy verbindet, Annehmen mit Name und Groe
     const qr = jsQR(Uint8ClampedArray.from(px.d), px.w, px.h);
     assert.ok(qr, "QR-Code lesbar"); assert.equal(qr.data, "https://bunsenbrenner.org/duell#tl=" + TOKEN + "&w=datei");
     await snap(A, "datei-2-code");
-    assert.deepEqual(await A.evaluate(() => window.__toolOpts), { direct: true }, "Datei: nur direkt (Relais aus)");
+    assert.deepEqual(await A.evaluate(() => window.__toolOpts), { direct: true, purpose: "file", grant: false }, "Datei: nur direkt (Relais aus)");
     await B.goto((await G.webUrl("index.html")) + "#" + qr.data.split("#")[1]);
     await A.locator(".tlbadge").waitFor(); await B.locator(".tlbadge").waitFor();
     assert.equal(await text(A, ".tlbadge"), await text(B, ".tlbadge"), "dieselben drei Bilder auf beiden Geraeten");
     assert.equal((await text(A, ".tlbadge")).split(" ").length, 3);
-    assert.deepEqual(await B.evaluate(() => window.__toolOpts), { direct: true }, "auch das beitretende Geraet nur direkt");
+    assert.deepEqual(await B.evaluate(() => window.__toolOpts), { direct: true, purpose: "file", grant: false }, "auch das beitretende Geraet nur direkt");
 
     // the phone (B) sends to the computer (A): nothing flows before the yes
     const buf = crypto.randomBytes(1536 * 1024 + 321);
@@ -230,7 +241,7 @@ test("Notiz zu zweit: einladen, das andere Geraet tritt bei, beide schreiben auf
     assert.equal(await A.locator(".tlqr").getAttribute("data-url"), "https://bunsenbrenner.org/duell#tl=" + TOKEN + "&w=notiz");
     await B.goto((await G.webUrl("index.html")) + "#tl=" + TOKEN + "&w=notiz");
     await A.locator(".tlon").waitFor(); await B.locator(".tlon").waitFor();
-    assert.deepEqual(await A.evaluate(() => window.__toolOpts), { direct: false }, "Notiz zu zweit: wie bisher"); assert.deepEqual(await B.evaluate(() => window.__toolOpts), { direct: false });
+    assert.deepEqual(await A.evaluate(() => window.__toolOpts), { direct: false, purpose: null, grant: false }, "Notiz zu zweit: wie bisher (Spiel-Kanal)"); assert.deepEqual(await B.evaluate(() => window.__toolOpts), { direct: false, purpose: null, grant: false });
     assert.equal(await text(A, ".tlon"), await text(B, ".tlon"), "dieselben drei Bilder");
     await G.poll(() => B.locator(".tlnotex").inputValue(), (v) => v === "Einkauf:", { what: "der Zettel kommt an" });
     await B.locator(".tlnotex").click(); await B.keyboard.press("End"); await B.keyboard.type(" Milch");
@@ -256,7 +267,7 @@ test("Datei rueber, Relais nur mit Guthaben: ohne - nur direkt, ehrlicher Satz p
     await A.locator("#go").click(); await G.poll(() => ca.status.length, (n) => n === 1, { what: "Guthaben erst beim Oeffnen" });
     assert.doesNotMatch(await text(A, ".tlcard"), /Relais/);
     await A.locator(".tlov .press").click(); await A.locator(".tlqr:not([hidden])").waitFor();
-    assert.deepEqual(await A.evaluate(() => window.__toolOpts), { direct: true });
+    assert.deepEqual(await A.evaluate(() => window.__toolOpts), { direct: true, purpose: "file", grant: false });
     await A.evaluate(() => window.__toolFail());
     await A.getByText("Keine direkte Verbindung möglich (z. B. Mobilfunk oder Firmennetz). Versucht es im selben WLAN.").waitFor();
     await A.getByText("Mit Guthaben klappt es auch über ein Relais, das nur verschlüsselte Daten sieht.").waitFor();
@@ -270,21 +281,24 @@ test("Datei rueber, Relais nur mit Guthaben: ohne - nur direkt, ehrlicher Satz p
     await B.addInitScript(() => { window.__toolNoPath = true; });
     await B.goto((await G.webUrl("index.html")) + "#tl=" + TOKEN + "&w=datei");
     await B.getByText("Keine direkte Verbindung möglich (z. B. Mobilfunk oder Firmennetz). Versucht es im selben WLAN.").waitFor();
-    assert.deepEqual(await B.evaluate(() => window.__toolOpts), { direct: true }, "Guthaben 0: auch das beitretende Geraet nur direkt");
+    assert.deepEqual(await B.evaluate(() => window.__toolOpts), { direct: true, purpose: "file", grant: false }, "Guthaben 0: auch das beitretende Geraet nur direkt");
     // paying (credit > 0): the relay may carry the ciphertext, and the card says so; without any path the plain network word
     const cc = await device(b, "a", "phone390", 3), C2 = await G.open(cc, "#i=datei-rueber");
     await C2.locator("#go").click();
     await G.poll(() => text(C2, ".tlcard"), (v) => /wenn kein direkter Weg geht, über ein Relais, das nichts lesen kann/.test(v), { what: "Relais-Satz fuer Zahlende" });
     await C2.locator(".tlov .press").click(); await C2.locator(".tlqr:not([hidden])").waitFor();
-    assert.deepEqual(await C2.evaluate(() => window.__toolOpts), { direct: false });
+    assert.deepEqual(await C2.evaluate(() => window.__toolOpts), { direct: false, purpose: "file", grant: true });
+    // the grant for the bridge: asked for this channel only, after the pair met (live.js, before /ice)
+    assert.equal(await C2.evaluate(() => window.__toolGrant("ab".repeat(32))), "rg1.test-abababab");
     await C2.evaluate(() => window.__toolFail());
     await C2.getByText("Eure Netze lassen gerade keine Verbindung zu", { exact: false }).waitFor();
     assert.equal(await C2.getByText("Mit Guthaben klappt es").count(), 0);
     // the one switch: relay for everyone (DailyFlags.toolRelay), even without credit
     const cd = await device(b, "a"); await cd.addInitScript(() => { window.DailyFlags = { toolRelay: true }; });
     const D2 = await G.open(cd, "#i=datei-rueber"); await D2.locator("#go").click(); await D2.locator(".tlov .press").click(); await D2.locator(".tlqr:not([hidden])").waitFor();
-    assert.deepEqual(await D2.evaluate(() => window.__toolOpts), { direct: false });
-    for (const c of [ca, cb, cc]) for (const body of c.status) assert.doesNotMatch(body, /datei|notiz|Urlaub/i, "nur die Geraete-Kennung geht mit");
+    assert.deepEqual(await D2.evaluate(() => window.__toolOpts), { direct: false, purpose: "file", grant: true });
+    assert.equal(await D2.evaluate(() => window.__toolGrant("ab".repeat(32))), null, "Schalter ohne Guthaben: kein Grant, die Bridge entscheidet (PLAY_FILE_RELAY)");
+    for (const c of [ca, cb, cc, cd]) for (const body of c.status) assert.match(body, /^\{("channel":"[0-9a-f]{64}")?\}$/, "nur der Kanal geht mit, kein Dateiname, keine Geraete-Kennung");
     assert.deepEqual(A.errs.concat(B.errs, C2.errs, D2.errs), []);
     assert.deepEqual(ca.out.concat(cb.out, cc.out, cd.out), []);
   } finally { await b.close(); }
