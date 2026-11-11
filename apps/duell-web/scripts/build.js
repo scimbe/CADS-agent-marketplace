@@ -99,6 +99,7 @@ const PARTS = {
   regler: { d: [], src: ["REGLERDATA", "REGELN", "REGLERUI"] },                                        // the flight game's sliders in named steps
   blasen: { d: [], src: ["TEILE", "BLASEN", "EBENE", "DIALOG", "BSTART"] },                                              // R4/A3b: the editor's tab bar and panels (src/blasen.js), the parts of a card (src/teile.js) and their bubbles (src/blasen-ebene.js), only on demand (parts.js ONDEMAND): openEditor asks for it
   lauf: { d: [], src: ["LAUFDATA", "LAUFENGINE", "LAUFUI"] },                                          // the second game engine: runner and platformer (doc.k "lauf", src/lauf.js)
+  kibild: { d: [], src: ["KIBILDDATA", "KIBILD"] },                                                    // KI-Bilder auf Wunsch: window.KiBild (src/kibild.js), only on demand (parts.js ONDEMAND)
 };
 // The weather card's block (src/wetter.js); not built for a flavor whose catalog has no cards (Daily Business: turns only).
 // Stickers in the finished picture (src/noto.js, Noto Emoji sheet src/noto-stickers.png); only where cards and photo posters
@@ -137,6 +138,7 @@ parts.STIMMEUI = read("src/stimme-ui.js"); parts.STIMMEDATA = "window.StimmeText
 parts.KALENDERDATA = "window.KalenderData=" + JSON.stringify(json("src/kalender.json")) + ";";
 parts.KONTODATA = "window.KontoTexts=" + JSON.stringify(kontoTexts) + ";" + merge("KontoTexts"); parts.PROFILE = read("src/profile.js");
 parts.STILDATA = "window.StilTexts=" + JSON.stringify(partTexts.stil) + ";" + merge("StilTexts"); parts.STIL = read("src/stil.js");
+parts.KIBILDDATA = "window.KibildTexts=" + JSON.stringify(json("src/kibild.json")) + ";" + merge("KibildTexts"); parts.KIBILD = read("src/kibild.js");
 parts.MELDENDATA = "window.MeldenTexts=" + JSON.stringify(partTexts.melden) + ";" + merge("MeldenTexts"); parts.MELDEN = read("src/melden.js");
 if (PARTS.wetter) { parts.WETTERDATA = "window.WetterTexts=" + JSON.stringify(partTexts.wetter) + ";" + merge("WetterTexts"); parts.WETTER = read("src/wetter.js"); }
 parts.DIREKTDATA = "window.DirektData=" + JSON.stringify(json("src/direkt.json")) + ";" + merge("DirektData.texts"); parts.EDITMODEL = read("src/editmodel.js"); parts.DIREKTUI = read("src/direkt-ui.js");
@@ -188,7 +190,7 @@ let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + 
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
 // code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
-const KEEP = new Set(["STARTDATA", "DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "DARTDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "LAUFDATA", "NOTODATA", "KLANGDATA", "DECKTEXTS"]);
+const KEEP = new Set(["STARTDATA", "DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "DARTDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "KIBILDDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "LAUFDATA", "NOTODATA", "KLANGDATA", "DECKTEXTS"]);
 // A comment after code on the same line goes too (about 18 KB), only when it follows ; { } ) or , and has no quote, slash or
 // backslash in it: such a "//" can never stand inside a string, template or regex (no own string spans lines, see above).
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "").replace(/([;{}),])[ \t]+\/\/ [^"'`/\\]*$/, "$1")).join("\n");

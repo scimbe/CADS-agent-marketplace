@@ -353,6 +353,14 @@
     if (r.s && typeof o.o === "string" && /^[A-Za-z0-9_-]{22}$/.test(o.o)) r.o = o.o;
     return r;
   }
+  var GI_RE = /^[A-Za-z0-9_-]{22}\.(jpg|png)$/;
+  function sanitizeGi(o) {
+    if (!o || typeof o !== "object") return null;
+    var r = {};
+    if (typeof o.p === "string" && GI_RE.test(o.p)) r.p = o.p;
+    if (typeof o.l === "string" && GI_RE.test(o.l)) r.l = o.l;
+    return r.p || r.l ? r : null;
+  }
   function sanitizeDoc(o) {
     if (!o || typeof o !== "object" || KINDS.indexOf(o.k) < 0) return null;
     var d = { k: o.k, col: sanitizeColors(o.col, ["#ffd400", "#ff3b1d"]), by: sanitizeTrail(o.by) };
@@ -362,6 +370,9 @@
     var ki = sanitizeKi(o.ki); if (ki) d.ki = ki;
     // remix of a free card: its id (part deck)
     if (typeof o.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(o.fr)) d.fr = o.fr;
+    // gi: AI pictures made on request (CADS-DEMO-wrapper lib/duell-bild.mjs), only their server id, never the bytes:
+    // p the card's picture, l its logo. The page loads them from the gallery server like the day's pictures (app.js thumbUrl).
+    var gi = sanitizeGi(o.gi); if (gi) d.gi = gi;
     if (o.k === "card") {
       d.x = txt(o.x, MAX_TEXT); d.st = STYLES.card.indexOf(o.st) >= 0 ? o.st : "druck"; d.sk = sanitizeStickers(o.sk);
       var w = sanitizeWeather(o.w); if (w) d.w = w;
