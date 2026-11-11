@@ -35,7 +35,7 @@ test("Kachel steht fest unter der Tageskarte, ist ein Knopf im Druckstil und oef
   const { p, errs, sent } = await phone((p0) => (p0 === "ai/status" ? [200, { meter: METER }] : null));
   const tile = p.locator("#create");
   await tile.waitFor();
-  assert.match(await tile.textContent(), /Erschaffe deine Karte/);
+  assert.equal(await tile.textContent(), "Erschaffen");   // the button of the free card's block (#frei, 11 Nov)
   const [leaf, go, t, feat] = await Promise.all(["#leaf", "#go", "#create", "#feat"].map((s) => p.locator(s).boundingBox()));
   assert.ok(t.y > leaf.y + leaf.height && t.y > go.y, "unter der Tageskarte");
   // the ticker lives behind "Alle Karten" since the new start (#185, redesign wave 1); where it shows, the tile comes first

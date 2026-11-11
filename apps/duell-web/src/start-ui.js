@@ -45,9 +45,6 @@
        same every day, so the start below does not move with the day's kind */
     "#stacts{position:absolute;right:14px;bottom:12px;z-index:3;display:flex;gap:6px;max-width:calc(100% - 132px)}#stacts:not(:has(>:not([hidden]))){display:none}",
     "#stacts button{min-height:44px;padding:2px 8px;border:2px solid #17140f;border-radius:12px;background:#fff;color:#17140f;font:700 .8125rem/1.1 system-ui,sans-serif}#stacts button[hidden]{display:none}",
-    /* "Erschaffe deine Karte" on a phone upright: the second main action under the day's main button, full width, the size
-       of the tiles (two columns, from 900 px or sideways, keep the row as it was) */
-    "@media (orientation:portrait) and (max-width:899px){#home.neu #homerow{flex-wrap:wrap}#home.neu #homerow #create{flex:1 1 100%;min-height:52px;padding:6px 14px;font:800 1.0625rem/1.2 var(--st);text-transform:none;letter-spacing:0}}",
     /* the gallery of bunsenbrenner (the old strip) only quietly at the foot, closed */
     ".stfoot{display:block;margin:4px auto 12px;min-height:44px;padding:0 12px;border:0;background:none;color:inherit;font:600 .875rem var(--st);text-decoration:underline;text-underline-offset:3px}",
     ".stfree{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;margin:0 0 12px;padding:10px 14px;border:3px solid #17140f;border-radius:18px;background:#F9D84A;color:#17140f;text-align:left;box-shadow:4px 4px 0 #17140f}.stfree b{display:block;font:800 1.0625rem/1.2 system-ui,sans-serif}.stfree small{font:500 .875rem/1.3 system-ui,sans-serif}",
@@ -68,10 +65,7 @@
     ".sttile.t0{background:var(--sy)}.sttile.t3{background:var(--sr);color:var(--sc)}",
     ".stall{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:6px 16px;border:2px solid currentColor;border-radius:16px;background:transparent;color:var(--sk);font:700 1rem/1.2 var(--st)}",
     "#allbox{display:flex;flex-direction:column;gap:8px;margin:0 18px 12px}",
-    /* preview pictures (rail under the tiles, the grid in "Alle Karten"): the picture fills the tile, the facts in its corners */
-    ".stlook{display:flex;flex-direction:column;gap:8px}.stlook h3{margin:4px 0 0;font:400 1.5rem/1.1 var(--disp);text-transform:uppercase;letter-spacing:.3px}",
-    ".strail{display:flex;gap:12px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;margin:0 -18px;padding:2px 18px 10px;scroll-padding:0 18px}",
-    ".strail .stshot{flex:0 0 min(9.5rem,42%);scroll-snap-align:start}",
+    /* preview pictures (the grid in "Alle Karten"): the picture fills the tile, the facts in its corners */
     ".stshots{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(9.5rem,100%),1fr));gap:16px 14px;padding-top:6px}",
     ".stshot{display:flex;flex-direction:column;gap:6px;min-width:0;padding:0;border:0;background:none;color:var(--sk);text-align:left;font-family:var(--st)}",
     ".stpic{position:relative;display:block;aspect-ratio:3/4;border:3px solid var(--sk);border-radius:8px;overflow:hidden;background:var(--sy);box-shadow:4px 4px 0 var(--sk)}",
@@ -81,7 +75,7 @@
     ".stshot b{font:400 1.25rem/1.08 var(--disp);text-transform:uppercase;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}",
     ".stshot:focus-visible{outline:none}.stshot:focus-visible .stpic{outline:3px solid var(--sk);outline-offset:3px}",
     "@media (prefers-reduced-motion:reduce){.stpic img{transition:none}}",
-    /* two columns: the right one (start, rail, "Alle Karten") scrolls under a sheet that keeps the screen's height */
+    /* two columns: the right one (free card, start, "Alle Karten") scrolls under a sheet that keeps the screen's height */
     "@media (min-width:900px),(orientation:landscape) and (max-height:500px) and (min-width:560px){#home.neu>#pad{position:sticky;top:12px;align-self:start;height:calc(100svh - 28px)}}",
     "#home.neu #tools button{font-family:var(--st);font-weight:700;text-decoration:underline;text-underline-offset:3px}",
     "@media (min-width:900px),(orientation:landscape) and (max-height:500px) and (min-width:560px){#startbox{margin:4px 10px 10px;border:3px solid var(--sk);border-radius:22px}#home.neu #tools{background:none}#home.neu #tools button{color:var(--on)}#starth{font-size:1.5rem}}",
@@ -166,10 +160,6 @@
       grid.appendChild(b);
     });
     box.appendChild(grid);
-    // "So sieht es aus": real pictures of a few games under the tiles (Vorschaubilder below)
-    var look = el("section", "stlook"); look.setAttribute("aria-labelledby", "stlookh"); look.hidden = true;
-    var lh = el("h3"); lh.id = "stlookh"; look.appendChild(lh); look.appendChild(el("div", "strail"));
-    box.appendChild(look);
     // "Alle Karten": the shelf of every card, with the search and the free card on top; no strip opens here
     var all = el("button", "stall", null, function () { Kit.sfx.tap(); allShelf(); }); all.id = "allcards"; all.appendChild(icon("grid", 20)); all.appendChild(el("span"));
     box.appendChild(all);
@@ -178,7 +168,7 @@
     var drawer = el("div"); drawer.id = "allbox";
     drawer.appendChild($("feat"));
     more.addEventListener("click", function () { Kit.sfx.tap(); openAll(more.getAttribute("aria-expanded") !== "true"); });
-    refs = { h: h, inp: inp, mic: mic, go: go, grid: grid, all: all, more: more, drawer: drawer, look: look };
+    refs = { h: h, inp: inp, mic: mic, go: go, grid: grid, all: all, more: more, drawer: drawer };
     var slot = $("startslot"); if (slot) slot.replaceWith(box); else $("homerow").after(box);
     $("tools").after(more); more.after(drawer);
     micCheck(mic);
@@ -203,17 +193,16 @@
     refs.grid.setAttribute("aria-label", t("st_ask"));
     Array.from(refs.grid.children).forEach(function (b) { b.querySelector("b").textContent = t("st_" + b.dataset.i); b.querySelector("small").textContent = t("st_" + b.dataset.i + "_s"); });
     refs.all.lastChild.textContent = t("st_all"); refs.more.textContent = t("st_gallery");
-    refs.look.firstChild.textContent = t("st_look");
-    if (shotLang !== Kit.lang) { shotLang = Kit.lang; rail(); }
   }
 
   /* ---------- Vorschaubilder: what a game looks like, before it is opened ---------- */
   // Every card of the shelf has a real screenshot of its game (scripts/shots.js, src/shots/<id>.webp), packed into the parts
-  // bilda, bildb … (scripts/build.js; StartData.shots: id -> part). A tile is the picture, big, with two plain facts in its
+  // bilda, bildb … (scripts/build.js; StartData.shots: id -> part), shown in "Alle Karten" and on the day's sheet (dayShot);
+  // the start page itself shows no strip of them (only the day's picture). A tile is the picture, big, with two plain facts in its
   // corner (how long it takes) and under it the title and how it is played (both from the catalog). Nothing is counted,
   // nothing urges. A picture's part is loaded when its tile comes near the screen; with Save-Data none are loaded, and a
   // tile without its picture (offline, part missing) keeps its title on a quiet colour.
-  var SHOTS = (root.StartData && root.StartData.shots) || {}, shotLang = "", seen = null;
+  var SHOTS = (root.StartData && root.StartData.shots) || {}, seen = null;
   var KINDS = { arcade: "st_k_arcade", game: "st_k_arcade", photo: "st_k_photo", sound: "st_k_sound", table: "table", card: "card" };
   function lean() {
     try { var c = navigator.connection; return !!(c && c.saveData) || !!(root.matchMedia && matchMedia("(prefers-reduced-data: reduce)").matches); } catch (e) { return false; }
@@ -240,16 +229,6 @@
     b.appendChild(f); b.appendChild(el("b", "", D.plainTitle(L.t))); b.appendChild(el("small", "", kindOf(i)));
     watch(img);
     return b;
-  }
-  function withShot(i) { return !!SHOTS[i.id]; }
-  // "So sieht es aus": eight games of the shelf under the tiles, a different eight each day (the day number, nothing else),
-  // never the day's own card, which is on the sheet above.
-  function rail() {
-    var today = D.ideaForDay(new Date()), games = D.IDEAS.filter(function (i) { return withShot(i) && /^(turn|arcade|table)$/.test(i.kind) && !(today && today.id === i.id); }), box = refs.look.lastChild;
-    box.textContent = ""; refs.look.hidden = !games.length;
-    if (!games.length) return;
-    var day = Math.floor(Date.now() / 864e5), n = Math.min(8, games.length);
-    for (var k = 0; k < n; k++) box.appendChild(shotTile(games[(day * n + k) % games.length]));
   }
   // The day's card on its sheet: its picture in place of the drawn card, on the same canvas (#pvcard, same size and place,
   // so the sheet's layout stays as it is), the title under it as before. Not for a running game (arcade, the flight game:
@@ -286,10 +265,11 @@
     $("home").classList.add("neu"); box.hidden = !on;
     refs.more.hidden = !on; openAll(refs.more.getAttribute("aria-expanded") === "true", true);
     acts(on);
-    // back from signing in for "Erschaffe deine Karte" (create-ui.js, ?go=erschaffen): straight into making the free card
+    // back from signing in for "Erschaffe deine Karte" (create-ui.js, ?go=erschaffen): straight into making the free card,
+    // with the category tapped on the start page before, if any (app.js openFree)
     if (/[?&]go=erschaffen\b/.test(location.search)) {
       try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
-      root.Parts.use("erschaffen", function () { root.CreateUI.open(); }).catch(function () {});
+      A().free();
     }
     receive(h);
     dayShot(on && h);

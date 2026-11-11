@@ -49,11 +49,22 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 #homerow{position:relative;flex:none;display:flex;gap:8px;margin:2px 18px 6px}
 #homerow button{flex:1;min-height:44px;border:2px solid var(--on);border-radius:6px;background:transparent;color:var(--on);font:900 .88rem/1.1 var(--ui);padding:2px 6px}
 #homerow button[hidden]{display:none}
-#homerow #create{flex:1.4;background:#ffd400;color:#111;border:3px solid;box-shadow:0 3px 0 #ff3b1d;font:900 13px/1.05 var(--disp);text-transform:uppercase}#create span{display:block;font:700 10px/1.1 var(--ui);text-transform:none}
-/* a received card on a short screen (412x839 at 200 %) keeps its room: the create tile waits until the card is closed */
-@media (max-height:520px){#home:has(#leaf.got) #homerow #create{display:none}}
-/* the new start (#185) counts every pixel above its tiles: the create tile is one line there, as high as its neighbours */
-#home.neu #homerow #create span{display:none}
+/* "Erschaffe deine Karte" (the free card, a core feature): its own block under the day's main button, on the day's sheet
+   only (app.js setHome); the chips open the making with that category tapped (app.js openFree), #create opens it as it is */
+#frei{flex:none;display:flex;flex-direction:column;gap:10px;margin:4px 18px 14px;padding:14px 14px 16px;border:3px solid #17140f;border-radius:22px;background:#b3321f;color:#fbf5dd;box-shadow:5px 5px 0 #17140f}#frei[hidden]{display:none}
+#freih{margin:0;font:400 1.75rem/1.02 var(--disp);text-transform:uppercase;letter-spacing:.3px;overflow-wrap:anywhere}
+#freis{margin:-4px 0 0;font:600 .9375rem/1.3 var(--ui)}
+#freiarts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+#freiarts button{min-width:0;min-height:48px;padding:2px 4px;border:2px solid #17140f;border-radius:14px;background:#fbf5dd;color:#17140f;font:800 .9375rem/1.1 var(--ui);overflow-wrap:anywhere}
+#freiarts button:active,#frei #create:active{transform:translate(2px,2px)}
+#frei #create{min-height:56px;border:3px solid #17140f;border-radius:16px;background:#ffd400;color:#17140f;box-shadow:0 4px 0 #17140f;font:400 1.625rem/1 var(--disp);letter-spacing:.5px;text-transform:uppercase}
+#frei :focus-visible{outline:3px solid #fbf5dd;outline-offset:2px}
+@media (max-width:300px){#freiarts{grid-template-columns:repeat(2,1fr)}}
+/* a phone below 830 px height (375x812, 360x780): the block gets flatter so "Erschaffen" stays on the first screen; below 800 px
+   the heading says it alone */
+@media (max-width:899px) and (max-height:830px){#frei{gap:8px;margin-top:2px;padding:10px 12px 12px}#freih{font-size:1.5rem}#freiarts button{min-height:44px}#frei #create{min-height:52px;font-size:1.375rem}}
+@media (max-width:899px) and (max-height:800px){#freis{display:none}}
+@media (prefers-reduced-motion:reduce){#freiarts button:active,#frei #create:active{transform:none}}
 /* The feature bar is a strip to swipe; it runs by as a ticker only in .run (app.js: after 3 s, stopped for good by a touch
    or the switch), stands still under the mouse, and on short screens it is left out. */
 /* The fade sits on the right edge only (more to come); on the left the strip starts hard, and a strip that stands
@@ -141,9 +152,9 @@ h1{margin:0;font:900 25px/1 var(--disp);letter-spacing:.3px;text-transform:upper
 #startslot{display:none}
 /* the new start scrolls: the day's card has one height every day, game, picture or text (no jump when a picture loads,
    the start below stays in place), with the main button on the first screen; the sentence field follows below it where
-   the screen allows (23.5rem). Never under 27rem: a shorter sheet fell under 250 px and @container hid the preview
+   the screen allows (26rem: the free card's block comes first, under the main button). Never under 27rem: a shorter sheet fell under 250 px and @container hid the preview
    (10 Nov, Netz Volley at 375x812). The preview fills what the sheet leaves, a picture whole (contain). */
-@media (max-width:899px) and (min-height:701px){#home.neu{overflow-y:auto;overflow-x:hidden}#home.neu>*{flex-shrink:0}#home.neu::before{display:none}#home.neu #pad{flex:none;height:clamp(27rem,calc(100svh - 23.5rem),34rem)}#home.neu #startslot{display:block;min-height:30rem;background:#FBF5DD}}
+@media (max-width:899px) and (min-height:701px){#home.neu{overflow-y:auto;overflow-x:hidden}#home.neu>*{flex-shrink:0}#home.neu::before{display:none}#home.neu #pad{flex:none;height:clamp(27rem,calc(100svh - 26rem),34rem)}#home.neu #startslot{display:block;min-height:30rem;background:#FBF5DD}}
 #tools{position:relative;display:grid;grid-template-columns:repeat(4,1fr);padding:0 10px 8px;flex:none}
 #tools button{min-height:48px;border:0;background:transparent;color:var(--on);font:800 .85rem/1.1 var(--ui);padding:2px}
 /* phone at 200 % (180-213 px): rows wrap, not cut off */
