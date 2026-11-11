@@ -154,7 +154,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   assert.deepEqual(man.blasen.d, []); assert.ok(ONDEMAND.includes("blasen"));
   // A3b: the parts of a card (src/teile.js) and their bubbles (src/blasen-ebene.js) come with it, in this order; never in the core
   const bl = part("blasen");
-  assert.ok(bl.indexOf("else root.Teile = api") >= 0 && bl.indexOf("else root.Teile = api") < bl.indexOf("root.Blasen = {") && bl.indexOf("root.Blasen = {") < bl.indexOf("B.open = function (opt) { open0(opt); start(); };"), "Teile, Blasen, Ebene im Teil blasen");
+  assert.ok(bl.indexOf("else root.Teile = api") >= 0 && bl.indexOf("else root.Teile = api") < bl.indexOf("root.Blasen = {") && bl.indexOf("root.Blasen = {") < bl.indexOf("B.open = function (opt) {") && bl.indexOf("B.open = function (opt) {") < bl.indexOf("B.dialog = { open: open"), "Teile, Blasen, Ebene, Dialog im Teil blasen");
   assert.ok(!/root\.Teile = api|B\.ebene = \{/.test(html), "Teile und Blasen-Ebene nicht im Kern");
   assert.ok(!/Wish: function \(p\) \{|function beatPanel\(|function didLine\(|card: \["Text", "Style", "Color", "Sticker"\]/.test(html), "Reiter und Blasen nur im Teil");
   assert.match(html, /var TABS = \{\}, PANEL = \{\};/); assert.match(html, /window\.Parts\.use\("blasen", function \(\) \{ if \(ed === mine\)/);

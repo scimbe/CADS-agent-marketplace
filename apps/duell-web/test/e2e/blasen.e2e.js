@@ -2,7 +2,8 @@
 // The bubble layer (A3b of the plan "freie Karte", src/blasen-ebene.js in the part blasen): a flying game and a runner opened
 // in "Selber bauen" on a 390x844 phone show one bubble per part (src/teile.js) plus the red wish bubble, each part bubble
 // with a thread to its part; no bubble lies on the figure; a tap opens the matching sheet (the same as its tab); a drag only
-// moves the bubble; "Blasen aus" hides them; the tab bar stays the keyboard's way.
+// moves the bubble; the brush in the header hides them (then the tab bar is back); the keyboard's way with bubbles on is
+// "Alle Einstellungen". The sheet opens as a dialog (blasen-dialog.e2e.js tests the dialog itself).
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const G = require("./lib/grund.js");
@@ -13,7 +14,7 @@ test.before(async () => { b = await G.launch(); url = await G.webUrl("index.html
 test.after(async () => { await b.close(); });
 
 async function open(doc) {
-  const ctx = await G.person(b, { view: "phone390" }), p = await ctx.newPage(), errs = [];
+  const ctx = await G.person(b, { view: "phone390" }); await ctx.addInitScript(() => localStorage.setItem("daily.blasen", "an")); const p = await ctx.newPage(), errs = [];
   p.on("pageerror", (e) => errs.push(String(e)));
   await p.goto(url);
   await p.waitForFunction(() => document.body.getAttribute("data-state") !== "boot");
@@ -70,27 +71,35 @@ test("Flug: Blasen fuer Figur, Saeule, Himmel, Titel, Wunsch; Tipp auf Figur oef
   assert.ok(await p.locator("#panel .chip.em").count() > 3, "Figur-Blatt mit Emojis");
   await p.waitForTimeout(250);
   assert.equal(await p.locator('#blasen .blase[data-blase="figur"]').getAttribute("aria-expanded"), "true");
+  await p.keyboard.press("Escape"); await p.locator("#bdlg").waitFor({ state: "hidden" });
   await tapBubble(p, "saeule");
   await p.waitForFunction(() => document.getElementById("tabRules").getAttribute("aria-selected") === "true");
   if (process.env.BLASEN_SHOT) await p.screenshot({ path: process.env.BLASEN_SHOT + "-flug.png" });
+  await p.keyboard.press("Escape"); await p.locator("#bdlg").waitFor({ state: "hidden" });
   // drag: the bubble moves, the sheet stays
   const before = await p.locator('#blasen .blase[data-blase="titel"]').boundingBox();
   await p.mouse.move(before.x + 30, before.y + 30); await p.mouse.down(); await p.mouse.move(before.x + 30, before.y + 90, { steps: 6 }); await p.mouse.up();
   await p.waitForTimeout(250);
   const after = await p.locator('#blasen .blase[data-blase="titel"]').boundingBox();
   assert.ok(after.y - before.y > 40, "verschoben: " + before.y + " -> " + after.y);
-  assert.equal(await p.locator("#tabRules").getAttribute("aria-selected"), "true", "Ziehen oeffnet kein Blatt");
-  // "Blasen aus" hides them, the switch brings them back
+  assert.equal(await p.locator("#bdlg").isVisible(), false, "Ziehen oeffnet kein Blatt");
+  // the brush in the header hides them (the tab bar comes back), and shows them again
+  assert.equal(await p.locator("#tabs").isVisible(), false, "mit Blasen keine Reiterleiste");
   await p.locator("#blasenan").click();
   assert.equal(await p.locator("#blasen .blase").first().isVisible(), false);
   assert.equal(await p.locator("#blasenan").getAttribute("aria-pressed"), "true");
+  assert.equal(await p.locator("#tabs").isVisible(), true, "ohne Blasen die Reiterleiste");
   await p.locator("#blasenan").click();
   assert.equal(await p.locator("#blasen .blase").first().isVisible(), true);
-  // keyboard: Enter on a bubble opens its sheet, the tab bar still moves with the arrows
+  // keyboard: Enter on a bubble opens its sheet; "Alle Einstellungen" opens the list, where the arrows move along the tabs
   await p.locator('#blasen .blase[data-blase="himmel"]').focus(); await p.keyboard.press("Enter");
   await p.waitForFunction(() => document.getElementById("tabWorld").getAttribute("aria-selected") === "true");
-  await p.locator("#tabWorld").focus(); await p.keyboard.press("ArrowRight");
+  await p.keyboard.press("Escape"); await p.locator("#bdlg").waitFor({ state: "hidden" });
+  await p.locator("#ballset").focus(); await p.keyboard.press("Enter");
+  await p.locator("#bdlg #tabs").waitFor();
+  await p.locator("#bdlg #tabWorld").focus(); await p.keyboard.press("ArrowRight");
   await p.waitForFunction(() => document.getElementById("tabText").getAttribute("aria-selected") === "true");
+  await p.keyboard.press("Escape"); await p.locator("#bdlg").waitFor({ state: "hidden" });
   assert.deepEqual(errs, []);
   await ctx.close();
 });
@@ -106,8 +115,9 @@ test("Lauf (Zweierrennen): je Teil eine Blase, Muenze oeffnet die Welt, Gegner d
     await p.waitForFunction((t) => document.getElementById("tab" + t).getAttribute("aria-selected") === "true", tab);
     await p.waitForTimeout(150);
     assert.equal(await p.locator(`#blasen .blase[data-blase="${id}"]`).getAttribute("aria-expanded"), "true", id + " offen");
+    if (process.env.BLASEN_SHOT && id === "figur") await p.screenshot({ path: process.env.BLASEN_SHOT + "-lauf.png" });
+    await p.keyboard.press("Escape"); await p.locator("#bdlg").waitFor({ state: "hidden" });
   }
-  if (process.env.BLASEN_SHOT) await p.screenshot({ path: process.env.BLASEN_SHOT + "-lauf.png" });
   // a change through the sheet the bubble opened reaches the card: the title
   await tapBubble(p, "titel");
   await p.locator("#panel input").fill("Brückenlauf");
@@ -118,11 +128,11 @@ test("Lauf (Zweierrennen): je Teil eine Blase, Muenze oeffnet die Welt, Gegner d
 
 test("Karte (A8): die gezeichnete Karte meldet ihre Teile, Blasen und Reiter stehen beide bereit", async () => {
   const { p, errs, ctx } = await (async () => {
-    const ctx = await G.person(b, { view: "phone390" }), p = await ctx.newPage(), errs = [];
+    const ctx = await G.person(b, { view: "phone390" }); await ctx.addInitScript(() => localStorage.setItem("daily.blasen", "an")); const p = await ctx.newPage(), errs = [];
     p.on("pageerror", (e) => errs.push(String(e)));
     await p.goto(url); await p.waitForFunction(() => document.body.getAttribute("data-state") !== "boot");
     await p.evaluate("window.DailyApp.openEditor(window.Daily.blankDoc('card', window.DailyApp.me(), 'de'), {own:true})");
-    await p.locator("#tabs [role=tab]").first().waitFor(); await p.waitForTimeout(600);
+    await p.locator("#tabs [role=tab]").first().waitFor({ state: "attached" }); await p.waitForTimeout(600);
     return { p, errs, ctx };
   })();
   assert.ok(await p.locator("#blasen .blase:visible").count() >= 3, "Text, Stil, Farbe (blasen-alle.e2e.js prueft alle Karten)");

@@ -65,7 +65,7 @@
     var out = [], n = 0, seen = {};
     rec.forEach(function (r) {
       var id = r.id === "text" ? (k === "turn" ? "titel" : n++ ? "text2" : "text") : r.id;
-      if (r.id === "worte" || seen[id] || !(TEXTP[k] || r.id !== "text")) return; seen[id] = 1;
+      if (r.id === "worte" || r.id === "deko" || seen[id] || !(TEXTP[k] || r.id !== "text")) return; seen[id] = 1;
       out.push(part(id, r.id === "text" ? TEXTP[k] : CPANEL[r.id], r));
     });
     (FIX[k] || []).forEach(function (f) { out.push(part(f[0], f[1], { x: f[2] * v.w, y: f[3] * v.h, w: f[4] * v.w, h: f[5] * v.h })); });
@@ -133,7 +133,7 @@
     if (!doc || doc.k === "game" || !(el = box(doc)) || el.hidden || !el.width) return [];
     var c = inner(el), band = c.w * 0.085, k = c.w / el.width;   // render.js credit: name and signet sit at H - W * 0.032, W * 0.036 high
     // and the other words of a drawn card (render.js note "worte": a turn card's lines, a duel's names)
-    return [{ id: "signet", x: 0, y: c.h - band, w: c.w, h: band }].concat((el._teile || []).filter(function (r) { return r.id === "worte"; }).map(function (r) { return { id: "worte", x: r.x * k, y: r.y * k, w: r.w * k, h: r.h * k }; }));
+    return [{ id: "signet", x: 0, y: c.h - band, w: c.w, h: band }].concat((el._teile || []).filter(function (r) { return r.id === "worte" || r.id === "deko"; }).map(function (r) { return { id: r.id, x: r.x * k, y: r.y * k, w: r.w * k, h: r.h * k }; }));
   }
   function teilAt(x, y) { return hit(teile(), x, y); }   // measured anew: the demo keeps flying
   return { teile: teile, teilAt: teilAt, frei: frei, TEXT: ["titel", "text", "text2"], karte: karte, FIX: FIX, flug: flug, lauf: lauf, place: place, hit: hit, LABEL: LABEL };

@@ -70,6 +70,7 @@ R.extra.turn = function (c, W, H, doc) {
   var a = doc.col[0], b = doc.col[1], ink = R.ink(a), st = Tn.state(doc), res = Tn.result(doc, Kit.lang);
   c.fillStyle = a; c.fillRect(0, 0, W, H); R.rays(c, W, H, "rgba(0,0,0,.05)", 0.2);
   shape(c, doc.f, W * 0.84, H * 0.84, W * 0.08, b); shape(c, doc.f, W * 0.14, H * 0.8, W * 0.05, b);
+  if (R.note) { R.note(c, "deko", W * 0.73, H * 0.84 - W * 0.11, W * 0.22, W * 0.22); R.note(c, "deko", W * 0.07, H * 0.8 - W * 0.07, W * 0.14, W * 0.14); }   // the card's own figures: no bubble on them
   R.block(c, res ? res.h : title(doc), W * 0.07, H * 0.1, W * 0.86, H * 0.34, ink, null);
   var face = res ? null : Tn.face(doc, Kit.lang);
   if (res) lines(c, res.lines, W, H * 0.5, W * 0.038, ink);
@@ -696,8 +697,11 @@ A.PANEL.Text = (function () {
   return function (p) {
     if (A.ed().doc.k !== "turn") { window.Blasen.PANEL.Text(p); return; }
     var d = A.ed().doc;
-    A.field(p, t("ideaT"), d.t, 40, function (v) { d.t = v; });
-    A.field(p, t("ideaS"), d.s, 70, function (v) { d.s = v; });
+    // a card from the catalog shows its title and line as the card does (an empty field gives the catalog's back); an own
+    // card is "your idea of the day" as before
+    var i0 = d.i ? D.byId(d.i) : null, s0 = i0 ? (i0[Kit.lang] || i0.de).s : "";
+    A.field(p, t(i0 ? "titleL" : "ideaT"), d.t || (i0 ? title(d) : ""), 40, function (v) { d.t = v; });
+    A.field(p, t("ideaS"), d.s || s0 || "", 70, function (v) { d.s = v; });
     if (d.g === "deal") A.field(p, L().things, d.w, 14, function (v) { if (v) d.w = v; else delete d.w; });   // only the deal speaks of its things
     if (!A.allow("tools", "shapes")) return;   // a flavor whose picture has no shapes (Business)
     // the shape that flies across the card, each drawn as on the card, with its name
