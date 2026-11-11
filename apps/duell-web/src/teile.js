@@ -95,6 +95,15 @@
     }
     return list;
   }
+  // What a bubble must leave free, in the same px as teile(): on every drawn card (#stage, render.js credit) the bottom band
+  // with the maker's name and the signet "my daily idea". The flying game draws neither.
+  function frei(doc) {
+    var A = root.DailyApp, ed = A && A.ed && A.ed(), el;
+    doc = doc || (ed && ed.doc);
+    if (!doc || doc.k === "game" || !(el = box(doc)) || el.hidden || !el.width) return [];
+    var c = inner(el), band = c.w * 0.085;   // render.js credit: name and signet sit at H - W * 0.032, W * 0.036 high
+    return [{ id: "signet", x: 0, y: c.h - band, w: c.w, h: band }];
+  }
   function teilAt(x, y) { return hit(teile(), x, y); }   // measured anew: the demo keeps flying
-  return { teile: teile, teilAt: teilAt, flug: flug, lauf: lauf, place: place, hit: hit, LABEL: LABEL };
+  return { teile: teile, teilAt: teilAt, frei: frei, TEXT: ["titel", "text"], flug: flug, lauf: lauf, place: place, hit: hit, LABEL: LABEL };
 });
