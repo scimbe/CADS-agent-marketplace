@@ -38,6 +38,7 @@ async function refused(f, after) {
   const ta = p.getByLabel("Deine Beschreibung"); await ta.waitFor();
   await ta.fill(f.t);
   await p.getByRole("button", { name: "✨ Erschaffen" }).tap();
+  await p.getByRole("button", { name: "Zurück zu deinem Satz" }).tap();   // the waiting screen ends with the reason (warten.js)
   await p.locator(".createalt").waitFor();
   return { p, ctx, errs, sent, ta, posts: () => sent.filter((s) => s.path === "ai") };
 }
