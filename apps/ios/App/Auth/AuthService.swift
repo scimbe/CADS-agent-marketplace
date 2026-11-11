@@ -13,6 +13,9 @@ enum AuthError: Error { case cancelled, stateMismatch, tokenEndpoint(Int), inval
 
 /// OIDC Authorization Code + PKCE (RFC 7636/8252) with the system browser
 /// (ASWebAuthenticationSession), public client, no client secret. Tokens live in the Keychain.
+/// Every request to the token and revocation endpoints carries a DPoP proof (RFC 9449) from a device key made for this
+/// sign-in (Secure Enclave where available): Keycloak binds the refresh token to that key (client policy, runbook
+/// 2026-11-11-oidc-apps), so a copied refresh token is worthless. The access token stays a bearer token.
 @MainActor
 final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresentationContextProviding {
     @Published private(set) var isSignedIn: Bool
@@ -27,6 +30,7 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
         let defaults = UserDefaults.standard
         if !defaults.bool(forKey: "cads.launchedBefore") {
             Keychain.delete(account: Self.account)
+            DPoPKeyStore.delete()
             defaults.set(true, forKey: "cads.launchedBefore")
         }
         isSignedIn = Keychain.load(account: Self.account) != nil
@@ -37,9 +41,14 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
     private var tokenEndpoint: URL { URL(string: AppConfig.issuer + "/protocol/openid-connect/token")! }
     private var revokeEndpoint: URL { URL(string: AppConfig.issuer + "/protocol/openid-connect/revoke")! }
 
+    /// Issuer and client are set (Info.plist); without them there is no sign-in to offer.
+    var isConfigured: Bool { AppConfig.issuer.hasPrefix("https://") && !AppConfig.clientId.isEmpty }
+
     // MARK: Sign in
 
     func signIn() async throws {
+        // A new device key for each sign-in; the old one (and anything bound to it) is gone.
+        guard DPoPKeyStore.fresh() != nil else { throw AuthError.storageFailed }
         let verifier = Self.randomURLSafe(bytes: 64)
         let challenge = Self.base64URL(Data(SHA256.hash(data: Data(verifier.utf8))))
         let state = Self.randomURLSafe(bytes: 24)
@@ -82,15 +91,19 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
         let old = Keychain.load(account: Self.account).flatMap { try? JSONDecoder().decode(StoredTokens.self, from: $0) }
         refreshTask?.cancel()
         refreshTask = nil
+        // The revocation must prove the key the refresh token is bound to: sign before the key is deleted.
+        let url = revokeEndpoint
+        let proof = DPoPKeyStore.current().flatMap { try? DPoP.proof(key: $0, method: "POST", url: url) }
         Keychain.delete(account: Self.account)
+        DPoPKeyStore.delete()
         isSignedIn = false
         guard let refresh = old?.refreshToken else { return }
-        let url = revokeEndpoint
         Task.detached {
             var req = URLRequest(url: url)
             req.httpMethod = "POST"
             req.timeoutInterval = 15
             req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+            if let proof { req.setValue(proof, forHTTPHeaderField: "DPoP") }
             var body = URLComponents()
             body.queryItems = [.init(name: "token", value: refresh), .init(name: "token_type_hint", value: "refresh_token"),
                                .init(name: "client_id", value: AppConfig.clientId)]
@@ -105,6 +118,12 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
     nonisolated static func currentAccessToken() -> String? {
         guard let d = Keychain.load(account: account), let t = try? JSONDecoder().decode(StoredTokens.self, from: d) else { return nil }
         return t.accessToken
+    }
+
+    /// For the account bridge: a fresh access token, or nil when signed out (or the refresh failed for good).
+    func freshAccessToken() async -> String? {
+        await ensureFresh()
+        return isSignedIn ? Self.currentAccessToken() : nil
     }
 
     /// Refreshes the access token when it expires within 60 s. Call before each API request.
@@ -126,6 +145,8 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
             try await tokenRequest(["grant_type": "refresh_token", "refresh_token": refresh, "client_id": AppConfig.clientId])
         } catch AuthError.tokenEndpoint(let status) where status == 400 || status == 401 {
             signOut() // refresh token revoked or expired
+        } catch AuthError.storageFailed {
+            signOut() // no device key (e.g. signed in before DPoP): the bound refresh token cannot be used
         } catch {
             // transient (offline): keep the tokens, the API call will report the error
         }
@@ -135,6 +156,8 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
         var req = URLRequest(url: tokenEndpoint)
         req.httpMethod = "POST"
         req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        guard let key = DPoPKeyStore.current() else { throw AuthError.storageFailed }
+        req.setValue(try DPoP.proof(key: key, method: "POST", url: tokenEndpoint), forHTTPHeaderField: "DPoP")
         var body = URLComponents()
         body.queryItems = form.map { URLQueryItem(name: $0.key, value: $0.value) }
         req.httpBody = body.percentEncodedQuery?.data(using: .utf8)

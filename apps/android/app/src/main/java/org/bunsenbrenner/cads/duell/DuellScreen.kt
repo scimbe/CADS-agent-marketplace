@@ -217,7 +217,10 @@ fun DuellScreen(
     peerToken: () -> String?,
     onMore: () -> Unit,
     modifier: Modifier = Modifier,
+    account: org.bunsenbrenner.cads.auth.AccountPort? = null,
 ) {
+    // Account bridge v1 (window.MdiAccount): sign-in and account calls with the bearer run here, never in the page
+    val bridgeScope = androidx.compose.runtime.rememberCoroutineScope()
     val apiHost = remember(apiBase) { URI(apiBase).host ?: "" }
     val holder = remember { arrayOfNulls<WebView>(1) }
     val loaded = remember { intArrayOf(-1) }
@@ -262,7 +265,7 @@ fun DuellScreen(
             chooserCallback[0]?.onReceiveValue(null); chooserCallback[0] = null
             micPending[0]?.deny(); micPending[0] = null
             peerBridge.leave()
-            holder[0]?.let { it.stopLoading(); it.removeJavascriptInterface("DuellHost"); it.destroy() }; holder[0] = null
+            holder[0]?.let { AccountBridge.detach(it); it.stopLoading(); it.removeJavascriptInterface("DuellHost"); it.destroy() }; holder[0] = null
         }
     }
 
@@ -296,6 +299,7 @@ fun DuellScreen(
                 WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
                 web.overScrollMode = View.OVER_SCROLL_NEVER
                 web.addJavascriptInterface(DuellHost(ctx, web, peerBridge, NoPush) { more() }, "DuellHost")
+                if (account != null) AccountBridge.attach(web, AccountBridge(bridgeScope, account, apiBase))
                 web.webChromeClient = object : WebChromeClient() {
                     override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
                         chooserCallback[0]?.onReceiveValue(null) // a new request replaces an unanswered one

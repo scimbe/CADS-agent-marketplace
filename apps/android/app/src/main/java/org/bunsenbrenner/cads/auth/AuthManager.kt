@@ -12,6 +12,7 @@ import net.openid.appauth.AuthorizationRequest
 import net.openid.appauth.AuthorizationResponse
 import net.openid.appauth.AuthorizationService
 import net.openid.appauth.AuthorizationServiceConfiguration
+import net.openid.appauth.ClientAuthentication
 import net.openid.appauth.EndSessionRequest
 import net.openid.appauth.ResponseTypeValues
 import org.bunsenbrenner.cads.BuildConfig
@@ -20,6 +21,8 @@ import kotlin.coroutines.resume
 /**
  * OIDC Authorization Code + PKCE (S256) in the system browser (Custom Tabs) via AppAuth, against
  * the Keycloak realm, as a public client without secret. AppAuth refuses non-https issuers.
+ * Token, refresh and revocation requests carry a DPoP proof (RFC 9449) from a Keystore key made for this sign-in:
+ * Keycloak binds the refresh token to it (client policy, runbook 2026-11-11-oidc-apps). The access token stays bearer.
  */
 class AuthManager(context: Context) {
     private val store = TokenStore(context)
@@ -38,7 +41,26 @@ class AuthManager(context: Context) {
     /** Synchronous read for the Rust client's token callback (runs on a background thread). */
     fun accessToken(): String? = state.accessToken
 
+    /** Issuer and client are configured (build properties). */
+    val available: Boolean get() = BuildConfig.OIDC_ISSUER.startsWith("https://") && BuildConfig.OIDC_CLIENT_ID.isNotEmpty()
+
+    private val tokenEndpoint = BuildConfig.OIDC_ISSUER + "/protocol/openid-connect/token"
+
+    /** Public client (client_id in the body, no secret) plus a fresh DPoP proof for each request AppAuth makes. */
+    private val dpopAuth = object : ClientAuthentication {
+        override fun getRequestHeaders(clientId: String): Map<String, String> =
+            KeystoreDPoPSigner.current()?.let { mapOf("DPoP" to DPoP.proof(it, "POST", tokenEndpoint)) } ?: emptyMap()
+        override fun getRequestParameters(clientId: String): Map<String, String> = mapOf("client_id" to clientId)
+    }
+
+    /** For the account bridge: a fresh access token, or null when signed out. */
+    suspend fun freshAccessToken(): String? {
+        ensureFresh()
+        return if (state.isAuthorized) state.accessToken else null
+    }
+
     fun signInIntent(): Intent {
+        KeystoreDPoPSigner.fresh() // a new device key per sign-in; without one the token request has no proof and Keycloak refuses
         val request = AuthorizationRequest.Builder(
             config,
             BuildConfig.OIDC_CLIENT_ID,
@@ -57,7 +79,7 @@ class AuthManager(context: Context) {
             return
         }
         state.update(response, error)
-        service.performTokenRequest(response.createTokenExchangeRequest()) { tokenResponse, tokenError ->
+        service.performTokenRequest(response.createTokenExchangeRequest(), dpopAuth) { tokenResponse, tokenError ->
             state.update(tokenResponse, tokenError)
             persist()
             onDone(state.isAuthorized)
@@ -68,7 +90,7 @@ class AuthManager(context: Context) {
     suspend fun ensureFresh() {
         if (!state.isAuthorized) return
         suspendCancellableCoroutine { cont ->
-            state.performActionWithFreshTokens(service) { _, _, ex ->
+            state.performActionWithFreshTokens(service, dpopAuth) { _, _, ex ->
                 if (ex != null && ex.type == AuthorizationException.TYPE_OAUTH_TOKEN_ERROR) {
                     signOut() // refresh token revoked or expired
                 } else {
@@ -95,11 +117,15 @@ class AuthManager(context: Context) {
                     .build(),
             )
         }
+        val revokeUrl = BuildConfig.OIDC_ISSUER + "/protocol/openid-connect/revoke"
+        // sign before the key is deleted: the revocation must prove the key the refresh token is bound to
+        val proof = KeystoreDPoPSigner.current()?.let { DPoP.proof(it, "POST", revokeUrl) }
         store.clear()
+        KeystoreDPoPSigner.delete()
         state = AuthState()
         _signedIn.value = false
         if (refresh != null) {
-            Thread { Revocation.revoke(BuildConfig.OIDC_ISSUER + "/protocol/openid-connect/revoke", refresh, BuildConfig.OIDC_CLIENT_ID) }.start()
+            Thread { Revocation.revoke(revokeUrl, refresh, BuildConfig.OIDC_CLIENT_ID, proof) }.start()
         }
         return endSession
     }
