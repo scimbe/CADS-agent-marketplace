@@ -50,9 +50,12 @@ test("Vorschau: acht echte Spielbilder unter den Kacheln, mit Alt-Text, nur die 
     assert.ok(got.length >= 1 && got.length < all, "nur die Teile der sichtbaren Bilder: " + got.join(",") + " von " + all);
     (await G.smallTargets(p, "#startbox")).forEach((v) => assert.fail("zu klein: " + v));
     assert.ok(!(await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 0.5)), "kein Querscrollen der Seite");
-    // a tap opens the card, as its tile on the shelf does
-    const t3 = (await p.locator(".strail .stshot b").nth(2).textContent()).trim();
-    await tiles.nth(2).click();
+    // a tap opens the card, as its tile on the shelf does: the first turn card of the row opens its editor (which tiles
+    // the row shows depends on the day and the shelf; an arcade tile would start its game instead)
+    const k3 = titles.map((t) => SHELF.find((i) => i.de.t.replace("|", " ") === t.trim())).findIndex((i) => i && i.kind === "turn");
+    assert.ok(k3 >= 0, "eine Zug-Karte in der Leiste: " + titles);
+    const t3 = (await p.locator(".strail .stshot b").nth(k3).textContent()).trim();
+    await tiles.nth(k3).click();
     await G.poll(() => p.evaluate(() => { const h = window.DailyDebug.home(), d = window.DailyDebug.doc(); return (h && h.idea && h.idea.id) + "|" + !document.getElementById("editor").hidden + "|" + (d && d.i); }), (v) => /\|true\|/.test(v), { what: "Karte offen" });
     const id = await p.evaluate(() => window.DailyDebug.home().idea.id), idea = SHELF.find((i) => i.id === id);
     assert.equal(idea.de.t.replace("|", " "), t3);

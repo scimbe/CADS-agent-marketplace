@@ -153,7 +153,8 @@
     "stimme": {
       "ids": [
         "mut-tierstory",
-        "zug-stimme"
+        "zug-stimme",
+        "strassenrap-beat"
       ],
       "keys": [
         "stimme",
@@ -425,7 +426,10 @@
       "mut-tierstory"
     ],
     "beat": [
-      "beat-pausenhof"
+      "strassenrap-beat"
+    ],
+    "strassenrap": [
+      "strassenrap-beat"
     ],
     "kartensp": [
       "tisch-skat"

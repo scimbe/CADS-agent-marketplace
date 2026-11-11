@@ -15,7 +15,7 @@ const code = fs.readFileSync(path.join(__dirname, "../src/deck.js"), "utf8");
 
 const h16 = (s) => crypto.createHash("sha256").update(s).digest("hex").slice(0, 16);
 // Snapshot of the daily rotation. A deliberate catalog change updates these numbers in the same commit; the deck never does.
-const ROUND_N = 44, ROUND_IDS = "1c862e226ee30d42", DAYS_400 = "a1a672c31fe56957"; // since duell-liest is parked (2026-11: its days get a stand-in; before 1537633ef46b9482); shelf clean-up (209 -> 74 cards; before: 129, a498d0aa9b698fad, ba7619c72ca30f0d); the deck itself never changes it (second assert)
+const ROUND_N = 44, ROUND_IDS = "9c2adafaf25ecee0", DAYS_400 = "56b53b49f008cdec"; // since Straßenrap-Beat took the place of beat-pausenhof (2026-11, mx "sound": the same days, with the old id the hashes are the ones before, 1c862e226ee30d42 and a1a672c31fe56957); since duell-liest is parked (2026-11: its days get a stand-in; before 1537633ef46b9482); shelf clean-up (209 -> 74 cards; before: 129, a498d0aa9b698fad, ba7619c72ca30f0d); the deck itself never changes it (second assert)
 const roundNow = () => [D.ROUND.length, h16(D.ROUND.map((i) => i.id).join(",")), h16(D.lastDays(new Date("2027-01-01T12:00:00Z"), 400).map((d) => d.key + ":" + (d.idea && d.idea.id)).join(","))];
 
 function canonical(v) {
