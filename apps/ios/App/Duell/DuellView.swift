@@ -363,6 +363,8 @@ enum DuellDebug {
     const clickEl = async (el, wait) => { if (!el) throw new Error('missing element'); el.click(); await sleep(wait || 350); };
     const btn = re => [...document.querySelectorAll('button')].find(b => re.test(b.textContent.trim()) && b.offsetParent !== null);
     const openIdea = async id => { location.hash = 'i=' + id; await sleep(1200); await clickEl($('#go'), 800); };
+    // the scenarios tap the editor's tabs: bubbles off unless a run chose otherwise (as test/e2e/lib/nolive.js does)
+    if (localStorage.getItem('daily.blasen') === null) localStorage.setItem('daily.blasen', 'aus');
     const visits = Number(localStorage.getItem('dbg.visits') || 0); localStorage.setItem('dbg.visits', String(visits + 1));
     log('env', { href: location.href, origin: location.origin, secure: window.isSecureContext, mediaDevices: typeof navigator.mediaDevices,
                  getUserMedia: typeof (navigator.mediaDevices && navigator.mediaDevices.getUserMedia), mediaRecorder: typeof MediaRecorder,

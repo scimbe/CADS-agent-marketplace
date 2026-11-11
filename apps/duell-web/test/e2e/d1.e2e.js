@@ -36,6 +36,7 @@ test("Nr. 4: Reiter Text einer Mitmach-Karte zeigt Formen als Symbole mit deutsc
   const d = await G.open(ctx, "#i=zug-deal"); await d.locator("#go").click(); await d.getByRole("tab", { name: "Text" }).click();
   assert.equal(await d.locator("#panel").getByLabel("Kekse").count(), 1, "beim Deal steht das Feld, das der Text nutzt");   // the card itself is named by its text (P-A)
   const z = await G.open(ctx, "#i=biz-termin", { flavor: "business" }); await z.locator("#go").click();
+  await z.locator("#tabs button").first().waitFor();   // the tab bar is built after the editor opens (race seen in CI)
   assert.deepEqual(await z.locator("#tabs button").allTextContents(), ["Eintrag", "Text"], "Business: nur Reiter, die das Bild aendern");
   await z.getByRole("tab", { name: "Text" }).click();
   assert.equal(await z.locator("#panel canvas").count(), 0); assert.equal(await z.getByLabel("Kekse").count(), 0);
@@ -221,6 +222,7 @@ test("Nr. 11: Fertig – Teilen behaelt seinen Namen, Status/Story unter „Mehr
   await p.waitForFunction(() => window.DailyDebug.result().link);
   assert.equal(await p.locator("#share").textContent(), "Teilen", "gleiche Beschriftung in beiden Schritten");
   const z = await G.open(ctx, "#i=biz-termin", { flavor: "business" }); await z.locator("#go").click();
+  await z.locator("#tabs button").first().waitFor();   // the tab bar is built after the editor opens (race seen in CI)
   await z.evaluate(() => window.DailyApp.finish(window.DailyApp.ed().doc)); await z.locator("#share").waitFor();
   const done = await z.locator("#done").innerText();
   assert.doesNotMatch(done, /90 Tage|Status|Story/); assert.equal(await z.locator("#dmore").isVisible(), false);
