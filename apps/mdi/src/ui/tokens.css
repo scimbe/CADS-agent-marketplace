@@ -123,8 +123,17 @@ button, input, textarea { font: inherit; color: inherit; }
 .btn.primary { background: var(--primary); color: var(--on-primary); border: 3px solid var(--ink); box-shadow: var(--shadow); text-transform: uppercase; letter-spacing: .03em; }
 .btn.primary:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(17,17,17,.9); }
 .btn.secondary { background: transparent; color: var(--text); border: 2px solid var(--text); }
-/* Telefon: Karte so gross, dass Wahl und Knoepfe ohne Scrollen darunter passen; keine schwebende Leiste, die Inhalt verdeckt */
-@media (max-width: 899px) { .sticky-actions .stage { max-width: min(520px, calc((100svh - 330px) * .75)); } }
+/* Telefon, Kartenansicht: keine schwebende Leiste, die Inhalt verdeckt. Wahl und Knoepfe behalten ihre natuerliche Hoehe
+   (auch wenn die Wahl umbricht), die Karte bekommt den Rest des ersten Bildschirms und schrumpft darin im Seitenverhaeltnis
+   3:4 (Groesse aus dem gemessenen Platz statt aus einer geschaetzten Restrechnung, die bei umbrechender Wahl nicht reichte).
+   Reicht der Platz nicht einmal fuer die Mindestgroesse, scrollt die Seite normal. */
+@media (max-width: 899px) {
+  #app { display: flex; flex-direction: column; min-height: 100svh; }
+  .sticky-actions { flex: 1 0 auto; width: 100%; display: flex; flex-direction: column; gap: var(--s4); padding-bottom: calc(var(--s4) + env(safe-area-inset-bottom)); }
+  /* nur Karten mit festem Rahmen (3:4) schrumpfen in den Restplatz; freie Inhalte (z. B. Bluff) behalten ihre Hoehe */
+  .fit-card .col-a { flex: 1 1 0; min-height: 220px; container-type: size; }
+  .fit-card .stage { max-width: min(520px, calc((100cqh - 6px) * .75)); }
+}
 
 /* Blasen und Dialog */
 .bubbles { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; }
