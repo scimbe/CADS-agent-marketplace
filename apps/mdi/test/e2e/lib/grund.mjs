@@ -9,7 +9,9 @@ const DIR = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(DIR, "../../..");
 export const PAGE = "file://" + path.join(ROOT, "dist/index.html");
 export const VIEWS = {
+  phone360: { viewport: { width: 360, height: 740 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
   phone390: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
+  phone412: { viewport: { width: 412, height: 915 }, deviceScaleFactor: 2.6, isMobile: true, hasTouch: true },
   desk1280: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 }
 };
 const require = createRequire(import.meta.url);
