@@ -37,7 +37,7 @@
   var ROUND_KINDS = ROUND.map(mech).filter(function (k, i, a) { return a.indexOf(k) === i; }).sort();
   var ID_RE = /^[a-z0-9-]{1,32}$/, MAX_WALL = 30, MAX_THUMB = 60000, MAX_TEXT = 90;
   var DAY = 86400000;
-  var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn", "table", "lauf"];
+  var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn", "table", "lauf", "code"];
   var PLAY = ["arcade"];   // days that are only played (arcade-ui.js), never edited, wished for or sent as a creation
   var STYLES = { card: ["druck", "zettel", "stempel", "neon", "herz", "advent"], photo: ["poster", "sticker", "meme", "glitch"] };
   // Voice effects (the part klang, src/klang.js) and the tempo on top: one effect plus at most one tempo, nothing else.
@@ -384,6 +384,12 @@
       d.g = o.g === "skat" || o.g === "bauernskat" ? o.g : "doko";
     } else if (o.k === "lauf") {
       d.l = Lauf.sanitize(o.l);   // the second engine (src/lauf.js), played in the part lauf
+    } else if (o.k === "code") {
+      // Code-Modus: only the signed link part "<id>.<hash>.<signature>" (src/code-player.js verifies it), never code
+      if (typeof o.c !== "string" || !/^[A-Za-z0-9_-]{16}\.[A-Za-z0-9_-]{43}\.[A-Za-z0-9_-]{86}$/.test(o.c)) return null;
+      d.c = o.c; d.g = o.g === "strategie" ? "strategie" : "zahlen";
+      if (Array.isArray(o.pl) && o.pl.length === 2) d.pl = [num(o.pl[0], [1, 4], 1), num(o.pl[1], [1, 4], 1)];
+      d.m = o.m === "turn" ? "turn" : "realtime";
     } else {
       var g = C.sanitizeState({ v: 1, seed: o.g && o.g.seed, params: o.g && o.g.params, theme: o.g && o.g.theme, title: o.g && o.g.title, emoji: o.g && o.g.emoji, look: o.g && o.g.look, route: o.g && o.g.route });
       d.g = { seed: g.seed, params: g.params, theme: g.theme, title: g.title, emoji: g.emoji };

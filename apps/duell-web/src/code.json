@@ -1,0 +1,32 @@
+{
+  "de": {
+    "game": "Spiel", "close": "Schließen", "canvas": "Spielfeld", "loading": "Spiel wird geprüft …",
+    "checked": "Mit KI erstellt · geprüft und signiert", "pick": "Wie willst du spielen?",
+    "solo": "Allein", "bot": "Gegen Bot", "live": "Live zu zweit", "play": "Los geht's", "again": "Nochmal", "duel": "Duell per Link",
+    "duelTitle": "Schlägst du meine Punkte?", "copied": "Link kopiert",
+    "goRt": "Wischen oder tippen – los!", "goTurn": "Du bist dran: tippe aufs Feld",
+    "won": "Gewonnen! {v} Punkte", "lost": "Verloren – {v} Punkte", "draw": "Unentschieden ({v})", "over": "Vorbei – {v} Punkte",
+    "beat": "Schlage {v} Punkte – gleicher Start, gleiche Steine", "ghostWon": "Du hast gewonnen: {v}", "ghostLost": "Knapp daneben: {v}",
+    "liveWait": "Einladung wird vorbereitet …", "liveInvite": "Schick den Link – das Spiel startet, sobald die andere Person da ist",
+    "liveJoin": "Verbinde …", "liveGo": "Verbunden – beide spielen dasselbe geprüfte Spiel",
+    "desync": "Die Spielstände sind auseinandergelaufen – die Partie endet hier, ehrlich gesagt ohne Sieger.",
+    "otherGame": "Die andere Seite hat ein anderes Spiel – Partie abgebrochen.", "left": "Die andere Person ist gegangen.",
+    "pulled": "Dieses Spiel wurde entfernt.", "tampered": "Dieser Link ist verändert – das Spiel startet nicht.",
+    "unknown": "Dieses Spiel gibt es nicht (mehr).", "net": "Keine Verbindung – versuch es gleich nochmal.", "broken": "Das Spiel hat einen Fehler und wurde beendet."
+  },
+  "en": {
+    "game": "Game", "close": "Close", "canvas": "Playing field", "loading": "Checking the game …",
+    "checked": "Made with AI · checked and signed", "pick": "How do you want to play?",
+    "solo": "Solo", "bot": "Against a bot", "live": "Live for two", "play": "Let's go", "again": "Again", "duel": "Duel by link",
+    "duelTitle": "Can you beat my score?", "copied": "Link copied",
+    "goRt": "Swipe or tap – go!", "goTurn": "Your turn: tap a field",
+    "won": "You won! {v} points", "lost": "You lost – {v} points", "draw": "Draw ({v})", "over": "Over – {v} points",
+    "beat": "Beat {v} points – same start, same tiles", "ghostWon": "You won: {v}", "ghostLost": "So close: {v}",
+    "liveWait": "Preparing the invite …", "liveInvite": "Send the link – the game starts as soon as the other person is here",
+    "liveJoin": "Connecting …", "liveGo": "Connected – both play the same checked game",
+    "desync": "The two games drifted apart – the match ends here, honestly without a winner.",
+    "otherGame": "The other side has a different game – match stopped.", "left": "The other person left.",
+    "pulled": "This game was removed.", "tampered": "This link was changed – the game does not start.",
+    "unknown": "This game does not exist (any more).", "net": "No connection – try again in a moment.", "broken": "The game hit an error and was stopped."
+  }
+}

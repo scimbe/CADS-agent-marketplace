@@ -22,7 +22,7 @@ test("Golden-Links: jede Kartenart, mit Stickern, Wetter, Tuer, Siegel, eigenem 
     assert.equal(r && r.type, "doc", g.name); assert.deepEqual(r.doc, want, g.name);
     const again = D.docUrl(r.doc); assert.deepEqual(D.parseRoute(again.slice(again.indexOf("#"))).doc, want, g.name + ": wieder geteilt bleibt es gleich");
   }
-  for (const k of D.KINDS.filter((k) => k !== "table")) assert.ok(kinds.has(k), "Art " + k);
+  for (const k of D.KINDS.filter((k) => k !== "table" && k !== "code")) assert.ok(kinds.has(k), "Art " + k);   // code: new (Code-Modus), test/code.test.js
   assert.ok(!("tp" in G.links.find((g) => g.name === "card:unknown-keys").doc), "unbekannter Schluessel faellt weg");
 });
 

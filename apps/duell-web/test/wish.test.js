@@ -55,7 +55,7 @@ test("Wetter: Wunsch kann die Zahlen nie aendern, kaputte Werte fallen weg, Text
 test("Grenze: KI-Wunsch nur wo die KI echte Arbeit macht, Kosmetik wuerfelt lokal; Raetsel eines Kanals gehen nicht an den Server", () => {
   assert.deepEqual([...W.KINDS].sort(), ["duel", "game", "quest", "sound"]);
   for (const k of ["card", "photo", "turn"]) assert.ok(!W.KINDS.includes(k) && W.DICE.includes(k), k + ": kein KI-Umfaerben");
-  assert.deepEqual([...new Set([...W.KINDS, ...W.DICE])].sort(), D.KINDS.filter((k) => k !== "table" && k !== "arcade" && k !== "lauf").sort());   // a card table and arcade have no editor; the runner reads its wish on the device (part lauf)
+  assert.deepEqual([...new Set([...W.KINDS, ...W.DICE])].sort(), D.KINDS.filter((k) => k !== "table" && k !== "arcade" && k !== "lauf" && k !== "code").sort());   // a card table and arcade have no editor; the runner reads its wish on the device (part lauf); a code game is never edited (Code-Modus)
   const q = Object.assign(of("quest"), { q0: "Geheimfrage", h0: "abc", c: ["Z2VoZWlt"] }), r = JSON.stringify(W.request(q, "x", ""));
   assert.ok(!/Geheimfrage|Z2VoZWlt/.test(r));
 });

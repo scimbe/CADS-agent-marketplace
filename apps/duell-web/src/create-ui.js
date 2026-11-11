@@ -11,11 +11,12 @@
   var KIND_OF = { card: "card", meme: "photo", game: "game", sound: "sound", quiz: "turn", lauf: "lauf" };
   // asked: the art chosen here; art: the one the server made. A game wish the server reads as a runner or a jump'n'run comes
   // back as art "lauf" (the second engine, src/lauf.js), never as a flying game; nothing else may change the art.
-  function artOk(asked, art) { return art === asked || (asked === "game" && art === "lauf"); }
+  function artOk(asked, art) { return art === asked || (asked === "game" && (art === "lauf" || art === "code")); }   // code: Code-Modus
   function kindOk(art, doc) {
     if (art === "faehigkeit") return (doc.k === "turn" || doc.k === "duel") && !!doc.i;   // an existing card of the catalog
     if (art === "quiz") return doc.k === "turn" && !!doc.pk;                              // a quiz has its questions
     if (art === "sound") return doc.k === "sound" && !!(doc.ly && doc.ly.length);
+    if (art === "code") return doc.k === "code" && !!doc.c;                                 // a signed code game (part code)
     return doc.k === KIND_OF[art];
   }
   // the preview's own look, part of this part and not of the core (scripts/build.js budget)
@@ -140,10 +141,11 @@
         res.textContent = "";
         var n = r.notyet && typeof r.notyet.name === "string" ? r.notyet.name.slice(0, 30) : "";
         var feat = r.notyet && r.notyet.what === "feature";      // a need no ability covers yet (replies, a card game ...)
+        var code = r.notyet && r.notyet.what === "code-failed";  // Code-Modus: the game did not pass every check this time
         // a reason without a full stop is the name of a game: "… kann die freie Karte noch nicht."
         var k = typeof r.reason === "string" && /^[a-z0-9_]{1,20}$/.test(r.reason) ? "create_absage_" + r.reason : "", why = k && t(k) !== k ? t(k) : "";
         if (why) why = (/\.$/.test(why) ? why : t("create_absage_n", { x: why })) + " " + t("create_absage_0");
-        res.appendChild(el("p", "note aistate", why || (n ? t(feat ? "create_notyet_feature" : "create_notyet_game", { name: n }) : t("create_notyet"))));
+        res.appendChild(el("p", "note aistate", why || (n ? t(code ? "create_notyet_code" : feat ? "create_notyet_feature" : "create_notyet_game", { name: n }) : t("create_notyet"))));
         var card = altCard(r.alt), aid = card ? r.alt.id : "";
         if (card) res.appendChild(card);
         var cs = (Array.isArray(r.catalog) ? r.catalog : []).filter(function (id) { return String(id) !== aid; }).map(function (id) { return D.byId(String(id)); }).filter(Boolean);

@@ -98,7 +98,8 @@ const PARTS = {
   direkt: { d: [], src: ["DIREKTDATA", "EDITMODEL", "DIREKTUI"] },                                     // editor E1: one undo, stickers without dragging, layer list, description, plain language
   regler: { d: [], src: ["REGLERDATA", "REGELN", "REGLERUI"] },                                        // the flight game's sliders in named steps
   blasen: { d: [], src: ["BLASEN"] },                                                                  // R4: the editor's tab bar and panels (src/blasen.js), only on demand (parts.js ONDEMAND): openEditor asks for it
-  lauf: { d: [], src: ["LAUFDATA", "LAUFENGINE", "LAUFUI"] },                                          // the second game engine: runner and platformer (doc.k "lauf", src/lauf.js)
+  lauf: { d: [], src: ["LAUFDATA", "LAUFENGINE", "LAUFUI"] },
+  code: { d: [], src: ["CODEDATA", "CODESDK", "CODEPLAYER"] },                                         // Code-Modus: a signed game of the free card, verified and sandboxed (src/code-player.js)                                          // the second game engine: runner and platformer (doc.k "lauf", src/lauf.js)
 };
 // The weather card's block (src/wetter.js); not built for a flavor whose catalog has no cards (Daily Business: turns only).
 // Stickers in the finished picture (src/noto.js, Noto Emoji sheet src/noto-stickers.png); only where cards and photo posters
@@ -135,6 +136,8 @@ parts.MELDENDATA = "window.MeldenTexts=" + JSON.stringify(partTexts.melden) + ";
 if (PARTS.wetter) { parts.WETTERDATA = "window.WetterTexts=" + JSON.stringify(partTexts.wetter) + ";" + merge("WetterTexts"); parts.WETTER = read("src/wetter.js"); }
 parts.DIREKTDATA = "window.DirektData=" + JSON.stringify(json("src/direkt.json")) + ";" + merge("DirektData.texts"); parts.EDITMODEL = read("src/editmodel.js"); parts.DIREKTUI = read("src/direkt-ui.js");
 parts.KLANGDATA = "window.KlangTexts=" + JSON.stringify(partTexts.klang) + ";" + merge("KlangTexts"); parts.KLANG = read("src/klang.js"); parts.KLANGUI = read("src/klang-ui.js");
+// Code-Modus: the server's Ed25519 public keys (src/code-keys.json; empty: no code game runs, fail closed)
+parts.CODEDATA = "window.CodeTexts=" + JSON.stringify(json("src/code.json")) + ";if(!window.CodeKeys)window.CodeKeys=" + JSON.stringify(json("src/code-keys.json").keys) + ";"; parts.CODESDK = read("src/code-sdk.js"); parts.CODEPLAYER = read("src/code-player.js");
 parts.LAUFDATA = "window.LaufTexts=" + JSON.stringify(json("src/lauf.json")) + ";" + merge("LaufTexts"); parts.LAUFENGINE = read("src/lauf-engine.js"); parts.LAUFUI = read("src/lauf-ui.js");
 parts.REGLERDATA = "window.ReglerTexts=" + JSON.stringify(json("src/regler.json")) + ";" + merge("ReglerTexts"); parts.REGELN = read("src/regeln.js"); parts.REGLERUI = read("src/regler-ui.js");
 if (PARTS.malen) { parts.MALRATDATA = "window.MalratData=" + JSON.stringify(json("src/malrat.json")) + ";"; parts.MALRAT = read("src/malrat.js"); parts.MALRATUI = read("src/malrat-ui.js"); }
