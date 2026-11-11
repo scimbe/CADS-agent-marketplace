@@ -1,6 +1,6 @@
 "use strict";
-// Preview pictures on the start page (src/start-ui.js "Vorschaubilder", scripts/shots.js): the rail "So sieht es aus" under
-// the intention tiles and every card's picture in "Alle Karten". Real screenshots, lazily loaded part by part, with alt
+// Preview pictures (src/start-ui.js "Vorschaubilder", scripts/shots.js): every card's picture in "Alle Karten" and the
+// day's picture on its sheet; no strip on the start page (11 Nov). Real screenshots, lazily loaded part by part, with alt
 // text, nothing loaded with Save-Data, and the pictures still look like the games do now (screenshot comparison).
 // SHOT_DIR=<folder> keeps the screenshots of the start page for a look by eye.
 const test = require("node:test");
@@ -28,34 +28,19 @@ async function start(o) {
   return { b, ctx, p };
 }
 
-test("Vorschau: acht echte Spielbilder unter den Kacheln, mit Alt-Text, nur die sichtbaren Teile geladen", async () => {
+// 11 Nov (user decision): the strip "So sieht es aus" under the tiles is gone, the free card's block is the start's lead.
+// The start page shows no preview tiles and, on a day whose card is drawn (not a picture: 10 Nov, a running game), loads no
+// picture part at all, not even when scrolled to its end.
+test("Startseite: keine Leiste \"So sieht es aus\", kein Bild-Teil geladen, auch nicht nach dem Scrollen", async () => {
   const { b, p } = await start();
   try {
     await shot(p, "vorschau-1-oben.png");
-    assert.equal(await p.locator("#stlookh").textContent(), "So sieht es aus");
-    const tiles = p.locator(".strail .stshot");
-    assert.equal(await tiles.count(), 8);
-    const titles = await p.locator(".strail .stshot b").allTextContents();
-    assert.ok(!titles.includes("Stangen Kick"), "die Karte des Tages steht schon oben: " + titles);
-    // every picture says what it shows; the facts under it come from the catalog (how it is played, how long)
-    for (const a of await p.locator(".strail img").evaluateAll((x) => x.map((i) => i.alt))) assert.match(a, /^Bildschirmfoto aus dem Spiel: \S/);
-    assert.deepEqual(await ready(p), [], "vor dem Hinsehen kein Bild-Teil");
-    await p.locator("#stlookh").scrollIntoViewIfNeeded();
-    await G.poll(() => p.locator(".strail .stpic.on").count(), (n) => n >= 2, { what: "Bilder in der Leiste" });
-    await p.waitForTimeout(400); await shot(p, "vorschau-2-leiste.png");   // after the pictures' fade-in
-    // the first tile's picture is that card's screenshot, at its own size
-    const first = await p.locator(".strail img").first().evaluate((i) => ({ w: i.naturalWidth, h: i.naturalHeight, src: i.src.slice(0, 22) }));
-    assert.deepEqual(first, { w: S.W, h: S.H, src: "data:image/webp;base64" });
-    const all = await p.evaluate(() => window.Parts.names().filter((n) => /^bild[a-z]$/.test(n)).length), got = await ready(p);
-    assert.ok(got.length >= 1 && got.length < all, "nur die Teile der sichtbaren Bilder: " + got.join(",") + " von " + all);
-    (await G.smallTargets(p, "#startbox")).forEach((v) => assert.fail("zu klein: " + v));
-    assert.ok(!(await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 0.5)), "kein Querscrollen der Seite");
-    // a tap opens the card, as its tile on the shelf does
-    const t3 = (await p.locator(".strail .stshot b").nth(2).textContent()).trim();
-    await tiles.nth(2).click();
-    await G.poll(() => p.evaluate(() => { const h = window.DailyDebug.home(), d = window.DailyDebug.doc(); return (h && h.idea && h.idea.id) + "|" + !document.getElementById("editor").hidden + "|" + (d && d.i); }), (v) => /\|true\|/.test(v), { what: "Karte offen" });
-    const id = await p.evaluate(() => window.DailyDebug.home().idea.id), idea = SHELF.find((i) => i.id === id);
-    assert.equal(idea.de.t.replace("|", " "), t3);
+    assert.equal(await p.locator(".stlook, .strail, #stlookh").count(), 0, "keine Leiste");
+    assert.equal(await p.locator("#startbox .stshot").count(), 0, "keine Vorschaukachel auf der Startseite");
+    assert.ok(!(await p.locator("#startbox").textContent()).includes("So sieht es aus"));
+    await p.evaluate(() => { const h = document.getElementById("home"); h.scrollTo(0, h.scrollHeight); });
+    await p.waitForTimeout(800);
+    assert.deepEqual(await ready(p), [], "kein Bild-Teil auf der Startseite");
     assert.deepEqual(p.errs, []);
   } finally { await b.close(); }
 });
@@ -80,19 +65,20 @@ test("Alle Karten: jede Karte des Regals mit ihrem Bild; axe 0; Bilder kommen be
   } finally { await b.close(); }
 });
 
-test("Save-Data: kein Bild-Teil wird geladen, die Kacheln bleiben mit Titel; Englisch mit englischem Alt-Text", async () => {
+test("Save-Data: kein Bild-Teil wird geladen, die Kacheln in Alle Karten bleiben mit Titel; Englisch mit englischem Alt-Text", async () => {
   let { b, p } = await start({ saveData: true });
   try {
-    await p.locator("#stlookh").scrollIntoViewIfNeeded(); await p.waitForTimeout(800);
+    await p.locator("#allcards").click(); await p.locator("#allshots .stshot").first().waitFor();
+    await p.locator("#allshots").scrollIntoViewIfNeeded(); await p.waitForTimeout(800);
     assert.deepEqual(await ready(p), []);
-    assert.equal(await p.locator(".strail .stpic.on").count(), 0);
-    assert.equal((await p.locator(".strail .stshot b").allTextContents()).filter(Boolean).length, 8);
+    assert.equal(await p.locator("#allshots .stpic.on").count(), 0);
+    assert.equal((await p.locator("#allshots .stshot b").allTextContents()).filter(Boolean).length, SHELF.length);
     assert.deepEqual(p.errs, []);
   } finally { await b.close(); }
   ({ b, p } = await start({ lang: "en" }));
   try {
-    assert.equal(await p.locator("#stlookh").textContent(), "See how it looks");
-    assert.match(await p.locator(".strail img").first().getAttribute("alt"), /^Screenshot from the game: \S/);
+    await p.locator("#allcards").click(); await p.locator("#allshots .stshot").first().waitFor();
+    assert.match(await p.locator("#allshots img").first().getAttribute("alt"), /^Screenshot from the game: \S/);
     assert.deepEqual(p.errs, []);
   } finally { await b.close(); }
 });

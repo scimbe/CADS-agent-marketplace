@@ -104,6 +104,7 @@ function setHome(h, animate) {
   var F = window.DailyFlavor, off = F && F.stat === false; $("votes").hidden = off || !(h.doc ? h.note && h.doc.i && !(h.doc.ki && h.doc.ki.k === "karte") : h.idea);   // as Stat.card
   stimme(function (S) { S.sheet(h); }, h);
   if (kind === "sound" && (h.doc ? h.doc.m : idea && idea.sound && idea.sound.mode) === "voice") window.Parts.need("klang").catch(function () {});   // not in the idle preload (parts.js)
+  freeShow(h);
   if (window.StartUI) window.StartUI.home(h);
   else $("home").classList.toggle("neu", !!(window.DailyParts || {}).start && !h.note && !h.doc);
 }
@@ -258,6 +259,42 @@ function withPic(c, doc) {
   } catch (e) { return c; }
 }
 // A flavor (the business app) may show only some of these buttons, and only the tabs, tools and done buttons it lists.
+/* ---------- "Erschaffe deine Karte": the free card's block under the day's main button (index.template.html #frei) ----------
+   Static in the core, no request before it shows: heading, one line, the categories and "Erschaffen" (#create). Only on the
+   day's sheet (not on a card that came by link). A category tapped here is the person's own choice: once the making
+   (part erschaffen, create-ui.js) shows its categories, that very chip is tapped there; before that (sign in first) it is kept
+   for the way back (?go=erschaffen, start-ui.js), in this tab only. "Erschaffen" opens the making as it is. */
+var FREE_ARTS = ["card", "meme", "game", "quiz"], FREE_KEY = "mdi.freiArt";
+function freeLabels() {
+  $("freih").textContent = t("frei_h"); $("freis").textContent = t("frei_s"); $("create").textContent = t("frei_go");
+  $("freiarts").setAttribute("aria-label", t("frei_pick"));
+  Array.prototype.forEach.call($("freiarts").children, function (b) { b.textContent = t("frei_" + b.dataset.art); });
+}
+function freeShow(h) { $("frei").hidden = !shown("f_create") || !h || !!h.note || !!h.doc; }
+function openFree(art) {
+  art = FREE_ARTS.indexOf(art) >= 0 ? art : "";
+  try { if (art) sessionStorage.setItem(FREE_KEY, art); else sessionStorage.removeItem(FREE_KEY); } catch (e) {}
+  window.Parts.use("erschaffen", function () { window.CreateUI.open(); if (art) pickArt(art); }).catch(function () {});
+}
+// back from signing in: the category tapped before, if any
+function resumeFree() { var a = ""; try { a = sessionStorage.getItem(FREE_KEY) || ""; } catch (e) {} openFree(a); }
+// the making's own category chip (create-ui.js chipRow: data-v, or its words), tapped once it is there; a page without
+// categories (sign in, offline, no pot) leaves the choice kept for the way back
+function pickArt(art) {
+  var body = $("shbody"), mo = null, tm = 0;
+  function stop() { if (mo) mo.disconnect(); clearTimeout(tm); }
+  function find() {
+    var c = Array.prototype.filter.call(body.querySelectorAll(".chips[role=group] button"), function (b) { return b.dataset.v === art || b.textContent === t("create_art_" + art); })[0];
+    if (!c) return false;
+    if (c.getAttribute("aria-pressed") !== "true") c.click();
+    try { sessionStorage.removeItem(FREE_KEY); } catch (e) {}
+    return true;
+  }
+  if (find()) return;
+  mo = new MutationObserver(function () { if (screen !== "shelf" || find()) stop(); });
+  mo.observe(body, { childList: true, subtree: true });
+  tm = setTimeout(stop, 20000);
+}
 function allow(w, k) { var F = window.DailyFlavor; return !F || !F[w] || F[w].indexOf(k) >= 0; }
 function shown(k) { return allow("feats", k); }
 // The games button stays put on the left; the rest is a strip that can run by as a ticker (WCAG 2.2.2): it starts only
@@ -944,7 +981,7 @@ function labels() {
   [["lang", "a_lang"], ["mute", "a_mute"], ["me", "style"], ["edstyle", "style"], ["pvgame", "a_preview"], ["pvcard", "a_preview"], ["stage", "a_preview"], ["demo", "a_gamePreview"],
     ["feat", "a_feat"], ["edback", "a_close"], ["shback", "a_close"], ["gback", "a_close"], ["edsave", "a_keep"], ["cv", "a_field"], ["coqr", "a_qr"]].forEach(function (x) { var e = $(x[0]); if (!e._name) e.setAttribute("aria-label", t(x[1])); });
   $("mute").setAttribute("aria-pressed", String(!!Kit.muted));
-  var ct = $("create"); ct.hidden = !shown("f_create"); ct.textContent = "✨ " + t("create_tile"); ct.appendChild(el("span", "", t("create_sub")));
+  freeLabels();
   $("mute").textContent = Kit.muted ? "🔇" : "🔊"; $("more").textContent = t("more"); $("own").textContent = t("own"); $("past").textContent = t("past"); $("wall").textContent = t("wall");
   $("tostatus").textContent = t("sh_status"); $("tostory").textContent = t("sh_story"); $("dmore").textContent = t("mehr"); $("dmore").parentNode.hidden = !allow("done", "status");
   // what the other side gets: a photo stays on this phone, the link carries a bot face (a voice: the part klang says it in its sheet)
@@ -978,7 +1015,8 @@ $("more").addEventListener("click", function () { tear(1); });
 $("past").addEventListener("click", function () { Kit.sfx.tap(); openPast(); });
 $("wall").addEventListener("click", function () { Kit.sfx.tap(); openWall(); });
 $("own").addEventListener("click", function () { Kit.sfx.tap(); openOwn(); });
-$("create").addEventListener("click", function () { Kit.sfx.tap(); window.Parts.use("erschaffen", function () { window.CreateUI.open(); }).catch(function () {}); });
+$("create").addEventListener("click", function () { Kit.sfx.tap(); openFree(""); });
+$("freiarts").addEventListener("click", function (e) { var b = e.target.closest("button[data-art]"); if (b) { Kit.sfx.tap(); openFree(b.dataset.art); } });
 function start(tabName, go) {
   if (!home.doc && twoIdea(home.idea)) { window.Parts.use(twoIdea(home.idea), function () { start(tabName); }).catch(function () {}); return; }
   Kit.sfx.thud();
@@ -1096,7 +1134,7 @@ var CU = window.CollabUI.init({
 
 
 var X = window.DailyModes = {};
-window.DailyApp = { played: function (e) { played = e; }, part: twoIdea, stopSound: stopSound, playPcm: function (pcm) { stopSound(); return (loop = Kit.playPcm(pcm, S.SR, false)); }, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, res: function () { return result; }, count: function (way) { counted(result, way); }, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, gameState: gameState, playGame: playGame, markKi: markKi, ideaText: ideaText, beatPeaks: beatPeaks, playBeat: playBeat, playing: function () { return !!loop; }, picSwap: picSwap, picThumb: picThumb, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, startTab: function (k) { start(k); }, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { free: resumeFree, played: function (e) { played = e; }, part: twoIdea, stopSound: stopSound, playPcm: function (pcm) { stopSound(); return (loop = Kit.playPcm(pcm, S.SR, false)); }, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, res: function () { return result; }, count: function (way) { counted(result, way); }, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, gameState: gameState, playGame: playGame, markKi: markKi, ideaText: ideaText, beatPeaks: beatPeaks, playBeat: playBeat, playing: function () { return !!loop; }, picSwap: picSwap, picThumb: picThumb, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, startTab: function (k) { start(k); }, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 window.DailyApp.allow = allow;
 
