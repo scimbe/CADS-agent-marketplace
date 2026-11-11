@@ -4,6 +4,8 @@ Gemeinsame Ablage für alle Agenten und Menschen, die am Neuentwurf des Web-Clie
 Live-Stand bis zur Umschaltung: `apps/duell-web` (Altcode). Der Altcode wird nicht weiter umgebaut,
 sondern dient als **genaue Spezifikation der Fragmente**.
 
+**Einstieg: [`KONZEPT.md`](KONZEPT.md)** – das Gesamtkonzept in zehn Abschnitten.
+
 ## Struktur
 
 | Ordner/Datei | Inhalt | Wer schreibt |
