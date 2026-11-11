@@ -28,7 +28,7 @@ function png(w, h, a, b) {
 }
 const PICS = { [REF]: png(256, 384, [255, 120, 40], [40, 90, 220]), [LOGO]: png(128, 128, [20, 160, 80], [255, 212, 0]), [AV]: png(128, 128, [255, 79, 163], [10, 127, 85]) };
 
-const STATUS = (o = {}) => ({ on: true, login: true, age16: true, free: { left: 3, size: 3, period: "month" }, credit: 0, perDay: { left: 10, size: 10 }, can: { card: true, logo: true, avatar: false }, why: { card: "", logo: "", avatar: "credit" }, avatar: null, estS: { card: 6, logo: 3, avatar: 3 }, deadlineS: 30, ...o });
+const STATUS = (o = {}) => ({ on: true, login: true, age16: true, free: { left: 3, size: 3, period: "month", resetAt: "2026-12-01T00:00:00.000Z" }, credit: 0, next: { card: "free", logo: "free", avatar: (o.credit || 0) > 0 ? "credit" : "none" }, perDay: { left: 10, size: 10 }, can: { card: true, logo: true, avatar: false }, why: { card: "", logo: "", avatar: "credit" }, avatar: null, estS: { card: 6, logo: 3, avatar: 3 }, deadlineS: 30, ...o });
 let b;
 test.before(async () => { b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }); });
 test.after(async () => { await b.close(); });
@@ -72,7 +72,9 @@ test("Kartenbild: ein Satz, Stil, ehrliche Schritte, Nehmen -> nur die Id im Lin
   await openDialog(p, "card");
   const ta = p.getByLabel("Was soll drauf sein? Ein Satz.");
   await ta.waitFor();
-  await p.locator(".kbprice", { hasText: "Noch 3 kostenlose Bilder" }).waitFor();
+  await p.locator(".kbprice", { hasText: "Dieses Bild ist kostenlos: noch 3 von 3 kostenlosen Bildern diesen Monat." }).waitFor();
+  assert.match(await p.locator(".kbprice").textContent(), /Abgebucht wird erst, wenn du ein geprüftes Bild bekommst/);
+  assert.equal(await p.locator(".kbtop").isHidden(), true, "kein Aufladen, solange ein Bild geht");
   await ta.fill("ein Fuchs, der auf dem Mond Pizza liefert");
   await p.getByRole("radio", { name: "Aquarell" }).click();
   await shot(p, "1-dialog");
@@ -212,6 +214,44 @@ test("Ehrlich bei Andrang und Absage: busy sagt Platz und Wartezeit, eine Absage
   await p.getByRole("button", { name: "Bild machen" }).click();
   await p.locator(".kbmsg", { hasText: "Nummer gegen Kummer" }).waitFor();
   assert.equal(s.sent.filter((x) => x.path === "bild").length, before);
+  assert.deepEqual(s.errs, []);
+  await s.ctx.close();
+});
+
+test("Preis ehrlich: Topf leer und kein Guthaben -> Datum und Guthaben aufladen; danach kostet es 1 und sagt, was abgebucht wurde", async () => {
+  let credit = 0;
+  const RESET = "2026-12-01T00:00:00.000Z";
+  const st = () => STATUS({ free: { left: 0, size: 3, period: "month", resetAt: RESET }, credit, next: { card: credit ? "credit" : "none", logo: credit ? "credit" : "none", avatar: credit ? "credit" : "none" }, voucher: true, can: { card: credit > 0, logo: credit > 0, avatar: credit > 0 }, why: { card: credit ? "" : "quota", logo: credit ? "" : "quota", avatar: credit ? "" : "credit" } });
+  const base = maker(REF);
+  const s = await phone((p0, body) => {
+    if (p0 === "bild/status") return [200, st()];
+    if (p0 === "credit/redeem") { if (body.code !== "TEST-CODE-1") return [404, { error: "unknown" }]; credit += 2; return [200, { ok: true, added: 2, credit }]; }
+    if (p0 === "bild") return [202, { job: "JoBJoBJoBJoBJoB1", state: "queued", position: 1, etaS: 6, paid: "credit", deadlineS: 30 }];
+    if (p0 === "bild/job") { const r = base(p0, body); if (r[1].state === "done") { credit -= 1; r[1].charged = "credit"; r[1].paid = "credit"; } return r; }
+    return base(p0, body);
+  });
+  const p = await s.open();
+  await openDialog(p, "card");
+  await p.locator(".kbmsg", { hasText: "Deine kostenlosen Bilder für diesen Monat sind aufgebraucht, und du hast kein Guthaben. Neue kostenlose Bilder ab 1. Dezember." }).waitFor();
+  assert.equal(await p.getByRole("button", { name: "Bild machen" }).isDisabled(), true);
+  await shot(p, "13-topf-leer");
+  await p.getByRole("button", { name: "Guthaben aufladen" }).click();
+  const code = p.getByLabel("Gutschein-Code");
+  await code.fill("FALSCH-1");
+  await p.getByRole("button", { name: "Einlösen" }).click();
+  await p.locator(".kbtopmsg", { hasText: "Diesen Code kennen wir nicht" }).waitFor();
+  await code.fill("TEST-CODE-1");
+  await p.getByRole("button", { name: "Einlösen" }).click();
+  await p.locator(".kbmsg", { hasText: "2 Guthaben aufgeladen." }).waitFor();
+  await p.locator(".kbprice", { hasText: "Deine 3 kostenlosen Bilder für diesen Monat sind aufgebraucht. Dieses Bild kostet 1 Guthaben – du hast 2. Neue kostenlose Bilder ab 1. Dezember." }).waitFor();
+  assert.equal(await p.locator(".kbtop").isHidden(), true, "Aufladen weg, sobald es geht");
+  await shot(p, "14-aufgeladen");
+  await p.getByLabel("Was soll drauf sein? Ein Satz.").fill("ein Igel mit Regenschirm");
+  await p.getByRole("button", { name: "Bild machen" }).click();
+  await p.locator("img.kbpic").waitFor();
+  await p.locator(".kbmsg", { hasText: "1 Guthaben abgebucht. Du hast noch 1." }).waitFor();
+  await shot(p, "15-abgebucht");
+  assert.deepEqual(s.sent.filter((x) => x.path === "credit/redeem").map((x) => x.body), [{ code: "FALSCH-1" }, { code: "TEST-CODE-1" }]);
   assert.deepEqual(s.errs, []);
   await s.ctx.close();
 });

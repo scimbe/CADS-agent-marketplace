@@ -57,3 +57,25 @@ test("Melden: Grund, kind bild, die Id; nie der Satz, nie das Bild", () => {
   assert.equal(K.reportBody("x.png", "sex"), null);
   assert.equal(K.reportBody(REF, "other", "s2.karte.x.y").seal, undefined, "nur ein Bild-Siegel");
 });
+
+test("Preis ehrlich: kostenlos mit Rest, danach 1 Guthaben mit Datum, ohne beides Aufladen; abgebucht nur bei Lieferung", () => {
+  const fmt = (iso) => iso.slice(0, 10);
+  const S = (o) => ({ on: true, login: true, free: { left: 3, size: 3, period: "month", resetAt: "2026-12-01T00:00:00.000Z" }, credit: 0, ...o });
+  assert.deepEqual(K.priceInfo(S({ next: { card: "free" } }), "card", fmt), { key: "kb_price_free", vars: { n: 3, m: 3 } });
+  assert.deepEqual(K.priceInfo(S({ free: { left: 0, size: 3, resetAt: "2026-12-01T00:00:00.000Z" }, credit: 2, next: { card: "credit" } }), "card", fmt), { key: "kb_price_credit", vars: { n: 2, m: 3, d: "2026-12-01" } });
+  assert.deepEqual(K.priceInfo(S({ free: { left: 0, size: 3, resetAt: "2026-12-01T00:00:00.000Z" }, credit: 0, next: { logo: "none" } }), "logo", fmt), { key: "kb_quota_date", vars: { d: "2026-12-01" }, topup: true });
+  // the account picture never from the free pot
+  assert.deepEqual(K.priceInfo(S({ credit: 1, next: { avatar: "credit" } }), "avatar", fmt), { key: "kb_price_avatar", vars: { n: 1 } });
+  assert.equal(K.priceInfo(S({ credit: 0, next: { avatar: "none" } }), "avatar", fmt).topup, true);
+  // the price is the server's: without "next" the page names no price (it never guesses one)
+  assert.equal(K.priceInfo(S({ free: { left: 0, size: 3 }, credit: 1 }), "card", fmt), null);
+  assert.equal(K.priceInfo({ on: true, login: false }, "card", fmt), null);
+  // after delivery: what it cost; a failed job never says charged
+  assert.deepEqual(K.chargedInfo({ state: "done", charged: "free" }, S({ free: { left: 2 } })), { key: "kb_charged_free", vars: { n: 2 } });
+  assert.deepEqual(K.chargedInfo({ state: "done", charged: "credit" }, S({ credit: 4 })), { key: "kb_charged_credit", vars: { n: 4 } });
+  assert.equal(K.chargedInfo({ state: "failed", charged: false }, S()), null);
+  for (const l of ["de", "en"]) for (const k of ["kb_price_free", "kb_price_credit", "kb_price_rule", "kb_quota_date", "kb_charged_free", "kb_charged_credit", "kb_topup", "kb_top_code", "kb_top_go", "kb_top_ok", "kb_top_unknown", "kb_top_limit", "kb_top_login", "kb_top_off"]) assert.ok(TX[l][k], l + " " + k);
+  assert.match(TX.de.kb_price_rule, /erst, wenn du ein geprüftes Bild bekommst/);
+  assert.match(TX.de.kb_price_credit, /1 Guthaben/);
+  assert.match(TX.de.kb_topup, /^Guthaben aufladen$/);
+});

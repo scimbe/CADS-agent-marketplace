@@ -13,6 +13,10 @@
      hidden(ref)                  this device reported it
      avatarRow(node)              the account picture in the account card (profile.js), with the reason when it cannot
      refresh()                    asks the server for the status again
+   Price (wrapper lib/duell-bild.mjs): 3 free images per calendar month (UTC), then 1 credit each; the account picture only
+   with credit. The dialog says before "Bild machen" what THIS image costs, that nothing is charged unless a checked image
+   arrives, and after it what was charged. Without a free image and without credit it offers "Guthaben aufladen" (voucher,
+   POST /api/duell/credit/redeem) instead of a button that cannot work. Nothing is charged by this page.
    Only the typed sentence leaves the device, never a photo. A picture is loaded from the gallery server without cookies. */
 (function (root) {
   "use strict";
@@ -33,6 +37,26 @@
   /* A job's state -> the step shown: 0 sentence, 1 line, 2 making, 3 checking, 4 done, -1 failed. */
   function step(j) { return !j ? 0 : j.state === "queued" ? 1 : j.state === "generating" ? 2 : j.state === "checking" ? 3 : j.state === "done" ? 4 : -1; }
   function failText(err) { return err === "timeout" ? "kb_timeout" : err === "unsafe" ? "kb_unsafe" : "kb_failed"; }
+  /* What the next image of `use` costs -> { key, vars } of a fixed text. The price is the server's (status.next: free |
+     credit | none, wrapper lib/duell-bild.mjs quota); this only picks the text. null without a login or without "next". */
+  function priceInfo(st, use, fmtDate) {
+    if (!st || !st.login || !st.on) return null;
+    var c = Math.max(0, Math.floor(Number(st.credit)) || 0), f = st.free || {}, left = Math.max(0, Math.floor(Number(f.left)) || 0), size = Math.max(0, Math.floor(Number(f.size)) || 0);
+    var nx = st.next && st.next[use];
+    if (nx !== "free" && nx !== "credit" && nx !== "none") return null;
+    var d = f.resetAt && fmtDate ? fmtDate(f.resetAt) : "";
+    if (use === "avatar") return nx === "credit" ? { key: "kb_price_avatar", vars: { n: c } } : { key: "kb_credit", vars: {}, topup: true };
+    if (nx === "free") return { key: "kb_price_free", vars: { n: left, m: size } };
+    if (nx === "credit") return { key: "kb_price_credit", vars: { n: c, m: size, d: d } };
+    return { key: d ? "kb_quota_date" : "kb_quota", vars: { d: d }, topup: true };
+  }
+  /* What a delivered image cost -> { key, vars } (after the status was asked again). */
+  function chargedInfo(j, st) {
+    if (!j || j.state !== "done") return null;
+    if (j.charged === "free") return { key: "kb_charged_free", vars: { n: st && st.free ? Math.max(0, Number(st.free.left) || 0) : 0 } };
+    if (j.charged === "credit") return { key: "kb_charged_credit", vars: { n: st ? Math.max(0, Number(st.credit) || 0) : 0 } };
+    return null;
+  }
   function refOf(url) { var m = /\/duell\/bild\/([A-Za-z0-9_-]{22}\.(?:jpg|png))$/.exec(String(url || "")); return m ? m[1] : ""; }
   function apply(doc, use, ref) { if (!doc || !REF_RE.test(ref)) return doc; doc.gi = Object.assign({}, doc.gi); doc.gi[use === "logo" ? "l" : "p"] = ref; return doc; }
   /* The report: kind "bild" and the picture's id; the seal when this device has it. Never the sentence. */
@@ -42,7 +66,7 @@
     if (typeof seal === "string" && /^s2\.bild\.[0-9a-z]{1,12}\.[A-Za-z0-9_-]{32}$/.test(seal)) b.seal = seal;
     return b;
   }
-  var api = { errorText: errorText, step: step, failText: failText, refOf: refOf, apply: apply, reportBody: reportBody, STYLES: STYLES, USES: USES };
+  var api = { errorText: errorText, step: step, failText: failText, priceInfo: priceInfo, chargedInfo: chargedInfo, refOf: refOf, apply: apply, reportBody: reportBody, STYLES: STYLES, USES: USES };
   if (typeof window === "undefined") { if (typeof module !== "undefined" && module.exports) module.exports = api; return; }
 
   var Kit = root.Kit, t = Kit.t, C = root.DuellCore;
@@ -53,6 +77,7 @@
     ".kbsteps li.on{opacity:1;background:#ffd400;box-shadow:3px 3px 0 #111}.kbsteps li.ok{opacity:1;background:#1b9e3a;color:#fff}" +
     ".kbpic{display:block;width:100%;max-height:52vh;object-fit:contain;border:3px solid #111;border-radius:6px;background:#fff}.kbmsg{font:700 15px/1.3 var(--ui);margin:8px 0}.kbmsg:empty{display:none}" +
     ".kblogo{position:absolute;right:6px;bottom:6px;width:22%;max-width:72px;aspect-ratio:1;object-fit:cover;border:2px solid #111;border-radius:6px;background:#fff;z-index:3;pointer-events:none}" +
+    ".kbtop{margin:8px 0}.kbtopmsg{font:700 15px/1.3 var(--ui);margin:8px 0}.kbtopmsg:empty{display:none}.kbtop .btn{min-height:48px}.kbtopform{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.kbtopform .field{flex:1 1 160px;min-height:44px}" +
     ".kbav{display:flex;gap:10px;align-items:center;margin:8px 0}.kbav img{width:64px;height:64px;border:3px solid #111;border-radius:50%;object-fit:cover;background:#fff}" +
     "@media (prefers-reduced-motion:reduce){.kbdlg *{transition:none!important;animation:none!important}}";
   function style() { if (document.getElementById("kibildcss")) return; var s = document.createElement("style"); s.id = "kibildcss"; s.textContent = CSS; document.head.appendChild(s); }
@@ -82,12 +107,42 @@
     if (!st || !st.login) return t("kb_login");
     if (!st.on) return t("kb_off");
     var w = st.why && st.why[kind];
+    if (w === "quota" || w === "credit") { var p = priceInfo(st, kind, fmtDate); if (p && p.topup) return t(p.key, p.vars); }
     return t(w === "credit" ? "kb_credit" : w === "quota" ? "kb_quota" : w === "age16" ? "kb_age16" : w === "daily-cap" ? "kb_daycap" : "kb_off");
   }
+  /* "1. Dezember": the day the free images come back (00:00 UTC on the 1st, so the date is read in UTC). */
+  function fmtDate(iso) {
+    var d = new Date(iso); if (isNaN(d)) return "";
+    try { return new Intl.DateTimeFormat(Kit.lang === "en" ? "en-GB" : "de-DE", { day: "numeric", month: "long", timeZone: "UTC" }).format(d); } catch (e) { return d.toISOString().slice(0, 10); }
+  }
   function price(use) {
-    if (!st) return "";
-    if (use === "avatar") return t("kb_price_avatar", { n: st.credit || 0 });
-    return st.free && st.free.left > 0 ? t("kb_price_free", { n: st.free.left }) : t("kb_price_credit", { n: st.credit || 0 });
+    var p = priceInfo(st, use, fmtDate);
+    if (!p || p.topup) return "";
+    return t(p.key, p.vars) + " " + t("kb_price_rule");
+  }
+  function needsTopup(use) { var p = priceInfo(st, use, fmtDate); return !!(p && p.topup); }
+  /* "Guthaben aufladen": a voucher code (wrapper lib/duell-voucher.mjs). after(text) runs once credit was added (the box may hide). */
+  function topup(after) {
+    var box = el("div", "kbtop"), b = el("button", "btn kbtopgo", t("kb_topup")), form = el("div", "kbtopform"), m = el("p", "kbtopmsg");
+    box.setAttribute("role", "group"); box.setAttribute("aria-label", t("kb_topup")); m.setAttribute("role", "status"); form.hidden = true;
+    var lab = el("label", "lbl", t("kb_top_code")), f = el("input", "field"), go = el("button", "btn", t("kb_top_go"));
+    f.id = lab.htmlFor = "kbcode"; f.type = "text"; f.maxLength = 64; f.autocomplete = "off"; f.spellcheck = false; f.setAttribute("autocapitalize", "characters");
+    b.addEventListener("click", function () {
+      if (st && st.voucher === false) { m.textContent = t("kb_top_off"); return; }
+      b.hidden = true; form.hidden = false; f.focus();
+    });
+    go.addEventListener("click", async function () {
+      var c = f.value.trim(); if (c.length < 4) { f.focus(); return; }
+      go.disabled = true; m.textContent = "";
+      var r = null; try { r = await root.Ai.post("/credit/redeem", { code: c }); } catch (e) { r = null; }
+      var j = r && r.json; go.disabled = false;
+      if (j && j.ok === true) { f.value = ""; b.hidden = false; form.hidden = true; await refresh(); after(t("kb_top_ok", { n: Number(j.added) || 0 })); return; }
+      m.textContent = t("kb_top_" + (j && /^(unknown|limit|login)$/.test(j.error) ? j.error : "off"));
+    });
+    f.addEventListener("keydown", function (e) { if (e.key === "Enter") go.click(); });
+    [lab, f, go].forEach(function (n) { form.appendChild(n); });
+    [b, form, m].forEach(function (n) { box.appendChild(n); });
+    return box;
   }
 
   /* The dialog. Every step on screen is a real state of the server's job; no invented progress. */
@@ -106,6 +161,7 @@
       var b = el("button", "chip", t("kb_st_" + s), function () { style0 = s; Array.from(styles.children).forEach(function (x) { x.setAttribute("aria-checked", String(x === b)); x.classList.toggle("on", x === b); }); });
       b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(s === style0)); b.classList.toggle("on", s === style0); b.dataset.s = s; styles.appendChild(b);
     });
+    var top = topup(function (ok) { if (alive) { canNow(); msg.textContent = ok; } }); top.hidden = true;
     var steps = el("ol", "kbsteps"); steps.hidden = true;
     ["kb_s_check", "kb_s_line", "kb_s_make", "kb_s_test"].forEach(function (k) { steps.appendChild(el("li", "", t(k))); });
     var res = el("div", "kbres"); res.hidden = true;
@@ -119,8 +175,9 @@
     function say(k, vars) { msg.textContent = k ? t(k, vars) : ""; }
     function refreshPrice() { pr.textContent = price(use); }
     function canNow() {
+      top.hidden = !needsTopup(use);
       if (can(use)) { go.disabled = false; form.hidden = false; refreshPrice(); return true; }
-      say(null); msg.textContent = why(use); form.hidden = !(st && st.login); go.disabled = true; return false;
+      say(null); msg.textContent = why(use); form.hidden = !(st && st.login); go.disabled = true; pr.textContent = ""; return false;
     }
     async function make() {
       if (busy) return;
@@ -133,7 +190,7 @@
       try { r = await call("", { use: use, text: text, style: style0, lang: Kit.lang }); } catch (e) { r = null; }
       if (!alive) return;
       var err = r ? errorText(r.status, r.json) : { key: "kb_offline" };
-      if (err) { done(); msg.textContent = t(err.key, err.vars); refresh().then(function () { if (alive) refreshPrice(); }); return; }
+      if (err) { done(); msg.textContent = t(err.key, err.vars); refresh().then(function () { if (alive) { refreshPrice(); top.hidden = !needsTopup(use); } }); return; }
       job = r.json.job; show(step(r.json), r.json);
       while (alive && job) {
         await new Promise(function (ok) { setTimeout(ok, POLL); });
@@ -141,12 +198,12 @@
         var p; try { p = await call("/job", { job: job }); } catch (e) { p = null; }
         if (!p || p.status !== 200) { job = null; done(); say("kb_offline"); return; }
         var n = step(p.json);
-        if (n === 4) { job = null; done(); result(p.json, text); break; }
+        if (n === 4) { job = null; done(); result(p.json, text); await refresh(); if (!alive) return; var ch = chargedInfo(p.json, st); if (ch) say(ch.key, ch.vars); break; }
         if (n === -1) { job = null; done(); say(failText(p.json.error)); break; }
         show(n, p.json);
         if (p.json.etaS) steps.title = t("kb_eta", { n: p.json.etaS });
       }
-      refresh().then(function () { if (alive) refreshPrice(); });
+      refresh().then(function () { if (alive) { refreshPrice(); top.hidden = !needsTopup(use); } });
     }
     function done() { busy = false; go.disabled = false; show(null); x.textContent = t("kb_close"); }
     function result(j, text) {
@@ -177,7 +234,7 @@
       dlg.remove();
     });
     [lab, area, el("p", "lbl", t("kb_style")), styles, pr, go].forEach(function (n) { form.appendChild(n); });
-    [h, form, steps, msg, res, el("p", "note", t("kb_note")), x].forEach(function (n) { dlg.appendChild(n); });
+    [h, form, steps, msg, top, res, el("p", "note", t("kb_note")), x].forEach(function (n) { dlg.appendChild(n); });
     document.body.appendChild(dlg); dlg.showModal();
     canNow();
     refresh().then(function () { if (alive && !busy && !last) canNow(); });
@@ -234,6 +291,7 @@
     style();
     node.textContent = "";
     var row = el("div", "kbav"), pic = el("img"), info = el("div"), note = el("p", "note kbavnote"), none = el("p", "note kbavnone", t("kb_avatar_none"));
+    var top = topup(function (ok) { paint(); note.textContent = ok + " " + note.textContent; });
     pic.alt = t("kb_avatar_h"); pic.crossOrigin = "anonymous"; pic.referrerPolicy = "no-referrer";
     var b = el("button", "btn kbavgo", t("kb_avatar_make"), function () {
       if (!can("avatar")) { note.textContent = why("avatar"); return; }
@@ -243,9 +301,10 @@
       var u = st && st.avatar ? origin() + st.avatar : "";
       pic.hidden = !u || hidden(refOf(u)); if (u && !pic.hidden) pic.src = u;
       note.textContent = can("avatar") ? price("avatar") : st && st.login ? why("avatar") : "";
+      top.hidden = !needsTopup("avatar");
       none.hidden = !!u;
     }
-    info.appendChild(el("p", "lbl", t("kb_avatar_h"))); info.appendChild(none); info.appendChild(b); info.appendChild(note);
+    info.appendChild(el("p", "lbl", t("kb_avatar_h"))); info.appendChild(none); info.appendChild(b); info.appendChild(note); info.appendChild(top);
     row.appendChild(pic); row.appendChild(info); node.appendChild(row);
     paint(); refresh().then(function () { if (node.isConnected) paint(); });
   }
