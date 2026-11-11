@@ -626,7 +626,8 @@ async function makePicture(doc, idea, pictureDoc) {
   var url = D.docUrl(doc);
   result = { url: url, file: file, name: name, png: png, keep: mine, canvas: c, kind: doc.k, doc: doc };
   var made = pictureDoc || doc;
-  wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c), k: made.k === "photo" || photo ? "photo" : made.k }); store.wall = wall; Kit.save();
+  var th = thumb(c), h = C.hash32(url + "|" + (pictureDoc ? D.docUrl(pictureDoc) : "") + (photo ? "|" + th : "")).toString(36);   // h: the same card again is one entry (D.addToWall)
+  wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: th, h: h, k: made.k === "photo" || photo ? "photo" : made.k }); store.wall = wall; Kit.save();
   if (!Kit.persisted) Kit.toast(t("wallFull"));
   var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png); img.alt = cardName(made) || t("a_preview");
   $("playit").hidden = true;   // a card is not a level: whoever does not fly far would never see it
@@ -728,7 +729,7 @@ $("edsave").addEventListener("click", function () {
   }
   store.wall = wall; Kit.save(); saveMark();
 });
-$("shback").addEventListener("click", function () { Kit.sfx.tap(); if (!backFromStyle()) goHome(); });
+$("shback").addEventListener("click", function () { Kit.sfx.tap(); if (bigAt && screen === "shelf") { history.back(); return; } if (!backFromStyle()) goHome(); });
 // My style opened from the editor returns there with the work intact; new colours apply unless they were chosen by hand.
 function backFromStyle() {
   if (!ed || !ed.styling) return false;
@@ -809,7 +810,7 @@ function reportKi(h) {
   reporting = true;
   window.Parts.use("melden", function () { reporting = false; if (home === h && screen === "home") window.Melden.open(h.doc, h.link); }).catch(function () { reporting = false; });
 }
-function shelf(title, fill) { shelves++; stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
+function shelf(title, fill) { shelves++; bigAt = null; stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
 function openAiWall() { ed.styling = true; shelf(t("aiTitle"), function (b) { window.Ai.wall(b, el); }); }
 // The last week, and above it a search over every sheet: one word, one tap on a hit, and that sheet is back.
 function openPast() {
@@ -839,29 +840,56 @@ function openPast() {
     if (shown("f_create")) window.Deck.btn(b);
   });
 }
-function openWall(which) {
-  shelf(t("wall"), function (b) {
-    var links = window.ShortLink.kept(store.links, Date.now()), tabs = el("div", "chips walltabs");
-    [["wall", t("wall")], ["links", t("invites") + " (" + links.length + ")"]].forEach(function (x) {
-      var on = (which || "wall") === x[0], c = el("button", "chip" + (on ? " on" : ""), x[1], function () { Kit.sfx.tap(); openWall(x[0]); });
-      c.setAttribute("role", "tab"); c.setAttribute("aria-selected", String(on)); tabs.appendChild(c);
-    });
-    b.appendChild(tabs);
-    if (which === "links") { invites(b, links); return; }
-    if (!wall.length) { b.appendChild(el("div", "empty", t("wallEmpty"))); return; }
-    var g = el("div", "wallgrid");
-    wall.forEach(function (w, i) {
-      var c = el("button", "", null, function () {
-        Kit.sfx.tap(); b.textContent = ""; var im = el("img", "big"); im.src = w.th; im.alt = ""; b.appendChild(im);
-        var r = w.f ? D.parseRoute("#" + w.f) : null;
-        if ((r && r.type === "doc") || two("#" + w.f)) b.appendChild(el("button", "btn hot", t("openAgain"), function () { Kit.sfx.thud(); if (two("#" + w.f)) window.Parts.use(two("#" + w.f), function () { again(w.f); }).catch(function () {}); else again(w.f); }));
-        b.appendChild(el("button", "btn", t("gone"), function () { wall.splice(i, 1); store.wall = wall; Kit.save(); openWall(); }));
-      });
-      var im = el("img"); im.src = w.th; im.alt = ""; c.appendChild(im); g.appendChild(c);
-    });
-    b.appendChild(g);
+// The wall. A picture opens large as a history step of its own, so ✕ and Back return to the grid where it was (bigAt).
+// Taking a picture off happens at once; for 6 s a bar offers "Rückgängig" instead of asking first.
+var bigAt = null, undo = null;
+function openWall(which) { shelf(t("wall"), function (b) { wallFill(b, which); }); }
+function wallFill(b, which) {
+  var links = window.ShortLink.kept(store.links, Date.now()), tabs = el("div", "chips walltabs");
+  [["wall", t("wall")], ["links", t("invites") + " (" + links.length + ")"]].forEach(function (x) {
+    var on = (which || "wall") === x[0], c = el("button", "chip" + (on ? " on" : ""), x[1], function () { Kit.sfx.tap(); openWall(x[0]); });
+    c.setAttribute("role", "tab"); c.setAttribute("aria-selected", String(on)); tabs.appendChild(c);
   });
+  b.appendChild(tabs);
+  if (which === "links") { invites(b, links); return; }
+  if (undo && Date.now() - undo.at < 6000) {
+    var u = undo, bar = el("div", "", t("wallGone"));
+    bar.setAttribute("role", "status");
+    bar.style.cssText = "position:sticky;top:0;z-index:2;display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--ink);color:#fff;padding:6px 6px 6px 14px;margin-bottom:10px";
+    var ub = el("button", "", "↶ " + t("skUndo"), function () {
+      Kit.sfx.pop(); undo = null; wall.splice(Math.min(u.i, wall.length), 0, u.e); wallSave(); wallAgain();
+    });
+    ub.style.cssText = "min-height:44px;padding:0 14px;white-space:nowrap;border:0;background:#fff;color:#111;font:800 1rem var(--ui)";
+    bar.appendChild(ub); b.appendChild(bar);
+    setTimeout(function () { if (undo === u) undo = null; bar.remove(); }, 6000 - (Date.now() - u.at));
+  }
+  if (!wall.length) { b.appendChild(el("div", "empty", t("wallEmpty"))); return; }
+  var g = el("div", "wallgrid inv");
+  wall.forEach(function (w) {
+    var cell = el("div", "invcell"), c = el("button", "", null, function () {
+      Kit.sfx.tap(); bigAt = { which: which, y: $("shbody").scrollTop };
+      try { history.pushState({ s: "shelf", big: 1 }, "", location.href); } catch (e) {}
+      b.textContent = ""; var im = el("img", "big"); im.src = w.th; im.alt = ""; b.appendChild(im);
+      var r = w.f ? D.parseRoute("#" + w.f) : null;
+      if ((r && r.type === "doc") || two("#" + w.f)) b.appendChild(el("button", "btn hot", t("openAgain"), function () { Kit.sfx.thud(); bigAt = null; if (two("#" + w.f)) window.Parts.use(two("#" + w.f), function () { again(w.f); }).catch(function () {}); else again(w.f); }));
+      b.appendChild(el("button", "btn", "✕ " + t("gone"), function () { wallOff(w); history.back(); }));
+      $("shbody").scrollTop = 0;
+    });
+    var im = el("img"); im.src = w.th; im.alt = ""; c.appendChild(im);
+    var x = el("button", "invx", "✕", function () { wallOff(w); wallAgain(); });
+    x.setAttribute("aria-label", t("gone"));
+    cell.appendChild(c); cell.appendChild(x); g.appendChild(cell);
+  });
+  b.appendChild(g);
 }
+function wallSave() { wall = D.sanitizeWall(wall); store.wall = wall; Kit.save(); }   // Kit.save also syncs a linked profile (profile.js): gone there too
+function wallOff(w) { var i = wall.indexOf(w); if (i < 0) return; Kit.sfx.tap(); wall.splice(i, 1); undo = { e: w, i: i, at: Date.now() }; wallSave(); }
+// The grid again in place (after taking a picture off, undoing, or leaving the large view): same tab, same scroll.
+function wallAgain(at) {
+  var b = $("shbody"), y = at ? at.y : b.scrollTop; b.textContent = ""; wallFill(b, at ? at.which : "wall"); b.scrollTop = y;
+}
+// ✕ or Back in the large view: one step back in history; popstate brings the grid (wallBack).
+function wallBack() { if (!bigAt || screen !== "shelf") return false; var at = bigAt; bigAt = null; wallAgain(at); return true; }
 // A saved work opened again; a turn card that checks a signature first (prepare) waits for it.
 function again(f) {
   var r = D.parseRoute("#" + f), pre = r && r.type === "doc" && r.doc.k === "turn" && window.Turns.game(r.doc).prepare, wait = pre && pre(r.doc);
@@ -978,7 +1006,7 @@ document.addEventListener("keydown", function (e) {
   x = { editor: "edback", shelf: "shback", game: "gback", done: "dback" }[screen];
   if (x && !$(x).hidden) { e.preventDefault(); $(x).click(); }
 });
-window.addEventListener("popstate", function () { if (window.ArcadeUI && window.ArcadeUI.back()) return; if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
+window.addEventListener("popstate", function () { if (window.ArcadeUI && window.ArcadeUI.back()) return; if (wallBack()) return; if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
 
 function route() {
   // The call card ("Ruf mich an, wenn du mich wirklich kennst", #p=<invite>&k=<card>) was struck with the shelf clean-up
