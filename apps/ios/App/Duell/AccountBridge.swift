@@ -24,7 +24,8 @@ final class AccountBridge: NSObject, WKScriptMessageHandlerWithReply {
             case "state":
                 replyHandler(["v": 1, "ok": true, "available": auth.isConfigured, "signedIn": auth.isSignedIn], nil)
             case "login":
-                if auth.isConfigured { _ = try? await auth.signIn() }   // cancel or failure: still signed out, the page re-checks
+                // already signed in: nothing to do (a new sign-in would replace the device key the refresh token is bound to)
+                if auth.isConfigured && !auth.isSignedIn { _ = try? await auth.signIn() }   // cancel or failure: still signed out
                 replyHandler(["v": 1, "ok": auth.isConfigured, "signedIn": auth.isSignedIn], nil)
             case "logout":
                 auth.signOut()
