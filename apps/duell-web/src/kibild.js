@@ -37,24 +37,26 @@
   /* A job's state -> the step shown: 0 sentence, 1 line, 2 making, 3 checking, 4 done, -1 failed. */
   function step(j) { return !j ? 0 : j.state === "queued" ? 1 : j.state === "generating" ? 2 : j.state === "checking" ? 3 : j.state === "done" ? 4 : -1; }
   function failText(err) { return err === "timeout" ? "kb_timeout" : err === "unsafe" ? "kb_unsafe" : "kb_failed"; }
-  /* What the next image of `use` costs -> { key, vars } of a fixed text. The price is the server's (status.next: free |
-     credit | none, wrapper lib/duell-bild.mjs quota); this only picks the text. null without a login or without "next". */
+  /* What the next image of `use` costs -> { key, vars } of a fixed text. Price and rules are the server's (status.next: free |
+     credit | none; status.rules: price, avatarFree; wrapper lib/duell-bild.mjs); this only picks the text. null without a
+     login or without them (never a guessed price). */
   function priceInfo(st, use, fmtDate) {
     if (!st || !st.login || !st.on) return null;
     var c = Math.max(0, Math.floor(Number(st.credit)) || 0), f = st.free || {}, left = Math.max(0, Math.floor(Number(f.left)) || 0), size = Math.max(0, Math.floor(Number(f.size)) || 0);
     var nx = st.next && st.next[use];
-    if (nx !== "free" && nx !== "credit" && nx !== "none") return null;
-    var d = f.resetAt && fmtDate ? fmtDate(f.resetAt) : "";
-    if (use === "avatar") return nx === "credit" ? { key: "kb_price_avatar", vars: { n: c } } : { key: "kb_credit", vars: {}, topup: true };
-    if (nx === "free") return { key: "kb_price_free", vars: { n: left, m: size } };
-    if (nx === "credit") return { key: "kb_price_credit", vars: { n: c, m: size, d: d } };
+    var r = st.rules || {}, p = Math.floor(Number(r.price));
+    if (nx !== "free" && nx !== "credit" && nx !== "none" || !(p >= 1)) return null;
+    var d = f.resetAt && fmtDate ? fmtDate(f.resetAt) : "", own = use === "avatar" && r.avatarFree === false;   // account picture only with credit
+    if (nx === "free") return { key: "kb_price_free", vars: { n: left, m: size, p: p } };
+    if (nx === "credit") return own ? { key: "kb_price_avatar", vars: { n: c, p: p } } : { key: "kb_price_credit", vars: { n: c, m: size, d: d, p: p } };
+    if (own) return { key: "kb_credit", vars: {}, topup: true };
     return { key: d ? "kb_quota_date" : "kb_quota", vars: { d: d }, topup: true };
   }
   /* What a delivered image cost -> { key, vars } (after the status was asked again). */
   function chargedInfo(j, st) {
     if (!j || j.state !== "done") return null;
     if (j.charged === "free") return { key: "kb_charged_free", vars: { n: st && st.free ? Math.max(0, Number(st.free.left) || 0) : 0 } };
-    if (j.charged === "credit") return { key: "kb_charged_credit", vars: { n: st ? Math.max(0, Number(st.credit) || 0) : 0 } };
+    if (j.charged === "credit") return { key: "kb_charged_credit", vars: { n: st ? Math.max(0, Number(st.credit) || 0) : 0, p: st && st.rules && Number(st.rules.price) >= 1 ? Math.floor(st.rules.price) : 1 } };
     return null;
   }
   function refOf(url) { var m = /\/duell\/bild\/([A-Za-z0-9_-]{22}\.(?:jpg|png))$/.exec(String(url || "")); return m ? m[1] : ""; }

@@ -28,7 +28,7 @@ function png(w, h, a, b) {
 }
 const PICS = { [REF]: png(256, 384, [255, 120, 40], [40, 90, 220]), [LOGO]: png(128, 128, [20, 160, 80], [255, 212, 0]), [AV]: png(128, 128, [255, 79, 163], [10, 127, 85]) };
 
-const STATUS = (o = {}) => ({ on: true, login: true, age16: true, free: { left: 3, size: 3, period: "month", resetAt: "2026-12-01T00:00:00.000Z" }, credit: 0, next: { card: "free", logo: "free", avatar: (o.credit || 0) > 0 ? "credit" : "none" }, perDay: { left: 10, size: 10 }, can: { card: true, logo: true, avatar: false }, why: { card: "", logo: "", avatar: "credit" }, avatar: null, estS: { card: 6, logo: 3, avatar: 3 }, deadlineS: 30, ...o });
+const STATUS = (o = {}) => ({ on: true, login: true, age16: true, free: { left: 3, size: 3, period: "month", resetAt: "2026-12-01T00:00:00.000Z" }, credit: 0, next: { card: "free", logo: "free", avatar: (o.credit || 0) > 0 ? "credit" : "none" }, rules: { freePerMonth: 3, price: 1, dailyCap: 10, avatarFree: false, capCountsFailed: true, tz: "UTC" }, perDay: { left: 10, size: 10 }, can: { card: true, logo: true, avatar: false }, why: { card: "", logo: "", avatar: "credit" }, avatar: null, estS: { card: 6, logo: 3, avatar: 3 }, deadlineS: 30, ...o });
 let b;
 test.before(async () => { b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined }); });
 test.after(async () => { await b.close(); });
@@ -139,7 +139,7 @@ test("Kontobild ohne Guthaben: der Knopf sagt warum, nichts geht an den Bilddien
   await style(p);
   const go = p.getByRole("button", { name: "Kontobild mit KI" });
   await go.waitFor();
-  await p.locator(".kbavnote", { hasText: "kostet 1 Guthaben" }).waitFor();
+  await p.locator(".kbavnote", { hasText: "Ein Kontobild braucht Guthaben" }).waitFor();
   await go.click();
   await p.locator(".kbavnote", { hasText: "Guthaben gibt es, wenn andere deine freien Karten nutzen" }).waitFor();
   assert.equal(await p.locator("dialog.kbdlg").count(), 0, "kein Dialog ohne Guthaben");
@@ -252,6 +252,19 @@ test("Preis ehrlich: Topf leer und kein Guthaben -> Datum und Guthaben aufladen;
   await p.locator(".kbmsg", { hasText: "1 Guthaben abgebucht. Du hast noch 1." }).waitFor();
   await shot(p, "15-abgebucht");
   assert.deepEqual(s.sent.filter((x) => x.path === "credit/redeem").map((x) => x.body), [{ code: "FALSCH-1" }, { code: "TEST-CODE-1" }]);
+  assert.deepEqual(s.errs, []);
+  await s.ctx.close();
+});
+
+test("Kontobild aus den freien Bildern (rules.avatarFree, Vorgabe des Servers): kostenlos angesagt, ohne Guthaben machbar", async () => {
+  const st = { rules: { freePerMonth: 3, price: 1, dailyCap: 10, avatarFree: true, capCountsFailed: true, tz: "UTC" }, next: { card: "free", logo: "free", avatar: "free" }, can: { card: true, logo: true, avatar: true }, why: { card: "", logo: "", avatar: "" } };
+  const s = await phone(maker(AV, { status: st }), LINKED), p = await s.open();
+  await style(p);
+  await p.locator(".kbavnote", { hasText: "Dieses Bild ist kostenlos: noch 3 von 3 kostenlosen Bildern diesen Monat. Danach kostet jedes Bild 1 Guthaben." }).waitFor();
+  assert.equal(await p.locator(".kbav .kbtop").isHidden(), true);
+  await p.getByRole("button", { name: "Kontobild mit KI" }).click();
+  await p.getByRole("heading", { name: "KI-Kontobild" }).waitFor();
+  assert.equal(await p.getByRole("button", { name: "Bild machen" }).isDisabled(), false);
   assert.deepEqual(s.errs, []);
   await s.ctx.close();
 });
