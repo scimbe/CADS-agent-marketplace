@@ -44,6 +44,11 @@
     });
     return (root[key] = s);
   }
+  // The Robot and the Magic (robot-ui.js, the part robot): can() answers without the part, from the doc alone (the part's own
+  // answer is stricter); open() and fill() load it. A build without the free card has no part: can() is false there.
+  var FREE_KINDS = ["card", "photo", "sound", "game", "lauf", "turn", "duel", "table", "arcade", "tool"], DICE = ["card", "photo", "sound", "game"];
+  stand("robot", "FreeFromCard", ["open"], { close: function () {}, can: function (d) { return !!LIST.robot && !!d && FREE_KINDS.indexOf(d.k) >= 0 && (typeof d.i === "string" || !!(d.ki && d.ki.k === "karte")); } });
+  stand("robot", "Magic", ["fill"], { can: function (d, panel) { return !!LIST.robot && !!d && (!!(panel && panel.querySelector && panel.querySelector("input.tlist")) || DICE.indexOf(d.k) >= 0); } });
   // Live duels (live-ui.js). on() answers like the switch ON there (true; test/parts.test.js keeps both the same); the
   // stand-in has nothing open to close.
   stand("play", "LiveUI", ["invite", "accept"], { close: function () {}, on: function () { return true; } });
@@ -82,7 +87,7 @@
   // by its own card or link. A name without a part in this build stays harmless. Nor the preview pictures (bilda, bildb …,
   // about 80 KB each): the start page asks for a part when one of its pictures comes into sight (start-ui.js shots);
   // offline without it a tile shows its title on its colour.
-  var ONDEMAND = ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten"];
+  var ONDEMAND = ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten", "robot"];
   if (/^https?:$/.test(location.protocol) && location.hostname !== "appassets.androidplatform.net") {
     root.addEventListener("load", function () {
       (root.requestIdleCallback || function (f) { return setTimeout(f, 1500); })(function () {

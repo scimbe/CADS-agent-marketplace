@@ -197,7 +197,7 @@ var draw = {
   list: function (box, p, set, ctx) {
     var fs = [], pre = ctx && ctx.ed.pre && ctx.ed.pre[p.l];
     function up() { var v = fs.map(function (f) { return Q.clean(f.value, p.max); }), have = v.filter(Boolean); if (p.least && (have.length < p.least || new Set(have.map(Q.fold)).size < have.length)) { set(null); return; } set(p.loose ? fs.map(function (f, i) { return f.value.trim() ? v[i] : ""; }) : v.every(Boolean) && (p.same || new Set(v.map(Q.fold)).size === p.n) && (!p.bytes || new TextEncoder().encode(v.join("")).length <= p.bytes) ? v : null); }
-    for (var i = 0; i < p.n; i++) { var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", ask(p, ctx.doc, ctx.m) + " " + (i + 1)); if (p.hints) f.placeholder = p.hints(Kit.lang)[i]; f.addEventListener("input", up); if (pre && pre[i]) f.value = pre[i]; box.appendChild(f); fs.push(f); }
+    for (var i = 0; i < p.n; i++) { var f = el("input", "field tlist"); f.setAttribute("data-l", p.l); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", ask(p, ctx.doc, ctx.m) + " " + (i + 1)); if (p.hints) f.placeholder = p.hints(Kit.lang)[i]; f.addEventListener("input", up); if (pre && pre[i]) f.value = pre[i]; box.appendChild(f); fs.push(f); }
     if (p.loose || pre) up(); else set(null);
   },
   pick: function (box, p, set, ctx) {
