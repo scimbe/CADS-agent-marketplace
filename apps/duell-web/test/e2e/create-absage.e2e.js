@@ -34,7 +34,8 @@ async function refused(f, after) {
   });
   await p.goto(page);
   await p.locator("#create").tap();
-  if (ART[f.art]) await p.getByRole("button", { name: ART[f.art] }).tap();
+  await p.getByRole("button", { name: ART[f.art] }).tap();
+  if (f.art === "game") await p.getByRole("button", { name: "✈️ Fliegen" }).tap();
   const ta = p.getByLabel("Deine Beschreibung"); await ta.waitFor();
   await ta.fill(f.t);
   await p.getByRole("button", { name: "✨ Erschaffen" }).tap();
@@ -110,10 +111,12 @@ test("Ein nicht gesendeter Vorschlag (Krise bleibt am Geraet) gibt sein Genre ni
   await p.getByLabel("Vorschlag, du kannst ihn ändern").fill("ich will nicht mehr leben");
   await p.getByRole("button", { name: "Diesen Satz senden" }).tap();
   assert.equal(posts().length, 1, "die Krise geht nicht hinaus");
+  // the genre chip the person taps now is sent, never the one of the proposal that did not go out
+  await p.getByRole("button", { name: "🏃 Jump & Run" }).tap();
   await ta.fill("ein Flugspiel ueber den Wolken");
   await p.getByRole("button", { name: "✨ Erschaffen" }).tap();
   await p.waitForFunction(() => document.querySelectorAll(".createalt").length > 0);
   assert.equal(posts().length, 2);
-  assert.deepEqual(posts()[1].body.input, { text: "ein Flugspiel ueber den Wolken", art: "game" }, "kein Genre, das die Person nicht gesendet hat");
+  assert.deepEqual(posts()[1].body.input, { text: "ein Flugspiel ueber den Wolken", art: "game", genre: "G2" }, "nur das Genre, das die Person gewaehlt hat");
   assert.deepEqual(errs, []); await ctx.close();
 });

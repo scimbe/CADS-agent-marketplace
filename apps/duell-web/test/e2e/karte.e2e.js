@@ -64,6 +64,7 @@ test("Mit Konto und 16+-Erklaerung: ein Satz, Vorschau mit Badge, Uebernehmen ->
     return null;
   });
   await p.locator("#create").tap();
+  await p.getByRole("button", { name: "🃏 Karte" }).tap();
   const ta = p.getByLabel("Deine Beschreibung");
   await ta.waitFor();
   assert.match(await p.locator(".create-left").textContent(), /5 von 5 frei/);
@@ -101,6 +102,7 @@ test("Verwerfen gibt die Einheit zurueck; eine Krise bleibt auf dem Geraet und z
   });
   await p.evaluate(() => { const me = window.DailyApp.me(); me.pref = { age: "a18" }; });
   await p.locator("#create").tap();
+  await p.getByRole("button", { name: "🃏 Karte" }).tap();
   const ta = p.getByLabel("Deine Beschreibung");
   await ta.waitFor();
   await ta.fill("Ein Frosch, der Astronaut werden will");
@@ -131,6 +133,7 @@ test("W3: Spiel, Quiz und eine vorhandene Kartenart (Termin) kommen als Vorschau
     await p.evaluate(() => { window.DailyApp.me().pref = { age: "a18" }; });
     await p.locator("#create").tap();
     await p.getByRole("button", { name: label }).tap();
+    if (art === "game") await p.getByRole("button", { name: "✈️ Fliegen" }).tap();
     const ta = p.getByLabel("Deine Beschreibung");
     await ta.waitFor();
     await ta.fill("Beschreibung für " + art);
@@ -183,6 +186,7 @@ test("Kein Alkohol auf Karten: der Server laesst das Getraenk weg (note drinks),
       return null;
     });
     await p.locator("#create").tap();
+    await p.getByRole("button", { name: "🃏 Karte" }).tap();
     const ta = p.getByLabel("Deine Beschreibung"); await ta.waitFor();
     await ta.fill("Einladung zur Chorprobe, danach Punsch");
     await p.getByRole("button", { name: "✨ Erschaffen" }).tap();
@@ -211,6 +215,7 @@ test("Art Spiel mit genanntem Spiel (Dart, Doppelkopf): kein Flugspiel, ehrlich 
     });
     await p.locator("#create").tap();
     await p.getByRole("button", { name: "🕹 Spiel" }).tap();
+    await p.getByRole("button", { name: "✈️ Fliegen" }).tap();
     const ta = p.getByLabel("Deine Beschreibung"); await ta.waitFor();
     await ta.fill(name === "Dart" ? "Erstelle ein Dart Spiel" : "Doppelkopf-Runde");
     await p.getByRole("button", { name: "✨ Erschaffen" }).tap();
