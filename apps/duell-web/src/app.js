@@ -150,6 +150,7 @@ function preview(root, doc, still) {
     if (doc.k === "lauf" && !R.extra.lauf) { window.Parts.use("lauf", function () { if (root.isConnected) preview(root, doc, still); }).catch(function () {}); return; }   // the second engine is a part
     if (window.ArcadeUI) window.ArcadeUI.demo(c, doc.k === "arcade" ? doc.a : null, still);   // null ends a running duel preview
     if (doc.k === "arcade") return;
+    if (doc.k === "tool") { window.ToolsUI.demo(c, doc.tl); return; }   // the picture of a tool (part tools)
     R.draw(c, doc, { me: me, photo: doc.k === "photo" ? R.botFace(C.hash32(doc.x || "x"), doc.col[1]) : null, peaks: null, x: {} });
   } catch (e) { box.hidden = true; }
 }
@@ -952,6 +953,7 @@ function start(tabName, go) {
   if (home.doc && X[home.doc.k] && X[home.doc.k].incoming && X[home.doc.k].incoming(home.doc)) return;
   if (!home.doc && home.idea && home.idea.protokoll) { var u = protokollUrl(); if (location.protocol === "https:") location.href = u; else openLive(u); return; }
   if (!home.doc && home.idea && home.idea.kind === "arcade" && window.ArcadeUI) { window.ArcadeUI.menu(home.idea.arcade.g); return; }
+  if (!home.doc && home.idea && home.idea.kind === "tool") { window.ToolsUI.open(home.idea.id); return; }   // its own layer, never the editor
   if (home.doc) openEditor(D.localDoc(home.doc, Kit.lang), { idea: home.doc.i ? D.byId(home.doc.i) : null, tab: tabName, got: !!home.note, rec: go && voiceGot() });
   else openEditor(D.docFromIdea(home.idea, me, Kit.lang, home.fx), { idea: home.idea, tab: tabName, got: !!home.note });
 }
@@ -988,6 +990,9 @@ function route() {
   var live = location.hash.match(/^#live=([A-Za-z0-9_-]{22})(?:&g=([a-z]{2,12}))?$/);
   if (live && window.LiveUI) { history.replaceState(null, "", location.pathname); window.LiveUI.accept(live[1], live[2]); }
   var seat = location.hash.match(/^#tisch=(doko|skat|bauernskat)\.([A-Za-z0-9_-]{22}(?:\.[A-Za-z0-9_-]{22}){0,2})(?:&r=([a-z]{1,8}(?:\.[a-z]{1,8}){0,3}))?$/);   // one token, or one per free seat; the house rules
+  // A tool link (part tools): a note in the address (#notiz=, never sent anywhere) or the other device of a tool for two (#tl=).
+  var nz = location.hash.match(/^#notiz=([A-Za-z0-9_-]{1,1200})$/), tl = location.hash.match(/^#tl=([A-Za-z0-9_-]{22})&w=(notiz|datei)$/);
+  if (nz || tl) { history.replaceState(null, "", location.pathname + location.search); goHomeKeep(); window.ToolsUI.link(nz ? "note" : tl[2], nz ? nz[1] : tl[1]); return true; }
   if (seat && window.TableUI) { history.replaceState(null, "", location.pathname); window.TableUI.accept(seat[1], seat[2], seat[3]); }
   if (todoLink()) return true;
   var r = D.parseRoute(location.hash);

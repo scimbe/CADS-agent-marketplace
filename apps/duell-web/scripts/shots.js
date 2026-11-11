@@ -95,6 +95,15 @@ async function shoot(ctx, id, n) {
       for (let k = 1; k <= 5; k++) { const [a, b] = pt(k - 1), [c, d] = pt(k); for (let s = 1; s <= 8; s++) await p.mouse.move(a + (c - a) * s / 8, b + (d - b) * s / 8); }
       await p.mouse.up(); await p.waitForTimeout(300);
       clip = { x: r.x, y: r.y, width: r.width, height: r.width * H / W };   // the board and the colours under it
+    } else if (idea.kind === "tool") {
+      // a tool: its own layer as it opens (the note with a short list on it, the file tool before connecting)
+      await p.clock.resume();
+      await p.locator("#go").tap(); const st = p.locator(".tlstage"); await st.waitFor();
+      if (idea.tool.t === "notiz") await p.locator(".tlnotex").fill("Milch\nBrot\nOma anrufen 📞");
+      await p.waitForTimeout(400);
+      await p.evaluate(() => document.activeElement && document.activeElement.blur());
+      const r = await p.locator(".tlnote, .tlcard").first().boundingBox(), w = r.width + 40, h = Math.max(r.height + 40, w * H / W);
+      const vw = p.viewportSize().width, cw = Math.min(vw, h * W / H); clip = { x: Math.max(0, r.x + r.width / 2 - cw / 2), y: Math.max(0, r.y + r.height / 2 - h / 2), width: cw, height: cw * H / W };
     } else {
       if (idea.kind === "table") { await p.evaluate(() => window.Parts.need("table")); await p.evaluate(() => window.DailyApp.sheet(window.DailyDebug.home())); }
       await ticks(p, idea.kind === "arcade" || idea.kind === "game" ? 3000 : 600);   // a running game: 3 s of play

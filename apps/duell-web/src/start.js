@@ -29,6 +29,7 @@
     for (var k = 0; k < INTENTS.length; k++) if (DATA.intents[INTENTS[k]].ids.indexOf(idea.id) >= 0) return INTENTS[k];
     if (idea.kind === "sound") return "stimme";
     if (idea.kind === "card" || idea.kind === "photo") return "gruss";
+    if (idea.kind === "tool") return "planen";   // the note and the file for two help to organise, they are no game
     return "spielen";
   }
   // The cards of an intent, as the tiles and "Stimmt nicht? Ändern" offer them: those that exist in this build.

@@ -73,16 +73,24 @@
       return true;
     }
   });
+  // Tools (src/tools-ui.js, kind "tool"): the sticky note and the file for two. list() answers from the catalog without
+  // the part: the tools as { id, t } for a shelf or a category chip (the free card's "Tools", create-ui.js); open(id or t)
+  // opens one, link(w, code) a tool link (#notiz=, #tl=), demo(canvas, t) draws a sheet's picture.
+  var tdv = 0, tls = stand("tools", "ToolsUI", ["open", "link"], {
+    list: function () { return ((root.DuellIdeas && root.DuellIdeas.ideas) || []).filter(function (i) { return i.kind === "tool"; }).map(function (i) { return { id: i.id, t: i.tool ? i.tool.t : i.id }; }); },
+    close: function () {},
+    demo: function (c, w) { var my = ++tdv; need("tools").then(function () { if (my === tdv && root.ToolsUI !== tls) root.ToolsUI.demo(c, w); }, function () {}); }
+  });
   // On the web: everything once the page is idle (see above). In the apps the files are on the device anyway. Not the
   // parts in ONDEMAND: only a sheet, card or link that needs one asks for it, so a visitor who opens none never downloads
   // them (test/build.test.js gives them a budget of their own). noto (Noto Emoji for stickers in the picture, about
   // 110 KB): the editor asks at its first sticker (app.js paint); offline without it the picture is made without stickers.
   // dart (the dartboard, about 50 KB): a dart card or link (app.js two()). klang (Stimme verzerren, about 27 KB): a voice
   // sheet when it is shown (app.js setHome). lauf, blasen, bahn, raten: the game engines of the free card, each asked for
-  // by its own card or link. A name without a part in this build stays harmless. Nor the preview pictures (bilda, bildb …,
+  // by its own card or link. tools (note and file, about 25 KB): a tool card's sheet or link (above). A name without a part in this build stays harmless. Nor the preview pictures (bilda, bildb …,
   // about 80 KB each): the start page asks for a part when one of its pictures comes into sight (start-ui.js shots);
   // offline without it a tile shows its title on its colour.
-  var ONDEMAND = ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten"];
+  var ONDEMAND = ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten", "tools"];
   if (/^https?:$/.test(location.protocol) && location.hostname !== "appassets.androidplatform.net") {
     root.addEventListener("load", function () {
       (root.requestIdleCallback || function (f) { return setTimeout(f, 1500); })(function () {

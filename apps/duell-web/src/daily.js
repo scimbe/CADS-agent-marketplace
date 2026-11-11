@@ -25,7 +25,9 @@
     return (FULL = true);
   }
   fill();   // the part may have run before this file
-  var ROUND = IDEAS.filter(function (i) { return !i.on; });   // calendar ideas ("on": "MM-DD" or a list of them) only appear on their days
+  var ROUND = IDEAS.filter(function (i) { return !i.on && i.kind !== "tool"; });   // calendar ideas ("on": "MM-DD" or a list of them) only appear on their days
+  // A tool (the sticky note, the file for two; tools-ui.js) is always at hand on the shelf, never the day's card: the round,
+  // and with it every day's card, stays as it was without the tools.
   // A card taken off the shelf until it is rebuilt keeps its place in the round ("round": its index there): every other
   // day keeps its card, and on its own days ideaOn gives the day a stand-in, as for a card this device cannot run.
   var PARKED = RETIRED.filter(function (i) { return i.round >= 0; }).sort(function (a, b) { return a.round - b.round; });
@@ -38,7 +40,7 @@
   var ID_RE = /^[a-z0-9-]{1,32}$/, MAX_WALL = 30, MAX_THUMB = 60000, MAX_TEXT = 90;
   var DAY = 86400000;
   var KINDS = ["game", "photo", "sound", "card", "duel", "quest", "turn", "table", "lauf"];
-  var PLAY = ["arcade"];   // days that are only played (arcade-ui.js), never edited, wished for or sent as a creation
+  var PLAY = ["arcade", "tool"];   // only played (arcade-ui.js) or used (tools-ui.js), never edited, wished for or sent as a creation
   var STYLES = { card: ["druck", "zettel", "stempel", "neon", "herz", "advent"], photo: ["poster", "sticker", "meme", "glitch"] };
   // Voice effects (the part klang, src/klang.js) and the tempo on top: one effect plus at most one tempo, nothing else.
   var FX = ["chip", "monster", "robot", "echo", "rev", "alien", "tel", "chor"], TEMPO = ["slow", "fast"];
@@ -410,6 +412,7 @@
     if (idea.kind === "table") base.g = idea.table.game;
     // Played in arcade-ui.js, never edited or sent: no link ever carries such a doc, so sanitizeDoc keeps refusing it.
     if (idea.kind === "arcade") { base.a = idea.arcade.g; return base; }
+    if (idea.kind === "tool") { base.tl = idea.tool ? idea.tool.t : idea.id; return base; }   // used on its own layer (tools-ui.js), never sent
     return sanitizeDoc(base);
   }
   // A card that still says a catalog line, sent in one language, reads in the viewer's: the same line of that idea in

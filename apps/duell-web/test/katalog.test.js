@@ -73,7 +73,7 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
 test("Katalog daily: ids/Titel eindeutig, de/en vollstaendig, Kalendertage eindeutig, Nachbarregel, Titel <= 28, Gedenktage frei", () => {
   assert.deepEqual(pruefe(DAILY, "daily"), []);
   // Katalogzaehlung nach der Regal-Bereinigung (2026-11, konzept2: 209 -> 74 = 65 daily + 8 business + die freie Karte)
-  assert.equal(DAILY.ideas.length + (DAILY.gated || []).length, 64, "der echte Katalog wurde geprueft (duell-liest geparkt)");
+  assert.equal(DAILY.ideas.length + (DAILY.gated || []).length, 66, "der echte Katalog wurde geprueft (duell-liest geparkt; 2026-11: + 2 Werkzeuge, Notizzettel und Datei rueber)");
   assert.equal(BIZ.ideas.length + (BIZ.gated || []).length, 8);
   assert.ok(DAILY.ideas.filter((i) => i.on).length >= 20);
 });

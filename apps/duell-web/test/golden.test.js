@@ -37,7 +37,7 @@ test("Golden-Links Regal-Bereinigung: jede entfernte Karte, alt geteilt, oeffnet
   // 2026-11: "Dein Agent liest dich" (a bot as player) is parked until it is rebuilt: off the shelf, its old links open
   const parkedIds = daily.retired.filter((i) => i.round >= 0).map((i) => i.id);
   assert.deepEqual(parkedIds, ["duell-liest"]);
-  assert.equal(shelf(daily).length + shelf(biz).length + 1, 73, "64 + 8 + die freie Karte (duell-liest geparkt)");
+  assert.equal(shelf(daily).length + shelf(biz).length + 1, 75, "64 + 8 + die freie Karte (duell-liest geparkt) + 2 Werkzeuge (Notizzettel, Datei rueber; nie Tageskarte)");
   for (const c of [daily, biz]) for (const id of shelf(c)) assert.ok(!OUT.streichen.includes(id) && !OUT.zusammenlegen[id], id + " ist noch im Regal");
   // every carrier stays on the shelf (the daily one; x-ballduell -> arcade-kick is a shelf button, not a card)
   for (const [id, to] of Object.entries(OUT.zusammenlegen)) assert.ok(shelf(daily).includes(to) || shelf(biz).includes(to) || parkedIds.includes(to), id + " -> " + to);

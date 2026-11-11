@@ -1,7 +1,10 @@
 /* Live play without an account: two browsers meet through a one-time invite and then talk over a WebRTC data channel.
    The ct-agent browser agent (WASM from the webconference host) does the channel join and the Noise handshake; the
-   bridge there turns the invite into short-lived grants. Media never flows, only small game messages, directly between
-   the devices or, where the networks allow no direct path, over the TURN relay. Nothing runs before someone taps "live". */
+   bridge there turns the invite into short-lived grants. Media never flows, only game messages and, for the file tool
+   (tools-ui.js), file bytes in pieces of 16 KB: directly between the devices or, where the networks allow no direct path,
+   over the TURN relay. The data channel is DTLS between the two browsers, its fingerprints travel inside the Noise
+   channel: the relay sees only ciphertext. fp() gives both fingerprints, so the two screens can show a code that only
+   matches when no one sits in between (tools-ui.js). Nothing runs before someone taps "live". */
 (function (root) {
   "use strict";
   var WC = "https://webconference.bunsenbrenner.org", API = WC + "/api/play", JOIN_MS = 30000, WAIT_MS = 15 * 60000;
@@ -121,14 +124,24 @@
     if (!dc) { try { pc.close(); s.ws.close(); } catch (e) {} call("/done", { channel: info.channel, token: token }).catch(function () {}); throw new Error("rtc"); }
     // The game runs peer to peer now: the edge socket and the server-side channel are not needed any more.
     setTimeout(function () { try { s.ws.close(); } catch (e) {} call("/done", { channel: info.channel, token: token }).catch(function () {}); }, 3000);
-    var handlers = [], closers = [];
-    dc.onmessage = function (e) { var o; try { o = JSON.parse(e.data); } catch (x) { return; } handlers.forEach(function (h) { h(o); }); };
+    var handlers = [], closers = [], bins = [], lows = [];
+    // Text is a game message (JSON); bytes are a file piece for the one who asked for them (onBin), nobody else.
+    dc.binaryType = "arraybuffer"; dc.bufferedAmountLowThreshold = 262144;
+    dc.onbufferedamountlow = function () { lows.forEach(function (h) { h(); }); };
+    dc.onmessage = function (e) {
+      if (typeof e.data !== "string") { bins.forEach(function (h) { h(e.data); }); return; }
+      var o; try { o = JSON.parse(e.data); } catch (x) { return; } handlers.forEach(function (h) { h(o); });
+    };
     function end() { closers.splice(0).forEach(function (h) { h(); }); }
     dc.onclose = end; pc.onconnectionstatechange = function () { if (pc.connectionState === "failed" || pc.connectionState === "closed") end(); };
     return {
       channel: info.channel, caller: caller,
       send: function (o) { if (dc.readyState === "open") dc.send(JSON.stringify(o)); },
       on: function (h) { handlers = [h]; }, onClose: function (h) { closers.push(h); },
+      // Bytes (the file tool): send them as they are, read the send buffer for back pressure, hear when it ran low.
+      bin: function (b) { if (dc.readyState === "open") dc.send(b); }, onBin: function (h) { bins = [h]; },
+      buffered: function () { return dc.bufferedAmount; }, onLow: function (h) { lows = [h]; },
+      fp: function () { function f(d) { var m = d && /a=fingerprint:\S+ ([0-9A-Fa-f:]+)/.exec(d.sdp || ""); return m ? m[1].toUpperCase() : ""; } return [f(pc.localDescription), f(pc.remoteDescription)]; },
       close: function () { try { dc.close(); pc.close(); s.ws.close(); } catch (e) {} call("/done", { channel: info.channel, token: token }).catch(function () {}); }
     };
   }

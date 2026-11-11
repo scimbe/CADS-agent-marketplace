@@ -214,7 +214,7 @@
   // nothing urges. A picture's part is loaded when its tile comes near the screen; with Save-Data none are loaded, and a
   // tile without its picture (offline, part missing) keeps its title on a quiet colour.
   var SHOTS = (root.StartData && root.StartData.shots) || {}, shotLang = "", seen = null;
-  var KINDS = { arcade: "st_k_arcade", game: "st_k_arcade", photo: "st_k_photo", sound: "st_k_sound", table: "table", card: "card" };
+  var KINDS = { arcade: "st_k_arcade", game: "st_k_arcade", photo: "st_k_photo", sound: "st_k_sound", table: "table", card: "card", tool: "tool" };
   function lean() {
     try { var c = navigator.connection; return !!(c && c.saveData) || !!(root.matchMedia && matchMedia("(prefers-reduced-data: reduce)").matches); } catch (e) { return false; }
   }

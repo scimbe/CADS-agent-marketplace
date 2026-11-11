@@ -57,6 +57,7 @@ const WORDS = {
   melden: /^ki(Ask|Consent|Why|Why_[a-z]+|Send|Cancel|Close|Thanks|Offline)$/,
   wetter: /^wx[A-Z]/,
   klang: /^(kl_[a-z_]+|rec|recing|dummy|sh_voice)$/,
+  tools: /^tl_/,
 };
 const partTexts = {}, coreTexts = {};
 for (const n of Object.keys(WORDS)) partTexts[n] = {};
@@ -117,6 +118,9 @@ if (openable.some((i) => i.turn && dartGames.indexOf(i.turn.g) >= 0)) PARTS.dart
 // "Stimme verzerren": recording, the voice effects, the voice as a video or sound file (src/klang.js, src/klang-ui.js);
 // only where the catalog has a voice card (not in Daily Business: turns only).
 if (openable.some((i) => i.kind === "sound" && i.sound.mode === "voice")) PARTS.klang = { d: [], src: ["KLANGDATA", "KLANG", "KLANGUI"] };
+// Tools (kind "tool"): the sticky note and the file for two (src/tools.js rules, src/tools-ui.js screen, texts tl_). Only
+// on demand (parts.js ONDEMAND): a tool card's sheet or a tool link asks for it; the file transfer asks for play (live.js).
+if (openable.some((i) => i.kind === "tool")) PARTS.tools = { d: [], src: ["TOOLSDATA", "TOOLS", "TOOLSUI"] };
 // Thumbs on the sheet and the card numbers (src/stimme-ui.js, src/stat.js); not built for a flavor without them (stat: false).
 if (!(conf && conf.stat === false)) PARTS.stimme = { d: [], src: ["STIMMEDATA", "STAT", "STIMMEUI"] };
 // "Create your own card" (src/create-ui.js): only where the flavor shows the tile. A flavor with its own feats list must
@@ -166,6 +170,7 @@ if (PARTS.start && fs.existsSync(SHOT_DIR)) {
 }
 if (PARTS.start) { const sd = json("src/start.json"); parts.STARTDATA = "window.StartData=" + JSON.stringify(Object.assign({}, sd, { texts: undefined, shots: shotMap })) + ";window.StartTexts=" + JSON.stringify(sd.texts) + ";" + merge("StartTexts"); parts.START = read("src/start.js"); parts.STARTUI = read("src/start-ui.js"); }
 parts.BLASEN = read("src/blasen.js");
+parts.TOOLSDATA = "window.ToolsTexts=" + JSON.stringify(partTexts.tools) + ";" + merge("ToolsTexts"); parts.TOOLS = read("src/tools.js"); parts.TOOLSUI = read("src/tools-ui.js");
 parts.TEXTE = read("src/texte.js");
 parts.CREATEUI = "window.CreateTexts=" + JSON.stringify(createTexts) + ";" + merge("CreateTexts") + "\n;\n" + read("src/create-ui.js");
 parts.TEXTEDATA = "window.TexteData=" + JSON.stringify(json("src/texte.json")) + ";";
@@ -181,7 +186,7 @@ let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + 
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
 // code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
-const KEEP = new Set(["STARTDATA", "DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "DARTDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "LAUFDATA", "NOTODATA", "KLANGDATA", "DECKTEXTS"]);
+const KEEP = new Set(["STARTDATA", "DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "DARTDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "LAUFDATA", "NOTODATA", "KLANGDATA", "DECKTEXTS", "TOOLSDATA"]);
 // A comment after code on the same line goes too (about 18 KB), only when it follows ; { } ) or , and has no quote, slash or
 // backslash in it: such a "//" can never stand inside a string, template or regex (no own string spans lines, see above).
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "").replace(/([;{}),])[ \t]+\/\/ [^"'`/\\]*$/, "$1")).join("\n");
