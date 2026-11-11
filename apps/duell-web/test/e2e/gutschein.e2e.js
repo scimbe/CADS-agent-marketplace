@@ -71,6 +71,7 @@ test("Topf leer: Aufladen mit Gutschein-Code, +5 Guthaben, Erschaffen geht wiede
   assert.match(await p.locator(".create-left").textContent(), /Alle 5 freien Karten sind erstellt\. Guthaben: 5 Karten\./);
   assert.ok(await p.getByRole("group", { name: "Aufladen" }).isVisible(), "Aufladen stays while the pot is empty");
   if (SHOTS) await p.screenshot({ path: SHOTS + "/gutschein-aufgeladen-390x844.png" });
+  await p.getByRole("button", { name: "🃏 Karte" }).tap();   // the category is chosen actively (#220)
   const ta = p.getByLabel("Deine Beschreibung");
   await ta.fill("Ein Frosch, der zum Mond fliegt");
   await p.getByRole("button", { name: "✨ Erschaffen" }).tap();

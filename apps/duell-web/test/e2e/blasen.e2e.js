@@ -47,8 +47,8 @@ function common(m, game) {
     assert.ok(x.shown, x.id + " sichtbar");
     assert.ok(Math.abs(x.w - x.h) < 0.5 && x.w >= 56 && x.w <= 76, x.id + " rund, 56-76 px: " + x.w);
     assert.ok(x.x >= m.wrap.x - 0.5 && x.y >= m.wrap.y - 0.5 && x.x + x.w <= m.wrap.x + m.wrap.w + 0.5 && x.y + x.h <= m.wrap.y + m.wrap.h + 0.5, x.id + " im Bildbereich");
-    assert.ok(m.tabs.includes(x.panel), x.id + ": " + x.panel + " ist ein Reiter");
-    assert.match(x.aria, /einstellen/);
+    // Magie / Mit KI (#225) are actions with their own label, not a tab: checked in blasen-dialog.e2e.js
+    if (x.id !== "magie" && x.id !== "roboter") { assert.ok(m.tabs.includes(x.panel), x.id + ": " + x.panel + " ist ein Reiter"); assert.match(x.aria, /einstellen/); }
     // no word on the figure (in the flying game: not in the bird's column, it moves up and down)
     const f = game ? { x: m.fig.x, y: m.wrap.y, w: m.fig.w, h: m.wrap.h } : m.fig;
     assert.ok(!meets(x, f), x.id + " liegt nicht auf der Figur");
@@ -63,8 +63,8 @@ test("Flug: Blasen fuer Figur, Saeule, Himmel, Titel, Wunsch; Tipp auf Figur oef
   const { p, errs, ctx } = await open("game");
   await p.waitForFunction(() => document.querySelectorAll("#blasen .blase").length >= 5, null, { timeout: 8000 });
   const m = await look(p);
-  assert.deepEqual(m.bubbles.map((x) => x.id).sort(), ["figur", "himmel", "saeule", "titel", "wunsch"]);
-  assert.deepEqual(Object.fromEntries(m.bubbles.map((x) => [x.id, x.panel])), { figur: "Figure", saeule: "Rules", himmel: "World", titel: "Text", wunsch: "Wish" });
+  assert.deepEqual(m.bubbles.map((x) => x.id).filter((x) => x !== "magie" && x !== "roboter").sort(), ["figur", "himmel", "saeule", "titel", "wunsch"]);   // Magie / Mit KI: blasen-dialog.e2e.js
+  assert.deepEqual(Object.fromEntries(m.bubbles.filter((x) => x.id !== "magie" && x.id !== "roboter").map((x) => [x.id, x.panel])), { figur: "Figure", saeule: "Rules", himmel: "World", titel: "Text", wunsch: "Wish" });
   common(m, true);
   await tapBubble(p, "figur");
   await p.waitForFunction(() => document.getElementById("tabFigure").getAttribute("aria-selected") === "true");

@@ -45,6 +45,7 @@ async function phone(steps, opt, chip) {
   await p.goto(page);
   await p.locator("#create").tap();
   await p.getByRole("button", { name: chip || "🃏 Karte" }).tap();
+  if (chip === "🕹 Spiel") await p.getByRole("button", { name: "✈️ Fliegen" }).tap();   // a game needs its genre first (#220)
   const ta = p.getByLabel("Deine Beschreibung"); await ta.waitFor();
   await ta.fill(SATZ);
   // the part is asked for with the form, before the tap
@@ -178,8 +179,8 @@ test("prefers-reduced-motion: ruhige Fassung mit denselben Schritten, keine Anim
   assert.deepEqual(errs, []); await ctx.close();
 });
 
-test("Figur im Rahmen = Emoji des gewaehlten Art-Chips (Spiel, Karte, Meme, Sound, Quiz, Wie eine Karte)", async () => {
-  for (const chip of ["🕹 Spiel", "🃏 Karte", "📷 Meme", "🥁 Sound", "❓ Quiz", "🧩 Wie eine Karte"]) {
+test("Figur im Rahmen = Emoji des gewaehlten Art-Chips (Spiel, Karte, Meme, Quiz, Wie eine Karte; kein Sound mehr)", async () => {
+  for (const chip of ["🕹 Spiel", "🃏 Karte", "📷 Meme", "❓ Quiz", "🧩 Wie eine Karte"]) {
     const { p, ctx, errs, ov, waitingFor } = await phone([[503, { error: "down" }]], null, chip);
     assert.equal(await ov.locator(".wt-fig").textContent(), chip.split(" ")[0], chip);
     await waitingFor(1);

@@ -243,11 +243,14 @@
           var qr = el("div", "row");
           qr.appendChild(el("button", "btn", t("create_genre_keep", { a: nm(ga) }), function () { Kit.sfx.tap(); resend(ga, true); }));
           qr.appendChild(el("button", "btn", t("create_genre_take", { b: nm(gb) }), function () { Kit.sfx.tap(); resend(gb, true); }));
+          // a question, not a refusal: the waiting screen goes at once, so its two answers are right there (#217 + #220)
+          if (W) W.close();
           res.appendChild(qr); return;
         }
         // another game, none named (S2): said so, with the two games the free card builds
         if (r.notyet && r.notyet.what === "game" && !n && !r.reason) {
           res.appendChild(el("p", "note aistate", t("create_notyet_spiel")));
+          if (W) W.end(t("create_notyet_spiel"));   // the waiting screen ends with the reason, as for every refusal
           return;
         }
         var feat = r.notyet && r.notyet.what === "feature";      // a need no ability covers yet (replies, a card game ...)

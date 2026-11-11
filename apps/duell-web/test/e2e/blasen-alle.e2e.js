@@ -44,15 +44,18 @@ const open = (p, what) => p.evaluate(async (w) => {
     tabs: Array.from(document.querySelectorAll("#tabs [role=tab]")).map((e) => e.dataset.k)
   };
 }, what);
+// Magie and Mit KI (src/robot-ui.js, #225) are actions on the card, not tabs: checked in blasen-dialog.e2e.js
+const ACT = ["magie", "roboter"];
 function check(m, name) {
   assert.ok(m.bubbles.length >= 2, name + ": mindestens 2 Blasen, hat " + m.bubbles.map((x) => x.id));
   m.bubbles.forEach((x) => {
-    assert.ok(m.tabs.includes(x.panel), name + ": " + x.id + " -> " + x.panel + " ist ein Reiter");
+    if (!ACT.includes(x.id)) assert.ok(m.tabs.includes(x.panel), name + ": " + x.id + " -> " + x.panel + " ist ein Reiter");
     m.free.forEach((f) => assert.ok(!meets(x, f), name + ": " + x.id + " liegt auf " + f.id + " " + JSON.stringify(f)));
   });
 }
 async function tapAll(p, m, name) {
   for (const x of m.bubbles) {
+    if (ACT.includes(x.id)) continue;
     const e = p.locator(`#blasen .blase[data-blase="${x.id}"]`);
     const q = await e.boundingBox(); await p.touchscreen.tap(q.x + q.width / 2, q.y + q.height / 2);
     await p.waitForFunction((k) => { const t = document.getElementById("tab" + k); return t && t.getAttribute("aria-selected") === "true"; }, x.panel, { timeout: 4000 })
@@ -95,7 +98,7 @@ test("Karte, Meme, Foto-Poster, Sound/Beat, Duell, Geheimnachricht: Blasen fuer 
     const m = await open(p, what);
     assert.ok(m, name + " hat ein Bild");
     check(m, name);
-    assert.deepEqual(m.bubbles.map((x) => x.id).filter((x) => x !== "wunsch" && x !== "wuerfel").sort(), ids, name + ": " + m.bubbles.map((x) => x.id + ">" + x.panel));
+    assert.deepEqual(m.bubbles.map((x) => x.id).filter((x) => x !== "wunsch" && x !== "wuerfel" && !ACT.includes(x)).sort(), ids, name + ": " + m.bubbles.map((x) => x.id + ">" + x.panel));
     await tapAll(p, m, name);
     if (SHOT && ["karte", "meme", "sound", "duell"].includes(name)) await p.screenshot({ path: SHOT + "-" + name + ".png" });
   }
