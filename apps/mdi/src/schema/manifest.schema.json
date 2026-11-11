@@ -1,0 +1,28 @@
+{
+  "$id": "manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "version", "sdk", "kind", "mode", "title", "players", "hidden", "uses", "limits", "params", "parts"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$" },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "sdk": { "type": "string", "const": "mdi-sdk/0.1" },
+    "kind": { "type": "string", "enum": ["card", "turn"] },
+    "mode": { "type": "string", "enum": ["static", "turn", "realtime"] },
+    "title": { "$ref": "#/$defs/i18n" },
+    "teaser": { "$ref": "#/$defs/i18n" },
+    "howto": { "$ref": "#/$defs/i18n" },
+    "seats": { "type": "object", "required": ["de", "en"], "properties": { "de": { "type": "array", "items": { "type": "string" } }, "en": { "type": "array", "items": { "type": "string" } } } },
+    "players": { "type": "object", "additionalProperties": false, "required": ["min", "max"], "properties": { "min": { "type": "integer", "minimum": 1, "maximum": 8 }, "max": { "type": "integer", "minimum": 1, "maximum": 8 } } },
+    "hidden": { "type": "string", "enum": ["none", "commit-reveal", "mental-poker", "server-dealer"] },
+    "secretSeats": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 7 } },
+    "uses": { "type": "array", "items": { "type": "string", "enum": ["image", "voice", "video", "collab", "relay", "audio-out"] } },
+    "limits": { "type": "object", "additionalProperties": false, "required": ["stepBudget", "stateBytes"], "properties": { "stepBudget": { "type": "integer", "minimum": 1 }, "stateBytes": { "type": "integer", "minimum": 64, "maximum": 65536 } } },
+    "params": { "type": "object", "required": ["type", "properties"], "properties": { "type": { "const": "object" }, "properties": { "type": "object", "additionalProperties": { "$ref": "#/$defs/field" } } } },
+    "parts": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["id", "params", "label"], "properties": { "id": { "type": "string", "pattern": "^[a-z]+$" }, "params": { "type": "array", "items": { "type": "string" } }, "label": { "$ref": "#/$defs/i18n" } } } }
+  },
+  "$defs": {
+    "i18n": { "type": "object", "required": ["de", "en"], "properties": { "de": { "type": "string" }, "en": { "type": "string" } } },
+    "field": { "type": "object", "required": ["x-field", "x-label", "default"], "properties": { "default": true,  "x-field": { "enum": ["text", "color", "choice", "number", "list", "media.local", "media.server", "secret"] }, "x-label": { "$ref": "#/$defs/i18n" }, "x-model": { "type": "boolean" } } }
+  }
+}

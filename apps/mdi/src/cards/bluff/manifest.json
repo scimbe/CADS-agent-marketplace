@@ -1,0 +1,33 @@
+{
+  "id": "bluff",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.1",
+  "kind": "turn",
+  "mode": "turn",
+  "title": { "de": "Mein Bote lügt", "en": "My messenger lies" },
+  "teaser": { "de": "Ansagen, glauben oder aufdecken.", "en": "Announce, believe or reveal." },
+  "howto": {
+    "de": "Der Bote sieht seine Karten und sagt jede an, gleich oder höher. Der andere glaubt oder deckt auf. Geglaubt: Bote bekommt die Ansage. Aufgedeckt und ehrlich: Bote bekommt Wert plus Bonus. Aufgedeckt und gelogen: Prüfer bekommt die Ansage.",
+    "en": "The messenger sees their cards and announces each one, equal or higher. The other player believes or reveals. Believed: messenger scores the announcement. Revealed and honest: messenger scores value plus bonus. Revealed and a lie: checker scores the announcement."
+  },
+  "players": { "min": 2, "max": 2 },
+  "seats": { "de": ["Bote", "Prüfer"], "en": ["Messenger", "Checker"] },
+  "hidden": "commit-reveal",
+  "secretSeats": [0],
+  "uses": [],
+  "limits": { "stepBudget": 20, "stateBytes": 2048 },
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["cards", "bonus", "accent"],
+    "properties": {
+      "cards": { "type": "integer", "minimum": 3, "maximum": 5, "default": 5, "x-field": "number", "x-model": true, "x-label": { "de": "Karten je Runde", "en": "Cards per round" } },
+      "bonus": { "type": "integer", "minimum": 0, "maximum": 3, "default": 2, "x-field": "number", "x-model": true, "x-label": { "de": "Bonus für Ehrlichkeit", "en": "Honesty bonus" } },
+      "accent": { "type": "string", "enum": ["yellow", "red", "ink", "paper"], "default": "red", "x-field": "color", "x-label": { "de": "Kartenfarbe", "en": "Card colour" } }
+    }
+  },
+  "parts": [
+    { "id": "regeln", "params": ["cards", "bonus"], "label": { "de": "Regeln", "en": "Rules" } },
+    { "id": "farbe", "params": ["accent"], "label": { "de": "Kartenfarbe", "en": "Card colour" } }
+  ]
+}

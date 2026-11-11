@@ -1,0 +1,147 @@
+{
+  "$id": "link",
+  "$defs": {
+    "cardId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,31}$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "params": {
+      "type": "object",
+      "maxProperties": 16
+    },
+    "commit": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      ]
+    },
+    "input": {
+      "type": "object",
+      "required": [
+        "t",
+        "seat"
+      ],
+      "maxProperties": 6,
+      "properties": {
+        "t": {
+          "type": "string",
+          "pattern": "^[a-z]{1,16}$"
+        },
+        "seat": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        }
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -100000,
+            "maximum": 100000
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[0-9A-Za-z_-]*$"
+          }
+        ]
+      }
+    },
+    "card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "c",
+        "v",
+        "p"
+      ],
+      "properties": {
+        "c": {
+          "$ref": "link#/$defs/cardId"
+        },
+        "v": {
+          "$ref": "link#/$defs/version"
+        },
+        "p": {
+          "$ref": "link#/$defs/params"
+        }
+      }
+    },
+    "challenge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "c",
+        "v",
+        "p",
+        "s",
+        "k",
+        "m",
+        "g"
+      ],
+      "properties": {
+        "c": {
+          "$ref": "link#/$defs/cardId"
+        },
+        "v": {
+          "$ref": "link#/$defs/version"
+        },
+        "p": {
+          "$ref": "link#/$defs/params"
+        },
+        "s": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
+        "k": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "link#/$defs/commit"
+          }
+        },
+        "m": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "link#/$defs/input"
+          }
+        },
+        "g": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        },
+        "h": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        }
+      }
+    },
+    "live": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "t"
+      ],
+      "properties": {
+        "t": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{22}$"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "mdi",
+  "private": true,
+  "version": "0.0.0",
+  "description": "My Daily Idea, Neuentwurf (Slice D0): Statechart, Kartenvertrag mit verdeckter Information, ein Renderer",
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "test": "node --test test/*.test.js",
+    "test:e2e": "node scripts/build.js && node --require ./test/e2e/lib/nolive.js --test --test-timeout=300000 --test-force-exit test/e2e/*.e2e.js"
+  },
+  "engines": { "node": ">=20" },
+  "devDependencies": {
+    "@fontsource/anton": "5.3.0",
+    "acorn": "8.14.0",
+    "ajv": "8.17.1",
+    "axe-core": "4.10.3",
+    "esbuild": "0.25.0",
+    "playwright": "1.56.1"
+  }
+}

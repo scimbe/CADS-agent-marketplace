@@ -1,0 +1,20 @@
+// Kartenregister: alle Karten erfuellen denselben Vertrag; der Host kennt nur diese Schnittstelle.
+import gruss from "./gruss/card.js";
+import bluff from "./bluff/card.js";
+import * as V from "../gen/validators.js";
+import { CODE_HASH } from "../gen/codehash.js";
+
+const VALIDATE = { gruss: V.params_gruss, bluff: V.params_bluff };
+export const CARDS = { gruss, bluff };
+export const ORDER = ["gruss", "bluff"];
+export function cardOf(id) { return Object.prototype.hasOwnProperty.call(CARDS, id) ? CARDS[id] : null; }
+export function validParams(id, p) { const f = VALIDATE[id]; return !!f && f(p) === true; }
+export function codeHash(id) { return CODE_HASH[id]; }
+/** Modi aus dem Manifest abgeleitet – keine Kartensonderlogik (A3). */
+export function modesOf(card) {
+  const m = card.manifest;
+  if (m.mode === "static") return ["link", "live"];
+  const out = ["alone"];
+  if (m.players.max >= 2) out.push("bot", "link", "live");
+  return out;
+}

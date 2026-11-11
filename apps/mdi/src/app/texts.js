@@ -1,0 +1,81 @@
+// Oberflaechentexte de/en. Praesens, Ist-Zustand, kurze Saetze. Luecke im Englischen -> Deutsch.
+const de = {
+  app: "My Daily Idea", today: "Heute", more: "Noch eine Karte", back: "Zurück", close: "Schließen",
+  modes: { alone: "Ein Gerät", bot: "Gegen Bot", link: "Per Link", live: "Live" },
+  modeHint: { alone: "Ihr gebt das Gerät weiter.", bot: "Der Bot sieht nur, was er sehen darf.", link: "Jeder spielt, wann er will.", live: "Gleichzeitig, über eine direkte Verbindung." },
+  mode: "Wie spielst du?", send: "Wie verschickst du?", seat: "Du spielst als", level: "Bot-Stufe", levels: ["Stufe 1", "Stufe 2", "Stufe 3"],
+  go: "Los", goSend: "Senden", customize: "Anpassen", done: "Fertig",
+  bubblesHint: "Tippe auf eine Blase, um diesen Teil zu ändern.", bubble: "{p} ändern",
+  shareTitle: "Dein Link", shareLink: "Link senden", sentAlready: "Schon gesendet", copied: "Link ist kopiert.", shareFail: "Kopieren geht hier nicht. Markiere den Link und kopiere ihn selbst.",
+  linkTooLong: "Diese Karte ist für einen Link zu groß. Kürze den Text.",
+  lobbyTitle: "Live-Einladung", lobbyWait: "Warte auf deinen Partner …", inviteSend: "Einladung senden", again: "Neu einladen",
+  ipHint: "Bei Live seht ihr gegenseitig eure IP-Adresse.",
+  steps: { open: "Einladung wird erstellt …", found: "Partner gefunden …", register: "Kanal wird angemeldet …", join: "Verbindung wird aufgebaut …", rtc: "Direkter Kanal wird geöffnet …" },
+  hand: { bot: "Der Bot nimmt Platz …", live: "Die Partie wird ausgemacht …" },
+  coverTitle: "Gerät weitergeben", coverText: "Jetzt ist dran: {s}. Nur {s} schaut hin.", coverOk: "Ich bin {s} – zeigen",
+  yourSeat: "Du bist: {s}",
+  sendTitle: "Jetzt ist der andere dran", sendText: "Schick den Link. Die Antwort kommt als Link zurück.",
+  waitBot: "Der Bot überlegt …", waitLive: "Warte auf deinen Partner …", waitLink: "Warte auf die Antwort per Link. Du kannst die Seite schließen.",
+  overWin: "Gewonnen!", overLose: "Verloren.", overDraw: "Unentschieden.", overAll: "Ergebnis", again2: "Nochmal", sendResult: "Ergebnis senden",
+  sendResultText: "Schick das Ergebnis, damit dein Partner es auch sieht.",
+  errTitle: "Die Partie ist beendet",
+  acceptTitle: "Für dich", accept: "Annehmen", decline: "Ablehnen", yourTurnAs: "Du bist dran als {s}.", resultFor: "Das Ergebnis ist da.",
+  liveInvite: "Live-Einladung", liveInviteText: "Jemand lädt dich zu einer Live-Partie ein.",
+  rejectTitle: "Dieser Link geht nicht", toShelf: "Zum Regal",
+  connected: "Live verbunden",
+  names: { yellow: "Gelb", red: "Rot", ink: "Schwarz", paper: "Papier", star: "Stern", heart: "Herz", bolt: "Blitz", drop: "Tropfen", coin: "Münze", ring: "Ring" },
+  dialogHint: "Die Karte ändert sich sofort mit.", maxReached: "Höchstens {n}.",
+  note: { gezeigt: "Die Karte ist beim Partner angekommen.", empfangen: "Diese Karte hat dir jemand geschickt." },
+  reasons: {
+    "zu-lang": "Der Link ist zu lang.", praefix: "Das ist kein Link von My Daily Idea.", typ: "Diese Art Link gibt es nicht.",
+    base64: "Der Link ist beschädigt.", utf8: "Der Link ist beschädigt.", json: "Der Link ist beschädigt.", schema: "Im Link steht etwas, das nicht erlaubt ist.",
+    "karte-unbekannt": "Diese Karte gibt es hier nicht.", version: "Diese Karte hat eine andere Version.", params: "Die Einstellungen im Link sind ungültig.",
+    "zug-ungueltig": "Im Link steht ein ungültiger Zug.", betrug: "Die Aufdeckung passt nicht zur Festlegung am Anfang. Die Partie zählt nicht.",
+    "nicht-deins": "Diese Partie gehört zu einem anderen Gerät.", abweichung: "Die beiden Geräte sehen nicht dasselbe Spiel. Die Partie stoppt.",
+    "partner-weg": "Dein Partner ist nicht mehr da.", verbindung: "Die Verbindung kommt nicht zustande.", gone: "Die Einladung ist vorbei.",
+    expired: "Die Einladung ist abgelaufen.", leer: "Der Link ist leer.", vorbei: "Die Partie ist schon vorbei.", "nicht-am-zug": "Ein Zug kam außer der Reihe.",
+    "zustand-zu-gross": "Die Partie ist zu groß geworden.", aufloesung: "Die Aufdeckung fehlt.", eingabe: "Ein Zug ist unvollständig.", commit: "Die Festlegung im Link ist ungültig."
+  }
+};
+const en = {
+  app: "My Daily Idea", today: "Today", more: "One more card", back: "Back", close: "Close",
+  modes: { alone: "One device", bot: "Against bot", link: "By link", live: "Live" },
+  modeHint: { alone: "You pass the device around.", bot: "The bot only sees what it may see.", link: "Everyone plays when they like.", live: "At the same time, over a direct connection." },
+  mode: "How do you play?", send: "How do you send it?", seat: "You play as", level: "Bot level", levels: ["Level 1", "Level 2", "Level 3"],
+  go: "Go", goSend: "Send", customize: "Customise", done: "Done",
+  bubblesHint: "Tap a bubble to change that part.", bubble: "Change {p}",
+  shareTitle: "Your link", shareLink: "Send link", sentAlready: "Already sent", copied: "Link copied.", shareFail: "Copying does not work here. Select the link and copy it yourself.",
+  linkTooLong: "This card is too big for a link. Shorten the text.",
+  lobbyTitle: "Live invite", lobbyWait: "Waiting for your partner …", inviteSend: "Send invite", again: "Invite again",
+  ipHint: "In live play you see each other's IP address.",
+  steps: { open: "Creating the invite …", found: "Partner found …", register: "Registering the channel …", join: "Connecting …", rtc: "Opening a direct channel …" },
+  hand: { bot: "The bot takes a seat …", live: "Setting up the game …" },
+  coverTitle: "Pass the device", coverText: "Next up: {s}. Only {s} looks.", coverOk: "I am {s} – show",
+  yourSeat: "You are: {s}",
+  sendTitle: "Now it is the other player's turn", sendText: "Send the link. The answer comes back as a link.",
+  waitBot: "The bot is thinking …", waitLive: "Waiting for your partner …", waitLink: "Waiting for the answer by link. You can close the page.",
+  overWin: "You win!", overLose: "You lose.", overDraw: "Draw.", overAll: "Result", again2: "Again", sendResult: "Send result",
+  sendResultText: "Send the result so your partner sees it too.",
+  errTitle: "The game has ended",
+  acceptTitle: "For you", accept: "Accept", decline: "Decline", yourTurnAs: "Your turn as {s}.", resultFor: "The result is here.",
+  liveInvite: "Live invite", liveInviteText: "Someone invites you to a live game.",
+  rejectTitle: "This link does not work", toShelf: "To the shelf",
+  connected: "Live connected",
+  names: { yellow: "Yellow", red: "Red", ink: "Black", paper: "Paper", star: "Star", heart: "Heart", bolt: "Bolt", drop: "Drop", coin: "Coin", ring: "Ring" },
+  dialogHint: "The card changes right away.", maxReached: "At most {n}.",
+  note: { gezeigt: "The card has reached your partner.", empfangen: "Someone sent you this card." },
+  reasons: {
+    "zu-lang": "The link is too long.", praefix: "This is not a My Daily Idea link.", typ: "This kind of link does not exist.",
+    base64: "The link is damaged.", utf8: "The link is damaged.", json: "The link is damaged.", schema: "The link contains something that is not allowed.",
+    "karte-unbekannt": "This card does not exist here.", version: "This card has a different version.", params: "The settings in the link are invalid.",
+    "zug-ungueltig": "The link contains an invalid move.", betrug: "The reveal does not match the commitment made at the start. The game does not count.",
+    "nicht-deins": "This game belongs to another device.", abweichung: "The two devices do not see the same game. The game stops.",
+    "partner-weg": "Your partner has left.", verbindung: "The connection does not come about.", gone: "The invite is over.",
+    expired: "The invite has expired.", leer: "The link is empty.", vorbei: "The game is already over.", "nicht-am-zug": "A move came out of turn.",
+    "zustand-zu-gross": "The game has grown too big.", aufloesung: "The reveal is missing.", eingabe: "A move is incomplete.", commit: "The commitment in the link is invalid."
+  }
+};
+export const TEXTS = { de, en };
+export function texts(lang) { return lang === "en" ? en : de; }
+export function fmt(s, o) { return String(s).replace(/\{(\w+)\}/g, (m, k) => (o[k] === undefined ? m : String(o[k]))); }
+export function langOf(nav) { const l = String((nav && nav.language) || "de").toLowerCase(); return l.startsWith("de") ? "de" : "en"; }

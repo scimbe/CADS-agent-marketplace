@@ -1,0 +1,20 @@
+{
+ "herkunft": "Neu erzeugt (D0): Bot Stufe 2 gegen Bot Stufe 2, Bluff mit Standardwerten. Gleicher Wert in Node (V8) und im Browser-E2E.",
+ "seed": "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0",
+ "level": 2,
+ "salt": "00000000000000000000000000000abc",
+ "moves": [
+  1,
+  6,
+  3,
+  3,
+  5,
+  "B",
+  "O",
+  "B",
+  "O",
+  "O",
+  "R"
+ ],
+ "hash": "7931b44a83a917d7"
+}
