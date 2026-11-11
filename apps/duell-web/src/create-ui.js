@@ -27,7 +27,29 @@
 
   function line(m) {
     if (!m) return "";
-    return m.remaining > 0 ? t("create_left", { n: m.remaining, m: m.size }) : t("create_none", { m: m.size });
+    var c = credit(m), s = m.remaining > 0 ? t("create_left", { n: m.remaining, m: m.size }) : t("create_none", { m: m.size });
+    return c ? s + " " + t(c === 1 ? "create_credit_1" : "create_credit", { n: c }) : s;
+  }
+  // Credit of the account (earned or from a voucher, wrapper lib/duell-credit.mjs): spent only once the free pot is empty.
+  function credit(m) { var n = m && Number(m.credit); return n > 0 && n < 1e6 ? Math.floor(n) : 0; }
+  // "Aufladen" when the pot is empty: a voucher code (POST /api/duell/credit/redeem, wrapper lib/duell-voucher.mjs), then the
+  // count is asked again. A paid top-up would go here too; none is offered (no payment, wrapper aboStatus offered:false).
+  function topup(b) {
+    var box = el("div", "createalt createtop"), lab = el("label", "", t("create_top_code")), f = el("input", "field"), msg = el("p", "note", state.msg || "");
+    box.setAttribute("role", "group"); box.setAttribute("aria-label", t("create_top_h"));
+    f.id = lab.htmlFor = "createcode"; f.type = "text"; f.maxLength = 64; f.autocomplete = "off"; f.spellcheck = false; f.setAttribute("autocapitalize", "characters");
+    msg.id = "createtopmsg"; msg.setAttribute("role", "status"); state.msg = "";
+    var go = el("button", "btn", t("create_top_go"), async function () {
+      var c = f.value.trim(); if (c.length < 4) { f.focus(); return; }
+      Kit.sfx.tap(); go.disabled = true; msg.textContent = "";
+      var r = null; try { r = await root.Ai.post("/credit/redeem", { code: c }); } catch (e) { r = null; }
+      var j = r && r.json; go.disabled = false;
+      if (j && j.ok === true) { state.msg = t("create_top_ok", { n: Number(j.added) || 0 }); await status(); fill(b); return; }
+      msg.textContent = t("create_top_" + (j && /^(unknown|limit|login)$/.test(j.error) ? j.error : "off"));
+    });
+    f.addEventListener("keydown", function (e) { if (e.key === "Enter") go.click(); });
+    box.appendChild(el("b", "", t("create_top_h"))); box.appendChild(lab); box.appendChild(f); box.appendChild(go); box.appendChild(msg);
+    return box;
   }
   // The pot of this account: /status answers it only with a login (meter "create"); without one, there is nothing to count.
   async function status() {
@@ -99,7 +121,9 @@
     b.appendChild(el("p", "note", t("create_rules")));
     // before anything is made: what a discard gives back (no hidden cost)
     if (state.meter && state.meter.remaining > 0) b.appendChild(el("p", "note", state.meter.refundsLeft > 0 ? t("create_drop_n", { n: state.meter.refundsLeft }) : t("create_drop_0")));
-    if (state.meter && state.meter.remaining <= 0) return;
+    else if (credit(state.meter)) b.appendChild(el("p", "note", t("create_drop_credit")));
+    if (state.meter && state.meter.remaining <= 0 && state.meter.voucher) b.appendChild(topup(b));
+    if (state.meter && state.meter.remaining <= 0 && !credit(state.meter)) return;
     if (state.meter && state.meter.paused) { b.appendChild(el("p", "note", t("create_paused"))); return; }
 
     // alt: a catalog card (opens by id) or a genre with its sentence, editable; only a tap sends it, as a wish in that genre
