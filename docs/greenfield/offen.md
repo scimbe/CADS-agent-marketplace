@@ -16,3 +16,9 @@
   `DuellLink.mayLoad`), `live.js` braucht aber `webconference.bunsenbrenner.org` (`/api/play/*`, WASM-Import, WSS) und die
   Bridge-CORS müsste die App-Herkunft zulassen (iOS `null`, Android `https://appassets.androidplatform.net`). Freigeben, oder
   Live in den Apps nativ über die Hülle (wie `DuellHost.relay`)? Ohne das läuft Datei rüber in den Apps nicht (vor #235 auch nicht).
+- Aus D0 (07-protokoll/2026-11-11-d0.md):
+  - Absendername: Soll ein Link optional einen Vornamen tragen? (alle drei Personas nannten den fehlenden Absender als größte Hürde; der Name reist dann im Link)
+  - Bluff-Wertung: Prüfer kann gegen ehrlichen Boten nie punkten (Regel der alten Karte). Beibehalten oder richtiges Glauben belohnen?
+  - Gruß-Karte: fertige Texte zum Antippen, weniger Tipps bis zum Senden?
+  - Faires Link-Duell: eine zusätzliche Link-Runde oder Server-Geber?
+  - Live-Privatsphäre: „nur über Relay“ anbieten, damit das Gegenüber die eigene Adresse nicht sieht?
