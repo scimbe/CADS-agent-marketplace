@@ -57,11 +57,13 @@ function qr(cv, text) {
   }).catch(function () {});
 }
 // The inviting device: a QR code (a computer shows it, the phone scans it) and the link to send; then the connection.
+// The file tool asks for a direct path unless the relay is switched on (Tools.relay); the note for two keeps the relay.
+function opts(w) { return { direct: w === "datei" && !T.relay() }; }
 async function host(box, w, shareText, then) {
   var my = gen;
   box.textContent = ""; box.appendChild(el("p", "note tlstate", t("live_making")));
   var inv;
-  try { await window.Parts.need("play"); inv = await window.Live.invite(onState); } catch (e) { if (my === gen) failed(box, e, function () { host(box, w, shareText, then); }); return; }
+  try { await window.Parts.need("play"); inv = await window.Live.invite(onState, opts(w)); } catch (e) { if (my === gen) failed(box, e, function () { host(box, w, shareText, then); }, w); return; }
   if (my !== gen) { inv.ready.then(function (c) { c.close(); }, function () {}); return; }
   mine = inv.token;
   var url = linkOf(inv.token, w), cv = el("canvas", "tlqr"), left = el("p", "livecount", ""), row = el("div", "tlrow");
@@ -75,24 +77,25 @@ async function host(box, w, shareText, then) {
   var tick = setInterval(count, 500); count();
   ticks.push(tick);
   var c;
-  try { c = await inv.ready; } catch (e) { clearInterval(tick); if (my === gen) { mine = null; failed(box, e, function () { host(box, w, shareText, then); }); } return; }
+  try { c = await inv.ready; } catch (e) { clearInterval(tick); if (my === gen) { mine = null; failed(box, e, function () { host(box, w, shareText, then); }, w); } return; }
   clearInterval(tick);
   if (my !== gen) { try { c.close(); } catch (e) {} return; }
   mine = null; Kit.tone(660, 880, 0.14, "triangle", 0.14); Kit.haptic([120, 60, 120]);
   then(c, "a");
 }
 // The other device: it opened the link. My own link on this device is never a join (it would use up the invite).
-async function join(box, token, again, then) {
+async function join(box, token, again, then, w) {
   var my = gen;
   if (mine === token) { box.textContent = ""; box.appendChild(el("p", "lbl", t("tl_ownLink"))); return; }
   box.textContent = ""; box.appendChild(el("p", "lbl tlstate", t("live_connecting")));
   var c;
-  try { await window.Parts.need("play"); c = await window.Live.accept(token, onState); } catch (e) { if (my === gen) failed(box, e, again); return; }
+  try { await window.Parts.need("play"); c = await window.Live.accept(token, onState, opts(w)); } catch (e) { if (my === gen) failed(box, e, again, w); return; }
   if (my !== gen) { try { c.close(); } catch (e) {} return; }
   then(c, "b");
 }
-function failed(box, e, again) {
-  box.textContent = ""; box.appendChild(el("p", "lbl", failText(e)));
+// No direct path for a file (relay off): said as it is, no quiet way round over a server.
+function failed(box, e, again, w) {
+  box.textContent = ""; box.appendChild(el("p", "lbl tlfail", e && e.message === "rtc" && opts(w).direct ? t("tl_noDirect") : failText(e)));
   box.appendChild(btn(t("tl_again"), "btn hot", function () { Kit.sfx.tap(); again(); }));
 }
 // The three pictures both screens show: from both DTLS fingerprints (live.js fp), which differ on the two sides if anyone
@@ -178,7 +181,7 @@ function note(o) {
     });
     row.appendChild(two); row.appendChild(del); P.appendChild(row);
     live.appendChild(el("p", "note", t("tl_twoNote")));
-    if (o.join) { two.disabled = meeting = true; minis(); up(); join(live, o.join, function () { note({}); }, together); o.join = null; }
+    if (o.join) { two.disabled = meeting = true; minis(); up(); join(live, o.join, function () { note({}); }, together, "notiz"); o.join = null; }
   }
   // the two are apart again: the panel as before (a new invite possible), with a word why if the line broke
   function ended(why) { sh = null; meeting = false; panel(); look(); if (why) { live.textContent = ""; live.appendChild(el("p", "lbl", why)); up(); } }
@@ -269,16 +272,16 @@ function file(token) {
     box.textContent = ""; L.main.hidden = false; L.main.disabled = false; L.main.className = "press"; L.why.textContent = "";
     var P = st.p;
     if (P === "idle") {
-      box.appendChild(el("p", "tlicon", "📱 ⇄ 💻")); head(t("tl_file"), t("tl_fileWhat"));
+      box.appendChild(el("p", "tlicon", "📱 ⇄ 💻")); head(t("tl_file"), t(T.relay() ? "tl_fileWhatRelay" : "tl_fileWhat"));
       box.appendChild(el("p", "note", t("tl_fileKeep", { m: mb(T.MAX_BYTES) })));
       box.appendChild(el("p", "note tlhint", t("tl_hintPc"))); box.appendChild(el("p", "note tlhint", t("tl_hintPhone")));
       L.main.textContent = t("tl_connect"); L.main.onclick = function () { Kit.sfx.tap(); st = { p: "host" }; draw(); };
       return;
     }
     if (P === "host" || P === "join") {
-      L.main.hidden = true; box.appendChild(el("p", "note", t("tl_fileWhat")));
+      L.main.hidden = true; box.appendChild(el("p", "note", t(T.relay() ? "tl_fileWhatRelay" : "tl_fileWhat")));
       var b2 = el("div"); box.appendChild(b2);
-      if (P === "host") host(b2, "datei", "tl_fileShare", connected); else join(b2, token, function () { st = { p: "host" }; draw(); }, connected);
+      if (P === "host") host(b2, "datei", "tl_fileShare", connected); else join(b2, token, function () { st = { p: "host" }; draw(); }, connected, "datei");
       st.p = P + "-run"; return;
     }
     if (P === "host-run" || P === "join-run") return;
@@ -290,7 +293,7 @@ function file(token) {
         L.main.textContent = "💾 " + t("tl_save"); L.main.onclick = function () { Kit.sfx.tap(); if (blob) Kit.saveFile(blob, st.n); };
         box.appendChild(btn(t("tl_pick"), "btn", function () { Kit.sfx.tap(); pick.click(); }));
       } else { L.main.textContent = t("tl_pick"); L.main.onclick = function () { Kit.sfx.tap(); pick.click(); }; }
-      L.why.textContent = t("tl_fileWhat");
+      L.why.textContent = t(T.relay() ? "tl_fileWhatRelay" : "tl_fileWhat");
       return;
     }
     if (P === "askIn") {

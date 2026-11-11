@@ -85,7 +85,17 @@
     }
     throw new Error("timeout");
   }
-  async function connect(w, me, info, token, onState) {
+  // Direct only (o.direct, the file tool while the relay is not approved for files): no TURN server is handed to the
+  // browser, and a relay candidate of the other side is never used. Without a direct path the join ends with "rtc".
+  function directServers(list) {
+    return (list || []).map(function (s) {
+      var u = [].concat(s && s.urls || []).filter(function (x) { return /^stuns?:/i.test(String(x)); });
+      return u.length ? { urls: u } : null;
+    }).filter(Boolean);
+  }
+  function relayCandidate(c) { return / typ relay( |$)/.test(String(c || "")); }
+  async function connect(w, me, info, token, onState, o) {
+    o = o || {};
     var caller = info.role === "caller";
     var at = await call("/attest", { channel: info.channel, role: info.role, token: token, holderPub: me.hp, noisePub: me.np, attestation: attestation(w, info.channel, me) });
     if (at.http !== 200) throw new Error("attest");
@@ -100,9 +110,9 @@
     var ice = await call("/ice?channel=" + info.channel + "&role=" + info.role + "&token=" + encodeURIComponent(token));
     // The server sends STUN plus, as a fallback, a short-lived TURN login: the browser takes the relay only if no direct
     // pair connects. Both players may see each other's IP address; the invite screen says so.
-    var pc = new RTCPeerConnection({ iceServers: ice.iceServers || [] });
+    var pc = new RTCPeerConnection({ iceServers: o.direct ? directServers(ice.iceServers) : ice.iceServers || [] });
     var early = [], haveRemote = false;
-    pc.onicecandidate = function (e) { if (e.candidate) signal(w.encodeSignalIceCandidate(e.candidate.candidate, e.candidate.sdpMid, e.candidate.sdpMLineIndex)); };
+    pc.onicecandidate = function (e) { if (e.candidate && !(o.direct && relayCandidate(e.candidate.candidate))) signal(w.encodeSignalIceCandidate(e.candidate.candidate, e.candidate.sdpMid, e.candidate.sdpMLineIndex)); };
     var dcReady = new Promise(function (ok) {
       function use(dc) { dc.onopen = function () { ok(dc); }; if (dc.readyState === "open") ok(dc); }
       if (caller) use(pc.createDataChannel("game", { ordered: true })); else pc.ondatachannel = function (e) { use(e.channel); };
@@ -113,6 +123,7 @@
           var m = w.decodeSignalMessage(nt.decrypt(await framed(s, 15 * 60000)));
           if (m.kind === "offer") { await pc.setRemoteDescription({ type: "offer", sdp: m.sdp }); haveRemote = true; var an = await pc.createAnswer(); await pc.setLocalDescription(an); signal(w.encodeSignalAnswer(an.sdp)); }
           else if (m.kind === "answer") { await pc.setRemoteDescription({ type: "answer", sdp: m.sdp }); haveRemote = true; }
+          else if (m.kind === "ice-candidate" && o.direct && relayCandidate(m.candidate)) continue;
           else if (m.kind === "ice-candidate") { var c = { candidate: m.candidate, sdpMid: m.sdpMid, sdpMLineIndex: m.sdpMlineIndex }; if (haveRemote) pc.addIceCandidate(c).catch(function () {}); else early.push(c); }
           if (haveRemote && early.length) early.splice(0).forEach(function (c) { pc.addIceCandidate(c).catch(function () {}); });
         }
@@ -146,7 +157,7 @@
     };
   }
   // Inviter: returns the token at once; the connection follows when the friend opens the link.
-  async function invite(onState) {
+  async function invite(onState, o) {
     var w = await load(), me = ids(w), o = await call("/open", { holderPub: me.hp, noisePub: me.np });
     if (o.http !== 200 || !o.token) throw new Error(o.code || "open");
     var token = o.token;
@@ -155,18 +166,18 @@
       while (Date.now() < until) {
         var st = await call("/status?token=" + encodeURIComponent(token));
         if (st.http === 404) throw new Error("gone");
-        if (st.state === "joined") { onState("found", st.channel); return connect(w, me, st, token, onState); }
+        if (st.state === "joined") { onState("found", st.channel); return connect(w, me, st, token, onState, o); }
         await sleep(3000);
       }
       throw new Error("expired");
     })();
     return { token: token, expires: Date.now() + WAIT_MS, ready: ready };
   }
-  async function accept(token, onState) {
+  async function accept(token, onState, o) {
     var w = await load(), me = ids(w), j = await call("/join", { token: token, holderPub: me.hp, noisePub: me.np });
     if (j.http !== 200) throw new Error(j.code || "join");
     onState("found", j.channel);
-    return connect(w, me, j, token, onState);
+    return connect(w, me, j, token, onState, o);
   }
-  if (!root.Live) root.Live = { invite: invite, accept: accept, load: load, WC: WC };   // a stand-in set before (browser tests) stays
+  if (!root.Live) root.Live = { invite: invite, accept: accept, load: load, WC: WC, directServers: directServers, relayCandidate: relayCandidate };   // a stand-in set before (browser tests) stays
 })(typeof globalThis !== "undefined" ? globalThis : this);

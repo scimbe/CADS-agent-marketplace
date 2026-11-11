@@ -113,7 +113,7 @@
   // over the Noise channel of the ct-agent): the receiver says yes to name and size before a single byte flows; the bytes go
   // in pieces of CHUNK as the channel's buffer allows (HIGH, LOW: bufferedAmount); the receiver reports what really
   // arrived (ACK) for the sender's bar; at the end both compare SHA-256 over the whole file. Either side can stop.
-  var CHUNK = 16384, BLOCK = 262144, HIGH = 1048576, LOW = 262144, ACK = 262144, MAX_BYTES = 200000000;   // 200 MB as the phones count them
+  var CHUNK = 16384, BLOCK = 262144, HIGH = 1048576, LOW = 262144, ACK = 262144, MAX_BYTES = 100000000;   // 100 MB as the phones count them: the receiver holds the file in memory until it is saved
   // A name as the other device may show and save it: no folders, no control or reserved characters, at most 120 characters.
   function cleanName(n) {
     var s = String(n == null ? "" : n).split(/[\\/]/).pop().replace(/[\u0000-\u001f\u007f<>:"|?*\u2028\u2029\u202a-\u202e\u2066-\u2069]/g, "").replace(/^[.\s]+|\s+$/g, "");
@@ -232,6 +232,11 @@
     return api;
   }
 
+  // The one switch for the TURN relay in the file tool (the note for two and the live games are not affected): off, a
+  // file goes only on a direct path between the two devices, never over a server, not even as ciphertext. A build or the
+  // server may turn it on at runtime with window.DailyFlags = { toolRelay: true } before the part runs.
+  var RELAY = false;
+  function relay(flags) { var f = flags || root.DailyFlags; return f && typeof f.toolRelay === "boolean" ? f.toolRelay : RELAY; }
   // Sizes as people read them: "830 B", "12,3 MB" (de) / "12.3 MB" (en); decimal units like the phones show them.
   function size(b, lang) {
     var u = ["B", "KB", "MB", "GB"], i = 0, v = b;
@@ -242,7 +247,7 @@
 
   var api = {
     sha256: sha256, COLORS: COLORS, STICKERS: STICKERS, MAX_NOTE: MAX_NOTE, cleanNote: cleanNote, noteCode: noteCode, noteFrom: noteFrom, noteFits: noteFits, noteLoad: noteLoad,
-    shared: shared, transfer: transfer, cleanName: cleanName, size: size, CHUNK: CHUNK, HIGH: HIGH, LOW: LOW, ACK: ACK, MAX_BYTES: MAX_BYTES
+    shared: shared, transfer: transfer, RELAY: RELAY, relay: relay, cleanName: cleanName, size: size, CHUNK: CHUNK, HIGH: HIGH, LOW: LOW, ACK: ACK, MAX_BYTES: MAX_BYTES
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Tools = api;

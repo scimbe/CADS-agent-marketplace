@@ -158,7 +158,7 @@ test("Datei: Groessengrenze beim Sender und beim Empfaenger; mehr Bytes als ange
   a.T.send(file(800, "gross.bin").f);
   await until(() => ev(a, "no").length);
   assert.equal(ev(a, "no")[0].why, "big"); assert.deepEqual(ev(b, "big")[0], { e: "big", n: "gross.bin", s: 800 }); assert.equal(a.bins, 0);
-  assert.equal(T.MAX_BYTES, 200e6); assert.equal(T.size(T.MAX_BYTES, "de"), "200 MB");
+  assert.equal(T.MAX_BYTES, 100e6); assert.equal(T.size(T.MAX_BYTES, "de"), "100 MB");
   // a sender that lies about the size: the receiver stops at the first byte too many
   const [c, d] = pair();
   c.ch.send({ t: "f-offer", id: "a9", n: "x", s: 10 }); await until(() => ev(d, "offer").length); d.T.accept();
@@ -198,4 +198,19 @@ test("Dateiname und Groesse: ohne Ordner und Steuerzeichen, wie Menschen sie les
   assert.equal(T.cleanName("a\u202egnp.exe"), "agnp.exe", "keine Richtungszeichen, die eine Endung verstecken");
   assert.equal(Array.from(T.cleanName("x".repeat(300))).length, 120);
   assert.equal(T.size(830, "de"), "830 B"); assert.equal(T.size(12345678, "de"), "12,3 MB"); assert.equal(T.size(12345678, "en"), "12.3 MB"); assert.equal(T.size(209715200, "en"), "210 MB");
+});
+
+test("Relais-Schalter: aus als Vorgabe; nur die Dateiverbindung ohne TURN, fremde Relais-Kandidaten werden nie benutzt", () => {
+  assert.equal(T.RELAY, false);
+  assert.equal(T.relay({}), false); assert.equal(T.relay({ toolRelay: true }), true); assert.equal(T.relay({ toolRelay: "ja" }), false);
+  delete globalThis.Live; require("../src/live.js"); const L = globalThis.Live;
+  assert.deepEqual(L.directServers([{ urls: ["stun:a.example:3478", "turn:a.example:3478?transport=udp"], username: "u", credential: "c" }, { urls: "turns:b.example:5349", username: "u", credential: "c" }, { urls: "stun:c.example" }]),
+    [{ urls: ["stun:a.example:3478"] }, { urls: ["stun:c.example"] }], "kein TURN, keine Zugangsdaten");
+  assert.equal(L.directServers(undefined).length, 0);
+  assert.equal(L.relayCandidate("candidate:1 1 udp 41885439 203.0.113.5 3478 typ relay raddr 0.0.0.0 rport 0"), true);
+  assert.equal(L.relayCandidate("candidate:2 1 udp 1677729535 198.51.100.7 51000 typ srflx raddr 10.0.0.2 rport 51000"), false);
+  assert.equal(L.relayCandidate("candidate:3 1 udp 2122260223 192.168.1.4 51000 typ host"), false);
+  // the switch reaches only the file tool: live.js keeps its old calls (no third argument) for games and the note for two
+  const ui = require("node:fs").readFileSync(require.resolve("../src/tools-ui.js"), "utf8");
+  assert.match(ui, /function opts\(w\) \{ return \{ direct: w === "datei" && !T\.relay\(\) \}; \}/);
 });

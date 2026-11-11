@@ -29,8 +29,9 @@ const STUB = (side) => `(() => {
     };
   }
   window.Live = {
-    invite: async () => ({ token: "${TOKEN}", expires: Date.now() + 900000, ready: new Promise((ok) => { window.__toolReady = () => ok(mk()); }) }),
-    accept: async (t) => { if (t !== "${TOKEN}") throw new Error("gone"); const c = mk(); await window.__toolJoined(); return c; }
+    // what the page asked for (direct only or not); window.__toolNoPath: no direct path, the join ends as live.js ends it ("rtc")
+    invite: async (s, o) => { window.__toolOpts = o || {}; return { token: "${TOKEN}", expires: Date.now() + 900000, ready: new Promise((ok, no) => { window.__toolReady = () => ok(mk()); window.__toolFail = () => no(new Error("rtc")); }) }; },
+    accept: async (t, s, o) => { window.__toolOpts = o || {}; if (t !== "${TOKEN}") throw new Error("gone"); if (window.__toolNoPath) throw new Error("rtc"); const c = mk(); await window.__toolJoined(); return c; }
   };
   // what would go to the share sheet
   navigator.share = async (o) => { window.__shared = o; };
@@ -141,8 +142,9 @@ test("Datei rueber: Code am Rechner, Handy verbindet, Annehmen mit Name und Groe
     const W = await wire(A, B);
     await A.locator("#go").click();
     await A.locator(".tlcard").waitFor();
-    assert.match(await text(A, ".tlcard"), /Ende-zu-Ende verschlüsselt; wenn kein direkter Weg geht, über ein Relais, das nichts lesen kann/);
-    assert.match(await text(A, ".tlcard"), /Bis 200 MB pro Datei/);
+    assert.match(await text(A, ".tlcard"), /Ende-zu-Ende verschlüsselt, nie über einen Server/);
+    assert.doesNotMatch(await text(A, ".tlcard"), /Relais/, "Relais aus: kein Wort davon");
+    assert.match(await text(A, ".tlcard"), /Bis 100 MB pro Datei/);
     await snap(A, "datei-1-start");
     await A.locator(".tlov .press").click();
     await A.locator(".tlqr:not([hidden])").waitFor();
@@ -151,10 +153,12 @@ test("Datei rueber: Code am Rechner, Handy verbindet, Annehmen mit Name und Groe
     const qr = jsQR(Uint8ClampedArray.from(px.d), px.w, px.h);
     assert.ok(qr, "QR-Code lesbar"); assert.equal(qr.data, "https://bunsenbrenner.org/duell#tl=" + TOKEN + "&w=datei");
     await snap(A, "datei-2-code");
+    assert.deepEqual(await A.evaluate(() => window.__toolOpts), { direct: true }, "Datei: nur direkt (Relais aus)");
     await B.goto((await G.webUrl("index.html")) + "#" + qr.data.split("#")[1]);
     await A.locator(".tlbadge").waitFor(); await B.locator(".tlbadge").waitFor();
     assert.equal(await text(A, ".tlbadge"), await text(B, ".tlbadge"), "dieselben drei Bilder auf beiden Geraeten");
     assert.equal((await text(A, ".tlbadge")).split(" ").length, 3);
+    assert.deepEqual(await B.evaluate(() => window.__toolOpts), { direct: true }, "auch das beitretende Geraet nur direkt");
 
     // the phone (B) sends to the computer (A): nothing flows before the yes
     const buf = crypto.randomBytes(1536 * 1024 + 321);
@@ -223,6 +227,7 @@ test("Notiz zu zweit: einladen, das andere Geraet tritt bei, beide schreiben auf
     assert.equal(await A.locator(".tlqr").getAttribute("data-url"), "https://bunsenbrenner.org/duell#tl=" + TOKEN + "&w=notiz");
     await B.goto((await G.webUrl("index.html")) + "#tl=" + TOKEN + "&w=notiz");
     await A.locator(".tlon").waitFor(); await B.locator(".tlon").waitFor();
+    assert.deepEqual(await A.evaluate(() => window.__toolOpts), { direct: false }, "Notiz zu zweit: wie bisher"); assert.deepEqual(await B.evaluate(() => window.__toolOpts), { direct: false });
     assert.equal(await text(A, ".tlon"), await text(B, ".tlon"), "dieselben drei Bilder");
     await G.poll(() => B.locator(".tlnotex").inputValue(), (v) => v === "Einkauf:", { what: "der Zettel kommt an" });
     await B.locator(".tlnotex").click(); await B.keyboard.press("End"); await B.keyboard.type(" Milch");
@@ -236,5 +241,34 @@ test("Notiz zu zweit: einladen, das andere Geraet tritt bei, beide schreiben auf
     assert.equal((await A.evaluate(() => JSON.parse(localStorage.getItem("daily.notes"))))[0].x, "Einkauf: Milch");
     assert.deepEqual(ca.out.concat(cb.out), []);
     assert.deepEqual(A.errs.concat(B.errs), []);
+  } finally { await b.close(); }
+});
+
+test("Datei rueber, Relais-Schalter: aus - ohne direkten Weg ehrlich gesagt, kein Umweg; an - Relais erlaubt und so erklaert", { timeout: 120000 }, async () => {
+  const b = await G.launch();
+  try {
+    // off (default): the inviter finds no direct path; the other device too
+    const ca = await device(b, "a"), A = await G.open(ca, "#i=datei-rueber");
+    await A.locator("#go").click(); await A.locator(".tlov .press").click(); await A.locator(".tlqr:not([hidden])").waitFor();
+    assert.deepEqual(await A.evaluate(() => window.__toolOpts), { direct: true });
+    await A.evaluate(() => window.__toolFail());
+    await A.getByText("Keine direkte Verbindung möglich (z. B. Mobilfunk oder Firmennetz). Versucht es im selben WLAN.").waitFor();
+    assert.equal(await A.locator(".tlqr").count(), 0); await A.getByRole("button", { name: "Neu verbinden" }).waitFor();
+    await snap(A, "datei-7-kein-direkter-weg");
+    const cb = await device(b, "b"), B = await cb.newPage(); B.errs = []; B.on("pageerror", (e) => B.errs.push(String(e)));
+    await B.addInitScript(() => { window.__toolNoPath = true; });
+    await B.goto((await G.webUrl("index.html")) + "#tl=" + TOKEN + "&w=datei");
+    await B.getByText("Keine direkte Verbindung möglich (z. B. Mobilfunk oder Firmennetz). Versucht es im selben WLAN.").waitFor();
+    // on (one switch, set before the part runs): the relay may carry the ciphertext, and the card says so
+    const cc = await device(b, "a"); await cc.addInitScript(() => { window.DailyFlags = { toolRelay: true }; });
+    const C2 = await G.open(cc, "#i=datei-rueber");
+    await C2.locator("#go").click();
+    assert.match(await text(C2, ".tlcard"), /wenn kein direkter Weg geht, über ein Relais, das nichts lesen kann/);
+    await C2.locator(".tlov .press").click(); await C2.locator(".tlqr:not([hidden])").waitFor();
+    assert.deepEqual(await C2.evaluate(() => window.__toolOpts), { direct: false });
+    await C2.evaluate(() => window.__toolFail());
+    await C2.getByText("Eure Netze lassen gerade keine Verbindung zu", { exact: false }).waitFor();
+    assert.deepEqual(A.errs.concat(B.errs, C2.errs), []);
+    assert.deepEqual(ca.out.concat(cb.out, cc.out), []);
   } finally { await b.close(); }
 });
