@@ -228,6 +228,8 @@ test("App-Huelle: Anmelden ueber die Konto-Bruecke (kein Gate, kein Cookie), Pro
   const pr = fw.profileOf("lea@example.org");
   assert.ok(pr && pr.c, "Profil des Kontos mit 16+ angelegt (ueber Bearer)");
   assert.equal(await p.evaluate(() => Object.keys(window.DuellHost).join()), "account", "die Seite sieht nur die Funktion, kein Token");
+  await act(p, "daten"); await p.locator('[data-k="mod-none"]').waitFor();
+  await checks(p, "21-app-daten", found);
   await act(p, "logout");
   await waitKonto(p, "anonym");
   assert.equal(fw.state.bearers.size, 0, "Token bei der Huelle verworfen");
