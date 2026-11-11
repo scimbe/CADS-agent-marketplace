@@ -13,3 +13,5 @@
 | 2026-11-11 | Haiku schreibt Spielcode nur im kontrollierten Harness; Kunde ohne Codezugang | User |
 | 2026-11-11 | Geteilte Links müssen nicht kompatibel bleiben | User |
 | 2026-11-11 | Keine Vermischung alter und neuer Quellen; Altcode nach Umschaltung aus `main` entfernen | User |
+| 2026-11-11 | Bei jedem Schritt aktuelle Forschung recherchieren und Best-Practice-Lösungen ableiten (`08-forschung/`) | User |
+| 2026-11-11 | Eine Sprecher-Session vermittelt mit dem User, leitet nicht | User |
