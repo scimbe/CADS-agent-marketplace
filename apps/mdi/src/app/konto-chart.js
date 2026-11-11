@@ -36,7 +36,8 @@ export const kontoRegion = {
         CHECK: T("konto.pruefen")
       }
     },
-    anmelden: { on: { NAV_FAIL: { target: T("konto.fehler"), actions: ["navFailed"] } } },
+    // APP_DONE: die App-Huelle hat angemeldet (oder die Person hat abgebrochen) – der Server sagt, was gilt
+    anmelden: { on: { NAV_FAIL: { target: T("konto.fehler"), actions: ["navFailed"] }, APP_DONE: T("konto.pruefen") } },
     angemeldet: {
       on: {
         LOGOUT: { target: T("konto.abmelden"), cond: "hasLogout", actions: ["unlinkAccount", "fxLogout"] },
@@ -48,7 +49,7 @@ export const kontoRegion = {
         CHECK: T("konto.pruefen")
       }
     },
-    abmelden: { on: { NAV_FAIL: { target: T("konto.fehler"), actions: ["navFailed"] } } },
+    abmelden: { on: { NAV_FAIL: { target: T("konto.fehler"), actions: ["navFailed"] }, APP_DONE: T("konto.pruefen") } },
     fehler: { on: { CHECK: { target: T("konto.pruefen"), cond: "retryable" } } }
   }
 };
@@ -95,7 +96,7 @@ export const kontoGuards = {
   canLogin: (ctx) => !!(ctx.konto.st && ctx.konto.st.canLogin),
   canLogin16: (ctx) => !!(ctx.konto.st && ctx.konto.st.canLogin) && ctx.konto.age16 === true,
   retryable: (ctx) => ctx.konto.err !== "nicht-hier",
-  hasLogout: (ctx) => typeof ctx.konto.logout === "string",
+  hasLogout: (ctx) => typeof ctx.konto.logout === "string" || !!(ctx.konto.st && ctx.konto.st.app),
   signedIn: (ctx, ev, inState) => inState("konto.angemeldet"),
   linked: (ctx) => !!ctx.profil.via,
   noLink: (ctx) => !ctx.profil.via,
@@ -124,7 +125,7 @@ function getNow(ctx, emit) { emit({ type: "profil.get", who: linkOf(ctx.profil) 
 
 export const kontoActions = {
   fxStatus: (ctx, ev, emit) => { emit({ type: "konto.status" }); return K(ctx, { err: null }); },
-  takeStatus: (ctx, ev) => K(ctx, { st: { account: R(ev).account, canLogin: R(ev).canLogin, ki: R(ev).ki, karte: R(ev).karte }, logout: ev.logout || null, err: null }),
+  takeStatus: (ctx, ev) => K(ctx, { st: { account: R(ev).account, canLogin: R(ev).canLogin, ki: R(ev).ki, karte: R(ev).karte, app: R(ev).app === true }, logout: ev.logout || null, err: null }),
   takeStatusError: (ctx, ev) => K(ctx, { st: null, err: R(ev).error || "server" }),
   // angemeldet: Profil des Kontos lesen (Lesen legt nichts an). Ein Geraete-Code bleibt, wenn er verbunden ist.
   afterSignIn: (ctx, ev, emit) => {

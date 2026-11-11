@@ -31,7 +31,7 @@ export function stilActions(state, X, L) {
   if (L === "stil.daten") {
     const sec = [a("export", K.export, "EXPORT")];
     if (p.via && p.exists) sec.push(a("delete", ctx.konto.sure ? K.sure : K.del, "DELETE"));
-    if (ks === "angemeldet" && ctx.konto.logout) sec.push(a("logout", K.logout, "LOGOUT"));
+    if (ks === "angemeldet" && (ctx.konto.logout || (ctx.konto.st && ctx.konto.st.app))) sec.push(a("logout", K.logout, "LOGOUT"));   // App: die Huelle meldet ab
     return { primary: a("done", X.done, "DONE"), secondary: sec };
   }
   if (L === "stil.widerspruch") return { primary: a("appeal-send", K.appealSend, "APPEAL_SEND"), secondary: [a("cancel", K.cancel, "BACK")] };

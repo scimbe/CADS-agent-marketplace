@@ -13,9 +13,10 @@ final class DuellState: ObservableObject {
 /// Full-screen web view that loads only the bundled `duell/index.html` (My Daily Idea).
 struct DuellView: View {
     @EnvironmentObject var state: DuellState
+    @EnvironmentObject var auth: AuthService
 
     var body: some View {
-        DuellWebView(pendingFragment: $state.pendingFragment, onMore: { state.showMore = true })
+        DuellWebView(pendingFragment: $state.pendingFragment, auth: auth, onMore: { state.showMore = true })
             .ignoresSafeArea()   // the page pads itself with env(safe-area-inset-*)
             .background(Color(red: 1.0, green: 0.831, blue: 0.0).ignoresSafeArea())   // brand yellow #FFD400
     }
@@ -23,6 +24,7 @@ struct DuellView: View {
 
 private struct DuellWebView: UIViewRepresentable {
     @Binding var pendingFragment: String?
+    let auth: AuthService
     let onMore: () -> Void
 
     func makeCoordinator() -> DuellCoordinator { DuellCoordinator(onMore: onMore) }
@@ -34,11 +36,15 @@ private struct DuellWebView: UIViewRepresentable {
         // Only these handlers exist: share sheet (link / file), save, haptics, the quiet "more" and the AI call.
         for name in DuellCoordinator.handlerNames { ucc.add(WeakHandler(c), name: name) }
         ucc.addScriptMessageHandler(DuellAiBridge(), contentWorld: .page, name: "ai")   // the one network call, made by the shell
+        // Account bridge v1: sign-in (OIDC + PKCE) and account calls with the bearer, made by the shell; no token in the page
+        let gesture = UserGesture()
+        ucc.addScriptMessageHandler(AccountBridge(auth: auth, gesture: gesture), contentWorld: .page, name: "account")
         ucc.addUserScript(WKUserScript(source: DuellCoordinator.hostScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         // The page keeps its wall and profile in localStorage; that has to survive a restart.
         config.websiteDataStore = .default()
 
         let web = WKWebView(frame: .zero, configuration: config)
+        gesture.attach(to: web)   // the account bridge's login needs a real tap on the page
         web.navigationDelegate = c
         web.uiDelegate = c
         web.scrollView.contentInsetAdjustmentBehavior = .never
@@ -118,7 +124,8 @@ final class DuellCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKSc
         peerAccept: function (link) { h.peerAccept.postMessage({ link: String(link) }); },
         peerSend: function (frame) { h.peerSend.postMessage({ frame: String(frame) }); },
         peerLeave: function () { h.peerLeave.postMessage({}); },
-        ai: function (path, body) { return h.ai.postMessage({ path: String(path), body: String(body) }); }
+        ai: function (path, body) { return h.ai.postMessage({ path: String(path), body: String(body) }); },
+        account: function (req) { return h.account.postMessage(JSON.parse(JSON.stringify(req || {}))); }
       });
     })();
     """ }

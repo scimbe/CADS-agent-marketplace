@@ -9,6 +9,7 @@ import { share, copy } from "./broker/share.js";
 import { loadLive } from "./broker/live-host.js";
 import { linkUrl } from "./ui/view.js";
 import { createApi, lookCookie } from "./broker/api.js";
+import { nativeAccount } from "./broker/native.js";
 import { download } from "./broker/share.js";
 
 const root = document.getElementById("app");
@@ -22,7 +23,8 @@ let lastDialog = null, lastDialogRect = null, opener = null;
 const returnPath = () => location.pathname + "?go=konto";
 const rt = createRuntime({
   lang, entropy, storage: createStorage(),
-  api: createApi({ location }),
+  // App-Huelle mit Konto-Bruecke: Anmelden nativ (OIDC + PKCE), Aufrufe mit Bearer durch die Huelle; sonst Web (Cookie)
+  api: createApi({ location, native: nativeAccount(window) }),
   returnPath,
   setLook: (colors) => { const k = lookCookie(colors, location.hostname); if (k) document.cookie = k; },
   navigate: (url) => { if (!/^https?:$/.test(location.protocol)) return false; location.assign(url); return true; },

@@ -97,15 +97,18 @@ export function createRuntime(deps) {
           if (!api) { dispatch({ type: "STATUS", result: { ok: false, error: "nicht-hier" } }); return; }
           const result = await api.status(state.ctx.device);
           let logout = null;
-          if (result.ok && result.canLogin && result.account) { const m = await api.me(ret(), state.ctx.lang); logout = m.ok ? m.logoutUrl : null; }
+          if (result.ok && result.canLogin && result.account && !result.app) { const m = await api.me(ret(), state.ctx.lang); logout = m.ok ? m.logoutUrl : null; }
           dispatch({ type: "STATUS", result, logout });
         });
         break;
       case "konto.login":
+        // App-Huelle: die Huelle meldet an (System-Browser); danach wird das Konto neu geprueft, wie nach dem Gate
+        if (api && api.app) { later(async () => { const r = await api.app.login(); dispatch(r.ok ? { type: "APP_DONE" } : { type: "NAV_FAIL", reason: "nicht-hier" }); }); break; }
         if (deps.setLook) deps.setLook(state.ctx.me && state.ctx.me.colors);   // Anmeldeseite im Look von My Daily Idea
         if (!api || !deps.navigate || !deps.navigate(api.loginHref(ret(), state.ctx.lang))) schedule(() => dispatch({ type: "NAV_FAIL", reason: "nicht-hier" }));
         break;
       case "konto.logout":
+        if (api && api.app) { later(async () => { const r = await api.app.logout(); dispatch(r.ok ? { type: "APP_DONE" } : { type: "NAV_FAIL", reason: "nicht-hier" }); }); break; }
         if (!deps.navigate || !deps.navigate(fx.url)) schedule(() => dispatch({ type: "NAV_FAIL", reason: "nicht-hier" }));
         break;
       case "device.save": if (deps.storage.saveKonto) deps.storage.saveKonto(kontoSaved(state.ctx)); break;

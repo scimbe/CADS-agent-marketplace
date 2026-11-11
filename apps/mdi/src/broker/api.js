@@ -6,6 +6,9 @@
 // Server: CADS-DEMO-wrapper lib/auth.mjs (/auth/login, /auth/me), lib/duell-ai.mjs (/api/duell/ai/status),
 // lib/duell-profile.mjs (/api/duell/profile/*), lib/duell-voucher.mjs (/api/duell/credit/redeem),
 // lib/duell-deck.mjs + duell-mod.mjs (/api/duell/mod/me, /api/duell/mod/appeal). Antworten: test/fixtures/wrapper-konto.json.
+// In den App-Huellen (iOS/Android) laufen dieselben Aufrufe ueber die Konto-Bruecke (src/broker/native.js): die Huelle
+// meldet per OIDC + PKCE an und ruft den Server selbst mit Bearer auf; der Server loest Cookie ODER Bearer zur selben
+// Identitaet auf (lib/auth.mjs identify). Die Seite sieht kein Token und trifft keine Entscheidung anders als im Web.
 
 /**
  * @typedef {{ok:false, error:string, status?:number}} Fehler
@@ -57,12 +60,22 @@ export function lookCookie(colors, host) {
 
 export function createApi(deps) {
   const loc = deps.location || { protocol: "file:", host: "" };
-  const here = (loc.protocol === "https:" || loc.protocol === "http:") && typeof (deps.fetch || globalThis.fetch) === "function";
+  const native = deps.native || null;   // Konto-Bruecke der App-Huelle (src/broker/native.js) oder null
+  const here = !!native || ((loc.protocol === "https:" || loc.protocol === "http:") && typeof (deps.fetch || globalThis.fetch) === "function");
   const doFetch = deps.fetch || ((u, o) => globalThis.fetch(u, o));
   const timeout = deps.timeout || 20000;
 
+  /** App-Huelle: derselbe Aufruf, ausgefuehrt von der Huelle (mit Bearer, ohne Cookie). -> {status, body} | Fehler */
+  async function viaApp(method, path, body) {
+    const r = await native.call({ op: "api", method, path: path.split("?")[0], ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
+    if (!r || r.ok !== true || !Number.isSafeInteger(r.status)) return fail(r && r.error === "netz" ? "netz" : "server");
+    let j = null; try { j = JSON.parse(r.body); } catch (e) { j = null; }
+    return { status: r.status, body: j };
+  }
+
   /** -> {status, body} | Fehler "nicht-hier"/"netz" */
   async function call(method, path, body) {
+    if (native) return viaApp(method, path, body);
     if (!here) return fail("nicht-hier");
     const ctl = typeof AbortController === "function" ? new AbortController() : null;
     const t = ctl ? setTimeout(() => ctl.abort(), timeout) : null;
@@ -91,7 +104,11 @@ export function createApi(deps) {
       if (!k) return fail("server", 200);
       karte = { ...k, credit: int(c.credit) || 0, voucher: c.voucher === true, age16: c.age16 === true, age18: c.age18 === true, paused: c.paused === true, off: c.off === true };
     }
-    return { ok: true, account: m.account, canLogin: m.canLogin, ki, karte };
+    if (!native) return { ok: true, account: m.account, canLogin: m.canLogin, ki, karte };
+    // App: Anmelden geht, wenn der Server Bearer annimmt (app_login) UND die Huelle angemeldet werden kann
+    const s = await native.call({ op: "state" }), me0 = await me();
+    const appLogin = !!(s && s.ok === true && s.available === true && me0.ok && me0.appLogin);
+    return { ok: true, account: m.account, canLogin: m.canLogin && appLogin, ki, karte, app: true };
   }
 
   /** GET /auth/me -> { ok, authenticated, logoutUrl } ; logoutUrl aus der Gate-Adresse des Servers abgeleitet (gleiche Herkunft wie login_url). */
@@ -99,6 +116,7 @@ export function createApi(deps) {
     const r = await call("GET", "/auth/me?return=" + encodeURIComponent(safeReturn(ret)) + (lang === "de" || lang === "en" ? "&lang=" + lang : ""));
     if (!r.status) return r;
     if (r.status !== 200 || !isObj(r.body) || typeof r.body.authenticated !== "boolean") return common(r.status, r.body);
+    if (native) return { ok: true, authenticated: r.body.authenticated, logoutUrl: null, appLogin: r.body.app_login === true };
     return { ok: true, authenticated: r.body.authenticated, logoutUrl: logoutFrom(r.body.login_url, ret) };
   }
   /** Gate-Abmeldung (CADS-Tunnel GET /gate/logout?host=&return=): nur ueber https und nur fuer den Host, den der Server nennt. */
@@ -204,5 +222,9 @@ export function createApi(deps) {
     return common(r.status, r.body);
   }
 
-  return { here, status, me, loginHref, logoutFrom, profileGet, profilePut, profileDelete, redeem, modMe, appeal };
+  /** App: Anmelden/Abmelden fuehrt die Huelle aus (System-Browser bzw. Tokens loeschen und widerrufen). -> {ok} */
+  const appOp = async (op) => { const r = await native.call({ op }); return r && r.ok === true ? { ok: true, signedIn: r.signedIn === true } : fail("nicht-hier"); };
+  const app = native ? { login: () => appOp("login"), logout: () => appOp("logout") } : null;
+
+  return { here, app, status, me, loginHref, logoutFrom, profileGet, profilePut, profileDelete, redeem, modMe, appeal };
 }
