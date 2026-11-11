@@ -49,9 +49,14 @@
     return row;
   }
 
-  function open() {
+  // o.focus: "art" (the genre) or "text" (the sentence), from a bubble on the first page (src/blasen-start.js)
+  function open(o) {
     A = root.DailyApp; Kit = root.Kit; t = Kit.t; el = A.el; D = root.Daily; style();
-    A.shelf(t("create_title"), function (b) { b.appendChild(el("p", "note", "…")); status().then(function () { fill(b); }); });
+    var f = o && (o.focus === "art" || o.focus === "text") ? o.focus : ""; root.CreateUI.asked = f;
+    A.shelf(t("create_title"), function (b) {
+      b.appendChild(el("p", "note", "…"));
+      status().then(function () { fill(b); var e = f === "text" ? b.querySelector("#createtext") : f === "art" ? b.querySelector(".chips[role=group] button") : null; if (e) e.focus(); });
+    });
   }
 
   function fill(b) {

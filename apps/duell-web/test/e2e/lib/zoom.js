@@ -28,7 +28,9 @@ const look = (p) => p.evaluate(() => {
   };
   const n = (e) => e.id || (e.textContent || e.tagName).trim().slice(0, 14), over = [];
   const els = [...s.querySelectorAll("button, input, textarea, select, [role=button]")].map((e) => [e, box(e)]).filter((x) => x[1]);
-  els.forEach(([a, A], i) => els.slice(i + 1).forEach(([b, B]) => { if (!a.contains(b) && !b.contains(a) && Math.min(A.r, B.r) - Math.max(A.l, B.l) > 1 && Math.min(A.b, B.b) - Math.max(A.t, B.t) > 1) over.push(n(a) + " ueber " + n(b)); }));
+  // the bubbles of the free card (src/blasen-start.js) sit on the ends of its own button on purpose: both open the same sheet
+  const own = (x, y) => x.closest && x.closest("#hblasenfree") && y.id === "create";
+  els.forEach(([a, A], i) => els.slice(i + 1).forEach(([b, B]) => { if (!a.contains(b) && !b.contains(a) && !own(a, b) && !own(b, a) && Math.min(A.r, B.r) - Math.max(A.l, B.l) > 1 && Math.min(A.b, B.b) - Math.max(A.t, B.t) > 1) over.push(n(a) + " ueber " + n(b)); }));
   const c = document.getElementById("pvcard"), hero = document.getElementById("hero"), H = hero.getBoundingClientRect();
   const cut = !!hero.getClientRects().length && [...hero.children].some((x) => { const r = x.getBoundingClientRect(); return r.top < H.top - 1 || r.bottom > H.bottom + 1 || r.left < H.left - 1 || r.right > H.right + 1; });
   return { over, cut, got: document.getElementById("leaf").classList.contains("got"), peek: !document.getElementById("pvpeek").hidden };
