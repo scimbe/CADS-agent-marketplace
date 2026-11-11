@@ -21,3 +21,4 @@
 | 2026-11-11 | Business-Sicht kommt mit in den Neuentwurf | User |
 | 2026-11-11 | Grundstock-Karten und Spiel-Engines neu; Baukasten, der freie Designs/Mechaniken mit Harness und Haiku erlaubt | User |
 | 2026-11-11 | Auf Systemhygiene achten (`00-hygiene.md`) | User |
+| 2026-11-11 | Nahtlose Integration der Webkonferenz (Daten, Sprache, Video, ein Raum über Tätigkeiten hinweg) | User |
