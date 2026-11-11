@@ -40,7 +40,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // The preview pictures (scripts/shots.js) come in parts of their own, bilda, bildb … (checked below).
   const shotParts = Object.keys(man).filter((n) => /^bild[a-z]$/.test(n));
   assert.ok(shotParts.length >= 1, "Vorschaubilder fehlen");
-  assert.deepEqual(Object.keys(man).filter((n) => shotParts.indexOf(n) < 0).sort(), ["blasen", "dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "lauf", "licenses", "logik", "malen", "melden", "noto", "play", "push", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(Object.keys(man).filter((n) => shotParts.indexOf(n) < 0).sort(), ["blasen", "dart", "daten", "deck", "direkt", "erschaffen", "katalog", "kibild", "klang", "konto", "lauf", "licenses", "logik", "malen", "melden", "noto", "play", "push", "qr", "quiz", "regler", "robot", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "warten", "welt", "wetter"]);
   // The new start (redesign wave 1) is a part: its code, keywords and words only there, in the core only the hooks.
   const startBody = fs.readFileSync(partFiles().find((f) => /\/start\.[0-9a-f]{12}\.js$/.test(f)), "utf8");
   assert.match(startBody, /root\.StartUI = \{/); assert.match(startBody, /root\.StartIntent = api/); assert.match(startBody, /window\.StartTexts=\{"de":\{"st_ask":"Wem willst du heute eine Freude machen\?"/);
@@ -91,7 +91,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   console.log("Byte-Budget: Kern + vorgeladene Teile " + preload + " B (< " + 1.75 * 1024 * 1024 + "), nur bei Bedarf " + onDemand + " B (<= " + ONDEMAND_MAX + "): " + Object.keys(man).filter((n) => ONDEMAND.includes(n)).join(", "));
   assert.ok(preload < 1.75 * 1024 * 1024, "Kern + vorgeladene Teile: " + preload);
   assert.ok(onDemand <= ONDEMAND_MAX, "Teile nur bei Bedarf: " + onDemand);
-  assert.deepEqual(ONDEMAND, ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten"], "Liste nur bei Bedarf");
+  assert.deepEqual(ONDEMAND, ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten", "warten", "robot", "kibild"], "Liste nur bei Bedarf");   // kibild: KI-Bilder auf Wunsch, only when a button or a sheet with doc.gi.l asks
   for (const n of ["noto", "dart", "klang"]) assert.ok(man[n], "Teil nur bei Bedarf fehlt im Manifest: " + n);
   assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(ONDEMAND\.indexOf\(n\) < 0 && !\/\^bild\[a-z\]\$\/\.test\(n\)\) need\(n\)/, "Teile aus ONDEMAND und die Vorschaubilder nicht im Leerlauf-Vorladen");
   assert.match(src("app.js"), /=== "voice"\) window\.Parts\.need\("klang"\)/, "klang kommt mit einem Stimm-Blatt");
@@ -152,6 +152,10 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // the core keeps the empty A.TABS/A.PANEL others add to, the stand-in tab() and the hook in openEditor.
   assert.match(part("blasen"), /root\.Blasen = \{ open: open, tab: tab, PANEL: PANEL/); assert.match(part("blasen"), /^Wish: function \(p\) \{$/m); assert.match(part("blasen"), /^function beatPanel\(p\) \{$/m);
   assert.deepEqual(man.blasen.d, []); assert.ok(ONDEMAND.includes("blasen"));
+  // A3b: the parts of a card (src/teile.js) and their bubbles (src/blasen-ebene.js) come with it, in this order; never in the core
+  const bl = part("blasen");
+  assert.ok(bl.indexOf("else root.Teile = api") >= 0 && bl.indexOf("else root.Teile = api") < bl.indexOf("root.Blasen = {") && bl.indexOf("root.Blasen = {") < bl.indexOf("B.open = function (opt) {") && bl.indexOf("B.open = function (opt) {") < bl.indexOf("B.dialog = { open: open"), "Teile, Blasen, Ebene, Dialog im Teil blasen");
+  assert.ok(!/root\.Teile = api|B\.ebene = \{/.test(html), "Teile und Blasen-Ebene nicht im Kern");
   assert.ok(!/Wish: function \(p\) \{|function beatPanel\(|function didLine\(|card: \["Text", "Style", "Color", "Sticker"\]/.test(html), "Reiter und Blasen nur im Teil");
   assert.match(html, /var TABS = \{\}, PANEL = \{\};/); assert.match(html, /window\.Parts\.use\("blasen", function \(\) \{ if \(ed === mine\)/);
   assert.ok(!/root\.EditModel = api|root\.Regeln = api|window\.DirektData=/.test(html), "Editor-Teile nicht im Kern");
@@ -183,7 +187,7 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
   // domain, one POST with the redacted text after the explicit yes. Neither is in the app build below.
   // deck.js: one place (net) for the community deck of free cards: GET deck and key without a cookie, POST only its five
   // paths with a seal, thumb, token or the person's own objection (see the assertions below).
-  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1, "deck.js": 1, "stat.js": 1, "profile.js": 1, "push.js": 1, "protokoll-page.js": 2 }, short = /\(fetchFn \|\| fetch\)\(/g;
+  const allowed = { "game.js": 1, "ai.js": 1, "live.js": 1, "deck.js": 1, "stat.js": 1, "profile.js": 1, "kibild.js": 1, "push.js": 1, "protokoll-page.js": 2 }, short = /\(fetchFn \|\| fetch\)\(/g;
   assert.match(src("protokoll-page.js"), /fetch\(url, \{ signal: ctl\.signal, credentials: "same-origin", cache: "no-store" \}\)/, "Modell nur per GET");
   assert.match(src("protokoll-page.js"), /input: P\.aiInput\(rec\.segs, rec\.names\)/, "an die KI nur der geschwaerzte Text");
   assert.ok(!/deviceMemory|hardwareConcurrency|userAgent/.test(src("protokoll-page.js").match(/JSON\.stringify\(\{ kind: "protokoll"[^\n]*/)[0]), "Geraetedaten bleiben auf dem Geraet");
@@ -191,7 +195,7 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
     assert.equal((noComments(src(f)).match(/\bfetch\(/g) || []).length, allowed[f] || 0, "direktes fetch( in " + f);
     assert.equal((noComments(src(f)).match(short) || []).length, f === "shortlink.js" ? 1 : 0, "Kurzlink-fetch in " + f);
   }
-  assert.equal((html.match(/\bfetch\(/g) || []).length, allowed["game.js"] + allowed["ai.js"] + allowed["live.js"] + allowed["stat.js"] + allowed["profile.js"] + allowed["deck.js"] + allowed["push.js"], "direkte fetch( im Build (Kern + Teile)");
+  assert.equal((html.match(/\bfetch\(/g) || []).length, allowed["game.js"] + allowed["ai.js"] + allowed["live.js"] + allowed["stat.js"] + allowed["profile.js"] + allowed["deck.js"] + allowed["kibild.js"] + allowed["push.js"], "direkte fetch( im Build (Kern + Teile)");
   // push.js ("Bescheid geben", part push): one place, only key/subscribe/unsubscribe/wake of the push API, never a cookie;
   // what goes out is the browser's subscription, the mark with its delete key, or { mark, r } (test/push.test.js).
   assert.match(noComments(src("push.js")), /deps\.fetch\(base\(\) \+ path, body \? \{ method: "POST"[^\n]*credentials: "omit", referrerPolicy: "no-referrer" \} : \{ credentials: "omit" \}\)/, "Push nur ohne Cookie");
@@ -199,6 +203,12 @@ test("Datenschutz: nur die erlaubten fetch-Stellen (Spielsatz, KI-Text, KI-Meldu
   assert.match(dk, /fetch\(base\(\) \+ path, get \? \{ credentials: "omit", referrerPolicy: "no-referrer" \} : \{ method: "POST"[^\n]*credentials: "same-origin"/, "Deck und Schluessel ohne Cookie, POST nur same-origin");
   assert.match(dk, /var POSTS = \["\/deck\/use", "\/deck\/vote", "\/deck\/me", "\/mod\/me", "\/mod\/appeal"\];/, "nur diese fuenf POSTs");
   assert.ok(!/device\(|aiDev|userAgent|deviceMemory|localStorage/.test(dk), "keine Geraete-ID im Deck-Teil");
+  // kibild.js (KI-Bilder auf Wunsch): one place, POST JSON to the picture service of the API host, same-origin; what goes out
+  // is the typed sentence, the use, the style and the language, or a job or picture id. Never a photo, never the device id.
+  const kb = noComments(src("kibild.js"));
+  assert.match(kb, /fetch\(base\(\) \+ path, \{ method: "POST", headers: \{ "Content-Type": "application\/json" \}, body: JSON\.stringify\(body \|\| \{\}\), credentials: "same-origin", referrerPolicy: "no-referrer"/, "Bilddienst nur per POST, same-origin");
+  assert.match(kb, /call\("", \{ use: use, text: text, style: style0, lang: Kit\.lang \}\)/, "nur Satz, Zweck, Stil, Sprache");
+  assert.ok(!/device\(|aiDev|userAgent|deviceMemory|toDataURL|toBlob|FileReader|getUserMedia/.test(kb), "kein Foto, keine Geraete-ID im Bild-Teil");
   const ph = noComments(fs.readFileSync(path.join(path.dirname(dist), "protokoll.html"), "utf8"));
   assert.equal((ph.match(/\bfetch\(/g) || []).length, 2, "Protokoll-Seite: Modell + KI-Text");
   assert.ok(!/XMLHttpRequest|sendBeacon|EventSource|WebSocket|RTCPeerConnection|analytics|serviceWorker/.test(ph), "Protokoll-Seite: kein weiterer Ausgang");

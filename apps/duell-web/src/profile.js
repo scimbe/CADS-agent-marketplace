@@ -261,6 +261,9 @@
       if (s === "login" && canAccount) { var a = el("a", "btn", t("ac_relogin")); a.href = C.loginPath(back(), Kit.lang); a.addEventListener("click", look); st.appendChild(document.createTextNode(" ")); st.appendChild(a); }
     }
     showState(state); shown = function (s) { if (st.isConnected) showState(s); };
+    // the account picture (part kibild), in the details (the card stays compact): with an account only, made by the AI when
+    // there is credit, else it says why
+    if (p.via === "account" && window.Parts) { var kb = el("div", "kbrow"); info.appendChild(kb); window.Parts.use("kibild", function () { window.KiBild.avatarRow(kb); }).catch(function () {}); }
     info.appendChild(el("p", "note", t(p.via === "code" ? "ac_viaCode" : "ac_viaAccount")));
     if (p.via === "code") {
       info.appendChild(el("p", "accode", fmtCode(p.code)));

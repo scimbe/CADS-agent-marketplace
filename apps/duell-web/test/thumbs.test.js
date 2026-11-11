@@ -56,9 +56,11 @@ test("KI-Bilder: im Build nur die Ids, Bilder nur vom Galerie-Server, Hinweis 'K
   assert.match(html, /img-src data: blob: https:\/\/demos-34a13a96\.bunsenbrenner\.org;/);
   const app = rd("src/app.js");
   assert.match(app, /function thumbUrl\(id\) \{ return new URL\(C\.DEFAULT_API\)\.origin \+ "\/duell\/img\/" \+ id \+ "\.jpg"; \}/);
-  // definition, two in loadPic (Blatt, Folgeblatt, Editor), one in withPic (nur Vergleich: schon geladenes Bild fuers Teilen)
-  assert.equal((app.match(/thumbUrl\(/g) || []).length, 4, "ein Weg zum Bild");
-  assert.equal((app.match(/\.src = thumbUrl\(/g) || []).length, 1, "nur eine Stelle laedt ein Bild");
+  // picUrl: the day's picture (thumbUrl) or one made on request (doc.gi, /duell/bild/<id>, same server). Definition, two in
+  // loadPic (Blatt, Folgeblatt, Editor), one in withPic (nur Vergleich: schon geladenes Bild fuers Teilen)
+  assert.equal((app.match(/thumbUrl\(/g) || []).length, 2, "thumbUrl nur ueber picUrl");
+  assert.equal((app.match(/picUrl\(/g) || []).length, 4, "ein Weg zum Bild");
+  assert.equal((app.match(/\.src = (thumbUrl|picUrl)\(/g) || []).length, 1, "nur eine Stelle laedt ein Bild");
   assert.match(app, /c\.saveData/);
   assert.match(app, /crossOrigin = "anonymous"/);
   const tx = require("../src/texts.json");

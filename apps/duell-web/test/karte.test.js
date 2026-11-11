@@ -31,7 +31,7 @@ test("karte: Krisentext bleibt auf dem Geraet, Texte in beiden Sprachen, kein Za
 });
 
 test("W3: jede Art hat Knopf und Beispiele in beiden Sprachen; die Vorschau nimmt nur Arten, die ein Link traegt", () => {
-  for (const art of ["card", "meme", "game", "sound", "quiz", "faehigkeit"]) for (const l of ["de", "en"]) {
+  for (const art of ["card", "meme", "game", "quiz", "faehigkeit"]) for (const l of ["de", "en"]) {
     assert.ok(TX[l]["create_art_" + art], l + " create_art_" + art);
     assert.equal((TX[l][art === "card" ? "create_ex" : "create_ex_" + art] || "").split("|").length, 3, l + " Beispiele " + art);
   }

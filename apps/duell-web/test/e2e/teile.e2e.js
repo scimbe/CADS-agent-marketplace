@@ -1,7 +1,7 @@
 "use strict";
 // src/teile.js on the real page (A2 of the plan "freie Karte"): a flying game and a runner opened in "Selber bauen" name
 // their parts; every rectangle lies in the stage box, teilAt finds each part again, every panel is a sheet of A.PANEL.
-// teile.js is not built into a part yet (A3b puts it into "blasen"), so the test adds it to the page itself.
+// teile.js comes with the part blasen (A3b); the test adds it to the page itself, so it holds before the part is there.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");

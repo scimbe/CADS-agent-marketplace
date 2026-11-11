@@ -41,20 +41,26 @@ function fail(e) {
 }
 function link(token) { return window.DuellCore.SHARE_BASE + "#live=" + token + (game ? "&g=" + game.g : ""); }
 // The agent duel brings the picture set of its card along; every other game is just its name.
-function pick(g, set) { return g && GAMES[g] ? (g === "rps" ? { g: g, set: set | 0 } : { g: g }) : null; }
+// A free arcade card (the Robot, src/frei.js) brings its free part: checked here on both phones, so both play the same values.
+function pick(g, set, free) {
+  if (!g || !GAMES[g]) return null;
+  if (g === "rps") return { g: g, set: set | 0 };
+  var f = free && window.Frei ? window.Frei.sanitize(free) : null;
+  return f && f.k === "arcade" && f.a === g ? { g: g, free: { k: "arcade", i: f.i, a: f.a, col: f.col, t: f.t, s: f.s, fa: f.fa } } : { g: g };
+}
 // A game may bring its own share and how-to text (live_<g>ShareText, live_<g>Howto); otherwise the arcade ones.
 function own(k, fb, v) { return t(k) !== k ? t(k, v) : t(fb, v); }
 function begin(serving) {
   if (!game) { play(serving); return; }
   busy = true;
-  GAMES[game.g]({ conn: conn, layer: layer, close: close, el: el, again: function () { invite(game); }, badge: B.badge(conn.channel) }, serving);
+  GAMES[game.g]({ conn: conn, layer: layer, close: close, el: el, again: function () { invite(game); }, badge: B.badge(conn.channel), game: game }, serving);
 }
 function mmss(ms) { var s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
 // ---------- the inviter ----------
 // My open invite in this tab. Its own link (tapped in the chat after sharing) brings me back here instead of using it up.
 var mine = null, joined = null;
 async function invite(opt) {
-  game = pick(opt && opt.g, opt && opt.set); games = 0;
+  game = pick(opt && opt.g, opt && opt.set, opt && opt.free); games = 0;
   screen([["p", "livebig", t("live_making")]]);
   var inv;
   try { inv = await window.Live.invite(onState); } catch (e) { fail(e); return; }
@@ -111,7 +117,7 @@ async function accept(token, g) {
   try { conn = await window.Live.accept(token, onState); } catch (e) { fail(e); return; }
   conn.onClose(lost);
   (function ready() { screen([["p", "livebig", t("live_challenged")], ["p", "livebadge", B.badge(conn.channel)], ["p", "note", t("live_badgeNote")], ["p", "note", game ? own("live_" + game.g + "Howto", "arc_how_" + game.g) : t("live_howto")], ["p", "lbl", t("live_waitStart")]]); again = ready; })();
-  conn.on(function (m) { if (m.t !== "go" || !ov || loop || busy) return; game = pick(m.g, m.set); begin(false); });
+  conn.on(function (m) { if (m.t !== "go" || !ov || loop || busy) return; game = pick(m.g, m.set, m.free); begin(false); });
 }
 function onState(s) { var n = ov && ov.querySelector(".note"); if (n && t("live_s_" + s) !== "live_s_" + s) n.textContent = t("live_s_" + s); }
 function lost() { if (!ov || !conn) return;   /* no connection any more: this side ended the game itself */ cancelAnimationFrame(loop); clearInterval(net); clearTimeout(net); loop = net = 0; busy = false; try { conn.close(); } catch (e) {} conn = null; /* close() frees the channel on the server too */ screen([["p", "livebig", t("live_lost")]], [[t("live_again"), function () { invite(game); }], [t("live_home"), function () { close(); }, "btn"]]); }

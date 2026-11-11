@@ -82,7 +82,7 @@ const parts = { DATA: dataAll, DUEL: read("src/duel.js"), QUEST: read("src/quest
 // New, rarely used code goes into a part here (or a new one), not into the core: test/build.test.js holds the budgets.
 const PARTS = {
   katalog: { d: [], src: ["KATALOG"] },                                                               // the full catalog (see the index above)
-  play: { d: ["katalog"], src: ["BALLDUELL", "RPSLIVE", "LIVE", "SMOOTH", "LIVEUI", "ARCADE", "ARCADE2", "ARCADEUI"] },   // live and arcade duels
+  play: { d: ["katalog"], src: ["BALLDUELL", "RPSLIVE", "LIVE", "SMOOTH", "LIVEUI", "ARCADE", "ARCADE2", "FREI", "ARCADEUI"] },   // live and arcade duels
   table: { d: ["play"], src: ["MPOKER", "DOKO", "SKAT", "BAUERNSKAT", "TABLE", "TABLEUI"] },                        // Doppelkopf and Skat live (over live.js)
   qr: { d: [], src: ["QRCODE", "STATUSCARD"] },                                                        // status picture and invite code with a QR code
   licenses: { d: [], src: ["LICENSES"] },                                                              // the licence texts, shown on request
@@ -98,8 +98,9 @@ const PARTS = {
   melden: { d: [], src: ["MELDENDATA", "MELDEN"] },                                                    // the report dialog of a shared sheet (src/melden.js)
   direkt: { d: [], src: ["DIREKTDATA", "EDITMODEL", "DIREKTUI"] },                                     // editor E1: one undo, stickers without dragging, layer list, description, plain language
   regler: { d: [], src: ["REGLERDATA", "REGELN", "REGLERUI"] },                                        // the flight game's sliders in named steps
-  blasen: { d: [], src: ["BLASEN"] },                                                                  // R4: the editor's tab bar and panels (src/blasen.js), only on demand (parts.js ONDEMAND): openEditor asks for it
+  blasen: { d: [], src: ["TEILE", "BLASEN", "EBENE", "DIALOG", "BSTART"] },                                              // R4/A3b: the editor's tab bar and panels (src/blasen.js), the parts of a card (src/teile.js) and their bubbles (src/blasen-ebene.js), only on demand (parts.js ONDEMAND): openEditor asks for it
   lauf: { d: [], src: ["LAUFDATA", "LAUFENGINE", "LAUFUI"] },                                          // the second game engine: runner and platformer (doc.k "lauf", src/lauf.js)
+  kibild: { d: [], src: ["KIBILDDATA", "KIBILD"] },                                                    // KI-Bilder auf Wunsch: window.KiBild (src/kibild.js), only on demand (parts.js ONDEMAND)
   push: { d: [], src: ["PUSHDATA", "PUSH"] },                                                          // "Bescheid geben": channel, our own opt-in dialog, the row in My style (src/push.js)
 };
 // The weather card's block (src/wetter.js); not built for a flavor whose catalog has no cards (Daily Business: turns only).
@@ -125,6 +126,12 @@ if (!(conf && conf.stat === false)) PARTS.stimme = { d: [], src: ["STIMMEDATA", 
 // name f_create (as app.js shown() does); Daily Business does not, so it neither builds nor preloads the part.
 const creates = !conf || !conf.feats || conf.feats.indexOf("f_create") >= 0;
 if (creates) PARTS.erschaffen = { d: [], src: ["CREATEUI"] };
+// its waiting screen (src/warten.js): only on demand (parts.js ONDEMAND), asked for when the form of the free card is shown
+if (creates) { PARTS.warten = { d: [], src: ["WARTEN"] }; parts.WARTEN = read("src/warten.js"); }
+// The Robot and the Magic (src/robot-ui.js): a deck card becomes a free card through the free card's refine step; only where
+// the free card is, only on demand (a bubble asks for it). src/frei.js, the free part of a card, comes with the part play
+// (the arcade duels play it there, live and against the bot).
+if (creates) PARTS.robot = { d: ["erschaffen", "play"], src: ["ROBOTUI"] };
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
 if (has("biz-ui.js")) { PARTS.biz = { d: [], src: ["BIZ", "BIZUI"] }; parts.BIZ = read("src/biz.js"); parts.BIZUI = read(fl("biz-ui.js")); }
 parts.KATALOG = "window.DuellIdeasFull=" + JSON.stringify(catalog) + ";window.Daily&&window.Daily.fill();";
@@ -133,6 +140,7 @@ parts.STIMMEUI = read("src/stimme-ui.js"); parts.STIMMEDATA = "window.StimmeText
 parts.KALENDERDATA = "window.KalenderData=" + JSON.stringify(json("src/kalender.json")) + ";";
 parts.KONTODATA = "window.KontoTexts=" + JSON.stringify(kontoTexts) + ";" + merge("KontoTexts"); parts.PROFILE = read("src/profile.js");
 parts.STILDATA = "window.StilTexts=" + JSON.stringify(partTexts.stil) + ";" + merge("StilTexts"); parts.STIL = read("src/stil.js");
+parts.KIBILDDATA = "window.KibildTexts=" + JSON.stringify(json("src/kibild.json")) + ";" + merge("KibildTexts"); parts.KIBILD = read("src/kibild.js");
 parts.MELDENDATA = "window.MeldenTexts=" + JSON.stringify(partTexts.melden) + ";" + merge("MeldenTexts"); parts.MELDEN = read("src/melden.js");
 if (PARTS.wetter) { parts.WETTERDATA = "window.WetterTexts=" + JSON.stringify(partTexts.wetter) + ";" + merge("WetterTexts"); parts.WETTER = read("src/wetter.js"); }
 parts.DIREKTDATA = "window.DirektData=" + JSON.stringify(json("src/direkt.json")) + ";" + merge("DirektData.texts"); parts.EDITMODEL = read("src/editmodel.js"); parts.DIREKTUI = read("src/direkt-ui.js");
@@ -167,7 +175,8 @@ if (PARTS.start && fs.existsSync(SHOT_DIR)) {
   flush();
 }
 if (PARTS.start) { const sd = json("src/start.json"); parts.STARTDATA = "window.StartData=" + JSON.stringify(Object.assign({}, sd, { texts: undefined, shots: shotMap })) + ";window.StartTexts=" + JSON.stringify(sd.texts) + ";" + merge("StartTexts"); parts.START = read("src/start.js"); parts.STARTUI = read("src/start-ui.js"); }
-parts.BLASEN = read("src/blasen.js");
+parts.BLASEN = read("src/blasen.js"); parts.TEILE = read("src/teile.js"); parts.EBENE = read("src/blasen-ebene.js"); parts.BSTART = read("src/blasen-start.js"); parts.DIALOG = read("src/blasen-dialog.js");
+parts.FREI = read("src/frei.js"); parts.ROBOTUI = read("src/robot-ui.js");
 parts.TEXTE = read("src/texte.js");
 parts.PUSHDATA = "window.PushTexts=" + JSON.stringify(partTexts.push) + ";" + merge("PushTexts"); parts.PUSH = read("src/push.js");
 parts.CREATEUI = "window.CreateTexts=" + JSON.stringify(createTexts) + ";" + merge("CreateTexts") + "\n;\n" + read("src/create-ui.js");
@@ -184,7 +193,7 @@ let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + 
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
 // code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
-const KEEP = new Set(["STARTDATA", "DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "DARTDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "LAUFDATA", "NOTODATA", "KLANGDATA", "DECKTEXTS", "PUSHDATA"]);
+const KEEP = new Set(["STARTDATA", "DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "DARTDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "KIBILDDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "LAUFDATA", "NOTODATA", "KLANGDATA", "DECKTEXTS", "PUSHDATA"]);
 // A comment after code on the same line goes too (about 18 KB), only when it follows ; { } ) or , and has no quote, slash or
 // backslash in it: such a "//" can never stand inside a string, template or regex (no own string spans lines, see above).
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "").replace(/([;{}),])[ \t]+\/\/ [^"'`/\\]*$/, "$1")).join("\n");

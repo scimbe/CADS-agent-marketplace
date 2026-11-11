@@ -61,7 +61,7 @@ var reduce = false, held = false;
 try { reduce = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
 var best = function () { if (!Kit.store.best || typeof Kit.store.best !== "object") Kit.store.best = {}; return Kit.store.best; };
 function bestFor(st) { var b = best()[C.configKey(st)]; return typeof b === "number" ? b : 0; }
-var parts = [], trail = [], floaters = [], shake = 0, flash = 0, clock = 0;
+var parts = [], trail = [], floaters = [], shake = 0, flash = 0, clock = 0, at = {}, pose = null;   // at: when the animation's trigger (bei) came last
 function burst(x, y, n, colors, speed, grav) {
   if (reduce) n = Math.ceil(n / 4);
   for (var i = 0; i < n && parts.length < 260; i++) {
@@ -140,8 +140,10 @@ function draw() {
   var by2 = p.state === "ready" ? p.bird.y + Math.sin(clock * 4) * 6 : p.bird.y;
   ctx.save(); ctx.translate(E.BX, by2); ctx.rotate(p.state === "over" ? 1.4 : p.bird.rot);
   ctx.font = Math.round(E.GROUND * 0.62) + "px " + EMO; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  var an = cur.anim && !reduce ? C.animPose(cur.anim, clock, cur.anim.bei ? clock - (at[cur.anim.bei] == null ? -1e9 : at[cur.anim.bei]) : 0, cur.seed, 36) : null;
+  pose = an; if (an) { ctx.translate(an.x, an.y); ctx.rotate(an.r); ctx.scale(an.sx, an.sy); ctx.globalAlpha = an.a; }   // the figure's animation (g.anim)
   if (opts.figure) ctx.drawImage(opts.figure, -18, -18, 36, 36); else ctx.fillText(cur.emoji, 0, 2);
-  ctx.restore();
+  ctx.restore(); ctx.globalAlpha = 1;
   // particles
   for (i = 0; i < parts.length; i++) { var q = parts[i]; ctx.globalAlpha = Math.max(0, q.life / q.max); ctx.fillStyle = q.c; ctx.fillRect(q.x, q.y, q.s, q.s); }
   ctx.globalAlpha = 1;
@@ -161,7 +163,7 @@ function updateBanner() {
 }
 function newRun() {
   clearTimeout(resultTimer);
-  rng = C.mulberry32(cur.seed); sim = E.createSim(cur.params, rng, C.routeParams(cur));
+  rng = C.mulberry32(cur.seed); sim = E.createSim(cur.params, rng, C.routeParams(cur)); at = {};
   parts.length = 0; trail.length = 0; floaters.length = 0; shake = 0; flash = 0;
   if (mode === "demo") { sim.flap(); return; }
   prevBest = bestFor(cur); isRecord = false; recordShown = false;
@@ -175,6 +177,7 @@ var last = 0, acc = 0;
 function handle(ev) {
   var b = sim.bird;
   for (var i = 0; i < ev.length; i++) {
+    if (ev[i] === "score") at.treffer = clock;
     if (mode === "demo") continue;
     if (ev[i] === "score") {
       setScore(sim.score, true); SFX.score();
@@ -193,6 +196,7 @@ function onDead() {
   burst(86, sim.bird.y, 46, [look().accent, "#fff", "#ff3d71", "#ffd93d"], 320, 700);
   isRecord = sim.score > prevBest && sim.score > 0;
   if (isRecord) { best()[C.configKey(cur)] = sim.score; Kit.save(); }
+  if (isRecord || rival && sim.score > rival.score) at.sieg = clock;
   $("hint").hidden = true; $("banner").hidden = true;
   resultTimer = setTimeout(showResult, 650);
 }
@@ -214,7 +218,7 @@ function bot() {
   var nx = null;
   for (var i = 0; i < sim.pipes.length; i++) if (sim.pipes[i].x + E.PIPE_W >= E.BX - E.R) { nx = sim.pipes[i]; break; }
   var mid = nx ? nx.top + nx.gap * 0.62 : E.H * 0.45;
-  if (sim.bird.y > mid && sim.bird.vy > 0) sim.flap();
+  if (sim.bird.y > mid && sim.bird.vy > 0) { sim.flap(); at.sprung = clock; }
 }
 function advance(dt) {
   clock += dt;
@@ -239,7 +243,7 @@ function doFlap() {
   if (mode !== "play" || sim.state === "over") return;
   var ev = sim.flap();
   if (ev.indexOf("start") >= 0) { document.body.setAttribute("data-state", "run"); $("hint").hidden = true; $("dock").hidden = true; $("banner").hidden = true; }
-  if (ev.indexOf("flap") >= 0) { SFX.flap(); burst(76, sim.bird.y + 8, 5, ["#fff", look().accent], 90, 200); }
+  if (ev.indexOf("flap") >= 0) { at.sprung = clock; SFX.flap(); burst(76, sim.bird.y + 8, 5, ["#fff", look().accent], 90, 200); }
 }
 $("game").addEventListener("pointerdown", function (e) { if (e.target.closest("button,input,.panel")) return; e.preventDefault(); doFlap(); });
 window.addEventListener("keydown", function (e) {
@@ -289,6 +293,7 @@ window.Game = {
     finally { cv = keep[0]; ctx = keep[1]; scale = keep[2]; cur = keep[3]; sim = keep[4]; }
   },
   current: function () { return cur; }, score: function () { return sim ? sim.score : 0; },
+  pose: function () { return pose; },   // the figure animation's last pose (g.anim), for the browser checks
   view: function () { return sim && { bird: { x: E.BX, y: sim.bird.y, r: E.R }, pipes: sim.pipes.map(function (p) { return { x: p.x, gapY: p.top, gapH: p.gap }; }), w: E.W, h: E.H, title: cur.title }; }   // raw state: src/teile.js
 };
 /* test hook, used by browser checks: reads the state; tick() advances without waiting for frames */

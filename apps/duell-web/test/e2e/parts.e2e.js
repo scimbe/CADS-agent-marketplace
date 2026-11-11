@@ -33,13 +33,14 @@ test("file:// (Apps, Tests): Start nur mit dem Katalog-Teil; Spiele-Regal holt A
   await p.goto("file://" + path.join(dist, "index.html"));
   await p.locator("#go").waitFor();
   // the day's picture (start-ui.js dayShot) brings its own image part; the image parts are not counted here
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]).filter((n) => !/^bild[a-z]$/.test(n)), ["katalog", "start", "stimme"], "der Start laedt nur den Katalog, den neuen Start (Redesign W1, sofort statt im Leerlauf) und, fuer das erste Blatt, die Daumen (Katalog v2, W0)");
+  // blasen: the bubbles of the first page (src/blasen-start.js), asked for by start-ui.js only after the first paint, when idle
+  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]).filter((n) => !/^bild[a-z]$/.test(n) && n !== "blasen"), ["katalog", "start", "stimme"], "der Start laedt nur den Katalog, den neuen Start (Redesign W1, sofort statt im Leerlauf) und, fuer das erste Blatt, die Daumen (Katalog v2, W0)");
   assert.equal(await p.evaluate(() => typeof window.Arcade + typeof window.StatusCard + typeof window.DailyLicenses), "undefinedundefinedundefined");
   await G.alle(p); await p.getByRole("button", { name: /^\S+ \d+ Spiele$/ }).click();
   await p.locator(".arctile").first().waitFor();
   assert.equal(await p.locator(".arctile").count(), 5, "fuenf Arcade-Duelle seit der Regal-Bereinigung (2026-11)");
   // "Alle Karten" shows every card's picture: the parts of the pictures in sight come along (bilda, bildb …), not counted here
-  const own = async () => (await loaded(p)).map((s) => s.src.split(".")[0]).filter((n) => !/^bild[a-z]$/.test(n));
+  const own = async () => (await loaded(p)).map((s) => s.src.split(".")[0]).filter((n) => !/^bild[a-z]$/.test(n) && n !== "blasen");   // blasen: the first page's bubbles, after its first paint
   assert.deepEqual(await own(), ["katalog", "start", "stimme", "play"]);
   assert.equal((await loaded(p))[1].sri, "", "file:// ohne SRI (kein CORS-Ursprung)");
   await p.locator("#shback").click();
@@ -68,7 +69,10 @@ test("file://: der Knopf Status-Bild holt den QR-Teil und teilt ein Bild 1080x19
   await p.waitForFunction(() => window.__shared.length > 0);
   // the editor first asks for its tabs (blasen, R4) and direkt; once blasen is there the card's text tab loads "texte"
   // (Worte finden, card text) and "wetter"; the button only adds "qr"
-  assert.deepEqual((await loaded(p)).map((s) => s.src.split(".")[0]), ["katalog", "start", "stimme", "blasen", "direkt", "texte", "wetter", "qr"], "der Editor holt blasen und direkt");
+  const now = (await loaded(p)).map((s) => s.src.split(".")[0]);
+  assert.ok(now.includes("blasen"), "blasen ist da (erste Seite oder Editor)");
+  // with blasen already there (the first page's bubbles) the editor opens at once, so texte may come before direkt
+  assert.deepEqual(now.filter((n) => n !== "blasen").sort(), ["direkt", "katalog", "qr", "start", "stimme", "texte", "wetter"], "der Editor holt direkt");
   const f = await p.evaluate(async () => { const f = window.__shared[0], i = await createImageBitmap(f); return { type: f.type, name: f.name, w: i.width, h: i.height }; });
   assert.deepEqual(f, { type: "image/jpeg", name: "my-daily-idea-status.jpg", w: 1080, h: 1920 });
   assert.deepEqual(errs, []);
@@ -89,11 +93,12 @@ test("Web /duell: nach dem Laden alle Teile ausser denen nur bei Bedarf (noto, d
   assert.ok(await p.evaluate(() => window.Parts.names().filter((n) => /^bild[a-z]$/.test(n)).some((n) => !window.Parts.ready(n))), "Vorschaubilder nicht alle vorab");
   for (const s of all) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
   for (const n of ["noto", "dart", "klang"]) assert.ok(names.includes(n), n + " im Manifest");
-  for (const n of ONDEMAND.filter((n) => names.includes(n))) {
+  // blasen is the one of them the first page asks for itself, after its first paint (the bubbles on the day's card)
+  for (const n of ONDEMAND.filter((n) => names.includes(n) && n !== "blasen")) {
     assert.ok(await p.evaluate((n) => !window.Parts.ready(n), n), n + " nicht vorab");
     assert.ok(!got.some((s) => s.src.startsWith(n + ".")), n + " nach 10 s Leerlauf nicht geladen");
   }
-  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["daten", "deck", "direkt", "erschaffen", "katalog", "konto", "licenses", "logik", "malen", "melden", "play", "push", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["blasen", "daten", "deck", "direkt", "erschaffen", "katalog", "konto", "licenses", "logik", "malen", "melden", "play", "push", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   for (const s of got) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
   await p.evaluate(() => window.Parts.need("noto"));   // asked for (as the editor does): also with its SRI hash
   assert.match((await loaded(p)).find((s) => /^noto\./.test(s.src)).sri, /^sha384-[A-Za-z0-9+/]{64}$/);

@@ -86,7 +86,8 @@
     var m = s.me, hh = s.height(), bob = m.on && s.state === "run" && !still ? Math.abs(Math.sin(cl * 14)) * 3 : 0;
     c.save(); c.translate(m.x, m.y - bob); c.scale(-1, hh / E.PH);
     if (o.dead) c.rotate(1.2);
-    c.drawImage(spr(s.l.e, 56), -30, -54, 60, 60); c.restore();
+    var an = o.pose; if (an) { c.translate(an.x, an.y - 24); c.rotate(an.r); c.scale(an.sx, an.sy); c.translate(0, 24); c.globalAlpha = an.a; }   // the figure's animation (l.anim), about its middle
+    c.drawImage(spr(s.l.e, 56), -30, -54, 60, 60); c.restore(); c.globalAlpha = 1;
     c.setTransform(1, 0, 0, 1, 0, 0);
     if (o.flash && !reduce) { c.fillStyle = "rgba(255,60,80," + o.flash * 0.4 + ")"; c.fillRect(0, 0, cw, ch); }
   }
@@ -121,7 +122,10 @@
     cv.width = Math.max(1, Math.round(r.width * d)); cv.height = Math.max(1, Math.round(r.height * d));
     if (sim) paint();
   }
-  function paint() { draw(ctx, sim, cv.width, cv.height, { clock: clock, shake: shake, flash: flash, dead: sim.state === "over" }); }
+  // the figure's animation (l.anim): fixed by the doc, played from the run's clock; bei: since the last jump, coin or goal
+  var at = {};
+  function pose() { var a = cur && cur.l.anim; return a && !reduce ? (root.Lauf.pose = C.animPose(a, clock, a.bei ? clock - (at[a.bei] == null ? -1e9 : at[a.bei]) : 0, cur.l.seed, 60)) : null; }
+  function paint() { draw(ctx, sim, cv.width, cv.height, { clock: clock, shake: shake, flash: flash, dead: sim.state === "over", pose: pose() }); }
   function build() {
     if (box) return;
     style();
@@ -174,7 +178,7 @@
   function key() { var l = Object.assign({}, cur.l); delete l.r; return "lf" + C.hash32(JSON.stringify(l)); }
   function best() { var b = Kit.store.lbest; if (!b || typeof b !== "object") b = Kit.store.lbest = {}; return b; }
   function newRun() {
-    clearTimeout(endT); sim = E.createSim(cur.l); paused = false; shake = flash = 0; res.hidden = true; shown = "";
+    clearTimeout(endT); sim = E.createSim(cur.l); paused = false; at = {}; shake = flash = 0; res.hidden = true; shown = "";
     hint.hidden = false; hint.textContent = t("lf_hint"); duckB.hidden = !(sim.p.du > 0); pauseB.setAttribute("aria-label", t("lf_pause")); pauseB.textContent = "⏸";
     cv.setAttribute("aria-label", t("lf_area", { t: cur.t || t("lf_def") }));
     hud.textContent = cur.l.r ? t("lf_beat", { n: cur.l.r }) : "";
@@ -187,7 +191,7 @@
       clock += dt;
       if (sim.state === "run") {
         acc += dt;
-        while (acc >= E.STEP) { acc -= E.STEP; var ev = sim.step(); if (ev.indexOf("coin") >= 0) Kit.tone(880, 1320, 0.06, "triangle", 0.08); if (ev.indexOf("jump") >= 0) Kit.tone(320, 640, 0.07, "square", 0.04); if (ev.indexOf("stomp") >= 0) Kit.sfx.pop(); if (sim.state !== "run") { end(); break; } }
+        while (acc >= E.STEP) { acc -= E.STEP; var ev = sim.step(); if (ev.indexOf("jump") >= 0) at.sprung = clock; if (ev.indexOf("coin") >= 0 || ev.indexOf("stomp") >= 0) at.treffer = clock; if (ev.indexOf("goal") >= 0) at.sieg = clock; if (ev.indexOf("coin") >= 0) Kit.tone(880, 1320, 0.06, "triangle", 0.08); if (ev.indexOf("jump") >= 0) Kit.tone(320, 640, 0.07, "square", 0.04); if (ev.indexOf("stomp") >= 0) Kit.sfx.pop(); if (sim.state !== "run") { end(); break; } }
         var h = t("lf_hud", { p: sim.points(), m: sim.meters() });
         if (h !== shown) { hud.textContent = shown = h; }
       } else acc = 0;
@@ -237,7 +241,7 @@
   function areas(ed) {
     var a = ed.base.l || {}, b = ed.doc.l, w = [], ne = function (k) { return JSON.stringify(a[k]) !== JSON.stringify(b[k]); };
     if (ne("p") || ne("m") || ne("seed") || ne("fp")) w.push("regeln");
-    if (ne("e") || ne("f")) w.push("figur");
+    if (ne("e") || ne("f") || ne("anim")) w.push("figur");
     if (ne("w") || ne("o") || ne("c")) w.push("welt");
     return w;
   }
@@ -273,7 +277,9 @@
     for (var e in FIGW) if (FIGW[e].test(s)) { o.figure = e; break; }
     if (o.has.indexOf("gegner") >= 0) o.foes = ["geh", "huepf"];
     if (o.has.indexOf("von_oben") >= 0 && /nur|only/.test(s)) o.has = ["von_oben", "muenzen"];
-    return E.build(o, base.seed);
+    var l = E.build(o, base.seed), an = C.animWords(text);
+    if (an ? an.art !== "keine" : base.anim) l.anim = C.sanitizeAnim(an || base.anim);   // an animation named by the wish, else the one it had
+    return l;
   }
   A.PANEL.LWish = function (p) {
     var ed = A.ed(), f = A.field(p, t("lf_ask"), "", 140, function () {}, true), res = el("div");
@@ -315,6 +321,7 @@
       b.setAttribute("aria-pressed", String(l.fp.indexOf(k) >= 0)); row.appendChild(b);
     });
     p.appendChild(row);
+    if (root.Blasen && root.Blasen.anim) root.Blasen.anim(p, function () { return lf().anim; }, function (a) { var d = A.ed().doc; if (a) d.l.anim = a; else delete d.l.anim; hand(d); A.changed(); });
   };
   A.PANEL.LWorld = function (p) {
     var l = lf(), b = A.chips(p, L.WORLDS.map(function (w) { return { v: w, l: t("lf_w_" + w) }; }), l.w, mod(function (x, v) { x.w = v; }));

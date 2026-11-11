@@ -353,6 +353,14 @@
     if (r.s && typeof o.o === "string" && /^[A-Za-z0-9_-]{22}$/.test(o.o)) r.o = o.o;
     return r;
   }
+  var GI_RE = /^[A-Za-z0-9_-]{22}\.(jpg|png)$/;
+  function sanitizeGi(o) {
+    if (!o || typeof o !== "object") return null;
+    var r = {};
+    if (typeof o.p === "string" && GI_RE.test(o.p)) r.p = o.p;
+    if (typeof o.l === "string" && GI_RE.test(o.l)) r.l = o.l;
+    return r.p || r.l ? r : null;
+  }
   function sanitizeDoc(o) {
     if (!o || typeof o !== "object" || KINDS.indexOf(o.k) < 0) return null;
     var d = { k: o.k, col: sanitizeColors(o.col, ["#ffd400", "#ff3b1d"]), by: sanitizeTrail(o.by) };
@@ -362,6 +370,9 @@
     var ki = sanitizeKi(o.ki); if (ki) d.ki = ki;
     // remix of a free card: its id (part deck)
     if (typeof o.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(o.fr)) d.fr = o.fr;
+    // gi: AI pictures made on request (CADS-DEMO-wrapper lib/duell-bild.mjs), only their server id, never the bytes:
+    // p the card's picture, l its logo. The page loads them from the gallery server like the day's pictures (app.js thumbUrl).
+    var gi = sanitizeGi(o.gi); if (gi) d.gi = gi;
     if (o.k === "card") {
       d.x = txt(o.x, MAX_TEXT); d.st = STYLES.card.indexOf(o.st) >= 0 ? o.st : "druck"; d.sk = sanitizeStickers(o.sk);
       var w = sanitizeWeather(o.w); if (w) d.w = w;
@@ -382,13 +393,17 @@
       Turns.sanitize(o, d);
     } else if (o.k === "table") {
       d.g = o.g === "skat" || o.g === "bauernskat" ? o.g : "doko";
+      // a free card of the table (src/frei.js, wrapper lib/duell-frei.mjs): only house rules its engine knows
+      var hr = { skat: ["ramsch", "kontra"], doko: ["dulle", "nosp"], bauernskat: ["null", "kontra"] }[d.g].filter(function (k) { return o.fa && Array.isArray(o.fa.r) && o.fa.r.indexOf(k) >= 0; });
+      if (hr.length) d.fa = { r: hr };
     } else if (o.k === "lauf") {
       d.l = Lauf.sanitize(o.l);   // the second engine (src/lauf.js), played in the part lauf
     } else {
-      var g = C.sanitizeState({ v: 1, seed: o.g && o.g.seed, params: o.g && o.g.params, theme: o.g && o.g.theme, title: o.g && o.g.title, emoji: o.g && o.g.emoji, look: o.g && o.g.look, route: o.g && o.g.route });
+      var g = C.sanitizeState({ v: 1, seed: o.g && o.g.seed, params: o.g && o.g.params, theme: o.g && o.g.theme, title: o.g && o.g.title, emoji: o.g && o.g.emoji, look: o.g && o.g.look, route: o.g && o.g.route, anim: o.g && o.g.anim });
       d.g = { seed: g.seed, params: g.params, theme: g.theme, title: g.title, emoji: g.emoji };
       if (g.look) d.g.look = g.look;
       if (g.route) d.g.route = g.route;
+      if (g.anim) d.g.anim = g.anim;
     }
     return d;
   }
@@ -460,7 +475,7 @@
     if (ne(a.a, b.a) || ne(a.b, b.b) || a.w !== b.w || a.q !== b.q) w.push("regeln");
     if (a.g && b.g) {
       if (ne(a.g.params, b.g.params)) w.push("regeln");
-      if (a.g.emoji !== b.g.emoji) w.push("figur");
+      if (a.g.emoji !== b.g.emoji || ne(a.g.anim, b.g.anim)) w.push("figur");
       if (a.g.theme !== b.g.theme || ne(a.g.look, b.g.look) || ne(a.g.route, b.g.route)) w.push("welt");
       if (a.g.title !== b.g.title) w.push("text");
     }
@@ -496,11 +511,17 @@
     }).slice(0, MAX_WALL).map(function (e) {
       var o = { id: e.id, ts: e.ts, th: e.th };   // f: the link of a work kept with Merken, only a c= fragment
       if (typeof e.f === "string" && e.f.length <= C.MAX_FRAGMENT && /^c=[A-Za-z0-9_-]+={0,2}$/.test(e.f)) o.f = e.f;
-      if (typeof e.k === "string" && /^[a-z]{1,12}$/.test(e.k)) o.k = e.k;   // k: what was made; "photo" never leaves the device (profile.js)
+      if (typeof e.k === "string" && /^[a-z]{1,12}$/.test(e.k)) o.k = e.k;
+      if (typeof e.h === "string" && /^[a-z0-9]{1,8}$/.test(e.h)) o.h = e.h;   // h: content hash of a finished card (addToWall)   // k: what was made; "photo" never leaves the device (profile.js)
       return o;
     });
   }
-  function addToWall(list, entry) { return sanitizeWall([entry].concat(list)); }
+  // The same work twice is one entry: an older one with the same content (h, the hash of the finished card, app.js
+  // makePicture; or the same Merken link f) makes way for the new one on top. Finishing the same card again ("Fertig",
+  // a feel-good card sent a second time) no longer piles up. h stays on the device (profile.js pack sends no h).
+  function addToWall(list, entry) {
+    return sanitizeWall([entry].concat((Array.isArray(list) ? list : []).filter(function (e) { return !e || !((entry.h && e.h === entry.h) || (entry.f && e.f === entry.f)); })));
+  }
 
   // Every text a person can read in an idea, for the content check.
   function ideaStrings(idea) {

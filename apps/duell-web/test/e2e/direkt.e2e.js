@@ -299,7 +299,7 @@ test("Nur Tastatur: eigene Karte mit Titel und Sticker bauen, verschieben, ferti
     const d = await p.evaluate(() => window.DailyDebug.doc());
     assert.equal(d.t, "Für Oma"); assert.equal(d.sk.length, 1);
     console.log("# Tab-Stopps von Schliessen bis Fertig (Reiter Sticker, ein Sticker gewaehlt): " + stops);
-    assert.ok(stops <= 26, "Tab-Stopps " + stops + " (Ziel unter 8 erst mit der Leiste in E2)");
+    assert.ok(stops <= 27, "Tab-Stopps " + stops + " (Ziel unter 8 erst mit der Leiste in E2)");   // 27: the brush in the header (Bearbeiten-Blasen, src/blasen-ebene.js) is one more stop
     assert.deepEqual(p.errs, []); await ctx.close();
   } finally { await b.close(); }
 });
