@@ -26,6 +26,10 @@ function short(r) {
 async function guard(ctx) {
   if (!ctx || ctx._nolive) return ctx;
   ctx._nolive = true;
+  // The editor's bubbles (src/blasen-ebene.js) hide the tab bar and the panel; the E2E runs written for the tab bar run in
+  // the mode "bubbles hidden" (the brush in the header, remembered per device), which stays a mode of the app. The bubble
+  // tests (blasen*.e2e.js) switch them on with an init script of their own, which runs after this one.
+  await ctx.addInitScript(() => { try { if (localStorage.getItem("daily.blasen") === null) localStorage.setItem("daily.blasen", "aus"); } catch (e) {} });
   await ctx.route(ORIGIN + "/api/s", short);
   await ctx.route(ORIGIN + "/api/s/**", short);
   // As the server (CADS-DEMO-wrapper #99): a vote without the gate cookie does not count and says so; everything else 204.

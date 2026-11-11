@@ -14,7 +14,7 @@ function stopAll() { clearTimeout(timer); clearInterval(timer); cancelAnimationF
 function setTabs(on) { $("tabs").hidden = !on; }
 
 /* ---------- drawing ---------- */
-function text(c, s, x, y, size, col, align) { c.font = "900 " + size + "px " + FONT; c.fillStyle = col; c.textAlign = align || "center"; c.textBaseline = "middle"; c.fillText(s, x, y); }
+function text(c, s, x, y, size, col, align) { c.font = "900 " + size + "px " + FONT; c.fillStyle = col; c.textAlign = align || "center"; c.textBaseline = "middle"; c.fillText(s, x, y); if (R.note) { var w = c.measureText(s).width; R.note(c, "worte", align === "left" ? x : x - w / 2, y - size / 2, w, size); } }
 function emoji(c, s, x, y, size) { if (R.exporting) { c.fillStyle = "rgba(0,0,0,.7)"; c.beginPath(); c.arc(x, y, size * 0.42, 0, 6.3); c.fill(); return; } c.font = size + "px " + EMO; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#000"; c.fillText(s, x, y); }
 function fit(c, s, w, size) { c.font = "900 " + size + "px " + FONT; var m = c.measureText(s).width; return m > w ? size * w / m : size; }
 function wrap(c, s, w, size) {
@@ -24,7 +24,9 @@ function wrap(c, s, w, size) {
 }
 function para(c, s, x, y, w, size, col, align) {
   var l = wrap(c, s, w, size); c.fillStyle = col; c.textAlign = align || "center"; c.textBaseline = "top";
-  l.forEach(function (line, i) { c.fillText(line, x, y + i * size * 1.22); }); return y + l.length * size * 1.22;
+  l.forEach(function (line, i) { c.fillText(line, x, y + i * size * 1.22); });
+  if (R.note) R.note(c, "worte", align === "left" ? x : x - w / 2, y, w, l.length * size * 1.22);   // words a bubble leaves free (src/teile.js)
+  return y + l.length * size * 1.22;
 }
 function backdrop(c, W, H, doc) {
   var a = doc.col[0], b = doc.col[1];

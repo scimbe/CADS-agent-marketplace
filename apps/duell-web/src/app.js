@@ -22,15 +22,21 @@ function onCol(h) {
   var y = 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2];
   return (y + 0.05) / 0.0556 >= 1.0092 / (y + 0.05) ? "#111111" : "#fffaf0";   // relative luminance: #111 0.0056, #fffaf0 0.9592
 }
-function setInk(a, b) {
-  var r = document.documentElement.style;
-  r.setProperty("--a", a); r.setProperty("--b", b); r.setProperty("--on", R.ink(a)); r.setProperty("--onb", onCol(b)); r.setProperty("--btn", R.lum(a) > 0.45 ? a : "#fffaf0");
-  var m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", a);
+// The app's colours (My style) sit on :root; a card's colours (card true) only on its own screens, so home, shelf and wall
+// keep the app's. The app's colours drop the last card's, and the browser bar follows the screen that is shown.
+var INKS = ["--a", "--b", "--on", "--onb", "--btn"];
+function setInk(a, b, card) {
+  (card ? ["editor", "done", "game"].map($) : [document.documentElement]).forEach(function (x) {
+    [a, b, R.ink(a), onCol(b), R.lum(a) > 0.45 ? a : "#fffaf0"].forEach(function (v, i) { x.style.setProperty(INKS[i], v); });
+  });
+  if (!card) ["editor", "done", "game"].forEach(function (s) { INKS.forEach(function (p) { $(s).style.removeProperty(p); }); });
+  barInk();
 }
+function barInk() { var m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", getComputedStyle($(screen)).getPropertyValue("--a").trim()); }
 function show(name, push) {
   ["home", "editor", "done", "shelf", "game"].forEach(function (s) { $(s).hidden = s !== name; });
   if (name !== "home") G.stopDemo();
-  screen = name; document.body.setAttribute("data-state", name === "game" ? "ready" : name);
+  screen = name; barInk(); document.body.setAttribute("data-state", name === "game" ? "ready" : name);
   if (push) { try { history.pushState({ s: name }, "", location.href); } catch (e) {} }
 }
 function clearLink() { try { if (location.hash) history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
@@ -430,7 +436,7 @@ var TABS = {}, PANEL = {};
 var cv = $("stage"), timer = 0, notoAsked = false;
 function paint() {
   timer = 0; if (!ed) return;
-  ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1]);
+  ed.doc.col = ed.doc.col; setInk(ed.doc.col[0], ed.doc.col[1], true);
   if (ed.doc.k === "game") G.update(ed.doc.g && gameState()); else { R.draw(cv, ed.doc, { me: me, photo: ed.photo, peaks: ed.peaks, x: ed.x, lyr: ed.lyr }); }
   // The first sticker in the editor (added, or in a doc that came in) asks for noto, so the picture need not wait for it.
   if (!notoAsked && ed.doc.sk && ed.doc.sk.length && window.Parts.names().indexOf("noto") >= 0) { notoAsked = true; window.Parts.need("noto").catch(function () {}); }
@@ -442,7 +448,7 @@ function changed() {           // every control ends up here: redraw within the 
 function gameState() { return C.sanitizeState(Object.assign({ v: 1 }, ed.doc.g, { ki: ed.doc.ki })); }
 function playGame() { Kit.sfx.thud(); G.stop(); show("game", true); G.play(gameState(), null, { own: touched() }); }
 // A game state (played, or from a challenge) back into a sheet: route and AI mark go along.
-function gameDoc(s) { var d = { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji, route: s.route } }; if (s.ki) d.ki = s.ki; return d; }
+function gameDoc(s) { var d = { k: "game", col: me.colors, by: [], g: { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji, route: s.route, anim: s.anim } }; if (s.ki) d.ki = s.ki; return d; }
 function areas() { var w = D.changedAreas(ed.base, ed.doc); if (X[ed.doc.k] && X[ed.doc.k].areas) w = w.concat(X[ed.doc.k].areas(ed)); if (ed.ownPhoto) w.push("foto"); if (ed.ownVoice) w.push("stimme"); return w; }
 function touched() { var ok = areas().length > 0; return ed.own ? ok && !!ed.doc.t : ok; }
 // The idea of the day can go out as it is; only a blank one needs something of your own first.
@@ -663,7 +669,8 @@ async function makePicture(doc, idea, pictureDoc) {
   var url = D.docUrl(doc);
   result = { url: url, file: file, name: name, png: png, keep: mine, canvas: c, kind: doc.k, doc: doc };
   var made = pictureDoc || doc;
-  wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: thumb(c), k: made.k === "photo" || photo ? "photo" : made.k }); store.wall = wall; Kit.save();
+  var th = thumb(c), h = C.hash32(url + "|" + (pictureDoc ? D.docUrl(pictureDoc) : "") + (photo ? "|" + th : "")).toString(36);   // h: the same card again is one entry (D.addToWall)
+  wall = D.addToWall(wall, { id: idea || doc.i || "own", ts: Date.now(), th: th, h: h, k: made.k === "photo" || photo ? "photo" : made.k }); store.wall = wall; Kit.save();
   if (!Kit.persisted) Kit.toast(t("wallFull"));
   var img = $("doneimg"); if (img.src) URL.revokeObjectURL(img.src); img.src = URL.createObjectURL(png); img.alt = cardName(made) || t("a_preview");
   $("playit").hidden = true;   // a card is not a level: whoever does not fly far would never see it
@@ -765,7 +772,7 @@ $("edsave").addEventListener("click", function () {
   }
   store.wall = wall; Kit.save(); saveMark();
 });
-$("shback").addEventListener("click", function () { Kit.sfx.tap(); if (!backFromStyle()) goHome(); });
+$("shback").addEventListener("click", function () { Kit.sfx.tap(); if (bigAt && screen === "shelf") { history.back(); return; } if (!backFromStyle()) goHome(); });
 // My style opened from the editor returns there with the work intact; new colours apply unless they were chosen by hand.
 function backFromStyle() {
   if (!ed || !ed.styling) return false;
@@ -846,7 +853,7 @@ function reportKi(h) {
   reporting = true;
   window.Parts.use("melden", function () { reporting = false; if (home === h && screen === "home") window.Melden.open(h.doc, h.link); }).catch(function () { reporting = false; });
 }
-function shelf(title, fill) { shelves++; stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
+function shelf(title, fill) { shelves++; bigAt = null; stopSound(); G.stop(); $("shtitle").textContent = title; var b = $("shbody"); b.textContent = ""; fill(b); show("shelf", true); }
 function openAiWall() { ed.styling = true; shelf(t("aiTitle"), function (b) { window.Ai.wall(b, el); }); }
 // The last week, and above it a search over every sheet: one word, one tap on a hit, and that sheet is back.
 function openPast() {
@@ -876,29 +883,56 @@ function openPast() {
     if (shown("f_create")) window.Deck.btn(b);
   });
 }
-function openWall(which) {
-  shelf(t("wall"), function (b) {
-    var links = window.ShortLink.kept(store.links, Date.now()), tabs = el("div", "chips walltabs");
-    [["wall", t("wall")], ["links", t("invites") + " (" + links.length + ")"]].forEach(function (x) {
-      var on = (which || "wall") === x[0], c = el("button", "chip" + (on ? " on" : ""), x[1], function () { Kit.sfx.tap(); openWall(x[0]); });
-      c.setAttribute("role", "tab"); c.setAttribute("aria-selected", String(on)); tabs.appendChild(c);
-    });
-    b.appendChild(tabs);
-    if (which === "links") { invites(b, links); return; }
-    if (!wall.length) { b.appendChild(el("div", "empty", t("wallEmpty"))); return; }
-    var g = el("div", "wallgrid");
-    wall.forEach(function (w, i) {
-      var c = el("button", "", null, function () {
-        Kit.sfx.tap(); b.textContent = ""; var im = el("img", "big"); im.src = w.th; im.alt = ""; b.appendChild(im);
-        var r = w.f ? D.parseRoute("#" + w.f) : null;
-        if ((r && r.type === "doc") || two("#" + w.f)) b.appendChild(el("button", "btn hot", t("openAgain"), function () { Kit.sfx.thud(); if (two("#" + w.f)) window.Parts.use(two("#" + w.f), function () { again(w.f); }).catch(function () {}); else again(w.f); }));
-        b.appendChild(el("button", "btn", t("gone"), function () { wall.splice(i, 1); store.wall = wall; Kit.save(); openWall(); }));
-      });
-      var im = el("img"); im.src = w.th; im.alt = ""; c.appendChild(im); g.appendChild(c);
-    });
-    b.appendChild(g);
+// The wall. A picture opens large as a history step of its own, so ✕ and Back return to the grid where it was (bigAt).
+// Taking a picture off happens at once; for 6 s a bar offers "Rückgängig" instead of asking first.
+var bigAt = null, undo = null;
+function openWall(which) { shelf(t("wall"), function (b) { wallFill(b, which); }); }
+function wallFill(b, which) {
+  var links = window.ShortLink.kept(store.links, Date.now()), tabs = el("div", "chips walltabs");
+  [["wall", t("wall")], ["links", t("invites") + " (" + links.length + ")"]].forEach(function (x) {
+    var on = (which || "wall") === x[0], c = el("button", "chip" + (on ? " on" : ""), x[1], function () { Kit.sfx.tap(); openWall(x[0]); });
+    c.setAttribute("role", "tab"); c.setAttribute("aria-selected", String(on)); tabs.appendChild(c);
   });
+  b.appendChild(tabs);
+  if (which === "links") { invites(b, links); return; }
+  if (undo && Date.now() - undo.at < 6000) {
+    var u = undo, bar = el("div", "", t("wallGone"));
+    bar.setAttribute("role", "status");
+    bar.style.cssText = "position:sticky;top:0;z-index:2;display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--ink);color:#fff;padding:6px 6px 6px 14px;margin-bottom:10px";
+    var ub = el("button", "", "↶ " + t("skUndo"), function () {
+      Kit.sfx.pop(); undo = null; wall.splice(Math.min(u.i, wall.length), 0, u.e); wallSave(); wallAgain();
+    });
+    ub.style.cssText = "min-height:44px;padding:0 14px;white-space:nowrap;border:0;background:#fff;color:#111;font:800 1rem var(--ui)";
+    bar.appendChild(ub); b.appendChild(bar);
+    setTimeout(function () { if (undo === u) undo = null; bar.remove(); }, 6000 - (Date.now() - u.at));
+  }
+  if (!wall.length) { b.appendChild(el("div", "empty", t("wallEmpty"))); return; }
+  var g = el("div", "wallgrid inv");
+  wall.forEach(function (w) {
+    var cell = el("div", "invcell"), c = el("button", "", null, function () {
+      Kit.sfx.tap(); bigAt = { which: which, y: $("shbody").scrollTop };
+      try { history.pushState({ s: "shelf", big: 1 }, "", location.href); } catch (e) {}
+      b.textContent = ""; var im = el("img", "big"); im.src = w.th; im.alt = ""; b.appendChild(im);
+      var r = w.f ? D.parseRoute("#" + w.f) : null;
+      if ((r && r.type === "doc") || two("#" + w.f)) b.appendChild(el("button", "btn hot", t("openAgain"), function () { Kit.sfx.thud(); bigAt = null; if (two("#" + w.f)) window.Parts.use(two("#" + w.f), function () { again(w.f); }).catch(function () {}); else again(w.f); }));
+      b.appendChild(el("button", "btn", "✕ " + t("gone"), function () { wallOff(w); history.back(); }));
+      $("shbody").scrollTop = 0;
+    });
+    var im = el("img"); im.src = w.th; im.alt = ""; c.appendChild(im);
+    var x = el("button", "invx", "✕", function () { wallOff(w); wallAgain(); });
+    x.setAttribute("aria-label", t("gone"));
+    cell.appendChild(c); cell.appendChild(x); g.appendChild(cell);
+  });
+  b.appendChild(g);
 }
+function wallSave() { wall = D.sanitizeWall(wall); store.wall = wall; Kit.save(); }   // Kit.save also syncs a linked profile (profile.js): gone there too
+function wallOff(w) { var i = wall.indexOf(w); if (i < 0) return; Kit.sfx.tap(); wall.splice(i, 1); undo = { e: w, i: i, at: Date.now() }; wallSave(); }
+// The grid again in place (after taking a picture off, undoing, or leaving the large view): same tab, same scroll.
+function wallAgain(at) {
+  var b = $("shbody"), y = at ? at.y : b.scrollTop; b.textContent = ""; wallFill(b, at ? at.which : "wall"); b.scrollTop = y;
+}
+// ✕ or Back in the large view: one step back in history; popstate brings the grid (wallBack).
+function wallBack() { if (!bigAt || screen !== "shelf") return false; var at = bigAt; bigAt = null; wallAgain(at); return true; }
 // A saved work opened again; a turn card that checks a signature first (prepare) waits for it.
 function again(f) {
   var r = D.parseRoute("#" + f), pre = r && r.type === "doc" && r.doc.k === "turn" && window.Turns.game(r.doc).prepare, wait = pre && pre(r.doc);
@@ -1016,7 +1050,7 @@ document.addEventListener("keydown", function (e) {
   x = { editor: "edback", shelf: "shback", game: "gback", done: "dback" }[screen];
   if (x && !$(x).hidden) { e.preventDefault(); $(x).click(); }
 });
-window.addEventListener("popstate", function () { if (window.ArcadeUI && window.ArcadeUI.back()) return; if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
+window.addEventListener("popstate", function () { if (window.ArcadeUI && window.ArcadeUI.back()) return; if (window.Blasen && window.Blasen.back && window.Blasen.back()) return; if (wallBack()) return; if (screen !== "home" && !location.hash && !backFromPlay() && !backFromStyle()) goHome(); });   // with a hash, hashchange decides
 
 function route() {
   // The call card ("Ruf mich an, wenn du mich wirklich kennst", #p=<invite>&k=<card>) was struck with the shelf clean-up
@@ -1100,7 +1134,7 @@ var CU = window.CollabUI.init({
 
 
 var X = window.DailyModes = {};
-window.DailyApp = { free: resumeFree, played: function (e) { played = e; }, part: twoIdea, stopSound: stopSound, playPcm: function (pcm) { stopSound(); return (loop = Kit.playPcm(pcm, S.SR, false)); }, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, res: function () { return result; }, count: function (way) { counted(result, way); }, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, gameState: gameState, playGame: playGame, markKi: markKi, ideaText: ideaText, beatPeaks: beatPeaks, playBeat: playBeat, playing: function () { return !!loop; }, picSwap: picSwap, picThumb: picThumb, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
+window.DailyApp = { free: resumeFree, played: function (e) { played = e; }, part: twoIdea, stopSound: stopSound, playPcm: function (pcm) { stopSound(); return (loop = Kit.playPcm(pcm, S.SR, false)); }, style: { save: saveMe, ink: setInk, EMOJI: EMOJI, PAIRS: PAIRS, seeded: seeded, roll: roll, konto: konto, fit: function () { if (screen === "home") fitHero(); }, open: openStyle }, reportKey: reportKey, res: function () { return result; }, count: function (way) { counted(result, way); }, aiBlock: aiBlock, footer: function () { if (ed) footer(); }, unpic: function () { loadPic(document.querySelector("#leaf .pv"), document.querySelector("#leaf .pvimg"), null); }, prefUse: prefUse, savePref: function (f) { me.pref = D.sanitizePref(f); if (!Object.keys(me.pref).length) delete me.pref; saveMe(); }, prefContext: function (keys) { return D.prefContext(me, Kit.lang, keys); }, TABS: TABS, PANEL: PANEL, gameState: gameState, playGame: playGame, markKi: markKi, ideaText: ideaText, beatPeaks: beatPeaks, playBeat: playBeat, playing: function () { return !!loop; }, picSwap: picSwap, picThumb: picThumb, SK: SK, setDoc: setDoc, paint: paint, el: el, field: field, chips: chips, colors: colors, changed: changed, tab: tab, finish: finish, areas: areas, me: function () { return me; }, ed: function () { return ed; }, openEditor: openEditor, startTab: function (k) { start(k); }, quick: quick, home: function () { return home; }, sheet: function (h) { home = h; goHomeKeep(); }, shelf: shelf, show: show, goHome: goHome, cv: cv, game: G, setGame: function (st, rival) { G.stop(); show("game", true); G.play(st, rival, { own: true }); } };
 
 window.DailyApp.allow = allow;
 
