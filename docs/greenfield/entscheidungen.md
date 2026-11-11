@@ -15,3 +15,5 @@
 | 2026-11-11 | Keine Vermischung alter und neuer Quellen; Altcode nach Umschaltung aus `main` entfernen | User |
 | 2026-11-11 | Bei jedem Schritt aktuelle Forschung recherchieren und Best-Practice-Lösungen ableiten (`08-forschung/`) | User |
 | 2026-11-11 | Eine Sprecher-Session vermittelt mit dem User, leitet nicht | User |
+| 2026-11-11 | Architekturziel: hinter einer Domain per Load Sharing und Sharding auf mehrere Systeme verteilbar, Lastspitzen auch hybrid (Cloud) abfangen | User |
+| 2026-11-11 | Builds/Tests auf labor-setup.de auslagern (28 Kerne, 62 GB); labor-setup.com nur mit Rücksicht auf die Praktikums-LLM | User |

@@ -9,3 +9,16 @@
 7. **Harness:** Belohnung = Übereinstimmung mit eingefrorenem, menschlich bewertetem Gold; Judge wird dagegen kalibriert.
 
 Nur FOSS. State-Machine: XState vs. kleine eigene Implementierung, Entscheidung nach Bundle-Budget.
+
+## Verbindliches Ziel: Skalierung hinter einer Domain
+
+User (Wortlaut): „Ziel in der Architektur muss sein, das das system hinter einer domain über loadsharign und sharding auf verschiede systeme aufgeteilt werden kann um nutzungspitzen auch mit hybirden cloud strukturen abzufangen“
+
+Folgerungen für den Entwurf (werden in der Bewertung mit Forschung/Best Practice belegt):
+- **Zustandslose App-Schicht:** Jede Instanz kann jede Anfrage bedienen (12-Factor); Sitzungs- und Kontozustand liegt nicht im Prozess.
+- **Load Sharing** über einen L7-Eingang vor der Domain (FOSS, z. B. HAProxy/Traefik/Envoy; Health-Checks, Drain beim Deploy).
+- **Sharding des Zustands** nach stabilem Schlüssel (Konto-ID für Guthaben/Karten, Kanal-ID für Live-Signalisierung), z. B. Consistent/Rendezvous Hashing; Kanal-Affinität nur dort, wo Signalisierung es braucht.
+- **Hybride Kapazität:** dieselben Container laufen on-prem (ssh-united, labor-setup.de), im ICC-Kubernetes und bei Bedarf in einer Cloud; Burst-Kapazität wird über den Eingang zugeschaltet.
+- **Teure Dienste entkoppelt** (Haiku-Erzeugung, Bilder, Code-Playtests) über Warteschlangen mit Rückdruck und ehrlicher „busy“-Antwort statt Überlast.
+- **Statische Teile** (Client-Bundle) über CDN/Cache, unabhängig von der App-Schicht.
+- **Portabilität:** OCI-Container, Konfiguration über Umgebung, keine anbieterspezifischen APIs im Kern.
