@@ -40,7 +40,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // The preview pictures (scripts/shots.js) come in parts of their own, bilda, bildb … (checked below).
   const shotParts = Object.keys(man).filter((n) => /^bild[a-z]$/.test(n));
   assert.ok(shotParts.length >= 1, "Vorschaubilder fehlen");
-  assert.deepEqual(Object.keys(man).filter((n) => shotParts.indexOf(n) < 0).sort(), ["blasen", "dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "lauf", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "robot", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(Object.keys(man).filter((n) => shotParts.indexOf(n) < 0).sort(), ["blasen", "dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "lauf", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "robot", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "warten", "welt", "wetter"]);
   // The new start (redesign wave 1) is a part: its code, keywords and words only there, in the core only the hooks.
   const startBody = fs.readFileSync(partFiles().find((f) => /\/start\.[0-9a-f]{12}\.js$/.test(f)), "utf8");
   assert.match(startBody, /root\.StartUI = \{/); assert.match(startBody, /root\.StartIntent = api/); assert.match(startBody, /window\.StartTexts=\{"de":\{"st_ask":"Wem willst du heute eine Freude machen\?"/);
@@ -91,7 +91,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   console.log("Byte-Budget: Kern + vorgeladene Teile " + preload + " B (< " + 1.75 * 1024 * 1024 + "), nur bei Bedarf " + onDemand + " B (<= " + ONDEMAND_MAX + "): " + Object.keys(man).filter((n) => ONDEMAND.includes(n)).join(", "));
   assert.ok(preload < 1.75 * 1024 * 1024, "Kern + vorgeladene Teile: " + preload);
   assert.ok(onDemand <= ONDEMAND_MAX, "Teile nur bei Bedarf: " + onDemand);
-  assert.deepEqual(ONDEMAND, ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten", "robot"], "Liste nur bei Bedarf");
+  assert.deepEqual(ONDEMAND, ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten", "warten", "robot"], "Liste nur bei Bedarf");
   for (const n of ["noto", "dart", "klang"]) assert.ok(man[n], "Teil nur bei Bedarf fehlt im Manifest: " + n);
   assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(ONDEMAND\.indexOf\(n\) < 0 && !\/\^bild\[a-z\]\$\/\.test\(n\)\) need\(n\)/, "Teile aus ONDEMAND und die Vorschaubilder nicht im Leerlauf-Vorladen");
   assert.match(src("app.js"), /=== "voice"\) window\.Parts\.need\("klang"\)/, "klang kommt mit einem Stimm-Blatt");
@@ -152,6 +152,10 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // the core keeps the empty A.TABS/A.PANEL others add to, the stand-in tab() and the hook in openEditor.
   assert.match(part("blasen"), /root\.Blasen = \{ open: open, tab: tab, PANEL: PANEL/); assert.match(part("blasen"), /^Wish: function \(p\) \{$/m); assert.match(part("blasen"), /^function beatPanel\(p\) \{$/m);
   assert.deepEqual(man.blasen.d, []); assert.ok(ONDEMAND.includes("blasen"));
+  // A3b: the parts of a card (src/teile.js) and their bubbles (src/blasen-ebene.js) come with it, in this order; never in the core
+  const bl = part("blasen");
+  assert.ok(bl.indexOf("else root.Teile = api") >= 0 && bl.indexOf("else root.Teile = api") < bl.indexOf("root.Blasen = {") && bl.indexOf("root.Blasen = {") < bl.indexOf("B.open = function (opt) {") && bl.indexOf("B.open = function (opt) {") < bl.indexOf("B.dialog = { open: open"), "Teile, Blasen, Ebene, Dialog im Teil blasen");
+  assert.ok(!/root\.Teile = api|B\.ebene = \{/.test(html), "Teile und Blasen-Ebene nicht im Kern");
   assert.ok(!/Wish: function \(p\) \{|function beatPanel\(|function didLine\(|card: \["Text", "Style", "Color", "Sticker"\]/.test(html), "Reiter und Blasen nur im Teil");
   assert.match(html, /var TABS = \{\}, PANEL = \{\};/); assert.match(html, /window\.Parts\.use\("blasen", function \(\) \{ if \(ed === mine\)/);
   assert.ok(!/root\.EditModel = api|root\.Regeln = api|window\.DirektData=/.test(html), "Editor-Teile nicht im Kern");

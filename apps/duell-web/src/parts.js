@@ -84,10 +84,10 @@
   // 110 KB): the editor asks at its first sticker (app.js paint); offline without it the picture is made without stickers.
   // dart (the dartboard, about 50 KB): a dart card or link (app.js two()). klang (Stimme verzerren, about 27 KB): a voice
   // sheet when it is shown (app.js setHome). lauf, blasen, bahn, raten: the game engines of the free card, each asked for
-  // by its own card or link. A name without a part in this build stays harmless. Nor the preview pictures (bilda, bildb …,
+  // by its own card or link. warten (the waiting screen of the free card, a few KB): its form (create-ui.js). A name without a part in this build stays harmless. Nor the preview pictures (bilda, bildb …,
   // about 80 KB each): the start page asks for a part when one of its pictures comes into sight (start-ui.js shots);
   // offline without it a tile shows its title on its colour.
-  var ONDEMAND = ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten", "robot"];
+  var ONDEMAND = ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten", "warten", "robot"];
   if (/^https?:$/.test(location.protocol) && location.hostname !== "appassets.androidplatform.net") {
     root.addEventListener("load", function () {
       (root.requestIdleCallback || function (f) { return setTimeout(f, 1500); })(function () {

@@ -179,8 +179,21 @@ test("Wand: nur gueltige Eintraege, Deckel, keine fremden Bildquellen", () => {
   const ok = { id: D.IDEAS[0].id, ts: 1, th: "data:image/jpeg;base64,AAAA" };
   assert.deepEqual(D.sanitizeWall([ok, { ...ok, th: "https://evil/x.png" }, { ...ok, id: "x" }, null]), [ok]);
   assert.deepEqual(D.sanitizeWall("kaputt"), []);
-  let l = []; for (let i = 0; i < 50; i++) l = D.addToWall(l, { ...ok, ts: i });
+  let l = []; for (let i = 0; i < 50; i++) l = D.addToWall(l, { ...ok, ts: i, th: "data:image/jpeg;base64," + "A".repeat(i + 1) });
   assert.equal(l.length, D.MAX_WALL); assert.equal(l[0].ts, 49);
+});
+test("Wand: dieselbe Karte zweimal fertig ist ein Eintrag, der neue oben; andere Karte oder anderer Merken-Link bleibt", () => {
+  const id = D.IDEAS[0].id, th = "data:image/jpeg;base64,AAAA", th2 = "data:image/jpeg;base64,AAAB";
+  let l = D.addToWall([], { id, ts: 1, th, h: "abc12" });
+  l = D.addToWall(l, { id, ts: 2, th, h: "zz9" });
+  l = D.addToWall(l, { id, ts: 3, th: th2, h: "abc12" });   // the same card finished again, the picture a little different (a font came late)
+  assert.deepEqual(l.map((e) => e.ts), [3, 2], "kein Doppel, der neue Eintrag oben");
+  assert.equal(l[0].h, "abc12", "h bleibt im Geraetespeicher");
+  l = D.addToWall(l, { id, ts: 4, th, f: "c=eyJrIjoxfQ" });
+  l = D.addToWall(l, { id, ts: 5, th: th2, f: "c=eyJrIjoxfQ" });   // the same Merken link, picture drawn anew
+  assert.deepEqual(l.map((e) => e.ts), [5, 3, 2]);
+  assert.equal(D.addToWall(l, { id, ts: 6, th }).length, 4, "ohne h und f kommt ein Eintrag dazu");
+  assert.equal(D.sanitizeWall([{ id, ts: 1, th, h: "<b>" }])[0].h, undefined, "nur ein kurzer Hash");
 });
 
 test("Regal-Bereinigung (2026-11): freie Kalendertage gehen an den Traeger oder in die Runde, nie an eine entfernte Karte", () => {
