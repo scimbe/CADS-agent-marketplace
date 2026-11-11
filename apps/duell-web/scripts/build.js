@@ -57,6 +57,7 @@ const WORDS = {
   melden: /^ki(Ask|Consent|Why|Why_[a-z]+|Send|Cancel|Close|Thanks|Offline)$/,
   wetter: /^wx[A-Z]/,
   klang: /^(kl_[a-z_]+|rec|recing|dummy|sh_voice)$/,
+  push: /^pu_/,
 };
 const partTexts = {}, coreTexts = {};
 for (const n of Object.keys(WORDS)) partTexts[n] = {};
@@ -100,6 +101,7 @@ const PARTS = {
   blasen: { d: [], src: ["TEILE", "BLASEN", "EBENE", "DIALOG", "BSTART"] },                                              // R4/A3b: the editor's tab bar and panels (src/blasen.js), the parts of a card (src/teile.js) and their bubbles (src/blasen-ebene.js), only on demand (parts.js ONDEMAND): openEditor asks for it
   lauf: { d: [], src: ["LAUFDATA", "LAUFENGINE", "LAUFUI"] },                                          // the second game engine: runner and platformer (doc.k "lauf", src/lauf.js)
   kibild: { d: [], src: ["KIBILDDATA", "KIBILD"] },                                                    // KI-Bilder auf Wunsch: window.KiBild (src/kibild.js), only on demand (parts.js ONDEMAND)
+  push: { d: [], src: ["PUSHDATA", "PUSH"] },                                                          // "Bescheid geben": channel, our own opt-in dialog, the row in My style (src/push.js)
 };
 // The weather card's block (src/wetter.js); not built for a flavor whose catalog has no cards (Daily Business: turns only).
 // Stickers in the finished picture (src/noto.js, Noto Emoji sheet src/noto-stickers.png); only where cards and photo posters
@@ -176,6 +178,7 @@ if (PARTS.start) { const sd = json("src/start.json"); parts.STARTDATA = "window.
 parts.BLASEN = read("src/blasen.js"); parts.TEILE = read("src/teile.js"); parts.EBENE = read("src/blasen-ebene.js"); parts.BSTART = read("src/blasen-start.js"); parts.DIALOG = read("src/blasen-dialog.js");
 parts.FREI = read("src/frei.js"); parts.ROBOTUI = read("src/robot-ui.js");
 parts.TEXTE = read("src/texte.js");
+parts.PUSHDATA = "window.PushTexts=" + JSON.stringify(partTexts.push) + ";" + merge("PushTexts"); parts.PUSH = read("src/push.js");
 parts.CREATEUI = "window.CreateTexts=" + JSON.stringify(createTexts) + ";" + merge("CreateTexts") + "\n;\n" + read("src/create-ui.js");
 parts.TEXTEDATA = "window.TexteData=" + JSON.stringify(json("src/texte.json")) + ";";
 parts.QUIZDATA = "window.QuizPacks=" + JSON.stringify(json("src/quiz-packs.json")) + ";";
@@ -190,7 +193,7 @@ let html = read("src/index.template.html").replace("/*@CSS@*/", () => fontCss + 
 if (conf) html = html.replace(/<title>[^<]*<\/title>/, () => "<title>" + conf.title + "</title>").replace(/(name="theme-color" content=")[^"]*/, (m, a) => a + conf.theme);
 // Our own sources lose their comment-only lines (about 55 KB) and their indentation (about 30 KB) in the page; third-party
 // code (QR code) and the data stay as they are. Safe because no own source has a string or template spanning lines.
-const KEEP = new Set(["STARTDATA", "DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "DARTDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "KIBILDDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "LAUFDATA", "NOTODATA", "KLANGDATA", "DECKTEXTS"]);
+const KEEP = new Set(["STARTDATA", "DATA", "STIMMEDATA", "FEIERDATA", "MALRATDATA", "DARTDATA", "QRCODE", "LICENSES", "TEXTEDATA", "QUIZDATA", "QUIZSPIELEDATA", "KATALOG", "KALENDERDATA", "KONTODATA", "STILDATA", "MELDENDATA", "KIBILDDATA", "WETTERDATA", "DIREKTDATA", "REGLERDATA", "LAUFDATA", "NOTODATA", "KLANGDATA", "DECKTEXTS", "PUSHDATA"]);
 // A comment after code on the same line goes too (about 18 KB), only when it follows ; { } ) or , and has no quote, slash or
 // backslash in it: such a "//" can never stand inside a string, template or regex (no own string spans lines, see above).
 const lean = (s) => s.split("\n").filter((l) => !/^\s*\/\/(?![#@])/.test(l)).map((l) => l.replace(/^[ \t]+/, "").replace(/([;{}),])[ \t]+\/\/ [^"'`/\\]*$/, "$1")).join("\n");
@@ -233,6 +236,8 @@ let ph = read("src/protokoll.template.html");
 for (const k of Object.keys(prot)) ph = ph.replace("/*@" + k + "@*/", () => (k === "CSS" ? prot[k] : safe(prot[k])));
 put("protokoll.html", ph);
 put("protokoll-worker.js", read("src/protokoll-worker.js"));
+// The push service worker (src/push-sw.js): a file of its own, served at /duell/push-sw.js with scope /duell (CADS-DEMO-wrapper).
+put("push-sw.js", read("src/push-sw.js"));
 // The stamp last: scripts/ensure-build.js skips a build whose stamp still matches the sources.
 put(".stamp", STAMP);
 fs.rmSync(tmpDir, { recursive: true, force: true });

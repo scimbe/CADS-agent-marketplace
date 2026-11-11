@@ -1016,6 +1016,8 @@ window.addEventListener("daily:lang", function () {
 $("host").addEventListener("click", function () { Kit.sfx.tap(); try { window.DuellHost.more(); } catch (e) {} });
 $("mute").addEventListener("click", function () { Kit.muted = !Kit.muted; store.muted = Kit.muted; Kit.save(); labels(); Kit.sfx.tap(); });
 $("me").addEventListener("click", function () { Kit.sfx.tap(); openStyle(); });
+// "Bescheid geben" is on: renew the mark quietly (src/push.js); it expires after 30 days without this.
+if (Kit.store.push) window.Parts.need("push").then(function () { return window.DuellPush.renew(); }).catch(function () {});
 $("edstyle").addEventListener("click", function () { Kit.sfx.tap(); ed.styling = true; openStyle(); });
 $("more").addEventListener("click", function () { tear(1); });
 $("past").addEventListener("click", function () { Kit.sfx.tap(); openPast(); });

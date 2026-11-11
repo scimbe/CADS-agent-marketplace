@@ -48,7 +48,7 @@ test("file:// (Apps, Tests): Start nur mit dem Katalog-Teil; Spiele-Regal holt A
   await p.locator("#stdata summary").click(); await p.getByRole("button", { name: "Lizenzen" }).click();   // under "Konto & Daten"
   await p.getByText(/SIL OPEN FONT LICENSE Version 1\.1/).waitFor();
   // My style comes as the part stil, which brings its account card (konto) first; the button its licence texts
-  assert.deepEqual(await own(), ["katalog", "start", "stimme", "play", "konto", "stil", "direkt", "licenses"], "Mein Stil holt auch direkt (Schalter Einfache Sprache)");
+  assert.deepEqual(await own(), ["katalog", "start", "stimme", "play", "konto", "stil", "direkt", "push", "licenses"], "Mein Stil holt auch direkt (Schalter Einfache Sprache)");
   assert.deepEqual(errs, []); await b.close();
 });
 
@@ -98,7 +98,7 @@ test("Web /duell: nach dem Laden alle Teile ausser denen nur bei Bedarf (noto, d
     assert.ok(await p.evaluate((n) => !window.Parts.ready(n), n), n + " nicht vorab");
     assert.ok(!got.some((s) => s.src.startsWith(n + ".")), n + " nach 10 s Leerlauf nicht geladen");
   }
-  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["blasen", "daten", "deck", "direkt", "erschaffen", "katalog", "konto", "licenses", "logik", "malen", "melden", "play", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(got.map((s) => s.src.split(".")[0]).sort(), ["blasen", "daten", "deck", "direkt", "erschaffen", "katalog", "konto", "licenses", "logik", "malen", "melden", "play", "push", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
   for (const s of got) assert.match(s.sri, /^sha384-[A-Za-z0-9+/]{64}$/, s.src);
   await p.evaluate(() => window.Parts.need("noto"));   // asked for (as the editor does): also with its SRI hash
   assert.match((await loaded(p)).find((s) => /^noto\./.test(s.src)).sri, /^sha384-[A-Za-z0-9+/]{64}$/);
