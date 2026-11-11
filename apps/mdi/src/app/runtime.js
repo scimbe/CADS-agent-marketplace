@@ -102,6 +102,7 @@ export function createRuntime(deps) {
         });
         break;
       case "konto.login":
+        if (deps.setLook) deps.setLook(state.ctx.me && state.ctx.me.colors);   // Anmeldeseite im Look von My Daily Idea
         if (!api || !deps.navigate || !deps.navigate(api.loginHref(ret(), state.ctx.lang))) schedule(() => dispatch({ type: "NAV_FAIL", reason: "nicht-hier" }));
         break;
       case "konto.logout":

@@ -132,3 +132,12 @@ test("Ehrliche Fehler: ohne Server-Seite (file://) kein Netzaufruf, offline = ne
   assert.equal((await bad({ st: "ok", notices: [{ nid: "x" }] }).modMe()).error, "server", "kaputter Hinweis");
   assert.equal((await bad({}, 500).status(DEV)).error, "server");
 });
+
+test("lookCookie: Anmeldeseite im Look von My Daily Idea, nur auf bunsenbrenner.org, nur zwei Farben", async () => {
+  const { lookCookie } = await import("../src/broker/api.js");
+  assert.equal(lookCookie(["#1D4ED8", "#FFD400"], "demos-34a13a96.bunsenbrenner.org"), "ct_look=daily.1d4ed8.ffd400; Domain=bunsenbrenner.org; Path=/; Max-Age=86400; Secure; SameSite=Lax");
+  assert.match(lookCookie(["rot", "<x>"], "bunsenbrenner.org"), /^ct_look=daily\.ffd400\.ff3b1d;/);
+  assert.equal(lookCookie(["#111111", "#222222"], ""), null);
+  assert.equal(lookCookie(["#111111", "#222222"], "evilbunsenbrenner.org"), null);
+  assert.equal(lookCookie(["#111111", "#222222"], "localhost"), null);
+});

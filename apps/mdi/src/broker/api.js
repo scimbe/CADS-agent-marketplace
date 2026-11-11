@@ -44,6 +44,17 @@ export function safeReturn(p) { return typeof p === "string" && /^\/[\x21-\x7e]*
  * @param {{protocol:string, host:string}} deps.location   Ort der Seite (nur http(s) hat einen Server)
  * @param {number} [deps.timeout]
  */
+/** Look der Anmeldeseiten (Keycloak/Gate, CADS-Tunnel #890): Cookie ct_look = "daily.<hintergrund>.<akzent>" fuer
+ *  bunsenbrenner.org, direkt vor dem Sprung zum Gate gesetzt (wie die alte App, profile.js lookCookie). Nur die zwei Farben
+ *  reisen. Abseits von bunsenbrenner.org (file:, App-Huellen, Tests) -> null, es wird nichts gesetzt. */
+export function lookCookie(colors, host) {
+  host = String(host || "").toLowerCase();
+  if (host !== "bunsenbrenner.org" && !/\.bunsenbrenner\.org$/.test(host)) return null;
+  let c = Array.isArray(colors) ? colors.map((x) => String(x || "").toLowerCase()) : [];
+  if (!/^#[0-9a-f]{6}$/.test(c[0]) || !/^#[0-9a-f]{6}$/.test(c[1])) c = ["#ffd400", "#ff3b1d"];
+  return "ct_look=daily." + c[0].slice(1) + "." + c[1].slice(1) + "; Domain=bunsenbrenner.org; Path=/; Max-Age=86400; Secure; SameSite=Lax";
+}
+
 export function createApi(deps) {
   const loc = deps.location || { protocol: "file:", host: "" };
   const here = (loc.protocol === "https:" || loc.protocol === "http:") && typeof (deps.fetch || globalThis.fetch) === "function";

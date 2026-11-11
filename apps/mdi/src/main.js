@@ -8,7 +8,7 @@ import { createStorage } from "./broker/storage.js";
 import { share, copy } from "./broker/share.js";
 import { loadLive } from "./broker/live-host.js";
 import { linkUrl } from "./ui/view.js";
-import { createApi } from "./broker/api.js";
+import { createApi, lookCookie } from "./broker/api.js";
 import { download } from "./broker/share.js";
 
 const root = document.getElementById("app");
@@ -24,6 +24,7 @@ const rt = createRuntime({
   lang, entropy, storage: createStorage(),
   api: createApi({ location }),
   returnPath,
+  setLook: (colors) => { const k = lookCookie(colors, location.hostname); if (k) document.cookie = k; },
   navigate: (url) => { if (!/^https?:$/.test(location.protocol)) return false; location.assign(url); return true; },
   download,
   live: () => loadLive(),
