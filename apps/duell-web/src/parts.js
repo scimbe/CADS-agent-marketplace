@@ -81,8 +81,9 @@
   // sheet when it is shown (app.js setHome). lauf, blasen, bahn, raten: the game engines of the free card, each asked for
   // by its own card or link. A name without a part in this build stays harmless. Nor the preview pictures (bilda, bildb …,
   // about 80 KB each): the start page asks for a part when one of its pictures comes into sight (start-ui.js shots);
-  // offline without it a tile shows its title on its colour.
-  var ONDEMAND = ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten"];
+  // offline without it a tile shows its title on its colour. rapbeat (Straßenrap-Beat: beat engine and screen, about 45 KB):
+  // its card or link (app.js two()).
+  var ONDEMAND = ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten", "rapbeat"];
   if (/^https?:$/.test(location.protocol) && location.hostname !== "appassets.androidplatform.net") {
     root.addEventListener("load", function () {
       (root.requestIdleCallback || function (f) { return setTimeout(f, 1500); })(function () {

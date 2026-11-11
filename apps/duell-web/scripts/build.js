@@ -37,7 +37,10 @@ const coreGames = Object.keys(require("../src/turns.js").GAMES); require("../src
 const twoGames = Object.keys(require("../src/turns.js").GAMES).filter((g) => coreGames.indexOf(g) < 0); require("../src/malrat.js");
 const malGames = Object.keys(require("../src/turns.js").GAMES).filter((g) => coreGames.indexOf(g) < 0 && twoGames.indexOf(g) < 0); require("../src/dart.js");
 // Dart (src/dart.js) brings its game in a part of its own (dart), listed the same way.
-const games = require("../src/turns.js").GAMES, dartGames = Object.keys(games).filter((g) => coreGames.indexOf(g) < 0 && twoGames.indexOf(g) < 0 && malGames.indexOf(g) < 0), catalog = json(has("ideas.json") ? fl("ideas.json") : "src/ideas.json");
+const games = require("../src/turns.js").GAMES, dartGames = Object.keys(games).filter((g) => coreGames.indexOf(g) < 0 && twoGames.indexOf(g) < 0 && malGames.indexOf(g) < 0);
+// Straßenrap-Beat (src/rapbeat.js) brings its rule in a part of its own (rapbeat), listed the same way.
+require("../src/rapbeat.js");
+const rapGames = Object.keys(games).filter((g) => coreGames.indexOf(g) < 0 && twoGames.indexOf(g) < 0 && malGames.indexOf(g) < 0 && dartGames.indexOf(g) < 0), catalog = json(has("ideas.json") ? fl("ideas.json") : "src/ideas.json");
 if (flavor) ["ideas", "retired"].forEach((k) => { if (catalog[k]) catalog[k] = catalog[k].filter((i) => !i.turn || games[i.turn.g]); });
 // What the page can open: the shelf and the cards taken off it (ideas.json retired, shelf clean-up 2026-11), which old links
 // still open; a part a retired card needs is built as long as one is there.
@@ -114,6 +117,9 @@ if (openable.some((i) => i.turn && malGames.indexOf(i.turn.g) >= 0)) PARTS.malen
 // Dart: a real dartboard by link or against the bot (src/dart.js, src/dart-ui.js, texts in src/dart.json); only built when the
 // catalog has a card with its game (not in Daily Business).
 if (openable.some((i) => i.turn && dartGames.indexOf(i.turn.g) >= 0)) PARTS.dart = { d: ["katalog"], src: ["DARTDATA", "DART", "DARTUI"] };
+// Straßenrap-Beat: beat engine (synthesis, mix, WAV), rule and screen (src/rapbeat.js, src/rapbeat-ui.js, texts in
+// src/rapbeat.json); only built when the catalog has its card, only loaded on demand (parts.js ONDEMAND).
+if (openable.some((i) => i.turn && rapGames.indexOf(i.turn.g) >= 0)) PARTS.rapbeat = { d: ["katalog"], src: ["RAPBEATDATA", "RAPBEAT", "RAPBEATUI"] };
 // "Stimme verzerren": recording, the voice effects, the voice as a video or sound file (src/klang.js, src/klang-ui.js);
 // only where the catalog has a voice card (not in Daily Business: turns only).
 if (openable.some((i) => i.kind === "sound" && i.sound.mode === "voice")) PARTS.klang = { d: [], src: ["KLANGDATA", "KLANG", "KLANGUI"] };
@@ -138,6 +144,7 @@ parts.KLANGDATA = "window.KlangTexts=" + JSON.stringify(partTexts.klang) + ";" +
 parts.LAUFDATA = "window.LaufTexts=" + JSON.stringify(json("src/lauf.json")) + ";" + merge("LaufTexts"); parts.LAUFENGINE = read("src/lauf-engine.js"); parts.LAUFUI = read("src/lauf-ui.js");
 parts.REGLERDATA = "window.ReglerTexts=" + JSON.stringify(json("src/regler.json")) + ";" + merge("ReglerTexts"); parts.REGELN = read("src/regeln.js"); parts.REGLERUI = read("src/regler-ui.js");
 if (PARTS.malen) { parts.MALRATDATA = "window.MalratData=" + JSON.stringify(json("src/malrat.json")) + ";"; parts.MALRAT = read("src/malrat.js"); parts.MALRATUI = read("src/malrat-ui.js"); }
+if (PARTS.rapbeat) { parts.RAPBEATDATA = "window.RapBeatData=" + JSON.stringify(json("src/rapbeat.json")) + ";"; parts.RAPBEAT = read("src/rapbeat.js"); parts.RAPBEATUI = read("src/rapbeat-ui.js"); }
 if (PARTS.dart) { parts.DARTDATA = "window.DartData=" + JSON.stringify(json("src/dart.json")) + ";"; parts.DART = read("src/dart.js"); parts.DARTUI = read("src/dart-ui.js"); }
 parts.NOTODATA = "window.NotoData=\"" + fs.readFileSync(path.join(root, "src/noto-stickers.png")).toString("base64") + "\";"; parts.NOTO = read("src/noto.js");
 parts.LICENSES = "window.DailyLicenses=" + JSON.stringify(licenses) + ";";
@@ -207,6 +214,7 @@ for (const name of Object.keys(PARTS)) {
   if (name === "turnzwei") manifest[name].g = twoGames;
   if (name === "malen") manifest[name].g = malGames;
   if (name === "dart") manifest[name].g = dartGames;
+  if (name === "rapbeat") manifest[name].g = rapGames;
   partBytes += Buffer.byteLength(body);
   console.log(path.dirname(out) + "/" + file, Buffer.byteLength(body), "bytes");
 }

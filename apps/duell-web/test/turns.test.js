@@ -18,8 +18,9 @@ const LINES = require("./fixtures/turn-lines.js");
 test("Jede Art hat ihr Blatt und laeuft ueber echte Links bis zum Ergebnis, ohne Server", () => {
   // phish is a card of the Business catalog (src/flavors/business/ideas.json), every other game has a daily card; Mal & Rat
   // brings its rule in its own part (src/malrat.js, test/malrat.test.js) and never ends, the next picture is the next move
-  // and so does Dart (src/dart.js, test/dart.test.js), whose moves are thrown darts
-  assert.deepEqual(ideas.map((i) => i.turn.g).filter((g) => g !== "malrat" && g !== "dart").concat(["phish"]).sort(), [...Tn.IDS].sort());
+  // and so does Dart (src/dart.js, test/dart.test.js), whose moves are thrown darts, and Straßenrap-Beat (src/rapbeat.js,
+  // test/rapbeat.test.js), whose one move is the beat's settings
+  assert.deepEqual(ideas.map((i) => i.turn.g).filter((g) => g !== "malrat" && g !== "dart" && g !== "rapbeat").concat(["phish"]).sort(), [...Tn.IDS].sort());
   for (const g of Tn.IDS) {
     let d = fresh(g, 12345);
     for (const answers of LINES[g][0]) { const n = Tn.play(d, answers, 100); assert.ok(n, g); d = through(n); }
