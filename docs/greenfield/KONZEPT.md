@@ -89,6 +89,10 @@ Heute ist Live ein Modus einzelner Spiele. Im Neuentwurf ist der **Raum** eine e
   Design-Systems. Die Webkonferenz hat bereits ein „daily“-Theme mit denselben Farben und Anton – es wird zur
   gemeinsamen Token-Quelle statt einer Kopie.
 - **Ehrlich und privat:** Medien nur nach Tipp, Ende-zu-Ende, Hinweis auf sichtbare IP, Relay-Regeln wie bei Dateien.
+- **Apps:** Heute kann keine App eine Live-Verbindung aufbauen. Die Seite darf dort nur die API bzw. Kurzlinks
+  erreichen, die Webkonferenz-Bridge liegt auf einem anderen Host (Befund Relay-Agent, `07-protokoll/2026-11-11-relay-grant.md`).
+  Im Neuentwurf löst „eine Domain“ (`/live/*` neben `/api/*`) das: Die Apps erlauben genau eine Herkunft, CORS entfällt.
+  Ob Live in den Apps über die Seite oder nativ über die Hülle läuft, ist **[Entscheidung offen]**.
 - **Mehr als zwei:** 1:1 und kleine Gruppen per Mesh; ab etwa 4 Personen SFU (FOSS) **[prüfen: Schwelle, Auswahl]**.
 
 ## 5. Erzeugung und Harness: ein Weg
