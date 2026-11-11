@@ -23,7 +23,7 @@ const TX = {
     say: "Card {n}: you hold {v}. What do you announce?",
     see: "Card {n}: announced {v}. Do you believe it?",
     yes: "Believe", no: "Reveal",
-    said: "Announced {v}", believed: "believed", opened: "revealed",
+    said: "Said {v}", believed: "believed", opened: "revealed",
     line: "Card {n}: announced {c}, really {t}.",
     score: "{a} to {b}", cheat: "An announcement below the real value: this game does not count.",
     hidden: "face down", card: "Card {n}"

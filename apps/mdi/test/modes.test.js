@@ -93,3 +93,14 @@ test("Live: Abweichender Zustandshash beendet ehrlich statt still weiterzuspiele
   B.dispatch({ type: "PEER_IN", msg: { t: "in", i: 0, x: { t: "say", seat: 0, v: 6 }, h: "0".repeat(16) } });
   assert.equal(L(B), "card.play.error"); assert.equal(B.state.ctx.error, "abweichung");
 });
+
+test("Link: wer als zweiter Sitz einlaedt, bekommt sofort den Einladungslink (Regression aus dem Zustands-Durchlauf)", async () => {
+  const A = testRuntime({ entropy: counter("f"), async: true }), B = testRuntime({ entropy: counter("a1"), async: true });
+  A.dispatch({ type: "OPEN", id: "bluff" }); A.dispatch({ type: "MODE", mode: "link" }); A.dispatch({ type: "SEAT", seat: 1 }); A.dispatch("GO");
+  assert.equal(L(A), "card.play.send");
+  A.dispatch("SHARE"); await until(() => A.shared.length === 1);
+  B.link(A.shared[0]); assert.equal(L(B), "receive.show"); B.dispatch("ACCEPT");
+  assert.equal(L(B), "card.play.turn"); assert.deepEqual(B.state.ctx.session.mine, [0], "Empfaenger wird Bote");
+  assert.ok(B.storage.dump()[0].salt, "Bote legt sein Salz beim Annehmen fest");
+  assert.equal(A.state.ctx.session.state.priv[0], null);
+});

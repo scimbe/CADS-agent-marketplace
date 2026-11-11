@@ -125,7 +125,9 @@ export function phase(ctx) {
   if (ctx.error) return "error";
   if (!ctx.session) return "hand";
   const st = gameStatus(ctx), mine = mySeats(ctx), log = ctx.session.log;
-  const lastMine = log.length > 0 && mine.includes(log[log.length - 1].seat);
+  // Link: senden, wenn mein letzter Zug noch nicht unterwegs ist – oder wenn ich die Partie eroeffne und der
+  // andere beginnt (dann ist der Link die Einladung)
+  const lastMine = log.length === 0 ? !mine.includes(st.turn) : mine.includes(log[log.length - 1].seat);
   if (ctx.mode === "link" && lastMine && !ctx.sent && (st.over || !mine.includes(st.turn))) return st.over ? "over" : "send";
   if (st.over) return "over";
   if (ctx.mode === "alone" && st.turn !== ctx.viewer) return "cover";

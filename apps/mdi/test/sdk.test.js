@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import * as S from "../src/contract/sdk.js";
+import fs from "node:fs";
+
+const GOLD = JSON.parse(fs.readFileSync(new URL("./fixtures/sdk-gold.json", import.meta.url), "utf8"));
 
 test("sha256 stimmt mit node:crypto ueberein (FIPS 180-4)", () => {
   for (const s of ["", "abc", "x".repeat(55), "x".repeat(56), "x".repeat(64), "äöü🙂".repeat(40)]) assert.equal(S.sha256(s), createHash("sha256").update(s).digest("hex"));
@@ -46,5 +49,3 @@ test("canon: Schluessel sortiert, keine Gleitkommazahlen im Zustand", () => {
   assert.equal(S.canon({ b: 1, a: [true, null, "x"] }), '{"a":[true,null,"x"],"b":1}');
   assert.throws(() => S.canon({ a: 0.5 }));
 });
-const GOLD = { rng: [2473711870, 243433525, 3063576089], sinTable: "b8eb7f1882e3f8da", logD: "9.421006401779279" };
-export { GOLD };
