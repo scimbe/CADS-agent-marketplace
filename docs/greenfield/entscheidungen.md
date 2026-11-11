@@ -17,3 +17,7 @@
 | 2026-11-11 | Eine Sprecher-Session vermittelt mit dem User, leitet nicht | User |
 | 2026-11-11 | Architekturziel: hinter einer Domain per Load Sharing und Sharding auf mehrere Systeme verteilbar, Lastspitzen auch hybrid (Cloud) abfangen | User |
 | 2026-11-11 | Builds/Tests auf labor-setup.de auslagern (28 Kerne, 62 GB); labor-setup.com nur mit Rücksicht auf die Praktikums-LLM | User |
+| 2026-11-11 | Einheitliches Design „wie aus einem Ei“ für Web, Business, iOS, Android, inkl. Webkonferenz, Spiele, Karten; Plattformtreue; Claude Design + Swarm-Kritik ohne Vorwissen mit Iteration | User |
+| 2026-11-11 | Business-Sicht kommt mit in den Neuentwurf | User |
+| 2026-11-11 | Grundstock-Karten und Spiel-Engines neu; Baukasten, der freie Designs/Mechaniken mit Harness und Haiku erlaubt | User |
+| 2026-11-11 | Auf Systemhygiene achten (`00-hygiene.md`) | User |

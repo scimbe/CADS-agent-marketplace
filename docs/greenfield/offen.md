@@ -5,3 +5,13 @@
 - Signatur: Mosaik-Hintergrund, lange Links bei Fotokarten, Reihenfolge.
 - Umgang mit neckenden Memes.
 - Gold-Liste: 142 offene Einträge bewerten (Voraussetzung für gültige Harness-Belohnung).
+- Datenschutz Fotos/Audio: Altcode schickt Fotos nirgends hin (auch nicht ins Fragment), Audio nur als Datei per Teilen-
+  Menü (daily.js:463, profile.js:17, klang-ui.js:222-226). Soll ein Foto im Neuentwurf im Fragment reisen dürfen
+  (MAX_FRAGMENT 1200) oder gar nicht?
+- Auth: OIDC+PKCE mit Bearer für Web und Apps (Gate-Cookie nur noch für Server-HTML) einverstanden?
+- Zusammen bauen: auch im Browser (über den Live-Broker) oder weiter nur in den Apps?
+- Statechart: Gate am Ende von S1 (Eigenbau vs. XState) einverstanden?
+- Ziel-Domain für „eine Domain“ (heute bunsenbrenner.org zum Teilen, demos-34a13a96… für API, webconference… für Live)?
+- Darf eine DB-Replik oder ein Objektspeicher außerhalb on-prem liegen (Cloud-Burst), oder nur zustandslose Teile?
+- Claude-Design-Konnektor: braucht erneutes Anmelden (`/design-login`).
+- labor-setup.com für Builds/Tests freigeben (nur wenige Kerne, niedrige Priorität)?

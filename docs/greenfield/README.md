@@ -8,6 +8,7 @@ sondern dient als **genaue Spezifikation der Fragmente**.
 
 | Ordner/Datei | Inhalt | Wer schreibt |
 |---|---|---|
+| `00-hygiene.md` | Regeln zur Systemhygiene | alle |
 | `00-auftrag.md` | Auftrag, Entscheidungen des Users im Wortlaut, feste Regeln | Koordinator |
 | `entscheidungen.md` | Entscheidungslog (Datum, Entscheidung, Quelle) | Koordinator |
 | `offen.md` | offene Fragen an den User | alle (anhängen) |

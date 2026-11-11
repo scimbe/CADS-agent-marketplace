@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Runs unit + e2e tests of a pushed ref on labor-setup.de in parallel Docker containers.
+# Usage: tools/remote/labor-test.sh <ref> [app-dir] [parallel]
+#   ref       pushed branch or commit of scimbe/CADS-agent-marketplace (public, cloned without credentials)
+#   app-dir   default apps/duell-web
+#   parallel  concurrent e2e containers, default 8 (each --cpus=2.5 --memory=4g; cap leaves room for temporal/postgres)
+# Output: per-file logs in ~/mdi-runner/<run>/logs on the host, summary on stdout.
+set -euo pipefail
+REF="${1:?ref}"; APP="${2:-apps/duell-web}"; PAR="${3:-8}"
+HOST="${LABOR_HOST:-ssh.labor-setup.de}"
+IMG="mcr.microsoft.com/playwright:v1.56.1-noble"
+RUN="$(date -u +%Y%m%d-%H%M%S)-$(echo "$REF" | tr '/' '_' | cut -c1-40)"
+ssh -o BatchMode=yes "$HOST" bash -s -- "$REF" "$APP" "$PAR" "$IMG" "$RUN" <<'REMOTE'
+set -euo pipefail
+REF="$1"; APP="$2"; PAR="$3"; IMG="$4"; RUN="$5"
+W="$HOME/mdi-runner/$RUN"; mkdir -p "$W/logs"; cd "$W"
+git clone -q --filter=blob:none https://github.com/scimbe/CADS-agent-marketplace.git src
+git -C src fetch -q origin "$REF" && git -C src checkout -q FETCH_HEAD
+echo "commit $(git -C src rev-parse --short HEAD)"
+docker pull -q "$IMG" >/dev/null
+D="docker run --rm --init --cpus=2.5 --memory=4g --ipc=host -u $(id -u):$(id -g) -e HOME=/tmp -e CI=1 -v $W/src:/w -w /w/$APP $IMG"
+# install + build once
+timeout 900 $D bash -c 'npm ci --no-audit --no-fund >/dev/null && node scripts/build.js >/dev/null && node scripts/build.js --flavor business >/dev/null' > logs/setup.log 2>&1 || { echo "SETUP FAIL"; tail -30 logs/setup.log; exit 1; }
+timeout 900 $D node --test test/*.test.js > logs/unit.log 2>&1 && echo "unit PASS $(grep -m1 '^ℹ pass' logs/unit.log)" || echo "unit FAIL $(grep '^ℹ \(pass\|fail\)' logs/unit.log | tr '\n' ' ')"
+ls src/$APP/test/e2e/*.e2e.js | xargs -n1 basename > e2e.list
+cat e2e.list | xargs -P "$PAR" -I{} bash -c "timeout 1800 $D node --require ./test/e2e/lib/nolive.js --test --test-timeout=300000 --test-force-exit test/e2e/{} > logs/{}.log 2>&1 && echo 'PASS {}' || echo 'FAIL {}'" | sort
+echo "logs: $W/logs"
+REMOTE
