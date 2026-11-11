@@ -78,6 +78,27 @@ function parts() {
   });
 }
 
+// The stage's own controls in px of #stagewrap: its buttons and the picture thumbnail that swaps on a tap (#edpic)
+function controls(noSwitch) {
+  var wr = rect($("stagewrap")), out = [];
+  Array.prototype.forEach.call($("stagewrap").querySelectorAll("button,[role=button],#edpic"), function (b) {
+    if (st.layer && st.layer.contains(b) && (b.id !== "blasenan" || noSwitch)) return;
+    var r = rect(b); if (r.w && r.h && !b.hidden) out.push({ x: r.x - wr.x - 4, y: r.y - wr.y - 4, w: r.w + 8, h: r.h + 8 });
+  });
+  return out;
+}
+// The switch "Blasen aus" in the first free corner of the stage (bottom left, else bottom right, top left, top right): never
+// on a control of the stage such as the picture thumbnail
+function corner() {
+  var sw = $("blasenan"), wr = rect($("stagewrap"));
+  if (!sw) return;
+  var no = controls(true);
+  [["6px", "", "6px", ""], ["", "6px", "6px", ""], ["6px", "", "", "6px"], ["", "6px", "", "6px"]].some(function (c) {
+    sw.style.left = c[0] || "auto"; sw.style.right = c[1] || "auto"; sw.style.bottom = c[2] || "auto"; sw.style.top = c[3] || "auto";
+    var q = rect(sw), r = { x: q.x - wr.x, y: q.y - wr.y, w: q.w, h: q.h };
+    return !no.some(function (n) { return r.x < n.x + n.w && r.x + r.w > n.x && r.y < n.y + n.h && r.y + r.h > n.y; });
+  });
+}
 // Greedy placement on a grid over #stagewrap: each new bubble as near as one bubble width to what it changes, never on the
 // figure (in the flying game the bird's whole column: it moves up and down), never on another bubble, a button of the
 // stage, the switch, a thread's end, a title's words or the signet and name at the bottom (Teile.frei); if there is room,
@@ -87,11 +108,7 @@ function place(list, W, H, S) {
   if (fig) no.push(k === "game" ? { x: fig.x - 6, y: 0, w: fig.w + 12, h: H } : { x: fig.x - 6, y: fig.y - 6, w: fig.w + 12, h: fig.h + 12 });
   var least = no.slice();
   no = no.concat(st.frei || [], list.filter(function (p) { return p.text; }).map(function (p) { return { x: p.x - 4, y: p.y - 4, w: p.w + 8, h: p.h + 8 }; }));
-  var wr = rect($("stagewrap"));
-  Array.prototype.forEach.call($("stagewrap").querySelectorAll("button"), function (b) {
-    if (st.layer && st.layer.contains(b) && b.id !== "blasenan") return;
-    var r = rect(b); if (r.w && r.h) no.push({ x: r.x - wr.x - 4, y: r.y - wr.y - 4, w: r.w + 8, h: r.h + 8 });
-  });
+  no = no.concat(controls());
   var soft = no.concat(list.filter(function (p) { return p.small && p.id !== "figur"; }).map(function (p) { return { x: p.x - 4, y: p.y - 4, w: p.w + 8, h: p.h + 8 }; }));
   list.forEach(function (p) { var q = st.pos[k + ":" + p.id]; if (q) keep.push(q); });
   list.forEach(function (p) {
@@ -177,10 +194,10 @@ function tick() {
   if (all.length < 2 || !W || !H) { if (st.layer) st.layer.hidden = true; return; }
   if (wt) all.push({ id: "wunsch", panel: wt, label: w("wish"), tx: 0, ty: 0 });
   if (tabs().indexOf("Dice") >= 0) all.push({ id: "wuerfel", panel: "Dice", label: w("dice"), tx: 0, ty: 0 });
-  build(); st.layer.hidden = false;
+  build(); st.layer.hidden = false; corner();
   // a still picture that is drawn anew (the font came, a text or style changed): the bubbles not moved by hand find new places;
   // the flying game moves all the time, there only the frame counts
-  var key = W + "x" + H + (k === "game" ? "" : "|" + list.concat(st.frei || []).map(function (p) { return (p.id || "") + Math.round(p.x / 12) + "," + Math.round(p.y / 12) + "," + Math.round(p.w / 12) + "," + Math.round(p.h / 12); }).join(";"));
+  var key = W + "x" + H + (k === "game" ? "" : "|" + list.concat(st.frei || [], controls()).map(function (p) { return (p.id || "") + Math.round(p.x / 12) + "," + Math.round(p.y / 12) + "," + Math.round(p.w / 12) + "," + Math.round(p.h / 12); }).join(";"));
   if (st.size !== key) { if (st.size) Object.keys(st.pos).forEach(function (k) { if (!st.moved[k]) delete st.pos[k]; }); st.size = key; }
   place(all, W, H, S);
   var now = {}, path = "", dots = "";
