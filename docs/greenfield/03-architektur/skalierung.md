@@ -44,3 +44,9 @@ Verbindung: WireGuard (FOSS) zwischen Eingang und Backends.
 | Repliken > 1 | nach Umbau aller 12 Speicher | von Anfang an |
 | Vermischungsregel | heikel | klar erfüllt |
 Empfehlung des Agenten: S2 für neue Routen /api/mdi/*; Datenmigration je Speicher einmalig beim Umschalten.
+
+## Abweichung (Befund D0, 2026-11-11): Live-Isolation braucht eine eigene Herkunft
+Der Live-Rahmen (ct-agent, WebRTC) läuft getrennt von der App-Seite, die Hände und Salze hält. Teilen App und Webkonferenz
+eine Herkunft, verliert der Rahmen diese Isolation. Deshalb: App unter `<domain>`, Live-Rahmen + `/api/play` unter einer
+eigenen Herkunft (z. B. `live.<domain>`). Die einbettenden Herkünfte des Rahmens (`frame-ancestors`) und
+`PLAY_ALLOWED_ORIGINS` der Bridge müssen synchron gepflegt werden (eine Konfigurationsquelle).
