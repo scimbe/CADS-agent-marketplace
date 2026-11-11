@@ -40,6 +40,8 @@
   }
   // 16+ and 18+ are the server's to read: the account's own statement in its profile ("Mein Stil"), a self-declaration
   // (Selbstauskunft) that nobody verifies; this page sends no age at all.
+  // the label of an art's chip ("🕹 Spiel"); the waiting screen takes its figure from the same label, so the two never differ
+  function artLabel(k) { return t("create_art_" + k); }
   function chipRow(list, now, label, pick) {
     var row = el("div", "chips"); row.setAttribute("role", "group"); row.setAttribute("aria-label", label);
     list.forEach(function (c) {
@@ -58,7 +60,7 @@
     root.Parts.need("warten").then(function () {
       if (gone || !root.Warten) return;
       h = root.Warten.open({
-        text: text, fig: String(t("create_art_" + art)).split(" ")[0], t: t,
+        text: text, fig: String(artLabel(art)).split(" ")[0], t: t,
         // cancel: the panel is free again at once; a late answer goes back (ai.js block), so it costs what "Verwerfen" costs
         onCancel: function () {
           gone = true; me.cancelled = true; if (me.go) me.go.cancel();
@@ -115,7 +117,7 @@
     root.Parts.need("warten").catch(function () {});   // the waiting screen, before the first tap (on demand, see waiting())
     b.appendChild(el("p", "note", t("create_h")));
     b.appendChild(el("p", "note", t("create_art")));
-    var arts = chipRow(ARTS.map(function (k) { return [k, t("create_art_" + k)]; }), state.art, t("create_art"), function (v) { state.art = v; fill(b); });
+    var arts = chipRow(ARTS.map(function (k) { return [k, artLabel(k)]; }), state.art, t("create_art"), function (v) { state.art = v; fill(b); });
     b.appendChild(arts);
     var ta = el("textarea", "field");
     ta.id = "createtext"; ta.rows = 3; ta.maxLength = 200; ta.placeholder = t("create_ph"); ta.setAttribute("aria-label", t("create_label"));

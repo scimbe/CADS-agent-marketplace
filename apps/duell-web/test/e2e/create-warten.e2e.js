@@ -13,7 +13,9 @@ const page = "file://" + path.resolve(__dirname, "../../dist/index.html");
 const API = "https://demos-34a13a96.bunsenbrenner.org/api/duell/";
 const SHOTS = process.env.WARTEN_SHOTS || "";
 const DOC = { k: "card", col: ["#ffd400", "#ff3b1d"], by: [], t: "2048 zu zweit", x: "Schieb die Kacheln, bis die 2048 steht. Allein oder mit jemandem übers Netz.", st: "herz", sk: [{ e: "🎮", x: 0.84, y: 0.36, r: -0.1, z: 1.2 }] };
-const RESULT = (rc) => [200, { kind: "karte", options: [{ art: "card", doc: DOC }], seals: ["s2.karte.mw3abcde.AnlRQb9jJYrLILMRBtJj7yR1qlhJF0ER"], hashes: ["h".repeat(43)], cost: 1, receipt: rc, meter: METER, create: CREATE(4) }];
+// a flying game as the server makes it (the sentence asks for a game: chip "Spiel")
+const GAME = { k: "game", col: ["#ffd400", "#ff3b1d"], by: [], t: "2048 Flug", g: { seed: 2048, params: { gravity: 1800, jump: 430, gap: 140, speed: 130 }, theme: "ocean", title: "2048 Flug", emoji: "🕹", look: { d: "bubbles" }, route: [{ p: "ruhig", d: { gap: 20 }, t: "ocean", e: "🐟" }] } };
+const RESULT = (rc, art) => [200, { kind: "karte", options: [art === "game" ? { art, doc: GAME } : { art: "card", doc: DOC }], seals: ["s2.karte.mw3abcde.AnlRQb9jJYrLILMRBtJj7yR1qlhJF0ER"], hashes: ["h".repeat(43)], cost: 1, receipt: rc, meter: METER, create: CREATE(4) }];
 const METER = { free: 7, remaining: 7, size: 7, period: "week", pot: "free" };
 const CREATE = (n) => ({ size: 5, remaining: n, pot: "create", period: "ever", refundsLeft: 2, age16: true });
 const SATZ = "Ich möchte mit jemanden übers Netz oder alleine 2024 spielen";
@@ -22,7 +24,7 @@ test.before(async () => { b = await chromium.launch({ executablePath: process.en
 test.after(async () => { await b.close(); });
 
 // The stub: "ai" and "queue" answer from a list of steps the test releases one by one (next()).
-async function phone(steps, opt) {
+async function phone(steps, opt, chip) {
   const ctx = await b.newContext({ ...devices["Pixel 7"], viewport: { width: 390, height: 844 }, locale: "de-DE", ...(opt || {}) }), p = await ctx.newPage(), errs = [], sent = [];
   const gates = [];
   const next = () => { const g = gates.shift(); assert.ok(g, "keine Antwort mehr"); g(); };
@@ -42,7 +44,7 @@ async function phone(steps, opt) {
   });
   await p.goto(page);
   await p.locator("#create").tap();
-  await p.getByRole("button", { name: "🃏 Karte" }).tap();
+  await p.getByRole("button", { name: chip || "🃏 Karte" }).tap();
   const ta = p.getByLabel("Deine Beschreibung"); await ta.waitFor();
   await ta.fill(SATZ);
   // the part is asked for with the form, before the tap
@@ -59,8 +61,10 @@ test("Ganzflaechig, Schritte folgen den echten Stub-Antworten, Fokus bleibt im D
   const { p, ctx, errs, sent, ov, next, waitingFor } = await phone([
     [202, { queued: true, ticket: "tk-warten-1", position: 2, etaS: 20 }],
     [202, { queued: true, ticket: "tk-warten-1", position: 0 }],
-    RESULT("rc-warten-1"),
-  ]);
+    RESULT("rc-warten-1", "game"),
+  ], null, "🕹 Spiel");
+  // the frame's figure is the chosen art's own (the chip's emoji), here Spiel
+  assert.equal(await ov.locator(".wt-fig").textContent(), "🕹");
   // covers the whole viewport (once its own entrance, a short zoom, is over)
   await ov.evaluate((e) => Promise.all(e.getAnimations().map((a) => a.finished)));
   const box = await ov.boundingBox();
@@ -93,7 +97,7 @@ test("Ganzflaechig, Schritte folgen den echten Stub-Antworten, Fokus bleibt im D
   // step 3 + 4: the answer, checked, the card in the frame, sparks; then the screen goes into the preview
   next();
   await p.locator("#warten.wtdone .wtpv").waitFor();
-  assert.match(await ov.locator(".wtpv").textContent(), /2048 zu zweit/);
+  assert.match(await ov.locator(".wtpv").textContent(), /2048 Flug/);
   assert.equal(await p.locator("#warten li.ok").count(), 4);
   await p.waitForTimeout(350); await shot(p, "3-enthuellung");
   await ov.waitFor({ state: "detached" });
@@ -172,4 +176,14 @@ test("prefers-reduced-motion: ruhige Fassung mit denselben Schritten, keine Anim
   await ov.waitFor({ state: "detached" });
   await p.locator(".create .createpv").waitFor();
   assert.deepEqual(errs, []); await ctx.close();
+});
+
+test("Figur im Rahmen = Emoji des gewaehlten Art-Chips (Spiel, Karte, Meme, Sound, Quiz, Wie eine Karte)", async () => {
+  for (const chip of ["🕹 Spiel", "🃏 Karte", "📷 Meme", "🥁 Sound", "❓ Quiz", "🧩 Wie eine Karte"]) {
+    const { p, ctx, errs, ov, waitingFor } = await phone([[503, { error: "down" }]], null, chip);
+    assert.equal(await ov.locator(".wt-fig").textContent(), chip.split(" ")[0], chip);
+    await waitingFor(1);
+    await p.keyboard.press("Escape"); await ov.waitFor({ state: "detached" });
+    assert.deepEqual(errs, [], chip); await ctx.close();
+  }
 });
