@@ -27,10 +27,11 @@ async function open(doc) {
 const look = (p) => p.evaluate(() => {
   const r = (e) => { const q = e.getBoundingClientRect(); return { x: q.left, y: q.top, w: q.width, h: q.height }; };
   const doc = window.DailyApp.ed().doc, box = document.getElementById(doc.k === "game" ? "gamestage" : "stage"), br = box.getBoundingClientRect();
-  const fig = window.Teile.teile(doc).find((t) => t.id === "figur");
+  const fig = window.Teile.teile(doc).find((t) => t.id === "figur"), off = (t) => ({ id: t.id, x: t.x + br.left + box.clientLeft, y: t.y + br.top + box.clientTop, w: t.w, h: t.h });
   return {
     bubbles: Array.from(document.querySelectorAll("#blasen .blase")).map((e) => Object.assign(r(e), { id: e.dataset.blase, panel: e.dataset.blatt, label: e.textContent, aria: e.getAttribute("aria-label"), exp: e.getAttribute("aria-expanded"), shown: e.offsetParent !== null })),
     parts: window.Teile.teile(doc).map((t) => t.id),
+    free: window.Teile.frei(doc).map(off).concat(window.Teile.teile(doc).filter((t) => window.Teile.TEXT.includes(t.id) && doc.k !== "game").map(off)),
     fig: fig && { x: fig.x + br.left + box.clientLeft, y: fig.y + br.top + box.clientTop, w: fig.w, h: fig.h },
     wrap: r(document.getElementById("stagewrap")), thread: document.querySelector("#blasen svg path").getAttribute("d"),
     tabs: Array.from(document.querySelectorAll("#tabs [role=tab]")).map((e) => e.dataset.k)
@@ -50,6 +51,7 @@ function common(m, game) {
     // no word on the figure (in the flying game: not in the bird's column, it moves up and down)
     const f = game ? { x: m.fig.x, y: m.wrap.y, w: m.fig.w, h: m.wrap.h } : m.fig;
     assert.ok(!meets(x, f), x.id + " liegt nicht auf der Figur");
+    m.free.forEach((r) => assert.ok(!meets(x, r), x.id + " liegt nicht auf " + r.id + " (Titelschrift, Name und Signet bleiben frei)"));
   });
   m.bubbles.forEach((x, i) => m.bubbles.slice(i + 1).forEach((y) => assert.ok(Math.hypot(x.x - y.x, x.y - y.y) >= x.w, x.id + " / " + y.id + " ueberdecken sich nicht")));
   assert.ok((m.thread.match(/M/g) || []).length >= m.bubbles.length - 2, "Faeden zu den Teilen: " + m.thread.slice(0, 80));
@@ -98,6 +100,7 @@ test("Lauf (Zweierrennen): je Teil eine Blase, Muenze oeffnet die Welt, Gegner d
   const m = await look(p);
   assert.deepEqual(m.bubbles.map((x) => x.id).sort(), ["figur", "gegner", "hindernis", "muenze", "titel", "welt", "wunsch"]);
   common(m, false);
+  assert.deepEqual(m.free.map((r) => r.id).sort(), ["signet", "titel"]);
   for (const [id, tab] of [["muenze", "LWorld"], ["gegner", "LFigure"], ["titel", "LText"], ["wunsch", "LWish"], ["figur", "LFigure"]]) {
     await tapBubble(p, id);
     await p.waitForFunction((t) => document.getElementById("tab" + t).getAttribute("aria-selected") === "true", tab);

@@ -58,18 +58,24 @@ function parts() {
   var d = A.ed() && A.ed().doc, wrap = $("stagewrap"), box = $(d && d.k === "game" ? "gamestage" : "stage");
   if (!d || !wrap || !box) return [];
   var wr = rect(wrap), br = rect(box), ox = br.x + box.clientLeft - wr.x, oy = br.y + box.clientTop - wr.y, l = tabs();
+  st.frei = T.frei(d).map(function (r) { return { x: r.x + ox - 4, y: r.y + oy - 4, w: r.w + 8, h: r.h + 8 }; });
   return T.teile(d).filter(function (p) { return l.indexOf(p.panel) >= 0; }).map(function (p) {
-    var a = p.w * p.h / (box.clientWidth * box.clientHeight), big = a > 0.5;
-    return { id: p.id, panel: p.panel, label: p.label, big: big, small: a < 0.15, x: p.x + ox, y: p.y + oy, w: p.w, h: p.h, tx: ox + (big ? p.x + p.w * 0.82 : p.ax), ty: oy + (big ? p.y + p.h * 0.18 : p.ay) };
+    var a = p.w * p.h / (box.clientWidth * box.clientHeight), big = a > 0.5, txt = T.TEXT.indexOf(p.id) >= 0;
+    // a text's thread ends just below its words, never on them
+    return { id: p.id, panel: p.panel, label: p.label, big: big, small: a < 0.15, text: txt, x: p.x + ox, y: p.y + oy, w: p.w, h: p.h,
+      tx: ox + (big ? p.x + p.w * 0.82 : txt ? p.x + p.w / 2 : p.ax), ty: oy + (big ? p.y + p.h * 0.18 : txt ? Math.min(p.y + p.h + 4, box.clientHeight - 2) : p.ay) };
   });
 }
 
 // Greedy placement on a grid over #stagewrap: each new bubble as near as one bubble width to what it changes, never on the
 // figure (in the flying game the bird's whole column: it moves up and down), never on another bubble, a button of the
-// stage, the switch or a thread's end; if there is room, not on any other small part either (the title's words, a coin).
+// stage, the switch, a thread's end, a title's words or the signet and name at the bottom (Teile.frei); if there is room,
+// not on any other small part either (a coin, a sticker).
 function place(list, W, H, S) {
   var k = A.ed().doc.k, keep = [], fig = list.filter(function (p) { return p.id === "figur"; })[0], no = [];
   if (fig) no.push(k === "game" ? { x: fig.x - 6, y: 0, w: fig.w + 12, h: H } : { x: fig.x - 6, y: fig.y - 6, w: fig.w + 12, h: fig.h + 12 });
+  var least = no.slice();
+  no = no.concat(st.frei || [], list.filter(function (p) { return p.text; }).map(function (p) { return { x: p.x - 4, y: p.y - 4, w: p.w + 8, h: p.h + 8 }; }));
   var wr = rect($("stagewrap"));
   Array.prototype.forEach.call($("stagewrap").querySelectorAll("button"), function (b) {
     if (st.layer && st.layer.contains(b) && b.id !== "blasenan") return;
@@ -79,7 +85,7 @@ function place(list, W, H, S) {
   list.forEach(function (p) { var q = st.pos[k + ":" + p.id]; if (q) keep.push(q); });
   list.forEach(function (p) {
     var key = k + ":" + p.id; if (st.pos[key]) return;
-    st.pos[key] = spot(p, soft) || spot(p, no) || { x: 2, y: 2 }; keep.push(st.pos[key]);
+    st.pos[key] = spot(p, soft) || spot(p, no) || spot(p, least) || { x: 2, y: 2 }; keep.push(st.pos[key]);
   });
   function spot(p, no) {
     var tx = p.id === "wunsch" ? W - S : p.tx, ty = p.id === "wunsch" ? H - S : p.ty, best = null, bs = 1e9;
