@@ -194,6 +194,13 @@
     box.id = "acbox"; info.id = "acmore"; box.setAttribute("aria-labelledby", "achead");
     var wait = !!p && !done(p);   // tapped "Anmelden", but the sign-in did not finish (cancelled, back, still on its way)
     var head = el("h3", "lbl", t(p && !wait ? "ac_titleOn" : "ac_title")); head.id = "achead"; box.appendChild(head);
+    // "Guthaben & Aufladen" (create-ui.js, the part erschaffen): free cards, credit, voucher; signed out it signs in first.
+    // A link to #aufladen (app.js route opens the view), so the signed-in card stays compact without a button. Only where
+    // the build has the free card (not the business app).
+    function credit() {
+      if (!(root.DailyParts || {}).erschaffen) return;
+      var g = el("a", "aclink", t("ac_credit")); g.href = "#aufladen"; g.id = "accredit"; g.setAttribute("aria-haspopup", "dialog"); g.style.display = "inline-flex"; g.style.alignItems = "center"; box.appendChild(g);
+    }
     if (!p || wait) {
       var cb = null;
       if (wait) {
@@ -228,6 +235,7 @@
       } else box.appendChild(el("p", "note", t("ac_browser")));
       box.appendChild(el("p", "note acquiet", t("ac_local")));
       if (canCode && open) box.appendChild(el("button", "aclink", t(canAccount ? "ac_u16" : "ac_toCode"), function () { open(); var f = document.getElementById("accodein"); if (f) f.focus(); }));
+      credit();
       info.appendChild(el("p", "note", t("ac_what")));
       if (canAccount) info.appendChild(el("p", "note", t("ac_under16")));
       if (canCode) {
@@ -254,6 +262,7 @@
     box.appendChild(ok);
     var st = el("p", "note acstate", ""); st.setAttribute("role", "status"); box.appendChild(st);
     box.appendChild(el("p", "note", t("ac_auto")));
+    credit();
     function showState(s) {
       if (!link()) return;
       var at = link().at;

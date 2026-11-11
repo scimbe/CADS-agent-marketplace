@@ -277,10 +277,12 @@
     refs.more.hidden = !on; openAll(refs.more.getAttribute("aria-expanded") === "true", true);
     acts(on);
     // back from signing in for "Erschaffe deine Karte" (create-ui.js, ?go=erschaffen): straight into making the free card,
-    // with the category tapped on the start page before, if any (app.js openFree)
-    if (/[?&]go=erschaffen\b/.test(location.search)) {
+    // with the category tapped on the start page before, if any (app.js openFree); back from signing in in the Guthaben
+    // view (?go=aufladen): that view again
+    var back = /[?&]go=(erschaffen|aufladen)\b/.exec(location.search);
+    if (back) {
       try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
-      A().free();
+      if (back[1] === "aufladen") root.Guthaben.open({ from: "login" }); else A().free();
     }
     receive(h);
     dayShot(on && h);

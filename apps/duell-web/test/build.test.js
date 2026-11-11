@@ -168,6 +168,27 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   assert.match(src("parts.js"), /s\.integrity = p\.h;/); assert.match(src("parts.js"), /s\.src = dir\(\) \+ p\.f;/);
   assert.match(html, /connect-src https:\/\/demos-34a13a96\.bunsenbrenner\.org https:\/\/webconference\.bunsenbrenner\.org wss:\/\/webconference\.bunsenbrenner\.org;/, "der eigene Host und fuer Live-Spiele nur die Webconference");
 });
+// The Guthaben view (credit, voucher; create-ui.js): code and words (gh_) only in the part erschaffen, in the core only the
+// stand-in window.Guthaben (parts.js) and the address #aufladen (app.js route); the start page asks nothing for it.
+test("Guthaben: Ansicht und Texte im Teil erschaffen (Ansicht unter 8 KB), im Kern nur Stand-in und #aufladen (unter 400 B)", () => {
+  execFileSync(process.execPath, [path.join(__dirname, "../scripts/build.js")]);
+  const html = fs.readFileSync(dist, "utf8"), man = JSON.parse(html.match(/window\.DailyParts=(\{.*?\});window\./)[1]);
+  const part = fs.readFileSync(path.join(path.dirname(dist), man.erschaffen.f), "utf8");
+  assert.match(part, /root\.Guthaben = \{ open:/); assert.match(part, /"gh_title":"Guthaben"/); assert.match(part, /"gh_title":"Credit"/);
+  assert.ok(!/"gh_[a-z_]+":/.test(html), "gh_-Texte im Kern");
+  assert.ok(!/function guthaben\(/.test(html), "Ansicht im Kern");
+  assert.match(html, /stand\("erschaffen", "Guthaben", \["open"\]\);/);
+  assert.match(html, /location\.hash === "#aufladen"/);
+  // the hooks in the core: the stand-in and the route, with their comments
+  const hooks = (src("parts.js").match(/\n  \/\/ The Guthaben view[^\n]*\n[^\n]*\n  stand\("erschaffen"[^\n]*\n/) || [""])[0] + (src("app.js").match(/\n  \/\/ #aufladen[^\n]*\n[^\n]*\n/) || [""])[0];
+  assert.ok(hooks.length > 100 && Buffer.byteLength(hooks) < 900, "Haken im Kern: " + Buffer.byteLength(hooks));
+  assert.ok(Buffer.byteLength(noComments(hooks).replace(/\/\/[^\n]*/g, "")) < 400, "Haken ohne Kommentar unter 400 B");
+  // the view itself (from its comment to fill()) stays small; the part as a whole is below 300 KB like every part (above)
+  const view = part.slice(part.indexOf('/* "Guthaben":'), part.indexOf("function fill(b) {"));
+  assert.ok(view.length > 2000 && view.length < 8 * 1024, "Guthaben-Ansicht: " + view.length);
+  // the account card's entry travels with konto
+  assert.match(fs.readFileSync(path.join(path.dirname(dist), man.konto.f), "utf8"), /"ac_credit":"Guthaben & Aufladen"/);
+});
 test("Datenschutz: Kurzlink nur ueber shortlink.js, nur bei Fertig (Nutzerentscheidung Redesign W1, der Hinweis sagt es) und fuer Status/Story; p= bleibt draussen", () => {
   assert.ok(src("shortlink.js").includes("(fetchFn || fetch)(API + path"));
   const app = src("app.js");

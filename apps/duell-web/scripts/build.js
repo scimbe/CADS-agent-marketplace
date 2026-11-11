@@ -22,9 +22,10 @@ const conf = flavor ? json(fl("flavor.json")) : null, texts = over(json("src/tex
 const DECK_CORE = [], deckTexts = {};
 for (const l of Object.keys(texts)) for (const k of Object.keys(texts[l])) if (/^(deck|mod|credit)_/.test(k) && DECK_CORE.indexOf(k) < 0) { (deckTexts[l] = deckTexts[l] || {})[k] = texts[l][k]; delete texts[l][k]; }
 over(turnData.text, "turn.json");
-// The texts of the free card travel with its part; the core keeps only the tile's two (create_tile, create_sub).
+// The texts of the free card travel with its part, and those of its Guthaben view (gh_); the core keeps only the tile's two
+// (create_tile, create_sub).
 const createTexts = {};
-for (const l of Object.keys(texts)) for (const k of Object.keys(texts[l])) if (/^create_/.test(k) && k !== "create_tile" && k !== "create_sub") { (createTexts[l] = createTexts[l] || {})[k] = texts[l][k]; delete texts[l][k]; }
+for (const l of Object.keys(texts)) for (const k of Object.keys(texts[l])) if (/^(create|gh)_/.test(k) && k !== "create_tile" && k !== "create_sub") { (createTexts[l] = createTexts[l] || {})[k] = texts[l][k]; delete texts[l][k]; }
 // The thumbs' words (vote_*) travel with their part (stimme), not in the core.
 const voteTexts = {};
 for (const l of Object.keys(texts)) { voteTexts[l] = {}; for (const k of Object.keys(texts[l]).filter((x) => /^vote_/.test(x))) { voteTexts[l][k] = texts[l][k]; delete texts[l][k]; } }

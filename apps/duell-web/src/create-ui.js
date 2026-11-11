@@ -21,7 +21,9 @@
   // the preview's own look, part of this part and not of the core (scripts/build.js budget)
   var CSS = ".cr16{display:flex;gap:12px;align-items:center;min-height:44px;margin:8px 0;font-weight:600}.cr16 input{width:28px;height:28px;margin:0;flex:none;accent-color:#17140f}.crneed{margin:0;color:#b3321f;font-weight:700}.crneed:empty{display:none}" +
     ".createpv{position:relative;margin:10px 0;padding:18px 16px 30px;border:3px solid #111;border-radius:6px;display:flex;flex-direction:column;gap:8px;min-height:150px;box-shadow:0 5px 0 #111}.createpv-t{font:900 20px/1.1 var(--disp);text-transform:uppercase}.createpv-x{font:800 18px/1.25 var(--ui)}.createpv-sk{font-size:26px}.createpv-photo{border:2px dashed currentColor;padding:18px 8px;font:700 13px/1.3 var(--ui);text-align:center}.createpv-ki{position:absolute;right:8px;bottom:6px;background:#111;color:#fff;font:800 11px/1 var(--ui);padding:4px 6px;border-radius:4px}.createalt{width:100%;box-sizing:border-box;border:3px solid #111;border-radius:6px;padding:12px;margin:10px 0;display:flex;flex-direction:column;gap:8px}.createalt .row{padding:0}" +
-    ".chip.sug{outline:2px dashed currentColor;outline-offset:2px}.chip.soon{opacity:.55;border-style:dashed}.chip:disabled{opacity:.4;cursor:not-allowed}.crrow{margin:10px 0 2px;font-weight:700}.field:disabled{opacity:.5;cursor:not-allowed}.crsoonres:empty{display:none}";
+    ".chip.sug{outline:2px dashed currentColor;outline-offset:2px}.chip.soon{opacity:.55;border-style:dashed}.chip:disabled{opacity:.4;cursor:not-allowed}.crrow{margin:10px 0 2px;font-weight:700}.field:disabled{opacity:.5;cursor:not-allowed}.crsoonres:empty{display:none}" +
+    ".ghsheet{position:fixed;inset:0;z-index:20;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.55)}.ghbox{position:relative;width:100%;max-width:480px;max-height:92%;overflow-y:auto;box-sizing:border-box;background:var(--paper,#fffaf0);color:var(--ink,#111);border:3px solid var(--ink,#111);border-bottom:0;border-radius:14px 14px 0 0;padding:16px 16px 24px}.ghbox h2{margin:0 48px 10px 0;font:900 24px/1.1 var(--disp);text-transform:uppercase}.ghx{position:absolute;right:8px;top:8px;min-width:44px;min-height:44px}" +
+    ".ghnums{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:0 0 10px;font-weight:700}.ghnums dd{margin:0;text-align:right}.ghsub{margin:12px 0 4px;font-size:1rem}.ghfor{margin:0 0 6px;padding-left:20px;font-size:.875rem;line-height:1.45}.ghline{display:block;min-height:44px;margin:0 0 6px;padding:0;border:0;background:none;color:inherit;font:700 .875rem var(--ui);text-decoration:underline;text-underline-offset:3px;cursor:pointer;text-align:left}";
   function style() { if (document.getElementById("createcss")) return; var s = document.createElement("style"); s.id = "createcss"; s.textContent = CSS; document.head.appendChild(s); }
   var A, Kit, t, el, D;
   // art: the category, chosen actively (no preselected chip); genre: the game genre for art "game" (G1, G2: what the server
@@ -47,17 +49,18 @@
   function credit(m) { var n = m && Number(m.credit); return n > 0 && n < 1e6 ? Math.floor(n) : 0; }
   // "Aufladen" when the pot is empty: a voucher code (POST /api/duell/credit/redeem, wrapper lib/duell-voucher.mjs), then the
   // count is asked again. A paid top-up would go here too; none is offered (no payment, wrapper aboStatus offered:false).
-  function topup(b) {
+  // done(): what to draw again after a redeemed code (the count is asked first); id: the field's id (two views may be open).
+  function topup(done, id) {
     var box = el("div", "createalt createtop"), lab = el("label", "", t("create_top_code")), f = el("input", "field"), msg = el("p", "note", state.msg || "");
     box.setAttribute("role", "group"); box.setAttribute("aria-label", t("create_top_h"));
-    f.id = lab.htmlFor = "createcode"; f.type = "text"; f.maxLength = 64; f.autocomplete = "off"; f.spellcheck = false; f.setAttribute("autocapitalize", "characters");
-    msg.id = "createtopmsg"; msg.setAttribute("role", "status"); state.msg = "";
+    f.id = lab.htmlFor = id; f.type = "text"; f.maxLength = 64; f.autocomplete = "off"; f.spellcheck = false; f.setAttribute("autocapitalize", "characters");
+    msg.id = id + "msg"; msg.setAttribute("role", "status"); state.msg = "";
     var go = el("button", "btn", t("create_top_go"), async function () {
       var c = f.value.trim(); if (c.length < 4) { f.focus(); return; }
       Kit.sfx.tap(); go.disabled = true; msg.textContent = "";
       var r = null; try { r = await root.Ai.post("/credit/redeem", { code: c }); } catch (e) { r = null; }
       var j = r && r.json; go.disabled = false;
-      if (j && j.ok === true) { state.msg = t("create_top_ok", { n: Number(j.added) || 0 }); await status(); fill(b); return; }
+      if (j && j.ok === true) { state.msg = t("create_top_ok", { n: Number(j.added) || 0 }); await status(); done(); return; }
       msg.textContent = t("create_top_" + (j && /^(unknown|limit|login)$/.test(j.error) ? j.error : "off"));
     });
     f.addEventListener("keydown", function (e) { if (e.key === "Enter") go.click(); });
@@ -72,6 +75,22 @@
       state.account = !!(r.json && r.json.create);
       state.meter = state.account ? r.json.create : null;
     } catch (e) { state.net = false; state.account = false; state.meter = null; }   // offline: said as such, not "sign in"
+  }
+  // Signing in, one short step, no failing later: the 16+ statement of this very tap (as the account card, profile.js: an
+  // attempt with t0 and age16), then the sign-in; the way back (?go=<go>, start-ui.js) opens this view again.
+  function login(b, go, id) {
+    var lab = el("label", "cr16"), cb = el("input"), need = el("p", "crneed", "");
+    cb.type = "checkbox"; cb.id = id + "16"; lab.appendChild(cb); lab.appendChild(document.createTextNode(" " + t("create_16")));
+    need.setAttribute("role", "alert");
+    var btn = el("button", "btn hot", t("create_login"), function () {
+      if (!cb.checked) { need.textContent = ""; cb.focus(); setTimeout(function () { need.textContent = t("create_need"); }, 80); return; }   // never a locked look
+      Kit.store.profile = { via: "account", rev: 0, base: null, age16: true, t0: Date.now() };
+      Kit.save();   // an attempt is not synced (profile.js Kit.save: only a done link)
+      location.href = root.DuellCore.loginPath((root.Ai && root.Ai.loginReturn ? root.Ai.loginReturn(root.DailyFlavor) : "/duell") + "?go=" + go, Kit.lang);
+    });
+    btn.id = id + "login";
+    cb.addEventListener("change", function () { if (cb.checked) need.textContent = ""; });
+    b.appendChild(lab); b.appendChild(need); b.appendChild(btn); b.appendChild(el("p", "note", t("create_free")));
   }
   // 16+ and 18+ are the server's to read: the account's own statement in its profile ("Mein Stil"), a self-declaration
   // (Selbstauskunft) that nobody verifies; this page sends no age at all.
@@ -117,14 +136,84 @@
     return me;
   }
 
+  function init() { A = root.DailyApp; Kit = root.Kit; t = Kit.t; el = A.el; D = root.Daily; style(); }
+  var shelfBody = null;   // the open making, drawn again when the Guthaben view closes after a top-up
   function open() {
-    A = root.DailyApp; Kit = root.Kit; t = Kit.t; el = A.el; D = root.Daily; style();
+    init();
     // every opening starts without a chosen category: the last one is only a marked suggestion (lastPick)
     state.art = ""; state.genre = ""; state.mode = "";
     A.shelf(t("create_title"), function (b) { b.appendChild(el("p", "note", "…")); status().then(function () { fill(b); }); });
   }
 
+  /* "Guthaben": the account's free cards and credit, what credit is for, and the voucher (topup above, the same code as in
+     the making). One dialog over whatever is open: from My style's account card (profile.js), the line under the count
+     here, the address #aufladen (app.js route) and any part that calls window.Guthaben.open() (parts.js keeps a stand-in
+     until this part is there). It asks /ai/status only when it opens; signed out it shows the sign-in first and the way
+     back (?go=aufladen) opens it again. A paid package would go below the voucher; none is offered (PAID false). */
+  var PAID = false, dlg = null;
+  function guthaben(opts) {
+    init(); opts = opts || {};
+    if (dlg) close();
+    var back = document.activeElement, wrap = el("div", "ghsheet"), box = el("div", "ghbox"), h = el("h2", "", t("gh_title")), body = el("div", "ghbody"), x = el("button", "ico ghx", "✕", function () { Kit.sfx.tap(); close(); });
+    wrap.id = "ghsheet"; wrap.setAttribute("role", "dialog"); wrap.setAttribute("aria-modal", "true"); wrap.setAttribute("aria-labelledby", "ghtitle");
+    h.id = "ghtitle"; x.setAttribute("aria-label", t("gh_close")); body.setAttribute("aria-live", "polite");
+    box.appendChild(x); box.appendChild(h); box.appendChild(body); wrap.appendChild(box);
+    wrap.addEventListener("click", function (e) { if (e.target === wrap) close(); });
+    // Escape closes the dialog only (not the screen below, app.js); Tab stays inside it
+    wrap.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); return; }
+      if (e.key !== "Tab") return;
+      var f = [].filter.call(box.querySelectorAll("button,input,a[href]"), function (n) { return !n.disabled && n.offsetParent !== null; });
+      if (!f.length) return;
+      if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+      else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+    });
+    document.body.appendChild(wrap);
+    dlg = { wrap: wrap, back: back, topped: false };
+    body.appendChild(el("p", "note", "…"));
+    try { x.focus(); } catch (e) {}
+    status().then(function () { if (dlg && dlg.wrap === wrap) draw(body); });
+  }
+  function close() {
+    var d = dlg; if (!d) return; dlg = null; d.wrap.remove();
+    // after a top-up the making below shows the new count; the focus goes back where the dialog was opened from
+    if (d.topped && shelfBody && shelfBody.isConnected) fill(shelfBody);
+    var to = d.back && (d.back.isConnected ? d.back : d.back.id && document.getElementById(d.back.id));   // drawn again: the same id
+    try { if (to) to.focus(); } catch (e) {}
+  }
+  function draw(b) {
+    b.textContent = "";
+    if (!state.net) { b.appendChild(el("p", "note", t("aiNet"))); return; }
+    if (!state.account) {
+      b.appendChild(el("p", "note", t("gh_login")));
+      if (root.DuellHost) { b.appendChild(el("p", "note", t("create_app"))); return; }
+      login(b, "aufladen", "gh");
+      return;
+    }
+    var m = state.meter || {}, c = credit(m), dl = el("dl", "ghnums");
+    function row(k, v) { dl.appendChild(el("dt", "", k)); dl.appendChild(el("dd", "", v)); }
+    var size = Math.max(0, Math.floor(Number(m.size)) || 0), left = Math.max(0, Math.min(size, Math.floor(Number(m.remaining)) || 0));
+    row(t("gh_free"), t(m.period === "month" ? "gh_free_month" : "gh_free_ever", { n: left, m: size }));
+    row(t("gh_credit"), t(c === 1 ? "gh_cards_1" : "gh_cards", { n: c }));
+    b.appendChild(dl);
+    if (m.period === "month" && m.resetAt && !isNaN(Date.parse(m.resetAt))) b.appendChild(el("p", "note", t("gh_reset", { d: new Date(m.resetAt).toLocaleDateString(Kit.lang === "de" ? "de-DE" : "en-GB", { day: "numeric", month: "long" }) })));
+    b.appendChild(el("h3", "ghsub", t("gh_for")));
+    var ul = el("ul", "ghfor");
+    ["gh_for_cards", "gh_for_pics", "gh_for_files"].forEach(function (k) { ul.appendChild(el("li", "", t(k))); });
+    b.appendChild(ul);
+    if (m.voucher) b.appendChild(topup(function () { if (dlg) dlg.topped = true; draw(b); var f = document.getElementById("ghcode"); if (f) f.focus(); }, "ghcode"));
+    else b.appendChild(el("p", "note", t("create_top_off")));
+    var paid = el("div", "ghpaid"); paid.id = "ghpaid"; paid.hidden = !PAID; b.appendChild(paid);   // later: paid packages (wrapper aboStatus offered:false today)
+  }
+  // The line under the count: credit and the way to the Guthaben view, also while free cards are left.
+  function ghLine() {
+    var c = credit(state.meter), btn = el("button", "ghline", t("gh_line", { n: c }), function () { Kit.sfx.tap(); guthaben({ from: "create" }); });
+    btn.id = "ghline"; btn.setAttribute("aria-haspopup", "dialog");
+    return btn;
+  }
+
   function fill(b) {
+    shelfBody = b;
     b.textContent = "";
     b.classList.add("create");
     if (!state.net) { b.appendChild(el("p", "note", t("aiNet"))); return; }
@@ -132,20 +221,7 @@
     if (!state.account) {
       b.appendChild(el("p", "note", t("create_login_h", { m: 5 })));
       if (root.DuellHost) { b.appendChild(el("p", "note", t("create_app"))); return; }
-      // one short step, no failing later: the 16+ statement of this very tap (as the account card, profile.js: an attempt
-      // with t0 and age16), then the sign-in; the way back (?go=erschaffen, start-ui.js) opens this making again
-      var lab = el("label", "cr16"), cb = el("input"), need = el("p", "crneed", "");
-      cb.type = "checkbox"; cb.id = "create16"; lab.appendChild(cb); lab.appendChild(document.createTextNode(" " + t("create_16")));
-      need.setAttribute("role", "alert");
-      var go = el("button", "btn hot", t("create_login"), function () {
-        if (!cb.checked) { need.textContent = ""; cb.focus(); setTimeout(function () { need.textContent = t("create_need"); }, 80); return; }   // never a locked look
-        Kit.store.profile = { via: "account", rev: 0, base: null, age16: true, t0: Date.now() };
-        Kit.save();   // an attempt is not synced (profile.js Kit.save: only a done link)
-        location.href = root.DuellCore.loginPath((root.Ai && root.Ai.loginReturn ? root.Ai.loginReturn(root.DailyFlavor) : "/duell") + "?go=erschaffen", Kit.lang);
-      });
-      go.id = "createlogin";
-      cb.addEventListener("change", function () { if (cb.checked) need.textContent = ""; });
-      b.appendChild(lab); b.appendChild(need); b.appendChild(go); b.appendChild(el("p", "note", t("create_free")));
+      login(b, "erschaffen", "create");
       return;
     }
     // switched off on the server (DUELL_KARTE_OFF): said kindly, nothing else
@@ -175,11 +251,12 @@
     b.appendChild(ex);
     var left = el("p", "aicount create-left", line(state.meter)); left.setAttribute("aria-live", "polite");
     b.appendChild(left);
+    b.appendChild(ghLine());
     b.appendChild(el("p", "note", t("create_rules")));
     // before anything is made: what a discard gives back (no hidden cost)
     if (state.meter && state.meter.remaining > 0) b.appendChild(el("p", "note", state.meter.refundsLeft > 0 ? t("create_drop_n", { n: state.meter.refundsLeft }) : t("create_drop_0")));
     else if (credit(state.meter)) b.appendChild(el("p", "note", t("create_drop_credit")));
-    if (state.meter && state.meter.remaining <= 0 && state.meter.voucher) b.appendChild(topup(b));
+    if (state.meter && state.meter.remaining <= 0 && state.meter.voucher) b.appendChild(topup(function () { fill(b); }, "createcode"));
     if (state.meter && state.meter.remaining <= 0 && !credit(state.meter)) return;
     if (state.meter && state.meter.paused) { b.appendChild(el("p", "note", t("create_paused"))); return; }
 
@@ -398,5 +475,6 @@
     return box;
   }
 
-  root.CreateUI = { open: open, preview: preview };
+  root.CreateUI = { open: open, preview: preview, guthaben: guthaben };
+  root.Guthaben = { open: function (opts) { guthaben(opts); return true; } };
 })(typeof globalThis !== "undefined" ? globalThis : this);
