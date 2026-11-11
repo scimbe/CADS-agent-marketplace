@@ -166,3 +166,13 @@ test("loginReturn: der Login fuehrt zur Seite des eigenen Builds zurueck, nur al
     assert.equal(A.loginReturn({ shareBase: bad }), "/duell", String(bad));
   }
 });
+
+test("Zeitlimit: eine abgebrochene Anfrage (AbortError aus post) heisst timeout, jeder andere Fehler off", async () => {
+  const abort = Object.assign(new Error("aborted"), { name: "AbortError" });
+  assert.equal((await A.client({ send: fake([abort]).send }).ask({ kind: "karte" })).how, "timeout");
+  assert.equal((await A.client({ send: fake([new Error("offline")]).send }).ask({ kind: "karte" })).how, "off");
+  // also while polling the line
+  const q = fake([{ status: 202, json: { queued: true, ticket: "tk-0001", position: 1 } }, abort]);
+  assert.equal((await A.client({ send: q.send, sleep: async () => {}, now: () => 0 }).ask({ kind: "karte" })).how, "timeout");
+  assert.ok(T.de.aiTimeout && T.en.aiTimeout);
+});

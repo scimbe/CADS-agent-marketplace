@@ -54,11 +54,13 @@ function shape(c, f, x, y, r, col) {
 }
 function lines(c, list, W, y, size, col) {
   c.font = "800 " + size + "px system-ui,sans-serif"; c.fillStyle = col; c.textAlign = "center"; c.textBaseline = "top";
+  var y0 = y;
   list.forEach(function (s) {
     var cur = "";
     String(s).split(" ").forEach(function (w) { var n = cur ? cur + " " + w : w; if (c.measureText(n).width > W * 0.84 && cur) { c.fillText(cur, W / 2, y); y += size * 1.25; cur = w; } else cur = n; });
     if (cur) { c.fillText(cur, W / 2, y); y += size * 1.25; } y += size * 0.4;
   });
+  if (R.note) R.note(c, "worte", W * 0.08, y0, W * 0.84, y - y0);   // words a bubble leaves free (src/teile.js)
   return y;
 }
 function title(doc) { var i = doc.i ? D.byId(doc.i) : null, T = i ? D.plainTitle((i[Kit.lang] || i.de).t) : ""; return doc.t || T || t("turn"); }
@@ -68,6 +70,7 @@ R.extra.turn = function (c, W, H, doc) {
   var a = doc.col[0], b = doc.col[1], ink = R.ink(a), st = Tn.state(doc), res = Tn.result(doc, Kit.lang);
   c.fillStyle = a; c.fillRect(0, 0, W, H); R.rays(c, W, H, "rgba(0,0,0,.05)", 0.2);
   shape(c, doc.f, W * 0.84, H * 0.84, W * 0.08, b); shape(c, doc.f, W * 0.14, H * 0.8, W * 0.05, b);
+  if (R.note) { R.note(c, "deko", W * 0.73, H * 0.84 - W * 0.11, W * 0.22, W * 0.22); R.note(c, "deko", W * 0.07, H * 0.8 - W * 0.07, W * 0.14, W * 0.14); }   // the card's own figures: no bubble on them
   R.block(c, res ? res.h : title(doc), W * 0.07, H * 0.1, W * 0.86, H * 0.34, ink, null);
   var face = res ? null : Tn.face(doc, Kit.lang);
   if (res) lines(c, res.lines, W, H * 0.5, W * 0.038, ink);
@@ -197,7 +200,7 @@ var draw = {
   list: function (box, p, set, ctx) {
     var fs = [], pre = ctx && ctx.ed.pre && ctx.ed.pre[p.l];
     function up() { var v = fs.map(function (f) { return Q.clean(f.value, p.max); }), have = v.filter(Boolean); if (p.least && (have.length < p.least || new Set(have.map(Q.fold)).size < have.length)) { set(null); return; } set(p.loose ? fs.map(function (f, i) { return f.value.trim() ? v[i] : ""; }) : v.every(Boolean) && (p.same || new Set(v.map(Q.fold)).size === p.n) && (!p.bytes || new TextEncoder().encode(v.join("")).length <= p.bytes) ? v : null); }
-    for (var i = 0; i < p.n; i++) { var f = el("input", "field"); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", ask(p, ctx.doc, ctx.m) + " " + (i + 1)); if (p.hints) f.placeholder = p.hints(Kit.lang)[i]; f.addEventListener("input", up); if (pre && pre[i]) f.value = pre[i]; box.appendChild(f); fs.push(f); }
+    for (var i = 0; i < p.n; i++) { var f = el("input", "field tlist"); f.setAttribute("data-l", p.l); f.maxLength = p.max; f.autocomplete = "off"; f.setAttribute("aria-label", ask(p, ctx.doc, ctx.m) + " " + (i + 1)); if (p.hints) f.placeholder = p.hints(Kit.lang)[i]; f.addEventListener("input", up); if (pre && pre[i]) f.value = pre[i]; box.appendChild(f); fs.push(f); }
     if (p.loose || pre) up(); else set(null);
   },
   pick: function (box, p, set, ctx) {
@@ -694,8 +697,11 @@ A.PANEL.Text = (function () {
   return function (p) {
     if (A.ed().doc.k !== "turn") { window.Blasen.PANEL.Text(p); return; }
     var d = A.ed().doc;
-    A.field(p, t("ideaT"), d.t, 40, function (v) { d.t = v; });
-    A.field(p, t("ideaS"), d.s, 70, function (v) { d.s = v; });
+    // a card from the catalog shows its title and line as the card does (an empty field gives the catalog's back); an own
+    // card is "your idea of the day" as before
+    var i0 = d.i ? D.byId(d.i) : null, s0 = i0 ? (i0[Kit.lang] || i0.de).s : "";
+    A.field(p, t(i0 ? "titleL" : "ideaT"), d.t || (i0 ? title(d) : ""), 40, function (v) { d.t = v; });
+    A.field(p, t("ideaS"), d.s || s0 || "", 70, function (v) { d.s = v; });
     if (d.g === "deal") A.field(p, L().things, d.w, 14, function (v) { if (v) d.w = v; else delete d.w; });   // only the deal speaks of its things
     if (!A.allow("tools", "shapes")) return;   // a flavor whose picture has no shapes (Business)
     // the shape that flies across the card, each drawn as on the card, with its name

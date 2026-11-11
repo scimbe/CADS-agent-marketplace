@@ -168,7 +168,7 @@ test("Nr. 7: Laufband steht bei reduzierter Bewegung und nach dem ersten Tippen;
   await b.close();
 });
 
-test("Nr. 8: keine Uhr ohne „Los“ (10 s nach dem Oeffnen), Karte eingeklappt, Rein/Raus im Bild, Stimmaufnahme mit 3-2-1 und Stopp", async () => {
+test("Nr. 8: keine Uhr ohne „Los“ (10 s nach dem Oeffnen), Karte bis Los zu sehen, danach eingeklappt, Rein/Raus im Bild, Stimmaufnahme mit 3-2-1 und Stopp", async () => {
   const b = await G.launch(), ctx = await person(b);
   for (const id of ["raum-erklaeren", "raum-uhr", "zug-pokal", "zug-reaktion", "raum-tuer"]) {
     const p = await G.open(ctx, "#i=" + id); await p.clock.install(); await p.locator("#go").click();
@@ -177,8 +177,9 @@ test("Nr. 8: keine Uhr ohne „Los“ (10 s nach dem Oeffnen), Karte eingeklappt
     await p.clock.runFor(10000);
     assert.equal(await p.locator("#panel").innerText(), at, id + ": nichts laeuft vor dem Tipp");
     if (id === "raum-tuer") {
-      assert.equal(await p.locator("#stagewrap").isHidden(), true, "Kartenbild eingeklappt");
+      assert.equal(await p.locator("#stagewrap").isVisible(), true, "vor Los: Kartenbild zu sehen");
       await p.getByRole("button", { name: T.rdy_go }).click(); await p.clock.runFor(2200);
+      assert.equal(await p.locator("#stagewrap").isHidden(), true, "ab Los: Kartenbild eingeklappt");
       await p.locator(".bface").waitFor();
       assert.ok(await G.inView(p, ".doorin") && await G.inView(p, ".doorout"), "Rein/Raus bei 390x844 im Bild");
     }

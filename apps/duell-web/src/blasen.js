@@ -198,6 +198,7 @@ var PANEL = {
   Figure: function (p) {
     var g = ed().doc.g, me = A.me(), list = EMOJI.indexOf(me.emoji) < 0 ? [me.emoji].concat(EMOJI) : EMOJI;
     chips(p, list.map(function (e) { return { v: e, l: e }; }), g.emoji, function (v) { g.emoji = v; byHand(); }, "em");
+    anim(p, function () { return g.anim; }, function (a) { if (a) g.anim = a; else delete g.anim; byHand(); changed(); });
   },
   // A world chosen here replaces a world built by a wish or the idea (its look), which would otherwise cover every theme.
   World: function (p) {
@@ -206,6 +207,28 @@ var PANEL = {
     Array.from(b.children).forEach(function (c, i) { c.style.borderBottom = "8px solid " + G.themeColor(G.THEMES[i]); });
   }
 };
+
+// The figure's animation set by hand (the yellow way, no AI): the same fixed lists the AI fills (DuellCore.sanitizeAnim),
+// so both ways give the same thing. get() -> the animation or undefined; set(a | null). Used by Figure and LFigure.
+var AW = {
+  de: { h: "Bewegung", w: "Wann", tp: "Tempo", st: "Stärke", huepfen: "Hüpfen", wippen: "Wippen", drehen: "Drehen", wackeln: "Wackeln", fluegel: "Flattern", blinken: "Blinken", pulsieren: "Pulsieren", keine: "Keine", immer: "Immer", sprung: "Beim Sprung", treffer: "Bei Punkt", sieg: "Beim Sieg" },
+  en: { h: "Motion", w: "When", tp: "Speed", st: "Strength", huepfen: "Hop", wippen: "Bob", drehen: "Spin", wackeln: "Wiggle", fluegel: "Flap", blinken: "Blink", pulsieren: "Pulse", keine: "None", immer: "Always", sprung: "On a jump", treffer: "On a point", sieg: "On a win" }
+};
+function anim(p, get, set) {
+  var w = AW[Kit.lang] || AW.de, box = el("div", "animblock"), a = get() || {};
+  function put(k, v) { if (k !== "art" && !get()) return; var n = Object.assign({}, get()); n[k] = v; set(k === "art" && v === "keine" ? null : C.sanitizeAnim(n)); }
+  p.appendChild(box);
+  box.appendChild(el("label", "lbl", w.h));
+  chips(box, C.ANIM.map(function (k) { return { v: k, l: w[k] }; }), a.art || "keine", function (v) { put("art", v); });
+  box.appendChild(el("label", "lbl", w.w));
+  chips(box, C.ANIM_BEI.map(function (k) { return { v: k, l: w[k] }; }), a.bei || "immer", function (v) { put("bei", v); });
+  [["tempo", w.tp, 5, 20, 10], ["staerke", w.st, 0, 10, 6]].forEach(function (x) {
+    var row = el("label", "slide"), r = el("input"), now = a[x[0]] == null ? x[4] : Math.round(a[x[0]] * 10), v = el("b", "", String(now / 10));
+    row.appendChild(el("span", "", x[1])); r.type = "range"; r.min = x[2]; r.max = x[3]; r.value = now; r.setAttribute("aria-label", x[1]); r.dataset.anim = x[0];
+    r.addEventListener("input", function () { v.textContent = String(r.value / 10); put(x[0], r.value / 10); });
+    row.appendChild(r); row.appendChild(v); box.appendChild(row);
+  });
+}
 
 function beatPanel(p) {
   // 4 steps a row (44 px on the smallest phone), 4 pages of one beat each; every step says its sound, its beat and its state.
@@ -241,5 +264,5 @@ function voicePanel(p) { window.Parts.use("klang", function () { if (ed() && p.i
 
 Object.keys(TABS).forEach(function (k) { if (!A.TABS[k]) A.TABS[k] = TABS[k]; });
 Object.keys(PANEL).forEach(function (k) { if (!A.PANEL[k]) A.PANEL[k] = PANEL[k]; });
-root.Blasen = { open: open, tab: tab, PANEL: PANEL, relabel: function () { Array.from($("tabs").children).forEach(function (b) { b.textContent = tabText(b.dataset.k); }); } };
+root.Blasen = { open: open, tab: tab, PANEL: PANEL, anim: anim, relabel: function () { Array.from($("tabs").children).forEach(function (b) { b.textContent = tabText(b.dataset.k); }); } };
 })(window);

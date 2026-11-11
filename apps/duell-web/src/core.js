@@ -182,6 +182,47 @@
     return r;
   }
 
+  // The figure's animation (g.anim of a flight game, l.anim of a runner): the AI (kind welt) or the Figur sheet picks from
+  // fixed lists, the page plays it the same way on every device. art; tempo 0.5-2; staerke 0-1; bei: when it plays (immer
+  // is the default and not stored). A value off its list or range is dropped, never guessed; art "keine" means no animation.
+  var ANIM = ["huepfen", "wippen", "drehen", "wackeln", "fluegel", "blinken", "pulsieren", "keine"], ANIM_BEI = ["immer", "sprung", "treffer", "sieg"];
+  function sanitizeAnim(o) {
+    if (!o || typeof o !== "object" || ANIM.indexOf(o.art) < 0 || o.art === "keine") return null;
+    var a = { art: o.art }, tp = o.tempo, s = o.staerke;
+    if (typeof tp === "number" && tp >= 0.5 && tp <= 2) a.tempo = Math.round(tp * 10) / 10;
+    if (typeof s === "number" && s >= 0 && s <= 1) a.staerke = Math.round(s * 10) / 10;
+    if (ANIM_BEI.indexOf(o.bei) > 0) a.bei = o.bei;
+    return a;
+  }
+  // The pose at t seconds (since: seconds since its trigger, for bei; big when it never came), in figure sizes z. No chance:
+  // the phase comes from the seed. -> { x, y, r (rad), sx, sy, a (alpha) }
+  function animPose(a, t, since, seed, z) {
+    var P = { x: 0, y: 0, r: 0, sx: 1, sy: 1, a: 1 }, f = a && (a.tempo || 1), s = a && (a.staerke == null ? 0.6 : a.staerke), d = a && a.bei === "sieg" ? 2.5 : 0.7;
+    var on = !a ? 0 : !a.bei ? 1 : since >= 0 && since < d ? 1 - since / d : 0, w = 6.283 * f * t + ((seed >>> 0) % 628) / 100, k = s * on, q;
+    if (!k) return P;
+    if (a.art === "huepfen") P.y = -Math.abs(Math.sin(w / 2)) * 0.45 * z * k;
+    else if (a.art === "wippen") P.y = Math.sin(w) * 0.18 * z * k;
+    else if (a.art === "drehen") P.r = (w * (0.4 + s)) % 6.283;
+    else if (a.art === "wackeln") P.r = Math.sin(w * 2) * 0.45 * k;
+    else if (a.art === "fluegel") { q = Math.abs(Math.sin(w * 2)); P.sy = 1 - 0.4 * k * q; P.sx = 1 + 0.15 * k * q; }
+    else if (a.art === "blinken") P.a = Math.sin(w * 1.5) > 0.3 ? 1 - 0.8 * k : 1;
+    else if (a.art === "pulsieren") P.sx = P.sy = 1 + 0.22 * k * Math.sin(w);
+    return P;
+  }
+  // The way without AI: an animation read from a sentence by fixed word rules (folded: no umlauts), null when none is named.
+  var ANIM_WORDS = [["huepfen", /hupf|huepf|hops|bounce|hop\b/], ["wippen", /wipp|schaukel|bob\b|sway/], ["drehen", /dreh|rotier|spin|kreisel/], ["wackeln", /wackel|zitter|wobbl|shake|wiggle/],
+    ["fluegel", /flugel|fluegel|flatter|flap/], ["blinken", /blink|funkel|glitzer|flash|twinkl/], ["pulsieren", /puls|pump|pochen|grow and shrink/], ["keine", /(keine|ohne|stop\w*) (animation|bewegung)|nicht mehr (bewegen|animier)/]];
+  function animWords(text) {
+    var f = foldText(text), a = null, i;
+    for (i = 0; i < ANIM_WORDS.length && !a; i++) if (ANIM_WORDS[i][1].test(f)) a = { art: ANIM_WORDS[i][0] };
+    if (!a) return null;
+    if (/beim? (sprung|springen|flattern)|when (it )?(jumps|flaps)/.test(f)) a.bei = "sprung";
+    else if (/(bei|nach) (jedem )?(punkt|treffer|munze)|when (it )?scores/.test(f)) a.bei = "treffer";
+    else if (/(beim? )?(sieg|gewinnen|rekord)|when (it )?wins/.test(f)) a.bei = "sieg";
+    if (/schnell|fast|wild/.test(f)) a.tempo = 1.6; else if (/langsam|slow|gemutlich|sanft|gentle/.test(f)) a.tempo = 0.7;
+    return a;
+  }
+
   // ---------- state (the shared contract) ----------
   function sanitizeState(o) {
     if (!o || typeof o !== "object" || Array.isArray(o)) return null;
@@ -200,6 +241,8 @@
     if (lk) st.look = lk;
     var rt = sanitizeRoute(o.route);
     if (rt) st.route = rt;
+    var an = sanitizeAnim(o.anim);
+    if (an) st.anim = an;
     var ki = sanitizeKiMark(o.ki);
     if (ki) st.ki = ki;
     if (o.score !== undefined && o.score !== null) {
@@ -355,7 +398,9 @@
     for (var j = 0; j < EMOJI_RULES.length; j++) if (EMOJI_RULES[j][0].test(f)) { emoji = EMOJI_RULES[j][1]; break; }
     var words = p.split(" ").slice(0, 4).join(" ");
     var title = sanitizeTitle(words.charAt(0).toUpperCase() + words.slice(1), lang === "en" ? "My game" : "Mein Spiel");
-    return { v: 1, seed: hash32("p:" + f), params: sanitizeParams(params), theme: theme, title: title, emoji: emoji };
+    var st = { v: 1, seed: hash32("p:" + f), params: sanitizeParams(params), theme: theme, title: title, emoji: emoji }, an = animWords(p);
+    if (an) st.anim = an.art === "keine" ? null : sanitizeAnim(an);
+    return st;
   }
 
   // Server answer {params,theme,title,emoji} -> full state; seed comes from the prompt so the same idea = same track.
@@ -363,8 +408,9 @@
     if (!resp || typeof resp !== "object" || !resp.params || typeof resp.params !== "object") return null;
     var st = sanitizeState({
       v: 1, seed: hash32("p:" + foldText(sanitizePrompt(prompt))), params: resp.params,
-      theme: resp.theme, title: resp.title, emoji: resp.emoji, route: resp.abschnitte || resp.route
+      theme: resp.theme, title: resp.title, emoji: resp.emoji, route: resp.abschnitte || resp.route, anim: resp.anim
     });
+    if (st && resp.anim && resp.anim.art === "keine") st.anim = null;   // the wish took the animation away (else: keep the old one)
     return st;
   }
 
@@ -412,7 +458,7 @@
     isClean: isClean, whyNot: whyNot, filterNote: filterNote, CHECKS: CHECKS, foldText: foldText, sanitizeName: sanitizeName, sanitizeTitle: sanitizeTitle, sanitizeEmoji: sanitizeEmoji, sanitizePrompt: sanitizePrompt,
     sanitizeState: sanitizeState, encodeState: encodeState, decodeState: decodeState, parseHash: parseHash, buildUrl: buildUrl,
     configKey: configKey, hash32: hash32, mulberry32: mulberry32, dailyKey: dailyKey, dailySeed: dailySeed, dailyConfig: dailyConfig,
-    sanitizeLook: sanitizeLook, sanitizeRoute: sanitizeRoute, sectionParams: sectionParams, routeParams: routeParams, STEPS: STEPS, SECTIONS: SECTIONS, DECOS: DECOS, FORMS: FORMS, presetState: presetState, localConfig: localConfig, stateFromApi: stateFromApi, CONF_BASE: CONF_BASE, confLink: confLink
+    sanitizeLook: sanitizeLook, sanitizeRoute: sanitizeRoute, sectionParams: sectionParams, routeParams: routeParams, STEPS: STEPS, SECTIONS: SECTIONS, DECOS: DECOS, FORMS: FORMS, presetState: presetState, localConfig: localConfig, ANIM: ANIM, ANIM_BEI: ANIM_BEI, sanitizeAnim: sanitizeAnim, animPose: animPose, animWords: animWords, stateFromApi: stateFromApi, CONF_BASE: CONF_BASE, confLink: confLink
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.DuellCore = api;

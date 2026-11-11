@@ -425,8 +425,12 @@ function start(make) {
 }
 // A new table: I take seat 1 and invite everyone straight away, with one link for the group chat. Bauernskat first
 // asks: the bot or a friend.
-function open(g) {
+// doc: a free card of the table (the Robot, src/frei.js): its house rules become this device's choice for the game (the
+// link carries them as r= like any choice, everyone at the table sees them as chips and can still change them).
+function open(g, doc) {
   game = pickGame(g);
+  var fa = doc && doc.k === "table" && window.Frei ? window.Frei.tableFa(game, doc.fa) : null;
+  if (fa && fa.r) keepRules(engine().rules(fa.r));
   if (game === "bauernskat") return choose();
   return friends();
 }

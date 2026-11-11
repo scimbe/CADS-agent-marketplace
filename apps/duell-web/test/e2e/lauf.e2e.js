@@ -43,6 +43,7 @@ for (const vp of [[412, 915], [360, 780]]) {
     await p.evaluate(() => { window.DailyApp.me().pref = { age: "a18" }; });
     await p.locator("#create").tap();
     await p.getByRole("button", { name: "🕹 Spiel" }).tap();
+    await p.getByRole("button", { name: "🏃 Jump & Run" }).tap();
     await p.getByLabel("Deine Beschreibung").fill("Endless Runner über Brücken");
     await p.getByRole("button", { name: "✨ Erschaffen" }).tap();
     const pv = p.locator(".createpv");

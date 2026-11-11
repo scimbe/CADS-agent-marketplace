@@ -64,7 +64,7 @@
   // One seal per option (seals[i] belongs to options[i]); a bad one is simply left out.
   function seals(json) { var a = json && Array.isArray(json.seals) ? json.seals : []; return json.options.map(function (x, i) { return okSeal(a[i]); }); }
   // The page names a path; queue and report sit next to the AI on the server, the rest below it. iOS maps the same names.
-  var ROOT = { "/queue": 1, "/report": 1 };
+  var ROOT = { "/queue": 1, "/report": 1, "/credit/redeem": 1 };
   function endpoint(api, path) { var r = String(api).replace(/\/(config|ai)$/, ""); return r + (ROOT[path] ? path : "/ai" + path); }
 
   /* The client adapter: one place that speaks the server's protocol (CADS-DEMO-wrapper, "Schnittstellen fuer die App").
@@ -82,10 +82,12 @@
   function client(o) {
     var sleep = o.sleep || function (ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }, now = o.now || Date.now, max = o.waitMax || WAIT_MAX;
     function keep(json) { if (o.keep) o.keep(json); }
+    // a request that ran into post()'s TIMEOUT is said as such ("timeout"), any other failure is "off"
+    function lapsed(e) { return e && e.name === "AbortError" ? "timeout" : "off"; }
     var none = function (how, n, json) { return { how: how, options: [], seals: [], receipt: "", position: n || 0, why: json && typeof json.why === "string" ? json.why : "" }; };
     async function ask(body, onWait, alive) {
       var r, how, started = now(), last = 0, tk = "";
-      try { r = await o.send("", Object.assign({}, body, { queue: "ticket" })); } catch (e) { return none("off"); }
+      try { r = await o.send("", Object.assign({}, body, { queue: "ticket" })); } catch (e) { return none(lapsed(e)); }
       for (;;) {
         keep(r.json); how = verdict(r.status, r.json);
         if (how !== "queued") break;
@@ -93,7 +95,7 @@
         await sleep(PAUSE);
         if (alive && !alive()) return none("gone");
         if (now() - started >= max) return none("busy", last);
-        try { r = await o.send("/queue", { ticket: tk }); } catch (e) { return none("off"); }
+        try { r = await o.send("/queue", { ticket: tk }); } catch (e) { return none(lapsed(e)); }
       }
       if (how !== "result") { var no = none(how, how === "busy" ? place(r.json) || last : 0); no.why = how === "blocked" && r.json && (r.json.why === "crisis" || r.json.why === "kind_ok") ? r.json.why : ""; if (how === "notyet") { no.notyet = r.json.notyet; no.catalog = r.json.catalog; no.reason = r.json.reason; no.alt = r.json.alt; } return no; }
       return { how: how, options: r.json.options, seals: seals(r.json), receipt: receipt(r.json), position: 0, note: r.json.note };
@@ -186,6 +188,7 @@
     if (r.how === "blocked") return t(r.why === "crisis" ? "aiCrisis" : r.why === "kind_ok" ? "aiKind" : "aiBlocked");   // crisis: the help line is our own text, never the server's
     if (r.how === "quota") return t("aiQuota");
     if (r.how === "busy") return r.position ? t("aiBusyAt", { n: r.position }) : t("aiBusy");
+    if (r.how === "timeout") return t("aiTimeout");
     return t("aiOff");
   }
 
@@ -204,6 +207,10 @@
   function block(p, o) {
     var el = o.el, box = el("div", o.noteLast ? "aibox flat" : "aibox"), cnt = el("p", "aicount", line()), res = el("div", "chips");
     var go = el("button", "chip" + (o.noteLast ? " hot" : ""), "✨ " + o.label, act), mine = null, alive = o.alive || function () { return true; };
+    // phase(step, x) (optional): the real states of one request, for a waiting screen (create-ui.js, warten.js):
+    // "send" (sent), "line" (x = the server's place), "make" (the AI at work), "check" (the answer is here and checked),
+    // "end" (x = what is said instead of a result). now: the request under way, which cancel() lets go.
+    var ph = o.phase || function () {}, now = null;
     cnt.setAttribute("aria-live", "polite"); shown.push(cnt);
     async function act() {
       if (busy) return;
@@ -213,15 +220,22 @@
       if (crisisKind && (crisis(texts(input)) || (o.crisis && o.crisis()))) { help(res); return; }   // nothing sent, nothing charged
       if (mine) { settle(mine, false); mine = null; }      // the options of the last answer were left untouched
       busy = true; go.disabled = true; go.textContent = "… " + t("aiThinking"); res.textContent = "";
-      var r = await run(o.kind, input, function (n) { go.textContent = "… " + (n ? t("aiWait", { n: n }) : t("aiThinking")); }, alive);
+      var me = now = { quit: false };
+      ph("send");
+      var r = await run(o.kind, input, function (n) { if (me.quit) return; go.textContent = "… " + (n ? t("aiWait", { n: n }) : t("aiThinking")); ph(n ? "line" : "make", n); }, alive);
+      // cancelled while it ran: the request was collected to its end anyway (a ready ticket nobody collects is booked on
+      // the server), and what came back goes back at once, as "Verwerfen"; nothing is shown
+      if (me.quit) { if (r.receipt) { open.push(r.receipt); settle(r.receipt, false); } return; }
+      now = null;
+      if (r.how === "result") ph("check");
       // Hashed while the button is still locked, so taking an option stays one synchronous step and a second tap cannot
       // hand back this answer's receipt before its options are shown. Only sealed options need a hash.
       var sub = window.crypto && window.crypto.subtle;
       var hs = r.how === "result" ? await Promise.all(r.options.map(function (opt, i) { return r.seals[i] ? optionHash(opt, sub) : ""; })) : [];
       busy = false; go.disabled = false; go.textContent = "✨ " + o.label; cnt.textContent = line();
       if (r.receipt) open.push(r.receipt);
-      if (!alive()) { if (r.receipt) settle(r.receipt, false); return; }
-      if (r.how === "gone") return;
+      if (!alive()) { if (r.receipt) settle(r.receipt, false); ph("end", ""); return; }
+      if (r.how === "gone") { ph("end", ""); return; }
       if (r.how === "result") {
         var rc = mine = r.receipt;
         var took = function (opt, i) {
@@ -245,8 +259,8 @@
         Kit.sfx.pop(); return;
       }
       if (r.how === "notyet" && o.notyet) { o.notyet(r, res); return; }
-      if (r.how === "blocked" && r.why === "crisis") { help(res); return; }
-      res.appendChild(el("p", "note aistate", stateText(r)));
+      if (r.how === "blocked" && r.why === "crisis") { help(res); ph("end", t("aiCrisis")); return; }
+      res.appendChild(el("p", "note aistate", stateText(r))); ph("end", stateText(r));
       if (r.how === "quota") res.appendChild(el("button", "chip", "ⓘ " + t("aiTitle"), o.wall));
       var own = (r.how === "off" || r.how === "quota") && o.local ? o.local(input) : null;      // the marked way without AI; busy: just try again
       if (own && o.auto) o.auto(own, null, res);
@@ -265,6 +279,13 @@
     if (!o.noteLast) box.appendChild(el("p", "note", t("aiNote")));
     box.appendChild(row); box.appendChild(res);
     p.appendChild(box);
+    // cancel(): the waiting stops for the person now (the panel is free again); the request itself runs to its end in the
+    // background and its answer is given back (see act). -> false when nothing was under way.
+    act.cancel = function () {
+      var me = now; if (!me) return false;
+      me.quit = true; now = null; busy = false; go.disabled = false; go.textContent = "✨ " + o.label;
+      return true;
+    };
     return act;
   }
   // The honest wall: no price, no countdown, nothing to buy yet.
