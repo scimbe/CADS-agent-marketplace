@@ -697,8 +697,11 @@ A.PANEL.Text = (function () {
   return function (p) {
     if (A.ed().doc.k !== "turn") { window.Blasen.PANEL.Text(p); return; }
     var d = A.ed().doc;
-    A.field(p, t("ideaT"), d.t, 40, function (v) { d.t = v; });
-    A.field(p, t("ideaS"), d.s, 70, function (v) { d.s = v; });
+    // a card from the catalog shows its title and line as the card does (an empty field gives the catalog's back); an own
+    // card is "your idea of the day" as before
+    var i0 = d.i ? D.byId(d.i) : null, s0 = i0 ? (i0[Kit.lang] || i0.de).s : "";
+    A.field(p, t(i0 ? "titleL" : "ideaT"), d.t || (i0 ? title(d) : ""), 40, function (v) { d.t = v; });
+    A.field(p, t("ideaS"), d.s || s0 || "", 70, function (v) { d.s = v; });
     if (d.g === "deal") A.field(p, L().things, d.w, 14, function (v) { if (v) d.w = v; else delete d.w; });   // only the deal speaks of its things
     if (!A.allow("tools", "shapes")) return;   // a flavor whose picture has no shapes (Business)
     // the shape that flies across the card, each drawn as on the card, with its name

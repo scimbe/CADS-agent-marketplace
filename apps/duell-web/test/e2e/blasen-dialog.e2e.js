@@ -58,7 +58,9 @@ async function each(p, name, view) {
     assert.equal(await p.evaluate((k) => document.getElementById("tab" + k).getAttribute("aria-selected"), panel), "true", name + " " + id);
     const d = await box(p, "#bdlg"), cx = bq.x + bq.w / 2, cy = bq.y + bq.h / 2;
     const gap = Math.max(0, d.x - cx, cx - d.x - d.w) + Math.max(0, d.y - cy, cy - d.y - d.h);
-    assert.ok(gap <= bq.h / 2 + 30, name + " " + id + ": Dialog neben seiner Blase (" + view + ") " + JSON.stringify({ d, bq }));
+    // next to its bubble; where the sheet steps past the part the bubble changes (to keep it in sight), by that part more
+    const part = await p.evaluate((i) => { const e = document.querySelector(`#blasen .blase[data-blase="${i}"]`); return e.dataset.pt ? +e.dataset.pb - +e.dataset.pt : 0; }, id);
+    assert.ok(gap <= bq.h / 2 + 30 + part, name + " " + id + ": Dialog neben seiner Blase (" + view + ") " + JSON.stringify({ d, bq }));
     assert.ok(d.x >= 0 && d.x + d.w <= (await p.evaluate(() => innerWidth)) + 0.5, name + " " + id + ": im Bild");
     assert.equal(await p.locator("#bdlg").getAttribute("role"), "dialog"); assert.equal(await p.locator("#bdlg").getAttribute("aria-modal"), "true");
     assert.ok((await p.locator("#bdlg #panel").innerText()).trim().length > 0 || await p.locator("#bdlg #panel *").count() > 0, name + " " + id + ": Blatt hat Inhalt");

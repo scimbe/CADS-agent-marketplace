@@ -20,7 +20,10 @@ var CSS = "#bscrim{position:fixed;left:0;top:0;right:0;background:rgba(23,20,15,
   "#bdlg .bdtip{position:absolute;width:16px;height:16px;background:#FBF5DD;border:3px solid #17140F;transform:rotate(45deg);pointer-events:none}" +
   "#ballset{position:absolute;left:8px;top:8px;z-index:7;min-height:44px;padding:0 14px;border:2px solid #17140F;border-radius:999px;background:#FBF5DD;color:#17140F;font:700 14px var(--ui,system-ui)}" +
   "#ballset:not(:focus){clip-path:inset(50%);width:1px;height:1px;min-height:0;padding:0;border:0;overflow:hidden}" +
-  "#editor.bl #tabs,#editor.bl>#panel{display:none}#editor.bl #stagewrap{flex:1 1 auto}";
+  "#editor.bl #tabs,#editor.bl>#panel{display:none}#editor.bl #stagewrap{flex:1 1 auto}" +
+  // the freed height goes to the card: as big as fits between header and footer (aspect kept), undo and redo in a row
+  // above it instead of a column beside it
+  "#editor.bl.dk #stagewrap{padding:10px}#editor.bl.dk #stagewrap:has(#dkbar button:not([hidden])){padding-top:58px}#editor.bl #dkbar{flex-direction:row;bottom:auto}";
 var st = { open: false, from: null, mode: "", pushed: false, skipPop: false, home: null, anim: null };
 function calm() { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } }
 function css() { if ($("bdlgcss")) return; var s = document.createElement("style"); s.id = "bdlgcss"; s.textContent = CSS; document.head.appendChild(s); }
@@ -29,20 +32,31 @@ function title(k) { var t = $("tab" + k); return t ? t.textContent : k; }
 
 // where the sheet goes: beside the bubble, on the side with more room, never over the footer (FERTIG / WEITER stays)
 function placeFor(from) {
-  var vw = innerWidth, foot = document.querySelector("#editor>.foot"), bottom = foot && foot.offsetParent ? rect(foot).y - 8 : innerHeight - 8, top = 8;
+  var vw = innerWidth, foot = document.querySelector("#editor>.foot"), bottom = foot && foot.offsetParent ? rect(foot).y - 8 : innerHeight - 8, top = 8, foot0 = bottom;
   var head = document.querySelector("#editor>.bar"); if (head) top = Math.max(top, rect(head).y + rect(head).h + 4);
   var b = from ? rect(from) : { x: vw / 2 - 20, y: (top + bottom) / 2 - 20, w: 40, h: 40 }, cx = b.x + b.w / 2, cy = b.y + b.h / 2;
   // the side away from the part the bubble changes, when that side has room for a sheet; else the side with more room
   var W = Math.min(380, vw - 24), above = b.y - 12 - top, below = bottom - (b.y + b.h + 12), ty = from && from.dataset.ty ? +from.dataset.ty : NaN;
-  var up = !isNaN(ty) && Math.min(above, below) >= 200 ? ty > cy : above > below;
-  var H = Math.min(up ? above : below, 520), side = vw >= 900 && Math.max(above, below) < 300;
+  var up = !isNaN(ty) && Math.min(above, below) >= 220 ? ty > cy : above > below;
+  var H = Math.min(up ? above : below, 520), side = vw >= 900;   // a wide screen: always beside the bubble, the card stays in sight
   var x = Math.max(12, Math.min(vw - W - 12, cx - W / 2)), y = up ? b.y - 12 - H : b.y + b.h + 12;
   if (side) {   // a wide screen with little room above and below: beside the bubble
+    // right of the bubble, else left; a side where the footer is not below it may reach down to the window's bottom
+    var fr = foot && foot.offsetParent ? rect(foot) : null, xr = cx + b.w / 2 + 12, xl = b.x - 12 - W;
+    var free = function (x) { return !fr || x + W < fr.x || x > fr.x + fr.w; }, fitsR = xr + W < vw - 12, fitsL = xl >= 12;
+    x = fitsR && (free(xr) || !fitsL || !free(xl) || cy < bottom) ? xr : fitsL ? xl : Math.max(12, Math.min(vw - W - 12, xr));
+    if (free(x)) bottom = innerHeight - 8;
     H = Math.min(bottom - top, 520); y = Math.max(top, Math.min(bottom - H, cy - H / 2));
-    x = cx + b.w / 2 + 12 + W < vw - 12 ? cx + b.w / 2 + 12 : Math.max(12, b.x - 12 - W);
+  }
+  // the part itself stays in sight where the sheet can step past it (a title under its bubble: the sheet starts below it)
+  var pt = from && +from.dataset.pt, pb = from && +from.dataset.pb;
+  if (!side && pt && pb) {
+    // only a short step (a title right under its bubble), never far from the bubble
+    if (!up && pb > y && pb + 12 - y <= 180 && bottom - (pb + 12) >= 220) { y = pb + 12; H = Math.min(bottom - y, 520); }
+    else if (up && pt < y + H && y + H - (pt - 12) <= 180 && pt - 12 - top >= 220) { H = Math.min(pt - 12 - top, 520); y = pt - 12 - H; }
   }
   if (H < 220) { H = bottom - top; y = top; }   // too little room on either side: the whole height, the bubble covered
-  return { x: x, y: y, w: W, h: H, cx: cx, cy: cy, up: up, side: side, bottom: bottom };
+  return { x: x, y: y, w: W, h: H, cx: cx, cy: cy, up: up, side: side, bottom: bottom, foot: foot0 };
 }
 
 function build(mode) {
@@ -73,7 +87,7 @@ function open(k, from, mode) {
   st.open = true; st.from = from || null; st.mode = mode || "part";
   if (k) B.tab(k);
   d.querySelector("h2").textContent = mode === "all" ? w("all") : k ? title(k) : w("all");
-  el.scrim.style.bottom = (innerHeight - p.bottom - 8) + "px"; el.scrim.hidden = false; d.hidden = false;
+  el.scrim.style.bottom = (innerHeight - p.foot - 8) + "px"; el.scrim.hidden = false; d.hidden = false;   // the footer (FERTIG / WEITER) stays clear
   d.style.left = p.x + "px"; d.style.top = p.y + "px"; d.style.width = p.w + "px"; d.style.height = p.h + "px";
   var tip = d.querySelector(".bdtip");   // the small pointer towards the bubble
   tip.hidden = !from || p.h >= p.bottom - 20;
@@ -93,8 +107,11 @@ function morph(d, from, grow, done) {
   if (calm() || !b || !b.w) a = d.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, direction: grow ? "normal" : "reverse", fill: "both" });
   else {
     var dx = b.x + b.w / 2 - (s.x + s.w / 2), dy = b.y + b.h / 2 - (s.y + s.h / 2), from0 = { transform: "translate(" + dx + "px," + dy + "px) scale(" + b.w / s.w + "," + b.h / s.h + ")", borderRadius: "50%", opacity: 0.9 };
+    // the sheet is drawn before it moves: its content grows with it out of the bubble (never an empty card); on the way back
+    // the content fades a little ahead, so the bubble it shrinks into is a bubble again
     a = d.animate([from0, { transform: "none", borderRadius: "20px", opacity: 1 }], { duration: grow ? 260 : 200, easing: grow ? "cubic-bezier(.2,1.25,.4,1)" : "cubic-bezier(.5,0,.75,0)", direction: grow ? "normal" : "reverse", fill: "both" });
-    body.animate([{ opacity: 0 }, { opacity: 0 }, { opacity: 1 }], { duration: grow ? 260 : 120, direction: grow ? "normal" : "reverse", fill: "both" });
+    if (grow) body.animate([{ opacity: 0.35 }, { opacity: 1, offset: 0.45 }, { opacity: 1 }], { duration: 260, fill: "both" });
+    else body.animate([{ opacity: 1 }, { opacity: 0, offset: 0.6 }, { opacity: 0 }], { duration: 200, fill: "both" });
   }
   st.anim = a;
   a.onfinish = function () { st.anim = null; if (grow) { try { a.cancel(); } catch (e) {} } if (done) done(); };

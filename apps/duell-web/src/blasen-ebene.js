@@ -89,6 +89,7 @@ function parts() {
   var d = A.ed() && A.ed().doc, wrap = $("stagewrap"), box = $(d && d.k === "game" ? "gamestage" : "stage");
   if (!d || !wrap || !box) return [];
   var wr = rect(wrap), br = rect(box), ox = br.x + box.clientLeft - wr.x, oy = br.y + box.clientTop - wr.y, l = tabs();
+  st.box = { x: ox, y: oy, w: box.clientWidth, h: box.clientHeight };   // the picture in px of #stagewrap
   st.frei = T.frei(d).map(function (r) { return { x: r.x + ox - 4, y: r.y + oy - 4, w: r.w + 8, h: r.h + 8 }; });
   return T.teile(d).filter(function (p) { return l.indexOf(p.panel) >= 0; }).map(function (p) {
     var a = p.w * p.h / (box.clientWidth * box.clientHeight), big = a > 0.5, txt = T.TEXT.indexOf(p.id) >= 0, f = BIG[p.id] || BIG.x;
@@ -124,7 +125,9 @@ function place(list, W, H, S) {
     st.pos[key] = spot(p, soft) || spot(p, no) || spot(p, least) || { x: 2, y: 2 }; keep.push(st.pos[key]);
   });
   function spot(p, no) {
-    var corner = { wunsch: [W - S, H - S], roboter: [W - S, H - S], wuerfel: [W - S, S], magie: [S, S] }[p.id], free = !!corner, tx = corner ? corner[0] : p.tx, ty = corner ? corner[1] : p.ty, best = null, bs = 1e9;
+    // the bubbles without a part sit at the picture's corners, close to it: wish and robot below right and left, dice and
+    // magic above right and left
+    var bx = st.box || { x: S, y: S, w: W - 2 * S, h: H - 2 * S }, corner = { wunsch: [bx.x + bx.w, bx.y + bx.h], roboter: [bx.x, bx.y + bx.h], wuerfel: [bx.x + bx.w, bx.y], magie: [bx.x, bx.y] }[p.id], free = !!corner, tx = corner ? corner[0] : p.tx, ty = corner ? corner[1] : p.ty, best = null, bs = 1e9;
     for (var y = 2; y <= H - S - 2; y += 8) for (var x = 2; x <= W - S - 2; x += 8) {
       var cx = x + S / 2, cy = y + S / 2, ok = true, i;
       for (i = 0; ok && i < no.length; i++) { var r = no[i]; if (x < r.x + r.w && x + S > r.x && y < r.y + r.h && y + S > r.y) ok = false; }
@@ -253,7 +256,10 @@ function tick() {
     if (!b) { b = bubble(p); st.layer.appendChild(b); sync(); }
     b.style.width = b.style.height = S + "px"; b.style.left = q.x + "px"; b.style.top = q.y + "px";
     var t = now[p.id]; if (!t) return;
-    b.dataset.ty = String(Math.round(rect(wrap).y + t.ty));   // where its part is, in page px: its dialog stays off it   // a column out of sight for a moment: the bubble stays, its thread waits
+    var wy = rect(wrap).y;
+    b.dataset.ty = String(Math.round(wy + t.ty));   // where its part is, in page px: its dialog stays off it
+    if (!t.big && k !== "game") { b.dataset.pt = String(Math.round(wy + t.y));   // (the flying game moves: no part to step past)
+      b.dataset.pb = String(Math.round(wy + t.y + t.h)); } else { delete b.dataset.pt; delete b.dataset.pb; }   // a column out of sight for a moment: the bubble stays, its thread waits
     var cx = q.x + S / 2, cy = q.y + S / 2, e = end(t, cx, cy), tt = { id: t.id, tx: e[0], ty: e[1] }, m = route(cx, cy, tt, wordsOf(list, t.id)), mx = m[0], my = m[1];
     t = tt;
     path += "M" + cx.toFixed(1) + " " + cy.toFixed(1) + "Q" + mx.toFixed(1) + " " + my.toFixed(1) + " " + t.tx.toFixed(1) + " " + t.ty.toFixed(1);
