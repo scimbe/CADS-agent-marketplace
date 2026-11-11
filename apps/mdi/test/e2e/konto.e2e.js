@@ -210,7 +210,7 @@ test("App-Huelle: Anmelden ueber die Konto-Bruecke (kein Gate, kein Cookie), Pro
   const ctx = await b.newContext({ ...VIEWS.phone390, locale: "de-DE" });
   ctx.setDefaultTimeout(15000);
   await fw.attach(ctx);
-  await ctx.addInitScript(fakeShellScript());
+  await ctx.addInitScript(...fakeShellScript());
   const p = await ctx.newPage(), errs = [];
   p.on("pageerror", (e) => errs.push("pageerror " + e));
   p.on("console", (m) => { if (m.type() === "error" && !/^Failed to load resource: the server responded with a status of (401|403|404|409|410|429|503)/.test(m.text())) errs.push("console " + m.text()); });

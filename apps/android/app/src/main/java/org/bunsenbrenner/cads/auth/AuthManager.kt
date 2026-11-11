@@ -14,9 +14,27 @@ import net.openid.appauth.AuthorizationService
 import net.openid.appauth.AuthorizationServiceConfiguration
 import net.openid.appauth.ClientAuthentication
 import net.openid.appauth.EndSessionRequest
+import net.openid.appauth.GrantTypeValues
 import net.openid.appauth.ResponseTypeValues
+import net.openid.appauth.TokenRequest
+import net.openid.appauth.TokenResponse
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.bunsenbrenner.cads.BuildConfig
 import kotlin.coroutines.resume
+
+/**
+ * One access token per resource server (RFC 9700 §2.3): Keycloak narrows the access token to the scope asked for on a
+ * refresh (optional client scopes `ct-api` / `mdi-api`, each with its own audience), the refresh token keeps the full
+ * grant. The control plane's token lives in [AuthState] (Rust core, peer channels); the wrapper's only in memory.
+ */
+enum class Resource(val scopeName: String) {
+    ControlPlane("ct-api"), MyDailyIdea("mdi-api");
+    val scope: String get() = "openid $scopeName"
+}
+
+/** Token endpoint errors that do not mean the grant is gone (RFC 9449 §8 nonce; a DPoP proof refused for a device clock off). */
+fun keepsTokens(error: String?): Boolean = error == "invalid_dpop_proof" || error == "use_dpop_nonce"
 
 /**
  * OIDC Authorization Code + PKCE (S256) in the system browser (Custom Tabs) via AppAuth, against
@@ -53,20 +71,31 @@ class AuthManager(context: Context) {
         override fun getRequestParameters(clientId: String): Map<String, String> = mapOf("client_id" to clientId)
     }
 
-    /** For the account bridge: a fresh access token, or null when signed out. */
-    suspend fun freshAccessToken(): String? {
-        ensureFresh()
-        return if (state.isAuthorized) state.accessToken else null
+    private val ctLock = Mutex()
+    private val mdiLock = Mutex()
+    @Volatile private var mdiToken: Pair<String, Long>? = null   // token, expiry (ms since epoch)
+
+    /** For the account bridge: a fresh token for the My Daily Idea wrapper only (aud mydailyidea-api), or null. */
+    suspend fun freshAccessToken(): String? = mdiLock.withLock {
+        if (!state.isAuthorized) return@withLock null
+        mdiToken?.let { (t, exp) -> if (exp - System.currentTimeMillis() > 60_000) return@withLock t }
+        val (resp, ex) = refresh(Resource.MyDailyIdea)
+        if (resp?.accessToken != null) {
+            mdiToken = resp.accessToken!! to (resp.accessTokenExpirationTime ?: (System.currentTimeMillis() + 300_000))
+        } else onRefreshError(ex)
+        mdiToken?.first?.takeIf { state.isAuthorized }
     }
 
-    fun signInIntent(): Intent {
+    /** null when already signed in: a second sign-in would replace the device key the refresh token is bound to. */
+    fun signInIntent(): Intent? {
+        if (state.isAuthorized) return null
         KeystoreDPoPSigner.fresh() // a new device key per sign-in; without one the token request has no proof and Keycloak refuses
         val request = AuthorizationRequest.Builder(
             config,
             BuildConfig.OIDC_CLIENT_ID,
             ResponseTypeValues.CODE,
             Uri.parse(BuildConfig.REDIRECT_URI),
-        ).setScope("openid email profile offline_access").build() // PKCE S256 is AppAuth's default
+        ).setScope("openid email profile offline_access ${Resource.ControlPlane.scopeName} ${Resource.MyDailyIdea.scopeName}").build() // PKCE S256 is AppAuth's default
         return service.getAuthorizationRequestIntent(request)
     }
 
@@ -81,24 +110,36 @@ class AuthManager(context: Context) {
         state.update(response, error)
         service.performTokenRequest(response.createTokenExchangeRequest(), dpopAuth) { tokenResponse, tokenError ->
             state.update(tokenResponse, tokenError)
-            persist()
-            onDone(state.isAuthorized)
+            // the exchange's access token names both services: replace it with the control plane's narrowed one
+            state.needsTokenRefresh = true
+            refreshCallback(Resource.ControlPlane) { resp, ex ->
+                if (resp != null) state.update(resp, null)
+                persist()
+                onDone(state.isAuthorized)
+            }
         }
     }
 
-    /** Refreshes the access token when it is about to expire. Call before each API request. */
-    suspend fun ensureFresh() {
-        if (!state.isAuthorized) return
-        suspendCancellableCoroutine { cont ->
-            state.performActionWithFreshTokens(service, dpopAuth) { _, _, ex ->
-                if (ex != null && ex.type == AuthorizationException.TYPE_OAUTH_TOKEN_ERROR) {
-                    signOut() // refresh token revoked or expired
-                } else {
-                    persist()
-                }
-                if (cont.isActive) cont.resume(Unit)
-            }
-        }
+    /** Refreshes the control plane's access token when it is about to expire. Call before each API request. */
+    suspend fun ensureFresh() = ctLock.withLock {
+        if (!state.isAuthorized || !state.needsTokenRefresh) return@withLock
+        val (resp, ex) = refresh(Resource.ControlPlane)
+        if (resp != null) { state.update(resp, null); persist() } else onRefreshError(ex)
+    }
+
+    private fun refreshCallback(r: Resource, done: (TokenResponse?, AuthorizationException?) -> Unit) {
+        val rt = state.refreshToken ?: return done(null, null)
+        val req = TokenRequest.Builder(config, BuildConfig.OIDC_CLIENT_ID)
+            .setGrantType(GrantTypeValues.REFRESH_TOKEN).setRefreshToken(rt).setScope(r.scope).build()
+        service.performTokenRequest(req, dpopAuth) { resp, ex -> done(resp, ex) }
+    }
+
+    private suspend fun refresh(r: Resource): Pair<TokenResponse?, AuthorizationException?> =
+        suspendCancellableCoroutine { cont -> refreshCallback(r) { resp, ex -> if (cont.isActive) cont.resume(resp to ex) } }
+
+    /** invalid_grant and friends: signed out; a refused DPoP proof or a network error: keep the tokens, retry later. */
+    private fun onRefreshError(ex: AuthorizationException?) {
+        if (ex != null && ex.type == AuthorizationException.TYPE_OAUTH_TOKEN_ERROR && !keepsTokens(ex.error)) signOut()
     }
 
     /**
@@ -122,6 +163,7 @@ class AuthManager(context: Context) {
         val proof = KeystoreDPoPSigner.current()?.let { DPoP.proof(it, "POST", revokeUrl) }
         store.clear()
         KeystoreDPoPSigner.delete()
+        mdiToken = null
         state = AuthState()
         _signedIn.value = false
         if (refresh != null) {

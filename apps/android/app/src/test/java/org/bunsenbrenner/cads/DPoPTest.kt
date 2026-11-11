@@ -64,4 +64,13 @@ class DPoPTest {
         assertArrayEquals(r.copyOfRange(1, 33), raw.copyOfRange(0, 32))
         assertArrayEquals(ByteArray(1) + s, raw.copyOfRange(32, 64))
     }
+
+    @Test fun aRefusedDPoPProofKeepsTheTokensAnInvalidGrantDoesNot() {
+        assertTrue(org.bunsenbrenner.cads.auth.keepsTokens("invalid_dpop_proof"))
+        assertTrue(org.bunsenbrenner.cads.auth.keepsTokens("use_dpop_nonce"))
+        assertFalse(org.bunsenbrenner.cads.auth.keepsTokens("invalid_grant"))
+        assertFalse(org.bunsenbrenner.cads.auth.keepsTokens(null))
+        assertEquals("openid mdi-api", org.bunsenbrenner.cads.auth.Resource.MyDailyIdea.scope)
+        assertEquals("openid ct-api", org.bunsenbrenner.cads.auth.Resource.ControlPlane.scope)
+    }
 }

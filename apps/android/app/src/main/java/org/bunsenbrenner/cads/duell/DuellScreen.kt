@@ -221,6 +221,7 @@ fun DuellScreen(
 ) {
     // Account bridge v1 (window.MdiAccount): sign-in and account calls with the bearer run here, never in the page
     val bridgeScope = androidx.compose.runtime.rememberCoroutineScope()
+    val lastTouch = remember { longArrayOf(0L) }
     val apiHost = remember(apiBase) { URI(apiBase).host ?: "" }
     val holder = remember { arrayOfNulls<WebView>(1) }
     val loaded = remember { intArrayOf(-1) }
@@ -299,7 +300,12 @@ fun DuellScreen(
                 WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
                 web.overScrollMode = View.OVER_SCROLL_NEVER
                 web.addJavascriptInterface(DuellHost(ctx, web, peerBridge, NoPush) { more() }, "DuellHost")
-                if (account != null) AccountBridge.attach(web, AccountBridge(bridgeScope, account, apiBase))
+                if (account != null) {
+                    // a real touch on the page (not page script) is what the bridge's login asks for
+                    @Suppress("ClickableViewAccessibility")
+                    web.setOnTouchListener { _, e -> if (e.actionMasked == android.view.MotionEvent.ACTION_UP) lastTouch[0] = android.os.SystemClock.uptimeMillis(); false }
+                    AccountBridge.attach(web, AccountBridge(bridgeScope, account, apiBase) { lastTouch[0] })
+                }
                 web.webChromeClient = object : WebChromeClient() {
                     override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
                         chooserCallback[0]?.onReceiveValue(null) // a new request replaces an unanswered one

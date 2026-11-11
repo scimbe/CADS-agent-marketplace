@@ -1,6 +1,7 @@
 package org.bunsenbrenner.cads
 
 import org.bunsenbrenner.cads.duell.AccountRoute
+import org.bunsenbrenner.cads.duell.AccountRoutes
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -20,6 +21,13 @@ class AccountRouteTest {
         }
     }
 
+    @Test fun generatedListIsExactlyTheFixturesAllowedEntries() {
+        val cases = fixture.getJSONArray("route")
+        val want = (0 until cases.length()).map { cases.getJSONObject(it) }.filter { it.getBoolean("ok") }.map { it.getString("method") + " " + it.getString("path") }.toSet()
+        assertEquals(want, AccountRoutes.ALLOWED)
+        assertEquals(12, AccountRoutes.ALLOWED.size)
+    }
+
     @Test fun bodyIsASmallJsonObjectForPostAndNothingForGet() {
         assertNotNull(AccountRoute.body("POST", "{\"device\":\"x\"}"))
         assertNull(AccountRoute.body("POST", null))
@@ -32,5 +40,18 @@ class AccountRouteTest {
 
     @Test fun onlyHttpsBase() {
         assertNull(AccountRoute.call("http://demos.example.org", "GET", "/auth/me", ByteArray(0), null))
+    }
+}
+
+class AccountBridgeLoginTest {
+    private val ok = org.bunsenbrenner.cads.duell.AccountBridge.Companion
+    @Test fun loginNeedsARecentTouchAndIsDebounced() {
+        val now = 100_000L
+        org.junit.Assert.assertTrue(ok.loginAllowed(now, 0L, now - 1_000, false))
+        org.junit.Assert.assertFalse("no touch at all", ok.loginAllowed(now, 0L, 0L, false))
+        org.junit.Assert.assertFalse("touch too old", ok.loginAllowed(now, 0L, now - 6_000, false))
+        org.junit.Assert.assertFalse("one running", ok.loginAllowed(now, 0L, now - 1_000, true))
+        org.junit.Assert.assertFalse("debounce 3 s", ok.loginAllowed(now, now - 2_000, now - 1_000, false))
+        org.junit.Assert.assertTrue(ok.loginAllowed(now, now - 3_000, now - 1_000, false))
     }
 }

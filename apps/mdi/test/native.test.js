@@ -10,6 +10,9 @@ import { machine, initialContext } from "../src/app/machine.js";
 import { actionsOf } from "../src/ui/view.js";
 import { REC, ex } from "./wrapper.js";
 import { counter } from "./helpers.js";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const DEV = REC.device, T0 = Date.UTC(2026, 10, 11, 9);
 
@@ -130,4 +133,20 @@ test("Laufzeit in der App: abgebrochene Anmeldung -> wieder anonym mit Hinweis; 
   assert.ok(machine.matches(s, "konto.anmelden"));
   s = machine.send(s, { type: "NAV_FAIL", reason: "nicht-hier", at: T0, rand: ["a", "b", "c", "d"] });
   assert.ok(machine.matches(s, "konto.fehler"));
+});
+
+test("Konto-Bruecke: EINE exakte Liste (12 Aufrufe) aus bridge-account-v1.json, generiert fuer iOS und Android, nicht von Hand veraendert", () => {
+  const apps = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const fx = JSON.parse(fs.readFileSync(path.join(apps, "android/app/src/test/resources/bridge-account-v1.json"), "utf8")).route;
+  const want = fx.filter((c) => c.ok).map((c) => c.method + " " + c.path).sort();
+  assert.equal(want.length, 12);
+  const listed = (f) => [...fs.readFileSync(path.join(apps, f), "utf8").matchAll(/^\s+"((?:GET|POST) [^"]+)",$/gm)].map((m) => m[1]).sort();
+  assert.deepEqual(listed("ios/App/Duell/AccountRoutes.generated.swift"), want, "iOS veraltet: python3 -I apps/gen-account-routes.py");
+  assert.deepEqual(listed("android/app/src/main/java/org/bunsenbrenner/cads/duell/AccountRoutes.kt"), want, "Android veraltet");
+  const cases = fs.readFileSync(path.join(apps, "ios/Tests/AccountRouteCases.generated.swift"), "utf8");
+  assert.equal((cases.match(/^\s+\("/gm) || []).length, fx.length, "iOS-Testfaelle veraltet");
+  // jeder Pfad, den apps/mdi aufruft, steht in der Liste
+  const api = fs.readFileSync(path.join(apps, "mdi/src/broker/api.js"), "utf8");
+  for (const p of [...api.matchAll(/post\("(\/[a-z/]+)"/g)].map((m) => "POST /api/duell" + m[1])) assert.ok(want.includes(p), p);
+  assert.ok(want.includes("GET /auth/me"));
 });

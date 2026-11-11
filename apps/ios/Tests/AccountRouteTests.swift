@@ -1,43 +1,14 @@
 import XCTest
 
-/// Same cases as apps/android/app/src/test/resources/bridge-account-v1.json (Android reads the file in AccountRouteTest).
+/// Cases generated from apps/android/app/src/test/resources/bridge-account-v1.json (AccountRouteCases.generated.swift).
 final class AccountRouteTests: XCTestCase {
-    static let cases: [(String, String, Bool)] = [
-        ("GET", "/auth/me", true),
-        ("POST", "/api/duell/ai/status", true),
-        ("POST", "/api/duell/ai", true),
-        ("POST", "/api/duell/profile/get", true),
-        ("POST", "/api/duell/profile/put", true),
-        ("POST", "/api/duell/profile/delete", true),
-        ("POST", "/api/duell/credit/redeem", true),
-        ("POST", "/api/duell/mod/me", true),
-        ("POST", "/api/duell/mod/appeal", true),
-        ("POST", "/api/duell/deck/use", true),
-        ("POST", "/api/duell/bild/new", true),
-        ("POST", "/api/duell/stat", true),
-        ("POST", "/auth/me", false),
-        ("GET", "/api/duell/ai/status", false),
-        ("GET", "/auth/login", false),
-        ("GET", "/auth/me?return=/x", false),
-        ("POST", "/api/duell/report", false),
-        ("POST", "/api/duell/metrics", false),
-        ("POST", "/api/duell/deck/review", false),
-        ("POST", "/api/duell/deck/review/abc", false),
-        ("POST", "/api/duell/admin/stat", false),
-        ("POST", "/api/duell/config", false),
-        ("POST", "/api/start", false),
-        ("POST", "/api/duell/ai/../../start", false),
-        ("POST", "/api/duell/ai/status?x=1", false),
-        ("POST", "//evil.example/api/duell/ai", false),
-        ("POST", "https://evil.example/api/duell/ai", false),
-        ("POST", "/api/duell/AI/status", false),
-        ("POST", "/api/duell/ai/a/b/c", false),
-        ("DELETE", "/api/duell/profile/delete", false),
-        ("PUT", "/api/duell/profile/put", false)
-    ]
-
     func testSharedRouteCases() {
-        for (m, p, ok) in Self.cases { XCTAssertEqual(AccountRoute.allowed(method: m, path: p), ok, m + " " + p) }
+        for (m, p, ok) in AccountRouteCases.all { XCTAssertEqual(AccountRoute.allowed(method: m, path: p), ok, m + " " + p) }
+    }
+
+    func testExactListOfTwelve() {
+        XCTAssertEqual(AccountRoutes.allowed.count, 12)
+        XCTAssertEqual(Set(AccountRouteCases.all.filter { $0.2 }.map { $0.0 + " " + $0.1 }), AccountRoutes.allowed)
     }
 
     func testRequestFixedHostNoCookiesBearerOnlyWhenSignedIn() {

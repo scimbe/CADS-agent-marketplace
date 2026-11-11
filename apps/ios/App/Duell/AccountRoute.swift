@@ -1,21 +1,14 @@
 import Foundation
 
-/// Which server calls the page may ask the shell to make with the account (bridge v1, `DuellHost.account({op:"api"})`).
-/// Same rule on Android (`AccountRoute.kt`) and in the shared cases `apps/android/app/src/test/resources/bridge-account-v1.json`.
+/// Which server calls the page may ask the shell to make with the account (bridge v1, `DuellHost.account({op:"api"})`):
+/// exactly the entries of `AccountRoutes.allowed`, generated with Android's `AccountRoutes.ALLOWED` from
+/// `apps/android/app/src/test/resources/bridge-account-v1.json` by `apps/gen-account-routes.py`. No prefixes, no patterns.
 /// The page names a path; the host is fixed here; the bearer is added by the shell and never shown to the page.
 enum AccountRoute {
     static let base = "https://demos-34a13a96.bunsenbrenner.org"
     static let maxBody = 262_144
-    private static let post = try! NSRegularExpression(pattern: #"^/api/duell/(ai|profile|credit|deck|mod|bild|stat)(/[a-z0-9-]{1,32}){0,2}$"#)
-    private static let adminSegment = try! NSRegularExpression(pattern: #"/(review|admin)(/|$)"#)
-
     static func allowed(method: String, path: String) -> Bool {
-        let r = NSRange(path.startIndex..., in: path)
-        switch method {
-        case "GET": return path == "/auth/me"
-        case "POST": return post.firstMatch(in: path, range: r) != nil && adminSegment.firstMatch(in: path, range: r) == nil
-        default: return false
-        }
+        AccountRoutes.allowed.contains(method + " " + path)
     }
 
     /// The request for a call from the page, or nil when the page asks for anything else. No cookies; the bearer only when

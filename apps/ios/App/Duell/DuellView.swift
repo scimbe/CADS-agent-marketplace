@@ -37,12 +37,14 @@ private struct DuellWebView: UIViewRepresentable {
         for name in DuellCoordinator.handlerNames { ucc.add(WeakHandler(c), name: name) }
         ucc.addScriptMessageHandler(DuellAiBridge(), contentWorld: .page, name: "ai")   // the one network call, made by the shell
         // Account bridge v1: sign-in (OIDC + PKCE) and account calls with the bearer, made by the shell; no token in the page
-        ucc.addScriptMessageHandler(AccountBridge(auth: auth), contentWorld: .page, name: "account")
+        let gesture = UserGesture()
+        ucc.addScriptMessageHandler(AccountBridge(auth: auth, gesture: gesture), contentWorld: .page, name: "account")
         ucc.addUserScript(WKUserScript(source: DuellCoordinator.hostScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         // The page keeps its wall and profile in localStorage; that has to survive a restart.
         config.websiteDataStore = .default()
 
         let web = WKWebView(frame: .zero, configuration: config)
+        gesture.attach(to: web)   // the account bridge's login needs a real tap on the page
         web.navigationDelegate = c
         web.uiDelegate = c
         web.scrollView.contentInsetAdjustmentBehavior = .never

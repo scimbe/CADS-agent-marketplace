@@ -108,9 +108,10 @@ private fun Root(vm: AppViewModel, onImmersive: (Boolean) -> Unit) {
             override val available: Boolean get() = vm.auth.available
             override fun signedIn() = vm.auth.signedIn.value
             override suspend fun login(): Boolean {
+                val intent = vm.auth.signInIntent() ?: return true   // already signed in
                 pending[0]?.complete(false)
                 val d = CompletableDeferred<Boolean>().also { pending[0] = it }
-                launcher.launch(vm.auth.signInIntent())
+                launcher.launch(intent)
                 return d.await()
             }
             override suspend fun logout() { vm.auth.signOut()?.let { endSessionLauncher.launch(it) } }
@@ -122,7 +123,7 @@ private fun Root(vm: AppViewModel, onImmersive: (Boolean) -> Unit) {
         api = vm.api,
         signedIn = signedIn,
         beforeRequest = { vm.auth.ensureFresh() },
-        onSignIn = { launcher.launch(vm.auth.signInIntent()) },
+        onSignIn = { vm.auth.signInIntent()?.let { launcher.launch(it) } },
         onSignOut = { vm.auth.signOut()?.let { endSessionLauncher.launch(it) } },
         duellFragment = vm.duellFragment,
         duellLinkSeq = vm.duellLinkSeq,

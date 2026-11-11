@@ -5,21 +5,15 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Which server calls the page may ask the shell to make with the account (account bridge v1, `op:"api"`). Same rule on
- * iOS (`AccountRoute.swift`), shared cases in src/test/resources/bridge-account-v1.json. The host is fixed by the build
+ * Which server calls the page may ask the shell to make with the account (account bridge v1, `op:"api"`): exactly the
+ * entries of [AccountRoutes.ALLOWED], generated (with iOS `AccountRoutes.allowed`) from src/test/resources/bridge-account-v1.json
+ * by apps/gen-account-routes.py. No prefixes, no patterns. The host is fixed by the build
  * (`DUELL_API_BASE`); the bearer is added here and never shown to the page.
  */
 object AccountRoute {
     const val MAX_BODY = 262_144
     const val MAX_ANSWER = 1_048_576
-    private val POST = Regex("^/api/duell/(ai|profile|credit|deck|mod|bild|stat)(/[a-z0-9-]{1,32}){0,2}$")
-    private val ADMIN = Regex("/(review|admin)(/|$)")
-
-    fun allowed(method: String, path: String): Boolean = when (method) {
-        "GET" -> path == "/auth/me"
-        "POST" -> POST.matches(path) && !ADMIN.containsMatchIn(path)
-        else -> false
-    }
+    fun allowed(method: String, path: String): Boolean = "$method $path" in AccountRoutes.ALLOWED
 
     /** A JSON object of at most [MAX_BODY] bytes for POST, nothing for GET; null otherwise. */
     fun body(method: String, body: String?): ByteArray? {

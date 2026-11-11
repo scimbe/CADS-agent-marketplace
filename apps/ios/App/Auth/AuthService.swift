@@ -9,7 +9,16 @@ struct StoredTokens: Codable {
     var expiresAt: Date
 }
 
-enum AuthError: Error { case cancelled, stateMismatch, tokenEndpoint(Int), invalidResponse, storageFailed }
+enum AuthError: Error { case cancelled, stateMismatch, tokenEndpoint(Int, String?), invalidResponse, storageFailed }
+
+/// One access token per resource server (RFC 9700 §2.3): Keycloak narrows the access token to the scope asked for on a
+/// refresh (optional client scopes `ct-api` / `mdi-api`, each with its own audience mapper), the refresh token keeps
+/// the full grant. A token for the My Daily Idea wrapper is therefore useless at the control plane and the other way round.
+enum Resource: String {
+    case controlPlane = "ct-api"     // /me/installations, peer channels (Rust core)
+    case myDailyIdea = "mdi-api"     // demos-34a13a96…/api/duell/* via the account bridge
+    var scope: String { "openid " + rawValue }
+}
 
 /// OIDC Authorization Code + PKCE (RFC 7636/8252) with the system browser
 /// (ASWebAuthenticationSession), public client, no client secret. Tokens live in the Keychain.
@@ -22,7 +31,9 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
     private var session: ASWebAuthenticationSession?
     private static let account = "tokens"
 
-    private var refreshTask: Task<Void, Never>?
+    private var refreshTasks: [Resource: Task<Void, Never>] = [:]
+    /// The wrapper's token lives only in memory (5 min); the control plane's is in the Keychain for the Rust core.
+    private var mdiToken: (token: String, expiresAt: Date)?
 
     override init() {
         // Keychain items survive an app delete/reinstall. Treat the first launch after an install
@@ -47,6 +58,7 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
     // MARK: Sign in
 
     func signIn() async throws {
+        guard !isSignedIn else { return }   // a second sign-in would replace the device key the refresh token is bound to
         // A new device key for each sign-in; the old one (and anything bound to it) is gone.
         guard DPoPKeyStore.fresh() != nil else { throw AuthError.storageFailed }
         let verifier = Self.randomURLSafe(bytes: 64)
@@ -58,7 +70,7 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
             .init(name: "client_id", value: AppConfig.clientId),
             .init(name: "response_type", value: "code"),
             .init(name: "redirect_uri", value: AppConfig.redirectURI),
-            .init(name: "scope", value: "openid email profile offline_access"),
+            .init(name: "scope", value: "openid email profile offline_access \(Resource.controlPlane.rawValue) \(Resource.myDailyIdea.rawValue)"),
             .init(name: "state", value: state),
             .init(name: "code_challenge", value: challenge),
             .init(name: "code_challenge_method", value: "S256"),
@@ -78,19 +90,22 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
         let items = URLComponents(url: callback, resolvingAgainstBaseURL: false)?.queryItems ?? []
         guard items.first(where: { $0.name == "state" })?.value == state else { throw AuthError.stateMismatch }
         guard let code = items.first(where: { $0.name == "code" })?.value else { throw AuthError.cancelled }
+        // The code exchange's access token names both services: keep only the refresh token, then fetch the narrowed one.
         try await tokenRequest([
             "grant_type": "authorization_code", "code": code,
             "redirect_uri": AppConfig.redirectURI, "client_id": AppConfig.clientId,
             "code_verifier": verifier,
-        ])
+        ], for: nil)
+        await ensureFresh()
     }
 
     /// Clears all local token state at once, then revokes the refresh token at Keycloak
     /// (RFC 7009) in the background; a revocation failure never keeps the user signed in locally.
     func signOut() {
         let old = Keychain.load(account: Self.account).flatMap { try? JSONDecoder().decode(StoredTokens.self, from: $0) }
-        refreshTask?.cancel()
-        refreshTask = nil
+        refreshTasks.values.forEach { $0.cancel() }
+        refreshTasks = [:]
+        mdiToken = nil
         // The revocation must prove the key the refresh token is bound to: sign before the key is deleted.
         let url = revokeEndpoint
         let proof = DPoPKeyStore.current().flatMap { try? DPoP.proof(key: $0, method: "POST", url: url) }
@@ -120,31 +135,36 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
         return t.accessToken
     }
 
-    /// For the account bridge: a fresh access token, or nil when signed out (or the refresh failed for good).
+    /// For the account bridge: a fresh token for the My Daily Idea wrapper only (aud mydailyidea-api), or nil.
     func freshAccessToken() async -> String? {
-        await ensureFresh()
-        return isSignedIn ? Self.currentAccessToken() : nil
+        await refresh(.myDailyIdea)
+        guard isSignedIn, let t = mdiToken, t.expiresAt.timeIntervalSinceNow > 0 else { return nil }
+        return t.token
     }
 
-    /// Refreshes the access token when it expires within 60 s. Call before each API request.
-    func ensureFresh() async {
-        // One refresh at a time: concurrent callers wait for the running one. With refresh-token
-        // rotation a second parallel refresh would present an already-used token and sign the user out.
-        if let running = refreshTask { await running.value; return }
-        let task = Task { await self.refreshIfNeeded() }
-        refreshTask = task
+    /// Refreshes the control plane's access token when it expires within 60 s. Call before each API request.
+    func ensureFresh() async { await refresh(.controlPlane) }
+
+    /// One refresh per resource at a time: concurrent callers wait for the running one.
+    private func refresh(_ r: Resource) async {
+        if let running = refreshTasks[r] { await running.value; return }
+        let task = Task { await self.refreshIfNeeded(r) }
+        refreshTasks[r] = task
         await task.value
-        refreshTask = nil
+        refreshTasks[r] = nil
     }
 
-    private func refreshIfNeeded() async {
+    private func refreshIfNeeded(_ r: Resource) async {
         guard let d = Keychain.load(account: Self.account), let t = try? JSONDecoder().decode(StoredTokens.self, from: d) else { return }
-        guard t.expiresAt.timeIntervalSinceNow < 60 else { return }
+        let expires = r == .controlPlane ? t.expiresAt : (mdiToken?.expiresAt ?? .distantPast)
+        guard expires.timeIntervalSinceNow < 60 else { return }
         guard let refresh = t.refreshToken else { signOut(); return }
         do {
-            try await tokenRequest(["grant_type": "refresh_token", "refresh_token": refresh, "client_id": AppConfig.clientId])
-        } catch AuthError.tokenEndpoint(let status) where status == 400 || status == 401 {
-            signOut() // refresh token revoked or expired
+            try await tokenRequest(["grant_type": "refresh_token", "refresh_token": refresh, "client_id": AppConfig.clientId, "scope": r.scope], for: r)
+        } catch AuthError.tokenEndpoint(_, let error) where Self.keepsTokens(error) {
+            // DPoP proof refused (device clock off, nonce asked): not a revoked grant, keep the tokens and retry later
+        } catch AuthError.tokenEndpoint(let status, _) where status == 400 || status == 401 {
+            signOut() // invalid_grant: refresh token revoked or expired
         } catch AuthError.storageFailed {
             signOut() // no device key (e.g. signed in before DPoP): the bound refresh token cannot be used
         } catch {
@@ -152,7 +172,14 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
         }
     }
 
-    private func tokenRequest(_ form: [String: String]) async throws {
+    /// Token endpoint errors that do not mean the grant is gone (RFC 9449 §8: `use_dpop_nonce`; `invalid_dpop_proof`
+    /// mostly from a device clock outside the server's window).
+    nonisolated static func keepsTokens(_ error: String?) -> Bool {
+        error == "invalid_dpop_proof" || error == "use_dpop_nonce"
+    }
+
+    /// `for`: which resource the narrowed access token is for; nil for the code exchange (its token is not kept).
+    private func tokenRequest(_ form: [String: String], for resource: Resource?) async throws {
         var req = URLRequest(url: tokenEndpoint)
         req.httpMethod = "POST"
         req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
@@ -163,13 +190,18 @@ final class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresenta
         req.httpBody = body.percentEncodedQuery?.data(using: .utf8)
         let (data, resp) = try await URLSession.shared.data(for: req) // ATS enforces TLS
         guard let http = resp as? HTTPURLResponse else { throw AuthError.invalidResponse }
-        guard http.statusCode == 200 else { throw AuthError.tokenEndpoint(http.statusCode) }
+        guard http.statusCode == 200 else {
+            struct E: Decodable { let error: String? }
+            throw AuthError.tokenEndpoint(http.statusCode, (try? JSONDecoder().decode(E.self, from: data))?.error)
+        }
         struct R: Decodable { let access_token: String; let refresh_token: String?; let expires_in: Double? }
         let r = try JSONDecoder().decode(R.self, from: data)
         let old = Keychain.load(account: Self.account).flatMap { try? JSONDecoder().decode(StoredTokens.self, from: $0) }
-        let stored = StoredTokens(accessToken: r.access_token,
+        let expiry = Date().addingTimeInterval(r.expires_in ?? 300)
+        if resource == .myDailyIdea { mdiToken = (r.access_token, expiry) }
+        let stored = StoredTokens(accessToken: resource == .controlPlane ? r.access_token : (old?.accessToken ?? ""),
                                   refreshToken: r.refresh_token ?? old?.refreshToken,
-                                  expiresAt: Date().addingTimeInterval(r.expires_in ?? 300))
+                                  expiresAt: resource == .controlPlane ? expiry : (old?.expiresAt ?? .distantPast))
         guard Keychain.save(try JSONEncoder().encode(stored), account: Self.account) else {
             Keychain.delete(account: Self.account)
             isSignedIn = false
