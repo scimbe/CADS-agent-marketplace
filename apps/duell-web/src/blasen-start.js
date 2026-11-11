@@ -9,15 +9,15 @@ var A = root.DailyApp, Kit = root.Kit, B = root.Blasen, Eb = B.ebene;
 var $ = function (id) { return document.getElementById(id); };
 var KEY = "daily.blasen.start";
 var WORDS = {
-  de: { titel: "Titel", look: "Look", farbe: "Farbe", figur: "Figur", wunsch: "Wunsch", set: "{x} einstellen, ziehen zum Verschieben" },
-  en: { titel: "Title", look: "Look", farbe: "Colour", figur: "Figure", wunsch: "Wish", set: "Set {x}, drag to move" }
+  de: { titel: "Titel", look: "Look", farbe: "Farbe", figur: "Figur", wunsch: "Wunsch", magie: "Magie", roboter: "Mit KI", set: "{x} einstellen, ziehen zum Verschieben" },
+  en: { titel: "Title", look: "Look", farbe: "Colour", figur: "Figure", wunsch: "Wish", magie: "Magic", roboter: "With AI", set: "Set {x}, drag to move" }
 };
 function w(k) { return (WORDS[Kit.lang] || WORDS.de)[k]; }
 // the day's card: a bubble opens the first of these sheets its kind has; where its thread ends (hero: the title's words
 // from below; pic: a point of the picture as a fraction)
 var DAY = [["titel", ["Text", "LText", "Arena", "Riddle"], "hero"], ["look", ["Style", "World", "LWorld"], [0.86, 0.14]], ["farbe", ["Color"], [0.14, 0.82]],
   ["figur", ["Figure", "LFigure", "Agent"], [0.5, 0.5]], ["wunsch", ["Wish", "LWish"], null]];
-var ICONS = { titel: "titel", look: "stil", farbe: "farbe", figur: "figur", wunsch: "wunsch" };
+var ICONS = { titel: "titel", look: "stil", farbe: "farbe", figur: "figur", wunsch: "wunsch", magie: "magie", roboter: "roboter" };
 var st = { timer: 0, key: "", pos: load() };
 function load() { try { var o = JSON.parse(localStorage.getItem(KEY) || "{}"); return o && typeof o === "object" && !Array.isArray(o) ? o : {}; } catch (e) { return {}; } }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(st.pos)); } catch (e) {} }
@@ -51,9 +51,18 @@ function spot(box, S, tx, ty, no, taken) {
 // the last line of an element's words (page px), or null
 function words(e) { var r = document.createRange(), l = null; r.selectNodeContents(e); Array.prototype.forEach.call(r.getClientRects(), function (q) { if (q.width && q.height) l = { x: q.left, y: q.top, w: q.width, h: q.height }; }); return l; }
 function kindOf(h) { var d = h && (h.doc || h.idea); return d ? d.k || d.kind : ""; }
+// Magie and Roboter (window.Magic, window.FreeFromCard, parts of their own): only where they are there and say yes for the
+// day's card; where the robot is there the red wish steps back (one AI way per card, as in the editor)
+function ask(api, f) { try { return !!(api && f(api)); } catch (e) { return false; } }
+var docOf = { id: "", doc: null };
+function dayDoc(h) { if (docOf.id !== h.idea.id) docOf = { id: h.idea.id, doc: root.Daily.docFromIdea(h.idea, A.me(), Kit.lang) }; return docOf.doc; }
 function dayParts(h) {
-  var k = kindOf(h), tabs = (A.TABS[k] || []).concat(root.Wish && root.Wish.KINDS.indexOf(k) >= 0 ? ["Wish"] : []);
-  return DAY.map(function (p) { var tab = p[1].filter(function (x) { return tabs.indexOf(x) >= 0; })[0]; return tab ? { id: p[0], tab: tab, to: p[2] } : null; }).filter(Boolean);
+  var k = kindOf(h), tabs = (A.TABS[k] || []).concat(root.Wish && root.Wish.KINDS.indexOf(k) >= 0 ? ["Wish"] : []), d = dayDoc(h);
+  var robot = ask(root.FreeFromCard, function (F) { return F.can(d); }), magic = ask(root.Magic, function (M) { return M.can(d); });
+  var out = DAY.map(function (p) { var tab = p[1].filter(function (x) { return tabs.indexOf(x) >= 0; })[0]; return tab && !(robot && p[0] === "wunsch") ? { id: p[0], tab: tab, to: p[2] } : null; }).filter(Boolean);
+  if (magic) out.push({ id: "magie", to: null, act: function () { var x = root.Daily.docFromIdea(h.idea, A.me(), Kit.lang); if (ask(root.Magic, function (M) { M.fill(x); return true; })) A.openEditor(x, { idea: h.idea }); } });
+  if (robot) out.push({ id: "roboter", to: null, act: function () { ask(root.FreeFromCard, function (F) { F.open(root.Daily.docFromIdea(h.idea, A.me(), Kit.lang)); return true; }); } });
+  return out;
 }
 
 function layer(box, id) {
@@ -118,8 +127,9 @@ function draw() {
     Array.prototype.forEach.call(L.querySelectorAll(".blase"), function (b) { if (!parts.some(function (p) { return "day:" + p.id === b.dataset.blase; })) b.remove(); });
     parts.forEach(function (p) {
       var key = "day:" + p.id, pr = rect(pic), hl = hero && words(hero), t = p.to === "hero" && hl ? [hl.x + hl.w + 6, hl.y + hl.h / 2] : p.to ? [pr.x + pr.w * p.to[0], pr.y + pr.h * p.to[1]] : null;   // the title: just after its last word
-      var b = bubble(L, key, w(p.id), ICONS[p.id], S, function () { A.startTab(p.tab); });
-      b.dataset.tab = p.tab;
+      var b = bubble(L, key, w(p.id), ICONS[p.id], S, function () { if (p.act) p.act(); else A.startTab(p.tab); });
+      if (p.tab) b.dataset.tab = p.tab;
+      if (p.id === "magie" || p.id === "roboter") b.classList.add(p.id === "magie" ? "mg" : "rb");
       if (t) { b.dataset.tx = t[0]; b.dataset.ty = t[1]; } else { delete b.dataset.tx; }
       var lr = rect(leaf); put(L, b, key, S, t ? t[0] : lr.x + lr.w, t ? t[1] : lr.y + lr.h * 0.62, no, taken);
     });

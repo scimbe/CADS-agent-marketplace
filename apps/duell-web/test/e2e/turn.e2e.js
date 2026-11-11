@@ -266,7 +266,7 @@ test("Statue spielt und stoppt, Stimmen-Raetsel zaehlt beim Raten", async () => 
   const { b, open, errs } = await setup();
   const d = await open("#i=beat-disco"); await d.locator("#go").click(); await d.locator("#panel .chip").first().click();
   await d.getByRole("button", { name: "Musik" }).click(); await d.locator("#panel").getByText(/Statue:/).waitFor({ timeout: 15000 });
-  await d.getByRole("button", { name: "Ende" }).click(); await d.locator("#panel").getByText(/1 Runden Statue/).waitFor();
+  await d.getByRole("button", { name: "Ende", exact: true }).click(); await d.locator("#panel").getByText(/1 Runden Statue/).waitFor();
   const s = await open("#i=zug-stimme"); await s.locator("#go").click(); await next(s);
   await s.locator("#panel").getByText(require("../../src/turn.json").text.de.ready).waitFor();
   assert.deepEqual(errs, []); await b.close();

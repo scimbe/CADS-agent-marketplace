@@ -15,7 +15,7 @@ test.before(async () => { b = await G.launch(); url = await G.webUrl("index.html
 test.after(async () => { await b.close(); });
 
 async function phone() {
-  const ctx = await G.person(b, { view: "phone390" }), p = await ctx.newPage(), errs = [];
+  const ctx = await G.person(b, { view: "phone390" }); await ctx.addInitScript(() => localStorage.setItem("daily.blasen", "an")); const p = await ctx.newPage(), errs = [];
   p.on("pageerror", (e) => errs.push(String(e)));
   await p.goto(url);
   await p.waitForFunction(() => document.body.getAttribute("data-state") !== "boot");
@@ -57,6 +57,8 @@ async function tapAll(p, m, name) {
     const q = await e.boundingBox(); await p.touchscreen.tap(q.x + q.width / 2, q.y + q.height / 2);
     await p.waitForFunction((k) => { const t = document.getElementById("tab" + k); return t && t.getAttribute("aria-selected") === "true"; }, x.panel, { timeout: 4000 })
       .catch(() => { throw new Error(name + ": " + x.id + " oeffnet " + x.panel + " nicht"); });
+    await p.locator("#bdlg:not([hidden]) #panel").waitFor({ timeout: 4000 });   // as a dialog grown from the bubble (src/blasen-dialog.js)
+    await p.keyboard.press("Escape"); await p.locator("#bdlg").waitFor({ state: "hidden" });
   }
 }
 

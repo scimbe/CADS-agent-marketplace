@@ -70,6 +70,7 @@ R.extra.turn = function (c, W, H, doc) {
   var a = doc.col[0], b = doc.col[1], ink = R.ink(a), st = Tn.state(doc), res = Tn.result(doc, Kit.lang);
   c.fillStyle = a; c.fillRect(0, 0, W, H); R.rays(c, W, H, "rgba(0,0,0,.05)", 0.2);
   shape(c, doc.f, W * 0.84, H * 0.84, W * 0.08, b); shape(c, doc.f, W * 0.14, H * 0.8, W * 0.05, b);
+  if (R.note) { R.note(c, "deko", W * 0.73, H * 0.84 - W * 0.11, W * 0.22, W * 0.22); R.note(c, "deko", W * 0.07, H * 0.8 - W * 0.07, W * 0.14, W * 0.14); }   // the card's own figures: no bubble on them
   R.block(c, res ? res.h : title(doc), W * 0.07, H * 0.1, W * 0.86, H * 0.34, ink, null);
   var face = res ? null : Tn.face(doc, Kit.lang);
   if (res) lines(c, res.lines, W, H * 0.5, W * 0.038, ink);
