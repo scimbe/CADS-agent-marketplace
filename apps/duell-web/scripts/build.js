@@ -123,6 +123,8 @@ if (!(conf && conf.stat === false)) PARTS.stimme = { d: [], src: ["STIMMEDATA", 
 // name f_create (as app.js shown() does); Daily Business does not, so it neither builds nor preloads the part.
 const creates = !conf || !conf.feats || conf.feats.indexOf("f_create") >= 0;
 if (creates) PARTS.erschaffen = { d: [], src: ["CREATEUI"] };
+// its waiting screen (src/warten.js): only on demand (parts.js ONDEMAND), asked for when the form of the free card is shown
+if (creates) { PARTS.warten = { d: [], src: ["WARTEN"] }; parts.WARTEN = read("src/warten.js"); }
 // Daily Business only: onboarding, feedback evaluation and the next meeting (src/biz.js, the flavor's biz-ui.js).
 if (has("biz-ui.js")) { PARTS.biz = { d: [], src: ["BIZ", "BIZUI"] }; parts.BIZ = read("src/biz.js"); parts.BIZUI = read(fl("biz-ui.js")); }
 parts.KATALOG = "window.DuellIdeasFull=" + JSON.stringify(catalog) + ";window.Daily&&window.Daily.fill();";

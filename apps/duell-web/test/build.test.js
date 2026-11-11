@@ -40,7 +40,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   // The preview pictures (scripts/shots.js) come in parts of their own, bilda, bildb … (checked below).
   const shotParts = Object.keys(man).filter((n) => /^bild[a-z]$/.test(n));
   assert.ok(shotParts.length >= 1, "Vorschaubilder fehlen");
-  assert.deepEqual(Object.keys(man).filter((n) => shotParts.indexOf(n) < 0).sort(), ["blasen", "dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "lauf", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "welt", "wetter"]);
+  assert.deepEqual(Object.keys(man).filter((n) => shotParts.indexOf(n) < 0).sort(), ["blasen", "dart", "daten", "deck", "direkt", "erschaffen", "katalog", "klang", "konto", "lauf", "licenses", "logik", "malen", "melden", "noto", "play", "qr", "quiz", "regler", "satz", "start", "stil", "stimme", "table", "texte", "turnzwei", "warten", "welt", "wetter"]);
   // The new start (redesign wave 1) is a part: its code, keywords and words only there, in the core only the hooks.
   const startBody = fs.readFileSync(partFiles().find((f) => /\/start\.[0-9a-f]{12}\.js$/.test(f)), "utf8");
   assert.match(startBody, /root\.StartUI = \{/); assert.match(startBody, /root\.StartIntent = api/); assert.match(startBody, /window\.StartTexts=\{"de":\{"st_ask":"Wem willst du heute eine Freude machen\?"/);
@@ -91,7 +91,7 @@ test("Build: Kern + Teildateien, voll offline, alle Welten da, Platzhalter erset
   console.log("Byte-Budget: Kern + vorgeladene Teile " + preload + " B (< " + 1.75 * 1024 * 1024 + "), nur bei Bedarf " + onDemand + " B (<= " + ONDEMAND_MAX + "): " + Object.keys(man).filter((n) => ONDEMAND.includes(n)).join(", "));
   assert.ok(preload < 1.75 * 1024 * 1024, "Kern + vorgeladene Teile: " + preload);
   assert.ok(onDemand <= ONDEMAND_MAX, "Teile nur bei Bedarf: " + onDemand);
-  assert.deepEqual(ONDEMAND, ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten"], "Liste nur bei Bedarf");
+  assert.deepEqual(ONDEMAND, ["noto", "dart", "klang", "lauf", "blasen", "bahn", "raten", "warten"], "Liste nur bei Bedarf");
   for (const n of ["noto", "dart", "klang"]) assert.ok(man[n], "Teil nur bei Bedarf fehlt im Manifest: " + n);
   assert.match(src("parts.js"), /Object\.keys\(LIST\)\.forEach\(function \(n\) \{ if \(ONDEMAND\.indexOf\(n\) < 0 && !\/\^bild\[a-z\]\$\/\.test\(n\)\) need\(n\)/, "Teile aus ONDEMAND und die Vorschaubilder nicht im Leerlauf-Vorladen");
   assert.match(src("app.js"), /=== "voice"\) window\.Parts\.need\("klang"\)/, "klang kommt mit einem Stimm-Blatt");
