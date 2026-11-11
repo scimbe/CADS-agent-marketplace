@@ -44,7 +44,7 @@ jobs:
       - name: Abhaengigkeiten (gepinnt, Lockfile)
         run: npm ci --no-audit --no-fund
       - name: Lizenz- und Sicherheitsaudit der Abhaengigkeiten
-        run: npm audit --omit=optional --audit-level=high
+        run: npm run audit
       - name: Unit-Tests (node --test), inkl. Budgets, CSP, Netz-nur-im-Broker
         run: npm test
       - name: Build (eine Offline-HTML-Datei + Teile)
