@@ -4,7 +4,7 @@ import org.json.JSONObject
 
 /**
  * How this shell can wake the device ("Bescheid geben"). The page asks through `DuellHost.push()` and gets
- * [PushBridge.capability] as JSON (bridge v1, contract in apps/duell-web/test/fixtures/bridge-push-v1.json).
+ * [PushBridge.capability] as JSON (bridge v1, contract in apps/android/app/src/test/resources/bridge-push-v1.json).
  *
  * Implementations to come, each behind this interface and each needing something only the owner can provide:
  * FCM (Firebase project, google-services.json), UnifiedPush (a distributor app such as ntfy on the device; no account).

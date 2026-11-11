@@ -1,6 +1,6 @@
 import XCTest
 
-/// Same cases as apps/duell-web/test/fixtures/bridge-push-v1.json (Android reads the file in PushBridgeTest).
+/// Same cases as apps/android/app/src/test/resources/bridge-push-v1.json (Android reads the file in PushBridgeTest).
 final class DuellPushTests: XCTestCase {
     func testCapabilityFollowsTheSharedContract() {
         XCTAssertEqual(DuellPush.capability(kind: "none", state: "unsupported"), "{\"v\":1,\"kind\":\"none\",\"state\":\"unsupported\"}")

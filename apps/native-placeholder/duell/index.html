@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>My Daily Idea</title>
+<!-- Platzhalter der nativen Huellen (Android, iOS), bis der neue Client apps/mdi eigene native Hosts bekommt (Slice D1b).
+     Kein Spiel, keine Karten: nur Marke, der Weg zu den nativen Extras (DuellHost.more) und die Anzeige eines empfangenen Links,
+     damit die Smoke-Tests der Huellen etwas Echtes pruefen. -->
+<style>
+body{margin:0;font:18px -apple-system,system-ui,sans-serif;background:#ffd400;color:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px;text-align:center;padding:0 16px;box-sizing:border-box}
+button{font:inherit;padding:14px 28px;border:0;border-radius:12px;background:#111;color:#fff}
+</style></head><body>
+<h1 id="brand">My Daily Idea</h1>
+<p>Die neue Version kommt bald in die App.</p>
+<p id="link"></p>
+<button id="host" hidden>Mehr</button>
+<script>
+var host = document.getElementById('host');
+if (window.DuellHost && typeof DuellHost.more === 'function') { host.hidden = false; host.onclick = function () { DuellHost.more(); }; }
+function showLink() { document.getElementById('link').textContent = location.hash.length > 1 ? 'Link: ' + location.hash.slice(1, 80) : ''; }
+addEventListener('hashchange', showLink); showLink();
+</script></body></html>

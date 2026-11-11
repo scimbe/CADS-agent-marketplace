@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Checks the output of simulator-smoke.sh: content, not just that something ran.
-Usage: check-scenarios.py <out-dir> <challenge-fragment-payload>"""
-import json, re, sys
-out, ch = sys.argv[1], sys.argv[2]
+The bundled page is the neutral placeholder (apps/native-placeholder) until the new client gets its native host.
+Usage: check-scenarios.py <out-dir>"""
+import json, sys
+out = sys.argv[1]
 def load(n): return json.load(open(f"{out}/{n}.json"))
 def logd(r): return {k: v for k, v in r["page"]["log"]}
 def env(r): return logd(r)["env"]
@@ -13,61 +14,23 @@ def need(cond, msg, ctx=None):
         print("FAIL:", msg, ctx if ctx is not None else "", file=sys.stderr); sys.exit(1)
     ok(msg)
 
-# start: the brand, no tab bar (the page is the whole screen), the quiet More button is there, navigator.share is gone
+# start: the brand, the bridge with more(), the More button is visible inside the shell, navigator.share is gone
 a = load("01-start"); e = env(a); L = logd(a)
 need(e["brand"] == "My Daily Idea", "start shows the brand", e["brand"])
 need(e["host"] == "object" and e["hostMore"] == "function", "DuellHost with more() is injected", e)
-need(e["hostButtonHidden"] is False, "the quiet More button is visible inside the shell")
+need(e["hostButtonHidden"] is False, "the More button is visible inside the shell")
 need(e["navigatorShare"] == "undefined", "navigator.share removed so every share goes through the validated bridge", e["navigatorShare"])
 need("error" not in L, "no script error", L.get("error"))
 print("env (file loader):", json.dumps(e))
 
-# persistence: localStorage survives a restart (wall, profile)
+# persistence: localStorage survives a restart
 b = load("02-start-zweiter-lauf")
 need(env(b)["visitsBefore"] == e["visitsBefore"] + 1, "localStorage survived the restart", (e["visitsBefore"], env(b)["visitsBefore"]))
 
 # More: tapped in the page, sheet is native (screenshot 03-mehr.png is reviewed by eye)
 m = load("03-mehr"); need(logd(m).get("moreTapped") is True and "error" not in logd(m), "More tapped in the page", logd(m))
 
-# links: i= opens that day's idea, c= opens the challenge
-i = load("07-link-i"); need(re.search(r"chaos", text(i), re.I) is not None, "invite link i= shows that idea", text(i)[:200])
-c = load("08-link-c"); need("Mira-Test" in text(c), "challenge link c= shows the challenge", text(c)[:200])
-
-# share: only the link goes out (chat apps drop the link when a picture comes along), the share sheet was presented
-s = load("09-ergebnis-teilen"); n = s["native"]; ls = logd(s)
-need("error" not in ls, "share flow without script error", ls.get("error"))
-need(str(n.get("shareLink", "")).startswith("https://") and not n.get("shareFile"), "share hands over the link, no picture", (n.get("shareLink"), n.get("shareFile")))
-need(n.get("shareSheetPresented") is True, "share sheet presented")
-
-# cleanup: the next start removes what the (never finished) share left behind
-z = load("10-nach-teilen-aufgeraeumt")["native"]
-need(z.get("sweptAtStart", 0) >= 1, "cache folder swept at start", z.get("sweptAtStart"))
-
-# save: PNG staged with content, export picker presented
-v = load("11-ergebnis-speichern"); n = v["native"]
-f = n.get("saveFile", {})
-need(f.get("magic", "").startswith("89504e470d0a1a0a") and f.get("bytes", 0) > 5000 and f.get("inCache") is True, "saved file is a PNG with content", f)
-need(n.get("exportPickerPresented") is True, "file picker presented")
-
-# microphone refused: the delegate was reached, getUserMedia failed cleanly, the page points to the silly voice and goes on to a WAV
-def mic(name):
-    r = load(name); n = r["native"]; ls = logd(r)
-    print("env (mic flow, file:// page):", json.dumps(ls["env"]))
-    need(ls["env"]["mediaDevices"] == "object" and ls["env"]["getUserMedia"] == "function", f"{name}: getUserMedia is available under file://", ls["env"])
-    need("error" not in ls, f"{name}: no script error", ls.get("error"))
-    need(n.get("mediaCaptureRequest", {}).get("type") == 1, f"{name}: getUserMedia reached the native permission delegate (microphone)", n.get("mediaCaptureRequest"))
-    need(re.search(r"Kein Mikro|No mic here", ls.get("toast", "")) is not None, f"{name}: refusal ends in the silly-voice message", ls.get("toast"))
-    f = n.get("saveFile", {})
-    need(f.get("name", "").endswith(".wav") and f.get("bytes", 0) > 5000 and f["magic"].startswith("52494646") and f["magic"][16:24] == "57415645", f"{name}: sound saved as a WAV with content", f)
-mic("12-mikro-abgelehnt")
-
-# parts: the file:// page loads its parts from the bundle (CSP script-src 'self', content rule blocks only http/https)
-p = load("13-teildateien"); lp = logd(p)
-need("error" not in lp, "parts flow without script error", lp.get("error"))
-need(lp.get("arcadeMenu") is True, "arcade menu from the play part", lp)
-# the preview pictures come in as many parts bilda, bildb ... as their size needs: at least one, the rest by name
-shot_parts = [x for x in (lp.get("parts") or "").split(",") if re.fullmatch(r"bild[a-z]", x)]
-other_parts = ",".join(x for x in (lp.get("parts") or "").split(",") if x not in shot_parts)
-need(len(shot_parts) >= 1 and other_parts == "blasen,dart,daten,deck,direkt,erschaffen,katalog,kibild,klang,konto,lauf,licenses,logik,malen,melden,noto,play,push,qr,quiz,regler,robot,satz,start,stil,stimme,table,texte,turnzwei,warten,welt,wetter", "every part loaded from the bundle", lp.get("parts"))
-need(lp.get("licenses") is True and lp.get("qr") is True, "licence texts and QR code came with their parts", lp)
+# link: the fragment of a launch link reaches the page
+i = load("07-link-i")
+need(env(i)["href"].endswith("#i=quiz-chaos") and "quiz-chaos" in text(i), "link fragment i= reaches the page", (env(i)["href"], text(i)[:200]))
 print("all simulator checks ok")

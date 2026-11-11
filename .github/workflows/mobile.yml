@@ -112,12 +112,6 @@ jobs:
           echo "using NDK $NDK"
       - name: Build Rust core + Kotlin bindings
         run: apps/android/build-rust.sh
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Build the Duell page (offline core HTML + its parts, both bundled into the app)
-        working-directory: apps/duell-web
-        run: npm ci --ignore-scripts && npm run build
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
       - name: Unit tests + assembleDebug + assembleRelease (unsigned)
         working-directory: apps/android
@@ -241,12 +235,6 @@ jobs:
           echo "4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806  /tmp/xcodegen.zip" | shasum -a 256 -c -
           unzip -q /tmp/xcodegen.zip -d /tmp/xcodegen-dist
           echo "/tmp/xcodegen-dist/xcodegen/bin" >> "$GITHUB_PATH"
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: "22"
-      - name: Build the Duell web game (apps/duell-web/dist/index.html + dist/parts/, bundled into the app)
-        working-directory: apps/duell-web
-        run: npm ci --ignore-scripts && npm run build
       - name: Build Rust core XCFramework + Swift bindings
         run: apps/ios/build-rust.sh
       - name: The peer feature compiles for iOS
@@ -276,8 +264,7 @@ jobs:
           set -euo pipefail
           UDID=$(cat shots/udid.txt)
           ./simulator-smoke.sh "$UDID" build/Build/Products/Debug-iphonesimulator/CadsMarketplace.app shots
-          CH=$(node -e "const C=require('./../duell-web/src/core.js');process.stdout.write(C.encodeState({v:1,name:'Mira-Test',score:7}))")
-          python3 -I check-scenarios.py shots "$CH"
+          python3 -I check-scenarios.py shots
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

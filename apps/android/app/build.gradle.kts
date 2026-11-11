@@ -20,36 +20,6 @@ val redirect = URI(cadsRedirectUri)
 // The only host (besides the bundled assets) the Duell WebView may talk to: the Duell config API.
 val duellApiBase = (project.findProperty("cadsDuellApiBase") as String?) ?: "https://demos-34a13a96.bunsenbrenner.org"
 
-// Copies the Duell page (apps/duell-web/dist/index.html, produced by `npm run build` there) and its parts
-// (dist/parts/, rarely used code the page loads on first use, from the assets) into the assets. The build fails if
-// either is missing: the app never ships a stand-in page or a page without its parts.
-abstract class SyncDuellAsset : DefaultTask() {
-    @get:InputFile @get:Optional @get:PathSensitive(PathSensitivity.NONE) abstract val page: RegularFileProperty
-    @get:InputDirectory @get:Optional @get:PathSensitive(PathSensitivity.RELATIVE) abstract val parts: DirectoryProperty
-    @get:OutputDirectory abstract val outDir: DirectoryProperty
-
-    @TaskAction
-    fun sync() {
-        if (!page.isPresent) throw GradleException("apps/duell-web/dist/index.html missing: run `npm run build` in apps/duell-web first")
-        val dir = outDir.get().asFile.resolve("duell")
-        dir.deleteRecursively()
-        dir.mkdirs()
-        page.get().asFile.copyTo(File(dir, "index.html"), overwrite = true)
-        if (parts.isPresent) parts.get().asFile.copyRecursively(File(dir, "parts"), overwrite = true)
-        else if (page.get().asFile.readText().contains("window.DailyParts=")) throw GradleException("apps/duell-web/dist/parts missing: run `npm run build` in apps/duell-web")
-    }
-}
-val syncDuellAsset = tasks.register<SyncDuellAsset>("syncDuellAsset") {
-    val built = rootProject.file("../duell-web/dist/index.html")
-    if (built.exists()) page.set(built)
-    val builtParts = rootProject.file("../duell-web/dist/parts")
-    if (builtParts.isDirectory) parts.set(builtParts)
-    outDir.set(layout.buildDirectory.dir("generated/duell-assets"))
-}
-androidComponents {
-    onVariants { variant -> variant.sources.assets?.addGeneratedSourceDirectory(syncDuellAsset, SyncDuellAsset::outDir) }
-}
-
 android {
     namespace = "org.bunsenbrenner.cads"
     compileSdk = 35
@@ -82,6 +52,9 @@ android {
 
     // The signed sample templates are shared with the web builder; no copy is checked in.
     sourceSets["main"].assets.srcDir("../../../manifests/prompt-templates")
+    // The WebView page (assets path duell/index.html) is the neutral placeholder in apps/native-placeholder until the new
+    // client (apps/mdi) gets its native host (slice D1b). Nothing is copied from another build.
+    sourceSets["main"].assets.srcDir("../../native-placeholder")
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

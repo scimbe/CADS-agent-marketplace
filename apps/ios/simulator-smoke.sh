@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Runs the DEBUG build in the iOS simulator and records, per flow, a screenshot and (for scripted flows)
-# the JSON the app writes (what the page showed, what arrived natively). The simulator has no tap
-# injection, so scripted flows drive the page through its DOM via `-DuellScenario`; the bridge from
-# there on (page -> WKScriptMessage -> native -> share sheet / file picker) is the real one.
+# the JSON the app writes (what the page showed, what arrived natively). The bundled page is the neutral
+# placeholder (apps/native-placeholder) until the new client gets its native host (slice D1b), so the flows
+# check the shell: start, persistence, the native "Mehr" sheet, the native tabs and a link reaching the page.
+# The simulator has no tap injection, so scripted flows drive the page through its DOM via `-DuellScenario`.
 # Checks on the recorded output: check-scenarios.py.
 # Usage: simulator-smoke.sh <udid> <path to CadsMarketplace.app> <out-dir>
 set -euo pipefail
@@ -39,18 +40,10 @@ run() {
   xcrun simctl terminate "$UDID" "$APP"
 }
 
-CH=$(node -e "const C=require('./../duell-web/src/core.js');process.stdout.write(C.encodeState({v:1,name:'Mira-Test',score:7}))")
-
 run 01-start yes -DuellScenario probe
 run 02-start-zweiter-lauf yes -DuellScenario probe        # localStorage must survive the restart
-run 03-mehr yes -DuellScenario more                        # the page's quiet "more" opens the native sheet
+run 03-mehr yes -DuellScenario more                        # the page's "Mehr" opens the native sheet
 run 04-vorlagen "" -UITab 1
 run 05-installationen "" -UITab 2
 run 06-vorlage-detail "" -UITab 3
-run 07-link-i yes -DuellChallenge "i=quiz-chaos" -DuellScenario probe
-run 08-link-c yes -DuellChallenge "c=$CH" -DuellScenario probe
-run 09-ergebnis-teilen yes -DuellScenario share
-run 11-ergebnis-speichern yes -DuellScenario save
-run 10-nach-teilen-aufgeraeumt yes -DuellScenario probe    # the file left by the save run (picker never finished) is swept at start
-run 12-mikro-abgelehnt yes -DuellScenario mic -DuellMicDeny
-run 13-teildateien yes -DuellScenario parts                 # page parts (duell/parts/*.js) load from the bundle, network blocked
+run 07-link-i yes -DuellChallenge "i=quiz-chaos" -DuellScenario probe   # a link fragment reaches the page

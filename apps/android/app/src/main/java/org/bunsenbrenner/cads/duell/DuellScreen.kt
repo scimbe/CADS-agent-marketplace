@@ -150,7 +150,7 @@ class DuellHost(
 
     /**
      * "Bescheid geben": how this app can wake the device, as bridge v1 JSON (`{"v":1,"kind":...,"state":...}`,
-     * apps/duell-web/test/fixtures/bridge-push-v1.json). This build has no provider yet ([NoPush]); the page then says so.
+     * apps/android/app/src/test/resources/bridge-push-v1.json). This build has no provider yet ([NoPush]); the page then says so.
      */
     @JavascriptInterface
     fun push(): String = PushBridge.capability(pushChannel)

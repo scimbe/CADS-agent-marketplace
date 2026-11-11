@@ -1,7 +1,7 @@
 import Foundation
 
 /// "Bescheid geben": how this app can wake the device, for `DuellHost.push()` (bridge v1, the same contract as Android and
-/// the page: apps/duell-web/test/fixtures/bridge-push-v1.json). APNs needs the Apple Developer Program (team, push key,
+/// the page: apps/android/app/src/test/resources/bridge-push-v1.json). APNs needs the Apple Developer Program (team, push key,
 /// signed build); until then this build says "none" and the page says honestly that the app cannot do it yet.
 /// A wake-up carries only its kind ("reply" | "live"); the sentence comes from the app, nothing else is read or shown.
 enum DuellPush {
