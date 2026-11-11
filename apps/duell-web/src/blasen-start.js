@@ -1,6 +1,6 @@
 /* Bubbles on the first page (PR 4 of the bubble plan): the same round bubbles as in the editor (src/blasen-ebene.js) on the
-   day's card and on "Erschaffe deine Karte". A tap opens the matching setting at once: on the day's card the editor on
-   the sheet of that part (title, look, colour, figure, wish), on the free card its making with the genre or the sentence.
+   day's card. A tap opens the editor on the sheet of that part (title, look, colour, figure, wish). The free card
+   ("Erschaffe deine Karte") has none: there its button itself is the way in (decided 2026-11-11).
    Bubbles can be moved; where they were put is remembered on this device only (localStorage, never sent).
    In the part blasen; start-ui.js asks for it after the first paint (not with Save-Data), so the page shows as fast as before. */
 (function (root) {
@@ -9,15 +9,15 @@ var A = root.DailyApp, Kit = root.Kit, B = root.Blasen, Eb = B.ebene;
 var $ = function (id) { return document.getElementById(id); };
 var KEY = "daily.blasen.start";
 var WORDS = {
-  de: { titel: "Titel", look: "Look", farbe: "Farbe", figur: "Figur", wunsch: "Wunsch", genre: "Genre", satz: "Satz", set: "{x} einstellen, ziehen zum Verschieben" },
-  en: { titel: "Title", look: "Look", farbe: "Colour", figur: "Figure", wunsch: "Wish", genre: "Genre", satz: "Line", set: "Set {x}, drag to move" }
+  de: { titel: "Titel", look: "Look", farbe: "Farbe", figur: "Figur", wunsch: "Wunsch", set: "{x} einstellen, ziehen zum Verschieben" },
+  en: { titel: "Title", look: "Look", farbe: "Colour", figur: "Figure", wunsch: "Wish", set: "Set {x}, drag to move" }
 };
 function w(k) { return (WORDS[Kit.lang] || WORDS.de)[k]; }
 // the day's card: a bubble opens the first of these sheets its kind has; where its thread ends (hero: the title's words
 // from below; pic: a point of the picture as a fraction)
 var DAY = [["titel", ["Text", "LText", "Arena", "Riddle"], "hero"], ["look", ["Style", "World", "LWorld"], [0.86, 0.14]], ["farbe", ["Color"], [0.14, 0.82]],
   ["figur", ["Figure", "LFigure", "Agent"], [0.5, 0.5]], ["wunsch", ["Wish", "LWish"], null]];
-var ICONS = { titel: "titel", look: "stil", farbe: "farbe", figur: "figur", wunsch: "wunsch", genre: "zug", satz: "titel" };
+var ICONS = { titel: "titel", look: "stil", farbe: "farbe", figur: "figur", wunsch: "wunsch" };
 var st = { timer: 0, key: "", pos: load() };
 function load() { try { var o = JSON.parse(localStorage.getItem(KEY) || "{}"); return o && typeof o === "object" && !Array.isArray(o) ? o : {}; } catch (e) { return {}; } }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(st.pos)); } catch (e) {} }
@@ -108,7 +108,7 @@ function threads() {
 }
 
 function draw() {
-  var h = A.home(), leaf = $("leaf"), pic = $("pvcard"), hero = $("hero"), cr = $("create"), row = $("homerow");
+  var h = A.home(), leaf = $("leaf"), pic = $("pvcard"), hero = $("hero");
   var on = h && h.idea && !h.doc && !h.note, parts = on ? dayParts(h) : [];
   // the day's card
   var L = leaf && parts.length >= 2 && pic && pic.offsetParent ? layer(leaf, "hblasenday") : null;
@@ -125,26 +125,14 @@ function draw() {
     });
     threads();
   }
-  // the free card: genre and sentence at the two ends of its button, never on its words. Both open the same making as
-  // the button (only where the cursor starts differs), so a tap on either end never does something else. Only where the
-  // row is wide enough that its words keep their room (not at a big zoom).
-  var F = cr && !cr.hidden && cr.offsetParent && row && row.clientWidth >= 330 ? layer(row, "hblasenfree") : null;
-  if (!F && $("hblasenfree")) $("hblasenfree").remove();
-  if (F) {
-    var no2 = blocked(row, cr), taken2 = [], S2 = Math.min(44, row.clientHeight - 4), rr = rect(row);
-    [["genre", "art", rr.x], ["satz", "text", rr.x + rr.w]].forEach(function (p) {
-      var key = "free:" + p[0], b = bubble(F, key, w(p[0]), ICONS[p[0]], S2, function () { root.Parts.use("erschaffen", function () { root.CreateUI.open({ focus: p[1] }); }).catch(function () {}); });
-      b.dataset.focus = p[1]; put(F, b, key, S2, p[2], rr.y + rr.h / 2, no2, taken2);
-    });
-  }
 }
 // placed anew when the card, the language or the size changes; four times a second while the first page shows
 function tick() {
   var home = $("home");
   if (!home || home.hidden) { clearInterval(st.timer); st.timer = 0; st.key = ""; return; }
-  var h = A.home(), leaf = $("leaf"), cr = $("create");
-  // everything that moves what a bubble must leave free: the card, its picture, its title, the free card's button
-  var key = [h && h.idea && h.idea.id, h && !!h.doc, h && !!h.note, Kit.lang, cr && !cr.hidden, innerWidth].concat(["leaf", "pvcard", "hero", "teaser", "create"].map(function (id) {
+  var h = A.home();
+  // everything that moves what a bubble must leave free: the card, its picture, its title and line
+  var key = [h && h.idea && h.idea.id, h && !!h.doc, h && !!h.note, Kit.lang, innerWidth].concat(["leaf", "pvcard", "hero", "teaser"].map(function (id) {
     var e = $(id), q = e && e.offsetParent ? rect(e) : null; return q ? [q.x, q.y, q.w, q.h].map(Math.round).join(",") : "-";
   })).join("|");
   if (key !== st.key) { st.key = key; draw(); }

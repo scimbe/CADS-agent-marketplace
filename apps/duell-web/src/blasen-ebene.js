@@ -39,10 +39,10 @@ var ICON = {
 ICON.himmel = ICON.welt; ICON.hindernis = ICON.saeule; ICON.text = ICON.text2 = ICON.arena = ICON.ende = ICON.titel; ICON.agent = ICON.figur; ICON.rivale = ICON.gegner;
 var CSS = "#blasen,.hblasen{position:absolute;inset:0;pointer-events:none;z-index:6}" +
   ".hblasen>svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}" +
-  // on the first page a row's own button rules (#homerow button) must not reach the bubbles
+  // on the first page the card's own button rules must not reach the bubbles
   "#home .hblasen .blase{flex:none;min-height:0;margin:0;padding:0;border:3px solid #17140F;border-radius:50%;color:#17140F;font:800 10.5px/1.05 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-transform:none;letter-spacing:0;box-shadow:0 3px 0 #17140F;" +
   "background:radial-gradient(circle at 30% 26%,rgba(255,255,255,.95) 0 5px,rgba(255,255,255,0) 6px),radial-gradient(circle at 50% 42%,#FFE680 0 58%,#E0A800 100%)}" +
-  "#home .hblasen .blase svg{width:18px;height:18px}#home #homerow .hblasen .blase svg{width:15px;height:15px}#home #homerow .hblasen .blase span{font-size:9px}" +
+  "#home .hblasen .blase svg{width:18px;height:18px}" +
   "#home .hblasen .blase.ki{background:radial-gradient(circle at 30% 26%,rgba(255,255,255,.95) 0 5px,rgba(255,255,255,0) 6px),radial-gradient(circle at 50% 42%,#E0533C 0 58%,#8E2415 100%);color:#fff}" +
   "#blasen>svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}" +
   ".blase{position:absolute;left:0;top:0;pointer-events:auto;margin:0;padding:0;border:3px solid #17140F;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;" +

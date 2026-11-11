@@ -1,6 +1,6 @@
 "use strict";
-// Bubbles on the first page (src/blasen-start.js in the part blasen): on the day's card and on "Erschaffe deine Karte",
-// on a 390x844 phone. The part comes only after the first paint; no bubble lies on a word or a button of the card; a
+// Bubbles on the first page (src/blasen-start.js in the part blasen): on the day's card, never on "Erschaffe deine Karte"
+// (there the button itself is the way in), on a 390x844 phone. The part comes only after the first paint; no bubble lies on a word or a button of the card; a
 // drag moves one and the place survives a reload (this device only); a tap opens the matching sheet at once.
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -31,16 +31,16 @@ async function phone(ctx0) {
   await p.clock.setFixedTime(new Date("2026-11-11T09:00:00Z"));   // a day whose card is a photo meme (Beweisfoto: Alien)
   await p.goto(url);
   await p.locator("#hblasenday .blase").first().waitFor({ timeout: 15000 });
-  await p.locator("#hblasenfree .blase").first().waitFor();
   await p.waitForTimeout(400);
   return { p, errs, ctx };
 }
 async function tap(p, id) { const q = await p.locator(`.hblasen .blase[data-blase="${id}"]`).boundingBox(); await p.touchscreen.tap(q.x + q.width / 2, q.y + q.height / 2); }
 
-test("Erste Seite: Blasen auf der Tageskarte und der freien Karte, nach dem ersten Bild geladen, nie auf Worten oder Knoepfen", async () => {
+test("Erste Seite: Blasen auf der Tageskarte (nicht auf der freien Karte), nach dem ersten Bild geladen, nie auf Worten oder Knoepfen", async () => {
   const { p, errs, ctx } = await phone();
   const m = await look(p);
-  assert.deepEqual(m.bubbles.map((x) => x.id).sort(), ["day:farbe", "day:look", "day:titel", "free:genre", "free:satz"]);
+  assert.deepEqual(m.bubbles.map((x) => x.id).sort(), ["day:farbe", "day:look", "day:titel"]);
+  assert.equal(await p.locator("#homerow .blase").count(), 0, "keine Blasen auf der freien Karte");
   m.bubbles.forEach((x) => {
     assert.match(x.round, /50%|px/, x.id + " rund");
     m.free.forEach((f) => assert.ok(!meets(x, f), x.id + " liegt auf " + f.what + " " + JSON.stringify(f)));
@@ -74,10 +74,6 @@ test("Ziehen verschiebt eine Blase, der Platz bleibt nach dem Neuladen (nur auf 
   await p.locator("#edback").click(); await p.locator("#hblasenday .blase").first().waitFor();
   await tap(p, "day:look");
   await p.waitForFunction(() => { const t = document.getElementById("tabStyle"); return t && t.getAttribute("aria-selected") === "true"; });
-  await p.locator("#edback").click(); await p.locator("#hblasenfree .blase").first().waitFor(); await p.waitForTimeout(300);
-  // the free card: the sentence bubble opens its making, asked to start at the sentence
-  await tap(p, "free:satz");
-  await p.waitForFunction(() => document.getElementById("shtitle").textContent === "Deine eigene Karte" && window.CreateUI && window.CreateUI.asked === "text");
   assert.deepEqual(errs, []);
   await ctx.close();
 });
