@@ -57,8 +57,11 @@ const galleryLinks = (p) => p.evaluate(() => [...document.querySelectorAll("butt
 // fully in view and nothing lies over it (10 Nov: the tiles left the first screen for the day's picture or game).
 async function startBegins(p) {
   const out = [];
-  const q = await p.evaluate(() => { const r = document.getElementById("starth").getBoundingClientRect(); return { top: r.top, h: innerHeight }; });
-  if (!(q.top < q.h - 24)) out.push("Start beginnt nicht im ersten Bild (Frage bei " + Math.round(q.top) + " von " + q.h + ")");
+  // since 11 Nov the free card's block (#frei, a core feature) comes first under the main button: it begins on the first
+  // screen, the question "Wem willst du heute eine Freude machen?" follows it
+  const q = await p.evaluate(() => { const r = document.getElementById("frei").getBoundingClientRect(), s = document.getElementById("starth").getBoundingClientRect(); return { top: r.top, h: innerHeight, after: s.top >= r.bottom }; });
+  if (!(q.top < q.h - 24)) out.push("Freie Karte beginnt nicht im ersten Bild (bei " + Math.round(q.top) + " von " + q.h + ")");
+  if (!q.after) out.push("Frage nicht unter der freien Karte");
   for (const k of ["gruss", "planen", "spielen", "stimme"]) {
     const ok = await p.evaluate((k) => {
       const e = document.querySelector(".sttile[data-i=" + k + "]"); e.scrollIntoView({ block: "nearest" });
@@ -107,7 +110,8 @@ test("Start fuer den Erstbesuch: Tageskarte oben, Frage, Satzfeld, vier Kacheln,
     assert.equal(await p.locator("#feat").isVisible(), false, view);
     assert.equal(await p.locator("#allcards").getAttribute("aria-expanded"), null, view + ": Alle Karten klappt nichts auf");
     assert.deepEqual(await galleryLinks(p), [], view + ": Tunnel / Alle Demos im neuen Start");
-    const seen = await p.evaluate(() => document.getElementById("home").innerText);
+    // the free card's block names its categories as its own screen does (Karte, Meme, Spiel, Quiz: user decision 11 Nov)
+    const seen = await p.evaluate(() => { const f = document.getElementById("frei"), h = f.hidden; f.hidden = true; const s = document.getElementById("home").innerText; f.hidden = h; return s; });
     assert.doesNotMatch(seen, JARGON, view + ": " + (seen.match(JARGON) || [""])[0]);
     assert.match(await p.locator("#leaf .dkind").textContent(), /^Spiel\n/, "der Stempel sagt Spiel, nicht Arcade");
     assert.equal(await p.locator("#mute svg").count(), 1, "Ton-Knopf als Strich-Symbol");
@@ -297,7 +301,7 @@ test("Review #185: Feld bei 200 % auf dem Handy breit genug, Tageskarte bei 150 
   }
   const ctx = await G.person(b, { lang: "de", view: "phone390", time: DAY }); await ctx.route(/^https?:/, (r) => r.abort());
   const p = await G.open(ctx, ""); await p.locator("#startbox").waitFor(); await p.waitForTimeout(300);
-  for (const sel of ["#go", "#satz"]) if (!(await G.inView(p, sel))) bad.push("390x844: nicht im ersten Bild: " + sel);
+  for (const sel of ["#go", "#frei", "#create"]) if (!(await G.inView(p, sel))) bad.push("390x844: nicht im ersten Bild: " + sel);
   (await startBegins(p)).forEach((v) => bad.push("390x844: " + v));
   assert.equal(await p.evaluate(() => getComputedStyle(document.getElementById("startbox")).backgroundColor), "rgb(251, 245, 221)", "Creme #FBF5DD");
   // below the first screen now: Nächster Tag, Selber bauen, Letzte Tage, Meine Wand (#tools) and "Alle Karten"; reachable:
@@ -334,16 +338,17 @@ test("Tageskarte auf dem Handy zeigt ihr Spiel oder Bild (10. Nov.: Netz Volley 
     if (kind === "Spiel" && !(await p.evaluate(() => { const c = document.getElementById("pvcard"); return !!c && !c.hidden && c.getBoundingClientRect().height > 0; }))) bad.push(tag + "Spielbild nicht gezeichnet");
     for (const sel of ["#hero", "#go"]) if (!(await G.inView(p, sel))) bad.push(tag + "nicht im ersten Bild: " + sel);
     if (await hscroll(p)) bad.push(tag + "Querscrollen");
-    // where the screen allows, the sentence field follows on the first screen too (375x812, 414x896 on a game day)
-    if (kind === "Spiel" && (n === "p375" || n === "p414") && !(await G.inView(p, "#satz"))) bad.push(tag + "Satzfeld nicht im ersten Bild");
+    // where the screen allows, the free card's whole block follows on the first screen too (375x812, 414x896)
+    if ((n === "p375" || n === "p414") && !(await G.inView(p, "#frei"))) bad.push(tag + "Freie Karte nicht ganz im ersten Bild");
     if (h > 700) (await startBegins(p)).forEach((x) => bad.push(tag + x));
     // one format every day (11 Nov, "Verschiebt Format"): the sheet's height (its layout height, not the tilted box) and where
     // the start begins do not depend on game or picture
     const m = await p.evaluate(() => ({ leaf: document.getElementById("leaf").offsetHeight, start: Math.round(document.getElementById("startbox").getBoundingClientRect().top + document.getElementById("home").scrollTop) }));
     if (at[n]) { if (Math.abs(at[n].leaf - m.leaf) > 1 || Math.abs(at[n].start - m.start) > 1) bad.push(tag + "Format springt: Spiel " + JSON.stringify(at[n]) + ", Bild " + JSON.stringify(m)); } else at[n] = m;
-    // "Erschaffe deine Karte": the second main action, full width under the main button, type like the tiles, >= 52 px, on the first screen
+    // "Erschaffe deine Karte": the second main action, its block under the main button, its button "Erschaffen" nearly full
+    // width (inside the block), big type, >= 52 px, on the first screen
     const c = await p.evaluate(() => { const r = document.getElementById("create").getBoundingClientRect(), g = document.getElementById("go").getBoundingClientRect(); return { fs: parseFloat(getComputedStyle(document.getElementById("create")).fontSize), h: r.height, w: r.width, gw: g.width, below: r.top >= g.bottom - 1 }; });
-    if (!(c.fs >= 16 && c.h >= 52 && c.w >= c.gw - 2 && c.below)) bad.push(tag + "Erschaffe deine Karte " + JSON.stringify(c));
+    if (!(c.fs >= 16 && c.h >= 52 && c.w >= c.gw - 40 && c.below)) bad.push(tag + "Erschaffe deine Karte " + JSON.stringify(c));
     if (h > 700 && !(await G.inView(p, "#create"))) bad.push(tag + "Erschaffe deine Karte nicht im ersten Bild");
     // the card's own extras (19 Nov: Look würfeln, Live ansehen) sit on the card, nothing over them
     (await blocked(p, "#leaf")).forEach((x) => bad.push(tag + "verdeckt: " + x));

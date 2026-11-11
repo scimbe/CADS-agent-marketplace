@@ -40,7 +40,29 @@
 
   function line(m) {
     if (!m) return "";
-    return m.remaining > 0 ? t("create_left", { n: m.remaining, m: m.size }) : t("create_none", { m: m.size });
+    var c = credit(m), s = m.remaining > 0 ? t("create_left", { n: m.remaining, m: m.size }) : t("create_none", { m: m.size });
+    return c ? s + " " + t(c === 1 ? "create_credit_1" : "create_credit", { n: c }) : s;
+  }
+  // Credit of the account (earned or from a voucher, wrapper lib/duell-credit.mjs): spent only once the free pot is empty.
+  function credit(m) { var n = m && Number(m.credit); return n > 0 && n < 1e6 ? Math.floor(n) : 0; }
+  // "Aufladen" when the pot is empty: a voucher code (POST /api/duell/credit/redeem, wrapper lib/duell-voucher.mjs), then the
+  // count is asked again. A paid top-up would go here too; none is offered (no payment, wrapper aboStatus offered:false).
+  function topup(b) {
+    var box = el("div", "createalt createtop"), lab = el("label", "", t("create_top_code")), f = el("input", "field"), msg = el("p", "note", state.msg || "");
+    box.setAttribute("role", "group"); box.setAttribute("aria-label", t("create_top_h"));
+    f.id = lab.htmlFor = "createcode"; f.type = "text"; f.maxLength = 64; f.autocomplete = "off"; f.spellcheck = false; f.setAttribute("autocapitalize", "characters");
+    msg.id = "createtopmsg"; msg.setAttribute("role", "status"); state.msg = "";
+    var go = el("button", "btn", t("create_top_go"), async function () {
+      var c = f.value.trim(); if (c.length < 4) { f.focus(); return; }
+      Kit.sfx.tap(); go.disabled = true; msg.textContent = "";
+      var r = null; try { r = await root.Ai.post("/credit/redeem", { code: c }); } catch (e) { r = null; }
+      var j = r && r.json; go.disabled = false;
+      if (j && j.ok === true) { state.msg = t("create_top_ok", { n: Number(j.added) || 0 }); await status(); fill(b); return; }
+      msg.textContent = t("create_top_" + (j && /^(unknown|limit|login)$/.test(j.error) ? j.error : "off"));
+    });
+    f.addEventListener("keydown", function (e) { if (e.key === "Enter") go.click(); });
+    box.appendChild(el("b", "", t("create_top_h"))); box.appendChild(lab); box.appendChild(f); box.appendChild(go); box.appendChild(msg);
+    return box;
   }
   // The pot of this account: /status answers it only with a login (meter "create"); without one, there is nothing to count.
   async function status() {
@@ -53,6 +75,8 @@
   }
   // 16+ and 18+ are the server's to read: the account's own statement in its profile ("Mein Stil"), a self-declaration
   // (Selbstauskunft) that nobody verifies; this page sends no age at all.
+  // the label of an art's chip ("🕹 Spiel"); the waiting screen takes its figure from the same label, so the two never differ
+  function artLabel(k) { return t("create_art_" + k); }
   function chipRow(list, now, label, pick, sug) {
     var row = el("div", "chips"); row.setAttribute("role", "group"); row.setAttribute("aria-label", label);
     list.forEach(function (c) {
@@ -63,6 +87,34 @@
       row.appendChild(b);
     });
     return row;
+  }
+
+  /* The waiting screen (src/warten.js, the part "warten", only on demand): asked for when the form is shown, opened at the
+     tap. Its steps come from ai.js block (phase); a call before the part is there waits for it. Without the part (offline,
+     a broken bundle) the button's own "… Denkt nach" stays, as before. */
+  function waiting(text, art, ta, res) {
+    var h = null, q = [], gone = false, me = { cancelled: false, end: null };
+    function call(m, a) { if (gone) return; if (h) h[m].apply(h, a); else q.push([m, a]); }
+    root.Parts.need("warten").then(function () {
+      if (gone || !root.Warten) return;
+      h = root.Warten.open({
+        text: text, fig: String(artLabel(art)).split(" ")[0], t: t,
+        // cancel: the panel is free again at once; a late answer goes back (ai.js block), so it costs what "Verwerfen" costs
+        onCancel: function () {
+          gone = true; me.cancelled = true; if (me.go) me.go.cancel();
+          res.textContent = ""; var n = el("p", "note aistate", t("create_wait_cancelled")); n.setAttribute("role", "status"); res.appendChild(n);
+          try { ta.focus(); } catch (e) {}
+        },
+        onClose: function () { gone = true; try { (res.querySelector(".createalt button, .chip") || ta).focus(); } catch (e) {} }
+      });
+      q.forEach(function (c) { h[c[0]].apply(h, c[1]); }); q = [];
+    }, function () { gone = true; });
+    me.phase = function (s, x) { if (s === "end") { if (x) call("end", [x]); else me.close(); } else call("phase", [s, x]); };
+    me.end = function (m) { call("end", [m]); };
+    me.close = function () { if (h) h.close(); gone = true; };
+    // the card is there: shown in the frame, then the screen goes; without the screen at once
+    me.reveal = function (doc, node) { if (h && !gone) { gone = true; return h.reveal(doc, node); } gone = true; return Promise.resolve(); };
+    return me;
   }
 
   function open() {
@@ -102,10 +154,11 @@
     // 18+ is never sent: the server reads the account's self-declaration (profile.js syncs the age band "18+ (eigene Angabe)")
     if (!state.meter || state.meter.age16 !== true) { b.appendChild(el("p", "note", t("create_age16"))); return; }
 
+    root.Parts.need("warten").catch(function () {});   // the waiting screen, before the first tap (on demand, see waiting())
     b.appendChild(el("p", "note", t("create_h")));
     b.appendChild(el("p", "note", t("create_art")));
     var last = lastPick();
-    var arts = chipRow(ARTS.map(function (k) { return [k, t("create_art_" + k)]; }), state.art, t("create_art"), function (v) { state.art = v; if (v !== "game") { state.genre = ""; state.mode = ""; } fill(b); }, last.art);
+    var arts = chipRow(ARTS.map(function (k) { return [k, artLabel(k)]; }), state.art, t("create_art"), function (v) { state.art = v; if (v !== "game") { state.genre = ""; state.mode = ""; } fill(b); }, last.art);
     b.appendChild(arts);
     // a game: its genre first (what the server builds), then who plays; what is not built yet stands muted as "Bald"
     if (state.art === "game") gameRows(b, last);
@@ -125,11 +178,13 @@
     b.appendChild(el("p", "note", t("create_rules")));
     // before anything is made: what a discard gives back (no hidden cost)
     if (state.meter && state.meter.remaining > 0) b.appendChild(el("p", "note", state.meter.refundsLeft > 0 ? t("create_drop_n", { n: state.meter.refundsLeft }) : t("create_drop_0")));
-    if (state.meter && state.meter.remaining <= 0) return;
+    else if (credit(state.meter)) b.appendChild(el("p", "note", t("create_drop_credit")));
+    if (state.meter && state.meter.remaining <= 0 && state.meter.voucher) b.appendChild(topup(b));
+    if (state.meter && state.meter.remaining <= 0 && !credit(state.meter)) return;
     if (state.meter && state.meter.paused) { b.appendChild(el("p", "note", t("create_paused"))); return; }
 
     // alt: a catalog card (opens by id) or a genre with its sentence, editable; only a tap sends it, as a wish in that genre
-    var GENRE_ART = { G1: "game", G2: "game", G11: "quiz" }, ask = "", fest = false;
+    var GENRE_ART = { G1: "game", G2: "game", G11: "quiz" }, ask = "", fest = false, W = null;
     // send the same sentence again in a genre the person picked here (a question back, the other engine): the genre chips follow
     // (no new render: the open answer of this panel must be given back by the new ask, ai.js; only the chips follow)
     function resend(g, sure) {
@@ -170,6 +225,10 @@
         return Object.assign({ text: s.slice(0, 200), art: state.art }, g ? { genre: g } : {}, f ? { fest: true } : {});
       },
       wall: function () { left.textContent = line(state.meter); },
+      phase: function (s, x) {
+        if (s === "send") { if (W) W.close(); W = waiting(String(ta.value || "").trim().slice(0, 200), state.art, ta, b.querySelector(".aibox .chips:last-child") || b); W.go = go; }
+        if (W) W.phase(s, x);
+      },
       show: function () { return ""; },
       apply: function () { return false; },
       // one card comes back: shown as a preview; the promise says whether it was taken (true) or thrown away (false)
@@ -195,7 +254,9 @@
         // a reason without a full stop is the name of a game: "… kann die freie Karte noch nicht."
         var k = typeof r.reason === "string" && /^[a-z0-9_]{1,20}$/.test(r.reason) ? "create_absage_" + r.reason : "", why = k && t(k) !== k ? t(k) : "";
         if (why) why = (/\.$/.test(why) ? why : t("create_absage_n", { x: why })) + " " + t("create_absage_0");
-        res.appendChild(el("p", "note aistate", why || (n ? t(feat ? "create_notyet_feature" : "create_notyet_game", { name: n }) : t("create_notyet"))));
+        var said = why || (n ? t(feat ? "create_notyet_feature" : "create_notyet_game", { name: n }) : t("create_notyet"));
+        res.appendChild(el("p", "note aistate", said));
+        if (W) W.end(said);
         var card = altCard(r.alt), aid = card ? r.alt.id : "";
         if (card) res.appendChild(card);
         var cs = (Array.isArray(r.catalog) ? r.catalog : []).filter(function (id) { return String(id) !== aid; }).map(function (id) { return D.byId(String(id)); }).filter(Boolean);
@@ -209,10 +270,14 @@
       auto: function (opt, ki, res, note) {
         var doc = opt && opt.doc ? D.sanitizeDoc(opt.doc) : null;
         // what came back must be what was asked for (art and kind); otherwise said so, given back, nothing booked
-        if (!doc || !opt || !artOk(state.art, opt.art) || !kindOk(opt.art, doc) || !ki || !ki.s) { res.textContent = ""; res.appendChild(el("p", "note aistate", t("create_bad"))); return false; }
+        var w = W; W = null;
+        if (w && w.cancelled) return false;   // cancelled while the answer was checked: given back, nothing shown
+        if (!doc || !opt || !artOk(state.art, opt.art) || !kindOk(opt.art, doc) || !ki || !ki.s) { res.textContent = ""; res.appendChild(el("p", "note aistate", t("create_bad"))); if (w) w.end(t("create_bad")); return false; }
         return new Promise(function (done) {
           res.textContent = "";
           var pv = preview(doc); pv.tabIndex = -1; res.appendChild(pv);
+          // the waiting screen shows a copy of the card in its frame, then goes; the focus lands on the preview below
+          var shown = w ? w.reveal(doc, preview(doc)) : Promise.resolve();
           // what the server says about the card, once each: a drink with alcohol left out (cards reach teenagers too), and the
           // limits of the ability the wish asks beyond ("days:14", "people:4"); unknown codes are not shown
           [].concat(note || []).forEach(function (c) {
@@ -228,7 +293,7 @@
               res.appendChild(el("button", "chip", t("create_engine_to", { b: t("create_genre_" + other) }), function () { Kit.sfx.tap(); resend(other, true); }));
             }
           });
-          try { pv.focus(); } catch (e) {}
+          shown.then(function () { try { pv.focus(); } catch (e) {} });
           var row = el("div", "row");
           row.appendChild(el("button", "btn hot", t("create_take"), function () {
             Kit.sfx.pop();

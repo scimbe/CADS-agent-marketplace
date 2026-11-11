@@ -35,7 +35,7 @@ test("Kachel steht fest unter der Tageskarte, ist ein Knopf im Druckstil und oef
   const { p, errs, sent } = await phone((p0) => (p0 === "ai/status" ? [200, { meter: METER }] : null));
   const tile = p.locator("#create");
   await tile.waitFor();
-  assert.match(await tile.textContent(), /Erschaffe deine Karte/);
+  assert.equal(await tile.textContent(), "Erschaffen");   // the button of the free card's block (#frei, 11 Nov)
   const [leaf, go, t, feat] = await Promise.all(["#leaf", "#go", "#create", "#feat"].map((s) => p.locator(s).boundingBox()));
   assert.ok(t.y > leaf.y + leaf.height && t.y > go.y, "unter der Tageskarte");
   // the ticker lives behind "Alle Karten" since the new start (#185, redesign wave 1); where it shows, the tile comes first
@@ -219,6 +219,7 @@ test("Art Spiel mit genanntem Spiel (Dart, Doppelkopf): kein Flugspiel, ehrlich 
     const ta = p.getByLabel("Deine Beschreibung"); await ta.waitFor();
     await ta.fill(name === "Dart" ? "Erstelle ein Dart Spiel" : "Doppelkopf-Runde");
     await p.getByRole("button", { name: "✨ Erschaffen" }).tap();
+    await p.getByRole("button", { name: "Zurück zu deinem Satz" }).tap();   // the waiting screen ends with the reason (warten.js)
     await p.getByText("„" + name + "“ kann die freie Karte noch nicht.", { exact: false }).waitFor();
     assert.equal(await p.locator(".createpv").count(), 0, "no preview, no flying game");
     assert.equal(sent.filter((x) => x.path === "ai/accept").length, 0, "nothing booked");
@@ -239,6 +240,7 @@ test("Merkmal fehlt (Zu- und Absagen sammeln): ehrlich noch nicht, aehnliche Kat
   const ta = p.getByLabel("Deine Beschreibung"); await ta.waitFor();
   await ta.fill("Einladung, alle sollen zu- oder absagen");
   await p.getByRole("button", { name: "✨ Erschaffen" }).tap();
+  await p.getByRole("button", { name: "Zurück zu deinem Satz" }).tap();   // the waiting screen ends with the reason (warten.js)
   await p.getByText("Zu- und Absagen sammeln kann die freie Karte noch nicht. Dafür wird nichts abgebucht.").waitFor();
   await p.getByText("Ähnlich im Katalog:").waitFor();
   assert.equal(await p.locator(".createpv").count(), 0); assert.equal(sent.filter((x) => x.path === "ai/accept").length, 0);
