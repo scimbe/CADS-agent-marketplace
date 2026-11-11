@@ -1,5 +1,7 @@
 # Plan
 
+> Ersetzt als Vorgehen durch [vorgehen.md](vorgehen.md); diese Datei bleibt als Inventar der Slices.
+
 1. Planen: Fragment-Spezifikation aus dem Altcode (`02-spec/`) – läuft.
 2. Evaluieren: 2–3 Varianten mit messbaren Kriterien (Bundle, Risiko, Testbarkeit) → ADR.
 3. Bauen: neuer Client unter eigenem Pfad neben dem alten, dünne vertikale Schnitte.

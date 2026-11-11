@@ -33,3 +33,5 @@ sondern dient als **genaue Spezifikation der Fragmente**.
 6. Schreibende Arbeit an Code nur in eigenen Worktrees/Branches; diese Ablage wird per PR auf `main` gebracht.
 7. **Forschung je Schritt:** Vor jeder Entscheidung aktuelle Forschung und etablierte Best Practices recherchieren (Primärquellen bevorzugt: Paper, Standards, offizielle Doku). Ergebnis als `08-forschung/<thema>.md` mit Quellen (Titel, Autor/Herausgeber, Jahr, Link) und der daraus abgeleiteten Lösung. Keine Quelle erfinden; Unsicheres als unsicher kennzeichnen.
 8. **Sprecher:** Mit dem User spricht nur die Sprecher-Session. Sie leitet nicht, sondern vermittelt; Entscheidungen stehen im Wortlaut in `entscheidungen.md`.
+
+> **Verbindliches Vorgehen:** [06-plan/vorgehen.md](06-plan/vorgehen.md) – Phasen A–F mit Prüfpunkten und Definition of Done.
