@@ -57,13 +57,27 @@ function qr(cv, text) {
   }).catch(function () {});
 }
 // The inviting device: a QR code (a computer shows it, the phone scans it) and the link to send; then the connection.
-// The file tool asks for a direct path unless the relay is switched on (Tools.relay); the note for two keeps the relay.
-function opts(w) { return { direct: w === "datei" && !T.relay() }; }
+// The file tool goes direct only unless this person may use the relay (Tools.relayFor: credit > 0, or the switch); the
+// note for two keeps the relay as before. credit: null until /ai/status answered (asked when the file tool opens, never on
+// the first paint; without a login or offline it stays 0).
+var credit = null, creditP = null;
+function askCredit() {
+  creditP = (async function () {
+    try { var r = window.Ai && await window.Ai.post("/status", { device: Kit.store.aiDev || undefined }); var c = r && r.json && r.json.create && r.json.create.credit; credit = typeof c === "number" ? c : 0; }
+    catch (e) { credit = 0; }
+    return credit;
+  })();
+  return creditP;
+}
+function paid() { return T.relayFor(credit); }
+function opts(w) { return { direct: w === "datei" && !paid() }; }
+// before a file connection: the answer about credit, at most 4 s (then direct only)
+function credited(w) { return w === "datei" && creditP ? Promise.race([creditP, new Promise(function (ok) { setTimeout(ok, 4000); })]) : Promise.resolve(); }
 async function host(box, w, shareText, then) {
   var my = gen;
   box.textContent = ""; box.appendChild(el("p", "note tlstate", t("live_making")));
   var inv;
-  try { await window.Parts.need("play"); inv = await window.Live.invite(onState, opts(w)); } catch (e) { if (my === gen) failed(box, e, function () { host(box, w, shareText, then); }, w); return; }
+  try { await credited(w); await window.Parts.need("play"); inv = await window.Live.invite(onState, opts(w)); } catch (e) { if (my === gen) failed(box, e, function () { host(box, w, shareText, then); }, w); return; }
   if (my !== gen) { inv.ready.then(function (c) { c.close(); }, function () {}); return; }
   mine = inv.token;
   var url = linkOf(inv.token, w), cv = el("canvas", "tlqr"), left = el("p", "livecount", ""), row = el("div", "tlrow");
@@ -89,13 +103,18 @@ async function join(box, token, again, then, w) {
   if (mine === token) { box.textContent = ""; box.appendChild(el("p", "lbl", t("tl_ownLink"))); return; }
   box.textContent = ""; box.appendChild(el("p", "lbl tlstate", t("live_connecting")));
   var c;
-  try { await window.Parts.need("play"); c = await window.Live.accept(token, onState, opts(w)); } catch (e) { if (my === gen) failed(box, e, again, w); return; }
+  try { await credited(w); await window.Parts.need("play"); c = await window.Live.accept(token, onState, opts(w)); } catch (e) { if (my === gen) failed(box, e, again, w); return; }
   if (my !== gen) { try { c.close(); } catch (e) {} return; }
   then(c, "b");
 }
-// No direct path for a file (relay off): said as it is, no quiet way round over a server.
+// No direct path for a file without the relay: said as it is, no quiet way round over a server, and how it would work.
 function failed(box, e, again, w) {
-  box.textContent = ""; box.appendChild(el("p", "lbl tlfail", e && e.message === "rtc" && opts(w).direct ? t("tl_noDirect") : failText(e)));
+  var free = e && e.message === "rtc" && opts(w).direct;
+  box.textContent = ""; box.appendChild(el("p", "lbl tlfail", free ? t("tl_noDirect") : failText(e)));
+  if (free && !(window.DailyFlags && window.DailyFlags.toolRelay === false)) {
+    box.appendChild(el("p", "note tlpaid", t("tl_relayPaid")));
+    box.appendChild(btn(t("tl_topup"), "btn tltopup", function () { Kit.sfx.tap(); close(); window.Parts.use("erschaffen", function () { window.CreateUI.open(); }).catch(function () {}); }));
+  }
   box.appendChild(btn(t("tl_again"), "btn hot", function () { Kit.sfx.tap(); again(); }));
 }
 // The three pictures both screens show: from both DTLS fingerprints (live.js fp), which differ on the two sides if anyone
@@ -226,6 +245,8 @@ function share(n) {
 var blob = null;
 function file(token) {
   var L = layer(t("tl_file"), "datei"), my = L.gen, st = { p: token ? "join" : "idle" }, badge = "", frame = 0;
+  // credit only now, when the file tool opens; the card text follows once it is known
+  askCredit().then(function () { if (my === gen && st.p === "idle") draw(); });
   var card = el("div", "tlcard"), box = el("div", "tlbox"), pick = el("input");
   pick.type = "file"; pick.hidden = true; pick.className = "tlpick";
   card.appendChild(box); card.appendChild(pick); L.stage.appendChild(card);
@@ -272,14 +293,14 @@ function file(token) {
     box.textContent = ""; L.main.hidden = false; L.main.disabled = false; L.main.className = "press"; L.why.textContent = "";
     var P = st.p;
     if (P === "idle") {
-      box.appendChild(el("p", "tlicon", "📱 ⇄ 💻")); head(t("tl_file"), t(T.relay() ? "tl_fileWhatRelay" : "tl_fileWhat"));
+      box.appendChild(el("p", "tlicon", "📱 ⇄ 💻")); head(t("tl_file"), t(paid() ? "tl_fileWhatRelay" : "tl_fileWhat"));
       box.appendChild(el("p", "note", t("tl_fileKeep", { m: mb(T.MAX_BYTES) })));
       box.appendChild(el("p", "note tlhint", t("tl_hintPc"))); box.appendChild(el("p", "note tlhint", t("tl_hintPhone")));
       L.main.textContent = t("tl_connect"); L.main.onclick = function () { Kit.sfx.tap(); st = { p: "host" }; draw(); };
       return;
     }
     if (P === "host" || P === "join") {
-      L.main.hidden = true; box.appendChild(el("p", "note", t(T.relay() ? "tl_fileWhatRelay" : "tl_fileWhat")));
+      L.main.hidden = true; box.appendChild(el("p", "note", t(paid() ? "tl_fileWhatRelay" : "tl_fileWhat")));
       var b2 = el("div"); box.appendChild(b2);
       if (P === "host") host(b2, "datei", "tl_fileShare", connected); else join(b2, token, function () { st = { p: "host" }; draw(); }, connected, "datei");
       st.p = P + "-run"; return;
@@ -293,7 +314,7 @@ function file(token) {
         L.main.textContent = "💾 " + t("tl_save"); L.main.onclick = function () { Kit.sfx.tap(); if (blob) Kit.saveFile(blob, st.n); };
         box.appendChild(btn(t("tl_pick"), "btn", function () { Kit.sfx.tap(); pick.click(); }));
       } else { L.main.textContent = t("tl_pick"); L.main.onclick = function () { Kit.sfx.tap(); pick.click(); }; }
-      L.why.textContent = t(T.relay() ? "tl_fileWhatRelay" : "tl_fileWhat");
+      L.why.textContent = t(paid() ? "tl_fileWhatRelay" : "tl_fileWhat");
       return;
     }
     if (P === "askIn") {

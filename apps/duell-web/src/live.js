@@ -85,8 +85,9 @@
     }
     throw new Error("timeout");
   }
-  // Direct only (o.direct, the file tool while the relay is not approved for files): no TURN server is handed to the
-  // browser, and a relay candidate of the other side is never used. Without a direct path the join ends with "rtc".
+  // Direct only (o.direct: the file tool for someone without the relay, tools.js relayFor): no TURN server is handed to
+  // the browser and no relay candidate of this device goes out, so this device never sends through our relay. A relay
+  // candidate of the other device (its own, paid relay) is still taken. Without any path the join ends with "rtc".
   function directServers(list) {
     return (list || []).map(function (s) {
       var u = [].concat(s && s.urls || []).filter(function (x) { return /^stuns?:/i.test(String(x)); });
@@ -123,7 +124,6 @@
           var m = w.decodeSignalMessage(nt.decrypt(await framed(s, 15 * 60000)));
           if (m.kind === "offer") { await pc.setRemoteDescription({ type: "offer", sdp: m.sdp }); haveRemote = true; var an = await pc.createAnswer(); await pc.setLocalDescription(an); signal(w.encodeSignalAnswer(an.sdp)); }
           else if (m.kind === "answer") { await pc.setRemoteDescription({ type: "answer", sdp: m.sdp }); haveRemote = true; }
-          else if (m.kind === "ice-candidate" && o.direct && relayCandidate(m.candidate)) continue;
           else if (m.kind === "ice-candidate") { var c = { candidate: m.candidate, sdpMid: m.sdpMid, sdpMLineIndex: m.sdpMlineIndex }; if (haveRemote) pc.addIceCandidate(c).catch(function () {}); else early.push(c); }
           if (haveRemote && early.length) early.splice(0).forEach(function (c) { pc.addIceCandidate(c).catch(function () {}); });
         }

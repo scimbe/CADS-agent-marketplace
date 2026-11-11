@@ -232,11 +232,16 @@
     return api;
   }
 
-  // The one switch for the TURN relay in the file tool (the note for two and the live games are not affected): off, a
-  // file goes only on a direct path between the two devices, never over a server, not even as ciphertext. A build or the
-  // server may turn it on at runtime with window.DailyFlags = { toolRelay: true } before the part runs.
-  var RELAY = false;
-  function relay(flags) { var f = flags || root.DailyFlags; return f && typeof f.toolRelay === "boolean" ? f.toolRelay : RELAY; }
+  // Who may use the TURN relay in the file tool (the note for two and the live games are not affected). Decision 2026-11:
+  // the relay is for paying customers, an account with credit (/ai/status create.credit > 0); everyone else goes direct
+  // only, never over a server, not even as ciphertext. One switch on top, set at runtime before the part runs (a build,
+  // the shells or the server): window.DailyFlags = { toolRelay: true } for everyone, false for no one. Today this is
+  // decided on the device only; the bridge hands TURN to any channel (see the PR for the server side).
+  function relayFor(credit, flags) {
+    var f = flags === undefined ? root.DailyFlags : flags;
+    if (f && typeof f.toolRelay === "boolean") return f.toolRelay;
+    return typeof credit === "number" && credit > 0;
+  }
   // Sizes as people read them: "830 B", "12,3 MB" (de) / "12.3 MB" (en); decimal units like the phones show them.
   function size(b, lang) {
     var u = ["B", "KB", "MB", "GB"], i = 0, v = b;
@@ -247,7 +252,7 @@
 
   var api = {
     sha256: sha256, COLORS: COLORS, STICKERS: STICKERS, MAX_NOTE: MAX_NOTE, cleanNote: cleanNote, noteCode: noteCode, noteFrom: noteFrom, noteFits: noteFits, noteLoad: noteLoad,
-    shared: shared, transfer: transfer, RELAY: RELAY, relay: relay, cleanName: cleanName, size: size, CHUNK: CHUNK, HIGH: HIGH, LOW: LOW, ACK: ACK, MAX_BYTES: MAX_BYTES
+    shared: shared, transfer: transfer, relayFor: relayFor, cleanName: cleanName, size: size, CHUNK: CHUNK, HIGH: HIGH, LOW: LOW, ACK: ACK, MAX_BYTES: MAX_BYTES
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.Tools = api;

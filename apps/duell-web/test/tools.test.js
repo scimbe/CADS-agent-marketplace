@@ -200,9 +200,11 @@ test("Dateiname und Groesse: ohne Ordner und Steuerzeichen, wie Menschen sie les
   assert.equal(T.size(830, "de"), "830 B"); assert.equal(T.size(12345678, "de"), "12,3 MB"); assert.equal(T.size(12345678, "en"), "12.3 MB"); assert.equal(T.size(209715200, "en"), "210 MB");
 });
 
-test("Relais-Schalter: aus als Vorgabe; nur die Dateiverbindung ohne TURN, fremde Relais-Kandidaten werden nie benutzt", () => {
-  assert.equal(T.RELAY, false);
-  assert.equal(T.relay({}), false); assert.equal(T.relay({ toolRelay: true }), true); assert.equal(T.relay({ toolRelay: "ja" }), false);
+test("Relais nur fuer Zahlende: Guthaben > 0 darf, sonst nur direkt; ein Schalter fuer alle oder keinen; ohne TURN keine Relais-Kandidaten", () => {
+  assert.equal(T.relayFor(0, {}), false); assert.equal(T.relayFor(null, {}), false); assert.equal(T.relayFor(undefined, {}), false); assert.equal(T.relayFor("5", {}), false);
+  assert.equal(T.relayFor(1, {}), true); assert.equal(T.relayFor(0.5, null), true);
+  assert.equal(T.relayFor(0, { toolRelay: true }), true, "Schalter: fuer alle"); assert.equal(T.relayFor(9, { toolRelay: false }), false, "Schalter: fuer keinen");
+  assert.equal(T.relayFor(9, { toolRelay: "ja" }), true, "nur ein echtes true/false schaltet");
   delete globalThis.Live; require("../src/live.js"); const L = globalThis.Live;
   assert.deepEqual(L.directServers([{ urls: ["stun:a.example:3478", "turn:a.example:3478?transport=udp"], username: "u", credential: "c" }, { urls: "turns:b.example:5349", username: "u", credential: "c" }, { urls: "stun:c.example" }]),
     [{ urls: ["stun:a.example:3478"] }, { urls: ["stun:c.example"] }], "kein TURN, keine Zugangsdaten");
@@ -210,7 +212,8 @@ test("Relais-Schalter: aus als Vorgabe; nur die Dateiverbindung ohne TURN, fremd
   assert.equal(L.relayCandidate("candidate:1 1 udp 41885439 203.0.113.5 3478 typ relay raddr 0.0.0.0 rport 0"), true);
   assert.equal(L.relayCandidate("candidate:2 1 udp 1677729535 198.51.100.7 51000 typ srflx raddr 10.0.0.2 rport 51000"), false);
   assert.equal(L.relayCandidate("candidate:3 1 udp 2122260223 192.168.1.4 51000 typ host"), false);
-  // the switch reaches only the file tool: live.js keeps its old calls (no third argument) for games and the note for two
+  // only the file tool asks for direct; live.js keeps its old calls (no third argument) for games and the note for two
   const ui = require("node:fs").readFileSync(require.resolve("../src/tools-ui.js"), "utf8");
-  assert.match(ui, /function opts\(w\) \{ return \{ direct: w === "datei" && !T\.relay\(\) \}; \}/);
+  assert.match(ui, /function opts\(w\) \{ return \{ direct: w === "datei" && !paid\(\) \}; \}/);
+  assert.match(ui, /window\.Ai\.post\("\/status"/, "Guthaben ueber den vorhandenen Weg (ai.js), kein eigenes fetch");
 });

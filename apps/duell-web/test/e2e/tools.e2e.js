@@ -37,10 +37,13 @@ const STUB = (side) => `(() => {
   navigator.share = async (o) => { window.__shared = o; };
 })();`;
 
-async function device(b, side, view) {
+// credit: what /ai/status says about this account (create.credit; undefined = no login, no create block)
+const STATUS = "https://demos-34a13a96.bunsenbrenner.org/api/duell/ai/status";
+async function device(b, side, view, credit) {
   const ctx = await G.person(b, { lang: "de", view: view || "phone390", web: true });
-  ctx.side = side; ctx.out = [];   // requests that leave 127.0.0.1
-  ctx.on("request", (r) => { if (!G.isLocal(r.url()) && !/^(data|blob):/.test(r.url())) ctx.out.push(r.url()); });
+  ctx.side = side; ctx.out = []; ctx.status = [];   // requests that leave 127.0.0.1 (other than the credit question)
+  ctx.on("request", (r) => { if (r.url() === STATUS) ctx.status.push(r.postData() || ""); else if (!G.isLocal(r.url()) && !/^(data|blob):/.test(r.url())) ctx.out.push(r.url()); });
+  await ctx.route(STATUS, (r) => r.fulfill({ status: 200, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify(credit === undefined ? {} : { create: { size: 5, remaining: 0, credit } }) }));
   await ctx.addInitScript(STUB(side));
   return ctx;
 }
@@ -244,31 +247,45 @@ test("Notiz zu zweit: einladen, das andere Geraet tritt bei, beide schreiben auf
   } finally { await b.close(); }
 });
 
-test("Datei rueber, Relais-Schalter: aus - ohne direkten Weg ehrlich gesagt, kein Umweg; an - Relais erlaubt und so erklaert", { timeout: 120000 }, async () => {
+test("Datei rueber, Relais nur mit Guthaben: ohne - nur direkt, ehrlicher Satz plus Weg zum Aufladen; mit - Relais erlaubt und erklaert; Schalter fuer alle", { timeout: 150000 }, async () => {
   const b = await G.launch();
   try {
-    // off (default): the inviter finds no direct path; the other device too
+    // free (no login: /ai/status without a create block): direct only, on both devices
     const ca = await device(b, "a"), A = await G.open(ca, "#i=datei-rueber");
-    await A.locator("#go").click(); await A.locator(".tlov .press").click(); await A.locator(".tlqr:not([hidden])").waitFor();
+    assert.deepEqual(ca.status, [], "beim ersten Bild kein Guthaben-Abruf");
+    await A.locator("#go").click(); await G.poll(() => ca.status.length, (n) => n === 1, { what: "Guthaben erst beim Oeffnen" });
+    assert.doesNotMatch(await text(A, ".tlcard"), /Relais/);
+    await A.locator(".tlov .press").click(); await A.locator(".tlqr:not([hidden])").waitFor();
     assert.deepEqual(await A.evaluate(() => window.__toolOpts), { direct: true });
     await A.evaluate(() => window.__toolFail());
     await A.getByText("Keine direkte Verbindung möglich (z. B. Mobilfunk oder Firmennetz). Versucht es im selben WLAN.").waitFor();
+    await A.getByText("Mit Guthaben klappt es auch über ein Relais, das nur verschlüsselte Daten sieht.").waitFor();
     assert.equal(await A.locator(".tlqr").count(), 0); await A.getByRole("button", { name: "Neu verbinden" }).waitFor();
     await snap(A, "datei-7-kein-direkter-weg");
-    const cb = await device(b, "b"), B = await cb.newPage(); B.errs = []; B.on("pageerror", (e) => B.errs.push(String(e)));
+    // the way to top up: the free card with its "Aufladen" (part erschaffen, create-ui.js)
+    await A.getByRole("button", { name: "Guthaben aufladen" }).click();
+    assert.equal(await A.locator(".tlov").count(), 0);
+    await A.waitForFunction(() => window.Parts.ready("erschaffen"));
+    const cb = await device(b, "b", "phone390", 0), B = await cb.newPage(); B.errs = []; B.on("pageerror", (e) => B.errs.push(String(e)));
     await B.addInitScript(() => { window.__toolNoPath = true; });
     await B.goto((await G.webUrl("index.html")) + "#tl=" + TOKEN + "&w=datei");
     await B.getByText("Keine direkte Verbindung möglich (z. B. Mobilfunk oder Firmennetz). Versucht es im selben WLAN.").waitFor();
-    // on (one switch, set before the part runs): the relay may carry the ciphertext, and the card says so
-    const cc = await device(b, "a"); await cc.addInitScript(() => { window.DailyFlags = { toolRelay: true }; });
-    const C2 = await G.open(cc, "#i=datei-rueber");
+    assert.deepEqual(await B.evaluate(() => window.__toolOpts), { direct: true }, "Guthaben 0: auch das beitretende Geraet nur direkt");
+    // paying (credit > 0): the relay may carry the ciphertext, and the card says so; without any path the plain network word
+    const cc = await device(b, "a", "phone390", 3), C2 = await G.open(cc, "#i=datei-rueber");
     await C2.locator("#go").click();
-    assert.match(await text(C2, ".tlcard"), /wenn kein direkter Weg geht, über ein Relais, das nichts lesen kann/);
+    await G.poll(() => text(C2, ".tlcard"), (v) => /wenn kein direkter Weg geht, über ein Relais, das nichts lesen kann/.test(v), { what: "Relais-Satz fuer Zahlende" });
     await C2.locator(".tlov .press").click(); await C2.locator(".tlqr:not([hidden])").waitFor();
     assert.deepEqual(await C2.evaluate(() => window.__toolOpts), { direct: false });
     await C2.evaluate(() => window.__toolFail());
     await C2.getByText("Eure Netze lassen gerade keine Verbindung zu", { exact: false }).waitFor();
-    assert.deepEqual(A.errs.concat(B.errs, C2.errs), []);
-    assert.deepEqual(ca.out.concat(cb.out, cc.out), []);
+    assert.equal(await C2.getByText("Mit Guthaben klappt es").count(), 0);
+    // the one switch: relay for everyone (DailyFlags.toolRelay), even without credit
+    const cd = await device(b, "a"); await cd.addInitScript(() => { window.DailyFlags = { toolRelay: true }; });
+    const D2 = await G.open(cd, "#i=datei-rueber"); await D2.locator("#go").click(); await D2.locator(".tlov .press").click(); await D2.locator(".tlqr:not([hidden])").waitFor();
+    assert.deepEqual(await D2.evaluate(() => window.__toolOpts), { direct: false });
+    for (const c of [ca, cb, cc]) for (const body of c.status) assert.doesNotMatch(body, /datei|notiz|Urlaub/i, "nur die Geraete-Kennung geht mit");
+    assert.deepEqual(A.errs.concat(B.errs, C2.errs, D2.errs), []);
+    assert.deepEqual(ca.out.concat(cb.out, cc.out, cd.out), []);
   } finally { await b.close(); }
 });
