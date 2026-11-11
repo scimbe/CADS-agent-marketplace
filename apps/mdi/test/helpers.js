@@ -16,7 +16,7 @@ export function testRuntime({ lang = "de", entropy = counter(), storage = memSto
   const rt = createRuntime({
     lang, entropy, storage,
     live: live || (() => Promise.reject(new Error("kein live"))),
-    share: (f) => { shared.push(f); return Promise.resolve(true); },
+    share: (f) => { shared.push(f); return Promise.resolve("copied"); },
     clearUrl: () => {},
     schedule: async ? (f) => setTimeout(f, 0) : (f) => q.push(f),
     onChange: () => {}

@@ -22,7 +22,7 @@ export async function liveInvite(b, o, cardId, setup) {
   const A = await open(b, { ...o, before: (ctx, p) => net.attach(ctx, p, "a") });
   await act(A.p, "open-" + cardId); await pickMode(A.p, o.lang, "live"); if (setup) await setup(A.p); await act(A.p, "go");
   await waitScreen(A.p, "card-lobby");
-  await A.p.locator("#linkfield").waitFor({ timeout: 20000 });
+  await A.p.locator("#linkfield").waitFor({ state: "attached", timeout: 20000 });
   const link = await linkOf(A.p);
   assert.match(link, /^#v2\.live\./);
   const B = await open(b, { ...o, hash: link, before: (ctx, p) => net.attach(ctx, p, "b") });

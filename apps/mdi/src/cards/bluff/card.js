@@ -7,25 +7,27 @@ import { onFill } from "../../contract/tokens.js";
 
 const TX = {
   de: {
-    you0: "Du bist der Bote. Sag deine Karten an – gleich oder höher.",
-    you1: "Du prüfst den Boten. Glauben oder aufdecken?",
+    you0: "Sag jede Karte an – gleich hoch oder höher.",
+    you1: "Glaub die Ansage oder deck sie auf.",
     say: "Karte {n}: Du hast {v}. Was sagst du an?",
     see: "Karte {n}: angesagt {v}. Glaubst du das?",
     yes: "Glauben", no: "Aufdecken",
     said: "Ansage {v}", believed: "geglaubt", opened: "aufgedeckt",
     line: "Karte {n}: Ansage {c}, in Wahrheit {t}.",
-    score: "{a} zu {b}", cheat: "Ansage unter dem echten Wert: Die Partie zählt nicht.",
+    score: "{s0} {a} – {s1} {b}", cheat: "Ansage unter dem echten Wert: Die Partie zählt nicht.",
+    rule: "So zählt es: Geglaubt – der Bote bekommt die Ansage. Aufgedeckt und ehrlich – der Bote bekommt den Wert plus {b}. Aufgedeckt und gelogen – der Prüfer bekommt die Ansage.",
     hidden: "verdeckt", card: "Karte {n}"
   },
   en: {
-    you0: "You are the messenger. Announce your cards – equal or higher.",
-    you1: "You check the messenger. Believe or reveal?",
+    you0: "Announce each card – the same or higher.",
+    you1: "Believe the announcement or reveal it.",
     say: "Card {n}: you hold {v}. What do you announce?",
     see: "Card {n}: announced {v}. Do you believe it?",
     yes: "Believe", no: "Reveal",
     said: "Said {v}", believed: "believed", opened: "revealed",
     line: "Card {n}: announced {c}, really {t}.",
-    score: "{a} to {b}", cheat: "An announcement below the real value: this game does not count.",
+    score: "{s0} {a} – {s1} {b}", cheat: "An announcement below the real value: this game does not count.",
+    rule: "How it counts: believed – the messenger scores the announcement. Revealed and honest – the messenger scores the value plus {b}. Revealed and a lie – the checker scores the announcement.",
     hidden: "face down", card: "Card {n}"
   }
 };
@@ -126,7 +128,8 @@ export default {
     }
     const kids = [];
     if (preview) kids.push({ t: "text", role: "body", text: manifest.howto[ctx.lang] || manifest.howto.de, part: "regeln" });
-    else if (p.phase !== "over") kids.push({ t: "text", role: "label", text: seat === 0 ? X.you0 : X.you1 });
+    else if (p.phase === "say" && seat === 0) kids.push({ t: "text", role: "label", text: X.you0 });
+    else if (p.phase === "call" && seat === 1) kids.push({ t: "text", role: "label", text: X.you1 });
     kids.push({ t: "row", wrap: false, children: tiles });
     if (!preview) {
       const i = p.phase === "say" ? p.say.length : p.call.length;
@@ -135,9 +138,10 @@ export default {
       } else if (p.phase === "call" && seat === 1) {
         kids.push({ t: "choice", label: fmt(X.see, { n: i + 1, v: p.say[i] }), options: [{ label: X.yes, input: { t: "call", seat: 1, open: false } }, { label: X.no, input: { t: "call", seat: 1, open: true } }] });
       } else if (p.phase === "over") {
-        kids.push({ t: "text", role: "big", text: p.cheat ? "–" : fmt(X.score, { a: p.score[0], b: p.score[1] }) });
+        const names = manifest.seats[ctx.lang] || manifest.seats.de;
+        kids.push({ t: "text", role: "big", text: p.cheat ? "–" : fmt(X.score, { s0: names[0], a: p.score[0], s1: names[1], b: p.score[1] }) });
         if (p.cheat) kids.push({ t: "text", role: "body", text: X.cheat });
-        else for (let k = 0; k < p.n; k++) kids.push({ t: "text", role: "small", text: fmt(X.line, { n: k + 1, c: p.say[k], t: p.truth[k] }) });
+        else kids.push({ t: "text", role: "small", text: fmt(X.rule, { b: p.bonus }) });
       }
     }
     return { t: "stack", children: kids };

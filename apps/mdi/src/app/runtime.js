@@ -74,7 +74,8 @@ export function createRuntime(deps) {
         liveGen++; if (live) { try { live.close(); } catch (e) { /* schon zu */ } } live = null;
         break;
       case "store": deps.storage.saveGame(fx.entry); break;
-      case "share": deps.share(fx.fragment).then((ok) => ok && dispatch({ type: "SENT" })); break;
+      // "shared" = Systemblatt abgeschlossen -> gesendet; "copied" = nur in der Zwischenablage; sonst Hinweis + Feld
+      case "share": deps.share(fx.fragment).then((r) => dispatch({ type: r === "shared" ? "SENT" : r === "copied" ? "COPIED" : "SHARE_FAIL" })); break;
       case "url.clear": deps.clearUrl(); break;
       default: throw new Error("Effekt unbekannt: " + fx.type);
     }

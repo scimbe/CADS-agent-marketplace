@@ -50,8 +50,10 @@ export function render(node, host) {
       }
       case "tile": {
         const shown = n.value !== null && n.value !== undefined;
-        return h("div", { class: "tile fill-" + fill(n.fill, "red") + " ink-" + fill(n.ink, "ink") + (shown ? "" : " back") + (n.focus ? " focus" : "") + " mark-" + (["ok", "hit", "none"].includes(n.mark) ? n.mark : "none"), role: "img", "aria-label": txt(n.a11y), "data-part": part },
-          h("span", { class: "tv", "aria-hidden": "true" }, shown ? txt(n.value).slice(0, 3) : "?"),
+        // Kartenflaeche nur mit dem Wert; Beschriftung darunter auf ruhigem Grund (lesbar, Kritikrunde 1)
+        return h("div", { class: "tilebox" + (n.focus ? " focus" : ""), role: "img", "aria-label": txt(n.a11y), "data-part": part },
+          h("div", { class: "tile fill-" + fill(n.fill, "red") + " ink-" + fill(n.ink, "ink") + (shown ? "" : " back") + " mark-" + (["ok", "hit", "none"].includes(n.mark) ? n.mark : "none"), "aria-hidden": "true" },
+            h("span", { class: "tv" }, shown ? txt(n.value).slice(0, 3) : "?")),
           n.sub ? h("span", { class: "ts", "aria-hidden": "true" }, txt(n.sub)) : null);
       }
       case "choice": {

@@ -40,8 +40,8 @@ async function scenario(id, mode) {
     const devs = [a, B];
     let from = 0;
     if (c.manifest.mode === "static") {
-      assert.equal(L(a), "card.share"); a.dispatch("SHARE"); await until(() => a.shared.length === 1);
-      B.link(a.shared[0]); assert.equal(L(B), "receive.show"); B.dispatch("ACCEPT"); assert.equal(L(B), "card.view");
+      assert.equal(L(a), "card.share"); a.dispatch("SHARE"); await until(() => a.shared.length >= 2);
+      B.link(a.shared[a.shared.length - 1]); assert.equal(L(B), "receive.show"); B.dispatch("ACCEPT"); assert.equal(L(B), "card.view");
       assert.deepEqual(B.state.ctx.params[id], a.state.ctx.params[id] || B.state.ctx.params[id]);
       return { a, b: B, sent: a.shared };
     }
@@ -51,6 +51,7 @@ async function scenario(id, mode) {
       if (L(d) === "card.play.over" && !d.state.ctx.link) break;
       const n = d.shared.length; d.dispatch("SHARE"); await until(() => d.shared.length > n);
       const link = d.shared[d.shared.length - 1]; sent.push(link);
+      if (L(d) === "card.play.send") d.dispatch("SENT");
       o.link(link); assert.equal(L(o), "receive.show", o.state.ctx.reason); o.dispatch("ACCEPT"); noForeignSecret(o);
       if (L(d) === "card.play.over" && L(o) === "card.play.over") break;
       from = 1 - from;
@@ -98,8 +99,8 @@ test("Link: wer als zweiter Sitz einlaedt, bekommt sofort den Einladungslink (Re
   const A = testRuntime({ entropy: counter("f"), async: true }), B = testRuntime({ entropy: counter("a1"), async: true });
   A.dispatch({ type: "OPEN", id: "bluff" }); A.dispatch({ type: "MODE", mode: "link" }); A.dispatch({ type: "SEAT", seat: 1 }); A.dispatch("GO");
   assert.equal(L(A), "card.play.send");
-  A.dispatch("SHARE"); await until(() => A.shared.length === 1);
-  B.link(A.shared[0]); assert.equal(L(B), "receive.show"); B.dispatch("ACCEPT");
+  await until(() => A.shared.length >= 1, 2000);
+  B.link(A.shared[A.shared.length - 1]); assert.equal(L(B), "receive.show"); B.dispatch("ACCEPT");
   assert.equal(L(B), "card.play.turn"); assert.deepEqual(B.state.ctx.session.mine, [0], "Empfaenger wird Bote");
   assert.ok(B.storage.dump()[0].salt, "Bote legt sein Salz beim Annehmen fest");
   assert.equal(A.state.ctx.session.state.priv[0], null);

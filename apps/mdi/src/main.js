@@ -76,6 +76,7 @@ function draw(state, info) {
     if (b) b.focus();
   }
   lastDialog = d; lastDialogRect = d ? d.getBoundingClientRect() : null;
+  if (!nowLeaf.startsWith("card.customize")) for (const g of document.querySelectorAll(".ghost")) g.remove();
   if (beforeLeaf !== null && beforeLeaf !== nowLeaf && !d && nowLeaf !== "card.customize.dialog" && !nowLeaf.startsWith("card.customize")) {
     // Bildschirmwechsel: Fokus an den Hauptbereich (Screenreader liest den neuen Inhalt)
     const m = root.querySelector("#main"); if (m && !m.contains(document.activeElement)) m.focus({ preventScroll: true });

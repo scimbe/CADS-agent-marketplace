@@ -36,7 +36,8 @@ export function actionsOf(state) {
       if (ctx.mode === "link" && ctx.link && !ctx.sent) return { primary: a("share", X.sendResult, "SHARE"), secondary: [a("again", X.again2, "AGAIN")] };
       return { primary: a("again", X.again2, "AGAIN"), secondary: [] };
     case "card.play.error": return { primary: a("back", X.back, "BACK"), secondary: [] };
-    case "receive.show": case "receive.live": return { primary: a("accept", X.accept, "ACCEPT"), secondary: [a("decline", X.decline, "BACK")] };
+    case "receive.show": return { primary: a("accept", ctx.incoming && ctx.incoming.kind === "card" ? X.acceptCard : X.acceptGame, "ACCEPT"), secondary: [a("decline", X.decline, "BACK")] };
+    case "receive.live": return { primary: a("accept", X.acceptGame, "ACCEPT"), secondary: [a("decline", X.decline, "BACK")] };
     case "receive.reject": return { primary: a("to-shelf", X.toShelf, "DONE"), secondary: [] };
     default: return { primary: null, secondary: [] }; // hand, turn (das Spiel selbst ist die Handlung), wait
   }
@@ -56,12 +57,14 @@ function radios(name, label, items, value, onPick) {
     h("div", { class: "seg-row" }, items.map((it) => h("button", { type: "button", role: "radio", class: "seg-opt", key: String(it.value), "aria-checked": it.value === value ? "true" : "false", on: { click: () => onPick(it.value) } }, it.label))));
 }
 
-function linkBox(X, link, info) {
-  const url = linkUrl(link);
+// Der Link selbst ist Rueckfall: zugeklappt, ausser Teilen ging nicht (dann offen mit Hinweis)
+function linkBox(X, link, ctx) {
+  const url = linkUrl(link), info = ctx.shareFailed ? X.shareFail : ctx.copied ? X.copied : ctx.sent ? X.copied : null;
   return h("div", { class: "linkbox" },
-    h("label", { class: "seg-label", for: "linkfield" }, X.shareTitle),
-    h("input", { id: "linkfield", class: "linkfield", type: "text", readonly: true, value: url, on: { focus: (e) => e.target.select() } }),
-    info ? h("p", { class: "hint", role: "status" }, info) : null);
+    info ? h("p", { class: ctx.shareFailed ? "warn" : "hint", role: "status" }, info) : null,
+    h("details", { class: "linkdetails", open: ctx.shareFailed ? true : null },
+      h("summary", null, X.shareTitle),
+      h("input", { id: "linkfield", class: "linkfield", type: "text", readonly: true, "aria-label": X.shareTitle, value: url, on: { focus: (e) => e.target.select() } })));
 }
 export function linkUrl(fragment) {
   const loc = typeof location !== "undefined" ? location : { href: "https://example.invalid/" };
@@ -146,13 +149,13 @@ export function view(state, dispatch) {
     body = [stage(preview, { class: "stage editing" }), h("p", { class: "hint center" }, X.bubblesHint)];
   } else if (L === "card.share") {
     body = [stage(preview)];
-    panel.push(ctx.link ? linkBox(X, ctx.link, ctx.sent ? X.copied : null) : h("p", { class: "warn", role: "alert" }, X.linkTooLong));
+    panel.push(ctx.link ? linkBox(X, ctx.link, ctx) : h("p", { class: "warn", role: "alert" }, X.linkTooLong));
   } else if (L === "card.lobby") {
     const r = ctx.raum || {};
     body = [h("div", { class: "notice" },
       h("h2", { class: "t-title" }, X.lobbyTitle),
-      r.error ? h("p", { class: "warn", role: "alert" }, X.reasons[r.error] || X.reasons.verbindung) : h("p", { role: "status" }, r.step ? X.steps[r.step] || X.lobbyWait : (r.inviteLink ? X.lobbyWait : X.steps.open)),
-      r.inviteLink && !r.error ? linkBox(X, r.inviteLink, null) : null,
+      r.error ? h("p", { class: "warn", role: "alert" }, X.reasons[r.error] || X.reasons.verbindung) : h("p", { role: "status" }, r.step && r.step !== "open" ? X.steps[r.step] || X.lobbyWait : (r.inviteLink ? X.lobbyWait : X.steps.open)),
+      r.inviteLink && !r.error ? linkBox(X, r.inviteLink, ctx) : null,
       h("p", { class: "hint" }, X.ipHint))];
   } else if (L.startsWith("card.play")) {
     const phase = L.slice("card.play.".length);
@@ -177,22 +180,29 @@ export function view(state, dispatch) {
         lines.push(h("p", { class: "result", role: "status", key: "res" }, res));
         if (ctx.mode === "link" && ctx.link && !ctx.sent) lines.push(h("p", { class: "hint", key: "sr" }, X.sendResultText));
       }
-      body = [...lines, stage(live, { class: "stage play" })];
-      if ((phase === "send" || phase === "over") && ctx.link) panel.push(linkBox(X, ctx.link, ctx.sent ? X.copied : null));
+      // beim Senden ist der andere dran: kein Spielfeld, nur die Bitte zu senden (Kritikrunde 1)
+      body = phase === "send" ? lines : [...lines, stage(live, { class: "stage play" })];
+      if ((phase === "send" || phase === "over") && ctx.link) panel.push(linkBox(X, ctx.link, ctx));
     }
   } else if (L === "receive.show") {
     const inc = ctx.incoming, c = cardOf(inc.cardId);
-    if (inc.kind === "card") body = [h("p", { class: "lede" }, X.acceptTitle), stage(render(c.view(previewState(c, inc.params), 0, { lang: ctx.lang, preview: true }), { onInput: () => {}, disabled: true, idp: "rx" }))];
+    if (inc.kind === "card") body = [h("p", { class: "lede plain" }, X.acceptTitle), stage(render(c.view(previewState(c, inc.params), 0, { lang: ctx.lang, preview: true }), { onInput: () => {}, disabled: true, idp: "rx" })), h("p", { class: "hint" }, X.free)];
     else {
       const st = S.status(c, inc.session), seat = inc.session.mine[0];
-      body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, title(c, ctx.lang)), h("p", null, st.over ? X.resultFor : fmt(X.yourTurnAs, { s: seatName(c, ctx.lang, seat) })))];
+      body = [h("div", { class: "notice" },
+        h("p", { class: "lede plain" }, st.over ? X.resultFor : X.challengeFor),
+        h("h2", { class: "t-title" }, title(c, ctx.lang)),
+        st.over ? null : h("p", null, c.manifest.howto ? c.manifest.howto[ctx.lang] || c.manifest.howto.de : ""),
+        st.over ? null : h("p", { class: "seat" }, fmt(X.yourTurnAs, { s: seatName(c, ctx.lang, seat) })),
+        h("p", { class: "hint" }, X.free))];
     }
   } else if (L === "receive.reject") {
-    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.rejectTitle), h("p", { class: "warn", role: "alert", "data-reason": ctx.reason }, X.reasons[ctx.reason] || ctx.reason))];
+    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.rejectTitle), h("p", { class: "warn", role: "alert", "data-reason": ctx.reason }, X.reasons[ctx.reason] || ctx.reason), h("p", null, X.rejectAsk))];
   } else if (L === "receive.live" || L === "receive.wait") {
     const r = ctx.raum || {};
     body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.liveInvite),
       h("p", { role: "status" }, L === "receive.live" ? X.liveInviteText : (r.step ? X.steps[r.step] : X.steps.join)),
+      h("p", { class: "hint" }, X.free),
       h("p", { class: "hint" }, X.ipHint))];
   }
 

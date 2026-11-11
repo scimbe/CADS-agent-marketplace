@@ -17,6 +17,8 @@ export const chart = {
     inhalt: {
       initial: "shelf",
       on: {
+        COPIED: { actions: ["markCopied"] },
+        SHARE_FAIL: { actions: ["markShareFail"] },
         LINK: [
           { target: T("inhalt.receive.live"), cond: "linkLive", actions: ["takeLink"] },
           { target: T("inhalt.receive.show"), cond: "linkOk", actions: ["takeLink"] },
@@ -48,7 +50,7 @@ export const chart = {
                 dialog: { on: { PARAM: { actions: ["setParam"] }, CLOSE: T("inhalt.card.customize.bubbles"), BACK: T("inhalt.card.customize.bubbles") } }
               }
             },
-            share: { entry: ["makeCardLink"], on: { SHARE: { actions: ["share"] }, SENT: { actions: ["markSent"] }, BACK: T("inhalt.card.view"), DONE: T("inhalt.card.view") } },
+            share: { entry: ["makeCardLink", "autoShare"], on: { SHARE: { actions: ["share"] }, SENT: { actions: ["markSent"] }, BACK: T("inhalt.card.view"), DONE: T("inhalt.card.view") } },
             lobby: {
               on: {
                 LIVE_UP: [{ target: T("inhalt.card.view"), cond: "isStatic", actions: ["sendShow"] }, { target: T("inhalt.card.play"), actions: ["sendHello"] }],
@@ -80,7 +82,7 @@ export const chart = {
                 hand: {},
                 turn: { on: { INPUT: { actions: ["onInput"], raise: "SYNC" } } },
                 cover: { on: { COVER_OK: { actions: ["flipViewer"], raise: "SYNC" } } },
-                send: { entry: ["makeChallenge"], on: { SHARE: { actions: ["share"] }, SENT: { actions: ["markSent"], raise: "SYNC" } } },
+                send: { entry: ["makeChallenge", "autoShare"], on: { SHARE: { actions: ["share"] }, SENT: { actions: ["markSent"], raise: "SYNC" } } },
                 wait: {},
                 over: {
                   entry: ["makeChallengeIfPending"],
@@ -183,6 +185,10 @@ export const actions = {
     catch (e) { return { ...ctx, link: null, linkError: e.code || "zu-lang" }; }
   },
   share: (ctx, ev, emit) => { if (ctx.link) emit({ type: "share", fragment: ctx.link }); return ctx; },
+  // Teilen sofort beim Eintritt (der Tipp auf Senden ist die Nutzergeste fuer das Systemblatt): ein Tipp weniger
+  autoShare: (ctx, ev, emit) => { if (ctx.link) emit({ type: "share", fragment: ctx.link }); return { ...ctx, copied: false, shareFailed: false }; },
+  markCopied: (ctx) => ({ ...ctx, copied: true, shareFailed: false }),
+  markShareFail: (ctx) => ({ ...ctx, shareFailed: true }),
   shareInvite: (ctx, ev, emit) => { if (ctx.raum && ctx.raum.inviteLink) emit({ type: "share", fragment: ctx.raum.inviteLink }); return ctx; },
   markSent: (ctx) => ({ ...ctx, sent: true }),
   startLocal: (ctx, ev, emit) => safe(ctx, () => {

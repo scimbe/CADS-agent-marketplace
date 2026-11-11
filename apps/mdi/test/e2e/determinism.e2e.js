@@ -38,7 +38,11 @@ test("Bot-Partie und SDK-Goldwerte in Chromium (V8) gleich wie in Node", async (
 });
 test("dieselbe Partie in WebKit (JavaScriptCore), sofern im Runner installiert", async (t) => {
   const r = await inEngine("webkit", await bundle());
-  if (!r) { t.skip("WebKit nicht installiert"); return; }
+  if (!r) {
+    // Im Runner (CI=1, Playwright-Image mit WebKit) ist der Engine-Vergleich Pflicht (KONZEPT §3.5)
+    assert.ok(!process.env.CI, "WebKit fehlt im CI-Runner");
+    t.skip("WebKit nicht installiert"); return;
+  }
   assert.equal(r.hash, DET.hash); assert.deepEqual(r.moves, DET.moves);
   assert.deepEqual(r.rng, GOLD.rng); assert.equal(r.sin, GOLD.sinTable); assert.equal(r.log, GOLD.logD);
   console.log("# webkit: hash " + r.hash + " = node");
