@@ -17,3 +17,11 @@
 - labor-setup.com für Builds/Tests freigeben (nur wenige Kerne, niedrige Priorität)?
 - KI-Bild als Kontobild: weiter nur mit Guthaben (Betreiber, #123) oder auch aus den 3 freien Bildern pro Monat? (wrapper#128 lässt es bei „nur mit Guthaben“)
 - KI-Bild-Tageslimit (10): sollen fehlgeschlagene Aufträge (Worker, Frist) mitzählen? Abgebucht wird dabei nichts.
+- Datei rüber/Live in den Apps: Die App-Hüllen sperren heute das Netz der Seite (iOS Content-Rule `duell-no-network`, Android
+  `DuellLink.mayLoad`), `live.js` braucht aber `webconference.bunsenbrenner.org` (`/api/play/*`, WASM-Import, WSS) und die
+  Bridge-CORS müsste die App-Herkunft zulassen (iOS `null`, Android `https://appassets.androidplatform.net`). Freigeben, oder
+  Live in den Apps nativ über die Hülle (wie `DuellHost.relay`)? Ohne das läuft Datei rüber in den Apps nicht (vor #235 auch nicht).
+- Aus der Konzept-Kritik (07-protokoll/2026-11-11-konzept-review.md):
+  - TURN-Relay für kleine Spieldaten gratis (mit Ratenlimit), damit zwei Gratis-Nutzer hinter Mobilfunk-NAT live spielen können? (Datei-Relay bleibt nur zahlend)
+  - Verdeckte Information (Kartenhände, versiegelte Fragen): darf ein Server „Geber“ sein, oder nur Peer-to-Peer (Commit-Reveal / Mental Poker)?
+  - Raum für anonyme Nutzer erlaubt? Kontakte serverseitig speichern oder nur auf dem Gerät?
