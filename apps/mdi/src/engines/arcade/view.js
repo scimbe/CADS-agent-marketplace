@@ -115,7 +115,9 @@ function trail(b, n, r, color) {   // Spur aus der Geschwindigkeit nach hinten (
   for (let i = n; i >= 1; i--) { const a = (n - i + 1) / n; ops.push(disc(b.x - b.vx * i / 60, b.y - b.vy * i / 60, r * (0.4 + 0.6 * a), color, { alpha: a * 0.35 })); }
   return ops;
 }
-function photoAt(look, x, y, r) { return look.photo === "figure" ? [{ o: "image", src: { kind: "local", slot: "photo" }, x: x - r, y: y - r, w: 2 * r, h: 2 * r, fit: "cover", clip: "circle" }] : []; }
+// Eigenes Foto (Feldtyp media.local, Strang H broker/media.js): Parameterwert "local:<id>", id = 32 Hex aus SHA-256. Die Karte
+// reicht nur diese id als {kind:"local", id} an den Bilddienst (features/frei/images.js); Pixel sieht sie nie.
+function photoAt(look, x, y, r) { return look.photo === "figure" ? [{ o: "image", src: { kind: "local", id: look.photoId }, x: x - r, y: y - r, w: 2 * r, h: 2 * r, fit: "cover", clip: "circle" }] : []; }
 function emojiAt(look, x, y, size) { return look.emoji ? [{ o: "sprite", emoji: look.emoji, x, y, w: size, h: size }] : []; }   // sprite: x,y ist die Mitte (canvas.js)
 /** Eigene Figur: Foto, wenn gewaehlt, sonst Emoji, wenn gewaehlt (zusaetzlich zur gezeichneten Figur). */
 function mine(look, x, y, r) { return look.photo === "figure" ? photoAt(look, x, y, r) : emojiAt(look, x, y, r * 1.3); }
@@ -388,13 +390,14 @@ function aimDots(S, aim, col, D) {
 /** Sichtbare Farben und Figur einer Partie aus den Parametern (Port alt Frei.arcadeLook). */
 export function lookOf(g, params) {
   const m = META[g], p = params || {};
-  return { a: typeof p.colA === "string" ? p.colA : m.a, b: typeof p.colB === "string" ? p.colB : m.b, e: m.e, emoji: typeof p.emoji === "string" && p.emoji ? p.emoji : "", photo: p.photo && p.photoUse && p.photoUse !== "off" ? p.photoUse : "off" };
+  const id = typeof p.photo === "string" && /^local:[0-9a-f]{32}$/.test(p.photo) ? p.photo.slice(6) : null;   // nur ein echtes Geraetefoto
+  return { a: typeof p.colA === "string" ? p.colA : m.a, b: typeof p.colB === "string" ? p.colB : m.b, e: m.e, emoji: typeof p.emoji === "string" && p.emoji ? p.emoji : "", photo: id && (p.photoUse === "figure" || p.photoUse === "bg") ? p.photoUse : "off", photoId: id };
 }
 /** Die Anzeige einer Seite. fx: Ereignisprotokoll mit at in Sekunden; aim/swipe: Zielhilfe aus der Gestenerinnerung. */
 export function drawSide(S, look, o) {
   const g = S.g, D = DRAW[g], m = { a: look.a, b: look.b }, now = o.now, calm = !!o.reduced;
   const bg = D.bg(m);
-  if (look.photo === "bg") bg.push({ o: "image", src: { kind: "local", slot: "photo" }, x: 0, y: 0, w: W, h: H, fit: "cover", alpha: 0.45 }, rect(0, 0, W, H, "#00000059"));
+  if (look.photo === "bg") bg.push({ o: "image", src: { kind: "local", id: look.photoId }, x: 0, y: 0, w: W, h: H, fit: "cover", alpha: 0.45 }, rect(0, 0, W, H, "#00000059"));
   let fg = D.fg(S, m, look, now, o.aim || null, calm, o.swipe || null);
   if (S.flip) fg = [{ o: "group", tx: W, ty: H, sx: -1, sy: -1, ops: fg }];   // das eingeladene Handy sieht das gemeinsame Bild gedreht
   const eff = effects(o.fx || [], now, m, g, calm);
@@ -409,7 +412,7 @@ export function drawSide(S, look, o) {
   if (eff.flash) top.push(rect(0, 0, W, H, eff.flash[1], { alpha: eff.flash[0] }));
   if (eff.shake > 0.1) top.unshift({ o: "shake", amt: eff.shake });
   // Statisches in EINE gecachte Ebene: jeder Vollbild-Blit kostet beim Rastern (gemessen, s. arcade.e2e.js fps).
-  let key = g + "|" + S.seed + "|" + look.a + look.b + look.photo;
+  let key = g + "|" + S.seed + "|" + look.a + look.b + look.photo + (look.photo === "bg" ? look.photoId : "");
   if (D.mid) { const md = D.mid(S); bg.push(...md.ops); key += "|" + md.key; }
   const layers = [{ id: "bg", key, ops: bg }, { id: "fg", ops: fg.concat(fxOps) }, { id: "top", ops: top }];
   return { t: "canvas", w: W, h: H, layers, a11y: o.a11y || "" };

@@ -163,7 +163,7 @@ export function paramsOf(g, rules) {
     emoji: { type: "string", enum: ["", ...EMOJI], default: "", "x-field": "choice", "x-label": L("Figur", "Figure") },
     title: { type: "string", maxLength: 34, pattern: "^[^\\u0000-\\u001f\\u007f<>]*$", default: "", "x-field": "text", "x-model": true, "x-label": L("Titel", "Title") },
     sub: { type: "string", maxLength: 60, pattern: "^[^\\u0000-\\u001f\\u007f<>]*$", default: "", "x-field": "text", "x-model": true, "x-label": L("Untertitel", "Subtitle") },
-    photo: { type: ["string", "null"], maxLength: 200, default: null, "x-field": "media.local", "x-label": L("Eigenes Foto (bleibt auf dem Gerät)", "Your photo (stays on this device)") },
+    photo: { type: ["string", "null"], pattern: "^local:[0-9a-f]{32}$", default: null, "x-field": "media.local", "x-label": L("Eigenes Foto (bleibt auf dem Gerät)", "Your photo (stays on this device)") },
     photoUse: { type: "string", enum: ["off", "figure", "bg"], default: "off", "x-field": "choice", "x-label": L("Foto als", "Use photo as") },
     // Design Phase C: Zeitlupe 50 %, Doppeltippen zaehlt einmal, grosse Tasten (Host), Flipper bleibt oben solange gedrueckt
     comfort: { type: "string", enum: ["aus", "an"], default: "aus", "x-field": "choice", "x-label": L("Gemütlich spielen", "Play at ease") }

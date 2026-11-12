@@ -21,7 +21,8 @@ export function boot(o) {
   // Fotoslot wie im Host: ein lokales Bild, das die Karte nur als Slot kennt (hier ein erzeugtes Testbild).
   const photo = document.createElement("canvas"); photo.width = photo.height = 64; const px = photo.getContext("2d");
   px.fillStyle = "#ff00aa"; px.fillRect(0, 0, 64, 64); px.fillStyle = "#00ffaa"; px.fillRect(16, 16, 32, 32);
-  const images = { get: (src) => (src && src.kind === "local" && src.slot === "photo" ? photo : null) };
+  // Wie der Bilddienst der App (features/frei/images.js): {kind:"local", id} -> das Foto dieses Geraets mit dieser id
+  const images = { get: (src) => (src && src.kind === "local" && src.id === o.photoId ? photo : null) };
   let session = null;
   const env = { win: window, doc: document, images, reduced, onUnknown: (u) => unknown.push(...u),
     rt: { get view() { return card.manifest.rt.view; }, active: true, key: (c, d) => session.key(c, d), pointer: (t, i, x, y) => session.pointer(t, i, x, y), button: (i, d) => session.button(i, d), screenButtons: () => session.screenButtons(), hidden: () => session.pause(), blur: () => session.blur() } };

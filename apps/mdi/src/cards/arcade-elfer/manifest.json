@@ -226,7 +226,7 @@
           "string",
           "null"
         ],
-        "maxLength": 200,
+        "pattern": "^local:[0-9a-f]{32}$",
         "default": null,
         "x-field": "media.local",
         "x-label": {

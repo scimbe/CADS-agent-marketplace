@@ -8,6 +8,7 @@ import { W, H } from "../src/engines/arcade/core.js";
 import { rtOf, paramsOf } from "../src/engines/arcade/card.js";
 import { rulesOf, botNew, botStep } from "../src/engines/arcade/index.js";
 
+const PHOTO = "local:" + "0123456789abcdef".repeat(2);   // Parameterwert eines Geraetefotos (broker/media.js)
 const IDS = ["arcade-kick", "arcade-elfer", "arcade-ziegel", "arcade-panzer", "arcade-stock", "arcade-puck", "arcade-volley", "arcade-flipper", "arcade-snow", "arcade-murmel"];
 const G = (id) => id.slice(7);
 const OPS = new Set(["rect", "circle", "ellipse", "arc", "line", "poly", "path", "text", "sprite", "image", "glow", "particles", "group", "shake", "flash"]);
@@ -196,21 +197,22 @@ test("Live: zwei Seiten ueber JSON-Nachrichten, auch mit 100 ms Verzoegerung; ge
 test("Anpassung: Farben und Figur in der Anzeige, Punkte zum Sieg wie die freie Karte (1-9), Foto nur als lokaler Slot", () => {
   for (const id of IDS) {
     const g = G(id);
-    let { c, st } = newGame(id, ["bot", "bot"], { colA: "#c8ff00", colB: "#7a1fff", emoji: "🚀", photo: "lokal-1", photoUse: "figure" });
+    let { c, st } = newGame(id, ["bot", "bot"], { colA: "#c8ff00", colB: "#7a1fff", emoji: "🚀", photo: PHOTO, photoUse: "figure" });
     for (let t = 0; t < 240; t++) st = c.step(st, [NONE, NONE]).state;
     const s = JSON.stringify(c.view(st, { seat: 0 }));
     assert.ok(s.includes("#c8ff00") && s.includes("#7a1fff"), id + ": eigene Farben");
-    assert.ok(s.includes('"slot":"photo"') && !s.includes("lokal-1"), id + ": Foto nur als Slot, nie der Inhalt");
-    const bg = JSON.stringify(newGame(id, ["bot", "bot"], { photo: "lokal-1", photoUse: "bg" }).c.view(newGame(id, ["bot", "bot"], { photo: "lokal-1", photoUse: "bg" }).st, {}));
-    assert.ok(bg.includes('"slot":"photo"'), id + ": Foto als Hintergrund");
-    const off = JSON.stringify(newGame(id, ["bot", "bot"], { photo: "lokal-1", photoUse: "off" }).c.view(newGame(id, ["bot", "bot"]).st, {}));
-    assert.ok(!off.includes('"slot":"photo"'), id + ": ohne Wahl kein Foto");
+    assert.ok(s.includes('"src":{"kind":"local","id":"' + PHOTO.slice(6) + '"}'), id + ": Foto als {kind:local, id} fuer den Bilddienst");
+    const bg = JSON.stringify(newGame(id, ["bot", "bot"], { photo: PHOTO, photoUse: "bg" }).c.view(newGame(id, ["bot", "bot"], { photo: PHOTO, photoUse: "bg" }).st, {}));
+    assert.ok(bg.includes('"kind":"local","id":"' + PHOTO.slice(6)), id + ": Foto als Hintergrund");
+    const off = JSON.stringify(newGame(id, ["bot", "bot"], { photo: PHOTO, photoUse: "off" }).c.view(newGame(id, ["bot", "bot"]).st, {}));
+    assert.ok(!off.includes('"kind":"local"'), id + ": ohne Wahl kein Foto");
+    assert.equal(validParams(id, Object.assign(defaults(manifestOf(id).params), { photo: "lokal-1" })), false, id + ": nur local:<32 Hex>");
     const emo = JSON.stringify(c.view(newGame(id, ["bot", "bot"], { emoji: "🚀" }).st, {}));
     assert.ok(emo.includes("🚀"), id + ": Figur-Emoji");
     // Das Foto reist nicht im Link, nur wenn der Nutzer es ausdruecklich teilt (media.local, fields.js travel).
-    const p = Object.assign(defaults(manifestOf(id).params), { photo: "lokal-1", photoUse: "figure" });
+    const p = Object.assign(defaults(manifestOf(id).params), { photo: PHOTO, photoUse: "figure" });
     assert.equal(paramsForLink(manifestOf(id).params, p).photo, undefined, id + ": Foto nicht im Link");
-    assert.equal(paramsForLink(manifestOf(id).params, p, { withLocalMedia: true }).photo, "lokal-1", id + ": nur auf ausdruecklichen Wunsch");
+    assert.equal(paramsForLink(manifestOf(id).params, p, { withLocalMedia: true }).photo, PHOTO, id + ": nur auf ausdruecklichen Wunsch");
   }
 });
 test("Punkte zum Sieg (alt frei.test.js): 7 gilt, 99 ist kein Wert; eine Partie bis 1 endet nach dem ersten Punkt", () => {
