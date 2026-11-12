@@ -7,6 +7,7 @@ import { familyOf, family, catalogIdOf } from "./families.js";
 import { byId } from "./rotation.js";
 import { manifestOf } from "../../cards/index.js";
 import { homeTexts } from "./texts.js";
+import { weatherFromApi } from "../../engines/poster/doc.js";
 import { solve, PROOF_BITS } from "../../broker/ai.js";
 
 // Ein Nachweis je Geraete-Kennung (derselbe, den die KI rechnet; der Server prueft sha256("<device>:<proof>") mit 16 Nullbits)
@@ -60,6 +61,15 @@ export const effects = {
       const bin = atob(f.b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
       return new env.FontFace(F.FONT_FAMILY, buf.buffer, { weight: f.weight, style: "normal", display: "swap" }).load().then((face) => env.document.fonts.add(face));
     }))).catch(() => {});
+  },
+  // Wetter: Antwort des Servers -> Feldwert ueber PARAM (der Host prueft das Schema); ohne Zahlen bleibt das Feld, wie es war
+  "home.wx": (fx, { dispatch, api }) => {
+    if (!api || !api.weather) { dispatch({ type: "WX_DONE", key: fx.key, st: "fail" }); return; }
+    api.weather(fx.place, fx.date).then((r) => {
+      const w = r.ok ? weatherFromApi(r.body) : null;
+      if (w) { dispatch({ type: "PARAM", key: fx.key, value: w }); dispatch({ type: "WX_DONE", key: fx.key, st: "ok" }); }
+      else dispatch({ type: "WX_DONE", key: fx.key, st: r.ok ? "fail" : r.error === "no-place" ? "no-place" : r.error === "blocked" ? "blocked" : "fail" });
+    });
   },
   "home.save": (fx, { deps }) => { const st = deps && deps.storage; if (st && st.saveHome) st.saveHome(fx.data); },
   "short.create": (fx, { dispatch, api, deps, state }) => {

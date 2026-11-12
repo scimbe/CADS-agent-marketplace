@@ -11,6 +11,7 @@ import { LEVELS } from "../bot/ismcts.js";
 import { stilView, stilActions } from "./stil-view.js";
 import { homeView, dayPrimary, meinsButton } from "./home/views.js";
 import { SLOTS } from "./home/slots.js";
+import { extraField, suggestButton } from "./edit-fields.js";
 import { ftCore as ft } from "../features/frei/texts-core.js";   // Strang K: Texte fuer Robot/Melden in der Kartenansicht
 
 export function leaf(state) {
@@ -101,7 +102,7 @@ export function linkUrl(fragment) {
   return loc.href.split("#")[0] + fragment;
 }
 
-function fieldControls(card, part, params, X, lang, dispatch) {
+function fieldControls(card, part, params, X, lang, dispatch, ctx = {}) {
   const props = card.manifest.params.properties, shown = part.params.filter((k) => props[k]["x-hidden"] !== true), single = shown.length === 1;
   // Name eines Enum-Werts: x-names der Karte (je Sprache), sonst Host-Woerter, sonst der Wert; x-icons davor (Strang P)
   // beide Formen: x-names[wert][sprache] (P) und x-names[sprache][wert] (S, FIELD_VOCAB)
@@ -119,7 +120,8 @@ function fieldControls(card, part, params, X, lang, dispatch) {
       case "text":
         return h("div", { class: "field", key },
           label ? h("label", { for: id }, label) : null,
-          h(p.maxLength > 40 ? "textarea" : "input", { id, class: "input", "aria-labelledby": label ? null : "dlg-title", ...(p.maxLength > 40 ? { rows: "3" } : { type: "text" }), maxlength: String(p.maxLength), value: v, on: { input: (e) => set(e.target.value) } }));
+          h(p.maxLength > 40 ? "textarea" : "input", { id, class: "input", "aria-labelledby": label ? null : "dlg-title", ...(p.maxLength > 40 ? { rows: "3" } : { type: "text" }), maxlength: String(p.maxLength), value: v, on: { input: (e) => set(e.target.value) } }),
+          suggestButton(p, v, set, lang));
       case "color": case "choice":
         // freie Farbe ohne Liste (#rrggbb, Strang L): Farbwaehler; sonst die Wahl aus der Liste
         if (!Array.isArray(p.enum)) return h("div", { class: "field", key }, label ? h("label", { for: id }, label) : null, h("input", { id, class: "input color", type: "color", "aria-labelledby": label ? null : "dlg-title", value: /^#[0-9a-f]{6}$/i.test(v) ? v : "#000000", on: { input: (e) => set(e.target.value.toLowerCase()) } }));
@@ -145,6 +147,7 @@ function fieldControls(card, part, params, X, lang, dispatch) {
             on: { change: (e) => { const n = Number(e.target.value); if (Number.isInteger(n) && n >= p.minimum && n <= p.maximum) set(n); } } }));
       }
       case "list": {
+        if (!(p.items && Array.isArray(p.items.enum))) return extraField(p, key, v, set, label, { lang, me: ctx.me, wx: ctx.wx, slots: SLOTS }, dispatch); // Objekte/Listen aus dem Schema (Strang L)
         const max = p.maxItems, lid = label ? "lbl-" + key : "dlg-title";
         return h("div", { class: "field", key, role: "group", "aria-labelledby": lid },
           label ? h("p", { class: "seg-label", id: lid }, label) : null,
@@ -154,7 +157,7 @@ function fieldControls(card, part, params, X, lang, dispatch) {
           })),
           v.length >= max ? h("p", { class: "hint" }, fmt(X.maxReached, { n: max })) : null);
       }
-      default: return null;
+      default: return extraField(p, key, v, set, label, { lang, me: ctx.me, wx: ctx.wx, slots: SLOTS }, dispatch); // pair, slide, steps, stickers, weather, kibild, media.local, spiel
     }
   });
 }
@@ -209,7 +212,7 @@ export function view(state, dispatch, env = {}) {
     if (ctx.mode === "live") panel.push(h("p", { class: "hint", key: "ip" }, X.ipHint));
     if (ctx.note) panel.push(h("p", { class: "note", role: "status", key: "note" }, String(ctx.note).startsWith("frei-") ? freiNote(ctx) : X.note[ctx.note]));
   } else if (L.startsWith("card.customize")) {
-    body = [stage(preview, { class: "stage editing" }, tree), h("p", { class: "hint center" }, X.bubblesHint)];
+    body = [stage(preview, { class: "stage editing" }, tree), bubbleRow(card, ctx, X, dispatch, tree), h("p", { class: "hint center" }, X.bubblesHint)];
   } else if (L === "card.share") {
     body = [stage(preview, {}, tree)];
     panel.push(ctx.link ? linkBox(X, ctx.link, ctx, dispatch) : h("p", { class: "warn", role: "alert" }, X.linkTooLong));
@@ -307,7 +310,7 @@ export function view(state, dispatch, env = {}) {
     h("div", { class: "col-b", key: "b" }, panel, L === "card.customize.dialog" || L === "shelf" ? null : actions));
 
   const out = [head, main];
-  if (m("inhalt.card.customize")) out.push(bubbleLayer(card, ctx, X, dispatch));
+  if (m("inhalt.card.customize")) out.push(bubbleLayer(card, ctx, X, dispatch, tree));
   if (m("inhalt.card.customize.dialog")) out.push(dialogLayer(card, ctx, X, dispatch, acts, state));
   return out;
 }
@@ -321,15 +324,23 @@ function freiNote(ctx) {
   return "";
 }
 
-function bubbleLayer(card, ctx, X, dispatch) {
-  const dialog = !!ctx.part && ctx.part !== null;
-  return h("div", { class: "bubbles", key: "bubbles", "aria-hidden": null },
-    card.manifest.parts.map((p) => {
-      const label = p.label[ctx.lang] || p.label.de;
-      return h("button", { type: "button", class: "bubble", key: p.id, "data-for": p.id, "aria-label": fmt(X.bubble, { p: label }), "aria-expanded": dialog && ctx.part === p.id ? "true" : "false", on: { click: () => dispatch({ type: "BUBBLE", part: p.id }) } }, label);
-    }));
+// Teile, die in der Anzeigeliste einen Ort haben (part an einem Knoten), bekommen eine Blase auf der Karte; die anderen
+// (z. B. Farbe, Sticker, Foto, Wetter bei gezeichneten Karten) stehen als Knoepfe im Fluss unter der Karte: jeder Teil bleibt
+// erreichbar, nichts wird versteckt und nichts verdeckt etwas (Folge-PR 2, Befund Advent/Beat).
+function partsInTree(tree) { const out = new Set(); (function walk(n) { if (!n || typeof n !== "object") return; if (typeof n.part === "string") out.add(n.part); for (const c of n.children || []) walk(c); for (const l of n.layers || []) walk(l); for (const o of n.ops || []) walk(o); })(tree); return out; }
+function bubbleBtn(p, ctx, X, dispatch, cls) {
+  const label = p.label[ctx.lang] || p.label.de, dialog = !!ctx.part;
+  return h("button", { type: "button", class: cls, key: p.id, "data-for": p.id, "aria-label": fmt(X.bubble, { p: label }), "aria-expanded": dialog && ctx.part === p.id ? "true" : "false", on: { click: () => dispatch({ type: "BUBBLE", part: p.id }) } }, label);
 }
-
+function bubbleRow(card, ctx, X, dispatch, tree) {
+  const anchored = partsInTree(tree), rest = card.manifest.parts.filter((p) => !anchored.has(p.id));
+  return rest.length ? h("div", { class: "bubble-row", key: "brow", role: "group", "aria-label": X.bubblesHint }, rest.map((p) => bubbleBtn(p, ctx, X, dispatch, "bubble inflow"))) : null;
+}
+function bubbleLayer(card, ctx, X, dispatch, tree) {
+  const anchored = partsInTree(tree);
+  return h("div", { class: "bubbles", key: "bubbles", "aria-hidden": null },
+    card.manifest.parts.filter((p) => anchored.has(p.id)).map((p) => bubbleBtn(p, ctx, X, dispatch, "bubble")));
+}
 function dialogLayer(card, ctx, X, dispatch, acts, state) {
   const part = card.manifest.parts.find((p) => p.id === ctx.part);
   const label = part.label[ctx.lang] || part.label.de;
@@ -340,7 +351,7 @@ function dialogLayer(card, ctx, X, dispatch, acts, state) {
         h("h2", { id: "dlg-title", class: "t-label" }, label),
         h("button", { type: "button", class: "icon", "aria-label": X.close, "data-act": "close-x", on: { click: () => dispatch({ type: "CLOSE" }) } }, "✕")),
       h("p", { class: "hint" }, X.dialogHint),
-      fieldControls(card, part, G.paramsOf(ctx), X, ctx.lang, dispatch),
+      fieldControls(card, part, G.paramsOf(ctx), X, ctx.lang, dispatch, ctx),
       // Strang K: "Mit KI" fuer Teile mit KI-faehigen Feldern (x-model); schliesst den Dialog vor dem KI-Ereignis
       SLOTS.kiButton ? SLOTS.kiButton({ ctx }, X, (ev) => { dispatch({ type: "CLOSE" }); dispatch(ev); }, ctx.part) : null,
       h("div", { class: "actions" }, h("button", { type: "button", class: "btn primary", "data-act": acts.primary.id, on: { click: () => dispatch(acts.primary.ev) } }, acts.primary.label))));

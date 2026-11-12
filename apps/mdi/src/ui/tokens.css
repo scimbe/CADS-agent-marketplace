@@ -145,6 +145,8 @@ button, input, textarea { font: inherit; color: inherit; }
 .bubbles { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; }
 .bubble { position: absolute; min-height: 44px; padding: 0 var(--s4); border: 3px solid var(--ink); border-radius: var(--r3); background: var(--yellow); color: var(--ink); font-weight: 800; white-space: nowrap; cursor: pointer; box-shadow: 0 3px 0 var(--ink); }
 .bubble::before { content: "✎ "; }
+.bubble-row { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s2); }
+.bubble.inflow { position: static; }
 .stage.editing .frame, .stage.editing .stack { outline: 3px dashed var(--muted); outline-offset: 6px; }
 .layer { position: fixed; inset: 0; z-index: 20; display: grid; align-items: end; justify-items: center; }
 @media (min-width: 900px) { .layer { align-items: center; } }
@@ -404,3 +406,22 @@ textarea.input { resize: vertical; }
   background: repeating-linear-gradient(-45deg, var(--gelb) 0 14px, var(--gelb-hell) 14px 28px); box-shadow: 4px 4px 0 var(--ink); }
 .frei-row-t { flex: 1; font: 800 var(--t-m)/1.2 var(--font-body); }
 .frei-row-arrow { font: 800 1.5rem/1 var(--font-body); }
+
+/* Editor-Felder (Folge-PR 2): Schritte, Sticker, Wetter, Listen aus dem Schema */
+.ef-obj, .ef-list, .ef-steps, .ef-sk, .ef-wx { display: grid; gap: var(--s3); margin: 0; padding: var(--s3); border: 2px solid var(--line); border-radius: var(--r1); min-width: 0; }
+.ef-obj legend, .ef-list legend, .ef-steps legend, .ef-sk legend, .ef-wx legend { font-weight: 700; padding: 0 4px; }
+.ef-item { display: grid; gap: var(--s2); padding-bottom: var(--s2); border-bottom: 1px dashed var(--line); }
+.ef-range { display: flex; gap: var(--s3); align-items: center; }
+.ef-range .range { flex: 1; min-width: 0; min-height: var(--tap); }
+.ef-range output { min-width: 4.5em; font-weight: 800; text-align: right; }
+.ef-steprow { display: grid; grid-template-columns: 4.5em minmax(0, 1fr); gap: var(--s2); align-items: center; }
+.ef-steplbl { font-weight: 700; font-size: .9375rem; }
+.ef-stepcells { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; } /* 2 Zeilen je Reihe: jeder Schritt >= 44 px (WCAG 2.5.8) */
+.ef-step { min-height: 44px; min-width: 0; padding: 0; border: 2px solid var(--text); border-radius: 6px; background: var(--surface); cursor: pointer; }
+.ef-step.beat { border-width: 3px; }
+.ef-step[aria-pressed="true"] { background: var(--text); }
+.ef-skcur { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+.ef-skemo { font-size: 2rem; line-height: 1; }
+.ef-skcur .seg-opt { min-width: var(--tap); min-height: var(--tap); font-size: 1.2rem; }
+.ef-wxform { display: grid; gap: var(--s2); }
+.ef-wxday { display: flex; flex-wrap: wrap; gap: var(--s3); margin: 0; padding: 0; border: 0; }
