@@ -516,6 +516,7 @@ textarea.input { resize: vertical; }
   .bar .icon { background: var(--sheet); color: var(--ink); border-color: var(--gelb); }
   .h-holes i { background: var(--paper); border-color: var(--gelb); }
   .btn.primary.h-go { background: var(--gelb); color: var(--ink-fix); }
+  .h-field-go { background: var(--gelb); color: var(--ink-fix); } /* Staging-Abnahme: vorher Gelb auf Creme */
   .btn.primary.h-go[aria-pressed="true"] { background: var(--sheet); color: var(--ink); }
   .h-intent { border-color: #000; }
   .h-chip[aria-pressed="true"] { background: var(--gelb); color: var(--ink-fix); border-color: #000; }

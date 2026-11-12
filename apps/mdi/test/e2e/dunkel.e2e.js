@@ -22,10 +22,18 @@ const contrast = (p, sels) => p.evaluate((sels) => {
 
 for (const scheme of ["light", "dark"]) {
   test("Heimseite " + scheme + ": axe 0 (Start, Regal, Mein Regal, Karte, Teilen, Spielkopf) und Bedienflaechen >= 3:1 gegen die Seite", async () => {
-    const { p, errs } = await open(b, { view: "phone390", scheme });
+    const { p, errs } = await open(b, { view: "phone390", scheme, lang: scheme === "dark" ? "en" : "de" }); // Befund Staging: en/dunkel
     await p.locator(".h-leaf").waitFor(); await p.waitForTimeout(400);
     const bad = [...(await axe(p, scheme + "/start"))];
     for (const [s, r] of await contrast(p, [".h-go", ".h-erf", ".h-intent", ".h-arrow-i"])) if (r < 3) bad.push(scheme + ": " + s + " " + r + ":1");
+    // Satzfeld (Suchen) mit Knopf .h-field-go: Text >= 4,5:1 (Befund Staging-Abnahme en/dunkel)
+    await act(p, "intent-suchen"); await p.locator(".h-field-go").waitFor(); bad.push(...(await axe(p, scheme + "/satz")));
+    const fg = await p.evaluate(() => { const cs = getComputedStyle(document.querySelector(".h-field-go"));
+      const rgb = (c) => (c.match(/[\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number);
+      const lum = (c) => { const [r, g, b] = rgb(c).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+      const x = lum(cs.color), y = lum(cs.backgroundColor); return Math.round(((Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)) * 10) / 10; });
+    if (fg < 4.5) bad.push(scheme + ": .h-field-go Text " + fg + ":1");
+    await p.locator('[data-act="back"]').first().click();
     await act(p, "intent-alle"); await p.waitForTimeout(300); bad.push(...(await axe(p, scheme + "/regal")));
     await act(p, "open-gruss"); await p.locator("main.s-card-view").waitFor(); bad.push(...(await axe(p, scheme + "/karte")));
     await act(p, "go"); await p.locator("main.s-card-share").waitFor(); bad.push(...(await axe(p, scheme + "/teilen")));
