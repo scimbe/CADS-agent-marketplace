@@ -56,7 +56,9 @@ export function actionsOf(state) {
   }
 }
 
-function stage(node, extra = {}) { return h("div", { class: "stage", id: "stage", ...extra }, node); }
+// Seitenverhaeltnis der Buehne aus der Anzeigeliste (frame.ratio, Strang P/F); ohne Angabe 3:4 wie bisher
+function arOf(tree) { const m = tree && typeof tree.ratio === "string" && /^(\d{1,2}):(\d{1,2})$/.exec(tree.ratio); return m ? String(Number(m[1]) / Number(m[2])) : null; }
+function stage(node, extra = {}, tree = null) { const ar = arOf(tree); return h("div", { class: "stage", id: "stage", ...extra, ...(ar ? { style: { "--ar": ar } } : {}) }, node); }
 
 function radios(name, label, items, value, onPick) {
   const id = label ? "lbl-" + name : "dlg-title";
@@ -172,7 +174,7 @@ export function view(state, dispatch, env = {}) {
     body = homeR.body;
   } else if (L === "card.view") {
     const modes = modesOf(card), isStatic = card.manifest.mode === "static";
-    body = [stage(preview)];
+    body = [stage(preview, {}, tree)];
     panel.push(radios("mode", isStatic ? X.send : X.mode, modes.map((x) => ({ value: x, label: X.modes[x] })), ctx.mode, (mode) => dispatch({ type: "MODE", mode })));
     panel.push(h("p", { class: "hint", key: "mode-hint" }, X.modeHint[ctx.mode]));
     if (!isStatic && ctx.mode !== "alone" && card.manifest.players.max > 1) {
@@ -183,9 +185,9 @@ export function view(state, dispatch, env = {}) {
     if (ctx.mode === "live") panel.push(h("p", { class: "hint", key: "ip" }, X.ipHint));
     if (ctx.note) panel.push(h("p", { class: "note", role: "status", key: "note" }, X.note[ctx.note]));
   } else if (L.startsWith("card.customize")) {
-    body = [stage(preview, { class: "stage editing" }), h("p", { class: "hint center" }, X.bubblesHint)];
+    body = [stage(preview, { class: "stage editing" }, tree), h("p", { class: "hint center" }, X.bubblesHint)];
   } else if (L === "card.share") {
-    body = [stage(preview)];
+    body = [stage(preview, {}, tree)];
     panel.push(ctx.link ? linkBox(X, ctx.link, ctx, dispatch) : h("p", { class: "warn", role: "alert" }, X.linkTooLong));
   } else if (L === "card.lobby") {
     const r = ctx.raum || {};
