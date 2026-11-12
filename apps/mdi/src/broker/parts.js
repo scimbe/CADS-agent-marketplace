@@ -7,8 +7,9 @@
 // per fetch; die Bytes werden gegen SRI geprueft und als blob:-Skript mit integrity ausgefuehrt. In App-Huellen und auf
 // file:// liegen die Teile gebuendelt neben dem Kern und werden direkt eingefuegt. Fehler werden nie verschluckt:
 // "teil-fehlt" (nicht erreichbar), "teil-manipuliert" (SRI passt nicht), "zeit" (meldet sich nicht).
-/* global __CARD_PARTS__, __THUMB_PARTS__ */
+/* global __CARD_PARTS__, __THUMB_PARTS__, __FEAT_PARTS__ */
 const CARD_PARTS = typeof __CARD_PARTS__ !== "undefined" ? __CARD_PARTS__ : {};
+const FEAT_PARTS = typeof __FEAT_PARTS__ !== "undefined" ? __FEAT_PARTS__ : {};
 const THUMB_PARTS = typeof __THUMB_PARTS__ !== "undefined" ? __THUMB_PARTS__ : { index: {}, files: {} };
 export const CACHE = "mdi-parts-v1";
 
@@ -32,11 +33,11 @@ function b64(buf) { let s = ""; const b = new Uint8Array(buf); for (let i = 0; i
 /**
  * @param {object} o { win, doc, cardParts?, thumbParts?, timeoutMs? }
  */
-export function createParts({ win, doc, cardParts = CARD_PARTS, thumbParts = THUMB_PARTS, timeoutMs = 15000 }) {
+export function createParts({ win, doc, cardParts = CARD_PARTS, thumbParts = THUMB_PARTS, featParts = FEAT_PARTS, timeoutMs = 15000 }) {
   const http = /^https?:$/.test(win.location.protocol);
   const cacheOk = http && !!win.caches && !!(win.crypto && win.crypto.subtle);
   const pending = new Map();
-  const files = new Set([...Object.values(cardParts).map((p) => p.file), ...Object.values(thumbParts.files || {}).map((p) => p.file)]);
+  const files = new Set([...Object.values(cardParts).map((p) => p.file), ...Object.values(featParts).map((p) => p.file), ...Object.values(thumbParts.files || {}).map((p) => p.file)]);
 
   // Alte Teile (andere Hashes) aus dem Cache entfernen, damit er nicht waechst
   if (cacheOk) win.caches.open(CACHE).then((c) => c.keys().then((ks) => Promise.all(ks.map((r) => { const f = new URL(r.url).pathname.split("/").slice(-2).join("/"); return files.has(f) ? null : c.delete(r); })))).catch(() => {});
@@ -86,6 +87,12 @@ export function createParts({ win, doc, cardParts = CARD_PARTS, thumbParts = THU
     return pending.get(key);
   }
   return {
+    /** Feature-Teil laden (fuer src/app/fparts-lazy.js loadFeatPart): {name, mod} */
+    feat(name) {
+      const p = Object.prototype.hasOwnProperty.call(featParts, name) ? featParts[name] : null;
+      if (!p) return Promise.reject(err("teil-unbekannt", name));
+      return once("f:" + name, () => run(p.file, p.sri, "mdi:feat", (d) => d.name === name));
+    },
     /** Karte laden (fuer src/cards/lazy.js loadCard): {card, params, inputs, hash, assets} */
     card(id) {
       const p = cardParts[id];

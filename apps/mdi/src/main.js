@@ -14,6 +14,7 @@ import { download, downloadText } from "./broker/share.js";
 import { createStage } from "./render/rt-stage.js";
 import { createSound } from "./render/sound.js";
 import { featureEnv } from "./app/features.js";
+import { loadFeatPart } from "./gen/fparts.js";
 import { createParts } from "./broker/parts.js";
 import { createAi } from "./broker/ai.js";        // Strang K: freie Karte und KI-Arten
 import { createDeck } from "./broker/deck.js";
@@ -29,13 +30,14 @@ const reducedMq = matchMedia("(prefers-reduced-motion: reduce)");
 // Echtzeit-Buehne und Klang (ADR 0001 b): die Laufzeit zeichnet ueber stage.draw, view.js haengt stage.stageNode ein
 let rtApi = null;
 // Dienste aus Features (Strang P: audio/high, T: cardSvg, K: images) – ohne Feature ehrlich gesperrt im Widget
-const fenv = featureEnv(window);
+const featPart = (name) => loadFeatPart(name, (n) => parts.feat(n));
+const fenv = featureEnv(window, undefined, { part: featPart });
 const stageEnv = { high: fenv.high || null, images: fenv.images || null, win: window, doc: document, rt: { get active() { return rtApi && rtApi.active; }, get view() { return rtApi && rtApi.view; }, screenButtons: () => (rtApi ? rtApi.screenButtons() : []), get controls() { return rtApi && rtApi.controls; }, key: (c, d) => rtApi && rtApi.key(c, d), pointer: (...a) => rtApi && rtApi.pointer(...a), button: (...a) => rtApi && rtApi.button(...a), blur: () => rtApi && rtApi.blur(), hidden: () => rtApi && rtApi.hidden() }, reduced: () => reducedMq.matches };
 const stage = createStage(stageEnv);
 let rtState = () => null;
 const sound = createSound({ audioContext: () => new AudioContext(), vibrate: navigator.vibrate ? (ms) => navigator.vibrate(ms) : null, muted: () => { const s = rtState(); return !!(s && s.ctx.muted); } });
 function randomInt(n) { const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0] % Math.max(1, n); }
-const viewEnv = { stage, thumb: (id, variant) => parts.thumb(id, variant), random: randomInt, clock: () => performance.now(), reduced: reducedMq.matches, audio: fenv.audio || null, high: fenv.high || null, cardSvg: fenv.cardSvg || null, images: fenv.images || null };
+const viewEnv = { stage, thumb: (id, variant) => parts.thumb(id, variant), random: randomInt, clock: () => performance.now(), reduced: reducedMq.matches, audio: fenv.audio || null, high: fenv.high || null, cardSvg: fenv.cardSvg || null, images: fenv.images || null, part: featPart };
 
 function entropy() { const b = new Uint8Array(16); crypto.getRandomValues(b); return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join(""); }
 
@@ -48,6 +50,7 @@ const api = createApi({ location, native: nativeAccount(window) });
 const parts = createParts({ win: window, doc: document });
 const rt = createRuntime({
   loadPart: (id) => parts.card(id),
+  loadFeat: (name) => parts.feat(name),
   lang, entropy, storage: createStorage(),
   // App-Huelle mit Konto-Bruecke: Anmelden nativ (OIDC + PKCE), Aufrufe mit Bearer durch die Huelle; sonst Web (Cookie)
   api, ai: createAi({ api }), deck: createDeck({ api, sanitize: sanitizeDoc, pin: pinFor(location.hostname) }), bild: createBild({ api }),

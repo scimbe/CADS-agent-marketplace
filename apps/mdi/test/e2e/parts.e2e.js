@@ -79,6 +79,30 @@ for (const at of ["duell", "duell/"]) {
   });
 }
 
+// Feature-Teile (ADR 0001 Nachtrag 4): der gebaute Teil laedt unter /duell/parts/ mit SRI und meldet sich mit "mdi:feat"
+// (Name + Modul); ein falscher SRI-Wert wird vom Browser abgewiesen. Der Weg ueber den Kern (parts.feat, strict-dynamic)
+// ist derselbe wie bei Kartenteilen; hier wird der Teil selbst geprueft (Kontext ohne CSP, Skript von aussen eingefuegt).
+test("Feature-Teil klang-rap: laedt mit SRI unter /duell/parts/, meldet Name und Modul; falscher SRI wird abgewiesen", async () => {
+  const ctx = await b.newContext({ bypassCSP: true });
+  await ctx.route(base + "**", (r) => r.continue());
+  const p = await ctx.newPage();
+  await p.goto(base + "duell");
+  const bj = JSON.parse(fs.readFileSync(path.join(DIST, "build.json"), "utf8")), f = bj.feats["klang-rap"];
+  assert.ok(f && /^parts\/feat-klang-rap\.[0-9a-f]{12}\.js$/.test(f.file), JSON.stringify(f));
+  const run = (sri) => p.evaluate(([file, sri]) => new Promise((ok) => {
+    let got = null; const on = (e) => { got = e.detail; };
+    document.addEventListener("mdi:feat", on);
+    const s = document.createElement("script"); s.src = new URL(file, location.origin + "/duell/").href; s.integrity = sri; s.crossOrigin = "anonymous";
+    s.onload = () => { document.removeEventListener("mdi:feat", on); ok(got ? { name: got.name, keys: Object.keys(got.mod).sort(), frozen: Object.isFrozen(got.mod) } : "kein-ereignis"); };
+    s.onerror = () => { document.removeEventListener("mdi:feat", on); ok("abgewiesen"); };
+    document.head.appendChild(s);
+  }), [f.file, sri]);
+  const good = await run(f.sri);
+  assert.equal(good.name, "klang-rap"); assert.ok(good.keys.includes("render") && good.keys.includes("wav"), JSON.stringify(good.keys)); assert.equal(good.frozen, true);
+  assert.equal(await run("sha384-" + "A".repeat(64)), "abgewiesen");
+  await ctx.close();
+});
+
 test("Teil kommt nach dem ersten Laden aus dem Cache (offline fuer Teile)", async () => {
   const { ctx, p, errs } = await page();
   await p.goto(base); await p.locator('[data-act="open-gruss"]').first().click(); await p.locator("main.s-card-view").waitFor();
