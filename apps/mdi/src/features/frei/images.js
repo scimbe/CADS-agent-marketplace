@@ -14,7 +14,8 @@ export function createImages(win, api) {
   const a = api || createApi({ location: win.location, native: nativeAccount(win) });
   const cache = new Map(), els = new Map(), subs = new Set();
   const keyOf = (src) => (typeof src === "string" ? (DATA.test(src) ? src : "") : src && src.kind === "server" && typeof src.ref === "string" && REF.test(src.ref) ? "srv:" + src.ref : "");
-  function notify(k) { for (const f of subs) { try { f(k); } catch (e) { setTimeout(() => { throw e; }, 0); } } }
+  let version = 0;   // Bildstand: zaehlt bei jedem fertigen Bild hoch (statische Leinwaende zeichnen danach neu, render.js)
+  function notify(k) { version++; for (const f of subs) { try { f(k); } catch (e) { setTimeout(() => { throw e; }, 0); } } }
   function load(k) {
     if (cache.has(k)) return;
     cache.set(k, { st: "busy", url: "" });
@@ -43,5 +44,5 @@ export function createImages(win, api) {
     return im && im.complete && im.naturalWidth > 0 ? im : null;
   }
   function state(src) { const k = keyOf(src); return !k ? "ungueltig" : k.startsWith("srv:") ? (cache.get(k) || { st: "neu" }).st : "ok"; }
-  return { url, get, state, subscribe: (f) => { subs.add(f); return () => subs.delete(f); } };
+  return { url, get, state, get version() { return version; }, subscribe: (f) => { subs.add(f); return () => subs.delete(f); } };
 }

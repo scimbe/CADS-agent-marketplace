@@ -113,7 +113,9 @@ function paintStatic(el, node, host) {
     const r = el.getBoundingClientRect(); if (!r.width || !r.height) return;
     let dpr = Math.min(win.devicePixelRatio || 1, 2);
     dpr = Math.min(dpr, MAX_SIDE / r.width, MAX_SIDE / r.height, Math.sqrt(MAX_PIX / (r.width * r.height)));
-    const key = JSON.stringify(node) + "|" + Math.round(r.width) + "x" + Math.round(r.height) + "|" + dpr;
+    // Bildstand im Schluessel: ein Bild, das nach dem ersten Zeichnen fertig wird, zeichnet die Leinwand neu (Befund P)
+    const iv = host.images && Number.isFinite(host.images.version) ? host.images.version : 0;
+    const key = JSON.stringify(node) + "|" + Math.round(r.width) + "x" + Math.round(r.height) + "|" + dpr + "|" + iv;
     if (el.__painted === key) return;
     el.__painted = key;
     el.width = Math.max(1, Math.round(r.width * dpr)); el.height = Math.max(1, Math.round(r.height * dpr));
