@@ -28,7 +28,8 @@ timeout 900 $D bash -c 'npm ci --no-audit --no-fund >/dev/null && node scripts/b
 timeout 900 $D node --test test/*.test.js > logs/unit.log 2>&1 && echo "unit PASS $(grep -hE "^(# |ℹ )pass" logs/unit.log)" || echo "unit FAIL $(grep -h "^# \(pass\|fail\)" logs/unit.log | tr "\n" " ")"
 ls src/$APP/test/e2e/*.e2e.js | xargs -n1 basename > e2e.list
 cat e2e.list | xargs -P "$PAR" -I{} bash -c "timeout 1800 $D node --require ./test/e2e/lib/nolive.js --test --test-timeout=300000 --test-force-exit test/e2e/{} > logs/{}.log 2>&1 && echo 'PASS {}' || echo 'FAIL {}'" | sort
-P=0; F=0; for f in logs/*.e2e.js.log; do p=$(grep -h "^# pass" $f | awk "{print \$3}"); x=$(grep -h "^# fail" $f | awk "{print \$3}"); P=$((P+${p:-0})); F=$((F+${x:-1})); done
-echo "e2e gesamt: pass=$P fail=$F"
+# Abgebrochene Tests (Zeitlimit der Datei) und Dateien ohne Zusammenfassung zaehlen als Fehler, nie still als 0.
+P=0; F=0; C=0; for f in logs/*.e2e.js.log; do p=$(grep -h "^# pass" $f | awk "{print \$3}"); x=$(grep -h "^# fail" $f | awk "{print \$3}"); c=$(grep -h "^# cancelled" $f | awk "{print \$3}"); P=$((P+${p:-0})); F=$((F+${x:-1})); C=$((C+${c:-0})); done
+echo "e2e gesamt: pass=$P fail=$F cancelled=$C"
 echo "logs: $W/logs"
 REMOTE
