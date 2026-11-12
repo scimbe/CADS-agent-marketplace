@@ -4,6 +4,7 @@ import { h } from "./dom.js";
 import { machine } from "../app/machine.js";
 import { texts, fmt } from "../app/texts.js";
 import { cardOf, ORDER, modesOf, manifestOf } from "../cards/index.js";
+import { playOf } from "../contract/modes.js";
 import * as G from "../app/game.js";
 import * as S from "../contract/session.js";
 import { render } from "../render/render.js";
@@ -255,6 +256,14 @@ export function view(state, dispatch, env = {}) {
       const lines = [];
       // Wer bin ich, wie weit (13 §6.4 Punkt 7): mit Zugnummer, wenn die Karte sie meldet (Zugvertrag v0.2 status.turnNo/turns)
       if (card.manifest.players.max > 1 && ctx.mode !== "alone") lines.push(h("p", { class: "seat", key: "seat" }, fmt(X.yourSeat, { s: seatName(card, ctx.lang, seat) }) + (Number.isInteger(st.turnNo) && Number.isInteger(st.turns) ? " · " + fmt(ctx.lang === "en" ? "Turn {n} of {m}" : "Zug {n} von {m}", { n: st.turnNo, m: st.turns }) : "")));
+      // Spielweise im Spielkopf (Board Bote1, Folge-PR 2): wechselbar bis zum ersten Zug, danach gesperrt mit Grund (MODE, Waechter modeOpen bei F)
+      if ((phase === "turn" || phase === "wait") && ctx.mode !== "live") {
+        const offer = playOf(card, ctx.variant).offer.filter((x) => x !== "live"), locked = G.movesMade(ctx) > 0;
+        if (offer.length > 1 && offer.includes(ctx.mode)) lines.push(h("div", { class: "play-modes", role: "group", "aria-labelledby": "pm-l", key: "pm" },
+          h("p", { class: "seg-label", id: "pm-l" }, X.mode),
+          h("div", { class: "seg-row" }, offer.map((x) => h("button", { type: "button", class: "seg-opt chip", key: x, "data-act": "pm-" + x, "aria-pressed": x === ctx.mode ? "true" : "false", disabled: (locked && x !== ctx.mode) || null, on: { click: () => dispatch({ type: "MODE", mode: x }) } }, X.modes[x]))),
+          h("p", { class: "hint", key: "pm-h" }, locked ? X.note["modus-gesperrt"] : X.modeSwitch)));
+      }
       if (phase === "wait") lines.push(h("p", { class: "status", role: "status", key: "st" }, ctx.mode === "bot" ? X.waitBot : ctx.mode === "link" ? X.waitLink : X.waitLive));
       if (phase === "send") lines.push(h("div", { class: "notice", key: "send" }, h("h2", { class: "t-title" }, X.sendTitle), h("p", null, X.sendText)));
       if (phase === "over") {

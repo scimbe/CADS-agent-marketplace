@@ -221,3 +221,47 @@ test("Gate C: Mein Regal heisst so (de/en) und hat ein Symbol; Eigene Karte ist 
   const m = go(s, { type: "HOME", to: "meins" });
   assert.ok(texts(m).includes("Mein Regal"), "Ueberschrift");
 });
+
+test("Folge-PR 2: Spiel des Tages startet mit einem Ereignis OPEN {start}; Erst ueben = gegen den Computer bzw. ein Geraet; hoechstens 3 Taps bis zum Spiel", async () => {
+  const { dayPrimary, practiceOf } = await import("../src/ui/home/views.js");
+  const { modesOfId, manifestOf } = await import("../src/cards/index.js");
+  const s = start();
+  let game = null, practice = null, card = null;
+  for (let off = -60; off <= 60 && !(game && practice && card); off++) {
+    const p = dayPrimary({ ...s.ctx, home: { ...s.ctx.home, off } });
+    if (!p || !p.ev || p.ev.type !== "OPEN") continue;
+    const st = manifestOf(p.ev.id).mode === "static";
+    if (st) { card = card || p; assert.equal(p.ev.start, undefined, "Karten oeffnen zum Gestalten"); assert.equal(p.practice, undefined); continue; }
+    assert.equal(p.ev.start, true, p.ev.id);
+    game = game || { p, off };
+    if (p.practice) {
+      practice = practice || { p, off };
+      const modes = modesOfId(p.ev.id, p.ev.variant);
+      assert.equal(p.practice.ev.mode, modes.includes("bot") ? "bot" : "alone", p.ev.id);
+      assert.equal(p.practice.sub, modes.includes("bot") ? "gegen den Computer" : "ein Gerät");
+    } else assert.equal(practiceOf(p.ev.id, p.ev.variant), null);
+  }
+  assert.ok(game && practice && card, "Tage mit Spiel, Uebung und Karte gefunden");
+  // Taps: Start (0) -> Jetzt spielen (1) = im Spiel; Erst ueben ebenso mit Uebungsweise
+  for (const [ev, mode] of [[game.p.ev, null], [practice.p.practice.ev, practice.p.practice.ev.mode]]) {
+    const r = go(s, ev);
+    assert.ok(r.config.some((c) => c === "inhalt.card.play" || c === "inhalt.card.rt"), "ein Tap bis ins Spiel: " + ev.id + " " + r.config.join(" "));
+    if (mode) assert.equal(r.ctx.mode, mode);
+  }
+});
+
+test("Spielkopf: Spielweise wechselbar bis zum ersten Zug (MODE), danach gesperrt mit Grund", () => {
+  let s = start();
+  s = go(s, { type: "OPEN", id: "zug-einkauf", start: true });
+  assert.ok(s.config.some((c) => c.startsWith("inhalt.card.play")), s.config.join(" "));
+  const find = (n, pred, out = []) => { if (!n || typeof n !== "object") return out; if (pred(n)) out.push(n); for (const c of n.children || []) find(c, pred, out); return out; };
+  const pm = (st) => find({ children: [].concat(view(st, () => {})) }, (n) => n.props && /^pm-/.test(n.props["data-act"] || ""));
+  let b = pm(s);
+  assert.deepEqual(b.map((x) => x.props["data-act"]), ["pm-link", "pm-alone"]);
+  assert.ok(b.every((x) => !x.props.disabled), "vor dem ersten Zug frei");
+  assert.ok(texts(s).includes("Wechseln geht bis zum ersten Zug."));
+  const moved = { ...s, ctx: { ...s.ctx, session: { ...(s.ctx.session || {}), log: [{ t: "move" }] } } };
+  b = pm(moved);
+  assert.equal(b.find((x) => x.props["data-act"] === "pm-alone").props.disabled, true, "nach dem ersten Zug gesperrt");
+  assert.ok(texts(moved).includes("Nach dem ersten Zug bleibt die Spielweise."));
+});
