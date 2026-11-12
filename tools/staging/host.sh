@@ -63,9 +63,9 @@ build() {
   tail -1 app-build.log
   # 3) re-vendor the app code the wrapper checks links and games with onto the same commit, then the wrapper's own tests
   #    (with MDI_SRC the vendor tests also refuse drift against this checkout)
-  timeout 300 "${N[@]}" bash -c "cd /b/wrapper && node bin/vendor-mdi.mjs /b/mp/$APP_DIR/src --track $APP_BRANCH && node bin/vendor-mdi-baukasten.mjs /b/mp/$APP_DIR/src" > vendor.log 2>&1 || { cat vendor.log; die "Re-Vendor"; }
+  timeout 300 "${N[@]}" bash -c "cd /b/wrapper && node bin/vendor-mdi.mjs /b/mp/$APP_DIR/src --track $APP_BRANCH$( [ "${VENDOR_BAUKASTEN:-1}" = 1 ] && echo " && node bin/vendor-mdi-baukasten.mjs /b/mp/$APP_DIR/src")" > vendor.log 2>&1 || { cat vendor.log; die "Re-Vendor"; }
   cat vendor.log
-  ( cd wrapper && git add -A lib/vendor && { git diff --cached --quiet || "${G[@]}" commit -q -m "staging: re-vendor $APP_DIR @ ${APP_COMMIT:0:12} (vendor-mdi, vendor-mdi-baukasten)"; } )
+  ( cd wrapper && git add -A lib/vendor && { git diff --cached --quiet || "${G[@]}" commit -q -m "staging: re-vendor $APP_DIR @ ${APP_COMMIT:0:12} (vendor-mdi$( [ "${VENDOR_BAUKASTEN:-1}" = 1 ] && echo ", vendor-mdi-baukasten"))"; } )
   log "  wrapper tests"
   timeout 900 "${N[@]}" bash -c "cd /b/wrapper && MDI_SRC=/b/mp/$APP_DIR/src node --test --test-reporter=tap test/*.test.mjs" > wrapper-test.log 2>&1 || true
   grep -E '^# (tests|pass|fail|skipped)' wrapper-test.log | tr '\n' ' '; echo
@@ -173,6 +173,14 @@ wait_up() {   # -> seconds*1000 until /duell answers 200
     sleep 0.25
   done
   return 1
+}
+# Deploy check of the wrapper (bin/deploy-check.mjs, CADS-DEMO-wrapper#139): page, /api/status and the login path
+# (/auth/me with a made-up session -> the whole gate check). Runs from the image itself on the host network.
+# -> ms from call until all checks passed (the script's own output goes to stderr of this function)
+deploy_check() {
+  local tag="$1" t0; t0="$(ms)"
+  docker run --rm --network host --entrypoint node "$tag" bin/deploy-check.mjs "http://127.0.0.1:$PORT" --deadline 60 >&2 || return 1
+  echo $(( $(ms) - t0 ))
 }
 
 up() {
@@ -287,16 +295,16 @@ rollback_probe() {
   local sha_prev; sha_prev="$(curl -s "http://127.0.0.1:$PORT/duell" | sha256sum | cut -c1-64)"
   log "rollback-probe: prev=$(docker image inspect -f '{{.Id}}' "$prevtag" | cut -c8-19) new=$(docker image inspect -f '{{.Id}}' "$newtag" | cut -c8-19)"
   # deploy: same steps as production (stop, rename, run new)
-  local t0 t1 up1 t2 up2
+  local t0 t1 up1 t2 up2 t1b dc1 dc2
   t0="$(ms)"
   docker stop "$WC" >/dev/null; docker rename "$WC" "$WC-prev"
-  start_wrapper "$newtag"; up1="$(wait_up)"; t1="$(ms)"
+  start_wrapper "$newtag"; up1="$(wait_up)"; t1="$(ms)"; dc1="$(deploy_check "$newtag")" || die "deploy-check neue Version"; t1b="$(ms)"
   [ "$(docker exec "$WC" cat /app/apps/duell-web/dist/version.txt)" = probe-new ] || die "neue Version laeuft nicht"
   log "  deploy neu: gesamt $((t1-t0)) ms (davon bis /duell 200: $up1 ms)"
   # rollback: exactly the line of the runbook
   t2="$(ms)"
   docker stop "$WC" >/dev/null && docker rm "$WC" >/dev/null && docker rename "$WC-prev" "$WC" && docker start "$WC" >/dev/null
-  up2="$(wait_up)"; local t3; t3="$(ms)"
+  up2="$(wait_up)"; local t3; t3="$(ms)"; dc2="$(deploy_check "$cur")" || die "deploy-check nach Rollback"; local t3b; t3b="$(ms)"
   log "  rollback: gesamt $((t3-t2)) ms (davon bis /duell 200 nach start: $up2 ms)"
   local F=0
   [ "$(docker inspect -f '{{.Config.Image}}' "$WC")" = "$cur" ] && echo "PASS Image wieder $cur" || { echo "FAIL Image"; F=1; }
@@ -304,6 +312,7 @@ rollback_probe() {
   [ "$(curl -s "http://127.0.0.1:$PORT/duell" | sha256sum | cut -c1-64)" = "$sha_prev" ] && echo "PASS /duell wie vorher" || { echo "FAIL /duell"; F=1; }
   docker image rm "$newtag" >/dev/null
   echo "rollback_ms=$((t3-t2)) deploy_ms=$((t1-t0)) up_after_deploy_ms=$up1 up_after_rollback_ms=$up2"
+  echo "deploy_ready_ms=$((t1b-t0)) (deploy-check $dc1 ms) rollback_ready_ms=$((t3b-t2)) (deploy-check $dc2 ms)"
   return $F
 }
 
