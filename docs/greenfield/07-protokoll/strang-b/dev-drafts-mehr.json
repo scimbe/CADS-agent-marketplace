@@ -1,0 +1,8061 @@
+{
+ "korpus": "test/fixtures/bau-dev.json",
+ "split": "alle",
+ "strategie": "drafts",
+ "beispiele": "mehr",
+ "wdh": 1,
+ "modell": "claude-haiku-5-5",
+ "zeit": "2026-11-12T08:21:57.274Z",
+ "zusammenfassung": {
+  "eintraege": 40,
+  "spielErwartet": 40,
+  "absageErwartet": 0,
+  "spielbar": 0.65,
+  "passt": 0.625,
+  "taktRichtig": 0.962,
+  "merkmaleErfuellt": 0.973,
+  "absageRichtig": 0,
+  "ehrlicheAbsageStattSpiel": 0.35,
+  "fehler": [],
+  "nachSplit": {
+   "dev": {
+    "spielbar": 0.65,
+    "passt": 0.625
+   },
+   "test": {
+    "spielbar": 0,
+    "passt": 0
+   }
+  },
+  "usd": 0.1064,
+  "aufrufe": 205,
+  "cacheRead": 1791716
+ },
+ "zeilen": [
+  {
+   "id": "d01",
+   "split": "dev",
+   "satz": "Ein Papagei fliegt durch Lücken zwischen Bäumen",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "control:flap"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "endet_nicht"
+    },
+    "reason": "bau_endet_nicht",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Flugspiel: Tippe zum Flattern und fliege durch Lücken"
+    }
+   },
+   "error": "",
+   "ms": 25915,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1414,
+     "usage": {
+      "in": 45,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00004812
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 5041,
+     "usage": {
+      "in": 98,
+      "out": 1021,
+      "cacheRead": 0,
+      "cacheWrite": 12177
+     },
+     "usd": 0.0029557000000000003
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 2454,
+     "usage": {
+      "in": 593,
+      "out": 243,
+      "cacheRead": 0,
+      "cacheWrite": 10951
+     },
+     "usd": 0.0023710000000000003
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 4556,
+     "usage": {
+      "in": 98,
+      "out": 986,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00062457
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1472,
+     "usage": {
+      "in": 595,
+      "out": 237,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00028751
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 5756,
+     "usage": {
+      "in": 98,
+      "out": 1145,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0007040699999999999
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4792,
+     "usage": {
+      "in": 603,
+      "out": 871,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00060531
+    }
+   ],
+   "usd": 0.00759628,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Papageienflug",
+    "goal": "Tippe zum Flattern und fliege durch 15 Luecken zwischen den Baeumen. Zwei Leben.",
+    "mode": "realtime",
+    "players": 1,
+    "bg": "sky",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 2600,
+     "top": "wall",
+     "bottom": "open",
+     "left": "open",
+     "right": "open",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "papagei",
+      "look": "emoji",
+      "emoji": "🦜",
+      "text": "",
+      "color": "ink",
+      "w": 84,
+      "h": 84,
+      "gravity": true,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "flap",
+      "power": 880,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "baum",
+      "look": "box",
+      "emoji": "",
+      "text": "",
+      "color": "ink",
+      "w": 150,
+      "h": 200,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": -280,
+      "vy": 0,
+      "spread": 0,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     }
+    ],
+    "start": [
+     {
+      "thing": "papagei",
+      "x": 300,
+      "y": 760,
+      "seat": 0,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     }
+    ],
+    "end": {
+     "time": 0,
+     "score": 15,
+     "lives": 2,
+     "win": "score"
+    },
+    "bot": {
+     "kind": "flap",
+     "thing": "papagei",
+     "target": "baum"
+    },
+    "spawn": [
+     {
+      "thing": "baum",
+      "every": 1650,
+      "after": 900,
+      "x": 1100,
+      "y": 800,
+      "xr": 0,
+      "yr": 330,
+      "gap": 440,
+      "max": 0
+     }
+    ],
+    "rules": [
+     {
+      "when": "touch",
+      "a": "papagei",
+      "b": "baum",
+      "n": 0,
+      "do": [
+       {
+        "act": "life",
+        "on": "a",
+        "n": -1,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "papagei",
+      "b": "bottom",
+      "n": 0,
+      "do": [
+       {
+        "act": "life",
+        "on": "a",
+        "n": -1,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "pass",
+      "a": "papagei",
+      "b": "baum",
+      "n": 0,
+      "do": [
+       {
+        "act": "score",
+        "on": "a",
+        "n": 1,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "d02",
+   "split": "dev",
+   "satz": "Ein Pinguin rutscht und springt über Eisblöcke",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "control:jump"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "endet_nicht"
+    },
+    "reason": "bau_endet_nicht",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Hüpfspiel: Springe über heranrollende Kisten"
+    }
+   },
+   "error": "",
+   "ms": 38644,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1050,
+     "usage": {
+      "in": 42,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00004782
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 8959,
+     "usage": {
+      "in": 95,
+      "out": 1845,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0010537699999999999
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1774,
+     "usage": {
+      "in": 796,
+      "out": 266,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00032211
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6930,
+     "usage": {
+      "in": 95,
+      "out": 1494,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00087827
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 6512,
+     "usage": {
+      "in": 753,
+      "out": 1228,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00079881
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 11436,
+     "usage": {
+      "in": 95,
+      "out": 2564,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0014132699999999999
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1618,
+     "usage": {
+      "in": 756,
+      "out": 272,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00032111
+    }
+   ],
+   "usd": 0.004835160000000001,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Pinguin-Rutsch",
+    "goal": "Springe über die Eisblöcke auf dem Boden. 15 geschafft gewinnt.",
+    "mode": "realtime",
+    "players": 1,
+    "bg": "white",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 3000,
+     "top": "wall",
+     "bottom": "open",
+     "left": "open",
+     "right": "open",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "pinguin",
+      "look": "emoji",
+      "emoji": "🐧",
+      "text": "",
+      "color": "white",
+      "w": 90,
+      "h": 90,
+      "gravity": true,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "jump",
+      "power": 1450,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "boden",
+      "look": "box",
+      "emoji": "",
+      "text": "",
+      "color": "muted",
+      "w": 1000,
+      "h": 60,
+      "gravity": false,
+      "solid": true,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "eisblock",
+      "look": "box",
+      "emoji": "",
+      "text": "",
+      "color": "blue",
+      "w": 120,
+      "h": 110,
+      "gravity": false,
+      "solid": true,
+      "bounce": "none",
+      "vx": -400,
+      "vy": 0,
+      "spread": 0,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     }
+    ],
+    "start": [
+     {
+      "thing": "pinguin",
+      "x": 250,
+      "y": 1400,
+      "seat": 0,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     },
+     {
+      "thing": "boden",
+      "x": 500,
+      "y": 1560,
+      "seat": -1,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     }
+    ],
+    "end": {
+     "time": 0,
+     "score": 15,
+     "lives": 3,
+     "win": "score"
+    },
+    "bot": {
+     "kind": "jump",
+     "thing": "pinguin",
+     "target": "eisblock"
+    },
+    "spawn": [
+     {
+      "thing": "eisblock",
+      "every": 1600,
+      "after": 1000,
+      "x": 1060,
+      "y": 1480,
+      "xr": 0,
+      "yr": 0,
+      "gap": 0,
+      "max": 4
+     }
+    ],
+    "rules": [
+     {
+      "when": "pass",
+      "a": "pinguin",
+      "b": "eisblock",
+      "n": 0,
+      "do": [
+       {
+        "act": "score",
+        "on": "a",
+        "n": 1,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "touch",
+      "a": "pinguin",
+      "b": "eisblock",
+      "n": 0,
+      "do": [
+       {
+        "act": "life",
+        "on": "a",
+        "n": -1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "pinguin",
+      "b": "bottom",
+      "n": 0,
+      "do": [
+       {
+        "act": "lose",
+        "on": "a",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "d03",
+   "split": "dev",
+   "satz": "Ein Hund fängt Knochen, die vom Himmel fallen, aber keine Steine",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "control:any:lr,drag,move",
+     "rule:touch"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "control:any:lr,drag,move": true,
+     "rule:touch": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Knochenfang",
+   "ziel": "Fang die Knochen mit dem Hund und weiche den Steinen aus. Drei Leben.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 10898,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1106,
+     "usage": {
+      "in": 51,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00004872
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6964,
+     "usage": {
+      "in": 104,
+      "out": 1523,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00089367
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1731,
+     "usage": {
+      "in": 708,
+      "out": 339,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00034981
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 955,
+     "usage": {
+      "in": 76,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005122
+    }
+   ],
+   "usd": 0.00134342,
+   "spiel": {
+    "title": "Knochenfang",
+    "goal": "Fang die Knochen mit dem Hund und weiche den Steinen aus. Drei Leben.",
+    "bg": "sky",
+    "world": {
+     "gravity": 900,
+     "top": "open",
+     "bottom": "open"
+    },
+    "things": [
+     {
+      "id": "hund",
+      "look": "emoji",
+      "emoji": "🐶",
+      "color": "paper",
+      "w": 110,
+      "h": 110,
+      "control": "lr",
+      "power": 1000
+     },
+     {
+      "id": "knochen",
+      "look": "emoji",
+      "emoji": "🦴",
+      "color": "white",
+      "w": 70,
+      "h": 70,
+      "gravity": true
+     },
+     {
+      "id": "stein",
+      "look": "circle",
+      "color": "ink",
+      "w": 70,
+      "h": 70,
+      "gravity": true
+     }
+    ],
+    "start": [
+     {
+      "thing": "hund",
+      "x": 500,
+      "y": 1450,
+      "seat": 0
+     }
+    ],
+    "spawn": [
+     {
+      "thing": "knochen",
+      "every": 900,
+      "after": 600,
+      "x": 500,
+      "y": -40,
+      "xr": 440,
+      "max": 4
+     },
+     {
+      "thing": "stein",
+      "every": 1100,
+      "after": 2000,
+      "x": 500,
+      "y": -40,
+      "xr": 440,
+      "max": 3
+     }
+    ],
+    "rules": [
+     {
+      "a": "hund",
+      "b": "knochen",
+      "do": [
+       {
+        "act": "score",
+        "on": "a",
+        "n": 1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "a": "hund",
+      "b": "stein",
+      "do": [
+       {
+        "act": "life",
+        "n": -1
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "knochen",
+      "b": "bottom",
+      "do": [
+       {
+        "act": "destroy",
+        "n": 0
+       }
+      ]
+     }
+    ],
+    "end": {
+     "time": 60,
+     "score": 15,
+     "lives": 3
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "hund",
+     "target": "knochen"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d04",
+   "split": "dev",
+   "satz": "Eine Biene sammelt Blüten, Wespen jagen sie",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "ai:chase"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "kaputt"
+    },
+    "reason": "bau_kaputt",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Flugspiel: Tippe zum Flattern und fliege durch Lücken"
+    }
+   },
+   "error": "",
+   "ms": 43626,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1052,
+     "usage": {
+      "in": 125,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006162
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 9236,
+     "usage": {
+      "in": 96,
+      "out": 2052,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0011573699999999998
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 2050,
+     "usage": {
+      "in": 815,
+      "out": 233,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00030751
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 9533,
+     "usage": {
+      "in": 96,
+      "out": 1898,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00108037
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4981,
+     "usage": {
+      "in": 819,
+      "out": 896,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.0006394100000000001
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 10730,
+     "usage": {
+      "in": 96,
+      "out": 2203,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0012328699999999998
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 6039,
+     "usage": {
+      "in": 801,
+      "out": 975,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00067711
+    }
+   ],
+   "usd": 0.005156259999999999,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Bienenwiese",
+    "goal": "Sammle 10 Blüten und weiche den Wespen aus. Drei Leben.",
+    "mode": "realtime",
+    "players": 1,
+    "bg": "green",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 0,
+     "top": "wall",
+     "bottom": "wall",
+     "left": "wall",
+     "right": "wall",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "biene",
+      "look": "emoji",
+      "emoji": "🐝",
+      "text": "",
+      "color": "yellow",
+      "w": 90,
+      "h": 90,
+      "gravity": false,
+      "solid": false,
+      "bounce": "walls",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "move",
+      "power": 700,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "bluete",
+      "look": "emoji",
+      "emoji": "🌼",
+      "text": "",
+      "color": "yellow",
+      "w": 70,
+      "h": 70,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "wespe",
+      "look": "circle",
+      "emoji": "",
+      "text": "",
+      "color": "orange",
+      "w": 80,
+      "h": 80,
+      "gravity": false,
+      "solid": false,
+      "bounce": "walls",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "none",
+      "power": 260,
+      "ai": "chase",
+      "life": 0,
+      "trail": 0
+     }
+    ],
+    "start": [
+     {
+      "thing": "biene",
+      "x": 500,
+      "y": 1300,
+      "seat": 0,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     },
+     {
+      "thing": "bluete",
+      "x": 200,
+      "y": 300,
+      "seat": -1,
+      "n": 6,
+      "cols": 3,
+      "dx": 200,
+      "dy": 200
+     },
+     {
+      "thing": "wespe",
+      "x": 300,
+      "y": 200,
+      "seat": -1,
+      "n": 2,
+      "cols": 2,
+      "dx": 400,
+      "dy": 0
+     }
+    ],
+    "end": {
+     "time": 60,
+     "score": 10,
+     "lives": 3,
+     "win": "score"
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "biene",
+     "target": "bluete"
+    },
+    "spawn": [
+     {
+      "thing": "bluete",
+      "every": 1500,
+      "after": 500,
+      "x": 500,
+      "y": 800,
+      "xr": 420,
+      "yr": 600,
+      "gap": 0,
+      "max": 4
+     }
+    ],
+    "rules": [
+     {
+      "when": "touch",
+      "a": "biene",
+      "b": "bluete",
+      "n": 0,
+      "do": [
+       {
+        "act": "score",
+        "on": "a",
+        "n": 1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "touch",
+      "a": "biene",
+      "b": "wespe",
+      "n": 0,
+      "do": [
+       {
+        "act": "life",
+        "on": "a",
+        "n": -1,
+        "thing": ""
+       },
+       {
+        "act": "reset",
+        "on": "b",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "d05",
+   "split": "dev",
+   "satz": "Ein U-Boot taucht hoch und runter und weicht Haien aus",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "control:any:ud,move",
+     "danger"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "control:any:ud,move": true,
+     "danger": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Tauchfahrt",
+   "ziel": "Tauche hoch und runter und weiche den Haien aus. 45 Sekunden durchhalten.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 10940,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1274,
+     "usage": {
+      "in": 127,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006182
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6533,
+     "usage": {
+      "in": 98,
+      "out": 1473,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00086807
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1404,
+     "usage": {
+      "in": 600,
+      "out": 204,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00027151
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1371,
+     "usage": {
+      "in": 75,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005112
+    }
+   ],
+   "usd": 0.00125252,
+   "spiel": {
+    "title": "Tauchfahrt",
+    "goal": "Tauche hoch und runter und weiche den Haien aus. 45 Sekunden durchhalten.",
+    "bg": "blue",
+    "world": {
+     "left": "open",
+     "right": "open"
+    },
+    "things": [
+     {
+      "id": "uboot",
+      "w": 150,
+      "control": "ud",
+      "power": 900
+     },
+     {
+      "id": "hai",
+      "look": "emoji",
+      "emoji": "🦈",
+      "color": "white",
+      "w": 120,
+      "h": 90,
+      "vx": -380
+     }
+    ],
+    "start": [
+     {
+      "thing": "uboot",
+      "x": 200,
+      "y": 800,
+      "seat": 0
+     }
+    ],
+    "spawn": [
+     {
+      "thing": "hai",
+      "every": 550,
+      "after": 1200,
+      "x": 1080,
+      "y": 800,
+      "yr": 700,
+      "max": 10
+     }
+    ],
+    "rules": [
+     {
+      "a": "uboot",
+      "b": "hai",
+      "do": [
+       {
+        "act": "life",
+        "n": -1
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "every",
+      "n": 1000,
+      "do": [
+       {
+        "on": "seat0"
+       }
+      ]
+     }
+    ],
+    "end": {
+     "time": 45,
+     "lives": 2,
+     "win": "survive"
+    },
+    "bot": {
+     "kind": "dodge",
+     "thing": "uboot",
+     "target": "hai"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d06",
+   "split": "dev",
+   "satz": "Schläger und Ball, alle Eisblöcke wegschießen",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "bounce",
+     "rule:clear"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "bounce": true,
+     "rule:clear": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Eisbrecher",
+   "ziel": "Lenke den Ball und schiesse alle Eisbloecke weg. Drei Baelle.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit",
+    "bau:repariert"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 38019,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1496,
+     "usage": {
+      "in": 42,
+      "out": 130,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00010132
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 7800,
+     "usage": {
+      "in": 95,
+      "out": 1713,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00098777
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1685,
+     "usage": {
+      "in": 808,
+      "out": 327,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00035381
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 5382,
+     "usage": {
+      "in": 95,
+      "out": 1296,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00077927
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4305,
+     "usage": {
+      "in": 804,
+      "out": 875,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.0006274100000000001
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 4977,
+     "usage": {
+      "in": 95,
+      "out": 1106,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00068427
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1902,
+     "usage": {
+      "in": 798,
+      "out": 321,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00034981
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 2452,
+     "usage": {
+      "in": 65,
+      "out": 340,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00020862
+    }
+   ],
+   "usd": 0.004092279999999999,
+   "spiel": {
+    "title": "Eisbrecher",
+    "goal": "Lenke den Ball und schiesse alle Eisbloecke weg. Drei Baelle.",
+    "world": {
+     "bottom": "open"
+    },
+    "things": [
+     {
+      "id": "schlaeger",
+      "color": "sky",
+      "w": 190,
+      "h": 32,
+      "control": "drag",
+      "power": 1500
+     },
+     {
+      "id": "ball",
+      "look": "circle",
+      "color": "paper",
+      "w": 34,
+      "h": 34,
+      "bounce": "walls",
+      "vx": 420,
+      "vy": -760,
+      "spread": 320
+     },
+     {
+      "id": "eis",
+      "color": "sky",
+      "w": 104,
+      "h": 46
+     }
+    ],
+    "start": [
+     {
+      "thing": "schlaeger",
+      "x": 500,
+      "y": 1480,
+      "seat": 0
+     },
+     {
+      "thing": "ball",
+      "x": 500,
+      "y": 1300
+     },
+     {
+      "thing": "eis",
+      "x": 140,
+      "y": 300,
+      "n": 24,
+      "cols": 6,
+      "dx": 144,
+      "dy": 62
+     }
+    ],
+    "rules": [
+     {
+      "a": "ball",
+      "b": "schlaeger",
+      "do": [
+       {
+        "act": "bounce",
+        "n": 0,
+        "thing": "schlaeger"
+       }
+      ]
+     },
+     {
+      "a": "ball",
+      "b": "eis",
+      "do": [
+       {
+        "act": "bounce",
+        "n": 0,
+        "thing": "eis"
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0
+       },
+       {
+        "on": "seat0"
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "ball",
+      "b": "bottom",
+      "do": [
+       {
+        "act": "life",
+        "on": "seat0",
+        "n": -1
+       },
+       {
+        "act": "reset",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "clear",
+      "a": "eis",
+      "do": [
+       {
+        "act": "win",
+        "on": "seat0",
+        "n": 0
+       }
+      ]
+     }
+    ],
+    "end": {
+     "lives": 3,
+     "win": "clear"
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "schlaeger",
+     "target": "ball"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d07",
+   "split": "dev",
+   "satz": "Luftballons antippen bevor sie wegfliegen",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "control:tap"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "kaputt"
+    },
+    "reason": "bau_kaputt",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Flugspiel: Tippe zum Flattern und fliege durch Lücken"
+    }
+   },
+   "error": "",
+   "ms": 32147,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 968,
+     "usage": {
+      "in": 120,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006112
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 4905,
+     "usage": {
+      "in": 91,
+      "out": 1032,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00064687
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 5853,
+     "usage": {
+      "in": 494,
+      "out": 1119,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.0007184100000000001
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 5531,
+     "usage": {
+      "in": 91,
+      "out": 1131,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00069637
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4816,
+     "usage": {
+      "in": 446,
+      "out": 997,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00065261
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 5339,
+     "usage": {
+      "in": 91,
+      "out": 1049,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00065537
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4731,
+     "usage": {
+      "in": 445,
+      "out": 886,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00059701
+    }
+   ],
+   "usd": 0.00402776,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Ballonflug",
+    "goal": "Tippe die Luftballons, bevor sie wegfliegen. Daneben tippen kostet einen Punkt.",
+    "mode": "realtime",
+    "players": 1,
+    "bg": "sky",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 0,
+     "top": "open",
+     "bottom": "wall",
+     "left": "wall",
+     "right": "wall",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "ballon",
+      "look": "emoji",
+      "emoji": "🎈",
+      "text": "",
+      "color": "red",
+      "w": 120,
+      "h": 150,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": -120,
+      "spread": 60,
+      "control": "tap",
+      "power": 0,
+      "ai": "none",
+      "life": 2200,
+      "trail": 0
+     }
+    ],
+    "start": [],
+    "end": {
+     "time": 30,
+     "score": 15,
+     "lives": 0,
+     "win": "score"
+    },
+    "bot": {
+     "kind": "tap",
+     "thing": "ballon",
+     "target": "ballon"
+    },
+    "spawn": [
+     {
+      "thing": "ballon",
+      "every": 900,
+      "after": 500,
+      "x": 500,
+      "y": 1450,
+      "xr": 420,
+      "yr": 100,
+      "gap": 0,
+      "max": 4
+     }
+    ],
+    "rules": [
+     {
+      "when": "tap",
+      "a": "ballon",
+      "b": "",
+      "n": 0,
+      "do": [
+       {
+        "act": "score",
+        "on": "actor",
+        "n": 1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "a",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "miss",
+      "a": "",
+      "b": "",
+      "n": 0,
+      "do": [
+       {
+        "act": "score",
+        "on": "actor",
+        "n": -1,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "ballon",
+      "b": "top",
+      "n": 0,
+      "do": [
+       {
+        "act": "destroy",
+        "on": "a",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "d08",
+   "split": "dev",
+   "satz": "Ein Raumschiff weicht 30 Sekunden Asteroiden aus",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "end:time",
+     "danger"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "end:time": true,
+     "danger": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Sternenflug",
+   "ziel": "Weiche 30 Sekunden lang den Asteroiden aus. Drei Leben.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit",
+    "bau:repariert"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 35724,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1143,
+     "usage": {
+      "in": 129,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006201999999999999
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6916,
+     "usage": {
+      "in": 100,
+      "out": 1536,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0008997699999999999
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 5950,
+     "usage": {
+      "in": 613,
+      "out": 1104,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.0007228099999999999
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 7068,
+     "usage": {
+      "in": 100,
+      "out": 1543,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00090327
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1650,
+     "usage": {
+      "in": 609,
+      "out": 264,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00030241
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6501,
+     "usage": {
+      "in": 100,
+      "out": 1437,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00085027
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4821,
+     "usage": {
+      "in": 612,
+      "out": 916,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00062871
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1146,
+     "usage": {
+      "in": 73,
+      "out": 118,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00009842
+    }
+   ],
+   "usd": 0.00446768,
+   "spiel": {
+    "title": "Sternenflug",
+    "goal": "Weiche 30 Sekunden lang den Asteroiden aus. Drei Leben.",
+    "world": {
+     "top": "open",
+     "bottom": "open"
+    },
+    "things": [
+     {
+      "id": "raumschiff",
+      "look": "emoji",
+      "emoji": "🚀",
+      "color": "paper",
+      "w": 100,
+      "h": 100,
+      "control": "lr",
+      "power": 1100
+     },
+     {
+      "id": "asteroid",
+      "look": "emoji",
+      "emoji": "🪨",
+      "color": "muted",
+      "w": 110,
+      "h": 110,
+      "vy": 520,
+      "spread": 120
+     }
+    ],
+    "start": [
+     {
+      "thing": "raumschiff",
+      "x": 500,
+      "y": 1450,
+      "seat": 0
+     }
+    ],
+    "spawn": [
+     {
+      "thing": "asteroid",
+      "every": 700,
+      "after": 1000,
+      "x": 500,
+      "y": -60,
+      "xr": 460
+     }
+    ],
+    "rules": [
+     {
+      "a": "raumschiff",
+      "b": "asteroid",
+      "do": [
+       {
+        "act": "life",
+        "n": -1
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "asteroid",
+      "b": "bottom",
+      "do": [
+       {
+        "act": "destroy",
+        "n": 0
+       }
+      ]
+     }
+    ],
+    "end": {
+     "time": 30,
+     "lives": 3,
+     "win": "survive"
+    },
+    "bot": {
+     "kind": "dodge",
+     "thing": "raumschiff",
+     "target": "asteroid"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d09",
+   "split": "dev",
+   "satz": "Zu zweit Pingpong mit Orangen",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "players:2",
+     "bounce"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "players:2": true,
+     "bounce": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Orangenpingpong",
+   "ziel": "Halte die Orange im Spiel. Wer zuerst 5 Punkte hat, gewinnt.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 12132,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 959,
+     "usage": {
+      "in": 36,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00004722
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6335,
+     "usage": {
+      "in": 89,
+      "out": 1430,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00084567
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 3649,
+     "usage": {
+      "in": 696,
+      "out": 654,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00050611
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 883,
+     "usage": {
+      "in": 76,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005122
+    }
+   ],
+   "usd": 0.0014502200000000001,
+   "spiel": {
+    "title": "Orangenpingpong",
+    "goal": "Halte die Orange im Spiel. Wer zuerst 5 Punkte hat, gewinnt.",
+    "players": 2,
+    "world": {
+     "top": "open",
+     "bottom": "open",
+     "flip": true
+    },
+    "things": [
+     {
+      "id": "schlaeger",
+      "color": "paper",
+      "w": 200,
+      "h": 30,
+      "control": "drag",
+      "power": 1400
+     },
+     {
+      "id": "orange",
+      "look": "emoji",
+      "emoji": "🍊",
+      "w": 60,
+      "h": 60,
+      "bounce": "walls",
+      "vx": 260,
+      "vy": 640,
+      "spread": 260
+     }
+    ],
+    "start": [
+     {
+      "thing": "schlaeger",
+      "x": 500,
+      "y": 1500,
+      "seat": 0
+     },
+     {
+      "thing": "schlaeger",
+      "x": 500,
+      "y": 100,
+      "seat": 1
+     },
+     {
+      "thing": "orange",
+      "x": 500,
+      "y": 800
+     }
+    ],
+    "rules": [
+     {
+      "a": "orange",
+      "b": "schlaeger",
+      "do": [
+       {
+        "act": "bounce",
+        "n": 0
+       },
+       {
+        "act": "speed",
+        "n": 4
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "orange",
+      "b": "top",
+      "do": [
+       {
+        "on": "seat0"
+       },
+       {
+        "act": "reset",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "orange",
+      "b": "bottom",
+      "do": [
+       {
+        "on": "seat1"
+       },
+       {
+        "act": "reset",
+        "n": 0
+       }
+      ]
+     }
+    ],
+    "end": {
+     "time": 150,
+     "score": 5
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "schlaeger",
+     "target": "orange"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d10",
+   "split": "dev",
+   "satz": "Eine Raupe frisst Blätter und wird länger",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "grid",
+     "trail"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "grid": true,
+     "trail": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Hungrige Raupe",
+   "ziel": "Steuere die Raupe zu den Blättern. Jedes Blatt macht sie länger. Nicht in den Rand oder di",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit",
+    "bau:repariert",
+    "bau:begrenzt"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 30072,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1009,
+     "usage": {
+      "in": 120,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006112
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 7222,
+     "usage": {
+      "in": 91,
+      "out": 1433,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00084737
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1498,
+     "usage": {
+      "in": 665,
+      "out": 285,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00031851
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6031,
+     "usage": {
+      "in": 91,
+      "out": 1278,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00076987
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1521,
+     "usage": {
+      "in": 664,
+      "out": 285,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00031841000000000004
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6543,
+     "usage": {
+      "in": 91,
+      "out": 1345,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00080337
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1553,
+     "usage": {
+      "in": 661,
+      "out": 289,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00032011
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 949,
+     "usage": {
+      "in": 92,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005282
+    }
+   ],
+   "usd": 0.0034915799999999998,
+   "spiel": {
+    "title": "Hungrige Raupe",
+    "goal": "Steuere die Raupe zu den Blättern. Jedes Blatt macht sie länger. Nicht in den Rand oder di",
+    "bg": "green",
+    "world": {
+     "cols": 16,
+     "rows": 24,
+     "top": "open",
+     "bottom": "open",
+     "left": "open",
+     "right": "open"
+    },
+    "things": [
+     {
+      "id": "raupe",
+      "look": "emoji",
+      "emoji": "🐛",
+      "color": "lime",
+      "w": 4,
+      "h": 4,
+      "control": "steer",
+      "power": 6,
+      "trail": 3
+     },
+     {
+      "id": "blatt",
+      "look": "emoji",
+      "emoji": "🍃",
+      "color": "lime",
+      "w": 4,
+      "h": 4
+     }
+    ],
+    "start": [
+     {
+      "thing": "raupe",
+      "x": 4,
+      "y": 12,
+      "seat": 0
+     },
+     {
+      "thing": "blatt",
+      "x": 11,
+      "y": 12
+     }
+    ],
+    "spawn": [
+     {
+      "thing": "blatt",
+      "every": 400,
+      "x": -1,
+      "y": -1,
+      "max": 1
+     }
+    ],
+    "rules": [
+     {
+      "a": "raupe",
+      "b": "blatt",
+      "do": [
+       {
+        "thing": "blatt"
+       },
+       {
+        "act": "grow"
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "a": "raupe",
+      "b": "raupe",
+      "do": [
+       {
+        "act": "life",
+        "n": -1
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "raupe",
+      "b": "any",
+      "do": [
+       {
+        "act": "life",
+        "n": -1
+       }
+      ]
+     }
+    ],
+    "end": {
+     "score": 15,
+     "lives": 1
+    },
+    "bot": {
+     "kind": "seek",
+     "thing": "raupe",
+     "target": "blatt"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d11",
+   "split": "dev",
+   "satz": "Ein Ritter springt über Fässer auf einer Burgmauer",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "control:jump"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "nicht_gewinnbar"
+    },
+    "reason": "bau_nicht_gewinnbar",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Hüpfspiel: Springe über heranrollende Kisten"
+    }
+   },
+   "error": "",
+   "ms": 45423,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 908,
+     "usage": {
+      "in": 43,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.000047919999999999995
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 7276,
+     "usage": {
+      "in": 96,
+      "out": 1382,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00082237
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4852,
+     "usage": {
+      "in": 749,
+      "out": 921,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.0006449100000000001
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 11427,
+     "usage": {
+      "in": 96,
+      "out": 2406,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0013343699999999999
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 8248,
+     "usage": {
+      "in": 753,
+      "out": 1570,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00096981
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 9744,
+     "usage": {
+      "in": 96,
+      "out": 1971,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0011168699999999998
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1542,
+     "usage": {
+      "in": 750,
+      "out": 267,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00031800999999999997
+    }
+   ],
+   "usd": 0.005254259999999999,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Burgmauer-Sprung",
+    "goal": "Spring über die Fässer auf der Burgmauer. 15 geschafft gewinnt.",
+    "mode": "realtime",
+    "players": 1,
+    "bg": "paper",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 3000,
+     "top": "open",
+     "bottom": "open",
+     "left": "open",
+     "right": "open",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "ritter",
+      "look": "text",
+      "emoji": "",
+      "text": "Ritter",
+      "color": "ink",
+      "w": 90,
+      "h": 90,
+      "gravity": true,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "jump",
+      "power": 1450,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "fass",
+      "look": "box",
+      "emoji": "",
+      "text": "",
+      "color": "red",
+      "w": 100,
+      "h": 90,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": -400,
+      "vy": 0,
+      "spread": 0,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "mauer",
+      "look": "box",
+      "emoji": "",
+      "text": "",
+      "color": "muted",
+      "w": 1000,
+      "h": 80,
+      "gravity": false,
+      "solid": true,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     }
+    ],
+    "start": [
+     {
+      "thing": "mauer",
+      "x": 500,
+      "y": 1560,
+      "seat": -1,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     },
+     {
+      "thing": "ritter",
+      "x": 250,
+      "y": 1400,
+      "seat": 0,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     }
+    ],
+    "end": {
+     "time": 0,
+     "score": 15,
+     "lives": 3,
+     "win": "score"
+    },
+    "bot": {
+     "kind": "jump",
+     "thing": "ritter",
+     "target": "fass"
+    },
+    "spawn": [
+     {
+      "thing": "fass",
+      "every": 1600,
+      "after": 1000,
+      "x": 1060,
+      "y": 1480,
+      "xr": 0,
+      "yr": 0,
+      "gap": 0,
+      "max": 4
+     }
+    ],
+    "rules": [
+     {
+      "when": "touch",
+      "a": "ritter",
+      "b": "fass",
+      "n": 0,
+      "do": [
+       {
+        "act": "life",
+        "on": "seat0",
+        "n": -1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "pass",
+      "a": "ritter",
+      "b": "fass",
+      "n": 0,
+      "do": [
+       {
+        "act": "score",
+        "on": "a",
+        "n": 1,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "ritter",
+      "b": "bottom",
+      "n": 0,
+      "do": [
+       {
+        "act": "lose",
+        "on": "seat0",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "d12",
+   "split": "dev",
+   "satz": "Ein Eichhörnchen weicht fallenden Eicheln aus",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "danger"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "trivial"
+    },
+    "reason": "bau_trivial",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Ausweichspiel: Weiche fallenden Steinen 40 Sekunden lang aus"
+    }
+   },
+   "error": "",
+   "ms": 24813,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 933,
+     "usage": {
+      "in": 44,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00004802
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6872,
+     "usage": {
+      "in": 97,
+      "out": 1593,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0009279700000000001
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1582,
+     "usage": {
+      "in": 617,
+      "out": 267,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00030471000000000003
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 5105,
+     "usage": {
+      "in": 97,
+      "out": 994,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00062847
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1751,
+     "usage": {
+      "in": 617,
+      "out": 263,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00030271000000000003
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6321,
+     "usage": {
+      "in": 97,
+      "out": 1425,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00084397
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1671,
+     "usage": {
+      "in": 612,
+      "out": 216,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00027871000000000005
+    }
+   ],
+   "usd": 0.00333456,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Eichelschauer",
+    "goal": "Weiche den fallenden Eicheln 40 Sekunden lang aus. Drei Leben.",
+    "mode": "realtime",
+    "players": 1,
+    "bg": "green",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 900,
+     "top": "open",
+     "bottom": "wall",
+     "left": "wall",
+     "right": "wall",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "hoernchen",
+      "look": "emoji",
+      "emoji": "🐿️",
+      "text": "",
+      "color": "ink",
+      "w": 100,
+      "h": 100,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "lr",
+      "power": 1100,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "eichel",
+      "look": "emoji",
+      "emoji": "🌰",
+      "text": "",
+      "color": "muted",
+      "w": 70,
+      "h": 70,
+      "gravity": true,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     }
+    ],
+    "start": [
+     {
+      "thing": "hoernchen",
+      "x": 500,
+      "y": 1500,
+      "seat": 0,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     }
+    ],
+    "end": {
+     "time": 40,
+     "score": 0,
+     "lives": 3,
+     "win": "survive"
+    },
+    "bot": {
+     "kind": "dodge",
+     "thing": "hoernchen",
+     "target": "eichel"
+    },
+    "spawn": [
+     {
+      "thing": "eichel",
+      "every": 700,
+      "after": 1000,
+      "x": 500,
+      "y": -40,
+      "xr": 460,
+      "yr": 0,
+      "gap": 0,
+      "max": 12
+     }
+    ],
+    "rules": [
+     {
+      "when": "touch",
+      "a": "hoernchen",
+      "b": "eichel",
+      "n": 0,
+      "do": [
+       {
+        "act": "life",
+        "on": "seat0",
+        "n": -1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "every",
+      "a": "eichel",
+      "b": "eichel",
+      "n": 1000,
+      "do": [
+       {
+        "act": "score",
+        "on": "seat0",
+        "n": 1,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "d13",
+   "split": "dev",
+   "satz": "Mit einem Netz Schmetterlinge fangen",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "rule:touch"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "kaputt"
+    },
+    "reason": "bau_kaputt",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Flugspiel: Tippe zum Flattern und fliege durch Lücken"
+    }
+   },
+   "error": "",
+   "ms": 30285,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1773,
+     "usage": {
+      "in": 38,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.000047419999999999997
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 7027,
+     "usage": {
+      "in": 91,
+      "out": 1600,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00093087
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1515,
+     "usage": {
+      "in": 648,
+      "out": 160,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00025431
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 7930,
+     "usage": {
+      "in": 91,
+      "out": 1697,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00097937
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1500,
+     "usage": {
+      "in": 653,
+      "out": 238,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00029381
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6145,
+     "usage": {
+      "in": 91,
+      "out": 1299,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00078037
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4393,
+     "usage": {
+      "in": 617,
+      "out": 818,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.0005802100000000001
+    }
+   ],
+   "usd": 0.0038663599999999992,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Schmetterlingsnetz",
+    "goal": "Fang die Schmetterlinge mit dem Netz. Sie flattern schnell, sei aufmerksam. Fang 12 Stueck.",
+    "mode": "realtime",
+    "players": 1,
+    "bg": "sky",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 0,
+     "top": "wall",
+     "bottom": "wall",
+     "left": "wall",
+     "right": "wall",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "netz",
+      "look": "box",
+      "emoji": "",
+      "text": "",
+      "color": "ink",
+      "w": 180,
+      "h": 40,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "drag",
+      "power": 1500,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "schmetterling",
+      "look": "emoji",
+      "emoji": "🦋",
+      "text": "",
+      "color": "white",
+      "w": 90,
+      "h": 90,
+      "gravity": false,
+      "solid": false,
+      "bounce": "walls",
+      "vx": 180,
+      "vy": 120,
+      "spread": 120,
+      "control": "none",
+      "power": 200,
+      "ai": "zigzag",
+      "life": 0,
+      "trail": 0
+     }
+    ],
+    "start": [
+     {
+      "thing": "netz",
+      "x": 500,
+      "y": 1480,
+      "seat": 0,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     }
+    ],
+    "end": {
+     "time": 60,
+     "score": 12,
+     "lives": 3,
+     "win": "score"
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "netz",
+     "target": "schmetterling"
+    },
+    "spawn": [
+     {
+      "thing": "schmetterling",
+      "every": 1200,
+      "after": 800,
+      "x": 500,
+      "y": 300,
+      "xr": 400,
+      "yr": 200,
+      "gap": 0,
+      "max": 4
+     }
+    ],
+    "rules": [
+     {
+      "when": "touch",
+      "a": "netz",
+      "b": "schmetterling",
+      "n": 0,
+      "do": [
+       {
+        "act": "score",
+        "on": "seat0",
+        "n": 1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "d14",
+   "split": "dev",
+   "satz": "Ein Drache fliegt durch Wolkenlücken",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "control:flap"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "control:flap": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Drachenwolken",
+   "ziel": "Tippe zum Flattern und fliege durch 15 Wolkenluecken.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 12573,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 843,
+     "usage": {
+      "in": 39,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00004752
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6314,
+     "usage": {
+      "in": 92,
+      "out": 1103,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00068247
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4086,
+     "usage": {
+      "in": 587,
+      "out": 718,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.0005272100000000001
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1083,
+     "usage": {
+      "in": 72,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005082
+    }
+   ],
+   "usd": 0.00130802,
+   "spiel": {
+    "title": "Drachenwolken",
+    "goal": "Tippe zum Flattern und fliege durch 15 Wolkenluecken.",
+    "bg": "sky",
+    "world": {
+     "gravity": 2600,
+     "bottom": "open",
+     "left": "open",
+     "right": "open"
+    },
+    "things": [
+     {
+      "id": "drache",
+      "look": "emoji",
+      "emoji": "🐉",
+      "color": "ink",
+      "w": 110,
+      "h": 110,
+      "gravity": true,
+      "control": "flap",
+      "power": 900
+     },
+     {
+      "id": "wolke",
+      "look": "emoji",
+      "emoji": "☁️",
+      "color": "white",
+      "w": 150,
+      "h": 200,
+      "vx": -280
+     }
+    ],
+    "start": [
+     {
+      "thing": "drache",
+      "x": 300,
+      "y": 760,
+      "seat": 0
+     }
+    ],
+    "spawn": [
+     {
+      "thing": "wolke",
+      "every": 1650,
+      "after": 900,
+      "x": 1100,
+      "y": 800,
+      "yr": 330,
+      "gap": 440,
+      "max": 6
+     }
+    ],
+    "rules": [
+     {
+      "a": "drache",
+      "b": "wolke",
+      "do": [
+       {
+        "act": "life",
+        "n": -1
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "drache",
+      "b": "bottom",
+      "do": [
+       {
+        "act": "life",
+        "n": -1
+       }
+      ]
+     },
+     {
+      "when": "pass",
+      "a": "drache",
+      "b": "wolke",
+      "do": [
+       {
+        "act": "score",
+        "on": "a",
+        "n": 1,
+        "thing": ""
+       }
+      ]
+     }
+    ],
+    "end": {
+     "score": 15,
+     "lives": 1
+    },
+    "bot": {
+     "kind": "flap",
+     "thing": "drache",
+     "target": "wolke"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d15",
+   "split": "dev",
+   "satz": "Zu zweit: wer tippt zuerst 20 Sterne",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "players:2",
+     "control:tap"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "players:2": true,
+     "control:tap": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Sternduell",
+   "ziel": "Zu zweit: Wer zuerst 20 Sterne antippt, gewinnt. Daneben tippen kostet einen Punkt.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 11296,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1022,
+     "usage": {
+      "in": 124,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006152
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 4621,
+     "usage": {
+      "in": 95,
+      "out": 917,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00058977
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4301,
+     "usage": {
+      "in": 453,
+      "out": 770,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.0005398099999999999
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 958,
+     "usage": {
+      "in": 82,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005182
+    }
+   ],
+   "usd": 0.00124292,
+   "spiel": {
+    "title": "Sternduell",
+    "goal": "Zu zweit: Wer zuerst 20 Sterne antippt, gewinnt. Daneben tippen kostet einen Punkt.",
+    "players": 2,
+    "bg": "violet",
+    "things": [
+     {
+      "id": "stern",
+      "look": "emoji",
+      "emoji": "⭐",
+      "w": 170,
+      "h": 170,
+      "control": "tap",
+      "life": 1200
+     }
+    ],
+    "spawn": [
+     {
+      "thing": "stern",
+      "every": 700,
+      "after": 700,
+      "x": 500,
+      "y": 800,
+      "xr": 380,
+      "yr": 620,
+      "max": 2
+     }
+    ],
+    "rules": [
+     {
+      "when": "tap",
+      "a": "stern",
+      "do": [
+       {
+        "on": "actor"
+       },
+       {
+        "act": "destroy",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "miss",
+      "do": [
+       {
+        "on": "actor",
+        "n": -1
+       }
+      ]
+     }
+    ],
+    "end": {
+     "time": 60,
+     "score": 20
+    },
+    "bot": {
+     "kind": "tap",
+     "target": "stern"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d16",
+   "split": "dev",
+   "satz": "Ein Käfer läuft über den Tisch und weicht Fliegenklatschen aus",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "danger"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "kaputt"
+    },
+    "reason": "bau_kaputt",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Ziegelspiel: Lenke den Ball und räume alle Ziegel ab"
+    }
+   },
+   "error": "",
+   "ms": 43810,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1381,
+     "usage": {
+      "in": 50,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00004862
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 8196,
+     "usage": {
+      "in": 103,
+      "out": 1712,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00098807
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 5768,
+     "usage": {
+      "in": 667,
+      "out": 1114,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.0007332100000000001
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 9842,
+     "usage": {
+      "in": 103,
+      "out": 2109,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0011865699999999999
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 5801,
+     "usage": {
+      "in": 665,
+      "out": 917,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00063451
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 7181,
+     "usage": {
+      "in": 103,
+      "out": 1599,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00093157
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 5105,
+     "usage": {
+      "in": 670,
+      "out": 962,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00065751
+    }
+   ],
+   "usd": 0.00518006,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Käferlauf",
+    "goal": "Lauf über den Tisch und weiche den roten Klatschen aus. Drei Leben, 60 Sekunden.",
+    "mode": "realtime",
+    "players": 1,
+    "bg": "muted",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 0,
+     "top": "wall",
+     "bottom": "wall",
+     "left": "wall",
+     "right": "wall",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "kaefer",
+      "look": "emoji",
+      "emoji": "🪲",
+      "text": "",
+      "color": "ink",
+      "w": 90,
+      "h": 90,
+      "gravity": false,
+      "solid": false,
+      "bounce": "walls",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "move",
+      "power": 500,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "klatsche",
+      "look": "box",
+      "emoji": "",
+      "text": "",
+      "color": "red",
+      "w": 220,
+      "h": 60,
+      "gravity": false,
+      "solid": false,
+      "bounce": "walls",
+      "vx": 220,
+      "vy": 0,
+      "spread": 0,
+      "control": "none",
+      "power": 0,
+      "ai": "patrol",
+      "life": 0,
+      "trail": 0
+     }
+    ],
+    "start": [
+     {
+      "thing": "kaefer",
+      "x": 100,
+      "y": 1400,
+      "seat": 0,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     },
+     {
+      "thing": "klatsche",
+      "x": 500,
+      "y": 600,
+      "seat": -1,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     }
+    ],
+    "end": {
+     "time": 60,
+     "score": 0,
+     "lives": 3,
+     "win": "survive"
+    },
+    "bot": {
+     "kind": "dodge",
+     "thing": "kaefer",
+     "target": "klatsche"
+    },
+    "spawn": [
+     {
+      "thing": "klatsche",
+      "every": 5000,
+      "after": 5000,
+      "x": 500,
+      "y": 600,
+      "xr": 400,
+      "yr": 0,
+      "gap": 0,
+      "max": 3
+     }
+    ],
+    "rules": [
+     {
+      "when": "touch",
+      "a": "kaefer",
+      "b": "klatsche",
+      "n": 0,
+      "do": [
+       {
+        "act": "life",
+        "on": "a",
+        "n": -1,
+        "thing": ""
+       },
+       {
+        "act": "reset",
+        "on": "a",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "every",
+      "a": "",
+      "b": "",
+      "n": 1000,
+      "do": [
+       {
+        "act": "score",
+        "on": "seat0",
+        "n": 1,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "d17",
+   "split": "dev",
+   "satz": "Ein Fußball soll ins Tor, zu zweit",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "players:2",
+     "bounce"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "unfair"
+    },
+    "reason": "bau_unfair",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Pingpong zu zweit: Wer zuerst 5 Punkte hat, gewinnt"
+    }
+   },
+   "error": "",
+   "ms": 45588,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1592,
+     "usage": {
+      "in": 39,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00004752
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 8529,
+     "usage": {
+      "in": 92,
+      "out": 1677,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00096947
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4889,
+     "usage": {
+      "in": 700,
+      "out": 970,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00066451
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 9825,
+     "usage": {
+      "in": 92,
+      "out": 1987,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00112447
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 7769,
+     "usage": {
+      "in": 896,
+      "out": 1444,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00092111
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6530,
+     "usage": {
+      "in": 92,
+      "out": 1196,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00072897
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 6395,
+     "usage": {
+      "in": 706,
+      "out": 1008,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00068411
+    }
+   ],
+   "usd": 0.0051401599999999995,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Ball ins Tor",
+    "goal": "Schiebt den Ball mit euren Figuren ins Tor des Gegners. Wer zuerst 5 Treffer hat, gewinnt.",
+    "mode": "realtime",
+    "players": 2,
+    "bg": "green",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 0,
+     "top": "wall",
+     "bottom": "wall",
+     "left": "wall",
+     "right": "wall",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "spieler",
+      "look": "emoji",
+      "emoji": "🏃",
+      "text": "",
+      "color": "white",
+      "w": 100,
+      "h": 100,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "move",
+      "power": 650,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "ball",
+      "look": "emoji",
+      "emoji": "⚽",
+      "text": "",
+      "color": "white",
+      "w": 90,
+      "h": 90,
+      "gravity": false,
+      "solid": false,
+      "bounce": "walls",
+      "vx": 300,
+      "vy": 220,
+      "spread": 120,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     }
+    ],
+    "start": [
+     {
+      "thing": "spieler",
+      "x": 250,
+      "y": 800,
+      "seat": 0,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     },
+     {
+      "thing": "spieler",
+      "x": 750,
+      "y": 800,
+      "seat": 1,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     },
+     {
+      "thing": "ball",
+      "x": 500,
+      "y": 800,
+      "seat": -1,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     }
+    ],
+    "end": {
+     "time": 60,
+     "score": 5,
+     "lives": 0,
+     "win": "score"
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "spieler",
+     "target": "ball"
+    },
+    "spawn": [],
+    "rules": [
+     {
+      "when": "touch",
+      "a": "ball",
+      "b": "spieler",
+      "n": 0,
+      "do": [
+       {
+        "act": "bounce",
+        "on": "a",
+        "n": 0,
+        "thing": ""
+       },
+       {
+        "act": "score",
+        "on": "b",
+        "n": 1,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "d18",
+   "split": "dev",
+   "satz": "Ein Astronaut sammelt Sterne, Meteore kommen von rechts",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "rule:touch"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "kaputt"
+    },
+    "reason": "bau_kaputt",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Flugspiel: Tippe zum Flattern und fliege durch Lücken"
+    }
+   },
+   "error": "",
+   "ms": 36263,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 976,
+     "usage": {
+      "in": 129,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006201999999999999
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 7210,
+     "usage": {
+      "in": 100,
+      "out": 1510,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0008867699999999999
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1946,
+     "usage": {
+      "in": 762,
+      "out": 289,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00033021000000000005
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 9209,
+     "usage": {
+      "in": 100,
+      "out": 1946,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00110477
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 6614,
+     "usage": {
+      "in": 778,
+      "out": 1278,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.0008263099999999999
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 8380,
+     "usage": {
+      "in": 100,
+      "out": 1745,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00100427
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1920,
+     "usage": {
+      "in": 766,
+      "out": 342,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00035711
+    }
+   ],
+   "usd": 0.004571459999999999,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Sternensammler",
+    "goal": "Sammle 15 Sterne und weiche den Meteoren aus, die von rechts kommen.",
+    "mode": "realtime",
+    "players": 1,
+    "bg": "ink",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 0,
+     "top": "wall",
+     "bottom": "wall",
+     "left": "wall",
+     "right": "open",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "astronaut",
+      "look": "emoji",
+      "emoji": "🧑‍🚀",
+      "text": "",
+      "color": "white",
+      "w": 100,
+      "h": 100,
+      "gravity": false,
+      "solid": false,
+      "bounce": "walls",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "move",
+      "power": 600,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "stern",
+      "look": "emoji",
+      "emoji": "⭐",
+      "text": "",
+      "color": "yellow",
+      "w": 80,
+      "h": 80,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "meteor",
+      "look": "emoji",
+      "emoji": "☄️",
+      "text": "",
+      "color": "orange",
+      "w": 90,
+      "h": 90,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": -350,
+      "vy": 0,
+      "spread": 80,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     }
+    ],
+    "start": [
+     {
+      "thing": "astronaut",
+      "x": 200,
+      "y": 800,
+      "seat": 0,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     },
+     {
+      "thing": "stern",
+      "x": 400,
+      "y": 400,
+      "seat": -1,
+      "n": 6,
+      "cols": 3,
+      "dx": 200,
+      "dy": 200
+     }
+    ],
+    "end": {
+     "time": 60,
+     "score": 15,
+     "lives": 3,
+     "win": "score"
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "astronaut",
+     "target": "stern"
+    },
+    "spawn": [
+     {
+      "thing": "meteor",
+      "every": 1200,
+      "after": 1500,
+      "x": 1080,
+      "y": 800,
+      "xr": 0,
+      "yr": 700,
+      "gap": 0,
+      "max": 6
+     },
+     {
+      "thing": "stern",
+      "every": 2500,
+      "after": 1000,
+      "x": 500,
+      "y": 800,
+      "xr": 400,
+      "yr": 600,
+      "gap": 0,
+      "max": 4
+     }
+    ],
+    "rules": [
+     {
+      "when": "touch",
+      "a": "astronaut",
+      "b": "meteor",
+      "n": 0,
+      "do": [
+       {
+        "act": "life",
+        "on": "a",
+        "n": -1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "touch",
+      "a": "astronaut",
+      "b": "stern",
+      "n": 0,
+      "do": [
+       {
+        "act": "score",
+        "on": "a",
+        "n": 1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "meteor",
+      "b": "left",
+      "n": 0,
+      "do": [
+       {
+        "act": "destroy",
+        "on": "a",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "d19",
+   "split": "dev",
+   "satz": "Einen Korb bewegen und Ostereier fangen",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "control:any:lr,drag,move"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "control:any:lr,drag,move": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Osterkorb",
+   "ziel": "Bewege den Korb und fang die Ostereier. Drei Leben, 60 Sekunden.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 12621,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 954,
+     "usage": {
+      "in": 38,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.000047419999999999997
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 5678,
+     "usage": {
+      "in": 91,
+      "out": 1273,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00076737
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4947,
+     "usage": {
+      "in": 590,
+      "out": 904,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00062051
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 918,
+     "usage": {
+      "in": 76,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005122
+    }
+   ],
+   "usd": 0.00148652,
+   "spiel": {
+    "title": "Osterkorb",
+    "goal": "Bewege den Korb und fang die Ostereier. Drei Leben, 60 Sekunden.",
+    "bg": "sky",
+    "world": {
+     "gravity": 700,
+     "top": "open",
+     "bottom": "open"
+    },
+    "things": [
+     {
+      "id": "korb",
+      "look": "emoji",
+      "emoji": "🧺",
+      "color": "paper",
+      "w": 150,
+      "h": 90,
+      "control": "drag",
+      "power": 1600
+     },
+     {
+      "id": "ei",
+      "look": "emoji",
+      "emoji": "🥚",
+      "color": "paper",
+      "w": 70,
+      "h": 70,
+      "gravity": true,
+      "spread": 80
+     }
+    ],
+    "start": [
+     {
+      "thing": "korb",
+      "x": 500,
+      "y": 1500,
+      "seat": 0
+     }
+    ],
+    "spawn": [
+     {
+      "thing": "ei",
+      "every": 900,
+      "after": 600,
+      "x": 500,
+      "y": -40,
+      "xr": 440,
+      "max": 4
+     }
+    ],
+    "rules": [
+     {
+      "a": "korb",
+      "b": "ei",
+      "do": [
+       {
+        "act": "score",
+        "on": "a",
+        "n": 1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "ei",
+      "b": "bottom",
+      "do": [
+       {
+        "act": "life",
+        "on": "seat0",
+        "n": -1
+       }
+      ]
+     }
+    ],
+    "end": {
+     "time": 60,
+     "score": 15,
+     "lives": 3
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "korb",
+     "target": "ei"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d20",
+   "split": "dev",
+   "satz": "Ein Vogel flattert, Wind macht es schwerer",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "control:flap"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "trivial"
+    },
+    "reason": "bau_trivial",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Flugspiel: Tippe zum Flattern und fliege durch Lücken"
+    }
+   },
+   "error": "",
+   "ms": 32516,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1736,
+     "usage": {
+      "in": 122,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006132
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6396,
+     "usage": {
+      "in": 93,
+      "out": 1308,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0007850699999999999
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 6162,
+     "usage": {
+      "in": 497,
+      "out": 1018,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00066821
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 7017,
+     "usage": {
+      "in": 93,
+      "out": 1502,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00088207
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1727,
+     "usage": {
+      "in": 628,
+      "out": 291,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00031781
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 7163,
+     "usage": {
+      "in": 93,
+      "out": 1638,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0009500699999999999
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1552,
+     "usage": {
+      "in": 633,
+      "out": 240,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00029281
+    }
+   ],
+   "usd": 0.00395736,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Gegenwind",
+    "goal": "Flattere durch den Wind und bleib 60 Sekunden in der Luft.",
+    "mode": "realtime",
+    "players": 1,
+    "bg": "sky",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 2600,
+     "top": "wall",
+     "bottom": "open",
+     "left": "open",
+     "right": "open",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "vogel",
+      "look": "emoji",
+      "emoji": "🐤",
+      "text": "",
+      "color": "yellow",
+      "w": 84,
+      "h": 84,
+      "gravity": true,
+      "solid": false,
+      "bounce": "none",
+      "vx": -120,
+      "vy": 0,
+      "spread": 0,
+      "control": "flap",
+      "power": 880,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "wind",
+      "look": "emoji",
+      "emoji": "💨",
+      "text": "",
+      "color": "white",
+      "w": 120,
+      "h": 80,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": -200,
+      "vy": 0,
+      "spread": 0,
+      "control": "none",
+      "power": 0,
+      "ai": "patrol",
+      "life": 0,
+      "trail": 0
+     }
+    ],
+    "start": [
+     {
+      "thing": "vogel",
+      "x": 300,
+      "y": 760,
+      "seat": 0,
+      "n": 1,
+      "cols": 0,
+      "dx": 0,
+      "dy": 0
+     },
+     {
+      "thing": "wind",
+      "x": 800,
+      "y": 400,
+      "seat": -1,
+      "n": 1,
+      "cols": 0,
+      "dx": 0,
+      "dy": 0
+     }
+    ],
+    "end": {
+     "time": 60,
+     "score": 0,
+     "lives": 3,
+     "win": "survive"
+    },
+    "bot": {
+     "kind": "none",
+     "thing": "",
+     "target": ""
+    },
+    "spawn": [
+     {
+      "thing": "wind",
+      "every": 1400,
+      "after": 800,
+      "x": 1100,
+      "y": 700,
+      "xr": 0,
+      "yr": 700,
+      "gap": 0,
+      "max": 4
+     }
+    ],
+    "rules": [
+     {
+      "when": "touch",
+      "a": "vogel",
+      "b": "wind",
+      "n": 0,
+      "do": [
+       {
+        "act": "life",
+        "on": "a",
+        "n": -1,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "vogel",
+      "b": "bottom",
+      "n": 0,
+      "do": [
+       {
+        "act": "life",
+        "on": "a",
+        "n": -1,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "every",
+      "a": "vogel",
+      "b": "vogel",
+      "n": 1000,
+      "do": [
+       {
+        "act": "score",
+        "on": "seat0",
+        "n": 1,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "d21",
+   "split": "dev",
+   "satz": "Glühwürmchen antippen, sie leuchten nur kurz",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "control:tap",
+     "life"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "control:tap": true,
+     "life": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Leuchtpunkte",
+   "ziel": "Tippe die Glühwürmchen, bevor ihr Licht erlischt. Daneben kostet einen Punkt.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 12501,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1518,
+     "usage": {
+      "in": 124,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006152
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6223,
+     "usage": {
+      "in": 95,
+      "out": 1227,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00074477
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 3574,
+     "usage": {
+      "in": 458,
+      "out": 698,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00050431
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 943,
+     "usage": {
+      "in": 83,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.000051920000000000004
+    }
+   ],
+   "usd": 0.0013625199999999999,
+   "spiel": {
+    "title": "Leuchtpunkte",
+    "goal": "Tippe die Glühwürmchen, bevor ihr Licht erlischt. Daneben kostet einen Punkt.",
+    "things": [
+     {
+      "id": "gluehwurm",
+      "look": "emoji",
+      "emoji": "✨",
+      "w": 150,
+      "h": 150,
+      "control": "tap",
+      "life": 1400
+     }
+    ],
+    "spawn": [
+     {
+      "thing": "gluehwurm",
+      "every": 700,
+      "after": 500,
+      "x": 500,
+      "y": 800,
+      "xr": 380,
+      "yr": 620,
+      "max": 3
+     }
+    ],
+    "rules": [
+     {
+      "when": "tap",
+      "a": "gluehwurm",
+      "do": [
+       {
+        "on": "actor"
+       },
+       {
+        "act": "destroy",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "miss",
+      "do": [
+       {
+        "on": "actor",
+        "n": -1
+       }
+      ]
+     }
+    ],
+    "end": {
+     "time": 30,
+     "score": 15
+    },
+    "bot": {
+     "kind": "tap",
+     "target": "gluehwurm"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d22",
+   "split": "dev",
+   "satz": "Ein Roboter weicht Lasern aus, die von oben kommen",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "danger"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "kaputt"
+    },
+    "reason": "bau_kaputt",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Ausweichspiel: Weiche fallenden Steinen 40 Sekunden lang aus"
+    }
+   },
+   "error": "",
+   "ms": 36518,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1694,
+     "usage": {
+      "in": 125,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006162
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 8283,
+     "usage": {
+      "in": 96,
+      "out": 1666,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00096437
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 6063,
+     "usage": {
+      "in": 604,
+      "out": 1122,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.0007309100000000001
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 8417,
+     "usage": {
+      "in": 96,
+      "out": 1697,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00097987
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1503,
+     "usage": {
+      "in": 608,
+      "out": 211,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00027581
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 7260,
+     "usage": {
+      "in": 96,
+      "out": 1336,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00079937
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1508,
+     "usage": {
+      "in": 605,
+      "out": 213,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00027651
+    }
+   ],
+   "usd": 0.00408846,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Lichtregen",
+    "goal": "Weiche den Lichtstrahlen aus, die von oben kommen. 40 Sekunden, drei Leben.",
+    "mode": "realtime",
+    "players": 1,
+    "bg": "ink",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 0,
+     "top": "open",
+     "bottom": "wall",
+     "left": "wall",
+     "right": "wall",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "roboter",
+      "look": "emoji",
+      "emoji": "🤖",
+      "text": "",
+      "color": "white",
+      "w": 100,
+      "h": 100,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "lr",
+      "power": 1000,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "strahl",
+      "look": "box",
+      "emoji": "",
+      "text": "",
+      "color": "yellow",
+      "w": 40,
+      "h": 300,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 500,
+      "spread": 0,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     }
+    ],
+    "start": [
+     {
+      "thing": "roboter",
+      "x": 500,
+      "y": 1450,
+      "seat": 0,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     }
+    ],
+    "end": {
+     "time": 40,
+     "score": 0,
+     "lives": 3,
+     "win": "survive"
+    },
+    "bot": {
+     "kind": "dodge",
+     "thing": "roboter",
+     "target": "strahl"
+    },
+    "spawn": [
+     {
+      "thing": "strahl",
+      "every": 800,
+      "after": 1500,
+      "x": 500,
+      "y": -150,
+      "xr": 440,
+      "yr": 0,
+      "gap": 0,
+      "max": 8
+     }
+    ],
+    "rules": [
+     {
+      "when": "touch",
+      "a": "roboter",
+      "b": "strahl",
+      "n": 0,
+      "do": [
+       {
+        "act": "life",
+        "on": "seat0",
+        "n": -1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "strahl",
+      "b": "bottom",
+      "n": 0,
+      "do": [
+       {
+        "act": "destroy",
+        "on": "a",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "d23",
+   "split": "dev",
+   "satz": "Ein Känguru hüpft über Kakteen",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "control:jump"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "kaputt"
+    },
+    "reason": "bau_kaputt",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Flugspiel: Tippe zum Flattern und fliege durch Lücken"
+    }
+   },
+   "error": "",
+   "ms": 39899,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 848,
+     "usage": {
+      "in": 118,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006092
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 7931,
+     "usage": {
+      "in": 89,
+      "out": 1631,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00094617
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 6056,
+     "usage": {
+      "in": 753,
+      "out": 1000,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00068481
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 9339,
+     "usage": {
+      "in": 89,
+      "out": 2024,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0011426700000000001
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1491,
+     "usage": {
+      "in": 757,
+      "out": 281,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00032571000000000005
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 9077,
+     "usage": {
+      "in": 89,
+      "out": 1949,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0011051700000000002
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 5153,
+     "usage": {
+      "in": 754,
+      "out": 973,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.0006714100000000001
+    }
+   ],
+   "usd": 0.00493686,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Wüstensprung",
+    "goal": "Springe über die Kakteen. 15 geschafft gewinnt, drei Leben.",
+    "mode": "realtime",
+    "players": 1,
+    "bg": "yellow",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 3000,
+     "top": "wall",
+     "bottom": "open",
+     "left": "open",
+     "right": "open",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "kaenguru",
+      "look": "emoji",
+      "emoji": "🦘",
+      "text": "",
+      "color": "ink",
+      "w": 90,
+      "h": 90,
+      "gravity": true,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "jump",
+      "power": 1450,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "boden",
+      "look": "box",
+      "emoji": "",
+      "text": "",
+      "color": "muted",
+      "w": 1000,
+      "h": 80,
+      "gravity": false,
+      "solid": true,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "kaktus",
+      "look": "emoji",
+      "emoji": "🌵",
+      "text": "",
+      "color": "ink",
+      "w": 90,
+      "h": 110,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": -400,
+      "vy": 0,
+      "spread": 0,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     }
+    ],
+    "start": [
+     {
+      "thing": "kaenguru",
+      "x": 250,
+      "y": 1400,
+      "seat": 0,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     },
+     {
+      "thing": "boden",
+      "x": 500,
+      "y": 1560,
+      "seat": -1,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     }
+    ],
+    "end": {
+     "time": 0,
+     "score": 15,
+     "lives": 3,
+     "win": "score"
+    },
+    "bot": {
+     "kind": "jump",
+     "thing": "kaenguru",
+     "target": "kaktus"
+    },
+    "spawn": [
+     {
+      "thing": "kaktus",
+      "every": 1600,
+      "after": 1000,
+      "x": 1060,
+      "y": 1460,
+      "xr": 0,
+      "yr": 0,
+      "gap": 0,
+      "max": 4
+     }
+    ],
+    "rules": [
+     {
+      "when": "touch",
+      "a": "kaenguru",
+      "b": "kaktus",
+      "n": 0,
+      "do": [
+       {
+        "act": "life",
+        "on": "a",
+        "n": -1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "pass",
+      "a": "kaenguru",
+      "b": "kaktus",
+      "n": 0,
+      "do": [
+       {
+        "act": "score",
+        "on": "a",
+        "n": 1,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "kaktus",
+      "b": "left",
+      "n": 0,
+      "do": [
+       {
+        "act": "destroy",
+        "on": "a",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "d24",
+   "split": "dev",
+   "satz": "Eine Maus sammelt Käse, die Katze jagt sie",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "ai:chase"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "ai:chase": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Mausjagd",
+   "ziel": "Sammle 12 Käse. Die Katze jagt dich. Berührt sie dich, verlierst du ein Leben.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 12542,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 2073,
+     "usage": {
+      "in": 124,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006152
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 7829,
+     "usage": {
+      "in": 95,
+      "out": 1840,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00105127
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1410,
+     "usage": {
+      "in": 807,
+      "out": 230,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00030521000000000004
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 957,
+     "usage": {
+      "in": 90,
+      "out": 26,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005412
+    }
+   ],
+   "usd": 0.00147212,
+   "spiel": {
+    "title": "Mausjagd",
+    "goal": "Sammle 12 Käse. Die Katze jagt dich. Berührt sie dich, verlierst du ein Leben.",
+    "bg": "green",
+    "things": [
+     {
+      "id": "maus",
+      "look": "emoji",
+      "emoji": "🐭",
+      "color": "white",
+      "w": 90,
+      "h": 90,
+      "control": "move",
+      "power": 700
+     },
+     {
+      "id": "katze",
+      "look": "emoji",
+      "emoji": "🐱",
+      "color": "white",
+      "w": 100,
+      "h": 100,
+      "power": 280,
+      "ai": "chase"
+     },
+     {
+      "id": "kaese",
+      "look": "emoji",
+      "emoji": "🧀",
+      "color": "white",
+      "w": 70,
+      "h": 70
+     }
+    ],
+    "start": [
+     {
+      "thing": "maus",
+      "x": 500,
+      "y": 1300,
+      "seat": 0
+     },
+     {
+      "thing": "katze",
+      "x": 500,
+      "y": 200
+     },
+     {
+      "thing": "kaese",
+      "x": 200,
+      "y": 700,
+      "n": 6,
+      "cols": 3,
+      "dx": 200,
+      "dy": 200
+     }
+    ],
+    "spawn": [
+     {
+      "thing": "kaese",
+      "every": 2500,
+      "after": 2000,
+      "x": 500,
+      "y": 800,
+      "xr": 400,
+      "yr": 650,
+      "max": 3
+     }
+    ],
+    "rules": [
+     {
+      "a": "maus",
+      "b": "kaese",
+      "do": [
+       {
+        "act": "score",
+        "on": "a",
+        "n": 1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "a": "maus",
+      "b": "katze",
+      "do": [
+       {
+        "act": "life",
+        "n": -1
+       },
+       {
+        "act": "reset",
+        "on": "b",
+        "n": 0
+       }
+      ]
+     }
+    ],
+    "end": {
+     "time": 90,
+     "score": 12,
+     "lives": 3
+    },
+    "bot": {
+     "kind": "seek",
+     "thing": "maus",
+     "target": "kaese"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d25",
+   "split": "dev",
+   "satz": "Schneebälle mit einem Schlitten ausweichen",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "danger"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "danger": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Schneeflucht",
+   "ziel": "Weiche den fallenden Schneebällen mit dem Schlitten aus. Drei Leben, 40 Sekunden.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit",
+    "bau:repariert"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 31401,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1104,
+     "usage": {
+      "in": 39,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00004752
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 9549,
+     "usage": {
+      "in": 92,
+      "out": 1643,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0009524700000000001
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 7322,
+     "usage": {
+      "in": 605,
+      "out": 1313,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00082651
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6942,
+     "usage": {
+      "in": 92,
+      "out": 1114,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00068797
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4466,
+     "usage": {
+      "in": 614,
+      "out": 797,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.0005694100000000001
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1399,
+     "usage": {
+      "in": 87,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005232
+    }
+   ],
+   "usd": 0.0031362,
+   "spiel": {
+    "title": "Schneeflucht",
+    "goal": "Weiche den fallenden Schneebällen mit dem Schlitten aus. Drei Leben, 40 Sekunden.",
+    "bg": "sky",
+    "world": {
+     "gravity": 700,
+     "top": "open",
+     "bottom": "open"
+    },
+    "things": [
+     {
+      "id": "schlitten",
+      "look": "emoji",
+      "emoji": "🛷",
+      "color": "ink",
+      "w": 130,
+      "h": 90,
+      "control": "lr",
+      "power": 1100
+     },
+     {
+      "id": "schneeball",
+      "look": "emoji",
+      "emoji": "⚪",
+      "color": "paper",
+      "w": 70,
+      "h": 70,
+      "gravity": true
+     }
+    ],
+    "start": [
+     {
+      "thing": "schlitten",
+      "x": 500,
+      "y": 1450,
+      "seat": 0
+     }
+    ],
+    "spawn": [
+     {
+      "thing": "schneeball",
+      "every": 700,
+      "after": 1500,
+      "x": 500,
+      "y": -40,
+      "xr": 460,
+      "max": 10
+     }
+    ],
+    "rules": [
+     {
+      "a": "schlitten",
+      "b": "schneeball",
+      "do": [
+       {
+        "act": "life",
+        "on": "seat0",
+        "n": -1
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "schneeball",
+      "b": "bottom",
+      "do": [
+       {
+        "act": "destroy",
+        "n": 0
+       },
+       {
+        "on": "seat0"
+       }
+      ]
+     }
+    ],
+    "end": {
+     "time": 40,
+     "lives": 3,
+     "win": "survive"
+    },
+    "bot": {
+     "kind": "dodge",
+     "thing": "schlitten",
+     "target": "schneeball"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d26",
+   "split": "dev",
+   "satz": "Ein Boot fährt links und rechts und sammelt Flaschenpost",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "control:any:lr,drag,move"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "nicht_gewinnbar"
+    },
+    "reason": "bau_nicht_gewinnbar",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Ziegelspiel: Lenke den Ball und räume alle Ziegel ab"
+    }
+   },
+   "error": "",
+   "ms": 44231,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1084,
+     "usage": {
+      "in": 127,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006182
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 7447,
+     "usage": {
+      "in": 98,
+      "out": 1720,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00099157
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4857,
+     "usage": {
+      "in": 639,
+      "out": 917,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.0006319100000000001
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 11418,
+     "usage": {
+      "in": 98,
+      "out": 2285,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00127407
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 1997,
+     "usage": {
+      "in": 811,
+      "out": 399,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00039011
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 10044,
+     "usage": {
+      "in": 98,
+      "out": 2170,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00121657
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 5777,
+     "usage": {
+      "in": 800,
+      "out": 1092,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00073551
+    }
+   ],
+   "usd": 0.00530156,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Flaschenpost-Fahrt",
+    "goal": "Fahr mit dem Boot links und rechts und sammle 10 Flaschenposten.",
+    "mode": "realtime",
+    "players": 1,
+    "bg": "blue",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 0,
+     "top": "wall",
+     "bottom": "wall",
+     "left": "wall",
+     "right": "wall",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "boot",
+      "look": "emoji",
+      "emoji": "⛵",
+      "text": "",
+      "color": "paper",
+      "w": 110,
+      "h": 90,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "lr",
+      "power": 900,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "post",
+      "look": "emoji",
+      "emoji": "💌",
+      "text": "",
+      "color": "paper",
+      "w": 70,
+      "h": 70,
+      "gravity": false,
+      "solid": false,
+      "bounce": "walls",
+      "vx": 120,
+      "vy": 0,
+      "spread": 40,
+      "control": "none",
+      "power": 0,
+      "ai": "patrol",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "fels",
+      "look": "box",
+      "emoji": "",
+      "text": "",
+      "color": "paper",
+      "w": 160,
+      "h": 60,
+      "gravity": false,
+      "solid": true,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     }
+    ],
+    "start": [
+     {
+      "thing": "boot",
+      "x": 500,
+      "y": 1350,
+      "seat": 0,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     },
+     {
+      "thing": "post",
+      "x": 200,
+      "y": 600,
+      "seat": -1,
+      "n": 3,
+      "cols": 3,
+      "dx": 300,
+      "dy": 0
+     },
+     {
+      "thing": "fels",
+      "x": 500,
+      "y": 900,
+      "seat": -1,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     }
+    ],
+    "end": {
+     "time": 60,
+     "score": 10,
+     "lives": 3,
+     "win": "score"
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "boot",
+     "target": "post"
+    },
+    "spawn": [
+     {
+      "thing": "post",
+      "every": 2500,
+      "after": 1000,
+      "x": 500,
+      "y": 300,
+      "xr": 450,
+      "yr": 0,
+      "gap": 0,
+      "max": 4
+     }
+    ],
+    "rules": [
+     {
+      "when": "touch",
+      "a": "boot",
+      "b": "post",
+      "n": 0,
+      "do": [
+       {
+        "act": "score",
+        "on": "a",
+        "n": 1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "touch",
+      "a": "boot",
+      "b": "fels",
+      "n": 0,
+      "do": [
+       {
+        "act": "life",
+        "on": "a",
+        "n": -1,
+        "thing": ""
+       },
+       {
+        "act": "bounce",
+        "on": "a",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "d27",
+   "split": "dev",
+   "satz": "Zahnbürste putzt Bakterien weg durch Tippen",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "control:tap"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "control:tap": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Zahnputz-Tipp",
+   "ziel": "Tippe die Bakterien, bevor sie verschwinden. Daneben tippen kostet einen Punkt.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 15723,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 993,
+     "usage": {
+      "in": 124,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006152
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 8963,
+     "usage": {
+      "in": 95,
+      "out": 1904,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00108327
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4352,
+     "usage": {
+      "in": 669,
+      "out": 811,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00058191
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1118,
+     "usage": {
+      "in": 91,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005272
+    }
+   ],
+   "usd": 0.0017794199999999999,
+   "spiel": {
+    "title": "Zahnputz-Tipp",
+    "goal": "Tippe die Bakterien, bevor sie verschwinden. Daneben tippen kostet einen Punkt.",
+    "bg": "sky",
+    "things": [
+     {
+      "id": "bakterie",
+      "look": "emoji",
+      "emoji": "🦠",
+      "color": "ink",
+      "w": 120,
+      "h": 120,
+      "control": "tap",
+      "life": 1800
+     },
+     {
+      "id": "zahnbuerste",
+      "look": "emoji",
+      "emoji": "🪥",
+      "color": "ink",
+      "w": 110,
+      "h": 110
+     }
+    ],
+    "start": [
+     {
+      "thing": "bakterie",
+      "x": 150,
+      "y": 300,
+      "n": 12,
+      "cols": 4,
+      "dx": 220,
+      "dy": 300
+     },
+     {
+      "thing": "zahnbuerste",
+      "x": 500,
+      "y": 1350,
+      "seat": 0
+     }
+    ],
+    "spawn": [
+     {
+      "thing": "bakterie",
+      "every": 1300,
+      "after": 700,
+      "x": 500,
+      "y": 800,
+      "xr": 360,
+      "yr": 600,
+      "max": 6
+     }
+    ],
+    "rules": [
+     {
+      "when": "tap",
+      "a": "bakterie",
+      "do": [
+       {
+        "on": "actor"
+       },
+       {
+        "act": "destroy",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "miss",
+      "do": [
+       {
+        "on": "actor",
+        "n": -1
+       }
+      ]
+     }
+    ],
+    "end": {
+     "time": 40,
+     "score": 20
+    },
+    "bot": {
+     "kind": "tap",
+     "target": "bakterie"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d28",
+   "split": "dev",
+   "satz": "Zu zweit Eishockey mit einem Puck",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "players:2"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "players:2": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Eispuck",
+   "ziel": "Schiebe den Puck ins Tor des Gegners. Wer zuerst 5 Tore hat, gewinnt.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 13088,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 962,
+     "usage": {
+      "in": 119,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.000061019999999999995
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6078,
+     "usage": {
+      "in": 90,
+      "out": 1351,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.00080627
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4362,
+     "usage": {
+      "in": 693,
+      "out": 773,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00056531
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 939,
+     "usage": {
+      "in": 70,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005062
+    }
+   ],
+   "usd": 0.00148322,
+   "spiel": {
+    "title": "Eispuck",
+    "goal": "Schiebe den Puck ins Tor des Gegners. Wer zuerst 5 Tore hat, gewinnt.",
+    "players": 2,
+    "bg": "white",
+    "world": {
+     "top": "open",
+     "bottom": "open",
+     "flip": true
+    },
+    "things": [
+     {
+      "id": "schlaeger",
+      "color": "red",
+      "w": 220,
+      "h": 30,
+      "control": "drag",
+      "power": 1500
+     },
+     {
+      "id": "puck",
+      "look": "circle",
+      "color": "ink",
+      "w": 50,
+      "h": 50,
+      "bounce": "walls",
+      "vx": 300,
+      "vy": 500,
+      "spread": 200
+     }
+    ],
+    "start": [
+     {
+      "thing": "schlaeger",
+      "x": 500,
+      "y": 1480,
+      "seat": 0
+     },
+     {
+      "thing": "schlaeger",
+      "x": 500,
+      "y": 120,
+      "seat": 1
+     },
+     {
+      "thing": "puck",
+      "x": 500,
+      "y": 800
+     }
+    ],
+    "rules": [
+     {
+      "a": "puck",
+      "b": "schlaeger",
+      "do": [
+       {
+        "act": "bounce",
+        "n": 0
+       },
+       {
+        "act": "speed",
+        "n": 4
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "puck",
+      "b": "top",
+      "do": [
+       {
+        "on": "seat0"
+       },
+       {
+        "act": "reset",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "puck",
+      "b": "bottom",
+      "do": [
+       {
+        "on": "seat1"
+       },
+       {
+        "act": "reset",
+        "n": 0
+       }
+      ]
+     }
+    ],
+    "end": {
+     "time": 120,
+     "score": 5
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "schlaeger",
+     "target": "puck"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d29",
+   "split": "dev",
+   "satz": "Ein Wal springt durch Ringe",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "rule:any:pass,touch"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "rule:any:pass,touch": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Ringsprung",
+   "ziel": "Tippe, damit der Wal durch die Ringe springt. 10 Ringe schaffen.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 13675,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 828,
+     "usage": {
+      "in": 33,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00004691999999999999
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 4777,
+     "usage": {
+      "in": 86,
+      "out": 929,
+      "cacheRead": 12177,
+      "cacheWrite": 0
+     },
+     "usd": 0.0005948700000000001
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 5931,
+     "usage": {
+      "in": 580,
+      "out": 1177,
+      "cacheRead": 10951,
+      "cacheWrite": 0
+     },
+     "usd": 0.00075601
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1777,
+     "usage": {
+      "in": 69,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005052
+    }
+   ],
+   "usd": 0.0014483200000000001,
+   "spiel": {
+    "title": "Ringsprung",
+    "goal": "Tippe, damit der Wal durch die Ringe springt. 10 Ringe schaffen.",
+    "bg": "blue",
+    "world": {
+     "gravity": 2600,
+     "bottom": "open",
+     "left": "open",
+     "right": "open"
+    },
+    "things": [
+     {
+      "id": "wal",
+      "look": "emoji",
+      "emoji": "🐳",
+      "color": "white",
+      "w": 110,
+      "h": 90,
+      "gravity": true,
+      "control": "flap",
+      "power": 900
+     },
+     {
+      "id": "ring",
+      "look": "circle",
+      "w": 150,
+      "h": 150,
+      "vx": -280
+     }
+    ],
+    "start": [
+     {
+      "thing": "wal",
+      "x": 300,
+      "y": 760,
+      "seat": 0
+     }
+    ],
+    "spawn": [
+     {
+      "thing": "ring",
+      "every": 1800,
+      "after": 900,
+      "x": 1100,
+      "y": 800,
+      "yr": 330,
+      "max": 4
+     }
+    ],
+    "rules": [
+     {
+      "a": "wal",
+      "b": "ring",
+      "do": [
+       {
+        "act": "life",
+        "n": -1
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "pass",
+      "a": "wal",
+      "b": "ring",
+      "do": [
+       {
+        "act": "score",
+        "on": "a",
+        "n": 1,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "wal",
+      "b": "bottom",
+      "do": [
+       {
+        "act": "life",
+        "n": -1
+       },
+       {
+        "act": "reset",
+        "n": 0
+       }
+      ]
+     }
+    ],
+    "end": {
+     "score": 10,
+     "lives": 1
+    },
+    "bot": {
+     "kind": "flap",
+     "thing": "wal",
+     "target": "ring"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d30",
+   "split": "dev",
+   "satz": "Eine Schnecke sammelt Salatblätter im Raster",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "grid"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "grid": false
+    },
+    "passt": false,
+    "takt": "zug",
+    "taktOk": false
+   },
+   "titel": "Schneckenernte",
+   "ziel": "Finde die Paare im Beet. Wer mehr Paare hat, gewinnt.",
+   "note": [
+    "engine:bau",
+    "takt:zug"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 7032,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1266,
+     "usage": {
+      "in": 123,
+      "out": 30,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005992
+    },
+    {
+     "name": "card_bau_zug",
+     "stop": "end_turn",
+     "ms": 4731,
+     "usage": {
+      "in": 59,
+      "out": 859,
+      "cacheRead": 0,
+      "cacheWrite": 12186
+     },
+     "usd": 0.0028726000000000003
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1003,
+     "usage": {
+      "in": 98,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005342
+    }
+   ],
+   "usd": 0.0029859400000000007,
+   "spiel": {
+    "title": "Schneckenernte",
+    "goal": "Finde die Paare im Beet. Wer mehr Paare hat, gewinnt.",
+    "mode": "turn",
+    "players": 2,
+    "bg": "paper",
+    "turn": {
+     "kind": "flip",
+     "cols": 4,
+     "rows": 3,
+     "pairs": [
+      "🥬",
+      "🥕",
+      "🥒",
+      "🍅",
+      "🌽",
+      "🍄"
+     ],
+     "again": true
+    },
+    "v": 1
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d31",
+   "split": "dev",
+   "satz": "Memory mit Musikinstrumenten",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "zug",
+    "merkmale": [
+     "turn:flip"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "turn:flip": true
+    },
+    "passt": true,
+    "takt": "zug",
+    "taktOk": true
+   },
+   "titel": "Instrumenten-Memory",
+   "ziel": "Finde alle Paare. Wer mehr Paare hat, gewinnt.",
+   "note": [
+    "engine:bau",
+    "takt:zug"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 4217,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 882,
+     "usage": {
+      "in": 33,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00004691999999999999
+    },
+    {
+     "name": "card_bau_zug",
+     "stop": "end_turn",
+     "ms": 2433,
+     "usage": {
+      "in": 51,
+      "out": 228,
+      "cacheRead": 12186,
+      "cacheWrite": 0
+     },
+     "usd": 0.00024095999999999997
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 875,
+     "usage": {
+      "in": 113,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005492
+    }
+   ],
+   "usd": 0.0003428,
+   "spiel": {
+    "title": "Instrumenten-Memory",
+    "goal": "Finde alle Paare. Wer mehr Paare hat, gewinnt.",
+    "mode": "turn",
+    "players": 2,
+    "bg": "paper",
+    "turn": {
+     "kind": "flip",
+     "cols": 4,
+     "rows": 4,
+     "pairs": [
+      "🎹",
+      "🎸",
+      "🥁",
+      "🎺",
+      "🎻",
+      "🪗",
+      "🎷",
+      "🪕"
+     ],
+     "again": true
+    },
+    "v": 1
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d32",
+   "split": "dev",
+   "satz": "Tic Tac Toe mit Pizza und Burger",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "zug",
+    "merkmale": [
+     "turn:place",
+     "line:3"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "turn:place": true,
+     "line:3": true
+    },
+    "passt": true,
+    "takt": "zug",
+    "taktOk": true
+   },
+   "titel": "Pizza gegen Burger",
+   "ziel": "Setze abwechselnd. Drei in einer Reihe gewinnen.",
+   "note": [
+    "engine:bau",
+    "takt:zug"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 4123,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 868,
+     "usage": {
+      "in": 38,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.000047419999999999997
+    },
+    {
+     "name": "card_bau_zug",
+     "stop": "end_turn",
+     "ms": 2246,
+     "usage": {
+      "in": 56,
+      "out": 418,
+      "cacheRead": 12186,
+      "cacheWrite": 0
+     },
+     "usd": 0.00033645999999999996
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 929,
+     "usage": {
+      "in": 76,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005122
+    }
+   ],
+   "usd": 0.00043509999999999995,
+   "spiel": {
+    "title": "Pizza gegen Burger",
+    "goal": "Setze abwechselnd. Drei in einer Reihe gewinnen.",
+    "mode": "turn",
+    "players": 2,
+    "bg": "paper",
+    "things": [
+     {
+      "id": "pizza",
+      "look": "emoji",
+      "emoji": "🍕",
+      "color": "ink",
+      "w": 100,
+      "h": 100
+     },
+     {
+      "id": "burger",
+      "look": "emoji",
+      "emoji": "🍔",
+      "color": "ink",
+      "w": 100,
+      "h": 100
+     }
+    ],
+    "turn": {
+     "kind": "place",
+     "cols": 3,
+     "rows": 3,
+     "pieces": [
+      "pizza",
+      "burger"
+     ],
+     "line": 3
+    },
+    "v": 1
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d33",
+   "split": "dev",
+   "satz": "Vier gewinnt mit Sonnen und Monden",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "zug",
+    "merkmale": [
+     "turn:place",
+     "drop"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "turn:place": true,
+     "drop": true
+    },
+    "passt": true,
+    "takt": "zug",
+    "taktOk": true
+   },
+   "titel": "Sonne gegen Mond",
+   "ziel": "Setze abwechselnd. Vier in einer Reihe gewinnen.",
+   "note": [
+    "engine:bau",
+    "takt:zug"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 6082,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 960,
+     "usage": {
+      "in": 38,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.000047419999999999997
+    },
+    {
+     "name": "card_bau_zug",
+     "stop": "end_turn",
+     "ms": 3304,
+     "usage": {
+      "in": 56,
+      "out": 419,
+      "cacheRead": 12186,
+      "cacheWrite": 0
+     },
+     "usd": 0.00033695999999999997
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1089,
+     "usage": {
+      "in": 76,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005122
+    }
+   ],
+   "usd": 0.00043559999999999996,
+   "spiel": {
+    "title": "Sonne gegen Mond",
+    "goal": "Setze abwechselnd. Vier in einer Reihe gewinnen.",
+    "mode": "turn",
+    "players": 2,
+    "bg": "paper",
+    "things": [
+     {
+      "id": "sonne",
+      "look": "emoji",
+      "emoji": "☀️",
+      "w": 100,
+      "h": 100
+     },
+     {
+      "id": "mond",
+      "look": "emoji",
+      "emoji": "🌙",
+      "color": "violet",
+      "w": 100,
+      "h": 100
+     }
+    ],
+    "turn": {
+     "kind": "place",
+     "cols": 7,
+     "rows": 6,
+     "pieces": [
+      "sonne",
+      "mond"
+     ],
+     "line": 4,
+     "drop": true
+    },
+    "v": 1
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d34",
+   "split": "dev",
+   "satz": "Quiz über Dinosaurier",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "zug",
+    "merkmale": [
+     "turn:answer"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "turn:answer": true
+    },
+    "passt": true,
+    "takt": "zug",
+    "taktOk": true
+   },
+   "titel": "Dino-Quiz",
+   "ziel": "Waehle die richtige Antwort. Mehr Treffer gewinnen.",
+   "note": [
+    "engine:bau",
+    "takt:zug"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 5408,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1547,
+     "usage": {
+      "in": 31,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00004672
+    },
+    {
+     "name": "card_bau_zug",
+     "stop": "end_turn",
+     "ms": 2966,
+     "usage": {
+      "in": 49,
+      "out": 435,
+      "cacheRead": 12186,
+      "cacheWrite": 0
+     },
+     "usd": 0.00034426
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 858,
+     "usage": {
+      "in": 243,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006792
+    }
+   ],
+   "usd": 0.0004589,
+   "spiel": {
+    "title": "Dino-Quiz",
+    "goal": "Waehle die richtige Antwort. Mehr Treffer gewinnen.",
+    "mode": "turn",
+    "players": 2,
+    "bg": "paper",
+    "turn": {
+     "kind": "answer",
+     "items": [
+      {
+       "q": "Wie nennt man die grossen Echsen aus der Urzeit?",
+       "a": "Dinosaurier",
+       "wrong": [
+        "Dinoschafe",
+        "Urfische"
+       ]
+      },
+      {
+       "q": "Welcher Dino hatte besonders lange Hals?",
+       "a": "Brachiosaurus",
+       "wrong": [
+        "Tyrannosaurus",
+        "Stegosaurus"
+       ]
+      },
+      {
+       "q": "Welcher Dino trug Platten auf dem Ruecken?",
+       "a": "Stegosaurus",
+       "wrong": [
+        "Velociraptor",
+        "Triceratops"
+       ]
+      },
+      {
+       "q": "Welcher Dino hatte drei Hoerner am Kopf?",
+       "a": "Triceratops",
+       "wrong": [
+        "Pteranodon",
+        "Diplodocus"
+       ]
+      }
+     ]
+    },
+    "v": 1
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d35",
+   "split": "dev",
+   "satz": "Buchstabensalat mit Gemüse",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "zug",
+    "merkmale": [
+     "form:scramble"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "form:scramble": true
+    },
+    "passt": true,
+    "takt": "zug",
+    "taktOk": true
+   },
+   "titel": "Gemüsesalat",
+   "ziel": "Ordne die Buchstaben zum richtigen Gemüse. Mehr Treffer gewinnen.",
+   "note": [
+    "engine:bau",
+    "takt:zug"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 5741,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1095,
+     "usage": {
+      "in": 34,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.000047019999999999994
+    },
+    {
+     "name": "card_bau_zug",
+     "stop": "end_turn",
+     "ms": 3331,
+     "usage": {
+      "in": 52,
+      "out": 416,
+      "cacheRead": 12186,
+      "cacheWrite": 0
+     },
+     "usd": 0.00033506
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1282,
+     "usage": {
+      "in": 194,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006301999999999999
+    }
+   ],
+   "usd": 0.0004451,
+   "spiel": {
+    "title": "Gemüsesalat",
+    "goal": "Ordne die Buchstaben zum richtigen Gemüse. Mehr Treffer gewinnen.",
+    "mode": "turn",
+    "players": 2,
+    "bg": "paper",
+    "turn": {
+     "kind": "answer",
+     "items": [
+      {
+       "q": "Orange und lang, gut für die Augen",
+       "a": "Karotte"
+      },
+      {
+       "q": "Grün, rund und hat viele Blätter",
+       "a": "Salat"
+      },
+      {
+       "q": "Rot oder grün, oft in Salat und Pizza",
+       "a": "Tomate"
+      },
+      {
+       "q": "Lila Knolle, schmeckt süß",
+       "a": "Rote Bete"
+      },
+      {
+       "q": "Hat viele Körner im Kolben",
+       "a": "Mais"
+      },
+      {
+       "q": "Lang, grün und knackig",
+       "a": "Gurke"
+      }
+     ],
+     "ask": "type",
+     "form": "scramble"
+    },
+    "v": 1
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d36",
+   "split": "dev",
+   "satz": "Lückentext mit Vögeln",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "zug",
+    "merkmale": [
+     "form:gap"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "form:gap": true
+    },
+    "passt": true,
+    "takt": "zug",
+    "taktOk": true
+   },
+   "titel": "Vogel-Lückentext",
+   "ziel": "Setze die fehlenden Buchstaben ein. Mehr Treffer gewinnen.",
+   "note": [
+    "engine:bau",
+    "takt:zug"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 4969,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1100,
+     "usage": {
+      "in": 31,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00004672
+    },
+    {
+     "name": "card_bau_zug",
+     "stop": "end_turn",
+     "ms": 2857,
+     "usage": {
+      "in": 49,
+      "out": 423,
+      "cacheRead": 12186,
+      "cacheWrite": 0
+     },
+     "usd": 0.00033826
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 981,
+     "usage": {
+      "in": 213,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006492
+    }
+   ],
+   "usd": 0.0004499,
+   "spiel": {
+    "title": "Vogel-Lückentext",
+    "goal": "Setze die fehlenden Buchstaben ein. Mehr Treffer gewinnen.",
+    "mode": "turn",
+    "players": 2,
+    "bg": "paper",
+    "turn": {
+     "kind": "answer",
+     "items": [
+      {
+       "q": "Der Spatz zwitschert auf dem D ch",
+       "a": "Dach",
+       "wrong": [
+        "Bach",
+        "Tag"
+       ]
+      },
+      {
+       "q": "Die Amsel singt im Ba m",
+       "a": "Baum",
+       "wrong": [
+        "Raum",
+        "Traum"
+       ]
+      },
+      {
+       "q": "Der Storch baut ein gro es Nest",
+       "a": "ßes",
+       "wrong": [
+        "ses",
+        "sen"
+       ]
+      },
+      {
+       "q": "Die Meise frisst gern Sonnen lumen",
+       "a": "blumen",
+       "wrong": [
+        "bälle",
+        "stengel"
+       ]
+      },
+      {
+       "q": "Der Adler kreist hoch am H mmel",
+       "a": "immel",
+       "wrong": [
+        "ammer",
+        "ummel"
+       ]
+      }
+     ],
+     "form": "gap"
+    },
+    "v": 1
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d37",
+   "split": "dev",
+   "satz": "Memory mit Sportarten zu zweit",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "zug",
+    "merkmale": [
+     "turn:flip",
+     "players:2"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "turn:flip": true,
+     "players:2": true
+    },
+    "passt": true,
+    "takt": "zug",
+    "taktOk": true
+   },
+   "titel": "Sport-Memory",
+   "ziel": "Finde die Paare. Wer mehr Paare hat, gewinnt.",
+   "note": [
+    "engine:bau",
+    "takt:zug"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 3967,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 896,
+     "usage": {
+      "in": 34,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.000047019999999999994
+    },
+    {
+     "name": "card_bau_zug",
+     "stop": "end_turn",
+     "ms": 1869,
+     "usage": {
+      "in": 52,
+      "out": 224,
+      "cacheRead": 12186,
+      "cacheWrite": 0
+     },
+     "usd": 0.00023906
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1172,
+     "usage": {
+      "in": 106,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005422
+    }
+   ],
+   "usd": 0.0003403,
+   "spiel": {
+    "title": "Sport-Memory",
+    "goal": "Finde die Paare. Wer mehr Paare hat, gewinnt.",
+    "mode": "turn",
+    "players": 2,
+    "bg": "paper",
+    "turn": {
+     "kind": "flip",
+     "cols": 4,
+     "rows": 4,
+     "pairs": [
+      "⚽",
+      "🏀",
+      "🏈",
+      "⚾",
+      "🎾",
+      "🏐",
+      "🏓",
+      "🥏"
+     ],
+     "again": true
+    },
+    "v": 1
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d38",
+   "split": "dev",
+   "satz": "Fragen zu Ländern und Flaggen",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "zug",
+    "merkmale": [
+     "turn:answer"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "turn:answer": true
+    },
+    "passt": true,
+    "takt": "zug",
+    "taktOk": true
+   },
+   "titel": "Flaggenquiz",
+   "ziel": "Wähle die richtige Antwort. Wer mehr Treffer hat, gewinnt.",
+   "note": [
+    "engine:bau",
+    "takt:zug"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 7995,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1330,
+     "usage": {
+      "in": 35,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.000047119999999999996
+    },
+    {
+     "name": "card_bau_zug",
+     "stop": "end_turn",
+     "ms": 5562,
+     "usage": {
+      "in": 53,
+      "out": 1184,
+      "cacheRead": 12186,
+      "cacheWrite": 0
+     },
+     "usd": 0.0007191599999999999
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1073,
+     "usage": {
+      "in": 275,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00007112000000000001
+    }
+   ],
+   "usd": 0.0008374,
+   "spiel": {
+    "title": "Flaggenquiz",
+    "goal": "Wähle die richtige Antwort. Wer mehr Treffer hat, gewinnt.",
+    "mode": "turn",
+    "players": 2,
+    "bg": "paper",
+    "turn": {
+     "kind": "answer",
+     "items": [
+      {
+       "q": "Welche Hauptstadt hat Frankreich?",
+       "a": "Paris",
+       "wrong": [
+        "Lyon",
+        "Marseille"
+       ]
+      },
+      {
+       "q": "Welche Farben hat die Flagge Italiens?",
+       "a": "Grün, Weiß und Rot",
+       "wrong": [
+        "Blau, Gelb und Weiß",
+        "Schwarz, Rot und Gold"
+       ]
+      },
+      {
+       "q": "Welches Land hat ein Ahornblatt auf seiner Flagge?",
+       "a": "Kanada",
+       "wrong": [
+        "Norwegen",
+        "Spanien"
+       ]
+      },
+      {
+       "q": "Welches Land hat einen Adler auf seiner Flagge?",
+       "a": "Mexiko",
+       "wrong": [
+        "Schweden",
+        "Finnland"
+       ]
+      },
+      {
+       "q": "Welche Hauptstadt hat Japan?",
+       "a": "Tokio",
+       "wrong": [
+        "Osaka",
+        "Kyoto"
+       ]
+      }
+     ]
+    },
+    "v": 1
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d39",
+   "split": "dev",
+   "satz": "Wörter zu Weihnachten eintippen",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "zug",
+    "merkmale": [
+     "ask:type"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "ask:type": true
+    },
+    "passt": true,
+    "takt": "zug",
+    "taktOk": true
+   },
+   "titel": "Weihnachtswörter",
+   "ziel": "Tippe das passende Wort zu jeder Frage. Wer die meisten richtig hat, gewinnt.",
+   "note": [
+    "engine:bau",
+    "takt:zug"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 7830,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 922,
+     "usage": {
+      "in": 35,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.000047119999999999996
+    },
+    {
+     "name": "card_bau_zug",
+     "stop": "end_turn",
+     "ms": 5803,
+     "usage": {
+      "in": 53,
+      "out": 1181,
+      "cacheRead": 12186,
+      "cacheWrite": 0
+     },
+     "usd": 0.00071766
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1065,
+     "usage": {
+      "in": 225,
+      "out": 93,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00010112000000000001
+    }
+   ],
+   "usd": 0.0008659,
+   "spiel": {
+    "title": "Weihnachtswörter",
+    "goal": "Tippe das passende Wort zu jeder Frage. Wer die meisten richtig hat, gewinnt.",
+    "mode": "turn",
+    "players": 2,
+    "bg": "paper",
+    "turn": {
+     "kind": "answer",
+     "items": [
+      {
+       "q": "Dieser Baum wird zu Weihnachten geschmückt",
+       "a": "Tannenbaum"
+      },
+      {
+       "q": "Er bringt den Kindern die Geschenke",
+       "a": "Weihnachtsmann"
+      },
+      {
+       "q": "Vier Kerzen stehen darauf in der Adventszeit",
+       "a": "Adventskranz"
+      },
+      {
+       "q": "Man backt sie in der Adventszeit",
+       "a": "Plätzchen"
+      },
+      {
+       "q": "Sie läutet am Heiligabend",
+       "a": "Glocke"
+      },
+      {
+       "q": "Die Zeit vor dem Fest heißt",
+       "a": "Advent"
+      }
+     ],
+     "ask": "type"
+    },
+    "v": 1
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "d40",
+   "split": "dev",
+   "satz": "Drei in einer Reihe mit Herzen",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "zug",
+    "merkmale": [
+     "turn:place"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "turn:place": true
+    },
+    "passt": true,
+    "takt": "zug",
+    "taktOk": true
+   },
+   "titel": "Herzen-Reihe",
+   "ziel": "Setze abwechselnd deine Herzen. Drei in einer Reihe gewinnen.",
+   "note": [
+    "engine:bau",
+    "takt:zug"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 6657,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 982,
+     "usage": {
+      "in": 35,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.000047119999999999996
+    },
+    {
+     "name": "card_bau_zug",
+     "stop": "end_turn",
+     "ms": 4134,
+     "usage": {
+      "in": 53,
+      "out": 938,
+      "cacheRead": 12186,
+      "cacheWrite": 0
+     },
+     "usd": 0.00059616
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1459,
+     "usage": {
+      "in": 79,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.000051519999999999995
+    }
+   ],
+   "usd": 0.0006948,
+   "spiel": {
+    "title": "Herzen-Reihe",
+    "goal": "Setze abwechselnd deine Herzen. Drei in einer Reihe gewinnen.",
+    "mode": "turn",
+    "players": 2,
+    "bg": "paper",
+    "things": [
+     {
+      "id": "herz",
+      "look": "emoji",
+      "emoji": "❤️",
+      "color": "red",
+      "w": 100,
+      "h": 100
+     },
+     {
+      "id": "blau",
+      "look": "emoji",
+      "emoji": "💙",
+      "color": "blue",
+      "w": 100,
+      "h": 100
+     }
+    ],
+    "turn": {
+     "kind": "place",
+     "cols": 3,
+     "rows": 3,
+     "pieces": [
+      "herz",
+      "blau"
+     ],
+     "line": 3
+    },
+    "v": 1
+   },
+   "letzteAntwort": null
+  }
+ ]
+}
