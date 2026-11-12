@@ -11,7 +11,7 @@ const G = JSON.parse(fs.readFileSync(path.join(HERE, "fixtures/z2-golden.json"),
 // GAMES-Schluessel -> Spielmodul (Datei, Export)
 export const MOD = {
   lob: ["zug-lob/game.js"], kennst: ["zug-kennst/game.js"], luege: ["zug-luege/game.js"], snack: ["zug-snack/game.js"],
-  auftrag: ["zug-auftrag/game.js"], ausrede: ["karte-ausrede/game.js"], wort: ["zug-wort/game.js"],
+  auftrag: ["zug-auftrag/game.js", "auftrag"], ausrede: ["karte-ausrede/game.js"], wort: ["zug-wort/game.js"],
   auktion: ["zug-auktion/game.js", "auktion"], deal: ["zug-auktion/game.js", "deal"], teilen: ["zug-auktion/game.js", "teilen"],
   socke: ["zug-auktion/game.js", "socke"], fallpreis: ["zug-auktion/game.js", "fallpreis"], schmuggel: ["zug-schmuggel/game.js"],
   wette: ["zug-wette/game.js"], luecke: ["zug-luecke/game.js"], blitz: ["zug-blitz/game.js"], recht: ["zug-recht/game.js"],
@@ -23,7 +23,7 @@ export const MOD = {
 };
 async function load(g) { const [f, k = "default"] = MOD[g]; return (await import("../src/cards/" + f))[k]; }
 
-test("Fixture stammt aus dem Altbaum", () => { assert.match(G.herkunft, /^Altbaum duell-web @ pre-legacy-removal/); });
+test("Fixture stammt aus dem Altbaum", () => { assert.match(G.herkunft, /^Altbaum @ pre-legacy-removal \([0-9a-f]{40}\)/); });
 
 for (const g of Object.keys(G.spiele)) {
   if (g === "bluff") continue; // eigener Abgleich unten
@@ -90,4 +90,13 @@ test("Alt-Orakel bluff: 8 Partien, Spielstand der Karte = Altergebnis", async ()
     assert.deepEqual(st.pub.score, [+want[1], +want[2]], "seed " + c.seed);
     assert.deepEqual(c.turns[0].prompts.map((p) => p.from_de.map(Number)), cards.map((v) => { const o = []; for (let x = v; x <= 6; x++) o.push(x); return o; }), "Optionen ab dem eigenen Wert");
   }
+});
+
+test("zug-auftrag Variante mut: die vier eingeklappten Mutkarten als Aufgaben, Ablauf wie auftrag", async () => {
+  const { mut, auftrag } = await import("../src/cards/zug-auftrag/game.js");
+  const doc = { seed: 7 };
+  assert.deepEqual(mut.turns.map((t) => t.map((p) => [p.w, p.l, p.n])), auftrag.turns.map((t) => t.map((p) => [p.w, p.l, p.n])));
+  const de = mut.turns[0][0].from(doc, [], [], "de"), en = mut.turns[0][0].from(doc, [], [], "en");
+  assert.equal(de.length, 4); assert.match(de[1], /^Sing eine Einkaufsliste/); assert.match(en[3], /^Tell three people/);
+  assert.deepEqual(mut.result(doc, [[[1]], [[3]]], "de"), { h: "Bis morgen", lines: ["Erste Seite macht: " + de[3], "Zweite Seite macht: " + de[1]] });
 });

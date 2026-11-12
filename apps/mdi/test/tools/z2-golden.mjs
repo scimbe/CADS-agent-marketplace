@@ -1,7 +1,7 @@
-// Alt-Orakel fuer Strang Z2: spielt die Zugkarten des Altcodes (Tag pre-legacy-removal, apps/duell-web/src/turns.js)
+// Alt-Orakel fuer Strang Z2: spielt die Zugkarten des Altcodes (Tag pre-legacy-removal, turns.js)
 // mit festen Seeds und gueltigen Antworten durch und friert je Zug die angebotenen Optionen (de/en), die Antworten,
 // abgelehnte Antworten und das Ergebnis (de/en) ein. Aufruf: node test/tools/z2-golden.mjs [spiel …]
-// Schreibt test/fixtures/z2-golden.json. Der Altcode wird per `git show` in ein Temp-Verzeichnis geholt, nie importiert.
+// Schreibt test/fixtures/z2-golden.json. Der Altcode wird in ein Temp-Verzeichnis kopiert und nur dort geladen.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -10,13 +10,13 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const TAG = "pre-legacy-removal", SRC = "apps/duell-web/src/";
-const FILES = ["turns.js", "core.js", "quest.js", "quizpack.js", "quizmake.js", "turn.json", "quiz-packs.json"];
+// ALT_DIR: Verzeichnis mit den ausgepackten Altdateien (turns.js, core.js, quest.js, quizpack.js, quizmake.js, turn.json,
+// quiz-packs.json) aus dem Tag pre-legacy-removal. Der Pfad des Altbaums steht absichtlich in keiner Datei des neuen Baums.
+const ALT = process.env.ALT_DIR;
+if (!ALT || !fs.existsSync(path.join(ALT, "turns.js"))) { console.error("ALT_DIR fehlt oder enthaelt kein turns.js"); process.exit(2); }
+const commit = execFileSync("git", ["rev-list", "-n1", "pre-legacy-removal"], { cwd: HERE }).toString().trim();
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "z2-alt-"));
-for (const f of FILES) {
-  try { fs.writeFileSync(path.join(tmp, f), execFileSync("git", ["show", TAG + ":" + SRC + f], { cwd: HERE, maxBuffer: 1 << 26 })); } catch (e) { if (f.endsWith(".js") && f !== "quizmake.js") throw e; }
-}
-const commit = execFileSync("git", ["rev-list", "-n1", TAG], { cwd: HERE }).toString().trim();
+for (const f of fs.readdirSync(ALT)) if (/\.(js|json)$/.test(f)) fs.copyFileSync(path.join(ALT, f), path.join(tmp, f));
 const T = createRequire(path.join(tmp, "x.js"))("./turns.js");
 
 // Spiele dieses Strangs (GAMES-Schluessel) -> Karten-id
@@ -131,7 +131,7 @@ function playCase(g, seed, rs) {
 
 const want = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(Z2);
 const SEEDS = [1, 7, 42, 1234, 99991, 2654435761, 31337, 4000000000];
-const out = { herkunft: `Altbaum duell-web @ ${TAG} (${commit}), src/turns.js + turn.json; erzeugt mit test/tools/z2-golden.mjs`, spiele: {} };
+const out = { herkunft: `Altbaum @ pre-legacy-removal (${commit}), turns.js + turn.json; erzeugt mit test/tools/z2-golden.mjs`, spiele: {} };
 const file = path.join(HERE, "../fixtures/z2-golden.json");
 const old = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : null;
 if (old) Object.assign(out.spiele, old.spiele);
