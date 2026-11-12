@@ -55,3 +55,11 @@ Integrator (Hauptsession): führt die Stränge zusammen, prüft jeden PR selbst 
 | 5 | Gerätetest auf echten Handys (iOS und Android, Mittelklasse): 60 fps in Arcade und Flug, Mikrofon- und Ton-Karten, Teilen-Sheet, große Schrift. | A, Z2, D |
 | 6 | Gate C: Der User nimmt die Design-Canvas ab. Offene Produktfrage: eigene Domain oder Logo auf der Anmeldeseite. | D |
 | 7 | Staging mit gleicher Herkunft wie Produktion, Abnahmetest gegen Phase B, Rauchtest, Rollback geprobt. | vorgehen.md |
+
+## Stand 2026-11-12, Integrationszweig
+
+- `feat/mdi-paritaet` @ 6598752: labor-setup.de Unit 979/979, e2e 278/278 (Lauf 20261112-093931). Alle 64 Regalkarten des Altkatalogs vorhanden (Prüfung `newIdOf` für jede Katalog-ID).
+- Danach gemergt: T #272, K #269 (Security H1/M6), H #270 (Kurzlink mit Gerät/Nachweis). Unit lokal 984/984 @ fa1447b.
+- H1 aus dem Security-Review vom Integrator gegengeprüft: Der PoC-Link wird auf dem neuen Stand beim Empfang abgelehnt (vorher: Badge ohne Gate).
+- Hinweis: Commit 2e7fc5e enthält versehentlich Zwischenstände von tools/staging/host.sh und smoke.mjs (Strang STAGE), nicht diesen Text.
+- Offen vor Phase F: Teile-Pfad unter `/duell` (F, Staging L2), Teile-Namen im Wrapper (W, L1), Start-503 (W, L4), Baukasten-Siegel und -Aufwand (B, M1/M5), Wrapper-Kette #130–#137 neu vendoren, Gate C, Keycloak „Trust email“ (User), Live-Rahmen für Staging (User), Gerätetest.
