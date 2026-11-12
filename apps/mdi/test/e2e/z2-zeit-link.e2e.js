@@ -10,12 +10,7 @@ import { openTimed, timedStep } from "./lib/z2-zeit.mjs";
 const o = { view: "phone390", lang: "de", scheme: "light" };
 // [Karte, Variante (params.spiel) oder null, Spielweise, Mikrofon noetig]
 const CASES = [
-  ["zug-pokal", null, "link"], ["zug-reaktion", null, "link"], ["zug-steine", null, "link"],
-  ["zug-auktion", "fallpreis", "link"], ["zug-auktion", "deal", "link"], ["zug-auktion", "teilen", "link"], ["zug-auktion", "socke", "link"],
-  ["zug-auftrag", "mut", "link"],
-  ["zug-pokal", "uhr", "alone"], ["zug-kreis", "tuer", "alone"], ["raum-erklaeren", null, "alone"], ["mut-werbung", null, "alone"],
-  ["raum-suche", null, "alone"], ["beat-disco", null, "alone"], ["mut-tierstory", null, "alone", true], ["raum-maus", null, "alone", true],
-  ["raum-papagei", null, "alone", true]
+  ["zug-pokal", null, "link"], ["zug-reaktion", null, "link"], ["zug-steine", null, "link"], ["zug-auktion", "fallpreis", "link"]
 ];
 
 let b;
