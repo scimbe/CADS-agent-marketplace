@@ -9,7 +9,7 @@
 #   host.sh status           what runs, which image, which digests
 #   host.sh check            HTTP checks of the served app (page, parts with SRI, headers, APIs)
 #   host.sh smoke            browser smoke test (Playwright container, host network -> 127.0.0.1:${STAGING_PORT})
-#   host.sh rollback-probe   tag current as :prev, start a new version, roll back, verify; prints the times
+#   host.sh rollback-probe [NEWTAG]  tag current as :prev, start a new version, roll back, verify; prints the times
 #   host.sh e2e-url BRANCH   e2e suites of an app branch in URL mode against staging (MDI_BASE_URL, ziel.mjs)
 #
 # Test values only: secrets/staging.env is generated here on first use (random salts, a staging-only Ed25519 deck key,
@@ -63,8 +63,13 @@ build() {
   tail -1 app-build.log
   # 3) re-vendor the app code the wrapper checks links and games with onto the same commit, then the wrapper's own tests
   #    (with MDI_SRC the vendor tests also refuse drift against this checkout)
+  # drift check BEFORE the re-vendor: do the copies the PRs carry match APP_COMMIT? (after the re-vendor they always would)
+  timeout 600 "${N[@]}" bash -c "cd /b/wrapper && MDI_SRC=/b/mp/$APP_DIR/src node --test --test-reporter=tap test/vendor-mdi.test.mjs test/duell-bau.test.mjs" > drift-before.log 2>&1 || true
+  echo "  Drift vor Re-Vendor (Vendor der PRs gegen ${APP_COMMIT:0:12}): $(grep -E '^# (pass|fail)' drift-before.log | tr '\n' ' ')"
+  grep -E '^not ok|^    not ok' drift-before.log | head -5 || true
   timeout 300 "${N[@]}" bash -c "cd /b/wrapper && node bin/vendor-mdi.mjs /b/mp/$APP_DIR/src --track $APP_BRANCH$( [ "${VENDOR_BAUKASTEN:-1}" = 1 ] && echo " && node bin/vendor-mdi-baukasten.mjs /b/mp/$APP_DIR/src")" > vendor.log 2>&1 || { cat vendor.log; die "Re-Vendor"; }
   cat vendor.log
+  echo "  Re-Vendor aendert (ohne PROVENANCE): $(cd wrapper && git add -A lib/vendor && git diff --cached --stat -- lib/vendor ':!**/PROVENANCE.json' | tail -1)"
   ( cd wrapper && git add -A lib/vendor && { git diff --cached --quiet || "${G[@]}" commit -q -m "staging: re-vendor $APP_DIR @ ${APP_COMMIT:0:12} (vendor-mdi$( [ "${VENDOR_BAUKASTEN:-1}" = 1 ] && echo ", vendor-mdi-baukasten"))"; } )
   log "  wrapper tests"
   timeout 900 "${N[@]}" bash -c "cd /b/wrapper && MDI_SRC=/b/mp/$APP_DIR/src node --test --test-reporter=tap test/*.test.mjs" > wrapper-test.log 2>&1 || true
@@ -152,6 +157,18 @@ EOF
   log "secrets/staging.env erzeugt (Testwerte)"
 }
 
+# Staging-only limits for test load: the e2e suite opens hundreds of fresh browser contexts, each one a new device for the
+# short-link limits of wrapper #136 (production: 5/h and 20/day per device, 60 new devices/h). The suites do not test these
+# limits (the wrapper's own tests do), so staging raises them. Appended once to an existing staging.env.
+envlimits() {
+  local k v
+  for kv in SHORT_DEVICE_PER_HOUR=1000 SHORT_DEVICE_PER_DAY=10000 SHORT_NEW_DEVICES_PER_HOUR=100000 \
+            SHORT_ACCOUNT_PER_HOUR=1000 SHORT_ACCOUNT_PER_DAY=10000 SHORT_DAILY_MAX=100000 SHORT_IP_PER_HOUR=100000 SHORT_MISS_PER_HOUR=100000; do
+    k="${kv%%=*}"; v="${kv#*=}"
+    grep -q "^$k=" "$ENVF" || { printf '# staging: e2e-Last (host.sh envlimits)\n%s=%s\n' "$k" "$v" >> "$ENVF"; log "staging.env: $k=$v"; }
+  done
+}
+
 doubles() {
   local name="$1" file="$2"
   docker rm -f "$name" >/dev/null 2>&1 || true
@@ -187,7 +204,7 @@ up() {
   local tag="${1:-}"
   [ -n "$tag" ] || tag="$(grep '^tag=' "$R/builds/latest.env" | cut -d= -f2)"
   docker image inspect "$tag" >/dev/null 2>&1 || die "Image $tag fehlt"
-  mkenv
+  mkenv; envlimits
   docker network inspect "$NET" >/dev/null 2>&1 || docker network create --label org.mdi.staging=1 "$NET" >/dev/null
   doubles "$GC" gate.mjs; doubles "$MC" model.mjs
   for c in "$GC" "$MC"; do   # the wrapper asks the gate on the first request: doubles must listen first
@@ -228,12 +245,13 @@ check() {
     const b=require("/d/build.json"); const out=[];
     for (const c of Object.values(b.cards||{})) out.push(c.file+" "+(c.sri||"-"));
     for (const t of Object.values((b.thumbs||{}).files||{})) out.push(t.file+" "+(t.sri||"-"));
+    for (const t of Object.values(b.feats||{})) out.push(t.file+" "+(t.sri||"-"));   // feature parts (feat-<name>, #138)
     console.log(out.join("\n"))')
   chk "Teile mit 200 + JS + immutable + SRI ($ok/$n)" "$ok" "$n"
   # SRI hashes in the served page are the ones of build.json
   chk "Seite traegt die SRI der Teile" "$(docker run --rm -v "$d:/d:ro" "$NODE_IMAGE" node -e '
     const b=require("/d/build.json"),h=require("fs").readFileSync("/d/index.html","utf8");
-    const s=[...Object.values(b.cards),...Object.values(b.thumbs.files)].map(c=>c.sri); console.log(s.filter(x=>h.includes(x)).length+"/"+s.length)')" "$(docker run --rm -v "$d:/d:ro" "$NODE_IMAGE" node -e 'const b=require("/d/build.json");const n=Object.keys(b.cards).length+Object.keys(b.thumbs.files).length;console.log(n+"/"+n)')"
+    const s=[...Object.values(b.cards),...Object.values(b.thumbs.files),...Object.values(b.feats||{})].map(c=>c.sri); console.log(s.filter(x=>h.includes(x)).length+"/"+s.length)')" "$(docker run --rm -v "$d:/d:ro" "$NODE_IMAGE" node -e 'const b=require("/d/build.json");const n=Object.keys(b.cards).length+Object.keys(b.thumbs.files).length+Object.keys(b.feats||{}).length;console.log(n+"/"+n)')"
   chk "unbekannter Teil 404" "$(curl -s -o /dev/null -w '%{http_code}' "$B/duell/parts/card-gibtsnicht.000000000000.js")" 404
   # APIs the app uses (public ones answer without login; account ones say login-required, with the test cookie they work)
   local C="Cookie: ct_gate_session=staging-lea" DEV; DEV="$(head -c16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
@@ -276,12 +294,14 @@ e2e_url() {
   timeout 900 $D bash -c 'npm ci --no-audit --no-fund >/dev/null' > "$W/logs/setup.log" 2>&1 || { tail -20 "$W/logs/setup.log"; die "npm ci"; }
   ls "$W/src/$APP_DIR"/test/e2e/*.e2e.js | xargs -n1 basename > "$W/e2e.list"
   xargs -P "$par" -I{} bash -c "timeout 1800 $D node --require ./test/e2e/lib/nolive.js --test --test-reporter=tap --test-timeout=300000 --test-force-exit test/e2e/{} > $W/logs/{}.log 2>&1 && echo 'PASS {}' || echo 'FAIL {}'" < "$W/e2e.list" | sort
-  local P=0 F=0 S=0 p x s
+  # cancelled counts: a file that runs into the test timeout reports "# fail 0" and hides the tests it never reached
+  local P=0 F=0 S=0 C=0 p x s c
   for f in "$W"/logs/*.e2e.js.log; do
-    p=$(grep -h "^# pass" "$f" | awk '{print $3}'); x=$(grep -h "^# fail" "$f" | awk '{print $3}'); s=$(grep -h "^# skipped" "$f" | awk '{print $3}')
-    P=$((P+${p:-0})); F=$((F+${x:-1})); S=$((S+${s:-0}))
+    p=$(grep -h "^# pass" "$f" | tail -1 | awk '{print $3}'); x=$(grep -h "^# fail" "$f" | tail -1 | awk '{print $3}')
+    s=$(grep -h "^# skipped" "$f" | tail -1 | awk '{print $3}'); c=$(grep -h "^# cancelled" "$f" | tail -1 | awk '{print $3}')
+    P=$((P+${p:-0})); F=$((F+${x:-1})); S=$((S+${s:-0})); C=$((C+${c:-0}))
   done
-  echo "e2e-url gesamt: pass=$P fail=$F skipped=$S   logs: $W/logs"
+  echo "e2e-url gesamt: pass=$P fail=$F cancelled=$C skipped=$S   logs: $W/logs"
 }
 
 # ------------------------------------------------------------------------------------------------------ rollback probe
@@ -289,8 +309,9 @@ rollback_probe() {
   local cur prevtag newtag; cur="$(docker inspect -f '{{.Config.Image}}' "$WC")"
   prevtag="$IMG:prev"; newtag="$IMG:probe-new"
   docker tag "$cur" "$prevtag"
-  # the "new version": the same image plus a marker file (so the probe can tell the two apart over HTTP)
-  local d; d="$(mktemp -d)"; printf 'FROM %s\nRUN echo probe-new > /app/apps/duell-web/dist/version.txt\nLABEL org.mdi.staging.probe=new\n' "$cur" > "$d/Dockerfile"
+  # the "new version": a real newer build (argument TAG), or else the same image; either way plus a marker file that tells
+  # the two apart in the container. After the rollback /duell must be byte-equal to before.
+  local d; d="$(mktemp -d)"; printf 'FROM %s\nRUN echo probe-new > /app/apps/duell-web/dist/version.txt\nLABEL org.mdi.staging.probe=new\n' "${1:-$cur}" > "$d/Dockerfile"
   docker build -q -t "$newtag" "$d" >/dev/null; rm -rf "$d"
   local sha_prev; sha_prev="$(curl -s "http://127.0.0.1:$PORT/duell" | sha256sum | cut -c1-64)"
   log "rollback-probe: prev=$(docker image inspect -f '{{.Id}}' "$prevtag" | cut -c8-19) new=$(docker image inspect -f '{{.Id}}' "$newtag" | cut -c8-19)"
@@ -318,5 +339,5 @@ rollback_probe() {
 
 case "${1:-}" in
   build) build ;; up) up "${2:-}" ;; down) down ;; status) status ;; check) check ;; smoke) smoke ;;
-  rollback-probe) rollback_probe ;; e2e-url) e2e_url "${2:-}" "${3:-3}" ;; *) sed -n '2,15p' "$0"; exit 2 ;;
+  rollback-probe) rollback_probe "${2:-}" ;; e2e-url) e2e_url "${2:-}" "${3:-3}" ;; *) sed -n '2,15p' "$0"; exit 2 ;;
 esac

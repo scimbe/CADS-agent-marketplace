@@ -32,6 +32,12 @@ async function open({ hash = "", login = false, view = { width: 390, height: 844
   await p.goto(PAGE + hash);
   return { ctx, p, errs, net };
 }
+// Karte oeffnen wie ein Mensch: ueber "Alle" ins Regal (die Startseite zeigt nicht jede Karte direkt)
+const openCard = async (p, id) => {
+  if (!(await p.locator("main.h-at-regal").count())) { await act(p, "intent-alle"); await p.locator("main.h-at-regal").waitFor(); }
+  const el = p.locator('main.h-at-regal [data-act="open-' + id + '"]').first(); await el.scrollIntoViewIfNeeded(); await el.click();
+  await p.locator("main.s-card-view").waitFor();
+};
 const backHome = async (p) => { for (let i = 0; i < 5 && (await p.locator('[data-act="back"]').count()); i++) await act(p, "back"); await p.locator("main.h-at-day").waitFor(); };
 
 // ---- 1. start page with the daily leaf
@@ -84,7 +90,7 @@ for (const kind of Object.keys(kinds).sort()) {
   const id = kinds[kind].includes(PREFER[kind]) ? PREFER[kind] : kinds[kind][0];
   const A = await open(); let B = null;
   try {
-    await act(A.p, "open-" + id); await A.p.locator("main.s-card-view").waitFor();
+    await A.p.locator(".h-leaf").waitFor(); await openCard(A.p, id);
     const radio = A.p.getByRole("radio", { name: "Abwechselnd per Link", exact: true });
     if (await radio.count()) await radio.click();
     await act(A.p, "go");
@@ -122,7 +128,7 @@ let shortUrl = "";
   const { ctx, p, errs } = await open();
   try {
     const created = p.waitForResponse((r) => new URL(r.url()).pathname === "/api/s" && r.request().method() === "POST", { timeout: 20000 }); created.catch(() => {});
-    await act(p, "open-gruss"); await p.locator("main.s-card-view").waitFor();
+    await p.locator(".h-leaf").waitFor(); await openCard(p, "gruss");
     const radio = p.getByRole("radio", { name: "Abwechselnd per Link", exact: true }); if (await radio.count()) await radio.click();
     await act(p, "go"); await p.locator("main.s-card-share").waitFor();
     const r = await created, j = await r.json().catch(() => ({}));
