@@ -155,7 +155,7 @@ export function botInput(d, st, seat, level = 2, plan = planOf(d), meter = null)
       const away = threat.x >= me.x ? -1000 : 1000;
       return { b: 0, ax: (me.x < me.hw * 2 && away < 0) || (me.x > W - me.hw * 2 && away > 0) ? -away : away };
     }
-    case "seek": return isGrid(d) ? seek(d, st, seat, me, tk, level) : predict(d, st, me, -1, tk, level);
+    case "seek": return isGrid(d) ? seek(d, st, seat, me, tk, level) : steerFree(d, st, me, tk, level);
     case "tap": {
       const react = level === 3 ? 14 : level === 2 ? 24 : 38, f = fitOf(d);
       // menschliches Tempo (Isaksen et al.: Aktionsrate): hoechstens ein Tippen je Reaktionszeit, erst nach der Reaktionszeit
@@ -183,9 +183,11 @@ function predict(d, st, me, badK, goodK, level) {
   const others = st.e.filter((e) => e !== me && same(e, me) && (badSet.has(e.k) || e.k === goodK));
   let best = dirs[0], bs = -Infinity;
   for (const [dx, dy] of dirs) {
-    let x = me.x, y = me.y, safe = Infinity;
+    let x = me.x, y = me.y, safe = Infinity, nd = Infinity, at = h;
     for (let i = 1; i <= h; i += 2) {
       x = clampI(x + dx * pw * 2, me.hw, W - me.hw); y = clampI(y + dy * pw * 2, me.hh, H - me.hh);
+      // naechste Annaeherung an ein Ziel entlang des Wegs (nicht am Ende: sonst schiesst die Figur ueber das Ziel hinaus und pendelt)
+      if (goodK >= 0) for (const o of others) if (o.k === goodK) { const dd = abs(o.x - x) + abs(o.y - y); if (dd < nd) { nd = dd; at = i; } }
       for (const o of others) {
         if (!badSet.has(o.k)) continue;
         const ox = o.x + o.vx * i, oy = o.y + o.vy * i + (d.things[o.k].gravity ? (g * i * i) >> 1 : 0);
@@ -194,12 +196,15 @@ function predict(d, st, me, badK, goodK, level) {
       }
     }
     // Sicherheit zuerst: innerhalb von drei Koerperlaengen zaehlt jeder Abstand achtfach, darueber nur bis zur Grenze
-    const margin = (me.hw + me.hh) * 3;
+    const margin = (me.hw + me.hh) * 5;
     let v = Math.min(safe, margin) * 8 + Math.min(Math.max(safe - margin, 0), 256 * 200);
-    if (goodK >= 0) { let nd = Infinity; for (const o of others) if (o.k === goodK) nd = Math.min(nd, abs(o.x - x) + abs(o.y - y)); if (nd < Infinity) v -= nd >> 1; }
+    if (goodK >= 0 && nd < Infinity) v -= (nd >> 1) + at * 64;
     // offene Flaeche ist sicherer als eine Ecke (sonst treibt ein Verfolger die Figur in die Ecke): Wandabstand zaehlt,
     // solange ein schaedliches Ding naeher als die Sicherheitsgrenze ist
     if (others.some((o) => badSet.has(o.k))) { const wall = Math.min(x - me.hw, W - me.hw - x, y - me.hh, H - me.hh - y); v += Math.min(wall, margin) * 4; }
+    // Traegheit: die Richtung, in die die Figur schon faehrt (Tempo im Zustand), bekommt einen Vorsprung -> kein Pendeln
+    // zwischen zwei fast gleich guten Richtungen, waehrend ein Verfolger aufholt (Gold-Dev "Pinguin", Beispiel Sammeln)
+    if (dx === sgn(me.vx) && dy === sgn(me.vy)) v += margin;
     if (dx === 0 && dy === 0) v += 1;
     if (v > bs) { bs = v; best = [dx, dy]; }
   }
@@ -207,19 +212,31 @@ function predict(d, st, me, badK, goodK, level) {
 }
 const clampI = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
-// Freie Bewegung: zum naechsten Ziel; ein schaedliches Ding naeher als drei Koerperlaengen schiebt in die Gegenrichtung
-function seekFree(d, st, me, tk, level) {
+// Lenkverhalten (C. Reynolds, "Steering Behaviors for Autonomous Characters", GDC 1999: seek/flee): Anziehung zum
+// naechsten Ziel (Einheitsvektor), Abstossung von schaedlichen Dingen innerhalb des Radius R (staerker, je naeher, mit
+// Vorhersage ihrer Bewegung) und von Waenden. Stetige Richtung statt Auswahl -> kein Pendeln. Nur Ganzzahlen.
+function steerFree(d, st, me, tk, level) {
   if (!me) return NONE;
-  const { bad } = rolesOf(d, d.things[me.k].id), idx = idxOf(d);
-  const badK = new Set([...bad].map((b) => idx.get(b)));
-  let tx = 0, ty = 0, target = null, bd = 0;
+  const W = d.world.w * 256, H = d.world.h * 256, body = me.hw + me.hh, R = body * (level === 3 ? 7 : level === 2 ? 5 : 3);
+  const { bad } = rolesOf(d, d.things[me.k].id), idx = idxOf(d), badK = new Set([...bad].map((b) => idx.get(b)));
+  const unit = (x, y, k) => { const m = Math.max(abs(x), abs(y), 1); return [Math.trunc(x * k / m), Math.trunc(y * k / m)]; };
+  let fx = 0, fy = 0, target = null, bd = 0;
   for (const e of st.e) if (e.k === tk && same(e, me)) { const dd = abs(e.x - me.x) + abs(e.y - me.y); if (!target || dd < bd) { target = e; bd = dd; } }
-  if (target) { tx = target.x - me.x; ty = target.y - me.y; }
-  const near = (me.hw + me.hh) * (level === 3 ? 4 : level === 2 ? 3 : 2);
-  for (const e of st.e) if (badK.has(e.k) && same(e, me)) { const dx = me.x - e.x, dy = me.y - e.y, dd = abs(dx) + abs(dy); if (dd < near) { const w = Math.trunc((near - dd) * 4096 / Math.max(near, 1)); tx += Math.trunc(dx * w / 1024); ty += Math.trunc(dy * w / 1024); } }
-  const m = Math.max(abs(tx), abs(ty), 1);
-  return { b: 0, ax: Math.trunc(tx * 1000 / m), ay: Math.trunc(ty * 1000 / m) };
+  if (target) [fx, fy] = unit(target.x - me.x, target.y - me.y, 1000);
+  for (const e of st.e) {
+    if (!badK.has(e.k) || !same(e, me)) continue;
+    const px = e.x + e.vx * 12, py = e.y + e.vy * 12, dx = me.x - px, dy = me.y - py, dd = Math.max(abs(dx), abs(dy));
+    if (dd >= R) continue;
+    const [ux, uy] = unit(dx, dy, Math.trunc(3000 * (R - dd) / R));
+    fx += ux; fy += uy;
+  }
+  const wall = body * 2;
+  if (me.x < wall) fx += Math.trunc(2000 * (wall - me.x) / wall); if (W - me.x < wall) fx -= Math.trunc(2000 * (wall - (W - me.x)) / wall);
+  if (me.y < wall) fy += Math.trunc(2000 * (wall - me.y) / wall); if (H - me.y < wall) fy -= Math.trunc(2000 * (wall - (H - me.y)) / wall);
+  const [ax, ay] = unit(fx, fy, 1000);
+  return { b: 0, ax: d.things[me.k].control === "ud" ? 0 : ax, ay: d.things[me.k].control === "lr" ? 0 : ay };
 }
+
 const same = (a, b) => a.ln < 0 || b.ln < 0 || a.ln === b.ln;
 
 // Raster: gierig zum naechsten Ziel, nie in eine toedliche Zelle; Stufe 3 prueft zusaetzlich den freien Raum (Flutfuellung)

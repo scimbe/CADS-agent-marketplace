@@ -25,7 +25,7 @@ const GOLD_FILE = new URL("./fixtures/baukasten-gold.json", import.meta.url);
 test("Baukasten: alle Beispiele sind gueltig und drueckt die bestehenden Spielarten aus", () => {
   // Nachweis der Ausdrucksstaerke: Flug (Flappy), Ziegel (Breakout), Pong, Kick, Schlange (Snake), Reaktion, Ausweichen,
   // Lauf (Huepfer), Memory, Drei/Vier gewinnt, Wortspiele (Wortsalat, Quiz, Luecke)
-  assert.deepEqual(Object.keys(BEISPIELE).sort(), ["ausweichen", "breakout", "drei", "flappy", "huepfer", "kick", "luecke", "memory", "pong", "quiz", "reaktion", "snake", "vier", "wortsalat"]);
+  assert.deepEqual(Object.keys(BEISPIELE).sort(), ["auffangen", "ausweichen", "breakout", "drei", "flappy", "huepfer", "kick", "luecke", "memory", "plattform", "pong", "quiz", "reaktion", "sammeln", "snake", "tauchen", "tippduell", "vier", "wortsalat"]);
   for (const [n, raw] of Object.entries(BEISPIELE)) { const c = check(raw); assert.ok(c.ok, n + ": " + c.errors.join("; ")); }
 });
 

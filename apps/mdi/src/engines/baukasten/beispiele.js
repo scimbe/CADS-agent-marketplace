@@ -227,7 +227,7 @@ export const SAMMELN = {
   things: [
     { id: "hoernchen", look: "emoji", emoji: "🐿️", w: 90, h: 90, control: "move", power: 700 },
     { id: "nuss", look: "emoji", emoji: "🌰", w: 70, h: 70 },
-    { id: "fuchs", look: "emoji", emoji: "🦊", w: 100, h: 100, ai: "chase", power: 330 }
+    { id: "fuchs", look: "emoji", emoji: "🦊", w: 100, h: 100, ai: "chase", power: 280 }
   ],
   start: [{ thing: "hoernchen", x: 500, y: 1300, seat: 0 }, { thing: "fuchs", x: 500, y: 200 }, { thing: "nuss", x: 250, y: 700 }],
   spawn: [{ thing: "nuss", every: 1500, x: 500, y: 800, xr: 400, yr: 650, max: 3 }],
