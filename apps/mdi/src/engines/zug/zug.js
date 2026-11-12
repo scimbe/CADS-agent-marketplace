@@ -77,6 +77,7 @@ export function makeZug(def) {
     return okAnswer(p, v, docFor(pub), "de", pub.m, pub.now);
   }
   function accepts(obs, seat, input) {
+    if (!input || typeof input !== "object" || !obs || !obs.pub) return false;
     const pub = obs.pub, st = status({ pub });
     if (st.over || seat !== st.turn || input.seat !== seat) return false;
     if (input.t === "close") return !!gameOf(pub).close && pub.m.length > 0 && pub.now.length === 0;
@@ -202,8 +203,9 @@ export function makeZug(def) {
       if (closed) out.push({ t: "close", seat: k % 2 });
       return out;
     },
-    /** Vereinigung zweier Staende derselben snap-Partie (alt shopMerge beim Empfang, turn-ui.js shopSeen): kommutativ,
-     *  assoziativ, idempotent. Geschlossen bleibt geschlossen. */
+    /** Vereinigung beim Empfang: merge(gespeichert a, eingehend b) (alt shopMerge, turn-ui.js shopSeen). Die Liste ist
+     *  kommutativ, assoziativ, idempotent vereinigt; geschlossen bleibt geschlossen. Wer dran ist (k), folgt dem
+     *  eingehenden Stand b: nach dem Empfang ist der andere Sitz als der Absender dran (ADR 0001 f). */
     merge(a, b) {
       const g = gameOf(b);
       if (!g.snap || !g.list || a.v !== b.v || a.seed !== b.seed) return copy(b);

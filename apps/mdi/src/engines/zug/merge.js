@@ -30,13 +30,16 @@ export function shopOk(v, cf) {
   return okI && distinct(P.map((p) => fold(p[0]))) && distinct(I.map((it) => shopKey(it[0])));
 }
 // In Tabellen nach gefaltetem Text und Namen, und zurueck in die eine Reihenfolge, die jedes Handy baut.
+// Tabellen ohne Prototyp: ein Eintrag "Constructor" oder ein Name "toString" darf nie geerbte Schluessel treffen
+// (Review 2026-11-12 H1; der Altcode hatte denselben Fehler mit {}).
+const table = () => Object.create(null);
 function open(list, into) {
-  const o = into || { people: {}, items: {} };
+  const o = into || { people: table(), items: table() };
   if (!list) return o;
   list[1].forEach((it) => {
     const k = shopKey(it[0]);
     let x = o.items[k];
-    if (!x) x = o.items[k] = { text: it[0], t: it[1], qty: it[2], marks: {} };
+    if (!x) x = o.items[k] = { text: it[0], t: it[1], qty: it[2], marks: table() };
     else { if (it[0] < x.text) x.text = it[0]; x.t = Math.min(x.t, it[1]); x.qty = Math.max(x.qty, it[2]); }
     it[3].forEach((m) => { const p = fold(list[0][m[0]][0]); x.marks[p] = Math.max(x.marks[p] || 0, m[1]); });
   });
@@ -80,6 +83,7 @@ export function shopApply(base, e, cf) {
   if (p) {
     if (!o.people[p]) o.people[p] = [e.name, intIn(e.face, 0, FACES.length - 1) ? e.face : 0];
     Object.keys(e.marks || {}).forEach((k) => {
+      if (!Object.prototype.hasOwnProperty.call(e.marks, k)) return;
       const s = e.marks[k], had = base ? shopMark(base, e.name, k) : 0;
       if (!o.items[k] || !intIn(s, 0, 2) || (had ? had % 3 === s : s === 0)) return;
       o.items[k].marks[p] = Math.min(S.ver, Math.floor(had / 3) + 1) * 3 + s;

@@ -2,18 +2,18 @@
 /* eslint-disable */
 export const CODE_HASH = {
   "bluff": "bb421a6ccda522a185f2622bb3bf870c",
-  "geschenk-finder": "388e55aab11a1dc2c49f0a7ceae0de48",
+  "geschenk-finder": "2f8c69046326a7aeb2efe23fee10255f",
   "gruss": "b03afcb8f1a8ad4c401f9811a24b3501",
-  "karte-danke": "c36280abb6b9b7421d474a67272f6e93",
-  "raum-sorry": "ba4b59ec0f532af74c0cd9e3a3adb790",
-  "zug-einig": "2688f683e20e4f04ec3e8c1ba1145cf6",
-  "zug-einkauf": "c136d39f7323760fa451c104a6bb7ce8",
-  "zug-gutschein": "3dfc9155cb4aac45657b5b36c09f26b0",
-  "zug-kapsel": "fd3b120db6b9bbd5ea68af7196f018fb",
-  "zug-reihum": "21bce188a6fe90b71499302d4d0c3258",
-  "zug-sammeln": "58f2e2da4eedddbf97ff86c68f444276",
-  "zug-termin": "e7eb97f9cf15462dc5ee0ff2a54db160",
-  "zug-umschlag": "059f55829d0bb823f8e7a3731483a25d",
-  "zug-wichteln": "660b73b51fc452e8e8f730394caf4562",
-  "zug-wunschzettel": "af7a8fb7c7eef13b99aa2ec5bae8da13"
+  "karte-danke": "48ca5155938007c8c2720e756a0e7fa5",
+  "raum-sorry": "69679c4def603645a8bf1278216519c9",
+  "zug-einig": "c56bc19f5eeb2d5eaab25950edd0a4f1",
+  "zug-einkauf": "090c9c4ea097197f54ec6862bdcf5747",
+  "zug-gutschein": "7be6c7381e7dfbd521da86ac0e8f5bbe",
+  "zug-kapsel": "477acbb5d86ce8027258c970680db728",
+  "zug-reihum": "16d22e810073f8fa53d25ac5e3d3dde7",
+  "zug-sammeln": "57849a458cedd385b872c1306d4d538a",
+  "zug-termin": "a73dea975487860710da3cc6cd036bbc",
+  "zug-umschlag": "7b3b89239ab08cf6502e2b0b0f3fdc9c",
+  "zug-wichteln": "d85cc5a5cae5634a8617e0063e396b7f",
+  "zug-wunschzettel": "041ab6bd1e6c7cb54180f422f5229589"
 };

@@ -5,7 +5,9 @@ import GTEXT from "./geschenke.json" with { type: "json" };
 import { textsFor, fmt, pair, alt, side, mix, hash32, mulberry32, fold, intIn, money, form, civil, weekday } from "./alt.js";
 import * as G from "./geld.js";
 import * as L from "./merge.js";
-import { ideas as giftIdeas } from "./geschenke.js";
+import { ideas as giftIdeas, ok as giftOk } from "./geschenke.js";
+import { okAnswer as okBase } from "./check.js";
+const okIdeas = (v) => okBase({ w: "ideas" }, v);
 
 export const TEXT = { de: { ...DATA.text.de, ...GTEXT.de }, en: { ...DATA.text.en, ...GTEXT.en } };
 export function T(lang) { return textsFor(TEXT, lang); }
@@ -238,7 +240,9 @@ export function giftGame(euro, who, extra) {
   const o = who ? 1 : 0, ask = who ? [{ w: "opts", l: "gf_who", n: 1, auto: true, keys: GIFT.who, pre: "gfw_" }] : [];
   ask.push({ w: "pick", l: "gf_budget", n: 1, auto: true, from: (doc, m, now, lang) => euro.map((n) => upTo(n, lang)) },
     { w: "opts", l: "gf_like", n: 2, keys: GIFT.likes, pre: "gfl_" },
-    { w: "ideas", l: "gf_ideas", ask: (now) => ({ who: who ? GIFT.who[now[0][0]] : "kollege", euro: euro[now[o][0]], likes: now[o + 1].map((i) => GIFT.likes[i]) }) });
+    // Pruefung wie alt (okAnswer ideas) plus der Geschenkfilter auch fuer Ideen aus einem Link (Review L2): kein Alkohol,
+    // Rauchen, Gluecksspiel, Diaet, Intimes, egal woher der Text kommt
+    { w: "ideas", l: "gf_ideas", check: (v) => okIdeas(v) && v[0].every(giftOk), ask: (now) => ({ who: who ? GIFT.who[now[0][0]] : "kollege", euro: euro[now[o][0]], likes: now[o + 1].map((i) => GIFT.likes[i]) }) });
   return Object.assign({
     turns: [ask, [{ w: "pick", l: "gf_fav", n: 1, auto: true, top: (doc, m, lang) => { const x = giftLast(m); return fmt(T(lang).gf_their, { s: x[0][x[1]] }); }, from: (doc, m) => giftLast(m)[0] }]],
     words: { you_start: "gf_start", go_first: "gf_go_first", go_play: "gf_go_play", note_turn: "gf_note", note_over: "gf_over", ready: "gf_ready", send: "inv_send", rematch: "gf_again" },
