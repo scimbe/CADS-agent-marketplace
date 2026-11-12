@@ -18,9 +18,10 @@ function local(el, init) { if (!el.__w) el.__w = init(); return el.__w; }
 function send(host, n, a) { host.onInput({ ...n.submit, a }); }
 
 // ---------- Countdown-Tor (Altcode turn2.js gate) ----------
+// Die Startzeit liegt unter eigenem Schluessel "w:<id>:t0"; "w:<id>" gehoert dem Zustand des Koerpers (react/explain/tuer).
 function gate(n, host, body) {
-  const Z = Y(host), started = drafted(host, n, null);
-  if (started === null) return [h("p", { class: "w-note" }, Z.ready), h("button", { type: "button", class: "btn primary big", "data-act": "w-ready", disabled: host.disabled ? true : null, on: { click: () => setDraft(host, n, now(host)) } }, Z.go)];
+  const key = { id: n.id + ":t0" }, Z = Y(host), started = drafted(host, key, null);
+  if (typeof started !== "number") return [h("p", { class: "w-note" }, Z.ready), h("button", { type: "button", class: "btn primary big", "data-act": "w-ready", disabled: host.disabled ? true : null, on: { click: () => setDraft(host, key, now(host)) } }, Z.go)];
   return body(started);
 }
 function ticker(el, host, ms, f) { const s = local(el, () => ({})); if (s.t) return; const loop = () => { if (!el.isConnected) { s.t = null; return; } f(); s.t = setTimeout(loop, ms); }; s.t = setTimeout(loop, ms); }
@@ -187,7 +188,7 @@ M.rec = (n, host, X) => { const Z = Y(host), done = drafted(host, n, false); ret
 M.record = M.rec;
 M.once = (n, host, X) => { const Z = Y(host), done = drafted(host, n, false); return wrap(n, host, [done ? h("p", { class: "w-note" }, "✓") : audioBtn(host, "▶ " + Z.playOnce, () => host.audio.playOnce(n.slot, n.fx).then((ok) => setDraft(host, n, ok ? true : "gone"))), done === "gone" ? h("p", { class: "w-note" }, Z.gone) : null, ...(done ? mainBtn(host, n, 0, "", X) : [])]); };
 M.parrot = (n, host, X) => { const Z = Y(host), st = drafted(host, n, 0); return wrap(n, host, [audioBtn(host, "▶ " + Z.back, () => host.audio.playReversed(n.from).then(() => setDraft(host, n, Math.max(st, 1)))), st >= 1 ? audioBtn(host, "🎙 " + Z.rec, () => host.audio.record(n.slot, 2500).then(() => host.audio.playReversed(n.slot)).then(() => setDraft(host, n, 2))) : null, ...(st >= 2 ? mainBtn(host, n, 0, "", X) : [])]); };
-M.whose = (n, host, X) => { const Z = Y(host), played = drafted(host, n, false); return wrap(n, host, [audioBtn(host, "▶ " + Z.play, () => host.audio.playOnce(n.slot, n.fx).then(() => setDraft(host, n, true))), played ? h("div", { class: "options" }, (n.options || []).slice(0, 3).map((o, i) => h("button", { type: "button", class: "chip", key: i, on: { click: () => send(host, n, i) } }, txt(o.label, 40)))) : null]); };
+M.whose = (n, host, X) => { const Z = Y(host), played = drafted(host, n, false); /* beliebig oft abspielbar, der Slot bleibt (alt turn-ui.js whose, Studio.warp) */ return wrap(n, host, [audioBtn(host, "▶ " + Z.play, () => host.audio.playFx(n.slot, n.fx).then(() => setDraft(host, n, true))), played ? h("div", { class: "options" }, (n.options || []).slice(0, 3).map((o, i) => h("button", { type: "button", class: "chip", key: i, on: { click: () => send(host, n, i) } }, txt(o.label, 40)))) : null]); };
 M.audio = (n, host) => wrap(n, host, [audioBtn(host, "▶ " + txt(n.label || Y(host).play, 40), () => host.audio.play(n.src))]);
 M.freeze = (n, host, X) => {
   const Z = Y(host), st = drafted(host, n, { r: 0, stopped: false });

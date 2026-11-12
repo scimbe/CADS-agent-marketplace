@@ -148,3 +148,18 @@ test("form: eingebettete Widgets mit eigenem Senden (aim) landen im Formularwert
   f.main().props.on.click();
   assert.deepEqual(f.sent[0], { t: "throw", seat: 0, a: { aim: [2048 + 64, 2048], power: 4 } });
 });
+
+test("Countdown-Tor: t0 liegt unter eigenem Schluessel; react/explain/tuer laufen nach Los und die Uhr laeuft ab (Z2-Befund)", () => {
+  let t = 1000; const clock = () => t;
+  const tu = harness({ t: "tuer", id: "tu", secs: 10, streak: 4, rules: [{ beings: [{ look: ["🐱"], in: true }, { look: ["🐶"], in: false }, { look: ["🐭"], in: true }] }], submit: sub }, { clock });
+  tu.click(/^Los$/);
+  assert.equal(tu.H.draft["w:tu:t0"], 1000);
+  tu.click(/^Rein$/); assert.equal(tu.H.draft["w:tu"].right, 1);
+  t += 11000; tu.main().props.on.click(); assert.deepEqual(tu.sent[0].a, [0, 1, 1]);
+  const ex = harness({ t: "explain", id: "ex", secs: 5, words: ["Hund", "Katze"], submit: sub }, { clock });
+  ex.click(/^Los$/);
+  assert.ok(ex.tree().some((x) => typeof x === "object" && /Hund/.test(textOf(x))), "erstes Wort sichtbar");
+  const re = harness({ t: "react", id: "re", plan: [{ decoys: 0, pause: 10 }], submit: sub }, { clock });
+  re.click(/^Los$/);
+  assert.ok(re.tree().some((x) => x.props && x.props.class === "w-pad"), "Tippfeld nach Los");
+});
