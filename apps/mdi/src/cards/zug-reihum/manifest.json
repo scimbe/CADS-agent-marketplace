@@ -1,7 +1,7 @@
 {
   "id": "zug-reihum",
   "version": "1.0.0",
-  "sdk": "mdi-sdk/0.1",
+  "sdk": "mdi-sdk/0.2",
   "kind": "turn",
   "mode": "turn",
   "order": 14,
@@ -52,10 +52,28 @@
       "alone"
     ]
   },
-  "legacy": {
-    "zug-reihum": "reihum",
-    "zug-kerzen": "kerzen"
-  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "legacy": [
+    "zug-reihum"
+  ],
+  "variants": [
+    {
+      "id": "zug-kerzen",
+      "title": {
+        "de": "Kerzen auspusten",
+        "en": "Blow out the candles"
+      },
+      "params": {
+        "spiel": "kerzen"
+      },
+      "legacy": [
+        "zug-kerzen"
+      ]
+    }
+  ],
   "inputs": {
     "type": "object",
     "required": [
@@ -114,31 +132,11 @@
         "x-label": {
           "de": "Art",
           "en": "Kind"
-        },
-        "x-names": {
-          "reihum": {
-            "de": "Alle unterschreiben",
-            "en": "Everyone signs"
-          },
-          "kerzen": {
-            "de": "Kerzen auspusten",
-            "en": "Blow out the candles"
-          }
         }
       }
     }
   },
   "parts": [
-    {
-      "id": "art",
-      "params": [
-        "spiel"
-      ],
-      "label": {
-        "de": "Art",
-        "en": "Kind"
-      }
-    },
     {
       "id": "titel",
       "params": [

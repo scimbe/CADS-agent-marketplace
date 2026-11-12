@@ -1,7 +1,7 @@
 {
   "id": "karte-danke",
   "version": "1.0.0",
-  "sdk": "mdi-sdk/0.1",
+  "sdk": "mdi-sdk/0.2",
   "kind": "turn",
   "mode": "turn",
   "order": 18,
@@ -48,21 +48,174 @@
       "alone"
     ]
   },
-  "legacy": {
-    "karte-danke": "danke",
-    "karte-urkunde": "urkunde",
-    "karte-lob": "karte-lob",
-    "warm-toll": "warm-toll",
-    "warm-danke": "warm-danke",
-    "warm-super": "warm-super",
-    "warm-denke": "warm-denke",
-    "warm-daumen": "warm-daumen",
-    "warm-lachen": "warm-lachen",
-    "warm-freunde": "warm-freunde",
-    "warm-mutig": "warm-mutig",
-    "warm-besserung": "warm-besserung",
-    "warm-gruss": "warm-gruss"
-  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "legacy": [
+    "karte-danke"
+  ],
+  "variants": [
+    {
+      "id": "karte-urkunde",
+      "title": {
+        "de": "Urkunde für nix",
+        "en": "Certificate for nothing"
+      },
+      "params": {
+        "spiel": "urkunde"
+      },
+      "legacy": [
+        "karte-urkunde"
+      ],
+      "modes": [
+        "alone"
+      ]
+    },
+    {
+      "id": "karte-lob",
+      "title": {
+        "de": "Urkunde für nix",
+        "en": "Award for nothing"
+      },
+      "params": {
+        "spiel": "karte-lob"
+      },
+      "legacy": [
+        "karte-lob"
+      ]
+    },
+    {
+      "id": "warm-toll",
+      "title": {
+        "de": "Du bist toll",
+        "en": "You are awesome"
+      },
+      "params": {
+        "spiel": "warm-toll"
+      },
+      "legacy": [
+        "warm-toll"
+      ]
+    },
+    {
+      "id": "warm-danke",
+      "title": {
+        "de": "Danke, dass es dich gibt",
+        "en": "So glad you exist"
+      },
+      "params": {
+        "spiel": "warm-danke"
+      },
+      "legacy": [
+        "warm-danke"
+      ]
+    },
+    {
+      "id": "warm-super",
+      "title": {
+        "de": "Das hast du super gemacht",
+        "en": "You did great"
+      },
+      "params": {
+        "spiel": "warm-super"
+      },
+      "legacy": [
+        "warm-super"
+      ]
+    },
+    {
+      "id": "warm-denke",
+      "title": {
+        "de": "Ich denk an dich",
+        "en": "Thinking of you"
+      },
+      "params": {
+        "spiel": "warm-denke"
+      },
+      "legacy": [
+        "warm-denke"
+      ]
+    },
+    {
+      "id": "warm-daumen",
+      "title": {
+        "de": "Ich drück dir die Daumen",
+        "en": "Fingers crossed"
+      },
+      "params": {
+        "spiel": "warm-daumen"
+      },
+      "legacy": [
+        "warm-daumen"
+      ]
+    },
+    {
+      "id": "warm-lachen",
+      "title": {
+        "de": "Dein Lachen steckt an",
+        "en": "Your laugh is contagious"
+      },
+      "params": {
+        "spiel": "warm-lachen"
+      },
+      "legacy": [
+        "warm-lachen"
+      ]
+    },
+    {
+      "id": "warm-freunde",
+      "title": {
+        "de": "Schön, dass wir Freunde sind",
+        "en": "Glad we're friends"
+      },
+      "params": {
+        "spiel": "warm-freunde"
+      },
+      "legacy": [
+        "warm-freunde"
+      ]
+    },
+    {
+      "id": "warm-mutig",
+      "title": {
+        "de": "Ich bin stolz auf dich",
+        "en": "Proud of you"
+      },
+      "params": {
+        "spiel": "warm-mutig"
+      },
+      "legacy": [
+        "warm-mutig"
+      ]
+    },
+    {
+      "id": "warm-besserung",
+      "title": {
+        "de": "Gute Besserung",
+        "en": "Get well soon"
+      },
+      "params": {
+        "spiel": "warm-besserung"
+      },
+      "legacy": [
+        "warm-besserung"
+      ]
+    },
+    {
+      "id": "warm-gruss",
+      "title": {
+        "de": "Kleiner Gruß für deinen Tag",
+        "en": "Have a good one"
+      },
+      "params": {
+        "spiel": "warm-gruss"
+      },
+      "legacy": [
+        "warm-gruss"
+      ]
+    }
+  ],
   "inputs": {
     "type": "object",
     "required": [
@@ -132,75 +285,11 @@
         "x-label": {
           "de": "Art",
           "en": "Kind"
-        },
-        "x-names": {
-          "danke": {
-            "de": "Danke mit Grund",
-            "en": "Thanks with a reason"
-          },
-          "urkunde": {
-            "de": "Urkunde für nix",
-            "en": "Certificate for nothing"
-          },
-          "karte-lob": {
-            "de": "Urkunde für nix",
-            "en": "Award for nothing"
-          },
-          "warm-toll": {
-            "de": "Du bist toll",
-            "en": "You are awesome"
-          },
-          "warm-danke": {
-            "de": "Danke, dass es dich gibt",
-            "en": "So glad you exist"
-          },
-          "warm-super": {
-            "de": "Das hast du super gemacht",
-            "en": "You did great"
-          },
-          "warm-denke": {
-            "de": "Ich denk an dich",
-            "en": "Thinking of you"
-          },
-          "warm-daumen": {
-            "de": "Ich drück dir die Daumen",
-            "en": "Fingers crossed"
-          },
-          "warm-lachen": {
-            "de": "Dein Lachen steckt an",
-            "en": "Your laugh is contagious"
-          },
-          "warm-freunde": {
-            "de": "Schön, dass wir Freunde sind",
-            "en": "Glad we're friends"
-          },
-          "warm-mutig": {
-            "de": "Ich bin stolz auf dich",
-            "en": "Proud of you"
-          },
-          "warm-besserung": {
-            "de": "Gute Besserung",
-            "en": "Get well soon"
-          },
-          "warm-gruss": {
-            "de": "Kleiner Gruß für deinen Tag",
-            "en": "Have a good one"
-          }
         }
       }
     }
   },
   "parts": [
-    {
-      "id": "art",
-      "params": [
-        "spiel"
-      ],
-      "label": {
-        "de": "Art",
-        "en": "Kind"
-      }
-    },
     {
       "id": "titel",
       "params": [

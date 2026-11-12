@@ -1,7 +1,7 @@
 {
   "id": "zug-wunschzettel",
   "version": "1.0.0",
-  "sdk": "mdi-sdk/0.1",
+  "sdk": "mdi-sdk/0.2",
   "kind": "turn",
   "mode": "turn",
   "order": 16,
@@ -47,12 +47,16 @@
       "link"
     ]
   },
+  "modes": [
+    "alone",
+    "link"
+  ],
   "link": {
     "snap": true
   },
-  "legacy": {
-    "zug-wunschzettel": "wunsch"
-  },
+  "legacy": [
+    "zug-wunschzettel"
+  ],
   "inputs": {
     "type": "object",
     "required": [

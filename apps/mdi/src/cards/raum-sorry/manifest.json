@@ -1,7 +1,7 @@
 {
   "id": "raum-sorry",
   "version": "1.0.0",
-  "sdk": "mdi-sdk/0.1",
+  "sdk": "mdi-sdk/0.2",
   "kind": "turn",
   "mode": "turn",
   "order": 22,
@@ -48,10 +48,28 @@
       "link"
     ]
   },
-  "legacy": {
-    "raum-sorry": "sorry",
-    "warm-sorry": "warm-sorry"
-  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "legacy": [
+    "raum-sorry"
+  ],
+  "variants": [
+    {
+      "id": "warm-sorry",
+      "title": {
+        "de": "Tut mir leid",
+        "en": "I'm sorry"
+      },
+      "params": {
+        "spiel": "warm-sorry"
+      },
+      "legacy": [
+        "warm-sorry"
+      ]
+    }
+  ],
   "inputs": {
     "type": "object",
     "required": [
@@ -110,31 +128,11 @@
         "x-label": {
           "de": "Art",
           "en": "Kind"
-        },
-        "x-names": {
-          "sorry": {
-            "de": "Der erste Satz",
-            "en": "The first words"
-          },
-          "warm-sorry": {
-            "de": "Tut mir leid",
-            "en": "I'm sorry"
-          }
         }
       }
     }
   },
   "parts": [
-    {
-      "id": "art",
-      "params": [
-        "spiel"
-      ],
-      "label": {
-        "de": "Art",
-        "en": "Kind"
-      }
-    },
     {
       "id": "titel",
       "params": [

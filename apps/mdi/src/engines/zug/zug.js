@@ -12,6 +12,9 @@
 import { textsFor, fmt, intIn, clean as cleanText } from "./alt.js";
 import { okAnswer } from "./check.js";
 import { shopMerge as mergeList } from "./merge.js";
+import { example } from "./example.js";
+// Tag fuer Beispielzuege an gateFrom-Prompts (der Host stempelt echte Eingaben mit ctx.today)
+const DRIVER_DAY = 20770;
 
 // ---------- Antworten im Link: der Rohwert (int, string, Listen davon), wie F's Widgets ihn als `a` schicken ----------
 // Die Huelle (kanonisch <= 2048 Byte, keine Steuerzeichen, kein <>) prueft der Host global (ADR 0001 f); accepts prueft
@@ -99,7 +102,9 @@ export function makeZug(def) {
       pub.m = g.snap ? pub.m.slice(0, g.snap === true ? 0 : g.snap).concat([answers]) : pub.m.concat([answers]);
       if (g.gateFrom && t === 0) pub.o = input.d + answers[1];
       if (g.list && g.list.wish && pub.o === 1) pub.o = 0; // der eigene Link der Wuenschenden geht nie als der der Familie weiter
-      pub.now = []; pub.k += 1;
+      // snap: der Link traegt nur den Stand; k haelt nur die Paritaet (1 oder 2), damit ein verdichtetes Log genau
+      // diesen pub nachspielt (compact) und danach der andere Sitz dran ist
+      pub.now = []; pub.k = g.snap ? (pub.k === 1 ? 2 : 1) : pub.k + 1;
     }
     return { pub, priv: state.priv.slice() };
   }
@@ -127,17 +132,25 @@ export function makeZug(def) {
     observe(state) { return { pub: copy(state.pub), mine: null }; },
     status,
     accepts,
-    // aufzaehlbare Zuege fuer Bot/Hinweis: nur Auswahl-Prompts mit n = 1; freie Eingaben pruefen accepts()
+    // Zuege fuer Treiber, Bot-Haken und Hinweise: pick n = 1 vollstaendig aufgezaehlt, sonst EIN gueltiger Beispielzug
+    // (example.js bzw. game.example). Freie Eingaben nimmt accepts(); moves() ist keine Vollstaendigkeitsaussage.
     moves(obs, seat) {
       const pub = obs.pub, st = status({ pub });
       if (st.over || seat !== st.turn) return [];
       const g = gameOf(pub), p = prompts(g, pub)[pub.now.length];
       if (!p) return [];
-      if ((p.w === "show" || p.w === "blow") && acceptsAnswer(pub, 0)) return [{ t: "ans", seat, a: 0, ...dayFor(g, pub, null) }];
-      if (p.w !== "pick" || p.n !== 1) return [];
-      const n = p.from(docFor(pub), pub.m, pub.now, "de").length, out = [];
-      for (let i = 0; i < n; i++) out.push({ t: "ans", seat, a: [i] });
-      return out;
+      const out = [], close = g.close && pub.m.length > 0 && pub.now.length === 0 ? [{ t: "close", seat }] : [];
+      if (p.w === "pick" && p.n === 1) {
+        const n = p.from(docFor(pub), pub.m, pub.now, "de").length;
+        for (let i = 0; i < n; i++) out.push({ t: "ans", seat, a: [i], ...dayFor(g, pub, DRIVER_DAY) });
+        return out.concat(close);
+      }
+      const ok = (v) => v !== undefined && acceptsAnswer(pub, v);
+      const doc = docFor(pub);
+      let v = g.example ? g.example(p, doc, pub.m, pub.now) : undefined;
+      if (!ok(v)) v = example(p, doc, pub.m, pub.now, ok);
+      if (ok(v)) out.push({ t: "ans", seat, a: v, ...dayFor(g, pub, DRIVER_DAY) });
+      return out.concat(close);
     },
     // ---------- fuer Ansicht, Host und Tests ----------
     T, docFor, gameOf, seatingOf: (pub) => seatingOf(gameOf(pub)), prompts: (pub) => prompts(gameOf(pub), pub), result, gateLeft,
@@ -155,29 +168,38 @@ export function makeZug(def) {
     /** Freie Karte (Strang K): Doc {k:"turn", i:<Katalog-id>, t?, s?, w?} -> Parameter oder null; und zurueck (Robot). */
     fromFree(doc) {
       if (!doc || typeof doc !== "object" || typeof doc.i !== "string") return null;
-      const v = (def.legacy || {})[doc.i];
-      if (!v) return null;
       const props = manifest.params.properties, out = {};
       for (const [k, p] of Object.entries(props)) out[k] = JSON.parse(JSON.stringify(p.default));
-      if (def.variantKey) out[def.variantKey] = v;
+      const variant = (manifest.variants || []).find((v) => (v.legacy || []).includes(doc.i) || v.id === doc.i);
+      if (variant) Object.assign(out, variant.params);
+      else if (!(manifest.legacy || []).includes(doc.i)) return null;
       if (props.titel && typeof doc.t === "string") { const t = cleanText(doc.t, props.titel.maxLength); if (t) out.titel = t; }
       return out;
     },
     toFree(params) {
-      const v = def.variantKey ? params[def.variantKey] : Object.keys(def.games)[0];
-      const id = Object.keys(def.legacy || {}).find((k) => def.legacy[k] === v) || manifest.id;
-      return { k: "turn", i: id, ...(params.titel ? { t: params.titel } : {}) };
+      const variant = (manifest.variants || []).find((v) => Object.entries(v.params).every(([k, x]) => params[k] === x));
+      return { k: "turn", i: variant ? (variant.legacy || [variant.id])[0] : manifest.id, ...(params.titel ? { t: params.titel } : {}) };
     },
     /** snap-Karten (manifest.link.snap, ADR 0001 f): Der Link traegt die Liste, wie sie jetzt ist, nicht den Weg dorthin
      *  (alt snap, turns.js:1186). Der letzte Zug einer snap-Karte ist ein einzelner Prompt mit der ganzen Liste; aus ihm
      *  und einem etwaigen close entsteht ein kurzes Log, das von init aus denselben Listenstand ergibt. Danach ist der
      *  andere Sitz dran. Ohne snap bleibt das Log unveraendert. */
-    compact(log) {
-      const lastAns = [...log].reverse().find((x) => x && x.t === "ans");
-      if (!lastAns || !log.length) return log;
-      const closed = log.some((x) => x && x.t === "close");
-      const out = [{ t: "ans", seat: 0, a: lastAns.a }];
-      if (closed) out.push({ t: "close", seat: 1 });
+    compact(log, state) {
+      // Mit Zustand (Empfang nach merge, ADR 0001 f): das Log aus dem vereinigten Stand; ohne: aus dem Log selbst.
+      // Ein Eintrag fuer k = 1, zwei (dieselbe Liste noch einmal, unveraendert gueltig) fuer k = 2; close am Ende.
+      const g0 = gameOf(state ? state.pub : { v: Object.keys(def.games)[0] });
+      if (!g0.snap) return log;
+      let list, k, closed;
+      if (state) { if (!state.pub.m.length) return []; list = state.pub.m[0][0]; k = state.pub.k; closed = state.pub.o === 2; }
+      else {
+        const ans = log.filter((x) => x && x.t === "ans");
+        if (!ans.length) return [];
+        list = ans[ans.length - 1].a; k = ans.length % 2 === 1 ? 1 : 2; closed = log.some((x) => x && x.t === "close");
+      }
+      // bei k = 2 traegt der erste Eintrag die Liste ohne Marken: so endet ein fertiger Einkauf nicht schon dort
+      const bare = [[], list[1].map((it) => [it[0], it[1], it[2], []])];
+      const out = k === 2 ? [{ t: "ans", seat: 0, a: bare }, { t: "ans", seat: 1, a: list }] : [{ t: "ans", seat: 0, a: list }];
+      if (closed) out.push({ t: "close", seat: k % 2 });
       return out;
     },
     /** Vereinigung zweier Staende derselben snap-Partie (alt shopMerge beim Empfang, turn-ui.js shopSeen): kommutativ,
@@ -191,7 +213,7 @@ export function makeZug(def) {
       out.m = list ? [[list]] : [];
       out.now = [];
       out.o = Math.max(a.o === 2 ? 2 : 0, b.o === 2 ? 2 : 0);
-      out.k = list ? 1 : 0;
+      out.k = list ? (b.k === 2 ? 2 : 1) : 0;
       return out;
     }
   };

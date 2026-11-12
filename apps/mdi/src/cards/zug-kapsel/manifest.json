@@ -1,7 +1,7 @@
 {
   "id": "zug-kapsel",
   "version": "1.0.0",
-  "sdk": "mdi-sdk/0.1",
+  "sdk": "mdi-sdk/0.2",
   "kind": "turn",
   "mode": "turn",
   "order": 20,
@@ -48,11 +48,29 @@
       "alone"
     ]
   },
+  "modes": [
+    "alone",
+    "link"
+  ],
   "inputDay": true,
-  "legacy": {
-    "zug-kapsel": "kapsel",
-    "zug-post": "post"
-  },
+  "legacy": [
+    "zug-kapsel"
+  ],
+  "variants": [
+    {
+      "id": "zug-post",
+      "title": {
+        "de": "Post an mich in 30 Tagen",
+        "en": "Mail to me in 30 days"
+      },
+      "params": {
+        "spiel": "post"
+      },
+      "legacy": [
+        "zug-post"
+      ]
+    }
+  ],
   "inputs": {
     "type": "object",
     "required": [
@@ -111,31 +129,11 @@
         "x-label": {
           "de": "Art",
           "en": "Kind"
-        },
-        "x-names": {
-          "kapsel": {
-            "de": "Vorhersage",
-            "en": "Prediction"
-          },
-          "post": {
-            "de": "Post an mich in 30 Tagen",
-            "en": "Mail to me in 30 days"
-          }
         }
       }
     }
   },
   "parts": [
-    {
-      "id": "art",
-      "params": [
-        "spiel"
-      ],
-      "label": {
-        "de": "Art",
-        "en": "Kind"
-      }
-    },
     {
       "id": "titel",
       "params": [

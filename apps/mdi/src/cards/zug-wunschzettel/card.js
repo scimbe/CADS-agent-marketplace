@@ -5,4 +5,4 @@ import { makeZug } from "../../engines/zug/zug.js";
 import { GAMES, TEXT } from "../../engines/zug/spiele.js";
 import { wish } from "../../engines/zug/views.js";
 
-export default makeZug({ manifest, games: { wunsch: GAMES.wunsch }, text: TEXT, legacy: manifest.legacy, view: { wish } });
+export default makeZug({ manifest, games: { wunsch: GAMES.wunsch }, text: TEXT, view: { wish } });

@@ -5,14 +5,17 @@
    - liste -> items with amounts from the rule table below (people from the sentence or the household in the profile);
    - liste aufgaben -> tasks with a due day counted back from the event day.
    Names never leave the device: a list of names in the sentence stays here and goes out as [Name]. Pure logic (no DOM). */
-import { hash32 } from "./alt.js";
+import { hash32, civil, daysOf, weekday } from "./alt.js";
+// Ohne Date (Harness): Kalender aus alt.js civil/daysOf/weekday, bitgleich zu Date (test/z1-format.test.js).
+// DTSTAMP kommt vom Host (Zeitstempel in ms); fehlt er, bricht ics ab statt die Uhr zu lesen.
+function stampOf(now) { if (!Number.isInteger(now)) throw new Error("ics: Zeitstempel fehlt"); return now; }
 const C = { hash32 };
 var DAY = 86400000, HOURS = [10, 12, 14, 15, 16, 17, 18, 19, 20], MAX = 5;
 var WD = ["so", "mo", "di", "mi", "do", "fr", "sa"];
 var DAUER = [0, 15, 30, 45, 60, 90, 120, 180, 240, 360, 480, 1440];
-function ymd(day) { var d = new Date(day * DAY); return [d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate()]; }
-function dayOf(y, m, d) { return Math.floor(Date.UTC(y, m - 1, d) / DAY); }
-function wd(day) { return new Date(day * DAY).getUTCDay(); }
+function ymd(day) { return civil(day); }
+function dayOf(y, m, d) { return daysOf(y, m, d); }
+function wd(day) { return weekday(day); }
 function mon(day) { return (wd(day) + 6) % 7; }      // 0 = Monday
 // Easter Sunday (anonymous Gregorian algorithm, Meeus/Jones/Butcher).
 function easter(y) {
@@ -93,7 +96,7 @@ function slots(rule, opt) {
 
 // ---------- .ics for one slot: floating local time (RFC 5545 form 1), no names, no place ----------
 function pad(n) { return (n < 10 ? "0" : "") + n; }
-function stamp(ms) { var d = new Date(ms); return d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) + "T" + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + "00"; }
+function stamp(ms) { var day = Math.floor(ms / DAY), rest = ms - day * DAY, d = civil(day); return d[0] + pad(d[1]) + pad(d[2]) + "T" + pad(Math.floor(rest / 3600000)) + pad(Math.floor((rest % 3600000) / 60000)) + "00"; }
 function esc(v) { return String(v).replace(/[\\;,]/g, function (c) { return "\\" + c; }).replace(/\n/g, "\\n"); }
 function fold75(line) {
   var out = [], cur = "", n = 0;
@@ -104,7 +107,7 @@ function ics(slot, title, mins, now) {
   var day = Math.floor(slot / 10), h = HOURS[slot % 10], start = day * DAY + h * 3600000, len = DAUER.indexOf(mins) > 0 ? mins : 60;
   var when = len >= 1440 ? ["DTSTART;VALUE=DATE:" + stamp(day * DAY).slice(0, 8), "DTEND;VALUE=DATE:" + stamp((day + 1) * DAY).slice(0, 8)] : ["DTSTART:" + stamp(start), "DTEND:" + stamp(start + len * 60000)];
   return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//My Daily Idea//Termin//DE", "CALSCALE:GREGORIAN", "BEGIN:VEVENT",
-    "UID:termin-" + C.hash32(String(title) + "|" + slot) + "@bunsenbrenner.org", "DTSTAMP:" + stamp(now || Date.now()) + "Z"].concat(when, ["SUMMARY:" + esc(title || "Termin"), "END:VEVENT", "END:VCALENDAR"]).map(fold75).join("\r\n") + "\r\n";
+    "UID:termin-" + C.hash32(String(title) + "|" + slot) + "@bunsenbrenner.org", "DTSTAMP:" + stamp(stampOf(now)) + "Z"].concat(when, ["SUMMARY:" + esc(title || "Termin"), "END:VEVENT", "END:VCALENDAR"]).map(fold75).join("\r\n") + "\r\n";
 }
 
 // ---------- the way without AI: a small rule reader for German and English (concept: "zuerst ein lokaler Regel-Parser") ----------
