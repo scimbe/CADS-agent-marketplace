@@ -29,20 +29,6 @@
   "uses": [
     "audio-out"
   ],
-  "min": 45,
-  "tags": [
-    "beat bauen",
-    "musik machen",
-    "rhythmus",
-    "schule",
-    "ticken",
-    "schlagen",
-    "pausenhof",
-    "make beat",
-    "make music",
-    "school",
-    "playground"
-  ],
   "params": {
     "type": "object",
     "additionalProperties": false,
@@ -352,21 +338,7 @@
           "h": "xxxxxxxxxxxxxxxx",
           "b": "x---x---x-x-x-x-"
         }
-      },
-      "x-default": {
-        "en": {
-          "x": "Boss fight music"
-        }
-      },
-      "tags": [
-        "episch",
-        "finale",
-        "dramatisch",
-        "intensiv",
-        "highlight",
-        "dramatic",
-        "intense"
-      ]
+      }
     },
     {
       "id": "plan-05",
@@ -387,21 +359,7 @@
           "h": "x-x-x-x-x-x-x-x-",
           "b": "x--x----x--x----"
         }
-      },
-      "x-default": {
-        "en": {
-          "x": "Tunnel beat"
-        }
-      },
-      "tags": [
-        "musik",
-        "club",
-        "dj",
-        "feiern",
-        "partyplaylist",
-        "music",
-        "celebration"
-      ]
+      }
     },
     {
       "id": "plan-12",
@@ -422,42 +380,8 @@
           "h": "x---x---x---x---",
           "b": "x-x---x-x---x---"
         }
-      },
-      "x-default": {
-        "en": {
-          "x": "Build a ringtone"
-        }
-      },
-      "tags": [
-        "handy",
-        "smartphone",
-        "benachrichtigung",
-        "musik",
-        "notification",
-        "music",
-        "audio"
-      ]
+      }
     }
   ],
-  "assets": [
-    {
-      "id": "noto",
-      "type": "sheet",
-      "file": "../../engines/poster/noto-stickers.png",
-      "tile": 128,
-      "license": "Apache-2.0"
-    }
-  ],
-  "texts": {
-    "de": {
-      "play": "Abspielen",
-      "stop": "Stopp",
-      "send": "Beat verschicken"
-    },
-    "en": {
-      "play": "Play",
-      "stop": "Stop",
-      "send": "Send the beat"
-    }
-  }
+  "dur": 45
 }

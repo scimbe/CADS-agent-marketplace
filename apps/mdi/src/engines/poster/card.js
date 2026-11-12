@@ -1,14 +1,11 @@
 // Gemeinsamer Kartenbaustein der Poster-Engine fuer statische Karten (advent-tuer, foto-*, beat-*, stimme-verzerren und
 // die Kategorien card/meme der freien Karte): Parameter -> Poster-Dokument -> Canvas-Knoten der Anzeigeliste.
-import { sanitizePoster, PAIR_HEX, doorNumber } from "./doc.js";
+import { sanitizePoster, PAIR_HEX } from "./doc.js";
 import { compile, FORMATS } from "./compile.js";
-import { early } from "./door.js";
+import { early, doorNumber, civil } from "./door.js";
 
-const DAY = 86400000;
-/** UTC-Tag (Tage seit 1970-01-01) -> Date */
-export function dateOf(today) { return new Date(today * DAY); }
 /** Tuernummer aus dem UTC-Tag (alt daily.js doorNumber). */
-export function doorOf(today) { return doorNumber(dateOf(today)); }
+export function doorOf(today) { return doorNumber(today); }
 
 /** Parameter einer Poster-Karte -> bereinigtes Dokument. Fremde Felder fallen weg (sanitizePoster). */
 export function docOf(kind, p) {
@@ -31,4 +28,4 @@ export function canvasNode(doc, o) {
   if (doc.gi && doc.gi.p) src.gi = { kind: "server", ref: doc.gi.p };
   return { t: "canvas", w: W, h: H, ratio: o.format || "4:5", ops2d: list.ops, src, assets: ["noto"], a11y: o.a11y, part: o.part || "bild" };
 }
-export { early, FORMATS };
+export { early, civil, FORMATS };

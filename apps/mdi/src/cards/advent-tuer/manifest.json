@@ -29,27 +29,10 @@
     "stepBudget": 1,
     "stateBytes": 4096
   },
-  "tags": [
-    "weihnachten",
-    "vorweihnachtszeit",
-    "kalender",
-    "überraschung",
-    "geschenk",
-    "familie",
-    "kind",
-    "christmas",
-    "countdown",
-    "calendar",
-    "surprise",
-    "gift",
-    "family",
-    "kids"
-  ],
   "on": [
     "12-22",
     "12-24"
   ],
-  "min": 40,
   "params": {
     "type": "object",
     "additionalProperties": false,
@@ -386,37 +369,8 @@
       }
     }
   ],
-  "assets": [
-    {
-      "id": "noto",
-      "type": "sheet",
-      "file": "../../engines/poster/noto-stickers.png",
-      "tile": 128,
-      "license": "Apache-2.0"
-    }
-  ],
-  "texts": {
-    "de": {
-      "send": "Türchen verschicken",
-      "tap": "Tippen zum Öffnen",
-      "open": "Türchen {n} öffnen",
-      "title": "Ein Adventstürchen",
-      "from": "Von {n}",
-      "for": "Gedacht für den {n}. Dezember.",
-      "own": "Eigenes Türchen machen",
-      "on": "Weiter",
-      "note": "Das Türchen lässt sich jederzeit öffnen. Die Nummer sagt nur, für welchen Tag es gedacht ist."
-    },
-    "en": {
-      "send": "Send the door",
-      "tap": "Tap to open",
-      "open": "Open door {n}",
-      "title": "An Advent door",
-      "from": "From {n}",
-      "for": "Meant for December {n}.",
-      "own": "Make your own door",
-      "on": "Continue",
-      "note": "The door opens any time. The number only says which day it is meant for."
-    }
-  }
+  "dur": 40,
+  "legacy": [
+    "plan-30"
+  ]
 }

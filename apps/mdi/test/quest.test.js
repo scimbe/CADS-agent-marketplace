@@ -2,7 +2,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import * as Q from "../src/engines/quest/quest.js";
+import * as Q0 from "../src/engines/quest/quest.js";
+import * as W from "../src/engines/quest/web.js";
+const Q = { ...Q0, ...W };
 
 const ALT = JSON.parse(fs.readFileSync(new URL("./fixtures/quest-alt.json", import.meta.url), "utf8"));
 const DRAFT = { stops: [{ q: "Was war unser bester Tag?", a: "Ostsee" }, { q: "Welches Lied läuft dazu?", a: "Atemlos" }, { q: "Wer hat damals gewonnen?", a: "Oma" }], end: "Alle drei auf. Respekt." };
@@ -31,4 +33,13 @@ test("Alt-Orakel: ein mit dem Altcode versiegelter Link oeffnet mit der neuen En
   const neu = await Q.seal(ALT.draft);
   assert.equal(neu.q0, ALT.sealed.q0); assert.equal(neu.h0, ALT.sealed.h0); assert.equal(neu.c.length, ALT.sealed.c.length);
   neu.c.forEach((b, i) => assert.equal(b.length, ALT.sealed.c[i].length, "gleiche Laenge (Nonce + Chiffrat + Tag)"));
+});
+
+test("Synchron = Web Crypto: sealSync oeffnet mit open, seal oeffnet mit openSync, falsche Antwort nichts", async () => {
+  const s = Q.sealSync(DRAFT, "seed-1");
+  assert.deepEqual(await Q.open(s.c[0], "Ostsee"), Q.openSync(s.c[0], "Ostsee"));
+  const w = await Q.seal(DRAFT);
+  assert.deepEqual(Q.openSync(w.c[2], "oma"), { e: DRAFT.end });
+  assert.equal(Q.openSync(w.c[0], "Nordsee"), null); assert.equal(Q.openSync("kaputt", "x"), null);
+  assert.notDeepEqual(Q.sealSync(DRAFT, "seed-1").c, Q.sealSync(DRAFT, "seed-2").c, "Nonce haengt am Seed");
 });

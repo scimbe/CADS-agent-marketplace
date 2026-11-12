@@ -50,8 +50,6 @@ export function sanitizeColors(c, def = DEFAULT_COL) {
 }
 function num(v, r, d) { return Math.round(clampNum(v, r[0], r[1], d)); }
 
-/** Die Tuer traegt ihre Nummer 1-24. Vor Dezember und nach dem 24. ist es die erste (alt:src/daily.js:321). UTC. */
-export function doorNumber(date) { const d = date instanceof Date ? date : new Date(); return d.getUTCMonth() === 11 && d.getUTCDate() <= 24 ? d.getUTCDate() : 1; }
 export function steps(v) { return typeof v === "string" && /^[x-]{16}$/.test(v) ? v : "----------------"; }
 export function sanitizeStickers(a) {
   return (Array.isArray(a) ? a : []).slice(0, MAX_STICKERS).map((s) => {

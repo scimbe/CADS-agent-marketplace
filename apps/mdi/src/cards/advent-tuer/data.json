@@ -1,0 +1,43 @@
+{
+  "tags": [
+    "weihnachten",
+    "vorweihnachtszeit",
+    "kalender",
+    "überraschung",
+    "geschenk",
+    "familie",
+    "kind",
+    "christmas",
+    "countdown",
+    "calendar",
+    "surprise",
+    "gift",
+    "family",
+    "kids"
+  ],
+  "min": 40,
+  "texts": {
+    "de": {
+      "send": "Türchen verschicken",
+      "tap": "Tippen zum Öffnen",
+      "open": "Türchen {n} öffnen",
+      "title": "Ein Adventstürchen",
+      "from": "Von {n}",
+      "for": "Gedacht für den {n}. Dezember.",
+      "own": "Eigenes Türchen machen",
+      "on": "Weiter",
+      "note": "Das Türchen lässt sich jederzeit öffnen. Die Nummer sagt nur, für welchen Tag es gedacht ist."
+    },
+    "en": {
+      "send": "Send the door",
+      "tap": "Tap to open",
+      "open": "Open door {n}",
+      "title": "An Advent door",
+      "from": "From {n}",
+      "for": "Meant for December {n}.",
+      "own": "Make your own door",
+      "on": "Continue",
+      "note": "The door opens any time. The number only says which day it is meant for."
+    }
+  }
+}

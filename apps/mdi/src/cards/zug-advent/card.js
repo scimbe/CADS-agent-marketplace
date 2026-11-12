@@ -3,18 +3,19 @@
 // Leere Tueren bekommen einen festen Satz (turn.json doorFill). Welche Tueren offen sind, kommt aus ctx.today (UTC):
 // Dezember -> bis zum Tag, Januar -> alle 24, sonst keine (alt: Datum des Handys).
 import manifest from "./manifest.json" with { type: "json" };
+import data from "./data.json" with { type: "json" };
 import { clean } from "../../engines/quest/quest.js";
-import { dateOf } from "../../engines/poster/card.js";
+import { civil } from "../../engines/poster/door.js";
 
-const T = (lang) => manifest.texts[lang] || manifest.texts.de;
+const T = (lang) => data.texts[lang] || data.texts.de;
 const pk = (s, lang) => { const a = s.split("|"); return lang === "en" ? a[1] || a[0] : a[0]; };
 /** Text der Tuer i (0..23): eigener Satz oder fester Satz (alt doorText). */
-export function doorText(lines, i, lang) { return (lines && lines[i]) || pk(manifest.fill[i % manifest.fill.length], lang); }
+export function doorText(lines, i, lang) { return (lines && lines[i]) || pk(data.fill[i % data.fill.length], lang); }
 /** Wie viele Tueren offen sind (alt turn-ui doors). */
 export function openDoors(today) {
   if (!Number.isInteger(today)) return 0;
-  const d = dateOf(today), m = d.getUTCMonth();
-  return m === 11 ? Math.min(24, d.getUTCDate()) : m === 0 ? 24 : 0;
+  const c = civil(today);
+  return c.m === 12 ? Math.min(24, c.d) : c.m === 1 ? 24 : 0;
 }
 /** Bereinigung wie alt Widget list (loose, Quest.clean): leer bleibt leer, ein gefilterter Satz wird leer (dann fester Satz). */
 export function cleanLines(a) { return Array.from({ length: 24 }, (_, i) => (typeof a[i] === "string" && a[i].trim() ? clean(a[i], 20) : "")); }

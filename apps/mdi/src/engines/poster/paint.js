@@ -116,6 +116,14 @@ export function exec(c, list, assets = {}) {
         }
         break;
       }
+      case "wave": {
+        const [x0, cy, amp, bw, n, minh] = a, pk = o.peaks || assets.peaks;
+        for (let i = 0; i < n; i++) {
+          const v = pk && pk.length ? pk[Math.floor(i * pk.length / n)] : 0.05, bh = Math.max(minh, v * amp);
+          c.fillRect(x0 + i * bw, cy - bh, bw * 0.62, bh * 2);
+        }
+        break;
+      }
       case "note": note(...a); break;
       case "glyph": {
         const [e, r, exporting] = a;

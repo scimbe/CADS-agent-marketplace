@@ -14,6 +14,7 @@ const K = new Uint32Array([
   0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2]);
 const IV = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
 const W = new Uint32Array(64);
+const P256 = [1, 256, 65536, 16777216];
 function rotr(x, n) { return (x >>> n) | (x << (32 - n)); }
 function compress(H, M) { // H: Uint32Array(8) wird veraendert, M: 16 Woerter
   for (let i = 0; i < 16; i++) W[i] = M[i];
@@ -36,7 +37,7 @@ function sha256(bytes, H0, prefixLen = 0) {
   const H = new Uint32Array(H0 || IV), l = bytes.length, nb = ((l + 9 + 63) >> 6) << 6, b = new Uint8Array(nb);
   b.set(bytes); b[l] = 0x80;
   const bits = (l + prefixLen) * 8;
-  for (let i = 0; i < 4; i++) b[nb - 1 - i] = (bits / 2 ** (8 * i)) & 255;
+  for (let i = 0; i < 4; i++) b[nb - 1 - i] = Math.floor(bits / P256[i]) & 255;
   b[nb - 5] = Math.floor(bits / 0x100000000) & 255;
   for (let o = 0; o < nb; o += 64) compress(H, words(b, o));
   return H;
@@ -122,7 +123,7 @@ function ctr(w, j0, data) {
 function tagOf(w, j0, ct) {
   const h = big(encBlock(w, new Uint8Array(16)));
   const lens = new Uint8Array(16), bits = ct.length * 8;
-  for (let i = 0; i < 4; i++) lens[15 - i] = (bits / 2 ** (8 * i)) & 255;
+  for (let i = 0; i < 4; i++) lens[15 - i] = Math.floor(bits / P256[i]) & 255;
   const padded = new Uint8Array(Math.ceil(ct.length / 16) * 16 + 16); padded.set(ct); padded.set(lens, padded.length - 16);
   return bytes16(ghash(h, padded) ^ big(encBlock(w, j0)));
 }

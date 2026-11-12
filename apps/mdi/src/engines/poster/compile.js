@@ -9,6 +9,7 @@
 // Groessen haengen an u = min(W, 0.8 H); bei 4:5 ist u = W, also bitgleich zum Altcode.
 import { hash32, mulberry32, MOTIFS } from "./doc.js";
 import { tile as notoTile } from "./noto.js";
+import { TRIG, PI } from "./trig.js";
 
 const FONT = 'Anton,Impact,"Avenir Next Condensed","Roboto Condensed","Arial Black",system-ui,sans-serif';
 const EMO = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
@@ -75,8 +76,9 @@ function credit(c, W, H, nick, col) {
   c.textAlign = "right"; c.fillText("my daily idea", W * 0.96, H - u * 0.032);
 }
 function burstPath(c, cx, cy, r, n, inner) {
+  const tb = TRIG["burst" + n];
   c.beginPath();
-  for (let i = 0; i < n * 2; i++) { const a = i * Math.PI / n, q = i % 2 ? r * inner : r; c[i ? "lineTo" : "moveTo"](cx + Math.cos(a) * q, cy + Math.sin(a) * q); }
+  for (let i = 0; i < n * 2; i++) { const q = i % 2 ? r * inner : r; c[i ? "lineTo" : "moveTo"](cx + tb[i][0] * q, cy + tb[i][1] * q); }
   c.closePath();
 }
 function snow(c, W, H, seed, n = 70) {
@@ -132,18 +134,19 @@ function rr(c, x, y, w, h, r) {
 function heart(c, s) { c.beginPath(); c.moveTo(0, 30 * s); c.bezierCurveTo(-62 * s, -8 * s, -30 * s, -58 * s, 0, -24 * s); c.bezierCurveTo(30 * s, -58 * s, 62 * s, -8 * s, 0, 30 * s); c.fill(); }
 function wstar(c, s, n) {
   c.beginPath();
-  for (let i = 0; i < n * 2; i++) { const a = -Math.PI / 2 + i * Math.PI / n, q = (i % 2 ? 18 : 42) * s; c[i ? "lineTo" : "moveTo"](Math.cos(a) * q, Math.sin(a) * q); }
+  const tb = TRIG["wstar" + n];
+  for (let i = 0; i < n * 2; i++) { const q = (i % 2 ? 18 : 42) * s; c[i ? "lineTo" : "moveTo"](tb[i][0] * q, tb[i][1] * q); }
   c.closePath(); c.fill();
 }
 const DRAW = {
   herz: (c, a) => { c.fillStyle = a; heart(c, 1.05); },
-  blume: (c, a) => { c.fillStyle = a; for (let i = 0; i < 5; i++) { const w = i * 1.2566 - 1.57; c.beginPath(); c.arc(Math.cos(w) * 23, Math.sin(w) * 23, 17, 0, 6.3); c.fill(); } c.fillStyle = SHEET; c.beginPath(); c.arc(0, 0, 13, 0, 6.3); c.fill(); },
+  blume: (c, a) => { c.fillStyle = a; for (let i = 0; i < 5; i++) { c.beginPath(); c.arc(TRIG.petal[i][0], TRIG.petal[i][1], 17, 0, 6.3); c.fill(); } c.fillStyle = SHEET; c.beginPath(); c.arc(0, 0, 13, 0, 6.3); c.fill(); },
   stern: (c, a) => { c.fillStyle = a; c.strokeStyle = a; c.lineWidth = 7; c.lineJoin = "round"; wstar(c, 1, 5); c.stroke(); },
   mond: (c, a, b) => { c.fillStyle = a; c.beginPath(); c.arc(-4, 0, 36, 0, 6.3); c.fill(); c.fillStyle = b; c.beginPath(); c.arc(12, -12, 30, 0, 6.3); c.fill(); c.fillStyle = a; c.translate(24, 18); wstar(c, 0.3, 4); },
   klee: (c) => { c.fillStyle = "#5ba868"; [[-15, -15], [15, -15], [-15, 15], [15, 15]].forEach((p) => { c.beginPath(); c.arc(p[0], p[1], 17, 0, 6.3); c.fill(); }); c.strokeStyle = "#3f7f4c"; c.lineWidth = 6; c.lineCap = "round"; c.beginPath(); c.moveTo(0, 6); c.quadraticCurveTo(10, 30, 26, 42); c.stroke(); },
-  regenbogen: (c) => { c.lineWidth = 9; ["#e2574c", "#f7b733", "#5ba868", "#4a90c2"].forEach((k, i) => { c.strokeStyle = k; c.beginPath(); c.arc(0, 18, 42 - i * 9, Math.PI, 0); c.stroke(); }); },
+  regenbogen: (c) => { c.lineWidth = 9; ["#e2574c", "#f7b733", "#5ba868", "#4a90c2"].forEach((k, i) => { c.strokeStyle = k; c.beginPath(); c.arc(0, 18, 42 - i * 9, PI, 0); c.stroke(); }); },
   ballon: (c, a) => { c.fillStyle = a; c.beginPath(); c.ellipse(0, -12, 27, 33, 0, 0, 6.3); c.fill(); c.beginPath(); c.moveTo(-6, 22); c.lineTo(6, 22); c.lineTo(0, 15); c.fill(); c.strokeStyle = a; c.lineWidth = 3; c.beginPath(); c.moveTo(0, 22); c.bezierCurveTo(-10, 32, 10, 38, 0, 46); c.stroke(); c.fillStyle = "rgba(255,255,255,.55)"; c.beginPath(); c.ellipse(-10, -24, 6, 10, -0.5, 0, 6.3); c.fill(); },
-  sonne: (c, a) => { c.fillStyle = a; c.strokeStyle = a; c.lineWidth = 7; c.lineCap = "round"; c.beginPath(); c.arc(0, 0, 21, 0, 6.3); c.fill(); for (let i = 0; i < 10; i++) { const w = i * 0.6283; c.beginPath(); c.moveTo(Math.cos(w) * 30, Math.sin(w) * 30); c.lineTo(Math.cos(w) * 42, Math.sin(w) * 42); c.stroke(); } },
+  sonne: (c, a) => { c.fillStyle = a; c.strokeStyle = a; c.lineWidth = 7; c.lineCap = "round"; c.beginPath(); c.arc(0, 0, 21, 0, 6.3); c.fill(); for (let i = 0; i < 10; i++) { const q = TRIG.sun[i]; c.beginPath(); c.moveTo(q[0], q[1]); c.lineTo(q[2], q[3]); c.stroke(); } },
   pflaster: (c, a) => { c.rotate(-0.6); c.fillStyle = a; rr(c, -44, -16, 88, 32, 16); c.fill(); c.fillStyle = SHEET; rr(c, -14, -12, 28, 24, 5); c.fill(); c.fillStyle = a; [[-30, -5], [-30, 5], [30, -5], [30, 5]].forEach((p) => { c.beginPath(); c.arc(p[0], p[1], 2.5, 0, 6.3); c.fill(); }); },
   tasse: (c, a) => { c.fillStyle = a; c.strokeStyle = a; rr(c, -28, -8, 46, 40, 9); c.fill(); c.lineWidth = 7; c.beginPath(); c.arc(20, 10, 11, -1.4, 1.4); c.stroke(); c.lineWidth = 5; c.lineCap = "round"; [-14, 2].forEach((x) => { c.beginPath(); c.moveTo(x, -16); c.bezierCurveTo(x - 7, -24, x + 7, -30, x, -40); c.stroke(); }); },
   brief: (c, a) => { c.fillStyle = a; rr(c, -40, -26, 80, 52, 6); c.fill(); c.strokeStyle = SHEET; c.lineWidth = 5; c.lineJoin = "round"; c.beginPath(); c.moveTo(-36, -22); c.lineTo(0, 6); c.lineTo(36, -22); c.stroke(); c.fillStyle = SHEET; c.translate(0, 14); heart(c, 0.25); }
@@ -235,10 +238,8 @@ function drawSound(c, W, H, doc, peaks, lyr) {
   block(c, doc.x || "…", W * 0.06, H * 0.05, W * 0.88, H * (song ? 0.22 : 0.3), fg, softDots(c, W, H, b, W * 0.03, 0.4, fg), W * 0.01);
   const n = 40, bw = W * 0.88 / n, cy = H * (song ? 0.36 : 0.64), amp = H * (song ? 0.07 : 0.2);
   c.fillStyle = fg; c.op({ op: "note", a: ["klang", r6(W * 0.06), r6(cy - amp), r6(W * 0.88), r6(amp * 2)] });
-  for (let i = 0; i < n; i++) {
-    const v = peaks && peaks.length ? peaks[Math.floor(i * peaks.length / n)] : 0.05, bh = Math.max(W * 0.008, v * amp);
-    c.fillRect(W * 0.06 + i * bw, cy - bh, bw * 0.62, bh * 2);
-  }
+  // Welle als ein Op: die Spitzen (assets.peaks) rechnet der Renderer aus dem Klang (Synthese bzw. Aufnahme), nicht die Karte
+  c.op({ op: "wave", a: [W * 0.06, cy, amp, bw, n, W * 0.008], peaks: peaks || null });
   if (song) c.op({ op: "lyrics", a: [doc.ly.slice(), lyr == null ? -1 : lyr, a, b, W, H] });
   if (doc.m === "beat") {
     c.fillStyle = fg; c.font = "900 " + r6(W * 0.05) + "px " + FONT; c.textAlign = "center"; c.fillText(doc.bpm + " BPM", W / 2, H * 0.9);

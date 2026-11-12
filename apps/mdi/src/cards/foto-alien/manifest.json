@@ -29,17 +29,6 @@
   "uses": [
     "image"
   ],
-  "min": 20,
-  "tags": [
-    "außerirdisch",
-    "unbekannt",
-    "mysteriös",
-    "fotografie",
-    "extraterrestrial",
-    "unknown",
-    "mysterious",
-    "photography"
-  ],
   "params": {
     "type": "object",
     "additionalProperties": false,
@@ -349,26 +338,7 @@
         "x": "WELTTOURNEE",
         "y": "AUSVERKAUFT",
         "st": "poster"
-      },
-      "x-default": {
-        "en": {
-          "x": "WORLD TOUR",
-          "y": "SOLD OUT"
-        }
-      },
-      "tags": [
-        "weltreise",
-        "konzert",
-        "musik",
-        "auftritt",
-        "fan",
-        "global",
-        "travel",
-        "concert",
-        "music",
-        "performance",
-        "globe"
-      ]
+      }
     },
     {
       "id": "foto-haustier",
@@ -384,22 +354,7 @@
         "x": "ICH HAB",
         "y": "ALLES GESEHEN",
         "st": "meme"
-      },
-      "x-default": {
-        "en": {
-          "x": "I HAVE",
-          "y": "SEEN EVERYTHING"
-        }
-      },
-      "tags": [
-        "tierliebe",
-        "familie",
-        "haustierbesitzer",
-        "animal lover",
-        "family",
-        "pet owner",
-        "cute"
-      ]
+      }
     },
     {
       "id": "foto-essen",
@@ -415,48 +370,8 @@
         "x": "LECKER",
         "y": "ANGEBLICH",
         "st": "sticker"
-      },
-      "x-default": {
-        "en": {
-          "x": "TASTY",
-          "y": "ALLEGEDLY"
-        }
-      },
-      "tags": [
-        "kantine",
-        "mittagessen",
-        "essen fotografieren",
-        "foodie",
-        "essen teilen",
-        "schule",
-        "cafeteria",
-        "canteen",
-        "food photography",
-        "meal",
-        "share food",
-        "school"
-      ]
+      }
     }
   ],
-  "assets": [
-    {
-      "id": "noto",
-      "type": "sheet",
-      "file": "../../engines/poster/noto-stickers.png",
-      "tile": 128,
-      "license": "Apache-2.0"
-    }
-  ],
-  "texts": {
-    "de": {
-      "pick": "Foto wählen",
-      "note": "Dein Foto bleibt auf diesem Handy.",
-      "send": "Fertig"
-    },
-    "en": {
-      "pick": "Pick a photo",
-      "note": "Your photo stays on this phone.",
-      "send": "Done"
-    }
-  }
+  "dur": 20
 }

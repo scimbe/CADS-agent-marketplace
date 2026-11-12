@@ -3,10 +3,11 @@
 // und Text; den Ton erzeugt das Geraet (Synthese, keine Samples). Hinweis: Die Karte strassenrap-beat (PR #227) ist nicht
 // im Tag pre-legacy-removal und damit nicht Teil der Untergrenze.
 import manifest from "./manifest.json" with { type: "json" };
+import data from "./data.json" with { type: "json" };
 import { docOf, canvasNode } from "../../engines/poster/card.js";
 import { renderBeat, peaks } from "../../engines/klang/studio.js";
 
-const T = (lang) => manifest.texts[lang] || manifest.texts.de;
+const T = (lang) => data.texts[lang] || data.texts.de;
 /** Welle fuer das Bild: 40 Spitzen aus einem Takt (alt app.js beatPeaks). */
 export function beatPeaks(p, bpm) { return peaks(renderBeat(p, bpm, 1), 40).map((v) => Math.round(v * 1000) / 1000); }
 

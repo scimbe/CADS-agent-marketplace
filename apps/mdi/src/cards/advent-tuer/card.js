@@ -3,12 +3,13 @@
 // KI-Bild (/api/duell/bild, mit Konto) und Wetter (/api/duell/weather). Die Nummer kommt aus dem Datum (UTC) und wird beim
 // Absenden eingefroren (stamp). Der Empfaenger sieht die Tuer zu und klappt sie auf; nie gesperrt.
 import manifest from "./manifest.json" with { type: "json" };
-import { docOf, canvasNode, doorOf, dateOf, early } from "../../engines/poster/card.js";
+import data from "./data.json" with { type: "json" };
+import { docOf, canvasNode, doorOf, early } from "../../engines/poster/card.js";
 import { PAIR_HEX } from "../../engines/poster/doc.js";
 import { sanitizeName } from "../../engines/text/filter.js";
 
 function fmt(s, o) { return String(s).replace(/\{(\w+)\}/g, (m, k) => String(o[k])); }
-const T = (lang) => manifest.texts[lang] || manifest.texts.de;
+const T = (lang) => data.texts[lang] || data.texts.de;
 
 export default {
   manifest,
@@ -29,7 +30,7 @@ export default {
     const lines = [];
     const from = sanitizeName(p.n);
     if (from) lines.push({ t: "text", role: "small", text: fmt(X.from, { n: from }) });
-    if (Number.isInteger(ctx.today) && early(nr, dateOf(ctx.today))) lines.push({ t: "text", role: "small", text: fmt(X.for, { n: nr }) });
+    if (Number.isInteger(ctx.today) && early(nr, ctx.today)) lines.push({ t: "text", role: "small", text: fmt(X.for, { n: nr }) });
     return {
       t: "stack", children: [
         { t: "text", role: "title", text: X.title },

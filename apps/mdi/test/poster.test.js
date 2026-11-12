@@ -80,11 +80,13 @@ test("Bereinigung: Felder wie alt sanitizeDoc (Text 90, Foto 28, Sticker 8, Tuer
   const s = P.sanitizePoster({ k: "sound", fx: "laser", tp: "warp", bpm: 300, p: { k: "x---x---x---x---", s: "bad" } });
   assert.equal(s.fx, "chip"); assert.equal(s.tp, undefined); assert.equal(s.bpm, 170); assert.equal(s.p.s, "----------------");
 });
-test("Tuernummer aus dem Datum (UTC): 1.-24. Dezember, sonst Tuer 1 (alt daily.js doorNumber)", () => {
-  assert.equal(P.doorNumber(new Date("2026-12-05T10:00:00Z")), 5);
-  assert.equal(P.doorNumber(new Date("2026-12-24T23:59:00Z")), 24);
-  assert.equal(P.doorNumber(new Date("2026-12-25T00:00:00Z")), 1);
-  assert.equal(P.doorNumber(new Date("2026-11-11T08:00:00Z")), 1, "am 11.11. war es Tuer 1 (Screenshot [61])");
+import { doorNumber, early, civil } from "../src/engines/poster/door.js";
+const day = (y, m, d) => Math.floor(Date.UTC(y, m - 1, d) / 86400000);
+test("Tuernummer aus dem UTC-Tag: 1.-24. Dezember, sonst Tuer 1 (alt daily.js doorNumber); zu frueh = vor dem Tag", () => {
+  assert.equal(doorNumber(day(2026, 12, 5)), 5); assert.equal(doorNumber(day(2026, 12, 24)), 24); assert.equal(doorNumber(day(2026, 12, 25)), 1);
+  assert.equal(doorNumber(day(2026, 11, 11)), 1, "am 11.11. war es Tuer 1 (Screenshot [61])");
+  assert.ok(early(5, day(2026, 11, 30))); assert.ok(early(5, day(2026, 12, 4))); assert.ok(!early(5, day(2026, 12, 5))); assert.ok(!early(5, day(2027, 1, 2)));
+  for (let t = day(1999, 12, 25); t < day(2031, 3, 1); t += 37) { const d = new Date(t * 86400000); assert.deepEqual(civil(t), { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate() }); }
 });
 
 // ---------- portiert aus alt test/noto.test.js ----------

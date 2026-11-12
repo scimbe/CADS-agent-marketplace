@@ -3,9 +3,10 @@
 // Effekt, Tempo und Text, der Empfaenger antwortet mit seiner eigenen Stimme. Im Altcode seit 2026-11 nicht im Regal
 // (zusammengelegt in mut-tierstory), alte Links und die Aliase stimme-monster/-maus/-robo oeffnen sie weiter.
 import manifest from "./manifest.json" with { type: "json" };
+import data from "./data.json" with { type: "json" };
 import { docOf, canvasNode } from "../../engines/poster/card.js";
 
-const T = (lang) => manifest.texts[lang] || manifest.texts.de;
+const T = (lang) => data.texts[lang] || data.texts.de;
 export default {
   manifest,
   init({ params }) { return { pub: { ...params }, priv: [null] }; },

@@ -2,6 +2,7 @@
 // alt:src/studio.js Filter): Poster oder Meme aus dem eigenen Foto. Das Foto steht nie im Link (alt:src/daily.js:463);
 // ohne Foto zeigt die Karte die Flaeche in der ersten Farbe, wie im Altcode beim Empfaenger.
 import manifest from "./manifest.json" with { type: "json" };
+import data from "./data.json" with { type: "json" };
 import { docOf, canvasNode } from "../../engines/poster/card.js";
 
 export default {

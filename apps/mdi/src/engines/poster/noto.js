@@ -8,8 +8,10 @@ export const KEYS = ["1f438", "1f986", "1f419", "1f99d", "1f40c", "1f996", "1f35
   "1f384", "2b50", "1f381", "2744", "26c4", "1f36a", "1f916", "1f984", "1f41d", "1fa81"];
 export const TILE = 128, PAD = 2, COLS = 8, CELL = TILE + 2 * PAD;
 
+// Hex ohne toString(radix) (Harness: keine gebietsschema- oder radixabhaengigen Ausgaben in Kartenmodulen)
+function hex(n) { let s = ""; do { s = "0123456789abcdef"[n % 16] + s; n = Math.floor(n / 16); } while (n > 0); return s; }
 export function key(e) {
-  return Array.from(typeof e === "string" ? e : "").map((c) => c.codePointAt(0).toString(16)).filter((h) => h !== "fe0f").join("_");
+  return Array.from(typeof e === "string" ? e : "").map((c) => hex(c.codePointAt(0))).filter((h) => h !== "fe0f").join("_");
 }
 /** Quellrechteck der Kachel im Bogen (Pixel) oder null. */
 export function tile(e) {

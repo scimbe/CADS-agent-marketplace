@@ -5,26 +5,72 @@
   "kind": "turn",
   "mode": "turn",
   "order": 21,
-  "title": { "de": "24 Türen für eine Person", "en": "24 doors for one person" },
-  "teaser": { "de": "Jeden Tag im Dezember ein Satz von dir.", "en": "A line from you every day in December." },
-  "howto": { "de": "Du schreibst 24 kurze Sätze. Ab dem 1. Dezember geht jeden Tag eine Tür auf.", "en": "You write 24 short lines. From 1 December one door opens each day." },
-  "players": { "min": 2, "max": 2 },
-  "seats": { "de": ["Du schreibst", "Du öffnest"], "en": ["You write", "You open"] },
-  "modes": ["link"],
+  "title": {
+    "de": "24 Türen für eine Person",
+    "en": "24 doors for one person"
+  },
+  "teaser": {
+    "de": "Jeden Tag im Dezember ein Satz von dir.",
+    "en": "A line from you every day in December."
+  },
+  "howto": {
+    "de": "Du schreibst 24 kurze Sätze. Ab dem 1. Dezember geht jeden Tag eine Tür auf.",
+    "en": "You write 24 short lines. From 1 December one door opens each day."
+  },
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "seats": {
+    "de": [
+      "Du schreibst",
+      "Du öffnest"
+    ],
+    "en": [
+      "You write",
+      "You open"
+    ]
+  },
+  "modes": [
+    "link"
+  ],
   "hidden": "none",
   "uses": [],
-  "limits": { "stepBudget": 4, "stateBytes": 4096 },
-  "tags": ["oma", "großeltern", "weihnachten", "adventskalender", "tradition", "familie", "geschenk", "grandma", "christmas", "advent calendar", "family", "gift", "holiday", "anticipation"],
-  "min": 600,
-  "params": { "type": "object", "additionalProperties": false, "required": [], "properties": {} },
+  "limits": {
+    "stepBudget": 4,
+    "stateBytes": 4096
+  },
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [],
+    "properties": {}
+  },
   "inputs": {
-    "type": "object", "required": ["t", "seat", "a"],
-    "properties": { "t": { "const": "write" }, "seat": { "const": 0 }, "a": { "type": "array", "minItems": 24, "maxItems": 24, "items": { "type": "string", "maxLength": 20 } } }
+    "type": "object",
+    "required": [
+      "t",
+      "seat",
+      "a"
+    ],
+    "properties": {
+      "t": {
+        "const": "write"
+      },
+      "seat": {
+        "const": 0
+      },
+      "a": {
+        "type": "array",
+        "minItems": 24,
+        "maxItems": 24,
+        "items": {
+          "type": "string",
+          "maxLength": 20
+        }
+      }
+    }
   },
   "parts": [],
-  "texts": {
-    "de": { "write": "Ein kurzer Satz pro Tür. Leere Türen bekommen einen festen Satz.", "open": "Dein Adventskalender", "tap": "Tippe auf die Tür von heute.", "wait": "Ab dem 1. Dezember geht jeden Tag eine Tür auf.", "h": "24 Türen für dich", "door": "Tür", "send": "Kalender verschicken" },
-    "en": { "write": "One short line per door. Empty doors get a set line.", "open": "Your advent calendar", "tap": "Tap today's door.", "wait": "From 1 December one door opens each day.", "h": "24 doors for you", "door": "Door", "send": "Send the calendar" }
-  },
-  "fill": ["Heute ist ein guter Tag.|Today is a good day.", "Ich denk an dich.|I'm thinking of you.", "Gönn dir was Süßes.|Treat yourself.", "Noch ein paar Tage!|Only a few days left!", "Du schaffst das.|You've got this."]
+  "dur": 600
 }

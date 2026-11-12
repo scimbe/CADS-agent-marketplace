@@ -4,10 +4,11 @@
 // (alt mix: mulberry32(hash32("turn|" + seed + "|" + tag))), also auf beiden Handys gleich. Nichts wird aufgenommen.
 // Varianten anruf-quiz und anruf-stimme (alt duel/deck, zusammengelegt) oeffnen diese Karte.
 import manifest from "./manifest.json" with { type: "json" };
+import data from "./data.json" with { type: "json" };
 import { hash32, mulberry32 } from "../../engines/poster/doc.js";
 
-const ROUNDS = 5, N = manifest.figures.length;
-const T = (lang) => manifest.texts[lang] || manifest.texts.de;
+const ROUNDS = 5, N = data.figures.length;
+const T = (lang) => data.texts[lang] || data.texts.de;
 const pk = (s, lang) => { const a = s.split("|"); return lang === "en" ? a[1] || a[0] : a[0]; };
 function fmt(s, o) { return String(s).replace(/\{(\w+)\}/g, (m, k) => String(o[k])); }
 /** alt turns.js mix: dieselbe Reihenfolge auf beiden Handys aus dem Seed. */
@@ -24,7 +25,7 @@ export function figureCards(seed, r) {
 }
 export function right(seed, r) { return figureCards(seed, r).indexOf(figure(seed, r)); }
 
-export default {
+const api = {
   manifest,
   init({ rng }) { return { pub: { seed: rng.u32(), called: false, role: -1, hits: -1 }, priv: [null, null] }; },
   accepts(obs, seat, x) {
@@ -36,7 +37,7 @@ export default {
     const p = { ...state.pub };
     if (!p.called) { if (x.t !== "call" || x.seat !== 0) throw new Error("ungueltig: call"); p.called = true; }
     else {
-      if (p.role >= 0 || x.t !== "play" || x.seat !== 1 || !this.accepts({ pub: p }, 1, x)) throw new Error("ungueltig: play");
+      if (p.role >= 0 || x.t !== "play" || x.seat !== 1 || !api.accepts({ pub: p }, 1, x)) throw new Error("ungueltig: play");
       p.role = x.r; p.hits = x.a;
     }
     return { pub: p, priv: state.priv.slice() };
@@ -53,7 +54,7 @@ export default {
     return [];
   },
   view(obs, seat, ctx = {}) {
-    const p = obs.pub, lang = ctx.lang || "de", X = T(lang), fig = (i) => pk(manifest.figures[i], lang);
+    const p = obs.pub, lang = ctx.lang || "de", X = T(lang), fig = (i) => pk(data.figures[i], lang);
     if (!p.called) return { t: "stack", children: [{ t: "show", id: "call", label: X.call, lines: [X.share], submit: { t: "call", seat: 0 }, confirm: X.ok }] };
     if (p.role >= 0) return { t: "stack", children: [
       { t: "text", role: "title", text: p.role === 0 ? X.done : fmt(X.h, { n: p.hits }) },
@@ -71,3 +72,4 @@ export default {
       submit: { t: "play", seat: 1, r: role } }; // Wert a = Treffer (Sprecher: 0)
   }
 };
+export default api;
