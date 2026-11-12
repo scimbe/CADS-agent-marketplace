@@ -9,7 +9,7 @@ import standaloneCode from "ajv/dist/standalone/index.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.join(ROOT, "src");
-export const CARDS = ["gruss", "bluff"];
+export const CARDS = ["gruss", "bluff", "frei"];
 
 function readJson(p) { return JSON.parse(fs.readFileSync(p, "utf8")); }
 

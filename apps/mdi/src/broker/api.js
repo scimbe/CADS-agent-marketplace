@@ -102,7 +102,7 @@ export function createApi(deps) {
     if (c !== undefined) {
       const k = topf(c);
       if (!k) return fail("server", 200);
-      karte = { ...k, credit: int(c.credit) || 0, voucher: c.voucher === true, age16: c.age16 === true, age18: c.age18 === true, paused: c.paused === true, off: c.off === true };
+      karte = { ...k, credit: int(c.credit) || 0, voucher: c.voucher === true, age16: c.age16 === true, age18: c.age18 === true, paused: c.paused === true, off: c.off === true, refundsLeft: int(c.refundsLeft) || 0 };   // refundsLeft: Strang K, additiv
     }
     if (!native) return { ok: true, account: m.account, canLogin: m.canLogin, ki, karte };
     // App: Anmelden geht, wenn der Server Bearer annimmt (app_login) UND die Huelle angemeldet werden kann
@@ -226,5 +226,29 @@ export function createApi(deps) {
   const appOp = async (op) => { const r = await native.call({ op }); return r && r.ok === true ? { ok: true, signedIn: r.signedIn === true } : fail("nicht-hier"); };
   const app = native ? { login: () => appOp("login"), logout: () => appOp("logout") } : null;
 
-  return { here, app, status, me, loginHref, logoutFrom, profileGet, profilePut, profileDelete, redeem, modMe, appeal };
+  // ---- Strang K (freie Karte, KI, Deck, KI-Bild): additiv. Die Dienste in src/broker/ai.js, deck.js, bild.js bilden die
+  // Antworten selbst ab; hier steht nur der Transport, damit fetch weiter genau an dieser Stelle steht (build.test). ----
+  const RAW_PATHS = /^\/(api\/duell\/(ai(\/(status|accept|discard))?|queue|report|deck(\/(key|status|use|vote|me))?|bild(\/(status|job|cancel|keep|avatar))?)|duell\/bild\/[A-Za-z0-9_-]{22}\.(jpg|png))(\?c=[A-Za-z0-9_-]{22})?$/;
+  /** Roher Aufruf eines erlaubten Pfads (nur diese Liste, nur gleiche Herkunft) -> {status, body} | Fehler nicht-hier/netz/pfad */
+  async function raw(method, path, body) {
+    if ((method !== "GET" && method !== "POST") || !RAW_PATHS.test(path)) return fail("pfad");
+    return call(method, path, body);
+  }
+  /** Ein KI-Bild als data:-URL (img-src bleibt data:, CSP unveraendert). Nur Web; die App-Bruecke reicht keine Binaerdaten. */
+  async function image(path) {
+    if (!/^\/duell\/bild\/[A-Za-z0-9_-]{22}\.(jpg|png)$/.test(path)) return fail("pfad");
+    if (native || !here) return fail("nicht-hier");
+    try {
+      const r = await doFetch(path, { method: "GET", credentials: "omit", referrerPolicy: "no-referrer", redirect: "error" });
+      if (r.status !== 200) return fail(r.status === 404 ? "weg" : "server", r.status);
+      const type = String(r.headers.get("content-type") || "");
+      if (type !== "image/jpeg" && type !== "image/png") return fail("server", 200);
+      const buf = new Uint8Array(await r.arrayBuffer());
+      if (buf.length > 3e6) return fail("zu-gross");
+      let s = ""; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+      return { ok: true, url: "data:" + type + ";base64," + btoa(s) };
+    } catch (e) { return fail("netz"); }
+  }
+
+  return { here, app, status, me, loginHref, logoutFrom, profileGet, profilePut, profileDelete, redeem, modMe, appeal, raw, image };
 }

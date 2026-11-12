@@ -1,11 +1,12 @@
 // Kartenregister: alle Karten erfuellen denselben Vertrag; der Host kennt nur diese Schnittstelle.
 import gruss from "./gruss/card.js";
 import bluff from "./bluff/card.js";
+import frei from "./frei/card.js"; // Strang K: freie Karte (eine Zeile, bis Strang F das Register erzeugt)
 import * as V from "../gen/validators.js";
 import { CODE_HASH } from "../gen/codehash.js";
 
-const VALIDATE = { gruss: V.params_gruss, bluff: V.params_bluff };
-export const CARDS = { gruss, bluff };
+const VALIDATE = { gruss: V.params_gruss, bluff: V.params_bluff, frei: V.params_frei };
+export const CARDS = { gruss, bluff, frei };
 export const ORDER = ["gruss", "bluff"];
 export function cardOf(id) { return Object.prototype.hasOwnProperty.call(CARDS, id) ? CARDS[id] : null; }
 export function validParams(id, p) { const f = VALIDATE[id]; return !!f && f(p) === true; }
