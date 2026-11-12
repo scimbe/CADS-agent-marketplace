@@ -1,0 +1,462 @@
+{
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.2",
+  "players": {
+    "min": 1,
+    "max": 1
+  },
+  "hidden": "none",
+  "limits": {
+    "stepBudget": 1,
+    "stateBytes": 4096
+  },
+  "id": "foto-alien",
+  "kind": "photo",
+  "mode": "static",
+  "order": 60,
+  "title": {
+    "de": "Beweisfoto: Alien",
+    "en": "Proof: alien"
+  },
+  "teaser": {
+    "de": "Unscharf ist hier ein Vorteil.",
+    "en": "Blurry is a feature here."
+  },
+  "howto": {
+    "de": "Dein Foto bleibt auf diesem Handy. Der Link trägt nur Text, Stil und Sticker.",
+    "en": "Your photo stays on this phone. The link carries only text, style and stickers."
+  },
+  "uses": [
+    "image"
+  ],
+  "min": 20,
+  "tags": [
+    "außerirdisch",
+    "unbekannt",
+    "mysteriös",
+    "fotografie",
+    "extraterrestrial",
+    "unknown",
+    "mysterious",
+    "photography"
+  ],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "x",
+      "y",
+      "st",
+      "pair",
+      "sk"
+    ],
+    "properties": {
+      "x": {
+        "type": "string",
+        "maxLength": 28,
+        "pattern": "^[^\\u0000-\\u001f\\u007f<>]*$",
+        "default": "STRENG GEHEIM",
+        "x-default": {
+          "en": "TOP SECRET"
+        },
+        "x-field": "text",
+        "x-model": true,
+        "x-label": {
+          "de": "Oben",
+          "en": "Top"
+        }
+      },
+      "y": {
+        "type": "string",
+        "maxLength": 28,
+        "pattern": "^[^\\u0000-\\u001f\\u007f<>]*$",
+        "default": "BEWEIS NR. 7",
+        "x-default": {
+          "en": "EVIDENCE NO. 7"
+        },
+        "x-field": "text",
+        "x-model": true,
+        "x-label": {
+          "de": "Unten",
+          "en": "Bottom"
+        }
+      },
+      "st": {
+        "type": "string",
+        "enum": [
+          "poster",
+          "sticker",
+          "meme",
+          "glitch"
+        ],
+        "default": "glitch",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Stil",
+          "en": "Style"
+        },
+        "x-names": {
+          "de": {
+            "poster": "Poster",
+            "sticker": "Sticker",
+            "meme": "Meme",
+            "glitch": "Glitch"
+          },
+          "en": {
+            "poster": "Poster",
+            "sticker": "Sticker",
+            "meme": "Meme",
+            "glitch": "Glitch"
+          }
+        }
+      },
+      "pair": {
+        "type": "string",
+        "enum": [
+          "advent",
+          "p0",
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6",
+          "p7"
+        ],
+        "default": "p0",
+        "x-field": "pair",
+        "x-label": {
+          "de": "Farbe",
+          "en": "Colour"
+        },
+        "x-pairs": {
+          "advent": [
+            "#0f5132",
+            "#ffd400"
+          ],
+          "p0": [
+            "#ffd400",
+            "#ff3b1d"
+          ],
+          "p1": [
+            "#2b4bff",
+            "#ffe600"
+          ],
+          "p2": [
+            "#ff4fa3",
+            "#0a7f55"
+          ],
+          "p3": [
+            "#14c872",
+            "#ff3da5"
+          ],
+          "p4": [
+            "#ff6a1f",
+            "#1b2bd8"
+          ],
+          "p5": [
+            "#c8ff00",
+            "#7a1fff"
+          ],
+          "p6": [
+            "#ffffff",
+            "#ff2d2d"
+          ],
+          "p7": [
+            "#7ee0ff",
+            "#ff5a1f"
+          ]
+        }
+      },
+      "sk": {
+        "type": "array",
+        "maxItems": 8,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "e",
+            "x",
+            "y",
+            "r",
+            "z"
+          ],
+          "properties": {
+            "e": {
+              "type": "string",
+              "enum": [
+                "🐸",
+                "🦆",
+                "🐙",
+                "🦝",
+                "🐌",
+                "🦖",
+                "🍕",
+                "🌮",
+                "🍩",
+                "🥨",
+                "🍟",
+                "🧃",
+                "🚀",
+                "🛸",
+                "👽",
+                "🪐",
+                "🌟",
+                "☄️",
+                "💥",
+                "🔥",
+                "💀",
+                "🤡",
+                "🌀",
+                "⚡",
+                "🎃",
+                "👻",
+                "🦇",
+                "🕷️",
+                "🧛",
+                "🕸️",
+                "💛",
+                "🌻",
+                "✨",
+                "🫶",
+                "🌈",
+                "☀️",
+                "🎄",
+                "⭐",
+                "🎁",
+                "❄️",
+                "⛄",
+                "🍪",
+                "🤖",
+                "🦄",
+                "🐝",
+                "🪁"
+              ]
+            },
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "r": {
+              "type": "number",
+              "minimum": -3.14,
+              "maximum": 3.14
+            },
+            "z": {
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 2.5
+            }
+          }
+        },
+        "default": [],
+        "x-field": "stickers",
+        "x-set": "weltall",
+        "x-label": {
+          "de": "Sticker",
+          "en": "Stickers"
+        }
+      },
+      "photo": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "default": null,
+        "x-field": "media.local",
+        "x-label": {
+          "de": "Foto wählen",
+          "en": "Pick a photo"
+        },
+        "x-note": {
+          "de": "Dein Foto bleibt auf diesem Handy.",
+          "en": "Your photo stays on this phone."
+        }
+      }
+    }
+  },
+  "parts": [
+    {
+      "id": "text",
+      "params": [
+        "x",
+        "y"
+      ],
+      "label": {
+        "de": "Text",
+        "en": "Text"
+      }
+    },
+    {
+      "id": "foto",
+      "params": [
+        "photo"
+      ],
+      "label": {
+        "de": "Foto",
+        "en": "Photo"
+      }
+    },
+    {
+      "id": "stil",
+      "params": [
+        "st"
+      ],
+      "label": {
+        "de": "Stil",
+        "en": "Style"
+      }
+    },
+    {
+      "id": "farbe",
+      "params": [
+        "pair"
+      ],
+      "label": {
+        "de": "Farbe",
+        "en": "Colour"
+      }
+    },
+    {
+      "id": "sticker",
+      "params": [
+        "sk"
+      ],
+      "label": {
+        "de": "Sticker",
+        "en": "Stickers"
+      }
+    }
+  ],
+  "variants": [
+    {
+      "id": "foto-tour",
+      "title": {
+        "de": "Deine Welttournee",
+        "en": "Your world tour"
+      },
+      "teaser": {
+        "de": "Plakat fertig. Band fehlt noch.",
+        "en": "Poster done. Band still missing."
+      },
+      "params": {
+        "x": "WELTTOURNEE",
+        "y": "AUSVERKAUFT",
+        "st": "poster"
+      },
+      "x-default": {
+        "en": {
+          "x": "WORLD TOUR",
+          "y": "SOLD OUT"
+        }
+      },
+      "tags": [
+        "weltreise",
+        "konzert",
+        "musik",
+        "auftritt",
+        "fan",
+        "global",
+        "travel",
+        "concert",
+        "music",
+        "performance",
+        "globe"
+      ]
+    },
+    {
+      "id": "foto-haustier",
+      "title": {
+        "de": "Dein Tier hat was zu sagen",
+        "en": "Your pet has opinions"
+      },
+      "teaser": {
+        "de": "Hund, Katze, Stofftier. Egal.",
+        "en": "Dog, cat, teddy. Whatever."
+      },
+      "params": {
+        "x": "ICH HAB",
+        "y": "ALLES GESEHEN",
+        "st": "meme"
+      },
+      "x-default": {
+        "en": {
+          "x": "I HAVE",
+          "y": "SEEN EVERYTHING"
+        }
+      },
+      "tags": [
+        "tierliebe",
+        "familie",
+        "haustierbesitzer",
+        "animal lover",
+        "family",
+        "pet owner",
+        "cute"
+      ]
+    },
+    {
+      "id": "foto-essen",
+      "title": {
+        "de": "Mensa-Sticker",
+        "en": "Lunch sticker"
+      },
+      "teaser": {
+        "de": "Dein Essen verdient Ruhm.",
+        "en": "Your food deserves fame."
+      },
+      "params": {
+        "x": "LECKER",
+        "y": "ANGEBLICH",
+        "st": "sticker"
+      },
+      "x-default": {
+        "en": {
+          "x": "TASTY",
+          "y": "ALLEGEDLY"
+        }
+      },
+      "tags": [
+        "kantine",
+        "mittagessen",
+        "essen fotografieren",
+        "foodie",
+        "essen teilen",
+        "schule",
+        "cafeteria",
+        "canteen",
+        "food photography",
+        "meal",
+        "share food",
+        "school"
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "id": "noto",
+      "type": "sheet",
+      "file": "../../engines/poster/noto-stickers.png",
+      "tile": 128,
+      "license": "Apache-2.0"
+    }
+  ],
+  "texts": {
+    "de": {
+      "pick": "Foto wählen",
+      "note": "Dein Foto bleibt auf diesem Handy.",
+      "send": "Fertig"
+    },
+    "en": {
+      "pick": "Pick a photo",
+      "note": "Your photo stays on this phone.",
+      "send": "Done"
+    }
+  }
+}

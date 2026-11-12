@@ -73,3 +73,38 @@ function fromIdea(idea, lang, base) {
 }
 const supported = () => !!subtle();
 export { MAX_STOPS, MAX_Q, MAX_A, clean, fold, seal, open, complete, sanitize, fromIdea, hintOf, cleanDraft, supported, BLOB };
+
+// ---------- synchron fuer den Kartenvertrag (prepare/step), gleiches Format wie seal/open ----------
+import { pbkdf2, gcmEncrypt, gcmDecrypt, sha256Bytes } from "./sync.js";
+const enc = new TextEncoder();
+function lockSync(obj, answer, nonce) {
+  const key = pbkdf2(enc.encode(fold(answer)), nonce, ITER), ct = gcmEncrypt(key, nonce, enc.encode(JSON.stringify(obj))), out = new Uint8Array(NONCE + ct.length);
+  out.set(nonce); out.set(ct, NONCE);
+  return b64(out);
+}
+/**
+ * Siegel ohne Zufall im Vertrag: Nonce = SHA-256("mdi-quest|" + seed + "|" + i + "|" + Entwurf)[0..12]. Eindeutig je Sitzung
+ * und Inhalt (seed hat 128 Bit), daher kein Nonce zweimal mit demselben Schluessel. Gleiches Ergebnisformat wie seal().
+ */
+export function sealSync(draft, seed) {
+  const d = cleanDraft(draft); if (!complete(d)) return null;
+  const tag = JSON.stringify(d), blobs = [];
+  for (let i = 0; i < d.stops.length; i++) {
+    const next = d.stops[i + 1], nonce = sha256Bytes(enc.encode("mdi-quest|" + seed + "|" + i + "|" + tag)).slice(0, NONCE);
+    blobs.push(lockSync(next ? { q: next.q, h: hintOf(next.a) } : { e: d.end }, d.stops[i].a, nonce));
+  }
+  return { q0: d.stops[0].q, h0: hintOf(d.stops[0].a), c: blobs };
+}
+/** Wie open(), synchron. */
+export function openSync(blob, answer) {
+  if (typeof blob !== "string" || !BLOB.test(blob)) return null;
+  let raw;
+  try {
+    const all = unb64(blob), nonce = all.slice(0, NONCE), key = pbkdf2(enc.encode(fold(answer)), nonce, ITER), pt = gcmDecrypt(key, nonce, all.slice(NONCE));
+    if (!pt) return null;
+    raw = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(pt));
+  } catch (e) { return null; }
+  if (raw && typeof raw.q === "string") { const q = clean(raw.q, MAX_Q); return q ? { q, h: typeof raw.h === "string" ? clean(raw.h, 6) : "" } : { blocked: true }; }
+  if (raw && typeof raw.e === "string") { const e = clean(raw.e, MAX_Q); return e ? { e } : { blocked: true }; }
+  return { blocked: true };
+}

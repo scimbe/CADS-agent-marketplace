@@ -41,14 +41,8 @@ function softDots(c, W, H, col, cell, ang, text) {
   return clash ? (lum(text) > 0.5 ? "#111111" : "#fffaf0") : col;
 }
 function block(c, text, x, y, w, h, col, shadow, off) { c.op({ op: "block", a: [String(text), r6(x), r6(y), r6(w), r6(h), col, shadow || null, r6(off || 0)] }); }
-function dots(c, W, H, col, cell, seedAngle) {
-  c.fillStyle = col;
-  for (let y = 0; y < H; y += cell) for (let x = (Math.floor(y / cell) % 2) * cell / 2; x < W; x += cell) {
-    const k = (x / W * Math.cos(seedAngle) + y / H * Math.sin(seedAngle) + 0.4) * 0.9;
-    if (k <= 0.25) continue;
-    c.beginPath(); c.arc(x, y, Math.min(cell * 0.46, cell * 0.5 * (k - 0.25)), 0, 6.3); c.fill();
-  }
-}
+// Punktraster als ein Op (paint.js klappt es aus): die Liste bleibt unter der Grenze von 4000 Ops je Bild (ADR 0001 b).
+function dots(c, W, H, col, cell, seedAngle) { c.op({ op: "dots", a: [W, H, col, cell, seedAngle] }); } // ungerundet: das Raster summiert cell auf
 function rays(c, W, H, col, rot) {
   c.save(); c.translate(W / 2, H * 0.42); c.rotate(rot); c.fillStyle = col;
   for (let i = 0; i < 14; i++) { c.rotate(6.2832 / 14); c.beginPath(); c.moveTo(0, 0); c.lineTo(H * 1.2, -H * 0.13); c.lineTo(H * 1.2, H * 0.13); c.fill(); }
@@ -112,9 +106,10 @@ function adventWide(c, W, H, doc, opt) {
   [-1, 1].forEach((s) => { c.beginPath(); c.moveTo(W / 2, H * 0.125); c.lineTo(W / 2 + s * W * 0.09, H * 0.03); c.lineTo(W / 2 + s * W * 0.09, H * 0.22); c.closePath(); c.fill(); });
   c.beginPath(); c.arc(W / 2, H * 0.125, H * 0.045, 0, 6.3); c.fill();
   const px = W * 0.25, py = H * 0.26, pw = W * 0.7, ph = H * 0.6;
-  if (opt.gi) {
+  const pic = opt.photo ? "photo" : opt.gi ? "gi" : null; // eigenes Foto vor KI-Bild
+  if (pic) {
     c.save(); c.beginPath(); c.moveTo(px, py); c.lineTo(px + pw, py); c.lineTo(px + pw, py + ph); c.lineTo(px, py + ph); c.closePath(); c.clip();
-    c.op({ op: "image", a: ["gi", r6(px), r6(py), r6(pw), r6(ph)] }); c.restore();
+    c.op({ op: "image", a: [pic, r6(px), r6(py), r6(pw), r6(ph)] }); c.restore();
     c.fillStyle = "rgba(0,0,0,.45)"; c.fillRect(px, py, pw, ph);
   } else { c.fillStyle = "rgba(0,0,0,.28)"; c.fillRect(px, py, pw, ph); }
   c.strokeStyle = b; c.lineWidth = u * 0.01; c.strokeRect(px, py, pw, ph);

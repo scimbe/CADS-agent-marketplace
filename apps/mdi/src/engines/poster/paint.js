@@ -106,6 +106,16 @@ export function exec(c, list, assets = {}) {
         c.fillStyle = g;
         break;
       }
+      case "dots": {
+        const [W, H, col, cell, ang] = a;
+        c.fillStyle = col;
+        for (let y = 0; y < H; y += cell) for (let x = (Math.floor(y / cell) % 2) * cell / 2; x < W; x += cell) {
+          const k = (x / W * Math.cos(ang) + y / H * Math.sin(ang) + 0.4) * 0.9;
+          if (k <= 0.25) continue;
+          c.beginPath(); c.arc(x, y, Math.min(cell * 0.46, cell * 0.5 * (k - 0.25)), 0, 6.3); c.fill();
+        }
+        break;
+      }
       case "note": note(...a); break;
       case "glyph": {
         const [e, r, exporting] = a;

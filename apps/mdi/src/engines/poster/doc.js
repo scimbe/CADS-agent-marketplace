@@ -107,3 +107,6 @@ export function sanitizePoster(o) {
 }
 // Motive der Herz-Karten (alt:src/warm.js:11): Stil "herz" zeichnet eines davon als Sticker.
 export const MOTIFS = ["herz", "blume", "stern", "mond", "klee", "regenbogen", "ballon", "sonne", "pflaster", "tasse", "brief"];
+// Farbpaare als Feldwert (Enum): das Paar der Adventstuer (Katalog advent-tuer.col) und die acht aus „Mein Stil“.
+export const PAIR_HEX = { advent: ["#0f5132", "#ffd400"], ...Object.fromEntries(PAIRS.map((p, i) => ["p" + i, p])) };
+export const PAIR_IDS = Object.keys(PAIR_HEX);
