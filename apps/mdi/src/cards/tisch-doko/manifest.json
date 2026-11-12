@@ -415,5 +415,13 @@
         }
       }
     ]
+  },
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Fünf Spielkarten: Herz-Zehn, Kreuz-Dame, Pik-Dame, Karo-Ass und Karo-Zehn",
+      "en": "Five playing cards: ten of hearts, queens of clubs and spades, ace and ten of diamonds"
+    }
   }
 }

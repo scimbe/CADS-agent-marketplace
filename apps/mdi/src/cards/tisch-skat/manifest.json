@@ -553,5 +553,13 @@
         }
       }
     ]
+  },
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Fünf Spielkarten im Vierfarbblatt: drei Buben, Herz-Ass und Herz-Zehn",
+      "en": "Five playing cards in the four-colour deck: three jacks, ace and ten of hearts"
+    }
   }
 }

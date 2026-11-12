@@ -405,5 +405,13 @@
         }
       }
     ]
+  },
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Fünf Spielkarten: Karo-Bube, Pik-Ass, Herz-Zehn, Kreuz-Bube und Kreuz-Ass",
+      "en": "Five playing cards: jack of diamonds, ace of spades, ten of hearts, jack and ace of clubs"
+    }
   }
 }

@@ -329,15 +329,33 @@
   },
   "tisch-bauernskat": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 9268
+      }
+    ]
   },
   "tisch-doko": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 8944
+      }
+    ]
   },
   "tisch-skat": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 8610
+      }
+    ]
   },
   "zettel": {
     "assets": [],
