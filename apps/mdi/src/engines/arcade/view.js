@@ -360,7 +360,12 @@ const DRAW = {
       for (const [y, p] of [[H / 2 + st.r + 80, 0], [H / 2 - st.r - 80, 1]]) ops.push(line(W / 2 - 260, y, W / 2 + 260, y, p === S.me ? m.a : m.b, 4, { alpha: 0.5 }));
       for (const s of st.list) {
         const col = s.shooter ? (s.p === S.me ? m.a : m.b) : GLASS[s.c % GLASS.length];
-        ops.push({ o: "ellipse", x: s.x + 6, y: s.y + 8, rx: s.r, ry: s.r * 0.7, fill: "#00000059" }, glow(s.x, s.y, s.r * 2.2, col, 0.35), disc(s.x, s.y, s.r, rad(s.x - 8, s.y - 8, s.r * 1.5, "#ffffff", col)), disc(s.x - s.r * 0.35, s.y - s.r * 0.35, s.r * 0.25, "#ffffffd9"));
+        // Glas ohne Radialverlauf je Murmel (Software-Raster: Verlaeufe kosten im Bild-Callback, gemessen p95 8,6 ms):
+        // Grundfarbe, aufgehellte Kappe und Glanzpunkt; Licht nur, solange sie rollt (wie Eis-Stock).
+        const moving = s.vx * s.vx + s.vy * s.vy > 2500;
+        ops.push({ o: "ellipse", x: s.x + 6, y: s.y + 8, rx: s.r, ry: s.r * 0.7, fill: "#00000059" });
+        if (moving) ops.push(glow(s.x, s.y, s.r * 2.2, col, 0.35));
+        ops.push(disc(s.x, s.y, s.r, col), disc(s.x - s.r * 0.2, s.y - s.r * 0.2, s.r * 0.62, "#ffffff59"), disc(s.x - s.r * 0.35, s.y - s.r * 0.35, s.r * 0.25, "#ffffffd9"));
         if (s.shooter && s.p === S.me) ops.push(...mine(look, s.x, s.y, s.r * 0.7));
       }
       if (mineTurn(S) && !aim) ops.push(...mine(look, W / 2, S.me === 0 ? H / 2 + st.r + 80 : H / 2 - st.r - 80, 30));

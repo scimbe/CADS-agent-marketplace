@@ -177,7 +177,7 @@ async function frameStats(b, o) {
 test("Bildrate auf einem Mittelklasse-Handy (CPU 4x): Anteil der Karte je Bild aus dem Chromium-Trace, fps gegen die leere Buehne", async () => {
   const b = await browser(), out = {};
   try {
-    for (const id of ["arcade-snow", "arcade-murmel", "arcade-volley", "arcade-panzer"]) {
+    for (const id of IDS) {
       const base = await frameStats(b, { card: id, mode: "bot", seed: "fps", fast: 0, blank: true });
       const r = await frameStats(b, { card: id, mode: "bot", seed: "fps", fast: 0 });
       out[id] = { fps: r.fps, fpsLeer: base.fps, jsP95: r.jsP95, jsMean: r.jsMean, jsP95Leer: base.jsP95 };
