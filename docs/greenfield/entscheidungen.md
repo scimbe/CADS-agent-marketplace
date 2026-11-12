@@ -44,3 +44,10 @@
 
 - 2026-11-12 **Gate C abgenommen** (User: „Design ist gut, ich denke damit koennen wir starten“), mit zwei Auflagen: (1) „Eigene Karte“ (freie Karte, aus einem Satz/Prompt völlig neu erstellt) deutlich stärker hervorheben; (2) „Meins“ wird „Mein Regal“ mit Symbol. Canvas: https://claude.ai/artifact/A1TeNNzXLAPbAMa9WS55ux (Version 49). Lesart des Integrators: „Erst üben“ bleibt; Rückfrage gestellt.
 - 2026-11-12 „Foto mitschicken“ (Integrator, nach Altcode daily.js:463): Fotos stehen nie im Link und werden nie hochgeladen. Mitschicken heißt, die Karte als Bild mit Foto über das Teilen-Menü des Systems (oder als Download) zu teilen, zusätzlich zum fotofreien Link. Der Empfänger des Links sieht einen Platzhalter.
+- 2026-11-12 18:20 **Offene User-Entscheidungen beantwortet:**
+  1. Keycloak-IdP `haw-gitlab`: „Trust Email“ ausschalten (User: „Ja“). Grund: Bei eingeschaltetem Trust Email übernimmt Keycloak die E-Mail-Adresse aus GitLab ungeprüft als bestätigt. Beim Anmelden über GitLab könnte so ein fremdes Konto mit derselben Adresse verknüpft werden. Realm-Vorbedingung für den App-Login (08-forschung/oidc-native-apps.md). Umsetzung nach Keycloak-Regel (10 Minuten Vorwarnung, nicht während eines Praktikums oder Antestats).
+  2. CADS-Tunnel #900 (`X-Gate-Sub`) auf core deployen (User: „ja“), unter denselben Regeln.
+  3. Live-Rahmen für die Staging-Adresse freigeben (User: „ja“): Die Staging-Adresse kommt in die `frame-ancestors` des Produktionsrahmens `play-frame.html` (Webkonferenz), damit Live zwischen zwei Geräten vor dem Release auf Staging geprüft werden kann (Staging-Befund L5).
+  4. Faktencheck-Kalibrierung (50 Fragen): User: „Erst akzeptieren“. Auslegung: Der Faktencheck geht ohne menschliche Kalibrierung in Betrieb; die Bewertung der 50 Fragen wird nachgeholt.
+  5. 77,3 % Bot-Playtest-Quote für Echtzeitspiele im Baukasten reicht für den Start (User: „77% ok“).
+  6. Neue Strike-Regel der Moderation (Wrapper #142, Strikes nur bei klaren Verstößen) angenommen (User: „Moderation ja“).
