@@ -11,6 +11,7 @@ import { LEVELS } from "../bot/ismcts.js";
 import { stilView, stilActions } from "./stil-view.js";
 import { homeView, dayPrimary, meinsButton } from "./home/views.js";
 import { SLOTS } from "./home/slots.js";
+import { ft } from "../features/frei/texts.js";   // Strang K: Texte fuer Robot/Melden in der Kartenansicht
 
 export function leaf(state) {
   const l = state.config.filter((s) => s.startsWith("inhalt."));
@@ -31,7 +32,13 @@ export function actionsOf(state) {
   switch (L) {
     // Heimseite (Strang H): eine Hauptaktion = Hauptknopf des Kalenderblatts; alles andere ist Inhalt der Seite
     case "shelf": { const p = ctx.home.at === "day" ? dayPrimary(ctx) : null; return { primary: p ? a(p.id, p.label, p.ev) : null, secondary: [] }; }
-    case "card.view": return { primary: a("go", G.card(ctx).manifest.mode === "static" ? X.goSend : X.go, "GO"), secondary: [a("customize", X.customize, "CUSTOMIZE")] };
+    case "card.view": {
+      const c = G.card(ctx), sec = [a("customize", X.customize, "CUSTOMIZE")];
+      // Strang K: Robot (eigene Karte daraus) fuer jede Karte mit Adapter; Melden fuer eine freie Karte mit Siegel
+      if (typeof c.toFree === "function") sec.push(a("robot", ft(ctx.lang, "create_robot_h"), "ROBOT"));
+      if (ctx.cardId === "frei" && G.paramsOf(ctx).seal) sec.push(a("melden", ft(ctx.lang, "deck_report"), "MELDEN"));
+      return { primary: a("go", c.manifest.mode === "static" ? X.goSend : X.go, "GO"), secondary: sec };
+    }
     case "card.customize.bubbles": return { primary: a("done", X.done, "DONE"), secondary: [] };
     case "card.customize.dialog": return { primary: a("close", X.done, "CLOSE"), secondary: [] };
     case "card.share": return ctx.link && send(X.shareLink) ? { primary: send(X.shareLink), secondary: [a("done", X.done, "DONE")] } : { primary: a("done", X.done, "DONE"), secondary: [] };
@@ -91,7 +98,12 @@ export function linkUrl(fragment) {
 function fieldControls(card, part, params, X, lang, dispatch) {
   const props = card.manifest.params.properties, shown = part.params.filter((k) => props[k]["x-hidden"] !== true), single = shown.length === 1;
   // Name eines Enum-Werts: x-names der Karte (je Sprache), sonst Host-Woerter, sonst der Wert; x-icons davor (Strang P)
-  const nameOf = (p, e) => { const n = p["x-names"] && p["x-names"][e]; const ic = p["x-icons"] && p["x-icons"][e]; const t = (n && (n[lang] || n.de)) || X.names[e] || e; return ic ? ic + " " + t : t; };
+  // beide Formen: x-names[wert][sprache] (P) und x-names[sprache][wert] (S, FIELD_VOCAB)
+  const nameOf = (p, e) => {
+    const xn = p["x-names"] || {}, byVal = xn[e], byLang = xn[lang] || xn.de, ic = p["x-icons"] && p["x-icons"][e];
+    const t = (byVal && typeof byVal === "object" && (byVal[lang] || byVal.de)) || (byLang && typeof byLang === "object" && byLang[e]) || X.names[e] || e;
+    return ic ? ic + " " + t : t;
+  };
   return shown.map((key) => {
     const p = props[key], id = "f-" + key, v = params[key];
     // ein Feld je Blase: der Dialogtitel ist die Beschriftung (nichts doppelt)
@@ -188,12 +200,13 @@ export function view(state, dispatch, env = {}) {
     }
     if (ctx.mode === "bot") panel.push(radios("level", X.level, LEVELS.map((l, i) => ({ value: l.id, label: X.levels[i] })), ctx.level, (level) => dispatch({ type: "LEVEL", level })));
     if (ctx.mode === "live") panel.push(h("p", { class: "hint", key: "ip" }, X.ipHint));
-    if (ctx.note) panel.push(h("p", { class: "note", role: "status", key: "note" }, X.note[ctx.note]));
+    if (ctx.note) panel.push(h("p", { class: "note", role: "status", key: "note" }, String(ctx.note).startsWith("frei-") ? freiNote(ctx) : X.note[ctx.note]));
   } else if (L.startsWith("card.customize")) {
     body = [stage(preview, { class: "stage editing" }, tree), h("p", { class: "hint center" }, X.bubblesHint)];
   } else if (L === "card.share") {
     body = [stage(preview, {}, tree)];
     panel.push(ctx.link ? linkBox(X, ctx.link, ctx, dispatch) : h("p", { class: "warn", role: "alert" }, X.linkTooLong));
+    if (ctx.note === "frei-remix") panel.push(h("p", { class: "note", role: "status", key: "remix" }, freiNote(ctx)));   // Strang K
   } else if (L === "card.lobby") {
     const r = ctx.raum || {};
     body = [h("div", { class: "notice" },
@@ -262,7 +275,7 @@ export function view(state, dispatch, env = {}) {
         h("p", { class: "hint" }, X.free))];
     }
   } else if (L === "receive.reject") {
-    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.rejectTitle), h("p", { class: "warn", role: "alert", "data-reason": ctx.reason }, X.reasons[ctx.reason] || ctx.reason), h("p", null, X.rejectAsk))];
+    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.rejectTitle), h("p", { class: "warn", role: "alert", "data-reason": ctx.reason }, X.reasons[ctx.reason] || (ctx.reason === "frei-gesperrt" ? ft(ctx.lang, "deck_gone") : ctx.reason === "frei-ungeprueft" ? ft(ctx.lang, "deck_nocheck") : ctx.reason === "frei-geaendert" ? ft(ctx.lang, "frei_changed") : ctx.reason)), h("p", null, X.rejectAsk))];
   } else if (L === "receive.live" || L === "receive.wait") {
     const r = ctx.raum || {};
     body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.liveInvite),
@@ -285,6 +298,15 @@ export function view(state, dispatch, env = {}) {
   return out;
 }
 
+// Strang K: Hinweise zur freien Karte in der Kartenansicht (uebernommen, aus dem Deck, Teilen gesperrt)
+function freiNote(ctx) {
+  if (ctx.note === "frei-remix") return ft(ctx.lang, "frei_remix");
+  if (ctx.note === "frei-own") return ft(ctx.lang, "create_robot_kept");
+  if (ctx.note === "frei-deck") return ft(ctx.lang, "deck_from");
+  if (ctx.note === "frei-share-no") return ft(ctx.lang, "frei_share_no", { x: ft(ctx.lang, "frei_st_" + (ctx.frei.share || "unknown")) });
+  return "";
+}
+
 function bubbleLayer(card, ctx, X, dispatch) {
   const dialog = !!ctx.part && ctx.part !== null;
   return h("div", { class: "bubbles", key: "bubbles", "aria-hidden": null },
@@ -305,7 +327,7 @@ function dialogLayer(card, ctx, X, dispatch, acts, state) {
         h("button", { type: "button", class: "icon", "aria-label": X.close, "data-act": "close-x", on: { click: () => dispatch({ type: "CLOSE" }) } }, "✕")),
       h("p", { class: "hint" }, X.dialogHint),
       fieldControls(card, part, G.paramsOf(ctx), X, ctx.lang, dispatch),
-      // Strang K: "Mit KI" fuer Teile mit KI-faehigen Feldern (x-model)
-      SLOTS.kiButton && part.params.some((k) => card.manifest.params.properties[k]["x-model"]) ? SLOTS.kiButton(state, dispatch, part) : null,
+      // Strang K: "Mit KI" fuer Teile mit KI-faehigen Feldern (x-model); schliesst den Dialog vor dem KI-Ereignis
+      SLOTS.kiButton ? SLOTS.kiButton({ ctx }, X, (ev) => { dispatch({ type: "CLOSE" }); dispatch(ev); }, ctx.part) : null,
       h("div", { class: "actions" }, h("button", { type: "button", class: "btn primary", "data-act": acts.primary.id, on: { click: () => dispatch(acts.primary.ev) } }, acts.primary.label))));
 }

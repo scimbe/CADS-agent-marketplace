@@ -42,7 +42,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .icon-gap { width: var(--tap); }
 .badge { justify-self: end; font-size: .75rem; font-weight: 700; padding: 2px 8px; border-radius: var(--r3); background: var(--yellow); color: var(--ink); white-space: nowrap; }
 
-.main { display: grid; gap: var(--s5); max-width: 1040px; margin: 0 auto; padding: var(--s4) max(var(--s4), env(safe-area-inset-right)) calc(var(--s6) + env(safe-area-inset-bottom)) max(var(--s4), env(safe-area-inset-left)); outline: none; }
+.main { display: grid; gap: var(--s5); width: 100%; max-width: 1040px; margin: 0 auto; padding: var(--s4) max(var(--s4), env(safe-area-inset-right)) calc(var(--s6) + env(safe-area-inset-bottom)) max(var(--s4), env(safe-area-inset-left)); outline: none; }
 .col-a, .col-b { display: grid; gap: var(--s4); align-content: start; min-width: 0; }
 @media (min-width: 900px) {
   .main { grid-template-columns: minmax(0, 1fr) 360px; align-items: start; padding-top: var(--s6); }
@@ -363,6 +363,6 @@ textarea.input { resize: vertical; }
 .h-inv-pic .h-ico { width: 30px; height: 30px; }
 .h-inv-txt p { margin: 0; } .h-inv-t { font-weight: 800; } .h-inv-st { font-size: var(--t-s); color: var(--muted); font-weight: 700; }
 .h-inv-acts { grid-column: 1 / -1; }
-.h-wait { min-height: 60vh; }
+.h-wait { min-height: 420px; margin: 0; }
 @media (prefers-reduced-motion: reduce) { .h-leaf, .h-stamp-l { animation: none; } }
 @media (forced-colors: active) { .h-intent, .h-thumb, .h-leaf, .h-chip, .h-heart, .h-arrow { border: 2px solid ButtonText; } }

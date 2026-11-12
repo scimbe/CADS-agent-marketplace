@@ -79,7 +79,7 @@ test("Link: Wunschzettel – die Familie markiert, die Wuenschende bekommt die A
   assert.deepEqual(rows, ["Hörbuch:1", "Schal:1"], "Vereinigung beim Empfang");
   // die Wuenschende oeffnet Bens Link auf ihrem Geraet
   receive(A, lb);
-  const t = texts(viewOf(A, { draft: { own: true } }));
+  const t = texts(viewOf(A, { memo: { own: true } }));
   for (const s of ["Ben", "Cem", "vergeben", "Du schenkst"]) assert.ok(!t.includes(s), "sieht nicht: " + s);
   assert.ok(t.includes("Hörbuch") && t.includes("Schal"));
 });

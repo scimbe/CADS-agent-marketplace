@@ -1,7 +1,7 @@
 // Meins: Wand (gemachte Werke), Einladungen (Archiv versendeter Links) und gemerkte Karten. Reine Funktionen, kein DOM.
 // Grenzen wie der Server (CADS-DEMO-wrapper lib/duell-profile.mjs cleanProfile, LIMITS): Wand 30, gemerkt 200, Bild als
 // data:image/jpeg <= 30000 Zeichen, keine Fotos. Rueckgaengig 6 s wie alt:src/app.js:908-922.
-export const LIMITS = { wall: 30, saved: 200, invites: 30, thumb: 30000, fragment: 1200, link: 4000 };
+export const LIMITS = { wall: 30, saved: 200, invites: 30, thumb: 30000, fragment: 3999, link: 4000 } // fragment: wie der Server (wrapper #132), ohne "#";
 export const UNDO_MS = 6000;
 const ID = /^[a-z0-9-]{1,40}$/, KIND = /^[a-z]{1,12}$/, THUMB = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
 const SHORT_ID = /^[2-9a-km-np-zA-HJ-NP-Z]{8}$/;
@@ -67,7 +67,7 @@ export function mergeRemote(local, remote) {
   const saved = cleanSaved([...(local.saved || []), ...((remote && remote.saved) || [])].sort((a, b) => b.ts - a.ts));
   return { wall, saved };
 }
-/** Was auf dem Server landet: ohne lokale Felder (p, t) und f nur, wenn der Server die Form kennt (c=). */
-export function wallForServer(wall) { return cleanWall(wall).filter((e) => e.th).map((e) => ({ id: e.id, ts: e.ts, k: e.k, th: e.th })); }
+/** Was auf dem Server landet: ohne lokale Felder (p, t); f (v2.card./v2.challenge.) nimmt der Server seit wrapper #132 an. */
+export function wallForServer(wall) { return cleanWall(wall).filter((e) => e.th).map((e) => ({ id: e.id, ts: e.ts, k: e.k, th: e.th, ...(e.f ? { f: e.f } : {}) })); }
 /** Bild nachtragen (Effekt wall.snap liefert es asynchron). */
 export function setThumb(wall, id, at, th) { return cleanWall(wall.map((e) => (e.id === id && e.ts === at ? { ...e, th } : e))); }

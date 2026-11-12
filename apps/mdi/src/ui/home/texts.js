@@ -10,7 +10,7 @@ const de = {
     stimme: { t: "Stimme & Ton", s: "Monster, Beat, Malen, vor Ort" }
   },
   intentHead: { gruss: "Grüßen", planen: "Planen", spielen: "Spiele", stimme: "Stimme & Ton" },
-  own: { t: "Eigene Karte", s: "Ein Satz, die KI baut sie", page: "Eigene Karte", soon: "Eigene Karten kommen hier hin: ein Satz, und die KI baut deine Karte. Das ist gerade in Arbeit.", blank: "Oder leer anfangen:" },
+  own: { t: "Eigene Karte", s: "Erschaffe deine Karte: ein Satz, die KI baut sie", page: "Eigene Karte", soon: "Eigene Karten kommen hier hin: ein Satz, und die KI baut deine Karte. Das ist gerade in Arbeit.", blank: "Oder leer anfangen:" },
   all: "Alle Karten", allShort: "Alles",
   families: {
     gruessen: "Grüßen & Schenken", planen: "Planen & Organisieren", kennen: "Kennen & Raten", bluff: "Bluff & Taktik", geschick: "Geschick",
@@ -54,7 +54,7 @@ const en = {
     stimme: { t: "Voice & sound", s: "Monster, beat, draw, in the room" }
   },
   intentHead: { gruss: "Notes", planen: "Plan", spielen: "Play", stimme: "Voice" },
-  own: { t: "Your own card", s: "One sentence, the AI builds it", page: "Your own card", soon: "Your own cards go here: one sentence, and the AI builds your card. This is being built right now.", blank: "Or start empty:" },
+  own: { t: "Your own card", s: "Create your card: one sentence, the AI builds it", page: "Your own card", soon: "Your own cards go here: one sentence, and the AI builds your card. This is being built right now.", blank: "Or start empty:" },
   all: "All cards", allShort: "All",
   families: {
     gruessen: "Notes & gifts", planen: "Plan & organise", kennen: "Know & guess", bluff: "Bluff & tactics", geschick: "Skill",
