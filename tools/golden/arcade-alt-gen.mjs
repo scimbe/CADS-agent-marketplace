@@ -52,17 +52,18 @@ function pts(v) { if (!v) return []; return (Array.isArray(v) ? v : [v]).map((b)
 function game(g, seed, maxT) {
   const P = L.pair(g, seed, 0), mk = (s) => { let n = 0; const sd = seed + "|" + s + "|bot"; return () => die(sd, n++); };
   const ba = L.GAMES[g].bot(P.A, mk(0)), bb = L.GAMES[g].bot(P.B, mk(1)); P.start();
-  const tr = []; let t = 0;
+  const tr = []; let t = 0, at300 = null;
   for (; t < maxT && !(P.A.over && P.B.over); t++) {
     ba(1 / 120); bb(1 / 120); P.tick(1 / 120); P.A.ev.length = 0; P.B.ev.length = 0;
+    if (t + 1 === 300 * 120) at300 = P.A.score.slice();   // Stand beim harten Partie-Limit der neuen Engine (300 s)
     if (t % 60 === 59) tr.push([t + 1, pts(P.A.st[BALL[g]]), pts(P.B.st[BALL[g]]), P.A.score.slice()]);
   }
-  return { tr, end: { ticks: t, over: P.A.over && P.B.over, score: P.A.score.slice(), draw: !!P.A.draw, rejected: P.A.rejected + P.B.rejected } };
+  return { tr, end: { ticks: t, over: P.A.over && P.B.over, score: P.A.score.slice(), draw: !!P.A.draw, rejected: P.A.rejected + P.B.rejected }, at300 };
 }
 for (const g of IDS) out.traces[g] = [0, 1, 2].map((i) => Object.assign({ seed: "gold-" + g + "-" + i }, game(g, "gold-" + g + "-" + i, 120 * 180)));
 for (const g of IDS) {
-  const r = Array.from({ length: 16 }, (_, i) => game(g, "stat-" + g + "-" + i, 120 * 600).end);
-  out.stats[g] = { n: r.length, meanTicks: r.reduce((a, x) => a + x.ticks, 0) / r.length, meanMargin: r.reduce((a, x) => a + Math.abs(x.score[0] - x.score[1]), 0) / r.length, winsA: r.filter((x) => x.score[0] > x.score[1]).length, ends: r.map((x) => [x.ticks, x.score]) };
+  const rr = Array.from({ length: 16 }, (_, i) => game(g, "stat-" + g + "-" + i, 120 * 600)), r = rr.map((x) => Object.assign({}, x.end, { at300: x.at300 }));
+  out.stats[g] = { n: r.length, meanTicks: r.reduce((a, x) => a + x.ticks, 0) / r.length, meanMargin: r.reduce((a, x) => a + Math.abs(x.score[0] - x.score[1]), 0) / r.length, winsA: r.filter((x) => x.score[0] > x.score[1]).length, ends: r.map((x) => [x.ticks, x.score]), at300: r.map((x) => x.at300) };
 }
 fs.writeFileSync(path.join(MDI, "test/fixtures/arcade-alt.json"), JSON.stringify(out) + "\n");
 fs.rmSync(tmp, { recursive: true, force: true });
