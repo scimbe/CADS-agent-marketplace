@@ -5,7 +5,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import * as esbuild from "esbuild";
-import { generate } from "./gen.js";
+import { generate, writeGenerated } from "./gen.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.join(ROOT, "src"), DIST = path.join(ROOT, "dist");
@@ -20,9 +20,7 @@ const sha = (alg, s) => crypto.createHash(alg).update(s).digest();
 
 export async function build() {
   // 1) erzeugte Dateien aktualisieren
-  const gen = generate();
-  fs.mkdirSync(path.join(SRC, "gen"), { recursive: true });
-  for (const [f, s] of Object.entries(gen)) { const p = path.join(SRC, "gen", f); if (!fs.existsSync(p) || fs.readFileSync(p, "utf8") !== s) fs.writeFileSync(p, s); }
+  writeGenerated(generate());
 
   fs.rmSync(DIST, { recursive: true, force: true });
   fs.mkdirSync(path.join(DIST, "parts"), { recursive: true });

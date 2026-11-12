@@ -16,7 +16,9 @@ export function createBotAgent(card, { seat, level, entropy, send }) {
       const rv = S.dueReveal(card, session);
       if (rv) { session = S.apply(card, session, rv); out(session); continue; }
       if (st.turn !== seat) return;
-      const mv = chooseMove(card, S.observe(card, session, seat), seat, { iterations, seed: session.seed + "|" + session.log.length });
+      const obs = S.observe(card, session, seat), seed = session.seed + "|" + session.log.length;
+      // eigener Bot der Karte (ADR 0001 f), sonst generischer ISMCTS
+      const mv = typeof card.bot === "function" ? card.bot(obs, seat, { level, seed }) : chooseMove(card, obs, seat, { iterations, seed });
       session = S.apply(card, session, mv); out(session);
     }
   }
