@@ -5,6 +5,8 @@
 import { rng as mkRng } from "../../contract/sdk.js";
 
 const BOT_SEAT = 1;
+/** Memory: hoechstens so viele Versuche je Paar (Solo: alle Paare in der Zeit = gewonnen). */
+export const TRIES_PER_PAIR = 6;
 export const fold = (s) => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ß/g, "ss").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 
 /** Woerter einer Frage fuer die Formen scramble (Buchstaben gemischt, aus dem Seed) und gap (jeder zweite Buchstabe _). */
@@ -79,8 +81,9 @@ export function step(d, state, input) {
       const [x, y] = pub.sel;
       if (pub.f[x] === pub.f[y]) { pub.up[x] = 1; pub.up[y] = 1; pub.sc[me]++; if (!T.again) next(); }
       else { pub.miss = [x, y]; next(); }
-      pub.sel = [];
-      if (pub.up.every(Boolean)) { pub.over = 1; pub.win = pub.n === 1 ? 0 : pub.sc[0] > pub.sc[1] ? 0 : pub.sc[1] > pub.sc[0] ? 1 : -1; }
+      pub.sel = []; pub.tries = (pub.tries || 0) + 1;
+      // jede Partie endet: spaetestens nach TRIES_PER_PAIR x Paare Versuchen entscheidet der Stand
+      if (pub.up.every(Boolean) || pub.tries >= TRIES_PER_PAIR * T.pairs.length) { pub.over = 1; pub.win = pub.n === 1 ? (pub.up.every(Boolean) ? 0 : -1) : pub.sc[0] > pub.sc[1] ? 0 : pub.sc[1] > pub.sc[0] ? 1 : -1; }
     }
   } else if (T.kind === "answer") {
     if (input.t !== "say") throw new Error("Zug");
@@ -110,7 +113,17 @@ export function moves(d, pub, seat) {
     if (T.drop) { const out = []; for (let c = 0; c < T.cols; c++) if (dropCell(d, pub.b, c) >= 0) out.push({ t: "put", seat, i: c }); return out; }
     return pub.b.map((v, i) => (v === -1 ? { t: "put", seat, i } : null)).filter(Boolean);
   }
-  if (T.kind === "flip") return pub.f.map((_, i) => (!pub.up[i] && !pub.sel.includes(i) ? { t: "flip", seat, i } : null)).filter(Boolean);
+  if (T.kind === "flip") {
+    // Reihenfolge = Hinweis aus offen gesehenem Wissen (beide Seiten haben es gesehen): bekanntes Gegenstueck zuerst, dann
+    // ungesehene Karten, dann der Rest. So endet die Partie auch, wenn jemand immer den ersten Zug nimmt (Treibertests).
+    const open = pub.f.map((_, i) => i).filter((i) => !pub.up[i] && !pub.sel.includes(i));
+    const pairOf = (i) => open.find((j) => j !== i && pub.seen[j] && pub.f[j] === pub.f[i]);
+    let first = [];
+    if (pub.sel.length === 1) { const j = pairOf(pub.sel[0]); if (j !== undefined) first = [j]; }
+    else { const k = open.find((i) => pub.seen[i] && pairOf(i) !== undefined); if (k !== undefined) first = [k]; }
+    const rest = open.filter((i) => !first.includes(i));
+    return [...first, ...rest.filter((i) => !pub.seen[i]), ...rest.filter((i) => pub.seen[i])].map((i) => ({ t: "flip", seat, i }));
+  }
   if (T.kind === "answer") {
     if (T.ask === "pick") return pub.opts[pub.q].map((_, a) => ({ t: "say", seat, a }));
     const it = T.items[pub.order[pub.q]];
