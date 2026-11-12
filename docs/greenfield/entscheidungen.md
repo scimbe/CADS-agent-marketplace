@@ -39,3 +39,4 @@
 | 2026-11-11 | Freie Karten sollen auch völlig neue Spiele erzeugen können (nicht nur Genres G1/G2) | User: „freie Karten auch völlig neue Spiele erzeugen können“ |
 
 - 2026-11-12 Annahmen für Gate A (User hat nicht geantwortet, Auftrag „Do! Push!“): Community-Karten nicht als Tageskarte; Zug per Link, Raum auf diesem Handy, Echtzeit gegen Bot; 4 Absichten plus „Eigene Karte“; Thumbnails 16:9, zuerst Screenshot, dann KI-Bild. Details: 06-plan/welle-1.md
+- 2026-11-12 Strang P: Adventstür im Format 16:9 mit denselben Bauteilen wie Altstil „advent“; eigenes Foto oder KI-Bild füllt das Textfeld unter einem Schleier (statt Überlagerung wie alt). Nummer aus dem UTC-Tag, beim Absenden eingefroren (card.stamp). Beat-Karte der Untergrenze ist beat-pausenhof (strassenrap-beat nur in offenem PR #227). Geheimer Kanal versiegelt synchron in card.prepare (Antworten nie im Log). Details: 07-protokoll/2026-11-12-strang-p.md
