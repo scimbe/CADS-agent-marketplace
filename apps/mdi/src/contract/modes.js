@@ -28,8 +28,8 @@ export function deriveModes(card, variantId = null) {
 }
 
 /** Vorauswahl und angebotene Knoepfe (13 §6.4): play.offer ∩ Modi, default darin; sonst erste Modi. */
-export function playOf(card) {
-  const modes = deriveModes(card), p = card.manifest.play;
+export function playOf(card, variantId = null) {
+  const modes = deriveModes(card, variantId), p = card.manifest.play;
   if (!p) return { default: modes[0], offer: modes.slice(0, 3) };
   const offer = p.offer.filter((x) => modes.includes(x));
   return { default: offer.includes(p.default) ? p.default : offer[0] || modes[0], offer: offer.length ? offer : modes.slice(0, 3) };

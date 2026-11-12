@@ -200,6 +200,14 @@ function helloResult(ctx, ev) { return memo(ev, "_h", () => { try { return G.joi
 function guard(fn) { return (ctx, ev) => { try { return fn(ctx, ev); } catch (e) { return false; } }; }
 function safe(ctx, f) { try { return f(); } catch (e) { return { ...ctx, error: e.code || "zug-ungueltig" }; } }
 
+function variantParams(ctx, ev) {
+  if (!ev.variant) return {};
+  const c = cardOf(ev.id), v = c && (c.manifest.variants || []).find((x) => x.id === ev.variant);
+  if (!v) return {};
+  const p = { ...defaults(c.manifest.params), ...v.params };
+  return validParams(ev.id, p) ? { params: { ...ctx.params, [ev.id]: p } } : {};
+}
+
 export const guards = {
   cardExists: (ctx, ev) => !!cardOf(ev.id),
   partExists: (ctx, ev) => G.card(ctx).manifest.parts.some((p) => p.id === ev.part),
@@ -246,8 +254,9 @@ export const guards = {
 };
 
 export const actions = {
-  openCard: (ctx, ev) => ({ ...ctx, cardId: ev.id, mode: playOf(cardOf(ev.id)).default, seat: 0, session: null, hs: null, error: null, note: null, link: null, part: null }),
-  setMode: (ctx, ev) => (modesOf(G.card(ctx)).includes(ev.mode) ? { ...ctx, mode: ev.mode, note: null } : ctx),
+  // OPEN {id, variant?}: eine Variante bringt ihre Parameter mit (Regal ueber LEGACY/VARIANTS, Anfrage H)
+  openCard: (ctx, ev) => ({ ...ctx, ...variantParams(ctx, ev), cardId: ev.id, variant: ev.variant || null, mode: playOf(cardOf(ev.id), ev.variant).default, seat: 0, session: null, hs: null, error: null, note: null, link: null, part: null }),
+  setMode: (ctx, ev) => (modesOf(G.card(ctx), ctx.variant).includes(ev.mode) ? { ...ctx, mode: ev.mode, note: null } : ctx),
   setSeat: (ctx, ev) => (Number.isInteger(ev.seat) && ev.seat >= 0 && ev.seat < G.card(ctx).manifest.players.max ? { ...ctx, seat: ev.seat } : ctx),
   setLevel: (ctx, ev) => ([1, 2, 3].includes(ev.level) ? { ...ctx, level: ev.level } : ctx),
   setPart: (ctx, ev) => ({ ...ctx, part: ev.part }),

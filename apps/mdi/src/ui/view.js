@@ -170,7 +170,10 @@ export function view(state, dispatch, env = {}) {
     body = [h("div", { class: "notice" },
       h("h2", { class: "t-title" }, X.lobbyTitle),
       r.error ? h("p", { class: "warn", role: "alert" }, X.reasons[r.error] || X.reasons.verbindung) : h("p", { role: "status" }, r.step && r.step !== "open" ? X.steps[r.step] || X.lobbyWait : (r.inviteLink ? (ctx.copied || ctx.sent ? X.lobbyWait : X.lobbySend) : X.steps.open)),
-      r.inviteLink && !r.error ? linkBox(X, r.inviteLink, ctx, dispatch) : null,
+      // Gruppe: ein Einladungslink je Gastsitz (ADR 0001 f, Stufe 2)
+      r.invites && Object.keys(r.invites).length > 1 && !r.error
+        ? Object.keys(r.invites).sort().map((seat) => h("div", { class: "invite", key: "inv-" + seat }, h("p", { class: "seat" }, fmt(X.yourTurnAs, { s: seatName(card, ctx.lang, Number(seat)) }).replace(/^[^:]*:?/, "") || seatName(card, ctx.lang, Number(seat)), (r.up || []).includes(Number(seat)) ? " ✓" : ""), linkBox(X, r.invites[seat], ctx, dispatch)))
+        : r.inviteLink && !r.error ? linkBox(X, r.inviteLink, ctx, dispatch) : null,
       h("p", { class: "hint" }, X.ipHint))];
   } else if (L.startsWith("card.play")) {
     const phase = L.slice("card.play.".length);

@@ -6,7 +6,7 @@ import * as S from "../contract/session.js";
 import * as H from "../contract/handshake.js";
 import { decode } from "./link.js";
 import { stateHash, rng as rngOf } from "../contract/sdk.js";
-import { verifyGhost } from "./rt/match.js";
+import { verifyGhost, createMatch } from "./rt/match.js";
 
 // ---------- Geraeteeintrag je Link-Partie (Review H1/M1) ----------
 // Jeder Sitz merkt sich den Stand, den er zuletzt kannte oder verschickt hat: Basis (Karte, Version, Parameter, Seed),
@@ -252,9 +252,12 @@ export function previewNode(c, params, lang, extra = {}) {
   const m = c.manifest;
   if (typeof c.stamp === "function" && !extra.receive) params = c.stamp(params, { today: extra.today, nick: extra.nick || "" });
   if (m.mode === "realtime") {
-    const roles = []; for (let s = 0; s < m.players.max; s++) roles.push(s === 0 ? "human" : typeof c.bot === "function" ? "bot" : "none");
-    const st = c.init({ params, seed: "0".repeat(32), players: roles, level: 2, rng: rngOf("preview|init") });
-    return c.view(st, { seat: 0, alpha: 0, prev: null, reduced: true, lang, t: 0, preview: true, ...extra });
+    // ADR 0001 d: Bot gegen Bot (ohne bot(): none), Seed "preview", rt.preview.ticks (Standard 90) – wie die Thumbnails
+    const bot = typeof c.bot === "function", roles = []; for (let s = 0; s < m.players.max; s++) roles.push(bot ? "bot" : "none");
+    const mt = createMatch(c, { params, seed: "preview", roles, level: 2 });
+    const n = m.rt.preview && Number.isInteger(m.rt.preview.ticks) ? m.rt.preview.ticks : 90;
+    for (let i = 0; i < n && !mt.status().over; i++) mt.step({});
+    return mt.view({ seat: 0, alpha: 0, reduced: true, lang, t: 0, preview: true, ...extra });
   }
   const st = c.init({ rng: rngOf("preview"), params, players: m.players.max });
   return c.view(c.observe(st, 0), 0, { lang, preview: true, ...extra });
