@@ -237,3 +237,24 @@ test("Der erste Satz: auf einem Geraet, Ergebnis zum Kopieren", () => {
   assert.equal(nodes(v, "copy").length, 1);
   assert.equal(nodes(v, "copy")[0].text, c.result(st.pub, "de").copy);
 });
+
+test("Review H1/L2/L6: geerbte Schluessel, Geschenkfilter aus dem Link, leere Eingabe", () => {
+  for (const id of ["zug-einkauf", "zug-wunschzettel"]) {
+    const c = CARD[id];
+    let st = start(id);
+    const evil = [[["Constructor", 0]], [["Constructor", 0, 1, [[0, 1]]], ["toString", 1, 1, []], ["Brot", 2, 1, []]]];
+    const ok = c.accepts(c.observe(st, 0), 0, { t: "ans", seat: 0, a: evil });
+    if (ok) {
+      st = c.step(st, { t: "ans", seat: 0, a: evil });
+      c.view(c.observe(st, 1), 1, { lang: "de", draft: { own: false, name: "Ana" } });
+      assert.deepEqual(L.shopRows(c.merge(st.pub, st.pub).m[0][0], id === "zug-einkauf" ? L.SHOP : L.WISH).map((r) => r.text), ["Constructor", "toString", "Brot"]);
+      c.moves(c.observe(st, 1), 1);
+    }
+    assert.equal(Object.prototype.t, undefined); assert.equal(Object.t, undefined, "kein Schreiben auf Object");
+  }
+  const g = CARD["geschenk-finder"];
+  let st = start("geschenk-finder", undefined, 5);
+  st = play(g, st, [4]); st = play(g, st, [1]); st = play(g, st, [0, 2]);
+  assert.equal(g.accepts(g.observe(st, 0), 0, { t: "ans", seat: 0, a: [["Wodka", "Zigarren"], 0] }), false, "Filter auch fuer Link-Ideen");
+  assert.equal(g.accepts(g.observe(st, 0), 0, null), false);
+});
