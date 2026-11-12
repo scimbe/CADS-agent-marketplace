@@ -51,6 +51,8 @@ export function actionsOf(state) {
     case "card.rt.error": return { primary: a("back", X.back, "BACK"), secondary: [] };
     // Karten duerfen ihre Empfangs-Knoepfe benennen (manifest.receive {accept, decline}, z. B. Adventstuer "Eigenes Tuerchen machen" / "Weiter", alt door.js)
     case "receive.show": { const rc = ctx.incoming && ctx.incoming.kind === "card" && cardOf(ctx.incoming.cardId) && cardOf(ctx.incoming.cardId).manifest.receive;
+      // receive.after: Knoepfe erst, wenn der Entwurfsschluessel true ist (Tuer erst aufklappen, alt door.js)
+      if (rc && typeof rc.after === "string" && !(ctx.draft && ctx.draft[rc.after] === true)) return { primary: null, secondary: [] };
       if (rc && rc.accept && rc.decline) return { primary: a("accept", rc.accept[ctx.lang] || rc.accept.de, "ACCEPT"), secondary: [a("decline", rc.decline[ctx.lang] || rc.decline.de, "BACK")] };
       return { primary: a("accept", ctx.incoming && ctx.incoming.kind === "card" ? X.acceptCard : ctx.incoming && ctx.incoming.kind === "ghost" ? X.ghostFor : X.acceptGame, "ACCEPT"), secondary: [a("decline", X.decline, "BACK")] }; }
     case "receive.live": return { primary: a("accept", X.acceptGame, "ACCEPT"), secondary: [a("decline", X.decline, "BACK")] };
