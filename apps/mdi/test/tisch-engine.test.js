@@ -125,7 +125,7 @@ test("Rundenschluessel muessen aus dem festgelegten Salz stammen (Aufloesung am 
 });
 
 test("Groessen: Eingaben passen ins Live-Limit (≤ 1000 je Partie) und der Zustand ins Kartenlimit", () => {
-  for (const [game, runden] of [["skat", 6], ["doko", 4], ["bauernskat", 8]]) {
+  for (const [game, runden] of [["skat", 12], ["doko", 8], ["bauernskat", 10]]) {
     const card = cardFor(game); let max = 0;
     const s = playAlone(game, { tag: "size|" + game, params: { runden, regeln: [] }, chooser: autoChooser(), onState(x) { max = Math.max(max, JSON.stringify(x.state).length); } });
     assert.ok(s.log.length <= 1000, game + ": " + s.log.length + " Eingaben");

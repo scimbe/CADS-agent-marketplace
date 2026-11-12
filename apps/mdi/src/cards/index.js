@@ -17,10 +17,17 @@ import { CODE_HASH } from "../gen/codehash.js";
 import { deriveModes } from "../contract/modes.js";
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 export const CARDS = Object.freeze({ "bluff": c_bluff, "gruss": c_gruss });
 export const ORDER = Object.freeze(["bluff","gruss"]);
 const PARAMS = { "bluff": V.params_bluff, "gruss": V.params_gruss };
 const INPUTS = {  };
+=======
+export const CARDS = Object.freeze({ "bluff": c_bluff, "gruss": c_gruss, "tisch-bauernskat": c_tisch_bauernskat, "tisch-doko": c_tisch_doko, "tisch-skat": c_tisch_skat });
+export const ORDER = Object.freeze(["bluff","gruss","tisch-bauernskat","tisch-doko","tisch-skat"]);
+const PARAMS = { "bluff": V.params_bluff, "gruss": V.params_gruss, "tisch-bauernskat": V.params_tisch_bauernskat, "tisch-doko": V.params_tisch_doko, "tisch-skat": V.params_tisch_skat };
+const INPUTS = { "tisch-bauernskat": V.inputs_tisch_bauernskat, "tisch-doko": V.inputs_tisch_doko, "tisch-skat": V.inputs_tisch_skat };
+>>>>>>> db56506 (feat(mdi): Tisch-Karten auf Zugvertrag v0.2 – Eingabe-Schema, modes/play, ganze Deckteile je Eingabe, Lizenz Kartendeck)
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 export function cardOf(id) { return own(CARDS, id) ? CARDS[id] : null; }
 export function manifestOf(id) { const c = cardOf(id); return c ? c.manifest : null; }

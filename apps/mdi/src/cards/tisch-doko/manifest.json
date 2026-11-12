@@ -57,7 +57,7 @@
       "runden": {
         "type": "integer",
         "minimum": 1,
-        "maximum": 4,
+        "maximum": 8,
         "default": 4,
         "x-field": "number",
         "x-model": true,
@@ -99,5 +99,283 @@
         "en": "Rules"
       }
     }
-  ]
+  ],
+  "modes": [
+    "bot",
+    "alone"
+  ],
+  "play": {
+    "default": "bot",
+    "offer": [
+      "bot",
+      "alone"
+    ]
+  },
+  "inputs": {
+    "oneOf": [
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "d"
+        ],
+        "properties": {
+          "t": {
+            "const": "mix"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "d": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 24,
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "d"
+        ],
+        "properties": {
+          "t": {
+            "const": "lock"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "d": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 24,
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "d"
+        ],
+        "properties": {
+          "t": {
+            "const": "key"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "d": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 24,
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "s"
+        ],
+        "properties": {
+          "t": {
+            "const": "seed"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "s": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat"
+        ],
+        "properties": {
+          "t": {
+            "const": "next"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat"
+        ],
+        "properties": {
+          "t": {
+            "const": "end"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat"
+        ],
+        "properties": {
+          "t": {
+            "const": "reveal"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "salt": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "pos",
+          "key"
+        ],
+        "properties": {
+          "t": {
+            "const": "play"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "pos": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 47
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "v"
+        ],
+        "properties": {
+          "t": {
+            "const": "vorbehalt"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "v": {
+            "enum": [
+              "gesund",
+              "vorbehalt",
+              "hochzeit",
+              "damen",
+              "buben",
+              "fleischlos",
+              "kreuz",
+              "pik",
+              "herz",
+              "karo"
+            ]
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "p",
+          "a"
+        ],
+        "properties": {
+          "t": {
+            "const": "call"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "p": {
+            "enum": [
+              "re",
+              "kontra"
+            ]
+          },
+          "a": {
+            "enum": [
+              "re",
+              "kontra",
+              "k90",
+              "k60",
+              "k30",
+              "schwarz"
+            ]
+          }
+        }
+      }
+    ]
+  }
 }

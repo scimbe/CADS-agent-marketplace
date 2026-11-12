@@ -5,7 +5,7 @@
 // Verdeckte Information (KONZEPT §3.1, Commit-Reveal des Hosts):
 //   priv[s] = deal(rng(salt_s|seed)) = { m: Meisterseed, sec: Schluessel der laufenden Runde, ... } – nur auf dem Geraet
 //   von Sitz s. Runde h nutzt handseed = SHA-256(m|"hand"|h); sec = MP.secrets(N, rng(handseed)).
-//   1. mix:  Sitz 0..n-1 mischt und verschliesst das Deck (4 Punkte je Eingabe, weil Eingaben klein sein muessen).
+//   1. mix:  Sitz 0..n-1 mischt und verschliesst das Deck (bis 24 Punkte je Eingabe, Feld d).
 //   2. lock: Sitz 0..n-1 tauscht seinen Schluessel gegen einen je Position.
 //   3. Schluessel: Fuer jede Position einer fremden Hand gibt jeder Sitz seinen Positionsschluessel oeffentlich frei.
 //      Oeffnen braucht ALLE n Schluessel; der Besitzer haelt seinen zurueck, also kann nur er seine Karten lesen.
@@ -20,8 +20,7 @@
 import MP from "./mpoker.js";
 import { rng as mkRng, sha256, canon } from "../../contract/sdk.js";
 
-export const CH = 4;                         // Punkte/Schluessel je Eingabe (Eingabe-Schema: hoechstens 6 Felder)
-const F = ["a", "b", "c", "d"];
+export const CH = 24;                        // Punkte/Schluessel je Eingabe (Huelle: kanonisch hoechstens 2048 Byte, ADR 0001 f)
 const HEX64 = /^[0-9a-f]{64}$/, HEXD = "0123456789abcdef";
 
 export function handSeed(m, h) { return sha256(m + "|hand|" + h); }
@@ -107,8 +106,8 @@ export function makeTable(R, game) {
     if (pub.ph === "mix") return MP.shuffle(seat === 0 ? MP.cards(N) : pub.deck, mine.sec);
     return MP.lock(seat === 0 ? pub.deck : pub.deck, mine.sec);
   }
-  function chunkMove(t, seat, items) { const m = { t, seat }; items.forEach((v, i) => { m[F[i]] = v; }); return m; }
-  function chunkItems(input) { const out = []; for (const f of F) { if (input[f] === undefined) break; out.push(input[f]); } return out; }
+  function chunkMove(t, seat, items) { return { t, seat, d: items.slice() }; }
+  function chunkItems(input) { return Array.isArray(input.d) ? input.d : []; }
 
   // Regelaktion -> Eingabe (Eingaben haben hoechstens 6 Felder; declare packt die Schalter in eine Zahl)
   function toInput(pub, seat, mine, a) {
