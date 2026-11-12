@@ -100,6 +100,33 @@
           "de": "Titel",
           "en": "Title"
         }
+      },
+      "ki": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "default": null,
+        "x-field": "text",
+        "x-hidden": true,
+        "x-label": {
+          "de": "KI-Siegel",
+          "en": "AI seal"
+        }
+      },
+      "fr": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "pattern": "^[A-Za-z0-9_-]{22}$",
+        "default": null,
+        "x-field": "text",
+        "x-hidden": true,
+        "x-label": {
+          "de": "Freie Karte",
+          "en": "Free card"
+        }
       }
     }
   },

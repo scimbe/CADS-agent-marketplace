@@ -363,7 +363,7 @@ test("api.raw: nur die Pfade der freien Karte, gleiche Herkunft; Abfrage nur am 
 // ---------------------------------------------------------------- Status-Gate mit Inhalts-Hash (Server fix/deck-status-hash)
 test("Gate-Hash: dieselbe Projektion wie der Server (feste Vektoren aus lib/duell-deck.mjs gateHash), auch nach dem Weg ueber den Link", async () => {
   const { gateView } = await import("../src/features/frei/doc.js");
-  const SERVER = { "karte-ok-card": "qWCCWKwM4uDjfi6dd2XxVOGSfnB1cCOmbQODRO2urHo", "karte-ok-meme": "ouLFoTqLQTmVig2Uf7PFW6ny9zdSYOkMiA2j9f82YBU", "karte-ok-game": "ij8OEP9c9Tn7AiDF7OswI-V9cH5OgAUpq-u2HQsEJUs", "karte-ok-lauf": "mS66KxnjeIkNUVFfhACKeHuosjpaNYuyn09BBEy82so", "karte-ok-quiz": "m_M6wTlBG0xemRk2TTqg7g9H6CV6CV06aMstxooabeg", "karte-ok-faehigkeit": "FyG-GVG-XZ6d2z9AbGSrI6zqd5ukf_KT_g2gm9Wye1M" };
+  const SERVER = { "karte-ok-card": "qWCCWKwM4uDjfi6dd2XxVOGSfnB1cCOmbQODRO2urHo", "karte-ok-meme": "ouLFoTqLQTmVig2Uf7PFW6ny9zdSYOkMiA2j9f82YBU", "karte-ok-game": "ij8OEP9c9Tn7AiDF7OswI-V9cH5OgAUpq-u2HQsEJUs", "karte-ok-lauf": "mS66KxnjeIkNUVFfhACKeHuosjpaNYuyn09BBEy82so", "karte-ok-quiz": "3UJyWF0hRI82BazIFMzXZlDdYjM8RC2VOEZU-WpOctI", "karte-ok-faehigkeit": "cghkxuz6YziV-IkK1q8TRgfl9bUF3qptFDlWDlbsZuA" };
   for (const [n, h] of Object.entries(SERVER)) {
     const o = rec(n).body.options[0];
     assert.equal(await A.optionHash(gateView({ ...o.doc, ki: o.ki }), subtle), h, n + " (Server-Doc)");
@@ -453,4 +453,66 @@ test("Bildbruecke (env.images): data:-URL sofort, Server-Bild ueber api.image al
   done(); await new Promise((r) => setTimeout(r, 0));
   assert.equal(im.url(src), "data:image/png;base64,iVBORw0KGgo="); assert.deepEqual(seen, ["srv:EX-Ofbz0jr7JbgwUyL9uMA.png"]);
   assert.equal(im.get(src), null, "ohne Image (Node) kein Element, kein Fehler");
+});
+
+// ---------------------------------------------------------------- Siegel im v2-Link fuer jede Zielkarte (Befund Strang W, wrapper #133)
+test("Siegel reist mit: fromFree/toFree jeder Zielkarte tragen ki/fr; Gate-Hash nach dem Weg ueber die Karte = Server-Vektor (frei, flug, lauf, zug-*)", async () => {
+  const { gateView } = await import("../src/features/frei/doc.js");
+  const { cardOf: byId, validParams } = await import("../src/cards/index.js");
+  const { paramsForLink } = await import("../src/contract/fields.js");
+  const SERVER = { "karte-ok-card": "qWCCWKwM4uDjfi6dd2XxVOGSfnB1cCOmbQODRO2urHo", "karte-ok-meme": "ouLFoTqLQTmVig2Uf7PFW6ny9zdSYOkMiA2j9f82YBU", "karte-ok-game": "ij8OEP9c9Tn7AiDF7OswI-V9cH5OgAUpq-u2HQsEJUs", "karte-ok-lauf": "mS66KxnjeIkNUVFfhACKeHuosjpaNYuyn09BBEy82so", "karte-ok-quiz": "3UJyWF0hRI82BazIFMzXZlDdYjM8RC2VOEZU-WpOctI", "karte-ok-faehigkeit": "cghkxuz6YziV-IkK1q8TRgfl9bUF3qptFDlWDlbsZuA" };
+  const done = [];
+  for (const [n, h] of Object.entries(SERVER)) {
+    const o = rec(n).body.options[0], doc = { ...sanitizeDoc(o.doc), ki: o.ki };
+    const t = targetOf(doc, cardOf);
+    if (t.missing) { done.push(n + ": fehlt " + t.missing); continue; }
+    const card = byId(t.cardId), params = { ...t.params };
+    assert.ok(validParams(t.cardId, params), n + ": Parameter gueltig");
+    // so reist es im v2-Link (nur Felder, die reisen duerfen), und so kommt es beim Empfaenger an
+    const linked = paramsForLink(card.manifest.params, params);
+    assert.deepEqual(linked.ki, params.ki, n + ": ki reist im Link");
+    const back = card.toFree(linked);
+    assert.equal(back.ki && back.ki.h, o.ki.h, n + ": Siegel kommt beim Empfaenger an (" + t.cardId + ")");
+    assert.equal(await A.optionHash(gateView(back), subtle), h, n + ": Gate-Hash ueber " + t.cardId + " = Server");
+    done.push(n + " -> " + t.cardId);
+  }
+  // ohne die Karten von Strang S (zug-abfragen) und Z1 (zug-termin) waere der Befund nicht abgedeckt
+  for (const id of ["frei", "flug", "lauf", "zug-abfragen", "zug-termin"]) assert.ok(done.some((x) => x.endsWith("-> " + id)), id + " geprueft: " + done.join(", "));
+});
+
+test("Zugkarte mit Siegel: KI-Badge in der Ansicht; ohne Siegel keins; ein kaputtes ki im Link bringt weder Badge noch Gate-Freigabe", async () => {
+  const { cardOf: byId, validParams } = await import("../src/cards/index.js");
+  const { rng } = await import("../src/contract/sdk.js");
+  const o = rec("karte-ok-faehigkeit").body.options[0], doc = { ...sanitizeDoc(o.doc), ki: o.ki };
+  const t = targetOf(doc, cardOf), c = byId(t.cardId);
+  const view = (p) => JSON.stringify(c.view(c.observe(c.init({ rng: rng("x"), params: p, players: c.manifest.players.max }), 0), 0, { lang: "de" }));
+  assert.match(view(t.params), /Mit KI erstellt/);
+  assert.doesNotMatch(view({ ...t.params, ki: null }), /Mit KI erstellt/);
+  const { gateChecksOf } = await import("../src/features/frei/doc.js");
+  for (const bad of [{ k: "karte", s: "x", h: "kurz" }, { k: "andere", s: t.params.ki.s, h: t.params.ki.h }, "text", 42]) {
+    const p = { ...t.params, ki: bad };
+    assert.doesNotMatch(view(p), /Mit KI erstellt/, JSON.stringify(bad));
+    assert.equal(c.toFree(p).ki, undefined, "toFree bereinigt: " + JSON.stringify(bad));
+    assert.deepEqual(gateChecksOf(c.toFree(p)), [], "nichts zu pruefen heisst: keine freie Karte, kein Badge");
+  }
+  void validParams;
+});
+
+test("Gate beim Empfaenger auch fuer Partie-Links (Zugkarten); Absender: Gate vor der Partie, danach der gewohnte Weg", async () => {
+  const { machine, initialContext } = await import("../src/app/machine.js");
+  const { cardOf: byId } = await import("../src/cards/index.js");
+  const o = rec("karte-ok-faehigkeit").body.options[0], doc = { ...sanitizeDoc(o.doc), ki: o.ki };
+  const t = targetOf(doc, cardOf);
+  let s = machine.initial(initialContext("de"));
+  s = machine.send(s, { type: "OPEN", id: t.cardId, rand: ["a".repeat(32)] });
+  s = { ...s, ctx: { ...s.ctx, params: { ...s.ctx.params, [t.cardId]: { ...t.params } } } };
+  if (!byId(t.cardId).manifest.modes || true) s = machine.send(s, { type: "MODE", mode: "link", rand: ["b".repeat(32)] });
+  assert.equal(s.ctx.mode, "link");
+  s = machine.send(s, { type: "GO", rand: ["c".repeat(32), "d".repeat(32), "e".repeat(32), "f".repeat(32)] });
+  assert.ok(s.config.includes("inhalt.frei.sharegate"), s.config.join());
+  assert.equal(s.effects.find((e) => e.type === "frei.status").checks[0].cid, o.ki.h.slice(0, 22));
+  const ok = machine.send(s, { type: "GATE", st: "ok", rand: ["1".repeat(32), "2".repeat(32), "3".repeat(32), "4".repeat(32)] });
+  assert.ok(ok.config.some((c) => c.startsWith("inhalt.card.play")), "nach ok geht GO in die Partie: " + ok.config.join());
+  const no = machine.send(s, { type: "GATE", st: "blocked" });
+  assert.ok(no.config.includes("inhalt.card.view"));
 });

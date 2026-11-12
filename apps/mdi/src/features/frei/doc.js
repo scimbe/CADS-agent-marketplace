@@ -74,7 +74,11 @@ export function gateView(doc) {
   else if (d.k === "photo") Object.assign(v, { x: s(d.x), y: s(d.y), st: s(d.st), sk });
   else if (d.k === "game") { const g = d.g && typeof d.g === "object" ? d.g : {}; v.g = { title: s(g.title), emoji: s(g.emoji), theme: s(g.theme), route: (Array.isArray(g.route) ? g.route : []).map((r) => [s(r && r.p), s(r && r.t), s(r && r.e)]) }; }
   else if (d.k === "lauf") { const l = d.l && typeof d.l === "object" ? d.l : {}; v.l = [s(l.m), s(l.w), s(l.e), s(l.o), s(l.c), s(l.f)]; }
-  else { v.i = s(d.i); v.s = s(d.s); v.w = s(d.w); v.pk = d.pk && typeof d.pk === "object" ? { t: s(d.pk.t), q: Array.isArray(d.pk.q) ? d.pk.q.map((q) => (Array.isArray(q) ? q.map(s) : [])) : [] } : null; }
+  else {
+    // Zug-/Duellkarte (faehigkeit, quiz): nur, was die Zielkarte zeigt – Karte, Titel, Wort, Fragen. Farben und Untertitel
+    // zeigt keine zug-*-Karte (Z1/Z2/S), sie reisen im Link nicht und gehoeren deshalb nicht in den Gate-Hash.
+    delete v.col; v.i = s(d.i); v.w = s(d.w); v.pk = d.pk && typeof d.pk === "object" ? { t: s(d.pk.t), q: Array.isArray(d.pk.q) ? d.pk.q.map((q) => (Array.isArray(q) ? q.map(s) : [])) : [] } : null;
+  }
   return v;
 }
 /** Was das Gate fragt: [{cid, doc|null}] – eine Karte mit eigenem Siegel (ki.h) mit ihrem Inhalt, ein Remix (fr) nur per id. */
