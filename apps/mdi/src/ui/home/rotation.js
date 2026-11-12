@@ -115,14 +115,15 @@ export function fold(s) {
 }
 const SEARCH_DAYS = 365, MAX_HITS = 30, FILL = " fuer for mit with und and the der die das den dem ein eine einen a an zum zur im in am to of von ";
 /** Treffer ueber Titel, Unterzeile, Art und Tags beider Sprachen; je Treffer der Tag, an dem die Karte zuletzt kam. */
-export function searchIdeas(query, date, names = null, caps = WEB_CAPS) {
+/** @param tags Tags je Karten-ID (catalog-tags.json, Teil home-find); der Kern kennt sie nicht */
+export function searchIdeas(query, date, names = null, caps = WEB_CAPS, tags = null) {
   let words = fold(query).split(" ").filter(Boolean);
   const real = words.filter((w) => !FILL.includes(" " + w + " "));
   if (real.length) words = real;
   if (!words.length) return [];
   const hits = IDEAS.concat(GATED).filter((i) => {
     if (!available(i, caps)) return false;
-    let parts = [i.kind, i.x || ""].concat(i.tags || [], (names && names[i.kind]) || []);
+    let parts = [i.kind, i.x || ""].concat((tags && tags[i.id]) || i.tags || [], (names && names[i.kind]) || []);
     for (const l of ["de", "en"]) { const L = i[l] || {}; parts = parts.concat(L.t, L.s, L.tags || []); }
     const hay = fold(parts.join(" "));
     return words.every((w) => hay.includes(w));

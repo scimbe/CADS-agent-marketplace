@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import * as R from "../src/ui/home/rotation.js";
+import { searchIdeas } from "../src/ui/home/search.js";
 
 const G = JSON.parse(fs.readFileSync(new URL("./fixtures/home-golden.json", import.meta.url), "utf8"));
 const DAY = 86400000, START = Date.parse(G.start + "T00:00:00Z");
@@ -37,7 +38,7 @@ test("Regeln: keine Wiederholung in der Runde, nie zweimal dieselbe Art, Kalende
 test("Letzte Tage und Suche gleich dem Altcode", () => {
   const at = new Date(Date.UTC(2026, 10, 11));
   assert.deepEqual(R.lastDays(at, 7).map((x) => ({ key: x.key, id: x.idea.id })), G.lastDays);
-  for (const s of G.search) assert.deepEqual(R.searchIdeas(s.q, at).map((h) => ({ id: h.idea.id, d: h.date ? h.date.toISOString().slice(0, 10) : null })), s.hits, s.q);
+  for (const s of G.search) assert.deepEqual(searchIdeas(s.q, at).map((h) => ({ id: h.idea.id, d: h.date ? h.date.toISOString().slice(0, 10) : null })), s.hits, s.q);
 });
 test("Adventstuer-Nummer gleich dem Altcode", () => {
   for (const d of G.doors) assert.equal(R.doorNumber(new Date(d.d + "T12:00:00Z")), d.n, d.d);
@@ -62,4 +63,12 @@ test("Feiertage: bundesweit, je Land, Teilgebiet, fehlendes Jahr ehrlich null", 
   assert.equal(KAL.tag("2029-01-01", "BY"), null);
   assert.equal(KAL.tag("2026-10-20", "BE").ferien, "Herbstferien");
   assert.equal(KAL.arbeitstage("2026-12-21", "2026-12-27", "BE"), 4, "Mo-Do, 25. Feiertag, Wochenende");
+});
+
+import { bundesweit } from "../src/ui/home/feiertage.js";
+test("Feiertage im Kern (Auszug) gleich kalender.json fuer jeden Tag 2026-2028, beide Sprachen", () => {
+  for (let t = Date.UTC(2026, 0, 1); t < Date.UTC(2029, 0, 1); t += 86400000) {
+    const d = new Date(t).toISOString().slice(0, 10);
+    for (const l of ["de", "en"]) assert.equal(bundesweit(d, l), KAL.bundesweit(d, l), d + " " + l);
+  }
 });

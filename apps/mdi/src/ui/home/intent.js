@@ -4,7 +4,8 @@
 // Unterschied zum Altcode nur in der Quelle von "vorhanden": avail() fragt den Katalog (needs), nicht das Kartenregister;
 // ob eine Karte im neuen Code schon spielbar ist, entscheidet die Ansicht ("kommt").
 import DATA from "./intent.json" with { type: "json" };
-import { byId, available, fold, searchIdeas, WEB_CAPS } from "./rotation.js";
+import { byId, available, fold, WEB_CAPS } from "./rotation.js";
+import { searchIdeas } from "./search.js";
 
 export const INTENTS = ["gruss", "planen", "spielen", "stimme"];
 const STOP = " ich du er sie es wir ihr mein meine meinen meiner meinem dein deine deinen unser unsere euer will moechte mag mal bitte schick schicken senden machen mach heute morgen jetzt einen einer einem eines kein keine keinen nicht noch auch nur ganz sehr wer wie was wo wann kann koennen soll ueber gegen zeit leider einfach so schnell kurz the a an and to for my our your with want would like please send make some today something about ";

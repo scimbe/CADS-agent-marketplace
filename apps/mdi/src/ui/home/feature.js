@@ -3,7 +3,7 @@
 // Die Ansicht leitet alles aus ctx.home/ctx.mine ab (A2). Effekte (Speichern, Kurzlink, Story-Bild) gibt nur die Aktion aus.
 import * as R from "./rotation.js";
 import * as S from "./store.js";
-import { understand } from "./intent.js";
+import { partOf } from "../../gen/fparts.js";
 import { cardOf } from "../../cards/index.js";
 import { fragmentOf } from "./shortlink.js";
 import * as G from "../../app/game.js";
@@ -47,7 +47,8 @@ export const actions = {
   homeUnderstand: (ctx, ev) => {
     const c = day(ctx, ev), text = c.home.text.trim();
     if (!text) return H(c, { note: "empty" });
-    const r = understand(text, { date: new Date((c.today ?? todayOf(ev) ?? 0) * R.DAY), intent: ev.intent || undefined });
+    // Teil home-find, geladen vor UNDERSTAND (needParts)
+    const r = partOf("home-find").understand(text, { date: new Date((c.today ?? todayOf(ev) ?? 0) * R.DAY), intent: ev.intent || undefined });
     const res = { text, intent: r.intent, name: r.name, who: r.who, missing: r.missing, top: r.top.map((t) => ({ id: t.idea.id, exact: t.exact })) };
     return H(c, { at: "family", intent: r.intent || null, res, note: null });
   },
@@ -151,4 +152,7 @@ export const entry = { "inhalt.shelf": ["homeInit"], "inhalt.card.share": ["home
 // Wand-Sync ueber das Profil (P1): was der Server von Meins bekommt (konto-chart put -> pack(me, remote, local))
 export const profileLocal = (ctx) => (ctx.mine ? { wall: S.wallForServer(ctx.mine.wall), saved: ctx.mine.saved } : null);
 
-export const home = { id: "home", shelfOn, on: { inhalt: inhaltOn }, entry, guards, actions, context: homeContext, effects, profileLocal };
+// Teile ausserhalb des Kerns (src/app/feature-parts.json): Satz und Suche (home-find); Story/Wand-Bild laedt der Effekt selbst
+export const needParts = (ev) => (ev.type === "UNDERSTAND" || ev.type === "QUERY" ? ["home-find"] : []);
+
+export const home = { id: "home", shelfOn, on: { inhalt: inhaltOn }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };

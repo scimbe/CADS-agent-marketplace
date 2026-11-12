@@ -2,7 +2,8 @@
 // Meins (Wand, Einladungen, Gemerkt), Eigene Karte. Kein Element liegt ueber einem anderen, keine sticky Leisten.
 import { h } from "../dom.js";
 import * as R from "./rotation.js";
-import { bundesweit } from "./kalender.js";
+import { bundesweit } from "./feiertage.js";
+import { partOf } from "../../gen/fparts.js";
 import { FAMILIES, INTENT_ORDER, familiesOf, family, familyOf, newIdOf, variantOf, extras, catalogIdOf } from "./families.js";
 import { homeTexts, fmt } from "./texts.js";
 import { ideaTile, extraTile, icon, ideaText, plateLines, duration, badge, art } from "./tile.js";
@@ -175,7 +176,8 @@ function regalView(state, X, dispatch) {
   const panel = [];
   if (hm.rtab === "alles") {
     if (hm.q.trim()) {
-      const hits = R.searchIdeas(hm.q, new Date(ctx.today * R.DAY), X.bdg, caps());
+      const F = partOf("home-find"); // geladen vor QUERY (needParts)
+      const hits = F ? F.searchIdeas(hm.q, new Date(ctx.today * R.DAY), X.bdg, caps()) : [];
       panel.push(h("p", { class: "h-hits", role: "status", key: "hits" }, hits.length ? fmt(X.hits, { n: hits.length }) : X.searchNone));
       panel.push(grid(hits.map((x) => ideaTile({ idea: x.idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, key: "s-" + x.idea.id, extra: x.date ? fmt(X.lastSeen, { d: fmtDate(x.date.getTime(), ctx.lang) }) : x.idea.on ? X.calendarOnly : "" }))));
     } else {

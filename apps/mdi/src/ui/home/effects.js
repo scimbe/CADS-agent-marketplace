@@ -2,7 +2,7 @@
 // deps.home herein (main.js: storage, fetch, document, navigator, location, setInterval) – keine Globals (A1).
 // Ergebnisse gehen immer als Ereignis zurueck (HOME_LOADED, SHORT_DONE, SHORT_DELETED, STORY_DONE, WALL_SNAP).
 import * as SL from "./shortlink.js";
-import { tileJpeg, drawStory } from "./paint.js";
+import { partOf, isPartLoaded, loadFeatPart } from "../../gen/fparts.js";
 import { familyOf, family, catalogIdOf } from "./families.js";
 import { byId } from "./rotation.js";
 import { manifestOf } from "../../cards/index.js";
@@ -20,6 +20,9 @@ export async function proofFor(device, subtle) {
 }
 
 const TICK_MS = 60000;
+
+// QR und Zeichnen (Teil home-share) erst nach einem Tipp laden; Fehler kommen als Ergebnis-Ereignis zurueck
+function sharePart(deps) { return isPartLoaded("home-share") ? Promise.resolve(partOf("home-share")) : loadFeatPart("home-share", deps && deps.loadFeat).then(() => partOf("home-share")); }
 
 // Ohne deps.home (Tests, Laufzeit ohne Browser) gibt es weder Speicher noch Netz: Ergebnisse sagen das ehrlich
 // (leeres Meins, Kurzlink "nicht-hier" -> langer Link), nichts wird vorgetaeuscht.
@@ -62,15 +65,15 @@ export const effects = {
   "wall.snap": (fx, { dispatch, deps }) => {
     const env = envOf(deps);
     if (!env.document) return;
-    const th = tileJpeg(env.document, look(fx.id, fx.lang));
-    if (th) dispatch({ type: "WALL_SNAP", id: fx.id, ts: fx.ts, th });
+    // ohne Bild bleibt das Werk lokal (live gezeichnet); zum Server geht es erst mit Bild (wallForServer)
+    sharePart(deps).then((P) => { const th = P.tileJpeg(env.document, look(fx.id, fx.lang)); if (th) dispatch({ type: "WALL_SNAP", id: fx.id, ts: fx.ts, th }); }, () => {});
   },
   "story.make": (fx, { dispatch, deps }) => {
     const env = envOf(deps);
     if (!env.document || !env.location) { dispatch({ type: "STORY_DONE", ok: false }); return; }
-    try {
+    sharePart(deps).then((P) => {
       const X = homeTexts(fx.lang), url = SL.shareUrl(absUrl(env, fx.inv.f), fx.inv, fx.at), lk = look(fx.inv.c, fx.lang);
-      const cv = drawStory(env.document, { ...lk, url, cta: X.storyCta, headline: fx.inv.t || lk.title, bg: "#F9D84A" });
+      const cv = P.drawStory(env.document, { ...lk, url, cta: X.storyCta, headline: fx.inv.t || lk.title, bg: "#F9D84A" });
       cv.toBlob((blob) => {
         if (!blob) { dispatch({ type: "STORY_DONE", ok: false }); return; }
         const file = new env.File([blob], "my-daily-idea-story.png", { type: "image/png" }), nav = env.navigator;
@@ -82,6 +85,6 @@ export const effects = {
           dispatch({ type: "STORY_DONE", ok: true });
         }
       }, "image/png");
-    } catch (e) { dispatch({ type: "STORY_DONE", ok: false }); }
+    }).catch(() => dispatch({ type: "STORY_DONE", ok: false }));
   }
 };

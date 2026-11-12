@@ -17,20 +17,28 @@ const TX = require(path.join(SRC, "texts.json"));
 
 // ---- Katalog: alles, was Rotation, Suche, Regal und Plakette brauchen, in der Originalreihenfolge ----
 function how(i) { return i.kind === "turn" && i.turn && i.turn.g ? Turns.who(i.turn.g) : null; }
-function lang(L) { if (!L) return undefined; const o = { t: L.t, s: L.s }; if (L.tags && L.tags.length) o.tags = L.tags; return o; }
+// Tags (beide Sprachen) braucht nur die Suche: sie stehen getrennt in catalog-tags.json (Teil home-find), nicht im Kern
+function lang(L) { if (!L) return undefined; return { t: L.t, s: L.s }; }
+function tagsOf(i) { return [...new Set([].concat(i.tags || [], (i.de && i.de.tags) || [], (i.en && i.en.tags) || []))]; }
 function full(i) {
   const o = { id: i.id, kind: i.kind };
   const m = D.mech(i); if (m !== i.kind) o.mx = m;
   if (i.turn && i.turn.grip) o.grip = i.turn.grip;
   for (const k of ["on", "needs", "min", "round", "door", "style", "set"]) if (i[k] != null) o[k] = i[k];
   const w = how(i); if (w) o.how = w;
-  if (i.tags && i.tags.length) o.tags = i.tags;
   o.de = lang(i.de); o.en = lang(i.en);
   return o;
 }
-function slimRetired(i) { const o = { id: i.id, kind: i.kind }; const m = D.mech(i); if (m !== i.kind) o.mx = m; if (i.round != null) o.round = i.round; if (i.to) o.to = i.to; o.de = { t: i.de && i.de.t }; o.en = { t: i.en && i.en.t }; return o; }
+// eingeklappte Karten: fuer Rotation und Traeger nur id/kind/mx/round/to (Titel stehen im Register der neuen Karten)
+function slimRetired(i) { const o = { id: i.id, kind: i.kind }; const m = D.mech(i); if (m !== i.kind) o.mx = m; if (i.round != null) o.round = i.round; if (i.to) o.to = i.to; return o; }
 const catalog = { v: 1, herkunft: "Altclient, Tag pre-legacy-removal, src/ideas.json", ideas: DATA.ideas.map(full), gated: (DATA.gated || []).map(full), retired: (DATA.retired || []).map(slimRetired), gone: DATA.gone || [] };
 fs.writeFileSync(path.join(OUT, "src/ui/home/catalog.json"), JSON.stringify(catalog) + "\n");
+const tags = {}; for (const i of DATA.ideas.concat(DATA.gated || [])) { const t = tagsOf(i); if (t.length) tags[i.id] = t; }
+fs.writeFileSync(path.join(OUT, "src/ui/home/catalog-tags.json"), JSON.stringify(tags) + "\n");
+// Feiertage bundesweit (Kern, fuer das Kalenderblatt); alles andere bleibt in kalender.json (Teil home-kalender)
+const K = require(path.join(SRC, "kalender.json")), bund = { days: {}, names: {} };
+for (const y of Object.keys(K.feiertage)) for (const h of K.feiertage[y]) if (h.l[0] === "*") { bund.days[h.d] = h.k; bund.names[h.k] = K.feiertagNamen[h.k]; }
+fs.writeFileSync(path.join(OUT, "src/ui/home/feiertage.json"), JSON.stringify(bund) + "\n");
 fs.copyFileSync(path.join(SRC, "kalender.json"), path.join(OUT, "src/ui/home/kalender.json"));
 fs.writeFileSync(path.join(OUT, "src/ui/home/intent.json"), JSON.stringify({ herkunft: "Altclient, Tag pre-legacy-removal, src/start.json", intents: START.intents, cards: START.cards, missing: START.missing, who: START.who }) + "\n");
 // Alte Texte, die der Heimbereich woertlich weiterfuehrt (start.json texts + texts.json Auszug)
