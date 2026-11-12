@@ -23,7 +23,9 @@ test.before(async () => {
 test.after(async () => { await b.close(); server.close(); });
 
 test("pub und memo einer Partie ueberstehen das Neuladen; zu Grosses wird weggelassen", async () => {
-  const ctx = await b.newContext(), p = await ctx.newPage();
+  const ctx = await b.newContext();
+  await ctx.route(base + "**", (r) => r.continue()); // lokaler Testserver (nolive.js sperrt sonst jedes http)
+  const p = await ctx.newPage();
   await p.goto(base);
   const g = "0123456789abcdef";
   await p.evaluate((g) => window.__storage.save({ g, seat: 1, salt: null, n: 2, lh: "a", bh: "b", k: [null, null], pub: { list: [[["Ada", 0]], [["Milch", 0, 1, []]]] }, memo: { own: true } }), g);
