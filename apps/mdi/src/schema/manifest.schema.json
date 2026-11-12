@@ -6,23 +6,177 @@
   "properties": {
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$" },
     "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
-    "sdk": { "type": "string", "const": "mdi-sdk/0.1" },
-    "kind": { "type": "string", "enum": ["card", "turn"] },
+    "sdk": { "type": "string", "enum": ["mdi-sdk/0.1", "mdi-sdk/0.2"] },
+    "kind": { "type": "string", "enum": ["card", "turn", "room", "realtime", "table", "photo", "sound", "quest"] },
     "mode": { "type": "string", "enum": ["static", "turn", "realtime"] },
     "title": { "$ref": "#/$defs/i18n" },
     "teaser": { "$ref": "#/$defs/i18n" },
     "howto": { "$ref": "#/$defs/i18n" },
-    "seats": { "type": "object", "required": ["de", "en"], "properties": { "de": { "type": "array", "items": { "type": "string" } }, "en": { "type": "array", "items": { "type": "string" } } } },
-    "players": { "type": "object", "additionalProperties": false, "required": ["min", "max"], "properties": { "min": { "type": "integer", "minimum": 1, "maximum": 8 }, "max": { "type": "integer", "minimum": 1, "maximum": 8 } } },
+    "rule": { "$ref": "#/$defs/i18n" },
+    "seats": { "$ref": "#/$defs/i18nList" },
+    "roles": { "$ref": "#/$defs/i18nList" },
+    "family": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$" },
+    "grip": { "type": "string", "enum": ["streit", "pause", "abend", "geschenk", "raum"] },
+    "on": { "type": "array", "maxItems": 12, "items": { "type": "string", "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$" } },
+    "dur": { "type": "integer", "minimum": 5, "maximum": 3600 },
+    "legacy": { "$ref": "#/$defs/legacy" },
+    "order": { "type": "integer", "minimum": 0, "maximum": 100000 },
+    "players": { "type": "object", "additionalProperties": false, "required": ["min", "max"], "properties": { "min": { "type": "integer", "minimum": 1, "maximum": 10 }, "max": { "type": "integer", "minimum": 1, "maximum": 10 } } },
+    "modes": { "type": "array", "minItems": 1, "items": { "enum": ["alone", "bot", "link", "live", "ghost"] } },
+    "play": {
+      "type": "object", "additionalProperties": false, "required": ["default", "offer"],
+      "properties": {
+        "default": { "enum": ["alone", "bot", "link", "live", "ghost"] },
+        "offer": { "type": "array", "minItems": 1, "maxItems": 3, "items": { "enum": ["alone", "bot", "link", "live", "ghost"] } }
+      }
+    },
     "hidden": { "type": "string", "enum": ["none", "commit-reveal", "mental-poker", "server-dealer"] },
-    "secretSeats": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 7 } },
-    "uses": { "type": "array", "items": { "type": "string", "enum": ["image", "voice", "video", "collab", "relay", "audio-out"] } },
-    "limits": { "type": "object", "additionalProperties": false, "required": ["stepBudget", "stateBytes"], "properties": { "stepBudget": { "type": "integer", "minimum": 1 }, "stateBytes": { "type": "integer", "minimum": 64, "maximum": 65536 } } },
+    "secretSeats": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 9 } },
+    "uses": { "type": "array", "items": { "type": "string", "enum": ["image", "voice", "video", "collab", "relay", "audio-out", "camera"] } },
+    "limits": { "type": "object", "additionalProperties": false, "required": ["stepBudget", "stateBytes"], "properties": { "stepBudget": { "type": "integer", "minimum": 1 }, "stateBytes": { "type": "integer", "minimum": 64, "maximum": 262144 } } },
     "params": { "type": "object", "required": ["type", "properties"], "properties": { "type": { "const": "object" }, "properties": { "type": "object", "additionalProperties": { "$ref": "#/$defs/field" } } } },
-    "parts": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["id", "params", "label"], "properties": { "id": { "type": "string", "pattern": "^[a-z]+$" }, "params": { "type": "array", "items": { "type": "string" } }, "label": { "$ref": "#/$defs/i18n" } } } }
+    "inputs": { "type": "object", "description": "JSON-Schema der Eingaben dieser Karte (ADR 0001 f)" },
+    "inputDay": { "type": "boolean" },
+    "link": { "type": "object", "additionalProperties": false, "properties": { "snap": { "type": "boolean" } } },
+    "parts": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["id", "params", "label"], "properties": { "id": { "type": "string", "pattern": "^[a-z]+$" }, "params": { "type": "array", "items": { "type": "string" } }, "label": { "$ref": "#/$defs/i18n" } } } },
+    "variants": {
+      "type": "array", "maxItems": 32,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "title", "params"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$" },
+          "title": { "$ref": "#/$defs/i18n" },
+          "teaser": { "$ref": "#/$defs/i18n" },
+          "on": { "type": "array", "items": { "type": "string", "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$" } },
+          "params": { "type": "object" },
+          "modes": { "type": "array", "minItems": 1, "items": { "enum": ["alone", "bot", "link", "live", "ghost"] } },
+          "legacy": { "$ref": "#/$defs/legacy" },
+          "tags": { "type": "array", "maxItems": 8, "items": { "type": "string", "pattern": "^[a-z0-9-]{1,24}$" } },
+          "thumb": { "$ref": "#/$defs/thumb" }
+        }
+      }
+    },
+    "thumb": { "$ref": "#/$defs/thumb" },
+    "assets": {
+      "type": "array", "maxItems": 32,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "type", "file"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$" },
+          "type": { "enum": ["image", "json", "sound", "sheet"] },
+          "legacy": { "type": "array", "maxItems": 32, "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$" } },
+    "file": { "$ref": "#/$defs/file" },
+          "tile": { "type": "integer", "minimum": 8, "maximum": 512 },
+          "keys": { "type": "array", "maxItems": 256, "items": { "type": "string", "pattern": "^[a-z0-9-]{1,32}$" } },
+          "license": { "type": "string", "maxLength": 64 }
+        }
+      }
+    },
+    "rt": { "$ref": "#/$defs/rt" }
   },
   "$defs": {
     "i18n": { "type": "object", "required": ["de", "en"], "properties": { "de": { "type": "string" }, "en": { "type": "string" } } },
-    "field": { "type": "object", "required": ["x-field", "x-label", "default"], "properties": { "default": true,  "x-field": { "enum": ["text", "color", "choice", "number", "list", "media.local", "media.server", "secret"] }, "x-label": { "$ref": "#/$defs/i18n" }, "x-model": { "type": "boolean" } } }
+    "i18nList": { "type": "object", "required": ["de", "en"], "properties": { "de": { "type": "array", "items": { "type": "string" } }, "en": { "type": "array", "items": { "type": "string" } } } },
+    "legacy": { "type": "array", "maxItems": 32, "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$" } },
+    "file": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$" },
+    "assetFile": { "type": "string", "pattern": "^(\\.\\./\\.\\./engines/[a-z0-9-]+/)?[a-z0-9][a-z0-9._-]{0,63}$" },
+    "thumb": {
+      "type": "object", "additionalProperties": false, "required": ["src", "file", "alt"],
+      "properties": {
+        "src": { "enum": ["shot", "ki"] },
+        "legacy": { "type": "array", "maxItems": 32, "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$" } },
+    "file": { "$ref": "#/$defs/file" },
+        "alt": { "$ref": "#/$defs/i18n" },
+        "prompt": { "type": "string", "maxLength": 600 }
+      }
+    },
+    "field": {
+      "type": "object", "required": ["x-field", "x-label", "default"],
+      "properties": {
+        "default": true,
+        "x-field": { "enum": ["text", "color", "choice", "number", "list", "media.local", "media.server", "secret", "stickers", "weather", "kibild", "steps", "slide", "pair"] },
+        "x-pairs": { "type": "object" },
+        "x-label": { "$ref": "#/$defs/i18n" },
+        "x-model": { "type": "boolean" }
+      }
+    },
+    "synth": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "synth": { "enum": ["tone", "noise"] },
+        "f0": { "type": "number", "minimum": 20, "maximum": 8000 },
+        "f1": { "type": "number", "minimum": 20, "maximum": 8000 },
+        "freq": { "type": "number", "minimum": 20, "maximum": 16000 },
+        "dur": { "type": "number", "minimum": 0.005, "maximum": 3 },
+        "type": { "enum": ["sine", "square", "triangle", "sawtooth"] },
+        "vol": { "type": "number", "minimum": 0, "maximum": 1 },
+        "asset": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$" },
+        "haptic": { "type": "integer", "minimum": 1, "maximum": 400 }
+      }
+    },
+    "keys1": { "type": "array", "minItems": 1, "maxItems": 6, "items": { "type": "string", "pattern": "^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right)|Space|Enter|ShiftLeft|ShiftRight)$" } },
+    "keys": { "type": "array", "maxItems": 6, "items": { "type": "string", "pattern": "^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right)|Space|Enter|ShiftLeft|ShiftRight)$" } },
+    "rt": {
+      "type": "object", "additionalProperties": false, "required": ["tick", "view", "numeric", "net", "maxTicks", "controls"],
+      "properties": {
+        "tick": { "enum": [30, 60, 120] },
+        "view": {
+          "type": "object", "additionalProperties": false, "required": ["w", "h"],
+          "properties": { "w": { "type": "integer", "minimum": 16, "maximum": 4096 }, "h": { "type": "integer", "minimum": 16, "maximum": 4096 }, "fit": { "enum": ["contain", "width"] } }
+        },
+        "numeric": { "enum": ["int", "f64"] },
+        "net": { "enum": ["lockstep", "split", "none"] },
+        "delay": { "type": "integer", "minimum": 0, "maximum": 30 },
+        "maxTicks": { "type": "integer", "minimum": 1, "maximum": 216000 },
+        "controls": {
+          "type": "object", "additionalProperties": false, "required": ["buttons"],
+          "properties": {
+            "buttons": {
+              "type": "array", "maxItems": 8,
+              "items": {
+                "type": "object", "additionalProperties": false, "required": ["id", "kind", "keys", "zone"],
+                "properties": {
+                  "id": { "type": "string", "pattern": "^[a-z][a-z0-9]{0,15}$" },
+                  "kind": { "enum": ["pulse", "hold"] },
+                  "keys": { "$ref": "#/$defs/keys1" },
+                  "zone": { "enum": ["any", "button", "none", "left", "right"] },
+                  "swipe": { "enum": ["up", "down", "left", "right"] },
+                  "label": { "$ref": "#/$defs/i18n" }
+                }
+              }
+            },
+            "axes": {
+              "type": "object", "additionalProperties": false,
+              "properties": {
+                "x": { "type": "object", "additionalProperties": false, "required": ["keys"], "properties": { "keys": { "$ref": "#/$defs/keys" } } },
+                "y": { "type": "object", "additionalProperties": false, "required": ["keys"], "properties": { "keys": { "$ref": "#/$defs/keys" } } }
+              }
+            },
+            "pointer": {
+              "type": "object", "additionalProperties": false, "required": ["max"],
+              "properties": {
+                "max": { "type": "integer", "minimum": 1, "maximum": 5 },
+                "keys": { "type": "boolean" }
+              }
+            }
+          }
+        },
+        "sounds": { "type": "object", "maxProperties": 32, "propertyNames": { "pattern": "^[a-z][a-z0-9]{0,15}$" }, "additionalProperties": { "$ref": "#/$defs/synth" } },
+        "smooth": {
+          "type": "array", "maxItems": 4,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["msg", "fields", "vmax"],
+            "properties": {
+              "msg": { "type": "string", "pattern": "^[a-z]{1,8}$" },
+              "fields": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "type": "string", "pattern": "^[a-z]{1,4}$" } },
+              "vmax": { "type": "number", "minimum": 1 },
+              "lo": { "type": "array", "items": { "type": "number" } },
+              "hi": { "type": "array", "items": { "type": "number" } }
+            }
+          }
+        },
+        "ghost": { "type": "object", "additionalProperties": false, "required": ["bytes"], "properties": { "bytes": { "type": "integer", "minimum": 16, "maximum": 2400 } } }
+      }
+    }
   }
 }

@@ -1,5 +1,5 @@
 // Feldtypen mit Reiseregeln (KONZEPT §3.2). Eine Quelle fuer Link, Modell (Robot) und Server.
-export const FIELD_TYPES = ["text", "color", "choice", "number", "list", "media.local", "media.server", "secret"];
+export const FIELD_TYPES = ["text", "color", "choice", "number", "list", "media.local", "media.server", "secret", "stickers", "weather", "kibild", "steps", "slide", "pair"];
 
 /**
  * @param {object} prop Schema-Eigenschaft mit x-field, optional x-model
@@ -10,10 +10,11 @@ export function travel(prop, ctx = {}) {
   const f = prop["x-field"];
   switch (f) {
     case "text": case "color": case "choice": case "number": case "list":
+    case "stickers": case "steps": case "slide": case "pair":
       return { link: "yes", model: prop["x-model"] === true, server: ctx.share === "short" };
     case "media.local":
       return { link: ctx.withLocalMedia ? "yes" : "no", model: false, server: false };
-    case "media.server":
+    case "media.server": case "weather": case "kibild":
       return { link: "ref", model: false, server: true };
     case "secret":
       return { link: "sealed", model: false, server: false };

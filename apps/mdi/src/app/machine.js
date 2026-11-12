@@ -8,6 +8,7 @@ import { cardOf, modesOf, validParams } from "../cards/index.js";
 import { encode } from "./link.js";
 import { paramsForLink } from "../contract/fields.js";
 import { kontoRegion, stilState, kontoGuards, kontoActions, kontoContext } from "./konto-chart.js";
+import { FEATURES } from "./features.js";
 
 const T = (p) => p; // Lesbarkeit: absolute Zielpfade
 const leaveIfLive = (ctx) => (ctx.mode === "live" ? { type: "LEAVE" } : null);
@@ -77,6 +78,7 @@ export const chart = {
                   { target: T("inhalt.card.play.wait"), cond: "phWait" }
                 ],
                 JOIN: { actions: ["onJoin"], raise: "SYNC" },
+                BOT_IN: { actions: ["onBotLocal"], raise: "SYNC" },
                 START: { actions: ["onStart"], raise: "SYNC" },
                 PEER_IN: { actions: ["onPeerIn"], raise: "SYNC" },
                 LIVE_DOWN: { actions: ["peerGone"], raise: "SYNC" },
@@ -85,7 +87,7 @@ export const chart = {
               },
               states: {
                 hand: {},
-                turn: { on: { INPUT: { actions: ["onInput"], raise: "SYNC" } } },
+                turn: { on: { INPUT: { actions: ["onInput"], raise: "SYNC" }, DRAFT: { actions: ["setDraft"] } } },
                 cover: { on: { COVER_OK: { actions: ["flipViewer"], raise: "SYNC" } } },
                 send: { entry: ["makeChallenge", "autoShare"], on: { SHARE: { actions: ["share"] }, SENT: { actions: ["markSent"], raise: "SYNC" } } },
                 wait: {},
@@ -202,8 +204,13 @@ export const actions = {
     return n;
   }),
   startBot: (ctx, ev, emit) => safe(ctx, () => {
-    const r = G.helloFor(ctx, ev.rand);
     const n = G.card(ctx).manifest.players.max;
+    if (n > 2) { // n-1 Bots auf diesem Geraet (ADR 0001 f)
+      const next = G.startBotsLocal({ ...ctx, level: ctx.level || 2 }, ev.rand);
+      if (G.botTurn(next) !== null) emit({ type: "bot.local", seat: G.botTurn(next), level: next.level || 2 });
+      return next;
+    }
+    const r = G.helloFor(ctx, ev.rand);
     if (n !== 2) throw Object.assign(new Error("bot"), { code: "eingabe" }); // Bot ist ein Partner (2 Sitze)
     emit({ type: "bot.new", seat: [0, 1].find((s) => s !== ctx.seat), level: ctx.level || 2 });
     emit({ type: "peer", msg: r.msg });
@@ -213,27 +220,34 @@ export const actions = {
   sendShow: (ctx, ev, emit) => { const c = G.card(ctx); emit({ type: "peer", msg: { t: "show", c: c.manifest.id, v: c.manifest.version, p: G.paramsOf(ctx) } }); return { ...ctx, note: "gezeigt" }; },
   onJoin: (ctx, ev, emit) => {
     if (!ctx.hs || ctx.session) return { ...ctx, error: "abweichung" };
-    return safe(ctx, () => { const r = G.startFor(ctx, ev.msg); emit({ type: "peer", msg: r.msg }); return r.ctx; });
+    return safe(ctx, () => { const r = G.startFor(ctx, ev.msg); emit({ type: "peer", msg: r.msg }); for (const m of r.out) emit({ type: "peer", msg: m }); return r.ctx; });
   },
-  onStart: (ctx, ev) => (!ctx.hs || ctx.session ? { ...ctx, error: "abweichung" } : safe(ctx, () => G.beginFor(ctx, ev.msg))),
+  onStart: (ctx, ev, emit) => (!ctx.hs || ctx.session ? { ...ctx, error: "abweichung" } : safe(ctx, () => { const r = G.beginFor(ctx, ev.msg); for (const m of r.out) emit({ type: "peer", msg: m }); return r.ctx; })),
+  onBotLocal: (ctx, ev, emit) => {
+    if (!ctx.session || !ctx.botSeats) return { ...ctx, error: "abweichung" };
+    return safe(ctx, () => { const n = G.applyBotLocal(ctx, ev.input); const t = G.botTurn(n); if (t !== null) emit({ type: "bot.local", seat: t, level: n.level || 2 }); return n; });
+  },
+  setDraft: (ctx, ev) => { try { return { ...ctx, draft: ev.draft === undefined ? null : JSON.parse(JSON.stringify(ev.draft)) }; } catch (e) { return ctx; } },
   onPeerIn: (ctx, ev, emit) => {
     if (!ctx.session) return { ...ctx, error: "abweichung" };
     return safe(ctx, () => { const r = G.applyPeer(ctx, ev.msg); for (const m of r.out) emit({ type: "peer", msg: m }); return r.ctx; });
   },
   onInput: (ctx, ev, emit) => safe(ctx, () => {
-    const r = G.applyMine(ctx, ev.input);
+    const r = G.applyMine(ctx, ev.input, G.todayOf(ev.at));
+    if (ctx.botSeats) { const t = G.botTurn(r.ctx); if (t !== null) emit({ type: "bot.local", seat: t, level: r.ctx.level || 2 }); return r.ctx; }
     if (ctx.mode === "bot" || ctx.mode === "live") for (const m of r.out) emit({ type: "peer", msg: m });
     return r.ctx;
   }),
-  flipViewer: (ctx) => ({ ...ctx, viewer: G.gameStatus(ctx).turn }),
+  flipViewer: (ctx) => { const t = G.gameStatus(ctx).turn; return { ...ctx, viewer: t, coveredFor: t }; },
   // Jeder erzeugte Link legt den eigenen Stand ab (Review H1): spaetere Links muessen ihn fortsetzen
   makeChallenge: (ctx, ev, emit) => { try { const link = encode("challenge", G.challengeOf(ctx)); emit({ type: "store", entry: G.gameEntry(ctx.session, ctx.gameId) }); return { ...ctx, link }; } catch (e) { return { ...ctx, link: null, error: e.code || "zu-lang" }; } },
   makeChallengeIfPending: (ctx, ev, emit) => {
     if (ctx.mode !== "link" || ctx.sent) return ctx;
+    if (G.gameStatus(ctx).local === true) return { ...ctx, link: null }; // Ergebnis bleibt auf dem Geraet (status.local)
     const log = ctx.session.log; if (!log.length || !ctx.session.mine.includes(log[log.length - 1].seat)) return { ...ctx, link: null };
     try { const link = encode("challenge", G.challengeOf(ctx)); emit({ type: "store", entry: G.gameEntry(ctx.session, ctx.gameId) }); return { ...ctx, link }; } catch (e) { return { ...ctx, link: null }; }
   },
-  endGame: (ctx) => ({ ...ctx, session: null, hs: null, error: null, link: null, sent: false }),
+  endGame: (ctx) => ({ ...ctx, session: null, hs: null, error: null, link: null, sent: false, draft: null, botSeats: null, coveredFor: null }),
   peerGone: (ctx) => (ctx.session && G.gameStatus(ctx).over ? ctx : { ...ctx, error: "partner-weg" }),
   setError: (ctx, ev) => ({ ...ctx, error: ev.reason || "zug-ungueltig" }),
   takeLink: (ctx, ev, emit) => {
@@ -264,9 +278,61 @@ export const actions = {
   ...kontoActions
 };
 
-export const machine = createMachine(chart, { guards, actions });
+// ---------- Erweiterungen (ADR 0001 g) ----------
+function cloneDef(n) {
+  const out = { ...n };
+  if (n.on) { out.on = {}; for (const [k, v] of Object.entries(n.on)) out.on[k] = Array.isArray(v) ? v.slice() : v; }
+  if (n.entry) out.entry = n.entry.slice();
+  if (n.states) { out.states = {}; for (const [k, v] of Object.entries(n.states)) out.states[k] = cloneDef(v); }
+  return out;
+}
+const asList = (v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]);
+function nodeAt(root, p) {
+  let n = root;
+  for (const part of p.split(".")) { n = n.states && n.states[part]; if (!n) throw new Error("feature: Zustand " + p + " fehlt"); }
+  return n;
+}
+/** Setzt Features in Diagramm, Bedingungen, Aktionen und Kontext ein. Rein; Konflikte werfen. */
+export function withFeatures(base, baseGuards, baseActions, feats) {
+  const root = cloneDef(base), g = { ...baseGuards }, a = { ...baseActions }, ids = new Set();
+  let shelfBy = null;
+  for (const f of feats) {
+    if (!f || typeof f.id !== "string" || ids.has(f.id)) throw new Error("feature: id fehlt oder doppelt");
+    ids.add(f.id);
+    const inhalt = root.states.inhalt;
+    for (const [name, st] of Object.entries(f.states || {})) {
+      if (name === "shelf") { if (shelfBy) throw new Error("feature: shelf schon ersetzt von " + shelfBy); shelfBy = f.id; inhalt.states.shelf = cloneDef(st); continue; }
+      if (inhalt.states[name]) throw new Error("feature " + f.id + ": Zustand inhalt." + name + " existiert");
+      inhalt.states[name] = cloneDef(st);
+    }
+    const on = { ...(f.on || {}) };
+    if (f.shelfOn) on["inhalt.shelf"] = { ...(on["inhalt.shelf"] || {}), ...f.shelfOn };
+    for (const [p, evs] of Object.entries(on)) {
+      const n = nodeAt(root, p); n.on = n.on || {};
+      for (const [ev, tr] of Object.entries(evs)) n.on[ev] = [...asList(tr), ...asList(n.on[ev])];
+    }
+    for (const [p, acts] of Object.entries(f.entry || {})) { const n = nodeAt(root, p); n.entry = [...(n.entry || []), ...acts]; }
+    for (const [k, fn] of Object.entries(f.guards || {})) { if (k in g) throw new Error("feature " + f.id + ": Bedingung " + k + " doppelt"); g[k] = fn; }
+    for (const [k, fn] of Object.entries(f.actions || {})) { if (k in a) throw new Error("feature " + f.id + ": Aktion " + k + " doppelt"); a[k] = fn; }
+  }
+  return { chart: root, guards: g, actions: a };
+}
+export function featureContext(feats, saved) {
+  const out = {};
+  for (const f of feats) if (typeof f.context === "function") for (const [k, v] of Object.entries(f.context(saved) || {})) { if (k in out) throw new Error("feature " + f.id + ": Kontext " + k + " doppelt"); out[k] = v; }
+  return out;
+}
+/** Effekt-Tabelle aller Features (Typ -> Funktion); doppelte Typen sind ein Fehler. */
+export function featureEffects(feats) {
+  const out = {};
+  for (const f of feats) for (const [k, fn] of Object.entries(f.effects || {})) { if (k in out) throw new Error("feature " + f.id + ": Effekt " + k + " doppelt"); out[k] = fn; }
+  return out;
+}
+
+const composed = withFeatures(chart, guards, actions, FEATURES);
+export const machine = createMachine(composed.chart, { guards: composed.guards, actions: composed.actions });
 
 /** @param saved Konto-Daten aus dem Geraetespeicher (oder null) */
 export function initialContext(lang, saved = null) {
-  return { lang, cardId: null, params: {}, mode: null, seat: 0, level: 2, part: null, session: null, hs: null, error: null, incoming: null, reason: null, link: null, raum: null, note: null, raumBrauchtKonto: false, ...kontoContext(saved) };
+  return { lang, cardId: null, params: {}, mode: null, seat: 0, level: 2, part: null, session: null, hs: null, error: null, draft: null, botSeats: null, coveredFor: null, incoming: null, reason: null, link: null, raum: null, note: null, raumBrauchtKonto: false, today: null, ...kontoContext(saved), ...featureContext(FEATURES, saved) };
 }

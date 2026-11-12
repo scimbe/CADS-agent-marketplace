@@ -1,6 +1,9 @@
 // Laufzeit: haelt den Zustand der Statechart, fuehrt deren Effekte aus und meldet Aenderungen an die Ansicht.
 // Keine globalen Singletons (A1): alles kommt als Abhaengigkeit herein (Broker, Speicher, Zufall, Planer).
-import { machine, initialContext } from "./machine.js";
+import { machine, initialContext, featureEffects } from "./machine.js";
+import { FEATURES } from "./features.js";
+import { chooseMove, LEVELS } from "../bot/ismcts.js";
+import * as S from "../contract/session.js";
 import { cardOf } from "../cards/index.js";
 import { createBotAgent } from "../bot/agent.js";
 import * as V from "../gen/validators.js";
@@ -36,11 +39,14 @@ export function createRuntime(deps) {
   const api = deps.api || null;
   // Netzaufrufe enden immer als Ereignis (die API wirft nicht); ein Programmfehler dahinter wird laut, nicht verschluckt
   const later = (f) => { f().catch((e) => setTimeout(() => { throw e; }, 0)); };
+  const fxTable = { ...featureEffects(FEATURES) };
+  for (const [k, fn] of Object.entries(deps.effects || {})) { if (k in fxTable) throw new Error("Effekt doppelt: " + k); fxTable[k] = fn; }
 
   function dispatch(ev) {
     ev = typeof ev === "string" ? { type: ev } : { ...ev };
     if (!ev.rand) ev.rand = rand();
     if (ev.at === undefined) ev.at = now();
+    state = { ...state, ctx: { ...state.ctx, today: Math.floor(ev.at / 86400000) } }; // UTC-Tag fuer view (ADR 0001 f)
     const before = state;
     state = machine.send(state, ev);
     for (const fx of state.effects) run(fx);
@@ -126,7 +132,19 @@ export function createRuntime(deps) {
       case "mod.me": later(async () => dispatch({ type: "MOD", result: api ? await api.modMe() : { ok: false, error: "nicht-hier" } })); break;
       case "mod.appeal": later(async () => dispatch({ type: "APPEALED", result: api ? await api.appeal(fx.nid, fx.text) : { ok: false, error: "nicht-hier" } })); break;
       case "download": if (deps.download) deps.download(fx.name, fx.data); break;
-      default: throw new Error("Effekt unbekannt: " + fx.type);
+      case "bot.local": {
+        // Bot-Sitz auf diesem Geraet (mehr als zwei Sitze): plant nur aus observe() seines Sitzes, Zufall aus dem Seed
+        const ctx = state.ctx, c = cardOf(ctx.cardId), s = ctx.session;
+        if (!s) break;
+        const obs = S.observe(c, s, fx.seat), seed = s.seed + "|bot|" + fx.seat + "|" + s.log.length;
+        const input = typeof c.bot === "function" ? c.bot(obs, fx.seat, { level: fx.level, seed })
+          : chooseMove(c, obs, fx.seat, { iterations: (LEVELS.find((l) => l.id === fx.level) || LEVELS[1]).iterations, seed });
+        schedule(() => dispatch({ type: "BOT_IN", input }));
+        break;
+      }
+      default:
+        if (Object.prototype.hasOwnProperty.call(fxTable, fx.type)) { fxTable[fx.type](fx, { dispatch, state: () => state, api, deps }); break; }
+        throw new Error("Effekt unbekannt: " + fx.type);
     }
   }
 

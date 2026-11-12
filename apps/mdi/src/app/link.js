@@ -2,8 +2,9 @@
 // UTF-8 fatal, Schema je Typ (Ajv standalone). Ablehnen immer mit Grund – nie raten (A4).
 import * as V from "../gen/validators.js";
 
-export const MAX_FRAGMENT = 1200;
-export const TYPES = { card: V.linkCard, challenge: V.linkChallenge, live: V.linkLive };
+// 4000 Zeichen (ADR 0001 f): darueber bietet der Host den Kurzlink an; nie still kuerzen
+export const MAX_FRAGMENT = 4000;
+export const TYPES = { card: V.linkCard, challenge: V.linkChallenge, live: V.linkLive, ghost: V.linkGhost };
 
 function b64urlEncode(bytes) {
   let s = ""; for (const b of bytes) s += String.fromCharCode(b);
