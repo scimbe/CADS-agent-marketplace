@@ -7,6 +7,16 @@ import { partOf } from "../../gen/fparts.js";
 import { cardOf } from "../../cards/index.js";
 import { fragmentOf } from "./shortlink.js";
 import * as G from "../../app/game.js";
+import { ORDER } from "../../cards/index.js";
+import { newIdOf, variantOf } from "./families.js";
+import { thumbKey } from "./tile.js";
+
+/** Alle Startbilder, die Regal und Blatt zeigen koennen: jede Karte und jede Katalog-Variante (Karte/Variante). */
+export function thumbKeys() {
+  const out = new Set(ORDER);
+  for (const i of R.IDEAS) { const n = newIdOf(i.id), v = variantOf(i.id); if (n && v) out.add(thumbKey(n, v)); }
+  return [...out];
+}
 import { effects } from "./effects.js";
 
 export const AT = ["day", "family", "regal", "meins", "eigene"];
@@ -15,7 +25,7 @@ export const MAX_OFF = 31;
 const todayOf = (ev) => (Number.isFinite(ev.at) ? Math.floor(ev.at / R.DAY) : null);
 
 export function homeContext() {
-  return { home: { at: "day", off: 0, intent: null, text: "", res: null, rtab: "alles", fam: null, q: "", mtab: "wand", note: null, sure: null }, today: null, mine: { wall: [], saved: [], invites: [], undo: null, loaded: false, busy: null } };
+  return { thumbs: {}, home: { at: "day", off: 0, intent: null, text: "", res: null, rtab: "alles", fam: null, q: "", mtab: "wand", note: null, sure: null }, today: null, mine: { wall: [], saved: [], invites: [], undo: null, loaded: false, busy: null } };
 }
 const H = (ctx, o) => ({ ...ctx, home: { ...ctx.home, ...o } });
 const M = (ctx, o) => ({ ...ctx, mine: { ...ctx.mine, ...o } });
@@ -31,7 +41,13 @@ export const guards = {
 };
 
 export const actions = {
-  homeInit: (ctx, ev, emit) => { if (ctx.mine.loaded || ctx.mine.loading) return ctx; emit({ type: "home.load" }); return M(ctx, { loading: true }); },
+  // erster Besuch: Meins laden, danach (nach dem ersten Bild) Startbilder der Kacheln und die Leseschrift nachladen
+  homeInit: (ctx, ev, emit) => {
+    if (ctx.mine.loaded || ctx.mine.loading) return ctx;
+    emit({ type: "home.load" }); emit({ type: "home.thumbs", keys: thumbKeys() }); emit({ type: "home.font" });
+    return M(ctx, { loading: true });
+  },
+  thumbsTake: (ctx, ev) => (ev.map && typeof ev.map === "object" ? { ...ctx, thumbs: { ...ctx.thumbs, ...ev.map } } : ctx),
   homeGo: (ctx, ev) => {
     const to = AT.includes(ev.to) ? ev.to : "day";
     const o = { at: to, note: null, sure: null };
@@ -138,6 +154,7 @@ export const shelfOn = {
 export const inhaltOn = {
   HOME_LOADED: { actions: ["homeLoaded"] },
   HOME_TICK: { actions: ["homeTick"] },
+  THUMBS: { actions: ["thumbsTake"] },
   MERKEN: { actions: ["merken"] },
   WALL_SNAP: { actions: ["wallSnap"] },
   SHORT_DONE: { actions: ["shortDone"] },

@@ -6,7 +6,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { browser, axe } from "./lib/grund.mjs";
+import { browser, axe, act } from "./lib/grund.mjs";
 
 const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../dist");
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json" };
@@ -55,7 +55,7 @@ test("Kaltstart unter 3G-Drosselung: Kern, dann Karte aus dem Teil (Messung)", a
   await p.locator("header.bar").waitFor({ timeout: 30000 });
   const tCore = Date.now() - t0;
   const t1 = Date.now();
-  await p.locator('[data-act="open-bluff"]').first().click();
+  await act(p, "open-bluff");
   await p.locator("main.s-card-view").waitFor({ timeout: 30000 });
   const tCard = Date.now() - t1;
   console.log("# 3G-Kaltstart: Kern " + tCore + " ms, erste Karte (bluff) " + tCard + " ms");
@@ -72,7 +72,7 @@ for (const at of ["duell", "duell/"]) {
     const asked = []; p.on("request", (r) => { if (/\/parts\//.test(r.url())) asked.push(new URL(r.url()).pathname); });
     await p.goto(base + at);
     await p.locator("header.bar").waitFor();
-    await p.locator('[data-act="open-gruss"]').first().click();
+    await act(p, "open-gruss");
     await p.locator("main.s-card-view").waitFor();
     assert.ok(asked.length > 0 && asked.every((x) => x.startsWith("/duell/parts/")), JSON.stringify(asked));
     assert.deepEqual(errs, []);
@@ -105,13 +105,13 @@ test("Feature-Teil klang-rap: laedt mit SRI unter /duell/parts/, meldet Name und
 
 test("Teil kommt nach dem ersten Laden aus dem Cache (offline fuer Teile)", async () => {
   const { ctx, p, errs } = await page();
-  await p.goto(base); await p.locator('[data-act="open-gruss"]').first().click(); await p.locator("main.s-card-view").waitFor();
+  await p.goto(base); await act(p, "open-gruss"); await p.locator("main.s-card-view").waitFor();
   const cached = await p.evaluate(async () => (await (await caches.open("mdi-parts-v1")).keys()).map((r) => new URL(r.url).pathname));
   assert.ok(cached.some((x) => /\/parts\/card-gruss\./.test(x)), JSON.stringify(cached));
   let hits = 0;
   await ctx.route("**/parts/card-*", (r) => { hits++; return r.abort(); }); // Netz fuer Teile weg
   const p2 = await ctx.newPage();
-  await p2.goto(base); await p2.locator('[data-act="open-gruss"]').first().click();
+  await p2.goto(base); await act(p2, "open-gruss");
   await p2.locator("main.s-card-view").waitFor();
   assert.equal(hits, 0, "aus dem Cache, ohne Netz");
   assert.deepEqual(errs, []);
@@ -121,7 +121,7 @@ test("Fehlender Teil: ehrliche Meldung, Wiederholen laedt nach, sobald er wieder
   const { ctx, p } = await page();
   let block = true;
   await ctx.route("**/parts/card-bluff*", (r) => (block ? r.fulfill({ status: 404, body: "" }) : r.continue()));
-  await p.goto(base); await p.locator('[data-act="open-bluff"]').first().click();
+  await p.goto(base); await act(p, "open-bluff");
   await p.locator("main.s-partfail").waitFor();
   assert.equal(await p.locator('[role="alert"][data-reason="teil-fehlt"]').count(), 1);
   assert.deepEqual(await axe(p, "partfail"), []);
@@ -133,7 +133,7 @@ test("Fehlender Teil: ehrliche Meldung, Wiederholen laedt nach, sobald er wieder
 test("Manipulierter Teil wird nicht ausgefuehrt (SRI), Meldung teil-manipuliert", async () => {
   const { ctx, p } = await page();
   await ctx.route("**/parts/card-gruss*", (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: "document.title='boese';" }));
-  await p.goto(base); await p.locator('[data-act="open-gruss"]').first().click();
+  await p.goto(base); await act(p, "open-gruss");
   await p.locator("main.s-partfail").waitFor();
   assert.equal(await p.locator('[role="alert"][data-reason="teil-manipuliert"]').count(), 1);
   assert.notEqual(await p.title(), "boese");

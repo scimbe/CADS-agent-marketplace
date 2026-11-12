@@ -195,7 +195,7 @@ export function view(state, dispatch, env = {}) {
     body = freiR.body; panel = freiR.panel || [];
   } else if (homeR) {
     // Nachladen (ADR 0001 Nachtrag 2): ehrliche Ladezeile, solange ein Kartenteil kommt
-    body = [ctx.loading ? h("p", { class: "status", role: "status", key: "loading" }, X.loadingCard) : null, ...homeR.body];
+    body = [ctx.loading ? h("p", { class: "h-loading", role: "status", key: "loading" }, X.loadingCard) : null, ...homeR.body];
   } else if (L === "card.view") {
     const modes = modesOf(card), isStatic = card.manifest.mode === "static";
     body = [stage(preview, {}, tree)];

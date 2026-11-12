@@ -16,16 +16,16 @@ const de = {
     gruessen: "Grüßen & Schenken", planen: "Planen & Organisieren", kennen: "Kennen & Raten", bluff: "Bluff & Taktik", geschick: "Geschick",
     tisch: "Kartentisch", raetsel: "Rätsel & Geheim", kreativ: "Wort & Kreativ", vorort: "Vor Ort, ein Handy"
   },
-  months: ["JANUAR", "FEBRUAR", "MÄRZ", "APRIL", "MAI", "JUNI", "JULI", "AUGUST", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DEZEMBER"],
+  months: ["JAN", "FEB", "MÄR", "APR", "MAI", "JUN", "JUL", "AUG", "SEP", "OKT", "NOV", "DEZ"],
   days: ["SONNTAG", "MONTAG", "DIENSTAG", "MITTWOCH", "DONNERSTAG", "FREITAG", "SAMSTAG"],
   prevShort: "gestern", nextShort: "morgen", invSure: "Wirklich löschen? Nochmal tippen.", todayIs: "Heute", prevDay: "Ein Blatt zurück", nextDay: "Nächstes Blatt", toToday: "Zu heute", dayOf: "Blatt vom {d}",
-  swipe: "Wischen blättert die Tage.", sheetLabel: "Kalenderblatt {d}: {t}",
+  swipe: "Blättern (oder wischen)", sheetLabel: "Kalenderblatt {d}: {t}",
   bdg: { link: "Per Link", room: "Ein Handy, reihum", bot: "Gegen den Computer", solo: "Allein", game: "Spiel", photo: "Bild", sound: "Ton", card: "Karte", quest: "Rätsel", table: "Kartentisch", arcade: "Spiel", duel: "Duell", lauf: "Lauf" },
   sec: "{n} Sek", mins: "{n} Min",
   go: { turn: "Los, du fängst an", table: "Tisch aufmachen", game: "Losfliegen", sound: "Ton bauen", photo: "Meme bauen", card: "Karte machen", arcade: "Los, spielen", quest: "Rätsel bauen", default: "Mach's zu deinem" },
   soon: "kommt", soonLong: "Wird gerade neu gebaut. Merk sie dir: Sie steht dann unter Meins.", soonSave: "Merken, kommt bald", soonSaved: "Gemerkt",
   holiday: "Feiertag: {n}", door: "Tür {n}",
-  ready: "Schon spielbar", lastDays: "Letzte Tage", lastSeen: "zuletzt am {d}", calendarOnly: "nur an bestimmten Tagen",
+  ready: "Schon spielbar", week: "Diese Woche im Kalender", lastDays: "Letzte Tage", lastSeen: "zuletzt am {d}", calendarOnly: "nur an bestimmten Tagen",
   heard: "So verstehe ich dich", forName: "Für: {n}", missing: "{w} habe ich noch nicht. Stattdessen:", none: "Dazu habe ich noch keine passende Karte. Probier ein anderes Wort.",
   exact: "Passt genau", near: "Passt ungefähr", change: "Andere Absicht",
   regal: "Regal", search: "Karten suchen", searchPh: "z. B. Quiz, Skat, Wichteln", searchNone: "Keine Karte gefunden.", hits: "{n} Karten",
@@ -60,16 +60,16 @@ const en = {
     gruessen: "Notes & gifts", planen: "Plan & organise", kennen: "Know & guess", bluff: "Bluff & tactics", geschick: "Skill",
     tisch: "Card table", raetsel: "Riddles & secrets", kreativ: "Words & creative", vorort: "In the room, one phone"
   },
-  months: ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"],
+  months: ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"],
   days: ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"],
   prevShort: "back", nextShort: "next", invSure: "Really delete? Tap again.", todayIs: "Today", prevDay: "One sheet back", nextDay: "Next sheet", toToday: "To today", dayOf: "Sheet of {d}",
-  swipe: "Swipe to flip through the days.", sheetLabel: "Calendar sheet {d}: {t}",
+  swipe: "Flip (or swipe)", sheetLabel: "Calendar sheet {d}: {t}",
   bdg: { link: "By link", room: "One phone, take turns", bot: "Against the computer", solo: "Alone", game: "Game", photo: "Picture", sound: "Sound", card: "Card", quest: "Riddle", table: "Card table", arcade: "Game", duel: "Duel", lauf: "Run" },
   sec: "{n} sec", mins: "{n} min",
   go: { turn: "Go, you start", table: "Open the table", game: "Take off", sound: "Make a sound", photo: "Make a meme", card: "Make a card", arcade: "Go, play", quest: "Build a riddle", default: "Make it yours" },
   soon: "coming", soonLong: "We are rebuilding this card. Save it, then you find it under Mine.", soonSave: "Save, coming soon", soonSaved: "Saved",
   holiday: "Holiday: {n}", door: "Door {n}",
-  ready: "Ready to play", lastDays: "Last days", lastSeen: "last on {d}", calendarOnly: "only on certain days",
+  ready: "Ready to play", week: "This week in the calendar", lastDays: "Last days", lastSeen: "last on {d}", calendarOnly: "only on certain days",
   heard: "This is how I understand you", forName: "For: {n}", missing: "I don't have {w} yet. Instead:", none: "I have no card for that yet. Try another word.",
   exact: "Exact match", near: "Close match", change: "Other intent",
   regal: "Shelf", search: "Search cards", searchPh: "e.g. quiz, Skat, Secret Santa", searchNone: "No card found.", hits: "{n} cards",
@@ -89,8 +89,8 @@ const en = {
   open: "Open", play: "Play", soonA11y: "{t} (coming)", thumbAlt: "Preview: {t}"
 };
 const easy = {
-  de: { soonLong: "Diese Karte gibt es bald wieder. Tipp auf Merken.", ask: "Wem willst du heute eine Freude machen?", swipe: "Wisch zur Seite für einen anderen Tag." },
-  en: { soonLong: "This card comes back soon. Tap Save.", swipe: "Swipe sideways for another day." }
+  de: { soonLong: "Diese Karte gibt es bald wieder. Tipp auf Merken.", ask: "Wem willst du heute eine Freude machen?", swipe: "Blättern (oder zur Seite wischen)" },
+  en: { soonLong: "This card comes back soon. Tap Save.", swipe: "Flip (or swipe sideways)" }
 };
 export function homeTexts(lang, isEasy) { const base = lang === "en" ? { ...de, ...en } : de; return isEasy ? { ...base, ...(easy[lang === "en" ? "en" : "de"]) } : base; }
 export function fmt(s, o) { return String(s).replace(/\{(\w+)\}/g, (m, k) => (k in o ? String(o[k]) : m)); }

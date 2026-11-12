@@ -36,7 +36,21 @@ export async function open(b, { view = "phone390", lang = "de", scheme = "light"
   await p.locator("header.bar").waitFor();
   return { ctx, p, errs };
 }
-export const act = (p, id) => p.locator('[data-act="' + id + '"]').first().click();
+// Karte oeffnen: steht sie nicht auf der aktuellen Seite (Startseite zeigt nur das Blatt und diese Woche), dann ueber das Regal,
+// wo jede Karte des Registers eine Kachel hat (Strang H)
+export async function act(p, id) {
+  const l = p.locator('[data-act="' + id + '"]').first();
+  if (id.startsWith("open-") && !(await l.count())) {
+    const alle = p.locator('[data-act="intent-alle"]');
+    if (await alle.count()) { await alle.first().click(); await p.locator("main.h-at-regal").waitFor(); }
+    if (await p.locator("main.h-at-regal").count()) {   // Regal: Reiter Alles, ohne Suche und Filter, damit jede Karte eine Kachel hat
+      await p.locator('[data-act="tab-alles"]').click();
+      const q = p.locator("#h-q"); if (await q.count() && (await q.inputValue())) await q.fill("");
+      const fam = p.locator('[data-act="fam-alle"]'); if (await fam.count() && (await fam.getAttribute("aria-pressed")) !== "true") await fam.click();
+    }
+  }
+  return p.locator('[data-act="' + id + '"]').first().click();
+}
 export async function screen(p) { return p.locator("main").getAttribute("class").then((c) => c.split(" ").find((x) => x.startsWith("s-")).slice(2)); }
 export async function waitScreen(p, s, ms = 15000) { await p.locator("main.s-" + s).waitFor({ timeout: ms }); }
 

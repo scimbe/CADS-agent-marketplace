@@ -6,7 +6,7 @@ import { bundesweit } from "./feiertage.js";
 import { partOf } from "../../gen/fparts.js";
 import { FAMILIES, INTENT_ORDER, familiesOf, family, familyOf, newIdOf, variantOf, extras, catalogIdOf } from "./families.js";
 import { homeTexts, fmt } from "./texts.js";
-import { ideaTile, extraTile, icon, ideaText, plateLines, duration, badge, art } from "./tile.js";
+import { ideaTile, extraTile, icon, ideaText, plateLines, duration, badge, art, thumbKey } from "./tile.js";
 import { SLOTS } from "./slots.js";
 import { inviteStatus, isSaved, UNDO_MS } from "./store.js";
 import { cardOf, manifestOf, ORDER } from "../../cards/index.js";
@@ -58,15 +58,17 @@ function sheet(ctx, X, dispatch) {
         h("span", { class: "h-dmon" }, h("span", null, dp.mon), h("span", null, ctx.home.off === 0 ? X.todayIs.toUpperCase() : dp.wd)),
         h("span", { class: "h-star" }, h("span", null, badge(idea, X)), idea.min ? h("span", null, duration(idea.min, X)) : null)),
       hol ? h("p", { class: "h-hol" }, fmt(X.holiday, { n: hol })) : null,
-      h("div", { class: "h-leaf-art" }, art(fam, nid, ""), h("span", { class: "h-fam fam-" + fam.id }, X.families[fam.id]), nid ? null : h("span", { class: "h-soon" }, X.soon),
+      h("div", { class: "h-leaf-art" }, art(fam, nid ? thumbKey(nid, variantOf(idea.id)) : null, "", ctx.thumbs), h("span", { class: "h-fam fam-" + fam.id }, X.families[fam.id]), nid ? null : h("span", { class: "h-soon" }, X.soon),
         idea.door ? h("span", { class: "h-dur" }, fmt(X.door, { n: R.doorNumber(dp.d) })) : null),
       h("h2", { class: "h-stamp" }, title.map((l, i) => h("span", { key: String(i), class: "h-stamp-l" }, l))),
-      h("p", { class: "h-teaser" }, tx.s),
-      nid ? null : h("p", { class: "h-soonline" }, X.soonLong)),
-    h("div", { class: "h-flip" },
-      h("button", { type: "button", class: "h-arrow", "data-act": "day-prev", "aria-label": X.prevDay, disabled: ctx.home.off <= -31 || null, on: { click: () => dispatch({ type: "DAY", d: -1 }) } }, h("b", { "aria-hidden": "true" }, "‹"), X.prevShort),
-      ctx.home.off !== 0 ? h("button", { type: "button", class: "h-today", "data-act": "day-today", on: { click: () => dispatch({ type: "DAY", to0: true }) } }, X.toToday) : h("span", { class: "h-swipe" }, X.swipe),
-      h("button", { type: "button", class: "h-arrow", "data-act": "day-next", "aria-label": X.nextDay, disabled: ctx.home.off >= 31 || null, on: { click: () => dispatch({ type: "DAY", d: 1 }) } }, X.nextShort, h("b", { "aria-hidden": "true" }, "›"))));
+      // Teaser und Blaettern in einer Zeile wie im Design (Board Start): Pfeile mit sichtbarem "gestern/morgen"
+      h("div", { class: "h-flip" },
+        h("p", { class: "h-teaser" }, tx.s),
+        h("nav", { class: "h-flipnav", "aria-label": X.swipe },
+          h("button", { type: "button", class: "h-arrow", "data-act": "day-prev", "aria-label": X.prevDay, disabled: ctx.home.off <= -31 || null, on: { click: () => dispatch({ type: "DAY", d: -1 }) } }, h("span", { class: "h-arrow-i", "aria-hidden": "true" }, "‹"), h("span", { class: "h-arrow-t", "aria-hidden": "true" }, X.prevShort)),
+          h("button", { type: "button", class: "h-arrow", "data-act": "day-next", "aria-label": X.nextDay, disabled: ctx.home.off >= 31 || null, on: { click: () => dispatch({ type: "DAY", d: 1 }) } }, h("span", { class: "h-arrow-i", "aria-hidden": "true" }, "›"), h("span", { class: "h-arrow-t", "aria-hidden": "true" }, X.nextShort)))),
+      ctx.home.off !== 0 ? h("button", { type: "button", class: "h-today", "data-act": "day-today", on: { click: () => dispatch({ type: "DAY", to0: true }) } }, X.toToday) : null,
+      nid ? null : h("p", { class: "h-soonline" }, X.soonLong)));
 }
 
 function primaryBtn(p, dispatch) {
@@ -85,12 +87,12 @@ function sentenceForm(ctx, X, dispatch) {
 function intents(state, X, dispatch) {
   return h("nav", { class: "h-intents", key: "intents", "aria-label": X.ask },
     INTENT_ORDER.map((k) => h("button", { type: "button", key: k, class: "h-intent fam-" + INTENT_FAM[k], "data-act": "intent-" + k, on: { click: () => dispatch({ type: "HOME", to: "family", intent: k }) } },
-      icon(INTENT_SHAPE[k], "h-ico"), h("span", { class: "h-intent-t", lang: state.ctx.lang }, X.intents[k].t), h("span", { class: "h-intent-s" }, X.intents[k].s))),
+      icon(INTENT_SHAPE[k], "h-ico"), h("span", { class: "h-intent-t", lang: state.ctx.lang }, X.intentHead[k]), h("span", { class: "visually-hidden" }, ": " + X.intents[k].s))),
     // Strang K vorhanden: direkt in die freie Karte (FREI); sonst die eigene Route mit ehrlichem "kommt"
     h("button", { type: "button", key: "eigene", class: "h-intent h-intent-frei", "data-act": "frei", on: { click: () => dispatch(SLOTS.freiEntry ? { type: "FREI" } : { type: "HOME", to: "eigene" }) } },
-      icon("plus", "h-ico"), h("span", { class: "h-intent-t" }, X.own.t), h("span", { class: "h-intent-s" }, X.own.s)),
+      icon("plus", "h-ico"), h("span", { class: "h-intent-t" }, X.own.t), h("span", { class: "visually-hidden" }, ": " + X.own.s)),
     h("button", { type: "button", key: "alle", class: "h-intent h-intent-alle", "data-act": "intent-alle", on: { click: () => dispatch({ type: "HOME", to: "regal", rtab: "alles", fam: null }) } },
-      icon("grid", "h-ico"), h("span", { class: "h-intent-t" }, X.all), h("span", { class: "h-intent-s" }, fmt(X.hits, { n: R.IDEAS.length }))));
+      icon("grid", "h-ico"), h("span", { class: "h-intent-t" }, X.all), h("span", { class: "visually-hidden" }, ": " + fmt(X.hits, { n: R.IDEAS.length }))));
 }
 
 function grid(items, cls = "") { return h("div", { class: "h-grid " + cls }, items); }
@@ -99,15 +101,14 @@ function section(title, kids, o = {}) {
     h("h2", { class: "h-sec-h", id: o.id }, o.fam ? h("span", { class: "h-dot fam-" + o.fam, "aria-hidden": "true" }) : null, title, o.count !== undefined ? h("span", { class: "h-count" }, String(o.count)) : null), kids);
 }
 
-function readyRow(ctx, X, dispatch) {
-  // Jede Karte im Register genau einmal: ueber die Katalogzeile, die sie traegt (Alias/LEGACY), sonst als eigene Kachel
-  const tiles = [], ext = extras();
-  for (const id of ORDER) {
-    const idea = R.IDEAS.find((i) => newIdOf(i.id) === id);
-    if (idea) tiles.push(ideaTile({ idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, key: "r-" + id }));
-    else { const x = ext.find((e) => e.id === id); if (x) tiles.push(extraTile(x, X, ctx.lang, dispatch, ctx.mine.saved)); }
-  }
-  return tiles.length ? section(X.ready, grid(tiles, "h-row"), { key: "ready", id: "h-ready", count: tiles.length }) : null;
+// "Diese Woche im Kalender" (Board Desktop): die letzten 6 Blaetter als Kacheln; die ganze Historie steht im Regal (Letzte Tage)
+function weekRow(ctx, X, dispatch) {
+  const days = R.lastDays(new Date(ctx.today * R.DAY), 6, caps());
+  const tiles = days.map((d) => ideaTile({ idea: d.idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, thumbs: ctx.thumbs, key: "w-" + d.key, extra: X.days[new Date(d.n * R.DAY).getUTCDay()].charAt(0) + X.days[new Date(d.n * R.DAY).getUTCDay()].slice(1).toLowerCase() }));
+  return h("section", { class: "h-sec", key: "week", "aria-labelledby": "h-week" },
+    h("div", { class: "h-sec-row" }, h("h2", { class: "h-sec-h", id: "h-week" }, X.week),
+      h("button", { type: "button", class: "h-link", "data-act": "tab-tage-home", on: { click: () => dispatch({ type: "HOME", to: "regal", rtab: "tage" }) } }, X.lastDays + " ›")),
+    grid(tiles, "h-week"));
 }
 
 function lastDaysRow(ctx, X, dispatch, n = 7) {
@@ -125,8 +126,10 @@ function dayView(state, X, dispatch) {
   const known = ctx.today !== null, p = known ? dayPrimary(ctx) : null;
   return [
     h("div", { class: "h-top", key: "top" },
-      h("div", { class: "h-top-a" }, known ? sheet(ctx, X, dispatch) : h("p", { class: "h-wait", role: "status", key: "wait" }, "…"), p ? primaryBtn(p, dispatch) : null),
-      h("div", { class: "h-top-b" }, sentenceForm(ctx, X, dispatch), intents(state, X, dispatch), readyRow(ctx, X, dispatch), known ? lastDaysRow(ctx, X, dispatch) : null))
+      // Raster wie Board Start/Desktop: Blatt | Hauptknopf | Satz, Absichten, Diese Woche (ab 900 px: Blatt links, rechts oben der Knopf)
+      h("div", { class: "h-top-a" }, known ? sheet(ctx, X, dispatch) : h("p", { class: "h-wait", role: "status", key: "wait" }, "…")),
+      p ? h("div", { class: "h-top-go" }, primaryBtn(p, dispatch)) : null,
+      h("div", { class: "h-top-b" }, sentenceForm(ctx, X, dispatch), intents(state, X, dispatch), known ? weekRow(ctx, X, dispatch) : null))
   ];
 }
 
@@ -139,7 +142,7 @@ function familyView(state, X, dispatch) {
       name ? h("p", null, fmt(X.forName, { n: name })) : null,
       res.missing ? h("p", { class: "h-miss" }, fmt(X.missing, { w: res.missing[ctx.lang] || res.missing.de })) : null,
       !res.top.length ? h("p", { class: "h-miss" }, X.none) : null));
-    if (res.top.length) out.push(section(X.heard, grid(res.top.map((t) => ideaTile({ idea: R.byId(t.id), X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, key: "t-" + t.id, extra: t.exact ? X.exact : X.near }))), { key: "top", id: "h-tophits" }));
+    if (res.top.length) out.push(section(X.heard, grid(res.top.map((t) => ideaTile({ idea: R.byId(t.id), X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, thumbs: ctx.thumbs, key: "t-" + t.id, extra: t.exact ? X.exact : X.near }))), { key: "top", id: "h-tophits" }));
   }
   if (!intent) { out.push(intents(state, X, dispatch)); return out; }
   for (const f of familiesOf(intent)) {
@@ -153,11 +156,11 @@ function familyView(state, X, dispatch) {
 // steht direkt hinter ihrer Traegerkarte, sonst am Anfang (neue Karten)
 function familyTiles(f, ctx, X, dispatch, kp) {
   const ext = extras().filter((x) => x.fam.id === f.id), out = [];
-  const tileX = (x) => extraTile(x, X, ctx.lang, dispatch, ctx.mine.saved, true);
+  const tileX = (x) => extraTile(x, X, ctx.lang, dispatch, ctx.mine.saved, true, ctx.thumbs);
   for (const x of ext) if (!f.ids.includes(x.manifest.family)) out.push(tileX(x));
   for (const id of f.ids) {
     const idea = R.byId(id); if (!idea) continue;
-    out.push(ideaTile({ idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, key: kp + idea.id, noFam: true }));
+    out.push(ideaTile({ idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, thumbs: ctx.thumbs, key: kp + idea.id, noFam: true }));
     for (const x of ext) if (x.manifest.family === id) out.push(tileX(x));
   }
   return out;
@@ -179,7 +182,7 @@ function regalView(state, X, dispatch) {
       const F = partOf("home-find"); // geladen vor QUERY (needParts)
       const hits = F ? F.searchIdeas(hm.q, new Date(ctx.today * R.DAY), X.bdg, caps()) : [];
       panel.push(h("p", { class: "h-hits", role: "status", key: "hits" }, hits.length ? fmt(X.hits, { n: hits.length }) : X.searchNone));
-      panel.push(grid(hits.map((x) => ideaTile({ idea: x.idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, key: "s-" + x.idea.id, extra: x.date ? fmt(X.lastSeen, { d: fmtDate(x.date.getTime(), ctx.lang) }) : x.idea.on ? X.calendarOnly : "" }))));
+      panel.push(grid(hits.map((x) => ideaTile({ idea: x.idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, thumbs: ctx.thumbs, key: "s-" + x.idea.id, extra: x.date ? fmt(X.lastSeen, { d: fmtDate(x.date.getTime(), ctx.lang) }) : x.idea.on ? X.calendarOnly : "" }))));
     } else {
       panel.push(freiEntry(state, X, dispatch, "regal"));
       panel.push(h("div", { class: "h-chips", role: "group", "aria-label": X.regal, key: "chips" },
@@ -250,9 +253,9 @@ function meinsView(state, X, dispatch) {
     if (!mine.saved.length) panel.push(h("p", { class: "h-empty", key: "empty" }, X.savedEmpty));
     else panel.push(grid(mine.saved.map((s) => {
       const idea = R.byId(catalogIdOf(s.id));
-      if (idea && R.IDEAS.includes(idea)) return ideaTile({ idea, X, lang: ctx.lang, dispatch, saved: mine.saved, key: "g-" + s.id });
+      if (idea && R.IDEAS.includes(idea)) return ideaTile({ idea, X, lang: ctx.lang, dispatch, saved: mine.saved, thumbs: ctx.thumbs, key: "g-" + s.id });
       const x = extras().find((e) => e.id === s.id);
-      return x ? extraTile(x, X, ctx.lang, dispatch, mine.saved) : null;
+      return x ? extraTile(x, X, ctx.lang, dispatch, mine.saved, false, ctx.thumbs) : null;
     }).filter(Boolean)));
   }
   out.push(h("div", { class: "h-panel", role: "tabpanel", id: "panel-" + tab, "aria-labelledby": "tab-" + tab, key: "panel-" + tab }, panel));
@@ -266,7 +269,7 @@ function eigeneView(state, X, dispatch) {
   const blank = Object.keys(ORDER.reduce((a, id) => (manifestOf(id).mode === "static" ? { ...a, [id]: 1 } : a), {}));
   if (blank.length) out.push(section(X.own.blank, grid(blank.map((id) => {
     const idea = R.byId(catalogIdOf(id));
-    return idea && R.IDEAS.includes(idea) ? ideaTile({ idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, key: "e-" + id }) : extraTile(extras().find((e) => e.id === id) || { id, fam: family("gruessen"), manifest: manifestOf(id) }, X, ctx.lang, dispatch, ctx.mine.saved);
+    return idea && R.IDEAS.includes(idea) ? ideaTile({ idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, thumbs: ctx.thumbs, key: "e-" + id }) : extraTile(extras().find((e) => e.id === id) || { id, fam: family("gruessen"), manifest: manifestOf(id) }, X, ctx.lang, dispatch, ctx.mine.saved, false, ctx.thumbs);
   })), { key: "blank", id: "h-blank" }));
   return out;
 }
