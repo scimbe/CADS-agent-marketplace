@@ -1,5 +1,5 @@
 // Zustaende der Heimseite (Strang H) fuer axe, Verdeckung, Ueberlauf und Screenshots: Kalenderblatt heute und geblaettert,
-// Satz verstanden, Familienseite, Regal (Alles, Suche, Filter, Letzte Tage, Von anderen), Meins (Wand, Einladungen,
+// Satz verstanden, Familienseite, Regal (Alles, Suche, Filter, Letzte Tage, Von anderen), Mein Regal (Wand, Einladungen,
 // Gemerkt) mit Inhalt, Eigene Karte. Endet wieder auf dem Kalenderblatt von heute.
 import { act } from "./grund.mjs";
 
@@ -10,7 +10,7 @@ export async function visitHome(p, cb, lang = "de") {
   await act(p, "day-next"); await cb("h02-kalender-morgen", p);
   await act(p, "day-today");
   await act(p, "merken-zug-kennst").catch(() => {});
-  await p.locator("#h-sentence").fill(lang === "de" ? "Danke an Oma" : "Thanks to Grandma"); await act(p, "understand");
+  await act(p, "intent-suchen"); await p.locator("#h-sentence").fill(lang === "de" ? "Danke an Oma" : "Thanks to Grandma"); await act(p, "understand");
   await p.locator("main.h-at-family").waitFor(); await cb("h03-satz-verstanden", p);
   await home(p); await act(p, "intent-spielen"); await p.locator("main.h-at-family").waitFor(); await cb("h04-familie-spielen", p);
   await act(p, "merken-zug-kennst");

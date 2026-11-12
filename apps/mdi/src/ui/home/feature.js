@@ -25,7 +25,7 @@ export const MAX_OFF = 31;
 const todayOf = (ev) => (Number.isFinite(ev.at) ? Math.floor(ev.at / R.DAY) : null);
 
 export function homeContext() {
-  return { thumbs: {}, home: { at: "day", off: 0, intent: null, text: "", res: null, rtab: "alles", fam: null, q: "", mtab: "wand", note: null, sure: null }, today: null, mine: { wall: [], saved: [], invites: [], undo: null, loaded: false, busy: null } };
+  return { thumbs: {}, wx: null, photo: null, home: { at: "day", off: 0, intent: null, text: "", res: null, rtab: "alles", fam: null, q: "", mtab: "wand", note: null, sure: null }, today: null, mine: { wall: [], saved: [], invites: [], undo: null, loaded: false, busy: null } };
 }
 const H = (ctx, o) => ({ ...ctx, home: { ...ctx.home, ...o } });
 const M = (ctx, o) => ({ ...ctx, mine: { ...ctx.mine, ...o } });
@@ -51,8 +51,8 @@ export const actions = {
   homeGo: (ctx, ev) => {
     const to = AT.includes(ev.to) ? ev.to : "day";
     const o = { at: to, note: null, sure: null };
-    if (to === "family") { o.intent = ["gruss", "planen", "spielen", "stimme"].includes(ev.intent) ? ev.intent : null; o.res = ev.keepRes ? ctx.home.res : null; }
-    if (to === "regal") { o.rtab = RTABS.includes(ev.rtab) ? ev.rtab : ctx.home.rtab; if (ev.fam !== undefined) o.fam = ev.fam; }
+    if (to === "family") { o.intent = ["gruss", "planen", "spielen", "stimme"].includes(ev.intent) ? ev.intent : null; o.res = ev.keepRes ? ctx.home.res : null; o.focus = ev.focus === "sentence" ? "sentence" : null; }
+    if (to === "regal") { o.rtab = RTABS.includes(ev.rtab) ? ev.rtab : ctx.home.rtab; if (ev.fam !== undefined) o.fam = ev.fam; o.focus = ev.focus === "search" ? "search" : null; }
     if (to === "meins") o.mtab = MTABS.includes(ev.tab) ? ev.tab : ctx.home.mtab;
     if (to === "day") o.off = Number.isInteger(ev.off) ? Math.max(-MAX_OFF, Math.min(MAX_OFF, ev.off)) : 0;
     return H(day(ctx, ev), o);
@@ -129,7 +129,22 @@ export const actions = {
     if (JSON.stringify(m.wall) === JSON.stringify(ctx.mine.wall) && JSON.stringify(m.saved) === JSON.stringify(ctx.mine.saved)) return ctx;
     const c = M(ctx, m); saveFx(c, emit); return c;
   },
-  homeNoteClear: (ctx) => H(ctx, { note: null })
+  homeNoteClear: (ctx) => H(ctx, { note: null }),
+  // Wetter im Editor (Feld weather, Strang P): Tag als Datum aus dem Ereignis-Zeitpunkt, der Server liefert echte Zahlen
+  wxGet: (ctx, ev, emit) => {
+    if (typeof ev.key !== "string" || !ev.place) return { ...ctx, wx: { key: ev.key, st: "blocked" } };
+    const day = [0, 1, 2].includes(ev.day) ? ev.day : 0, date = new Date((Math.floor((ev.at || 0) / R.DAY) + day) * R.DAY).toISOString().slice(0, 10);
+    emit({ type: "home.wx", key: ev.key, place: ev.place, date });
+    return { ...ctx, wx: { key: ev.key, st: "busy" } };
+  },
+  wxDone: (ctx, ev) => ({ ...ctx, wx: { key: ev.key, st: ev.st } }),
+  // Foto im Editor (Feld media.local): der Effekt speichert es auf dem Geraet und setzt "local:<id>" ueber PARAM
+  photoPut: (ctx, ev, emit) => {
+    if (typeof ev.key !== "string" || !ev.file) return { ...ctx, photo: { key: ev.key, st: "kein-bild" } };
+    emit({ type: "home.photo", key: ev.key, file: ev.file });
+    return { ...ctx, photo: { key: ev.key, st: "busy" } };
+  },
+  photoDone: (ctx, ev) => ({ ...ctx, photo: { key: ev.key, st: ev.st } })
 };
 
 // Uebergaenge in inhalt.shelf (OPEN und STIL wie bisher)
@@ -155,6 +170,8 @@ export const inhaltOn = {
   HOME_LOADED: { actions: ["homeLoaded"] },
   HOME_TICK: { actions: ["homeTick"] },
   THUMBS: { actions: ["thumbsTake"] },
+  WX_DONE: { actions: ["wxDone"] },
+  PHOTO_DONE: { actions: ["photoDone"] },
   MERKEN: { actions: ["merken"] },
   WALL_SNAP: { actions: ["wallSnap"] },
   SHORT_DONE: { actions: ["shortDone"] },
@@ -172,4 +189,4 @@ export const profileLocal = (ctx) => (ctx.mine ? { wall: S.wallForServer(ctx.min
 // Teile ausserhalb des Kerns (src/app/feature-parts.json): Satz und Suche (home-find); Story/Wand-Bild laedt der Effekt selbst
 export const needParts = (ev) => (ev.type === "UNDERSTAND" || ev.type === "QUERY" ? ["home-find"] : []);
 
-export const home = { id: "home", shelfOn, on: { inhalt: inhaltOn }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };
+export const home = { id: "home", shelfOn, on: { inhalt: inhaltOn, "inhalt.card.customize.dialog": { WX_GET: { actions: ["wxGet"] }, PHOTO_PUT: { actions: ["photoPut"] } } }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };

@@ -21,6 +21,7 @@ import { createDeck } from "./broker/deck.js";
 import { createBild } from "./broker/bild.js";
 import { sanitizeDoc } from "./features/frei/doc.js";
 import { pinFor } from "./broker/deck-pin.js";
+import { browserMedia } from "./broker/media.js";
 
 const root = document.getElementById("app");
 const lang = langOf(navigator);
@@ -64,7 +65,7 @@ const rt = createRuntime({
   share: (fragment) => share(linkUrl(fragment), document.title),
   copy: (fragment) => copy(linkUrl(fragment)),
   // Heimseite (Strang H): Leinwand fuer Story-Bild und Wand, Teilen, Takt (Speicher und Netz laufen ueber storage und api)
-  home: { document, navigator, location, File, URL, subtle: crypto.subtle, FontFace: window.FontFace, thumb: (id, variant) => parts.thumb(id, variant), setInterval: (f, ms) => setInterval(f, ms), setTimeout: (f, ms) => setTimeout(f, ms) },
+  home: { document, navigator, location, File, URL, subtle: crypto.subtle, FontFace: window.FontFace, media: browserMedia(window), thumb: (id, variant) => parts.thumb(id, variant), setInterval: (f, ms) => setInterval(f, ms), setTimeout: (f, ms) => setTimeout(f, ms) },
   clearUrl: () => { try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) { /* file:// in manchen Hosts */ } },
   onChange: draw
 });
@@ -130,7 +131,7 @@ function draw(state, info) {
   if (nowLeaf.startsWith("card.rt.") && beforeLeaf !== null && !beforeLeaf.startsWith("card.rt.")) window.scrollTo(0, 0);
   // Heimseite: neue Unterseite (Familie, Regal, Meins, Reiter) beginnt oben, wie ein Bildschirmwechsel
   const hb = info && info.before && info.before.ctx.home, hn = state.ctx.home;
-  if (hb && hn && nowLeaf === "shelf" && beforeLeaf === "shelf" && (hb.at !== hn.at || hb.intent !== hn.intent || hb.mtab !== hn.mtab || hb.rtab !== hn.rtab)) { window.scrollTo(0, 0); const m = root.querySelector("#main"); if (m) m.focus({ preventScroll: true }); }
+  if (hb && hn && nowLeaf === "shelf" && beforeLeaf === "shelf" && (hb.at !== hn.at || hb.intent !== hn.intent || hb.mtab !== hn.mtab || hb.rtab !== hn.rtab)) { window.scrollTo(0, 0); const m = hn.focus === "search" ? root.querySelector("#h-q") : hn.focus === "sentence" ? root.querySelector("#h-sentence") : root.querySelector("#main"); if (m) m.focus({ preventScroll: true }); }
   syncHistory(nowLeaf === "shelf" && state.ctx.home && (state.ctx.home.at !== "day" || state.ctx.home.off !== 0) ? "shelf.tief" : nowLeaf);
   // Schriftgroesse aus Mein Stil (Lesen & Bedienen): Projektion des Zustands auf die Wurzel, alles skaliert per rem
   const fs = { n: "100%", g: "118.75%", sg: "137.5%" }[state.ctx.pref.fs] || "100%";

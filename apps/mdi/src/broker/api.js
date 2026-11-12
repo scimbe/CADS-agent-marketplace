@@ -308,5 +308,16 @@ export function createApi(deps) {
     } catch (e) { return fail("netz"); }
   }
 
-  return { here, app, status, me, loginHref, logoutFrom, profileGet, profilePut, profileDelete, redeem, modMe, appeal, raw, image, shortCreate, shortDelete, shortResolve };
+  // ---- Wetter (Strang H fuer P: Feld weather; Server CADS-DEMO-wrapper lib/duell-weather.mjs, echte Zahlen oder keine) ----
+  /** POST /api/duell/weather { place, date } -> { ok:true, body:{place,date,hi,lo,rain,code} } | Fehler no-place|blocked|date-range|limit|server|netz|nicht-hier */
+  async function weather(place, date) {
+    const r = await call("POST", P + "/weather", { place, date });
+    if (!r.status) return r;
+    if (r.status === 404) return fail("no-place", 404);
+    if (r.status === 422) return fail(isObj(r.body) && r.body.error === "date-range" ? "date-range" : "blocked", 422);
+    if (r.status !== 200) return common(r.status, r.body);
+    return isObj(r.body) ? { ok: true, body: r.body } : fail("server", 200);
+  }
+
+  return { here, app, status, me, loginHref, logoutFrom, profileGet, profilePut, profileDelete, redeem, modMe, appeal, raw, image, shortCreate, shortDelete, shortResolve, weather };
 }
