@@ -3,6 +3,14 @@
 // zum Gate); angemeldet -> abmelden. Quelle ist der Server (/api/duell/ai/status, profile/*), nie eine Annahme der Seite.
 // Ergebnisse kommen als Ereignisse zurueck (STATUS, PROFIL, REDEEMED, MOD, APPEALED); Aktionen geben nur Effekte aus.
 import { cleanMe, cleanPref, pack, meFrom, parseCode, attemptFresh, nickOk } from "./konto.js";
+import { FEATURES } from "./features.js";
+
+/** Lokale Profilteile der Features (Wand, Gemerkt – Strang H): feature.profileLocal(ctx) -> {wall?, saved?} (ADR 0001 g). */
+function profileLocal(ctx) {
+  let out = null;
+  for (const f of FEATURES) if (typeof f.profileLocal === "function") { const l = f.profileLocal(ctx); if (l) out = { ...(out || {}), ...l }; }
+  return out;
+}
 
 const T = (p) => p;
 export const kontoRegion = {
@@ -117,7 +125,7 @@ export const kontoGuards = {
 
 function put(ctx, emit, extra = {}) {
   const p = ctx.profil, w = linkOf(p);
-  const body = { rev: p.rev, profile: pack(ctx.me, p.remote), ...extra };
+  const body = { rev: p.rev, profile: pack(ctx.me, p.remote, profileLocal(ctx)), ...extra };
   emit({ type: "profil.put", who: w, body });
   return PR(ctx, { sync: "busy" });
 }
