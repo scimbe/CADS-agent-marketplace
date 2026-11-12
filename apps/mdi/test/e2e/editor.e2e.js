@@ -42,9 +42,7 @@ test("Bluff anpassen: Regeln-Blase aendert Kartenzahl, Partie nutzt sie", async 
   await p.locator('.bubble[data-for="regeln"]').click();
   await p.getByRole("radio", { name: "3", exact: true }).first().click();
   await act(p, "close"); await act(p, "done"); await act(p, "go");
-  // Zugvertrag v0.2 (Strang F): auf einem Handy wird auch vor dem ersten Zug abgedeckt
-  await p.locator("main.s-card-play-cover, main.s-card-play-turn").waitFor();
-  if (await p.locator("main.s-card-play-cover").count()) await act(p, "cover-ok");
+  await waitScreen(p, "card-play-cover"); await act(p, "cover-ok"); // Abdecken vor dem ersten Zug (ADR 0001 f)
   await waitScreen(p, "card-play-turn");
   assert.equal(await p.locator(".stage .tile").count(), 3);
 });

@@ -100,6 +100,7 @@ export function createRtSession(card, o, d) {
     hash: () => (split ? split.hash() : match.hash()),
     ghostWire: () => (match ? match.ghostWire() : null),
     screenButtons: () => sampler.screenButtons(),
+    controls: rt.controls,
     view: rt.view,
     /** nur fuer Tests: n Ticks ohne Uhr rechnen */
     _tick: onTick, _frame: onFrame, _go() { goAt = d.now(); phase = "run"; }
