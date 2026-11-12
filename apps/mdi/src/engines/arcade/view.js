@@ -401,9 +401,10 @@ export function drawSide(S, look, o) {
   if (o.note) top.push(rect(30, H - 78, W - 60, 60, "#00000073", { r: 30 }), { o: "text", x: W / 2, y: H - 36, text: o.note, size: 36, font: "body", align: "center", fill: "#ffffff", maxW: W - 90 });
   if (eff.flash) top.push(rect(0, 0, W, H, eff.flash[1], { alpha: eff.flash[0] }));
   if (eff.shake > 0.1) top.unshift({ o: "shake", amt: eff.shake });
-  const layers = [{ id: "bg", key: g + "|" + S.seed + "|" + look.a + look.b + look.photo, ops: bg }];
-  if (D.mid) { const md = D.mid(S); layers.push({ id: "mid", key: md.key, ops: md.ops }); }
-  layers.push({ id: "fg", ops: fg.concat(fxOps) }, { id: "top", ops: top });
+  // Statisches in EINE gecachte Ebene: jeder Vollbild-Blit kostet beim Rastern (gemessen, s. arcade.e2e.js fps).
+  let key = g + "|" + S.seed + "|" + look.a + look.b + look.photo;
+  if (D.mid) { const md = D.mid(S); bg.push(...md.ops); key += "|" + md.key; }
+  const layers = [{ id: "bg", key, ops: bg }, { id: "fg", ops: fg.concat(fxOps) }, { id: "top", ops: top }];
   return { t: "canvas", w: W, h: H, layers, a11y: o.a11y || "" };
 }
 export { DRAW, effects, burst, withA };

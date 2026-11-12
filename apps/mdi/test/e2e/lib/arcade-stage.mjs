@@ -29,7 +29,7 @@ export function boot(o) {
   session = createRtSession(card, { mode: o.mode || "bot", seat: o.seat || 0, params, seed: o.seed, serving: o.serving, lang: o.lang || "de", reduced: reduced() }, {
     now: () => performance.now(), frame: (f) => requestAnimationFrame(f), cancel: (h) => cancelAnimationFrame(h),
     send: (m) => { if (window.__arcOut) window.__arcOut(JSON.stringify(m)); },
-    draw: (node, info) => stage.draw(node, info),
+    draw: (node, info) => stage.draw(o.blank ? { t: "canvas", w: node.w, h: node.h, layers: [] } : node, info),   // blank: Basislinie leere Buehne
     onEvents: (ev) => { for (const e of ev) events.push(e.k); },
     onChange: (info) => { window.__arcPhase = info.type; }
   });
