@@ -58,10 +58,6 @@ async function startCard(p) {
   await waitScreen(p, "card-play-turn");
 }
 
-// Bis Strang F die Quelle von ctx.age18 korrigiert (src/app/game.js:33 liest ctx.konto statt ctx.profil, gemeldet), sieht
-// keine Karte ein bestaetigtes 18+: die Faelle mit 18+ laufen als todo mit Grund, die Sperre ohne 18+ laeuft scharf.
-const TODO_AGE = "Strang F: G.viewCtx liest age18 aus ctx.konto statt ctx.profil (game.js:33) – gemeldet";
-
 for (const view of ["phone390", "desk1280"]) {
   test("Geld einsammeln ohne 18+ (" + view + "): angemeldet ohne 18+ und ohne Konto gesperrt – kein Namensfeld, kein PayPal-Knopf", async () => {
     const fw = fakeWrapper(), found = [];
@@ -83,7 +79,7 @@ for (const view of ["phone390", "desk1280"]) {
 }
 
 for (const view of ["phone390", "desk1280"]) {
-  test("Geld einsammeln mit 18+ (" + view + "): ohne 18+ gesperrt, nach Bestaetigung in Mein Stil zurueck zur Karte mit Name, Anteil und PayPal-Knopf beim Empfaenger", { todo: TODO_AGE }, async () => {
+  test("Geld einsammeln mit 18+ (" + view + "): ohne 18+ gesperrt, nach Bestaetigung in Mein Stil zurueck zur Karte mit Name, Anteil und PayPal-Knopf beim Empfaenger", async () => {
     const fw = fakeWrapper(), found = [];
     const A = await openApp(fw, { view });
     await signIn(A.p, fw, "lea@example.org");
@@ -105,7 +101,7 @@ for (const view of ["phone390", "desk1280"]) {
     await checks(A.p, "02-name", found);
     await fillLabel(A.p, "PayPal.me-Name (Konto ab 18)", "leaSammelt"); await next(A.p);
     await fillLabel(A.p, "Wofür ist das Geld?", "Pizza-Abend"); await next(A.p);
-    await main(A.p).locator(".choice .opt", { hasText: "4 👤" }).click(); await next(A.p);
+    await main(A.p).getByRole("button", { name: "4 👤", exact: true }).click(); await next(A.p);
     await fillLabel(A.p, "Wie viel ist es zusammen? (Euro)", "37,50");
     await main(A.p).getByText("37,50 € geteilt durch 4 · 9,37 € pro Person · Rest 2 ct übernimmt, wer sammelt").waitFor();
     await checks(A.p, "03-betrag", found);
@@ -140,7 +136,7 @@ for (const view of ["phone390", "desk1280"]) {
   });
 }
 
-test("Geld einsammeln: 18+ direkt in der Karte bestaetigen, Rueckkehr in denselben Zug", { todo: "Strang F: Objekt-raise in src/app/statechart.js:114 (machine.js:90 AGE18) und " + TODO_AGE }, async () => {
+test("Geld einsammeln: 18+ direkt in der Karte bestaetigen, Rueckkehr in denselben Zug", async () => {
   const fw = fakeWrapper();
   const A = await openApp(fw);
   await signIn(A.p, fw, "lea@example.org");
