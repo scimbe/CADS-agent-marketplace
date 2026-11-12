@@ -372,5 +372,16 @@
   "dur": 40,
   "legacy": [
     "plan-30"
-  ]
+  ],
+  "receive": {
+    "accept": {
+      "de": "Eigenes Türchen machen",
+      "en": "Make your own door"
+    },
+    "decline": {
+      "de": "Weiter",
+      "en": "Continue"
+    },
+    "after": "w:tuer"
+  }
 }

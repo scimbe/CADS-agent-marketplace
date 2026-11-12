@@ -45,10 +45,19 @@ for (const view of ["phone360", "phone390", "phone412", "desk1280"]) {
     assert.ok(await B.p.getByText("Gedacht für den 5. Dezember.").isVisible(), "zu frueh: nur ein Hinweis, nicht gesperrt");
     assert.deepEqual(await axe(B.p, "advent-zu"), []); assert.deepEqual(await covered(B.p), []);
     await shot(B.p, "advent-zu-" + view);
+    // zu: keine Knoepfe; das Widget sagt „Tippen zum Oeffnen“ (alt door.js)
+    assert.equal(await B.p.getByRole("button", { name: "Eigenes Türchen machen" }).count(), 0, "vor dem Aufklappen kein Hauptknopf");
+    assert.equal(await B.p.getByRole("button", { name: "Weiter" }).count(), 0);
     await door.click();
     await B.p.locator("canvas").first().waitFor({ state: "visible" });
+    await B.p.getByRole("button", { name: "Eigenes Türchen machen" }).waitFor();
+    await B.p.getByRole("button", { name: "Weiter" }).waitFor();
+    assert.deepEqual(await covered(B.p), []);
     assert.deepEqual(await axe(B.p, "advent-offen"), []); assert.ok(await noOverflow(B.p));
     await shot(B.p, "advent-offen-" + view);
+    await B.p.getByRole("button", { name: "Eigenes Türchen machen" }).click();
+    await waitScreen(B.p, "card-view"); // eigenes Tuerchen gestalten
+    assert.match(await B.p.locator("canvas").first().getAttribute("aria-label"), /Adventstürchen/);
     assert.deepEqual([...A.errs, ...B.errs], []);
   });
 }
@@ -60,6 +69,16 @@ test("advent-tuer: reduzierte Bewegung klappt ohne Bewegung auf (nur Wechsel)", 
   await B.p.getByRole("button", { name: "Türchen 5 öffnen" }).click();
   const moving = await B.p.evaluate(() => document.getAnimations().flatMap((a) => a.effect.getKeyframes()).filter((k) => k.transform && k.transform !== "none").length);
   assert.equal(moving, 0, "keine Transform-Animation bei prefers-reduced-motion");
+});
+
+test("advent-tuer: „Weiter“ nach dem Aufklappen fuehrt zurueck ins Regal", need("canvas", "door"), async () => {
+  const A = await open(b, { before: clock(DEC5) });
+  await act(A.p, "open-advent-tuer"); await act(A.p, "go"); await waitScreen(A.p, "card-share");
+  const B = await open(b, { hash: await linkOf(A.p), before: clock(DEC5) });
+  await B.p.getByRole("button", { name: "Türchen 5 öffnen" }).click();
+  await B.p.getByRole("button", { name: "Weiter" }).click();
+  await B.p.waitForFunction(() => !document.querySelector("main.s-receive-show"));
+  assert.notEqual(await B.p.locator("main").getAttribute("class").then((c) => c.split(" ").find((x) => x.startsWith("s-"))), "s-receive-show");
 });
 
 test("zug-advent: 24 Saetze per Link, im Dezember sind die Tueren bis heute offen", need("list", "doors"), async () => {
