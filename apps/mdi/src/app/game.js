@@ -238,6 +238,7 @@ export function phase(ctx) {
  *  ueber init/view im Startzustand (Bot gegen Bot, reduzierte Bewegung) – dieselbe Darstellung wie die Thumbnails. */
 export function previewNode(c, params, lang, extra = {}) {
   const m = c.manifest;
+  if (typeof c.stamp === "function" && !extra.receive) params = c.stamp(params, { today: extra.today, nick: extra.nick || "" });
   if (m.mode === "realtime") {
     const roles = []; for (let s = 0; s < m.players.max; s++) roles.push(s === 0 ? "human" : typeof c.bot === "function" ? "bot" : "none");
     const st = c.init({ params, seed: "0".repeat(32), players: roles, level: 2, rng: rngOf("preview|init") });

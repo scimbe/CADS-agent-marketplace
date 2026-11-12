@@ -76,7 +76,7 @@ export function createStage(env) {
     lastNode = node; lastInfo = info;
     if (!canvas || !canvas.isConnected) { if (canvas && !canvas.isConnected) unmount(); return; }
     const s = size(); if (!s) return;
-    const r = paint(ctx2d, node, { cw: s.cw, ch: s.ch, dpr: s.dpr, colors, colorsKey, reduced: env.reduced ? env.reduced() : false, t: Date.now() / 1000, cache, makeCanvas: (w, hh) => { const c = doc.createElement("canvas"); c.width = w; c.height = hh; return c; }, images: env.images || null, path2d: (d) => new win.Path2D(d) });
+    const r = paint(ctx2d, node, { cw: s.cw, ch: s.ch, dpr: s.dpr, colors, colorsKey, reduced: env.reduced ? env.reduced() : false, t: Date.now() / 1000, cache, makeCanvas: (w, hh) => { const c = doc.createElement("canvas"); c.width = w; c.height = hh; return c; }, images: env.images || null, high: env.high || null, path2d: (d) => new win.Path2D(d) });
     if (r.unknown.length && env.onUnknown) env.onUnknown(r.unknown);
     canvas.setAttribute("aria-label", String(node.a11y || "").slice(0, 200));
     const say = info.countdown ? fmt((TX[env.lang] || TX.de).ready, { n: info.countdown }) : info.stalled ? (TX[env.lang] || TX.de).wait : info.paused ? (TX[env.lang] || TX.de).paused : sayText(info.status && info.status.say, env.lang);

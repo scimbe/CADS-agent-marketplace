@@ -245,8 +245,10 @@ export const actions = {
     if (!validParams(ctx.cardId, next)) return { ...ctx, paramError: ev.key };
     return { ...ctx, params: { ...ctx.params, [ctx.cardId]: next }, paramError: null };
   },
-  makeCardLink: (ctx) => {
+  makeCardLink: (ctx, ev) => {
     const c = G.card(ctx);
+    // card.stamp friert tagesabhaengige Werte vor dem Senden ein (Adventstuer: Nummer aus dem Datum, Anfrage P)
+    if (typeof c.stamp === "function") ctx = { ...ctx, params: { ...ctx.params, [ctx.cardId]: c.stamp(G.paramsOf(ctx), { today: G.todayOf(ev.at), nick: G.viewCtx(ctx).nick }) } };
     try { return { ...ctx, link: encode("card", { c: c.manifest.id, v: c.manifest.version, p: paramsForLink(c.manifest.params, G.paramsOf(ctx)) }), linkError: null, sent: false }; }
     catch (e) { return { ...ctx, link: null, linkError: e.code || "zu-lang" }; }
   },
@@ -328,7 +330,13 @@ export const actions = {
     emit({ type: "rt.start", mode: "live", seat, seed, params: G.paramsOf(ctx), level: ctx.level || 2, serving: seat === 1 ? true : false });
     return { ...ctx, rtSeed: seed, rtResult: null, rtAgain: null, error: null };
   },
-  setDraft: (ctx, ev) => { try { return { ...ctx, draft: ev.draft === undefined ? null : JSON.parse(JSON.stringify(ev.draft)) }; } catch (e) { return ctx; } },
+  // DRAFT {draft} ersetzt, DRAFT {patch} mischt in den aktuellen Entwurf (keine verlorenen Felder bei schnellen Eingaben)
+  setDraft: (ctx, ev) => {
+    try {
+      if (ev.patch && typeof ev.patch === "object") return { ...ctx, draft: { ...(ctx.draft && typeof ctx.draft === "object" ? ctx.draft : {}), ...JSON.parse(JSON.stringify(ev.patch)) } };
+      return { ...ctx, draft: ev.draft === undefined ? null : JSON.parse(JSON.stringify(ev.draft)) };
+    } catch (e) { return ctx; }
+  },
   onPeerIn: (ctx, ev, emit) => {
     if (!ctx.session) return { ...ctx, error: "abweichung" };
     return safe(ctx, () => { const r = G.applyPeer(ctx, ev.msg); for (const m of r.out) emit({ type: "peer", msg: m }); return r.ctx; });
