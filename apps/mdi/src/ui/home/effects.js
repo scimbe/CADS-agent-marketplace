@@ -110,7 +110,7 @@ export const effects = {
   "home.image": (fx, { dispatch, deps }) => {
     const env = envOf(deps), done = (st) => dispatch({ type: "IMAGE_DONE", st });
     if (!env.cardImage || typeof env.cardImage.draw !== "function" || !env.document || !env.File) { done("nicht-verfuegbar"); return; }
-    Promise.resolve().then(() => env.cardImage.draw(fx.node, { images: env.images || null, high: env.high || null, makeCanvas: () => env.document.createElement("canvas") }))
+    Promise.resolve().then(() => env.cardImage.draw(fx.node, { images: env.images || null, high: env.high || null, makeCanvas: (w, h) => { const c = env.document.createElement("canvas"); c.width = w || 1; c.height = h || 1; return c; } }))
       .then((cv) => new Promise((ok) => cv.toBlob(ok, "image/png")))
       .then((blob) => {
         if (!blob) { done("fehler"); return; }

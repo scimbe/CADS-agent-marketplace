@@ -46,11 +46,11 @@ const fakeCanvas = (blob) => ({ toBlob: (cb) => cb(blob) });
 
 test("home.image: System-Teilen mit Datei, sonst Download; ohne Dienst nicht-verfuegbar; fehlendes Foto ehrlich", async () => {
   const blob = new Blob([new Uint8Array([1])], { type: "image/png" }), shared = [], drawn = [];
-  const doc = { createElement: () => ({ click() {}, remove() {} }), body: { appendChild() {} } };
+  const doc = { createElement: () => ({ click() {}, remove() {}, width: 300, height: 150 }), body: { appendChild() {} } };
   const base = { document: doc, File, URL: { createObjectURL: () => "blob:x", revokeObjectURL() {} }, images: { tag: "img" }, setTimeout: () => {} };
-  const cardImage = { draw: async (node, o) => { drawn.push([node, o.images]); return fakeCanvas(blob); } };
+  const cardImage = { draw: async (node, o) => { const c = o.makeCanvas(1920, 1080); drawn.push([node, o.images, c.width, c.height]); return fakeCanvas(blob); } };
   let got = await run({ ...base, cardImage, navigator: { canShare: () => true, share: async (d) => { shared.push(d.files[0].name); } } });
-  assert.deepEqual(got, [{ type: "IMAGE_DONE", st: "ok" }]); assert.deepEqual(shared, ["a.png"]); assert.equal(drawn[0][0], canvas); assert.deepEqual(drawn[0][1], { tag: "img" });
+  assert.deepEqual(got, [{ type: "IMAGE_DONE", st: "ok" }]); assert.deepEqual(shared, ["a.png"]); assert.equal(drawn[0][0], canvas); assert.deepEqual(drawn[0][1], { tag: "img" }); assert.deepEqual(drawn[0].slice(2), [1920, 1080], "makeCanvas(w, h) setzt die Groesse");
   let clicked = 0;
   got = await run({ ...base, cardImage, document: { ...doc, createElement: () => ({ click() { clicked++; }, remove() {} }) }, navigator: {} });
   assert.deepEqual(got, [{ type: "IMAGE_DONE", st: "ok" }]); assert.equal(clicked, 1, "Download");
