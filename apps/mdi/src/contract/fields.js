@@ -24,15 +24,27 @@ export function travel(prop, ctx = {}) {
 }
 
 /** Nur Felder, die im Link reisen duerfen; versiegelte und lokale Medien bleiben weg (Standard). */
-export function paramsForLink(schema, params, ctx = {}) {
+// Eine Reiseregel fuer alles, was das Geraet verlaesst (travel): Link, Live-Handshake, Live-Echtzeit, Aufnahme (Geist).
+function pickTravel(schema, params, ctx, kinds) {
   const out = {};
-  for (const [k, prop] of Object.entries(schema.properties || {})) {
-    if (!(k in params)) continue;
-    const t = travel(prop, ctx);
-    if (t.link === "yes" || t.link === "ref") out[k] = params[k];
+  for (const [k, prop] of Object.entries((schema && schema.properties) || {})) {
+    if (!params || !(k in params)) continue;
+    if (kinds.includes(travel(prop, ctx).link)) out[k] = params[k];
   }
   return out;
 }
+/** Traegt ein empfangener Parametersatz ein Feld, das nie reist (media.local ohne withLocalMedia)? Dann ist er ungueltig:
+ *  eine fremde "local:<id>" zeigte sonst auf den Fotospeicher des Empfaengers (Abfrage, ob er ein Foto hat). */
+export function travelsOnly(schema, params, ctx = {}) {
+  for (const [k, prop] of Object.entries((schema && schema.properties) || {})) if (params && k in params && params[k] !== "" && params[k] !== null && params[k] !== undefined && travel(prop, ctx).link === "no") return false;
+  return true;
+}
+/** Parameter fuer einen Link (ohne media.local, ohne Geheimnisse). */
+export function paramsForLink(schema, params, ctx = {}) { return pickTravel(schema, params, ctx, ["yes", "ref"]); }
+/** Parameter fuer den Partner (Live-Handshake, Show, Echtzeit live, Aufnahme): wie der Link, Geheimnisse bleiben (sie
+ *  werden dort eigens versiegelt); media.local (Foto auf dem Geraet) reist nie ohne withLocalMedia. Beide Seiten spielen
+ *  mit genau diesen Parametern, damit der Zustand (Hash) gleich ist; ein Foto ist reine Darstellung. */
+export function paramsForPeer(schema, params, ctx = {}) { return pickTravel(schema, params, ctx, ["yes", "ref", "sealed"]); }
 
 /** Standardwerte aus dem Schema. */
 export function defaults(schema) {

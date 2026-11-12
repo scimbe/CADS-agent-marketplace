@@ -23,7 +23,8 @@ export function createImages(win, api, o = {}) {
   const free = (v) => { if (v && v.local && v.url && o.revoke) { try { o.revoke(v.url); } catch (e) { /* schon frei */ } } };
   function put(k, v) { const old = cache.get(k); if (old && old.url !== v.url) { els.delete(old.url); free(old); } cache.set(k, v); }
   function trim() { while (cache.size > MAX) { const k = cache.keys().next().value, v = cache.get(k); cache.delete(k); if (v) { els.delete(v.url); free(v); } } }
-  function notify(k) { for (const f of subs) { try { f(k); } catch (e) { setTimeout(() => { throw e; }, 0); } } }
+  let version = 0;   // Bildstand: zaehlt bei jedem fertigen Bild hoch (statische Leinwaende zeichnen danach neu, render.js)
+  function notify(k) { version++; for (const f of subs) { try { f(k); } catch (e) { setTimeout(() => { throw e; }, 0); } } }
   // Ein fehlendes Foto kann spaeter gespeichert werden (Editor, gleiche id): der Fehlzustand gilt RETRY ms, dann neu fragen
   // (gedrosselt, damit Neuzeichnen nicht jedes Bild erneut laedt)
   const RETRY = 2000, now = () => (o.now ? o.now() : Date.now());
@@ -66,5 +67,5 @@ export function createImages(win, api, o = {}) {
   function state(src) { const k = keyOf(src); return !k ? "ungueltig" : k.startsWith("local:") && typeof o.local !== "function" ? "nicht-verfuegbar" : remote(k) ? (cache.get(k) || { st: "neu" }).st : "ok"; }
   /** Bild verwerfen (z. B. Foto geloescht oder ersetzt): blob:-URL frei, naechstes url() laedt neu */
   function forget(src) { const k = keyOf(src), v = k && cache.get(k); if (v) { cache.delete(k); els.delete(v.url); free(v); } }
-  return { url, get, state, forget, subscribe: (f) => { subs.add(f); return () => subs.delete(f); } };
+  return { url, get, state, forget, get version() { return version; }, subscribe: (f) => { subs.add(f); return () => subs.delete(f); } };
 }
