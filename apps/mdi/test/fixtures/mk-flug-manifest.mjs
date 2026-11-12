@@ -37,6 +37,11 @@ const props = {
   ki: { type: ["object", "null"], additionalProperties: false, required: ["k", "s"], properties: { k: { type: "string", enum: ["karte", "welt"] }, s: { type: "string", pattern: "^[A-Za-z0-9._~-]{8,200}$" }, h: { type: "string", pattern: "^[A-Za-z0-9_-]{43}$" }, o: { type: "string", pattern: "^[A-Za-z0-9_-]{22}$" } }, default: null, "x-field": "text", "x-hidden": true, "x-label": L("KI-Siegel", "AI seal") },
   fr: { type: ["string", "null"], pattern: "^[A-Za-z0-9_-]{22}$", default: null, "x-field": "text", "x-hidden": true, "x-label": L("Freie Karte", "Free card") }
 };
+// Varianten-Chips der Startansicht (Gate C, D bestaetigt; Host H): nur diese vier, in dieser Reihenfolge. Das Feld chip
+// steht im Manifest, sobald das Manifest-Schema es kennt (Strang F), sonst lehnte gen.js die Karte ab.
+const CHIPS = { "spiel-lava": L("Klassisch", "Classic"), "spiel-mond": L("Mond", "Moon"), "spiel-tiefsee": L("Unterwasser", "Underwater"), "spiel-geist": L("Nacht", "Night") };
+const SCHEMA = (await import(root + "/src/schema/manifest.schema.json", { with: { type: "json" } })).default;
+const chipOk = !!SCHEMA.properties.variants.items.properties.chip;
 const m = {
   id: "flug", version: "1.0.0", sdk: "mdi-sdk/0.2", kind: "realtime", mode: "realtime", order: 300,
   title: L("Bau dein Lava-Level", "Build your lava level"), teaser: L("Feuer, Drache, kein Mitleid.", "Fire, dragon, zero mercy."),
@@ -63,7 +68,7 @@ const m = {
     { id: "level", params: ["gravity", "jump", "gap", "speed", "seed"], label: L("Level", "Level") },
     { id: "text", params: ["title", "t", "col"], label: L("Text", "Text") }
   ],
-  variants: V.VARIANTS.map((v) => ({ id: v.id, title: { de: V.plainTitle(v.de.t), en: V.plainTitle(v.en.t) }, teaser: { de: v.de.s, en: v.en.s }, legacy: [v.id], thumb: { src: "shot", file: "thumb-" + v.id + ".webp", alt: { de: V.plainTitle(v.de.t), en: V.plainTitle(v.en.t) } }, modes: v.kind === "duel" ? ["alone"] : ["alone", "bot", "ghost"],
+  variants: V.VARIANTS.map((v) => ({ id: v.id, title: { de: V.plainTitle(v.de.t), en: V.plainTitle(v.en.t) }, teaser: { de: v.de.s, en: v.en.s }, ...(chipOk && CHIPS[v.id] ? { chip: CHIPS[v.id] } : {}), legacy: [v.id], thumb: { src: "shot", file: "thumb-" + v.id + ".webp", alt: { de: V.plainTitle(v.de.t), en: V.plainTitle(v.en.t) } }, modes: v.kind === "duel" ? ["alone"] : ["alone", "bot", "ghost"],
     tags: [...new Set(v.tags.map((t) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")).filter((t) => /^[a-z0-9-]{1,24}$/.test(t)))].slice(0, 8), params: Object.assign({}, props && {}, Object.fromEntries(Object.entries(props).map(([k, p]) => [k, p.default])), V.variantParams(v.id, "de", { nick: "", emoji: "🦊" })) }))
 };
 // nur die Vokabeln, die der Generator kennt (x-field, x-label, x-model, x-pairs, x-steps, x-hidden; ADR 0001, F @ 15338b5)
