@@ -1,7 +1,8 @@
 // Laufzeit: haelt den Zustand der Statechart, fuehrt deren Effekte aus und meldet Aenderungen an die Ansicht.
 // Keine globalen Singletons (A1): alles kommt als Abhaengigkeit herein (Broker, Speicher, Zufall, Planer).
 import { machine, initialContext, featureEffects } from "./machine.js";
-import { FEATURES, featureNeeds } from "./features.js";
+import { FEATURES, featureNeeds, featureNeedParts } from "./features.js";
+import { isPartLoaded, loadFeatPart } from "../gen/fparts.js";
 import { chooseMove, LEVELS } from "../bot/ismcts.js";
 import * as S from "../contract/session.js";
 import { createRtSession } from "./rt/session.js";
@@ -68,11 +69,14 @@ export function createRuntime(deps) {
     if (!ev.rand) ev.rand = rand();
     if (ev.at === undefined) ev.at = now();
     const need = deps.loadPart ? cardsFor(ev) : [];
-    if (need.length) {
-      dispatchNow({ type: "LOADING", id: need[0] });
-      Promise.all(need.map((id) => loadCard(id, deps.loadPart))).then(
+    // Feature-Teile (ADR 0001 Nachtrag 4) wie Karten: vorher laden, sonst ehrlich PART_FAIL mit Wiederholen
+    const needP = deps.loadFeat ? featureNeedParts(ev, state.ctx, deps.needFeatures || FEATURES).filter((n) => !isPartLoaded(n)) : [];
+    if (need.length || needP.length) {
+      const first = need[0] || needP[0];
+      dispatchNow({ type: "LOADING", id: first });
+      Promise.all([...need.map((id) => loadCard(id, deps.loadPart)), ...needP.map((n) => loadFeatPart(n, deps.loadFeat))]).then(
         () => dispatchNow(ev),
-        (e) => dispatchNow({ type: "PART_FAIL", id: need[0], reason: (e && e.code) || "teil-fehlt", retry: ev }));
+        (e) => dispatchNow({ type: "PART_FAIL", id: first, reason: (e && e.code) || "teil-fehlt", retry: ev }));
       return true;
     }
     return dispatchNow(ev);
