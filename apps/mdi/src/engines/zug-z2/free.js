@@ -1,9 +1,11 @@
 // Uebergabe zwischen Zugkarte und freier Karte (Strang K): Doc der freien Karte {k:"turn", i:<alte Katalog-id>, t?, w?}
 // <-> Parameter dieser Karte. Unbekanntes ergibt null (kein stiller Ersatz).
-import { defaults } from "../../contract/fields.js";
 import { clean } from "../zug/alt.js";
 
 /** @param {object} manifest  @param {{variants?:Object<string,string>, word?:boolean}} opt variants: alte id -> params.spiel */
+/** Standardwerte aus dem Parameterschema (wie contract/fields.js defaults; Engines importieren nur SDK-Teile). */
+function defaults(schema) { const out = {}; for (const k of Object.keys(schema.properties || {})) if ("default" in schema.properties[k]) out[k] = JSON.parse(JSON.stringify(schema.properties[k].default)); return out; }
+
 export function freeHooks(manifest, opt = {}) {
   const props = manifest.params.properties, variants = opt.variants || {};
   const ids = [manifest.id].concat(Object.keys(variants));

@@ -2,6 +2,7 @@
 // zwei naechsten), drei Testpaare, dann die Reihenfolge raten. Variante raum-tuer "Türsteher" turns.js:797-821 (GAMES.tuer):
 // geheime Regel an der Tuer, Wesen aus dem Tagesseed, eine Minute.
 import { D, T, fmt, pair, places, mix, hash32, mulberry32 } from "../../engines/zug-z2/lib.js";
+import { base } from "../../engines/zug-z2/views.js";
 
 function beats(order, a, b) { const p = places(order), d = (p[b] - p[a] + 5) % 5; return d === 1 || d === 2; }
 function circleSoFar(doc, m, now, lang) {
@@ -42,6 +43,17 @@ export function doorBeing(doc, r, i, prev) {
 export function doorIn(r, b) { return DOOR_RULES[r](b); }
 export const tuer = {
   local: true, daily: true,
+  // Widget tuer (ADR 0001): Regelfolge und je Regel 40 Wesen mit Antwort aus dem Seed; Uhr und Serie haelt das Widget
+  view: {
+    door(p, c) {
+      const rules = doorOrder(c.doc).map((r) => {
+        const prev = [], beings = [];
+        for (let i = 0; i < 40; i++) { const b = doorBeing(c.doc, r, i, prev), inn = doorIn(r, b); beings.push({ b, in: inn }); prev.push(inn); }
+        return { label: pair(D.doorRules, r, c.lang), beings };
+      });
+      return { ...base(p, c, { secs: p.secs, streak: p.streak, rules }), t: "tuer" };
+    }
+  },
   turns: [[{ w: "door", l: "tue_go", auto: true, secs: 60, streak: 4 }]],
   result(doc, m, lang) {
     const X = T(lang), a = m[0][0], k = a[0], order = doorOrder(doc), lines = [];

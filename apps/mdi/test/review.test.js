@@ -123,7 +123,9 @@ test("LOW: Harness sperrt gebietsschema-/gleitkommaabhaengige Ausgaben", () => {
   for (const src of ["a.localeCompare(b)", "x.toLocaleString()", "x.toFixed(2)", "x.toPrecision(3)", "x.toString(2)"]) assert.ok(checkCardSource(src).length > 0, src);
   assert.deepEqual(checkCardSource("String(x); x.toString();"), []);
 });
-test("LOW: Bot/Live nur fuer Karten mit genau zwei Sitzen (keine 1-seat-Annahme)", () => {
+test("LOW: Live nur fuer Karten mit genau zwei Sitzen; Bot ab zwei Sitzen mit n-1 Bot-Agenten (ADR 0001 f)", () => {
   const m3 = { manifest: { ...card.manifest, players: { min: 2, max: 3 } } };
-  assert.deepEqual(modesOf(m3), ["alone", "link"]);
+  assert.deepEqual(modesOf(m3), ["alone", "bot", "link"]);
+  assert.deepEqual(modesOf({ manifest: { ...card.manifest, players: { min: 1, max: 1 } } }), ["alone"]);
+  assert.deepEqual(modesOf({ manifest: { ...card.manifest, modes: ["alone", "bot", "live"] } }), ["alone", "bot", "live"]);
 });

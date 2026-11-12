@@ -1,6 +1,7 @@
 // zug-steine "Gleiche Steine" – Altregel turns.js:296-327 (GAMES.steine): beide legen denselben Steinstrom aus dem Seed auf ein
 // 8×8-Feld; der Empfaenger spielt die Zuege nach, statt einer Punktzahl zu vertrauen.
 import { T, fmt, hash32, mulberry32 } from "../../engines/zug-z2/lib.js";
+import { base, ints } from "../../engines/zug-z2/views.js";
 
 export const SIZE = 8, MAX_BLOCKS = 40;
 export const BLOCKS = [[[0, 0]], [[0, 0], [1, 0]], [[0, 0], [0, 1]], [[0, 0], [1, 0], [2, 0]], [[0, 0], [0, 1], [0, 2]], [[0, 0], [1, 0], [0, 1], [1, 1]], [[0, 0], [1, 0], [0, 1]], [[0, 0], [0, 1], [1, 1]], [[0, 0], [1, 0], [2, 0], [3, 0]], [[0, 0], [0, 1], [0, 2], [0, 3]], [[0, 0], [1, 0], [2, 0], [1, 1]]];
@@ -32,6 +33,8 @@ export function canMove(st, doc) { const b = blockAt(doc, st.i); for (let a = 0;
 export function blocksOk(v, doc) { return Array.isArray(v) && v.length <= MAX_BLOCKS && v.every((x) => Number.isInteger(x) && x >= 0 && x <= 63) && !!replay(doc, v); }
 function blocksPrompt() { return { w: "blocks", l: "blk_go", max: MAX_BLOCKS, auto: true, check: (v, doc) => blocksOk(v, doc) }; }
 export default {
+  // Widget blocks (ADR 0001): der Steinstrom aus dem Seed als Daten, beide Seiten bekommen denselben
+  view: { blocks: (p, c) => base(p, c, { size: SIZE, max: p.max, shapes: ints(p.max + 2).map((i) => blockAt(c.doc, i)) }) },
   turns: [[blocksPrompt()], [blocksPrompt()]],
   result(doc, m, lang) {
     const X = T(lang), a = replay(doc, m[0][0]).score, b = replay(doc, m[1][0]).score;

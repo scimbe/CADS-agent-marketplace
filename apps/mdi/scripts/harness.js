@@ -6,7 +6,12 @@ import * as acorn from "acorn";
 export const MATH_OK = new Set(["abs", "floor", "ceil", "round", "trunc", "min", "max", "sign", "imul", "fround", "sqrt", "clz32"]);
 export const MATH_BANNED = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "exp", "expm1", "log", "log1p", "log2", "log10", "pow", "cbrt", "hypot", "random"];
 const GLOBALS_BANNED = new Set(["Date", "performance", "Intl", "globalThis", "window", "self", "document", "navigator", "fetch", "XMLHttpRequest", "WebSocket", "RTCPeerConnection", "eval", "Function", "setTimeout", "setInterval", "requestAnimationFrame", "localStorage", "sessionStorage", "crypto", "Worker", "importScripts"]);
-const IMPORTS_OK = [/^\.\/manifest\.json$/, /^\.\.\/\.\.\/contract\/(sdk|tokens)\.js$/];
+// Erlaubte Importe (ADR 0001 a): Karte -> eigenes Manifest/Geschwister/JSON-Daten, SDK-Teile, Engines; Engine -> Geschwister,
+// andere Engines, SDK-Teile. Alles andere (DOM-Helfer, Broker, App) ist fuer Logik tabu.
+const CONTRACT_OK = "(sdk|tokens|text|trace)";
+const IMPORTS_CARD = [/^\.\/manifest\.json$/, /^\.\/[a-z0-9-]+\.(js|json)$/, new RegExp("^\\.\\./\\.\\./contract/" + CONTRACT_OK + "\\.js$"), /^\.\.\/\.\.\/engines\/[a-z0-9-]+\/[a-z0-9-]+\.(js|json)$/];
+const IMPORTS_ENGINE = [/^\.\/[a-z0-9-]+\.(js|json)$/, /^\.\.\/[a-z0-9-]+\/[a-z0-9-]+\.(js|json)$/, new RegExp("^\\.\\./\\.\\./contract/" + CONTRACT_OK + "\\.js$")];
+function importsFor(file) { return file && /(^|\/)engines\//.test(file) ? IMPORTS_ENGINE : IMPORTS_CARD; }
 
 function walk(node, visit, parent) {
   if (!node || typeof node.type !== "string") return;
@@ -19,13 +24,18 @@ function walk(node, visit, parent) {
 }
 
 /** @returns {string[]} Befunde (leer = bestanden) */
-export function checkCardSource(src) {
+/** @param {string} src @param {{file?:string}} [opt] file relativ zum Projekt (bestimmt die Import-Regel) */
+export function checkCardSource(src, opt = {}) {
+  const IMPORTS_OK = importsFor(opt.file);
+  // Testkarten liegen unter test/fixtures/cards/<id>/: ihr Weg zu src/ ist vier Ebenen laenger, die Regel dieselbe
+  const fixture = !!(opt.file && /^test\/fixtures\/cards\//.test(opt.file));
+  const spec = (v) => (fixture ? v.replace(/^\.\.\/\.\.\/\.\.\/\.\.\/src\//, "../../") : v);
   const ast = acorn.parse(src, { ecmaVersion: "latest", sourceType: "module", locations: true });
   const out = [], declared = new Set();
   walk(ast, (n) => { if (n.type === "VariableDeclarator" && n.id.type === "Identifier") declared.add(n.id.name); if (n.type === "FunctionDeclaration" && n.id) declared.add(n.id.name); });
   walk(ast, (n, parent) => {
     const at = n.loc ? " (Zeile " + n.loc.start.line + ")" : "";
-    if (n.type === "ImportDeclaration" && !IMPORTS_OK.some((r) => r.test(n.source.value))) out.push("Import nicht erlaubt: " + n.source.value + at);
+    if ((n.type === "ImportDeclaration" || ((n.type === "ExportNamedDeclaration" || n.type === "ExportAllDeclaration") && n.source)) && !IMPORTS_OK.some((r) => r.test(spec(n.source.value)))) out.push("Import nicht erlaubt: " + n.source.value + at);
     if (n.type === "ImportExpression") out.push("dynamischer Import" + at);
     if (n.type === "BinaryExpression" && n.operator === "**") out.push("Operator ** (approximiert, Number::exponentiate)" + at);
     if (n.type === "AssignmentExpression" && n.operator === "**=") out.push("Operator **=" + at);

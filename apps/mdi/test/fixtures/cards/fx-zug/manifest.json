@@ -1,0 +1,30 @@
+{
+  "id": "fx-zug",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.2",
+  "kind": "turn",
+  "mode": "turn",
+  "title": { "de": "Testkarte Zug v0.2", "en": "Test card turn v0.2" },
+  "players": { "min": 3, "max": 3 },
+  "hidden": "commit-reveal",
+  "secretSeats": [0, 1, 2],
+  "uses": [],
+  "inputDay": true,
+  "link": { "snap": true },
+  "modes": ["alone", "bot", "link"],
+  "limits": { "stepBudget": 64, "stateBytes": 8192 },
+  "inputs": {
+    "type": "object",
+    "required": ["t", "seat"],
+    "properties": {
+      "t": { "enum": ["deal", "say"] },
+      "seat": { "type": "integer", "minimum": 0, "maximum": 2 },
+      "a": { "type": "string", "maxLength": 40 },
+      "d": { "type": "integer", "minimum": 0 }
+    },
+    "additionalProperties": false
+  },
+  "params": { "type": "object", "additionalProperties": false, "required": ["rounds"], "properties": { "rounds": { "type": "integer", "minimum": 1, "maximum": 3, "default": 1, "x-field": "number", "x-label": { "de": "Runden", "en": "Rounds" } } } },
+  "parts": [],
+  "variants": [{ "id": "fx-zug-kurz", "title": { "de": "Kurz", "en": "Short" }, "params": { "rounds": 1 }, "modes": ["alone"], "legacy": ["fx-alt"] }]
+}

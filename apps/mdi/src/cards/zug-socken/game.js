@@ -1,6 +1,9 @@
 // zug-socken "Wo sind meine Socken?" – Altregel turns.js:646-668 (GAMES.socken): jede Seite versteckt zwei Socken auf 5×5;
 // je Zug sechs Tipps auf das andere Feld: gefunden, nah oder fern. Gewonnen erst nach gleich vielen Suchrunden.
 import { T, fmt } from "../../engines/zug-z2/lib.js";
+import { base, ints } from "../../engines/zug-z2/views.js";
+
+const MARK = ["far", "near", "hit"];
 
 function hidden(m, who) { return m[who][0]; }
 export function sockAnswer(socks, c) { const x = c % 5, y = Math.floor(c / 5); return socks.indexOf(c) >= 0 ? 2 : socks.some((s) => Math.max(Math.abs(s % 5 - x), Math.abs(Math.floor(s / 5) - y)) <= 1) ? 1 : 0; }
@@ -15,6 +18,14 @@ function sockTurn(t) {
   return t === 1 ? [{ w: "grid", l: "sok_hide", n: 2 }, p] : [p];
 }
 export default {
+  // Widget probe (ADR 0001): jede Zelle kennt ihre Antwort schon (die Socken stehen ohnehin im Link, alt ebenso)
+  view: {
+    probe(p, c) {
+      const socks = p.socks(c.doc, c.m), marks = {};
+      for (const k of ints(25)) marks[k] = MARK[sockAnswer(socks, k)];
+      return base(p, c, { rows: 5, cols: 5, n: p.n, marks, before: p.before(c.doc, c.m), key: c.X.sok_key });
+    }
+  },
   turns: [[{ w: "grid", l: "sok_hide", n: 2 }]].concat([1, 2, 3, 4, 5, 6].map(sockTurn)),
   ends: (doc, m) => m.length >= 3 && m.length % 2 === 1 && (sockFound(m, 0) === 2 || sockFound(m, 1) === 2),
   result(doc, m, lang) {

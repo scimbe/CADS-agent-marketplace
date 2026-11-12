@@ -1,6 +1,6 @@
 // ERZEUGT von scripts/gen.js – nicht von Hand aendern.
 /* eslint-disable */
 export const CODE_HASH = {
-  "gruss": "40d82e4c5c2dd875428425bc578aaf8e",
-  "bluff": "63d67f1fb8761c414b603a34373bdbe0"
+  "bluff": "bb421a6ccda522a185f2622bb3bf870c",
+  "gruss": "b03afcb8f1a8ad4c401f9811a24b3501"
 };
