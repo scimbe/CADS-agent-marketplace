@@ -379,3 +379,7 @@ test("Baukasten: Review-Befunde – feindliche Beschreibungen und Eingaben bleib
   // L2: geerbte Namen sind keine Felder
   assert.ok(normalize({ ...clone(FLAPPY), toString: 5 }).errors.some((e) => /toString/.test(e)));
 });
+
+test("Karten: Manifeste nutzen x-field \"spiel\" und stehen nicht als Kachel im Regal (shelf false)", () => {
+  for (const c of [card, zug]) { assert.equal(c.manifest.params.properties.desc["x-field"], "spiel"); assert.equal(c.manifest.shelf, false); assert.ok(!("x-hidden" in c.manifest.params.properties.desc)); }
+});

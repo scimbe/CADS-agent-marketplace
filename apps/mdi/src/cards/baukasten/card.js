@@ -19,7 +19,8 @@ export default {
   },
   status(state) {
     const s = E.status(state.D, state), two = state.D.players === 2 || (state.act[0] && state.act[1]);
-    return { over: s.over, score: two ? s.score : [s.score[0]], winner: s.winner, say: two ? s.score[0] + " : " + s.score[1] : String(s.score[0]) };
+    // Stand immer je Sitz (players.max = 2; Geist-Pruefung M4 verlangt sc.length === n); ein Solo-Spiel zeigt nur say
+    return { over: s.over, score: s.score.slice(0, 2), winner: s.winner, say: two ? s.score[0] + " : " + s.score[1] : String(s.score[0]) };
   },
   bot(state, seat, { level }) { return botInput(state.D, state, seat, level, planOf(state.D)); },
   view(state, ctx) { return E.view(state.D, state, ctx); },

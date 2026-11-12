@@ -17,6 +17,7 @@
     "en": "The goal is shown on top. Tap, drag or use the arrow keys."
   },
   "family": "frei",
+  "shelf": false,
   "players": {
     "min": 1,
     "max": 2
@@ -53,13 +54,11 @@
       "desc": {
         "type": "object",
         "description": "Spielbeschreibung mdi-bau/1; Pruefung: src/engines/baukasten/check.js (schemaFull in spec.js)",
-        "x-field": "list",
-        "x-hidden": true,
+        "x-field": "spiel",
         "x-label": {
           "de": "Spielbeschreibung",
           "en": "Game description"
         },
-        "x-note": "UEBERGANG: x-field \"spiel\" bei Strang F angefragt (kommt mit feat/mdi-w1-f2)",
         "default": {
           "title": "Wolkenflug",
           "goal": "Tippe zum Flattern und fliege durch 15 Luecken.",
