@@ -191,7 +191,9 @@ function guessPart(obs, lang, d, kids) {
     if (s.bank) kids.push({ t: "row", wrap: true, children: s.bank.map((l) => ({ t: "tile", fill: "paper", ink: "ink", value: l, a11y: fmt(T.mr_letter, { l }) })) });
   }
   if (d.gave) kids.push({ t: "text", role: "body", text: k ? fmt(T.mr_was, { w: k.w }) : T.mr_secret_was });
-  const opts = [{ label: T.mr_try, draft: { ...d, tried: typeof d.guess === "string" ? d.guess : "" } }];
+  // Raten mit Stoppuhr (alt malrat-ui.js: Sekunden bis zum Treffer): das Widget schreibt d.sec beim Tippen in den Entwurf
+  kids.push({ t: "stopwatch", id: "rate", key: "sec", label: T.mr_try, run: !(tried && tried.ok), draft: { ...d, tried: typeof d.guess === "string" ? d.guess : "" } });
+  const opts = [];
   opts.push(shown < steps.length ? { label: T.mr_more, draft: { ...d, tips: shown + 1 } } : { label: T.mr_h_none, draft: d, disabled: true });
   if (!d.gave) opts.push({ label: T.mr_give, draft: { ...d, gave: true } });
   if (tried && tried.ok || d.gave) opts.push({ label: T.mr_back, draft: { ...d, back: true } });

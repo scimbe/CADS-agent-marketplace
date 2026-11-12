@@ -201,6 +201,20 @@
         "x-label": {
           "de": "Spiel",
           "en": "Game"
+        },
+        "x-names": {
+          "de": {
+            "a": "301 Double-Out",
+            "b": "301 Einsteiger",
+            "c": "Rund um die Uhr",
+            "d": "Höchste Punktzahl"
+          },
+          "en": {
+            "a": "301 double out",
+            "b": "301 beginner",
+            "c": "Around the Clock",
+            "d": "Highest score"
+          }
         }
       }
     }
