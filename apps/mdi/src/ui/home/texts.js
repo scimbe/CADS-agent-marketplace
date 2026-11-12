@@ -23,15 +23,17 @@ const de = {
   bdg: { link: "Per Link", room: "Ein Handy, reihum", bot: "Gegen den Computer", solo: "Allein", game: "Spiel", photo: "Bild", sound: "Ton", card: "Karte", quest: "Rätsel", table: "Kartentisch", arcade: "Spiel", duel: "Duell", lauf: "Lauf" },
   sec: "{n} Sek", mins: "{n} Min",
   go: { turn: "Los, du fängst an", table: "Tisch aufmachen", game: "Losfliegen", sound: "Ton bauen", photo: "Meme bauen", card: "Karte machen", arcade: "Los, spielen", quest: "Rätsel bauen", default: "Mach's zu deinem" },
-  soon: "kommt", soonLong: "Wird gerade neu gebaut. Merk sie dir: Sie steht dann unter Meins.", soonSave: "Merken, kommt bald", soonSaved: "Gemerkt",
+  soon: "kommt", soonLong: "Wird gerade neu gebaut. Merk sie dir: Sie steht dann in deinem Regal.", soonSave: "Merken, kommt bald", soonSaved: "Gemerkt",
   holiday: "Feiertag: {n}", door: "Tür {n}",
   ready: "Schon spielbar", week: "Diese Woche im Kalender", lastDays: "Letzte Tage", lastSeen: "zuletzt am {d}", calendarOnly: "nur an bestimmten Tagen",
   heard: "So verstehe ich dich", forName: "Für: {n}", missing: "{w} habe ich noch nicht. Stattdessen:", none: "Dazu habe ich noch keine passende Karte. Probier ein anderes Wort.",
   exact: "Passt genau", near: "Passt ungefähr", change: "Andere Absicht",
-  regal: "Regal", search: "Karten suchen", searchPh: "z. B. Quiz, Skat, Wichteln", searchNone: "Keine Karte gefunden.", hits: "{n} Karten",
+  regal: "Alle Karten", search: "Karten suchen", searchPh: "z. B. Quiz, Skat, Wichteln", searchNone: "Keine Karte gefunden.", hits: "{n} Karten",
   tabs: { alles: "Alles", tage: "Letzte Tage", andere: "Von anderen" }, filterAll: "Alle",
   others: "Von anderen", othersSoon: "Karten von anderen erscheinen hier, sobald jemand eine teilt und sie geprüft ist.",
-  meins: "Meins", meinsOpen: "Meins öffnen: Wand, Einladungen, Gemerkt",
+  meins: "Mein Regal", meinsOpen: "Mein Regal öffnen: Wand, Einladungen, Gemerkt",
+  hero: { t: "Neu erfinden", s: "Aus einem Satz wird eine ganz neue Karte oder ein ganz neues Spiel. Zum Beispiel: „Ein Quiz über unseren Hund Bruno“.", label: "Beschreib deine Idee in einem Satz", go: "Erfinden ›", note: "Karte, Spiel, Quiz oder Witzbild · ab 16" },
+  schrift: "Schrift", schriftOpen: "Schrift und Lesen einstellen (Mein Stil)", searchShort: "Suchen",
   mtabs: { wand: "Wand", einladungen: "Einladungen", gemerkt: "Gemerkt" },
   wallEmpty: "Noch leer. Bau was.", wallGone: "Von der Wand genommen", undo: "Rückgängig", takeOff: "Von der Wand nehmen", openAgain: "Weiter bauen",
   wallAdd: "Auf meine Wand", wallAdded: "Liegt auf deiner Wand.",
@@ -41,7 +43,7 @@ const de = {
   savedEmpty: "Noch nichts gemerkt. Tipp auf das Herz an einer Karte.", save: "Merken", unsave: "Nicht mehr merken",
   sync: { on: "Mit deinem Konto auf allen Geräten (ohne Fotos).", off: "Nur auf diesem Gerät. Mit Konto auch auf deinen anderen Geräten." },
   share: "Teilen", shareCard: "Karte empfehlen", story: "Für Story", storyNote: "Bild 9:16 mit QR-Code für Status und Story.", storyDone: "Story-Bild ist fertig.", storyFail: "Das Bild ging hier nicht.",
-  storyCta: "Code scannen oder eintippen", shortMaking: "Kurzlink wird angelegt …",
+  storyCta: "Code scannen oder eintippen", imgBusy: "Bild wird gezeichnet …", imgNote: "Das Bild mit deinem Foto teilst du selbst über dein Handy. Der Link oben bleibt ohne Foto.", imgErr: { "foto-fehlt": "Dein Foto ist auf diesem Gerät nicht mehr da.", "nicht-verfuegbar": "Ein Bild geht hier nicht.", fehler: "Das Bild ging hier nicht." }, shortMaking: "Kurzlink wird angelegt …",
   open: "Öffnen", play: "Spielen", soonA11y: "{t} (kommt)", thumbAlt: "Vorschau: {t}"
 };
 const en = {
@@ -67,15 +69,17 @@ const en = {
   bdg: { link: "By link", room: "One phone, take turns", bot: "Against the computer", solo: "Alone", game: "Game", photo: "Picture", sound: "Sound", card: "Card", quest: "Riddle", table: "Card table", arcade: "Game", duel: "Duel", lauf: "Run" },
   sec: "{n} sec", mins: "{n} min",
   go: { turn: "Go, you start", table: "Open the table", game: "Take off", sound: "Make a sound", photo: "Make a meme", card: "Make a card", arcade: "Go, play", quest: "Build a riddle", default: "Make it yours" },
-  soon: "coming", soonLong: "We are rebuilding this card. Save it, then you find it under Mine.", soonSave: "Save, coming soon", soonSaved: "Saved",
+  soon: "coming", soonLong: "We are rebuilding this card. Save it, then you find it on your shelf.", soonSave: "Save, coming soon", soonSaved: "Saved",
   holiday: "Holiday: {n}", door: "Door {n}",
   ready: "Ready to play", week: "This week in the calendar", lastDays: "Last days", lastSeen: "last on {d}", calendarOnly: "only on certain days",
   heard: "This is how I understand you", forName: "For: {n}", missing: "I don't have {w} yet. Instead:", none: "I have no card for that yet. Try another word.",
   exact: "Exact match", near: "Close match", change: "Other intent",
-  regal: "Shelf", search: "Search cards", searchPh: "e.g. quiz, Skat, Secret Santa", searchNone: "No card found.", hits: "{n} cards",
+  regal: "All cards", search: "Search cards", searchPh: "e.g. quiz, Skat, Secret Santa", searchNone: "No card found.", hits: "{n} cards",
   tabs: { alles: "All", tage: "Last days", andere: "From others" }, filterAll: "All",
   others: "From others", othersSoon: "Cards from others show up here once someone shares one and it has been checked.",
-  meins: "Mine", meinsOpen: "Open Mine: wall, invitations, saved",
+  meins: "My shelf", meinsOpen: "Open My shelf: wall, invitations, saved",
+  hero: { t: "Invent something new", s: "One sentence becomes a brand-new card or a brand-new game. For example: “A quiz about our dog Bruno”.", label: "Describe your idea in one sentence", go: "Invent ›", note: "Card, game, quiz or funny picture · 16+" },
+  schrift: "Text", schriftOpen: "Text size and reading (My style)", searchShort: "Search",
   mtabs: { wand: "Wall", einladungen: "Invitations", gemerkt: "Saved" },
   wallEmpty: "Still empty. Make something.", wallGone: "Taken off the wall", undo: "Undo", takeOff: "Take off the wall", openAgain: "Keep building",
   wallAdd: "To my wall", wallAdded: "It is on your wall.",
@@ -85,11 +89,11 @@ const en = {
   savedEmpty: "Nothing saved yet. Tap the heart on a card.", save: "Save", unsave: "Remove from saved",
   sync: { on: "With your account on all your devices (no photos).", off: "Only on this device. With an account also on your other devices." },
   share: "Share", shareCard: "Recommend card", story: "For story", storyNote: "9:16 picture with a QR code for status and story.", storyDone: "Story picture is ready.", storyFail: "The picture did not work here.",
-  storyCta: "Scan or type the code", shortMaking: "Making a short link …",
+  storyCta: "Scan or type the code", imgBusy: "Drawing the picture …", imgNote: "You share the picture with your photo yourself from your phone. The link above stays without the photo.", imgErr: { "foto-fehlt": "Your photo is no longer on this device.", "nicht-verfuegbar": "A picture does not work here.", fehler: "The picture did not work here." }, shortMaking: "Making a short link …",
   open: "Open", play: "Play", soonA11y: "{t} (coming)", thumbAlt: "Preview: {t}"
 };
 const easy = {
-  de: { soonLong: "Diese Karte gibt es bald wieder. Tipp auf Merken.", ask: "Wem willst du heute eine Freude machen?", swipe: "Blättern (oder zur Seite wischen)" },
+  de: { soonLong: "Diese Karte gibt es bald wieder. Tipp auf Merken, dann steht sie in deinem Regal.", ask: "Wem willst du heute eine Freude machen?", swipe: "Blättern (oder zur Seite wischen)" },
   en: { soonLong: "This card comes back soon. Tap Save.", swipe: "Flip (or swipe sideways)" }
 };
 export function homeTexts(lang, isEasy) { const base = lang === "en" ? { ...de, ...en } : de; return isEasy ? { ...base, ...(easy[lang === "en" ? "en" : "de"]) } : base; }

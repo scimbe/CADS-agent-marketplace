@@ -1,5 +1,6 @@
 // Gleiche Karte in allen Modi im echten Browser: Telefon (de) und Desktop (en). Ein Treiber fuer alle Karten.
 import test from "node:test";
+import { NEEDS_FAKE } from "./lib/ziel.mjs";
 import assert from "node:assert/strict";
 import { browser, open, act, waitScreen, playVisible, noOverflow } from "./lib/grund.mjs";
 import { staticLink, liveInvite, turnLive, turnLink, pickMode, pickSeat } from "./lib/scenarios.mjs";
@@ -15,7 +16,7 @@ for (const [view, lang] of [["phone390", "de"], ["desk1280", "en"]]) {
     assert.deepEqual([...A.errs, ...B.errs], []);
     assert.deepEqual(A.ctx._blocked, [], "kein Netz ohne Live");
   });
-  test(view + "/" + lang + ": statische Karte live", async () => {
+  test(view + "/" + lang + ": statische Karte live", { skip: NEEDS_FAKE }, async () => {
     const { A, B } = await liveInvite(b, o, "gruss");
     await waitScreen(B.p, "receive-show", 20000); await act(B.p, "accept"); await waitScreen(B.p, "card-view");
     await waitScreen(A.p, "card-view");
@@ -41,7 +42,7 @@ for (const [view, lang] of [["phone390", "de"], ["desk1280", "en"]]) {
     assert.equal(await A.p.locator(".t-big").textContent(), await B.p.locator(".t-big").textContent());
     assert.deepEqual([...A.errs, ...B.errs], []);
   });
-  test(view + "/" + lang + ": Bluff live ueber den Datenkanal (echter Broker, falsches Netz)", async () => {
+  test(view + "/" + lang + ": Bluff live ueber den Datenkanal (echter Broker, falsches Netz)", { skip: NEEDS_FAKE }, async () => {
     const { A, B, net } = await turnLive(b, o);
     assert.ok(net.wire.dc.length > 10, "Spielzuege liefen ueber den Datenkanal");
     assert.ok(net.wire.http.some((x) => x.startsWith("POST /api/play/open")) && net.wire.http.some((x) => x.startsWith("POST /api/play/join")));

@@ -23,7 +23,7 @@ for (const view of ["phone360", "desk1280"]) {
     await p.locator(".rt-canvas").waitFor();
     assert.match(await p.locator(".rt-say").textContent(), /Gleich geht's los/);
     await p.waitForFunction(() => window.__rt.phase === "run", null, { timeout: 8000 });
-    const painted = await p.evaluate(() => { const c = document.querySelector(".rt-canvas"); const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; const s = new Set(); for (let i = 0; i < d.length; i += 4000) s.add(d[i] + "," + d[i + 1] + "," + d[i + 2]); return s.size; });
+    const painted = await p.evaluate(() => { const c = document.querySelector(".rt-canvas"); const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; const s = new Set(); for (let i = 0; i < d.length; i += 64) s.add(d[i] + "," + d[i + 1] + "," + d[i + 2]); return s.size; });
     assert.ok(painted > 2, "Canvas gezeichnet (" + painted + " Farben)");
     const t0 = await p.evaluate(() => window.__rt.tick);
     await p.keyboard.down("ArrowLeft"); await p.waitForTimeout(300); await p.keyboard.up("ArrowLeft");
@@ -35,6 +35,9 @@ for (const view of ["phone360", "desk1280"]) {
     assert.equal(await p.locator(".rt-pause").getAttribute("aria-pressed"), "true");
     await p.locator(".rt-pause").click(); await p.waitForFunction(() => window.__rt.phase === "run");
     assert.equal(await p.locator('.rt-axis[aria-label="Links"]').count(), 1, "Achse als echter Knopf");
+    // Zielgroessen (Entscheidung zu #301): Kopfleiste >= 48 px, Spieltasten unter dem Feld >= 84 px
+    const sizes = await p.evaluate(() => [...document.querySelectorAll(".rt-btn")].map((e) => { const r = e.getBoundingClientRect(); return { hud: !!e.closest(".rt-hud"), w: r.width, h: r.height }; }));
+    for (const s of sizes) assert.ok(s.hud ? s.w >= 48 && s.h >= 48 && s.h < 84 : s.w >= 84 && s.h >= 84, JSON.stringify(s));
     assert.equal(await p.locator(".rt-hud .rt-sound").getAttribute("aria-pressed"), "false");
     await p.locator(".rt-hud .rt-sound").click();
     assert.equal(await p.locator(".rt-hud .rt-sound").getAttribute("aria-pressed"), "true", "Ton aus im HUD");

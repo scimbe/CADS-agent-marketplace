@@ -29,16 +29,17 @@ export function cardOf(id) { return cardById(id) || (LEGACY[id] ? cardById(LEGAC
 /** Karten-id auch fuer alte Katalog-ids, ohne die Karte zu laden (Strang F: Karten sind nachladbare Teile) */
 export function cardIdOf(id) { return manifestOf(id) ? id : LEGACY[id] ? LEGACY[id].card : null; }
 /** Karten, die ein Ereignis der freien Karte braucht; die Laufzeit laedt sie vorher (ADR 0001 Nachtrag 2) */
-/** Feature-Teil "frei-ui" (Ansichten + Texte) vor jedem Ereignis, das in inhalt.frei.* fuehren kann (ADR 0001 Nachtrag 4).
- *  LINK: vorsorglich bei jedem Link (das Gate prueft danach; die Karte des Links ist ggf. selbst noch nicht geladen);
- *  GO: wenn die offene Karte eine freie Karte tragen kann (toFree). Nach dem ersten Laden liegt der Teil im Cache. */
-const UI_EVENTS = new Set(["FREI", "DECK", "DECK_OPEN", "MINE", "BILD", "KI", "ROBOT", "MELDEN", "LINK"]);
-function freiParts(ev, ctx) {
-  if (!ev || typeof ev.type !== "string") return [];
-  if (UI_EVENTS.has(ev.type)) return ["frei-ui"];
-  if (ev.type === "GO" && ctx && ctx.cardId) { const c = cardById(ctx.cardId); if (c && typeof c.toFree === "function") return ["frei-ui"]; }
-  return [];
+/** Feature-Teil "frei-ui" (Ansichten + Texte) nur vor Ereignissen, die eine Ansicht der freien Karte oeffnen (ADR 0001
+ *  Nachtrag 4). Befund Z2 (Bisect 3aca9f06, #281): GO und LINK haben den Teil fuer jede Karte mit toFree bzw. jeden Link
+ *  verlangt und damit Partien gewoehnlicher Zugkarten aufgehalten. GO und LINK laden ihn nicht mehr: die Pruefzustaende
+ *  frei.gate und frei.sharegate zeigen nur einen Statussatz, den view-core.js ohne Teil selbst rendert; die Karte danach
+ *  (receive.show, card.share, card.play) braucht frei-ui nicht. */
+const UI_EVENTS = new Set(["FREI", "DECK", "DECK_OPEN", "MINE", "BILD", "KI", "ROBOT", "MELDEN"]);
+function freiParts(ev) {
+  return ev && UI_EVENTS.has(ev.type) ? ["frei-ui"] : [];
 }
+// GO nach dem Gate traegt den Zufall des GATE-Ereignisses weiter: startLocal braucht rand (sonst zug-ungueltig, Befund Z2)
+function goAfterGate(ctx, ev) { return { type: "GO", rand: ev.rand }; }
 function freiNeeds(ev, ctx) {
   const f = (ctx && ctx.frei) || {}, ids = [];
   const add = (x) => { const id = x && cardIdOf(x); if (id) ids.push(id); };
@@ -139,7 +140,7 @@ export const freiState = {
         GATE: [
           { target: T("inhalt.card.share"), cond: "gateOkStatic", actions: ["gateDone"] },
           // Zug- und Echtzeitkarten: frei -> zurueck zur Karte und GO noch einmal (dann ohne Gate in die Partie)
-          { target: T("inhalt.card.view"), cond: "gateOk", actions: ["gateDone", "markShareOk"], raise: "GO" },
+          { target: T("inhalt.card.view"), cond: "gateOk", actions: ["gateDone", "markShareOk"], raise: goAfterGate },
           // veraendert (eigene Aenderungen an der freien Karte): als Remix teilen – ohne KI-Siegel, die Wurzel-id bleibt pruefbar
           { target: T("inhalt.frei.sharegate"), cond: "remixable", actions: ["toRemix"] },
           { target: T("inhalt.card.view"), actions: ["shareNo"] }
@@ -222,7 +223,8 @@ export const freiState = {
 export const FREI_SHELF = {
   // FREI { text? }: der Satz aus dem Block der Startseite (H, Gate C) kommt vorausgefuellt; die Kategorie waehlt die Person
   // trotzdem selbst (keine Vorauswahl), Login und 16+ bleiben wie sie sind. Ein Satz mit Krisenwoertern zeigt sofort die Hilfe.
-  FREI: { target: T("inhalt.frei.start"), actions: ["clearForm", "takeFreiText"] },
+  // Reihenfolge: Stand vom Anmelde-Gate (takeBack) zuerst, ein Satz im Ereignis (takeFreiText) gewinnt
+  FREI: { target: T("inhalt.frei.start"), actions: ["clearForm", "takeBack", "takeFreiText"] },
   DECK_OPEN: { target: T("inhalt.frei.deckkarte"), cond: "deckCardOk", actions: ["openDeckCard"] },
   DECK: { target: T("inhalt.frei.deck") },
   MINE: { target: T("inhalt.frei.meine") }
@@ -315,6 +317,8 @@ function askFx(ctx, emit, input, robot) {
 
 export const freiActions = {
   clearForm: (ctx) => F(ctx, { ...freshForm }),
+  // Stand vom Anmelde-Gate (frei.back, siehe freiContext) einmal ins Formular; danach verbraucht. SEND prueft wie immer (Krise)
+  takeBack: (ctx) => (ctx.frei.back ? F(ctx, { text: ctx.frei.back.text, art: ctx.frei.back.art, genre: ctx.frei.back.genre, back: null }) : ctx),
   takeFreiText: (ctx, ev) => {
     if (typeof ev.text !== "string") return ctx;
     const text = [...ev.text.replace(/[\p{Cc}\p{Cf}<>]/gu, " ").replace(/\s+/g, " ").trim()].slice(0, 200).join("");
@@ -433,10 +437,19 @@ export const freiActions = {
 };
 
 /** Kontext der freien Karte (zuletzt gewaehlt nur als markierter Vorschlag, nie als stille Auswahl) */
+// Rueckkehr vom Anmelde-Gate (?go=erschaffen): Satz, Art und Genre kommen aus dem Geraetespeicher zurueck, aber nur, wenn
+// sie hoechstens BACK_MS alt sind (sonst stuende ein alter Satz Tage spaeter im Feld). Gespeichert wird vor dem Gate (persist).
+export const BACK_MS = 15 * 60 * 1000;
+function backOf(st, now) {
+  const b = st && st.back && typeof st.back === "object" ? st.back : null;
+  if (!b || !Number.isFinite(b.at) || !Number.isFinite(now) || now - b.at < 0 || now - b.at > BACK_MS) return null;
+  return { text: [...String(b.text || "")].slice(0, 200).join(""), art: ARTS.includes(b.art) ? b.art : "", genre: GENRES.includes(b.genre) ? b.genre : "" };
+}
 export function freiContext(saved) {
-  const l = saved && saved.freiLast && typeof saved.freiLast === "object" ? saved.freiLast : {};
+  const st = saved && saved.feat && saved.feat.frei && typeof saved.feat.frei === "object" ? saved.feat.frei : null;
+  const l = st && st.last && typeof st.last === "object" ? st.last : {};
   return {
-    frei: { ...freshForm, last: { art: ARTS.includes(l.art) ? l.art : "", genre: GENRES.includes(l.genre) ? l.genre : "" }, req: 0, phase: null, place: 0, missing: null, taken: null, gate: null, share: null,
+    frei: { ...freshForm, back: backOf(st, saved && saved.now), last: { art: ARTS.includes(l.art) ? l.art : "", genre: GENRES.includes(l.genre) ? l.genre : "" }, req: 0, phase: null, place: 0, missing: null, taken: null, gate: null, share: null,
       deck: { load: null, cards: [], v: -1 }, card: null, use: null, vote: null, acted: false, mine: null,
       report: { reason: null, sending: false, sent: null, back: null, doc: null },
       bild: { use: "card", style: "comic", text: "", st: null, err: null, req: 0, phase: null, place: 0, res: null, kept: false },
@@ -446,9 +459,14 @@ export function freiContext(saved) {
 
 import { freiEffects } from "./effects.js";
 import { createImages } from "./images.js";
+import { browserMedia } from "../../broker/media.js";
 /** Das Feature im Format von ADR 0001 (g) (src/app/features.js) */
+export { freiParts };
 export const frei = {
   id: "frei",
+  // Geraetespeicher (mdi.f.frei): zuletzt gewaehlt (last) und der Stand vor dem Anmelde-Gate (back)
+  store: true,
+  persist: (ctx, now) => (ctx.frei && (ctx.frei.text || ctx.frei.art || ctx.frei.genre) ? { last: ctx.frei.last, back: { text: ctx.frei.text, art: ctx.frei.art, genre: ctx.frei.genre, at: now } } : { last: ctx.frei && ctx.frei.last }),
   needs: freiNeeds,
   needParts: freiParts,
   states: { frei: freiState },
@@ -466,5 +484,5 @@ export const frei = {
   context: freiContext,
   effects: freiEffects,
   // Dienste fuer den Host (F: main.js featureEnv(window)): Bildbruecke fuer Vorschau, Spiel, Canvas und Buehne
-  env: { images: (win) => createImages(win) }
+  env: { images: (win) => { const md = browserMedia(win); return createImages(win, null, md.available ? { local: (id) => md.open(id), revoke: (u) => win.URL.revokeObjectURL(u) } : {}); } }
 };

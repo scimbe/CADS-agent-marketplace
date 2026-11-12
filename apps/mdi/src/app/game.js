@@ -1,7 +1,7 @@
 // Reine Spielablauf-Funktionen fuer die Statechart: kartenunabhaengig, ohne Netz/DOM/Zufall (Zufall kommt als
 // ev.rand aus der Laufzeit). Jede Funktion bekommt ctx und liefert neuen ctx (+ Effekte ueber emit).
 import { cardOf, validParams, validInput } from "../cards/index.js";
-import { defaults } from "../contract/fields.js";
+import { defaults, paramsForPeer, travelsOnly } from "../contract/fields.js";
 import * as S from "../contract/session.js";
 import * as H from "../contract/handshake.js";
 import { decode } from "./link.js";
@@ -95,17 +95,19 @@ export function botTurn(ctx) {
   return !st.over && ctx.botSeats.includes(st.turn) ? st.turn : null;
 }
 
+/** Parameter, die zum Partner reisen und mit denen beide Seiten spielen (contract/fields.js paramsForPeer). */
+export function peerParams(ctx, id = ctx.cardId) { return paramsForPeer(cardOf(id).manifest.params, paramsOf(ctx, id)); }
 export function helloFor(ctx, rand) {
-  const c = card(ctx), r = H.hello(c, paramsOf(ctx), ctx.seat, rand);
+  const c = card(ctx), r = H.hello(c, peerParams(ctx), ctx.seat, rand);
   return { ctx: { ...ctx, hs: r.local, session: null, error: null, viewer: ctx.seat }, msg: r.msg };
 }
 export function helloGroupFor(ctx, rand) {
-  const r = H.helloGroup(card(ctx), paramsOf(ctx), ctx.seat, rand);
+  const r = H.helloGroup(card(ctx), peerParams(ctx), ctx.seat, rand);
   return { ctx: { ...ctx, hs: r.local, session: null, error: null, viewer: ctx.seat, groupHost: true }, msgs: r.msgs };
 }
 /** join eines Gastes; sind alle da: Partie, start fuer alle und Pflichtzuege. */
 export function joinGroupFor(ctx, from, jn) {
-  const r = H.joinGroup(card(ctx), paramsOf(ctx), ctx.hs, from, jn);
+  const r = H.joinGroup(card(ctx), peerParams(ctx), ctx.hs, from, jn);
   if (!r.done) return { ctx: { ...ctx, hs: r.local }, msg: null, out: [] };
   const due = applyDue({ ...ctx, session: r.session, hs: null, draft: null });
   return { ctx: due.ctx, msg: r.msg, out: due.out };
@@ -113,12 +115,12 @@ export function joinGroupFor(ctx, from, jn) {
 export function joinFor(ctx, hi, rand) {
   const c = cardOf(hi.c);
   if (!c) throw new S.GameError("karte-unbekannt");
-  if (!validParams(hi.c, hi.p)) throw new S.GameError("params");
+  if (!validParams(hi.c, { ...defaults(c.manifest.params), ...hi.p }) || !travelsOnly(c.manifest.params, hi.p)) throw new S.GameError("params");
   const r = H.join(c, hi, rand);
   return { ctx: { ...ctx, cardId: hi.c, hs: r.local, session: null, error: null, viewer: r.local.mine[0], seat: r.local.mine[0] }, msg: r.msg };
 }
 export function startFor(ctx, jn) {
-  const r = H.start(card(ctx), paramsOf(ctx), ctx.hs, jn);
+  const r = H.start(card(ctx), peerParams(ctx), ctx.hs, jn);
   const due = applyDue({ ...ctx, session: r.session, hs: null, draft: null });
   return { ctx: due.ctx, msg: r.msg, out: due.out };
 }
@@ -171,7 +173,8 @@ export function receive(hash, stored, rand) {
   const c = cardOf(d.data.c);
   if (!c) return { ok: false, reason: "karte-unbekannt" };
   if (d.data.v !== c.manifest.version) return { ok: false, reason: "version" };
-  if (!validParams(d.data.c, d.data.p)) return { ok: false, reason: "params" };
+  // nicht reisende Pflichtfelder (z. B. Arcade photo) fehlen im Link: geprueft wird mit ihren Standardwerten
+  if (!validParams(d.data.c, { ...defaults(c.manifest.params), ...d.data.p }) || !travelsOnly(c.manifest.params, d.data.p)) return { ok: false, reason: "params" };
   if (d.type === "ghost") {
     // Geist-Link (ADR 0001 b): nur Echtzeitkarten mit rt.ghost; die Spur wird vor dem Annehmen nachgespielt
     if (c.manifest.mode !== "realtime" || !c.manifest.rt.ghost) return { ok: false, reason: "typ" };

@@ -43,7 +43,10 @@ const m = {
     controls: { buttons: [
       { id: "tap", kind: "pulse", keys: ["Space", "ArrowUp", "KeyW"], zone: "any", label: Lb("Springen", "Jump") },
       { id: "hold", kind: "hold", keys: ["Space", "ArrowUp", "KeyW"], zone: "any", label: Lb("Höher springen", "Jump higher") },
-      { id: "duck", kind: "hold", keys: ["ArrowDown", "KeyS"], zone: "button", swipe: "down", label: Lb("Ducken", "Duck") } ] },
+      { id: "duck", kind: "hold", keys: ["ArrowDown", "KeyS"], zone: "button", swipe: "down", label: Lb("Ducken", "Duck") } ],
+      // Gate C: grosse Tipp-Taste wie Tippen auf die Buehne (kurz = springen, lang = weit springen), F #303
+      screenKey: { label: Lb("TIPPEN = SPRINGEN", "TAP = JUMP"), size: 96 } },
+    slow: [1, 0.75],
     sounds: { coin: { synth: "tone", f0: 880, f1: 1320, dur: 0.06, type: "triangle", vol: 0.08 }, jump: { synth: "tone", f0: 320, f1: 640, dur: 0.07, type: "square", vol: 0.04 },
       stomp: { synth: "tone", f0: 600, f1: 300, dur: 0.08, type: "square", vol: 0.1 }, dead: { synth: "tone", f0: 260, f1: 40, dur: 0.4, type: "sawtooth", vol: 0.14, haptic: 120 }, goal: { haptic: 80 } } },
   params: { type: "object", additionalProperties: false, properties: props },
@@ -53,8 +56,8 @@ const m = {
   parts: [
     { id: "figur", params: ["e", "f", "fp"], label: Lb("Figur", "Runner") },
     { id: "welt", params: ["w", "o", "c"], label: Lb("Welt", "World") },
+    { id: "foto", params: ["figur", "hintergrund"], label: Lb("Eigenes Foto", "Own photo") },
     { id: "level", params: ["m", "len", "v", "a", "vm", "g", "j", "lu", "lw", "hi", "du", "mu", "ge", "fa", "hv", "seed"], label: Lb("Level", "Level") },
-    { id: "gemuetlich", params: ["tempo"], label: Lb("Gemütlich spielen", "Play slowly") },
     { id: "text", params: ["t", "col"], label: Lb("Text", "Text") }
   ]
 };

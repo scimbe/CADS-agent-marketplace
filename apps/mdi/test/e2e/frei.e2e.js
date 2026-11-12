@@ -2,7 +2,9 @@
 // Aufnahmen des echten Servers). Alle Zustaende aus dem Auftrag: Erfolg, Absage, Warteschlange, Abbruch, kein Kontingent,
 // unter 16, Deck nicht ok (und ok). Je Zustand: axe (WCAG 2.2 AA), kein waagerechter Ueberlauf, kein verdecktes
 // Bedienelement (wie layout.e2e.js), keine CSP-Verstoesse, keine Anfrage an einen anderen Host.
-import test from "node:test";
+import nodeTest from "node:test";
+import { fakeOnly } from "./lib/ziel.mjs";
+const test = fakeOnly(nodeTest); // Gegenstelle ist eine Attrappe: im URL-Modus uebersprungen
 import assert from "node:assert/strict";
 import { browser, VIEWS, act, axe, noOverflow, shotsDir } from "./lib/grund.mjs";
 import { fakeWrapper, APP } from "./lib/fakewrapper.mjs";
@@ -255,4 +257,34 @@ test("Teil frei-ui: fehlt -> ehrliche Meldung mit Wiederholen (axe ohne Verstoss
   await o2.p.locator("main.s-partfail").waitFor();
   assert.equal(await o2.p.locator('[role="alert"][data-reason="teil-manipuliert"]').count(), 1);
   assert.notEqual(await o2.p.title(), "boese");
+});
+
+// Befund Z2 (Bisect 3aca9f06, #281): Los einer Zugkarte darf den Teil frei-ui nie laden – weder ohne noch mit Siegel
+test("Zugkarte: Los startet die Partie sofort, ohne frei-ui zu laden; mit ki/fr erst Status-Gate (ohne Teil), dann die Partie", async () => {
+  const { pickMode } = await import("./lib/scenarios.mjs");
+  const fw = fakeWrapper(), ff = fakeFrei(fw, { karte: "karte-ok-faehigkeit" });
+  const { ctx, p, errs } = await openApp(fw, ff);
+  let ui = 0; ctx.on("request", (r) => { if (/\/parts\/feat-frei-ui\./.test(r.url())) ui++; });
+  // 1) gewoehnliche Zugkarte
+  await act(p, "open-zug-termin"); await screenIs(p, "card-view");
+  await pickMode(p, "de", "link"); await act(p, "go");
+  if (await p.locator("main.s-card-play-cover").count()) await act(p, "cover-ok");
+  await p.locator("main.s-card-play-turn").waitFor();
+  assert.equal(ui, 0, "Los ohne frei-ui");
+  // 2) Zugkarte aus einer freien Karte (Faehigkeit, Siegel ki): danach ist frei-ui nicht mehr erreichbar
+  await act(p, "back"); await screenIs(p, "card-view"); await act(p, "back");
+  await loginFromFrei(p, fw);
+  await p.locator('[aria-labelledby="lbl-art"] [data-v="faehigkeit"]').click();
+  await p.locator("#frei-text").fill("Wann können alle zum Grillen?");
+  await act(p, "send"); await screenIs(p, "frei-vorschau");
+  await act(p, "take"); await screenIs(p, "card-view");
+  await ctx.route("**/parts/feat-frei-ui*", (r) => r.fulfill({ status: 404, body: "" }));
+  ui = 0; const before = ff.state.log.length;
+  await pickMode(p, "de", "link"); await act(p, "go");
+  if (await p.locator("main.s-card-play-cover").count()) await act(p, "cover-ok");
+  await p.locator("main.s-card-play-turn").waitFor();
+  assert.equal(ui, 0, "Los mit Siegel ohne frei-ui");
+  assert.ok(ff.state.log.slice(before).some((l) => /^STATUS .* d=ja$/.test(l)), "das Gate hat mit Inhalts-Hash geprueft: " + ff.state.log.slice(before).join(", "));
+  assert.equal(await p.locator("main.s-partfail").count(), 0);
+  assert.deepEqual(errs, []);
 });

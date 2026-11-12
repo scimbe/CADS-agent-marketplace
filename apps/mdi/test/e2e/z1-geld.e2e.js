@@ -3,8 +3,11 @@
 // Bestaetigung in Mein Stil kehrt sie zur Karte zurueck; Name, Zweck, 4 Personen, 37,50 € mit Anteilszeile; der Link geht
 // an Tom (angemeldet, 18+), der den PayPal-Knopf mit dem richtigen Anteil sieht; eine dritte Person ohne Konto sieht keinen
 // Knopf. Je Bildschirm axe (WCAG 2.2 AA), kein Ueberlauf, keine Seitenfehler, keine Anfrage an fremde Hosts.
-import test from "node:test";
+import nodeTest from "node:test";
+import { fakeOnly } from "./lib/ziel.mjs";
+const test = fakeOnly(nodeTest); // Gegenstelle ist eine Attrappe: im URL-Modus uebersprungen
 import assert from "node:assert/strict";
+import { at } from "./lib/z1play.mjs";
 import { browser, VIEWS, act, axe, noOverflow, waitScreen, screen } from "./lib/grund.mjs";
 import { fakeWrapper, APP } from "./lib/fakewrapper.mjs";
 import { pickMode } from "./lib/scenarios.mjs";
@@ -52,10 +55,10 @@ async function next(p) { await p.waitForTimeout(220); const g = main(p).locator(
 async function checks(p, name, found) { found.push(...(await axe(p, name))); if (!(await noOverflow(p))) found.push(name + ": waagerechter Ueberlauf"); }
 
 async function startCard(p) {
-  await act(p, "open-zug-sammeln"); await waitScreen(p, "card-view");
+  await act(p, "open-zug-sammeln"); await at(p, "card-view");
   await pickMode(p, "de", "link"); await act(p, "go");
   if ((await screen(p)) === "card-play-cover") await act(p, "cover-ok");
-  await waitScreen(p, "card-play-turn");
+  await at(p, "card-play-turn");
 }
 
 for (const view of ["phone390", "desk1280"]) {
@@ -106,7 +109,7 @@ for (const view of ["phone390", "desk1280"]) {
     await main(A.p).getByText("37,50 € geteilt durch 4 · 9,37 € pro Person · Rest 2 ct übernimmt, wer sammelt").waitFor();
     await checks(A.p, "03-betrag", found);
     await next(A.p);
-    await waitScreen(A.p, "card-play-send");
+    await at(A.p, "card-play-send");
     await A.p.locator("#linkfield").waitFor({ state: "attached" });
     const u = await A.p.locator("#linkfield").inputValue(), hash = u.slice(u.indexOf("#"));
 
@@ -114,8 +117,8 @@ for (const view of ["phone390", "desk1280"]) {
     const B = await openApp(fw, { view });
     await signIn(B.p, fw, "tom@example.org", { age18: true });
     await B.p.goto(APP + "/duell" + hash); await B.p.locator("header.bar").waitFor();
-    await waitScreen(B.p, "receive-show"); await act(B.p, "accept");
-    await waitScreen(B.p, "card-play-turn");
+    await at(B.p, "receive-show"); await act(B.p, "accept");
+    await at(B.p, "card-play-turn");
     const pay = main(B.p).locator('a[href^="https://paypal.me/"]');
     await pay.waitFor();
     assert.equal(await pay.getAttribute("href"), "https://paypal.me/leaSammelt/9.37EUR");
@@ -126,7 +129,7 @@ for (const view of ["phone390", "desk1280"]) {
 
     // dritte Person ohne Konto: kein Knopf
     const C = await openApp(fw, { view, path: "/duell" + hash });
-    await waitScreen(C.p, "receive-show"); await act(C.p, "accept"); await waitScreen(C.p, "card-play-turn");
+    await at(C.p, "receive-show"); await act(C.p, "accept"); await at(C.p, "card-play-turn");
     assert.equal(await main(C.p).locator('a[href^="https://paypal.me/"]').count(), 0, "ohne 18+ kein PayPal-Knopf");
     await checks(C.p, "05-ohne-konto", found);
 

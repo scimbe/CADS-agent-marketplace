@@ -7,6 +7,7 @@ import { familyOf, family, catalogIdOf } from "./families.js";
 import { byId } from "./rotation.js";
 import { manifestOf } from "../../cards/index.js";
 import { homeTexts } from "./texts.js";
+import { weatherFromApi } from "../../engines/poster/doc.js";
 import { solve, PROOF_BITS } from "../../broker/ai.js";
 
 // Ein Nachweis je Geraete-Kennung (derselbe, den die KI rechnet; der Server prueft sha256("<device>:<proof>") mit 16 Nullbits)
@@ -61,6 +62,24 @@ export const effects = {
       return new env.FontFace(F.FONT_FAMILY, buf.buffer, { weight: f.weight, style: "normal", display: "swap" }).load().then((face) => env.document.fonts.add(face));
     }))).catch(() => {});
   },
+  // Wetter: Antwort des Servers -> Feldwert ueber PARAM (der Host prueft das Schema); ohne Zahlen bleibt das Feld, wie es war
+  "home.wx": (fx, { dispatch, api }) => {
+    if (!api || !api.weather) { dispatch({ type: "WX_DONE", key: fx.key, st: "fail" }); return; }
+    api.weather(fx.place, fx.date).then((r) => {
+      const w = r.ok ? weatherFromApi(r.body) : null;
+      if (w) { dispatch({ type: "PARAM", key: fx.key, value: w }); dispatch({ type: "WX_DONE", key: fx.key, st: "ok" }); }
+      else dispatch({ type: "WX_DONE", key: fx.key, st: r.ok ? "fail" : r.error === "no-place" ? "no-place" : r.error === "blocked" ? "blocked" : "fail" });
+    });
+  },
+  // Foto: nur auf dem Geraet (broker/media.js), danach Feldwert "local:<id>" ueber PARAM; ohne Speicher ehrlich nicht-verfuegbar
+  "home.photo": (fx, { dispatch, deps }) => {
+    const md = envOf(deps).media;
+    if (!md || !md.available) { dispatch({ type: "PHOTO_DONE", key: fx.key, st: "nicht-verfuegbar" }); return; }
+    md.put(fx.file).then((r) => {
+      if (r.ok) dispatch({ type: "PARAM", key: fx.key, value: r.value });
+      dispatch({ type: "PHOTO_DONE", key: fx.key, st: r.ok ? "ok" : r.error });
+    });
+  },
   "home.save": (fx, { deps }) => { const st = deps && deps.storage; if (st && st.saveHome) st.saveHome(fx.data); },
   "short.create": (fx, { dispatch, api, deps, state }) => {
     if (!api || !api.shortCreate || !SL.fragmentOf("#" + fx.f)) { dispatch({ type: "SHORT_DONE", f: fx.f, r: { ok: false, error: "nicht-hier" } }); return; }
@@ -85,6 +104,24 @@ export const effects = {
     if (!env.document) return;
     // ohne Bild bleibt das Werk lokal (live gezeichnet); zum Server geht es erst mit Bild (wallForServer)
     sharePart(deps).then((P) => { const th = P.tileJpeg(env.document, look(fx.id, fx.lang)); if (th) dispatch({ type: "WALL_SNAP", id: fx.id, ts: fx.ts, th }); }, () => {});
+  },
+  // Bild der Karte (mit lokalem Foto) ueber den Geraetedienst cardImage (Strang P) zeichnen und ueber das System teilen,
+  // sonst herunterladen. Kein Upload; ohne Dienst oder Foto ehrlich nein.
+  "home.image": (fx, { dispatch, deps }) => {
+    const env = envOf(deps), done = (st) => dispatch({ type: "IMAGE_DONE", st });
+    if (!env.cardImage || typeof env.cardImage.draw !== "function" || !env.document || !env.File) { done("nicht-verfuegbar"); return; }
+    Promise.resolve().then(() => env.cardImage.draw(fx.node, { images: env.images || null, high: env.high || null, makeCanvas: (w, h) => { const c = env.document.createElement("canvas"); c.width = w || 1; c.height = h || 1; return c; } }))
+      .then((cv) => new Promise((ok) => cv.toBlob(ok, "image/png")))
+      .then((blob) => {
+        if (!blob) { done("fehler"); return; }
+        const file = new env.File([blob], fx.name, { type: "image/png" }), nav = env.navigator;
+        if (nav && nav.canShare && nav.canShare({ files: [file] })) return nav.share({ files: [file] }).then(() => done("ok"), (e) => done(e && e.name === "AbortError" ? "ok" : "fehler"));
+        const a = env.document.createElement("a"), href = env.URL.createObjectURL(blob);
+        a.href = href; a.download = fx.name; env.document.body.appendChild(a); a.click(); a.remove();
+        if (env.setTimeout) env.setTimeout(() => env.URL.revokeObjectURL(href), 4000);
+        done("ok");
+      })
+      .catch((e) => done(e && e.code === "foto-fehlt" ? "foto-fehlt" : "fehler"));
   },
   "story.make": (fx, { dispatch, deps }) => {
     const env = envOf(deps);

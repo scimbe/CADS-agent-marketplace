@@ -1,4 +1,4 @@
-// Heimseite (Strang H): Fuehrung in hoechstens 3 Taps, Zurueck an den Ort, Kalender blaettern, Satz -> Absicht, Meins
+// Heimseite (Strang H): Fuehrung in hoechstens 3 Taps, Zurueck an den Ort, Kalender blaettern, Satz -> Absicht, Mein Regal
 // (Wand mit Rueckgaengig, Einladungen mit Kurzlink, Gemerkt), Profil-Sync, Kurzlink-API, Familien decken den Katalog ab.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -22,7 +22,7 @@ function start() { let s = machine.initial(initialContext("de")); s = go(s, { ty
 const fx = (s, type) => s.effects.filter((e) => e.type === type);
 const texts = (s) => JSON.stringify(view(s, () => {}), (k, x) => (k === "on" || k === "el" ? undefined : x));
 
-test("Start laedt Meins genau einmal (home.load) und zeigt das Kalenderblatt des Tages", () => {
+test("Start laedt Mein Regal genau einmal (home.load) und zeigt das Kalenderblatt des Tages", () => {
   const s0 = machine.initial(initialContext("de"));
   assert.equal(fx(s0, "home.load").length, 1);
   const s = go(s0, { type: "HOME_LOADED", data: {} });
@@ -195,4 +195,37 @@ test("Kurzlink ohne Anmeldung: Geraete-Kennung + Arbeitsnachweis (16 Bit) gehen 
   assert.equal(await proofFor(device, globalThis.crypto.subtle), proof, "einmal je Geraet");
   assert.equal(await proofFor("kein-geraet", globalThis.crypto.subtle), null);
   assert.equal(await proofFor(device, null), null, "ohne WebCrypto kein Nachweis");
+});
+
+test("Laden eines Teils: main traegt data-loading=<teil> und aria-busy, die Ladezeile kuendigt sich an (aria-live); danach weg", () => {
+  const s = start();
+  const find = (n, pred) => { if (!n || typeof n !== "object") return null; if (pred(n)) return n; for (const c of n.children || []) { const r = find(c, pred); if (r) return r; } return null; };
+  const mainOf = (st) => find({ children: [].concat(view(st, () => {})) }, (n) => n.tag === "main");
+  const busy = { ...s, ctx: { ...s.ctx, loading: "home-find" } };
+  const m = mainOf(busy);
+  assert.equal(m.props["data-loading"], "home-find"); assert.equal(m.props["aria-busy"], "true");
+  const line = find(m, (n) => n.props && n.props.class === "h-loading");
+  assert.equal(line.props.role, "status"); assert.equal(line.props["aria-live"], "polite");
+  const idle = mainOf(s);
+  assert.equal(idle.props["data-loading"], null); assert.equal(idle.props["aria-busy"], null);
+});
+
+test("Gate C: Mein Regal heisst so (de/en) und hat ein Symbol; Eigene Karte ist ein eigener Block mit Satzfeld", () => {
+  const s = start(), t = texts(s);
+  assert.ok(t.includes("Mein Regal"), "Kopfzeile");
+  assert.ok(!/"Meins"/.test(t), "kein altes Wort");
+  assert.ok(t.includes('"data-act":"frei"') && t.includes('"id":"frei-satz"') && t.includes("Neu erfinden"), "Block Neu erfinden mit Satzfeld");
+  assert.ok(t.includes('"data-act":"intent-suchen"') && !t.includes('"data-act":"intent-eigene"'), "Suchen statt Eigene Karte");
+  const en = machine.send(machine.initial(initialContext("en")), { type: "HOME_LOADED", data: {}, at: AT });
+  assert.ok(texts(en).includes("My shelf"));
+  const m = go(s, { type: "HOME", to: "meins" });
+  assert.ok(texts(m).includes("Mein Regal"), "Ueberschrift");
+});
+
+test("Kopfzeile Start: ohne Zurueck keine leere Spalte (bar-noback), Schrift-Knopf zeigt AA nebeneinander", () => {
+  const s = start(), t = texts(s);
+  assert.ok(t.includes('"class":"bar bar-noback"'), "Startseite ohne Zurueck");
+  assert.ok(t.includes('"class":"h-headbtn-i h-aa"'));
+  const deep = go(s, { type: "HOME", to: "meins" });
+  assert.ok(texts(deep).includes('"class":"bar"'), "mit Zurueck die normale Kopfzeile");
 });

@@ -10,6 +10,8 @@ import { pickMode } from "./scenarios.mjs";
 
 export const VIEWS_RUN = process.env.Z1_VIEW ? [process.env.Z1_VIEW] : ["phone360", "phone390", "phone412", "desk1280"];
 let b = null, VIEW = VIEWS_RUN[0];
+/** Bildschirm erreicht UND kein Teil laedt mehr (main[data-loading], Strang H #295): erst dann wird bedient. */
+export async function at(p, s) { await waitScreen(p, s); await p.locator("main:not([data-loading])").waitFor(); }
 /** Browser je Testdatei: einmal starten, am Ende schliessen. */
 export function withBrowser() {
   test.before(async () => { b = await browser(); });
@@ -44,18 +46,18 @@ async function tap(p, text) { await stage(p).locator(".choice .opt", { hasText: 
 async function next(p) { await p.waitForTimeout(220); const g = stage(p).locator('[data-act="go-step"]').first(); assert.equal(await g.isDisabled(), false, "Weiter ist frei: " + ((await stage(p).locator(".w-why").allTextContents()).join(" "))); await g.click(); await p.waitForTimeout(60); }
 async function start(id, mode = "link") {
   const A = await open(b, { view: VIEW });
-  await act(A.p, "open-" + id); await waitScreen(A.p, "card-view");
+  await act(A.p, "open-" + id); await at(A.p, "card-view");
   await pickMode(A.p, "de", mode === "link" ? "link" : "alone"); await act(A.p, "go");
   if ((await screen(A.p)) === "card-play-cover") await act(A.p, "cover-ok");
-  await waitScreen(A.p, "card-play-turn");
+  await at(A.p, "card-play-turn");
   return A;
 }
 async function handOver(A) {
-  await waitScreen(A.p, "card-play-send");
+  await at(A.p, "card-play-send");
   await A.p.locator("#linkfield").waitFor({ state: "attached" });
   const u = await A.p.locator("#linkfield").inputValue();
   const B = await open(b, { view: VIEW, hash: u.slice(u.indexOf("#")) });
-  await waitScreen(B.p, "receive-show"); await act(B.p, "accept");
+  await at(B.p, "receive-show"); await act(B.p, "accept");
   if ((await screen(B.p)) === "card-play-cover") await act(B.p, "cover-ok");
   return B;
 }
@@ -68,10 +70,10 @@ export const FLOWS = {
     for (const w of ["Sauna", "Pizza", "Kino", "Zoo"]) await tap(A.p, w);
     await chk("Rang"); await next(A.p);
     const B = await handOver(A); const c = steps(B.p, A.bad, "zug-einig/B");
-    await waitScreen(B.p, "card-play-turn");
+    await at(B.p, "card-play-turn");
     for (const w of ["Sauna", "Zoo", "Bowling", "Kino"]) await tap(B.p, w);
     await c("Rang"); await next(B.p);
-    await waitScreen(B.p, "card-play-over"); await c("Ende");
+    await at(B.p, "card-play-over"); await c("Ende");
     assert.match(await text(B.p), /Einigung: Sauna/);
     return B;
   },
@@ -88,7 +90,7 @@ export const FLOWS = {
     await fillLabel(A.p, "Dein Name", "Mia");
     await chk("Termine"); await next(A.p);
     const B = await handOver(A); const c = steps(B.p, A.bad, "zug-termin/B");
-    await waitScreen(B.p, "card-play-turn");
+    await at(B.p, "card-play-turn");
     await fillLabel(B.p, "Dein Name", "Ben"); await tap(B.p, "Alle Ja");
     await c("Abstimmen"); await next(B.p);
     assert.equal(await B.p.locator("main .chip", { hasText: "Kalender" }).count() >= 0, true);
@@ -100,7 +102,7 @@ export const FLOWS = {
     assert.match(await text(A.p), /2× Milch/); await chk("Liste");
     await next(A.p);
     const B = await handOver(A); const c = steps(B.p, A.bad, "zug-einkauf/B");
-    await waitScreen(B.p, "card-play-turn");
+    await at(B.p, "card-play-turn");
     await fillLabel(B.p, "Dein Name (zum Abhaken und Mitbringen)", "Ben");
     await stage(B.p).locator(".choice", { hasText: "Milch" }).locator(".opt", { hasText: "Hab ich gekauft" }).click(); await B.p.waitForTimeout(60);
     await c("Abhaken"); await next(B.p);
@@ -111,7 +113,7 @@ export const FLOWS = {
     await fillLabel(A.p, "Neuer Wunsch", "Schal"); await tap(A.p, "Auf den Zettel");
     await chk("Wünsche"); await next(A.p);
     const B = await handOver(A); const c = steps(B.p, A.bad, "zug-wunschzettel/B");
-    await waitScreen(B.p, "card-play-turn");
+    await at(B.p, "card-play-turn");
     await tap(B.p, "Ich schenke etwas"); await c("Wer bist du");
     await fillLabel(B.p, "Dein Name (die App zeigt ihn niemandem)", "Ben");
     await stage(B.p).locator(".choice", { hasText: "Hörbuch" }).locator(".opt").first().click(); await B.p.waitForTimeout(60);
@@ -123,9 +125,9 @@ export const FLOWS = {
     await tap(A.p, "Oma oder Opa"); await tap(A.p, "bis 20"); await tap(A.p, "Lesen"); await tap(A.p, "Tee"); await chk("Vorlieben"); await next(A.p);
     await stage(A.p).locator(".choice").first().locator(".opt").nth(1).click(); await chk("Ideen"); await next(A.p);
     const B = await handOver(A); const c = steps(B.p, A.bad, "geschenk-finder/B");
-    await waitScreen(B.p, "card-play-turn"); await c("Zweite Stimme");
+    await at(B.p, "card-play-turn"); await c("Zweite Stimme");
     await stage(B.p).locator(".choice .opt").nth(1).click();
-    await waitScreen(B.p, "card-play-over"); await c("Ende");
+    await at(B.p, "card-play-over"); await c("Ende");
     assert.match(await text(B.p), /Einig:/);
     return B;
   },
@@ -133,8 +135,8 @@ export const FLOWS = {
     await fill(A.p, 0, "du immer zuhörst"); await chk("Grund"); await next(A.p);
     await fill(A.p, 0, "Ana"); await next(A.p);
     const B = await handOver(A); const c = steps(B.p, A.bad, "karte-danke/B");
-    await waitScreen(B.p, "card-play-turn"); assert.match(await text(B.p), /du immer zuhörst/); await c("Empfang"); await next(B.p);
-    await waitScreen(B.p, "card-play-over"); await c("Ende");
+    await at(B.p, "card-play-turn"); assert.match(await text(B.p), /du immer zuhörst/); await c("Empfang"); await next(B.p);
+    await at(B.p, "card-play-over"); await c("Ende");
     return B;
   },
   "zug-kapsel": async (A, chk) => {
@@ -149,17 +151,17 @@ export const FLOWS = {
     for (const i of [0, 2, 4]) { await o.nth(i).click(); await A.p.waitForTimeout(60); }
     await chk("Drei"); await next(A.p);
     const B = await handOver(A); const c = steps(B.p, A.bad, "zug-gutschein/B");
-    await waitScreen(B.p, "card-play-turn"); await c("Einloesen"); await stage(B.p).locator(".choice .opt").nth(1).click();
-    await waitScreen(B.p, "card-play-over"); await c("Ende");
+    await at(B.p, "card-play-turn"); await c("Einloesen"); await stage(B.p).locator(".choice .opt").nth(1).click();
+    await at(B.p, "card-play-over"); await c("Ende");
     return B;
   },
   "zug-wichteln": async (A, chk) => {
     for (const [i, w] of ["Ana", "Ben", "Cem"].entries()) await fill(A.p, i, w);
     await chk("Namen"); await next(A.p);
     const B = await handOver(A); const c = steps(B.p, A.bad, "zug-wichteln/B");
-    await waitScreen(B.p, "card-play-turn"); await tap(B.p, "Ben"); await c("Zettel");
+    await at(B.p, "card-play-turn"); await tap(B.p, "Ben"); await c("Zettel");
     const t = await text(B.p); assert.ok(/Du beschenkst/.test(t) && /(Ana|Cem)/.test(t));
-    await next(B.p); await waitScreen(B.p, "card-play-over");
+    await next(B.p); await at(B.p, "card-play-over");
     assert.equal(await B.p.locator('[data-act="share"]').count(), 0, "kein Ergebnis-Senden (local)");
     return B;
   },
@@ -173,8 +175,8 @@ export const FLOWS = {
   "zug-umschlag": async (A, chk) => {
     for (let i = 0; i < 3; i++) { await fill(A.p, 0, ["Ruf mich an", "Atme tief", "Zähl Schafe"][i]); if (!i) await chk("Brief"); await next(A.p); }
     const B = await handOver(A); const c = steps(B.p, A.bad, "zug-umschlag/B");
-    await waitScreen(B.p, "card-play-turn"); await stage(B.p).locator(".choice .opt").nth(2).click();
-    await waitScreen(B.p, "card-play-over"); assert.match(await text(B.p), /Zähl Schafe/); await c("Ende");
+    await at(B.p, "card-play-turn"); await stage(B.p).locator(".choice .opt").nth(2).click();
+    await at(B.p, "card-play-over"); assert.match(await text(B.p), /Zähl Schafe/); await c("Ende");
     return B;
   }
 };
@@ -200,7 +202,7 @@ export function sorryTest(view) {
   const A = await start("raum-sorry", "alone"); A.bad = [];
   const chk = steps(A.p, A.bad, "raum-sorry");
   for (let i = 0; i < 3; i++) { await chk("Frage " + (i + 1)); await stage(A.p).locator(".choice .opt").first().click(); await A.p.waitForTimeout(60); if ((await screen(A.p)) === "card-play-cover") await act(A.p, "cover-ok"); }
-  await waitScreen(A.p, "card-play-over"); await chk("Ende");
+  await at(A.p, "card-play-over"); await chk("Ende");
   assert.equal(await stage(A.p).locator(".chip", { hasText: "Kopieren" }).count(), 1);
   assert.deepEqual(A.bad, []); assert.deepEqual(A.errs, []);
   await A.ctx.close();
@@ -216,12 +218,12 @@ export function wishReplyTest() {
   await fillLabel(A.p, "Neuer Wunsch", "Schal"); await tap(A.p, "Auf den Zettel");
   await next(A.p);
   const B = await handOver(A);
-  await waitScreen(B.p, "card-play-turn"); await tap(B.p, "Ich schenke etwas");
+  await at(B.p, "card-play-turn"); await tap(B.p, "Ich schenke etwas");
   await fillLabel(B.p, "Dein Name (die App zeigt ihn niemandem)", "Ben");
   await stage(B.p).locator(".choice", { hasText: "Hörbuch" }).locator(".opt").first().click(); await B.p.waitForTimeout(60);
   await next(B.p);
     // Bens Antwort auf Annas Geraet: das Geraet weiss "mein Zettel" (Merkzettel je Partie), fragt nicht, zeigt keine Marke
-    await waitScreen(B.p, "card-play-send");
+    await at(B.p, "card-play-send");
     await B.p.locator("#linkfield").waitFor({ state: "attached" });
     const u = await B.p.locator("#linkfield").inputValue();
     // dasselbe Geraet (gleicher Browser-Kontext, gleicher Speicher), neue Seite mit dem Antwort-Link

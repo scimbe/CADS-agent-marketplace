@@ -3,7 +3,9 @@
 // Mein Stil bearbeitet, gesichert und nach Neuladen (ohne Geraetespeicher) vom Server zurueck; Gutschein falsch/richtig;
 // Moderationshinweis mit Widerspruch; Daten herunterladen; Abmelden. Dazu axe (WCAG 2.2 AA) je Bildschirm, kein Ueberlauf,
 // keine CSP-Verstoesse, keine Anfrage an einen anderen Host.
-import test from "node:test";
+import nodeTest from "node:test";
+import { fakeOnly } from "./lib/ziel.mjs";
+const test = fakeOnly(nodeTest); // Gegenstelle ist eine Attrappe: im URL-Modus uebersprungen
 import assert from "node:assert/strict";
 import { browser, open, VIEWS, act, axe, noOverflow, shotsDir } from "./lib/grund.mjs";
 import { fakeWrapper, APP, VOUCHER } from "./lib/fakewrapper.mjs";

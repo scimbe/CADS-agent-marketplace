@@ -95,8 +95,19 @@
       "en": "Flap"
      }
     }
-   ]
+   ],
+   "screenKey": {
+    "label": {
+     "de": "TIPPEN = FLATTERN",
+     "en": "TAP = FLAP"
+    },
+    "size": 96
+   }
   },
+  "slow": [
+   1,
+   0.75
+  ],
   "sounds": {
    "flap": {
     "synth": "tone",
@@ -907,6 +918,17 @@
    }
   },
   {
+   "id": "foto",
+   "params": [
+    "figur",
+    "hintergrund"
+   ],
+   "label": {
+    "de": "Eigenes Foto",
+    "en": "Own photo"
+   }
+  },
+  {
    "id": "level",
    "params": [
     "gravity",
@@ -918,16 +940,6 @@
    "label": {
     "de": "Level",
     "en": "Level"
-   }
-  },
-  {
-   "id": "gemuetlich",
-   "params": [
-    "tempo"
-   ],
-   "label": {
-    "de": "Gemütlich spielen",
-    "en": "Play slowly"
    }
   },
   {

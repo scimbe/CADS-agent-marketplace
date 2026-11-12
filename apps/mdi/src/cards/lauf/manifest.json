@@ -105,8 +105,19 @@
       "en": "Duck"
      }
     }
-   ]
+   ],
+   "screenKey": {
+    "label": {
+     "de": "TIPPEN = SPRINGEN",
+     "en": "TAP = JUMP"
+    },
+    "size": 96
+   }
   },
+  "slow": [
+   1,
+   0.75
+  ],
   "sounds": {
    "coin": {
     "synth": "tone",
@@ -778,6 +789,17 @@
    }
   },
   {
+   "id": "foto",
+   "params": [
+    "figur",
+    "hintergrund"
+   ],
+   "label": {
+    "de": "Eigenes Foto",
+    "en": "Own photo"
+   }
+  },
+  {
    "id": "level",
    "params": [
     "m",
@@ -800,16 +822,6 @@
    "label": {
     "de": "Level",
     "en": "Level"
-   }
-  },
-  {
-   "id": "gemuetlich",
-   "params": [
-    "tempo"
-   ],
-   "label": {
-    "de": "Gemütlich spielen",
-    "en": "Play slowly"
    }
   },
   {

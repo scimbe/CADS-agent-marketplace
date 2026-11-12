@@ -46,19 +46,21 @@ const m = {
   players: { min: 1, max: 2 }, hidden: "none", uses: ["image"], modes: ["alone", "bot", "ghost"], play: { default: "bot", offer: ["bot", "alone"] },
   limits: { stepBudget: 2000, stateBytes: 16384 },
   rt: { tick: 120, view: { w: 288, h: 512, fit: "contain" }, numeric: "f64", net: "none", maxTicks: 10800, ghost: { bytes: 1200 },
-    controls: { buttons: [{ id: "tap", kind: "pulse", keys: ["Space", "ArrowUp", "KeyW"], zone: "any", label: L("Flattern", "Flap") }] },
+    // Gate C: grosse Tipp-Taste (96 px, wie Tippen auf die Buehne, F #303) und "Gemuetlich spielen" = tempo 0.75 (rt.slow)
+    controls: { buttons: [{ id: "tap", kind: "pulse", keys: ["Space", "ArrowUp", "KeyW"], zone: "any", label: L("Flattern", "Flap") }], screenKey: { label: L("TIPPEN = FLATTERN", "TAP = FLAP"), size: 96 } },
+    slow: [1, 0.75],
     sounds: { flap: { synth: "tone", f0: 420, f1: 760, dur: 0.09, type: "square", vol: 0.05, haptic: 6 }, score: { synth: "tone", f0: 880, f1: 1320, dur: 0.14, type: "triangle", vol: 0.12, haptic: 14 },
       dead: { synth: "tone", f0: 260, f1: 40, dur: 0.45, type: "sawtooth", vol: 0.16, haptic: 160 }, section: { haptic: 20 } } },
   params: { type: "object", additionalProperties: false, properties: props },
   // Teile nur mit Feldern, die der Editor heute darstellen kann (view.js fieldControls); Regler (x-steps), Farben, Look,
   // Route, Animation, Agenten und Fotos kommen zurueck, sobald H sie rendert (Nachricht an strang-h, PR #243 offen)
   // Blasen nach Gate C (Reihe Lava-Flug): Vogel, Lava (Welt), Level (Regler mit benannten Stufen), Gemuetlich, Text.
-  // "Eigenes Foto" (media.local) und Look/Route/Animation (Objekt-Felder) folgen, sobald der Editor sie darstellt (H/P).
+  // "Eigenes Foto" (media.local, broker/media.js); Look/Route/Animation (Objekt-Felder) folgen mit dem Editor (H/P).
   parts: [
     { id: "vogel", params: ["emoji"], label: L("Vogel", "Bird") },
     { id: "lava", params: ["theme"], label: L("Lava", "Lava") },
+    { id: "foto", params: ["figur", "hintergrund"], label: L("Eigenes Foto", "Own photo") },
     { id: "level", params: ["gravity", "jump", "gap", "speed", "seed"], label: L("Level", "Level") },
-    { id: "gemuetlich", params: ["tempo"], label: L("Gemütlich spielen", "Play slowly") },
     { id: "text", params: ["title", "t", "col"], label: L("Text", "Text") }
   ],
   variants: V.VARIANTS.map((v) => ({ id: v.id, title: { de: V.plainTitle(v.de.t), en: V.plainTitle(v.en.t) }, teaser: { de: v.de.s, en: v.en.s }, legacy: [v.id], thumb: { src: "shot", file: "thumb-" + v.id + ".webp", alt: { de: V.plainTitle(v.de.t), en: V.plainTitle(v.en.t) } }, modes: v.kind === "duel" ? ["alone"] : ["alone", "bot", "ghost"],

@@ -56,20 +56,37 @@ test("Flug in der App: Regal, LOS, Countdown, Lauf mit Leertaste, Pause per Knop
   assert.deepEqual(errs, []);
 });
 
-test("Flug Touch: wer tippt, fliegt laenger als wer nichts tut (Tippen auf die Buehne = Flattern)", async () => {
-  const dur = async (tap) => {
-    const { p, errs } = await open(b, { view: "phone360" });
+// Flugdauer in Ticks statt Wanduhr (Befund Integrator, Kandidat 4ec48b49: unter Last lastabhaengig): Nach dem Ende einer
+// Allein-Partie traegt der Aufnahme-Link die Zahl der gespielten Ticks (wire.n). Ohne Tippen ist sie fest und gleich der
+// Vorhersage der Karte; jedes Tippen auf die Buehne haelt den Vogel laenger oben, egal wie schnell die Maschine ist.
+async function flightTicks(p) {
+  await p.locator("#linkfield").waitFor({ state: "attached", timeout: 20000 });
+  const url = await p.locator("#linkfield").inputValue();
+  return JSON.parse(Buffer.from(url.slice(url.indexOf("#")).split(".")[2], "base64url").toString()).n;
+}
+test("Flug Touch: wer tippt, fliegt laenger als wer nichts tut (Tippen auf die Buehne = Flattern, gemessen in Ticks)", async () => {
+  const D = Object.fromEntries(Object.entries(flug.manifest.params.properties).map(([k, d]) => [k, d.default]));
+  let st = flug.init({ params: D, players: ["human", "none"] });
+  for (let t = 0; t < 20000 && !flug.status(st).over; t++) st = flug.step(st, [{ b: 0 }, { b: 0 }], t).state;
+  const idleWant = st.t;
+  const run = async (tap) => {
+    const { p, errs, ctx } = await open(b, { view: "phone360" });
     await start(p, "flug");
-    const box = await p.locator("canvas.rt-canvas").boundingBox(), t0 = Date.now();
-    while ((await screen(p)) === "card-rt-run" && Date.now() - t0 < 6000) {
+    const box = await p.locator("canvas.rt-canvas").boundingBox();
+    while ((await screen(p)) === "card-rt-run") {
       if (tap) await p.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 3);
       await p.waitForTimeout(tap ? 230 : 50);
     }
+    await waitScreen(p, "card-rt-over", 120000);
+    const n = await flightTicks(p);
     assert.deepEqual(errs, []);
-    return Date.now() - t0;
+    await ctx.close();
+    return n;
   };
-  const idle = await dur(false), tapped = await dur(true);
-  assert.ok(tapped > idle + 400, "mit Tippen " + tapped + " ms, ohne " + idle + " ms");
+  const idle = await run(false), tapped = await run(true);
+  console.log("# Flug Ticks ohne Tippen " + idle + " (Karte " + idleWant + "), mit Tippen " + tapped);
+  assert.equal(idle, idleWant, "ohne Tippen: feste Flugdauer wie die Karte sie vorhersagt (" + idleWant + " Ticks)");
+  assert.ok(tapped > idle, "mit Tippen " + tapped + " Ticks, ohne " + idle + " Ticks");
 });
 
 test("Lauf in der App: Ducken als echter Knopf (>= 60 px, aria-pressed), Pfeil runter, Leertaste springt, Ende", async () => {
@@ -108,7 +125,7 @@ for (const card of ["flug", "lauf"]) test("Geist-Duell als Link-Rundreise (" + c
   await act(B.p, "accept");
   await waitScreen(B.p, "card-rt-run", 8000);
   await waitScreen(B.p, "card-rt-over", 120000);
-  assert.match(await B.p.locator("main").innerText(), new RegExp("(Geist|Aufnahme) hat " + wire.sc[0]));
+  assert.match(await B.p.locator("main").innerText(), new RegExp("Aufnahme hat " + wire.sc[0]), "Host-Text „Aufnahme“ (F #303)");
   assert.deepEqual(A.errs.concat(B.errs), []);
 });
 
@@ -175,4 +192,70 @@ for (const view of ["phone360", "phone390", "phone412", "desk1280"]) for (const 
     await ctx.close();
   }
   assert.deepEqual(bad, []);
+});
+
+// Eigenes Foto (Gate C Blase „Eigenes Foto“, broker/media.js): waehlen -> "local:<id>" -> die Karte zeichnet {kind:"local", id}
+// -> Pixelprobe auf der Buehne (Testbild Magenta). Die geteilte Aufnahme traegt das Foto nicht (weder id noch "local:"), und
+// wer sie oeffnet, sieht kein Magenta.
+async function testPng(p) {
+  const url = await p.evaluate(() => { const c = document.createElement("canvas"); c.width = c.height = 96; const x = c.getContext("2d"); x.fillStyle = "#ff00aa"; x.fillRect(0, 0, 96, 96); return c.toDataURL("image/png"); });
+  return Buffer.from(url.split(",")[1], "base64");
+}
+const magenta = (p) => p.evaluate(() => {
+  const c = document.querySelector("canvas.rt-canvas") || document.querySelector("#stage canvas") || document.querySelector("canvas"); if (!c) return -1;
+  const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let n = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i] > 100 && d[i + 1] < 50 && d[i + 2] > 60 && d[i + 2] < d[i] + 10) n++;
+  return n / (d.length / 4);
+});
+// Flug: Foto als Hintergrund (dunkler Lava-Himmel, Magenta bleibt erkennbar); Lauf: Foto als Figur (volle Deckkraft, im hellen
+// Bruecken-Himmel waere der durchscheinende Hintergrund kein reines Magenta mehr)
+for (const [card, slot, min] of [["flug", 1, 0.05], ["lauf", 0, 0.004]]) test("Eigenes Foto (" + card + ", " + (slot ? "Hintergrund" : "Figur") + "): im Spiel sichtbar (Pixelprobe), nicht im Aufnahme-Link, nicht beim Empfaenger", async () => {
+  const A = await open(b, { view: "phone390" });
+  await act(A.p, "open-" + card); await waitScreen(A.p, "card-view");
+  await act(A.p, "customize"); await A.p.locator("main.s-card-customize-bubbles").waitFor();
+  await A.p.locator('.bubble[data-for="foto"]').click(); await A.p.locator("#dialog").waitFor();
+  const files = A.p.locator("#dialog input[type=file]");
+  assert.equal(await files.count(), 2, "Figur und Hintergrund");
+  await files.nth(slot).setInputFiles({ name: "test.png", mimeType: "image/png", buffer: await testPng(A.p) });
+  await A.p.locator("#dialog .ef-photo [role=status]").first().waitFor();
+  await A.p.waitForTimeout(450);   // der Dialog waechst aus der Blase (FLIP); axe misst erst das fertige Bild
+  assert.deepEqual(await axe(A.p, card + " foto-dialog"), []);
+  await A.p.keyboard.press("Escape"); await act(A.p, "done"); await waitScreen(A.p, "card-view");
+  await start(A.p, null, "alone");
+  await A.p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(A.p, "card-rt-pause"); await A.p.waitForTimeout(200);
+  const m = await magenta(A.p);
+  assert.ok(m >= min, card + ": Foto auf der Buehne, Anteil " + m);
+  await A.p.locator(".rt-pause").dispatchEvent("click");
+  await waitScreen(A.p, "card-rt-over", 120000);
+  await A.p.locator("#linkfield").waitFor({ state: "attached", timeout: 20000 });
+  const url = await A.p.locator("#linkfield").inputValue(), data = Buffer.from(url.slice(url.indexOf("#")).split(".")[2], "base64url").toString();
+  const ids = await A.p.evaluate(() => new Promise((ok) => { const r = indexedDB.open("mdi.media"); r.onsuccess = () => { const q = r.result.transaction("fotos").objectStore("fotos").getAllKeys(); q.onsuccess = () => ok(q.result); }; }));
+  assert.equal(ids.length, 1);
+  assert.ok(!data.includes(ids[0]) && !/local:|data:image|blob:/.test(data), "kein Foto im Aufnahme-Link: " + data.slice(0, 160));
+  const B = await open(b, { view: "phone390", hash: url.slice(url.indexOf("#")) });
+  await waitScreen(B.p, "receive-show"); await act(B.p, "accept"); await waitScreen(B.p, "card-rt-run", 8000);
+  await B.p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(B.p, "card-rt-pause"); await B.p.waitForTimeout(200);
+  assert.ok((await magenta(B.p)) < 0.01, "Empfaenger hat das Foto nicht");
+  assert.deepEqual([...A.errs, ...B.errs], []);
+});
+
+// Gate C: grosse Tipp-Taste (F #303, controls.screenKey) und „Gemuetlich spielen“ (rt.slow -> Parameter tempo 0.75), in Ticks
+test("Flug: Tipp-Taste „TIPPEN = FLATTERN“ (>= 96 px) haelt den Vogel oben; „Gemütlich spielen“ = Zeitlupe 0.75 im Aufnahme-Link", async () => {
+  const D = Object.fromEntries(Object.entries(flug.manifest.params.properties).map(([k, d]) => [k, d.default]));
+  const idleTicks = (tempo) => { let st = flug.init({ params: { ...D, tempo }, players: ["human", "none"] }); for (let t = 0; t < 20000 && !flug.status(st).over; t++) st = flug.step(st, [{ b: 0 }, { b: 0 }], t).state; return st.t; };
+  const { p, errs } = await open(b, { view: "phone390" });
+  await act(p, "open-flug"); await waitScreen(p, "card-view"); await pickMode(p, "de", "alone");
+  const slow = p.locator('[data-act="slow"]');
+  assert.equal(await slow.getAttribute("aria-checked"), "false"); await slow.click(); assert.equal(await slow.getAttribute("aria-checked"), "true");
+  await start(p, null, null);
+  const key = p.locator(".rt-key");
+  assert.equal(await key.textContent(), "TIPPEN = FLATTERN"); assert.ok((await key.boundingBox()).height >= 96);
+  while ((await screen(p)) === "card-rt-run") { await key.dispatchEvent("pointerdown"); await key.dispatchEvent("pointerup"); await p.waitForTimeout(260); }
+  await waitScreen(p, "card-rt-over", 120000);
+  const n = await flightTicks(p), url = await p.locator("#linkfield").inputValue();
+  const wire = JSON.parse(Buffer.from(url.slice(url.indexOf("#")).split(".")[2], "base64url").toString());
+  assert.equal(wire.p.tempo, 0.75, "Zeitlupe reist mit der Aufnahme");
+  assert.ok(n > idleTicks(0.75), "Tipp-Taste wirkt: " + n + " Ticks, ohne Tippen " + idleTicks(0.75));
+  assert.ok(idleTicks(0.75) > idleTicks(1), "gemuetlich dauert der Fall laenger");
+  assert.deepEqual(errs, []);
 });
