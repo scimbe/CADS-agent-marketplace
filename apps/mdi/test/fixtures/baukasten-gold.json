@@ -1,0 +1,129 @@
+{
+ "herkunft": "Eigene Goldwerte des Baukasten-Interpreters (Strang B), erzeugt mit GOLD=1 node --test test/baukasten.test.js aus src/engines/baukasten/beispiele.js; keine Kopie aus dem Altcode",
+ "flappy": {
+  "h600": "04e0df38c62155de",
+  "t": 1637,
+  "sc": [
+   15,
+   0
+  ],
+  "win": 0
+ },
+ "breakout": {
+  "h600": "81b77a8c8566d990",
+  "t": 4424,
+  "sc": [
+   24,
+   0
+  ],
+  "win": 0
+ },
+ "pong": {
+  "h600": "cc5814e0742f35cc",
+  "t": 9000,
+  "sc": [
+   0,
+   0
+  ],
+  "win": -1
+ },
+ "kick": {
+  "h600": "c65ab14129327319",
+  "t": 10800,
+  "sc": [
+   0,
+   0
+  ],
+  "win": -1
+ },
+ "snake": {
+  "h600": "edfdd151d063e2a6",
+  "t": 1921,
+  "sc": [
+   15,
+   0
+  ],
+  "win": 0
+ },
+ "reaktion": {
+  "h600": "187efdf97b93845a",
+  "t": 1149,
+  "sc": [
+   15,
+   0
+  ],
+  "win": 0
+ },
+ "ausweichen": {
+  "h600": "1b86a226464748df",
+  "t": 2400,
+  "sc": [
+   39,
+   0
+  ],
+  "win": 0
+ },
+ "huepfer": {
+  "h600": "4652e48743d01b2c",
+  "t": 1900,
+  "sc": [
+   20,
+   0
+  ],
+  "win": 0
+ },
+ "memory": {
+  "h": "1c4b9789d02a34bc",
+  "sc": [
+   8,
+   0
+  ],
+  "win": 0,
+  "moves": 24
+ },
+ "drei": {
+  "h": "8cf44a3384a2b6be",
+  "sc": [
+   0,
+   0
+  ],
+  "win": -1,
+  "moves": 9
+ },
+ "vier": {
+  "h": "81f795d7c4ca4312",
+  "sc": [
+   0,
+   1
+  ],
+  "win": 1,
+  "moves": 38
+ },
+ "wortsalat": {
+  "h": "5a3a2df92b2bdc7f",
+  "sc": [
+   3,
+   3
+  ],
+  "win": -1,
+  "moves": 6
+ },
+ "quiz": {
+  "h": "9e6d6b2eb2583c02",
+  "sc": [
+   2,
+   2
+  ],
+  "win": -1,
+  "moves": 4
+ },
+ "luecke": {
+  "h": "de207ad5b090605f",
+  "sc": [
+   3,
+   0
+  ],
+  "win": 0,
+  "moves": 3
+ }
+}
