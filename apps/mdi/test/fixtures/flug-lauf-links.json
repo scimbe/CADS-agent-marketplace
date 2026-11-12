@@ -1,0 +1,1513 @@
+{
+ "note": "Alte Links des Flug- und Laufspiels: golden-d1.json (alle Katalogkarten de/en, origin/main 2d01c3d) und golden-links.json (origin/main e928c80) aus pre-legacy-removal apps/duell-web/test, gefiltert auf k game, duel/flappy und lauf. doc = was der Altcode daraus liest (golden-links) bzw. der dekodierte Link (golden-d1).",
+ "d1": [
+  {
+   "name": "game:spiel-lava:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLWxhdmEiLCJnIjp7InNlZWQiOjYwNjEsInBhcmFtcyI6eyJncmF2aXR5IjoyMTAwLCJqdW1wIjo0ODAsImdhcCI6MTI1LCJzcGVlZCI6MTY1fSwidGhlbWUiOiJsYXZhIiwidGl0bGUiOiJCYXUgZGVpbiBMYXZhLUxldmVsIiwiZW1vamkiOiLwn5CJIn19fQ",
+   "sha16": "d1a11601e40f982f",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-lava",
+    "g": {
+     "seed": 6061,
+     "params": {
+      "gravity": 2100,
+      "jump": 480,
+      "gap": 125,
+      "speed": 165
+     },
+     "theme": "lava",
+     "title": "Bau dein Lava-Level",
+     "emoji": "🐉"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-lava:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLWxhdmEiLCJnIjp7InNlZWQiOjYwNjEsInBhcmFtcyI6eyJncmF2aXR5IjoyMTAwLCJqdW1wIjo0ODAsImdhcCI6MTI1LCJzcGVlZCI6MTY1fSwidGhlbWUiOiJsYXZhIiwidGl0bGUiOiJCdWlsZCB5b3VyIGxhdmEgbGV2ZWwiLCJlbW9qaSI6IvCfkIkifX19",
+   "sha16": "e4150c23654e6493",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-lava",
+    "g": {
+     "seed": 6061,
+     "params": {
+      "gravity": 2100,
+      "jump": 480,
+      "gap": 125,
+      "speed": 165
+     },
+     "theme": "lava",
+     "title": "Build your lava level",
+     "emoji": "🐉"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-mond:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLW1vbmQiLCJnIjp7InNlZWQiOjcwMDEsInBhcmFtcyI6eyJncmF2aXR5IjoxMDAwLCJqdW1wIjozMjAsImdhcCI6MTUwLCJzcGVlZCI6MTMwfSwidGhlbWUiOiJuaWdodCIsInRpdGxlIjoiRmxpZWcgenVtIE1vbmQiLCJlbW9qaSI6IvCfmoAifX19",
+   "sha16": "befe1a04aeccae86",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-mond",
+    "g": {
+     "seed": 7001,
+     "params": {
+      "gravity": 1000,
+      "jump": 320,
+      "gap": 150,
+      "speed": 130
+     },
+     "theme": "night",
+     "title": "Flieg zum Mond",
+     "emoji": "🚀"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-mond:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLW1vbmQiLCJnIjp7InNlZWQiOjcwMDEsInBhcmFtcyI6eyJncmF2aXR5IjoxMDAwLCJqdW1wIjozMjAsImdhcCI6MTUwLCJzcGVlZCI6MTMwfSwidGhlbWUiOiJuaWdodCIsInRpdGxlIjoiRmx5IHRvIHRoZSBtb29uIiwiZW1vamkiOiLwn5qAIn19fQ",
+   "sha16": "264cac98628c4f72",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-mond",
+    "g": {
+     "seed": 7001,
+     "params": {
+      "gravity": 1000,
+      "jump": 320,
+      "gap": 150,
+      "speed": 130
+     },
+     "theme": "night",
+     "title": "Fly to the moon",
+     "emoji": "🚀"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-pizza:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLXBpenphIiwiZyI6eyJzZWVkIjo3MDAyLCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTYwMCwianVtcCI6NDIwLCJnYXAiOjE1NSwic3BlZWQiOjEyNX0sInRoZW1lIjoic3Vuc2V0IiwidGl0bGUiOiJQaXp6YSBtdXNzIGZsaWVnZW4iLCJlbW9qaSI6IvCfjZUifX19",
+   "sha16": "ff4592fd8a2ab497",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-pizza",
+    "g": {
+     "seed": 7002,
+     "params": {
+      "gravity": 1600,
+      "jump": 420,
+      "gap": 155,
+      "speed": 125
+     },
+     "theme": "sunset",
+     "title": "Pizza muss fliegen",
+     "emoji": "🍕"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-pizza:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLXBpenphIiwiZyI6eyJzZWVkIjo3MDAyLCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTYwMCwianVtcCI6NDIwLCJnYXAiOjE1NSwic3BlZWQiOjEyNX0sInRoZW1lIjoic3Vuc2V0IiwidGl0bGUiOiJQaXp6YSBtdXN0IGZseSIsImVtb2ppIjoi8J-NlSJ9fX0",
+   "sha16": "5abd2ccfb4fc9861",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-pizza",
+    "g": {
+     "seed": 7002,
+     "params": {
+      "gravity": 1600,
+      "jump": 420,
+      "gap": 155,
+      "speed": 125
+     },
+     "theme": "sunset",
+     "title": "Pizza must fly",
+     "emoji": "🍕"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-tiefsee:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLXRpZWZzZWUiLCJnIjp7InNlZWQiOjcwMDMsInBhcmFtcyI6eyJncmF2aXR5IjoxMjAwLCJqdW1wIjozNzAsImdhcCI6MTMwLCJzcGVlZCI6MTM1fSwidGhlbWUiOiJvY2VhbiIsInRpdGxlIjoiVGF1Y2ggYWIsIEhhaSIsImVtb2ppIjoi8J-miCJ9fX0",
+   "sha16": "0d22c70a14b2afd9",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-tiefsee",
+    "g": {
+     "seed": 7003,
+     "params": {
+      "gravity": 1200,
+      "jump": 370,
+      "gap": 130,
+      "speed": 135
+     },
+     "theme": "ocean",
+     "title": "Tauch ab, Hai",
+     "emoji": "🦈"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-tiefsee:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLXRpZWZzZWUiLCJnIjp7InNlZWQiOjcwMDMsInBhcmFtcyI6eyJncmF2aXR5IjoxMjAwLCJqdW1wIjozNzAsImdhcCI6MTMwLCJzcGVlZCI6MTM1fSwidGhlbWUiOiJvY2VhbiIsInRpdGxlIjoiRGl2ZSBkb3duLCBzaGFyayIsImVtb2ppIjoi8J-miCJ9fX0",
+   "sha16": "f88ad9a7fec38439",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-tiefsee",
+    "g": {
+     "seed": 7003,
+     "params": {
+      "gravity": 1200,
+      "jump": 370,
+      "gap": 130,
+      "speed": 135
+     },
+     "theme": "ocean",
+     "title": "Dive down, shark",
+     "emoji": "🦈"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-neon:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLW5lb24iLCJnIjp7InNlZWQiOjcwMDQsInBhcmFtcyI6eyJncmF2aXR5IjoyMTAwLCJqdW1wIjo0NzAsImdhcCI6MTE4LCJzcGVlZCI6MjA1fSwidGhlbWUiOiJuZW9uIiwidGl0bGUiOiJOZW9uIFBhbmlrIiwiZW1vamkiOiLwn5G9In19fQ",
+   "sha16": "0fa9519d0260f668",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-neon",
+    "g": {
+     "seed": 7004,
+     "params": {
+      "gravity": 2100,
+      "jump": 470,
+      "gap": 118,
+      "speed": 205
+     },
+     "theme": "neon",
+     "title": "Neon Panik",
+     "emoji": "👽"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-neon:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLW5lb24iLCJnIjp7InNlZWQiOjcwMDQsInBhcmFtcyI6eyJncmF2aXR5IjoyMTAwLCJqdW1wIjo0NzAsImdhcCI6MTE4LCJzcGVlZCI6MjA1fSwidGhlbWUiOiJuZW9uIiwidGl0bGUiOiJOZW9uIHBhbmljIiwiZW1vamkiOiLwn5G9In19fQ",
+   "sha16": "cc67ddb74bc5edd8",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-neon",
+    "g": {
+     "seed": 7004,
+     "params": {
+      "gravity": 2100,
+      "jump": 470,
+      "gap": 118,
+      "speed": 205
+     },
+     "theme": "neon",
+     "title": "Neon panic",
+     "emoji": "👽"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-geist:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLWdlaXN0IiwiZyI6eyJzZWVkIjo3MDA1LCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTUwMCwianVtcCI6NDEwLCJnYXAiOjE0NSwic3BlZWQiOjEyMH0sInRoZW1lIjoibmlnaHQiLCJ0aXRsZSI6IkdlaXN0ZXJzY2hpY2h0IiwiZW1vamkiOiLwn5G7In19fQ",
+   "sha16": "f7b289e83b318b60",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-geist",
+    "g": {
+     "seed": 7005,
+     "params": {
+      "gravity": 1500,
+      "jump": 410,
+      "gap": 145,
+      "speed": 120
+     },
+     "theme": "night",
+     "title": "Geisterschicht",
+     "emoji": "👻"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-geist:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLWdlaXN0IiwiZyI6eyJzZWVkIjo3MDA1LCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTUwMCwianVtcCI6NDEwLCJnYXAiOjE0NSwic3BlZWQiOjEyMH0sInRoZW1lIjoibmlnaHQiLCJ0aXRsZSI6Ikdob3N0IHNoaWZ0IiwiZW1vamkiOiLwn5G7In19fQ",
+   "sha16": "3fdc57fed462d169",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-geist",
+    "g": {
+     "seed": 7005,
+     "params": {
+      "gravity": 1500,
+      "jump": 410,
+      "gap": 145,
+      "speed": 120
+     },
+     "theme": "night",
+     "title": "Ghost shift",
+     "emoji": "👻"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-einhorn:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLWVpbmhvcm4iLCJnIjp7InNlZWQiOjcwMDYsInBhcmFtcyI6eyJncmF2aXR5IjoxMzUwLCJqdW1wIjozOTUsImdhcCI6MTYwLCJzcGVlZCI6MTUwfSwidGhlbWUiOiJjYW5keSIsInRpdGxlIjoiRWluaG9ybiBhdWYgWnVja2VyIiwiZW1vamkiOiLwn6aEIn19fQ",
+   "sha16": "9bd69cc8a5c81d3f",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-einhorn",
+    "g": {
+     "seed": 7006,
+     "params": {
+      "gravity": 1350,
+      "jump": 395,
+      "gap": 160,
+      "speed": 150
+     },
+     "theme": "candy",
+     "title": "Einhorn auf Zucker",
+     "emoji": "🦄"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-einhorn:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLWVpbmhvcm4iLCJnIjp7InNlZWQiOjcwMDYsInBhcmFtcyI6eyJncmF2aXR5IjoxMzUwLCJqdW1wIjozOTUsImdhcCI6MTYwLCJzcGVlZCI6MTUwfSwidGhlbWUiOiJjYW5keSIsInRpdGxlIjoiVW5pY29ybiBvbiBzdWdhciIsImVtb2ppIjoi8J-mhCJ9fX0",
+   "sha16": "09396855723925f1",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-einhorn",
+    "g": {
+     "seed": 7006,
+     "params": {
+      "gravity": 1350,
+      "jump": 395,
+      "gap": 160,
+      "speed": 150
+     },
+     "theme": "candy",
+     "title": "Unicorn on sugar",
+     "emoji": "🦄"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-retro:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLXJldHJvIiwiZyI6eyJzZWVkIjo3MDA3LCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTkwMCwianVtcCI6NDQwLCJnYXAiOjEyOCwic3BlZWQiOjE1MH0sInRoZW1lIjoicmV0cm8iLCJ0aXRsZSI6Ik9wYXMgS29uc29sZSIsImVtb2ppIjoi8J-RviJ9fX0",
+   "sha16": "585bdbaa5838f0cd",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-retro",
+    "g": {
+     "seed": 7007,
+     "params": {
+      "gravity": 1900,
+      "jump": 440,
+      "gap": 128,
+      "speed": 150
+     },
+     "theme": "retro",
+     "title": "Opas Konsole",
+     "emoji": "👾"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-retro:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InNwaWVsLXJldHJvIiwiZyI6eyJzZWVkIjo3MDA3LCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTkwMCwianVtcCI6NDQwLCJnYXAiOjEyOCwic3BlZWQiOjE1MH0sInRoZW1lIjoicmV0cm8iLCJ0aXRsZSI6IkdyYW5kcGEncyBjb25zb2xlIiwiZW1vamkiOiLwn5G-In19fQ",
+   "sha16": "1b0a67ef7c5e39e9",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "spiel-retro",
+    "g": {
+     "seed": 7007,
+     "params": {
+      "gravity": 1900,
+      "jump": 440,
+      "gap": 128,
+      "speed": 150
+     },
+     "theme": "retro",
+     "title": "Grandpa's console",
+     "emoji": "👾"
+    }
+   }
+  },
+  {
+   "name": "duel:flug-agent:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJkdWVsIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6ImZsdWctYWdlbnQiLCJtIjoiZmxhcHB5IiwiYSI6eyJuIjoiQW5hIiwiZSI6IvCfpooiLCJyIjo1MCwiYyI6NTAsInAiOjUwfSwiYiI6eyJuIjoiVG9hc3RvbWF0IiwiZSI6IvCflIwiLCJyIjo1MCwiYyI6NTAsInAiOjUwfSwic2VlZCI6MTIyOTMxODk2NCwic2V0IjowLCJ3IjoiIiwiY2giOjAsImciOnsicGFyYW1zIjp7ImdyYXZpdHkiOjE4MDAsImp1bXAiOjQzMCwiZ2FwIjoxNDAsInNwZWVkIjoxMzB9LCJ0aGVtZSI6ImRheSJ9fX0",
+   "sha16": "ba591fc4371ca838",
+   "doc": {
+    "k": "duel",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "flug-agent",
+    "m": "flappy",
+    "a": {
+     "n": "Ana",
+     "e": "🦊",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "b": {
+     "n": "Toastomat",
+     "e": "🔌",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "seed": 1229318964,
+    "set": 0,
+    "w": "",
+    "ch": 0,
+    "g": {
+     "params": {
+      "gravity": 1800,
+      "jump": 430,
+      "gap": 140,
+      "speed": 130
+     },
+     "theme": "day"
+    }
+   }
+  },
+  {
+   "name": "duel:flug-agent:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJkdWVsIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6ImZsdWctYWdlbnQiLCJtIjoiZmxhcHB5IiwiYSI6eyJuIjoiQW5hIiwiZSI6IvCfpooiLCJyIjo1MCwiYyI6NTAsInAiOjUwfSwiYiI6eyJuIjoiVG9hc3RvbWF0aWMiLCJlIjoi8J-UjCIsInIiOjUwLCJjIjo1MCwicCI6NTB9LCJzZWVkIjoxMjI5MzE4OTY0LCJzZXQiOjAsInciOiIiLCJjaCI6MCwiZyI6eyJwYXJhbXMiOnsiZ3Jhdml0eSI6MTgwMCwianVtcCI6NDMwLCJnYXAiOjE0MCwic3BlZWQiOjEzMH0sInRoZW1lIjoiZGF5In19fQ",
+   "sha16": "d4c438e437ee393a",
+   "doc": {
+    "k": "duel",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "flug-agent",
+    "m": "flappy",
+    "a": {
+     "n": "Ana",
+     "e": "🦊",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "b": {
+     "n": "Toastomatic",
+     "e": "🔌",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "seed": 1229318964,
+    "set": 0,
+    "w": "",
+    "ch": 0,
+    "g": {
+     "params": {
+      "gravity": 1800,
+      "jump": 430,
+      "gap": 140,
+      "speed": 130
+     },
+     "theme": "day"
+    }
+   }
+  },
+  {
+   "name": "duel:flug-stil:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJkdWVsIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6ImZsdWctc3RpbCIsIm0iOiJmbGFwcHkiLCJhIjp7Im4iOiJBbmEiLCJlIjoi8J-miiIsInIiOjc1LCJjIjo1MCwicCI6NjB9LCJiIjp7Im4iOiJLYWt0dXMgMzAwMCIsImUiOiLwn4y1IiwiciI6NTAsImMiOjUwLCJwIjo4NX0sInNlZWQiOjEzNTQwMTQwMjEsInNldCI6MCwidyI6IiIsImNoIjowLCJnIjp7InBhcmFtcyI6eyJncmF2aXR5IjoxNzAwLCJqdW1wIjo0MjAsImdhcCI6MTM1LCJzcGVlZCI6MTM1fSwidGhlbWUiOiJzdW5zZXQifX19",
+   "sha16": "81bdac2729f694bc",
+   "doc": {
+    "k": "duel",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "flug-stil",
+    "m": "flappy",
+    "a": {
+     "n": "Ana",
+     "e": "🦊",
+     "r": 75,
+     "c": 50,
+     "p": 60
+    },
+    "b": {
+     "n": "Kaktus 3000",
+     "e": "🌵",
+     "r": 50,
+     "c": 50,
+     "p": 85
+    },
+    "seed": 1354014021,
+    "set": 0,
+    "w": "",
+    "ch": 0,
+    "g": {
+     "params": {
+      "gravity": 1700,
+      "jump": 420,
+      "gap": 135,
+      "speed": 135
+     },
+     "theme": "sunset"
+    }
+   }
+  },
+  {
+   "name": "duel:flug-stil:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJkdWVsIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6ImZsdWctc3RpbCIsIm0iOiJmbGFwcHkiLCJhIjp7Im4iOiJBbmEiLCJlIjoi8J-miiIsInIiOjc1LCJjIjo1MCwicCI6NjB9LCJiIjp7Im4iOiJDYWN0dXMgMzAwMCIsImUiOiLwn4y1IiwiciI6NTAsImMiOjUwLCJwIjo4NX0sInNlZWQiOjEzNTQwMTQwMjEsInNldCI6MCwidyI6IiIsImNoIjowLCJnIjp7InBhcmFtcyI6eyJncmF2aXR5IjoxNzAwLCJqdW1wIjo0MjAsImdhcCI6MTM1LCJzcGVlZCI6MTM1fSwidGhlbWUiOiJzdW5zZXQifX19",
+   "sha16": "2aa973fb6c10c56f",
+   "doc": {
+    "k": "duel",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "flug-stil",
+    "m": "flappy",
+    "a": {
+     "n": "Ana",
+     "e": "🦊",
+     "r": 75,
+     "c": 50,
+     "p": 60
+    },
+    "b": {
+     "n": "Cactus 3000",
+     "e": "🌵",
+     "r": 50,
+     "c": 50,
+     "p": 85
+    },
+    "seed": 1354014021,
+    "set": 0,
+    "w": "",
+    "ch": 0,
+    "g": {
+     "params": {
+      "gravity": 1700,
+      "jump": 420,
+      "gap": 135,
+      "speed": 135
+     },
+     "theme": "sunset"
+    }
+   }
+  },
+  {
+   "name": "duel:flug-lava:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJkdWVsIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6ImZsdWctbGF2YSIsIm0iOiJmbGFwcHkiLCJhIjp7Im4iOiJBbmEiLCJlIjoi8J-miiIsInIiOjUwLCJjIjo1MCwicCI6NTB9LCJiIjp7Im4iOiJEZXIgRsO2aG4iLCJlIjoi8J-QiSIsInIiOjUwLCJjIjo1MCwicCI6NTB9LCJzZWVkIjo1NjMzNTkzOTMsInNldCI6MCwidyI6IiIsImNoIjowLCJnIjp7InBhcmFtcyI6eyJncmF2aXR5IjoyMTAwLCJqdW1wIjo0ODAsImdhcCI6MTI1LCJzcGVlZCI6MTY1fSwidGhlbWUiOiJsYXZhIn19fQ",
+   "sha16": "14a38e422bdb38d1",
+   "doc": {
+    "k": "duel",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "flug-lava",
+    "m": "flappy",
+    "a": {
+     "n": "Ana",
+     "e": "🦊",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "b": {
+     "n": "Der Föhn",
+     "e": "🐉",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "seed": 563359393,
+    "set": 0,
+    "w": "",
+    "ch": 0,
+    "g": {
+     "params": {
+      "gravity": 2100,
+      "jump": 480,
+      "gap": 125,
+      "speed": 165
+     },
+     "theme": "lava"
+    }
+   }
+  },
+  {
+   "name": "duel:flug-lava:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJkdWVsIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6ImZsdWctbGF2YSIsIm0iOiJmbGFwcHkiLCJhIjp7Im4iOiJBbmEiLCJlIjoi8J-miiIsInIiOjUwLCJjIjo1MCwicCI6NTB9LCJiIjp7Im4iOiJUaGUgSGFpcmRyeWVyIiwiZSI6IvCfkIkiLCJyIjo1MCwiYyI6NTAsInAiOjUwfSwic2VlZCI6NTYzMzU5MzkzLCJzZXQiOjAsInciOiIiLCJjaCI6MCwiZyI6eyJwYXJhbXMiOnsiZ3Jhdml0eSI6MjEwMCwianVtcCI6NDgwLCJnYXAiOjEyNSwic3BlZWQiOjE2NX0sInRoZW1lIjoibGF2YSJ9fX0",
+   "sha16": "f12be32790f7ba0b",
+   "doc": {
+    "k": "duel",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "flug-lava",
+    "m": "flappy",
+    "a": {
+     "n": "Ana",
+     "e": "🦊",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "b": {
+     "n": "The Hairdryer",
+     "e": "🐉",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "seed": 563359393,
+    "set": 0,
+    "w": "",
+    "ch": 0,
+    "g": {
+     "params": {
+      "gravity": 2100,
+      "jump": 480,
+      "gap": 125,
+      "speed": 165
+     },
+     "theme": "lava"
+    }
+   }
+  },
+  {
+   "name": "duel:flug-mond:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJkdWVsIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6ImZsdWctbW9uZCIsIm0iOiJmbGFwcHkiLCJhIjp7Im4iOiJBbmEiLCJlIjoi8J-miiIsInIiOjUwLCJjIjo1MCwicCI6NTB9LCJiIjp7Im4iOiJTaXIgQmxpbmtlciIsImUiOiLwn5u4IiwiciI6NTAsImMiOjUwLCJwIjo1MH0sInNlZWQiOjU0Mjg5NTAwOSwic2V0IjowLCJ3IjoiIiwiY2giOjAsImciOnsicGFyYW1zIjp7ImdyYXZpdHkiOjEwMDAsImp1bXAiOjMyMCwiZ2FwIjoxNTAsInNwZWVkIjoxMzB9LCJ0aGVtZSI6Im5pZ2h0In19fQ",
+   "sha16": "a71181f3aeedb5c1",
+   "doc": {
+    "k": "duel",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "flug-mond",
+    "m": "flappy",
+    "a": {
+     "n": "Ana",
+     "e": "🦊",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "b": {
+     "n": "Sir Blinker",
+     "e": "🛸",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "seed": 542895009,
+    "set": 0,
+    "w": "",
+    "ch": 0,
+    "g": {
+     "params": {
+      "gravity": 1000,
+      "jump": 320,
+      "gap": 150,
+      "speed": 130
+     },
+     "theme": "night"
+    }
+   }
+  },
+  {
+   "name": "duel:flug-mond:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJkdWVsIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6ImZsdWctbW9uZCIsIm0iOiJmbGFwcHkiLCJhIjp7Im4iOiJBbmEiLCJlIjoi8J-miiIsInIiOjUwLCJjIjo1MCwicCI6NTB9LCJiIjp7Im4iOiJTaXIgQmxpbmt5IiwiZSI6IvCfm7giLCJyIjo1MCwiYyI6NTAsInAiOjUwfSwic2VlZCI6NTQyODk1MDA5LCJzZXQiOjAsInciOiIiLCJjaCI6MCwiZyI6eyJwYXJhbXMiOnsiZ3Jhdml0eSI6MTAwMCwianVtcCI6MzIwLCJnYXAiOjE1MCwic3BlZWQiOjEzMH0sInRoZW1lIjoibmlnaHQifX19",
+   "sha16": "4be3e43199d62a8c",
+   "doc": {
+    "k": "duel",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "flug-mond",
+    "m": "flappy",
+    "a": {
+     "n": "Ana",
+     "e": "🦊",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "b": {
+     "n": "Sir Blinky",
+     "e": "🛸",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "seed": 542895009,
+    "set": 0,
+    "w": "",
+    "ch": 0,
+    "g": {
+     "params": {
+      "gravity": 1000,
+      "jump": 320,
+      "gap": 150,
+      "speed": 130
+     },
+     "theme": "night"
+    }
+   }
+  },
+  {
+   "name": "game:plan-01:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMDEiLCJnIjp7InNlZWQiOjEyMzQwLCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTkwMCwianVtcCI6NDQwLCJnYXAiOjEzNSwic3BlZWQiOjE1MH0sInRoZW1lIjoibmVvbiIsInRpdGxlIjoiRmx1ZyBpbSBUdW5uZWwiLCJlbW9qaSI6IvCfm7giLCJsb29rIjp7ImEiOiIjMGEwYTFmIiwiYiI6IiMyMzEwNGYiLCJwIjoiIzAwZjVkNCIsInEiOiIjMDBhODk2IiwiZyI6IiMxNDA4MmUiLCJoIjoiI2ZmMmJkNiIsImQiOiJzdGFycyIsImYiOiJibG9jayIsImUiOlsi4pyoIl0sIm0iOiLinKgifX19fQ",
+   "sha16": "57b4617e88ac5dc9",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "plan-01",
+    "g": {
+     "seed": 12340,
+     "params": {
+      "gravity": 1900,
+      "jump": 440,
+      "gap": 135,
+      "speed": 150
+     },
+     "theme": "neon",
+     "title": "Flug im Tunnel",
+     "emoji": "🛸",
+     "look": {
+      "a": "#0a0a1f",
+      "b": "#23104f",
+      "p": "#00f5d4",
+      "q": "#00a896",
+      "g": "#14082e",
+      "h": "#ff2bd6",
+      "d": "stars",
+      "f": "block",
+      "e": [
+       "✨"
+      ],
+      "m": "✨"
+     }
+    }
+   }
+  },
+  {
+   "name": "game:plan-01:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMDEiLCJnIjp7InNlZWQiOjEyMzQwLCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTkwMCwianVtcCI6NDQwLCJnYXAiOjEzNSwic3BlZWQiOjE1MH0sInRoZW1lIjoibmVvbiIsInRpdGxlIjoiRmxpZ2h0IGluIHRoZSB0dW5uZWwiLCJlbW9qaSI6IvCfm7giLCJsb29rIjp7ImEiOiIjMGEwYTFmIiwiYiI6IiMyMzEwNGYiLCJwIjoiIzAwZjVkNCIsInEiOiIjMDBhODk2IiwiZyI6IiMxNDA4MmUiLCJoIjoiI2ZmMmJkNiIsImQiOiJzdGFycyIsImYiOiJibG9jayIsImUiOlsi4pyoIl0sIm0iOiLinKgifX19fQ",
+   "sha16": "5bbc44a5468d7886",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "plan-01",
+    "g": {
+     "seed": 12340,
+     "params": {
+      "gravity": 1900,
+      "jump": 440,
+      "gap": 135,
+      "speed": 150
+     },
+     "theme": "neon",
+     "title": "Flight in the tunnel",
+     "emoji": "🛸",
+     "look": {
+      "a": "#0a0a1f",
+      "b": "#23104f",
+      "p": "#00f5d4",
+      "q": "#00a896",
+      "g": "#14082e",
+      "h": "#ff2bd6",
+      "d": "stars",
+      "f": "block",
+      "e": [
+       "✨"
+      ],
+      "m": "✨"
+     }
+    }
+   }
+  },
+  {
+   "name": "game:plan-08:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMDgiLCJnIjp7InNlZWQiOjEwOTY4LCJwYXJhbXMiOnsiZ3Jhdml0eSI6MjAwMCwianVtcCI6NDUwLCJnYXAiOjEzNSwic3BlZWQiOjE1MH0sInRoZW1lIjoiZGF5IiwidGl0bGUiOiJXZXR0ZXItRmx1ZyIsImVtb2ppIjoi8J-qgSIsImxvb2siOnsiYSI6IiMzZDRhNWMiLCJiIjoiIzlmYjJjNyIsInAiOiIjMjYzMjNmIiwicSI6IiMxMDE2MWQiLCJnIjoiIzRhNWEzYSIsImgiOiIjMmUzYTI0IiwiZCI6InJhaW4iLCJmIjoicm91bmQiLCJlIjpbIuKbiO-4jyIsIuKYge-4jyJdLCJtIjoi8J-SpyJ9fX19",
+   "sha16": "7b71d1b9c442d40b",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "plan-08",
+    "g": {
+     "seed": 10968,
+     "params": {
+      "gravity": 2000,
+      "jump": 450,
+      "gap": 135,
+      "speed": 150
+     },
+     "theme": "day",
+     "title": "Wetter-Flug",
+     "emoji": "🪁",
+     "look": {
+      "a": "#3d4a5c",
+      "b": "#9fb2c7",
+      "p": "#26323f",
+      "q": "#10161d",
+      "g": "#4a5a3a",
+      "h": "#2e3a24",
+      "d": "rain",
+      "f": "round",
+      "e": [
+       "⛈️",
+       "☁️"
+      ],
+      "m": "💧"
+     }
+    }
+   }
+  },
+  {
+   "name": "game:plan-08:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMDgiLCJnIjp7InNlZWQiOjEwOTY4LCJwYXJhbXMiOnsiZ3Jhdml0eSI6MjAwMCwianVtcCI6NDUwLCJnYXAiOjEzNSwic3BlZWQiOjE1MH0sInRoZW1lIjoiZGF5IiwidGl0bGUiOiJXZWF0aGVyIGZsaWdodCIsImVtb2ppIjoi8J-qgSIsImxvb2siOnsiYSI6IiMzZDRhNWMiLCJiIjoiIzlmYjJjNyIsInAiOiIjMjYzMjNmIiwicSI6IiMxMDE2MWQiLCJnIjoiIzRhNWEzYSIsImgiOiIjMmUzYTI0IiwiZCI6InJhaW4iLCJmIjoicm91bmQiLCJlIjpbIuKbiO-4jyIsIuKYge-4jyJdLCJtIjoi8J-SpyJ9fX19",
+   "sha16": "182f039c7cd8996e",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "plan-08",
+    "g": {
+     "seed": 10968,
+     "params": {
+      "gravity": 2000,
+      "jump": 450,
+      "gap": 135,
+      "speed": 150
+     },
+     "theme": "day",
+     "title": "Weather flight",
+     "emoji": "🪁",
+     "look": {
+      "a": "#3d4a5c",
+      "b": "#9fb2c7",
+      "p": "#26323f",
+      "q": "#10161d",
+      "g": "#4a5a3a",
+      "h": "#2e3a24",
+      "d": "rain",
+      "f": "round",
+      "e": [
+       "⛈️",
+       "☁️"
+      ],
+      "m": "💧"
+     }
+    }
+   }
+  },
+  {
+   "name": "game:plan-13:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMTMiLCJnIjp7InNlZWQiOjEzMTY2LCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTgwMCwianVtcCI6NDMwLCJnYXAiOjEzMCwic3BlZWQiOjE2MH0sInRoZW1lIjoicmV0cm8iLCJ0aXRsZSI6IkzDtnRrb2xiZW4tTGFib3IiLCJlbW9qaSI6IvCfpJYiLCJsb29rIjp7ImEiOiIjMGYzODBmIiwiYiI6IiMzMDYyMzAiLCJwIjoiI2MwYzBjMCIsInEiOiIjNTA1MDUwIiwiZyI6IiMxMDJhMTAiLCJoIjoiIzliYmMwZiIsImQiOiJub25lIiwiZiI6ImJsb2NrIiwiZSI6WyLimqEiLCLwn5SMIl0sIm0iOiLimqEifX19fQ",
+   "sha16": "1f603110b0b96653",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "plan-13",
+    "g": {
+     "seed": 13166,
+     "params": {
+      "gravity": 1800,
+      "jump": 430,
+      "gap": 130,
+      "speed": 160
+     },
+     "theme": "retro",
+     "title": "Lötkolben-Labor",
+     "emoji": "🤖",
+     "look": {
+      "a": "#0f380f",
+      "b": "#306230",
+      "p": "#c0c0c0",
+      "q": "#505050",
+      "g": "#102a10",
+      "h": "#9bbc0f",
+      "d": "none",
+      "f": "block",
+      "e": [
+       "⚡",
+       "🔌"
+      ],
+      "m": "⚡"
+     }
+    }
+   }
+  },
+  {
+   "name": "game:plan-13:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMTMiLCJnIjp7InNlZWQiOjEzMTY2LCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTgwMCwianVtcCI6NDMwLCJnYXAiOjEzMCwic3BlZWQiOjE2MH0sInRoZW1lIjoicmV0cm8iLCJ0aXRsZSI6IlNvbGRlciBsYWIiLCJlbW9qaSI6IvCfpJYiLCJsb29rIjp7ImEiOiIjMGYzODBmIiwiYiI6IiMzMDYyMzAiLCJwIjoiI2MwYzBjMCIsInEiOiIjNTA1MDUwIiwiZyI6IiMxMDJhMTAiLCJoIjoiIzliYmMwZiIsImQiOiJub25lIiwiZiI6ImJsb2NrIiwiZSI6WyLimqEiLCLwn5SMIl0sIm0iOiLimqEifX19fQ",
+   "sha16": "64bd423d97bc2736",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "plan-13",
+    "g": {
+     "seed": 13166,
+     "params": {
+      "gravity": 1800,
+      "jump": 430,
+      "gap": 130,
+      "speed": 160
+     },
+     "theme": "retro",
+     "title": "Solder lab",
+     "emoji": "🤖",
+     "look": {
+      "a": "#0f380f",
+      "b": "#306230",
+      "p": "#c0c0c0",
+      "q": "#505050",
+      "g": "#102a10",
+      "h": "#9bbc0f",
+      "d": "none",
+      "f": "block",
+      "e": [
+       "⚡",
+       "🔌"
+      ],
+      "m": "⚡"
+     }
+    }
+   }
+  },
+  {
+   "name": "duel:plan-15:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJkdWVsIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMTUiLCJtIjoiZmxhcHB5IiwiYSI6eyJuIjoiQW5hIiwiZSI6IvCfpooiLCJyIjo1MCwiYyI6NTAsInAiOjUwfSwiYiI6eyJuIjoiUGlsb3QgUGl4ZWwiLCJlIjoi8J-bqe-4jyIsInIiOjUwLCJjIjo1MCwicCI6NTB9LCJzZWVkIjo5NTMyNzg1NTAsInNldCI6MCwidyI6IiIsImNoIjowLCJnIjp7InBhcmFtcyI6eyJncmF2aXR5IjoxODAwLCJqdW1wIjo0MzAsImdhcCI6MTQwLCJzcGVlZCI6MTQwfSwidGhlbWUiOiJuZW9uIn19fQ",
+   "sha16": "8fed2815736f310b",
+   "doc": {
+    "k": "duel",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "plan-15",
+    "m": "flappy",
+    "a": {
+     "n": "Ana",
+     "e": "🦊",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "b": {
+     "n": "Pilot Pixel",
+     "e": "🛩️",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "seed": 953278550,
+    "set": 0,
+    "w": "",
+    "ch": 0,
+    "g": {
+     "params": {
+      "gravity": 1800,
+      "jump": 430,
+      "gap": 140,
+      "speed": 140
+     },
+     "theme": "neon"
+    }
+   }
+  },
+  {
+   "name": "duel:plan-15:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJkdWVsIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMTUiLCJtIjoiZmxhcHB5IiwiYSI6eyJuIjoiQW5hIiwiZSI6IvCfpooiLCJyIjo1MCwiYyI6NTAsInAiOjUwfSwiYiI6eyJuIjoiUGlsb3QgUGl4ZWwiLCJlIjoi8J-bqe-4jyIsInIiOjUwLCJjIjo1MCwicCI6NTB9LCJzZWVkIjo5NTMyNzg1NTAsInNldCI6MCwidyI6IiIsImNoIjowLCJnIjp7InBhcmFtcyI6eyJncmF2aXR5IjoxODAwLCJqdW1wIjo0MzAsImdhcCI6MTQwLCJzcGVlZCI6MTQwfSwidGhlbWUiOiJuZW9uIn19fQ",
+   "sha16": "8fed2815736f310b",
+   "doc": {
+    "k": "duel",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "plan-15",
+    "m": "flappy",
+    "a": {
+     "n": "Ana",
+     "e": "🦊",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "b": {
+     "n": "Pilot Pixel",
+     "e": "🛩️",
+     "r": 50,
+     "c": 50,
+     "p": 50
+    },
+    "seed": 953278550,
+    "set": 0,
+    "w": "",
+    "ch": 0,
+    "g": {
+     "params": {
+      "gravity": 1800,
+      "jump": 430,
+      "gap": 140,
+      "speed": 140
+     },
+     "theme": "neon"
+    }
+   }
+  },
+  {
+   "name": "game:plan-18:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMTgiLCJnIjp7InNlZWQiOjE0NTU5LCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTUwMCwianVtcCI6NDAwLCJnYXAiOjE2NSwic3BlZWQiOjExMH0sInRoZW1lIjoiY2FuZHkiLCJ0aXRsZSI6IlPDvMOfZXMgV29sa2VubGFuZCIsImVtb2ppIjoi8J-mhCIsImxvb2siOnsiYSI6IiNmZjlhZDUiLCJiIjoiI2ZmZjBmYSIsInAiOiIjN2E1Y2ZmIiwicSI6IiM0YTJmYjAiLCJnIjoiI2ZmYzBlNiIsImgiOiIjZTU5Y2NmIiwiZCI6ImNsb3VkcyIsImYiOiJlbW9qaSIsImUiOlsi8J-NrSIsIvCfjawiXSwibyI6IvCfjakiLCJtIjoi8J-MiCJ9fX19",
+   "sha16": "87e3b285bc7debf0",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "plan-18",
+    "g": {
+     "seed": 14559,
+     "params": {
+      "gravity": 1500,
+      "jump": 400,
+      "gap": 165,
+      "speed": 110
+     },
+     "theme": "candy",
+     "title": "Süßes Wolkenland",
+     "emoji": "🦄",
+     "look": {
+      "a": "#ff9ad5",
+      "b": "#fff0fa",
+      "p": "#7a5cff",
+      "q": "#4a2fb0",
+      "g": "#ffc0e6",
+      "h": "#e59ccf",
+      "d": "clouds",
+      "f": "emoji",
+      "e": [
+       "🍭",
+       "🍬"
+      ],
+      "o": "🍩",
+      "m": "🌈"
+     }
+    }
+   }
+  },
+  {
+   "name": "game:plan-18:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMTgiLCJnIjp7InNlZWQiOjE0NTU5LCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTUwMCwianVtcCI6NDAwLCJnYXAiOjE2NSwic3BlZWQiOjExMH0sInRoZW1lIjoiY2FuZHkiLCJ0aXRsZSI6IlN3ZWV0IGNsb3VkIGxhbmQiLCJlbW9qaSI6IvCfpoQiLCJsb29rIjp7ImEiOiIjZmY5YWQ1IiwiYiI6IiNmZmYwZmEiLCJwIjoiIzdhNWNmZiIsInEiOiIjNGEyZmIwIiwiZyI6IiNmZmMwZTYiLCJoIjoiI2U1OWNjZiIsImQiOiJjbG91ZHMiLCJmIjoiZW1vamkiLCJlIjpbIvCfja0iLCLwn42sIl0sIm8iOiLwn42pIiwibSI6IvCfjIgifX19fQ",
+   "sha16": "ceef6755b1462209",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "plan-18",
+    "g": {
+     "seed": 14559,
+     "params": {
+      "gravity": 1500,
+      "jump": 400,
+      "gap": 165,
+      "speed": 110
+     },
+     "theme": "candy",
+     "title": "Sweet cloud land",
+     "emoji": "🦄",
+     "look": {
+      "a": "#ff9ad5",
+      "b": "#fff0fa",
+      "p": "#7a5cff",
+      "q": "#4a2fb0",
+      "g": "#ffc0e6",
+      "h": "#e59ccf",
+      "d": "clouds",
+      "f": "emoji",
+      "e": [
+       "🍭",
+       "🍬"
+      ],
+      "o": "🍩",
+      "m": "🌈"
+     }
+    }
+   }
+  },
+  {
+   "name": "game:plan-22:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMjIiLCJnIjp7InNlZWQiOjEwNDk5LCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTUwMCwianVtcCI6MzkwLCJnYXAiOjE1MCwic3BlZWQiOjEyMH0sInRoZW1lIjoib2NlYW4iLCJ0aXRsZSI6IlRpZWZzZWUtS2FiZWwiLCJlbW9qaSI6IvCfkKEiLCJsb29rIjp7ImEiOiIjMDIxZjNhIiwiYiI6IiMwYTZjODYiLCJwIjoiI2ZmZDE2NiIsInEiOiIjYTg3YjAwIiwiZyI6IiMwNzI0M2EiLCJoIjoiIzFkNWY4NiIsImQiOiJidWJibGVzIiwiZiI6InJvdW5kIiwiZSI6WyLwn5CfIiwi8J-qvCJdLCJtIjoi8J-rpyJ9fX19",
+   "sha16": "4ecf758a2ae0e409",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "plan-22",
+    "g": {
+     "seed": 10499,
+     "params": {
+      "gravity": 1500,
+      "jump": 390,
+      "gap": 150,
+      "speed": 120
+     },
+     "theme": "ocean",
+     "title": "Tiefsee-Kabel",
+     "emoji": "🐡",
+     "look": {
+      "a": "#021f3a",
+      "b": "#0a6c86",
+      "p": "#ffd166",
+      "q": "#a87b00",
+      "g": "#07243a",
+      "h": "#1d5f86",
+      "d": "bubbles",
+      "f": "round",
+      "e": [
+       "🐟",
+       "🪼"
+      ],
+      "m": "🫧"
+     }
+    }
+   }
+  },
+  {
+   "name": "game:plan-22:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMjIiLCJnIjp7InNlZWQiOjEwNDk5LCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTUwMCwianVtcCI6MzkwLCJnYXAiOjE1MCwic3BlZWQiOjEyMH0sInRoZW1lIjoib2NlYW4iLCJ0aXRsZSI6IkRlZXAgc2VhIGNhYmxlIiwiZW1vamkiOiLwn5ChIiwibG9vayI6eyJhIjoiIzAyMWYzYSIsImIiOiIjMGE2Yzg2IiwicCI6IiNmZmQxNjYiLCJxIjoiI2E4N2IwMCIsImciOiIjMDcyNDNhIiwiaCI6IiMxZDVmODYiLCJkIjoiYnViYmxlcyIsImYiOiJyb3VuZCIsImUiOlsi8J-QnyIsIvCfqrwiXSwibSI6IvCfq6cifX19fQ",
+   "sha16": "b741694b0bc994cd",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "plan-22",
+    "g": {
+     "seed": 10499,
+     "params": {
+      "gravity": 1500,
+      "jump": 390,
+      "gap": 150,
+      "speed": 120
+     },
+     "theme": "ocean",
+     "title": "Deep sea cable",
+     "emoji": "🐡",
+     "look": {
+      "a": "#021f3a",
+      "b": "#0a6c86",
+      "p": "#ffd166",
+      "q": "#a87b00",
+      "g": "#07243a",
+      "h": "#1d5f86",
+      "d": "bubbles",
+      "f": "round",
+      "e": [
+       "🐟",
+       "🪼"
+      ],
+      "m": "🫧"
+     }
+    }
+   }
+  },
+  {
+   "name": "game:plan-28:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMjgiLCJnIjp7InNlZWQiOjExMDI0LCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTYwMCwianVtcCI6NDEwLCJnYXAiOjE1NSwic3BlZWQiOjEyMH0sInRoZW1lIjoiZGF5IiwidGl0bGUiOiJXaW50ZXItVHVubmVsIiwiZW1vamkiOiLim4QiLCJsb29rIjp7ImEiOiIjYTlkNmZmIiwiYiI6IiNmNGZiZmYiLCJwIjoiIzNmN2ZiNSIsInEiOiIjMWY0ZjdhIiwiZyI6IiNmZmZmZmYiLCJoIjoiI2E4Y2ZlOCIsImQiOiJzbm93IiwiZiI6ImJsb2NrIiwiZSI6WyLinYTvuI8iXSwibSI6IuKdhO-4jyJ9fX19",
+   "sha16": "f98334db8c7185d6",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "plan-28",
+    "g": {
+     "seed": 11024,
+     "params": {
+      "gravity": 1600,
+      "jump": 410,
+      "gap": 155,
+      "speed": 120
+     },
+     "theme": "day",
+     "title": "Winter-Tunnel",
+     "emoji": "⛄",
+     "look": {
+      "a": "#a9d6ff",
+      "b": "#f4fbff",
+      "p": "#3f7fb5",
+      "q": "#1f4f7a",
+      "g": "#ffffff",
+      "h": "#a8cfe8",
+      "d": "snow",
+      "f": "block",
+      "e": [
+       "❄️"
+      ],
+      "m": "❄️"
+     }
+    }
+   }
+  },
+  {
+   "name": "game:plan-28:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiNmZmQ0MDAiLCIjZmYzYjFkIl0sImJ5IjpbXSwiaSI6InBsYW4tMjgiLCJnIjp7InNlZWQiOjExMDI0LCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTYwMCwianVtcCI6NDEwLCJnYXAiOjE1NSwic3BlZWQiOjEyMH0sInRoZW1lIjoiZGF5IiwidGl0bGUiOiJXaW50ZXIgdHVubmVsIiwiZW1vamkiOiLim4QiLCJsb29rIjp7ImEiOiIjYTlkNmZmIiwiYiI6IiNmNGZiZmYiLCJwIjoiIzNmN2ZiNSIsInEiOiIjMWY0ZjdhIiwiZyI6IiNmZmZmZmYiLCJoIjoiI2E4Y2ZlOCIsImQiOiJzbm93IiwiZiI6ImJsb2NrIiwiZSI6WyLinYTvuI8iXSwibSI6IuKdhO-4jyJ9fX19",
+   "sha16": "9ef4b17bb4d95624",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#ffd400",
+     "#ff3b1d"
+    ],
+    "by": [],
+    "i": "plan-28",
+    "g": {
+     "seed": 11024,
+     "params": {
+      "gravity": 1600,
+      "jump": 410,
+      "gap": 155,
+      "speed": 120
+     },
+     "theme": "day",
+     "title": "Winter tunnel",
+     "emoji": "⛄",
+     "look": {
+      "a": "#a9d6ff",
+      "b": "#f4fbff",
+      "p": "#3f7fb5",
+      "q": "#1f4f7a",
+      "g": "#ffffff",
+      "h": "#a8cfe8",
+      "d": "snow",
+      "f": "block",
+      "e": [
+       "❄️"
+      ],
+      "m": "❄️"
+     }
+    }
+   }
+  }
+ ],
+ "links": [
+  {
+   "name": "game:spiel-lava:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiMyYjRiZmYiLCIjZmZlNjAwIl0sImJ5IjpbXSwiaSI6InNwaWVsLWxhdmEiLCJnIjp7InNlZWQiOjYwNjEsInBhcmFtcyI6eyJncmF2aXR5IjoyMTAwLCJqdW1wIjo0ODAsImdhcCI6MTI1LCJzcGVlZCI6MTY1fSwidGhlbWUiOiJsYXZhIiwidGl0bGUiOiJCYXUgZGVpbiBMYXZhLUxldmVsIiwiZW1vamkiOiLwn5CJIn19fQ",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#2b4bff",
+     "#ffe600"
+    ],
+    "by": [],
+    "i": "spiel-lava",
+    "g": {
+     "seed": 6061,
+     "params": {
+      "gravity": 2100,
+      "jump": 480,
+      "gap": 125,
+      "speed": 165
+     },
+     "theme": "lava",
+     "title": "Bau dein Lava-Level",
+     "emoji": "🐉"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-mond:en",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiMyYjRiZmYiLCIjZmZlNjAwIl0sImJ5IjpbXSwiaSI6InNwaWVsLW1vbmQiLCJnIjp7InNlZWQiOjcwMDEsInBhcmFtcyI6eyJncmF2aXR5IjoxMDAwLCJqdW1wIjozMjAsImdhcCI6MTUwLCJzcGVlZCI6MTMwfSwidGhlbWUiOiJuaWdodCIsInRpdGxlIjoiRmx5IHRvIHRoZSBtb29uIiwiZW1vamkiOiLwn5qAIn19fQ",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#2b4bff",
+     "#ffe600"
+    ],
+    "by": [],
+    "i": "spiel-mond",
+    "g": {
+     "seed": 7001,
+     "params": {
+      "gravity": 1000,
+      "jump": 320,
+      "gap": 150,
+      "speed": 130
+     },
+     "theme": "night",
+     "title": "Fly to the moon",
+     "emoji": "🚀"
+    }
+   }
+  },
+  {
+   "name": "game:spiel-pizza:de",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiMyYjRiZmYiLCIjZmZlNjAwIl0sImJ5IjpbXSwiaSI6InNwaWVsLXBpenphIiwiZyI6eyJzZWVkIjo3MDAyLCJwYXJhbXMiOnsiZ3Jhdml0eSI6MTYwMCwianVtcCI6NDIwLCJnYXAiOjE1NSwic3BlZWQiOjEyNX0sInRoZW1lIjoic3Vuc2V0IiwidGl0bGUiOiJQaXp6YSBtdXNzIGZsaWVnZW4iLCJlbW9qaSI6IvCfjZUifX19",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#2b4bff",
+     "#ffe600"
+    ],
+    "by": [],
+    "i": "spiel-pizza",
+    "g": {
+     "seed": 7002,
+     "params": {
+      "gravity": 1600,
+      "jump": 420,
+      "gap": 155,
+      "speed": 125
+     },
+     "theme": "sunset",
+     "title": "Pizza muss fliegen",
+     "emoji": "🍕"
+    }
+   }
+  },
+  {
+   "name": "game:params",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiMyYjRiZmYiLCIjZmZlNjAwIl0sImJ5IjpbXSwiaSI6InNwaWVsLWxhdmEiLCJnIjp7InNlZWQiOjYwNjEsInBhcmFtcyI6eyJncmF2aXR5IjoyMTAwLCJqdW1wIjo0ODAsImdhcCI6MTI1LCJzcGVlZCI6MTY1fSwidGhlbWUiOiJsYXZhIiwidGl0bGUiOiJCYXUgZGVpbiBMYXZhLUxldmVsIiwiZW1vamkiOiLwn5CJIn19fQ",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#2b4bff",
+     "#ffe600"
+    ],
+    "by": [],
+    "i": "spiel-lava",
+    "g": {
+     "seed": 6061,
+     "params": {
+      "gravity": 2100,
+      "jump": 480,
+      "gap": 125,
+      "speed": 165
+     },
+     "theme": "lava",
+     "title": "Bau dein Lava-Level",
+     "emoji": "🐉"
+    }
+   }
+  },
+  {
+   "name": "game:custom-theme",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJnYW1lIiwiY29sIjpbIiMyYjRiZmYiLCIjZmZlNjAwIl0sImJ5IjpbXSwiaSI6InNwaWVsLWxhdmEiLCJnIjp7InNlZWQiOjYwNjEsInBhcmFtcyI6eyJncmF2aXR5IjoyMTAwLCJqdW1wIjo0ODAsImdhcCI6MTI1LCJzcGVlZCI6MTY1fSwidGhlbWUiOiJsYXZhIiwidGl0bGUiOiJMYXZhIExhdWYiLCJlbW9qaSI6IvCfkIkifX19",
+   "doc": {
+    "k": "game",
+    "col": [
+     "#2b4bff",
+     "#ffe600"
+    ],
+    "by": [],
+    "i": "spiel-lava",
+    "g": {
+     "seed": 6061,
+     "params": {
+      "gravity": 2100,
+      "jump": 480,
+      "gap": 125,
+      "speed": 165
+     },
+     "theme": "lava",
+     "title": "Lava Lauf",
+     "emoji": "🐉"
+    }
+   }
+  },
+  {
+   "name": "lauf:bruecken-herausforderung",
+   "hash": "#c=eyJ2IjoxLCJkIjp7ImsiOiJsYXVmIiwiY29sIjpbIiMyYjRiZmYiLCIjZmZlNjAwIl0sImJ5IjpbeyJuIjoiTW8iLCJ3IjpbInJlZ2VsbiJdfV0sInQiOiJCcsO8Y2tlbmxhdWYiLCJraSI6eyJrIjoia2FydGUiLCJzIjoiczIua2FydGUubXczYWJjZGUuQW5sUlFiOWpKWXJMSUxNUkJ0Smo3eVIxcWxoSkYwRVIiLCJoIjoiaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaCJ9LCJsIjp7Im0iOiJlbmRsb3MiLCJzZWVkIjoxMjM0NSwidyI6ImJydWVja2UiLCJlIjoi8J-miiIsIm8iOiLwn5OmIiwiYyI6IvCfqpkiLCJmIjoi8J-QjCIsImZwIjpbImdlaCIsImZsdWciXSwicCI6eyJnIjoyMDAwLCJqIjo3MDAsInYiOjIwMCwiYSI6OSwidm0iOjM2MCwibHUiOjQ1LCJsdyI6NzUsImhpIjo0MCwiZHUiOjAsIm11Ijo2MCwiZ2UiOjMwLCJmYSI6MCwiaHYiOjM1LCJsZW4iOjcwMH0sInIiOjMyMX19fQ",
+   "doc": {
+    "k": "lauf",
+    "col": [
+     "#2b4bff",
+     "#ffe600"
+    ],
+    "by": [
+     {
+      "n": "Mo",
+      "w": [
+       "regeln"
+      ]
+     }
+    ],
+    "t": "Brückenlauf",
+    "ki": {
+     "k": "karte",
+     "s": "s2.karte.mw3abcde.AnlRQb9jJYrLILMRBtJj7yR1qlhJF0ER",
+     "h": "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh"
+    },
+    "l": {
+     "m": "endlos",
+     "seed": 12345,
+     "w": "bruecke",
+     "e": "🦊",
+     "o": "📦",
+     "c": "🪙",
+     "f": "🐌",
+     "fp": [
+      "geh",
+      "flug"
+     ],
+     "p": {
+      "g": 2000,
+      "j": 700,
+      "v": 200,
+      "a": 9,
+      "vm": 360,
+      "lu": 45,
+      "lw": 75,
+      "hi": 40,
+      "du": 0,
+      "mu": 60,
+      "ge": 30,
+      "fa": 0,
+      "hv": 35,
+      "len": 700
+     },
+     "r": 321
+    }
+   }
+  }
+ ]
+}
