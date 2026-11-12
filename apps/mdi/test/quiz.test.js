@@ -30,35 +30,16 @@ const SEED = (n) => n.toString(16).padStart(32, "0");
 const base = (card, p) => ({ ...Object.fromEntries(Object.entries(card.manifest.params.properties).map(([k, v]) => [k, structuredClone(v.default)])), ...p });
 function game(card, params, n = 77) { return S.newSession(card, { params: base(card, params), seed: SEED(n), mine: [0, 1] }); }
 
-// Schieber und Freitext lassen sich nicht aufzählen. Die Karten exportieren accepts(obs, seat, input) – der Hook, den
-// session.apply nach Absprache mit Strang F nutzen soll. Solange session.apply nur moves() kennt, wendet APPLY solche
-// Eingaben mit derselben Prüfreihenfolge an (Status, Sitz, accepts, step, Zustandsgrenze, Log). Sobald der Vertrag den
-// Hook hat, läuft alles über S.apply (Erkennung unten), ohne Änderung an diesem Test.
-const HOOK = (() => { try { const s = game(preis, {}); S.apply(preis, s, { t: "guess", seat: 0, v: 5 }); return true; } catch (e) { return false; } })();
-function APPLY(card, s, input) {
-  if (HOOK || card.moves(card.observe(s.state, input.seat), input.seat).length) return S.apply(card, s, input);
-  const st = card.status(s.state);
-  if (st.over) throw new S.GameError("vorbei");
-  if (input.seat !== st.turn) throw new S.GameError("nicht-am-zug", "Sitz " + input.seat);
-  if (!card.accepts(card.observe(s.state, input.seat), input.seat, input)) throw new S.GameError("zug-ungueltig", JSON.stringify(input));
-  const next = card.step(s.state, input);
-  if (JSON.stringify(next).length > card.manifest.limits.stateBytes) throw new S.GameError("zustand-zu-gross");
-  return { ...s, state: next, log: s.log.concat([input]) };
-}
+// Schieber und Freitext lassen sich nicht aufzählen: session.apply nutzt accepts(obs, seat, input) der Karte (ADR 0001 f).
+const APPLY = (card, s, input) => S.apply(card, s, input);
 /** über das Drahtformat (JSON) und zurück: jede Eingabe wird erneut geprüft */
-function through(card, s) {
-  const w = JSON.parse(JSON.stringify(S.toWire(s)));
-  if (HOOK) return S.fromWire(card, w, { mine: [0, 1] });
-  let x = S.newSession(card, { params: w.p, seed: w.s, mine: [0, 1], commits: w.k });
-  for (const input of w.m) x = APPLY(card, x, input);
-  return x;
-}
+function through(card, s) { return S.fromWire(card, JSON.parse(JSON.stringify(S.toWire(s))), { mine: [0, 1] }); }
 /** Eingabe wie der Bildschirm sie gibt: Zeigen bestätigen, erste Wahl, Schieber in der Mitte (alt test first) */
 function firstInput(card, s) {
-  const st = S.status(card, s), obs = S.observe(card, s, st.turn), mv = card.moves(obs, st.turn);
-  if (mv.length) return mv[0];
+  const st = S.status(card, s), obs = S.observe(card, s, st.turn);
   const v = card.view(obs, st.turn, { lang: "de" }).children.find((k) => k.t === "slide");
-  return { t: "guess", seat: st.turn, v: Math.floor(v.max / 2) };
+  if (v) return { t: "ans", seat: st.turn, a: Math.floor(v.max / 2) };
+  return card.moves(obs, st.turn)[0];
 }
 function playTurn(card, s, inputs) {
   const t = s.state.pub.m.length;
@@ -68,6 +49,8 @@ function playTurn(card, s, inputs) {
 }
 function turnWith(card, s, f) { const t = s.state.pub.m.length; while (s.state.pub.m.length === t) s = APPLY(card, s, f(card, s)); return through(card, s); }
 const res = (card, s, lang = "de") => card.result(s.state.pub, lang);
+/** Sichtbare Texte einer Ansicht: Textknoten und die Zeilen/Hinweise eines show-Widgets (ADR 0001 c). */
+const textsOf = (v) => v.children.flatMap((k) => (k.t === "text" ? [k.text] : k.t === "show" ? [...k.lines, ...(k.notes || []), ...(k.later ? [k.later] : [])] : []));
 
 test("Paket aus der KI-Antwort: Texte gefiltert, Zahlen nur als Ziffern-Antwort, Gruppen nur mit Stärken", () => {
   const pk = M.fromOption(LEARN);
@@ -92,8 +75,8 @@ test("Karten mit Paket: Frag mich ab (Karteikarte), Quiz (alle Antworten gemisch
     let s = through(card, game(card, params));
     assert.deepEqual(s.state.pub.pk, pk, g + " behält das Paket im Link");
     const obs = S.observe(card, s, 0), v = card.view(obs, 0, { lang: "de" });
-    if (g === "abfragen") { assert.deepEqual(card.moves(obs, 0), [{ t: "ok", seat: 0 }], "Karteikarte: erst die Frage"); assert.equal(v.children.find((k) => k.t === "choice").label, "Denk an die Antwort."); }
-    if (g === "quiz") assert.deepEqual(v.children.find((k) => k.t === "choice").options.map((o) => o.label).sort(), pk.q[0].slice(1).sort(), "alle Antworten gemischt");
+    if (g === "abfragen") { assert.deepEqual(card.moves(obs, 0), [{ t: "ans", seat: 0, a: 0 }], "Karteikarte: erst die Frage"); assert.equal(v.children.find((k) => k.t === "show").label, "Denk an die Antwort."); }
+    if (g === "quiz") assert.deepEqual(v.children.find((k) => k.t === "pick").options.map((o) => o.label).sort(), pk.q[0].slice(1).sort(), "alle Antworten gemischt");
     if (g === "schaetzen") assert.equal(v.children.find((k) => k.t === "slide").label, "Schieb auf deine Schätzung.");
     s = turnWith(card, s, firstInput); s = turnWith(card, s, firstInput);
     assert.equal(S.status(card, s).over, true, g);
@@ -130,23 +113,23 @@ test("Gleiche Reihenfolge auf beiden Handys, nur aus dem Seed; Schätzen-Regler 
 test("Team-Quiz und Typen: jede Person spielt allein, kein Ergebnis kommt zurück, keine Rangliste, Typen nur Stärken", () => {
   const firma = P.sanitize({ ...M.fromOption(LEARN), m: "f" });
   let s = game(abfragen, { variante: "quiz", pk: firma });
-  assert.deepEqual(abfragen.moves(S.observe(abfragen, s, 0), 0), [{ t: "ok", seat: 0 }], "wer es macht, sendet nur");
-  s = playTurn(abfragen, s, [{ t: "ok", seat: 0 }]);
+  assert.deepEqual(abfragen.moves(S.observe(abfragen, s, 0), 0), [{ t: "ans", seat: 0, a: 0 }], "wer es macht, sendet nur");
+  s = playTurn(abfragen, s, [{ t: "ans", seat: 0, a: 0 }]);
   const d = s.state.pub;
-  for (let i = 0; i < 5; i++) s = APPLY(abfragen, s, { t: "pick", seat: 1, v: i === 0 ? P.rightAt(d, 0) : 0 });
-  const v = abfragen.view(S.observe(abfragen, s, 1), 1, { lang: "de" }), texts = v.children.filter((k) => k.t === "text").map((k) => k.text);
+  for (let i = 0; i < 5; i++) s = APPLY(abfragen, s, { t: "ans", seat: 1, a: [i === 0 ? P.rightAt(d, 0) : 0] });
+  const texts = textsOf(abfragen.view(S.observe(abfragen, s, 1), 1, { lang: "de" }));
   assert.ok(texts.some((x) => /^Du: \d von 5 richtig$/.test(x)), JSON.stringify(texts));
   assert.ok(texts.includes("Nur du siehst dein Ergebnis. Es gibt keine Rangliste."));
   assert.ok(!texts.some((x) => /Spieler/.test(x)), "keine Namen, kein Vergleich");
-  s = APPLY(abfragen, s, { t: "ok", seat: 1 });
+  s = APPLY(abfragen, s, { t: "ans", seat: 1, a: 0 });
   assert.equal(S.status(abfragen, s).over, true);
   assert.deepEqual(res(abfragen, s).lines, ["Nur du siehst dein Ergebnis. Es gibt keine Rangliste."]);
 
   let g = game(typen, { paket: "", pk: M.fromOption(GROUP) });
-  g = playTurn(typen, g, [{ t: "ok", seat: 0 }]);
+  g = playTurn(typen, g, [{ t: "ans", seat: 0, a: 0 }]);
   const ans = [0, 1, 0];
-  let g1 = g; for (const k of ans) g1 = APPLY(typen, g1, { t: "pick", seat: 1, v: k });
-  const show = (x) => typen.view(S.observe(typen, x, 1), 1, { lang: "de" }).children.filter((k) => k.t === "text").map((k) => k.text);
+  let g1 = g; for (const k of ans) g1 = APPLY(typen, g1, { t: "ans", seat: 1, a: [k] });
+  const show = (x) => textsOf(typen.view(S.observe(typen, x, 1), 1, { lang: "de" }));
   const t1 = show(g1), t2 = show(through(typen, g1));
   assert.deepEqual(t1, t2);
   assert.ok(t1.some((x) => /^Du bist: (Planerin|Motor)$/.test(x)), JSON.stringify(t1));
@@ -154,10 +137,10 @@ test("Team-Quiz und Typen: jede Person spielt allein, kein Ergebnis kommt zurüc
   // ohne Paket haben Team- und Typen-Quiz keinen gültigen Zug
   const none = game(abfragen, { variante: "quiz" });
   assert.deepEqual(abfragen.moves(S.observe(abfragen, none, 0), 0), []);
-  assert.throws(() => APPLY(abfragen, none, { t: "ok", seat: 0 }));
+  assert.throws(() => APPLY(abfragen, none, { t: "ans", seat: 0, a: 0 }));
   assert.equal(abfragen.view(S.observe(abfragen, none, 0), 0, { lang: "de" }).children[0].text, "Erst ein Fragenpaket wählen.");
   const tnone = game(typen, { paket: "" });
-  assert.throws(() => APPLY(typen, tnone, { t: "ok", seat: 0 }));
+  assert.throws(() => APPLY(typen, tnone, { t: "ans", seat: 0, a: 0 }));
   // ein Gruppenpaket passt nie auf eine Lernkarte und umgekehrt: abgelehnt, nicht still verworfen
   assert.equal(P.fits("luecke", M.fromOption(GROUP)), false); assert.equal(P.fits("typen", M.fromOption(LEARN)), false);
   assert.throws(() => game(abfragen, { variante: "quiz", pk: M.fromOption(GROUP) }), /Fragepaket/);
@@ -168,21 +151,21 @@ test("Frag mich ab ohne Paket: vier eigene Lernkarten je Person, ehrlich 'gewuss
   let s = game(abfragen, {});
   const q0 = ["Hauptstadt von Peru?", "7 mal 8?", "Englisch: Baum", "Wer schrieb Faust?"], a0 = ["Lima", "56", "tree", "Goethe"];
   // Freitext: Wortfilter, Länge, keine Doppelten bei den Fragen (Antworten dürfen gleich sein)
-  const L = (v) => ({ t: "list", seat: 0, v });
+  const L = (v) => ({ t: "ans", seat: 0, a: v });
   assert.equal(abfragen.accepts(S.observe(abfragen, s, 0), 0, L(["a", "a", "b", "c"])), false, "doppelte Frage");
   assert.equal(abfragen.accepts(S.observe(abfragen, s, 0), 0, L(["Treffpunkt Bahnhof?", "b", "c", "d"])), false, "kein Treffpunkt");
   assert.equal(abfragen.accepts(S.observe(abfragen, s, 0), 0, L(["x".repeat(29), "b", "c", "d"])), false, "zu lang");
   assert.equal(abfragen.accepts(S.observe(abfragen, s, 0), 0, L(q0)), true);
   s = playTurn(abfragen, s, [L(q0), L(a0)]);
   const v = abfragen.view(S.observe(abfragen, s, 1), 1, { lang: "de" });
-  assert.equal(v.children.find((k) => k.role === "body").text, "Hauptstadt von Peru?");
-  const back = (seat, misses) => { const out = []; for (let i = 0; i < 4; i++) out.push({ t: "ok", seat }, { t: "pick", seat, v: misses.includes(i) ? 1 : 0 }); return out; };
+  assert.deepEqual(v.children.find((k) => k.t === "show").lines, ["Hauptstadt von Peru?"]);
+  const back = (seat, misses) => { const out = []; for (let i = 0; i < 4; i++) out.push({ t: "ans", seat, a: 0 }, { t: "ans", seat, a: [misses.includes(i) ? 1 : 0] }); return out; };
   const q1 = ["Wurzel aus 81?", "Farbe Himmel?", "Französisch: Katze", "Größter Ozean?"], a1 = ["9", "blau", "chat", "Pazifik"];
-  s = playTurn(abfragen, s, back(1, [1]).concat([{ t: "list", seat: 1, v: q1 }, { t: "list", seat: 1, v: a1 }]));
+  s = playTurn(abfragen, s, back(1, [1]).concat([{ t: "ans", seat: 1, a: q1 }, { t: "ans", seat: 1, a: a1 }]));
   // die Antwort steht beim Umdrehen da
-  s = APPLY(abfragen, s, { t: "ok", seat: 0 });
-  assert.equal(abfragen.view(S.observe(abfragen, s, 0), 0, { lang: "de" }).children.find((k) => k.role === "title").text, "9");
-  s = APPLY(abfragen, s, { t: "pick", seat: 0, v: 0 });
+  s = APPLY(abfragen, s, { t: "ans", seat: 0, a: 0 });
+  assert.equal(abfragen.view(S.observe(abfragen, s, 0), 0, { lang: "de" }).children.find((k) => k.t === "pick").top, "9");
+  s = APPLY(abfragen, s, { t: "ans", seat: 0, a: [0] });
   for (const x of back(0, [3]).slice(2)) s = APPLY(abfragen, s, x);
   s = through(abfragen, s);
   assert.equal(S.status(abfragen, s).over, true);
@@ -232,9 +215,9 @@ test("Nachtpakete: Format für 100, 20 geprüfte Pakete, jugendfrei, jedes passt
 test("Schätzen der freien Karte (u): z=42 und 39 ergeben '3 km daneben', feste Sätze, nie Prozent; Absender sendet nur", () => {
   function spiel(tipps) {
     let s = game(preis, { variante: "schaetzen", pk: P.sanitize(RAD) });
-    assert.deepEqual(preis.moves(S.observe(preis, s, 0), 0), [{ t: "ok", seat: 0 }], "der Absender schätzt nicht, er sendet nur");
-    s = playTurn(preis, s, [{ t: "ok", seat: 0 }]);
-    return playTurn(preis, s, tipps.map((v) => ({ t: "guess", seat: 1, v })));
+    assert.deepEqual(preis.moves(S.observe(preis, s, 0), 0), [{ t: "ans", seat: 0, a: 0 }], "der Absender schätzt nicht, er sendet nur");
+    s = playTurn(preis, s, [{ t: "ans", seat: 0, a: 0 }]);
+    return playTurn(preis, s, tipps.map((v) => ({ t: "ans", seat: 1, a: v })));
   }
   const s = spiel([39, 3, 400]), r = res(preis, s), e = res(preis, s, "en");
   assert.equal(r.h, "Meine Radtour");
@@ -245,13 +228,13 @@ test("Schätzen der freien Karte (u): z=42 und 39 ergeben '3 km daneben', feste 
   assert.equal(res(preis, spiel([0, 0, 0])).lines[0], "Da war noch Luft. Revanche?");
   for (const x of [r, e]) assert.ok(!/%|Prozent|percent|undefined|\{\w+\}/.test(JSON.stringify(x)));
   // Einheit am Schieber
-  let w = playTurn(preis, game(preis, { variante: "schaetzen", pk: P.sanitize(RAD) }), [{ t: "ok", seat: 0 }]);
+  let w = playTurn(preis, game(preis, { variante: "schaetzen", pk: P.sanitize(RAD) }), [{ t: "ans", seat: 0, a: 0 }]);
   assert.deepEqual(preis.view(S.observe(preis, w, 1), 1, { lang: "de" }).children.filter((k) => k.t === "slide").map((k) => k.unit), ["km"]);
   void w;
   // Lernpakete (zwei Spieler) zeigen ebenfalls Abstände statt Prozent
   const LP = { t: "Zahlen", m: "l", q: [["Planeten?", "8"], ["Monde des Mars?", "2"], ["Tage im Jahr?", "365"]], z: [8, 2, 365] };
   let l = game(preis, { variante: "schaetzen", pk: P.sanitize(LP) });
-  l = playTurn(preis, l, [7, 2, 300].map((v) => ({ t: "guess", seat: 0, v }))); l = playTurn(preis, l, [8, 3, 365].map((v) => ({ t: "guess", seat: 1, v })));
+  l = playTurn(preis, l, [7, 2, 300].map((v) => ({ t: "ans", seat: 0, a: v }))); l = playTurn(preis, l, [8, 3, 365].map((v) => ({ t: "ans", seat: 1, a: v })));
   assert.deepEqual(res(preis, l).lines, ["Spieler 1: Gut geschätzt.", "Spieler 2: Gut geschätzt.", "Planeten? (8): 1 daneben / genau getroffen", "Monde des Mars? (2): genau getroffen / 1 daneben", "Tage im Jahr? (365): 65 daneben / genau getroffen"]);
 });
 
@@ -289,51 +272,63 @@ test("Was kostet das?: 8 von 12, Reglerende aus dem Seed (1/5..4/5, 5-Cent-Schri
   assert.equal(R.start(seed, 0) % 5, 0); assert.equal(R.money(95, "de"), "0,95 €"); assert.equal(R.money(95, "en"), "€0.95");
   let s = game(preis, {}, 4);
   const pub = s.state.pub, v = preis.view(S.observe(preis, s, 0), 0, { lang: "de" }), ve = preis.view(S.observe(preis, s, 0), 0, { lang: "en" });
-  assert.match(v.children.find((k) => k.role === "title").text, /: Was kostet das\?$/); assert.match(ve.children.find((k) => k.role === "title").text, /: what does it cost\?$/);
+  assert.match(v.children.find((k) => k.t === "slide").peek, /: Was kostet das\?$/); assert.match(ve.children.find((k) => k.t === "slide").peek, /: what does it cost\?$/);
   const sl = v.children.find((k) => k.t === "slide");
   assert.equal(sl.label, "Preis 1 von 8"); assert.equal(sl.step, 5); assert.equal(sl.format, "eur"); assert.equal(sl.max, R.top(pub.seed, 0)); assert.equal(sl.value % 5, 0);
   const items = R.preisItems(pub.seed), exact = items.map((k) => R.cents(k)), far = items.map((k, i) => Math.min(R.top(pub.seed, i), Math.round(R.cents(k) * 1.4 / 5) * 5));
-  assert.equal(preis.accepts(S.observe(preis, s, 0), 0, { t: "guess", seat: 0, v: R.top(pub.seed, 0) + 5 }), false, "über dem Reglerende geht nicht");
-  assert.throws(() => APPLY(preis, s, { t: "guess", seat: 0, v: R.top(pub.seed, 0) + 5 }));
-  s = playTurn(preis, s, far.map((x) => ({ t: "guess", seat: 0, v: x })));
-  s = playTurn(preis, s, exact.map((x) => ({ t: "guess", seat: 1, v: x })));
+  assert.equal(preis.accepts(S.observe(preis, s, 0), 0, { t: "ans", seat: 0, a: R.top(pub.seed, 0) + 5 }), false, "über dem Reglerende geht nicht");
+  assert.throws(() => APPLY(preis, s, { t: "ans", seat: 0, a: R.top(pub.seed, 0) + 5 }));
+  s = playTurn(preis, s, far.map((x) => ({ t: "ans", seat: 0, a: x })));
+  s = playTurn(preis, s, exact.map((x) => ({ t: "ans", seat: 1, a: x })));
   assert.equal(S.status(preis, s).over, true);
   const r = res(preis, s), en = res(preis, s, "en");
   assert.equal(r.h, "Spieler 2 lag näher dran."); assert.equal(en.h, "Player 2 was closer.");
   assert.equal(r.lines[1], "Spieler 2: im Schnitt 0 Prozent daneben"); assert.match(r.lines[0], /^Spieler 1: im Schnitt ([1-9]\d?) Prozent daneben$/);
   assert.match(r.lines[2], /Schätzung.*Stand November 2026.*keine Marke/); assert.match(en.lines[2], /estimates.*November 2026.*no brand/);
   assert.equal(r.note.split(" · ").length, 8); assert.match(r.note, /\d,\d\d € \(Tipps \d+,\d\d € \/ \d+,\d\d €\)/); assert.match(en.note, /€\d+\.\d\d \(guesses €/);
-  let t = game(preis, {}, 4); t = playTurn(preis, t, exact.map((x) => ({ t: "guess", seat: 0, v: x }))); t = playTurn(preis, t, exact.map((x) => ({ t: "guess", seat: 1, v: x })));
+  let t = game(preis, {}, 4); t = playTurn(preis, t, exact.map((x) => ({ t: "ans", seat: 0, a: x }))); t = playTurn(preis, t, exact.map((x) => ({ t: "ans", seat: 1, a: x })));
   assert.equal(res(preis, t).h, "Gleich nah dran.");
   // Paket: de und en gleich gebaut, Fakten passen zu den Texten
   for (const l of ["de", "en"]) assert.equal(QJ[l].preis.length, QJ.preis.c.length, l);
 });
 
 test("Fünf mal schätzen (Tageskarte): gleicher Tag = gleiche Fragen für alle, eine Person, Mittel in Prozent", () => {
-  const a = game(preis, { variante: "schaetzen", tag: 20404 }, 1), b = game(preis, { variante: "schaetzen", tag: 20404 }, 999);
-  assert.equal(a.state.pub.seed, "20404"); assert.equal(b.state.pub.seed, "20404", "der Tag, nicht der Partie-Seed");
-  const peek = (s) => preis.view(S.observe(preis, s, 0), 0, { lang: "de" }).children.find((k) => k.role === "title").text;
-  assert.equal(peek(a), peek(b));
+  // Seed = UTC-Tag: vor dem ersten Zug aus ctx.today (Ansicht), mit dem ersten Zug aus dem Tagesstempel d (inputDay)
+  assert.equal(preis.manifest.inputDay, true);
+  const a = game(preis, { variante: "schaetzen" }, 1), b = game(preis, { variante: "schaetzen" }, 999);
+  assert.equal(a.state.pub.seed, ""); assert.equal(b.state.pub.seed, "");
+  const peek = (s, today) => preis.view(S.observe(preis, s, 0), 0, { lang: "de", today }).children.find((k) => k.t === "slide").peek;
+  assert.equal(peek(a, 20404), peek(b, 20404), "der Tag, nicht der Partie-Seed");
+  assert.notEqual(peek(a, 20404), peek(a, 20405));
+  assert.equal(preis.view(S.observe(preis, a, 0), 0, { lang: "de" }).children.some((k) => k.t === "slide"), false, "ohne Tag kein Schieber");
+  assert.throws(() => APPLY(preis, a, { t: "ans", seat: 0, a: 0 }), "ohne Tagesstempel kein Zug");
   const g = R.guesses("20404");
-  let s = playTurn(preis, a, g.map((q) => ({ t: "guess", seat: 0, v: q[2] })));
+  let s = playTurn(preis, a, g.map((q) => ({ t: "ans", seat: 0, a: q[2], d: 20404 })));
+  assert.equal(s.state.pub.seed, "20404");
   assert.equal(S.status(preis, s).over, true, "eine Person, ein Zug");
   const r = res(preis, s);
   assert.equal(r.h, "Im Schnitt 0 Prozent daneben"); assert.equal(r.lines.length, 5); assert.equal(r.lines[0], "Frage 1: 0 Prozent daneben");
   assert.equal(r.note.split(" · ").length, 5);
-  // ohne Tag: aus dem Partie-Seed
-  assert.notEqual(game(preis, { variante: "schaetzen" }, 1).state.pub.seed, "0");
+  // mit Paket: Partie-Seed wie im Altcode (doc.seed), kein Tag
+  assert.match(game(preis, { variante: "schaetzen", pk: P.sanitize(RAD) }, 1).state.pub.seed, /^[0-9a-f]{16}$/);
 });
 
-test("Hook: session.apply nutzt accepts() der Karte (" + (HOOK ? "aktiv" : "offen, Strang F") + ")", () => { assert.equal(typeof preis.accepts, "function"); });
+test("Vertrag v0.2: session.apply nutzt accepts() (Schieber 0..Ende nicht aufzählbar), Schema der Eingaben im Manifest", () => {
+  const s = game(preis, {});
+  assert.equal(S.apply(preis, s, { t: "ans", seat: 0, a: 5 }).log.length, 1);
+  assert.throws(() => S.apply(preis, s, { t: "ans", seat: 0, a: -5 }), /zug-ungueltig/, "unter dem Schieberanfang");
+  assert.throws(() => S.apply(preis, s, { t: "ans", seat: 0, a: 5, x: 1 }), /zug-ungueltig/, "keine fremden Felder");
+  for (const c of [abfragen, typen, preis]) assert.equal(c.manifest.inputs.properties.t.const, "ans", c.manifest.id);
+});
 
 test("Vertrag: Drahtformat-Rundreise, ungültige Eingaben werden abgelehnt, nicht am Zug, nach dem Ende nichts mehr", () => {
   let s = game(abfragen, { variante: "quiz", paket: "planeten" });
-  assert.throws(() => APPLY(abfragen, s, { t: "pick", seat: 1, v: 0 }), /nicht-am-zug/);
-  assert.throws(() => APPLY(abfragen, s, { t: "pick", seat: 0, v: 9 }));
-  assert.throws(() => APPLY(abfragen, s, { t: "guess", seat: 0, v: 0 }));
+  assert.throws(() => APPLY(abfragen, s, { t: "ans", seat: 1, a: [0] }), /nicht-am-zug/);
+  assert.throws(() => APPLY(abfragen, s, { t: "ans", seat: 0, a: [9] }));
+  assert.throws(() => APPLY(abfragen, s, { t: "ans", seat: 0, a: 0 }));
   s = turnWith(abfragen, s, firstInput); s = turnWith(abfragen, s, firstInput);
   assert.equal(S.status(abfragen, s).over, true);
-  assert.throws(() => APPLY(abfragen, s, { t: "pick", seat: 0, v: 0 }), /vorbei/);
+  assert.throws(() => APPLY(abfragen, s, { t: "ans", seat: 0, a: [0] }), /vorbei/);
   // manipuliertes Paket im Link: abgelehnt
   const w = JSON.parse(JSON.stringify(S.toWire(game(abfragen, { variante: "quiz", paket: "" , pk: M.fromOption(LEARN) }))));
   w.p.pk.t = "Scheiße"; assert.throws(() => S.fromWire(abfragen, w, { mine: [0, 1] }));
@@ -356,4 +351,54 @@ test("KI-Art quiz: Eingabe wie der Altcode, Antwort wird zum geprüften Paket, '
   assert.equal(got.length, 1); assert.deepEqual(got[0].pk, M.fromOption(LEARN)); assert.deepEqual(got[0].inText, [true, false, true, true, false]);
   assert.equal(AI.packsFrom({ options: [GROUP] }, false)[0].inText, null);
   assert.deepEqual(AI.packsFrom({}, false), []);
+});
+
+// ---------- Freie Karte (Strang K): Doc {k:"turn", g:"quiz", t, pk} <-> Parameter von zug-abfragen ----------
+test("Freie Karte: fromFree/toFree für zug-abfragen (Paket über sanitize, Spielart passt, sonst null)", () => {
+  const pk = { t: "Planeten", q: [["Größter Planet?", "Jupiter", "Saturn", "Erde", "Mars"], ["Roter Planet?", "Mars", "Venus", "Merkur", "Pluto"], ["Monde der Erde?", "1", "2", "0", "3"]] };
+  const p = abfragen.fromFree({ k: "turn", g: "quiz", t: "Planeten", pk });
+  assert.equal(p.variante, "quiz"); assert.equal(p.paket, ""); assert.equal(p.pk.m, "l", "m fehlt im Doc: wie Server compose 'l'");
+  assert.deepEqual(p.pk, P.sanitize({ m: "l", ...pk }));
+  // das Ergebnis ist spielbar und gültig für das Manifest-Schema
+  let s = game(abfragen, p); s = turnWith(abfragen, s, firstInput); s = turnWith(abfragen, s, firstInput);
+  assert.equal(S.status(abfragen, s).over, true);
+  assert.deepEqual(abfragen.toFree(p), { k: "turn", g: "quiz", t: "Planeten", pk: p.pk });
+  assert.deepEqual(abfragen.fromFree(abfragen.toFree(p)), p, "Rundreise");
+  // abgelehnt statt still ersetzt
+  assert.equal(abfragen.fromFree(null), null);
+  assert.equal(abfragen.fromFree({ k: "card", g: "quiz", pk }), null, "keine Zugkarte");
+  assert.equal(abfragen.fromFree({ k: "turn", g: "lava", pk }), null, "andere Spielart");
+  assert.equal(abfragen.fromFree({ k: "turn", g: "quiz", pk: { t: "x", q: pk.q.slice(0, 2) } }), null, "zu wenige Fragen");
+  assert.equal(abfragen.fromFree({ k: "turn", g: "quiz", pk: { t: "Planeten", q: pk.q.map((r) => r.slice(0, 2)) } }), null, "Quiz braucht falsche Antworten");
+  assert.equal(abfragen.fromFree({ k: "turn", g: "abfragen", pk: { t: "Planeten", q: pk.q.map((r) => r.slice(0, 2)) } }).variante, "abfragen", "Abfragen geht ohne falsche");
+  assert.equal(abfragen.fromFree({ k: "turn", g: "quiz", pk: { ...pk, t: "Scheiße" } }), null, "Wortfilter");
+  // ohne Paket: alte Katalog-ids wie bei Z2
+  assert.equal(abfragen.fromFree({ k: "turn", i: "zug-quiz" }).variante, "quiz");
+  assert.equal(abfragen.fromFree({ k: "turn", i: "zug-abfragen" }).variante, "abfragen");
+  assert.equal(abfragen.fromFree({ k: "turn", i: "zug-lob" }), null);
+  assert.deepEqual(abfragen.toFree({ ...p, pk: null, variante: "abfragen" }), { k: "turn", i: "zug-abfragen" });
+});
+
+// ---------- Link-Länge (ADR 0001 f: MAX_FRAGMENT 4000, darüber Kurzlink über den Server, Strang H) ----------
+test("Link: Paket in den params und eine volle Partie passen in MAX_FRAGMENT; zu lang wird abgelehnt, nicht gekürzt", async () => {
+  const { encode, MAX_FRAGMENT } = await import("../src/app/link.js");
+  assert.equal(MAX_FRAGMENT, 4000);
+  const frag = (card, s) => encode("challenge", { ...S.toWire(s), g: "0".repeat(16), h: S.pubHash(s) });
+  const sizes = {};
+  for (const id of ["planeten", "solar", "bundeslaender"]) {
+    const pk = P.sanitize(J.packs.find((x) => x.id === id).pk);
+    let s = game(abfragen, { variante: "quiz", paket: "", pk });
+    const start = frag(abfragen, s).length;
+    s = turnWith(abfragen, s, firstInput); s = turnWith(abfragen, s, firstInput);
+    sizes[id] = [start, frag(abfragen, s).length];
+    assert.ok(sizes[id][1] <= MAX_FRAGMENT, id + " " + sizes[id]);
+  }
+  let pr = game(preis, {}); pr = turnWith(preis, pr, firstInput); pr = turnWith(preis, pr, firstInput);
+  sizes.preis = frag(preis, pr).length; assert.ok(sizes.preis <= MAX_FRAGMENT);
+  // ein künstlich langes, gültiges Paket (8 Fragen, volle Längen) über eine ganze Lern-Partie: Grenzfall ehrlich
+  const long = P.sanitize({ t: "L".repeat(40), m: "l", q: Array.from({ length: 8 }, (x, i) => ["Frage " + i + " " + "ä".repeat(110), "Antwort " + i + "ö".repeat(50), "Falsch a" + i + "ü".repeat(50), "Falsch b" + i + "ü".repeat(50), "Falsch c" + i + "ü".repeat(50)]) });
+  assert.ok(long && long.q.length === 8);
+  const ls = game(abfragen, { variante: "quiz", paket: "", pk: long });
+  assert.throws(() => frag(abfragen, ls), (e) => e.code === "zu-lang", "zu lang: der Host bietet den Kurzlink an (Strang H), die Karte kürzt nicht");
+  console.log("Fragmentlängen", JSON.stringify(sizes));
 });

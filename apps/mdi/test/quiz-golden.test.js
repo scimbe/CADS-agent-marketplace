@@ -19,8 +19,7 @@ function play(card, pub, turns) {
   let st = { pub: { ...structuredClone(pub), m: [], now: [] }, priv: [null, null] };
   turns.forEach((answers, t) => {
     for (const a of answers) {
-      const show = card.moves(card.observe(st, t % 2), t % 2).some((x) => x.t === "ok");
-      const input = show ? { t: "ok", seat: t % 2 } : Array.isArray(a) ? { t: "pick", seat: t % 2, v: a[0] } : { t: "guess", seat: t % 2, v: a };
+      const input = { t: "ans", seat: t % 2, a }; // Altformat = Widgetwert: show 0, pick [k], slide Zahl
       assert.equal(card.accepts(card.observe(st, t % 2), t % 2, input), true, JSON.stringify(input));
       st = card.step(st, input);
     }
@@ -66,7 +65,7 @@ test("Golden: ganze Partie durch die Karte ergibt dasselbe Ergebnis (de/en) wie 
       const g = { de: null, en: null };
       for (const lang of ["de", "en"]) {
         const v = card.view(card.observe({ pub: { ...st.pub, m: st.pub.m.slice(0, 1), now: st.pub.m[1].slice(0, -1) }, priv: [] }, 1), 1, { lang });
-        g[lang] = v.children.filter((k) => k.t === "text" && k.role === "body").map((k) => k.text);
+        g[lang] = v.children.flatMap((k) => (k.t === "show" ? k.lines : k.t === "text" && k.role === "body" ? [k.text] : []));
       }
       assert.deepEqual(g, e.last, "letzter Schritt " + e.pack);
     }

@@ -16,6 +16,8 @@
     "de": "Abfragen, jeder von seinem Sofa.",
     "en": "Test each other from two sofas."
   },
+  "grip": "pause",
+  "dur": 120,
   "players": {
     "min": 2,
     "max": 2
@@ -172,6 +174,99 @@
         "de": "Fragenpaket",
         "en": "Question pack"
       }
+    }
+  ],
+  "modes": [
+    "alone",
+    "link",
+    "live"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
+  "inputs": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "t",
+      "seat",
+      "a"
+    ],
+    "properties": {
+      "t": {
+        "const": "ans"
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "a": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3000000
+          },
+          {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 8
+            }
+          },
+          {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "maxLength": 28
+            }
+          }
+        ]
+      },
+      "d": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 10000000
+      }
+    }
+  },
+  "variants": [
+    {
+      "id": "zug-quiz",
+      "title": {
+        "de": "Quiz aus Lernstoff",
+        "en": "Quiz from your notes"
+      },
+      "teaser": {
+        "de": "Fertiges Paket oder dein Text, dann Duell.",
+        "en": "A ready pack or your text, then a duel."
+      },
+      "params": {
+        "variante": "quiz",
+        "paket": "planeten"
+      },
+      "legacy": [
+        "zug-quiz"
+      ],
+      "tags": [
+        "quiz",
+        "lernstoff",
+        "klassenarbeit",
+        "schule",
+        "duell",
+        "study-notes",
+        "exam"
+      ]
     }
   ]
 }

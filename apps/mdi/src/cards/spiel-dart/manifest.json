@@ -4,33 +4,217 @@
   "sdk": "mdi-sdk/0.1",
   "kind": "turn",
   "mode": "turn",
-  "title": { "de": "Dart im Wohnzimmer", "en": "Darts in the living room" },
-  "teaser": { "de": "Drei Pfeile. Dann bist du dran.", "en": "Three darts. Then it's your turn." },
+  "title": {
+    "de": "Dart im Wohnzimmer",
+    "en": "Darts in the living room"
+  },
+  "teaser": {
+    "de": "Drei Pfeile. Dann bist du dran.",
+    "en": "Three darts. Then it's your turn."
+  },
   "howto": {
     "de": "Zielen mit Finger oder Maus. Halten lässt die Kraft pendeln, loslassen wirft; zu stark fliegt hoch, zu schwach tief. Wann du wirfst, ändert die Streuung nicht: Das Zittern zeigt nur, wie weit die Hand ausschlagen kann.",
     "en": "Aim with a finger or the mouse. Holding swings the power, letting go throws; too hard flies high, too soft low. When you throw does not change the spread: the wobble only shows how far the hand can drift."
   },
-  "players": { "min": 2, "max": 2 },
-  "seats": { "de": ["Spieler 1", "Spieler 2"], "en": ["Player 1", "Player 2"] },
+  "rule": {
+    "de": "Wirf deine drei Pfeile. Genau auf null, der letzte Pfeil ein Double – oder eine der anderen Spielarten.",
+    "en": "Throw your three darts. Exactly to zero, the last dart a double – or one of the other games."
+  },
+  "seats": {
+    "de": [
+      "Spieler 1",
+      "Spieler 2"
+    ],
+    "en": [
+      "Player 1",
+      "Player 2"
+    ]
+  },
+  "roles": {
+    "de": [
+      "Spieler 1",
+      "Spieler 2"
+    ],
+    "en": [
+      "Player 1",
+      "Player 2"
+    ]
+  },
+  "grip": "abend",
+  "dur": 180,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "play": {
+    "default": "bot",
+    "offer": [
+      "bot",
+      "link",
+      "live"
+    ]
+  },
   "hidden": "none",
   "uses": [],
-  "limits": { "stepBudget": 20, "stateBytes": 1024 },
+  "limits": {
+    "stepBudget": 20,
+    "stateBytes": 1024
+  },
+  "link": {
+    "snap": true
+  },
+  "inputs": {
+    "oneOf": [
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "a"
+        ],
+        "properties": {
+          "t": {
+            "const": "dart"
+          },
+          "seat": {
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "a": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "aim",
+              "power"
+            ],
+            "properties": {
+              "aim": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 4095
+                }
+              },
+              "power": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 8
+              }
+            }
+          },
+          "f": {
+            "const": 1
+          },
+          "n": {
+            "type": "string",
+            "maxLength": 48
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat"
+        ],
+        "properties": {
+          "t": {
+            "const": "bert"
+          },
+          "seat": {
+            "const": 1
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "a"
+        ],
+        "properties": {
+          "t": {
+            "const": "snap"
+          },
+          "seat": {
+            "const": 0
+          },
+          "a": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "d",
+              "b",
+              "n"
+            ],
+            "properties": {
+              "d": {
+                "type": "string",
+                "maxLength": 360,
+                "pattern": "^[A-Za-z0-9_-]*$"
+              },
+              "b": {
+                "type": "boolean"
+              },
+              "n": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "string",
+                  "maxLength": 48
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
   "params": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["spiel"],
+    "required": [
+      "spiel"
+    ],
     "properties": {
       "spiel": {
         "type": "string",
-        "enum": ["a", "b", "c", "d"],
+        "enum": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
         "default": "a",
         "x-field": "choice",
         "x-model": true,
-        "x-label": { "de": "Spiel", "en": "Game" }
+        "x-label": {
+          "de": "Spiel",
+          "en": "Game"
+        }
       }
     }
   },
   "parts": [
-    { "id": "regeln", "params": ["spiel"], "label": { "de": "Spiel", "en": "Game" } }
+    {
+      "id": "regeln",
+      "params": [
+        "spiel"
+      ],
+      "label": {
+        "de": "Spiel",
+        "en": "Game"
+      }
+    }
   ]
 }

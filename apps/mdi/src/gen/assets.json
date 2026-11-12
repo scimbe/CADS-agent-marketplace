@@ -6,5 +6,25 @@
   "gruss": {
     "assets": [],
     "thumbs": []
+  },
+  "quiz-preis": {
+    "assets": [],
+    "thumbs": []
+  },
+  "spiel-dart": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-abfragen": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-malrat": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-typen": {
+    "assets": [],
+    "thumbs": []
   }
 }

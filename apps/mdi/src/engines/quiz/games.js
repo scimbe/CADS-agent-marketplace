@@ -27,7 +27,7 @@ export function packOf(params, g) {
 }
 export function setupWith(g) {
   return (params, rng) => {
-    const seed = Number.isInteger(params.tag) && params.tag > 0 ? String(params.tag) : gameSeed(rng);
+    const seed = gameSeed(rng);
     const pk = packOf(params, g);
     return { g, seed, pk };
   };

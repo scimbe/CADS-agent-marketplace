@@ -1,7 +1,7 @@
 {
   "id": "zug-malrat",
-  "version": "1.0.0",
-  "sdk": "mdi-sdk/0.1",
+  "version": "1.1.0",
+  "sdk": "mdi-sdk/0.2",
   "kind": "turn",
   "mode": "turn",
   "title": {
@@ -16,9 +16,9 @@
     "de": "Wähle ein Wort und male es. Rate das Bild. Dann malst du zurück.",
     "en": "Pick a word and draw it. Guess the picture. Then you draw back."
   },
-  "players": {
-    "min": 2,
-    "max": 2
+  "rule": {
+    "de": "Einer malt ein Wort, der andere sieht das Bild Strich für Strich und rät. Dann malt er zurück.",
+    "en": "One draws a word, the other watches the picture line by line and guesses. Then they draw back."
   },
   "seats": {
     "de": [
@@ -30,6 +30,36 @@
       "Player 2"
     ]
   },
+  "roles": {
+    "de": [
+      "malt das erste Bild, rät dann und malt zurück",
+      "rät das Bild und malt zurück"
+    ],
+    "en": [
+      "draws the first picture, then guesses and draws back",
+      "guesses the picture and draws back"
+    ]
+  },
+  "grip": "abend",
+  "on": [
+    "12-25"
+  ],
+  "dur": 120,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "link",
+    "live"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "live"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
@@ -39,22 +69,72 @@
   "params": {
     "type": "object",
     "additionalProperties": false,
+    "properties": {}
+  },
+  "inputs": {
+    "type": "object",
+    "additionalProperties": false,
     "required": [
-      "day"
+      "t",
+      "seat",
+      "k",
+      "h",
+      "l",
+      "s",
+      "sec",
+      "r",
+      "d"
     ],
     "properties": {
-      "day": {
+      "t": {
+        "const": "draw"
+      },
+      "seat": {
         "type": "integer",
         "minimum": 0,
-        "maximum": 99999,
-        "default": 0,
-        "x-field": "number",
-        "x-label": {
-          "de": "Tag (Tagesmodus, 0 = aus)",
-          "en": "Day (daily mode, 0 = off)"
-        }
+        "maximum": 1
+      },
+      "k": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{11}$"
+      },
+      "h": {
+        "type": "string",
+        "maxLength": 8,
+        "pattern": "^\\p{L}\\d{1,2}$"
+      },
+      "l": {
+        "enum": [
+          0,
+          1
+        ]
+      },
+      "s": {
+        "type": "string",
+        "minLength": 3,
+        "maxLength": 600,
+        "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+      },
+      "sec": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 3600
+      },
+      "r": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 999
+      },
+      "d": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000000
       }
     }
+  },
+  "inputDay": true,
+  "link": {
+    "snap": true
   },
   "parts": []
 }

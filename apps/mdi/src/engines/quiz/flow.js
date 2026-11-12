@@ -2,12 +2,12 @@
 // makeCard die Vertragsfunktionen (init/step/observe/status/moves/accepts/view). Zug t gehört Sitz t % 2 (alt state.who).
 // Antworten werden wie im Altcode abgelegt: show -> 0, pick -> [k], slide -> Zahl, list -> [Text, ...].
 //
-// Eingaben (eine je prompt): show {t:"ok",seat} · pick {t:"pick",seat,v:k} · slide {t:"guess",seat,v:Zahl}
-// · list {t:"list",seat,v:[Text, ...]}. Schieber und Listen lassen sich nicht aufzählen: accepts() prüft sie
-// (angefragter Vertrags-Hook bei Strang F); moves() zählt nur show und pick auf.
+// Eingabe (ADR 0001 c/f, wie der Zug-Kern von Z1): { t:"ans", seat, a:<Rohwert>, d? } beantwortet genau einen prompt;
+// a ist der Wert, den das Widget schickt (show 0, pick [k], slide Cent/Zahl, list [Text, ...]). d = UTC-Tag, den der
+// Host bei manifest.inputDay stempelt; er zählt nur für die Tageskarte ohne Paket (Seed = Tag, alt Turns.today()).
+// Schieber und Listen lassen sich nicht aufzählen: accepts() prüft sie; moves() liefert deterministische Hinweiszüge.
 import { questClean, questFold } from "./clean.js";
 import { fmt } from "../seed32/seed32.js";
-
 function int(v, lo, hi) { return Number.isInteger(v) && v >= lo && v <= hi; }
 function distinct(a) { return new Set(a).size === a.length; }
 export function copyPub(p) { return structuredClone(p); }
@@ -24,13 +24,27 @@ export function okAnswer(p, v, pub, now, L) {
   if (p.w === "pick") { const n = p.from(pub, now, "de", L).length; return Array.isArray(v) && v.length === 1 && int(v[0], 0, n - 1); }
   return false;
 }
+const KEYS = ["t", "seat", "a", "d"];
 function toAnswer(p, input) {
-  if (p.w === "show") return input.t === "ok" && Object.keys(input).length === 2 ? 0 : undefined;
-  if (p.w === "pick") return input.t === "pick" ? [input.v] : undefined;
-  if (p.w === "slide") return input.t === "guess" ? input.v : undefined;
-  if (p.w === "list") return input.t === "list" && Array.isArray(input.v) ? input.v.slice() : undefined;
+  if (!input || input.t !== "ans" || !Object.keys(input).every((k) => KEYS.includes(k))) return undefined;
+  if (input.d !== undefined && !int(input.d, 1, 10000000)) return undefined;
+  const a = input.a;
+  if (p.w === "show") return a === 0 ? 0 : undefined;
+  if (p.w === "pick") return Array.isArray(a) ? a.slice() : undefined;
+  if (p.w === "slide") return a;
+  if (p.w === "list") return Array.isArray(a) ? a.slice() : undefined;
   return undefined;
 }
+/** Seed der Partie; die Tageskarte ohne Paket bekommt ihn mit dem ersten Zug aus dem Tagesstempel d (sonst ""). */
+function seeded(pub, d) { return pub.seed || !Number.isInteger(d) ? pub : { ...pub, seed: String(d) }; }
+/** Hinweiswert eines Schiebers: Vorgabe der Karte, sonst die Mitte, auf die Schrittweite gerundet. */
+function slideHint(p, pub) {
+  const lo = p.min || 0, hi = p.maxOf ? p.maxOf(pub) : p.max, st = p.step || 1;
+  if (p.defOf) return p.defOf(pub);
+  return lo + Math.floor((hi - lo) / 2 / st) * st;
+}
+/** Hinweisliste: eindeutige kurze Einträge, die durch den Wortfilter gehen (nur für Bot-freie Testläufe und Tipps). */
+function listHint(p) { const out = []; for (let i = 0; i < p.n; i++) out.push(String(i + 1)); return out; }
 
 /**
  * @param {object} manifest
@@ -52,17 +66,22 @@ export function makeCard(manifest, spec) {
     const over = t >= g.turns.length;
     return { over, turn: over ? -1 : t % 2, reveal: false, score: [], winner: -1 };
   }
+  // Hinweiszüge (ADR 0001 f: moves() bleibt für Bot und Hinweise): show 0, jede pick-Option, Schieber-Vorgabe bzw.
+  // -Mitte, eine gültige Liste. Ohne Seed (Tageskarte vor dem ersten Zug) ist nur der untere Schieberrand sicher gültig.
   function moves(obs, seat) {
     const p = obs.pub, { prompt, t } = at(p);
     if (!prompt || t % 2 !== seat) return [];
-    if (prompt.w === "show") return [{ t: "ok", seat }];
-    if (prompt.w === "pick") return prompt.from(p, p.now, "de", X("de")).map((x, k) => ({ t: "pick", seat, v: k }));
+    if (prompt.w === "show") return [{ t: "ans", seat, a: 0 }];
+    if (prompt.w === "pick") return prompt.from(p, p.now, "de", X("de")).map((x, k) => ({ t: "ans", seat, a: [k] }));
+    if (prompt.w === "slide") return [{ t: "ans", seat, a: p.seed ? slideHint(prompt, p) : prompt.min || 0 }];
+    if (prompt.w === "list") return [{ t: "ans", seat, a: listHint(prompt) }];
     return [];
   }
   function accepts(obs, seat, input) {
-    const p = obs.pub, { prompt, t } = at(p);
+    const p0 = obs.pub, { prompt, t } = at(p0);
     if (!prompt || t % 2 !== seat || !input || input.seat !== seat) return false;
-    const v = toAnswer(prompt, input);
+    const v = toAnswer(prompt, input), p = seeded(p0, input.d);
+    if (!p.seed) return false;
     return v !== undefined && okAnswer(prompt, v, p, p.now, X("de"));
   }
   return {
@@ -73,6 +92,7 @@ export function makeCard(manifest, spec) {
       if (!g) throw new Error("ungueltig: kein Paket");
       if (!prompt) throw new Error("ungueltig: Partie vorbei");
       if (!input || input.seat !== t % 2) throw new Error("ungueltig: nicht am Zug");
+      if (!p.seed) { if (!Number.isInteger(input.d) || input.d < 1) throw new Error("ungueltig: Tag fehlt"); p.seed = String(input.d); }
       const v = toAnswer(prompt, input);
       if (v === undefined || !okAnswer(prompt, v, p, p.now, X("de"))) throw new Error("ungueltig: " + prompt.w);
       p.now.push(v);
@@ -84,7 +104,9 @@ export function makeCard(manifest, spec) {
     /** Ergebnis (nur wenn vorbei), für Tests und die Ansicht. */
     result(pub, lang) { const { g, t } = at(pub); return g && t >= g.turns.length ? g.result(pub, lang, X(lang)) : null; },
     view(obs, seat, ctx) {
-      const lang = ctx.lang === "en" ? "en" : "de", L = X(lang), p = obs.pub, { g, prompt, t } = at(p), kids = [];
+      const lang = ctx.lang === "en" ? "en" : "de", L = X(lang), { g, prompt, t } = at(obs.pub), kids = [];
+      // Tageskarte vor dem ersten Zug: der Seed ist der heutige Tag (ctx.today); step legt ihn mit d fest
+      const p = obs.pub.seed || !Number.isInteger(ctx.today) ? obs.pub : { ...obs.pub, seed: String(ctx.today) };
       if (spec.title) kids.push({ t: "text", role: "label", text: spec.title(p, lang, L) });
       if (ctx.preview) { kids.push({ t: "text", role: "body", text: manifest.howto[lang], part: "regeln" }); return { t: "stack", children: kids }; }
       if (!g) { kids.push({ t: "text", role: "body", text: L.pk_need }); return { t: "stack", children: kids }; }
@@ -93,31 +115,28 @@ export function makeCard(manifest, spec) {
         if (r.h) kids.push({ t: "text", role: "big", text: r.h });
         for (const line of r.lines) kids.push({ t: "text", role: "body", text: line });
         if (r.note) kids.push({ t: "text", role: "small", text: r.note });
-        return { t: "stack", children: kids };
+        return { t: "stack", result: true, children: kids };
       }
       if (t % 2 !== seat) return { t: "stack", children: kids };
-      const now = p.now;
-      if (prompt.title && prompt.w !== "slide") kids.push({ t: "text", role: "label", text: prompt.title(p, now, lang, L) });
-      if (prompt.peek) { const s = prompt.peek(p, now, lang, L); if (s) kids.push({ t: "text", role: "title", text: s }); }
-      if (prompt.top) kids.push({ t: "text", role: "title", text: prompt.top(p, now, lang, L) });
+      if (!p.seed) { kids.push({ t: "text", role: "body", text: L.day_need || L.pk_need }); return { t: "stack", children: kids }; }
+      const now = p.now, step = { i: now.length + 1, n: g.turns[t].length };
+      // Widget nach ADR 0001 c: der Host schickt { ...submit, a: <Wert> }; Gültigkeit prüfen accepts und step
+      const w = { id: "q" + t + "-" + now.length, submit: { t: "ans", seat } };
+      const top = prompt.top ? prompt.top(p, now, lang, L) : undefined, peek = prompt.peek ? prompt.peek(p, now, lang, L) || undefined : undefined;
+      const label = prompt.title ? prompt.title(p, now, lang, L) : L[prompt.l];
       if (prompt.w === "show") {
-        for (const s of prompt.list(p, now, lang, L)) kids.push({ t: "text", role: "body", text: s });
-        for (const s of (prompt.notes ? prompt.notes(p, now, lang, L) : []).filter(Boolean)) kids.push({ t: "text", role: "small", text: s });
-        if (prompt.later) kids.push({ t: "text", role: "small", text: L[prompt.later] });
-        kids.push({ t: "choice", label: L[prompt.l], options: [{ label: L.next, input: { t: "ok", seat } }] });
+        kids.push({ t: "show", ...w, label: L[prompt.l], top, lines: prompt.list(p, now, lang, L),
+          notes: (prompt.notes ? prompt.notes(p, now, lang, L) : []).filter(Boolean), later: prompt.later ? L[prompt.later] : undefined, confirm: L.next });
       } else if (prompt.w === "pick") {
-        kids.push({ t: "choice", label: L[prompt.l], options: prompt.from(p, now, lang, L).map((s, k) => ({ label: s, input: { t: "pick", seat, v: k } })) });
+        kids.push({ t: "pick", ...w, label: L[prompt.l], top, n: 1, auto: true, options: prompt.from(p, now, lang, L).map((s) => ({ label: s })) });
       } else if (prompt.w === "slide") {
-        // Primitiv "slide" liefert Strang F; bis dahin fällt der Knoten im Renderer weg (offen, kein Ersatz-Knopf).
         const max = prompt.maxOf ? prompt.maxOf(p) : prompt.max;
-        kids.push({ t: "slide", label: prompt.title ? prompt.title(p, now, lang, L) : L[prompt.l], hint: L[prompt.l], min: prompt.min || 0, max, step: prompt.step || 1,
-          value: prompt.defOf ? prompt.defOf(p) : prompt.min || 0, format: prompt.money ? "eur" : "int", unit: prompt.unit ? prompt.unit(p) : "", less: L.sl_less, more: L.sl_more,
-          input: { t: "guess", seat }, field: "v" });
+        kids.push({ t: "slide", ...w, label, peek, hint: L[prompt.l], min: prompt.min || 0, max, step: prompt.step || 1, value: slideHint(prompt, p),
+          format: prompt.money ? "eur" : "int", unit: prompt.unit ? prompt.unit(p) : undefined, confirm: L.next });
       } else if (prompt.w === "list") {
-        // Primitiv "text"/"list" (Freitext) liefert Strang F.
-        kids.push({ t: "list", label: L[prompt.l], n: prompt.n, max: prompt.max, input: { t: "list", seat }, field: "v" });
+        kids.push({ t: "list", ...w, label: L[prompt.l], n: prompt.n, max: prompt.max, same: !!prompt.same, bytes: prompt.bytes, confirm: L.next });
       }
-      return { t: "stack", children: kids };
+      return { t: "stack", step, children: kids };
     }
   };
 }

@@ -34,22 +34,28 @@ test("Engine: jeder Treffer wie im Altcode (n, m, p, x, y), Stand, Ende, Sieger"
   for (const c of G.cases) assert.deepEqual(frozen(D.sim(c.seed, c.s)), expected(c), c.name);
 });
 
-test("Karte: dieselben Treffer ueber card.step, Aufnahme fuer Aufnahme, mit Bert ueber {t:\"bert\"}", () => {
+// Eingabe aus der Altkodierung eines Pfeils (wie das form-Widget aim + power sie liefert)
+function dartIn(seat, chars) { const d = D.dec(chars)[0], x = { t: "dart", seat, a: { aim: [d.ax, d.ay], power: d.p } }; if (d.f) x.f = 1; return x; }
+
+test("Karte: dieselben Treffer ueber card.step, Pfeil fuer Pfeil, mit Bert ueber {t:\"bert\"}; Schnappschuss gleichwertig", () => {
   for (const c of G.cases) {
     const bot = c.s[1] === "b";
     let st = card.init({ rng: rng("golden"), params: { spiel: c.s[0] } });
     st = { pub: { ...st.pub, seed: c.seed }, priv: st.priv };
+    const log = [];
     let at = 2;
     c.cuts.forEach((n, i) => {
-      const seat = card.status(st).turn;
-      assert.equal(seat, bot ? 0 : i % 2, c.name + " Sitz " + i);
-      const g = D.sim(c.seed, st.pub.s[0] + (bot ? "b" : "l") + st.pub.s.slice(2) + c.s.slice(at, at + 5 * n));
-      const input = { t: "turn", seat, d: c.s.slice(at, at + 5 * n), c: Math.min(999, g.turns.filter((t) => t.p === seat).pop().pts) };
-      assert.ok(card.accepts(card.observe(st, seat), seat, input), c.name + " accepts " + i);
-      st = card.step(st, input); at += 5 * n;
+      for (let j = 0; j < n; j++) {
+        const seat = card.status(st).turn;
+        assert.equal(seat, bot ? 0 : i % 2, c.name + " Sitz " + i + "/" + j);
+        const input = dartIn(seat, c.s.slice(at, at + 5));
+        assert.ok(card.accepts(card.observe(st, seat), seat, input), c.name + " accepts " + i + "/" + j);
+        st = card.step(st, input); log.push(input); at += 5;
+      }
       if (bot && i === 0 && !card.status(st).over) {
-        assert.deepEqual(card.moves(card.observe(st, 1), 1), [{ t: "bert", seat: 1 }]);
-        st = card.step(st, { t: "bert", seat: 1 });
+        assert.deepEqual(card.moves(card.observe(st, 1), 1)[0], { t: "bert", seat: 1 });
+        assert.deepEqual(card.bot(card.observe(st, 1), 1, { level: 2, seed: "x" }), { t: "bert", seat: 1 });
+        st = card.step(st, { t: "bert", seat: 1 }); log.push({ t: "bert", seat: 1 });
       }
     });
     assert.equal(st.pub.s, c.s, c.name + " Darts-Zeichenkette");
@@ -57,5 +63,12 @@ test("Karte: dieselben Treffer ueber card.step, Aufnahme fuer Aufnahme, mit Bert
     assert.deepEqual(frozen(g), expected(c), c.name);
     const status = card.status(st);
     assert.equal(status.over, c.over, c.name); assert.equal(status.winner, c.over ? c.win : -1, c.name);
+    // Schnappschuss aus dem Log und aus dem Zustand ergeben denselben Zustand
+    for (const snap of [card.compact(log), card.compact(log, st)]) {
+      assert.equal(snap.length, 1);
+      let s2 = card.init({ rng: rng("golden"), params: { spiel: c.s[0] } }); s2 = { pub: { ...s2.pub, seed: c.seed }, priv: s2.priv };
+      assert.ok(card.accepts(card.observe(s2, 0), 0, snap[0]), c.name + " snap");
+      assert.deepEqual(card.step(s2, snap[0]).pub, st.pub, c.name + " snap gleich");
+    }
   }
 });
