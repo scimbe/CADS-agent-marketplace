@@ -31,7 +31,7 @@ export function checkInput(cardId, x) {
 /** Kontext fuer view(obs, seat, ctx) – eine Quelle fuer Host-Ansichten (ADR 0001 f, Anfrage Z1). */
 export function viewCtx(ctx, extra = {}) {
   const me = ctx.me || {}, konto = ctx.konto || {};
-  return { lang: ctx.lang, today: Number.isInteger(ctx.today) ? ctx.today : null, draft: ctx.draft === undefined ? null : ctx.draft, age18: konto.age18 === true || me.age18 === true, nick: typeof me.nick === "string" ? me.nick : "", ...extra };
+  return { lang: ctx.lang, today: Number.isInteger(ctx.today) ? ctx.today : null, draft: ctx.draft === undefined ? null : ctx.draft, memo: ctx.memo || null, age18: konto.age18 === true || me.age18 === true, nick: typeof me.nick === "string" ? me.nick : "", ...extra };
 }
 export function continues(stored, w) {
   if (!stored || typeof stored.lh !== "string" || !Array.isArray(stored.k)) return "manipuliert";
@@ -177,7 +177,8 @@ export function receive(hash, stored, rand) {
     return { ok: true, kind: "ghost", cardId: d.data.c, params: d.data.p, wire: d.data, seat: v.seat, score: v.score };
   }
   if (d.type === "card") {
-    if (c.manifest.mode !== "static") return { ok: false, reason: "typ" };
+    // Karten-Link = Parameter einer Karte: statische Karten und Echtzeitkarten (gebautes Level, Variante, freie Karte)
+    if (c.manifest.mode === "turn") return { ok: false, reason: "typ" };
     return { ok: true, kind: "card", cardId: d.data.c, params: d.data.p };
   }
   if (c.manifest.mode === "static") return { ok: false, reason: "typ" };

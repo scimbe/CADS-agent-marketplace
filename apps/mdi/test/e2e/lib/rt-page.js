@@ -11,7 +11,7 @@ const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 let sess = null, phase = "ready";
 const rt = {
   get active() { return !!sess; }, get view() { return card.manifest.rt.view; },
-  screenButtons: () => (sess ? sess.screenButtons() : []),
+  screenButtons: () => (sess ? sess.screenButtons() : []), get controls() { return card.manifest.rt.controls; },
   key: (c, d) => (sess ? sess.key(c, d) : false), pointer: (...a) => sess && sess.pointer(...a), button: (...a) => sess && sess.button(...a),
   blur: () => sess && sess.blur(), hidden: () => { if (sess && phase === "run") dispatch({ type: "PAUSE" }); }
 };

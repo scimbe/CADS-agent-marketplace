@@ -138,7 +138,7 @@ test("v0.2 Abdecken vor dem ersten Zug (alone) und Kontext fuer view (today, age
   assert.ok(machine.matches(s, "inhalt.card.play.turn"));
   assert.equal(s.ctx.coveredFor, 0);
   s = machine.send(s, { type: "DRAFT", draft: { x: 1 }, rand: R() });
-  assert.deepEqual(G.viewCtx({ ...s.ctx, today: 20400 }), { lang: "de", today: 20400, draft: { x: 1 }, age18: false, nick: s.ctx.me ? s.ctx.me.nick || "" : "" });
+  assert.deepEqual(G.viewCtx({ ...s.ctx, today: 20400 }), { lang: "de", today: 20400, draft: { x: 1 }, memo: null, age18: false, nick: s.ctx.me ? s.ctx.me.nick || "" : "" });
   assert.equal(G.todayOf(Date.UTC(2026, 10, 12, 23, 59)), 20769);
 });
 
