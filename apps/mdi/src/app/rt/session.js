@@ -103,6 +103,7 @@ export function createRtSession(card, o, d) {
     key: (code, down) => sampler.key(code, down),
     pointer: (type, id, x, y) => sampler.pointer(type, id, x, y),
     button: (id, down) => sampler.button(id, down),
+    tap: (down) => sampler.tap(down),
     blur() { sampler.reset(); },
     get phase() { return phase; },
     get paused() { return loop.paused; },

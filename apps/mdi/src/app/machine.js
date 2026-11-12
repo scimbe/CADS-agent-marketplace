@@ -51,6 +51,7 @@ export const chart = {
             view: {
               on: {
                 MODE: { actions: ["setMode"] }, SEAT: { actions: ["setSeat"] }, LEVEL: { actions: ["setLevel"] },
+                SLOW: { actions: ["setSlow"] },
                 CUSTOMIZE: T("inhalt.card.customize"),
                 GO: [
                   { target: T("inhalt.card.rt"), cond: "goRt", actions: ["startRt"] },
@@ -293,6 +294,13 @@ export const actions = {
     const next = { ...G.paramsOf(ctx), [ev.key]: ev.value };
     if (!validParams(ctx.cardId, next)) return { ...ctx, paramError: ev.key };
     return { ...ctx, params: { ...ctx.params, [ctx.cardId]: next }, paramError: null };
+  },
+  // Gemuetlich spielen: tempo = langsamste Stufe aus rt.slow (oder 1); geht als Kartenparameter in Link, Spur und Geist
+  setSlow: (ctx, ev) => {
+    const c = G.card(ctx), slow = c && c.manifest.rt && Array.isArray(c.manifest.rt.slow) ? c.manifest.rt.slow : null;
+    if (!slow || !c.manifest.params.properties || !c.manifest.params.properties.tempo) return ctx;
+    const next = { ...G.paramsOf(ctx), tempo: ev.on === true ? Math.min(...slow) : 1 };
+    return validParams(ctx.cardId, next) ? { ...ctx, params: { ...ctx.params, [ctx.cardId]: next } } : ctx;
   },
   makeCardLink: (ctx, ev) => {
     const c = G.card(ctx);
