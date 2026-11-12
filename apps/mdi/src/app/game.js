@@ -236,6 +236,7 @@ export function receive(hash, stored, rand) {
 // ---------- Phasen fuer SYNC ----------
 export function phase(ctx) {
   if (ctx.error) return "error";
+  if (Array.isArray(ctx.vacant) && ctx.vacant.length) return "vacant";
   if (!ctx.session) return "hand";
   const st = gameStatus(ctx), mine = mySeats(ctx), log = ctx.session.log;
   // Link: senden, wenn mein letzter Zug noch nicht unterwegs ist – oder wenn ich die Partie eroeffne und der

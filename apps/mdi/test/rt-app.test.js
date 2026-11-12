@@ -95,3 +95,54 @@ test("Merkzettel je Partie (MEMO): bleibt auf dem Geraet, ueberlebt neue Staende
   a.dispatch({ type: "MEMO", memo: { big: "x".repeat(600) } });
   assert.deepEqual(a.state.ctx.memo, { own: true }, "zu gross wird abgelehnt");
 });
+
+function groupOf3(net, timers) {
+  const mk = (e) => {
+    const shared = [];
+    const r = A.createRuntime({ lang: "de", entropy: counter(e), storage: memStorage(), live: net.loader, share: (f) => { shared.push(f); return Promise.resolve("copied"); }, clearUrl() {}, schedule: (f) => setTimeout(f, 0), onChange() {},
+      setTimer: (ms, f) => { const h = { ms, f, dev: e }; timers.push(h); return h; }, clearTimer: (h) => { const i = timers.indexOf(h); if (i >= 0) timers.splice(i, 1); } });
+    r.shared = shared; return r;
+  };
+  return mk;
+}
+async function startGroup(net, mk) {
+  const h = mk("a");
+  h.dispatch({ type: "OPEN", id: "fx-zug" }); h.dispatch({ type: "MODE", mode: "live" }); h.dispatch("GO");
+  await until(() => h.state.ctx.raum && h.state.ctx.raum.invites && Object.keys(h.state.ctx.raum.invites).length === 2);
+  const g = { 1: mk("b"), 2: mk("c") };
+  for (const s of [1, 2]) { g[s].link(h.state.ctx.raum.invites[s]); g[s].dispatch("ACCEPT"); }
+  await until(() => [h, g[1], g[2]].every((d) => d.state.ctx.session));
+  return { h, g };
+}
+
+test("Gruppen-Live: Gast geht -> Partie faellt aus, Platz frei; Gastgeber besetzt neu -> neue Partie mit allen drei", async () => {
+  const net = fakeLiveNet(), timers = [], mk = groupOf3(net, timers);
+  const { h, g } = await startGroup(net, mk);
+  const seed0 = h.state.ctx.session.seed;
+  g[2].dispatch("BACK"); // Gast 2 steht auf
+  await until(() => leaf(h) === "inhalt.card.play.vacant");
+  await until(() => !g[1].state.ctx.session && g[1].state.ctx.awaitHello, 4000);
+  assert.deepEqual(h.state.ctx.vacant, [2]);
+  h.dispatch("REINVITE");
+  await until(() => h.state.ctx.raum.invites && h.state.ctx.raum.invites[2]);
+  const n = mk("d"); n.link(h.state.ctx.raum.invites[2]); n.dispatch("ACCEPT");
+  await until(() => [h, g[1], n].every((d) => d.state.ctx.session));
+  assert.notEqual(h.state.ctx.session.seed, seed0, "neue Partie, neuer Seed");
+  assert.equal(h.state.ctx.session.seed, g[1].state.ctx.session.seed); assert.equal(h.state.ctx.session.seed, n.state.ctx.session.seed);
+  assert.equal(h.state.ctx.vacant.length, 0);
+});
+
+test("Live: Auto-Zug nach 20 s spielt card.auto fuer den eigenen Sitz und leitet ihn weiter", async () => {
+  const net = fakeLiveNet(), timers = [], mk = groupOf3(net, timers);
+  const { h, g } = await startGroup(net, mk);
+  const all = [h, g[1], g[2]];
+  await until(() => all.some((d) => leaf(d) === "inhalt.card.play.turn"));
+  const dev = all.find((d) => leaf(d) === "inhalt.card.play.turn"), seat = dev.state.ctx.viewer;
+  const t = timers.find((x) => x.ms === 20000 && x.dev === (dev === h ? "a" : dev === g[1] ? "b" : "c"));
+  assert.ok(t, "Zeitgeber fuer den eigenen Zug gesetzt");
+  const n0 = dev.state.ctx.session.log.length;
+  t.f();
+  await until(() => all.every((d) => d.state.ctx.session.log.length > n0));
+  const x = dev.state.ctx.session.log[n0];
+  assert.equal(x.seat, seat); assert.equal(x.a, "auto");
+});
