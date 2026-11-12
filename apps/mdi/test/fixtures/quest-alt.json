@@ -1,0 +1,49 @@
+{
+ "herkunft": "Tag pre-legacy-removal, Altbaum src/quest.js: Quest.seal(draft) und Quest.open mit den Antworten, einmalig berechnet (Nonce zufaellig, daher fest eingefroren).",
+ "draft": {
+  "stops": [
+   {
+    "q": "Was war unser bester Tag?",
+    "a": "Ostsee"
+   },
+   {
+    "q": "Welches Lied läuft dazu?",
+    "a": "Atemlos"
+   },
+   {
+    "q": "Wer hat damals gewonnen?",
+    "a": "Oma"
+   }
+  ],
+  "end": "Alle drei auf. Respekt."
+ },
+ "sealed": {
+  "q0": "Was war unser bester Tag?",
+  "h0": "O6",
+  "c": [
+   "LhoO42lRAQefZot8sZhZ10gsERlaHF15R02HP_unyxty2fuKE3NQPO_6r9BAERAz5NqTWrMNNIFpRAyX29wtTtIlvNxr7g",
+   "aHkBT82CLGux6gxKvdnOuX5keb-FLzIqC3loDWIhr-HTjmBAVeojFfTsmD6ut-Pa9GPAYGLSRGlyloN2Q96b5iRcRLrt",
+   "9fw95FcevNCR6aIwFAh38W0BaU5pVbdJvlkleZ4ZJh8_SbxxiU6iVnYT9vliO3t-ZinSu_7Xal7o11E"
+  ]
+ },
+ "answers": [
+  "Ostsee",
+  "Atemlos",
+  "Oma",
+  "falsch"
+ ],
+ "opened": [
+  {
+   "q": "Welches Lied läuft dazu?",
+   "h": "A7"
+  },
+  {
+   "q": "Wer hat damals gewonnen?",
+   "h": "O3"
+  },
+  {
+   "e": "Alle drei auf. Respekt."
+  },
+  null
+ ]
+}

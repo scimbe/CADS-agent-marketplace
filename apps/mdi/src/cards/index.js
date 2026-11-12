@@ -1,17 +1,35 @@
 // ERZEUGT von scripts/gen.js – nicht von Hand aendern.
 /* eslint-disable */
 // Kartenregister (ADR 0001 a): alle Karten erfuellen denselben Vertrag; der Host kennt nur diese Schnittstelle.
+import c_advent_tuer from "./advent-tuer/card.js";
+import c_arcade_elfer from "./arcade-elfer/card.js";
+import c_arcade_flipper from "./arcade-flipper/card.js";
+import c_arcade_kick from "./arcade-kick/card.js";
+import c_arcade_murmel from "./arcade-murmel/card.js";
+import c_arcade_panzer from "./arcade-panzer/card.js";
+import c_arcade_puck from "./arcade-puck/card.js";
+import c_arcade_snow from "./arcade-snow/card.js";
+import c_arcade_stock from "./arcade-stock/card.js";
+import c_arcade_volley from "./arcade-volley/card.js";
+import c_arcade_ziegel from "./arcade-ziegel/card.js";
+import c_beat_pausenhof from "./beat-pausenhof/card.js";
 import c_bluff from "./bluff/card.js";
 import c_flug from "./flug/card.js";
+import c_foto_alien from "./foto-alien/card.js";
 import c_frei from "./frei/card.js";
 import c_geschenk_finder from "./geschenk-finder/card.js";
 import c_gruss from "./gruss/card.js";
+import c_kanal_geheim from "./kanal-geheim/card.js";
 import c_karte_danke from "./karte-danke/card.js";
 import c_lauf from "./lauf/card.js";
 import c_quiz_preis from "./quiz-preis/card.js";
 import c_raum_sorry from "./raum-sorry/card.js";
 import c_spiel_dart from "./spiel-dart/card.js";
+import c_stimme_verzerren from "./stimme-verzerren/card.js";
+import c_strassenrap_beat from "./strassenrap-beat/card.js";
+import c_zettel from "./zettel/card.js";
 import c_zug_abfragen from "./zug-abfragen/card.js";
+import c_zug_advent from "./zug-advent/card.js";
 import c_zug_einig from "./zug-einig/card.js";
 import c_zug_einkauf from "./zug-einkauf/card.js";
 import c_zug_gutschein from "./zug-gutschein/card.js";
@@ -19,6 +37,7 @@ import c_zug_kapsel from "./zug-kapsel/card.js";
 import c_zug_malrat from "./zug-malrat/card.js";
 import c_zug_reihum from "./zug-reihum/card.js";
 import c_zug_sammeln from "./zug-sammeln/card.js";
+import c_zug_stimme from "./zug-stimme/card.js";
 import c_zug_termin from "./zug-termin/card.js";
 import c_zug_typen from "./zug-typen/card.js";
 import c_zug_umschlag from "./zug-umschlag/card.js";
@@ -28,10 +47,10 @@ import * as V from "../gen/validators.js";
 import { CODE_HASH } from "../gen/codehash.js";
 import { deriveModes } from "../contract/modes.js";
 
-export const CARDS = Object.freeze({ "bluff": c_bluff, "flug": c_flug, "frei": c_frei, "geschenk-finder": c_geschenk_finder, "gruss": c_gruss, "karte-danke": c_karte_danke, "lauf": c_lauf, "quiz-preis": c_quiz_preis, "raum-sorry": c_raum_sorry, "spiel-dart": c_spiel_dart, "zug-abfragen": c_zug_abfragen, "zug-einig": c_zug_einig, "zug-einkauf": c_zug_einkauf, "zug-gutschein": c_zug_gutschein, "zug-kapsel": c_zug_kapsel, "zug-malrat": c_zug_malrat, "zug-reihum": c_zug_reihum, "zug-sammeln": c_zug_sammeln, "zug-termin": c_zug_termin, "zug-typen": c_zug_typen, "zug-umschlag": c_zug_umschlag, "zug-wichteln": c_zug_wichteln, "zug-wunschzettel": c_zug_wunschzettel });
-export const ORDER = Object.freeze(["zug-sammeln","zug-termin","zug-einkauf","zug-wichteln","zug-reihum","zug-einig","zug-wunschzettel","geschenk-finder","karte-danke","zug-umschlag","zug-kapsel","zug-gutschein","raum-sorry","flug","lauf","bluff","gruss","quiz-preis","spiel-dart","zug-abfragen","zug-malrat","zug-typen","frei"]);
-const PARAMS = { "bluff": V.params_bluff, "flug": V.params_flug, "frei": V.params_frei, "geschenk-finder": V.params_geschenk_finder, "gruss": V.params_gruss, "karte-danke": V.params_karte_danke, "lauf": V.params_lauf, "quiz-preis": V.params_quiz_preis, "raum-sorry": V.params_raum_sorry, "spiel-dart": V.params_spiel_dart, "zug-abfragen": V.params_zug_abfragen, "zug-einig": V.params_zug_einig, "zug-einkauf": V.params_zug_einkauf, "zug-gutschein": V.params_zug_gutschein, "zug-kapsel": V.params_zug_kapsel, "zug-malrat": V.params_zug_malrat, "zug-reihum": V.params_zug_reihum, "zug-sammeln": V.params_zug_sammeln, "zug-termin": V.params_zug_termin, "zug-typen": V.params_zug_typen, "zug-umschlag": V.params_zug_umschlag, "zug-wichteln": V.params_zug_wichteln, "zug-wunschzettel": V.params_zug_wunschzettel };
-const INPUTS = { "geschenk-finder": V.inputs_geschenk_finder, "karte-danke": V.inputs_karte_danke, "quiz-preis": V.inputs_quiz_preis, "raum-sorry": V.inputs_raum_sorry, "spiel-dart": V.inputs_spiel_dart, "zug-abfragen": V.inputs_zug_abfragen, "zug-einig": V.inputs_zug_einig, "zug-einkauf": V.inputs_zug_einkauf, "zug-gutschein": V.inputs_zug_gutschein, "zug-kapsel": V.inputs_zug_kapsel, "zug-malrat": V.inputs_zug_malrat, "zug-reihum": V.inputs_zug_reihum, "zug-sammeln": V.inputs_zug_sammeln, "zug-termin": V.inputs_zug_termin, "zug-typen": V.inputs_zug_typen, "zug-umschlag": V.inputs_zug_umschlag, "zug-wichteln": V.inputs_zug_wichteln, "zug-wunschzettel": V.inputs_zug_wunschzettel };
+export const CARDS = Object.freeze({ "advent-tuer": c_advent_tuer, "arcade-elfer": c_arcade_elfer, "arcade-flipper": c_arcade_flipper, "arcade-kick": c_arcade_kick, "arcade-murmel": c_arcade_murmel, "arcade-panzer": c_arcade_panzer, "arcade-puck": c_arcade_puck, "arcade-snow": c_arcade_snow, "arcade-stock": c_arcade_stock, "arcade-volley": c_arcade_volley, "arcade-ziegel": c_arcade_ziegel, "beat-pausenhof": c_beat_pausenhof, "bluff": c_bluff, "flug": c_flug, "foto-alien": c_foto_alien, "frei": c_frei, "geschenk-finder": c_geschenk_finder, "gruss": c_gruss, "kanal-geheim": c_kanal_geheim, "karte-danke": c_karte_danke, "lauf": c_lauf, "quiz-preis": c_quiz_preis, "raum-sorry": c_raum_sorry, "spiel-dart": c_spiel_dart, "stimme-verzerren": c_stimme_verzerren, "strassenrap-beat": c_strassenrap_beat, "zettel": c_zettel, "zug-abfragen": c_zug_abfragen, "zug-advent": c_zug_advent, "zug-einig": c_zug_einig, "zug-einkauf": c_zug_einkauf, "zug-gutschein": c_zug_gutschein, "zug-kapsel": c_zug_kapsel, "zug-malrat": c_zug_malrat, "zug-reihum": c_zug_reihum, "zug-sammeln": c_zug_sammeln, "zug-stimme": c_zug_stimme, "zug-termin": c_zug_termin, "zug-typen": c_zug_typen, "zug-umschlag": c_zug_umschlag, "zug-wichteln": c_zug_wichteln, "zug-wunschzettel": c_zug_wunschzettel });
+export const ORDER = Object.freeze(["zug-sammeln","zug-termin","zug-einkauf","zug-wichteln","zug-reihum","zug-einig","zug-wunschzettel","geschenk-finder","karte-danke","zug-umschlag","advent-tuer","zug-kapsel","zug-advent","zug-gutschein","raum-sorry","zettel","foto-alien","beat-pausenhof","strassenrap-beat","zug-stimme","kanal-geheim","flug","lauf","arcade-kick","arcade-elfer","arcade-ziegel","arcade-panzer","arcade-stock","arcade-puck","arcade-volley","arcade-flipper","arcade-snow","arcade-murmel","stimme-verzerren","bluff","gruss","quiz-preis","spiel-dart","zug-abfragen","zug-malrat","zug-typen","frei"]);
+const PARAMS = { "advent-tuer": V.params_advent_tuer, "arcade-elfer": V.params_arcade_elfer, "arcade-flipper": V.params_arcade_flipper, "arcade-kick": V.params_arcade_kick, "arcade-murmel": V.params_arcade_murmel, "arcade-panzer": V.params_arcade_panzer, "arcade-puck": V.params_arcade_puck, "arcade-snow": V.params_arcade_snow, "arcade-stock": V.params_arcade_stock, "arcade-volley": V.params_arcade_volley, "arcade-ziegel": V.params_arcade_ziegel, "beat-pausenhof": V.params_beat_pausenhof, "bluff": V.params_bluff, "flug": V.params_flug, "foto-alien": V.params_foto_alien, "frei": V.params_frei, "geschenk-finder": V.params_geschenk_finder, "gruss": V.params_gruss, "kanal-geheim": V.params_kanal_geheim, "karte-danke": V.params_karte_danke, "lauf": V.params_lauf, "quiz-preis": V.params_quiz_preis, "raum-sorry": V.params_raum_sorry, "spiel-dart": V.params_spiel_dart, "stimme-verzerren": V.params_stimme_verzerren, "strassenrap-beat": V.params_strassenrap_beat, "zettel": V.params_zettel, "zug-abfragen": V.params_zug_abfragen, "zug-advent": V.params_zug_advent, "zug-einig": V.params_zug_einig, "zug-einkauf": V.params_zug_einkauf, "zug-gutschein": V.params_zug_gutschein, "zug-kapsel": V.params_zug_kapsel, "zug-malrat": V.params_zug_malrat, "zug-reihum": V.params_zug_reihum, "zug-sammeln": V.params_zug_sammeln, "zug-stimme": V.params_zug_stimme, "zug-termin": V.params_zug_termin, "zug-typen": V.params_zug_typen, "zug-umschlag": V.params_zug_umschlag, "zug-wichteln": V.params_zug_wichteln, "zug-wunschzettel": V.params_zug_wunschzettel };
+const INPUTS = { "geschenk-finder": V.inputs_geschenk_finder, "kanal-geheim": V.inputs_kanal_geheim, "karte-danke": V.inputs_karte_danke, "quiz-preis": V.inputs_quiz_preis, "raum-sorry": V.inputs_raum_sorry, "spiel-dart": V.inputs_spiel_dart, "strassenrap-beat": V.inputs_strassenrap_beat, "zug-abfragen": V.inputs_zug_abfragen, "zug-advent": V.inputs_zug_advent, "zug-einig": V.inputs_zug_einig, "zug-einkauf": V.inputs_zug_einkauf, "zug-gutschein": V.inputs_zug_gutschein, "zug-kapsel": V.inputs_zug_kapsel, "zug-malrat": V.inputs_zug_malrat, "zug-reihum": V.inputs_zug_reihum, "zug-sammeln": V.inputs_zug_sammeln, "zug-stimme": V.inputs_zug_stimme, "zug-termin": V.inputs_zug_termin, "zug-typen": V.inputs_zug_typen, "zug-umschlag": V.inputs_zug_umschlag, "zug-wichteln": V.inputs_zug_wichteln, "zug-wunschzettel": V.inputs_zug_wunschzettel };
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 export function cardOf(id) { return own(CARDS, id) ? CARDS[id] : null; }
 export function manifestOf(id) { const c = cardOf(id); return c ? c.manifest : null; }
