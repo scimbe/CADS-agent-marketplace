@@ -13,13 +13,14 @@ import { paint, layoutText, MAX_OPS } from "../src/render/canvas.js";
 import { exec2d } from "../src/render/canvas2d.js";
 import { generate } from "../scripts/gen.js";
 import * as V from "../src/gen/validators.js";
+import { manifest as manifestValidator } from "../src/gen/manifest.js";
 
 const P = { win: 2, speed: 8 };
 
 test("Testkarte fx-rt erfuellt Manifest und Generator (rt-Schema, Knoepfe mit Tasten)", () => {
   const out = generate({ cardsDir: new URL("./fixtures/cards", import.meta.url).pathname });
   assert.match(out.index, /fx-rt/);
-  assert.equal(V.manifest(card.manifest), true, JSON.stringify(V.manifest.errors));
+  assert.equal(manifestValidator(card.manifest), true, JSON.stringify(manifestValidator.errors));
 });
 
 // ---------- Schleife ----------

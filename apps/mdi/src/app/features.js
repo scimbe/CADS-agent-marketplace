@@ -12,6 +12,7 @@
 //   guards?, actions?:  { name: fn }
 //   context?: (saved) => object                Anfangswerte im ctx
 //   effects?: { typ: (fx, { dispatch, state, api, deps }) => void }
+//   needs?: (ev, ctx) => [kartenId…]   Karten, die ein Ereignis braucht; die Laufzeit laedt sie vorher (Nachladen)
 //   profileLocal?: (ctx) => { wall?, saved? } | null   lokale Profilteile fuer profile/put (Vorrang vor dem Server)
 //   env?: { audio?: (win) => hostAudio, high?: {op: (c, a, env) => void}, cardSvg?: (code, {lang}) => svgDesc,
 //           images?: (win) => { get(src), url(src) } }   Geraetedienste fuer Renderer/Widgets (main.js setzt zusammen)
@@ -35,5 +36,12 @@ export function featureEnv(win, feats = FEATURES) {
     if (k in out) throw new Error("feature " + f.id + ": Dienst " + k + " doppelt");
     out[k] = typeof v === "function" && (k === "audio" || k === "images") ? v(win) : v;
   }
+  return out;
+}
+
+/** Karten, die Features fuer ein Ereignis brauchen (Nachladen, ADR 0001 Nachtrag 2). */
+export function featureNeeds(ev, ctx, feats = FEATURES) {
+  const out = [];
+  for (const f of feats) if (typeof f.needs === "function") for (const id of f.needs(ev, ctx) || []) if (typeof id === "string") out.push(id);
   return out;
 }

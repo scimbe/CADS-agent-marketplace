@@ -1,13 +1,13 @@
 // Laufzeit: haelt den Zustand der Statechart, fuehrt deren Effekte aus und meldet Aenderungen an die Ansicht.
 // Keine globalen Singletons (A1): alles kommt als Abhaengigkeit herein (Broker, Speicher, Zufall, Planer).
 import { machine, initialContext, featureEffects } from "./machine.js";
-import { FEATURES } from "./features.js";
+import { FEATURES, featureNeeds } from "./features.js";
 import { chooseMove, LEVELS } from "../bot/ismcts.js";
 import * as S from "../contract/session.js";
 import { createRtSession } from "./rt/session.js";
 import * as G from "./game.js";
 import { fromB64url } from "../contract/trace.js";
-import { cardOf } from "../cards/index.js";
+import { cardOf, isLoaded, loadCard, manifestOf } from "../cards/index.js";
 import { createBotAgent } from "../bot/agent.js";
 import * as V from "../gen/validators.js";
 import { depthOk } from "../contract/equal.js";
@@ -49,8 +49,31 @@ export function createRuntime(deps) {
   const fxTable = { ...featureEffects(FEATURES) };
   for (const [k, fn] of Object.entries(deps.effects || {})) { if (k in fxTable) throw new Error("Effekt doppelt: " + k); fxTable[k] = fn; }
 
+  // Karten, die ein Ereignis braucht (ADR 0001 Nachtrag 2): vorher laden; fehlt ein Teil, ehrlich melden (PART_FAIL)
+  function cardsFor(ev) {
+    let id = null;
+    if (ev.type === "OPEN") id = ev.id;
+    else if (ev.type === "ACT" && ev.act === "open") id = ev.card;
+    else if ((ev.type === "HELLO" || ev.type === "SHOW") && ev.msg) id = ev.msg.c;
+    else if (ev.type === "LINK") { const d = decode(ev.hash); if (d.ok && d.data && typeof d.data.c === "string") id = d.data.c; }
+    const ids = [...(typeof id === "string" ? [id] : []), ...featureNeeds(ev, state.ctx)];
+    return [...new Set(ids)].filter((x) => manifestOf(x) && !isLoaded(x));
+  }
   function dispatch(ev) {
     ev = typeof ev === "string" ? { type: ev } : { ...ev };
+    if (!ev.rand) ev.rand = rand();
+    if (ev.at === undefined) ev.at = now();
+    const need = deps.loadPart ? cardsFor(ev) : [];
+    if (need.length) {
+      dispatchNow({ type: "LOADING", id: need[0] });
+      Promise.all(need.map((id) => loadCard(id, deps.loadPart))).then(
+        () => dispatchNow(ev),
+        (e) => dispatchNow({ type: "PART_FAIL", id: need[0], reason: (e && e.code) || "teil-fehlt", retry: ev }));
+      return true;
+    }
+    return dispatchNow(ev);
+  }
+  function dispatchNow(ev) {
     if (!ev.rand) ev.rand = rand();
     if (ev.at === undefined) ev.at = now();
     state = { ...state, ctx: { ...state.ctx, today: Math.floor(ev.at / 86400000) } }; // UTC-Tag fuer view (ADR 0001 f)
@@ -119,6 +142,7 @@ export function createRuntime(deps) {
       case "share": deps.share(fx.fragment).then((r) => dispatch({ type: r === "shared" ? "SENT" : r === "copied" ? "COPIED" : "SHARE_FAIL" })); break;
       case "copy": (deps.copy || (() => Promise.resolve(false)))(fx.fragment).then((ok) => dispatch({ type: ok ? "COPIED" : "COPY_FAIL" })); break;
       case "url.clear": deps.clearUrl(); break;
+      case "redispatch": schedule(() => dispatch({ ...fx.ev, at: undefined, rand: undefined })); break;
       // ---- Konto (Ergebnisse kommen als Ereignisse zurueck; ohne API ehrlich „nicht hier“) ----
       case "konto.status":
         later(async () => {

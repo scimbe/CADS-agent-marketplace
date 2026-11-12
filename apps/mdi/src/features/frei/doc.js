@@ -41,10 +41,16 @@ export function contrast(a, b) {
   const x = L(a), y = L(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 /** Die Zielkarte eines Docs im Kartenvertrag. cardOf: Kartenregister. -> {cardId, params} | {missing: name} */
+/** id der Zielkarte eines Docs (ohne die Karte zu laden) – zum Vorladen (ADR 0001 Nachtrag 2, Strang F) */
+export function targetIdOf(doc) {
+  if (!doc) return null;
+  if (doc.k === "card" || doc.k === "photo") return "frei";
+  return doc.k === "game" ? "flug" : doc.k === "lauf" ? "lauf" : doc.pk ? "zug-abfragen" : doc.i || null;
+}
 export function targetOf(doc, cardOf) {
   if (!doc) return { missing: "?" };
   if (doc.k === "card" || doc.k === "photo") return { cardId: "frei", params: freiParams(doc) };
-  const id = doc.k === "game" ? "flug" : doc.k === "lauf" ? "lauf" : doc.pk ? "zug-abfragen" : doc.i || "?";
+  const id = targetIdOf(doc) || "?";
   const card = cardOf(id);
   if (!card || typeof card.fromFree !== "function") return { missing: id };
   let params = null;

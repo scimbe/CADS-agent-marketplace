@@ -20,11 +20,13 @@ export async function fixtureApp() {
   const abs = (p) => JSON.stringify(p.replace(/\\/g, "/"));
   const index = out.index
     .replace(/from "\.\/(\.\.\/\.\.\/test\/fixtures\/cards\/[^"]+)"/g, (m, rel) => "from " + abs(path.join(SRC, "cards", rel)))
-    .replace('from "../gen/validators.js"', "from " + abs(path.join(dir, "validators.js")))
+    .replace(/from "\.\.\/gen\/cards\/([a-z0-9-]+)\.js"/g, (m, id) => "from " + abs(path.join(dir, "cards", id + ".js")))
     .replace('from "../gen/codehash.js"', "from " + abs(path.join(dir, "codehash.js")))
     .replace('from "../contract/modes.js"', "from " + abs(path.join(SRC, "contract/modes.js")));
   fs.writeFileSync(path.join(dir, "index.js"), index);
   fs.writeFileSync(path.join(dir, "validators.js"), out["gen/validators.js"].replace('from "../contract/equal.js"', "from " + abs(path.join(SRC, "contract/equal.js"))));
+  fs.mkdirSync(path.join(dir, "cards"), { recursive: true });
+  for (const [k, v] of Object.entries(out)) if (k.startsWith("gen/cards/")) fs.writeFileSync(path.join(dir, "cards", path.basename(k)), v.replace('from "../../contract/equal.js"', "from " + abs(path.join(SRC, "contract/equal.js"))));
   fs.writeFileSync(path.join(dir, "codehash.js"), out["gen/codehash.js"]);
   fs.writeFileSync(path.join(dir, "entry.js"), "export { createRuntime } from " + abs(path.join(SRC, "app/runtime.js")) + ";\nexport { machine, initialContext } from " + abs(path.join(SRC, "app/machine.js")) + ";\nexport * as G from " + abs(path.join(SRC, "app/game.js")) + ";\n");
   const redirect = { [path.join(SRC, "cards/index.js")]: path.join(dir, "index.js"), [path.join(SRC, "gen/validators.js")]: path.join(dir, "validators.js"), [path.join(SRC, "gen/codehash.js")]: path.join(dir, "codehash.js") };

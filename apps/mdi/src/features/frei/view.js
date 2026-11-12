@@ -6,8 +6,9 @@ import { machine } from "../../app/machine.js";
 import { render } from "../../render/render.js";
 import { rng } from "../../contract/sdk.js";
 import { ft } from "./texts.js";
-import { ARTS, GENRES, MODES, SOON, previewOf, targetOf, freiParams } from "./doc.js";
-import { cardOf, modelFields } from "./chart.js";
+import { ARTS, GENRES, MODES, SOON, previewOf, targetOf, targetIdOf, freiParams } from "./doc.js";
+import { cardOf, cardIdOf, modelFields } from "./chart.js";
+import { manifestOf } from "../../cards/index.js";
 import { crisis } from "../../broker/ai.js";
 
 const kState = (state) => ["pruefen", "anonym", "anmelden", "angemeldet", "abmelden", "fehler"].find((s) => machine.matches(state, "konto." + s));
@@ -90,7 +91,8 @@ export function refusalText(r, lang) {
 }
 
 function catalogButtons(ids, lang, dispatch, label) {
-  const found = ids.map((id) => cardOf(id)).filter(Boolean);
+  // Existenz ueber die Metadaten (Karten sind nachladbare Teile); die Karte laedt beim Antippen (CATALOG)
+  const found = ids.map((id) => cardIdOf(id)).filter(Boolean).map((id) => ({ manifest: manifestOf(id) }));
   if (!found.length) return [h("p", { class: "hint", key: "cn" }, ft(lang, "create_notyet_none"))];
   return [h("p", { class: "hint", key: "cl" }, label), h("div", { class: "seg-row", key: "cb" }, found.map((c) => h("button", { type: "button", class: "seg-opt", key: c.manifest.id, "data-act": "catalog-" + c.manifest.id, on: { click: () => dispatch({ type: "CATALOG", id: c.manifest.id }) } }, "→ " + (c.manifest.title[lang] || c.manifest.title.de))))];
 }
@@ -256,8 +258,9 @@ export function freiView(state, X, dispatch, L) {
     case "vorschau": {
       const o = f.opt;
       body = [status(ft(lang, "create_wait_ready"), "hint strong", "rd"), preview(o.doc, lang), ...noteLines(o.note, lang, dispatch)];
-      const t = targetOf(o.doc, cardOf);
-      if (t.missing) panel.push(h("p", { class: "hint", key: "miss" }, ft(lang, "frei_missing", { x: t.missing })));
+      // Zielkarte vor dem TAKE nur ueber Metadaten pruefen (sie laedt erst beim Uebernehmen, Strang K/F)
+      const tid = targetIdOf(o.doc);
+      if (!tid || !cardIdOf(tid)) panel.push(h("p", { class: "hint", key: "miss" }, ft(lang, "frei_missing", { x: tid || "?" })));
       primary = a("take", ft(lang, "create_take"), "TAKE");
       secondary = [a("drop", ft(lang, "create_drop"), "DROP"), a("refine", ft(lang, "create_robot_h"), "REFINE")];
       break;

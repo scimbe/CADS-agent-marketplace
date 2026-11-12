@@ -17,14 +17,30 @@
 //   melden     Meldung mit Grund und Einwilligung
 //   bild, bildwarten  KI-Bild (Karte, Logo, Kontobild) mit Kontingent
 //   ki         KI-Vorschlaege fuer die x-model-Felder eines Teils der offenen Karte
-import { ARTS, GENRES, MODES, SOON, artOk, kindOk, sanitizeDoc, sanitizeKi, targetOf, freeIdOf, gateChecksOf } from "./doc.js";
-import { cardOf as cardById, validParams, CARDS } from "../../cards/index.js";
+import { ARTS, GENRES, MODES, SOON, artOk, kindOk, sanitizeDoc, sanitizeKi, targetOf, targetIdOf, freeIdOf, gateChecksOf } from "./doc.js";
+import { cardOf as cardById, validParams, LEGACY, manifestOf } from "../../cards/index.js";
 import { defaults } from "../../contract/fields.js";
 import * as G from "../../app/game.js";
 
 const T = (p) => p;
 /** Zielkarte nach id oder alter Katalog-id (manifest.legacy, Text oder Liste: eingeklappte Varianten) */
-export function cardOf(id) { return cardById(id) || Object.values(CARDS).find((c) => [].concat(c.manifest.legacy || []).includes(id)) || null; }
+export function cardOf(id) { return cardById(id) || (LEGACY[id] ? cardById(LEGACY[id].card) : null); }
+/** Karten-id auch fuer alte Katalog-ids, ohne die Karte zu laden (Strang F: Karten sind nachladbare Teile) */
+export function cardIdOf(id) { return manifestOf(id) ? id : LEGACY[id] ? LEGACY[id].card : null; }
+/** Karten, die ein Ereignis der freien Karte braucht; die Laufzeit laedt sie vorher (ADR 0001 Nachtrag 2) */
+function freiNeeds(ev, ctx) {
+  const f = (ctx && ctx.frei) || {}, ids = [];
+  const add = (x) => { const id = x && cardIdOf(x); if (id) ids.push(id); };
+  switch (ev.type) {
+    case "FREI": add("frei"); break;
+    case "CATALOG": add(ev.id); break;
+    case "TAKE": add("frei"); if (f.opt) add(targetIdOf(f.opt.doc)); break;
+    case "PLAY": if (f.card) add(targetIdOf(f.card.doc)); break;
+    case "DECK_OPEN": { add("frei"); const e = (f.deck && f.deck.cards || []).find((c) => c.cid === ev.cid); if (e) add(targetIdOf(e.doc)); break; }
+    default: break;
+  }
+  return ids;
+}
 const R = (ev) => (ev && ev.r) || { how: "off" };
 const F = (ctx, o) => ({ ...ctx, frei: { ...ctx.frei, ...o } });
 const kartePot = (ctx) => (ctx.konto && ctx.konto.st ? ctx.konto.st.karte : null);
@@ -223,7 +239,7 @@ export const freiGuards = {
   crisisText: (ctx, ev) => ev.crisis === true,
   altOk: (ctx, ev, inState) => inState("konto.angemeldet") && potOk(kartePot(ctx)) && !!ctx.frei.res && !!ctx.frei.res.alt && ctx.frei.res.alt.kind === "genre" && /^G\d{1,2}$/.test(ctx.frei.res.alt.id) && [...String(ev.text || "").trim()].length >= 3 && !ev.crisis,
   resendOk: (ctx, ev, inState) => inState("konto.angemeldet") && potOk(kartePot(ctx)) && GENRES.includes(ev.genre) && [...String(ctx.frei.text || "").trim()].length >= 3,
-  catalogOk: (ctx, ev) => !!cardOf(ev.id),
+  catalogOk: (ctx, ev) => !!cardIdOf(ev.id),
   curReq: (ctx, ev) => ev.req === ctx.frei.req,
   resultFits: (ctx, ev) => {
     if (ev.req !== ctx.frei.req || R(ev).how !== "result") return false;
@@ -406,6 +422,7 @@ import { createImages } from "./images.js";
 /** Das Feature im Format von ADR 0001 (g) (src/app/features.js) */
 export const frei = {
   id: "frei",
+  needs: freiNeeds,
   states: { frei: freiState },
   shelfOn: FREI_SHELF,
   on: {

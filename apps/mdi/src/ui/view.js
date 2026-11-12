@@ -3,7 +3,7 @@
 import { h } from "./dom.js";
 import { machine } from "../app/machine.js";
 import { texts, fmt } from "../app/texts.js";
-import { cardOf, ORDER, modesOf } from "../cards/index.js";
+import { cardOf, ORDER, modesOf, manifestOf } from "../cards/index.js";
 import * as G from "../app/game.js";
 import * as S from "../contract/session.js";
 import { render } from "../render/render.js";
@@ -32,6 +32,7 @@ export function actionsOf(state) {
   switch (L) {
     // Heimseite (Strang H): eine Hauptaktion = Hauptknopf des Kalenderblatts; alles andere ist Inhalt der Seite
     case "shelf": { const p = ctx.home.at === "day" ? dayPrimary(ctx) : null; return { primary: p ? a(p.id, p.label, p.ev) : null, secondary: [] }; }
+    case "partfail": return { primary: a("retry", X.retry, "RETRY"), secondary: [a("to-shelf", X.toShelf, "BACK")] };
     case "card.view": {
       const c = G.card(ctx), sec = [a("customize", X.customize, "CUSTOMIZE")];
       // Strang K: Robot (eigene Karte daraus) fuer jede Karte mit Adapter; Melden fuer eine freie Karte mit Siegel
@@ -188,7 +189,8 @@ export function view(state, dispatch, env = {}) {
   } else if (freiR) {
     body = freiR.body; panel = freiR.panel || [];
   } else if (homeR) {
-    body = homeR.body;
+    // Nachladen (ADR 0001 Nachtrag 2): ehrliche Ladezeile, solange ein Kartenteil kommt
+    body = [ctx.loading ? h("p", { class: "status", role: "status", key: "loading" }, X.loadingCard) : null, ...homeR.body];
   } else if (L === "card.view") {
     const modes = modesOf(card), isStatic = card.manifest.mode === "static";
     body = [stage(preview, {}, tree)];
@@ -261,6 +263,9 @@ export function view(state, dispatch, env = {}) {
     if (L === "card.rt.error") lines.push(h("div", { class: "notice", key: "err" }, h("h2", { class: "t-title" }, X.errTitle), h("p", { class: "warn", role: "alert" }, X.reasons[ctx.error] || X.reasons["zug-ungueltig"])));
     body = [...lines, env.stage ? env.stage.stageNode(L, dispatch, ctx.lang) : h("p", { class: "warn", role: "alert", key: "nohost" }, X.rtNoHost)];
     if (L === "card.rt.over" && ctx.link) panel.push(linkBox(X, ctx.link, ctx, dispatch));
+  } else if (L === "partfail") {
+    const f = ctx.partFail || {};
+    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.partFailTitle), h("p", { class: "warn", role: "alert", "data-reason": f.reason }, X.partFail[f.reason] || X.partFail["teil-fehlt"]))];
   } else if (L === "receive.show") {
     const inc = ctx.incoming, c = cardOf(inc.cardId);
     if (inc.kind === "ghost") body = [h("div", { class: "notice" }, h("p", { class: "lede plain" }, X.ghostText), h("h2", { class: "t-title" }, title(c, ctx.lang)), h("p", null, fmt(X.ghostScore, { s: inc.score.join(" : ") })), h("p", { class: "hint" }, X.free))];

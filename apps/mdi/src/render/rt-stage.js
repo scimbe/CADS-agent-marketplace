@@ -102,9 +102,9 @@ export function createStage(env) {
       on: { pointerdown: (e) => { e.preventDefault(); press(code, e.currentTarget, true); }, pointerup: (e) => press(code, e.currentTarget, false), pointercancel: (e) => press(code, e.currentTarget, false), pointerleave: (e) => press(code, e.currentTarget, false),
         keydown: (e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); press(code, e.currentTarget, true); } }, keyup: (e) => { if (e.key === " " || e.key === "Enter") press(code, e.currentTarget, false); }, blur: (e) => press(code, e.currentTarget, false) } }, label);
     return h("div", { class: "rt-stage", key: "rt" },
-      h("canvas", { class: "rt-canvas", role: "img", "aria-label": X.stage, tabindex: "0", style: { "aspect-ratio": ratio }, ref: mount }),
-      h("p", { class: "rt-say", "aria-live": "polite", ref: (el) => { live = el; } }, ""),
-      h("div", { class: "rt-controls" },
+      h("canvas", { key: "cv", class: "rt-canvas", role: "img", "aria-label": X.stage, tabindex: "0", style: { "aspect-ratio": ratio }, ref: mount }),
+      h("p", { key: "say", class: "rt-say", "aria-live": "polite", ref: (el) => { live = el; } }, ""),
+      h("div", { key: "ctl", class: "rt-controls" },
         ax ? axisBtn(ax[0], "←", lang === "en" ? "Left" : "Links") : null,
         ax ? axisBtn(ax[1], "→", lang === "en" ? "Right" : "Rechts") : null,
         ...buttons.map((b) => h("button", {

@@ -8,7 +8,7 @@ import { homeTexts, fmt } from "./texts.js";
 import { ideaTile, extraTile, icon, ideaText, plateLines, duration, badge, art } from "./tile.js";
 import { SLOTS } from "./slots.js";
 import { inviteStatus, isSaved, UNDO_MS } from "./store.js";
-import { cardOf, ORDER } from "../../cards/index.js";
+import { cardOf, manifestOf, ORDER } from "../../cards/index.js";
 import { render } from "../../render/render.js";
 import * as G from "../../app/game.js";
 
@@ -28,7 +28,7 @@ export function dayPrimary(ctx) {
   const X = homeTexts(ctx.lang, ctx.pref && ctx.pref.easy), idea = R.ideaOn(ctx.today + ctx.home.off, caps());
   if (!idea) return null;
   const nid = newIdOf(idea.id);
-  if (nid) return { id: "day-go", label: X.go[cardOf(nid).manifest.mode === "static" ? "card" : idea.kind] || X.go.default, ev: { type: "OPEN", id: nid, ...(variantOf(idea.id) ? { variant: variantOf(idea.id) } : {}) } };
+  if (nid) return { id: "day-go", label: X.go[manifestOf(nid).mode === "static" ? "card" : idea.kind] || X.go.default, ev: { type: "OPEN", id: nid, ...(variantOf(idea.id) ? { variant: variantOf(idea.id) } : {}) } };
   const on = isSaved(ctx.mine.saved, idea.id);
   return { id: "day-save", label: on ? X.soonSaved : X.soonSave, ev: { type: "MERKEN", id: idea.id }, pressed: on };
 }
@@ -223,7 +223,7 @@ function meinsView(state, X, dispatch) {
     if (mine.undo) panel.push(h("div", { class: "h-undo", role: "status", key: "undo" }, h("span", null, X.wallGone), h("button", { type: "button", class: "btn secondary h-undo-b", "data-act": "wall-undo", on: { click: () => dispatch({ type: "WALL_UNDO" }) } }, "↶ " + X.undo)));
     if (!mine.wall.length) panel.push(h("p", { class: "h-empty", key: "empty" }, X.wallEmpty));
     else panel.push(h("ul", { class: "h-wall", key: "wall" }, mine.wall.map((e, i) => {
-      const nid = cardOf(e.id) ? e.id : null;
+      const nid = manifestOf(e.id) ? e.id : null;
       return h("li", { key: e.id + e.ts, class: "h-work" },
         h("div", { class: "h-work-pic" }, workPreview(e, ctx.lang)),
         h("p", { class: "h-work-t" }, (e.t || e.id) + " · " + fmtDate(e.ts, ctx.lang)),
@@ -261,10 +261,10 @@ function eigeneView(state, X, dispatch) {
   const ctx = state.ctx, out = [];
   if (SLOTS.freiEntry) out.push(SLOTS.freiEntry(state, X, dispatch));
   else out.push(h("p", { class: "h-empty", key: "soon" }, X.own.soon));
-  const blank = Object.keys(ORDER.reduce((a, id) => (cardOf(id).manifest.mode === "static" ? { ...a, [id]: 1 } : a), {}));
+  const blank = Object.keys(ORDER.reduce((a, id) => (manifestOf(id).mode === "static" ? { ...a, [id]: 1 } : a), {}));
   if (blank.length) out.push(section(X.own.blank, grid(blank.map((id) => {
     const idea = R.byId(catalogIdOf(id));
-    return idea && R.IDEAS.includes(idea) ? ideaTile({ idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, key: "e-" + id }) : extraTile(extras().find((e) => e.id === id) || { id, fam: family("gruessen"), manifest: cardOf(id).manifest }, X, ctx.lang, dispatch, ctx.mine.saved);
+    return idea && R.IDEAS.includes(idea) ? ideaTile({ idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, key: "e-" + id }) : extraTile(extras().find((e) => e.id === id) || { id, fam: family("gruessen"), manifest: manifestOf(id) }, X, ctx.lang, dispatch, ctx.mine.saved);
   })), { key: "blank", id: "h-blank" }));
   return out;
 }

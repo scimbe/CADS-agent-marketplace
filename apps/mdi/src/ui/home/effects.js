@@ -5,7 +5,7 @@ import * as SL from "./shortlink.js";
 import { tileJpeg, drawStory } from "./paint.js";
 import { familyOf, family, catalogIdOf } from "./families.js";
 import { byId } from "./rotation.js";
-import { cardOf } from "../../cards/index.js";
+import { manifestOf } from "../../cards/index.js";
 import { homeTexts } from "./texts.js";
 
 const TICK_MS = 60000;
@@ -14,9 +14,9 @@ const TICK_MS = 60000;
 // (leeres Meins, Kurzlink "nicht-hier" -> langer Link), nichts wird vorgetaeuscht.
 function envOf(deps) { return (deps && deps.home) || {}; }
 function look(cardId, lang) {
-  const cid = catalogIdOf(cardId), idea = byId(cid), fam = familyOf(cid) || family(cardOf(cardId) && cardOf(cardId).manifest.family) || family("gruessen");
-  const card = cardOf(cardId);
-  const title = idea ? (idea[lang] || idea.de).t.replace(/\|/g, " ") : card ? card.manifest.title[lang] || card.manifest.title.de : cardId;
+  const cid = catalogIdOf(cardId), idea = byId(cid), fam = familyOf(cid) || family(manifestOf(cardId) && manifestOf(cardId).family) || family("gruessen");
+  const man = manifestOf(cardId);
+  const title = idea ? (idea[lang] || idea.de).t.replace(/\|/g, " ") : man ? man.title[lang] || man.title.de : cardId;
   return { color: fam.color, ink: fam.ink, shape: fam.shape, title };
 }
 function absUrl(env, f) { return String(env.location.href).split("#")[0] + "#" + f; }
