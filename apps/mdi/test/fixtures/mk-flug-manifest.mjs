@@ -58,10 +58,11 @@ const m = {
     { id: "tempo", params: ["tempo"], label: L("Zeitlupe", "Slow motion") },
     { id: "text", params: ["title", "t"], label: L("Text", "Text") }
   ],
-  variants: V.VARIANTS.map((v) => ({ id: v.id, title: { de: V.plainTitle(v.de.t), en: V.plainTitle(v.en.t) }, teaser: { de: v.de.s, en: v.en.s }, legacy: [v.id], modes: v.kind === "duel" ? ["alone"] : ["alone", "ghost"],
+  variants: V.VARIANTS.map((v) => ({ id: v.id, title: { de: V.plainTitle(v.de.t), en: V.plainTitle(v.en.t) }, teaser: { de: v.de.s, en: v.en.s }, legacy: [v.id], thumb: { src: "shot", file: "thumb-" + v.id + ".webp", alt: { de: V.plainTitle(v.de.t), en: V.plainTitle(v.en.t) } }, modes: v.kind === "duel" ? ["alone"] : ["alone", "ghost"],
     tags: [...new Set(v.tags.map((t) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")).filter((t) => /^[a-z0-9-]{1,24}$/.test(t)))].slice(0, 8), params: Object.assign({}, props && {}, Object.fromEntries(Object.entries(props).map(([k, p]) => [k, p.default])), V.variantParams(v.id, "de", { nick: "", emoji: "🦊" })) }))
 };
 // nur die Vokabeln, die der Generator kennt (x-field, x-label, x-model, x-pairs, x-steps, x-hidden; ADR 0001, F @ 15338b5)
 const strip = (o) => { if (Array.isArray(o)) return o.map(strip); if (o && typeof o === "object") { const r = {}; for (const [k, v] of Object.entries(o)) if (!/^x-/.test(k) || ["x-field", "x-label", "x-model", "x-pairs", "x-steps", "x-hidden"].includes(k)) r[k] = strip(v); return r; } return o; };
+m.thumb = { src: "shot", file: "thumb.webp", alt: m.title };   // scripts/thumbs.js (F) erzeugt die Dateien
 m.params = strip(m.params);
 process.stdout.write(JSON.stringify(m, null, 1) + "\n");

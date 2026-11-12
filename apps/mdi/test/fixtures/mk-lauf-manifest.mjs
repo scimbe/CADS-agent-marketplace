@@ -57,5 +57,6 @@ const m = {
 };
 // nur die Vokabeln, die der Generator kennt (x-field, x-label, x-model, x-pairs, x-steps, x-hidden; ADR 0001, F @ 15338b5)
 const strip = (o) => { if (Array.isArray(o)) return o.map(strip); if (o && typeof o === "object") { const r = {}; for (const [k, v] of Object.entries(o)) if (!/^x-/.test(k) || ["x-field", "x-label", "x-model", "x-pairs", "x-steps", "x-hidden"].includes(k)) r[k] = strip(v); return r; } return o; };
+m.thumb = { src: "shot", file: "thumb.webp", alt: m.title };   // scripts/thumbs.js (F) erzeugt die Datei
 m.params = strip(m.params);
 process.stdout.write(JSON.stringify(m, null, 1) + "\n");
