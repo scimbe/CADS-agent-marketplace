@@ -60,3 +60,11 @@ test("Woerter: Geist heisst in der Oberflaeche Aufnahme (de/en)", () => {
   for (const k of ["ghostSend", "ghostFor", "ghostText", "ghostScore"]) { assert.doesNotMatch(de[k], /Geist/); assert.doesNotMatch(en[k], /ghost/i); }
   assert.match(de.ghostSend, /Aufnahme/); assert.equal(de.slowPlay, "Gemütlich spielen");
 });
+
+test("Manifest: variants[].chip (kurze Beschriftung fuer Varianten-Chips, Gate C) ist erlaubt, nur als i18n", () => {
+  const m = JSON.parse(JSON.stringify(cardOf("flug").manifest));
+  assert.ok(Array.isArray(m.variants) && m.variants.length > 0, "flug hat Varianten");
+  m.variants[0].chip = { de: "Mond", en: "Moon" };
+  assert.equal(manifestValidator(m), true, JSON.stringify(manifestValidator.errors));
+  m.variants[0].chip = "Mond"; assert.equal(manifestValidator(m), false);
+});
