@@ -9,6 +9,10 @@
       }
     ]
   },
+  "geschenk-finder": {
+    "assets": [],
+    "thumbs": []
+  },
   "gruss": {
     "assets": [],
     "thumbs": [
@@ -18,5 +22,53 @@
         "bytes": 11308
       }
     ]
+  },
+  "karte-danke": {
+    "assets": [],
+    "thumbs": []
+  },
+  "raum-sorry": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-einig": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-einkauf": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-gutschein": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-kapsel": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-reihum": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-sammeln": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-termin": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-umschlag": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-wichteln": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-wunschzettel": {
+    "assets": [],
+    "thumbs": []
   }
 }
