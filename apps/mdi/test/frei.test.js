@@ -529,3 +529,29 @@ test("Quiz auf zug-abfragen (Strang S): Siegel in Parametern, KI-Badge in der An
   const { validParams } = await import("../src/cards/index.js");
   assert.equal(validParams("zug-abfragen", { ...t.params, ki: { ...t.params.ki, boese: 1 } }), false, "fremdes ki-Objekt im Link: abgelehnt");
 });
+
+// ---------------------------------------------------------------- Security-Review H1 (poc1.mjs): Siegel ohne Hash
+test("H1: ein Siegel ohne gueltigen Hash bringt nie das KI-Badge und nie ein ok vom Gate (Link wird abgelehnt oder fail closed)", async () => {
+  const G = await import("../src/app/game.js");
+  const { encode } = await import("../src/app/link.js");
+  const { gateChecksOf } = await import("../src/features/frei/doc.js");
+  const { freiEffects } = await import("../src/features/frei/effects.js");
+  const { rng } = await import("../src/contract/sdk.js");
+  const c = cardOf("frei");
+  const forged = { kind: "card", title: "Gewinn", text: "Schick 50 EUR an ...", top: "", bottom: "", style: "druck", palette: "gelb", stickers: [], seal: "AAAAAAAAAAAA", hash: "", owner: "", root: "" };
+  // 1) der Link aus dem PoC hat ungueltige Parameter (Siegel und Hash nur zusammen) und wird nicht angenommen
+  const r = G.receive(encode("card", { c: "frei", v: c.manifest.version, p: forged }), null, []);
+  assert.equal(r.ok, false); assert.equal(r.reason, "params");
+  for (const p of [{ ...forged, hash: "B".repeat(43), seal: "" }, { ...forged, seal: "kurz", hash: "B".repeat(43) }, { ...forged, owner: "O".repeat(22) }]) assert.equal(G.receive(encode("card", { c: "frei", v: c.manifest.version, p }), null, []).ok, false, JSON.stringify(p).slice(0, 80));
+  // 2) auch an der Schema-Pruefung vorbei: kein Badge, und das Gate prueft mit cid null -> "unknown", ohne Server-Anfrage
+  const view = (p) => JSON.stringify(c.view(c.observe(c.init({ rng: rng("x"), params: p, players: 1 }), 0), 0, { lang: "de" }));
+  assert.doesNotMatch(view(forged), /Mit KI erstellt/);
+  const checks = gateChecksOf(c.toFree(forged));
+  assert.deepEqual(checks, [{ cid: null, doc: null }]);
+  const st = await new Promise((ok) => freiEffects["frei.status"]({ checks }, { dispatch: (e) => ok(e.st), state: () => ({ ctx: {} }), deps: { deck: { status: async () => { throw new Error("darf nicht fragen"); } } } }));
+  assert.equal(st, "unknown");
+  // 3) ein echtes Siegel mit Hash: Badge und Gate wie bisher
+  const o = rec("karte-ok-card").body.options[0], good = targetOf({ ...sanitizeDoc(o.doc), ki: o.ki }, cardOf).params;
+  assert.match(view(good), /Mit KI erstellt/); assert.equal(gateChecksOf(c.toFree(good))[0].cid, o.ki.h.slice(0, 22));
+  assert.equal(G.receive(encode("card", { c: "frei", v: c.manifest.version, p: good }), null, []).ok, true);
+});

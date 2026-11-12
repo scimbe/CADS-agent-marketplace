@@ -1,41 +1,275 @@
 {
-  "about": "Konto-Bruecke v1, EXAKTE Liste (Quelle fuer apps/gen-account-routes.py; ok:true = erlaubt, alles andere nicht): welche Server-Aufrufe die Seite die Huelle mit dem Konto (Bearer) ausfuehren lassen darf. Android: AccountRouteTest liest diese Datei; iOS: AccountRouteTests hat dieselben Faelle; apps/mdi: test/e2e/lib/fakeshell.mjs.",
-  "route": [
-    { "method": "GET", "path": "/auth/me", "ok": true },
-    { "method": "POST", "path": "/api/duell/ai/status", "ok": true },
-    { "method": "POST", "path": "/api/duell/ai", "ok": true },
-    { "method": "POST", "path": "/api/duell/profile/get", "ok": true },
-    { "method": "POST", "path": "/api/duell/profile/put", "ok": true },
-    { "method": "POST", "path": "/api/duell/profile/delete", "ok": true },
-    { "method": "POST", "path": "/api/duell/credit/redeem", "ok": true },
-    { "method": "POST", "path": "/api/duell/mod/me", "ok": true },
-    { "method": "POST", "path": "/api/duell/mod/appeal", "ok": true },
-    { "method": "POST", "path": "/api/duell/deck/use", "ok": true },
-    { "method": "POST", "path": "/api/duell/bild/status", "ok": true },
-    { "method": "POST", "path": "/api/duell/stat", "ok": true },
-    { "method": "POST", "path": "/auth/me", "ok": false },
-    { "method": "GET", "path": "/api/duell/ai/status", "ok": false },
-    { "method": "GET", "path": "/auth/login", "ok": false },
-    { "method": "GET", "path": "/auth/me?return=/x", "ok": false },
-    { "method": "POST", "path": "/api/duell/report", "ok": false },
-    { "method": "POST", "path": "/api/duell/metrics", "ok": false },
-    { "method": "POST", "path": "/api/duell/deck/review", "ok": false },
-    { "method": "POST", "path": "/api/duell/deck/review/abc", "ok": false },
-    { "method": "POST", "path": "/api/duell/admin/stat", "ok": false },
-    { "method": "POST", "path": "/api/duell/config", "ok": false },
-    { "method": "POST", "path": "/api/start", "ok": false },
-    { "method": "POST", "path": "/api/duell/ai/../../start", "ok": false },
-    { "method": "POST", "path": "/api/duell/ai/status?x=1", "ok": false },
-    { "method": "POST", "path": "//evil.example/api/duell/ai", "ok": false },
-    { "method": "POST", "path": "https://evil.example/api/duell/ai", "ok": false },
-    { "method": "POST", "path": "/api/duell/AI/status", "ok": false },
-    { "method": "POST", "path": "/api/duell/ai/a/b/c", "ok": false },
-    { "method": "DELETE", "path": "/api/duell/profile/delete", "ok": false },
-    { "method": "PUT", "path": "/api/duell/profile/put", "ok": false },
-    { "method": "POST", "path": "/api/duell/bild/job", "ok": false },
-    { "method": "POST", "path": "/api/duell/deck/vote", "ok": false },
-    { "method": "POST", "path": "/api/duell/ai/interest", "ok": false },
-    { "method": "POST", "path": "/api/duell/bild/admin/abc", "ok": false },
-    { "method": "POST", "path": "/api/duell/profile/get/", "ok": false }
-  ]
+ "about": "Konto-Bruecke v1, EXAKTE Liste (Quelle fuer apps/gen-account-routes.py; ok:true = erlaubt, alles andere nicht): welche Server-Aufrufe die Seite die Huelle mit dem Konto (Bearer) ausfuehren lassen darf. Android: AccountRouteTest liest diese Datei; iOS: AccountRouteTests hat dieselben Faelle; apps/mdi: test/e2e/lib/fakeshell.mjs.",
+ "route": [
+  {
+   "method": "GET",
+   "path": "/auth/me",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/ai/status",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/ai",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/profile/get",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/profile/put",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/profile/delete",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/credit/redeem",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/mod/me",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/mod/appeal",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/deck/use",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/bild/status",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/stat",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/auth/me",
+   "ok": false
+  },
+  {
+   "method": "GET",
+   "path": "/api/duell/ai/status",
+   "ok": false
+  },
+  {
+   "method": "GET",
+   "path": "/auth/login",
+   "ok": false
+  },
+  {
+   "method": "GET",
+   "path": "/auth/me?return=/x",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/report",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/queue",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/ai/accept",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/ai/discard",
+   "ok": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/duell/deck",
+   "ok": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/duell/deck/key",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/deck/status",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/deck/me",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/bild",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/bild/cancel",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/bild/keep",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/bild/avatar",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/s",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/s/get",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/s/delete",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/metrics",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/deck/review",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/deck/review/abc",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/admin/stat",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/config",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "/api/start",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/ai/../../start",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/ai/status?x=1",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "//evil.example/api/duell/ai",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "https://evil.example/api/duell/ai",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/AI/status",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/ai/a/b/c",
+   "ok": false
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/duell/profile/delete",
+   "ok": false
+  },
+  {
+   "method": "PUT",
+   "path": "/api/duell/profile/put",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/bild/job",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/deck/vote",
+   "ok": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/ai/interest",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/bild/admin/abc",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "/api/duell/profile/get/",
+   "ok": false
+  },
+  {
+   "method": "GET",
+   "path": "/api/duell/deck/status?c=AAAAAAAAAAAAAAAAAAAAAA",
+   "ok": false
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/s/abcdefgh",
+   "ok": false
+  },
+  {
+   "method": "GET",
+   "path": "/api/s/abcdefgh",
+   "ok": false
+  },
+  {
+   "method": "POST",
+   "path": "/api/s/abcdefgh/img",
+   "ok": false
+  }
+ ]
 }

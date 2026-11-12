@@ -20,7 +20,7 @@ export const CODE_HASH = {
   "duell-liest": "3b58de14de97c2f5c9b09172ae836c2d",
   "flug": "02de1a54e1d6f4c21afbd224c631a34d",
   "foto-alien": "0ce03376b34e42ac79698c675b1818f5",
-  "frei": "37ae1d362b92ee0f22b8d7902680b572",
+  "frei": "48d59f422f329b1a93090d3e138edb43",
   "geschenk-finder": "2c375477e9c9821fe85c8bbb0758b2d6",
   "gruss": "5348013d7cd9f87b8d89ebe3653dcf41",
   "kanal-geheim": "c00254018730354309f57e1b2cea3a88",
