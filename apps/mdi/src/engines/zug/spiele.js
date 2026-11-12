@@ -2,7 +2,7 @@
 // GAMES-Eintrag mit derselben Prompt-Signatur (doc, m, now, lang). Zeilenangaben je Spiel beziehen sich auf turns.js.
 import DATA from "./turn.json" with { type: "json" };
 import GTEXT from "./geschenke.json" with { type: "json" };
-import { textsFor, fmt, pair, alt, side, mix, hash32, mulberry32, fold, intIn, money, form } from "./alt.js";
+import { textsFor, fmt, pair, alt, side, mix, hash32, mulberry32, fold, intIn, money, form, civil, weekday } from "./alt.js";
 import * as G from "./geld.js";
 import * as L from "./merge.js";
 import { ideas as giftIdeas } from "./geschenke.js";
@@ -12,7 +12,6 @@ export function T(lang) { return textsFor(TEXT, lang); }
 export { DATA };
 function listOf(k) { return (doc, m, now, lang) => DATA[k].map((x, i) => pair(DATA[k], i, lang)); }
 function places(order) { const p = []; order.forEach((o, at) => { p[o] = at; }); return p; }
-const DAY = 86400000;
 
 // ---------- einig (turns.js:54-69) ----------
 const einig = {
@@ -136,7 +135,7 @@ const kerzen = {
 };
 // ---------- termin (turns.js:546-590) ----------
 export const HOURS = [10, 12, 14, 15, 16, 17, 18, 19, 20], VOTERS = 10;
-export function dayText(day, lang) { const X = T(lang), d = new Date(day * DAY); return fmt(X.ter_day, { w: X.ter_days.split("|")[d.getUTCDay()], d: d.getUTCDate(), m: d.getUTCMonth() + 1 }); }
+export function dayText(day, lang) { const X = T(lang), c = civil(day); return fmt(X.ter_day, { w: X.ter_days.split("|")[weekday(day)], d: c[2], m: c[1] }); }
 export function hourText(i, lang) { const h = HOURS[i]; return lang === "en" ? (h > 12 ? h - 12 : h) + (h < 12 ? " am" : " pm") : fmt(T(lang).ter_hour, { h }); }
 export function slotText(s, lang) { return dayText(Math.floor(s / 10), lang) + ", " + hourText(s % 10, lang); }
 export function termDates(m) { return m[0][0][1]; }
@@ -208,9 +207,12 @@ function shopCount(list, lang, cf) {
   const r = L.shopRows(list, cf);
   return fmt(T(lang)[cf && cf.due ? "tdo_count" : "ein_count"], { n: r.length, b: r.filter((x) => x.bought.length).length, c: r.filter((x) => !x.bought.length && x.bring.length).length });
 }
+// Beispielzuege (nur Treiber/Hinweise): Einkauf endet, sobald alles gekauft ist; Wunschzettel endet durch close
+function shopExample(base) { return base ? L.shopApply(base, { name: "Ana", face: 0, marks: Object.fromEntries(L.shopRows(base).map((r) => [r.key, 2])) }) : L.shopApply(null, { name: "", adds: [{ text: "Brot", qty: 1 }, { text: "Milch", qty: 2 }] }); }
+function wishExample(base) { return base || L.shopApply(null, { name: "", adds: [{ text: "Buch", qty: 1 }, { text: "Schal", qty: 1 }] }, L.WISH); }
 const einkauf = {
   snap: true, list: L.SHOP,
-  turns: [[{ w: "shop", l: "ein_make", live: true, cfg: L.SHOP }], [{ w: "shop", l: "ein_go", live: true, cfg: L.SHOP }]],
+  turns: [[{ w: "shop", l: "ein_make", live: true, cfg: L.SHOP, example: shopExample }], [{ w: "shop", l: "ein_go", live: true, cfg: L.SHOP, example: shopExample }]],
   ends: (doc, m) => m.length > 0 && L.shopDone(m[0][0]),
   words: { you_start: "ein_start", go_first: "ein_go_first", go_play: "ein_go_play", note_turn: "ein_note", note_over: "ein_over", ready: "ein_ready", send: "ein_send", rematch: "ein_again" },
   face: (doc, m, lang) => (m.length ? [shopCount(m[0][0], lang)] : null),
@@ -220,7 +222,7 @@ const einkauf = {
 function wishCount(v, lang) { return fmt(form(T(lang), "wun_count", v[1].length, lang), { n: v[1].length }); }
 const wunsch = {
   snap: true, list: L.WISH,
-  turns: [[{ w: "wish", l: "wun_make", live: true, k: "wun", cfg: L.WISH }], [{ w: "wish", l: "wun_go", live: true, k: "wun", cfg: L.WISH }]],
+  turns: [[{ w: "wish", l: "wun_make", live: true, k: "wun", cfg: L.WISH, example: wishExample }], [{ w: "wish", l: "wun_go", live: true, k: "wun", cfg: L.WISH, example: wishExample }]],
   // vorbei erst, wenn das Handy der Wuenschenden schliesst (o = 2), nie weil jeder Wunsch vergeben ist: das verriete es
   ends: (doc, m) => m.length > 0 && doc.o === 2, close: 2,
   words: { you_start: "wun_start", go_first: "wun_go_first", go_play: "wun_go_play", note_turn: "wun_note", note_over: "wun_over", ready: "wun_ready", send: "inv_send", rematch: "wun_again" },
@@ -245,9 +247,52 @@ export function giftGame(euro, who, extra) {
       const X = T(lang), x = giftLast(m), a = x[0][x[1]], b = x[0][m[1][0][0]];
       return { h: a === b ? fmt(X.gf_same, { s: a }) : X.gf_two, lines: (a === b ? [] : [fmt(X.gf_first, { s: a }), fmt(X.gf_second, { s: b })]).concat([upTo(euro[m[0][o][0]], lang)]), open: who ? { i: "zug-sammeln", l: "gf_pool" } : null };
     },
-    giftIdeas, notes: ["gf_lang"]
+    giftIdeas, notes: ["gf_lang"],
+    example: (p, doc, m, now) => (p.w === "ideas" ? [giftIdeas(doc.seed, p.ask(now), "de"), 0] : undefined)
   }, extra);
 }
 const geschenk = giftGame([10, 20, 30, 50], true);
 
 export const GAMES = { einig, rangliste, kapsel, post, gutschein, rubbellos, urkunde, morgen, umschlag, wichteln, reihum, kerzen, termin, danke, sorry, sammeln, einkauf, wunsch, geschenk };
+
+// ---------- Poster-Varianten: Wohlfuehlkarten (warm.js:10-56), karte-lob, halloween, warm-sorry ----------
+// Alt waren das statische Karten (kind card) mit Satzauswahl, Vorname vorn ("Lea, du bist toll.") und einer passenden
+// Antwortkarte (re). Hier als Zwei-Schritt-Zug: Satz + Namen waehlen, Empfang zeigt die Karte. Kein Zaehler, kein
+// "schick es weiter": Antworten darf man, muss nie (warm.js:1-3).
+import POSTER from "./poster.json" with { type: "json" };
+export const PTEXT = { de: { ...POSTER.text.de }, en: { ...POSTER.text.en } };
+export const POSTERS = POSTER.posters;
+const NAME_RE = /^[\p{L}][\p{L} .'-]*$/u, MAX_NAME = 14;
+/** Nur ein schlichter Vorname; "" = kein Name, null = keiner, der auf eine Karte darf (warm.js:24-29). */
+export function warmName(raw) {
+  const s = String(raw == null ? "" : raw).replace(/\s+/g, " ").trim();
+  if (!s) return "";
+  const n = cleanName(s);
+  return n && n === s && NAME_RE.test(n) ? n : null;
+}
+import { clean as qclean } from "./alt.js";
+function cleanName(s) { return qclean(s, MAX_NAME); }
+/** "Lea" + "Du bist toll." -> "Lea, du bist toll." Englisch behaelt sein grosses I (warm.js:31-36). */
+export function named(line, who) {
+  const n = warmName(who);
+  if (!n) return line;
+  const rest = /^I\b/.test(line) ? line : line.charAt(0).toLowerCase() + line.slice(1);
+  return qclean(n + ", " + rest, 90) || line;
+}
+function PT(lang) { return textsFor(PTEXT, lang); }
+function lines(id, lang) { const p = POSTERS[id]; return (p[lang] || p.de).lines; }
+export function posterGame(id) {
+  const opt = (l) => ({ w: "text", l, max: MAX_NAME, check: (v) => typeof v === "string" && (v === "" || warmName(v) === v) });
+  return {
+    poster: id,
+    turns: [[{ w: "pick", n: 1, auto: true, l: "pos_line", from: (doc, m, now, lang) => lines(id, lang) }, opt("pos_to"), opt("pos_from")],
+      [{ w: "show", l: "pos_got", list: (doc, m, now, lang) => [named(lines(id, lang)[m[0][0][0]], m[0][1])].concat(m[0][2] ? [fmt(PT(lang).pos_sig, { n: m[0][2] })] : []) }]],
+    peekWhole: (doc, m, lang) => (m.length === 1 ? named(lines(id, lang)[m[0][0][0]], m[0][1]) : ""),
+    result(doc, m, lang) {
+      const p = POSTERS[id], X = PT(lang), re = (p.re || []).filter((r) => POSTERS[r] && r !== id)[0];
+      const out = { h: named(lines(id, lang)[m[0][0][0]], m[0][1]), lines: m[0][2] ? [fmt(X.pos_sig, { n: m[0][2] })] : [] };
+      if (re) out.lines.push(fmt(X.pos_reply, { t: (POSTERS[re][lang] || POSTERS[re].de).t.replace("|", " ") }));
+      return out;
+    }
+  };
+}

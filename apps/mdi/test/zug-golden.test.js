@@ -66,9 +66,10 @@ for (const g of Object.keys(GAMES)) {
       assert.deepEqual(card.result(st.pub, "de"), f.results.de, g + " Ergebnis de");
       assert.deepEqual(card.result(st.pub, "en"), f.results.en, g + " Ergebnis en");
       if (f.endAt !== undefined) {
-        // pay: der Zug bleibt stehen, nichts ist eine gueltige Antwort (alt end:true)
+        // pay: als Regel nimmt der Zug 0 an wie alt (okAnswer pay); die Ansicht zeigt keinen Weiter-Knopf (turn-ui.js:663)
         const seat = card.status(st).turn;
-        assert.equal(card.accepts(card.observe(st, seat), seat, { t: "ans", seat, a: 0 }), false);
+        assert.equal(card.accepts(card.observe(st, seat), seat, { t: "ans", seat, a: 0 }), true);
+        assert.equal(card.accepts(card.observe(st, seat), seat, { t: "ans", seat, a: 1 }), false);
       }
     }
   });

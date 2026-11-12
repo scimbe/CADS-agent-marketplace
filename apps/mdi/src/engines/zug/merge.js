@@ -56,14 +56,13 @@ function close(o, cf) {
   }
 }
 export function shopMerge(a, b, cf) { return close(open(b, open(a)), cf); }
-/** "2× Milch", "2x Milch", "2 Milch": Menge 1–99 vorn, der Rest ist der Text. */
-export function shopParse(s, cf) {
-  const S = cf || SHOP;
+/** "2× Milch", "2x Milch", "2 Milch": Menge 1–99 vorn, der Rest ist der Text (turns.js:952; ein Argument, map-fest). */
+export function shopParse(s) {
   let raw = String(s == null ? "" : s).trim(), qty = 1;
   const m = raw.match(/^(\d{1,2})\s*[x×*]?\s+(\S.*)$/i) || raw.match(/^(\d{1,2})\s*[x×*]\s*(\S.*)$/i);
   if (m && +m[1] >= 1) { qty = +m[1]; raw = m[2]; }
-  const text = clean(raw, S.text);
-  return text && shopKey(text) ? { text, qty: Math.min(qty, S.qty) } : null;
+  const text = clean(raw, SHOP.text);
+  return text && shopKey(text) ? { text, qty } : null;
 }
 export function shopMark(list, name, key) {
   let at = -1; const p = fold(name);
