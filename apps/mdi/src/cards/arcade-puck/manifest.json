@@ -549,6 +549,17 @@
           728
         ]
       }
-    ]
+    ],
+    "preview": {
+      "ticks": 40
+    }
+  },
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Puck-Duell",
+      "en": "Puck duel"
+    }
   }
 }

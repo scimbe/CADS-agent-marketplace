@@ -1,43 +1,103 @@
 {
   "arcade-elfer": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 4558
+      }
+    ]
   },
   "arcade-flipper": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 13290
+      }
+    ]
   },
   "arcade-kick": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 6658
+      }
+    ]
   },
   "arcade-murmel": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 8996
+      }
+    ]
   },
   "arcade-panzer": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 9034
+      }
+    ]
   },
   "arcade-puck": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 7466
+      }
+    ]
   },
   "arcade-snow": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 4992
+      }
+    ]
   },
   "arcade-stock": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 8474
+      }
+    ]
   },
   "arcade-volley": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 6922
+      }
+    ]
   },
   "arcade-ziegel": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 4944
+      }
+    ]
   },
   "bluff": {
     "assets": [],

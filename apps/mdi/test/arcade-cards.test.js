@@ -206,3 +206,10 @@ test("Hartes Partie-Limit: zwei Bots, die nie einen Punkt machen (Flipper stat-f
   assert.equal(s.winner, st.sides[0].draw ? -1 : st.sides[0].score[0] > st.sides[0].score[1] ? 0 : 1);
   assert.match(c.view(st, {}).layers.at(-1).ops.map((o) => o.text || "").join(" "), /Gewonnen|Knapp|Unentschieden/);
 });
+test("Anzeige: kein Op traegt fill:null (der Renderer wuerde schwarz fuellen); Rahmen ohne fill", () => {
+  for (const id of IDS) {
+    let { c, st } = newGame(id, ["bot", "bot"]);
+    for (let t = 0; t < 300; t++) st = c.step(st, [NONE, NONE]).state;
+    for (const v of [c.view(st, {}), c.view(st, { thumb: true })]) for (const L of v.layers) walk(L.ops, (o) => assert.ok(o.fill !== null, id + ": " + o.o + " mit fill null"));
+  }
+});

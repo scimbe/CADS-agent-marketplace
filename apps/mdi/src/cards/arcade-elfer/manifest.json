@@ -541,6 +541,17 @@
           760
         ]
       }
-    ]
+    ],
+    "preview": {
+      "ticks": 260
+    }
+  },
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Elfer-Duell",
+      "en": "Penalty duel"
+    }
   }
 }
