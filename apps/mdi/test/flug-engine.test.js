@@ -18,7 +18,7 @@ const G = require("./fixtures/alt-e2/spur-golden.cjs");
 
 // Bot wie alt spur-golden.js record(), auf der NEUEN Engine
 function record(st, frac) {
-  const sim = E.createSim(st.params, mulberry32(st.seed), P.routeParams(st), st.k), r = S.recorder();
+  const sim = E.createSim(st.params, st.seed, P.routeParams(st), st.k), r = S.recorder();
   r.put(sim.ticks, 1); sim.flap();
   while (sim.state === "run" && sim.ticks < S.TMAX) {
     if (E.demoWants(sim, frac)) { r.put(sim.ticks, 1); sim.flap(); }
@@ -46,7 +46,7 @@ test("Golden-Replay (alt spur-golden): Seed + Spur ergeben die eingefrorenen Pun
 test("Presets wie vor A7a (alt spur.test.js BEFORE): Punkte, Ticks, FNV ueber round(y*1000)", () => {
   const BEFORE = [[49, 10800, 3455308725], [17, 2383, 3386471246], [60, 10800, 1769463850], [53, 10800, 2325004423], [64, 10300, 3169787077], [0, 153, 3022656078], [56, 10800, 1151320111], [33, 3727, 1597446504]];
   const now = P.PRESETS.map((pr) => {
-    const st = P.presetState(pr, "de"), sim = E.createSim(st.params, mulberry32(st.seed), P.routeParams(st));
+    const st = P.presetState(pr, "de"), sim = E.createSim(st.params, st.seed, P.routeParams(st));
     let h = 0x811c9dc5; sim.flap();
     for (let t = 0; t < 10800 && sim.state !== "over"; t++) {
       if (E.demoWants(sim)) sim.flap();
@@ -55,7 +55,7 @@ test("Presets wie vor A7a (alt spur.test.js BEFORE): Punkte, Ticks, FNV ueber ro
     return [sim.score, sim.ticks, h];
   });
   assert.deepEqual(now, BEFORE);
-  const sim = E.createSim(P.PRESETS[0].params, mulberry32(1));
+  const sim = E.createSim(P.PRESETS[0].params, 1);
   sim.flap(); sim.step(); const vy = sim.bird.vy;
   sim.flap(); assert.equal(sim.bird.vy, vy, "Tap wirkt erst am Tick"); sim.step();
   assert.equal(sim.bird.vy, -sim.params.jump + sim.params.gravity * E.STEP);
@@ -82,17 +82,17 @@ test("Differenz gegen den Altcode: 120 Laeufe mit zufaelliger Physik, Route und 
     assert.deepEqual(JSON.parse(JSON.stringify(a)), JSON.parse(JSON.stringify(b)), "sanitizeState " + n);
     const frac = 0.4 + (n % 5) * 0.08;
     const want = (t, sim) => { const nx = sim.pipes.find((p) => p.x + 52 >= 86 - 15), mid = nx ? nx.top + nx.gap * frac : 512 * 0.45; return t === 0 || (sim.bird.y > mid && sim.bird.vy > 0); };
-    assert.equal(trace(E, mulberry32, { ...a, rp: P.routeParams(a) }, want), trace(AE, AC.mulberry32, { ...b, rp: AC.routeParams(b) }, want), "Lauf " + n);
+    assert.equal(trace(E, (x) => x, { ...a, rp: P.routeParams(a) }, want), trace(AE, AC.mulberry32, { ...b, rp: AC.routeParams(b) }, want), "Lauf " + n);
   }
 });
 
 test("Engine: Untaetigkeit endet am Boden, anderer Seed = andere Strecke, Masse exportiert (alt engine.test.js)", () => {
-  const st = P.presetState(P.PRESETS[0], "de"), sim = E.createSim(st.params, mulberry32(st.seed));
+  const st = P.presetState(P.PRESETS[0], "de"), sim = E.createSim(st.params, st.seed);
   sim.flap(); let dead = false;
   for (let i = 0; i < 2000 && !dead; i++) dead = sim.step().includes("dead");
   assert.ok(dead); assert.equal(sim.score, 0); assert.deepEqual(sim.flap(), []);
   const d = P.dailyConfig(new Date("2026-11-01T00:00:00Z"));
-  const tops = (seed) => { const s = E.createSim(d.params, mulberry32(seed)); s.flap(); const t = []; for (let i = 0; i < 3000 && s.state !== "over"; i++) { if (E.demoWants(s)) s.flap(); s.step(); const nx = E.nextPipe(s); if (nx && !t.includes(nx.top)) t.push(nx.top); } return t; };
+  const tops = (seed) => { const s = E.createSim(d.params, seed); s.flap(); const t = []; for (let i = 0; i < 3000 && s.state !== "over"; i++) { if (E.demoWants(s)) s.flap(); s.step(); const nx = E.nextPipe(s); if (nx && !t.includes(nx.top)) t.push(nx.top); } return t; };
   assert.notDeepEqual(tops(d.seed), tops(d.seed + 1));
   for (const k of ["W", "H", "GROUND", "STEP", "PIPE_W", "R", "BX"]) assert.equal(typeof E[k], "number", k);
 });
@@ -100,7 +100,7 @@ test("Engine: Untaetigkeit endet am Boden, anderer Seed = andere Strecke, Masse 
 test("Tempo k: Zeitdehnung, gleiche Sprunghoehe, jedes ruhige Preset 90 s loesbar bei k = 0.5/0.75/1", () => {
   const st = P.presetState(P.PRESETS[0], "de");
   for (const k of [0.5, 0.75, 1]) {
-    const sim = E.createSim(st.params, mulberry32(st.seed), null, k);
+    const sim = E.createSim(st.params, st.seed, null, k);
     assert.deepEqual(sim.params, { gravity: st.params.gravity * k * k, jump: st.params.jump * k, gap: st.params.gap, speed: st.params.speed * k });
   }
   for (const id of ["chill", "night", "candy", "ocean"]) for (const k of [0.5, 0.75, 1]) {
@@ -166,4 +166,13 @@ test("Simulationskern ohne Math.random/sin/cos/pow/exp/** (Zufall nur aus dem Se
     const src = fs.readFileSync(new URL("../src/engines/flug/" + f, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
     assert.ok(!/Math\.(random|sin|cos|tan|atan2?|pow|exp|log\w*|hypot|cbrt)\b|\*\*|Date|performance/.test(src), f);
   }
+});
+
+test("trig.js: sinD/cosD nur aus exakten Operationen, Fehler < 2e-15 gegen Math.sin", async () => {
+  const { sinD, cosD } = await import("../src/engines/flug/trig.js");
+  let worst = 0;
+  for (let i = -20000; i <= 20000; i++) { const x = i * 0.0137; worst = Math.max(worst, Math.abs(sinD(x) - Math.sin(x)), Math.abs(cosD(x) - Math.cos(x))); }
+  assert.ok(worst < 2e-15, "Fehler " + worst);
+  const src = fs.readFileSync(new URL("../src/engines/flug/trig.js", import.meta.url), "utf8").replace(/\/\/.*$/gm, "");
+  assert.ok(!/Math\.(?!floor)\w+/.test(src));
 });

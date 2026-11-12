@@ -32,8 +32,9 @@ test("Golden-Replay ev 1: fester Seed + feste Tick-Eingaben = eingefrorener sha2
 test("Alter Link (golden-links.json, ohne ev = ev 0): dasselbe Doc, dieselbe Zustandsfolge, Sinus-Bahn auf 6 Stellen", () => {
   const g = LINKS.links.find((x) => x.doc.k === "lauf");
   const raw = JSON.parse(Buffer.from(g.hash.slice(3), "base64url").toString()).d;
-  const p = L.fromServerDoc(raw);
-  assert.deepEqual(p.l, g.doc.l); assert.equal(p.t, g.doc.t); assert.deepEqual(p.ki, g.doc.ki); assert.deepEqual(p.col, g.doc.col);
+  const cp = L.fromServerDoc(raw), p = { l: L.laufOf(cp) };
+  assert.deepEqual(p.l, g.doc.l); assert.equal(cp.t, g.doc.t); assert.deepEqual(cp.ki, g.doc.ki); assert.deepEqual(cp.col, g.doc.col);
+  assert.deepEqual(L.toServerDoc(cp, raw), g.doc, "Rundreise Doc -> Kartenparameter -> Doc");
   assert.equal("ev" in p.l, false);
   assert.deepEqual(p.l, F.OLD);
   const r = F.replay(E, p.l, F.INPUTS, F.MAX);
@@ -120,15 +121,15 @@ test("Bot der Seite erreicht das Ziel: 200 Seeds x 3 Level mit Luecken und Stufe
   assert.deepEqual(miss, []);
 });
 
-test("Simulationskern ohne Math.sin/cos/exp/pow/random (nur der eingefrorene ev-0-Block hat Math.sin); zur Laufzeit geprueft", () => {
+test("Simulationskern ohne Math.sin/cos/exp/pow/random, auch der eingefrorene ev-0-Block (sinD); zur Laufzeit geprueft, auch fuer ev 0", () => {
   const BAD = /Math\.(sin|cos|tan|asin|acos|atan2?|sinh|cosh|tanh|exp|expm1|log|log1p|log2|log10|pow|cbrt|hypot|random)\b|\*\*/;
   const src = fs.readFileSync(new URL("../src/engines/lauf/engine.js", import.meta.url), "utf8");
   const a = src.indexOf("// ---- ev 0, frozen"), b = src.indexOf("// ---- end ev 0 ----");
-  assert.ok(a > 0 && b > a); assert.equal(src.slice(a, b).split("\n").length, 3);
-  const core = (src.slice(0, a) + src.slice(b)).split("\n").filter((x) => BAD.test(x.replace(/\/\/.*$/, "")));
+  assert.ok(a > 0 && b > a); assert.equal(src.slice(a, b).split("\n").length, 3); assert.ok(/sinD\(/.test(src.slice(a, b)), "ev 0: sinD statt Math.sin");
+  const core = (src.slice(0, a) + src.slice(b)).replace(/\/\*[\s\S]*?\*\//g, "").split("\n").filter((x) => BAD.test(x.replace(/\/\/.*$/, "")));
   assert.deepEqual(core, []);
-  for (const f of ["params.js", "words.js"]) assert.deepEqual(fs.readFileSync(new URL("../src/engines/lauf/" + f, import.meta.url), "utf8").split("\n").filter((x) => BAD.test(x.replace(/\/\/.*$/, ""))), [], f);
+  for (const f of ["params.js", "words.js"]) assert.deepEqual(fs.readFileSync(new URL("../src/engines/lauf/" + f, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").split("\n").filter((x) => BAD.test(x.replace(/\/\/.*$/, ""))), [], f);
   const keep = {};
   for (const k of ["sin", "cos", "exp", "pow", "random"]) { keep[k] = Math[k]; Math[k] = () => { throw new Error("Math." + k); }; }
-  try { F.replay(E, F.NEW, F.INPUTS, F.MAX); } finally { Object.assign(Math, keep); }
+  try { F.replay(E, F.NEW, F.INPUTS, F.MAX); F.replay(E, { ...F.OLD, seed: 11 }, F.INPUTS, F.MAX); } finally { Object.assign(Math, keep); }
 });

@@ -3,6 +3,7 @@
 // alt:src/daily.js (sanitizeDoc fuer k "game"). Dazu die Bruecke zum Server der freien Karte (Genre G1,
 // CADS-DEMO-wrapper lib/duell-karte.mjs compose("game")): fromServerDoc / toServerDoc und das JSON-Schema.
 import { hash32, mulberry32 } from "./rng.js";
+import { sinD } from "./trig.js";
 import { foldText, isClean, sanitizeTitle, sanitizeEmoji, sanitizeName, sanitizePrompt, stripText, emo } from "./text.js";
 
 export const RANGES = { gravity: [900, 2600, 1800], jump: [280, 620, 430], gap: [90, 200, 140], speed: [90, 260, 130] };
@@ -107,13 +108,13 @@ export function animPose(a, t, since, seed, z) {
   const P = { x: 0, y: 0, r: 0, sx: 1, sy: 1, a: 1 }, f = a && (a.tempo || 1), s = a && (a.staerke == null ? 0.6 : a.staerke), d = a && a.bei === "sieg" ? 2.5 : 0.7;
   const on = !a ? 0 : !a.bei ? 1 : since >= 0 && since < d ? 1 - since / d : 0, w = 6.283 * f * t + ((seed >>> 0) % 628) / 100, k = s * on;
   if (!k) return P;
-  if (a.art === "huepfen") P.y = -Math.abs(Math.sin(w / 2)) * 0.45 * z * k;
-  else if (a.art === "wippen") P.y = Math.sin(w) * 0.18 * z * k;
+  if (a.art === "huepfen") P.y = -Math.abs(sinD(w / 2)) * 0.45 * z * k;
+  else if (a.art === "wippen") P.y = sinD(w) * 0.18 * z * k;
   else if (a.art === "drehen") P.r = (w * (0.4 + s)) % 6.283;
-  else if (a.art === "wackeln") P.r = Math.sin(w * 2) * 0.45 * k;
-  else if (a.art === "fluegel") { const q = Math.abs(Math.sin(w * 2)); P.sy = 1 - 0.4 * k * q; P.sx = 1 + 0.15 * k * q; }
-  else if (a.art === "blinken") P.a = Math.sin(w * 1.5) > 0.3 ? 1 - 0.8 * k : 1;
-  else if (a.art === "pulsieren") P.sx = P.sy = 1 + 0.22 * k * Math.sin(w);
+  else if (a.art === "wackeln") P.r = sinD(w * 2) * 0.45 * k;
+  else if (a.art === "fluegel") { const q = Math.abs(sinD(w * 2)); P.sy = 1 - 0.4 * k * q; P.sx = 1 + 0.15 * k * q; }
+  else if (a.art === "blinken") P.a = sinD(w * 1.5) > 0.3 ? 1 - 0.8 * k : 1;
+  else if (a.art === "pulsieren") P.sx = P.sy = 1 + 0.22 * k * sinD(w);
   return P;
 }
 const ANIM_WORDS = [["huepfen", /hupf|huepf|hops|bounce|hop\b/], ["wippen", /wipp|schaukel|bob\b|sway/], ["drehen", /dreh|rotier|spin|kreisel/], ["wackeln", /wackel|zitter|wobbl|shake|wiggle/],
@@ -252,23 +253,48 @@ export function sanitizeGame(g) {
   return out;
 }
 
+// ---------- Kartenparameter der Karte "flug" (flach, eine Quelle fuer Editor, Link, freie Karte) ----------
+export const TEMPOS = [1, 0.75, 0.5];
+const VARIANT_ID = /^[a-z0-9]+(-[a-z0-9]+){0,4}$/;
+export const AGENT0 = { n: "", e: "🦊", r: 50, c: 50, p: 50 };
+/** Spielwerte (sanitizeState v1) aus Kartenparametern. */
+export function gameOf(params) {
+  const p = params || {};
+  const st = sanitizeState({ v: 1, seed: p.seed, params: { gravity: p.gravity, jump: p.jump, gap: p.gap, speed: p.speed }, theme: p.theme, title: p.title, emoji: p.emoji,
+    look: p.look, route: p.route, anim: p.anim, skin: p.skin, ki: p.ki && (p.ki.k === "welt" || p.ki.k === "karte") ? p.ki : null, k: p.tempo === 1 ? undefined : p.tempo });
+  return st;
+}
+/** Kartenparameter aus Spielwerten g (Form von doc.g) plus Rest. */
+export function paramsOfGame(g, rest) {
+  const s = sanitizeGame(g);
+  const out = Object.assign({ variant: "eigen", mode: "solo", seed: s.seed, gravity: s.params.gravity, jump: s.params.jump, gap: s.params.gap, speed: s.params.speed, theme: s.theme, title: s.title, emoji: s.emoji,
+    look: s.look || null, route: s.route || null, anim: s.anim || null, tempo: 1, col: ["#ffd400", "#ff3b1d"], t: "", ki: null, fr: null }, rest || {});
+  return out;
+}
+
 /**
  * Kartenparameter der Karte "flug" aus einem Server-Dokument der freien Karte (Genre G1) oder einem alten Link-Dokument
  * {k:"game", col, by, t?, ki?, fr?, g}. Unbekanntes faellt weg, nichts wird erfunden. null: kein Flugspiel.
  */
 export function fromServerDoc(doc) {
   if (!doc || typeof doc !== "object" || doc.k !== "game" || !doc.g || typeof doc.g !== "object") return null;
-  const p = { variant: "eigen", game: sanitizeGame(doc.g), col: colors(doc.col) };
-  const t = txt(doc.t, 40); if (t) p.t = t;
-  const ki = kiDoc(doc.ki); if (ki) p.ki = ki;
-  if (typeof doc.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(doc.fr)) p.fr = doc.fr;
-  return p;
+  const rest = { col: colors(doc.col) };
+  const t = txt(doc.t, 40); if (t) rest.t = t;
+  const ki = kiDoc(doc.ki); if (ki) rest.ki = ki;
+  if (typeof doc.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(doc.fr)) rest.fr = doc.fr;
+  // die Katalogkarte, aus der das Blatt kam (alt doc.i): bleibt als Variante stehen
+  if (typeof doc.i === "string" && VARIANT_ID.test(doc.i)) rest.variant = doc.i;
+  return paramsOfGame(doc.g, rest);
 }
 /** Gegenrichtung fuer Robot/Verfeinern: die bearbeitete Karte als base an den Server (dieselbe Form wie compose). */
 export function toServerDoc(params, base) {
   const p = params || {}, b = base && typeof base === "object" ? base : {};
-  const doc = { k: "game", col: colors(p.col || b.col), by: Array.isArray(b.by) ? b.by : [], g: sanitizeGame(p.game) };
-  if (p.t) doc.t = p.t;
-  if (p.fr) doc.fr = p.fr;
+  const s = gameOf(p), g = { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji };
+  if (s.look) g.look = s.look; if (s.route) g.route = s.route; if (s.anim) g.anim = s.anim;
+  const doc = { k: "game", col: colors(p.col || b.col), by: Array.isArray(b.by) ? b.by : [], g };
+  if (typeof p.variant === "string" && p.variant !== "eigen" && VARIANT_ID.test(p.variant)) doc.i = p.variant;
+  const t = txt(p.t, 40); if (t) doc.t = t;
+  if (typeof p.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(p.fr)) doc.fr = p.fr;
+  const ki = kiDoc(p.ki); if (ki) doc.ki = ki;
   return doc;
 }

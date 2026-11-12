@@ -1,5 +1,5 @@
 {
- "note": "Alte Links des Flug- und Laufspiels: golden-d1.json (alle Katalogkarten de/en, origin/main 2d01c3d) und golden-links.json (origin/main e928c80) aus pre-legacy-removal apps/duell-web/test, gefiltert auf k game, duel/flappy und lauf. doc = was der Altcode daraus liest (golden-links) bzw. der dekodierte Link (golden-d1).",
+ "herkunft": "Alte Links des Flug- und Laufspiels aus CADS-agent-marketplace @ pre-legacy-removal, alter Client test/golden-d1.json (alle Katalogkarten de/en, origin/main 2d01c3d) und test/golden-links.json (origin/main e928c80), gefiltert auf k game, duel/flappy und lauf. doc = was der Altcode daraus liest (links) bzw. der dekodierte Link (d1).",
  "d1": [
   {
    "name": "game:spiel-lava:de",

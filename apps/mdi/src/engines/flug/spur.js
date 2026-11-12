@@ -3,7 +3,7 @@
 // Varints (LEB128, max. 4 Byte), ein Eintrag je Tick mit Aenderung: v gerade = nur Tap, v = gap*2; v ungerade:
 // v = gap*16 + d*2 + 1 (d = 0: Ende, nur als letzter Eintrag). Genau eine Kodierung je Lauf; sanitize kodiert neu.
 // Grenzen: Ticks <= 90 s x 120, Summe der Abstaende <= TMAX, hoechstens MAX_BYTES; alles andere faellt weg.
-import { mixF64, FNV0, mulberry32 } from "./rng.js";
+import { mixF64, FNV0 } from "./rng.js";
 import { createSim } from "./engine.js";
 import { routeParams } from "./params.js";
 
@@ -85,7 +85,7 @@ export function player(b) {
 }
 /** Spielt eine Flug-Spur auf der Engine (st: Zustand mit seed, params, route?, k?): der Geist. */
 export function fly(st, bytes) {
-  const p = player(bytes || st.spur), sim = createSim(st.params, mulberry32(st.seed), routeParams(st), st.k);
+  const p = player(bytes || st.spur), sim = createSim(st.params, st.seed, routeParams(st), st.k);
   let h = FNV0;
   const stop = p.end === null ? TMAX : p.end;
   if (p.at(0) & 1) sim.flap();

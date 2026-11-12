@@ -20,3 +20,25 @@ export const VARIANTS = [
 ];
 export const VARIANT_IDS = VARIANTS.map((v) => v.id);
 export function variantOf(id) { return VARIANTS.find((v) => v.id === id) || null; }
+
+// Titel als eine Zeile: "|" markiert den Umbruch auf dem Blatt ("Geister-|schicht" -> "Geisterschicht", alt daily.js plainTitle)
+export function plainTitle(s) { return String(s || "").replace(/-\|(\p{Ll})/gu, "$1").replace(/-\|/g, "-").replace(/\|/g, " ").trim(); }
+/**
+ * Kartenparameter einer Variante (alt daily.js docFromIdea + duel.js fromIdea). Flugspiele: Seed, Welt, Figur, Physik,
+ * Look aus dem Katalog, Titel in der Sprache. Agenten-Duelle (flug-agent, flug-mond): Modus "agent", der eigene Agent
+ * traegt Nick und Emoji des Profils, der Gegner Name und Emoji aus dem Katalog, Seed = hash32("duel-" + id).
+ */
+import { hash32 } from "./rng.js";
+import { sanitizeAgent } from "./agent.js";
+export function variantParams(id, lang, profile) {
+  const v = variantOf(id); if (!v) return null;
+  const L = v[lang] || v.de, me = profile || {};
+  const base = { variant: id, mode: "solo", tempo: 1, col: ["#ffd400", "#ff3b1d"], t: "", ki: null, fr: null, look: null, route: null, anim: null };
+  if (v.kind === "game") {
+    const g = v.game;
+    return Object.assign(base, { seed: g.seed, gravity: g.params.gravity, jump: g.params.jump, gap: g.params.gap, speed: g.params.speed, theme: g.theme, title: plainTitle(L.t).slice(0, 28), emoji: g.emoji, look: g.look || null });
+  }
+  const x = v.duel, g = x.game;
+  return Object.assign(base, { mode: "agent", seed: hash32("duel-" + id), gravity: g.params.gravity, jump: g.params.jump, gap: g.params.gap, speed: g.params.speed, theme: g.theme, title: plainTitle(L.t).slice(0, 28), emoji: x.e || "🤖",
+    agent: sanitizeAgent(Object.assign({ n: me.nick || "", e: me.emoji || "🦊" }, x.a)), rival: sanitizeAgent(Object.assign({ n: L.rival, e: x.e || "🤖" }, x.b)) });
+}

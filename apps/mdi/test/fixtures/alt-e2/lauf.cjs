@@ -1,6 +1,6 @@
 // My Daily Idea: the second game engine's document (doc.k "lauf"): a side-scrolling world with gravity, jumps, gaps,
 // obstacles, coins and foes. Only the data and its rules live here (core, and vendored by the server, CADS-DEMO-wrapper
-// lib/vendor/duell-web): the engine itself (physics, generator, picture, editor) is the part "lauf" (src/lauf-engine.js,
+// lib/vendor/<alter Client>): the engine itself (physics, generator, picture, editor) is the part "lauf" (src/lauf-engine.js,
 // src/lauf-ui.js). A game is a small JSON object the AI can fill by schema and a link can carry:
 // { ev?: engine version, m: mode, seed, w: world, e: figure, o: obstacle, c: coin, f: foe, fp: foe patterns, p: numbers (SPEC),
 //   r?: score to beat, anim?: the figure's animation (DuellCore.sanitizeAnim) }

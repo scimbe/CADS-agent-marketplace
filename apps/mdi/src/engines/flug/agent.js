@@ -2,7 +2,7 @@
 // Strecke, eine Regel: flattern, wenn unter der Linie durch die naechste Luecke. Mut r verschiebt die Linie, Geduld p
 // daempft das Zittern. Training: ein echter Flug misst, wo die Person flattert (learnFlap). Gleiche Agenten + gleicher
 // Seed = gleiches Duell auf beiden Handys. Die anderen Duell-Modi (rps, mind, rap, auction, deck) gehoeren nicht zu E2.
-import { createSim, PIPE_W, BX, R, H } from "./engine.js";
+import { createSim, flapState, stepState, PIPE_W, BX, R, H } from "./engine.js";
 import { hash32, mulberry32 } from "./rng.js";
 import { clampNum, sanitizeParams, sanitizeTheme, sanitizeSeed } from "./params.js";
 import { sanitizeName, sanitizeEmoji } from "./text.js";
@@ -25,14 +25,14 @@ export function sanitizeDuel(o) {
 }
 export function flyLine(ag) { return (ag.r - 50) * 0.9; }
 export function flyStep(sim, ag, rnd) {
-  if (sim.state === "ready") sim.flap();
+  if (sim.state === "ready") flapState(sim);
   let next = null;
   for (const p of sim.pipes) if (p.x + PIPE_W > BX - R) { next = p; break; }
   const mid = next ? next.top + sim.params.gap / 2 : H * 0.42, jitter = (rnd() - 0.5) * (100 - ag.p) * 0.45;
-  if (sim.bird.y > mid + flyLine(ag) + jitter && sim.bird.vy >= 0) sim.flap();
-  return sim.step();
+  if (sim.bird.y > mid + flyLine(ag) + jitter && sim.bird.vy >= 0) flapState(sim);
+  return stepState(sim);
 }
-export function flySim(doc) { return createSim(doc.g.params, mulberry32(doc.seed)); }
+export function flySim(doc) { return createSim(doc.g.params, doc.seed); }
 export function flyRnd(ag) { return mulberry32(hash32("fly|" + JSON.stringify(ag))); }
 export function fly(doc, ag) {
   const sim = flySim(doc), rnd = flyRnd(ag);
@@ -47,7 +47,7 @@ export function learnFlap(samples) {
   const sd = Math.sqrt(s.reduce((a, b) => a + (b - mean) * (b - mean), 0) / s.length);
   return { r: slider(50 + mean / 0.9, 50), p: slider(100 - sd * 2, 50) };
 }
-/** "Gegner wuerfeln": der n-te Wurf dieses Blatts, nie Math.random. */
+/** "Gegner wuerfeln": der n-te Wurf dieses Blatts, nie aus dem Geraetezufall. */
 export function rival(seed, n, names, faces) {
   const r = mulberry32(hash32("rival|" + seed + "|" + n)), f = (m) => Math.floor(r() * m);
   return { n: names[f(names.length)], e: faces[f(faces.length)], r: f(101), c: f(101), p: f(101) };

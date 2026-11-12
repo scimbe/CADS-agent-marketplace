@@ -58,19 +58,33 @@ function kiDoc(o) {
   if (r.s && typeof o.o === "string" && /^[A-Za-z0-9_-]{22}$/.test(o.o)) r.o = o.o;
   return r;
 }
-// Kartenparameter der Karte "lauf" aus einem Server-Dokument (G2) oder alten Link {k:"lauf", col, by, t, ki?, l}.
+// ---------- Kartenparameter der Karte "lauf": das Dokument l flach (p-Schluessel oben), dazu Farben, Titel, Siegel ----------
+export const PKEYS = Object.keys(SPEC);
+/** Dokument l (sanitize) aus Kartenparametern. */
+export function laufOf(params) {
+  const q = params || {}, p = {};
+  for (const k of PKEYS) if (q[k] != null) p[k] = q[k];
+  return sanitize({ ev: q.ev == null ? undefined : q.ev, m: q.m, seed: q.seed, w: q.w, e: q.e, o: q.o, c: q.c, f: q.f, fp: q.fp, p, r: q.r == null ? undefined : q.r, anim: q.anim });
+}
+export function paramsOfLauf(l, rest) {
+  const s = sanitize(l), out = { m: s.m, seed: s.seed, w: s.w, e: s.e, o: s.o, c: s.c, f: s.f, fp: s.fp.slice(), ev: s.ev == null ? null : s.ev, anim: s.anim || null, r: s.r == null ? null : s.r };
+  for (const k of PKEYS) out[k] = s.p[k];
+  return Object.assign(out, { col: ["#2b4bff", "#ffe600"], t: "", ki: null, fr: null }, rest || {});
+}
+// Kartenparameter aus einem Server-Dokument (G2) oder alten Link {k:"lauf", col, by, t, ki?, fr?, l}. null: kein Laufspiel.
 export function fromServerDoc(doc) {
   if (!doc || typeof doc !== "object" || doc.k !== "lauf") return null;
-  const p = { l: sanitize(doc.l), col: colors(doc.col) };
-  const t = txt(doc.t, 40); if (t) p.t = t;
-  const ki = kiDoc(doc.ki); if (ki) p.ki = ki;
-  if (typeof doc.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(doc.fr)) p.fr = doc.fr;
-  return p;
+  const rest = { col: colors(doc.col) };
+  const t = txt(doc.t, 40); if (t) rest.t = t;
+  const ki = kiDoc(doc.ki); if (ki) rest.ki = ki;
+  if (typeof doc.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(doc.fr)) rest.fr = doc.fr;
+  return paramsOfLauf(doc.l, rest);
 }
 export function toServerDoc(params, base) {
   const p = params || {}, b = base && typeof base === "object" ? base : {};
-  const doc = { k: "lauf", col: colors(p.col || b.col), by: Array.isArray(b.by) ? b.by : [], l: sanitize(p.l) };
-  if (p.t) doc.t = p.t;
-  if (p.fr) doc.fr = p.fr;
+  const doc = { k: "lauf", col: colors(p.col || b.col), by: Array.isArray(b.by) ? b.by : [], l: laufOf(p) };
+  const t = txt(p.t, 40); if (t) doc.t = t;
+  if (typeof p.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(p.fr)) doc.fr = p.fr;
+  const ki = kiDoc(p.ki); if (ki) doc.ki = ki;
   return doc;
 }

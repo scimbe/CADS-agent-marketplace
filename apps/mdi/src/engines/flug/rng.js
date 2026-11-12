@@ -22,6 +22,15 @@ export function mulberry32(a) {
   };
 }
 
+/** Ein Zug aus mulberry32 auf einem Zustand {r: uint32}: dieselbe Folge wie mulberry32(seed)(), aber serialisierbar. */
+export function draw(o) {
+  o.r = (o.r + 0x6D2B79F5) >>> 0;
+  let t = o.r;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
 /** FNV-1a ueber die exakten float64-Bits: gleicher Hash = gleicher Lauf Bit fuer Bit (alt:src/spur.js mix). */
 const dv = new DataView(new ArrayBuffer(8));
 export function mixF64(h, x) { dv.setFloat64(0, x); for (let j = 0; j < 8; j++) h = Math.imul(h ^ dv.getUint8(j), 16777619) >>> 0; return h; }
