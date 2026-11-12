@@ -51,3 +51,5 @@ Gilt für alle Agenten und Sessions am Neuentwurf. Es ersetzt das bisherige Vorg
 - Keine Abkürzung als Lösung. Muss etwas warten (z. B. Keycloak-Freigabe), wird es als offen geführt, nicht umgangen.
 
 Ausführung ab 2026-11-12: [Welle 1](welle-1.md) (parallele Stränge, Besitz gemeinsamer Dateien, Annahmen für Gate A).
+
+**Regel ab 2026-11-12 (nach Regression durch #281):** In `feat/mdi-paritaet` wird nur mit grünem e2e-Lauf auf labor-setup.de gemergt, auch wenn das Labor gesperrt ist; Unit-Tests allein reichen nie. Ist das Labor nicht erreichbar, wartet der Merge.
