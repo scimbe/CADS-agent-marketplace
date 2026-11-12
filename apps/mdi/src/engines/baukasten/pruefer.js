@@ -22,8 +22,18 @@ export const SCHWELLEN = Object.freeze({
   gutMin: 0.3,          // Solo: der gute Bot gewinnt mindestens 30 % (Setzung; Isaksen: Spiele mit sehr geringer Ueberlebensrate frustrieren)
   dauerMin: 4,          // Sekunden, Median gut (kuerzer = Sofort-Ende)
   dauerMax: 300,        // Sekunden (= LIMITS.maxTicks)
-  fairMax: 0.85         // zu zweit: Anteil der entschiedenen Partien, den eine Seite hoechstens gewinnt
+  fairMax: 0.85,        // zu zweit: Anteil der entschiedenen Partien, den eine Seite hoechstens gewinnt ...
+  fairP: 0.05           // ... und nur, wenn das kein Zufall ist: exakter zweiseitiger Binomialtest gegen 1/2 (p < 0,05)
 });
+/** Exakter zweiseitiger Binomialtest gegen p = 1/2: P(|X - n/2| >= |k - n/2|), X ~ Bin(n, 1/2). Nur Pruefung, nie Spielzustand. */
+export function binomP(k, n) {
+  if (n <= 0) return 1;
+  const c = [1]; for (let i = 1; i <= n; i++) c[i] = c[i - 1] * (n - i + 1) / i;
+  let tot = 0; const d0 = Math.abs(k - n / 2);
+  for (let i = 0; i <= n; i++) if (Math.abs(i - n / 2) >= d0 - 1e-9) tot += c[i];
+  let pw = 1; for (let i = 0; i < n; i++) pw *= 2;
+  return Math.min(1, tot / pw);
+}
 export const BUDGET = 6_000_000;    // Interpreter-Schritte je Pruefung (Server: ~1-3 s auf einem Kern)
 
 /** Eine Echtzeit-Partie mit Agenten je Sitz: "nichts" | "zufall" | "gut1".."gut3". -> {won, draw, score, ticks, natural, steps} */
@@ -102,7 +112,9 @@ function rtTest(d, games, budget, base, notes) {
     if (metrics.gegenNichts < 1 - SCHWELLEN.nichtsMax * 4) R("trivial", metrics.gegenNichts, 1 - SCHWELLEN.nichtsMax * 4, "wer nichts tut, verliert nicht sicher");
     if (metrics.stark + metrics.schwach === 0 && metrics.punkte === 0) R("nicht-gewinnbar", 0, 0.01, "niemand gewinnt oder punktet je");
     else if (metrics.stark - metrics.schwach < SCHWELLEN.luecke && metrics.gegenNichts < 0.9) R("trivial", metrics.stark - metrics.schwach, SCHWELLEN.luecke, "Koennen entscheidet nicht");
-    if (decided.length >= 4 && Math.max(metrics.seite0, 1 - metrics.seite0) > SCHWELLEN.fairMax) R("unfair", Math.max(metrics.seite0, 1 - metrics.seite0), SCHWELLEN.fairMax, "eine Seite gewinnt fast immer");
+    const k0 = decided.filter((r) => r.win === 0).length;
+    metrics.fairP = binomP(k0, decided.length);
+    if (Math.max(metrics.seite0, 1 - metrics.seite0) > SCHWELLEN.fairMax && metrics.fairP < SCHWELLEN.fairP) R("unfair", Math.max(metrics.seite0, 1 - metrics.seite0), SCHWELLEN.fairMax, "eine Seite gewinnt fast immer (p = " + (Math.round(metrics.fairP * 1000) / 1000) + ")");
   }
   metrics.endet = rate(all, (r) => r.natural);
   metrics.spiele = all.length;

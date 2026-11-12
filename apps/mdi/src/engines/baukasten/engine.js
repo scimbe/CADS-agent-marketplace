@@ -35,7 +35,7 @@ function cellSize(d) { return [Math.trunc(d.world.w / d.world.cols), Math.trunc(
 function makeEnt(d, st, k, seat, x, y, r, ln = -1) {
   const t = d.things[k], grid = isGrid(d);
   let vx = velQ(t.vx), vy = velQ(t.vy);
-  if (t.spread > 0) { const s = velQ(t.spread); vx += r.int(2 * s + 1) - s; vy += t.vy !== 0 ? 0 : 0; }
+  if (t.spread > 0) { const s = velQ(t.spread); vx += r.int(2 * s + 1) - s; if (d.players === 2 && r.int(2) === 1) vy = -vy; }
   if (t.ai === "patrol" && vx === 0 && vy === 0) vx = velQ(t.power);
   const e = { i: st.n++, k, s: seat, x: grid ? x : x * Q, y: grid ? y : y * Q, vx, vy, hw: t.w * (Q >> 1), hh: t.h * (Q >> 1), l: t.life ? ticksOf(t.life) : 0, g: 0, p: 0, x0: 0, y0: 0, b: st.t, ln };
   e.x0 = e.x; e.y0 = e.y;
@@ -301,7 +301,8 @@ export function step(d, state, inputs, botOf) {
           const t = d.things[tgt.k];
           tgt.x = tgt.x0; tgt.y = tgt.y0; tgt.g = 0; tgt.p = 0;
           tgt.vx = velQ(t.vx); tgt.vy = velQ(t.vy);
-          if (t.spread > 0) { const s = velQ(t.spread); tgt.vx += r.int(2 * s + 1) - s; }
+          // zu zweit wechselt der Aufschlag zufaellig aus dem Seed (sonst bekaeme eine Seite jeden Ball zuerst: Pong-Playtest)
+          if (t.spread > 0) { const s = velQ(t.spread); tgt.vx += r.int(2 * s + 1) - s; if (d.players === 2 && r.int(2) === 1) tgt.vy = -tgt.vy; }
           if (tgt.tr) { tgt.tr = []; tgt.tl = t.trail; tgt.d = 0; }
           tgt.out = 0;
         } break;

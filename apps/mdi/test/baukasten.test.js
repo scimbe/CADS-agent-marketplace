@@ -327,3 +327,12 @@ test("Baukasten: RNG-Nutzung nur ueber den Zustand (gleiches Ergebnis nach Seria
   assert.equal(stateHash(a), stateHash(b));
   void rng; void SPEC;
 });
+
+test("Baukasten: Fairness nur bei statistisch belegter Schieflage (exakter Binomialtest)", async () => {
+  const { binomP } = await import("../src/engines/baukasten/pruefer.js");
+  assert.equal(binomP(4, 4), 0.125);                  // 4 von 4 ist bei fairer Muenze zu oft Zufall
+  assert.ok(Math.abs(binomP(6, 6) - 0.03125) < 1e-12);
+  assert.ok(Math.abs(binomP(7, 8) - 0.0703125) < 1e-12);
+  assert.equal(binomP(3, 6), 1);
+  for (const seed of ["pruef", "srv", "a", "b", "c"]) assert.ok(pruefe(PONG, { seed, games: 8 }).ok, seed);
+});
