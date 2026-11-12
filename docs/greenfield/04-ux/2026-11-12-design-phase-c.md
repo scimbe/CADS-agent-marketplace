@@ -170,3 +170,92 @@ Nach Runde 3 und der Nachprüfung bleibt **kein Befund der Schwere 3**. Neue Bef
 9. **Inline-Pixelgrößen** in den Artboards skalieren jetzt. `view.js` soll trotzdem nur die Tokens `--t-*` und `--d-*` nutzen.
 10. **Nicht prüfbar:** Blitze im laufenden Spiel (2.3.1). Ob die Apps die Systemschrift übernehmen (Dynamic Type, Android-Skalierung). Echte FLUX-Bilder.
 11. **Die Canvas ist privat.** Der User muss sie über „Teilen“ freigeben.
+
+## 7. Gate C: Abnahme mit Auflagen, Blasen, Flipper, alle Spiele (Canvas Version 52)
+
+Der User hat die Canvas abgenommen („Design ist gut, ich denke damit koennen wir starten“). Danach kamen Auflagen und Rückmeldungen. Sie sind hier in der Reihenfolge der Veröffentlichung umgesetzt. Die Blasen kamen zuerst (Version 50), alles andere danach (Version 52). Die Canvas hat jetzt 88 Bildschirme.
+
+### 7.1 Blasen zurück (Version 50)
+- **Warum sie fehlten:** In der ersten Phase-C-Fassung habe ich Befund 6.1 aus `13-produktverstaendnis` umgesetzt: „Blasen verdecken Text und Spielhandlung“. Dafür habe ich die Blasen durch eine beschriftete Reiterleiste unter der Karte ersetzt. Das war falsch verstanden. Gemeint war, dass Blasen weder Text noch die Spielhandlung verdecken dürfen, nicht dass sie verschwinden. Blasen sind ein festes Produktmuster für alle Karten und alle Spiele, auch in `apps/mdi` (`src/ui/view.js` `bubbleLayer`, `tokens.css` `.bubble`).
+- **Jetzt:** Jedes anpassbare Teil trägt am Rand seines Teils eine Blase (`.blase`): gelbe Pille mit ✎, mindestens 44 px hoch, 3 px Tinte, Schatten 0 3px. Die Blase „Mit KI“ ist türkis mit ✦. Antippen öffnet genau dieses Feld (`aria-expanded`). Die geöffnete Blase ist invertiert, darunter steht nur das Feld dieser Blase mit „Würfeln“ und „Übernehmen“. Blasen liegen auf Bildfläche oder auf dem Kartenrand (32–38 px außerhalb), nie auf Text.
+- **Boards:**
+  - Karte anpassen (hell und dunkel): Titel, Mit KI, Sticker, Farbe, Satz, Unterschrift
+  - Antwort: Titel, Bild, Farbe, Satz, Foto
+  - Adventstür: Text, Tür, Farbe, Sticker, Mit KI
+  - Geld einsammeln: Topf, dazu die gelben Lücken im Satz
+  - Mein Bote lügt: Farbe, Kartenrücken
+  - Flipper: Spielfeld, Farben, Eigenes Foto, Regeln
+  - Vorschau der eigenen Karte: Titel, Bild, Fragen
+  - jedes neue Spiel (siehe 7.4)
+
+### 7.2 Gate-C-Auflagen
+- **„Neu erfinden“:** ein eigener großer Block direkt unter der Tageskarte und unter „Jetzt spielen / Erst üben“. Er verdrängt den Hauptknopf nicht.
+  - Gestaltung: Türkis der Kreativ-Familie (Tinte auf Türkis 7,0:1), Titel in Anton mit ✦.
+  - Text: „Aus einem Satz wird eine ganz neue Karte oder ein ganz neues Spiel.“
+  - Mehrzeiliges Feld „Beschreib deine Idee in einem Satz“, roter Knopf „Erfinden ›“ (Tinte auf Rot 5,2:1), Zeile „Karte, Spiel, Quiz oder Witzbild · ab 16“.
+  - Umgesetzt auf hell, dunkel, iOS, Android, 360 px und Desktop. Die Abläufe heißen jetzt ebenfalls „Neu erfinden“.
+  - Die frühere Absicht „Eigene Karte“ ist durch „Suchen“ ersetzt. Die Startseiten sind als ganze Seite gezeichnet (1160 px), damit der Block vollständig zu sehen ist.
+  - In Runde 4 waren Warnstreifen und Gelb zu nah am Hauptknopf. Deshalb wurde der Block türkis und hat keine Streifen mehr.
+- **„Mein Regal“ statt „Meins“:** in Navigation, Überschriften, Reitern, Texten und Hinweisen, mit Regal-Symbol (Bretter mit Büchern). Aus „in Meins“ wurde „in deinem Regal“.
+
+### 7.3 Flipper zurück zur früheren Gestaltung
+- **Vergleich der Fassungen:**
+  - Runde 1 (vom User gemocht): dunkle Bühne, Spielfeldbild, eine Regelzeile, zwei gleich starke große Knöpfe nebeneinander („Gegen den Bot“ gelb, „Live mit Freund“ rot), unten nur „Aussehen“ und „Ton“.
+  - Runde 2 und 3 haben dieses Bild verwässert:
+    - Tempo-Wahl („Gemütlich/Normal/Schnell“) über den Knöpfen
+    - Live-Knopf als weißer Nebenknopf
+    - umrandeter Hinweiskasten zur Sprachausgabe
+    - im Spiel gelbe Tastenleiste „◀ LINKS / RECHTS ▶“
+    - „Fordern“ als weißer Nebenknopf
+  - Unverändert blieben Farben, Bühne und Spielfeld.
+- **Jetzt:**
+  - Standard ist wieder das Bild aus Runde 1, mit „Gegen den Computer“ in Gelb und „Per Link“ in Rot.
+  - Im Spiel ist die Leiste wieder zurückhaltend gestrichelt („LINKS TIPPEN / RECHTS TIPPEN“).
+  - Am Ende stehen zwei gleich starke Knöpfe: „Revanche“ in Gelb, „Fordern“ in Rot.
+  - Die Hilfen für zitternde Hände (große Tasten, Zeitlupe 50 %, Schutz vor Doppeltippen) sind ein schlanker Schalter „Gemütlich spielen“ über den Knöpfen, ab Werk aus. Board 43 zeigt, wie es eingeschaltet aussieht.
+- **Alte App:** `arcade-ui.js` und `arcade.json` (Tag `pre-legacy-removal`) zeigen Flipper in derselben Arcade-Ebene wie Stangen-Kick [47b]: dunkle Ebene, Spielfeldbild, eine Regelzeile („Tipp links oder rechts: die Klappe schlägt. Lass den Ball nicht durch die Lücke.“), „GEGEN DEN BOT“ gelb und „LIVE GEGEN FREUND“ rot, dort übereinander. **Die Fassung aus Runde 1 kommt dem, was der User mochte, am nächsten:** Sie übernimmt genau diese alte Arcade-Ebene, nur mit den Knöpfen nebeneinander. Die Fassung aus Runde 3 hatte sich davon entfernt.
+
+### 7.4 Alle Spiele ergänzt (36 Boards)
+Für jedes Spiel gibt es Start mit Blasen, im Spiel, Ende (390 px) und Desktop (1280 px), alle nach demselben Muster:
+- Kopf in der Familienfarbe und dunkle Bühne
+- Spielfeld mit 4 Blasen
+- Regelzeile, Schalter „Gemütlich spielen“
+- links Gelb (ohne Link: Computer, allein oder hier im Raum), rechts Rot (Per Link); „Hier im Raum“ als dritter Textlink, wo es ihn gibt
+- im Spiel: Pause/Beenden, Spielstand oder Kennzahlen, Ton, große Steuerung unten; immer auch eine Bedienung ohne Wischen
+- Ende: Ergebnis, 3 Kennzahlen, „Nochmal/Revanche“ gelb und „Fordern“ rot
+
+| Spiel | Besonderheit |
+|---|---|
+| Lava-Flug (Flappy-artig) | „Bau dein Lava-Level“ mit Reglern für Schwerkraft, Sprung, Lücke und Tempo, Varianten (Klassisch, Mond, Unterwasser, Nacht), gegen den Computer oder per Link gegen die eigene Aufnahme (das Geist-Duell, im Text „Aufnahme“) |
+| Dach-Lauf | Tippen springt, langes Drücken springt weit; Meter und Münzen |
+| Arcade | Auswahl aus 10 Spielen (Stangen-Kick, Elfer, Ziegel, Panzer, Eis-Stock, Puck, Volley, Flipper, Schnee, Murmel); im Spiel ◀ KICK ▶ als Tasten, Ziehen geht zusätzlich |
+| Dart (Bert) | Scheibe mit Zahlen und Ringen; Varianten 301 Einsteiger, 301 mit Doppel am Ende, Rund um die Uhr, Cricket; Werfen über die Stärke SANFT, MITTEL oder FEST, Ziehen geht zusätzlich; Anzeige „Rest“ |
+| Mal & Rat | Stufe statt Lösungswort am Start; im Spiel „nur du siehst: REGENBOGEN“; Stiftfarben und Radierer |
+| Quiz „Was kostet das?“ | Fragepakete, 4 große Antworten |
+| Bauernskat / Skat / Doppelkopf | Wahl der Spielart (2/3/4 Spieler), gegen Bert (Computer) oder per Link |
+| Beat bauen | Raster aus 4 Instrumenten und 8 Schlägen, Spielen / Rückgängig / Fertig, weitergeben per Link |
+| Pizza-Rettung (vom Baukasten neu erzeugt) | Herkunft „Neu erfunden aus dem Satz …“, Hinweis „KI-Spiel · geprüft“, Blase „Satz“ (✦) |
+
+### 7.5 Runde 4 (Nielsen und Ingrid, 74, ohne Vorwissen) und Behebung
+| Befund | Schwere | Behebung |
+|---|---|---|
+| Dart und Arcade nur mit Wischen bedienbar | 4 | Tasten-Steuerung in jedem Spiel (Dart: Stärke antippen und Werfen; Arcade: ◀ KICK ▶), Wischen bleibt als zweiter Weg |
+| „Gemütlich“ nur beim Flipper und dort versteckt | 3 | Schalter „Gemütlich spielen“ auf jedem Spielstart direkt über den Knöpfen |
+| Dart: Scheibe ohne Felder, Fachwörter, Anzeige „141 : 180“ wirkte verkehrt herum | 3 | Zahlen und Ringe, Varianten auf Deutsch, Anzeige „DU · REST / BERT · REST“, Ende „Dreifach-20 = 60“ |
+| Flug ohne „Gegen den Computer“, Wort „Geist“ unklar | 3 | „Gegen den Computer“ / „Per Link (gegen deine Aufnahme)“; „Geist“ steht nur noch im festen Server-Text (siehe 6.8) |
+| Rolle der beiden Knöpfe von Spiel zu Spiel anders | 3 | Feste Rollen: Gelb ohne Link, Rot „Per Link“ |
+| Mal & Rat zeigte das Lösungswort am Start | 3 | Stufen ohne Wort; das Wort sieht nur, wer malt |
+| Blase „Spiel: Doppelkopf“ widersprach der Auswahl | 3 | Blase heißt „Spielart“ |
+| Abgeschnittene Wörter auf Knöpfen am Ende | 3 | kürzere Wörter („Fordern“), Schrift 24 px |
+| Zweimal „Fertig“ im Editor; „Fertig“ im Dunkelmodus schlecht lesbar | 2 | Das kleine heißt „Übernehmen“, `.btn-2.gelb` hat immer Tinte als Schrift |
+| Titel-Blase berührte „DANKE“ | 2 | Blasen am oberen Rand 38 px außerhalb der Karte |
+| Antwort hatte doppelte Wege („Andere Farbe“ neben der Blase) | 2 | Doppelte Knöpfe entfernt, Feld heißt „Titel“ |
+| Vorschau: Blasen und der Satz „nach dem Übernehmen ändern“ widersprachen sich | 2 | Satz gestrichen |
+| Doppelpunkt auch bei Werten, die kein Spielstand sind | 2 | Doppelpunkt nur bei Spielständen, sonst „·“ |
+| Start360: „Mein Stil“ verschwand | 2 | Kopfzeile bricht um |
+
+**Offen (Schwere ≤ 2):**
+- Beat: Zeilen beschriften.
+- Bauernskat: offene Karten mit Werten zeichnen.
+- Kartenwerte im Spielbild sind Platzhalter.
+- Lava-Flug: Regler zusätzlich mit −/+.
