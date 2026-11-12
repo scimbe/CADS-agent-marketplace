@@ -38,6 +38,18 @@ for (const scheme of ["light", "dark"]) {
     await act(p, "open-zug-einkauf"); await p.locator("main.s-card-view").waitFor(); await act(p, "go");
     await p.locator(".pm-seg").waitFor(); bad.push(...(await axe(p, scheme + "/spielkopf")));
     for (const [s, r] of await contrast(p, [".pm-seg"])) if (r < 3) bad.push(scheme + ": " + s + " " + r + ":1");
+    // Spielkopf in Familienfarbe: Schrift >= 4,5:1 gegen die Kopffarbe (Canvas v54)
+    const head = await p.evaluate(() => { const e = document.querySelector("header.bar"), cs = getComputedStyle(e);
+      const rgb = (c) => (c.match(/[\d.]+/g) || [0, 0, 0]).slice(0, 3).map(Number);
+      const lum = (c) => { const [r, g, b] = rgb(c).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+      const x = lum(cs.color), y = lum(cs.backgroundColor); return { fam: e.classList.contains("bar-fam"), r: Math.round(((Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)) * 10) / 10 }; });
+    if (!head.fam || head.r < 4.5) bad.push(scheme + ": Spielkopf " + JSON.stringify(head));
+    // Echtzeitkarte: dunkle Startansicht mit Doppelknopf (axe, Knoepfe >= 3:1 gegen die Seite)
+    await p.locator('[data-act="back"]').first().click(); await p.locator('[data-act="back"]').first().click().catch(() => {});
+    await act(p, "open-arcade-kick"); await p.locator("main.s-card-view.rt-dark").waitFor(); await p.locator(".rt-duo").waitFor();
+    bad.push(...(await axe(p, scheme + "/rt-start")));
+    const duo = await p.evaluate(() => { const m = getComputedStyle(document.querySelector("main")).backgroundColor, b = getComputedStyle(document.querySelector(".rt-duo-b")).backgroundColor; return [m, b]; });
+    if (duo[0] === duo[1]) bad.push(scheme + ": Doppelknopf hebt sich nicht ab");
     assert.deepEqual(bad, []);
     assert.deepEqual(errs, []);
   });

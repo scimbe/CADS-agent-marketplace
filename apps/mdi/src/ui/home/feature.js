@@ -38,6 +38,7 @@ function dirty(ctx) { return ctx.profil && ctx.profil.via ? { ...ctx, profil: { 
 const persist = (ctx, emit) => { saveFx(ctx, emit); return dirty(ctx); };
 
 export const guards = {
+  playAsOk: (ctx, ev) => { const c = G.card(ctx); return !!c && typeof ev.mode === "string" && playOf(c, ctx.variant).offer.includes(ev.mode); },
   homeDeep: (ctx) => ctx.home.at !== "day" || ctx.home.off !== 0 || !!ctx.home.note,
   homeLinked: (ctx) => !!(ctx.profil && ctx.profil.via)
 };
@@ -134,6 +135,8 @@ export const actions = {
     const c = M(ctx, m); saveFx(c, emit); return c;
   },
   homeNoteClear: (ctx) => H(ctx, { note: null }),
+  // Doppelknopf der Startansicht (Board GFlugStart/GArcadeStart): Spielweise setzen; GO folgt im selben Makroschritt
+  playAs: (ctx, ev) => ({ ...ctx, mode: ev.mode, note: null }),
   // Varianten-Chip in der Startansicht: Variante mit ihren Parametern wie beim Oeffnen aus dem Regal (eigene Aenderungen weg)
   levelVariant: (ctx, ev) => {
     const c = G.card(ctx), v = c && (c.manifest.variants || []).find((x) => x.id === ev.variant && x.chip);
@@ -218,4 +221,5 @@ export const profileLocal = (ctx) => (ctx.mine ? { wall: S.wallForServer(ctx.min
 // Teile ausserhalb des Kerns (src/app/feature-parts.json): Satz und Suche (home-find); Story/Wand-Bild laedt der Effekt selbst
 export const needParts = (ev) => (ev.type === "UNDERSTAND" || ev.type === "QUERY" ? ["home-find"] : []);
 
-export const home = { id: "home", shelfOn, on: { inhalt: inhaltOn, "inhalt.card.view": { LEVEL_STEP: { actions: ["levelStep"] }, VARIANT: { actions: ["levelVariant"] } }, "inhalt.card.share": { SHARE_IMAGE: { actions: ["shareImage"] } }, "inhalt.card.customize.dialog": { WX_GET: { actions: ["wxGet"] }, PHOTO_PUT: { actions: ["photoPut"] } } }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };
+// startsGo (Laufzeit F): PLAY_AS fuehrt im selben Schritt zu GO; die Laufzeit laedt vorher dessen Teile
+export const home = { id: "home", startsGo: ["PLAY_AS"], shelfOn, on: { inhalt: inhaltOn, "inhalt.card.view": { LEVEL_STEP: { actions: ["levelStep"] }, VARIANT: { actions: ["levelVariant"] }, PLAY_AS: { cond: "playAsOk", actions: ["playAs"], raise: (ctx, ev) => ({ type: "GO", rand: ev.rand, at: ev.at }) } }, "inhalt.card.share": { SHARE_IMAGE: { actions: ["shareImage"] } }, "inhalt.card.customize.dialog": { WX_GET: { actions: ["wxGet"] }, PHOTO_PUT: { actions: ["photoPut"] } } }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };
