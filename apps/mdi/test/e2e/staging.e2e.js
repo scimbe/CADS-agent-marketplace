@@ -77,8 +77,9 @@ test("Freie Karte ueber den echten KI-Weg des Servers: Satz, Vorschau, Uebernehm
   await p.locator("#frei-text").fill("Geburtstagskarte für meine Freundin, sie liebt Sonnenblumen");
   await act(p, "send");
   await waitScreen(p, "frei-vorschau", 60000);
+  const accepted = p.waitForResponse((r) => new URL(r.url()).pathname === "/api/duell/ai/accept"); accepted.catch(() => {});
   await act(p, "take"); await waitScreen(p, "card-view");
-  assert.ok(paths.includes("200 /api/duell/ai/accept"), paths.join(", "));
+  assert.equal((await accepted).status(), 200, "Uebernehmen rechnet beim Server ab: " + paths.join(", "));
   assert.deepEqual(errs, []);
   await ctx.close();
 });
