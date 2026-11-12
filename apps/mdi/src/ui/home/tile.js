@@ -1,9 +1,8 @@
 // Kachel 16:9 in YouTube-Art (Design-System Phase C): grosses Bild, Familie oben links, Dauer oben rechts, fetter Kurztitel
-// als Tafel unten links (Anton, 2-4 Woerter, Bild bleibt textfrei). Bild = Startzustand-Screenshot (SLOTS.thumbOf, Strang F),
+// als Tafel unten links (Anton, 2-4 Woerter, Bild bleibt textfrei). Bild = Startzustand-Screenshot (Thumbnail-Teile, Strang F),
 // sonst die gestaltete Familienflaeche (Strahlen + Form). Karten, die es im neuen Code noch nicht gibt: Plakette "kommt",
 // kein Knopf zum Oeffnen, aber Merken.
 import { h } from "../dom.js";
-import { SLOTS } from "./slots.js";
 import { familyOf, newIdOf, variantOf, family } from "./families.js";
 import { fmt } from "./texts.js";
 import { isSaved } from "./store.js";
@@ -26,9 +25,11 @@ export function plateLines(t) { return String(t).split("|").map((x) => x.trim())
 export function duration(min, X) { return min >= 120 ? fmt(X.mins, { n: Math.round(min / 60) }) : fmt(X.sec, { n: min }); }
 export function badge(idea, X) { return idea.how ? X.bdg[idea.how] || X.bdg.link : X.bdg[idea.kind] || ""; }
 
-/** Kunstflaeche einer Kachel: Bild, wenn es eines gibt, sonst Familienflaeche. */
-export function art(fam, cardId, alt) {
-  const src = cardId && SLOTS.thumbOf ? SLOTS.thumbOf(cardId) : null;
+/** Schluessel eines Startbilds: Karte oder Karte/Variante (wie parts.thumb, ADR 0001 d) */
+export function thumbKey(id, variant) { return variant ? id + "/" + variant : id; }
+/** Kunstflaeche einer Kachel: echtes Startbild (ctx.thumbs, nachgeladen), sonst die Familienflaeche. */
+export function art(fam, key, alt, thumbs) {
+  const src = key && thumbs && typeof thumbs[key] === "string" ? thumbs[key] : null;
   if (src) return h("img", { class: "h-art", src, alt: alt || "", loading: "lazy" });
   return h("span", { class: "h-art h-art-fam fam-" + fam.id, "aria-hidden": "true" }, h("span", { class: "h-rays" }), icon(fam.shape, "h-art-shape"));
 }
@@ -41,7 +42,7 @@ export function ideaTile(o) {
   const { idea, X, lang, dispatch } = o, fam = familyOf(idea.id) || family("gruessen"), nid = newIdOf(idea.id), tx = ideaText(idea, lang);
   const title = plateLines(tx.t).join(" "), on = isSaved(o.saved, idea.id);
   const thumb = h("span", { class: "h-thumb" + (o.small ? " small" : "") },
-    art(fam, nid, fmt(X.thumbAlt, { t: title })),
+    art(fam, nid ? thumbKey(nid, variantOf(idea.id)) : null, fmt(X.thumbAlt, { t: title }), o.thumbs),
     o.noFam ? null : h("span", { class: "h-fam fam-" + fam.id }, X.families[fam.id]),
     idea.min ? h("span", { class: "h-dur" }, duration(idea.min, X)) : null,
     h("span", { class: "h-plate" }, plateLines(tx.t).map((l, i) => h("span", { key: String(i) }, l))));
@@ -55,11 +56,11 @@ export function ideaTile(o) {
 }
 
 /** Kachel fuer eine Karte, die es nur im neuen Code gibt (kein Katalogeintrag). */
-export function extraTile({ id, fam, manifest }, X, lang, dispatch, saved, noFam = false) {
+export function extraTile({ id, fam, manifest }, X, lang, dispatch, saved, noFam = false, thumbs = null) {
   const title = manifest.title[lang] || manifest.title.de, on = isSaved(saved, id);
   return h("div", { class: "h-tile", key: "x-" + id },
     h("button", { type: "button", class: "h-tile-open", "data-act": "open-" + id, "aria-label": title, on: { click: () => dispatch({ type: "OPEN", id }) } },
-      h("span", { class: "h-thumb" }, art(fam, id, fmt(X.thumbAlt, { t: title })), noFam ? null : h("span", { class: "h-fam fam-" + fam.id }, X.families[fam.id]), h("span", { class: "h-plate" }, h("span", null, title)))),
+      h("span", { class: "h-thumb" }, art(fam, id, fmt(X.thumbAlt, { t: title }), thumbs), noFam ? null : h("span", { class: "h-fam fam-" + fam.id }, X.families[fam.id]), h("span", { class: "h-plate" }, h("span", null, title)))),
     h("div", { class: "h-tile-foot" }, h("span", { class: "h-meta" }, h("span", { class: "h-sub" }, manifest.teaser ? manifest.teaser[lang] || manifest.teaser.de : "")),
       h("button", { type: "button", class: "h-heart", "aria-pressed": on ? "true" : "false", "aria-label": (on ? X.unsave : X.save) + ": " + title, "data-act": "merken-" + id, on: { click: () => dispatch({ type: "MERKEN", id }) } }, icon("heart", "h-ico"))));
 }

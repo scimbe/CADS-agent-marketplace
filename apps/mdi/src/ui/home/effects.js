@@ -43,6 +43,24 @@ export const effects = {
     if (env.setInterval) env.setInterval(() => dispatch({ type: "HOME_TICK" }), TICK_MS);
   },
   "home.later": (fx, { dispatch, deps }) => { const env = envOf(deps); if (env.setTimeout) env.setTimeout(() => dispatch({ type: "HOME_TICK" }), fx.ms + 50); },
+  // Startbilder (Thumbnail-Teile, ADR 0001 d): je Teil einmal geladen; fehlt eins, bleibt die Familienflaeche (sichtbar, kein Fehler)
+  "home.thumbs": (fx, { dispatch, deps }) => {
+    const env = envOf(deps);
+    if (typeof env.thumb !== "function") return;
+    Promise.all(fx.keys.map((k) => { const [id, v] = k.split("/"); return env.thumb(id, v || null).then((u) => [k, u], () => [k, null]); }))
+      .then((pairs) => { const map = {}; for (const [k, u] of pairs) if (typeof u === "string" && u.startsWith("data:image/")) map[k] = u; if (Object.keys(map).length) dispatch({ type: "THUMBS", map }); });
+  },
+  // Leseschrift Atkinson Hyperlegible Next (Teil home-font): ueber die FontFace-API aus dem Puffer, CSP bleibt unveraendert;
+  // bis sie da ist, gilt die Systemschrift (reine Darstellung)
+  "home.font": (fx, { deps }) => {
+    const env = envOf(deps);
+    if (!env.FontFace || !env.document || !env.document.fonts) return;
+    const load = isPartLoaded("home-font") ? Promise.resolve(partOf("home-font")) : loadFeatPart("home-font", deps && deps.loadFeat).then(() => partOf("home-font"));
+    load.then((F) => Promise.all(F.FONT_FACES.map((f) => {
+      const bin = atob(f.b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      return new env.FontFace(F.FONT_FAMILY, buf.buffer, { weight: f.weight, style: "normal", display: "swap" }).load().then((face) => env.document.fonts.add(face));
+    }))).catch(() => {});
+  },
   "home.save": (fx, { deps }) => { const st = deps && deps.storage; if (st && st.saveHome) st.saveHome(fx.data); },
   "short.create": (fx, { dispatch, api, deps, state }) => {
     if (!api || !api.shortCreate || !SL.fragmentOf("#" + fx.f)) { dispatch({ type: "SHORT_DONE", f: fx.f, r: { ok: false, error: "nicht-hier" } }); return; }

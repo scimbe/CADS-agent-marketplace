@@ -3,11 +3,11 @@
 // Ueberlauf und axe der Spielansicht auf vier Ansichten.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { browser, open, screen, waitScreen, axe, noOverflow, VIEWS } from "./lib/grund.mjs";
+import { browser, open, screen, waitScreen, axe, noOverflow, VIEWS, act } from "./lib/grund.mjs";
 
 const IDS = ["arcade-kick", "arcade-elfer", "arcade-ziegel", "arcade-panzer", "arcade-stock", "arcade-puck", "arcade-volley", "arcade-flipper", "arcade-snow", "arcade-murmel"];
 async function startBot(p, id) {
-  await p.locator('[data-act="open-' + id + '"]').first().click();
+  await act(p, "open-" + id);
   await waitScreen(p, "card-view");
   await p.locator('[data-act="go"]').first().click();
   await waitScreen(p, "card-rt-ready");

@@ -6,9 +6,10 @@ import * as p1_1 from "../ui/home/search.js";
 import * as p2_0 from "../ui/home/qr.js";
 import * as p2_1 from "../ui/home/paint.js";
 import * as p3_0 from "../ui/home/kalender.js";
+import * as p4_0 from "../ui/home/font-atkinson.js";
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 export function merge(n, list) { const o = {}; for (const m of list) for (const k of Object.keys(m)) { if (own(o, k)) throw new Error("teil " + n + ": Export doppelt: " + k); o[k] = m[k]; } return Object.freeze(o); }
-const MODS = { "klang-rap": merge("klang-rap", [p0_0]), "home-find": merge("home-find", [p1_0, p1_1]), "home-share": merge("home-share", [p2_0, p2_1]), "home-kalender": merge("home-kalender", [p3_0]) };
+const MODS = { "klang-rap": merge("klang-rap", [p0_0]), "home-find": merge("home-find", [p1_0, p1_1]), "home-share": merge("home-share", [p2_0, p2_1]), "home-kalender": merge("home-kalender", [p3_0]), "home-font": merge("home-font", [p4_0]) };
 export const PART_NAMES = Object.freeze(Object.keys(MODS));
 export function partOf(name) { return own(MODS, name) ? MODS[name] : null; }
 export function isPartLoaded(name) { return own(MODS, name); }

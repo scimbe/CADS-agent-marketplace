@@ -12,7 +12,7 @@
   --bg: var(--paper); --surface: #ffffff; --text: var(--ink); --muted: #4a4636; --line: #d9cfb0; --focus: #0b57d0;
   --on-primary: var(--ink); --primary: var(--yellow); --danger: #b3200a; --edge: var(--ink);
   --font-head: "Anton", Impact, "Arial Narrow Bold", sans-serif;
-  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  --font-body: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; /* Leseschrift als Teil home-font nachgeladen (Design-System Phase C) */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
   --r1: 10px; --r2: 18px; --r3: 999px;
   --shadow: 0 1px 0 rgba(17,17,17,.9), 0 6px 0 rgba(17,17,17,.9);
@@ -214,7 +214,11 @@ textarea.input { resize: vertical; }
 /* Erster Bildschirm: links Blatt + Hauptknopf, rechts Satz + Absichten (ab 900 px nebeneinander) */
 .h-top { display: grid; gap: var(--s5); }
 .h-top-a, .h-top-b { display: grid; gap: var(--s5); align-content: start; min-width: 0; }
-@media (min-width: 900px) { .h-top { grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: var(--s6); } }
+@media (min-width: 900px) { .h-top { grid-template-columns: minmax(0, 400px) minmax(0, 1fr); grid-template-areas: "a go" "a b"; column-gap: var(--s6); row-gap: var(--s5); align-items: start; }
+  .h-top-a { grid-area: a; } .h-top-go { grid-area: go; } .h-top-b { grid-area: b; } }
+.h-sec-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
+.h-link { min-height: var(--tap); padding: 0; border: 0; background: none; color: var(--text); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+@media (min-width: 900px) { .h-grid.h-week { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 /* Kalenderblatt: Lochrand, zwei Blaetter darunter (eines rot), leicht gedreht, harte Schatten */
 .h-cal { position: relative; display: grid; gap: var(--s2); }
@@ -238,12 +242,13 @@ textarea.input { resize: vertical; }
 @keyframes h-stamp { from { transform: scale(1.35) rotate(-6deg); } to { transform: none; } }
 .h-teaser { margin: 0; font-size: var(--t-m); font-weight: 600; }
 .h-soonline { margin: 0; font-size: var(--t-s); color: var(--pmuted); }
-.h-flip { display: grid; grid-template-columns: auto 1fr auto; gap: var(--s2); align-items: center; }
-.h-arrow { min-width: var(--tap); min-height: var(--tap); padding: 0 10px; display: inline-flex; align-items: center; gap: 4px; border: 3px solid var(--ink); border-radius: 14px; background: var(--sheet); color: var(--ink); font: 800 .9375rem/1 var(--font-body); cursor: pointer; box-shadow: 2px 2px 0 var(--ink); }
-.h-arrow b { font-size: 1.5rem; line-height: 1; }
+.h-flip { display: flex; gap: var(--s2); align-items: flex-start; }
+.h-flip .h-teaser { flex: 1; min-width: 0; }
+.h-flipnav { display: flex; gap: 6px; flex: none; }
+.h-arrow { display: grid; justify-items: center; gap: 2px; padding: 0; border: 0; background: none; color: var(--ink); font: 700 .875rem/1.1 var(--font-body); cursor: pointer; }
+.h-arrow-i { display: grid; place-items: center; width: var(--tap); height: var(--tap); border: 3px solid var(--ink); border-radius: 14px; background: var(--sheet); box-shadow: 2px 2px 0 var(--ink); font-size: 1.6rem; line-height: 1; }
 .h-arrow:disabled { opacity: .45; cursor: default; }
-.h-swipe { text-align: center; font-size: .875rem; line-height: 1.2; color: var(--muted); }
-.h-today { justify-self: center; min-height: var(--tap); padding: 0 var(--s4); border: 3px solid var(--ink); border-radius: 999px; background: var(--gelb); color: var(--ink); font-weight: 800; cursor: pointer; }
+.h-today { justify-self: start; min-height: var(--tap); padding: 0 var(--s4); border: 3px solid var(--ink); border-radius: 999px; background: var(--gelb); color: var(--ink); font-weight: 800; cursor: pointer; }
 
 /* Hauptknopf 68 px: Tinte mit gelber Schrift und roter Schattenkante */
 .btn.primary.h-go { min-height: var(--btn-main); width: 100%; border: 0; border-radius: 16px; background: var(--ink); color: var(--gelb); font: 400 1.75rem/1.05 var(--font-head); letter-spacing: .02em; box-shadow: 0 6px 0 var(--signal); padding: 8px 16px; }
@@ -258,7 +263,7 @@ textarea.input { resize: vertical; }
 
 /* Ein Satz */
 .h-ask { display: grid; gap: var(--s2); }
-.h-ask-q { font: 400 1.5rem/1.08 var(--font-head); text-transform: uppercase; }
+.h-ask-q { font: 700 var(--t-m)/1.25 var(--font-body); }
 .h-field { display: flex; gap: var(--s2); align-items: stretch; min-height: 56px; border: 3px solid var(--text); border-radius: 16px; background: var(--surface); padding: 4px 4px 4px 14px; }
 .h-input { flex: 1; min-width: 0; border: 0; background: transparent; font-size: var(--t-m); color: var(--text); }
 .h-input:focus-visible { outline: none; }
@@ -267,14 +272,14 @@ textarea.input { resize: vertical; }
 .h-local { margin: 0; font-size: var(--t-s); color: var(--muted); }
 
 /* Absichten: 6 im Raster (Gruss, Planen, Spielen, Stimme, Eigene Karte, Alle Karten) */
-.h-intents { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); }
-@media (min-width: 560px) { .h-intents { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-.h-intent { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: var(--s2); align-items: center; min-height: 72px; padding: var(--s2) var(--s3); border: 3px solid var(--ink); border-radius: 14px; text-align: left; cursor: pointer; box-shadow: 4px 4px 0 var(--ink); }
-.h-intent .h-ico { grid-row: span 2; width: 28px; height: 28px; }
-.h-intent-t { font-weight: 800; font-size: 1.05rem; line-height: 1.1; hyphens: auto; overflow-wrap: break-word; min-width: 0; }
+.h-intents { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.h-intent { display: grid; grid-template-columns: auto auto; justify-content: start; column-gap: 6px; align-items: center; min-height: 58px; padding: 6px 8px; border: 3px solid var(--ink); border-radius: 14px; text-align: left; cursor: pointer; box-shadow: 4px 4px 0 var(--ink); }
+.h-intent .h-ico { width: 24px; height: 24px; }
+.h-intent-t { font-weight: 800; font-size: 1rem; line-height: 1.1; hyphens: manual; overflow-wrap: normal; min-width: 0; }
+@media (max-width: 389px) { .h-intent .h-ico { width: 20px; height: 20px; } .h-intent-t { font-size: .9375rem; } }
 .h-intent-s { font-size: .875rem; line-height: 1.15; font-weight: 600; min-width: 0; }
 .h-intent-frei { background: repeating-linear-gradient(-45deg, var(--gelb) 0 14px, var(--gelb-hell) 14px 28px); color: var(--ink); }
-.h-intent-alle { background: var(--ink); color: var(--gelb); border-color: var(--ink); box-shadow: 4px 4px 0 var(--signal); }
+.h-intent-alle { background: var(--sheet); color: var(--ink); }
 .h-intent:active, .h-frei:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
 
 /* Abschnitte und Raster */
@@ -366,3 +371,11 @@ textarea.input { resize: vertical; }
 .h-wait { min-height: 420px; margin: 0; }
 @media (prefers-reduced-motion: reduce) { .h-leaf, .h-stamp-l { animation: none; } }
 @media (forced-colors: active) { .h-intent, .h-thumb, .h-leaf, .h-chip, .h-heart, .h-arrow { border: 2px solid ButtonText; } }
+
+/* Nachladen (Design-System Phase C): Ladezeile als Plakette im Fluss, Fehler als Hinweis mit Weg zurueck */
+.h-loading { justify-self: start; display: inline-flex; align-items: center; gap: 10px; margin: 0; min-height: var(--tap); padding: 6px 16px 6px 12px; border: 3px solid var(--ink); border-radius: 999px; background: var(--gelb); color: var(--ink); font-weight: 800; box-shadow: 3px 3px 0 var(--ink); }
+.h-loading::before { content: ""; width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--ink); border-right-color: transparent; animation: h-spin .8s linear infinite; }
+@keyframes h-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .h-loading::before { animation: none; border-right-color: var(--ink); } }
+.s-partfail .notice { background: var(--gelb-hell); color: var(--ink); border-color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+.s-partfail .notice .warn { color: var(--rot); }

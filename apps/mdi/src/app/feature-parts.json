@@ -12,5 +12,8 @@
   ],
   "home-kalender": [
     "ui/home/kalender.js"
+  ],
+  "home-font": [
+    "ui/home/font-atkinson.js"
   ]
 }
