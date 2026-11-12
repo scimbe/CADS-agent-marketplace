@@ -1,4 +1,4 @@
-// Z2-Karten auf den vier Pflichtansichten: Kartenansicht und erster Spielbildschirm (nach dem Abdecken) ohne verdecktes
+// Z2-Karten auf den Pflichtansichten 360 und 390 (412/1280: z2-ansicht-gross.e2e.js): Kartenansicht und erster Spielbildschirm (nach dem Abdecken) ohne verdecktes
 // Bedienelement, axe 0, kein waagerechter Ueberlauf. Deckt auch die Zeit-, Mikrofon- und Steine-Karten ab.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -15,7 +15,7 @@ let b;
 test.before(async () => { b = await browser(); });
 test.after(async () => { await b.close(); });
 
-for (const view of ["phone360", "phone390", "phone412", "desk1280"]) {
+for (const view of ["phone360", "phone390"]) {
   test("Z2-Karten, Ansicht und erster Zug: " + view, async () => {
     const bad = [], errs = [];
     for (const id of IDS) {

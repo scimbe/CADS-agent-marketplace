@@ -4,9 +4,9 @@ import manifest from "./manifest.json" with { type: "json" };
 import { GAMES } from "./game.js";
 import D from "../../engines/zug/turn.json" with { type: "json" };
 import { makeZug } from "../../engines/zug/zug.js";
-import { VIEWS } from "../../engines/zug-z2/views.js";
+import { VIEWS, previewOf } from "../../engines/zug-z2/views.js";
 import { freeHooks } from "../../engines/zug-z2/free.js";
 
-const card = makeZug({ manifest, games: GAMES, text: D.text, view: VIEWS, variantKey: "spiel" });
+const card = makeZug({ manifest, games: GAMES, text: D.text, view: VIEWS, preview: previewOf(manifest), variantKey: "spiel" });
 Object.assign(card, freeHooks(manifest, { variants: { "mut-zeitlupe": "mut", "mut-oper": "mut", "mut-nachrichten": "mut", "mut-kompliment": "mut" } }));
 export default card;

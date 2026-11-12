@@ -35,3 +35,20 @@ export const VIEWS = {
   parrot: (p, c) => base(p, c, { from: p.from, slot: p.slot }),
   whose: (p, c) => base(p, c, { slot: p.slot(c.doc), fx: p.fx(c.doc), options: p.from(c.doc, c.m) })
 };
+
+/**
+ * Vorschau einer Z2-Karte (Kartenansicht und Anpassen): Karte in der gewaehlten Farbe mit Titel, Variante und Regelsatz.
+ * Jeder Teil traegt sein data-part, damit der Host die Blasen (Spiel, Titel, Farbe) daran heftet.
+ */
+export function previewOf(manifest) {
+  return (card, pub, lang) => {
+    const p = pub.p || {}, L = (o) => (o ? o[lang] || o.de : "");
+    const ink = p.accent === "ink" ? "paper" : "ink", kids = [];
+    kids.push({ t: "text", role: "title", text: p.title || L(manifest.title), fill: ink, x: 8, y: 10, w: 84, part: "titel" });
+    const sp = manifest.params.properties.spiel;
+    if (sp && p.spiel) kids.push({ t: "text", role: "label", text: L(sp["x-names"] && sp["x-names"][p.spiel]) || p.spiel, fill: ink, x: 8, y: 40, w: 84, part: "spiel" });
+    if (p.w) kids.push({ t: "text", role: "small", text: p.w, fill: ink, x: 8, y: 50, w: 84, part: "titel" });
+    kids.push({ t: "text", role: "body", text: L(manifest.rule || manifest.howto), fill: ink, x: 8, y: 60, w: 84 });
+    return { t: "frame", fill: p.accent || "yellow", ratio: "3:4", part: "farbe", a11y: (p.title || L(manifest.title)) + ". " + L(manifest.rule || manifest.howto), children: kids };
+  };
+}

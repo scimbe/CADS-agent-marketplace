@@ -131,7 +131,17 @@ export function makeDuell({ manifest }) {
     const pub = obs.pub, lang = ctx.lang || "de", X = T(lang), m = pub.p.m, st = status({ pub });
     const head = { who: st.turn, turn: st.turnNo, total: st.turns, rule: (manifest.rule || manifest.howto)[lang] || manifest.howto.de };
     const kids = [];
-    if (ctx.preview) return { t: "stack", head, children: [{ t: "text", role: "body", text: head.rule }, { t: "text", role: "small", text: X.rivalIs + " " + agentLine(rivalOf(pub.p), m, X) }] };
+    if (ctx.preview) {
+      // Karte in der gewaehlten Farbe; jeder Teil mit data-part, damit die Anpassen-Blasen daran haengen
+      const P = pub.p, ink = P.accent === "ink" ? "paper" : "ink", mp = manifest.params.properties.m["x-names"] || {};
+      const mine = { e: "🤖", n: X.tabAgent, r: P.ar, c: P.ac, p: P.ap };
+      return { t: "frame", fill: P.accent || "ink", ratio: "3:4", part: "farbe", a11y: (P.title || manifest.title[lang] || manifest.title.de) + ". " + head.rule, children: [
+        { t: "text", role: "title", text: P.title || manifest.title[lang] || manifest.title.de, fill: ink, x: 8, y: 8, w: 84, part: "titel" },
+        { t: "text", role: "label", text: (mp[m] && (mp[m][lang] || mp[m].de)) || m, fill: ink, x: 8, y: 34, w: 84, part: "arena" },
+        { t: "text", role: "small", text: X.rivalIs + " " + agentLine(rivalOf(P), m, X), fill: ink, x: 8, y: 46, w: 84, part: "gegner" },
+        ...(m === "deck" || m === "mind" ? [] : [{ t: "text", role: "small", text: agentLine(mine, m, X), fill: ink, x: 8, y: 58, w: 84, part: "agent" }]),
+        { t: "text", role: "body", text: head.rule, fill: ink, x: 8, y: 72, w: 84 }] };
+    }
     if (pub.ph === "over") {
       if (m === "deck") return { t: "stack", head, result: true, children: [{ t: "text", role: "big", text: X.deckEnd }, { t: "text", role: "body", text: fmt(X.deckCount, { n: pub.k }) }] };
       return { t: "stack", head, result: true, children: report(pub, 1, X, lang) };

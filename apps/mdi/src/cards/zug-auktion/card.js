@@ -4,9 +4,9 @@ import manifest from "./manifest.json" with { type: "json" };
 import { GAMES } from "./game.js";
 import D from "../../engines/zug/turn.json" with { type: "json" };
 import { makeZug } from "../../engines/zug/zug.js";
-import { VIEWS } from "../../engines/zug-z2/views.js";
+import { VIEWS, previewOf } from "../../engines/zug-z2/views.js";
 import { freeHooks } from "../../engines/zug-z2/free.js";
 
-const card = makeZug({ manifest, games: GAMES, text: D.text, view: VIEWS, variantKey: "spiel", docOf: (p) => (p.w ? { w: p.w } : {}) });
+const card = makeZug({ manifest, games: GAMES, text: D.text, view: VIEWS, preview: previewOf(manifest), variantKey: "spiel", docOf: (p) => (p.w ? { w: p.w } : {}) });
 Object.assign(card, freeHooks(manifest, { variants: { "zug-deal": "deal", "zug-teilen": "teilen", "zug-socke": "socke", "zug-fallpreis": "fallpreis" }, word: true }));
 export default card;
