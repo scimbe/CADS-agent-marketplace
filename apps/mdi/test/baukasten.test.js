@@ -419,3 +419,11 @@ test("Baukasten: Modellausgabe (clamp) behebt Kontrast und Erzeuger hinter Waend
   assert.ok(c.ok, c.errors.join()); assert.equal(c.desc.things[1].color, "ink"); assert.equal(c.desc.world.right, "open");
   assert.ok(c.notes.some((n) => /rohr.color yellow -> ink/.test(n)) && c.notes.some((n) => /world.right -> open/.test(n)));
 });
+
+test("Baukasten: Sprung-Machbarkeit wird diagnostiziert (zu langsames Hindernis), Beispiele sind machbar", async () => {
+  const { jumpCheck } = await import("../src/engines/baukasten/pruefer.js");
+  assert.equal(jumpCheck(check(BEISPIELE.huepfer).desc), "");
+  assert.equal(jumpCheck(check(BEISPIELE.plattform).desc), "");
+  const slow = check({ ...clone(BEISPIELE.plattform), things: BEISPIELE.plattform.things.map((t) => (t.id === "stein" ? { ...t, vx: -150, h: 110 } : t)) }).desc;
+  assert.match(jumpCheck(slow), /reicht nicht ueber stein/);
+});
