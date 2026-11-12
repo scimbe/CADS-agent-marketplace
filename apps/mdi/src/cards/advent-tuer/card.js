@@ -34,7 +34,7 @@ export default {
     return {
       t: "stack", children: [
         { t: "text", role: "title", text: X.title },
-        { t: "door", nr, closed: true, colors: col, label: fmt(X.open, { n: nr }), hint: X.tap, children: [pic] }, // Aufklappen ist lokal (alt door.js), keine Eingabe
+        { t: "door", id: "tuer", nr, closed: true, colors: col, label: fmt(X.open, { n: nr }), hint: X.tap, children: [pic] }, // Aufklappen ist lokal (alt door.js), keine Eingabe
         ...lines
       ]
     };

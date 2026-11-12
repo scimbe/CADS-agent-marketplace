@@ -1,7 +1,7 @@
 // ERZEUGT von scripts/gen.js – nicht von Hand aendern.
 /* eslint-disable */
 export const CODE_HASH = {
-  "advent-tuer": "76a6503d27a4947d0dc3d837ee9de15e",
+  "advent-tuer": "b9b6d5096e804490bd7dccc149d75df7",
   "beat-pausenhof": "0d98218e4928472ab049ca1193279375",
   "bluff": "87c9535399a1be510156b6fc7c6d8f1a",
   "foto-alien": "0ce03376b34e42ac79698c675b1818f5",
