@@ -1,0 +1,12 @@
+--- a/lib/duell.mjs
++++ b/lib/duell.mjs
+@@ -556,7 +556,8 @@
+   // Page, parts and protocol come from memory, brotli/gzip-compressed once per file version, with a content ETag
+   // (lib/compress.mjs). The page keeps no-cache: every start revalidates and gets a 304 while nothing changed. A file
+   // too large for memory (never the case for the built app) still streams uncompressed.
+-  const PART = /^\/duell\/parts\/([a-z]{1,20}\.[0-9a-f]{12}\.js)$/;
++  // apps/mdi names its parts card-<id>.<sha12>.js and thumbs-<n>.<sha12>.js (scripts/build.js): lower-case letters, digits, dashes
++  const PART = /^\/duell\/parts\/([a-z][a-z0-9-]{0,40}\.[0-9a-f]{12}\.js)$/;
+   const BIZ_PART = /^\/duell\/business\/parts\/([a-z]{1,20}\.[0-9a-f]{12}\.js)$/;   // the business build's own parts
+   const files = createCompressedFiles({ log });
+   async function serveFile(req, res, f, headers, missing) {
