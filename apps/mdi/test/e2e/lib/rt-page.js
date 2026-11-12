@@ -8,7 +8,7 @@ import { patch } from "../../../src/ui/dom.js";
 
 const q = new URLSearchParams(location.search), mode = q.get("mode") || "bot";
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-let sess = null, phase = "ready";
+let sess = null, phase = "ready", muted = false;
 const rt = {
   get active() { return !!sess; }, get view() { return card.manifest.rt.view; },
   screenButtons: () => (sess ? sess.screenButtons() : []), get controls() { return card.manifest.rt.controls; },
@@ -16,13 +16,14 @@ const rt = {
   blur: () => sess && sess.blur(), hidden: () => { if (sess && phase === "run") dispatch({ type: "PAUSE" }); }
 };
 const played = [];
-const sound = createSound({ audioContext: () => new AudioContext(), vibrate: (ms) => played.push("vib" + ms) });
+const sound = createSound({ audioContext: () => new AudioContext(), vibrate: (ms) => played.push("vib" + ms), muted: () => muted });
 const stage = createStage({ win: window, doc: document, rt, reduced, onUnknown: (u) => console.error("unbekannte Ops " + u.join(",")) });
 const root = document.getElementById("app");
 function dispatch(ev) {
   if (ev.type === "PAUSE") sess.pause(); else if (ev.type === "RESUME") sess.resume();
+  else if (ev.type === "MUTE") { muted = ev.on === true; draw(); }
 }
-function draw() { patch(root, [stage.stageNode("card.rt." + phase, dispatch, "de")]); }
+function draw() { patch(root, [stage.stageNode("card.rt." + phase, dispatch, "de", { muted })]); }
 sess = createRtSession(card, { mode, seat: 0, params: { win: 2, speed: 8 }, seed: "0".repeat(31) + "1", level: 2, lang: "de", reduced: reduced() }, {
   now: () => performance.now(), frame: (f) => requestAnimationFrame(f), cancel: (h) => cancelAnimationFrame(h),
   draw: (node, info) => stage.draw(node, info),

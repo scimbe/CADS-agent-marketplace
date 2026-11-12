@@ -37,7 +37,9 @@ export function createRuntime(deps) {
   const schedule = deps.schedule || ((f) => setTimeout(f, 0));
   const now = deps.now || (() => Date.now());
   const saved = deps.storage.loadKonto ? (() => { try { return deps.storage.loadKonto(); } catch (e) { return null; } })() : null;
-  let state = machine.initial(initialContext(deps.lang, saved));
+  // Ton aus (Buehne) liegt getrennt vom Konto auf dem Geraet
+  const ton = deps.storage.loadTon ? (() => { try { return deps.storage.loadTon(); } catch (e) { return false; } })() : false;
+  let state = machine.initial(initialContext(deps.lang, { ...(saved || {}), muted: ton === true }));
   if (!state.ctx.device) state = { ...state, ctx: { ...state.ctx, device: deps.entropy() } };
   let bot = null, live = null, liveGen = 0, rtSess = null, rtGen = 0;
   const lives = new Map(); // Gruppe: Gastsitz -> Kanal
@@ -145,6 +147,7 @@ export function createRuntime(deps) {
       case "share": deps.share(fx.fragment).then((r) => dispatch({ type: r === "shared" ? "SENT" : r === "copied" ? "COPIED" : "SHARE_FAIL" })); break;
       case "copy": (deps.copy || (() => Promise.resolve(false)))(fx.fragment).then((ok) => dispatch({ type: ok ? "COPIED" : "COPY_FAIL" })); break;
       case "url.clear": deps.clearUrl(); break;
+      case "ton.save": if (deps.storage.saveTon) deps.storage.saveTon(fx.muted); break;
       case "redispatch": schedule(() => dispatch({ ...fx.ev, at: undefined, rand: undefined })); break;
       // ---- Konto (Ergebnisse kommen als Ereignisse zurueck; ohne API ehrlich „nicht hier“) ----
       case "konto.status":
