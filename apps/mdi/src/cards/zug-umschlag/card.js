@@ -4,4 +4,4 @@ import manifest from "./manifest.json" with { type: "json" };
 import { makeZug } from "../../engines/zug/zug.js";
 import { GAMES, TEXT, PTEXT, posterGame } from "../../engines/zug/spiele.js";
 
-export default makeZug({ manifest, games: { umschlag: GAMES.umschlag, morgen: GAMES.morgen, halloween: posterGame("halloween") }, text: { de: { ...TEXT.de, ...PTEXT.de }, en: { ...TEXT.en, ...PTEXT.en } }, variantKey: "spiel", legacy: manifest.legacy });
+export default makeZug({ manifest, games: { umschlag: GAMES.umschlag, morgen: GAMES.morgen, halloween: posterGame("halloween") }, text: { de: { ...TEXT.de, ...PTEXT.de }, en: { ...TEXT.en, ...PTEXT.en } }, variantKey: "spiel" });

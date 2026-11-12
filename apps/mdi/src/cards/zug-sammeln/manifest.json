@@ -1,7 +1,7 @@
 {
   "id": "zug-sammeln",
   "version": "1.0.0",
-  "sdk": "mdi-sdk/0.1",
+  "sdk": "mdi-sdk/0.2",
   "kind": "turn",
   "mode": "turn",
   "order": 10,
@@ -57,9 +57,13 @@
       "link"
     ]
   },
-  "legacy": {
-    "zug-sammeln": "sammeln"
-  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "legacy": [
+    "zug-sammeln"
+  ],
   "on": [
     "12-02"
   ],

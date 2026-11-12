@@ -2,6 +2,7 @@
 // die KI liefert Regeln und Schluessel (Wrapper-Arten plan/liste), das Geraet rechnet Termine, Mengen, Fristen.
 // Tn ist ein schmaler Ersatz fuer das alte turns.js aus der neuen Zug-Engine. Einzige Auslassung: die Aufgabenliste
 // (Tn.todoFrom, office.js) gehoert zum Business-Flavor (12-paritaet §1d), nicht zu Z1: dort pruefen wir S.tasks direkt.
+// Einzige Anpassung: ics() bekommt den Zeitstempel immer vom Aufrufer (Harness: keine Uhr in der Engine).
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as S from "../src/engines/zug/satz.js";
@@ -59,9 +60,9 @@ test("Uhrzeit aufs Raster, ehrlich gemeldet; Vorgaben (keine Zeit) und Vergangen
 test(".ics: lokale Zeit ohne Zone, Dauer, ganztags, Zeilen hoechstens 75 Oktette, keine Namen", () => {
   const s = day(2026, 11, 7) * 10 + 6, t = S.ics(s, "Grillabend, bei mir", 120, Date.UTC(2026, 10, 5, 12));
   assert.match(t, /DTSTART:20261107T180000\r\nDTEND:20261107T200000\r\n/); assert.match(t, /SUMMARY:Grillabend\\, bei mir\r\n/); assert.ok(t.endsWith("END:VCALENDAR\r\n"));
-  assert.match(S.ics(day(2026, 11, 7) * 10 + 8, "Lang", 360), /DTEND:20261108T020000/);
-  assert.match(S.ics(s, "Tag", 1440), /DTSTART;VALUE=DATE:20261107\r\nDTEND;VALUE=DATE:20261108/);
-  assert.ok(S.ics(s, "Ä".repeat(80)).split("\r\n").every((l) => Buffer.byteLength(l) <= 75));
+  assert.match(S.ics(day(2026, 11, 7) * 10 + 8, "Lang", 360, Date.UTC(2026, 10, 5, 12)), /DTEND:20261108T020000/);
+  assert.match(S.ics(s, "Tag", 1440, Date.UTC(2026, 10, 5, 12)), /DTSTART;VALUE=DATE:20261107\r\nDTEND;VALUE=DATE:20261108/);
+  assert.ok(S.ics(s, "Ä".repeat(80), 60, Date.UTC(2026, 10, 5, 12)).split("\r\n").every((l) => Buffer.byteLength(l) <= 75));
 });
 
 test("Ohne KI: lokale Regeln lesen Tage, Tageszeit, Uhrzeit, Zeitraum, Dauer, Ort, Mitbringen (de/en); nichts erkannt -> null", () => {

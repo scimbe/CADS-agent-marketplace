@@ -7,6 +7,6 @@ import { widget } from "../../engines/zug/widgets.js";
 import { adultText, money, pay } from "../../engines/zug/views.js";
 
 export default makeZug({
-  manifest, games: { sammeln: GAMES.sammeln }, text: TEXT, legacy: manifest.legacy,
+  manifest, games: { sammeln: GAMES.sammeln }, text: TEXT,
   view: { text: (p, c) => adultText(p, c, widget), money, pay }
 });

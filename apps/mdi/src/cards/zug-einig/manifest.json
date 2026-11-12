@@ -1,7 +1,7 @@
 {
   "id": "zug-einig",
   "version": "1.0.0",
-  "sdk": "mdi-sdk/0.1",
+  "sdk": "mdi-sdk/0.2",
   "kind": "turn",
   "mode": "turn",
   "order": 15,
@@ -48,10 +48,28 @@
       "alone"
     ]
   },
-  "legacy": {
-    "zug-einig": "einig",
-    "zug-rangliste": "rangliste"
-  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "legacy": [
+    "zug-einig"
+  ],
+  "variants": [
+    {
+      "id": "zug-rangliste",
+      "title": {
+        "de": "Wer ordnet gleich?",
+        "en": "Who ranks alike?"
+      },
+      "params": {
+        "spiel": "rangliste"
+      },
+      "legacy": [
+        "zug-rangliste"
+      ]
+    }
+  ],
   "on": [
     "11-04",
     "11-20"
@@ -114,31 +132,11 @@
         "x-label": {
           "de": "Art",
           "en": "Kind"
-        },
-        "x-names": {
-          "einig": {
-            "de": "Worauf einigen wir uns?",
-            "en": "What can we agree on?"
-          },
-          "rangliste": {
-            "de": "Wer ordnet gleich?",
-            "en": "Who ranks alike?"
-          }
         }
       }
     }
   },
   "parts": [
-    {
-      "id": "art",
-      "params": [
-        "spiel"
-      ],
-      "label": {
-        "de": "Art",
-        "en": "Kind"
-      }
-    },
     {
       "id": "titel",
       "params": [

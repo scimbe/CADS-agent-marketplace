@@ -1,7 +1,7 @@
 {
   "id": "zug-einkauf",
   "version": "1.0.0",
-  "sdk": "mdi-sdk/0.1",
+  "sdk": "mdi-sdk/0.2",
   "kind": "turn",
   "mode": "turn",
   "order": 12,
@@ -48,12 +48,16 @@
       "alone"
     ]
   },
+  "modes": [
+    "alone",
+    "link"
+  ],
   "link": {
     "snap": true
   },
-  "legacy": {
-    "zug-einkauf": "einkauf"
-  },
+  "legacy": [
+    "zug-einkauf"
+  ],
   "inputs": {
     "type": "object",
     "required": [

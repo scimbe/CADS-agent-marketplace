@@ -11,6 +11,6 @@ const DAY = 86400000;
 const stamp = (today) => (Number.isInteger(today) ? today : 0) * DAY;
 const termin = { ...GAMES.termin, after: (card, pub, lang, ctx) => [icsNode(leading(pub.m), pub.p.titel, lang, stamp(ctx.today))] };
 export default makeZug({
-  manifest, games: { termin }, text: TEXT, legacy: manifest.legacy, seating: "chain",
+  manifest, games: { termin }, text: TEXT, seating: "chain",
   view: { slots, vote: (p, c) => ({ t: "stack", children: [vote(p, c), icsNode(leading(c.m), c.pub.p.titel, c.lang, stamp(c.today))] }) }
 });

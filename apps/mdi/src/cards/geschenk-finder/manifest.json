@@ -1,7 +1,7 @@
 {
   "id": "geschenk-finder",
   "version": "1.0.0",
-  "sdk": "mdi-sdk/0.1",
+  "sdk": "mdi-sdk/0.2",
   "kind": "turn",
   "mode": "turn",
   "order": 17,
@@ -48,9 +48,13 @@
       "alone"
     ]
   },
-  "legacy": {
-    "geschenk-finder": "geschenk"
-  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "legacy": [
+    "geschenk-finder"
+  ],
   "inputs": {
     "type": "object",
     "required": [
