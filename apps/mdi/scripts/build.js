@@ -59,7 +59,7 @@ export async function build() {
     "default-src 'none'",
     "script-src 'sha256-" + b64(sha("sha256", js)) + "'",
     "style-src 'sha256-" + b64(sha("sha256", css)) + "'",
-    "font-src data:", "img-src data: blob:", "media-src data: blob:",
+    "font-src data:", "img-src data: blob:",
     // Konto/Profil/Guthaben: nur der eigene Server (/api/duell, /auth/me, gleiche Herkunft). Live braucht im Kern nichts:
     // dessen Netz laeuft im abgeschotteten Rahmen mit eigener CSP.
     "connect-src 'self'", "frame-src 'self' " + liveRemote.src,
