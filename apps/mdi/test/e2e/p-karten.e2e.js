@@ -8,8 +8,8 @@ import path from "node:path";
 import { browser, open, act, axe, noOverflow, waitScreen, ROOT, shotsDir } from "./lib/grund.mjs";
 import { pickMode } from "./lib/scenarios.mjs";
 
-const RENDER = fs.readFileSync(path.join(ROOT, "src/render/render.js"), "utf8");
-const has = (...t) => t.every((x) => RENDER.includes('case "' + x + '"'));
+const RENDER = ["render.js", "widgets.js", "widgets-more.js"].map((f) => { try { return fs.readFileSync(path.join(ROOT, "src/render", f), "utf8"); } catch (e) { return ""; } }).join("\n");
+const has = (...t) => t.every((x) => RENDER.includes('case "' + x + '"') || RENDER.includes("W." + x + " =") || RENDER.includes("M." + x + " ="));
 const need = (...t) => (has(...t) ? {} : { todo: "wartet auf Renderer-Primitive von Strang F: " + t.filter((x) => !has(x)).join(", ") });
 const DEC5 = new Date("2026-12-05T09:00:00Z"), DEC3 = new Date("2026-12-03T09:00:00Z");
 const clock = (t) => async (ctx) => { await ctx.clock.setFixedTime(t); };
@@ -71,7 +71,7 @@ test("zug-advent: 24 Saetze per Link, im Dezember sind die Tueren bis heute offe
   await waitScreen(A.p, "card-play-over");
   const link = await linkOf(A.p);
   const B = await open(b, { hash: link, before: clock(DEC5) }); await waitScreen(B.p, "receive-show"); await act(B.p, "accept");
-  const doors = B.p.getByRole("button", { name: /^(Tür )?\d+$/ });
+  const doors = B.p.getByRole("button", { name: /^Tür \d+/ });
   assert.equal(await doors.count(), 24);
   assert.equal(await B.p.locator("button:disabled").filter({ hasText: /^\d+$/ }).count(), 19, "Tueren 6-24 noch zu");
   await doors.nth(0).click(); await B.p.getByText("Kakao!").waitFor();
@@ -92,18 +92,19 @@ test("foto-alien: der Link traegt Text und Stil, nie das Foto", need("canvas"), 
 test("kanal-geheim: Antworten stehen nicht im Link; falsch, falsch, Tipp, richtig, offen", need("field", "go"), async () => {
   const A = await open(b, {});
   await act(A.p, "open-kanal-geheim"); await act(A.p, "go"); await waitScreen(A.p, "card-play-turn");
-  await A.p.getByLabel("Antwort, nur ihr beide wisst sie").nth(0).fill("Banane");
-  await A.p.getByLabel("Antwort, nur ihr beide wisst sie").nth(1).fill("Otter");
-  await A.p.getByRole("button", { name: "Abschließen" }).click();
+  // wie ein Mensch: nach jedem Feld kurz warten (Entwurf wird nach 150 ms uebernommen)
+  await A.p.getByLabel("Antwort, nur ihr beide wisst sie").nth(0).fill("Banane"); await A.p.waitForTimeout(250);
+  await A.p.getByLabel("Antwort, nur ihr beide wisst sie").nth(1).fill("Otter"); await A.p.waitForTimeout(250);
+  await A.p.locator("[data-act=go-step]").click();
   await waitScreen(A.p, "card-play-send");
   const link = await linkOf(A.p);
   assert.ok(!/banane|otter/i.test(payload(link)), "keine Antwort im Link");
   const B = await open(b, { hash: link }); await waitScreen(B.p, "receive-show"); await act(B.p, "accept");
-  const ans = B.p.getByLabel("Deine Antwort"), go = B.p.getByRole("button", { name: "Aufschließen" });
-  for (const w of ["Apfel", "Birne"]) { await ans.fill(w); await go.click(); }
+  const ans = B.p.getByLabel("Deine Antwort"), go = B.p.locator("[data-act=go-step]");
+  for (const w of ["Apfel", "Birne"]) { await ans.fill(w); await B.p.waitForTimeout(250); await go.click(); }
   await B.p.getByText("Tipp: fängt mit B an, 6 Zeichen").waitFor();
-  await ans.fill("banane"); await go.click(); await B.p.getByText("Welches Tier wären wir zusammen?").waitFor();
-  await ans.fill("OTTER"); await go.click(); await B.p.getByText("Offen!").waitFor();
+  await ans.fill("banane"); await B.p.waitForTimeout(250); await go.click(); await B.p.getByText("Welches Tier wären wir zusammen?").waitFor();
+  await ans.fill("OTTER"); await B.p.waitForTimeout(250); await go.click(); await B.p.getByText("Offen!").waitFor();
   assert.deepEqual(await axe(B.p, "kanal-offen"), []);
   await shot(B.p, "kanal-offen");
 });
