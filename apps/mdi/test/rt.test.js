@@ -212,3 +212,18 @@ test("hashOf: Ganzzahl-Karten kanonisch, f64 ueber Bit-Hex, eigener hash() hat V
   assert.notEqual(hashOf(f, { a: 0.1 }), hashOf(f, { a: 0.2 }));
   assert.equal(hashOf({ ...f, hash: () => "abc" }, {}), "abc");
 });
+
+test("textblock poster: Zeilenumbruch der Poster-Engine (env.high.block, alt render.js layout) – volle Breite je Zeile, ohne Engine eigener Umbruch", async () => {
+  const { HIGH } = await import("../src/engines/poster/paint.js");
+  const env = { cw: 200, ch: 200, dpr: 1, colors: { ink: "#111111", paper: "#fff6dc", text: "#111111", yellow: "#ffd400" }, t: 0, cache: null, makeCanvas: () => recCtx() };
+  const node = { t: "canvas", w: 200, h: 200, ops: [{ o: "textblock", mode: "poster", text: "heute wird gefeiert bis spaet", x: 10, y: 10, w: 180, h: 120, fill: "yellow", shadow: { color: "ink", dx: 3 } }] };
+  const c = recCtx(); paint(c, node, { ...env, high: HIGH });
+  const texts = c.calls.filter((x) => x[0] === "fillText").map((x) => x[1]);
+  assert.ok(texts.length >= 2 && texts.every((t) => t === t.toUpperCase()), "Plakatzeilen in Grossbuchstaben: " + texts);
+  const fonts = c.calls.filter((x) => x[0] === "=font").map((x) => x[1]);
+  assert.ok(fonts.some((f) => /^900 /.test(f)), "Plakatschnitt 900 wie die Engine: " + fonts.slice(-3));
+  assert.ok(c.calls.some((x) => x[0] === "=fillStyle" && x[1] === "#ffd400"), "Tokenfarbe aufgeloest");
+  // ohne Engine: eigener Umbruch, Text unveraendert (kein stiller Ersatz durch Grossschreibung)
+  const d = recCtx(); paint(d, node, env);
+  assert.ok(d.calls.filter((x) => x[0] === "fillText").every((x) => x[1] === x[1].toLowerCase()));
+});

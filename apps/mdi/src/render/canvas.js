@@ -205,6 +205,12 @@ function textblock(c, env, o) {
   const mode = ["poster", "meme", "warm"].includes(o.mode) ? o.mode : "poster";
   const fam = mode === "warm" ? FONTS.body : FONTS.brand;
   let s = String(o.text === undefined ? "" : o.text).slice(0, 300); if (mode === "meme") s = s.toUpperCase();
+  // Plakat mit Poster-Engine (Strang P): deren Umbruch streckt jede Zeile auf volle Breite (alt render.js layout)
+  if (mode === "poster" && env.high && typeof env.high.block === "function") {
+    const sh = o.shadow ? color(c, env, o.shadow.color, "rgba(0,0,0,.5)") : null;
+    c.save(); env.high.block(c, [s, num(o.x), num(o.y), Math.max(1, num(o.w)), Math.max(1, num(o.h)), color(c, env, o.fill === undefined ? "text" : o.fill, "#000000"), sh, sh ? num(o.shadow.dx, 3) : 0], env); c.restore();
+    return;
+  }
   const measure = env.measure || ((t, size) => { c.font = "400 " + size + "px " + fam; return c.measureText(t).width; });
   const L = (env.layoutText || layoutText)(measure, s, Math.max(1, num(o.w)), Math.max(1, num(o.h)));
   c.save(); c.font = "400 " + L.size + "px " + fam; c.textAlign = "center"; c.textBaseline = "top";
