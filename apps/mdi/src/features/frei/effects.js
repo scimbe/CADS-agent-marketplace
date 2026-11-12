@@ -42,7 +42,8 @@ export const freiEffects = {
     if (!ok) env.dispatch({ type: "SETTLE_FAIL", how: fx.how });
     env.dispatch({ type: "REFRESH" });
   }),
-  "frei.last": (fx, env) => { if (env.deps.storage && env.deps.storage.saveFrei) env.deps.storage.saveFrei({ freiLast: fx.last }); },
+  // zuletzt gewaehlt merken; ein alter Stand vom Anmelde-Gate (back) ist damit verbraucht
+  "frei.last": (fx, env) => { if (env.deps.storage && env.deps.storage.saveFeature) env.deps.storage.saveFeature("frei", { last: fx.last }); },
   // Status-Gate: jede Pruefung muss "ok" sein; eine Karte mit eigenem Siegel mit dem Inhalts-Hash des Gezeigten. Ohne
   // Pruefungen, ohne Deck oder ohne crypto.subtle: "unknown" (fail closed)
   "frei.status": (fx, env) => later(async () => {

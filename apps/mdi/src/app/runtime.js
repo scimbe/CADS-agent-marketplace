@@ -41,7 +41,18 @@ export function createRuntime(deps) {
   const saved = deps.storage.loadKonto ? (() => { try { return deps.storage.loadKonto(); } catch (e) { return null; } })() : null;
   // Ton aus (Buehne) liegt getrennt vom Konto auf dem Geraet
   const ton = deps.storage.loadTon ? (() => { try { return deps.storage.loadTon(); } catch (e) { return false; } })() : false;
-  let state = machine.initial(initialContext(deps.lang, { ...(saved || {}), muted: ton === true }));
+  // Feature-Speicher: Features mit store:true bekommen ihr gespeichertes Objekt als saved.feat[id] in context(saved)
+  const feat = {};
+  for (const f of deps.needFeatures || FEATURES) if (f.store === true && deps.storage.loadFeature) { try { feat[f.id] = deps.storage.loadFeature(f.id); } catch (e) { feat[f.id] = null; } }
+  let state = machine.initial(initialContext(deps.lang, { ...(saved || {}), muted: ton === true, feat, now: now() }));
+  // Vor dem Verlassen der Seite (Anmelde-Gate): Features mit store und persist(ctx, now) sichern ihren Stand
+  function persistFeatures() {
+    if (!deps.storage.saveFeature) return;
+    for (const f of deps.needFeatures || FEATURES) if (f.store === true && typeof f.persist === "function") {
+      let v = null; try { v = f.persist(state.ctx, now()); } catch (e) { v = null; }
+      if (v) deps.storage.saveFeature(f.id, v);
+    }
+  }
   if (!state.ctx.device) state = { ...state, ctx: { ...state.ctx, device: deps.entropy() } };
   let bot = null, live = null, liveGen = 0, rtSess = null, rtGen = 0;
   const lives = new Map(); // Gruppe: Gastsitz -> Kanal
@@ -64,19 +75,29 @@ export function createRuntime(deps) {
     const ids = [...(typeof id === "string" ? [id] : []), ...featureNeeds(ev, state.ctx)];
     return [...new Set(ids)].filter((x) => manifestOf(x) && !isLoaded(x));
   }
+  // Reihenfolge (Befund Integrator, Regression nach #281): Laedt ein Ereignis erst Teile nach, warten alle folgenden
+  // Ereignisse in einer Schlange und werden danach in Eingangsreihenfolge zugestellt. Sonst ueberholte z. B. ein schnelles
+  // Folgeereignis das verzoegerte GO, und GO traf auf einen anderen Zustand (Partie startete nie).
+  // Register der Feature-Teile (Tests koennen ein eigenes einsetzen, z. B. mit verzoegertem Laden)
+  const FP = deps.featParts || { isPartLoaded, loadFeatPart };
+  let loadingFor = null;
+  const waiting = [];
   function dispatch(ev) {
     ev = typeof ev === "string" ? { type: ev } : { ...ev };
     if (!ev.rand) ev.rand = rand();
     if (ev.at === undefined) ev.at = now();
+    if (loadingFor) { waiting.push(ev); return true; }
     const need = deps.loadPart ? cardsFor(ev) : [];
     // Feature-Teile (ADR 0001 Nachtrag 4) wie Karten: vorher laden, sonst ehrlich PART_FAIL mit Wiederholen
-    const needP = deps.loadFeat ? featureNeedParts(ev, state.ctx, deps.needFeatures || FEATURES).filter((n) => !isPartLoaded(n)) : [];
+    const needP = deps.loadFeat ? featureNeedParts(ev, state.ctx, deps.needFeatures || FEATURES).filter((n) => !FP.isPartLoaded(n)) : [];
     if (need.length || needP.length) {
       const first = need[0] || needP[0];
+      loadingFor = ev;
       dispatchNow({ type: "LOADING", id: first });
-      Promise.all([...need.map((id) => loadCard(id, deps.loadPart)), ...needP.map((n) => loadFeatPart(n, deps.loadFeat))]).then(
-        () => dispatchNow(ev),
-        (e) => dispatchNow({ type: "PART_FAIL", id: first, reason: (e && e.code) || "teil-fehlt", retry: ev }));
+      const done = (next) => { loadingFor = null; next(); const rest = waiting.splice(0); for (const w of rest) dispatch(w); };
+      Promise.all([...need.map((id) => loadCard(id, deps.loadPart)), ...needP.map((n) => FP.loadFeatPart(n, deps.loadFeat))]).then(
+        () => done(() => { dispatchNow({ type: "LOADED", id: first }); dispatchNow(ev); }),
+        (e) => done(() => dispatchNow({ type: "PART_FAIL", id: first, reason: (e && e.code) || "teil-fehlt", retry: ev })));
       return true;
     }
     return dispatchNow(ev);
@@ -169,6 +190,7 @@ export function createRuntime(deps) {
       case "konto.login":
         // App-Huelle: die Huelle meldet an (System-Browser); danach wird das Konto neu geprueft, wie nach dem Gate
         if (api && api.app) { later(async () => { const r = await api.app.login(); dispatch(r.ok ? { type: "APP_DONE" } : { type: "NAV_FAIL", reason: "nicht-hier" }); }); break; }
+        persistFeatures();   // z. B. Satz und Kategorie der freien Karte ueberleben den Umweg ueber das Gate
         if (deps.setLook) deps.setLook(state.ctx.me && state.ctx.me.colors);   // Anmeldeseite im Look von My Daily Idea
         if (!api || !deps.navigate || !deps.navigate(api.loginHref(ret(), state.ctx.lang))) schedule(() => dispatch({ type: "NAV_FAIL", reason: "nicht-hier" }));
         break;
@@ -200,7 +222,7 @@ export function createRuntime(deps) {
         const ghost = fx.ghost ? fromB64url(fx.ghost) : undefined;
         const R = deps.rt;
         try {
-          rtSess = createRtSession(c, { mode: fx.mode, seat: fx.seat, params: fx.params, seed: fx.seed, level: fx.level, ghost, serving: fx.serving, lang: state.ctx.lang, reduced: R.reduced ? R.reduced() : false }, {
+          rtSess = createRtSession(c, { mode: fx.mode, seat: fx.seat, params: fx.params, localParams: fx.localParams || fx.params, seed: fx.seed, level: fx.level, ghost, serving: fx.serving, lang: state.ctx.lang, reduced: R.reduced ? R.reduced() : false }, {
             now: R.now, frame: R.frame, cancel: R.cancel,
             send: (m) => sendPeer({ msg: m }),
             draw: (node, info) => R.draw(node, info),
@@ -257,6 +279,7 @@ export function createRuntime(deps) {
     key: (code, down) => (rtSess ? rtSess.key(code, down) : false),
     pointer: (type, id, x, y) => { if (rtSess) rtSess.pointer(type, id, x, y); },
     button: (id, down) => { if (rtSess) rtSess.button(id, down); },
+    tap: (down) => { if (rtSess) rtSess.tap(down); },
     blur: () => { if (rtSess) rtSess.blur(); },
     hidden: () => { if (rtSess && rtSess.phase === "run" && !rtSess.paused) dispatch({ type: "PAUSE" }); },
     status: () => (rtSess ? rtSess.status() : null)
