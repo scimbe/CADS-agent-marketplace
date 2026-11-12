@@ -138,13 +138,13 @@ test("Wunschzettel: die Wuenschende sieht keine Marke und keinen Namen; Familie 
   st = play(c, st, list);
   list = L.shopApply(list, { name: "Ben", face: 2, adds: [], marks: { [L.shopKey("Hörbuch")]: 1 } }, cf);
   st = play(c, st, list); // Ben (Familie) schickt zurueck
-  const own = c.view(c.observe(st, 0), 0, { lang: "de", draft: { own: true } });
+  const own = c.view(c.observe(st, 0), 0, { lang: "de", memo: { own: true } });
   const t = texts(own);
   assert.ok(t.includes("Hörbuch") && t.includes("Socken"));
   for (const s of ["Ben", "vergeben", "Du schenkst", "🎁"]) assert.ok(!t.includes(s), "Wuenschende sieht nicht: " + s);
   const ask = c.view(c.observe(st, 0), 0, { lang: "de" });
   assert.ok(texts(ask).includes("Wer bist du?"), "fremdes Geraet fragt zuerst");
-  const fam = c.view(c.observe(st, 0), 0, { lang: "de", draft: { own: false, name: "Cem" } });
+  const fam = c.view(c.observe(st, 0), 0, { lang: "de", memo: { own: false }, draft: { name: "Cem" } });
   assert.ok(texts(fam).includes("Hörbuch · Schon vergeben"));
   assert.ok(!texts(fam).includes("Ben"), "auch die Familie sieht nicht, wer");
   // schliessen kann nur die Wuenschende; danach vorbei
@@ -246,7 +246,7 @@ test("Review H1/L2/L6: geerbte Schluessel, Geschenkfilter aus dem Link, leere Ei
     const ok = c.accepts(c.observe(st, 0), 0, { t: "ans", seat: 0, a: evil });
     if (ok) {
       st = c.step(st, { t: "ans", seat: 0, a: evil });
-      c.view(c.observe(st, 1), 1, { lang: "de", draft: { own: false, name: "Ana" } });
+      c.view(c.observe(st, 1), 1, { lang: "de", memo: { own: false }, draft: { name: "Ana" } });
       assert.deepEqual(L.shopRows(c.merge(st.pub, st.pub).m[0][0], id === "zug-einkauf" ? L.SHOP : L.WISH).map((r) => r.text), ["Constructor", "toString", "Brot"]);
       c.moves(c.observe(st, 1), 1);
     }
@@ -257,4 +257,19 @@ test("Review H1/L2/L6: geerbte Schluessel, Geschenkfilter aus dem Link, leere Ei
   st = play(g, st, [4]); st = play(g, st, [1]); st = play(g, st, [0, 2]);
   assert.equal(g.accepts(g.observe(st, 0), 0, { t: "ans", seat: 0, a: [["Wodka", "Zigarren"], 0] }), false, "Filter auch fuer Link-Ideen");
   assert.equal(g.accepts(g.observe(st, 0), 0, null), false);
+});
+
+test("Wunschzettel merkt sich je Partie, wessen Geraet es ist (ctx.memo): Anlegen setzt own, fremdes Geraet fragt einmal", () => {
+  const c = CARD["zug-wunschzettel"];
+  let st = start("zug-wunschzettel");
+  const draft = { neu: "", adds: [{ text: "Buch", qty: 1 }] };
+  const v0 = c.view(c.observe(st, 0), 0, { lang: "de", draft });
+  assert.deepEqual(nodes(v0, "go")[0].memo, { own: true }, "Anlegen merkt sich: mein Zettel");
+  st = play(c, st, L.shopApply(null, { name: "", adds: [{ text: "Buch", qty: 1 }] }, L.WISH));
+  const ask = c.view(c.observe(st, 1), 1, { lang: "de" });
+  assert.deepEqual(nodes(ask, "choice")[0].options.map((o) => o.memo), [{ own: true }, { own: false }], "einmal fragen, Antwort merken");
+  assert.equal(nodes(ask, "go").length, 0);
+  const known = c.view(c.observe(st, 1), 1, { lang: "de", memo: { own: false }, draft: { name: "Ben" } });
+  assert.ok(!texts(known).includes("Wer bist du?"), "gemerkt: keine Frage mehr");
+  assert.equal(nodes(known, "go")[0].memo, undefined, "nichts Neues zu merken");
 });
