@@ -52,7 +52,7 @@ export const freiEffects = {
     for (const c of checks) {
       if (st !== "ok") break;
       const d = c.doc ? (subtle ? await optionHash(gateView(c.doc), subtle) : "") : undefined;
-      st = d === "" ? "unknown" : await deck.status(c.cid, d);
+      st = !c.cid || d === "" ? "unknown" : await deck.status(c.cid, d);   // cid null: Siegel ohne Hash, nie pruefbar (H1)
     }
     env.dispatch({ type: "GATE", st });
   }),
