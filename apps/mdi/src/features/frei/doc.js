@@ -25,6 +25,7 @@ export function kindOk(art, doc) {
   if (!doc) return false;
   if (art === "faehigkeit") return (doc.k === "turn" || doc.k === "duel") && !!doc.i;
   if (art === "quiz") return doc.k === "turn" && !!doc.pk;
+  if (art === "game" && doc.k === "bau") return true;   // G3 Baukasten (Strang B)
   return doc.k === KIND_OF[art];
 }
 
@@ -45,6 +46,7 @@ export function contrast(a, b) {
 export function targetIdOf(doc) {
   if (!doc) return null;
   if (doc.k === "card" || doc.k === "photo") return "frei";
+  if (doc.k === "bau") return doc.b && doc.b.mode === "turn" ? "baukasten-zug" : "baukasten";
   return doc.k === "game" ? "flug" : doc.k === "lauf" ? "lauf" : doc.pk ? "zug-abfragen" : doc.i || null;
 }
 export function targetOf(doc, cardOf) {
@@ -65,6 +67,7 @@ export function previewOf(doc) {
   if (doc.k === "photo") return { title: doc.t || "", lines: [doc.x || "", doc.y || ""], sk, photo: true };
   if (doc.k === "game") { const g = doc.g || {}; return { title: [g.emoji, g.title || doc.t].filter(Boolean).join(" "), lines: [(Array.isArray(g.route) ? g.route : []).map((r) => r && r.e).filter(Boolean).join(" → ")], sk: [], photo: false, kind: "game" }; }
   if (doc.k === "lauf") { const l = doc.l || {}; return { title: [l.e, doc.t].filter(Boolean).join(" "), lines: [l.m === "ziel" ? "ziel" : "endlos", [l.o, l.c, l.f].filter(Boolean).join(" ")], sk: [], photo: false, kind: "lauf" }; }
+  if (doc.k === "bau") return { title: doc.t || "", lines: [doc.b && typeof doc.b.goal === "string" ? doc.b.goal : ""], sk: [], photo: false, kind: "game" };
   if (doc.pk) return { title: doc.pk.t || doc.t || "", lines: [doc.pk.q[0][0]], sk: [], photo: false, kind: "quiz", n: doc.pk.q.length };
   return { title: doc.t || "", lines: [doc.s || ""], sk: [], photo: false, kind: "faehigkeit", uses: doc.i };
 }
