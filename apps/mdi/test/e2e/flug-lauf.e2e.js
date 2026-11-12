@@ -5,6 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { browser, open, act, screen, waitScreen, axe, noOverflow } from "./lib/grund.mjs";
+import { pickMode } from "./lib/scenarios.mjs";
 import flug from "../../src/cards/flug/card.js";
 
 let b;
@@ -12,9 +13,12 @@ test.before(async () => { b = await browser(); });
 test.after(async () => { await b.close(); });
 
 const label = (p) => p.locator("canvas.rt-canvas").getAttribute("aria-label");
-const points = async (p) => Number(((await label(p)) || "").match(/(\d+) (Punkte|Pkt|points)/)?.[1] ?? NaN);
-async function start(p, card) {
+// Flug: Punkte im aria-label; Lauf: Meter (Kopfzeile Gate C "120 m · 3 Muenzen")
+const points = async (p) => { const l = (await label(p)) || ""; return Number(l.match(/(\d+) (Punkte|points)/)?.[1] ?? l.match(/(\d+) m · /)?.[1] ?? NaN); };
+// mode: "alone" (allein, danach Aufnahme teilen) oder "bot" (Gegen den Computer, Vorauswahl nach Gate C)
+async function start(p, card, mode = "alone") {
   if (card) { await act(p, "open-" + card); await waitScreen(p, "card-view"); }
+  if (mode) await pickMode(p, "de", mode);
   await act(p, "go"); await waitScreen(p, "card-rt-ready");
   await waitScreen(p, "card-rt-run", 6000);
 }
@@ -46,7 +50,7 @@ test("Flug in der App: Regal, LOS, Countdown, Lauf mit Leertaste, Pause per Knop
   for (let i = 0; i < 4 && (await screen(p)) === "card-rt-run"; i++) { await p.keyboard.press("Space"); await p.waitForTimeout(180); }
   await waitScreen(p, "card-rt-over", 30000);
   const res = await p.locator(".result").textContent();
-  assert.match(res, /Rekord: \d+/, "Ergebniszeile aus status.say (solo): " + res);
+  assert.match(res, /^\d+ Lücken!$/, "Ergebniszeile aus status.say (allein): " + res);
   assert.ok(!/object Object|gewinnt/i.test(await p.locator("main").innerText()));
   await act(p, "again"); await waitScreen(p, "card-rt-ready");
   assert.deepEqual(errs, []);
@@ -90,20 +94,21 @@ for (const card of ["flug", "lauf"]) test("Geist-Duell als Link-Rundreise (" + c
   await start(A.p, card);
   for (let i = 0; i < 3; i++) { await A.p.keyboard.press("Space"); await A.p.waitForTimeout(200); }
   await waitScreen(A.p, "card-rt-over", 120000);
-  const sent = await points(A.p);
+  const sent = card === "flug" ? await points(A.p) : null;
   await A.p.locator("#linkfield").waitFor({ state: "attached", timeout: 10000 });
   const url = await A.p.locator("#linkfield").inputValue(), hash = url.slice(url.indexOf("#"));
   assert.match(hash, /^#v2\.ghost\./);
   const wire = JSON.parse(Buffer.from(hash.split(".")[2], "base64url").toString());
-  assert.equal(wire.c, card); assert.deepEqual(wire.rl, ["ghost", "none"]); assert.equal(wire.sc[0], sent);
+  assert.equal(wire.c, card); assert.deepEqual(wire.rl, ["ghost", "none"]);
+  if (sent !== null) assert.equal(wire.sc[0], sent, "Punkte im Link = Punkte im Spiel");
   assert.ok(!/blob:|data:/.test(JSON.stringify(wire.p)), "keine Fotos im Link");
   const B = await open(b, { view: "phone390", hash });
   await waitScreen(B.p, "receive-show");
-  assert.match(await B.p.locator("main").innerText(), new RegExp(String(sent)));
+  assert.match(await B.p.locator("main").innerText(), new RegExp(String(wire.sc[0])));
   await act(B.p, "accept");
   await waitScreen(B.p, "card-rt-run", 8000);
   await waitScreen(B.p, "card-rt-over", 120000);
-  assert.match(await B.p.locator("main").innerText(), new RegExp("Geist hat " + sent));
+  assert.match(await B.p.locator("main").innerText(), new RegExp("(Geist|Aufnahme) hat " + wire.sc[0]));
   assert.deepEqual(A.errs.concat(B.errs), []);
 });
 
@@ -127,6 +132,18 @@ test("Alle 16 Flug-Varianten als Karten-Link: annehmen, LOS, Lauf mit Titel der 
   assert.deepEqual(bad, []);
 });
 
+for (const card of ["flug", "lauf"]) test("Gegen den Computer (" + card + ", Vorauswahl): Kopfzeile nennt DU und COMPUTER, der Computer laeuft mit", async () => {
+  const { p, errs } = await open(b, { view: "phone390" });
+  await act(p, "open-" + card); await waitScreen(p, "card-view");
+  assert.ok(await p.getByRole("radio", { name: "Gegen den Computer", exact: true }).isChecked(), "Vorauswahl: Gegen den Computer");
+  await start(p, null, null);
+  await p.waitForTimeout(800);
+  const l = await label(p);
+  if (card === "flug") assert.match(l, /DU \d+ : COMPUTER \d+/); else assert.match(l, /Laufspiel/);
+  assert.ok(!/Geist/.test(await p.locator("main").innerText()), "kein „Geist“ als Bedienwort");
+  assert.deepEqual(errs, []);
+});
+
 test("Reduzierte Bewegung: in der Pause steht das Bild still; ohne Einstellung ziehen die Wolken weiter", async () => {
   for (const reduced of [true, false]) {
     const { p } = await open(b, { view: "phone390", reduced });
@@ -142,7 +159,7 @@ for (const view of ["phone360", "phone390", "phone412", "desk1280"]) for (const 
   const bad = [];
   {
     const { p, errs, ctx } = await open(b, { view });
-    await act(p, "open-" + card); await waitScreen(p, "card-view");
+    await act(p, "open-" + card); await waitScreen(p, "card-view"); await pickMode(p, "de", "alone");
     const check = async (name) => {
       for (const x of await covered(p)) bad.push(card + " " + name + ": " + x);
       if (!(await noOverflow(p))) bad.push(card + " " + name + ": Ueberlauf");

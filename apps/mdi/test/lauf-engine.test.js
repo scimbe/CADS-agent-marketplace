@@ -133,3 +133,27 @@ test("Simulationskern ohne Math.sin/cos/exp/pow/random, auch der eingefrorene ev
   for (const k of ["sin", "cos", "exp", "pow", "random"]) { keep[k] = Math[k]; Math[k] = () => { throw new Error("Math." + k); }; }
   try { F.replay(E, F.NEW, F.INPUTS, F.MAX); F.replay(E, { ...F.OLD, seed: 11 }, F.INPUTS, F.MAX); } finally { Object.assign(Math, keep); }
 });
+
+test("Zeitlupe K (Gemuetlich spielen): K = 1 bitgleich, K = 0.5/0.75 dieselbe Strecke, halbes Tempo, Bot erreicht das Ziel", () => {
+  const l = L.build({ mode: "ziel", level: "normal", world: "bruecke", has: ["luecken", "hindernisse", "gegner"], foes: ["geh", "huepf", "flug"] }, 77);
+  assert.equal(sha(F.replay({ ...E, createSim: (x) => E.withApi(E.initState(x, 1)) }, F.NEW, F.INPUTS, F.MAX).text), GOLD_EV1, "K = 1 wie Golden");
+  for (const k of [0.75, 0.5]) {
+    const a = E.withApi(E.initState(l, 1)), b = E.withApi(E.initState(l, k));
+    assert.deepEqual(b.spans, a.spans, "gleiche Strecke"); assert.equal(b.items.length, a.items.length);
+    // Zeitdehnung: nach n Ticks mit K ist der Laeufer, wo er ohne Zeitlupe nach n*K Ticks war (bis auf die Diskretisierung)
+    a.press(); b.press();
+    for (let i = 0; i < 240 * k; i++) a.step();
+    for (let i = 0; i < 240; i++) b.step();
+    assert.ok(Math.abs(b.me.x - a.me.x) < 1, "Weg: " + b.me.x + " vs " + a.me.x);
+    // gleiche Bahn = gleicher Ausgang: der Bot kommt bei jedem K gleich weit (auch auf einer Strecke mit Gegnern)
+    const run = (doc, kk) => { const s = E.withApi(E.initState(doc, kk)); s.press(); for (let i = 0; i < 120 * 300 && s.state === "run"; i++) { E.bot(s); s.step(); } return s.state + "@" + s.meters(); };
+    assert.equal(run(l, k), run(l, 1), "Ausgang bei K = " + k);
+    const miss = [];
+    for (const level of ["easy", "normal", "hard"]) for (let seed = 1; seed <= 20; seed++) {
+      const r = run(L.build({ mode: "ziel", level, world: "bruecke", has: ["luecken"] }, seed), k);
+      if (!r.startsWith("goal")) miss.push(level + "/" + seed + " " + r);
+    }
+    assert.deepEqual(miss, [], "Bot erreicht das Ziel bei K = " + k);
+  }
+  assert.equal(E.initState(l, 0.3).k, 1, "nur 1/0.75/0.5");
+});

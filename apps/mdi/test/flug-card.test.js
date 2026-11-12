@@ -23,9 +23,9 @@ const run = (params, players, feed, max = 12000) => {
   return { st, evs };
 };
 
-test("Manifest: Echtzeit, 120 Hz, f64, ein Knopf mit Tastatur, Modi allein + Geist, 16 Varianten mit gueltigen Parametern", () => {
+test("Manifest: Echtzeit, 120 Hz, f64, ein Knopf mit Tastatur, Modi allein, Computer, Aufnahme, 16 Varianten mit gueltigen Parametern", () => {
   assert.equal(M.kind, "realtime"); assert.equal(M.rt.tick, 120); assert.equal(M.rt.numeric, "f64");
-  assert.deepEqual(M.modes, ["alone", "ghost"]);
+  assert.deepEqual(M.modes, ["alone", "bot", "ghost"]); assert.deepEqual(M.play, { default: "bot", offer: ["bot", "alone"] }, "Gate C: Gelb Gegen den Computer, Rot Per Link");
   assert.ok(M.rt.controls.buttons.every((b) => b.keys.length > 0));
   assert.deepEqual(M.variants.map((v) => v.id), ["spiel-lava", "spiel-mond", "spiel-pizza", "spiel-tiefsee", "spiel-neon", "spiel-geist", "spiel-einhorn", "spiel-retro", "flug-agent", "flug-mond", "plan-01", "plan-08", "plan-13", "plan-18", "plan-22", "plan-28"]);
   assert.ok(valid(DEF), JSON.stringify(valid.errors));
@@ -147,4 +147,28 @@ test("Determinismus: gleicher Seed + gleiche Eingaben = gleiche Hash-Folge; step
   flug.step(s0, [{ b: 1 }], 0);
   assert.equal(JSON.stringify(s0), snap, "rein");
   assert.equal(crypto.createHash("sha256").update(JSON.stringify(s0)).digest("hex").length, 64);
+});
+
+test("Gate C: Kopfzeile DU : COMPUTER bzw. AUFNAHME, Gegner gestrichelt und durchsichtig, Ende „n Lücken!“", async () => {
+  const lauf = (await import("../src/cards/lauf/card.js")).default;
+  const DL = Object.fromEntries(Object.entries(lauf.manifest.params.properties).map(([k, d]) => [k, d.default]));
+  for (const [roles, word] of [[["human", "bot"], "COMPUTER"], [["human", "ghost"], "AUFNAHME"]]) {
+    let st = flug.init({ params: full({}), players: roles });
+    for (let t = 0; t < 11000 && !flug.status(st).over; t++) st = flug.step(st, [{ b: 0 }, flug.bot(st, 1, { level: 2 })], t).state;
+    const v = JSON.stringify(flug.view(st, { lang: "de", seat: 0 }));
+    assert.match(v, new RegExp('"text":"DU \\d+ : ' + word + ' \\d+"'), word);
+    assert.ok(/"o":"arc"/.test(v), "gestrichelter Ring um den Gegner");
+    const s = flug.status(st);
+    assert.match(s.say.de, /^\d+ Lücken! /); assert.match(s.say.de, word === "COMPUTER" ? /Computer: \d+\./ : /Aufnahme: \d+\./);
+    assert.ok(!/Geist|👻/.test(v + JSON.stringify(s)), "kein „Geist“ in der Oberfläche");
+    let ls = lauf.init({ params: DL, players: roles });
+    for (let t = 0; t < 30000 && !lauf.status(ls).over; t++) ls = lauf.step(ls, [{ b: 0 }, lauf.bot(ls, 1)], t).state;
+    const lv = JSON.stringify(lauf.view(ls, { lang: "de", seat: 0 }));
+    assert.match(lv, /"text":"\d+ m · \d+ Münzen"/, "Lauf: zwei Werte ohne Doppelpunkt");
+    assert.ok(lv.includes(word + " "), "Lauf: Gegner benannt"); assert.ok(/"o":"arc"/.test(lv));
+    assert.match(lauf.status(ls).say.de, /\d+ Meter · \d+ Münzen/);
+  }
+  let solo = flug.init({ params: full({}), players: ["human", "none"] });
+  for (let t = 0; t < 2000 && !flug.status(solo).over; t++) solo = flug.step(solo, [{ b: 0 }, { b: 0 }], t).state;
+  assert.match(flug.status(solo).say.de, /^\d+ Lücken!$/); assert.match(flug.status(solo).say.en, /^\d+ gaps!$/);
 });

@@ -115,9 +115,17 @@ function bird(sim, g, ctx, alpha, dx, fx) {
     ? { o: "image", src: { kind: "local", slot: "figur" }, x: -18, y: -18, w: 36, h: 36, fit: "cover", clip: "circle" }
     : { o: "sprite", emoji: g.emoji, x: -18, y: -16, w: 36, h: 36 };
   const pose = an ? { o: "group", tx: an.x, ty: an.y, rot: an.r, sx: an.sx, sy: an.sy, alpha: an.a, ops: [inner] } : inner;
-  return { o: "group", tx: BX + dx, ty: by, rot: sim.state === "over" ? 1.4 : sim.bird.rot, alpha, ops: [pose] };
+  // Gegner (Computer oder Aufnahme): gestrichelter Ring und durchsichtig (Gate C, Reihe Lava-Flug)
+  const ring = alpha < 1 ? dashRing(0, 0, 22, "#ffffff") : [];
+  return { o: "group", tx: BX + dx, ty: by, rot: sim.state === "over" ? 1.4 : sim.bird.rot, alpha, ops: [pose].concat(ring) };
 }
 
+/** Gestrichelter Kreis aus 12 Boegen (Op arc, Umdrehungen 0..1). */
+export function dashRing(x, y, r, color) {
+  const out = [];
+  for (let i = 0; i < 12; i++) out.push({ o: "arc", x, y, r, a0: i / 12, a1: i / 12 + 0.05, stroke: color, lw: 2.5 });
+  return out;
+}
 /** Agenten-Duell: beide Flieger auf einer Strecke, Farben der Karte (alt modes.js drawFly). */
 export function duelOps(col, a, b, sa, sb) {
   const ops = [{ o: "rect", x: 0, y: 0, w: W, h: H, fill: "#14233f" }];

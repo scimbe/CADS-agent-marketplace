@@ -7,17 +7,18 @@ const T = (await import(root + "/src/engines/lauf/texts.json", { with: { type: "
 const Lb = (de, en) => ({ de, en });
 const def = L.paramsOfLauf(L.build({ mode: "endlos", world: "bruecke", level: "normal", figure: "🦊", obstacle: "📦", coin: "🪙", foe: "🐦", has: ["luecken", "hindernisse", "muenzen"], foes: ["geh"] }, 4242), { t: "Brückenlauf" });
 const props = {
-  m: { type: "string", enum: L.MODES, default: def.m, "x-field": "choice", "x-label": Lb("Modus", "Mode"), "x-names": { de: L.MODES.map((m) => T.de["lf_m_" + m]), en: L.MODES.map((m) => T.en["lf_m_" + m]) } },
+  m: { type: "string", enum: L.MODES, default: def.m, "x-field": "choice", "x-label": Lb("Modus", "Mode"), "x-names": { de: Object.fromEntries(L.MODES.map((m) => [m, T.de["lf_m_" + m]])), en: Object.fromEntries(L.MODES.map((m) => [m, T.en["lf_m_" + m]])) } },
   seed: { type: "integer", minimum: 0, maximum: 4294967295, default: def.seed, "x-field": "number", "x-label": Lb(T.de.lf_seed, T.en.lf_seed) },
-  w: { type: "string", enum: L.WORLDS, default: def.w, "x-field": "choice", "x-label": Lb("Welt", "World"), "x-names": { de: L.WORLDS.map((w) => T.de["lf_w_" + w]), en: L.WORLDS.map((w) => T.en["lf_w_" + w]) } },
+  w: { type: "string", enum: L.WORLDS, default: def.w, "x-field": "choice", "x-label": Lb("Welt", "World"), "x-names": { de: Object.fromEntries(L.WORLDS.map((w) => [w, T.de["lf_w_" + w]])), en: Object.fromEntries(L.WORLDS.map((w) => [w, T.en["lf_w_" + w]])) } },
   e: { type: "string", enum: L.FIG, default: def.e, "x-field": "choice", "x-label": Lb(T.de.lf_fig, T.en.lf_fig) },
   o: { type: "string", enum: L.OBJ, default: def.o, "x-field": "choice", "x-label": Lb(T.de.lf_obj, T.en.lf_obj) },
   c: { type: "string", enum: L.COIN, default: def.c, "x-field": "choice", "x-label": Lb(T.de.lf_coin, T.en.lf_coin) },
   f: { type: "string", enum: L.FOE, default: def.f, "x-field": "choice", "x-label": Lb(T.de.lf_foe, T.en.lf_foe) },
-  fp: { type: "array", minItems: 1, uniqueItems: true, items: { type: "string", enum: L.PATTERNS }, default: def.fp, "x-field": "list", "x-label": Lb(T.de.lf_fp, T.en.lf_fp) }
+  fp: { type: "array", minItems: 1, uniqueItems: true, items: { type: "string", enum: L.PATTERNS, "x-names": { de: Object.fromEntries(L.PATTERNS.map((x) => [x, T.de["lf_fp_" + x]])), en: Object.fromEntries(L.PATTERNS.map((x) => [x, T.en["lf_fp_" + x]])) } }, default: def.fp, "x-field": "list", "x-label": Lb(T.de.lf_fp, T.en.lf_fp) }
 };
 for (const k of L.PKEYS) props[k] = { type: "integer", minimum: L.SPEC[k][0], maximum: L.SPEC[k][1], default: def[k], "x-field": "number", "x-label": Lb(T.de["lf_p_" + k], T.en["lf_p_" + k]) };
 Object.assign(props, {
+  tempo: { type: "number", enum: [1, 0.75, 0.5], default: 1, "x-field": "choice", "x-label": Lb("Gemütlich spielen", "Play slowly"), "x-names": { de: { 1: "normal", 0.75: "gemütlich", 0.5: "sehr gemütlich" }, en: { 1: "normal", 0.75: "relaxed", 0.5: "very relaxed" } } },
   ev: { type: ["integer", "null"], minimum: 1, maximum: 999, default: 1, "x-field": "number", "x-hidden": true, "x-label": Lb("Engine-Version", "Engine version") },
   r: { type: ["integer", "null"], minimum: 1, maximum: 999999, default: null, "x-field": "number", "x-hidden": true, "x-label": Lb("Punkte zum Schlagen", "Score to beat") },
   anim: { type: ["object", "null"], additionalProperties: false, default: null, required: ["art"], "x-field": "list", "x-label": Lb("Animation", "Animation"),
@@ -36,7 +37,7 @@ const m = {
   title: Lb("Lauf und Sprung", "Run and jump"), teaser: Lb("Tippen = springen, halten = höher.", "Tap = jump, hold = higher."),
   rule: Lb(T.de.lf_hint, T.en.lf_hint), howto: Lb(T.de.lf_start, T.en.lf_start),
   family: "lauf", grip: "pause", dur: 60,
-  players: { min: 1, max: 2 }, hidden: "none", uses: ["image"], modes: ["alone", "ghost"], play: { default: "alone", offer: ["alone"] },
+  players: { min: 1, max: 2 }, hidden: "none", uses: ["image"], modes: ["alone", "bot", "ghost"], play: { default: "bot", offer: ["bot", "alone"] },
   limits: { stepBudget: 4000, stateBytes: 65536 },
   rt: { tick: 120, view: { w: 400, h: 360, fit: "width" }, numeric: "f64", net: "none", maxTicks: 21600, ghost: { bytes: 1200 },
     controls: { buttons: [
@@ -48,15 +49,18 @@ const m = {
   params: { type: "object", additionalProperties: false, properties: props },
   // Teile nur mit Feldern, die der Editor heute darstellen kann (view.js fieldControls); Zahlen-Regler, Farben,
   // Animation und Fotos kommen zurueck, sobald H sie rendert (Nachricht an strang-h, PR #243 offen)
+  // Blasen nach Gate C (Reihe Dach-Lauf, gleiches Muster wie Lava-Flug); Fotos und Animation folgen mit dem Editor (H/P)
   parts: [
-    { id: "modus", params: ["m"], label: Lb("Modus", "Mode") },
-    { id: "welt", params: ["w", "o", "c"], label: Lb("Welt", "World") },
     { id: "figur", params: ["e", "f", "fp"], label: Lb("Figur", "Runner") },
-    { id: "text", params: ["t"], label: Lb("Text", "Text") }
+    { id: "welt", params: ["w", "o", "c"], label: Lb("Welt", "World") },
+    { id: "level", params: ["m", "len", "v", "a", "vm", "g", "j", "lu", "lw", "hi", "du", "mu", "ge", "fa", "hv", "seed"], label: Lb("Level", "Level") },
+    { id: "gemuetlich", params: ["tempo"], label: Lb("Gemütlich spielen", "Play slowly") },
+    { id: "text", params: ["t", "col"], label: Lb("Text", "Text") }
   ]
 };
 // nur die Vokabeln, die der Generator kennt (x-field, x-label, x-model, x-pairs, x-steps, x-hidden; ADR 0001, F @ 15338b5)
-const strip = (o) => { if (Array.isArray(o)) return o.map(strip); if (o && typeof o === "object") { const r = {}; for (const [k, v] of Object.entries(o)) if (!/^x-/.test(k) || ["x-field", "x-label", "x-model", "x-pairs", "x-steps", "x-hidden"].includes(k)) r[k] = strip(v); return r; } return o; };
+const { FIELD_VOCAB } = await import(root + "/scripts/gen.js");
+const strip = (o) => { if (Array.isArray(o)) return o.map(strip); if (o && typeof o === "object") { const r = {}; for (const [k, v] of Object.entries(o)) if (!/^x-/.test(k) || FIELD_VOCAB.includes(k)) r[k] = strip(v); return r; } return o; };
 m.thumb = { src: "shot", file: "thumb.webp", alt: m.title };   // scripts/thumbs.js (F) erzeugt die Datei
 m.params = strip(m.params);
 process.stdout.write(JSON.stringify(m, null, 1) + "\n");

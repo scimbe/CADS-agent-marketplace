@@ -4,6 +4,7 @@
 import { H, PH, height } from "./engine.js";
 import { animPose } from "../flug/params.js";
 import { sinD, cosD } from "../flug/trig.js";
+import { dashRing } from "../flug/view.js";
 
 export const VIEW = 400;
 // Welt: Himmel oben und unten, Boden, Kante, was unter den Luecken liegt (Wasser, Lava oder nichts), Kulisse
@@ -62,7 +63,8 @@ function runner(s, ctx, alpha, still) {
   const inner = ctx.assets && ctx.assets.figur ? { o: "image", src: { kind: "local", slot: "figur" }, x: -30, y: -54, w: 60, h: 60, fit: "cover", clip: "circle" } : { o: "sprite", emoji: s.l.e, x: -30, y: -54, w: 60, h: 60 };
   const an = ctx.pose;
   const posed = an ? { o: "group", tx: an.x, ty: an.y - 24, rot: an.r, sx: an.sx, sy: an.sy, alpha: an.a, ops: [{ o: "group", tx: 0, ty: 24, ops: [inner] }] } : inner;
-  return { o: "group", tx: m.x, ty: m.y - bob, sx: -1, sy: hh / PH, rot: s.state === "over" ? -1.2 : 0, alpha, ops: [posed] };
+  // Gegner (Computer oder Aufnahme): gestrichelter Ring und durchsichtig (Gate C, Reihe Dach-Lauf)
+  return { o: "group", tx: m.x, ty: m.y - bob, sx: -1, sy: hh / PH, rot: s.state === "over" ? -1.2 : 0, alpha, ops: [posed].concat(alpha < 1 ? dashRing(0, -24, 34, "#ffffff") : []) };
 }
 /** Pose der Figur (l.anim) zur Zeit t, ausgeloest seit since[bei] Sekunden. */
 export function poseOf(l, t, since, reduced) {
