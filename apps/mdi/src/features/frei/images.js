@@ -13,7 +13,7 @@ const REF = /^[A-Za-z0-9_-]{22}\.(jpg|png)$/;
 const LOCAL = /^[0-9a-f]{32}$/;
 const MAX = 40;
 
-/** @param win window (location, Image); @param [api] fuer Tests; @param [o] { local(id): Promise<string|null>, revoke(url) } */
+/** @param win window (location, Image); @param [api] fuer Tests; @param [o] { local(id): Promise<string|null>, revoke(url), now() } */
 export function createImages(win, api, o = {}) {
   const a = api || createApi({ location: win.location, native: nativeAccount(win) });
   const cache = new Map(), els = new Map(), subs = new Set();
@@ -24,16 +24,21 @@ export function createImages(win, api, o = {}) {
   function put(k, v) { const old = cache.get(k); if (old && old.url !== v.url) { els.delete(old.url); free(old); } cache.set(k, v); }
   function trim() { while (cache.size > MAX) { const k = cache.keys().next().value, v = cache.get(k); cache.delete(k); if (v) { els.delete(v.url); free(v); } } }
   function notify(k) { for (const f of subs) { try { f(k); } catch (e) { setTimeout(() => { throw e; }, 0); } } }
+  // Ein fehlendes Foto kann spaeter gespeichert werden (Editor, gleiche id): der Fehlzustand gilt RETRY ms, dann neu fragen
+  // (gedrosselt, damit Neuzeichnen nicht jedes Bild erneut laedt)
+  const RETRY = 2000, now = () => (o.now ? o.now() : Date.now());
   function load(k) {
-    if (cache.has(k)) return;
+    const c = cache.get(k);
+    if (c && !(c.local === false && now() - c.at >= RETRY)) return;
+    if (c) cache.delete(k);
     cache.set(k, { st: "busy", url: "" });
     trim();
     if (k.startsWith("local:")) {
-      Promise.resolve().then(() => o.local(k.slice(6))).then((u) => (typeof u === "string" && u ? { st: "ok", url: u, local: true } : { st: "fehlt", url: "" }), () => ({ st: "fehler", url: "" }))
+      Promise.resolve().then(() => o.local(k.slice(6))).then((u) => (typeof u === "string" && u ? { st: "ok", url: u, local: true } : { st: "fehlt", url: "", local: false, at: now() }), () => ({ st: "fehler", url: "", local: false, at: now() }))
         .then((v) => { if (cache.has(k)) { put(k, v); notify(k); } else free(v); });
       return;
     }
-    a.image("/duell/bild/" + k.slice(4)).then((r) => { cache.set(k, r.ok ? { st: "ok", url: r.url } : { st: r.error || "fehler", url: "" }); notify(k); });
+    a.image("/duell/bild/" + k.slice(4)).then((r) => { put(k, r.ok ? { st: "ok", url: r.url } : { st: r.error || "fehler", url: "" }); notify(k); });
   }
   const remote = (k) => k.startsWith("srv:") || k.startsWith("local:");
   /** data:-URL des Bildes oder "" (laedt, unbekannt, gesperrt) */

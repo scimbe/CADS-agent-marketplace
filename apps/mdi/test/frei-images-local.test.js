@@ -67,3 +67,13 @@ test("blob:-URLs werden beim Verwerfen und beim Verdraengen freigegeben; Schlues
   const ref = "A".repeat(22) + ".png";
   assert.equal(im.state({ kind: "server", ref }), "neu");
 });
+
+test("fehlendes Foto wird nach kurzer Zeit neu gefragt (spaeter im Editor gespeichert), nicht bei jedem Zeichnen", async () => {
+  let t = 0, have = false, n = 0;
+  const im = createImages(WIN, server(), { local: () => { n++; return Promise.resolve(have ? "blob:y" : null); }, revoke: () => {}, now: () => t });
+  const src = { kind: "local", id: ID };
+  im.url(src); await tick(); assert.equal(im.state(src), "fehlt");
+  im.url(src); im.url(src); await tick(); assert.equal(n, 1, "gedrosselt");
+  have = true; t = 2500;
+  im.url(src); await tick(); assert.equal(n, 2); assert.equal(im.url(src), "blob:y");
+});
