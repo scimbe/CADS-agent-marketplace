@@ -8,7 +8,7 @@ import * as S from "../contract/session.js";
 import { cardOf, modesOf, validParams } from "../cards/index.js";
 import { encode } from "./link.js";
 import { sha256 } from "../contract/sdk.js";
-import { paramsForLink, defaults } from "../contract/fields.js";
+import { paramsForLink, defaults, travelsOnly } from "../contract/fields.js";
 import { kontoRegion, stilState, kontoGuards, kontoActions, kontoContext } from "./konto-chart.js";
 import { FEATURES } from "./features.js";
 import { playOf } from "../contract/modes.js";
@@ -274,7 +274,7 @@ export const guards = {
   inCard: (ctx) => !!ctx.incoming && ctx.incoming.kind === "card",
   inChallenge: (ctx) => !!ctx.incoming && ctx.incoming.kind === "challenge",
   helloOk: (ctx, ev) => !helloResult(ctx, ev).error,
-  showOk: (ctx, ev) => !!cardOf(ev.msg.c) && cardOf(ev.msg.c).manifest.mode !== "turn" && validParams(ev.msg.c, ev.msg.p),
+  showOk: (ctx, ev) => !!cardOf(ev.msg.c) && cardOf(ev.msg.c).manifest.mode !== "turn" && validParams(ev.msg.c, { ...defaults(cardOf(ev.msg.c).manifest.params), ...ev.msg.p }) && travelsOnly(cardOf(ev.msg.c).manifest.params, ev.msg.p),
   // Entscheidung 2026-11-11: Raum nur mit Anmeldung. D0 hat noch kein Konto (S8); der Live-Datenkanal der Bruecke
   // (/api/play) ist kontofrei. Deshalb steht die Pruefung hier, ist aber per raumBrauchtKonto=false abgeschaltet.
   raumErlaubt: (ctx, ev, inState) => !ctx.raumBrauchtKonto || inState("konto.angemeldet"),
@@ -363,7 +363,7 @@ export const actions = {
     return { ...actions.onInput(ctx, { ...ev, input }, emit), note: "auto-gespielt" };
   }),
   markUp: (ctx, ev) => ({ ...ctx, raum: { ...(ctx.raum || {}), up: [...new Set([...((ctx.raum && ctx.raum.up) || []), ev.seat])] } }),
-  sendShow: (ctx, ev, emit) => { const c = G.card(ctx); emit({ type: "peer", msg: { t: "show", c: c.manifest.id, v: c.manifest.version, p: G.paramsOf(ctx) } }); return { ...ctx, note: "gezeigt" }; },
+  sendShow: (ctx, ev, emit) => { const c = G.card(ctx); emit({ type: "peer", msg: { t: "show", c: c.manifest.id, v: c.manifest.version, p: G.peerParams(ctx) } }); return { ...ctx, note: "gezeigt" }; },
   onJoin: (ctx, ev, emit) => {
     if (!ctx.hs || ctx.session) return { ...ctx, error: "abweichung" };
     if (ctx.hs.guests) return safe(ctx, () => { const r = G.joinGroupFor(ctx, ev.from, ev.msg); if (r.msg) { emit({ type: "peer", msg: r.msg }); for (const m of r.out) emit({ type: "peer", msg: m }); } return r.ctx; });
@@ -386,7 +386,7 @@ export const actions = {
     const live = ctx.mode === "live" && ctx.session;
     const seed = live ? ctx.session.seed : ev.rand[0];
     const seat = live ? ctx.session.mine[0] : Math.min(ctx.seat || 0, m.players.max - 1);
-    emit({ type: "rt.start", mode: live ? "live" : ctx.mode, seat, seed, params: G.paramsOf(ctx), level: ctx.level || 2, serving: seat === 0 });
+    emit({ type: "rt.start", mode: live ? "live" : ctx.mode, seat, seed, params: live ? G.peerParams(ctx) : G.paramsOf(ctx), localParams: G.paramsOf(ctx), level: ctx.level || 2, serving: seat === 0 });
     return { ...ctx, rtSeed: seed, rtResult: null, rtAgain: null, link: null, sent: false, error: null, viewer: seat };
   },
   acceptGhost: (ctx, ev, emit) => {
@@ -411,7 +411,7 @@ export const actions = {
     // Revanche: beide haben "again" gesendet; neuer Seed rein aus dem alten (beide rechnen denselben)
     if (ev.type === "AGAIN") emit({ type: "peer", msg: { t: "again" } });
     const seed = sha256(ctx.rtSeed + "|again").slice(0, 32), seat = ctx.session ? ctx.session.mine[0] : ctx.seat;
-    emit({ type: "rt.start", mode: "live", seat, seed, params: G.paramsOf(ctx), level: ctx.level || 2, serving: seat === 1 ? true : false });
+    emit({ type: "rt.start", mode: "live", seat, seed, params: G.peerParams(ctx), localParams: G.paramsOf(ctx), level: ctx.level || 2, serving: seat === 1 ? true : false });
     return { ...ctx, rtSeed: seed, rtResult: null, rtAgain: null, error: null };
   },
   setMuted: (ctx, ev, emit) => { const muted = ev.on === true; emit({ type: "ton.save", muted }); return { ...ctx, muted }; },
