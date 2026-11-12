@@ -131,7 +131,19 @@
       }
     ]
   },
+  "quiz-preis": {
+    "assets": [],
+    "thumbs": []
+  },
   "raum-sorry": {
+    "assets": [],
+    "thumbs": []
+  },
+  "spiel-dart": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-abfragen": {
     "assets": [],
     "thumbs": []
   },
@@ -151,6 +163,10 @@
     "assets": [],
     "thumbs": []
   },
+  "zug-malrat": {
+    "assets": [],
+    "thumbs": []
+  },
   "zug-reihum": {
     "assets": [],
     "thumbs": []
@@ -160,6 +176,10 @@
     "thumbs": []
   },
   "zug-termin": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-typen": {
     "assets": [],
     "thumbs": []
   },
