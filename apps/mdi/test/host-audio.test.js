@@ -35,8 +35,11 @@ test("Aufnahme: Samples im Slot (heruntergetastet auf 22050), einmal abspielen l
   const r = await H.record("maus", 4000);
   assert.equal(r.mic, true); assert.equal(H.slots.has("maus"), true);
   assert.equal(Math.round(r.sec * Studio.SR), Math.floor(3 * 4096 / 2), "44,1 kHz -> 22,05 kHz");
-  assert.equal(H.playReversed("maus"), true);
-  assert.equal(H.playOnce("maus", "chip"), true); assert.equal(H.slots.has("maus"), false); assert.equal(H.playOnce("maus", "chip"), false);
+  const end = () => a.started.at(-1).onended();
+  let r1 = H.playReversed("maus"); end(); assert.equal(await r1, true);
+  r1 = H.playFx("maus", "robot"); end(); assert.equal(await r1, true); assert.equal(H.slots.has("maus"), true, "whose: Slot bleibt");
+  r1 = H.playOnce("maus", "chip"); assert.equal(H.slots.has("maus"), false, "once: sofort geleert"); end(); assert.equal(await r1, true);
+  assert.equal(await H.playOnce("maus", "chip"), false, "zweites Mal: weg");
   const N = createHostAudio({ audioContext: () => a, setTimeout: sync, clearTimeout: () => {} });
   const d = await N.record("x", 2500); assert.equal(d.mic, false); assert.equal(d.sec, Studio.dummyVoice().length / Studio.SR);
 });
@@ -45,6 +48,7 @@ test("Strassenrap: Schleife Hook, Aufnahme-Modus einmal mit Einzaehlen; WAV guel
   assert.equal(H.play({ kind: "rapbeat", v: [0, 90, 9, 0, 1234], loop: "hook" }), true); assert.equal(a.started.at(-1).loop, true);
   const w = H.wav({ kind: "beat", p: { k: "x---------------", s: "----------------", h: "----------------", b: "----------------" }, bpm: 120, loops: 1 });
   assert.equal(String.fromCharCode(...w.slice(0, 4)), "RIFF");
-  let ended = 0; H.playUntil({ k: "x---x---x---x---", s: "----------------", h: "----------------", b: "----------------" }, 5, () => ended++); assert.equal(ended, 1);
+  await H.playUntil({ k: "x---x---x---x---", s: "----------------", h: "----------------", b: "----------------" }, 5);
+  assert.equal(a.started.at(-1).stopped, true, "Musik aus zur Pause");
   let blows = 0; const stopBlow = await H.listenBlow(() => blows++); stopBlow(); assert.equal(blows, 1);
 });

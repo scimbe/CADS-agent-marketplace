@@ -97,20 +97,32 @@ export function createHostAudio(deps) {
     },
     /** Aufnahme in einen Slot (alt rec): erst nach Tippen aufrufen. */
     async record(slot, ms) { stop(); const r = await listen(Math.min(ms, Klang.MAX_SEC * 1000)); slots.set(slot, r.pcm); return { mic: r.mic, sec: r.pcm.length / Studio.SR }; },
-    /** Einmal abspielen, dann ist der Slot leer (alt once, Effekte aus studio.js warp). */
+    /** Einmal abspielen, dann ist der Slot leer (alt once, Effekte aus studio.js warp). Promise<bool>: true am Ende der
+     *  Wiedergabe, false ohne Aufnahme (Fs Widget zeigt dann „Die Aufnahme ist nicht mehr da.“). */
     playOnce(slot, fx) {
-      const x = slots.get(slot); if (!x) return false;
-      const o = Studio.warp(x, fx); playPcm([o], Studio.SR, false); wipe(slot);
-      later(() => o.fill(0), o.length / Studio.SR * 1000 + 200);
-      return true;
+      const x = slots.get(slot); if (!x) return Promise.resolve(false);
+      const o = Studio.warp(x, fx); wipe(slot);
+      return new Promise((ok) => { if (!playPcm([o], Studio.SR, false, () => { o.fill(0); ok(true); })) { o.fill(0); ok(true); } });
     },
-    /** Rueckwaerts abspielen (alt parrot) */
-    playReversed(slot) { const x = slots.get(slot); if (!x) return false; playPcm([Float32Array.from(x).reverse()], Studio.SR, false); return true; },
-    /** Musik bis zur Pause (alt freeze): Beat mit 124 BPM, 8 Takte, Schleife; nach s Sekunden Stopp, dann done() */
-    playUntil(beat, s, done) {
+    /** Mit Effekt abspielen, Slot bleibt (alt whose: beliebig oft). Promise<bool> am Ende. */
+    playFx(slot, fx) {
+      const x = slots.get(slot); if (!x) return Promise.resolve(false);
+      const o = Studio.warp(x, fx);
+      return new Promise((ok) => { if (!playPcm([o], Studio.SR, false, () => ok(true))) ok(true); });
+    },
+    /** Rueckwaerts abspielen (alt parrot). Promise<bool> am Ende. */
+    playReversed(slot) {
+      const x = slots.get(slot); if (!x) return Promise.resolve(false);
+      return new Promise((ok) => { if (!playPcm([Float32Array.from(x).reverse()], Studio.SR, false, () => ok(true))) ok(true); });
+    },
+    /** Musik bis zur Pause (alt freeze): Beat mit 124 BPM, 8 Takte, Schleife; nach s Sekunden Stopp. Promise, aufgeloest beim
+     *  Stopp; .stop() beendet vorher. */
+    playUntil(beat, s) {
       const pcm = Studio.renderBeat(beat, 124, 8); playPcm([pcm], Studio.SR, true);
-      const t = later(() => { stop(); if (done) done(); }, s * 1000);
-      return () => { cancel(t); stop(); };
+      let t = null, fin = null;
+      const p = new Promise((ok) => { fin = ok; t = later(() => { stop(); ok(); }, s * 1000); });
+      p.stop = () => { cancel(t); stop(); fin(); };
+      return p;
     },
     /** Pusten erkennen (alt blow): Pegel ueber 28 (8 Bit, RMS), hoechstens alle 450 ms ein Treffer. Rueckgabe: stop() */
     async listenBlow(cb) {
