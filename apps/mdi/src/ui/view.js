@@ -10,7 +10,7 @@ import * as S from "../contract/session.js";
 import { render } from "../render/render.js";
 import { LEVELS } from "../bot/ismcts.js";
 import { stilView, stilActions } from "./stil-view.js";
-import { homeView, dayPrimary, meinsButton, schriftButton, shareImageBox } from "./home/views.js";
+import { homeView, dayPrimary, meinsButton, schriftButton, headSearch, shareImageBox } from "./home/views.js";
 import { SLOTS } from "./home/slots.js";
 import { extraField, suggestButton } from "./edit-fields.js";
 import { ftCore as ft } from "../features/frei/texts-core.js";   // Strang K: Texte fuer Robot/Melden in der Kartenansicht
@@ -177,7 +177,7 @@ export function view(state, dispatch, env = {}) {
   const acts = actionsOf(state);
   const canBack = machine.send(state, { type: "BACK" }).consumed;
   const card = ctx.cardId ? cardOf(ctx.cardId) : null;
-  const homeR = L === "shelf" ? homeView(state, dispatch) : null;
+  const homeR = L === "shelf" ? homeView(state, dispatch, env) : null;
   const freiR = L.startsWith("frei.") && SLOTS.freiView ? SLOTS.freiView(state, X, dispatch, L) : null;
   const heading = homeR ? homeR.heading || X.app : freiR ? freiR.heading : L === "stil.start" ? X.stil : L === "stil.daten" ? X.k.data : L === "stil.widerspruch" ? X.k.appealTitle : card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang, G.paramsOf(ctx)) : X.app;
   const btn = (act, cls) => h("button", { type: "button", class: "btn " + cls, key: act.id, "data-act": act.id, on: { click: () => dispatch(act.ev) } }, act.label);
@@ -187,7 +187,7 @@ export function view(state, dispatch, env = {}) {
     h("h1", { class: "brand" + (homeR && !homeR.heading ? " home" : "") }, heading),
     m("raum.verbunden") ? h("span", { class: "badge", role: "status" }, X.connected)
       // Board Meins: auf „Mein Regal“ selbst keine Kopfknoepfe, damit die Ueberschrift ungekuerzt bleibt
-      : L === "shelf" && !(homeR && homeR.cls === "meins") ? h("span", { class: "bar-end" }, schriftButton(state, dispatch), meinsButton(state, dispatch), h("button", { type: "button", class: "h-headbtn me", "aria-label": X.stilOpen, "data-act": "stil", on: { click: () => dispatch({ type: "STIL" }) } }, h("span", { class: "h-headbtn-i", "aria-hidden": "true" }, ctx.me.emoji), h("span", { class: "h-headbtn-t", "aria-hidden": "true" }, X.stil)))
+      : L === "shelf" && !(homeR && homeR.cls === "meins") ? h("span", { class: "bar-end" }, env.wide && homeR && (homeR.cls === "day" || homeR.cls === "regal") ? headSearch(state, dispatch) : null, schriftButton(state, dispatch), meinsButton(state, dispatch), h("button", { type: "button", class: "h-headbtn me", "aria-label": X.stilOpen, "data-act": "stil", on: { click: () => dispatch({ type: "STIL" }) } }, h("span", { class: "h-headbtn-i", "aria-hidden": "true" }, ctx.me.emoji), h("span", { class: "h-headbtn-t", "aria-hidden": "true" }, X.stil)))
         : h("span", { class: "icon-gap" }));
 
   let body = [], panel = [];

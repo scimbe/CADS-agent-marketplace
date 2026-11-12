@@ -6,7 +6,7 @@ import { bundesweit } from "./feiertage.js";
 import { partOf } from "../../gen/fparts.js";
 import { FAMILIES, INTENT_ORDER, familiesOf, family, familyOf, newIdOf, variantOf, extras, catalogIdOf } from "./families.js";
 import { homeTexts, fmt } from "./texts.js";
-import { ideaTile, extraTile, icon, regalIcon, ideaText, plateLines, duration, badge, art, thumbKey } from "./tile.js";
+import { ideaTile, extraTile, icon, lineIcon, regalIcon, ideaText, plateLines, duration, badge, art, thumbKey } from "./tile.js";
 import { SLOTS } from "./slots.js";
 import { inviteStatus, isSaved, UNDO_MS } from "./store.js";
 import { cardOf, manifestOf, ORDER, modesOfId } from "../../cards/index.js";
@@ -111,12 +111,12 @@ function sentenceForm(ctx, X, dispatch) {
 function intents(state, X, dispatch) {
   return h("nav", { class: "h-intents", key: "intents", "aria-label": X.ask },
     INTENT_ORDER.map((k) => h("button", { type: "button", key: k, class: "h-intent fam-" + INTENT_FAM[k], "data-act": "intent-" + k, on: { click: () => dispatch({ type: "HOME", to: "family", intent: k }) } },
-      icon(INTENT_SHAPE[k], "h-ico"), h("span", { class: "h-intent-t", lang: state.ctx.lang }, X.intentHead[k]), h("span", { class: "visually-hidden" }, ": " + X.intents[k].s))),
+      lineIcon(k), h("span", { class: "h-intent-t", lang: state.ctx.lang }, X.intentHead[k]), h("span", { class: "visually-hidden" }, ": " + X.intents[k].s))),
     // Gate C (D): an die Stelle von "Eigene Karte" (jetzt der grosse Block "Neu erfinden") tritt "Suchen"
     h("button", { type: "button", key: "suchen", class: "h-intent h-intent-such", "data-act": "intent-suchen", on: { click: () => dispatch({ type: "HOME", to: "family", intent: null, focus: "sentence" }) } },
-      icon("lupe", "h-ico"), h("span", { class: "h-intent-t" }, X.searchShort), h("span", { class: "visually-hidden" }, ": " + X.search)),
+      lineIcon("lupe"), h("span", { class: "h-intent-t" }, X.searchShort), h("span", { class: "visually-hidden" }, ": " + X.search)),
     h("button", { type: "button", key: "alle", class: "h-intent h-intent-alle", "data-act": "intent-alle", on: { click: () => dispatch({ type: "HOME", to: "regal", rtab: "alles", fam: null }) } },
-      icon("grid", "h-ico"), h("span", { class: "h-intent-t" }, X.all), h("span", { class: "visually-hidden" }, ": " + fmt(X.hits, { n: R.IDEAS.length }))));
+      lineIcon("grid"), h("span", { class: "h-intent-t" }, X.all), h("span", { class: "visually-hidden" }, ": " + fmt(X.hits, { n: R.IDEAS.length }))));
 }
 
 function grid(items, cls = "") { return h("div", { class: "h-grid " + cls }, items); }
@@ -212,9 +212,10 @@ function tabs(items, sel, dispatch, label) {
   return h("div", { class: "h-tabs", role: "tablist", "aria-label": label }, items.map((t) => h("button", { type: "button", role: "tab", key: t.id, id: "tab-" + t.id, "aria-selected": t.id === sel ? "true" : "false", "aria-controls": "panel-" + sel, "data-act": "tab-" + t.id, on: { click: () => dispatch(t.ev) } }, t.label)));
 }
 
-function regalView(state, X, dispatch) {
+function regalView(state, X, dispatch, env = {}) {
   const ctx = state.ctx, hm = ctx.home, out = [];
-  out.push(h("div", { class: "h-search", key: "search", role: "search" },
+  // breit: die Suche steht in der Kopfzeile (headSearch), hier nicht doppelt
+  if (!env.wide) out.push(h("div", { class: "h-search", key: "search", role: "search" },
     h("label", { class: "h-search-l", for: "h-q" }, X.search),
     h("input", { id: "h-q", class: "h-input", type: "search", autocomplete: "off", maxlength: "80", placeholder: X.searchPh, value: hm.q, on: { input: (e) => dispatch({ type: "QUERY", q: e.target.value }) } })));
   out.push(tabs(["alles", "tage", "andere"].map((id) => ({ id, label: X.tabs[id], ev: { type: "RTAB", tab: id } })), hm.rtab, dispatch, X.regal));
@@ -320,10 +321,10 @@ function eigeneView(state, X, dispatch) {
 }
 
 /** -> { heading, body, cls } */
-export function homeView(state, dispatch) {
+export function homeView(state, dispatch, env = {}) {
   const ctx = state.ctx, X = homeTexts(ctx.lang, ctx.pref && ctx.pref.easy), at = ctx.home.at;
   if (at === "family") return { heading: ctx.home.intent ? X.intentHead[ctx.home.intent] : X.searchShort, body: familyView(state, X, dispatch), cls: "family" };
-  if (at === "regal") return { heading: X.all, body: regalView(state, X, dispatch), cls: "regal" };
+  if (at === "regal") return { heading: X.all, body: regalView(state, X, dispatch, env), cls: "regal" };
   if (at === "meins") return { heading: X.meins, body: meinsView(state, X, dispatch), cls: "meins" };
   if (at === "eigene") return { heading: X.own.page, body: eigeneView(state, X, dispatch), cls: "eigene" };
   return { heading: null, body: dayView(state, X, dispatch), cls: "day" };
@@ -342,6 +343,15 @@ export function schriftButton(state, dispatch) {
     h("span", { class: "h-headbtn-i h-aa", "aria-hidden": "true" }, "A", h("span", null, "A")), h("span", { class: "h-headbtn-t", "aria-hidden": "true" }, X.schrift));
 }
 export { UNDO_MS };
+
+/** Board Desktop: Suchfeld in der Kopfzeile (nur breit). Tippen sucht im Regal (Reiter Alles), ein Ereignis je Eingabe. */
+export function headSearch(state, dispatch) {
+  const ctx = state.ctx, X = homeTexts(ctx.lang, ctx.pref && ctx.pref.easy);
+  return h("div", { class: "h-headsearch", role: "search", key: "headsearch" },
+    lineIcon("lupe", "h-ico h-line"),
+    h("label", { class: "visually-hidden", for: "h-q" }, X.search),
+    h("input", { id: "h-q", class: "h-input", type: "search", autocomplete: "off", maxlength: "80", placeholder: fmt(X.searchAllPh, { n: R.IDEAS.length }), value: ctx.home.q, on: { input: (e) => dispatch({ type: "QUERY", q: e.target.value, open: true }) } }));
+}
 
 // Bild teilen (Entscheidung Integrator, "Foto mitschicken"): Eine Karte bietet in ihrer Anzeigeliste
 // {t:"action", act:"share-image", label, name, of:<id des canvas-Knotens>} an (nur mit gewaehltem lokalem Foto).
