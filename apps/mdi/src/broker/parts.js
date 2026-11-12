@@ -12,6 +12,20 @@ const CARD_PARTS = typeof __CARD_PARTS__ !== "undefined" ? __CARD_PARTS__ : {};
 const THUMB_PARTS = typeof __THUMB_PARTS__ !== "undefined" ? __THUMB_PARTS__ : { index: {}, files: {} };
 export const CACHE = "mdi-parts-v1";
 
+/**
+ * Verzeichnis der App als Basis fuer Teile (Staging-Befund L2): "/duell" und "/duell/" (und "/duell/index.html") ergeben
+ * dieselbe Basis "/duell/". Relativ zu "/duell" ohne Schraegstrich loeste der Browser "parts/x" zu "/parts/x" auf (404).
+ * Regel: endet der Pfad auf "/", ist er das Verzeichnis; hat das letzte Segment einen Punkt, ist es eine Datei (wegnehmen);
+ * sonst ist das letzte Segment das App-Verzeichnis (Schraegstrich ergaenzen). Kein Raten bei unbekanntem Protokoll.
+ */
+export function appBase(loc) {
+  const p = String(loc.pathname || "/");
+  const dir = p.endsWith("/") ? p : /\.[^/]*$/.test(p.slice(p.lastIndexOf("/") + 1)) ? p.slice(0, p.lastIndexOf("/") + 1) : p + "/";
+  return /^https?:$/.test(loc.protocol) ? loc.origin + dir : loc.protocol + "//" + (loc.host || "") + dir;
+}
+/** Absolute URL eines Teils ("parts/…") zur App-Basis. */
+export function partUrl(loc, file) { return new URL(file, appBase(loc)).href; }
+
 function err(code, detail) { return Object.assign(new Error(code + (detail ? ": " + detail : "")), { code }); }
 function b64(buf) { let s = ""; const b = new Uint8Array(buf); for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s); }
 
@@ -58,7 +72,8 @@ export function createParts({ win, doc, cardParts = CARD_PARTS, thumbParts = THU
     if (fresh) await c.put(file, res);
     return buf;
   }
-  async function run(file, sri, event, test) {
+  async function run(rel, sri, event, test) {
+    const file = partUrl(win.location, rel);
     const got = waitFor(event, test);
     got.catch(() => {}); // wird unten abgewartet; verhindert einen unbehandelten Fehler, falls inject zuerst scheitert
     let src = file, url = null;

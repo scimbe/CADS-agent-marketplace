@@ -4,13 +4,15 @@
 // Ueber file:// (Tests, Apps bis D1b): lokaler Rueckfall mit opakem Ursprung.
 // Absenderpruefung: genau dieser Rahmen (e.source) UND erwarteter Ursprung (e.origin). Schliessen entfernt den Rahmen.
 /* global __PARTS__, __LIVE_REMOTE__ */
+import { partUrl } from "./parts.js";
 const PARTS = typeof __PARTS__ !== "undefined" ? __PARTS__ : {};
 const REMOTE = typeof __LIVE_REMOTE__ !== "undefined" ? __LIVE_REMOTE__ : null;
 const READY_MS = 15000;
 
 export function frameConfig(protocol) {
   if (REMOTE && protocol === "https:") return { src: REMOTE.src, origin: REMOTE.origin, sandbox: "allow-scripts allow-same-origin" };
-  return { src: PARTS.live && PARTS.live.file, origin: "null", sandbox: "allow-scripts" };
+  // lokaler Rahmen relativ zum App-Verzeichnis, nicht zur Adresse ("/duell" ohne Schraegstrich, Staging-Befund L2)
+  return { src: PARTS.live && PARTS.live.file && typeof location !== "undefined" ? partUrl(location, PARTS.live.file) : null, origin: "null", sandbox: "allow-scripts" };
 }
 
 function open(first, cb) {
