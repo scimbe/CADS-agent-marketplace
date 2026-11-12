@@ -49,14 +49,21 @@ export function actionsOf(state) {
       if (ctx.link && !ctx.sent && send(X.ghostSend)) return { primary: a("again", X.again2, "AGAIN"), secondary: [send(X.ghostSend)] };
       return { primary: a("again", X.again2, "AGAIN"), secondary: [] };
     case "card.rt.error": return { primary: a("back", X.back, "BACK"), secondary: [] };
-    case "receive.show": return { primary: a("accept", ctx.incoming && ctx.incoming.kind === "card" ? X.acceptCard : ctx.incoming && ctx.incoming.kind === "ghost" ? X.ghostFor : X.acceptGame, "ACCEPT"), secondary: [a("decline", X.decline, "BACK")] };
+    // Karten duerfen ihre Empfangs-Knoepfe benennen (manifest.receive {accept, decline}, z. B. Adventstuer "Eigenes Tuerchen machen" / "Weiter", alt door.js)
+    case "receive.show": { const rc = ctx.incoming && ctx.incoming.kind === "card" && cardOf(ctx.incoming.cardId) && cardOf(ctx.incoming.cardId).manifest.receive;
+      // receive.after: Knoepfe erst, wenn der Entwurfsschluessel true ist (Tuer erst aufklappen, alt door.js)
+      if (rc && typeof rc.after === "string" && !(ctx.draft && ctx.draft[rc.after] === true)) return { primary: null, secondary: [] };
+      if (rc && rc.accept && rc.decline) return { primary: a("accept", rc.accept[ctx.lang] || rc.accept.de, "ACCEPT"), secondary: [a("decline", rc.decline[ctx.lang] || rc.decline.de, "BACK")] };
+      return { primary: a("accept", ctx.incoming && ctx.incoming.kind === "card" ? X.acceptCard : ctx.incoming && ctx.incoming.kind === "ghost" ? X.ghostFor : X.acceptGame, "ACCEPT"), secondary: [a("decline", X.decline, "BACK")] }; }
     case "receive.live": return { primary: a("accept", X.acceptGame, "ACCEPT"), secondary: [a("decline", X.decline, "BACK")] };
     case "receive.reject": return { primary: a("to-shelf", X.toShelf, "DONE"), secondary: [] };
     default: return { primary: null, secondary: [] }; // hand, turn (das Spiel selbst ist die Handlung), wait
   }
 }
 
-function stage(node, extra = {}) { return h("div", { class: "stage", id: "stage", ...extra }, node); }
+// Seitenverhaeltnis der Buehne aus der Anzeigeliste (frame.ratio, Strang P/F); ohne Angabe 3:4 wie bisher
+function arOf(tree) { const m = tree && typeof tree.ratio === "string" && /^(\d{1,2}):(\d{1,2})$/.exec(tree.ratio); return m ? String(Number(m[1]) / Number(m[2])) : null; }
+function stage(node, extra = {}, tree = null) { const ar = arOf(tree); return h("div", { class: "stage", id: "stage", ...extra, ...(ar ? { style: { "--ar": ar } } : {}) }, node); }
 
 function radios(name, label, items, value, onPick) {
   const id = label ? "lbl-" + name : "dlg-title";
@@ -172,7 +179,7 @@ export function view(state, dispatch, env = {}) {
     body = homeR.body;
   } else if (L === "card.view") {
     const modes = modesOf(card), isStatic = card.manifest.mode === "static";
-    body = [stage(preview)];
+    body = [stage(preview, {}, tree)];
     panel.push(radios("mode", isStatic ? X.send : X.mode, modes.map((x) => ({ value: x, label: X.modes[x] })), ctx.mode, (mode) => dispatch({ type: "MODE", mode })));
     panel.push(h("p", { class: "hint", key: "mode-hint" }, X.modeHint[ctx.mode]));
     if (!isStatic && ctx.mode !== "alone" && card.manifest.players.max > 1) {
@@ -183,9 +190,9 @@ export function view(state, dispatch, env = {}) {
     if (ctx.mode === "live") panel.push(h("p", { class: "hint", key: "ip" }, X.ipHint));
     if (ctx.note) panel.push(h("p", { class: "note", role: "status", key: "note" }, X.note[ctx.note]));
   } else if (L.startsWith("card.customize")) {
-    body = [stage(preview, { class: "stage editing" }), h("p", { class: "hint center" }, X.bubblesHint)];
+    body = [stage(preview, { class: "stage editing" }, tree), h("p", { class: "hint center" }, X.bubblesHint)];
   } else if (L === "card.share") {
-    body = [stage(preview)];
+    body = [stage(preview, {}, tree)];
     panel.push(ctx.link ? linkBox(X, ctx.link, ctx, dispatch) : h("p", { class: "warn", role: "alert" }, X.linkTooLong));
   } else if (L === "card.lobby") {
     const r = ctx.raum || {};
@@ -244,7 +251,7 @@ export function view(state, dispatch, env = {}) {
   } else if (L === "receive.show") {
     const inc = ctx.incoming, c = cardOf(inc.cardId);
     if (inc.kind === "ghost") body = [h("div", { class: "notice" }, h("p", { class: "lede plain" }, X.ghostText), h("h2", { class: "t-title" }, title(c, ctx.lang)), h("p", null, fmt(X.ghostScore, { s: inc.score.join(" : ") })), h("p", { class: "hint" }, X.free))];
-    else if (inc.kind === "card") body = [h("p", { class: "lede plain" }, X.acceptTitle), stage(render(G.previewNode(c, inc.params, ctx.lang, G.viewCtx(ctx, { receive: true })), { onInput: () => {}, disabled: true, idp: "rx", lang: ctx.lang, high: env.high, images: env.images, cardSvg: env.cardSvg })), h("p", { class: "hint" }, X.free)];
+    else if (inc.kind === "card") body = [h("p", { class: "lede plain" }, X.acceptTitle), stage(render(G.previewNode(c, inc.params, ctx.lang, G.viewCtx(ctx, { receive: true })), { onInput: () => {}, onDraft: (draft) => dispatch({ type: "DRAFT", draft }), draft: ctx.draft, disabled: true, idp: "rx", lang: ctx.lang, high: env.high, images: env.images, cardSvg: env.cardSvg })), h("p", { class: "hint" }, X.free)];
     else {
       const st = S.status(c, inc.session), seat = inc.session.mine[0];
       body = [h("div", { class: "notice" },

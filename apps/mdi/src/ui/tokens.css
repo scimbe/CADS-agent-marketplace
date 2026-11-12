@@ -138,7 +138,7 @@ button, input, textarea { font: inherit; color: inherit; }
   .sticky-actions { flex: 1 0 auto; width: 100%; display: flex; flex-direction: column; gap: var(--s4); padding-bottom: calc(var(--s4) + env(safe-area-inset-bottom)); }
   /* nur Karten mit festem Rahmen (3:4) schrumpfen in den Restplatz; freie Inhalte (z. B. Bluff) behalten ihre Hoehe */
   .fit-card .col-a { flex: 1 1 0; min-height: 220px; container-type: size; }
-  .fit-card .stage { max-width: min(520px, calc((100cqh - 6px) * .75)); }
+  .fit-card .stage { max-width: min(520px, calc((100cqh - 6px) * var(--ar, .75))); }
 }
 
 /* Blasen und Dialog */
