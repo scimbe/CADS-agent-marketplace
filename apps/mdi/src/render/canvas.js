@@ -50,10 +50,10 @@ export function paint(c, node, env) {
     if (L.camera) { const z = num(L.camera.zoom, 1) || 1; c.scale(z, z); c.translate(-num(L.camera.x), -num(L.camera.y)); }
     if (typeof L.key === "string" && env.cache && env.makeCanvas) drawCached(c, L, view, env, info, fx, fit, dpr);
     else ops(c, L.ops || [], env, info, fx);
-    if (Array.isArray(L.ops2d)) info.ops += exec2d(c, L.ops2d, { ...env, budget: MAX_OPS - info.ops, unknown: info.unknown });
+    if (Array.isArray(L.ops2d)) info.ops += exec2d(c, L.ops2d, { ...env, src: node.src || env.src, budget: MAX_OPS - info.ops, unknown: info.unknown });
     c.restore();
   }
-  if (Array.isArray(node.ops2d)) info.ops += exec2d(c, node.ops2d, { ...env, src: node.src, budget: MAX_OPS - info.ops, unknown: info.unknown });
+  if (Array.isArray(node.ops2d)) info.ops += exec2d(c, node.ops2d, { ...env, src: node.src || env.src, budget: MAX_OPS - info.ops, unknown: info.unknown });
   if (flash && !env.reduced) { c.save(); c.globalAlpha = Math.max(0, Math.min(1, num(flash.alpha, 0.3))); c.fillStyle = color(c, env, flash.color, "#ffffff"); c.fillRect(0, 0, view.w, view.h); c.restore(); }
   c.restore();
   return info;

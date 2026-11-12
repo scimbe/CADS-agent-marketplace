@@ -92,7 +92,11 @@ function drafted(host, n, init) {
   const d = host.draft && typeof host.draft === "object" ? host.draft["w:" + n.id] : undefined;
   return d === undefined ? (n.value !== undefined ? n.value : init) : d;
 }
-function setDraft(host, n, v) { if (host.onDraft) host.onDraft({ ...(host.draft && typeof host.draft === "object" ? host.draft : {}), ["w:" + n.id]: v }); }
+// Patch statt ganzem Entwurf, wenn der Host ihn kann: zwei schnelle Aenderungen ueberschreiben sich nicht (Anfrage P)
+function setDraft(host, n, v) {
+  if (host.onDraftPatch) host.onDraftPatch({ ["w:" + n.id]: v });
+  else if (host.onDraft) host.onDraft({ ...(host.draft && typeof host.draft === "object" ? host.draft : {}), ["w:" + n.id]: v });
+}
 function wrap(n, host, kids, extra = {}) {
   return h("section", { class: "widget w-" + n.t + (extra.cls ? " " + extra.cls : ""), role: "group", "aria-labelledby": n.label ? (host.idp || "w") + "-" + n.id + "-l" : null, "data-part": typeof n.part === "string" ? n.part : null, key: "w-" + n.id }, ...head(n, host), ...kids);
 }
@@ -238,12 +242,17 @@ W.day = (n, host, X) => {
 };
 
 W.form = (n, host, X) => {
+  // Felder halten ihren Zwischenstand unter "~<id>", ihren fertigen Wert (onInput eines Feldes) unter "<id>"
   const fields = (n.fields || []).slice(0, 12);
-  const init = {}; for (const f of fields) { const d = f.value !== undefined ? f.value : f.def !== undefined ? f.def : f.t === "slide" ? f.min || 0 : undefined; if (d !== undefined) init[f.id] = d; }
+  const init = {}; for (const f of fields) { const d = f.value !== undefined ? f.value : f.def !== undefined ? f.def : f.t === "slide" ? f.min || 0 : undefined; if (d !== undefined) init["~" + f.id] = d; }
   const v = drafted(host, n, init);
-  const sub = (f) => ({ ...host, embedded: true, onInput: () => {}, draft: { ["w:" + f.id]: v[f.id] }, onDraft: (d) => setDraft(host, n, { ...v, [f.id]: d["w:" + f.id] }) });
-  const kids = fields.map((f) => { const node = renderWidget({ ...f, submit: null, confirm: null }, sub(f), true); return node; });
-  return wrap(n, host, [...kids, ...mainBtn(host, n, v, why(n, v, host.lang), X)]);
+  const valueOf = () => { const out = {}; for (const f of fields) { const x = f.id in v ? v[f.id] : v["~" + f.id]; if (x !== undefined) out[f.id] = typeof x === "string" ? x.trim() : x; } return out; };
+  const sub = (f) => ({ ...host, embedded: true, onDraftPatch: null, draft: { ["w:" + f.id]: v["~" + f.id] },
+    onDraft: (d) => setDraft(host, n, { ...v, ["~" + f.id]: d["w:" + f.id] }),
+    onInput: (x) => setDraft(host, n, { ...v, [f.id]: x.a }) });
+  const kids = fields.map((f) => renderWidget({ ...f, submit: {}, confirm: null }, sub(f), true));
+  const val = valueOf();
+  return wrap(n, host, [...kids, ...mainBtn(host, n, val, why(n, val, host.lang), X)]);
 };
 
 W.ideas = (n, host, X) => {
@@ -261,12 +270,12 @@ W.field = (n, host) => {
   return h("label", { class: "w-field", key: "f-" + n.key },
     h("span", { class: "w-lbl" }, txt(n.label, 80)),
     h(n.multiline ? "textarea" : "input", { class: "field", type: n.multiline ? null : "text", maxlength: String(n.max || 60), autocomplete: n.mode === "name" ? "nickname" : "off", inputmode: n.mode === "decimal" ? "decimal" : null, placeholder: n.hint ? txt(n.hint, 80) : null, value: v, disabled: host.disabled || !host.onDraft ? true : null,
-      on: { input: (e) => { const val = e.target.value; clearTimeout(timer); timer = setTimeout(() => host.onDraft({ ...(host.draft && typeof host.draft === "object" ? host.draft : {}), [n.key]: val }), 150); } } }));
+      on: { input: (e) => { const val = e.target.value; clearTimeout(timer); timer = setTimeout(() => (host.onDraftPatch ? host.onDraftPatch({ [n.key]: val }) : host.onDraft({ ...(host.draft && typeof host.draft === "object" ? host.draft : {}), [n.key]: val })), 150); } } }));
 };
 W.go = (n, host, X) => {
   const id = (host.idp || "w") + "-go-why";
   return h("div", { class: "w-gobox", key: "go" },
-    h("button", { type: "button", class: "btn primary w-go", "data-act": "go-step", disabled: n.disabled || host.disabled ? true : null, "aria-describedby": n.disabled && n.why ? id : null, on: { click: () => !n.disabled && (n.prepare && host.onPrepare ? host.onPrepare(n) : host.onInput(n.input)) } }, txt(n.label || X.next, 40)),
+    h("button", { type: "button", class: "btn primary w-go", "data-act": "go-step", disabled: n.disabled || host.disabled ? true : null, "aria-describedby": n.disabled && n.why ? id : null, on: { click: () => { if (n.disabled) return; if (n.memo !== undefined && host.onMemo) host.onMemo(n.memo); if (n.prepare && host.onPrepare) host.onPrepare(n); else host.onInput(n.input); } } }, txt(n.label || X.next, 40)),
     n.disabled && n.why ? h("p", { class: "w-why", id }, txt(n.why)) : null);
 };
 W.link = (n) => {

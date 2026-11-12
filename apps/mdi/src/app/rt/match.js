@@ -10,6 +10,23 @@ const EMPTY = Object.freeze({ b: 0 });
 export class RtError extends Error { constructor(code, detail) { super(code + (detail ? ": " + detail : "")); this.code = code; } }
 
 /** Hash des Zustands: card.hash bei f64, sonst kanonisch (Ganzzahl) bzw. Bit-Hex (f64 ohne eigenen Hash). */
+/** Spur-Format des Altcodes (spur.js) fuer Karten mit hoechstens drei Knoepfen und ohne Achsen/Zeiger: bytegleich
+ *  zu alten Golden-Spuren und etwa dreimal kompakter als das allgemeine Format. */
+export function usesSpur(card) {
+  const c = card.manifest.rt.controls;
+  return (c.buttons || []).length <= 3 && !c.axes && !c.pointer;
+}
+function parseTrace(card, bytes) {
+  const max = card.manifest.rt.ghost ? card.manifest.rt.ghost.bytes : 0;
+  if (usesSpur(card)) { const r = T.parseSpur(bytes, max); if (!r) return null; const p = T.spurPlayer(bytes); return { end: r.end === null ? Infinity : r.end, at: (t) => ({ b: p.at(t) }) }; }
+  return T.parse(bytes, max);
+}
+function makeRecorder(card) {
+  const max = card.manifest.rt.ghost.bytes;
+  if (!usesSpur(card)) return T.recorder(max);
+  const r = T.spurRecorder(max);
+  return { put: (t, x) => r.put(t, (x && x.b) || 0), end: (t) => r.end(t), bytes: () => r.bytes() };
+}
 export function hashOf(card, state) {
   if (typeof card.hash === "function") return String(card.hash(state));
   return card.manifest.rt.numeric === "f64" ? stateHashF(state) : stateHash(state);
@@ -33,11 +50,11 @@ export function createMatch(card, o) {
   if (o.roles.includes("bot") && typeof card.bot !== "function") throw new RtError("bot");
   const level = [1, 2, 3].includes(o.level) ? o.level : 2;
   let ghost = null;
-  if (o.roles.includes("ghost")) { ghost = T.parse(o.ghost, rt.ghost ? rt.ghost.bytes : 0); if (!ghost) throw new RtError("geist", "Spur ungueltig"); }
+  if (o.roles.includes("ghost")) { ghost = o.ghost instanceof Uint8Array ? parseTrace(card, o.ghost) : null; if (!ghost) throw new RtError("geist", "Spur ungueltig"); }
   const botRng = mkRng(o.seed + "|bot");
   let state = card.init({ params: o.params, seed: o.seed, players: o.roles.slice(), level, rng: mkRng(o.seed + "|init") });
   let prev = state, tick = 0, timeUp = false;
-  const rec = Number.isInteger(o.record) && o.record >= 0 && rt.ghost ? T.recorder(rt.ghost.bytes) : null;
+  const rec = Number.isInteger(o.record) && o.record >= 0 && rt.ghost ? makeRecorder(card) : null;
   const status = () => { const s = card.status(state); return timeUp && !s.over ? { ...s, over: true, timeUp: true } : s; };
   return {
     get state() { return state; }, get prev() { return prev; }, get tick() { return tick; },
@@ -68,7 +85,9 @@ export function createMatch(card, o) {
     ghostWire() {
       if (!rec) throw new RtError("geist", "keine Aufnahme");
       rec.end(tick);
-      return { c: m.id, v: m.version, p: o.params, s: o.seed, tr: T.toB64url(rec.bytes()), n: tick, sc: status().score.slice(0, 10), h: hashOf(card, state).slice(0, 16), q: o.record, lv: level };
+      // rl: Rollen der Aufnahme (der aufgenommene Sitz als "ghost"), damit die Pruefung genau so nachspielt
+      const rl = o.roles.map((r, s) => (s === o.record ? "ghost" : r === "bot" ? "bot" : "none"));
+      return { c: m.id, v: m.version, p: o.params, s: o.seed, tr: T.toB64url(rec.bytes()), n: tick, sc: status().score.slice(0, 10), h: hashOf(card, state).slice(0, 16), q: o.record, lv: level, rl };
     }
   };
 }
@@ -81,7 +100,9 @@ export function verifyGhost(card, w) {
   const n = card.manifest.players.max, q = Number.isInteger(w.q) ? w.q : 0;
   const bytes = T.fromB64url(w.tr);
   if (!bytes) return { ok: false, reason: "geist" };
-  const roles = []; for (let s = 0; s < n; s++) roles.push(s === q ? "ghost" : typeof card.bot === "function" ? "bot" : "none");
+  let roles;
+  if (Array.isArray(w.rl)) { if (w.rl.length !== n || w.rl[q] !== "ghost" || w.rl.some((r, s) => s !== q && !["bot", "none"].includes(r))) return { ok: false, reason: "geist" }; roles = w.rl.slice(); }
+  else { roles = []; for (let s = 0; s < n; s++) roles.push(s === q ? "ghost" : typeof card.bot === "function" ? "bot" : "none"); }
   let mt;
   try { mt = createMatch(card, { params: w.p, seed: w.s, roles, level: w.lv, ghost: bytes }); } catch (e) { return { ok: false, reason: e.code || "geist" }; }
   for (let i = 0; i < w.n && !mt.status().over; i++) mt.step();

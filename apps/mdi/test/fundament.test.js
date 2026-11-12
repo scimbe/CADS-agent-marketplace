@@ -118,13 +118,13 @@ test("v0.2 toWire: Snapshot-Karten verdichten ihr Log ueber compact", () => {
 });
 
 test("v0.2 modes/play: manifest.modes und Varianten schneiden, play.default liegt in offer", () => {
-  assert.deepEqual(deriveModes(fx), ["alone", "bot", "link"], "3 Sitze: Bot ja, Live nein (Gruppen-Live Stufe 2)");
+  assert.deepEqual(deriveModes(fx), ["alone", "bot", "link", "live"], "3 Sitze: Bot und Gruppen-Live");
   assert.deepEqual(deriveModes(fx, "fx-zug-kurz"), ["alone"]);
   assert.deepEqual(playOf(fx), { default: "alone", offer: ["alone", "bot", "link"] });
   const p = { manifest: { ...fx.manifest, play: { default: "link", offer: ["link", "live"] } } };
-  assert.deepEqual(playOf(p), { default: "link", offer: ["link"] });
+  assert.deepEqual(playOf(p), { default: "link", offer: ["link", "live"] });
   const rt = { manifest: { mode: "realtime", players: { min: 1, max: 2 }, rt: { net: "split", ghost: { bytes: 100 } } }, bot() {} };
-  assert.deepEqual(deriveModes(rt), ["alone", "bot", "live", "ghost"]);
+  assert.deepEqual(deriveModes(rt), ["alone", "bot", "live"], "Geist ist kein waehlbarer Modus");
   assert.deepEqual(deriveModes({ ...rt, bot: undefined, manifest: { ...rt.manifest, rt: { net: "none" } } }), ["alone"]);
 });
 
@@ -138,7 +138,7 @@ test("v0.2 Abdecken vor dem ersten Zug (alone) und Kontext fuer view (today, age
   assert.ok(machine.matches(s, "inhalt.card.play.turn"));
   assert.equal(s.ctx.coveredFor, 0);
   s = machine.send(s, { type: "DRAFT", draft: { x: 1 }, rand: R() });
-  assert.deepEqual(G.viewCtx({ ...s.ctx, today: 20400 }), { lang: "de", today: 20400, draft: { x: 1 }, age18: false, nick: s.ctx.me ? s.ctx.me.nick || "" : "" });
+  assert.deepEqual(G.viewCtx({ ...s.ctx, today: 20400 }), { lang: "de", today: 20400, draft: { x: 1 }, memo: null, age18: false, nick: s.ctx.me ? s.ctx.me.nick || "" : "" });
   assert.equal(G.todayOf(Date.UTC(2026, 10, 12, 23, 59)), 20769);
 });
 
@@ -202,4 +202,11 @@ test("Konto pack: lokale Wand und gemerkte Karten haben Vorrang (Wand-Sync, Stra
   assert.deepEqual(pack(me, { wall: [1], saved: ["x"] }).wall, [1]);
   assert.deepEqual(pack(me, { wall: [1], saved: ["x"] }, { wall: [2] }).wall, [2]);
   assert.deepEqual(pack(me, { wall: [1], saved: ["x"] }, { saved: [] }).saved, []);
+});
+
+test("viewCtx.age18 kommt nur vom Server (Konto-Profil oder Status), nie vom Geraete-Code", () => {
+  assert.equal(G.viewCtx({ lang: "de", profil: { via: "account", age18: true } }).age18, true);
+  assert.equal(G.viewCtx({ lang: "de", profil: { via: "code", age18: true } }).age18, false);
+  assert.equal(G.viewCtx({ lang: "de", konto: { st: { karte: { age18: true } } } }).age18, true);
+  assert.equal(G.viewCtx({ lang: "de", me: { age18: true } }).age18, false);
 });

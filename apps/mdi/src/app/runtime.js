@@ -5,6 +5,7 @@ import { FEATURES } from "./features.js";
 import { chooseMove, LEVELS } from "../bot/ismcts.js";
 import * as S from "../contract/session.js";
 import { createRtSession } from "./rt/session.js";
+import * as G from "./game.js";
 import { fromB64url } from "../contract/trace.js";
 import { cardOf } from "../cards/index.js";
 import { createBotAgent } from "../bot/agent.js";
@@ -39,6 +40,7 @@ export function createRuntime(deps) {
   let state = machine.initial(initialContext(deps.lang, saved));
   if (!state.ctx.device) state = { ...state, ctx: { ...state.ctx, device: deps.entropy() } };
   let bot = null, live = null, liveGen = 0, rtSess = null, rtGen = 0;
+  const lives = new Map(); // Gruppe: Gastsitz -> Kanal
   const rand = () => [deps.entropy(), deps.entropy(), deps.entropy(), deps.entropy()];
   const api = deps.api || null;
   // Netzaufrufe enden immer als Ereignis (die API wirft nicht); ein Programmfehler dahinter wird laut, nicht verschluckt
@@ -59,45 +61,57 @@ export function createRuntime(deps) {
   }
 
   /** Nachricht vom Partner (Bot oder Live): erst Schema, dann Ereignis. */
-  function fromPeer(msg) {
+  // from = Sitz des Gastes, von dem die Nachricht kommt (nur beim Gastgeber einer Gruppe), sonst undefined
+  function fromPeer(msg, from) {
     if (V.liveMsg(msg) !== true) { dispatch({ type: "FAIL", reason: "schema" }); return; }
     if (RT_MSG.has(msg.t)) { if (rtSess) rtSess.receive(msg); return; }
-    dispatch({ type: EVENT_OF[msg.t], msg });
+    dispatch({ type: EVENT_OF[msg.t], msg, from });
   }
 
-  function liveCallbacks(gen) {
+  // Ein Kanal je Gast (Gruppe, ADR 0001 f): seat = Gastsitz beim Gastgeber, undefined zu zweit und beim Gast
+  function liveCallbacks(gen, seat) {
     const ok = () => gen === liveGen;
     return {
-      onToken: (token) => ok() && dispatch({ type: "LIVE_TOKEN", token }),
-      onStep: (step) => ok() && dispatch({ type: "LIVE_STEP", step }),
-      onUp: () => ok() && dispatch({ type: "LIVE_UP" }),
-      onDown: () => ok() && dispatch({ type: "LIVE_DOWN" }),
-      onFail: (reason) => ok() && dispatch({ type: "LIVE_FAIL", reason }),
-      onMessage: (m) => ok() && fromPeer(m)
+      onToken: (token) => ok() && dispatch({ type: "LIVE_TOKEN", token, seat }),
+      onStep: (step) => ok() && dispatch({ type: "LIVE_STEP", step, seat }),
+      onUp: () => ok() && dispatch({ type: "LIVE_UP", seat }),
+      onDown: () => ok() && dispatch({ type: "LIVE_DOWN", seat }),
+      onFail: (reason) => ok() && dispatch({ type: "LIVE_FAIL", reason, seat }),
+      onMessage: (m) => ok() && fromPeer(m, seat)
     };
+  }
+  function sendPeer(fx) {
+    if (live) { live.send(fx.msg); return; }
+    for (const [seat, ch] of lives) if ((fx.to === undefined || fx.to === seat) && fx.except !== seat) ch.send(fx.msg);
   }
 
   function run(fx) {
     switch (fx.type) {
       case "peer":
         if (state.ctx.mode === "bot") { const m = fx.msg; schedule(() => bot && bot.receive(m)); }
-        else if (live) live.send(fx.msg);
+        else sendPeer(fx);
         break;
       case "bot.new":
-        bot = createBotAgent(cardOf(state.ctx.cardId), { seat: fx.seat, level: fx.level, entropy: deps.entropy, send: (m) => schedule(() => fromPeer(m)) });
+        bot = createBotAgent(cardOf(state.ctx.cardId), { seat: fx.seat, level: fx.level, today: fx.today, entropy: deps.entropy, send: (m) => schedule(() => fromPeer(m)) });
         break;
       case "live.invite": case "live.accept": {
         const gen = ++liveGen;
         deps.live().then((L) => {
           if (gen !== liveGen) return;
-          live = fx.type === "live.invite" ? L.invite(liveCallbacks(gen)) : L.accept(fx.token, liveCallbacks(gen));
+          if (fx.type === "live.accept") live = L.accept(fx.token, liveCallbacks(gen));
+          else if (Array.isArray(fx.seats) && fx.seats.length > 1) for (const seat of fx.seats) lives.set(seat, L.invite(liveCallbacks(gen, seat)));
+          else live = L.invite(liveCallbacks(gen));
         }).catch(() => gen === liveGen && dispatch({ type: "LIVE_FAIL", reason: "verbindung" }));
         break;
       }
       case "live.close":
         liveGen++; if (live) { try { live.close(); } catch (e) { /* schon zu */ } } live = null;
+        for (const ch of lives.values()) { try { ch.close(); } catch (e) { /* schon zu */ } }
+        lives.clear();
         break;
-      case "store": deps.storage.saveGame(fx.entry); break;
+      // Eintraege behalten den Merkzettel der Partie (Z1), wenn ein neuer Stand gespeichert wird
+      case "store": { let old = null; try { old = deps.storage.loadGame(fx.entry.g); } catch (e) { old = null; } deps.storage.saveGame(old && old.memo && fx.entry.memo === undefined ? { ...fx.entry, memo: old.memo } : fx.entry); break; }
+      case "store.memo": { let old = null; try { old = deps.storage.loadGame(fx.g); } catch (e) { old = null; } if (old) deps.storage.saveGame({ ...old, memo: fx.memo }); else { const e = G.gameEntry(state.ctx.session, fx.g); deps.storage.saveGame({ ...e, memo: fx.memo }); } break; }
       // "shared" = Systemblatt abgeschlossen -> gesendet; "copied" = nur in der Zwischenablage; sonst Hinweis + Feld
       case "share": deps.share(fx.fragment).then((r) => dispatch({ type: r === "shared" ? "SENT" : r === "copied" ? "COPIED" : "SHARE_FAIL" })); break;
       case "copy": (deps.copy || (() => Promise.resolve(false)))(fx.fragment).then((ok) => dispatch({ type: ok ? "COPIED" : "COPY_FAIL" })); break;
@@ -148,7 +162,7 @@ export function createRuntime(deps) {
         try {
           rtSess = createRtSession(c, { mode: fx.mode, seat: fx.seat, params: fx.params, seed: fx.seed, level: fx.level, ghost, serving: fx.serving, lang: state.ctx.lang, reduced: R.reduced ? R.reduced() : false }, {
             now: R.now, frame: R.frame, cancel: R.cancel,
-            send: (m) => { if (live) live.send(m); },
+            send: (m) => sendPeer({ msg: m }),
             draw: (node, info) => R.draw(node, info),
             onEvents: (ev) => { if (R.sound) R.sound(ev, c.manifest.rt.sounds || {}); },
             onChange: (info) => {

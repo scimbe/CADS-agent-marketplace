@@ -5,8 +5,8 @@ import { defaults } from "../contract/fields.js";
 import * as S from "../contract/session.js";
 import * as H from "../contract/handshake.js";
 import { decode } from "./link.js";
-import { stateHash } from "../contract/sdk.js";
-import { verifyGhost } from "./rt/match.js";
+import { stateHash, rng as rngOf } from "../contract/sdk.js";
+import { verifyGhost, createMatch } from "./rt/match.js";
 
 // ---------- Geraeteeintrag je Link-Partie (Review H1/M1) ----------
 // Jeder Sitz merkt sich den Stand, den er zuletzt kannte oder verschickt hat: Basis (Karte, Version, Parameter, Seed),
@@ -30,8 +30,11 @@ export function checkInput(cardId, x) {
 }
 /** Kontext fuer view(obs, seat, ctx) – eine Quelle fuer Host-Ansichten (ADR 0001 f, Anfrage Z1). */
 export function viewCtx(ctx, extra = {}) {
-  const me = ctx.me || {}, konto = ctx.konto || {};
-  return { lang: ctx.lang, today: Number.isInteger(ctx.today) ? ctx.today : null, draft: ctx.draft === undefined ? null : ctx.draft, age18: konto.age18 === true || me.age18 === true, nick: typeof me.nick === "string" ? me.nick : "", ...extra };
+  const me = ctx.me || {}, konto = ctx.konto || {}, profil = ctx.profil || {};
+  // 18+ ist bestaetigt, wenn das Konto-Profil es traegt (nur ueber das Konto, nie ueber den Geraete-Code) oder der
+  // Server-Status es meldet (P1: konto-chart.js, api.js status karte.age18) – Quelle ist immer der Server (Z1)
+  const age18 = (profil.via === "account" && profil.age18 === true) || !!(konto.st && konto.st.karte && konto.st.karte.age18 === true);
+  return { lang: ctx.lang, today: Number.isInteger(ctx.today) ? ctx.today : null, draft: ctx.draft === undefined ? null : ctx.draft, memo: ctx.memo || null, age18, nick: typeof me.nick === "string" ? me.nick : "", ...extra };
 }
 export function continues(stored, w) {
   if (!stored || typeof stored.lh !== "string" || !Array.isArray(stored.k)) return "manipuliert";
@@ -80,8 +83,9 @@ export function startBotsLocal(ctx, rand) {
   return r.ctx;
 }
 /** Zug eines lokalen Bots (Eingabe kommt aus der Laufzeit); danach Pflichtzuege. */
-export function applyBotLocal(ctx, input) {
+export function applyBotLocal(ctx, input, today = ctx.today) {
   if (!ctx.botSeats || !ctx.botSeats.includes(input.seat)) throw new S.GameError("zug-ungueltig", "kein Bot-Sitz");
+  if (card(ctx).manifest.inputDay && input.t !== "reveal") { if (!Number.isInteger(today)) throw new S.GameError("eingabe", "Tag fehlt"); input = { ...input, d: today }; }
   checkInput(ctx.cardId, input);
   return applyDue({ ...ctx, session: S.apply(card(ctx), ctx.session, input) }).ctx;
 }
@@ -94,6 +98,17 @@ export function botTurn(ctx) {
 export function helloFor(ctx, rand) {
   const c = card(ctx), r = H.hello(c, paramsOf(ctx), ctx.seat, rand);
   return { ctx: { ...ctx, hs: r.local, session: null, error: null, viewer: ctx.seat }, msg: r.msg };
+}
+export function helloGroupFor(ctx, rand) {
+  const r = H.helloGroup(card(ctx), paramsOf(ctx), ctx.seat, rand);
+  return { ctx: { ...ctx, hs: r.local, session: null, error: null, viewer: ctx.seat, groupHost: true }, msgs: r.msgs };
+}
+/** join eines Gastes; sind alle da: Partie, start fuer alle und Pflichtzuege. */
+export function joinGroupFor(ctx, from, jn) {
+  const r = H.joinGroup(card(ctx), paramsOf(ctx), ctx.hs, from, jn);
+  if (!r.done) return { ctx: { ...ctx, hs: r.local }, msg: null, out: [] };
+  const due = applyDue({ ...ctx, session: r.session, hs: null, draft: null });
+  return { ctx: due.ctx, msg: r.msg, out: due.out };
 }
 export function joinFor(ctx, hi, rand) {
   const c = cardOf(hi.c);
@@ -165,7 +180,8 @@ export function receive(hash, stored, rand) {
     return { ok: true, kind: "ghost", cardId: d.data.c, params: d.data.p, wire: d.data, seat: v.seat, score: v.score };
   }
   if (d.type === "card") {
-    if (c.manifest.mode !== "static") return { ok: false, reason: "typ" };
+    // Karten-Link = Parameter einer Karte: statische Karten und Echtzeitkarten (gebautes Level, Variante, freie Karte)
+    if (c.manifest.mode === "turn") return { ok: false, reason: "typ" };
     return { ok: true, kind: "card", cardId: d.data.c, params: d.data.p };
   }
   if (c.manifest.mode === "static") return { ok: false, reason: "typ" };
@@ -232,4 +248,21 @@ export function phase(ctx) {
   if (ctx.botSeats && ctx.botSeats.includes(st.turn)) return "wait";
   if (mine.includes(st.turn)) return "turn";
   return "wait";
+}
+
+/** Vorschau-Anzeigeliste einer Karte (Regal, Ansicht, Empfang): Zug-/statische Karten ueber observe, Echtzeitkarten
+ *  ueber init/view im Startzustand (Bot gegen Bot, reduzierte Bewegung) – dieselbe Darstellung wie die Thumbnails. */
+export function previewNode(c, params, lang, extra = {}) {
+  const m = c.manifest;
+  if (typeof c.stamp === "function" && !extra.receive) params = c.stamp(params, { today: extra.today, nick: extra.nick || "" });
+  if (m.mode === "realtime") {
+    // ADR 0001 d: Bot gegen Bot (ohne bot(): none), Seed "preview", rt.preview.ticks (Standard 90) – wie die Thumbnails
+    const bot = typeof c.bot === "function", roles = []; for (let s = 0; s < m.players.max; s++) roles.push(bot ? "bot" : "none");
+    const mt = createMatch(c, { params, seed: "preview", roles, level: 2 });
+    const n = m.rt.preview && Number.isInteger(m.rt.preview.ticks) ? m.rt.preview.ticks : 90;
+    for (let i = 0; i < n && !mt.status().over; i++) mt.step({});
+    return mt.view({ seat: 0, alpha: 0, reduced: true, lang, t: 0, preview: true, ...extra });
+  }
+  const st = c.init({ rng: rngOf("preview"), params, players: m.players.max });
+  return c.view(c.observe(st, 0), 0, { lang, preview: true, ...extra });
 }

@@ -11,7 +11,7 @@
   "uses": [],
   "inputDay": true,
   "link": { "snap": true },
-  "modes": ["alone", "bot", "link"],
+  "modes": ["alone", "bot", "link", "live"],
   "limits": { "stepBudget": 64, "stateBytes": 8192 },
   "inputs": {
     "type": "object",

@@ -1,5 +1,5 @@
 /* Widget- und Buehnen-Stile (ADR 0001 b/c, Strang F). Nur Token-Variablen aus ui/tokens.css; Groessen in rem. */
-.widget { display: grid; gap: var(--s3); padding: var(--s4); border: 2px solid var(--text); border-radius: var(--r2); background: var(--surface); color: var(--text); }
+.widget { box-sizing: border-box; max-width: 100%; min-width: 0; display: grid; gap: var(--s3); padding: var(--s4); border: 2px solid var(--text); border-radius: var(--r2); background: var(--surface); color: var(--text); }
 .widget.big { gap: var(--s2); }
 .w-label { margin: 0; font-weight: 700; font-size: 1.15rem; }
 .w-top, .w-peek { margin: 0; font-size: 1.05rem; }
@@ -19,7 +19,7 @@
 .btn.primary.w-go { min-height: 3.5rem; width: 100%; }
 .btn.big { min-height: 4.25rem; font-size: 1.3rem; }
 .w-slide { display: grid; grid-template-columns: auto 1fr auto auto; gap: var(--s2); align-items: center; }
-.w-slide input[type=range] { width: 100%; min-height: 2.75rem; }
+.w-slide input[type=range] { width: 100%; min-width: 2.75rem; min-height: 2.75rem; height: 2.75rem; margin: 0; }
 .w-list, .w-alloc, .w-items { display: grid; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
 .w-alloc li, .w-items li { display: grid; grid-template-columns: 1fr auto auto auto; gap: var(--s2); align-items: center; }
 .w-items li small { grid-column: 1 / -1; color: var(--muted); }
@@ -41,7 +41,7 @@
 .w-draw svg { width: 100%; height: 100%; }
 .w-cross { position: absolute; transform: translate(-50%, -50%); font-size: 2rem; pointer-events: none; }
 .swatch { width: 2.75rem; }
-.w-door { width: 100%; aspect-ratio: 16 / 9; border: 4px solid var(--edge); border-radius: var(--r2); background: var(--red); color: var(--paper); display: grid; place-items: center; font: inherit; cursor: pointer; }
+.w-door { width: 100%; aspect-ratio: 16 / 9; border: 4px solid var(--edge); border-radius: var(--r2); background: var(--red); color: var(--ink); display: grid; place-items: center; font: inherit; cursor: pointer; }
 .w-door-nr { font: 400 clamp(3rem, 18vw, 6rem)/1 var(--font-head); }
 .w-door-hint { font-weight: 700; }
 .bwslip { padding: var(--s3); border: 2px dashed var(--edge); border-radius: var(--r1); font-weight: 700; }
@@ -53,7 +53,7 @@
 .pcard.st-no { opacity: .5; }
 .w-canvas { display: block; width: 100%; height: auto; border-radius: var(--r1); }
 .rt-stage { display: grid; gap: var(--s2); }
-.rt-stage { background: #0E0D0B; color: #FFF6DC; padding: var(--s2); border-radius: var(--r2); }
+.rt-stage { box-sizing: border-box; max-width: 100%; background: #0E0D0B; color: #FFF6DC; padding: var(--s2); border-radius: var(--r2); }
 .rt-canvas { display: block; width: 100%; max-height: calc(100dvh - 14rem); margin: 0 auto; border-radius: var(--r1); background: #0E0D0B; touch-action: none; }
 .rt-say { margin: 0; min-height: 1.5em; font-weight: 700; text-align: center; color: #FFF6DC; }
 .rt-controls { display: flex; flex-wrap: wrap; gap: var(--s2); justify-content: center; }
