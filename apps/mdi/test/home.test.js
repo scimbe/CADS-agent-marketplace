@@ -180,3 +180,19 @@ test("Story-Bild: Adresse passt in den QR-Code, auch der lange Link", () => {
   assert.ok(qrMatrix("https://bunsenbrenner.org/s/Ab3dEf7h").length <= 33);
   assert.ok(qrMatrix("https://bunsenbrenner.org/duell#v2.card." + "A".repeat(1100)).length <= 177);
 });
+
+import { effects as homeEffects, proofFor } from "../src/ui/home/effects.js";
+test("Kurzlink ohne Anmeldung: Geraete-Kennung + Arbeitsnachweis (16 Bit) gehen mit (wrapper #136); ohne Nachweis kein Raten", async () => {
+  const device = "0123456789abcdef0123456789abcdef", calls = [];
+  const api = { shortCreate: async (...a) => { calls.push(a); return { ok: false, error: "form" }; } };
+  const done = new Promise((res) => homeEffects["short.create"]({ f: "v2.card.abc", lang: "de" }, { dispatch: res, api, deps: { home: { subtle: globalThis.crypto.subtle } }, state: () => ({ ctx: { device } }) }));
+  const ev = await done;
+  assert.equal(ev.type, "SHORT_DONE");
+  const [f, k, l, dev, proof] = calls[0];
+  assert.deepEqual([f, k, l, dev], ["v2.card.abc", "card", "de", device]);
+  const h = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(device + ":" + proof)));
+  assert.ok(h[0] === 0 && h[1] === 0, "16 fuehrende Nullbits");
+  assert.equal(await proofFor(device, globalThis.crypto.subtle), proof, "einmal je Geraet");
+  assert.equal(await proofFor("kein-geraet", globalThis.crypto.subtle), null);
+  assert.equal(await proofFor(device, null), null, "ohne WebCrypto kein Nachweis");
+});

@@ -7,6 +7,17 @@ import { familyOf, family, catalogIdOf } from "./families.js";
 import { byId } from "./rotation.js";
 import { manifestOf } from "../../cards/index.js";
 import { homeTexts } from "./texts.js";
+import { solve, PROOF_BITS } from "../../broker/ai.js";
+
+// Ein Nachweis je Geraete-Kennung (derselbe, den die KI rechnet; der Server prueft sha256("<device>:<proof>") mit 16 Nullbits)
+let proofCache = null;
+export async function proofFor(device, subtle) {
+  if (typeof device !== "string" || !/^[0-9a-f]{32}$/.test(device) || !subtle) return null;
+  if (proofCache && proofCache.d === device) return proofCache.p;
+  const p = await solve(device, PROOF_BITS, subtle);
+  proofCache = { d: device, p };
+  return p;
+}
 
 const TICK_MS = 60000;
 
@@ -30,9 +41,13 @@ export const effects = {
   },
   "home.later": (fx, { dispatch, deps }) => { const env = envOf(deps); if (env.setTimeout) env.setTimeout(() => dispatch({ type: "HOME_TICK" }), fx.ms + 50); },
   "home.save": (fx, { deps }) => { const st = deps && deps.storage; if (st && st.saveHome) st.saveHome(fx.data); },
-  "short.create": (fx, { dispatch, api }) => {
+  "short.create": (fx, { dispatch, api, deps, state }) => {
     if (!api || !api.shortCreate || !SL.fragmentOf("#" + fx.f)) { dispatch({ type: "SHORT_DONE", f: fx.f, r: { ok: false, error: "nicht-hier" } }); return; }
-    api.shortCreate(fx.f, SL.kindOf(fx.f), fx.lang === "en" ? "en" : "de").then((r) => dispatch({ type: "SHORT_DONE", f: fx.f, r }));
+    const env = envOf(deps), device = state().ctx.device;
+    // Arbeitsnachweis wie fuer die KI (broker/ai.js solve, 16 Bit), einmal je Geraet; ohne WebCrypto keiner -> Server sagt nein -> langer Link
+    const proofP = proofFor(device, env.subtle);
+    proofP.then((proof) => api.shortCreate(fx.f, SL.kindOf(fx.f), fx.lang === "en" ? "en" : "de", device, proof))
+      .then((r) => dispatch({ type: "SHORT_DONE", f: fx.f, r }));
   },
   "short.delete": (fx, { dispatch, api }) => {
     (api && api.shortDelete ? api.shortDelete(fx.s.id, fx.s.token) : Promise.resolve({ ok: false })).then((r) => dispatch({ type: "SHORT_DELETED", f: fx.f, ok: r.ok === true }));
