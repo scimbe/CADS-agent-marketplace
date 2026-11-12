@@ -219,7 +219,7 @@ export const freiState = {
 
 /** Ereignisse im Regal (H haengt sie an seinen Regalzustand) */
 export const FREI_SHELF = {
-  FREI: { target: T("inhalt.frei.start"), actions: ["clearForm"] },
+  FREI: { target: T("inhalt.frei.start"), actions: ["clearForm", "takeBack"] },
   DECK_OPEN: { target: T("inhalt.frei.deckkarte"), cond: "deckCardOk", actions: ["openDeckCard"] },
   DECK: { target: T("inhalt.frei.deck") },
   MINE: { target: T("inhalt.frei.meine") }
@@ -312,6 +312,8 @@ function askFx(ctx, emit, input, robot) {
 
 export const freiActions = {
   clearForm: (ctx) => F(ctx, { ...freshForm }),
+  // Stand vom Anmelde-Gate (frei.back, siehe freiContext) einmal ins Formular; danach verbraucht. SEND prueft wie immer (Krise)
+  takeBack: (ctx) => (ctx.frei.back ? F(ctx, { text: ctx.frei.back.text, art: ctx.frei.back.art, genre: ctx.frei.back.genre, back: null }) : ctx),
   freiRefresh: (ctx, ev, emit) => { emit({ type: "konto.status" }); return ctx; },
   setArt: (ctx, ev) => (ARTS.includes(ev.art) ? F(ctx, { art: ev.art, genre: ev.art === "game" ? ctx.frei.genre : "", mode: ev.art === "game" ? ctx.frei.mode : "", res: null, soon: null }) : ctx),
   setGenre: (ctx, ev) => (GENRES.includes(ev.genre) && ctx.frei.art === "game" ? F(ctx, { genre: ev.genre, mode: "", res: null, soon: null }) : ctx),
@@ -429,14 +431,14 @@ export const freiActions = {
 export const BACK_MS = 15 * 60 * 1000;
 function backOf(st, now) {
   const b = st && st.back && typeof st.back === "object" ? st.back : null;
-  if (!b || !Number.isFinite(b.at) || !Number.isFinite(now) || now - b.at < 0 || now - b.at > BACK_MS) return {};
+  if (!b || !Number.isFinite(b.at) || !Number.isFinite(now) || now - b.at < 0 || now - b.at > BACK_MS) return null;
   return { text: [...String(b.text || "")].slice(0, 200).join(""), art: ARTS.includes(b.art) ? b.art : "", genre: GENRES.includes(b.genre) ? b.genre : "" };
 }
 export function freiContext(saved) {
   const st = saved && saved.feat && saved.feat.frei && typeof saved.feat.frei === "object" ? saved.feat.frei : null;
   const l = st && st.last && typeof st.last === "object" ? st.last : {};
   return {
-    frei: { ...freshForm, ...backOf(st, saved && saved.now), last: { art: ARTS.includes(l.art) ? l.art : "", genre: GENRES.includes(l.genre) ? l.genre : "" }, req: 0, phase: null, place: 0, missing: null, taken: null, gate: null, share: null,
+    frei: { ...freshForm, back: backOf(st, saved && saved.now), last: { art: ARTS.includes(l.art) ? l.art : "", genre: GENRES.includes(l.genre) ? l.genre : "" }, req: 0, phase: null, place: 0, missing: null, taken: null, gate: null, share: null,
       deck: { load: null, cards: [], v: -1 }, card: null, use: null, vote: null, acted: false, mine: null,
       report: { reason: null, sending: false, sent: null, back: null, doc: null },
       bild: { use: "card", style: "comic", text: "", st: null, err: null, req: 0, phase: null, place: 0, res: null, kept: false },

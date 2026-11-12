@@ -24,10 +24,14 @@ test("Satz und Art der freien Karte ueberleben das Anmelde-Gate; nach BACK_MS ni
   assert.equal(JSON.parse(store.get("frei")).back.text, "Gedicht fuer Oma zum 80.", "vor dem Gate gesichert");
   // Rueckkehr (?go=erschaffen startet die App neu und sendet FREI)
   const b = boot(store, t0 + 5 * 60 * 1000);
-  assert.equal(b.rt.state.ctx.frei.text, "Gedicht fuer Oma zum 80.");
+  b.rt.dispatch({ type: "FREI" }); await new Promise((r) => setTimeout(r, 10));   // main.js: ?go=erschaffen -> FREI
+  assert.ok(b.rt.matches("inhalt.frei.start"));
+  assert.equal(b.rt.state.ctx.frei.text, "Gedicht fuer Oma zum 80.", "nach FREI noch da (clearForm loescht ihn nicht)");
+  b.rt.dispatch({ type: "BACK" }); b.rt.dispatch({ type: "FREI" }); await new Promise((r) => setTimeout(r, 10));
+  assert.equal(b.rt.state.ctx.frei.text, "", "einmal verbraucht");
   // spaeter (abgelaufen): kein alter Satz im Feld
   const c = boot(store, t0 + BACK_MS + 1);
-  assert.equal(c.rt.state.ctx.frei.text, "");
+  assert.equal(c.rt.state.ctx.frei.back, null);
   // Uhr rueckwaerts: auch nichts
-  assert.equal(boot(store, t0 - 1).rt.state.ctx.frei.text, "");
+  assert.equal(boot(store, t0 - 1).rt.state.ctx.frei.back, null);
 });
