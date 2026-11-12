@@ -66,7 +66,7 @@ export async function timedStep(p, mem) {
   }
   if (await has(w("tuer"))) {
     if (await clickIf(btn(p, "✅ Rein").or(btn(p, "Rein")))) { await clickIf(btn(p, "Raus")); await tick(p, 61000); }
-    return go(p) || true;
+    await go(p); return true;
   }
   if (await has(w("freeze"))) {
     const n = mem.freeze || 0;
@@ -79,7 +79,7 @@ export async function timedStep(p, mem) {
   }
   if (await has(w("once"))) {
     if (await clickIf(w("once").getByRole("button", { name: /abspielen/i }))) { for (let i = 0; i < 60 && !(await has(p.locator("main .w-go:not([disabled])"))); i++) await tick(p, 500); }
-    return go(p) || true;
+    await go(p); return true;
   }
   if (await has(w("parrot"))) {
     const rec = w("parrot").getByRole("button", { name: /Aufnehmen/ });
