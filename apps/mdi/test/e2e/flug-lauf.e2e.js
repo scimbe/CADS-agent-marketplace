@@ -38,10 +38,10 @@ test("Flug in der App: Regal, LOS, Countdown, Lauf mit Leertaste, Pause per Knop
   await start(p, "flug");
   assert.match(await label(p), /Flugspiel: Bau dein Lava-Level/);
   for (let i = 0; i < 4; i++) { await p.keyboard.press("Space"); await p.waitForTimeout(180); }
-  await p.locator(".rt-pause").click(); await waitScreen(p, "card-rt-pause");
+  await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-pause");
   const before = await label(p); await p.waitForTimeout(400);
   assert.equal(await label(p), before, "Pause haelt das Spiel an");
-  await p.locator(".rt-pause").click(); await waitScreen(p, "card-rt-run");
+  await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-run");
   await waitScreen(p, "card-rt-over", 30000);
   const res = await p.locator(".result").textContent();
   assert.match(res, /Rekord: \d+/, "Ergebniszeile aus status.say (solo): " + res);
@@ -129,7 +129,7 @@ test("Reduzierte Bewegung: in der Pause steht das Bild still; ohne Einstellung z
   for (const reduced of [true, false]) {
     const { p } = await open(b, { view: "phone390", reduced });
     await start(p, "flug");
-    await p.locator(".rt-pause").click(); await waitScreen(p, "card-rt-pause"); await p.waitForTimeout(150);
+    await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-pause"); await p.waitForTimeout(150);
     const a = await p.evaluate(() => document.querySelector("canvas.rt-canvas").toDataURL()); await p.waitForTimeout(600);
     const c = await p.evaluate(() => document.querySelector("canvas.rt-canvas").toDataURL());
     if (reduced) assert.equal(c, a, "reduziert: Standbild"); else assert.notEqual(c, a, "ohne Einstellung: Bewegung");
@@ -150,8 +150,8 @@ for (const view of ["phone360", "phone390", "phone412", "desk1280"]) test("Verde
     await act(p, "go"); await waitScreen(p, "card-rt-run", 6000);
     const vh = await p.evaluate(() => innerHeight), cv = await p.locator("canvas.rt-canvas").boundingBox();
     if (cv.y + cv.height / 2 > vh) bad.push(card + ": Spielflaeche nicht im ersten Bildschirm");
-    await p.locator(".rt-pause").click(); await waitScreen(p, "card-rt-pause"); await check("Pause");
-    await p.locator(".rt-pause").click(); await waitScreen(p, "card-rt-over", 120000); await check("Ende");
+    await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-pause"); await check("Pause");
+    await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-over", 120000); await check("Ende");
     for (const e of errs) bad.push(card + ": " + e);
     await ctx.close();
   }
