@@ -388,7 +388,9 @@ textarea.input { resize: vertical; }
 
 /* Gate C: beschriftete Kopfknoepfe (Mein Regal, Mein Stil), gross hervorgehobene "Eigene Karte" mit Satzfeld */
 .h-headbtn { min-width: var(--tap); min-height: var(--tap); display: inline-grid; justify-items: center; align-content: center; gap: 1px; padding: 2px 4px; border: 0; background: transparent; color: var(--ink); font: 700 .8125rem/1.05 var(--font-body); cursor: pointer; border-radius: 12px; }
-.h-aa { font: 400 1.1rem/1 var(--font-head); } .h-aa span { font-size: 1.4rem; }
+.h-headbtn-i.h-aa { display: flex; align-items: baseline; justify-content: center; font: 400 1.1rem/1 var(--font-head); } .h-aa span { font-size: 1.4rem; }
+/* ohne Zurueck-Knopf keine leere Spalte links: der Name bekommt den Platz (Board Start, Start 360) */
+.bar-noback { grid-template-columns: 0 1fr auto; } .bar-noback > .icon-gap { width: 0; } .bar-noback .bar-end { gap: 0; }
 .h-ico-s { width: 24px; height: 24px; }
 .h-headbtn-i { position: relative; display: grid; place-items: center; width: 30px; height: 26px; font-size: 1.25rem; line-height: 1; }
 .h-headbtn .h-ico { width: 26px; height: 26px; fill: var(--ink); }

@@ -181,7 +181,7 @@ export function view(state, dispatch, env = {}) {
   const heading = homeR ? homeR.heading || X.app : freiR ? freiR.heading : L === "stil.start" ? X.stil : L === "stil.daten" ? X.k.data : L === "stil.widerspruch" ? X.k.appealTitle : card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang, G.paramsOf(ctx)) : X.app;
   const btn = (act, cls) => h("button", { type: "button", class: "btn " + cls, key: act.id, "data-act": act.id, on: { click: () => dispatch(act.ev) } }, act.label);
 
-  const head = h("header", { class: "bar", key: "bar" },
+  const head = h("header", { class: "bar" + (canBack ? "" : " bar-noback"), key: "bar" },
     canBack ? h("button", { type: "button", class: "icon", "aria-label": X.back, "data-act": "back", on: { click: () => dispatch({ type: "BACK" }) } }, "←") : h("span", { class: "icon-gap" }),
     h("h1", { class: "brand" + (homeR && !homeR.heading ? " home" : "") }, heading),
     m("raum.verbunden") ? h("span", { class: "badge", role: "status" }, X.connected)

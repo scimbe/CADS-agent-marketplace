@@ -221,3 +221,11 @@ test("Gate C: Mein Regal heisst so (de/en) und hat ein Symbol; Eigene Karte ist 
   const m = go(s, { type: "HOME", to: "meins" });
   assert.ok(texts(m).includes("Mein Regal"), "Ueberschrift");
 });
+
+test("Kopfzeile Start: ohne Zurueck keine leere Spalte (bar-noback), Schrift-Knopf zeigt AA nebeneinander", () => {
+  const s = start(), t = texts(s);
+  assert.ok(t.includes('"class":"bar bar-noback"'), "Startseite ohne Zurueck");
+  assert.ok(t.includes('"class":"h-headbtn-i h-aa"'));
+  const deep = go(s, { type: "HOME", to: "meins" });
+  assert.ok(texts(deep).includes('"class":"bar"'), "mit Zurueck die normale Kopfzeile");
+});
