@@ -138,9 +138,9 @@ test("Reduzierte Bewegung: in der Pause steht das Bild still; ohne Einstellung z
   }
 });
 
-for (const view of ["phone360", "phone390", "phone412", "desk1280"]) test("Verdeckung, Ueberlauf, axe in Karte, Lauf, Pause und Ende (flug, lauf): " + view, async () => {
+for (const view of ["phone360", "phone390", "phone412", "desk1280"]) for (const card of ["flug", "lauf"]) test("Verdeckung, Ueberlauf, axe in Karte, Lauf, Pause und Ende (" + card + "): " + view, async () => {
   const bad = [];
-  for (const card of ["flug", "lauf"]) {
+  {
     const { p, errs, ctx } = await open(b, { view });
     await act(p, "open-" + card); await waitScreen(p, "card-view");
     const check = async (name) => {
