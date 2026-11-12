@@ -25,11 +25,12 @@ test("GO mit verzoegert ladendem Teil startet die Partie (auch mit schnellem Fol
   assert.equal(leaf(rt), "inhalt.card.view");
   rt.dispatch("GO");
   assert.equal(rt.state.ctx.loading, "x-ui");
-  rt.dispatch({ type: "MODE", mode: "bot" });   // Folgeereignis waehrend des Ladens: darf GO nicht ueberholen
+  const lv = rt.state.ctx.level;
+  rt.dispatch({ type: "LEVEL", level: lv === 1 ? 3 : 1 });   // Folgeereignis waehrend des Ladens: darf GO nicht ueberholen (LEVEL gilt nur in card.view)
   await release();
   assert.ok(rt.matches("inhalt.card.play"), "Partie laeuft: " + leaf(rt));
   assert.equal(rt.state.ctx.loading, null, "Ladezeile wieder weg");
-  assert.equal(rt.state.ctx.mode, "alone", "GO galt fuer den Stand beim Tippen; MODE danach trifft die laufende Partie nicht");
+  assert.equal(rt.state.ctx.level, lv, "GO kam zuerst; LEVEL danach trifft die laufende Partie nicht");
 });
 
 test("OPEN mit verzoegert ladendem Teil oeffnet die Karte", async () => {

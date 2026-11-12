@@ -44,7 +44,9 @@ export const chart = {
       },
       states: {
         partfail: { on: { RETRY: { target: T("inhalt.shelf"), actions: ["retryPart"] }, BACK: { target: T("inhalt.shelf"), actions: ["clearPartFail"] }, DONE: { target: T("inhalt.shelf"), actions: ["clearPartFail"] } } },
-        shelf: { on: { OPEN: { target: T("inhalt.card"), cond: "cardExists", actions: ["openCard"] }, STIL: T("inhalt.stil") } },
+        // OPEN {id, variant?, mode?, start?}: ein Ereignis, atomar. start:true fuehrt direkt ins Spiel (raise GO, wenn der
+        // Modus zur Karte passt); ein fremder Modus bleibt ehrlich in card.view mit Hinweis, ohne Ersatzwahl (Board Bote1, H)
+        shelf: { on: { OPEN: { target: T("inhalt.card"), cond: "cardExists", actions: ["openCard"], raise: openStart }, STIL: T("inhalt.stil") } },
         stil: stilState,
         card: {
           initial: "view",
@@ -102,6 +104,11 @@ export const chart = {
                 ],
                 JOIN: { actions: ["onJoin"], raise: "SYNC" },
                 BOT_IN: { actions: ["onBotLocal"], raise: "SYNC" },
+                // Umschalter im Spielkopf (H, Bote1): Spielweise wechseln nur bis zum ersten Zug und nicht live; dann neu starten
+                MODE: [
+                  { target: T("inhalt.card.view"), cond: "modeOpen", actions: ["endGame", "setMode"], raise: (ctx, ev) => ({ type: "GO", rand: ev.rand, at: ev.at }) },
+                  { actions: ["modeLocked"] }
+                ],
                 // Aktionen aus Widgets (ADR 0001 c): weiter zu Karte, KI (Feature K), 18+, Kopieren, Datei
                 ACT: [
                   { target: T("inhalt.card.view"), cond: "actOpen", actions: ["endGame", "openFromAct"], raise: leaveIfLive },
@@ -275,6 +282,8 @@ export const guards = {
   inCard: (ctx) => !!ctx.incoming && ctx.incoming.kind === "card",
   inChallenge: (ctx) => !!ctx.incoming && ctx.incoming.kind === "challenge",
   helloOk: (ctx, ev) => !helloResult(ctx, ev).error,
+  // Spielweise noch waehlbar: kein Zug gemacht (G.movesMade) und nicht live; der neue Modus muss zur Karte passen
+  modeOpen: (ctx, ev) => ctx.mode !== "live" && G.movesMade(ctx) === 0 && ev.mode !== ctx.mode && modesOf(G.card(ctx), ctx.variant).includes(ev.mode),
   showOk: (ctx, ev) => !!cardOf(ev.msg.c) && cardOf(ev.msg.c).manifest.mode !== "turn" && validParams(ev.msg.c, { ...defaults(cardOf(ev.msg.c).manifest.params), ...ev.msg.p }) && travelsOnly(cardOf(ev.msg.c).manifest.params, ev.msg.p),
   // Entscheidung 2026-11-11: Raum nur mit Anmeldung. D0 hat noch kein Konto (S8); der Live-Datenkanal der Bruecke
   // (/api/play) ist kontofrei. Deshalb steht die Pruefung hier, ist aber per raumBrauchtKonto=false abgeschaltet.
@@ -282,9 +291,17 @@ export const guards = {
   ...kontoGuards
 };
 
+/** OPEN mit mode: nur ein Modus, den die Karte (Variante) anbietet */
+function openModeOk(ev) { const c = cardOf(ev.id); return !ev.mode || (!!c && modesOf(c, ev.variant || null).includes(ev.mode)); }
+/** OPEN mit start: GO im selben Makroschritt (rand/at des Klicks), nur bei gueltigem Modus */
+function openStart(ctx, ev) { return ev.start === true && openModeOk(ev) ? { type: "GO", rand: ev.rand, at: ev.at } : null; }
 export const actions = {
   // OPEN {id, variant?}: eine Variante bringt ihre Parameter mit (Regal ueber LEGACY/VARIANTS, Anfrage H)
-  openCard: (ctx, ev) => ({ ...ctx, loading: null, draft: null, memo: null, ...variantParams(ctx, ev), cardId: ev.id, variant: ev.variant || null, mode: playOf(cardOf(ev.id), ev.variant).default, seat: 0, session: null, hs: null, error: null, note: null, link: null, part: null }),
+  openCard: (ctx, ev) => {
+    const ok = openModeOk(ev);
+    return { ...ctx, loading: null, draft: null, memo: null, ...variantParams(ctx, ev), cardId: ev.id, variant: ev.variant || null, mode: ev.mode && ok ? ev.mode : playOf(cardOf(ev.id), ev.variant).default, seat: 0, session: null, hs: null, error: null, note: ev.mode && !ok ? "modus-fehlt" : null, link: null, part: null };
+  },
+  modeLocked: (ctx) => ({ ...ctx, note: "modus-gesperrt" }),
   setMode: (ctx, ev) => (modesOf(G.card(ctx), ctx.variant).includes(ev.mode) ? { ...ctx, mode: ev.mode, note: null } : ctx),
   setSeat: (ctx, ev) => (Number.isInteger(ev.seat) && ev.seat >= 0 && ev.seat < G.card(ctx).manifest.players.max ? { ...ctx, seat: ev.seat } : ctx),
   setLevel: (ctx, ev) => ([1, 2, 3].includes(ev.level) ? { ...ctx, level: ev.level } : ctx),
