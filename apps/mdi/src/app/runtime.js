@@ -6,6 +6,7 @@ import { createBotAgent } from "../bot/agent.js";
 import * as V from "../gen/validators.js";
 import { decode } from "./link.js";
 import { kontoSaved } from "./konto-chart.js";
+import { FEATURES } from "./features.js";   // Strang K (Uebergang bis ADR 0001 (g) von F)
 
 const EVENT_OF = { hello: "HELLO", join: "JOIN", start: "START", in: "PEER_IN", show: "SHOW", bye: "LIVE_DOWN" };
 
@@ -28,7 +29,10 @@ const EVENT_OF = { hello: "HELLO", join: "JOIN", start: "START", in: "PEER_IN", 
 export function createRuntime(deps) {
   const schedule = deps.schedule || ((f) => setTimeout(f, 0));
   const now = deps.now || (() => Date.now());
-  const saved = deps.storage.loadKonto ? (() => { try { return deps.storage.loadKonto(); } catch (e) { return null; } })() : null;
+  const saved0 = deps.storage.loadKonto ? (() => { try { return deps.storage.loadKonto(); } catch (e) { return null; } })() : null;
+  const extra = deps.storage.loadFrei ? (() => { try { return deps.storage.loadFrei(); } catch (e) { return null; } })() : null;
+  const saved = saved0 || extra ? { ...(saved0 || {}), ...(extra || {}) } : null;
+  const fxOf = Object.assign({}, ...FEATURES.map((f) => f.effects || {}));
   let state = machine.initial(initialContext(deps.lang, saved));
   if (!state.ctx.device) state = { ...state, ctx: { ...state.ctx, device: deps.entropy() } };
   let bot = null, live = null, liveGen = 0;
@@ -126,7 +130,10 @@ export function createRuntime(deps) {
       case "mod.me": later(async () => dispatch({ type: "MOD", result: api ? await api.modMe() : { ok: false, error: "nicht-hier" } })); break;
       case "mod.appeal": later(async () => dispatch({ type: "APPEALED", result: api ? await api.appeal(fx.nid, fx.text) : { ok: false, error: "nicht-hier" } })); break;
       case "download": if (deps.download) deps.download(fx.name, fx.data); break;
-      default: throw new Error("Effekt unbekannt: " + fx.type);
+      default:
+        // Feature-Effekte (ADR 0001 (g)): Ergebnisse kommen als Ereignisse zurueck
+        if (Object.prototype.hasOwnProperty.call(fxOf, fx.type)) { fxOf[fx.type](fx, { dispatch, state: () => state, api, deps }); break; }
+        throw new Error("Effekt unbekannt: " + fx.type);
     }
   }
 
@@ -141,7 +148,7 @@ export function createRuntime(deps) {
   function ret() { return deps.returnPath ? deps.returnPath() : "/duell"; }
   // Effekte des Anfangszustands (Konto pruefen; neue Geraete-id merken) laufen nach dem Aufbau
   const first = state.effects.slice();
-  if (!saved || saved.device !== state.ctx.device) first.push({ type: "device.save" });
+  if (!saved0 || saved0.device !== state.ctx.device) first.push({ type: "device.save" });
   schedule(() => { for (const fx of first) run(fx); });
 
   return { dispatch, link, get state() { return state; }, matches: (p) => machine.matches(state, p) };

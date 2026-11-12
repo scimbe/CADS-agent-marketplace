@@ -8,6 +8,7 @@ import { cardOf, modesOf, validParams } from "../cards/index.js";
 import { encode } from "./link.js";
 import { paramsForLink } from "../contract/fields.js";
 import { kontoRegion, stilState, kontoGuards, kontoActions, kontoContext } from "./konto-chart.js";
+import { FEATURES, mergeNamed, compose } from "./features.js";   // Strang K: Uebergang bis F (ADR 0001 g) gemergt ist
 
 const T = (p) => p; // Lesbarkeit: absolute Zielpfade
 const leaveIfLive = (ctx) => (ctx.mode === "live" ? { type: "LEAVE" } : null);
@@ -264,9 +265,9 @@ export const actions = {
   ...kontoActions
 };
 
-export const machine = createMachine(chart, { guards, actions });
+export const machine = createMachine(compose(chart), { guards: mergeNamed(guards, FEATURES, "guards"), actions: mergeNamed(actions, FEATURES, "actions") });
 
 /** @param saved Konto-Daten aus dem Geraetespeicher (oder null) */
 export function initialContext(lang, saved = null) {
-  return { lang, cardId: null, params: {}, mode: null, seat: 0, level: 2, part: null, session: null, hs: null, error: null, incoming: null, reason: null, link: null, raum: null, note: null, raumBrauchtKonto: false, ...kontoContext(saved) };
+  return { lang, cardId: null, params: {}, mode: null, seat: 0, level: 2, part: null, session: null, hs: null, error: null, incoming: null, reason: null, link: null, raum: null, note: null, raumBrauchtKonto: false, ...kontoContext(saved), ...Object.assign({}, ...FEATURES.map((f) => (f.context ? f.context(saved) : {}))) };
 }
