@@ -67,10 +67,14 @@ export function render(node, host) {
         const id = idp + "-q" + (++ids);
         const opts = Array.isArray(n.options) ? n.options.slice(0, 24) : [];
         // option.input = Eingabe; option.draft = Entwurf (Z1); option.on = gewaehlt; option.disabled
-        const click = (o) => (o.draft !== undefined ? host.onDraft && host.onDraft(o.draft) : host.onInput(o.input));
+        const click = (o) => {
+          if (o.memo !== undefined && host.onMemo) host.onMemo(o.memo);
+          if (o.draft !== undefined) { if (host.onDraft) host.onDraft(o.draft); }
+          else if (o.input !== undefined) host.onInput(o.input);
+        };
         return h("div", { class: "choice", role: "group", "aria-labelledby": id, "data-part": part },
           h("p", { class: "choice-label", id }, txt(n.label)),
-          h("div", { class: "options" + (n.wrap ? " wrap" : "") }, opts.map((o, i) => h("button", { type: "button", class: "opt" + (o.on ? " on" : ""), key: i, "aria-pressed": o.on === undefined ? null : o.on ? "true" : "false", disabled: host.disabled || o.disabled || (o.draft !== undefined && !host.onDraft) ? true : null, on: { click: () => click(o) } }, txt(o.label)))));
+          h("div", { class: "options" + (n.wrap ? " wrap" : "") }, opts.map((o, i) => h("button", { type: "button", class: "opt" + (o.on ? " on" : ""), key: i, "aria-pressed": o.on === undefined ? null : o.on ? "true" : "false", disabled: (host.disabled && o.input !== undefined) || o.disabled || (o.draft !== undefined && !host.onDraft) ? true : null, on: { click: () => click(o) } }, txt(o.label)))));
       }
       case "image": {
         // Bild als DOM-Knoten (KI-Bild, Foto): nur data:-URLs von Bildtypen oder Quellen, die der Host aufloest

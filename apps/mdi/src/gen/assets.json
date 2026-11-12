@@ -1,9 +1,177 @@
 {
   "bluff": {
     "assets": [],
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 12750
+      }
+    ]
+  },
+  "flug": {
+    "assets": [],
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 4708
+      },
+      {
+        "file": "thumb-spiel-lava.webp",
+        "src": "shot",
+        "bytes": 4714
+      },
+      {
+        "file": "thumb-spiel-mond.webp",
+        "src": "shot",
+        "bytes": 4104
+      },
+      {
+        "file": "thumb-spiel-pizza.webp",
+        "src": "shot",
+        "bytes": 3954
+      },
+      {
+        "file": "thumb-spiel-tiefsee.webp",
+        "src": "shot",
+        "bytes": 4600
+      },
+      {
+        "file": "thumb-spiel-neon.webp",
+        "src": "shot",
+        "bytes": 4890
+      },
+      {
+        "file": "thumb-spiel-geist.webp",
+        "src": "shot",
+        "bytes": 3908
+      },
+      {
+        "file": "thumb-spiel-einhorn.webp",
+        "src": "shot",
+        "bytes": 4128
+      },
+      {
+        "file": "thumb-spiel-retro.webp",
+        "src": "shot",
+        "bytes": 3938
+      },
+      {
+        "file": "thumb-flug-agent.webp",
+        "src": "shot",
+        "bytes": 3044
+      },
+      {
+        "file": "thumb-flug-mond.webp",
+        "src": "shot",
+        "bytes": 3000
+      },
+      {
+        "file": "thumb-plan-01.webp",
+        "src": "shot",
+        "bytes": 4782
+      },
+      {
+        "file": "thumb-plan-08.webp",
+        "src": "shot",
+        "bytes": 4038
+      },
+      {
+        "file": "thumb-plan-13.webp",
+        "src": "shot",
+        "bytes": 3930
+      },
+      {
+        "file": "thumb-plan-18.webp",
+        "src": "shot",
+        "bytes": 5914
+      },
+      {
+        "file": "thumb-plan-22.webp",
+        "src": "shot",
+        "bytes": 4840
+      },
+      {
+        "file": "thumb-plan-28.webp",
+        "src": "shot",
+        "bytes": 4020
+      }
+    ]
+  },
+  "frei": {
+    "assets": [],
+    "thumbs": []
+  },
+  "geschenk-finder": {
+    "assets": [],
     "thumbs": []
   },
   "gruss": {
+    "assets": [],
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 11308
+      }
+    ]
+  },
+  "karte-danke": {
+    "assets": [],
+    "thumbs": []
+  },
+  "lauf": {
+    "assets": [],
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 8384
+      }
+    ]
+  },
+  "raum-sorry": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-einig": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-einkauf": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-gutschein": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-kapsel": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-reihum": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-sammeln": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-termin": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-umschlag": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-wichteln": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-wunschzettel": {
     "assets": [],
     "thumbs": []
   }

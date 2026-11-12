@@ -78,3 +78,20 @@ test("Bot-Modus mit drei Sitzen: zwei lokale Bots spielen bis zum Ende", async (
   assert.equal(leaf(a), "inhalt.card.play.over");
   assert.deepEqual(a.state.ctx.botSeats, [1, 2]);
 });
+
+test("Merkzettel je Partie (MEMO): bleibt auf dem Geraet, ueberlebt neue Staende, reist nie im Link", async () => {
+  const storage = memStorage();
+  const a = A.createRuntime({ lang: "de", entropy: counter("d"), storage, live: () => Promise.reject(new Error("x")), share: () => Promise.resolve("copied"), clearUrl() {}, schedule: (f) => setTimeout(f, 0), onChange() {} });
+  a.dispatch({ type: "OPEN", id: "fx-zug" }); a.dispatch({ type: "MODE", mode: "link" }); a.dispatch("GO");
+  await until(() => a.state.ctx.session);
+  a.dispatch({ type: "MEMO", memo: { own: true } });
+  assert.deepEqual(a.state.ctx.memo, { own: true });
+  const g = a.state.ctx.gameId;
+  assert.deepEqual(storage.loadGame(g).memo, { own: true });
+  for (let k = 0; k < 5 && a.state.config.includes("inhalt.card.play.turn"); k++) a.dispatch({ type: "INPUT", input: { t: "say", seat: a.state.ctx.viewer, a: "x" } });
+  await new Promise((r) => setTimeout(r, 5));
+  assert.deepEqual(storage.loadGame(g).memo, { own: true }, "neuer Stand behaelt den Merkzettel");
+  if (a.state.ctx.link) assert.ok(!Buffer.from(a.state.ctx.link.split(".")[2], "base64url").toString().includes("own"), "nicht im Link");
+  a.dispatch({ type: "MEMO", memo: { big: "x".repeat(600) } });
+  assert.deepEqual(a.state.ctx.memo, { own: true }, "zu gross wird abgelehnt");
+});

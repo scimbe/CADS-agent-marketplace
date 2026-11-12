@@ -23,13 +23,22 @@ export function createStorage() {
       const s = ls(); if (!s) return null;
       try { const v = JSON.parse(s.getItem(KONTO) || "null"); return v && typeof v === "object" && !Array.isArray(v) ? v : null; } catch (e) { return null; }
     },
+    // Strang K: zuletzt gewaehlte Kategorie/Genre der freien Karte (nur markierter Vorschlag, nie stille Auswahl)
+    loadFrei() {
+      const s = ls(); if (!s) return null;
+      try { const v = JSON.parse(s.getItem(FREI) || "null"); return v && typeof v === "object" && !Array.isArray(v) ? v : null; } catch (e) { return null; }
+    },
+    saveFrei(v) {
+      const s = ls(); if (!s) return false;
+      try { s.setItem(FREI, JSON.stringify({ freiLast: v && v.freiLast })); return true; } catch (e) { return false; }
+    },
     saveKonto(v) {
       const s = ls(); if (!s) return false;
       try { s.setItem(KONTO, JSON.stringify(v)); return true; } catch (e) { return false; }
     }
   };
 }
-const KONTO = "mdi.konto";
+const KONTO = "mdi.konto", FREI = "mdi.frei";
 // Meins (Strang H): Wand (Werke ohne Fotos), gemerkte Karten, Archiv versendeter Links mit Kurzlink-Token. Pruefen macht der
 // Aufrufer (src/ui/home/store.js clean*).
 const HOME = "mdi.home.v1";

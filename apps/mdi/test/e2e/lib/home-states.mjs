@@ -19,7 +19,8 @@ export async function visitHome(p, cb, lang = "de") {
   await p.locator("#h-q").fill("quiz"); await cb("h07-regal-suche", p);
   await act(p, "tab-tage"); await cb("h08-regal-letzte-tage", p);
   await act(p, "tab-andere"); await cb("h09-regal-von-anderen", p);
-  await home(p); await act(p, "intent-eigene"); await p.locator("main.h-at-eigene").waitFor(); await cb("h10-eigene-karte", p);
+  // "Eigene Karte": mit Strang K oeffnet die Kachel die freie Karte (inhalt.frei.*), sonst die Route "eigene"
+  await home(p); await act(p, "frei"); await p.locator("main:not(.h-at-day)").waitFor(); await cb("h10-eigene-karte", p);
   // ein Werk verschicken: landet auf der Wand und in den Einladungen
   await home(p); await act(p, "open-gruss"); await p.locator("main.s-card-view").waitFor(); await act(p, "go"); await p.locator("main.s-card-share").waitFor();
   await home(p); await act(p, "meins"); await p.locator("main.h-at-meins").waitFor(); await p.locator(".h-work").first().waitFor(); await cb("h11-meins-wand", p);

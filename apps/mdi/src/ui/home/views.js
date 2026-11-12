@@ -86,7 +86,7 @@ function intents(state, X, dispatch) {
     INTENT_ORDER.map((k) => h("button", { type: "button", key: k, class: "h-intent fam-" + INTENT_FAM[k], "data-act": "intent-" + k, on: { click: () => dispatch({ type: "HOME", to: "family", intent: k }) } },
       icon(INTENT_SHAPE[k], "h-ico"), h("span", { class: "h-intent-t", lang: state.ctx.lang }, X.intents[k].t), h("span", { class: "h-intent-s" }, X.intents[k].s))),
     // Strang K vorhanden: direkt in die freie Karte (FREI); sonst die eigene Route mit ehrlichem "kommt"
-    h("button", { type: "button", key: "eigene", class: "h-intent h-intent-frei", "data-act": "intent-eigene", on: { click: () => dispatch(SLOTS.freiEntry ? { type: "FREI" } : { type: "HOME", to: "eigene" }) } },
+    h("button", { type: "button", key: "eigene", class: "h-intent h-intent-frei", "data-act": "frei", on: { click: () => dispatch(SLOTS.freiEntry ? { type: "FREI" } : { type: "HOME", to: "eigene" }) } },
       icon("plus", "h-ico"), h("span", { class: "h-intent-t" }, X.own.t), h("span", { class: "h-intent-s" }, X.own.s)),
     h("button", { type: "button", key: "alle", class: "h-intent h-intent-alle", "data-act": "intent-alle", on: { click: () => dispatch({ type: "HOME", to: "regal", rtab: "alles", fam: null }) } },
       icon("grid", "h-ico"), h("span", { class: "h-intent-t" }, X.all), h("span", { class: "h-intent-s" }, fmt(X.hits, { n: R.IDEAS.length }))));
@@ -99,13 +99,13 @@ function section(title, kids, o = {}) {
 }
 
 function readyRow(ctx, X, dispatch) {
-  const seen = new Set(), tiles = [];
+  // Jede Karte im Register genau einmal: ueber die Katalogzeile, die sie traegt (Alias/LEGACY), sonst als eigene Kachel
+  const tiles = [], ext = extras();
   for (const id of ORDER) {
-    const cid = catalogIdOf(id), idea = R.byId(cid);
-    if (seen.has(id)) continue; seen.add(id);
-    if (idea && R.IDEAS.includes(idea)) tiles.push(ideaTile({ idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, key: "r-" + id }));
+    const idea = R.IDEAS.find((i) => newIdOf(i.id) === id);
+    if (idea) tiles.push(ideaTile({ idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, key: "r-" + id }));
+    else { const x = ext.find((e) => e.id === id); if (x) tiles.push(extraTile(x, X, ctx.lang, dispatch, ctx.mine.saved)); }
   }
-  for (const x of extras()) tiles.push(extraTile(x, X, ctx.lang, dispatch, ctx.mine.saved));
   return tiles.length ? section(X.ready, grid(tiles, "h-row"), { key: "ready", id: "h-ready", count: tiles.length }) : null;
 }
 
@@ -120,12 +120,12 @@ function lastDaysRow(ctx, X, dispatch, n = 7) {
 
 function dayView(state, X, dispatch) {
   const ctx = state.ctx;
-  if (ctx.today === null) return [h("p", { class: "h-wait", role: "status", key: "wait" }, "…")];
-  const p = dayPrimary(ctx);
+  // Bis der Tag bekannt ist (erster Takt), wartet nur das Blatt; Satz, Absichten und "Eigene Karte" sind sofort da
+  const known = ctx.today !== null, p = known ? dayPrimary(ctx) : null;
   return [
     h("div", { class: "h-top", key: "top" },
-      h("div", { class: "h-top-a" }, sheet(ctx, X, dispatch), p ? primaryBtn(p, dispatch) : null),
-      h("div", { class: "h-top-b" }, sentenceForm(ctx, X, dispatch), intents(state, X, dispatch), readyRow(ctx, X, dispatch), lastDaysRow(ctx, X, dispatch)))
+      h("div", { class: "h-top-a" }, known ? sheet(ctx, X, dispatch) : h("p", { class: "h-wait", role: "status", key: "wait" }, "…"), p ? primaryBtn(p, dispatch) : null),
+      h("div", { class: "h-top-b" }, sentenceForm(ctx, X, dispatch), intents(state, X, dispatch), readyRow(ctx, X, dispatch), known ? lastDaysRow(ctx, X, dispatch) : null))
   ];
 }
 
