@@ -2,13 +2,13 @@
 // Links (Fragment aus der Statechart in Node erzeugt), auf 360x740, 390x844, 412x915 und 1280x800:
 // kein verdecktes Bedienelement, kein waagerechter Ueberlauf, axe WCAG 2.2 AA ohne Verstoss, keine Seitenfehler,
 // Kernhandlung im ersten Bildschirm. Die Bedienung der Spielschritte haengt an den Draft-Knoten (field, go, link, copy,
-// file, action, ai) aus ADR 0001 c, Stufe 3 von Strang F; solange der Renderer sie nicht zeichnet, laeuft die
-// Pruefung "Kernhandlung des Spielschritts" als todo mit Grund (sichtbar im Bericht, kein stilles Bestehen).
+// file, action, ai) aus ADR 0001 c (Renderer F Stufe 3); die Durchlaeufe selbst stehen in z1-play.e2e.js.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { browser, open, act, axe, noOverflow, waitScreen, screen, VIEWS } from "./lib/grund.mjs";
 import { testRuntime, counter, until } from "../helpers.js";
 import { cardOf } from "../../src/cards/index.js";
+import { pickMode } from "./lib/scenarios.mjs";
 
 const IDS = ["zug-sammeln", "zug-termin", "zug-einkauf", "zug-wichteln", "zug-reihum", "zug-einig", "zug-wunschzettel", "geschenk-finder", "karte-danke", "zug-umschlag", "zug-kapsel", "zug-gutschein", "raum-sorry"];
 // erste Antwort je Karte fuer den Empfangs-Link (wie die Bildschirme sie schicken)
@@ -79,14 +79,14 @@ for (const view of Object.keys(VIEWS)) {
   });
 }
 
-test("Z1 erster Spielschritt: Kernhandlung der Karte sichtbar und bedienbar", { todo: "Draft-Knoten field/go/link/copy/file/action/ai zeichnet der Renderer ab Strang F Stufe 3 (ADR 0001 c)" }, async () => {
+test("Z1 erster Spielschritt: Kernhandlung der Karte sichtbar und bedienbar", async () => {
   const missing = [];
   for (const id of IDS) {
     const A = await open(b, { view: "phone390" });
-    await act(A.p, "open-" + id); await act(A.p, "go");
+    await act(A.p, "open-" + id); await pickMode(A.p, "de", "link"); await act(A.p, "go");
     const s = await screen(A.p);
     if (s === "card-play-cover") await act(A.p, "cover-ok");
-    const n = await A.p.locator("main .stage :is(input, textarea, button)").count();
+    const n = await A.p.locator("main :is(input.field, textarea.field, .choice .opt, .w-go, .chip)").count();
     if (!n) missing.push(id);
     await A.ctx.close();
   }
