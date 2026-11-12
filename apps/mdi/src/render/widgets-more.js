@@ -305,7 +305,7 @@ M.bw = (n, host, X) => {
 function svgNode(d) { if (typeof d === "string") return d; return h(d.tag, d.attrs || {}, ...(d.children || []).map(svgNode)); }
 function pcardView(n, host, sel = null, onTap = null) {
   const pic = host.cardSvg ? svgNode(host.cardSvg(n.code === undefined ? null : n.code, { lang: host.lang })) : txt(n.code || "🂠", 4);
-  const cls = "pcard size-" + (["s", "m", "l"].includes(n.size) ? n.size : "m") + " st-" + (["ok", "no", "sel", "none"].includes(n.state) ? n.state : "none");
+  const cls = "pcard size-" + (["s", "m", "l", "xl"].includes(n.size) ? n.size : "m") + (host.cardSvg ? " pc-svg" : "") + " st-" + (["ok", "no", "sel", "none"].includes(n.state) ? n.state : "none");
   if (onTap) return h("button", { type: "button", class: cls, "aria-label": txt(n.a11y, 60), "aria-pressed": sel === null ? null : press(sel), disabled: host.disabled || n.state === "no" ? true : null, on: { click: onTap } }, pic);
   return h("span", { class: cls, role: "img", "aria-label": txt(n.a11y, 60) }, pic);
 }

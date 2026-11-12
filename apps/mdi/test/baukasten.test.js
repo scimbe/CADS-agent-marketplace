@@ -437,3 +437,34 @@ test("Baukasten: Modellausgabe (clamp) bringt ids in Form und schreibt alle Verw
   assert.ok(c.ok, c.errors.join()); assert.equal(c.desc.things[0].id, "voegelchen");
   assert.ok(c.desc.rules.every((r) => r.a === "voegelchen") && c.desc.start[0].thing === "voegelchen" && c.desc.bot.thing === "voegelchen");
 });
+
+test("Security-Review M1: G3-Docs werden bereinigt und zugeordnet; ohne Siegel spielt die Karte nur eingebaute Beispiele", async () => {
+  const { sanitizeDoc, BAU_BYTES } = await import("../src/engines/frei/doc.js");
+  const { targetIdOf, kindOk, previewOf } = await import("../src/features/frei/doc.js");
+  const G = JSON.parse(fs.readFileSync(new URL("./fixtures/baukasten-gate.json", import.meta.url), "utf8"));
+  const d = sanitizeDoc(G.docs.flappy);
+  assert.deepEqual(d.b, G.docs.flappy.b, "Beschreibung unveraendert (Texte nicht gekuerzt)");
+  assert.equal(targetIdOf(d), "baukasten"); assert.equal(targetIdOf(sanitizeDoc(G.docs.memory)), "baukasten-zug");
+  assert.ok(kindOk("game", d)); assert.equal(previewOf(d).lines[0], G.docs.flappy.b.goal);
+  assert.equal(sanitizeDoc({ ...G.docs.flappy, b: { t: "x".repeat(BAU_BYTES) } }), null, "zu gross");
+  assert.equal(sanitizeDoc({ ...G.docs.flappy, b: [1] }), null);
+  // ohne Siegel: eingebautes Beispiel ja, selbst gebaute Beschreibung nein (umginge S1/S4 des Servers)
+  assert.doesNotThrow(() => card.init({ params: { desc: compact(check(FLAPPY).desc) }, seed: "s", players: ["human", "none"] }));
+  const own = { ...clone(FLAPPY), title: "Eigener Text" };
+  assert.throws(() => card.init({ params: { desc: own }, seed: "s", players: ["human", "none"] }), /ohne Siegel/);
+  assert.doesNotThrow(() => card.init({ params: { desc: own, ki: G.docs.flappy.ki }, seed: "s", players: ["human", "none"] }), "mit Siegel (das Gate prueft den Inhalt)");
+  assert.throws(() => zug.init({ rng: rng("x"), params: { desc: { ...clone(MEMORY), title: "Eigen" } }, players: 2 }), /ohne Siegel/);
+});
+
+test("Security-Review M5: Rechenaufwand je Tick ist begrenzt (check) und der Pruefer bucht Arbeit statt Ticks", async () => {
+  const { WORK_UNIT } = await import("../src/engines/baukasten/pruefer.js");
+  const heavy = { v: 1, title: "x", mode: "realtime", bg: "ink", things: [{ id: "a", color: "yellow", w: 2000, h: 2000, control: "tap" }, { id: "b", color: "red", w: 2000, h: 2000 }],
+    start: [{ thing: "a", n: 75, cols: 10, dx: 1, dy: 1, x: 100, y: 100 }, { thing: "b", n: 75, cols: 10, dx: 1, dy: 1, x: 100, y: 100 }],
+    rules: Array.from({ length: 16 }, (_, i) => ({ when: "touch", a: i % 2 ? "a" : "b", b: i % 2 ? "b" : "a", do: [{ act: "score", on: "a", n: 1 }] })), end: { time: 600 } };
+  assert.match(check(heavy).errors.join(), /zu viel Rechenaufwand/);
+  for (const ex of Object.values(BEISPIELE)) assert.ok(check(ex).ok, "Beispiele bleiben unter der Grenze");
+  const d = check(BREAKOUT).desc, r = E.step(d, E.init(d, "w", ["bot", "none"]), [{ b: 0 }]);
+  assert.ok(r.work >= 24, "Arbeit zaehlt die Paarpruefungen (Ball x 24 Ziegel)"); assert.ok(WORK_UNIT > 0);
+  const t0 = Date.now(), v = pruefe({ ...clone(BREAKOUT) }, { games: 2, budget: 20000 });
+  assert.equal(v.stage, "budget"); assert.ok(Date.now() - t0 < 5000);
+});

@@ -39,7 +39,7 @@ for (const [id, variant, mode, mic] of CASES) {
       end = A;
     }
     await check(end.p, id + " Ergebnis", bad);
-    assert.ok((await end.p.locator("main .t-big").first().innerText()).trim().length > 0, "Ergebnis steht da");
+    assert.ok((await end.p.locator("#stage").innerText()).trim().length > 0, "Ergebnis steht da");
     if (mic) assert.ok((await A.p.evaluate(() => window.__mic)) >= 1, "Aufnahme lief ueber das (Attrappen-)Mikrofon");
     assert.deepEqual(bad, []);
     assert.deepEqual(A.errs, []);

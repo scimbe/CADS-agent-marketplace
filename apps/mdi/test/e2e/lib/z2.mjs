@@ -34,16 +34,17 @@ export async function playTurn(p, onScreen, extra) {
     if (s !== "card-play-turn") return s;
     if (onScreen && a === 0) await onScreen(p);
     if (extra && (await extra(p))) continue; // Zeit- und Ton-Widgets (lib/z2-zeit.mjs)
-    const fields = p.locator("main input.field:visible, main textarea.field:visible, main input.tlist:visible");
+    // nur ueber Rollen und data-act auf der Buehne (#stage), nie ueber CSS-Klassen
+    const st = p.locator("#stage");
+    const fields = st.getByRole("textbox");
     let filled = false;
-    for (let i = 0; i < (await fields.count()); i++) { const f = fields.nth(i); if (!(await f.inputValue())) { await f.fill(WORDS[n++ % WORDS.length]); filled = true; } }
+    for (let i = 0; i < (await fields.count()); i++) { const f = fields.nth(i); if ((await f.isVisible()) && !(await f.inputValue())) { await f.fill(WORDS[n++ % WORDS.length]); filled = true; } }
     if (filled) { await settle(p); continue; }
-    const go = p.locator("main .w-go:not([disabled])");
+    const go = st.locator('[data-act="go-step"]:enabled, [data-act^="w-"]:not([data-act="w-ready"]):not([data-act="w-door"]):enabled');
     if (await go.count()) { await go.first().click(); await settle(p); continue; }
-    const opt = p.locator('main .opt:not([disabled])[aria-pressed="false"], main .opt:not([disabled]):not([aria-pressed])');
+    // Auswahl: Umschalter (aria-pressed=false) oder Antwortknoepfe einer Frage (Gruppe ohne aria-pressed)
+    const opt = st.locator('button[aria-pressed="false"]:enabled:not([data-act]), [role="group"] button:not([aria-pressed]):not([data-act]):enabled');
     if (await opt.count()) { await opt.first().click(); await settle(p); continue; }
-    const cell = p.locator('main button.bcell:not([disabled])[aria-pressed="false"]');
-    if (await cell.count()) { await cell.first().click(); await settle(p); continue; }
     throw new Error("kein Bedienschritt gefunden: " + (await p.locator("main").innerText()).slice(0, 300));
   }
   return screen(p);
