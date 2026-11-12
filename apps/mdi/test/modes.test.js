@@ -53,6 +53,7 @@ async function scenario(id, mode) {
       const d = devs[from], o = devs[(from + 1) % devs.length];
       playTurns(d); noForeignSecret(d);
       if (L(d) === "card.play.over" && !d.state.ctx.link) break;
+      if (d.state.ctx.session && cardOf(id).status(d.state.ctx.session.state).endless === true && hop >= 6) return { a: d, b: null, sent, endless: true }; // endlose Karten: 6 Zuege
       if (L(d) === "card.play.over" && d.state.ctx.session && cardOf(id).status(d.state.ctx.session.state).local === true) break; // Ergebnis bleibt beim letzten Geraet (status.local)
       const n = d.shared.length; d.dispatch("SHARE"); await until(() => d.shared.length > n);
       const link = d.shared[d.shared.length - 1]; sent.push(link);
@@ -73,7 +74,10 @@ async function scenario(id, mode) {
     await until(() => a.state.ctx.raum && a.state.ctx.raum.inviteLink);
     B.link(a.state.ctx.raum.inviteLink); assert.equal(L(B), "receive.live"); B.dispatch("ACCEPT");
     if (c.manifest.mode === "static") { await until(() => L(B) === "receive.show"); B.dispatch("ACCEPT"); assert.equal(L(B), "card.view"); return { a, b: B, wire: net.wire }; }
-    for (let i = 0; i < 200 && !(L(a) === "card.play.over" && L(B) === "card.play.over"); i++) { await tick(); noForeignSecret(a); noForeignSecret(B); playTurns(a); playTurns(B); }
+    for (let i = 0; i < 200 && !(L(a) === "card.play.over" && L(B) === "card.play.over"); i++) {
+      await tick(); noForeignSecret(a); noForeignSecret(B); playTurns(a); playTurns(B);
+      const s0 = a.state.ctx.session; if (s0 && c.status(s0.state).endless === true && s0.log.length >= 6) return { a, b: B, wire: net.wire, endless: true };
+    }
     await until(() => L(a) === "card.play.over" && L(B) === "card.play.over");
     return { a, b: B, wire: net.wire };
   }
@@ -85,7 +89,7 @@ for (const id of ORDER.filter((x) => cardOf(x).manifest.mode !== "realtime")) fo
   test("Karte " + id + " im Modus " + mode + " – derselbe Treiber, keine Sonderlogik", async () => {
     const r = await scenario(id, mode);
     for (const d of [r.a, r.b].filter(Boolean)) assert.equal(d.state.ctx.error, null);
-    if (r.a.state.ctx.session && r.b && r.b.state.ctx.session) assert.equal(JSON.stringify(r.a.state.ctx.session.state.pub), JSON.stringify(r.b.state.ctx.session.state.pub), "beide sehen dasselbe Ende");
+    if (!r.endless && r.a.state.ctx.session && r.b && r.b.state.ctx.session) assert.equal(JSON.stringify(r.a.state.ctx.session.state.pub), JSON.stringify(r.b.state.ctx.session.state.pub), "beide sehen dasselbe Ende");
     // Netz/Link sehen vor der Aufloesung nie ein Salz
     const salts = [r.a, r.b].filter(Boolean).flatMap((d) => d.storage.dump().map((e) => e.salt).filter(Boolean)).concat([r.a, r.b].filter(Boolean).flatMap((d) => d.state.ctx.session ? Object.values(d.state.ctx.session.secrets) : []));
     const traffic = (r.wire || []).concat(r.sent || []);

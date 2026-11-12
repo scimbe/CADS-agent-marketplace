@@ -52,7 +52,8 @@ export async function build() {
   const core = await esbuild.build({ ...common, entryPoints: [path.join(SRC, "main.js")], define: { __PARTS__: JSON.stringify(parts), __LIVE_REMOTE__: JSON.stringify(liveRemote) } });
   const js = core.outputFiles[0].text.replace(/<\/script/gi, "<\\/script").replace(/<!--/g, "<\\!--");
   const anton = fs.readFileSync(path.join(ROOT, "node_modules/@fontsource/anton/files/anton-latin-400-normal.woff2"));
-  const cssSrc = fs.readFileSync(path.join(SRC, "ui/tokens.css"), "utf8").replace("__ANTON__", "data:font/woff2;base64," + b64(anton));
+  // tokens.css (Strang H) + Widget-/Buehnen-Stile (Strang F, src/render/widgets.css)
+  const cssSrc = (fs.readFileSync(path.join(SRC, "ui/tokens.css"), "utf8") + "\n" + fs.readFileSync(path.join(SRC, "render/widgets.css"), "utf8")).replace("__ANTON__", "data:font/woff2;base64," + b64(anton));
   const css = (await esbuild.transform(cssSrc, { loader: "css", minify: true, target: ["safari16", "chrome110"] })).code.trim();
   const csp = [
     "default-src 'none'",
