@@ -438,6 +438,13 @@ textarea.input { resize: vertical; }
 .ef-wxform { display: grid; gap: var(--s2); }
 .ef-wxday { display: flex; flex-wrap: wrap; gap: var(--s3); margin: 0; padding: 0; border: 0; }
 
+/* Board Main: "Jetzt spielen | Erst ueben" (2:1), Uebungsknopf hell mit Rand, gleich hoch wie der Hauptknopf */
+.h-go-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; align-items: stretch; }
+.h-ueben { min-height: var(--btn-main); display: grid; align-content: center; justify-items: center; gap: 2px; padding: 4px 8px; border: 3px solid var(--ink); border-radius: 16px; background: var(--sheet); color: var(--ink); box-shadow: 4px 4px 0 var(--shade); cursor: pointer; text-align: center; }
+.h-ueben-t { font: 800 var(--t-m)/1.1 var(--font-body); } .h-ueben-s { font: 700 .8125rem/1.15 var(--font-body); }
+/* Spielweise im Spielkopf (Board Bote1): wechselbar bis zum ersten Zug */
+.play-modes { display: grid; gap: 4px; }
+.play-modes .seg-row { display: flex; flex-wrap: wrap; gap: 6px; }
 /* ================= Dunkelmodus (Canvas v54 „Start dunkel“): Flaechen mit fester heller Farbe behalten dunkle Tinte,
    Kopfzeile dunkel mit gelber Schrift, Hauptknopf gelb. Steht am Ende, damit es die hellen Regeln uebersteuert. */
 @media (prefers-color-scheme: dark) {

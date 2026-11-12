@@ -9,7 +9,8 @@ import { homeTexts, fmt } from "./texts.js";
 import { ideaTile, extraTile, icon, regalIcon, ideaText, plateLines, duration, badge, art, thumbKey } from "./tile.js";
 import { SLOTS } from "./slots.js";
 import { inviteStatus, isSaved, UNDO_MS } from "./store.js";
-import { cardOf, manifestOf, ORDER } from "../../cards/index.js";
+import { cardOf, manifestOf, ORDER, modesOfId } from "../../cards/index.js";
+import { playOf } from "../../contract/modes.js";
 import { render } from "../../render/render.js";
 import * as G from "../../app/game.js";
 
@@ -29,9 +30,27 @@ export function dayPrimary(ctx) {
   const X = homeTexts(ctx.lang, ctx.pref && ctx.pref.easy), idea = R.ideaOn(ctx.today + ctx.home.off, caps());
   if (!idea) return null;
   const nid = newIdOf(idea.id);
-  if (nid) return { id: "day-go", label: X.go[manifestOf(nid).mode === "static" ? "card" : idea.kind] || X.go.default, ev: { type: "OPEN", id: nid, ...(variantOf(idea.id) ? { variant: variantOf(idea.id) } : {}) } };
+  if (nid) {
+    const man = manifestOf(nid), v = variantOf(idea.id), vv = v ? { variant: v } : {}, isStatic = man.mode === "static";
+    // Board Main -> Bote1: Spiele starten direkt (OPEN start, ein atomares Ereignis, Strang F); Karten oeffnen zum Gestalten
+    const ev = isStatic ? { type: "OPEN", id: nid, ...vv } : { type: "OPEN", id: nid, ...vv, start: true };
+    const p = { id: "day-go", label: X.go[isStatic ? "card" : idea.kind] || X.go.default, ev };
+    const pr = isStatic ? null : practiceOf(nid, v);
+    if (pr) p.practice = { id: "day-ueben", label: X.practice, sub: X.practiceSub[pr], ev: { type: "OPEN", id: nid, ...vv, mode: pr, start: true } };
+    return p;
+  }
   const on = isSaved(ctx.mine.saved, idea.id);
   return { id: "day-save", label: on ? X.soonSaved : X.soonSave, ev: { type: "MERKEN", id: idea.id }, pressed: on };
+}
+
+/** Uebungsweise einer Karte: gegen den Computer, sonst ein Geraet; keine, wenn es beides nicht gibt oder sie schon die
+ *  Vorauswahl ist (dann waere "Erst ueben" dasselbe wie "Jetzt spielen"). Ohne geladene Karte aus den Metadaten. */
+export function practiceOf(id, variant = null) {
+  const modes = modesOfId(id, variant), m = manifestOf(id);
+  if (!m) return null;
+  const pr = modes.includes("bot") ? "bot" : modes.includes("alone") ? "alone" : null;
+  const def = playOf({ manifest: m, bot: modes.includes("bot") ? true : undefined }, variant).default;
+  return pr && pr !== def ? pr : null;
 }
 
 function freiEntry(state, X, dispatch, where) {
@@ -72,7 +91,12 @@ function sheet(ctx, X, dispatch) {
 }
 
 function primaryBtn(p, dispatch) {
-  return h("button", { type: "button", class: "btn primary h-go", key: p.id, "data-act": p.id, "aria-pressed": p.pressed === undefined ? null : p.pressed ? "true" : "false", on: { click: () => dispatch(p.ev) } }, p.label);
+  const main = h("button", { type: "button", class: "btn primary h-go", key: p.id, "data-act": p.id, "aria-pressed": p.pressed === undefined ? null : p.pressed ? "true" : "false", on: { click: () => dispatch(p.ev) } }, p.label);
+  if (!p.practice) return main;
+  // Board Main: "Jetzt spielen | Erst ueben" nebeneinander (2:1)
+  const q = p.practice;
+  return h("div", { class: "h-go-row", key: "go-row" }, main,
+    h("button", { type: "button", class: "btn secondary h-ueben", key: q.id, "data-act": q.id, on: { click: () => dispatch(q.ev) } }, h("span", { class: "h-ueben-t" }, q.label), h("span", { class: "h-ueben-s" }, q.sub)));
 }
 
 function sentenceForm(ctx, X, dispatch) {

@@ -87,3 +87,15 @@ test("Gate C: Satz in der eigenen Karte fuehrt direkt in die freie Karte (FREI m
   assert.ok(!(await p.locator("main.s-shelf").count()) || (await p.locator("main.h-at-eigene").count()), "weg vom Kalenderblatt");
   assert.deepEqual(errs, []);
 });
+
+test("Folge-PR 2: Jetzt spielen fuehrt mit einem Tap ins Spiel; Erst ueben (wo es das gibt) ebenso; Spielkopf zeigt die Spielweise", async () => {
+  const { p, errs } = await open(b, { view: "phone390" });
+  await p.locator(".h-leaf").waitFor();
+  // naechster Tag mit Spiel und Uebungsknopf (Blaettern ist kein Tap auf dem Weg, der Tag ist nur Testauswahl)
+  for (let i = 0; i < 30 && !(await p.locator('[data-act="day-ueben"]').count()); i++) await p.locator('[data-act="day-next"]').click();
+  assert.ok(await p.locator('[data-act="day-ueben"]').count(), "Tag mit Erst ueben gefunden");
+  await p.locator('[data-act="day-ueben"]').click();
+  await p.locator("main[class*='s-card-play'], main[class*='s-card-rt']").first().waitFor();
+  await p.locator("main:not([data-loading])").waitFor();
+  assert.deepEqual(errs, []);
+});
