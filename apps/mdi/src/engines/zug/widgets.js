@@ -45,8 +45,9 @@ const W = {
       go(c, p, v, why)] };
   },
   list(p, c) {
-    const U = ui(c.lang), raw = Array.isArray(d(c).l) ? d(c).l : [];
-    const vals = []; for (let i = 0; i < p.n; i++) vals.push(typeof raw[i] === "string" ? raw[i] : "");
+    // Felder schreiben flach (field.key = "l.<i>", ADR 0001 c)
+    const U = ui(c.lang), D = d(c);
+    const vals = []; for (let i = 0; i < p.n; i++) vals.push(typeof D["l." + i] === "string" ? D["l." + i] : "");
     const cleaned = vals.map((x) => clean(x, p.max)), hints = p.hints ? p.hints(c.lang) : null;
     const v = p.loose ? vals.map((x, i) => (x.trim() ? cleaned[i] : "")) : cleaned;
     const title = p.title ? p.title(c.doc, c.lang) : askText(p, c);
