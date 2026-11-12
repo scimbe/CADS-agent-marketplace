@@ -359,3 +359,78 @@ test("api.raw: nur die Pfade der freien Karte, gleiche Herkunft; Abfrage nur am 
   assert.equal((await api.raw("DELETE", "/api/duell/ai", {})).error, "pfad");
   assert.equal(seen.length, 7);
 });
+
+// ---------------------------------------------------------------- Status-Gate mit Inhalts-Hash (Server fix/deck-status-hash)
+test("Gate-Hash: dieselbe Projektion wie der Server (feste Vektoren aus lib/duell-deck.mjs gateHash), auch nach dem Weg ueber den Link", async () => {
+  const { gateView } = await import("../src/features/frei/doc.js");
+  const SERVER = { "karte-ok-card": "qWCCWKwM4uDjfi6dd2XxVOGSfnB1cCOmbQODRO2urHo", "karte-ok-meme": "ouLFoTqLQTmVig2Uf7PFW6ny9zdSYOkMiA2j9f82YBU", "karte-ok-game": "ij8OEP9c9Tn7AiDF7OswI-V9cH5OgAUpq-u2HQsEJUs", "karte-ok-lauf": "mS66KxnjeIkNUVFfhACKeHuosjpaNYuyn09BBEy82so", "karte-ok-quiz": "m_M6wTlBG0xemRk2TTqg7g9H6CV6CV06aMstxooabeg", "karte-ok-faehigkeit": "FyG-GVG-XZ6d2z9AbGSrI6zqd5ukf_KT_g2gm9Wye1M" };
+  for (const [n, h] of Object.entries(SERVER)) {
+    const o = rec(n).body.options[0];
+    assert.equal(await A.optionHash(gateView({ ...o.doc, ki: o.ki }), subtle), h, n + " (Server-Doc)");
+    assert.equal(await A.optionHash(gateView(sanitizeDoc({ ...o.doc, ki: o.ki })), subtle), h, n + " (bereinigt)");
+  }
+  // card/meme reisen als Parameter der Karte "frei" und kommen ueber toFree zurueck: derselbe Hash, also passt das Gate
+  for (const n of ["karte-ok-card", "karte-ok-meme"]) {
+    const o = rec(n).body.options[0], d = sanitizeDoc({ ...o.doc, ki: o.ki });
+    assert.equal(await A.optionHash(gateView(freiDoc(freiParams(d))), subtle), SERVER[n], n + " ueber den Link");
+    const forged = freiParams(d); forged.title = "Gefälscht";
+    assert.notEqual(await A.optionHash(gateView(freiDoc(forged)), subtle), SERVER[n], "anderer Inhalt -> anderer Hash");
+  }
+});
+
+test("Deck-Status mit d: Abfrage mit Inhalts-Hash, changed ist nie ok, ok-Zwischenspeicher je Inhalt; api.raw laesst nur genau diese Form zu", async () => {
+  const asked = []; let st = "ok";
+  const d = createDeck({ sanitize: sanitizeDoc, subtle, api: { raw: async (m, p) => { asked.push(p); const c = /c=([^&]+)/.exec(p)[1]; return { status: 200, body: { c, st } }; } } });
+  const cid = "6v-iwp49U8t5g-4w8DvGrX", h = "qWCCWKwM4uDjfi6dd2XxVOGSfnB1cCOmbQODRO2urHo";
+  assert.equal(await d.status(cid, h), "ok"); assert.equal(asked[0], "/api/duell/deck/status?c=" + cid + "&d=" + h);
+  st = "changed"; assert.equal(await d.status(cid, "A".repeat(43)), "changed", "anderer Inhalt: eigener Eintrag, nicht der ok-Zwischenspeicher");
+  assert.equal(await d.status(cid, "kaputt"), "unknown", "ein kaputtes d geht nicht raus");
+  const { createApi } = await import("../src/broker/api.js");
+  const api = createApi({ location: { protocol: "https:", host: "h" }, fetch: async () => ({ status: 200, json: async () => ({}) }) });
+  assert.equal((await api.raw("GET", "/api/duell/deck/status?c=" + cid + "&d=" + h)).status, 200);
+  assert.equal((await api.raw("GET", "/api/duell/deck/status?c=" + cid + "&d=" + h + "&x=1")).error, "pfad");
+});
+
+test("Effekt frei.status: Karte mit Siegel fragt mit Hash, Remix nur per id, alles muss ok sein; ohne Pruefung fail closed", async () => {
+  const { freiEffects } = await import("../src/features/frei/effects.js");
+  const run = (checks, answer) => new Promise((ok) => { const calls = []; freiEffects["frei.status"]({ checks }, { dispatch: (e) => ok({ e, calls }), state: () => ({ ctx: {} }), deps: { deck: { status: async (cid, d) => { calls.push([cid, d]); return answer(cid, d); } } } }); });
+  const o = rec("karte-ok-card").body.options[0], doc = { ...sanitizeDoc(o.doc), ki: o.ki }, cid = o.ki.h.slice(0, 22);
+  let r = await run([{ cid, doc }, { cid: "R".repeat(22), doc: null }], () => "ok");
+  assert.equal(r.e.st, "ok"); assert.deepEqual(r.calls, [[cid, "qWCCWKwM4uDjfi6dd2XxVOGSfnB1cCOmbQODRO2urHo"], ["R".repeat(22), undefined]]);
+  r = await run([{ cid, doc }], () => "changed"); assert.equal(r.e.st, "changed");
+  r = await run([], () => "ok"); assert.equal(r.e.st, "unknown", "keine Pruefung: nie ok");
+});
+
+test("Zeitueberschreitung getrennt vom Netzfehler: api.raw meldet zeit, die KI sagt timeout (aiTimeout)", async () => {
+  const { createApi } = await import("../src/broker/api.js");
+  const abort = Object.assign(new Error("abgebrochen"), { name: "AbortError" });
+  const mk = (err) => createApi({ location: { protocol: "https:", host: "h" }, fetch: async () => { throw err; } });
+  assert.equal((await mk(abort).raw("POST", "/api/duell/ai", {})).error, "zeit");
+  assert.equal((await mk(new Error("offline")).raw("POST", "/api/duell/ai", {})).error, "netz");
+  assert.equal((await mk(abort).status("ab".repeat(16))).error, "netz", "bestehende Aufrufe unveraendert (additiv)");
+  assert.equal((await ai([{ error: "zeit" }]).c.ask(ASK)).how, "timeout");
+  assert.match(ft("de", "aiTimeout"), /nicht rechtzeitig/);
+});
+
+test("Deck-Pin: das Deck der Produktion verifiziert mit dem gepinnten Schluessel; ein anderer Schluessel (Test-Deck) wird auf dem gepinnten Host abgelehnt", async () => {
+  const { DECK_PINS, pinFor } = await import("../src/broker/deck-pin.js");
+  const LIVE = JSON.parse(fs.readFileSync(new URL("./fixtures/deck-live.json", import.meta.url), "utf8"));
+  assert.equal(pinFor("demos-34a13a96.bunsenbrenner.org"), LIVE.key.pub); assert.equal(pinFor("localhost"), "");
+  assert.equal(DECK_PINS["bunsenbrenner.org"], LIVE.key.pub);
+  const noKeyCall = { raw: async (m, p) => { if (p.endsWith("/key")) throw new Error("mit Pin wird der Schluessel nicht vom Server geholt"); return { status: 200, body: LIVE.deck }; } };
+  const ok = await createDeck({ api: noKeyCall, sanitize: sanitizeDoc, subtle, pin: pinFor("demos-34a13a96.bunsenbrenner.org") }).load();
+  assert.equal(ok.ok, true, JSON.stringify(ok.why));
+  const test = { raw: async (m, p) => ({ status: 200, body: rec("deck-mit-karte").body }) };
+  assert.equal((await createDeck({ api: test, sanitize: sanitizeDoc, subtle, pin: pinFor("demos-34a13a96.bunsenbrenner.org") }).load()).why, "signatur", "fremder Schluessel auf dem gepinnten Host: kein Deck");
+  const nokid = { ...LIVE.deck }; delete nokid.kid;
+  assert.equal((await createDeck({ api: { raw: async () => ({ status: 200, body: nokid }) }, sanitize: sanitizeDoc, subtle, pin: LIVE.key.pub }).load()).why, "signatur", "ohne kid kein Deck");
+});
+
+test("KI-Knoten: KI_DONE setzt den Entwurf ctx.draft[into] (F), ohne abzurechnen", async () => {
+  const { machine, initialContext } = await import("../src/app/machine.js");
+  let s = machine.send(machine.initial(initialContext("de")), { type: "OPEN", id: "gruss", rand: ["a".repeat(32)] });
+  s = machine.send(s, { type: "KI_DONE", into: "ai", r: { how: "result" }, option: { titel: "Grillabend" }, receipt: "r1.x" });
+  assert.deepEqual(s.ctx.draft.ai, { r: { how: "result" }, option: { titel: "Grillabend" }, seal: null, receipt: "r1.x" });
+  assert.deepEqual(s.effects, []);
+  assert.equal(machine.send(s, { type: "KI_DONE", into: "../x" }).consumed, false);
+});

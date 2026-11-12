@@ -175,6 +175,7 @@ export function view(state, dispatch) {
   } else if (L === "card.share") {
     body = [stage(preview)];
     panel.push(ctx.link ? linkBox(X, ctx.link, ctx, dispatch) : h("p", { class: "warn", role: "alert" }, X.linkTooLong));
+    if (ctx.note === "frei-remix") panel.push(h("p", { class: "note", role: "status", key: "remix" }, freiNote(ctx)));   // Strang K
   } else if (L === "card.lobby") {
     const r = ctx.raum || {};
     body = [h("div", { class: "notice" },
@@ -223,7 +224,7 @@ export function view(state, dispatch) {
         h("p", { class: "hint" }, X.free))];
     }
   } else if (L === "receive.reject") {
-    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.rejectTitle), h("p", { class: "warn", role: "alert", "data-reason": ctx.reason }, X.reasons[ctx.reason] || (ctx.reason === "frei-gesperrt" ? ft(ctx.lang, "deck_gone") : ctx.reason === "frei-ungeprueft" ? ft(ctx.lang, "deck_nocheck") : ctx.reason)), h("p", null, X.rejectAsk))];
+    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.rejectTitle), h("p", { class: "warn", role: "alert", "data-reason": ctx.reason }, X.reasons[ctx.reason] || (ctx.reason === "frei-gesperrt" ? ft(ctx.lang, "deck_gone") : ctx.reason === "frei-ungeprueft" ? ft(ctx.lang, "deck_nocheck") : ctx.reason === "frei-geaendert" ? ft(ctx.lang, "frei_changed") : ctx.reason)), h("p", null, X.rejectAsk))];
   } else if (L === "receive.live" || L === "receive.wait") {
     const r = ctx.raum || {};
     body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.liveInvite),
@@ -248,6 +249,7 @@ export function view(state, dispatch) {
 
 // Strang K: Hinweise zur freien Karte in der Kartenansicht (uebernommen, aus dem Deck, Teilen gesperrt)
 function freiNote(ctx) {
+  if (ctx.note === "frei-remix") return ft(ctx.lang, "frei_remix");
   if (ctx.note === "frei-own") return ft(ctx.lang, "create_robot_kept");
   if (ctx.note === "frei-deck") return ft(ctx.lang, "deck_from");
   if (ctx.note === "frei-share-no") return ft(ctx.lang, "frei_share_no", { x: ft(ctx.lang, "frei_st_" + (ctx.frei.share || "unknown")) });

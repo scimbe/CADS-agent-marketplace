@@ -169,3 +169,26 @@ export function previewOf(doc) {
   if (doc.pk) return { title: doc.pk.t || doc.t || "", lines: [doc.pk.q[0][0]], sk: [], photo: false, kind: "quiz", n: doc.pk.q.length };
   return { title: doc.t || "", lines: [doc.s || ""], sk: [], photo: false, kind: "faehigkeit", uses: doc.i };
 }
+
+// ---- Inhalt einer geteilten freien Karte (Status-Gate) ------------------------------------------------------------------
+// Byte fuer Byte dieselbe Projektion wie der Server (CADS-DEMO-wrapper lib/duell-deck.mjs gateView, fix/deck-status-hash):
+// nur, was eine Person sieht. gateHash = base64url(SHA-256(canonical(gateView(doc)))). Feste Vektoren in test/frei.test.js.
+export function gateView(doc) {
+  const d = doc && typeof doc === "object" ? doc : {}, s = (x) => (typeof x === "string" ? x : "");
+  const sk = [...new Set((Array.isArray(d.sk) ? d.sk : []).map((x) => s(x && x.e)).filter(Boolean))].slice(0, 6);
+  const v = { k: s(d.k), t: s(d.t), col: Array.isArray(d.col) ? d.col.map((c) => s(c).toLowerCase()) : [] };
+  if (d.k === "card") Object.assign(v, { x: s(d.x), st: s(d.st), sk });
+  else if (d.k === "photo") Object.assign(v, { x: s(d.x), y: s(d.y), st: s(d.st), sk });
+  else if (d.k === "game") { const g = d.g && typeof d.g === "object" ? d.g : {}; v.g = { title: s(g.title), emoji: s(g.emoji), theme: s(g.theme), route: (Array.isArray(g.route) ? g.route : []).map((r) => [s(r && r.p), s(r && r.t), s(r && r.e)]) }; }
+  else if (d.k === "lauf") { const l = d.l && typeof d.l === "object" ? d.l : {}; v.l = [s(l.m), s(l.w), s(l.e), s(l.o), s(l.c), s(l.f)]; }
+  else { v.i = s(d.i); v.s = s(d.s); v.w = s(d.w); v.pk = d.pk && typeof d.pk === "object" ? { t: s(d.pk.t), q: Array.isArray(d.pk.q) ? d.pk.q.map((q) => (Array.isArray(q) ? q.map(s) : [])) : [] } : null; }
+  return v;
+}
+/** Was das Gate fragt: [{cid, doc|null}] – eine Karte mit eigenem Siegel (ki.h) mit ihrem Inhalt, ein Remix (fr) nur per id. */
+export function gateChecksOf(doc) {
+  if (!doc) return [];
+  const out = [];
+  if (doc.ki && doc.ki.k === "karte" && typeof doc.ki.h === "string" && /^[A-Za-z0-9_-]{43}$/.test(doc.ki.h)) out.push({ cid: doc.ki.h.slice(0, 22), doc });
+  if (typeof doc.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(doc.fr) && !out.some((c) => c.cid === doc.fr)) out.push({ cid: doc.fr, doc: null });
+  return out;
+}

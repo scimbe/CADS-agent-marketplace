@@ -17,7 +17,7 @@
 //   melden     Meldung mit Grund und Einwilligung
 //   bild, bildwarten  KI-Bild (Karte, Logo, Kontobild) mit Kontingent
 //   ki         KI-Vorschlaege fuer die x-model-Felder eines Teils der offenen Karte
-import { ARTS, GENRES, MODES, SOON, artOk, kindOk, sanitizeDoc, sanitizeKi, targetOf, freeIdOf } from "./doc.js";
+import { ARTS, GENRES, MODES, SOON, artOk, kindOk, sanitizeDoc, sanitizeKi, targetOf, freeIdOf, gateChecksOf } from "./doc.js";
 import { cardOf as cardById, validParams, CARDS } from "../../cards/index.js";
 import { defaults } from "../../contract/fields.js";
 import * as G from "../../app/game.js";
@@ -109,7 +109,12 @@ export const freiState = {
     sharegate: {
       entry: ["fxShareGate"],
       on: {
-        GATE: [{ target: T("inhalt.card.share"), cond: "gateOk", actions: ["gateDone"] }, { target: T("inhalt.card.view"), actions: ["shareNo"] }],
+        GATE: [
+          { target: T("inhalt.card.share"), cond: "gateOk", actions: ["gateDone"] },
+          // veraendert (eigene Aenderungen an der freien Karte): als Remix teilen – ohne KI-Siegel, die Wurzel-id bleibt pruefbar
+          { target: T("inhalt.frei.sharegate"), cond: "remixable", actions: ["toRemix"] },
+          { target: T("inhalt.card.view"), actions: ["shareNo"] }
+        ],
         BACK: T("inhalt.card.view")
       }
     },
@@ -211,6 +216,7 @@ const potOk = (k) => !!k && !k.off && k.age16 === true && !k.paused && (k.remain
 
 export const freiGuards = {
   kiAskOk: (ctx, ev) => ["wish", "line", "meme", "lyrics", "plan", "liste", "quiz", "welt", "text", "anlass"].includes(ev.kind) && !!ev.input && typeof ev.input === "object" && typeof ev.into === "string" && /^[A-Za-z][A-Za-z0-9]{0,15}$/.test(ev.into),
+  kiDoneOk: (ctx, ev) => typeof ev.into === "string" && /^[A-Za-z][A-Za-z0-9]{0,15}$/.test(ev.into),
   profilCreated: (ctx, ev) => ev.op === "put" && !!ev.result && ev.result.ok === true && !!ev.body && ev.body.fresh === true,
   modeOk: (ctx, ev) => !!ctx.frei.genre && MODES[ctx.frei.genre] && MODES[ctx.frei.genre][ev.mode] === true,
   canSend: (ctx, ev, inState) => inState("konto.angemeldet") && potOk(kartePot(ctx)) && ready(ctx.frei) && !ev.crisis,
@@ -229,9 +235,11 @@ export const freiGuards = {
   canRefine: (ctx, ev, inState) => inState("konto.angemeldet") && potOk(kartePot(ctx)) && !!ctx.frei.robot && [...String(ctx.frei.text || "").trim()].length >= 3 && !ev.crisis,
   robotFromCard: (ctx) => !!ctx.frei.robot && ctx.frei.robot.back === "card",
   robotOk: (ctx) => { const c = ctx.cardId && cardOf(ctx.cardId); return !!c && typeof c.toFree === "function"; },
-  linkFrei: (ctx, ev) => { if (!("_r" in ev)) ev._r = G.receive(ev.hash, ev.stored || null, ev.rand || []); const r = ev._r; return !!(r && r.ok && r.kind === "card" && r.cardId === "frei" && (r.params.hash || r.params.root)); },
+  // jede Karte, deren Parameter eine freie Karte tragen (Siegel ki.h oder Remix fr, ueber den Adapter toFree der Karte)
+  linkFrei: (ctx, ev) => { if (!("_r" in ev)) ev._r = G.receive(ev.hash, ev.stored || null, ev.rand || []); const r = ev._r; return !!(r && r.ok && r.kind === "card" && gateChecksOf(freeDocOf(r.cardId, r.params)).length); },
+  remixable: (ctx, ev) => ev.st === "changed" && ctx.cardId === "frei" && !!paramsOfCard(ctx, "frei").hash,
   gateOk: (ctx, ev) => ev.st === "ok",
-  goFreiShare: (ctx) => ctx.cardId === "frei" && ctx.mode === "link" && !!(paramsOfCard(ctx, "frei").hash || paramsOfCard(ctx, "frei").root),
+  goFreiShare: (ctx) => !!ctx.cardId && cardOf(ctx.cardId).manifest.mode === "static" && ctx.mode === "link" && gateChecksOf(freeDocOf(ctx.cardId, paramsOfCard(ctx, ctx.cardId))).length > 0,
   cardFree: (ctx) => ctx.cardId === "frei" && !!paramsOfCard(ctx, "frei").seal,
   deckCardOk: (ctx, ev) => !!(ctx.frei.deck.cards || []).find((c) => c.cid === ev.cid),
   deckPlayable: (ctx) => !!ctx.frei.card && !targetOf(ctx.frei.card.doc, cardOf).missing,
@@ -252,6 +260,12 @@ function openTarget(ctx, t) {
     return params && validParams(id, params) ? { ...base, params: { ...ctx.params, [id]: params }, own: !!t.own } : { ...base, own: !!t.own };
   }
 
+/** Die freie Karte hinter Kartenparametern (Adapter toFree der Karte) oder null */
+function freeDocOf(cardId, params) {
+  const c = cardId && cardOf(cardId);
+  if (!c || typeof c.toFree !== "function" || !params) return null;
+  try { return c.toFree(params); } catch (e) { return null; }
+}
 function reqOf(ctx) { return (ctx.frei.req || 0) + 1; }
 function askFx(ctx, emit, input, robot) {
   const req = reqOf(ctx);
@@ -311,10 +325,12 @@ export const freiActions = {
     return askFx(ctx, emit, input, true);
   },
   // Status-Gate
-  fxGate: (ctx, ev, emit) => { const p = ctx.incoming && ctx.incoming.params; emit({ type: "frei.status", cid: p ? p.root || (p.hash ? p.hash.slice(0, 22) : "") : "" }); return F(ctx, { gate: "busy" }); },
-  fxShareGate: (ctx, ev, emit) => { const p = paramsOfCard(ctx, "frei"); emit({ type: "frei.status", cid: p.root || (p.hash ? p.hash.slice(0, 22) : "") }); return F(ctx, { gate: "busy", share: null }); },
+  // das Gate fragt mit dem Inhalt, den die Karte gleich zeigt (gateHash); ein Remix nur mit der id seiner Wurzel
+  fxGate: (ctx, ev, emit) => { const inc = ctx.incoming; emit({ type: "frei.status", checks: inc ? gateChecksOf(freeDocOf(inc.cardId, inc.params)) : [] }); return F(ctx, { gate: "busy" }); },
+  fxShareGate: (ctx, ev, emit) => { emit({ type: "frei.status", checks: gateChecksOf(freeDocOf(ctx.cardId, paramsOfCard(ctx, ctx.cardId))) }); return F(ctx, { gate: "busy", share: null }); },
+  toRemix: (ctx) => { const p = paramsOfCard(ctx, "frei"); return { ...F(ctx, { share: "remix" }), params: { ...ctx.params, frei: { ...p, root: p.root || p.hash.slice(0, 22), seal: "", hash: "", owner: "" } }, note: "frei-remix" }; },
   gateDone: (ctx, ev) => F(ctx, { gate: ev.st }),
-  gateNo: (ctx, ev) => ({ ...F(ctx, { gate: ev.st }), reason: ev.st === "blocked" ? "frei-gesperrt" : "frei-ungeprueft" }),
+  gateNo: (ctx, ev) => ({ ...F(ctx, { gate: ev.st }), reason: ev.st === "blocked" ? "frei-gesperrt" : ev.st === "changed" ? "frei-geaendert" : "frei-ungeprueft" }),
   shareNo: (ctx, ev) => ({ ...F(ctx, { gate: ev.st, share: ev.st }), note: "frei-share-no" }),
   // Deck
   fxDeckLoad: (ctx, ev, emit) => { emit({ type: "frei.deck.load" }); return F(ctx, { deck: { ...ctx.frei.deck, load: "busy" } }); },
@@ -365,6 +381,8 @@ export const freiActions = {
   applyKi: (ctx, ev, emit) => { const k = ctx.frei.ki; if (k.receipt) emit({ type: "frei.settle", how: "accept", receipt: k.receipt }); const next = { ...paramsOfCard(ctx, ctx.cardId), [k.field]: k.opts[ev.i] }; return { ...F(ctx, { ki: { ...k, opts: [], res: null } }), params: { ...ctx.params, [ctx.cardId]: next } }; },
   cancelKi: (ctx, ev, emit) => { const k = ctx.frei.ki; if (k.receipt) emit({ type: "frei.settle", how: "discard", receipt: k.receipt }); return F(ctx, { ki: { ...k, req: (k.req || 0) + 1, opts: [], res: null, receipt: "" } }); },
   fxKiAsk: (ctx, ev, emit) => { emit({ type: "frei.kiask", kind: ev.kind, input: ev.input, into: ev.into, cardId: ctx.cardId }); return ctx; },
+  // Ergebnis eines KI-Knotens in den Entwurf der Karte (F: ctx.draft[into]); abgerechnet wird erst mit KI_SETTLE
+  takeKiDone: (ctx, ev) => ({ ...ctx, draft: { ...(ctx.draft || {}), [ev.into]: { r: ev.r || { how: "off" }, option: ev.option === undefined ? null : ev.option, seal: ev.seal || null, receipt: typeof ev.receipt === "string" ? ev.receipt : "" } } }),
   fxKiSettle: (ctx, ev, emit) => { if (typeof ev.receipt === "string" && ev.receipt && (ev.how === "accept" || ev.how === "discard")) emit({ type: "frei.settle", how: ev.how, receipt: ev.receipt }); return ctx; },
   settleFail: (ctx) => F(ctx, { note: "settle-fail" })
 };
@@ -393,7 +411,7 @@ export const frei = {
     "inhalt": { LINK: LINK_FIRST },
     // KI-Knoten der Zugkarten ({t:"ai", kind, input, into}, Z1 zug-termin/geschenk-finder): der Host (F) sendet KI_ASK, das
     // Ergebnis kommt als KI_DONE {into, option, seal, receipt}; die Karte uebernimmt -> KI_SETTLE {receipt, how:"accept"|"discard"}
-    "inhalt.card": { KI_ASK: { cond: "kiAskOk", actions: ["fxKiAsk"] }, KI_SETTLE: { actions: ["fxKiSettle"] } }
+    "inhalt.card": { KI_ASK: { cond: "kiAskOk", actions: ["fxKiAsk"] }, KI_DONE: { cond: "kiDoneOk", actions: ["takeKiDone"] }, KI_SETTLE: { actions: ["fxKiSettle"] } }
   },
   guards: freiGuards,
   actions: freiActions,

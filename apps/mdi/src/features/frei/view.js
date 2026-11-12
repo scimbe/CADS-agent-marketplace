@@ -75,6 +75,7 @@ export function refusalText(r, lang) {
     case "login": return ft(lang, "create_login_h", { m: 5 });
     case "bad": return ft(lang, "create_bad");
     case "nicht-hier": return ft(lang, "create_app");
+    case "timeout": return ft(lang, "aiTimeout");
     case "notyet": {
       const n = r.notyet && typeof r.notyet.name === "string" ? r.notyet.name.slice(0, 30) : "";
       if (r.notyet && r.notyet.what === "genre" && GENRES.includes(n)) { const nm = (g) => ft(lang, "create_genre_" + g).replace(/^\S+\s/, ""); return ft(lang, "create_genre_ask", { a: nm(r.notyet.chosen), b: nm(n) }); }

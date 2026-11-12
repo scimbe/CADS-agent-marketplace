@@ -5,7 +5,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ROOT } from "./grund.mjs";
+import crypto from "node:crypto";
 import { APP } from "./fakewrapper.mjs";
+import { gateView } from "../../../src/features/frei/doc.js";
+import { canonical } from "../../../src/broker/ai.js";
+
+/** Gate-Hash wie der Server (lib/duell-deck.mjs gateHash, fix/deck-status-hash) fuer die Karten der Aufnahme */
+const gateHash = (doc) => crypto.createHash("sha256").update(canonical(gateView(doc))).digest("base64url");
+const GH = new Map(REC_CARDS().map((c) => [c.cid, gateHash(c.doc)]));
+function REC_CARDS() { return JSON.parse(fs.readFileSync(path.join(ROOT, "test/fixtures/wrapper-frei.json"), "utf8")).exchanges.find((e) => e.name === "deck-mit-karte").res.body.cards; }
 
 const REC = JSON.parse(fs.readFileSync(path.join(ROOT, "test/fixtures/wrapper-frei.json"), "utf8"));
 export const rec = (n) => JSON.parse(JSON.stringify(REC.exchanges.find((e) => e.name === n).res));
@@ -18,6 +26,7 @@ const PATHS = /^\/(api\/duell\/(ai(\/(status|accept|discard))?|queue|report|deck
  * @param o.deckStatus "ok" | "blocked" | "unknown"
  */
 export function fakeFrei(fw, o = {}) {
+  const origin = o.origin || APP;
   const S = { karte: o.karte || "karte-ok-card", status: o.status || null, deckStatus: o.deckStatus || "ok", log: [], queued: 0 };
   const json = (status, body) => ({ status, contentType: "application/json; charset=utf-8", headers: { "cache-control": "no-store" }, body: JSON.stringify(body) });
   async function signedIn(req) {
@@ -25,14 +34,15 @@ export function fakeFrei(fw, o = {}) {
     return !!(m && fw.state.sessions.has(m[1]));
   }
   async function attach(ctx) {
-    await ctx.route(APP + "/**", async (r) => {
+    await ctx.route(origin + "/**", async (r) => {
       const req = r.request(), u = new URL(req.url()), p = u.pathname;
-      if (!PATHS.test(p)) return r.fallback();
+      if (origin !== APP && (p === "/duell" || p === "/duell/")) return r.fulfill({ status: 200, path: path.join(ROOT, "dist/index.html"), contentType: "text/html; charset=utf-8" });
+      if (!PATHS.test(p)) return origin === APP ? r.fallback() : r.fulfill(json(404, { error: "nf" }));
       let body = null; try { body = req.postDataJSON(); } catch (e) { body = null; }
       S.log.push(req.method() + " " + p + (body && body.kind ? " " + body.kind : ""));
       const me = await signedIn(req);
       if (p === "/api/duell/ai/status") {
-        if (!S.status || !me) return r.fallback();
+        if (!S.status || !me) return origin === APP ? r.fallback() : r.fulfill(json(503, { error: "auth-unavailable" }));
         const st = rec(S.status); return r.fulfill(json(st.status, st.body));
       }
       if (p === "/api/duell/ai") {
@@ -50,7 +60,10 @@ export function fakeFrei(fw, o = {}) {
       if (p === "/api/duell/deck/key") return r.fulfill(json(200, rec("deck-key").body));
       if (p === "/api/duell/deck") return r.fulfill(json(200, rec("deck-mit-karte").body));
       if (p === "/api/duell/deck/status") {
-        const c = u.searchParams.get("c");
+        const c = u.searchParams.get("c"), d = u.searchParams.has("d") ? u.searchParams.get("d") : null;
+        S.log.push("STATUS " + c + " d=" + (d ? "ja" : "nein"));
+        // wie der Server mit fix/deck-status-hash: gegebenes d muss der Inhalt der freigegebenen Karte sein
+        if (S.deckStatus === "ok" && d !== null && GH.has(c) && d !== GH.get(c)) return r.fulfill(json(200, { c, st: "changed" }));
         return r.fulfill(json(200, { c, st: S.deckStatus }));
       }
       if (p === "/api/duell/deck/use") { if (!me) return r.fulfill(json(401, { error: "login" })); return body.ev === "start" ? r.fulfill(json(200, rec("deck-use-start").body)) : r.fulfill({ status: 204, body: "" }); }

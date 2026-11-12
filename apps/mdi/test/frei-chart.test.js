@@ -168,11 +168,15 @@ test("Status-Gate beim Empfaenger: eine geteilte freie Karte oeffnet erst nach o
   const hash = encode("card", { c: "frei", v: "1.0.0", p: params });
   let s = machine.initial(initialContext("de"));
   s = go(s, { type: "LINK", hash });
-  assert.equal(leaf(s), "frei.gate"); assert.deepEqual(fx(s, "frei.status"), [{ type: "frei.status", cid: ki.h.slice(0, 22) }]);
+  assert.equal(leaf(s), "frei.gate");
+  const chk = fx(s, "frei.status")[0].checks;
+  assert.deepEqual(chk.map((c) => c.cid), [ki.h.slice(0, 22)]); assert.equal(chk[0].doc.x, "Alles Gute!", "das Gate fragt mit dem Inhalt, der gleich gezeigt wird");
   const ok = go(s, { type: "GATE", st: "ok" });
   assert.equal(leaf(ok), "receive.show");
   const no = go(s, { type: "GATE", st: "blocked" });
   assert.equal(leaf(no), "receive.reject"); assert.ok(txt(no).includes("Diese Karte ist nicht mehr verfügbar."));
+  const ch = go(s, { type: "GATE", st: "changed" });
+  assert.equal(leaf(ch), "receive.reject"); assert.ok(txt(ch).includes("passt nicht zur freigegebenen Karte"));
   const un = go(s, { type: "GATE", st: "unknown" });
   assert.ok(txt(un).includes("kann gerade nicht geprüft werden"));
   // eine gewoehnliche Karte geht am Gate vorbei
@@ -186,7 +190,13 @@ test("Teilen nur bei Deck-Status ok: sonst zurueck zur Karte mit Grund", async (
   const req = fx(s, "frei.ask")[0].req, body = rec("karte-ok-card").body;
   s = go(go(s, { type: "FREI_RESULT", req, r: { how: "result", options: body.options, seals: body.seals, hashes: body.hashes, receipt: body.receipt } }), { type: "TAKE" });
   s = go(s, { type: "GO" });
-  assert.equal(leaf(s), "frei.sharegate"); assert.equal(fx(s, "frei.status")[0].cid, body.options[0].ki.h.slice(0, 22));
+  assert.equal(leaf(s), "frei.sharegate"); assert.equal(fx(s, "frei.status")[0].checks[0].cid, body.options[0].ki.h.slice(0, 22));
+  // veraendert: als Remix ohne Siegel, die Wurzel wird per id geprueft (Gate erneut), dann Teilen mit Hinweis
+  const rx = go(s, { type: "GATE", st: "changed" });
+  assert.equal(leaf(rx), "frei.sharegate"); assert.equal(rx.ctx.params.frei.seal, ""); assert.equal(rx.ctx.params.frei.root, body.options[0].ki.h.slice(0, 22));
+  assert.deepEqual(fx(rx, "frei.status")[0].checks, [{ cid: body.options[0].ki.h.slice(0, 22), doc: null }]);
+  const rs = go(rx, { type: "GATE", st: "ok" });
+  assert.equal(leaf(rs), "card.share"); assert.ok(txt(rs).includes("ohne KI-Siegel geteilt"));
   const no = go(s, { type: "GATE", st: "blocked" });
   assert.equal(leaf(no), "card.view"); assert.ok(txt(no).includes("Teilen geht erst, wenn die Karte freigegeben ist"));
   const ok = go(s, { type: "GATE", st: "ok" });

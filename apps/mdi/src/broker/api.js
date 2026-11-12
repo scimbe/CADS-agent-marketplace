@@ -74,7 +74,7 @@ export function createApi(deps) {
   }
 
   /** -> {status, body} | Fehler "nicht-hier"/"netz" */
-  async function call(method, path, body) {
+  async function call(method, path, body, opt) {
     if (native) return viaApp(method, path, body);
     if (!here) return fail("nicht-hier");
     const ctl = typeof AbortController === "function" ? new AbortController() : null;
@@ -84,7 +84,7 @@ export function createApi(deps) {
         headers: body !== undefined ? { "Content-Type": "application/json" } : {}, body: body !== undefined ? JSON.stringify(body) : undefined, signal: ctl ? ctl.signal : undefined });
       let j = null; try { j = await r.json(); } catch (e) { j = null; }
       return { status: r.status, body: j };
-    } catch (e) { return fail("netz"); }
+    } catch (e) { return fail(opt && opt.zeit && e && e.name === "AbortError" ? "zeit" : "netz"); }   // zeit: Strang K, nur raw()
     finally { if (t) clearTimeout(t); }
   }
   const post = (path, body) => call("POST", P + path, body);
@@ -228,11 +228,11 @@ export function createApi(deps) {
 
   // ---- Strang K (freie Karte, KI, Deck, KI-Bild): additiv. Die Dienste in src/broker/ai.js, deck.js, bild.js bilden die
   // Antworten selbst ab; hier steht nur der Transport, damit fetch weiter genau an dieser Stelle steht (build.test). ----
-  const RAW_PATHS = /^\/api\/duell\/(ai(\/(status|accept|discard))?|queue|report|deck(\/(key|use|vote|me))?|deck\/status\?c=[A-Za-z0-9_-]{22}|bild(\/(status|job|cancel|keep|avatar))?)$/;
+  const RAW_PATHS = /^\/api\/duell\/(ai(\/(status|accept|discard))?|queue|report|deck(\/(key|use|vote|me))?|deck\/status\?c=[A-Za-z0-9_-]{22}(&d=[A-Za-z0-9_-]{43})?|bild(\/(status|job|cancel|keep|avatar))?)$/;
   /** Roher Aufruf eines erlaubten Pfads (nur diese Liste, nur gleiche Herkunft) -> {status, body} | Fehler nicht-hier/netz/pfad */
   async function raw(method, path, body) {
     if ((method !== "GET" && method !== "POST") || !RAW_PATHS.test(path)) return fail("pfad");
-    return call(method, path, body);
+    return call(method, path, body, { zeit: true });   // "zeit" (Zeitueberschreitung) getrennt von "netz"
   }
   /** Ein KI-Bild als data:-URL (img-src bleibt data:, CSP unveraendert). Nur Web; die App-Bruecke reicht keine Binaerdaten. */
   async function image(path) {

@@ -4,7 +4,8 @@
 //
 //   GET  /api/duell/deck              { v, at, kid, cards:[{cid, doc}], revoked:[cid], sig }   (Ed25519 ueber canonical(ohne sig))
 //   GET  /api/duell/deck/key          { kid, alg:"Ed25519", pub }   kid = base64url(SHA-256(pub roh)).slice(0, 8)
-//   GET  /api/duell/deck/status?c=    { c, st: ok|blocked|unknown } | 503   -> nur "ok" oeffnet (fail closed)
+//   GET  /api/duell/deck/status?c=[&d=]  { c, st: ok|blocked|unknown|changed } | 503   -> nur "ok" oeffnet (fail closed);
+//                                     d = gateHash des Gezeigten (Server fix/deck-status-hash): anderer Inhalt -> changed
 //   POST /api/duell/deck/use          { ki, ev:"start" } -> 200 {t} ; { ki, ev:"done", t } -> 204 ; 401 ohne Konto
 //   POST /api/duell/deck/vote         { ki, v: 1|-1|0, t } -> 204
 //   POST /api/duell/deck/me           {} -> { cards:[{cid, st}], credit:{balance, items}, mod:{st} }
@@ -50,7 +51,7 @@ export function createDeck(deps) {
     if (!pub) { const r = await api.raw("GET", "/api/duell/deck/key"); pub = r.status === 200 && r.body && typeof r.body.pub === "string" ? r.body.pub : ""; }
     if (!pub) return null;
     const raw = unb64url(pub), id = b64url(new Uint8Array(await subtle.digest("SHA-256", raw))).slice(0, 8);
-    if (kid && id !== kid) return null;
+    if (!kid || id !== kid) return null;   // kid ist Pflicht und muss zum (gepinnten) Schluessel passen
     return subtle.importKey("raw", raw, { name: "Ed25519" }, false, ["verify"]);
   }
   /** true nur, wenn die Signatur haelt */
@@ -75,14 +76,18 @@ export function createDeck(deps) {
     return { ok: true, deck };
   }
   function revoked(cid) { return !!cid && deck.revoked.includes(cid); }
-  /** Status einer geteilten freien Karte. -> "ok" | "blocked" | "unknown" (unbekannt beim Server gilt als blocked, wie im Altcode) */
-  async function status(cid) {
+  /** Status einer geteilten freien Karte. d (optional): Inhalts-Hash des Gezeigten (gateHash); gegeben muss er zur
+   *  freigegebenen Karte passen, sonst "changed". -> "ok" | "blocked" | "changed" | "unknown"
+   *  (unbekannt beim Server gilt als blocked, wie im Altcode; alles andere als eine klare Antwort: unknown, fail closed) */
+  async function status(cid, d) {
     if (!CID.test(String(cid || ""))) return "unknown";
-    if (okAt.has(cid) && now() - okAt.get(cid) < OK_MS) return "ok";
-    const r = await api.raw("GET", "/api/duell/deck/status?c=" + cid);
+    if (d !== undefined && !/^[A-Za-z0-9_-]{43}$/.test(String(d))) return "unknown";
+    const key = cid + "|" + (d || "");
+    if (okAt.has(key) && now() - okAt.get(key) < OK_MS) return "ok";
+    const r = await api.raw("GET", "/api/duell/deck/status?c=" + cid + (d ? "&d=" + d : ""));
     const j = r.status === 200 ? r.body : null;
-    const s = j && j.c === cid && ["ok", "blocked", "unknown"].includes(j.st) ? (j.st === "unknown" ? "blocked" : j.st) : "unknown";
-    if (s === "ok") okAt.set(cid, now()); else okAt.delete(cid);
+    const s = j && j.c === cid && ["ok", "blocked", "unknown", "changed"].includes(j.st) ? (j.st === "unknown" ? "blocked" : j.st) : "unknown";
+    if (s === "ok") okAt.set(key, now()); else okAt.delete(key);
     return s;
   }
   /** Nutzung beginnen (nur mit Konto). -> { ok, t?, login? } */

@@ -4,6 +4,8 @@
 // env: { dispatch(ev), getState(), deps: { ai, deck, bild, storage?, schedule? } }
 import { reportBody, KINDS } from "../../broker/ai.js";
 import { USE_MS } from "../../broker/deck.js";
+import { optionHash } from "../../broker/ai.js";
+import { gateView } from "./doc.js";
 
 /** Zustand lesen: F uebergibt state: () => state (ADR 0001 g) */
 const cur = (env) => (env.getState || env.state)();
@@ -41,8 +43,17 @@ export const freiEffects = {
     env.dispatch({ type: "REFRESH" });
   }),
   "frei.last": (fx, env) => { if (env.deps.storage && env.deps.storage.saveFrei) env.deps.storage.saveFrei({ freiLast: fx.last }); },
+  // Status-Gate: jede Pruefung muss "ok" sein; eine Karte mit eigenem Siegel mit dem Inhalts-Hash des Gezeigten. Ohne
+  // Pruefungen, ohne Deck oder ohne crypto.subtle: "unknown" (fail closed)
   "frei.status": (fx, env) => later(async () => {
-    const st = env.deps.deck ? await env.deps.deck.status(fx.cid) : "unknown";
+    const deck = env.deps.deck, subtle = globalThis.crypto && globalThis.crypto.subtle;
+    const checks = Array.isArray(fx.checks) ? fx.checks : [];
+    let st = !deck || !checks.length ? "unknown" : "ok";
+    for (const c of checks) {
+      if (st !== "ok") break;
+      const d = c.doc ? (subtle ? await optionHash(gateView(c.doc), subtle) : "") : undefined;
+      st = d === "" ? "unknown" : await deck.status(c.cid, d);
+    }
     env.dispatch({ type: "GATE", st });
   }),
   "frei.deck.load": (fx, env) => later(async () => {

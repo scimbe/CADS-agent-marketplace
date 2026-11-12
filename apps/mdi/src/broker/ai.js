@@ -117,7 +117,7 @@ export function createAi(deps) {
     let r = await send("/api/duell/ai", body), how, last = 0, tk = "";
     const started = now();
     for (;;) {
-      if (!r.status) return none(r.error === "nicht-hier" ? "nicht-hier" : "off");
+      if (!r.status) return none(r.error === "nicht-hier" ? "nicht-hier" : r.error === "zeit" ? "timeout" : "off");
       how = verdict(r.status, r.body);
       if (how !== "queued") break;
       tk = ticket(r.body) || tk; last = place(r.body);

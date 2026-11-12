@@ -15,6 +15,7 @@ import { createAi } from "./broker/ai.js";        // Strang K: freie Karte und K
 import { createDeck } from "./broker/deck.js";
 import { createBild } from "./broker/bild.js";
 import { sanitizeDoc } from "./features/frei/doc.js";
+import { pinFor } from "./broker/deck-pin.js";
 
 const root = document.getElementById("app");
 const lang = langOf(navigator);
@@ -30,7 +31,7 @@ const returnPath = () => location.pathname + (rt && rt.matches("inhalt.frei.star
 const api = createApi({ location, native: nativeAccount(window) });
 const rt = createRuntime({
   lang, entropy, storage: createStorage(),
-  api, ai: createAi({ api }), deck: createDeck({ api, sanitize: sanitizeDoc }), bild: createBild({ api }),
+  api, ai: createAi({ api }), deck: createDeck({ api, sanitize: sanitizeDoc, pin: pinFor(location.hostname) }), bild: createBild({ api }),
   returnPath,
   setLook: (colors) => { const k = lookCookie(colors, location.hostname); if (k) document.cookie = k; },
   navigate: (url) => { if (!/^https?:$/.test(location.protocol)) return false; location.assign(url); return true; },

@@ -13,7 +13,7 @@ let b;
 test.before(async () => { b = await browser(); });
 test.after(async () => { await b.close(); });
 
-async function openApp(fw, ff, { view = "phone390", lang = "de", scheme = "light", path = "/duell" } = {}) {
+async function openApp(fw, ff, { view = "phone390", lang = "de", scheme = "light", path = "/duell", origin = APP } = {}) {
   const ctx = await b.newContext({ ...VIEWS[view], locale: lang === "de" ? "de-DE" : "en-GB", colorScheme: scheme });
   ctx.setDefaultTimeout(15000);
   await fw.attach(ctx); await ff.attach(ctx);
@@ -21,7 +21,7 @@ async function openApp(fw, ff, { view = "phone390", lang = "de", scheme = "light
   p.on("pageerror", (e) => errs.push("pageerror " + e));
   p.on("console", (m) => { if (m.type() === "error" && !/^Failed to load resource: the server responded with a status of (401|403|404|409|410|422|429|503)/.test(m.text())) errs.push("console " + m.text()); });
   await p.addInitScript(() => { document.addEventListener("securitypolicyviolation", (e) => console.error("CSP " + e.violatedDirective + " " + e.blockedURI)); });
-  await p.goto(APP + path);
+  await p.goto(origin + path);
   await p.locator("header.bar").waitFor();
   return { ctx, p, errs };
 }
@@ -171,36 +171,54 @@ test("Kein Kontingent: kein Erschaffen-Knopf, ehrlicher Zaehler; unter 16: Hinwe
   assert.deepEqual(found, []); assert.deepEqual(errs, []); assert.deepEqual(o2.errs, []);
 });
 
-test("Deck: Status-Gate beim Empfaenger (nicht ok -> nicht verfuegbar, ok -> Karte), signiertes Deck, Daumen, Melden", async () => {
-  const ki = rec("deck-mit-karte").body.cards[0].doc.ki;
-  const params = { kind: "card", title: "Sonnenblumen-Tag", text: "Alles Gute!", top: "", bottom: "", style: "herz", palette: "gelb", stickers: ["🌻"], seal: ki.s, hash: ki.h, owner: ki.o, root: "" };
+test("Deck: Status-Gate mit Inhalts-Hash beim Empfaenger (gesperrt, veraendert, ok); gepinnter Schluessel lehnt fremdes Deck ab", async () => {
+  const ki = rec("deck-mit-karte").body.cards[0].doc.ki, card = rec("deck-mit-karte").body.cards[0].doc;
+  const params = { kind: "card", title: card.t, text: card.x, top: "", bottom: "", style: card.st, palette: "gelb", stickers: card.sk.map((x) => x.e), seal: ki.s, hash: ki.h, owner: ki.o, root: "" };
   const hash = encode("card", { c: "frei", v: "1.0.0", p: params });
+  const forged = encode("card", { c: "frei", v: "1.0.0", p: { ...params, text: "Fremder Text mit echter id" } });
   const found = [];
   const fw = fakeWrapper(), ff = fakeFrei(fw, { deckStatus: "blocked" });
   const A = await openApp(fw, ff, { path: "/duell" + hash });
   await screenIs(A.p, "receive-reject");
   await A.p.getByText("Diese Karte ist nicht mehr verfügbar.").waitFor();
-  assert.ok(ff.state.log.includes("GET /api/duell/deck/status"));
+  assert.ok(ff.state.log.includes("STATUS " + ki.h.slice(0, 22) + " d=ja"), "das Gate schickt den Inhalts-Hash: " + ff.state.log.join(", "));
   await checks(A.p, "12-deck-gesperrt", found);
   const fw2 = fakeWrapper(), ff2 = fakeFrei(fw2, { deckStatus: "ok" });
   const B = await openApp(fw2, ff2, { path: "/duell" + hash });
   await screenIs(B.p, "receive-show");
   await checks(B.p, "13-deck-ok", found);
-  // Community-Karten: Signatur des echten Servers geprueft, Karte oeffnen, Melden
+  const fw3 = fakeWrapper(), ff3 = fakeFrei(fw3, { deckStatus: "ok" });
+  const C = await openApp(fw3, ff3, { path: "/duell" + forged });
+  await screenIs(C.p, "receive-reject");
+  await C.p.getByText("Der Inhalt dieser Karte passt nicht zur freigegebenen Karte. Sie wird nicht gezeigt.").waitFor();
+  await checks(C.p, "13b-deck-veraendert", found);
+  // gepinnter Host (Produktion): das Test-Deck ist mit einem anderen Schluessel signiert und wird nicht gezeigt
   await act(B.p, "decline"); await screenIs(B.p, "shelf");
-  await B.p.evaluate(() => { location.hash = ""; });
   await act(B.p, "frei"); await screenIs(B.p, "frei-start");
   await act(B.p, "deck"); await screenIs(B.p, "frei-deck");
+  await B.p.getByText("Die Community-Karten ließen sich nicht prüfen und werden nicht gezeigt.").waitFor();
+  assert.ok(!ff2.state.log.includes("GET /api/duell/deck/key"), "mit Pin wird der Schluessel nicht vom Server geholt");
+  assert.deepEqual(found, []); assert.deepEqual(A.errs, []); assert.deepEqual(B.errs, []); assert.deepEqual(C.errs, []);
+});
+
+test("Deck auf einem Host ohne Pin: Signatur mit Server-Schluessel, Karte oeffnen, ohne Konto keine Nutzung, Melden", async () => {
+  const ORIGIN = "https://mdi.test", found = [];
+  const fw = fakeWrapper(), ff = fakeFrei(fw, { origin: ORIGIN });
+  const B = await openApp(fw, ff, { origin: ORIGIN });
+  await act(B.p, "frei"); await screenIs(B.p, "frei-start");
+  await act(B.p, "deck"); await screenIs(B.p, "frei-deck");
+  assert.ok(ff.state.log.includes("GET /api/duell/deck/key"), "ohne Pin: Schluessel vom selben Server");
   await B.p.locator('[data-act="deck-' + rec("deck-mit-karte").body.cards[0].cid + '"]').click();
   await screenIs(B.p, "frei-deckkarte");
+  await B.p.getByText("Mit Konto siehst du hier, wie es deinen freien Karten geht.").waitFor();
   await checks(B.p, "14-deckkarte", found);
   await act(B.p, "melden"); await screenIs(B.p, "frei-melden");
   await B.p.locator('[data-v="wrong"]').click();
   await act(B.p, "report-send");
   await B.p.getByText(/^Danke/).first().waitFor();
-  assert.ok(ff2.state.log.some((l) => l.startsWith("POST /api/duell/report")), ff2.state.log.join(", "));
+  assert.ok(ff.state.log.some((l) => l.startsWith("POST /api/duell/report")), ff.state.log.join(", "));
   await checks(B.p, "15-gemeldet", found);
-  assert.deepEqual(found, []); assert.deepEqual(A.errs, []); assert.deepEqual(B.errs, []);
+  assert.deepEqual(found, []); assert.deepEqual(B.errs, []);
 });
 
 test("Englisch, dunkel, 1280: Formular und Vorschau ohne axe-Verstoss", async () => {
