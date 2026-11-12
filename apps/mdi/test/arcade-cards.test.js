@@ -283,3 +283,22 @@ test("Aufwand je Bild und Tick ohne Uhr: Ops, Anzeigelisten-Knoten, Zustandsgroe
     for (const k of Object.keys(WORK[id])) assert.ok(mx[k] <= WORK[id][k], id + ": " + k + " " + mx[k] + " > " + WORK[id][k]);
   }
 });
+
+test("Foto ist Anzeige: im Live-Spiel (gefilterte Parameter) kommt es aus ctx.local.params dieses Geraets, nie aus dem Partner", () => {
+  // Murmel/Eis-Stock zeigen die Figur erst, wenn man dran ist (nach dem Start); hier Spiele mit stehender Figur
+  for (const id of ["arcade-kick", "arcade-panzer", "arcade-flipper"]) {
+    const c = cardOf(id), local = Object.assign(defaults(manifestOf(id).params), { photo: PHOTO, photoUse: "figure" });
+    const peer = paramsForLink(manifestOf(id).params, local);   // was der Partner bekommt: ohne Foto
+    assert.equal(peer.photo, undefined, id);
+    assert.ok(validParams(id, Object.assign(defaults(manifestOf(id).params), peer, { photo: null })), id + ": ohne Foto gueltig");
+    const st = c.side.init({ params: Object.assign(defaults(manifestOf(id).params), peer), seed: "p", seat: 0, serving: true });
+    const has = (v) => JSON.stringify(v).includes('"kind":"local","id":"' + PHOTO.slice(6));
+    assert.equal(has(c.side.view(st, {})), false, id + ": ohne lokalen Kontext kein Foto");
+    assert.equal(has(c.side.view(st, { local: { params: local } })), true, id + ": eigenes Foto aus ctx.local");
+    assert.equal(c.side.hash(st), c.side.hash(c.side.init({ params: Object.assign(defaults(manifestOf(id).params), peer), seed: "p", seat: 0, serving: true })), id);
+    const m = c.init({ params: Object.assign(defaults(manifestOf(id).params), peer), seed: "p", players: ["human", "bot"] });
+    assert.equal(has(c.view(m, { local: { params: local } })), true, id + ": auch in der Partie");
+  }
+  const r = paramsOf("kick", rulesOf("kick")).params.required;
+  assert.ok(!r.includes("photo"), "photo ist kein Pflichtfeld (Link und Partner lassen es weg)");
+});

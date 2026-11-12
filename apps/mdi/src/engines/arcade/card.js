@@ -49,6 +49,15 @@ function statsOf(g, z, t) {
   return [{ id: "hits", label: SL.hits, hint: SH.hits, value: z.hits }, { id: "best", label: SL.best, hint: SH.best, value: z.best }, time];
 }
 const comfortOf = (params) => !!params && params.comfort === "an";
+/** Das eigene Foto ist reine Anzeige und kommt aus den lokalen Parametern dieses Geraets (ctx.local.params), nicht aus dem
+ *  Spielzustand: Live und Geist spielen mit den Parametern ohne media.local (contract/fields.js paramsForPeer). Fehlt der
+ *  Kontext (Tests, aeltere Hosts), gilt das Foto im Zustand (allein, gegen den Bot: dort sind die Parameter lokal). */
+function lookFor(g, look, ctx) {
+  const lp = ctx && ctx.local && ctx.local.params;
+  if (!lp || typeof lp !== "object") return look;
+  const l = lookOf(g, lp);
+  return Object.assign({}, look, { photo: l.photo, photoId: l.photoId });
+}
 function winOf(g, params) { return params && Number.isInteger(params.win) && params.win >= 1 && params.win <= 9 ? params.win : undefined; }
 function textOf(S, lang, them) {
   const T = tx(lang), say = fmt(T.score, { you: T.you, a: S.score[0], b: S.score[1], them });
@@ -83,7 +92,7 @@ export function makeCard(g, manifest) {
     view(state, ctx = {}) {
       const seat = ctx.seat === 1 ? 1 : 0, S = state.sides[seat], T = tx(ctx.lang), c = state.ctl[seat];
       const them = state.players[1 - seat] === "bot" ? T.bot : T.friend, t = textOf(S, ctx.lang, them);
-      const node = drawSide(S, state.look, { now: (state.now + (ctx.alpha || 0)) / TICK, fx: state.fx[seat], aim: c.aim, swipe: c.swipe, reduced: ctx.reduced, count: ctx.countdown, hud: (state.title ? state.title + "  ·  " : "") + t.say, note: t.note, a11y: (manifest.title[ctx.lang === "en" ? "en" : "de"] || "") + ": " + t.say });
+      const node = drawSide(S, lookFor(g, state.look, ctx), { now: (state.now + (ctx.alpha || 0)) / TICK, fx: state.fx[seat], aim: c.aim, swipe: c.swipe, reduced: ctx.reduced, count: ctx.countdown, hud: (state.title ? state.title + "  ·  " : "") + t.say, note: t.note, a11y: (manifest.title[ctx.lang === "en" ? "en" : "de"] || "") + ": " + t.say });
       return ctx.thumb ? thumbOf(node, g) : node;
     },
     /** Bot-Sitz: rechnet in step (Gedaechtnis im Zustand); hier nur die leere Eingabe, damit modesOf "bot" anbietet. */
@@ -103,7 +112,7 @@ export function makeCard(g, manifest) {
       view(st, ctx = {}) {
         const S = st.S, T = tx(ctx.lang), t = textOf(S, ctx.lang, T.friend);
         const shown = ctx.tracked ? trackedSide(S, ctx.tracked) : S;
-        return drawSide(shown, st.look, { now: S.t + (ctx.alpha || 0) / TICK, fx: st.fx, aim: st.ctl.aim, swipe: st.ctl.swipe, reduced: ctx.reduced, count: ctx.countdown, hud: (st.title ? st.title + "  ·  " : "") + t.say, note: t.note, a11y: t.say });
+        return drawSide(shown, lookFor(S.g, st.look, ctx), { now: S.t + (ctx.alpha || 0) / TICK, fx: st.fx, aim: st.ctl.aim, swipe: st.ctl.swipe, reduced: ctx.reduced, count: ctx.countdown, hud: (st.title ? st.title + "  ·  " : "") + t.say, note: t.note, a11y: t.say });
       },
       status(st) { const S = st.S, t = textOf(S, "de", tx("de").friend); return { over: S.over, score: S.score.slice(), winner: S.over ? (S.draw ? -1 : S.score[0] > S.score[1] ? 0 : 1) : null, draw: !!S.draw, rejected: S.rejected, say: t.say, comfort: !!st.comfort, stats: statsOf(S.g, st.stats, S.t) }; },
       hash(st) { return hashSide(st.S); }
@@ -171,7 +180,8 @@ export function paramsOf(g, rules) {
       "x-names": { aus: L("Aus", "Off"), an: L("An: halbes Tempo, große Tasten", "On: half speed, big buttons") } }
   };
   if (g !== "elfer") props.win = { type: "integer", minimum: 1, maximum: 9, default: rules.WIN, "x-field": "number", "x-model": true, "x-label": L("Punkte zum Sieg", "Points to win") };
-  const req = Object.keys(props);
+  // photo ist kein Pflichtfeld: der Link und der Partner bekommen es nie (media.local reist nicht), ohne Foto gilt der Standard
+  const req = Object.keys(props).filter((k) => k !== "photo");
   return {
     params: { type: "object", additionalProperties: false, required: req, properties: props },
     parts: [
