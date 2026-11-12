@@ -166,7 +166,7 @@ async function frameStats(b, o) {
   await p.waitForFunction(() => globalThis.__arcPhase === "go", null, { timeout: 10000 });
   const file = path.join(os.tmpdir(), "arc-trace-" + o.card + (o.blank ? "-blank" : "") + ".json");
   await b.startTracing(p, { path: file, categories: ["devtools.timeline", "disabled-by-default-devtools.timeline.frame"] });
-  await p.waitForTimeout(5000);
+  await p.waitForTimeout(3000);
   await b.stopTracing();
   const ev = JSON.parse(fs.readFileSync(file, "utf8")).traceEvents || [];
   const frames = ev.filter((e) => e.name === "DrawFrame").map((e) => e.ts).sort((a, c) => a - c);
@@ -178,10 +178,12 @@ async function frameStats(b, o) {
 test("Bildrate auf einem Mittelklasse-Handy (CPU 4x): Anteil der Karte je Bild aus dem Chromium-Trace, fps gegen die leere Buehne", async () => {
   const b = await browser(), out = {}, bad = [];
   try {
+    // eine Basislinie (leere Buehne, gleiche Host-Schleife) fuer den Lauf; das Zeitlimit des Runners ist 300 s je Datei
+    const base = await frameStats(b, { card: "arcade-kick", mode: "bot", seed: "fps", fast: 0, blank: true });
+    out.leer = { fps: base.fps, jsP95: base.jsP95, jsMean: base.jsMean };
     for (const id of IDS) {
-      const base = await frameStats(b, { card: id, mode: "bot", seed: "fps", fast: 0, blank: true });
       const r = await frameStats(b, { card: id, mode: "bot", seed: "fps", fast: 0 });
-      out[id] = { fps: r.fps, fpsLeer: base.fps, jsP95: r.jsP95, jsMean: r.jsMean, jsP95Leer: base.jsP95 };
+      out[id] = { fps: r.fps, jsP95: r.jsP95, jsMean: r.jsMean };
       assert.deepEqual(r.errs, [], id);
       if (!(r.jsMean !== null && r.jsMean <= 4 && r.jsP95 <= 10)) bad.push(id + ": Mittel " + r.jsMean + " ms, p95 " + r.jsP95 + " ms");
     }
