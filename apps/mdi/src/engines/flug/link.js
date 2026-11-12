@@ -25,7 +25,9 @@ export function encodeState(state) {
   const st = sanitize(state);
   if (!st) throw new Error("invalid state");
   const sp = st.spur; delete st.spur;
-  return toB64url(JSON.stringify(st), sp);
+  const out = toB64url(JSON.stringify(st), sp);
+  if (out.length > MAX_FRAGMENT) throw new RangeError("zu-lang");   // ehrlich statt eines Links, den niemand oeffnen kann
+  return out;
 }
 /** -> Zustand oder null (nie eine Ausnahme). Eine Spur im JSON-Text zaehlt nie, nur die Bytes nach der 0. */
 export function decodeState(str) {

@@ -17,8 +17,8 @@ const TMAX = 90 * TPS;
 const FX0 = () => ({ flash: 0, shake: 0, since: {} });
 function say(key, o) { return { de: fmt(TX.de[key], o), en: fmt(TX.en[key], o) }; }
 
-function init({ params, players }) {
-  const g = gameOf(params), mode = params.mode === "agent" || params.mode === "train" ? params.mode : "solo";
+function init({ params: input, players }) {
+  const params = input || {}, g = gameOf(params), mode = params.mode === "agent" || params.mode === "train" ? params.mode : "solo";
   const st = { mode, g, t: 0, fx: FX0(), samples: [] };
   if (mode === "agent") {
     // alt duel.js flySim: Strecke aus seed und Grundphysik (ohne Route, ohne Tempo), je Agent ein eigener Zufallsstrom
@@ -113,7 +113,12 @@ function bot(st, seat, opt) {
 // Zustandshash ueber die exakten float64-Bits (rt.numeric "f64")
 function hash(st) {
   let h = FNV0;
-  for (const s of st.sims) { h = mixF64(mixF64(h, s.bird.y), s.bird.vy); h = mixF64(h, s.score); h = mixF64(h, s.ticks); for (const p of s.pipes) h = mixF64(mixF64(h, p.x), p.top); }
+  for (const s of st.sims) {
+    h = mixF64(mixF64(h, s.bird.y), s.bird.vy); h = mixF64(h, s.score); h = mixF64(h, s.ticks);
+    h = mixF64(mixF64(mixF64(mixF64(h, s.r), s.made), s.tap), s.section); h = mixF64(h, ["ready", "run", "over"].indexOf(s.state));
+    for (const p of s.pipes) h = mixF64(mixF64(h, p.x), p.top);
+  }
+  if (st.rr) for (const x of st.rr) h = mixF64(h, x.r);
   h = mixF64(h, st.t);
   return hex32(h);
 }

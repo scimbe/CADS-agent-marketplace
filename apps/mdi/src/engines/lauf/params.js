@@ -46,7 +46,7 @@ export function build(o, seed) {
 // ---------- Dokument "lauf" und die freie Karte (Server G2) ----------
 const HEX = /^#[0-9a-fA-F]{6}$/;
 function colors(c) { return Array.isArray(c) && c.length === 2 && HEX.test(c[0]) && HEX.test(c[1]) ? [c[0], c[1]] : ["#ffd400", "#ff3b1d"]; }
-function txt(s, max) {
+export function txt(s, max) {
   const t = Array.from(String(s == null ? "" : s).replace(/[\u0000-\u001f\u007f<>]/g, " ").replace(/\s+/g, " ").trim()).slice(0, max).join("").trim();
   return t && isClean(t) ? t : "";
 }
@@ -57,6 +57,15 @@ function kiDoc(o) {
   if (r.s && typeof o.h === "string" && /^[A-Za-z0-9_-]{43}$/.test(o.h)) r.h = o.h;
   if (r.s && typeof o.o === "string" && /^[A-Za-z0-9_-]{22}$/.test(o.o)) r.o = o.o;
   return r;
+}
+// Spur der Bearbeiter (alt daily.js sanitizeTrail): [{n, w:[Bereiche]}], hoechstens 8, Namen bereinigt
+const AREAS = ["text", "farbe", "sticker", "regeln", "figur", "welt", "bild", "musik", "stimme", "frage"];
+export function trail(by) {
+  return (Array.isArray(by) ? by : []).map((e) => {
+    if (!e || typeof e !== "object") return null;
+    const w = (Array.isArray(e.w) ? e.w : []).filter((x) => AREAS.indexOf(x) >= 0).slice(0, AREAS.length);
+    return w.length ? { n: txt(e.n, 16), w } : null;
+  }).filter(Boolean).slice(-8);
 }
 // ---------- Kartenparameter der Karte "lauf": das Dokument l flach (p-Schluessel oben), dazu Farben, Titel, Siegel ----------
 export const PKEYS = Object.keys(SPEC);
@@ -74,7 +83,7 @@ export function paramsOfLauf(l, rest) {
 // Kartenparameter aus einem Server-Dokument (G2) oder alten Link {k:"lauf", col, by, t, ki?, fr?, l}. null: kein Laufspiel.
 export function fromServerDoc(doc) {
   if (!doc || typeof doc !== "object" || doc.k !== "lauf") return null;
-  const rest = { col: colors(doc.col) };
+  const rest = { col: colors(doc.col), by: trail(doc.by) };
   const t = txt(doc.t, 40); if (t) rest.t = t;
   const ki = kiDoc(doc.ki); if (ki) rest.ki = ki;
   if (typeof doc.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(doc.fr)) rest.fr = doc.fr;
@@ -82,7 +91,7 @@ export function fromServerDoc(doc) {
 }
 export function toServerDoc(params, base) {
   const p = params || {}, b = base && typeof base === "object" ? base : {};
-  const doc = { k: "lauf", col: colors(p.col || b.col), by: Array.isArray(b.by) ? b.by : [], l: laufOf(p) };
+  const doc = { k: "lauf", col: colors(p.col || b.col), by: trail(Array.isArray(p.by) ? p.by : b.by), l: laufOf(p) };
   const t = txt(p.t, 40); if (t) doc.t = t;
   if (typeof p.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(p.fr)) doc.fr = p.fr;
   const ki = kiDoc(p.ki); if (ki) doc.ki = ki;

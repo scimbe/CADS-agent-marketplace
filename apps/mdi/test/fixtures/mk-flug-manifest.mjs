@@ -33,6 +33,7 @@ const props = {
   hintergrund: { type: ["string", "null"], default: null, "x-field": "media.local", "x-slot": "hintergrund", "x-label": L("Eigenes Foto als Hintergrund", "Own photo as background") },
   col: { type: "array", minItems: 2, maxItems: 2, items: { type: "string", pattern: "^#[0-9a-fA-F]{6}$" }, default: ["#ffd400", "#ff3b1d"], "x-field": "color", "x-label": L("Farben", "Colours") },
   t: { type: "string", maxLength: 40, default: "", "x-field": "text", "x-label": L("Eigener Titel", "Own title") },
+  by: { type: "array", maxItems: 8, default: [], "x-field": "list", "x-hidden": true, "x-label": L("Bearbeitet von", "Edited by"), items: { type: "object", additionalProperties: false, required: ["n", "w"], properties: { n: { type: "string", maxLength: 16 }, w: { type: "array", items: { type: "string" } } } } },
   ki: { type: ["object", "null"], default: null, "x-field": "text", "x-hidden": true, "x-label": L("KI-Siegel", "AI seal") },
   fr: { type: ["string", "null"], pattern: "^[A-Za-z0-9_-]{22}$", default: null, "x-field": "text", "x-hidden": true, "x-label": L("Freie Karte", "Free card") }
 };

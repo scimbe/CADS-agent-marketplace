@@ -3,7 +3,7 @@
 // Allein; mit 2 Sitzen ist Sitz 1 der Geist aus dem Link. Herausforderung ohne Geist: l.r = Punkte zum Schlagen (alt).
 import manifest from "./manifest.json" with { type: "json" };
 import { initState, stepState, copyState, press, release, setDuck, points, meters, bot as pageBot, withApi, STEP } from "../../engines/lauf/engine.js";
-import { laufOf, fromServerDoc, toServerDoc } from "../../engines/lauf/params.js";
+import { laufOf, fromServerDoc, toServerDoc, txt } from "../../engines/lauf/params.js";
 import { fromWords } from "../../engines/lauf/words.js";
 import { runOps, poseOf, VIEW } from "../../engines/lauf/view.js";
 import { mixF64, FNV0, hex32 } from "../../engines/flug/rng.js";
@@ -13,12 +13,13 @@ import TX from "../../engines/lauf/texts.json" with { type: "json" };
 const TPS = 120, TMAX = 180 * TPS;
 function say(key, o) { return { de: fmt(TX.de[key], o), en: fmt(TX.en[key], o) }; }
 
-function init({ params, players }) {
-  const l = laufOf(params), n = Math.max(1, Math.min(2, players || 1)), sims = [];
+function init({ params: input, players }) {
+  const params = input || {}, l = laufOf(params), n = Math.max(1, Math.min(2, players || 1)), sims = [];
   for (let i = 0; i < n; i++) sims.push(initState(l));
-  return { t: 0, sims, fx: { flash: 0, shake: 0, since: {} }, r: l.r || 0, title: params.t || "" };
+  return { t: 0, sims, fx: { flash: 0, shake: 0, since: {} }, r: l.r || 0, title: txt(params.t, 40) };
 }
 function copy(st) { return { ...st, fx: { ...st.fx, since: { ...st.fx.since } }, sims: st.sims.map(copyState) }; }
+const DONE = ["ready", "run", "over", "goal"];
 const done = (s) => s.state === "over" || s.state === "goal";
 
 function step(state, inputs) {
@@ -78,7 +79,10 @@ function hash(st) {
   let h = FNV0;
   for (const s of st.sims) {
     h = mixF64(mixF64(mixF64(h, s.me.x), s.me.y), s.me.vy); h = mixF64(mixF64(h, s.coins), s.stomps); h = mixF64(h, s.ticks);
-    for (const it of s.items) if (it.t === "f" && it.live) h = mixF64(mixF64(h, it.x), it.y);
+    h = mixF64(mixF64(mixF64(h, s.r), DONE.indexOf(s.state)), s.gen.x);
+    let live = 0, n = 0;
+    for (const it of s.items) { if (it.t === "f" && it.live) h = mixF64(mixF64(h, it.x), it.y); if (it.live !== undefined) { live = (live * 2 + (it.live ? 1 : 0)) % 4294967296; n++; } }
+    h = mixF64(mixF64(h, live), n);
   }
   return hex32(mixF64(h, st.t));
 }

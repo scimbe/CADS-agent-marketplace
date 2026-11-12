@@ -607,6 +607,37 @@
      "en": "AI seal"
     }
    },
+   "by": {
+    "type": "array",
+    "maxItems": 8,
+    "default": [],
+    "x-field": "list",
+    "x-hidden": true,
+    "x-label": {
+     "de": "Bearbeitet von",
+     "en": "Edited by"
+    },
+    "items": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "n",
+      "w"
+     ],
+     "properties": {
+      "n": {
+       "type": "string",
+       "maxLength": 16
+      },
+      "w": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   },
    "fr": {
     "type": [
      "string",

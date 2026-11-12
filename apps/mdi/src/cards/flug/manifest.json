@@ -762,6 +762,37 @@
      "en": "Own title"
     }
    },
+   "by": {
+    "type": "array",
+    "maxItems": 8,
+    "default": [],
+    "x-field": "list",
+    "x-hidden": true,
+    "x-label": {
+     "de": "Bearbeitet von",
+     "en": "Edited by"
+    },
+    "items": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "n",
+      "w"
+     ],
+     "properties": {
+      "n": {
+       "type": "string",
+       "maxLength": 16
+      },
+      "w": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   },
    "ki": {
     "type": [
      "object",
@@ -934,6 +965,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }
@@ -1001,6 +1033,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }
@@ -1068,6 +1101,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }
@@ -1132,6 +1166,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }
@@ -1199,6 +1234,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }
@@ -1266,6 +1302,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }
@@ -1333,6 +1370,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }
@@ -1400,6 +1438,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }
@@ -1466,6 +1505,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }
@@ -1529,6 +1569,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }
@@ -1607,6 +1648,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }
@@ -1688,6 +1730,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }
@@ -1769,6 +1812,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }
@@ -1851,6 +1895,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }
@@ -1932,6 +1977,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }
@@ -2012,6 +2058,7 @@
      "#ff3b1d"
     ],
     "t": "",
+    "by": [],
     "ki": null,
     "fr": null
    }

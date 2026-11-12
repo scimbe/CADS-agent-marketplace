@@ -253,6 +253,7 @@ export function sanitizeGame(g) {
   return out;
 }
 
+import { trail } from "../lauf/params.js";
 // ---------- Kartenparameter der Karte "flug" (flach, eine Quelle fuer Editor, Link, freie Karte) ----------
 export const TEMPOS = [1, 0.75, 0.5];
 const VARIANT_ID = /^[a-z0-9]+(-[a-z0-9]+){0,4}$/;
@@ -278,7 +279,7 @@ export function paramsOfGame(g, rest) {
  */
 export function fromServerDoc(doc) {
   if (!doc || typeof doc !== "object" || doc.k !== "game" || !doc.g || typeof doc.g !== "object") return null;
-  const rest = { col: colors(doc.col) };
+  const rest = { col: colors(doc.col), by: trail(doc.by) };
   const t = txt(doc.t, 40); if (t) rest.t = t;
   const ki = kiDoc(doc.ki); if (ki) rest.ki = ki;
   if (typeof doc.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(doc.fr)) rest.fr = doc.fr;
@@ -291,7 +292,7 @@ export function toServerDoc(params, base) {
   const p = params || {}, b = base && typeof base === "object" ? base : {};
   const s = gameOf(p), g = { seed: s.seed, params: s.params, theme: s.theme, title: s.title, emoji: s.emoji };
   if (s.look) g.look = s.look; if (s.route) g.route = s.route; if (s.anim) g.anim = s.anim;
-  const doc = { k: "game", col: colors(p.col || b.col), by: Array.isArray(b.by) ? b.by : [], g };
+  const doc = { k: "game", col: colors(p.col || b.col), by: trail(Array.isArray(p.by) ? p.by : b.by), g };
   if (typeof p.variant === "string" && p.variant !== "eigen" && VARIANT_ID.test(p.variant)) doc.i = p.variant;
   const t = txt(p.t, 40); if (t) doc.t = t;
   if (typeof p.fr === "string" && /^[A-Za-z0-9_-]{22}$/.test(p.fr)) doc.fr = p.fr;

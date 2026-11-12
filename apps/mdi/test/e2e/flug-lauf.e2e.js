@@ -202,6 +202,9 @@ for (const view of ["phone360", "phone390", "phone412", "desk1280"]) test("Verde
 test("Reduzierte Bewegung: das Bild steht still (keine Wolken, kein Schweben); ohne Einstellung bewegt es sich", async () => {
   for (const card of ["flug", "lauf"]) {
     const still = await page(b, { card, reduced: true });
+    // erst nach dem ersten gezeichneten Bild vergleichen (Canvas hat dann seine Groesse und ein aria-label)
+    await still.p.waitForFunction(() => { const c = document.getElementById("stage"); return c.getAttribute("aria-label") && c.width > 300; });
+    await still.p.waitForTimeout(200);
     const a = await still.p.evaluate(() => document.getElementById("stage").toDataURL()); await still.p.waitForTimeout(500);
     assert.equal(await still.p.evaluate(() => document.getElementById("stage").toDataURL()), a, card + ": reduziert steht");
     if (card === "flug") {

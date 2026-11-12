@@ -37,7 +37,8 @@ const V0 = { fly(it, ticks) { return it.base - 64 + sinD(ticks * STEP * 3.9 + it
 // ---- end ev 0 ----
 
 const JCACHE = new Map();
-function jumpsOf(p) { const key = p.g + "|" + p.j; let J = JCACHE.get(key); if (!J) { J = jumps(p); JCACHE.set(key, J); } return J; }
+// Sprungtabelle je (g, j); begrenzt, damit viele verschiedene Links den Speicher nicht fuellen
+function jumpsOf(p) { const key = p.g + "|" + p.j; let J = JCACHE.get(key); if (!J) { if (JCACHE.size >= 64) JCACHE.clear(); J = jumps(p); JCACHE.set(key, J); } return J; }
 
 // Strecke: Abschnitt fuer Abschnitt vor dem Laeufer erzeugt, alles aus dem Seed (s.r) und dem Generatorzustand s.gen.
 function put(s, it) { s.items.push(it); return it; }
