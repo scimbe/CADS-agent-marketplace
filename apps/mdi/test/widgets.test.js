@@ -130,3 +130,12 @@ test("Zeitspiele mit Testuhr: blind (bester), inner (Abweichung), drop (Preis), 
   const dr = harness({ t: "drop", id: "d", max: 100, item: "Socke", submit: sub }, { clock });
   dr.click(/Start/); t += 800; dr.click(/Kaufen/); assert.equal(dr.sent[0].a, 90);
 });
+
+test("image: nur data:-Bilder oder vom Host aufgeloeste Quellen, Alt-Text; sonst sichtbarer Hinweis", () => {
+  const ok = harness({ t: "image", src: "data:image/png;base64,iVBORw0KGgo=", alt: "Ein Bild" });
+  assert.equal(ok.tree().find((x) => x.tag === "img").props.alt, "Ein Bild");
+  const bad = harness({ t: "image", src: "https://evil.example/x.png", alt: "x" });
+  assert.ok(!bad.tree().some((x) => x.tag === "img"));
+  const srv = harness({ t: "image", src: { kind: "server", ref: "gi1" }, alt: "KI" }, { images: { url: (s) => (s.ref === "gi1" ? "data:image/jpeg;base64,AAAA" : null) } });
+  assert.equal(srv.tree().find((x) => x.tag === "img").props.src, "data:image/jpeg;base64,AAAA");
+});

@@ -57,3 +57,4 @@
 .rt-btn { min-height: 3.75rem; min-width: 3.75rem; padding: .5rem 1.2rem; border: 3px solid var(--edge); border-radius: var(--r3); background: var(--surface); color: var(--text); font: inherit; font-weight: 700; }
 .rt-btn[aria-pressed="true"] { background: var(--primary); color: var(--on-primary); }
 @media (prefers-reduced-motion: reduce) { .pcard[aria-pressed="true"] { transform: none; } }
+.w-img { display: block; width: 100%; height: auto; object-fit: cover; border-radius: var(--r1); }

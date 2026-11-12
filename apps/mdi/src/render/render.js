@@ -69,6 +69,15 @@ export function render(node, host) {
           h("p", { class: "choice-label", id }, txt(n.label)),
           h("div", { class: "options" + (n.wrap ? " wrap" : "") }, opts.map((o, i) => h("button", { type: "button", class: "opt" + (o.on ? " on" : ""), key: i, "aria-pressed": o.on === undefined ? null : o.on ? "true" : "false", disabled: host.disabled || o.disabled || (o.draft !== undefined && !host.onDraft) ? true : null, on: { click: () => click(o) } }, txt(o.label)))));
       }
+      case "image": {
+        // Bild als DOM-Knoten (KI-Bild, Foto): nur data:-URLs von Bildtypen oder Quellen, die der Host aufloest
+        // (host.images.url({kind, ref|slot})); Alt-Text Pflicht. CSP: img-src data: blob: 'self'.
+        const src = typeof n.src === "string" && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(n.src) ? n.src
+          : n.src && typeof n.src === "object" && host.images && typeof host.images.url === "function" ? host.images.url(n.src) : null;
+        const ratio = typeof n.ratio === "string" && /^\d{1,2}:\d{1,2}$/.test(n.ratio) ? n.ratio.replace(":", " / ") : null;
+        if (!src) { if (host.onUnknown) host.onUnknown("image:quelle"); return h("p", { class: "w-unknown", role: "note", "data-part": part }, txt(n.alt) || (WTX[host.lang] || WTX.de).unknown); }
+        return h("img", { class: "w-img" + (abs ? " abs" : ""), src, alt: txt(n.alt), "data-part": part, style: { ...(style || {}), ...(ratio ? { "aspect-ratio": ratio } : {}) } });
+      }
       case "canvas": {
         // statische Canvas-Liste (Poster, Dart-Scheibe, Tischbild): gezeichnet beim Einhaengen und bei jeder Aenderung
         const ratio = typeof n.ratio === "string" && /^\d{1,2}:\d{1,2}$/.test(n.ratio) ? n.ratio.replace(":", " / ") : (Number(n.w) || 1) + " / " + (Number(n.h) || 1);
