@@ -30,7 +30,8 @@ export function thumbKey(id, variant) { return variant ? id + "/" + variant : id
 /** Kunstflaeche einer Kachel: echtes Startbild (ctx.thumbs, nachgeladen), sonst die Familienflaeche. */
 export function art(fam, key, alt, thumbs) {
   const src = key && thumbs && typeof thumbs[key] === "string" ? thumbs[key] : null;
-  if (src) return h("img", { class: "h-art", src, alt: alt || "", loading: "lazy" });
+  // draggable=false: sonst startet beim Wischen ueber das Startbild das Ziehen des Bildes (pointercancel), das Blatt blaettert nicht
+  if (src) return h("img", { class: "h-art", src, alt: alt || "", loading: "lazy", draggable: "false" });
   return h("span", { class: "h-art h-art-fam fam-" + fam.id, "aria-hidden": "true" }, h("span", { class: "h-rays" }), icon(fam.shape, "h-art-shape"));
 }
 
