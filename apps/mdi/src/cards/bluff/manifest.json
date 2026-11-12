@@ -13,8 +13,8 @@
     "en": "Announce, believe or reveal."
   },
   "howto": {
-    "de": "Einer sagt Zahlen an und darf schwindeln. Der andere glaubt oder deckt auf.",
-    "en": "One player announces numbers and may fib. The other believes or reveals."
+    "de": "Der Bote sagt Zahlen an und darf schwindeln. Der Prüfer glaubt oder deckt auf. Wer mehr Punkte hat, gewinnt.",
+    "en": "The messenger announces numbers and may fib. The checker believes or reveals. Whoever has more points wins."
   },
   "players": {
     "min": 2,
