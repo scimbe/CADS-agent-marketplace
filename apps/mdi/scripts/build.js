@@ -5,7 +5,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as esbuild from "esbuild";
-import { generate, writeGenerated, discover } from "./gen.js";
+import { generate, writeGenerated, discover, featPartsRegistry } from "./gen.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.join(ROOT, "src"), DIST = path.join(ROOT, "dist");
@@ -42,6 +42,26 @@ async function cardParts(common) {
     sizes[file] = Buffer.byteLength(js);
   }
   return { parts: out, caps, sizes };
+}
+
+/** Feature-Teile (ADR 0001 Nachtrag 4): je Name ein Skript, das {name, mod} als "mdi:feat" meldet. */
+async function featParts(common) {
+  const reg = featPartsRegistry(), out = {}, sizes = {};
+  for (const [name, mods] of Object.entries(reg)) {
+    const ids = mods.map((_, j) => "m" + j);
+    const entry = mods.map((m, j) => "import * as " + ids[j] + " from " + JSON.stringify(path.join(SRC, m)) + ";").join("\n") + "\n" +
+      "import { merge } from " + JSON.stringify(path.join(SRC, "gen/fparts.js")) + ";\n" +
+      "document.dispatchEvent(new CustomEvent(\"mdi:feat\", { detail: { name: " + JSON.stringify(name) + ", mod: merge(" + JSON.stringify(name) + ", [" + ids.join(", ") + "]) } }));\n";
+    // merge kommt aus der statischen Fassung; deren Importe aller Teile darf der Teil nicht mitziehen
+    const onlyMerge = { name: "fparts-merge", setup(b) { b.onLoad({ filter: /gen[\\/]fparts\.js$/ }, () => ({ contents: "const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);\nexport function merge(n, list) { const o = {}; for (const m of list) for (const k of Object.keys(m)) { if (own(o, k)) throw new Error(\"teil \" + n + \": Export doppelt: \" + k); o[k] = m[k]; } return Object.freeze(o); }\n", loader: "js" })); } };
+    const r = await esbuild.build({ ...common, plugins: [onlyMerge], stdin: { contents: entry, resolveDir: SRC, sourcefile: "feat-" + name + ".js", loader: "js" } });
+    const js = r.outputFiles[0].text;
+    const file = "parts/feat-" + name + "." + sha("sha256", js).toString("hex").slice(0, 12) + ".js";
+    fs.writeFileSync(path.join(DIST, file), js);
+    out[name] = { file, sri: "sha384-" + b64(sha("sha384", js)) };
+    sizes[file] = Buffer.byteLength(js);
+  }
+  return { parts: out, sizes };
 }
 
 /** Thumbnails als Teile (je bis 80 KB), Index Schluessel (id oder id/variante) -> Teil. */
@@ -101,11 +121,15 @@ export async function build() {
   const liveRemote = { src: WC + "/play-frame.html", origin: WC };
 
   // 3) Karten- und Thumbnail-Teile
-  const cp = await cardParts(common), tp = thumbParts();
+  const cp = await cardParts(common), tp = thumbParts(), fp = await featParts(common);
 
   // 4) Kern: das Register ist im Browser src/cards/lazy.js (nur Metadaten), Karten kommen als Teile
-  const lazyRegister = { name: "lazy-register", setup(b) { b.onResolve({ filter: /cards\/index\.js$/ }, (a) => { const p = path.resolve(a.resolveDir, a.path); return p === path.join(SRC, "cards/index.js") ? { path: path.join(SRC, "cards/lazy.js") } : undefined; }); } };
-  const core = await esbuild.build({ ...common, entryPoints: [path.join(SRC, "main.js")], plugins: [lazyRegister], define: { __PARTS__: JSON.stringify(parts), __LIVE_REMOTE__: JSON.stringify(liveRemote), __CARD_PARTS__: JSON.stringify(cp.parts), __CARD_CAPS__: JSON.stringify(cp.caps), __THUMB_PARTS__: JSON.stringify(tp.thumbs) } });
+  const lazyRegister = { name: "lazy-register", setup(b) {
+    b.onResolve({ filter: /cards\/index\.js$/ }, (a) => { const p = path.resolve(a.resolveDir, a.path); return p === path.join(SRC, "cards/index.js") ? { path: path.join(SRC, "cards/lazy.js") } : undefined; });
+    // Feature-Teile: im Kern nur das Register, die Module kommen als Teil (ADR 0001 Nachtrag 4)
+    b.onResolve({ filter: /gen\/fparts\.js$/ }, (a) => { const p = path.resolve(a.resolveDir, a.path); return p === path.join(SRC, "gen/fparts.js") ? { path: path.join(SRC, "app/fparts-lazy.js") } : undefined; });
+  } };
+  const core = await esbuild.build({ ...common, entryPoints: [path.join(SRC, "main.js")], plugins: [lazyRegister], define: { __PARTS__: JSON.stringify(parts), __LIVE_REMOTE__: JSON.stringify(liveRemote), __CARD_PARTS__: JSON.stringify(cp.parts), __CARD_CAPS__: JSON.stringify(cp.caps), __THUMB_PARTS__: JSON.stringify(tp.thumbs), __FEAT_PARTS__: JSON.stringify(fp.parts) } });
   const js = core.outputFiles[0].text.replace(/<\/script/gi, "<\\/script").replace(/<!--/g, "<\\!--");
   const anton = fs.readFileSync(path.join(ROOT, "node_modules/@fontsource/anton/files/anton-latin-400-normal.woff2"));
   // tokens.css (Strang H) + Widget-/Buehnen-Stile (Strang F, src/render/widgets.css)
@@ -125,8 +149,8 @@ export async function build() {
   const tpl = fs.readFileSync(path.join(SRC, "index.template.html"), "utf8");
   const html = tpl.replace("__CSP__", csp).replace("__CSS__", () => css).replace("__JS__", () => js);
   fs.writeFileSync(path.join(DIST, "index.html"), html);
-  const report = { core: Buffer.byteLength(html), parts: { [liveName]: Buffer.byteLength(local.html), "remote/play-frame.html": Buffer.byteLength(remote.html), ...cp.sizes, ...tp.sizes } };
-  fs.writeFileSync(path.join(DIST, "build.json"), JSON.stringify({ parts, cards: cp.parts, thumbs: tp.thumbs, caps: cp.caps, report }, null, 2));
+  const report = { core: Buffer.byteLength(html), parts: { [liveName]: Buffer.byteLength(local.html), "remote/play-frame.html": Buffer.byteLength(remote.html), ...cp.sizes, ...tp.sizes, ...fp.sizes } };
+  fs.writeFileSync(path.join(DIST, "build.json"), JSON.stringify({ parts, cards: cp.parts, thumbs: tp.thumbs, feats: fp.parts, caps: cp.caps, report }, null, 2));
   return report;
 }
 

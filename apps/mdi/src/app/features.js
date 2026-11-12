@@ -13,9 +13,13 @@
 //   context?: (saved) => object                Anfangswerte im ctx
 //   effects?: { typ: (fx, { dispatch, state, api, deps }) => void }
 //   needs?: (ev, ctx) => [kartenId…]   Karten, die ein Ereignis braucht; die Laufzeit laedt sie vorher (Nachladen)
+//   needParts?: (ev, ctx) => [teilName…]  Feature-Teile (src/app/feature-parts.json), die ein Ereignis braucht; die
+//                                              Laufzeit laedt sie vorher (LOADING, sonst PART_FAIL mit Wiederholen);
+//                                              danach liefert partOf(name) (src/gen/fparts.js) das Modul synchron
 //   profileLocal?: (ctx) => { wall?, saved? } | null   lokale Profilteile fuer profile/put (Vorrang vor dem Server)
 //   env?: { audio?: (win) => hostAudio, high?: {op: (c, a, env) => void}, cardSvg?: (code, {lang}) => svgDesc,
-//           images?: (win) => { get(src), url(src) } }   Geraetedienste fuer Renderer/Widgets (main.js setzt zusammen)
+//           images?: (win) => { get(src), url(src) } }   Geraetedienste fuer Renderer/Widgets (main.js setzt zusammen);
+//           audio/images bekommen als zweites Argument { part: (name) => Promise<Modul> } (Feature-Teil nachladen)
 // }
 // Pfade sind absolute Zustandspfade ohne Praefix, z. B. "inhalt.card.view", "inhalt.card.play.over".
 
@@ -32,13 +36,20 @@ export const FEATURES = [
 ];
 
 /** Geraetedienste aller Features zusammensetzen (doppelte Dienste sind ein Fehler). */
-export function featureEnv(win, feats = FEATURES) {
+export function featureEnv(win, feats = FEATURES, svc = {}) {
   const out = {};
   for (const f of feats) for (const [k, v] of Object.entries(f.env || {})) {
     if (k in out) throw new Error("feature " + f.id + ": Dienst " + k + " doppelt");
-    out[k] = typeof v === "function" && (k === "audio" || k === "images") ? v(win) : v;
+    out[k] = typeof v === "function" && (k === "audio" || k === "images") ? v(win, svc) : v;
   }
   return out;
+}
+
+/** Feature-Teile, die Features fuer ein Ereignis brauchen (ADR 0001 Nachtrag 4). */
+export function featureNeedParts(ev, ctx, feats = FEATURES) {
+  const out = [];
+  for (const f of feats) if (typeof f.needParts === "function") for (const n of f.needParts(ev, ctx) || []) if (typeof n === "string") out.push(n);
+  return [...new Set(out)];
 }
 
 /** Karten, die Features fuer ein Ereignis brauchen (Nachladen, ADR 0001 Nachtrag 2). */

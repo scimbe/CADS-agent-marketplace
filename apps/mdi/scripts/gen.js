@@ -210,7 +210,33 @@ export function generate(opt = {}) {
   const codehash = HEAD + "export const CODE_HASH = " + JSON.stringify(hashes, null, 2) + ";\n";
   const out = { "gen/validators.js": validators, "gen/codehash.js": codehash, "gen/assets.json": JSON.stringify(assets, null, 2) + "\n", "gen/manifest.js": manifestValidator, ...cardValidators };
   if (!opt.cardsDir) { out["cards/index.js"] = index; out["cards/lazy.js"] = lazy; } else { out["index"] = index; out["lazy"] = lazy; }
+  if (!opt.cardsDir) out["gen/fparts.js"] = featPartsStatic();
   return Object.assign(out, opt.withWarnings ? { _warnings: warnings } : {});
+}
+
+/** Feature-Teile (ADR 0001 Nachtrag 4): Register src/app/feature-parts.json { name: [Modulpfad relativ zu src, …] }. */
+export const PART_NAME = /^[a-z0-9-]{1,40}$/;
+export function featPartsRegistry() {
+  const f = path.join(SRC, "app/feature-parts.json"), reg = fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, "utf8")) : {};
+  for (const [n, mods] of Object.entries(reg)) {
+    if (!PART_NAME.test(n)) throw new GenError("feature-parts: Name ungueltig: " + n);
+    if (!Array.isArray(mods) || !mods.length) throw new GenError("feature-parts: " + n + " ohne Module");
+    for (const m of mods) if (typeof m !== "string" || m.includes("..") || !fs.existsSync(path.join(SRC, m))) throw new GenError("feature-parts: " + n + ": Modul fehlt: " + m);
+  }
+  return reg;
+}
+/** Statische Fassung fuer Node/Tests: alle Teile sind sofort da. Doppelte Exporte in einem Teil sind ein Fehler. */
+function featPartsStatic() {
+  const reg = featPartsRegistry(), imp = [], map = [];
+  Object.entries(reg).forEach(([n, mods], i) => { const ids = mods.map((m, j) => "p" + i + "_" + j); mods.forEach((m, j) => imp.push("import * as " + ids[j] + " from " + JSON.stringify("../" + m) + ";")); map.push(JSON.stringify(n) + ": merge(" + JSON.stringify(n) + ", [" + ids.join(", ") + "])"); });
+  return HEAD + imp.join("\n") + (imp.length ? "\n" : "") +
+    "const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);\n" +
+    "export function merge(n, list) { const o = {}; for (const m of list) for (const k of Object.keys(m)) { if (own(o, k)) throw new Error(\"teil \" + n + \": Export doppelt: \" + k); o[k] = m[k]; } return Object.freeze(o); }\n" +
+    "const MODS = { " + map.join(", ") + " };\n" +
+    "export const PART_NAMES = Object.freeze(Object.keys(MODS));\n" +
+    "export function partOf(name) { return own(MODS, name) ? MODS[name] : null; }\n" +
+    "export function isPartLoaded(name) { return own(MODS, name); }\n" +
+    "export function loadFeatPart(name) { return own(MODS, name) ? Promise.resolve(MODS[name]) : Promise.reject(Object.assign(new Error(\"teil-unbekannt: \" + name), { code: \"teil-unbekannt\" })); }\n";
 }
 
 /** Metadaten fuer den Kern (Regal, Modi, Varianten, Thumbnails) – ohne Parameter-Schemata, Texte der Felder, Eingaben. */
