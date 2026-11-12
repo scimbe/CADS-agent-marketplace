@@ -314,8 +314,11 @@ export function makeTable(R, game) {
       if (input.t !== pub.ph) bad(pub.ph);
       const it = chunkItems(input), want = Math.min(CHP, N - pub.buf.length);
       if (it.length !== want || !it.every((x) => HEX64.test(x))) bad("Punkte");
-      // L3: fremde Punkte muessen in der Untergruppe liegen (eigene sind auf diesem Geraet selbst berechnet)
-      if (!priv[seat] && !it.every(MP.inGroup)) bad("Punkt nicht in der Untergruppe");
+      // L3: wer diese Punkte als Naechster mit seinem geheimen Schluessel multipliziert (und das Ergebnis veroeffentlicht),
+      // prueft sie vorher: kanonisch und in der Untergruppe. Nur dort koennte ein Punkt kleiner Ordnung Schluesselbits
+      // verraten; Geraete, die nicht weiterrechnen, sparen sich die Leiterschritte.
+      const next = pub.ph === "mix" ? (seat + 1 < n ? seat + 1 : 0) : seat + 1 < n ? seat + 1 : -1;
+      if (next >= 0 && next !== seat && priv[next] && !it.every(MP.inGroup)) bad("Punkt nicht in der Untergruppe");
       pub.buf.push(...it);
       if (pub.buf.length === N) {
         const h = deckHash(pub.buf);

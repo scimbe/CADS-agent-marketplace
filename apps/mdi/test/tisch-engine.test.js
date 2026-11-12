@@ -228,7 +228,7 @@ test("Security L3: Punkte aus dem Netz muessen in der Untergruppe liegen; Schlue
   const mine = [0, 1].map((s) => S.makeSecrets(card, [s], ent)), commits = mine.map((m, s) => m.commits[s]);
   const seed = sha256("l3").slice(0, 32);
   let a = S.newSession(card, { params: { runden: 1, regeln: [] }, seed, mine: [0], secrets: mine[0].secrets, commits });
-  let b = S.newSession(card, { params: { runden: 1, regeln: [] }, seed, mine: [1], secrets: mine[1].secrets, commits });
+  let b = S.newSession(card, { params: { runden: 1, regeln: [] }, seed, mine: [1], secrets: mine[1].secrets, commits });   // Sitz 1 mischt als Naechster
   const honest = due(card, a);
   const evil = { ...honest, d: honest.d.map((x, i) => (i === 3 ? "e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800" : x)) };
   assert.throws(() => S.apply(card, b, evil), (e) => e.code === "zug-ungueltig" && /Untergruppe/.test(e.message));
