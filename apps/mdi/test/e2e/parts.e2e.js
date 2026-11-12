@@ -16,7 +16,9 @@ test.before(async () => {
   server = http.createServer((req, res) => {
     const u = new URL(req.url, "http://x");
     if (u.pathname === "/favicon.ico") { res.writeHead(204); res.end(); return; } // Browser fragt es von selbst an
-    const f = path.join(DIST, u.pathname === "/" ? "index.html" : u.pathname.slice(1));
+    // wie in Produktion: App unter /duell (mit und ohne Schraegstrich); /parts/… an der Wurzel gibt es dort nicht
+    const rel = u.pathname === "/" || u.pathname === "/duell" || u.pathname === "/duell/" ? "index.html" : u.pathname.startsWith("/duell/") ? u.pathname.slice(7) : u.pathname.slice(1);
+    const f = path.join(DIST, rel);
     if (!f.startsWith(DIST) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); res.end(); return; }
     res.writeHead(200, { "content-type": TYPES[path.extname(f)] || "application/octet-stream", "cache-control": "no-cache" });
     res.end(fs.readFileSync(f));
@@ -61,6 +63,21 @@ test("Kaltstart unter 3G-Drosselung: Kern, dann Karte aus dem Teil (Messung)", a
   assert.ok(tCard < 10000, "Karte " + tCard);
   assert.deepEqual(errs, []);
 });
+
+// Staging-Befund L2: unter "/duell" ohne Schraegstrich loeste der Browser "parts/…" zu "/parts/…" auf (404, keine Karte
+// oeffnete). Beide Schreibweisen muessen dieselbe Teile-URL /duell/parts/… ergeben; ein 404 waere in errs.
+for (const at of ["duell", "duell/"]) {
+  test("App unter /" + at + ": Karte oeffnet, Teile kommen aus /duell/parts/ (kein /parts/ an der Wurzel)", async () => {
+    const { p, errs } = await page();
+    const asked = []; p.on("request", (r) => { if (/\/parts\//.test(r.url())) asked.push(new URL(r.url()).pathname); });
+    await p.goto(base + at);
+    await p.locator("header.bar").waitFor();
+    await p.locator('[data-act="open-gruss"]').first().click();
+    await p.locator("main.s-card-view").waitFor();
+    assert.ok(asked.length > 0 && asked.every((x) => x.startsWith("/duell/parts/")), JSON.stringify(asked));
+    assert.deepEqual(errs, []);
+  });
+}
 
 test("Teil kommt nach dem ersten Laden aus dem Cache (offline fuer Teile)", async () => {
   const { ctx, p, errs } = await page();

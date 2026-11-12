@@ -16,3 +16,12 @@ test("saveGame/loadGame behalten pub und memo (Snapshot-Karten, Merkzettel); zu 
     assert.equal(s.loadGame(g).pub, undefined); assert.equal(s.loadGame(g).memo, undefined);
   } finally { globalThis.localStorage = prev; }
 });
+
+test("Teile-Basis ist das App-Verzeichnis (Staging L2): /duell, /duell/, /duell/index.html und file:// ergeben dieselbe Teile-URL", async () => {
+  const { appBase, partUrl } = await import("../src/broker/parts.js");
+  const at = (href) => { const u = new URL(href); return { protocol: u.protocol, host: u.host, origin: u.origin, pathname: u.pathname }; };
+  for (const h of ["https://x.org/duell", "https://x.org/duell/", "https://x.org/duell/index.html", "https://x.org/duell?f=1"]) assert.equal(partUrl(at(h), "parts/card-a.1.js"), "https://x.org/duell/parts/card-a.1.js", h);
+  assert.equal(appBase(at("https://x.org/")), "https://x.org/");
+  assert.equal(partUrl(at("file:///tmp/dist/index.html"), "parts/p.js"), "file:///tmp/dist/parts/p.js");
+  assert.equal(partUrl(at("https://appassets.androidplatform.net/assets/www/index.html"), "parts/p.js"), "https://appassets.androidplatform.net/assets/www/parts/p.js");
+});
