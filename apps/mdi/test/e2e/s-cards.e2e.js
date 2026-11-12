@@ -106,7 +106,4 @@ test("Spielbeginn je S-Karte: nichts verdeckt, axe 0 (Telefon 390, de)", async (
   assert.deepEqual(errs, []);
 });
 
-test("Dart gegen Bert per Klick bis zum Ende", { todo: WIDGETS }, () => {});
-test("Dart: Zielen per Touch und per Pfeiltasten, Kraft per Halten und per Leertaste", { todo: WIDGETS }, () => {});
-test("Mal & Rat: Zeichnen per Touch, Abspielen Strich fuer Strich, Raten per Tastatur", { todo: WIDGETS }, () => {});
-test("Was kostet das? / Schaetzen: Schieber per Touch und Pfeiltasten", { todo: WIDGETS }, () => {});
+// Dart: Bert-Partie per Klick, Touch, Pfeiltasten und Wurf-Zustand stehen in test/e2e/s-dart.e2e.js

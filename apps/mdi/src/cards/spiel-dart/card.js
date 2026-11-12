@@ -6,7 +6,8 @@
 //   {t:"dart", seat, a:{aim:[x,y], power:p}, f?:1, n?:Spitzname}
 //       EIN PFEIL je Eingabe: das form-Widget (aim + power) liefert genau einen Wurf; die Karte zeigt nach jedem Pfeil
 //       die Landung (wie alt dart-ui.js), und Bust/Checkout beenden die Aufnahme nach 1 oder 2 Pfeilen ohne Sonderfall.
-//       aim = Raster 0..4095 (Tausendstel Brettradius um 2048), power = Stufe 0..8 (4 fliegt gerade), f = am Regler ohne
+//       aim = Punkt auf der Zielflaeche des aim-Widgets 0..2640 (Tausendstel Brettradius, Brettmitte 1320; + 728 ergibt
+//       das Altraster um 2048, alt dart-ui.js EXT = 1.32), power = Stufe 0..8 (4 fliegt gerade), f = am Regler ohne
 //       Timing gesetzt (der Seed verschiebt die Stufe wie im Altcode je 1 zu 5 um eine nach unten/oben). Intern wird
 //       daraus die Altkodierung (D.enc) – Golden-Tests bleiben bitgleich.
 //   {t:"bert", seat:1}  Bert uebernimmt Sitz 1 (einzig nach der ersten Aufnahme); danach rechnet die Engine jede
@@ -42,9 +43,9 @@ function keysOk(o, need, may = []) {
 function botStartOk(g) { return !g.bot || (g.turns.length >= 1 && !(g.partial && g.turns.length === 1)); }
 function charsOf(input) {
   const a = input.a;
-  if (!keysOk(a, ["aim", "power"]) || !Array.isArray(a.aim) || a.aim.length !== 2 || !isInt(a.aim[0], 0, 4095) || !isInt(a.aim[1], 0, 4095) || !isInt(a.power, 0, D.LEVELS - 1)) return null;
+  if (!keysOk(a, ["aim", "power"]) || !Array.isArray(a.aim) || a.aim.length !== 2 || !isInt(a.aim[0], 0, B.SIZE) || !isInt(a.aim[1], 0, B.SIZE) || !isInt(a.power, 0, D.LEVELS - 1)) return null;
   if (input.f !== undefined && input.f !== 1) return null;
-  const d = { ax: a.aim[0], ay: a.aim[1], p: a.power }; if (input.f === 1) d.f = 1;
+  const g = B.gridOf(a.aim[0], a.aim[1]), d = { ax: g[0], ay: g[1], p: a.power }; if (input.f === 1) d.f = 1;
   return D.enc(d);
 }
 
@@ -88,7 +89,7 @@ export function accepts(obs, seat, input) {
  *  Hinweise und den kartenunabhaengigen Treiber; die echte Bedienung waehlt Ziel und Kraft selbst. */
 function hint(g, seat) {
   const at = D.aimFor(g, seat), c = D.centre(at.n, at.r), d = D.dart(c[0], c[1], D.MID);
-  return { t: "dart", seat, a: { aim: [d.ax, d.ay], power: d.p } };
+  return { t: "dart", seat, a: { aim: B.surfOf(d.ax, d.ay), power: d.p } };
 }
 function moves(obs, seat) {
   const g = game(obs.pub);
@@ -111,34 +112,42 @@ function dartTiles(t, lang) {
     a11y: fmt(D.T(lang).da_dart_of, { n: i + 1 }) + ": " + D.spoken(h, lang) }));
 }
 
-/** Bedienung fuer einen Pfeil: Canvas mit Brett, form aus aim + power, Tastatur-/Schalterweg „Zielen auf“ (da_n2). */
+/** Bedienung fuer einen Pfeil: form aus aim (Brett als canvas darin) + power, dazu der Tastatur-/Schalterweg „Zielen
+ *  auf“ (alt da_n2: Zahl, dann Ring) und der Umschalter „ohne Timing“ (Kraft am Regler, f = 1). Der Entwurf des forms
+ *  liegt beim Host unter ctx.draft["w:wurf"] = {aim, power}; „Zielen auf“ schreibt das Ziel genau dorthin. */
+const FORM = "wurf";
 function throwUi(p, g, seat, ctx, lang) {
   const X = D.T(lang), draft = ctx.draft && typeof ctx.draft === "object" ? ctx.draft : {}, kDart = g.k;
-  const chosen = typeof draft.aim === "string" ? B.aimGrid(draft.aim) : null, aim = chosen || B.aimGrid("t20");
+  const fd = draft["w:" + FORM] && typeof draft["w:" + FORM] === "object" ? draft["w:" + FORM] : null;
   const slider = draft.slider === true;
+  const aim = fd && Array.isArray(fd.aim) ? fd.aim : B.aimGrid("t20");
   const other = p.n[1 - seat], nick = typeof ctx.nick === "string" ? D.myName(ctx.nick, other) : "";
   const submit = { t: "dart", seat };
   if (slider) submit.f = 1;
   if (nick && nick !== p.n[seat]) submit.n = nick;
   const cur = g.partial ? g.turns[g.turns.length - 1].d.length : 0;
+  const withAim = (v) => ({ ...draft, [ "w:" + FORM ]: { ...(fd || {}), aim: B.aimGrid(v) } });
   const kids = [
     { t: "text", role: "label", text: fmt(X.da_dart_of, { n: cur + 1 }) },
-    B.canvas(p, lang, kDart, aim),
-    { t: "form", id: "wurf", label: X.da_board, hint: X.da_board_help, confirm: X.da_throw, submit, fields: [
-      { t: "aim", id: "aim", label: X.da_aim, w: B.SIZE, h: B.SIZE, grid: 4096, map: { x0: B.MID, y0: B.MID, g0: 2048, per: 1 }, value: aim, card: "brett" },
-      { t: "power", id: "power", label: X.da_power, levels: D.LEVELS, mode: slider ? "schieber" : "pendel", value: slider ? D.MID : D.hand(p.seed, kDart).lv,
-        swing: D.SWING, quick: D.QUICK, hint: X.da_power_mid }
+    { t: "form", id: FORM, label: X.da_board, hint: X.da_board_help, confirm: X.da_throw, submit, fields: [
+      { t: "aim", id: "aim", label: X.da_aim, grid: B.GRID, value: aim, card: B.canvas(p, lang) },
+      // Pendel: Startstufe aus dem Seed (alt hand().lv); am Regler ohne Timing die Mitte (alt da_lv_mid)
+      // Am Regler ohne Timing direkt als slide (Stufen 1..9 angezeigt wie alt, Wert 0..8); power im Modus „schieber“
+      // waere dasselbe Widget, ruft in widgets-more.js aber M.slide auf, das es dort nicht gibt (offen bei F)
+      slider ? { t: "slide", id: "power", label: X.da_power, min: 0, max: D.LEVELS - 1, step: 1, def: D.MID, value: D.MID }
+        : { t: "power", id: "power", label: X.da_power, levels: D.LEVELS, mode: "pendel", value: D.hand(p.seed, kDart).lv, swing: D.SWING, quick: D.QUICK, hint: X.da_power_mid }
     ] }
   ];
-  // Tastatur und Schalter (alt da_n2): Zahl, dann Ring; „Ohne Timing“ schaltet die Kraft auf den Regler
   const num = typeof draft.num === "string" ? draft.num : null;
   if (num && num !== "50" && num !== "25" && num !== "") {
-    kids.push({ t: "choice", label: X.da_aim + " " + num, wrap: true, options: B.aimRings(Number(num), lang).map((o) => ({ label: o.label, draft: { ...draft, num: null, aim: o.v }, on: draft.aim === o.v })) });
+    kids.push({ t: "choice", label: X.da_aim + " " + num, wrap: true, options: B.aimRings(Number(num), lang).map((o) => ({ label: o.label, draft: { ...withAim(o.v), num: null, aim: o.v }, on: draft.aim === o.v })) });
   } else {
     kids.push({ t: "choice", label: X.da_aim, wrap: true, options: B.aimNumbers(lang).map((o) => ({ label: o.label,
-      draft: o.v === "50" || o.v === "25" ? { ...draft, num: null, aim: o.v } : o.v === "" ? { ...draft, num: null, aim: null } : { ...draft, num: o.v }, on: o.v === "" ? !draft.aim : draft.aim === o.v })) });
+      draft: o.v === "50" || o.v === "25" ? { ...withAim(o.v), num: null, aim: o.v } : o.v === "" ? { ...draft, num: null, aim: null } : { ...draft, num: o.v }, on: o.v === "" ? !draft.aim : draft.aim === o.v })) });
   }
-  kids.push({ t: "choice", label: X.da_power, options: [{ label: X.da_power_go, draft: { ...draft, slider: false }, on: !slider }, { label: X.da_lv_mid, draft: { ...draft, slider: true }, on: slider }] });
+  // Umschalten setzt die Kraft im form-Entwurf auf die Startstufe des neuen Modus (kein Zeitstempel aus dem Pendel)
+  const withMode = (sl) => ({ ...draft, slider: sl, ["w:" + FORM]: { aim, power: sl ? D.MID : D.hand(p.seed, kDart).lv } });
+  kids.push({ t: "choice", label: X.da_power, options: [{ label: X.da_power_go, draft: withMode(false), on: !slider }, { label: X.da_lv_mid, draft: withMode(true), on: slider }] });
   kids.push({ t: "text", role: "small", text: X.da_n2 });
   return kids;
 }

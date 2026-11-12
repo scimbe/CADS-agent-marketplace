@@ -64,14 +64,56 @@ function hmacKey(key) {
   for (let i = 0; i < 64; i++) { const b = i < k.length ? k[i] : 0; ip[i] = b ^ 0x36; op[i] = b ^ 0x5c; }
   return (msg) => hexBytes(sha256(cat(op, hexBytes(sha256(cat(ip, msg))))));
 }
+// Schnelle Form: Innen- und Aussenzustand des HMAC einmal vorrechnen, je Runde dann genau zwei Kompressionen ohne
+// Speicheranlage (FIPS 180-4, nur Ganzzahl-Operationen). Bitgleich zu hmacKey (Test gegen node:crypto pbkdf2Sync).
+const K256 = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01,
+  0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f,
+  0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+  0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70,
+  0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
+  0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2];
+const H0 = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+function rr(x, k) { return (x >>> k) | (x << (32 - k)); }
+// st: Zustand (8 Woerter) wird mit dem Block w[0..15] (Woerter) komprimiert, Ergebnis nach out
+function compress(st, w, out, W) {
+  for (let i = 0; i < 16; i++) W[i] = w[i] | 0;
+  for (let i = 16; i < 64; i++) {
+    const x = W[i - 15], y = W[i - 2];
+    W[i] = (W[i - 16] + (rr(x, 7) ^ rr(x, 18) ^ (x >>> 3)) + W[i - 7] + (rr(y, 17) ^ rr(y, 19) ^ (y >>> 10))) | 0;
+  }
+  let a = st[0], b = st[1], c = st[2], d = st[3], e = st[4], f = st[5], g = st[6], h = st[7];
+  for (let i = 0; i < 64; i++) {
+    const t1 = (h + (rr(e, 6) ^ rr(e, 11) ^ rr(e, 25)) + ((e & f) ^ (~e & g)) + K256[i] + W[i]) | 0;
+    const t2 = ((rr(a, 2) ^ rr(a, 13) ^ rr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+    h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+  }
+  out[0] = (st[0] + a) | 0; out[1] = (st[1] + b) | 0; out[2] = (st[2] + c) | 0; out[3] = (st[3] + d) | 0;
+  out[4] = (st[4] + e) | 0; out[5] = (st[5] + f) | 0; out[6] = (st[6] + g) | 0; out[7] = (st[7] + h) | 0;
+}
+function words16(bytes) { const w = new Array(16).fill(0); for (let i = 0; i < 64; i++) w[i >> 2] |= bytes[i] << (24 - 8 * (i & 3)); return w; }
 /** PBKDF2-HMAC-SHA-256 (RFC 8018) ueber Bytes; liefert die ersten bytes Byte. */
 export function pbkdf2(password, salt, iter, bytes) {
-  const mac = hmacKey(password), out = new Uint8Array(bytes);
+  const k = password.length > 64 ? hexBytes(sha256(password)) : password;
+  const ip = new Uint8Array(64), op = new Uint8Array(64);
+  for (let i = 0; i < 64; i++) { const b = i < k.length ? k[i] : 0; ip[i] = b ^ 0x36; op[i] = b ^ 0x5c; }
+  const W = new Array(64), si = new Array(8), so = new Array(8);
+  compress(H0, words16(ip), si, W); compress(H0, words16(op), so, W);
+  // Block fuer eine 32-Byte-Nachricht nach 64 Byte Schluesselblock: 8 Woerter + 0x80 + Laenge 768 Bit
+  const blk = new Array(16).fill(0); blk[8] = 0x80000000; blk[15] = (64 + 32) * 8;
+  const inner = new Array(8), u = new Array(8), out = new Uint8Array(bytes);
+  const mac = hmacKey(password);
   for (let block = 1, off = 0; off < bytes; block++, off += 32) {
-    let u = mac(cat(salt, new Uint8Array([block >>> 24, (block >>> 16) & 255, (block >>> 8) & 255, block & 255])));
+    const first = mac(cat(salt, new Uint8Array([block >>> 24, (block >>> 16) & 255, (block >>> 8) & 255, block & 255])));
+    for (let j = 0; j < 8; j++) u[j] = (first[4 * j] << 24) | (first[4 * j + 1] << 16) | (first[4 * j + 2] << 8) | first[4 * j + 3];
     const t = u.slice();
-    for (let i = 1; i < iter; i++) { u = mac(u); for (let j = 0; j < 32; j++) t[j] ^= u[j]; }
-    out.set(t.subarray(0, Math.min(32, bytes - off)), off);
+    for (let i = 1; i < iter; i++) {
+      for (let j = 0; j < 8; j++) blk[j] = u[j];
+      compress(si, blk, inner, W);
+      for (let j = 0; j < 8; j++) blk[j] = inner[j];
+      compress(so, blk, u, W);
+      for (let j = 0; j < 8; j++) t[j] ^= u[j];
+    }
+    for (let i = 0; i < 32 && off + i < bytes; i++) out[off + i] = (t[i >> 2] >>> (24 - 8 * (i & 3))) & 255;
   }
   return out;
 }

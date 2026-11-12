@@ -18,11 +18,15 @@
 import manifest from "./manifest.json" with { type: "json" };
 import * as M from "../../engines/malrat/malrat.js";
 import { form, fmt } from "../../engines/seed32/seed32.js";
-import { strokeItems } from "./strokes.js";
 import { canon } from "../../contract/sdk.js";
 
 const KEYS = ["d", "h", "k", "l", "r", "s", "sec", "seat", "t"].sort();
-const MAX_DAY = 1000000, MAX_PTS = 2000;
+const MAX_DAY = 1000000, MAX_PTS = 2000, PLAY_MS = 450;
+// Stiftbreiten fuer das draw/strokes-Widget: das Widget zeichnet stroke-width = Breite * 4 im 1000er Feld, der Altcode
+// Breiten als Anteil der Seite (M.WIDTHS) -> Breite = Anteil * 1000 / 4
+const PEN = M.WIDTHS.map((w) => w * 250);
+/** Decodierte Linien (64er Raster) -> Striche des Widgets [[farbe, breite, [x,y,…]]] in 0..1000 */
+function widgetStrokes(lines) { return lines.map((l) => [l.c, l.w, l.p.flatMap(([x, y]) => [Math.round(x * 1000 / (M.GRID - 1)), Math.round(y * 1000 / (M.GRID - 1))])]); }
 function X(lang) { return M.DATA.text[lang] || M.DATA.text.de; }
 function say(lang, k, n, o) { return fmt(form(X(lang), k, n, lang), Object.assign({ n }, o || {})); }
 function copyPic(p) { return p ? { k: p.k, h: p.h, l: p.l, s: p.s, sec: p.sec, r: p.r } : null; }
@@ -31,15 +35,29 @@ function seedOf(pub) { return String(pub.day); }
 function turnOf(pub) { return pub.pic ? pub.pic.r % 2 : 0; }
 function overOf(pub) { return !!pub.pic && pub.pic.r >= M.MAX_ROUND; }
 function picOf(input) { return { k: input.k, h: input.h, l: input.l, s: input.s, sec: input.sec, r: input.r }; }
-function wellFormed(input) {
-  return !!input && typeof input === "object" && !Array.isArray(input) && Object.keys(input).sort().join(",") === KEYS.join(",") &&
-    input.t === "draw" && Number.isInteger(input.d) && input.d >= 1 && input.d <= MAX_DAY;
+const KEYS_A = KEYS.map((k) => (k === "s" ? "a" : k)).sort();
+/**
+ * Zug in Altform: entweder schon mit s (Link, Hinweiszug, Wiederherstellung) oder direkt aus dem draw-Widget mit a
+ * (Striche in 0..1000). Aus a rechnet die Karte deterministisch die Altkodierung (pack: feinste Toleranz bis 600
+ * Zeichen); null, wenn die Form nicht stimmt oder das Bild nicht passt (nie abschneiden).
+ */
+function normal(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input) || input.t !== "draw" || !Number.isInteger(input.d) || input.d < 1 || input.d > MAX_DAY) return null;
+  const keys = Object.keys(input).sort().join(",");
+  if (keys === KEYS.join(",")) return input;
+  if (keys !== KEYS_A.join(",")) return null;
+  const lines = linesOf(input.a), p = lines ? M.pack(lines) : null;
+  if (!p) return null;
+  const out = { ...input, s: p.s }; delete out.a;
+  return out;
 }
+function wellFormed(input) { return normal(input) !== null; }
 
 /** Gueltiger Zug fuer diesen Sitz? (Hook accepts, ADR 0001 f; Bilder lassen sich nicht aufzaehlen) */
 export function accepts(obs, seat, input) {
   const p = obs.pub;
-  return wellFormed(input) && !overOf(p) && input.seat === seat && seat === turnOf(p) && M.valid(picOf(input), p.pic);
+  const n = normal(input);
+  return !!n && !overOf(p) && n.seat === seat && seat === turnOf(p) && M.valid(picOf(n), p.pic);
 }
 
 // ---------- Snapshot (ADR 0001 f: compact/merge, rein und deterministisch) ----------
@@ -47,8 +65,9 @@ export function accepts(obs, seat, input) {
 export function compact(log, state) {
   if (state && state.pub) return state.pub.pic ? [{ t: "draw", seat: 0, ...copyPic(state.pub.pic), d: state.pub.day }] : [];
   if (!Array.isArray(log) || !log.length) return [];
-  const last = log[log.length - 1];
-  return [{ t: "draw", seat: 0, k: last.k, h: last.h, l: last.l, s: last.s, sec: last.sec, r: last.r, d: log[0].d }];
+  const last = normal(log[log.length - 1]), first = log[0];
+  if (!last || !first) return [];
+  return [{ t: "draw", seat: 0, k: last.k, h: last.h, l: last.l, s: last.s, sec: last.sec, r: last.r, d: first.d }];
 }
 function bad(why) { const e = new Error("merge: " + why); e.code = "manipuliert"; return e; }
 const PIC_KEYS = ["h", "k", "l", "r", "s", "sec"].join(",");
@@ -194,9 +213,13 @@ function drawPart(obs, seat, lang, d, today, kids) {
   }
   kids.push({ t: "text", role: "label", text: fmt(T.mr_draw_h, { w: d.w }) });
   kids.push({ t: "text", role: "small", text: T.mr_secret });
-  kids.push({ t: "draw", id: "bild", part: "malen", label: T.mr_canvas, hint: T.mr_n1, maxPts: MAX_PTS, maxChars: M.MAX_CHARS,
-    colors: M.COLORS.map((c, i) => ({ i, name: T["mr_c_" + i], color: c })), widths: M.WIDTHS.map((x, i) => ({ i, name: T["mr_s_" + i], width: x })),
-    undo: T.mr_undo, empty: T.mr_empty, full: T.mr_full, submit: { t: "draw", seat }, confirm: T.mr_send });
+  // Pruefwert hier einmal je Anzeige (~20 ms, PBKDF2 synchron): er geht als Teil der Vorlage mit, das Widget haengt nur
+  // die Striche (a) an; das Wort selbst verlaesst das Geraet nie.
+  const seed = nextSeed(obs, today), r = roundOf(obs), l = d.l === "en" ? "en" : "de";
+  const sec = obs.pub.pic ? Math.max(0, Math.min(M.MAX_SECS, Number.isInteger(d.sec) ? d.sec : 0)) : 0;
+  const submit = { t: "draw", seat, k: M.check(d.w, seed, r), h: M.hintOf(d.w), l: l === "en" ? 1 : 0, r, sec };
+  kids.push({ t: "draw", id: "bild", part: "malen", label: T.mr_canvas, hint: T.mr_n1, maxPts: MAX_PTS,
+    colors: M.COLORS.slice(), widths: PEN.slice(), submit, confirm: T.mr_send });
 }
 
 export default {
@@ -205,8 +228,9 @@ export default {
   step(state, input) {
     const pub = copy(state.pub);
     if (!accepts({ pub }, input && input.seat, input)) throw new Error("ungueltig: draw");
-    if (!pub.pic) pub.day = input.d; // erstes Bild (oder Wiederherstellung): sein Tag ist der Seed der Partie
-    pub.pic = picOf(input);
+    const n = normal(input);
+    if (!pub.pic) pub.day = n.d; // erstes Bild (oder Wiederherstellung): sein Tag ist der Seed der Partie
+    pub.pic = picOf(n);
     return { pub, priv: state.priv.slice() };
   },
   observe(state) { return { pub: copy(state.pub), mine: null }; },
@@ -237,14 +261,14 @@ export default {
     if (ctx.preview) return { t: "stack", children: [{ t: "text", role: "body", text: manifest.howto[lang] }] };
     const mine = seat === turnOf(p) && !overOf(p), f = face(p, lang);
     if (p.pic) {
-      const lines = M.decode(p.pic.s), st = strokeItems(lines);
+      const lines = M.decode(p.pic.s);
       kids.push({ t: "text", role: "title", text: f[0] });
       kids.push({ t: "text", role: "label", text: f[1] });
       if (f[2]) kids.push({ t: "text", role: "small", text: f[2] });
       kids.push({ t: "text", role: "small", text: T["mr_lang_" + M.langOf(p.pic.l)] });
       // Abspielen der Zeichnung Strich fuer Strich (ADR 0001 c, strokes), Text fuer Screenreader
-      kids.push({ t: "strokes", id: "zeichnung", part: "malen", play: mine, again: T.mr_again, playing: T.mr_playing, ...st,
-        a11y: fmt(T.mr_pic, { s: say(lang, "mr_strokes", lines.length), c: colours(M.used(lines), lang) }) });
+      kids.push({ t: "strokes", id: "zeichnung-" + p.pic.r, part: "malen", ms: PLAY_MS, colors: M.COLORS.slice(), widths: PEN.slice(), strokes: widgetStrokes(lines),
+        label: fmt(T.mr_pic, { s: say(lang, "mr_strokes", lines.length), c: colours(M.used(lines), lang) }) });
     }
     if (mine) {
       if (p.pic && !d.back) guessPart(obs, lang, d, kids);

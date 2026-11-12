@@ -270,7 +270,7 @@ test("Was kostet das?: 8 von 12, Reglerende aus dem Seed (1/5..4/5, 5-Cent-Schri
   const pub = s.state.pub, v = preis.view(S.observe(preis, s, 0), 0, { lang: "de" }), ve = preis.view(S.observe(preis, s, 0), 0, { lang: "en" });
   assert.match(v.children.find((k) => k.t === "slide").peek, /: Was kostet das\?$/); assert.match(ve.children.find((k) => k.t === "slide").peek, /: what does it cost\?$/);
   const sl = v.children.find((k) => k.t === "slide");
-  assert.equal(sl.label, "Preis 1 von 8"); assert.equal(sl.step, 5); assert.equal(sl.format, "eur"); assert.equal(sl.max, R.top(pub.seed, 0)); assert.equal(sl.value % 5, 0);
+  assert.equal(sl.label, "Preis 1 von 8"); assert.equal(sl.step, 5); assert.equal(sl.format, "cents", "Werte sind Cent (Widget: eur = Euro-Ganzzahl)"); assert.equal(sl.max, R.top(pub.seed, 0)); assert.equal(sl.value % 5, 0);
   const items = R.preisItems(pub.seed), exact = items.map((k) => R.cents(k)), far = items.map((k, i) => Math.min(R.top(pub.seed, i), Math.round(R.cents(k) * 1.4 / 5) * 5));
   assert.equal(preis.accepts(S.observe(preis, s, 0), 0, { t: "ans", seat: 0, a: R.top(pub.seed, 0) + 5 }), false, "über dem Reglerende geht nicht");
   assert.throws(() => APPLY(preis, s, { t: "ans", seat: 0, a: R.top(pub.seed, 0) + 5 }));

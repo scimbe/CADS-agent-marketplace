@@ -198,8 +198,7 @@
     {
       "id": "paket",
       "params": [
-        "paket",
-        "pk"
+        "paket"
       ],
       "label": {
         "de": "Fragenpaket",

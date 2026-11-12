@@ -219,14 +219,15 @@ test("Anzeige: Wortwahl als Entwurf, Zeichenflaeche (draw), Abspielen (strokes),
   assert.equal(ownV.children.find((c) => c.t === "field").key, "own");
   assert.equal(ownV.children.filter((c) => c.t === "choice").pop().options[0].disabled, true, "gefiltertes eigenes Wort: gesperrt mit Grund");
   const v1 = card.view(obsOf(st0), 0, { lang: "de", today: DAY, draft: { w: "Hund", l: "de" } }), dr = v1.children.find((c) => c.t === "draw");
-  assert.equal(dr.colors.length, 8); assert.equal(dr.widths.length, 3); assert.deepEqual(dr.submit, { t: "draw", seat: 0 });
+  assert.deepEqual(dr.colors, M.COLORS); assert.equal(dr.widths.length, 3);
+  assert.deepEqual(dr.submit, { t: "draw", seat: 0, k: M.check("Hund", String(DAY), 1), h: "H4", l: 0, r: 1, sec: 0 }, "Vorlage mit Pruefwert, ohne Wort");
   assert.ok(!JSON.stringify(dr.submit).includes("Hund"), "das Wort steht nicht in der Zugvorlage");
   assert.deepEqual(card.view(obsOf(st0), 1, { lang: "de", today: DAY }).children, [], "wer nicht malt, sieht vor dem ersten Bild nichts zum Bedienen");
   const st = draw(st0, 0, "Hund", [{ c: 1, w: 2, p: [[0, 0], [1, 1]] }, { c: 3, w: 0, p: [[0.5, 0.5]] }]);
   const g = card.view(card.observe(st, 1), 1, { lang: "en", today: DAY }), sk = g.children.find((c) => c.t === "strokes");
-  assert.equal(sk.total, 3); assert.equal(sk.play, true); assert.equal(sk.items[1].dot, true); assert.equal(sk.items[1].from, 2);
-  assert.match(sk.a11y, /2 lines in Red and Yellow/);
-  assert.deepEqual(visibleAt(sk.items, 1), [1, 0]); assert.deepEqual(visibleAt(sk.items, 3), [2, 1]);
+  assert.equal(sk.strokes.length, 2); assert.deepEqual(sk.strokes[0], [1, 2, [0, 0, 1000, 1000]], "Striche im Widget-Format 0..1000");
+  assert.deepEqual(sk.colors, M.COLORS); assert.match(sk.label, /2 lines in Red and Yellow/);
+  assert.deepEqual(visibleAt(strokeItems(M.decode(st.pub.pic.s)).items, 1), [1, 0]);
   assert.equal(g.children.find((c) => c.t === "field").key, "guess");
   const right = card.view(card.observe(st, 1), 1, { lang: "de", today: DAY, draft: { guess: "hund", tried: "hund", sec: 9, tips: 2 } });
   assert.ok(right.children.some((c) => c.t === "text" && c.text === "Richtig! Hund – in 9 Sekunden erraten."));
@@ -236,6 +237,21 @@ test("Anzeige: Wortwahl als Entwurf, Zeichenflaeche (draw), Abspielen (strokes),
   assert.ok(kinds(card.view(card.observe(st, 1), 1, { lang: "de", today: DAY, draft: back.draft })).includes("choice"), "Wortwahl fuer das Gegenbild");
   assert.equal(strokeItems([]).total, 0);
   assert.equal(card.view(obsOf(st0), 0, { lang: "de", preview: true }).children[0].text, card.manifest.howto.de);
+});
+
+test("Widget-Zug direkt: {…Vorlage, a} wird in step zur Altkodierung, im Link steht nur s", () => {
+  const st0 = fresh(), a = [[1, 2, [0, 0, 500, 500, 1000, 1000]], [3, 1, [500, 500]]];
+  const v = card.view(obsOf(st0), 0, { lang: "de", today: DAY, draft: { w: "Hund", l: "de" } }), dr = v.children.find((c) => c.t === "draw");
+  const inp = { ...dr.submit, a, d: DAY };
+  assert.equal(accepts(obsOf(st0), 0, inp), true);
+  assert.equal(validInput("zug-malrat", inp), true, "Schema erlaubt die Widget-Form");
+  const st1 = card.step(st0, inp);
+  assert.equal(st1.pub.pic.s, M.pack(linesOf(a)).s, "Zustand haelt die Altkodierung");
+  assert.equal(tryGuess(card.observe(st1, 1), "hund").ok, true, "Pruefwert der Vorlage passt zum Wort");
+  const wire = compact([inp]);
+  assert.equal("a" in wire[0], false, "compact: keine Rohpunkte im Link"); assert.equal(wire[0].s, st1.pub.pic.s);
+  assert.equal(accepts(obsOf(st0), 0, { ...inp, a: [[9, 0, [1, 1]]] }), false, "ungueltige Striche");
+  assert.equal(accepts(obsOf(st0), 0, { ...inp, s: "BAAAA" }), false, "nie s und a zugleich");
 });
 
 test("Vom Widget zum Zug: prepare rechnet Rohpunkte (0..1000) und Entwurfswort in das Altbild um", () => {
@@ -255,7 +271,7 @@ test("Vom Widget zum Zug: prepare rechnet Rohpunkte (0..1000) und Entwurfswort i
   assert.equal(back.r, 2); assert.equal(back.sec, 21); assert.equal(back.l, 1);
   assert.equal(back.k, M.check("Moon", String(DAY), 2), "Seed bleibt der Tag der Partie");
   assert.equal(validInput("zug-malrat", { ...back, d: DAY + 3 }), true, "Schema der Karte (manifest.inputs)");
-  assert.equal(validInput("zug-malrat", { t: "draw", seat: 0, a }), false, "Rohpunkte reisen nie");
+  assert.equal(validInput("zug-malrat", { t: "draw", seat: 0, a }), false, "Rohpunkte ohne Vorlage gehen nicht");
 });
 
 test("Ende: nach Runde 999 ist Schluss (Altgrenze MAX_ROUND)", () => {

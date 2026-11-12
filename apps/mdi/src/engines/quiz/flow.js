@@ -111,7 +111,12 @@ export function makeCard(manifest, spec) {
       // Tageskarte vor dem ersten Zug: der Seed ist der heutige Tag (ctx.today); step legt ihn mit d fest
       const p = obs.pub.seed || !Number.isInteger(ctx.today) ? obs.pub : { ...obs.pub, seed: String(ctx.today) };
       if (spec.title) kids.push({ t: "text", role: "label", text: spec.title(p, lang, L) });
-      if (ctx.preview) { kids.push({ t: "text", role: "body", text: manifest.howto[lang], part: "regeln" }); return { t: "stack", children: kids }; }
+      if (ctx.preview) {
+        kids.push({ t: "text", role: "body", text: manifest.howto[lang], part: "regeln" });
+        // Ankerelement fuer die Blase "Fragenpaket" im Editor: ohne sichtbaren Teil gaebe es nichts anzutippen
+        if ((manifest.parts || []).some((x) => x.id === "paket")) kids.push({ t: "text", role: "label", text: p.pk && p.pk.t ? p.pk.t : L.pk_btn, part: "paket" });
+        return { t: "stack", children: kids };
+      }
       if (!g) { kids.push({ t: "text", role: "body", text: L.pk_need }); return { t: "stack", children: kids }; }
       if (!prompt) {
         const r = g.result(p, lang, L);
@@ -135,7 +140,7 @@ export function makeCard(manifest, spec) {
       } else if (prompt.w === "slide") {
         const max = prompt.maxOf ? prompt.maxOf(p) : prompt.max;
         kids.push({ t: "slide", ...w, label, peek, hint: L[prompt.l], min: prompt.min || 0, max, step: prompt.step || 1, value: slideHint(prompt, p),
-          format: prompt.money ? "eur" : "int", unit: prompt.unit ? prompt.unit(p) : undefined, confirm: L.next });
+          format: prompt.money ? "cents" : "int", unit: prompt.unit ? prompt.unit(p) : undefined, confirm: L.next });
       } else if (prompt.w === "list") {
         kids.push({ t: "list", ...w, label: L[prompt.l], n: prompt.n, max: prompt.max, same: !!prompt.same, bytes: prompt.bytes, confirm: L.next });
       }

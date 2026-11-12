@@ -1,19 +1,22 @@
 // Brett und Wurf-Hilfen fuer die Dart-Oberflaeche als reine Daten (kein DOM): Canvas-Anzeigeliste nach ADR 0001
 // „Canvas-Anzeigeliste“ ({t:"canvas", w, h, layers}) und die Werte fuer die Widgets aim/power (ADR 0001 c).
-// Koordinaten: Flaeche 2300 × 2300, Brettmitte (1150, 1150), 1000 = Aussenkante des Doppelrings (170 mm), y nach unten.
-// Winkel der Ringsektoren in Umdrehungen wie Canvas arc: 0 = rechts (3 Uhr), im Uhrzeigersinn (y nach unten).
+// Koordinaten: Flaeche 2640 × 2640 = Zielflaeche des Altcodes (alt dart-ui.js EXT = 1.32 Brettradien je Seite),
+// Brettmitte (1320, 1320), 1000 = Aussenkante des Doppelrings (170 mm), y nach unten. Das aim-Widget rechnet die
+// Zeigerposition linear ueber genau diese Flaeche (grid 2641 = Werte 0..2640); Flaechenpunkt + 728 = Altraster 0..4095
+// (Tausendstel Radius um 2048), wie alt px() auf ±EXT begrenzt.
+// Winkel der Ringsektoren in Umdrehungen wie src/render/canvas.js arc: 0 = oben (12 Uhr), im Uhrzeigersinn.
 // Farben sind Token-Namen (src/contract/tokens.js).
 import * as D from "../../engines/dart/dart.js";
 import { fmt } from "../../engines/seed32/seed32.js";
 
-export const SIZE = 2300, MID = 1150;
+export const SIZE = 2640, MID = 1320, GRID = SIZE + 1, OFF = 2048 - MID;
 const k = (v) => Math.round(v * 1000);
-// Grad im Uhrzeigersinn von oben -> Umdrehungen ab 3 Uhr im Uhrzeigersinn, in [0, 1)
-function turnsOf(deg) { const t = (deg - 90) / 360; return t - Math.floor(t); }
+// Grad im Uhrzeigersinn von oben -> Umdrehungen ab 12 Uhr im Uhrzeigersinn, in [0, 1)
+function turnsOf(deg) { const t = deg / 360; return t - Math.floor(t); }
 
 /** Hintergrund-Ebene: Ringe, 80 Ringsektoren, Zahlen, Bull. Haengt nur von nichts ab (Schluessel fest). */
 export function boardOps() {
-  const ops = [{ o: "circle", x: MID, y: MID, r: 1150, fill: "ink" }];
+  const ops = [{ o: "circle", x: MID, y: MID, r: MID, fill: "ink" }];
   const rings = [[D.R.D_IN, 1, "d"], [D.R.T_OUT, D.R.D_IN, "s"], [D.R.T_IN, D.R.T_OUT, "t"], [D.R.OUTER, D.R.T_IN, "i"]];
   D.ORDER.forEach((n, i) => {
     const a0 = turnsOf(18 * i - 9), a1 = turnsOf(18 * i + 9), even = i % 2 === 0;
@@ -50,20 +53,17 @@ export function wobbleFrames(seed, kDart) {
   return out;
 }
 
-/** Die ganze Canvas-Wurzel fuer view: Hintergrund (gecacht), Pfeile, Zitter-Ebene (Datenreihe fuer das Fadenkreuz). */
-export function canvas(pub, lang, kDart, aim) {
-  const layers = [{ id: "brett", key: "dart-brett-1", ops: boardOps() }, { id: "pfeile", ops: dartOps(pub) }];
-  if (Number.isInteger(kDart) && aim) {
-    const c = [MID + Math.round((aim[0] - 2048)), MID + Math.round((aim[1] - 2048))];
-    layers.push({ id: "zittern", frames: wobbleFrames(pub.seed, kDart), ms: D.STEP_MS, ops: [
-      { o: "line", x1: c[0] - 60, y1: c[1], x2: c[0] + 60, y2: c[1], lw: 8, stroke: "paper" },
-      { o: "line", x1: c[0], y1: c[1] - 60, x2: c[0], y2: c[1] + 60, lw: 8, stroke: "paper" }] });
-  }
+/** Die ganze Canvas-Wurzel fuer view: Hintergrund (gecacht) und Pfeile. Das Fadenkreuz zeichnet das aim-Widget selbst;
+ *  die Zitterbahn (wobbleFrames) liegt als Datenreihe bereit, sobald das Widget sie abspielen kann (offen bei F). */
+export function canvas(pub, lang) {
+  const layers = [{ id: "brett", key: "dart-brett-2", ops: boardOps() }, { id: "pfeile", ops: dartOps(pub) }];
   return { t: "canvas", w: SIZE, h: SIZE, ratio: "1:1", layers, a11y: D.T(lang).da_board };
 }
 
-/** Zielpunkt im Raster 0..4095 aus Flaechen-Koordinaten des aim-Widgets (identisch: 1 Rasterpunkt = 1/1000 Radius). */
-export function gridOf(x, y) { return [Math.max(0, Math.min(4095, x - MID + 2048)), Math.max(0, Math.min(4095, y - MID + 2048))]; }
+/** Flaechenpunkt des aim-Widgets (0..2640) -> Altraster (0..4095); 1 Einheit = 1/1000 Radius auf beiden Seiten. */
+export function gridOf(x, y) { return [x + OFF, y + OFF]; }
+/** Altraster -> Flaechenpunkt, begrenzt auf die Zielflaeche (alt px). */
+export function surfOf(ax, ay) { return [Math.max(0, Math.min(SIZE, ax - OFF)), Math.max(0, Math.min(SIZE, ay - OFF))]; }
 
 /** Zahlen fuer „Zielen auf“ (alt dart-ui.js, Tastatur/Schalter): frei, Bullseye, Bull, 20..1 – hoechstens 24 Optionen. */
 export function aimNumbers(lang) {
@@ -82,12 +82,12 @@ export function aimOptions(lang) {
   for (let n = 20; n >= 1; n--) out.push(...aimRings(n, lang));
   return out;
 }
-/** Zielpunkt einer Option als Raster 0..4095 (null fuer „frei“). */
+/** Zielpunkt einer Option als Flaechenpunkt 0..2640 des aim-Widgets (null fuer „frei“). */
 export function aimGrid(v) {
   if (!v) return null;
   const c = v === "50" ? D.centre(25, "b") : v === "25" ? D.centre(25, "o") : D.centre(Number(v.slice(1)), v[0]);
   const d = D.dart(c[0], c[1], D.MID);
-  return [d.ax, d.ay];
+  return surfOf(d.ax, d.ay);
 }
 /** Pendelstufe zur Zeit ms ab Start des Haltens (Startstufe aus dem Seed: hand(seed, k).lv). */
 export function powerAt(seed, kDart, ms) { return D.swing(D.hand(seed, kDart).lv, ms); }
