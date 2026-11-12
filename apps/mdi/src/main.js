@@ -10,11 +10,25 @@ import { loadLive } from "./broker/live-host.js";
 import { linkUrl } from "./ui/view.js";
 import { createApi, lookCookie } from "./broker/api.js";
 import { nativeAccount } from "./broker/native.js";
-import { download } from "./broker/share.js";
+import { download, downloadText } from "./broker/share.js";
+import { createStage } from "./render/rt-stage.js";
+import { createSound } from "./render/sound.js";
+import { featureEnv } from "./app/features.js";
 
 const root = document.getElementById("app");
 const lang = langOf(navigator);
 document.documentElement.lang = lang;
+
+const reducedMq = matchMedia("(prefers-reduced-motion: reduce)");
+// Echtzeit-Buehne und Klang (ADR 0001 b): die Laufzeit zeichnet ueber stage.draw, view.js haengt stage.stageNode ein
+let rtApi = null;
+// Dienste aus Features (Strang P: audio/high, T: cardSvg, K: images) – ohne Feature ehrlich gesperrt im Widget
+const fenv = featureEnv(window);
+const stageEnv = { high: fenv.high || null, images: fenv.images || null, win: window, doc: document, rt: { get active() { return rtApi && rtApi.active; }, get view() { return rtApi && rtApi.view; }, screenButtons: () => (rtApi ? rtApi.screenButtons() : []), get controls() { return rtApi && rtApi.controls; }, key: (c, d) => rtApi && rtApi.key(c, d), pointer: (...a) => rtApi && rtApi.pointer(...a), button: (...a) => rtApi && rtApi.button(...a), blur: () => rtApi && rtApi.blur(), hidden: () => rtApi && rtApi.hidden() }, reduced: () => reducedMq.matches };
+const stage = createStage(stageEnv);
+const sound = createSound({ audioContext: () => new AudioContext(), vibrate: navigator.vibrate ? (ms) => navigator.vibrate(ms) : null });
+function randomInt(n) { const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0] % Math.max(1, n); }
+const viewEnv = { stage, random: randomInt, clock: () => performance.now(), reduced: reducedMq.matches, audio: fenv.audio || null, high: fenv.high || null, cardSvg: fenv.cardSvg || null, images: fenv.images || null };
 
 function entropy() { const b = new Uint8Array(16); crypto.getRandomValues(b); return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join(""); }
 
@@ -28,7 +42,9 @@ const rt = createRuntime({
   returnPath,
   setLook: (colors) => { const k = lookCookie(colors, location.hostname); if (k) document.cookie = k; },
   navigate: (url) => { if (!/^https?:$/.test(location.protocol)) return false; location.assign(url); return true; },
-  download,
+  download, downloadText,
+  copyText: (t) => copy(t),
+  rt: { now: () => performance.now(), frame: (f) => requestAnimationFrame(f), cancel: (h) => cancelAnimationFrame(h), draw: (node, info) => stage.draw(node, info), sound: (ev, sounds) => sound.play(ev, sounds), reduced: () => reducedMq.matches },
   live: () => loadLive(),
   share: (fragment) => share(linkUrl(fragment), document.title),
   copy: (fragment) => copy(linkUrl(fragment)),
@@ -73,7 +89,7 @@ function trapFocus(e) {
 
 function draw(state, info) {
   const beforeLeaf = info && info.before ? leaf(info.before) : null, nowLeaf = leaf(state);
-  patch(root, view(state, (ev) => rt.dispatch(ev)));
+  patch(root, view(state, (ev) => rt.dispatch(ev), { ...viewEnv, reduced: reducedMq.matches }));
   placeBubbles();
   const d = root.querySelector("#dialog");
   if (d && beforeLeaf !== "card.customize.dialog") {
@@ -114,11 +130,15 @@ addEventListener("popstate", () => {
 
 addEventListener("keydown", (e) => {
   if (e.key === "Escape") { if (rt.dispatch({ type: "BACK" })) e.preventDefault(); return; }
+  if (e.code === "KeyP" && rt.rt.active && !/^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName)) { rt.dispatch({ type: "PAUSE" }); e.preventDefault(); return; }
   trapFocus(e);
 });
 addEventListener("resize", placeBubbles);
 addEventListener("hashchange", () => { if (/^#v2\./.test(location.hash)) rt.link(location.hash); });
 
+rtApi = rt.rt;
+// Bilder, die nachladen (KI-Bild ueber Strang K), zeichnen die Ansicht neu, sobald sie da sind
+if (fenv.images && typeof fenv.images.subscribe === "function") fenv.images.subscribe(() => draw(rt.state, null));
 draw(rt.state, null);
 if (location.hash.length > 1) rt.link(location.hash);
 else if (new URLSearchParams(location.search).get("go") === "konto") {

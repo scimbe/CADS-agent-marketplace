@@ -158,12 +158,13 @@ test("Sperre erkennt alle Umgehungen aus dem Review (relativ, nackt, mehrzeilig,
 });
 
 test("Kopierte Fixtures tragen einen Herkunftsvermerk", () => {
-  for (const f of files(path.join(ROOT, "test/fixtures"), /\.json$/)) assert.ok(typeof JSON.parse(fs.readFileSync(f, "utf8")).herkunft === "string", rel(f));
+  // Testkarten (test/fixtures/cards/*) sind eigene Vertragsbeispiele, keine kopierten Erwartungen
+  for (const f of files(path.join(ROOT, "test/fixtures"), /\.json$/).filter((f) => !/[\\/]fixtures[\\/]cards[\\/]/.test(f))) assert.ok(typeof JSON.parse(fs.readFileSync(f, "utf8")).herkunft === "string", rel(f));
 });
 
 test("Erzeugte Dateien (Validatoren, Code-Hashes) sind aktuell", () => {
   const g = generate();
-  for (const [f, s] of Object.entries(g)) assert.equal(fs.readFileSync(path.join(SRC, "gen", f), "utf8"), s, "src/gen/" + f + " veraltet: node scripts/gen.js");
+  for (const [f, s] of Object.entries(g)) assert.equal(fs.readFileSync(path.join(SRC, f), "utf8"), s, "src/" + f + " veraltet: node scripts/gen.js");
 });
 
 test("Abhaengigkeiten gepinnt, nur FOSS-Lizenzen", () => {

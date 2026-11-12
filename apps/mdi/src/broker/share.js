@@ -19,3 +19,13 @@ export function download(name, data) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+/** Textdatei auf dem Geraet speichern (Widget file, z. B. .ics): nur text/calendar und text/plain (ADR 0001 c). */
+export function downloadText(name, mime, text) {
+  if (!["text/calendar", "text/plain"].includes(mime)) return false;
+  const url = URL.createObjectURL(new Blob([String(text)], { type: mime + ";charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = name; a.rel = "noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return true;
+}

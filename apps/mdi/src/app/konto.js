@@ -36,10 +36,14 @@ export function parseCode(s) { const c = String(s || "").toLowerCase().replace(/
 export function isCode(c) { return typeof c === "string" && CODE.test(c); }
 
 /** Profil fuer profile/put: Mein Stil neu, alles andere (Wand, gemerkte Karten, KI-Geraet) unveraendert vom Server. */
-export function pack(me, remote) {
+/** local.wall / local.saved (Wand-Sync, Strang H) haben Vorrang vor dem Stand des Servers (ADR 0001 g). */
+export function pack(me, remote, local = null) {
   const r = remote && typeof remote === "object" ? remote : {};
+  const l = local && typeof local === "object" ? local : {};
   const m = cleanMe(me);
-  return { ...(r.ai ? { ai: r.ai } : {}), me: { nick: nickOk(m.nick) ? m.nick : "", emoji: m.emoji, colors: m.colors, set: m.set }, wall: Array.isArray(r.wall) ? r.wall : [], saved: Array.isArray(r.saved) ? r.saved : [] };
+  const wall = Array.isArray(l.wall) ? l.wall : Array.isArray(r.wall) ? r.wall : [];
+  const saved = Array.isArray(l.saved) ? l.saved : Array.isArray(r.saved) ? r.saved : [];
+  return { ...(r.ai ? { ai: r.ai } : {}), me: { nick: nickOk(m.nick) ? m.nick : "", emoji: m.emoji, colors: m.colors, set: m.set }, wall, saved };
 }
 /** Mein Stil aus einem Server-Profil (leere Felder dort lassen den eigenen Wert stehen). */
 export function meFrom(remote, mine) {

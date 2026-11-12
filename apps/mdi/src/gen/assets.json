@@ -1,0 +1,22 @@
+{
+  "bluff": {
+    "assets": [],
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 12750
+      }
+    ]
+  },
+  "gruss": {
+    "assets": [],
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 11308
+      }
+    ]
+  }
+}

@@ -1,13 +1,21 @@
 // Laufzeit: haelt den Zustand der Statechart, fuehrt deren Effekte aus und meldet Aenderungen an die Ansicht.
 // Keine globalen Singletons (A1): alles kommt als Abhaengigkeit herein (Broker, Speicher, Zufall, Planer).
-import { machine, initialContext } from "./machine.js";
+import { machine, initialContext, featureEffects } from "./machine.js";
+import { FEATURES } from "./features.js";
+import { chooseMove, LEVELS } from "../bot/ismcts.js";
+import * as S from "../contract/session.js";
+import { createRtSession } from "./rt/session.js";
+import * as G from "./game.js";
+import { fromB64url } from "../contract/trace.js";
 import { cardOf } from "../cards/index.js";
 import { createBotAgent } from "../bot/agent.js";
 import * as V from "../gen/validators.js";
 import { decode } from "./link.js";
 import { kontoSaved } from "./konto-chart.js";
 
-const EVENT_OF = { hello: "HELLO", join: "JOIN", start: "START", in: "PEER_IN", show: "SHOW", bye: "LIVE_DOWN" };
+const EVENT_OF = { hello: "HELLO", join: "JOIN", start: "START", in: "PEER_IN", show: "SHOW", bye: "LIVE_DOWN", again: "PEER_AGAIN" };
+// Echtzeit-Nachrichten gehen direkt an die laufende Sitzung, nicht durch die Statechart (60–120 je Sekunde)
+const RT_MSG = new Set(["rt", "rh", "rs", "pause", "resume"]);
 
 /**
  * @param {object} deps
@@ -31,16 +39,20 @@ export function createRuntime(deps) {
   const saved = deps.storage.loadKonto ? (() => { try { return deps.storage.loadKonto(); } catch (e) { return null; } })() : null;
   let state = machine.initial(initialContext(deps.lang, saved));
   if (!state.ctx.device) state = { ...state, ctx: { ...state.ctx, device: deps.entropy() } };
-  let bot = null, live = null, liveGen = 0;
+  let bot = null, live = null, liveGen = 0, rtSess = null, rtGen = 0;
+  const lives = new Map(); // Gruppe: Gastsitz -> Kanal
   const rand = () => [deps.entropy(), deps.entropy(), deps.entropy(), deps.entropy()];
   const api = deps.api || null;
   // Netzaufrufe enden immer als Ereignis (die API wirft nicht); ein Programmfehler dahinter wird laut, nicht verschluckt
   const later = (f) => { f().catch((e) => setTimeout(() => { throw e; }, 0)); };
+  const fxTable = { ...featureEffects(FEATURES) };
+  for (const [k, fn] of Object.entries(deps.effects || {})) { if (k in fxTable) throw new Error("Effekt doppelt: " + k); fxTable[k] = fn; }
 
   function dispatch(ev) {
     ev = typeof ev === "string" ? { type: ev } : { ...ev };
     if (!ev.rand) ev.rand = rand();
     if (ev.at === undefined) ev.at = now();
+    state = { ...state, ctx: { ...state.ctx, today: Math.floor(ev.at / 86400000) } }; // UTC-Tag fuer view (ADR 0001 f)
     const before = state;
     state = machine.send(state, ev);
     for (const fx of state.effects) run(fx);
@@ -49,44 +61,57 @@ export function createRuntime(deps) {
   }
 
   /** Nachricht vom Partner (Bot oder Live): erst Schema, dann Ereignis. */
-  function fromPeer(msg) {
+  // from = Sitz des Gastes, von dem die Nachricht kommt (nur beim Gastgeber einer Gruppe), sonst undefined
+  function fromPeer(msg, from) {
     if (V.liveMsg(msg) !== true) { dispatch({ type: "FAIL", reason: "schema" }); return; }
-    dispatch({ type: EVENT_OF[msg.t], msg });
+    if (RT_MSG.has(msg.t)) { if (rtSess) rtSess.receive(msg); return; }
+    dispatch({ type: EVENT_OF[msg.t], msg, from });
   }
 
-  function liveCallbacks(gen) {
+  // Ein Kanal je Gast (Gruppe, ADR 0001 f): seat = Gastsitz beim Gastgeber, undefined zu zweit und beim Gast
+  function liveCallbacks(gen, seat) {
     const ok = () => gen === liveGen;
     return {
-      onToken: (token) => ok() && dispatch({ type: "LIVE_TOKEN", token }),
-      onStep: (step) => ok() && dispatch({ type: "LIVE_STEP", step }),
-      onUp: () => ok() && dispatch({ type: "LIVE_UP" }),
-      onDown: () => ok() && dispatch({ type: "LIVE_DOWN" }),
-      onFail: (reason) => ok() && dispatch({ type: "LIVE_FAIL", reason }),
-      onMessage: (m) => ok() && fromPeer(m)
+      onToken: (token) => ok() && dispatch({ type: "LIVE_TOKEN", token, seat }),
+      onStep: (step) => ok() && dispatch({ type: "LIVE_STEP", step, seat }),
+      onUp: () => ok() && dispatch({ type: "LIVE_UP", seat }),
+      onDown: () => ok() && dispatch({ type: "LIVE_DOWN", seat }),
+      onFail: (reason) => ok() && dispatch({ type: "LIVE_FAIL", reason, seat }),
+      onMessage: (m) => ok() && fromPeer(m, seat)
     };
+  }
+  function sendPeer(fx) {
+    if (live) { live.send(fx.msg); return; }
+    for (const [seat, ch] of lives) if ((fx.to === undefined || fx.to === seat) && fx.except !== seat) ch.send(fx.msg);
   }
 
   function run(fx) {
     switch (fx.type) {
       case "peer":
         if (state.ctx.mode === "bot") { const m = fx.msg; schedule(() => bot && bot.receive(m)); }
-        else if (live) live.send(fx.msg);
+        else sendPeer(fx);
         break;
       case "bot.new":
-        bot = createBotAgent(cardOf(state.ctx.cardId), { seat: fx.seat, level: fx.level, entropy: deps.entropy, send: (m) => schedule(() => fromPeer(m)) });
+        bot = createBotAgent(cardOf(state.ctx.cardId), { seat: fx.seat, level: fx.level, today: fx.today, entropy: deps.entropy, send: (m) => schedule(() => fromPeer(m)) });
         break;
       case "live.invite": case "live.accept": {
         const gen = ++liveGen;
         deps.live().then((L) => {
           if (gen !== liveGen) return;
-          live = fx.type === "live.invite" ? L.invite(liveCallbacks(gen)) : L.accept(fx.token, liveCallbacks(gen));
+          if (fx.type === "live.accept") live = L.accept(fx.token, liveCallbacks(gen));
+          else if (Array.isArray(fx.seats) && fx.seats.length > 1) for (const seat of fx.seats) lives.set(seat, L.invite(liveCallbacks(gen, seat)));
+          else live = L.invite(liveCallbacks(gen));
         }).catch(() => gen === liveGen && dispatch({ type: "LIVE_FAIL", reason: "verbindung" }));
         break;
       }
       case "live.close":
         liveGen++; if (live) { try { live.close(); } catch (e) { /* schon zu */ } } live = null;
+        for (const ch of lives.values()) { try { ch.close(); } catch (e) { /* schon zu */ } }
+        lives.clear();
         break;
-      case "store": deps.storage.saveGame(fx.entry); break;
+      // Eintraege behalten den Merkzettel der Partie (Z1), wenn ein neuer Stand gespeichert wird
+      case "store": { let old = null; try { old = deps.storage.loadGame(fx.entry.g); } catch (e) { old = null; } deps.storage.saveGame(old && old.memo && fx.entry.memo === undefined ? { ...fx.entry, memo: old.memo } : fx.entry); break; }
+      case "store.memo": { let old = null; try { old = deps.storage.loadGame(fx.g); } catch (e) { old = null; } if (old) deps.storage.saveGame({ ...old, memo: fx.memo }); else { const e = G.gameEntry(state.ctx.session, fx.g); deps.storage.saveGame({ ...e, memo: fx.memo }); } break; }
       // "shared" = Systemblatt abgeschlossen -> gesendet; "copied" = nur in der Zwischenablage; sonst Hinweis + Feld
       case "share": deps.share(fx.fragment).then((r) => dispatch({ type: r === "shared" ? "SENT" : r === "copied" ? "COPIED" : "SHARE_FAIL" })); break;
       case "copy": (deps.copy || (() => Promise.resolve(false)))(fx.fragment).then((ok) => dispatch({ type: ok ? "COPIED" : "COPY_FAIL" })); break;
@@ -126,7 +151,46 @@ export function createRuntime(deps) {
       case "mod.me": later(async () => dispatch({ type: "MOD", result: api ? await api.modMe() : { ok: false, error: "nicht-hier" } })); break;
       case "mod.appeal": later(async () => dispatch({ type: "APPEALED", result: api ? await api.appeal(fx.nid, fx.text) : { ok: false, error: "nicht-hier" } })); break;
       case "download": if (deps.download) deps.download(fx.name, fx.data); break;
-      default: throw new Error("Effekt unbekannt: " + fx.type);
+      case "download.text": if (!deps.downloadText || !deps.downloadText(fx.name, fx.mime, fx.text)) schedule(() => dispatch({ type: "COPY_FAIL" })); break;
+      case "copy.text": (deps.copyText || (() => Promise.resolve(false)))(fx.text).then((ok) => dispatch({ type: ok ? "COPIED" : "COPY_FAIL" })); break;
+      case "rt.start": {
+        if (rtSess) { rtSess.stop(); rtSess = null; }
+        const gen = ++rtGen, c = cardOf(state.ctx.cardId);
+        if (!deps.rt) { schedule(() => dispatch({ type: "RT", kind: "error", reason: "nicht-hier" })); break; }
+        const ghost = fx.ghost ? fromB64url(fx.ghost) : undefined;
+        const R = deps.rt;
+        try {
+          rtSess = createRtSession(c, { mode: fx.mode, seat: fx.seat, params: fx.params, seed: fx.seed, level: fx.level, ghost, serving: fx.serving, lang: state.ctx.lang, reduced: R.reduced ? R.reduced() : false }, {
+            now: R.now, frame: R.frame, cancel: R.cancel,
+            send: (m) => sendPeer({ msg: m }),
+            draw: (node, info) => R.draw(node, info),
+            onEvents: (ev) => { if (R.sound) R.sound(ev, c.manifest.rt.sounds || {}); },
+            onChange: (info) => {
+              if (gen !== rtGen) return;
+              const extra = info.type === "over" ? { status: info.status, ghost: (() => { try { return rtSess.ghostWire(); } catch (e) { return null; } })() } : {};
+              schedule(() => gen === rtGen && dispatch({ type: "RT", kind: info.type, ...extra }));
+            }
+          });
+          rtSess.start();
+        } catch (e) { rtSess = null; schedule(() => dispatch({ type: "RT", kind: "error", reason: e.code || "geist" })); }
+        break;
+      }
+      case "rt.stop": rtGen++; if (rtSess) { rtSess.stop(); rtSess = null; } break;
+      case "rt.pause": if (rtSess) rtSess.pause(); break;
+      case "rt.resume": if (rtSess) rtSess.resume(); break;
+      case "bot.local": {
+        // Bot-Sitz auf diesem Geraet (mehr als zwei Sitze): plant nur aus observe() seines Sitzes, Zufall aus dem Seed
+        const ctx = state.ctx, c = cardOf(ctx.cardId), s = ctx.session;
+        if (!s) break;
+        const obs = S.observe(c, s, fx.seat), seed = s.seed + "|bot|" + fx.seat + "|" + s.log.length;
+        const input = typeof c.bot === "function" ? c.bot(obs, fx.seat, { level: fx.level, seed })
+          : chooseMove(c, obs, fx.seat, { iterations: (LEVELS.find((l) => l.id === fx.level) || LEVELS[1]).iterations, seed });
+        schedule(() => dispatch({ type: "BOT_IN", input }));
+        break;
+      }
+      default:
+        if (Object.prototype.hasOwnProperty.call(fxTable, fx.type)) { fxTable[fx.type](fx, { dispatch, state: () => state, api, deps }); break; }
+        throw new Error("Effekt unbekannt: " + fx.type);
     }
   }
 
@@ -144,5 +208,18 @@ export function createRuntime(deps) {
   if (!saved || saved.device !== state.ctx.device) first.push({ type: "device.save" });
   schedule(() => { for (const fx of first) run(fx); });
 
-  return { dispatch, link, get state() { return state; }, matches: (p) => machine.matches(state, p) };
+  // Eingaben der Buehne (src/render/rt-stage.js) -> laufende Echtzeit-Sitzung; ohne Sitzung: nicht verbraucht
+  const rt = {
+    get active() { return !!rtSess; },
+    get view() { return rtSess ? rtSess.view : null; },
+    screenButtons: () => (rtSess ? rtSess.screenButtons() : []),
+    get controls() { return rtSess ? rtSess.controls : null; },
+    key: (code, down) => (rtSess ? rtSess.key(code, down) : false),
+    pointer: (type, id, x, y) => { if (rtSess) rtSess.pointer(type, id, x, y); },
+    button: (id, down) => { if (rtSess) rtSess.button(id, down); },
+    blur: () => { if (rtSess) rtSess.blur(); },
+    hidden: () => { if (rtSess && rtSess.phase === "run" && !rtSess.paused) dispatch({ type: "PAUSE" }); },
+    status: () => (rtSess ? rtSess.status() : null)
+  };
+  return { dispatch, link, rt, get state() { return state; }, matches: (p) => machine.matches(state, p) };
 }
