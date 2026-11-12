@@ -2,7 +2,7 @@
 // GAMES-Eintrag mit derselben Prompt-Signatur (doc, m, now, lang). Zeilenangaben je Spiel beziehen sich auf turns.js.
 import DATA from "./turn.json" with { type: "json" };
 import GTEXT from "./geschenke.json" with { type: "json" };
-import { textsFor, fmt, pair, alt, side, mix, hash32, mulberry32, fold, intIn, money, form } from "./alt.js";
+import { textsFor, fmt, pair, alt, side, mix, hash32, mulberry32, fold, intIn, money, form, civil, weekday } from "./alt.js";
 import * as G from "./geld.js";
 import * as L from "./merge.js";
 import { ideas as giftIdeas } from "./geschenke.js";
@@ -12,7 +12,6 @@ export function T(lang) { return textsFor(TEXT, lang); }
 export { DATA };
 function listOf(k) { return (doc, m, now, lang) => DATA[k].map((x, i) => pair(DATA[k], i, lang)); }
 function places(order) { const p = []; order.forEach((o, at) => { p[o] = at; }); return p; }
-const DAY = 86400000;
 
 // ---------- einig (turns.js:54-69) ----------
 const einig = {
@@ -136,7 +135,7 @@ const kerzen = {
 };
 // ---------- termin (turns.js:546-590) ----------
 export const HOURS = [10, 12, 14, 15, 16, 17, 18, 19, 20], VOTERS = 10;
-export function dayText(day, lang) { const X = T(lang), d = new Date(day * DAY); return fmt(X.ter_day, { w: X.ter_days.split("|")[d.getUTCDay()], d: d.getUTCDate(), m: d.getUTCMonth() + 1 }); }
+export function dayText(day, lang) { const X = T(lang), c = civil(day); return fmt(X.ter_day, { w: X.ter_days.split("|")[weekday(day)], d: c[2], m: c[1] }); }
 export function hourText(i, lang) { const h = HOURS[i]; return lang === "en" ? (h > 12 ? h - 12 : h) + (h < 12 ? " am" : " pm") : fmt(T(lang).ter_hour, { h }); }
 export function slotText(s, lang) { return dayText(Math.floor(s / 10), lang) + ", " + hourText(s % 10, lang); }
 export function termDates(m) { return m[0][0][1]; }
@@ -208,9 +207,12 @@ function shopCount(list, lang, cf) {
   const r = L.shopRows(list, cf);
   return fmt(T(lang)[cf && cf.due ? "tdo_count" : "ein_count"], { n: r.length, b: r.filter((x) => x.bought.length).length, c: r.filter((x) => !x.bought.length && x.bring.length).length });
 }
+// Beispielzuege (nur Treiber/Hinweise): Einkauf endet, sobald alles gekauft ist; Wunschzettel endet durch close
+function shopExample(base) { return base ? L.shopApply(base, { name: "Ana", face: 0, marks: Object.fromEntries(L.shopRows(base).map((r) => [r.key, 2])) }) : L.shopApply(null, { name: "", adds: [{ text: "Brot", qty: 1 }, { text: "Milch", qty: 2 }] }); }
+function wishExample(base) { return base || L.shopApply(null, { name: "", adds: [{ text: "Buch", qty: 1 }, { text: "Schal", qty: 1 }] }, L.WISH); }
 const einkauf = {
   snap: true, list: L.SHOP,
-  turns: [[{ w: "shop", l: "ein_make", live: true, cfg: L.SHOP }], [{ w: "shop", l: "ein_go", live: true, cfg: L.SHOP }]],
+  turns: [[{ w: "shop", l: "ein_make", live: true, cfg: L.SHOP, example: shopExample }], [{ w: "shop", l: "ein_go", live: true, cfg: L.SHOP, example: shopExample }]],
   ends: (doc, m) => m.length > 0 && L.shopDone(m[0][0]),
   words: { you_start: "ein_start", go_first: "ein_go_first", go_play: "ein_go_play", note_turn: "ein_note", note_over: "ein_over", ready: "ein_ready", send: "ein_send", rematch: "ein_again" },
   face: (doc, m, lang) => (m.length ? [shopCount(m[0][0], lang)] : null),
@@ -220,7 +222,7 @@ const einkauf = {
 function wishCount(v, lang) { return fmt(form(T(lang), "wun_count", v[1].length, lang), { n: v[1].length }); }
 const wunsch = {
   snap: true, list: L.WISH,
-  turns: [[{ w: "wish", l: "wun_make", live: true, k: "wun", cfg: L.WISH }], [{ w: "wish", l: "wun_go", live: true, k: "wun", cfg: L.WISH }]],
+  turns: [[{ w: "wish", l: "wun_make", live: true, k: "wun", cfg: L.WISH, example: wishExample }], [{ w: "wish", l: "wun_go", live: true, k: "wun", cfg: L.WISH, example: wishExample }]],
   // vorbei erst, wenn das Handy der Wuenschenden schliesst (o = 2), nie weil jeder Wunsch vergeben ist: das verriete es
   ends: (doc, m) => m.length > 0 && doc.o === 2, close: 2,
   words: { you_start: "wun_start", go_first: "wun_go_first", go_play: "wun_go_play", note_turn: "wun_note", note_over: "wun_over", ready: "wun_ready", send: "inv_send", rematch: "wun_again" },
@@ -245,7 +247,8 @@ export function giftGame(euro, who, extra) {
       const X = T(lang), x = giftLast(m), a = x[0][x[1]], b = x[0][m[1][0][0]];
       return { h: a === b ? fmt(X.gf_same, { s: a }) : X.gf_two, lines: (a === b ? [] : [fmt(X.gf_first, { s: a }), fmt(X.gf_second, { s: b })]).concat([upTo(euro[m[0][o][0]], lang)]), open: who ? { i: "zug-sammeln", l: "gf_pool" } : null };
     },
-    giftIdeas, notes: ["gf_lang"]
+    giftIdeas, notes: ["gf_lang"],
+    example: (p, doc, m, now) => (p.w === "ideas" ? [giftIdeas(doc.seed, p.ask(now), "de"), 0] : undefined)
   }, extra);
 }
 const geschenk = giftGame([10, 20, 30, 50], true);

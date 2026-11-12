@@ -163,7 +163,7 @@ test("Termin finden: Termine nur angetippt, bester Termin gewinnt, Gleichstand e
   assert.ok(linkLen(x) <= MAX_FRAGMENT, "Linklaenge " + linkLen(x));
   assert.equal(de(x).h, "Alle können: Do 5.11., 20 Uhr"); assert.match(de(x).lines.at(-1), /^Können: Mia, Ä[ä]{9}B, Ä[ä]{9}C \+7$/);
   // im Kalender an seinem Tag (Rotation: Strang H); 11-09 kam mit der eingeklappten Gruppen-Konferenz (plan-09)
-  assert.deepEqual(CARD["zug-termin"].manifest.on, ["11-09", "12-04"]); assert.equal(CARD["zug-termin"].manifest.legacy["plan-09"], "termin");
+  assert.deepEqual(CARD["zug-termin"].manifest.on, ["11-09", "12-04"]); assert.ok(CARD["zug-termin"].manifest.legacy.includes("plan-09"));
 });
 test("Rangliste nennt den groessten Streit", () => {
   let d = Tn.play(fresh("rangliste", 0), [[0, 1, 2, 3, 4, 5, 6, 7]], 0); d = Tn.play(d, [[7, 1, 2, 3, 4, 5, 6, 0]], 0);

@@ -4,4 +4,4 @@ import manifest from "./manifest.json" with { type: "json" };
 import { makeZug } from "../../engines/zug/zug.js";
 import { GAMES, TEXT } from "../../engines/zug/spiele.js";
 
-export default makeZug({ manifest, games: { wichteln: GAMES.wichteln }, text: TEXT, legacy: manifest.legacy });
+export default makeZug({ manifest, games: { wichteln: GAMES.wichteln }, text: TEXT });

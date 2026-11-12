@@ -36,7 +36,7 @@ test("13 Karten: Manifest, Varianten, Altkennungen und Vertrag passen zusammen",
     const c = CARD[id], m = c.manifest;
     assert.equal(m.id, id); assert.equal(m.kind, "turn"); assert.equal(m.mode, "turn");
     for (const k of ["init", "step", "observe", "status", "moves", "view", "accepts", "fromFree", "toFree", "compact", "merge"]) assert.equal(typeof c[k], "function", id + "." + k);
-    assert.equal(m.legacy[id] !== undefined, true, id + ": eigene Altkennung");
+    assert.ok(m.legacy.includes(id), id + ": eigene Altkennung");
     const variants = m.params.properties.spiel ? m.params.properties.spiel.enum : [null];
     for (const v of variants) {
       const st = start(id, v);
@@ -48,12 +48,13 @@ test("13 Karten: Manifest, Varianten, Altkennungen und Vertrag passen zusammen",
         c.view(c.observe(st, 0), 0, { lang, preview: true });
       }
     }
-    for (const [legacyId, v] of Object.entries(m.legacy)) {
+    const pairs = [...m.legacy.map((l) => [l, m.params.properties.spiel ? m.params.properties.spiel.default : null]), ...(m.variants || []).flatMap((v) => v.legacy.map((l) => [l, v.params.spiel]))];
+    for (const [legacyId, v] of pairs) {
       const p = c.fromFree({ k: "turn", i: legacyId, t: "Für Oma" });
       assert.ok(p, id + " fromFree " + legacyId);
-      if (m.params.properties.spiel) assert.equal(p.spiel, v);
+      if (v) assert.equal(p.spiel, v);
       assert.equal(p.titel, "Für Oma");
-      assert.equal(c.toFree(p).i, Object.keys(m.legacy).find((k) => m.legacy[k] === v));
+      assert.equal(c.fromFree(c.toFree(p)).spiel, p.spiel, "Rundreise");
     }
     assert.equal(c.fromFree({ k: "turn", i: "zug-bluff" }), null, "fremde Karte -> null");
   }
@@ -164,10 +165,15 @@ test("Einkauf: Vereinigung ist kommutativ, idempotent; compact ergibt denselben 
   assert.deepEqual(c.merge(x, x).m, x.m, "idempotent");
   assert.deepEqual(L.shopRows(x.m[0][0]).map((r) => r.label).sort(), ["2× Milch", "3× Äpfel", "Brot", "Käse"].sort());
   const log = c.compact([{ t: "ans", seat: 0, a: l0 }, { t: "ans", seat: 1, a: lb }]);
-  assert.equal(log.length, 1);
+  assert.equal(log.length, 2, "zwei Antworten -> k = 2");
   let r = start("zug-einkauf", undefined, 7);
   for (const i of log) r = c.step(r, i);
-  assert.deepEqual(r.pub.m, [[lb]]); assert.equal(c.status(r).turn, 1, "nach compact ist der andere dran");
+  assert.deepEqual(r.pub.m, [[lb]]); assert.deepEqual(r.pub, b.pub, "verdichtetes Log ergibt genau den Stand des Absenders");
+  // nach merge: compact(log, state) spielt den vereinigten Stand nach (Empfang, ADR 0001 f)
+  const log2 = c.compact([], { pub: x });
+  let r2 = start("zug-einkauf", undefined, 7);
+  for (const i of log2) r2 = c.step(r2, i);
+  assert.deepEqual(r2.pub, x);
   // Ansicht: abhaken braucht einen Namen
   const v = c.view(c.observe(b, 0), 0, { lang: "de", draft: {} });
   assert.ok(nodes(v, "choice").some((ch) => ch.options.some((o) => o.label === "Hab ich gekauft" && o.disabled)));

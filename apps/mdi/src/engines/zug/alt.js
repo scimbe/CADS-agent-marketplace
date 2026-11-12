@@ -112,15 +112,64 @@ export function pair(list, i, lang) { return pk(list[i], lang); }
 export function side(s, lang) { return alt(s.split("||"), lang).split("|"); }
 /** Textblock einer Sprache; was fehlt, kommt aus dem deutschen Block (core.js:433, ohne den Prototyp zu veraendern). */
 export function textsFor(tab, lang) { const de = tab.de || {}, b = tab[lang]; return b && b !== de ? { ...de, ...b } : de; }
-const LOCALE = { de: "de-DE", en: "en-GB" };
-export function locale(l) { return LOCALE[l] || l || "de-DE"; }
-function sp(s) { return s.replace(/[\u00a0\u202f]/g, " "); }
-/** Cent als Geld: "7 €" / "9,37 €", "€7" / "€9.37" (core.js:451). Reine Anzeige, nie im Zustand. */
-export function money(c, l) { return sp(new Intl.NumberFormat(locale(l), { style: "currency", currency: "EUR", minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 }).format(c / 100)); }
-export function plural(l, n) { try { return new Intl.PluralRules(locale(l)).select(n); } catch (e) { return n === 1 ? "one" : "other"; } }
+// Ohne Intl (Harness, determinismus.md Befund 3): die Ausgaben sind gegen Intl de-DE/en-GB als Orakel geprueft
+// (test/z1-format.test.js). Nur de und en kommen vor; andere Sprachen lesen Deutsch.
+export function locale(l) { return l === "en" ? "en-GB" : "de-DE"; }
+function group(n, sep) { const s = String(n); let out = ""; for (let i = 0; i < s.length; i++) { if (i && (s.length - i) % 3 === 0) out += sep; out += s[i]; } return out; }
+/** Cent als Geld: "7 €" / "9,37 €" / "1.000 €", "€7" / "€9.37" / "€1,000" (core.js:451). Reine Anzeige, nie im Zustand. */
+export function money(c, l) {
+  const neg = c < 0, a = Math.abs(Math.trunc(c)), e = Math.floor(a / 100), r = a % 100, en = l === "en";
+  const body = group(e, en ? "," : ".") + (r ? (en ? "." : ",") + String(r).padStart(2, "0") : "");
+  return (neg ? "-" : "") + (en ? "€" + body : body + " €");
+}
+/** Pluralform fuer de/en: "one" nur fuer 1, sonst "other" (wie Intl.PluralRules fuer de und en bei Ganzzahlen). */
+export function plural(l, n) { return n === 1 ? "one" : "other"; }
 /** "k" mit n = 1 liest "k_one", wo der Block es hat (core.js:443). */
 export function form(block, k, n, l) { const s = typeof n === "number" ? block[k + "_" + plural(l, n)] : null; return s != null ? s : block[k]; }
 export function intIn(v, a, b) { return Number.isInteger(v) && v >= a && v <= b; }
 export function distinct(a) { return new Set(a).size === a.length; }
-/** Zahl mit d Nachkommastellen in der Schreibweise der Sprache ("1,23" / "1.23"); d null: bis 3 (core.js:446). Nur Anzeige. */
-export function num(x, d, l) { return sp(Number(x).toLocaleString(locale(l), d == null ? { maximumFractionDigits: 3, useGrouping: false } : { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: false })); }
+/** Zahl mit d Nachkommastellen in der Schreibweise der Sprache ("1,23" / "1.23"), ohne Tausendertrennung; d null: bis 3
+ *  Stellen ohne Endnullen (core.js:446). Wie Intl in V8 gerundet: auf der kuerzesten Dezimaldarstellung des Doubles
+ *  (Number::toString, ECMA-262 6.1.6.1.20, exakt spezifiziert), halbe Stelle von der Null weg; kein toFixed (Harness).
+ *  Gegen toLocaleString als Orakel geprueft (test/z1-format.test.js). Nur Anzeige. */
+function plainDigits(a) {
+  const s = String(a), m = /^(\d+)(?:\.(\d+))?(?:e([+-]\d+))?$/.exec(s);
+  if (!m) return { ip: "0", fp: "" };
+  let ip = m[1], fp = m[2] || "";
+  const e = m[3] ? Number(m[3]) : 0;
+  if (e > 0) { fp = fp.padEnd(e, "0"); ip = (ip + fp.slice(0, e)).replace(/^0+(?=\d)/, ""); fp = fp.slice(e); }
+  else if (e < 0) { fp = "0".repeat(-e - 1) + ip + fp; ip = "0"; }
+  return { ip, fp };
+}
+function incDigits(s) { const a = s.split(""); let i = a.length - 1; while (i >= 0) { if (a[i] === "9") { a[i] = "0"; i--; } else { a[i] = String(Number(a[i]) + 1); return a.join(""); } } return "1" + a.join(""); }
+export function num(x, d, l) {
+  x = Number(x);
+  const max = d == null ? 3 : d, min = d == null ? 0 : d, neg = x < 0 || Object.is(x, -0);
+  let { ip, fp } = plainDigits(Math.abs(x));
+  if (fp.length > max) {
+    const up = fp.charCodeAt(max) >= 53; // "5".."9"
+    fp = fp.slice(0, max);
+    if (up) { const r = incDigits(ip + fp); ip = r.slice(0, r.length - max) || "0"; fp = max ? r.slice(r.length - max) : ""; }
+  }
+  if (d == null) fp = fp.replace(/0+$/, "");
+  while (fp.length < min) fp += "0";
+  // Vorzeichen wie Intl (signDisplay auto): auch "-0", wenn eine negative Zahl auf null rundet
+  return (neg ? "-" : "") + ip + (fp ? (l === "en" ? "." : ",") + fp : "");
+}
+// ---------- Kalender ohne Date (Harness): Tage seit 1970-01-01 <-> (Jahr, Monat, Tag), H. Hinnant, chrono-compatible ----------
+export function civil(z) {
+  z += 719468;
+  const era = Math.floor(z / 146097), doe = z - era * 146097;
+  const yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365);
+  const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100)), mp = Math.floor((5 * doy + 2) / 153);
+  const d = doy - Math.floor((153 * mp + 2) / 5) + 1, m = mp < 10 ? mp + 3 : mp - 9;
+  return [yoe + era * 400 + (m <= 2 ? 1 : 0), m, d];
+}
+export function daysOf(y, m, d) {
+  y -= m <= 2 ? 1 : 0;
+  const era = Math.floor(y / 400), yoe = y - era * 400, doy = Math.floor((153 * (m + (m > 2 ? -3 : 9)) + 2) / 5) + d - 1;
+  const doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy;
+  return era * 146097 + doe - 719468;
+}
+/** Wochentag 0 = Sonntag (wie Date#getUTCDay). */
+export function weekday(z) { return ((z % 7) + 11) % 7; }

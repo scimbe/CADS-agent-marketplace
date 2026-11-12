@@ -1,7 +1,7 @@
 {
   "id": "zug-umschlag",
   "version": "1.0.0",
-  "sdk": "mdi-sdk/0.1",
+  "sdk": "mdi-sdk/0.2",
   "kind": "turn",
   "mode": "turn",
   "order": 19,
@@ -47,12 +47,42 @@
       "link"
     ]
   },
+  "modes": [
+    "alone",
+    "link"
+  ],
   "inputDay": true,
-  "legacy": {
-    "zug-umschlag": "umschlag",
-    "zug-morgen": "morgen",
-    "halloween": "halloween"
-  },
+  "legacy": [
+    "zug-umschlag"
+  ],
+  "variants": [
+    {
+      "id": "zug-morgen",
+      "title": {
+        "de": "Erst morgen aufmachen",
+        "en": "Open it tomorrow"
+      },
+      "params": {
+        "spiel": "morgen"
+      },
+      "legacy": [
+        "zug-morgen"
+      ]
+    },
+    {
+      "id": "halloween",
+      "title": {
+        "de": "Happy Halloween",
+        "en": "Happy Halloween"
+      },
+      "params": {
+        "spiel": "halloween"
+      },
+      "legacy": [
+        "halloween"
+      ]
+    }
+  ],
   "inputs": {
     "type": "object",
     "required": [
@@ -112,35 +142,11 @@
         "x-label": {
           "de": "Art",
           "en": "Kind"
-        },
-        "x-names": {
-          "umschlag": {
-            "de": "Mach auf, wenn …",
-            "en": "Open when …"
-          },
-          "morgen": {
-            "de": "Erst morgen aufmachen",
-            "en": "Open it tomorrow"
-          },
-          "halloween": {
-            "de": "Happy Halloween",
-            "en": "Happy Halloween"
-          }
         }
       }
     }
   },
   "parts": [
-    {
-      "id": "art",
-      "params": [
-        "spiel"
-      ],
-      "label": {
-        "de": "Art",
-        "en": "Kind"
-      }
-    },
     {
       "id": "titel",
       "params": [

@@ -1,7 +1,7 @@
 {
   "id": "zug-termin",
   "version": "1.0.0",
-  "sdk": "mdi-sdk/0.1",
+  "sdk": "mdi-sdk/0.2",
   "kind": "turn",
   "mode": "turn",
   "order": 11,
@@ -63,11 +63,15 @@
       "link"
     ]
   },
-  "legacy": {
-    "zug-termin": "termin",
-    "karte-einladung": "termin",
-    "plan-09": "termin"
-  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "legacy": [
+    "zug-termin",
+    "karte-einladung",
+    "plan-09"
+  ],
   "on": [
     "11-09",
     "12-04"
