@@ -336,3 +336,21 @@ test("Baukasten: Fairness nur bei statistisch belegter Schieflage (exakter Binom
   assert.equal(binomP(3, 6), 1);
   for (const seed of ["pruef", "srv", "a", "b", "c"]) assert.ok(pruefe(PONG, { seed, games: 8 }).ok, seed);
 });
+
+test("Baukasten: Gold-Korpus-Befunde – Gleichstand am Ziel, Boden fuer jump, Diagnose der ersten Lebensverluste", async () => {
+  const { diagnose } = await import("../src/engines/baukasten/pruefer.js");
+  // g15: beide erreichen das Ziel im selben Tick -> unentschieden, nicht Sitz 0
+  const race = check({ v: 1, title: "Wettlauf", mode: "realtime", players: 2, bg: "paper", things: [{ id: "knopf", look: "emoji", emoji: "🐌", control: "tap" }],
+    start: [{ thing: "knopf", x: 500, y: 1200, seat: 0 }, { thing: "knopf", x: 500, y: 400, seat: 1 }], rules: [{ when: "tap", a: "knopf", do: [{ act: "score", on: "actor", n: 1 }] }], end: { score: 1, time: 30 } }).desc;
+  const st = E.init(race, "t", ["bot", "bot"]), f = E.fitOf(race), at = (e) => [0, f.ox + Math.trunc((e.x >> 8) * f.num / f.den), f.oy + Math.trunc((e.y >> 8) * f.num / f.den), 3];
+  const r = E.step(race, st, [{ b: 0, p: [at(st.e[0])] }, { b: 0, p: [at(st.e[1])] }]).state;
+  assert.deepEqual([r.over, r.win, r.sc], [1, -1, [1, 1]]);
+  // g09/g19: jump ohne Boden wird vor jedem Playtest mit Grund abgelehnt
+  const noGround = { ...clone(BEISPIELE.huepfer), world: { gravity: 3200, left: "open", right: "open", bottom: "open" } };
+  assert.match(check(noGround).errors.join(), /jump braucht Boden/);
+  // Diagnose nennt Regel, Sekunden und den fehlenden Boden
+  const fall = check({ ...clone(FLAPPY), spawn: [] , end: { lives: 1, time: 30, win: "survive" } }).desc;
+  assert.match(diagnose(fall), /Regel 2 \(out vogel bottom\) nach [0-9.]+ s .*Boden/);
+  const v = pruefe({ ...clone(FLAPPY), spawn: [{ ...FLAPPY.spawn[0], gap: 140 }] }, { games: 4 });
+  assert.match(feedback({ stage: v.stage, reasons: v.reasons, metrics: v.metrics }), /Ohne jede Eingabe/);
+});
