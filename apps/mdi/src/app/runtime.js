@@ -1,7 +1,7 @@
 // Laufzeit: haelt den Zustand der Statechart, fuehrt deren Effekte aus und meldet Aenderungen an die Ansicht.
 // Keine globalen Singletons (A1): alles kommt als Abhaengigkeit herein (Broker, Speicher, Zufall, Planer).
 import { machine, initialContext, featureEffects } from "./machine.js";
-import { FEATURES } from "./features.js";
+import { FEATURES, featureNeeds } from "./features.js";
 import { chooseMove, LEVELS } from "../bot/ismcts.js";
 import * as S from "../contract/session.js";
 import { createRtSession } from "./rt/session.js";
@@ -55,7 +55,8 @@ export function createRuntime(deps) {
     else if (ev.type === "ACT" && ev.act === "open") id = ev.card;
     else if ((ev.type === "HELLO" || ev.type === "SHOW") && ev.msg) id = ev.msg.c;
     else if (ev.type === "LINK") { const d = decode(ev.hash); if (d.ok && d.data && typeof d.data.c === "string") id = d.data.c; }
-    return typeof id === "string" && manifestOf(id) && !isLoaded(id) ? [id] : [];
+    const ids = [...(typeof id === "string" ? [id] : []), ...featureNeeds(ev, state.ctx)];
+    return [...new Set(ids)].filter((x) => manifestOf(x) && !isLoaded(x));
   }
   function dispatch(ev) {
     ev = typeof ev === "string" ? { type: ev } : { ...ev };

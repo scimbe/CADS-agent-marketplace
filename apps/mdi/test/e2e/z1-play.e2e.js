@@ -199,3 +199,36 @@ for (const view of VIEWS_RUN) test("Z1 bedienen (" + view + "): raum-sorry auf e
   assert.deepEqual(A.bad, []); assert.deepEqual(A.errs, []);
   await A.ctx.close();
 });
+
+// Rueckantwort auf dem Geraet der Wuenschenden (Vereinigung + Merkzettel je Partie). Haengt am Browser-Speicher von F:
+// src/broker/storage.js saveGame verwirft entry.pub und entry.memo (gemeldet) -> Empfang "manipuliert".
+test("Z1 Wunschzettel: Antwort der Familie auf dem Geraet der Wuenschenden – keine Frage, keine Marke", { todo: "Strang F: storage.js saveGame speichert pub/memo nicht (gemeldet)" }, async () => {
+  VIEW = "phone390";
+  const A = await start("zug-wunschzettel"); A.bad = [];
+  const chk = steps(A.p, A.bad, "zug-wunschzettel/A");
+  await fillLabel(A.p, "Neuer Wunsch", "Hörbuch"); await tap(A.p, "Auf den Zettel");
+  await fillLabel(A.p, "Neuer Wunsch", "Schal"); await tap(A.p, "Auf den Zettel");
+  await next(A.p);
+  const B = await handOver(A);
+  await waitScreen(B.p, "card-play-turn"); await tap(B.p, "Ich schenke etwas");
+  await fillLabel(B.p, "Dein Name (die App zeigt ihn niemandem)", "Ben");
+  await stage(B.p).locator(".choice", { hasText: "Hörbuch" }).locator(".opt").first().click(); await B.p.waitForTimeout(60);
+  await next(B.p);
+    // Bens Antwort auf Annas Geraet: das Geraet weiss "mein Zettel" (Merkzettel je Partie), fragt nicht, zeigt keine Marke
+    await waitScreen(B.p, "card-play-send");
+    await B.p.locator("#linkfield").waitFor({ state: "attached" });
+    const u = await B.p.locator("#linkfield").inputValue();
+    // dasselbe Geraet (gleicher Browser-Kontext, gleicher Speicher), neue Seite mit dem Antwort-Link
+    const P2 = await A.ctx.newPage();
+    await P2.goto(A.p.url().split("#")[0] + u.slice(u.indexOf("#"))); await P2.locator("header.bar").waitFor();
+    for (let i = 0; i < 40 && !["receive-show", "receive-reject"].includes(await screen(P2).catch(() => "")); i++) await P2.waitForTimeout(100);
+    assert.equal(await screen(P2), "receive-show", "Antwort angenommen: " + (await P2.locator("[data-reason]").getAttribute("data-reason").catch(() => "")));
+    await act(P2, "accept");
+    const ta = await text(P2);
+    assert.ok(!/Wer bist du/.test(ta), "Geraet der Wuenschenden fragt nicht");
+    for (const w of ["Ben", "vergeben", "Du schenkst"]) assert.ok(!ta.includes(w), "Wuenschende sieht nicht: " + w);
+    assert.ok(ta.includes("Hörbuch") && ta.includes("Schal"));
+    for (const x of await axe(P2, "zug-wunschzettel/A2")) A.bad.push(x);
+  assert.deepEqual(A.bad, []);
+  await A.ctx.close(); await B.ctx.close();
+});
