@@ -352,3 +352,24 @@ export function headSearch(state, dispatch) {
     h("label", { class: "visually-hidden", for: "h-q" }, X.search),
     h("input", { id: "h-q", class: "h-input", type: "search", autocomplete: "off", maxlength: "80", placeholder: fmt(X.searchAllPh, { n: R.IDEAS.length }), value: ctx.home.q, on: { input: (e) => dispatch({ type: "QUERY", q: e.target.value, open: true }) } }));
 }
+
+// Bild teilen (Entscheidung Integrator, "Foto mitschicken"): Eine Karte bietet in ihrer Anzeigeliste
+// {t:"action", act:"share-image", label, name, of:<id des canvas-Knotens>} an (nur mit gewaehltem lokalem Foto).
+// Das Teilen-Blatt zeigt dafuer einen Knopf; gezeichnet wird ueber den Geraetedienst cardImage (P), geteilt ueber das System.
+function findNode(n, pred) { if (!n || typeof n !== "object") return null; if (pred(n)) return n; for (const k of ["children", "items", "layers"]) for (const c of Array.isArray(n[k]) ? n[k] : []) { const r = findNode(c, pred); if (r) return r; } return null; }
+export function shareImageOffer(tree) {
+  const a = findNode(tree, (n) => n.t === "action" && n.act === "share-image");
+  if (!a) return null;
+  const node = findNode(tree, (n) => n.t === "canvas" && (a.of ? n.id === a.of : true));
+  const name = typeof a.name === "string" && /^[a-z0-9-]{1,60}\.png$/.test(a.name) ? a.name : "my-daily-idea.png";
+  return node ? { label: a.label, name, node } : null;
+}
+export function shareImageBox(tree, ctx, dispatch) {
+  const o = shareImageOffer(tree);
+  if (!o) return null;
+  const X = homeTexts(ctx.lang), st = ctx.home && ctx.home.img, label = o.label && typeof o.label === "object" ? o.label[ctx.lang] || o.label.de : String(o.label || "");
+  return h("div", { class: "h-imgshare", key: "imgshare" },
+    h("button", { type: "button", class: "btn secondary", "data-act": "share-image", disabled: st === "busy" || null, on: { click: () => dispatch({ type: "SHARE_IMAGE", name: o.name, node: o.node }) } }, st === "busy" ? X.imgBusy : label.slice(0, 60)),
+    st && st !== "busy" && st !== "ok" ? h("p", { class: "warn", role: "alert" }, X.imgErr[st] || X.imgErr.fehler) : null,
+    h("p", { class: "hint" }, X.imgNote));
+}

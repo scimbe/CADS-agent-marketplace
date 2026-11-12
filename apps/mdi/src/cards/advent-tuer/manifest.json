@@ -269,7 +269,8 @@
         "x-note": {
           "de": "Dein Foto bleibt auf diesem Handy.",
           "en": "Your photo stays on this phone."
-        }
+        },
+        "pattern": "^local:[0-9a-f]{32}$"
       },
       "nr": {
         "type": "integer",

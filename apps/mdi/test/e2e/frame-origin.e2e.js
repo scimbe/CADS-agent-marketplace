@@ -4,7 +4,9 @@
 // deshalb hat der fruehere E2E das Problem nicht gesehen. Geprueft wird hier, was der Browser wirklich festlegt:
 // Ursprung des Rahmens und der Origin-Kopf jeder /api/play-Anfrage. Das CORS-Verhalten der echten Bruecke prueft
 // scripts/probe-bridge.sh (nur lesend, curl).
-import test from "node:test";
+import nodeTest from "node:test";
+import { fakeOnly } from "./lib/ziel.mjs";
+const test = fakeOnly(nodeTest); // Gegenstelle ist eine Attrappe: im URL-Modus uebersprungen
 import assert from "node:assert/strict";
 import path from "node:path";
 import { browser, VIEWS, ROOT, act, waitScreen, screen, playVisible } from "./lib/grund.mjs";

@@ -2,7 +2,7 @@
 // Blaettern; Wischen blaettert; Satz fuehrt zur Familie; Zurueck (System) fuehrt von der Familie zum Blatt; kein Ueberlauf.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { browser, open, act, noOverflow } from "./lib/grund.mjs";
+import { browser, open, act, noOverflow, URL_MODE } from "./lib/grund.mjs";
 
 let b;
 test.before(async () => { b = await browser(); });
@@ -30,9 +30,11 @@ test("Wischen nach links blaettert vor, nach rechts zurueck; Heute springt zurue
   const d0 = await p.locator(".h-dnum").textContent();
   const box = await leaf.boundingBox();
   const swipe = async (dx) => { await p.mouse.move(box.x + box.width / 2, box.y + 120); await p.mouse.down(); await p.mouse.move(box.x + box.width / 2 + dx, box.y + 120, { steps: 6 }); await p.mouse.up(); };
-  await swipe(-150); assert.notEqual(await p.locator(".h-dnum").textContent(), d0);
-  await swipe(150); assert.equal(await p.locator(".h-dnum").textContent(), d0);
-  await act(p, "day-next"); await act(p, "day-today"); assert.equal(await p.locator(".h-dnum").textContent(), d0);
+  // URL-Modus: das Blatt wechselt erst, wenn das Bild des Tages vom Server da ist (auf file:// sofort)
+  const day = async (same) => { if (URL_MODE) await p.waitForFunction(([d, eq]) => (document.querySelector(".h-dnum").textContent === d) === eq, [d0, same], { timeout: 10000 }).catch(() => {}); return p.locator(".h-dnum").textContent(); };
+  await swipe(-150); assert.notEqual(await day(false), d0);
+  await swipe(150); assert.equal(await day(true), d0);
+  await act(p, "day-next"); await act(p, "day-today"); assert.equal(await day(true), d0);
 });
 
 test("Ein Satz fuehrt zur Familie; System-Zurueck fuehrt zum Blatt", async () => {
@@ -49,7 +51,8 @@ test("Verschickte Karte: Wand zeigt das Werk, Einladungen den Link; Story-Bild 9
   for (let i = 0; i < 4 && (await p.locator('[data-act="back"]').count()); i++) await act(p, "back");
   await act(p, "meins"); await p.locator(".h-work .frame").waitFor();
   await act(p, "tab-einladungen"); await p.locator(".h-inv").waitFor();
-  assert.match(await p.locator(".h-inv-st").textContent(), /Langer Link|Verschickt/);
+  // ohne Server bleibt der lange Link; gegen einen echten Server (URL-Modus) legt die App den Kurzlink an
+  assert.match(await p.locator(".h-inv-st").textContent(), URL_MODE ? /Kurzlink bis/ : /Langer Link|Verschickt/);
   const dl = p.waitForEvent("download");
   await act(p, "inv-story-0");
   const d = await dl;

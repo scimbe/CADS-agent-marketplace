@@ -205,21 +205,22 @@ function drawCard(c, W, H, doc, opt) {
   if (doc.nr) doorBadge(c, W, H, doc.nr, a, b);
 }
 // Fotoebene: das eigene Foto (nur auf dem Geraet) mit Filter; seed fuer Glitch aus Text und Farben (alt photoLayer).
-function photo(c, doc, W, H) { c.op({ op: "photo", a: [doc.st, doc.col.slice(), hash32(doc.x + "|" + doc.y + "|" + doc.col.join()), 0, 0, W, H] }); }
+// bot: ohne eigenes Foto das Bot-Gesicht als Platzhalter (alt app.js:160 R.botFace(hash32(doc.x || "x"), doc.col[1]))
+function photo(c, doc, W, H, bot) { c.op({ op: "photo", a: [doc.st, doc.col.slice(), hash32(doc.x + "|" + doc.y + "|" + doc.col.join()), 0, 0, W, H, ...(bot ? [hash32(doc.x || "x"), doc.col[1]] : [])] }); }
 function drawPhoto(c, W, H, doc, opt) {
-  const a = doc.col[0], b = doc.col[1], has = !!opt.photo;
+  const a = doc.col[0], b = doc.col[1], has = !!opt.photo || !!opt.bot, bot = !opt.photo && !!opt.bot;
   if (doc.st === "sticker") {
     c.fillStyle = a; c.fillRect(0, 0, W, H); rays(c, W, H, b, 0.2);
     const cx = W / 2, cy = H * 0.5, r = W * 0.46;
     burstPath(c, cx, cy, r * 1.08, 16, 0.86); c.fillStyle = "#fff"; c.fill();
     c.save(); burstPath(c, cx, cy, r, 16, 0.86); c.clip();
-    if (has) photo(c, doc, W, H); else { c.fillStyle = b; c.fill(); }
+    if (has) photo(c, doc, W, H, bot); else { c.fillStyle = b; c.fill(); }
     c.restore();
     block(c, doc.x, W * 0.08, H * 0.03, W * 0.84, H * 0.15, ink(a), null);
     block(c, doc.y, W * 0.08, H * 0.8, W * 0.84, H * 0.13, ink(a), null);
     return;
   }
-  if (has) photo(c, doc, W, H); else { c.fillStyle = a; c.fillRect(0, 0, W, H); }
+  if (has) photo(c, doc, W, H, bot); else { c.fillStyle = a; c.fillRect(0, 0, W, H); }
   if (doc.st === "poster") {
     c.save(); c.globalAlpha = 0.5; dots(c, W, H, b, W * 0.022, 1.2); c.restore();
     block(c, doc.x, W * 0.05, H * 0.03, W * 0.9, H * 0.24, lum(a) > 0.45 ? a : "#fffaf0", "#16121f", W * 0.009);
@@ -248,7 +249,7 @@ function drawSound(c, W, H, doc, peaks, lyr) {
 
 /**
  * @param {object} doc bereinigtes Poster-Dokument (doc.js sanitizePoster)
- * @param {{W?:number,H?:number,nick?:string,photo?:boolean,gi?:boolean,exporting?:boolean,peaks?:number[],lyr?:number}} opt
+ * @param {{W?:number,H?:number,nick?:string,photo?:boolean,bot?:boolean (Platzhalter ohne Foto),gi?:boolean,exporting?:boolean,peaks?:number[],lyr?:number}} opt
  * @returns {{w:number,h:number,ops:object[]}} Canvas-Anzeigeliste
  */
 export function compile(doc, opt = {}) {

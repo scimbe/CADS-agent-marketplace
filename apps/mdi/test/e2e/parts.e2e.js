@@ -6,13 +6,19 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { browser, axe, act } from "./lib/grund.mjs";
+import { browser, axe, act, URL_MODE, PAGE, BASE } from "./lib/grund.mjs";
+// URL-Modus (ziel.mjs): Kaltstart und Cache gegen den laufenden Server; fehlender und manipulierter Teil brauchen den
+// eigenen Testserver hier und werden dort uebersprungen
+const OWN_SERVER = URL_MODE ? "braucht den eigenen Testserver (URL-Modus)" : false;
 
 const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../dist");
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json" };
 let b, server, base;
+// Seite der App: im Datei-Modus liefert der Testserver sie unter "/", im URL-Modus liegt sie unter MDI_PAGE_PATH
+const home = () => (URL_MODE ? PAGE : base);
 test.before(async () => {
   b = await browser();
+  if (URL_MODE) { base = BASE + "/"; return; } // die Faelle "App unter /duell" und "/duell/" laufen gegen den Server mit
   server = http.createServer((req, res) => {
     const u = new URL(req.url, "http://x");
     if (u.pathname === "/favicon.ico") { res.writeHead(204); res.end(); return; } // Browser fragt es von selbst an
@@ -26,7 +32,7 @@ test.before(async () => {
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   base = "http://127.0.0.1:" + server.address().port + "/";
 });
-test.after(async () => { await b.close(); server.close(); });
+test.after(async () => { await b.close(); if (server) server.close(); });
 
 async function page({ throttle = false } = {}) {
   const ctx = await b.newContext({ viewport: { width: 1280, height: 800 }, locale: "de-DE" });
@@ -51,7 +57,7 @@ async function page({ throttle = false } = {}) {
 test("Kaltstart unter 3G-Drosselung: Kern, dann Karte aus dem Teil (Messung)", async () => {
   const { p, errs } = await page({ throttle: true });
   const t0 = Date.now();
-  await p.goto(base);
+  await p.goto(home());
   await p.locator("header.bar").waitFor({ timeout: 30000 });
   const tCore = Date.now() - t0;
   const t1 = Date.now();
@@ -82,7 +88,7 @@ for (const at of ["duell", "duell/"]) {
 // Feature-Teile (ADR 0001 Nachtrag 4): der gebaute Teil laedt unter /duell/parts/ mit SRI und meldet sich mit "mdi:feat"
 // (Name + Modul); ein falscher SRI-Wert wird vom Browser abgewiesen. Der Weg ueber den Kern (parts.feat, strict-dynamic)
 // ist derselbe wie bei Kartenteilen; hier wird der Teil selbst geprueft (Kontext ohne CSP, Skript von aussen eingefuegt).
-test("Feature-Teil klang-rap: laedt mit SRI unter /duell/parts/, meldet Name und Modul; falscher SRI wird abgewiesen", async () => {
+test("Feature-Teil klang-rap: laedt mit SRI unter /duell/parts/, meldet Name und Modul; falscher SRI wird abgewiesen", { skip: URL_MODE && "liest dist/build.json des lokalen Builds (URL-Modus)" }, async () => {
   const ctx = await b.newContext({ bypassCSP: true });
   await ctx.route(base + "**", (r) => r.continue());
   const p = await ctx.newPage();
@@ -105,19 +111,19 @@ test("Feature-Teil klang-rap: laedt mit SRI unter /duell/parts/, meldet Name und
 
 test("Teil kommt nach dem ersten Laden aus dem Cache (offline fuer Teile)", async () => {
   const { ctx, p, errs } = await page();
-  await p.goto(base); await act(p, "open-gruss"); await p.locator("main.s-card-view").waitFor();
+  await p.goto(home()); await act(p, "open-gruss"); await p.locator("main.s-card-view").waitFor();
   const cached = await p.evaluate(async () => (await (await caches.open("mdi-parts-v1")).keys()).map((r) => new URL(r.url).pathname));
   assert.ok(cached.some((x) => /\/parts\/card-gruss\./.test(x)), JSON.stringify(cached));
   let hits = 0;
   await ctx.route("**/parts/card-*", (r) => { hits++; return r.abort(); }); // Netz fuer Teile weg
   const p2 = await ctx.newPage();
-  await p2.goto(base); await act(p2, "open-gruss");
+  await p2.goto(home()); await act(p2, "open-gruss");
   await p2.locator("main.s-card-view").waitFor();
   assert.equal(hits, 0, "aus dem Cache, ohne Netz");
   assert.deepEqual(errs, []);
 });
 
-test("Fehlender Teil: ehrliche Meldung, Wiederholen laedt nach, sobald er wieder da ist; axe ohne Verstoesse", async () => {
+test("Fehlender Teil: ehrliche Meldung, Wiederholen laedt nach, sobald er wieder da ist; axe ohne Verstoesse", { skip: OWN_SERVER }, async () => {
   const { ctx, p } = await page();
   let block = true;
   await ctx.route("**/parts/card-bluff*", (r) => (block ? r.fulfill({ status: 404, body: "" }) : r.continue()));
@@ -130,7 +136,7 @@ test("Fehlender Teil: ehrliche Meldung, Wiederholen laedt nach, sobald er wieder
   await p.locator("main.s-card-view").waitFor();
 });
 
-test("Manipulierter Teil wird nicht ausgefuehrt (SRI), Meldung teil-manipuliert", async () => {
+test("Manipulierter Teil wird nicht ausgefuehrt (SRI), Meldung teil-manipuliert", { skip: OWN_SERVER }, async () => {
   const { ctx, p } = await page();
   await ctx.route("**/parts/card-gruss*", (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: "document.title='boese';" }));
   await p.goto(base); await act(p, "open-gruss");
