@@ -1,3 +1,16 @@
 {
-  "klang-rap": ["engines/klang/rapbeat.js"]
+  "klang-rap": [
+    "engines/klang/rapbeat.js"
+  ],
+  "home-find": [
+    "ui/home/intent.js",
+    "ui/home/search.js"
+  ],
+  "home-share": [
+    "ui/home/qr.js",
+    "ui/home/paint.js"
+  ],
+  "home-kalender": [
+    "ui/home/kalender.js"
+  ]
 }
