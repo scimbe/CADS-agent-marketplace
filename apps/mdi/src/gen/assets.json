@@ -1,7 +1,13 @@
 {
   "bluff": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 12750
+      }
+    ]
   },
   "geschenk-finder": {
     "assets": [],
@@ -9,7 +15,13 @@
   },
   "gruss": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 11308
+      }
+    ]
   },
   "karte-danke": {
     "assets": [],
