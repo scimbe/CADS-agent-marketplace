@@ -4,7 +4,7 @@
 //     seed  uint32 aus dem Partie-Seed (alt doc.seed), m wie alt (checked), now = noch nicht abgeschlossener Zug,
 //     o     Tag, an dem sich etwas oeffnet (gateFrom), oder 2 = von der Besitzerin geschlossen (close), sonst 0,
 //     k     Zahl der abgeschlossenen Zuege (auch nach snap; bestimmt den Sitz).
-//   Eingabe { t:"ans", seat, a:"<b64url(JSON)>", d? } beantwortet genau einen Prompt (eine Frage je Bildschirm).
+//   Eingabe { t:"ans", seat, a:<Rohwert>, d? } beantwortet genau einen Prompt (eine Frage je Bildschirm).
 //     d = UTC-Tag des Absenders, nur beim letzten Prompt von Zug 0 einer gateFrom-Karte (alt d.o = today + Tage).
 //   Eingabe { t:"close", seat } schliesst eine Liste (alt close, nur Karten mit game.close).
 // Sitz: "pair" = Zuege abwechselnd (k % 2), "chain" = jeder Zug ein eigener Sitz (k), "room" = ein Geraet (Sitz 0).
@@ -12,18 +12,9 @@
 import { textsFor, fmt, intIn } from "./alt.js";
 import { okAnswer } from "./check.js";
 
-// ---------- Antworten im Link: JSON als b64url (eine Zeichenmenge, die jedes Linkschema erlauben kann) ----------
-export function enc(v) {
-  const b = new TextEncoder().encode(JSON.stringify(v));
-  let s = ""; for (const x of b) s += String.fromCharCode(x);
-  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-export function dec(a) {
-  if (typeof a !== "string" || !/^[A-Za-z0-9_-]{1,1400}$/.test(a) || a.length % 4 === 1) throw new Error("ungueltig: Antwort");
-  const bin = atob(a.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((a.length + 3) % 4));
-  const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-  return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(u));
-}
+// ---------- Antworten im Link: der Rohwert (int, string, Listen davon), wie F's Widgets ihn als `a` schicken ----------
+// Die Huelle (kanonisch <= 2048 Byte, keine Steuerzeichen, kein <>) prueft der Host global (ADR 0001 f); accepts prueft
+// Form und Regel, step prueft noch einmal und wirft.
 /** Ganzzahl-JSON pruefen: der Zustand darf keine Gleitkommazahl enthalten (canon im SDK wirft sonst). */
 function intJson(v, depth = 0) {
   if (depth > 6) return false;
@@ -87,7 +78,7 @@ export function makeZug(def) {
     if (st.over || seat !== st.turn || input.seat !== seat) return false;
     if (input.t === "close") return !!gameOf(pub).close && pub.m.length > 0 && pub.now.length === 0;
     if (input.t !== "ans") return false;
-    let v; try { v = dec(input.a); } catch (e) { return false; }
+    const v = input.a;
     if (!acceptsAnswer(pub, v)) return false;
     const g = gameOf(pub), last = pub.now.length + 1 === prompts(g, pub).length;
     // d stempelt der Host (manifest.inputDay, ADR 0001 §4); Pflicht nur dort, wo ein Tor entsteht (alt gateFrom)
@@ -101,7 +92,7 @@ export function makeZug(def) {
     if (!accepts({ pub }, input.seat, input)) throw new Error("ungueltig: " + input.t);
     const g = gameOf(pub);
     if (input.t === "close") { pub.o = g.close; return { pub, priv: state.priv.slice() }; }
-    const v = dec(input.a);
+    const v = JSON.parse(JSON.stringify(input.a));
     pub.now.push(v);
     if (pub.now.length === prompts(g, pub).length) {
       const answers = pub.now, t = pub.m.length;
@@ -142,14 +133,14 @@ export function makeZug(def) {
       if (st.over || seat !== st.turn) return [];
       const g = gameOf(pub), p = prompts(g, pub)[pub.now.length];
       if (!p) return [];
-      if ((p.w === "show" || p.w === "blow") && acceptsAnswer(pub, 0)) return [{ t: "ans", seat, a: enc(0), ...dayFor(g, pub, null) }];
+      if ((p.w === "show" || p.w === "blow") && acceptsAnswer(pub, 0)) return [{ t: "ans", seat, a: 0, ...dayFor(g, pub, null) }];
       if (p.w !== "pick" || p.n !== 1) return [];
       const n = p.from(docFor(pub), pub.m, pub.now, "de").length, out = [];
-      for (let i = 0; i < n; i++) out.push({ t: "ans", seat, a: enc([i]) });
+      for (let i = 0; i < n; i++) out.push({ t: "ans", seat, a: [i] });
       return out;
     },
     // ---------- fuer Ansicht, Host und Tests ----------
-    T, docFor, gameOf, seatingOf: (pub) => seatingOf(gameOf(pub)), prompts: (pub) => prompts(gameOf(pub), pub), result, gateLeft, enc, dec,
+    T, docFor, gameOf, seatingOf: (pub) => seatingOf(gameOf(pub)), prompts: (pub) => prompts(gameOf(pub), pub), result, gateLeft,
     face(pub, lang) { const g = gameOf(pub); return g.face ? g.face(docFor(pub), pub.m, lang) : null; },
     whole(pub, lang) { const g = gameOf(pub); return g.peekWhole ? g.peekWhole(docFor(pub), pub.m, lang) : ""; },
     /** Woerter dieser Variante fuer die gemeinsamen Knoepfe (alt GAMES[g].words), schon in der Sprache. */
@@ -159,7 +150,7 @@ export function makeZug(def) {
       return out;
     },
     /** Eingabe fuer eine Antwort (Host/Ansicht). today nur noetig, wenn dieser Prompt einen Tag traegt. */
-    answer(pub, seat, v, today) { return { t: "ans", seat, a: enc(v), ...dayFor(gameOf(pub), pub, today) }; },
+    answer(pub, seat, v, today) { return { t: "ans", seat, a: v, ...dayFor(gameOf(pub), pub, today) }; },
     view(obs, seat, ctx) { return viewOf(card, obs, seat, ctx || {}, def); },
     /** snap-Karten: Der Link traegt die Liste, wie sie jetzt ist, nicht den Weg (alt snap). Vorschlag an Strang F. */
     compact(log) { return log; }
