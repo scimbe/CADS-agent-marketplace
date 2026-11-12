@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { browser, open, act, screen, waitScreen, axe, noOverflow } from "./lib/grund.mjs";
-import { pickMode } from "./lib/scenarios.mjs";
+import { pickMode, moreModes } from "./lib/scenarios.mjs";
 import flug from "../../src/cards/flug/card.js";
 
 let b;
@@ -152,6 +152,7 @@ test("Alle 16 Flug-Varianten als Karten-Link: annehmen, LOS, Lauf mit Titel der 
 for (const card of ["flug", "lauf"]) test("Gegen den Computer (" + card + ", Vorauswahl): Kopfzeile nennt DU und COMPUTER, der Computer laeuft mit", async () => {
   const { p, errs } = await open(b, { view: "phone390" });
   await act(p, "open-" + card); await waitScreen(p, "card-view");
+  await moreModes(p);
   assert.ok(await p.getByRole("radio", { name: "Gegen den Computer", exact: true }).isChecked(), "Vorauswahl: Gegen den Computer");
   await start(p, null, null);
   await p.waitForTimeout(800);

@@ -485,6 +485,24 @@ textarea.input { resize: vertical; }
 .play-rules > p { margin: 8px 0 0; }
 /* Board Desktop: Absichten als 6er-Reihe (ab 1100 px, sonst passt der Text nicht) */
 @media (min-width: 1100px) { .h-intents { grid-template-columns: repeat(6, minmax(0, 1fr)); } .h-intents .h-intent { grid-template-columns: auto; justify-items: start; row-gap: 4px; } }
+/* Spielkopf in der Familienfarbe (hell und dunkel gleich): Tinte der Familie, Zurueck-Knopf als helle Flaeche */
+.bar.bar-fam { background: var(--hb); color: var(--hc); border-bottom-color: #000; }
+.bar.bar-fam .brand { color: var(--hc); }
+.bar.bar-fam .icon { background: #FFFDF5; color: #17140F; border-color: #17140F; }
+/* Startansicht von Echtzeitkarten dunkel wie Canvas v54 (GFlugStart, GArcadeStart, FlipperStart), hell und dunkel gleich;
+   die Buehne behaelt ihre eigenen Farben */
+.main.rt-dark { --ink: #FBF5DD; --paper: #0E0D0B; --sheet: #211D16; --gelb-hell: #3B3320; --pmuted: #CFC7B0; --shade: #000;
+  --text: #FBF5DD; --bg: #0E0D0B; --surface: #211D16; --muted: #CFC7B0; --line: #3b382f; --edge: #FBF5DD; --focus: #8ab4ff;
+  background: #0E0D0B; color: #FBF5DD; color-scheme: dark; }
+.main.rt-dark .stage { --ink: #17140F; --sheet: #FFFDF5; --paper: #FBF5DD; --gelb-hell: #FFF0A8; --pmuted: #5C5444; --shade: #17140F; --text: #17140F; --bg: #FBF5DD; --surface: #ffffff; --muted: #4a4636; --edge: #17140F; }
+.main.rt-dark .btn.primary, .main.rt-dark .opt, .main.rt-dark .chip[aria-pressed="true"] { color: #17140F; }
+/* Doppelknopf (Board): links gelb, rechts signalrot, je mit Unterzeile; mindestens 96 px hoch */
+.rt-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
+.rt-duo-b { min-height: 112px; display: grid; align-content: center; justify-items: center; gap: 4px; padding: 10px 8px; border: 0; border-radius: 16px; background: #F9D84A; color: #17140F; box-shadow: 0 6px 0 #FF3B1D; cursor: pointer; text-align: center; }
+.rt-duo-b.b2 { background: #FF3B1D; box-shadow: 0 6px 0 #F9D84A; }
+.rt-duo-t { font: 400 1.5rem/1 var(--font-head); text-transform: uppercase; }
+.rt-duo-s { font: 700 .875rem/1.2 var(--font-body); }
+.rt-more > summary { min-height: var(--tap); display: inline-flex; align-items: center; padding: 0 12px; border: 2px solid var(--ink); border-radius: 999px; font-weight: 800; cursor: pointer; }
 /* ================= Dunkelmodus (Canvas v54 „Start dunkel“): Flaechen mit fester heller Farbe behalten dunkle Tinte,
    Kopfzeile dunkel mit gelber Schrift, Hauptknopf gelb. Steht am Ende, damit es die hellen Regeln uebersteuert. */
 @media (prefers-color-scheme: dark) {
@@ -492,12 +510,13 @@ textarea.input { resize: vertical; }
   .opt, .h-loading, .h-today, .h-meins-n { border-color: #000; }
   .h-undo { background: var(--ink-fix); color: #FBF5DD; border: 2px solid var(--ink); }
   .h-undo .btn.secondary { color: var(--ink-fix); }
-  .bar { background: #2A2412; color: var(--gelb); border-bottom-color: var(--gelb); }
-  .bar .brand, .h-headbtn { color: var(--gelb); }
+  .bar:not(.bar-fam) { background: #2A2412; color: var(--gelb); border-bottom-color: var(--gelb); }
+  .bar:not(.bar-fam) .brand, .h-headbtn { color: var(--gelb); }
   .h-headbtn .h-ico, .h-meins .h-ico { fill: var(--gelb); }
   .bar .icon { background: var(--sheet); color: var(--ink); border-color: var(--gelb); }
   .h-holes i { background: var(--paper); border-color: var(--gelb); }
   .btn.primary.h-go { background: var(--gelb); color: var(--ink-fix); }
+  .h-field-go { background: var(--gelb); color: var(--ink-fix); } /* Staging-Abnahme: vorher Gelb auf Creme */
   .btn.primary.h-go[aria-pressed="true"] { background: var(--sheet); color: var(--ink); }
   .h-intent { border-color: #000; }
   .h-chip[aria-pressed="true"] { background: var(--gelb); color: var(--ink-fix); border-color: #000; }

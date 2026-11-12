@@ -52,8 +52,10 @@ test("Fuehrung: Absicht -> Karte -> Los in hoechstens 3 Taps fuer jede spielbare
     assert.ok(texts(s).includes('"data-act":"open-' + nid + '"'), intent + ": Kachel " + nid + " sichtbar");
     s = go(s, { type: "OPEN", id: nid });                                    // Tap 2
     assert.equal(leaf(s), "card.view");
-    assert.equal(actionsOf(s).primary.id, "go");                             // Tap 3 = Los
-    const after = go(s, { type: "GO" });
+    // Tap 3 = Los, bei Echtzeitkarten der Doppelknopf der aktuellen Spielweise (data-act "go", PLAY_AS)
+    const duo = actionsOf(s).primary === null;
+    if (duo) assert.ok(texts(s).includes('"data-act":"go"'), nid + ": Doppelknopf traegt go"); else assert.equal(actionsOf(s).primary.id, "go");
+    const after = go(s, duo ? { type: "PLAY_AS", mode: s.ctx.mode } : { type: "GO" });
     assert.notEqual(leaf(after), "card.view", nid + ": Los fuehrt weiter");
   }
 });
@@ -336,4 +338,21 @@ test("VARIANT in der Startansicht: nur Varianten mit chip, Parameter der Variant
   assert.equal(r.ctx.params.flug.gravity, 1000, "Parameter der Variante (spiel-mond: gravity 1000)");
   const no = go(r, { type: "VARIANT", variant: "plan-01" });
   assert.equal(no.ctx.variant, "spiel-mond", "Variante ohne chip wird nicht gewechselt");
+});
+
+test("Echtzeitkarten: Startansicht dunkel (rt-dark), Doppelknopf aus play.offer, PLAY_AS startet mit dieser Spielweise; Kopf in Familienfarbe", async () => {
+  const { duoOf } = await import("../src/ui/view.js");
+  let s = go(start(), { type: "OPEN", id: "arcade-kick" });
+  const t = texts(s);
+  assert.ok(t.includes("rt-dark"), "dunkle Startansicht");
+  const { cardOf } = await import("../src/cards/index.js");
+  assert.deepEqual(duoOf(cardOf(s.ctx.cardId), s.ctx), ["bot", "live"]);
+  assert.ok(t.includes("Gegen den Computer") && t.includes('"data-act":"go-live"') && t.includes('"data-act":"go"'));
+  assert.ok(t.includes('"class":"bar bar-fam"'), "Kopf in Familienfarbe");
+  const r = go(s, { type: "PLAY_AS", mode: "bot" });
+  assert.notEqual(leaf(r), "card.view"); assert.equal(r.ctx.mode, "bot");
+  const no = go(s, { type: "PLAY_AS", mode: "link" }, { consumed: false });
+  assert.equal(leaf(no), "card.view", "fremde Spielweise startet nicht");
+  const turn = go(start(), { type: "OPEN", id: "zug-einkauf" });
+  assert.ok(!texts(turn).includes("rt-dark") && actionsOf(turn).primary.id === "go", "Zugkarten wie bisher");
 });
