@@ -341,9 +341,15 @@ M.power = (n, host, X) => {
   const start = Number.isInteger(n.value) && n.value >= 0 && n.value < L ? n.value : 0, swing = n.swing || 160;
   if (n.mode === "schieber" || host.reduced) return renderWidget({ ...n, t: "slide", min: 0, max: L - 1, step: 1, def: start, label: n.label || Z.hold }, host);
   const level = (t0) => { const k = Math.floor((now(host) - t0) / swing), per = 2 * (L - 1) || 1, p = (start + k) % per; return p < L ? p : per - p; };
-  return wrap(n, host, [h("button", { type: "button", class: "btn primary big", "aria-label": Z.hold,
-    on: { pointerdown: () => setDraft(host, n, now(host)), pointerup: () => v !== null && send(host, n, level(v)), keydown: (e) => { if (e.key === " " && v === null) { e.preventDefault(); setDraft(host, n, now(host)); } }, keyup: (e) => { if (e.key === " " && v !== null) send(host, n, level(v)); } } },
-    v === null ? Z.hold : h("span", { ref: (el) => ticker(el, host, 50, () => { el.textContent = fmt(Z.power, { n: level(v) + 1, m: L }); }) }, fmt(Z.power, { n: level(v) + 1, m: L })))]);
+  // Der Entwurf traegt waehrend des Haltens {t0} (Objekt), sonst die Stufe: im form ist der Feldwert vor dem ersten
+  // Loslassen die Startstufe (f.value) und darf nicht als Zeitpunkt gelesen werden (S, Befund Pendel im form).
+  const t0 = v && typeof v === "object" && Number.isFinite(v.t0) ? v.t0 : null;
+  const down = () => { if (t0 === null) setDraft(host, n, { t0: now(host) }); };
+  // im form wird die Stufe der Feldwert (der Knopf des form wirft), allein geht sie direkt als Eingabe hinaus
+  const up = () => { if (t0 === null) return; const lv = level(t0); if (host.embedded) setDraft(host, n, lv); else send(host, n, lv); };
+  return wrap(n, host, [h("button", { type: "button", class: "btn primary big", "aria-label": Z.hold, "data-holding": t0 === null ? null : "1",
+    on: { pointerdown: down, pointerup: up, keydown: (e) => { if (e.key === " ") { e.preventDefault(); down(); } }, keyup: (e) => { if (e.key === " ") { e.preventDefault(); up(); } } } },
+    t0 === null ? (Number.isInteger(v) ? fmt(Z.power, { n: v + 1, m: L }) : Z.hold) : h("span", { ref: (el) => ticker(el, host, 50, () => { el.textContent = fmt(Z.power, { n: level(t0) + 1, m: L }); }) }, fmt(Z.power, { n: level(t0) + 1, m: L })))]);
 };
 /** Radiogruppe mit Pfeiltasten (roving tabindex, Review L1). */
 function radioGroup(label, count, sel, pick, attrs, text) {

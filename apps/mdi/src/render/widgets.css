@@ -62,3 +62,4 @@
 @media (prefers-reduced-motion: reduce) { .pcard[aria-pressed="true"] { transform: none; } }
 .w-img { display: block; width: 100%; height: auto; object-fit: cover; border-radius: var(--r1); }
 .w-stopwatch { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+.wg-aim, .wg-draw, .wg-strokes { width: 100%; }
