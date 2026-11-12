@@ -202,7 +202,7 @@ for (const view of VIEWS_RUN) test("Z1 bedienen (" + view + "): raum-sorry auf e
 
 // Rueckantwort auf dem Geraet der Wuenschenden (Vereinigung + Merkzettel je Partie). Haengt am Browser-Speicher von F:
 // src/broker/storage.js saveGame verwirft entry.pub und entry.memo (gemeldet) -> Empfang "manipuliert".
-test("Z1 Wunschzettel: Antwort der Familie auf dem Geraet der Wuenschenden – keine Frage, keine Marke", { todo: "Strang F: storage.js saveGame speichert pub/memo nicht (gemeldet)" }, async () => {
+test("Z1 Wunschzettel: Antwort der Familie auf dem Geraet der Wuenschenden – keine Frage, keine Marke", async () => {
   VIEW = "phone390";
   const A = await start("zug-wunschzettel"); A.bad = [];
   const chk = steps(A.p, A.bad, "zug-wunschzettel/A");
