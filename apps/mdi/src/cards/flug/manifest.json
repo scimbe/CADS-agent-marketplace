@@ -966,6 +966,10 @@
     "de": "Feuer, Drache, kein Mitleid.",
     "en": "Fire, dragon, zero mercy."
    },
+   "chip": {
+    "de": "Klassisch",
+    "en": "Classic"
+   },
    "legacy": [
     "spiel-lava"
    ],
@@ -1042,6 +1046,10 @@
    "teaser": {
     "de": "Fast keine Schwerkraft. Fast.",
     "en": "Almost no gravity. Almost."
+   },
+   "chip": {
+    "de": "Mond",
+    "en": "Moon"
    },
    "legacy": [
     "spiel-mond"
@@ -1197,6 +1205,10 @@
     "de": "Unten ist es schön. Und eng.",
     "en": "Nice down there. And tight."
    },
+   "chip": {
+    "de": "Unterwasser",
+    "en": "Underwater"
+   },
    "legacy": [
     "spiel-tiefsee"
    ],
@@ -1347,6 +1359,10 @@
    "teaser": {
     "de": "Spukt schön durch die Nacht.",
     "en": "Haunt your way through the night."
+   },
+   "chip": {
+    "de": "Nacht",
+    "en": "Night"
    },
    "legacy": [
     "spiel-geist"

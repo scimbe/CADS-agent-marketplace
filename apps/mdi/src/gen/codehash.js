@@ -18,7 +18,7 @@ export const CODE_HASH = {
   "beat-pausenhof": "c1eeddb8f550528081c14fa1037f1cdb",
   "bluff": "8a000a60b8294989bc672a8bf641833e",
   "duell-liest": "3b58de14de97c2f5c9b09172ae836c2d",
-  "flug": "da6561768077dbd87578e807c211bc4d",
+  "flug": "0ffa20bf4b5707caf98a0b0d58b30acf",
   "foto-alien": "15bda5ed7e6adaf952b10df0d239303c",
   "frei": "360ca7d79008cc756e463bb80b5bd037",
   "geschenk-finder": "2c375477e9c9821fe85c8bbb0758b2d6",
