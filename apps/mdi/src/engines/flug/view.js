@@ -81,12 +81,12 @@ function pipes(out, sim, th, lk) {
 
 /**
  * Ebenen eines Laufs. g: Spielwerte (seed, params, theme, look, route, emoji, anim, skin), sims: [ich, Geist?],
- * ctx: { t (Sekunden, nur Optik), reduced, assets: {figur?, hintergrund?} (lokale Slots vorhanden), fx: Effekte aus dem Zustand }.
+ * ctx: { t (Sekunden, nur Optik), reduced, media: {figur, hintergrund} (id eigener Fotos auf dem Geraet, 32 Hex), fx: Effekte aus dem Zustand }.
  */
 export function flightOps(g, sims, ctx, fx) {
   const me = sims[0], th = themeOf(g, me.section), lk = lookOf(g, me.section), still = !!ctx.reduced, clock = ctx.t || 0;
   const bg = [{ o: "rect", x: -20, y: -20, w: W + 40, h: H + 40, fill: { lin: [0, 0, 0, H], stops: [[0, th.skyTop], [1, th.skyBottom]] } }];
-  if (ctx.assets && ctx.assets.hintergrund) bg.push({ o: "image", src: { kind: "local", slot: "hintergrund" }, x: 0, y: 0, w: W, h: H - GROUND, fit: "cover", alpha: 0.45 });
+  if (ctx.media && ctx.media.hintergrund) bg.push({ o: "image", src: { kind: "local", id: ctx.media.hintergrund }, x: 0, y: 0, w: W, h: H - GROUND, fit: "cover", alpha: 0.45 });
   backdrop(bg, th, lk, clock, still);
   const world = [];
   pipes(world, me, th, lk);
@@ -111,8 +111,8 @@ export function flightOps(g, sims, ctx, fx) {
 function bird(sim, g, ctx, alpha, dx, fx) {
   const by = sim.state === "ready" && !ctx.reduced ? sim.bird.y + sinD((ctx.t || 0) * 4) * 6 : sim.bird.y;
   const an = g.anim && !ctx.reduced ? animPose(g.anim, ctx.t || 0, g.anim.bei ? (fx && fx.since && fx.since[g.anim.bei] != null ? fx.since[g.anim.bei] : 1e9) : 0, g.seed, 36) : null;
-  const inner = ctx.assets && ctx.assets.figur
-    ? { o: "image", src: { kind: "local", slot: "figur" }, x: -18, y: -18, w: 36, h: 36, fit: "cover", clip: "circle" }
+  const inner = ctx.media && ctx.media.figur
+    ? { o: "image", src: { kind: "local", id: ctx.media.figur }, x: -18, y: -18, w: 36, h: 36, fit: "cover", clip: "circle" }
     : { o: "sprite", emoji: g.emoji, x: -18, y: -16, w: 36, h: 36 };
   const pose = an ? { o: "group", tx: an.x, ty: an.y, rot: an.r, sx: an.sx, sy: an.sy, alpha: an.a, ops: [inner] } : inner;
   // Gegner (Computer oder Aufnahme): gestrichelter Ring und durchsichtig (Gate C, Reihe Lava-Flug)

@@ -617,6 +617,7 @@
      "string",
      "null"
     ],
+    "pattern": "^local:[0-9a-f]{32}$",
     "default": null,
     "x-field": "media.local",
     "x-label": {
@@ -629,6 +630,7 @@
      "string",
      "null"
     ],
+    "pattern": "^local:[0-9a-f]{32}$",
     "default": null,
     "x-field": "media.local",
     "x-label": {

@@ -25,11 +25,14 @@ function order(sims, seat) { const me = sims[seat] || active(sims)[0]; return [m
 // Kopfzeile nach Gate C: "DU 7 : COMPUTER 5" bzw. "DU 7 : AUFNAHME 5" (im Code heisst die Aufnahme ghost)
 const WHO = { de: { you: "DU", bot: "COMPUTER", ghost: "AUFNAHME", remote: "FREUND" }, en: { you: "YOU", bot: "COMPUTER", ghost: "RECORDING", remote: "FRIEND" } };
 function rival(st, seat) { const r = st.roles || []; for (let i = 0; i < r.length; i++) if (i !== seat && r[i] !== "none" && r[i] !== "human") return r[i]; return r.length > 1 && r[1 - seat] === "human" ? "remote" : null; }
+// Eigenes Foto (media.local): Parameterwert "local:<id>", id = 32 Hex (SHA-256) im Geraetespeicher; anderes = kein Foto
+const PHOTO = /^local:([0-9a-f]{32})$/;
+function mediaOf(params) { const id = (v) => { const m = typeof v === "string" && PHOTO.exec(v); return m ? m[1] : null; }; return { figur: id(params.figur), hintergrund: id(params.hintergrund) }; }
 function say(key, o) { return { de: fmt(TX.de[key], o), en: fmt(TX.en[key], o) }; }
 
 function init({ params: input, players }) {
   const params = input || {}, g = gameOf(params), mode = params.mode === "agent" || params.mode === "train" ? params.mode : "solo";
-  const st = { mode, g, t: 0, fx: FX0(), samples: [], roles: Array.isArray(players) ? players.slice() : null };
+  const st = { mode, g, t: 0, fx: FX0(), samples: [], roles: Array.isArray(players) ? players.slice() : null, media: mediaOf(params) };
   if (mode === "agent") {
     // alt duel.js flySim: Strecke aus seed und Grundphysik (ohne Route, ohne Tempo), je Agent ein eigener Zufallsstrom
     const a = sanitizeAgent(params.agent), b = sanitizeAgent(params.rival);
@@ -113,7 +116,7 @@ function view(st, ctx) {
   const fx = { ...st.fx, since: {} };
   for (const k of Object.keys(st.fx.since)) fx.since[k] = (st.t - st.fx.since[k]) / TPS;
   const sims = c.preview ? order(st.sims, c.seat || 0).slice(0, 1) : order(st.sims, c.seat || 0);
-  const layers = flightOps(st.g, sims, { t: c.t != null ? c.t : st.t / TPS, reduced: !!c.reduced, assets: c.assets }, fx);
+  const layers = flightOps(st.g, sims, { t: c.t != null ? c.t : st.t / TPS, reduced: !!c.reduced, media: st.media }, fx);
   const me = sims[0], seat = c.seat || 0, rv = sims[1] ? rival(st, seat) || "ghost" : null, w = WHO[lang];
   const line = rv ? w.you + " " + me.score + " : " + w[rv] + " " + sims[1].score : String(me.score);
   const hud = [{ o: "text", x: W / 2, y: 64, text: line, size: rv ? 30 : 44, font: "brand", align: "center", base: "middle", fill: "#ffffff", stroke: "#00000080", lw: 4 }];

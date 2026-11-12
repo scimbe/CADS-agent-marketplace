@@ -22,11 +22,14 @@ function order(sims, seat) { const me = sims[seat] || active(sims)[0]; return [m
 // Kopfzeile nach Gate C: "DU 7 : COMPUTER 5" bzw. "DU 7 : AUFNAHME 5" (im Code heisst die Aufnahme ghost)
 const WHO = { de: { you: "DU", bot: "COMPUTER", ghost: "AUFNAHME", remote: "FREUND" }, en: { you: "YOU", bot: "COMPUTER", ghost: "RECORDING", remote: "FRIEND" } };
 function rival(st, seat) { const r = st.roles || []; for (let i = 0; i < r.length; i++) if (i !== seat && r[i] !== "none" && r[i] !== "human") return r[i]; return r.length > 1 && r[1 - seat] === "human" ? "remote" : null; }
+// Eigenes Foto (media.local): Parameterwert "local:<id>", id = 32 Hex (SHA-256) im Geraetespeicher; anderes = kein Foto
+const PHOTO = /^local:([0-9a-f]{32})$/;
+function mediaOf(params) { const id = (v) => { const m = typeof v === "string" && PHOTO.exec(v); return m ? m[1] : null; }; return { figur: id(params.figur), hintergrund: id(params.hintergrund) }; }
 function say(key, o) { return { de: fmt(TX.de[key], o), en: fmt(TX.en[key], o) }; }
 
 function init({ params: input, players }) {
   const params = input || {}, l = laufOf(params), sims = seatsOf(players).map((on) => (on ? initState(l, params.tempo) : null));
-  return { t: 0, sims, fx: { flash: 0, shake: 0, since: {} }, r: l.r || 0, title: txt(params.t, 40), roles: Array.isArray(players) ? players.slice() : null };
+  return { t: 0, sims, fx: { flash: 0, shake: 0, since: {} }, r: l.r || 0, title: txt(params.t, 40), roles: Array.isArray(players) ? players.slice() : null, media: mediaOf(params) };
 }
 function copy(st) { return { ...st, fx: { ...st.fx, since: { ...st.fx.since } }, sims: st.sims.map((s) => (s ? copyState(s) : null)) }; }
 const DONE = ["ready", "run", "over", "goal"];
@@ -70,7 +73,7 @@ function status(st) {
 function view(st, ctx) {
   const c = ctx || {}, lang = c.lang === "en" ? "en" : "de", sims = c.preview ? order(st.sims, c.seat || 0).slice(0, 1) : order(st.sims, c.seat || 0), me = sims[0], t = c.t != null ? c.t : st.t / TPS;
   const since = {}; for (const k of Object.keys(st.fx.since)) since[k] = (st.t - st.fx.since[k]) / TPS;
-  const layers = runOps(sims, { t, reduced: !!c.reduced, assets: c.assets, flash: st.fx.flash, shake: st.fx.shake, pose: poseOf(me.l, t, since, !!c.reduced) });
+  const layers = runOps(sims, { t, reduced: !!c.reduced, media: st.media, flash: st.fx.flash, shake: st.fx.shake, pose: poseOf(me.l, t, since, !!c.reduced) });
   // Gate C, Reihe Dach-Lauf: zwei Werte ohne Doppelpunkt (METER · MUENZEN); der Gegner klein darunter
   const hud = fmt(TX[lang].lf_hud2, { m: meters(me), c: me.coins }), rv = sims[1] ? rival(st, c.seat || 0) || "ghost" : null;
   layers.push({ id: "hud", ops: [{ o: "text", x: VIEW / 2, y: 30, text: hud, size: 26, font: "brand", align: "center", base: "middle", fill: "#ffffff", stroke: "#00000073", lw: 4 }]

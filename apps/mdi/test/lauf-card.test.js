@@ -100,8 +100,9 @@ test("Anzeige: Canvas 400x360, deterministisch, alle Welten, Foto-Slots, reduzie
   assert.ok(lauf.status(st).over);
   assert.ok(/"o":"flash"/.test(JSON.stringify(lauf.view(st, { t: 1 }))) || st.fx.flash === 0);
   assert.ok(!/"o":"(shake|flash)"/.test(JSON.stringify(lauf.view(st, { t: 1, reduced: true }))));
-  const js = JSON.stringify(lauf.view(st, { assets: { figur: true, hintergrund: true } }));
-  assert.ok(js.includes('"slot":"figur"') && js.includes('"slot":"hintergrund"') && !/data:|blob:/.test(js));
+  const ph = lauf.init({ params: full({ figur: "local:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", hintergrund: "local:0123456789abcdef0123456789abcdef" }), players: 1 });
+  const js = JSON.stringify(lauf.view(ph, {}));
+  assert.ok(js.includes('"kind":"local","id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"') && js.includes('"kind":"local","id":"0123456789abcdef0123456789abcdef"') && !/data:|blob:/.test(js));
 });
 
 test("Determinismus und Reinheit: gleiche Eingaben = gleiche Hash-Folge, step veraendert den alten Zustand nicht", () => {

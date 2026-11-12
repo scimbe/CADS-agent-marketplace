@@ -128,9 +128,12 @@ test("Anzeige: Canvas 288x512, deterministisch, Look/Route/Foto-Slots, reduziert
   const hit = flug.view(st, { t: 1 }), calm = flug.view(st, { t: 1, reduced: true });
   assert.ok(st.fx.flash > 0 || true);
   assert.ok(!/"o":"(shake|flash)"/.test(JSON.stringify(calm)), "reduziert: kein Wackeln, kein Blitz");
-  const photo = flug.view(st, { t: 1, assets: { figur: true, hintergrund: true } });
-  const js = JSON.stringify(photo);
-  assert.ok(js.includes('"slot":"figur"') && js.includes('"slot":"hintergrund"'), "eigene Fotos nur als lokale Slots");
+  // eigenes Foto: Parameter "local:<id>" -> image-Op {kind:"local", id} (Bilddienst der Buehne, H #292); Unsinn = kein Foto
+  let ph = flug.init({ params: full({ figur: "local:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", hintergrund: "local:0123456789abcdef0123456789abcdef" }), players: 1 });
+  ph = flug.step(ph, [{ b: 0 }], 0).state;
+  const js = JSON.stringify(flug.view(ph, { t: 1 }));
+  assert.ok(js.includes('"kind":"local","id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"') && js.includes('"kind":"local","id":"0123456789abcdef0123456789abcdef"'), "eigene Fotos als lokale id");
+  assert.ok(!/"kind":"local"/.test(JSON.stringify(flug.view(flug.init({ params: full({ figur: "blob:x", hintergrund: "local:ZZ" }), players: 1 }), { t: 1 }))), "ungueltig = kein Foto");
   assert.ok(!/data:|blob:/.test(js), "nie Pixel in der Anzeigeliste");
   assert.ok(hit.layers.length >= 3);
   const route = [{ p: "ruhig", d: { gravity: -200 }, t: "ocean", e: "🐟" }, { p: "sturm", d: { gap: -15 }, t: "night", e: "⚡" }, { p: "schnell", d: { speed: 40 }, t: "lava", e: "🐳" }];
