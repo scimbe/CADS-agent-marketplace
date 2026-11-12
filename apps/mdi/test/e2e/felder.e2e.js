@@ -60,3 +60,20 @@ test("Sticker dazulegen und verschieben aendert die Vorschau; Schritte schalten;
   await cell.click(); assert.notEqual(await cell.getAttribute("aria-pressed"), was);
   assert.deepEqual(errs, []);
 });
+
+test("Foto (media.local, arcade-panzer): Foto waehlen speichert auf dem Geraet, Feld zeigt gewaehlt, Wert local:<id>, axe 0", async () => {
+  const { p, errs } = await open(b, { view: "phone360" });
+  await act(p, "open-arcade-panzer"); await p.locator("main.s-card-view").waitFor();
+  await act(p, "customize"); await p.locator("main.s-card-customize-bubbles").waitFor();
+  await p.locator('.bubble[data-for="figur"]').click(); await p.locator("#dialog").waitFor();
+  await p.locator("#dialog .ef-photo").scrollIntoViewIfNeeded();
+  // 1x1 PNG
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  await p.locator("#dialog input[type=file]").setInputFiles({ name: "ich.png", mimeType: "image/png", buffer: png });
+  await p.locator("#dialog .ef-photo [role=status]").waitFor();
+  assert.match(await p.locator("#dialog .ef-photo").innerText(), /Foto gewählt/);
+  const ids = await p.evaluate(() => new Promise((ok) => { const r = indexedDB.open("mdi.media"); r.onsuccess = () => { const q = r.result.transaction("fotos").objectStore("fotos").getAllKeys(); q.onsuccess = () => ok(q.result); }; }));
+  assert.equal(ids.length, 1); assert.match(ids[0], /^[0-9a-f]{32}$/);
+  assert.deepEqual(await axe(p, "foto"), []);
+  assert.deepEqual(errs, []);
+});
