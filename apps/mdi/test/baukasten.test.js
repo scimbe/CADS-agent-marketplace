@@ -25,7 +25,7 @@ const GOLD_FILE = new URL("./fixtures/baukasten-gold.json", import.meta.url);
 test("Baukasten: alle Beispiele sind gueltig und drueckt die bestehenden Spielarten aus", () => {
   // Nachweis der Ausdrucksstaerke: Flug (Flappy), Ziegel (Breakout), Pong, Kick, Schlange (Snake), Reaktion, Ausweichen,
   // Lauf (Huepfer), Memory, Drei/Vier gewinnt, Wortspiele (Wortsalat, Quiz, Luecke)
-  assert.deepEqual(Object.keys(BEISPIELE).sort(), ["ausweichen", "breakout", "drei", "flappy", "huepfer", "kick", "luecke", "memory", "pong", "quiz", "reaktion", "snake", "vier", "wortsalat"]);
+  assert.deepEqual(Object.keys(BEISPIELE).sort(), ["auffangen", "ausweichen", "breakout", "drei", "flappy", "huepfer", "kick", "luecke", "memory", "plattform", "pong", "quiz", "reaktion", "sammeln", "snake", "tauchen", "tippduell", "vier", "wortsalat"]);
   for (const [n, raw] of Object.entries(BEISPIELE)) { const c = check(raw); assert.ok(c.ok, n + ": " + c.errors.join("; ")); }
 });
 
@@ -378,4 +378,98 @@ test("Baukasten: Review-Befunde – feindliche Beschreibungen und Eingaben bleib
   assert.doesNotThrow(() => canon(s));
   // L2: geerbte Namen sind keine Felder
   assert.ok(normalize({ ...clone(FLAPPY), toString: 5 }).errors.some((e) => /toString/.test(e)));
+});
+
+test("Karten: Manifeste nutzen x-field \"spiel\" und stehen nicht als Kachel im Regal (shelf false)", () => {
+  for (const c of [card, zug]) { assert.equal(c.manifest.params.properties.desc["x-field"], "spiel"); assert.equal(c.manifest.shelf, false); assert.ok(!("x-hidden" in c.manifest.params.properties.desc)); }
+});
+
+test("Karten: Siegel der freien Karte (ki/fr) reist ueber Server-Doc -> fromFree -> Link -> toFree; Gate-Hash = Server-Vektor; Abzeichen", async () => {
+  const crypto = await import("node:crypto"), subtle = crypto.webcrypto.subtle;
+  const A = await import("../src/broker/ai.js"), { gateView, gateChecksOf } = await import("../src/features/frei/doc.js");
+  const { validParams } = await import("../src/cards/index.js"), { paramsForLink } = await import("../src/contract/fields.js");
+  const G = JSON.parse(fs.readFileSync(new URL("./fixtures/baukasten-gate.json", import.meta.url), "utf8"));
+  for (const [ex, c, id] of [["flappy", card, "baukasten"], ["memory", zug, "baukasten-zug"]]) {
+    const doc = G.docs[ex], want = G.gateHash[ex];
+    assert.equal(await A.optionHash(gateView(doc), subtle), want, ex + ": App-Projektion = Server");
+    const params = c.fromFree(doc);
+    assert.ok(validParams(id, params), ex + ": Parameter gueltig");
+    const linked = paramsForLink(c.manifest.params, params);
+    assert.deepEqual(linked.ki, doc.ki, "ki reist im Link"); assert.equal(linked.fr, doc.fr, "fr reist im Link");
+    const back = c.toFree(linked);
+    assert.equal(await A.optionHash(gateView(back), subtle), want, ex + ": Gate-Hash nach dem Weg ueber die Karte = Server-Vektor");
+    assert.ok(gateChecksOf(back).length === 2, "Empfaenger fragt das Gate (eigenes Siegel und Remix-Wurzel)");
+    const forged = { ...linked, desc: { ...linked.desc, title: "Gefaelscht" } };
+    assert.notEqual(await A.optionHash(gateView(c.toFree(forged)), subtle), want, "anderer Inhalt -> anderer Hash");
+  }
+  // Abzeichen nur mit gueltigem Siegel, in beiden Ansichten
+  const fp = card.fromFree(G.docs.flappy), st = card.init({ params: fp, seed: "b", players: ["human", "none"] });
+  const txt = (v) => JSON.stringify(v);
+  assert.match(txt(card.view(st, { lang: "de" })), /Mit KI erstellt/);
+  assert.doesNotMatch(txt(card.view(card.init({ params: { ...fp, ki: null }, seed: "b", players: ["human", "none"] }), { lang: "de" })), /Mit KI erstellt/);
+  const zp = zug.fromFree(G.docs.memory), zs = zug.init({ rng: (await import("../src/contract/sdk.js")).rng("x"), params: zp, players: 2 });
+  assert.match(txt(zug.view(zug.observe(zs, 0), 0, { lang: "en" })), /Made with AI/);
+  assert.equal(card.fromFree({ ...G.docs.flappy, ki: { k: "karte", s: "kurz", h: "x" } }).ki, null, "kaputtes Siegel faellt weg");
+});
+
+test("Baukasten: Modellausgabe (clamp) behebt Kontrast und Erzeuger hinter Waenden mit Hinweis; Links bleiben streng", () => {
+  const raw = { ...clone(FLAPPY), bg: "sky", things: [FLAPPY.things[0], { ...FLAPPY.things[1], color: "yellow" }], world: { gravity: 2600, bottom: "open" } };
+  assert.equal(check(raw).ok, false, "streng: abgelehnt");
+  const c = check(raw, { clamp: true });
+  assert.ok(c.ok, c.errors.join()); assert.equal(c.desc.things[1].color, "ink"); assert.equal(c.desc.world.right, "open");
+  assert.ok(c.notes.some((n) => /rohr.color yellow -> ink/.test(n)) && c.notes.some((n) => /world.right -> open/.test(n)));
+});
+
+test("Baukasten: Sprung-Machbarkeit wird diagnostiziert (zu langsames Hindernis), Beispiele sind machbar", async () => {
+  const { jumpCheck } = await import("../src/engines/baukasten/pruefer.js");
+  assert.equal(jumpCheck(check(BEISPIELE.huepfer).desc), "");
+  assert.equal(jumpCheck(check(BEISPIELE.plattform).desc), "");
+  const slow = check({ ...clone(BEISPIELE.plattform), things: BEISPIELE.plattform.things.map((t) => (t.id === "stein" ? { ...t, vx: -150, h: 110 } : t)) }).desc;
+  assert.match(jumpCheck(slow), /reicht nicht ueber stein/);
+});
+
+test("Baukasten: Modellausgabe (clamp) bringt ids in Form und schreibt alle Verweise gleich um; streng bleibt es ein Fehler", async () => {
+  const { idOf } = await import("../src/engines/baukasten/spec.js");
+  assert.equal(idOf("Eichhörnchen"), "eichhoernche"); assert.equal(idOf("roter Ball"), "roterball"); assert.equal(idOf("1up"), "d1up");
+  const raw = JSON.parse(JSON.stringify(FLAPPY).replace(/"vogel"/g, '"Vögelchen"'));
+  assert.equal(check(raw).ok, false);
+  const c = check(raw, { clamp: true });
+  assert.ok(c.ok, c.errors.join()); assert.equal(c.desc.things[0].id, "voegelchen");
+  assert.ok(c.desc.rules.every((r) => r.a === "voegelchen") && c.desc.start[0].thing === "voegelchen" && c.desc.bot.thing === "voegelchen");
+});
+
+test("Security-Review M1: G3-Docs werden bereinigt und zugeordnet; ohne Siegel spielt die Karte nur eingebaute Beispiele", async () => {
+  const { sanitizeDoc, BAU_BYTES } = await import("../src/engines/frei/doc.js");
+  const { targetIdOf, kindOk, previewOf } = await import("../src/features/frei/doc.js");
+  const G = JSON.parse(fs.readFileSync(new URL("./fixtures/baukasten-gate.json", import.meta.url), "utf8"));
+  const d = sanitizeDoc(G.docs.flappy);
+  assert.deepEqual(d.b, G.docs.flappy.b, "Beschreibung unveraendert (Texte nicht gekuerzt)");
+  assert.equal(targetIdOf(d), "baukasten"); assert.equal(targetIdOf(sanitizeDoc(G.docs.memory)), "baukasten-zug");
+  assert.ok(kindOk("game", d)); assert.equal(previewOf(d).lines[0], G.docs.flappy.b.goal);
+  assert.equal(sanitizeDoc({ ...G.docs.flappy, b: { t: "x".repeat(BAU_BYTES) } }), null, "zu gross");
+  assert.equal(sanitizeDoc({ ...G.docs.flappy, b: [1] }), null);
+  // ohne Siegel: eingebautes Beispiel ja, selbst gebaute Beschreibung nein (umginge S1/S4 des Servers)
+  assert.doesNotThrow(() => card.init({ params: { desc: compact(check(FLAPPY).desc) }, seed: "s", players: ["human", "none"] }));
+  const own = { ...clone(FLAPPY), title: "Eigener Text" };
+  assert.throws(() => card.init({ params: { desc: own }, seed: "s", players: ["human", "none"] }), /ohne Siegel/);
+  assert.doesNotThrow(() => card.init({ params: { desc: own, ki: G.docs.flappy.ki }, seed: "s", players: ["human", "none"] }), "mit Siegel (das Gate prueft den Inhalt)");
+  assert.throws(() => zug.init({ rng: rng("x"), params: { desc: { ...clone(MEMORY), title: "Eigen" } }, players: 2 }), /ohne Siegel/);
+});
+
+test("Security-Review M5: Rechenaufwand je Tick ist begrenzt (check) und der Pruefer bucht Arbeit statt Ticks", async () => {
+  const { WORK_UNIT } = await import("../src/engines/baukasten/pruefer.js");
+  const heavy = { v: 1, title: "x", mode: "realtime", bg: "ink", things: [{ id: "a", color: "yellow", w: 2000, h: 2000, control: "tap" }, { id: "b", color: "red", w: 2000, h: 2000 }],
+    start: [{ thing: "a", n: 75, cols: 10, dx: 1, dy: 1, x: 100, y: 100 }, { thing: "b", n: 75, cols: 10, dx: 1, dy: 1, x: 100, y: 100 }],
+    rules: Array.from({ length: 16 }, (_, i) => ({ when: "touch", a: i % 2 ? "a" : "b", b: i % 2 ? "b" : "a", do: [{ act: "score", on: "a", n: 1 }] })), end: { time: 600 } };
+  assert.match(check(heavy).errors.join(), /zu viel Rechenaufwand/);
+  for (const ex of Object.values(BEISPIELE)) assert.ok(check(ex).ok, "Beispiele bleiben unter der Grenze");
+  const d = check(BREAKOUT).desc, r = E.step(d, E.init(d, "w", ["bot", "none"]), [{ b: 0 }]);
+  assert.ok(r.work >= 24, "Arbeit zaehlt die Paarpruefungen (Ball x 24 Ziegel)"); assert.ok(WORK_UNIT > 0);
+  const t0 = Date.now(), v = pruefe({ ...clone(BREAKOUT) }, { games: 2, budget: 20000 });
+  assert.equal(v.stage, "budget"); assert.ok(Date.now() - t0 < 5000);
+});
+
+test("Baukasten: zu lange Texte werden nie still gekuerzt, auch nicht in der Modellausgabe (Zweitbewerter t106)", () => {
+  const L = BEISPIELE.luecke, raw = { ...clone(L), turn: { ...L.turn, items: [{ q: "x".repeat(95), a: "Elefant", wrong: ["Giraffe"] }, ...L.turn.items.slice(1)] } };
+  for (const opt of [{}, { clamp: true, llm: true }]) assert.match(check(raw, opt).errors.join(), /laenger als 90 Zeichen/);
 });
