@@ -14,12 +14,16 @@
     "de": {
       "pick": "Foto wählen",
       "note": "Dein Foto bleibt auf diesem Handy.",
-      "send": "Fertig"
+      "send": "Fertig",
+      "shareImage": "Mit Foto als Bild teilen",
+      "noPhoto": "Hier war ein Foto. Es bleibt beim Absender."
     },
     "en": {
       "pick": "Pick a photo",
       "note": "Your photo stays on this phone.",
-      "send": "Done"
+      "send": "Done",
+      "shareImage": "Share with photo as image",
+      "noPhoto": "There was a photo here. It stays with the sender."
     }
   },
   "variants": {
