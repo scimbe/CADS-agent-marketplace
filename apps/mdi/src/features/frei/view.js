@@ -378,6 +378,7 @@ export function freiView(state, X, dispatch, L) {
         panel.push(h("p", { class: "hint", key: "bn" }, ft(lang, "kb_note")));
       }
       const res = b.res;
+      if (res && res.how === "done") body.push(h("p", { class: "hint", key: "again" }, ft(lang, "kb_again_cost")));
       if (res && res.how === "done") body.push(h("figure", { class: "stage", key: "img" }, h("img", { src: res.dataUrl, alt: ft(lang, "kb_alt", { x: b.text }), class: "frei-img", width: "512", height: "512" })), b.kept ? status(ft(lang, "create_robot_kept"), "hint strong", "kept") : null);
       else if (res) {
         const K = { crisis: "aiCrisis", login: "kb_login", age16: "kb_age16", quota: "kb_quota", credit: "kb_credit", daily: "kb_daycap", paused: "kb_throttled", modpause: "kb_paused", blocked: "kb_blocked", refused: "kb_no_" + (["sexual", "minors", "hate", "gore", "violence", "weapons", "real_person", "brand", "drugs", "youth", "contact"].includes(res.reason) ? res.reason : "other"), failed: res.reason === "timeout" ? "kb_timeout" : res.reason === "unsafe" ? "kb_unsafe" : "kb_failed", gone: "create_wait_cancelled", kurz: "kb_ask", off: "kb_offline" };

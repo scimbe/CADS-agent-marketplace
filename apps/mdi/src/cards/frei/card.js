@@ -4,7 +4,7 @@
 // Die Farbpaare der alten App werden auf die Tokens der Designsprache abgebildet (src/contract/tokens.js kennt keine Hex-Werte).
 import manifest from "./manifest.json" with { type: "json" };
 import { onFill } from "../../contract/tokens.js";
-import { PAIRS, PAIR_NAMES, fillOf, freiParams, freiDoc, sanitizeDoc } from "../../features/frei/doc.js";
+import { PAIRS, PAIR_NAMES, fillOf, freiParams, freiDoc, sanitizeDoc } from "../../engines/frei/doc.js";
 
 const SLOTS = [[13, 12], [87, 12], [13, 88], [87, 88], [8, 50], [92, 50]];
 const BADGE = { de: "Mit KI erstellt", en: "Made with AI" };

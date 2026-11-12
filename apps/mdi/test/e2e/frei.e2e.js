@@ -157,13 +157,12 @@ test("Kein Kontingent: kein Erschaffen-Knopf, ehrlicher Zaehler; unter 16: Hinwe
   assert.ok(!ff.state.log.some((l) => l === "POST /api/duell/ai karte"), "ohne Kontingent wird nichts gesendet");
   await screenIs(p, "frei-start");
   await checks(p, "10-kein-kontingent", found);
-  // unter 16: angemeldet, aber ohne 16+-Angabe im Profil (Status des echten Servers age16:false)
+  // unter 16: angemeldet, aber der Server meldet keine 16+-Angabe im Profil (create.age16 false, wie lib/duell-ai.mjs status)
   const fw2 = fakeWrapper(), ff2 = fakeFrei(fw2, { status: "status-angemeldet-16" });
   const o2 = await openApp(fw2, ff2);
   await loginFromFrei(o2.p, fw2);
-  ff2.state.status = null;   // jetzt antwortet der Konto-Wrapper; ohne Profil-16+ ist age16 false
-  fw2.state.profiles.clear();
-  await o2.p.reload(); await o2.p.locator("header.bar").waitFor();
+  ff2.state.age16 = false;
+  await act(o2.p, "back"); await screenIs(o2.p, "shelf");
   await act(o2.p, "frei");
   await o2.p.getByText(/Eigene Karten gibt es ab 16/).waitFor();
   assert.equal(await o2.p.locator('[data-act="send"]').count(), 0);

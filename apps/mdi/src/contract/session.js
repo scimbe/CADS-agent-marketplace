@@ -16,6 +16,8 @@ export class GameError extends Error {
 
 export function secretSeats(card) { return card.manifest.hidden === "commit-reveal" ? (card.manifest.secretSeats || []) : []; }
 export function playerCount(card) { return card.manifest.players.max; }
+/** Groesste kanonische Laenge einer Eingabe (ADR 0001 f): die Huelle prueft das Schema, die Karte den Rest. */
+export const MAX_INPUT_BYTES = 2048;
 
 /** Salze und Commitments fuer die Sitze dieses Geraets. entropy() liefert 32 Hex-Zeichen. */
 export function makeSecrets(card, mine, entropy) {
@@ -54,6 +56,8 @@ function sameInput(a, b) { return canon(a) === canon(b); }
 /** Eine Eingabe anwenden. Wirft GameError bei ungueltigen Zuegen (nie stilles Raten, A4). */
 export function apply(card, session, input) {
   if (!input || typeof input !== "object" || typeof input.t !== "string" || !Number.isInteger(input.seat)) throw new GameError("eingabe");
+  let size; try { size = canon(input).length; } catch (e) { throw new GameError("eingabe", "nicht kanonisch"); }
+  if (size > MAX_INPUT_BYTES) throw new GameError("eingabe", "zu gross");
   const st = session.state, status = card.status(st);
   if (status.over) throw new GameError("vorbei");
   if (input.seat !== status.turn) throw new GameError("nicht-am-zug", "Sitz " + input.seat);
@@ -71,26 +75,35 @@ export function apply(card, session, input) {
   } else {
     const known = st.priv[input.seat] !== null || !secretSeats(card).includes(input.seat);
     if (known) {
-      const legal = card.moves(card.observe(st, input.seat), input.seat);
-      if (!legal.some((m) => sameInput(m, input))) throw new GameError("zug-ungueltig", canon(input));
+      // accepts (ADR 0001 f) ersetzt die Aufzaehlung fuer nicht aufzaehlbare Eingaben; step prueft trotzdem selbst
+      const obs = card.observe(st, input.seat);
+      const ok = typeof card.accepts === "function" ? card.accepts(obs, input.seat, input) === true : card.moves(obs, input.seat).some((m) => sameInput(m, input));
+      if (!ok) throw new GameError("zug-ungueltig", canon(input).slice(0, 200));
     }
     try { next = card.step(st, input, rng(session.seed + "|step|" + session.log.length)); }
     catch (e) { throw new GameError("zug-ungueltig", e.message); }
     logged = input;
   }
   if (canon(next).length > card.manifest.limits.stateBytes) throw new GameError("zustand-zu-gross");
-  if (logged.t === "reveal" && card.status(next).cheat) {
-    // die Karte hat bei der Aufloesung eine Ansage unter Wert gefunden: offen melden statt still werten
-  }
+  // status.cheat (Ansage unter Wert) meldet die Karte selbst offen in status/view; der Host wertet nicht still
   return { ...session, state: next, log: session.log.concat([logged]) };
 }
 
-/** Faellige Aufloesung fuer einen eigenen Sitz als Eingabe (oder null). */
+/** Faelliger Pflichtzug fuer einen eigenen Sitz (oder null): Aufloesung (status.reveal + eigenes Salz) oder
+ *  Pflichtzug ohne Entscheidung (status.auto + genau ein legaler Zug, ADR 0001 f – Mischen, Sperren, Schluessel). */
 export function dueReveal(card, session) {
   const s = card.status(session.state);
-  if (!s.over && s.reveal && session.secrets[s.turn] !== undefined) return { t: "reveal", seat: s.turn, salt: session.secrets[s.turn] };
+  if (s.over) return null;
+  if (s.reveal && session.secrets[s.turn] !== undefined) return { t: "reveal", seat: s.turn, salt: session.secrets[s.turn] };
+  if (s.auto === true && session.mine.includes(s.turn) && !s.reveal) {
+    const known = session.state.priv[s.turn] !== null || !secretSeats(card).includes(s.turn);
+    if (!known) return null;
+    const legal = card.moves(card.observe(session.state, s.turn), s.turn);
+    if (legal.length === 1) return legal[0];
+  }
   return null;
 }
+export const dueForced = dueReveal;
 
 export function observe(card, session, seat) { return card.observe(session.state, seat); }
 export function status(card, session) { return card.status(session.state); }
@@ -98,8 +111,10 @@ export function status(card, session) { return card.status(session.state); }
 export function pubHash(session) { return stateHash(session.state.pub); }
 
 /** Drahtformat ohne Salze, ohne priv – das Einzige, was Link und Netz sehen. */
-export function toWire(session) {
-  return { c: session.card, v: session.version, p: session.params, s: session.seed, k: session.commits, m: session.log };
+export function toWire(session, card = null) {
+  // Snapshot-Karten (manifest.link.snap) verdichten ihr Log rein und deterministisch (ADR 0001 f)
+  const log = card && card.manifest.link && card.manifest.link.snap && typeof card.compact === "function" ? card.compact(session.log) : session.log;
+  return { c: session.card, v: session.version, p: session.params, s: session.seed, k: session.commits, m: log };
 }
 
 /** Partie aus dem Drahtformat nachspielen; jede Eingabe wird erneut geprueft. */

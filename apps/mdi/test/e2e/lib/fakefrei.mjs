@@ -43,7 +43,8 @@ export function fakeFrei(fw, o = {}) {
       const me = await signedIn(req);
       if (p === "/api/duell/ai/status") {
         if (!S.status || !me) return origin === APP ? r.fallback() : r.fulfill(json(503, { error: "auth-unavailable" }));
-        const st = rec(S.status); return r.fulfill(json(st.status, st.body));
+        const st = rec(S.status); if (S.age16 === false && st.body.create) st.body.create.age16 = false;
+        return r.fulfill(json(st.status, st.body));
       }
       if (p === "/api/duell/ai") {
         if (!me) { const x = rec("karte-anonym"); return r.fulfill(json(x.status, x.body)); }
