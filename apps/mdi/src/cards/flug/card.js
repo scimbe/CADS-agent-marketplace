@@ -3,12 +3,11 @@
 // Modi: solo (allein; mit 2 Sitzen ist Sitz 1 der Geist aus dem Link), agent (Agenten-Duell flug-agent/flug-mond: beide
 // Agenten fliegen dieselbe Strecke), train (ein echter Flug, aus dem der eigene Agent Mut und Geduld lernt).
 import manifest from "./manifest.json" with { type: "json" };
-import { initState, flapState, stepState, copyState, demoWants, W, H, TPS } from "../../engines/flug/engine.js";
+import { initState, flapState, stepState, copyState, demoWants, nextPipe, W, H, TPS } from "../../engines/flug/engine.js";
 import { gameOf, routeParams, fromServerDoc, toServerDoc } from "../../engines/flug/params.js";
 import { flyStep, flyLine, learnFlap, sanitizeAgent, explain, winner, FLY_CAP, MAX_TICKS } from "../../engines/flug/agent.js";
 import { hash32, draw, mixF64, FNV0, hex32 } from "../../engines/flug/rng.js";
 import { flightOps, duelOps } from "../../engines/flug/view.js";
-import { nextPipe } from "../../engines/flug/engine.js";
 import { VARIANTS, variantParams } from "../../engines/flug/variants.js";
 import TX from "../../engines/flug/texts.json" with { type: "json" };
 import { fmt } from "../../engines/flug/text.js";
