@@ -1,7 +1,7 @@
 // Modi einer Karte, abgeleitet aus dem Manifest (A3: keine Kartensonderlogik im Host). ADR 0001 f/b.
 //   static   -> link, live (zeigen)
 //   turn     -> alone; mit 2+ Sitzen bot, link; live nur mit genau 2 Sitzen (Gruppen-Live ist Stufe 2)
-//   realtime -> alone; bot, wenn die Karte bot() hat; live, wenn rt.net != none und 2 Sitze; ghost, wenn rt.ghost
+//   realtime -> alone; bot, wenn die Karte bot() hat; live, wenn rt.net != none und 2 Sitze (Geist: nach dem Spiel)
 // manifest.modes schneidet die abgeleitete Menge (z. B. Tischkarten ohne link). Reihenfolge bleibt fest.
 export const ALL_MODES = ["alone", "bot", "link", "live", "ghost"];
 
@@ -13,7 +13,7 @@ export function deriveModes(card, variantId = null) {
     out = ["alone"];
     if (m.players.max >= 2 && typeof card.bot === "function") out.push("bot");
     if (m.players.max === 2 && m.rt.net !== "none") out.push("live");
-    if (m.rt.ghost) out.push("ghost");
+    // Geist ist kein waehlbarer Modus: er entsteht nach einer Partie (Link senden) und beim Empfang des Links
   } else {
     out = ["alone"];
     if (m.players.max >= 2) out.push("bot", "link");

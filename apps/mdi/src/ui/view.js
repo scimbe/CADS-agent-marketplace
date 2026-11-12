@@ -52,11 +52,6 @@ export function actionsOf(state) {
   }
 }
 
-function previewState(card, params) {
-  const st = card.init({ rng: rng("preview"), params, players: card.manifest.players.max });
-  return card.observe(st, 0);
-}
-
 function stage(node, extra = {}) { return h("div", { class: "stage", id: "stage", ...extra }, node); }
 
 function radios(name, label, items, value, onPick) {
@@ -139,7 +134,7 @@ export function view(state, dispatch, env = {}) {
         : h("span", { class: "icon-gap" }));
 
   let body = [], panel = [];
-  const tree = card ? card.view(previewState(card, G.paramsOf(ctx)), 0, { lang: ctx.lang, preview: true }) : null;
+  const tree = card ? G.previewNode(card, G.paramsOf(ctx), ctx.lang) : null;
   const preview = tree ? render(tree, { onInput: () => {}, disabled: true, idp: "pv" }) : null;
 
   if (L.startsWith("stil.")) {
@@ -220,7 +215,7 @@ export function view(state, dispatch, env = {}) {
   } else if (L === "receive.show") {
     const inc = ctx.incoming, c = cardOf(inc.cardId);
     if (inc.kind === "ghost") body = [h("div", { class: "notice" }, h("p", { class: "lede plain" }, X.ghostText), h("h2", { class: "t-title" }, title(c, ctx.lang)), h("p", null, fmt(X.ghostScore, { s: inc.score.join(" : ") })), h("p", { class: "hint" }, X.free))];
-    else if (inc.kind === "card") body = [h("p", { class: "lede plain" }, X.acceptTitle), stage(render(c.view(previewState(c, inc.params), 0, { lang: ctx.lang, preview: true }), { onInput: () => {}, disabled: true, idp: "rx" })), h("p", { class: "hint" }, X.free)];
+    else if (inc.kind === "card") body = [h("p", { class: "lede plain" }, X.acceptTitle), stage(render(G.previewNode(c, inc.params, ctx.lang, { receive: true }), { onInput: () => {}, disabled: true, idp: "rx", lang: ctx.lang })), h("p", { class: "hint" }, X.free)];
     else {
       const st = S.status(c, inc.session), seat = inc.session.mine[0];
       body = [h("div", { class: "notice" },
