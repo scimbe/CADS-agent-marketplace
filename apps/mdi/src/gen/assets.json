@@ -139,77 +139,77 @@
       {
         "file": "thumb.webp",
         "src": "shot",
-        "bytes": 4708
+        "bytes": 4742
       },
       {
         "file": "thumb-spiel-lava.webp",
         "src": "shot",
-        "bytes": 4714
+        "bytes": 4750
       },
       {
         "file": "thumb-spiel-mond.webp",
         "src": "shot",
-        "bytes": 4104
+        "bytes": 4202
       },
       {
         "file": "thumb-spiel-pizza.webp",
         "src": "shot",
-        "bytes": 3954
+        "bytes": 4014
       },
       {
         "file": "thumb-spiel-tiefsee.webp",
         "src": "shot",
-        "bytes": 4600
+        "bytes": 4544
       },
       {
         "file": "thumb-spiel-neon.webp",
         "src": "shot",
-        "bytes": 4890
+        "bytes": 4876
       },
       {
         "file": "thumb-spiel-geist.webp",
         "src": "shot",
-        "bytes": 3908
+        "bytes": 3954
       },
       {
         "file": "thumb-spiel-einhorn.webp",
         "src": "shot",
-        "bytes": 4128
+        "bytes": 4240
       },
       {
         "file": "thumb-spiel-retro.webp",
         "src": "shot",
-        "bytes": 3938
+        "bytes": 3940
       },
       {
         "file": "thumb-flug-agent.webp",
         "src": "shot",
-        "bytes": 3044
+        "bytes": 3124
       },
       {
         "file": "thumb-flug-mond.webp",
         "src": "shot",
-        "bytes": 3000
+        "bytes": 3072
       },
       {
         "file": "thumb-plan-01.webp",
         "src": "shot",
-        "bytes": 4782
+        "bytes": 4744
       },
       {
         "file": "thumb-plan-08.webp",
         "src": "shot",
-        "bytes": 4038
+        "bytes": 4042
       },
       {
         "file": "thumb-plan-13.webp",
         "src": "shot",
-        "bytes": 3930
+        "bytes": 3950
       },
       {
         "file": "thumb-plan-18.webp",
         "src": "shot",
-        "bytes": 5914
+        "bytes": 5936
       },
       {
         "file": "thumb-plan-22.webp",
@@ -219,7 +219,7 @@
       {
         "file": "thumb-plan-28.webp",
         "src": "shot",
-        "bytes": 4020
+        "bytes": 4002
       }
     ]
   },
@@ -267,7 +267,7 @@
       {
         "file": "thumb.webp",
         "src": "shot",
-        "bytes": 8384
+        "bytes": 8666
       }
     ]
   },
