@@ -1,5 +1,50 @@
 {
  "herkunft": "Eigene Goldwerte des Baukasten-Interpreters (Strang B), erzeugt mit GOLD=1 node --test test/baukasten.test.js aus src/engines/baukasten/beispiele.js; keine Kopie aus dem Altcode",
+ "auffangen": {
+  "h600": "744932907e5f1f45",
+  "t": 988,
+  "sc": [
+   16,
+   0
+  ],
+  "win": -1
+ },
+ "sammeln": {
+  "h600": "c368432b4635e241",
+  "t": 1127,
+  "sc": [
+   2,
+   0
+  ],
+  "win": -1
+ },
+ "tauchen": {
+  "h600": "1c4e4527f38cfaa8",
+  "t": 2700,
+  "sc": [
+   44,
+   0
+  ],
+  "win": 0
+ },
+ "tippduell": {
+  "h600": "b7482efff563d16a",
+  "t": 668,
+  "sc": [
+   15,
+   0
+  ],
+  "win": 0
+ },
+ "plattform": {
+  "h600": "01a7c63d4b84efdb",
+  "t": 1539,
+  "sc": [
+   15,
+   0
+  ],
+  "win": 0
+ },
  "flappy": {
   "h600": "04e0df38c62155de",
   "t": 1637,
@@ -19,7 +64,7 @@
   "win": 0
  },
  "pong": {
-  "h600": "cc5814e0742f35cc",
+  "h600": "40836d1c3cfeab2a",
   "t": 9000,
   "sc": [
    0,
@@ -28,7 +73,7 @@
   "win": -1
  },
  "kick": {
-  "h600": "c65ab14129327319",
+  "h600": "79dc1df941ecf114",
   "t": 10800,
   "sc": [
    0,
@@ -47,7 +92,7 @@
  },
  "reaktion": {
   "h600": "187efdf97b93845a",
-  "t": 1149,
+  "t": 1154,
   "sc": [
    15,
    0
@@ -55,7 +100,7 @@
   "win": 0
  },
  "ausweichen": {
-  "h600": "1b86a226464748df",
+  "h600": "0da0114c7a98737b",
   "t": 2400,
   "sc": [
    39,
@@ -64,7 +109,7 @@
   "win": 0
  },
  "huepfer": {
-  "h600": "4652e48743d01b2c",
+  "h600": "51f9f8fad9d0e5be",
   "t": 1900,
   "sc": [
    20,

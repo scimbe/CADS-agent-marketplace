@@ -1,7 +1,7 @@
 // ERZEUGT von scripts/gen.js – nicht von Hand aendern.
 /* eslint-disable */
 export const CODE_HASH = {
-  "advent-tuer": "b9b6d5096e804490bd7dccc149d75df7",
+  "advent-tuer": "b450b3aeb3b8369a4b7f308a62729d71",
   "arcade-elfer": "6ddffd25f2fa8b3dee53838e5f4da5f1",
   "arcade-flipper": "8752df6e6d5d1bc68acb1254286a21c0",
   "arcade-kick": "76936fc05ed7d01a588b2e7fcbbe7069",
@@ -12,15 +12,15 @@ export const CODE_HASH = {
   "arcade-stock": "2cb227aa6c97456e17dc7652ffb6ab48",
   "arcade-volley": "78a71e6e13397aac2b0f07776a619fa5",
   "arcade-ziegel": "0b7246cfaba35f114c78ef802ce83c47",
-  "baukasten": "a4f00518548ea5150b7e6df58b06a855",
-  "baukasten-zug": "9ae252f16b68ea93a88bcaa3f2b48da4",
+  "baukasten": "7426d871cd88af017b9d714382817c0d",
+  "baukasten-zug": "1d175bff540139ba3499d203fadf7ee4",
   "beat-disco": "b6fe76f3baac099058e937fcb27577c1",
   "beat-pausenhof": "0d98218e4928472ab049ca1193279375",
   "bluff": "8a000a60b8294989bc672a8bf641833e",
   "duell-liest": "3b58de14de97c2f5c9b09172ae836c2d",
   "flug": "02de1a54e1d6f4c21afbd224c631a34d",
   "foto-alien": "0ce03376b34e42ac79698c675b1818f5",
-  "frei": "48d59f422f329b1a93090d3e138edb43",
+  "frei": "360ca7d79008cc756e463bb80b5bd037",
   "geschenk-finder": "2c375477e9c9821fe85c8bbb0758b2d6",
   "gruss": "5348013d7cd9f87b8d89ebe3653dcf41",
   "kanal-geheim": "c00254018730354309f57e1b2cea3a88",

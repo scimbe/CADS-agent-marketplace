@@ -1,17 +1,20 @@
-// Z1-Zugkarten bedienen wie ein Mensch (DoD Phase E): beide Seiten im Browser, der Link geht als echtes Fragment von
-// Seite A nach Seite B. An jedem Schritt: kein verdecktes Bedienelement, axe WCAG 2.2 AA ohne Verstoss, kein
-// waagerechter Ueberlauf, keine Seitenfehler. Eingaben nur ueber sichtbare Felder, Chips und den Weiter-Knopf.
+// Gemeinsame Ablaeufe der Z1-Bedien-e2e (aufgeteilt auf test/e2e/z1-play-*.e2e.js, damit jede Datei unter dem
+// 300-s-Limit des Runners bleibt). Z1-Zugkarten werden bedient wie von einem Menschen: beide Seiten im Browser, der
+// Link geht als echtes Fragment von Seite A nach Seite B. An jedem Schritt: kein verdecktes Bedienelement, axe
+// WCAG 2.2 AA ohne Verstoss, kein waagerechter Ueberlauf, keine Seitenfehler. Eingaben nur ueber sichtbare Felder,
+// Chips und den Weiter-Knopf.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { browser, open, act, axe, noOverflow, waitScreen, screen } from "./lib/grund.mjs";
-import { pickMode } from "./lib/scenarios.mjs";
+import { browser, open, act, axe, noOverflow, waitScreen, screen } from "./grund.mjs";
+import { pickMode } from "./scenarios.mjs";
 
-let b;
-test.before(async () => { b = await browser(); });
-test.after(async () => { await b.close(); });
-
-const VIEWS_RUN = process.env.Z1_VIEW ? [process.env.Z1_VIEW] : ["phone360", "phone390", "phone412", "desk1280"];
-let VIEW = VIEWS_RUN[0];
+export const VIEWS_RUN = process.env.Z1_VIEW ? [process.env.Z1_VIEW] : ["phone360", "phone390", "phone412", "desk1280"];
+let b = null, VIEW = VIEWS_RUN[0];
+/** Browser je Testdatei: einmal starten, am Ende schliessen. */
+export function withBrowser() {
+  test.before(async () => { b = await browser(); });
+  test.after(async () => { await b.close(); });
+}
 const covered = (p) => p.evaluate(async () => {
   const out = [];
   const els = [...document.querySelectorAll("button, input, select, textarea, a[href], summary, [role=radio]")].filter((e) => e.checkVisibility({ visibilityProperty: true })).filter((e) => { const m = document.querySelector("[aria-modal=true]"); return !m || m.contains(e); });
@@ -58,7 +61,7 @@ async function handOver(A) {
 }
 const text = (p) => stage(p).innerText();
 
-const FLOWS = {
+export const FLOWS = {
   "zug-einig": async (A, chk) => {
     for (const [i, w] of ["Pizza", "Kino", "Sauna", "Zoo", "Bowling"].entries()) await fill(A.p, i, w);
     await chk("Liste"); await next(A.p);
@@ -176,21 +179,24 @@ const FLOWS = {
   }
 };
 
-for (const view of VIEWS_RUN) for (const [id, flow] of Object.entries(FLOWS)) {
+
+/** Ein Bedien-Durchlauf einer Karte (FLOWS) auf einer Ansicht. */
+export function flowTest(id, view) {
   test("Z1 bedienen (" + view + "): " + id, async () => {
     VIEW = view;
     const A = await start(id); A.bad = [];
     const chk = steps(A.p, A.bad, id + "/A");
     await chk("Start");
-    const B = await flow(A, chk);
+    const B = await FLOWS[id](A, chk);
     assert.deepEqual(A.bad, []);
     assert.deepEqual([...A.errs, ...(B ? B.errs : [])], [], "Seitenfehler oder CSP-Verstoss");
     await A.ctx.close(); if (B) await B.ctx.close();
   });
 }
-
-for (const view of VIEWS_RUN) test("Z1 bedienen (" + view + "): raum-sorry auf einem Geraet, Ergebnis zum Kopieren", async () => {
-  VIEW = view;
+/** Der erste Satz: auf einem Geraet, Ergebnis zum Kopieren. */
+export function sorryTest(view) {
+  test("Z1 bedienen (" + view + "): raum-sorry auf einem Geraet, Ergebnis zum Kopieren", async () => {
+    VIEW = view;
   const A = await start("raum-sorry", "alone"); A.bad = [];
   const chk = steps(A.p, A.bad, "raum-sorry");
   for (let i = 0; i < 3; i++) { await chk("Frage " + (i + 1)); await stage(A.p).locator(".choice .opt").first().click(); await A.p.waitForTimeout(60); if ((await screen(A.p)) === "card-play-cover") await act(A.p, "cover-ok"); }
@@ -198,11 +204,11 @@ for (const view of VIEWS_RUN) test("Z1 bedienen (" + view + "): raum-sorry auf e
   assert.equal(await stage(A.p).locator(".chip", { hasText: "Kopieren" }).count(), 1);
   assert.deepEqual(A.bad, []); assert.deepEqual(A.errs, []);
   await A.ctx.close();
-});
-
-// Rueckantwort auf dem Geraet der Wuenschenden (Vereinigung + Merkzettel je Partie). Haengt am Browser-Speicher von F:
-// src/broker/storage.js saveGame verwirft entry.pub und entry.memo (gemeldet) -> Empfang "manipuliert".
-test("Z1 Wunschzettel: Antwort der Familie auf dem Geraet der Wuenschenden – keine Frage, keine Marke", async () => {
+  });
+}
+/** Wunschzettel: Antwort der Familie auf dem Geraet der Wuenschenden (Vereinigung + Merkzettel je Partie). */
+export function wishReplyTest() {
+  test("Z1 Wunschzettel: Antwort der Familie auf dem Geraet der Wuenschenden – keine Frage, keine Marke", async () => {
   VIEW = "phone390";
   const A = await start("zug-wunschzettel"); A.bad = [];
   const chk = steps(A.p, A.bad, "zug-wunschzettel/A");
@@ -231,4 +237,5 @@ test("Z1 Wunschzettel: Antwort der Familie auf dem Geraet der Wuenschenden – k
     for (const x of await axe(P2, "zug-wunschzettel/A2")) A.bad.push(x);
   assert.deepEqual(A.bad, []);
   await A.ctx.close(); await B.ctx.close();
-});
+  });
+}

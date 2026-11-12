@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHostAudio } from "../src/engines/klang/host-audio.js";
 import * as Studio from "../src/engines/klang/studio.js";
+import * as Rap from "../src/engines/klang/rapbeat.js";
 
 function fakeAc(level = 0) {
   const started = [];
@@ -44,11 +45,21 @@ test("Aufnahme: Samples im Slot (heruntergetastet auf 22050), einmal abspielen l
   const d = await N.record("x", 2500); assert.equal(d.mic, false); assert.equal(d.sec, Studio.dummyVoice().length / Studio.SR);
 });
 test("Strassenrap: Schleife Hook, Aufnahme-Modus einmal mit Einzaehlen; WAV gueltig; Musik bis zur Pause; Pusten zaehlt", async () => {
-  const a = fakeAc(40), H = createHostAudio({ audioContext: () => a, getUserMedia: async () => stream(), setTimeout: (f) => { f(); return 1; }, clearTimeout: () => {}, now: (() => { let t = 0; return () => (t += 500); })(), raf: () => 0 });
-  assert.equal(H.play({ kind: "rapbeat", v: [0, 90, 9, 0, 1234], loop: "hook" }), true); assert.equal(a.started.at(-1).loop, true);
+  let loads = 0;
+  const a = fakeAc(40), H = createHostAudio({ part: async (name) => { assert.equal(name, "klang-rap"); loads++; return Rap; }, audioContext: () => a, getUserMedia: async () => stream(), setTimeout: (f) => { f(); return 1; }, clearTimeout: () => {}, now: (() => { let t = 0; return () => (t += 500); })(), raf: () => 0 });
+  assert.equal(await H.play({ kind: "rapbeat", v: [0, 90, 9, 0, 1234], loop: "hook" }), true); assert.equal(a.started.at(-1).loop, true);
+  assert.equal(await H.play({ kind: "rapbeat", v: [0, 90, 9, 0, 1234], loop: "hook" }), true); assert.equal(loads, 1, "Teil klang-rap nur einmal geladen");
   const w = H.wav({ kind: "beat", p: { k: "x---------------", s: "----------------", h: "----------------", b: "----------------" }, bpm: 120, loops: 1 });
   assert.equal(String.fromCharCode(...w.slice(0, 4)), "RIFF");
   await H.playUntil({ k: "x---x---x---x---", s: "----------------", h: "----------------", b: "----------------" }, 5);
   assert.equal(a.started.at(-1).stopped, true, "Musik aus zur Pause");
   let blows = 0; const stopBlow = await H.listenBlow(() => blows++); stopBlow(); assert.equal(blows, 1);
+});
+
+test("Strassenrap ohne Teil: ehrlicher Fehler mit code, kein Ersatzklang; Ladefehler des Teils wird durchgereicht", async () => {
+  const a = fakeAc(), none = createHostAudio({ audioContext: () => a });
+  await assert.rejects(none.play({ kind: "rapbeat", v: [0, 90, 9, 0, 1], loop: "hook" }), (e) => e.code === "teil-fehlt");
+  assert.equal(a.started.length, 0, "kein Ton");
+  const bad = createHostAudio({ audioContext: () => a, part: async () => { const e = new Error("SRI"); e.code = "teil-manipuliert"; throw e; } });
+  await assert.rejects(bad.wav({ kind: "rapbeat", v: [0, 90, 9, 0, 1] }), (e) => e.code === "teil-manipuliert");
 });

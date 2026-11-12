@@ -457,4 +457,4 @@ function wav(L, R, sr) {
 }
 
 export { SR, events, render, renderAsync, loop, wav, lufs, limit, LEVEL };
-export { fileName } from "./rapbeat-rule.js";
+export { fileName, SONG } from "./rapbeat-rule.js"; // SONG fuer host-audio aus dem Teil "klang-rap" (F #277)
