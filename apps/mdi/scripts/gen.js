@@ -39,7 +39,7 @@ function bundleInputs(cardJs) {
 
 function newAjv() {
   const ajv = new Ajv({ code: { source: true, esm: true, lines: false }, strict: true, unicodeRegExp: true, unicode: false, allErrors: false, logger: false });
-  ajv.addVocabulary(["x-field", "x-label", "x-model"]);
+  ajv.addVocabulary(["x-field", "x-label", "x-model", "x-pairs"]);
   return ajv;
 }
 
