@@ -49,3 +49,5 @@ Gilt für alle Agenten und Sessions am Neuentwurf. Es ersetzt das bisherige Vorg
 - Aktuelle Forschung und Best Practice recherchieren, mit Quellen in `08-forschung/`.
 - Auftrag an einen Agenten = Ziel, Quellen, Abnahmekriterien. Ergebnisse prüfe ich selbst nach (Diff und Testläufe lesen), bevor ich sie dem User melde.
 - Keine Abkürzung als Lösung. Muss etwas warten (z. B. Keycloak-Freigabe), wird es als offen geführt, nicht umgangen.
+
+Ausführung ab 2026-11-12: [Welle 1](welle-1.md) (parallele Stränge, Besitz gemeinsamer Dateien, Annahmen für Gate A).

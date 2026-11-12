@@ -19,14 +19,19 @@ Stand: 2026-11-11. Umsetzung: scimbe/CADS-DEMO-wrapper#130 (Server), scimbe/CADS
 | Q9 | Live-Discovery des Realms (öffentlich, nur gelesen): `https://auth.bunsenbrenner.org/realms/ct-demo/.well-known/openid-configuration` und `/protocol/openid-connect/certs`, abgerufen 2026-11-11 | `issuer = https://auth.bunsenbrenner.org/realms/ct-demo`; `code_challenge_methods_supported` enthält `S256`; **`dpop_signing_alg_values_supported` ist gesetzt** (Feature aktiv, u. a. ES256); `authorization_response_iss_parameter_supported = true`. JWKS: ein RS256-Signaturschlüssel und ein RSA-OAEP-Schlüssel mit `use: enc` (muss beim Prüfen ignoriert werden). Image laut CADS-Tunnel `compose.sso.yml`: `keycloak:26.7.3`. |
 | Q10 | Android Developers, `EncryptedSharedPreferences` (Referenz). https://developer.android.com/reference/androidx/security/crypto/EncryptedSharedPreferences *(gelesen)* | Seit `security-crypto` 1.1.0 **veraltet**; Datei nicht sichern (Auto Backup ausschließen). |
 | Q11 | Apple, `ASWebAuthenticationSession.Callback`. https://developer.apple.com/documentation/authenticationservices/aswebauthenticationsession/callback *(Seite nicht maschinell lesbar; Inhalt nicht verifiziert)* | Nach allgemeinem Kenntnisstand: `.https(host:path:)` ab iOS 17.4, verlangt Associated Domains (`webcredentials:`) und damit ein Apple-Team; sonst `.customScheme`. |
+| Q13 | Keycloak-Quellcode (Tag 26.7.3): `common/.../Profile.java`, `protocol/oidc/resourceindicators/ResourceIndicatorsPostProcessor.java`, `protocol/oidc/refresh/AbstractRefreshTokenProvider.java`. https://github.com/keycloak/keycloak *(gelesen)* | `RESOURCE_INDICATORS` ist `EXPERIMENTAL`; die `resource` des Codes wird ins Refresh-Token geschrieben, ein Refresh mit anderer `resource` ergibt `invalid_target` (eine Ressource je Grant). Ein Refresh mit `scope=` verkleinert das **Access**-Token auf die angefragten Scopes; das neue Refresh-Token behält den Umfang des alten. |
 | Q12 | Apple, Keychain Services / Secure Enclave (`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, CryptoKit `SecureEnclave.P256`). *(nicht erneut gelesen)* | Geräte-gebundene Ablage ohne iCloud-Sync; nicht exportierbarer P-256-Schlüssel im Secure Enclave. |
 
 ## Befund
 
 1. **Ein Anmeldeweg in der App, kein zweiter.** Die App hat schon eine OIDC-Anmeldung (Client `cads-mobile`, öffentlich,
    PKCE S256, iOS `ASWebAuthenticationSession`, Android AppAuth/Custom Tabs; `apps/README.md`). Ein eigener Client für
-   My Daily Idea hieße zwei Logins in einer App. Entscheidung: `cads-mobile` bleibt der einzige App-Client; er bekommt
-   eine zusätzliche Audience für den Wrapper. Der Client existiert live (Probe 2026-11-11: Fehlerseite „Invalid parameter:
+   My Daily Idea hieße zwei Logins in einer App. Entscheidung: `cads-mobile` bleibt der einzige App-Client.
+   **Nach dem Review: ein Access-Token je Resource-Server** (Q2 §2.3). Zwei optionale Client-Scopes `ct-api`
+   (Audience `ct-api`) und `mdi-api` (Audience `mydailyidea-api`); die App holt per Refresh mit `scope=` je ein
+   eingeengtes Token (Q13). RFC 8707 Resource Indicators wären der Standardweg, sind in Keycloak 26.7.3 aber
+   experimentell und erlauben nur eine Ressource je Grant (Q13) – also zwei Anmeldungen. Die Control-Plane verlangt
+   für `cads-mobile` `aud: ct-api` (CADS-Tunnel#899), der Wrapper `aud: mydailyidea-api`. Der Client existiert live (Probe 2026-11-11: Fehlerseite „Invalid parameter:
    redirect_uri“ statt „Client not found“), steht aber nicht im Realm-Export von CADS-Tunnel.
 2. **Eine Identitätsfunktion auf dem Server (A5).** `lib/auth.mjs identify()` nimmt Gate-Cookie ODER Bearer und liefert
    dieselbe E-Mail-Identität (das Gate schreibt die E-Mail in `X-Gate-Email`, CADS-Tunnel `gate.rs`). Alle Regeln
@@ -37,6 +42,10 @@ Stand: 2026-11-11. Umsetzung: scimbe/CADS-DEMO-wrapper#130 (Server), scimbe/CADS
    prüft `email_verified` nur für E-Mail-Zugriffslisten (`CT_GATE_REQUIRE_VERIFIED_EMAIL`), nicht bei „Allow any
    signed-in account“ – die App ist also strenger als das Web; das ist gewollt, weil Keycloak die Bestätigung bei der
    Anmeldung ohnehin erzwingt (Required Action `VERIFY_EMAIL`, CADS-Tunnel #535).
+   **Nach dem Review:** zusätzlich bindet der Wrapper das erste `(iss, sub)` je Adresse (HMAC, Datei) und weist ein
+   anderes Subjekt mit derselben Adresse ab. Eine bei einem IdP neu vergebene Adresse übernimmt so kein Konto. Die
+   Realm-Vorbedingungen (Trust Email aus, keine automatische Verknüpfung, Bestätigung bei E-Mail-Änderung) prüft das
+   Runbook vor dem Einschalten; `haw-gitlab` erfüllt „Trust Email aus“ laut Export nicht.
 4. **Redirect-Art (Q1 §7, Q11).** Android: beanspruchte https-URI (`https://bunsenbrenner.org/app/oauth2redirect`, App
    Link) – bevorzugt nach Q1 §7.2. iOS: https-Callback geht erst mit Associated Domains und Apple-Team (fehlt noch,
    `TEAM_ID`-Platzhalter); daher Private-Use-Scheme `org.bunsenbrenner.cads:/oauth2redirect` (umgekehrte Domain,
@@ -76,7 +85,8 @@ Stand: 2026-11-11. Umsetzung: scimbe/CADS-DEMO-wrapper#130 (Server), scimbe/CADS
 
 | Punkt | Entscheidung | Ein-Satz-Grund |
 |---|---|---|
-| Client | bestehender öffentlicher Client `cads-mobile` + Audience `mydailyidea-api` | Eine App, ein Login; die Audience beschränkt das Token für den Wrapper (Q2 §2.3). |
+| Client | bestehender öffentlicher Client `cads-mobile`, ein Access-Token je Resource-Server (Scopes `ct-api`/`mdi-api`, Refresh mit `scope=`) | Eine App, ein Login; ein abgegriffenes Token gilt nur an einem Dienst (Q2 §2.3); RFC 8707 in Keycloak noch experimentell (Q13). |
+| Identität | E-Mail wie beim Gate, plus Bindung an das erste `(iss, sub)` | Gleiches Konto wie im Web, keine Übernahme über eine neu vergebene Adresse. |
 | Redirect | iOS Private-Use-Scheme, Android App Link `https://bunsenbrenner.org/app/oauth2redirect` | Android nach Q1 §7.2; iOS-https braucht ein Apple-Team, das es noch nicht gibt. |
 | Brücke | native Konto-Brücke, Token bleibt nativ | Kein Token im JS, keine CORS-Öffnung, ein Weg für beide Plattformen. |
 | Ablage | Keychain / Keystore-gestützt, Geräteschlüssel nicht exportierbar | Gerätegebunden, kein Backup, kein iCloud. |

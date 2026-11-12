@@ -37,3 +37,5 @@
 | 2026-11-11 | Thumbnails im Format 16:9 | User: „16:9 Format“ |
 | 2026-11-11 | Spiele bleiben im Umfang: Flipper, Flappy-artiger Flug, Skat, Doppelkopf u. a. | User: „Flipper, flappy bird und Co, wie skat, Doppelkopf … auch gut“ |
 | 2026-11-11 | Freie Karten sollen auch völlig neue Spiele erzeugen können (nicht nur Genres G1/G2) | User: „freie Karten auch völlig neue Spiele erzeugen können“ |
+
+- 2026-11-12 Annahmen für Gate A (User hat nicht geantwortet, Auftrag „Do! Push!“): Community-Karten nicht als Tageskarte; Zug per Link, Raum auf diesem Handy, Echtzeit gegen Bot; 4 Absichten plus „Eigene Karte“; Thumbnails 16:9, zuerst Screenshot, dann KI-Bild. Details: 06-plan/welle-1.md
