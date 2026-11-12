@@ -105,7 +105,7 @@ function view(st, ctx) {
   }
   const fx = { ...st.fx, since: {} };
   for (const k of Object.keys(st.fx.since)) fx.since[k] = (st.t - st.fx.since[k]) / TPS;
-  const sims = order(st.sims, c.seat || 0);
+  const sims = c.preview ? order(st.sims, c.seat || 0).slice(0, 1) : order(st.sims, c.seat || 0);
   const layers = flightOps(st.g, sims, { t: c.t != null ? c.t : st.t / TPS, reduced: !!c.reduced, assets: c.assets }, fx);
   const me = sims[0], hud = [{ o: "text", x: W / 2, y: 64, text: String(me.score), size: 44, font: "brand", align: "center", base: "middle", fill: "#ffffff", stroke: "#00000080", lw: 4 }];
   if (sims[1]) hud.push({ o: "text", x: W / 2, y: 100, text: "👻 " + sims[1].score, size: 18, font: "body", align: "center", base: "middle", fill: "#ffffff", stroke: "#00000080", lw: 3 });

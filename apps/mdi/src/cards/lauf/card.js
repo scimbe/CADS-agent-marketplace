@@ -65,7 +65,7 @@ function status(st) {
 }
 
 function view(st, ctx) {
-  const c = ctx || {}, lang = c.lang === "en" ? "en" : "de", sims = order(st.sims, c.seat || 0), me = sims[0], t = c.t != null ? c.t : st.t / TPS;
+  const c = ctx || {}, lang = c.lang === "en" ? "en" : "de", sims = c.preview ? order(st.sims, c.seat || 0).slice(0, 1) : order(st.sims, c.seat || 0), me = sims[0], t = c.t != null ? c.t : st.t / TPS;
   const since = {}; for (const k of Object.keys(st.fx.since)) since[k] = (st.t - st.fx.since[k]) / TPS;
   const layers = runOps(sims, { t, reduced: !!c.reduced, assets: c.assets, flash: st.fx.flash, shake: st.fx.shake, pose: poseOf(me.l, t, since, !!c.reduced) });
   const hud = fmt(TX[lang].lf_hud, { p: points(me), m: meters(me) });
