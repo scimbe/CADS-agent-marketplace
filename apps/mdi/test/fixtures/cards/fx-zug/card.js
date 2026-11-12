@@ -36,6 +36,8 @@ export default {
     return input.t === "say" && input.seat === seat && obs.pub.turn === seat && typeof input.a === "string" && clean(input.a, 40) === input.a && input.a.length > 0;
   },
   sample(obs, seat, rng) { return { pub: copy(obs.pub), priv: [0, 1, 2].map((s) => (s === seat ? obs.mine : { secret: rng.int(100), seat: s })) }; },
+  // Auto-Zug im Live (Host-Zeitgeber, ADR 0001 Nachtrag 3)
+  auto(obs, seat) { return obs.pub.dealt.includes(false) ? { t: "deal", seat } : { t: "say", seat, a: "auto" }; },
   compact(log) { return log; },
   merge(a, b) { return b.said.length >= a.said.length ? b : a; },
   view(obs) { return { t: "stack", children: [{ t: "text", role: "body", text: obs.pub.said.map((x) => x[1]).join(" ") }] }; }
