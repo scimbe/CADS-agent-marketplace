@@ -516,3 +516,12 @@ test("Gate beim Empfaenger auch fuer Partie-Links (Zugkarten); Absender: Gate vo
   const no = machine.send(s, { type: "GATE", st: "blocked" });
   assert.ok(no.config.includes("inhalt.card.view"));
 });
+
+test("Quiz auf zug-abfragen (Strang S): Siegel in Parametern, KI-Badge in der Ansicht", async () => {
+  const { cardOf: byId } = await import("../src/cards/index.js");
+  const { rng } = await import("../src/contract/sdk.js");
+  const o = rec("karte-ok-quiz").body.options[0], t = targetOf({ ...sanitizeDoc(o.doc), ki: o.ki }, cardOf), c = byId(t.cardId);
+  assert.equal(t.cardId, "zug-abfragen"); assert.equal(t.params.ki.h, o.ki.h);
+  const view = (p) => JSON.stringify(c.view(c.observe(c.init({ rng: rng("q"), params: p, players: 2 }), 0), 0, { lang: "de" }));
+  assert.match(view(t.params), /Mit KI erstellt/); assert.doesNotMatch(view({ ...t.params, ki: null }), /Mit KI erstellt/);
+});

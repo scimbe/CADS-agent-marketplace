@@ -21,7 +21,7 @@ export const CODE_HASH = {
   "quiz-preis": "f3b4b342137c42e6ade818da80927abc",
   "raum-sorry": "f08086ec2d42e3f1512303a7b8ee2c7a",
   "spiel-dart": "fef370b84fca8bb9810dd6319c34cdfa",
-  "zug-abfragen": "666afb3fa0fd716822e45a101e7e3732",
+  "zug-abfragen": "3d18155cd5ed32abec28fe500088a9ce",
   "zug-einig": "9c0bd5b5e0e17283a9f29da107a89e86",
   "zug-einkauf": "8137716125f5bd36766943cad631b65e",
   "zug-gutschein": "adc4b64ea9c471aad2d6172c4ce949b9",
