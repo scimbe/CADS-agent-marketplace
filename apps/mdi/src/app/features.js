@@ -18,6 +18,8 @@
 //                                              saved.now ist beim naechsten Start die Uhrzeit (Ablauf pruefen)
 //   effects?: { typ: (fx, { dispatch, state, api, deps }) => void }
 //   needs?: (ev, ctx) => [kartenId…]   Karten, die ein Ereignis braucht; die Laufzeit laedt sie vorher (Nachladen)
+//   startsGo?: ["EREIGNIS", …]                 Ereignisse dieses Features, die im selben Schritt GO ausloesen (raise); die
+//                                              Laufzeit laedt vorher auch die Teile, die GO braucht (wie OPEN {start})
 //   needParts?: (ev, ctx) => [teilName…]  Feature-Teile (src/app/feature-parts.json), die ein Ereignis braucht; die
 //                                              Laufzeit laedt sie vorher (LOADING, sonst PART_FAIL mit Wiederholen);
 //                                              danach liefert partOf(name) (src/gen/fparts.js) das Modul synchron
