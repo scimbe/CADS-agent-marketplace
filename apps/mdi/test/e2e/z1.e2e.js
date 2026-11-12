@@ -5,6 +5,7 @@
 // file, action, ai) aus ADR 0001 c (Renderer F Stufe 3); die Durchlaeufe selbst stehen in z1-play.e2e.js.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { at } from "./lib/z1play.mjs";
 import { browser, open, act, axe, noOverflow, waitScreen, screen, VIEWS } from "./lib/grund.mjs";
 import { testRuntime, counter, until } from "../helpers.js";
 import { cardOf } from "../../src/cards/index.js";
@@ -59,13 +60,13 @@ for (const view of Object.keys(VIEWS)) {
     const bad = [], errs = [];
     for (const id of IDS) {
       const A = await open(b, { view, lang: view === "desk1280" ? "en" : "de" }); errs.push(...A.errs.map((e) => id + ": " + e));
-      await act(A.p, "open-" + id); await waitScreen(A.p, "card-view");
+      await act(A.p, "open-" + id); await at(A.p, "card-view");
       await checkAll(A.p, id + "/ansicht", bad);
       if (!(await primaryInFirstScreen(A.p, '[data-act="go"]'))) bad.push(id + "/ansicht: Hauptknopf nicht im ersten Bildschirm");
       await A.ctx.close();
       if (!LINKS[id]) continue;
       const R = await open(b, { view, hash: LINKS[id] }); errs.push(...R.errs.map((e) => id + "/empfang: " + e));
-      await waitScreen(R.p, "receive-show");
+      await at(R.p, "receive-show");
       await checkAll(R.p, id + "/empfang", bad);
       if (!(await primaryInFirstScreen(R.p, '[data-act="accept"]'))) bad.push(id + "/empfang: Annehmen nicht im ersten Bildschirm");
       await act(R.p, "accept");

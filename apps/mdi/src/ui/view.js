@@ -199,7 +199,7 @@ export function view(state, dispatch, env = {}) {
     body = freiR.body; panel = freiR.panel || [];
   } else if (homeR) {
     // Nachladen (ADR 0001 Nachtrag 2): ehrliche Ladezeile, solange ein Kartenteil kommt
-    body = [ctx.loading ? h("p", { class: "h-loading", role: "status", key: "loading" }, X.loadingCard) : null, ...homeR.body];
+    body = [ctx.loading ? h("p", { class: "h-loading", role: "status", "aria-live": "polite", key: "loading" }, X.loadingCard) : null, ...homeR.body];
   } else if (L === "card.view") {
     const modes = modesOf(card), isStatic = card.manifest.mode === "static";
     body = [stage(preview, {}, tree)];
@@ -211,6 +211,12 @@ export function view(state, dispatch, env = {}) {
     }
     if (ctx.mode === "bot") panel.push(radios("level", X.level, LEVELS.map((l, i) => ({ value: l.id, label: X.levels[i] })), ctx.level, (level) => dispatch({ type: "LEVEL", level })));
     if (ctx.mode === "live") panel.push(h("p", { class: "hint", key: "ip" }, X.ipHint));
+    // Gemuetlich spielen (Gate C): Echtzeitkarte mit rt.slow und Parameter tempo; ein grosser Schalter statt Zahlen
+    const slow = card.manifest.rt && Array.isArray(card.manifest.rt.slow) ? card.manifest.rt.slow : null;
+    if (slow && card.manifest.params.properties && card.manifest.params.properties.tempo) {
+      const on = G.paramsOf(ctx).tempo !== undefined && G.paramsOf(ctx).tempo < 1;
+      panel.push(h("button", { type: "button", class: "btn big rt-slow", key: "slow", role: "switch", "aria-checked": on ? "true" : "false", "data-act": "slow", on: { click: () => dispatch({ type: "SLOW", on: !on }) } }, (on ? "✓ " : "") + X.slowPlay));
+    }
     if (ctx.note) panel.push(h("p", { class: "note", role: "status", key: "note" }, String(ctx.note).startsWith("frei-") ? freiNote(ctx) : X.note[ctx.note]));
   } else if (L.startsWith("card.customize")) {
     body = [stage(preview, { class: "stage editing" }, tree), bubbleRow(card, ctx, X, dispatch, tree), h("p", { class: "hint center" }, X.bubblesHint)];
@@ -307,7 +313,9 @@ export function view(state, dispatch, env = {}) {
     acts.primary ? btn(acts.primary, "primary") : null,
     acts.secondary.map((s) => btn(s, "secondary")));
 
-  const main = h("main", { id: "main", class: "main s-" + L.replace(/\./g, "-") + (homeR ? " h-at-" + homeR.cls : "") + (L === "card.view" ? " sticky-actions" + (tree && tree.t === "frame" ? " fit-card" : "") : ""), key: "main", tabindex: "-1" },
+  const main = h("main", { id: "main", class: "main s-" + L.replace(/\./g, "-") + (homeR ? " h-at-" + homeR.cls : "") + (L === "card.view" ? " sticky-actions" + (tree && tree.t === "frame" ? " fit-card" : "") : ""), key: "main", tabindex: "-1",
+    // Laden eines Teils (ctx.loading): fuer Screenreader (aria-busy) und Testtreiber (data-loading="<teil>") erkennbar
+    "data-loading": typeof ctx.loading === "string" && ctx.loading ? ctx.loading : null, "aria-busy": ctx.loading ? "true" : null },
     h("div", { class: "col-a", key: "a" }, body),
     h("div", { class: "col-b", key: "b" }, panel, L === "card.customize.dialog" || L === "shelf" ? null : actions));
 

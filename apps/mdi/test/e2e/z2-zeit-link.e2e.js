@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { browser } from "./lib/grund.mjs";
-import { openCard, pickVariant, playTurn, roundTrip, check } from "./lib/z2.mjs";
+import { startGame, openCard, pickVariant, playTurn, roundTrip, check } from "./lib/z2.mjs";
 import { openTimed, timedStep } from "./lib/z2-zeit.mjs";
 
 const o = { view: "phone390", lang: "de", scheme: "light" };
@@ -24,7 +24,7 @@ for (const [id, variant, mode, mic] of CASES) {
     await openCard(A.p, id, null);
     if (variant) await pickVariant(A.p, id, variant);
     await A.p.getByRole("radio", { name: mode === "link" ? "Abwechselnd per Link" : "Ein Gerät", exact: true }).click();
-    await A.p.locator('[data-act="go"]').first().click();
+    await startGame(A.p);
     let k = 0;
     const onScreen = (p) => check(p, id + " Zug " + (++k), bad);
     let end;

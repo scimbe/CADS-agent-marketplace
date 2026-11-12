@@ -223,7 +223,8 @@ export const freiState = {
 export const FREI_SHELF = {
   // FREI { text? }: der Satz aus dem Block der Startseite (H, Gate C) kommt vorausgefuellt; die Kategorie waehlt die Person
   // trotzdem selbst (keine Vorauswahl), Login und 16+ bleiben wie sie sind. Ein Satz mit Krisenwoertern zeigt sofort die Hilfe.
-  FREI: { target: T("inhalt.frei.start"), actions: ["clearForm", "takeFreiText"] },
+  // Reihenfolge: Stand vom Anmelde-Gate (takeBack) zuerst, ein Satz im Ereignis (takeFreiText) gewinnt
+  FREI: { target: T("inhalt.frei.start"), actions: ["clearForm", "takeBack", "takeFreiText"] },
   DECK_OPEN: { target: T("inhalt.frei.deckkarte"), cond: "deckCardOk", actions: ["openDeckCard"] },
   DECK: { target: T("inhalt.frei.deck") },
   MINE: { target: T("inhalt.frei.meine") }
@@ -316,6 +317,8 @@ function askFx(ctx, emit, input, robot) {
 
 export const freiActions = {
   clearForm: (ctx) => F(ctx, { ...freshForm }),
+  // Stand vom Anmelde-Gate (frei.back, siehe freiContext) einmal ins Formular; danach verbraucht. SEND prueft wie immer (Krise)
+  takeBack: (ctx) => (ctx.frei.back ? F(ctx, { text: ctx.frei.back.text, art: ctx.frei.back.art, genre: ctx.frei.back.genre, back: null }) : ctx),
   takeFreiText: (ctx, ev) => {
     if (typeof ev.text !== "string") return ctx;
     const text = [...ev.text.replace(/[\p{Cc}\p{Cf}<>]/gu, " ").replace(/\s+/g, " ").trim()].slice(0, 200).join("");
@@ -434,10 +437,19 @@ export const freiActions = {
 };
 
 /** Kontext der freien Karte (zuletzt gewaehlt nur als markierter Vorschlag, nie als stille Auswahl) */
+// Rueckkehr vom Anmelde-Gate (?go=erschaffen): Satz, Art und Genre kommen aus dem Geraetespeicher zurueck, aber nur, wenn
+// sie hoechstens BACK_MS alt sind (sonst stuende ein alter Satz Tage spaeter im Feld). Gespeichert wird vor dem Gate (persist).
+export const BACK_MS = 15 * 60 * 1000;
+function backOf(st, now) {
+  const b = st && st.back && typeof st.back === "object" ? st.back : null;
+  if (!b || !Number.isFinite(b.at) || !Number.isFinite(now) || now - b.at < 0 || now - b.at > BACK_MS) return null;
+  return { text: [...String(b.text || "")].slice(0, 200).join(""), art: ARTS.includes(b.art) ? b.art : "", genre: GENRES.includes(b.genre) ? b.genre : "" };
+}
 export function freiContext(saved) {
-  const l = saved && saved.freiLast && typeof saved.freiLast === "object" ? saved.freiLast : {};
+  const st = saved && saved.feat && saved.feat.frei && typeof saved.feat.frei === "object" ? saved.feat.frei : null;
+  const l = st && st.last && typeof st.last === "object" ? st.last : {};
   return {
-    frei: { ...freshForm, last: { art: ARTS.includes(l.art) ? l.art : "", genre: GENRES.includes(l.genre) ? l.genre : "" }, req: 0, phase: null, place: 0, missing: null, taken: null, gate: null, share: null,
+    frei: { ...freshForm, back: backOf(st, saved && saved.now), last: { art: ARTS.includes(l.art) ? l.art : "", genre: GENRES.includes(l.genre) ? l.genre : "" }, req: 0, phase: null, place: 0, missing: null, taken: null, gate: null, share: null,
       deck: { load: null, cards: [], v: -1 }, card: null, use: null, vote: null, acted: false, mine: null,
       report: { reason: null, sending: false, sent: null, back: null, doc: null },
       bild: { use: "card", style: "comic", text: "", st: null, err: null, req: 0, phase: null, place: 0, res: null, kept: false },
@@ -452,6 +464,9 @@ import { browserMedia } from "../../broker/media.js";
 export { freiParts };
 export const frei = {
   id: "frei",
+  // Geraetespeicher (mdi.f.frei): zuletzt gewaehlt (last) und der Stand vor dem Anmelde-Gate (back)
+  store: true,
+  persist: (ctx, now) => (ctx.frei && (ctx.frei.text || ctx.frei.art || ctx.frei.genre) ? { last: ctx.frei.last, back: { text: ctx.frei.text, art: ctx.frei.art, genre: ctx.frei.genre, at: now } } : { last: ctx.frei && ctx.frei.last }),
   needs: freiNeeds,
   needParts: freiParts,
   states: { frei: freiState },

@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { browser, open, act, screen, waitScreen } from "./lib/grund.mjs";
-import { openCard, check } from "./lib/z2.mjs";
+import { openCard, check, startGame, ready } from "./lib/z2.mjs";
 import { cardOf } from "../../src/cards/index.js";
 
 const IDS = ["zug-lob", "zug-kennst", "zug-luege", "zug-snack", "zug-auftrag", "karte-ausrede", "zug-wort", "zug-auktion", "zug-schmuggel", "zug-wette",
@@ -23,8 +23,8 @@ for (const view of ["phone412", "desk1280"]) {
       const mode = cardOf(id).manifest.players.max === 1 ? "alone" : "alone";
       await openCard(A.p, id, mode);
       await check(A.p, view + " " + id + " Karte", bad);
-      await act(A.p, "go");
-      for (let i = 0; i < 40 && (await screen(A.p)) !== "card-play-turn"; i++) { if ((await screen(A.p)) === "card-play-cover") await act(A.p, "cover-ok"); else await A.p.waitForTimeout(25); }
+      await startGame(A.p);
+      for (let i = 0; i < 200 && (await screen(A.p)) !== "card-play-turn"; i++) { await ready(A.p); if ((await screen(A.p)) === "card-play-cover") await act(A.p, "cover-ok"); else await A.p.waitForTimeout(50); }
       await waitScreen(A.p, "card-play-turn");
       await check(A.p, view + " " + id + " Zug 1", bad);
       errs.push(...A.errs.map((e) => id + ": " + e));
