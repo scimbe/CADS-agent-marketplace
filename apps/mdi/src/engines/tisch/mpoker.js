@@ -83,6 +83,17 @@ function secrets(n, rng) {
   return { k: key(rng), perm: p, ki: ki };
 }
 function isPoint(h) { return typeof h === "string" && /^[0-9a-f]{64}$/.test(h); }
+// Neu (Security-Review L3): ein Punkt aus dem Netz muss kanonisch kodiert sein (u < p, Bit 255 frei), darf nicht 0 sein
+// und muss in der Untergruppe der Ordnung L liegen: L * P ist der unendlich ferne Punkt (x-Ausgabe 0). Punkte kleiner
+// Ordnung (1, 2, 4, 8) und Punkte der Twist-Kurve fallen damit heraus (sie wuerden Bits fremder Schluessel verraten).
+var P25519 = (1n << 255n) - 19n, LBYTES = null;
+function inGroup(h) {
+  if (!isPoint(h)) return false;
+  var u = toBig(h);
+  if (u === 0n || u >= P25519) return false;
+  if (!LBYTES) LBYTES = bytes(fromBig(L));
+  return hex(ladder(LBYTES, bytes(h))) === "0".repeat(64);
+}
 // out[i] = k * deck[perm[i]]
 function shuffle(deck, sec) { return sec.perm.map(function (j) { return pow(sec.k, deck[j]); }); }
 function lock(deck, sec) { var ik = invL(toBig(sec.k)); return deck.map(function (v, i) { return pow(fromBig(ik * toBig(sec.ki[i]) % L), v); }); }
@@ -124,5 +135,7 @@ function pointFor(id, kis) { var p = BigInt(id + 1) % L; kis.forEach(function (k
 // Teilstuecke (Strang T): nur die Positionen from..to-1 berechnen, damit ein Schritt hoechstens ein paar Leiterschritte kostet
 function shuffleAt(deck, sec, from, to) { var o = []; for (var i = from; i < to; i++) o.push(pow(sec.k, deck[sec.perm[i]])); return o; }
 function lockAt(deck, sec, from, to) { var ik = invL(toBig(sec.k)), o = []; for (var i = from; i < to; i++) o.push(pow(fromBig(ik * toBig(sec.ki[i]) % L), deck[i])); return o; }
-const api = { shuffleAt: shuffleAt, lockAt: lockAt, composed: composed, pointFor: pointFor, L: L, ladder: ladder, pow: pow, cards: cards, secrets: secrets, shuffle: shuffle, lock: lock, open: open, verify: verify, isPoint: isPoint, validSecrets: validSecrets };
+// Skalar aus dem Netz (Positionsschluessel): 64 Hex, Wert in (0, L)
+function isScalar(h) { if (!isPoint(h)) return false; var v = toBig(h); return v > 0n && v < L; }
+const api = { isScalar: isScalar, inGroup: inGroup, shuffleAt: shuffleAt, lockAt: lockAt, composed: composed, pointFor: pointFor, L: L, ladder: ladder, pow: pow, cards: cards, secrets: secrets, shuffle: shuffle, lock: lock, open: open, verify: verify, isPoint: isPoint, validSecrets: validSecrets };
 export default api;

@@ -22,7 +22,8 @@ import { rng as mkRng, sha256, canon } from "../../contract/sdk.js";
 
 export const CH = 24;                        // Schluessel je Eingabe (Huelle: kanonisch hoechstens 2048 Byte, ADR 0001 f)
 export const CHP = 12;                       // Punkte je Misch-/Sperr-Eingabe: je Punkt ein Leiterschritt (~2 ms), Schritt bleibt kurz
-export const CHK = 12;                       // Positionen je Pruefschritt am Rundenende (je Position ein Leiterschritt)
+export const CHK = 12;
+export const RUN_MAX = 64;                   // Leiterschritte, die ein Sitz am Stueck ausloesen darf (Security-Review L2)                       // Positionen je Pruefschritt am Rundenende (je Position ein Leiterschritt)
 const HEX64 = /^[0-9a-f]{64}$/, HEXD = "0123456789abcdef";
 
 export function handSeed(m, h) { return sha256(m + "|hand|" + h); }
@@ -292,6 +293,13 @@ export function makeTable(R, game) {
     if (!pt) bad("Partie vorbei");
     if (input.seat !== pt.seat) bad("nicht am Zug");
     const seat = input.seat;
+    // L2: jede Eingabe kostet hoechstens so viele Leiterschritte, wie sie Punkte/Karten traegt; ein Sitz darf am Stueck
+    // (ohne dass ein anderer dran war) hoechstens RUN_MAX ausloesen. Die Zaehlung haengt nur an der Eingabe, also gleich
+    // auf allen Geraeten. Mehr als die Regeln je brauchen (Mischen eines Doppelkopf-Decks: 48) wird mit Grund abgelehnt.
+    const cost = ladderCost(pub, input);
+    const run = pub.run && pub.run.seat === seat ? pub.run.cost + cost : cost;
+    if (run > RUN_MAX) bad("zu viele Rechenschritte in diesem Zug (" + run + " > " + RUN_MAX + ")");
+    pub.run = { seat, cost: run };
     if (input.t === "reveal") {
       if (!pt.reveal) bad("reveal");
       const mine = priv[seat];
@@ -306,6 +314,8 @@ export function makeTable(R, game) {
       if (input.t !== pub.ph) bad(pub.ph);
       const it = chunkItems(input), want = Math.min(CHP, N - pub.buf.length);
       if (it.length !== want || !it.every((x) => HEX64.test(x))) bad("Punkte");
+      // L3: fremde Punkte muessen in der Untergruppe liegen (eigene sind auf diesem Geraet selbst berechnet)
+      if (!priv[seat] && !it.every(MP.inGroup)) bad("Punkt nicht in der Untergruppe");
       pub.buf.push(...it);
       if (pub.buf.length === N) {
         const h = deckHash(pub.buf);
@@ -334,14 +344,14 @@ export function makeTable(R, game) {
       if (kt) {
         if (input.t !== "key") bad("key");
         const it = chunkItems(input), list = kt.list.slice(0, CH);
-        if (it.length !== list.length || !it.every((x) => HEX64.test(x))) bad("Schluessel");
+        if (it.length !== list.length || !it.every(MP.isScalar)) bad("Schluessel");
         list.forEach((p, i) => { const k = pub.keys[p] || range(n).map(() => null); k[seat] = it[i]; pub.keys[p] = k; });
       } else if (pub.r.phase === "show") {
         if (input.t !== "show") bad("show");
         const own = ownPositions(pub, seat), pairs = [[input.p0, input.k0], [input.p1, input.k1]].filter((x) => x[0] !== undefined);
         if (!pairs.length) bad("show leer");
         for (const [p, k] of pairs) {
-          if (!own.includes(p) || pub.show[p] !== undefined || !HEX64.test(k)) bad("show Position");
+          if (!own.includes(p) || pub.show[p] !== undefined || !MP.isScalar(k)) bad("show Position");
           const ks = (pub.keys[p] || range(n).map(() => null)).slice(); ks[seat] = k;
           const id = MP.open(pub.fin[p], ks, N); if (id < 0) bad("show Schluessel");
           pub.show[p] = id;
@@ -355,7 +365,7 @@ export function makeTable(R, game) {
         let a;
         if (input.t === "play" && !stacks) {
           const p = input.pos;
-          if (!Number.isInteger(p) || !ownPositions(pub, seat).includes(p) || pub.op[p] !== undefined || !HEX64.test(input.key)) bad("Position");
+          if (!Number.isInteger(p) || !ownPositions(pub, seat).includes(p) || pub.op[p] !== undefined || !MP.isScalar(input.key)) bad("Position");
           const ks = (pub.keys[p] || []).slice(); ks[seat] = input.key;
           if (ks.length !== n || !ks.every((x) => !!x)) bad("Schluessel fehlen");
           const id = MP.open(pub.fin[p], ks, N); if (id < 0) bad("Schluessel oeffnet keine Karte");
@@ -381,6 +391,13 @@ export function makeTable(R, game) {
     return { pub, priv };
   }
 
+  function ladderCost(pub, input) {
+    if (input.t === "mix" || input.t === "lock") return Array.isArray(input.d) ? input.d.length : 0;
+    if (input.t === "play" && !stacks) return 1;
+    if (input.t === "show") return input.p1 !== undefined ? 2 : 1;
+    if (input.t === "check") return Math.min(CHK, (pub.pend || []).length);
+    return 0;
+  }
   function status(state) {
     const pub = state.pub, pt = protoTurn(pub), over = pub.ph === "over";
     let winner = -1;

@@ -216,3 +216,37 @@ test("Rundenende ohne langen Schritt: geoeffnete Karten pruefen ohne Leiterschri
   assert.equal(seen.doko.checks, 0, "Doppelkopf: alle 48 Karten gespielt, keine Leiterschritte am Ende");
   assert.ok(seen.skat.checks >= 1, "Skat eingepasst: nie geoeffnete Karten in Abschnitten");
 });
+
+test("Security L3: Punkte aus dem Netz muessen in der Untergruppe liegen; Schluessel muessen Skalare in (0, L) sein", () => {
+  assert.ok(MP.cards(48).every(MP.inGroup), "echte Karten liegen in der Untergruppe");
+  // Punkte kleiner Ordnung (libsodium-Sperrliste), Null, nicht kanonisch, Twist-Kurve (u = 2)
+  for (const h of ["0".repeat(64), "01".padEnd(64, "0"), "e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800",
+    "5f9c95bca3508c24b1d0b1559c83ef5b04445cc4581c8e86d8224eddd09f1157", "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f", "02".padEnd(64, "0")]) assert.equal(MP.inGroup(h), false, h);
+  assert.equal(MP.isScalar("0".repeat(64)), false); assert.equal(MP.isScalar("f".repeat(64)), false);
+  // eine fremde Misch-Eingabe mit einem Punkt kleiner Ordnung wird abgelehnt, ehe jemand damit rechnet
+  const card = cardFor("bauernskat"), ent = entropy("l3");
+  const mine = [0, 1].map((s) => S.makeSecrets(card, [s], ent)), commits = mine.map((m, s) => m.commits[s]);
+  const seed = sha256("l3").slice(0, 32);
+  let a = S.newSession(card, { params: { runden: 1, regeln: [] }, seed, mine: [0], secrets: mine[0].secrets, commits });
+  let b = S.newSession(card, { params: { runden: 1, regeln: [] }, seed, mine: [1], secrets: mine[1].secrets, commits });
+  const honest = due(card, a);
+  const evil = { ...honest, d: honest.d.map((x, i) => (i === 3 ? "e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800" : x)) };
+  assert.throws(() => S.apply(card, b, evil), (e) => e.code === "zug-ungueltig" && /Untergruppe/.test(e.message));
+  b = S.apply(card, b, honest); a = S.apply(card, a, honest);
+  assert.equal(S.pubHash(a), S.pubHash(b));
+});
+
+test("Security L2: ein Sitz kann am Stueck hoechstens 64 Leiterschritte ausloesen; ehrliche Partien bleiben darunter", () => {
+  // ehrliche Partien aller drei Spiele laufen durch (siehe Golden), hier: der hoechste Lauf je Spiel
+  for (const game of ["doko", "skat", "bauernskat"]) {
+    let max = 0;
+    playAlone(game, { tag: "l2|" + game, params: { runden: 1, regeln: [] }, chooser: autoChooser(), onState(x) { if (x.state.pub.run) max = Math.max(max, x.state.pub.run.cost); } });
+    assert.ok(max <= 64 && max >= 12, game + ": " + max);
+  }
+  // ein Sitz, der nach seinem Mischen weiter Punkte schickt, wird mit Grund abgelehnt
+  const card = cardFor("doko"), T = card.engine, all = [0, 1, 2, 3];
+  let s = S.newSession(card, { params: { runden: 1, regeln: [] }, seed: sha256("l2").slice(0, 32), mine: all, ...S.makeSecrets(card, all, entropy("l2")) });
+  const pub = { ...s.state.pub, run: { seat: 0, cost: 60 } };
+  const mv = card.moves(card.observe({ pub, priv: s.state.priv }, 0), 0)[0];
+  assert.throws(() => T.step({ pub, priv: s.state.priv }, mv), /zu viele Rechenschritte/);
+});
