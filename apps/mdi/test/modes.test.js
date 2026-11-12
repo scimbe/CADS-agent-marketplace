@@ -32,9 +32,6 @@ async function scenario(id, mode) {
   const B = testRuntime({ entropy: counter("b"), async: true, live: net.loader });
   const A2 = mode === "live" ? testRuntime({ entropy: counter("c"), async: true, live: net.loader }) : null;
   const a = A2 || A;
-  a.dispatch({ type: "OPEN", id }); a.dispatch({ type: "MODE", mode }); a.dispatch("GO");
-  const sent = [];
-  if (mode === "alone") { playTurns(a); await until(() => L(a) === "card.play.over"); return { a }; }
   if (mode === "bot") {
     // Bots laufen ueber die Warteschlange der Laufzeit (schedule): hier synchron abgearbeitet (flush), ohne Wanduhr.
     // So haengt der Test nicht an der Rechnerlast (Befund H: Zeitueberschreitung unter Last), und jeder Lauf ist gleich.
@@ -44,6 +41,9 @@ async function scenario(id, mode) {
     S.flush();
     assert.equal(L(S), "card.play.over", "Bot-Partie endet"); noForeignSecret(S); return { a: S };
   }
+  a.dispatch({ type: "OPEN", id }); a.dispatch({ type: "MODE", mode }); a.dispatch("GO");
+  const sent = [];
+  if (mode === "alone") { playTurns(a); await until(() => L(a) === "card.play.over"); return { a }; }
   if (mode === "link") {
     // Hin und her per Link, bis beide das Ende sehen; der Treiber gibt nur Links weiter
     // Kettenkarten (Sitz = Zugindex, z. B. Terminumfrage) brauchen so viele Geraete wie Sitze; der Link geht reihum
