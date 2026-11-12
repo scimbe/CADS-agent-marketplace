@@ -101,9 +101,10 @@ export function levelBox(card, ctx, dispatch) {
       h("button", { type: "button", class: "lv-b", "aria-label": label + " " + Y.more, "data-act": "lv-plus-" + k, disabled: at === st.values.length - 1 || null, on: { click: () => to(at + 1) } }, "+"),
       h("span", { class: "lv-n", "aria-hidden": "true" }, names[at]));
   });
-  return h("section", { class: "lv-box", key: "level", "aria-label": L(v && v.title) || Y.level },
-    h("p", { class: "lv-t" }, L(v && v.title) || Y.level), ...rows,
-    chips.length ? h("div", { class: "lv-chips", role: "group", "aria-label": L(card.manifest.title) }, chips.map((c) => h("button", { type: "button", class: "chip", key: c.id, "data-act": "lv-var-" + c.id, "aria-pressed": c.id === ctx.variant ? "true" : "false", on: { click: () => dispatch({ type: "OPEN", id: card.manifest.id, variant: c.id }) } }, L(c.chip)))) : null);
+  return h("section", { class: "lv-box", key: "lvbox", "aria-label": L(v && v.title) || Y.level },
+    h("p", { class: "lv-t", key: "lv-t" }, L(v && v.title) || Y.level), ...rows,
+    chips.length ? h("div", { class: "lv-chips", key: "lv-c", role: "group", "aria-label": L(card.manifest.title) }, chips.map((c) => h("button", { type: "button", class: "chip", key: c.id, "data-act": "lv-var-" + c.id, "aria-pressed": c.id === ctx.variant ? "true" : "false", on: { click: () => dispatch({ type: "VARIANT", variant: c.id }) } }, L(c.chip)))) : null,
+    chips.length ? h("p", { class: "hint", key: "lv-h" }, lang === "en" ? "A chip loads that variant's values; your own changes go." : "Ein Chip lädt die Werte der Variante, eigene Änderungen gehen dabei verloren.") : null);
 }
 
 function radios(name, label, items, value, onPick) {

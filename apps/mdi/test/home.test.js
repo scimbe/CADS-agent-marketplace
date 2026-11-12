@@ -317,7 +317,7 @@ test("Startansicht Flug (Board GFlugStart): Level-Regler mit -/+ und Stufennamen
   assert.ok(pt.includes("Du bist dran") && pt.includes('"class":"play-bar"') && pt.includes("Regeln"), "Leiste und Regeln");
 });
 
-test("Varianten-Chips: nur Varianten mit chip (Manifest), Wechsel per OPEN {id, variant}", async () => {
+test("Varianten-Chips: nur Varianten mit chip (Manifest), Wechsel per VARIANT", async () => {
   const { levelBox } = await import("../src/ui/view.js");
   const card = { manifest: { id: "flug", title: { de: "Flug" }, params: { properties: {} }, variants: [{ id: "a", chip: { de: "Klassisch" } }, { id: "b" }, { id: "c", chip: { de: "Mond", en: "Moon" } }] } };
   const sent = [], n = levelBox(card, { lang: "de", variant: "a", params: {}, cardId: "flug" }, (e) => sent.push(e));
@@ -325,6 +325,15 @@ test("Varianten-Chips: nur Varianten mit chip (Manifest), Wechsel per OPEN {id, 
   const chips = find(n, (x) => x.props && /^lv-var-/.test(x.props["data-act"] || ""));
   assert.deepEqual(chips.map((c) => c.children[0]), ["Klassisch", "Mond"]);
   assert.equal(chips[0].props["aria-pressed"], "true");
-  chips[1].props.on.click(); assert.deepEqual(sent, [{ type: "OPEN", id: "flug", variant: "c" }]);
+  chips[1].props.on.click(); assert.deepEqual(sent, [{ type: "VARIANT", variant: "c" }]);
   assert.equal(levelBox({ manifest: { params: { properties: {} }, variants: [{ id: "x" }] } }, { lang: "de", params: {} }, () => {}), null, "ohne Stufen und Chips nichts");
+});
+
+test("VARIANT in der Startansicht: nur Varianten mit chip, Parameter der Variante, Schema geprueft", () => {
+  let s = go(start(), { type: "OPEN", id: "flug" });
+  const r = go(s, { type: "VARIANT", variant: "spiel-mond" });
+  assert.equal(r.ctx.variant, "spiel-mond");
+  assert.equal(r.ctx.params.flug.gravity, 1000, "Parameter der Variante (spiel-mond: gravity 1000)");
+  const no = go(r, { type: "VARIANT", variant: "plan-01" });
+  assert.equal(no.ctx.variant, "spiel-mond", "Variante ohne chip wird nicht gewechselt");
 });
