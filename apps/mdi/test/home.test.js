@@ -31,9 +31,14 @@ test("Start laedt Meins genau einmal (home.load) und zeigt das Kalenderblatt des
   const idea = R.ideaOn(s.ctx.today);
   assert.ok(texts(s).includes("12"), "Tag 12");
   assert.equal(idea.id, "arcade-panzer", "Altcode am 12.11.2026: Insel-Panzer");
-  // Karte gibt es im neuen Code noch nicht: als kommt markiert, nicht ersetzt; Hauptaktion = Merken
-  assert.equal(actionsOf(s).primary.id, "day-save");
-  assert.ok(texts(s).includes("kommt"));
+  // Hauptaktion haengt nur davon ab, ob die Karte im Register ist: vorhanden -> Los, fehlt -> "kommt" + Merken (nie ersetzt)
+  assert.equal(actionsOf(s).primary.id, newIdOf(idea.id) ? "day-go" : "day-save");
+  let k = s;
+  for (let off = 0; off <= 31 && newIdOf(R.ideaOn(k.ctx.today + k.ctx.home.off).id); off++) k = go(k, { type: "DAY", d: 1 });
+  if (!newIdOf(R.ideaOn(k.ctx.today + k.ctx.home.off).id)) {
+    assert.equal(actionsOf(k).primary.id, "day-save", "fehlende Karte: Merken");
+    assert.ok(texts(k).includes("kommt"), "fehlende Karte: als kommt markiert");
+  }
   const back = go(go(s, { type: "OPEN", id: "gruss" }), { type: "BACK" });
   assert.equal(fx(back, "home.load").length, 0, "Rueckkehr laedt nicht erneut");
 });
