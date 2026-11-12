@@ -6,7 +6,7 @@ import { machine } from "../../app/machine.js";
 import { render } from "../../render/render.js";
 import { rng } from "../../contract/sdk.js";
 import { ft } from "./texts.js";
-import { ARTS, GENRES, MODES, SOON, previewOf, targetOf, freiParams } from "./doc.js";
+import { ARTS, GENRES, MODES, SOON, previewOf, targetOf, targetIdOf, freiParams } from "./doc.js";
 import { cardOf, cardIdOf, modelFields } from "./chart.js";
 import { manifestOf } from "../../cards/index.js";
 import { crisis } from "../../broker/ai.js";
@@ -258,8 +258,9 @@ export function freiView(state, X, dispatch, L) {
     case "vorschau": {
       const o = f.opt;
       body = [status(ft(lang, "create_wait_ready"), "hint strong", "rd"), preview(o.doc, lang), ...noteLines(o.note, lang, dispatch)];
-      const t = targetOf(o.doc, cardOf);
-      if (t.missing) panel.push(h("p", { class: "hint", key: "miss" }, ft(lang, "frei_missing", { x: t.missing })));
+      // Zielkarte vor dem TAKE nur ueber Metadaten pruefen (sie laedt erst beim Uebernehmen, Strang K/F)
+      const tid = targetIdOf(o.doc);
+      if (!tid || !cardIdOf(tid)) panel.push(h("p", { class: "hint", key: "miss" }, ft(lang, "frei_missing", { x: tid || "?" })));
       primary = a("take", ft(lang, "create_take"), "TAKE");
       secondary = [a("drop", ft(lang, "create_drop"), "DROP"), a("refine", ft(lang, "create_robot_h"), "REFINE")];
       break;
