@@ -9,8 +9,9 @@
 //   Eingabe { t:"close", seat } schliesst eine Liste (alt close, nur Karten mit game.close).
 // Sitz: "pair" = Zuege abwechselnd (k % 2), "chain" = jeder Zug ein eigener Sitz (k), "room" = ein Geraet (Sitz 0).
 // Die Uhr gibt es in der Karte nicht: Ob ein Tor schon offen ist, entscheidet nur die Ansicht mit ctx.today.
-import { textsFor, fmt, intIn } from "./alt.js";
+import { textsFor, fmt, intIn, clean as cleanText } from "./alt.js";
 import { okAnswer } from "./check.js";
+import { shopMerge as mergeList } from "./merge.js";
 
 // ---------- Antworten im Link: der Rohwert (int, string, Listen davon), wie F's Widgets ihn als `a` schicken ----------
 // Die Huelle (kanonisch <= 2048 Byte, keine Steuerzeichen, kein <>) prueft der Host global (ADR 0001 f); accepts prueft
@@ -69,8 +70,7 @@ export function makeZug(def) {
   function acceptsAnswer(pub, v) {
     const g = gameOf(pub), ps = prompts(g, pub), p = ps[pub.now.length];
     if (!p || !intJson(v)) return false;
-    // ein Prompt, der nur zeigt und endet (alt end:true, z. B. pay), nimmt keine Antwort: der Zug bleibt hier stehen
-    if (p.end === true || (typeof p.end === "function" && p.end(docFor(pub), pub.m))) return false;
+    // end:true (pay): die Ansicht bietet keinen Weiter-Knopf (alt turn-ui.js:663); als Regel gilt okAnswer wie alt
     return okAnswer(p, v, docFor(pub), "de", pub.m, pub.now);
   }
   function accepts(obs, seat, input) {
@@ -152,8 +152,48 @@ export function makeZug(def) {
     /** Eingabe fuer eine Antwort (Host/Ansicht). today nur noetig, wenn dieser Prompt einen Tag traegt. */
     answer(pub, seat, v, today) { return { t: "ans", seat, a: v, ...dayFor(gameOf(pub), pub, today) }; },
     view(obs, seat, ctx) { return viewOf(card, obs, seat, ctx || {}, def); },
-    /** snap-Karten: Der Link traegt die Liste, wie sie jetzt ist, nicht den Weg (alt snap). Vorschlag an Strang F. */
-    compact(log) { return log; }
+    /** Freie Karte (Strang K): Doc {k:"turn", i:<Katalog-id>, t?, s?, w?} -> Parameter oder null; und zurueck (Robot). */
+    fromFree(doc) {
+      if (!doc || typeof doc !== "object" || typeof doc.i !== "string") return null;
+      const v = (def.legacy || {})[doc.i];
+      if (!v) return null;
+      const props = manifest.params.properties, out = {};
+      for (const [k, p] of Object.entries(props)) out[k] = JSON.parse(JSON.stringify(p.default));
+      if (def.variantKey) out[def.variantKey] = v;
+      if (props.titel && typeof doc.t === "string") { const t = cleanText(doc.t, props.titel.maxLength); if (t) out.titel = t; }
+      return out;
+    },
+    toFree(params) {
+      const v = def.variantKey ? params[def.variantKey] : Object.keys(def.games)[0];
+      const id = Object.keys(def.legacy || {}).find((k) => def.legacy[k] === v) || manifest.id;
+      return { k: "turn", i: id, ...(params.titel ? { t: params.titel } : {}) };
+    },
+    /** snap-Karten (manifest.link.snap, ADR 0001 f): Der Link traegt die Liste, wie sie jetzt ist, nicht den Weg dorthin
+     *  (alt snap, turns.js:1186). Der letzte Zug einer snap-Karte ist ein einzelner Prompt mit der ganzen Liste; aus ihm
+     *  und einem etwaigen close entsteht ein kurzes Log, das von init aus denselben Listenstand ergibt. Danach ist der
+     *  andere Sitz dran. Ohne snap bleibt das Log unveraendert. */
+    compact(log) {
+      const lastAns = [...log].reverse().find((x) => x && x.t === "ans");
+      if (!lastAns || !log.length) return log;
+      const closed = log.some((x) => x && x.t === "close");
+      const out = [{ t: "ans", seat: 0, a: lastAns.a }];
+      if (closed) out.push({ t: "close", seat: 1 });
+      return out;
+    },
+    /** Vereinigung zweier Staende derselben snap-Partie (alt shopMerge beim Empfang, turn-ui.js shopSeen): kommutativ,
+     *  assoziativ, idempotent. Geschlossen bleibt geschlossen. */
+    merge(a, b) {
+      const g = gameOf(b);
+      if (!g.snap || !g.list || a.v !== b.v || a.seed !== b.seed) return copy(b);
+      const la = a.m.length ? a.m[0][0] : null, lb = b.m.length ? b.m[0][0] : null;
+      const list = la && lb ? mergeList(la, lb, g.list) : copy(lb || la);
+      const out = copy(b);
+      out.m = list ? [[list]] : [];
+      out.now = [];
+      out.o = Math.max(a.o === 2 ? 2 : 0, b.o === 2 ? 2 : 0);
+      out.k = list ? 1 : 0;
+      return out;
+    }
   };
   function dayFor(g, pub, today) {
     const last = pub.now.length + 1 === prompts(g, pub).length;

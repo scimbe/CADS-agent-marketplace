@@ -251,3 +251,45 @@ export function giftGame(euro, who, extra) {
 const geschenk = giftGame([10, 20, 30, 50], true);
 
 export const GAMES = { einig, rangliste, kapsel, post, gutschein, rubbellos, urkunde, morgen, umschlag, wichteln, reihum, kerzen, termin, danke, sorry, sammeln, einkauf, wunsch, geschenk };
+
+// ---------- Poster-Varianten: Wohlfuehlkarten (warm.js:10-56), karte-lob, halloween, warm-sorry ----------
+// Alt waren das statische Karten (kind card) mit Satzauswahl, Vorname vorn ("Lea, du bist toll.") und einer passenden
+// Antwortkarte (re). Hier als Zwei-Schritt-Zug: Satz + Namen waehlen, Empfang zeigt die Karte. Kein Zaehler, kein
+// "schick es weiter": Antworten darf man, muss nie (warm.js:1-3).
+import POSTER from "./poster.json" with { type: "json" };
+export const PTEXT = { de: { ...POSTER.text.de }, en: { ...POSTER.text.en } };
+export const POSTERS = POSTER.posters;
+const NAME_RE = /^[\p{L}][\p{L} .'-]*$/u, MAX_NAME = 14;
+/** Nur ein schlichter Vorname; "" = kein Name, null = keiner, der auf eine Karte darf (warm.js:24-29). */
+export function warmName(raw) {
+  const s = String(raw == null ? "" : raw).replace(/\s+/g, " ").trim();
+  if (!s) return "";
+  const n = cleanName(s);
+  return n && n === s && NAME_RE.test(n) ? n : null;
+}
+import { clean as qclean } from "./alt.js";
+function cleanName(s) { return qclean(s, MAX_NAME); }
+/** "Lea" + "Du bist toll." -> "Lea, du bist toll." Englisch behaelt sein grosses I (warm.js:31-36). */
+export function named(line, who) {
+  const n = warmName(who);
+  if (!n) return line;
+  const rest = /^I\b/.test(line) ? line : line.charAt(0).toLowerCase() + line.slice(1);
+  return qclean(n + ", " + rest, 90) || line;
+}
+function PT(lang) { return textsFor(PTEXT, lang); }
+function lines(id, lang) { const p = POSTERS[id]; return (p[lang] || p.de).lines; }
+export function posterGame(id) {
+  const opt = (l) => ({ w: "text", l, max: MAX_NAME, check: (v) => typeof v === "string" && (v === "" || warmName(v) === v) });
+  return {
+    poster: id,
+    turns: [[{ w: "pick", n: 1, auto: true, l: "pos_line", from: (doc, m, now, lang) => lines(id, lang) }, opt("pos_to"), opt("pos_from")],
+      [{ w: "show", l: "pos_got", list: (doc, m, now, lang) => [named(lines(id, lang)[m[0][0][0]], m[0][1])].concat(m[0][2] ? [fmt(PT(lang).pos_sig, { n: m[0][2] })] : []) }]],
+    peekWhole: (doc, m, lang) => (m.length === 1 ? named(lines(id, lang)[m[0][0][0]], m[0][1]) : ""),
+    result(doc, m, lang) {
+      const p = POSTERS[id], X = PT(lang), re = (p.re || []).filter((r) => POSTERS[r] && r !== id)[0];
+      const out = { h: named(lines(id, lang)[m[0][0][0]], m[0][1]), lines: m[0][2] ? [fmt(X.pos_sig, { n: m[0][2] })] : [] };
+      if (re) out.lines.push(fmt(X.pos_reply, { t: (POSTERS[re][lang] || POSTERS[re].de).t.replace("|", " ") }));
+      return out;
+    }
+  };
+}
