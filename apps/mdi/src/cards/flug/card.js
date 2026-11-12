@@ -15,6 +15,14 @@ import { fmt } from "../../engines/flug/text.js";
 
 const TMAX = 90 * TPS;
 const FX0 = () => ({ flash: 0, shake: 0, since: {} });
+// Sitze aus players: Rollen-Array des Hosts (["human","none"], ["ghost","human"] …) oder Anzahl; "none" = kein Flieger
+function seatsOf(players) {
+  if (Array.isArray(players)) return players.map((r) => r !== "none");
+  const n = Math.max(1, Math.min(2, players || 1)), out = []; for (let i = 0; i < n; i++) out.push(true); return out;
+}
+const active = (sims) => sims.filter(Boolean);
+// Reihenfolge fuer das Bild: der eigene Sitz zuerst, die anderen als Geist
+function order(sims, seat) { const me = sims[seat] || active(sims)[0]; return [me].concat(sims.filter((s) => s && s !== me)); }
 function say(key, o) { return { de: fmt(TX.de[key], o), en: fmt(TX.en[key], o) }; }
 
 function init({ params: input, players }) {
@@ -27,15 +35,14 @@ function init({ params: input, players }) {
     st.sims = [initState(g.params, g.seed, null, 1), initState(g.params, g.seed, null, 1)];
     st.rr = [{ r: hash32("fly|" + JSON.stringify(a)) }, { r: hash32("fly|" + JSON.stringify(b)) }];
   } else {
-    const n = mode === "train" ? 1 : Math.max(1, Math.min(2, players || 1));
-    st.sims = [];
-    for (let i = 0; i < n; i++) st.sims.push(Object.assign(initState(g.params, g.seed, routeParams(g), g.k), { trail: [] }));
+    const seats = mode === "train" ? [true] : seatsOf(players);
+    st.sims = seats.map((on) => (on ? Object.assign(initState(g.params, g.seed, routeParams(g), g.k), { trail: [] }) : null));
   }
   return st;
 }
 function copy(st) {
   return { ...st, fx: { ...st.fx, since: { ...st.fx.since } }, samples: st.samples.slice(), rr: st.rr ? st.rr.map((x) => ({ ...x })) : undefined,
-    sims: st.sims.map((s) => Object.assign(copyState(s), s.trail ? { trail: s.trail.slice() } : {})) };
+    sims: st.sims.map((s) => (s ? Object.assign(copyState(s), s.trail ? { trail: s.trail.slice() } : {}) : null)) };
 }
 function agentDone(s) { return s.state === "over" || s.score >= FLY_CAP || s.ticks >= MAX_TICKS; }
 
@@ -46,7 +53,7 @@ function step(state, inputs) {
     st.sims.forEach((s, i) => { if (!agentDone(s)) for (const k of flyStep(s, st.agents[i], () => draw(st.rr[i]))) ev.push({ k, seat: i }); });
   } else {
     st.sims.forEach((s, i) => {
-      if (s.state === "over" || st.t >= TMAX) return;
+      if (!s || s.state === "over" || st.t >= TMAX) return;
       const b = (inputs && inputs[i] && inputs[i].b) | 0;
       // Der Lauf beginnt mit einem Tipp bei Tick 0 (alt: der erste Tipp startet, die Spur beginnt mit Tap 0)
       if (st.t === 0 && s.state === "ready") { flapState(s); ev.push({ k: "start", seat: i }); }
@@ -58,8 +65,9 @@ function step(state, inputs) {
       if (s.ticks % 3 === 0 && s.state === "run") { s.trail.push(s.bird.y); if (s.trail.length > 8) s.trail.shift(); }
     });
   }
+  const first = st.sims.findIndex(Boolean);
   for (const e of ev) {
-    if (e.seat !== 0) continue;
+    if (e.seat !== first) continue;
     if (e.k === "score") st.fx.since.treffer = st.t;
     if (e.k === "flap") st.fx.since.sprung = st.t;
     if (e.k === "dead") { st.fx.flash = 1; st.fx.shake = 18; }
@@ -69,7 +77,7 @@ function step(state, inputs) {
 }
 
 function status(st) {
-  const sc = st.sims.map((s) => s.score);
+  const sc = st.sims.map((s) => (s ? s.score : 0));
   if (st.mode === "agent") {
     const over = st.sims.every(agentDone), res = { rounds: [], sa: sc[0], sb: sc[1] }, w = winner(res);
     const out = { over, score: sc, winner: over ? (w > 0 ? 0 : w < 0 ? 1 : -1) : null };
@@ -80,11 +88,12 @@ function status(st) {
     }
     return out;
   }
-  const over = st.sims.every((s) => s.state === "over") || st.t >= TMAX;
-  const out = { over, score: sc, winner: null };
-  if (over && sc.length === 2) out.winner = sc[0] > sc[1] ? 0 : sc[1] > sc[0] ? 1 : -1;
+  const over = active(st.sims).every((s) => s.state === "over") || st.t >= TMAX;
+  // solo: nur ein Flieger, kein Gewinner (Ergebniszeile = say)
+  const out = { over, score: sc, winner: null, solo: active(st.sims).length === 1 };
+  if (over && active(st.sims).length === 2) out.winner = sc[0] > sc[1] ? 0 : sc[1] > sc[0] ? 1 : -1;
   if (st.mode === "train" && over) out.learned = learnFlap(st.samples);
-  out.say = over ? say("bestN", { n: sc[0] }) : null;
+  out.say = over ? say("bestN", { n: Math.max(...sc) }) : null;
   return out;
 }
 
@@ -97,9 +106,10 @@ function view(st, ctx) {
   }
   const fx = { ...st.fx, since: {} };
   for (const k of Object.keys(st.fx.since)) fx.since[k] = (st.t - st.fx.since[k]) / TPS;
-  const layers = flightOps(st.g, st.sims, { t: c.t != null ? c.t : st.t / TPS, reduced: !!c.reduced, assets: c.assets }, fx);
-  const me = st.sims[0], hud = [{ o: "text", x: W / 2, y: 64, text: String(me.score), size: 44, font: "brand", align: "center", base: "middle", fill: "#ffffff", stroke: "#00000080", lw: 4 }];
-  if (st.sims[1]) hud.push({ o: "text", x: W / 2, y: 100, text: "👻 " + st.sims[1].score, size: 18, font: "body", align: "center", base: "middle", fill: "#ffffff", stroke: "#00000080", lw: 3 });
+  const sims = order(st.sims, c.seat || 0);
+  const layers = flightOps(st.g, sims, { t: c.t != null ? c.t : st.t / TPS, reduced: !!c.reduced, assets: c.assets }, fx);
+  const me = sims[0], hud = [{ o: "text", x: W / 2, y: 64, text: String(me.score), size: 44, font: "brand", align: "center", base: "middle", fill: "#ffffff", stroke: "#00000080", lw: 4 }];
+  if (sims[1]) hud.push({ o: "text", x: W / 2, y: 100, text: "👻 " + sims[1].score, size: 18, font: "body", align: "center", base: "middle", fill: "#ffffff", stroke: "#00000080", lw: 3 });
   layers.push({ id: "hud", ops: hud });
   return { t: "canvas", w: W, h: H, layers, a11y: fmt(lang === "en" ? "Flight game: {t}, {n} points" : "Flugspiel: {t}, {n} Punkte", { t: st.g.title, n: me.score }) };
 }
@@ -112,19 +122,24 @@ function bot(st, seat, opt) {
 }
 // Zustandshash ueber die exakten float64-Bits (rt.numeric "f64")
 function hash(st) {
-  let h = FNV0;
-  for (const s of st.sims) {
+  let h = FNV0, h2 = 0x01000193;
+  for (const s of active(st.sims)) {
+    h2 = mixF64(mixF64(mixF64(h2, s.bird.y), s.score), s.ticks);
     h = mixF64(mixF64(h, s.bird.y), s.bird.vy); h = mixF64(h, s.score); h = mixF64(h, s.ticks);
     h = mixF64(mixF64(mixF64(mixF64(h, s.r), s.made), s.tap), s.section); h = mixF64(h, ["ready", "run", "over"].indexOf(s.state));
     for (const p of s.pipes) h = mixF64(mixF64(h, p.x), p.top);
   }
   if (st.rr) for (const x of st.rr) h = mixF64(h, x.r);
-  h = mixF64(h, st.t);
-  return hex32(h);
+  h = mixF64(h, st.t); h2 = mixF64(mixF64(h2, st.t), h);
+  return hex32(h) + hex32(h2);
 }
 
+// Vorschau im Regal/Kartenblatt (view.js previewState ruft observe wie bei Zugkarten): Echtzeitkarten haben nichts
+// Verdecktes, jeder Sitz sieht den ganzen Zustand
+function observe(st) { return st; }
+
 export default {
-  manifest, init, step, status, view, bot, hash,
+  manifest, init, step, status, view, bot, hash, observe,
   // freie Karte (Strang K): Server-Dokument G1 <-> Kartenparameter
   fromFree: fromServerDoc, toFree: (params) => toServerDoc(params, null),
   variantParams, variants: VARIANTS, flyLine

@@ -11,14 +11,21 @@ import { fmt } from "../../engines/flug/text.js";
 import TX from "../../engines/lauf/texts.json" with { type: "json" };
 
 const TPS = 120, TMAX = 180 * TPS;
+// Sitze aus players: Rollen-Array des Hosts (["human","none"], ["ghost","human"] …) oder Anzahl; "none" = kein Flieger
+function seatsOf(players) {
+  if (Array.isArray(players)) return players.map((r) => r !== "none");
+  const n = Math.max(1, Math.min(2, players || 1)), out = []; for (let i = 0; i < n; i++) out.push(true); return out;
+}
+const active = (sims) => sims.filter(Boolean);
+// Reihenfolge fuer das Bild: der eigene Sitz zuerst, die anderen als Geist
+function order(sims, seat) { const me = sims[seat] || active(sims)[0]; return [me].concat(sims.filter((s) => s && s !== me)); }
 function say(key, o) { return { de: fmt(TX.de[key], o), en: fmt(TX.en[key], o) }; }
 
 function init({ params: input, players }) {
-  const params = input || {}, l = laufOf(params), n = Math.max(1, Math.min(2, players || 1)), sims = [];
-  for (let i = 0; i < n; i++) sims.push(initState(l));
+  const params = input || {}, l = laufOf(params), sims = seatsOf(players).map((on) => (on ? initState(l) : null));
   return { t: 0, sims, fx: { flash: 0, shake: 0, since: {} }, r: l.r || 0, title: txt(params.t, 40) };
 }
-function copy(st) { return { ...st, fx: { ...st.fx, since: { ...st.fx.since } }, sims: st.sims.map(copyState) }; }
+function copy(st) { return { ...st, fx: { ...st.fx, since: { ...st.fx.since } }, sims: st.sims.map((s) => (s ? copyState(s) : null)) }; }
 const DONE = ["ready", "run", "over", "goal"];
 const done = (s) => s.state === "over" || s.state === "goal";
 
@@ -26,7 +33,7 @@ function step(state, inputs) {
   const st = copy(state), ev = [];
   st.fx.flash = Math.max(0, st.fx.flash - 2.5 / TPS); st.fx.shake = Math.max(0, st.fx.shake - 40 / TPS);
   st.sims.forEach((s, i) => {
-    if (done(s) || st.t >= TMAX) return;
+    if (!s || done(s) || st.t >= TMAX) return;
     const b = (inputs && inputs[i] && inputs[i].b) | 0;
     // Der Lauf beginnt bei Tick 0 (alt: der erste Tipp startet); danach wirken Eingaben am naechsten Tick
     if (st.t === 0 && s.state === "ready") { press(s); ev.push({ k: "start", seat: i }); }
@@ -35,8 +42,9 @@ function step(state, inputs) {
     setDuck(s, (b & 4) !== 0);
     for (const k of stepState(s)) ev.push({ k, seat: i });
   });
+  const first = st.sims.findIndex(Boolean);
   for (const e of ev) {
-    if (e.seat !== 0) continue;
+    if (e.seat !== first) continue;
     if (e.k === "jump") st.fx.since.sprung = st.t;
     if (e.k === "coin" || e.k === "stomp") st.fx.since.treffer = st.t;
     if (e.k === "goal") st.fx.since.sieg = st.t;
@@ -47,9 +55,9 @@ function step(state, inputs) {
 }
 
 function status(st) {
-  const sc = st.sims.map(points), over = st.sims.every(done) || st.t >= TMAX, me = st.sims[0];
-  const out = { over, score: sc, winner: null, meters: me ? meters(me) : 0, goal: me.state === "goal" };
-  if (over && sc.length === 2) out.winner = sc[0] > sc[1] ? 0 : sc[1] > sc[0] ? 1 : -1;
+  const sc = st.sims.map((s) => (s ? points(s) : 0)), over = active(st.sims).every(done) || st.t >= TMAX, me = active(st.sims)[0];
+  const out = { over, score: sc, winner: null, solo: active(st.sims).length === 1 && !st.r, meters: me ? meters(me) : 0, goal: me.state === "goal" };
+  if (over && active(st.sims).length === 2) out.winner = sc[0] > sc[1] ? 0 : sc[1] > sc[0] ? 1 : -1;
   else if (over && st.r) out.winner = sc[0] > st.r ? 0 : -1;
   out.say = over ? say(me.state === "goal" ? "lf_goal" : "lf_over", { p: sc[0], m: meters(me) }) : null;
   if (over && st.r) out.beat = say(sc[0] > st.r ? "lf_won" : "lf_short", { n: st.r, d: st.r - sc[0] + 1 });
@@ -57,9 +65,9 @@ function status(st) {
 }
 
 function view(st, ctx) {
-  const c = ctx || {}, lang = c.lang === "en" ? "en" : "de", me = st.sims[0], t = c.t != null ? c.t : st.t / TPS;
+  const c = ctx || {}, lang = c.lang === "en" ? "en" : "de", sims = order(st.sims, c.seat || 0), me = sims[0], t = c.t != null ? c.t : st.t / TPS;
   const since = {}; for (const k of Object.keys(st.fx.since)) since[k] = (st.t - st.fx.since[k]) / TPS;
-  const layers = runOps(st.sims, { t, reduced: !!c.reduced, assets: c.assets, flash: st.fx.flash, shake: st.fx.shake, pose: poseOf(me.l, t, since, !!c.reduced) });
+  const layers = runOps(sims, { t, reduced: !!c.reduced, assets: c.assets, flash: st.fx.flash, shake: st.fx.shake, pose: poseOf(me.l, t, since, !!c.reduced) });
   const hud = fmt(TX[lang].lf_hud, { p: points(me), m: meters(me) });
   layers.push({ id: "hud", ops: [{ o: "text", x: VIEW / 2, y: 30, text: hud, size: 26, font: "brand", align: "center", base: "middle", fill: "#ffffff", stroke: "#00000073", lw: 4 }]
     .concat(st.r ? [{ o: "text", x: VIEW / 2, y: 58, text: fmt(TX[lang].lf_beat, { n: st.r }), size: 16, font: "body", align: "center", base: "middle", fill: "#ffffff", stroke: "#00000073", lw: 3 }] : []) });
@@ -76,19 +84,25 @@ function bot(st, seat) {
   return { b: (probe.inq.jump ? 1 : 0) | (probe.inq.held ? 2 : 0) };
 }
 function hash(st) {
-  let h = FNV0;
-  for (const s of st.sims) {
+  let h = FNV0, h2 = 0x01000193;
+  for (const s of active(st.sims)) {
+    h2 = mixF64(mixF64(mixF64(h2, s.me.x), s.me.y), s.ticks);
     h = mixF64(mixF64(mixF64(h, s.me.x), s.me.y), s.me.vy); h = mixF64(mixF64(h, s.coins), s.stomps); h = mixF64(h, s.ticks);
     h = mixF64(mixF64(mixF64(h, s.r), DONE.indexOf(s.state)), s.gen.x);
     let live = 0, n = 0;
     for (const it of s.items) { if (it.t === "f" && it.live) h = mixF64(mixF64(h, it.x), it.y); if (it.live !== undefined) { live = (live * 2 + (it.live ? 1 : 0)) % 4294967296; n++; } }
     h = mixF64(mixF64(h, live), n);
   }
-  return hex32(mixF64(h, st.t));
+  h = mixF64(h, st.t); h2 = mixF64(mixF64(h2, st.t), h);
+  return hex32(h) + hex32(h2);
 }
 
+// Vorschau im Regal/Kartenblatt (view.js previewState ruft observe wie bei Zugkarten): Echtzeitkarten haben nichts
+// Verdecktes, jeder Sitz sieht den ganzen Zustand
+function observe(st) { return st; }
+
 export default {
-  manifest, init, step, status, view, bot, hash,
+  manifest, init, step, status, view, bot, hash, observe,
   fromFree: fromServerDoc, toFree: (params) => toServerDoc(params, null),
   fromWords, STEP
 };

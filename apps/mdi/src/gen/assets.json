@@ -9,6 +9,10 @@
       }
     ]
   },
+  "flug": {
+    "assets": [],
+    "thumbs": []
+  },
   "gruss": {
     "assets": [],
     "thumbs": [
@@ -18,5 +22,9 @@
         "bytes": 11308
       }
     ]
+  },
+  "lauf": {
+    "assets": [],
+    "thumbs": []
   }
 }

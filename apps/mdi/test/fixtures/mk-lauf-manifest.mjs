@@ -36,9 +36,9 @@ const m = {
   title: Lb("Lauf und Sprung", "Run and jump"), teaser: Lb("Tippen = springen, halten = höher.", "Tap = jump, hold = higher."),
   rule: Lb(T.de.lf_hint, T.en.lf_hint), howto: Lb(T.de.lf_start, T.en.lf_start),
   family: "lauf", grip: "pause", dur: 60,
-  players: { min: 1, max: 2 }, hidden: "none", uses: ["image"], modes: ["alone", "ghost"], play: { default: "alone", offer: ["alone", "ghost"] },
+  players: { min: 1, max: 2 }, hidden: "none", uses: ["image"], modes: ["alone", "ghost"], play: { default: "alone", offer: ["alone"] },
   limits: { stepBudget: 4000, stateBytes: 65536 },
-  rt: { tick: 120, view: { w: 400, h: 360, fit: "width" }, numeric: "f64", net: "none", maxTicks: 21600, ghost: { bytes: 600 },
+  rt: { tick: 120, view: { w: 400, h: 360, fit: "width" }, numeric: "f64", net: "none", maxTicks: 21600, ghost: { bytes: 1200 },
     controls: { buttons: [
       { id: "tap", kind: "pulse", keys: ["Space", "ArrowUp", "KeyW"], zone: "any", label: Lb("Springen", "Jump") },
       { id: "hold", kind: "hold", keys: ["Space", "ArrowUp", "KeyW"], zone: "any", label: Lb("Höher springen", "Jump higher") },
@@ -46,12 +46,13 @@ const m = {
     sounds: { coin: { synth: "tone", f0: 880, f1: 1320, dur: 0.06, type: "triangle", vol: 0.08 }, jump: { synth: "tone", f0: 320, f1: 640, dur: 0.07, type: "square", vol: 0.04 },
       stomp: { synth: "tone", f0: 600, f1: 300, dur: 0.08, type: "square", vol: 0.1 }, dead: { synth: "tone", f0: 260, f1: 40, dur: 0.4, type: "sawtooth", vol: 0.14, haptic: 120 }, goal: { haptic: 80 } } },
   params: { type: "object", additionalProperties: false, properties: props },
+  // Teile nur mit Feldern, die der Editor heute darstellen kann (view.js fieldControls); Zahlen-Regler, Farben,
+  // Animation und Fotos kommen zurueck, sobald H sie rendert (Nachricht an strang-h, PR #243 offen)
   parts: [
-    { id: "wunsch", params: ["t", "w", "m", "e"], label: Lb(T.de.lf_ask, T.en.lf_ask) },
-    { id: "regeln", params: ["m", "len", "v", "a", "vm", "g", "j", "lu", "lw", "hi", "du", "mu", "ge", "fa", "hv", "seed"], label: Lb("Regeln", "Rules") },
-    { id: "figur", params: ["e", "f", "fp", "anim", "figur"], label: Lb("Figur", "Runner") },
-    { id: "welt", params: ["w", "o", "c", "hintergrund"], label: Lb("Welt", "World") },
-    { id: "text", params: ["t", "col"], label: Lb("Text", "Text") }
+    { id: "modus", params: ["m"], label: Lb("Modus", "Mode") },
+    { id: "welt", params: ["w", "o", "c"], label: Lb("Welt", "World") },
+    { id: "figur", params: ["e", "f", "fp"], label: Lb("Figur", "Runner") },
+    { id: "text", params: ["t"], label: Lb("Text", "Text") }
   ]
 };
 // nur die Vokabeln, die der Generator kennt (x-field, x-label, x-model, x-pairs, x-steps, x-hidden; ADR 0001, F @ 15338b5)

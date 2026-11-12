@@ -2,14 +2,16 @@
 /* eslint-disable */
 // Kartenregister (ADR 0001 a): alle Karten erfuellen denselben Vertrag; der Host kennt nur diese Schnittstelle.
 import c_bluff from "./bluff/card.js";
+import c_flug from "./flug/card.js";
 import c_gruss from "./gruss/card.js";
+import c_lauf from "./lauf/card.js";
 import * as V from "../gen/validators.js";
 import { CODE_HASH } from "../gen/codehash.js";
 import { deriveModes } from "../contract/modes.js";
 
-export const CARDS = Object.freeze({ "bluff": c_bluff, "gruss": c_gruss });
-export const ORDER = Object.freeze(["bluff","gruss"]);
-const PARAMS = { "bluff": V.params_bluff, "gruss": V.params_gruss };
+export const CARDS = Object.freeze({ "bluff": c_bluff, "flug": c_flug, "gruss": c_gruss, "lauf": c_lauf });
+export const ORDER = Object.freeze(["flug","lauf","bluff","gruss"]);
+const PARAMS = { "bluff": V.params_bluff, "flug": V.params_flug, "gruss": V.params_gruss, "lauf": V.params_lauf };
 const INPUTS = {  };
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 export function cardOf(id) { return own(CARDS, id) ? CARDS[id] : null; }

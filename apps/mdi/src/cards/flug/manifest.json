@@ -57,8 +57,7 @@
  "play": {
   "default": "alone",
   "offer": [
-   "alone",
-   "ghost"
+   "alone"
   ]
  },
  "limits": {
@@ -76,7 +75,7 @@
   "net": "none",
   "maxTicks": 10800,
   "ghost": {
-   "bytes": 336
+   "bytes": 1200
   },
   "controls": {
    "buttons": [
@@ -824,52 +823,9 @@
  },
  "parts": [
   {
-   "id": "wunsch",
-   "params": [
-    "title",
-    "emoji",
-    "theme",
-    "route",
-    "anim"
-   ],
-   "label": {
-    "de": "Was willst du fliegen?",
-    "en": "What do you want to fly?"
-   }
-  },
-  {
-   "id": "regeln",
-   "params": [
-    "gravity",
-    "jump",
-    "gap",
-    "speed",
-    "tempo",
-    "seed"
-   ],
-   "label": {
-    "de": "Regeln",
-    "en": "Rules"
-   }
-  },
-  {
-   "id": "figur",
-   "params": [
-    "emoji",
-    "anim",
-    "figur"
-   ],
-   "label": {
-    "de": "Figur",
-    "en": "Hero"
-   }
-  },
-  {
    "id": "welt",
    "params": [
-    "theme",
-    "look",
-    "hintergrund"
+    "theme"
    ],
    "label": {
     "de": "Welt",
@@ -877,23 +833,30 @@
    }
   },
   {
-   "id": "agent",
+   "id": "figur",
    "params": [
-    "mode",
-    "agent",
-    "rival"
+    "emoji"
    ],
    "label": {
-    "de": "Agent",
-    "en": "Agent"
+    "de": "Figur",
+    "en": "Hero"
+   }
+  },
+  {
+   "id": "tempo",
+   "params": [
+    "tempo"
+   ],
+   "label": {
+    "de": "Zeitlupe",
+    "en": "Slow motion"
    }
   },
   {
    "id": "text",
    "params": [
     "title",
-    "t",
-    "col"
+    "t"
    ],
    "label": {
     "de": "Text",

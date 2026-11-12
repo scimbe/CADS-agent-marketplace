@@ -39,8 +39,7 @@
  "play": {
   "default": "alone",
   "offer": [
-   "alone",
-   "ghost"
+   "alone"
   ]
  },
  "limits": {
@@ -58,7 +57,7 @@
   "net": "none",
   "maxTicks": 21600,
   "ghost": {
-   "bytes": 600
+   "bytes": 1200
   },
   "controls": {
    "buttons": [
@@ -656,55 +655,13 @@
  },
  "parts": [
   {
-   "id": "wunsch",
+   "id": "modus",
    "params": [
-    "t",
-    "w",
-    "m",
-    "e"
+    "m"
    ],
    "label": {
-    "de": "Was willst du laufen oder springen?",
-    "en": "What do you want to run or jump?"
-   }
-  },
-  {
-   "id": "regeln",
-   "params": [
-    "m",
-    "len",
-    "v",
-    "a",
-    "vm",
-    "g",
-    "j",
-    "lu",
-    "lw",
-    "hi",
-    "du",
-    "mu",
-    "ge",
-    "fa",
-    "hv",
-    "seed"
-   ],
-   "label": {
-    "de": "Regeln",
-    "en": "Rules"
-   }
-  },
-  {
-   "id": "figur",
-   "params": [
-    "e",
-    "f",
-    "fp",
-    "anim",
-    "figur"
-   ],
-   "label": {
-    "de": "Figur",
-    "en": "Runner"
+    "de": "Modus",
+    "en": "Mode"
    }
   },
   {
@@ -712,8 +669,7 @@
    "params": [
     "w",
     "o",
-    "c",
-    "hintergrund"
+    "c"
    ],
    "label": {
     "de": "Welt",
@@ -721,10 +677,21 @@
    }
   },
   {
+   "id": "figur",
+   "params": [
+    "e",
+    "f",
+    "fp"
+   ],
+   "label": {
+    "de": "Figur",
+    "en": "Runner"
+   }
+  },
+  {
    "id": "text",
    "params": [
-    "t",
-    "col"
+    "t"
    ],
    "label": {
     "de": "Text",

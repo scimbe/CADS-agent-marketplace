@@ -43,20 +43,20 @@ const m = {
   rule: L("Tippen oder Leertaste: flattern. Durch die Lücken fliegen.", "Tap or space: flap. Fly through the gaps."),
   howto: L("Tippen. Fliegen. Angeben.", "Tap. Fly. Flex."),
   family: "flug", grip: "pause", dur: 40, legacy: V.VARIANT_IDS.slice(),
-  players: { min: 1, max: 2 }, hidden: "none", uses: ["image"], modes: ["alone", "ghost"], play: { default: "alone", offer: ["alone", "ghost"] },
+  players: { min: 1, max: 2 }, hidden: "none", uses: ["image"], modes: ["alone", "ghost"], play: { default: "alone", offer: ["alone"] },
   limits: { stepBudget: 2000, stateBytes: 16384 },
-  rt: { tick: 120, view: { w: 288, h: 512, fit: "contain" }, numeric: "f64", net: "none", maxTicks: 10800, ghost: { bytes: 336 },
+  rt: { tick: 120, view: { w: 288, h: 512, fit: "contain" }, numeric: "f64", net: "none", maxTicks: 10800, ghost: { bytes: 1200 },
     controls: { buttons: [{ id: "tap", kind: "pulse", keys: ["Space", "ArrowUp", "KeyW"], zone: "any", label: L("Flattern", "Flap") }] },
     sounds: { flap: { synth: "tone", f0: 420, f1: 760, dur: 0.09, type: "square", vol: 0.05, haptic: 6 }, score: { synth: "tone", f0: 880, f1: 1320, dur: 0.14, type: "triangle", vol: 0.12, haptic: 14 },
       dead: { synth: "tone", f0: 260, f1: 40, dur: 0.45, type: "sawtooth", vol: 0.16, haptic: 160 }, section: { haptic: 20 } } },
   params: { type: "object", additionalProperties: false, properties: props },
+  // Teile nur mit Feldern, die der Editor heute darstellen kann (view.js fieldControls); Regler (x-steps), Farben, Look,
+  // Route, Animation, Agenten und Fotos kommen zurueck, sobald H sie rendert (Nachricht an strang-h, PR #243 offen)
   parts: [
-    { id: "wunsch", params: ["title", "emoji", "theme", "route", "anim"], label: L("Was willst du fliegen?", "What do you want to fly?") },
-    { id: "regeln", params: ["gravity", "jump", "gap", "speed", "tempo", "seed"], label: L("Regeln", "Rules") },
-    { id: "figur", params: ["emoji", "anim", "figur"], label: L("Figur", "Hero") },
-    { id: "welt", params: ["theme", "look", "hintergrund"], label: L("Welt", "World") },
-    { id: "agent", params: ["mode", "agent", "rival"], label: L("Agent", "Agent") },
-    { id: "text", params: ["title", "t", "col"], label: L("Text", "Text") }
+    { id: "welt", params: ["theme"], label: L("Welt", "World") },
+    { id: "figur", params: ["emoji"], label: L("Figur", "Hero") },
+    { id: "tempo", params: ["tempo"], label: L("Zeitlupe", "Slow motion") },
+    { id: "text", params: ["title", "t"], label: L("Text", "Text") }
   ],
   variants: V.VARIANTS.map((v) => ({ id: v.id, title: { de: V.plainTitle(v.de.t), en: V.plainTitle(v.en.t) }, teaser: { de: v.de.s, en: v.en.s }, legacy: [v.id], modes: v.kind === "duel" ? ["alone"] : ["alone", "ghost"],
     tags: [...new Set(v.tags.map((t) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")).filter((t) => /^[a-z0-9-]{1,24}$/.test(t)))].slice(0, 8), params: Object.assign({}, props && {}, Object.fromEntries(Object.entries(props).map(([k, p]) => [k, p.default])), V.variantParams(v.id, "de", { nick: "", emoji: "🦊" })) }))
