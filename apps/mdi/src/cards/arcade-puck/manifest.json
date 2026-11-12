@@ -13,8 +13,8 @@
     "en": "Shoot the puck into their goal."
   },
   "howto": {
-    "de": "Zieh deinen Schläger in deiner Hälfte und schieß den Puck ins obere Tor. Tastatur: Pfeiltasten bewegen den Schläger.",
-    "en": "Drag your mallet in your half and shoot the puck into the top goal. Keyboard: arrow keys move the mallet."
+    "de": "Zieh deinen Schläger in deiner Hälfte und schieß den Puck ins obere Tor. Ohne Wischen: Knöpfe ← → Hoch Runter oder Pfeiltasten bewegen den Schläger.",
+    "en": "Drag your mallet in your half and shoot the puck into the top goal. No swiping: buttons ← → Up Down or arrow keys move the mallet."
   },
   "family": "arcade-kick",
   "dur": 120,
@@ -61,6 +61,7 @@
       "sub",
       "photo",
       "photoUse",
+      "comfort",
       "win"
     ],
     "properties": {
@@ -245,6 +246,19 @@
           "en": "Use photo as"
         }
       },
+      "comfort": {
+        "type": "string",
+        "enum": [
+          "aus",
+          "an"
+        ],
+        "default": "aus",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Gemütlich spielen",
+          "en": "Play at ease"
+        }
+      },
       "win": {
         "type": "integer",
         "minimum": 1,
@@ -295,6 +309,16 @@
       }
     },
     {
+      "id": "gemuetlich",
+      "params": [
+        "comfort"
+      ],
+      "label": {
+        "de": "Gemütlich spielen",
+        "en": "Play at ease"
+      }
+    },
+    {
       "id": "regeln",
       "params": [
         "win"
@@ -316,18 +340,39 @@
     "net": "split",
     "maxTicks": 216000,
     "controls": {
-      "buttons": [],
+      "buttons": [
+        {
+          "id": "up",
+          "kind": "hold",
+          "keys": [
+            "ArrowUp",
+            "KeyW"
+          ],
+          "zone": "button",
+          "label": {
+            "de": "Hoch",
+            "en": "Up"
+          }
+        },
+        {
+          "id": "down",
+          "kind": "hold",
+          "keys": [
+            "ArrowDown",
+            "KeyS"
+          ],
+          "zone": "button",
+          "label": {
+            "de": "Runter",
+            "en": "Down"
+          }
+        }
+      ],
       "axes": {
         "x": {
           "keys": [
             "ArrowLeft",
             "ArrowRight"
-          ]
-        },
-        "y": {
-          "keys": [
-            "ArrowUp",
-            "ArrowDown"
           ]
         }
       },

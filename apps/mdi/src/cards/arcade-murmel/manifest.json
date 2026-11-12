@@ -13,8 +13,8 @@
     "en": "Knock the others out!"
   },
   "howto": {
-    "de": "Tipp unten auf die Linie, zieh zurück und lass los. Jede Murmel aus dem Ring ist ein Punkt. Tastatur: A/D Startpunkt, Pfeile Richtung und Kraft, Leertaste schießt.",
-    "en": "Tap the line at the bottom, pull back and let go. Every marble out of the ring is a point. Keyboard: A/D start point, arrows direction and power, space shoots."
+    "de": "Tipp unten auf die Linie, zieh zurück und lass los. Jede Murmel aus dem Ring ist ein Punkt. Ohne Wischen: Start links/rechts (Q/E), ← → Richtung, Stärker/Sanfter (↑ ↓), Schießen (Leertaste).",
+    "en": "Tap the line at the bottom, pull back and let go. Every marble out of the ring is a point. No swiping: start left/right (Q/E), ← → direction, Harder/Softer (↑ ↓), Shoot (space)."
   },
   "family": "arcade-stock",
   "dur": 90,
@@ -61,6 +61,7 @@
       "sub",
       "photo",
       "photoUse",
+      "comfort",
       "win"
     ],
     "properties": {
@@ -245,6 +246,19 @@
           "en": "Use photo as"
         }
       },
+      "comfort": {
+        "type": "string",
+        "enum": [
+          "aus",
+          "an"
+        ],
+        "default": "aus",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Gemütlich spielen",
+          "en": "Play at ease"
+        }
+      },
       "win": {
         "type": "integer",
         "minimum": 1,
@@ -295,6 +309,16 @@
       }
     },
     {
+      "id": "gemuetlich",
+      "params": [
+        "comfort"
+      ],
+      "label": {
+        "de": "Gemütlich spielen",
+        "en": "Play at ease"
+      }
+    },
+    {
       "id": "regeln",
       "params": [
         "win"
@@ -318,39 +342,65 @@
     "controls": {
       "buttons": [
         {
+          "id": "up",
+          "kind": "hold",
+          "keys": [
+            "ArrowUp",
+            "KeyW"
+          ],
+          "zone": "button",
+          "label": {
+            "de": "Stärker",
+            "en": "Harder"
+          }
+        },
+        {
+          "id": "down",
+          "kind": "hold",
+          "keys": [
+            "ArrowDown",
+            "KeyS"
+          ],
+          "zone": "button",
+          "label": {
+            "de": "Sanfter",
+            "en": "Softer"
+          }
+        },
+        {
           "id": "throw",
           "kind": "pulse",
           "keys": [
             "Space",
             "Enter"
           ],
-          "zone": "none",
+          "zone": "button",
           "label": {
-            "de": "Werfen",
-            "en": "Throw"
+            "de": "Schießen",
+            "en": "Shoot"
           }
         },
         {
-          "id": "left",
+          "id": "sl",
           "kind": "hold",
           "keys": [
-            "KeyA"
+            "KeyQ"
           ],
-          "zone": "none",
+          "zone": "button",
           "label": {
-            "de": "Start nach links",
+            "de": "Start links",
             "en": "Start left"
           }
         },
         {
-          "id": "right",
+          "id": "sr",
           "kind": "hold",
           "keys": [
-            "KeyD"
+            "KeyE"
           ],
-          "zone": "none",
+          "zone": "button",
           "label": {
-            "de": "Start nach rechts",
+            "de": "Start rechts",
             "en": "Start right"
           }
         }
@@ -360,12 +410,6 @@
           "keys": [
             "ArrowLeft",
             "ArrowRight"
-          ]
-        },
-        "y": {
-          "keys": [
-            "ArrowUp",
-            "ArrowDown"
           ]
         }
       },

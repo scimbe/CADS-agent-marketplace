@@ -49,6 +49,8 @@ export function matchInit(o) {
   const players = [0, 1].map((s) => (raw[s] === "bot" || (raw[s] && raw[s].kind === "bot") ? "bot" : "human"));
   const A = side(g, { seed, serving: true, win: o.win }), B = side(g, { seed, serving: false, win: o.win });
   const st = { g, seed, now: 0, lag: Number.isInteger(o.lag) && o.lag >= 0 && o.lag <= 120 ? o.lag : 0, sides: [A, B], q: [[], []], players, bots: [null, null], ctl: [ctlInit(), ctlInit()] };
+  // Gemuetlich spielen: Zeitlupe 50 % (die Spielzeit laeuft nur bei jedem zweiten Host-Tick), Doppeltippen zaehlt einmal
+  if (o.comfort) { st.comfort = true; st.k = 0; }
   for (let s = 0; s < 2; s++) if (players[s] === "bot") st.bots[s] = botNew(g, seed + "|" + s);
   return st;
 }
@@ -61,11 +63,13 @@ export function matchStart(st) { st = clone(st); start(st.sides[0]); start(st.si
 export function matchStep(prev, inputs) {
   const st = clone(prev), [A, B] = st.sides;
   if (!A.started) { start(A); start(B); }
+  const slowSkip = st.comfort && (st.k++ % 2 === 1);   // Zeitlupe: Eingaben werden angenommen, die Spielzeit steht
   for (let s = 0; s < 2; s++) {
     const S = st.sides[s];
-    if (st.bots[s]) botStep(S, st.bots[s]);
-    else mapInput(st.g, st.ctl[s], S, inputs && inputs[s], (gi) => input(S, gi));
+    if (st.bots[s]) { if (!slowSkip) botStep(S, st.bots[s]); }
+    else mapInput(st.g, st.ctl[s], S, inputs && inputs[s], (gi) => input(S, gi), st.comfort);
   }
+  if (slowSkip) return { state: st, ev: [] };
   st.now++;
   const ev = [];
   // Gesendetes kommt sofort in die Warteschlange der Gegenseite, wie alt send() -> qb.push: was Seite 0 beim Zustellen
@@ -102,14 +106,15 @@ export function matchStatus(st) {
 
 // ---------- Seite fuer Live (net:"split") ----------
 /** side.init({ seed, seat, serving, win }) */
-export function liveInit(g, o) { const S = side(g, { seed: o.seed, serving: o.serving !== undefined ? o.serving : o.seat === 0, win: o.win }); return { S, ctl: ctlInit() }; }
+export function liveInit(g, o) { const S = side(g, { seed: o.seed, serving: o.serving !== undefined ? o.serving : o.seat === 0, win: o.win }); const st = { S, ctl: ctlInit() }; if (o.comfort) { st.comfort = true; st.k = 0; } return st; }
 /** side.step(st, { input, inbox, tick, wall? }) -> { st, out, ev }. inbox: Nachrichten der Gegenseite, die seit dem letzten Tick ankamen. */
 export function liveStep(prev, { input: inp, inbox, wall }) {
   const st = clone(prev), S = st.S;
   if (!S.started) start(S);
   if (typeof wall === "number" && Number.isFinite(wall)) S.wall = wall;
   for (const m of Array.isArray(inbox) ? inbox : []) receive(S, m);
-  mapInput(S.g, st.ctl, S, inp, (gi) => input(S, gi));
+  mapInput(S.g, st.ctl, S, inp, (gi) => input(S, gi), st.comfort);
+  if (st.comfort && st.k++ % 2 === 1) return { st, out: [], ev: [] };   // Zeitlupe; beide Handys haben dieselbe Einstellung (Parameter)
   tick(S);
   const out = S.out, ev = S.ev.map((e) => Object.assign({ seat: 0 }, e));
   S.out = []; S.ev = [];

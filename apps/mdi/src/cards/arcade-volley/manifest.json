@@ -13,8 +13,8 @@
     "en": "Jump, spike, score."
   },
   "howto": {
-    "de": "Unten ziehen: laufen. Oben tippen: springen. Der Ball darf nicht in deinen Sand. Tastatur: Pfeil links/rechts laufen, Leertaste springt.",
-    "en": "Drag at the bottom: run. Tap higher up: jump. The ball must not land in your sand. Keyboard: left/right to run, space to jump."
+    "de": "Unten ziehen: laufen. Oben tippen: springen. Der Ball darf nicht in deinen Sand. Ohne Wischen: ← → laufen, Springen (Leertaste).",
+    "en": "Drag at the bottom: run. Tap higher up: jump. The ball must not land in your sand. No swiping: ← → to run, Jump (space)."
   },
   "family": "arcade-kick",
   "dur": 120,
@@ -61,6 +61,7 @@
       "sub",
       "photo",
       "photoUse",
+      "comfort",
       "win"
     ],
     "properties": {
@@ -245,6 +246,19 @@
           "en": "Use photo as"
         }
       },
+      "comfort": {
+        "type": "string",
+        "enum": [
+          "aus",
+          "an"
+        ],
+        "default": "aus",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Gemütlich spielen",
+          "en": "Play at ease"
+        }
+      },
       "win": {
         "type": "integer",
         "minimum": 1,
@@ -295,6 +309,16 @@
       }
     },
     {
+      "id": "gemuetlich",
+      "params": [
+        "comfort"
+      ],
+      "label": {
+        "de": "Gemütlich spielen",
+        "en": "Play at ease"
+      }
+    },
+    {
       "id": "regeln",
       "params": [
         "win"
@@ -325,7 +349,7 @@
             "ArrowUp",
             "KeyW"
           ],
-          "zone": "none",
+          "zone": "button",
           "label": {
             "de": "Springen",
             "en": "Jump"

@@ -13,8 +13,8 @@
     "en": "Shot, curve – who saves?"
   },
   "howto": {
-    "de": "Als Schütze: wischen, mit Bogen für Kurve. Als Torwart: ziehen, schnell ziehen ist ein Hechtsprung. Tastatur: Pfeil links/rechts zielen, hoch/runter Kurve, Leertaste schießt; als Torwart Pfeil links/rechts.",
-    "en": "Shooting: swipe, bend it for a curve. Keeping: drag, a fast drag is a dive. Keyboard: left/right to aim, up/down to curve, space shoots; keeping: left/right."
+    "de": "Als Schütze: wischen, mit Bogen für Kurve. Als Torwart: ziehen, schnell ziehen ist ein Hechtsprung. Ohne Wischen: ← → zielen, Kurve links/rechts (↑ ↓), Schießen (Leertaste); als Torwart ← →.",
+    "en": "Shooting: swipe, bend it for a curve. Keeping: drag, a fast drag is a dive. No swiping: ← → to aim, curve left/right (↑ ↓), Shoot (space); keeping: ← →."
   },
   "family": "arcade-elfer",
   "on": [
@@ -63,7 +63,8 @@
       "title",
       "sub",
       "photo",
-      "photoUse"
+      "photoUse",
+      "comfort"
     ],
     "properties": {
       "colA": {
@@ -246,6 +247,19 @@
           "de": "Foto als",
           "en": "Use photo as"
         }
+      },
+      "comfort": {
+        "type": "string",
+        "enum": [
+          "aus",
+          "an"
+        ],
+        "default": "aus",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Gemütlich spielen",
+          "en": "Play at ease"
+        }
       }
     }
   },
@@ -283,6 +297,16 @@
         "de": "Texte",
         "en": "Texts"
       }
+    },
+    {
+      "id": "gemuetlich",
+      "params": [
+        "comfort"
+      ],
+      "label": {
+        "de": "Gemütlich spielen",
+        "en": "Play at ease"
+      }
     }
   ],
   "rt": {
@@ -298,13 +322,39 @@
     "controls": {
       "buttons": [
         {
+          "id": "up",
+          "kind": "hold",
+          "keys": [
+            "ArrowUp",
+            "KeyW"
+          ],
+          "zone": "button",
+          "label": {
+            "de": "Kurve links",
+            "en": "Curve left"
+          }
+        },
+        {
+          "id": "down",
+          "kind": "hold",
+          "keys": [
+            "ArrowDown",
+            "KeyS"
+          ],
+          "zone": "button",
+          "label": {
+            "de": "Kurve rechts",
+            "en": "Curve right"
+          }
+        },
+        {
           "id": "shoot",
           "kind": "pulse",
           "keys": [
             "Space",
             "Enter"
           ],
-          "zone": "none",
+          "zone": "button",
           "label": {
             "de": "Schießen",
             "en": "Shoot"
@@ -316,12 +366,6 @@
           "keys": [
             "ArrowLeft",
             "ArrowRight"
-          ]
-        },
-        "y": {
-          "keys": [
-            "ArrowUp",
-            "ArrowDown"
           ]
         }
       },

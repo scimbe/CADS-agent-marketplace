@@ -13,8 +13,8 @@
     "en": "Walls don't last forever."
   },
   "howto": {
-    "de": "Zieh zum Ausweichen, tipp zum Werfen. Drei Schneebälle, dann kurz nachladen. Tastatur: Pfeil links/rechts, Leertaste wirft.",
-    "en": "Drag to dodge, tap to throw. Three snowballs, then a short reload. Keyboard: left/right, space throws."
+    "de": "Zieh zum Ausweichen, tipp zum Werfen. Drei Schneebälle, dann kurz nachladen. Ohne Wischen: ← → ausweichen, Werfen (Leertaste).",
+    "en": "Drag to dodge, tap to throw. Three snowballs, then a short reload. No swiping: ← → to dodge, Throw (space)."
   },
   "family": "arcade-panzer",
   "dur": 90,
@@ -61,6 +61,7 @@
       "sub",
       "photo",
       "photoUse",
+      "comfort",
       "win"
     ],
     "properties": {
@@ -245,6 +246,19 @@
           "en": "Use photo as"
         }
       },
+      "comfort": {
+        "type": "string",
+        "enum": [
+          "aus",
+          "an"
+        ],
+        "default": "aus",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Gemütlich spielen",
+          "en": "Play at ease"
+        }
+      },
       "win": {
         "type": "integer",
         "minimum": 1,
@@ -295,6 +309,16 @@
       }
     },
     {
+      "id": "gemuetlich",
+      "params": [
+        "comfort"
+      ],
+      "label": {
+        "de": "Gemütlich spielen",
+        "en": "Play at ease"
+      }
+    },
+    {
       "id": "regeln",
       "params": [
         "win"
@@ -325,7 +349,7 @@
             "ArrowUp",
             "KeyW"
           ],
-          "zone": "none",
+          "zone": "button",
           "label": {
             "de": "Werfen",
             "en": "Throw"

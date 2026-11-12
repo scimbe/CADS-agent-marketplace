@@ -13,8 +13,8 @@
     "en": "Two rods, one thumb."
   },
   "howto": {
-    "de": "Zieh: beide Stangen fahren mit. Tippen: kicken. Wer zuerst 3 Tore hat, gewinnt. Tastatur: Pfeil links/rechts, Leertaste kickt.",
-    "en": "Drag: both rods follow. Tap: kick. First to 3 goals wins. Keyboard: left/right, space kicks."
+    "de": "Zieh: beide Stangen fahren mit. Tippen: kicken. Wer zuerst 3 Tore hat, gewinnt. Ohne Wischen: ◀ KICK ▶ (Pfeiltasten, Leertaste).",
+    "en": "Drag: both rods follow. Tap: kick. First to 3 goals wins. No swiping: ◀ KICK ▶ (arrow keys, space)."
   },
   "family": "arcade-kick",
   "on": [
@@ -67,6 +67,7 @@
       "sub",
       "photo",
       "photoUse",
+      "comfort",
       "win"
     ],
     "properties": {
@@ -251,6 +252,19 @@
           "en": "Use photo as"
         }
       },
+      "comfort": {
+        "type": "string",
+        "enum": [
+          "aus",
+          "an"
+        ],
+        "default": "aus",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Gemütlich spielen",
+          "en": "Play at ease"
+        }
+      },
       "win": {
         "type": "integer",
         "minimum": 1,
@@ -301,6 +315,16 @@
       }
     },
     {
+      "id": "gemuetlich",
+      "params": [
+        "comfort"
+      ],
+      "label": {
+        "de": "Gemütlich spielen",
+        "en": "Play at ease"
+      }
+    },
+    {
       "id": "regeln",
       "params": [
         "win"
@@ -331,10 +355,10 @@
             "ArrowUp",
             "KeyW"
           ],
-          "zone": "none",
+          "zone": "button",
           "label": {
-            "de": "Kicken",
-            "en": "Kick"
+            "de": "KICK",
+            "en": "KICK"
           }
         }
       ],

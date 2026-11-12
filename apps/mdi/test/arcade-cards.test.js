@@ -105,24 +105,63 @@ test("Steuerung per Zeiger wie im Altcode: ziehen bewegt, tippen kickt/wirft/spr
   assert.ok(st.sides[0].st.list.some((s) => s.shooter), "Murmel: Tippen auf die Linie, zurueckziehen, loslassen");
 });
 
-test("Steuerung per Tastatur: jedes Spiel ist ohne Zeiger spielbar", () => {
-  const kb = (b, ax = 0, ay = 0) => ({ b, ax, ay, p: [] });
-  let g = newGame("arcade-ziegel", ["human", "bot"]); let st = steps(g.c, g.st, rep(60, kb(0, -1000)));
-  assert.ok(st.sides[0].st.me < 400, "Ziegel: Pfeil links");
-  g = newGame("arcade-puck", ["human", "bot"]); st = steps(g.c, g.st, rep(40, kb(0, 1000, 1000)));
-  assert.ok(st.sides[0].st.me.x > 600 && st.sides[0].st.me.y > 1400, "Puck: Pfeile");
-  g = newGame("arcade-volley", ["human", "bot"]); st = steps(g.c, g.st, [kb(1), NONE]);
-  assert.ok(st.sides[0].st.me.vy < 0, "Volley: Leertaste springt");
-  g = newGame("arcade-kick", ["human", "bot"]); st = steps(g.c, g.st, [kb(1)]); assert.ok(st.sides[0].st.kick > 0, "Kick: Leertaste");
-  g = newGame("arcade-snow", ["human", "bot"]); st = steps(g.c, g.st, [kb(1)]); assert.equal(st.sides[0].st.ammo, 2, "Schnee: Leertaste");
-  g = newGame("arcade-flipper", ["human", "bot"]); st = steps(g.c, g.st, rep(20, kb(2))); assert.ok(st.sides[0].st.a[1] < 0 && st.sides[0].st.a[0] > 0.5, "Flipper: Pfeil rechts");
-  g = newGame("arcade-panzer", ["human", "bot"]); st = steps(g.c, g.st, [...rep(30, kb(0, 1000, -1000)), kb(1), NONE]);
-  assert.equal(st.sides[0].st.shells.length, 1, "Panzer: Winkel, Kraft, Leertaste");
-  g = newGame("arcade-elfer", ["human", "bot"]); st = steps(g.c, g.st, [...rep(4, NONE), ...rep(20, kb(0, 1000)), kb(1), NONE]);
-  assert.equal(st.sides[0].st.phase, "fly", "Elfer: zielen und schiessen");
+// Knoepfe per id (Bitmaske in der Reihenfolge von rt.controls.buttons), wie der Host sie aus Tasten und Bildschirmknoepfen bildet.
+function kbOf(id) {
+  const ids = manifestOf(id).rt.controls.buttons.map((b) => b.id);
+  return (names = [], ax = 0) => ({ b: names.reduce((m, n) => { assert.ok(ids.includes(n), id + ": Knopf " + n); return m | (1 << ids.indexOf(n)); }, 0), ax, ay: 0, p: [] });
+}
+test("Ohne Wischen (Design Phase C, Befund Schwere 4): jede Handlung hat einen Bildschirmknopf mit Tasten, jedes Spiel ist so spielbar", () => {
+  for (const id of IDS) {
+    const c = manifestOf(id).rt.controls;
+    for (const b of c.buttons) { assert.equal(b.zone, "button", id + ": " + b.id + " als echter Knopf"); assert.ok(b.keys.length >= 1 && b.label && b.label.de, id + ": " + b.id); }
+    assert.ok(!c.axes || !c.axes.y, id + ": keine y-Achse (der Host zeichnet nur ← →)");
+  }
+  let kb = kbOf("arcade-ziegel"), g = newGame("arcade-ziegel", ["human", "bot"]); let st = steps(g.c, g.st, rep(60, kb([], -1000)));
+  assert.ok(st.sides[0].st.me < 400, "Ziegel: ←");
+  kb = kbOf("arcade-puck"); g = newGame("arcade-puck", ["human", "bot"]); st = steps(g.c, g.st, rep(40, kb(["down"], 1000)));
+  assert.ok(st.sides[0].st.me.x > 600 && st.sides[0].st.me.y > 1400, "Puck: → und Runter");
+  kb = kbOf("arcade-volley"); g = newGame("arcade-volley", ["human", "bot"]); st = steps(g.c, g.st, [kb(["jump"]), NONE]);
+  assert.ok(st.sides[0].st.me.vy < 0, "Volley: Springen");
+  kb = kbOf("arcade-kick"); g = newGame("arcade-kick", ["human", "bot"]); st = steps(g.c, g.st, [kb(["kick"])]); assert.ok(st.sides[0].st.kick > 0, "Kick: KICK");
+  kb = kbOf("arcade-snow"); g = newGame("arcade-snow", ["human", "bot"]); st = steps(g.c, g.st, [kb(["fire"])]); assert.equal(st.sides[0].st.ammo, 2, "Schnee: Werfen");
+  kb = kbOf("arcade-flipper"); g = newGame("arcade-flipper", ["human", "bot"]); st = steps(g.c, g.st, rep(20, kb(["right"]))); assert.ok(st.sides[0].st.a[1] < 0 && st.sides[0].st.a[0] > 0.5, "Flipper: RECHTS TIPPEN");
+  st = steps(g.c, st, rep(20, kb(["left"]))); assert.ok(st.sides[0].st.a[0] < 0, "Flipper: LINKS TIPPEN");
+  kb = kbOf("arcade-panzer"); g = newGame("arcade-panzer", ["human", "bot"]); st = steps(g.c, g.st, [...rep(30, kb(["up"], 1000)), kb(["fire"]), NONE]);
+  assert.equal(st.sides[0].st.shells.length, 1, "Panzer: Steiler, Kraft, Feuer");
+  kb = kbOf("arcade-elfer"); g = newGame("arcade-elfer", ["human", "bot"]); st = steps(g.c, g.st, [...rep(4, NONE), ...rep(20, kb(["up"], 1000)), kb(["shoot"]), NONE]);
+  assert.equal(st.sides[0].st.phase, "fly", "Elfer: zielen, Kurve, Schiessen");
   for (const id of ["arcade-stock", "arcade-murmel"]) {
-    g = newGame(id, ["human", "bot"]); st = steps(g.c, g.st, [...rep(4, NONE), ...rep(10, kb(0, 300, -1000)), kb(1), NONE]);
-    assert.equal(st.sides[0].st.list.filter((s) => s.shooter || s.p === 0).length, 1, id + ": Richtung, Kraft, Leertaste");
+    kb = kbOf(id); g = newGame(id, ["human", "bot"]); st = steps(g.c, g.st, [...rep(4, NONE), ...rep(10, kb(["up"], 300)), kb(["throw"]), NONE]);
+    assert.equal(st.sides[0].st.list.filter((s) => s.shooter || s.p === 0).length, 1, id + ": Richtung, Staerker, Werfen");
+  }
+});
+
+test("Gemuetlich spielen: Zeitlupe 50 % (gleicher Ablauf bei halber Geschwindigkeit), Doppeltippen zaehlt einmal", () => {
+  for (const id of ["arcade-ziegel", "arcade-panzer", "arcade-stock"]) {
+    const a = newGame(id, ["bot", "bot"], null, "slow"), b = newGame(id, ["bot", "bot"], { comfort: "an" }, "slow");
+    let sa = a.st, sb = b.st;
+    for (let t = 0; t < 600; t++) sa = a.c.step(sa, [NONE, NONE]).state;
+    for (let t = 0; t < 1200; t++) sb = b.c.step(sb, [NONE, NONE]).state;
+    assert.equal(sb.sides[0].t, sa.sides[0].t, id + ": halbe Spielzeit je Host-Tick");
+    assert.deepEqual(JSON.stringify(sb.sides), JSON.stringify(sa.sides), id + ": derselbe Spielverlauf, nur langsamer");
+    assert.equal(b.c.status(sb).comfort, true);
+  }
+  const kb = kbOf("arcade-snow");
+  for (const comfort of ["aus", "an"]) {
+    const g = newGame("arcade-snow", ["human", "bot"], { comfort });
+    const st = steps(g.c, g.st, [kb(["fire"]), NONE, NONE, NONE, kb(["fire"]), NONE]);   // zweites Tippen nach 4 Host-Ticks
+    assert.equal(st.sides[0].st.ammo, comfort === "an" ? 2 : 1, "Schnee " + comfort + ": Doppeltippen");
+  }
+});
+
+test("Kennzahlen fuer den Endbildschirm: drei Zahlen je Spiel, zweisprachig", () => {
+  for (const id of IDS) {
+    let { c, st } = newGame(id, ["bot", "bot"]);
+    for (let t = 0; t < 120 * 400 && !c.status(st).over; t++) st = c.step(st, [NONE, NONE]).state;
+    const z = c.status(st).stats;
+    assert.equal(z.length, 3, id); for (const k of z) { assert.ok(k.label.de && k.label.en, id); assert.notEqual(k.value, undefined, id); }
+    assert.match(String(z[2].value), /^\d+:\d\d$/, id + ": Spielzeit");
+    assert.ok(z.slice(0, 2).some((k) => k.value > 0), id + ": " + JSON.stringify(z));
   }
 });
 

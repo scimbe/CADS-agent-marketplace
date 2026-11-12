@@ -14,6 +14,31 @@ function log(fx, ev, at, nextId) {
   while (fx.length && (fx.length > FX_MAX || at - fx[0].at > FX_KEEP)) fx.shift();
   return id;
 }
+// ---------- Kennzahlen fuer den Endbildschirm (Design Phase C: drei Zahlen unter dem Spielstand) ----------
+const BALL = ["hit", "kick", "flip", "bump"];
+function statsNew() { return { hits: 0, rally: 0, best: 0, shots: 0, points: 0, saves: 0 }; }
+/** Zaehlt die Ereignisse einer Seite (eigenes Bild). me: Spieler-Index in Rundenspielen (Wurf-Ereignis traegt p). */
+function count(z, ev, me) {
+  for (const e of ev) {
+    if (BALL.includes(e.k)) { z.hits++; z.rally++; z.best = Math.max(z.best, z.rally); }
+    else if (e.k === "ohit") { z.rally++; z.best = Math.max(z.best, z.rally); }
+    else if (e.k === "score" || e.k === "lose") { if (e.k === "score") z.points += e.n || 1; z.rally = 0; }
+    if ((e.k === "fire" || e.k === "throw") && (e.mine === true || (e.mine === undefined && e.p === me))) z.shots++;
+    if (e.k === "saved") z.saves++;
+  }
+}
+const SL = {
+  hits: { de: "Ballkontakte", en: "Touches" }, best: { de: "Längster Ballwechsel", en: "Longest rally" }, time: { de: "Spielzeit", en: "Time played" },
+  shots: { de: "Schüsse und Würfe", en: "Shots and throws" }, points: { de: "Punkte", en: "Points" }, saves: { de: "Gehalten", en: "Saves" }
+};
+/** Drei Kennzahlen je Spiel: Ballspiele Kontakte/Ballwechsel, Schuss- und Wurfspiele Schuesse/Punkte, Elfer Tore/Paraden. */
+function statsOf(g, z, t) {
+  const time = { id: "time", label: SL.time, value: Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0") };
+  if (g === "elfer") return [{ id: "points", label: { de: "Tore", en: "Goals" }, value: z.points }, { id: "saves", label: SL.saves, value: z.saves }, time];
+  if (g === "panzer" || g === "snow" || g === "stock" || g === "murmel") return [{ id: "shots", label: SL.shots, value: z.shots }, { id: "points", label: SL.points, value: z.points }, time];
+  return [{ id: "hits", label: SL.hits, value: z.hits }, { id: "best", label: SL.best, value: z.best }, time];
+}
+const comfortOf = (params) => !!params && params.comfort === "an";
 function winOf(g, params) { return params && Number.isInteger(params.win) && params.win >= 1 && params.win <= 9 ? params.win : undefined; }
 function textOf(S, lang, them) {
   const T = tx(lang), say = fmt(T.score, { you: T.you, a: S.score[0], b: S.score[1], them });
@@ -31,19 +56,19 @@ export function makeCard(g, manifest) {
   const card = {
     manifest,
     init({ params, seed, players }) {
-      const st = matchInit({ g, seed: String(seed), players: players || ["human", "bot"], win: winOf(g, params) });
+      const st = matchInit({ g, seed: String(seed), players: players || ["human", "bot"], win: winOf(g, params), comfort: comfortOf(params) });
       st.look = lookOf(g, params); st.title = params && typeof params.title === "string" ? params.title : "";
-      st.fx = [[], []]; st.fxn = 0;
+      st.fx = [[], []]; st.fxn = 0; st.stats = [statsNew(), statsNew()];
       return matchStart(st);
     },
     step(state, inputs) {
       const r = matchStep(state, inputs), st = r.state, at = st.now / TICK;
-      for (let s = 0; s < 2; s++) st.fxn = log(st.fx[s], r.ev.filter((e) => e.seat === s), at, st.fxn);
+      for (let s = 0; s < 2; s++) { const ev = r.ev.filter((e) => e.seat === s); st.fxn = log(st.fx[s], ev, at, st.fxn); count(st.stats[s], ev, st.sides[s].me); }
       return { state: st, ev: r.ev };
     },
     status(state) {
       const s = matchStatus(state), A = state.sides[0], t = textOf(A, "de", state.players[1] === "bot" ? tx("de").bot : tx("de").friend);
-      return { over: s.over, score: s.score, winner: s.winner, draw: s.draw, rejected: s.rejected, timeUp: s.timeUp, say: t.say + (t.note ? ". " + t.note : "") };
+      return { over: s.over, score: s.score, winner: s.winner, draw: s.draw, rejected: s.rejected, timeUp: s.timeUp, comfort: !!state.comfort, stats: statsOf(g, state.stats[0], A.t), say: t.say + (t.note ? ". " + t.note : "") };
     },
     view(state, ctx = {}) {
       const seat = ctx.seat === 1 ? 1 : 0, S = state.sides[seat], T = tx(ctx.lang), c = state.ctl[seat];
@@ -56,13 +81,13 @@ export function makeCard(g, manifest) {
     hash(state) { return state && state.S ? hashSide(state.S) : matchHash(state); },
     side: {
       init({ params, seed, seat, serving }) {
-        const st = liveInit(g, { seed: String(seed), seat, serving, win: winOf(g, params) });
-        st.look = lookOf(g, params); st.title = params && typeof params.title === "string" ? params.title : ""; st.fx = []; st.fxn = 0;
+        const st = liveInit(g, { seed: String(seed), seat, serving, win: winOf(g, params), comfort: comfortOf(params) });
+        st.look = lookOf(g, params); st.title = params && typeof params.title === "string" ? params.title : ""; st.fx = []; st.fxn = 0; st.stats = statsNew();
         return st;
       },
       step(st, { input, inbox, wall }) {
         const r = liveStep(st, { input, inbox, wall }), n = r.st;
-        n.fxn = log(n.fx, r.ev, n.S.t, n.fxn);
+        n.fxn = log(n.fx, r.ev, n.S.t, n.fxn); count(n.stats, r.ev, n.S.me);
         return { st: n, out: r.out, ev: r.ev };
       },
       view(st, ctx = {}) {
@@ -70,7 +95,7 @@ export function makeCard(g, manifest) {
         const shown = ctx.tracked ? trackedSide(S, ctx.tracked) : S;
         return drawSide(shown, st.look, { now: S.t + (ctx.alpha || 0) / TICK, fx: st.fx, aim: st.ctl.aim, swipe: st.ctl.swipe, reduced: ctx.reduced, count: ctx.countdown, hud: (st.title ? st.title + "  ·  " : "") + t.say, note: t.note, a11y: t.say });
       },
-      status(st) { const S = st.S, t = textOf(S, "de", tx("de").friend); return { over: S.over, score: S.score.slice(), winner: S.over ? (S.draw ? -1 : S.score[0] > S.score[1] ? 0 : 1) : null, draw: !!S.draw, rejected: S.rejected, say: t.say }; },
+      status(st) { const S = st.S, t = textOf(S, "de", tx("de").friend); return { over: S.over, score: S.score.slice(), winner: S.over ? (S.draw ? -1 : S.score[0] > S.score[1] ? 0 : 1) : null, draw: !!S.draw, rejected: S.rejected, say: t.say, comfort: !!st.comfort, stats: statsOf(S.g, st.stats, S.t) }; },
       hash(st) { return hashSide(st.S); }
     }
   };
@@ -129,7 +154,9 @@ export function paramsOf(g, rules) {
     title: { type: "string", maxLength: 34, pattern: "^[^\\u0000-\\u001f\\u007f<>]*$", default: "", "x-field": "text", "x-model": true, "x-label": L("Titel", "Title") },
     sub: { type: "string", maxLength: 60, pattern: "^[^\\u0000-\\u001f\\u007f<>]*$", default: "", "x-field": "text", "x-model": true, "x-label": L("Untertitel", "Subtitle") },
     photo: { type: ["string", "null"], maxLength: 200, default: null, "x-field": "media.local", "x-label": L("Eigenes Foto (bleibt auf dem Gerät)", "Your photo (stays on this device)") },
-    photoUse: { type: "string", enum: ["off", "figure", "bg"], default: "off", "x-field": "choice", "x-label": L("Foto als", "Use photo as") }
+    photoUse: { type: "string", enum: ["off", "figure", "bg"], default: "off", "x-field": "choice", "x-label": L("Foto als", "Use photo as") },
+    // Design Phase C: Zeitlupe 50 %, Doppeltippen zaehlt einmal, grosse Tasten (Host), Flipper bleibt oben solange gedrueckt
+    comfort: { type: "string", enum: ["aus", "an"], default: "aus", "x-field": "choice", "x-label": L("Gemütlich spielen", "Play at ease") }
   };
   if (g !== "elfer") props.win = { type: "integer", minimum: 1, maximum: 9, default: rules.WIN, "x-field": "number", "x-model": true, "x-label": L("Punkte zum Sieg", "Points to win") };
   const req = Object.keys(props);
@@ -139,6 +166,7 @@ export function paramsOf(g, rules) {
       { id: "farben", params: ["colA", "colB"], label: L("Farben", "Colours") },
       { id: "figur", params: ["emoji", "photo", "photoUse"], label: L("Figur und Foto", "Figure and photo") },
       { id: "texte", params: ["title", "sub"], label: L("Texte", "Texts") },
+      { id: "gemuetlich", params: ["comfort"], label: L("Gemütlich spielen", "Play at ease") },
       ...(g !== "elfer" ? [{ id: "regeln", params: ["win"], label: L("Regeln", "Rules") }] : [])
     ]
   };

@@ -13,8 +13,8 @@
     "en": "Slide, aim, get closer."
   },
   "howto": {
-    "de": "Zieh wie eine Schleuder zurück und lass los. Der Stein am nächsten zur Mitte gewinnt die Runde. Tastatur: Pfeil links/rechts Richtung, hoch/runter Kraft, Leertaste wirft.",
-    "en": "Pull back like a slingshot and let go. The stone closest to the middle wins the round. Keyboard: left/right direction, up/down power, space throws."
+    "de": "Zieh wie eine Schleuder zurück und lass los. Der Stein am nächsten zur Mitte gewinnt die Runde. Ohne Wischen: ← → Richtung, Stärker/Sanfter (↑ ↓), Werfen (Leertaste).",
+    "en": "Pull back like a slingshot and let go. The stone closest to the middle wins the round. No swiping: ← → direction, Harder/Softer (↑ ↓), Throw (space)."
   },
   "family": "arcade-stock",
   "on": [
@@ -65,6 +65,7 @@
       "sub",
       "photo",
       "photoUse",
+      "comfort",
       "win"
     ],
     "properties": {
@@ -249,6 +250,19 @@
           "en": "Use photo as"
         }
       },
+      "comfort": {
+        "type": "string",
+        "enum": [
+          "aus",
+          "an"
+        ],
+        "default": "aus",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Gemütlich spielen",
+          "en": "Play at ease"
+        }
+      },
       "win": {
         "type": "integer",
         "minimum": 1,
@@ -299,6 +313,16 @@
       }
     },
     {
+      "id": "gemuetlich",
+      "params": [
+        "comfort"
+      ],
+      "label": {
+        "de": "Gemütlich spielen",
+        "en": "Play at ease"
+      }
+    },
+    {
       "id": "regeln",
       "params": [
         "win"
@@ -322,13 +346,39 @@
     "controls": {
       "buttons": [
         {
+          "id": "up",
+          "kind": "hold",
+          "keys": [
+            "ArrowUp",
+            "KeyW"
+          ],
+          "zone": "button",
+          "label": {
+            "de": "Stärker",
+            "en": "Harder"
+          }
+        },
+        {
+          "id": "down",
+          "kind": "hold",
+          "keys": [
+            "ArrowDown",
+            "KeyS"
+          ],
+          "zone": "button",
+          "label": {
+            "de": "Sanfter",
+            "en": "Softer"
+          }
+        },
+        {
           "id": "throw",
           "kind": "pulse",
           "keys": [
             "Space",
             "Enter"
           ],
-          "zone": "none",
+          "zone": "button",
           "label": {
             "de": "Werfen",
             "en": "Throw"
@@ -340,12 +390,6 @@
           "keys": [
             "ArrowLeft",
             "ArrowRight"
-          ]
-        },
-        "y": {
-          "keys": [
-            "ArrowUp",
-            "ArrowDown"
           ]
         }
       },

@@ -13,8 +13,8 @@
     "en": "Break their wall, guard yours."
   },
   "howto": {
-    "de": "Schieb den Schläger unten. Deine Mauer dahinter fängt Fehler auf, bis sie Löcher hat. Tastatur: Pfeil links/rechts.",
-    "en": "Slide the paddle at the bottom. Your wall behind it catches mistakes until it has holes. Keyboard: left/right arrows."
+    "de": "Schieb den Schläger unten. Deine Mauer dahinter fängt Fehler auf, bis sie Löcher hat. Ohne Wischen: Knöpfe ← → oder Pfeiltasten.",
+    "en": "Slide the paddle at the bottom. Your wall behind it catches mistakes until it has holes. No swiping: buttons ← → or arrow keys."
   },
   "family": "arcade-ziegel",
   "on": [
@@ -64,6 +64,7 @@
       "sub",
       "photo",
       "photoUse",
+      "comfort",
       "win"
     ],
     "properties": {
@@ -248,6 +249,19 @@
           "en": "Use photo as"
         }
       },
+      "comfort": {
+        "type": "string",
+        "enum": [
+          "aus",
+          "an"
+        ],
+        "default": "aus",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Gemütlich spielen",
+          "en": "Play at ease"
+        }
+      },
       "win": {
         "type": "integer",
         "minimum": 1,
@@ -295,6 +309,16 @@
       "label": {
         "de": "Texte",
         "en": "Texts"
+      }
+    },
+    {
+      "id": "gemuetlich",
+      "params": [
+        "comfort"
+      ],
+      "label": {
+        "de": "Gemütlich spielen",
+        "en": "Play at ease"
       }
     },
     {

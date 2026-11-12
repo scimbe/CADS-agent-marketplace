@@ -31,11 +31,11 @@ export const T = {
       murmel: "Tipp unten auf die Linie, zieh zurück und lass los. Jede Murmel aus dem Ring ist ein Punkt."
     },
     keys: {
-      puck: "Tastatur: Pfeiltasten bewegen den Schläger.", ziegel: "Tastatur: Pfeil links/rechts.", volley: "Tastatur: Pfeil links/rechts laufen, Leertaste springt.",
-      panzer: "Tastatur: Pfeil hoch/runter Winkel, links/rechts Kraft, Leertaste feuert.", kick: "Tastatur: Pfeil links/rechts, Leertaste kickt.",
-      flipper: "Tastatur: Pfeil links und Pfeil rechts schlagen die Klappen.", snow: "Tastatur: Pfeil links/rechts, Leertaste wirft.",
-      elfer: "Tastatur: Pfeil links/rechts zielen, hoch/runter Kurve, Leertaste schießt; als Torwart Pfeil links/rechts.",
-      stock: "Tastatur: Pfeil links/rechts Richtung, hoch/runter Kraft, Leertaste wirft.", murmel: "Tastatur: A/D Startpunkt, Pfeile Richtung und Kraft, Leertaste schießt."
+      puck: "Ohne Wischen: Knöpfe ← → Hoch Runter oder Pfeiltasten bewegen den Schläger.", ziegel: "Ohne Wischen: Knöpfe ← → oder Pfeiltasten.", volley: "Ohne Wischen: ← → laufen, Springen (Leertaste).",
+      panzer: "Ohne Wischen: Steiler/Flacher (↑ ↓) Winkel, ← → Kraft, Feuer (Leertaste).", kick: "Ohne Wischen: ◀ KICK ▶ (Pfeiltasten, Leertaste).",
+      flipper: "Ohne Wischen: LINKS TIPPEN und RECHTS TIPPEN (Pfeil links/rechts).", snow: "Ohne Wischen: ← → ausweichen, Werfen (Leertaste).",
+      elfer: "Ohne Wischen: ← → zielen, Kurve links/rechts (↑ ↓), Schießen (Leertaste); als Torwart ← →.",
+      stock: "Ohne Wischen: ← → Richtung, Stärker/Sanfter (↑ ↓), Werfen (Leertaste).", murmel: "Ohne Wischen: Start links/rechts (Q/E), ← → Richtung, Stärker/Sanfter (↑ ↓), Schießen (Leertaste)."
     }
   },
   en: {
@@ -56,11 +56,11 @@ export const T = {
       murmel: "Tap the line at the bottom, pull back and let go. Every marble out of the ring is a point."
     },
     keys: {
-      puck: "Keyboard: arrow keys move the mallet.", ziegel: "Keyboard: left/right arrows.", volley: "Keyboard: left/right to run, space to jump.",
-      panzer: "Keyboard: up/down angle, left/right power, space fires.", kick: "Keyboard: left/right, space kicks.",
-      flipper: "Keyboard: left and right arrows swing the flippers.", snow: "Keyboard: left/right, space throws.",
-      elfer: "Keyboard: left/right to aim, up/down to curve, space shoots; keeping: left/right.",
-      stock: "Keyboard: left/right direction, up/down power, space throws.", murmel: "Keyboard: A/D start point, arrows direction and power, space shoots."
+      puck: "No swiping: buttons ← → Up Down or arrow keys move the mallet.", ziegel: "No swiping: buttons ← → or arrow keys.", volley: "No swiping: ← → to run, Jump (space).",
+      panzer: "No swiping: Steeper/Flatter (↑ ↓) angle, ← → power, Fire (space).", kick: "No swiping: ◀ KICK ▶ (arrow keys, space).",
+      flipper: "No swiping: TAP LEFT and TAP RIGHT (left/right arrows).", snow: "No swiping: ← → to dodge, Throw (space).",
+      elfer: "No swiping: ← → to aim, curve left/right (↑ ↓), Shoot (space); keeping: ← →.",
+      stock: "No swiping: ← → direction, Harder/Softer (↑ ↓), Throw (space).", murmel: "No swiping: start left/right (Q/E), ← → direction, Harder/Softer (↑ ↓), Shoot (space)."
     }
   }
 };

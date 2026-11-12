@@ -13,8 +13,8 @@
     "en": "Two flippers, one gap."
   },
   "howto": {
-    "de": "Tipp links oder rechts: die Klappe schlägt. Lass den Ball nicht durch die Lücke. Tastatur: Pfeil links und Pfeil rechts schlagen die Klappen.",
-    "en": "Tap left or right: that flipper swings. Don't let the ball through the gap. Keyboard: left and right arrows swing the flippers."
+    "de": "Tipp links oder rechts: die Klappe schlägt. Lass den Ball nicht durch die Lücke. Ohne Wischen: LINKS TIPPEN und RECHTS TIPPEN (Pfeil links/rechts).",
+    "en": "Tap left or right: that flipper swings. Don't let the ball through the gap. No swiping: TAP LEFT and TAP RIGHT (left/right arrows)."
   },
   "family": "arcade-kick",
   "dur": 120,
@@ -61,6 +61,7 @@
       "sub",
       "photo",
       "photoUse",
+      "comfort",
       "win"
     ],
     "properties": {
@@ -245,6 +246,19 @@
           "en": "Use photo as"
         }
       },
+      "comfort": {
+        "type": "string",
+        "enum": [
+          "aus",
+          "an"
+        ],
+        "default": "aus",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Gemütlich spielen",
+          "en": "Play at ease"
+        }
+      },
       "win": {
         "type": "integer",
         "minimum": 1,
@@ -295,6 +309,16 @@
       }
     },
     {
+      "id": "gemuetlich",
+      "params": [
+        "comfort"
+      ],
+      "label": {
+        "de": "Gemütlich spielen",
+        "en": "Play at ease"
+      }
+    },
+    {
       "id": "regeln",
       "params": [
         "win"
@@ -325,10 +349,10 @@
             "KeyA",
             "KeyZ"
           ],
-          "zone": "left",
+          "zone": "button",
           "label": {
-            "de": "Linke Klappe",
-            "en": "Left flipper"
+            "de": "LINKS TIPPEN",
+            "en": "TAP LEFT"
           }
         },
         {
@@ -339,10 +363,10 @@
             "KeyD",
             "KeyM"
           ],
-          "zone": "right",
+          "zone": "button",
           "label": {
-            "de": "Rechte Klappe",
-            "en": "Right flipper"
+            "de": "RECHTS TIPPEN",
+            "en": "TAP RIGHT"
           }
         }
       ],

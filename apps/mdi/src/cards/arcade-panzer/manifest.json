@@ -13,8 +13,8 @@
     "en": "Read the wind, find the angle, hit."
   },
   "howto": {
-    "de": "Zieh wie eine Schleuder vom Ziel weg und lass los. Achte auf den Wind. Tastatur: Pfeil hoch/runter Winkel, links/rechts Kraft, Leertaste feuert.",
-    "en": "Pull back like a slingshot and let go. Mind the wind. Keyboard: up/down angle, left/right power, space fires."
+    "de": "Zieh wie eine Schleuder vom Ziel weg und lass los. Achte auf den Wind. Ohne Wischen: Steiler/Flacher (↑ ↓) Winkel, ← → Kraft, Feuer (Leertaste).",
+    "en": "Pull back like a slingshot and let go. Mind the wind. No swiping: Steeper/Flatter (↑ ↓) angle, ← → power, Fire (space)."
   },
   "family": "arcade-panzer",
   "on": [
@@ -65,6 +65,7 @@
       "sub",
       "photo",
       "photoUse",
+      "comfort",
       "win"
     ],
     "properties": {
@@ -249,6 +250,19 @@
           "en": "Use photo as"
         }
       },
+      "comfort": {
+        "type": "string",
+        "enum": [
+          "aus",
+          "an"
+        ],
+        "default": "aus",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Gemütlich spielen",
+          "en": "Play at ease"
+        }
+      },
       "win": {
         "type": "integer",
         "minimum": 1,
@@ -299,6 +313,16 @@
       }
     },
     {
+      "id": "gemuetlich",
+      "params": [
+        "comfort"
+      ],
+      "label": {
+        "de": "Gemütlich spielen",
+        "en": "Play at ease"
+      }
+    },
+    {
       "id": "regeln",
       "params": [
         "win"
@@ -322,13 +346,39 @@
     "controls": {
       "buttons": [
         {
+          "id": "up",
+          "kind": "hold",
+          "keys": [
+            "ArrowUp",
+            "KeyW"
+          ],
+          "zone": "button",
+          "label": {
+            "de": "Steiler",
+            "en": "Steeper"
+          }
+        },
+        {
+          "id": "down",
+          "kind": "hold",
+          "keys": [
+            "ArrowDown",
+            "KeyS"
+          ],
+          "zone": "button",
+          "label": {
+            "de": "Flacher",
+            "en": "Flatter"
+          }
+        },
+        {
           "id": "fire",
           "kind": "pulse",
           "keys": [
             "Space",
             "Enter"
           ],
-          "zone": "none",
+          "zone": "button",
           "label": {
             "de": "Feuer",
             "en": "Fire"
@@ -340,12 +390,6 @@
           "keys": [
             "ArrowLeft",
             "ArrowRight"
-          ]
-        },
-        "y": {
-          "keys": [
-            "ArrowUp",
-            "ArrowDown"
           ]
         }
       },
