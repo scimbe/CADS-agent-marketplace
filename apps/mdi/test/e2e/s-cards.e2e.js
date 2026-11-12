@@ -1,8 +1,7 @@
 // Strang S im echten Browser: spiel-dart, zug-malrat, zug-abfragen (+ zug-quiz), zug-typen, quiz-preis (+ raum-schaetzen).
 // Je Karte: Kartenansicht und Spielbeginn ohne verdecktes Bedienelement, ohne Ueberlauf, axe 0 (4 Ansichten);
 // Link-Rundreise: ein in Node gespielter Stand kommt als #v2.challenge an, wird angenommen und gleich weitergerechnet.
-// Bedienung der eigenen Oberflaechen (Zielen/Kraft, Zeichnen, Schieber, Bert-Partie per Klick, Touch und Tastatur)
-// braucht die Widgets aus Strang F Stufe 2/3 (ADR 0001 c); bis dahin stehen diese Faelle als todo mit Grund.
+// Bedienung der eigenen Oberflaechen pruefen s-dart, s-malrat und s-quiz.e2e.js.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { browser, open, act, axe, noOverflow, waitScreen } from "./lib/grund.mjs";
@@ -14,7 +13,6 @@ import { encode } from "../../src/app/link.js";
 const IDS = ["spiel-dart", "zug-malrat", "zug-abfragen", "zug-typen", "quiz-preis"];
 const VIEWS = ["phone360", "phone390", "phone412", "desk1280"];
 const DAY = 20769;
-const WIDGETS = "wartet auf die Widgets aus Strang F Stufe 2/3 (aim, power, draw, strokes, slide, pick, list; ADR 0001 c)";
 
 let b;
 test.before(async () => { b = await browser(); });

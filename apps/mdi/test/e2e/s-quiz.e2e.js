@@ -6,12 +6,6 @@ import assert from "node:assert/strict";
 import { browser, open, act, axe, noOverflow, waitScreen, screen } from "./lib/grund.mjs";
 import { texts } from "../../src/app/texts.js";
 
-// Schieber-Faelle haengen an Strang F (Stand 3c80c38), nicht an der Karte: src/render/widgets.js wrap() gibt der
-// Widget-Sektion die Klasse "w-slide", widgets.css legt .w-slide als vierspaltiges Raster an -> auf dem Telefon steht
-// alles in einer Zeile (Seite ~631 px breit, Knoepfe verdeckt). Mit lokal korrigierter Sektion laufen beide Faelle durch;
-// auf 390 px meldet axe dann noch target-size (serious) am Range-Input des Widgets. Bis F das liefert: todo (Preis auf
-// beiden Ansichten: die verdeckten Knoepfe treffen auch 1280 px; Schaetzen auf 1280 px laeuft schon jetzt).
-const WAIT_F = "wartet auf Strang F: Klasse w-slide an der Widget-Sektion (widgets.js wrap/widgets.css) und target-size des Range-Inputs";
 let b;
 test.before(async () => { b = await browser(); });
 test.after(async () => { await b.close(); });
@@ -76,19 +70,19 @@ async function play(P, { slider = "keys", touch = false, label, bad, seen = new 
     if (s === "card-play-cover") { await act(p, "cover-ok"); continue; }
     if (s !== "card-play-turn") return s;
     await settle(p);
-    const kind = await p.evaluate(() => { const w = document.querySelector("main section.widget"); return w ? [...w.classList].find((c) => c.startsWith("w-")) : null; });
+    const kind = await p.evaluate(() => { const w = document.querySelector("main section.widget"); return w ? [...w.classList].find((c) => c.startsWith("wg-")) : null; });
     if (!kind) { await p.waitForTimeout(50); continue; }
     if (!seen.has(kind)) { seen.add(kind); await audit(p, label + " " + kind, bad); }
     const w = p.locator("main section.widget").first();
-    if (kind === "w-pick") { await w.locator(".opt").first().click(); continue; }
-    if (kind === "w-slide") {
+    if (kind === "wg-pick") { await w.locator(".opt").first().click(); continue; }
+    if (kind === "wg-slide") {
       const range = w.locator('input[type="range"]');
       const before = Number(await range.inputValue());
       if (slider === "keys") { await range.focus(); for (let k = 0; k < 3; k++) await p.keyboard.press("ArrowRight"); }
       else { await range.scrollIntoViewIfNeeded(); const r = await range.boundingBox(); await tapAt(p, touch, r.x + r.width * 0.7, r.y + r.height / 2); }
-      await p.waitForFunction((b0) => Number(document.querySelector('main section.w-slide input[type="range"]').value) !== b0, before);
+      await p.waitForFunction((b0) => Number(document.querySelector('main section.wg-slide input[type="range"]').value) !== b0, before);
     }
-    if (kind === "w-list") { const ins = w.locator("input.tlist"); const n = await ins.count(); for (let k = 0; k < n; k++) await ins.nth(k).fill("Antwort " + (k + 1)); }
+    if (kind === "wg-list") { const ins = w.locator("input.tlist"); const n = await ins.count(); for (let k = 0; k < n; k++) await ins.nth(k).fill("Antwort " + (k + 1)); }
     await w.locator('[data-act^="w-"]').click();
     await p.waitForTimeout(30);
   }
@@ -128,7 +122,7 @@ for (const o of [{ view: "phone390", lang: "de" }, { view: "desk1280", lang: "en
     await A.ctx.close(); await B.ctx.close();
   });
 
-  test("quiz-preis per Link: Schieber per " + (touch ? "Touch" : "Maus") + " und per Pfeiltasten, Ergebnis auf beiden Seiten – " + o.view, { todo: WAIT_F }, async () => {
+  test("quiz-preis per Link: Schieber per " + (touch ? "Touch" : "Maus") + " und per Pfeiltasten, Ergebnis auf beiden Seiten – " + o.view, async () => {
     const bad = [];
     const A = await startLink(o, "quiz-preis", []);
     assert.equal(await play(A, { slider: "pointer", touch, label: "A", bad }), "card-play-send");
@@ -145,7 +139,7 @@ for (const o of [{ view: "phone390", lang: "de" }, { view: "desk1280", lang: "en
     await A.ctx.close(); await B.ctx.close();
   });
 
-  test("raum-schaetzen allein (quiz-preis, Spielart schaetzen) bis zum Ergebnis – " + o.view, { todo: touch ? WAIT_F : false }, async () => {
+  test("raum-schaetzen allein (quiz-preis, Spielart schaetzen) bis zum Ergebnis – " + o.view, async () => {
     const bad = [];
     const A = await open(b, o);
     await act(A.p, "open-quiz-preis"); await waitScreen(A.p, "card-view");

@@ -130,7 +130,7 @@ function throwUi(p, g, seat, ctx, lang) {
   const kids = [
     { t: "text", role: "label", text: fmt(X.da_dart_of, { n: cur + 1 }) },
     { t: "form", id: FORM, label: X.da_board, hint: X.da_board_help, confirm: X.da_throw, submit, fields: [
-      { t: "aim", id: "aim", label: X.da_aim, grid: B.GRID, value: aim, card: B.canvas(p, lang) },
+      { t: "aim", id: "aim", label: X.da_aim, grid: B.GRID, value: aim, card: B.canvas(p, lang), wobble: B.wobbleFrames(p.seed, kDart), wobbleMs: D.STEP_MS },
       // Pendel: Startstufe aus dem Seed (alt hand().lv); am Regler ohne Timing die Mitte (alt da_lv_mid)
       // Am Regler ohne Timing direkt als slide (Stufen 1..9 angezeigt wie alt, Wert 0..8); power im Modus „schieber“
       // waere dasselbe Widget, ruft in widgets-more.js aber M.slide auf, das es dort nicht gibt (offen bei F)
