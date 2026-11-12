@@ -1,7 +1,7 @@
 // Laeuft durch alle D0-Zustaende und die Heimseite und ruft cb(name, page) je Zustand (fuer axe, Ueberlauf, Screenshots).
 import fs from "node:fs";
 import path from "node:path";
-import { open, act, waitScreen, screen } from "./grund.mjs";
+import { open, act, waitScreen, screen, URL_MODE } from "./grund.mjs";
 import { pickMode, pickSeat, liveInvite } from "./scenarios.mjs";
 import { ROOT } from "./grund.mjs";
 import { visitHome } from "./home-states.mjs";
@@ -38,6 +38,8 @@ export async function visitAll(b, o, cb) {
   await waitScreen(G.p, "receive-show"); await cb("15-empfangen-karte", G.p);
   const X = await open(b, { ...o, hash: VEC.reject.find((v) => v.reason === "params").hash }); errs.push(X.errs);
   await waitScreen(X.p, "receive-reject"); await cb("16-link-abgelehnt", X.p);
+  // Live-Zustaende brauchen den falschen Live-Server (fakelive.mjs); im URL-Modus gibt es keinen Broker (Staging L5)
+  if (URL_MODE) return errs.flat();
   const { A: L, B: M } = await liveInvite(b, o, "bluff"); errs.push(L.errs, M.errs);
   await cb("17-live-einladung", L.p);
   for (let i = 0; i < 100 && (await screen(M.p)) !== "card-play-wait" && (await screen(M.p)) !== "card-play-turn"; i++) await M.p.waitForTimeout(50);
