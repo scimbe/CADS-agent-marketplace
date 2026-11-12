@@ -18,9 +18,11 @@
 // }
 // Pfade sind absolute Zustandspfade ohne Praefix, z. B. "inhalt.card.view", "inhalt.card.play.over".
 
+import { frei } from "../features/frei/chart.js";   // Strang K: freie Karte, KI-Arten, Deck, KI-Bild
+
 export const FEATURES = [
   // home,   // Strang H: src/ui/home/feature.js
-  // frei,   // Strang K: src/features/frei/chart.js
+  frei,
 ];
 
 /** Geraetedienste aller Features zusammensetzen (doppelte Dienste sind ein Fehler). */

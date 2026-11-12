@@ -164,15 +164,17 @@ export function shop(p, c) {
 /** Wunschzettel: Das Geraet der Wuenschenden zeigt nur die Wuensche, nie eine Marke und nie wer schenkt (turn2.js:63). */
 export function wish(p, c) {
   const X = c.X, D = d(c);
-  // Wer ist das? Der Zettel beginnt hier (k = 0) oder der eigene Link (o = 1) -> die Wuenschende; sonst fragen.
-  const own = c.pub.k === 0 || c.pub.o === 1 ? true : D.own === true ? true : D.own === false ? false : null;
+  // Wer ist das? Das Geraet merkt es sich je Partie (ctx.memo, Host-Merkzettel, nie im Link; alt K.store.wown,
+  // turn2.js:68-78): wer den Zettel hier anlegt (k = 0), ist die Wuenschende; ein fremdes Geraet fragt genau einmal.
+  const memo = c.ctx && c.ctx.memo && typeof c.ctx.memo === "object" ? c.ctx.memo : {};
+  const own = typeof memo.own === "boolean" ? memo.own : c.pub.k === 0 ? true : null;
   if (own === null) {
     return { t: "stack", children: [txt("label", X.wun_who),
-      { t: "choice", label: X.wun_who, options: [{ label: X.wun_iam, draft: { ...D, own: true } }, { label: X.wun_igive, draft: { ...D, own: false } }] },
+      { t: "choice", label: X.wun_who, options: [{ label: X.wun_iam, memo: { own: true } }, { label: X.wun_igive, memo: { own: false } }] },
       txt("small", X.wun_who_why)] };
   }
   const st = listDraft(c, p, own), named = L.nameOk(st.e.name);
-  const set = (o) => ({ ...D, own, name: st.e.name, face: st.e.face, adds: st.e.adds, marks: st.e.marks, ...o });
+  const set = (o) => ({ ...D, name: st.e.name, face: st.e.face, adds: st.e.adds, marks: st.e.marks, ...o });
   const kids = [txt("label", own ? X.wun_make : askText(p, c))];
   if (own) kids.push(...addRow(c, X, "wun", st, set));
   const rows = L.shopRows(st.now, st.cf);
@@ -193,7 +195,8 @@ export function wish(p, c) {
   // Ihre Antwort fuehrt die Marken der Familie unsichtbar weiter (alt now() = shopApply(base, …)); sie sieht sie nie.
   const out = st.now;
   const good = ok(p, c, out);
-  kids.push({ t: "go", label: X.inv_send || ui(c.lang).next, input: good ? answerInput(c, out) : null, disabled: !good, why: good ? "" : X.wun_empty });
+  // beim Anlegen merkt sich dieses Geraet "mein Zettel" (memo), damit ein spaeteres Oeffnen keine Marke zeigt
+  kids.push({ t: "go", label: X.inv_send || ui(c.lang).next, input: good ? answerInput(c, out) : null, disabled: !good, why: good ? "" : X.wun_empty, ...(own && typeof memo.own !== "boolean" ? { memo: { own: true } } : {}) });
   if (own && c.m.length) kids.push({ t: "choice", label: X.wun_close_q, options: [{ label: "🔒 " + X.wun_close_yes, input: { t: "close", seat: c.seat } }] });
   return { t: "stack", children: kids };
 }
