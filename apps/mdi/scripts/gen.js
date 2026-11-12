@@ -214,7 +214,8 @@ export function generate(opt = {}) {
 }
 
 /** Metadaten fuer den Kern (Regal, Modi, Varianten, Thumbnails) – ohne Parameter-Schemata, Texte der Felder, Eingaben. */
-export const META_KEYS = ["id", "version", "kind", "mode", "title", "teaser", "howto", "rule", "seats", "roles", "family", "grip", "on", "dur", "order", "players", "modes", "play", "hidden", "secretSeats", "uses", "legacy", "thumb", "shelf", "link", "inputDay"];
+// Nur, was Regal, Modi, Varianten und Thumbnails ohne geladene Karte brauchen; howto, rule, roles, seats usw. kommen mit dem Teil
+export const META_KEYS = ["id", "version", "kind", "mode", "title", "teaser", "family", "grip", "on", "dur", "order", "players", "modes", "play", "legacy", "thumb", "shelf"];
 export function metaOf(man) {
   const m = {};
   for (const k of META_KEYS) if (man[k] !== undefined) m[k] = man[k];
