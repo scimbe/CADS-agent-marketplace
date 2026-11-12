@@ -188,3 +188,13 @@ test("Abhaengigkeiten gepinnt, nur FOSS-Lizenzen", () => {
     assert.ok(["MIT", "Apache-2.0", "MPL-2.0", "OFL-1.1", "BSD-2-Clause", "BSD-3-Clause", "ISC"].includes(lic), n + " " + lic);
   }
 });
+
+// Security-Review L1: fast-uri (ueber ajv) hat offene High-Meldungen ohne behobene Version (3.x bis 3.1.2, 4.0.0 und 2.x
+// betroffen). Ajv laeuft nur zur Build-Zeit ueber eigene Schemata; dieser Test haelt fest, dass weder ajv-Laufzeit-URI-Code
+// noch fast-uri im ausgelieferten Kern oder in einem Teil landet, und die erzeugten Validatoren nichts davon importieren.
+test("Kein fast-uri/ajv-URI-Code im Auslieferungsstand und in den Validatoren (L1)", () => {
+  const SIG = /fast-uri|removeDotSegments|reescapeHostDelimiters|normalizeIPv6|ajv\/dist\/runtime\/uri/;
+  const out = [path.join(DIST, "index.html"), ...files(path.join(DIST, "parts"), /\.js$/)];
+  for (const f of out) assert.doesNotMatch(fs.readFileSync(f, "utf8"), SIG, path.relative(ROOT, f));
+  for (const f of files(path.join(SRC, "gen"), /\.js$/)) assert.doesNotMatch(fs.readFileSync(f, "utf8"), /from\s+["'](ajv|fast-uri)/, path.relative(ROOT, f));
+});
