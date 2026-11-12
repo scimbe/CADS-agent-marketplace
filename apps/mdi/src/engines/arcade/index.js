@@ -44,7 +44,9 @@ function clone(o) {
  * o: { g, seed, players:["human"|"bot", …], win, lag } – lag: Nachrichten kommen so viele Ticks spaeter an (Tests).
  */
 export function matchInit(o) {
-  const g = o.g, seed = String(o.seed), players = (o.players || ["human", "bot"]).map((p) => (p === "bot" || (p && p.kind === "bot") ? "bot" : "human"));
+  // players: Sitzarten ["human"|"bot", …]; eine Zahl (Zugvertrag) heisst alle menschlich; ohne Angabe Mensch gegen Bot.
+  const g = o.g, seed = String(o.seed), raw = Array.isArray(o.players) ? o.players : typeof o.players === "number" ? ["human", "human"] : ["human", "bot"];
+  const players = [0, 1].map((s) => (raw[s] === "bot" || (raw[s] && raw[s].kind === "bot") ? "bot" : "human"));
   const A = side(g, { seed, serving: true, win: o.win }), B = side(g, { seed, serving: false, win: o.win });
   const st = { g, seed, now: 0, lag: Number.isInteger(o.lag) && o.lag >= 0 && o.lag <= 120 ? o.lag : 0, sides: [A, B], q: [[], []], players, bots: [null, null], ctl: [ctlInit(), ctlInit()] };
   for (let s = 0; s < 2; s++) if (players[s] === "bot") st.bots[s] = botNew(g, seed + "|" + s);

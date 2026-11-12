@@ -1,0 +1,199 @@
+// Die zehn Arcade-Karten im Kartenvertrag (ADR 0001 b): Register, Partie mit Bot, Anzeige, Steuerung (Zeiger und
+// Tastatur), Live ueber zwei Seiten (net "split"), Anpassung (Farben, Figur, Punkte zum Sieg, eigenes Foto).
+import test from "node:test";
+import assert from "node:assert/strict";
+import { ORDER, cardOf, manifestOf, validParams, modesOf } from "../src/cards/index.js";
+import { defaults, paramsForLink } from "../src/contract/fields.js";
+import { W, H } from "../src/engines/arcade/core.js";
+import { rtOf, paramsOf } from "../src/engines/arcade/card.js";
+import { rulesOf, botNew, botStep } from "../src/engines/arcade/index.js";
+
+const IDS = ["arcade-kick", "arcade-elfer", "arcade-ziegel", "arcade-panzer", "arcade-stock", "arcade-puck", "arcade-volley", "arcade-flipper", "arcade-snow", "arcade-murmel"];
+const G = (id) => id.slice(7);
+const OPS = new Set(["rect", "circle", "ellipse", "arc", "line", "poly", "path", "text", "sprite", "image", "glow", "particles", "group", "shake", "flash"]);
+const NONE = { b: 0, ax: 0, ay: 0, p: [] };
+function walk(ops, fn) { for (const o of ops) { fn(o); if (o.o === "group") walk(o.ops, fn); } }
+function checkView(v, what) {
+  assert.equal(v.t, "canvas"); assert.equal(v.w, W); assert.equal(v.h, H);
+  let n = 0;
+  for (const L of v.layers) walk(L.ops, (o) => {
+    n++; assert.ok(OPS.has(o.o), what + ": Op " + o.o);
+    for (const [k, x] of Object.entries(o)) if (typeof x === "number") assert.ok(Number.isFinite(x), what + ": " + o.o + "." + k + " = " + x);
+    if (o.o === "particles") for (const p of o.list) assert.ok(p.slice(0, 4).every(Number.isFinite), what + ": Partikel");
+  });
+  assert.ok(n > 5 && n <= 4000, what + ": " + n + " Ops");
+  return n;
+}
+function newGame(id, players, params, seed = "t-" + id) {
+  const c = cardOf(id), p = Object.assign(defaults(manifestOf(id).params), params || {});
+  assert.ok(validParams(id, p), id + " Parameter gueltig");
+  return { c, st: c.init({ params: p, seed, players }) };
+}
+
+test("Register: zehn Arcade-Karten, Manifest aus der Engine abgeleitet, Modi Bot und Live", () => {
+  for (const id of IDS) {
+    assert.ok(ORDER.includes(id), id); const m = manifestOf(id);
+    assert.equal(m.kind, "realtime"); assert.equal(m.rt.net, "split"); assert.equal(m.rt.numeric, "f64"); assert.equal(m.rt.tick, 120);
+    assert.deepEqual(m.rt, JSON.parse(JSON.stringify(rtOf(G(id)))), id + ": rt wie die Engine");
+    assert.deepEqual(m.params, JSON.parse(JSON.stringify(paramsOf(G(id), rulesOf(G(id))).params)), id + ": Parameter wie die Engine");
+    assert.deepEqual(modesOf(cardOf(id)), ["bot", "live"]);
+    for (const b of m.rt.controls.buttons) assert.ok(b.keys.length >= 1, id + ": jeder Knopf hat Tasten");
+  }
+});
+
+test("Jede Karte: Bot gegen Bot ueber den Kartenvertrag bis zum Ende, Anzeige gueltig fuer beide Sitze", () => {
+  for (const id of IDS) {
+    let { c, st } = newGame(id, ["bot", "bot"]);
+    let t = 0, ev = 0, views = 0;
+    for (; t < 120 * 400 && !c.status(st).over; t++) {
+      const r = c.step(st, [NONE, NONE]); st = r.state; ev += r.ev.length;
+      if (t % 600 === 0) { checkView(c.view(st, { seat: 0, alpha: 0.5, lang: "de" }), id); checkView(c.view(st, { seat: 1, lang: "en" }), id + " Sitz 1"); views++; }
+    }
+    const s = c.status(st);
+    assert.ok(s.over, id + " endet"); assert.equal(s.rejected, 0); assert.ok(ev > 0, id + " Ereignisse");
+    assert.match(s.say, /\d : \d/); assert.equal(typeof c.hash(st), "string");
+    checkView(c.view(st, { seat: 0 }), id + " Ende");
+  }
+});
+
+test("Determinismus: gleicher Seed und gleiche Eingaben ergeben denselben Hash; der Zustand vor step bleibt unveraendert", () => {
+  for (const id of IDS) {
+    const run = (seed) => { let { c, st } = newGame(id, ["human", "bot"], null, seed); for (let t = 0; t < 900; t++) st = c.step(st, [{ b: t % 50 < 3 ? 1 : 0, ax: t % 240 < 120 ? 1000 : -1000, ay: 0, p: [] }, NONE]).state; return c.hash(st); };
+    assert.equal(run("d1"), run("d1"), id); assert.notEqual(run("d1"), run("d2"), id);
+    const { c, st } = newGame(id, ["bot", "bot"]); const before = c.hash(st); c.step(st, [NONE, NONE]); assert.equal(c.hash(st), before, id + ": step ist rein");
+  }
+});
+
+// Zeiger in Weltkoordinaten: [id, x, y, f], f bit0 unten, bit1 neu, bit2 los.
+const press = (x, y, id = 1) => ({ b: 0, ax: 0, ay: 0, p: [[id, x, y, 3]] });
+const hold = (x, y, id = 1) => ({ b: 0, ax: 0, ay: 0, p: [[id, x, y, 1]] });
+const release = (x, y, id = 1) => ({ b: 0, ax: 0, ay: 0, p: [[id, x, y, 4]] });
+function steps(c, st, inputs) { for (const i of inputs) st = c.step(st, [i, NONE]).state; return st; }
+const rep = (n, i) => Array.from({ length: n }, () => i);
+
+test("Steuerung per Zeiger wie im Altcode: ziehen bewegt, tippen kickt/wirft/springt, Schleuder feuert, Wischen schiesst", () => {
+  let g = newGame("arcade-ziegel", ["human", "bot"]); let st = steps(g.c, g.st, [press(200, 1400), ...rep(60, hold(200, 1400))]);
+  assert.ok(Math.abs(st.sides[0].st.me - 200) < 1, "Ziegel: Schlaeger folgt dem Finger");
+  g = newGame("arcade-puck", ["human", "bot"]); st = steps(g.c, g.st, [press(300, 1300), ...rep(60, hold(300, 1300))]);
+  assert.ok(Math.abs(st.sides[0].st.me.x - 300) < 1 && Math.abs(st.sides[0].st.me.y - 1250) < 1, "Puck: Schlaeger 50 ueber dem Finger");
+  g = newGame("arcade-kick", ["human", "bot"]); st = steps(g.c, g.st, [press(600, 1500)]);
+  assert.ok(st.sides[0].st.kick > 0, "Kick: Tippen kickt");
+  g = newGame("arcade-volley", ["human", "bot"]); st = steps(g.c, g.st, [press(250, 500), ...rep(3, NONE)]);
+  assert.ok(st.sides[0].st.me.vy < 0, "Volley: oben tippen springt");
+  g = newGame("arcade-snow", ["human", "bot"]); st = steps(g.c, g.st, [press(500, 1450)]);
+  assert.equal(st.sides[0].st.ammo, 2, "Schnee: Tippen wirft");
+  g = newGame("arcade-flipper", ["human", "bot"]); st = steps(g.c, g.st, [press(100, 1300), ...rep(20, hold(100, 1300))]);
+  assert.ok(st.sides[0].st.a[0] < 0 && st.sides[0].st.a[1] > 0.5, "Flipper: linke Haelfte schlaegt links");
+  st = steps(g.c, st, [release(100, 1300), press(900, 1300, 2), ...rep(20, hold(900, 1300, 2))]);
+  assert.ok(st.sides[0].st.a[1] < 0, "Flipper: rechte Haelfte schlaegt rechts");
+  g = newGame("arcade-panzer", ["human", "bot"]); st = steps(g.c, g.st, rep(10, NONE));
+  st = steps(g.c, st, [press(400, 900), hold(300, 1100), hold(250, 1150)]);
+  assert.ok(st.ctl[0].aim, "Panzer: Zielhilfe beim Ziehen"); checkView(g.c.view(st, {}), "panzer zielen");
+  st = steps(g.c, st, [release(250, 1150), NONE]);
+  assert.equal(st.sides[0].st.shells.length, 1, "Panzer: Loslassen feuert");
+  g = newGame("arcade-elfer", ["human", "bot"]); st = steps(g.c, g.st, rep(4, NONE));
+  assert.equal(st.sides[0].st.shooting, true);
+  const path = []; for (let k = 0; k <= 12; k++) path.push(hold(500 + k * 8, 1000 - k * 40));
+  st = steps(g.c, st, [press(500, 1000), ...path, release(596, 520), NONE]);
+  assert.equal(st.sides[0].st.phase, "fly", "Elfer: Wischen schiesst");
+  g = newGame("arcade-stock", ["human", "bot"]); st = steps(g.c, g.st, rep(4, NONE));
+  st = steps(g.c, st, [press(500, 1300), hold(500, 1400), hold(500, 1520)]);
+  assert.ok(st.ctl[0].aim, "Stock: Zielpunkte"); st = steps(g.c, st, [release(500, 1520), NONE]);
+  assert.equal(st.sides[0].st.list.length, 1, "Stock: Schleuder wirft");
+  g = newGame("arcade-murmel", ["human", "bot"]); st = steps(g.c, g.st, rep(4, NONE));
+  st = steps(g.c, st, [press(600, 1300), hold(600, 1450), hold(600, 1560), release(600, 1560), NONE]);
+  assert.ok(st.sides[0].st.list.some((s) => s.shooter), "Murmel: Tippen auf die Linie, zurueckziehen, loslassen");
+});
+
+test("Steuerung per Tastatur: jedes Spiel ist ohne Zeiger spielbar", () => {
+  const kb = (b, ax = 0, ay = 0) => ({ b, ax, ay, p: [] });
+  let g = newGame("arcade-ziegel", ["human", "bot"]); let st = steps(g.c, g.st, rep(60, kb(0, -1000)));
+  assert.ok(st.sides[0].st.me < 400, "Ziegel: Pfeil links");
+  g = newGame("arcade-puck", ["human", "bot"]); st = steps(g.c, g.st, rep(40, kb(0, 1000, 1000)));
+  assert.ok(st.sides[0].st.me.x > 600 && st.sides[0].st.me.y > 1400, "Puck: Pfeile");
+  g = newGame("arcade-volley", ["human", "bot"]); st = steps(g.c, g.st, [kb(1), NONE]);
+  assert.ok(st.sides[0].st.me.vy < 0, "Volley: Leertaste springt");
+  g = newGame("arcade-kick", ["human", "bot"]); st = steps(g.c, g.st, [kb(1)]); assert.ok(st.sides[0].st.kick > 0, "Kick: Leertaste");
+  g = newGame("arcade-snow", ["human", "bot"]); st = steps(g.c, g.st, [kb(1)]); assert.equal(st.sides[0].st.ammo, 2, "Schnee: Leertaste");
+  g = newGame("arcade-flipper", ["human", "bot"]); st = steps(g.c, g.st, rep(20, kb(2))); assert.ok(st.sides[0].st.a[1] < 0 && st.sides[0].st.a[0] > 0.5, "Flipper: Pfeil rechts");
+  g = newGame("arcade-panzer", ["human", "bot"]); st = steps(g.c, g.st, [...rep(30, kb(0, 1000, -1000)), kb(1), NONE]);
+  assert.equal(st.sides[0].st.shells.length, 1, "Panzer: Winkel, Kraft, Leertaste");
+  g = newGame("arcade-elfer", ["human", "bot"]); st = steps(g.c, g.st, [...rep(4, NONE), ...rep(20, kb(0, 1000)), kb(1), NONE]);
+  assert.equal(st.sides[0].st.phase, "fly", "Elfer: zielen und schiessen");
+  for (const id of ["arcade-stock", "arcade-murmel"]) {
+    g = newGame(id, ["human", "bot"]); st = steps(g.c, g.st, [...rep(4, NONE), ...rep(10, kb(0, 300, -1000)), kb(1), NONE]);
+    assert.equal(st.sides[0].st.list.filter((s) => s.shooter || s.p === 0).length, 1, id + ": Richtung, Kraft, Leertaste");
+  }
+});
+
+// Zwei Handys ueber Live (net "split"): jede Seite laeuft fuer sich, out reist als JSON, Ankunft im naechsten Tick.
+function live(id, ticks, lag) {
+  const c = cardOf(id), p = defaults(manifestOf(id).params), seed = "live-" + id;
+  let A = c.side.init({ params: p, seed, seat: 0, serving: true }), B = c.side.init({ params: p, seed, seat: 1, serving: false });
+  const qa = [], qb = []; let t = 0;
+  // beide Seiten spielt je ein Bot (wie zwei Menschen, die gleich gut sind), ueber die Engine-Hilfe
+  const ba = botNew(G(id), "a"), bb = botNew(G(id), "b");
+  for (; t < ticks && !(c.side.status(A).over && c.side.status(B).over); t++) {
+    botStep(A.S, ba); botStep(B.S, bb);
+    const inA = qa.filter((x) => x[0] <= t).map((x) => x[1]), inB = qb.filter((x) => x[0] <= t).map((x) => x[1]);
+    qa.splice(0, inA.length); qb.splice(0, inB.length);
+    const ra = c.side.step(A, { input: NONE, inbox: inA, tick: t }), rb = c.side.step(B, { input: NONE, inbox: inB, tick: t });
+    A = ra.st; B = rb.st;
+    for (const m of ra.out) { const s = JSON.stringify(m); assert.ok(s.length < 4096); qb.push([t + 1 + lag, JSON.parse(s)]); }
+    for (const m of rb.out) qa.push([t + 1 + lag, JSON.parse(JSON.stringify(m))]);
+  }
+  return { c, A, B, t };
+}
+test("Live: zwei Seiten ueber JSON-Nachrichten, auch mit 100 ms Verzoegerung; gespiegelt gleicher Endstand, keine Verwerfung", () => {
+  for (const id of IDS) for (const lag of [0, 12]) {
+    const { c, A, B } = live(id, 120 * 400, lag), a = c.side.status(A), b = c.side.status(B);
+    assert.ok(a.over && b.over, id + " endet (lag " + lag + ")");
+    assert.deepEqual(a.score, [b.score[1], b.score[0]], id + " gleicher Stand");
+    assert.equal(a.rejected + b.rejected, 0, id);
+    checkView(c.side.view(A, { lang: "de" }), id + " live A"); checkView(c.side.view(B, { lang: "de", tracked: { p: { x: 400, y: 300, c: 500, v: 0, vx: 300, vy: -400 } } }), id + " live B geglaettet");
+  }
+});
+
+test("Anpassung: Farben und Figur in der Anzeige, Punkte zum Sieg wie die freie Karte (1-9), Foto nur als lokaler Slot", () => {
+  for (const id of IDS) {
+    const g = G(id);
+    let { c, st } = newGame(id, ["bot", "bot"], { colA: "#c8ff00", colB: "#7a1fff", emoji: "🚀", photo: "lokal-1", photoUse: "figure" });
+    for (let t = 0; t < 240; t++) st = c.step(st, [NONE, NONE]).state;
+    const s = JSON.stringify(c.view(st, { seat: 0 }));
+    assert.ok(s.includes("#c8ff00") && s.includes("#7a1fff"), id + ": eigene Farben");
+    assert.ok(s.includes('"slot":"photo"') && !s.includes("lokal-1"), id + ": Foto nur als Slot, nie der Inhalt");
+    const bg = JSON.stringify(newGame(id, ["bot", "bot"], { photo: "lokal-1", photoUse: "bg" }).c.view(newGame(id, ["bot", "bot"], { photo: "lokal-1", photoUse: "bg" }).st, {}));
+    assert.ok(bg.includes('"slot":"photo"'), id + ": Foto als Hintergrund");
+    const off = JSON.stringify(newGame(id, ["bot", "bot"], { photo: "lokal-1", photoUse: "off" }).c.view(newGame(id, ["bot", "bot"]).st, {}));
+    assert.ok(!off.includes('"slot":"photo"'), id + ": ohne Wahl kein Foto");
+    const emo = JSON.stringify(c.view(newGame(id, ["bot", "bot"], { emoji: "🚀" }).st, {}));
+    assert.ok(emo.includes("🚀"), id + ": Figur-Emoji");
+    // Das Foto reist nicht im Link, nur wenn der Nutzer es ausdruecklich teilt (media.local, fields.js travel).
+    const p = Object.assign(defaults(manifestOf(id).params), { photo: "lokal-1", photoUse: "figure" });
+    assert.equal(paramsForLink(manifestOf(id).params, p).photo, undefined, id + ": Foto nicht im Link");
+    assert.equal(paramsForLink(manifestOf(id).params, p, { withLocalMedia: true }).photo, "lokal-1", id + ": nur auf ausdruecklichen Wunsch");
+  }
+});
+test("Punkte zum Sieg (alt frei.test.js): 7 gilt, 99 ist kein Wert; eine Partie bis 1 endet nach dem ersten Punkt", () => {
+  for (const id of IDS.filter((x) => x !== "arcade-elfer")) {
+    const g = newGame(id, ["bot", "bot"], { win: 7 }); assert.equal(g.st.sides[0].WIN, 7, id);
+    assert.equal(validParams(id, Object.assign(defaults(manifestOf(id).params), { win: 99 })), false, id + ": 99 abgelehnt");
+  }
+  let { c, st } = newGame("arcade-ziegel", ["bot", "bot"], { win: 1 }, "free");
+  for (let i = 0; i < 120 * 300 && !c.status(st).over; i++) st = c.step(st, [NONE, NONE]).state;
+  assert.ok(c.status(st).over); assert.equal(Math.max(...st.sides[0].score), 1); assert.deepEqual(st.sides[0].score, st.sides[1].score.slice().reverse());
+});
+test("Reduzierte Bewegung: weniger Partikel, kein Wackeln und kein Blitz in der Anzeige", () => {
+  let { c, st } = newGame("arcade-panzer", ["bot", "bot"], null, "calm");
+  let found = false;
+  for (let t = 0; t < 120 * 60 && !found; t++) {
+    st = c.step(st, [NONE, NONE]).state;
+    if (st.fx[0].some((e) => e.k === "boom" && st.now / 120 - e.at < 0.05)) {
+      const count = (v) => { let n = 0, sh = 0, fl = 0; for (const L of v.layers) walk(L.ops, (o) => { if (o.o === "particles") n += o.list.length; if (o.o === "shake") sh++; if (o.o === "rect" && L.id === "top" && o.alpha) fl++; }); return { n, sh, fl }; };
+      const full = count(c.view(st, { reduced: false })), calm = count(c.view(st, { reduced: true }));
+      assert.ok(calm.n < full.n * 0.5, "Partikel " + calm.n + " < " + full.n); assert.equal(calm.sh, 0); assert.equal(calm.fl, 0); assert.ok(full.sh + full.fl > 0);
+      found = true;
+    }
+  }
+  assert.ok(found, "ein Einschlag kam vor");
+});

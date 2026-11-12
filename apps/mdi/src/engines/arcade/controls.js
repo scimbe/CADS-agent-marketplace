@@ -11,7 +11,7 @@ import { MURMEL } from "./murmel.js";
 import { PANZER, tankPos } from "./panzer.js";
 
 const K = (id, kind, keys, de, en, extra) => Object.assign({ id, kind, keys, zone: "none", label: { de, en } }, extra || {});
-const AX = { keys: ["ArrowLeft", "ArrowRight"], pointer: false }, AY = { keys: ["ArrowUp", "ArrowDown"], pointer: false };
+const AX = { keys: ["ArrowLeft", "ArrowRight"] }, AY = { keys: ["ArrowUp", "ArrowDown"] };
 /** rt.controls je Spiel (Manifest). Reihenfolge der Knoepfe = Bits in b. */
 export const CONTROLS = {
   puck: { buttons: [], axes: { x: AX, y: AY }, pointer: { max: 1 } },
@@ -20,8 +20,8 @@ export const CONTROLS = {
   kick: { buttons: [K("kick", "pulse", ["Space", "ArrowUp", "KeyW"], "Kicken", "Kick")], axes: { x: AX }, pointer: { max: 1 } },
   snow: { buttons: [K("fire", "pulse", ["Space", "ArrowUp", "KeyW"], "Werfen", "Throw")], axes: { x: AX }, pointer: { max: 1 } },
   flipper: {
-    buttons: [K("left", "hold", ["ArrowLeft", "KeyA", "KeyZ"], "Linke Klappe", "Left flipper"), K("right", "hold", ["ArrowRight", "KeyD", "KeyM"], "Rechte Klappe", "Right flipper")],
-    axes: {}, pointer: { max: 2, zones: [{ id: "left", x: [0, 500] }, { id: "right", x: [500, 1000] }] }
+    buttons: [K("left", "hold", ["ArrowLeft", "KeyA", "KeyZ"], "Linke Klappe", "Left flipper", { zone: "left" }), K("right", "hold", ["ArrowRight", "KeyD", "KeyM"], "Rechte Klappe", "Right flipper", { zone: "right" })],
+    pointer: { max: 2 }
   },
   panzer: { buttons: [K("fire", "pulse", ["Space", "Enter"], "Feuer", "Fire")], axes: { x: AX, y: AY }, pointer: { max: 1 } },
   elfer: { buttons: [K("shoot", "pulse", ["Space", "Enter"], "Schießen", "Shoot")], axes: { x: AX, y: AY }, pointer: { max: 1 } },
