@@ -54,7 +54,7 @@
 .w-canvas { display: block; width: 100%; height: auto; border-radius: var(--r1); }
 .rt-stage { display: grid; gap: var(--s2); }
 .rt-stage { box-sizing: border-box; max-width: 100%; background: #0E0D0B; color: #FFF6DC; padding: var(--s2); border-radius: var(--r2); }
-.rt-canvas { display: block; width: 100%; max-height: calc(100dvh - 14rem); margin: 0 auto; border-radius: var(--r1); background: #0E0D0B; touch-action: none; }
+.rt-canvas { display: block; width: 100%; max-height: calc(100dvh - 21rem); margin: 0 auto; border-radius: var(--r1); background: #0E0D0B; touch-action: none; }
 .rt-say { margin: 0; min-height: 1.5em; font-weight: 700; text-align: center; color: #FFF6DC; }
 .rt-controls { display: flex; flex-wrap: wrap; gap: var(--s2); justify-content: center; }
 .rt-btn { min-height: 3.75rem; min-width: 3.75rem; padding: .5rem 1.2rem; border: 3px solid var(--edge); border-radius: var(--r3); background: var(--surface); color: var(--text); font: inherit; font-weight: 700; }
