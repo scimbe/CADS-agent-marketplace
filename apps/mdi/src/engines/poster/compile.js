@@ -107,7 +107,7 @@ function adventWide(c, W, H, doc, opt) {
   c.fillStyle = b; c.fillRect(W * 0.485, 0, W * 0.03, H); c.fillRect(0, H * 0.1, W, H * 0.05);
   [-1, 1].forEach((s) => { c.beginPath(); c.moveTo(W / 2, H * 0.125); c.lineTo(W / 2 + s * W * 0.09, H * 0.03); c.lineTo(W / 2 + s * W * 0.09, H * 0.22); c.closePath(); c.fill(); });
   c.beginPath(); c.arc(W / 2, H * 0.125, H * 0.045, 0, 6.3); c.fill();
-  const px = W * 0.25, py = H * 0.26, pw = W * 0.7, ph = H * 0.6;
+  const px = W * 0.25, py = H * 0.26, pw = W * 0.7, ph = H * (doc.w ? 0.5 : 0.6); // mit Wetter endet das Feld ueber dem Band
   const pic = opt.photo ? "photo" : opt.gi ? "gi" : null; // eigenes Foto vor KI-Bild
   if (pic) {
     c.save(); c.beginPath(); c.moveTo(px, py); c.lineTo(px + pw, py); c.lineTo(px + pw, py + ph); c.lineTo(px, py + ph); c.closePath(); c.clip();
