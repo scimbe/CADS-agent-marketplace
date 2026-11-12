@@ -231,8 +231,9 @@ export function createApi(deps) {
   // (src/ui/home/shortlink.js SAFE; Live-Einladungen tragen ein Einmal-Token und gehen nie an den Server).
   const SHORT_ID = /^[2-9a-km-np-zA-HJ-NP-Z]{8}$/;
   /** -> { ok:true, s:{id, token, exp, url} } | Fehler form (Server kennt die Form nicht, 400) | limit | aus | server | netz | nicht-hier */
-  async function shortCreate(f, k, l) {
-    const r = await call("POST", "/api/s", { f, k, l });
+  // ohne Anmeldung: Geraete-Kennung + Arbeitsnachweis wie bei der KI (wrapper #136, Security-Review M2); angemeldet ignoriert der Server beides
+  async function shortCreate(f, k, l, device, proof) {
+    const r = await call("POST", "/api/s", { f, k, l, ...(device && proof ? { device, proof } : {}) });
     if (!r.status) return r;
     if (r.status === 400) return fail("form", 400);
     if (r.status !== 201) return common(r.status, r.body);
