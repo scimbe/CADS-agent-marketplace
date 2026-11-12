@@ -176,6 +176,9 @@ p { margin: 0; }
 /* Große Schrift: Stempel ohne Versatzschatten, Reihen werden zu Spalten */
 [data-schrift="gross"] .stamp, [data-schrift="sehr-gross"] .stamp, [data-bewegung="ruhig"] .stamp { text-shadow: none; }
 [data-schrift="sehr-gross"] .row2, [data-schrift="sehr-gross"] .row21, [data-schrift="sehr-gross"] .row3 { grid-template-columns: minmax(0, 1fr); }
+[data-schrift="gross"] .leaf > div:has(> .star), [data-schrift="sehr-gross"] .leaf > div:has(> .star) { flex-wrap: wrap; gap: 8px; }
+/* Aktionsleiste unten (Hauptknopf) bleibt in der App am unteren Rand stehen, auch bei großer Schrift. */
+.actions { position: sticky; bottom: 0; background: var(--paper); z-index: 2; }
 [data-schrift="gross"] .intents, [data-schrift="sehr-gross"] .intents { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 [data-schrift="gross"] .shelf-row, [data-schrift="sehr-gross"] .shelf-row { grid-auto-flow: row; grid-auto-columns: auto; overflow: visible; }
 [data-schrift="gross"] .more-tile, [data-schrift="sehr-gross"] .more-tile { aspect-ratio: auto; min-height: var(--btn-2); flex-direction: row; }
@@ -228,6 +231,45 @@ p { margin: 0; }
 @keyframes tear { to { transform: translate(-30%, 110%) rotate(-14deg); opacity: 0; } }
 @keyframes door { to { transform: perspective(900px) rotateY(-105deg); } }
 .anim-stamp { animation: stamp var(--m-mid) var(--ease-stamp) both; }
+/* Dunkelmodus: dieselbe Sprache bei Nacht. Tinte und Creme tauschen die Rollen, Gelb bleibt Marke,
+   harte Schatten werden schwarz, Flächen mit Text darauf behalten feste dunkle Werte. */
+[data-theme="dark"] {
+  --ink: #FBF5DD; --paper: #14120E; --sheet: #211D16; --gelb-hell: #3B3320; --muted: #CFC7B0;
+  --rot: #FF8A75; --ok: #4CC983; --shadow: 4px 4px 0 #000000; --shadow-l: 6px 6px 0 #000000;
+  --border: 3px solid #FBF5DD; --line: #FBF5DD;
+  color-scheme: dark;
+}
+/* view.js setzt data-theme="dark" auf <html>, wenn das System dunkel ist und „Mein Stil“ nichts anderes sagt. */
+[data-theme="dark"] .btn-main { background: var(--gelb); color: #17140F; box-shadow: 0 6px 0 var(--signal); }
+[data-theme="dark"] .btn-main:hover { color: #17140F; }
+[data-theme="dark"] .btn-main.wait { background: var(--sheet); color: var(--ink); }
+[data-theme="dark"] .chip[aria-pressed="true"], [data-theme="dark"] .chip.on, [data-theme="dark"] .seg > [aria-pressed="true"], [data-theme="dark"] .seg > [aria-selected="true"] { background: var(--gelb); color: #17140F; }
+[data-theme="dark"] .thumb .plate, [data-theme="dark"] .thumb .dur { background: #17140F; }
+[data-theme="dark"] .thumb .plate { color: var(--gelb); }
+[data-theme="dark"] .field .go { background: var(--gelb); color: #17140F; }
+[data-theme="dark"] .star { color: #17140F; }
+[data-theme="dark"] .bar { background: #000000; color: var(--ink); }
+[data-theme="dark"] .top { background: #2A2412; color: var(--gelb); border-bottom-color: var(--gelb); }
+[data-theme="dark"] .top h1, [data-theme="dark"] .brand { color: var(--gelb); }
+[data-theme="dark"] .holes i { background: var(--paper); border-color: var(--gelb); }
+[data-theme="dark"] .cal::before { background: #8E2414; }
+[data-theme="dark"] .intent { color: #17140F; border-color: #000000; }
+[data-theme="dark"] .intent:not([style*="background"]):not(.frei) { background: var(--sheet); color: var(--ink); border-color: var(--ink); }
+[data-theme="dark"] .intent.frei { background: repeating-linear-gradient(-45deg, #F9D84A 0 14px, #FFE27A 14px 28px); }
+[data-theme="dark"] .note { color: var(--ink); }
+[data-theme="dark"] .avatar { border-color: #000000; color: #17140F; }
+[data-theme="dark"] .tabs [aria-selected="true"], [data-theme="dark"] .tabs [aria-current="page"] { background: var(--gelb); color: #17140F; border-bottom-color: var(--gelb); }
+
+/* Plattform-Rahmen (nur Canvas): Systemleisten, damit Abstände und Gesten-Zonen sichtbar sind */
+.os-status { height: 47px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; font-weight: 600; font-size: 16px; }
+.os-island { width: 122px; height: 34px; border-radius: 20px; background: #000000; }
+.os-home { height: 34px; display: grid; place-items: center; }
+.os-home i { width: 134px; height: 5px; border-radius: 3px; background: currentColor; }
+.os-status.android { height: 36px; padding: 0 18px; font-family: Roboto, system-ui, sans-serif; font-size: 14px; font-weight: 500; }
+.os-nav { height: 28px; display: grid; place-items: center; }
+.os-nav i { width: 108px; height: 4px; border-radius: 2px; background: currentColor; opacity: .8; }
+.sheet-os { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 14px 14px 0 0; }
+
 @media (prefers-reduced-motion: reduce) {
   .app *, .app *::before, .app *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
 }

@@ -3,7 +3,7 @@
 Stand 2026-11-12. Vorlage für Gate C und für Strang H (`view.js`, `tokens.css`).
 
 - **Canvas (Claude Design):** https://claude.ai/artifact/A1TeNNzXLAPbAMa9WS55ux. Der Link ist privat und muss vom User geteilt werden, bevor andere ihn öffnen können.
-- **Tokens als CSS-Vorschlag:** `04-ux/tokens-phase-c.css`. Teil 1 enthält die Tokens, Teil 2 die Bausteine, Teil 3 die Motive, die nur auf der Canvas gebraucht werden.
+- **Tokens als CSS-Vorschlag:** `04-ux/tokens-phase-c.css`. Teil 1 enthält die Tokens, Teil 2 die Bausteine (dazu Dunkelmodus und Plattform-Rahmen), Teil 3 die Motive, die nur auf der Canvas gebraucht werden.
 - **Grundlage:** `02-spec/13-produktverstaendnis.md` (§3, §4.4, §6), `12-paritaet.md` §5, `06-plan/welle-1.md`, die alten Screenshots `alt-shots/`, `04-ux/` und die Personas.
 - **Werkzeug:** Der Claude-Design-Konnektor meldet `FIRST_PARTY_AUTH_REJECTED`. Deshalb entsteht die Canvas über das Artifact-Werkzeug mit dem Design-Typ. Die Artboards sind statisches HTML und teilen sich ein Stylesheet.
 
@@ -21,7 +21,7 @@ Stand 2026-11-12. Vorlage für Gate C und für Strang H (`view.js`, `tokens.css`
 | Thumbnail 16:9 | Das Bild hat keinen Text. Zuerst zeigt es den Startzustand des Spiels, später ein geprüftes KI-Bild (`thumb.src`). Die Titeltafel sitzt unten links (Anton 22, Gelb auf Tinte 13,1:1, −1,5°). Die Dauer steht oben rechts, die Familie optional oben links. Unter dem Bild stehen Familie und Spielweise als Text. Verboten sind Endstand, Zähler und Köder. |
 | Bewegung | Abreißen 420 ms, Stempel 220 ms, Knopf 120 ms, Tür 600 ms, Strahlen 80 s pro Umdrehung. Die reduzierte Fassung blendet nur über; sie greift bei `prefers-reduced-motion` und beim Schalter „Ruhige Bewegung“. |
 
-## 2. Bildschirme (30 Artboards)
+## 2. Bildschirme (52 Artboards)
 
 Handy 390×844, eine Fassung in 360×780 mit Schrift „Groß“, Desktop 1280.
 
@@ -94,22 +94,79 @@ Behoben sind außerdem Befunde der Schwere 2:
 
 Nach Runde 2 bleibt kein Befund der Schwere 3 oder 4. Was noch offen ist (Schwere ≤ 2 oder fehlende Bildschirme), steht in Abschnitt 4.
 
-## 4. Offene Punkte
+## 4. Nachtrag: Folgebildschirme, Dunkelmodus, Plattformen (Auftrag des Integrators)
 
-1. **Fehlende Bildschirme:** Das sind Folgezustände, keine neuen Muster.
-   - Treffer nach dem Satzfeld („Passende Karten“)
-   - Antwort nach „Antworten“
-   - Bestätigung nach dem Senden und nach „Ich habe gezahlt“
-   - Empfängersicht bei Barzahlung
-   - Bote1 und Bote2 komplett im Modus „Ein Handy“
-   - Ende beim Flipper
-   - Was „AA“ öffnet (Vorschlag: ein kleines Auswahlfenster mit den 3 Stufen)
-   - Anmeldung ohne Konto bei „Eigene Karte“
-   - Liste „Verschickt“ nach dem Löschen
-   - Schritt nach „Türchen verschicken“ (Vorschlag: der Teilen-Bildschirm wird wiederverwendet)
-2. **Inline-px in den Artboards:** Die Mockups setzen viele Schriftgrößen inline in px. In `view.js` gelten nur die Tokens `--t-*` und `--d-*`.
-3. **Flipper mit Zittern:** „Gemütlich“ hilft, aber Echtzeit bleibt schwer. Zu prüfen ist eine Hilfe, die nach Runden spielt.
-4. **Annahmen zum Server, die Strang K prüfen muss:** Gibt „Abbrechen“ beim Warten die Einheit zurück? (So zeigt es der Entwurf.) Kosten die Gegenvorschläge der Absage 1 Einheit?
-5. **Der 4-Farben-Satz beim Skat** ist als Option in „Mein Stil“ angedacht, aber nicht gezeichnet.
-6. **Nicht geprüft:** Dunkelmodus, iOS und Android nativ, echte Bilder (FLUX). Die Motive auf der Canvas sind gezeichnete Platzhalter für textfreie Thumbnails.
-7. **Die Canvas ist privat.** Der User muss sie über „Teilen“ freigeben.
+22 weitere Artboards, in drei neuen Reihen auf derselben Canvas:
+
+| # | Board | Inhalt |
+|---|---|---|
+| 29 | Treffer | Satzfeld → „Passt dazu“: der beste Treffer groß, 2 weitere, „Nichts dabei? Eigene Karte“. Der Satz bleibt auf dem Gerät. |
+| 30 | Antwort | Antwort an Mira ist vorbereitet (Überschrift, Satz, Farbe, Foto), „Antwort schicken“, geht als Link zurück. |
+| 31 | Gesendet | „An WhatsApp übergeben“. Ehrlich: Ob die Nachricht rausging, weiß nur WhatsApp; der Status „Geöffnet“ steht in Meins › Verschickt. |
+| 32 | Schrift | „AA“ öffnet ein Fenster: 3 Stufen mit Beispielsatz in Originalgröße, Einfache Sprache, „Mehr in Mein Stil“. Auf dem Start trägt „AA“ die Beschriftung „Schrift“. |
+| 33 | Anmelden | Eigene Karte ohne Konto: Grund in einem Satz, 3 Vorteile, Häkchen „16 Jahre oder älter“ (anfangs leer; „Anmelden“ bleibt gesperrt, bis es gesetzt ist), Anmeldedienst erklärt, „Ohne Konto: fertige Karten ansehen“. |
+| 34 | EinladungenNach | Verschickt nach „Ja, löschen“: Eintrag weg, Meldung „Karl kann ihn nicht mehr öffnen“. |
+| 35 | AdventTeilen | Nach „Türchen verschicken“: „Für wen?“ (steht auf der Tür), Kurzlink, Kopieren/Senden. Der Empfänger sieht „für Jonas“. |
+| 36 | Gezahlt | Nach „Ich habe gezahlt“: Gisela steht als **gemeldet** auf der Liste (gestrichelt, ohne Haken), der Topf zählt erst nach Daniels Haken. „Meinen Namen wieder entfernen“. |
+| 37 | SammelnBar | Barzahlung: 3 Schritte; „Gisela · bar, noch offen“ → nach Daniels Haken „✓ Gisela · bar“. |
+| 38–41 | Bote, Modus „Ein Handy“ | Abdecken vor dem ersten Zug („Gib das Handy an Mira, Karl schau weg“, Namen ändern) → Mira sagt an → Weitergeben (Board 16) → Karl prüft („Ein Handy · Karl ist dran“) → Ergebnis für beide, Revanche „jetzt ist Karl Bote“. Jeder Übergabe-Bildschirm hat ein X. |
+| 42 | FlipperEnde | „Du gewinnst!“, Du 5 : Computer 3 (du immer links), Zeit, Tempo, längster Ballwechsel. „Revanche“ neben „Fordern per Link“; die eigene Runde wird aufgezeichnet. |
+| 43 | FlipperRuhig | Tempo „Gemütlich“ für zitternde Hände: Zeitlupe 50 %, 2 Tasten von 177×150 px unter dem Feld, die Seite, auf die die Kugel zukommt, ist markiert, Doppeltippen zählt einmal, der Flipper bleibt oben, solange man drückt. FlipperStart sagt ehrlich: mit Sprachausgabe nicht spielbar; ohne Zeitdruck Skat oder Bote. |
+| 44–46 | Dunkelmodus | Start, Regal, Karte anpassen. Tinte und Creme tauschen die Rollen, Gelb bleibt Marke, der Hauptknopf wird Tinte auf Gelb, harte Schatten werden schwarz. Der **Karteninhalt wird nicht umgefärbt**: Die Vorschau zeigt, was der Empfänger sieht. `view.js` setzt `data-theme` nach System und Mein Stil. |
+| 47–50 | iOS und Android | Start und Teilen mit Systemleisten. iOS: Dynamic Island, Home-Leiste, Wischen vom Rand für Zurück (im Spiel gesperrt, Zurück = Pause), System-Teilen mit Personen, Apps, Kopieren und Bild sichern. Android: edge-to-edge, Gesten-Leiste, Predictive Back schließt zuerst die oberste Ebene, Android-Sharesheet mit Direct Share und Kopieren als Chip. |
+
+**Eigene Karte, geprüft im Server** (`CADS-DEMO-wrapper/lib/duell-absage.mjs` @3d076e6, `duell-ai.mjs` @aa8ab0e):
+- Eine Absage kommt aus einer festen Tabelle. Sie kostet nichts und zählt nie als Verstoß (Strike). Sie hat **höchstens einen** Gegenvorschlag. Die Canvas zeigt deshalb nur einen Gegenvorschlag; vorher waren es zwei.
+- Gegenvorschlag „katalog“: Er öffnet eine fertige Karte und kostet nichts.
+- Gegenvorschlag „genre“: Er bringt einen festen Beispielsatz, der wie ein neuer Wunsch gesendet wird und dann normal 1 Einheit kostet. Die Canvas zeigt diesen Fall („Diesen Vorschlag bauen lassen · braucht 1 von deinen 3“), mit dem echten Satz für „Autorennen“ aus der Tabelle.
+- Nach 3 Absagen pro Tag (`DUELL_CREATE_BLOCKS_PER_DAY`) geht es erst am nächsten Tag weiter. Das steht auf FreiAbsage.
+- „Verwerfen“ gibt die Einheit nur zurück, solange die Quittung gilt, und nur `refundsLeft`-mal pro Zeitraum (die Hälfte des Topfs). Die Canvas nennt deshalb das Datum aus `meter.resetAt` („noch 2-mal bis 1. Dezember“).
+- „Abbrechen“ beim Warten gibt die Einheit zurück. Das hat der Integrator laut altem `create-ui.js` bestätigt.
+
+## 5. Bewertung Runde 3 (drei neue Kritiker ohne Vorwissen, alle 52 Bildschirme)
+
+- Nielsen mit Schwerpunkt Konsistenz, Plattformtreue und Dunkelmodus.
+- Walkthrough mit 5 Personas (16, 35, 60 mit Deutsch als Zweitsprache, 85 mit Zittern, 52 mit Makuladegeneration und VoiceOver), 11 Aufgaben.
+- WCAG 2.2 AA: axe über 62 Dateien, nachgerechnete Kontraste auch im Dunkelmodus, Tab-Durchlauf, Textabstände nach 1.4.12, Zielgrößen.
+
+### Schwere 3 und Behebung
+
+| Befund | Behebung | Nachprüfung |
+|---|---|---|
+| Alters-Häkchen vorausgefüllt, ohne Fokus und ohne Zustand | Echte Checkbox, anfangs leer, Fokusring über `:has(:focus-visible)`, ✓ über `:checked`, „Anmelden“ gesperrt mit „Noch offen“ | behoben |
+| Gezahlt: selbst gemeldete PayPal-Zahlung zählte schon als bezahlt | „gemeldet“ gestrichelt, Topf zählt erst nach Daniels Haken, wie bei bar | behoben |
+| Bei „Sehr groß“ wuchsen Inline-Texte nicht mit | Alle Inline-Größen der Artboards rechnen jetzt `calc(Npx * var(--scale))` | behoben |
+| Anmeldung auf fremder Domain (bunsenbrenner.org) wirkt wie Phishing | Erklärt als „unser Anmeldedienst, dort steht oben My Daily Idea“ | teilweise, jetzt Schwere 2 (siehe offen) |
+| Kartenvorschau schnitt bei Textabständen nach 1.4.12 den Satz ab | Die Karte wächst mit (`aspect-ratio` als Untergrenze, kein `overflow:hidden`) | behoben |
+
+### Schwere 2: behoben
+
+- **Begriffe:** „Merken“ statt „Aufheben“. „Selbst eine Tür schicken“. „Warteschlange geschafft“. „Diesen Vorschlag bauen lassen“. „Aufzeichnung“ statt „Geist“ beim Flipper. „Computer“ statt „Bot“. „Tempo“ durchgehend. „Skat“ ohne „live“. „Mein Stil & Konto“.
+- **Abläufe:** Die Übergabe-Bildschirme haben ein X. „Zug abschicken“ vor der Wahl des Mitspielers. Namen bei „Ein Handy“ sichtbar und änderbar.
+- **Flipper:** Du steht immer links. FlipperRuhig hat den Ton-Knopf zurück. Ehrlicher Hinweis zu VoiceOver.
+- **Dunkelmodus:** Die Vorschau färbt den Karteninhalt nicht mehr um.
+- **Eingaben:** Den Betrag kann man eintippen, dazu Schnellwahl 5/10/20/25 €. „Dein Satz“ ist mehrzeilig. „⋯“ ist 48 px groß.
+- **Barrierefreiheit:**
+  - Label in Name stimmt bei den Ansagen („3 – Lüge“).
+  - Regal: Reiterbereich liegt im Hauptbereich.
+  - Advent-Umschalter als `aria-pressed`, Editor-Reiter mit `aria-controls`.
+  - `autocomplete` an den Namensfeldern, Ton-Knopf mit Zustand.
+  - Teilen-Vorschau in Tinte auf Rosa.
+  - „Namen ändern“ in Weiß auf Violett (5,4:1).
+- **Sehr groß:** Die Plakette überlappt das Datum nicht mehr (die Datumszeile bricht um). Regel für `view.js`: Die Aktionsleiste unten bleibt stehen (`.actions`, sticky).
+
+Nach Runde 3 und der Nachprüfung bleibt **kein Befund der Schwere 3**. Neue Befunde der Schwere 3 gibt es nicht.
+
+## 6. Offene Punkte (Schwere ≤ 2, Entscheidung oder Umsetzung)
+
+1. **Anmelde-Domain** bunsenbrenner.org: Das ist eine Produktentscheidung. Entweder eine Domain mit dem App-Namen oder das Logo von My Daily Idea auf der Keycloak-Seite (siehe Strang `mdi-login-theme`).
+2. **Empfangs-Vorlage:** Empfang hat Sprache, „Was ist das?“ und einen Weg in die App. AdventZu, AdventAuf und Sammeln2 bekommen in der Umsetzung dieselbe Kopf- und Fußzeile.
+3. **Wischreihen bei normaler Schrift** (Absicht, Regal): Das ist gewollt, für Dichte und das Regal-Bild. Jede Reihe endet mit „Alle N zeigen“, ab „Groß“ wird sie zur Liste. Bei Testnutzern über 80 nachprüfen.
+4. **Begriffe beim Link-Erzeugen:** „Fertig, Link machen“, „Türchen verschicken“ und „Link für die Gruppe“ sind Verben der jeweiligen Karte (Regel „Hauptknopf mit dem Verb der Karte“). Der Teilen-Bildschirm ist einheitlich.
+5. **Löschmuster:** Links auf dem Server werden mit Rückfrage gelöscht (danach kein Rückgängig), Lokales in Meins mit „Rückgängig“. Das ist bewusst und steht im Design-System.
+6. **Ergebnistabelle Bote** bei 1.4.12: Sie steht in einem scrollbaren, fokussierbaren Bereich. Eine Alternative wäre eine Liste je Karte.
+7. **Kleine Textlinks** (18–20 px) erfüllen AA, aber nicht AAA. Rückgängig-Links sollen in der Umsetzung als `btn-2 quiet` mit 48 px Höhe kommen.
+8. **„Geist“** steht im festen Gegenvorschlag des Servers (`duell-absage.mjs`). Ändern müsste es der Server-Text, nicht der Client.
+9. **Inline-Pixelgrößen** in den Artboards skalieren jetzt. `view.js` soll trotzdem nur die Tokens `--t-*` und `--d-*` nutzen.
+10. **Nicht prüfbar:** Blitze im laufenden Spiel (2.3.1). Ob die Apps die Systemschrift übernehmen (Dynamic Type, Android-Skalierung). Echte FLUX-Bilder.
+11. **Die Canvas ist privat.** Der User muss sie über „Teilen“ freigeben.
