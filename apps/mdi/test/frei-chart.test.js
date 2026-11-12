@@ -330,3 +330,24 @@ test("FREI mit Satz (Startseiten-Block, H Gate C): Satz vorausgefuellt, keine Ka
   assert.equal(go(await signedIn(), { type: "FREI" }).ctx.frei.text, "");
   assert.equal(go(await signedIn(), { type: "FREI", text: "x".repeat(300) }).ctx.frei.text.length, 200);
 });
+
+test("needParts frei-ui (Befund Z2, Bisect 3aca9f06): nur Ereignisse, die eine Ansicht der freien Karte oeffnen; GO und LINK nie", async () => {
+  const { freiParts } = await import("../src/features/frei/chart.js");
+  for (const t of ["FREI", "DECK", "DECK_OPEN", "MINE", "BILD", "KI", "ROBOT", "MELDEN"]) assert.deepEqual(freiParts({ type: t }), ["frei-ui"], t);
+  for (const t of ["GO", "LINK", "OPEN", "INPUT", "SEND", "GATE"]) assert.deepEqual(freiParts({ type: t }), [], t);
+});
+
+test("Status-Gate beim Teilen ok: das ausgeloeste GO traegt rand, die versiegelte Zugkarte startet (Befund Z2)", () => {
+  let s = machine.initial(initialContext("de"));
+  s = { ...s, ctx: { ...s.ctx, frei: { ...s.ctx.frei, req: 1, art: "faehigkeit", text: "x" } }, config: [...s.config.filter((c) => !c.startsWith("inhalt.")), "inhalt", "inhalt.frei", "inhalt.frei.warten"] };
+  const b = rec("karte-ok-faehigkeit").body;
+  s = go(s, { type: "FREI_RESULT", req: 1, r: { how: "result", options: b.options, seals: b.seals, hashes: b.hashes, receipt: b.receipt } });
+  s = go(s, { type: "TAKE" });
+  assert.equal(s.ctx.cardId, "zug-termin");
+  s = go(s, { type: "MODE", mode: "link" });
+  s = go(s, { type: "GO" });
+  assert.equal(leaf(s), "frei.sharegate");
+  s = go(s, { type: "GATE", st: "ok" });
+  assert.equal(leaf(s), "card.play.turn");
+  assert.equal(s.ctx.error, null);
+});

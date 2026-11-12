@@ -28,7 +28,10 @@ export function freiUi() {
 export function freiView(state, X, dispatch, L) {
   const ui = freiUi();
   if (ui) return ui.freiView(state, X, dispatch, L);
-  return { body: [h("p", { class: "hint", role: "status", key: "laden" }, ftCore(state.ctx.lang, "frei_status_wait"))], panel: [], actions: { primary: null, secondary: [] }, heading: ftCore(state.ctx.lang, "create_tile") };
+  // Pruefzustaende (Gate beim Empfaenger, vor dem Teilen) laden den Teil bewusst nicht: ihr Statussatz steht hier im Kern
+  const lang = state.ctx.lang;
+  const gate = machine.matches(state, "inhalt.frei.gate") ? "frei_gate_wait" : machine.matches(state, "inhalt.frei.sharegate") ? "frei_share_wait" : "frei_status_wait";
+  return { body: [h("p", { class: "hint", role: "status", key: "laden" }, ftCore(lang, gate))], panel: [], actions: { primary: null, secondary: [] }, heading: ftCore(lang, "create_tile") };
 }
 
 /** Einstieg "Eigene Karte", immer sichtbar (Regal, Tagesblatt, Absichten). Offline: ehrlicher Hinweis. */
