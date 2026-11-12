@@ -427,3 +427,13 @@ test("Baukasten: Sprung-Machbarkeit wird diagnostiziert (zu langsames Hindernis)
   const slow = check({ ...clone(BEISPIELE.plattform), things: BEISPIELE.plattform.things.map((t) => (t.id === "stein" ? { ...t, vx: -150, h: 110 } : t)) }).desc;
   assert.match(jumpCheck(slow), /reicht nicht ueber stein/);
 });
+
+test("Baukasten: Modellausgabe (clamp) bringt ids in Form und schreibt alle Verweise gleich um; streng bleibt es ein Fehler", async () => {
+  const { idOf } = await import("../src/engines/baukasten/spec.js");
+  assert.equal(idOf("Eichhörnchen"), "eichhoernche"); assert.equal(idOf("roter Ball"), "roterball"); assert.equal(idOf("1up"), "d1up");
+  const raw = JSON.parse(JSON.stringify(FLAPPY).replace(/"vogel"/g, '"Vögelchen"'));
+  assert.equal(check(raw).ok, false);
+  const c = check(raw, { clamp: true });
+  assert.ok(c.ok, c.errors.join()); assert.equal(c.desc.things[0].id, "voegelchen");
+  assert.ok(c.desc.rules.every((r) => r.a === "voegelchen") && c.desc.start[0].thing === "voegelchen" && c.desc.bot.thing === "voegelchen");
+});
