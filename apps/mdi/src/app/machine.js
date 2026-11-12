@@ -10,6 +10,7 @@ import { sha256 } from "../contract/sdk.js";
 import { paramsForLink } from "../contract/fields.js";
 import { kontoRegion, stilState, kontoGuards, kontoActions, kontoContext } from "./konto-chart.js";
 import { FEATURES } from "./features.js";
+import { playOf } from "../contract/modes.js";
 
 const T = (p) => p; // Lesbarkeit: absolute Zielpfade
 const leaveIfLive = (ctx) => (ctx.mode === "live" ? { type: "LEAVE" } : null);
@@ -82,6 +83,13 @@ export const chart = {
                 ],
                 JOIN: { actions: ["onJoin"], raise: "SYNC" },
                 BOT_IN: { actions: ["onBotLocal"], raise: "SYNC" },
+                // Aktionen aus Widgets (ADR 0001 c): weiter zu Karte, KI (Feature K), 18+, Kopieren, Datei
+                ACT: [
+                  { target: T("inhalt.card.view"), cond: "actOpen", actions: ["endGame", "openFromAct"], raise: leaveIfLive },
+                  { cond: "actAi", raise: (ctx, ev) => ({ type: "KI_ASK", kind: ev.kind, input: ev.input, into: ev.into }) },
+                  { cond: "actAge18", raise: { type: "AGE18", on: true } },
+                  { actions: ["actEffect"] }
+                ],
                 START: { actions: ["onStart"], raise: "SYNC" },
                 PEER_IN: { actions: ["onPeerIn"], raise: "SYNC" },
                 LIVE_DOWN: { actions: ["peerGone"], raise: "SYNC" },
@@ -199,6 +207,9 @@ export const guards = {
   rtAgainLocal: (ctx) => ctx.mode === "alone" || ctx.mode === "bot",
   rtAgainPeer: (ctx) => ctx.mode === "live" && ctx.rtAgain === "peer",
   rtAgainMine: (ctx) => ctx.mode === "live" && ctx.rtAgain === "mine",
+  actOpen: (ctx, ev) => ev.act === "open" && !!cardOf(ev.card),
+  actAi: (ctx, ev) => ev.act === "ai",
+  actAge18: (ctx, ev) => ev.act === "age18",
   inGhost: (ctx) => !!ctx.incoming && ctx.incoming.kind === "ghost",
   ...Object.fromEntries(["go", "resume", "flow", "pause", "stall", "over"].map((k) => ["rtIs:" + k, (ctx, ev) => ev.kind === k])),
   isStatic: (ctx) => G.card(ctx).manifest.mode === "static",
@@ -221,7 +232,7 @@ export const guards = {
 };
 
 export const actions = {
-  openCard: (ctx, ev) => ({ ...ctx, cardId: ev.id, mode: modesOf(cardOf(ev.id))[0], seat: 0, session: null, hs: null, error: null, note: null, link: null, part: null }),
+  openCard: (ctx, ev) => ({ ...ctx, cardId: ev.id, mode: playOf(cardOf(ev.id)).default, seat: 0, session: null, hs: null, error: null, note: null, link: null, part: null }),
   setMode: (ctx, ev) => (modesOf(G.card(ctx)).includes(ev.mode) ? { ...ctx, mode: ev.mode, note: null } : ctx),
   setSeat: (ctx, ev) => (Number.isInteger(ev.seat) && ev.seat >= 0 && ev.seat < G.card(ctx).manifest.players.max ? { ...ctx, seat: ev.seat } : ctx),
   setLevel: (ctx, ev) => ([1, 2, 3].includes(ev.level) ? { ...ctx, level: ev.level } : ctx),
@@ -275,6 +286,12 @@ export const actions = {
   onBotLocal: (ctx, ev, emit) => {
     if (!ctx.session || !ctx.botSeats) return { ...ctx, error: "abweichung" };
     return safe(ctx, () => { const n = G.applyBotLocal(ctx, ev.input); const t = G.botTurn(n); if (t !== null) emit({ type: "bot.local", seat: t, level: n.level || 2 }); return n; });
+  },
+  openFromAct: (ctx, ev) => actions.openCard(ctx, { id: ev.card }),
+  actEffect: (ctx, ev, emit) => {
+    if (ev.act === "copy" && typeof ev.text === "string") emit({ type: "copy.text", text: ev.text.slice(0, 4000) });
+    else if (ev.act === "file" && typeof ev.name === "string") emit({ type: "download.text", name: ev.name, mime: ev.mime, text: String(ev.text || "").slice(0, 20000) });
+    return ctx;
   },
   // ---- Echtzeit (ADR 0001 b) ----
   startRt: (ctx, ev, emit) => {

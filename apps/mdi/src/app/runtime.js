@@ -137,6 +137,8 @@ export function createRuntime(deps) {
       case "mod.me": later(async () => dispatch({ type: "MOD", result: api ? await api.modMe() : { ok: false, error: "nicht-hier" } })); break;
       case "mod.appeal": later(async () => dispatch({ type: "APPEALED", result: api ? await api.appeal(fx.nid, fx.text) : { ok: false, error: "nicht-hier" } })); break;
       case "download": if (deps.download) deps.download(fx.name, fx.data); break;
+      case "download.text": if (!deps.downloadText || !deps.downloadText(fx.name, fx.mime, fx.text)) schedule(() => dispatch({ type: "COPY_FAIL" })); break;
+      case "copy.text": (deps.copyText || (() => Promise.resolve(false)))(fx.text).then((ok) => dispatch({ type: ok ? "COPIED" : "COPY_FAIL" })); break;
       case "rt.start": {
         if (rtSess) { rtSess.stop(); rtSess = null; }
         const gen = ++rtGen, c = cardOf(state.ctx.cardId);

@@ -61,6 +61,7 @@ test("Feldtypen und Reiseregeln (KONZEPT §3.2)", () => {
 
 function walk(n, f) { if (!n || typeof n !== "object") return; f(n); for (const c of n.children || []) walk(c, f); }
 const PRIMS = new Set(PRIMITIVES);
+const TEST_DAY = 20769; // 2026-11-12
 test("Anzeigelisten: nur bekannte Primitive und Token-Namen, keine Funktionen, keine Farbwerte", () => {
   const ent = counter("1");
   for (const id of ORDER.filter((x) => CARDS[x].manifest.mode !== "realtime")) {
@@ -82,7 +83,8 @@ test("Anzeigelisten: nur bekannte Primitive und Token-Namen, keine Funktionen, k
       }
       const st = S.status(c, s); if (st.over) break;
       const r = S.dueReveal(c, s); if (r) { s = S.apply(c, s, r); continue; }
-      const mv = c.moves(c.observe(s.state, st.turn), st.turn); s = S.apply(c, s, mv[k % mv.length]);
+      const mv = c.moves(c.observe(s.state, st.turn), st.turn), pick = mv[k % mv.length];
+      s = S.apply(c, s, c.manifest.inputDay ? { ...pick, d: TEST_DAY } : pick); // der Host stempelt d (ADR 0001 f)
     }
   }
 });
@@ -114,7 +116,7 @@ test("observe: kein Sitz sieht fremde private Teile; Drahtformat ohne Salz vor d
         if (!s.log.some((x) => x.t === "reveal")) for (const salt of Object.values(sec.secrets)) assert.ok(!wire.includes(salt), "Salz im Drahtformat");
         if (st.over) break;
         const due = S.dueReveal(c, s); if (due) { s = S.apply(c, s, due); continue; }
-        const mv = c.moves(c.observe(s.state, st.turn), st.turn); s = S.apply(c, s, mv[r.int(mv.length)]);
+        const mv = c.moves(c.observe(s.state, st.turn), st.turn), pick = mv[r.int(mv.length)]; s = S.apply(c, s, c.manifest.inputDay ? { ...pick, d: TEST_DAY } : pick);
       }
     }
   }

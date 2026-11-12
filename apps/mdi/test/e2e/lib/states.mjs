@@ -24,7 +24,7 @@ export async function visitAll(b, o, cb) {
   await cb("09-bluff-pruefer-am-zug", p);
   for (let i = 0; i < 40 && (await screen(p)) !== "card-play-over"; i++) { if ((await screen(p)) === "card-play-turn") await p.locator(".choice .opt").first().click(); else await p.waitForTimeout(25); }
   await waitScreen(p, "card-play-over"); await cb("10-bluff-ende", p);
-  await act(p, "again"); await pickMode(p, o.lang, "alone"); await act(p, "go"); await waitScreen(p, "card-play-turn"); await cb("11-bluff-bote-am-zug", p);
+  await act(p, "again"); await pickMode(p, o.lang, "alone"); await act(p, "go"); await waitScreen(p, "card-play-cover"); await cb("11a-bluff-abdecken-vor-zug-1", p); await act(p, "cover-ok"); await waitScreen(p, "card-play-turn"); await cb("11-bluff-bote-am-zug", p);
   for (let i = 0; i < 10 && (await screen(p)) === "card-play-turn"; i++) await p.locator(".choice .opt").last().click();
   await waitScreen(p, "card-play-cover"); await cb("12-bluff-weitergeben", p);
   await act(p, "back"); await pickMode(p, o.lang, "link"); await act(p, "go");
