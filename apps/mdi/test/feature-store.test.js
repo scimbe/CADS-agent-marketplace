@@ -29,6 +29,11 @@ test("Satz und Art der freien Karte ueberleben das Anmelde-Gate; nach BACK_MS ni
   assert.equal(b.rt.state.ctx.frei.text, "Gedicht fuer Oma zum 80.", "nach FREI noch da (clearForm loescht ihn nicht)");
   b.rt.dispatch({ type: "BACK" }); b.rt.dispatch({ type: "FREI" }); await new Promise((r) => setTimeout(r, 10));
   assert.equal(b.rt.state.ctx.frei.text, "", "einmal verbraucht");
+  // FREI { text } (Startseiten-Block, K #287) nach der Rueckkehr: der Satz im Ereignis gewinnt, back ist verbraucht
+  const d = boot(store, t0 + 6 * 60 * 1000);
+  d.rt.dispatch({ type: "FREI", text: "Neuer Satz vom Startblock" }); await new Promise((r) => setTimeout(r, 10));
+  assert.equal(d.rt.state.ctx.frei.text, "Neuer Satz vom Startblock");
+  assert.equal(d.rt.state.ctx.frei.back, null);
   // spaeter (abgelaufen): kein alter Satz im Feld
   const c = boot(store, t0 + BACK_MS + 1);
   assert.equal(c.rt.state.ctx.frei.back, null);

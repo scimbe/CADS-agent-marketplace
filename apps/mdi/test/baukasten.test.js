@@ -11,7 +11,7 @@ import { check, contrast, LIMITS, textsOf } from "../src/engines/baukasten/check
 import * as E from "../src/engines/baukasten/engine.js";
 import * as Z from "../src/engines/baukasten/zug.js";
 import { botInput, planOf, randomBot } from "../src/engines/baukasten/bot.js";
-import { pruefe, feedback, SCHWELLEN } from "../src/engines/baukasten/pruefer.js";
+import { pruefe, feedback, hintOf, SCHWELLEN } from "../src/engines/baukasten/pruefer.js";
 import { BEISPIELE, FLAPPY, BREAKOUT, PONG, AUSWEICHEN, MEMORY, DREI, QUIZ, WORTSALAT, SNAKE } from "../src/engines/baukasten/beispiele.js";
 import card from "../src/cards/baukasten/card.js";
 import zug from "../src/cards/baukasten-zug/card.js";
@@ -472,4 +472,39 @@ test("Security-Review M5: Rechenaufwand je Tick ist begrenzt (check) und der Pru
 test("Baukasten: zu lange Texte werden nie still gekuerzt, auch nicht in der Modellausgabe (Zweitbewerter t106)", () => {
   const L = BEISPIELE.luecke, raw = { ...clone(L), turn: { ...L.turn, items: [{ q: "x".repeat(95), a: "Elefant", wrong: ["Giraffe"] }, ...L.turn.items.slice(1)] } };
   for (const opt of [{}, { clamp: true, llm: true }]) assert.match(check(raw, opt).errors.join(), /laenger als 90 Zeichen/);
+});
+
+// ---- Runde 3: Fehlerklassen aus Gold v2 (echte Modellantworten, test/fixtures/baukasten-runde3.json) ----------------------
+const R3 = JSON.parse(fs.readFileSync(new URL("./fixtures/baukasten-runde3.json", import.meta.url), "utf8")).spiele;
+const r3 = (id) => check(R3[id].antwort, { llm: true, clamp: true });
+
+test("Runde 3: Hindernis im Boden wird auf den Boden gestellt, umgedrehte pass-Regel getauscht (gemeldet); t009 wird spielbar", () => {
+  const c = r3("t009");
+  assert.ok(c.ok, c.errors.join("; "));
+  assert.ok(c.notes.some((n) => /spawn kaktus\.y 1490 -> 1465 \(auf den Boden\)/.test(n)), c.notes.join("; "));
+  assert.ok(c.notes.some((n) => /pass kaktus dino -> dino kaktus/.test(n)));
+  assert.equal(c.desc.rules.find((r) => r.when === "pass").a, "dino");
+  // ohne clamp (Links) bleibt alles wie geschrieben
+  assert.equal(check(c.desc).desc.spawn[0].y, 1465);
+  const raw = check(R3.t009.antwort, { llm: true }); assert.equal(raw.desc.spawn[0].y, 1490);
+  assert.equal(pruefe(c.desc, { games: 6 }).ok, true);
+});
+
+test("Runde 3: Bot-Plan – abprallende Gegner sind kein Ball, track auf ein Punkte-Ziel bei freier Bewegung wird seek", () => {
+  const d = r3("t062").desc;
+  assert.equal(d.bot.kind, "track");
+  assert.deepEqual(planOf(d), { kind: "seek", thing: "biene", target: "pollen" });
+  assert.deepEqual(planOf({ ...d, bot: { kind: "none", thing: "", target: "" } }), { kind: "seek", thing: "biene", target: "pollen" });
+  assert.equal(pruefe(d, { games: 6 }).ok, true);
+  // Pong bleibt track auf den Ball
+  assert.equal(planOf({ ...clone(PONG), bot: { kind: "none", thing: "", target: "" } }).kind, "track");
+});
+
+test("Runde 3: Diagnose nennt knappe Spruenge und unerreichbare Ziele konkret (fuer die Reparatur)", () => {
+  const j = pruefe(r3("t010").desc, { games: 6 });
+  assert.equal(j.ok, false); assert.match(j.metrics.diagnose, /nur bei perfektem Timing ueber stein/);
+  assert.match(feedback(j), /schneller \(vx etwa -290\)/, "die genaue Diagnose ersetzt den allgemeinen Hinweis");
+  assert.match(hintOf({ reasons: [{ code: "nicht-gewinnbar" }] }), /nicht langsamer/);
+  const l = pruefe(r3("t061").desc, { games: 6 });
+  assert.equal(l.ok, false); assert.match(l.metrics.diagnose, /schueler faehrt nur waagrecht.*control move/);
 });

@@ -21,6 +21,7 @@ import { ARTS, GENRES, MODES, SOON, artOk, kindOk, sanitizeDoc, sanitizeKi, targ
 import { cardOf as cardById, validParams, LEGACY, manifestOf } from "../../cards/index.js";
 import { defaults } from "../../contract/fields.js";
 import * as G from "../../app/game.js";
+import { crisis } from "../../broker/ai.js";
 
 const T = (p) => p;
 /** Zielkarte nach id oder alter Katalog-id (manifest.legacy, Text oder Liste: eingeklappte Varianten) */
@@ -219,7 +220,10 @@ export const freiState = {
 
 /** Ereignisse im Regal (H haengt sie an seinen Regalzustand) */
 export const FREI_SHELF = {
-  FREI: { target: T("inhalt.frei.start"), actions: ["clearForm", "takeBack"] },
+  // FREI { text? }: der Satz aus dem Block der Startseite (H, Gate C) kommt vorausgefuellt; die Kategorie waehlt die Person
+  // trotzdem selbst (keine Vorauswahl), Login und 16+ bleiben wie sie sind. Ein Satz mit Krisenwoertern zeigt sofort die Hilfe.
+  // Reihenfolge: Stand vom Anmelde-Gate (takeBack) zuerst, ein Satz im Ereignis (takeFreiText) gewinnt
+  FREI: { target: T("inhalt.frei.start"), actions: ["clearForm", "takeBack", "takeFreiText"] },
   DECK_OPEN: { target: T("inhalt.frei.deckkarte"), cond: "deckCardOk", actions: ["openDeckCard"] },
   DECK: { target: T("inhalt.frei.deck") },
   MINE: { target: T("inhalt.frei.meine") }
@@ -314,6 +318,12 @@ export const freiActions = {
   clearForm: (ctx) => F(ctx, { ...freshForm }),
   // Stand vom Anmelde-Gate (frei.back, siehe freiContext) einmal ins Formular; danach verbraucht. SEND prueft wie immer (Krise)
   takeBack: (ctx) => (ctx.frei.back ? F(ctx, { text: ctx.frei.back.text, art: ctx.frei.back.art, genre: ctx.frei.back.genre, back: null }) : ctx),
+  takeFreiText: (ctx, ev) => {
+    if (typeof ev.text !== "string") return ctx;
+    const text = [...ev.text.replace(/[\p{Cc}\p{Cf}<>]/gu, " ").replace(/\s+/g, " ").trim()].slice(0, 200).join("");
+    if (!text) return ctx;
+    return F(ctx, { text, res: crisis(text) ? { how: "crisis" } : null });
+  },
   freiRefresh: (ctx, ev, emit) => { emit({ type: "konto.status" }); return ctx; },
   setArt: (ctx, ev) => (ARTS.includes(ev.art) ? F(ctx, { art: ev.art, genre: ev.art === "game" ? ctx.frei.genre : "", mode: ev.art === "game" ? ctx.frei.mode : "", res: null, soon: null }) : ctx),
   setGenre: (ctx, ev) => (GENRES.includes(ev.genre) && ctx.frei.art === "game" ? F(ctx, { genre: ev.genre, mode: "", res: null, soon: null }) : ctx),
