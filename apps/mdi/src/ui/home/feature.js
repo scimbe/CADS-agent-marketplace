@@ -25,7 +25,7 @@ export const MAX_OFF = 31;
 const todayOf = (ev) => (Number.isFinite(ev.at) ? Math.floor(ev.at / R.DAY) : null);
 
 export function homeContext() {
-  return { thumbs: {}, home: { at: "day", off: 0, intent: null, text: "", res: null, rtab: "alles", fam: null, q: "", mtab: "wand", note: null, sure: null }, today: null, mine: { wall: [], saved: [], invites: [], undo: null, loaded: false, busy: null } };
+  return { thumbs: {}, wx: null, home: { at: "day", off: 0, intent: null, text: "", res: null, rtab: "alles", fam: null, q: "", mtab: "wand", note: null, sure: null }, today: null, mine: { wall: [], saved: [], invites: [], undo: null, loaded: false, busy: null } };
 }
 const H = (ctx, o) => ({ ...ctx, home: { ...ctx.home, ...o } });
 const M = (ctx, o) => ({ ...ctx, mine: { ...ctx.mine, ...o } });
@@ -129,7 +129,15 @@ export const actions = {
     if (JSON.stringify(m.wall) === JSON.stringify(ctx.mine.wall) && JSON.stringify(m.saved) === JSON.stringify(ctx.mine.saved)) return ctx;
     const c = M(ctx, m); saveFx(c, emit); return c;
   },
-  homeNoteClear: (ctx) => H(ctx, { note: null })
+  homeNoteClear: (ctx) => H(ctx, { note: null }),
+  // Wetter im Editor (Feld weather, Strang P): Tag als Datum aus dem Ereignis-Zeitpunkt, der Server liefert echte Zahlen
+  wxGet: (ctx, ev, emit) => {
+    if (typeof ev.key !== "string" || !ev.place) return { ...ctx, wx: { key: ev.key, st: "blocked" } };
+    const day = [0, 1, 2].includes(ev.day) ? ev.day : 0, date = new Date((Math.floor((ev.at || 0) / R.DAY) + day) * R.DAY).toISOString().slice(0, 10);
+    emit({ type: "home.wx", key: ev.key, place: ev.place, date });
+    return { ...ctx, wx: { key: ev.key, st: "busy" } };
+  },
+  wxDone: (ctx, ev) => ({ ...ctx, wx: { key: ev.key, st: ev.st } })
 };
 
 // Uebergaenge in inhalt.shelf (OPEN und STIL wie bisher)
@@ -155,6 +163,7 @@ export const inhaltOn = {
   HOME_LOADED: { actions: ["homeLoaded"] },
   HOME_TICK: { actions: ["homeTick"] },
   THUMBS: { actions: ["thumbsTake"] },
+  WX_DONE: { actions: ["wxDone"] },
   MERKEN: { actions: ["merken"] },
   WALL_SNAP: { actions: ["wallSnap"] },
   SHORT_DONE: { actions: ["shortDone"] },
@@ -172,4 +181,4 @@ export const profileLocal = (ctx) => (ctx.mine ? { wall: S.wallForServer(ctx.min
 // Teile ausserhalb des Kerns (src/app/feature-parts.json): Satz und Suche (home-find); Story/Wand-Bild laedt der Effekt selbst
 export const needParts = (ev) => (ev.type === "UNDERSTAND" || ev.type === "QUERY" ? ["home-find"] : []);
 
-export const home = { id: "home", shelfOn, on: { inhalt: inhaltOn }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };
+export const home = { id: "home", shelfOn, on: { inhalt: inhaltOn, "inhalt.card.customize.dialog": { WX_GET: { actions: ["wxGet"] } } }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };
