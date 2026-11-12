@@ -29,7 +29,8 @@ for (const m of ["rps", "rap", "auction"]) for (let k = 0; k < 40; k++) {
   out.duelle.push({ doc, de: Duel.play(d, "de"), en: Duel.play(d, "en"), why: Duel.explain(d, Duel.play(d, "de")) });
 }
 for (let k = 0; k < 40; k++) {
-  const d = Duel.sanitize({ m: "mind", seed: Math.floor(r() * 4294967295), set: Math.floor(r() * 4), a: randAgent(r), b: randAgent(r) }, {});
+  // mind: die Regler des eigenen Agenten sind ausgeblendet (alt modes.js:110) und stehen in der Karte auf 50
+  const d = Duel.sanitize({ m: "mind", seed: Math.floor(r() * 4294967295), set: Math.floor(r() * 4), a: { ...randAgent(r), r: 50, c: 50, p: 50 }, b: randAgent(r) }, {});
   const hands = Array.from({ length: 10 }, () => Math.floor(r() * 3)), rnd = Duel.rng(d), hist = [], ys = [];
   let sa = 0, sb = 0;
   for (const i of hands) { const y = Duel.mindHand(hist, d.b.c, rnd()), o = Duel.outcome(i, y); hist.push(i); ys.push(y); if (o > 0) sa++; else if (o < 0) sb++; }

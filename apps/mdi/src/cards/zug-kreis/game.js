@@ -41,6 +41,14 @@ export function doorBeing(doc, r, i, prev) {
   return b;
 }
 export function doorIn(r, b) { return DOOR_RULES[r](b); }
+// Darstellung eines Wesens wie alt (turn2.js:366-373): Tier, Hut, Farbe, Socken
+const ANI = ["🐱", "🐶", "🐸", "🐰"], COL = ["🔴", "🔵", "🟡"];
+const SAY = { de: { a: ["Katze", "Hund", "Frosch", "Hase"], c: ["rot", "blau", "gelb"], hat: "mit Hut", nohat: "ohne Hut", socks: "mit Socken", nosocks: "ohne Socken" },
+  en: { a: ["Cat", "Dog", "Frog", "Rabbit"], c: ["red", "blue", "yellow"], hat: "with a hat", nohat: "no hat", socks: "with socks", nosocks: "no socks" } };
+export function lookOf(b, lang) {
+  const S = SAY[lang] || SAY.de;
+  return { look: [ANI[b[0]], b[1] ? "🎩" : "", COL[b[2]], b[3] ? "🧦🧦" : ""].filter(Boolean), a11y: [S.a[b[0]], b[1] ? S.hat : S.nohat, S.c[b[2]], b[3] ? S.socks : S.nosocks].join(", ") };
+}
 export const tuer = {
   local: true, daily: true,
   // Widget tuer (ADR 0001): Regelfolge und je Regel 40 Wesen mit Antwort aus dem Seed; Uhr und Serie haelt das Widget
@@ -48,8 +56,8 @@ export const tuer = {
     door(p, c) {
       const rules = doorOrder(c.doc).map((r) => {
         const prev = [], beings = [];
-        for (let i = 0; i < 40; i++) { const b = doorBeing(c.doc, r, i, prev), inn = doorIn(r, b); beings.push({ b, in: inn }); prev.push(inn); }
-        return { label: pair(D.doorRules, r, c.lang), beings };
+        for (let i = 0; i < 40; i++) { const b = doorBeing(c.doc, r, i, prev), inn = doorIn(r, b); beings.push({ in: inn, ...lookOf(b, c.lang) }); prev.push(inn); }
+        return { beings }; // die Regel selbst bleibt geheim, erst das Ergebnis nennt sie
       });
       return { ...base(p, c, { secs: p.secs, streak: p.streak, rules }), t: "tuer" };
     }
