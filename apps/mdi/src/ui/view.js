@@ -57,11 +57,6 @@ export function actionsOf(state) {
   }
 }
 
-function previewState(card, params) {
-  const st = card.init({ rng: rng("preview"), params, players: card.manifest.players.max });
-  return card.observe(st, 0);
-}
-
 function stage(node, extra = {}) { return h("div", { class: "stage", id: "stage", ...extra }, node); }
 
 function radios(name, label, items, value, onPick) {
@@ -148,8 +143,8 @@ export function view(state, dispatch, env = {}) {
         : h("span", { class: "icon-gap" }));
 
   let body = [], panel = [];
-  const tree = card ? card.view(previewState(card, G.paramsOf(ctx)), 0, G.viewCtx(ctx, { preview: true })) : null;
-  const preview = tree ? render(tree, { onInput: () => {}, disabled: true, idp: "pv" }) : null;
+  const tree = card ? G.previewNode(card, G.paramsOf(ctx), ctx.lang, G.viewCtx(ctx)) : null;
+  const preview = tree ? render(tree, { onInput: () => {}, disabled: true, idp: "pv", lang: ctx.lang, high: env.high, images: env.images, cardSvg: env.cardSvg }) : null;
 
   if (L.startsWith("stil.")) {
     const r = stilView(state, X, dispatch, L);
@@ -195,7 +190,7 @@ export function view(state, dispatch, env = {}) {
       const obs = S.observe(card, ctx.session, seat);
       const node = card.view(obs, seat, G.viewCtx(ctx));
       // Widget-Host (ADR 0001 c, Strang F): Entwurf, Aktionen, Geraetedienste
-      const live = render(node, { onInput: (input) => dispatch({ type: "INPUT", input }), onDraft: (draft) => dispatch({ type: "DRAFT", draft }), onAction: (x) => dispatch({ type: "ACT", ...x }), draft: ctx.draft, lang: ctx.lang, age18: G.viewCtx(ctx).age18, nick: G.viewCtx(ctx).nick, disabled: phase !== "turn", idp: "g", random: env.random, clock: env.clock, audio: env.audio, cardSvg: env.cardSvg, images: env.images, reduced: env.reduced });
+      const live = render(node, { onInput: (input) => dispatch({ type: "INPUT", input }), onDraft: (draft) => dispatch({ type: "DRAFT", draft }), onDraftPatch: (patch) => dispatch({ type: "DRAFT", patch }), high: env.high, onAction: (x) => dispatch({ type: "ACT", ...x }), onPrepare: () => dispatch({ type: "PREPARE" }), draft: ctx.draft, lang: ctx.lang, age18: G.viewCtx(ctx).age18, nick: G.viewCtx(ctx).nick, disabled: phase !== "turn", idp: "g", random: env.random, clock: env.clock, audio: env.audio, cardSvg: env.cardSvg, images: env.images, reduced: env.reduced });
       const lines = [];
       // Wer bin ich, wie weit (13 §6.4 Punkt 7): mit Zugnummer, wenn die Karte sie meldet (Zugvertrag v0.2 status.turnNo/turns)
       if (card.manifest.players.max > 1 && ctx.mode !== "alone") lines.push(h("p", { class: "seat", key: "seat" }, fmt(X.yourSeat, { s: seatName(card, ctx.lang, seat) }) + (Number.isInteger(st.turnNo) && Number.isInteger(st.turns) ? " · " + fmt(ctx.lang === "en" ? "Turn {n} of {m}" : "Zug {n} von {m}", { n: st.turnNo, m: st.turns }) : "")));
@@ -216,8 +211,10 @@ export function view(state, dispatch, env = {}) {
     // Echtzeitkarten: Buehne mit Canvas aus src/render/rt-stage.js (Strang F); ohne Buehne ehrlich „laeuft hier nicht“
     const lines = [];
     if (L === "card.rt.over" && ctx.rtResult && ctx.rtResult.status) {
-      const st = ctx.rtResult.status, seat = ctx.viewer, wn = st.winner >= 0 ? seatName(card, ctx.lang, st.winner) : "";
-      lines.push(h("p", { class: "result", role: "status", key: "res" }, st.winner === -1 ? X.overDraw : ctx.mode === "alone" ? fmt(X.overWinner, { s: wn }) : st.winner === seat ? X.overWin : fmt(X.overLose, { s: wn })));
+      const st = ctx.rtResult.status, seat = ctx.viewer, say = typeof st.say === "string" ? st.say : st.say && typeof st.say === "object" ? st.say[ctx.lang] || st.say.de : "";
+      // Solo-Partien (status.solo oder kein Gewinner) zeigen den Stand statt einer Gewinnerzeile (Anfrage L)
+      if (st.solo || !Number.isInteger(st.winner)) lines.push(h("p", { class: "result", role: "status", key: "res" }, say || X.overAll));
+      else { const wn = st.winner >= 0 ? seatName(card, ctx.lang, st.winner) : ""; lines.push(h("p", { class: "result", role: "status", key: "res" }, st.winner === -1 ? X.overDraw : ctx.mode === "alone" ? fmt(X.overWinner, { s: wn }) : st.winner === seat ? X.overWin : fmt(X.overLose, { s: wn }))); }
     }
     if (ctx.ghostOf) lines.push(h("p", { class: "hint", key: "gh" }, fmt(X.ghostScore, { s: ctx.ghostOf.sc.join(" : ") })));
     if (L === "card.rt.error") lines.push(h("div", { class: "notice", key: "err" }, h("h2", { class: "t-title" }, X.errTitle), h("p", { class: "warn", role: "alert" }, X.reasons[ctx.error] || X.reasons["zug-ungueltig"])));
@@ -226,7 +223,7 @@ export function view(state, dispatch, env = {}) {
   } else if (L === "receive.show") {
     const inc = ctx.incoming, c = cardOf(inc.cardId);
     if (inc.kind === "ghost") body = [h("div", { class: "notice" }, h("p", { class: "lede plain" }, X.ghostText), h("h2", { class: "t-title" }, title(c, ctx.lang)), h("p", null, fmt(X.ghostScore, { s: inc.score.join(" : ") })), h("p", { class: "hint" }, X.free))];
-    else if (inc.kind === "card") body = [h("p", { class: "lede plain" }, X.acceptTitle), stage(render(c.view(previewState(c, inc.params), 0, G.viewCtx(ctx, { preview: true, receive: true })), { onInput: () => {}, disabled: true, idp: "rx" })), h("p", { class: "hint" }, X.free)];
+    else if (inc.kind === "card") body = [h("p", { class: "lede plain" }, X.acceptTitle), stage(render(G.previewNode(c, inc.params, ctx.lang, G.viewCtx(ctx, { receive: true })), { onInput: () => {}, disabled: true, idp: "rx", lang: ctx.lang, high: env.high, images: env.images, cardSvg: env.cardSvg })), h("p", { class: "hint" }, X.free)];
     else {
       const st = S.status(c, inc.session), seat = inc.session.mine[0];
       body = [h("div", { class: "notice" },

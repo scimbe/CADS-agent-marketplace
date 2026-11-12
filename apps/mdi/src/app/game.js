@@ -5,7 +5,7 @@ import { defaults } from "../contract/fields.js";
 import * as S from "../contract/session.js";
 import * as H from "../contract/handshake.js";
 import { decode } from "./link.js";
-import { stateHash } from "../contract/sdk.js";
+import { stateHash, rng as rngOf } from "../contract/sdk.js";
 import { verifyGhost } from "./rt/match.js";
 
 // ---------- Geraeteeintrag je Link-Partie (Review H1/M1) ----------
@@ -232,4 +232,18 @@ export function phase(ctx) {
   if (ctx.botSeats && ctx.botSeats.includes(st.turn)) return "wait";
   if (mine.includes(st.turn)) return "turn";
   return "wait";
+}
+
+/** Vorschau-Anzeigeliste einer Karte (Regal, Ansicht, Empfang): Zug-/statische Karten ueber observe, Echtzeitkarten
+ *  ueber init/view im Startzustand (Bot gegen Bot, reduzierte Bewegung) – dieselbe Darstellung wie die Thumbnails. */
+export function previewNode(c, params, lang, extra = {}) {
+  const m = c.manifest;
+  if (typeof c.stamp === "function" && !extra.receive) params = c.stamp(params, { today: extra.today, nick: extra.nick || "" });
+  if (m.mode === "realtime") {
+    const roles = []; for (let s = 0; s < m.players.max; s++) roles.push(s === 0 ? "human" : typeof c.bot === "function" ? "bot" : "none");
+    const st = c.init({ params, seed: "0".repeat(32), players: roles, level: 2, rng: rngOf("preview|init") });
+    return c.view(st, { seat: 0, alpha: 0, prev: null, reduced: true, lang, t: 0, preview: true, ...extra });
+  }
+  const st = c.init({ rng: rngOf("preview"), params, players: m.players.max });
+  return c.view(c.observe(st, 0), 0, { lang, preview: true, ...extra });
 }

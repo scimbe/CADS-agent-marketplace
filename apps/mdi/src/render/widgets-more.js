@@ -105,18 +105,26 @@ M.hunt = (n, host, X) => {
     h("input", { class: "field", type: "text", maxlength: "30", autocomplete: "off", "aria-label": txt(words[st.i].hint, 80), key: "h" + st.i, on: { input: (e) => { if (fold(e.target.value) === fold(words[st.i].w)) { sfx(host, "pop"); setDraft(host, n, { ...st, i: st.i + 1 }); } } } })]);
 };
 
-// Tuersteher (Altcode turn2.js:364): Wesen zeigen, rein/raus; streak richtige in Folge = naechste Regel
+// Tuersteher (Altcode turn2.js:364-392): n.rules[k].beings[i]; streak richtige in Folge = naechste Regel (i von vorn)
 M.tuer = (n, host, X) => wrap(n, host, gate(n, host, (t0) => {
-  const Z = Y(host), beings = n.beings || [], st = drafted(host, n, { i: 0, k: 0, run: 0, right: 0, total: 0 });
+  const Z = Y(host), rules = (n.rules || []).slice(0, 10), streak = n.streak || 4;
+  const st = drafted(host, n, { k: 0, i: 0, run: 0, right: 0, total: 0, fresh: false });
   const left = Math.max(0, (n.secs || 60) - Math.floor((now(host) - t0) / 1000));
   const val = [Math.min(10, st.k), st.right, Math.min(999, st.total)];
-  if (left <= 0 || st.i >= beings.length) return [h("p", { class: "w-big" }, fmt(Z.score, { n: st.right })), ...mainBtn(host, n, val, "", X)];
-  const b = beings[st.i];
-  const answer = (inn) => { const ok = inn === !!b.in; const run = ok ? st.run + 1 : 0; const next = run >= (n.streak || 4); setDraft(host, n, { i: st.i + 1, k: st.k + (next ? 1 : 0), run: next ? 0 : run, right: st.right + (ok ? 1 : 0), total: st.total + 1 }); sfx(host, ok ? "pop" : "thud"); };
-  return [h("p", { class: "w-big", role: "img", "aria-label": txt(b.a11y || (b.look || []).join(" "), 120) }, txt((b.look || []).join(" "), 40)),
+  const rule = rules[st.k], b = rule && rule.beings ? rule.beings[st.i] : null;
+  if (left <= 0 || !b) return [h("p", { class: "w-big" }, fmt(Z.score, { n: st.right })), ...mainBtn(host, n, val, "", X)];
+  const answer = (inn) => {
+    const ok = inn === !!b.in, run = ok ? st.run + 1 : 0, next = run >= streak;
+    setDraft(host, n, next ? { k: st.k + 1, i: 0, run: 0, right: st.right + 1, total: st.total + 1, fresh: true } : { ...st, i: st.i + 1, run, right: st.right + (ok ? 1 : 0), total: st.total + 1, fresh: false });
+    sfx(host, ok ? "pop" : "thud");
+  };
+  return [
+    st.fresh ? h("p", { class: "w-note", role: "status" }, host.lang === "en" ? "New rule!" : "Neue Regel!") : null,
+    h("p", { class: "w-big", role: "img", "aria-label": txt(b.a11y || (b.look || []).join(" "), 120) }, txt((b.look || []).join(" "), 40)),
     h("p", { class: "w-count", ref: (el) => ticker(el, host, 250, () => { el.textContent = fmt(Z.time, { s: Math.max(0, (n.secs || 60) - Math.floor((now(host) - t0) / 1000)) }); }) }, fmt(Z.time, { s: left })),
     h("div", { class: "options" }, h("button", { type: "button", class: "btn", on: { click: () => answer(false) } }, Z.out), h("button", { type: "button", class: "btn", on: { click: () => answer(true) } }, Z.inn)),
-    h("p", { class: "w-note", "aria-hidden": "true" }, "●".repeat(st.run) + "○".repeat(Math.max(0, (n.streak || 4) - st.run)))];
+    h("p", { class: "w-note", "aria-hidden": "true" }, "●".repeat(st.run) + "○".repeat(Math.max(0, streak - st.run)))
+  ];
 }));
 
 // Finger auf den Bildschirm, nach 3 s Ruhe wird einer gewaehlt (Altcode turn-ui.js:234); Tastatur: Zufall ziehen
@@ -135,31 +143,30 @@ M.touch = (n, host, X) => {
   return wrap(n, host, [h("div", { class: "touchpad", ref: pad, role: "application", "aria-label": txt(n.label) }), h("button", { type: "button", class: "chip", on: { click: () => setDraft(host, n, host.random(n.people || 2)) } }, Z.tapPick)]);
 };
 
-// Nim / Pommes (Altcode turn-ui.js:281): Missere – wer die letzte nimmt, verliert; Bot-Zuege kommen als Daten
+// Nim / Pommes (Altcode turn-ui.js:281): Missere – wer die letzte nimmt, verliert. Der Bot ist Sache der Karte:
+// sie liest den Entwurf (ctx.draft["w:<id>"]) und liefert n.botMove = [stapel, neueHoehe] als Daten.
 M.nim = (n, host, X) => {
-  const Z = Y(host), st = drafted(host, n, { heaps: (n.heaps || [3, 4, 5]).slice(), mark: null, turn: 0, k: 0 });
+  const Z = Y(host), st = drafted(host, n, { heaps: (n.heaps || [3, 4, 5]).slice(), mark: null, turn: 0 });
   const total = st.heaps.reduce((a, b) => a + b, 0);
   if (total === 0) return wrap(n, host, [h("p", { class: "w-big" }, st.turn === 0 ? "🏆" : "🍟"), ...mainBtn(host, n, st.turn === 0 ? 1 : 0, "", X)]);
-  const take = (hp, from) => {
-    const heaps = st.heaps.slice(); heaps[hp] = from;
-    let next = { heaps, mark: null, turn: 1, k: st.k + 1 };
-    const bm = n.botMove ? n.botMove(heaps) : null; // reine Funktion der Karte (Bot), sonst: kleinster Zug
-    if (heaps.some((x) => x > 0)) {
-      const mv = bm || (() => { const i = heaps.findIndex((x) => x > 0); return [i, heaps[i] - 1]; })();
-      heaps[mv[0]] = mv[1]; next = { heaps: heaps.slice(), mark: null, turn: 0, k: st.k + 2 };
-      if (heaps.every((x) => x === 0)) next.turn = 0; // Bot nahm die letzte: Mensch gewinnt
-    } else next.turn = 1; // Mensch nahm die letzte: verloren
-    setDraft(host, n, next);
+  const take = (hp, from) => { const heaps = st.heaps.slice(); heaps[hp] = from; setDraft(host, n, { heaps, mark: null, turn: heaps.some((x) => x > 0) ? 1 : 1, lastBy: 0 }); };
+  const botRef = (el) => {
+    if (st.turn !== 1 || !Array.isArray(n.botMove)) return;
+    const s2 = local(el, () => ({})); if (s2.for === JSON.stringify(st.heaps)) return; s2.for = JSON.stringify(st.heaps);
+    setTimeout(() => { if (!el.isConnected) return; const heaps = st.heaps.slice(), [i, to] = n.botMove; if (Number.isInteger(i) && heaps[i] > to && to >= 0) heaps[i] = to; setDraft(host, n, { heaps, mark: null, turn: 0, lastBy: 1 }); }, 600);
   };
-  return wrap(n, host, [h("div", { class: "w-heaps" }, st.heaps.map((c, hp) => h("div", { key: hp, class: "w-heap", role: "group", "aria-label": "Stapel " + (hp + 1) },
-    Array.from({ length: c }, (_, i) => h("button", { type: "button", key: i, class: "chip fry" + (st.mark && st.mark[0] === hp && i >= st.mark[1] ? " on" : ""), "aria-pressed": press(!!(st.mark && st.mark[0] === hp && i >= st.mark[1])), "aria-label": (st.mark && st.mark[0] === hp && i === st.mark[1] ? Z.take : Z.mark) + " " + (c - i),
+  // Ende: wer die letzte nahm (lastBy) verliert
+  if (st.heaps.every((x) => x === 0)) return wrap(n, host, [h("p", { class: "w-big" }, st.lastBy === 1 ? "🏆" : "🍟"), ...mainBtn(host, n, st.lastBy === 1 ? 1 : 0, "", X)]);
+  return wrap(n, host, [h("div", { class: "w-heaps", "data-busy": st.turn === 1 ? "true" : null, ref: botRef }, st.heaps.map((c, hp) => h("div", { key: hp, class: "w-heap", role: "group", "aria-label": (host.lang === "en" ? "Pile " : "Stapel ") + (hp + 1) },
+    Array.from({ length: c }, (_, i) => h("button", { type: "button", key: i, class: "chip fry" + (st.mark && st.mark[0] === hp && i >= st.mark[1] ? " on" : ""), "aria-pressed": press(!!(st.mark && st.mark[0] === hp && i >= st.mark[1])), "aria-label": (st.mark && st.mark[0] === hp && i === st.mark[1] ? Z.take : Z.mark) + " " + (c - i), disabled: st.turn === 1 || host.disabled ? true : null,
       on: { click: () => (st.mark && st.mark[0] === hp && st.mark[1] === i ? take(hp, i) : setDraft(host, n, { ...st, mark: [hp, i] })) } }, "🍟")))))]);
 };
 
 // Bloecke 8x8 (Altcode turn-ui.js:411): Steine legen; die Karte prueft die Liste per Nachspielen
 M.blocks = (n, host, X) => {
   const Z = Y(host), size = n.size || 8, v = drafted(host, n, []), max = n.max || 40;
-  const fill = n.preview ? n.preview(v) : null; // reine Funktion der Karte: Feldbelegung und Punkte zur Anzeige
+  // Belegung und Punkte rechnet die Karte aus dem Entwurf und gibt sie als Daten: n.fill = {cells, score, next, after}
+  const fill = n.fill && typeof n.fill === "object" ? n.fill : null;
   const tap = (i) => { if (v.length < max) setDraft(host, n, v.concat([i])); };
   const cells = [];
   for (let i = 0; i < size * size; i++) cells.push(h("button", { type: "button", key: i, class: "bcell" + (fill && fill.cells && fill.cells[i] ? " on" : ""), "aria-label": String(i + 1) + (fill && fill.cells && fill.cells[i] ? " " + Z.pressed : ""), disabled: host.disabled ? true : null, on: { click: () => tap(i) } }));

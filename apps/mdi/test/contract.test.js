@@ -71,8 +71,8 @@ test("Anzeigelisten: nur bekannte Primitive und Token-Namen, keine Funktionen, k
       for (const seat of all) for (const lang of ["de", "en"]) {
         const node = c.view(c.observe(s.state, seat), seat, { lang });
         const json = JSON.stringify(node);
-        // Farbwerte nur in der Canvas-Liste (Nutzerfarben sind Inhalt, ADR 0001 b); sonst Token
-        const jsonNoCanvas = JSON.stringify(node, (k, v) => (v && v.t === "canvas" ? undefined : v));
+        // Farbwerte nur in Canvas/Zeichnen (Nutzerfarben/Paletten sind Inhalt, ADR 0001 b/c); sonst Token
+        const jsonNoCanvas = JSON.stringify(node, (k, v) => (v && ["canvas", "draw", "strokes"].includes(v.t) ? undefined : v));
         assert.ok(!/#[0-9a-fA-F]{3,6}\b|rgb\(|<[a-z]/.test(jsonNoCanvas), id + ": Farbwert/HTML in Anzeigeliste");
         walk(node, (x) => {
           assert.ok(PRIMS.has(x.t), id + ": Primitiv " + x.t);

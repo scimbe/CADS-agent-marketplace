@@ -7,7 +7,7 @@
 //   deck: Partydeck mit Uhr, ein Sitz.
 // Zustand nur aus Ganzzahlen und Texten; das Duell selbst wird aus Zustand und Seed nachgerechnet (deterministisch).
 import * as D from "./duel.js";
-import { fmt } from "../zug/alt.js";
+import { fmt, hash32 } from "../zug/alt.js";
 import TX from "./texte.json" with { type: "json" };
 
 const HANDS = 10;
@@ -165,6 +165,13 @@ export function makeDuell({ manifest }) {
       return { pub: { p: params, seed: rng.u32(), ph: params.m === "deck" ? "d0" : "a0", a0: null, h0: [], a1: null, h1: [], k: 0 }, priv: new Array(manifest.players.max).fill(null) };
     },
     step, accepts, moves, status, view,
+    // eigener Bot (ADR 0001 f): Gegner-Agent wie "Gegner wuerfeln", Haende und Wahl aus dem Seed (deterministisch)
+    bot(obs, seat, { seed }) {
+      const mv = moves(obs, seat);
+      if (!mv.length) return null;
+      if (obs.pub.ph === "s0") return mv.find((x) => x.t === "ok");
+      return mv[hash32(String(seed)) % mv.length];
+    },
     observe(state) { return { pub: copy(state.pub), mine: null }; },
     // fuer Tests und Host
     result: (pub, which, lang) => result(pub, which, lang), agentIn

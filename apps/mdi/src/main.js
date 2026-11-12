@@ -13,6 +13,7 @@ import { nativeAccount } from "./broker/native.js";
 import { download, downloadText } from "./broker/share.js";
 import { createStage } from "./render/rt-stage.js";
 import { createSound } from "./render/sound.js";
+import { featureEnv } from "./app/features.js";
 
 const root = document.getElementById("app");
 const lang = langOf(navigator);
@@ -21,10 +22,13 @@ document.documentElement.lang = lang;
 const reducedMq = matchMedia("(prefers-reduced-motion: reduce)");
 // Echtzeit-Buehne und Klang (ADR 0001 b): die Laufzeit zeichnet ueber stage.draw, view.js haengt stage.stageNode ein
 let rtApi = null;
-const stage = createStage({ win: window, doc: document, rt: { get active() { return rtApi && rtApi.active; }, get view() { return rtApi && rtApi.view; }, screenButtons: () => (rtApi ? rtApi.screenButtons() : []), get controls() { return rtApi && rtApi.controls; }, key: (c, d) => rtApi && rtApi.key(c, d), pointer: (...a) => rtApi && rtApi.pointer(...a), button: (...a) => rtApi && rtApi.button(...a), blur: () => rtApi && rtApi.blur(), hidden: () => rtApi && rtApi.hidden() }, reduced: () => reducedMq.matches });
+// Dienste aus Features (Strang P: audio/high, T: cardSvg, K: images) – ohne Feature ehrlich gesperrt im Widget
+const fenv = featureEnv(window);
+const stageEnv = { high: fenv.high || null, images: fenv.images || null, win: window, doc: document, rt: { get active() { return rtApi && rtApi.active; }, get view() { return rtApi && rtApi.view; }, screenButtons: () => (rtApi ? rtApi.screenButtons() : []), get controls() { return rtApi && rtApi.controls; }, key: (c, d) => rtApi && rtApi.key(c, d), pointer: (...a) => rtApi && rtApi.pointer(...a), button: (...a) => rtApi && rtApi.button(...a), blur: () => rtApi && rtApi.blur(), hidden: () => rtApi && rtApi.hidden() }, reduced: () => reducedMq.matches };
+const stage = createStage(stageEnv);
 const sound = createSound({ audioContext: () => new AudioContext(), vibrate: navigator.vibrate ? (ms) => navigator.vibrate(ms) : null });
 function randomInt(n) { const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0] % Math.max(1, n); }
-const viewEnv = { stage, random: randomInt, clock: () => performance.now(), reduced: reducedMq.matches };
+const viewEnv = { stage, random: randomInt, clock: () => performance.now(), reduced: reducedMq.matches, audio: fenv.audio || null, high: fenv.high || null, cardSvg: fenv.cardSvg || null, images: fenv.images || null };
 
 function entropy() { const b = new Uint8Array(16); crypto.getRandomValues(b); return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join(""); }
 

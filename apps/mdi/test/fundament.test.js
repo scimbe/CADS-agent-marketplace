@@ -124,7 +124,7 @@ test("v0.2 modes/play: manifest.modes und Varianten schneiden, play.default lieg
   const p = { manifest: { ...fx.manifest, play: { default: "link", offer: ["link", "live"] } } };
   assert.deepEqual(playOf(p), { default: "link", offer: ["link"] });
   const rt = { manifest: { mode: "realtime", players: { min: 1, max: 2 }, rt: { net: "split", ghost: { bytes: 100 } } }, bot() {} };
-  assert.deepEqual(deriveModes(rt), ["alone", "bot", "live", "ghost"]);
+  assert.deepEqual(deriveModes(rt), ["alone", "bot", "live"], "Geist ist kein waehlbarer Modus");
   assert.deepEqual(deriveModes({ ...rt, bot: undefined, manifest: { ...rt.manifest, rt: { net: "none" } } }), ["alone"]);
 });
 

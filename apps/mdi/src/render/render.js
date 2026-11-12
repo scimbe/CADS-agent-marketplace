@@ -36,8 +36,11 @@ export function render(node, host) {
     const part = typeof n.part === "string" && /^[a-z]{1,16}$/.test(n.part) ? n.part : null;
     const style = abs && ("x" in n || "y" in n) ? { left: pct(n.x) + "%", top: pct(n.y) + "%", ...(n.w ? { width: pct(n.w, 1) + "%" } : {}) } : null;
     switch (n.t) {
-      case "frame":
-        return h("div", { class: "frame fill-" + fill(n.fill, "paper"), "data-part": part }, (n.children || []).map((c) => el(c, true)));
+      case "frame": {
+        // ratio "16:9" | "4:5" | "3:4" | "9:16" | "1:1" wird ausgewertet (Anfrage P)
+        const r = typeof n.ratio === "string" && /^(16:9|4:5|3:4|9:16|1:1|4:3)$/.test(n.ratio) ? n.ratio.replace(":", " / ") : null;
+        return h("div", { class: "frame fill-" + fill(n.fill, "paper") + (r ? " has-ratio" : ""), "data-part": part, style: r ? { "aspect-ratio": r } : null }, (n.children || []).map((c) => el(c, true)));
+      }
       case "stack":
         return h("div", { class: "stack", "data-part": part }, (n.children || []).map((c) => el(c, false)));
       case "row":
@@ -95,16 +98,23 @@ export function render(node, host) {
   return el(node, false);
 }
 
+// Zeichnet nur, wenn sich Liste oder Groesse geaendert haben (ref laeuft bei jedem Neuzeichnen); Flaeche hoechstens
+// 4096 px je Seite und 8 MPixel, damit kein Geraet an einer riesigen Leinwand scheitert.
+const MAX_SIDE = 4096, MAX_PIX = 8e6;
 function paintStatic(el, node, host) {
   if (!el || typeof el.getContext !== "function") return;
   const doc = el.ownerDocument, win = doc && doc.defaultView;
   if (!win) return;
   const go = () => {
-    const r = el.getBoundingClientRect(); if (!r.width) return;
-    const dpr = Math.min(win.devicePixelRatio || 1, 2);
-    el.width = Math.round(r.width * dpr); el.height = Math.round(r.height * dpr);
+    const r = el.getBoundingClientRect(); if (!r.width || !r.height) return;
+    let dpr = Math.min(win.devicePixelRatio || 1, 2);
+    dpr = Math.min(dpr, MAX_SIDE / r.width, MAX_SIDE / r.height, Math.sqrt(MAX_PIX / (r.width * r.height)));
+    const key = JSON.stringify(node) + "|" + Math.round(r.width) + "x" + Math.round(r.height) + "|" + dpr;
+    if (el.__painted === key) return;
+    el.__painted = key;
+    el.width = Math.max(1, Math.round(r.width * dpr)); el.height = Math.max(1, Math.round(r.height * dpr));
     const cs = win.getComputedStyle(doc.documentElement);
-    const info = paint(el.getContext("2d"), node, { cw: r.width, ch: r.height, dpr, colors: tokenColors((v) => cs.getPropertyValue(v)), reduced: win.matchMedia && win.matchMedia("(prefers-reduced-motion: reduce)").matches, t: 0, images: host.images || null, path2d: (d) => new win.Path2D(d), makeCanvas: (w, hh) => { const c = doc.createElement("canvas"); c.width = w; c.height = hh; return c; }, cache: null });
+    const info = paint(el.getContext("2d"), node, { cw: r.width, ch: r.height, dpr, colors: tokenColors((v) => cs.getPropertyValue(v)), reduced: win.matchMedia && win.matchMedia("(prefers-reduced-motion: reduce)").matches, t: 0, images: host.images || null, high: host.high || null, src: node.src || null, path2d: (d) => new win.Path2D(d), makeCanvas: (w, hh) => { const c = doc.createElement("canvas"); c.width = w; c.height = hh; return c; }, cache: null });
     if (info.unknown.length && host.onUnknown) host.onUnknown("canvas:" + info.unknown.join(","));
   };
   if (el.isConnected) go(); else win.requestAnimationFrame(go);
