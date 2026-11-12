@@ -9,15 +9,16 @@ import c_gruss from "./gruss/card.js";
 import c_kanal_geheim from "./kanal-geheim/card.js";
 import c_stimme_verzerren from "./stimme-verzerren/card.js";
 import c_strassenrap_beat from "./strassenrap-beat/card.js";
+import c_zettel from "./zettel/card.js";
 import c_zug_advent from "./zug-advent/card.js";
 import c_zug_stimme from "./zug-stimme/card.js";
 import * as V from "../gen/validators.js";
 import { CODE_HASH } from "../gen/codehash.js";
 import { deriveModes } from "../contract/modes.js";
 
-export const CARDS = Object.freeze({ "advent-tuer": c_advent_tuer, "beat-pausenhof": c_beat_pausenhof, "bluff": c_bluff, "foto-alien": c_foto_alien, "gruss": c_gruss, "kanal-geheim": c_kanal_geheim, "stimme-verzerren": c_stimme_verzerren, "strassenrap-beat": c_strassenrap_beat, "zug-advent": c_zug_advent, "zug-stimme": c_zug_stimme });
-export const ORDER = Object.freeze(["advent-tuer","zug-advent","foto-alien","beat-pausenhof","strassenrap-beat","zug-stimme","kanal-geheim","stimme-verzerren","bluff","gruss"]);
-const PARAMS = { "advent-tuer": V.params_advent_tuer, "beat-pausenhof": V.params_beat_pausenhof, "bluff": V.params_bluff, "foto-alien": V.params_foto_alien, "gruss": V.params_gruss, "kanal-geheim": V.params_kanal_geheim, "stimme-verzerren": V.params_stimme_verzerren, "strassenrap-beat": V.params_strassenrap_beat, "zug-advent": V.params_zug_advent, "zug-stimme": V.params_zug_stimme };
+export const CARDS = Object.freeze({ "advent-tuer": c_advent_tuer, "beat-pausenhof": c_beat_pausenhof, "bluff": c_bluff, "foto-alien": c_foto_alien, "gruss": c_gruss, "kanal-geheim": c_kanal_geheim, "stimme-verzerren": c_stimme_verzerren, "strassenrap-beat": c_strassenrap_beat, "zettel": c_zettel, "zug-advent": c_zug_advent, "zug-stimme": c_zug_stimme });
+export const ORDER = Object.freeze(["advent-tuer","zug-advent","zettel","foto-alien","beat-pausenhof","strassenrap-beat","zug-stimme","kanal-geheim","stimme-verzerren","bluff","gruss"]);
+const PARAMS = { "advent-tuer": V.params_advent_tuer, "beat-pausenhof": V.params_beat_pausenhof, "bluff": V.params_bluff, "foto-alien": V.params_foto_alien, "gruss": V.params_gruss, "kanal-geheim": V.params_kanal_geheim, "stimme-verzerren": V.params_stimme_verzerren, "strassenrap-beat": V.params_strassenrap_beat, "zettel": V.params_zettel, "zug-advent": V.params_zug_advent, "zug-stimme": V.params_zug_stimme };
 const INPUTS = { "kanal-geheim": V.inputs_kanal_geheim, "strassenrap-beat": V.inputs_strassenrap_beat, "zug-advent": V.inputs_zug_advent, "zug-stimme": V.inputs_zug_stimme };
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 export function cardOf(id) { return own(CARDS, id) ? CARDS[id] : null; }

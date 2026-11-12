@@ -16,8 +16,9 @@ import { renderBeat, peaks as peaksOf } from "../src/engines/klang/studio.js";
 import stimme from "../src/cards/stimme-verzerren/card.js";
 import zugStimme, { figure, figureCards, right } from "../src/cards/zug-stimme/card.js";
 import kanal, { glyphs } from "../src/cards/kanal-geheim/card.js";
+import zettel, { lines as zLines } from "../src/cards/zettel/card.js";
 
-const CARDS = { "advent-tuer": advent, "zug-advent": zugAdvent, "foto-alien": foto, "beat-pausenhof": beat, "stimme-verzerren": stimme, "zug-stimme": zugStimme, "kanal-geheim": kanal };
+const CARDS = { "advent-tuer": advent, "zug-advent": zugAdvent, "foto-alien": foto, "beat-pausenhof": beat, "stimme-verzerren": stimme, "zug-stimme": zugStimme, "kanal-geheim": kanal, zettel };
 const fx = (f) => JSON.parse(fs.readFileSync(new URL("./fixtures/" + f, import.meta.url), "utf8"));
 const day = (y, m, d) => Math.floor(Date.UTC(y, m - 1, d) / 86400000);
 const J = (x) => JSON.parse(JSON.stringify(x));
@@ -43,7 +44,7 @@ test("Manifeste: Schema v0.2 (ohne Editor-Zusatzschluessel), Varianten mit guelt
     assert.deepEqual(checkCardSource(fs.readFileSync(new URL("../" + file, import.meta.url), "utf8"), { file }), [], file);
   }
   const ids = Object.values(CARDS).flatMap((c) => [c.manifest.id, ...(c.manifest.variants || []).map((x) => x.id), ...(c.manifest.legacy || [])]);
-  for (const want of ["foto-tour", "foto-haustier", "foto-essen", "beat-boss", "plan-05", "plan-12", "kanal-link", "kanal-drei", "kanal-kennst", "kanal-staffel", "kanal-erfinder", "raum-tunnel", "anruf-quiz", "anruf-stimme", "plan-30", "stimme-monster", "stimme-maus", "stimme-robo"]) assert.ok(ids.includes(want), "Variante/Alias " + want);
+  for (const want of ["foto-tour", "foto-haustier", "foto-essen", "beat-boss", "plan-05", "plan-12", "kanal-link", "kanal-drei", "kanal-kennst", "kanal-staffel", "kanal-erfinder", "raum-tunnel", "anruf-quiz", "anruf-stimme", "plan-30", "stimme-monster", "stimme-maus", "stimme-robo", "quiz-chaos", "quiz-snack", "quiz-superkraft", "quiz-film", "quiz-wetter", "plan-24"]) assert.ok(ids.includes(want), "Variante/Alias " + want);
   assert.equal(new Set(ids).size, ids.length, "keine id doppelt");
 });
 
@@ -193,6 +194,17 @@ test("kanal-geheim: unvollstaendiger Entwurf wird nicht versiegelt; Treffpunkte 
   assert.throws(() => play(kanal, tp, [{ t: "word", seat: 0, a: "zwei Worte" }]));
 });
 
+// ---------- zettel ----------
+test("zettel: sechs eingeklappte Zeilenkarten (quiz-*, plan-24) mit ihren drei Zeilen und ihrem Stil (zettel/druck)", () => {
+  assert.deepEqual(zLines("quiz-snack", "de")[0], "Scharfe Chips: Laut, knackig, keiner kann aufhören.");
+  assert.deepEqual(zLines("plan-24", "en"), ["Q1: What do I never eat?", "Q2: What scares me?", "Q3: My favourite song?"]);
+  const by = Object.fromEntries(zettel.manifest.variants.map((v) => [v.id, v.params]));
+  assert.equal(by["plan-24"].st, "druck"); assert.equal(by["quiz-film"].st, "zettel");
+  const c = find(zettel.view(zettel.observe(zettel.init({ params: { ...defaults(zettel.manifest.params), ...by["quiz-wetter"] } }), 0), 0, {}), "canvas")[0];
+  assert.ok(c.ops2d.some((o) => o.p === "fillStyle" && o.v === "#fff8e4"), "Zettel-Blatt wie alt render.js");
+  assert.ok(c.ops2d.some((o) => o.op === "block" && o.a[0] === by["quiz-wetter"].x));
+});
+
 // ---------- Golden: Anzeigelisten ----------
 test("Golden: Anzeigelisten aller Karten (Editor und Empfang) bleiben stabil", () => {
   const url = new URL("./fixtures/p-karten-golden.json", import.meta.url);
@@ -209,6 +221,7 @@ test("Golden: Anzeigelisten aller Karten (Editor und Empfang) bleiben stabil", (
   cases["zug-advent-schreiben"] = one(zugAdvent, {});
   cases["zug-stimme"] = one(zugStimme, {});
   cases["kanal-geheim"] = one(kanal, defaults(kanal.manifest.params));
+  for (const v of zettel.manifest.variants) cases[v.id] = one(zettel, { ...defaults(zettel.manifest.params), ...v.params });
   const herkunft = "Neu (Strang P): eingefrorene Anzeigelisten der Karten; neu erzeugen mit UPDATE_GOLDEN=1, Abweichung im PR begruenden.";
   if (process.env.UPDATE_GOLDEN || !fs.existsSync(url)) fs.writeFileSync(url, JSON.stringify({ herkunft, cases }) + "\n");
   const want = JSON.parse(fs.readFileSync(url, "utf8")).cases;

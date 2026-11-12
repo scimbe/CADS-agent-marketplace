@@ -9,6 +9,7 @@ export const CODE_HASH = {
   "kanal-geheim": "c00254018730354309f57e1b2cea3a88",
   "stimme-verzerren": "4bf0d202d7304151b45b668c6d1a439f",
   "strassenrap-beat": "a80fe771796d017b4a40eeaaa3cb8636",
+  "zettel": "0ff2a436b0c9f9f4161b62e72eb229c3",
   "zug-advent": "9dc508546da776f25a52e27b9932b7f1",
   "zug-stimme": "1d01d784dd3b7e54c1b281f4e5623177"
 };
