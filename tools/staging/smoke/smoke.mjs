@@ -94,17 +94,14 @@ for (const kind of Object.keys(kinds).sort()) {
       const s = await screen(A.p);
       if (s === "card-play-cover") await act(A.p, "cover-ok");
       else if (s === "card-play-turn") {
-        // card-independent like playVisible of the app tests, plus: empty text fields get a test text (quest answers),
-        // without a choice the main button of the screen moves on (e.g. "Beat-Link teilen")
+        // like playVisible of the app tests, plus the steps of p-karten.e2e.js (Strang P): empty answer fields are filled
+        // like a person (250 ms each, the draft is taken after 150 ms), then the card's own "go" step (data-act=go-step,
+        // kanal-geheim "weiter", strassenrap-beat "Beat-Link teilen") moves on; otherwise the last option of the choice
         const empty = A.p.locator("main input[type=text]:not([readonly]):visible, main textarea:not([readonly]):visible");
-        let filled = 0;
-        for (let k = 0; k < (await empty.count()); k++) if (!(await empty.nth(k).inputValue())) { await empty.nth(k).fill("staging"); filled++; }
-        const prim = A.p.locator(".actions .btn.primary").first();
-        const primText = (await prim.count()) ? await prim.innerText() : "";
-        if (/link|teilen|send|schick|verschl/i.test(primText) && (filled || !(await A.p.locator(".choice .opt").count()) || i > 2)) await prim.click();
+        for (let k = 0; k < (await empty.count()); k++) if (!(await empty.nth(k).inputValue())) { await empty.nth(k).fill("staging"); await A.p.waitForTimeout(250); }
+        if (await A.p.locator("[data-act=go-step]").count()) await A.p.locator("[data-act=go-step]").first().click();
         else if (await A.p.locator(".choice .opt").count()) await A.p.locator(".choice .opt").last().click();
-        else if (await A.p.locator(".actions .btn.primary").count()) await A.p.locator(".actions .btn.primary").first().click();
-        else if (!filled) await A.p.waitForTimeout(500);
+        else await A.p.waitForTimeout(500);
       } else await A.p.waitForTimeout(500);
     }
     if (!link) throw new Error("kein Link (Bildschirm " + (await screen(A.p)) + ")");

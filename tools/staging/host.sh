@@ -10,6 +10,7 @@
 #   host.sh check            HTTP checks of the served app (page, parts with SRI, headers, APIs)
 #   host.sh smoke            browser smoke test (Playwright container, host network -> 127.0.0.1:${STAGING_PORT})
 #   host.sh rollback-probe   tag current as :prev, start a new version, roll back, verify; prints the times
+#   host.sh e2e-url BRANCH   e2e suites of an app branch in URL mode against staging (MDI_BASE_URL, ziel.mjs)
 #
 # Test values only: secrets/staging.env is generated here on first use (random salts, a staging-only Ed25519 deck key,
 # a dummy model key that only the model double accepts). No production secret is read or copied.
@@ -254,6 +255,27 @@ smoke() {
     -w /app "$PW_IMAGE" node /smoke/smoke.mjs
 }
 
+# e2e suites of an app branch in URL mode against staging (apps/mdi test/e2e/lib/ziel.mjs). Branch name only, no SHA.
+e2e_url() {
+  local ref="${1:?branch}" par="${2:-3}"
+  [[ "$ref" =~ ^[0-9a-f]{7,40}$ ]] && die "Branch-Name statt SHA uebergeben: $ref"
+  local W; W="$R/e2e-url/$(date -u +%Y%m%d-%H%M%S)-$(echo "$ref" | tr '/' '_')"; mkdir -p "$W/logs"
+  git clone -q --filter=blob:none "$APP_REPO" "$W/src"
+  git -C "$W/src" fetch -q origin "refs/heads/$ref" || die "Branch $ref fehlt"
+  git -C "$W/src" -c advice.detachedHead=false checkout -q FETCH_HEAD
+  echo "commit $(git -C "$W/src" rev-parse --short HEAD)  ziel http://127.0.0.1:$PORT${STAGING_PATH:-/duell}"
+  local D="docker run --rm --init --network host --ipc=host --cpus=2.5 --memory=4g -u $UIDGID -e HOME=/tmp -e CI=1 -e MDI_BASE_URL=http://127.0.0.1:$PORT -e MDI_PAGE_PATH=${STAGING_PATH:-/duell} -e MDI_TEST_SESSION=staging-e2e -v $W/src:/w -w /w/$APP_DIR $PW_IMAGE"
+  timeout 900 $D bash -c 'npm ci --no-audit --no-fund >/dev/null' > "$W/logs/setup.log" 2>&1 || { tail -20 "$W/logs/setup.log"; die "npm ci"; }
+  ls "$W/src/$APP_DIR"/test/e2e/*.e2e.js | xargs -n1 basename > "$W/e2e.list"
+  xargs -P "$par" -I{} bash -c "timeout 1800 $D node --require ./test/e2e/lib/nolive.js --test --test-reporter=tap --test-timeout=300000 --test-force-exit test/e2e/{} > $W/logs/{}.log 2>&1 && echo 'PASS {}' || echo 'FAIL {}'" < "$W/e2e.list" | sort
+  local P=0 F=0 S=0 p x s
+  for f in "$W"/logs/*.e2e.js.log; do
+    p=$(grep -h "^# pass" "$f" | awk '{print $3}'); x=$(grep -h "^# fail" "$f" | awk '{print $3}'); s=$(grep -h "^# skipped" "$f" | awk '{print $3}')
+    P=$((P+${p:-0})); F=$((F+${x:-1})); S=$((S+${s:-0}))
+  done
+  echo "e2e-url gesamt: pass=$P fail=$F skipped=$S   logs: $W/logs"
+}
+
 # ------------------------------------------------------------------------------------------------------ rollback probe
 rollback_probe() {
   local cur prevtag newtag; cur="$(docker inspect -f '{{.Config.Image}}' "$WC")"
@@ -287,5 +309,5 @@ rollback_probe() {
 
 case "${1:-}" in
   build) build ;; up) up "${2:-}" ;; down) down ;; status) status ;; check) check ;; smoke) smoke ;;
-  rollback-probe) rollback_probe ;; *) sed -n '2,15p' "$0"; exit 2 ;;
+  rollback-probe) rollback_probe ;; e2e-url) e2e_url "${2:-}" "${3:-3}" ;; *) sed -n '2,15p' "$0"; exit 2 ;;
 esac
