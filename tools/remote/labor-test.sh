@@ -3,10 +3,10 @@
 # Usage: tools/remote/labor-test.sh <ref> [app-dir] [parallel]
 #   ref       pushed branch or commit of scimbe/CADS-agent-marketplace (public, cloned without credentials)
 #   app-dir   default apps/duell-web
-#   parallel  concurrent e2e containers, default 8 (each --cpus=2.5 --memory=4g; cap leaves room for temporal/postgres)
+#   parallel  concurrent e2e containers, default 3 (10 parallel strands share 28 cores; each --cpus=2.5 --memory=4g; cap leaves room for temporal/postgres)
 # Output: per-file logs in ~/mdi-runner/<run>/logs on the host, summary on stdout.
 set -euo pipefail
-REF="${1:?ref}"; APP="${2:-apps/mdi}"; PAR="${3:-8}"
+REF="${1:?ref}"; APP="${2:-apps/mdi}"; PAR="${3:-3}"
 # Kurze oder lange SHAs werden abgelehnt (kein stiller Rueckfall auf main): immer den Branch-Namen uebergeben.
 if [[ "$REF" =~ ^[0-9a-f]{7,40}$ ]]; then echo "ABBRUCH: SHA statt Branch-Name uebergeben: $REF" >&2; exit 2; fi
 HOST="${LABOR_HOST:-ssh.labor-setup.de}"
