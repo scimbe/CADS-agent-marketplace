@@ -1,0 +1,74 @@
+{
+ "n": 92,
+ "kappa": 0.228,
+ "uebereinstimmung": 0.891,
+ "tabelle": {
+  "auto_ja_bewerter_ja": 80,
+  "auto_ja_bewerter_nein": 6,
+  "auto_nein_bewerter_ja": 4,
+  "auto_nein_bewerter_nein": 2
+ },
+ "bewerterJa": 0.9130434782608695,
+ "uneinig": [
+  {
+   "id": "t023",
+   "satz": "Tischtennis gegen den Computer",
+   "auto": true,
+   "bewerter": false
+  },
+  {
+   "id": "t050",
+   "satz": "Äpfel mit nem Korb auffangen",
+   "auto": false,
+   "bewerter": true
+  },
+  {
+   "id": "t051",
+   "satz": "Pizza belag auffangen aber keine stinkesocken",
+   "auto": false,
+   "bewerter": true
+  },
+  {
+   "id": "t052",
+   "satz": "Weihnachtsplätzchen auffangen die vom Himmel fallen",
+   "auto": false,
+   "bewerter": true
+  },
+  {
+   "id": "t053",
+   "satz": "catch raindrops in a bucket, if you miss 3 its over",
+   "auto": false,
+   "bewerter": true
+  },
+  {
+   "id": "t085",
+   "satz": "drei in einer reihe gegen den computer mit sternen",
+   "auto": true,
+   "bewerter": false
+  },
+  {
+   "id": "t092",
+   "satz": "a quiz about volcanoes",
+   "auto": true,
+   "bewerter": false
+  },
+  {
+   "id": "t093",
+   "satz": "Wie gut kennst du Gemüse? Quiz",
+   "auto": true,
+   "bewerter": false
+  },
+  {
+   "id": "t105",
+   "satz": "Wortsalat mit Sportarten",
+   "auto": true,
+   "bewerter": false
+  },
+  {
+   "id": "t106",
+   "satz": "Lückentext über Weihnachtsbräuche in anderen Ländern",
+   "auto": true,
+   "bewerter": false
+  }
+ ]
+}

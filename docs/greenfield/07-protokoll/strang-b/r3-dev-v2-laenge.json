@@ -1,0 +1,1411 @@
+{
+ "korpus": "test/fixtures/bau-gold-v2.json",
+ "split": "alle",
+ "strategie": "repair",
+ "beispiele": "basis",
+ "wdh": 1,
+ "modell": "claude-haiku-5-5",
+ "zeit": "2026-11-12T11:45:28.039Z",
+ "zusammenfassung": {
+  "eintraege": 6,
+  "spielErwartet": 6,
+  "absageErwartet": 0,
+  "spielbar": 0.667,
+  "passt": 0.667,
+  "taktRichtig": 1,
+  "merkmaleErfuellt": 1,
+  "absageRichtig": 0,
+  "ehrlicheAbsageStattSpiel": 0.333,
+  "fehler": [],
+  "nachSplit": {
+   "dev": {
+    "spielbar": 0,
+    "passt": 0
+   },
+   "test": {
+    "spielbar": 0,
+    "passt": 0
+   }
+  },
+  "usd": 0.025,
+  "aufrufe": 32,
+  "cacheRead": 267980
+ },
+ "zeilen": [
+  {
+   "id": "t021",
+   "split": "test2",
+   "satz": "bounce a comet to smash moon rocks",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "bounce",
+     "rule:any:clear,touch"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "bounce": true,
+     "rule:any:clear,touch": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Komet-Prellen",
+   "ziel": "Lenke den Kometen mit dem Schläger und zerschlage alle Mondsteine.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 12923,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1448,
+     "usage": {
+      "in": 115,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006062
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 7810,
+     "usage": {
+      "in": 86,
+      "out": 1774,
+      "cacheRead": 0,
+      "cacheWrite": 12396
+     },
+     "usd": 0.0033748000000000003
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 2030,
+     "usage": {
+      "in": 800,
+      "out": 316,
+      "cacheRead": 0,
+      "cacheWrite": 11170
+     },
+     "usd": 0.002472
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1281,
+     "usage": {
+      "in": 78,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005142
+    }
+   ],
+   "usd": 0.00595884,
+   "spiel": {
+    "title": "Komet-Prellen",
+    "goal": "Lenke den Kometen mit dem Schläger und zerschlage alle Mondsteine.",
+    "world": {
+     "bottom": "open"
+    },
+    "things": [
+     {
+      "id": "schlaeger",
+      "color": "sky",
+      "w": 190,
+      "h": 32,
+      "control": "drag",
+      "power": 1500
+     },
+     {
+      "id": "komet",
+      "look": "emoji",
+      "emoji": "☄️",
+      "color": "white",
+      "w": 70,
+      "h": 70,
+      "bounce": "walls",
+      "vx": 420,
+      "vy": -760,
+      "spread": 320
+     },
+     {
+      "id": "mondstein",
+      "look": "emoji",
+      "emoji": "🪨",
+      "color": "white",
+      "w": 104,
+      "h": 46
+     }
+    ],
+    "start": [
+     {
+      "thing": "schlaeger",
+      "x": 500,
+      "y": 1480,
+      "seat": 0
+     },
+     {
+      "thing": "komet",
+      "x": 500,
+      "y": 1300
+     },
+     {
+      "thing": "mondstein",
+      "x": 140,
+      "y": 300,
+      "n": 24,
+      "cols": 6,
+      "dx": 144,
+      "dy": 62
+     }
+    ],
+    "rules": [
+     {
+      "a": "komet",
+      "b": "schlaeger",
+      "do": [
+       {
+        "act": "bounce",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "a": "komet",
+      "b": "mondstein",
+      "do": [
+       {
+        "act": "bounce",
+        "n": 0
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0
+       },
+       {
+        "on": "seat0"
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "komet",
+      "b": "bottom",
+      "do": [
+       {
+        "act": "life",
+        "on": "seat0",
+        "n": -1
+       },
+       {
+        "act": "reset",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "clear",
+      "a": "mondstein",
+      "do": [
+       {
+        "act": "win",
+        "on": "seat0",
+        "n": 0
+       }
+      ]
+     }
+    ],
+    "end": {
+     "lives": 3,
+     "win": "clear"
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "schlaeger",
+     "target": "komet"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "t023",
+   "split": "test2",
+   "satz": "Tischtennis gegen den Computer",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "bounce"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "bounce": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Ping gegen den Rechner",
+   "ziel": "Halte den Ball im Spiel. Wer zuerst 5 Punkte hat, gewinnt.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit",
+    "bau:begrenzt"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 16706,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 919,
+     "usage": {
+      "in": 32,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00004682
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 8792,
+     "usage": {
+      "in": 85,
+      "out": 1794,
+      "cacheRead": 12396,
+      "cacheWrite": 0
+     },
+     "usd": 0.00102946
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4803,
+     "usage": {
+      "in": 689,
+      "out": 854,
+      "cacheRead": 11170,
+      "cacheWrite": 0
+     },
+     "usd": 0.0006076
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1417,
+     "usage": {
+      "in": 76,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005122
+    }
+   ],
+   "usd": 0.0017351,
+   "spiel": {
+    "title": "Ping gegen den Rechner",
+    "goal": "Halte den Ball im Spiel. Wer zuerst 5 Punkte hat, gewinnt.",
+    "players": 2,
+    "bg": "green",
+    "world": {
+     "top": "open",
+     "bottom": "open",
+     "flip": true
+    },
+    "things": [
+     {
+      "id": "schlaeger",
+      "color": "ink",
+      "w": 200,
+      "h": 30,
+      "control": "drag",
+      "power": 1400
+     },
+     {
+      "id": "ball",
+      "look": "circle",
+      "color": "ink",
+      "w": 36,
+      "h": 36,
+      "bounce": "walls",
+      "vx": 260,
+      "vy": 640,
+      "spread": 260
+     }
+    ],
+    "start": [
+     {
+      "thing": "schlaeger",
+      "x": 500,
+      "y": 1500,
+      "seat": 0
+     },
+     {
+      "thing": "schlaeger",
+      "x": 500,
+      "y": 100,
+      "seat": 1
+     },
+     {
+      "thing": "ball",
+      "x": 500,
+      "y": 800
+     }
+    ],
+    "rules": [
+     {
+      "a": "ball",
+      "b": "schlaeger",
+      "do": [
+       {
+        "act": "bounce",
+        "n": 0
+       },
+       {
+        "act": "speed",
+        "n": 4
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "ball",
+      "b": "top",
+      "do": [
+       {
+        "on": "seat0"
+       },
+       {
+        "act": "reset",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "ball",
+      "b": "bottom",
+      "do": [
+       {
+        "on": "seat1"
+       },
+       {
+        "act": "reset",
+        "n": 0
+       }
+      ]
+     }
+    ],
+    "end": {
+     "time": 150,
+     "score": 5
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "schlaeger",
+     "target": "ball"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "t025",
+   "split": "test2",
+   "satz": "Luftballon hin und her schlagen gegen den Computer",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "bounce"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "bounce": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Ballonschlag",
+   "ziel": "Halte den Ballon mit dem Schlaeger in der Luft. 10 Punkte gewinnen.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit",
+    "bau:repariert"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 42732,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1045,
+     "usage": {
+      "in": 121,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006122
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 9159,
+     "usage": {
+      "in": 92,
+      "out": 2057,
+      "cacheRead": 12396,
+      "cacheWrite": 0
+     },
+     "usd": 0.0011616600000000001
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 5075,
+     "usage": {
+      "in": 796,
+      "out": 1037,
+      "cacheRead": 11170,
+      "cacheWrite": 0
+     },
+     "usd": 0.0007097999999999999
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 11067,
+     "usage": {
+      "in": 346,
+      "out": 2551,
+      "cacheRead": 12396,
+      "cacheWrite": 0
+     },
+     "usd": 0.00143406
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 8525,
+     "usage": {
+      "in": 1059,
+      "out": 1628,
+      "cacheRead": 11170,
+      "cacheWrite": 0
+     },
+     "usd": 0.0010316
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1496,
+     "usage": {
+      "in": 75,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00005112
+    }
+   ],
+   "usd": 0.00444946,
+   "spiel": {
+    "title": "Ballonschlag",
+    "goal": "Halte den Ballon mit dem Schlaeger in der Luft. 10 Punkte gewinnen.",
+    "world": {
+     "bottom": "open"
+    },
+    "things": [
+     {
+      "id": "schlaeger",
+      "color": "paper",
+      "w": 200,
+      "h": 30,
+      "control": "drag",
+      "power": 1400
+     },
+     {
+      "id": "ballon",
+      "look": "emoji",
+      "emoji": "🎈",
+      "color": "paper",
+      "h": 100,
+      "bounce": "walls",
+      "vx": 300,
+      "vy": 500,
+      "spread": 200
+     },
+     {
+      "id": "gegner",
+      "color": "red",
+      "w": 200,
+      "h": 30,
+      "power": 450,
+      "ai": "chase"
+     }
+    ],
+    "start": [
+     {
+      "thing": "schlaeger",
+      "x": 500,
+      "y": 1480,
+      "seat": 0
+     },
+     {
+      "thing": "gegner",
+      "x": 500,
+      "y": 120
+     },
+     {
+      "thing": "ballon",
+      "x": 500,
+      "y": 800
+     }
+    ],
+    "rules": [
+     {
+      "a": "ballon",
+      "b": "schlaeger",
+      "do": [
+       {
+        "act": "bounce",
+        "n": 0
+       },
+       {
+        "on": "seat0"
+       }
+      ]
+     },
+     {
+      "a": "ballon",
+      "b": "gegner",
+      "do": [
+       {
+        "act": "life",
+        "on": "seat0",
+        "n": -1
+       },
+       {
+        "act": "reset",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "ballon",
+      "b": "bottom",
+      "do": [
+       {
+        "act": "life",
+        "on": "seat0",
+        "n": -1
+       },
+       {
+        "act": "reset",
+        "n": 0
+       }
+      ]
+     },
+     {
+      "when": "every",
+      "n": 8000,
+      "do": [
+       {
+        "act": "speed",
+        "on": "all",
+        "n": 10
+       }
+      ]
+     }
+    ],
+    "end": {
+     "time": 90,
+     "score": 10,
+     "lives": 3
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "schlaeger",
+     "target": "ballon"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "t028",
+   "split": "test2",
+   "satz": "air hockey vs computer, first to 7",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "bounce",
+     "end:score"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "trivial"
+    },
+    "reason": "bau_trivial",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Ping-pong for two: first to 5 points wins"
+    }
+   },
+   "error": "",
+   "ms": 55031,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1203,
+     "usage": {
+      "in": 114,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.000060519999999999997
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 8983,
+     "usage": {
+      "in": 85,
+      "out": 1763,
+      "cacheRead": 12396,
+      "cacheWrite": 0
+     },
+     "usd": 0.00101396
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 5028,
+     "usage": {
+      "in": 678,
+      "out": 915,
+      "cacheRead": 11170,
+      "cacheWrite": 0
+     },
+     "usd": 0.000637
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 9029,
+     "usage": {
+      "in": 191,
+      "out": 1813,
+      "cacheRead": 12396,
+      "cacheWrite": 0
+     },
+     "usd": 0.00104956
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 6152,
+     "usage": {
+      "in": 770,
+      "out": 1202,
+      "cacheRead": 11170,
+      "cacheWrite": 0
+     },
+     "usd": 0.0007897000000000001
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 10307,
+     "usage": {
+      "in": 264,
+      "out": 2193,
+      "cacheRead": 12396,
+      "cacheWrite": 0
+     },
+     "usd": 0.00124686
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 8210,
+     "usage": {
+      "in": 850,
+      "out": 1618,
+      "cacheRead": 11170,
+      "cacheWrite": 0
+     },
+     "usd": 0.0010057
+    }
+   ],
+   "usd": 0.0058033,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Air Hockey Duel",
+    "goal": "Push the puck past the computer's goal. First to 7 wins.",
+    "mode": "realtime",
+    "players": 2,
+    "bg": "sky",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 0,
+     "top": "open",
+     "bottom": "open",
+     "left": "wall",
+     "right": "wall",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "puck",
+      "look": "circle",
+      "emoji": "",
+      "text": "",
+      "color": "ink",
+      "w": 70,
+      "h": 70,
+      "gravity": false,
+      "solid": false,
+      "bounce": "walls",
+      "vx": 300,
+      "vy": 500,
+      "spread": 200,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "schlaeger",
+      "look": "box",
+      "emoji": "",
+      "text": "",
+      "color": "red",
+      "w": 200,
+      "h": 40,
+      "gravity": false,
+      "solid": true,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "move",
+      "power": 1200,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     }
+    ],
+    "start": [
+     {
+      "thing": "schlaeger",
+      "x": 500,
+      "y": 1400,
+      "seat": 0,
+      "n": 1,
+      "cols": 0,
+      "dx": 0,
+      "dy": 0
+     },
+     {
+      "thing": "schlaeger",
+      "x": 500,
+      "y": 200,
+      "seat": 1,
+      "n": 1,
+      "cols": 0,
+      "dx": 0,
+      "dy": 0
+     },
+     {
+      "thing": "puck",
+      "x": 500,
+      "y": 800,
+      "seat": -1,
+      "n": 1,
+      "cols": 0,
+      "dx": 0,
+      "dy": 0
+     }
+    ],
+    "end": {
+     "time": 0,
+     "score": 7,
+     "lives": 0,
+     "win": "score"
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "schlaeger",
+     "target": "puck"
+    },
+    "spawn": [
+     {
+      "thing": "puck",
+      "every": 9000,
+      "after": 6000,
+      "x": 500,
+      "y": 800,
+      "xr": 300,
+      "yr": 0,
+      "gap": 0,
+      "max": 1
+     }
+    ],
+    "rules": [
+     {
+      "when": "touch",
+      "a": "puck",
+      "b": "schlaeger",
+      "n": 0,
+      "do": [
+       {
+        "act": "bounce",
+        "on": "a",
+        "n": 0,
+        "thing": "schlaeger"
+       },
+       {
+        "act": "speed",
+        "on": "a",
+        "n": 10,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "puck",
+      "b": "bottom",
+      "n": 0,
+      "do": [
+       {
+        "act": "score",
+        "on": "seat1",
+        "n": 1,
+        "thing": ""
+       },
+       {
+        "act": "reset",
+        "on": "a",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     },
+     {
+      "when": "out",
+      "a": "puck",
+      "b": "top",
+      "n": 0,
+      "do": [
+       {
+        "act": "score",
+        "on": "seat0",
+        "n": 1,
+        "thing": ""
+       },
+       {
+        "act": "reset",
+        "on": "a",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "t055",
+   "split": "test2",
+   "satz": "Schneeflocken mit der Zunge fangen ne minute lang",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "spawn",
+     "end:time"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "spiel",
+    "ok": true,
+    "merkmale": {
+     "spawn": true,
+     "end:time": true
+    },
+    "passt": true,
+    "takt": "echtzeit",
+    "taktOk": true
+   },
+   "titel": "Schneeflocken fangen",
+   "ziel": "Fang mit der Zunge so viele Flocken wie moeglich. Eine Minute lang.",
+   "note": [
+    "engine:bau",
+    "takt:echtzeit"
+   ],
+   "absage": null,
+   "error": "",
+   "ms": 17949,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 986,
+     "usage": {
+      "in": 42,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.00004782
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 6523,
+     "usage": {
+      "in": 95,
+      "out": 1239,
+      "cacheRead": 12396,
+      "cacheWrite": 0
+     },
+     "usd": 0.00075296
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 6385,
+     "usage": {
+      "in": 601,
+      "out": 990,
+      "cacheRead": 11170,
+      "cacheWrite": 0
+     },
+     "usd": 0.0006667999999999999
+    },
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 853,
+     "usage": {
+      "in": 83,
+      "out": 23,
+      "cacheRead": 3212,
+      "cacheWrite": 0
+     },
+     "usd": 0.000051920000000000004
+    }
+   ],
+   "usd": 0.0015195,
+   "spiel": {
+    "title": "Schneeflocken fangen",
+    "goal": "Fang mit der Zunge so viele Flocken wie moeglich. Eine Minute lang.",
+    "bg": "blue",
+    "world": {
+     "gravity": 300,
+     "top": "open"
+    },
+    "things": [
+     {
+      "id": "frosch",
+      "look": "emoji",
+      "emoji": "🐸",
+      "color": "green",
+      "w": 100,
+      "h": 100,
+      "control": "lr",
+      "power": 1100
+     },
+     {
+      "id": "flocke",
+      "look": "emoji",
+      "emoji": "❄️",
+      "color": "white",
+      "w": 70,
+      "h": 70,
+      "gravity": true,
+      "spread": 80
+     }
+    ],
+    "start": [
+     {
+      "thing": "frosch",
+      "x": 500,
+      "y": 1480,
+      "seat": 0
+     }
+    ],
+    "spawn": [
+     {
+      "thing": "flocke",
+      "every": 700,
+      "after": 500,
+      "x": 500,
+      "y": -40,
+      "xr": 460,
+      "max": 6
+     }
+    ],
+    "rules": [
+     {
+      "a": "frosch",
+      "b": "flocke",
+      "do": [
+       {
+        "act": "score",
+        "on": "a",
+        "n": 1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0
+       }
+      ]
+     }
+    ],
+    "end": {
+     "time": 60,
+     "score": 20,
+     "lives": 3
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "frosch",
+     "target": "flocke"
+    },
+    "v": 1,
+    "mode": "realtime"
+   },
+   "letzteAntwort": null
+  },
+  {
+   "id": "t069",
+   "split": "test2",
+   "satz": "2 Spieler, zwei Wichtel sammeln Geschenke, wer hat nach 1 Minute mehr",
+   "erwartet": {
+    "ergebnis": "spiel",
+    "takt": "echtzeit",
+    "merkmale": [
+     "players:2",
+     "end:time"
+    ]
+   },
+   "status": 200,
+   "bewertung": {
+    "ergebnis": "absage",
+    "ok": false,
+    "merkmale": {},
+    "passt": false
+   },
+   "titel": "",
+   "ziel": "",
+   "note": [],
+   "absage": {
+    "notyet": {
+     "what": "bau",
+     "name": "unfair"
+    },
+    "reason": "bau_unfair",
+    "alt": {
+     "kind": "genre",
+     "id": "G3",
+     "satz": "Ausweichspiel: Weiche fallenden Steinen 40 Sekunden lang aus"
+    }
+   },
+   "error": "",
+   "ms": 49609,
+   "aufrufe": [
+    {
+     "name": "check",
+     "stop": "end_turn",
+     "ms": 1153,
+     "usage": {
+      "in": 141,
+      "out": 33,
+      "cacheRead": 3262,
+      "cacheWrite": 0
+     },
+     "usd": 0.00006322
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 8334,
+     "usage": {
+      "in": 112,
+      "out": 1575,
+      "cacheRead": 12396,
+      "cacheWrite": 0
+     },
+     "usd": 0.00092266
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 4820,
+     "usage": {
+      "in": 672,
+      "out": 823,
+      "cacheRead": 11170,
+      "cacheWrite": 0
+     },
+     "usd": 0.0005903999999999999
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 9799,
+     "usage": {
+      "in": 415,
+      "out": 2042,
+      "cacheRead": 12396,
+      "cacheWrite": 0
+     },
+     "usd": 0.00118646
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 8964,
+     "usage": {
+      "in": 977,
+      "out": 1440,
+      "cacheRead": 11170,
+      "cacheWrite": 0
+     },
+     "usd": 0.0009293999999999999
+    },
+    {
+     "name": "card_bau_szene",
+     "stop": "end_turn",
+     "ms": 8596,
+     "usage": {
+      "in": 230,
+      "out": 1976,
+      "cacheRead": 12396,
+      "cacheWrite": 0
+     },
+     "usd": 0.00113496
+    },
+    {
+     "name": "card_bau_regeln",
+     "stop": "end_turn",
+     "ms": 6333,
+     "usage": {
+      "in": 853,
+      "out": 1083,
+      "cacheRead": 11170,
+      "cacheWrite": 0
+     },
+     "usd": 0.0007385
+    }
+   ],
+   "usd": 0.005565599999999999,
+   "spiel": null,
+   "letzteAntwort": {
+    "ok": true,
+    "v": 1,
+    "title": "Wichtel-Geschenkejagd",
+    "goal": "Sammle Geschenke schneller als dein Partner. Nach einer Minute gewinnt, wer mehr hat.",
+    "mode": "realtime",
+    "players": 2,
+    "bg": "sky",
+    "world": {
+     "w": 1000,
+     "h": 1600,
+     "cols": 0,
+     "rows": 0,
+     "gravity": 0,
+     "top": "wall",
+     "bottom": "wall",
+     "left": "wall",
+     "right": "wall",
+     "flip": false
+    },
+    "things": [
+     {
+      "id": "wichtel",
+      "look": "emoji",
+      "emoji": "🧝",
+      "text": "",
+      "color": "white",
+      "w": 90,
+      "h": 90,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "move",
+      "power": 600,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     },
+     {
+      "id": "geschenk",
+      "look": "emoji",
+      "emoji": "🎁",
+      "text": "",
+      "color": "pink",
+      "w": 70,
+      "h": 70,
+      "gravity": false,
+      "solid": false,
+      "bounce": "none",
+      "vx": 0,
+      "vy": 0,
+      "spread": 0,
+      "control": "none",
+      "power": 0,
+      "ai": "none",
+      "life": 0,
+      "trail": 0
+     }
+    ],
+    "start": [
+     {
+      "thing": "wichtel",
+      "x": 250,
+      "y": 1300,
+      "seat": 0,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     },
+     {
+      "thing": "wichtel",
+      "x": 750,
+      "y": 1300,
+      "seat": 1,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     },
+     {
+      "thing": "geschenk",
+      "x": 500,
+      "y": 800,
+      "seat": -1,
+      "n": 1,
+      "cols": 1,
+      "dx": 0,
+      "dy": 0
+     }
+    ],
+    "end": {
+     "time": 60,
+     "score": 0,
+     "lives": 0,
+     "win": "score"
+    },
+    "bot": {
+     "kind": "track",
+     "thing": "wichtel",
+     "target": "geschenk"
+    },
+    "spawn": [
+     {
+      "thing": "geschenk",
+      "every": 1000,
+      "after": 500,
+      "x": 500,
+      "y": 800,
+      "xr": 400,
+      "yr": 500,
+      "gap": 0,
+      "max": 3
+     }
+    ],
+    "rules": [
+     {
+      "when": "touch",
+      "a": "wichtel",
+      "b": "geschenk",
+      "n": 0,
+      "do": [
+       {
+        "act": "score",
+        "on": "a",
+        "n": 1,
+        "thing": ""
+       },
+       {
+        "act": "destroy",
+        "on": "b",
+        "n": 0,
+        "thing": ""
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}
