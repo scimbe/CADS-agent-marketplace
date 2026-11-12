@@ -29,16 +29,17 @@ export function cardOf(id) { return cardById(id) || (LEGACY[id] ? cardById(LEGAC
 /** Karten-id auch fuer alte Katalog-ids, ohne die Karte zu laden (Strang F: Karten sind nachladbare Teile) */
 export function cardIdOf(id) { return manifestOf(id) ? id : LEGACY[id] ? LEGACY[id].card : null; }
 /** Karten, die ein Ereignis der freien Karte braucht; die Laufzeit laedt sie vorher (ADR 0001 Nachtrag 2) */
-/** Feature-Teil "frei-ui" (Ansichten + Texte) vor jedem Ereignis, das in inhalt.frei.* fuehren kann (ADR 0001 Nachtrag 4).
- *  LINK: vorsorglich bei jedem Link (das Gate prueft danach; die Karte des Links ist ggf. selbst noch nicht geladen);
- *  GO: wenn die offene Karte eine freie Karte tragen kann (toFree). Nach dem ersten Laden liegt der Teil im Cache. */
-const UI_EVENTS = new Set(["FREI", "DECK", "DECK_OPEN", "MINE", "BILD", "KI", "ROBOT", "MELDEN", "LINK"]);
-function freiParts(ev, ctx) {
-  if (!ev || typeof ev.type !== "string") return [];
-  if (UI_EVENTS.has(ev.type)) return ["frei-ui"];
-  if (ev.type === "GO" && ctx && ctx.cardId) { const c = cardById(ctx.cardId); if (c && typeof c.toFree === "function") return ["frei-ui"]; }
-  return [];
+/** Feature-Teil "frei-ui" (Ansichten + Texte) nur vor Ereignissen, die eine Ansicht der freien Karte oeffnen (ADR 0001
+ *  Nachtrag 4). Befund Z2 (Bisect 3aca9f06, #281): GO und LINK haben den Teil fuer jede Karte mit toFree bzw. jeden Link
+ *  verlangt und damit Partien gewoehnlicher Zugkarten aufgehalten. GO und LINK laden ihn nicht mehr: die Pruefzustaende
+ *  frei.gate und frei.sharegate zeigen nur einen Statussatz, den view-core.js ohne Teil selbst rendert; die Karte danach
+ *  (receive.show, card.share, card.play) braucht frei-ui nicht. */
+const UI_EVENTS = new Set(["FREI", "DECK", "DECK_OPEN", "MINE", "BILD", "KI", "ROBOT", "MELDEN"]);
+function freiParts(ev) {
+  return ev && UI_EVENTS.has(ev.type) ? ["frei-ui"] : [];
 }
+// GO nach dem Gate traegt den Zufall des GATE-Ereignisses weiter: startLocal braucht rand (sonst zug-ungueltig, Befund Z2)
+function goAfterGate(ctx, ev) { return { type: "GO", rand: ev.rand }; }
 function freiNeeds(ev, ctx) {
   const f = (ctx && ctx.frei) || {}, ids = [];
   const add = (x) => { const id = x && cardIdOf(x); if (id) ids.push(id); };
@@ -139,7 +140,7 @@ export const freiState = {
         GATE: [
           { target: T("inhalt.card.share"), cond: "gateOkStatic", actions: ["gateDone"] },
           // Zug- und Echtzeitkarten: frei -> zurueck zur Karte und GO noch einmal (dann ohne Gate in die Partie)
-          { target: T("inhalt.card.view"), cond: "gateOk", actions: ["gateDone", "markShareOk"], raise: "GO" },
+          { target: T("inhalt.card.view"), cond: "gateOk", actions: ["gateDone", "markShareOk"], raise: goAfterGate },
           // veraendert (eigene Aenderungen an der freien Karte): als Remix teilen – ohne KI-Siegel, die Wurzel-id bleibt pruefbar
           { target: T("inhalt.frei.sharegate"), cond: "remixable", actions: ["toRemix"] },
           { target: T("inhalt.card.view"), actions: ["shareNo"] }
@@ -447,6 +448,7 @@ export function freiContext(saved) {
 import { freiEffects } from "./effects.js";
 import { createImages } from "./images.js";
 /** Das Feature im Format von ADR 0001 (g) (src/app/features.js) */
+export { freiParts };
 export const frei = {
   id: "frei",
   needs: freiNeeds,
