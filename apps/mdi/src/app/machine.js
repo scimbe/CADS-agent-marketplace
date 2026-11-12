@@ -30,6 +30,8 @@ export const chart = {
         DRAFT: { actions: ["setDraft"] },
         // Nachladen der Karten (ADR 0001 Nachtrag 2): Ladeanzeige und ehrliche Meldung mit Wiederholen
         LOADING: { actions: ["setLoading"] },
+        // Ton an/aus (Buehne, Design Phase C): auf diesem Geraet gemerkt
+        MUTE: { actions: ["setMuted"] },
         PART_FAIL: { target: T("inhalt.partfail"), actions: ["setPartFail"], raise: "LEAVE" },
         MEMO: { actions: ["setMemo"] },
         // Ein neuer Link ersetzt Lobby/Live-Partie ausdruecklich: laufender Raum wird geschlossen (Review M2)
@@ -411,6 +413,7 @@ export const actions = {
     emit({ type: "rt.start", mode: "live", seat, seed, params: G.paramsOf(ctx), level: ctx.level || 2, serving: seat === 1 ? true : false });
     return { ...ctx, rtSeed: seed, rtResult: null, rtAgain: null, error: null };
   },
+  setMuted: (ctx, ev, emit) => { const muted = ev.on === true; emit({ type: "ton.save", muted }); return { ...ctx, muted }; },
   setLoading: (ctx, ev) => ({ ...ctx, loading: ev.id }),
   setPartFail: (ctx, ev) => ({ ...ctx, loading: null, partFail: { id: ev.id, reason: ev.reason || "teil-fehlt", retry: ev.retry || null } }),
   clearPartFail: (ctx) => ({ ...ctx, partFail: null }),
@@ -566,5 +569,5 @@ export const machine = createMachine(composed.chart, { guards: composed.guards, 
 
 /** @param saved Konto-Daten aus dem Geraetespeicher (oder null) */
 export function initialContext(lang, saved = null) {
-  return { lang, cardId: null, params: {}, mode: null, seat: 0, level: 2, part: null, session: null, hs: null, error: null, draft: null, botSeats: null, coveredFor: null, incoming: null, reason: null, link: null, raum: null, note: null, raumBrauchtKonto: false, today: null, loading: null, partFail: null, ...kontoContext(saved), ...featureContext(FEATURES, saved) };
+  return { lang, cardId: null, params: {}, mode: null, seat: 0, level: 2, part: null, session: null, hs: null, error: null, draft: null, botSeats: null, coveredFor: null, incoming: null, reason: null, link: null, raum: null, note: null, raumBrauchtKonto: false, today: null, loading: null, partFail: null, muted: !!(saved && saved.muted), ...kontoContext(saved), ...featureContext(FEATURES, saved) };
 }

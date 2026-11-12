@@ -35,6 +35,9 @@ for (const view of ["phone360", "desk1280"]) {
     assert.equal(await p.locator(".rt-pause").getAttribute("aria-pressed"), "true");
     await p.locator(".rt-pause").click(); await p.waitForFunction(() => window.__rt.phase === "run");
     assert.equal(await p.locator('.rt-axis[aria-label="Links"]').count(), 1, "Achse als echter Knopf");
+    assert.equal(await p.locator(".rt-hud .rt-sound").getAttribute("aria-pressed"), "false");
+    await p.locator(".rt-hud .rt-sound").click();
+    assert.equal(await p.locator(".rt-hud .rt-sound").getAttribute("aria-pressed"), "true", "Ton aus im HUD");
     assert.deepEqual(await axe(p, "rt-" + view), []);
     assert.ok(await noOverflow(p));
     assert.deepEqual(errs, []);

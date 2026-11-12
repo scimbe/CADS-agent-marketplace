@@ -32,13 +32,16 @@ export function createStorage() {
       const s = ls(); if (!s) return false;
       try { s.setItem(FREI, JSON.stringify({ freiLast: v && v.freiLast })); return true; } catch (e) { return false; }
     },
+    // Ton an/aus fuer Spiele auf diesem Geraet (Buehne)
+    loadTon() { const s = ls(); if (!s) return false; try { return s.getItem(TON) === "aus"; } catch (e) { return false; } },
+    saveTon(muted) { const s = ls(); if (!s) return false; try { s.setItem(TON, muted ? "aus" : "an"); return true; } catch (e) { return false; } },
     saveKonto(v) {
       const s = ls(); if (!s) return false;
       try { s.setItem(KONTO, JSON.stringify(v)); return true; } catch (e) { return false; }
     }
   };
 }
-const KONTO = "mdi.konto", FREI = "mdi.frei";
+const TON = "mdi.ton", KONTO = "mdi.konto", FREI = "mdi.frei";
 // Meins (Strang H): Wand (Werke ohne Fotos), gemerkte Karten, Archiv versendeter Links mit Kurzlink-Token. Pruefen macht der
 // Aufrufer (src/ui/home/store.js clean*).
 const HOME = "mdi.home.v1";

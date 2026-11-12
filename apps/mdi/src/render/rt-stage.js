@@ -7,8 +7,8 @@ import { paint, tokenColors } from "./canvas.js";
 import { fitView, toWorld } from "../app/rt/input.js";
 
 const TX = {
-  de: { pause: "Pause", resume: "Weiter", ready: "Gleich geht's los: {n}", wait: "Wartet auf den Partner …", paused: "Pausiert", over: "Ende", stage: "Spielfläche" },
-  en: { pause: "Pause", resume: "Resume", ready: "Starting in {n}", wait: "Waiting for your partner …", paused: "Paused", over: "Game over", stage: "Play area" }
+  de: { sound: "Ton", soundOff: "Ton aus", pause: "Pause", resume: "Weiter", ready: "Gleich geht's los: {n}", wait: "Wartet auf den Partner …", paused: "Pausiert", over: "Ende", stage: "Spielfläche" },
+  en: { sound: "Sound", soundOff: "Sound off", pause: "Pause", resume: "Resume", ready: "Starting in {n}", wait: "Waiting for your partner …", paused: "Paused", over: "Game over", stage: "Play area" }
 };
 // status.say darf Text oder {de, en} sein (status kennt keine Sprache)
 function sayText(v, lang) { if (typeof v === "string") return v.slice(0, 200); if (v && typeof v === "object") return String(v[lang] || v.de || "").slice(0, 200); return ""; }
@@ -89,7 +89,8 @@ export function createStage(env) {
     if (live && live.textContent !== say) live.textContent = say;
   }
   /** Knoten fuer view.js im Zustand inhalt.card.rt.* (leaf = "card.rt.run" usw.) */
-  function stageNode(leafName, dispatch, lang) {
+  /** opt.muted: Ton aus (HUD-Schalter, Design Phase C) */
+  function stageNode(leafName, dispatch, lang, opt = {}) {
     env.lang = lang;
     const X = TX[lang] || TX.de, phase = leafName.slice("card.rt.".length);
     const v = env.rt.view, ratio = v ? v.w + " / " + v.h : "3 / 4";
@@ -101,7 +102,12 @@ export function createStage(env) {
     const axisBtn = (code, label, aria) => h("button", { type: "button", class: "rt-btn rt-axis", key: "ax-" + code, "aria-label": aria, "aria-pressed": "false",
       on: { pointerdown: (e) => { e.preventDefault(); press(code, e.currentTarget, true); }, pointerup: (e) => press(code, e.currentTarget, false), pointercancel: (e) => press(code, e.currentTarget, false), pointerleave: (e) => press(code, e.currentTarget, false),
         keydown: (e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); press(code, e.currentTarget, true); } }, keyup: (e) => { if (e.key === " " || e.key === "Enter") press(code, e.currentTarget, false); }, blur: (e) => press(code, e.currentTarget, false) } }, label);
+    // HUD oben: Pause und Ton als echte Schalter (Design Phase C); Steuerknoepfe unter dem Spielfeld
+    const muted = !!opt.muted;
     return h("div", { class: "rt-stage", key: "rt" },
+      h("div", { key: "hud", class: "rt-hud" },
+        phase === "run" || phase === "pause" ? h("button", { type: "button", class: "rt-btn rt-pause", key: "pause", "aria-pressed": phase === "pause" ? "true" : "false", on: { click: () => dispatch({ type: phase === "pause" ? "RESUME" : "PAUSE" }) } }, phase === "pause" ? X.resume : X.pause) : null,
+        h("button", { type: "button", class: "rt-btn rt-sound", key: "sound", "aria-pressed": muted ? "true" : "false", "aria-label": X.soundOff, on: { click: () => dispatch({ type: "MUTE", on: !muted }) } }, muted ? "🔇 " + X.soundOff : "🔊 " + X.sound)),
       h("canvas", { key: "cv", class: "rt-canvas", role: "img", "aria-label": X.stage, tabindex: "0", style: { "aspect-ratio": ratio }, ref: mount }),
       h("p", { key: "say", class: "rt-say", "aria-live": "polite", ref: (el) => { live = el; } }, ""),
       h("div", { key: "ctl", class: "rt-controls" },
@@ -116,8 +122,7 @@ export function createStage(env) {
             keydown: (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); env.rt.button(b.id, true); } },
             keyup: (e) => { if (e.key === " " || e.key === "Enter") env.rt.button(b.id, false); }
           }
-        }, (b.label && (b.label[lang] || b.label.de)) || b.id)),
-        phase === "run" || phase === "pause" ? h("button", { type: "button", class: "rt-btn rt-pause", key: "pause", "aria-pressed": phase === "pause" ? "true" : "false", on: { click: () => dispatch({ type: phase === "pause" ? "RESUME" : "PAUSE" }) } }, phase === "pause" ? X.resume : X.pause) : null));
+        }, (b.label && (b.label[lang] || b.label.de)) || b.id))));
   }
   return { draw, stageNode, get mounted() { return !!canvas; }, get last() { return { node: lastNode, info: lastInfo, fit }; } };
 }

@@ -214,3 +214,15 @@ test("hashOf: Ganzzahl-Karten kanonisch, f64 ueber Bit-Hex, eigener hash() hat V
   assert.match(hashOf({ ...f, hash: () => "abc" }, {}), /^[0-9a-f]{16}$/, "eigener Hash auf 16 Hex normiert (Review M3)");
   assert.equal(hashOf({ ...f, hash: () => "0123456789abcdef99" }, {}), "0123456789abcdef");
 });
+
+test("Ton-Schalter (Design Phase C): MUTE setzt ctx.muted und merkt es auf dem Geraet; stummer Klang spielt nichts", async () => {
+  const { machine, initialContext } = await import("../src/app/machine.js");
+  let s = machine.initial(initialContext("de", { muted: true }));
+  assert.equal(s.ctx.muted, true, "gemerkter Zustand beim Start");
+  s = machine.send(s, { type: "MUTE", on: false, rand: [] });
+  assert.equal(s.ctx.muted, false);
+  assert.deepEqual(s.effects.filter((e) => e.type === "ton.save"), [{ type: "ton.save", muted: false }]);
+  const { createSound } = await import("../src/render/sound.js");
+  let made = 0; const snd = createSound({ audioContext: () => { made++; return null; }, muted: () => true });
+  assert.deepEqual(snd.play([{ k: "hit" }], { hit: { synth: "tone", f0: 440 } }), []); assert.equal(made, 0);
+});

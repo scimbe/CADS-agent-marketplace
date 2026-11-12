@@ -270,7 +270,7 @@ export function view(state, dispatch, env = {}) {
     }
     if (ctx.ghostOf) lines.push(h("p", { class: "hint", key: "gh" }, fmt(X.ghostScore, { s: ctx.ghostOf.sc.join(" : ") })));
     if (L === "card.rt.error") lines.push(h("div", { class: "notice", key: "err" }, h("h2", { class: "t-title" }, X.errTitle), h("p", { class: "warn", role: "alert" }, X.reasons[ctx.error] || X.reasons["zug-ungueltig"])));
-    body = [...lines, env.stage ? env.stage.stageNode(L, dispatch, ctx.lang) : h("p", { class: "warn", role: "alert", key: "nohost" }, X.rtNoHost)];
+    body = [...lines, env.stage ? env.stage.stageNode(L, dispatch, ctx.lang, { muted: !!ctx.muted }) : h("p", { class: "warn", role: "alert", key: "nohost" }, X.rtNoHost)];
     if (L === "card.rt.over" && ctx.link) panel.push(linkBox(X, ctx.link, ctx, dispatch));
   } else if (L === "partfail") {
     const f = ctx.partFail || {};
