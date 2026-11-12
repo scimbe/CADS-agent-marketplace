@@ -10,6 +10,9 @@ import { rng } from "../contract/sdk.js";
 import { render } from "../render/render.js";
 import { LEVELS } from "../bot/ismcts.js";
 import { stilView, stilActions } from "./stil-view.js";
+// Strang K (Uebergang bis H die Slots in src/ui/home/slots.js anbietet): freie Karte, Deck, KI-Bild, KI-Arten
+import { freiView, freiEntry, kiButton } from "../features/frei/view.js";
+import { ft } from "../features/frei/texts.js";
 
 export function leaf(state) {
   const l = state.config.filter((s) => s.startsWith("inhalt."));
@@ -22,12 +25,19 @@ function title(card, lang) { return card.manifest.title[lang] || card.manifest.t
 export function actionsOf(state) {
   const ctx = state.ctx, X = texts(ctx.lang, ctx.pref && ctx.pref.easy), L = leaf(state);
   if (L.startsWith("stil.")) return stilActions(state, X, L);
+  if (L.startsWith("frei.")) return freiView(state, X, () => {}, L).actions;
   const a = (id, label, ev) => ({ id, label, ev: typeof ev === "string" ? { type: ev } : ev });
   // Ohne Teilen-Menue wird Kopieren die Hauptaktion (Kritikrunde 3); nach dem Kopieren: gesendet melden
   const send = (label) => (ctx.shareFailed && !ctx.copied ? a("copy", X.copyLink, "COPY") : ctx.copied ? null : a("share", label, "SHARE"));
   switch (L) {
     case "shelf": return { primary: a("open-" + ORDER[0], title(cardOf(ORDER[0]), ctx.lang), { type: "OPEN", id: ORDER[0] }), secondary: ORDER.slice(1).map((id) => a("open-" + id, title(cardOf(id), ctx.lang), { type: "OPEN", id })) };
-    case "card.view": return { primary: a("go", G.card(ctx).manifest.mode === "static" ? X.goSend : X.go, "GO"), secondary: [a("customize", X.customize, "CUSTOMIZE")] };
+    case "card.view": {
+      const c = G.card(ctx), sec = [a("customize", X.customize, "CUSTOMIZE")];
+      // Strang K: Robot (eigene Karte daraus) fuer jede Karte mit Adapter; Melden fuer eine freie Karte mit Siegel
+      if (typeof c.toFree === "function") sec.push(a("robot", ft(ctx.lang, "create_robot_h"), "ROBOT"));
+      if (ctx.cardId === "frei" && G.paramsOf(ctx).seal) sec.push(a("melden", ft(ctx.lang, "deck_report"), "MELDEN"));
+      return { primary: a("go", c.manifest.mode === "static" ? X.goSend : X.go, "GO"), secondary: sec };
+    }
     case "card.customize.bubbles": return { primary: a("done", X.done, "DONE"), secondary: [] };
     case "card.customize.dialog": return { primary: a("close", X.done, "CLOSE"), secondary: [] };
     case "card.share": return ctx.link && send(X.shareLink) ? { primary: send(X.shareLink), secondary: [a("done", X.done, "DONE")] } : { primary: a("done", X.done, "DONE"), secondary: [] };
@@ -123,7 +133,8 @@ export function view(state, dispatch, env = {}) {
   const acts = actionsOf(state);
   const canBack = machine.send(state, { type: "BACK" }).consumed;
   const card = ctx.cardId ? cardOf(ctx.cardId) : null;
-  const heading = L === "stil.start" ? X.stil : L === "stil.daten" ? X.k.data : L === "stil.widerspruch" ? X.k.appealTitle : card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang) : X.app;
+  const fv = L.startsWith("frei.") ? freiView(state, X, dispatch, L) : null;
+  const heading = fv ? fv.heading : L === "stil.start" ? X.stil : L === "stil.daten" ? X.k.data : L === "stil.widerspruch" ? X.k.appealTitle : card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang) : X.app;
   const btn = (act, cls) => h("button", { type: "button", class: "btn " + cls, key: act.id, "data-act": act.id, on: { click: () => dispatch(act.ev) } }, act.label);
 
   const head = h("header", { class: "bar", key: "bar" },
@@ -137,11 +148,13 @@ export function view(state, dispatch, env = {}) {
   const tree = card ? G.previewNode(card, G.paramsOf(ctx), ctx.lang, G.viewCtx(ctx)) : null;
   const preview = tree ? render(tree, { onInput: () => {}, disabled: true, idp: "pv", lang: ctx.lang, high: env.high, images: env.images, cardSvg: env.cardSvg }) : null;
 
-  if (L.startsWith("stil.")) {
+  if (fv) {
+    body = fv.body; panel = fv.panel;
+  } else if (L.startsWith("stil.")) {
     const r = stilView(state, X, dispatch, L);
     body = r.body; panel = r.panel;
   } else if (L === "shelf") {
-    body = [h("p", { class: "lede" }, X.today), h("div", { class: "shelf" }, ORDER.map((id, i) => {
+    body = [h("p", { class: "lede" }, X.today), freiEntry(state, X, dispatch), h("div", { class: "shelf" }, ORDER.map((id, i) => {
       const c = cardOf(id), prim = i === 0;
       return h("button", { type: "button", key: id, class: "shelf-card " + (prim ? "primary" : "secondary"), "data-act": "open-" + id, on: { click: () => dispatch({ type: "OPEN", id }) } },
         h("span", { class: "sc-kicker" }, prim ? X.today : X.more),
@@ -159,12 +172,13 @@ export function view(state, dispatch, env = {}) {
     }
     if (ctx.mode === "bot") panel.push(radios("level", X.level, LEVELS.map((l, i) => ({ value: l.id, label: X.levels[i] })), ctx.level, (level) => dispatch({ type: "LEVEL", level })));
     if (ctx.mode === "live") panel.push(h("p", { class: "hint", key: "ip" }, X.ipHint));
-    if (ctx.note) panel.push(h("p", { class: "note", role: "status", key: "note" }, X.note[ctx.note]));
+    if (ctx.note) panel.push(h("p", { class: "note", role: "status", key: "note" }, String(ctx.note).startsWith("frei-") ? freiNote(ctx) : X.note[ctx.note]));
   } else if (L.startsWith("card.customize")) {
     body = [stage(preview, { class: "stage editing" }), h("p", { class: "hint center" }, X.bubblesHint)];
   } else if (L === "card.share") {
     body = [stage(preview)];
     panel.push(ctx.link ? linkBox(X, ctx.link, ctx, dispatch) : h("p", { class: "warn", role: "alert" }, X.linkTooLong));
+    if (ctx.note === "frei-remix") panel.push(h("p", { class: "note", role: "status", key: "remix" }, freiNote(ctx)));   // Strang K
   } else if (L === "card.lobby") {
     const r = ctx.raum || {};
     body = [h("div", { class: "notice" },
@@ -231,7 +245,7 @@ export function view(state, dispatch, env = {}) {
         h("p", { class: "hint" }, X.free))];
     }
   } else if (L === "receive.reject") {
-    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.rejectTitle), h("p", { class: "warn", role: "alert", "data-reason": ctx.reason }, X.reasons[ctx.reason] || ctx.reason), h("p", null, X.rejectAsk))];
+    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.rejectTitle), h("p", { class: "warn", role: "alert", "data-reason": ctx.reason }, X.reasons[ctx.reason] || (ctx.reason === "frei-gesperrt" ? ft(ctx.lang, "deck_gone") : ctx.reason === "frei-ungeprueft" ? ft(ctx.lang, "deck_nocheck") : ctx.reason === "frei-geaendert" ? ft(ctx.lang, "frei_changed") : ctx.reason)), h("p", null, X.rejectAsk))];
   } else if (L === "receive.live" || L === "receive.wait") {
     const r = ctx.raum || {};
     body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.liveInvite),
@@ -254,6 +268,15 @@ export function view(state, dispatch, env = {}) {
   return out;
 }
 
+// Strang K: Hinweise zur freien Karte in der Kartenansicht (uebernommen, aus dem Deck, Teilen gesperrt)
+function freiNote(ctx) {
+  if (ctx.note === "frei-remix") return ft(ctx.lang, "frei_remix");
+  if (ctx.note === "frei-own") return ft(ctx.lang, "create_robot_kept");
+  if (ctx.note === "frei-deck") return ft(ctx.lang, "deck_from");
+  if (ctx.note === "frei-share-no") return ft(ctx.lang, "frei_share_no", { x: ft(ctx.lang, "frei_st_" + (ctx.frei.share || "unknown")) });
+  return "";
+}
+
 function bubbleLayer(card, ctx, X, dispatch) {
   const dialog = !!ctx.part && ctx.part !== null;
   return h("div", { class: "bubbles", key: "bubbles", "aria-hidden": null },
@@ -274,5 +297,6 @@ function dialogLayer(card, ctx, X, dispatch, acts) {
         h("button", { type: "button", class: "icon", "aria-label": X.close, "data-act": "close-x", on: { click: () => dispatch({ type: "CLOSE" }) } }, "✕")),
       h("p", { class: "hint" }, X.dialogHint),
       fieldControls(card, part, G.paramsOf(ctx), X, ctx.lang, dispatch),
+      kiButton({ ctx }, X, (ev) => { dispatch({ type: "CLOSE" }); dispatch(ev); }, ctx.part),
       h("div", { class: "actions" }, h("button", { type: "button", class: "btn primary", "data-act": acts.primary.id, on: { click: () => dispatch(acts.primary.ev) } }, acts.primary.label))));
 }

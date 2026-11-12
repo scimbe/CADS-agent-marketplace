@@ -3,6 +3,7 @@
 export const CODE_HASH = {
   "bluff": "87c9535399a1be510156b6fc7c6d8f1a",
   "flug": "0e0c156aae82a3cde554ce18655e23c4",
+  "frei": "37ae1d362b92ee0f22b8d7902680b572",
   "geschenk-finder": "1c32c1632a208ff9f3dc5fab62657e27",
   "gruss": "5348013d7cd9f87b8d89ebe3653dcf41",
   "karte-danke": "64b234b5d549f15cfed34765a4220fd0",
