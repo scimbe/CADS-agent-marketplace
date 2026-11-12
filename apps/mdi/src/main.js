@@ -21,7 +21,7 @@ document.documentElement.lang = lang;
 const reducedMq = matchMedia("(prefers-reduced-motion: reduce)");
 // Echtzeit-Buehne und Klang (ADR 0001 b): die Laufzeit zeichnet ueber stage.draw, view.js haengt stage.stageNode ein
 let rtApi = null;
-const stage = createStage({ win: window, doc: document, rt: { get active() { return rtApi && rtApi.active; }, get view() { return rtApi && rtApi.view; }, screenButtons: () => (rtApi ? rtApi.screenButtons() : []), key: (c, d) => rtApi && rtApi.key(c, d), pointer: (...a) => rtApi && rtApi.pointer(...a), button: (...a) => rtApi && rtApi.button(...a), blur: () => rtApi && rtApi.blur(), hidden: () => rtApi && rtApi.hidden() }, reduced: () => reducedMq.matches });
+const stage = createStage({ win: window, doc: document, rt: { get active() { return rtApi && rtApi.active; }, get view() { return rtApi && rtApi.view; }, screenButtons: () => (rtApi ? rtApi.screenButtons() : []), get controls() { return rtApi && rtApi.controls; }, key: (c, d) => rtApi && rtApi.key(c, d), pointer: (...a) => rtApi && rtApi.pointer(...a), button: (...a) => rtApi && rtApi.button(...a), blur: () => rtApi && rtApi.blur(), hidden: () => rtApi && rtApi.hidden() }, reduced: () => reducedMq.matches });
 const sound = createSound({ audioContext: () => new AudioContext(), vibrate: navigator.vibrate ? (ms) => navigator.vibrate(ms) : null });
 function randomInt(n) { const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0] % Math.max(1, n); }
 const viewEnv = { stage, random: randomInt, clock: () => performance.now(), reduced: reducedMq.matches };

@@ -83,7 +83,9 @@ test("Anzeigelisten: nur bekannte Primitive und Token-Namen, keine Funktionen, k
       }
       const st = S.status(c, s); if (st.over) break;
       const r = S.dueReveal(c, s); if (r) { s = S.apply(c, s, r); continue; }
-      const mv = c.moves(c.observe(s.state, st.turn), st.turn), pick = mv[k % mv.length];
+      let mv = c.moves(c.observe(s.state, st.turn), st.turn);
+      if (!mv.length && c.manifest.inputDay && typeof c.opening === "function" && !s.log.length) mv = [c.opening(st.turn, TEST_DAY)]; // erster Zug braucht den Tag
+      const pick = mv[k % mv.length];
       s = S.apply(c, s, c.manifest.inputDay ? { ...pick, d: TEST_DAY } : pick); // der Host stempelt d (ADR 0001 f)
     }
   }
@@ -116,7 +118,9 @@ test("observe: kein Sitz sieht fremde private Teile; Drahtformat ohne Salz vor d
         if (!s.log.some((x) => x.t === "reveal")) for (const salt of Object.values(sec.secrets)) assert.ok(!wire.includes(salt), "Salz im Drahtformat");
         if (st.over) break;
         const due = S.dueReveal(c, s); if (due) { s = S.apply(c, s, due); continue; }
-        const mv = c.moves(c.observe(s.state, st.turn), st.turn), pick = mv[r.int(mv.length)]; s = S.apply(c, s, c.manifest.inputDay ? { ...pick, d: TEST_DAY } : pick);
+        let mv = c.moves(c.observe(s.state, st.turn), st.turn);
+        if (!mv.length && c.manifest.inputDay && typeof c.opening === "function" && !s.log.length) mv = [c.opening(st.turn, TEST_DAY)];
+        const pick = mv[r.int(mv.length)]; s = S.apply(c, s, c.manifest.inputDay ? { ...pick, d: TEST_DAY } : pick);
       }
     }
   }

@@ -86,10 +86,16 @@ export function createStage(env) {
     const X = TX[lang] || TX.de, phase = leafName.slice("card.rt.".length);
     const v = env.rt.view, ratio = v ? v.w + " / " + v.h : "3 / 4";
     const buttons = env.rt.screenButtons();
+    // Achsen als zwei echte Knoepfe unter dem Spielfeld (Design Phase C): halten = Taste gedrueckt
+    const ax = env.rt.controls && env.rt.controls.axes && env.rt.controls.axes.x && env.rt.controls.axes.x.keys.length >= 2 ? env.rt.controls.axes.x.keys : null;
+    const axisBtn = (code, label, aria) => h("button", { type: "button", class: "rt-btn rt-axis", key: "ax-" + code, "aria-label": aria,
+      on: { pointerdown: (e) => { e.preventDefault(); env.rt.key(code, true); }, pointerup: () => env.rt.key(code, false), pointercancel: () => env.rt.key(code, false), pointerleave: () => env.rt.key(code, false) } }, label);
     return h("div", { class: "rt-stage", key: "rt" },
       h("canvas", { class: "rt-canvas", role: "img", "aria-label": X.stage, tabindex: "0", style: { "aspect-ratio": ratio }, ref: mount }),
       h("p", { class: "rt-say", "aria-live": "polite", ref: (el) => { live = el; } }, ""),
       h("div", { class: "rt-controls" },
+        ax ? axisBtn(ax[0], "←", lang === "en" ? "Left" : "Links") : null,
+        ax ? axisBtn(ax[1], "→", lang === "en" ? "Right" : "Rechts") : null,
         ...buttons.map((b) => h("button", {
           type: "button", class: "rt-btn", key: "b-" + b.id, "aria-pressed": b.kind === "hold" ? "false" : null,
           on: {

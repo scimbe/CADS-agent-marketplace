@@ -199,6 +199,7 @@ export function createRuntime(deps) {
     get active() { return !!rtSess; },
     get view() { return rtSess ? rtSess.view : null; },
     screenButtons: () => (rtSess ? rtSess.screenButtons() : []),
+    get controls() { return rtSess ? rtSess.controls : null; },
     key: (code, down) => (rtSess ? rtSess.key(code, down) : false),
     pointer: (type, id, x, y) => { if (rtSess) rtSess.pointer(type, id, x, y); },
     button: (id, down) => { if (rtSess) rtSess.button(id, down); },

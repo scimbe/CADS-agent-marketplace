@@ -13,7 +13,9 @@ function playTurns(rt) {
   if (rt.matches("inhalt.card.play.cover")) rt.dispatch("COVER_OK");
   for (let i = 0; i < 2000 && rt.matches("inhalt.card.play.turn"); i++) {
     const c = cardOf(rt.state.ctx.cardId), v = rt.state.ctx.viewer;
-    const mv = c.moves(c.observe(rt.state.ctx.session.state, v), v);
+    let mv = c.moves(c.observe(rt.state.ctx.session.state, v), v);
+    // inputDay-Karten (z. B. Malrat): erster Zug braucht den Tag (card.opening, nur Treiber; der Host stempelt d)
+    if (!mv.length && c.manifest.inputDay && typeof c.opening === "function" && !rt.state.ctx.session.log.length) mv = [c.opening(v, rt.state.ctx.today === null ? 20769 : rt.state.ctx.today)];
     rt.dispatch({ type: "INPUT", input: mv[mv.length - 1] });
     if (rt.matches("inhalt.card.play.cover")) rt.dispatch("COVER_OK");
   }
