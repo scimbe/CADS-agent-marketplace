@@ -18,7 +18,8 @@ export function docOf(kind, p) {
 /**
  * Canvas-Knoten (ADR 0001 b, Format ops2d = Aufzeichnung der Canvas-2D-Teilmenge, siehe compile.js).
  * @param {object} doc Poster-Dokument
- * @param {{format?:"4:5"|"16:9", nick?:string, photo?:boolean, peaks?:number[], a11y:string, part?:string}} o
+ * @param {{format?:"4:5"|"16:9", nick?:string, photo?:boolean, peaks?:number[], peaksFrom?:object, a11y:string, part?:string}} o
+ * peaksFrom: Klangquelle (wie im audio-Widget), aus der der Renderer die 40 Spitzen der Welle rechnet (assets.peaks)
  */
 export function canvasNode(doc, o) {
   const [W, H] = FORMATS[o.format || "4:5"];
@@ -26,6 +27,7 @@ export function canvasNode(doc, o) {
   const src = {};
   if (o.photo) src.photo = { kind: "local", slot: "photo" };
   if (doc.gi && doc.gi.p) src.gi = { kind: "server", ref: doc.gi.p };
+  if (o.peaksFrom) src.peaks = o.peaksFrom;
   return { t: "canvas", w: W, h: H, ratio: o.format || "4:5", ops2d: list.ops, src, assets: ["noto"], a11y: o.a11y, part: o.part || "bild" };
 }
 export { early, civil, FORMATS };

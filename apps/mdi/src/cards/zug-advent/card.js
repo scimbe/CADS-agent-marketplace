@@ -36,7 +36,8 @@ export default {
     const done = state.pub.lines !== null;
     return { over: done, turn: done ? -1 : 0, reveal: false, score: [], winner: -1, turnNo: done ? 1 : 0, turns: 1 };
   },
-  moves() { return []; },
+  // Beispielzug fuer Bot und Treiber (ADR 0001 f: moves bleibt fuer Bot/Hinweise): 24 leere Tueren = feste Saetze
+  moves(obs, seat) { return seat === 0 && obs.pub.lines === null ? [{ t: "write", seat: 0, a: new Array(24).fill("") }] : []; },
   view(obs, seat, ctx = {}) {
     const lang = ctx.lang || "de", X = T(lang), lines = obs.pub.lines;
     if (lines === null) {

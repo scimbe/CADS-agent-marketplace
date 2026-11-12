@@ -5,11 +5,8 @@
 import manifest from "./manifest.json" with { type: "json" };
 import data from "./data.json" with { type: "json" };
 import { docOf, canvasNode } from "../../engines/poster/card.js";
-import { renderBeat, peaks } from "../../engines/klang/studio.js";
 
 const T = (lang) => data.texts[lang] || data.texts.de;
-/** Welle fuer das Bild: 40 Spitzen aus einem Takt (alt app.js beatPeaks). */
-export function beatPeaks(p, bpm) { return peaks(renderBeat(p, bpm, 1), 40).map((v) => Math.round(v * 1000) / 1000); }
 
 export default {
   manifest,
@@ -20,7 +17,7 @@ export default {
   moves() { return []; },
   view(obs, seat, ctx = {}) {
     const p = obs.pub, lang = ctx.lang || "de", doc = docOf("sound", { ...p, m: "beat" });
-    const pic = canvasNode(doc, { format: "4:5", nick: ctx.nick, peaks: beatPeaks(doc.p, doc.bpm), a11y: (doc.x || manifest.title[lang]) + ", " + doc.bpm + " BPM", part: "beat" });
+    const pic = canvasNode(doc, { format: "4:5", nick: ctx.nick, peaksFrom: { kind: "beat", p: doc.p, bpm: doc.bpm, loops: 1 }, /* Welle: 40 Spitzen aus einem Takt (alt app.js beatPeaks), rechnet der Renderer */ a11y: (doc.x || manifest.title[lang]) + ", " + doc.bpm + " BPM", part: "beat" });
     return { t: "stack", children: [
       { t: "frame", ratio: "4:5", fill: "paper", a11y: pic.a11y, children: [pic] },
       { t: "audio", src: { kind: "beat", p: doc.p, bpm: doc.bpm, loops: 2 }, label: T(lang).play, loop: true }

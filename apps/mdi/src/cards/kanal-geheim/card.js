@@ -73,7 +73,14 @@ const api = {
     const over = p.end !== null;
     return { over, turn: over ? -1 : p.lock ? 1 : 0, reveal: false, score: [], winner: -1, local: true, turnNo: p.lock ? p.k + 1 : 0, turns: p.lock ? p.lock.c.length : 0 };
   },
-  moves() { return []; },
+  // Beispielzuege fuer Bot und Treiber (ADR 0001 f). Echte Antworten kennt niemand ausser den beiden; der Beispiel-Entwurf
+  // hat die Antwort "ja", der Beispielversuch ist "ja" (bei einem echten Schloss ein gewoehnlicher Fehlversuch).
+  moves(obs, seat) {
+    const p = obs.pub;
+    if (p.mode === "tunnel") return p.word === null ? [{ t: "word", seat: 0, a: "Otter" }] : [];
+    if (!p.lock) return seat === 0 ? [{ t: "seal", seat: 0, a: sealSync({ stops: [{ q: p.riddles[0] || "?", a: "ja" }], end: "Ende" }, "moves") }] : [];
+    return seat === 1 && p.end === null ? [{ t: "answer", seat: 1, a: "ja" }] : [];
+  },
   view(obs, seat, ctx = {}) {
     const p = obs.pub, lang = ctx.lang || "de", X = T(lang), d = ctx.draft || {};
     if (p.mode === "tunnel") {

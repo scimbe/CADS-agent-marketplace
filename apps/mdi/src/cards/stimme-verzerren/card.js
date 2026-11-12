@@ -17,7 +17,7 @@ export default {
   view(obs, seat, ctx = {}) {
     const p = obs.pub, lang = ctx.lang || "de", X = T(lang), doc = docOf("sound", { ...p, m: "voice", tp: p.tp || undefined });
     const fx = { fx: doc.fx, tp: doc.tp || "" };
-    const pic = canvasNode(doc, { format: "4:5", nick: ctx.nick, peaks: ctx.peaks, a11y: (doc.x || manifest.title[lang]) + " – " + manifest.params.properties.fx["x-names"][lang][doc.fx], part: "stimme" });
+    const pic = canvasNode(doc, { format: "4:5", nick: ctx.nick, peaksFrom: { kind: "local", slot: "voice", fx: doc.fx, tp: doc.tp || "", fallback: "dummy" }, a11y: (doc.x || manifest.title[lang]) + " – " + manifest.params.properties.fx["x-names"][lang][doc.fx], part: "stimme" });
     return { t: "stack", children: [
       { t: "frame", ratio: "4:5", fill: "paper", a11y: pic.a11y, children: [pic] },
       { t: "text", role: "small", text: X.mic },

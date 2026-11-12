@@ -1,16 +1,23 @@
 // ERZEUGT von scripts/gen.js – nicht von Hand aendern.
 /* eslint-disable */
 // Kartenregister (ADR 0001 a): alle Karten erfuellen denselben Vertrag; der Host kennt nur diese Schnittstelle.
+import c_advent_tuer from "./advent-tuer/card.js";
+import c_beat_pausenhof from "./beat-pausenhof/card.js";
 import c_bluff from "./bluff/card.js";
+import c_foto_alien from "./foto-alien/card.js";
 import c_gruss from "./gruss/card.js";
+import c_kanal_geheim from "./kanal-geheim/card.js";
+import c_stimme_verzerren from "./stimme-verzerren/card.js";
+import c_zug_advent from "./zug-advent/card.js";
+import c_zug_stimme from "./zug-stimme/card.js";
 import * as V from "../gen/validators.js";
 import { CODE_HASH } from "../gen/codehash.js";
 import { deriveModes } from "../contract/modes.js";
 
-export const CARDS = Object.freeze({ "bluff": c_bluff, "gruss": c_gruss });
-export const ORDER = Object.freeze(["bluff","gruss"]);
-const PARAMS = { "bluff": V.params_bluff, "gruss": V.params_gruss };
-const INPUTS = {  };
+export const CARDS = Object.freeze({ "advent-tuer": c_advent_tuer, "beat-pausenhof": c_beat_pausenhof, "bluff": c_bluff, "foto-alien": c_foto_alien, "gruss": c_gruss, "kanal-geheim": c_kanal_geheim, "stimme-verzerren": c_stimme_verzerren, "zug-advent": c_zug_advent, "zug-stimme": c_zug_stimme });
+export const ORDER = Object.freeze(["advent-tuer","zug-advent","foto-alien","beat-pausenhof","zug-stimme","kanal-geheim","stimme-verzerren","bluff","gruss"]);
+const PARAMS = { "advent-tuer": V.params_advent_tuer, "beat-pausenhof": V.params_beat_pausenhof, "bluff": V.params_bluff, "foto-alien": V.params_foto_alien, "gruss": V.params_gruss, "kanal-geheim": V.params_kanal_geheim, "stimme-verzerren": V.params_stimme_verzerren, "zug-advent": V.params_zug_advent, "zug-stimme": V.params_zug_stimme };
+const INPUTS = { "kanal-geheim": V.inputs_kanal_geheim, "zug-advent": V.inputs_zug_advent, "zug-stimme": V.inputs_zug_stimme };
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 export function cardOf(id) { return own(CARDS, id) ? CARDS[id] : null; }
 export function manifestOf(id) { const c = cardOf(id); return c ? c.manifest : null; }

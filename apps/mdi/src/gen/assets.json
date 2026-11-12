@@ -1,4 +1,12 @@
 {
+  "advent-tuer": {
+    "assets": [],
+    "thumbs": []
+  },
+  "beat-pausenhof": {
+    "assets": [],
+    "thumbs": []
+  },
   "bluff": {
     "assets": [],
     "thumbs": [
@@ -9,6 +17,10 @@
       }
     ]
   },
+  "foto-alien": {
+    "assets": [],
+    "thumbs": []
+  },
   "gruss": {
     "assets": [],
     "thumbs": [
@@ -18,5 +30,21 @@
         "bytes": 11308
       }
     ]
+  },
+  "kanal-geheim": {
+    "assets": [],
+    "thumbs": []
+  },
+  "stimme-verzerren": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-advent": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-stimme": {
+    "assets": [],
+    "thumbs": []
   }
 }

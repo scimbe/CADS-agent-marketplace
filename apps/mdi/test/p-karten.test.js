@@ -11,7 +11,8 @@ import { checkCardSource } from "../scripts/harness.js";
 import advent from "../src/cards/advent-tuer/card.js";
 import zugAdvent, { doorText, openDoors } from "../src/cards/zug-advent/card.js";
 import foto from "../src/cards/foto-alien/card.js";
-import beat, { beatPeaks } from "../src/cards/beat-pausenhof/card.js";
+import beat from "../src/cards/beat-pausenhof/card.js";
+import { renderBeat, peaks as peaksOf } from "../src/engines/klang/studio.js";
 import stimme from "../src/cards/stimme-verzerren/card.js";
 import zugStimme, { figure, figureCards, right } from "../src/cards/zug-stimme/card.js";
 import kanal, { glyphs } from "../src/cards/kanal-geheim/card.js";
@@ -123,8 +124,10 @@ test("foto-alien: Foto nie im Link und nie beim Empfaenger; Varianten tragen Tex
 test("beat-pausenhof: Muster und Tempo im Link, Ton auf dem Geraet; Varianten mit eigenem Muster; Welle aus dem Takt", () => {
   const p = defaults(beat.manifest.params), v = beat.view(beat.observe(beat.init({ params: p }), 0), 0, { lang: "de" });
   assert.deepEqual(find(v, "audio")[0].src, { kind: "beat", p: p.p, bpm: 100, loops: 2 });
-  assert.equal(beatPeaks(p.p, 100).length, 40);
-  assert.ok(find(v, "canvas")[0].ops2d.some((o) => o.op === "wave" && o.peaks.length === 40));
+  const cv = find(v, "canvas")[0];
+  assert.deepEqual(cv.src.peaks, { kind: "beat", p: p.p, bpm: 100, loops: 1 }, "Spitzen aus einem Takt rechnet der Renderer");
+  assert.ok(cv.ops2d.some((o) => o.op === "wave" && o.peaks === null));
+  assert.equal(peaksOf(renderBeat(p.p, 100, 1), 40).length, 40);
   assert.ok(find(v, "canvas")[0].ops2d.some((o) => o.m === "fillText" && o.a[0] === "100 BPM"));
   const boss = beat.manifest.variants.find((x) => x.id === "beat-boss").params;
   assert.equal(boss.bpm, 150); assert.equal(boss.p.h, "xxxxxxxxxxxxxxxx");
