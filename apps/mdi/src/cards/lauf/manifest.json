@@ -21,6 +21,9 @@
   "de": "Los! Tippen oder Leertaste zum Springen.",
   "en": "Go! Tap or press space to jump."
  },
+ "family": "lauf",
+ "grip": "pause",
+ "dur": 60,
  "players": {
   "min": 1,
   "max": 2
@@ -31,13 +34,13 @@
  ],
  "modes": [
   "alone",
-  "link"
+  "ghost"
  ],
  "play": {
   "default": "alone",
   "offer": [
    "alone",
-   "link"
+   "ghost"
   ]
  },
  "limits": {
@@ -157,16 +160,6 @@
     "x-label": {
      "de": "Modus",
      "en": "Mode"
-    },
-    "x-names": {
-     "de": [
-      "Endlos-Lauf",
-      "Level mit Ziel"
-     ],
-     "en": [
-      "Endless run",
-      "Level with a goal"
-     ]
     }
    },
    "seed": {
@@ -197,28 +190,6 @@
     "x-label": {
      "de": "Welt",
      "en": "World"
-    },
-    "x-names": {
-     "de": [
-      "Brücken",
-      "Stadt",
-      "Wald",
-      "Wüste",
-      "Eis",
-      "Nacht",
-      "Lava",
-      "Candy"
-     ],
-     "en": [
-      "Bridges",
-      "City",
-      "Forest",
-      "Desert",
-      "Ice",
-      "Night",
-      "Lava",
-      "Candy"
-     ]
     }
    },
    "e": {
@@ -322,6 +293,7 @@
     "minItems": 1,
     "uniqueItems": true,
     "items": {
+     "type": "string",
      "enum": [
       "geh",
       "huepf",
@@ -500,7 +472,6 @@
     "maximum": 999,
     "default": 1,
     "x-field": "number",
-    "x-hidden": true,
     "x-label": {
      "de": "Engine-Version",
      "en": "Engine version"
@@ -515,7 +486,6 @@
     "maximum": 999999,
     "default": null,
     "x-field": "number",
-    "x-hidden": true,
     "x-label": {
      "de": "Punkte zum Schlagen",
      "en": "Score to beat"
@@ -538,6 +508,7 @@
     },
     "properties": {
      "art": {
+      "type": "string",
       "enum": [
        "huepfen",
        "wippen",
@@ -559,6 +530,7 @@
       "maximum": 1
      },
      "bei": {
+      "type": "string",
       "enum": [
        "sprung",
        "treffer",
@@ -574,7 +546,6 @@
     ],
     "default": null,
     "x-field": "media.local",
-    "x-slot": "figur",
     "x-label": {
      "de": "Eigenes Foto als Figur",
      "en": "Own photo as runner"
@@ -587,7 +558,6 @@
     ],
     "default": null,
     "x-field": "media.local",
-    "x-slot": "hintergrund",
     "x-label": {
      "de": "Eigenes Foto als Hintergrund",
      "en": "Own photo as background"
@@ -629,7 +599,6 @@
     ],
     "default": null,
     "x-field": "text",
-    "x-hidden": true,
     "x-label": {
      "de": "KI-Siegel",
      "en": "AI seal"
@@ -643,7 +612,6 @@
     "pattern": "^[A-Za-z0-9_-]{22}$",
     "default": null,
     "x-field": "text",
-    "x-hidden": true,
     "x-label": {
      "de": "Freie Karte",
      "en": "Free card"

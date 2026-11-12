@@ -21,6 +21,27 @@
   "de": "Tippen. Fliegen. Angeben.",
   "en": "Tap. Fly. Flex."
  },
+ "family": "flug",
+ "grip": "pause",
+ "dur": 40,
+ "legacy": [
+  "spiel-lava",
+  "spiel-mond",
+  "spiel-pizza",
+  "spiel-tiefsee",
+  "spiel-neon",
+  "spiel-geist",
+  "spiel-einhorn",
+  "spiel-retro",
+  "flug-agent",
+  "flug-mond",
+  "plan-01",
+  "plan-08",
+  "plan-13",
+  "plan-18",
+  "plan-22",
+  "plan-28"
+ ],
  "players": {
   "min": 1,
   "max": 2
@@ -31,13 +52,13 @@
  ],
  "modes": [
   "alone",
-  "link"
+  "ghost"
  ],
  "play": {
   "default": "alone",
   "offer": [
    "alone",
-   "link"
+   "ghost"
   ]
  },
  "limits": {
@@ -171,13 +192,6 @@
     "maximum": 2600,
     "default": 2100,
     "x-field": "number",
-    "x-steps": [
-     900,
-     1350,
-     1800,
-     2200,
-     2600
-    ],
     "x-label": {
      "de": "Schwere",
      "en": "Weight"
@@ -189,13 +203,6 @@
     "maximum": 620,
     "default": 480,
     "x-field": "number",
-    "x-steps": [
-     280,
-     355,
-     430,
-     525,
-     620
-    ],
     "x-label": {
      "de": "Sprung",
      "en": "Jump"
@@ -207,13 +214,6 @@
     "maximum": 200,
     "default": 125,
     "x-field": "number",
-    "x-steps": [
-     90,
-     115,
-     140,
-     170,
-     200
-    ],
     "x-label": {
      "de": "Lücke",
      "en": "Gap"
@@ -225,13 +225,6 @@
     "maximum": 260,
     "default": 165,
     "x-field": "number",
-    "x-steps": [
-     90,
-     110,
-     130,
-     195,
-     260
-    ],
     "x-label": {
      "de": "Tempo",
      "en": "Speed"
@@ -335,6 +328,7 @@
       "pattern": "^#[0-9a-fA-F]{6}$"
      },
      "d": {
+      "type": "string",
       "enum": [
        "stars",
        "bubbles",
@@ -345,6 +339,7 @@
       ]
      },
      "f": {
+      "type": "string",
       "enum": [
        "tube",
        "block",
@@ -397,6 +392,7 @@
      ],
      "properties": {
       "p": {
+       "type": "string",
        "enum": [
         "normal",
         "ruhig",
@@ -408,6 +404,7 @@
        ]
       },
       "t": {
+       "type": "string",
        "enum": [
         "day",
         "night",
@@ -467,6 +464,7 @@
     },
     "properties": {
      "art": {
+      "type": "string",
       "enum": [
        "huepfen",
        "wippen",
@@ -488,6 +486,7 @@
       "maximum": 1
      },
      "bei": {
+      "type": "string",
       "enum": [
        "sprung",
        "treffer",
@@ -618,7 +617,6 @@
     ],
     "default": null,
     "x-field": "media.local",
-    "x-slot": "figur",
     "x-label": {
      "de": "Eigenes Foto als Figur",
      "en": "Own photo as hero"
@@ -631,7 +629,6 @@
     ],
     "default": null,
     "x-field": "media.local",
-    "x-slot": "hintergrund",
     "x-label": {
      "de": "Eigenes Foto als Hintergrund",
      "en": "Own photo as background"
@@ -672,7 +669,6 @@
     ],
     "default": null,
     "x-field": "text",
-    "x-hidden": true,
     "x-label": {
      "de": "KI-Siegel",
      "en": "AI seal"
@@ -686,7 +682,6 @@
     "pattern": "^[A-Za-z0-9_-]{22}$",
     "default": null,
     "x-field": "text",
-    "x-hidden": true,
     "x-label": {
      "de": "Freie Karte",
      "en": "Free card"
@@ -784,7 +779,13 @@
     "de": "Feuer, Drache, kein Mitleid.",
     "en": "Fire, dragon, zero mercy."
    },
-   "min": 40,
+   "legacy": [
+    "spiel-lava"
+   ],
+   "modes": [
+    "alone",
+    "ghost"
+   ],
    "tags": [
     "vulkan",
     "langeweile",
@@ -793,8 +794,7 @@
     "fantasie",
     "volcano",
     "boredom",
-    "break",
-    "imagination"
+    "break"
    ],
    "params": {
     "variant": "spiel-lava",
@@ -846,7 +846,13 @@
     "de": "Fast keine Schwerkraft. Fast.",
     "en": "Almost no gravity. Almost."
    },
-   "min": 40,
+   "legacy": [
+    "spiel-mond"
+   ],
+   "modes": [
+    "alone",
+    "ghost"
+   ],
    "tags": [
     "weltraum",
     "fliegen",
@@ -855,13 +861,7 @@
     "science-fiction",
     "unendlich",
     "schweben",
-    "space",
-    "flying",
-    "dream",
-    "cosmos",
-    "sci-fi",
-    "infinite",
-    "floating"
+    "space"
    ],
    "params": {
     "variant": "spiel-mond",
@@ -913,13 +913,19 @@
     "de": "Niemand fragt warum.",
     "en": "Nobody asks why."
    },
-   "min": 40,
+   "legacy": [
+    "spiel-pizza"
+   ],
+   "modes": [
+    "alone",
+    "ghost"
+   ],
    "tags": [
     "sinnfrei",
     "absurd",
     "party",
     "lach",
-    "unseriös",
+    "unserios",
     "chaos",
     "silly",
     "nonsense"
@@ -974,7 +980,13 @@
     "de": "Unten ist es schön. Und eng.",
     "en": "Nice down there. And tight."
    },
-   "min": 40,
+   "legacy": [
+    "spiel-tiefsee"
+   ],
+   "modes": [
+    "alone",
+    "ghost"
+   ],
    "tags": [
     "unterwasser",
     "nacht",
@@ -1032,7 +1044,13 @@
     "de": "Schnell. Bunt. Unfair.",
     "en": "Fast. Loud. Unfair."
    },
-   "min": 40,
+   "legacy": [
+    "spiel-neon"
+   ],
+   "modes": [
+    "alone",
+    "ghost"
+   ],
    "tags": [
     "party",
     "nacht",
@@ -1093,7 +1111,13 @@
     "de": "Spukt schön durch die Nacht.",
     "en": "Haunt your way through the night."
    },
-   "min": 40,
+   "legacy": [
+    "spiel-geist"
+   ],
+   "modes": [
+    "alone",
+    "ghost"
+   ],
    "tags": [
     "halloween",
     "gruselig",
@@ -1102,9 +1126,7 @@
     "gruselfilm",
     "scary",
     "haunting",
-    "ghosts",
-    "creepy",
-    "spooky"
+    "ghosts"
    ],
    "params": {
     "variant": "spiel-geist",
@@ -1156,21 +1178,22 @@
     "de": "Süß. Aber gefährlich.",
     "en": "Sweet. But dangerous."
    },
-   "min": 40,
+   "legacy": [
+    "spiel-einhorn"
+   ],
+   "modes": [
+    "alone",
+    "ghost"
+   ],
    "tags": [
-    "überraschung",
+    "uberraschung",
     "bunt",
     "magie",
     "fantasy",
     "versteckt",
     "wunderlich",
-    "märchen",
-    "surprise",
-    "colorful",
-    "magic",
-    "hidden",
-    "whimsical",
-    "fairy tale"
+    "marchen",
+    "surprise"
    ],
    "params": {
     "variant": "spiel-einhorn",
@@ -1222,7 +1245,13 @@
     "de": "Acht Bit. Volle Härte.",
     "en": "Eight bits. Full pain."
    },
-   "min": 40,
+   "legacy": [
+    "spiel-retro"
+   ],
+   "modes": [
+    "alone",
+    "ghost"
+   ],
    "tags": [
     "nostalgie",
     "8-bit",
@@ -1231,12 +1260,7 @@
     "klassiker",
     "arcade",
     "oldschool",
-    "nostalgia",
-    "childhood",
-    "classic",
-    "grandfather",
-    "memory",
-    "nostalgic"
+    "nostalgia"
    ],
    "params": {
     "variant": "spiel-retro",
@@ -1288,7 +1312,12 @@
     "de": "Flieg einmal vor. Er macht's nach.",
     "en": "Fly once. It copies you."
    },
-   "min": 60,
+   "legacy": [
+    "flug-agent"
+   ],
+   "modes": [
+    "alone"
+   ],
    "tags": [
     "nachahmen",
     "kopie",
@@ -1297,8 +1326,7 @@
     "geschwister",
     "team",
     "imitate",
-    "copy",
-    "siblings"
+    "copy"
    ],
    "params": {
     "variant": "flug-agent",
@@ -1350,7 +1378,12 @@
     "de": "Fast keine Schwerkraft, nur dein Agent.",
     "en": "Almost no gravity, just your agent."
    },
-   "min": 60,
+   "legacy": [
+    "flug-mond"
+   ],
+   "modes": [
+    "alone"
+   ],
    "tags": [
     "langeweile",
     "team",
@@ -1408,7 +1441,13 @@
     "de": "Fliege durch den Bunsenbrenner-Tunnel.",
     "en": "Fly through the Bunsenbrenner tunnel."
    },
-   "min": 40,
+   "legacy": [
+    "plan-01"
+   ],
+   "modes": [
+    "alone",
+    "ghost"
+   ],
    "tags": [
     "langeweile",
     "pause",
@@ -1480,22 +1519,22 @@
     "de": "Flieg durch den Sturm von heute.",
     "en": "Fly through today’s storm."
    },
-   "min": 40,
+   "legacy": [
+    "plan-08"
+   ],
+   "modes": [
+    "alone",
+    "ghost"
+   ],
    "tags": [
     "regen",
     "schnee",
-    "schlechtes wetter",
+    "schlechtes-wetter",
     "fliegen",
     "reise",
     "urlaub",
     "sommer",
-    "rain",
-    "snow",
-    "bad weather",
-    "flying",
-    "vacation",
-    "holiday",
-    "summer"
+    "rain"
    ],
    "params": {
     "variant": "plan-08",
@@ -1561,22 +1600,22 @@
     "de": "Flieg durchs Elektroniklabor.",
     "en": "Fly through the electronics lab."
    },
-   "min": 40,
+   "legacy": [
+    "plan-13"
+   ],
+   "modes": [
+    "alone",
+    "ghost"
+   ],
    "tags": [
     "basteln",
     "technik",
-    "löten",
-    "schüler",
+    "loten",
+    "schuler",
     "projekte",
     "mint",
     "experiment",
-    "crafting",
-    "soldering",
-    "students",
-    "projects",
-    "stem",
-    "workshop",
-    "learning"
+    "crafting"
    ],
    "params": {
     "variant": "plan-13",
@@ -1642,22 +1681,22 @@
     "de": "Zuckerwatte statt Röhren.",
     "en": "Candy floss, no pipes."
    },
-   "min": 40,
+   "legacy": [
+    "plan-18"
+   ],
+   "modes": [
+    "alone",
+    "ghost"
+   ],
    "tags": [
     "geburtstag",
     "sommerfest",
     "picknick",
     "entspannung",
     "traum",
-    "süßigkeit",
+    "sussigkeit",
     "feier",
-    "birthday",
-    "summer party",
-    "picnic",
-    "relaxation",
-    "dream",
-    "festival",
-    "celebration"
+    "birthday"
    ],
    "params": {
     "variant": "plan-18",
@@ -1724,7 +1763,13 @@
     "de": "Flieg am Seekabel entlang.",
     "en": "Fly along the sea cable."
    },
-   "min": 40,
+   "legacy": [
+    "plan-22"
+   ],
+   "modes": [
+    "alone",
+    "ghost"
+   ],
    "tags": [
     "unterwasser",
     "flug",
@@ -1733,9 +1778,7 @@
     "reise",
     "underwater",
     "flight",
-    "experience",
-    "discover",
-    "journey"
+    "experience"
    ],
    "params": {
     "variant": "plan-22",
@@ -1801,18 +1844,22 @@
     "de": "Schnee, Eis, ruhiger Flug.",
     "en": "Snow, ice, calm flight."
    },
-   "min": 40,
+   "legacy": [
+    "plan-28"
+   ],
+   "modes": [
+    "alone",
+    "ghost"
+   ],
    "tags": [
     "ruhe",
     "entspannung",
     "frieden",
-    "kälte",
+    "kalte",
     "traum",
     "magie",
     "relaxation",
-    "peace",
-    "dream",
-    "magic"
+    "peace"
    ],
    "params": {
     "variant": "plan-28",

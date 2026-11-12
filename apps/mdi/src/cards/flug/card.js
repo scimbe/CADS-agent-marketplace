@@ -6,7 +6,7 @@ import manifest from "./manifest.json" with { type: "json" };
 import { initState, flapState, stepState, copyState, demoWants, W, H, TPS } from "../../engines/flug/engine.js";
 import { gameOf, routeParams, fromServerDoc, toServerDoc } from "../../engines/flug/params.js";
 import { flyStep, flyLine, learnFlap, sanitizeAgent, explain, winner, FLY_CAP, MAX_TICKS } from "../../engines/flug/agent.js";
-import { hash32, draw, mixF64, FNV0 } from "../../engines/flug/rng.js";
+import { hash32, draw, mixF64, FNV0, hex32 } from "../../engines/flug/rng.js";
 import { flightOps, duelOps } from "../../engines/flug/view.js";
 import { nextPipe } from "../../engines/flug/engine.js";
 import { VARIANTS, variantParams } from "../../engines/flug/variants.js";
@@ -115,7 +115,7 @@ function hash(st) {
   let h = FNV0;
   for (const s of st.sims) { h = mixF64(mixF64(h, s.bird.y), s.bird.vy); h = mixF64(h, s.score); h = mixF64(h, s.ticks); for (const p of s.pipes) h = mixF64(mixF64(h, p.x), p.top); }
   h = mixF64(h, st.t);
-  return h.toString(16).padStart(8, "0");
+  return hex32(h);
 }
 
 export default {

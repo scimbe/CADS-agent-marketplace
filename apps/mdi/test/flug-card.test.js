@@ -23,9 +23,9 @@ const run = (params, players, feed, max = 12000) => {
   return { st, evs };
 };
 
-test("Manifest: Echtzeit, 120 Hz, f64, ein Knopf mit Tastatur, Modi allein + Link, 16 Varianten mit gueltigen Parametern", () => {
+test("Manifest: Echtzeit, 120 Hz, f64, ein Knopf mit Tastatur, Modi allein + Geist, 16 Varianten mit gueltigen Parametern", () => {
   assert.equal(M.kind, "realtime"); assert.equal(M.rt.tick, 120); assert.equal(M.rt.numeric, "f64");
-  assert.deepEqual(M.modes, ["alone", "link"]);
+  assert.deepEqual(M.modes, ["alone", "ghost"]);
   assert.ok(M.rt.controls.buttons.every((b) => b.keys.length > 0));
   assert.deepEqual(M.variants.map((v) => v.id), ["spiel-lava", "spiel-mond", "spiel-pizza", "spiel-tiefsee", "spiel-neon", "spiel-geist", "spiel-einhorn", "spiel-retro", "flug-agent", "flug-mond", "plan-01", "plan-08", "plan-13", "plan-18", "plan-22", "plan-28"]);
   assert.ok(valid(DEF), JSON.stringify(valid.errors));

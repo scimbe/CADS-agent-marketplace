@@ -35,3 +35,6 @@ export function draw(o) {
 const dv = new DataView(new ArrayBuffer(8));
 export function mixF64(h, x) { dv.setFloat64(0, x); for (let j = 0; j < 8; j++) h = Math.imul(h ^ dv.getUint8(j), 16777619) >>> 0; return h; }
 export const FNV0 = 0x811c9dc5;
+/** uint32 als 8 Hex-Zeichen, ohne toString(radix) (Harness). */
+const HEXD = "0123456789abcdef";
+export function hex32(h) { let s = ""; for (let i = 28; i >= 0; i -= 4) s += HEXD[(h >>> i) & 15]; return s; }

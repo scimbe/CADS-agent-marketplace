@@ -6,7 +6,7 @@ import { initState, stepState, copyState, press, release, setDuck, points, meter
 import { laufOf, fromServerDoc, toServerDoc } from "../../engines/lauf/params.js";
 import { fromWords } from "../../engines/lauf/words.js";
 import { runOps, poseOf, VIEW } from "../../engines/lauf/view.js";
-import { mixF64, FNV0 } from "../../engines/flug/rng.js";
+import { mixF64, FNV0, hex32 } from "../../engines/flug/rng.js";
 import { fmt } from "../../engines/flug/text.js";
 import TX from "../../engines/lauf/texts.json" with { type: "json" };
 
@@ -80,7 +80,7 @@ function hash(st) {
     h = mixF64(mixF64(mixF64(h, s.me.x), s.me.y), s.me.vy); h = mixF64(mixF64(h, s.coins), s.stomps); h = mixF64(h, s.ticks);
     for (const it of s.items) if (it.t === "f" && it.live) h = mixF64(mixF64(h, it.x), it.y);
   }
-  return mixF64(h, st.t).toString(16).padStart(8, "0");
+  return hex32(mixF64(h, st.t));
 }
 
 export default {
