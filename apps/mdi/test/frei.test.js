@@ -173,7 +173,7 @@ test("Server-Aufnahmen: Erfolg mit Siegel des Decks (o), Absage mit Gegenvorschl
     assert.ok(d && artOk(asked, o.art) && kindOk(o.art, d), n + ": Art und Doc passen");
   }
   // Texte fuer jede Antwort, die keine Karte bringt, existieren in beiden Sprachen
-  for (const how of ["crisis", "blocked", "quota", "busy", "paused", "age16", "age", "modpause", "karteoff", "login", "bad", "nicht-hier", "notyet", "off"]) for (const l of ["de", "en"]) assert.ok(!/^\[/.test((await import("../src/features/frei/view.js")).refusalText({ how, notyet: {}, reason: "" }, l)), how + " " + l);
+  for (const how of ["crisis", "blocked", "quota", "busy", "paused", "age16", "age", "modpause", "karteoff", "login", "bad", "nicht-hier", "notyet", "off"]) for (const l of ["de", "en"]) assert.ok(!/^\[/.test((await import("../src/features/frei/view-core.js")).freiUi().refusalText({ how, notyet: {}, reason: "" }, l)), how + " " + l);
 });
 
 test("KI-Arten fuer alle Karten: line liefert Vorschlaege mit Siegel; unbekannte Art geht nie raus", async () => {

@@ -11,7 +11,7 @@ import { LEVELS } from "../bot/ismcts.js";
 import { stilView, stilActions } from "./stil-view.js";
 import { homeView, dayPrimary, meinsButton } from "./home/views.js";
 import { SLOTS } from "./home/slots.js";
-import { ft } from "../features/frei/texts.js";   // Strang K: Texte fuer Robot/Melden in der Kartenansicht
+import { ftCore as ft } from "../features/frei/texts-core.js";   // Strang K: Texte fuer Robot/Melden in der Kartenansicht
 
 export function leaf(state) {
   const l = state.config.filter((s) => s.startsWith("inhalt."));

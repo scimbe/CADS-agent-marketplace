@@ -234,3 +234,25 @@ test("Englisch, dunkel, 1280: Formular und Vorschau ohne axe-Verstoss", async ()
   await checks(p, "17-en-vorschau", found);
   assert.deepEqual(found, []); assert.deepEqual(errs, []);
 });
+
+test("Teil frei-ui: fehlt -> ehrliche Meldung mit Wiederholen (axe ohne Verstoss), danach die freie Karte; manipuliert -> nie ausgefuehrt", async () => {
+  const fw = fakeWrapper(), ff = fakeFrei(fw), found = [];
+  const { ctx, p } = await openApp(fw, ff);
+  let block = true;
+  await ctx.route("**/parts/feat-frei-ui*", (r) => (block ? r.fulfill({ status: 404, body: "" }) : r.fallback()));
+  await act(p, "frei");
+  await p.locator("main.s-partfail").waitFor();
+  assert.equal(await p.locator('[role="alert"][data-reason="teil-fehlt"]').count(), 1);
+  found.push(...(await axe(p, "frei-teil-fehlt")));
+  block = false;
+  await p.locator('[data-act="retry"]').click();
+  await p.locator("main.s-frei-start").waitFor();
+  assert.deepEqual(found, []);
+  const fw2 = fakeWrapper(), ff2 = fakeFrei(fw2);
+  const o2 = await openApp(fw2, ff2);
+  await o2.ctx.route("**/parts/feat-frei-ui*", (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: "document.title='boese';" }));
+  await act(o2.p, "frei");
+  await o2.p.locator("main.s-partfail").waitFor();
+  assert.equal(await o2.p.locator('[role="alert"][data-reason="teil-manipuliert"]').count(), 1);
+  assert.notEqual(await o2.p.title(), "boese");
+});

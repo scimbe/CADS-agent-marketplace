@@ -28,6 +28,16 @@ export function cardOf(id) { return cardById(id) || (LEGACY[id] ? cardById(LEGAC
 /** Karten-id auch fuer alte Katalog-ids, ohne die Karte zu laden (Strang F: Karten sind nachladbare Teile) */
 export function cardIdOf(id) { return manifestOf(id) ? id : LEGACY[id] ? LEGACY[id].card : null; }
 /** Karten, die ein Ereignis der freien Karte braucht; die Laufzeit laedt sie vorher (ADR 0001 Nachtrag 2) */
+/** Feature-Teil "frei-ui" (Ansichten + Texte) vor jedem Ereignis, das in inhalt.frei.* fuehren kann (ADR 0001 Nachtrag 4).
+ *  LINK: vorsorglich bei jedem Link (das Gate prueft danach; die Karte des Links ist ggf. selbst noch nicht geladen);
+ *  GO: wenn die offene Karte eine freie Karte tragen kann (toFree). Nach dem ersten Laden liegt der Teil im Cache. */
+const UI_EVENTS = new Set(["FREI", "DECK", "DECK_OPEN", "MINE", "BILD", "KI", "ROBOT", "MELDEN", "LINK"]);
+function freiParts(ev, ctx) {
+  if (!ev || typeof ev.type !== "string") return [];
+  if (UI_EVENTS.has(ev.type)) return ["frei-ui"];
+  if (ev.type === "GO" && ctx && ctx.cardId) { const c = cardById(ctx.cardId); if (c && typeof c.toFree === "function") return ["frei-ui"]; }
+  return [];
+}
 function freiNeeds(ev, ctx) {
   const f = (ctx && ctx.frei) || {}, ids = [];
   const add = (x) => { const id = x && cardIdOf(x); if (id) ids.push(id); };
@@ -431,6 +441,7 @@ import { createImages } from "./images.js";
 export const frei = {
   id: "frei",
   needs: freiNeeds,
+  needParts: freiParts,
   states: { frei: freiState },
   shelfOn: FREI_SHELF,
   on: {

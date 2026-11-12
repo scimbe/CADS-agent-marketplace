@@ -15,5 +15,9 @@
   ],
   "home-font": [
     "ui/home/font-atkinson.js"
+  ],
+  "frei-ui": [
+    "features/frei/view.js",
+    "features/frei/texts.js"
   ]
 }

@@ -68,72 +68,98 @@ function sample(T, obs, seat, mine, rand) {
   return null;
 }
 
-// ---------- Simulation auf Regelebene ----------
-function simMoves(T, w) {
-  const R = T.R, r = w.r, s = R.turn(r);
-  if (s < 0) return [];
-  const hand = T.game === "bauernskat" ? R.tops(r, s) : w.hands[s];
-  return R.actions(r, s, hand).filter((a) => a.t === "play" && a.seat === s);
-}
-function simStep(T, w, a) {
-  const R = T.R, x = R.apply(w.r, a);
-  if (!x.ok) return null;
-  let r = x.state;
-  if (T.game === "bauernskat") {
-    const downs = w.downs.map((row) => row.slice());
-    for (const f of R.reveals(r)) { const y = R.apply(r, { t: "turn", seat: f.seat, i: f.i, card: downs[f.seat][f.i] }); if (y.ok) { r = y.state; downs[f.seat][f.i] = null; } }
-    return { r, downs };
+// ---------- Schlanke Stich-Simulation (nur Kartenspiel) ----------
+// Die Suche spielt nur Karten. Statt fuer jeden simulierten Zug die Regel-Engine (tiefe Kopie des Zustands, alle Phasen)
+// zu rufen, haelt die Simulation nur Haende, laufenden Stich, Augen und Parteien und veraendert sie an Ort und Stelle:
+// jede Iteration beginnt mit einer frisch ausgelosten Welt. Bedienen, Stichgewinner (inkl. Hausregeln wie der Dulle) und
+// Augen kommen aus denselben Regelfunktionen wie im Spiel; Ende vorzeitig bei Null, Hochzeitspartner im Klaerungsstich.
+function light(T, obs, seat, mine, rand) {
+  const w0 = sample(T, obs, seat, mine, rand);
+  if (!w0) return null;
+  const R = T.R, r = w0.r, n = T.n, doko = T.game === "doko", bs = T.game === "bauernskat";
+  const g = doko ? r.kind : r.contract ? r.contract.game : "G";
+  const w = { n, doko, bs, g, rules: r.rules, ramsch: !!(r.contract && r.contract.ramsch), nul: !doko && g === "N", d: doko ? -1 : r.declarer,
+    e: new Array(n).fill(0), tr: r.trick ? r.trick.cards.map((x) => ({ seat: x.seat, card: x.card })) : [], nx: R.turn(r), done: false,
+    left: (doko ? 12 : bs ? 16 : 10) - r.tricks.length, skat: w0.skat || [], declWon: false };
+  for (const t of r.tricks) w.e[t.winner] += eyesOf(R, t.cards.map((x) => x.card));
+  if (!doko && w.nul && r.tricks.some((t) => t.winner === w.d)) w.declWon = true;
+  if (bs) { w.tops = r.stacks.map((row) => row.map((x) => x.top || null)); w.downs = w0.downs.map((row) => row.slice()); }
+  else w.h = w0.hands.map((h) => h.slice());
+  if (doko) {
+    w.kind = r.kind; w.sol = r.soloist; w.par = r.partner; w.nTr = r.tricks.length;
+    // Partei Re: im Normalspiel, wer eine Kreuz-Dame hat oder gespielt hat
+    const playedCQ = playedCards(r).filter((x) => x.card === "CQ").map((x) => x.seat);
+    w.re = w.h.map((h, s) => r.kind === "normal" ? h.includes("CQ") || playedCQ.includes(s) : s === r.soloist || s === r.partner);
   }
-  const hands = w.hands.slice(); hands[a.seat] = hands[a.seat].slice(); hands[a.seat].splice(hands[a.seat].indexOf(a.card), 1);
-  return { r, hands, skat: w.skat };
+  return w;
+}
+function eyesOf(R, cards) { let a = 0; for (const c of cards) a += R.EYES[c[1]]; return a; }
+function suitL(T, w, c) { return w.doko ? (T.R.isTrump(w.kind, c) ? "T" : c[0]) : T.R.suitOf(w.g, c); }
+function availL(w, s) { if (!w.bs) return w.h[s]; const o = []; for (const c of w.tops[s]) if (c) o.push(c); return o; }
+function legalL(T, w) {
+  if (w.done) return [];
+  const av = availL(w, w.nx); if (!av.length) return [];
+  let out = av;
+  if (w.tr.length) { const led = suitL(T, w, w.tr[0].card), same = av.filter((c) => suitL(T, w, c) === led); if (same.length) out = same; }
+  return out.filter((c, i) => out.indexOf(c) === i);
+}
+function playL(T, w, c) {
+  const s = w.nx, R = T.R;
+  if (w.bs) { const i = w.tops[s].indexOf(c); w.tops[s][i] = null; } else w.h[s].splice(w.h[s].indexOf(c), 1);
+  w.tr.push({ seat: s, card: c });
+  if (w.tr.length < w.n) { w.nx = w.bs ? 1 - s : (s + 1) % w.n; return; }
+  const win = w.doko ? R.trickWinner(w.kind, w.tr, w.rules) : R.trickWinner(w.g, w.tr);
+  w.e[win] += eyesOf(R, w.tr.map((x) => x.card));
+  if (w.doko && w.kind === "hochzeit" && w.par < 0) {
+    w.nTr++;
+    if (win !== w.sol) { w.par = win; w.re = w.re.map((_, q) => q === w.sol || q === win); }
+    else if (w.nTr >= 3) w.kind = "karo";
+  }
+  w.tr = []; w.nx = win; w.left--;
+  if (w.nul && win === w.d) { w.declWon = true; w.done = true; }
+  if (w.bs) for (let q = 0; q < 2; q++) for (let i = 0; i < 8; i++) if (!w.tops[q][i] && w.downs[q][i]) { w.tops[q][i] = w.downs[q][i]; w.downs[q][i] = null; }
+  if (w.left <= 0) w.done = true;
 }
 // Belohnung je Sitz in [0,1]: Sieg der eigenen Partei zaehlt, die Augen geben Feinheit
-function rewardOf(T, w, seat) {
-  const R = T.R, r = w.r, eyes = (cards) => cards.reduce((a, c) => a + R.EYES[c[1]], 0);
-  const team = new Array(T.n).fill(0), e = new Array(T.n).fill(0);
-  for (const t of r.tricks) e[t.winner] += eyes(t.cards.map((x) => x.card));
-  if (T.game === "doko") {
-    let re;
-    if (r.kind === "normal") re = w.hands.map((h, s) => h.includes("CQ") || playedCards(r).some((x) => x.seat === s && x.card === "CQ"));
-    else re = team.map((_, s) => s === r.soloist || s === r.partner);
-    const reEyes = e.reduce((a, x, s) => a + (re[s] ? x : 0), 0), mineRe = re[seat];
-    const my = mineRe ? reEyes : 240 - reEyes, need = mineRe ? 121 : 120;
+function rewardL(T, w, seat) {
+  if (w.doko) {
+    let reEyes = 0; for (let s = 0; s < w.n; s++) if (w.re[s]) reEyes += w.e[s];
+    const mineRe = w.re[seat], my = mineRe ? reEyes : 240 - reEyes, need = mineRe ? 121 : 120;
     return (my >= need ? 0.6 : 0) + 0.4 * my / 240;
   }
-  const total = 120, d = r.declarer;
-  if (r.contract && r.contract.ramsch) return 1 - e[seat] / total;
-  if (r.contract && r.contract.game === "N") { const lost = r.tricks.some((t) => t.winner === d); return (seat === d) === !lost ? 1 : 0; }
-  let de = e[d]; if (T.game === "skat") de += eyes(w.skat || []);
+  const total = 120, d = w.d;
+  if (w.ramsch) return 1 - w.e[seat] / total;
+  if (w.nul) return (seat === d) === !w.declWon ? 1 : 0;
+  let de = w.e[d]; if (T.game === "skat") de += eyesOf(T.R, w.skat);
   const my = seat === d ? de : total - de, won = seat === d ? de >= 61 : de < 61;
   return (won ? 0.6 : 0) + 0.4 * my / total;
 }
 
 function ismcts(T, obs, seat, mine, legal, iterations, seed) {
-  const r0 = mkRng("tisch-bot|" + seed), key = (a) => a.card;
+  const r0 = mkRng("tisch-bot|" + seed);
   const root = { visits: 0, avail: 0, wins: 0, kids: new Map(), move: null, who: -1 };
   for (let it = 0; it < iterations; it++) {
-    let w = sample(T, obs, seat, mine, r0);
+    const w = light(T, obs, seat, mine, r0);
     if (!w) break;
     let node = root; const path = [root];
     for (let depth = 0; depth < 64; depth++) {
-      if (T.R.done(w.r)) break;
-      const ms = simMoves(T, w); if (!ms.length) break;
-      const who = T.R.turn(w.r);
-      for (const m of ms) { const c = node.kids.get(key(m)); if (c) c.avail++; }
-      const untried = ms.filter((m) => !node.kids.has(key(m)));
+      const ms = legalL(T, w); if (!ms.length) break;
+      const who = w.nx;
+      for (const m of ms) { const c = node.kids.get(m); if (c) c.avail++; }
+      const untried = ms.filter((m) => !node.kids.has(m));
       if (untried.length) {
         const m = untried[r0.int(untried.length)], child = { visits: 0, avail: 1, wins: 0, kids: new Map(), move: m, who };
-        node.kids.set(key(m), child); w = simStep(T, w, m) || w; path.push(child); node = child; break;
+        node.kids.set(m, child); playL(T, w, m); path.push(child); node = child; break;
       }
       let best = null, bv = -1;
-      for (const m of ms) { const c = node.kids.get(key(m)); const v = c.wins / c.visits + C * Math.sqrt(logD(c.avail) / c.visits); if (v > bv) { bv = v; best = c; } }
-      w = simStep(T, w, best.move) || w; path.push(best); node = best;
+      for (const m of ms) { const c = node.kids.get(m); const v = c.wins / c.visits + C * Math.sqrt(logD(c.avail) / c.visits); if (v > bv) { bv = v; best = c; } }
+      playL(T, w, best.move); path.push(best); node = best;
     }
-    for (let d = 0; d < 64 && !T.R.done(w.r); d++) { const ms = simMoves(T, w); if (!ms.length) break; const nx = simStep(T, w, ms[r0.int(ms.length)]); if (!nx) break; w = nx; }
-    for (const p of path) { p.visits++; if (p.who >= 0) p.wins += rewardOf(T, w, p.who); }
+    for (let d = 0; d < 64; d++) { const ms = legalL(T, w); if (!ms.length) break; playL(T, w, ms[r0.int(ms.length)]); }
+    for (const p of path) { p.visits++; if (p.who >= 0) p.wins += rewardL(T, w, p.who); }
   }
   let best = legal[0], bv = -1;
-  for (const a of legal) { const c = root.kids.get(key(a)); const v = c ? c.visits : 0; if (v > bv) { bv = v; best = a; } }
+  for (const a of legal) { const c = root.kids.get(a.card); const v = c ? c.visits : 0; if (v > bv) { bv = v; best = a; } }
   return best;
 }
 
