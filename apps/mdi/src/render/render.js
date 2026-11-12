@@ -3,9 +3,12 @@
 // Unbekannte Primitive und Token fallen weg (gesaeubert), damit erzeugte Karten wie handgebaute aussehen.
 import { h } from "../ui/dom.js";
 import { FILLS, SHAPES } from "../contract/tokens.js";
+import { renderWidget, TX as WTX } from "./widgets.js";
+import "./widgets-more.js";
+import { paint, tokenColors } from "./canvas.js";
 
 const ROLES = ["title", "body", "label", "big", "small"];
-const MAX_TEXT = 300, MAX_NODES = 200;
+const MAX_TEXT = 300, MAX_NODES = 400;
 
 function fill(f, fallback = "text") { return FILLS.includes(f) ? f : fallback; }
 function txt(s) { return String(s === undefined || s === null ? "" : s).slice(0, MAX_TEXT); }
@@ -22,7 +25,8 @@ const SHAPE = {
 
 /**
  * @param {object} node Anzeigeliste der Karte
- * @param {{onInput:(input:object)=>void, disabled?:boolean, idp?:string}} host
+ * @param {{onInput:(input:object)=>void, onDraft?:(d:object)=>void, onAction?:(a:object)=>void, onPrepare?:(n:object)=>void,
+ *          draft?:object, lang?:string, age18?:boolean, minor?:boolean, disabled?:boolean, idp?:string, onUnknown?:(t:string)=>void}} host
  */
 export function render(node, host) {
   let count = 0, ids = 0;
@@ -58,14 +62,50 @@ export function render(node, host) {
       }
       case "choice": {
         const id = idp + "-q" + (++ids);
-        const opts = Array.isArray(n.options) ? n.options.slice(0, 12) : [];
+        const opts = Array.isArray(n.options) ? n.options.slice(0, 24) : [];
+        // option.input = Eingabe; option.draft = Entwurf (Z1); option.on = gewaehlt; option.disabled
+        const click = (o) => (o.draft !== undefined ? host.onDraft && host.onDraft(o.draft) : host.onInput(o.input));
         return h("div", { class: "choice", role: "group", "aria-labelledby": id, "data-part": part },
           h("p", { class: "choice-label", id }, txt(n.label)),
-          h("div", { class: "options" }, opts.map((o, i) => h("button", { type: "button", class: "opt", key: i, disabled: host.disabled || null, on: { click: () => host.onInput(o.input) } }, txt(o.label)))));
+          h("div", { class: "options" + (n.wrap ? " wrap" : "") }, opts.map((o, i) => h("button", { type: "button", class: "opt" + (o.on ? " on" : ""), key: i, "aria-pressed": o.on === undefined ? null : o.on ? "true" : "false", disabled: host.disabled || o.disabled || (o.draft !== undefined && !host.onDraft) ? true : null, on: { click: () => click(o) } }, txt(o.label)))));
       }
-      default:
-        return null;
+      case "image": {
+        // Bild als DOM-Knoten (KI-Bild, Foto): nur data:-URLs von Bildtypen oder Quellen, die der Host aufloest
+        // (host.images.url({kind, ref|slot})); Alt-Text Pflicht. CSP: img-src data: blob: 'self'.
+        const src = typeof n.src === "string" && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(n.src) ? n.src
+          : n.src && typeof n.src === "object" && host.images && typeof host.images.url === "function" ? host.images.url(n.src) : null;
+        const ratio = typeof n.ratio === "string" && /^\d{1,2}:\d{1,2}$/.test(n.ratio) ? n.ratio.replace(":", " / ") : null;
+        if (!src) { if (host.onUnknown) host.onUnknown("image:quelle"); return h("p", { class: "w-unknown", role: "note", "data-part": part }, txt(n.alt) || (WTX[host.lang] || WTX.de).unknown); }
+        return h("img", { class: "w-img" + (abs ? " abs" : ""), src, alt: txt(n.alt), "data-part": part, style: { ...(style || {}), ...(ratio ? { "aspect-ratio": ratio } : {}) } });
+      }
+      case "canvas": {
+        // statische Canvas-Liste (Poster, Dart-Scheibe, Tischbild): gezeichnet beim Einhaengen und bei jeder Aenderung
+        const ratio = typeof n.ratio === "string" && /^\d{1,2}:\d{1,2}$/.test(n.ratio) ? n.ratio.replace(":", " / ") : (Number(n.w) || 1) + " / " + (Number(n.h) || 1);
+        return h("canvas", { class: "w-canvas" + (abs ? " abs" : ""), role: "img", "aria-label": txt(n.a11y), "data-part": part, style: { "aspect-ratio": ratio }, ref: (el) => paintStatic(el, n, host) });
+      }
+      default: {
+        const w = renderWidget({ ...n, id: typeof n.id === "string" ? n.id : idp + "-" + (++ids) }, { ...host, idp, renderChild: (c) => el(c, false) });
+        if (w) return w;
+        if (host.onUnknown) host.onUnknown(String(n.t));
+        // kein stilles Weglassen (A4): sichtbarer Hinweis statt Luecke
+        return h("p", { class: "w-unknown", role: "note" }, (WTX[host.lang] || WTX.de).unknown + " (" + txt(n.t, 24) + ")");
+      }
     }
   }
   return el(node, false);
+}
+
+function paintStatic(el, node, host) {
+  if (!el || typeof el.getContext !== "function") return;
+  const doc = el.ownerDocument, win = doc && doc.defaultView;
+  if (!win) return;
+  const go = () => {
+    const r = el.getBoundingClientRect(); if (!r.width) return;
+    const dpr = Math.min(win.devicePixelRatio || 1, 2);
+    el.width = Math.round(r.width * dpr); el.height = Math.round(r.height * dpr);
+    const cs = win.getComputedStyle(doc.documentElement);
+    const info = paint(el.getContext("2d"), node, { cw: r.width, ch: r.height, dpr, colors: tokenColors((v) => cs.getPropertyValue(v)), reduced: win.matchMedia && win.matchMedia("(prefers-reduced-motion: reduce)").matches, t: 0, images: host.images || null, path2d: (d) => new win.Path2D(d), makeCanvas: (w, hh) => { const c = doc.createElement("canvas"); c.width = w; c.height = hh; return c; }, cache: null });
+    if (info.unknown.length && host.onUnknown) host.onUnknown("canvas:" + info.unknown.join(","));
+  };
+  if (el.isConnected) go(); else win.requestAnimationFrame(go);
 }

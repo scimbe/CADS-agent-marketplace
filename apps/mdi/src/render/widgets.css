@@ -1,0 +1,63 @@
+/* Widget- und Buehnen-Stile (ADR 0001 b/c, Strang F). Nur Token-Variablen aus ui/tokens.css; Groessen in rem. */
+.widget { display: grid; gap: var(--s3); padding: var(--s4); border: 2px solid var(--text); border-radius: var(--r2); background: var(--surface); color: var(--text); }
+.widget.big { gap: var(--s2); }
+.w-label { margin: 0; font-weight: 700; font-size: 1.15rem; }
+.w-top, .w-peek { margin: 0; font-size: 1.05rem; }
+.w-peek { color: var(--muted); }
+.w-line { margin: 0; font-size: 1.05rem; }
+.w-big { margin: 0; font: 400 clamp(1.8rem, 8vw, 3rem)/1.1 var(--font-head); text-align: center; overflow-wrap: anywhere; }
+.w-note, .w-count, .w-why { margin: 0; font-size: .95rem; }
+.w-why { color: var(--danger); font-weight: 700; }
+.w-unknown { margin: 0; padding: var(--s2); border: 2px dashed var(--danger); border-radius: var(--r1); }
+.options { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.chip, .opt { min-height: 4rem; min-width: 2.75rem; padding: .5rem .9rem; border: 2px solid var(--edge); border-radius: var(--r3); background: var(--surface); color: var(--text); font: inherit; font-weight: 700; cursor: pointer; }
+.chip[aria-pressed="true"], .opt[aria-pressed="true"], .opt.on, .chip.on { background: var(--primary); color: var(--on-primary); }
+.chip[aria-pressed="true"]::after, .opt[aria-pressed="true"]::after { content: " ✓"; }
+.btn.primary.w-go:disabled { border-style: dashed; opacity: .8; }
+.chip:disabled, .opt:disabled { opacity: .55; cursor: not-allowed; }
+.chip:focus-visible, .opt:focus-visible, .bcell:focus-visible, .w-aim:focus-visible, .rt-canvas:focus-visible, .w-door:focus-visible { outline: 4px solid var(--focus); outline-offset: 2px; }
+.btn.primary.w-go { min-height: 3.5rem; width: 100%; }
+.btn.big { min-height: 4.25rem; font-size: 1.3rem; }
+.w-slide { display: grid; grid-template-columns: auto 1fr auto auto; gap: var(--s2); align-items: center; }
+.w-slide input[type=range] { width: 100%; min-height: 2.75rem; }
+.w-list, .w-alloc, .w-items { display: grid; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
+.w-alloc li, .w-items li { display: grid; grid-template-columns: 1fr auto auto auto; gap: var(--s2); align-items: center; }
+.w-items li small { grid-column: 1 / -1; color: var(--muted); }
+.w-ranklist { display: grid; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
+.w-add { display: grid; grid-template-columns: 1fr auto; gap: var(--s2); }
+.w-field { display: grid; gap: var(--s1); font-weight: 700; }
+.field { min-height: 2.75rem; padding: .5rem .75rem; border: 2px solid var(--edge); border-radius: var(--r1); background: var(--surface); color: var(--text); font: inherit; width: 100%; box-sizing: border-box; }
+.bgrid { display: grid; gap: var(--s1); }
+.bcell { min-height: 2.75rem; border: 2px solid var(--edge); border-radius: var(--r1); background: var(--surface); color: var(--text); font: inherit; font-weight: 700; }
+.bcell.on, .bcell[aria-pressed="true"] { background: var(--primary); color: var(--on-primary); }
+.bcell.a-near { background: var(--line); } .bcell.a-hit { background: var(--primary); }
+.bcell.step.beat { border-width: 3px; }
+.w-steps { display: grid; gap: var(--s1); overflow-x: auto; }
+.w-steprow { display: grid; grid-template-columns: 4.5rem repeat(16, minmax(1.6rem, 1fr)); gap: 2px; align-items: center; }
+.w-vote { display: grid; grid-template-columns: 1fr repeat(3, auto); gap: var(--s2); align-items: center; }
+.w-heaps { display: grid; gap: var(--s2); } .w-heap { display: flex; flex-wrap: wrap; gap: var(--s1); }
+.touchpad, .w-pad { min-height: 14rem; width: 100%; border: 3px solid var(--edge); border-radius: var(--r2); background: var(--surface); font: 400 4rem/1 var(--font-head); touch-action: none; }
+.w-aim, .w-draw { position: relative; aspect-ratio: 1 / 1; width: 100%; border: 3px solid var(--edge); border-radius: var(--r2); background: var(--surface); touch-action: none; }
+.w-draw svg { width: 100%; height: 100%; }
+.w-cross { position: absolute; transform: translate(-50%, -50%); font-size: 2rem; pointer-events: none; }
+.swatch { width: 2.75rem; }
+.w-door { width: 100%; aspect-ratio: 16 / 9; border: 4px solid var(--edge); border-radius: var(--r2); background: var(--red); color: var(--paper); display: grid; place-items: center; font: inherit; cursor: pointer; }
+.w-door-nr { font: 400 clamp(3rem, 18vw, 6rem)/1 var(--font-head); }
+.w-door-hint { font-weight: 700; }
+.bwslip { padding: var(--s3); border: 2px dashed var(--edge); border-radius: var(--r1); font-weight: 700; }
+.pcards { display: flex; flex-wrap: wrap; gap: var(--s1); }
+.pcard { display: inline-grid; place-items: center; border: 2px solid var(--edge); border-radius: .5rem; background: #fff; color: #111; padding: 0; }
+.pcard svg { width: 100%; height: 100%; }
+.pcard.size-s { width: 2.75rem; height: 3.85rem; } .pcard.size-m { width: 3.6rem; height: 5rem; } .pcard.size-l { width: 4.6rem; height: 6.4rem; }
+.pcard[aria-pressed="true"], .pcard.st-sel { outline: 4px solid var(--focus); outline-offset: 2px; transform: translateY(-.4rem); }
+.pcard.st-no { opacity: .5; }
+.w-canvas { display: block; width: 100%; height: auto; border-radius: var(--r1); }
+.rt-stage { display: grid; gap: var(--s2); }
+.rt-stage { background: #0E0D0B; color: #FFF6DC; padding: var(--s2); border-radius: var(--r2); }
+.rt-canvas { display: block; width: 100%; max-height: calc(100dvh - 14rem); margin: 0 auto; border-radius: var(--r1); background: #0E0D0B; touch-action: none; }
+.rt-say { margin: 0; min-height: 1.5em; font-weight: 700; text-align: center; color: #FFF6DC; }
+.rt-controls { display: flex; flex-wrap: wrap; gap: var(--s2); justify-content: center; }
+.rt-btn { min-height: 3.75rem; min-width: 3.75rem; padding: .5rem 1.2rem; border: 3px solid var(--edge); border-radius: var(--r3); background: var(--surface); color: var(--text); font: inherit; font-weight: 700; }
+.rt-btn[aria-pressed="true"] { background: var(--primary); color: var(--on-primary); }
+@media (prefers-reduced-motion: reduce) { .pcard[aria-pressed="true"] { transform: none; } }
+.w-img { display: block; width: 100%; height: auto; object-fit: cover; border-radius: var(--r1); }
