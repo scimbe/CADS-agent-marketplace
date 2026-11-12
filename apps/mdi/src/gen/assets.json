@@ -1,4 +1,52 @@
 {
+  "advent-tuer": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-elfer": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-flipper": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-kick": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-murmel": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-panzer": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-puck": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-snow": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-stock": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-volley": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-ziegel": {
+    "assets": [],
+    "thumbs": []
+  },
+  "beat-pausenhof": {
+    "assets": [],
+    "thumbs": []
+  },
   "bluff": {
     "assets": [],
     "thumbs": [
@@ -99,6 +147,10 @@
       }
     ]
   },
+  "foto-alien": {
+    "assets": [],
+    "thumbs": []
+  },
   "frei": {
     "assets": [],
     "thumbs": []
@@ -116,6 +168,10 @@
         "bytes": 11308
       }
     ]
+  },
+  "kanal-geheim": {
+    "assets": [],
+    "thumbs": []
   },
   "karte-danke": {
     "assets": [],
@@ -143,7 +199,23 @@
     "assets": [],
     "thumbs": []
   },
+  "stimme-verzerren": {
+    "assets": [],
+    "thumbs": []
+  },
+  "strassenrap-beat": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zettel": {
+    "assets": [],
+    "thumbs": []
+  },
   "zug-abfragen": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-advent": {
     "assets": [],
     "thumbs": []
   },
@@ -172,6 +244,10 @@
     "thumbs": []
   },
   "zug-sammeln": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-stimme": {
     "assets": [],
     "thumbs": []
   },

@@ -1,0 +1,376 @@
+{
+  "id": "advent-tuer",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.2",
+  "kind": "card",
+  "mode": "static",
+  "order": 20,
+  "title": {
+    "de": "Dein Adventstürchen",
+    "en": "Your Advent door"
+  },
+  "teaser": {
+    "de": "Gestalte ein Türchen für jemanden und schick es.",
+    "en": "Design a door for someone and send it."
+  },
+  "howto": {
+    "de": "Das Türchen lässt sich jederzeit öffnen. Die Nummer sagt nur, für welchen Tag es gedacht ist.",
+    "en": "The door opens any time. The number only says which day it is meant for."
+  },
+  "players": {
+    "min": 1,
+    "max": 1
+  },
+  "hidden": "none",
+  "uses": [
+    "image"
+  ],
+  "limits": {
+    "stepBudget": 1,
+    "stateBytes": 4096
+  },
+  "on": [
+    "12-22",
+    "12-24"
+  ],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "x",
+      "st",
+      "pair",
+      "sk",
+      "nr"
+    ],
+    "properties": {
+      "x": {
+        "type": "string",
+        "maxLength": 90,
+        "pattern": "^[^\\u0000-\\u001f\\u007f<>]*$",
+        "default": "Hinter dieser Tür: ein Lächeln für dich.",
+        "x-field": "text",
+        "x-model": true,
+        "x-label": {
+          "de": "Text",
+          "en": "Text"
+        },
+        "x-suggest": {
+          "de": [
+            "Hinter dieser Tür: ein Lächeln für dich.",
+            "Heute kein Stress. Nur Kekse.",
+            "Du bist mein Lieblingstürchen.",
+            "Für dich: Kakao, Decke, gute Laune."
+          ],
+          "en": [
+            "Behind this door: a smile for you.",
+            "No stress today. Just cookies.",
+            "You are my favourite door.",
+            "For you: cocoa, blanket, good mood."
+          ]
+        }
+      },
+      "st": {
+        "type": "string",
+        "enum": [
+          "advent",
+          "druck",
+          "zettel",
+          "stempel",
+          "neon",
+          "herz"
+        ],
+        "default": "advent",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Stil",
+          "en": "Style"
+        },
+        "x-names": {
+          "de": {
+            "advent": "Advent",
+            "druck": "Druck",
+            "zettel": "Zettel",
+            "stempel": "Stempel",
+            "neon": "Neon",
+            "herz": "Herz"
+          },
+          "en": {
+            "advent": "Advent",
+            "druck": "Print",
+            "zettel": "Note",
+            "stempel": "Stamp",
+            "neon": "Neon",
+            "herz": "Heart"
+          }
+        }
+      },
+      "pair": {
+        "type": "string",
+        "enum": [
+          "advent",
+          "p0",
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6",
+          "p7"
+        ],
+        "default": "advent",
+        "x-field": "pair",
+        "x-label": {
+          "de": "Farbe",
+          "en": "Colour"
+        },
+        "x-pairs": {
+          "advent": [
+            "#0f5132",
+            "#ffd400"
+          ],
+          "p0": [
+            "#ffd400",
+            "#ff3b1d"
+          ],
+          "p1": [
+            "#2b4bff",
+            "#ffe600"
+          ],
+          "p2": [
+            "#ff4fa3",
+            "#0a7f55"
+          ],
+          "p3": [
+            "#14c872",
+            "#ff3da5"
+          ],
+          "p4": [
+            "#ff6a1f",
+            "#1b2bd8"
+          ],
+          "p5": [
+            "#c8ff00",
+            "#7a1fff"
+          ],
+          "p6": [
+            "#ffffff",
+            "#ff2d2d"
+          ],
+          "p7": [
+            "#7ee0ff",
+            "#ff5a1f"
+          ]
+        }
+      },
+      "sk": {
+        "type": "array",
+        "maxItems": 8,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "e",
+            "x",
+            "y",
+            "r",
+            "z"
+          ],
+          "properties": {
+            "e": {
+              "type": "string",
+              "enum": [
+                "🎄",
+                "⭐",
+                "🎁",
+                "❄️",
+                "⛄",
+                "🍪",
+                "🐸",
+                "🦝",
+                "🐙",
+                "🦖",
+                "🍕",
+                "👽",
+                "🤖",
+                "👻",
+                "🔥",
+                "🌈",
+                "🦄",
+                "🐝"
+              ]
+            },
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "r": {
+              "type": "number",
+              "minimum": -3.14,
+              "maximum": 3.14
+            },
+            "z": {
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 2.5
+            }
+          }
+        },
+        "default": [],
+        "x-field": "stickers",
+        "x-set": "advent",
+        "x-label": {
+          "de": "Sticker",
+          "en": "Stickers"
+        }
+      },
+      "w": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "default": null,
+        "x-field": "weather",
+        "x-label": {
+          "de": "Wetterbericht auf die Karte",
+          "en": "Weather report on the card"
+        }
+      },
+      "gi": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "default": null,
+        "x-field": "kibild",
+        "x-use": "card",
+        "x-label": {
+          "de": "KI-Bild",
+          "en": "AI image"
+        }
+      },
+      "photo": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "default": null,
+        "x-field": "media.local",
+        "x-label": {
+          "de": "Foto wählen",
+          "en": "Pick a photo"
+        },
+        "x-note": {
+          "de": "Dein Foto bleibt auf diesem Handy.",
+          "en": "Your photo stays on this phone."
+        }
+      },
+      "nr": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 24,
+        "default": 0,
+        "x-field": "number",
+        "x-hidden": true,
+        "x-label": {
+          "de": "Welche Nummer?",
+          "en": "Which number?"
+        }
+      },
+      "n": {
+        "type": "string",
+        "maxLength": 16,
+        "pattern": "^[^\\u0000-\\u001f\\u007f<>]*$",
+        "default": "",
+        "x-field": "text",
+        "x-hidden": true,
+        "x-label": {
+          "de": "Von",
+          "en": "From"
+        }
+      }
+    }
+  },
+  "parts": [
+    {
+      "id": "text",
+      "params": [
+        "x"
+      ],
+      "label": {
+        "de": "Text",
+        "en": "Text"
+      }
+    },
+    {
+      "id": "stil",
+      "params": [
+        "st"
+      ],
+      "label": {
+        "de": "Stil",
+        "en": "Style"
+      }
+    },
+    {
+      "id": "farbe",
+      "params": [
+        "pair"
+      ],
+      "label": {
+        "de": "Farbe",
+        "en": "Colour"
+      }
+    },
+    {
+      "id": "sticker",
+      "params": [
+        "sk"
+      ],
+      "label": {
+        "de": "Sticker",
+        "en": "Stickers"
+      }
+    },
+    {
+      "id": "foto",
+      "params": [
+        "photo"
+      ],
+      "label": {
+        "de": "Foto",
+        "en": "Photo"
+      }
+    },
+    {
+      "id": "bild",
+      "params": [
+        "gi"
+      ],
+      "label": {
+        "de": "Mit KI",
+        "en": "With AI"
+      }
+    },
+    {
+      "id": "wetter",
+      "params": [
+        "w"
+      ],
+      "label": {
+        "de": "Wetter",
+        "en": "Weather"
+      }
+    }
+  ],
+  "dur": 40,
+  "legacy": [
+    "plan-30"
+  ]
+}

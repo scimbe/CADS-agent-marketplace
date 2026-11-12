@@ -1,0 +1,165 @@
+{
+  "variants": {
+    "quiz-chaos": {
+      "lines": {
+        "de": [
+          "Heimliche Chefin vom Chaos: Du tust ordentlich. Aber du steuerst alles.",
+          "Wandelnde Überraschung: Niemand weiß, was als Nächstes passiert. Du auch nicht.",
+          "Profi- Verschwinder: Eben warst du noch da. Respekt."
+        ],
+        "en": [
+          "Secret boss of chaos: You look tidy. But you run everything.",
+          "Walking surprise: Nobody knows what's next. Neither do you.",
+          "Professional vanisher: You were just here. Respect."
+        ]
+      },
+      "to": "zug-lob",
+      "tags": [
+        "quiz",
+        "wissen",
+        "fakten",
+        "knowledge",
+        "trivia",
+        "facts"
+      ]
+    },
+    "quiz-snack": {
+      "lines": {
+        "de": [
+          "Scharfe Chips: Laut, knackig, keiner kann aufhören.",
+          "Warmer Keks: Alle fühlen sich besser, wenn du da bist.",
+          "Saure Gurke: Nicht für alle. Aber wer dich mag, liebt dich."
+        ],
+        "en": [
+          "Spicy chips: Loud, crunchy, nobody can stop.",
+          "Warm cookie: Everyone feels better when you're around.",
+          "Sour pickle: Not for everyone. But your people love you."
+        ]
+      },
+      "to": "zug-lob",
+      "tags": [
+        "wer bin ich",
+        "persönlichkeitstest",
+        "lustiges quiz",
+        "langeweile",
+        "breaking the ice",
+        "personality test",
+        "fun quiz",
+        "ice breaker",
+        "party game",
+        "boredom",
+        "snack lover",
+        "who am i"
+      ]
+    },
+    "quiz-superkraft": {
+      "lines": {
+        "de": [
+          "Immer grüne Ampel: Nur wenn du schon zu spät bist.",
+          "Socken finden: Immer genau eine.",
+          "Akku erraten: Auf ein Prozent genau. Bringt nichts."
+        ],
+        "en": [
+          "Always green lights: Only when you're already late.",
+          "Finding socks: Always exactly one.",
+          "Guessing battery: Accurate to one percent. Useless."
+        ]
+      },
+      "to": "zug-lob",
+      "tags": [
+        "lustiges quiz",
+        "wer bin ich",
+        "persönlichkeitstest",
+        "langeweile",
+        "breaking the ice",
+        "fun quiz",
+        "personality test",
+        "ice breaker",
+        "party game",
+        "boredom",
+        "who am i"
+      ]
+    },
+    "quiz-film": {
+      "lines": {
+        "de": [
+          "Coole Hauptrolle: Dreht sich nie zur Explosion um.",
+          "Schlaue Erfinderin: Rettet alle. Keiner sagt danke.",
+          "Lustiger Sidekick: Bester Teil vom Film."
+        ],
+        "en": [
+          "Cool lead: Never looks back at the explosion.",
+          "Clever inventor: Saves everyone. Nobody says thanks.",
+          "Funny sidekick: Best part of the movie."
+        ]
+      },
+      "to": "zug-lob",
+      "tags": [
+        "kino",
+        "filmabend",
+        "lieblingsfilm",
+        "charakter",
+        "filmquiz",
+        "familie",
+        "wer bin ich",
+        "cinema",
+        "movie night",
+        "favorite movie",
+        "actor",
+        "movie quiz",
+        "family",
+        "who am i"
+      ]
+    },
+    "quiz-wetter": {
+      "lines": {
+        "de": [
+          "Gewitter mit Blitz: Kurz, laut, alle reden danach drüber.",
+          "Warmer Spätsommer: Alle wollen bei dir sein.",
+          "Aprilwetter: Vier Jahreszeiten vor der Pause."
+        ],
+        "en": [
+          "Thunder and lightning: Short, loud, everyone talks about it.",
+          "Warm late summer: Everyone wants to be near you.",
+          "April weather: Four seasons before lunch."
+        ]
+      },
+      "to": "zug-lob",
+      "tags": [
+        "party",
+        "langeweile",
+        "wetterbericht",
+        "boredom",
+        "forecast"
+      ]
+    },
+    "plan-24": {
+      "lines": {
+        "de": [
+          "Frage 1: Was esse ich nie?",
+          "Frage 2: Wovor habe ich Angst?",
+          "Frage 3: Mein Lieblingslied?"
+        ],
+        "en": [
+          "Q1: What do I never eat?",
+          "Q2: What scares me?",
+          "Q3: My favourite song?"
+        ]
+      },
+      "to": "zug-kennst",
+      "tags": [
+        "video call",
+        "familie",
+        "kennenlernen",
+        "team",
+        "klassenfahrt",
+        "langeweile",
+        "family",
+        "get to know",
+        "class trip",
+        "boredom"
+      ]
+    }
+  },
+  "source": "ideas.json (Tag pre-legacy-removal)"
+}
