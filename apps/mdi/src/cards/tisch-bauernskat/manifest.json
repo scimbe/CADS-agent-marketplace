@@ -75,14 +75,24 @@
           "enum": [
             "null",
             "kontra"
-          ]
+          ],
+          "x-names": {
+            "null": {
+              "de": "Null erlaubt",
+              "en": "Null allowed"
+            },
+            "kontra": {
+              "de": "Kontra & Re",
+              "en": "Kontra & Re"
+            }
+          }
         },
         "default": [],
         "x-field": "list",
         "x-model": true,
         "x-label": {
-          "de": "Hausregeln: null = Null erlaubt · kontra = Kontra & Re",
-          "en": "House rules: null = Null allowed · kontra = Kontra & Re"
+          "de": "Hausregeln",
+          "en": "House rules"
         }
       }
     }
@@ -134,7 +144,7 @@
           "d": {
             "type": "array",
             "minItems": 1,
-            "maxItems": 24,
+            "maxItems": 12,
             "items": {
               "type": "string",
               "pattern": "^[0-9a-f]{64}$"
@@ -162,7 +172,7 @@
           "d": {
             "type": "array",
             "minItems": 1,
-            "maxItems": 24,
+            "maxItems": 12,
             "items": {
               "type": "string",
               "pattern": "^[0-9a-f]{64}$"
@@ -368,6 +378,24 @@
         "properties": {
           "t": {
             "const": "re"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat"
+        ],
+        "properties": {
+          "t": {
+            "const": "check"
           },
           "seat": {
             "type": "integer",

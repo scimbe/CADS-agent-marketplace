@@ -63,7 +63,7 @@ export function tableView(T, manifest, obs, seat, ctx) {
   const pt = T.protoTurn(pub), mine = pt && pt.seat === seat, moves = T.moves(obs, seat);
   kids.push({ t: "text", role: "label", text: X[game] + " · " + t("hand", { h: pub.hand + 1, n: pub.runden }) });
   if (pub.ph === "over" || pub.ph === "reveal" || pub.ph === "next") return endView();
-  if (pub.ph === "seed") { kids.push({ t: "text", role: "body", text: X.checked.replace("✓ ", "") + " …" }); return { t: "stack", children: kids }; }
+  if (pub.ph === "seed" || pub.ph === "check") { kids.push({ t: "text", role: "body", text: X.checked.replace("✓ ", "") + " …" }); return { t: "stack", children: kids }; }
   const info = infoLine();
   if (info) kids.push({ t: "text", role: "body", text: info });
   if ((r.rules || []).length) kids.push({ t: "text", role: "small", text: X.house + ": " + r.rules.map((k) => t("r_" + k)).join(" · ") });
