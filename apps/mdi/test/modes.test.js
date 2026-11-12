@@ -36,8 +36,13 @@ async function scenario(id, mode) {
   const sent = [];
   if (mode === "alone") { playTurns(a); await until(() => L(a) === "card.play.over"); return { a }; }
   if (mode === "bot") {
-    for (let i = 0; i < 50 && L(a) !== "card.play.over"; i++) { await until(() => ["card.play.turn", "card.play.over"].includes(L(a))); noForeignSecret(a); playTurns(a); }
-    await until(() => L(a) === "card.play.over"); noForeignSecret(a); return { a };
+    // Bots laufen ueber die Warteschlange der Laufzeit (schedule): hier synchron abgearbeitet (flush), ohne Wanduhr.
+    // So haengt der Test nicht an der Rechnerlast (Befund H: Zeitueberschreitung unter Last), und jeder Lauf ist gleich.
+    const S = testRuntime({ entropy: counter("a"), async: false });
+    S.dispatch({ type: "OPEN", id }); S.dispatch({ type: "MODE", mode }); S.dispatch("GO");
+    for (let i = 0; i < 2000 && L(S) !== "card.play.over"; i++) { S.flush(); noForeignSecret(S); if (L(S) === "card.play.turn") playTurns(S); else if (L(S) !== "card.play.over") await new Promise((r) => setTimeout(r, 0)); }
+    S.flush();
+    assert.equal(L(S), "card.play.over", "Bot-Partie endet"); noForeignSecret(S); return { a: S };
   }
   if (mode === "link") {
     // Hin und her per Link, bis beide das Ende sehen; der Treiber gibt nur Links weiter
