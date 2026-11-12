@@ -32,8 +32,13 @@ export function freiView(state, X, dispatch, L) {
 }
 
 /** Einstieg "Eigene Karte", immer sichtbar (Regal, Tagesblatt, Absichten). Offline: ehrlicher Hinweis. */
-export function freiEntry(state, X, dispatch) {
+export function freiEntry(state, X, dispatch, opts = {}) {
   const L = state.ctx.lang, off = state.ctx.konto && state.ctx.konto.err === "netz";
+  // schlanke Zeile fuer das Regal (Design D, Board "Regal": Leseschrift, Pfeil rechts); Gestalt der Klasse frei-row bei H
+  if (opts.compact) return h("div", { class: "frei-entry compact", key: "frei-entry" },
+    h("button", { type: "button", class: "frei-row", "data-act": "frei", on: { click: () => dispatch({ type: "FREI" }) } },
+      h("span", { class: "frei-row-t" }, ftCore(L, "create_row")), h("span", { class: "frei-row-arrow", "aria-hidden": "true" }, "→")),
+    off ? h("p", { class: "hint", role: "status" }, ftCore(L, "aiNet")) : null);
   return h("div", { class: "frei-entry", key: "frei-entry" },
     h("button", { type: "button", class: "btn primary frei-tile", "data-act": "frei", on: { click: () => dispatch({ type: "FREI" }) } },
       h("span", { class: "sc-title" }, ftCore(L, "create_tile")), " ", h("span", { class: "sc-teaser" }, ftCore(L, "create_sub"))),
