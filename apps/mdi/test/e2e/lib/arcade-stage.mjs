@@ -69,8 +69,9 @@ export async function stagePage() {
   if (built) return built;
   const r = await esbuild.build({ stdin: { contents: ENTRY, resolveDir: ROOT, loader: "js" }, bundle: true, format: "iife", globalName: "ARC", write: false, logLevel: "error", target: ["es2022", "safari16"] });
   const css = fs.readFileSync(path.join(ROOT, "src/ui/tokens.css"), "utf8").replace("__ANTON__", "data:font/woff2;base64," + fs.readFileSync(path.join(ROOT, "node_modules/@fontsource/anton/files/anton-latin-400-normal.woff2")).toString("base64"));
-  // Nur Pruefseite: Buehne fuellt die Breite, Hoehe begrenzt auf den Bildschirm, Knoepfe >= 60 px (ADR 0001 b).
-  const stageCss = ".rt-stage{display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px}.rt-canvas{display:block;width:min(100%,calc((100dvh - 150px) * 0.625));height:auto;touch-action:none;background:#000}.rt-controls{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}.rt-btn{min-height:60px;min-width:60px;padding:0 18px;font-size:18px}.rt-say{min-height:1.4em;margin:0}";
+  // Nur Pruefseite, Nachbildung der Buehne von Strang F mit flexibler Hoehe (an F geschickter Patch fuer widgets.css):
+  // die Leinwand nimmt die Resthoehe, egal wie viele Knopfreihen die Karte mitbringt; Knoepfe >= 60 px (ADR 0001 b).
+  const stageCss = ".rt-stage{display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px;box-sizing:border-box;height:100dvh;min-height:22rem}.rt-canvas{display:block;flex:1 1 0;min-height:0;width:auto;max-width:100%;height:auto;touch-action:none;background:#000}.rt-controls{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}.rt-btn{min-height:60px;min-width:60px;padding:0 18px;font-size:18px}.rt-say{min-height:1.4em;margin:0}";
   const html = "<!doctype html><html lang='de'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Arcade-Pruefseite</title><style>" + css + stageCss + "</style></head><body><main id='app'></main><script>" + r.outputFiles[0].text.replace(/<\/script/gi, "<\\/script") + "</script></body></html>";
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "arc-stage-")), file = path.join(dir, "stage.html");
   fs.writeFileSync(file, html);

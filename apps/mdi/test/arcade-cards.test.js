@@ -159,7 +159,7 @@ test("Kennzahlen fuer den Endbildschirm: drei Zahlen je Spiel, zweisprachig", ()
     let { c, st } = newGame(id, ["bot", "bot"]);
     for (let t = 0; t < 120 * 400 && !c.status(st).over; t++) st = c.step(st, [NONE, NONE]).state;
     const z = c.status(st).stats;
-    assert.equal(z.length, 3, id); for (const k of z) { assert.ok(k.label.de && k.label.en, id); assert.notEqual(k.value, undefined, id); }
+    assert.equal(z.length, 3, id); for (const k of z) { assert.ok(k.label.de && k.label.en && k.hint.de && k.hint.en, id + ": Name und Erklaerung"); assert.notEqual(k.value, undefined, id); }
     assert.match(String(z[2].value), /^\d+:\d\d$/, id + ": Spielzeit");
     assert.ok(z.slice(0, 2).some((k) => k.value > 0), id + ": " + JSON.stringify(z));
   }

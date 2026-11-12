@@ -29,14 +29,24 @@ function count(z, ev, me) {
 }
 const SL = {
   hits: { de: "Ballkontakte", en: "Touches" }, best: { de: "Längster Ballwechsel", en: "Longest rally" }, time: { de: "Spielzeit", en: "Time played" },
-  shots: { de: "Schüsse und Würfe", en: "Shots and throws" }, points: { de: "Punkte", en: "Points" }, saves: { de: "Gehalten", en: "Saves" }
+  shots: { de: "Schüsse und Würfe", en: "Shots and throws" }, points: { de: "Punkte", en: "Points" }, saves: { de: "Paraden", en: "Saves" }
+};
+/** Ein Satz zu jeder Kennzahl (Design Phase C, auch fuer 85-Jaehrige verstaendlich). */
+const SH = {
+  hits: { de: "So oft hast du den Ball berührt.", en: "How often you touched the ball." },
+  best: { de: "Die meisten Ballberührungen am Stück, bevor ein Punkt fiel.", en: "Most touches in a row before a point was scored." },
+  time: { de: "So lange hat die Partie gedauert.", en: "How long the game lasted." },
+  shots: { de: "So oft hast du geschossen oder geworfen.", en: "How often you shot or threw." },
+  points: { de: "So viele Punkte hast du geholt.", en: "How many points you scored." },
+  goals: { de: "So viele deiner Schüsse gingen ins Tor.", en: "How many of your shots went in." },
+  saves: { de: "Paraden: So oft hast du als Torwart den Ball gehalten.", en: "Saves: how often you stopped the ball as goalkeeper." }
 };
 /** Drei Kennzahlen je Spiel: Ballspiele Kontakte/Ballwechsel, Schuss- und Wurfspiele Schuesse/Punkte, Elfer Tore/Paraden. */
 function statsOf(g, z, t) {
-  const time = { id: "time", label: SL.time, value: Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0") };
-  if (g === "elfer") return [{ id: "points", label: { de: "Tore", en: "Goals" }, value: z.points }, { id: "saves", label: SL.saves, value: z.saves }, time];
-  if (g === "panzer" || g === "snow" || g === "stock" || g === "murmel") return [{ id: "shots", label: SL.shots, value: z.shots }, { id: "points", label: SL.points, value: z.points }, time];
-  return [{ id: "hits", label: SL.hits, value: z.hits }, { id: "best", label: SL.best, value: z.best }, time];
+  const time = { id: "time", label: SL.time, hint: SH.time, value: Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0") };
+  if (g === "elfer") return [{ id: "points", label: { de: "Tore", en: "Goals" }, hint: SH.goals, value: z.points }, { id: "saves", label: SL.saves, hint: SH.saves, value: z.saves }, time];
+  if (g === "panzer" || g === "snow" || g === "stock" || g === "murmel") return [{ id: "shots", label: SL.shots, hint: SH.shots, value: z.shots }, { id: "points", label: SL.points, hint: SH.points, value: z.points }, time];
+  return [{ id: "hits", label: SL.hits, hint: SH.hits, value: z.hits }, { id: "best", label: SL.best, hint: SH.best, value: z.best }, time];
 }
 const comfortOf = (params) => !!params && params.comfort === "an";
 function winOf(g, params) { return params && Number.isInteger(params.win) && params.win >= 1 && params.win <= 9 ? params.win : undefined; }
