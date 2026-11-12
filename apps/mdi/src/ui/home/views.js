@@ -261,7 +261,7 @@ function eigeneView(state, X, dispatch) {
 /** -> { heading, body, cls } */
 export function homeView(state, dispatch) {
   const ctx = state.ctx, X = homeTexts(ctx.lang, ctx.pref && ctx.pref.easy), at = ctx.home.at;
-  if (at === "family") return { heading: ctx.home.intent ? X.intents[ctx.home.intent].t : X.heard, body: familyView(state, X, dispatch), cls: "family" };
+  if (at === "family") return { heading: ctx.home.intent ? X.intentHead[ctx.home.intent] : X.heard, body: familyView(state, X, dispatch), cls: "family" };
   if (at === "regal") return { heading: X.all, body: regalView(state, X, dispatch), cls: "regal" };
   if (at === "meins") return { heading: X.meins, body: meinsView(state, X, dispatch), cls: "meins" };
   if (at === "eigene") return { heading: X.own.page, body: eigeneView(state, X, dispatch), cls: "eigene" };
