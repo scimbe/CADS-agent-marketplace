@@ -42,7 +42,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .icon-gap { width: var(--tap); }
 .badge { justify-self: end; font-size: .75rem; font-weight: 700; padding: 2px 8px; border-radius: var(--r3); background: var(--yellow); color: var(--ink); white-space: nowrap; }
 
-.main { display: grid; gap: var(--s5); max-width: 1040px; margin: 0 auto; padding: var(--s4) max(var(--s4), env(safe-area-inset-right)) calc(var(--s6) + env(safe-area-inset-bottom)) max(var(--s4), env(safe-area-inset-left)); outline: none; }
+.main { display: grid; gap: var(--s5); width: 100%; max-width: 1040px; margin: 0 auto; padding: var(--s4) max(var(--s4), env(safe-area-inset-right)) calc(var(--s6) + env(safe-area-inset-bottom)) max(var(--s4), env(safe-area-inset-left)); outline: none; }
 .col-a, .col-b { display: grid; gap: var(--s4); align-content: start; min-width: 0; }
 @media (min-width: 900px) {
   .main { grid-template-columns: minmax(0, 1fr) 360px; align-items: start; padding-top: var(--s6); }

@@ -131,6 +131,8 @@ test("Profil-Sync: lokale Wand nur mit Bild zum Server; Server-Profil wird zusam
   const th = "data:image/jpeg;base64,AAAA";
   s = go(s, { type: "WALL_SNAP", id: "gruss", ts: s.ctx.mine.wall[0].ts, th });
   assert.equal(profileLocal(s.ctx).wall.length, 1); assert.equal(profileLocal(s.ctx).wall[0].th, th);
+  assert.match(profileLocal(s.ctx).wall[0].f, /^v2\.card\./, "Link des Werks reist mit (wrapper #132)");
+  assert.ok(!("p" in profileLocal(s.ctx).wall[0]), "Einstellungen bleiben lokal");
   const remote = { me: {}, wall: [{ id: "karte-danke", ts: AT - 5000, k: "card", th }], saved: [{ id: "zug-bluff", ts: AT - 1 }] };
   s = go(s, { type: "PROFIL", op: "get", result: { ok: true, profile: remote, rev: 3 } });
   assert.equal(s.ctx.mine.wall.length, 2); assert.equal(s.ctx.mine.wall[0].id, "gruss", "neueste zuerst");

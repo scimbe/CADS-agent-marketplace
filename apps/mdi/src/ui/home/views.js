@@ -142,9 +142,22 @@ function familyView(state, X, dispatch) {
   }
   if (!intent) { out.push(intents(state, X, dispatch)); return out; }
   for (const f of familiesOf(intent)) {
-    const tiles = f.ids.map((id) => R.byId(id)).filter(Boolean).map((idea) => ideaTile({ idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, key: f.id + "-" + idea.id, noFam: true }));
-    for (const x of extras()) if (x.fam.id === f.id) tiles.unshift(extraTile(x, X, ctx.lang, dispatch, ctx.mine.saved, true));
+    const tiles = familyTiles(f, ctx, X, dispatch, f.id + "-");
     out.push(section(X.families[f.id], grid(tiles), { key: "f-" + f.id, id: "h-f-" + f.id, fam: f.id, count: tiles.length }));
+  }
+  return out;
+}
+
+// Kacheln einer Familie in Katalogreihenfolge; eine Variante mit eigener Karte (manifest.family = Traegerkarte, alt "to")
+// steht direkt hinter ihrer Traegerkarte, sonst am Anfang (neue Karten)
+function familyTiles(f, ctx, X, dispatch, kp) {
+  const ext = extras().filter((x) => x.fam.id === f.id), out = [];
+  const tileX = (x) => extraTile(x, X, ctx.lang, dispatch, ctx.mine.saved, true);
+  for (const x of ext) if (!f.ids.includes(x.manifest.family)) out.push(tileX(x));
+  for (const id of f.ids) {
+    const idea = R.byId(id); if (!idea) continue;
+    out.push(ideaTile({ idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, key: kp + idea.id, noFam: true }));
+    for (const x of ext) if (x.manifest.family === id) out.push(tileX(x));
   }
   return out;
 }
@@ -171,8 +184,7 @@ function regalView(state, X, dispatch) {
         [{ id: null, label: X.filterAll }].concat(FAMILIES.map((f) => ({ id: f.id, label: X.families[f.id] }))).map((c) =>
           h("button", { type: "button", key: String(c.id), class: "h-chip" + (c.id ? " fam-" + c.id : ""), "aria-pressed": hm.fam === c.id ? "true" : "false", "data-act": "fam-" + (c.id || "alle"), on: { click: () => dispatch({ type: "FAM", fam: c.id }) } }, c.label))));
       for (const f of FAMILIES.filter((x) => !hm.fam || x.id === hm.fam)) {
-        const tiles = f.ids.map((id) => R.byId(id)).filter(Boolean).map((idea) => ideaTile({ idea, X, lang: ctx.lang, dispatch, saved: ctx.mine.saved, key: "a-" + idea.id, noFam: true }));
-        for (const x of extras()) if (x.fam.id === f.id) tiles.unshift(extraTile(x, X, ctx.lang, dispatch, ctx.mine.saved, true));
+        const tiles = familyTiles(f, ctx, X, dispatch, "a-");
         panel.push(section(X.families[f.id], grid(tiles), { key: "rf-" + f.id, id: "h-rf-" + f.id, fam: f.id, count: tiles.length }));
       }
     }
