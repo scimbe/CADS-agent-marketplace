@@ -57,7 +57,7 @@ export function tableView(T, manifest, obs, seat, ctx) {
     // Vorschau und Thumbnail: der Spielname, ein Faecher aus fuenf Karten, darunter kurz die eingestellten Regeln
     const fan = game === "skat" ? ["CJ", "SJ", "HJ", "HA", "HT"] : game === "bauernskat" ? ["DJ", "SA", "HT", "CJ", "CA"] : ["HT", "CQ", "SQ", "DA", "DT"];
     kids.push({ t: "text", role: "title", text: X[game] });
-    kids.push({ t: "row", wrap: true, children: fan.map((c) => pc(c, { size: "xl" })) });
+    kids.push({ t: "row", wrap: false, children: fan.map((c) => pc(c, { size: "xl" })) });
     const rules = (pub.rules || []).length ? pub.rules.map((k) => t("r_" + k)).join(" · ") : X.houseNone;
     kids.push({ t: "text", role: "body", text: t("games", { n: pub.runden }) + " · " + rules, part: "regeln" });
     return { t: "stack", children: kids };
