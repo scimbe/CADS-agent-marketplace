@@ -207,6 +207,12 @@ export function view(state, dispatch, env = {}) {
     }
     if (ctx.mode === "bot") panel.push(radios("level", X.level, LEVELS.map((l, i) => ({ value: l.id, label: X.levels[i] })), ctx.level, (level) => dispatch({ type: "LEVEL", level })));
     if (ctx.mode === "live") panel.push(h("p", { class: "hint", key: "ip" }, X.ipHint));
+    // Gemuetlich spielen (Gate C): Echtzeitkarte mit rt.slow und Parameter tempo; ein grosser Schalter statt Zahlen
+    const slow = card.manifest.rt && Array.isArray(card.manifest.rt.slow) ? card.manifest.rt.slow : null;
+    if (slow && card.manifest.params.properties && card.manifest.params.properties.tempo) {
+      const on = G.paramsOf(ctx).tempo !== undefined && G.paramsOf(ctx).tempo < 1;
+      panel.push(h("button", { type: "button", class: "btn big rt-slow", key: "slow", role: "switch", "aria-checked": on ? "true" : "false", "data-act": "slow", on: { click: () => dispatch({ type: "SLOW", on: !on }) } }, (on ? "✓ " : "") + X.slowPlay));
+    }
     if (ctx.note) panel.push(h("p", { class: "note", role: "status", key: "note" }, String(ctx.note).startsWith("frei-") ? freiNote(ctx) : X.note[ctx.note]));
   } else if (L.startsWith("card.customize")) {
     body = [stage(preview, { class: "stage editing" }, tree), h("p", { class: "hint center" }, X.bubblesHint)];

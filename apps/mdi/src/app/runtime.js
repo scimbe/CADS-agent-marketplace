@@ -279,6 +279,7 @@ export function createRuntime(deps) {
     key: (code, down) => (rtSess ? rtSess.key(code, down) : false),
     pointer: (type, id, x, y) => { if (rtSess) rtSess.pointer(type, id, x, y); },
     button: (id, down) => { if (rtSess) rtSess.button(id, down); },
+    tap: (down) => { if (rtSess) rtSess.tap(down); },
     blur: () => { if (rtSess) rtSess.blur(); },
     hidden: () => { if (rtSess && rtSess.phase === "run" && !rtSess.paused) dispatch({ type: "PAUSE" }); },
     status: () => (rtSess ? rtSess.status() : null)
