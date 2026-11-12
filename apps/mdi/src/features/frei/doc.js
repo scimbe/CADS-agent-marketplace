@@ -80,6 +80,7 @@ export function gateView(doc) {
   else if (d.k === "photo") Object.assign(v, { x: s(d.x), y: s(d.y), st: s(d.st), sk });
   else if (d.k === "game") { const g = d.g && typeof d.g === "object" ? d.g : {}; v.g = { title: s(g.title), emoji: s(g.emoji), theme: s(g.theme), route: (Array.isArray(g.route) ? g.route : []).map((r) => [s(r && r.p), s(r && r.t), s(r && r.e)]) }; }
   else if (d.k === "lauf") { const l = d.l && typeof d.l === "object" ? d.l : {}; v.l = [s(l.m), s(l.w), s(l.e), s(l.o), s(l.c), s(l.f)]; }
+  else if (d.k === "bau") v.b = d.b && typeof d.b === "object" ? d.b : null;   // Genre G3 Baukasten: die ganze Spielbeschreibung ist sichtbar (Strang B)
   else {
     // Zug-/Duellkarte (faehigkeit, quiz): nur, was die Zielkarte zeigt – Karte, Titel, Wort, Fragen. Farben und Untertitel
     // zeigt keine zug-*-Karte (Z1/Z2/S), sie reisen im Link nicht und gehoeren deshalb nicht in den Gate-Hash.

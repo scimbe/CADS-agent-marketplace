@@ -383,3 +383,31 @@ test("Baukasten: Review-Befunde – feindliche Beschreibungen und Eingaben bleib
 test("Karten: Manifeste nutzen x-field \"spiel\" und stehen nicht als Kachel im Regal (shelf false)", () => {
   for (const c of [card, zug]) { assert.equal(c.manifest.params.properties.desc["x-field"], "spiel"); assert.equal(c.manifest.shelf, false); assert.ok(!("x-hidden" in c.manifest.params.properties.desc)); }
 });
+
+test("Karten: Siegel der freien Karte (ki/fr) reist ueber Server-Doc -> fromFree -> Link -> toFree; Gate-Hash = Server-Vektor; Abzeichen", async () => {
+  const crypto = await import("node:crypto"), subtle = crypto.webcrypto.subtle;
+  const A = await import("../src/broker/ai.js"), { gateView, gateChecksOf } = await import("../src/features/frei/doc.js");
+  const { validParams } = await import("../src/cards/index.js"), { paramsForLink } = await import("../src/contract/fields.js");
+  const G = JSON.parse(fs.readFileSync(new URL("./fixtures/baukasten-gate.json", import.meta.url), "utf8"));
+  for (const [ex, c, id] of [["flappy", card, "baukasten"], ["memory", zug, "baukasten-zug"]]) {
+    const doc = G.docs[ex], want = G.gateHash[ex];
+    assert.equal(await A.optionHash(gateView(doc), subtle), want, ex + ": App-Projektion = Server");
+    const params = c.fromFree(doc);
+    assert.ok(validParams(id, params), ex + ": Parameter gueltig");
+    const linked = paramsForLink(c.manifest.params, params);
+    assert.deepEqual(linked.ki, doc.ki, "ki reist im Link"); assert.equal(linked.fr, doc.fr, "fr reist im Link");
+    const back = c.toFree(linked);
+    assert.equal(await A.optionHash(gateView(back), subtle), want, ex + ": Gate-Hash nach dem Weg ueber die Karte = Server-Vektor");
+    assert.ok(gateChecksOf(back).length === 2, "Empfaenger fragt das Gate (eigenes Siegel und Remix-Wurzel)");
+    const forged = { ...linked, desc: { ...linked.desc, title: "Gefaelscht" } };
+    assert.notEqual(await A.optionHash(gateView(c.toFree(forged)), subtle), want, "anderer Inhalt -> anderer Hash");
+  }
+  // Abzeichen nur mit gueltigem Siegel, in beiden Ansichten
+  const fp = card.fromFree(G.docs.flappy), st = card.init({ params: fp, seed: "b", players: ["human", "none"] });
+  const txt = (v) => JSON.stringify(v);
+  assert.match(txt(card.view(st, { lang: "de" })), /Mit KI erstellt/);
+  assert.doesNotMatch(txt(card.view(card.init({ params: { ...fp, ki: null }, seed: "b", players: ["human", "none"] }), { lang: "de" })), /Mit KI erstellt/);
+  const zp = zug.fromFree(G.docs.memory), zs = zug.init({ rng: (await import("../src/contract/sdk.js")).rng("x"), params: zp, players: 2 });
+  assert.match(txt(zug.view(zug.observe(zs, 0), 0, { lang: "en" })), /Made with AI/);
+  assert.equal(card.fromFree({ ...G.docs.flappy, ki: { k: "karte", s: "kurz", h: "x" } }).ki, null, "kaputtes Siegel faellt weg");
+});
