@@ -5,15 +5,15 @@
 // Aufnahme-Modus, WAV). Quellen (src) wie in den Anzeigelisten der Karten:
 //   {kind:"beat", p:{k,s,h,b}, bpm, loops}          Drumcomputer (studio.js renderBeat, mono 22050 Hz)
 //   {kind:"local", slot, fx?, tp?, fallback?:"dummy"} eigene Aufnahme mit Effekt/Tempo (klang.js apply)
-//   {kind:"rapbeat", v:[5], loop:"hook"|"verse"|"song", rec:boolean}  Strassenrap-Beat (rapbeat.js render, stereo 44,1 kHz)
+//   {kind:"rapbeat", v:[5], loop:"hook"|"verse"|"song", rec:boolean}  Strassenrap-Beat (rapbeat.js render, stereo 44,1 kHz);
+//   die Synthese ist der Feature-Teil "klang-rap" (F #277) und wird erst beim ersten Abspielen geladen (deps.part).
 import * as Studio from "./studio.js";
 import * as Klang from "./klang.js";
-import * as Rap from "./rapbeat.js";
-import { SONG } from "./rapbeat-rule.js";
 
 /**
  * @param {{audioContext:()=>AudioContext|null, getUserMedia?:(c:object)=>Promise<MediaStream>, setTimeout?:Function,
- *          clearTimeout?:Function, now?:()=>number, raf?:(f:Function)=>number}} deps
+ *          clearTimeout?:Function, now?:()=>number, raf?:(f:Function)=>number, part?:(name:string)=>Promise<object>}} deps
+ *        part: Feature-Teil nachladen (env.part); ohne part oder bei Ladefehler gibt es fuer rapbeat ehrlich keinen Ton
  */
 export function createHostAudio(deps) {
   const ac = () => deps.audioContext(), later = deps.setTimeout || setTimeout, cancel = deps.clearTimeout || clearTimeout;
@@ -34,10 +34,23 @@ export function createHostAudio(deps) {
     return s;
   }
   function wipe(slot) { const x = slots.get(slot); if (x) x.fill(0); slots.delete(slot); }
-  function rapOpt(src) {
-    if (src.rec) return { from: 0, bars: SONG.length, countIn: true };
+  let rap = null;
+  /** Teil "klang-rap" einmal laden; Fehler (code teil-fehlt | teil-manipuliert | zeit) gehen an den Aufrufer, kein Ersatzklang. */
+  async function loadRap() {
+    if (rap) return rap;
+    if (!deps.part) { const e = new Error("audio: Teil klang-rap nicht verfuegbar"); e.code = "teil-fehlt"; throw e; }
+    rap = await deps.part("klang-rap");
+    return rap;
+  }
+  function rapOpt(Rap, src) {
+    if (src.rec) return { from: 0, bars: Rap.SONG.length, countIn: true };
     const o = Rap.loop(src.loop || "hook"); if (src.loop !== "song") o.wrap = true;
     return o;
+  }
+  async function renderRap(src) {
+    const Rap = await loadRap(), o = rapOpt(Rap, src), key = JSON.stringify([src.v, o]);
+    if (cache.key !== key) { const r = Rap.render(src.v, o); cache.key = key; cache.res = { chans: [r.L, r.R], sr: r.sr, loop: !src.rec }; }
+    return cache.res;
   }
   /** Quelle -> { chans, sr, loop } (Rap-Ergebnis zwischengespeichert, wie #227) */
   function render(src) {
@@ -47,11 +60,6 @@ export function createHostAudio(deps) {
       const raw = slots.get(src.slot) || (src.fallback === "dummy" ? Studio.dummyVoice() : null);
       if (!raw) return null;
       return { chans: [Klang.apply(raw, { fx: src.fx, tp: src.tp || undefined })], sr: Klang.SR, loop: false };
-    }
-    if (src.kind === "rapbeat") {
-      const o = rapOpt(src), key = JSON.stringify([src.v, o]);
-      if (cache.key !== key) { const r = Rap.render(src.v, o); cache.key = key; cache.res = { chans: [r.L, r.R], sr: r.sr, loop: !src.rec }; }
-      return cache.res;
     }
     throw new Error("audio: Quelle " + src.kind);
   }
@@ -86,13 +94,17 @@ export function createHostAudio(deps) {
     slots: { has: (k) => slots.has(k), wipe },
     stop,
     playing: () => !!cur,
-    /** Abspielen einer Quelle; done nach dem Ende (nicht bei Schleifen). false ohne Ton. */
-    play(src, done) { const r = render(src); return r ? !!playPcm(r.chans, r.sr, r.loop, done) : false; },
+    /** Abspielen einer Quelle; done nach dem Ende (nicht bei Schleifen). false ohne Ton. Strassenrap: Promise<bool>, weil der
+     *  Teil "klang-rap" erst geladen wird; ein Ladefehler lehnt das Promise mit seinem code ab. */
+    play(src, done) {
+      if (src && src.kind === "rapbeat") return renderRap(src).then((r) => !!playPcm(r.chans, r.sr, r.loop, done));
+      const r = render(src); return r ? !!playPcm(r.chans, r.sr, r.loop, done) : false;
+    },
     /** 40 Spitzen fuer die Welle im Bild (alt beatPeaks; compile.js op wave) */
     peaks(src) { const r = render(src); return r ? Studio.peaks(r.chans[0], 40) : null; },
-    /** WAV-Bytes einer Quelle (#227: ganzer Song; Stimme: 22050 Hz mono) */
+    /** WAV-Bytes einer Quelle (#227: ganzer Song als Promise; Stimme: 22050 Hz mono, sofort) */
     wav(src) {
-      if (src.kind === "rapbeat") { const r = Rap.render(src.v, { from: 0, bars: SONG.length, countIn: !!src.rec }); return Rap.wav(r.L, r.R, r.sr); }
+      if (src.kind === "rapbeat") return loadRap().then((Rap) => { const r = Rap.render(src.v, { from: 0, bars: Rap.SONG.length, countIn: !!src.rec }); return Rap.wav(r.L, r.R, r.sr); });
       const r = render(src); return r ? Studio.wav(r.chans[0], r.sr) : null;
     },
     /** Aufnahme in einen Slot (alt rec): erst nach Tippen aufrufen. */

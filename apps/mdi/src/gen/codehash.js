@@ -1,7 +1,7 @@
 // ERZEUGT von scripts/gen.js – nicht von Hand aendern.
 /* eslint-disable */
 export const CODE_HASH = {
-  "advent-tuer": "b9b6d5096e804490bd7dccc149d75df7",
+  "advent-tuer": "b450b3aeb3b8369a4b7f308a62729d71",
   "arcade-elfer": "6ddffd25f2fa8b3dee53838e5f4da5f1",
   "arcade-flipper": "8752df6e6d5d1bc68acb1254286a21c0",
   "arcade-kick": "76936fc05ed7d01a588b2e7fcbbe7069",

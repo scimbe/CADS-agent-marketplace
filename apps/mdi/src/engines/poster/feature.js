@@ -8,10 +8,11 @@ export const posterFeature = {
   id: "poster",
   env: {
     high: HIGH,
-    audio: (win) => { let ctx = null; return createHostAudio({
+    audio: (win, svc) => { let ctx = null; return createHostAudio({
       audioContext: () => { const AC = win.AudioContext || win.webkitAudioContext; return AC ? ctx || (ctx = new AC()) : null; }, // ein Kontext je Fenster, erst nach Bedarf
       getUserMedia: win.navigator && win.navigator.mediaDevices && win.navigator.mediaDevices.getUserMedia ? (c) => win.navigator.mediaDevices.getUserMedia(c) : null,
-      setTimeout: (f, ms) => win.setTimeout(f, ms), clearTimeout: (t) => win.clearTimeout(t), now: () => win.Date.now(), raf: (f) => win.requestAnimationFrame(f)
+      setTimeout: (f, ms) => win.setTimeout(f, ms), clearTimeout: (t) => win.clearTimeout(t), now: () => win.Date.now(), raf: (f) => win.requestAnimationFrame(f),
+      part: svc && svc.part ? svc.part : null // Feature-Teil "klang-rap" (F #277)
     }); }
   }
 };
