@@ -220,7 +220,8 @@ export function view(state, dispatch, env = {}) {
         const me = ctx.mode === "alone" ? -2 : seat;
         const wn = st.winner >= 0 ? seatName(card, ctx.lang, st.winner) : "";
         const res = st.winner === -1 ? X.overDraw : me === -2 ? fmt(X.overWinner, { s: wn }) : st.winner === me ? X.overWin : fmt(X.overLose, { s: wn });
-        lines.push(h("p", { class: "result", role: "status", key: "res" }, res));
+        // Karten ohne Wertung (score leer, z. B. Partydeck, Raumkarten) zeigen ihr Ergebnis selbst: keine Sieger-/Unentschieden-Zeile
+        if (!(Array.isArray(st.score) && st.score.length === 0)) lines.push(h("p", { class: "result", role: "status", key: "res" }, res));
         if (ctx.mode === "link" && ctx.link && !ctx.sent) lines.push(h("p", { class: "hint", key: "sr" }, X.sendResultText));
       }
       // beim Senden ist der andere dran: kein Spielfeld, nur die Bitte zu senden (Kritikrunde 1)
