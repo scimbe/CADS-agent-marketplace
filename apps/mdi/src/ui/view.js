@@ -49,7 +49,10 @@ export function actionsOf(state) {
       if (ctx.link && !ctx.sent && send(X.ghostSend)) return { primary: a("again", X.again2, "AGAIN"), secondary: [send(X.ghostSend)] };
       return { primary: a("again", X.again2, "AGAIN"), secondary: [] };
     case "card.rt.error": return { primary: a("back", X.back, "BACK"), secondary: [] };
-    case "receive.show": return { primary: a("accept", ctx.incoming && ctx.incoming.kind === "card" ? X.acceptCard : ctx.incoming && ctx.incoming.kind === "ghost" ? X.ghostFor : X.acceptGame, "ACCEPT"), secondary: [a("decline", X.decline, "BACK")] };
+    // Karten duerfen ihre Empfangs-Knoepfe benennen (manifest.receive {accept, decline}, z. B. Adventstuer "Eigenes Tuerchen machen" / "Weiter", alt door.js)
+    case "receive.show": { const rc = ctx.incoming && ctx.incoming.kind === "card" && cardOf(ctx.incoming.cardId) && cardOf(ctx.incoming.cardId).manifest.receive;
+      if (rc && rc.accept && rc.decline) return { primary: a("accept", rc.accept[ctx.lang] || rc.accept.de, "ACCEPT"), secondary: [a("decline", rc.decline[ctx.lang] || rc.decline.de, "BACK")] };
+      return { primary: a("accept", ctx.incoming && ctx.incoming.kind === "card" ? X.acceptCard : ctx.incoming && ctx.incoming.kind === "ghost" ? X.ghostFor : X.acceptGame, "ACCEPT"), secondary: [a("decline", X.decline, "BACK")] }; }
     case "receive.live": return { primary: a("accept", X.acceptGame, "ACCEPT"), secondary: [a("decline", X.decline, "BACK")] };
     case "receive.reject": return { primary: a("to-shelf", X.toShelf, "DONE"), secondary: [] };
     default: return { primary: null, secondary: [] }; // hand, turn (das Spiel selbst ist die Handlung), wait
@@ -246,7 +249,7 @@ export function view(state, dispatch, env = {}) {
   } else if (L === "receive.show") {
     const inc = ctx.incoming, c = cardOf(inc.cardId);
     if (inc.kind === "ghost") body = [h("div", { class: "notice" }, h("p", { class: "lede plain" }, X.ghostText), h("h2", { class: "t-title" }, title(c, ctx.lang)), h("p", null, fmt(X.ghostScore, { s: inc.score.join(" : ") })), h("p", { class: "hint" }, X.free))];
-    else if (inc.kind === "card") body = [h("p", { class: "lede plain" }, X.acceptTitle), stage(render(G.previewNode(c, inc.params, ctx.lang, G.viewCtx(ctx, { receive: true })), { onInput: () => {}, disabled: true, idp: "rx", lang: ctx.lang, high: env.high, images: env.images, cardSvg: env.cardSvg })), h("p", { class: "hint" }, X.free)];
+    else if (inc.kind === "card") body = [h("p", { class: "lede plain" }, X.acceptTitle), stage(render(G.previewNode(c, inc.params, ctx.lang, G.viewCtx(ctx, { receive: true })), { onInput: () => {}, onDraft: (draft) => dispatch({ type: "DRAFT", draft }), draft: ctx.draft, disabled: true, idp: "rx", lang: ctx.lang, high: env.high, images: env.images, cardSvg: env.cardSvg })), h("p", { class: "hint" }, X.free)];
     else {
       const st = S.status(c, inc.session), seat = inc.session.mine[0];
       body = [h("div", { class: "notice" },
