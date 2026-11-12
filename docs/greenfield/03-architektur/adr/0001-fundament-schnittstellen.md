@@ -398,3 +398,54 @@ Spielkarten-Bild (`pcard`) zeichnet `src/render/pcard.js` über die reine Funkti
 - KI-Thumbnails (`src:"ki"`): brauchen GPU-Lauf und Sichtprüfung je Karte, nicht in diesem Strang.
 - `textblock`-Umbruch exakt wie `alt:render.js`: Strang P liefert die reine Layoutfunktion, F bindet sie ein; bis dahin
   Gierig-Umbruch mit Messfunktion.
+
+---
+
+## Nachtrag 1 (2026-11-12, Stand Code `feat/mdi-w1-f` @ be97d97)
+
+Abstimmungen mit den Strängen während der Umsetzung. Diese Punkte gelten zusätzlich bzw. ersetzen die Stellen oben.
+
+**Zugvertrag (f)**
+- Eingabewert `a` ist der Rohwert (JSON, nur Ganzzahlen), kein b64url. Das Texteingabe-Widget heißt `input` (`text` bleibt die Anzeigezeile).
+- `status.endless: true` (endlose Karten, z. B. Malrat): Treiber prüfen sechs Züge statt `over`.
+- `card.opening(seat, today)`: nur für Treiber, wenn `moves()` vor dem ersten Zug einer `inputDay`-Karte leer ist.
+- `card.prepare(draft, {seed, seat, obs, today}) -> input`: Knoten `go` mit `prepare: true` (oder `draft`); Ereignis `PREPARE`. Der Entwurf verlässt das Gerät nie.
+- `card.stamp(params, {today, nick}) -> params`: vor dem Kartenlink und in der Vorschau (Adventstür: Nummer aus dem Datum).
+- `ctx.receive: true` beim Empfang; `ctx.memo` (Merkzettel je Partie, ≤ 512 B, nur auf dem Gerät): Knoten-Option `memo` an `choice`-Optionen und `go`, Ereignis `MEMO`.
+- Entwurfsschlüssel: Widgets schreiben `draft["w:<id>"]`, `field` schreibt `draft[<key>]`; geschrieben wird als Patch (`DRAFT {patch}`), nicht als ganzer Entwurf. `DRAFT` gilt in allen Kartenzuständen (auch Ende, Empfang).
+- Empfang füllt Felder, die nicht im Link reisen (`media.local`, `secret`), mit ihren Standardwerten.
+- `OPEN {id, variant}` übernimmt die Parameter der Variante; Varianten dürfen `modes` und `legacy` tragen, Karten `legacy`.
+- Modi: `live` für 2–6 Sitze. Ab 3 Sitzen **Gruppen-Live** im Stern um den Gastgeber (ein Einladungslink je Gastsitz,
+  `hello{g}` / `join` / `start{s, j, k}`, `seed = SHA-256(seedA | n(q1) | n(q2) …)`, Gastgeber leitet Gast-Züge in fester
+  Reihenfolge weiter). Fällt ein Gast weg, endet die Partie ehrlich („Partner weg“). „ghost“ ist kein wählbarer Modus.
+- Bot-Modus mit n > 2: n − 1 Bots auf dem Gerät (Effekt `bot.local`, Ereignis `BOT_IN`); Bots stempeln den Tag (`inputDay`).
+- Widget-Aktionen: Ereignis `ACT {act}` mit `open` (weiter zu Karte), `ai` (→ `KI_ASK`, Strang K), `age18` (→ `AGE18`), `copy`, `file`.
+- `viewCtx.age18` kommt nur vom Server (Konto-Profil über das Konto oder Status `karte.age18`).
+
+**Echtzeit (b)**
+- `init({params, seed, players, level, rng})`: `players` ist das Rollen-Array je Sitz (`human`, `bot`, `ghost`, `remote`, `none`).
+- Geist-Wire trägt `rl` (Rollen der Aufnahme, aufgenommener Sitz `ghost`) und `lv`; Prüfung spielt genau damit nach.
+  Karten mit ≤ 3 Knöpfen ohne Achsen/Zeiger nehmen im Spur-Format des Altcodes auf (bytegleich zu `spur.js`).
+- `status.say` darf Text oder `{de, en}` sein; `status.solo` (oder kein ganzzahliger Gewinner) zeigt den Stand statt einer Gewinnerzeile.
+- Vorschau und Thumbnail: `G.previewNode` – Echtzeit Bot gegen Bot (ohne `bot()`: `none`), Seed `preview`, `rt.preview.ticks` (Standard 90).
+- Achsen erscheinen als zwei echte Knöpfe unter dem Spielfeld (Design Phase C); Bühne dunkel.
+- `sprite` und `image` nehmen `x, y` als Mitte bzw. linke obere Ecke wie oben beschrieben; `particles` Größe = Durchmesser.
+- Karten-Links (Typ `card`) gelten auch für Echtzeitkarten (gebautes Level, Varianten, freie Karte).
+
+**Renderer (c)**
+- `frame.ratio` (16:9, 4:5, 3:4, 9:16, 1:1, 4:3) setzt das Seitenverhältnis; `canvas` passt `w×h` per contain ein, zeichnet nur bei Änderung, höchstens 4096 px je Seite und 8 MPixel.
+- `canvas.ops2d`: Canvas-2D-Teilmenge als Daten (Whitelist, `#rgb` erlaubt), hohe Ops über `env.high` (Strang P, `paint.js` HIGH).
+- `image` als DOM-Knoten: nur `data:image/(png|jpeg|webp)` oder `host.images.url(src)`; CSP `img-src data: blob:`.
+- `blocks` bekommt die Vorschau als Daten `n.board`, `nim` den Bot-Zug als `n.botMove`, `tuer` die Regeln als `n.rules[k].beings[i]`.
+- Ziele ≥ 24 px (WCAG 2.2 AA 2.5.8), Antwort-Chips 4 rem, gesperrter Hauptknopf gestrichelt mit Zeile „Noch offen: …“.
+
+**Erweiterungspunkte (g)**
+- Feature-Felder zusätzlich: `on: {"<pfad>": {EVENT: …}}` (vor vorhandenen Übergängen geprüft), `entry: {"<pfad>": [aktion…]}`,
+  `profileLocal(ctx)` (Wand/Gemerkt für `profile/put`), `env: { audio, high, cardSvg, images }` (Gerätedienste für
+  Renderer/Widgets; `images.subscribe(fn)` zeichnet neu).
+
+**Thumbnails (d)**: `scripts/thumbs.js` (`npm run thumbs`, `--check`, `--variants`, `--only`) rendert die Vorschau mit dem
+echten Renderer in Chromium (960×540, de, reduzierte Bewegung, feste Uhr) und kodiert WebP q 0,7 im Browser.
+
+**Offen**: Karten als nachladbare Teile (Kern-Budget 700 KiB wird mit allen Karten überschritten, Messung Z2: 737 KB);
+Platz neu besetzen im Gruppen-Live; Auto-Zug nach 20 s im Live (Strang T); KI-Thumbnails.
