@@ -48,13 +48,16 @@
 .pcards { display: flex; flex-wrap: wrap; gap: var(--s1); }
 .pcard { display: inline-grid; place-items: center; border: 2px solid var(--edge); border-radius: .5rem; background: #fff; color: #111; padding: 0; }
 .pcard svg { width: 100%; height: 100%; }
-.pcard.size-s { width: 2.75rem; height: 3.85rem; } .pcard.size-m { width: 3.6rem; height: 5rem; } .pcard.size-l { width: 4.6rem; height: 6.4rem; }
+.pcard.size-s { width: 2.75rem; height: 3.85rem; } .pcard.size-m { width: 3.6rem; height: 5rem; } .pcard.size-l { width: 4.6rem; height: 6.4rem; } .pcard.size-xl { width: 7.5rem; height: 10.5rem; }
+/* Kartenbild (cardSvg) zeichnet Rand und Ecken selbst: kein zweiter Rahmen, nur Fokus/Auswahl (Befund T) */
+.pcard.pc-svg { border: 0; background: transparent; }
+.pcard:focus-visible { outline: 4px solid var(--focus); outline-offset: 2px; }
 .pcard[aria-pressed="true"], .pcard.st-sel { outline: 4px solid var(--focus); outline-offset: 2px; transform: translateY(-.4rem); }
 .pcard.st-no { opacity: .5; }
 .w-canvas { display: block; width: 100%; height: auto; border-radius: var(--r1); }
 .rt-stage { display: grid; gap: var(--s2); }
 .rt-stage { box-sizing: border-box; max-width: 100%; background: #0E0D0B; color: #FFF6DC; padding: var(--s2); border-radius: var(--r2); }
-.rt-canvas { display: block; width: 100%; max-height: calc(100dvh - 14rem); margin: 0 auto; border-radius: var(--r1); background: #0E0D0B; touch-action: none; }
+.rt-canvas { display: block; width: 100%; max-height: calc(100dvh - 21rem); margin: 0 auto; border-radius: var(--r1); background: #0E0D0B; touch-action: none; }
 .rt-say { margin: 0; min-height: 1.5em; font-weight: 700; text-align: center; color: #FFF6DC; }
 .rt-controls { display: flex; flex-wrap: wrap; gap: var(--s2); justify-content: center; }
 .rt-btn { min-height: 3.75rem; min-width: 3.75rem; padding: .5rem 1.2rem; border: 3px solid var(--edge); border-radius: var(--r3); background: var(--surface); color: var(--text); font: inherit; font-weight: 700; }

@@ -163,3 +163,11 @@ test("Countdown-Tor: t0 liegt unter eigenem Schluessel; react/explain/tuer laufe
   re.click(/^Los$/);
   assert.ok(re.tree().some((x) => x.props && x.props.class === "w-pad"), "Tippfeld nach Los");
 });
+
+test("pcard: Groesse xl (Vorschau/Thumbnail/Stich, Befund T); mit Kartenbild ohne eigenen Rahmen (svg-Klasse), ohne Bild mit Rahmen", () => {
+  const svg = { cardSvg: () => ({ tag: "svg", attrs: { viewBox: "0 0 10 14" }, children: [] }) };
+  const xl = harness({ t: "pcard", code: "HQ", size: "xl", a11y: "Herz-Dame" }, svg).tree().find((x) => /\bpcard\b/.test(String(x.props && x.props.class)));
+  assert.match(xl.props.class, /\bsize-xl\b/); assert.match(xl.props.class, /\bpc-svg\b/);
+  const plain = harness({ t: "pcard", code: "HQ", size: "l", a11y: "Herz-Dame" }).tree().find((x) => /\bpcard\b/.test(String(x.props && x.props.class)));
+  assert.match(plain.props.class, /\bsize-l\b/); assert.doesNotMatch(plain.props.class, /\bpc-svg\b/);
+});
