@@ -71,7 +71,8 @@ export const actions = {
   homeQuery: (ctx, ev) => H(day(ctx, ev), { q: String(ev.q || "").slice(0, 80), rtab: "alles" }),
   homeRtab: (ctx, ev) => H(ctx, { rtab: RTABS.includes(ev.tab) ? ev.tab : "alles" }),
   homeFam: (ctx, ev) => H(ctx, { fam: typeof ev.fam === "string" ? ev.fam : null }),
-  homeMtab: (ctx, ev) => H(ctx, { mtab: MTABS.includes(ev.tab) ? ev.tab : "wand", sure: null }),
+  homeMtab: (ctx, ev) => H(ctx, { mtab: MTABS.includes(ev.tab) ? ev.tab : "wand", sure: null, menu: null }),
+  homeMenu: (ctx, ev) => H(ctx, { menu: typeof ev.k === "string" && ctx.home.menu !== ev.k ? ev.k : null }),
   homeLoaded: (ctx, ev) => {
     const d = ev.data || {};
     const c = M(day(ctx, ev), { wall: S.cleanWall(d.wall), saved: S.cleanSaved(d.saved), invites: S.cleanInvites(d.invites), loaded: true, loading: false });
@@ -83,7 +84,7 @@ export const actions = {
     return c.mine.undo && Number.isFinite(ev.at) && ev.at - c.mine.undo.at >= S.UNDO_MS ? M(c, { undo: null }) : c;
   },
   merken: (ctx, ev, emit) => (typeof ev.id === "string" ? persist(M(ctx, { saved: S.toggleSaved(ctx.mine.saved, ev.id, ev.at) }), emit) : ctx),
-  wallOff: (ctx, ev, emit) => { const r = S.takeOff(ctx.mine.wall, ev.i, ev.at); if (r.undo) emit({ type: "home.later", ms: S.UNDO_MS }); return persist(M(ctx, { wall: r.wall, undo: r.undo }), emit); },
+  wallOff: (ctx, ev, emit) => { const r = S.takeOff(ctx.mine.wall, ev.i, ev.at); if (r.undo) emit({ type: "home.later", ms: S.UNDO_MS }); return persist(H(M(ctx, { wall: r.wall, undo: r.undo }), { menu: null }), emit); },
   wallUndo: (ctx, ev, emit) => persist(M(ctx, { wall: S.undoOff(ctx.mine.wall, ctx.mine.undo, ev.at), undo: null }), emit),
   wallSnap: (ctx, ev, emit) => persist(M(ctx, { wall: S.setThumb(ctx.mine.wall, ev.id, ev.ts, ev.th) }), emit),
   // Jeder erzeugte Link ins Archiv; ein fertiges Werk (Karte verschickt) auf die Wand, wie alt bei "Fertig"
@@ -157,6 +158,7 @@ export const shelfOn = {
   RTAB: { actions: ["homeRtab"] },
   FAM: { actions: ["homeFam"] },
   MTAB: { actions: ["homeMtab"] },
+  WMENU: { actions: ["homeMenu"] },
   WALL_OFF: { actions: ["wallOff"] },
   WALL_UNDO: { actions: ["wallUndo"] },
   INV_DELETE: { actions: ["invDelete"] },

@@ -26,7 +26,7 @@ export async function visitHome(p, cb, lang = "de") {
   await home(p); await act(p, "meins"); await p.locator("main.h-at-meins").waitFor(); await p.locator(".h-work").first().waitFor(); await cb("h11-meins-wand", p);
   await act(p, "tab-einladungen"); await p.locator(".h-inv").first().waitFor(); await cb("h12-meins-einladungen", p);
   await act(p, "tab-gemerkt"); await cb("h13-meins-gemerkt", p);
-  await act(p, "tab-wand"); await act(p, "wall-off-0"); await p.locator(".h-undo").waitFor(); await cb("h14-meins-rueckgaengig", p);
+  await act(p, "tab-wand"); await act(p, "wall-more-0"); await p.locator('[data-act="wall-off-0"]').waitFor(); await cb("h14-meins-menue", p); await act(p, "wall-off-0"); await p.locator(".h-undo").waitFor(); await cb("h14-meins-rueckgaengig", p);
   await act(p, "wall-undo");
   await home(p);
 }

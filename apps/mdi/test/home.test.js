@@ -265,3 +265,18 @@ test("Spielkopf: Spielweise wechselbar bis zum ersten Zug (MODE), danach gesperr
   assert.equal(b.find((x) => x.props["data-act"] === "pm-alone").props.disabled, true, "nach dem ersten Zug gesperrt");
   assert.ok(texts(moved).includes("Nach dem ersten Zug bleibt die Spielweise."));
 });
+
+test("Mein Regal wie Board Meins: Gemacht | Verschickt | Gemerkt, Kacheln mit ⋯-Menue, Kopfzeile ohne Knoepfe (Ueberschrift ungekuerzt)", () => {
+  let s = go(go(start(), { type: "OPEN", id: "gruss" }), { type: "GO" });
+  s = go(go(s, { type: "BACK" }), { type: "BACK" });
+  s = go(s, { type: "HOME", to: "meins" });
+  const k = String(s.ctx.mine.wall[0].ts);
+  const t = texts(s);
+  assert.ok(t.includes("Gemacht 1") && t.includes("Verschickt 1") && t.includes("Gemerkt 0"), "Reiter: " + t.match(/Gemacht[^"]*|Verschickt[^"]*/g));
+  assert.ok(!t.includes('"data-act":"schrift"') && !t.includes('"data-act":"stil"'), "keine Kopfknoepfe auf Mein Regal");
+  assert.ok(t.includes('"data-act":"wall-more-0"') && !t.includes('"data-act":"wall-off-0"'), "Menue zu");
+  const m = go(s, { type: "WMENU", k });
+  assert.ok(texts(m).includes('"data-act":"wall-off-0"') && texts(m).includes('"aria-expanded":"true"'), "Menue offen");
+  const off = go(m, { type: "WALL_OFF", i: 0 });
+  assert.equal(off.ctx.home.menu, null, "nach dem Abnehmen zu");
+});
