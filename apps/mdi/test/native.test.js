@@ -135,11 +135,11 @@ test("Laufzeit in der App: abgebrochene Anmeldung -> wieder anonym mit Hinweis; 
   assert.ok(machine.matches(s, "konto.fehler"));
 });
 
-test("Konto-Bruecke: EINE exakte Liste (12 Aufrufe) aus bridge-account-v1.json, generiert fuer iOS und Android, nicht von Hand veraendert", () => {
+test("Konto-Bruecke: EINE exakte Liste (29 Aufrufe) aus bridge-account-v1.json, generiert fuer iOS und Android, nicht von Hand veraendert", () => {
   const apps = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const fx = JSON.parse(fs.readFileSync(path.join(apps, "android/app/src/test/resources/bridge-account-v1.json"), "utf8")).route;
   const want = fx.filter((c) => c.ok).map((c) => c.method + " " + c.path).sort();
-  assert.equal(want.length, 12);
+  assert.equal(want.length, 29);
   const listed = (f) => [...fs.readFileSync(path.join(apps, f), "utf8").matchAll(/^\s+"((?:GET|POST) [^"]+)",$/gm)].map((m) => m[1]).sort();
   assert.deepEqual(listed("ios/App/Duell/AccountRoutes.generated.swift"), want, "iOS veraltet: python3 -I apps/gen-account-routes.py");
   assert.deepEqual(listed("android/app/src/main/java/org/bunsenbrenner/cads/duell/AccountRoutes.kt"), want, "Android veraltet");
@@ -149,4 +149,34 @@ test("Konto-Bruecke: EINE exakte Liste (12 Aufrufe) aus bridge-account-v1.json, 
   const api = fs.readFileSync(path.join(apps, "mdi/src/broker/api.js"), "utf8");
   for (const p of [...api.matchAll(/post\("(\/[a-z/]+)"/g)].map((m) => "POST /api/duell" + m[1])) assert.ok(want.includes(p), p);
   assert.ok(want.includes("GET /auth/me"));
+});
+
+// Security-Review M6: jeder Aufruf, den die Seite in der App macht, steht EXAKT in der Liste der Huellen (Drift-Test).
+// Die Seite ruft jede Server-Funktion des API-Moduls einmal ueber eine falsche Bruecke auf, die nur aufzeichnet.
+test("Konto-Bruecke Drift: jeder Aufruf der Seite (Konto, KI, Deck, Gate, Bild, Melden, Kurzlinks) ist erlaubt; Abfragen gehen ueber feste Pfade", async () => {
+  const { createApi, appRoute } = await import("../src/broker/api.js");
+  const apps = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const want = new Set(JSON.parse(fs.readFileSync(path.join(apps, "android/app/src/test/resources/bridge-account-v1.json"), "utf8")).route.filter((c) => c.ok).map((c) => c.method + " " + c.path));
+  const seen = [];
+  const native = { call: async (req) => { if (req.op === "api") seen.push(req.method + " " + req.path); if (req.op === "state") return { ok: true, available: true }; return { ok: true, status: 200, body: "{}" }; } };
+  const api = createApi({ location: { protocol: "file:", host: "" }, native });
+  const cid = "A".repeat(22), h = "B".repeat(43), sid = "abcdefgh";
+  await api.status("ab".repeat(16)); await api.me("/duell", "de");
+  await api.profileGet({ via: "account" }); await api.profilePut({ via: "account" }, { rev: 0, profile: {} }); await api.profileDelete({ via: "account" });
+  await api.redeem("CODE-1234"); await api.modMe(); await api.appeal("n-abcdef", "x");
+  if (api.shortCreate) { await api.shortCreate("v2.card.x", "card", "de"); await api.shortDelete(sid, "tok-1"); await api.shortResolve(sid); }
+  for (const [m, p] of [["POST", "/api/duell/ai"], ["POST", "/api/duell/ai/accept"], ["POST", "/api/duell/ai/discard"], ["POST", "/api/duell/queue"], ["POST", "/api/duell/report"],
+    ["GET", "/api/duell/deck"], ["GET", "/api/duell/deck/key"], ["GET", "/api/duell/deck/status?c=" + cid], ["GET", "/api/duell/deck/status?c=" + cid + "&d=" + h],
+    ["POST", "/api/duell/deck/use"], ["POST", "/api/duell/deck/vote"], ["POST", "/api/duell/deck/me"],
+    ["POST", "/api/duell/bild/status"], ["POST", "/api/duell/bild"], ["POST", "/api/duell/bild/job"], ["POST", "/api/duell/bild/cancel"], ["POST", "/api/duell/bild/keep"], ["POST", "/api/duell/bild/avatar"]]) {
+    const r = await api.raw(m, p, m === "POST" ? {} : undefined);
+    assert.ok(r.status === 200, m + " " + p + ": " + JSON.stringify(r));
+  }
+  for (const x of seen) assert.ok(want.has(x), "nicht in der Liste der Huellen: " + x);
+  assert.ok(!seen.some((x) => x.includes("?")), "keine Abfrage durch die Bruecke");
+  // Abfrage und Kopf gehen nie still verloren
+  assert.deepEqual(appRoute("GET", "/api/duell/deck/status?c=" + cid + "&d=" + h), { method: "POST", path: "/api/duell/deck/status", body: { c: cid, d: h } });
+  assert.deepEqual(appRoute("DELETE", "/api/s/" + sid, undefined, { headers: { Authorization: "Bearer tok-1" } }), { method: "POST", path: "/api/s/delete", body: { id: sid, token: "tok-1" } });
+  assert.equal(appRoute("GET", "/api/duell/ai/status?x=1"), null);
+  assert.equal(appRoute("POST", "/api/duell/ai", {}, { headers: { "X-Foo": "1" } }), null);
 });

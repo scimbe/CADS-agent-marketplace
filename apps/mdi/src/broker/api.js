@@ -58,6 +58,27 @@ export function lookCookie(colors, host) {
   return "ct_look=daily." + c[0].slice(1) + "." + c[1].slice(1) + "; Domain=bunsenbrenner.org; Path=/; Max-Age=86400; Secure; SameSite=Lax";
 }
 
+/**
+ * Weg eines Aufrufs durch die App-Bruecke (exakte Pfade, bridge-account-v1.json). -> { method, path, body } | null
+ *   GET /api/duell/deck/status?c=&d=     -> POST /api/duell/deck/status { c, d? }
+ *   GET /api/s/<id>                      -> POST /api/s/get { id }
+ *   DELETE /api/s/<id> (Bearer <token>)  -> POST /api/s/delete { id, token }
+ *   GET /auth/me?return=&lang=           -> GET /auth/me (return/lang bilden nur die Gate-Adressen des Webs; die Huelle meldet
+ *                                           selbst an und ab, me() nimmt in der App nur authenticated und app_login)
+ *   jeder andere Pfad: unveraendert, aber ohne "?" und ohne eigene Koepfe (sonst null)
+ */
+export function appRoute(method, path, body, opt) {
+  const st = /^\/api\/duell\/deck\/status\?c=([A-Za-z0-9_-]{22})(?:&d=([A-Za-z0-9_-]{43}))?$/.exec(path);
+  if (method === "GET" && st) return { method: "POST", path: "/api/duell/deck/status", body: { c: st[1], ...(st[2] ? { d: st[2] } : {}) } };
+  const sid = /^\/api\/s\/([2-9a-km-np-zA-HJ-NP-Z]{8})$/.exec(path);
+  if (sid && method === "GET") return { method: "POST", path: "/api/s/get", body: { id: sid[1] } };
+  const auth = opt && opt.headers && opt.headers.Authorization, tok = typeof auth === "string" ? /^Bearer ([A-Za-z0-9_-]{1,64})$/.exec(auth) : null;
+  if (method === "GET" && /^\/auth\/me(\?return=[^&#]*(&lang=(de|en))?)?$/.test(path)) return { method, path: "/auth/me", body };
+  if (sid && method === "DELETE" && tok) return { method: "POST", path: "/api/s/delete", body: { id: sid[1], token: tok[1] } };
+  if (path.includes("?") || (opt && opt.headers && Object.keys(opt.headers).length)) return null;
+  return { method, path, body };
+}
+
 export function createApi(deps) {
   const loc = deps.location || { protocol: "file:", host: "" };
   const native = deps.native || null;   // Konto-Bruecke der App-Huelle (src/broker/native.js) oder null
@@ -66,8 +87,13 @@ export function createApi(deps) {
   const timeout = deps.timeout || 20000;
 
   /** App-Huelle: derselbe Aufruf, ausgefuehrt von der Huelle (mit Bearer, ohne Cookie). -> {status, body} | Fehler */
-  async function viaApp(method, path, body) {
-    const r = await native.call({ op: "api", method, path: path.split("?")[0], ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
+  async function viaApp(method, path, body, opt) {
+    // Die Huellen leiten nur EXAKTE Pfade weiter und senden ihren eigenen Bearer (Konto). Was eine Abfrage, einen variablen
+    // Pfad oder einen eigenen Kopf braucht, geht ueber den festen Pfad mit Body (Security-Review M6, Server additiv);
+    // alles andere mit "?" wird abgelehnt statt still gekuerzt.
+    const to = appRoute(method, path, body, opt);
+    if (!to) return fail("pfad");
+    const r = await native.call({ op: "api", method: to.method, path: to.path, ...(to.body !== undefined ? { body: JSON.stringify(to.body) } : {}) });
     if (!r || r.ok !== true || !Number.isSafeInteger(r.status)) return fail(r && r.error === "netz" ? "netz" : "server");
     let j = null; try { j = JSON.parse(r.body); } catch (e) { j = null; }
     return { status: r.status, body: j };
@@ -75,7 +101,7 @@ export function createApi(deps) {
 
   /** -> {status, body} | Fehler "nicht-hier"/"netz" */
   async function call(method, path, body, opt) {   // opt: { headers?, zeit? }
-    if (native) return viaApp(method, path, body);
+    if (native) return viaApp(method, path, body, opt);
     if (!here) return fail("nicht-hier");
     const ctl = typeof AbortController === "function" ? new AbortController() : null;
     const t = ctl ? setTimeout(() => ctl.abort(), timeout) : null;
