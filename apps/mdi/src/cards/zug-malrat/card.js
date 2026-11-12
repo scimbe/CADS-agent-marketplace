@@ -192,7 +192,8 @@ export default {
   observe(state) { return { pub: copy(state.pub), mine: null }; },
   status(state) {
     const p = state.pub, over = overOf(p);
-    return { over, turn: over ? -1 : turnOf(p), reveal: false, score: [], winner: -1, turnNo: p.pic ? p.pic.r : 0 };
+    // endless: im Altcode endet Mal & Rat nie von selbst (nur die Rundengrenze 999); Treiber pruefen Hin und Rueck statt over
+    return { over, endless: true, turn: over ? -1 : turnOf(p), reveal: false, score: [], winner: -1, turnNo: p.pic ? p.pic.r : 0 };
   },
   // Hinweiszug: das erste Wort der naechsten Runde mit einer festen Skizze. Vor dem ersten Bild kennt die Karte den Tag
   // nicht (den stempelt der Host erst mit dem Zug), also gibt es dort keinen Hinweis.
@@ -201,6 +202,14 @@ export default {
     if (!p.pic || overOf(p) || seat !== turnOf(p)) return [];
     const r = roundOf(obs), w = M.suggest(seedOf(p), r, "de")[0].w, inp = draftInput(obs, seat, { word: w, lang: "de", lines: SKETCH, secs: 0 });
     return inp ? [{ ...inp, d: p.day }] : [];
+  },
+  // Erster Zug einer inputDay-Karte fuer einen gegebenen Tag (bei F angefragter Hook fuer Treiber ohne Uhr): erstes Wort
+  // der Runde 1 mit der festen Skizze; der Pruefwert braucht den Tagesseed, den moves() vor dem ersten Bild nicht kennt.
+  opening(seat, today) {
+    if (seat !== 0 || !Number.isInteger(today) || today < 1 || today > MAX_DAY) return null;
+    const obs = { pub: { day: today, pic: null } }, w = M.suggest(String(today), 1, "de")[0].w;
+    const inp = draftInput(obs, 0, { word: w, lang: "de", lines: SKETCH, secs: 0, seed: String(today) });
+    return inp ? { ...inp, d: today } : null;
   },
   accepts, compact, merge, prepare,
   view(obs, seat, ctx) {

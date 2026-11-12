@@ -316,3 +316,14 @@ test("Snapshot: merge nimmt das neuere Bild; Empfang ueber game.receive vereinig
   assert.deepEqual(merge(b.state.pub, a.state.pub), b.state.pub); assert.deepEqual(merge(a.state.pub, b.state.pub), b.state.pub);
   assert.deepEqual(merge({ day: 0, pic: null }, a.state.pub), a.state.pub);
 });
+
+test("opening: erster Zug fuer einen Tag ist gueltig, nur fuer Sitz 0 und einen echten Tag; Karte meldet endless", () => {
+  const st = card.init({}), i = card.opening(0, 20769);
+  assert.ok(i && i.d === 20769 && i.r === 1);
+  assert.equal(card.accepts(card.observe(st, 0), 0, i), true);
+  assert.equal(card.opening(1, 20769), null);
+  assert.equal(card.opening(0, 0), null);
+  const s1 = card.step(st, i);
+  assert.equal(card.status(s1).endless, true);
+  assert.equal(card.moves(card.observe(s1, 1), 1).length, 1, "ab dem ersten Bild gibt es einen Hinweiszug");
+});
