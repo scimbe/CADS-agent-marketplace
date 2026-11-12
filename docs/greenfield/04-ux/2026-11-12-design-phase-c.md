@@ -259,3 +259,8 @@ Für jedes Spiel gibt es Start mit Blasen, im Spiel, Ende (390 px) und Desktop (
 - Bauernskat: offene Karten mit Werten zeichnen.
 - Kartenwerte im Spielbild sind Platzhalter.
 - Lava-Flug: Regler zusätzlich mit −/+.
+
+**Abstimmung mit Strang L:**
+- **Varianten-Chips beim Lava-Flug:** Klassisch = spiel-lava, Mond = spiel-mond, Unterwasser = spiel-tiefsee, Nacht = spiel-geist. Die übrigen 12 Varianten bleiben im Regal.
+- **Regler-Wörter:** Es gelten die Stufennamen aus dem Altcode (Schwere: Mond … Jupiter; Lücke: sehr eng … sehr weit), dazu −/+ als Tipp-Alternative und `aria-valuetext`.
+- **Wortwahl:** „Geist“ steht nirgends als Bedienwort, die Oberfläche sagt „Aufnahme“.
