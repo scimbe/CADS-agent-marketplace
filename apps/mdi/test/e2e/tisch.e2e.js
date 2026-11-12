@@ -82,7 +82,9 @@ test("Bauernskat live zu zweit (Fake-Live): beide sehen dasselbe Ende, das Netz 
     await humanStep(A.p); await humanStep(B.p); await A.p.waitForTimeout(30);
   }
   await waitScreen(A.p, "card-play-over"); await waitScreen(B.p, "card-play-over");
-  assert.equal(await A.p.locator(".t-big").last().textContent(), await B.p.locator(".t-big").last().textContent());
+  // gleicher Endstand auf beiden Geraeten (Namen sind aus Sicht des Geraets: „Du" bzw. „Platz n")
+  const nums = async (p) => (await p.locator(".t-big").last().textContent()).match(/-?\d+(?=\s*(·|$))/g);
+  assert.deepEqual(await nums(A.p), await nums(B.p));
   // Im Kanal stehen nur Punkte, Schluessel und Zuege – nie ein Salz vor der Aufloesung
   const msgs = net.wire.dc.map((x) => x.s), firstReveal = msgs.findIndex((m) => m.includes('"reveal"'));
   assert.ok(firstReveal > 0);
