@@ -304,3 +304,15 @@ test("KI-Knoten der Zugkarten (Z1): KI_ASK in jeder Kartenansicht -> Effekt frei
   s = go(s, { type: "KI_SETTLE", receipt: "r1.f.x", how: "accept" });
   assert.deepEqual(fx(s, "frei.settle"), [{ type: "frei.settle", how: "accept", receipt: "r1.f.x" }]);
 });
+
+test("Einstieg schlank fuer das Regal (H, Design D): eine Zeile in Leseschrift mit Pfeil, sendet FREI; die grosse Form bleibt", async () => {
+  const { freiEntry } = await import("../src/features/frei/view-core.js");
+  const s = machine.initial(initialContext("de")), sent = [];
+  const v = freiEntry(s, {}, (e) => sent.push(e), { compact: true });
+  const j = JSON.stringify(v, (k, x) => (k === "on" || k === "el" ? undefined : x));
+  assert.ok(j.includes("Eigene Karte: ein Satz, die KI baut sie")); assert.ok(j.includes("frei-row")); assert.ok(!j.includes("frei-tile"));
+  v.children[0].props.on.click(); assert.deepEqual(sent, [{ type: "FREI" }]);
+  assert.ok(JSON.stringify(freiEntry(s, {}, () => {}), (k, x) => (k === "on" ? undefined : x)).includes("frei-tile"), "ohne compact die bisherige Form");
+  const en = machine.initial(initialContext("en"));
+  assert.ok(JSON.stringify(freiEntry(en, {}, () => {}, { compact: true }), (k, x) => (k === "on" ? undefined : x)).includes("Your own card"));
+});
