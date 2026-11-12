@@ -7,7 +7,9 @@
 //   deck: Partydeck mit Uhr, ein Sitz.
 // Zustand nur aus Ganzzahlen und Texten; das Duell selbst wird aus Zustand und Seed nachgerechnet (deterministisch).
 import * as D from "./duel.js";
-import { fmt, hash32 } from "../zug/alt.js";
+import { fmt, hash32, clean } from "../zug/alt.js";
+import { ruleOf, variantOf } from "../zug/zug.js";
+import { sealParams, sealDoc, badgeNode } from "../frei/seal.js";
 import TX from "./texte.json" with { type: "json" };
 
 const HANDS = 10;
@@ -128,8 +130,12 @@ export function makeDuell({ manifest }) {
     return out;
   }
   function view(obs, seat, ctx) {
+    const v = viewInner(obs, seat, ctx), b = ctx && ctx.preview ? null : badgeNode(obs.pub.p, (ctx && ctx.lang) || "de");
+    return b && v.t === "stack" ? { ...v, children: [...v.children, b] } : v;   // "Mit KI erstellt" (Siegel)
+  }
+  function viewInner(obs, seat, ctx) {
     const pub = obs.pub, lang = ctx.lang || "de", X = T(lang), m = pub.p.m, st = status({ pub });
-    const head = { who: st.turn, turn: st.turnNo, total: st.turns, rule: (manifest.rule || manifest.howto)[lang] || manifest.howto.de };
+    const head = { who: st.turn, turn: st.turnNo, total: st.turns, rule: ruleOf(manifest, pub.p, lang) }, badge = badgeNode(pub.p, lang);
     const kids = [];
     if (ctx.preview) {
       // Karte in der gewaehlten Farbe; jeder Teil mit data-part, damit die Anpassen-Blasen daran haengen
@@ -140,7 +146,8 @@ export function makeDuell({ manifest }) {
         { t: "text", role: "label", text: (mp[m] && (mp[m][lang] || mp[m].de)) || m, fill: ink, x: 8, y: 34, w: 84, part: "arena" },
         { t: "text", role: "small", text: X.rivalIs + " " + agentLine(rivalOf(P), m, X), fill: ink, x: 8, y: 46, w: 84, part: "gegner" },
         ...(m === "deck" || m === "mind" ? [] : [{ t: "text", role: "small", text: agentLine(mine, m, X), fill: ink, x: 8, y: 58, w: 84, part: "agent" }]),
-        { t: "text", role: "body", text: head.rule, fill: ink, x: 8, y: 72, w: 84 }] };
+        { t: "text", role: "body", text: head.rule, fill: ink, x: 8, y: 72, w: 84 },
+        ...(badge ? [{ ...badge, fill: ink, x: 8, y: 92, w: 84 }] : [])] };
     }
     if (pub.ph === "over") {
       if (m === "deck") return { t: "stack", head, result: true, children: [{ t: "text", role: "big", text: X.deckEnd }, { t: "text", role: "body", text: fmt(X.deckCount, { n: pub.k }) }] };
@@ -183,6 +190,21 @@ export function makeDuell({ manifest }) {
       return mv[hash32(String(seed)) % mv.length];
     },
     observe(state) { return { pub: copy(state.pub), mine: null }; },
+    // Freie Karte (Strang K): Doc {k:"duel", i:<Katalog-id>, t?, w?, ki?, fr?} <-> Parameter; Unbekanntes -> null
+    fromFree(doc) {
+      if (!doc || doc.k !== "duel" || typeof doc.i !== "string") return null;
+      const props = manifest.params.properties, out = {};
+      for (const [k, p] of Object.entries(props)) out[k] = JSON.parse(JSON.stringify(p.default));
+      const v = (manifest.variants || []).find((x) => x.id === doc.i || (x.legacy || []).includes(doc.i));
+      if (v) Object.assign(out, v.params); else if (doc.i !== manifest.id) return null;
+      if (doc.t !== undefined) { const t = clean(doc.t, props.title.maxLength); if (doc.t && !t) return null; out.title = t; }
+      if (doc.w !== undefined) { const w = clean(doc.w, props.w.maxLength); if (doc.w && !w) return null; out.w = w; }
+      return { ...out, ...sealParams(doc, props) };
+    },
+    toFree(params) {
+      const v = variantOf(manifest, params);
+      return { k: "duel", i: v ? v.id : manifest.id, ...(params.title ? { t: params.title } : {}), ...(params.w ? { w: params.w } : {}), ...sealDoc(params) };
+    },
     // fuer Tests und Host
     result: (pub, which, lang) => result(pub, which, lang), agentIn
   };
