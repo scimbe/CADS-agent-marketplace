@@ -26,6 +26,9 @@ export const chart = {
         SHARE_FAIL: { actions: ["markShareFail"] },
         COPY: { actions: ["copyLink"] },
         COPY_FAIL: { actions: ["markCopyFail"] },
+        // Entwurf ist reine Anzeige (auch im Ende und beim Empfang, Anfrage P); Merkzettel je Partie (Anfrage Z1)
+        DRAFT: { actions: ["setDraft"] },
+        MEMO: { actions: ["setMemo"] },
         // Ein neuer Link ersetzt Lobby/Live-Partie ausdruecklich: laufender Raum wird geschlossen (Review M2)
         LINK: [
           { target: T("inhalt.receive.live"), cond: "linkLive", actions: ["takeLink"], raise: "LEAVE" },
@@ -105,7 +108,7 @@ export const chart = {
               },
               states: {
                 hand: {},
-                turn: { on: { INPUT: { actions: ["onInput"], raise: "SYNC" }, DRAFT: { actions: ["setDraft"] }, PREPARE: { actions: ["onPrepare"], raise: "SYNC" } } },
+                turn: { on: { INPUT: { actions: ["onInput"], raise: "SYNC" }, PREPARE: { actions: ["onPrepare"], raise: "SYNC" } } },
                 cover: { on: { COVER_OK: { actions: ["flipViewer"], raise: "SYNC" } } },
                 send: { entry: ["makeChallenge", "autoShare"], on: { SHARE: { actions: ["share"] }, SENT: { actions: ["markSent"], raise: "SYNC" } } },
                 wait: {},
@@ -246,7 +249,7 @@ export const guards = {
   inCard: (ctx) => !!ctx.incoming && ctx.incoming.kind === "card",
   inChallenge: (ctx) => !!ctx.incoming && ctx.incoming.kind === "challenge",
   helloOk: (ctx, ev) => !helloResult(ctx, ev).error,
-  showOk: (ctx, ev) => !!cardOf(ev.msg.c) && cardOf(ev.msg.c).manifest.mode === "static" && validParams(ev.msg.c, ev.msg.p),
+  showOk: (ctx, ev) => !!cardOf(ev.msg.c) && cardOf(ev.msg.c).manifest.mode !== "turn" && validParams(ev.msg.c, ev.msg.p),
   // Entscheidung 2026-11-11: Raum nur mit Anmeldung. D0 hat noch kein Konto (S8); der Live-Datenkanal der Bruecke
   // (/api/play) ist kontofrei. Deshalb steht die Pruefung hier, ist aber per raumBrauchtKonto=false abgeschaltet.
   raumErlaubt: (ctx, ev, inState) => !ctx.raumBrauchtKonto || inState("konto.angemeldet"),
@@ -255,7 +258,7 @@ export const guards = {
 
 export const actions = {
   // OPEN {id, variant?}: eine Variante bringt ihre Parameter mit (Regal ueber LEGACY/VARIANTS, Anfrage H)
-  openCard: (ctx, ev) => ({ ...ctx, ...variantParams(ctx, ev), cardId: ev.id, variant: ev.variant || null, mode: playOf(cardOf(ev.id), ev.variant).default, seat: 0, session: null, hs: null, error: null, note: null, link: null, part: null }),
+  openCard: (ctx, ev) => ({ ...ctx, draft: null, memo: null, ...variantParams(ctx, ev), cardId: ev.id, variant: ev.variant || null, mode: playOf(cardOf(ev.id), ev.variant).default, seat: 0, session: null, hs: null, error: null, note: null, link: null, part: null }),
   setMode: (ctx, ev) => (modesOf(G.card(ctx), ctx.variant).includes(ev.mode) ? { ...ctx, mode: ev.mode, note: null } : ctx),
   setSeat: (ctx, ev) => (Number.isInteger(ev.seat) && ev.seat >= 0 && ev.seat < G.card(ctx).manifest.players.max ? { ...ctx, seat: ev.seat } : ctx),
   setLevel: (ctx, ev) => ([1, 2, 3].includes(ev.level) ? { ...ctx, level: ev.level } : ctx),
@@ -357,6 +360,14 @@ export const actions = {
     emit({ type: "rt.start", mode: "live", seat, seed, params: G.paramsOf(ctx), level: ctx.level || 2, serving: seat === 1 ? true : false });
     return { ...ctx, rtSeed: seed, rtResult: null, rtAgain: null, error: null };
   },
+  // MEMO: JSON der Karte fuer genau diese Partie auf diesem Geraet (<= 512 B), verlaesst das Geraet nie
+  setMemo: (ctx, ev, emit) => {
+    let m; try { m = ev.memo === null ? null : JSON.parse(JSON.stringify(ev.memo)); } catch (e) { return ctx; }
+    if (m !== null && (typeof m !== "object" || JSON.stringify(m).length > 512)) return ctx;
+    const memo = m === null ? null : { ...(ctx.memo || {}), ...m };
+    if (ctx.session && ctx.gameId) emit({ type: "store.memo", g: ctx.gameId, memo });
+    return { ...ctx, memo };
+  },
   // DRAFT {draft} ersetzt, DRAFT {patch} mischt in den aktuellen Entwurf (keine verlorenen Felder bei schnellen Eingaben)
   setDraft: (ctx, ev) => {
     try {
@@ -398,20 +409,23 @@ export const actions = {
     const log = ctx.session.log; if (!log.length || !ctx.session.mine.includes(log[log.length - 1].seat)) return { ...ctx, link: null };
     try { const link = encode("challenge", G.challengeOf(ctx)); emit({ type: "store", entry: G.gameEntry(ctx.session, ctx.gameId) }); return { ...ctx, link }; } catch (e) { return { ...ctx, link: null }; }
   },
-  endGame: (ctx) => ({ ...ctx, groupHost: false, session: null, hs: null, error: null, link: null, sent: false, draft: null, botSeats: null, coveredFor: null, rtResult: null, rtAgain: null, ghostOf: null }),
+  endGame: (ctx) => ({ ...ctx, memo: null, groupHost: false, session: null, hs: null, error: null, link: null, sent: false, draft: null, botSeats: null, coveredFor: null, rtResult: null, rtAgain: null, ghostOf: null }),
   peerGone: (ctx) => (ctx.session && G.gameStatus(ctx).over ? ctx : { ...ctx, error: "partner-weg" }),
   setError: (ctx, ev) => ({ ...ctx, error: ev.reason || "zug-ungueltig" }),
   takeLink: (ctx, ev, emit) => {
-    const r = linkResult(ev);
+    let r = linkResult(ev);
+    // Merkzettel dieser Partie (falls das Geraet sie kennt), sonst null (neue Partie)
+    if (r.ok && r.kind === "challenge") r = { ...r, memo: ev.stored && ev.stored.g === r.gameId && ev.stored.memo ? ev.stored.memo : null };
     emit({ type: "url.clear" });
     return { ...ctx, incoming: r.ok ? r : null, reason: r.ok ? null : r.reason };
   },
   dropIncoming: (ctx) => ({ ...ctx, incoming: null, reason: null }),
   // Felder, die nicht im Link reisen (media.local, secret), bekommen beim Empfang ihren Standardwert (Anfrage P)
-  acceptCard: (ctx) => ({ ...ctx, cardId: ctx.incoming.cardId, params: { ...ctx.params, [ctx.incoming.cardId]: { ...defaults(cardOf(ctx.incoming.cardId).manifest.params), ...ctx.incoming.params } }, mode: "link", seat: 0, session: null, note: "empfangen", incoming: null }),
+  acceptCard: (ctx) => ({ ...ctx, cardId: ctx.incoming.cardId, params: { ...ctx.params, [ctx.incoming.cardId]: { ...defaults(cardOf(ctx.incoming.cardId).manifest.params), ...ctx.incoming.params } }, mode: cardOf(ctx.incoming.cardId).manifest.mode === "static" ? "link" : playOf(cardOf(ctx.incoming.cardId)).default, seat: 0, session: null, note: "empfangen", incoming: null }),
   // erst beim Annehmen wird gespeichert (Review LOW: nicht angenommene Links verdraengen keine Salze)
   acceptChallenge: (ctx, ev, emit) => {
     const inc = ctx.incoming, seat = inc.session.mine.length ? inc.session.mine[0] : 0;
+    ctx = { ...ctx, memo: inc.memo || null, draft: null };
     if (inc.session.mine.length) emit({ type: "store", entry: G.gameEntry(inc.session, inc.gameId) });
     return { ...ctx, cardId: inc.cardId, params: { ...ctx.params, [inc.cardId]: inc.params }, mode: "link", session: inc.session, gameId: inc.gameId, sent: false, error: null, viewer: seat, seat, incoming: null, link: null };
   },

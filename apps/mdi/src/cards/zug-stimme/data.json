@@ -1,0 +1,87 @@
+{
+  "min": 120,
+  "tags": [
+    "erraten",
+    "gruppenaktivität",
+    "komödie",
+    "mystery",
+    "suspense",
+    "guess",
+    "group activity",
+    "comedy"
+  ],
+  "texts": {
+    "de": {
+      "call": "Ruft euch an, egal mit welcher App.",
+      "share": "Teile den Link. Beide öffnen ihn während des Anrufs.",
+      "role": "Was machst du?",
+      "speak": "Ich spreche",
+      "guess": "Ich rate",
+      "go": "Fünf Figuren",
+      "round": "Runde {n} von {m}",
+      "which": "Wer spricht da?",
+      "yes": "Richtig!",
+      "no": "Es war: {s}",
+      "done": "Fertig. Frag, wie viele erkannt wurden.",
+      "h": "{n} von 5 Stimmen erkannt",
+      "note": "Nichts wird aufgenommen, die Stimme läuft nur im Anruf.",
+      "next": "Weiter",
+      "ok": "Link teilen"
+    },
+    "en": {
+      "call": "Call each other, in any app.",
+      "share": "Share the link. You both open it during the call.",
+      "role": "What do you do?",
+      "speak": "I speak",
+      "guess": "I guess",
+      "go": "Five characters",
+      "round": "Round {n} of {m}",
+      "which": "Who is talking?",
+      "yes": "Right!",
+      "no": "It was: {s}",
+      "done": "Done. Ask how many were guessed.",
+      "h": "{n} of 5 voices guessed",
+      "note": "Nothing is recorded, the voice only goes through the call.",
+      "next": "Continue",
+      "ok": "Share the link"
+    }
+  },
+  "figures": [
+    "ein müder Pirat|a tired pirate",
+    "eine Oma beim Lotto|a grandma at bingo",
+    "ein Roboter mit Schnupfen|a robot with a cold",
+    "ein aufgeregter Sportreporter|an excited sports reporter",
+    "ein Drache, der flüstert|a whispering dragon",
+    "ein Navi, das sich verfahren hat|a lost sat nav",
+    "ein Baby-Elefant|a baby elephant",
+    "ein Zauberer, der niest|a sneezing wizard",
+    "ein Hamster auf Kaffee|a hamster on coffee",
+    "ein Ritter mit Schluckauf|a knight with hiccups",
+    "ein Außerirdischer im Supermarkt|an alien in a supermarket",
+    "eine Opernsängerin unter Wasser|an opera singer underwater",
+    "ein Geist, der Angst hat|a ghost who is scared",
+    "ein Wetteransager im Sturm|a weatherman in a storm",
+    "ein König ohne Krone|a king without a crown",
+    "eine Katze, die Hunger hat|a hungry cat",
+    "ein Fußball-Trainer|a football coach",
+    "ein Toaster, der redet|a talking toaster"
+  ],
+  "variants": {
+    "anruf-quiz": {
+      "alias": true
+    },
+    "anruf-stimme": {
+      "alias": true
+    }
+  },
+  "legacyTitles": {
+    "anruf-quiz": {
+      "de": "60 Sekunden Quiz",
+      "en": "60 second quiz"
+    },
+    "anruf-stimme": {
+      "de": "Stimmen-Rätsel",
+      "en": "Voice riddle"
+    }
+  }
+}

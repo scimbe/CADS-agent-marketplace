@@ -138,5 +138,13 @@
         "en": "Card colour"
       }
     }
-  ]
+  ],
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Mein Bote lügt",
+      "en": "My messenger lies"
+    }
+  }
 }

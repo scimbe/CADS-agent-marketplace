@@ -4,27 +4,147 @@
   "sdk": "mdi-sdk/0.1",
   "kind": "card",
   "mode": "static",
-  "title": { "de": "Ein Gruß für dich", "en": "A note for you" },
-  "teaser": { "de": "Text, Farbe, Sticker. Fertig.", "en": "Text, colour, stickers. Done." },
-  "players": { "min": 1, "max": 1 },
+  "title": {
+    "de": "Ein Gruß für dich",
+    "en": "A note for you"
+  },
+  "teaser": {
+    "de": "Text, Farbe, Sticker. Fertig.",
+    "en": "Text, colour, stickers. Done."
+  },
+  "players": {
+    "min": 1,
+    "max": 1
+  },
   "hidden": "none",
   "uses": [],
-  "limits": { "stepBudget": 1, "stateBytes": 2048 },
+  "limits": {
+    "stepBudget": 1,
+    "stateBytes": 2048
+  },
   "params": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["title", "text", "bg", "stickers"],
+    "required": [
+      "title",
+      "text",
+      "bg",
+      "stickers"
+    ],
     "properties": {
-      "title": { "type": "string", "maxLength": 32, "pattern": "^[^\\u0000-\\u001f\\u007f<>]*$", "default": "Du schaffst das", "x-field": "text", "x-model": true, "x-label": { "de": "Überschrift", "en": "Headline" } },
-      "text": { "type": "string", "maxLength": 120, "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f<>]*$", "default": "Heute zählt nur der nächste Schritt.", "x-field": "text", "x-model": true, "x-label": { "de": "Text", "en": "Text" } },
-      "bg": { "type": "string", "enum": ["yellow", "red", "ink", "paper"], "default": "yellow", "x-field": "color", "x-label": { "de": "Farbe", "en": "Colour" } },
-      "stickers": { "type": "array", "maxItems": 3, "uniqueItems": true, "items": { "type": "string", "enum": ["star", "heart", "bolt", "drop", "coin", "ring"] }, "default": ["star"], "x-field": "list", "x-label": { "de": "Sticker (bis 3)", "en": "Stickers (up to 3)" } }
+      "title": {
+        "type": "string",
+        "maxLength": 32,
+        "pattern": "^[^\\u0000-\\u001f\\u007f<>]*$",
+        "default": "Du schaffst das",
+        "x-field": "text",
+        "x-model": true,
+        "x-label": {
+          "de": "Überschrift",
+          "en": "Headline"
+        }
+      },
+      "text": {
+        "type": "string",
+        "maxLength": 120,
+        "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f<>]*$",
+        "default": "Heute zählt nur der nächste Schritt.",
+        "x-field": "text",
+        "x-model": true,
+        "x-label": {
+          "de": "Text",
+          "en": "Text"
+        }
+      },
+      "bg": {
+        "type": "string",
+        "enum": [
+          "yellow",
+          "red",
+          "ink",
+          "paper"
+        ],
+        "default": "yellow",
+        "x-field": "color",
+        "x-label": {
+          "de": "Farbe",
+          "en": "Colour"
+        }
+      },
+      "stickers": {
+        "type": "array",
+        "maxItems": 3,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "enum": [
+            "star",
+            "heart",
+            "bolt",
+            "drop",
+            "coin",
+            "ring"
+          ]
+        },
+        "default": [
+          "star"
+        ],
+        "x-field": "list",
+        "x-label": {
+          "de": "Sticker (bis 3)",
+          "en": "Stickers (up to 3)"
+        }
+      }
     }
   },
   "parts": [
-    { "id": "titel", "params": ["title"], "label": { "de": "Überschrift", "en": "Headline" } },
-    { "id": "text", "params": ["text"], "label": { "de": "Text", "en": "Text" } },
-    { "id": "farbe", "params": ["bg"], "label": { "de": "Farbe", "en": "Colour" } },
-    { "id": "sticker", "params": ["stickers"], "label": { "de": "Sticker", "en": "Stickers" } }
-  ]
+    {
+      "id": "titel",
+      "params": [
+        "title"
+      ],
+      "label": {
+        "de": "Überschrift",
+        "en": "Headline"
+      }
+    },
+    {
+      "id": "text",
+      "params": [
+        "text"
+      ],
+      "label": {
+        "de": "Text",
+        "en": "Text"
+      }
+    },
+    {
+      "id": "farbe",
+      "params": [
+        "bg"
+      ],
+      "label": {
+        "de": "Farbe",
+        "en": "Colour"
+      }
+    },
+    {
+      "id": "sticker",
+      "params": [
+        "stickers"
+      ],
+      "label": {
+        "de": "Sticker",
+        "en": "Stickers"
+      }
+    }
+  ],
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Ein Gruß für dich",
+      "en": "A note for you"
+    }
+  }
 }

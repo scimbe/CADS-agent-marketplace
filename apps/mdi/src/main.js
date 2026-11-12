@@ -142,6 +142,8 @@ addEventListener("resize", placeBubbles);
 addEventListener("hashchange", () => { if (/^#v2\./.test(location.hash)) rt.link(location.hash); });
 
 rtApi = rt.rt;
+// Bilder, die nachladen (KI-Bild ueber Strang K), zeichnen die Ansicht neu, sobald sie da sind
+if (fenv.images && typeof fenv.images.subscribe === "function") fenv.images.subscribe(() => draw(rt.state, null));
 draw(rt.state, null);
 if (location.hash.length > 1) rt.link(location.hash);
 else if (new URLSearchParams(location.search).get("go") === "konto") {

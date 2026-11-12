@@ -1,13 +1,31 @@
 {
+  "advent-tuer": {
+    "assets": [],
+    "thumbs": []
+  },
   "beat-disco": {
+    "assets": [],
+    "thumbs": []
+  },
+  "beat-pausenhof": {
     "assets": [],
     "thumbs": []
   },
   "bluff": {
     "assets": [],
-    "thumbs": []
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 12750
+      }
+    ]
   },
   "duell-liest": {
+    "assets": [],
+    "thumbs": []
+  },
+  "foto-alien": {
     "assets": [],
     "thumbs": []
   },
@@ -16,6 +34,16 @@
     "thumbs": []
   },
   "gruss": {
+    "assets": [],
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 11308
+      }
+    ]
+  },
+  "kanal-geheim": {
     "assets": [],
     "thumbs": []
   },
@@ -68,6 +96,22 @@
     "thumbs": []
   },
   "raum-suche": {
+    "assets": [],
+    "thumbs": []
+  },
+  "stimme-verzerren": {
+    "assets": [],
+    "thumbs": []
+  },
+  "strassenrap-beat": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zettel": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-advent": {
     "assets": [],
     "thumbs": []
   },
@@ -160,6 +204,10 @@
     "thumbs": []
   },
   "zug-steine": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-stimme": {
     "assets": [],
     "thumbs": []
   },

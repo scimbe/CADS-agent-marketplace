@@ -5,6 +5,7 @@ import { FEATURES } from "./features.js";
 import { chooseMove, LEVELS } from "../bot/ismcts.js";
 import * as S from "../contract/session.js";
 import { createRtSession } from "./rt/session.js";
+import * as G from "./game.js";
 import { fromB64url } from "../contract/trace.js";
 import { cardOf } from "../cards/index.js";
 import { createBotAgent } from "../bot/agent.js";
@@ -108,7 +109,9 @@ export function createRuntime(deps) {
         for (const ch of lives.values()) { try { ch.close(); } catch (e) { /* schon zu */ } }
         lives.clear();
         break;
-      case "store": deps.storage.saveGame(fx.entry); break;
+      // Eintraege behalten den Merkzettel der Partie (Z1), wenn ein neuer Stand gespeichert wird
+      case "store": { let old = null; try { old = deps.storage.loadGame(fx.entry.g); } catch (e) { old = null; } deps.storage.saveGame(old && old.memo && fx.entry.memo === undefined ? { ...fx.entry, memo: old.memo } : fx.entry); break; }
+      case "store.memo": { let old = null; try { old = deps.storage.loadGame(fx.g); } catch (e) { old = null; } if (old) deps.storage.saveGame({ ...old, memo: fx.memo }); else { const e = G.gameEntry(state.ctx.session, fx.g); deps.storage.saveGame({ ...e, memo: fx.memo }); } break; }
       // "shared" = Systemblatt abgeschlossen -> gesendet; "copied" = nur in der Zwischenablage; sonst Hinweis + Feld
       case "share": deps.share(fx.fragment).then((r) => dispatch({ type: r === "shared" ? "SENT" : r === "copied" ? "COPIED" : "SHARE_FAIL" })); break;
       case "copy": (deps.copy || (() => Promise.resolve(false)))(fx.fragment).then((ok) => dispatch({ type: ok ? "COPIED" : "COPY_FAIL" })); break;

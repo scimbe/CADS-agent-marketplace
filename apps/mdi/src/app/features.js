@@ -19,9 +19,11 @@
 // Pfade sind absolute Zustandspfade ohne Praefix, z. B. "inhalt.card.view", "inhalt.card.play.over".
 
 import { home } from "../ui/home/feature.js";
+import { posterFeature } from "../engines/poster/feature.js";
 
 export const FEATURES = [
   home,      // Strang H: src/ui/home/feature.js
+  posterFeature, // Strang P: hohe Poster-Ops (env.high) und Ton (env.audio)
   // frei,   // Strang K: src/features/frei/chart.js
 ];
 
