@@ -15,13 +15,22 @@ export async function pickVariant(p, id, value, lang = "de") {
   await p.getByRole("radio", { name: n[lang] || n.de, exact: true }).click();
   await act(p, "close"); await act(p, "done"); await waitScreen(p, "card-view");
 }
+/** Warten, bis kein Teil mehr laedt (Host: main[data-loading], aria-busy; Strang H #295). */
+export async function ready(p) { await p.locator("main:not([data-loading])").waitFor({ timeout: 30000 }); }
+/** "Los" druecken und warten, bis die Kartenansicht verlassen ist und kein Teil mehr laedt. */
+export async function startGame(p) {
+  await p.locator('[data-act="go"]').first().click();
+  await p.waitForFunction(() => !document.querySelector("main.s-card-view") || !!document.querySelector("main[data-loading]"), null, { timeout: 30000 });
+  await ready(p);
+  await p.locator("main:not(.s-card-view)").waitFor({ timeout: 30000 });
+}
 export async function openCard(p, id, mode, lang = "de") {
   await p.locator("main.h-at-day").waitFor();
   await act(p, "intent-alle"); await p.locator("main.h-at-regal").waitFor();
   // Karten aus dem Altkatalog ueber die Suche; neue Karten (z. B. duell-liest) stehen ohne Suche in ihrer Familie
   if (!cardOf(id).manifest.family) await p.locator("#h-q").fill(titleOf(id, lang));
   await p.locator('[data-act="open-' + id + '"]').first().click();
-  await waitScreen(p, "card-view");
+  await waitScreen(p, "card-view"); await ready(p);
   if (mode) await pickMode(p, lang, mode);
 }
 async function settle(p) { await p.waitForTimeout(220); }
@@ -29,6 +38,7 @@ async function settle(p) { await p.waitForTimeout(220); }
 export async function playTurn(p, onScreen, extra) {
   let n = 0;
   for (let a = 0; a < 120; a++) {
+    await ready(p); // nach "Los" bzw. Annehmen laedt der Host evtl. erst Karte oder Teil
     const s = await screen(p);
     if (s === "card-play-cover") { await act(p, "cover-ok"); continue; }
     if (s !== "card-play-turn") return s;
@@ -60,7 +70,7 @@ export async function roundTrip(A, B, { onScreen, maxHops = 12, stop, extra } = 
     const link = await linkOf(cur.p);
     if (s === "card-play-send") { await act(cur.p, "sent"); await waitScreen(cur.p, "card-play-wait"); }
     await other.p.goto(other.p.url().split("#")[0] + link);
-    await waitScreen(other.p, "receive-show"); await act(other.p, "accept");
+    await waitScreen(other.p, "receive-show"); await ready(other.p); await act(other.p, "accept"); await ready(other.p);
     if (s === "card-play-over") { await waitScreen(other.p, "card-play-over"); return { end: other, hops: hops + 1 }; }
     if (stop && (await stop(other.p, hops))) return { end: other, hops: hops + 1, stopped: true };
     [cur, other] = [other, cur];

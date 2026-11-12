@@ -4,6 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { browser, open, act, axe, waitScreen } from "./lib/grund.mjs";
+import { liveInvite } from "./lib/scenarios.mjs";
 
 let b;
 test.before(async () => { b = await browser(); });
@@ -71,3 +72,27 @@ test("foto-alien Varianten: foto-tour (Poster/Duoton), foto-haustier (Meme), fot
   // Poster = Duoton aus dunkel und erster Farbe: Magenta wird zum Farbton der Karte, also Pruefung: Bild weicht von ohne Foto ab
   assert.deepEqual(errs, []);
 });
+
+// Live mit selbst gewaehltem Foto (Fs media-travel 0509ea1f prueft den fremden Fall): das eigene Foto bleibt auf dem Geraet,
+// weder die id noch "local:" stehen im Netzverkehr (Bruecke, Edge, Datenkanal), der Partner sieht kein Foto.
+for (const id of ["foto-alien", "advent-tuer"]) {
+  test(id + " live: selbst gewaehltes Foto reist nicht (Netzverkehr ohne id, Partner ohne Foto)", async () => {
+    let pid = null;
+    const { A, B, net } = await liveInvite(b, { view: "phone390", lang: "de" }, id, async (p) => {
+      await pickPhoto(p, "foto");
+      pid = (await p.evaluate(() => new Promise((ok) => { const r = indexedDB.open("mdi.media"); r.onsuccess = () => { const q = r.result.transaction("fotos").objectStore("fotos").getAllKeys(); q.onsuccess = () => ok(q.result); }; })))[0];
+      assert.ok((await waitMagenta(p, 0.05)) >= 0.05, "eigenes Foto auf der eigenen Karte");
+    });
+    assert.match(pid, /^[0-9a-f]{32}$/);
+    for (let i = 0; i < 150 && net.wire.dc.length < 1; i++) await A.p.waitForTimeout(100);
+    await A.p.waitForTimeout(500);
+    const all = JSON.stringify([net.wire.http, net.wire.edge, net.wire.dc]);
+    assert.ok(net.wire.dc.length >= 1, "Datenkanal trug Nachrichten");
+    assert.ok(!all.includes(pid) && !/local:/.test(all), "keine Foto-id im Netzverkehr");
+    for (let i = 0; i < 50 && !(await B.p.locator("canvas").count()); i++) await B.p.waitForTimeout(100);
+    if (id === "advent-tuer") { const d = B.p.getByRole("button", { name: /Türchen \d+ öffnen/ }); if (await d.count()) await d.click(); }
+    await B.p.waitForTimeout(500);
+    const rx = await magenta(B.p); assert.ok(rx < 0.01, "Partner sieht das Foto nicht: " + rx);
+    await A.ctx.close(); await B.ctx.close();
+  });
+}

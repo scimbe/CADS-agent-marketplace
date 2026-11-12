@@ -25,7 +25,8 @@ for (const view of ["phone360", "phone390", "phone412", "desk1280"]) {
 
 test("Wischen nach links blaettert vor, nach rechts zurueck; Heute springt zurueck", async () => {
   const { p } = await open(b, { view: "phone390" });
-  const leaf = p.locator(".h-leaf"); await leaf.waitFor();
+  // erst wenn die Startbilder geladen sind: Wischen ueber ein echtes Bild (Befund Labor 73a76ec9, Bild-Ziehen schluckte das Wischen)
+  const leaf = p.locator(".h-leaf"); await leaf.waitFor(); await p.waitForLoadState("networkidle"); await p.waitForTimeout(500);
   const d0 = await p.locator(".h-dnum").textContent();
   const box = await leaf.boundingBox();
   const swipe = async (dx) => { await p.mouse.move(box.x + box.width / 2, box.y + 120); await p.mouse.down(); await p.mouse.move(box.x + box.width / 2 + dx, box.y + 120, { steps: 6 }); await p.mouse.up(); };

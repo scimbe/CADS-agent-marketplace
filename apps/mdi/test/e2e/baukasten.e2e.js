@@ -26,7 +26,7 @@ for (const ex of ["flappy", "breakout", "snake", "reaktion"]) for (const view of
     const t0 = await p.evaluate(() => window.__bau.tick);
     await p.keyboard.press("Space"); await p.keyboard.down("ArrowLeft"); await p.waitForTimeout(400); await p.keyboard.up("ArrowLeft");
     assert.ok(await p.evaluate(() => window.__bau.tick) > t0, "Tick laeuft");
-    const painted = await p.evaluate(() => { const c = document.querySelector(".rt-canvas"); const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; const s = new Set(); for (let i = 0; i < d.length; i += 4000) s.add(d[i] + "," + d[i + 1] + "," + d[i + 2]); return s.size; });
+    const painted = await p.evaluate(() => { const c = document.querySelector(".rt-canvas"); const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; const s = new Set(); for (let i = 0; i < d.length; i += 64) s.add(d[i] + "," + d[i + 1] + "," + d[i + 2]); return s.size; });
     // mindestens Flaeche und Spielwelt (Reaktion: der erste Stern kommt erst nach 0,7 s)
     assert.ok(painted >= 2, "Canvas gezeichnet (" + painted + " Farben)");
     assert.equal(await p.locator(".rt-canvas").getAttribute("role"), "img");
