@@ -140,6 +140,7 @@ export const HIGH = {
  */
 export function exec(c, list, assets = {}) {
   const env = { assets, parts: assets.parts ? [] : null, makeCanvas: assets.canvas, cache: assets.cache || (assets.cache = {}) };
+  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, list.w, list.h); // Vollbild wie alt draw()
   for (const o of list.ops) {
     if (o.m) { if (OP_METHODS.includes(o.m)) c[o.m](...o.a); continue; }
     if (o.p) { if (OP_PROPS.includes(o.p)) c[o.p] = o.v; continue; }

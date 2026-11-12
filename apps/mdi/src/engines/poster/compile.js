@@ -253,7 +253,9 @@ function drawSound(c, W, H, doc, peaks, lyr) {
  */
 export function compile(doc, opt = {}) {
   const W = opt.W || 540, H = opt.H || 675, c = recorder();
-  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, H); c.shadowBlur = 0;
+  // kein setTransform/clearRect in der Liste: der Renderer passt das Bild per Transformation ein (alt draw() begann damit,
+  // paint.js exec setzt es fuer die Vollbild-Referenz voran)
+  c.shadowBlur = 0;
   if (doc.k === "card") drawCard(c, W, H, doc, opt);
   else if (doc.k === "photo") drawPhoto(c, W, H, doc, opt);
   else if (doc.k === "sound") drawSound(c, W, H, doc, opt.peaks, opt.lyr);
@@ -265,7 +267,7 @@ export function compile(doc, opt = {}) {
 /** Eigene Bilder anderer Karten mit denselben Ops (z. B. strassenrap-beat): fn(c, block) zeichnet auf den Aufzeichner. */
 export function record(W, H, fn) {
   const c = recorder();
-  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, H); c.shadowBlur = 0;
+  c.shadowBlur = 0;
   fn(c, (text, x, y, w, h, col, shadow, off) => block(c, text, x, y, w, h, col, shadow, off));
   return { w: W, h: H, ops: c.ops };
 }
