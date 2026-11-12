@@ -55,3 +55,4 @@ Integrator (Hauptsession): führt die Stränge zusammen, prüft jeden PR selbst 
 | 5 | Gerätetest auf echten Handys (iOS und Android, Mittelklasse): 60 fps in Arcade und Flug, Mikrofon- und Ton-Karten, Teilen-Sheet, große Schrift. | A, Z2, D |
 | 6 | Gate C: Der User nimmt die Design-Canvas ab. Offene Produktfrage: eigene Domain oder Logo auf der Anmeldeseite. | D |
 | 7 | Staging mit gleicher Herkunft wie Produktion, Abnahmetest gegen Phase B, Rauchtest, Rollback geprobt. | vorgehen.md |
+| 7a | Wrapper #138 (Teile der App nur aus `build.json`, Staging L1/L3) und #139 (Kompression begrenzt, Staging L4/L8). Nach jedem Start und Rollback `node bin/deploy-check.mjs <basis>`, das auch den Login-Pfad prüft; erst Exit 0 heißt bereit. | W (Staging L1, L3, L4, L8) |
