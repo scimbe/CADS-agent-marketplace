@@ -11,7 +11,7 @@ const L = (rt) => leaf(rt.state);
 function playTurns(rt) {
   // Abdecken auch vor dem ersten Zug (ADR 0001 f, 13 §6.4): erst aufdecken, dann spielen
   if (rt.matches("inhalt.card.play.cover")) rt.dispatch("COVER_OK");
-  for (let i = 0; i < 100 && rt.matches("inhalt.card.play.turn"); i++) {
+  for (let i = 0; i < 2000 && rt.matches("inhalt.card.play.turn"); i++) {
     const c = cardOf(rt.state.ctx.cardId), v = rt.state.ctx.viewer;
     const mv = c.moves(c.observe(rt.state.ctx.session.state, v), v);
     rt.dispatch({ type: "INPUT", input: mv[mv.length - 1] });
@@ -39,7 +39,9 @@ async function scenario(id, mode) {
   }
   if (mode === "link") {
     // Hin und her per Link, bis beide das Ende sehen; der Treiber gibt nur Links weiter
+    // Kettenkarten (Sitz = Zugindex, z. B. Terminumfrage) brauchen so viele Geraete wie Sitze; der Link geht reihum
     const devs = [a, B];
+    for (let k = 2; k < c.manifest.players.max; k++) devs.push(testRuntime({ entropy: counter("d" + k), async: true }));
     let from = 0;
     if (c.manifest.mode === "static") {
       assert.equal(L(a), "card.share"); a.dispatch("SHARE"); await until(() => a.shared.length >= 2);
@@ -47,17 +49,23 @@ async function scenario(id, mode) {
       assert.deepEqual(B.state.ctx.params[id], a.state.ctx.params[id] || B.state.ctx.params[id]);
       return { a, b: B, sent: a.shared };
     }
-    for (let hop = 0; hop < 10; hop++) {
-      const d = devs[from], o = devs[1 - from];
+    for (let hop = 0; hop < 10 * devs.length; hop++) {
+      const d = devs[from], o = devs[(from + 1) % devs.length];
       playTurns(d); noForeignSecret(d);
       if (L(d) === "card.play.over" && !d.state.ctx.link) break;
+      if (L(d) === "card.play.over" && d.state.ctx.session && cardOf(id).status(d.state.ctx.session.state).local === true) break; // Ergebnis bleibt beim letzten Geraet (status.local)
       const n = d.shared.length; d.dispatch("SHARE"); await until(() => d.shared.length > n);
       const link = d.shared[d.shared.length - 1]; sent.push(link);
       if (L(d) === "card.play.send") d.dispatch("SENT");
       o.link(link); assert.equal(L(o), "receive.show", o.state.ctx.reason); o.dispatch("ACCEPT"); noForeignSecret(o);
       if (L(d) === "card.play.over" && L(o) === "card.play.over") break;
-      from = 1 - from;
+      if (L(o) === "card.play.over" && o.state.ctx.session && cardOf(id).status(o.state.ctx.session.state).local === true) break;
+      from = (from + 1) % devs.length;
     }
+    const fin = devs.find((d) => L(d) === "card.play.over");
+    assert.ok(fin, "ein Geraet sieht das Ende");
+    if (cardOf(id).status(fin.state.ctx.session.state).local === true) return { a: fin, b: null, sent, local: true };
+    if (devs.length > 2) return { a: fin, b: null, sent }; // Kette: das letzte Geraet sieht das Ende, Ruecklink gibt es nicht
     assert.equal(L(a), "card.play.over"); assert.equal(L(B), "card.play.over");
     return { a, b: B, sent };
   }
@@ -72,7 +80,8 @@ async function scenario(id, mode) {
   throw new Error("Modus " + mode);
 }
 
-for (const id of ORDER) for (const mode of modesOf(cardOf(id))) {
+// Zug- und statische Karten; Echtzeitkarten laufen ueber den Echtzeit-Treiber (test/rt-modes.test.js)
+for (const id of ORDER.filter((x) => cardOf(x).manifest.mode !== "realtime")) for (const mode of modesOf(cardOf(id))) {
   test("Karte " + id + " im Modus " + mode + " – derselbe Treiber, keine Sonderlogik", async () => {
     const r = await scenario(id, mode);
     for (const d of [r.a, r.b].filter(Boolean)) assert.equal(d.state.ctx.error, null);

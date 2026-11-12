@@ -255,7 +255,7 @@ test("Pfad-Enumeration der Konto-Achse bis Tiefe 5: gueltig, Disclosure, keine t
       assert.equal(machine.valid(s.config), null);
       const L = leaf(s); leaves.add(L); kstates.add(K(s));
       const acts = actionsOf(s);
-      assert.ok(acts.secondary.length <= 3, L);
+      if (L !== "shelf") assert.ok(acts.secondary.length <= 3, L); // Regal = Katalog (Strang H), siehe statechart.test
       for (const a of [acts.primary, ...acts.secondary].filter(Boolean)) assert.ok(machine.send(s, { at: T0, rand: R(), ...a.ev }).consumed, L + "/" + K(s) + ": toter Knopf " + a.id);
       let b = s; for (let i = 0; i < 6 && leaf(b) !== "shelf"; i++) { const r = machine.send(b, { type: "BACK", rand: [] }); if (!r.consumed) break; b = r; }
       assert.equal(leaf(b), "shelf", L + ": BACK kommt nicht heim");

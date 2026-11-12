@@ -4,7 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as V from "../src/gen/validators.js";
-import { CARDS, ORDER, modesOf } from "../src/cards/index.js";
+import { CARDS, ORDER, modesOf, validParams } from "../src/cards/index.js";
+import { PRIMITIVES } from "../src/render/primitives.js";
 import { checkCardSource } from "../scripts/harness.js";
 import { travel, paramsForLink, defaults } from "../src/contract/fields.js";
 import { FILLS, SHAPES } from "../src/contract/tokens.js";
@@ -21,15 +22,18 @@ test("Manifeste erfuellen das Manifest-Schema; Pflichtfunktionen des Vertrags vo
   for (const id of ORDER) {
     const c = CARDS[id];
     assert.equal(V.manifest(c.manifest), true, id + " " + JSON.stringify(V.manifest.errors));
-    for (const f of ["init", "step", "observe", "view", "status", "moves"]) assert.equal(typeof c[f], "function", id + "." + f);
+    // Pflichtfunktionen je Modus (ADR 0001 b/f): Echtzeit init/step/status/view, sonst der Zugvertrag
+    const need = c.manifest.mode === "realtime" ? ["init", "step", "view", "status"] : ["init", "step", "observe", "view", "status", "moves"];
+    for (const f of need) assert.equal(typeof c[f], "function", id + "." + f);
+    if (c.manifest.mode === "realtime" && c.manifest.rt.net === "split") assert.equal(typeof (c.side && c.side.step), "function", id + ".side");
     if (c.manifest.hidden === "commit-reveal") { assert.equal(typeof c.deal, "function"); assert.equal(typeof c.sample, "function"); assert.ok(c.manifest.secretSeats.length > 0); }
     for (const p of c.manifest.parts) for (const k of p.params) assert.ok(k in c.manifest.params.properties, id + ": Teil " + p.id + " -> " + k);
-    assert.equal(V["params_" + id](defaults(c.manifest.params)), true, id + ": Standardwerte gueltig");
+    assert.equal(validParams(id, defaults(c.manifest.params)), true, id + ": Standardwerte gueltig");
   }
 });
 
 test("Harness: Kartenquellen nutzen nur exakte Mathe, keine Uhr/Netz/DOM", () => {
-  for (const id of ORDER) assert.deepEqual(checkCardSource(fs.readFileSync(path.join(SRC, "cards", id, "card.js"), "utf8")), [], id);
+  for (const id of ORDER) assert.deepEqual(checkCardSource(fs.readFileSync(path.join(SRC, "cards", id, "card.js"), "utf8"), { file: "src/cards/" + id + "/card.js" }), [], id);
 });
 test("Harness: verbotene Muster werden gefunden", () => {
   const bad = {
@@ -56,17 +60,19 @@ test("Feldtypen und Reiseregeln (KONZEPT §3.2)", () => {
 });
 
 function walk(n, f) { if (!n || typeof n !== "object") return; f(n); for (const c of n.children || []) walk(c, f); }
-const PRIMS = new Set(["frame", "stack", "row", "text", "shape", "tile", "choice"]);
+const PRIMS = new Set(PRIMITIVES);
 test("Anzeigelisten: nur bekannte Primitive und Token-Namen, keine Funktionen, keine Farbwerte", () => {
   const ent = counter("1");
-  for (const id of ORDER) {
+  for (const id of ORDER.filter((x) => CARDS[x].manifest.mode !== "realtime")) {
     const c = CARDS[id], n = c.manifest.players.max, all = [...Array(n).keys()];
     let s = S.newSession(c, { params: defaults(c.manifest.params), seed: ent(), mine: all, ...S.makeSecrets(c, all, ent) });
     for (let k = 0; k < 40; k++) {
       for (const seat of all) for (const lang of ["de", "en"]) {
         const node = c.view(c.observe(s.state, seat), seat, { lang });
         const json = JSON.stringify(node);
-        assert.ok(!/#[0-9a-fA-F]{3,6}\b|rgb\(|<[a-z]/.test(json), id + ": Farbwert/HTML in Anzeigeliste");
+        // Farbwerte nur in der Canvas-Liste (Nutzerfarben sind Inhalt, ADR 0001 b); sonst Token
+        const jsonNoCanvas = JSON.stringify(node, (k, v) => (v && v.t === "canvas" ? undefined : v));
+        assert.ok(!/#[0-9a-fA-F]{3,6}\b|rgb\(|<[a-z]/.test(jsonNoCanvas), id + ": Farbwert/HTML in Anzeigeliste");
         walk(node, (x) => {
           assert.ok(PRIMS.has(x.t), id + ": Primitiv " + x.t);
           for (const k2 of ["fill", "ink"]) if (x[k2] !== undefined) assert.ok(FILLS.includes(x[k2]), id + ": Token " + x[k2]);
@@ -81,12 +87,14 @@ test("Anzeigelisten: nur bekannte Primitive und Token-Namen, keine Funktionen, k
   }
 });
 
-test("observe: kein Sitz sieht fremde private Teile; Drahtformat ohne Salz vor der Aufloesung (500 Zufallspartien)", () => {
+// Zufallspartien je Karte mit Zeitbudget (Tischkarten mit Mental Poker brauchen Sekunden je Partie): mindestens 3,
+// hoechstens 500 Partien oder 4 s je Karte.
+test("observe: kein Sitz sieht fremde private Teile; Drahtformat ohne Salz vor der Aufloesung (bis 500 Zufallspartien)", () => {
   const ent = counter("2");
   for (const id of ORDER) {
     const c = CARDS[id]; if (c.manifest.hidden !== "commit-reveal") continue;
-    const all = [...Array(c.manifest.players.max).keys()];
-    for (let g = 0; g < 500; g++) {
+    const all = [...Array(c.manifest.players.max).keys()], t0 = Date.now();
+    for (let g = 0; g < 500 && (g < 3 || Date.now() - t0 < 4000); g++) {
       const sec = S.makeSecrets(c, all, ent);
       let s = S.newSession(c, { params: defaults(c.manifest.params), seed: ent(), mine: all, ...sec });
       const r = rng("partie" + g);
@@ -94,10 +102,12 @@ test("observe: kein Sitz sieht fremde private Teile; Drahtformat ohne Salz vor d
         const st = S.status(c, s);
         for (const seat of all) {
           const o = c.observe(s.state, seat);
+          // eigener Teil: genau der eigene priv-Teil (oder null, wenn der Sitz kein Geheimnis hat)
+          if (!c.manifest.secretSeats.includes(seat)) assert.equal(o.mine, null, id + ": Sitz " + seat + " ohne Geheimnis hat mine");
           for (const other of c.manifest.secretSeats) if (other !== seat && !st.over) {
             const secretJson = JSON.stringify(s.state.priv[other]);
+            if (secretJson === "null" || secretJson === JSON.stringify(s.state.priv[seat])) continue;
             assert.ok(!JSON.stringify(o).includes(secretJson.slice(1, -1)) || o.pub.truth, id + ": Sitz " + seat + " sieht Teil von " + other);
-            assert.equal(o.mine, null);
           }
         }
         const wire = JSON.stringify(S.toWire(s));

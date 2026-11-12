@@ -6,6 +6,7 @@ import * as S from "../contract/session.js";
 import * as H from "../contract/handshake.js";
 import { decode } from "./link.js";
 import { stateHash } from "../contract/sdk.js";
+import { verifyGhost } from "./rt/match.js";
 
 // ---------- Geraeteeintrag je Link-Partie (Review H1/M1) ----------
 // Jeder Sitz merkt sich den Stand, den er zuletzt kannte oder verschickt hat: Basis (Karte, Version, Parameter, Seed),
@@ -156,6 +157,13 @@ export function receive(hash, stored, rand) {
   if (!c) return { ok: false, reason: "karte-unbekannt" };
   if (d.data.v !== c.manifest.version) return { ok: false, reason: "version" };
   if (!validParams(d.data.c, d.data.p)) return { ok: false, reason: "params" };
+  if (d.type === "ghost") {
+    // Geist-Link (ADR 0001 b): nur Echtzeitkarten mit rt.ghost; die Spur wird vor dem Annehmen nachgespielt
+    if (c.manifest.mode !== "realtime" || !c.manifest.rt.ghost) return { ok: false, reason: "typ" };
+    const v = verifyGhost(c, d.data);
+    if (!v.ok) return { ok: false, reason: v.reason };
+    return { ok: true, kind: "ghost", cardId: d.data.c, params: d.data.p, wire: d.data, seat: v.seat, score: v.score };
+  }
   if (d.type === "card") {
     if (c.manifest.mode !== "static") return { ok: false, reason: "typ" };
     return { ok: true, kind: "card", cardId: d.data.c, params: d.data.p };

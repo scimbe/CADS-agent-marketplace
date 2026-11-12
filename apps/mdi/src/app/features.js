@@ -12,6 +12,7 @@
 //   guards?, actions?:  { name: fn }
 //   context?: (saved) => object                Anfangswerte im ctx
 //   effects?: { typ: (fx, { dispatch, state, api, deps }) => void }
+//   profileLocal?: (ctx) => { wall?, saved? } | null   lokale Profilteile fuer profile/put (Vorrang vor dem Server)
 // }
 // Pfade sind absolute Zustandspfade ohne Praefix, z. B. "inhalt.card.view", "inhalt.card.play.over".
 

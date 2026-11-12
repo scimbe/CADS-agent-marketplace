@@ -6,6 +6,7 @@ import { createMachine } from "./statechart.js";
 import * as G from "./game.js";
 import { cardOf, modesOf, validParams } from "../cards/index.js";
 import { encode } from "./link.js";
+import { sha256 } from "../contract/sdk.js";
 import { paramsForLink } from "../contract/fields.js";
 import { kontoRegion, stilState, kontoGuards, kontoActions, kontoContext } from "./konto-chart.js";
 import { FEATURES } from "./features.js";
@@ -41,6 +42,7 @@ export const chart = {
                 MODE: { actions: ["setMode"] }, SEAT: { actions: ["setSeat"] }, LEVEL: { actions: ["setLevel"] },
                 CUSTOMIZE: T("inhalt.card.customize"),
                 GO: [
+                  { target: T("inhalt.card.rt"), cond: "goRt", actions: ["startRt"] },
                   { target: T("inhalt.card.share"), cond: "goStaticLink" },
                   { target: T("inhalt.card.lobby"), cond: "goLive", raise: "INVITE" },
                   { target: T("inhalt.card.play"), cond: "goBot", actions: ["startBot"] },
@@ -71,6 +73,7 @@ export const chart = {
               on: {
                 SYNC: [
                   { target: T("inhalt.card.play.error"), cond: "phError" },
+                  { target: T("inhalt.card.rt"), cond: "rtHandshakeDone", actions: ["startRt"] },
                   { target: T("inhalt.card.play.over"), cond: "phOver" },
                   { target: T("inhalt.card.play.send"), cond: "phSend" },
                   { target: T("inhalt.card.play.cover"), cond: "phCover" },
@@ -97,6 +100,42 @@ export const chart = {
                 },
                 error: {}
               }
+            },
+            // Echtzeitkarten (ADR 0001 b): die Bildschleife liegt in der Laufzeit (src/app/rt/session.js), hier nur Uebergaenge
+            rt: {
+              initial: "ready",
+              on: {
+                RT: [
+                  { target: T("inhalt.card.rt.run"), cond: "rtIs:go" },
+                  { target: T("inhalt.card.rt.run"), cond: "rtIs:resume" },
+                  { target: T("inhalt.card.rt.run"), cond: "rtIs:flow" },
+                  { target: T("inhalt.card.rt.pause"), cond: "rtIs:pause" },
+                  { target: T("inhalt.card.rt.wait"), cond: "rtIs:stall" },
+                  { target: T("inhalt.card.rt.over"), cond: "rtIs:over", actions: ["rtTakeResult"] },
+                  { target: T("inhalt.card.rt.error"), actions: ["rtTakeError"] }
+                ],
+                LIVE_DOWN: { target: T("inhalt.card.rt.error"), cond: "rtRunning", actions: ["rtPeerGone"] },
+                PEER_AGAIN: [{ target: T("inhalt.card.rt"), cond: "rtAgainMine", actions: ["rtRestartLive"] }, { actions: ["rtMarkPeerAgain"] }],
+                BACK: { target: T("inhalt.card.view"), actions: ["stopRt", "endGame"], raise: leaveIfLive }
+              },
+              states: {
+                ready: {},
+                run: { on: { PAUSE: { actions: ["rtPause"] } } },
+                pause: { on: { RESUME: { actions: ["rtResume"] }, PAUSE: { actions: ["rtResume"] } } },
+                wait: {},
+                over: {
+                  entry: ["makeGhostLink"],
+                  on: {
+                    SHARE: { actions: ["share"] }, SENT: { actions: ["markSent"] },
+                    AGAIN: [
+                      { target: T("inhalt.card.rt"), cond: "rtAgainLocal", actions: ["startRt"] },
+                      { target: T("inhalt.card.rt"), cond: "rtAgainPeer", actions: ["rtRestartLive"] },
+                      { cond: "rtLive", actions: ["rtMarkMyAgain"] }
+                    ]
+                  }
+                },
+                error: {}
+              }
             }
           }
         },
@@ -107,6 +146,7 @@ export const chart = {
             show: {
               on: {
                 ACCEPT: [
+                  { target: T("inhalt.card.rt"), cond: "inGhost", actions: ["acceptGhost"] },
                   { target: T("inhalt.card.view"), cond: "inCard", actions: ["acceptCard"] },
                   { target: T("inhalt.card.play"), cond: "inChallenge", actions: ["acceptChallenge"], raise: "SYNC" }
                 ]
@@ -150,8 +190,17 @@ export const guards = {
   partExists: (ctx, ev) => G.card(ctx).manifest.parts.some((p) => p.id === ev.part),
   goStaticLink: (ctx) => G.card(ctx).manifest.mode === "static" && ctx.mode === "link",
   goLive: (ctx) => ctx.mode === "live",
-  goBot: (ctx) => ctx.mode === "bot" && G.card(ctx).manifest.mode !== "static",
-  goLocal: (ctx) => (ctx.mode === "alone" || ctx.mode === "link") && G.card(ctx).manifest.mode !== "static",
+  goRt: (ctx) => G.card(ctx).manifest.mode === "realtime" && ["alone", "bot"].includes(ctx.mode),
+  goBot: (ctx) => ctx.mode === "bot" && G.card(ctx).manifest.mode === "turn",
+  goLocal: (ctx) => (ctx.mode === "alone" || ctx.mode === "link") && G.card(ctx).manifest.mode === "turn",
+  rtHandshakeDone: (ctx) => !!ctx.session && !ctx.error && G.card(ctx).manifest.mode === "realtime",
+  rtRunning: (ctx) => ctx.mode === "live" && !ctx.rtResult,
+  rtLive: (ctx) => ctx.mode === "live",
+  rtAgainLocal: (ctx) => ctx.mode === "alone" || ctx.mode === "bot",
+  rtAgainPeer: (ctx) => ctx.mode === "live" && ctx.rtAgain === "peer",
+  rtAgainMine: (ctx) => ctx.mode === "live" && ctx.rtAgain === "mine",
+  inGhost: (ctx) => !!ctx.incoming && ctx.incoming.kind === "ghost",
+  ...Object.fromEntries(["go", "resume", "flow", "pause", "stall", "over"].map((k) => ["rtIs:" + k, (ctx, ev) => ev.kind === k])),
   isStatic: (ctx) => G.card(ctx).manifest.mode === "static",
   phError: guard((ctx) => G.phase(ctx) === "error"),
   phOver: guard((ctx) => G.phase(ctx) === "over"),
@@ -227,6 +276,40 @@ export const actions = {
     if (!ctx.session || !ctx.botSeats) return { ...ctx, error: "abweichung" };
     return safe(ctx, () => { const n = G.applyBotLocal(ctx, ev.input); const t = G.botTurn(n); if (t !== null) emit({ type: "bot.local", seat: t, level: n.level || 2 }); return n; });
   },
+  // ---- Echtzeit (ADR 0001 b) ----
+  startRt: (ctx, ev, emit) => {
+    const c = G.card(ctx), m = c.manifest;
+    const live = ctx.mode === "live" && ctx.session;
+    const seed = live ? ctx.session.seed : ev.rand[0];
+    const seat = live ? ctx.session.mine[0] : Math.min(ctx.seat || 0, m.players.max - 1);
+    emit({ type: "rt.start", mode: live ? "live" : ctx.mode, seat, seed, params: G.paramsOf(ctx), level: ctx.level || 2, serving: seat === 0 });
+    return { ...ctx, rtSeed: seed, rtResult: null, rtAgain: null, link: null, sent: false, error: null, viewer: seat };
+  },
+  acceptGhost: (ctx, ev, emit) => {
+    const inc = ctx.incoming, seat = inc.seat === 0 ? 1 : 0;
+    emit({ type: "rt.start", mode: "ghost", seat, seed: inc.wire.s, params: inc.params, level: inc.wire.lv || 2, ghost: inc.wire.tr });
+    return { ...ctx, cardId: inc.cardId, params: { ...ctx.params, [inc.cardId]: inc.params }, mode: "ghost", seat, viewer: seat, rtSeed: inc.wire.s, rtResult: null, incoming: null, link: null, sent: false, error: null, ghostOf: { sc: inc.wire.sc, n: inc.wire.n } };
+  },
+  stopRt: (ctx, ev, emit) => { emit({ type: "rt.stop" }); return { ...ctx, rtResult: null, rtAgain: null }; },
+  rtPause: (ctx, ev, emit) => { emit({ type: "rt.pause" }); return ctx; },
+  rtResume: (ctx, ev, emit) => { emit({ type: "rt.resume" }); return ctx; },
+  rtTakeResult: (ctx, ev) => ({ ...ctx, rtResult: { status: ev.status || null, ghost: ev.ghost || null } }),
+  rtTakeError: (ctx, ev) => ({ ...ctx, error: ev.kind === "desync" ? "abweichung" : ev.kind === "peer-lost" ? "partner-weg" : ev.reason || "verbindung" }),
+  rtPeerGone: (ctx, ev, emit) => { emit({ type: "rt.stop" }); return { ...ctx, error: "partner-weg" }; },
+  makeGhostLink: (ctx) => {
+    const g = ctx.rtResult && ctx.rtResult.ghost;
+    if (!g || !(ctx.mode === "alone" || ctx.mode === "bot")) return { ...ctx, link: null };
+    try { return { ...ctx, link: encode("ghost", g), sent: false }; } catch (e) { return { ...ctx, link: null, linkError: e.code || "zu-lang" }; }
+  },
+  rtMarkMyAgain: (ctx, ev, emit) => { emit({ type: "peer", msg: { t: "again" } }); return { ...ctx, rtAgain: "mine" }; },
+  rtMarkPeerAgain: (ctx) => (ctx.rtResult ? { ...ctx, rtAgain: "peer" } : ctx),
+  rtRestartLive: (ctx, ev, emit) => {
+    // Revanche: beide haben "again" gesendet; neuer Seed rein aus dem alten (beide rechnen denselben)
+    if (ev.type === "AGAIN") emit({ type: "peer", msg: { t: "again" } });
+    const seed = sha256(ctx.rtSeed + "|again").slice(0, 32), seat = ctx.session ? ctx.session.mine[0] : ctx.seat;
+    emit({ type: "rt.start", mode: "live", seat, seed, params: G.paramsOf(ctx), level: ctx.level || 2, serving: seat === 1 ? true : false });
+    return { ...ctx, rtSeed: seed, rtResult: null, rtAgain: null, error: null };
+  },
   setDraft: (ctx, ev) => { try { return { ...ctx, draft: ev.draft === undefined ? null : JSON.parse(JSON.stringify(ev.draft)) }; } catch (e) { return ctx; } },
   onPeerIn: (ctx, ev, emit) => {
     if (!ctx.session) return { ...ctx, error: "abweichung" };
@@ -247,7 +330,7 @@ export const actions = {
     const log = ctx.session.log; if (!log.length || !ctx.session.mine.includes(log[log.length - 1].seat)) return { ...ctx, link: null };
     try { const link = encode("challenge", G.challengeOf(ctx)); emit({ type: "store", entry: G.gameEntry(ctx.session, ctx.gameId) }); return { ...ctx, link }; } catch (e) { return { ...ctx, link: null }; }
   },
-  endGame: (ctx) => ({ ...ctx, session: null, hs: null, error: null, link: null, sent: false, draft: null, botSeats: null, coveredFor: null }),
+  endGame: (ctx) => ({ ...ctx, session: null, hs: null, error: null, link: null, sent: false, draft: null, botSeats: null, coveredFor: null, rtResult: null, rtAgain: null, ghostOf: null }),
   peerGone: (ctx) => (ctx.session && G.gameStatus(ctx).over ? ctx : { ...ctx, error: "partner-weg" }),
   setError: (ctx, ev) => ({ ...ctx, error: ev.reason || "zug-ungueltig" }),
   takeLink: (ctx, ev, emit) => {
