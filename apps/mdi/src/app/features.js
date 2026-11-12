@@ -14,6 +14,8 @@
 //   store?: true                               eigener Geraetespeicher: die Laufzeit liest storage.loadFeature(id) beim Start
 //                                              (saved.feat[id], sonst null); schreiben im Effekt ueber
 //                                              deps.storage.saveFeature(id, objekt) (<= 8 KiB JSON, sonst false)
+//   persist?: (ctx, now) => objekt|null        Stand, den die Laufzeit vor dem Anmelde-Gate (konto.login) sichert (mit store);
+//                                              saved.now ist beim naechsten Start die Uhrzeit (Ablauf pruefen)
 //   effects?: { typ: (fx, { dispatch, state, api, deps }) => void }
 //   needs?: (ev, ctx) => [kartenId…]   Karten, die ein Ereignis braucht; die Laufzeit laedt sie vorher (Nachladen)
 //   needParts?: (ev, ctx) => [teilName…]  Feature-Teile (src/app/feature-parts.json), die ein Ereignis braucht; die

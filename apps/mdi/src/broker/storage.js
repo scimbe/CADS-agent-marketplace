@@ -29,15 +29,6 @@ export function createStorage() {
       const s = ls(); if (!s) return null;
       try { const v = JSON.parse(s.getItem(KONTO) || "null"); return v && typeof v === "object" && !Array.isArray(v) ? v : null; } catch (e) { return null; }
     },
-    // Strang K: zuletzt gewaehlte Kategorie/Genre der freien Karte (nur markierter Vorschlag, nie stille Auswahl)
-    loadFrei() {
-      const s = ls(); if (!s) return null;
-      try { const v = JSON.parse(s.getItem(FREI) || "null"); return v && typeof v === "object" && !Array.isArray(v) ? v : null; } catch (e) { return null; }
-    },
-    saveFrei(v) {
-      const s = ls(); if (!s) return false;
-      try { s.setItem(FREI, JSON.stringify({ freiLast: v && v.freiLast })); return true; } catch (e) { return false; }
-    },
     // Feature-Speicher (ADR 0001 g, Feature-Feld store): je Feature ein Objekt unter "mdi.f.<id>", hoechstens FEAT_MAX Byte.
     // Ungueltiges/zu grosses wird nicht gespeichert (false) und beim Laden als null gemeldet, nie still gekuerzt.
     loadFeature(id) {
@@ -59,7 +50,7 @@ export function createStorage() {
     }
   };
 }
-const TON = "mdi.ton", KONTO = "mdi.konto", FREI = "mdi.frei";
+const TON = "mdi.ton", KONTO = "mdi.konto";
 const FEAT = "mdi.f.", FEAT_ID = /^[a-z0-9-]{1,30}$/;
 export const FEAT_MAX = 8192;
 // Meins (Strang H): Wand (Werke ohne Fotos), gemerkte Karten, Archiv versendeter Links mit Kurzlink-Token. Pruefen macht der

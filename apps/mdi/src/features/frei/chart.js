@@ -424,10 +424,19 @@ export const freiActions = {
 };
 
 /** Kontext der freien Karte (zuletzt gewaehlt nur als markierter Vorschlag, nie als stille Auswahl) */
+// Rueckkehr vom Anmelde-Gate (?go=erschaffen): Satz, Art und Genre kommen aus dem Geraetespeicher zurueck, aber nur, wenn
+// sie hoechstens BACK_MS alt sind (sonst stuende ein alter Satz Tage spaeter im Feld). Gespeichert wird vor dem Gate (persist).
+export const BACK_MS = 15 * 60 * 1000;
+function backOf(st, now) {
+  const b = st && st.back && typeof st.back === "object" ? st.back : null;
+  if (!b || !Number.isFinite(b.at) || !Number.isFinite(now) || now - b.at < 0 || now - b.at > BACK_MS) return {};
+  return { text: [...String(b.text || "")].slice(0, 200).join(""), art: ARTS.includes(b.art) ? b.art : "", genre: GENRES.includes(b.genre) ? b.genre : "" };
+}
 export function freiContext(saved) {
-  const l = saved && saved.freiLast && typeof saved.freiLast === "object" ? saved.freiLast : {};
+  const st = saved && saved.feat && saved.feat.frei && typeof saved.feat.frei === "object" ? saved.feat.frei : null;
+  const l = st && st.last && typeof st.last === "object" ? st.last : {};
   return {
-    frei: { ...freshForm, last: { art: ARTS.includes(l.art) ? l.art : "", genre: GENRES.includes(l.genre) ? l.genre : "" }, req: 0, phase: null, place: 0, missing: null, taken: null, gate: null, share: null,
+    frei: { ...freshForm, ...backOf(st, saved && saved.now), last: { art: ARTS.includes(l.art) ? l.art : "", genre: GENRES.includes(l.genre) ? l.genre : "" }, req: 0, phase: null, place: 0, missing: null, taken: null, gate: null, share: null,
       deck: { load: null, cards: [], v: -1 }, card: null, use: null, vote: null, acted: false, mine: null,
       report: { reason: null, sending: false, sent: null, back: null, doc: null },
       bild: { use: "card", style: "comic", text: "", st: null, err: null, req: 0, phase: null, place: 0, res: null, kept: false },
@@ -440,6 +449,9 @@ import { createImages } from "./images.js";
 /** Das Feature im Format von ADR 0001 (g) (src/app/features.js) */
 export const frei = {
   id: "frei",
+  // Geraetespeicher (mdi.f.frei): zuletzt gewaehlt (last) und der Stand vor dem Anmelde-Gate (back)
+  store: true,
+  persist: (ctx, now) => (ctx.frei && (ctx.frei.text || ctx.frei.art || ctx.frei.genre) ? { last: ctx.frei.last, back: { text: ctx.frei.text, art: ctx.frei.art, genre: ctx.frei.genre, at: now } } : { last: ctx.frei && ctx.frei.last }),
   needs: freiNeeds,
   needParts: freiParts,
   states: { frei: freiState },

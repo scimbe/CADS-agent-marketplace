@@ -44,7 +44,15 @@ export function createRuntime(deps) {
   // Feature-Speicher: Features mit store:true bekommen ihr gespeichertes Objekt als saved.feat[id] in context(saved)
   const feat = {};
   for (const f of deps.needFeatures || FEATURES) if (f.store === true && deps.storage.loadFeature) { try { feat[f.id] = deps.storage.loadFeature(f.id); } catch (e) { feat[f.id] = null; } }
-  let state = machine.initial(initialContext(deps.lang, { ...(saved || {}), muted: ton === true, feat }));
+  let state = machine.initial(initialContext(deps.lang, { ...(saved || {}), muted: ton === true, feat, now: now() }));
+  // Vor dem Verlassen der Seite (Anmelde-Gate): Features mit store und persist(ctx, now) sichern ihren Stand
+  function persistFeatures() {
+    if (!deps.storage.saveFeature) return;
+    for (const f of deps.needFeatures || FEATURES) if (f.store === true && typeof f.persist === "function") {
+      let v = null; try { v = f.persist(state.ctx, now()); } catch (e) { v = null; }
+      if (v) deps.storage.saveFeature(f.id, v);
+    }
+  }
   if (!state.ctx.device) state = { ...state, ctx: { ...state.ctx, device: deps.entropy() } };
   let bot = null, live = null, liveGen = 0, rtSess = null, rtGen = 0;
   const lives = new Map(); // Gruppe: Gastsitz -> Kanal
@@ -172,6 +180,7 @@ export function createRuntime(deps) {
       case "konto.login":
         // App-Huelle: die Huelle meldet an (System-Browser); danach wird das Konto neu geprueft, wie nach dem Gate
         if (api && api.app) { later(async () => { const r = await api.app.login(); dispatch(r.ok ? { type: "APP_DONE" } : { type: "NAV_FAIL", reason: "nicht-hier" }); }); break; }
+        persistFeatures();   // z. B. Satz und Kategorie der freien Karte ueberleben den Umweg ueber das Gate
         if (deps.setLook) deps.setLook(state.ctx.me && state.ctx.me.colors);   // Anmeldeseite im Look von My Daily Idea
         if (!api || !deps.navigate || !deps.navigate(api.loginHref(ret(), state.ctx.lang))) schedule(() => dispatch({ type: "NAV_FAIL", reason: "nicht-hier" }));
         break;
