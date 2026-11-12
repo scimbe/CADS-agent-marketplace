@@ -222,6 +222,14 @@ test("Gate C: Mein Regal heisst so (de/en) und hat ein Symbol; Eigene Karte ist 
   assert.ok(texts(m).includes("Mein Regal"), "Ueberschrift");
 });
 
+test("Kopfzeile Start: ohne Zurueck keine leere Spalte (bar-noback), Schrift-Knopf zeigt AA nebeneinander", () => {
+  const s = start(), t = texts(s);
+  assert.ok(t.includes('"class":"bar bar-noback"'), "Startseite ohne Zurueck");
+  assert.ok(t.includes('"class":"h-headbtn-i h-aa"'));
+  const deep = go(s, { type: "HOME", to: "meins" });
+  assert.ok(texts(deep).includes('"class":"bar"'), "mit Zurueck die normale Kopfzeile");
+});
+
 test("Folge-PR 2: Spiel des Tages startet mit einem Ereignis OPEN {start}; Erst ueben = gegen den Computer bzw. ein Geraet; hoechstens 3 Taps bis zum Spiel", async () => {
   const { dayPrimary, practiceOf } = await import("../src/ui/home/views.js");
   const { modesOfId, manifestOf } = await import("../src/cards/index.js");

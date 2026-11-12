@@ -1,7 +1,7 @@
 /* Design-Tokens: eine Quelle fuer Farbe, Schrift, Abstand, Radius, Bewegung. Nur Darstellung – kein Zustand in CSS
    (A2): Sichtbarkeit entscheidet die Statechart; CSS enthaelt keine Zustandsselektoren. Dark Mode folgt dem System.
-   Farben, Familien und Masse nach dem Design-System Phase C (Strang D, Papierkalender + Meme); Kalenderblatt und Kacheln
-   bleiben auch im Dunkelmodus Papier (ein Gegenstand), alles andere folgt dem System. */
+   Farben, Familien und Masse nach dem Design-System Phase C (Strang D, Papierkalender + Meme). Dunkelmodus nach Canvas v54:
+   Tinte und Creme tauschen die Rollen, Gelb bleibt Marke; Karten auf der Buehne behalten ihre eigenen (hellen) Farben. */
 :root {
   --yellow: #F9D84A; --ink: #17140F; --red: #FF3B1D; --paper: #FBF5DD;
   --gelb: #F9D84A; --gelb-hell: #FFF0A8; --sheet: #FFFDF5; --rot: #B3321F; --signal: #FF3B1D; --pmuted: #5C5444;
@@ -10,17 +10,19 @@
   --fam-geschick: #FF3B1D; --on-geschick: #17140F; --fam-tisch: #0F5C3A; --on-tisch: #FFFFFF; --fam-raetsel: #26305F; --on-raetsel: #FFFFFF;
   --btn-main: 68px; --t-s: .9375rem; --t-m: 1.125rem; --t-l: 1.375rem;
   --bg: var(--paper); --surface: #ffffff; --text: var(--ink); --muted: #4a4636; --line: #d9cfb0; --focus: #0b57d0;
-  --on-primary: var(--ink); --primary: var(--yellow); --danger: #b3200a; --edge: var(--ink);
+  --on-primary: #17140F; /* Tinte auf Gelb, auch im Dunkeln */ --primary: var(--yellow); --danger: #b3200a; --edge: var(--ink);
   --font-head: "Anton", Impact, "Arial Narrow Bold", sans-serif;
   --font-body: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; /* Leseschrift als Teil home-font nachgeladen (Design-System Phase C) */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
   --r1: 10px; --r2: 18px; --r3: 999px;
   --shadow: 0 1px 0 rgba(17,17,17,.9), 0 6px 0 rgba(17,17,17,.9);
-  --tap: 48px;
+  --tap: 48px; --ink-fix: #17140F; --shade: #17140F; /* harte Schatten: Tinte hell, Schwarz im Dunkeln */ /* Tinte auf festen hellen Flaechen (Gelb, Familienfarben): bleibt auch im Dunkeln dunkel */
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #121212; --surface: #1e1d1a; --text: #FFF6DC; --muted: #cfc6ad; --line: #3b382f; --focus: #8ab4ff; --danger: #ff8a75; --edge: #FFF6DC;
+  /* Dunkelmodus nach Canvas v54 (Board „Start dunkel“): Tinte und Creme tauschen die Rollen, Gelb bleibt Marke */
+  :root { --shade: #000; --ink: #FBF5DD; --paper: #14120E; --sheet: #211D16; --gelb-hell: #3B3320; --pmuted: #CFC7B0; --rot: #FF8A75;
+          --bg: #14120E; --surface: #211D16; --text: #FBF5DD; --muted: #CFC7B0; --line: #3b382f; --focus: #8ab4ff; --danger: #ff8a75; --edge: #FBF5DD;
           --shadow: 0 1px 0 rgba(0,0,0,.9), 0 6px 0 rgba(0,0,0,.6); }
 }
 @font-face { font-family: "Anton"; font-style: normal; font-weight: 400; font-display: swap; src: url(__ANTON__) format("woff2"); }
@@ -99,7 +101,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .choice { display: grid; gap: var(--s3); padding: var(--s4); border: 2px solid var(--text); border-radius: var(--r2); background: var(--surface); }
 .choice-label { margin: 0; font-weight: 700; font-size: 1.15rem; }
 .options { display: flex; flex-wrap: wrap; gap: var(--s4); }
-.opt { min-width: 60px; min-height: 60px; padding: 0 var(--s5); border: 3px solid var(--ink); border-radius: var(--r3); background: var(--yellow); color: var(--ink); font-weight: 800; font-size: 1.15rem; cursor: pointer; box-shadow: 0 3px 0 var(--ink); }
+.opt { min-width: 60px; min-height: 60px; padding: 0 var(--s5); border: 3px solid var(--ink); border-radius: var(--r3); background: var(--yellow); color: var(--ink); font-weight: 800; font-size: 1.15rem; cursor: pointer; box-shadow: 0 3px 0 var(--shade); }
 .opt:disabled { opacity: .5; cursor: default; }
 
 /* Steuerung */
@@ -228,7 +230,7 @@ textarea.input { resize: vertical; }
 /* Kalenderblatt: Lochrand, zwei Blaetter darunter (eines rot), leicht gedreht, harte Schatten */
 .h-cal { position: relative; display: grid; gap: var(--s2); }
 .h-leaf { position: relative; z-index: 1; background: var(--sheet); color: var(--ink); border: 3px solid var(--ink); border-radius: 6px; padding: 24px 12px 12px; transform: rotate(-.6deg);
-  box-shadow: 3px 4px 0 var(--sheet), 3px 4px 0 3px var(--ink), 8px 10px 0 3px var(--signal), 8px 10px 0 6px var(--ink); margin: 0 10px 14px 0; touch-action: pan-y; display: grid; gap: var(--s2);
+  box-shadow: 3px 4px 0 var(--sheet), 3px 4px 0 3px var(--shade), 8px 10px 0 3px var(--signal), 8px 10px 0 6px var(--shade); margin: 0 10px 14px 0; touch-action: pan-y; display: grid; gap: var(--s2);
   animation: h-in .42s cubic-bezier(.2,.8,.2,1) both; }
 /* nur Bewegung, keine Deckkraft: Text hat in jedem Moment vollen Kontrast */
 @keyframes h-in { from { transform: translate(-6px, -10px) rotate(-2.4deg); } to { transform: rotate(-.6deg); } }
@@ -251,7 +253,7 @@ textarea.input { resize: vertical; }
 .h-flip .h-teaser { flex: 1; min-width: 0; }
 .h-flipnav { display: flex; gap: 6px; flex: none; }
 .h-arrow { display: grid; justify-items: center; gap: 2px; padding: 0; border: 0; background: none; color: var(--ink); font: 700 .875rem/1.1 var(--font-body); cursor: pointer; }
-.h-arrow-i { display: grid; place-items: center; width: var(--tap); height: var(--tap); border: 3px solid var(--ink); border-radius: 14px; background: var(--sheet); box-shadow: 2px 2px 0 var(--ink); font-size: 1.6rem; line-height: 1; }
+.h-arrow-i { display: grid; place-items: center; width: var(--tap); height: var(--tap); border: 3px solid var(--ink); border-radius: 14px; background: var(--sheet); box-shadow: 2px 2px 0 var(--shade); font-size: 1.6rem; line-height: 1; }
 .h-arrow:disabled { opacity: .45; cursor: default; }
 .h-today { justify-self: start; min-height: var(--tap); padding: 0 var(--s4); border: 3px solid var(--ink); border-radius: 999px; background: var(--gelb); color: var(--ink); font-weight: 800; cursor: pointer; }
 
@@ -262,7 +264,7 @@ textarea.input { resize: vertical; }
 
 /* Einstieg "Eigene Karte": gelb gestreift (quer zu allen Familien) */
 .h-frei { display: grid; grid-template-columns: auto 1fr; gap: var(--s3); align-items: center; min-height: 64px; padding: var(--s2) var(--s4); border: 3px solid var(--ink); border-radius: 14px; color: var(--ink); text-align: left; cursor: pointer;
-  background: repeating-linear-gradient(-45deg, var(--gelb) 0 14px, var(--gelb-hell) 14px 28px); box-shadow: 4px 4px 0 var(--ink); }
+  background: repeating-linear-gradient(-45deg, var(--gelb) 0 14px, var(--gelb-hell) 14px 28px); box-shadow: 4px 4px 0 var(--shade); }
 .h-frei .h-ico { width: 32px; height: 32px; }
 .h-frei-t { display: grid; } .h-frei-k { font: 400 1.35rem/1.05 var(--font-head); text-transform: uppercase; } .h-frei-s { font-weight: 700; font-size: var(--t-s); }
 
@@ -278,14 +280,14 @@ textarea.input { resize: vertical; }
 
 /* Absichten: 6 im Raster (Gruss, Planen, Spielen, Stimme, Eigene Karte, Alle Karten) */
 .h-intents { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.h-intent { display: grid; grid-template-columns: auto auto; justify-content: start; column-gap: 6px; align-items: center; min-height: 58px; padding: 6px 8px; border: 3px solid var(--ink); border-radius: 14px; text-align: left; cursor: pointer; box-shadow: 4px 4px 0 var(--ink); }
+.h-intent { display: grid; grid-template-columns: auto auto; justify-content: start; column-gap: 6px; align-items: center; min-height: 58px; padding: 6px 8px; border: 3px solid var(--ink); border-radius: 14px; text-align: left; cursor: pointer; box-shadow: 4px 4px 0 var(--shade); }
 .h-intent .h-ico { width: 24px; height: 24px; }
 .h-intent-t { font-weight: 800; font-size: 1rem; line-height: 1.1; hyphens: manual; overflow-wrap: normal; min-width: 0; }
 @media (max-width: 389px) { .h-intent .h-ico { width: 20px; height: 20px; } .h-intent-t { font-size: .9375rem; } }
 .h-intent-s { font-size: .875rem; line-height: 1.15; font-weight: 600; min-width: 0; }
 .h-intent-such { background: var(--sheet); color: var(--ink); }
 .h-intent-alle { background: var(--sheet); color: var(--ink); }
-.h-intent:active, .h-frei:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+.h-intent:active, .h-frei:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--shade); }
 
 /* Abschnitte und Raster */
 .h-sec { display: grid; gap: var(--s3); }
@@ -300,8 +302,8 @@ textarea.input { resize: vertical; }
 .h-tile { display: grid; gap: 6px; align-content: start; min-width: 0; }
 .h-tile-open { display: block; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; color: inherit; border-radius: 12px; }
 .h-tile-open.soon { cursor: default; }
-.h-thumb { position: relative; display: block; aspect-ratio: 16 / 9; border: 3px solid var(--ink); border-radius: 12px; overflow: hidden; box-shadow: 4px 4px 0 var(--ink); background: var(--ink); }
-.h-tile-open:not(.soon):active .h-thumb { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+.h-thumb { position: relative; display: block; aspect-ratio: 16 / 9; border: 3px solid var(--ink); border-radius: 12px; overflow: hidden; box-shadow: 4px 4px 0 var(--shade); background: var(--ink); }
+.h-tile-open:not(.soon):active .h-thumb { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--shade); }
 .h-leaf-art .h-art { pointer-events: none; } /* Wischen gehoert dem Blatt, nicht dem Bild */
 .h-art { -webkit-user-drag: none; user-select: none; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .h-art-fam { overflow: hidden; }
@@ -363,7 +365,7 @@ textarea.input { resize: vertical; }
 .h-wall { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 .h-work { display: grid; gap: var(--s2); align-content: start; }
 .h-work-pic { container-type: inline-size; pointer-events: none; }
-.h-work-pic .frame { box-shadow: 3px 3px 0 var(--ink); }
+.h-work-pic .frame { box-shadow: 3px 3px 0 var(--shade); }
 .h-work-img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border: 3px solid var(--ink); border-radius: 12px; }
 .h-work-t { margin: 0; font-weight: 700; font-size: .9375rem; }
 .h-work-acts, .h-inv-acts { display: flex; flex-wrap: wrap; gap: var(--s2); }
@@ -379,16 +381,18 @@ textarea.input { resize: vertical; }
 @media (forced-colors: active) { .h-intent, .h-thumb, .h-leaf, .h-chip, .h-heart, .h-arrow { border: 2px solid ButtonText; } }
 
 /* Nachladen (Design-System Phase C): Ladezeile als Plakette im Fluss, Fehler als Hinweis mit Weg zurueck */
-.h-loading { justify-self: start; display: inline-flex; align-items: center; gap: 10px; margin: 0; min-height: var(--tap); padding: 6px 16px 6px 12px; border: 3px solid var(--ink); border-radius: 999px; background: var(--gelb); color: var(--ink); font-weight: 800; box-shadow: 3px 3px 0 var(--ink); }
+.h-loading { justify-self: start; display: inline-flex; align-items: center; gap: 10px; margin: 0; min-height: var(--tap); padding: 6px 16px 6px 12px; border: 3px solid var(--ink); border-radius: 999px; background: var(--gelb); color: var(--ink); font-weight: 800; box-shadow: 3px 3px 0 var(--shade); }
 .h-loading::before { content: ""; width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--ink); border-right-color: transparent; animation: h-spin .8s linear infinite; }
 @keyframes h-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .h-loading::before { animation: none; border-right-color: var(--ink); } }
-.s-partfail .notice { background: var(--gelb-hell); color: var(--ink); border-color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+.s-partfail .notice { background: var(--gelb-hell); color: var(--ink); border-color: var(--ink); box-shadow: 4px 4px 0 var(--shade); }
 .s-partfail .notice .warn { color: var(--rot); }
 
 /* Gate C: beschriftete Kopfknoepfe (Mein Regal, Mein Stil), gross hervorgehobene "Eigene Karte" mit Satzfeld */
 .h-headbtn { min-width: var(--tap); min-height: var(--tap); display: inline-grid; justify-items: center; align-content: center; gap: 1px; padding: 2px 4px; border: 0; background: transparent; color: var(--ink); font: 700 .8125rem/1.05 var(--font-body); cursor: pointer; border-radius: 12px; }
-.h-aa { font: 400 1.1rem/1 var(--font-head); } .h-aa span { font-size: 1.4rem; }
+.h-headbtn-i.h-aa { display: flex; align-items: baseline; justify-content: center; font: 400 1.1rem/1 var(--font-head); } .h-aa span { font-size: 1.4rem; }
+/* ohne Zurueck-Knopf keine leere Spalte links: der Name bekommt den Platz (Board Start, Start 360) */
+.bar-noback { grid-template-columns: 0 1fr auto; } .bar-noback > .icon-gap { width: 0; } .bar-noback .bar-end { gap: 0; }
 .h-ico-s { width: 24px; height: 24px; }
 .h-headbtn-i { position: relative; display: grid; place-items: center; width: 30px; height: 26px; font-size: 1.25rem; line-height: 1; }
 .h-headbtn .h-ico { width: 26px; height: 26px; fill: var(--ink); }
@@ -411,7 +415,7 @@ textarea.input { resize: vertical; }
 /* Ks Einstieg im Regal, schlanke Form (freiEntry compact): gelb gestreifte Zeile wie Board "Regal" */
 .frei-entry.compact { display: grid; gap: var(--s1); }
 .frei-row { display: flex; align-items: center; gap: var(--s3); width: 100%; min-height: 64px; padding: 8px 14px; border: 3px solid var(--ink); border-radius: 14px; color: var(--ink); text-align: left; cursor: pointer;
-  background: repeating-linear-gradient(-45deg, var(--gelb) 0 14px, var(--gelb-hell) 14px 28px); box-shadow: 4px 4px 0 var(--ink); }
+  background: repeating-linear-gradient(-45deg, var(--gelb) 0 14px, var(--gelb-hell) 14px 28px); box-shadow: 4px 4px 0 var(--shade); }
 .frei-row-t { flex: 1; font: 800 var(--t-m)/1.2 var(--font-body); }
 .frei-row-arrow { font: 800 1.5rem/1 var(--font-body); }
 
@@ -455,3 +459,28 @@ textarea.input { resize: vertical; }
 .h-more { min-width: var(--tap); min-height: var(--tap); border: 0; border-radius: 12px; background: transparent; color: var(--ink); font: 700 1.375rem/1 var(--font-body); cursor: pointer; }
 .h-more[aria-expanded="true"] { background: var(--gelb); color: #17140F; }
 .h-work-d { margin: 0; color: var(--muted); font-size: var(--t-s); }
+/* ================= Dunkelmodus (Canvas v54 „Start dunkel“): Flaechen mit fester heller Farbe behalten dunkle Tinte,
+   Kopfzeile dunkel mit gelber Schrift, Hauptknopf gelb. Steht am Ende, damit es die hellen Regeln uebersteuert. */
+@media (prefers-color-scheme: dark) {
+  .badge, .shelf-card.primary, .opt, .btn.primary, .h-meins-n, .h-today, .h-heart[aria-pressed="true"], .h-tabs [aria-selected="true"], .h-loading, .h-star { color: var(--ink-fix); }
+  .opt, .h-loading, .h-today, .h-meins-n { border-color: #000; }
+  .h-undo { background: var(--ink-fix); color: #FBF5DD; border: 2px solid var(--ink); }
+  .h-undo .btn.secondary { color: var(--ink-fix); }
+  .bar { background: #2A2412; color: var(--gelb); border-bottom-color: var(--gelb); }
+  .bar .brand, .h-headbtn { color: var(--gelb); }
+  .h-headbtn .h-ico, .h-meins .h-ico { fill: var(--gelb); }
+  .bar .icon { background: var(--sheet); color: var(--ink); border-color: var(--gelb); }
+  .h-holes i { background: var(--paper); border-color: var(--gelb); }
+  .btn.primary.h-go { background: var(--gelb); color: var(--ink-fix); }
+  .btn.primary.h-go[aria-pressed="true"] { background: var(--sheet); color: var(--ink); }
+  .h-intent { border-color: #000; }
+  .h-chip[aria-pressed="true"] { background: var(--gelb); color: var(--ink-fix); border-color: #000; }
+  .h-plate { background: var(--ink-fix); color: var(--gelb); }
+  .h-dur { background: var(--ink-fix); }
+  .h-thumb { background: var(--ink-fix); }
+  .h-erf { box-shadow: 6px 6px 0 #000; }
+  .pm-opt[aria-pressed="true"] { background: var(--gelb); color: var(--ink-fix); }
+  .frei-row, .h-frei { color: var(--ink-fix); border-color: #000; background: repeating-linear-gradient(-45deg, #F9D84A 0 14px, #FFE27A 14px 28px); }
+  /* Karten selbst (Buehne, Werk auf der Wand) sind gestaltete Gegenstaende: ihre Tinte bleibt dunkel wie bisher */
+  .stage, .h-work-pic { --ink: #17140F; --sheet: #FFFDF5; --paper: #FBF5DD; --gelb-hell: #FFF0A8; --pmuted: #5C5444; --rot: #B3321F; --shade: #17140F; }
+}
