@@ -30,6 +30,7 @@ export const chart = {
         DRAFT: { actions: ["setDraft"] },
         // Nachladen der Karten (ADR 0001 Nachtrag 2): Ladeanzeige und ehrliche Meldung mit Wiederholen
         LOADING: { actions: ["setLoading"] },
+        LOADED: { actions: ["clearLoading"] },
         // Ton an/aus (Buehne, Design Phase C): auf diesem Geraet gemerkt
         MUTE: { actions: ["setMuted"] },
         PART_FAIL: { target: T("inhalt.partfail"), actions: ["setPartFail"], raise: "LEAVE" },
@@ -415,6 +416,7 @@ export const actions = {
   },
   setMuted: (ctx, ev, emit) => { const muted = ev.on === true; emit({ type: "ton.save", muted }); return { ...ctx, muted }; },
   setLoading: (ctx, ev) => ({ ...ctx, loading: ev.id }),
+  clearLoading: (ctx) => (ctx.loading === null ? ctx : { ...ctx, loading: null }),
   setPartFail: (ctx, ev) => ({ ...ctx, loading: null, partFail: { id: ev.id, reason: ev.reason || "teil-fehlt", retry: ev.retry || null } }),
   clearPartFail: (ctx) => ({ ...ctx, partFail: null }),
   retryPart: (ctx, ev, emit) => { if (ctx.partFail && ctx.partFail.retry) emit({ type: "redispatch", ev: ctx.partFail.retry }); return { ...ctx, partFail: null }; },
