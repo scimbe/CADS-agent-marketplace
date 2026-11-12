@@ -64,7 +64,7 @@ const rt = createRuntime({
   share: (fragment) => share(linkUrl(fragment), document.title),
   copy: (fragment) => copy(linkUrl(fragment)),
   // Heimseite (Strang H): Leinwand fuer Story-Bild und Wand, Teilen, Takt (Speicher und Netz laufen ueber storage und api)
-  home: { document, navigator, location, File, URL, subtle: crypto.subtle, FontFace: window.FontFace, thumb: (id, variant) => parts.thumb(id, variant), setInterval: (f, ms) => setInterval(f, ms), setTimeout: (f, ms) => setTimeout(f, ms) },
+  home: { document, navigator, location, File, URL, subtle: crypto.subtle, FontFace: window.FontFace, cardImage: fenv.cardImage || null, images: fenv.images || null, high: fenv.high || null, thumb: (id, variant) => parts.thumb(id, variant), setInterval: (f, ms) => setInterval(f, ms), setTimeout: (f, ms) => setTimeout(f, ms) },
   clearUrl: () => { try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) { /* file:// in manchen Hosts */ } },
   onChange: draw
 });

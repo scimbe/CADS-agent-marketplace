@@ -129,7 +129,14 @@ export const actions = {
     if (JSON.stringify(m.wall) === JSON.stringify(ctx.mine.wall) && JSON.stringify(m.saved) === JSON.stringify(ctx.mine.saved)) return ctx;
     const c = M(ctx, m); saveFx(c, emit); return c;
   },
-  homeNoteClear: (ctx) => H(ctx, { note: null })
+  homeNoteClear: (ctx) => H(ctx, { note: null }),
+  // Karte als Bild teilen: der Knoten kommt aus der Anzeigeliste der Karte (nur Daten), gezeichnet wird im Effekt
+  shareImage: (ctx, ev, emit) => {
+    if (!ev.node || typeof ev.node !== "object" || ev.node.t !== "canvas") return H(ctx, { img: "fehler" });
+    emit({ type: "home.image", name: ev.name, node: ev.node });
+    return H(ctx, { img: "busy" });
+  },
+  imageDone: (ctx, ev) => H(ctx, { img: ev.st })
 };
 
 // Uebergaenge in inhalt.shelf (OPEN und STIL wie bisher)
@@ -158,6 +165,7 @@ export const inhaltOn = {
   MERKEN: { actions: ["merken"] },
   WALL_SNAP: { actions: ["wallSnap"] },
   SHORT_DONE: { actions: ["shortDone"] },
+  IMAGE_DONE: { actions: ["imageDone"] },
   SHORT_DELETED: { actions: ["shortDeleted"] },
   STORY_DONE: { actions: ["storyDone"] },
   PROFIL: { actions: ["homeProfil"] }
@@ -172,4 +180,4 @@ export const profileLocal = (ctx) => (ctx.mine ? { wall: S.wallForServer(ctx.min
 // Teile ausserhalb des Kerns (src/app/feature-parts.json): Satz und Suche (home-find); Story/Wand-Bild laedt der Effekt selbst
 export const needParts = (ev) => (ev.type === "UNDERSTAND" || ev.type === "QUERY" ? ["home-find"] : []);
 
-export const home = { id: "home", shelfOn, on: { inhalt: inhaltOn }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };
+export const home = { id: "home", shelfOn, on: { inhalt: inhaltOn, "inhalt.card.share": { SHARE_IMAGE: { actions: ["shareImage"] } } }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };

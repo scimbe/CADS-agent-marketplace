@@ -86,6 +86,24 @@ export const effects = {
     // ohne Bild bleibt das Werk lokal (live gezeichnet); zum Server geht es erst mit Bild (wallForServer)
     sharePart(deps).then((P) => { const th = P.tileJpeg(env.document, look(fx.id, fx.lang)); if (th) dispatch({ type: "WALL_SNAP", id: fx.id, ts: fx.ts, th }); }, () => {});
   },
+  // Bild der Karte (mit lokalem Foto) ueber den Geraetedienst cardImage (Strang P) zeichnen und ueber das System teilen,
+  // sonst herunterladen. Kein Upload; ohne Dienst oder Foto ehrlich nein.
+  "home.image": (fx, { dispatch, deps }) => {
+    const env = envOf(deps), done = (st) => dispatch({ type: "IMAGE_DONE", st });
+    if (!env.cardImage || typeof env.cardImage.draw !== "function" || !env.document || !env.File) { done("nicht-verfuegbar"); return; }
+    Promise.resolve().then(() => env.cardImage.draw(fx.node, { images: env.images || null, high: env.high || null, makeCanvas: () => env.document.createElement("canvas") }))
+      .then((cv) => new Promise((ok) => cv.toBlob(ok, "image/png")))
+      .then((blob) => {
+        if (!blob) { done("fehler"); return; }
+        const file = new env.File([blob], fx.name, { type: "image/png" }), nav = env.navigator;
+        if (nav && nav.canShare && nav.canShare({ files: [file] })) return nav.share({ files: [file] }).then(() => done("ok"), (e) => done(e && e.name === "AbortError" ? "ok" : "fehler"));
+        const a = env.document.createElement("a"), href = env.URL.createObjectURL(blob);
+        a.href = href; a.download = fx.name; env.document.body.appendChild(a); a.click(); a.remove();
+        if (env.setTimeout) env.setTimeout(() => env.URL.revokeObjectURL(href), 4000);
+        done("ok");
+      })
+      .catch((e) => done(e && e.code === "foto-fehlt" ? "foto-fehlt" : "fehler"));
+  },
   "story.make": (fx, { dispatch, deps }) => {
     const env = envOf(deps);
     if (!env.document || !env.location) { dispatch({ type: "STORY_DONE", ok: false }); return; }
