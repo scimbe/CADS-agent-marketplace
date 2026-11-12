@@ -10,7 +10,6 @@ import { render } from "../render/render.js";
 import { LEVELS } from "../bot/ismcts.js";
 import { stilView, stilActions } from "./stil-view.js";
 import { homeView, dayPrimary, meinsButton } from "./home/views.js";
-import { previewNode } from "./preview.js";
 import { SLOTS } from "./home/slots.js";
 
 export function leaf(state) {

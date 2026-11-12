@@ -10,7 +10,7 @@ import { SLOTS } from "./slots.js";
 import { inviteStatus, isSaved, UNDO_MS } from "./store.js";
 import { cardOf, ORDER } from "../../cards/index.js";
 import { render } from "../../render/render.js";
-import { previewNode } from "../preview.js";
+import * as G from "../../app/game.js";
 
 const INTENT_SHAPE = { gruss: "heart", planen: "ring", spielen: "bolt", stimme: "drop" };
 const INTENT_FAM = { gruss: "gruessen", planen: "planen", spielen: "bluff", stimme: "kreativ" };
@@ -189,7 +189,7 @@ function workPreview(entry, lang) {
   const card = cardOf(entry.id);
   if (card && entry.p) {
     try {
-      return h("span", { class: "h-work-live" }, render(previewNode(card, entry.p, { lang, preview: true }), { onInput: () => {}, disabled: true, idp: "w" + entry.ts }));
+      return h("span", { class: "h-work-live" }, render(G.previewNode(card, entry.p, lang, { receive: true }), { onInput: () => {}, disabled: true, idp: "w" + entry.ts }));
     } catch (e) { /* Werk passt nicht mehr zur Karte: Bild, falls vorhanden */ }
   }
   if (entry.th) return h("img", { class: "h-work-img", src: entry.th, alt: "" });

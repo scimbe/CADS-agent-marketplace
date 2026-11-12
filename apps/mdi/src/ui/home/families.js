@@ -48,7 +48,7 @@ export function extras() {
   const serving = new Set(IDEAS.map((i) => newIdOf(i.id)).filter(Boolean));
   return Object.keys(CARDS).filter((id) => !serving.has(id)).map((id) => {
     const m = cardOf(id).manifest, old = byId(catalogIdOf(id));
-    const fam = (m.family && family(m.family)) || (old && old.to && familyOf(old.to)) || (m.mode === "static" ? family("gruessen") : m.mode === "realtime" ? family("geschick") : family("kennen"));
+    const fam = (m.family && (family(m.family) || familyOf(m.family))) || (old && old.to && familyOf(old.to)) || (m.mode === "static" ? family("gruessen") : m.mode === "realtime" ? family("geschick") : family("kennen"));
     return { id, fam, manifest: m };
   });
 }

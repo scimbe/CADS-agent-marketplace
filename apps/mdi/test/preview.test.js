@@ -1,10 +1,12 @@
 // Vorschau fuer jede Kartenart ueber ihren Vertrag (Integrator-Auftrag, Befund Strang A: Echtzeitkarten stuerzten im Regal ab).
+// Die Regel liegt in src/app/game.js previewNode (Strang F, dieselbe wie fuer die Thumbnails); hier: deckt sie alle Arten ab?
 // Alle Karten des Registers und die Testkarten des Fundaments (fx-zug = Zugvertrag v0.2, fx-rt = Echtzeit) liefern eine
 // Anzeigeliste; Echtzeit ergibt eine Canvas-Liste nach festen Ticks Bot gegen Bot, deterministisch.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CARDS } from "../src/cards/index.js";
-import { previewNode } from "../src/ui/preview.js";
+import { previewNode as gPreview } from "../src/app/game.js";
+const previewNode = (card, params, vctx) => gPreview(card, params, vctx.lang, {}); // eine Regel: G.previewNode (Strang F)
 import fxZug from "./fixtures/cards/fx-zug/card.js";
 import fxRt from "./fixtures/cards/fx-rt/card.js";
 
