@@ -146,7 +146,8 @@ test("laengere Pfade (ueber Tiefe 6 hinaus): Weitergeben, Senden, Ende sind erre
   const play = (s) => { const c = cardOf(s.ctx.cardId); for (let i = 0; i < 20 && machine.matches(s, "inhalt.card.play.turn"); i++) { const v = s.ctx.viewer; s = go(s, { type: "INPUT", input: c.moves(c.observe(s.ctx.session.state, v), v)[0] }); } return s; };
   let s = go(machine.initial(initialContext("en")), { type: "OPEN", id: "bluff" });
   s = go(go(s, { type: "MODE", mode: "alone" }), { type: "GO" });
-  s = play(s); assert.equal(leaf(s), "card.play.cover");
+  assert.equal(leaf(s), "card.play.cover", "Abdecken schon vor dem ersten Zug (ADR 0001 f)");
+  s = play(go(s, { type: "COVER_OK" })); assert.equal(leaf(s), "card.play.cover");
   assert.equal(actionsOf(s).primary.id, "cover-ok");
   s = play(go(s, { type: "COVER_OK" })); assert.equal(leaf(s), "card.play.over", "Aufloesung laeuft automatisch, das Geraet haelt das Salz");
   assert.equal(s.ctx.session.log[s.ctx.session.log.length - 1].t, "reveal");

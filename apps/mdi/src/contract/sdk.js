@@ -2,7 +2,7 @@
 // Keine approximierten Math-Funktionen, kein Zufall ausser dem Seed, keine Uhr (08-forschung/determinismus.md).
 // Gleicher Seed + gleiche Eingaben => gleicher Zustandshash auf jeder Engine.
 
-export const SDK_VERSION = "mdi-sdk/0.1";
+export const SDK_VERSION = "mdi-sdk/0.2"; // additiv zu 0.1 (ADR 0001): mulberry32, rng.state/rngFrom, expD, sinD, cosD, stateHashF
 
 // ---------- Seed-RNG: xoshiro128** auf uint32, gesaet ueber splitmix32 ----------
 function splitmix32(s) {
@@ -17,7 +17,11 @@ function rotl(x, k) { return (x << k) | (x >>> (32 - k)); }
 /** Erzeugt einen RNG aus einer Zeichenkette oder uint32. Rueckgabe: { u32(), int(n), pick(arr), shuffle(arr) }. */
 export function rng(seed) {
   const st = new Array(4);
-  if (typeof seed === "string") {
+  if (Array.isArray(seed)) {
+    // Fortsetzung aus einem gespeicherten Zustand (rngFrom): vier uint32
+    if (seed.length !== 4 || !seed.every((x) => Number.isInteger(x) && x >= 0 && x <= 0xffffffff)) throw new RangeError("rng: Zustand");
+    for (let i = 0; i < 4; i++) st[i] = seed[i];
+  } else if (typeof seed === "string") {
     // 128 Bit Zustand aus SHA-256 der Zeichenkette (Seeds aus Commit-Reveal haben 128 Bit Entropie)
     const h = sha256("mdi-rng|" + seed);
     for (let i = 0; i < 4; i++) st[i] = parseInt(h.slice(i * 8, i * 8 + 8), 16) >>> 0;
@@ -41,6 +45,8 @@ export function rng(seed) {
   }
   return {
     u32, int,
+    /** Zustand als uint32[4] fuer den Spielzustand (serialisierbar, kanonisch). */
+    state() { return [st[0] >>> 0, st[1] >>> 0, st[2] >>> 0, st[3] >>> 0]; },
     pick(a) { return a[int(a.length)]; },
     shuffle(a) { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = int(i + 1); const t = b[i]; b[i] = b[j]; b[j] = t; } return b; }
   };
@@ -182,3 +188,66 @@ export function logD(x) {
   for (let n = 1; n < 60; n += 2) { sum = sum + term / n; term = term * y2; }
   return 2 * sum + k * LN2;
 }
+
+/** RNG aus einem gespeicherten Zustand (rng(...).state()). */
+export function rngFrom(state) { return rng(state); }
+
+/** mulberry32 aus dem Altcode (core.js:315), nur imul/xor/shift: Werte in [0,1) als float64 (bitgleich auf allen
+ *  Engines, da Division durch 2^32 exakt ist). Fuer portierte Engines mit Golden-Werten aus dem Altcode. */
+export function mulberry32(a) {
+  a = a >>> 0;
+  const f = function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  f.state = () => a;
+  return f;
+}
+
+// ---------- float64 nur aus + - * / (IEEE-754 exakt gerundet, ECMA-262 6.1.6.1) ----------
+// Fuer rt.numeric "f64": bitgleich auf allen Engines, anders als Math.exp/sin/cos.
+const TWO_PI_HI = 6.283185307179586, TWO_PI_LO = 2.4492935982947064e-16;
+const LN2_HI = 0.6931471803691238, LN2_LO = 1.9082149292705877e-10;
+/** e^x, relativer Fehler < 1e-15 fuer |x| <= 700. */
+export function expD(x) {
+  if (x !== x) return x;
+  if (x > 709) return Infinity;
+  if (x < -745) return 0;
+  const k = Math.round(x / 0.6931471805599453);
+  const r = (x - k * LN2_HI) - k * LN2_LO;
+  let term = 1, sum = 1;
+  for (let n = 1; n < 28; n++) { term = term * r / n; sum = sum + term; }
+  let s = sum;
+  if (k > 0) for (let i = 0; i < k; i++) s = s * 2; else for (let i = 0; i < -k; i++) s = s / 2;
+  return s;
+}
+function reduce2pi(x) { const k = Math.round(x / TWO_PI_HI); return (x - k * TWO_PI_HI) - k * TWO_PI_LO; }
+/** sin(x) im Bogenmass, Fehler < 1e-15 fuer |x| <= 1e6. */
+export function sinD(x) {
+  if (x !== x || x === Infinity || x === -Infinity) return NaN;
+  const r = reduce2pi(x), r2 = r * r;
+  let term = r, sum = r;
+  for (let n = 1; n < 22; n++) { term = -term * r2 / ((2 * n) * (2 * n + 1)); sum = sum + term; }
+  return sum;
+}
+export function cosD(x) {
+  if (x !== x || x === Infinity || x === -Infinity) return NaN;
+  const r = reduce2pi(x), r2 = r * r;
+  let term = 1, sum = 1;
+  for (let n = 1; n < 22; n++) { term = -term * r2 / ((2 * n - 1) * (2 * n)); sum = sum + term; }
+  return sum;
+}
+
+/** Kanonische Serialisierung wie canon, aber Gleitkommazahlen als Bit-Hex ("f:" + 16 Hex) – fuer rt.numeric "f64". */
+const F64 = new DataView(new ArrayBuffer(8));
+export function canonF(v) {
+  if (typeof v === "number" && !Number.isInteger(v)) { F64.setFloat64(0, v); let h = "f:"; for (let i = 0; i < 8; i++) h += F64.getUint8(i).toString(16).padStart(2, "0"); return JSON.stringify(h); }
+  if (typeof v === "number" && Object.is(v, -0)) return "\"f:8000000000000000\"";
+  if (Array.isArray(v)) return "[" + v.map(canonF).join(",") + "]";
+  if (v && typeof v === "object") return "{" + Object.keys(v).sort().filter((k) => v[k] !== undefined).map((k) => JSON.stringify(k) + ":" + canonF(v[k])).join(",") + "}";
+  return canon(v);
+}
+export function stateHashF(v) { return sha256(canonF(v)).slice(0, 16); }

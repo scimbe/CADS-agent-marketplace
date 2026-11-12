@@ -9,6 +9,8 @@ import { leaf } from "../src/ui/view.js";
 const L = (rt) => leaf(rt.state);
 // Ein Zug: der erste legale Zug des Sitzes, den das Geraet gerade zeigt (kartenunabhaengig)
 function playTurns(rt) {
+  // Abdecken auch vor dem ersten Zug (ADR 0001 f, 13 §6.4): erst aufdecken, dann spielen
+  if (rt.matches("inhalt.card.play.cover")) rt.dispatch("COVER_OK");
   for (let i = 0; i < 100 && rt.matches("inhalt.card.play.turn"); i++) {
     const c = cardOf(rt.state.ctx.cardId), v = rt.state.ctx.viewer;
     const mv = c.moves(c.observe(rt.state.ctx.session.state, v), v);
