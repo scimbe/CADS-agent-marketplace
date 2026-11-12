@@ -447,6 +447,7 @@ export function freiContext(saved) {
 
 import { freiEffects } from "./effects.js";
 import { createImages } from "./images.js";
+import { browserMedia } from "../../broker/media.js";
 /** Das Feature im Format von ADR 0001 (g) (src/app/features.js) */
 export { freiParts };
 export const frei = {
@@ -468,5 +469,5 @@ export const frei = {
   context: freiContext,
   effects: freiEffects,
   // Dienste fuer den Host (F: main.js featureEnv(window)): Bildbruecke fuer Vorschau, Spiel, Canvas und Buehne
-  env: { images: (win) => createImages(win) }
+  env: { images: (win) => { const md = browserMedia(win); return createImages(win, null, md.available ? { local: (id) => md.open(id), revoke: (u) => win.URL.revokeObjectURL(u) } : {}); } }
 };
