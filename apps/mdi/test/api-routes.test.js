@@ -27,6 +27,13 @@ test("Jeder Server-Aufruf der Seite ist eine Route des Wrappers (Fixture)", asyn
   assert.ok(!calls.includes("POST /api/duell/weather"));
 });
 
+test("Wetter: der Body traegt nur place und date (keine Kontodaten, kein freier Text; Hinweis K zu M6)", async () => {
+  let sent = null;
+  const api = createApi({ location: { protocol: "https:", host: "x.test", origin: "https://x.test" }, fetch: async (u, o) => { sent = JSON.parse(o.body); return { status: 200, headers: { get: () => "application/json" }, json: async () => ({}) }; } });
+  await api.weather("Hamburg", "2026-12-03");
+  assert.deepEqual(Object.keys(sent).sort(), ["date", "place"]);
+});
+
 test("Wetter: Antworten des Wrappers (lib/duell-weather.mjs) werden ehrlich abgebildet, 401 = Anmeldung noetig", async () => {
   const ok = await rig(200, { place: "Hamburg", date: "2026-12-03", hi: 4, lo: -1, rain: 60, code: 61, source: "Open-Meteo" }).api.weather("Hamburg", "2026-12-03");
   assert.equal(ok.ok, true); assert.equal(ok.body.place, "Hamburg");
