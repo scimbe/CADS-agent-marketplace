@@ -351,3 +351,19 @@ test("Status-Gate beim Teilen ok: das ausgeloeste GO traegt rand, die versiegelt
   assert.equal(leaf(s), "card.play.turn");
   assert.equal(s.ctx.error, null);
 });
+
+test("Vorschau: Hinweise der Faktenpruefung (Wrapper #141): unkalibriert und weggelassene Fragen, de und en", async () => {
+  for (const [lang, a, b3, b1] of [["de", "noch nicht von Menschen nachgemessen", "3 Fragen mit unsicheren Fakten", "Eine Frage mit unsicheren Fakten"], ["en", "not been verified by people yet", "I left out 3 questions", "I left out one question"]]) {
+    for (const [notes, want, not] of [[["bau:fakten-unkalibriert", "bau:fakten-entfernt:3"], [a, b3], []], [["bau:fakten-entfernt:1"], [b1], [a]], [["bau:fakten-entfernt:0", "bau:fakten-entfernt:x"], [], [b1, "[create_"]]]) {
+      let s = go(await signedIn(), { type: "FREI" });
+      s = { ...s, ctx: { ...s.ctx, lang } };
+      s = go(go(go(s, { type: "ART", art: "card" }), { type: "TEXT", value: "Geburtstagskarte für meine Freundin" }), { type: "SEND", crisis: false });
+      const req = fx(s, "frei.ask")[0].req, body = rec("karte-ok-card").body;
+      s = go(s, { type: "FREI_RESULT", req, r: { how: "result", options: body.options, seals: body.seals, hashes: body.hashes, receipt: body.receipt, note: notes } });
+      assert.equal(leaf(s), "frei.vorschau");
+      const t = txt(s);
+      for (const w of want) assert.ok(t.includes(w), lang + " " + notes + ": " + w);
+      for (const w of not) assert.ok(!t.includes(w), lang + " " + notes + " ohne " + w);
+    }
+  }
+});
