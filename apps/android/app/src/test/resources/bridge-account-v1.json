@@ -13,6 +13,11 @@
   },
   {
    "method": "POST",
+   "path": "/api/duell/ai/weather",
+   "ok": true
+  },
+  {
+   "method": "POST",
    "path": "/api/duell/ai",
    "ok": true
   },

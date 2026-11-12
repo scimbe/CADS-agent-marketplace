@@ -4,6 +4,7 @@ enum AccountRouteCases {
     static let all: [(String, String, Bool)] = [
         ("GET", "/auth/me", true),
         ("POST", "/api/duell/ai/status", true),
+        ("POST", "/api/duell/ai/weather", true),
         ("POST", "/api/duell/ai", true),
         ("POST", "/api/duell/profile/get", true),
         ("POST", "/api/duell/profile/put", true),
