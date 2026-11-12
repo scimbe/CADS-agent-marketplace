@@ -38,6 +38,18 @@ export function createStorage() {
       const s = ls(); if (!s) return false;
       try { s.setItem(FREI, JSON.stringify({ freiLast: v && v.freiLast })); return true; } catch (e) { return false; }
     },
+    // Feature-Speicher (ADR 0001 g, Feature-Feld store): je Feature ein Objekt unter "mdi.f.<id>", hoechstens FEAT_MAX Byte.
+    // Ungueltiges/zu grosses wird nicht gespeichert (false) und beim Laden als null gemeldet, nie still gekuerzt.
+    loadFeature(id) {
+      const s = ls(); if (!s || !FEAT_ID.test(String(id))) return null;
+      try { const v = JSON.parse(s.getItem(FEAT + id) || "null"); return v && typeof v === "object" && !Array.isArray(v) ? v : null; } catch (e) { return null; }
+    },
+    saveFeature(id, v) {
+      const s = ls(); if (!s || !FEAT_ID.test(String(id)) || !v || typeof v !== "object" || Array.isArray(v)) return false;
+      let j; try { j = JSON.stringify(v); } catch (e) { return false; }
+      if (new TextEncoder().encode(j).length > FEAT_MAX) return false;
+      try { s.setItem(FEAT + id, j); return true; } catch (e) { return false; }
+    },
     // Ton an/aus fuer Spiele auf diesem Geraet (Buehne)
     loadTon() { const s = ls(); if (!s) return false; try { return s.getItem(TON) === "aus"; } catch (e) { return false; } },
     saveTon(muted) { const s = ls(); if (!s) return false; try { s.setItem(TON, muted ? "aus" : "an"); return true; } catch (e) { return false; } },
@@ -48,6 +60,8 @@ export function createStorage() {
   };
 }
 const TON = "mdi.ton", KONTO = "mdi.konto", FREI = "mdi.frei";
+const FEAT = "mdi.f.", FEAT_ID = /^[a-z0-9-]{1,30}$/;
+export const FEAT_MAX = 8192;
 // Meins (Strang H): Wand (Werke ohne Fotos), gemerkte Karten, Archiv versendeter Links mit Kurzlink-Token. Pruefen macht der
 // Aufrufer (src/ui/home/store.js clean*).
 const HOME = "mdi.home.v1";

@@ -41,7 +41,10 @@ export function createRuntime(deps) {
   const saved = deps.storage.loadKonto ? (() => { try { return deps.storage.loadKonto(); } catch (e) { return null; } })() : null;
   // Ton aus (Buehne) liegt getrennt vom Konto auf dem Geraet
   const ton = deps.storage.loadTon ? (() => { try { return deps.storage.loadTon(); } catch (e) { return false; } })() : false;
-  let state = machine.initial(initialContext(deps.lang, { ...(saved || {}), muted: ton === true }));
+  // Feature-Speicher: Features mit store:true bekommen ihr gespeichertes Objekt als saved.feat[id] in context(saved)
+  const feat = {};
+  for (const f of deps.needFeatures || FEATURES) if (f.store === true && deps.storage.loadFeature) { try { feat[f.id] = deps.storage.loadFeature(f.id); } catch (e) { feat[f.id] = null; } }
+  let state = machine.initial(initialContext(deps.lang, { ...(saved || {}), muted: ton === true, feat }));
   if (!state.ctx.device) state = { ...state, ctx: { ...state.ctx, device: deps.entropy() } };
   let bot = null, live = null, liveGen = 0, rtSess = null, rtGen = 0;
   const lives = new Map(); // Gruppe: Gastsitz -> Kanal
