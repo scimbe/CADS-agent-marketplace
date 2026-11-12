@@ -468,3 +468,8 @@ test("Security-Review M5: Rechenaufwand je Tick ist begrenzt (check) und der Pru
   const t0 = Date.now(), v = pruefe({ ...clone(BREAKOUT) }, { games: 2, budget: 20000 });
   assert.equal(v.stage, "budget"); assert.ok(Date.now() - t0 < 5000);
 });
+
+test("Baukasten: zu lange Texte werden nie still gekuerzt, auch nicht in der Modellausgabe (Zweitbewerter t106)", () => {
+  const L = BEISPIELE.luecke, raw = { ...clone(L), turn: { ...L.turn, items: [{ q: "x".repeat(95), a: "Elefant", wrong: ["Giraffe"] }, ...L.turn.items.slice(1)] } };
+  for (const opt of [{}, { clamp: true, llm: true }]) assert.match(check(raw, opt).errors.join(), /laenger als 90 Zeichen/);
+});
