@@ -213,3 +213,32 @@ test("Anzeige: kein Op traegt fill:null (der Renderer wuerde schwarz fuellen); R
     for (const v of [c.view(st, {}), c.view(st, { thumb: true })]) for (const L of v.layers) walk(L.ops, (o) => assert.ok(o.fill !== null, id + ": " + o.o + " mit fill null"));
   }
 });
+
+// Lastunabhaengiger Aufwand je Spiel (Auftrag Integrator): deterministische Bot-Partien (Seeds w1-w3, je bis 60 s),
+// gezaehlt werden Ops und Knoten der Anzeigeliste je Bild (Partikel- und Polygonpunkte zaehlen als Knoten), die Groesse
+// des Zustands und die Nachrichten unterwegs je Tick. Feste Obergrenzen je Spiel (gemessen 2026-11-12, etwa +20-30 %
+// Spielraum fuer andere Spielverlaeufe): eine echte Regression wird rot, egal wie ausgelastet die Maschine ist.
+const WORK = {
+  "arcade-kick": { ops: 110, nodes: 190, bytes: 5000, msgs: 6 }, "arcade-elfer": { ops: 85, nodes: 230, bytes: 3000, msgs: 5 },
+  "arcade-ziegel": { ops: 370, nodes: 420, bytes: 3800, msgs: 5 }, "arcade-panzer": { ops: 110, nodes: 630, bytes: 6000, msgs: 6 },
+  "arcade-stock": { ops: 160, nodes: 220, bytes: 7600, msgs: 3 }, "arcade-puck": { ops: 125, nodes: 205, bytes: 5700, msgs: 6 },
+  "arcade-volley": { ops: 395, nodes: 850, bytes: 9800, msgs: 5 }, "arcade-flipper": { ops: 140, nodes: 210, bytes: 5500, msgs: 6 },
+  "arcade-snow": { ops: 260, nodes: 490, bytes: 8900, msgs: 7 }, "arcade-murmel": { ops: 425, nodes: 600, bytes: 9400, msgs: 3 }
+};
+test("Aufwand je Bild und Tick ohne Uhr: Ops, Anzeigelisten-Knoten, Zustandsgroesse und Nachrichten unter festen Grenzen", () => {
+  const got = {};
+  for (const id of IDS) {
+    const mx = { ops: 0, nodes: 0, bytes: 0, msgs: 0 };
+    for (const seed of ["w1", "w2", "w3"]) {
+      let { c, st } = newGame(id, ["bot", "bot"], null, seed);
+      for (let t = 0; t < 120 * 60 && !c.status(st).over; t++) {
+        st = c.step(st, [NONE, NONE]).state;
+        mx.msgs = Math.max(mx.msgs, st.q[0].length + st.q[1].length);
+        if (t % 4 === 0) { let ops = 0, nodes = 0; for (const L of c.view(st, {}).layers) walk(L.ops, (o) => { ops++; nodes += 1 + (o.o === "particles" ? o.list.length : o.o === "poly" ? o.pts.length / 2 : 0); }); mx.ops = Math.max(mx.ops, ops); mx.nodes = Math.max(mx.nodes, nodes); }
+        if (t % 60 === 0) mx.bytes = Math.max(mx.bytes, JSON.stringify(st).length);
+      }
+    }
+    got[id] = mx;
+    for (const k of Object.keys(WORK[id])) assert.ok(mx[k] <= WORK[id][k], id + ": " + k + " " + mx[k] + " > " + WORK[id][k]);
+  }
+});

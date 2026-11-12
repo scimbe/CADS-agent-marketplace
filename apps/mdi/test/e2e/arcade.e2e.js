@@ -158,8 +158,10 @@ test("Determinismus: Bot-Partien ergeben in Chromium und WebKit denselben Hash w
 
 // Bildrate auf einem Mittelklasse-Handy, nachgebildet als 4x gedrosselte CPU (Chromium):
 // (a) Anteil der Karte je Bild im Browser gemessen: zwei Ticks (Regeln, Bot, Nachrichten) und die Anzeigeliste, ohne
-//     Zeichnen. Das ist, was die Karte verantwortet; Pruefung: p95 <= 8 ms, das halbe 60-fps-Budget, die andere Haelfte
-//     bleibt fuer das Zeichnen (Labor 2026-11-12 unter Last: p95 1,7-4,2 ms; lokal 0,7-0,9 ms).
+//     Zeichnen. Das ist, was die Karte verantwortet. Grenze aus dem Budget, nicht aus dem Messwert: p95 <= 8 ms = die
+//     Haelfte von 16,7 ms je Bild bei 60 fps; die andere Haelfte bleibt fuer Host und Zeichnen. Gemessen 2026-11-12:
+//     Labor unter Last p95 1,7-4,2 ms, lokal 0,7-0,9 ms. Den lastunabhaengigen Aufwand (Ops, Knoten, Zustand,
+//     Nachrichten mit festen Grenzen je Spiel) prueft test/arcade-cards.test.js.
 // (b) fps und Bild-Callback aus dem Chromium-Trace, ohne und mit GPU-Rasterung (SwiftShader), jeweils gegen die leere
 //     Buehne: nur Bericht. Im Headless-Lauf rastert Chromium in Software im Bild-Callback, und im Labor teilen sich viele
 //     Container den Rechner; diese Zahlen schwanken mit der Last (Labor 2026-11-12: leer 58-60 fps, Spiele 19-36 fps).
