@@ -16,9 +16,9 @@
     "de": "Tipp nur beim Stern, so schnell du kannst. Andere Figur kostet eine halbe Sekunde. Wer schneller ist, gewinnt.",
     "en": "Tap only on the star, as fast as you can. Any other figure costs half a second. The faster one wins."
   },
-  "players": {
-    "min": 2,
-    "max": 2
+  "rule": {
+    "de": "Tipp nur beim Stern, so schnell du kannst. Andere Figur kostet eine halbe Sekunde. Wer schneller ist, gewinnt.",
+    "en": "Tap only on the star, as fast as you can. Any other figure costs half a second. The faster one wins."
   },
   "seats": {
     "de": [
@@ -30,11 +30,64 @@
       "Player 2"
     ]
   },
+  "roles": {
+    "de": [
+      "Du tippst zuerst.",
+      "Du versuchst, schneller zu sein."
+    ],
+    "en": [
+      "You tap first.",
+      "You try to be faster."
+    ]
+  },
+  "grip": "streit",
+  "dur": 30,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",

@@ -16,9 +16,9 @@
     "de": "Erklär so viele Wörter wie möglich, ohne sie zu sagen. Ihr habt 60 Sekunden.",
     "en": "Explain as many words as you can without saying them. You have 60 seconds."
   },
-  "players": {
-    "min": 1,
-    "max": 1
+  "rule": {
+    "de": "Erklär so viele Wörter wie möglich, ohne sie zu sagen. Ihr habt 60 Sekunden.",
+    "en": "Explain as many words as you can without saying them. You have 60 seconds."
   },
   "seats": {
     "de": [
@@ -28,11 +28,52 @@
       "Group"
     ]
   },
+  "grip": "raum",
+  "dur": 60,
+  "players": {
+    "min": 1,
+    "max": 1
+  },
+  "modes": [
+    "alone"
+  ],
+  "play": {
+    "default": "alone",
+    "offer": [
+      "alone"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 0
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",

@@ -16,9 +16,9 @@
     "de": "Verteil 100 Münzen auf fünf Dinge. Wer mehr bietet, bekommt es. Wer mehr Wert sammelt, gewinnt.",
     "en": "Spread 100 coins over five things. The higher bid gets it. Whoever collects more value wins."
   },
-  "players": {
-    "min": 2,
-    "max": 2
+  "rule": {
+    "de": "Verteil 100 Münzen auf fünf Dinge. Wer mehr bietet, bekommt es. Wer mehr Wert sammelt, gewinnt.",
+    "en": "Spread 100 coins over five things. The higher bid gets it. Whoever collects more value wins."
   },
   "seats": {
     "de": [
@@ -30,11 +30,69 @@
       "Player 2"
     ]
   },
+  "roles": {
+    "de": [
+      "Du bietest zuerst, verdeckt.",
+      "Du bietest danach, ebenfalls verdeckt."
+    ],
+    "en": [
+      "You bid first, hidden.",
+      "You bid second, also hidden."
+    ]
+  },
+  "grip": "pause",
+  "on": [
+    "11-26",
+    "11-30",
+    "12-11"
+  ],
+  "dur": 40,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",
@@ -133,6 +191,64 @@
       "label": {
         "de": "Kartenfarbe",
         "en": "Card colour"
+      }
+    }
+  ],
+  "variants": [
+    {
+      "id": "zug-deal",
+      "title": {
+        "de": "Zehn Kekse, ein Angebot",
+        "en": "Ten cookies, one offer"
+      },
+      "teaser": {
+        "de": "Teil fair, oder keiner kriegt was.",
+        "en": "Split fairly or nobody gets any."
+      },
+      "params": {
+        "spiel": "deal"
+      }
+    },
+    {
+      "id": "zug-teilen",
+      "title": {
+        "de": "Teilen ohne Streit",
+        "en": "Share out without a fight"
+      },
+      "teaser": {
+        "de": "Referat aufteilen, ohne Gemecker.",
+        "en": "Split the project, no moaning."
+      },
+      "params": {
+        "spiel": "teilen"
+      }
+    },
+    {
+      "id": "zug-socke",
+      "title": {
+        "de": "Letzte Socke unterm Hammer",
+        "en": "Last sock under the hammer"
+      },
+      "teaser": {
+        "de": "Bieten bis zur Dummheit.",
+        "en": "Bid until it gets silly."
+      },
+      "params": {
+        "spiel": "socke"
+      }
+    },
+    {
+      "id": "zug-fallpreis",
+      "title": {
+        "de": "Auktion um Quatsch",
+        "en": "Auction of nonsense"
+      },
+      "teaser": {
+        "de": "Der Preis fällt. Wer zuerst tippt, kauft.",
+        "en": "The price drops. First tap buys."
+      },
+      "params": {
+        "spiel": "fallpreis"
       }
     }
   ]

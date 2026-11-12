@@ -16,9 +16,21 @@
     "de": "Der Bote sagt Zahlen an und darf schwindeln. Der Prüfer glaubt oder deckt auf. Wer mehr Punkte hat, gewinnt.",
     "en": "The messenger announces numbers and may fib. The checker believes or reveals. Whoever has more points wins."
   },
+  "rule": {
+    "de": "Der Bote sagt Zahlen an und darf schwindeln. Der Prüfer glaubt oder deckt auf. Wer mehr Punkte hat, gewinnt.",
+    "en": "The messenger announces numbers and may fib. The checker believes or reveals. Whoever has more points wins."
+  },
   "players": {
     "min": 2,
     "max": 2
+  },
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone",
+      "bot"
+    ]
   },
   "seats": {
     "de": [
@@ -30,6 +42,21 @@
       "Checker"
     ]
   },
+  "roles": {
+    "de": [
+      "Du kennst deine Karten und darfst schwindeln.",
+      "Du siehst nur die Ansagen. Glaub sie oder deck sie auf."
+    ],
+    "en": [
+      "You know your cards and you may fib.",
+      "You only see the announcements. Believe them or reveal them."
+    ]
+  },
+  "grip": "pause",
+  "dur": 40,
+  "legacy": [
+    "zug-bluff"
+  ],
   "hidden": "commit-reveal",
   "secretSeats": [
     0

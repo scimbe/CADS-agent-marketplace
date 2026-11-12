@@ -16,9 +16,9 @@
     "de": "Versprich etwas und setz eine Frist. Danach sagt der andere: geschafft oder nicht.",
     "en": "Promise something and set a deadline. Afterwards the other says: done or not."
   },
-  "players": {
-    "min": 2,
-    "max": 2
+  "rule": {
+    "de": "Versprich etwas und setz eine Frist. Danach sagt der andere: geschafft oder nicht.",
+    "en": "Promise something and set a deadline. Afterwards the other says: done or not."
   },
   "seats": {
     "de": [
@@ -30,11 +30,65 @@
       "Player 2"
     ]
   },
+  "roles": {
+    "de": [
+      "Du versprichst etwas und setzt die Frist.",
+      "Du sagst nach der Frist: geschafft oder nicht."
+    ],
+    "en": [
+      "You promise something and set the deadline.",
+      "After the deadline you say: done or not."
+    ]
+  },
+  "grip": "abend",
+  "dur": 30,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputDay": true,
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",

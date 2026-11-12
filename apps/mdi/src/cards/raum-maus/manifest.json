@@ -16,9 +16,9 @@
     "de": "Sprich einen Satz für jemanden auf. Die Person drückt einmal und hört ihn verstellt. Danach ist er weg.",
     "en": "Record a line for someone. They press once and hear it disguised. Then it is gone."
   },
-  "players": {
-    "min": 1,
-    "max": 1
+  "rule": {
+    "de": "Sprich einen Satz für jemanden auf. Die Person drückt einmal und hört ihn verstellt. Danach ist er weg.",
+    "en": "Record a line for someone. They press once and hear it disguised. Then it is gone."
   },
   "seats": {
     "de": [
@@ -28,11 +28,54 @@
       "Group"
     ]
   },
+  "grip": "geschenk",
+  "dur": 30,
+  "players": {
+    "min": 1,
+    "max": 1
+  },
+  "modes": [
+    "alone"
+  ],
+  "play": {
+    "default": "alone",
+    "offer": [
+      "alone"
+    ]
+  },
   "hidden": "none",
-  "uses": [],
+  "uses": [
+    "voice"
+  ],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 0
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",

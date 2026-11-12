@@ -16,9 +16,9 @@
     "de": "Ein Satz für alle. Abwechselnd tauscht ihr ein Wort aus. Nach fünf Zügen gilt das Gesetz.",
     "en": "One rule for everyone. Take turns swapping one word. After five moves the law stands."
   },
-  "players": {
-    "min": 2,
-    "max": 2
+  "rule": {
+    "de": "Ein Satz für alle. Abwechselnd tauscht ihr ein Wort aus. Nach fünf Zügen gilt das Gesetz.",
+    "en": "One rule for everyone. Take turns swapping one word. After five moves the law stands."
   },
   "seats": {
     "de": [
@@ -30,11 +30,64 @@
       "Player 2"
     ]
   },
+  "roles": {
+    "de": [
+      "Du tauschst ein Wort.",
+      "Du tauschst das nächste Wort."
+    ],
+    "en": [
+      "You swap one word.",
+      "You swap the next word."
+    ]
+  },
+  "grip": "abend",
+  "dur": 30,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",

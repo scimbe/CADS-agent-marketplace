@@ -16,9 +16,9 @@
     "de": "Ihr streitet über eine Frage. Jeder schreibt einen Satz. Dann fällt Spieler 1 das Urteil mit Begründung.",
     "en": "You argue about a question. Each writes one sentence. Then player 1 gives the verdict with a reason."
   },
-  "players": {
-    "min": 2,
-    "max": 2
+  "rule": {
+    "de": "Ihr streitet über eine Frage. Jeder schreibt einen Satz. Dann fällt Spieler 1 das Urteil mit Begründung.",
+    "en": "You argue about a question. Each writes one sentence. Then player 1 gives the verdict with a reason."
   },
   "seats": {
     "de": [
@@ -30,11 +30,64 @@
       "Player 2"
     ]
   },
+  "roles": {
+    "de": [
+      "Du schreibst deinen Satz und fällst am Ende das Urteil.",
+      "Du schreibst den Gegensatz."
+    ],
+    "en": [
+      "You write your sentence and give the verdict at the end.",
+      "You write the opposite."
+    ]
+  },
+  "grip": "streit",
+  "dur": 60,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",

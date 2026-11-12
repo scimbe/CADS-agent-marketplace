@@ -16,9 +16,9 @@
     "de": "Bau eine Ausrede aus drei Teilen. Der andere stempelt sie: durchgewunken, na gut oder niemals.",
     "en": "Build an excuse from three parts. The other stamps it: waved through, fair enough or never."
   },
-  "players": {
-    "min": 2,
-    "max": 2
+  "rule": {
+    "de": "Bau eine Ausrede aus drei Teilen. Der andere stempelt sie: durchgewunken, na gut oder niemals.",
+    "en": "Build an excuse from three parts. The other stamps it: waved through, fair enough or never."
   },
   "seats": {
     "de": [
@@ -30,11 +30,64 @@
       "Player 2"
     ]
   },
+  "roles": {
+    "de": [
+      "Du baust eine Ausrede aus drei Teilen.",
+      "Du stempelst die Ausrede."
+    ],
+    "en": [
+      "You build an excuse from three parts.",
+      "You stamp the excuse."
+    ]
+  },
+  "grip": "pause",
+  "dur": 20,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",

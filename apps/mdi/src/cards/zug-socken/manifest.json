@@ -16,9 +16,9 @@
     "de": "Versteck zwei Socken auf deinem Feld. Abwechselnd tippt ihr sechsmal auf das Feld des anderen. Wer zuerst beide findet, gewinnt.",
     "en": "Hide two socks on your board. Take turns tapping six times on the other's board. First to find both wins."
   },
-  "players": {
-    "min": 2,
-    "max": 2
+  "rule": {
+    "de": "Versteck zwei Socken auf deinem Feld. Abwechselnd tippt ihr sechsmal auf das Feld des anderen. Wer zuerst beide findet, gewinnt.",
+    "en": "Hide two socks on your board. Take turns tapping six times on the other's board. First to find both wins."
   },
   "seats": {
     "de": [
@@ -30,11 +30,67 @@
       "Player 2"
     ]
   },
+  "roles": {
+    "de": [
+      "Du versteckst zuerst und suchst dann.",
+      "Du versteckst auch und suchst."
+    ],
+    "en": [
+      "You hide first, then search.",
+      "You hide too and search."
+    ]
+  },
+  "grip": "pause",
+  "on": [
+    "12-15"
+  ],
+  "dur": 60,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",

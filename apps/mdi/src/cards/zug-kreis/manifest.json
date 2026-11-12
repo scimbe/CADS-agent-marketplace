@@ -16,9 +16,9 @@
     "de": "Leg fünf Wörter in einen Kreis: Jedes schlägt die zwei danach. Der andere testet drei Paare und nennt dann den Kreis.",
     "en": "Put five words in a circle: each beats the next two. The other tests three pairs, then names the circle."
   },
-  "players": {
-    "min": 2,
-    "max": 2
+  "rule": {
+    "de": "Leg fünf Wörter in einen Kreis: Jedes schlägt die zwei danach. Der andere testet drei Paare und nennt dann den Kreis.",
+    "en": "Put five words in a circle: each beats the next two. The other tests three pairs, then names the circle."
   },
   "seats": {
     "de": [
@@ -30,11 +30,67 @@
       "Player 2"
     ]
   },
+  "roles": {
+    "de": [
+      "Du baust den Kreis aus fünf Wörtern.",
+      "Du testest drei Paare und nennst den Kreis."
+    ],
+    "en": [
+      "You build the circle of five words.",
+      "You test three pairs and name the circle."
+    ]
+  },
+  "grip": "pause",
+  "on": [
+    "11-02"
+  ],
+  "dur": 90,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",
@@ -117,6 +173,25 @@
         "de": "Kartenfarbe",
         "en": "Card colour"
       }
+    }
+  ],
+  "variants": [
+    {
+      "id": "raum-tuer",
+      "title": {
+        "de": "Tür- steher",
+        "en": "The bouncer"
+      },
+      "teaser": {
+        "de": "Wer darf rein? Errate die geheime Regel.",
+        "en": "Who gets in? Guess the secret rule."
+      },
+      "params": {
+        "spiel": "tuer"
+      },
+      "modes": [
+        "alone"
+      ]
     }
   ]
 }

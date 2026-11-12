@@ -16,9 +16,9 @@
     "de": "Schmuggel drei Wörter heute unauffällig in euren Chat. Am Abend sucht ihr die Wörter des anderen. Wer mehr findet, gewinnt.",
     "en": "Slip three words into your chat today without being noticed. In the evening you look for the other's words. More found wins."
   },
-  "players": {
-    "min": 2,
-    "max": 2
+  "rule": {
+    "de": "Schmuggel drei Wörter heute unauffällig in euren Chat. Am Abend sucht ihr die Wörter des anderen. Wer mehr findet, gewinnt.",
+    "en": "Slip three words into your chat today without being noticed. In the evening you look for the other's words. More found wins."
   },
   "seats": {
     "de": [
@@ -30,11 +30,67 @@
       "Player 2"
     ]
   },
+  "roles": {
+    "de": [
+      "Du schmuggelst drei Wörter in den Chat und suchst später seine.",
+      "Du schmuggelst auch drei und suchst seine."
+    ],
+    "en": [
+      "You slip three words into the chat and later look for theirs.",
+      "You slip three too and look for theirs."
+    ]
+  },
+  "grip": "abend",
+  "on": [
+    "12-19"
+  ],
+  "dur": 30,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",

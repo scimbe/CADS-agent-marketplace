@@ -16,9 +16,9 @@
     "de": "Wähl drei von neun Wörtern und gib ein einziges Hinweiswort. Der andere tippt die drei Wörter. Jeder Treffer zählt.",
     "en": "Pick three of nine words and give one single clue word. The other taps the three words. Every hit counts."
   },
-  "players": {
-    "min": 2,
-    "max": 2
+  "rule": {
+    "de": "Wähl drei von neun Wörtern und gib ein einziges Hinweiswort. Der andere tippt die drei Wörter. Jeder Treffer zählt.",
+    "en": "Pick three of nine words and give one single clue word. The other taps the three words. Every hit counts."
   },
   "seats": {
     "de": [
@@ -30,11 +30,67 @@
       "Player 2"
     ]
   },
+  "roles": {
+    "de": [
+      "Du wählst drei Wörter und gibst ein Hinweiswort.",
+      "Du tippst die drei Wörter, die gemeint sind."
+    ],
+    "en": [
+      "You pick three words and give one clue.",
+      "You tap the three words that are meant."
+    ]
+  },
+  "grip": "pause",
+  "on": [
+    "12-17"
+  ],
+  "dur": 40,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",

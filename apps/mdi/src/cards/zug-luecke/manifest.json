@@ -16,9 +16,9 @@
     "de": "Wähl eine Geschichte. Der andere füllt sechs Lücken, ohne sie zu kennen. Dann lest ihr sie zusammen.",
     "en": "Pick a story. The other fills six gaps without seeing it. Then you read it together."
   },
-  "players": {
-    "min": 2,
-    "max": 2
+  "rule": {
+    "de": "Wähl eine Geschichte. Der andere füllt sechs Lücken, ohne sie zu kennen. Dann lest ihr sie zusammen.",
+    "en": "Pick a story. The other fills six gaps without seeing it. Then you read it together."
   },
   "seats": {
     "de": [
@@ -30,11 +30,64 @@
       "Player 2"
     ]
   },
+  "roles": {
+    "de": [
+      "Du wählst eine Geschichte.",
+      "Du füllst sechs Lücken, ohne die Geschichte zu kennen."
+    ],
+    "en": [
+      "You pick a story.",
+      "You fill six gaps without knowing the story."
+    ]
+  },
+  "grip": "abend",
+  "dur": 40,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",

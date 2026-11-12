@@ -16,9 +16,9 @@
     "de": "Abwechselnd ein Satz, frecher bringt mehr Punkte auf den Pegel. Wer die geheime Grenze reißt, verliert.",
     "en": "Take turns with a line; cheekier adds more to the level. Whoever breaks the secret limit loses."
   },
-  "players": {
-    "min": 2,
-    "max": 2
+  "rule": {
+    "de": "Abwechselnd ein Satz, frecher bringt mehr Punkte auf den Pegel. Wer die geheime Grenze reißt, verliert.",
+    "en": "Take turns with a line; cheekier adds more to the level. Whoever breaks the secret limit loses."
   },
   "seats": {
     "de": [
@@ -30,11 +30,67 @@
       "Player 2"
     ]
   },
+  "roles": {
+    "de": [
+      "Du beginnst mit einem Satz.",
+      "Du antwortest mit einem Satz."
+    ],
+    "en": [
+      "You start with a line.",
+      "You answer with a line."
+    ]
+  },
+  "grip": "streit",
+  "on": [
+    "12-13"
+  ],
+  "dur": 40,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",

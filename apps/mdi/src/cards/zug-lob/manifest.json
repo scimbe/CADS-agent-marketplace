@@ -16,9 +16,9 @@
     "de": "Jeder wählt drei Wörter für sich und drei für den anderen. Am Ende seht ihr, wo ihr euch gleich seht.",
     "en": "Each of you picks three words for yourself and three for the other. At the end you see where you agree."
   },
-  "players": {
-    "min": 2,
-    "max": 2
+  "rule": {
+    "de": "Jeder wählt drei Wörter für sich und drei für den anderen. Am Ende seht ihr, wo ihr euch gleich seht.",
+    "en": "Each of you picks three words for yourself and three for the other. At the end you see where you agree."
   },
   "seats": {
     "de": [
@@ -30,11 +30,67 @@
       "Player 2"
     ]
   },
+  "roles": {
+    "de": [
+      "Du wählst drei Wörter für dich und drei für den anderen.",
+      "Du wählst auch drei für dich und drei für den anderen."
+    ],
+    "en": [
+      "You pick three words for yourself and three for the other.",
+      "You also pick three for yourself and three for the other."
+    ]
+  },
+  "grip": "geschenk",
+  "on": [
+    "12-09"
+  ],
+  "dur": 30,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",

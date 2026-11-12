@@ -16,9 +16,9 @@
     "de": "Beantworte fünf Fragen über dich. Der andere rät deine Antworten und stellt dann seine. Wer mehr richtig hat, kennt den anderen besser.",
     "en": "Answer five questions about yourself. The other guesses your answers, then asks theirs. More right answers means you know each other better."
   },
-  "players": {
-    "min": 2,
-    "max": 2
+  "rule": {
+    "de": "Beantworte fünf Fragen über dich. Der andere rät deine Antworten und stellt dann seine. Wer mehr richtig hat, kennt den anderen besser.",
+    "en": "Answer five questions about yourself. The other guesses your answers, then asks theirs. More right answers means you know each other better."
   },
   "seats": {
     "de": [
@@ -30,11 +30,64 @@
       "Player 2"
     ]
   },
+  "roles": {
+    "de": [
+      "Du beantwortest fünf Fragen über dich und rätst später seine.",
+      "Du rätst seine Antworten und stellst dann deine fünf."
+    ],
+    "en": [
+      "You answer five questions about yourself and later guess theirs.",
+      "You guess their answers, then answer your own five."
+    ]
+  },
+  "grip": "abend",
+  "dur": 60,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "alone",
+    "link"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
   "hidden": "none",
   "uses": [],
   "limits": {
     "stepBudget": 64,
     "stateBytes": 8192
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
   },
   "params": {
     "type": "object",
