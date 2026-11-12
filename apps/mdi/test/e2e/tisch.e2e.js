@@ -112,7 +112,8 @@ test("Skat live zu dritt (Gruppen-Live, Fake-Live): ein Link je Gast, ganze Part
       await humanStep(d.p);
     }
   }
-  for (const d of all) await waitScreen(d.p, "card-play-over", 60000);
+  const state = async () => (await Promise.all(all.map(async (d) => (await screen(d.p)) + ": " + (await d.p.locator("main").innerText()).replace(/\s+/g, " ").slice(0, 160)))).join(" || ");
+  for (const d of all) await waitScreen(d.p, "card-play-over", 60000).catch(async (e) => { throw new Error(e.message + " – " + (await state())); });
   const nums = async (p) => (await p.locator(".t-big").last().textContent()).match(/-?\d+(?=\s*(·|$))/g);
   const first = await nums(H.p);
   for (const g of G) assert.deepEqual(await nums(g.p), first);
@@ -128,11 +129,11 @@ test("Tastatur: Karten sind Knoepfe mit Namen, Tab erreicht sie, Enter spielt", 
     if (s === "card-play-turn" && (await handCards(A.p).count())) break;
     if (s === "card-play-turn") await humanStep(A.p); else await A.p.waitForTimeout(40);
   }
-  const before = await handCards(A.p).count();
   const label = await handCards(A.p).first().getAttribute("aria-label");
   assert.match(label, CARD);
   await humanStep(A.p, { keyboard: true });
-  await A.p.waitForFunction((n) => document.querySelectorAll('[data-part="hand"] button[aria-label]').length !== n || !document.querySelector("main.s-card-play-turn"), before);
+  // die gespielte Karte liegt danach im Stich, nicht mehr auf den eigenen Stapeln (jede Karte gibt es einmal)
+  await A.p.waitForFunction((l) => ![...document.querySelectorAll('[data-part="hand"] [aria-label]')].some((e) => e.getAttribute("aria-label") === l), label);
   assert.deepEqual(A.errs, []);
 });
 
