@@ -198,3 +198,16 @@ test("Kein fast-uri/ajv-URI-Code im Auslieferungsstand und in den Validatoren (L
   for (const f of out) assert.doesNotMatch(fs.readFileSync(f, "utf8"), SIG, path.relative(ROOT, f));
   for (const f of files(path.join(SRC, "gen"), /\.js$/)) assert.doesNotMatch(fs.readFileSync(f, "utf8"), /from\s+["'](ajv|fast-uri)/, path.relative(ROOT, f));
 });
+
+// Vertrag mit dem Wrapper (CADS-DEMO-wrapper#138, Staging L3): er liefert unter /duell/parts/ nur Namen aus, die
+// dist/build.json listet (report.parts mit "parts/…"-Schluesseln, parts.live.file) und die seinen Mustern folgen.
+test("build.json listet jeden Teil unter parts/ nach dem Wrapper-Muster (Vertrag mit W)", () => {
+  const bj = JSON.parse(fs.readFileSync(path.join(DIST, "build.json"), "utf8"));
+  const listed = new Set(Object.keys(bj.report.parts).filter((k) => k.startsWith("parts/")).map((k) => k.slice(6)));
+  const W = [/^card-[a-z0-9-]{1,40}\.[0-9a-f]{12}\.js$/, /^thumbs-\d+\.[0-9a-f]{12}\.js$/, /^live-frame\.[0-9a-f]{10}\.html$/];
+  for (const f of fs.readdirSync(path.join(DIST, "parts"))) {
+    assert.ok(listed.has(f), "nicht in build.json: " + f);
+    assert.ok(W.some((re) => re.test(f)), "passt zu keinem Wrapper-Muster: " + f);
+  }
+  assert.equal(bj.parts.live.file, "parts/" + [...listed].find((f) => f.startsWith("live-frame.")));
+});
