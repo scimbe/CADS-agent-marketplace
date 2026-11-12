@@ -102,9 +102,12 @@ test("Fertig verschickt: Werk auf die Wand, Link ins Archiv, Kurzlink angefragt;
   s = go(go(s, { type: "BACK" }), { type: "BACK" });
   s = go(s, { type: "HOME", to: "meins", tab: "einladungen" });
   s = go(s, { type: "INV_DELETE", f });
+  assert.equal(fx(s, "short.delete").length, 0, "erster Tipp fragt nur nach"); assert.equal(s.ctx.home.sure, f);
+  assert.ok(texts(s).includes("Wirklich löschen?"));
+  s = go(s, { type: "INV_DELETE", f });
   assert.equal(fx(s, "short.delete").length, 1); assert.equal(s.ctx.mine.invites.length, 1);
   s = go(s, { type: "SHORT_DELETED", f, ok: false }); assert.equal(s.ctx.home.note, "delFail"); assert.equal(s.ctx.mine.invites.length, 1);
-  s = go(s, { type: "INV_DELETE", f }); s = go(s, { type: "SHORT_DELETED", f, ok: true });
+  s = go(s, { type: "INV_DELETE", f }); s = go(s, { type: "INV_DELETE", f }); s = go(s, { type: "SHORT_DELETED", f, ok: true });
   assert.equal(s.ctx.mine.invites.length, 0);
 });
 

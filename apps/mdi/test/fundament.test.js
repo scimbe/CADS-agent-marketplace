@@ -118,11 +118,11 @@ test("v0.2 toWire: Snapshot-Karten verdichten ihr Log ueber compact", () => {
 });
 
 test("v0.2 modes/play: manifest.modes und Varianten schneiden, play.default liegt in offer", () => {
-  assert.deepEqual(deriveModes(fx), ["alone", "bot", "link"], "3 Sitze: Bot ja, Live nein (Gruppen-Live Stufe 2)");
+  assert.deepEqual(deriveModes(fx), ["alone", "bot", "link", "live"], "3 Sitze: Bot und Gruppen-Live");
   assert.deepEqual(deriveModes(fx, "fx-zug-kurz"), ["alone"]);
   assert.deepEqual(playOf(fx), { default: "alone", offer: ["alone", "bot", "link"] });
   const p = { manifest: { ...fx.manifest, play: { default: "link", offer: ["link", "live"] } } };
-  assert.deepEqual(playOf(p), { default: "link", offer: ["link"] });
+  assert.deepEqual(playOf(p), { default: "link", offer: ["link", "live"] });
   const rt = { manifest: { mode: "realtime", players: { min: 1, max: 2 }, rt: { net: "split", ghost: { bytes: 100 } } }, bot() {} };
   assert.deepEqual(deriveModes(rt), ["alone", "bot", "live"], "Geist ist kein waehlbarer Modus");
   assert.deepEqual(deriveModes({ ...rt, bot: undefined, manifest: { ...rt.manifest, rt: { net: "none" } } }), ["alone"]);

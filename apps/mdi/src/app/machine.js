@@ -8,7 +8,7 @@ import * as S from "../contract/session.js";
 import { cardOf, modesOf, validParams } from "../cards/index.js";
 import { encode } from "./link.js";
 import { sha256 } from "../contract/sdk.js";
-import { paramsForLink } from "../contract/fields.js";
+import { paramsForLink, defaults } from "../contract/fields.js";
 import { kontoRegion, stilState, kontoGuards, kontoActions, kontoContext } from "./konto-chart.js";
 import { FEATURES } from "./features.js";
 import { playOf } from "../contract/modes.js";
@@ -47,7 +47,7 @@ export const chart = {
                   { target: T("inhalt.card.rt"), cond: "goRt", actions: ["startRt"] },
                   { target: T("inhalt.card.share"), cond: "goStaticLink" },
                   { target: T("inhalt.card.lobby"), cond: "goLive", raise: "INVITE" },
-                  { target: T("inhalt.card.play"), cond: "goBot", actions: ["startBot"] },
+                  { target: T("inhalt.card.play"), cond: "goBot", actions: ["startBot"], raise: "SYNC" },
                   { target: T("inhalt.card.play"), cond: "goLocal", actions: ["startLocal"], raise: "SYNC" }
                 ],
                 BACK: { target: T("inhalt.shelf"), raise: "LEAVE" } // zum Regal: offener Raum (z. B. nach Live-Zeigen) schliesst
@@ -63,7 +63,13 @@ export const chart = {
             share: { entry: ["makeCardLink", "autoShare"], on: { SHARE: { actions: ["share"] }, SENT: { actions: ["markSent"] }, BACK: T("inhalt.card.view"), DONE: T("inhalt.card.view") } },
             lobby: {
               on: {
-                LIVE_UP: [{ target: T("inhalt.card.view"), cond: "isStatic", actions: ["sendShow"] }, { target: T("inhalt.card.play"), actions: ["sendHello"] }],
+                LIVE_UP: [
+                  { target: T("inhalt.card.view"), cond: "isStatic", actions: ["sendShow"] },
+                  // Gruppe (3+ Sitze): erst wenn alle Gaeste verbunden sind, geht hello an jeden (ADR 0001 f, Stufe 2)
+                  { target: T("inhalt.card.play"), cond: "groupReady", actions: ["markUp", "sendHello"] },
+                  { cond: "isGroup", actions: ["markUp"] },
+                  { target: T("inhalt.card.play"), actions: ["sendHello"] }
+                ],
                 LIVE_FAIL: { actions: ["raumFailed"] },
                 AGAIN: { actions: ["clearRaumError"], raise: "INVITE" },
                 SHARE: { actions: ["shareInvite"] },
@@ -194,6 +200,14 @@ function helloResult(ctx, ev) { return memo(ev, "_h", () => { try { return G.joi
 function guard(fn) { return (ctx, ev) => { try { return fn(ctx, ev); } catch (e) { return false; } }; }
 function safe(ctx, f) { try { return f(); } catch (e) { return { ...ctx, error: e.code || "zug-ungueltig" }; } }
 
+function variantParams(ctx, ev) {
+  if (!ev.variant) return {};
+  const c = cardOf(ev.id), v = c && (c.manifest.variants || []).find((x) => x.id === ev.variant);
+  if (!v) return {};
+  const p = { ...defaults(c.manifest.params), ...v.params };
+  return validParams(ev.id, p) ? { params: { ...ctx.params, [ev.id]: p } } : {};
+}
+
 export const guards = {
   cardExists: (ctx, ev) => !!cardOf(ev.id),
   partExists: (ctx, ev) => G.card(ctx).manifest.parts.some((p) => p.id === ev.part),
@@ -202,6 +216,13 @@ export const guards = {
   goRt: (ctx) => G.card(ctx).manifest.mode === "realtime" && ["alone", "bot"].includes(ctx.mode),
   goBot: (ctx) => ctx.mode === "bot" && G.card(ctx).manifest.mode === "turn",
   goLocal: (ctx) => (ctx.mode === "alone" || ctx.mode === "link") && G.card(ctx).manifest.mode === "turn",
+  isGroup: (ctx) => G.card(ctx).manifest.players.max > 2,
+  groupReady: (ctx, ev) => {
+    const c = G.card(ctx); if (c.manifest.players.max <= 2) return false;
+    const up = new Set([...((ctx.raum && ctx.raum.up) || []), ev.seat]);
+    for (let s = 0; s < c.manifest.players.max; s++) if (s !== ctx.seat && !up.has(s)) return false;
+    return true;
+  },
   rtHandshakeDone: (ctx) => !!ctx.session && !ctx.error && G.card(ctx).manifest.mode === "realtime",
   rtRunning: (ctx) => ctx.mode === "live" && !ctx.rtResult,
   rtLive: (ctx) => ctx.mode === "live",
@@ -233,8 +254,9 @@ export const guards = {
 };
 
 export const actions = {
-  openCard: (ctx, ev) => ({ ...ctx, cardId: ev.id, mode: playOf(cardOf(ev.id)).default, seat: 0, session: null, hs: null, error: null, note: null, link: null, part: null }),
-  setMode: (ctx, ev) => (modesOf(G.card(ctx)).includes(ev.mode) ? { ...ctx, mode: ev.mode, note: null } : ctx),
+  // OPEN {id, variant?}: eine Variante bringt ihre Parameter mit (Regal ueber LEGACY/VARIANTS, Anfrage H)
+  openCard: (ctx, ev) => ({ ...ctx, ...variantParams(ctx, ev), cardId: ev.id, variant: ev.variant || null, mode: playOf(cardOf(ev.id), ev.variant).default, seat: 0, session: null, hs: null, error: null, note: null, link: null, part: null }),
+  setMode: (ctx, ev) => (modesOf(G.card(ctx), ctx.variant).includes(ev.mode) ? { ...ctx, mode: ev.mode, note: null } : ctx),
   setSeat: (ctx, ev) => (Number.isInteger(ev.seat) && ev.seat >= 0 && ev.seat < G.card(ctx).manifest.players.max ? { ...ctx, seat: ev.seat } : ctx),
   setLevel: (ctx, ev) => ([1, 2, 3].includes(ev.level) ? { ...ctx, level: ev.level } : ctx),
   setPart: (ctx, ev) => ({ ...ctx, part: ev.part }),
@@ -275,20 +297,25 @@ export const actions = {
     }
     const r = G.helloFor(ctx, ev.rand);
     if (n !== 2) throw Object.assign(new Error("bot"), { code: "eingabe" }); // Bot ist ein Partner (2 Sitze)
-    emit({ type: "bot.new", seat: [0, 1].find((s) => s !== ctx.seat), level: ctx.level || 2 });
+    emit({ type: "bot.new", seat: [0, 1].find((s) => s !== ctx.seat), level: ctx.level || 2, today: G.todayOf(ev.at) });
     emit({ type: "peer", msg: r.msg });
     return r.ctx;
   }),
-  sendHello: (ctx, ev, emit) => safe(ctx, () => { const r = G.helloFor(ctx, ev.rand); emit({ type: "peer", msg: r.msg }); return r.ctx; }),
+  sendHello: (ctx, ev, emit) => safe(ctx, () => {
+    if (G.card(ctx).manifest.players.max > 2) { const r = G.helloGroupFor(ctx, ev.rand); for (const m of r.msgs) emit({ type: "peer", to: m.to, msg: m.msg }); return r.ctx; }
+    const r = G.helloFor(ctx, ev.rand); emit({ type: "peer", msg: r.msg }); return r.ctx;
+  }),
+  markUp: (ctx, ev) => ({ ...ctx, raum: { ...(ctx.raum || {}), up: [...new Set([...((ctx.raum && ctx.raum.up) || []), ev.seat])] } }),
   sendShow: (ctx, ev, emit) => { const c = G.card(ctx); emit({ type: "peer", msg: { t: "show", c: c.manifest.id, v: c.manifest.version, p: G.paramsOf(ctx) } }); return { ...ctx, note: "gezeigt" }; },
   onJoin: (ctx, ev, emit) => {
     if (!ctx.hs || ctx.session) return { ...ctx, error: "abweichung" };
+    if (ctx.hs.guests) return safe(ctx, () => { const r = G.joinGroupFor(ctx, ev.from, ev.msg); if (r.msg) { emit({ type: "peer", msg: r.msg }); for (const m of r.out) emit({ type: "peer", msg: m }); } return r.ctx; });
     return safe(ctx, () => { const r = G.startFor(ctx, ev.msg); emit({ type: "peer", msg: r.msg }); for (const m of r.out) emit({ type: "peer", msg: m }); return r.ctx; });
   },
   onStart: (ctx, ev, emit) => (!ctx.hs || ctx.session ? { ...ctx, error: "abweichung" } : safe(ctx, () => { const r = G.beginFor(ctx, ev.msg); for (const m of r.out) emit({ type: "peer", msg: m }); return r.ctx; })),
   onBotLocal: (ctx, ev, emit) => {
     if (!ctx.session || !ctx.botSeats) return { ...ctx, error: "abweichung" };
-    return safe(ctx, () => { const n = G.applyBotLocal(ctx, ev.input); const t = G.botTurn(n); if (t !== null) emit({ type: "bot.local", seat: t, level: n.level || 2 }); return n; });
+    return safe(ctx, () => { const n = G.applyBotLocal(ctx, ev.input, G.todayOf(ev.at)); const t = G.botTurn(n); if (t !== null) emit({ type: "bot.local", seat: t, level: n.level || 2 }); return n; });
   },
   openFromAct: (ctx, ev) => actions.openCard(ctx, { id: ev.card }),
   actEffect: (ctx, ev, emit) => {
@@ -339,7 +366,13 @@ export const actions = {
   },
   onPeerIn: (ctx, ev, emit) => {
     if (!ctx.session) return { ...ctx, error: "abweichung" };
-    return safe(ctx, () => { const r = G.applyPeer(ctx, ev.msg); for (const m of r.out) emit({ type: "peer", msg: m }); return r.ctx; });
+    return safe(ctx, () => {
+      const r = G.applyPeer(ctx, ev.msg);
+      // Gastgeber einer Gruppe: den Zug eines Gastes in derselben Reihenfolge an alle anderen weitergeben
+      if (ctx.groupHost && ev.from !== undefined) emit({ type: "peer", msg: ev.msg, except: ev.from });
+      for (const m of r.out) emit({ type: "peer", msg: m });
+      return r.ctx;
+    });
   },
   onInput: (ctx, ev, emit) => safe(ctx, () => {
     const r = G.applyMine(ctx, ev.input, G.todayOf(ev.at));
@@ -353,7 +386,7 @@ export const actions = {
     const c = G.card(ctx);
     if (typeof c.prepare !== "function") throw Object.assign(new Error("prepare"), { code: "eingabe" });
     const seat = ctx.viewer, obs = S.observe(c, ctx.session, seat);
-    const input = c.prepare(ctx.draft, { seed: ctx.session.seed, seat, obs, today: G.todayOf(ev.at) });
+    const input = c.prepare(ev.draft !== undefined ? ev.draft : ctx.draft, { seed: ctx.session.seed, seat, obs, today: G.todayOf(ev.at) });
     return actions.onInput(ctx, { ...ev, input }, emit);
   }),
   flipViewer: (ctx) => { const t = G.gameStatus(ctx).turn; return { ...ctx, viewer: t, coveredFor: t }; },
@@ -365,7 +398,7 @@ export const actions = {
     const log = ctx.session.log; if (!log.length || !ctx.session.mine.includes(log[log.length - 1].seat)) return { ...ctx, link: null };
     try { const link = encode("challenge", G.challengeOf(ctx)); emit({ type: "store", entry: G.gameEntry(ctx.session, ctx.gameId) }); return { ...ctx, link }; } catch (e) { return { ...ctx, link: null }; }
   },
-  endGame: (ctx) => ({ ...ctx, session: null, hs: null, error: null, link: null, sent: false, draft: null, botSeats: null, coveredFor: null, rtResult: null, rtAgain: null, ghostOf: null }),
+  endGame: (ctx) => ({ ...ctx, groupHost: false, session: null, hs: null, error: null, link: null, sent: false, draft: null, botSeats: null, coveredFor: null, rtResult: null, rtAgain: null, ghostOf: null }),
   peerGone: (ctx) => (ctx.session && G.gameStatus(ctx).over ? ctx : { ...ctx, error: "partner-weg" }),
   setError: (ctx, ev) => ({ ...ctx, error: ev.reason || "zug-ungueltig" }),
   takeLink: (ctx, ev, emit) => {
@@ -374,7 +407,8 @@ export const actions = {
     return { ...ctx, incoming: r.ok ? r : null, reason: r.ok ? null : r.reason };
   },
   dropIncoming: (ctx) => ({ ...ctx, incoming: null, reason: null }),
-  acceptCard: (ctx) => ({ ...ctx, cardId: ctx.incoming.cardId, params: { ...ctx.params, [ctx.incoming.cardId]: ctx.incoming.params }, mode: "link", seat: 0, session: null, note: "empfangen", incoming: null }),
+  // Felder, die nicht im Link reisen (media.local, secret), bekommen beim Empfang ihren Standardwert (Anfrage P)
+  acceptCard: (ctx) => ({ ...ctx, cardId: ctx.incoming.cardId, params: { ...ctx.params, [ctx.incoming.cardId]: { ...defaults(cardOf(ctx.incoming.cardId).manifest.params), ...ctx.incoming.params } }, mode: "link", seat: 0, session: null, note: "empfangen", incoming: null }),
   // erst beim Annehmen wird gespeichert (Review LOW: nicht angenommene Links verdraengen keine Salze)
   acceptChallenge: (ctx, ev, emit) => {
     const inc = ctx.incoming, seat = inc.session.mine.length ? inc.session.mine[0] : 0;
@@ -387,10 +421,21 @@ export const actions = {
   liveFailed: (ctx, ev) => ({ ...ctx, reason: "verbindung", raum: { ...(ctx.raum || {}), error: ev.reason || "verbindung" } }),
   raumFailed: (ctx, ev) => ({ ...ctx, raum: { ...(ctx.raum || {}), error: ev.reason || "verbindung" } }),
   clearRaumError: (ctx) => ({ ...ctx, raum: { ...(ctx.raum || {}), error: null } }),
-  fxInvite: (ctx, ev, emit) => { emit({ type: "live.invite" }); return { ...ctx, raum: { token: null, inviteLink: null, step: null, error: null } }; },
+  fxInvite: (ctx, ev, emit) => {
+    const c = ctx.cardId ? cardOf(ctx.cardId) : null, n = c ? c.manifest.players.max : 2;
+    const seats = []; for (let s = 0; s < n; s++) if (s !== ctx.seat) seats.push(s);
+    emit({ type: "live.invite", seats: n > 2 ? seats : undefined });
+    return { ...ctx, raum: { token: null, inviteLink: null, invites: n > 2 ? {} : null, up: [], step: null, error: null } };
+  },
   fxAccept: (ctx, ev, emit) => { emit({ type: "live.accept", token: ev.token }); return { ...ctx, raum: { token: ev.token, step: null, error: null } }; },
   fxClose: (ctx, ev, emit) => { emit({ type: "live.close" }); return { ...ctx, raum: null }; },
-  setToken: (ctx, ev) => { try { return { ...ctx, raum: { ...ctx.raum, token: ev.token, inviteLink: encode("live", { t: ev.token }) } }; } catch (e) { return ctx; } },
+  setToken: (ctx, ev) => {
+    try {
+      const link = encode("live", { t: ev.token });
+      if (ev.seat !== undefined) { const invites = { ...((ctx.raum && ctx.raum.invites) || {}), [ev.seat]: link }; const first = invites[Object.keys(invites).sort()[0]]; return { ...ctx, raum: { ...ctx.raum, invites, token: ev.token, inviteLink: first } }; }
+      return { ...ctx, raum: { ...ctx.raum, token: ev.token, inviteLink: link } };
+    } catch (e) { return ctx; }
+  },
   setStep: (ctx, ev) => ({ ...ctx, raum: { ...(ctx.raum || {}), step: ev.step } }),
   setRaumError: (ctx, ev) => ({ ...ctx, raum: { ...(ctx.raum || {}), error: ev.reason || "verbindung" } }),
   ...kontoActions

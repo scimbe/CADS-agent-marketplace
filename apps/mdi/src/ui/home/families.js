@@ -4,7 +4,7 @@
 // Akzentfarben und Schriftfarbe darauf aus dem Design-System Phase C (Strang D, --fam-*/--on-*, alle >= 4,5:1); sie ersetzen
 // die alten Situationsfarben (alt:src/turn-ui.js:722-740), die Zuordnung Situation -> Farbe bleibt sinngemaess.
 import { IDEAS, byId } from "./rotation.js";
-import { cardOf, CARDS } from "../../cards/index.js";
+import { cardOf, CARDS, LEGACY } from "../../cards/index.js";
 
 export const FAMILIES = [
   { id: "gruessen", intent: "gruss", color: "#FF6FAE", ink: "#17140F", shape: "heart", ids: ["karte-danke", "advent-tuer", "zug-umschlag", "zug-kapsel", "zug-gutschein", "zug-lob", "zug-reihum", "raum-damals"] },
@@ -31,14 +31,24 @@ export function family(id) { return BY_FAMILY.get(id) || null; }
 export function familyOf(catalogId) { return FAMILY_OF.get(catalogId) || null; }
 export function familiesOf(intent) { return FAMILIES.filter((f) => f.intent === intent); }
 /** Karte im neuen Code fuer eine Katalog-ID oder null ("kommt"). */
-export function newIdOf(catalogId) { const id = ALIAS[catalogId] || catalogId; return cardOf(id) ? id : null; }
+export function newIdOf(catalogId) {
+  if (ALIAS[catalogId] && cardOf(ALIAS[catalogId])) return ALIAS[catalogId];
+  if (cardOf(catalogId)) return catalogId;
+  const l = LEGACY && Object.prototype.hasOwnProperty.call(LEGACY, catalogId) ? LEGACY[catalogId] : null; // Register (ADR 0001 a): alte id -> Karte/Variante
+  return l && cardOf(l.card) ? l.card : null;
+}
+/** Variante der neuen Karte, die eine alte Katalog-ID traegt (oder null). */
+export function variantOf(catalogId) { const l = LEGACY && Object.prototype.hasOwnProperty.call(LEGACY, catalogId) ? LEGACY[catalogId] : null; return l && l.variant ? l.variant : null; }
 export function catalogIdOf(newId) { return REVERSE[newId] || newId; }
 
-/** Karten, die es nur im neuen Code gibt (kein Eintrag im alten Katalog): Familie aus dem Manifest, sonst nach Art. */
+/** Karten im Register ohne eigene Regalzeile im Altkatalog: neue Karten und ehemals eingeklappte Varianten, die ein Strang
+ *  als eigene Karte baut (z. B. arcade-murmel, alt "to": arcade-stock). Familie: Manifest, sonst die der Traegerkarte,
+ *  sonst nach Art. Sie stehen im Regal in ihrer Familie, nie in der Tagesrotation (die bleibt exakt wie im Altcode). */
 export function extras() {
-  return Object.keys(CARDS).filter((id) => !byId(catalogIdOf(id))).map((id) => {
-    const m = cardOf(id).manifest;
-    const fam = (m.family && family(m.family)) || (m.mode === "static" ? family("gruessen") : family("kennen"));
+  const serving = new Set(IDEAS.map((i) => newIdOf(i.id)).filter(Boolean));
+  return Object.keys(CARDS).filter((id) => !serving.has(id)).map((id) => {
+    const m = cardOf(id).manifest, old = byId(catalogIdOf(id));
+    const fam = (m.family && (family(m.family) || familyOf(m.family))) || (old && old.to && familyOf(old.to)) || (m.mode === "static" ? family("gruessen") : m.mode === "realtime" ? family("geschick") : family("kennen"));
     return { id, fam, manifest: m };
   });
 }

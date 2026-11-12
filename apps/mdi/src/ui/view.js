@@ -6,7 +6,6 @@ import { texts, fmt } from "../app/texts.js";
 import { cardOf, ORDER, modesOf } from "../cards/index.js";
 import * as G from "../app/game.js";
 import * as S from "../contract/session.js";
-import { rng } from "../contract/sdk.js";
 import { render } from "../render/render.js";
 import { LEVELS } from "../bot/ismcts.js";
 import { stilView, stilActions } from "./stil-view.js";
@@ -97,10 +96,28 @@ function fieldControls(card, part, params, X, lang, dispatch) {
           label ? h("label", { for: id }, label) : null,
           h(p.maxLength > 40 ? "textarea" : "input", { id, class: "input", "aria-labelledby": label ? null : "dlg-title", ...(p.maxLength > 40 ? { rows: "3" } : { type: "text" }), maxlength: String(p.maxLength), value: v, on: { input: (e) => set(e.target.value) } }));
       case "color": case "choice":
+        // freie Farbe ohne Liste (#rrggbb, Strang L): Farbwaehler; sonst die Wahl aus der Liste
+        if (!Array.isArray(p.enum)) return h("div", { class: "field", key }, label ? h("label", { for: id }, label) : null, h("input", { id, class: "input color", type: "color", "aria-labelledby": label ? null : "dlg-title", value: /^#[0-9a-f]{6}$/i.test(v) ? v : "#000000", on: { input: (e) => set(e.target.value.toLowerCase()) } }));
         return h("div", { class: "field", key }, radios(key, label, p.enum.map((e) => ({ value: e, label: nameOf(p, e) })), v, set));
       case "number": {
-        const items = []; for (let n = p.minimum; n <= p.maximum; n++) items.push({ value: n, label: String(n) });
-        return h("div", { class: "field", key }, radios(key, label, items, v, set));
+        // benannte Stufen (x-steps, alt regler-ui.js): Schieber ueber die Stufen, Name als Wert; Zwischenwerte alter Links
+        // bleiben, bis man schiebt (angezeigt wird die naechste Stufe)
+        const st = p["x-steps"];
+        if (st && Array.isArray(st.values) && st.values.length) {
+          const names = (st.names && (st.names[lang] || st.names.de)) || st.values.map(String);
+          let at = 0; st.values.forEach((x, i) => { if (Math.abs(x - v) < Math.abs(st.values[at] - v)) at = i; });
+          return h("div", { class: "field", key }, label ? h("label", { for: id }, label) : null,
+            h("input", { id, class: "input range", type: "range", min: "0", max: String(st.values.length - 1), step: "1", value: String(at), "aria-valuetext": names[at], "aria-labelledby": label ? null : "dlg-title", on: { input: (e) => set(st.values[Number(e.target.value)]) } }),
+            h("p", { class: "hint strong", "aria-hidden": "true" }, names[at]));
+        }
+        // kleiner Bereich: Wahl als Knoepfe; grosser Bereich (Seed, Laenge, Chancen): Schieber mit Zahl, nie tausende Knoepfe
+        if (p.maximum - p.minimum <= 12) {
+          const items = []; for (let n = p.minimum; n <= p.maximum; n++) items.push({ value: n, label: String(n) });
+          return h("div", { class: "field", key }, radios(key, label, items, v, set));
+        }
+        return h("div", { class: "field", key }, label ? h("label", { for: id }, label) : null,
+          h("input", { id, class: "input", type: "number", inputmode: "numeric", min: String(p.minimum), max: String(p.maximum), step: String(p.multipleOf || 1), value: String(v), "aria-labelledby": label ? null : "dlg-title",
+            on: { change: (e) => { const n = Number(e.target.value); if (Number.isInteger(n) && n >= p.minimum && n <= p.maximum) set(n); } } }));
       }
       case "list": {
         const max = p.maxItems, lid = label ? "lbl-" + key : "dlg-title";
@@ -175,7 +192,10 @@ export function view(state, dispatch, env = {}) {
     body = [h("div", { class: "notice" },
       h("h2", { class: "t-title" }, X.lobbyTitle),
       r.error ? h("p", { class: "warn", role: "alert" }, X.reasons[r.error] || X.reasons.verbindung) : h("p", { role: "status" }, r.step && r.step !== "open" ? X.steps[r.step] || X.lobbyWait : (r.inviteLink ? (ctx.copied || ctx.sent ? X.lobbyWait : X.lobbySend) : X.steps.open)),
-      r.inviteLink && !r.error ? linkBox(X, r.inviteLink, ctx, dispatch) : null,
+      // Gruppe: ein Einladungslink je Gastsitz (ADR 0001 f, Stufe 2)
+      r.invites && Object.keys(r.invites).length > 1 && !r.error
+        ? Object.keys(r.invites).sort().map((seat) => h("div", { class: "invite", key: "inv-" + seat }, h("p", { class: "seat" }, fmt(X.yourTurnAs, { s: seatName(card, ctx.lang, Number(seat)) }).replace(/^[^:]*:?/, "") || seatName(card, ctx.lang, Number(seat)), (r.up || []).includes(Number(seat)) ? " ✓" : ""), linkBox(X, r.invites[seat], ctx, dispatch)))
+        : r.inviteLink && !r.error ? linkBox(X, r.inviteLink, ctx, dispatch) : null,
       h("p", { class: "hint" }, X.ipHint))];
   } else if (L.startsWith("card.play")) {
     const phase = L.slice("card.play.".length);
@@ -190,7 +210,7 @@ export function view(state, dispatch, env = {}) {
       const obs = S.observe(card, ctx.session, seat);
       const node = card.view(obs, seat, G.viewCtx(ctx));
       // Widget-Host (ADR 0001 c, Strang F): Entwurf, Aktionen, Geraetedienste
-      const live = render(node, { onInput: (input) => dispatch({ type: "INPUT", input }), onDraft: (draft) => dispatch({ type: "DRAFT", draft }), onDraftPatch: (patch) => dispatch({ type: "DRAFT", patch }), high: env.high, onAction: (x) => dispatch({ type: "ACT", ...x }), onPrepare: () => dispatch({ type: "PREPARE" }), draft: ctx.draft, lang: ctx.lang, age18: G.viewCtx(ctx).age18, nick: G.viewCtx(ctx).nick, disabled: phase !== "turn", idp: "g", random: env.random, clock: env.clock, audio: env.audio, cardSvg: env.cardSvg, images: env.images, reduced: env.reduced });
+      const live = render(node, { onInput: (input) => dispatch({ type: "INPUT", input }), onDraft: (draft) => dispatch({ type: "DRAFT", draft }), onDraftPatch: (patch) => dispatch({ type: "DRAFT", patch }), high: env.high, onAction: (x) => dispatch({ type: "ACT", ...x }), onPrepare: (n) => dispatch({ type: "PREPARE", draft: n && n.draft !== undefined ? n.draft : undefined }), draft: ctx.draft, lang: ctx.lang, age18: G.viewCtx(ctx).age18, nick: G.viewCtx(ctx).nick, disabled: phase !== "turn", idp: "g", random: env.random, clock: env.clock, audio: env.audio, cardSvg: env.cardSvg, images: env.images, reduced: env.reduced });
       const lines = [];
       // Wer bin ich, wie weit (13 §6.4 Punkt 7): mit Zugnummer, wenn die Karte sie meldet (Zugvertrag v0.2 status.turnNo/turns)
       if (card.manifest.players.max > 1 && ctx.mode !== "alone") lines.push(h("p", { class: "seat", key: "seat" }, fmt(X.yourSeat, { s: seatName(card, ctx.lang, seat) }) + (Number.isInteger(st.turnNo) && Number.isInteger(st.turns) ? " · " + fmt(ctx.lang === "en" ? "Turn {n} of {m}" : "Zug {n} von {m}", { n: st.turnNo, m: st.turns }) : "")));
@@ -200,7 +220,8 @@ export function view(state, dispatch, env = {}) {
         const me = ctx.mode === "alone" ? -2 : seat;
         const wn = st.winner >= 0 ? seatName(card, ctx.lang, st.winner) : "";
         const res = st.winner === -1 ? X.overDraw : me === -2 ? fmt(X.overWinner, { s: wn }) : st.winner === me ? X.overWin : fmt(X.overLose, { s: wn });
-        lines.push(h("p", { class: "result", role: "status", key: "res" }, res));
+        // Karten ohne Wertung (score leer, z. B. Partydeck, Raumkarten) zeigen ihr Ergebnis selbst: keine Sieger-/Unentschieden-Zeile
+        if (!(Array.isArray(st.score) && st.score.length === 0)) lines.push(h("p", { class: "result", role: "status", key: "res" }, res));
         if (ctx.mode === "link" && ctx.link && !ctx.sent) lines.push(h("p", { class: "hint", key: "sr" }, X.sendResultText));
       }
       // beim Senden ist der andere dran: kein Spielfeld, nur die Bitte zu senden (Kritikrunde 1)

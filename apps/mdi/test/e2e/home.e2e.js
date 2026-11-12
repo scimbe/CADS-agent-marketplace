@@ -59,3 +59,18 @@ test("Verschickte Karte: Wand zeigt das Werk, Einladungen den Link; Story-Bild 9
   assert.deepEqual(errs, []);
   await ctx.close();
 });
+
+test("Jede Karte im Register oeffnet aus dem Regal und zeigt ihre Vorschau (alle Kartenarten)", async () => {
+  const { ORDER } = await import("../../src/cards/index.js");
+  const { p, errs } = await open(b, { view: "phone390" });
+  for (const id of ORDER) {
+    await act(p, "intent-alle"); await p.locator("main.h-at-regal").waitFor();
+    await p.locator('[data-act="open-' + id + '"]').first().scrollIntoViewIfNeeded();
+    await act(p, "open-" + id);
+    await p.locator("main.s-card-view").waitFor();
+    assert.ok(await p.locator("#stage .frame, #stage canvas, #stage .stack").count() > 0, id + ": Vorschau auf der Buehne");
+    for (let i = 0; i < 4 && (await p.locator('[data-act="back"]').count()); i++) await act(p, "back");
+    await p.locator("main.h-at-day").waitFor();
+  }
+  assert.deepEqual(errs, [], "keine Seitenfehler");
+});

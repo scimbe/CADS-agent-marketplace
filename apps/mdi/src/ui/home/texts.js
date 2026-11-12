@@ -6,9 +6,10 @@ const de = {
   intents: {
     gruss: { t: "Gruß schicken", s: "Danke, Besserung, einfach so" },
     planen: { t: "Zusammen planen", s: "Termin, Umfrage, Wichteln" },
-    spielen: { t: "Gegeneinander spielen", s: "Quiz, Bluff, Duell, Skat" },
-    stimme: { t: "Stimme", s: "Monster, Beat, Malen, vor Ort" }
+    spielen: { t: "Spiele", s: "Quiz, Bluff, Duell, Skat" },
+    stimme: { t: "Stimme & Ton", s: "Monster, Beat, Malen, vor Ort" }
   },
+  intentHead: { gruss: "Grüßen", planen: "Planen", spielen: "Spiele", stimme: "Stimme & Ton" },
   own: { t: "Eigene Karte", s: "Ein Satz, die KI baut sie", page: "Eigene Karte", soon: "Eigene Karten kommen hier hin: ein Satz, und die KI baut deine Karte. Das ist gerade in Arbeit.", blank: "Oder leer anfangen:" },
   all: "Alle Karten", allShort: "Alles",
   families: {
@@ -17,7 +18,7 @@ const de = {
   },
   months: ["JANUAR", "FEBRUAR", "MÄRZ", "APRIL", "MAI", "JUNI", "JULI", "AUGUST", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DEZEMBER"],
   days: ["SONNTAG", "MONTAG", "DIENSTAG", "MITTWOCH", "DONNERSTAG", "FREITAG", "SAMSTAG"],
-  todayIs: "Heute", prevDay: "Ein Blatt zurück", nextDay: "Nächstes Blatt", toToday: "Zu heute", dayOf: "Blatt vom {d}",
+  prevShort: "gestern", nextShort: "morgen", invSure: "Wirklich löschen? Nochmal tippen.", todayIs: "Heute", prevDay: "Ein Blatt zurück", nextDay: "Nächstes Blatt", toToday: "Zu heute", dayOf: "Blatt vom {d}",
   swipe: "Wischen blättert die Tage.", sheetLabel: "Kalenderblatt {d}: {t}",
   bdg: { link: "Per Link", room: "Ein Handy, reihum", bot: "Gegen Bot", solo: "Allein", game: "Spiel", photo: "Bild", sound: "Ton", card: "Karte", quest: "Rätsel", table: "Kartentisch", arcade: "Spiel", duel: "Duell", lauf: "Lauf" },
   sec: "{n} Sek", mins: "{n} Min",
@@ -49,9 +50,10 @@ const en = {
   intents: {
     gruss: { t: "Send a note", s: "Thanks, get well, just because" },
     planen: { t: "Plan together", s: "Date, poll, Secret Santa" },
-    spielen: { t: "Play against", s: "Quiz, bluff, duel, Skat" },
-    stimme: { t: "Voice", s: "Monster, beat, draw, in the room" }
+    spielen: { t: "Games", s: "Quiz, bluff, duel, Skat" },
+    stimme: { t: "Voice & sound", s: "Monster, beat, draw, in the room" }
   },
+  intentHead: { gruss: "Notes", planen: "Plan", spielen: "Play", stimme: "Voice" },
   own: { t: "Your own card", s: "One sentence, the AI builds it", page: "Your own card", soon: "Your own cards go here: one sentence, and the AI builds your card. This is being built right now.", blank: "Or start empty:" },
   all: "All cards", allShort: "All",
   families: {
@@ -60,7 +62,7 @@ const en = {
   },
   months: ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"],
   days: ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"],
-  todayIs: "Today", prevDay: "One sheet back", nextDay: "Next sheet", toToday: "To today", dayOf: "Sheet of {d}",
+  prevShort: "back", nextShort: "next", invSure: "Really delete? Tap again.", todayIs: "Today", prevDay: "One sheet back", nextDay: "Next sheet", toToday: "To today", dayOf: "Sheet of {d}",
   swipe: "Swipe to flip through the days.", sheetLabel: "Calendar sheet {d}: {t}",
   bdg: { link: "By link", room: "One phone, take turns", bot: "Against bot", solo: "Alone", game: "Game", photo: "Picture", sound: "Sound", card: "Card", quest: "Riddle", table: "Card table", arcade: "Game", duel: "Duel", lauf: "Run" },
   sec: "{n} sec", mins: "{n} min",

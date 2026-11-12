@@ -44,6 +44,11 @@
           "items": {
             "$ref": "link#/$defs/commit"
           }
+        },
+        "g": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9
         }
       }
     },
@@ -84,6 +89,36 @@
         "s": {
           "type": "string",
           "pattern": "^[0-9a-f]{32}$"
+        },
+        "j": {
+          "type": "array",
+          "maxItems": 9,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "q",
+              "n"
+            ],
+            "properties": {
+              "q": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9
+              },
+              "n": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{32}$"
+              }
+            }
+          }
+        },
+        "k": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "$ref": "link#/$defs/commit"
+          }
         }
       }
     },
@@ -144,6 +179,11 @@
       "properties": {
         "t": {
           "const": "bye"
+        },
+        "q": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9
         }
       }
     },

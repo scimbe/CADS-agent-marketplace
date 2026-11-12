@@ -6,7 +6,7 @@ import * as S from "../contract/session.js";
 import * as H from "../contract/handshake.js";
 import { decode } from "./link.js";
 import { stateHash, rng as rngOf } from "../contract/sdk.js";
-import { verifyGhost } from "./rt/match.js";
+import { verifyGhost, createMatch } from "./rt/match.js";
 
 // ---------- Geraeteeintrag je Link-Partie (Review H1/M1) ----------
 // Jeder Sitz merkt sich den Stand, den er zuletzt kannte oder verschickt hat: Basis (Karte, Version, Parameter, Seed),
@@ -80,8 +80,9 @@ export function startBotsLocal(ctx, rand) {
   return r.ctx;
 }
 /** Zug eines lokalen Bots (Eingabe kommt aus der Laufzeit); danach Pflichtzuege. */
-export function applyBotLocal(ctx, input) {
+export function applyBotLocal(ctx, input, today = ctx.today) {
   if (!ctx.botSeats || !ctx.botSeats.includes(input.seat)) throw new S.GameError("zug-ungueltig", "kein Bot-Sitz");
+  if (card(ctx).manifest.inputDay && input.t !== "reveal") { if (!Number.isInteger(today)) throw new S.GameError("eingabe", "Tag fehlt"); input = { ...input, d: today }; }
   checkInput(ctx.cardId, input);
   return applyDue({ ...ctx, session: S.apply(card(ctx), ctx.session, input) }).ctx;
 }
@@ -94,6 +95,17 @@ export function botTurn(ctx) {
 export function helloFor(ctx, rand) {
   const c = card(ctx), r = H.hello(c, paramsOf(ctx), ctx.seat, rand);
   return { ctx: { ...ctx, hs: r.local, session: null, error: null, viewer: ctx.seat }, msg: r.msg };
+}
+export function helloGroupFor(ctx, rand) {
+  const r = H.helloGroup(card(ctx), paramsOf(ctx), ctx.seat, rand);
+  return { ctx: { ...ctx, hs: r.local, session: null, error: null, viewer: ctx.seat, groupHost: true }, msgs: r.msgs };
+}
+/** join eines Gastes; sind alle da: Partie, start fuer alle und Pflichtzuege. */
+export function joinGroupFor(ctx, from, jn) {
+  const r = H.joinGroup(card(ctx), paramsOf(ctx), ctx.hs, from, jn);
+  if (!r.done) return { ctx: { ...ctx, hs: r.local }, msg: null, out: [] };
+  const due = applyDue({ ...ctx, session: r.session, hs: null, draft: null });
+  return { ctx: due.ctx, msg: r.msg, out: due.out };
 }
 export function joinFor(ctx, hi, rand) {
   const c = cardOf(hi.c);
@@ -240,9 +252,12 @@ export function previewNode(c, params, lang, extra = {}) {
   const m = c.manifest;
   if (typeof c.stamp === "function" && !extra.receive) params = c.stamp(params, { today: extra.today, nick: extra.nick || "" });
   if (m.mode === "realtime") {
-    const roles = []; for (let s = 0; s < m.players.max; s++) roles.push(s === 0 ? "human" : typeof c.bot === "function" ? "bot" : "none");
-    const st = c.init({ params, seed: "0".repeat(32), players: roles, level: 2, rng: rngOf("preview|init") });
-    return c.view(st, { seat: 0, alpha: 0, prev: null, reduced: true, lang, t: 0, preview: true, ...extra });
+    // ADR 0001 d: Bot gegen Bot (ohne bot(): none), Seed "preview", rt.preview.ticks (Standard 90) – wie die Thumbnails
+    const bot = typeof c.bot === "function", roles = []; for (let s = 0; s < m.players.max; s++) roles.push(bot ? "bot" : "none");
+    const mt = createMatch(c, { params, seed: "preview", roles, level: 2 });
+    const n = m.rt.preview && Number.isInteger(m.rt.preview.ticks) ? m.rt.preview.ticks : 90;
+    for (let i = 0; i < n && !mt.status().over; i++) mt.step({});
+    return mt.view({ seat: 0, alpha: 0, reduced: true, lang, t: 0, preview: true, ...extra });
   }
   const st = c.init({ rng: rngOf("preview"), params, players: m.players.max });
   return c.view(c.observe(st, 0), 0, { lang, preview: true, ...extra });
