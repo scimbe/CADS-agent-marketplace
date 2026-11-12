@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as V from "../src/gen/validators.js";
+import { manifest as manifestValidator } from "../src/gen/manifest.js";
 import { CARDS, ORDER, modesOf, validParams } from "../src/cards/index.js";
 import { PRIMITIVES } from "../src/render/primitives.js";
 import { checkCardSource } from "../scripts/harness.js";
@@ -21,7 +22,7 @@ const GOLD = JSON.parse(fs.readFileSync(path.join(DIR, "fixtures/determinism.jso
 test("Manifeste erfuellen das Manifest-Schema; Pflichtfunktionen des Vertrags vorhanden", () => {
   for (const id of ORDER) {
     const c = CARDS[id];
-    assert.equal(V.manifest(c.manifest), true, id + " " + JSON.stringify(V.manifest.errors));
+    assert.equal(manifestValidator(c.manifest), true, id + " " + JSON.stringify(manifestValidator.errors));
     // Pflichtfunktionen je Modus (ADR 0001 b/f): Echtzeit init/step/status/view, sonst der Zugvertrag
     const need = c.manifest.mode === "realtime" ? ["init", "step", "view", "status"] : ["init", "step", "observe", "view", "status", "moves"];
     for (const f of need) assert.equal(typeof c[f], "function", id + "." + f);

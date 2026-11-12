@@ -28,6 +28,9 @@ export const chart = {
         COPY_FAIL: { actions: ["markCopyFail"] },
         // Entwurf ist reine Anzeige (auch im Ende und beim Empfang, Anfrage P); Merkzettel je Partie (Anfrage Z1)
         DRAFT: { actions: ["setDraft"] },
+        // Nachladen der Karten (ADR 0001 Nachtrag 2): Ladeanzeige und ehrliche Meldung mit Wiederholen
+        LOADING: { actions: ["setLoading"] },
+        PART_FAIL: { target: T("inhalt.partfail"), actions: ["setPartFail"], raise: "LEAVE" },
         MEMO: { actions: ["setMemo"] },
         // Ein neuer Link ersetzt Lobby/Live-Partie ausdruecklich: laufender Raum wird geschlossen (Review M2)
         LINK: [
@@ -37,6 +40,7 @@ export const chart = {
         ]
       },
       states: {
+        partfail: { on: { RETRY: { target: T("inhalt.shelf"), actions: ["retryPart"] }, BACK: { target: T("inhalt.shelf"), actions: ["clearPartFail"] }, DONE: { target: T("inhalt.shelf"), actions: ["clearPartFail"] } } },
         shelf: { on: { OPEN: { target: T("inhalt.card"), cond: "cardExists", actions: ["openCard"] }, STIL: T("inhalt.stil") } },
         stil: stilState,
         card: {
@@ -258,7 +262,7 @@ export const guards = {
 
 export const actions = {
   // OPEN {id, variant?}: eine Variante bringt ihre Parameter mit (Regal ueber LEGACY/VARIANTS, Anfrage H)
-  openCard: (ctx, ev) => ({ ...ctx, draft: null, memo: null, ...variantParams(ctx, ev), cardId: ev.id, variant: ev.variant || null, mode: playOf(cardOf(ev.id), ev.variant).default, seat: 0, session: null, hs: null, error: null, note: null, link: null, part: null }),
+  openCard: (ctx, ev) => ({ ...ctx, loading: null, draft: null, memo: null, ...variantParams(ctx, ev), cardId: ev.id, variant: ev.variant || null, mode: playOf(cardOf(ev.id), ev.variant).default, seat: 0, session: null, hs: null, error: null, note: null, link: null, part: null }),
   setMode: (ctx, ev) => (modesOf(G.card(ctx), ctx.variant).includes(ev.mode) ? { ...ctx, mode: ev.mode, note: null } : ctx),
   setSeat: (ctx, ev) => (Number.isInteger(ev.seat) && ev.seat >= 0 && ev.seat < G.card(ctx).manifest.players.max ? { ...ctx, seat: ev.seat } : ctx),
   setLevel: (ctx, ev) => ([1, 2, 3].includes(ev.level) ? { ...ctx, level: ev.level } : ctx),
@@ -360,6 +364,10 @@ export const actions = {
     emit({ type: "rt.start", mode: "live", seat, seed, params: G.paramsOf(ctx), level: ctx.level || 2, serving: seat === 1 ? true : false });
     return { ...ctx, rtSeed: seed, rtResult: null, rtAgain: null, error: null };
   },
+  setLoading: (ctx, ev) => ({ ...ctx, loading: ev.id }),
+  setPartFail: (ctx, ev) => ({ ...ctx, loading: null, partFail: { id: ev.id, reason: ev.reason || "teil-fehlt", retry: ev.retry || null } }),
+  clearPartFail: (ctx) => ({ ...ctx, partFail: null }),
+  retryPart: (ctx, ev, emit) => { if (ctx.partFail && ctx.partFail.retry) emit({ type: "redispatch", ev: ctx.partFail.retry }); return { ...ctx, partFail: null }; },
   // MEMO: JSON der Karte fuer genau diese Partie auf diesem Geraet (<= 512 B), verlaesst das Geraet nie
   setMemo: (ctx, ev, emit) => {
     let m; try { m = ev.memo === null ? null : JSON.parse(JSON.stringify(ev.memo)); } catch (e) { return ctx; }
@@ -417,7 +425,7 @@ export const actions = {
     // Merkzettel dieser Partie (falls das Geraet sie kennt), sonst null (neue Partie)
     if (r.ok && r.kind === "challenge") r = { ...r, memo: ev.stored && ev.stored.g === r.gameId && ev.stored.memo ? ev.stored.memo : null };
     emit({ type: "url.clear" });
-    return { ...ctx, incoming: r.ok ? r : null, reason: r.ok ? null : r.reason };
+    return { ...ctx, loading: null, incoming: r.ok ? r : null, reason: r.ok ? null : r.reason };
   },
   dropIncoming: (ctx) => ({ ...ctx, incoming: null, reason: null }),
   // Felder, die nicht im Link reisen (media.local, secret), bekommen beim Empfang ihren Standardwert (Anfrage P)
@@ -511,5 +519,5 @@ export const machine = createMachine(composed.chart, { guards: composed.guards, 
 
 /** @param saved Konto-Daten aus dem Geraetespeicher (oder null) */
 export function initialContext(lang, saved = null) {
-  return { lang, cardId: null, params: {}, mode: null, seat: 0, level: 2, part: null, session: null, hs: null, error: null, draft: null, botSeats: null, coveredFor: null, incoming: null, reason: null, link: null, raum: null, note: null, raumBrauchtKonto: false, today: null, ...kontoContext(saved), ...featureContext(FEATURES, saved) };
+  return { lang, cardId: null, params: {}, mode: null, seat: 0, level: 2, part: null, session: null, hs: null, error: null, draft: null, botSeats: null, coveredFor: null, incoming: null, reason: null, link: null, raum: null, note: null, raumBrauchtKonto: false, today: null, loading: null, partFail: null, ...kontoContext(saved), ...featureContext(FEATURES, saved) };
 }

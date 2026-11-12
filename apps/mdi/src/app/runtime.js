@@ -7,7 +7,7 @@ import * as S from "../contract/session.js";
 import { createRtSession } from "./rt/session.js";
 import * as G from "./game.js";
 import { fromB64url } from "../contract/trace.js";
-import { cardOf } from "../cards/index.js";
+import { cardOf, isLoaded, loadCard, manifestOf } from "../cards/index.js";
 import { createBotAgent } from "../bot/agent.js";
 import * as V from "../gen/validators.js";
 import { decode } from "./link.js";
@@ -48,8 +48,30 @@ export function createRuntime(deps) {
   const fxTable = { ...featureEffects(FEATURES) };
   for (const [k, fn] of Object.entries(deps.effects || {})) { if (k in fxTable) throw new Error("Effekt doppelt: " + k); fxTable[k] = fn; }
 
+  // Karten, die ein Ereignis braucht (ADR 0001 Nachtrag 2): vorher laden; fehlt ein Teil, ehrlich melden (PART_FAIL)
+  function cardsFor(ev) {
+    let id = null;
+    if (ev.type === "OPEN") id = ev.id;
+    else if (ev.type === "ACT" && ev.act === "open") id = ev.card;
+    else if ((ev.type === "HELLO" || ev.type === "SHOW") && ev.msg) id = ev.msg.c;
+    else if (ev.type === "LINK") { const d = decode(ev.hash); if (d.ok && d.data && typeof d.data.c === "string") id = d.data.c; }
+    return typeof id === "string" && manifestOf(id) && !isLoaded(id) ? [id] : [];
+  }
   function dispatch(ev) {
     ev = typeof ev === "string" ? { type: ev } : { ...ev };
+    if (!ev.rand) ev.rand = rand();
+    if (ev.at === undefined) ev.at = now();
+    const need = deps.loadPart ? cardsFor(ev) : [];
+    if (need.length) {
+      dispatchNow({ type: "LOADING", id: need[0] });
+      Promise.all(need.map((id) => loadCard(id, deps.loadPart))).then(
+        () => dispatchNow(ev),
+        (e) => dispatchNow({ type: "PART_FAIL", id: need[0], reason: (e && e.code) || "teil-fehlt", retry: ev }));
+      return true;
+    }
+    return dispatchNow(ev);
+  }
+  function dispatchNow(ev) {
     if (!ev.rand) ev.rand = rand();
     if (ev.at === undefined) ev.at = now();
     state = { ...state, ctx: { ...state.ctx, today: Math.floor(ev.at / 86400000) } }; // UTC-Tag fuer view (ADR 0001 f)
@@ -116,6 +138,7 @@ export function createRuntime(deps) {
       case "share": deps.share(fx.fragment).then((r) => dispatch({ type: r === "shared" ? "SENT" : r === "copied" ? "COPIED" : "SHARE_FAIL" })); break;
       case "copy": (deps.copy || (() => Promise.resolve(false)))(fx.fragment).then((ok) => dispatch({ type: ok ? "COPIED" : "COPY_FAIL" })); break;
       case "url.clear": deps.clearUrl(); break;
+      case "redispatch": schedule(() => dispatch({ ...fx.ev, at: undefined, rand: undefined })); break;
       // ---- Konto (Ergebnisse kommen als Ereignisse zurueck; ohne API ehrlich „nicht hier“) ----
       case "konto.status":
         later(async () => {

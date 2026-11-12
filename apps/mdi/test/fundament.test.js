@@ -75,7 +75,7 @@ test("Register: Code-Hash folgt jeder gebuendelten Datei (auch Engines) und den 
 
 test("Register: Fixture-Register mit Eingabe-Schema, Varianten und Legacy-ids erzeugt Validatoren", async () => {
   const out = generate({ cardsDir: FIX });
-  assert.match(out["gen/validators.js"], /export const inputs_fx_zug/);
+  assert.match(out["gen/cards/fx-zug.js"], /export const inputs/); assert.doesNotMatch(out["gen/validators.js"], /params-fx/, "Karten-Validatoren nicht im Kern"); assert.match(out.lazy, /__CARD_CAPS__/);
   assert.match(out.index, /VARIANTS/);
   assert.match(out.index, /LEGACY/);
   assert.equal(typeof VARIANTS, "object"); assert.equal(typeof LEGACY, "object");

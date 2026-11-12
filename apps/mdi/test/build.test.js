@@ -18,13 +18,22 @@ const rel = (p) => path.relative(ROOT, p);
 let report;
 test.before(async () => { report = await build(); });
 
-test("Budgets: Kern < 700 KiB, je Teil < 300 KB, Kern + Teile < 1,75 MiB", () => {
+// Budgets (ADR 0001 Nachtrag 2): Karten und Thumbnails sind nachladbare Teile. Kern <= 700 KiB mit allen Karten,
+// je Kartenteil < 300 KB, je Thumbnail-Teil < 96 KB, erste Karte (Kern + groesster Kartenteil) < 1 MiB.
+test("Budgets: Kern <= 700 KiB, je Kartenteil < 300 KB, je Thumbnail-Teil < 96 KB, Kern + groesster Kartenteil < 1 MiB", () => {
   const html = fs.statSync(path.join(DIST, "index.html")).size;
-  assert.ok(html < 716800, "Kern " + html);
-  let sum = html;
-  for (const [f, n] of Object.entries(report.parts)) { assert.ok(n < 300000, f + " " + n); sum += n; }
-  assert.ok(sum < 1835008, "gesamt " + sum);
-  console.log("# budget: Kern " + html + " B, Teile " + JSON.stringify(report.parts));
+  assert.ok(html <= 716800, "Kern " + html);
+  let maxCard = 0;
+  for (const [f, n] of Object.entries(report.parts)) {
+    if (f.startsWith("parts/thumbs-")) assert.ok(n < 98304, f + " " + n);
+    else assert.ok(n < 300000, f + " " + n);
+    if (f.startsWith("parts/card-")) maxCard = Math.max(maxCard, n);
+  }
+  assert.ok(html + maxCard < 1048576, "erste Karte " + (html + maxCard));
+  const meta = JSON.parse(fs.readFileSync(path.join(DIST, "build.json"), "utf8"));
+  assert.ok(Object.keys(meta.cards).length >= 2, "jede Karte ist ein Teil");
+  for (const p of Object.values(meta.cards)) { assert.match(p.file, /^parts\/card-[a-z0-9-]+\.[0-9a-f]{12}\.js$/); assert.match(p.sri, /^sha384-/); assert.ok(fs.existsSync(path.join(DIST, p.file))); }
+  console.log("# budget: Kern " + html + " B, groesster Kartenteil " + maxCard + " B, Teile " + Object.keys(report.parts).length);
 });
 
 test("Kern ist offline: keine externen Ressourcen im HTML ausser CSP-Hosts", () => {
@@ -96,8 +105,11 @@ test("Netz und Geraetespeicher nur im Broker (src/broker/*)", () => {
 
 test("Server-Aufrufe nur ueber EIN API-Modul (src/broker/api.js); kein fetch sonst, auch nicht im Broker", () => {
   const hits = files(SRC, /\.js$/).filter((f) => /\bfetch\s*\(/.test(fs.readFileSync(f, "utf8"))).map(rel).sort();
-  // live.js spricht im abgeschotteten Rahmen mit /api/play der Webkonferenz (nicht mit diesem Server)
-  assert.deepEqual(hits, [path.join("src", "broker", "api.js"), path.join("src", "broker", "live.js")].sort());
+  // live.js spricht im abgeschotteten Rahmen mit /api/play der Webkonferenz (nicht mit diesem Server);
+  // parts.js laedt nur die eigenen statischen Teile (Dateinamen aus dem Build, ohne Cookies), keine Server-Aufrufe
+  assert.deepEqual(hits, [path.join("src", "broker", "api.js"), path.join("src", "broker", "live.js"), path.join("src", "broker", "parts.js")].sort());
+  const parts = fs.readFileSync(path.join(SRC, "broker/parts.js"), "utf8");
+  assert.match(parts, /win\.fetch\(file, \{ cache: "no-cache", credentials: "omit" \}\)/, "Teile ohne Cookies, nur Dateinamen aus dem Build");
   const api = fs.readFileSync(path.join(SRC, "broker/api.js"), "utf8");
   assert.ok(!/https?:\/\//.test(api.replace(/\/\/.*$/gm, "")), "API nur relativ (gleiche Herkunft)");
   assert.match(api, /credentials: "same-origin"/);

@@ -64,8 +64,8 @@ export function generate(opt = {}) {
   const ajv = newAjv();
   for (const s of ["link", "live", "manifest"]) ajv.addSchema(readJson(path.join(SRC, "schema", s + ".schema.json")));
   const checkManifest = ajv.getSchema("manifest");
-  const map = { linkCard: "link#/$defs/card", linkChallenge: "link#/$defs/challenge", linkLive: "link#/$defs/live", linkGhost: "link#/$defs/ghost", liveMsg: "live", manifest: "manifest" };
-  const ids = discover(cardsDir), hashes = {}, assets = {}, metas = [], warnings = [], withInputs = [];
+  const map = { linkCard: "link#/$defs/card", linkChallenge: "link#/$defs/challenge", linkLive: "link#/$defs/live", linkGhost: "link#/$defs/ghost", liveMsg: "live" };
+  const ids = discover(cardsDir), hashes = {}, assets = {}, metas = [], warnings = [], withInputs = [], manifests = {};
   for (const id of ids) {
     const dir = path.join(cardsDir, id), mf = path.join(dir, "manifest.json"), cj = path.join(dir, "card.js");
     if (!fs.existsSync(mf) || !fs.existsSync(cj)) fail(id + ": manifest.json und card.js sind Pflicht");
@@ -78,8 +78,8 @@ export function generate(opt = {}) {
     checkRt(id, man);
     // Parameter und Eingaben
     ajv.addSchema({ ...man.params, $id: "params-" + id });
-    map["params_" + ident(id)] = "params-" + id;
-    if (man.inputs) { ajv.addSchema({ ...man.inputs, $id: "inputs-" + id }); map["inputs_" + ident(id)] = "inputs-" + id; withInputs.push(id); }
+    if (man.inputs) { ajv.addSchema({ ...man.inputs, $id: "inputs-" + id }); withInputs.push(id); }
+    manifests[id] = man;
     // Varianten muessen mit den Standardwerten gueltige Parameter ergeben
     const pv = ajv.getSchema("params-" + id), defs = {};
     for (const [k, p] of Object.entries(man.params.properties || {})) defs[k] = p.default;
@@ -137,32 +137,90 @@ export function generate(opt = {}) {
 
   const relToCards = path.relative(path.join(SRC, "cards"), cardsDir).replace(/\\/g, "/");
   const imp = (id) => "./" + (relToCards ? relToCards + "/" : "") + id + "/card.js";
-  const index = HEAD + "// Kartenregister (ADR 0001 a): alle Karten erfuellen denselben Vertrag; der Host kennt nur diese Schnittstelle.\n" +
-    ids.map((id) => "import c_" + ident(id) + " from \"" + imp(id) + "\";").join("\n") + "\n" +
-    "import * as V from \"../gen/validators.js\";\nimport { CODE_HASH } from \"../gen/codehash.js\";\nimport { deriveModes } from \"../contract/modes.js\";\n\n" +
-    "export const CARDS = Object.freeze({ " + ids.map((id) => JSON.stringify(id) + ": c_" + ident(id)).join(", ") + " });\n" +
-    "export const ORDER = Object.freeze(" + JSON.stringify(metas.map((m) => m.id)) + ");\n" +
-    "const PARAMS = { " + ids.map((id) => JSON.stringify(id) + ": V.params_" + ident(id)).join(", ") + " };\n" +
-    "const INPUTS = { " + withInputs.map((id) => JSON.stringify(id) + ": V.inputs_" + ident(id)).join(", ") + " };\n" +
+  const order = metas.map((m) => m.id);
+  // Kern-Validatoren (Link, Live, Manifest) und je Karte eigene Validatoren (Parameter, Eingaben): die Karten-Validatoren
+  // reisen im Teil der Karte (Nachladen, ADR 0001 Nachtrag 2), nicht im Kern.
+  const cardValidators = {};
+  for (const id of ids) {
+    const man = manifests[id], aj = newAjv(), m2 = { params: "params-" + id };
+    aj.addSchema({ ...man.params, $id: "params-" + id });
+    if (man.inputs) { aj.addSchema({ ...man.inputs, $id: "inputs-" + id }); m2.inputs = "inputs-" + id; }
+    cardValidators["gen/cards/" + id + ".js"] = HEAD + esmRuntime(standaloneCode(aj, m2)).replace('from "../contract/equal.js"', 'from "../../contract/equal.js"') + (man.inputs ? "" : "export const inputs = null;\n");
+  }
+  const common =
     "const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);\n" +
-    "export function cardOf(id) { return own(CARDS, id) ? CARDS[id] : null; }\n" +
-    "export function manifestOf(id) { const c = cardOf(id); return c ? c.manifest : null; }\n" +
-    "export function validParams(id, p) { return own(PARAMS, id) && PARAMS[id](p) === true; }\n" +
-    "/** Eingabe gegen das Schema der Karte; Karten ohne manifest.inputs pruefen nur ueber moves()/accepts(). */\n" +
-    "export function validInput(id, x) { if (!own(CARDS, id)) return false; return own(INPUTS, id) ? INPUTS[id](x) === true : true; }\n" +
+    "export const ORDER = Object.freeze(" + JSON.stringify(order) + ");\n" +
     "export function codeHash(id) { return own(CODE_HASH, id) ? CODE_HASH[id] : null; }\n" +
     "/** Varianten aller Karten: id -> { card, variant }. */\n" +
-    "export const VARIANTS = Object.freeze(Object.fromEntries(ORDER.flatMap((id) => (CARDS[id].manifest.variants || []).map((v) => [v.id, Object.freeze({ card: id, variant: v })]))));\n" +
+    "export const VARIANTS = Object.freeze(Object.fromEntries(ORDER.flatMap((id) => (META[id].variants || []).map((v) => [v.id, Object.freeze({ card: id, variant: v })]))));\n" +
+    "/** Alte Karten-ids (eingeklappte Varianten, legacy) -> { card, variant }. */\n" +
+    "export const LEGACY = Object.freeze(Object.fromEntries(ORDER.flatMap((id) => [...(META[id].legacy || []).map((l) => [l, { card: id, variant: null }]), ...(META[id].variants || []).flatMap((v) => (v.legacy || []).map((l) => [l, { card: id, variant: v.id }]))])));\n" +
     "/** Modi aus dem Manifest abgeleitet – keine Kartensonderlogik (A3). */\n" +
     "export function modesOf(card, variantId = null) { return deriveModes(card, variantId); }\n" +
-    "/** Alte Karten-ids (eingeklappte Varianten, legacy) -> { card, variant }. */\n" +
-    "export const LEGACY = Object.freeze(Object.fromEntries(ORDER.flatMap((id) => [...(CARDS[id].manifest.legacy || []).map((l) => [l, { card: id, variant: null }]), ...(CARDS[id].manifest.variants || []).flatMap((v) => (v.legacy || []).map((l) => [l, { card: id, variant: v.id }]))])));\n";
-
+    "/** Modi ohne geladene Karte (Regal): aus den Metadaten und den Faehigkeiten der Karte. */\n" +
+    "export function modesOfId(id, variantId = null) { return own(META, id) ? deriveModes({ manifest: META[id], bot: CAPS[id].bot ? true : undefined }, variantId) : []; }\n";
+  const meta = {};
+  for (const id of ids) meta[id] = metaOf(manifests[id]);
+  const index = HEAD + "// Kartenregister (ADR 0001 a): alle Karten erfuellen denselben Vertrag; der Host kennt nur diese Schnittstelle.\n" +
+    "// Statische Fassung (Node, Tests, Werkzeuge): alle Karten sind geladen. Im Browser ersetzt der Build sie durch\n" +
+    "// src/cards/lazy.js (dieselbe Schnittstelle, Karten als nachladbare Teile, ADR 0001 Nachtrag 2).\n" +
+    ids.map((id) => "import c_" + ident(id) + " from \"" + imp(id) + "\";\nimport * as v_" + ident(id) + " from \"../gen/cards/" + id + ".js\";").join("\n") + "\n" +
+    "import { CODE_HASH } from \"../gen/codehash.js\";\nimport { deriveModes } from \"../contract/modes.js\";\n\n" +
+    "export const CARDS = Object.freeze({ " + ids.map((id) => JSON.stringify(id) + ": c_" + ident(id)).join(", ") + " });\n" +
+    "const VAL = { " + ids.map((id) => JSON.stringify(id) + ": v_" + ident(id)).join(", ") + " };\n" +
+    "const META = Object.fromEntries(Object.entries(CARDS).map(([k, c]) => [k, c.manifest]));\n" +
+    "const CAPS = Object.fromEntries(Object.entries(CARDS).map(([k, c]) => [k, { bot: typeof c.bot === \"function\" }]));\n" +
+    common +
+    "export function cardOf(id) { return own(CARDS, id) ? CARDS[id] : null; }\n" +
+    "export function manifestOf(id) { return own(META, id) ? META[id] : null; }\n" +
+    "export function isLoaded(id) { return own(CARDS, id); }\n" +
+    "/** Statisch: jede Karte ist geladen. Unbekannte ids werden abgelehnt (gleich wie im Browser). */\n" +
+    "export function loadCard(id) { return own(CARDS, id) ? Promise.resolve(CARDS[id]) : Promise.reject(Object.assign(new Error(\"karte-unbekannt\"), { code: \"karte-unbekannt\" })); }\n" +
+    "export function validParams(id, p) { return own(VAL, id) && VAL[id].params(p) === true; }\n" +
+    "/** Eingabe gegen das Schema der Karte; Karten ohne manifest.inputs pruefen nur ueber moves()/accepts(). */\n" +
+    "export function validInput(id, x) { if (!own(VAL, id)) return false; return VAL[id].inputs ? VAL[id].inputs(x) === true : true; }\n";
+  const lazy = HEAD + "// Kartenregister im Browser (ADR 0001 Nachtrag 2): im Kern nur Metadaten; Karte, Validatoren und Assets kommen als\n" +
+    "// Teil (src/broker/parts.js) und sind danach synchron ueber cardOf/validParams/validInput da. Die Laufzeit laedt die\n" +
+    "// Karte, bevor ein Ereignis sie braucht (OPEN, LINK, HELLO, SHOW). Fehlt ein Teil, meldet sie das ehrlich.\n" +
+    "import { CODE_HASH } from \"../gen/codehash.js\";\nimport { deriveModes } from \"../contract/modes.js\";\n\n" +
+    "const META = " + JSON.stringify(meta) + ";\n" +
+    "// Faehigkeiten (z. B. eigener Bot) und Teile setzt der Build ein (scripts/build.js liest die Karten-Module)\n" +
+    "const CAPS = __CARD_CAPS__;\n" +
+    common +
+    "const LOADED = new Map(), PENDING = new Map();\n" +
+    "export function cardOf(id) { return LOADED.has(id) ? LOADED.get(id).card : null; }\n" +
+    "export function manifestOf(id) { return LOADED.has(id) ? LOADED.get(id).card.manifest : own(META, id) ? META[id] : null; }\n" +
+    "export function isLoaded(id) { return LOADED.has(id); }\n" +
+    "export function validParams(id, p) { return LOADED.has(id) && LOADED.get(id).params(p) === true; }\n" +
+    "export function validInput(id, x) { if (!LOADED.has(id)) return false; const v = LOADED.get(id).inputs; return v ? v(x) === true : true; }\n" +
+    "export function assetsOf(id) { return LOADED.has(id) ? LOADED.get(id).assets : null; }\n" +
+    "/** Laedt die Karte ueber loadPart(id) -> Promise<{card, params, inputs, hash, assets}>; prueft id und Code-Hash. */\n" +
+    "export function loadCard(id, loadPart) {\n" +
+    "  if (LOADED.has(id)) return Promise.resolve(LOADED.get(id).card);\n" +
+    "  if (!own(META, id)) return Promise.reject(Object.assign(new Error(\"karte-unbekannt\"), { code: \"karte-unbekannt\" }));\n" +
+    "  if (!PENDING.has(id)) PENDING.set(id, loadPart(id).then((p) => {\n" +
+    "    if (!p || !p.card || p.card.manifest.id !== id || p.hash !== CODE_HASH[id]) throw Object.assign(new Error(\"teil-falsch\"), { code: \"teil-falsch\" });\n" +
+    "    LOADED.set(id, p); return p.card;\n" +
+    "  }).finally(() => PENDING.delete(id)));\n" +
+    "  return PENDING.get(id);\n" +
+    "}\n";
   const validators = HEAD + esmRuntime(standaloneCode(ajv, map));
+  // Manifest-Validator nur fuer Generator und Tests (nicht im ausgelieferten Kern)
+  const manifestValidator = HEAD + esmRuntime(standaloneCode(ajv, { manifest: "manifest" })).replace('from "../contract/equal.js"', 'from "../contract/equal.js"');
   const codehash = HEAD + "export const CODE_HASH = " + JSON.stringify(hashes, null, 2) + ";\n";
-  const out = { "gen/validators.js": validators, "gen/codehash.js": codehash, "gen/assets.json": JSON.stringify(assets, null, 2) + "\n" };
-  if (!opt.cardsDir) out["cards/index.js"] = index; else out["index"] = index;
+  const out = { "gen/validators.js": validators, "gen/codehash.js": codehash, "gen/assets.json": JSON.stringify(assets, null, 2) + "\n", "gen/manifest.js": manifestValidator, ...cardValidators };
+  if (!opt.cardsDir) { out["cards/index.js"] = index; out["cards/lazy.js"] = lazy; } else { out["index"] = index; out["lazy"] = lazy; }
   return Object.assign(out, opt.withWarnings ? { _warnings: warnings } : {});
+}
+
+/** Metadaten fuer den Kern (Regal, Modi, Varianten, Thumbnails) – ohne Parameter-Schemata, Texte der Felder, Eingaben. */
+export const META_KEYS = ["id", "version", "kind", "mode", "title", "teaser", "howto", "rule", "seats", "roles", "family", "grip", "on", "dur", "order", "players", "modes", "play", "hidden", "secretSeats", "uses", "legacy", "thumb", "shelf", "link", "inputDay"];
+export function metaOf(man) {
+  const m = {};
+  for (const k of META_KEYS) if (man[k] !== undefined) m[k] = man[k];
+  if (man.rt) m.rt = { net: man.rt.net, tick: man.rt.tick, ...(man.rt.ghost ? { ghost: man.rt.ghost } : {}) };
+  if (man.variants) m.variants = man.variants.map((v) => { const o = { ...v }; delete o.params; return o; });
+  return m;
 }
 
 function checkRt(id, man) {

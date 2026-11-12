@@ -3,7 +3,7 @@
 import { h } from "./dom.js";
 import { machine } from "../app/machine.js";
 import { texts, fmt } from "../app/texts.js";
-import { cardOf, ORDER, modesOf } from "../cards/index.js";
+import { cardOf, ORDER, modesOf, manifestOf } from "../cards/index.js";
 import * as G from "../app/game.js";
 import * as S from "../contract/session.js";
 import { rng } from "../contract/sdk.js";
@@ -17,6 +17,8 @@ export function leaf(state) {
 }
 function seatName(card, lang, seat) { const s = card.manifest.seats; return s ? (s[lang] || s.de)[seat] : String(seat + 1); }
 function title(card, lang) { return card.manifest.title[lang] || card.manifest.title.de; }
+// Regal: Metadaten ohne geladene Karte (Karten sind nachladbare Teile, ADR 0001 Nachtrag 2)
+function titleOf(id, lang) { const m = manifestOf(id); return m.title[lang] || m.title.de; }
 
 /** Aktionen je Zustand – Grundlage fuer Knoepfe und fuer den Disclosure-Test. */
 export function actionsOf(state) {
@@ -26,7 +28,8 @@ export function actionsOf(state) {
   // Ohne Teilen-Menue wird Kopieren die Hauptaktion (Kritikrunde 3); nach dem Kopieren: gesendet melden
   const send = (label) => (ctx.shareFailed && !ctx.copied ? a("copy", X.copyLink, "COPY") : ctx.copied ? null : a("share", label, "SHARE"));
   switch (L) {
-    case "shelf": return { primary: a("open-" + ORDER[0], title(cardOf(ORDER[0]), ctx.lang), { type: "OPEN", id: ORDER[0] }), secondary: ORDER.slice(1).map((id) => a("open-" + id, title(cardOf(id), ctx.lang), { type: "OPEN", id })) };
+    case "shelf": return { primary: a("open-" + ORDER[0], titleOf(ORDER[0], ctx.lang), { type: "OPEN", id: ORDER[0] }), secondary: ORDER.slice(1).map((id) => a("open-" + id, titleOf(id, ctx.lang), { type: "OPEN", id })) };
+    case "partfail": return { primary: a("retry", X.retry, "RETRY"), secondary: [a("to-shelf", X.toShelf, "BACK")] };
     case "card.view": return { primary: a("go", G.card(ctx).manifest.mode === "static" ? X.goSend : X.go, "GO"), secondary: [a("customize", X.customize, "CUSTOMIZE")] };
     case "card.customize.bubbles": return { primary: a("done", X.done, "DONE"), secondary: [] };
     case "card.customize.dialog": return { primary: a("close", X.done, "CLOSE"), secondary: [] };
@@ -141,8 +144,8 @@ export function view(state, dispatch, env = {}) {
     const r = stilView(state, X, dispatch, L);
     body = r.body; panel = r.panel;
   } else if (L === "shelf") {
-    body = [h("p", { class: "lede" }, X.today), h("div", { class: "shelf" }, ORDER.map((id, i) => {
-      const c = cardOf(id), prim = i === 0;
+    body = [ctx.loading ? h("p", { class: "status", role: "status", key: "loading" }, X.loadingCard) : null, h("p", { class: "lede" }, X.today), h("div", { class: "shelf" }, ORDER.map((id, i) => {
+      const c = { manifest: manifestOf(id) }, prim = i === 0;
       return h("button", { type: "button", key: id, class: "shelf-card " + (prim ? "primary" : "secondary"), "data-act": "open-" + id, on: { click: () => dispatch({ type: "OPEN", id }) } },
         h("span", { class: "sc-kicker" }, prim ? X.today : X.more),
         h("span", { class: "sc-title" }, title(c, ctx.lang)),
@@ -217,6 +220,9 @@ export function view(state, dispatch, env = {}) {
     if (L === "card.rt.error") lines.push(h("div", { class: "notice", key: "err" }, h("h2", { class: "t-title" }, X.errTitle), h("p", { class: "warn", role: "alert" }, X.reasons[ctx.error] || X.reasons["zug-ungueltig"])));
     body = [...lines, env.stage ? env.stage.stageNode(L, dispatch, ctx.lang) : h("p", { class: "warn", role: "alert", key: "nohost" }, X.rtNoHost)];
     if (L === "card.rt.over" && ctx.link) panel.push(linkBox(X, ctx.link, ctx, dispatch));
+  } else if (L === "partfail") {
+    const f = ctx.partFail || {};
+    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.partFailTitle), h("p", { class: "warn", role: "alert", "data-reason": f.reason }, X.partFail[f.reason] || X.partFail["teil-fehlt"]))];
   } else if (L === "receive.show") {
     const inc = ctx.incoming, c = cardOf(inc.cardId);
     if (inc.kind === "ghost") body = [h("div", { class: "notice" }, h("p", { class: "lede plain" }, X.ghostText), h("h2", { class: "t-title" }, title(c, ctx.lang)), h("p", null, fmt(X.ghostScore, { s: inc.score.join(" : ") })), h("p", { class: "hint" }, X.free))];

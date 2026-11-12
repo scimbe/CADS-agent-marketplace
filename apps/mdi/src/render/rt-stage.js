@@ -93,9 +93,9 @@ export function createStage(env) {
     const axisBtn = (code, label, aria) => h("button", { type: "button", class: "rt-btn rt-axis", key: "ax-" + code, "aria-label": aria,
       on: { pointerdown: (e) => { e.preventDefault(); env.rt.key(code, true); }, pointerup: () => env.rt.key(code, false), pointercancel: () => env.rt.key(code, false), pointerleave: () => env.rt.key(code, false) } }, label);
     return h("div", { class: "rt-stage", key: "rt" },
-      h("canvas", { class: "rt-canvas", role: "img", "aria-label": X.stage, tabindex: "0", style: { "aspect-ratio": ratio }, ref: mount }),
-      h("p", { class: "rt-say", "aria-live": "polite", ref: (el) => { live = el; } }, ""),
-      h("div", { class: "rt-controls" },
+      h("canvas", { key: "cv", class: "rt-canvas", role: "img", "aria-label": X.stage, tabindex: "0", style: { "aspect-ratio": ratio }, ref: mount }),
+      h("p", { key: "say", class: "rt-say", "aria-live": "polite", ref: (el) => { live = el; } }, ""),
+      h("div", { key: "ctl", class: "rt-controls" },
         ax ? axisBtn(ax[0], "←", lang === "en" ? "Left" : "Links") : null,
         ax ? axisBtn(ax[1], "→", lang === "en" ? "Right" : "Rechts") : null,
         ...buttons.map((b) => h("button", {
