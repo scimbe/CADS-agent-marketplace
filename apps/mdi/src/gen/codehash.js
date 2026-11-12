@@ -13,7 +13,7 @@ export const CODE_HASH = {
   "arcade-volley": "7053421d3b12d3e584b976b1359fdeb5",
   "arcade-ziegel": "c3c299935d04b52fb6fd2b7694e958f3",
   "baukasten": "a4f00518548ea5150b7e6df58b06a855",
-  "baukasten-zug": "00e77a63cdc0a93ec022772882e10c9a",
+  "baukasten-zug": "9ae252f16b68ea93a88bcaa3f2b48da4",
   "beat-pausenhof": "0d98218e4928472ab049ca1193279375",
   "bluff": "87c9535399a1be510156b6fc7c6d8f1a",
   "flug": "0e0c156aae82a3cde554ce18655e23c4",

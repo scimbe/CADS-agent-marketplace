@@ -1,6 +1,7 @@
 // Karte "baukasten-zug" (Strang B): Zugspiele aus "mdi-bau/1" (place, flip, answer) ueber den Zugvertrag v0.2
 // (init/step/observe/status/moves/accepts/view/bot). Die Beschreibung steht im oeffentlichen Zustand (pub.D), weil step,
-// observe und view nur den Zustand bekommen; nichts davon ist geheim (manifest hidden "none", Brett folgt aus dem Seed).
+// observe und view nur den Zustand bekommen; Texte stehen auf Papier und sind deshalb immer Tinte (auch im Dunkelmodus,
+// wo --text hell wird; e2e 412 dunkel, axe color-contrast); nichts davon ist geheim (manifest hidden "none", Brett folgt aus dem Seed).
 import manifest from "./manifest.json" with { type: "json" };
 import * as Z from "../../engines/baukasten/zug.js";
 import { descOf, paramsFromDoc, docFromParams } from "../../engines/baukasten/karte.js";
@@ -28,8 +29,8 @@ function boardView(d, p, seat, L, draft) {
   }
   if (t.kind === "answer") {
     if (p.q >= p.order.length) return [];
-    const it = t.items[p.order[p.q]], out = [{ t: "text", role: "title", text: it.q }];
-    if (p.show[p.q]) out.push({ t: "text", role: "big", text: p.show[p.q] });
+    const it = t.items[p.order[p.q]], out = [{ t: "text", role: "title", fill: "ink", text: it.q }];
+    if (p.show[p.q]) out.push({ t: "text", role: "big", fill: "ink", text: p.show[p.q] });
     if (t.ask === "pick") out.push({ t: "choice", label: L.answer, options: p.opts[p.q].map((o, a) => ({ label: o === 0 ? it.a : it.wrong.filter(Boolean)[o - 1], input: { t: "say", seat, a }, disabled: !mine })) });
     else out.push({ t: "field", key: "a", label: L.answer, value: String((draft && draft.a) || ""), max: 40, mode: "text" }, { t: "go", label: L.send, input: { t: "say", seat, a: String((draft && draft.a) || "") }, disabled: !mine || !(draft && draft.a), why: mine ? "" : L.other });
     return out;
@@ -52,10 +53,10 @@ export default {
   view(obs, seat, ctx = {}) {
     const d = obs.D, L = T[ctx.lang === "en" ? "en" : "de"], two = obs.n === 2;
     const head = obs.over ? L.over : obs.tu === seat ? L.you : L.other;
-    const fb = d.turn.kind === "answer" && obs.last >= 0 ? [{ t: "text", role: "label", text: obs.last ? L.right : L.wrong + " – " + d.turn.items[obs.order[obs.lastQ]].a }] : [];
+    const fb = d.turn.kind === "answer" && obs.last >= 0 ? [{ t: "text", role: "label", fill: "ink", text: obs.last ? L.right : L.wrong + " – " + d.turn.items[obs.order[obs.lastQ]].a }] : [];
     return { t: "frame", fill: "paper", children: [{ t: "stack", children: [
-      { t: "text", role: "label", text: d.goal },
-      { t: "row", part: "stand", children: [{ t: "text", role: "small", text: L.score + " " + (two ? obs.sc[0] + " : " + obs.sc[1] : obs.sc[0]) }, { t: "text", role: "small", text: head }] },
+      { t: "text", role: "label", fill: "ink", text: d.goal },
+      { t: "row", part: "stand", children: [{ t: "text", role: "small", fill: "ink", text: L.score + " " + (two ? obs.sc[0] + " : " + obs.sc[1] : obs.sc[0]) }, { t: "text", role: "small", fill: "ink", text: head }] },
       ...fb,
       ...boardView(d, obs, seat, L, ctx.draft)
     ] }] };
