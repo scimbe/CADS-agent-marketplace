@@ -47,6 +47,19 @@ export function botHash(id, seed, n) {
   for (let i = 0; i < n && !c.status(st).over; i++) st = c.step(st, [{ b: 0 }, { b: 0 }]).state;
   return c.hash(st);
 }
+/** Anteil der Karte je Bild ohne Zeichnen: je Bild zwei Ticks und die Anzeigeliste; Mittel und p95 in ms. */
+export function cardCost(id, seed, frames) {
+  const c = cardOf(id); let st = c.init({ params: defaults(c.manifest.params), seed, players: ["bot", "bot"] });
+  const t = [];
+  for (let f = 0; f < frames; f++) {
+    const a = performance.now();
+    for (let k = 0; k < 2; k++) { st = c.step(st, [{ b: 0 }, { b: 0 }]).state; if (c.status(st).over) st = c.init({ params: defaults(c.manifest.params), seed: seed + f, players: ["bot", "bot"] }); }
+    c.view(st, { seat: 0, alpha: 0.5 });
+    t.push(performance.now() - a);
+  }
+  t.sort((x, y) => x - y);
+  return { mean: Math.round(t.reduce((x, y) => x + y, 0) / t.length * 100) / 100, p95: Math.round(t[Math.floor(t.length * 0.95)] * 100) / 100, max: Math.round(t[t.length - 1] * 100) / 100 };
+}
 export { A };
 `;
 
