@@ -3,7 +3,7 @@
 import { h } from "../dom.js";
 import * as R from "./rotation.js";
 import { bundesweit } from "./kalender.js";
-import { FAMILIES, INTENT_ORDER, familiesOf, family, familyOf, newIdOf, extras, catalogIdOf } from "./families.js";
+import { FAMILIES, INTENT_ORDER, familiesOf, family, familyOf, newIdOf, variantOf, extras, catalogIdOf } from "./families.js";
 import { homeTexts, fmt } from "./texts.js";
 import { ideaTile, extraTile, icon, ideaText, plateLines, duration, badge, art } from "./tile.js";
 import { SLOTS } from "./slots.js";
@@ -28,7 +28,7 @@ export function dayPrimary(ctx) {
   const X = homeTexts(ctx.lang, ctx.pref && ctx.pref.easy), idea = R.ideaOn(ctx.today + ctx.home.off, caps());
   if (!idea) return null;
   const nid = newIdOf(idea.id);
-  if (nid) return { id: "day-go", label: X.go[cardOf(nid).manifest.mode === "static" ? "card" : idea.kind] || X.go.default, ev: { type: "OPEN", id: nid } };
+  if (nid) return { id: "day-go", label: X.go[cardOf(nid).manifest.mode === "static" ? "card" : idea.kind] || X.go.default, ev: { type: "OPEN", id: nid, ...(variantOf(idea.id) ? { variant: variantOf(idea.id) } : {}) } };
   const on = isSaved(ctx.mine.saved, idea.id);
   return { id: "day-save", label: on ? X.soonSaved : X.soonSave, ev: { type: "MERKEN", id: idea.id }, pressed: on };
 }

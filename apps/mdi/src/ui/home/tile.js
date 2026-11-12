@@ -4,7 +4,7 @@
 // kein Knopf zum Oeffnen, aber Merken.
 import { h } from "../dom.js";
 import { SLOTS } from "./slots.js";
-import { familyOf, newIdOf, family } from "./families.js";
+import { familyOf, newIdOf, variantOf, family } from "./families.js";
 import { fmt } from "./texts.js";
 import { isSaved } from "./store.js";
 
@@ -49,7 +49,7 @@ export function ideaTile(o) {
   const meta = h("span", { class: "h-meta" }, nid ? null : h("span", { class: "h-soon small" }, X.soon), h("span", { class: "h-sub" }, badge(idea, X) + (o.extra ? " · " + o.extra : "")));
   const heart = h("button", { type: "button", class: "h-heart", "aria-pressed": on ? "true" : "false", "aria-label": (on ? X.unsave : X.save) + ": " + title, "data-act": "merken-" + idea.id, on: { click: () => dispatch({ type: "MERKEN", id: idea.id }) } }, icon("heart", "h-ico"));
   const main = nid
-    ? h("button", { type: "button", class: "h-tile-open", "data-act": "open-" + nid, "aria-label": title + ", " + badge(idea, X) + (idea.min ? ", " + duration(idea.min, X) : ""), on: { click: () => dispatch({ type: "OPEN", id: nid }) } }, thumb)
+    ? h("button", { type: "button", class: "h-tile-open", "data-act": "open-" + nid, "aria-label": title + ", " + badge(idea, X) + (idea.min ? ", " + duration(idea.min, X) : ""), on: { click: () => dispatch({ type: "OPEN", id: nid, ...(variantOf(idea.id) ? { variant: variantOf(idea.id) } : {}) }) } }, thumb)
     : h("div", { class: "h-tile-open soon", role: "img", "aria-label": fmt(X.soonA11y, { t: title }) }, thumb);
   return h("div", { class: "h-tile", key: o.key || idea.id }, main, h("div", { class: "h-tile-foot" }, meta, heart));
 }
