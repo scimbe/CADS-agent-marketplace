@@ -164,9 +164,11 @@ export function paramsOf(g, rules) {
     title: { type: "string", maxLength: 34, pattern: "^[^\\u0000-\\u001f\\u007f<>]*$", default: "", "x-field": "text", "x-model": true, "x-label": L("Titel", "Title") },
     sub: { type: "string", maxLength: 60, pattern: "^[^\\u0000-\\u001f\\u007f<>]*$", default: "", "x-field": "text", "x-model": true, "x-label": L("Untertitel", "Subtitle") },
     photo: { type: ["string", "null"], pattern: "^local:[0-9a-f]{32}$", default: null, "x-field": "media.local", "x-label": L("Eigenes Foto (bleibt auf dem Gerät)", "Your photo (stays on this device)") },
-    photoUse: { type: "string", enum: ["off", "figure", "bg"], default: "off", "x-field": "choice", "x-label": L("Foto als", "Use photo as") },
+    photoUse: { type: "string", enum: ["off", "figure", "bg"], default: "off", "x-field": "choice", "x-label": L("Foto als", "Use photo as"),
+      "x-names": { off: L("Kein Foto", "No photo"), figure: L("Als Figur", "As figure"), bg: L("Als Hintergrund", "As background") } },
     // Design Phase C: Zeitlupe 50 %, Doppeltippen zaehlt einmal, grosse Tasten (Host), Flipper bleibt oben solange gedrueckt
-    comfort: { type: "string", enum: ["aus", "an"], default: "aus", "x-field": "choice", "x-label": L("Gemütlich spielen", "Play at ease") }
+    comfort: { type: "string", enum: ["aus", "an"], default: "aus", "x-field": "choice", "x-label": L("Gemütlich spielen", "Play at ease"),
+      "x-names": { aus: L("Aus", "Off"), an: L("An: halbes Tempo, große Tasten", "On: half speed, big buttons") } }
   };
   if (g !== "elfer") props.win = { type: "integer", minimum: 1, maximum: 9, default: rules.WIN, "x-field": "number", "x-model": true, "x-label": L("Punkte zum Sieg", "Points to win") };
   const req = Object.keys(props);

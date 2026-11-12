@@ -246,6 +246,20 @@
         "x-label": {
           "de": "Foto als",
           "en": "Use photo as"
+        },
+        "x-names": {
+          "off": {
+            "de": "Kein Foto",
+            "en": "No photo"
+          },
+          "figure": {
+            "de": "Als Figur",
+            "en": "As figure"
+          },
+          "bg": {
+            "de": "Als Hintergrund",
+            "en": "As background"
+          }
         }
       },
       "comfort": {
@@ -259,6 +273,16 @@
         "x-label": {
           "de": "Gemütlich spielen",
           "en": "Play at ease"
+        },
+        "x-names": {
+          "aus": {
+            "de": "Aus",
+            "en": "Off"
+          },
+          "an": {
+            "de": "An: halbes Tempo, große Tasten",
+            "en": "On: half speed, big buttons"
+          }
         }
       }
     }
