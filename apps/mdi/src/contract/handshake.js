@@ -28,7 +28,7 @@ export function join(card, hi, rand) {
   const mine = hi.g !== undefined ? [hi.g] : others(card, hi.q), nonce = rand[0];
   const { secrets, commits } = makeSecrets(card, mine, () => rand[1]);
   const merged = hi.k.slice(); for (const s of mine) merged[s] = commits[s];
-  return { msg: { t: "join", n: nonce, k: commits }, local: { nonce, secrets, mine, commits: merged, sh: hi.sh, params: hi.p, group: hi.g !== undefined } };
+  return { msg: { t: "join", n: nonce, k: commits }, local: { nonce, secrets, mine, commits: merged, sh: hi.sh, params: hi.p, group: hi.g !== undefined, hostSeat: hi.q } };
 }
 
 export function start(card, params, local, jn) {
@@ -78,6 +78,9 @@ function beginGroup(card, local, st) {
   if (!mineJ || mineJ.n !== local.nonce) throw new GameError("betrug", "eigene Nonce fehlt im start");
   const order = st.j.map((x) => x.q);
   for (let i = 1; i < order.length; i++) if (order[i] <= order[i - 1]) throw new GameError("eingabe", "Reihenfolge");
+  // Review L9: jeder Gastsitz genau einmal, gueltige Sitze, der Gastgeber nicht unter den Gaesten
+  const want = others(card, local.hostSeat);
+  if (order.length !== want.length || order.some((q, i) => q !== want[i] || !seatOk(card, q))) throw new GameError("eingabe", "Gaeste unvollstaendig");
   if (st.k[me] !== local.commits[me]) throw new GameError("betrug", "eigenes Commitment veraendert");
   const commits = st.k.slice();
   return newSession(card, { params: local.params, seed: groupSeed(st.s, st.j.map((x) => x.n)), mine: local.mine, secrets: local.secrets, commits });

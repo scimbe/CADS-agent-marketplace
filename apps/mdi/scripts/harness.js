@@ -32,7 +32,13 @@ export function checkCardSource(src, opt = {}) {
   const spec = (v) => (fixture ? v.replace(/^\.\.\/\.\.\/\.\.\/\.\.\/src\//, "../../") : v);
   const ast = acorn.parse(src, { ecmaVersion: "latest", sourceType: "module", locations: true });
   const out = [], declared = new Set();
-  walk(ast, (n) => { if (n.type === "VariableDeclarator" && n.id.type === "Identifier") declared.add(n.id.name); if (n.type === "FunctionDeclaration" && n.id) declared.add(n.id.name); });
+  // Nur Deklarationen auf oberster Ebene zaehlen (Review L7): ein lokal verschatteter Name entlastet nie die Nutzung
+  // des globalen Namens anderswo. Lokale Verschattung wird dadurch streng ebenfalls gemeldet (lieber falsch-positiv).
+  for (const st of ast.body) {
+    const d = st.type === "ExportNamedDeclaration" && st.declaration ? st.declaration : st;
+    if (d.type === "VariableDeclaration") for (const v of d.declarations) if (v.id.type === "Identifier") declared.add(v.id.name);
+    if (d.type === "FunctionDeclaration" && d.id) declared.add(d.id.name);
+  }
   walk(ast, (n, parent) => {
     const at = n.loc ? " (Zeile " + n.loc.start.line + ")" : "";
     if ((n.type === "ImportDeclaration" || ((n.type === "ExportNamedDeclaration" || n.type === "ExportAllDeclaration") && n.source)) && !IMPORTS_OK.some((r) => r.test(spec(n.source.value)))) out.push("Import nicht erlaubt: " + n.source.value + at);

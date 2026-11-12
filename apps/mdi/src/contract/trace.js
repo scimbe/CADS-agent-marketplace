@@ -52,6 +52,8 @@ export function recorder(maxBytes = 600) {
     },
     end(t) { if (end === null) end = t; },
     get full() { return end !== null && out.length + 5 > maxBytes; },
+    /** Tick, an dem die Aufnahme wegen des Budgets endete (oder null): danach ist nichts mehr aufgenommen (Review H1) */
+    get cutAt() { return end; },
     bytes() {
       const e = end === null ? lastT : end, o = out.slice();
       put(o, first ? e : Math.max(0, e - lastT)); put(o, 0);
@@ -150,6 +152,8 @@ export function spurRecorder(maxBytes = SPUR_MAX_BYTES) {
       n += s; before = lvl; lvl = w & 6; ev.push([t, d]);
     },
     end(t) { if (end === null) end = Math.min(SPUR_TMAX, t); },
+    /** Tick, an dem die Aufnahme endete (Budget erreicht oder Tick-Maximum ueberschritten), sonst null (Review H1) */
+    get cutAt() { return end; },
     bytes() { return encodeSpur(ev, end); }
   };
 }
