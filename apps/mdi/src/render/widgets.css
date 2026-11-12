@@ -63,3 +63,4 @@
 .w-img { display: block; width: 100%; height: auto; object-fit: cover; border-radius: var(--r1); }
 .w-stopwatch { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
 .wg-aim, .wg-draw, .wg-strokes { width: 100%; }
+.wg-form > .widget { padding: 0; border: 0; background: none; } /* eingebettete Felder: der Rahmen gehoert dem form (S: Brett fuellt die Breite) */
