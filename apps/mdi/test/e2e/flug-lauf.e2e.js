@@ -52,20 +52,37 @@ test("Flug in der App: Regal, LOS, Countdown, Lauf mit Leertaste, Pause per Knop
   assert.deepEqual(errs, []);
 });
 
-test("Flug Touch: wer tippt, fliegt laenger als wer nichts tut (Tippen auf die Buehne = Flattern)", async () => {
-  const dur = async (tap) => {
-    const { p, errs } = await open(b, { view: "phone360" });
+// Flugdauer in Ticks statt Wanduhr (Befund Integrator, Kandidat 4ec48b49: unter Last lastabhaengig): Nach dem Ende einer
+// Allein-Partie traegt der Aufnahme-Link die Zahl der gespielten Ticks (wire.n). Ohne Tippen ist sie fest und gleich der
+// Vorhersage der Karte; jedes Tippen auf die Buehne haelt den Vogel laenger oben, egal wie schnell die Maschine ist.
+async function flightTicks(p) {
+  await p.locator("#linkfield").waitFor({ state: "attached", timeout: 20000 });
+  const url = await p.locator("#linkfield").inputValue();
+  return JSON.parse(Buffer.from(url.slice(url.indexOf("#")).split(".")[2], "base64url").toString()).n;
+}
+test("Flug Touch: wer tippt, fliegt laenger als wer nichts tut (Tippen auf die Buehne = Flattern, gemessen in Ticks)", async () => {
+  const D = Object.fromEntries(Object.entries(flug.manifest.params.properties).map(([k, d]) => [k, d.default]));
+  let st = flug.init({ params: D, players: ["human", "none"] });
+  for (let t = 0; t < 20000 && !flug.status(st).over; t++) st = flug.step(st, [{ b: 0 }, { b: 0 }], t).state;
+  const idleWant = st.t;
+  const run = async (tap) => {
+    const { p, errs, ctx } = await open(b, { view: "phone360" });
     await start(p, "flug");
-    const box = await p.locator("canvas.rt-canvas").boundingBox(), t0 = Date.now();
-    while ((await screen(p)) === "card-rt-run" && Date.now() - t0 < 6000) {
+    const box = await p.locator("canvas.rt-canvas").boundingBox();
+    while ((await screen(p)) === "card-rt-run") {
       if (tap) await p.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 3);
       await p.waitForTimeout(tap ? 230 : 50);
     }
+    await waitScreen(p, "card-rt-over", 120000);
+    const n = await flightTicks(p);
     assert.deepEqual(errs, []);
-    return Date.now() - t0;
+    await ctx.close();
+    return n;
   };
-  const idle = await dur(false), tapped = await dur(true);
-  assert.ok(tapped > idle + 400, "mit Tippen " + tapped + " ms, ohne " + idle + " ms");
+  const idle = await run(false), tapped = await run(true);
+  console.log("# Flug Ticks ohne Tippen " + idle + " (Karte " + idleWant + "), mit Tippen " + tapped);
+  assert.equal(idle, idleWant, "ohne Tippen: feste Flugdauer wie die Karte sie vorhersagt (" + idleWant + " Ticks)");
+  assert.ok(tapped > idle, "mit Tippen " + tapped + " Ticks, ohne " + idle + " Ticks");
 });
 
 test("Lauf in der App: Ducken als echter Knopf (>= 60 px, aria-pressed), Pfeil runter, Leertaste springt, Ende", async () => {
