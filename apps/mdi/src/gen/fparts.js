@@ -1,9 +1,11 @@
 // ERZEUGT von scripts/gen.js – nicht von Hand aendern.
 /* eslint-disable */
 import * as p0_0 from "../engines/klang/rapbeat.js";
+import * as p1_0 from "../features/frei/view.js";
+import * as p1_1 from "../features/frei/texts.js";
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 export function merge(n, list) { const o = {}; for (const m of list) for (const k of Object.keys(m)) { if (own(o, k)) throw new Error("teil " + n + ": Export doppelt: " + k); o[k] = m[k]; } return Object.freeze(o); }
-const MODS = { "klang-rap": merge("klang-rap", [p0_0]) };
+const MODS = { "klang-rap": merge("klang-rap", [p0_0]), "frei-ui": merge("frei-ui", [p1_0, p1_1]) };
 export const PART_NAMES = Object.freeze(Object.keys(MODS));
 export function partOf(name) { return own(MODS, name) ? MODS[name] : null; }
 export function isPartLoaded(name) { return own(MODS, name); }

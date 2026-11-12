@@ -1,44 +1,19 @@
-// Ansichten der freien Karte (Strang K): reine Funktion des Statechart-Zustands (gegen A2). Einhaengestellen fuer H
-// (src/ui/home/slots.js): freiEntry, freiDeckShelf, freiView, kiButton. Je Zustand hoechstens eine Hauptaktion und drei
+// Ansichten der freien Karte (Strang K) als nachladbarer Teil "frei-ui" (src/app/feature-parts.json, ADR 0001 Nachtrag 4).
+// Der Teil importiert nur seine Texte: alles mit Zustand (Statechart, Kartenregister, Renderer) kommt als Abhaengigkeit aus
+// dem Kern herein (makeFreiView(D), src/features/frei/view-core.js). Ein zweites Kartenregister im Teil wuesste nicht, welche
+// Karten geladen sind. Reine Funktion des Statechart-Zustands (gegen A2); je Zustand hoechstens eine Hauptaktion und drei
 // Nebenaktionen (04-ux/disclosure). Texte: ./texts.js (Altcode-Schluessel unveraendert).
-import { h } from "../../ui/dom.js";
-import { machine } from "../../app/machine.js";
-import { render } from "../../render/render.js";
-import { rng } from "../../contract/sdk.js";
 import { ft } from "./texts.js";
-import { ARTS, GENRES, MODES, SOON, previewOf, targetOf, targetIdOf, freiParams } from "./doc.js";
-import { cardOf, cardIdOf, modelFields } from "./chart.js";
-import { manifestOf } from "../../cards/index.js";
-import { crisis } from "../../broker/ai.js";
 
+/** D: { h, matches, render, rng, cardOf, cardIdOf, modelFields, manifestOf, crisis, ARTS, GENRES, MODES, SOON, previewOf, targetOf, targetIdOf, freiParams } */
+export function makeFreiView(D) {
+const { h, render, rng, cardOf, cardIdOf, manifestOf, crisis, ARTS, GENRES, MODES, SOON, previewOf, targetOf, targetIdOf, freiParams } = D;
+const machine = { matches: D.matches };
 const kState = (state) => ["pruefen", "anonym", "anmelden", "angemeldet", "abmelden", "fehler"].find((s) => machine.matches(state, "konto." + s));
 const a = (id, label, ev) => ({ id, label, ev: typeof ev === "string" ? { type: ev } : ev });
 const status = (text, cls = "hint", key) => h("p", { class: cls, role: "status", key: key || "st" }, text);
 const plainTitle = (s) => String(s || "").replace(/-\|(\p{Ll})/gu, "$1").replace(/-\|/g, "-").replace(/\|/g, " ").trim();
 const date = (iso, lang) => { try { return new Date(iso).toLocaleDateString(lang === "en" ? "en-GB" : "de-DE", { day: "numeric", month: "long", year: "numeric" }); } catch (e) { return String(iso); } };
-
-/** Einstieg "Eigene Karte", immer sichtbar (Regal, Tagesblatt, Absichten). Offline: ehrlicher Hinweis. */
-export function freiEntry(state, X, dispatch) {
-  const L = state.ctx.lang, off = state.ctx.konto && state.ctx.konto.err === "netz";
-  return h("div", { class: "frei-entry", key: "frei-entry" },
-    h("button", { type: "button", class: "btn primary frei-tile", "data-act": "frei", on: { click: () => dispatch({ type: "FREI" }) } },
-      h("span", { class: "sc-title" }, ft(L, "create_tile")), " ", h("span", { class: "sc-teaser" }, ft(L, "create_sub"))),
-    off ? h("p", { class: "hint", role: "status" }, ft(L, "aiNet")) : null);
-}
-/** Community-Karten im Regal ("Von anderen"): nur geladene, gepruefte Karten; laden passiert in inhalt.frei.deck. */
-export function freiDeckShelf(state, X, dispatch) {
-  const L = state.ctx.lang, cards = state.ctx.frei.deck.cards;
-  return h("section", { class: "frei-deckshelf", key: "frei-deck", "aria-labelledby": "fds-h" },
-    h("h2", { class: "t-label", id: "fds-h" }, ft(L, "deck_title")),
-    cards.length ? h("div", { class: "seg-row" }, cards.slice(0, 12).map((e) => h("button", { type: "button", class: "seg-opt", key: e.cid, "data-act": "deck-" + e.cid, on: { click: () => dispatch({ type: "DECK_OPEN", cid: e.cid }) } }, "✦ " + plainTitle(e.doc.t || e.doc.x || "")))) : null,
-    h("button", { type: "button", class: "btn secondary", "data-act": "deck", on: { click: () => dispatch({ type: "DECK" }) } }, ft(L, "deck_open")));
-}
-/** Knopf "Mit KI" im Bearbeiten-Dialog, wenn der Teil x-model-Felder hat */
-export function kiButton(state, X, dispatch, part) {
-  const c = state.ctx.cardId && cardOf(state.ctx.cardId);
-  if (!c || !modelFields(c.manifest, part).length) return null;
-  return h("button", { type: "button", class: "btn secondary", "data-act": "ki", key: "ki", on: { click: () => dispatch({ type: "KI", part }) } }, "✨ " + ft(state.ctx.lang, "frei_ki_fill"));
-}
 
 function chips(id, label, items, value, onPick, sug, lang) {
   return h("div", { class: "seg", role: "group", "aria-labelledby": "lbl-" + id, key: id },
@@ -47,7 +22,7 @@ function chips(id, label, items, value, onPick, sug, lang) {
 }
 
 /** Vorschau eines Server-Docs: freie Karte ueber den Renderer, sonst eine Zusammenfassung; immer mit KI-Badge. */
-export function preview(doc, lang, key = "pv") {
+function preview(doc, lang, key = "pv") {
   const pv = previewOf(doc);
   if (doc.k === "card" || doc.k === "photo") {
     const c = cardOf("frei"), params = freiParams(doc);
@@ -62,7 +37,7 @@ export function preview(doc, lang, key = "pv") {
 }
 
 /** Satz fuer das Ergebnis einer Anfrage, die keine Karte brachte (Altcode stateText + notyet) */
-export function refusalText(r, lang) {
+function refusalText(r, lang) {
   switch (r.how) {
     case "crisis": return ft(lang, "aiCrisis");
     case "blocked": return ft(lang, r.why === "crisis" ? "aiCrisis" : r.why === "kind_ok" ? "aiKind" : "aiBlocked");
@@ -235,7 +210,7 @@ const MOD_TY = { "card-hidden": "mod_hidden", "card-held": "mod_held", "card-rem
 /**
  * Ansicht eines Blatts inhalt.frei.* -> { body, panel, actions:{primary, secondary}, heading }
  */
-export function freiView(state, X, dispatch, L) {
+function freiView(state, X, dispatch, L) {
   const ctx = state.ctx, f = ctx.frei, lang = ctx.lang, leafName = L.slice("frei.".length);
   let body = [], panel = [], primary = null, secondary = [], heading = ft(lang, "create_title");
   const back = a("back", ft(lang, "frei_back"), "BACK");
@@ -408,4 +383,7 @@ export function freiView(state, X, dispatch, L) {
     default: break;
   }
   return { body, panel, actions: { primary, secondary: secondary.slice(0, 3) }, heading };
+}
+
+return { freiView, preview, refusalText };
 }

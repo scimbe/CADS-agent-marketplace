@@ -1,3 +1,9 @@
 {
-  "klang-rap": ["engines/klang/rapbeat.js"]
+  "klang-rap": [
+    "engines/klang/rapbeat.js"
+  ],
+  "frei-ui": [
+    "features/frei/view.js",
+    "features/frei/texts.js"
+  ]
 }
