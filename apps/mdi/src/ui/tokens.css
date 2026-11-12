@@ -143,7 +143,10 @@ button, input, textarea { font: inherit; color: inherit; }
 
 /* Blasen und Dialog */
 .bubbles { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; }
-.bubble { position: absolute; min-height: 44px; padding: 0 var(--s4); border: 3px solid var(--ink); border-radius: var(--r3); background: var(--yellow); color: var(--ink); font-weight: 800; white-space: nowrap; cursor: pointer; box-shadow: 0 3px 0 var(--ink); }
+/* Blasen nach Design-System (.blase, Canvas v52): Pille >= 44 px, Gelb, Rahmen 3, Schatten 0 3; offen = invertiert mit gelbem Hof */
+.bubble { position: absolute; min-height: 44px; padding: 0 12px; border: 3px solid #17140F; border-radius: 999px; background: #F9D84A; color: #17140F; font: 700 var(--t-s)/1 var(--font-body); white-space: nowrap; cursor: pointer; box-shadow: 0 3px 0 #17140F; }
+.bubble[aria-expanded="true"] { background: #17140F; color: #F9D84A; box-shadow: 0 0 0 4px #F9D84A; }
+.stage.editing { margin-top: 40px; margin-bottom: 36px; }
 .bubble::before { content: "✎ "; }
 .bubble-row { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s2); }
 .bubble.inflow { position: static; }

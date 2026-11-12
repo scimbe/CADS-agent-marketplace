@@ -42,7 +42,8 @@ export function actionsOf(state) {
       return { primary: a("go", c.manifest.mode === "static" ? X.goSend : X.go, "GO"), secondary: sec };
     }
     case "card.customize.bubbles": return { primary: a("done", X.done, "DONE"), secondary: [] };
-    case "card.customize.dialog": return { primary: a("close", X.done, "CLOSE"), secondary: [] };
+    // Im Feld heisst der Knopf "Uebernehmen" (Design-System); nur der Hauptknopf unten heisst "Fertig"
+    case "card.customize.dialog": return { primary: a("close", ctx.lang === "en" ? "Apply" : "Übernehmen", "CLOSE"), secondary: [] };
     case "card.share": return ctx.link && send(X.shareLink) ? { primary: send(X.shareLink), secondary: [a("done", X.done, "DONE")] } : { primary: a("done", X.done, "DONE"), secondary: [] };
     case "card.lobby":
       if (ctx.raum && ctx.raum.error) return { primary: a("again", X.again, "AGAIN"), secondary: [] };
