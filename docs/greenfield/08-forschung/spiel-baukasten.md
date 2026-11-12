@@ -274,3 +274,17 @@ Seite – der Fairness-Test fand eine echte Schieflage des Interpreters; (2) gle
 entschied stets für Sitz 0; (3) ein Pfirsich-Emoji in einem Obst-Memory traf die Wortregeln (S1) und wurde ohne
 Reparaturschleife zur harten Absage – jetzt eine Reparaturrunde; (4) ein schneller Ball tunnelte bei Höchsttempo durch
 den Schläger – jetzt bewegt sich kein Ding je Tick weiter als seine halbe kleinste Seite.
+
+### Entscheidungen des Users vom 2026-11-12 (Startschwellen)
+
+1. **Echtzeit-Quote 77 % reicht für den Start.**
+   - Messung: Auf dem unabhängigen, eingefrorenen Korpus v3 (SHA-256 `6cab89d2…`) bestanden 58 von 75 erwarteten Echtzeitspielen die Bot-Playtests und wurden geliefert. Das sind 77,3 %, 95 %-Wilson-Intervall 66,7–85,3 %. Protokoll: `07-protokoll/2026-11-12-strang-b.md`, Runde 3.
+   - Entscheidung: Der User sagt „77 % ok“. Das Ziel von 80 % gilt damit nicht als Startbedingung. Die Playtest-Schwellen selbst bleiben unverändert: endet ≥ 0,95, Nichtstun ≤ 0,05, Abstand 0,2 bzw. 0,25, gewinnbar ≥ 0,3, Dauer ≥ 4 s, Balance > 0,85 bei p < 0,05.
+   - Angenommen ist die gemessene Quote, nicht eine abgesenkte Prüfung.
+2. **Faktenprüfung der Quizfragen geht vor der menschlichen Kalibrierung in Betrieb.**
+   - Entscheidung: Der User sagt „Erst akzeptieren“. `DUELL_BAU_FAKTEN` ohne Wert ist jetzt `aktiv`.
+   - Was `aktiv` tut: Markierte Fragen gehen als Reparaturgrund zurück. Bleiben sie markiert, werden sie offen weggelassen. Bleiben weniger als 3 Fragen, gibt es eine ehrliche Absage `bau_fakten`.
+   - Liefert der Prüfer keine Antwort, gelten die Fragen als unsicher (fail closed).
+   - **Die Kalibrierung steht weiter aus:** 50 Fragen, Bogen `07-protokoll/strang-b/fakten-kalibrierung.csv`, Auswertung mit `bin/duell-bau-fakten-kalib.mjs vergleich`.
+   - Bis dahin gilt `FAKTEN_KALIBRIERT = false`. Jedes geprüfte Quiz trägt den Hinweis `bau:fakten-unkalibriert`, den die App anzeigt.
+   - Bekannte Lücke aus dem Vorlauf: Der Prüfer übersah mindestens 2 echte Sachfehler (f01, f28) und markierte 16 von 50 Fragen als unsicher. Wie oft er richtige Fragen streicht und wie viele falsche er übersieht, ist ohne die menschliche Bewertung nicht bekannt.
