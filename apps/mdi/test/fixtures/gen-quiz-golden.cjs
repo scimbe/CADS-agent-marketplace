@@ -75,8 +75,9 @@ SEEDS.forEach((seed, si) => {
   // Preis
   const doc = { seed };
   const items = QS.preisItems(doc), tops = items.map((k, i) => QS.top(doc, i));
-  const a = tops.map((t) => int(t / 5 + 1) * 5), b = tops.map((t) => int(t + 1));
-  out.preis.push({ seed, items, top: tops, a, b, off: [QS.off(doc, a), QS.off(doc, b)], result: { de: Tn.GAMES.preis.result(doc, [a, b], "de"), en: Tn.GAMES.preis.result(doc, [a, b], "en") } });
+  // a, b: was der Schieber (5-Cent-Schritte) liefern kann; raw: beliebige Cent fuer off() der Engine (Altcode prueft nur den Bereich)
+  const a = tops.map((t) => int(t / 5 + 1) * 5), raw = tops.map((t) => int(t + 1)), b = raw.map((v) => Math.floor(v / 5) * 5);
+  out.preis.push({ seed, items, top: tops, a, b, off: [QS.off(doc, a), QS.off(doc, b)], raw, offRaw: QS.off(doc, raw), result: { de: Tn.GAMES.preis.result(doc, [a, b], "de"), en: Tn.GAMES.preis.result(doc, [a, b], "en") } });
   // Fünf mal schätzen (Tageskarte)
   const sch = Tn.GAMES.schaetzen, maxs = sch.turns[0].map((p) => p.maxOf(doc)), g5 = maxs.map((x) => int(x + 1));
   out.schaetzen.push({ seed, max: maxs, peek: sch.turns[0].map((p) => [p.peek(doc, [], [], "de"), p.peek(doc, [], [], "en")]), a: g5, result: { de: sch.result(doc, [g5], "de"), en: sch.result(doc, [g5], "en") } });

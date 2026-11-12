@@ -8,6 +8,6 @@ import { gameSeed } from "../../engines/seed32/seed32.js";
 
 export default makeCard(manifest, {
   texts: TEXTS,
-  setup(params, rng) { return { g: "typen", seed: gameSeed(rng), pk: packOf(params, "typen") }; },
+  setup(params, rng) { return { g: "typen", seed: gameSeed(rng), pk: packOf(params, "typen", true) }; },
   game(pub) { return pub.pk ? packGame(pub) : null; }
 });

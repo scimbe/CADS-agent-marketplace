@@ -15,9 +15,9 @@ const card = makeCard(manifest, {
   texts: TEXTS,
   setup(params, rng) {
     const g = params.variante === "quiz" ? "quiz" : "abfragen";
-    return { g, seed: gameSeed(rng), pk: packOf(params, g) };
+    return { g, seed: gameSeed(rng), pk: packOf(params, g, g === "quiz") };
   },
-  // Quiz braucht ein Paket (alt GAMES.quiz needs); ohne Paket gibt es keinen gültigen Zug (Ansicht: pk_need)
+  // Quiz braucht ein Paket (alt GAMES.quiz needs): ohne Paket lehnt setup ab (Review: keine tote Partie)
   game(pub) { return pub.pk ? packGame(pub) : pub.g === "abfragen" ? ownGame() : null; }
 });
 

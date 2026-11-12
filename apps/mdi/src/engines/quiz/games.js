@@ -11,8 +11,11 @@ export function nightPack(id) { const x = NIGHT.find((p) => p.id === id); return
 /** Nachtpakete, die zu dieser Spielart passen (alt quiz-ui nightPacks, ohne Sprachvorrang: das macht die Ansicht). */
 export function nightFor(g) { return NIGHT.filter((x) => x && x.pk && P.fits(g, P.sanitize(x.pk))).map((x) => x.id); }
 
-/** Paket aus den params: eigenes pk vor Nachtpaket. Ein ungültiges eigenes Paket wird abgelehnt (nicht still verworfen). */
-export function packOf(params, g) {
+/** Paket aus den params: eigenes pk oder Nachtpaket, nie beide (widersprüchlicher Link wird abgelehnt, nicht still
+ *  aufgelöst). Ein ungültiges Paket wird abgelehnt (nicht still verworfen). need: die Spielart hat ohne Paket keinen
+ *  gültigen Zug (Quiz, Typen) – dann ist auch "kein Paket" eine Ablehnung statt einer toten Partie. */
+export function packOf(params, g, need = false) {
+  if (params.pk && params.paket) throw new Error("ungueltig: eigenes Paket und Nachtpaket zugleich");
   if (params.pk) {
     const pk = P.sanitize(params.pk);
     if (!pk || !P.fits(g, pk)) throw new Error("ungueltig: Fragepaket");
@@ -23,6 +26,12 @@ export function packOf(params, g) {
     if (!pk || !P.fits(g, pk)) throw new Error("ungueltig: Nachtpaket " + params.paket);
     return pk;
   }
+  if (need) throw new Error("ungueltig: Spielart " + g + " braucht ein Fragepaket");
+  return null;
+}
+/** Spielarten ohne Paket (Was kostet das?): ein Paket in den params wäre still ignoriert, also Ablehnung. */
+export function noPack(params, g) {
+  if (params.pk || params.paket) throw new Error("ungueltig: Spielart " + g + " nimmt kein Fragepaket");
   return null;
 }
 export function setupWith(g) {

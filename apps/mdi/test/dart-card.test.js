@@ -228,3 +228,70 @@ test("Brett-Daten: 63 Felder fuer Zielen auf treffen die Feldmitte; Pendel start
   const s = fresh().pub.seed;
   assert.equal(B.powerAt(s, 0, 0), D.hand(s, 0).lv);
 });
+
+// ---------- Review-Befunde: manipulierte Staende und Eingaben ----------
+const isBad = (err) => err.code === "manipuliert";
+function botGame(turns) {
+  let st = fresh("a", "rv"); st = throwTurn(st, 0, ["T20", "T20", "T20"]);
+  st = card.step(st, { t: "bert", seat: 1 });
+  for (let i = 1; i < turns; i++) st = throwTurn(st, 0, ["S20", "S20", "S20"]);
+  return st;
+}
+test("Review 1: gegen Bert zaehlt eine Aufnahme des Menschen samt Bert-Aufnahme als ein Fortschritt", () => {
+  const a = botGame(1), b = botGame(2), c = botGame(3);
+  assert.equal(D.sim(b.pub.seed, b.pub.s).turns.length - D.sim(a.pub.seed, a.pub.s).turns.length, 2, "sim rechnet Bert sofort mit");
+  assert.deepEqual(card.merge(a.pub, b.pub), b.pub);
+  assert.throws(() => card.merge(a.pub, c.pub), isBad, "zwei Aufnahmen sind zu viel");
+  // Bert tritt hinzu: der Stand vor Bert und der mit Bert sind dieselbe Partie
+  const pre = throwTurn(fresh("a", "rv"), 0, ["T20", "T20", "T20"]);
+  assert.deepEqual(card.merge(pre.pub, a.pub), a.pub);
+  assert.throws(() => card.merge(b.pub, { ...b.pub, s: "al" + b.pub.s.slice(2) }), isBad, "Bert verschwindet nicht");
+});
+test("Review 3: merge prueft Namen und behaelt den eigenen", () => {
+  let a = throwTurn(fresh("a", "nm"), 0, ["T20", "T20", "T20"], "Anna");
+  const b = throwTurn(a, 1, ["S20", "S20", "S20"], "Olga");
+  assert.deepEqual(card.merge(a.pub, b.pub).n, ["Anna", "Olga"]);
+  // der Link schreibt meinen Namen um: der eigene bleibt
+  assert.deepEqual(card.merge(a.pub, { ...b.pub, n: ["Mallory", "Olga"] }).n, ["Anna", "Olga"]);
+  // unzulaessige Namen im Link werden abgelehnt
+  assert.throws(() => card.merge(a.pub, { ...b.pub, n: ["Anna", "x".repeat(40)] }), isBad);
+  assert.throws(() => card.merge(a.pub, { ...b.pub, n: ["Anna", "Du"] }), isBad);
+  assert.throws(() => card.merge(a.pub, { ...b.pub, n: ["Anna"] }), isBad);
+  // Name des Gegners als Doppelgaenger meines Namens: seiner faellt weg, meiner bleibt
+  assert.deepEqual(card.merge(a.pub, { ...b.pub, n: ["Anna", "ANNA"] }).n, ["Anna", ""]);
+  assert.throws(() => card.merge(a.pub, { ...b.pub, n: ["Anna", "Аnna"] }), isBad, "gemischte Schrift kann kein Bildschirm senden");
+});
+test("Review 4: keine Pfeile nach dem Ende, hoechstens eine abgeschlossene Aufnahme, keine begonnene zweite", () => {
+  const a = throwTurn(fresh("a", "ex"), 0, ["T20", "T20", "T20"]);
+  const b = throwTurn(a, 1, ["S20", "S20", "S20"]);
+  const c = throwTurn(b, 0, ["S1"]); // begonnene zweite Aufnahme nach a
+  assert.throws(() => card.merge(a.pub, c.pub), isBad);
+  const d = throwTurn(b, 0, ["S1", "S1", "S1"]);
+  assert.throws(() => card.merge(a.pub, d.pub), isBad, "zwei Aufnahmen");
+  // Partie zu Ende, dann Pfeile angehaengt (extra)
+  let e = fresh("d", "ex");
+  for (let r = 0; r < 6; r++) e = throwTurn(e, r % 2, ["S1", "S1", "S1"]);
+  assert.ok(card.status(e).over);
+  const extra = { ...e.pub, s: e.pub.s + e.pub.s.slice(2, 7) };
+  assert.ok(D.sim(extra.seed, extra.s).extra);
+  assert.throws(() => card.merge(e.pub, extra), isBad);
+});
+test("Review 9: accepts prueft Schluessel exakt (dart, snap, auch im Rohwert a)", () => {
+  const st = fresh("a", "ky"), d = { t: "dart", seat: 0, a: { aim: [2048, 2048], power: 4 } };
+  assert.equal(ok(st, 0, d), true);
+  assert.equal(ok(st, 0, { ...d, x: 1 }), false);
+  assert.equal(ok(st, 0, { ...d, a: { ...d.a, z: "junk" } }), false);
+  assert.throws(() => card.step(st, { ...d, x: 1 }));
+  const snap = { t: "snap", seat: 0, a: { d: "", b: false, n: ["", ""] } };
+  assert.equal(ok(st, 0, { ...snap, a: { ...snap.a, d: card.compact([d])[0].a.d } }), true);
+  assert.equal(ok(st, 0, { ...snap, y: 2 }), false);
+  assert.equal(ok(st, 0, { ...snap, a: { ...snap.a, q: 1 } }), false);
+});
+test("Review 10: Schnappschuss gegen Bert braucht eine abgeschlossene Aufnahme von Sitz 0", () => {
+  const st = fresh("a", "sb");
+  assert.equal(ok(st, 0, { t: "snap", seat: 0, a: { d: "", b: true, n: ["", ""] } }), false);
+  const one = throwTurn(fresh("a", "sb"), 0, ["S1"]);
+  assert.equal(ok(st, 0, { t: "snap", seat: 0, a: { d: one.pub.s.slice(2), b: true, n: ["", ""] } }), false, "nur ein Pfeil");
+  const full = botGame(1);
+  assert.equal(ok(st, 0, { t: "snap", seat: 0, a: { d: full.pub.s.slice(2), b: true, n: ["", ""] } }), true);
+});

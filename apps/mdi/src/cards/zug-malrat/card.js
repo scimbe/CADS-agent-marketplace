@@ -19,6 +19,7 @@ import manifest from "./manifest.json" with { type: "json" };
 import * as M from "../../engines/malrat/malrat.js";
 import { form, fmt } from "../../engines/seed32/seed32.js";
 import { strokeItems } from "./strokes.js";
+import { canon } from "../../contract/sdk.js";
 
 const KEYS = ["d", "h", "k", "l", "r", "s", "sec", "seat", "t"].sort();
 const MAX_DAY = 1000000, MAX_PTS = 2000;
@@ -49,12 +50,31 @@ export function compact(log, state) {
   const last = log[log.length - 1];
   return [{ t: "draw", seat: 0, k: last.k, h: last.h, l: last.l, s: last.s, sec: last.sec, r: last.r, d: log[0].d }];
 }
-/** Eigener Stand und eingehender Stand: das neuere Bild gilt (hoehere Runde); bei gleicher Runde der eigene. */
+function bad(why) { const e = new Error("merge: " + why); e.code = "manipuliert"; return e; }
+const PIC_KEYS = ["h", "k", "l", "r", "s", "sec"].join(",");
+/** Ein Stand aus einem Link: genau die Felder eines Bildes, Form wie M.valid, Tag 1..1000000 (oder leer: day 0, pic null). */
+function checkPub(pub, who) {
+  if (!pub || typeof pub !== "object" || Array.isArray(pub) || Object.keys(pub).sort().join(",") !== "day,pic") throw bad(who + ": Form");
+  if (pub.pic === null) { if (pub.day !== 0) throw bad(who + ": Tag ohne Bild"); return; }
+  const v = pub.pic;
+  if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).sort().join(",") !== PIC_KEYS || !M.valid(v, null)) throw bad(who + ": Bild");
+  if (!Number.isInteger(pub.day) || pub.day < 1 || pub.day > MAX_DAY) throw bad(who + ": Tag");
+}
+/**
+ * Eigener Stand und eingehender Stand (ADR 0001 f): der eingehende wird vollstaendig geprueft und muss dieselbe Partie
+ * (denselben Tag) fortsetzen. Das neuere Bild gilt (hoehere Runde); gleiche Runde mit gleichem Bild = eigener Stand,
+ * gleiche Runde mit anderem Bild ist ein Konflikt und wird abgelehnt (nie still eins waehlen).
+ */
 export function merge(mine, theirs) {
-  const a = mine && mine.pic, b = theirs && theirs.pic;
+  checkPub(theirs, "eingehend");
+  checkPub(mine, "eigen");
+  const a = mine.pic, b = theirs.pic;
   if (!a) return copy(theirs);
   if (!b) return copy(mine);
-  return b.r > a.r ? copy(theirs) : copy(mine);
+  if (theirs.day !== mine.day) throw bad("anderer Tag");
+  if (b.r > a.r) return copy(theirs);
+  if (b.r === a.r && canon(b) !== canon(a)) throw bad("anderes Bild in derselben Runde");
+  return copy(mine);
 }
 
 // ---------- Hilfen fuer die Oberflaeche (lokal, nie im Zustand) ----------

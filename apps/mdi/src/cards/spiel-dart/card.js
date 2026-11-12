@@ -32,9 +32,17 @@ function turnOf(g) {
 function done(g) { return g.turns.length - (g.partial ? 1 : 0); }
 function bertOk(g) { return !!g && !g.bot && !g.over && !g.partial && g.turns.length === 1; }
 function isInt(v, lo, hi) { return Number.isInteger(v) && v >= lo && v <= hi; }
+// Schluessel exakt (Review: kein dehnbares Log): Pflicht- und erlaubte Felder je Eingabe und im Rohwert a
+function keysOk(o, need, may = []) {
+  if (!o || typeof o !== "object" || Array.isArray(o)) return false;
+  const k = Object.keys(o);
+  return need.every((x) => k.includes(x)) && k.every((x) => need.includes(x) || may.includes(x));
+}
+/** Gegen Bert erst nach einer abgeschlossenen Aufnahme von Sitz 0 (alt: Bert uebernimmt nach dem ersten Wurf). */
+function botStartOk(g) { return !g.bot || (g.turns.length >= 1 && !(g.partial && g.turns.length === 1)); }
 function charsOf(input) {
   const a = input.a;
-  if (!a || typeof a !== "object" || !Array.isArray(a.aim) || a.aim.length !== 2 || !isInt(a.aim[0], 0, 4095) || !isInt(a.aim[1], 0, 4095) || !isInt(a.power, 0, D.LEVELS - 1)) return null;
+  if (!keysOk(a, ["aim", "power"]) || !Array.isArray(a.aim) || a.aim.length !== 2 || !isInt(a.aim[0], 0, 4095) || !isInt(a.aim[1], 0, 4095) || !isInt(a.power, 0, D.LEVELS - 1)) return null;
   if (input.f !== undefined && input.f !== 1) return null;
   const d = { ax: a.aim[0], ay: a.aim[1], p: a.power }; if (input.f === 1) d.f = 1;
   return D.enc(d);
@@ -42,6 +50,7 @@ function charsOf(input) {
 
 /** Zustand nach einem Pfeil oder null, wenn er nicht geht (nur, was der Bildschirm senden kann). */
 function afterDart(p, input) {
+  if (!keysOk(input, ["t", "seat", "a"], ["f", "n"])) return null;
   const g = game(p);
   if (!g || input.seat !== turnOf(g)) return null;
   const c = charsOf(input); if (!c) return null;
@@ -54,10 +63,11 @@ function afterDart(p, input) {
 }
 function afterSnap(p, input) {
   if (input.seat !== 0 || p.s.length !== 2 || p.s[1] !== "l" || p.n[0] || p.n[1]) return null;
+  if (!keysOk(input, ["t", "seat", "a"]) || !keysOk(input.a, ["d", "b", "n"])) return null;
   const a = input.a;
-  if (!a || typeof a !== "object" || typeof a.d !== "string" || typeof a.b !== "boolean" || !Array.isArray(a.n) || a.n.length !== 2 || a.n.some((x) => typeof x !== "string")) return null;
+  if (typeof a.d !== "string" || typeof a.b !== "boolean" || !Array.isArray(a.n) || a.n.length !== 2 || a.n.some((x) => typeof x !== "string")) return null;
   const s = p.mode + (a.b ? "b" : "l") + a.d, g = D.sim(p.seed, s);
-  if (!g || g.extra || !D.namesOk(a.n)) return null;
+  if (!g || g.extra || !botStartOk(g) || !D.namesOk(a.n)) return null;
   return { ...copy(p), s, n: a.n.slice() };
 }
 function next(p, input) {
@@ -175,13 +185,31 @@ export default {
     }
     return [{ t: "snap", seat: 0, a: { d, b, n } }];
   },
-  /** Zwei Staende derselben Partie vereinigen (alt trust): der eingehende darf den gespeicherten um hoechstens eine
-   *  Aufnahme fortsetzen oder ein frueherer Stand sein; alles andere wird abgelehnt statt still gezaehlt. */
+  /** Zwei Staende derselben Partie vereinigen: a = eigener (gespeicherter), b = eingehender Stand.
+   *  Nach alt trust (dart.js) darf b den eigenen Stand um hoechstens EINE Aufnahme fortsetzen oder ein frueherer Stand sein.
+   *  Strenger als alt (Review): b muss selbst eine gueltige Partie sein (keine Pfeile nach dem Ende, Bert erst nach der
+   *  ersten Aufnahme, Namen nach namesOk), eine begonnene zweite Aufnahme zaehlt als zu viel. Gegen Bert zaehlt eine
+   *  Aufnahme des Menschen samt der daraus gerechneten Bert-Aufnahme als ein Fortschritt (alt: Bert-Partien hatten
+   *  keinen Ruecklink, sim rechnet Bert sofort mit; Fortschritt wird deshalb in Aufnahmen von Sitz 0 gemessen).
+   *  Namen: nur wer im neuen Teil geworfen hat, darf seinen Namen setzen; die anderen behalten den eigenen Stand
+   *  (alt view: der eigene Name kommt immer aus dem eigenen Speicher). Alles andere wird abgelehnt, nie still gezaehlt. */
   merge(a, b) {
-    if (a.seed !== b.seed || a.mode !== b.mode) { const e = new Error("merge: andere Partie"); e.code = "manipuliert"; throw e; }
-    if (a.s === b.s) return copy(b);
-    if (!D.trust(a.s, [b.s], a.seed)) { const e = new Error("merge: passt nicht zum letzten Wurf"); e.code = "manipuliert"; throw e; }
-    return copy(b.s.length >= a.s.length ? b : a);
+    const bad = (why) => { const e = new Error("merge: " + why); e.code = "manipuliert"; throw e; };
+    if (!a || !b || a.seed !== b.seed || a.mode !== b.mode || typeof b.s !== "string" || !Array.isArray(b.n) || b.n.length !== 2) bad("andere Partie");
+    if (b.s[0] !== a.mode || !D.nameOk(b.n[0]) || !D.nameOk(b.n[1])) bad("ungueltiger Stand");
+    const ga = game(a), gb = game(b);
+    if (!ga || !gb || gb.extra || !botStartOk(gb)) bad("ungueltiger Stand");
+    const da = a.s.slice(2), db = b.s.slice(2);
+    if (ga.bot && !gb.bot && db.length >= da.length) bad("Bert verschwunden");
+    if (da.slice(0, db.length) === db && (gb.bot === ga.bot || !gb.bot)) return copy(a); // gleich oder frueher: eigener Stand
+    if (db.slice(0, da.length) !== da) bad("passt nicht zum letzten Wurf");
+    const unit = (g) => g.bot ? g.turns.filter((t, i) => t.p === 0 && !(g.partial && i === g.turns.length - 1)).length : done(g);
+    const ua = unit(ga), ub = unit(gb);
+    if (ub > ua + 1 || (gb.partial && ub > ua)) bad("mehr als eine Aufnahme");
+    const from = ga.turns.length - (ga.partial ? 1 : 0), threw = new Set(gb.turns.slice(from).filter((t) => !(gb.bot && t.p === 1)).map((t) => t.p));
+    const n = [0, 1].map((x) => (threw.has(x) ? b.n[x] : a.n[x]));
+    if (!D.namesOk(n)) for (const x of threw) n[x] = "";
+    return { ...copy(b), n: D.namesOk(n) ? n : a.n.slice() };
   },
   view(obs, seat, ctx) {
     const lang = ctx.lang === "en" ? "en" : "de", X = D.T(lang), p = obs.pub, w = sight(p, seat), g = w.g, kids = [];

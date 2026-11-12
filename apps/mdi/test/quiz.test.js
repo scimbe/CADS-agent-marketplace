@@ -38,7 +38,7 @@ function through(card, s) { return S.fromWire(card, JSON.parse(JSON.stringify(S.
 function firstInput(card, s) {
   const st = S.status(card, s), obs = S.observe(card, s, st.turn);
   const v = card.view(obs, st.turn, { lang: "de" }).children.find((k) => k.t === "slide");
-  if (v) return { t: "ans", seat: st.turn, a: Math.floor(v.max / 2) };
+  if (v) return { t: "ans", seat: st.turn, a: v.step ? Math.floor(v.max / 2 / v.step) * v.step : Math.floor(v.max / 2) };
   return card.moves(obs, st.turn)[0];
 }
 function playTurn(card, s, inputs) {
@@ -134,17 +134,13 @@ test("Team-Quiz und Typen: jede Person spielt allein, kein Ergebnis kommt zurüc
   assert.deepEqual(t1, t2);
   assert.ok(t1.some((x) => /^Du bist: (Planerin|Motor)$/.test(x)), JSON.stringify(t1));
   assert.ok(t1.includes("Jede Stärke zählt. Niemand wird verglichen."));
-  // ohne Paket haben Team- und Typen-Quiz keinen gültigen Zug
-  const none = game(abfragen, { variante: "quiz" });
-  assert.deepEqual(abfragen.moves(S.observe(abfragen, none, 0), 0), []);
-  assert.throws(() => APPLY(abfragen, none, { t: "ans", seat: 0, a: 0 }));
-  assert.equal(abfragen.view(S.observe(abfragen, none, 0), 0, { lang: "de" }).children[0].text, "Erst ein Fragenpaket wählen.");
-  const tnone = game(typen, { paket: "" });
-  assert.throws(() => APPLY(typen, tnone, { t: "ans", seat: 0, a: 0 }));
+  // ohne Paket gibt es für Team- und Typen-Quiz keine Partie: Ablehnung beim Start statt toter Partie (Review 5)
+  assert.throws(() => game(abfragen, { variante: "quiz" }), /braucht ein Fragepaket/);
+  assert.throws(() => game(typen, { paket: "" }), /braucht ein Fragepaket/);
   // ein Gruppenpaket passt nie auf eine Lernkarte und umgekehrt: abgelehnt, nicht still verworfen
   assert.equal(P.fits("luecke", M.fromOption(GROUP)), false); assert.equal(P.fits("typen", M.fromOption(LEARN)), false);
   assert.throws(() => game(abfragen, { variante: "quiz", pk: M.fromOption(GROUP) }), /Fragepaket/);
-  assert.throws(() => game(typen, { pk: M.fromOption(LEARN) }), /Fragepaket/);
+  assert.throws(() => game(typen, { paket: "", pk: M.fromOption(LEARN) }), /Fragepaket/);
 });
 
 test("Frag mich ab ohne Paket: vier eigene Lernkarten je Person, ehrlich 'gewusst', Lernstand mit Offenem", () => {
@@ -401,4 +397,36 @@ test("Link: Paket in den params und eine volle Partie passen in MAX_FRAGMENT; zu
   const ls = game(abfragen, { variante: "quiz", paket: "", pk: long });
   assert.throws(() => frag(abfragen, ls), (e) => e.code === "zu-lang", "zu lang: der Host bietet den Kurzlink an (Strang H), die Karte kürzt nicht");
   console.log("Fragmentlängen", JSON.stringify(sizes));
+});
+
+// ---------- Review-Befunde 5–7 (Ablehnen statt toter Partie / widersprüchlicher Link / Schieber-Einrastung) ----------
+import { validParams } from "../src/cards/index.js";
+
+test("Review 5: Spielart, die ein Paket braucht, ohne Paket wird abgelehnt (params und init), keine tote Partie", () => {
+  assert.equal(validParams("zug-abfragen", base(abfragen, { variante: "quiz", paket: "" })), false);
+  assert.throws(() => game(abfragen, { variante: "quiz", paket: "" }), /braucht ein Fragepaket/);
+  assert.equal(validParams("zug-typen", base(typen, { paket: "" })), false);
+  assert.throws(() => game(typen, { paket: "" }), /braucht ein Fragepaket/);
+  // ohne Paket weiterhin gültig: Frag mich ab (eigene Lernkarten) und Schätzen als Tageskarte
+  assert.equal(validParams("zug-abfragen", base(abfragen, { variante: "abfragen", paket: "" })), true);
+  assert.doesNotThrow(() => game(abfragen, { variante: "abfragen", paket: "" }));
+  assert.equal(validParams("quiz-preis", base(preis, { variante: "schaetzen", paket: "" })), true);
+});
+
+test("Review 6: eigenes Paket und Nachtpaket zugleich – und ein Paket bei Was kostet das? – werden abgelehnt", () => {
+  const pk = P.sanitize(J.packs.find((x) => x.id === "planeten").pk);
+  assert.equal(validParams("zug-abfragen", base(abfragen, { variante: "quiz", paket: "planeten", pk })), false);
+  assert.throws(() => game(abfragen, { variante: "quiz", paket: "planeten", pk }), /zugleich/);
+  assert.doesNotThrow(() => game(abfragen, { variante: "quiz", paket: "", pk }));
+  assert.equal(validParams("quiz-preis", base(preis, { variante: "preis", paket: "solar" })), false);
+  assert.throws(() => game(preis, { variante: "preis", paket: "solar" }), /nimmt kein Fragepaket/);
+});
+
+test("Review 7: Was kostet das? nimmt nur Schieberwerte (Vielfache von 5 Cent) an, auch aus einem Link", () => {
+  const s = game(preis, { variante: "preis" }), top = R.top(s.state.pub.seed, 0), obs = S.observe(preis, s, 0);
+  assert.equal(preis.accepts(obs, 0, { t: "ans", seat: 0, a: 7 }), false, "7 Cent liefert der Schieber nie");
+  assert.equal(preis.accepts(obs, 0, { t: "ans", seat: 0, a: 5 }), true);
+  assert.equal(preis.accepts(obs, 0, { t: "ans", seat: 0, a: top }), true, "Reglerende ist ein Vielfaches");
+  assert.equal(top % R.STEP, 0);
+  assert.throws(() => S.apply(preis, s, { t: "ans", seat: 0, a: 7 }), (e) => e.code === "zug-ungueltig");
 });

@@ -79,6 +79,7 @@ test("Golden: Was kostet das? – Preise, Schieber-Enden, Abstand und Ergebnis",
     assert.deepEqual(R.preisItems(e.seed), e.items);
     assert.deepEqual(e.items.map((k, i) => R.top(e.seed, i)), e.top);
     assert.deepEqual([R.off(e.seed, e.a), R.off(e.seed, e.b)], e.off);
+    assert.equal(R.off(e.seed, e.raw), e.offRaw, e.seed + ": off() der Engine auch fuer beliebige Cent wie der Altcode");
     const st = play(preis, { g: "preis", seed: e.seed, pk: null }, [e.a, e.b]);
     assert.equal(preis.status(st).over, true);
     for (const lang of ["de", "en"]) assert.deepEqual(plain(preis.result(st.pub, lang)), e.result[lang], e.seed + " " + lang);

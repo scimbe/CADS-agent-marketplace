@@ -327,3 +327,22 @@ test("opening: erster Zug fuer einen Tag ist gueltig, nur fuer Sitz 0 und einen 
   assert.equal(card.status(s1).endless, true);
   assert.equal(card.moves(card.observe(s1, 1), 1).length, 1, "ab dem ersten Bild gibt es einen Hinweiszug");
 });
+
+test("merge lehnt manipulierte Staende ab (code manipuliert) und Konflikte in derselben Runde", () => {
+  const st0 = card.init({}), i1 = card.opening(0, 20769), s1 = card.step(st0, i1);
+  const m2 = card.moves(card.observe(s1, 1), 1)[0], s2 = card.step(s1, { ...m2, d: 20769 });
+  const mine = s1.state ? s1.state.pub : s1.pub, newer = s2.pub, empty = { day: 0, pic: null };
+  const throwsM = (f, what) => assert.throws(f, (e) => e.code === "manipuliert", what);
+  throwsM(() => merge(mine, { ...newer, pic: { ...newer.pic, r: "2" } }), "r als String");
+  throwsM(() => merge(mine, { ...newer, pic: { ...newer.pic, r: 1000 } }), "r > 999");
+  throwsM(() => merge(mine, { ...newer, day: 20770 }), "fremder Tag");
+  throwsM(() => merge(empty, { day: 20769, pic: { ...newer.pic, s: "" } }), "leerer eigener Stand + ungueltiges Bild");
+  throwsM(() => merge(empty, { day: 0, pic: newer.pic }), "Bild ohne Tag");
+  throwsM(() => merge(mine, { ...newer, extra: 1 }), "fremdes Feld");
+  throwsM(() => merge(mine, { ...newer, pic: { ...newer.pic, x: 1 } }), "fremdes Bildfeld");
+  throwsM(() => merge(mine, { ...mine, pic: { ...mine.pic, s: "AAA" } }), "Konflikt: anderes Bild in derselben Runde");
+  assert.deepEqual(merge(mine, mine), mine, "gleiche Runde, gleiches Bild: eigener Stand");
+  assert.deepEqual(merge(mine, newer), newer, "neueres Bild gilt");
+  assert.deepEqual(merge(newer, mine), newer, "aelterer Link aendert nichts");
+  assert.deepEqual(merge(empty, mine), mine);
+});

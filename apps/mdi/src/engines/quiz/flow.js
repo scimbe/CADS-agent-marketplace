@@ -15,7 +15,10 @@ export function copyPub(p) { return structuredClone(p); }
 /** Ist v eine Antwort, die der Bildschirm auf prompt p geben konnte? (alt turns.js okAnswer, nur die Arten hier) */
 export function okAnswer(p, v, pub, now, L) {
   if (p.w === "show") return v === 0;
-  if (p.w === "slide") return int(v, p.min || 0, p.maxOf ? p.maxOf(pub) : p.max);
+  // Härtung gegenüber dem Altcode (turns.js:1158 prüfte nur den Bereich): ein Schieber mit Schrittweite liefert nur
+  // Vielfache davon (Was kostet das?: 5 Cent), also nimmt auch accepts/step nur diese an – ein Link kann nichts senden,
+  // was der Bildschirm nicht senden kann. Golden-Eingaben sind Schieberwerte (test/fixtures/gen-quiz-golden.cjs).
+  if (p.w === "slide") return int(v, p.min || 0, p.maxOf ? p.maxOf(pub) : p.max) && (!p.step || v % p.step === 0);
   if (p.w === "list") {
     if (!Array.isArray(v) || v.length !== p.n) return false;
     if (p.bytes && new TextEncoder().encode(v.join("")).length > p.bytes) return false; // das ganze Spiel muss in den Link passen

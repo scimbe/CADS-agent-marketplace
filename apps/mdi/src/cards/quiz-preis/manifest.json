@@ -139,7 +139,50 @@
           }
         }
       }
-    }
+    },
+    "allOf": [
+      {
+        "not": {
+          "required": [
+            "pk",
+            "paket"
+          ],
+          "properties": {
+            "pk": {
+              "type": "object"
+            },
+            "paket": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "required": [
+            "variante"
+          ],
+          "properties": {
+            "variante": {
+              "const": "preis",
+              "type": "string"
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "paket": {
+              "maxLength": 0,
+              "type": "string"
+            },
+            "pk": {
+              "type": "null"
+            }
+          }
+        }
+      }
+    ]
   },
   "parts": [
     {
