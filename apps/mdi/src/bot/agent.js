@@ -5,7 +5,9 @@ import * as S from "../contract/session.js";
 import * as H from "../contract/handshake.js";
 import { chooseMove, LEVELS } from "./ismcts.js";
 
-export function createBotAgent(card, { seat, level, entropy, send }) {
+export function createBotAgent(card, { seat, level, entropy, send, today = null }) {
+  // manifest.inputDay: der Bot stempelt den Tag wie ein Geraet (Tag des Partiebeginns, ADR 0001 f)
+  const stamp = (mv) => (card.manifest.inputDay && mv.t !== "reveal" && Number.isInteger(today) ? { ...mv, d: today } : mv);
   let local = null, session = null;
   const iterations = (LEVELS.find((l) => l.id === level) || LEVELS[1]).iterations;
   function out(s) { const x = s.log[s.log.length - 1]; send({ t: "in", i: s.log.length - 1, x, h: S.pubHash(s) }); }
@@ -19,7 +21,7 @@ export function createBotAgent(card, { seat, level, entropy, send }) {
       const obs = S.observe(card, session, seat), seed = session.seed + "|" + session.log.length;
       // eigener Bot der Karte (ADR 0001 f), sonst generischer ISMCTS
       const mv = typeof card.bot === "function" ? card.bot(obs, seat, { level, seed }) : chooseMove(card, obs, seat, { iterations, seed });
-      session = S.apply(card, session, mv); out(session);
+      session = S.apply(card, session, stamp(mv)); out(session);
     }
   }
   return {

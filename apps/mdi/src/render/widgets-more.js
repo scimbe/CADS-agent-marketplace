@@ -165,8 +165,8 @@ M.nim = (n, host, X) => {
 // Bloecke 8x8 (Altcode turn-ui.js:411): Steine legen; die Karte prueft die Liste per Nachspielen
 M.blocks = (n, host, X) => {
   const Z = Y(host), size = n.size || 8, v = drafted(host, n, []), max = n.max || 40;
-  // Belegung und Punkte rechnet die Karte aus dem Entwurf und gibt sie als Daten: n.fill = {cells, score, next, after}
-  const fill = n.fill && typeof n.fill === "object" ? n.fill : null;
+  // Belegung und Punkte rechnet die Karte aus dem Entwurf und gibt sie als Daten: n.board = {cells, score, next, after}
+  const fill = n.board && typeof n.board === "object" ? n.board : null;
   const tap = (i) => { if (v.length < max) setDraft(host, n, v.concat([i])); };
   const cells = [];
   for (let i = 0; i < size * size; i++) cells.push(h("button", { type: "button", key: i, class: "bcell" + (fill && fill.cells && fill.cells[i] ? " on" : ""), "aria-label": String(i + 1) + (fill && fill.cells && fill.cells[i] ? " " + Z.pressed : ""), disabled: host.disabled ? true : null, on: { click: () => tap(i) } }));

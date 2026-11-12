@@ -80,8 +80,9 @@ export function startBotsLocal(ctx, rand) {
   return r.ctx;
 }
 /** Zug eines lokalen Bots (Eingabe kommt aus der Laufzeit); danach Pflichtzuege. */
-export function applyBotLocal(ctx, input) {
+export function applyBotLocal(ctx, input, today = ctx.today) {
   if (!ctx.botSeats || !ctx.botSeats.includes(input.seat)) throw new S.GameError("zug-ungueltig", "kein Bot-Sitz");
+  if (card(ctx).manifest.inputDay && input.t !== "reveal") { if (!Number.isInteger(today)) throw new S.GameError("eingabe", "Tag fehlt"); input = { ...input, d: today }; }
   checkInput(ctx.cardId, input);
   return applyDue({ ...ctx, session: S.apply(card(ctx), ctx.session, input) }).ctx;
 }
@@ -94,6 +95,17 @@ export function botTurn(ctx) {
 export function helloFor(ctx, rand) {
   const c = card(ctx), r = H.hello(c, paramsOf(ctx), ctx.seat, rand);
   return { ctx: { ...ctx, hs: r.local, session: null, error: null, viewer: ctx.seat }, msg: r.msg };
+}
+export function helloGroupFor(ctx, rand) {
+  const r = H.helloGroup(card(ctx), paramsOf(ctx), ctx.seat, rand);
+  return { ctx: { ...ctx, hs: r.local, session: null, error: null, viewer: ctx.seat, groupHost: true }, msgs: r.msgs };
+}
+/** join eines Gastes; sind alle da: Partie, start fuer alle und Pflichtzuege. */
+export function joinGroupFor(ctx, from, jn) {
+  const r = H.joinGroup(card(ctx), paramsOf(ctx), ctx.hs, from, jn);
+  if (!r.done) return { ctx: { ...ctx, hs: r.local }, msg: null, out: [] };
+  const due = applyDue({ ...ctx, session: r.session, hs: null, draft: null });
+  return { ctx: due.ctx, msg: r.msg, out: due.out };
 }
 export function joinFor(ctx, hi, rand) {
   const c = cardOf(hi.c);

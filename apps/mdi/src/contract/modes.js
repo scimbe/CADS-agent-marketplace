@@ -1,6 +1,6 @@
 // Modi einer Karte, abgeleitet aus dem Manifest (A3: keine Kartensonderlogik im Host). ADR 0001 f/b.
 //   static   -> link, live (zeigen)
-//   turn     -> alone; mit 2+ Sitzen bot, link; live nur mit genau 2 Sitzen (Gruppen-Live ist Stufe 2)
+//   turn     -> alone; mit 2+ Sitzen bot, link; live mit 2 bis 6 Sitzen (ab 3 als Gruppe um den Gastgeber)
 //   realtime -> alone; bot, wenn die Karte bot() hat; live, wenn rt.net != none und 2 Sitze (Geist: nach dem Spiel)
 // manifest.modes schneidet die abgeleitete Menge (z. B. Tischkarten ohne link). Reihenfolge bleibt fest.
 export const ALL_MODES = ["alone", "bot", "link", "live", "ghost"];
@@ -17,7 +17,7 @@ export function deriveModes(card, variantId = null) {
   } else {
     out = ["alone"];
     if (m.players.max >= 2) out.push("bot", "link");
-    if (m.players.max === 2) out.push("live");
+    if (m.players.max >= 2 && m.players.max <= 6) out.push("live"); // ab 3 Sitzen Gruppen-Live im Stern (Stufe 2)
   }
   if (Array.isArray(m.modes)) out = out.filter((x) => m.modes.includes(x));
   if (variantId) {
