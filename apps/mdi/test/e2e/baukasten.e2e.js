@@ -27,7 +27,8 @@ for (const ex of ["flappy", "breakout", "snake", "reaktion"]) for (const view of
     await p.keyboard.press("Space"); await p.keyboard.down("ArrowLeft"); await p.waitForTimeout(400); await p.keyboard.up("ArrowLeft");
     assert.ok(await p.evaluate(() => window.__bau.tick) > t0, "Tick laeuft");
     const painted = await p.evaluate(() => { const c = document.querySelector(".rt-canvas"); const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; const s = new Set(); for (let i = 0; i < d.length; i += 4000) s.add(d[i] + "," + d[i + 1] + "," + d[i + 2]); return s.size; });
-    assert.ok(painted > 2, "Canvas gezeichnet (" + painted + " Farben)");
+    // mindestens Flaeche und Spielwelt (Reaktion: der erste Stern kommt erst nach 0,7 s)
+    assert.ok(painted >= 2, "Canvas gezeichnet (" + painted + " Farben)");
     assert.equal(await p.locator(".rt-canvas").getAttribute("role"), "img");
     assert.deepEqual(await axe(p, ex + " " + view), []);
     assert.ok(await noOverflow(p));
@@ -50,11 +51,12 @@ for (const [ex, cells] of [["drei", 9], ["memory", 16], ["quiz", 0]]) for (const
     const opts = p.locator(".opt");
     await opts.first().waitFor();
     if (cells) assert.equal(await opts.count(), cells, "alle Felder sichtbar");
-    const before = await p.evaluate(() => JSON.stringify(window.__bau.status()));
+    const before = await p.evaluate(() => window.__bau.log());
     await opts.first().click();
     if (ex === "memory") await opts.nth(1).click();
     await p.waitForTimeout(100);
-    assert.notEqual(await p.evaluate(() => JSON.stringify(window.__bau.status())), before, "Zug angewandt");
+    // der Bot antwortet sofort; der Stand kann gleich aussehen, das Protokoll waechst (eigener Zug + Antwort)
+    assert.ok(await p.evaluate(() => window.__bau.log()) > before, "Zug angewandt");
     assert.equal(await p.evaluate(() => window.__bau.err), "");
     assert.deepEqual(await axe(p, ex + " " + view), []);
     assert.ok(await noOverflow(p));

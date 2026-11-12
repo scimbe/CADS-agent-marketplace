@@ -48,5 +48,5 @@ if (desc.mode === "realtime") {
   };
   const botTurn = () => { draft = null; let st = zug.status(s.state); for (let k = 0; k < 40 && !st.over && st.turn === 1; k++) { s = apply(zug, s, zug.bot(zug.observe(s.state, 1), 1, { level: 2, seed: "e2e" + k })); st = zug.status(s.state); } };
   draw();
-  window.__bau = { status: () => zug.status(s.state), get err() { return err; }, moves: () => zug.moves(zug.observe(s.state, 0), 0) };
+  window.__bau = { status: () => zug.status(s.state), get err() { return err; }, moves: () => zug.moves(zug.observe(s.state, 0), 0), log: () => s.log.length };
 }
