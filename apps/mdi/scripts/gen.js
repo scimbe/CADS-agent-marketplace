@@ -13,7 +13,11 @@ import { checkCardSource } from "./harness.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.join(ROOT, "src");
+<<<<<<< HEAD
 const HEAD = "// ERZEUGT von scripts/gen.js – nicht von Hand aendern.\n/* eslint-disable */\n";
+=======
+export const CARDS = ["gruss", "bluff", "tisch-skat", "tisch-doko", "tisch-bauernskat"];
+>>>>>>> dd5edbd (feat(mdi): Tisch-Engine E6 – Skat, Doppelkopf, Bauernskat mit Mental Poker im Kartenvertrag)
 
 // Budgets in Byte (ADR 0001 e)
 export const BUDGET = { image: 120 * 1024, sheet: 120 * 1024, json: 64 * 1024, sound: 96 * 1024, card: 256 * 1024, thumb: 60 * 1024 };

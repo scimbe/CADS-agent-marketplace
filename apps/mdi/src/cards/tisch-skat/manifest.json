@@ -1,0 +1,100 @@
+{
+  "id": "tisch-skat",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.1",
+  "kind": "turn",
+  "mode": "turn",
+  "title": {
+    "de": "Skat live",
+    "en": "Skat live"
+  },
+  "teaser": {
+    "de": "Reizen, drücken, ansagen – zu dritt.",
+    "en": "Bid, discard, declare – three players."
+  },
+  "howto": {
+    "de": "Skat zu dritt nach der Internationalen Skatordnung: reizen, Skat aufnehmen und drücken, Farbspiel, Grand oder Null ansagen. Wer allein spielt, braucht 61 Augen.",
+    "en": "Skat for three under the International Skat Order: bid, pick up and discard the skat, announce a suit game, Grand or Null. The declarer needs 61 card points."
+  },
+  "players": {
+    "min": 3,
+    "max": 3
+  },
+  "seats": {
+    "de": [
+      "Platz 1",
+      "Platz 2",
+      "Platz 3"
+    ],
+    "en": [
+      "Seat 1",
+      "Seat 2",
+      "Seat 3"
+    ]
+  },
+  "hidden": "commit-reveal",
+  "secretSeats": [
+    0,
+    1,
+    2
+  ],
+  "uses": [],
+  "limits": {
+    "stepBudget": 64,
+    "stateBytes": 65536
+  },
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "runden",
+      "regeln"
+    ],
+    "properties": {
+      "runden": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 6,
+        "default": 3,
+        "x-field": "number",
+        "x-model": true,
+        "x-label": {
+          "de": "Spiele in der Partie",
+          "en": "Games in the match"
+        }
+      },
+      "regeln": {
+        "type": "array",
+        "maxItems": 2,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "enum": [
+            "ramsch",
+            "kontra"
+          ]
+        },
+        "default": [],
+        "x-field": "list",
+        "x-model": true,
+        "x-label": {
+          "de": "Hausregeln: ramsch = Ramsch statt Einpassen · kontra = Kontra & Re",
+          "en": "House rules: ramsch = Ramsch if all pass · kontra = Kontra & Re"
+        }
+      }
+    }
+  },
+  "parts": [
+    {
+      "id": "regeln",
+      "params": [
+        "runden",
+        "regeln"
+      ],
+      "label": {
+        "de": "Regeln",
+        "en": "Rules"
+      }
+    }
+  ]
+}
