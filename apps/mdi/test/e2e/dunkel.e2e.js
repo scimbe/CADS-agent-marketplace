@@ -21,7 +21,7 @@ const contrast = (p, sels) => p.evaluate((sels) => {
 }, sels);
 
 for (const scheme of ["light", "dark"]) {
-  test("Heimseite " + scheme + ": axe 0 (Start, Regal, Mein Regal, Karte, Teilen) und Bedienflaechen >= 3:1 gegen die Seite", async () => {
+  test("Heimseite " + scheme + ": axe 0 (Start, Regal, Mein Regal, Karte, Teilen, Spielkopf) und Bedienflaechen >= 3:1 gegen die Seite", async () => {
     const { p, errs } = await open(b, { view: "phone390", scheme });
     await p.locator(".h-leaf").waitFor(); await p.waitForTimeout(400);
     const bad = [...(await axe(p, scheme + "/start"))];
@@ -31,6 +31,13 @@ for (const scheme of ["light", "dark"]) {
     await act(p, "go"); await p.locator("main.s-card-share").waitFor(); bad.push(...(await axe(p, scheme + "/teilen")));
     for (let i = 0; i < 4 && (await p.locator('[data-act="back"]').count()); i++) await p.locator('[data-act="back"]').first().click();
     await act(p, "meins"); await p.waitForTimeout(300); bad.push(...(await axe(p, scheme + "/mein-regal")));
+    // Mein Regal mit offenem ⋯-Menue (Folge-PR 3)
+    if (await p.locator('[data-act="wall-more-0"]').count()) { await act(p, "wall-more-0"); bad.push(...(await axe(p, scheme + "/mein-regal-menue"))); }
+    // Spielweise als Segmentleiste im Spielkopf (Folge-PR 3)
+    await p.locator('[data-act="back"]').first().click();
+    await act(p, "open-zug-einkauf"); await p.locator("main.s-card-view").waitFor(); await act(p, "go");
+    await p.locator(".pm-seg").waitFor(); bad.push(...(await axe(p, scheme + "/spielkopf")));
+    for (const [s, r] of await contrast(p, [".pm-seg"])) if (r < 3) bad.push(scheme + ": " + s + " " + r + ":1");
     assert.deepEqual(bad, []);
     assert.deepEqual(errs, []);
   });

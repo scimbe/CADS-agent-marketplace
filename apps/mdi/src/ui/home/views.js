@@ -259,9 +259,9 @@ function workPreview(entry, lang) {
 function meinsView(state, X, dispatch) {
   const ctx = state.ctx, mine = ctx.mine, tab = ctx.home.mtab, out = [], linked = !!(ctx.profil && ctx.profil.via);
   out.push(tabs([
-    { id: "wand", label: X.mtabs.wand + " (" + mine.wall.length + ")", ev: { type: "MTAB", tab: "wand" } },
-    { id: "einladungen", label: X.mtabs.einladungen + " (" + mine.invites.length + ")", ev: { type: "MTAB", tab: "einladungen" } },
-    { id: "gemerkt", label: X.mtabs.gemerkt + " (" + mine.saved.length + ")", ev: { type: "MTAB", tab: "gemerkt" } }
+    { id: "wand", label: X.mtabs.wand + " " + mine.wall.length, ev: { type: "MTAB", tab: "wand" } },
+    { id: "einladungen", label: X.mtabs.einladungen + " " + mine.invites.length, ev: { type: "MTAB", tab: "einladungen" } },
+    { id: "gemerkt", label: X.mtabs.gemerkt + " " + mine.saved.length, ev: { type: "MTAB", tab: "gemerkt" } }
   ], tab, dispatch, X.meins));
   const panel = [h("p", { class: "h-sync", key: "sync" }, linked ? X.sync.on : X.sync.off)];
   const note = ctx.home.note;
@@ -269,14 +269,17 @@ function meinsView(state, X, dispatch) {
   if (tab === "wand") {
     if (mine.undo) panel.push(h("div", { class: "h-undo", role: "status", key: "undo" }, h("span", null, X.wallGone), h("button", { type: "button", class: "btn secondary h-undo-b", "data-act": "wall-undo", on: { click: () => dispatch({ type: "WALL_UNDO" }) } }, "↶ " + X.undo)));
     if (!mine.wall.length) panel.push(h("p", { class: "h-empty", key: "empty" }, X.wallEmpty));
+    // Board Meins: 2er-Kacheln, Name mit ⋯ (Weiter bauen, Von der Wand nehmen), darunter Datum
     else panel.push(h("ul", { class: "h-wall", key: "wall" }, mine.wall.map((e, i) => {
-      const nid = manifestOf(e.id) ? e.id : null;
+      const nid = manifestOf(e.id) ? e.id : null, k = String(e.ts), open = ctx.home.menu === k, t = e.t || e.id;
       return h("li", { key: e.id + e.ts, class: "h-work" },
         h("div", { class: "h-work-pic" }, workPreview(e, ctx.lang)),
-        h("p", { class: "h-work-t" }, (e.t || e.id) + " · " + fmtDate(e.ts, ctx.lang)),
-        h("div", { class: "h-work-acts" },
+        h("div", { class: "h-work-head" }, h("p", { class: "h-work-t" }, t),
+          h("button", { type: "button", class: "h-more", "data-act": "wall-more-" + i, "aria-expanded": open ? "true" : "false", "aria-controls": "wm-" + i, "aria-label": fmt(X.more, { t }), on: { click: () => dispatch({ type: "WMENU", k }) } }, "⋯")),
+        h("p", { class: "h-work-d" }, fmtDate(e.ts, ctx.lang)),
+        open ? h("div", { class: "h-work-acts", id: "wm-" + i, key: "menu" },
           nid ? h("button", { type: "button", class: "btn secondary h-small", "data-act": "wall-open-" + i, on: { click: () => dispatch({ type: "OPEN", id: nid }) } }, X.openAgain) : null,
-          h("button", { type: "button", class: "btn secondary h-small", "data-act": "wall-off-" + i, on: { click: () => dispatch({ type: "WALL_OFF", i }) } }, "✕ " + X.takeOff)));
+          h("button", { type: "button", class: "btn secondary h-small", "data-act": "wall-off-" + i, on: { click: () => dispatch({ type: "WALL_OFF", i }) } }, "✕ " + X.takeOff)) : null);
     })));
   } else if (tab === "einladungen") {
     if (!mine.invites.length) panel.push(h("p", { class: "h-empty", key: "empty" }, X.invEmpty));

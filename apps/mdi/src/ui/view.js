@@ -186,7 +186,8 @@ export function view(state, dispatch, env = {}) {
     canBack ? h("button", { type: "button", class: "icon", "aria-label": X.back, "data-act": "back", on: { click: () => dispatch({ type: "BACK" }) } }, "←") : h("span", { class: "icon-gap" }),
     h("h1", { class: "brand" + (homeR && !homeR.heading ? " home" : "") }, heading),
     m("raum.verbunden") ? h("span", { class: "badge", role: "status" }, X.connected)
-      : L === "shelf" ? h("span", { class: "bar-end" }, schriftButton(state, dispatch), meinsButton(state, dispatch), h("button", { type: "button", class: "h-headbtn me", "aria-label": X.stilOpen, "data-act": "stil", on: { click: () => dispatch({ type: "STIL" }) } }, h("span", { class: "h-headbtn-i", "aria-hidden": "true" }, ctx.me.emoji), h("span", { class: "h-headbtn-t", "aria-hidden": "true" }, X.stil)))
+      // Board Meins: auf „Mein Regal“ selbst keine Kopfknoepfe, damit die Ueberschrift ungekuerzt bleibt
+      : L === "shelf" && !(homeR && homeR.cls === "meins") ? h("span", { class: "bar-end" }, schriftButton(state, dispatch), meinsButton(state, dispatch), h("button", { type: "button", class: "h-headbtn me", "aria-label": X.stilOpen, "data-act": "stil", on: { click: () => dispatch({ type: "STIL" }) } }, h("span", { class: "h-headbtn-i", "aria-hidden": "true" }, ctx.me.emoji), h("span", { class: "h-headbtn-t", "aria-hidden": "true" }, X.stil)))
         : h("span", { class: "icon-gap" }));
 
   let body = [], panel = [];
@@ -260,9 +261,8 @@ export function view(state, dispatch, env = {}) {
       // Spielweise im Spielkopf (Board Bote1, Folge-PR 2): wechselbar bis zum ersten Zug, danach gesperrt mit Grund (MODE, Waechter modeOpen bei F)
       if ((phase === "turn" || phase === "wait") && ctx.mode !== "live") {
         const offer = playOf(card, ctx.variant).offer.filter((x) => x !== "live"), locked = G.movesMade(ctx) > 0;
-        if (offer.length > 1 && offer.includes(ctx.mode)) lines.push(h("div", { class: "play-modes", role: "group", "aria-labelledby": "pm-l", key: "pm" },
-          h("p", { class: "seg-label", id: "pm-l" }, X.mode),
-          h("div", { class: "seg-row" }, offer.map((x) => h("button", { type: "button", class: "seg-opt chip", key: x, "data-act": "pm-" + x, "aria-pressed": x === ctx.mode ? "true" : "false", disabled: (locked && x !== ctx.mode) || null, on: { click: () => dispatch({ type: "MODE", mode: x }) } }, X.modes[x]))),
+        if (offer.length > 1 && offer.includes(ctx.mode)) lines.unshift(h("div", { class: "play-modes", key: "pm" },
+          h("div", { class: "pm-seg", role: "group", "aria-label": X.mode }, offer.map((x) => h("button", { type: "button", class: "pm-opt", key: x, "data-act": "pm-" + x, "aria-pressed": x === ctx.mode ? "true" : "false", disabled: (locked && x !== ctx.mode) || null, on: { click: () => dispatch({ type: "MODE", mode: x }) } }, X.modes[x]))),
           h("p", { class: "hint", key: "pm-h" }, locked ? X.note["modus-gesperrt"] : X.modeSwitch)));
       }
       if (phase === "wait") lines.push(h("p", { class: "status", role: "status", key: "st" }, ctx.mode === "bot" ? X.waitBot : ctx.mode === "link" ? X.waitLink : X.waitLive));
