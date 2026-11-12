@@ -426,11 +426,31 @@ test("Deck-Pin: das Deck der Produktion verifiziert mit dem gepinnten Schluessel
   assert.equal((await createDeck({ api: { raw: async () => ({ status: 200, body: nokid }) }, sanitize: sanitizeDoc, subtle, pin: LIVE.key.pub }).load()).why, "signatur", "ohne kid kein Deck");
 });
 
-test("KI-Knoten: KI_DONE setzt den Entwurf ctx.draft[into] (F), ohne abzurechnen", async () => {
+test("KI-Knoten: KI_DONE wird zu DRAFT {patch:{[into]: …}} (F), ohne abzurechnen; ungueltiges into nicht", async () => {
+  const { frei, kiDraft } = await import("../src/features/frei/chart.js");
+  const t = frei.on["inhalt.card"].KI_DONE;
+  assert.equal(t.raise, kiDraft);
+  assert.deepEqual(kiDraft({}, { into: "ai", r: { how: "result" }, option: { titel: "Grillabend" }, receipt: "r1.x" }), { type: "DRAFT", patch: { ai: { r: { how: "result" }, option: { titel: "Grillabend" }, seal: null, receipt: "r1.x" } } });
   const { machine, initialContext } = await import("../src/app/machine.js");
-  let s = machine.send(machine.initial(initialContext("de")), { type: "OPEN", id: "gruss", rand: ["a".repeat(32)] });
-  s = machine.send(s, { type: "KI_DONE", into: "ai", r: { how: "result" }, option: { titel: "Grillabend" }, receipt: "r1.x" });
-  assert.deepEqual(s.ctx.draft.ai, { r: { how: "result" }, option: { titel: "Grillabend" }, seal: null, receipt: "r1.x" });
-  assert.deepEqual(s.effects, []);
+  const s = machine.send(machine.initial(initialContext("de")), { type: "OPEN", id: "gruss", rand: ["a".repeat(32)] });
   assert.equal(machine.send(s, { type: "KI_DONE", into: "../x" }).consumed, false);
+  assert.deepEqual(machine.send(s, { type: "KI_DONE", into: "ai" }).effects, []);
+});
+
+test("Bildbruecke (env.images): data:-URL sofort, Server-Bild ueber api.image als data:-URL, waehrenddessen leer, dann Meldung; Fremdes nie", async () => {
+  const { frei } = await import("../src/features/frei/chart.js");
+  const { createImages } = await import("../src/features/frei/images.js");
+  assert.equal(typeof frei.env.images, "function");
+  const asked = []; let done;
+  const api = { image: (p) => { asked.push(p); return new Promise((ok) => { done = () => ok({ ok: true, url: "data:image/png;base64,iVBORw0KGgo=" }); }); } };
+  const im = createImages({ location: { protocol: "https:", host: "h" } }, api);
+  assert.equal(im.url("data:image/png;base64,AAAA"), "data:image/png;base64,AAAA");
+  for (const bad of ["https://evil.example/x.png", "data:text/html;base64,AAAA", "javascript:alert(1)", { kind: "server", ref: "../x" }, { kind: "fremd", ref: "A".repeat(22) + ".png" }]) assert.equal(im.url(bad), "", JSON.stringify(bad));
+  const src = { kind: "server", ref: "EX-Ofbz0jr7JbgwUyL9uMA.png" }, seen = [];
+  im.subscribe((k) => seen.push(k));
+  assert.equal(im.url(src), ""); assert.equal(im.state(src), "busy");
+  im.url(src); assert.deepEqual(asked, ["/duell/bild/EX-Ofbz0jr7JbgwUyL9uMA.png"], "einmal geladen");
+  done(); await new Promise((r) => setTimeout(r, 0));
+  assert.equal(im.url(src), "data:image/png;base64,iVBORw0KGgo="); assert.deepEqual(seen, ["srv:EX-Ofbz0jr7JbgwUyL9uMA.png"]);
+  assert.equal(im.get(src), null, "ohne Image (Node) kein Element, kein Fehler");
 });

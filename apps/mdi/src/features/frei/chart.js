@@ -260,6 +260,10 @@ function openTarget(ctx, t) {
     return params && validParams(id, params) ? { ...base, params: { ...ctx.params, [id]: params }, own: !!t.own } : { ...base, own: !!t.own };
   }
 
+/** Ergebnis eines KI-Knotens als Entwurfs-Patch (F: DRAFT {patch}); abgerechnet wird erst mit KI_SETTLE */
+export function kiDraft(ctx, ev) {
+  return { type: "DRAFT", patch: { [ev.into]: { r: ev.r || { how: "off" }, option: ev.option === undefined ? null : ev.option, seal: ev.seal || null, receipt: typeof ev.receipt === "string" ? ev.receipt : "" } } };
+}
 /** Die freie Karte hinter Kartenparametern (Adapter toFree der Karte) oder null */
 function freeDocOf(cardId, params) {
   const c = cardId && cardOf(cardId);
@@ -381,8 +385,6 @@ export const freiActions = {
   applyKi: (ctx, ev, emit) => { const k = ctx.frei.ki; if (k.receipt) emit({ type: "frei.settle", how: "accept", receipt: k.receipt }); const next = { ...paramsOfCard(ctx, ctx.cardId), [k.field]: k.opts[ev.i] }; return { ...F(ctx, { ki: { ...k, opts: [], res: null } }), params: { ...ctx.params, [ctx.cardId]: next } }; },
   cancelKi: (ctx, ev, emit) => { const k = ctx.frei.ki; if (k.receipt) emit({ type: "frei.settle", how: "discard", receipt: k.receipt }); return F(ctx, { ki: { ...k, req: (k.req || 0) + 1, opts: [], res: null, receipt: "" } }); },
   fxKiAsk: (ctx, ev, emit) => { emit({ type: "frei.kiask", kind: ev.kind, input: ev.input, into: ev.into, cardId: ctx.cardId }); return ctx; },
-  // Ergebnis eines KI-Knotens in den Entwurf der Karte (F: ctx.draft[into]); abgerechnet wird erst mit KI_SETTLE
-  takeKiDone: (ctx, ev) => ({ ...ctx, draft: { ...(ctx.draft || {}), [ev.into]: { r: ev.r || { how: "off" }, option: ev.option === undefined ? null : ev.option, seal: ev.seal || null, receipt: typeof ev.receipt === "string" ? ev.receipt : "" } } }),
   fxKiSettle: (ctx, ev, emit) => { if (typeof ev.receipt === "string" && ev.receipt && (ev.how === "accept" || ev.how === "discard")) emit({ type: "frei.settle", how: ev.how, receipt: ev.receipt }); return ctx; },
   settleFail: (ctx) => F(ctx, { note: "settle-fail" })
 };
@@ -400,6 +402,7 @@ export function freiContext(saved) {
 }
 
 import { freiEffects } from "./effects.js";
+import { createImages } from "./images.js";
 /** Das Feature im Format von ADR 0001 (g) (src/app/features.js) */
 export const frei = {
   id: "frei",
@@ -411,10 +414,12 @@ export const frei = {
     "inhalt": { LINK: LINK_FIRST },
     // KI-Knoten der Zugkarten ({t:"ai", kind, input, into}, Z1 zug-termin/geschenk-finder): der Host (F) sendet KI_ASK, das
     // Ergebnis kommt als KI_DONE {into, option, seal, receipt}; die Karte uebernimmt -> KI_SETTLE {receipt, how:"accept"|"discard"}
-    "inhalt.card": { KI_ASK: { cond: "kiAskOk", actions: ["fxKiAsk"] }, KI_DONE: { cond: "kiDoneOk", actions: ["takeKiDone"] }, KI_SETTLE: { actions: ["fxKiSettle"] } }
+    "inhalt.card": { KI_ASK: { cond: "kiAskOk", actions: ["fxKiAsk"] }, KI_DONE: { cond: "kiDoneOk", raise: kiDraft }, KI_SETTLE: { actions: ["fxKiSettle"] } }
   },
   guards: freiGuards,
   actions: freiActions,
   context: freiContext,
-  effects: freiEffects
+  effects: freiEffects,
+  // Dienste fuer den Host (F: main.js featureEnv(window)): Bildbruecke fuer Vorschau, Spiel, Canvas und Buehne
+  env: { images: (win) => createImages(win) }
 };
