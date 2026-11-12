@@ -207,9 +207,9 @@ test("Deck auf einem Host ohne Pin: Signatur mit Server-Schluessel, Karte oeffne
   const B = await openApp(fw, ff, { origin: ORIGIN });
   await act(B.p, "frei"); await screenIs(B.p, "frei-start");
   await act(B.p, "deck"); await screenIs(B.p, "frei-deck");
-  assert.ok(ff.state.log.includes("GET /api/duell/deck/key"), "ohne Pin: Schluessel vom selben Server");
   await B.p.locator('[data-act="deck-' + rec("deck-mit-karte").body.cards[0].cid + '"]').click();
   await screenIs(B.p, "frei-deckkarte");
+  assert.ok(ff.state.log.includes("GET /api/duell/deck/key"), "ohne Pin: Schluessel vom selben Server");
   await B.p.getByText("Mit Konto siehst du hier, wie es deinen freien Karten geht.").waitFor();
   await checks(B.p, "14-deckkarte", found);
   await act(B.p, "melden"); await screenIs(B.p, "frei-melden");
