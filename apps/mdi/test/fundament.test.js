@@ -75,7 +75,7 @@ test("Register: Code-Hash folgt jeder gebuendelten Datei (auch Engines) und den 
 
 test("Register: Fixture-Register mit Eingabe-Schema, Varianten und Legacy-ids erzeugt Validatoren", async () => {
   const out = generate({ cardsDir: FIX });
-  assert.match(out["gen/validators.js"], /export const inputs_fx_zug/);
+  assert.match(out["gen/cards/fx-zug.js"], /export const inputs/); assert.doesNotMatch(out["gen/validators.js"], /params-fx/, "Karten-Validatoren nicht im Kern"); assert.match(out.lazy, /__CARD_CAPS__/);
   assert.match(out.index, /VARIANTS/);
   assert.match(out.index, /LEGACY/);
   assert.equal(typeof VARIANTS, "object"); assert.equal(typeof LEGACY, "object");
@@ -138,7 +138,7 @@ test("v0.2 Abdecken vor dem ersten Zug (alone) und Kontext fuer view (today, age
   assert.ok(machine.matches(s, "inhalt.card.play.turn"));
   assert.equal(s.ctx.coveredFor, 0);
   s = machine.send(s, { type: "DRAFT", draft: { x: 1 }, rand: R() });
-  assert.deepEqual(G.viewCtx({ ...s.ctx, today: 20400 }), { lang: "de", today: 20400, draft: { x: 1 }, age18: false, nick: s.ctx.me ? s.ctx.me.nick || "" : "" });
+  assert.deepEqual(G.viewCtx({ ...s.ctx, today: 20400 }), { lang: "de", today: 20400, draft: { x: 1 }, memo: null, age18: false, nick: s.ctx.me ? s.ctx.me.nick || "" : "" });
   assert.equal(G.todayOf(Date.UTC(2026, 10, 12, 23, 59)), 20769);
 });
 
@@ -202,4 +202,11 @@ test("Konto pack: lokale Wand und gemerkte Karten haben Vorrang (Wand-Sync, Stra
   assert.deepEqual(pack(me, { wall: [1], saved: ["x"] }).wall, [1]);
   assert.deepEqual(pack(me, { wall: [1], saved: ["x"] }, { wall: [2] }).wall, [2]);
   assert.deepEqual(pack(me, { wall: [1], saved: ["x"] }, { saved: [] }).saved, []);
+});
+
+test("viewCtx.age18 kommt nur vom Server (Konto-Profil oder Status), nie vom Geraete-Code", () => {
+  assert.equal(G.viewCtx({ lang: "de", profil: { via: "account", age18: true } }).age18, true);
+  assert.equal(G.viewCtx({ lang: "de", profil: { via: "code", age18: true } }).age18, false);
+  assert.equal(G.viewCtx({ lang: "de", konto: { st: { karte: { age18: true } } } }).age18, true);
+  assert.equal(G.viewCtx({ lang: "de", me: { age18: true } }).age18, false);
 });

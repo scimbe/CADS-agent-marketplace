@@ -93,10 +93,7 @@ test("Bauernskat live zu zweit (Fake-Live): beide sehen dasselbe Ende, das Netz 
   assert.deepEqual([...A.errs, ...B.errs], []);
 });
 
-// Ausgesetzt mit Grund: test/e2e/lib/fakelive.mjs (Strang F) verbindet nur zwei Seiten (a/b); der Gastgeber einer Gruppe
-// braucht je Gast eine eigene Verbindung. Ohne sie lehnt der Gast ab („Verbindung kommt nicht zustande“). Die Gruppenpartie
-// selbst ist in test/tisch-live.test.js mit 3 und 4 Geraeten ueber die echte Laufzeit belegt.
-test("Skat live zu dritt (Gruppen-Live, Fake-Live): ein Link je Gast, ganze Partie, gleicher Endstand, axe 0 am Tisch", { skip: "wartet auf Gruppen-Fake-Live im Browser (fakelive.mjs, Strang F)" }, async () => {
+test("Skat live zu dritt (Gruppen-Live, Fake-Live): ein Link je Gast, ganze Partie, gleicher Endstand, axe 0 am Tisch", async () => {
   const net = fakeLive(), o = { view: "phone390", lang: "de" };
   const H = await open(b, { ...o, before: (ctx, p) => net.attach(ctx, p, "h") });
   await act(H.p, "open-tisch-skat"); await pickMode(H.p, "de", "live"); await act(H.p, "go");

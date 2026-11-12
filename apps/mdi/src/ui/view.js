@@ -3,13 +3,16 @@
 import { h } from "./dom.js";
 import { machine } from "../app/machine.js";
 import { texts, fmt } from "../app/texts.js";
-import { cardOf, ORDER, modesOf } from "../cards/index.js";
+import { cardOf, ORDER, modesOf, manifestOf } from "../cards/index.js";
 import * as G from "../app/game.js";
 import * as S from "../contract/session.js";
 import { rng } from "../contract/sdk.js";
 import { render } from "../render/render.js";
 import { LEVELS } from "../bot/ismcts.js";
 import { stilView, stilActions } from "./stil-view.js";
+// Strang K (Uebergang bis H die Slots in src/ui/home/slots.js anbietet): freie Karte, Deck, KI-Bild, KI-Arten
+import { freiView, freiEntry, kiButton } from "../features/frei/view.js";
+import { ft } from "../features/frei/texts.js";
 
 export function leaf(state) {
   const l = state.config.filter((s) => s.startsWith("inhalt."));
@@ -17,17 +20,27 @@ export function leaf(state) {
 }
 function seatName(card, lang, seat) { const s = card.manifest.seats; return s ? (s[lang] || s.de)[seat] : String(seat + 1); }
 function title(card, lang) { return card.manifest.title[lang] || card.manifest.title.de; }
+// Regal: Metadaten ohne geladene Karte (Karten sind nachladbare Teile, ADR 0001 Nachtrag 2)
+function titleOf(id, lang) { const m = manifestOf(id); return m.title[lang] || m.title.de; }
 
 /** Aktionen je Zustand – Grundlage fuer Knoepfe und fuer den Disclosure-Test. */
 export function actionsOf(state) {
   const ctx = state.ctx, X = texts(ctx.lang, ctx.pref && ctx.pref.easy), L = leaf(state);
   if (L.startsWith("stil.")) return stilActions(state, X, L);
+  if (L.startsWith("frei.")) return freiView(state, X, () => {}, L).actions;
   const a = (id, label, ev) => ({ id, label, ev: typeof ev === "string" ? { type: ev } : ev });
   // Ohne Teilen-Menue wird Kopieren die Hauptaktion (Kritikrunde 3); nach dem Kopieren: gesendet melden
   const send = (label) => (ctx.shareFailed && !ctx.copied ? a("copy", X.copyLink, "COPY") : ctx.copied ? null : a("share", label, "SHARE"));
   switch (L) {
-    case "shelf": return { primary: a("open-" + ORDER[0], title(cardOf(ORDER[0]), ctx.lang), { type: "OPEN", id: ORDER[0] }), secondary: ORDER.slice(1).map((id) => a("open-" + id, title(cardOf(id), ctx.lang), { type: "OPEN", id })) };
-    case "card.view": return { primary: a("go", G.card(ctx).manifest.mode === "static" ? X.goSend : X.go, "GO"), secondary: [a("customize", X.customize, "CUSTOMIZE")] };
+    case "shelf": return { primary: a("open-" + ORDER[0], titleOf(ORDER[0], ctx.lang), { type: "OPEN", id: ORDER[0] }), secondary: ORDER.slice(1).map((id) => a("open-" + id, titleOf(id, ctx.lang), { type: "OPEN", id })) };
+    case "partfail": return { primary: a("retry", X.retry, "RETRY"), secondary: [a("to-shelf", X.toShelf, "BACK")] };
+    case "card.view": {
+      const c = G.card(ctx), sec = [a("customize", X.customize, "CUSTOMIZE")];
+      // Strang K: Robot (eigene Karte daraus) fuer jede Karte mit Adapter; Melden fuer eine freie Karte mit Siegel
+      if (typeof c.toFree === "function") sec.push(a("robot", ft(ctx.lang, "create_robot_h"), "ROBOT"));
+      if (ctx.cardId === "frei" && G.paramsOf(ctx).seal) sec.push(a("melden", ft(ctx.lang, "deck_report"), "MELDEN"));
+      return { primary: a("go", c.manifest.mode === "static" ? X.goSend : X.go, "GO"), secondary: sec };
+    }
     case "card.customize.bubbles": return { primary: a("done", X.done, "DONE"), secondary: [] };
     case "card.customize.dialog": return { primary: a("close", X.done, "CLOSE"), secondary: [] };
     case "card.share": return ctx.link && send(X.shareLink) ? { primary: send(X.shareLink), secondary: [a("done", X.done, "DONE")] } : { primary: a("done", X.done, "DONE"), secondary: [] };
@@ -40,6 +53,11 @@ export function actionsOf(state) {
       if (ctx.mode === "link" && ctx.link && !ctx.sent && send(X.sendResult)) return { primary: send(X.sendResult), secondary: [a("again", X.again2, "AGAIN")] };
       return { primary: a("again", X.again2, "AGAIN"), secondary: [] };
     case "card.play.error": return { primary: a("back", X.back, "BACK"), secondary: [] };
+    // Gruppe: Platz frei geworden (ADR 0001 Nachtrag 3) – neu einladen, dann teilen
+    case "card.play.vacant": {
+      const inv = ctx.raum && ctx.raum.invites ? (ctx.vacant || []).map((s) => ctx.raum.invites[s]).filter(Boolean) : [];
+      return inv.length ? { primary: send(X.inviteSend), secondary: [a("back", X.back, "BACK")] } : { primary: a("reinvite", X.reinvite, "REINVITE"), secondary: [a("back", X.back, "BACK")] };
+    }
     // Echtzeit (ADR 0001 b, Strang F): Spielen ist die Handlung; nach dem Ende Nochmal und Geist teilen
     case "card.rt.over":
       if (ctx.link && !ctx.sent && send(X.ghostSend)) return { primary: a("again", X.again2, "AGAIN"), secondary: [send(X.ghostSend)] };
@@ -62,7 +80,7 @@ function radios(name, label, items, value, onPick) {
 }
 
 // Der Link selbst ist Rueckfall: zugeklappt, ausser Teilen ging nicht (dann offen mit Hinweis)
-function linkBox(X, link, ctx, dispatch) {
+function linkBox(X, link, ctx, dispatch, suffix = "") {
   // Rueckfall ohne Teilen-Menue: ein Knopf kopiert mit einem Tipp (Kritikrunde 2); markieren nur, wenn auch das scheitert
   const url = linkUrl(link), info = ctx.copied ? X.copied : ctx.copyFailed ? X.copyFail : ctx.shareFailed ? X.shareFail : null;
   return h("div", { class: "linkbox" },
@@ -70,7 +88,7 @@ function linkBox(X, link, ctx, dispatch) {
     info ? h("p", { class: "hint strong", role: "status", key: "info" }, info) : null,
     h("details", { class: "linkdetails", key: "details", open: ctx.copyFailed ? true : null },
       h("summary", null, X.shareTitle),
-      h("input", { id: "linkfield", class: "linkfield", type: "text", readonly: true, "aria-label": X.shareTitle, value: url, on: { focus: (e) => e.target.select() } })));
+      h("input", { id: "linkfield" + suffix, class: "linkfield", type: "text", readonly: true, "aria-label": X.shareTitle, value: url, on: { focus: (e) => e.target.select() } })));
 }
 export function linkUrl(fragment) {
   const loc = typeof location !== "undefined" ? location : { href: "https://example.invalid/" };
@@ -123,7 +141,8 @@ export function view(state, dispatch, env = {}) {
   const acts = actionsOf(state);
   const canBack = machine.send(state, { type: "BACK" }).consumed;
   const card = ctx.cardId ? cardOf(ctx.cardId) : null;
-  const heading = L === "stil.start" ? X.stil : L === "stil.daten" ? X.k.data : L === "stil.widerspruch" ? X.k.appealTitle : card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang) : X.app;
+  const fv = L.startsWith("frei.") ? freiView(state, X, dispatch, L) : null;
+  const heading = fv ? fv.heading : L === "stil.start" ? X.stil : L === "stil.daten" ? X.k.data : L === "stil.widerspruch" ? X.k.appealTitle : card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang) : X.app;
   const btn = (act, cls) => h("button", { type: "button", class: "btn " + cls, key: act.id, "data-act": act.id, on: { click: () => dispatch(act.ev) } }, act.label);
 
   const head = h("header", { class: "bar", key: "bar" },
@@ -137,12 +156,14 @@ export function view(state, dispatch, env = {}) {
   const tree = card ? G.previewNode(card, G.paramsOf(ctx), ctx.lang, G.viewCtx(ctx)) : null;
   const preview = tree ? render(tree, { onInput: () => {}, disabled: true, idp: "pv", lang: ctx.lang, high: env.high, images: env.images, cardSvg: env.cardSvg }) : null;
 
-  if (L.startsWith("stil.")) {
+  if (fv) {
+    body = fv.body; panel = fv.panel;
+  } else if (L.startsWith("stil.")) {
     const r = stilView(state, X, dispatch, L);
     body = r.body; panel = r.panel;
   } else if (L === "shelf") {
-    body = [h("p", { class: "lede" }, X.today), h("div", { class: "shelf" }, ORDER.map((id, i) => {
-      const c = cardOf(id), prim = i === 0;
+    body = [ctx.loading ? h("p", { class: "status", role: "status", key: "loading" }, X.loadingCard) : null, h("p", { class: "lede" }, X.today), freiEntry(state, X, dispatch), h("div", { class: "shelf" }, ORDER.map((id, i) => {
+      const c = { manifest: manifestOf(id) }, prim = i === 0;
       return h("button", { type: "button", key: id, class: "shelf-card " + (prim ? "primary" : "secondary"), "data-act": "open-" + id, on: { click: () => dispatch({ type: "OPEN", id }) } },
         h("span", { class: "sc-kicker" }, prim ? X.today : X.more),
         h("span", { class: "sc-title" }, title(c, ctx.lang)),
@@ -159,12 +180,13 @@ export function view(state, dispatch, env = {}) {
     }
     if (ctx.mode === "bot") panel.push(radios("level", X.level, LEVELS.map((l, i) => ({ value: l.id, label: X.levels[i] })), ctx.level, (level) => dispatch({ type: "LEVEL", level })));
     if (ctx.mode === "live") panel.push(h("p", { class: "hint", key: "ip" }, X.ipHint));
-    if (ctx.note) panel.push(h("p", { class: "note", role: "status", key: "note" }, X.note[ctx.note]));
+    if (ctx.note) panel.push(h("p", { class: "note", role: "status", key: "note" }, String(ctx.note).startsWith("frei-") ? freiNote(ctx) : X.note[ctx.note]));
   } else if (L.startsWith("card.customize")) {
     body = [stage(preview, { class: "stage editing" }), h("p", { class: "hint center" }, X.bubblesHint)];
   } else if (L === "card.share") {
     body = [stage(preview)];
     panel.push(ctx.link ? linkBox(X, ctx.link, ctx, dispatch) : h("p", { class: "warn", role: "alert" }, X.linkTooLong));
+    if (ctx.note === "frei-remix") panel.push(h("p", { class: "note", role: "status", key: "remix" }, freiNote(ctx)));   // Strang K
   } else if (L === "card.lobby") {
     const r = ctx.raum || {};
     body = [h("div", { class: "notice" },
@@ -172,7 +194,7 @@ export function view(state, dispatch, env = {}) {
       r.error ? h("p", { class: "warn", role: "alert" }, X.reasons[r.error] || X.reasons.verbindung) : h("p", { role: "status" }, r.step && r.step !== "open" ? X.steps[r.step] || X.lobbyWait : (r.inviteLink ? (ctx.copied || ctx.sent ? X.lobbyWait : X.lobbySend) : X.steps.open)),
       // Gruppe: ein Einladungslink je Gastsitz (ADR 0001 f, Stufe 2)
       r.invites && Object.keys(r.invites).length > 1 && !r.error
-        ? Object.keys(r.invites).sort().map((seat) => h("div", { class: "invite", key: "inv-" + seat }, h("p", { class: "seat" }, fmt(X.yourTurnAs, { s: seatName(card, ctx.lang, Number(seat)) }).replace(/^[^:]*:?/, "") || seatName(card, ctx.lang, Number(seat)), (r.up || []).includes(Number(seat)) ? " ✓" : ""), linkBox(X, r.invites[seat], ctx, dispatch)))
+        ? Object.keys(r.invites).sort().map((seat) => h("div", { class: "invite", key: "inv-" + seat }, h("p", { class: "seat" }, fmt(X.yourTurnAs, { s: seatName(card, ctx.lang, Number(seat)) }).replace(/^[^:]*:?/, "") || seatName(card, ctx.lang, Number(seat)), (r.up || []).includes(Number(seat)) ? " ✓" : ""), linkBox(X, r.invites[seat], ctx, dispatch, "-" + seat)))
         : r.inviteLink && !r.error ? linkBox(X, r.inviteLink, ctx, dispatch) : null,
       h("p", { class: "hint" }, X.ipHint))];
   } else if (L.startsWith("card.play")) {
@@ -181,6 +203,10 @@ export function view(state, dispatch, env = {}) {
     else if (phase === "cover") {
       const s = seatName(card, ctx.lang, G.gameStatus(ctx).turn);
       body = [h("div", { class: "notice cover" }, h("h2", { class: "t-title" }, X.coverTitle), h("p", null, fmt(X.coverText, { s })))];
+    } else if (phase === "vacant") {
+      const r = ctx.raum || {};
+      body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.vacantTitle), h("p", { role: "status" }, fmt(X.vacantText, { s: (ctx.vacant || []).map((q) => seatName(card, ctx.lang, q)).join(", ") })),
+        ...(ctx.vacant || []).filter((q) => r.invites && r.invites[q]).map((q) => h("div", { class: "invite", key: "vac-" + q }, h("p", { class: "seat" }, seatName(card, ctx.lang, q) + ((r.up || []).includes(q) ? " ✓" : "")), linkBox(X, r.invites[q], ctx, dispatch, "-v" + q))))];
     } else if (phase === "error") {
       body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.errTitle), h("p", { class: "warn", role: "alert" }, X.reasons[ctx.error] || X.reasons["zug-ungueltig"]))];
     } else {
@@ -188,7 +214,7 @@ export function view(state, dispatch, env = {}) {
       const obs = S.observe(card, ctx.session, seat);
       const node = card.view(obs, seat, G.viewCtx(ctx));
       // Widget-Host (ADR 0001 c, Strang F): Entwurf, Aktionen, Geraetedienste
-      const live = render(node, { onInput: (input) => dispatch({ type: "INPUT", input }), onDraft: (draft) => dispatch({ type: "DRAFT", draft }), onDraftPatch: (patch) => dispatch({ type: "DRAFT", patch }), high: env.high, onAction: (x) => dispatch({ type: "ACT", ...x }), onPrepare: (n) => dispatch({ type: "PREPARE", draft: n && n.draft !== undefined ? n.draft : undefined }), draft: ctx.draft, lang: ctx.lang, age18: G.viewCtx(ctx).age18, nick: G.viewCtx(ctx).nick, disabled: phase !== "turn", idp: "g", random: env.random, clock: env.clock, audio: env.audio, cardSvg: env.cardSvg, images: env.images, reduced: env.reduced });
+      const live = render(node, { onInput: (input) => dispatch({ type: "INPUT", input }), onDraft: (draft) => dispatch({ type: "DRAFT", draft }), onDraftPatch: (patch) => dispatch({ type: "DRAFT", patch }), high: env.high, onAction: (x) => dispatch({ type: "ACT", ...x }), onMemo: (memo) => dispatch({ type: "MEMO", memo }), onPrepare: (n) => dispatch({ type: "PREPARE", draft: n && n.draft !== undefined ? n.draft : undefined }), draft: ctx.draft, lang: ctx.lang, age18: G.viewCtx(ctx).age18, nick: G.viewCtx(ctx).nick, disabled: phase !== "turn", idp: "g", random: env.random, clock: env.clock, audio: env.audio, cardSvg: env.cardSvg, images: env.images, reduced: env.reduced });
       const lines = [];
       if (card.manifest.players.max > 1 && ctx.mode !== "alone") lines.push(h("p", { class: "seat", key: "seat" }, fmt(X.yourSeat, { s: seatName(card, ctx.lang, seat) })));
       if (phase === "wait") lines.push(h("p", { class: "status", role: "status", key: "st" }, ctx.mode === "bot" ? X.waitBot : ctx.mode === "link" ? X.waitLink : X.waitLive));
@@ -217,6 +243,9 @@ export function view(state, dispatch, env = {}) {
     if (L === "card.rt.error") lines.push(h("div", { class: "notice", key: "err" }, h("h2", { class: "t-title" }, X.errTitle), h("p", { class: "warn", role: "alert" }, X.reasons[ctx.error] || X.reasons["zug-ungueltig"])));
     body = [...lines, env.stage ? env.stage.stageNode(L, dispatch, ctx.lang) : h("p", { class: "warn", role: "alert", key: "nohost" }, X.rtNoHost)];
     if (L === "card.rt.over" && ctx.link) panel.push(linkBox(X, ctx.link, ctx, dispatch));
+  } else if (L === "partfail") {
+    const f = ctx.partFail || {};
+    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.partFailTitle), h("p", { class: "warn", role: "alert", "data-reason": f.reason }, X.partFail[f.reason] || X.partFail["teil-fehlt"]))];
   } else if (L === "receive.show") {
     const inc = ctx.incoming, c = cardOf(inc.cardId);
     if (inc.kind === "ghost") body = [h("div", { class: "notice" }, h("p", { class: "lede plain" }, X.ghostText), h("h2", { class: "t-title" }, title(c, ctx.lang)), h("p", null, fmt(X.ghostScore, { s: inc.score.join(" : ") })), h("p", { class: "hint" }, X.free))];
@@ -231,7 +260,7 @@ export function view(state, dispatch, env = {}) {
         h("p", { class: "hint" }, X.free))];
     }
   } else if (L === "receive.reject") {
-    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.rejectTitle), h("p", { class: "warn", role: "alert", "data-reason": ctx.reason }, X.reasons[ctx.reason] || ctx.reason), h("p", null, X.rejectAsk))];
+    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.rejectTitle), h("p", { class: "warn", role: "alert", "data-reason": ctx.reason }, X.reasons[ctx.reason] || (ctx.reason === "frei-gesperrt" ? ft(ctx.lang, "deck_gone") : ctx.reason === "frei-ungeprueft" ? ft(ctx.lang, "deck_nocheck") : ctx.reason === "frei-geaendert" ? ft(ctx.lang, "frei_changed") : ctx.reason)), h("p", null, X.rejectAsk))];
   } else if (L === "receive.live" || L === "receive.wait") {
     const r = ctx.raum || {};
     body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.liveInvite),
@@ -254,6 +283,15 @@ export function view(state, dispatch, env = {}) {
   return out;
 }
 
+// Strang K: Hinweise zur freien Karte in der Kartenansicht (uebernommen, aus dem Deck, Teilen gesperrt)
+function freiNote(ctx) {
+  if (ctx.note === "frei-remix") return ft(ctx.lang, "frei_remix");
+  if (ctx.note === "frei-own") return ft(ctx.lang, "create_robot_kept");
+  if (ctx.note === "frei-deck") return ft(ctx.lang, "deck_from");
+  if (ctx.note === "frei-share-no") return ft(ctx.lang, "frei_share_no", { x: ft(ctx.lang, "frei_st_" + (ctx.frei.share || "unknown")) });
+  return "";
+}
+
 function bubbleLayer(card, ctx, X, dispatch) {
   const dialog = !!ctx.part && ctx.part !== null;
   return h("div", { class: "bubbles", key: "bubbles", "aria-hidden": null },
@@ -274,5 +312,6 @@ function dialogLayer(card, ctx, X, dispatch, acts) {
         h("button", { type: "button", class: "icon", "aria-label": X.close, "data-act": "close-x", on: { click: () => dispatch({ type: "CLOSE" }) } }, "✕")),
       h("p", { class: "hint" }, X.dialogHint),
       fieldControls(card, part, G.paramsOf(ctx), X, ctx.lang, dispatch),
+      kiButton({ ctx }, X, (ev) => { dispatch({ type: "CLOSE" }); dispatch(ev); }, ctx.part),
       h("div", { class: "actions" }, h("button", { type: "button", class: "btn primary", "data-act": acts.primary.id, on: { click: () => dispatch(acts.primary.ev) } }, acts.primary.label))));
 }

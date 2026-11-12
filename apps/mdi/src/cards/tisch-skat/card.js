@@ -16,5 +16,7 @@ export default {
   view: (obs, seat, ctx) => tableView(T, manifest, obs, seat, ctx),
   // Bot (Strang F ruft ihn ueber den Bot-Agenten): Stufe 1 = Auto-Zug wie im Altcode, 2/3 = Regeln + ISMCTS
   bot: (obs, seat, opts) => botMove(T, obs, seat, opts),
+  // Auto-Zug nach 20 s im Live (Host-Zeitgeber, ADR 0001): der Auto-Zug des Altcodes (Regeln auto(), Stufe 1)
+  auto: (obs, seat) => botMove(T, obs, seat, { level: 1, seed: "auto" }),
   engine: T
 };

@@ -275,7 +275,7 @@ W.field = (n, host) => {
 W.go = (n, host, X) => {
   const id = (host.idp || "w") + "-go-why";
   return h("div", { class: "w-gobox", key: "go" },
-    h("button", { type: "button", class: "btn primary w-go", "data-act": "go-step", disabled: n.disabled || host.disabled ? true : null, "aria-describedby": n.disabled && n.why ? id : null, on: { click: () => !n.disabled && (n.prepare && host.onPrepare ? host.onPrepare(n) : host.onInput(n.input)) } }, txt(n.label || X.next, 40)),
+    h("button", { type: "button", class: "btn primary w-go", "data-act": "go-step", disabled: n.disabled || host.disabled ? true : null, "aria-describedby": n.disabled && n.why ? id : null, on: { click: () => { if (n.disabled) return; if (n.memo !== undefined && host.onMemo) host.onMemo(n.memo); if (n.prepare && host.onPrepare) host.onPrepare(n); else host.onInput(n.input); } } }, txt(n.label || X.next, 40)),
     n.disabled && n.why ? h("p", { class: "w-why", id }, txt(n.why)) : null);
 };
 W.link = (n) => {

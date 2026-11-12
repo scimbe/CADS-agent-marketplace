@@ -182,3 +182,17 @@ test("accepts: angetippte Karte ({...submit, a:0}) zaehlt als genau dieser Zug; 
   } });
   assert.equal(checked, 1);
 });
+
+test("auto: der Auto-Zug (Live-Zeitgeber) ist in jeder Lage ein legaler Zug und entspricht dem Auto-Zug des Altcodes", () => {
+  for (const game of ["skat", "doko", "bauernskat"]) {
+    const card = cardFor(game); let n = 0;
+    playAlone(game, { tag: "auto|" + game, params: { runden: 1, regeln: game === "skat" ? ["ramsch"] : [] }, chooser: (c, obs, seat) => {
+      const m = card.auto(obs, seat), legal = c.moves(obs, seat);
+      assert.ok(legal.some((x) => JSON.stringify(x) === JSON.stringify(m)), game + ": " + JSON.stringify(m));
+      const old = autoChooser()(c, obs, seat).input;
+      if (m.t !== "push") assert.deepEqual(m, old, game + ": wie Altcode");
+      n++; return { input: m };
+    } });
+    assert.ok(n > 3);
+  }
+});

@@ -1,18 +1,19 @@
 // Laufzeit: haelt den Zustand der Statechart, fuehrt deren Effekte aus und meldet Aenderungen an die Ansicht.
 // Keine globalen Singletons (A1): alles kommt als Abhaengigkeit herein (Broker, Speicher, Zufall, Planer).
 import { machine, initialContext, featureEffects } from "./machine.js";
-import { FEATURES } from "./features.js";
+import { FEATURES, featureNeeds } from "./features.js";
 import { chooseMove, LEVELS } from "../bot/ismcts.js";
 import * as S from "../contract/session.js";
 import { createRtSession } from "./rt/session.js";
+import * as G from "./game.js";
 import { fromB64url } from "../contract/trace.js";
-import { cardOf } from "../cards/index.js";
+import { cardOf, isLoaded, loadCard, manifestOf } from "../cards/index.js";
 import { createBotAgent } from "../bot/agent.js";
 import * as V from "../gen/validators.js";
 import { decode } from "./link.js";
 import { kontoSaved } from "./konto-chart.js";
 
-const EVENT_OF = { hello: "HELLO", join: "JOIN", start: "START", in: "PEER_IN", show: "SHOW", bye: "LIVE_DOWN", again: "PEER_AGAIN" };
+const EVENT_OF = { hello: "HELLO", join: "JOIN", start: "START", in: "PEER_IN", show: "SHOW", bye: "LIVE_DOWN", again: "PEER_AGAIN", void: "PEER_VOID" };
 // Echtzeit-Nachrichten gehen direkt an die laufende Sitzung, nicht durch die Statechart (60–120 je Sekunde)
 const RT_MSG = new Set(["rt", "rh", "rs", "pause", "resume"]);
 
@@ -40,6 +41,8 @@ export function createRuntime(deps) {
   if (!state.ctx.device) state = { ...state, ctx: { ...state.ctx, device: deps.entropy() } };
   let bot = null, live = null, liveGen = 0, rtSess = null, rtGen = 0;
   const lives = new Map(); // Gruppe: Gastsitz -> Kanal
+  const timers = new Map(); // benannte Zeitgeber (Auto-Zug); Uhr von aussen (deps.setTimer) oder setTimeout
+  const setTimer = deps.setTimer || ((ms, f) => setTimeout(f, ms)), clearTimer = deps.clearTimer || ((h) => clearTimeout(h));
   const rand = () => [deps.entropy(), deps.entropy(), deps.entropy(), deps.entropy()];
   const api = deps.api || null;
   // Netzaufrufe enden immer als Ereignis (die API wirft nicht); ein Programmfehler dahinter wird laut, nicht verschluckt
@@ -47,8 +50,31 @@ export function createRuntime(deps) {
   const fxTable = { ...featureEffects(FEATURES) };
   for (const [k, fn] of Object.entries(deps.effects || {})) { if (k in fxTable) throw new Error("Effekt doppelt: " + k); fxTable[k] = fn; }
 
+  // Karten, die ein Ereignis braucht (ADR 0001 Nachtrag 2): vorher laden; fehlt ein Teil, ehrlich melden (PART_FAIL)
+  function cardsFor(ev) {
+    let id = null;
+    if (ev.type === "OPEN") id = ev.id;
+    else if (ev.type === "ACT" && ev.act === "open") id = ev.card;
+    else if ((ev.type === "HELLO" || ev.type === "SHOW") && ev.msg) id = ev.msg.c;
+    else if (ev.type === "LINK") { const d = decode(ev.hash); if (d.ok && d.data && typeof d.data.c === "string") id = d.data.c; }
+    const ids = [...(typeof id === "string" ? [id] : []), ...featureNeeds(ev, state.ctx)];
+    return [...new Set(ids)].filter((x) => manifestOf(x) && !isLoaded(x));
+  }
   function dispatch(ev) {
     ev = typeof ev === "string" ? { type: ev } : { ...ev };
+    if (!ev.rand) ev.rand = rand();
+    if (ev.at === undefined) ev.at = now();
+    const need = deps.loadPart ? cardsFor(ev) : [];
+    if (need.length) {
+      dispatchNow({ type: "LOADING", id: need[0] });
+      Promise.all(need.map((id) => loadCard(id, deps.loadPart))).then(
+        () => dispatchNow(ev),
+        (e) => dispatchNow({ type: "PART_FAIL", id: need[0], reason: (e && e.code) || "teil-fehlt", retry: ev }));
+      return true;
+    }
+    return dispatchNow(ev);
+  }
+  function dispatchNow(ev) {
     if (!ev.rand) ev.rand = rand();
     if (ev.at === undefined) ev.at = now();
     state = { ...state, ctx: { ...state.ctx, today: Math.floor(ev.at / 86400000) } }; // UTC-Tag fuer view (ADR 0001 f)
@@ -93,12 +119,16 @@ export function createRuntime(deps) {
       case "bot.new":
         bot = createBotAgent(cardOf(state.ctx.cardId), { seat: fx.seat, level: fx.level, today: fx.today, entropy: deps.entropy, send: (m) => schedule(() => fromPeer(m)) });
         break;
+      case "live.drop": { const ch = lives.get(fx.seat); if (ch) { try { ch.close(); } catch (e) { /* zu */ } lives.delete(fx.seat); } break; }
+      case "timer.start": { if (timers.has(fx.id)) clearTimer(timers.get(fx.id)); const ev = fx.ev; timers.set(fx.id, setTimer(fx.ms, () => { timers.delete(fx.id); dispatch(ev); })); break; }
+      case "timer.cancel": if (timers.has(fx.id)) { clearTimer(timers.get(fx.id)); timers.delete(fx.id); } break;
       case "live.invite": case "live.accept": {
-        const gen = ++liveGen;
+        // Nachbesetzen (add): weitere Einladungen im selben Raum, bestehende Kanaele bleiben
+        const gen = fx.add ? liveGen : ++liveGen;
         deps.live().then((L) => {
           if (gen !== liveGen) return;
           if (fx.type === "live.accept") live = L.accept(fx.token, liveCallbacks(gen));
-          else if (Array.isArray(fx.seats) && fx.seats.length > 1) for (const seat of fx.seats) lives.set(seat, L.invite(liveCallbacks(gen, seat)));
+          else if (Array.isArray(fx.seats) && (fx.seats.length > 1 || fx.add)) for (const seat of fx.seats) lives.set(seat, L.invite(liveCallbacks(gen, seat)));
           else live = L.invite(liveCallbacks(gen));
         }).catch(() => gen === liveGen && dispatch({ type: "LIVE_FAIL", reason: "verbindung" }));
         break;
@@ -108,11 +138,14 @@ export function createRuntime(deps) {
         for (const ch of lives.values()) { try { ch.close(); } catch (e) { /* schon zu */ } }
         lives.clear();
         break;
-      case "store": deps.storage.saveGame(fx.entry); break;
+      // Eintraege behalten den Merkzettel der Partie (Z1), wenn ein neuer Stand gespeichert wird
+      case "store": { let old = null; try { old = deps.storage.loadGame(fx.entry.g); } catch (e) { old = null; } deps.storage.saveGame(old && old.memo && fx.entry.memo === undefined ? { ...fx.entry, memo: old.memo } : fx.entry); break; }
+      case "store.memo": { let old = null; try { old = deps.storage.loadGame(fx.g); } catch (e) { old = null; } if (old) deps.storage.saveGame({ ...old, memo: fx.memo }); else { const e = G.gameEntry(state.ctx.session, fx.g); deps.storage.saveGame({ ...e, memo: fx.memo }); } break; }
       // "shared" = Systemblatt abgeschlossen -> gesendet; "copied" = nur in der Zwischenablage; sonst Hinweis + Feld
       case "share": deps.share(fx.fragment).then((r) => dispatch({ type: r === "shared" ? "SENT" : r === "copied" ? "COPIED" : "SHARE_FAIL" })); break;
       case "copy": (deps.copy || (() => Promise.resolve(false)))(fx.fragment).then((ok) => dispatch({ type: ok ? "COPIED" : "COPY_FAIL" })); break;
       case "url.clear": deps.clearUrl(); break;
+      case "redispatch": schedule(() => dispatch({ ...fx.ev, at: undefined, rand: undefined })); break;
       // ---- Konto (Ergebnisse kommen als Ereignisse zurueck; ohne API ehrlich „nicht hier“) ----
       case "konto.status":
         later(async () => {

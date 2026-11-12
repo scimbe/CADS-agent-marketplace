@@ -30,8 +30,11 @@ export function checkInput(cardId, x) {
 }
 /** Kontext fuer view(obs, seat, ctx) – eine Quelle fuer Host-Ansichten (ADR 0001 f, Anfrage Z1). */
 export function viewCtx(ctx, extra = {}) {
-  const me = ctx.me || {}, konto = ctx.konto || {};
-  return { lang: ctx.lang, today: Number.isInteger(ctx.today) ? ctx.today : null, draft: ctx.draft === undefined ? null : ctx.draft, age18: konto.age18 === true || me.age18 === true, nick: typeof me.nick === "string" ? me.nick : "", ...extra };
+  const me = ctx.me || {}, konto = ctx.konto || {}, profil = ctx.profil || {};
+  // 18+ ist bestaetigt, wenn das Konto-Profil es traegt (nur ueber das Konto, nie ueber den Geraete-Code) oder der
+  // Server-Status es meldet (P1: konto-chart.js, api.js status karte.age18) – Quelle ist immer der Server (Z1)
+  const age18 = (profil.via === "account" && profil.age18 === true) || !!(konto.st && konto.st.karte && konto.st.karte.age18 === true);
+  return { lang: ctx.lang, today: Number.isInteger(ctx.today) ? ctx.today : null, draft: ctx.draft === undefined ? null : ctx.draft, memo: ctx.memo || null, age18, nick: typeof me.nick === "string" ? me.nick : "", ...extra };
 }
 export function continues(stored, w) {
   if (!stored || typeof stored.lh !== "string" || !Array.isArray(stored.k)) return "manipuliert";
@@ -177,7 +180,8 @@ export function receive(hash, stored, rand) {
     return { ok: true, kind: "ghost", cardId: d.data.c, params: d.data.p, wire: d.data, seat: v.seat, score: v.score };
   }
   if (d.type === "card") {
-    if (c.manifest.mode !== "static") return { ok: false, reason: "typ" };
+    // Karten-Link = Parameter einer Karte: statische Karten und Echtzeitkarten (gebautes Level, Variante, freie Karte)
+    if (c.manifest.mode === "turn") return { ok: false, reason: "typ" };
     return { ok: true, kind: "card", cardId: d.data.c, params: d.data.p };
   }
   if (c.manifest.mode === "static") return { ok: false, reason: "typ" };
@@ -232,6 +236,7 @@ export function receive(hash, stored, rand) {
 // ---------- Phasen fuer SYNC ----------
 export function phase(ctx) {
   if (ctx.error) return "error";
+  if (Array.isArray(ctx.vacant) && ctx.vacant.length) return "vacant";
   if (!ctx.session) return "hand";
   const st = gameStatus(ctx), mine = mySeats(ctx), log = ctx.session.log;
   // Link: senden, wenn mein letzter Zug noch nicht unterwegs ist – oder wenn ich die Partie eroeffne und der
