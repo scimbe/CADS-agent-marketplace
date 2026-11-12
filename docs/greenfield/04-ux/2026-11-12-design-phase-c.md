@@ -269,3 +269,12 @@ Für jedes Spiel gibt es Start mit Blasen, im Spiel, Ende (390 px) und Desktop (
 - **Regeltext:** Der Flipper-Text kommt aus der Engine (`arcade.json` `arc_how_flipper`): „Tipp links oder rechts: die Klappe schlägt. Lass den Ball nicht durch die Lücke.“
 - **Farben:** Ab Werk gelten die Farben der alten App (Flipper #00F0FF für die eigene Seite, #B04BFF für den Gegner, aus `arcade-ui.js` META). Die Familienfarben gibt es nur als Anpassung (`colA`/`colB`). Grund: Der User mochte die alten Spiele. Text steht nie direkt auf Neon.
 - **Umgesetzt auf `feat/mdi-w1-a4`:** Bedienung ohne Wischen in allen 10 Arcade-Spielen. „Gemütlich“ (`comfort`): Zeitlupe 50 %, Doppeltipp-Schutz 0,3 s, der Flipper bleibt oben, solange man drückt. Am Ende je drei Kennzahlen. Blasen-Ziele aus `manifest.parts`.
+
+**Kennzahlen am Ende (Canvas Version 54):**
+- Die Endbildschirme der Arcade-Spiele zeigen unter jedem Wert den erklärenden Satz aus `status.stats[].hint` von Strang A (de/en).
+- Darstellung: als Block unter der Zahl, 14 px × `--scale`, normale Stärke, #CFC7B0 auf der Bühne (etwa 10:1).
+  Beispiele: „Längster Ballwechsel: Die meisten Ballberührungen am Stück, bevor ein Punkt fiel.“ und für Elfer „Paraden: So oft hast du als Torwart den Ball gehalten.“
+- Die Arcade-Kennzahlen auf der Canvas sind an die Engine angeglichen: Ballspiele zeigen Ballkontakte, Längster Ballwechsel, Spielzeit; Schuss- und Wurfspiele Schüsse/Würfe, Punkte, Spielzeit; Elfer Tore, Paraden, Spielzeit.
+- Boards: FlipperEnde und GArcadeEnde.
+- Stand der Engine: `feat/mdi-w1-a4` @ a66869d6.
+- Anzeige im Endbildschirm des Hosts: H/F.
