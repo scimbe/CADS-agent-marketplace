@@ -264,3 +264,8 @@ Für jedes Spiel gibt es Start mit Blasen, im Spiel, Ende (390 px) und Desktop (
 - **Varianten-Chips beim Lava-Flug:** Klassisch = spiel-lava, Mond = spiel-mond, Unterwasser = spiel-tiefsee, Nacht = spiel-geist. Die übrigen 12 Varianten bleiben im Regal.
 - **Regler-Wörter:** Es gelten die Stufennamen aus dem Altcode (Schwere: Mond … Jupiter; Lücke: sehr eng … sehr weit), dazu −/+ als Tipp-Alternative und `aria-valuetext`.
 - **Wortwahl:** „Geist“ steht nirgends als Bedienwort, die Oberfläche sagt „Aufnahme“.
+
+**Abstimmung mit Strang A (Canvas Version 53):**
+- **Regeltext:** Der Flipper-Text kommt aus der Engine (`arcade.json` `arc_how_flipper`): „Tipp links oder rechts: die Klappe schlägt. Lass den Ball nicht durch die Lücke.“
+- **Farben:** Ab Werk gelten die Farben der alten App (Flipper #00F0FF für die eigene Seite, #B04BFF für den Gegner, aus `arcade-ui.js` META). Die Familienfarben gibt es nur als Anpassung (`colA`/`colB`). Grund: Der User mochte die alten Spiele. Text steht nie direkt auf Neon.
+- **Umgesetzt auf `feat/mdi-w1-a4`:** Bedienung ohne Wischen in allen 10 Arcade-Spielen. „Gemütlich“ (`comfort`): Zeitlupe 50 %, Doppeltipp-Schutz 0,3 s, der Flipper bleibt oben, solange man drückt. Am Ende je drei Kennzahlen. Blasen-Ziele aus `manifest.parts`.
