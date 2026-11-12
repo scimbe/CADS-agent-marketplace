@@ -379,3 +379,28 @@ textarea.input { resize: vertical; }
 @media (prefers-reduced-motion: reduce) { .h-loading::before { animation: none; border-right-color: var(--ink); } }
 .s-partfail .notice { background: var(--gelb-hell); color: var(--ink); border-color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
 .s-partfail .notice .warn { color: var(--rot); }
+
+/* Gate C: beschriftete Kopfknoepfe (Mein Regal, Mein Stil), gross hervorgehobene "Eigene Karte" mit Satzfeld */
+.h-headbtn { min-width: var(--tap); min-height: var(--tap); display: inline-grid; justify-items: center; align-content: center; gap: 1px; padding: 2px 4px; border: 0; background: transparent; color: var(--ink); font: 700 .8125rem/1.05 var(--font-body); cursor: pointer; border-radius: 12px; }
+.h-headbtn-i { position: relative; display: grid; place-items: center; width: 30px; height: 26px; font-size: 1.25rem; line-height: 1; }
+.h-headbtn .h-ico { width: 26px; height: 26px; fill: var(--ink); }
+.h-headbtn .h-meins-n { right: -10px; top: -6px; }
+.h-headbtn-t { white-space: nowrap; }
+.h-hero { display: grid; gap: var(--s2); margin-top: var(--s4); padding: var(--s4); border: 3px solid var(--ink); border-radius: 18px; color: var(--ink);
+  background: repeating-linear-gradient(-45deg, var(--gelb) 0 16px, var(--gelb-hell) 16px 32px); box-shadow: 6px 6px 0 var(--ink); }
+.h-hero-head { display: flex; align-items: center; gap: var(--s2); }
+.h-hero-head .h-ico { width: 34px; height: 34px; fill: var(--ink); }
+.h-hero-t { margin: 0; font: 400 clamp(1.75rem, 8vw, 2.25rem)/1 var(--font-head); text-transform: uppercase; }
+.h-hero-s { margin: 0; font-weight: 700; font-size: var(--t-m); }
+.h-hero-form { display: flex; gap: var(--s2); align-items: stretch; min-height: 56px; padding: 4px 4px 4px 14px; border: 3px solid var(--ink); border-radius: 16px; background: var(--sheet); }
+.h-hero-form .h-input { color: var(--ink); }
+.h-hero-form:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+.h-hero-go { min-width: 108px; min-height: var(--tap); border: 0; border-radius: 12px; background: var(--ink); color: var(--gelb); font: 400 1.25rem/1 var(--font-head); text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 0 var(--signal); }
+.h-hero-n { margin: 0; font-size: var(--t-s); font-weight: 600; }
+
+/* Ks Einstieg im Regal, schlanke Form (freiEntry compact): gelb gestreifte Zeile wie Board "Regal" */
+.frei-entry.compact { display: grid; gap: var(--s1); }
+.frei-row { display: flex; align-items: center; gap: var(--s3); width: 100%; min-height: 64px; padding: 8px 14px; border: 3px solid var(--ink); border-radius: 14px; color: var(--ink); text-align: left; cursor: pointer;
+  background: repeating-linear-gradient(-45deg, var(--gelb) 0 14px, var(--gelb-hell) 14px 28px); box-shadow: 4px 4px 0 var(--ink); }
+.frei-row-t { flex: 1; font: 800 var(--t-m)/1.2 var(--font-body); }
+.frei-row-arrow { font: 800 1.5rem/1 var(--font-body); }

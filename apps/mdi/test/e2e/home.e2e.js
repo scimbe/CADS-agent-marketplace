@@ -74,3 +74,12 @@ test("Jede Karte im Register oeffnet aus dem Regal und zeigt ihre Vorschau (alle
   }
   assert.deepEqual(errs, [], "keine Seitenfehler");
 });
+
+test("Gate C: Satz in der eigenen Karte fuehrt direkt in die freie Karte (FREI mit Satz)", async () => {
+  const { p, errs } = await open(b, { view: "phone390" });
+  await p.locator("#frei-satz").fill("Quiz über unsere Klassenfahrt");
+  await act(p, "frei-go");
+  await p.locator("main:not(.h-at-day)").waitFor();
+  assert.ok(!(await p.locator("main.s-shelf").count()) || (await p.locator("main.h-at-eigene").count()), "weg vom Kalenderblatt");
+  assert.deepEqual(errs, []);
+});

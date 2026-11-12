@@ -35,7 +35,7 @@ export function dayPrimary(ctx) {
 }
 
 function freiEntry(state, X, dispatch, where) {
-  if (SLOTS.freiEntry) return SLOTS.freiEntry(state, X, dispatch);
+  if (SLOTS.freiEntry) return SLOTS.freiEntry(state, X, dispatch, where === "regal" ? { compact: true } : undefined);
   return h("button", { type: "button", class: "h-frei", key: "frei-" + where, "data-act": "frei", on: { click: () => dispatch({ type: "HOME", to: "eigene" }) } },
     icon("plus", "h-ico"), h("span", { class: "h-frei-t" }, h("span", { class: "h-frei-k" }, X.own.t), h("span", { class: "h-frei-s" }, X.own.s)));
 }
@@ -101,6 +101,20 @@ function section(title, kids, o = {}) {
     h("h2", { class: "h-sec-h", id: o.id }, o.fam ? h("span", { class: "h-dot fam-" + o.fam, "aria-hidden": "true" }) : null, title, o.count !== undefined ? h("span", { class: "h-count" }, String(o.count)) : null), kids);
 }
 
+// Gate C (User): "Eigene Karte" gross und mit Satzfeld direkt auf dem Start. Aus dem Satz baut die freie Karte (Strang K)
+// eine ganz neue Karte oder ein neues Spiel; das Feld ist nur Eingabe, der Satz geht beim Absenden mit FREI {text} an K.
+function freiHero(state, X, dispatch) {
+  const go = (text) => dispatch(SLOTS.freiEntry ? { type: "FREI", text } : { type: "HOME", to: "eigene" });
+  return h("section", { class: "h-hero", key: "hero", "aria-labelledby": "h-hero-t" },
+    h("div", { class: "h-hero-head" }, icon("plus", "h-ico"), h("h2", { class: "h-hero-t", id: "h-hero-t" }, X.hero.t)),
+    h("p", { class: "h-hero-s" }, X.hero.s),
+    h("form", { class: "h-hero-form", on: { submit: (e) => { e.preventDefault(); const f = e.target.elements.namedItem("frei-satz"); go(f ? String(f.value || "").trim().slice(0, 300) : ""); } } },
+      h("label", { class: "visually-hidden", for: "frei-satz" }, X.hero.label),
+      h("input", { id: "frei-satz", name: "frei-satz", class: "h-input", type: "text", autocomplete: "off", maxlength: "300", placeholder: X.hero.ph }),
+      h("button", { type: "submit", class: "h-hero-go", "data-act": "frei-go" }, X.hero.go)),
+    h("p", { class: "h-hero-n" }, X.hero.note));
+}
+
 // "Diese Woche im Kalender" (Board Desktop): die letzten 6 Blaetter als Kacheln; die ganze Historie steht im Regal (Letzte Tage)
 function weekRow(ctx, X, dispatch) {
   const days = R.lastDays(new Date(ctx.today * R.DAY), 6, caps());
@@ -128,7 +142,7 @@ function dayView(state, X, dispatch) {
     h("div", { class: "h-top", key: "top" },
       // Raster wie Board Start/Desktop: Blatt | Hauptknopf | Satz, Absichten, Diese Woche (ab 900 px: Blatt links, rechts oben der Knopf)
       h("div", { class: "h-top-a" }, known ? sheet(ctx, X, dispatch) : h("p", { class: "h-wait", role: "status", key: "wait" }, "…")),
-      p ? h("div", { class: "h-top-go" }, primaryBtn(p, dispatch)) : null,
+      p ? h("div", { class: "h-top-go" }, primaryBtn(p, dispatch), freiHero(state, X, dispatch)) : h("div", { class: "h-top-go" }, freiHero(state, X, dispatch)),
       h("div", { class: "h-top-b" }, sentenceForm(ctx, X, dispatch), intents(state, X, dispatch), known ? weekRow(ctx, X, dispatch) : null))
   ];
 }
@@ -286,6 +300,8 @@ export function homeView(state, dispatch) {
 /** Knopf "Meins" fuer die Kopfzeile (neben Mein Stil). */
 export function meinsButton(state, dispatch) {
   const ctx = state.ctx, X = homeTexts(ctx.lang, ctx.pref && ctx.pref.easy), n = ctx.mine.wall.length + ctx.mine.invites.length + ctx.mine.saved.length;
-  return h("button", { type: "button", class: "icon h-meins", key: "meins", "aria-label": X.meinsOpen + (n ? " (" + n + ")" : ""), "data-act": "meins", on: { click: () => dispatch({ type: "HOME", to: "meins" }) } }, icon("grid", "h-ico"), n ? h("span", { class: "h-meins-n", "aria-hidden": "true" }, String(n)) : null);
+  // Gate C: "Mein Regal" mit Symbol und sichtbarem Namen (Board Start: beschriftete Kopfknoepfe)
+  return h("button", { type: "button", class: "h-headbtn h-meins", key: "meins", "aria-label": X.meinsOpen + (n ? " (" + n + ")" : ""), "data-act": "meins", on: { click: () => dispatch({ type: "HOME", to: "meins" }) } },
+    h("span", { class: "h-headbtn-i", "aria-hidden": "true" }, icon("regal", "h-ico"), n ? h("span", { class: "h-meins-n" }, String(n)) : null), h("span", { class: "h-headbtn-t", "aria-hidden": "true" }, X.meins));
 }
 export { UNDO_MS };

@@ -1,5 +1,5 @@
 // Zustaende der Heimseite (Strang H) fuer axe, Verdeckung, Ueberlauf und Screenshots: Kalenderblatt heute und geblaettert,
-// Satz verstanden, Familienseite, Regal (Alles, Suche, Filter, Letzte Tage, Von anderen), Meins (Wand, Einladungen,
+// Satz verstanden, Familienseite, Regal (Alles, Suche, Filter, Letzte Tage, Von anderen), Mein Regal (Wand, Einladungen,
 // Gemerkt) mit Inhalt, Eigene Karte. Endet wieder auf dem Kalenderblatt von heute.
 import { act } from "./grund.mjs";
 

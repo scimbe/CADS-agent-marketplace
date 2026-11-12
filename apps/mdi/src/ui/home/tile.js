@@ -15,7 +15,9 @@ export const SHAPE_PATH = {
   coin: "M50 8a42 42 0 1 0 0.1 0z",
   ring: "M50 14a36 36 0 1 0 0.1 0zM50 34a16 16 0 1 1-0.1 0z",
   grid: "M10 10h34v34H10zM56 10h34v34H56zM10 56h34v34H10zM56 56h34v34H56z",
-  plus: "M40 8h20v32h32v20H60v32H40V60H8V40h32z"
+  plus: "M40 8h20v32h32v20H60v32H40V60H8V40h32z",
+  // Mein Regal: Brett mit drei Buechern (Gate C)
+  regal: "M8 84h84v8H8zM14 30h14v52H14zM32 20h14v62H32zM52 38l13-5 18 47-13 5z"
 };
 export function icon(shape, cls = "h-ico") {
   return h("svg", { class: cls, viewBox: "0 0 100 100", "aria-hidden": "true", focusable: "false" }, h("path", { d: SHAPE_PATH[shape] || SHAPE_PATH.star }));
