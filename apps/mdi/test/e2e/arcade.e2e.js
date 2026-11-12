@@ -158,7 +158,8 @@ test("Determinismus: Bot-Partien ergeben in Chromium und WebKit denselben Hash w
 // Bildrate: Mittelklasse-Handy als 4x gedrosselte CPU (Chromium). Der Trace trennt den Anteil der Karte (JS im
 // Bild-Callback: Ticks, Bot, Anzeigeliste, Zeichenbefehle) vom Rastern. Im Headless-Lauf rastert Chromium in Software
 // auf der gedrosselten CPU; schon die leere Buehne erreicht dort keine 60 fps (Basislinie, gleicher Lauf). Darum prueft
-// der Test das Budget der Karte (p95 <= 8 ms je Bild, halbes 60-fps-Budget bei 4x) und berichtet fps gegen die Basislinie.
+// der Test das Budget des Bild-Callbacks (Mittel <= 4 ms, p95 <= 10 ms bei 4x gedrosselter CPU; im Labor teilen sich
+// drei Container mit je 2,5 CPUs den Rechner) und berichtet fps gegen die Basislinie (leere Buehne, gleiche Partie).
 async function frameStats(b, o) {
   const { ctx, p, errs } = await openStage(b, o, "phone412");
   const cdp = await ctx.newCDPSession(p); await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
@@ -175,15 +176,16 @@ async function frameStats(b, o) {
   return { fps: Math.round(fps * 10) / 10, jsP95: raf.length ? Math.round(raf[Math.floor(raf.length * 0.95)] * 100) / 100 : null, jsMean: raf.length ? Math.round(raf.reduce((a, c) => a + c, 0) / raf.length * 100) / 100 : null, frames: frames.length, errs };
 }
 test("Bildrate auf einem Mittelklasse-Handy (CPU 4x): Anteil der Karte je Bild aus dem Chromium-Trace, fps gegen die leere Buehne", async () => {
-  const b = await browser(), out = {};
+  const b = await browser(), out = {}, bad = [];
   try {
     for (const id of IDS) {
       const base = await frameStats(b, { card: id, mode: "bot", seed: "fps", fast: 0, blank: true });
       const r = await frameStats(b, { card: id, mode: "bot", seed: "fps", fast: 0 });
       out[id] = { fps: r.fps, fpsLeer: base.fps, jsP95: r.jsP95, jsMean: r.jsMean, jsP95Leer: base.jsP95 };
       assert.deepEqual(r.errs, [], id);
-      assert.ok(r.jsP95 !== null && r.jsP95 <= 8, id + ": Anteil der Karte p95 " + r.jsP95 + " ms je Bild");
+      if (!(r.jsMean !== null && r.jsMean <= 4 && r.jsP95 <= 10)) bad.push(id + ": Mittel " + r.jsMean + " ms, p95 " + r.jsP95 + " ms");
     }
     console.log("ARCADE-FPS " + JSON.stringify(out));
+    assert.deepEqual(bad, [], "Budget des Bild-Callbacks");
   } finally { await b.close(); }
 });
