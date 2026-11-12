@@ -51,8 +51,8 @@ export const actions = {
   homeGo: (ctx, ev) => {
     const to = AT.includes(ev.to) ? ev.to : "day";
     const o = { at: to, note: null, sure: null };
-    if (to === "family") { o.intent = ["gruss", "planen", "spielen", "stimme"].includes(ev.intent) ? ev.intent : null; o.res = ev.keepRes ? ctx.home.res : null; }
-    if (to === "regal") { o.rtab = RTABS.includes(ev.rtab) ? ev.rtab : ctx.home.rtab; if (ev.fam !== undefined) o.fam = ev.fam; }
+    if (to === "family") { o.intent = ["gruss", "planen", "spielen", "stimme"].includes(ev.intent) ? ev.intent : null; o.res = ev.keepRes ? ctx.home.res : null; o.focus = ev.focus === "sentence" ? "sentence" : null; }
+    if (to === "regal") { o.rtab = RTABS.includes(ev.rtab) ? ev.rtab : ctx.home.rtab; if (ev.fam !== undefined) o.fam = ev.fam; o.focus = ev.focus === "search" ? "search" : null; }
     if (to === "meins") o.mtab = MTABS.includes(ev.tab) ? ev.tab : ctx.home.mtab;
     if (to === "day") o.off = Number.isInteger(ev.off) ? Math.max(-MAX_OFF, Math.min(MAX_OFF, ev.off)) : 0;
     return H(day(ctx, ev), o);
