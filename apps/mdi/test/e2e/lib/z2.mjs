@@ -1,6 +1,6 @@
 // Gemeinsame Bausteine der Z2-e2e: Karte ueber das Regal oeffnen, einen Zug ueber die sichtbare Oberflaeche spielen
 // (Felder fuellen, Auswahl antippen, "Weiter"), Pruefungen je Bildschirm (Verdeckung wie layout.e2e, axe, Ueberlauf).
-import { act, screen, waitScreen, axe, noOverflow } from "./grund.mjs";
+import { act, screen, waitScreen, axe, noOverflow, leftView, URL_MODE } from "./grund.mjs";
 import { pickMode } from "./scenarios.mjs";
 import { cardOf } from "../../../src/cards/index.js";
 
@@ -50,10 +50,13 @@ export async function playTurn(p, onScreen, extra) {
   return screen(p);
 }
 const linkOf = (p) => p.locator("#linkfield").inputValue().then((u) => u.slice(u.indexOf("#")));
+/** Nach "Los" bzw. "Annehmen" laedt die Seite den Kartenteil und zeigt bis dahin noch "card-view" (URL-Modus, echter Server). */
+const started = (p) => (URL_MODE ? leftView(p) : Promise.resolve());
 /** Link-Rundreise zwischen zwei Seiten bis zum Ende (oder bis stop(hop) true liefert). */
 export async function roundTrip(A, B, { onScreen, maxHops = 12, stop, extra } = {}) {
   let cur = A, other = B, hops = 0;
   for (; hops < maxHops; hops++) {
+    await started(cur.p);
     const s = await playTurn(cur.p, onScreen, extra && ((pg) => extra(pg, cur)));
     if (s === "card-play-over" && !(await cur.p.locator("#linkfield").count())) return { end: cur, hops };
     if (s !== "card-play-send" && s !== "card-play-over") throw new Error("unerwartet " + s);

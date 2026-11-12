@@ -3,7 +3,7 @@
 // per Link. Bedienung nur ueber die sichtbaren Widgets (pick, slide, list, show); je neuem Zustand: nichts verdeckt, axe 0.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { browser, open, act, axe, noOverflow, waitScreen, screen } from "./lib/grund.mjs";
+import { browser, open, act, axe, noOverflow, waitScreen, screen, leftView, URL_MODE } from "./lib/grund.mjs";
 import { texts } from "../../src/app/texts.js";
 
 let b;
@@ -101,6 +101,7 @@ async function hop(from, to, o) {
   if (!to) to = await open(b, { ...o, hash: link });
   else await to.p.goto(to.p.url().split("#")[0] + link);
   await waitScreen(to.p, "receive-show"); await act(to.p, "accept");
+  if (URL_MODE) await leftView(to.p); // Kartenteil vom Server
   return to;
 }
 const result = (p) => p.locator("main .t-big").first().textContent();
