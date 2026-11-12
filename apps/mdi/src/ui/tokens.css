@@ -455,3 +455,10 @@ textarea.input { resize: vertical; }
 .h-more { min-width: var(--tap); min-height: var(--tap); border: 0; border-radius: 12px; background: transparent; color: var(--ink); font: 700 1.375rem/1 var(--font-body); cursor: pointer; }
 .h-more[aria-expanded="true"] { background: var(--gelb); color: #17140F; }
 .h-work-d { margin: 0; color: var(--muted); font-size: var(--t-s); }
+
+/* Absicht-Symbole als Strich (Canvas v54) */
+.h-ico.h-line { fill: none; }
+/* Board Desktop: Suchfeld in der Kopfzeile (nur breit, von der Ansicht entschieden) */
+.h-headsearch { display: flex; align-items: center; gap: 8px; width: min(460px, 36vw); min-height: 48px; margin-right: 16px; padding: 0 12px; border: 3px solid var(--ink); border-radius: 14px; background: var(--sheet); color: var(--ink); align-self: center; }
+.h-headsearch .h-input { flex: 1; min-width: 0; height: 42px; border: 0; background: transparent; color: inherit; font: 400 var(--t-m)/1.2 var(--font-body); }
+.h-headsearch .h-input:focus-visible { outline: none; } .h-headsearch:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }

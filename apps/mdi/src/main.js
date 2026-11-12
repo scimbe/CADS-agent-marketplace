@@ -28,6 +28,8 @@ const lang = langOf(navigator);
 document.documentElement.lang = lang;
 
 const reducedMq = matchMedia("(prefers-reduced-motion: reduce)");
+// Breite Ansicht (Board Desktop): Suchfeld in der Kopfzeile. Umgebung wie reduced, kein Zustand der Statechart
+const wideMq = matchMedia("(min-width: 900px)");
 // Echtzeit-Buehne und Klang (ADR 0001 b): die Laufzeit zeichnet ueber stage.draw, view.js haengt stage.stageNode ein
 let rtApi = null;
 // Dienste aus Features (Strang P: audio/high, T: cardSvg, K: images) – ohne Feature ehrlich gesperrt im Widget
@@ -105,9 +107,10 @@ function trapFocus(e) {
   else if (!d.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
 }
 
+wideMq.addEventListener("change", () => draw(rt.state, null));
 function draw(state, info) {
   const beforeLeaf = info && info.before ? leaf(info.before) : null, nowLeaf = leaf(state);
-  patch(root, view(state, (ev) => rt.dispatch(ev), { ...viewEnv, reduced: reducedMq.matches }));
+  patch(root, view(state, (ev) => rt.dispatch(ev), { ...viewEnv, reduced: reducedMq.matches, wide: wideMq.matches }));
   placeBubbles();
   const d = root.querySelector("#dialog");
   if (d && beforeLeaf !== "card.customize.dialog") {

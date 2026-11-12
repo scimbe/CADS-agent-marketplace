@@ -26,6 +26,19 @@ export function regalIcon(cls = "h-ico-s") {
 export function icon(shape, cls = "h-ico") {
   return h("svg", { class: cls, viewBox: "0 0 100 100", "aria-hidden": "true", focusable: "false" }, h("path", { d: SHAPE_PATH[shape] || SHAPE_PATH.star }));
 }
+// Strich-Symbole der Absichten (Canvas v54, Board Main): Brief, Kalender mit Haken, Wuerfel, Mikrofon, Lupe, Raster
+const LINE = {
+  gruss: [["rect", { x: 3, y: 5, width: 18, height: 14, rx: 2 }], ["path", { d: "M3 7l9 6 9-6" }]],
+  planen: [["rect", { x: 3, y: 5, width: 18, height: 16, rx: 2 }], ["path", { d: "M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4" }]],
+  spielen: [["rect", { x: 4, y: 4, width: 16, height: 16, rx: 3 }], ...[[9, 9], [15, 15], [15, 9], [9, 15]].map(([cx, cy]) => ["circle", { cx, cy, r: 1.4, fill: "currentColor" }])],
+  stimme: [["rect", { x: 9, y: 3, width: 6, height: 11, rx: 3 }], ["path", { d: "M5 11a7 7 0 0014 0M12 18v3" }]],
+  lupe: [["circle", { cx: 11, cy: 11, r: 7 }], ["path", { d: "M20 20l-4-4" }]],
+  grid: [["rect", { x: 3, y: 4, width: 7, height: 7, rx: 1 }], ["rect", { x: 14, y: 4, width: 7, height: 7, rx: 1 }], ["rect", { x: 3, y: 14, width: 7, height: 7, rx: 1 }], ["rect", { x: 14, y: 14, width: 7, height: 7, rx: 1 }]]
+};
+export function lineIcon(name, cls = "h-ico h-line") {
+  return h("svg", { class: cls, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2.2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", focusable: "false" },
+    (LINE[name] || LINE.grid).map(([t, a], i) => h(t, { key: String(i), ...a })));
+}
 export function ideaText(idea, lang) { const L = idea[lang] || idea.de; return { t: L.t, s: L.s }; }
 export function plateLines(t) { return String(t).split("|").map((x) => x.trim()).filter(Boolean); }
 export function duration(min, X) { return min >= 120 ? fmt(X.mins, { n: Math.round(min / 60) }) : fmt(X.sec, { n: min }); }

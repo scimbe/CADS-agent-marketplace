@@ -68,7 +68,8 @@ export const actions = {
     const res = { text, intent: r.intent, name: r.name, who: r.who, missing: r.missing, top: r.top.map((t) => ({ id: t.idea.id, exact: t.exact })) };
     return H(c, { at: "family", intent: r.intent || null, res, note: null });
   },
-  homeQuery: (ctx, ev) => H(day(ctx, ev), { q: String(ev.q || "").slice(0, 80), rtab: "alles" }),
+  // open: Suche aus der Kopfzeile (breit) fuehrt ins Regal, ohne zweites Ereignis
+  homeQuery: (ctx, ev) => H(day(ctx, ev), { q: String(ev.q || "").slice(0, 80), rtab: "alles", ...(ev.open && ctx.home.at !== "regal" ? { at: "regal", fam: null, focus: "search" } : {}) }),
   homeRtab: (ctx, ev) => H(ctx, { rtab: RTABS.includes(ev.tab) ? ev.tab : "alles" }),
   homeFam: (ctx, ev) => H(ctx, { fam: typeof ev.fam === "string" ? ev.fam : null }),
   homeMtab: (ctx, ev) => H(ctx, { mtab: MTABS.includes(ev.tab) ? ev.tab : "wand", sure: null, menu: null }),

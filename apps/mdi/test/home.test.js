@@ -280,3 +280,15 @@ test("Mein Regal wie Board Meins: Gemacht | Verschickt | Gemerkt, Kacheln mit â‹
   const off = go(m, { type: "WALL_OFF", i: 0 });
   assert.equal(off.ctx.home.menu, null, "nach dem Abnehmen zu");
 });
+
+test("Board Desktop: Suchfeld in der Kopfzeile nur breit (Umgebung wide), Tippen fuehrt mit einem Ereignis ins Regal; Absicht-Symbole als Strich", () => {
+  const s = start();
+  const wide = JSON.stringify(view(s, () => {}, { wide: true }), (k, x) => (k === "on" || k === "el" ? undefined : x));
+  assert.ok(wide.includes('"class":"h-headsearch"') && wide.includes("Alle "), "breit: Suchfeld in der Kopfzeile");
+  assert.ok(!texts(s).includes('"class":"h-headsearch"'), "schmal: kein Suchfeld oben");
+  const r = go(s, { type: "QUERY", q: "quiz", open: true });
+  assert.equal(r.ctx.home.at, "regal"); assert.equal(r.ctx.home.q, "quiz"); assert.equal(r.ctx.home.rtab, "alles");
+  const rw = JSON.stringify(view(r, () => {}, { wide: true }), (k, x) => (k === "on" || k === "el" ? undefined : x));
+  assert.equal((rw.match(/"id":"h-q"/g) || []).length, 1, "breit genau ein Suchfeld (oben), im Regal nicht doppelt");
+  assert.ok(texts(s).includes('"class":"h-ico h-line"'), "Strich-Symbole");
+});
