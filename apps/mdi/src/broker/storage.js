@@ -3,6 +3,7 @@ const PREFIX = "mdi.g.", MAX = 40;
 function ls() { try { return globalThis.localStorage || null; } catch (e) { return null; } }
 export function createStorage() {
   return {
+    ...homeStorage(),
     saveGame(entry) {
       const s = ls(); if (!s) return;
       try {
@@ -29,3 +30,12 @@ export function createStorage() {
   };
 }
 const KONTO = "mdi.konto";
+// Meins (Strang H): Wand (Werke ohne Fotos), gemerkte Karten, Archiv versendeter Links mit Kurzlink-Token. Pruefen macht der
+// Aufrufer (src/ui/home/store.js clean*).
+const HOME = "mdi.home.v1";
+export function homeStorage() {
+  return {
+    loadHome() { const s = ls(); if (!s) return null; try { const v = JSON.parse(s.getItem(HOME) || "null"); return v && typeof v === "object" && !Array.isArray(v) ? v : null; } catch (e) { return null; } },
+    saveHome(v) { const s = ls(); if (!s) return false; try { s.setItem(HOME, JSON.stringify(v)); return true; } catch (e) { return false; } }
+  };
+}

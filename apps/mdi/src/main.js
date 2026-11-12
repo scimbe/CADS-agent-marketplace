@@ -48,6 +48,8 @@ const rt = createRuntime({
   live: () => loadLive(),
   share: (fragment) => share(linkUrl(fragment), document.title),
   copy: (fragment) => copy(linkUrl(fragment)),
+  // Heimseite (Strang H): Leinwand fuer Story-Bild und Wand, Teilen, Takt (Speicher und Netz laufen ueber storage und api)
+  home: { document, navigator, location, File, URL, setInterval: (f, ms) => setInterval(f, ms), setTimeout: (f, ms) => setTimeout(f, ms) },
   clearUrl: () => { try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) { /* file:// in manchen Hosts */ } },
   onChange: draw
 });
@@ -109,7 +111,7 @@ function draw(state, info) {
     // Bildschirmwechsel: Fokus an den Hauptbereich (Screenreader liest den neuen Inhalt)
     const m = root.querySelector("#main"); if (m && !m.contains(document.activeElement)) m.focus({ preventScroll: true });
   }
-  syncHistory(nowLeaf);
+  syncHistory(nowLeaf === "shelf" && state.ctx.home && (state.ctx.home.at !== "day" || state.ctx.home.off !== 0) ? "shelf.tief" : nowLeaf);
   // Schriftgroesse aus Mein Stil (Lesen & Bedienen): Projektion des Zustands auf die Wurzel, alles skaliert per rem
   const fs = { n: "100%", g: "118.75%", sg: "137.5%" }[state.ctx.pref.fs] || "100%";
   if (document.documentElement.style.getPropertyValue("font-size") !== fs) document.documentElement.style.setProperty("font-size", fs);
