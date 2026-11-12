@@ -103,7 +103,7 @@ for (const card of ["flug", "lauf"]) test("Geist-Duell als Link-Rundreise (" + c
   await act(B.p, "accept");
   await waitScreen(B.p, "card-rt-run", 8000);
   await waitScreen(B.p, "card-rt-over", 120000);
-  assert.match(await B.p.locator("main").innerText(), new RegExp("Geist hat " + sent));
+  assert.match(await B.p.locator("main").innerText(), new RegExp("Aufnahme hat " + sent));
   assert.deepEqual(A.errs.concat(B.errs), []);
 });
 
