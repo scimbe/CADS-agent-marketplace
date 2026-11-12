@@ -23,7 +23,8 @@ async function openApp(net, side, hash = "") {
   const p = await ctx.newPage(); const errs = [];
   p.on("pageerror", (e) => errs.push(String(e)));
   await net.attach(ctx, p, side);
-  await ctx.route(APP + "**", (r) => r.fulfill({ path: path.join(ROOT, "dist/index.html"), contentType: "text/html" }));
+  // Seite und ihre nachladbaren Teile (ADR 0001 Nachtrag 2) wie vom Wrapper
+  await ctx.route(APP + "**", (r) => { const m = /\/parts\/([A-Za-z0-9._-]+\.js)$/.exec(new URL(r.request().url()).pathname); return m ? r.fulfill({ path: path.join(ROOT, "dist/parts", m[1]), contentType: "text/javascript" }) : r.fulfill({ path: path.join(ROOT, "dist/index.html"), contentType: "text/html" }); });
   await p.goto(APP + "index.html" + hash);
   await p.locator("header.bar").waitFor();
   return { ctx, p, errs };
