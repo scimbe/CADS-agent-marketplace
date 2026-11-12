@@ -12,5 +12,9 @@
   ],
   "home-kalender": [
     "ui/home/kalender.js"
+  ],
+  "frei-ui": [
+    "features/frei/view.js",
+    "features/frei/texts.js"
   ]
 }
