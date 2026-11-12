@@ -327,6 +327,36 @@
     "assets": [],
     "thumbs": []
   },
+  "tisch-bauernskat": {
+    "assets": [],
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 11690
+      }
+    ]
+  },
+  "tisch-doko": {
+    "assets": [],
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 11484
+      }
+    ]
+  },
+  "tisch-skat": {
+    "assets": [],
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 11184
+      }
+    ]
+  },
   "zettel": {
     "assets": [],
     "thumbs": []

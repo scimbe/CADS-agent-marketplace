@@ -1,0 +1,427 @@
+{
+  "id": "tisch-doko",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.1",
+  "kind": "turn",
+  "mode": "turn",
+  "title": {
+    "de": "Doppelkopf live",
+    "en": "Doppelkopf live"
+  },
+  "teaser": {
+    "de": "Re oder Kontra – zu viert.",
+    "en": "Re or Kontra – four players."
+  },
+  "howto": {
+    "de": "Doppelkopf zu viert nach den Turnierregeln des DDV: Vorbehalte, Hochzeit, Soli, Ansagen bis schwarz, Sonderpunkte. 121 Augen gewinnen für Re.",
+    "en": "Doppelkopf for four under the DDV tournament rules: reservations, marriage, solos, calls up to schwarz, special points. Re needs 121 card points."
+  },
+  "family": "tisch-skat",
+  "order": 501,
+  "dur": 900,
+  "legacy": [
+    "tisch-doko"
+  ],
+  "players": {
+    "min": 4,
+    "max": 4
+  },
+  "seats": {
+    "de": [
+      "Platz 1",
+      "Platz 2",
+      "Platz 3",
+      "Platz 4"
+    ],
+    "en": [
+      "Seat 1",
+      "Seat 2",
+      "Seat 3",
+      "Seat 4"
+    ]
+  },
+  "hidden": "commit-reveal",
+  "secretSeats": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "uses": [],
+  "limits": {
+    "stepBudget": 64,
+    "stateBytes": 65536
+  },
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "runden",
+      "regeln"
+    ],
+    "properties": {
+      "runden": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 8,
+        "default": 4,
+        "x-field": "number",
+        "x-model": true,
+        "x-label": {
+          "de": "Spiele in der Partie",
+          "en": "Games in the match"
+        }
+      },
+      "regeln": {
+        "type": "array",
+        "maxItems": 2,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "enum": [
+            "dulle",
+            "nosp"
+          ],
+          "x-names": {
+            "dulle": {
+              "de": "2. Dulle sticht 1.",
+              "en": "2nd Ten beats 1st"
+            },
+            "nosp": {
+              "de": "Ohne Fuchs & Karlchen",
+              "en": "No Fox & Charlie"
+            }
+          }
+        },
+        "default": [],
+        "x-field": "list",
+        "x-model": true,
+        "x-label": {
+          "de": "Hausregeln",
+          "en": "House rules"
+        }
+      }
+    }
+  },
+  "parts": [
+    {
+      "id": "regeln",
+      "params": [
+        "runden",
+        "regeln"
+      ],
+      "label": {
+        "de": "Regeln",
+        "en": "Rules"
+      }
+    }
+  ],
+  "modes": [
+    "bot",
+    "live",
+    "alone"
+  ],
+  "play": {
+    "default": "bot",
+    "offer": [
+      "bot",
+      "live"
+    ]
+  },
+  "inputs": {
+    "oneOf": [
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "d"
+        ],
+        "properties": {
+          "t": {
+            "const": "mix"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "d": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 12,
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "d"
+        ],
+        "properties": {
+          "t": {
+            "const": "lock"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "d": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 12,
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "d"
+        ],
+        "properties": {
+          "t": {
+            "const": "key"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "d": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 24,
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "s"
+        ],
+        "properties": {
+          "t": {
+            "const": "seed"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "s": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat"
+        ],
+        "properties": {
+          "t": {
+            "const": "next"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat"
+        ],
+        "properties": {
+          "t": {
+            "const": "end"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat"
+        ],
+        "properties": {
+          "t": {
+            "const": "reveal"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "salt": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "pos",
+          "key"
+        ],
+        "properties": {
+          "t": {
+            "const": "play"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "pos": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 47
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "a": {
+            "const": 0
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "v"
+        ],
+        "properties": {
+          "t": {
+            "const": "vorbehalt"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "v": {
+            "enum": [
+              "gesund",
+              "vorbehalt",
+              "hochzeit",
+              "damen",
+              "buben",
+              "fleischlos",
+              "kreuz",
+              "pik",
+              "herz",
+              "karo"
+            ]
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "p",
+          "a"
+        ],
+        "properties": {
+          "t": {
+            "const": "call"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "p": {
+            "enum": [
+              "re",
+              "kontra"
+            ]
+          },
+          "a": {
+            "enum": [
+              "re",
+              "kontra",
+              "k90",
+              "k60",
+              "k30",
+              "schwarz"
+            ]
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat"
+        ],
+        "properties": {
+          "t": {
+            "const": "check"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          }
+        }
+      }
+    ]
+  },
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Fünf Spielkarten: Herz-Zehn, Kreuz-Dame, Pik-Dame, Karo-Ass und Karo-Zehn",
+      "en": "Five playing cards: ten of hearts, queens of clubs and spades, ace and ten of diamonds"
+    }
+  }
+}
