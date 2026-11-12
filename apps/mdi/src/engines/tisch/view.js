@@ -91,7 +91,7 @@ export function tableView(T, manifest, obs, seat, ctx) {
       const own = T.ownPositions(pub, seat), codes = own.map((p) => R.DECK[obs.mine.hand[p]]);
       const options = [];
       for (let i = 0; i < own.length; i++) for (let j = i + 1; j < own.length; j++) options.push({ sel: [i, j], input: moves.find((m) => m.t === "push" && m.c === T.pushCommit(obs.mine.sec.k, own[i], own[j])) });
-      kids.push({ t: "pickn", n: 2, label: X.pushHint, confirm: X.push, items: codes.map((c) => pc(c, { size: "l" })), options: options.filter((o) => o.input) });
+      kids.push({ t: "pickn", id: "push", part: "hand", n: 2, label: X.pushHint, confirm: X.push, items: codes.map((c) => pc(c, { size: "l" })), options: options.filter((o) => o.input) });
     } else {
       kids.push({ t: "text", role: "label", text: X.myHand });
       kids.push({ t: "row", wrap: true, part: "hand", children: sortHand(cards).map((c) => pc(c, { size: "l", input: playable[c], state: playable[c] ? "ok" : mine && Object.keys(playable).length ? "no" : "none" })) });
