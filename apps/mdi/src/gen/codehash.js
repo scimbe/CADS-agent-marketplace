@@ -1,16 +1,16 @@
 // ERZEUGT von scripts/gen.js – nicht von Hand aendern.
 /* eslint-disable */
 export const CODE_HASH = {
-  "arcade-elfer": "216d6b4f9fd78d9a031bdf3a780350fe",
-  "arcade-flipper": "b6c0854e12514d6923dfa0eb510c6696",
-  "arcade-kick": "8b78af365e0033ef2be42f5a5c6c1047",
-  "arcade-murmel": "e6ee300b4e5569fef33b1e5f465d4684",
-  "arcade-panzer": "8459e49a3fbc5dd03d6e9b8c5ba01470",
-  "arcade-puck": "21b448851cf464ccd4c41f6f4afe5315",
-  "arcade-snow": "e89beeee3c9d94279fa77439cf3a8e7b",
-  "arcade-stock": "e3021237ec0dc71526f3717bc82b706f",
-  "arcade-volley": "e07c2dbebb242e6af112a731a11d3055",
-  "arcade-ziegel": "d467a7144fd56a7000829e4e4dc4c8c9",
+  "arcade-elfer": "05e043bd81928fce887a373ee074f499",
+  "arcade-flipper": "4a8a338ad3dfa4fa171af6b3296e43b4",
+  "arcade-kick": "2483d310b130defde25046de8a8e31e8",
+  "arcade-murmel": "e3ac2e81f3d2b4ec954a304b06debdef",
+  "arcade-panzer": "d1858580bf1de14acf14e54e4ba6d223",
+  "arcade-puck": "a2bc8b74b6fac9a4a1e19eb6911208e0",
+  "arcade-snow": "450ceddd2c1c11714b3959bb8ae854b2",
+  "arcade-stock": "cb99d1bde1c494c3cf9376eaeb57f2e7",
+  "arcade-volley": "123d26815f4fee68dcb59ab2a676af7b",
+  "arcade-ziegel": "7e73349a75e62d71941735b572905d7d",
   "bluff": "bb421a6ccda522a185f2622bb3bf870c",
   "gruss": "b03afcb8f1a8ad4c401f9811a24b3501"
 };

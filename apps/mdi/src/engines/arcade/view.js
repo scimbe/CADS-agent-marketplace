@@ -95,7 +95,7 @@ function effects(log, now, m, g, calm) {
         if (d > 0) { const f = (1 - expD(-d * age)) / d; x = x0 + vx * f; y = y0 + (gr / d) * age + (vy - gr / d) * f; }
         else { x = x0 + vx * age; y = y0 + vy * age + 0.5 * gr * age * age; }
         const al = 1 - age / life, c = o.c || "#ffffff";
-        if (o.glow) glowL.push([x, y, s * 3, al, c]); else if (o.sq) sq.push([x, y, s, al, c]); else dots.push([x, y, s / 2, al, c]);
+        if (o.glow) glowL.push([x, y, s * 3, al, c]); else if (o.sq) sq.push([x, y, s, al, c]); else dots.push([x, y, s, al, c]);   // particles: Groesse = Durchmesser (canvas.js)
       }
     }
   }
@@ -114,7 +114,7 @@ function trail(b, n, r, color) {   // Spur aus der Geschwindigkeit nach hinten (
   return ops;
 }
 function photoAt(look, x, y, r) { return look.photo === "figure" ? [{ o: "image", src: { kind: "local", slot: "photo" }, x: x - r, y: y - r, w: 2 * r, h: 2 * r, fit: "cover", clip: "circle" }] : []; }
-function emojiAt(look, x, y, size) { return look.emoji ? [{ o: "sprite", emoji: look.emoji, x: x - size / 2, y: y - size / 2, w: size, h: size }] : []; }
+function emojiAt(look, x, y, size) { return look.emoji ? [{ o: "sprite", emoji: look.emoji, x, y, w: size, h: size }] : []; }   // sprite: x,y ist die Mitte (canvas.js)
 /** Eigene Figur: Foto, wenn gewaehlt, sonst Emoji, wenn gewaehlt (zusaetzlich zur gezeichneten Figur). */
 function mine(look, x, y, r) { return look.photo === "figure" ? photoAt(look, x, y, r) : emojiAt(look, x, y, r * 1.3); }
 
@@ -392,8 +392,10 @@ export function drawSide(S, look, o) {
   const top = [];
   for (const t of eff.texts) top.push({ o: "text", x: t.x, y: t.y, text: t.s, size: 120, font: "brand", align: "center", fill: t.c, alpha: t.a });
   if (o.count) top.push({ o: "text", x: W / 2, y: H / 2 + 90, text: String(o.count), size: 260, font: "brand", align: "center", fill: "#ffffff", alpha: 0.9 });
-  if (o.hud) top.push({ o: "text", x: W / 2, y: 64, text: o.hud, size: 48, font: "brand", align: "center", fill: "#ffffff", shadow: { color: "#000000", blur: 8, dx: 0, dy: 2 } });
-  if (o.note) top.push({ o: "text", x: W / 2, y: H - 30, text: o.note, size: 38, font: "body", align: "center", fill: "#ffffff", maxW: W - 60, shadow: { color: "#000000", blur: 6, dx: 0, dy: 1 } });
+  // Schrift auf einem halbdurchsichtigen Band statt mit shadowBlur: Weichzeichnen in jedem Bild kostet beim Rastern
+  // am meisten (gemessen im Trace: Panzer 27 -> s. PR, bei 4x gedrosselter CPU).
+  if (o.hud) top.push(rect(W / 2 - 330, 18, 660, 64, "#00000073", { r: 32 }), { o: "text", x: W / 2, y: 64, text: o.hud, size: 46, font: "brand", align: "center", fill: "#ffffff", maxW: 640 });
+  if (o.note) top.push(rect(30, H - 78, W - 60, 60, "#00000073", { r: 30 }), { o: "text", x: W / 2, y: H - 36, text: o.note, size: 36, font: "body", align: "center", fill: "#ffffff", maxW: W - 90 });
   if (eff.flash) top.push(rect(0, 0, W, H, eff.flash[1], { alpha: eff.flash[0] }));
   if (eff.shake > 0.1) top.unshift({ o: "shake", amt: eff.shake });
   return { t: "canvas", w: W, h: H, layers: [{ id: "bg", key: g + "|" + S.seed + "|" + look.a + look.b + look.photo, ops: bg }, { id: "fg", ops: fg.concat(fxOps) }, { id: "top", ops: top }], a11y: o.a11y || "" };

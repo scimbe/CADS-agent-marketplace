@@ -48,11 +48,11 @@ export function makeCard(g, manifest) {
     view(state, ctx = {}) {
       const seat = ctx.seat === 1 ? 1 : 0, S = state.sides[seat], T = tx(ctx.lang), c = state.ctl[seat];
       const them = state.players[1 - seat] === "bot" ? T.bot : T.friend, t = textOf(S, ctx.lang, them);
-      return drawSide(S, state.look, { now: (state.now + (ctx.alpha || 0)) / TICK, fx: state.fx[seat], aim: c.aim, swipe: c.swipe, reduced: ctx.reduced, count: ctx.count, hud: (state.title ? state.title + "  ·  " : "") + t.say, note: t.note, a11y: (manifest.title[ctx.lang === "en" ? "en" : "de"] || "") + ": " + t.say });
+      return drawSide(S, state.look, { now: (state.now + (ctx.alpha || 0)) / TICK, fx: state.fx[seat], aim: c.aim, swipe: c.swipe, reduced: ctx.reduced, count: ctx.countdown, hud: (state.title ? state.title + "  ·  " : "") + t.say, note: t.note, a11y: (manifest.title[ctx.lang === "en" ? "en" : "de"] || "") + ": " + t.say });
     },
     /** Bot-Sitz: rechnet in step (Gedaechtnis im Zustand); hier nur die leere Eingabe, damit modesOf "bot" anbietet. */
     bot() { return { b: 0, ax: 0, ay: 0, p: [] }; },
-    hash(state) { return matchHash(state); },
+    hash(state) { return state && state.S ? hashSide(state.S) : matchHash(state); },
     side: {
       init({ params, seed, seat, serving }) {
         const st = liveInit(g, { seed: String(seed), seat, serving, win: winOf(g, params) });
@@ -67,7 +67,7 @@ export function makeCard(g, manifest) {
       view(st, ctx = {}) {
         const S = st.S, T = tx(ctx.lang), t = textOf(S, ctx.lang, T.friend);
         const shown = ctx.tracked ? trackedSide(S, ctx.tracked) : S;
-        return drawSide(shown, st.look, { now: S.t + (ctx.alpha || 0) / TICK, fx: st.fx, aim: st.ctl.aim, swipe: st.ctl.swipe, reduced: ctx.reduced, count: ctx.count, hud: (st.title ? st.title + "  ·  " : "") + t.say, note: t.note, a11y: t.say });
+        return drawSide(shown, st.look, { now: S.t + (ctx.alpha || 0) / TICK, fx: st.fx, aim: st.ctl.aim, swipe: st.ctl.swipe, reduced: ctx.reduced, count: ctx.countdown, hud: (st.title ? st.title + "  ·  " : "") + t.say, note: t.note, a11y: t.say });
       },
       status(st) { const S = st.S, t = textOf(S, "de", tx("de").friend); return { over: S.over, score: S.score.slice(), winner: S.over ? (S.draw ? -1 : S.score[0] > S.score[1] ? 0 : 1) : null, draw: !!S.draw, rejected: S.rejected, say: t.say }; },
       hash(st) { return hashSide(st.S); }
