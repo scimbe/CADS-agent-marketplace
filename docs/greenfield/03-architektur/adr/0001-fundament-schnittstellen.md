@@ -449,3 +449,32 @@ echten Renderer in Chromium (960×540, de, reduzierte Bewegung, feste Uhr) und k
 
 **Offen**: Karten als nachladbare Teile (Kern-Budget 700 KiB wird mit allen Karten überschritten, Messung Z2: 737 KB);
 Platz neu besetzen im Gruppen-Live; Auto-Zug nach 20 s im Live (Strang T); KI-Thumbnails.
+
+---
+
+## Nachtrag 2 (2026-11-12): Karten als nachladbare Teile
+
+**Kontext:** Mit allen Strängen überschreitet der Kern das Budget von 700 KiB (gemessen 877–998 KB: Kartenmodule,
+Engines, Kartentexte und alle Parameter-Validatoren im Kern).
+
+**Entscheidung:**
+- `scripts/gen.js` erzeugt zwei Register mit derselben Schnittstelle: `src/cards/index.js` (statisch, Node/Tests/
+  Werkzeuge) und `src/cards/lazy.js` (Browser); der Build lenkt `cards/index.js` auf `lazy.js` um. Im Kern stehen nur
+  Metadaten (id, version, kind, mode, title, teaser, family, grip, on, dur, order, players, modes, play, legacy, thumb,
+  shelf, variants ohne params) und Fähigkeiten (`CAPS`, z. B. eigener Bot).
+- Je Karte ein Teil `parts/card-<id>.<sha12>.js` (Modul, Engines, Validatoren `gen/cards/<id>.js`, Assets); Thumbnails
+  in Teilen `parts/thumbs-<n>.<sha12>.js` (≤ 80 KB). Jeder Teil meldet sich per Ereignis am Dokument (`mdi:part`,
+  `mdi:thumbs`), keine globale Zuweisung; `lazy.js` prüft id und Code-Hash.
+- Laden (`src/broker/parts.js`): auf http(s) aus Cache Storage `mdi-parts-v1` (offline nach dem ersten Laden), sonst
+  `fetch` ohne Cookies; Bytes gegen SRI (SHA-384) geprüft, Ausführung als `blob:`-Skript mit `integrity`. CSP
+  `script-src 'sha256-<kern>' 'strict-dynamic'`. App-Hüllen: Android über `https://appassets.androidplatform.net` (mit
+  Cache und SRI), iOS über das gebündelte `file://` (Teile signiert in der App; SRI auf `file://` nicht prüfbar).
+- API: `cardOf(id)` nur geladene Karten; `manifestOf(id)` immer; `modesOfId(id, variant)`; `loadCard(id, loadPart)`.
+  Die Laufzeit lädt vor `OPEN`, `LINK`, `HELLO`, `SHOW`, `ACT open` und vor Ereignissen aus Feature-`needs(ev, ctx)`
+  (Ereignis `LOADING`, `ctx.loading`). Fehlt ein Teil oder passt er nicht: Zustand `inhalt.partfail` mit Grund
+  (`teil-fehlt`, `teil-manipuliert`, `teil-falsch`, `zeit`, `karte-unbekannt`) und `RETRY`.
+- Ergebnis: Probe-Merge aller Stränge 639 KB (Budget 716 800 B); 3G-Kaltstart („Fast 3G“, lokal) Kern ≈ 2,6 s,
+  erste Karte ≈ 0,9 s.
+
+**Folgen:** Ohne Laden nur Metadaten (`manifestOf`, `ORDER`, `modesOfId`); im Ereignis benötigte Karten über `needs`.
+Nächster Schritt mit demselben Lader: Feature-Teile (freie Karte, Klang-Synthese, Heim-Katalog).
