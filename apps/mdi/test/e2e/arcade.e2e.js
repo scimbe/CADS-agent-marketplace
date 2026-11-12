@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { chromium } from "playwright";
 import { browser, VIEWS, axe, noOverflow } from "./lib/grund.mjs";
 import { stagePage } from "./lib/arcade-stage.mjs";
 
@@ -191,5 +192,24 @@ test("Bildrate auf einem Mittelklasse-Handy (CPU 4x): Anteil der Karte je Bild a
     }
     console.log("ARCADE-FPS " + JSON.stringify(out));
     assert.deepEqual(bad, [], "Budget des Bild-Callbacks");
+  } finally { await b.close(); }
+});
+
+// Gegenprobe zur Rastergrenze (Auftrag Integrator): dieselbe Messung mit GPU-Rasterung ueber SwiftShader (ANGLE). Liegt die
+// Grenze im Software-Raster des Hauptpfads, steigen die fps der Spiele hier gegenueber dem Lauf oben; die leere Buehne ist
+// die Basislinie im selben Browser.
+test("Bildrate mit GPU-Rasterung (--enable-gpu-rasterization, --use-angle=swiftshader) gegen die Basislinie", async () => {
+  const b = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined, args: ["--enable-gpu-rasterization", "--use-angle=swiftshader", "--ignore-gpu-blocklist"] }), out = {}, bad = [];
+  try {
+    const base = await frameStats(b, { card: "arcade-kick", mode: "bot", seed: "fps", fast: 0, blank: true });
+    out.leer = { fps: base.fps, jsP95: base.jsP95, jsMean: base.jsMean };
+    for (const id of IDS) {
+      const r = await frameStats(b, { card: id, mode: "bot", seed: "fps", fast: 0 });
+      out[id] = { fps: r.fps, jsP95: r.jsP95, jsMean: r.jsMean };
+      assert.deepEqual(r.errs, [], id);
+      if (!(r.jsMean !== null && r.jsMean - base.jsMean <= 3 && r.jsP95 <= 10)) bad.push(id + ": Mittel " + r.jsMean + " ms (leer " + base.jsMean + "), p95 " + r.jsP95 + " ms");
+    }
+    console.log("ARCADE-FPS-GPU " + JSON.stringify(out));
+    assert.deepEqual(bad, [], "Budget des Bild-Callbacks mit GPU-Rasterung");
   } finally { await b.close(); }
 });

@@ -43,7 +43,7 @@ export function makeCard(g, manifest) {
     },
     status(state) {
       const s = matchStatus(state), A = state.sides[0], t = textOf(A, "de", state.players[1] === "bot" ? tx("de").bot : tx("de").friend);
-      return { over: s.over, score: s.score, winner: s.winner, draw: s.draw, rejected: s.rejected, say: t.say + (t.note ? ". " + t.note : "") };
+      return { over: s.over, score: s.score, winner: s.winner, draw: s.draw, rejected: s.rejected, timeUp: s.timeUp, say: t.say + (t.note ? ". " + t.note : "") };
     },
     view(state, ctx = {}) {
       const seat = ctx.seat === 1 ? 1 : 0, S = state.sides[seat], T = tx(ctx.lang), c = state.ctl[seat];

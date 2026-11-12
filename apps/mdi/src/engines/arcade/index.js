@@ -1,7 +1,7 @@
 // Arcade-Engine E4: Register der zehn Duelle, die Seite (Live, net:"split") und die Partie (zwei Seiten +
 // Nachrichtenwarteschlangen in einem Zustand: allein, Bot, Vorschau, Tests). Port von alt:src/arcade.js:528-548 und
 // dem Bot-Aufbau in alt:src/arcade-ui.js:548-565. Vertrag: ADR 0001 (b).
-import { W, H, TICK, STEP, VOLATILE, hashSide, mineTurn } from "./core.js";
+import { W, H, TICK, STEP, VOLATILE, hashSide, mineTurn, finish } from "./core.js";
 import { die, hashOf } from "./num.js";
 import { ctlInit, mapInput } from "./controls.js";
 import * as puck from "./puck.js";
@@ -73,7 +73,22 @@ export function matchStep(prev, inputs) {
   const flush = (s) => { const S = st.sides[s]; for (const m of S.out) st.q[1 - s].push([st.now + st.lag, m]); for (const e of S.ev) ev.push(Object.assign({ seat: s }, e)); S.out = []; S.ev = []; };
   for (let s = 0; s < 2; s++) { const q = st.q[s], S = st.sides[s]; while (q.length && q[0][0] <= st.now) receive(S, q.shift()[1]); flush(s); }
   tick(A); flush(0); tick(B); flush(1);
+  if (st.now >= LIMIT_TICKS && !(A.over && B.over)) timeUp(st, flush);
   return { state: st, ev };
+}
+/** Hartes Partie-Limit (neu, Altcode hatte keins): zwei Bots koennen im Flipper und im Volley endlos spielen (Altcode
+ *  stat-flipper-8, 600 s ohne Punkt). Nach LIMIT s Spielzeit werden die Nachrichten unterwegs zugestellt, dann zaehlt
+ *  der Stand: mehr Punkte gewinnt, gleich ist unentschieden. Kein Altcode-Golden dauert sonst laenger als 265 s.
+ *  Live (net "split") laeuft je Geraet ueber side und wird vom Host (rt.maxTicks) begrenzt. */
+export const LIMIT = 300, LIMIT_TICKS = LIMIT * TICK;
+function timeUp(st, flush) {
+  for (let round = 0; round < 4 && (st.q[0].length || st.q[1].length); round++) {
+    for (let s = 0; s < 2; s++) { const q = st.q[s], S = st.sides[s]; while (q.length) receive(S, q.shift()[1]); flush(s); }
+  }
+  const [A, B] = st.sides;
+  if (!A.over) { A.timeUp = true; finish(A); }
+  if (!B.over) { B.score = [A.score[1], A.score[0]]; B.timeUp = true; finish(B); }
+  flush(0); flush(1);
 }
 export function matchHash(st) {
   return hashOf({ g: st.g, now: st.now, sides: st.sides.map((S) => { const r = {}; for (const k of Object.keys(S)) if (!VOLATILE.has(k)) r[k] = S[k]; return r; }), q: st.q, bots: st.bots, ctl: st.ctl });
@@ -82,7 +97,7 @@ export function matchHash(st) {
 export function matchStatus(st) {
   const [A, B] = st.sides, over = A.over && B.over, score = [A.score[0], A.score[1]];
   const winner = over ? (A.draw ? -1 : A.score[0] > A.score[1] ? 0 : 1) : null;
-  return { over, score, winner, draw: over && !!A.draw, rejected: A.rejected + B.rejected };
+  return { over, score, winner, draw: over && !!A.draw, rejected: A.rejected + B.rejected, timeUp: !!A.timeUp };
 }
 
 // ---------- Seite fuer Live (net:"split") ----------

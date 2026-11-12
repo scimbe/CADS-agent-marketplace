@@ -22,6 +22,7 @@ import { flipBumpers, flipSeg } from "../src/engines/arcade/flipper.js";
 import { snowWalls } from "../src/engines/arcade/snow.js";
 import { elfSpot } from "../src/engines/arcade/elfer.js";
 import { discStep } from "../src/engines/arcade/core.js";
+import { LIMIT_TICKS } from "../src/engines/arcade/index.js";
 
 const G = JSON.parse(fs.readFileSync(new URL("./fixtures/arcade-alt.json", import.meta.url), "utf8"));
 const EPS = 1e-9;
@@ -103,10 +104,12 @@ const SAME_ENDS = { flipper: 14 };
 const median = (a) => { const b = a.slice().sort((x, y) => x - y); return (b[(b.length - 1) >> 1] + b[b.length >> 1]) / 2; };
 test("Golden-Verteilung: 16 Partien je Spiel; ohne Chaos gleiche Enden, sonst gleiche Dauer (Median) und Knappheit", () => {
   for (const g of A.IDS) {
-    const L = G.stats[g], r = Array.from({ length: L.n }, (_, i) => run(g, "stat-" + g + "-" + i, 120 * 600));
+    const L0 = G.stats[g], r = Array.from({ length: L0.n }, (_, i) => run(g, "stat-" + g + "-" + i, 120 * 600));
+    // Hartes Partie-Limit der neuen Engine (300 s): eine Altcode-Partie, die laenger lief, gilt mit ihrem Stand bei 300 s.
+    const L = { ...L0, ends: L0.ends.map((e, i) => (e[0] > LIMIT_TICKS ? [LIMIT_TICKS, L0.at300[i]] : e)) };
     assert.ok(r.every((x) => x.rejected === 0), g + " keine Verwerfung");
-    // stat-flipper-8: zwei Bots spielen im Altcode 600 s ohne Punkt (Ballwechsel ohne Ende); die neue Engine genauso.
-    if (HORIZON[g]) assert.ok(r.every((x) => x.over), g + " alle enden");
+    // stat-flipper-8: zwei Bots spielen im Altcode 600 s ohne Punkt; die neue Engine beendet die Partie nach 300 s.
+    assert.ok(r.every((x) => x.over && x.ticks <= LIMIT_TICKS), g + " alle enden spaetestens beim Partie-Limit");
     const ends = r.map((x) => [x.ticks, x.score]), same = ends.filter((e, i) => JSON.stringify(e) === JSON.stringify(L.ends[i])).length;
     if (!HORIZON[g]) { if (SAME_ENDS[g]) assert.ok(same >= SAME_ENDS[g], g + " gleiche Enden " + same); else assert.deepEqual(ends, L.ends, g); continue; }
     const mNew = median(r.map((x) => x.ticks)), mOld = median(L.ends.map((x) => x[0]));

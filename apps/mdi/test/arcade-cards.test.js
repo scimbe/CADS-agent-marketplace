@@ -197,3 +197,12 @@ test("Reduzierte Bewegung: weniger Partikel, kein Wackeln und kein Blitz in der 
   }
   assert.ok(found, "ein Einschlag kam vor");
 });
+test("Hartes Partie-Limit: zwei Bots, die nie einen Punkt machen (Flipper stat-flipper-8), enden nach 300 s; beide Seiten gleich", () => {
+  let { c, st } = newGame("arcade-flipper", ["bot", "bot"], null, "stat-flipper-8");
+  let t = 0; for (; t < 120 * 400 && !c.status(st).over; t++) st = c.step(st, [NONE, NONE]).state;
+  const s = c.status(st);
+  assert.equal(t, 120 * 300, "Ende genau beim Limit"); assert.ok(s.over && s.timeUp);
+  assert.deepEqual(st.sides[0].score, st.sides[1].score.slice().reverse(), "gespiegelt gleich");
+  assert.equal(s.winner, st.sides[0].draw ? -1 : st.sides[0].score[0] > st.sides[0].score[1] ? 0 : 1);
+  assert.match(c.view(st, {}).layers.at(-1).ops.map((o) => o.text || "").join(" "), /Gewonnen|Knapp|Unentschieden/);
+});
