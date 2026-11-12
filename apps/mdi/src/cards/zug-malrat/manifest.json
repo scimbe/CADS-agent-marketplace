@@ -1,0 +1,60 @@
+{
+  "id": "zug-malrat",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.1",
+  "kind": "turn",
+  "mode": "turn",
+  "title": {
+    "de": "Mal & Rat",
+    "en": "Draw & Guess"
+  },
+  "teaser": {
+    "de": "Mal ein Wort. Wer errät dein Bild?",
+    "en": "Draw a word. Who can guess your picture?"
+  },
+  "howto": {
+    "de": "Wähle ein Wort und male es. Rate das Bild. Dann malst du zurück.",
+    "en": "Pick a word and draw it. Guess the picture. Then you draw back."
+  },
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "seats": {
+    "de": [
+      "Spieler 1",
+      "Spieler 2"
+    ],
+    "en": [
+      "Player 1",
+      "Player 2"
+    ]
+  },
+  "hidden": "none",
+  "uses": [],
+  "limits": {
+    "stepBudget": 20,
+    "stateBytes": 2048
+  },
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "day"
+    ],
+    "properties": {
+      "day": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 99999,
+        "default": 0,
+        "x-field": "number",
+        "x-label": {
+          "de": "Tag (Tagesmodus, 0 = aus)",
+          "en": "Day (daily mode, 0 = off)"
+        }
+      }
+    }
+  },
+  "parts": []
+}

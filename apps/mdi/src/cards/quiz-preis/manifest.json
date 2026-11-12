@@ -1,0 +1,177 @@
+{
+  "id": "quiz-preis",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.1",
+  "kind": "turn",
+  "mode": "turn",
+  "title": {
+    "de": "Was kostet das?",
+    "en": "Guess the price"
+  },
+  "teaser": {
+    "de": "Acht Alltagspreise schätzen, dann ist die andere Person dran.",
+    "en": "Guess eight everyday prices, then it's the other person's turn."
+  },
+  "howto": {
+    "de": "Acht Alltagspreise schätzen, dann ist die andere Person dran.",
+    "en": "Guess eight everyday prices, then it's the other person's turn."
+  },
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "seats": {
+    "de": [
+      "Spieler 1",
+      "Spieler 2"
+    ],
+    "en": [
+      "Player 1",
+      "Player 2"
+    ]
+  },
+  "hidden": "none",
+  "uses": [],
+  "limits": {
+    "stepBudget": 20,
+    "stateBytes": 4096
+  },
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "variante",
+      "paket",
+      "pk",
+      "tag"
+    ],
+    "properties": {
+      "variante": {
+        "type": "string",
+        "enum": [
+          "preis",
+          "schaetzen"
+        ],
+        "default": "preis",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Spielart",
+          "en": "Game"
+        }
+      },
+      "paket": {
+        "type": "string",
+        "enum": [
+          "",
+          "planeten",
+          "koerper",
+          "solar",
+          "ocean"
+        ],
+        "default": "",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Fertiges Paket",
+          "en": "Ready pack"
+        }
+      },
+      "pk": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "default": null,
+        "x-field": "list",
+        "x-label": {
+          "de": "Eigenes Fragenpaket",
+          "en": "Own question pack"
+        },
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "m",
+          "q"
+        ],
+        "properties": {
+          "t": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "m": {
+            "type": "string",
+            "enum": [
+              "l",
+              "f",
+              "g"
+            ]
+          },
+          "q": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "array",
+              "maxItems": 6
+            }
+          },
+          "z": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "y": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "array",
+              "maxItems": 2
+            }
+          },
+          "u": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "maxLength": 40
+            }
+          }
+        }
+      },
+      "tag": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 100000,
+        "default": 0,
+        "x-field": "number",
+        "x-label": {
+          "de": "Tag (Tageskarte)",
+          "en": "Day (daily card)"
+        }
+      }
+    }
+  },
+  "parts": [
+    {
+      "id": "regeln",
+      "params": [
+        "variante"
+      ],
+      "label": {
+        "de": "Spielart",
+        "en": "Game"
+      }
+    },
+    {
+      "id": "paket",
+      "params": [
+        "paket",
+        "pk"
+      ],
+      "label": {
+        "de": "Fragenpaket",
+        "en": "Question pack"
+      }
+    }
+  ]
+}

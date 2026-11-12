@@ -1,0 +1,177 @@
+{
+  "id": "zug-abfragen",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.1",
+  "kind": "turn",
+  "mode": "turn",
+  "title": {
+    "de": "Frag mich ab",
+    "en": "Quiz me"
+  },
+  "teaser": {
+    "de": "Abfragen, jeder von seinem Sofa.",
+    "en": "Test each other from two sofas."
+  },
+  "howto": {
+    "de": "Abfragen, jeder von seinem Sofa.",
+    "en": "Test each other from two sofas."
+  },
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "seats": {
+    "de": [
+      "Spieler 1",
+      "Spieler 2"
+    ],
+    "en": [
+      "Player 1",
+      "Player 2"
+    ]
+  },
+  "hidden": "none",
+  "uses": [],
+  "limits": {
+    "stepBudget": 20,
+    "stateBytes": 8192
+  },
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "variante",
+      "paket",
+      "pk"
+    ],
+    "properties": {
+      "variante": {
+        "type": "string",
+        "enum": [
+          "abfragen",
+          "quiz"
+        ],
+        "default": "abfragen",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Spielart",
+          "en": "Game"
+        }
+      },
+      "paket": {
+        "type": "string",
+        "enum": [
+          "",
+          "planeten",
+          "koerper",
+          "photosynthese",
+          "bundeslaender",
+          "mittelalter",
+          "dinosaurier",
+          "wasserkreislauf",
+          "rom",
+          "hauptstaedte",
+          "vulkane",
+          "erfindungen",
+          "wald",
+          "solar",
+          "ocean",
+          "egypt",
+          "weather"
+        ],
+        "default": "",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Fertiges Paket",
+          "en": "Ready pack"
+        }
+      },
+      "pk": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "default": null,
+        "x-field": "list",
+        "x-label": {
+          "de": "Eigenes Fragenpaket",
+          "en": "Own question pack"
+        },
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "m",
+          "q"
+        ],
+        "properties": {
+          "t": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "m": {
+            "type": "string",
+            "enum": [
+              "l",
+              "f",
+              "g"
+            ]
+          },
+          "q": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "array",
+              "maxItems": 6
+            }
+          },
+          "z": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "integer"
+            }
+          },
+          "y": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "array",
+              "maxItems": 2
+            }
+          },
+          "u": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "maxLength": 40
+            }
+          }
+        }
+      }
+    }
+  },
+  "parts": [
+    {
+      "id": "regeln",
+      "params": [
+        "variante"
+      ],
+      "label": {
+        "de": "Spielart",
+        "en": "Game"
+      }
+    },
+    {
+      "id": "paket",
+      "params": [
+        "paket",
+        "pk"
+      ],
+      "label": {
+        "de": "Fragenpaket",
+        "en": "Question pack"
+      }
+    }
+  ]
+}
