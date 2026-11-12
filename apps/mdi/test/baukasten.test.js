@@ -354,3 +354,28 @@ test("Baukasten: Gold-Korpus-Befunde – Gleichstand am Ziel, Boden fuer jump, D
   const v = pruefe({ ...clone(FLAPPY), spawn: [{ ...FLAPPY.spawn[0], gap: 140 }] }, { games: 4 });
   assert.match(feedback({ stage: v.stage, reasons: v.reasons, metrics: v.metrics }), /Ohne jede Eingabe/);
 });
+
+test("Baukasten: Review-Befunde – feindliche Beschreibungen und Eingaben bleiben begrenzt", async () => {
+  const { candidates, MAX_CANDIDATES, botInput: bi } = await import("../src/engines/baukasten/bot.js");
+  // H1: 120 Tipp-Ziele und ein Rollout-Bot ohne eigenes Ding: hoechstens MAX_CANDIDATES Kandidaten, Bot-Ding muss einem Sitz gehoeren
+  const many = { v: 1, title: "Viele", mode: "realtime", players: 2, bg: "ink", things: [{ id: "lenk", look: "box", color: "yellow", control: "lr", power: 500 }, { id: "ziel", look: "circle", color: "paper", w: 20, h: 20, control: "tap" }],
+    start: [{ thing: "lenk", x: 500, y: 800 }, { thing: "ziel", x: 30, y: 30, n: 120, cols: 12, dx: 70, dy: 60 }], rules: [{ when: "tap", a: "ziel", do: [{ act: "score", on: "actor", n: 1 }] }], end: { time: 30 }, bot: { kind: "rollout", thing: "lenk" } };
+  assert.match(check(many).errors.join(), /gehoert keinem Sitz/);
+  const ok = check({ ...many, bot: { kind: "rollout" } }).desc, st = E.init(ok, "h1", ["human", "none"]);
+  assert.ok(candidates(ok, 1, st).length <= MAX_CANDIDATES);
+  const meter = { steps: 0 }, t0 = Date.now();
+  bi(ok, st, 1, 3, { kind: "rollout", thing: "", target: "" }, meter);
+  assert.ok(meter.steps <= MAX_CANDIDATES * MAX_CANDIDATES * 30 && Date.now() - t0 < 3000, meter.steps + " Schritte");
+  // H2: Zugbot mit dicker Beschreibung im Zustand bleibt im Knotenbudget
+  const fat = check({ v: 1, title: "Dick", goal: "x".repeat(90), mode: "turn", players: 2, bg: "paper", things: Array.from({ length: 12 }, (_, i) => ({ id: "s" + i, look: "emoji", emoji: "⭐" })), turn: { kind: "place", cols: 4, rows: 6, line: 4, pieces: ["s0", "s1"] } }).desc;
+  const s0 = Z.init(fat, "h2", 2), t1 = Date.now();
+  Z.botMove(fat, { ...s0.pub, D: fat }, 0, 3, "h2");
+  assert.ok(Date.now() - t1 < 5000, "Botzug " + (Date.now() - t1) + " ms");
+  // M1: kaputte Eingaben eines Partners werfen nicht und halten den Zustand ganzzahlig
+  const p = check(PONG).desc;
+  let s = E.init(p, "m1", ["human", "remote"]);
+  for (const x of [{ b: 0, p: 5 }, { ax: "abc" }, { p: [[0, 1.5, 2, 3]] }, null, { b: -1, ay: 1e9, p: [[0, 10, 10, 3], "x"] }]) s = E.step(p, s, [x, x]).state;
+  assert.doesNotThrow(() => canon(s));
+  // L2: geerbte Namen sind keine Felder
+  assert.ok(normalize({ ...clone(FLAPPY), toString: 5 }).errors.some((e) => /toString/.test(e)));
+});

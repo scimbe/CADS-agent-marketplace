@@ -1,8 +1,8 @@
 // ERZEUGT von scripts/gen.js – nicht von Hand aendern.
 /* eslint-disable */
 export const CODE_HASH = {
-  "baukasten": "9a14f921df79e538b5898b0b0ed7a103",
-  "baukasten-zug": "389e1f1c710814f777e9e17c99afc12a",
+  "baukasten": "a4f00518548ea5150b7e6df58b06a855",
+  "baukasten-zug": "00e77a63cdc0a93ec022772882e10c9a",
   "bluff": "87c9535399a1be510156b6fc7c6d8f1a",
   "geschenk-finder": "1c32c1632a208ff9f3dc5fab62657e27",
   "gruss": "5348013d7cd9f87b8d89ebe3653dcf41",
