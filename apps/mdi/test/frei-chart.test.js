@@ -97,6 +97,7 @@ test("Senden -> Warten (gesendet, Platz N, KI baut, Pruefung) -> Vorschau mit KI
   const body = rec("karte-ok-card").body;
   s = go(s, { type: "FREI_RESULT", req: ask.req, r: { how: "result", options: body.options, seals: body.seals, hashes: body.hashes, receipt: body.receipt, note: [] } });
   assert.equal(leaf(s), "frei.vorschau"); assert.deepEqual(acts(s), ["take", "drop", "refine"]);
+  for (const t of ["MINE", "DECK", "BILD"]) go(s, { type: t }, { consumed: false });   // Review: kein Verlassen der Vorschau ohne Abrechnung
   assert.ok(txt(s).includes("Mit KI erstellt"));
   s = go(s, { type: "TAKE" });
   assert.equal(leaf(s), "card.view"); assert.equal(s.ctx.cardId, "frei"); assert.equal(s.ctx.own, true);
@@ -238,10 +239,12 @@ test("KI-Arten an jeder Karte: Mit KI fuer x-model-Felder, Auswahl setzt das Fel
   s = go(s, { type: "KI", part: "titel" });
   assert.equal(leaf(s), "frei.ki"); const k = fx(s, "frei.ki")[0];
   assert.equal(k.kind, "line"); assert.equal(k.input.text, "Du schaffst das");
-  s = go(s, { type: "KI_RESULT", req: k.req, r: { how: "result" }, opts: rec("ki-line").body.options });
+  s = go(s, { type: "KI_RESULT", req: k.req, r: { how: "result" }, opts: rec("ki-line").body.options, receipt: rec("ki-line").body.receipt });
+  assert.equal(fx(s, "frei.settle").length, 0, "abgerechnet wird erst beim Antippen");
   assert.ok(txt(s).includes("Heute zählt nur Mut."));
   s = go(s, { type: "KI_PICK", i: 1 });
   assert.equal(leaf(s), "card.customize.bubbles"); assert.equal(s.ctx.params.gruss.title, "Heute zählt nur Mut.");
+  assert.deepEqual(fx(s, "frei.settle"), [{ type: "frei.settle", how: "accept", receipt: rec("ki-line").body.receipt }]);
 });
 
 test("KI-Bild: Status, Text, Stil, Auftrag, Warten, Ergebnis, Nehmen; Kontobild ohne Guthaben gesperrt", async () => {

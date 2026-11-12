@@ -17,7 +17,7 @@
 //   melden     Meldung mit Grund und Einwilligung
 //   bild, bildwarten  KI-Bild (Karte, Logo, Kontobild) mit Kontingent
 //   ki         KI-Vorschlaege fuer die x-model-Felder eines Teils der offenen Karte
-import { ARTS, GENRES, MODES, SOON, artOk, kindOk, sanitizeDoc, targetOf, freeIdOf } from "./doc.js";
+import { ARTS, GENRES, MODES, SOON, artOk, kindOk, sanitizeDoc, sanitizeKi, targetOf, freeIdOf } from "./doc.js";
 import { cardOf as cardById, validParams, CARDS } from "../../cards/index.js";
 import { defaults } from "../../contract/fields.js";
 import * as G from "../../app/game.js";
@@ -40,12 +40,8 @@ const freshForm = { art: "", genre: "", mode: "", text: "", ask: "", fest: false
 
 export const freiState = {
   initial: "start",
-  on: {
-    BACK_SHELF: { target: T("inhalt.shelf") },
-    MINE: { target: T("inhalt.frei.meine") },
-    DECK: { target: T("inhalt.frei.deck") },
-    BILD: { target: T("inhalt.frei.bild") }
-  },
+  // Abrechnung gescheitert (accept/discard ohne 200): sichtbar, nie still
+  on: { SETTLE_FAIL: { actions: ["settleFail"] } },
   states: {
     start: {
       entry: ["freiRefresh"],
@@ -61,6 +57,10 @@ export const freiState = {
         RESEND: { target: T("inhalt.frei.warten"), cond: "resendOk", actions: ["takeResend", "fxAsk"] },
         CATALOG: { target: T("inhalt.card.view"), cond: "catalogOk", actions: ["openCatalog"] },
         STIL_GO: { target: T("inhalt.stil") },
+        // nur hier, wo keine Antwort offen ist (Review: kein Verlassen von warten/vorschau ohne Abrechnung)
+        MINE: { target: T("inhalt.frei.meine") },
+        DECK: { target: T("inhalt.frei.deck") },
+        BILD: { target: T("inhalt.frei.bild") },
         // Profil eben mit 16+ angelegt (erste Anmeldung aus der freien Karte): den Stand neu fragen, sonst stuende "ab 16" da
         PROFIL: { cond: "profilCreated", actions: ["freiRefresh"] },
         BACK: { target: T("inhalt.shelf"), actions: ["clearForm"] }
@@ -281,7 +281,9 @@ export const freiActions = {
   takeOption: (ctx, ev) => {
     const r = R(ev), o = r.options[0], doc = sanitizeDoc(o.doc);
     // das Siegel der eingefrorenen Karte (mit Ersteller-Kennung o) kommt vom Deck des Servers; sonst Siegel + eigener Hash
-    const ki = o.ki && o.ki.k === "karte" && o.ki.s ? { k: "karte", s: o.ki.s, ...(o.ki.h ? { h: o.ki.h } : {}), ...(o.ki.o ? { o: o.ki.o } : {}) } : { k: "karte", s: r.seals[0], ...(r.hashes[0] ? { h: r.hashes[0] } : {}) };
+    // (das h des Deck-Siegels deckt {card, o} ab und ist die Karten-id; deshalb gilt hier das bereinigte h des Servers)
+    const sk = sanitizeKi(o.ki);
+    const ki = sk && sk.k === "karte" && sk.s ? sk : { k: "karte", s: r.seals[0], ...(r.hashes[0] ? { h: r.hashes[0] } : {}) };
     return F(ctx, { phase: null, opt: { art: o.art, doc: { ...doc, ki }, receipt: r.receipt, note: r.note || [], credit: r.credit === true }, res: null });
   },
   badResult: (ctx, ev, emit) => { const r = R(ev); if (r.receipt) emit({ type: "frei.settle", how: "discard", receipt: r.receipt }); return F(ctx, { phase: null, res: { how: "bad" } }); },
@@ -352,14 +354,16 @@ export const freiActions = {
   // KI-Arten fuer alle Karten: Vorschlaege fuer ein x-model-Feld (Art "line" fuer Text, "meme" fuer Meme-Zeilen)
   openKi: (ctx, ev) => { const c = cardOf(ctx.cardId), fields = modelFields(c.manifest, ev.part); return F(ctx, { ki: { part: ev.part, field: fields[0], fields, opts: [], res: null, req: ctx.frei.ki.req } }); },
   fxKi: (ctx, ev, emit) => {
-    const k = ctx.frei.ki, req = (k.req || 0) + 1, p = paramsOfCard(ctx, ctx.cardId), field = ev.field && k.fields.includes(ev.field) ? ev.field : k.field;
+    if (ctx.frei.ki.receipt) emit({ type: "frei.settle", how: "discard", receipt: ctx.frei.ki.receipt });
+    const k = { ...ctx.frei.ki, receipt: "" }, req = (k.req || 0) + 1, p = paramsOfCard(ctx, ctx.cardId), field = ev.field && k.fields.includes(ev.field) ? ev.field : k.field;
     const max = cardOf(ctx.cardId).manifest.params.properties[field].maxLength || 90;
     emit({ type: "frei.ki", req, kind: "line", input: { text: String(p[field] || cardOf(ctx.cardId).manifest.title[ctx.lang] || "").slice(0, 90), style: "druck" }, max });
     return F(ctx, { ki: { ...k, field, req, opts: [], res: { how: "busy" } } });
   },
-  takeKi: (ctx, ev) => F(ctx, { ki: { ...ctx.frei.ki, opts: ev.opts || [], res: ev.r, seal: ev.seal || null } }),
-  applyKi: (ctx, ev) => { const k = ctx.frei.ki, next = { ...paramsOfCard(ctx, ctx.cardId), [k.field]: k.opts[ev.i] }; return { ...F(ctx, { ki: { ...k, opts: [], res: null } }), params: { ...ctx.params, [ctx.cardId]: next } }; },
-  cancelKi: (ctx, ev, emit) => { emit({ type: "frei.cancel", req: -1 }); return F(ctx, { ki: { ...ctx.frei.ki, req: (ctx.frei.ki.req || 0) + 1, opts: [], res: null } }); }
+  takeKi: (ctx, ev) => F(ctx, { ki: { ...ctx.frei.ki, opts: ev.opts || [], res: ev.r, seal: ev.seal || null, receipt: ev.receipt || "" } }),
+  applyKi: (ctx, ev, emit) => { const k = ctx.frei.ki; if (k.receipt) emit({ type: "frei.settle", how: "accept", receipt: k.receipt }); const next = { ...paramsOfCard(ctx, ctx.cardId), [k.field]: k.opts[ev.i] }; return { ...F(ctx, { ki: { ...k, opts: [], res: null } }), params: { ...ctx.params, [ctx.cardId]: next } }; },
+  cancelKi: (ctx, ev, emit) => { const k = ctx.frei.ki; if (k.receipt) emit({ type: "frei.settle", how: "discard", receipt: k.receipt }); return F(ctx, { ki: { ...k, req: (k.req || 0) + 1, opts: [], res: null, receipt: "" } }); },
+  settleFail: (ctx) => F(ctx, { note: "settle-fail" })
 };
 
 /** Kontext der freien Karte (zuletzt gewaehlt nur als markierter Vorschlag, nie als stille Auswahl) */

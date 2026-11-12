@@ -228,7 +228,7 @@ export function createApi(deps) {
 
   // ---- Strang K (freie Karte, KI, Deck, KI-Bild): additiv. Die Dienste in src/broker/ai.js, deck.js, bild.js bilden die
   // Antworten selbst ab; hier steht nur der Transport, damit fetch weiter genau an dieser Stelle steht (build.test). ----
-  const RAW_PATHS = /^\/(api\/duell\/(ai(\/(status|accept|discard))?|queue|report|deck(\/(key|status|use|vote|me))?|bild(\/(status|job|cancel|keep|avatar))?)|duell\/bild\/[A-Za-z0-9_-]{22}\.(jpg|png))(\?c=[A-Za-z0-9_-]{22})?$/;
+  const RAW_PATHS = /^\/api\/duell\/(ai(\/(status|accept|discard))?|queue|report|deck(\/(key|use|vote|me))?|deck\/status\?c=[A-Za-z0-9_-]{22}|bild(\/(status|job|cancel|keep|avatar))?)$/;
   /** Roher Aufruf eines erlaubten Pfads (nur diese Liste, nur gleiche Herkunft) -> {status, body} | Fehler nicht-hier/netz/pfad */
   async function raw(method, path, body) {
     if ((method !== "GET" && method !== "POST") || !RAW_PATHS.test(path)) return fail("pfad");

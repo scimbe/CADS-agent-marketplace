@@ -23,7 +23,8 @@ export const freiEffects = {
   "frei.ask": (fx, env) => later(async () => {
     const ai = env.deps.ai, s = cur(env);
     if (!ai) return none(env, "FREI_RESULT", { req: fx.req });
-    const alive = () => cur(env).ctx.frei.req === fx.req;
+    // gilt nur, solange die Anfrage die aktuelle ist UND die Ansicht noch wartet (Robot/Warten); sonst geht ein Ergebnis zurueck
+    const alive = () => { const st = cur(env); return st.ctx.frei.req === fx.req && st.config.includes("inhalt.frei.warten"); };
     const r = await ai.ask({ kind: "karte", input: fx.input, device: s.ctx.device, lang: s.ctx.lang },
       (step, n) => { if (alive()) env.dispatch({ type: "FREI_PHASE", req: fx.req, step, n }); }, alive);
     if (r.how === "result" && !alive()) { if (r.receipt) await ai.discard(s.ctx.device, r.receipt); return; }
@@ -35,7 +36,8 @@ export const freiEffects = {
   "frei.settle": (fx, env) => later(async () => {
     const ai = env.deps.ai; if (!ai) return;
     const dev = cur(env).ctx.device;
-    if (fx.how === "accept") await ai.accept(dev, fx.receipt); else await ai.discard(dev, fx.receipt);
+    const ok = fx.how === "accept" ? await ai.accept(dev, fx.receipt) : await ai.discard(dev, fx.receipt);
+    if (!ok) env.dispatch({ type: "SETTLE_FAIL", how: fx.how });
     env.dispatch({ type: "REFRESH" });
   }),
   "frei.last": (fx, env) => { if (env.deps.storage && env.deps.storage.saveFrei) env.deps.storage.saveFrei({ freiLast: fx.last }); },
@@ -71,7 +73,7 @@ export const freiEffects = {
   }),
   "frei.bild.status": (fx, env) => later(async () => env.dispatch({ type: "BILD_STATUS", r: env.deps.bild ? await env.deps.bild.status() : { ok: false, error: "nicht-hier" } })),
   "frei.bild.make": (fx, env) => later(async () => {
-    const alive = () => cur(env).ctx.frei.bild.req === fx.req;
+    const alive = () => { const st = cur(env); return st.ctx.frei.bild.req === fx.req && st.config.includes("inhalt.frei.bildwarten"); };
     const r = env.deps.bild ? await env.deps.bild.make(fx.input, (step, n) => { if (alive()) env.dispatch({ type: "BILD_PHASE", req: fx.req, step, n }); }, alive) : { how: "nicht-hier" };
     if (alive()) env.dispatch({ type: "BILD_RESULT", req: fx.req, r });
   }),
@@ -86,12 +88,12 @@ export const freiEffects = {
   "frei.ki": (fx, env) => later(async () => {
     const ai = env.deps.ai, s = cur(env);
     if (!ai || !KINDS.includes(fx.kind)) return env.dispatch({ type: "KI_RESULT", req: fx.req, r: { how: "nicht-hier" }, opts: [] });
-    const alive = () => cur(env).ctx.frei.ki.req === fx.req;
+    const alive = () => { const st = cur(env); return st.ctx.frei.ki.req === fx.req && st.config.includes("inhalt.frei.ki"); };
     const r = await ai.ask({ kind: fx.kind, input: fx.input, device: s.ctx.device, lang: s.ctx.lang }, () => {}, alive);
     if (!alive()) { if (r.receipt) await ai.discard(s.ctx.device, r.receipt); return; }
     const opts = r.how === "result" ? r.options.map((o) => (typeof o === "string" ? o : o && typeof o.top === "string" ? o.top + " " + o.bottom : "")).map((x) => [...x].slice(0, fx.max || 90).join("").trim()).filter(Boolean) : [];
-    // eine Antwort, aus der hier nichts genommen werden kann, geht sofort zurueck; sonst gilt sie beim Antippen als genommen
-    if (r.receipt) { if (opts.length) await ai.accept(s.ctx.device, r.receipt); else await ai.discard(s.ctx.device, r.receipt); }
-    env.dispatch({ type: "KI_RESULT", req: fx.req, r: { how: r.how === "result" && !opts.length ? "bad" : r.how, position: r.position }, opts, seal: r.seals && r.seals[0] ? { k: fx.kind, s: r.seals[0], h: r.hashes[0] } : null });
+    // eine Antwort, aus der hier nichts genommen werden kann, geht sofort zurueck; sonst erst beim Antippen (accept) oder Zurueck (discard)
+    if (r.receipt && !opts.length) await ai.discard(s.ctx.device, r.receipt);
+    env.dispatch({ type: "KI_RESULT", req: fx.req, r: { how: r.how === "result" && !opts.length ? "bad" : r.how, position: r.position }, opts, receipt: opts.length ? r.receipt : "", seal: r.seals && r.seals[0] ? { k: fx.kind, s: r.seals[0], h: r.hashes[0] } : null });
   })
 };

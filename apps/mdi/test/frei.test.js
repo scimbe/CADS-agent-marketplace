@@ -349,3 +349,13 @@ test("Kategorie, Genre, Wer spielt, Bald: wie im Altcode; kein Bot fuer G1/G2", 
   for (const l of ["de", "en"]) for (const k of ["create_art_card", "create_art_meme", "create_art_game", "create_art_quiz", "create_art_faehigkeit", "create_genre_G1", "create_genre_G2", "create_mode_allein", "create_mode_bot", "create_mode_duell", "create_mode_bot_off", "create_mode_duell_G1", "create_mode_duell_G2", ...SOON.map((x) => "create_soon_" + x[0])]) assert.ok(FREI_TEXTS[l][k], l + " " + k);
   assert.deepEqual(Object.keys(FREI_TEXTS.de).sort(), Object.keys(FREI_TEXTS.en).sort(), "de und en haben dieselben Schluessel");
 });
+
+test("api.raw: nur die Pfade der freien Karte, gleiche Herkunft; Abfrage nur am Status-Gate (Review)", async () => {
+  const { createApi } = await import("../src/broker/api.js");
+  const seen = [];
+  const api = createApi({ location: { protocol: "https:", host: "h" }, fetch: async (u) => { seen.push(u); return { status: 200, json: async () => ({}) }; } });
+  for (const p of ["/api/duell/ai", "/api/duell/ai/accept", "/api/duell/queue", "/api/duell/deck", "/api/duell/deck/status?c=" + "A".repeat(22), "/api/duell/bild/job", "/api/duell/report"]) assert.equal((await api.raw("POST", p, {})).status, 200, p);
+  for (const p of ["/api/duell/ai?c=" + "A".repeat(22), "/api/duell/profile/get", "https://evil.example/api/duell/ai", "//evil.example/api/duell/ai", "/api/duell/ai/../profile/get", "/duell/bild/" + "A".repeat(22) + ".png", "/api/duell/deck/status?c=x"]) assert.equal((await api.raw("POST", p, {})).error, "pfad", p);
+  assert.equal((await api.raw("DELETE", "/api/duell/ai", {})).error, "pfad");
+  assert.equal(seen.length, 7);
+});

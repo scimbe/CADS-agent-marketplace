@@ -131,6 +131,7 @@ function refusalBlock(ctx, lang, dispatch) {
 function startView(state, dispatch) {
   const ctx = state.ctx, f = ctx.frei, lang = ctx.lang, ks = kState(state), k = ctx.konto.st ? ctx.konto.st.karte : null, body = [], panel = [];
   body.push(h("p", { class: "lede plain", key: "h" }, ft(lang, "create_h")));
+  if (f.note === "settle-fail") body.push(status(ft(lang, "mod_fail"), "warn", "sf"));
   if (f.note === "cancelled") body.push(status(ft(lang, "create_wait_cancelled"), "hint strong", "nc"));
   if (f.note === "dropped") body.push(status(ft(lang, k && k.remaining === 0 && !k.credit ? "create_norefund" : "create_drop"), "hint", "nd"));
   if (ks === "pruefen" || ks === "anmelden" || ks === "abmelden") { body.push(status(ft(lang, "frei_status_wait"))); return { body, panel, gate: "wait" }; }

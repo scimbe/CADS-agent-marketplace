@@ -61,7 +61,8 @@ export function createBild(deps) {
       if (!alive()) { const c = await api.raw("POST", "/api/duell/bild/cancel", { job }); return { how: "gone", refunded: !!(c.body && c.body.refunded) }; }
       const p = await api.raw("POST", "/api/duell/bild/job", { job });
       const b = p.status === 200 && p.body ? p.body : null;
-      if (!b) { if (now() - started > 60000) return { how: "off" }; await sleep(1000); continue; }
+      if (now() - started > 60000) { await api.raw("POST", "/api/duell/bild/cancel", { job }); return { how: "failed", reason: "timeout", refunded: false }; }   // harte Grenze (Server: 30 s)
+      if (!b) { await sleep(1000); continue; }
       if (b.state === "done") {
         if (typeof b.id !== "string" || !ID.test(b.id) || typeof b.url !== "string" || !URL_RE.test(b.url)) return { how: "off" };
         const img = await api.image(b.url);
