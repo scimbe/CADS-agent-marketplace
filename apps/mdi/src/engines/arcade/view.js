@@ -193,12 +193,15 @@ const DRAW = {
   },
   panzer: {
     bg() { return [rect(0, 0, W, H, lin(0, H, ["#141d45", "#3a3a7a", "#c86a5a", "#f6b26b"])), glow(W * 0.5, H * 0.72, 320, "#ffd38a", 0.6), disc(W * 0.5, H * 0.72, 90, "#ffe2a8"), ...specks(50, "#ffffff99", "stars2", 3)]; },
+    // Insel und Meer aendern sich nur bei einem Krater: eigene, gecachte Ebene (Schluessel = Gelaende).
+    mid(S) {
+      const Z = PANZER, T = S.st.T, cw = W / Z.N, pts = [0, T[0]];
+      for (let i = 0; i < Z.N; i++) pts.push((i + 0.5) * cw, T[i]); pts.push(W, T[Z.N - 1], W, H, 0, H);
+      return { key: "isl|" + T.join(","), ops: [{ o: "poly", pts, closed: true, fill: lin(H - 760, Z.SEA + 40, ["#7cdb3c", "#4f8f2a", "#5a3b1e"]), stroke: "#b6ff7a", lw: 6 }, rect(0, Z.SEA, W, H - Z.SEA, lin(Z.SEA, H, ["#1c6fb8", "#0b2d55"]), { alpha: 0.88 })] };
+    },
     fg(S, m, look, now, aim, calm) {
-      const st = S.st, Z = PANZER, T = st.T, cw = W / Z.N, ops = [];
+      const st = S.st, Z = PANZER, T = st.T, ops = [];
       for (let k = 0; k < 4; k++) { const cx = ((k * 330 + now * st.wind * 0.6) % (W + 300) + W + 300) % (W + 300) - 150, cy = 220 + k * 140; ops.push({ o: "ellipse", x: cx, y: cy, rx: 120, ry: 34, fill: "#ffffff2e" }, { o: "ellipse", x: cx + 60, y: cy - 20, rx: 80, ry: 30, fill: "#ffffff2e" }); }
-      const pts = [0, T[0]]; for (let i = 0; i < Z.N; i++) pts.push((i + 0.5) * cw, T[i]); pts.push(W, T[Z.N - 1], W, H, 0, H);
-      ops.push({ o: "poly", pts, closed: true, fill: lin(H - 760, Z.SEA + 40, ["#7cdb3c", "#4f8f2a", "#5a3b1e"]), stroke: "#b6ff7a", lw: 6 });
-      ops.push(rect(0, Z.SEA, W, H - Z.SEA, lin(Z.SEA, H, ["#1c6fb8", "#0b2d55"]), { alpha: 0.88 }));
       const wv = []; for (let w = 0; w <= W; w += 20) wv.push(w, Z.SEA + sinD(w / 60 + (calm ? 0 : now * 2)) * 6);
       ops.push({ o: "poly", pts: wv, closed: false, stroke: "#ffffff80", lw: 4 });
       for (const [own, a, col] of [[true, st.aim, m.a], [false, st.oppAim, m.b]]) {
@@ -398,6 +401,9 @@ export function drawSide(S, look, o) {
   if (o.note) top.push(rect(30, H - 78, W - 60, 60, "#00000073", { r: 30 }), { o: "text", x: W / 2, y: H - 36, text: o.note, size: 36, font: "body", align: "center", fill: "#ffffff", maxW: W - 90 });
   if (eff.flash) top.push(rect(0, 0, W, H, eff.flash[1], { alpha: eff.flash[0] }));
   if (eff.shake > 0.1) top.unshift({ o: "shake", amt: eff.shake });
-  return { t: "canvas", w: W, h: H, layers: [{ id: "bg", key: g + "|" + S.seed + "|" + look.a + look.b + look.photo, ops: bg }, { id: "fg", ops: fg.concat(fxOps) }, { id: "top", ops: top }], a11y: o.a11y || "" };
+  const layers = [{ id: "bg", key: g + "|" + S.seed + "|" + look.a + look.b + look.photo, ops: bg }];
+  if (D.mid) { const md = D.mid(S); layers.push({ id: "mid", key: md.key, ops: md.ops }); }
+  layers.push({ id: "fg", ops: fg.concat(fxOps) }, { id: "top", ops: top });
+  return { t: "canvas", w: W, h: H, layers, a11y: o.a11y || "" };
 }
 export { DRAW, effects, burst, withA };
