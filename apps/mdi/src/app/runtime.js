@@ -4,13 +4,17 @@ import { machine, initialContext, featureEffects } from "./machine.js";
 import { FEATURES } from "./features.js";
 import { chooseMove, LEVELS } from "../bot/ismcts.js";
 import * as S from "../contract/session.js";
+import { createRtSession } from "./rt/session.js";
+import { fromB64url } from "../contract/trace.js";
 import { cardOf } from "../cards/index.js";
 import { createBotAgent } from "../bot/agent.js";
 import * as V from "../gen/validators.js";
 import { decode } from "./link.js";
 import { kontoSaved } from "./konto-chart.js";
 
-const EVENT_OF = { hello: "HELLO", join: "JOIN", start: "START", in: "PEER_IN", show: "SHOW", bye: "LIVE_DOWN" };
+const EVENT_OF = { hello: "HELLO", join: "JOIN", start: "START", in: "PEER_IN", show: "SHOW", bye: "LIVE_DOWN", again: "PEER_AGAIN" };
+// Echtzeit-Nachrichten gehen direkt an die laufende Sitzung, nicht durch die Statechart (60–120 je Sekunde)
+const RT_MSG = new Set(["rt", "rh", "rs", "pause", "resume"]);
 
 /**
  * @param {object} deps
@@ -34,7 +38,7 @@ export function createRuntime(deps) {
   const saved = deps.storage.loadKonto ? (() => { try { return deps.storage.loadKonto(); } catch (e) { return null; } })() : null;
   let state = machine.initial(initialContext(deps.lang, saved));
   if (!state.ctx.device) state = { ...state, ctx: { ...state.ctx, device: deps.entropy() } };
-  let bot = null, live = null, liveGen = 0;
+  let bot = null, live = null, liveGen = 0, rtSess = null, rtGen = 0;
   const rand = () => [deps.entropy(), deps.entropy(), deps.entropy(), deps.entropy()];
   const api = deps.api || null;
   // Netzaufrufe enden immer als Ereignis (die API wirft nicht); ein Programmfehler dahinter wird laut, nicht verschluckt
@@ -57,6 +61,7 @@ export function createRuntime(deps) {
   /** Nachricht vom Partner (Bot oder Live): erst Schema, dann Ereignis. */
   function fromPeer(msg) {
     if (V.liveMsg(msg) !== true) { dispatch({ type: "FAIL", reason: "schema" }); return; }
+    if (RT_MSG.has(msg.t)) { if (rtSess) rtSess.receive(msg); return; }
     dispatch({ type: EVENT_OF[msg.t], msg });
   }
 
@@ -132,6 +137,31 @@ export function createRuntime(deps) {
       case "mod.me": later(async () => dispatch({ type: "MOD", result: api ? await api.modMe() : { ok: false, error: "nicht-hier" } })); break;
       case "mod.appeal": later(async () => dispatch({ type: "APPEALED", result: api ? await api.appeal(fx.nid, fx.text) : { ok: false, error: "nicht-hier" } })); break;
       case "download": if (deps.download) deps.download(fx.name, fx.data); break;
+      case "rt.start": {
+        if (rtSess) { rtSess.stop(); rtSess = null; }
+        const gen = ++rtGen, c = cardOf(state.ctx.cardId);
+        if (!deps.rt) { schedule(() => dispatch({ type: "RT", kind: "error", reason: "nicht-hier" })); break; }
+        const ghost = fx.ghost ? fromB64url(fx.ghost) : undefined;
+        const R = deps.rt;
+        try {
+          rtSess = createRtSession(c, { mode: fx.mode, seat: fx.seat, params: fx.params, seed: fx.seed, level: fx.level, ghost, serving: fx.serving, lang: state.ctx.lang, reduced: R.reduced ? R.reduced() : false }, {
+            now: R.now, frame: R.frame, cancel: R.cancel,
+            send: (m) => { if (live) live.send(m); },
+            draw: (node, info) => R.draw(node, info),
+            onEvents: (ev) => { if (R.sound) R.sound(ev, c.manifest.rt.sounds || {}); },
+            onChange: (info) => {
+              if (gen !== rtGen) return;
+              const extra = info.type === "over" ? { status: info.status, ghost: (() => { try { return rtSess.ghostWire(); } catch (e) { return null; } })() } : {};
+              schedule(() => gen === rtGen && dispatch({ type: "RT", kind: info.type, ...extra }));
+            }
+          });
+          rtSess.start();
+        } catch (e) { rtSess = null; schedule(() => dispatch({ type: "RT", kind: "error", reason: e.code || "geist" })); }
+        break;
+      }
+      case "rt.stop": rtGen++; if (rtSess) { rtSess.stop(); rtSess = null; } break;
+      case "rt.pause": if (rtSess) rtSess.pause(); break;
+      case "rt.resume": if (rtSess) rtSess.resume(); break;
       case "bot.local": {
         // Bot-Sitz auf diesem Geraet (mehr als zwei Sitze): plant nur aus observe() seines Sitzes, Zufall aus dem Seed
         const ctx = state.ctx, c = cardOf(ctx.cardId), s = ctx.session;
@@ -162,5 +192,17 @@ export function createRuntime(deps) {
   if (!saved || saved.device !== state.ctx.device) first.push({ type: "device.save" });
   schedule(() => { for (const fx of first) run(fx); });
 
-  return { dispatch, link, get state() { return state; }, matches: (p) => machine.matches(state, p) };
+  // Eingaben der Buehne (src/render/rt-stage.js) -> laufende Echtzeit-Sitzung; ohne Sitzung: nicht verbraucht
+  const rt = {
+    get active() { return !!rtSess; },
+    get view() { return rtSess ? rtSess.view : null; },
+    screenButtons: () => (rtSess ? rtSess.screenButtons() : []),
+    key: (code, down) => (rtSess ? rtSess.key(code, down) : false),
+    pointer: (type, id, x, y) => { if (rtSess) rtSess.pointer(type, id, x, y); },
+    button: (id, down) => { if (rtSess) rtSess.button(id, down); },
+    blur: () => { if (rtSess) rtSess.blur(); },
+    hidden: () => { if (rtSess && rtSess.phase === "run" && !rtSess.paused) dispatch({ type: "PAUSE" }); },
+    status: () => (rtSess ? rtSess.status() : null)
+  };
+  return { dispatch, link, rt, get state() { return state; }, matches: (p) => machine.matches(state, p) };
 }
