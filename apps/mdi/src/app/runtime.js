@@ -10,6 +10,7 @@ import { fromB64url } from "../contract/trace.js";
 import { cardOf } from "../cards/index.js";
 import { createBotAgent } from "../bot/agent.js";
 import * as V from "../gen/validators.js";
+import { depthOk } from "../contract/equal.js";
 import { decode } from "./link.js";
 import { kontoSaved } from "./konto-chart.js";
 
@@ -63,7 +64,9 @@ export function createRuntime(deps) {
   /** Nachricht vom Partner (Bot oder Live): erst Schema, dann Ereignis. */
   // from = Sitz des Gastes, von dem die Nachricht kommt (nur beim Gastgeber einer Gruppe), sonst undefined
   function fromPeer(msg, from) {
-    if (V.liveMsg(msg) !== true) { dispatch({ type: "FAIL", reason: "schema" }); return; }
+    // Review M1: Tiefe vorher begrenzen, Validator darf nie werfen
+    let ok = false; try { ok = depthOk(msg, 8) && V.liveMsg(msg) === true; } catch (e) { ok = false; }
+    if (!ok) { dispatch({ type: "FAIL", reason: "schema" }); return; }
     if (RT_MSG.has(msg.t)) { if (rtSess) rtSess.receive(msg); return; }
     dispatch({ type: EVENT_OF[msg.t], msg, from });
   }

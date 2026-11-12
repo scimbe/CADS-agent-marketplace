@@ -47,7 +47,6 @@ export function why(n, v, lang = "de") {
       if (typeof v !== "string" || !v.trim()) return X.fill;
       if (n.oneWord && /\s/.test(v.trim())) return X.oneWord;
       if (clean(v, n.max || 60, { meet: n.meet !== false }) !== v.trim()) return X.invalid;
-      if (n.pattern && !new RegExp(n.pattern, "u").test(v.trim())) return X.invalid;
       return "";
     }
     case "list": {
@@ -98,7 +97,8 @@ function setDraft(host, n, v) {
   else if (host.onDraft) host.onDraft({ ...(host.draft && typeof host.draft === "object" ? host.draft : {}), ["w:" + n.id]: v });
 }
 function wrap(n, host, kids, extra = {}) {
-  return h("section", { class: "widget w-" + n.t + (extra.cls ? " " + extra.cls : ""), role: "group", "aria-labelledby": n.label ? (host.idp || "w") + "-" + n.id + "-l" : null, "data-part": typeof n.part === "string" ? n.part : null, key: "w-" + n.id }, ...head(n, host), ...kids);
+  // Klasse wg-<typ> (nicht w-<typ>): innere Teile heissen w-draw, w-aim, w-slide … und duerfen nicht kollidieren (S)
+  return h("section", { class: "widget wg-" + n.t + (extra.cls ? " " + extra.cls : ""), role: "group", "aria-labelledby": n.label ? (host.idp || "w") + "-" + n.id + "-l" : null, "data-part": typeof n.part === "string" ? n.part : null, key: "w-" + n.id }, ...head(n, host), ...kids);
 }
 
 // ---------- Widgets ----------
@@ -153,13 +153,16 @@ W.slide = (n, host, X) => {
   ]);
 };
 
+// input: optional timed -> Wert {text, sec} (Sekunden seit dem Anzeigen, Geraeteuhr; z. B. Ratezeit bei Malrat)
 W.input = (n, host, X) => {
   const v = drafted(host, n, "");
+  const t0 = n.timed ? drafted({ ...host }, { id: n.id + ":t0" }, null) : null;
+  if (n.timed && t0 === null && host.clock) setDraft(host, { id: n.id + ":t0" }, host.clock());
   if (n.adult && !host.age18) return wrap(n, host, [h("p", { class: "w-note" }, X.minor)]);
   const id = (host.idp || "w") + "-" + n.id + "-in";
   return wrap(n, host, [
     h(n.multiline ? "textarea" : "input", { id, class: "field", type: n.multiline ? null : "text", maxlength: String(n.max || 60), autocomplete: "off", inputmode: n.mode === "decimal" ? "decimal" : null, enterkeyhint: "next", placeholder: n.hint ? txt(n.hint, 80) : null, "aria-label": txt(n.label || n.top), value: v, disabled: host.disabled ? true : null, on: { input: (e) => setDraft(host, n, e.target.value) } }),
-    ...mainBtn(host, n, v.trim(), why(n, v, host.lang), X)
+    ...mainBtn(host, n, n.timed ? { text: v.trim(), sec: Math.max(0, Math.round(((host.clock ? host.clock() : 0) - (t0 || 0)) / 1000)) } : v.trim(), why(n, v, host.lang), X)
   ]);
 };
 
@@ -266,11 +269,11 @@ W.ideas = (n, host, X) => {
 // Grundschicht (Z1): Entwurf und Basis-Knoten
 W.field = (n, host) => {
   const v = n.value === undefined ? "" : String(n.value);
-  let timer = null;
   return h("label", { class: "w-field", key: "f-" + n.key },
     h("span", { class: "w-lbl" }, txt(n.label, 80)),
     h(n.multiline ? "textarea" : "input", { class: "field", type: n.multiline ? null : "text", maxlength: String(n.max || 60), autocomplete: n.mode === "name" ? "nickname" : "off", inputmode: n.mode === "decimal" ? "decimal" : null, placeholder: n.hint ? txt(n.hint, 80) : null, value: v, disabled: host.disabled || !host.onDraft ? true : null,
-      on: { input: (e) => { const val = e.target.value; clearTimeout(timer); timer = setTimeout(() => (host.onDraftPatch ? host.onDraftPatch({ [n.key]: val }) : host.onDraft({ ...(host.draft && typeof host.draft === "object" ? host.draft : {}), [n.key]: val })), 150); } } }));
+      // Review L3: jede Aenderung sofort als Patch (kein Entprellen), damit ein Neuzeichnen den Wert nie zuruecksetzt
+      on: { input: (e) => { const val = e.target.value; if (host.onDraftPatch) host.onDraftPatch({ [n.key]: val }); else host.onDraft({ ...(host.draft && typeof host.draft === "object" ? host.draft : {}), [n.key]: val }); } } }));
 };
 W.go = (n, host, X) => {
   const id = (host.idp || "w") + "-go-why";

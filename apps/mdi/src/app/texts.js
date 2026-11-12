@@ -73,7 +73,7 @@ const de = {
   names: { yellow: "Gelb", red: "Rot", ink: "Schwarz", paper: "Papier", star: "Stern", heart: "Herz", bolt: "Blitz", drop: "Tropfen", coin: "Münze", ring: "Ring" },
   dialogHint: "Die Karte ändert sich sofort mit.", maxReached: "Höchstens {n}.",
   note: { gezeigt: "Die Karte ist beim Partner angekommen.", empfangen: "Diese Karte hat dir jemand geschickt." },
-  reasons: {
+  reasons: { "karte-fehler": "Die Karte hat einen Fehler gemeldet. Das Spiel ist beendet.",
     "zu-lang": "Der Link ist zu lang.", praefix: "Das ist kein Link von My Daily Idea.", typ: "Diese Art Link gibt es nicht.",
     base64: "Der Link ist beschädigt.", utf8: "Der Link ist beschädigt.", json: "Der Link ist beschädigt.", schema: "Im Link steht etwas, das nicht erlaubt ist.",
     "karte-unbekannt": "Diese Karte gibt es hier nicht.", version: "Diese Karte hat eine andere Version.", params: "Die Einstellungen im Link sind ungültig.",
@@ -158,7 +158,7 @@ const en = {
   names: { yellow: "Yellow", red: "Red", ink: "Black", paper: "Paper", star: "Star", heart: "Heart", bolt: "Bolt", drop: "Drop", coin: "Coin", ring: "Ring" },
   dialogHint: "The card changes right away.", maxReached: "At most {n}.",
   note: { gezeigt: "The card has reached your partner.", empfangen: "Someone sent you this card." },
-  reasons: {
+  reasons: { "karte-fehler": "The card reported an error. The game has ended.",
     "zu-lang": "The link is too long.", praefix: "This is not a My Daily Idea link.", typ: "This kind of link does not exist.",
     base64: "The link is damaged.", utf8: "The link is damaged.", json: "The link is damaged.", schema: "The link contains something that is not allowed.",
     "karte-unbekannt": "This card does not exist here.", version: "This card has a different version.", params: "The settings in the link are invalid.",
