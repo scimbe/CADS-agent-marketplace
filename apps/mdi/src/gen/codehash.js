@@ -41,7 +41,7 @@ export const CODE_HASH = {
   "zug-schmuggel": "addf848a8b75164e39019dbedbe95bd5",
   "zug-snack": "4c8b38d5f6aef197deb41a36371fa593",
   "zug-socken": "d9cb378525441276c435292f102051b1",
-  "zug-steine": "d138c0297d0038ac98682ee7246ff5ed",
+  "zug-steine": "085adedaae7f2ec3df06351d1918b4ba",
   "zug-termin": "38b095863c4cee191a0ee44299504f59",
   "zug-umschlag": "2ef844592a09423a3be2ccbd1d7dd70a",
   "zug-wette": "6d1f0752ef26ac1a5cd00ebf43feae89",

@@ -39,7 +39,7 @@ export default {
     blocks(p, c) {
       const id = "w" + c.step, d = c.draft && typeof c.draft === "object" ? c.draft["w:" + id] : null, cells = Array.isArray(d) ? d : [];
       const st = replay(c.doc, cells) || { grid: new Array(SIZE * SIZE).fill(0), score: 0, i: 0 };
-      return base(p, c, { size: SIZE, max: p.max, fill: { cells: st.grid.map(Boolean), score: st.score, next: blockAt(c.doc, st.i), after: blockAt(c.doc, st.i + 1), over: !canMove(st, c.doc) } });
+      return base(p, c, { size: SIZE, max: p.max, board: { cells: st.grid.map(Boolean), score: st.score, next: blockAt(c.doc, st.i), after: blockAt(c.doc, st.i + 1), over: !canMove(st, c.doc) } });
     }
   },
   turns: [[blocksPrompt()], [blocksPrompt()]],
