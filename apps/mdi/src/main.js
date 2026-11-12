@@ -130,7 +130,7 @@ function draw(state, info) {
   if (nowLeaf.startsWith("card.rt.") && beforeLeaf !== null && !beforeLeaf.startsWith("card.rt.")) window.scrollTo(0, 0);
   // Heimseite: neue Unterseite (Familie, Regal, Meins, Reiter) beginnt oben, wie ein Bildschirmwechsel
   const hb = info && info.before && info.before.ctx.home, hn = state.ctx.home;
-  if (hb && hn && nowLeaf === "shelf" && beforeLeaf === "shelf" && (hb.at !== hn.at || hb.intent !== hn.intent || hb.mtab !== hn.mtab || hb.rtab !== hn.rtab)) { window.scrollTo(0, 0); const m = root.querySelector("#main"); if (m) m.focus({ preventScroll: true }); }
+  if (hb && hn && nowLeaf === "shelf" && beforeLeaf === "shelf" && (hb.at !== hn.at || hb.intent !== hn.intent || hb.mtab !== hn.mtab || hb.rtab !== hn.rtab)) { window.scrollTo(0, 0); const m = hn.focus === "search" ? root.querySelector("#h-q") : hn.focus === "sentence" ? root.querySelector("#h-sentence") : root.querySelector("#main"); if (m) m.focus({ preventScroll: true }); }
   syncHistory(nowLeaf === "shelf" && state.ctx.home && (state.ctx.home.at !== "day" || state.ctx.home.off !== 0) ? "shelf.tief" : nowLeaf);
   // Schriftgroesse aus Mein Stil (Lesen & Bedienen): Projektion des Zustands auf die Wurzel, alles skaliert per rem
   const fs = { n: "100%", g: "118.75%", sg: "137.5%" }[state.ctx.pref.fs] || "100%";
