@@ -565,5 +565,13 @@
         ]
       }
     ]
+  },
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Stangen-Kick",
+      "en": "Rod kick"
+    }
   }
 }

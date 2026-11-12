@@ -549,6 +549,17 @@
         "type": "sine",
         "vol": 0.05
       }
+    },
+    "preview": {
+      "ticks": 1100
+    }
+  },
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Eis-Stock",
+      "en": "Ice stock"
     }
   }
 }

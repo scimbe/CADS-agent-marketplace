@@ -567,6 +567,17 @@
           1350
         ]
       }
-    ]
+    ],
+    "preview": {
+      "ticks": 360
+    }
+  },
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Insel-Panzer",
+      "en": "Island tanks"
+    }
   }
 }

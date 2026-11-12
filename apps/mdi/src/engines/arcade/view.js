@@ -26,8 +26,10 @@ function withA(col, a) { return col.length === 7 ? col + hx(a * 255) : col; }
 const lin = (y0, y1, stops) => ({ lin: [0, y0, 0, y1], stops: stops.map((s, i) => [i / (stops.length - 1), s]) });
 const rad = (x, y, r, a, b) => ({ rad: [x, y, 0, r], stops: [[0, a], [1, b]] });
 const glow = (x, y, r, color, alpha) => ({ o: "glow", x, y, r, color, alpha: alpha === undefined ? 0.8 : alpha });
-const disc = (x, y, r, fill, more) => Object.assign({ o: "circle", x, y, r: Math.max(0, r), fill }, more || {});
-const rect = (x, y, w, h, fill, more) => Object.assign({ o: "rect", x, y, w, h, fill }, more || {});
+// fill null = nur Rahmen: das Feld bleibt dann ganz weg (canvas.js fuellt, sobald fill gesetzt ist, auch null schwarz).
+const withFill = (o, fill, more) => { if (fill !== null && fill !== undefined) o.fill = fill; return Object.assign(o, more || {}); };
+const disc = (x, y, r, fill, more) => withFill({ o: "circle", x, y, r: Math.max(0, r) }, fill, more);
+const rect = (x, y, w, h, fill, more) => withFill({ o: "rect", x, y, w, h }, fill, more);
 const line = (x1, y1, x2, y2, stroke, lw, more) => Object.assign({ o: "line", x1, y1, x2, y2, stroke, lw }, more || {});
 const vignette = () => rect(0, 0, W, H, rad(W / 2, H / 2, H * 0.75, "#00000000", "#0000008c"));
 /** Fester Wuerfel: n-ter Wert einer Folge zu einem Schluessel (mulberry32 auf einer Ganzzahl). */
@@ -216,7 +218,7 @@ const DRAW = {
         for (let j = 0; j < 22; j++) { for (let q = 0; q < 3; q++) { p2.vx += st.wind / 120; p2.vy += Z.G / 120; p2.x += p2.vx / 120; p2.y += p2.vy / 120; } ops.push(disc(p2.x, p2.y, 5, "#ffffff", { alpha: 1 - j / 22 })); }
       }
       const wa = st.wind / Z.WMAX;
-      ops.push({ o: "text", x: W / 2, y: 90, text: "💨 " + (wa > 0 ? "→" : "←").repeat(1 + Math.round(Math.abs(wa) * 2)), size: 44, font: "body", align: "center", fill: "#ffffff" });
+      ops.push({ o: "text", x: W / 2, y: 140, text: "💨 " + (wa > 0 ? "→" : "←").repeat(1 + Math.round(Math.abs(wa) * 2)), size: 44, font: "body", align: "center", fill: "#ffffff" });
       const tp = tankPos(T, true); ops.push(rect(tp.x - 50, tp.y + 40, 100, 10, "#00000066"), rect(tp.x - 50, tp.y + 40, 100 * st.reload, 10, st.reload >= 1 ? m.a : "#ffffff"));
       return ops;
     }
@@ -411,5 +413,13 @@ export function drawSide(S, look, o) {
   if (D.mid) { const md = D.mid(S); bg.push(...md.ops); key += "|" + md.key; }
   const layers = [{ id: "bg", key, ops: bg }, { id: "fg", ops: fg.concat(fxOps) }, { id: "top", ops: top }];
   return { t: "canvas", w: W, h: H, layers, a11y: o.a11y || "" };
+}
+/** Ausschnitt fuer das 16:9-Thumbnail (ADR 0001 d): obere Kante des Bereichs mit der Handlung, im eigenen Bild. */
+export const THUMB_Y = { puck: 880, ziegel: 1037, volley: 900, panzer: 960, kick: 900, flipper: 1000, snow: 1000, elfer: 0, stock: 520, murmel: 520 };
+export const THUMB_H = Math.round(W * 9 / 16);
+/** Querformat-Ausschnitt einer fertigen Anzeige: Kamera statt Cache (ein gecachter Ausschnitt waere falsch), ohne Texte. */
+export function thumbOf(node, g) {
+  const y = THUMB_Y[g] || 0;
+  return { t: "canvas", w: W, h: THUMB_H, layers: node.layers.filter((L) => L.id !== "top").map((L) => ({ id: L.id, camera: { x: 0, y, zoom: 1 }, ops: L.ops })), a11y: node.a11y };
 }
 export { DRAW, effects, burst, withA };
