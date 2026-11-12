@@ -5,7 +5,11 @@ import { fakeLive } from "./fakelive.mjs";
 import { texts } from "../../../src/app/texts.js";
 
 // Echtzeitkarten (Canvas v54): die Spielweisen-Auswahl liegt unter "Andere Spielweise" (Doppelknopf ist die Hauptaktion)
-export async function moreModes(p) { const s = p.locator("details.rt-more:not([open]) > summary"); if (await s.count()) await s.first().click(); }
+export async function moreModes(p) {
+  // erst warten, bis die Spielweisen-Auswahl steht (sonst Wettlauf im langsamen Labor), dann ggf. aufklappen
+  await p.locator('details.rt-more, [aria-labelledby="lbl-mode"]').first().waitFor({ state: "attached" });
+  const s = p.locator("details.rt-more:not([open]) > summary"); if (await s.count()) await s.first().click();
+}
 export async function pickMode(p, lang, mode) { await moreModes(p); await p.getByRole("radio", { name: texts(lang).modes[mode], exact: true }).click(); }
 export async function pickSeat(p, name) { await p.getByRole("radio", { name, exact: true }).click(); }
 const linkOf = (p) => p.locator("#linkfield").inputValue().then((u) => u.slice(u.indexOf("#")));
