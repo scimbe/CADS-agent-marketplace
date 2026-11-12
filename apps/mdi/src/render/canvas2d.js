@@ -5,9 +5,9 @@
 // bis dahin werden sie als unbekannt gemeldet (info.unknown), nicht still uebergangen.
 export const METHODS = new Set(["fillRect", "strokeRect", "clearRect", "beginPath", "closePath", "moveTo", "lineTo", "arc", "arcTo", "ellipse", "bezierCurveTo", "quadraticCurveTo", "rect", "roundRect", "fill", "stroke", "clip", "save", "restore", "translate", "rotate", "scale", "setTransform", "fillText", "strokeText", "setLineDash"]);
 export const PROPS = new Set(["fillStyle", "strokeStyle", "lineWidth", "lineCap", "lineJoin", "globalAlpha", "font", "textAlign", "textBaseline", "shadowColor", "shadowBlur", "shadowOffsetX", "shadowOffsetY", "globalCompositeOperation", "miterLimit"]);
-const COLOR = /^(#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d+)\s*)?\))$/;
+const COLOR = /^(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d+)\s*)?\))$/;
 const ENUMS = { lineCap: ["butt", "round", "square"], lineJoin: ["round", "bevel", "miter"], textAlign: ["left", "right", "center", "start", "end"], textBaseline: ["top", "middle", "alphabetic", "bottom", "hanging", "ideographic"], globalCompositeOperation: ["source-over", "lighter", "multiply", "screen", "destination-out", "source-atop"] };
-const FONT = /^(italic |bold |normal |[1-9]00 ){0,3}\d{1,3}(\.\d+)?px [A-Za-z0-9 ,'"-]{1,120}$/;
+const FONT = /^(italic |bold |normal |[1-9]00 ){0,3}\d{1,3}(\.\d+)?px [A-Za-z0-9 ,'"-]{1,200}$/;
 
 function okArg(a) { return (typeof a === "number" && Number.isFinite(a)) || (typeof a === "string" && a.length <= 300) || (Array.isArray(a) && a.length <= 8 && a.every((x) => typeof x === "number" && Number.isFinite(x))); }
 function okProp(p, v) {
