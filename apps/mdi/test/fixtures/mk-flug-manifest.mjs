@@ -9,7 +9,8 @@ const color = { type: ["string", "null"], pattern: "^#[0-9a-fA-F]{6}$" };
 const emoji = { type: "string", minLength: 1, maxLength: 12 };
 const agent = { type: "object", additionalProperties: false, required: ["n", "e", "r", "c", "p"], properties: { n: { type: "string", maxLength: 16 }, e: emoji, r: { type: "integer", minimum: 0, maximum: 100 }, c: { type: "integer", minimum: 0, maximum: 100 }, p: { type: "integer", minimum: 0, maximum: 100 } } };
 const lava = V.variantParams("spiel-lava", "de");
-const num = (k, lab) => ({ type: "integer", minimum: P.RANGES[k][0], maximum: P.RANGES[k][1], default: lava[k], "x-field": "number", "x-steps": R.steps(k), "x-step-names": { de: R.steps(k).map((_, i) => null), en: [] }, "x-label": lab });
+const TX = (await import(root + "/src/engines/flug/texts.json", { with: { type: "json" } })).default;
+const num = (k, lab) => ({ type: "integer", minimum: P.RANGES[k][0], maximum: P.RANGES[k][1], default: lava[k], "x-field": "number", "x-steps": { values: R.steps(k), names: { de: R.steps(k).map((_, i) => TX.de["rg_" + k + i]), en: R.steps(k).map((_, i) => TX.en["rg_" + k + i]) } }, "x-label": lab });
 const props = {
   variant: { type: "string", enum: V.VARIANT_IDS.concat(["eigen"]), default: "spiel-lava", "x-field": "choice", "x-label": L("Variante", "Variant") },
   mode: { type: "string", enum: ["solo", "agent", "train"], default: "solo", "x-field": "choice", "x-label": L("Wer fliegt?", "Who flies?") },
@@ -35,7 +36,6 @@ const props = {
   ki: { type: ["object", "null"], default: null, "x-field": "text", "x-hidden": true, "x-label": L("KI-Siegel", "AI seal") },
   fr: { type: ["string", "null"], pattern: "^[A-Za-z0-9_-]{22}$", default: null, "x-field": "text", "x-hidden": true, "x-label": L("Freie Karte", "Free card") }
 };
-delete props.gravity["x-step-names"]; delete props.jump["x-step-names"]; delete props.gap["x-step-names"]; delete props.speed["x-step-names"];
 const m = {
   id: "flug", version: "1.0.0", sdk: "mdi-sdk/0.2", kind: "realtime", mode: "realtime", order: 300,
   title: L("Bau dein Lava-Level", "Build your lava level"), teaser: L("Feuer, Drache, kein Mitleid.", "Fire, dragon, zero mercy."),
@@ -60,7 +60,7 @@ const m = {
   variants: V.VARIANTS.map((v) => ({ id: v.id, title: { de: V.plainTitle(v.de.t), en: V.plainTitle(v.en.t) }, teaser: { de: v.de.s, en: v.en.s }, legacy: [v.id], modes: v.kind === "duel" ? ["alone"] : ["alone", "ghost"],
     tags: [...new Set(v.tags.map((t) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")).filter((t) => /^[a-z0-9-]{1,24}$/.test(t)))].slice(0, 8), params: Object.assign({}, props && {}, Object.fromEntries(Object.entries(props).map(([k, p]) => [k, p.default])), V.variantParams(v.id, "de", { nick: "", emoji: "🦊" })) }))
 };
-// nur die Vokabeln, die der Generator kennt (x-field, x-label, x-model, x-pairs)
-const strip = (o) => { if (Array.isArray(o)) return o.map(strip); if (o && typeof o === "object") { const r = {}; for (const [k, v] of Object.entries(o)) if (!/^x-/.test(k) || ["x-field", "x-label", "x-model", "x-pairs"].includes(k)) r[k] = strip(v); return r; } return o; };
+// nur die Vokabeln, die der Generator kennt (x-field, x-label, x-model, x-pairs, x-steps, x-hidden; ADR 0001, F @ 15338b5)
+const strip = (o) => { if (Array.isArray(o)) return o.map(strip); if (o && typeof o === "object") { const r = {}; for (const [k, v] of Object.entries(o)) if (!/^x-/.test(k) || ["x-field", "x-label", "x-model", "x-pairs", "x-steps", "x-hidden"].includes(k)) r[k] = strip(v); return r; } return o; };
 m.params = strip(m.params);
 process.stdout.write(JSON.stringify(m, null, 1) + "\n");

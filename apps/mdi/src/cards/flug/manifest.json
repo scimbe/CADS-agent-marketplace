@@ -192,6 +192,31 @@
     "maximum": 2600,
     "default": 2100,
     "x-field": "number",
+    "x-steps": {
+     "values": [
+      900,
+      1350,
+      1800,
+      2200,
+      2600
+     ],
+     "names": {
+      "de": [
+       "Mond",
+       "leicht",
+       "Erde",
+       "schwer",
+       "Jupiter"
+      ],
+      "en": [
+       "Moon",
+       "light",
+       "Earth",
+       "heavy",
+       "Jupiter"
+      ]
+     }
+    },
     "x-label": {
      "de": "Schwere",
      "en": "Weight"
@@ -203,6 +228,31 @@
     "maximum": 620,
     "default": 480,
     "x-field": "number",
+    "x-steps": {
+     "values": [
+      280,
+      355,
+      430,
+      525,
+      620
+     ],
+     "names": {
+      "de": [
+       "winzig",
+       "klein",
+       "normal",
+       "hoch",
+       "riesig"
+      ],
+      "en": [
+       "tiny",
+       "small",
+       "normal",
+       "high",
+       "huge"
+      ]
+     }
+    },
     "x-label": {
      "de": "Sprung",
      "en": "Jump"
@@ -214,6 +264,31 @@
     "maximum": 200,
     "default": 125,
     "x-field": "number",
+    "x-steps": {
+     "values": [
+      90,
+      115,
+      140,
+      170,
+      200
+     ],
+     "names": {
+      "de": [
+       "sehr eng",
+       "eng",
+       "normal",
+       "weit",
+       "sehr weit"
+      ],
+      "en": [
+       "very narrow",
+       "narrow",
+       "normal",
+       "wide",
+       "very wide"
+      ]
+     }
+    },
     "x-label": {
      "de": "Lücke",
      "en": "Gap"
@@ -225,6 +300,31 @@
     "maximum": 260,
     "default": 165,
     "x-field": "number",
+    "x-steps": {
+     "values": [
+      90,
+      110,
+      130,
+      195,
+      260
+     ],
+     "names": {
+      "de": [
+       "Schnecke",
+       "langsam",
+       "normal",
+       "schnell",
+       "Rakete"
+      ],
+      "en": [
+       "snail",
+       "slow",
+       "normal",
+       "fast",
+       "rocket"
+      ]
+     }
+    },
     "x-label": {
      "de": "Tempo",
      "en": "Speed"
@@ -669,6 +769,7 @@
     ],
     "default": null,
     "x-field": "text",
+    "x-hidden": true,
     "x-label": {
      "de": "KI-Siegel",
      "en": "AI seal"
@@ -682,6 +783,7 @@
     "pattern": "^[A-Za-z0-9_-]{22}$",
     "default": null,
     "x-field": "text",
+    "x-hidden": true,
     "x-label": {
      "de": "Freie Karte",
      "en": "Free card"

@@ -472,6 +472,7 @@
     "maximum": 999,
     "default": 1,
     "x-field": "number",
+    "x-hidden": true,
     "x-label": {
      "de": "Engine-Version",
      "en": "Engine version"
@@ -486,6 +487,7 @@
     "maximum": 999999,
     "default": null,
     "x-field": "number",
+    "x-hidden": true,
     "x-label": {
      "de": "Punkte zum Schlagen",
      "en": "Score to beat"
@@ -599,6 +601,7 @@
     ],
     "default": null,
     "x-field": "text",
+    "x-hidden": true,
     "x-label": {
      "de": "KI-Siegel",
      "en": "AI seal"
@@ -612,6 +615,7 @@
     "pattern": "^[A-Za-z0-9_-]{22}$",
     "default": null,
     "x-field": "text",
+    "x-hidden": true,
     "x-label": {
      "de": "Freie Karte",
      "en": "Free card"
