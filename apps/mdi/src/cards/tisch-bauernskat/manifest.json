@@ -1,0 +1,381 @@
+{
+  "id": "tisch-bauernskat",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.1",
+  "kind": "turn",
+  "mode": "turn",
+  "title": {
+    "de": "Bauernskat",
+    "en": "Bauernskat"
+  },
+  "teaser": {
+    "de": "Skat zu zweit mit 8 Stapeln.",
+    "en": "Skat for two with 8 stacks."
+  },
+  "howto": {
+    "de": "Skat zu zweit: 8 Stapel, je eine Karte offen auf einer verdeckten. Vorhand sagt an, 61 Augen gewinnen.",
+    "en": "Skat for two: 8 stacks, each one card face up on one face down. Forehand names the game, 61 card points win."
+  },
+  "family": "tisch-bauernskat",
+  "order": 502,
+  "dur": 600,
+  "legacy": [
+    "tisch-bauernskat"
+  ],
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "seats": {
+    "de": [
+      "Platz 1",
+      "Platz 2"
+    ],
+    "en": [
+      "Seat 1",
+      "Seat 2"
+    ]
+  },
+  "hidden": "commit-reveal",
+  "secretSeats": [
+    0,
+    1
+  ],
+  "uses": [],
+  "limits": {
+    "stepBudget": 64,
+    "stateBytes": 65536
+  },
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "runden",
+      "regeln"
+    ],
+    "properties": {
+      "runden": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 10,
+        "default": 2,
+        "x-field": "number",
+        "x-model": true,
+        "x-label": {
+          "de": "Spiele in der Partie",
+          "en": "Games in the match"
+        }
+      },
+      "regeln": {
+        "type": "array",
+        "maxItems": 2,
+        "uniqueItems": true,
+        "items": {
+          "type": "string",
+          "enum": [
+            "null",
+            "kontra"
+          ]
+        },
+        "default": [],
+        "x-field": "list",
+        "x-model": true,
+        "x-label": {
+          "de": "Hausregeln: null = Null erlaubt · kontra = Kontra & Re",
+          "en": "House rules: null = Null allowed · kontra = Kontra & Re"
+        }
+      }
+    }
+  },
+  "parts": [
+    {
+      "id": "regeln",
+      "params": [
+        "runden",
+        "regeln"
+      ],
+      "label": {
+        "de": "Regeln",
+        "en": "Rules"
+      }
+    }
+  ],
+  "modes": [
+    "bot",
+    "live",
+    "alone"
+  ],
+  "play": {
+    "default": "bot",
+    "offer": [
+      "bot",
+      "live"
+    ]
+  },
+  "inputs": {
+    "oneOf": [
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "d"
+        ],
+        "properties": {
+          "t": {
+            "const": "mix"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "d": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 24,
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "d"
+        ],
+        "properties": {
+          "t": {
+            "const": "lock"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "d": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 24,
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "d"
+        ],
+        "properties": {
+          "t": {
+            "const": "key"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "d": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 24,
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "s"
+        ],
+        "properties": {
+          "t": {
+            "const": "seed"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "s": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat"
+        ],
+        "properties": {
+          "t": {
+            "const": "next"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat"
+        ],
+        "properties": {
+          "t": {
+            "const": "end"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat"
+        ],
+        "properties": {
+          "t": {
+            "const": "reveal"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "salt": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "c"
+        ],
+        "properties": {
+          "t": {
+            "const": "play"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "c": {
+            "type": "string",
+            "pattern": "^[CSHD][AKQJT987]$"
+          },
+          "a": {
+            "const": 0
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat",
+          "g",
+          "f"
+        ],
+        "properties": {
+          "t": {
+            "const": "declare"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "g": {
+            "enum": [
+              "C",
+              "S",
+              "H",
+              "D",
+              "G",
+              "N"
+            ]
+          },
+          "f": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 15
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat"
+        ],
+        "properties": {
+          "t": {
+            "const": "kontra"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat"
+        ],
+        "properties": {
+          "t": {
+            "const": "re"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          }
+        }
+      }
+    ]
+  }
+}
