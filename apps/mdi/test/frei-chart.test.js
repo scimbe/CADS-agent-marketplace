@@ -35,7 +35,7 @@ async function signedIn(status = "status-angemeldet-16") {
 
 test("Einstieg immer sichtbar im Regal; FREI oeffnet die freie Karte und fragt den Stand neu", async () => {
   let s = machine.initial(initialContext("de"));
-  assert.ok(txt(s).includes("Erschaffe deine Karte"), "Einstieg im Regal");
+  assert.ok(txt(s).includes("\"data-act\":\"frei\"") && txt(s).includes("Neu erfinden"), "Einstieg auf dem Start (Gate C: Block Neu erfinden)");
   s = go(s, { type: "FREI" });
   assert.equal(leaf(s), "frei.start"); assert.equal(fx(s, "konto.status").length, 1);
   assert.ok(txt(s).includes("Einen Moment"), "pruefen: ehrlich warten");

@@ -1,4 +1,4 @@
-// Heimseite (Strang H): Fuehrung in hoechstens 3 Taps, Zurueck an den Ort, Kalender blaettern, Satz -> Absicht, Meins
+// Heimseite (Strang H): Fuehrung in hoechstens 3 Taps, Zurueck an den Ort, Kalender blaettern, Satz -> Absicht, Mein Regal
 // (Wand mit Rueckgaengig, Einladungen mit Kurzlink, Gemerkt), Profil-Sync, Kurzlink-API, Familien decken den Katalog ab.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -22,7 +22,7 @@ function start() { let s = machine.initial(initialContext("de")); s = go(s, { ty
 const fx = (s, type) => s.effects.filter((e) => e.type === type);
 const texts = (s) => JSON.stringify(view(s, () => {}), (k, x) => (k === "on" || k === "el" ? undefined : x));
 
-test("Start laedt Meins genau einmal (home.load) und zeigt das Kalenderblatt des Tages", () => {
+test("Start laedt Mein Regal genau einmal (home.load) und zeigt das Kalenderblatt des Tages", () => {
   const s0 = machine.initial(initialContext("de"));
   assert.equal(fx(s0, "home.load").length, 1);
   const s = go(s0, { type: "HOME_LOADED", data: {} });
@@ -208,4 +208,16 @@ test("Laden eines Teils: main traegt data-loading=<teil> und aria-busy, die Lade
   assert.equal(line.props.role, "status"); assert.equal(line.props["aria-live"], "polite");
   const idle = mainOf(s);
   assert.equal(idle.props["data-loading"], null); assert.equal(idle.props["aria-busy"], null);
+});
+
+test("Gate C: Mein Regal heisst so (de/en) und hat ein Symbol; Eigene Karte ist ein eigener Block mit Satzfeld", () => {
+  const s = start(), t = texts(s);
+  assert.ok(t.includes("Mein Regal"), "Kopfzeile");
+  assert.ok(!/"Meins"/.test(t), "kein altes Wort");
+  assert.ok(t.includes('"data-act":"frei"') && t.includes('"id":"frei-satz"') && t.includes("Neu erfinden"), "Block Neu erfinden mit Satzfeld");
+  assert.ok(t.includes('"data-act":"intent-suchen"') && !t.includes('"data-act":"intent-eigene"'), "Suchen statt Eigene Karte");
+  const en = machine.send(machine.initial(initialContext("en")), { type: "HOME_LOADED", data: {}, at: AT });
+  assert.ok(texts(en).includes("My shelf"));
+  const m = go(s, { type: "HOME", to: "meins" });
+  assert.ok(texts(m).includes("Mein Regal"), "Ueberschrift");
 });
