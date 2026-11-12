@@ -195,7 +195,7 @@ export function view(state, dispatch, env = {}) {
     body = freiR.body; panel = freiR.panel || [];
   } else if (homeR) {
     // Nachladen (ADR 0001 Nachtrag 2): ehrliche Ladezeile, solange ein Kartenteil kommt
-    body = [ctx.loading ? h("p", { class: "h-loading", role: "status", key: "loading" }, X.loadingCard) : null, ...homeR.body];
+    body = [ctx.loading ? h("p", { class: "h-loading", role: "status", "aria-live": "polite", key: "loading" }, X.loadingCard) : null, ...homeR.body];
   } else if (L === "card.view") {
     const modes = modesOf(card), isStatic = card.manifest.mode === "static";
     body = [stage(preview, {}, tree)];
@@ -302,7 +302,9 @@ export function view(state, dispatch, env = {}) {
     acts.primary ? btn(acts.primary, "primary") : null,
     acts.secondary.map((s) => btn(s, "secondary")));
 
-  const main = h("main", { id: "main", class: "main s-" + L.replace(/\./g, "-") + (homeR ? " h-at-" + homeR.cls : "") + (L === "card.view" ? " sticky-actions" + (tree && tree.t === "frame" ? " fit-card" : "") : ""), key: "main", tabindex: "-1" },
+  const main = h("main", { id: "main", class: "main s-" + L.replace(/\./g, "-") + (homeR ? " h-at-" + homeR.cls : "") + (L === "card.view" ? " sticky-actions" + (tree && tree.t === "frame" ? " fit-card" : "") : ""), key: "main", tabindex: "-1",
+    // Laden eines Teils (ctx.loading): fuer Screenreader (aria-busy) und Testtreiber (data-loading="<teil>") erkennbar
+    "data-loading": typeof ctx.loading === "string" && ctx.loading ? ctx.loading : null, "aria-busy": ctx.loading ? "true" : null },
     h("div", { class: "col-a", key: "a" }, body),
     h("div", { class: "col-b", key: "b" }, panel, L === "card.customize.dialog" || L === "shelf" ? null : actions));
 
