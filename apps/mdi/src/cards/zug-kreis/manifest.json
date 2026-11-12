@@ -112,6 +112,16 @@
         "x-label": {
           "de": "Spiel",
           "en": "Game"
+        },
+        "x-names": {
+          "kreis": {
+            "de": "Meine Regeln, dein Problem",
+            "en": "My rules, your problem"
+          },
+          "tuer": {
+            "de": "Türsteher",
+            "en": "The bouncer"
+          }
         }
       },
       "title": {
@@ -179,7 +189,7 @@
     {
       "id": "raum-tuer",
       "title": {
-        "de": "Tür- steher",
+        "de": "Türsteher",
         "en": "The bouncer"
       },
       "teaser": {

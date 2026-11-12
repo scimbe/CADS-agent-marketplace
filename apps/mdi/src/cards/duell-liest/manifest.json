@@ -124,6 +124,28 @@
         "x-label": {
           "de": "Arena",
           "en": "Arena"
+        },
+        "x-names": {
+          "rps": {
+            "de": "Schere, Stein, Papier",
+            "en": "Rock, paper, scissors"
+          },
+          "mind": {
+            "de": "Er liest dich",
+            "en": "It reads you"
+          },
+          "rap": {
+            "de": "Rap",
+            "en": "Rap"
+          },
+          "auction": {
+            "de": "Auktion",
+            "en": "Auction"
+          },
+          "deck": {
+            "de": "Partydeck",
+            "en": "Party deck"
+          }
         }
       },
       "set": {

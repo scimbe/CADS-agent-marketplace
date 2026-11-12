@@ -118,6 +118,28 @@
         "x-label": {
           "de": "Spiel",
           "en": "Game"
+        },
+        "x-names": {
+          "auktion": {
+            "de": "Auktion im Dunkeln",
+            "en": "Auction in the dark"
+          },
+          "deal": {
+            "de": "Zehn Kekse, ein Angebot",
+            "en": "Ten cookies, one offer"
+          },
+          "teilen": {
+            "de": "Teilen ohne Streit",
+            "en": "Share out without a fight"
+          },
+          "socke": {
+            "de": "Letzte Socke unterm Hammer",
+            "en": "Last sock under the hammer"
+          },
+          "fallpreis": {
+            "de": "Auktion um Quatsch",
+            "en": "Auction of nonsense"
+          }
         }
       },
       "title": {

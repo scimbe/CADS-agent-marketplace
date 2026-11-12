@@ -8,6 +8,13 @@ const WORDS = ["Apfel", "Kuchen", "Wolke", "Lampe", "Garten", "Banane", "Kerze",
 
 export function titleOf(id, lang = "de") { const m = cardOf(id).manifest; return m.title[lang] || m.title.de; }
 /** Karte ueber das Regal oeffnen (Suche nach dem Titel) und die Spielweise waehlen. */
+/** Variante ueber die Blase des Parameters spiel waehlen (Titel aus x-names) */
+export async function pickVariant(p, id, value, lang = "de") {
+  const prop = cardOf(id).manifest.params.properties.spiel, n = prop["x-names"][value];
+  await act(p, "customize"); await p.locator('.bubble[data-for="spiel"]').click(); await p.locator("#dialog").waitFor();
+  await p.getByRole("radio", { name: n[lang] || n.de, exact: true }).click();
+  await act(p, "close"); await act(p, "done"); await waitScreen(p, "card-view");
+}
 export async function openCard(p, id, mode, lang = "de") {
   await p.locator("main.h-at-day").waitFor();
   await act(p, "intent-alle"); await p.locator("main.h-at-regal").waitFor();
@@ -19,13 +26,14 @@ export async function openCard(p, id, mode, lang = "de") {
 }
 async function settle(p) { await p.waitForTimeout(220); }
 /** Einen Bildschirm "Du bist dran" zu Ende spielen; gibt den Folgebildschirm zurueck. */
-export async function playTurn(p, onScreen) {
+export async function playTurn(p, onScreen, extra) {
   let n = 0;
   for (let a = 0; a < 120; a++) {
     const s = await screen(p);
     if (s === "card-play-cover") { await act(p, "cover-ok"); continue; }
     if (s !== "card-play-turn") return s;
     if (onScreen && a === 0) await onScreen(p);
+    if (extra && (await extra(p))) continue; // Zeit- und Ton-Widgets (lib/z2-zeit.mjs)
     const fields = p.locator("main input.field:visible, main textarea.field:visible, main input.tlist:visible");
     let filled = false;
     for (let i = 0; i < (await fields.count()); i++) { const f = fields.nth(i); if (!(await f.inputValue())) { await f.fill(WORDS[n++ % WORDS.length]); filled = true; } }
@@ -42,10 +50,10 @@ export async function playTurn(p, onScreen) {
 }
 const linkOf = (p) => p.locator("#linkfield").inputValue().then((u) => u.slice(u.indexOf("#")));
 /** Link-Rundreise zwischen zwei Seiten bis zum Ende (oder bis stop(hop) true liefert). */
-export async function roundTrip(A, B, { onScreen, maxHops = 12, stop } = {}) {
+export async function roundTrip(A, B, { onScreen, maxHops = 12, stop, extra } = {}) {
   let cur = A, other = B, hops = 0;
   for (; hops < maxHops; hops++) {
-    const s = await playTurn(cur.p, onScreen);
+    const s = await playTurn(cur.p, onScreen, extra && ((pg) => extra(pg, cur)));
     if (s === "card-play-over" && !(await cur.p.locator("#linkfield").count())) return { end: cur, hops };
     if (s !== "card-play-send" && s !== "card-play-over") throw new Error("unerwartet " + s);
     const link = await linkOf(cur.p);

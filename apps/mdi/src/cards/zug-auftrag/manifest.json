@@ -109,6 +109,16 @@
         "x-label": {
           "de": "Spiel",
           "en": "Game"
+        },
+        "x-names": {
+          "auftrag": {
+            "de": "Ich geb dir eine Aufgabe",
+            "en": "I give you a task"
+          },
+          "mut": {
+            "de": "Mutproben",
+            "en": "Dares"
+          }
         }
       },
       "title": {
@@ -176,12 +186,12 @@
     {
       "id": "zug-auftrag-mut",
       "title": {
-        "de": "Alles in Zeitlupe",
-        "en": "Everything in slow motion"
+        "de": "Mutproben",
+        "en": "Dares"
       },
       "teaser": {
-        "de": "Würde? Bleibt zu Hause.",
-        "en": "Dignity stays home."
+        "de": "Vier kleine Mutproben zur Wahl.",
+        "en": "Four small dares to choose from."
       },
       "params": {
         "spiel": "mut"

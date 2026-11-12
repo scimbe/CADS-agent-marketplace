@@ -109,6 +109,16 @@
         "x-label": {
           "de": "Spiel",
           "en": "Game"
+        },
+        "x-names": {
+          "pokal": {
+            "de": "Der Pokal wandert",
+            "en": "The trophy moves on"
+          },
+          "uhr": {
+            "de": "Innere Uhr",
+            "en": "Inner clock"
+          }
         }
       },
       "title": {
