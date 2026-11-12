@@ -144,7 +144,14 @@ export const actions = {
     emit({ type: "home.photo", key: ev.key, file: ev.file });
     return { ...ctx, photo: { key: ev.key, st: "busy" } };
   },
-  photoDone: (ctx, ev) => ({ ...ctx, photo: { key: ev.key, st: ev.st } })
+  photoDone: (ctx, ev) => ({ ...ctx, photo: { key: ev.key, st: ev.st } }),
+  // Karte als Bild teilen: der Knoten kommt aus der Anzeigeliste der Karte (nur Daten), gezeichnet wird im Effekt
+  shareImage: (ctx, ev, emit) => {
+    if (!ev.node || typeof ev.node !== "object" || ev.node.t !== "canvas") return H(ctx, { img: "fehler" });
+    emit({ type: "home.image", name: ev.name, node: ev.node });
+    return H(ctx, { img: "busy" });
+  },
+  imageDone: (ctx, ev) => H(ctx, { img: ev.st })
 };
 
 // Uebergaenge in inhalt.shelf (OPEN und STIL wie bisher)
@@ -175,6 +182,7 @@ export const inhaltOn = {
   MERKEN: { actions: ["merken"] },
   WALL_SNAP: { actions: ["wallSnap"] },
   SHORT_DONE: { actions: ["shortDone"] },
+  IMAGE_DONE: { actions: ["imageDone"] },
   SHORT_DELETED: { actions: ["shortDeleted"] },
   STORY_DONE: { actions: ["storyDone"] },
   PROFIL: { actions: ["homeProfil"] }
@@ -189,4 +197,4 @@ export const profileLocal = (ctx) => (ctx.mine ? { wall: S.wallForServer(ctx.min
 // Teile ausserhalb des Kerns (src/app/feature-parts.json): Satz und Suche (home-find); Story/Wand-Bild laedt der Effekt selbst
 export const needParts = (ev) => (ev.type === "UNDERSTAND" || ev.type === "QUERY" ? ["home-find"] : []);
 
-export const home = { id: "home", shelfOn, on: { inhalt: inhaltOn, "inhalt.card.customize.dialog": { WX_GET: { actions: ["wxGet"] }, PHOTO_PUT: { actions: ["photoPut"] } } }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };
+export const home = { id: "home", shelfOn, on: { inhalt: inhaltOn, "inhalt.card.share": { SHARE_IMAGE: { actions: ["shareImage"] } }, "inhalt.card.customize.dialog": { WX_GET: { actions: ["wxGet"] }, PHOTO_PUT: { actions: ["photoPut"] } } }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };

@@ -43,7 +43,7 @@ const de = {
   savedEmpty: "Noch nichts gemerkt. Tipp auf das Herz an einer Karte.", save: "Merken", unsave: "Nicht mehr merken",
   sync: { on: "Mit deinem Konto auf allen Geräten (ohne Fotos).", off: "Nur auf diesem Gerät. Mit Konto auch auf deinen anderen Geräten." },
   share: "Teilen", shareCard: "Karte empfehlen", story: "Für Story", storyNote: "Bild 9:16 mit QR-Code für Status und Story.", storyDone: "Story-Bild ist fertig.", storyFail: "Das Bild ging hier nicht.",
-  storyCta: "Code scannen oder eintippen", shortMaking: "Kurzlink wird angelegt …",
+  storyCta: "Code scannen oder eintippen", imgBusy: "Bild wird gezeichnet …", imgNote: "Das Bild mit deinem Foto teilst du selbst über dein Handy. Der Link oben bleibt ohne Foto.", imgErr: { "foto-fehlt": "Dein Foto ist auf diesem Gerät nicht mehr da.", "nicht-verfuegbar": "Ein Bild geht hier nicht.", fehler: "Das Bild ging hier nicht." }, shortMaking: "Kurzlink wird angelegt …",
   open: "Öffnen", play: "Spielen", soonA11y: "{t} (kommt)", thumbAlt: "Vorschau: {t}"
 };
 const en = {
@@ -89,7 +89,7 @@ const en = {
   savedEmpty: "Nothing saved yet. Tap the heart on a card.", save: "Save", unsave: "Remove from saved",
   sync: { on: "With your account on all your devices (no photos).", off: "Only on this device. With an account also on your other devices." },
   share: "Share", shareCard: "Recommend card", story: "For story", storyNote: "9:16 picture with a QR code for status and story.", storyDone: "Story picture is ready.", storyFail: "The picture did not work here.",
-  storyCta: "Scan or type the code", shortMaking: "Making a short link …",
+  storyCta: "Scan or type the code", imgBusy: "Drawing the picture …", imgNote: "You share the picture with your photo yourself from your phone. The link above stays without the photo.", imgErr: { "foto-fehlt": "Your photo is no longer on this device.", "nicht-verfuegbar": "A picture does not work here.", fehler: "The picture did not work here." }, shortMaking: "Making a short link …",
   open: "Open", play: "Play", soonA11y: "{t} (coming)", thumbAlt: "Preview: {t}"
 };
 const easy = {
