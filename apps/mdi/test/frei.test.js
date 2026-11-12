@@ -495,7 +495,9 @@ test("Zugkarte mit Siegel: KI-Badge in der Ansicht; ohne Siegel keins; ein kaput
     assert.equal(c.toFree(p).ki, undefined, "toFree bereinigt: " + JSON.stringify(bad));
     assert.deepEqual(gateChecksOf(c.toFree(p)), [], "nichts zu pruefen heisst: keine freie Karte, kein Badge");
   }
-  void validParams;
+  // Schema (Review S): ein Link mit fremdem ki-Objekt hat ungueltige Parameter und wird abgelehnt
+  for (const bad of [{ k: "karte", s: "x", h: "kurz" }, { ...t.params.ki, boese: "<script>" }, { k: "andere", s: t.params.ki.s, h: t.params.ki.h }, { x: "y".repeat(2000) }]) assert.equal(validParams(t.cardId, { ...t.params, ki: bad }), false, JSON.stringify(bad).slice(0, 60));
+  assert.equal(validParams(t.cardId, t.params), true);
 });
 
 test("Gate beim Empfaenger auch fuer Partie-Links (Zugkarten); Absender: Gate vor der Partie, danach der gewohnte Weg", async () => {
@@ -524,4 +526,6 @@ test("Quiz auf zug-abfragen (Strang S): Siegel in Parametern, KI-Badge in der An
   assert.equal(t.cardId, "zug-abfragen"); assert.equal(t.params.ki.h, o.ki.h);
   const view = (p) => JSON.stringify(c.view(c.observe(c.init({ rng: rng("q"), params: p, players: 2 }), 0), 0, { lang: "de" }));
   assert.match(view(t.params), /Mit KI erstellt/); assert.doesNotMatch(view({ ...t.params, ki: null }), /Mit KI erstellt/);
+  const { validParams } = await import("../src/cards/index.js");
+  assert.equal(validParams("zug-abfragen", { ...t.params, ki: { ...t.params.ki, boese: 1 } }), false, "fremdes ki-Objekt im Link: abgelehnt");
 });
