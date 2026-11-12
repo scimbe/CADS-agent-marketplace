@@ -1,6 +1,7 @@
 // Tisch (Skat, Doppelkopf, Bauernskat) ueber die sichtbare UI: Bot-Partie, Live zu zweit (Fake-Live), Verdeckung,
 // axe, Tastatur, kein verdecktes Bedienelement. Karten werden ueber ihren Namen (aria-label) angesprochen.
 import test from "node:test";
+import { NEEDS_FAKE } from "./lib/ziel.mjs";
 import assert from "node:assert/strict";
 import { browser, open, act, screen, waitScreen, axe, noOverflow } from "./lib/grund.mjs";
 import { pickMode, liveInvite } from "./lib/scenarios.mjs";
@@ -75,7 +76,7 @@ for (const [id, seats] of [["tisch-bauernskat", 2], ["tisch-skat", 3], ["tisch-d
   });
 }
 
-test("Bauernskat live zu zweit (Fake-Live): beide sehen dasselbe Ende, das Netz sieht keine verdeckte Karte vor dem Aufdecken", async () => {
+test("Bauernskat live zu zweit (Fake-Live): beide sehen dasselbe Ende, das Netz sieht keine verdeckte Karte vor dem Aufdecken", { skip: NEEDS_FAKE }, async () => {
   const { A, B, net } = await liveInvite(b, { view: "phone390", lang: "de" }, "tisch-bauernskat");
   for (let i = 0; i < 600; i++) {
     const [sa, sb] = [await screen(A.p), await screen(B.p)];
@@ -93,7 +94,7 @@ test("Bauernskat live zu zweit (Fake-Live): beide sehen dasselbe Ende, das Netz 
   assert.deepEqual([...A.errs, ...B.errs], []);
 });
 
-test("Skat live zu dritt (Gruppen-Live, Fake-Live): ein Link je Gast, ganze Partie, gleicher Endstand, axe 0 am Tisch", async () => {
+test("Skat live zu dritt (Gruppen-Live, Fake-Live): ein Link je Gast, ganze Partie, gleicher Endstand, axe 0 am Tisch", { skip: NEEDS_FAKE }, async () => {
   const net = fakeLive(), o = { view: "phone390", lang: "de" };
   const H = await open(b, { ...o, before: (ctx, p) => net.attach(ctx, p, "h") });
   await act(H.p, "open-tisch-skat"); await pickMode(H.p, "de", "live"); await act(H.p, "go");

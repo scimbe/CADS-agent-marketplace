@@ -3,7 +3,9 @@
 // Bestaetigung in Mein Stil kehrt sie zur Karte zurueck; Name, Zweck, 4 Personen, 37,50 € mit Anteilszeile; der Link geht
 // an Tom (angemeldet, 18+), der den PayPal-Knopf mit dem richtigen Anteil sieht; eine dritte Person ohne Konto sieht keinen
 // Knopf. Je Bildschirm axe (WCAG 2.2 AA), kein Ueberlauf, keine Seitenfehler, keine Anfrage an fremde Hosts.
-import test from "node:test";
+import nodeTest from "node:test";
+import { fakeOnly } from "./lib/ziel.mjs";
+const test = fakeOnly(nodeTest); // Gegenstelle ist eine Attrappe: im URL-Modus uebersprungen
 import assert from "node:assert/strict";
 import { browser, VIEWS, act, axe, noOverflow, waitScreen, screen } from "./lib/grund.mjs";
 import { fakeWrapper, APP } from "./lib/fakewrapper.mjs";

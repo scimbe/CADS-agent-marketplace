@@ -9,6 +9,7 @@
     "build": "node scripts/build.js",
     "test": "node --test test/*.test.js",
     "test:e2e": "node scripts/build.js && node --require ./test/e2e/lib/nolive.js --test --test-timeout=300000 --test-force-exit test/e2e/*.e2e.js",
+    "test:e2e:url": "node --require ./test/e2e/lib/nolive.js --test --test-timeout=300000 --test-force-exit test/e2e/*.e2e.js",
     "audit": "node scripts/audit.js",
     "thumbs": "node scripts/thumbs.js"
   },

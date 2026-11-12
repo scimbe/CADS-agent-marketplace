@@ -6,13 +6,17 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { browser, axe, act } from "./lib/grund.mjs";
+import { browser, axe, act, URL_MODE, PAGE } from "./lib/grund.mjs";
+// URL-Modus (ziel.mjs): Kaltstart und Cache gegen den laufenden Server; fehlender und manipulierter Teil brauchen den
+// eigenen Testserver hier und werden dort uebersprungen
+const OWN_SERVER = URL_MODE ? "braucht den eigenen Testserver (URL-Modus)" : false;
 
 const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../dist");
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json" };
 let b, server, base;
 test.before(async () => {
   b = await browser();
+  if (URL_MODE) { base = PAGE; return; }
   server = http.createServer((req, res) => {
     const u = new URL(req.url, "http://x");
     if (u.pathname === "/favicon.ico") { res.writeHead(204); res.end(); return; } // Browser fragt es von selbst an
@@ -26,7 +30,7 @@ test.before(async () => {
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   base = "http://127.0.0.1:" + server.address().port + "/";
 });
-test.after(async () => { await b.close(); server.close(); });
+test.after(async () => { await b.close(); if (server) server.close(); });
 
 async function page({ throttle = false } = {}) {
   const ctx = await b.newContext({ viewport: { width: 1280, height: 800 }, locale: "de-DE" });
@@ -117,7 +121,7 @@ test("Teil kommt nach dem ersten Laden aus dem Cache (offline fuer Teile)", asyn
   assert.deepEqual(errs, []);
 });
 
-test("Fehlender Teil: ehrliche Meldung, Wiederholen laedt nach, sobald er wieder da ist; axe ohne Verstoesse", async () => {
+test("Fehlender Teil: ehrliche Meldung, Wiederholen laedt nach, sobald er wieder da ist; axe ohne Verstoesse", { skip: OWN_SERVER }, async () => {
   const { ctx, p } = await page();
   let block = true;
   await ctx.route("**/parts/card-bluff*", (r) => (block ? r.fulfill({ status: 404, body: "" }) : r.continue()));
@@ -130,7 +134,7 @@ test("Fehlender Teil: ehrliche Meldung, Wiederholen laedt nach, sobald er wieder
   await p.locator("main.s-card-view").waitFor();
 });
 
-test("Manipulierter Teil wird nicht ausgefuehrt (SRI), Meldung teil-manipuliert", async () => {
+test("Manipulierter Teil wird nicht ausgefuehrt (SRI), Meldung teil-manipuliert", { skip: OWN_SERVER }, async () => {
   const { ctx, p } = await page();
   await ctx.route("**/parts/card-gruss*", (r) => r.fulfill({ status: 200, contentType: "text/javascript", body: "document.title='boese';" }));
   await p.goto(base); await act(p, "open-gruss");

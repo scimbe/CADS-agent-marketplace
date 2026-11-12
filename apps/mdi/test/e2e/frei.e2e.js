@@ -2,7 +2,9 @@
 // Aufnahmen des echten Servers). Alle Zustaende aus dem Auftrag: Erfolg, Absage, Warteschlange, Abbruch, kein Kontingent,
 // unter 16, Deck nicht ok (und ok). Je Zustand: axe (WCAG 2.2 AA), kein waagerechter Ueberlauf, kein verdecktes
 // Bedienelement (wie layout.e2e.js), keine CSP-Verstoesse, keine Anfrage an einen anderen Host.
-import test from "node:test";
+import nodeTest from "node:test";
+import { fakeOnly } from "./lib/ziel.mjs";
+const test = fakeOnly(nodeTest); // Gegenstelle ist eine Attrappe: im URL-Modus uebersprungen
 import assert from "node:assert/strict";
 import { browser, VIEWS, act, axe, noOverflow, shotsDir } from "./lib/grund.mjs";
 import { fakeWrapper, APP } from "./lib/fakewrapper.mjs";
