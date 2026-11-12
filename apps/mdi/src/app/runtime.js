@@ -89,7 +89,10 @@ export function createRuntime(deps) {
     if (loadingFor) { waiting.push(ev); return true; }
     const need = deps.loadPart ? cardsFor(ev) : [];
     // Feature-Teile (ADR 0001 Nachtrag 4) wie Karten: vorher laden, sonst ehrlich PART_FAIL mit Wiederholen
-    const needP = deps.loadFeat ? featureNeedParts(ev, state.ctx, deps.needFeatures || FEATURES).filter((n) => !FP.isPartLoaded(n)) : [];
+    const feats = deps.needFeatures || FEATURES;
+    // OPEN mit start fuehrt im selben Schritt zu GO: auch dessen Teile vorher laden (ein Ereignis, nichts geht verloren)
+    const goToo = ev.type === "OPEN" && ev.start === true ? featureNeedParts({ ...ev, type: "GO" }, { ...state.ctx, cardId: ev.id, variant: ev.variant || null }, feats) : [];
+    const needP = deps.loadFeat ? [...new Set([...featureNeedParts(ev, state.ctx, feats), ...goToo])].filter((n) => !FP.isPartLoaded(n)) : [];
     if (need.length || needP.length) {
       const first = need[0] || needP[0];
       loadingFor = ev;

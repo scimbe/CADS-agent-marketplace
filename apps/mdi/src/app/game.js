@@ -97,6 +97,8 @@ export function botTurn(ctx) {
 
 /** Parameter, die zum Partner reisen und mit denen beide Seiten spielen (contract/fields.js paramsForPeer). */
 export function peerParams(ctx, id = ctx.cardId) { return paramsForPeer(cardOf(id).manifest.params, paramsOf(ctx, id)); }
+/** Zuege in der laufenden Partie (Eingaben, ohne Aufdecken); 0 = noch nichts gezogen. Fuer Umschalter im Spielkopf. */
+export function movesMade(ctx) { return ctx && ctx.session && Array.isArray(ctx.session.log) ? ctx.session.log.filter((x) => !x || x.t !== "reveal").length : 0; }
 export function helloFor(ctx, rand) {
   const c = card(ctx), r = H.hello(c, peerParams(ctx), ctx.seat, rand);
   return { ctx: { ...ctx, hs: r.local, session: null, error: null, viewer: ctx.seat }, msg: r.msg };
