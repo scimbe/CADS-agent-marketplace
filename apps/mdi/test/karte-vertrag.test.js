@@ -100,3 +100,25 @@ test("Karten-Export fuer Strang K: fromFree/toFree, null bei fremden Docs, Siege
   assert.deepEqual(p.ki, ki); assert.equal(p.fr, "abcdefghijklmnopqrstuv");
   assert.deepEqual(flug.toFree(p).ki, ki);
 });
+
+test("KI-Siegel ki: nur {k, s, h?, o?} mit festen Mustern; ein Link mit fremdem ki wird abgelehnt (params)", async () => {
+  const { validParams } = await import("../src/cards/index.js");
+  const { encode } = await import("../src/app/link.js");
+  const { receive } = await import("../src/app/game.js");
+  const def = (c) => Object.fromEntries(Object.entries(c.manifest.params.properties).map(([k, d]) => [k, d.default]));
+  const good = { k: "karte", s: "s2.karte.mw3abcde.AnlRQb9jJYrLILMRBtJj7yR1qlhJF0ER", h: "h".repeat(43) };
+  for (const [id, c] of [["flug", flug], ["lauf", lauf]]) {
+    assert.equal(validParams(id, { ...def(c), ki: good }), true, id + ": gueltiges Siegel");
+    assert.equal(validParams(id, { ...def(c), ki: null }), true, id + ": ohne Siegel");
+    for (const bad of [{ evil: 1 }, { k: "karte" }, { k: "x", s: good.s }, { ...good, s: "<script>" }, { ...good, h: "kurz" }, { ...good, extra: "1".repeat(500) }, "text", [good]])
+      assert.equal(validParams(id, { ...def(c), ki: bad }), false, id + ": " + JSON.stringify(bad).slice(0, 40));
+    const hash = encode("card", { c: id, v: c.manifest.version, p: { ...def(c), ki: { evil: 1, big: "x".repeat(200) } } });
+    assert.deepEqual(receive(hash, null, ["0".repeat(32)]), { ok: false, reason: "params" }, id + ": Link mit fremdem ki");
+    // die Bereinigung der freien Karte laesst ein fremdes Siegel weg, statt es durchzureichen
+    const g = FIX.cases.find((x) => x.art === (id === "flug" ? "game" : "lauf") && x.doc).doc;
+    assert.equal(c.fromFree({ ...g, ki: { k: "karte" } }).ki, null, id + ": Siegel ohne Signatur faellt weg");
+    assert.deepEqual(c.fromFree({ ...g, ki: good }).ki, good);
+  }
+  assert.equal(validParams("flug", { ...def(flug), ki: { k: "welt", s: good.s } }), true, "flug: KI-Welt-Siegel");
+  assert.equal(validParams("lauf", { ...def(lauf), ki: { k: "welt", s: good.s } }), false, "lauf kennt nur karte");
+});
