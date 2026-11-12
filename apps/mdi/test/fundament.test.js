@@ -203,3 +203,10 @@ test("Konto pack: lokale Wand und gemerkte Karten haben Vorrang (Wand-Sync, Stra
   assert.deepEqual(pack(me, { wall: [1], saved: ["x"] }, { wall: [2] }).wall, [2]);
   assert.deepEqual(pack(me, { wall: [1], saved: ["x"] }, { saved: [] }).saved, []);
 });
+
+test("viewCtx.age18 kommt nur vom Server (Konto-Profil oder Status), nie vom Geraete-Code", () => {
+  assert.equal(G.viewCtx({ lang: "de", profil: { via: "account", age18: true } }).age18, true);
+  assert.equal(G.viewCtx({ lang: "de", profil: { via: "code", age18: true } }).age18, false);
+  assert.equal(G.viewCtx({ lang: "de", konto: { st: { karte: { age18: true } } } }).age18, true);
+  assert.equal(G.viewCtx({ lang: "de", me: { age18: true } }).age18, false);
+});

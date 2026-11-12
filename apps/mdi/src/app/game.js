@@ -30,8 +30,11 @@ export function checkInput(cardId, x) {
 }
 /** Kontext fuer view(obs, seat, ctx) – eine Quelle fuer Host-Ansichten (ADR 0001 f, Anfrage Z1). */
 export function viewCtx(ctx, extra = {}) {
-  const me = ctx.me || {}, konto = ctx.konto || {};
-  return { lang: ctx.lang, today: Number.isInteger(ctx.today) ? ctx.today : null, draft: ctx.draft === undefined ? null : ctx.draft, memo: ctx.memo || null, age18: konto.age18 === true || me.age18 === true, nick: typeof me.nick === "string" ? me.nick : "", ...extra };
+  const me = ctx.me || {}, konto = ctx.konto || {}, profil = ctx.profil || {};
+  // 18+ ist bestaetigt, wenn das Konto-Profil es traegt (nur ueber das Konto, nie ueber den Geraete-Code) oder der
+  // Server-Status es meldet (P1: konto-chart.js, api.js status karte.age18) – Quelle ist immer der Server (Z1)
+  const age18 = (profil.via === "account" && profil.age18 === true) || !!(konto.st && konto.st.karte && konto.st.karte.age18 === true);
+  return { lang: ctx.lang, today: Number.isInteger(ctx.today) ? ctx.today : null, draft: ctx.draft === undefined ? null : ctx.draft, memo: ctx.memo || null, age18, nick: typeof me.nick === "string" ? me.nick : "", ...extra };
 }
 export function continues(stored, w) {
   if (!stored || typeof stored.lh !== "string" || !Array.isArray(stored.k)) return "manipuliert";
