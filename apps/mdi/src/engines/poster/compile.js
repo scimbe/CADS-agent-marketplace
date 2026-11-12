@@ -262,4 +262,11 @@ export function compile(doc, opt = {}) {
   credit(c, W, H, opt.nick || "", doc.k === "card" && (doc.st === "neon" || doc.st === "advent") ? "#fff" : (doc.k === "photo" && doc.st !== "sticker" ? "#fff" : ink(doc.k === "card" && doc.st === "zettel" ? doc.col[1] : doc.col[0])));
   return { w: W, h: H, ops: c.ops };
 }
+/** Eigene Bilder anderer Karten mit denselben Ops (z. B. strassenrap-beat): fn(c, block) zeichnet auf den Aufzeichner. */
+export function record(W, H, fn) {
+  const c = recorder();
+  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, H); c.shadowBlur = 0;
+  fn(c, (text, x, y, w, h, col, shadow, off) => block(c, text, x, y, w, h, col, shadow, off));
+  return { w: W, h: H, ops: c.ops };
+}
 export const FORMATS = { "4:5": [540, 675], "16:9": [960, 540] };
