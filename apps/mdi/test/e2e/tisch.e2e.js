@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { browser, open, act, screen, waitScreen, axe, noOverflow } from "./lib/grund.mjs";
 import { pickMode, liveInvite } from "./lib/scenarios.mjs";
+import { fakeLive } from "./lib/fakelive.mjs";
 
 let b;
 test.before(async () => { b = await browser(); });
@@ -90,6 +91,33 @@ test("Bauernskat live zu zweit (Fake-Live): beide sehen dasselbe Ende, das Netz 
   assert.ok(firstReveal > 0);
   for (const m of msgs.slice(0, firstReveal)) assert.doesNotMatch(m, /"salt"/);
   assert.deepEqual([...A.errs, ...B.errs], []);
+});
+
+test("Skat live zu dritt (Gruppen-Live, Fake-Live): ein Link je Gast, ganze Partie, gleicher Endstand, axe 0 am Tisch", async () => {
+  const net = fakeLive(), o = { view: "phone390", lang: "de" };
+  const H = await open(b, { ...o, before: (ctx, p) => net.attach(ctx, p, "h") });
+  await act(H.p, "open-tisch-skat"); await pickMode(H.p, "de", "live"); await act(H.p, "go");
+  await waitScreen(H.p, "card-lobby");
+  await H.p.waitForFunction(() => document.querySelectorAll(".invite .linkfield").length === 2, null, { timeout: 20000 });
+  const links = await H.p.$$eval(".invite .linkfield", (xs) => xs.map((x) => x.value.slice(x.value.indexOf("#"))));
+  const G = [];
+  for (const [i, l] of links.entries()) { const g = await open(b, { ...o, hash: l, before: (ctx, p) => net.attach(ctx, p, "g" + i) }); await waitScreen(g.p, "receive-live"); await act(g.p, "accept"); G.push(g); }
+  const all = [H, ...G], bad = [];
+  let axed = false;
+  for (let i = 0; i < 3000; i++) {
+    const ss = await Promise.all(all.map((d) => screen(d.p)));
+    if (ss.every((x) => x === "card-play-over")) break;
+    for (const d of all) {
+      if (!axed && (await screen(d.p)) === "card-play-turn" && (await handCards(d.p).count())) { bad.push(...(await axe(d.p, "Skat live"))); axed = true; }
+      await humanStep(d.p);
+    }
+  }
+  for (const d of all) await waitScreen(d.p, "card-play-over", 60000);
+  const nums = async (p) => (await p.locator(".t-big").last().textContent()).match(/-?\d+(?=\s*(·|$))/g);
+  const first = await nums(H.p);
+  for (const g of G) assert.deepEqual(await nums(g.p), first);
+  assert.deepEqual(bad, []);
+  assert.deepEqual(all.flatMap((d) => d.errs), []);
 });
 
 test("Tastatur: Karten sind Knoepfe mit Namen, Tab erreicht sie, Enter spielt", async () => {

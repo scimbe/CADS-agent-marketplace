@@ -99,13 +99,14 @@
   ],
   "modes": [
     "bot",
+    "live",
     "alone"
   ],
   "play": {
     "default": "bot",
     "offer": [
       "bot",
-      "alone"
+      "live"
     ]
   },
   "inputs": {

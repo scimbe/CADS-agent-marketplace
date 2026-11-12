@@ -18,7 +18,10 @@
 // }
 // Pfade sind absolute Zustandspfade ohne Praefix, z. B. "inhalt.card.view", "inhalt.card.play.over".
 
+import tisch from "../engines/tisch/feature.js";   // Strang T: Kartenbild fuer pcard
+
 export const FEATURES = [
+  tisch,
   // home,   // Strang H: src/ui/home/feature.js
   // frei,   // Strang K: src/features/frei/chart.js
 ];
