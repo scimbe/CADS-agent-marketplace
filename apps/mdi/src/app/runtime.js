@@ -64,19 +64,29 @@ export function createRuntime(deps) {
     const ids = [...(typeof id === "string" ? [id] : []), ...featureNeeds(ev, state.ctx)];
     return [...new Set(ids)].filter((x) => manifestOf(x) && !isLoaded(x));
   }
+  // Reihenfolge (Befund Integrator, Regression nach #281): Laedt ein Ereignis erst Teile nach, warten alle folgenden
+  // Ereignisse in einer Schlange und werden danach in Eingangsreihenfolge zugestellt. Sonst ueberholte z. B. ein schnelles
+  // Folgeereignis das verzoegerte GO, und GO traf auf einen anderen Zustand (Partie startete nie).
+  // Register der Feature-Teile (Tests koennen ein eigenes einsetzen, z. B. mit verzoegertem Laden)
+  const FP = deps.featParts || { isPartLoaded, loadFeatPart };
+  let loadingFor = null;
+  const waiting = [];
   function dispatch(ev) {
     ev = typeof ev === "string" ? { type: ev } : { ...ev };
     if (!ev.rand) ev.rand = rand();
     if (ev.at === undefined) ev.at = now();
+    if (loadingFor) { waiting.push(ev); return true; }
     const need = deps.loadPart ? cardsFor(ev) : [];
     // Feature-Teile (ADR 0001 Nachtrag 4) wie Karten: vorher laden, sonst ehrlich PART_FAIL mit Wiederholen
-    const needP = deps.loadFeat ? featureNeedParts(ev, state.ctx, deps.needFeatures || FEATURES).filter((n) => !isPartLoaded(n)) : [];
+    const needP = deps.loadFeat ? featureNeedParts(ev, state.ctx, deps.needFeatures || FEATURES).filter((n) => !FP.isPartLoaded(n)) : [];
     if (need.length || needP.length) {
       const first = need[0] || needP[0];
+      loadingFor = ev;
       dispatchNow({ type: "LOADING", id: first });
-      Promise.all([...need.map((id) => loadCard(id, deps.loadPart)), ...needP.map((n) => loadFeatPart(n, deps.loadFeat))]).then(
-        () => dispatchNow(ev),
-        (e) => dispatchNow({ type: "PART_FAIL", id: first, reason: (e && e.code) || "teil-fehlt", retry: ev }));
+      const done = (next) => { loadingFor = null; next(); const rest = waiting.splice(0); for (const w of rest) dispatch(w); };
+      Promise.all([...need.map((id) => loadCard(id, deps.loadPart)), ...needP.map((n) => FP.loadFeatPart(n, deps.loadFeat))]).then(
+        () => done(() => { dispatchNow({ type: "LOADED", id: first }); dispatchNow(ev); }),
+        (e) => done(() => dispatchNow({ type: "PART_FAIL", id: first, reason: (e && e.code) || "teil-fehlt", retry: ev })));
       return true;
     }
     return dispatchNow(ev);
