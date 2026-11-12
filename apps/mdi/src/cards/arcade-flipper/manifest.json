@@ -1,0 +1,551 @@
+{
+  "id": "arcade-flipper",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.2",
+  "kind": "realtime",
+  "mode": "realtime",
+  "title": {
+    "de": "Flipper-Duell",
+    "en": "Flipper duel"
+  },
+  "teaser": {
+    "de": "Zwei Klappen, eine Lücke.",
+    "en": "Two flippers, one gap."
+  },
+  "howto": {
+    "de": "Tipp links oder rechts: die Klappe schlägt. Lass den Ball nicht durch die Lücke. Tastatur: Pfeil links und Pfeil rechts schlagen die Klappen.",
+    "en": "Tap left or right: that flipper swings. Don't let the ball through the gap. Keyboard: left and right arrows swing the flippers."
+  },
+  "family": "arcade-kick",
+  "dur": 120,
+  "order": 407,
+  "players": {
+    "min": 1,
+    "max": 2
+  },
+  "seats": {
+    "de": [
+      "Du",
+      "Gegner"
+    ],
+    "en": [
+      "You",
+      "Opponent"
+    ]
+  },
+  "modes": [
+    "bot",
+    "live"
+  ],
+  "play": {
+    "default": "bot",
+    "offer": [
+      "bot",
+      "live"
+    ]
+  },
+  "hidden": "none",
+  "uses": [],
+  "limits": {
+    "stepBudget": 4,
+    "stateBytes": 65536
+  },
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "colA",
+      "colB",
+      "emoji",
+      "title",
+      "sub",
+      "photo",
+      "photoUse",
+      "win"
+    ],
+    "properties": {
+      "colA": {
+        "type": "string",
+        "enum": [
+          "#00e5ff",
+          "#ff3b1d",
+          "#ff7a1a",
+          "#e8d6bf",
+          "#2bd9a0",
+          "#ffd400",
+          "#7cdb3c",
+          "#39ff88",
+          "#ff5fa2",
+          "#00f0ff",
+          "#b04bff",
+          "#4fc3ff",
+          "#ff7a59",
+          "#ff2bd6",
+          "#20c9c9",
+          "#e0863a",
+          "#2b4bff",
+          "#ffe600",
+          "#ff4fa3",
+          "#0a7f55",
+          "#14c872",
+          "#ff3da5",
+          "#ff6a1f",
+          "#1b2bd8",
+          "#c8ff00",
+          "#7a1fff",
+          "#ffffff",
+          "#ff2d2d",
+          "#7ee0ff",
+          "#ff5a1f"
+        ],
+        "default": "#00f0ff",
+        "x-field": "color",
+        "x-label": {
+          "de": "Deine Farbe",
+          "en": "Your colour"
+        }
+      },
+      "colB": {
+        "type": "string",
+        "enum": [
+          "#00e5ff",
+          "#ff3b1d",
+          "#ff7a1a",
+          "#e8d6bf",
+          "#2bd9a0",
+          "#ffd400",
+          "#7cdb3c",
+          "#39ff88",
+          "#ff5fa2",
+          "#00f0ff",
+          "#b04bff",
+          "#4fc3ff",
+          "#ff7a59",
+          "#ff2bd6",
+          "#20c9c9",
+          "#e0863a",
+          "#2b4bff",
+          "#ffe600",
+          "#ff4fa3",
+          "#0a7f55",
+          "#14c872",
+          "#ff3da5",
+          "#ff6a1f",
+          "#1b2bd8",
+          "#c8ff00",
+          "#7a1fff",
+          "#ffffff",
+          "#ff2d2d",
+          "#7ee0ff",
+          "#ff5a1f"
+        ],
+        "default": "#b04bff",
+        "x-field": "color",
+        "x-label": {
+          "de": "Farbe des Gegners",
+          "en": "Opponent's colour"
+        }
+      },
+      "emoji": {
+        "type": "string",
+        "enum": [
+          "",
+          "🏒",
+          "🧱",
+          "🏐",
+          "💥",
+          "⚽",
+          "🎯",
+          "❄️",
+          "🥅",
+          "🥌",
+          "🔮",
+          "🚀",
+          "🛸",
+          "🐸",
+          "🦆",
+          "🐙",
+          "🦖",
+          "🐉",
+          "🦄",
+          "🐝",
+          "🍕",
+          "🍩",
+          "🎃",
+          "👻",
+          "⭐",
+          "🌈",
+          "🔥",
+          "⚡",
+          "🌙",
+          "🎄",
+          "⛄",
+          "🎁",
+          "🐱",
+          "🐶",
+          "🐧",
+          "🦉",
+          "🐌"
+        ],
+        "default": "",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Figur",
+          "en": "Figure"
+        }
+      },
+      "title": {
+        "type": "string",
+        "maxLength": 34,
+        "pattern": "^[^\\u0000-\\u001f\\u007f<>]*$",
+        "default": "",
+        "x-field": "text",
+        "x-model": true,
+        "x-label": {
+          "de": "Titel",
+          "en": "Title"
+        }
+      },
+      "sub": {
+        "type": "string",
+        "maxLength": 60,
+        "pattern": "^[^\\u0000-\\u001f\\u007f<>]*$",
+        "default": "",
+        "x-field": "text",
+        "x-model": true,
+        "x-label": {
+          "de": "Untertitel",
+          "en": "Subtitle"
+        }
+      },
+      "photo": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "maxLength": 200,
+        "default": null,
+        "x-field": "media.local",
+        "x-label": {
+          "de": "Eigenes Foto (bleibt auf dem Gerät)",
+          "en": "Your photo (stays on this device)"
+        }
+      },
+      "photoUse": {
+        "type": "string",
+        "enum": [
+          "off",
+          "figure",
+          "bg"
+        ],
+        "default": "off",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Foto als",
+          "en": "Use photo as"
+        }
+      },
+      "win": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 9,
+        "default": 5,
+        "x-field": "number",
+        "x-model": true,
+        "x-label": {
+          "de": "Punkte zum Sieg",
+          "en": "Points to win"
+        }
+      }
+    }
+  },
+  "parts": [
+    {
+      "id": "farben",
+      "params": [
+        "colA",
+        "colB"
+      ],
+      "label": {
+        "de": "Farben",
+        "en": "Colours"
+      }
+    },
+    {
+      "id": "figur",
+      "params": [
+        "emoji",
+        "photo",
+        "photoUse"
+      ],
+      "label": {
+        "de": "Figur und Foto",
+        "en": "Figure and photo"
+      }
+    },
+    {
+      "id": "texte",
+      "params": [
+        "title",
+        "sub"
+      ],
+      "label": {
+        "de": "Texte",
+        "en": "Texts"
+      }
+    },
+    {
+      "id": "regeln",
+      "params": [
+        "win"
+      ],
+      "label": {
+        "de": "Regeln",
+        "en": "Rules"
+      }
+    }
+  ],
+  "rt": {
+    "tick": 120,
+    "view": {
+      "w": 1000,
+      "h": 1600,
+      "fit": "contain"
+    },
+    "numeric": "f64",
+    "net": "split",
+    "maxTicks": 216000,
+    "controls": {
+      "buttons": [
+        {
+          "id": "left",
+          "kind": "hold",
+          "keys": [
+            "ArrowLeft",
+            "KeyA",
+            "KeyZ"
+          ],
+          "zone": "left",
+          "label": {
+            "de": "Linke Klappe",
+            "en": "Left flipper"
+          }
+        },
+        {
+          "id": "right",
+          "kind": "hold",
+          "keys": [
+            "ArrowRight",
+            "KeyD",
+            "KeyM"
+          ],
+          "zone": "right",
+          "label": {
+            "de": "Rechte Klappe",
+            "en": "Right flipper"
+          }
+        }
+      ],
+      "pointer": {
+        "max": 2
+      }
+    },
+    "sounds": {
+      "hit": {
+        "synth": "tone",
+        "f0": 410,
+        "f1": 160,
+        "dur": 0.07,
+        "type": "square",
+        "vol": 0.05,
+        "haptic": 8
+      },
+      "ohit": {
+        "synth": "tone",
+        "f0": 410,
+        "f1": 160,
+        "dur": 0.07,
+        "type": "square",
+        "vol": 0.05
+      },
+      "kick": {
+        "synth": "tone",
+        "f0": 410,
+        "f1": 160,
+        "dur": 0.07,
+        "type": "square",
+        "vol": 0.05,
+        "haptic": 8
+      },
+      "flip": {
+        "synth": "tone",
+        "f0": 410,
+        "f1": 160,
+        "dur": 0.07,
+        "type": "square",
+        "vol": 0.05,
+        "haptic": 8
+      },
+      "bump": {
+        "synth": "tone",
+        "f0": 410,
+        "f1": 160,
+        "dur": 0.07,
+        "type": "square",
+        "vol": 0.05
+      },
+      "clack": {
+        "synth": "tone",
+        "f0": 330,
+        "f1": 160,
+        "dur": 0.07,
+        "type": "square",
+        "vol": 0.04
+      },
+      "wall": {
+        "synth": "tone",
+        "f0": 180,
+        "f1": 120,
+        "dur": 0.05,
+        "type": "triangle",
+        "vol": 0.04
+      },
+      "net": {
+        "synth": "tone",
+        "f0": 180,
+        "f1": 120,
+        "dur": 0.05,
+        "type": "triangle",
+        "vol": 0.04
+      },
+      "land": {
+        "synth": "tone",
+        "f0": 180,
+        "f1": 120,
+        "dur": 0.05,
+        "type": "triangle",
+        "vol": 0.04
+      },
+      "miss": {
+        "synth": "tone",
+        "f0": 180,
+        "f1": 120,
+        "dur": 0.05,
+        "type": "triangle",
+        "vol": 0.04
+      },
+      "brick": {
+        "synth": "noise",
+        "freq": 1800,
+        "dur": 0.18,
+        "vol": 0.22,
+        "haptic": 14
+      },
+      "out": {
+        "synth": "noise",
+        "freq": 1800,
+        "dur": 0.18,
+        "vol": 0.22,
+        "haptic": 14
+      },
+      "boom": {
+        "synth": "noise",
+        "freq": 500,
+        "dur": 0.5,
+        "vol": 0.4,
+        "haptic": 30
+      },
+      "tank": {
+        "synth": "noise",
+        "freq": 500,
+        "dur": 0.5,
+        "vol": 0.4,
+        "haptic": 30
+      },
+      "splash": {
+        "synth": "noise",
+        "freq": 2600,
+        "dur": 0.3,
+        "vol": 0.12
+      },
+      "fire": {
+        "synth": "noise",
+        "freq": 3200,
+        "dur": 0.14,
+        "vol": 0.06
+      },
+      "throw": {
+        "synth": "noise",
+        "freq": 3200,
+        "dur": 0.14,
+        "vol": 0.06
+      },
+      "score": {
+        "synth": "tone",
+        "f0": 523,
+        "f1": 784,
+        "dur": 0.24,
+        "type": "triangle",
+        "vol": 0.1
+      },
+      "saved": {
+        "synth": "tone",
+        "f0": 523,
+        "f1": 784,
+        "dur": 0.24,
+        "type": "triangle",
+        "vol": 0.1
+      },
+      "won": {
+        "synth": "tone",
+        "f0": 523,
+        "f1": 1046,
+        "dur": 0.4,
+        "type": "triangle",
+        "vol": 0.12
+      },
+      "save": {
+        "synth": "tone",
+        "f0": 485,
+        "f1": 160,
+        "dur": 0.07,
+        "type": "square",
+        "vol": 0.05
+      },
+      "lose": {
+        "synth": "tone",
+        "f0": 330,
+        "f1": 110,
+        "dur": 0.35,
+        "type": "sawtooth",
+        "vol": 0.06,
+        "haptic": 60
+      },
+      "splat": {
+        "synth": "tone",
+        "f0": 330,
+        "f1": 110,
+        "dur": 0.35,
+        "type": "sawtooth",
+        "vol": 0.06,
+        "haptic": 60
+      },
+      "serve": {
+        "synth": "tone",
+        "f0": 440,
+        "f1": 660,
+        "dur": 0.08,
+        "type": "sine",
+        "vol": 0.05
+      },
+      "give": {
+        "synth": "tone",
+        "f0": 440,
+        "f1": 660,
+        "dur": 0.08,
+        "type": "sine",
+        "vol": 0.05
+      }
+    }
+  }
+}

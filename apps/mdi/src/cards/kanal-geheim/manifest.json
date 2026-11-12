@@ -1,0 +1,251 @@
+{
+  "id": "kanal-geheim",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.2",
+  "kind": "quest",
+  "mode": "turn",
+  "order": 90,
+  "title": {
+    "de": "Geheimer Kanal",
+    "en": "Secret channel"
+  },
+  "teaser": {
+    "de": "Antwort ist der Schlüssel.",
+    "en": "The answer is the key."
+  },
+  "howto": {
+    "de": "Rätsel 1 liest jeder mit dem Link. Alles danach ist verschlüsselt, die Antworten stehen nirgends drin. Ein Spiel, kein Tresor.",
+    "en": "Anyone with the link reads riddle 1. Everything after it is encrypted, the answers are nowhere in it. A game, not a safe."
+  },
+  "rule": {
+    "de": "Jede Antwort öffnet das nächste Schloss.",
+    "en": "Each answer opens the next lock."
+  },
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "seats": {
+    "de": [
+      "Du verschließt",
+      "Du schließt auf"
+    ],
+    "en": [
+      "You lock",
+      "You unlock"
+    ]
+  },
+  "modes": [
+    "link"
+  ],
+  "hidden": "none",
+  "uses": [],
+  "limits": {
+    "stepBudget": 8,
+    "stateBytes": 8192
+  },
+  "dur": 120,
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "e",
+      "mode",
+      "riddles"
+    ],
+    "properties": {
+      "e": {
+        "type": "string",
+        "enum": [
+          "🗝️",
+          "💎",
+          "🔒",
+          "👑",
+          "🧭",
+          "🍕"
+        ],
+        "default": "🗝️",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Symbol",
+          "en": "Symbol"
+        }
+      },
+      "mode": {
+        "type": "string",
+        "enum": [
+          "quest",
+          "tunnel"
+        ],
+        "default": "quest",
+        "x-field": "choice",
+        "x-hidden": true,
+        "x-label": {
+          "de": "Art",
+          "en": "Kind"
+        }
+      },
+      "riddles": {
+        "type": "array",
+        "maxItems": 3,
+        "items": {
+          "type": "string",
+          "maxLength": 44
+        },
+        "default": [
+          "Wie heißt unser Insider-Witz?",
+          "Welches Tier wären wir zusammen?"
+        ],
+        "x-field": "list",
+        "x-hidden": true,
+        "x-label": {
+          "de": "Rätsel",
+          "en": "Riddles"
+        }
+      }
+    }
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat",
+      "a"
+    ],
+    "properties": {
+      "t": {
+        "enum": [
+          "seal",
+          "answer",
+          "word"
+        ]
+      },
+      "seat": {
+        "enum": [
+          0,
+          1
+        ]
+      },
+      "a": {}
+    }
+  },
+  "parts": [
+    {
+      "id": "symbol",
+      "params": [
+        "e"
+      ],
+      "label": {
+        "de": "Symbol",
+        "en": "Symbol"
+      }
+    }
+  ],
+  "variants": [
+    {
+      "id": "kanal-link",
+      "title": {
+        "de": "Schatz im Link",
+        "en": "Treasure in the link"
+      },
+      "teaser": {
+        "de": "Sieht aus wie Salat. Ist deine Botschaft.",
+        "en": "Looks like salad. It's your message."
+      },
+      "params": {
+        "e": "💎",
+        "riddles": [
+          "Welche Farbe hat mein Lieblingssnack?"
+        ]
+      }
+    },
+    {
+      "id": "kanal-drei",
+      "title": {
+        "de": "Drei Schlösser für dich",
+        "en": "Three locks for you"
+      },
+      "teaser": {
+        "de": "Eins öffnet das nächste.",
+        "en": "Each one opens the next."
+      },
+      "params": {
+        "e": "🔒",
+        "riddles": [
+          "Was war unser bester Tag?",
+          "Welches Lied läuft dazu?",
+          "Wer hat damals gewonnen?"
+        ]
+      }
+    },
+    {
+      "id": "kanal-kennst",
+      "title": {
+        "de": "Kennst du mich wirklich?",
+        "en": "Do you really know me?"
+      },
+      "teaser": {
+        "de": "Nur nette Fragen. Antwort weißt nur du.",
+        "en": "Friendly questions. Only you know."
+      },
+      "params": {
+        "e": "👑",
+        "riddles": [
+          "Was esse ich immer zuerst?",
+          "Worüber lache ich am meisten?"
+        ]
+      }
+    },
+    {
+      "id": "kanal-staffel",
+      "title": {
+        "de": "Rätsel-Staffel",
+        "en": "Riddle relay"
+      },
+      "teaser": {
+        "de": "Löse es, bau das nächste.",
+        "en": "Solve it, build the next."
+      },
+      "params": {
+        "e": "🧭",
+        "riddles": [
+          "Wie heißt das beste Spiel aller Zeiten?"
+        ]
+      }
+    },
+    {
+      "id": "kanal-erfinder",
+      "title": {
+        "de": "Unsere Geheimsprache",
+        "en": "Our secret language"
+      },
+      "teaser": {
+        "de": "Erfinde ein Wort, das nur ihr kennt.",
+        "en": "Invent a word only you two know."
+      },
+      "params": {
+        "e": "🍕",
+        "riddles": [
+          "Wie sagen wir zu Pizza?"
+        ]
+      }
+    },
+    {
+      "id": "raum-tunnel",
+      "title": {
+        "de": "Eure Geheimschrift",
+        "en": "Your secret script"
+      },
+      "teaser": {
+        "de": "Ein Wort, ein Alphabet, echte Zettel.",
+        "en": "One word, one alphabet, real notes."
+      },
+      "params": {
+        "mode": "tunnel"
+      },
+      "modes": [
+        "alone"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "shelf": false,
+  "min": 30,
+  "tags": [
+    "vorlesen",
+    "kind",
+    "komisch",
+    "read aloud",
+    "kids",
+    "weird",
+    "albern",
+    "silly",
+    "künstliche intelligenz",
+    "computer",
+    "zukunft",
+    "system",
+    "code",
+    "artificial intelligence",
+    "technology",
+    "machine language",
+    "future"
+  ],
+  "texts": {
+    "de": {
+      "mic": "Zum Aufnehmen braucht die App dein Mikrofon. Dein Gerät fragt dich vorher. Die Aufnahme bleibt bei dir.",
+      "others": "Nimm nur dich selbst auf, oder frag vorher.",
+      "rec": "Aufnehmen",
+      "again": "Neu aufnehmen",
+      "play": "Abspielen",
+      "len": "Bis zu 10 Sekunden. Tipp auf einen Effekt: Du hörst ihn sofort.",
+      "note": "Die Aufnahme speichern wir nicht. Sie geht direkt von deinem Gerät in den Chat.",
+      "link": "Der Link zur Karte trägt nur Effekt und Text.",
+      "warn": "Verzerrt heißt nicht anonym, und ein Video kann weitergeleitet werden.",
+      "mark": "Stimme verzerrt",
+      "answer": "Antworten",
+      "shareText": "Hör mal! Antworte mit deiner Stimme:"
+    },
+    "en": {
+      "mic": "To record, the app needs your microphone. Your device asks you first. The recording stays with you.",
+      "others": "Only record yourself, or ask first.",
+      "rec": "Record",
+      "again": "Record again",
+      "play": "Play",
+      "len": "Up to 10 seconds. Tap an effect: you hear it at once.",
+      "note": "We do not store the recording. It goes straight from your device into the chat.",
+      "link": "The link to the card carries only the effect and the text.",
+      "warn": "Distorted does not mean anonymous, and a video can be forwarded.",
+      "mark": "Voice distorted",
+      "answer": "Answer",
+      "shareText": "Listen! Answer with your voice:"
+    }
+  },
+  "variants": {
+    "stimme-monster": {
+      "alias": true
+    },
+    "stimme-maus": {
+      "alias": true
+    },
+    "stimme-robo": {
+      "alias": true
+    }
+  }
+}

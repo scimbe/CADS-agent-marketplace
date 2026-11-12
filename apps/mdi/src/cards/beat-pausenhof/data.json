@@ -1,0 +1,78 @@
+{
+  "min": 45,
+  "tags": [
+    "beat bauen",
+    "musik machen",
+    "rhythmus",
+    "schule",
+    "ticken",
+    "schlagen",
+    "pausenhof",
+    "make beat",
+    "make music",
+    "school",
+    "playground"
+  ],
+  "texts": {
+    "de": {
+      "play": "Abspielen",
+      "stop": "Stopp",
+      "send": "Beat verschicken"
+    },
+    "en": {
+      "play": "Play",
+      "stop": "Stop",
+      "send": "Send the beat"
+    }
+  },
+  "variants": {
+    "beat-boss": {
+      "x-default": {
+        "en": {
+          "x": "Boss fight music"
+        }
+      },
+      "tags": [
+        "episch",
+        "finale",
+        "dramatisch",
+        "intensiv",
+        "highlight",
+        "dramatic",
+        "intense"
+      ]
+    },
+    "plan-05": {
+      "x-default": {
+        "en": {
+          "x": "Tunnel beat"
+        }
+      },
+      "tags": [
+        "musik",
+        "club",
+        "dj",
+        "feiern",
+        "partyplaylist",
+        "music",
+        "celebration"
+      ]
+    },
+    "plan-12": {
+      "x-default": {
+        "en": {
+          "x": "Build a ringtone"
+        }
+      },
+      "tags": [
+        "handy",
+        "smartphone",
+        "benachrichtigung",
+        "musik",
+        "notification",
+        "music",
+        "audio"
+      ]
+    }
+  }
+}

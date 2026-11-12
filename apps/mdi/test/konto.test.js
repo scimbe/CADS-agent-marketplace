@@ -28,7 +28,7 @@ const fx = (s, type) => s.effects.filter((e) => e.type === type);
 
 test("Start: Konto wird geprueft (Effekt konto.status); anonym -> Anmelden nur mit 16+-Haken, sonst Hinweis", async () => {
   let s = machine.initial(initialContext("de"));
-  assert.equal(K(s), "pruefen"); assert.deepEqual(s.effects, [{ type: "konto.status" }]);
+  assert.equal(K(s), "pruefen"); assert.deepEqual(s.effects.filter((e) => !e.type.startsWith("home.")), [{ type: "konto.status" }]); // home.load: Heimseite laedt Meins
   s = go(s, { type: "STATUS", result: await status("status-anonym") });
   assert.equal(K(s), "anonym"); assert.equal(s.ctx.konto.st.ki.remaining, 7);
   s = go(s, { type: "STIL" }); assert.equal(leaf(s), "stil.start");
