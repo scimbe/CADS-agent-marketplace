@@ -134,12 +134,8 @@ function hash(st) {
   return hex32(h) + hex32(h2);
 }
 
-// Vorschau im Regal/Kartenblatt (view.js previewState ruft observe wie bei Zugkarten): Echtzeitkarten haben nichts
-// Verdecktes, jeder Sitz sieht den ganzen Zustand
-function observe(st) { return st; }
-
 export default {
-  manifest, init, step, status, view, bot, hash, observe,
+  manifest, init, step, status, view, bot, hash,
   // freie Karte (Strang K): Server-Dokument G1 <-> Kartenparameter
   fromFree: fromServerDoc, toFree: (params) => toServerDoc(params, null),
   variantParams, variants: VARIANTS, flyLine
