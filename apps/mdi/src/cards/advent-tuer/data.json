@@ -26,7 +26,9 @@
       "for": "Gedacht für den {n}. Dezember.",
       "own": "Eigenes Türchen machen",
       "on": "Weiter",
-      "note": "Das Türchen lässt sich jederzeit öffnen. Die Nummer sagt nur, für welchen Tag es gedacht ist."
+      "note": "Das Türchen lässt sich jederzeit öffnen. Die Nummer sagt nur, für welchen Tag es gedacht ist.",
+      "shareImage": "Mit Foto als Bild teilen",
+      "noPhoto": "Hier war ein Foto. Es bleibt beim Absender."
     },
     "en": {
       "send": "Send the door",
@@ -37,7 +39,9 @@
       "for": "Meant for December {n}.",
       "own": "Make your own door",
       "on": "Continue",
-      "note": "The door opens any time. The number only says which day it is meant for."
+      "note": "The door opens any time. The number only says which day it is meant for.",
+      "shareImage": "Share with photo as image",
+      "noPhoto": "There was a photo here. It stays with the sender."
     }
   }
 }

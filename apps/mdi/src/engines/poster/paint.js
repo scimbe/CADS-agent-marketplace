@@ -4,6 +4,7 @@
 import { FONT, EMO, OP_METHODS, OP_PROPS, ink } from "./compile.js";
 import * as F from "./filters.js";
 import { draw as notoDraw } from "./noto.js";
+import { mulberry32 } from "./doc.js";
 
 // Wortblock: jede Zeile streckt sich auf die volle Breite, wie ein Konzertplakat (alt render.js breakLines/layout).
 function breakLines(words, n) {
@@ -122,7 +123,7 @@ export const HIGH = {
     else { c.font = r * 1.25 + "px " + EMO; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = "#000"; c.fillText(e, 0, r * 0.06); }
   },
   photo(c, a, env) {
-    const [st, col, seed, x, y, W, H] = a, img = asset(env, "photo");
+    const [st, col, seed, x, y, W, H, botSeed, botCol] = a, img = asset(env, "photo") || (botSeed !== undefined ? botFace(env, botSeed, botCol) : null);
     if (img) c.drawImage(photoLayer(env, img, st, col, seed, W, H), x, y, W, H);
   },
   image(c, a, env) {
@@ -147,6 +148,24 @@ export function exec(c, list, assets = {}) {
     if (HIGH[o.op]) HIGH[o.op](c, o.a, env); // unbekannte Ops fallen weg (wie im Renderer, dort gemeldet)
   }
   return env.parts || [];
+}
+// Bot-Gesicht als Platzhalter ohne Foto, exakt alt:src/render.js:261-273 (aus dem Seed, nie ganz gleich)
+function botFace(env, seed, col) {
+  const cache = env.cache instanceof Map ? env.cache : (env.cache || (env.cache = {})), key = "bot/" + seed + "/" + col;
+  const hit = cache instanceof Map ? cache.get(key) : cache[key];
+  if (hit) return hit;
+  const cv = env.makeCanvas ? env.makeCanvas(640, 800) : Object.assign(document.createElement("canvas"), { width: 640, height: 800 });
+  const c = cv.getContext("2d"), r = mulberry32(seed);
+  c.fillStyle = "#d9d3c4"; c.fillRect(0, 0, 640, 800);
+  c.fillStyle = "#3a3640"; c.fillRect(0, 620, 640, 180);
+  c.fillStyle = "#8e8a93"; c.beginPath(); c.arc(320, 380, 225 + r() * 30, 0, 6.3); c.fill();
+  c.fillStyle = col; c.fillRect(150, 290, 340, 90 + r() * 30);
+  c.fillStyle = "#111"; [240, 400].forEach((x) => { c.beginPath(); c.arc(x, 335, 26 + r() * 16, 0, 6.3); c.fill(); });
+  c.fillRect(220, 480, 200, 18 + r() * 34);
+  c.strokeStyle = "#111"; c.lineWidth = 14; c.beginPath(); c.moveTo(320, 150); c.lineTo(320 + (r() - 0.5) * 120, 50); c.stroke();
+  cv._id = "bot" + seed;
+  if (cache instanceof Map) cache.set(key, cv); else cache[key] = cv;
+  return cv;
 }
 function cover(c, img, x, y, w, h) {
   const iw = img.width, ih = img.height, k = Math.max(w / iw, h / ih), dw = iw * k, dh = ih * k;

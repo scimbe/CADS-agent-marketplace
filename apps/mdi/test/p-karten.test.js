@@ -117,12 +117,12 @@ test("foto-alien: Foto nie im Link und nie beim Empfaenger; Varianten tragen Tex
   assert.ok(!("photo" in paramsForLink(foto.manifest.params, p)));
   const mine = find(foto.view(foto.observe(foto.init({ params: p }), 0), 0, {}), "canvas")[0];
   const theirs = find(foto.view(foto.observe(foto.init({ params: p }), 0), 0, { receive: true }), "canvas")[0];
-  assert.ok(mine.ops2d.some((o) => o.op === "photo")); assert.ok(!theirs.ops2d.some((o) => o.op === "photo")); assert.equal(theirs.src.photo, undefined);
+  assert.ok(mine.ops2d.some((o) => o.op === "photo" && o.a.length === 7)); assert.ok(theirs.ops2d.every((o) => o.op !== "photo" || o.a.length === 9), "Empfaenger: nur Bot-Platzhalter"); assert.equal(theirs.src.photo, undefined);
   assert.deepEqual(mine.src.photo, { kind: "local", id: PID });
   // nur ein echter Geraetewert gilt: alter Slot-Name, fremde Werte und URLs zeichnen kein Foto
   for (const bad of ["slot:photo", "local:xyz", "https://x/y.jpg", "local:" + PID.toUpperCase()]) {
     const c = find(foto.view(foto.observe(foto.init({ params: { ...p, photo: bad } }), 0), 0, {}), "canvas")[0];
-    assert.ok(!c.ops2d.some((o) => o.op === "photo") && c.src.photo === undefined, bad);
+    assert.ok(c.ops2d.every((o) => o.op !== "photo" || o.a.length === 9) && c.src.photo === undefined, bad);
   }
   const by = Object.fromEntries(foto.manifest.variants.map((v) => [v.id, v.params]));
   assert.deepEqual([by["foto-tour"].st, by["foto-haustier"].st, by["foto-essen"].st, defaults(foto.manifest.params).st], ["poster", "meme", "sticker", "glitch"]);
@@ -233,4 +233,42 @@ test("Golden: Anzeigelisten aller Karten (Editor und Empfang) bleiben stabil", (
   if (process.env.UPDATE_GOLDEN || !fs.existsSync(url)) fs.writeFileSync(url, JSON.stringify({ herkunft, cases }) + "\n");
   const want = JSON.parse(fs.readFileSync(url, "utf8")).cases;
   for (const k of Object.keys(cases)) assert.deepEqual(J(cases[k]), want[k], k);
+});
+
+// ---------- „Mit Foto als Bild teilen“ (Entscheidung Integrator) ----------
+import { posterImage } from "../src/engines/poster/share.js";
+import { recCanvas } from "./poster-rec.js";
+const shareOf = (c, params, ctx) => { const v = c.view(c.observe(c.init({ params }), 0), 0, ctx || {}); return { act: find(v, "action").find((x) => x.act === "share-image") || null, canvas: find(v, "canvas")[0] }; };
+test("Mit Foto als Bild teilen: action-Knoten nur mit gewaehltem Foto und nie beim Empfaenger; zeigt auf den canvas mit Foto; Link fotofrei", () => {
+  for (const [c, fmt] of [[advent, "16:9"], [foto, "4:5"]]) {
+    const p = { ...defaults(c.manifest.params), photo: PHOTO, nr: 5 }, ctx = { lang: "de", today: day(2026, 12, 5) };
+    assert.equal(shareOf(c, { ...defaults(c.manifest.params), nr: 5 }, ctx).act, null, c.manifest.id + ": ohne Foto kein Knopf");
+    assert.equal(shareOf(c, p, { ...ctx, receive: true }).act, null, "beim Empfaenger nicht");
+    const { act, canvas } = shareOf(c, p, ctx);
+    assert.equal(act.of, canvas.id); assert.equal(canvas.ratio, fmt); assert.deepEqual(canvas.src.photo, { kind: "local", id: PID });
+    assert.match(act.name, /^[a-z0-9-]+\.png$/); assert.deepEqual(act.label, { de: "Mit Foto als Bild teilen", en: "Share with photo as image" });
+    assert.ok(!("photo" in paramsForLink(c.manifest.params, p)), "Link bleibt fotofrei");
+  }
+});
+test("Platzhalter: foto-alien ohne Foto bzw. beim Empfaenger zeigt das Bot-Gesicht (alt app.js:160), mit Foto nicht", () => {
+  const base = defaults(foto.manifest.params);
+  const ops = (params, ctx) => find(foto.view(foto.observe(foto.init({ params }), 0), 0, ctx), "canvas")[0].ops2d.find((o) => o.op === "photo");
+  assert.equal(ops(base, {}).a.length, 9, "ohne Foto: Bot-Gesicht (Seed, Farbe)");
+  assert.equal(ops({ ...base, photo: PHOTO }, { receive: true }).a.length, 9, "Empfaenger: Platzhalter statt Foto");
+  assert.equal(ops({ ...base, photo: PHOTO }, {}).a.length, 7, "eigenes Foto: kein Platzhalter");
+});
+test("posterImage: wartet auf das Foto, zeichnet in voller Groesse mit Noto-Stickern; ohne Foto ehrlicher Fehler", async () => {
+  const s = { node: shareOf(foto, { ...defaults(foto.manifest.params), photo: PHOTO, sk: [{ e: "👽", x: 0.5, y: 0.5, r: 0, z: 1 }] }, { lang: "de" }).canvas };
+  let loaded = null; const subs = new Set();
+  const images = { get: (src) => (src.kind === "local" ? loaded : null), subscribe: (f) => { subs.add(f); return () => subs.delete(f); } };
+  const made = [];
+  const makeCanvas = (w, h) => { const r = recCanvas(w, h, "out"); made.push(r); return r.cv; };
+  const p = posterImage(s.node, { images, makeCanvas, timeout: 2000 });
+  setTimeout(() => { loaded = { width: 800, height: 600, __img: "foto" }; subs.forEach((f) => f("local:" + PID)); }, 20);
+  const cv = await p;
+  assert.deepEqual([cv.width, cv.height], [1080, 1350], "4:5 in doppelter Groesse");
+  const log = made[0].log;
+  assert.ok(log.some((x) => x[0] === "drawImage"), "Foto gezeichnet");
+  await assert.rejects(posterImage(shareOf(foto, { ...defaults(foto.manifest.params), photo: PHOTO }, {}).canvas, { images: { get: () => null, subscribe: () => () => {} }, makeCanvas, timeout: 50 }), (e) => e.code === "foto-fehlt");
+  await assert.rejects(posterImage({ t: "canvas", w: 1, h: 1, ops2d: [] }, { images, makeCanvas }), (e) => e.code === "foto-fehlt");
 });

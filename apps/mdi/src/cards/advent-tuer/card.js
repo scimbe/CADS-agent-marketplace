@@ -4,7 +4,7 @@
 // Absenden eingefroren (stamp). Der Empfaenger sieht die Tuer zu und klappt sie auf; nie gesperrt.
 import manifest from "./manifest.json" with { type: "json" };
 import data from "./data.json" with { type: "json" };
-import { docOf, canvasNode, doorOf, early, photoId } from "../../engines/poster/card.js";
+import { docOf, canvasNode, doorOf, early, photoId, imageName } from "../../engines/poster/card.js";
 import { PAIR_HEX } from "../../engines/poster/doc.js";
 import { sanitizeName } from "../../engines/text/filter.js";
 
@@ -25,7 +25,13 @@ export default {
     const nr = p.nr || (Number.isInteger(ctx.today) ? doorOf(ctx.today) : 1);
     const doc = docOf("card", { ...p, nr });
     const pic = canvasNode(doc, { format: "16:9", nick: ctx.nick, photo: photoId(p.photo), a11y: fmt(X.title, {}) + " " + nr + ". " + (doc.x || ""), part: "text" });
-    if (!ctx.receive) return { t: "frame", ratio: "16:9", fill: "paper", a11y: pic.a11y, children: [pic] };
+    pic.id = "poster";
+    if (!ctx.receive) {
+      const frame = { t: "frame", ratio: "16:9", fill: "paper", a11y: pic.a11y, children: [pic] };
+      // „Mit Foto als Bild teilen“ (Teilen-Blatt, Strang H): nur mit gewaehltem Foto; der Link bleibt fotofrei
+      if (!photoId(p.photo)) return frame;
+      return { t: "stack", children: [frame, { t: "action", act: "share-image", of: "poster", label: { de: data.texts.de.shareImage, en: data.texts.en.shareImage }, name: imageName(data.texts.de.title + " " + nr) }] };
+    }
     const col = PAIR_HEX[p.pair] || PAIR_HEX.advent;
     const lines = [];
     const from = sanitizeName(p.n);

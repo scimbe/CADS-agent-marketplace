@@ -28,11 +28,13 @@ export function docOf(kind, p) {
  */
 export function canvasNode(doc, o) {
   const [W, H] = FORMATS[o.format || "4:5"];
-  const list = compile(doc, { W, H, nick: o.nick, photo: !!o.photo, gi: !!(doc.gi && doc.gi.p), peaks: o.peaks });
+  const list = compile(doc, { W, H, nick: o.nick, photo: !!o.photo, bot: !!o.bot && !o.photo, gi: !!(doc.gi && doc.gi.p), peaks: o.peaks });
   const src = {};
   if (o.photo) src.photo = { kind: "local", id: o.photo };
   if (doc.gi && doc.gi.p) src.gi = { kind: "server", ref: doc.gi.p };
   if (o.peaksFrom) src.peaks = o.peaksFrom;
   return { t: "canvas", w: W, h: H, ratio: o.format || "4:5", ops2d: list.ops, src, assets: ["noto"], a11y: o.a11y, part: o.part || "bild" };
 }
+/** Dateiname des Bildes, nur Kleinbuchstaben, Ziffern und Bindestrich. */
+export function imageName(base) { return String(base).toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) + ".png"; }
 export { early, civil, FORMATS };
