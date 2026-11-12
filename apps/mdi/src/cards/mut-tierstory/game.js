@@ -1,4 +1,4 @@
-// mut-tierstory "Tier-Aufstellung" – Altregel turns.js:729-742 (GAMES.tier): drei Personen nehmen je ein Tiergeraeusch auf, die
+// mut-tierstory "Tier-Aufstellung" – Altregel turns.js:720, 734-748 (GAMES.tier): drei Personen nehmen je ein Tiergeraeusch auf, die
 // Aufnahmen werden verzerrt in gemischter Reihenfolge abgespielt, alle raten wer. Aufnahmen bleiben im Speicher dieses Geraets.
 import { T, fmt, mix } from "../../engines/zug-z2/lib.js";
 

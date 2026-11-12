@@ -1,4 +1,4 @@
-// raum-erklaeren "60 Sekunden Erklären" – Altregel turns.js:857-860 (GAMES.erklaeren): Begriffe aus dem Seed, eine Minute, gezaehlt
+// raum-erklaeren "60 Sekunden Erklären" – Altregel turns.js:837-840 (GAMES.erklaeren): Begriffe aus dem Seed, eine Minute, gezaehlt
 // wird, was die Runde errät. Ein Geraet.
 import { D, T, fmt, pair, mix } from "../../engines/zug-z2/lib.js";
 

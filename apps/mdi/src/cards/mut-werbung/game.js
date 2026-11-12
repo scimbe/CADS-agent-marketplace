@@ -1,4 +1,4 @@
-// mut-werbung "Verkauf deinen Stift" – Altregel turns.js:459-475 (GAMES.werbung): drei Namen, jede Person wirbt 30 Sekunden fuer
+// mut-werbung "Verkauf deinen Stift" – Altregel turns.js:455-467 (GAMES.werbung): drei Namen, jede Person wirbt 30 Sekunden fuer
 // eine Kundschaft aus dem Seed, dann stimmt jede fuer eine andere Person.
 import { D, T, fmt, pair, mix } from "../../engines/zug-z2/lib.js";
 

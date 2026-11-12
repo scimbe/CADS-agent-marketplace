@@ -1,4 +1,4 @@
-// raum-maus "Drück mich" – Altregel turns.js:711-718 (GAMES.maus): fuer wen, Stimmeffekt, 4 s aufnehmen; die beschenkte Person
+// raum-maus "Drück mich" – Altregel turns.js:720-726 (GAMES.maus): fuer wen, Stimmeffekt, 4 s aufnehmen; die beschenkte Person
 // drueckt einmal, danach ist die Aufnahme weg. Nichts verlaesst das Geraet.
 import { T, fmt } from "../../engines/zug-z2/lib.js";
 

@@ -1,4 +1,4 @@
-// karte-regel "Neue Regel für alle" – Altregel turns.js:440-458 (GAMES.regel): ein Satz aus vier Woertern aus festen Kaesten,
+// karte-regel "Neue Regel für alle" – Altregel turns.js:437-454 (GAMES.regel): ein Satz aus vier Woertern aus festen Kaesten,
 // jeder Zug tauscht ein Wort; so kommen keine Namen und nichts Gemeines hinein.
 import { D, T, fmt, pair, mix } from "../../engines/zug-z2/lib.js";
 

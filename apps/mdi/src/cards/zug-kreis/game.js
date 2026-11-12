@@ -1,5 +1,5 @@
-// zug-kreis "Meine Regeln, dein Problem" – Altregel turns.js:363-380 (GAMES.kreis): fuenf Woerter im Kreis (jedes schlaegt die
-// zwei naechsten), drei Testpaare, dann die Reihenfolge raten. Variante raum-tuer "Türsteher" turns.js:810-842 (GAMES.tuer):
+// zug-kreis "Meine Regeln, dein Problem" – Altregel turns.js:355-373 (GAMES.kreis): fuenf Woerter im Kreis (jedes schlaegt die
+// zwei naechsten), drei Testpaare, dann die Reihenfolge raten. Variante raum-tuer "Türsteher" turns.js:797-821 (GAMES.tuer):
 // geheime Regel an der Tuer, Wesen aus dem Tagesseed, eine Minute.
 import { D, T, fmt, pair, places, mix, hash32, mulberry32 } from "../../engines/zug-z2/lib.js";
 
@@ -28,7 +28,7 @@ export const DOOR_RULES = [(b) => b[1] === 1, (b) => b[1] === 0, (b) => b[3] ===
   (b) => b[2] === 0, (b) => b[2] === 1, (b) => b[2] === 2, (b) => b[0] !== 0, (b) => b[0] === 1, (b) => b[0] !== 2];
 export function doorOrder(doc) { return mix(doc, "tuer", DOOR_RULES.length); }
 // Jedes zweite Wesen liegt auf der anderen Seite der Regel, wenn die letzten zwei gleich waren: Die Regel ist durch Hinsehen
-// zu finden, nicht durch Glueck (Altkommentar turns.js:816).
+// zu finden, nicht durch Glueck (Altkommentar turns.js:801).
 export function doorBeing(doc, r, i, prev) {
   const rnd = mulberry32(hash32("wesen|" + doc.seed + "|" + r + "|" + i));
   const draw = () => [Math.floor(rnd() * 4), rnd() < 0.5 ? 1 : 0, Math.floor(rnd() * 3), rnd() < 0.5 ? 1 : 0];

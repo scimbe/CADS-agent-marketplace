@@ -1,4 +1,4 @@
-// raum-damals "Damals mit 13" – Altregel turns.js:345-349 (GAMES.damals): fuenf Erinnerungsfragen, eine Person schreibt, die Runde liest.
+// raum-damals "Damals mit 13" – Altregel turns.js:349-354 (GAMES.damals): fuenf Erinnerungsfragen, eine Person schreibt, die Runde liest.
 import { D, T, pair } from "../../engines/zug-z2/lib.js";
 
 function pastAsk(i) { return { w: "text", l: "dam_q", max: 44, top: (doc, m, lang) => pair(D.past, i, lang) }; }

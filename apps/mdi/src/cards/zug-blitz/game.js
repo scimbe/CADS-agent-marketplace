@@ -1,4 +1,4 @@
-// zug-blitz "Sechs Wörter, eine Minute" – Altregel turns.js:259-268 (GAMES.blitz): Anfangsbuchstabe aus dem Seed, sechs
+// zug-blitz "Sechs Wörter, eine Minute" – Altregel turns.js:261-271 (GAMES.blitz): Anfangsbuchstabe aus dem Seed, sechs
 // Kategorien; zaehlt nur, was passt und der andere nicht hat.
 import { D, T, fmt, fold, side } from "../../engines/zug-z2/lib.js";
 

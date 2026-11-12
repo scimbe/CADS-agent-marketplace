@@ -1,4 +1,4 @@
-// karte-ausrede "Die beste Ausrede" – Altregel turns.js:230-237 (GAMES.ausrede): Ausrede aus drei Raedern, der andere stempelt.
+// karte-ausrede "Die beste Ausrede" – Altregel turns.js:231-237 (GAMES.ausrede): Ausrede aus drei Raedern, der andere stempelt.
 import { D, T, pair, mix } from "../../engines/zug-z2/lib.js";
 
 function wheel(k, l) { return { w: "pick", n: 1, auto: true, l, from: (doc, m, now, lang) => mix(doc, k, D[k].length).slice(0, 4).map((i) => pair(D[k], i, lang)) }; }

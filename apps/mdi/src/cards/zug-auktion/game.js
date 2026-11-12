@@ -1,5 +1,5 @@
 // zug-auktion "Auktion im Dunkeln" mit den eingeklappten Varianten zug-deal, zug-teilen, zug-socke, zug-fallpreis
-// (ideas.json Feld to). Altregeln: auktion turns.js:103-118, deal :41-55, teilen :189-199, socke :195-201, fallpreis :622-641.
+// (ideas.json Feld to). Altregeln: auktion turns.js:30-31, 105-119, deal :36-53, 1111-1114, teilen :163-174, socke :195-201, fallpreis :629-645.
 import { D, T, fmt, pair, mix, clean } from "../../engines/zug-z2/lib.js";
 
 function lots(doc, lang) { return mix(doc, "items", D.items.length).slice(0, 5).map((i) => pair(D.items, i, lang)); }

@@ -1,4 +1,4 @@
-// raum-streichen "Was machen wir jetzt?" – Altregel turns.js:843-852 (GAMES.streichen): sieben Vorschlaege, reihum streicht jede
+// raum-streichen "Was machen wir jetzt?" – Altregel turns.js:822-832 (GAMES.streichen): sieben Vorschlaege, reihum streicht jede
 // Person einen, der letzte bleibt. Ein Geraet.
 import { D, T, fmt, side } from "../../engines/zug-z2/lib.js";
 

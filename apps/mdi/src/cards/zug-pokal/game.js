@@ -1,5 +1,5 @@
-// zug-pokal "Der Pokal wandert" – Altregel turns.js:756-765 (GAMES.pokal): blind zehn Sekunden stoppen, drei Versuche; wer naeher
-// liegt, behaelt den Pokal. Variante raum-uhr "Innere Uhr" turns.js:744-755 (GAMES.uhr): fuenf Zielzeiten aus dem Seed, allein.
+// zug-pokal "Der Pokal wandert" – Altregel turns.js:759-766 (GAMES.pokal): blind zehn Sekunden stoppen, drei Versuche; wer naeher
+// liegt, behaelt den Pokal. Variante raum-uhr "Innere Uhr" turns.js:749-758 (GAMES.uhr): fuenf Zielzeiten aus dem Seed, allein.
 // Gemessen wird auf dem Geraet; die Karte bekommt nur die Millisekunden.
 import { T, fmt, mix, num } from "../../engines/zug-z2/lib.js";
 

@@ -1,4 +1,4 @@
-// zug-woerter "Wörterbuch für zwei" – Altregel turns.js:398-418 (GAMES.woerter): ein Fantasiewort einem Moment zuordnen, der
+// zug-woerter "Wörterbuch für zwei" – Altregel turns.js:390-416 (GAMES.woerter): ein Fantasiewort einem Moment zuordnen, der
 // andere raet den Moment; vier Runden abwechselnd.
 import { D, T, fmt, pair, mix } from "../../engines/zug-z2/lib.js";
 

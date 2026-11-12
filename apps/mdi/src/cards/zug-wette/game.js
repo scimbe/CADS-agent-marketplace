@@ -1,4 +1,4 @@
-// zug-wette "Versprochen ist versprochen" – Altregel turns.js:172-181 (GAMES.wette): Versprechen + Frist; der andere urteilt
+// zug-wette "Versprochen ist versprochen" – Altregel turns.js:175-184 (GAMES.wette): Versprechen + Frist; der andere urteilt
 // erst nach Ablauf (gateFrom: Frist ab dem ersten Zug; die Uhr ist Spiel, kein Schloss).
 import { D, T, pair, pk } from "../../engines/zug-z2/lib.js";
 

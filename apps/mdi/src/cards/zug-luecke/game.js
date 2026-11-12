@@ -1,4 +1,4 @@
-// zug-luecke "Füll die Lücke blind" – Altregel turns.js:182-191 (GAMES.luecke): eine Geschichte waehlen, der andere fuellt
+// zug-luecke "Füll die Lücke blind" – Altregel turns.js:185-194 (GAMES.luecke): eine Geschichte waehlen, der andere fuellt
 // sechs Luecken blind, dann wird vorgelesen.
 import { D, T, alt, side } from "../../engines/zug-z2/lib.js";
 

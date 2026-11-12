@@ -1,4 +1,4 @@
-// zug-kennst "Kennst du mich wirklich?" – Altregel turns.js:168-182 (GAMES.kennst): je 5 Fragen ueber sich, der andere raet.
+// zug-kennst "Kennst du mich wirklich?" – Altregel turns.js:134-141, 147-155 (GAMES.kennst): je 5 Fragen ueber sich, der andere raet.
 import { D, T, fmt, alt, mix } from "../../engines/zug-z2/lib.js";
 
 function side(s, lang) { return alt(s.split("||"), lang).split("|"); }

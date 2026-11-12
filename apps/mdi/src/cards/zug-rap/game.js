@@ -1,4 +1,4 @@
-// zug-rap "Battle-Rap Zug um Zug" – Altregel turns.js:668-690 (GAMES.rap): je zwei Reimkarten aus der eigenen Familie; Punkte
+// zug-rap "Battle-Rap Zug um Zug" – Altregel turns.js:674-698 (GAMES.rap): je zwei Reimkarten aus der eigenen Familie; Punkte
 // gibt es fuer Karten der Art 2 (Pointe).
 import { D, T, fmt, mix } from "../../engines/zug-z2/lib.js";
 

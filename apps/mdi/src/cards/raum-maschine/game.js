@@ -1,4 +1,4 @@
-// raum-maschine "Einer von uns ist Maschine" – Altregel turns.js:476-503 (GAMES.maschine): drei Personen beantworten sechs
+// raum-maschine "Einer von uns ist Maschine" – Altregel turns.js:142, 468-487 (GAMES.maschine): drei Personen beantworten sechs
 // Entweder-oder; eine vierte Zeile baut die Maschine aus der Mehrheit (mit 1–2 Kippstellen aus dem Seed); alle suchen sie.
 import { D, T, fmt, pair, mix } from "../../engines/zug-z2/lib.js";
 

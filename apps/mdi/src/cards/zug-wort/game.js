@@ -1,4 +1,4 @@
-// zug-wort "Ein Wort für drei" – Altregel turns.js:66-74 (GAMES.wort): drei von neun Woertern waehlen, ein Hinweiswort, der andere raet.
+// zug-wort "Ein Wort für drei" – Altregel turns.js:25, 70-79 (GAMES.wort): drei von neun Woertern waehlen, ein Hinweiswort, der andere raet.
 import { D, T, fmt, fold, pair, mix, hits } from "../../engines/zug-z2/lib.js";
 
 function board(doc, lang) { return mix(doc, "wort", D.words.length).slice(0, 9).map((i) => pair(D.words, i, lang)); }

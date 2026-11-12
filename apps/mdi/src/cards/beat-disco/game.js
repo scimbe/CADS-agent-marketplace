@@ -1,4 +1,4 @@
-// beat-disco "Musik aus. Alle Statue" – Altregel turns.js:691-700 (GAMES.disco): Beat waehlen, Musik laeuft, Stopp nach 4–12 s aus
+// beat-disco "Musik aus. Alle Statue" – Altregel turns.js:699-706 (GAMES.disco): Beat waehlen, Musik laeuft, Stopp nach 4–12 s aus
 // dem Seed, dazu eine Statue; gezaehlt werden die Runden. Ein Geraet, Ton aus dem Geraet.
 import { D, T, fmt, pair, alt, mix } from "../../engines/zug-z2/lib.js";
 

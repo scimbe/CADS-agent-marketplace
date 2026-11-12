@@ -1,4 +1,4 @@
-// zug-auftrag "Ich geb dir eine Aufgabe" – Altregel turns.js:225-229 (GAMES.auftrag): beide waehlen eine Aufgabe fuer den anderen.
+// zug-auftrag "Ich geb dir eine Aufgabe" – Altregel turns.js:225-230 (GAMES.auftrag): beide waehlen eine Aufgabe fuer den anderen.
 // Variante "mut": die eingeklappten Mutkarten mut-* (ideas.json, to: zug-auftrag) als Aufgabenliste, gleicher Ablauf.
 import { D, T, fmt, pair } from "../../engines/zug-z2/lib.js";
 import MUT from "./mut.json" with { type: "json" };

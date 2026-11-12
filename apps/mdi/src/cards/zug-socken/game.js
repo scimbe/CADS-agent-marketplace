@@ -1,4 +1,4 @@
-// zug-socken "Wo sind meine Socken?" – Altregel turns.js:642-667 (GAMES.socken): jede Seite versteckt zwei Socken auf 5×5;
+// zug-socken "Wo sind meine Socken?" – Altregel turns.js:646-668 (GAMES.socken): jede Seite versteckt zwei Socken auf 5×5;
 // je Zug sechs Tipps auf das andere Feld: gefunden, nah oder fern. Gewonnen erst nach gleich vielen Suchrunden.
 import { T, fmt } from "../../engines/zug-z2/lib.js";
 

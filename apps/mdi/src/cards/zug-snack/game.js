@@ -1,4 +1,4 @@
-// zug-snack "Pizza oder Pommes?" – Altregel turns.js:160-188 (GAMES.snack): zehn Entweder-oder, wie gleich tickt ihr.
+// zug-snack "Pizza oder Pommes?" – Altregel turns.js:142-148, 156-162 (GAMES.snack): zehn Entweder-oder, wie gleich tickt ihr.
 import { D, T, fmt, pair, mix } from "../../engines/zug-z2/lib.js";
 
 function eithers(doc) { return mix(doc, "either", D.either.length).slice(0, 10); }

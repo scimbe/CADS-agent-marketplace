@@ -1,4 +1,4 @@
-// raum-papagei "Rückwärts-Papagei" – Altregel turns.js:719-728 (GAMES.papagei): ein Wort rueckwaerts sprechen, aufnehmen; die
+// raum-papagei "Rückwärts-Papagei" – Altregel turns.js:727-733 (GAMES.papagei): ein Wort rueckwaerts sprechen, aufnehmen; die
 // naechste Person hoert es rueckwaerts, spricht nach, die Aufnahme wird wieder umgedreht; dann wird geraten.
 import { D, T, fmt, pair, mix } from "../../engines/zug-z2/lib.js";
 

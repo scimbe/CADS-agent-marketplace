@@ -1,4 +1,4 @@
-// zug-reaktion "Wer zuckt zuerst?" – Altregel turns.js:787-800 (GAMES.reaktion): fuenf Runden, Koeder und Pausen aus dem Seed,
+// zug-reaktion "Wer zuckt zuerst?" – Altregel turns.js:784-796 (GAMES.reaktion): fuenf Runden, Koeder und Pausen aus dem Seed,
 // fuer beide gleich; schneller gewinnt. Gemessen auf dem Geraet (Millisekunden).
 import { T, fmt, mix, num } from "../../engines/zug-z2/lib.js";
 

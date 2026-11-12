@@ -1,4 +1,4 @@
-// zug-recht "Wer hat recht?" – Altregel turns.js:269-274 (GAMES.recht): zwei Seiten schreiben je ein Argument, im dritten Zug
+// zug-recht "Wer hat recht?" – Altregel turns.js:272-277 (GAMES.recht): zwei Seiten schreiben je ein Argument, im dritten Zug
 // urteilt Seite 1 mit Begruendung aus fester Liste.
 import { D, T, fmt, pair, listOf } from "../../engines/zug-z2/lib.js";
 

@@ -1,4 +1,4 @@
-// zug-luege "Eins davon ist gelogen" – Altregel turns.js:253-258 (GAMES.luege): drei Saetze, einer gelogen, der andere raet.
+// zug-luege "Eins davon ist gelogen" – Altregel turns.js:255-260 (GAMES.luege): drei Saetze, einer gelogen, der andere raet.
 import { T, fmt } from "../../engines/zug-z2/lib.js";
 
 function three(m) { return m[0][0]; }

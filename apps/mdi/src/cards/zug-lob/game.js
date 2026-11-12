@@ -1,4 +1,4 @@
-// zug-lob "Was ich an dir sehe" – Altregel turns.js:87-102 (GAMES.lob): je drei Lobwoerter fuer sich und fuer den anderen.
+// zug-lob "Was ich an dir sehe" – Altregel turns.js:32, 91-104 (GAMES.lob): je drei Lobwoerter fuer sich und fuer den anderen.
 import { D, T, fmt, pair, hits } from "../../engines/zug-z2/lib.js";
 
 function praise(doc, lang) { return D.praise.map((x, i) => pair(D.praise, i, lang)); }

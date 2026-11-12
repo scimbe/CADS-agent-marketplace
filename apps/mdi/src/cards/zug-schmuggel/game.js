@@ -1,4 +1,4 @@
-// zug-schmuggel "Schmuggel das Wort" – Altregel turns.js:22-26, 75-85 (GAMES.schmuggel): je drei Woerter in den Chat
+// zug-schmuggel "Schmuggel das Wort" – Altregel turns.js:26-29, 80-90 (GAMES.schmuggel): je drei Woerter in den Chat
 // schmuggeln, der andere findet sie im Feld aus zwoelf.
 import { D, T, fmt, pair, mix, hits } from "../../engines/zug-z2/lib.js";
 

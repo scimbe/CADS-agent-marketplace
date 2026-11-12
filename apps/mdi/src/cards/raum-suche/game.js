@@ -1,4 +1,4 @@
-// raum-suche "Such-Zettel" – Altregel turns.js:504-511 (GAMES.suche): vier Woerter aus dem Seed auf Zettel schreiben und verstecken,
+// raum-suche "Such-Zettel" – Altregel turns.js:488-505 (GAMES.suche): vier Woerter aus dem Seed auf Zettel schreiben und verstecken,
 // je ein Hinweis; die Suchenden tippen das gefundene Wort, die Zeit bleibt.
 import { D, T, fmt, pair, mix } from "../../engines/zug-z2/lib.js";
 

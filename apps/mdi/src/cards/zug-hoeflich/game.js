@@ -1,4 +1,4 @@
-// zug-hoeflich "Bloß nicht frech werden" – Altregel turns.js:381-397 (GAMES.hoeflich): abwechselnd Saetze mit 1–3 Frechheitspunkten,
+// zug-hoeflich "Bloß nicht frech werden" – Altregel turns.js:374-389 (GAMES.hoeflich): abwechselnd Saetze mit 1–3 Frechheitspunkten,
 // wer die geheime Grenze (7–16 aus dem Seed) ueberschreitet, verliert.
 import { D, T, fmt, pk, mix } from "../../engines/zug-z2/lib.js";
 

@@ -1,4 +1,4 @@
-// zug-steine "Gleiche Steine" – Altregel turns.js:296-330 (GAMES.steine): beide legen denselben Steinstrom aus dem Seed auf ein
+// zug-steine "Gleiche Steine" – Altregel turns.js:296-327 (GAMES.steine): beide legen denselben Steinstrom aus dem Seed auf ein
 // 8×8-Feld; der Empfaenger spielt die Zuege nach, statt einer Punktzahl zu vertrauen.
 import { T, fmt, hash32, mulberry32 } from "../../engines/zug-z2/lib.js";
 
@@ -28,7 +28,7 @@ export function replay(doc, cells) {
   return st;
 }
 export function canMove(st, doc) { const b = blockAt(doc, st.i); for (let a = 0; a < SIZE * SIZE; a++) if (fits(st.grid, b, a)) return true; return false; }
-// Pruefung wie okAnswer "blocks" (turns.js:1156): hoechstens 40 Zellen 0..63, nachspielbar
+// Pruefung wie okAnswer "blocks" (turns.js:1157): hoechstens 40 Zellen 0..63, nachspielbar
 export function blocksOk(v, doc) { return Array.isArray(v) && v.length <= MAX_BLOCKS && v.every((x) => Number.isInteger(x) && x >= 0 && x <= 63) && !!replay(doc, v); }
 function blocksPrompt() { return { w: "blocks", l: "blk_go", max: MAX_BLOCKS, auto: true, check: (v, doc) => blocksOk(v, doc) }; }
 export default {
