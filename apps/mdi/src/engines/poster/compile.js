@@ -154,7 +154,7 @@ const DRAW = {
 function herz(c, W, H, doc) {
   const a = doc.col[0], b = doc.col[1], m = doc.mo || MOTIFS[hash32(doc.x || "") % MOTIFS.length];
   c.fillStyle = a; c.fillRect(0, 0, W, H);
-  c.op({ op: "radial", a: [W / 2, r6(H * 0.12), 0, W / 2, r6(H * 0.12), r6(H * 0.8)], stops: [[0, "rgba(255,255,255,.32)"], [1, "rgba(255,255,255,0)"]] }); c.fillRect(0, 0, W, H);
+  c.op({ op: "radial", a: [W / 2, r6(H * 0.12), 0, W / 2, r6(H * 0.12), r6(H * 0.8), [[0, "rgba(255,255,255,.32)"], [1, "rgba(255,255,255,0)"]]] }); c.fillRect(0, 0, W, H);
   c.save(); c.shadowColor = "rgba(58,42,40,.18)"; c.shadowBlur = W * 0.03; c.shadowOffsetY = W * 0.01;
   c.fillStyle = SHEET; rr(c, W * 0.07, H * 0.17, W * 0.86, H * 0.72, W * 0.04); c.fill(); c.restore();
   const r = mulberry32(hash32("warm|" + (doc.x || ""))); c.fillStyle = a;
@@ -239,7 +239,7 @@ function drawSound(c, W, H, doc, peaks, lyr) {
   const n = 40, bw = W * 0.88 / n, cy = H * (song ? 0.36 : 0.64), amp = H * (song ? 0.07 : 0.2);
   c.fillStyle = fg; c.op({ op: "note", a: ["klang", r6(W * 0.06), r6(cy - amp), r6(W * 0.88), r6(amp * 2)] });
   // Welle als ein Op: die Spitzen (assets.peaks) rechnet der Renderer aus dem Klang (Synthese bzw. Aufnahme), nicht die Karte
-  c.op({ op: "wave", a: [W * 0.06, cy, amp, bw, n, W * 0.008], peaks: peaks || null });
+  c.op({ op: "wave", a: [W * 0.06, cy, amp, bw, n, W * 0.008, peaks || null] });
   if (song) c.op({ op: "lyrics", a: [doc.ly.slice(), lyr == null ? -1 : lyr, a, b, W, H] });
   if (doc.m === "beat") {
     c.fillStyle = fg; c.font = "900 " + r6(W * 0.05) + "px " + FONT; c.textAlign = "center"; c.fillText(doc.bpm + " BPM", W / 2, H * 0.9);

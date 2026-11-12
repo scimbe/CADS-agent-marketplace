@@ -126,7 +126,7 @@ test("beat-pausenhof: Muster und Tempo im Link, Ton auf dem Geraet; Varianten mi
   assert.deepEqual(find(v, "audio")[0].src, { kind: "beat", p: p.p, bpm: 100, loops: 2 });
   const cv = find(v, "canvas")[0];
   assert.deepEqual(cv.src.peaks, { kind: "beat", p: p.p, bpm: 100, loops: 1 }, "Spitzen aus einem Takt rechnet der Renderer");
-  assert.ok(cv.ops2d.some((o) => o.op === "wave" && o.peaks === null));
+  assert.ok(cv.ops2d.some((o) => o.op === "wave" && o.a[6] === null));
   assert.equal(peaksOf(renderBeat(p.p, 100, 1), 40).length, 40);
   assert.ok(find(v, "canvas")[0].ops2d.some((o) => o.m === "fillText" && o.a[0] === "100 BPM"));
   const boss = beat.manifest.variants.find((x) => x.id === "beat-boss").params;
