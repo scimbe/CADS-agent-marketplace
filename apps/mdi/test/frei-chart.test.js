@@ -284,3 +284,13 @@ test("Disclosure: jeder Zustand der freien Karte hat hoechstens eine Haupt- und 
   while (leaf(s) !== "shelf" && n++ < 6) s = go(s, { type: "BACK" });
   assert.equal(leaf(s), "shelf");
 });
+
+test("KI-Knoten der Zugkarten (Z1): KI_ASK in jeder Kartenansicht -> Effekt frei.kiask; KI_SETTLE rechnet ab; fremde Arten gehen nicht raus", async () => {
+  let s = go(machine.initial(initialContext("de")), { type: "OPEN", id: "gruss" });
+  s = go(s, { type: "KI_ASK", kind: "plan", input: { satz: "Grillen naechsten Samstag", art: "termin" }, into: "ai" });
+  assert.deepEqual(fx(s, "frei.kiask")[0], { type: "frei.kiask", kind: "plan", input: { satz: "Grillen naechsten Samstag", art: "termin" }, into: "ai", cardId: "gruss" });
+  go(s, { type: "KI_ASK", kind: "karte", input: {}, into: "ai" }, { consumed: false });
+  go(s, { type: "KI_ASK", kind: "plan", input: {}, into: "../x" }, { consumed: false });
+  s = go(s, { type: "KI_SETTLE", receipt: "r1.f.x", how: "accept" });
+  assert.deepEqual(fx(s, "frei.settle"), [{ type: "frei.settle", how: "accept", receipt: "r1.f.x" }]);
+});

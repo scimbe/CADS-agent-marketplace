@@ -210,6 +210,7 @@ function inputOf(f) {
 const potOk = (k) => !!k && !k.off && k.age16 === true && !k.paused && (k.remaining > 0 || k.credit > 0);
 
 export const freiGuards = {
+  kiAskOk: (ctx, ev) => ["wish", "line", "meme", "lyrics", "plan", "liste", "quiz", "welt", "text", "anlass"].includes(ev.kind) && !!ev.input && typeof ev.input === "object" && typeof ev.into === "string" && /^[A-Za-z][A-Za-z0-9]{0,15}$/.test(ev.into),
   profilCreated: (ctx, ev) => ev.op === "put" && !!ev.result && ev.result.ok === true && !!ev.body && ev.body.fresh === true,
   modeOk: (ctx, ev) => !!ctx.frei.genre && MODES[ctx.frei.genre] && MODES[ctx.frei.genre][ev.mode] === true,
   canSend: (ctx, ev, inState) => inState("konto.angemeldet") && potOk(kartePot(ctx)) && ready(ctx.frei) && !ev.crisis,
@@ -363,6 +364,8 @@ export const freiActions = {
   takeKi: (ctx, ev) => F(ctx, { ki: { ...ctx.frei.ki, opts: ev.opts || [], res: ev.r, seal: ev.seal || null, receipt: ev.receipt || "" } }),
   applyKi: (ctx, ev, emit) => { const k = ctx.frei.ki; if (k.receipt) emit({ type: "frei.settle", how: "accept", receipt: k.receipt }); const next = { ...paramsOfCard(ctx, ctx.cardId), [k.field]: k.opts[ev.i] }; return { ...F(ctx, { ki: { ...k, opts: [], res: null } }), params: { ...ctx.params, [ctx.cardId]: next } }; },
   cancelKi: (ctx, ev, emit) => { const k = ctx.frei.ki; if (k.receipt) emit({ type: "frei.settle", how: "discard", receipt: k.receipt }); return F(ctx, { ki: { ...k, req: (k.req || 0) + 1, opts: [], res: null, receipt: "" } }); },
+  fxKiAsk: (ctx, ev, emit) => { emit({ type: "frei.kiask", kind: ev.kind, input: ev.input, into: ev.into, cardId: ctx.cardId }); return ctx; },
+  fxKiSettle: (ctx, ev, emit) => { if (typeof ev.receipt === "string" && ev.receipt && (ev.how === "accept" || ev.how === "discard")) emit({ type: "frei.settle", how: ev.how, receipt: ev.receipt }); return ctx; },
   settleFail: (ctx) => F(ctx, { note: "settle-fail" })
 };
 
@@ -387,7 +390,10 @@ export const frei = {
   on: {
     "inhalt.card.view": { GO: CARD_VIEW_ON.GO_FIRST, ROBOT: CARD_VIEW_ON.ROBOT, MELDEN: CARD_VIEW_ON.MELDEN },
     "inhalt.card.customize.bubbles": CUSTOMIZE_ON,
-    "inhalt": { LINK: LINK_FIRST }
+    "inhalt": { LINK: LINK_FIRST },
+    // KI-Knoten der Zugkarten ({t:"ai", kind, input, into}, Z1 zug-termin/geschenk-finder): der Host (F) sendet KI_ASK, das
+    // Ergebnis kommt als KI_DONE {into, option, seal, receipt}; die Karte uebernimmt -> KI_SETTLE {receipt, how:"accept"|"discard"}
+    "inhalt.card": { KI_ASK: { cond: "kiAskOk", actions: ["fxKiAsk"] }, KI_SETTLE: { actions: ["fxKiSettle"] } }
   },
   guards: freiGuards,
   actions: freiActions,

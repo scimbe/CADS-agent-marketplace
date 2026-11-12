@@ -84,6 +84,15 @@ export const freiEffects = {
     if (ok && fx.avatar) ok = (await b.avatar(fx.id)).ok;
     env.dispatch({ type: "BILD_KEPT", ok });
   }),
+  // KI-Knoten einer Zugkarte: Ergebnis als KI_DONE; bleibt die Karte nicht offen, geht es sofort zurueck
+  "frei.kiask": (fx, env) => later(async () => {
+    const ai = env.deps.ai, s = cur(env);
+    if (!ai) return env.dispatch({ type: "KI_DONE", into: fx.into, r: { how: "nicht-hier" } });
+    const alive = () => { const st = cur(env); return st.ctx.cardId === fx.cardId && st.config.some((c) => c.startsWith("inhalt.card")); };
+    const r = await ai.ask({ kind: fx.kind, input: fx.input, device: s.ctx.device, lang: s.ctx.lang }, () => {}, alive);
+    if (!alive()) { if (r.receipt) await ai.discard(s.ctx.device, r.receipt); return; }
+    env.dispatch({ type: "KI_DONE", into: fx.into, r: { how: r.how, position: r.position, why: r.why }, option: r.how === "result" ? r.options[0] : null, seal: r.how === "result" && r.seals[0] ? { k: fx.kind, s: r.seals[0], h: r.hashes[0] } : null, receipt: r.receipt || "" });
+  }),
   // KI-Arten fuer alle Karten: eine Art aus KINDS; Vorschlaege kommen als Texte (line: options[] Strings; meme: {top,bottom})
   "frei.ki": (fx, env) => later(async () => {
     const ai = env.deps.ai, s = cur(env);
