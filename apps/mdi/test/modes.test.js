@@ -11,7 +11,7 @@ const L = (rt) => leaf(rt.state);
 function playTurns(rt) {
   // Abdecken auch vor dem ersten Zug (ADR 0001 f, 13 §6.4): erst aufdecken, dann spielen
   if (rt.matches("inhalt.card.play.cover")) rt.dispatch("COVER_OK");
-  for (let i = 0; i < 100 && rt.matches("inhalt.card.play.turn"); i++) {
+  for (let i = 0; i < 2000 && rt.matches("inhalt.card.play.turn"); i++) {
     const c = cardOf(rt.state.ctx.cardId), v = rt.state.ctx.viewer;
     const mv = c.moves(c.observe(rt.state.ctx.session.state, v), v);
     rt.dispatch({ type: "INPUT", input: mv[mv.length - 1] });
@@ -72,7 +72,8 @@ async function scenario(id, mode) {
   throw new Error("Modus " + mode);
 }
 
-for (const id of ORDER) for (const mode of modesOf(cardOf(id))) {
+// Zug- und statische Karten; Echtzeitkarten laufen ueber den Echtzeit-Treiber (test/rt-modes.test.js)
+for (const id of ORDER.filter((x) => cardOf(x).manifest.mode !== "realtime")) for (const mode of modesOf(cardOf(id))) {
   test("Karte " + id + " im Modus " + mode + " – derselbe Treiber, keine Sonderlogik", async () => {
     const r = await scenario(id, mode);
     for (const d of [r.a, r.b].filter(Boolean)) assert.equal(d.state.ctx.error, null);

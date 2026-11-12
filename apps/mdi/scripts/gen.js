@@ -19,6 +19,17 @@ const HEAD = "// ERZEUGT von scripts/gen.js – nicht von Hand aendern.\n/* esli
 export const BUDGET = { image: 120 * 1024, sheet: 120 * 1024, json: 64 * 1024, sound: 96 * 1024, card: 256 * 1024, thumb: 60 * 1024 };
 
 export class GenError extends Error {}
+// Editor-Vokabeln an Parameterfeldern (ADR 0001, Anfragen P/L): nur Beschreibung, keine Pruefregeln
+export const FIELD_VOCAB = ["x-field", "x-label", "x-model", "x-pairs", "x-names", "x-hidden", "x-set", "x-suggest", "x-default", "x-rows", "x-unit", "x-note", "x-use", "x-icons", "x-steps"];
+// Ajv-Standalone setzt fuer manche Schluesselwoerter Laufzeit-Hilfen per require() ein; im ESM-Bundle gibt es kein
+// require. Bekannte Hilfen werden durch ESM-Importe ersetzt, unbekannte lehnt der Generator ab.
+const AJV_RUNTIME = { "ajv/dist/runtime/equal": "__ajvEqual" };
+function esmRuntime(code) {
+  const used = new Set();
+  const out = code.replace(/require\("([^"]+)"\)\.default/g, (m, mod) => { if (!AJV_RUNTIME[mod]) fail("Validator braucht unbekannte Laufzeit " + mod); used.add(mod); return AJV_RUNTIME[mod]; });
+  if (/require\(/.test(out)) fail("Validator enthaelt require()");
+  return (used.has("ajv/dist/runtime/equal") ? 'import { deepEqual as __ajvEqual } from "../contract/equal.js";\n' : "") + out;
+}
 function fail(msg) { throw new GenError("gen: " + msg); }
 function readJson(p) { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch (e) { fail(path.relative(ROOT, p) + ": " + e.message); } }
 const ident = (id) => id.replace(/-/g, "_");
@@ -39,7 +50,7 @@ function bundleInputs(cardJs) {
 
 function newAjv() {
   const ajv = new Ajv({ code: { source: true, esm: true, lines: false }, strict: true, unicodeRegExp: true, unicode: false, allErrors: false, logger: false });
-  ajv.addVocabulary(["x-field", "x-label", "x-model", "x-pairs"]);
+  ajv.addVocabulary(FIELD_VOCAB);
   return ajv;
 }
 
@@ -147,7 +158,7 @@ export function generate(opt = {}) {
     "/** Alte Karten-ids (eingeklappte Varianten, legacy) -> { card, variant }. */\n" +
     "export const LEGACY = Object.freeze(Object.fromEntries(ORDER.flatMap((id) => [...(CARDS[id].manifest.legacy || []).map((l) => [l, { card: id, variant: null }]), ...(CARDS[id].manifest.variants || []).flatMap((v) => (v.legacy || []).map((l) => [l, { card: id, variant: v.id }]))])));\n";
 
-  const validators = HEAD + standaloneCode(ajv, map);
+  const validators = HEAD + esmRuntime(standaloneCode(ajv, map));
   const codehash = HEAD + "export const CODE_HASH = " + JSON.stringify(hashes, null, 2) + ";\n";
   const out = { "gen/validators.js": validators, "gen/codehash.js": codehash, "gen/assets.json": JSON.stringify(assets, null, 2) + "\n" };
   if (!opt.cardsDir) out["cards/index.js"] = index; else out["index"] = index;

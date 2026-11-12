@@ -64,8 +64,7 @@
         "properties": {
           "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$" },
           "type": { "enum": ["image", "json", "sound", "sheet"] },
-          "legacy": { "type": "array", "maxItems": 32, "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$" } },
-    "file": { "$ref": "#/$defs/file" },
+          "file": { "$ref": "#/$defs/assetFile" },
           "tile": { "type": "integer", "minimum": 8, "maximum": 512 },
           "keys": { "type": "array", "maxItems": 256, "items": { "type": "string", "pattern": "^[a-z0-9-]{1,32}$" } },
           "license": { "type": "string", "maxLength": 64 }
@@ -84,8 +83,7 @@
       "type": "object", "additionalProperties": false, "required": ["src", "file", "alt"],
       "properties": {
         "src": { "enum": ["shot", "ki"] },
-        "legacy": { "type": "array", "maxItems": 32, "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,31}$" } },
-    "file": { "$ref": "#/$defs/file" },
+        "file": { "$ref": "#/$defs/file" },
         "alt": { "$ref": "#/$defs/i18n" },
         "prompt": { "type": "string", "maxLength": 600 }
       }
