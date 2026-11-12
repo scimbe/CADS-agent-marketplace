@@ -68,3 +68,15 @@ test("Arcade (Foto ist Pflichtfeld): Link und Live-Beitritt bleiben gueltig, obw
   const h = G.helloFor(ctx, ["r1", "r2", "r3", "r4"]);
   assert.doesNotThrow(() => G.joinFor(initialContext("de"), h.msg, ["a", "b", "c"]));
 });
+
+test("Echtzeit live: gespielt wird mit den gefilterten Parametern, die Ansicht bekommt die eigenen als ctx.local.params", async () => {
+  const { createRtSession } = await import("../src/app/rt/session.js");
+  const { c, p } = withPhoto("arcade-kick");
+  const peer = paramsForPeer(c.manifest.params, p);
+  let seen = null;
+  const card = { ...c, view: (st, ctx) => { seen = ctx; return c.view(st, ctx); } };
+  const s = createRtSession(card, { mode: "bot", seat: 0, params: peer, localParams: p, seed: "s", level: 2 }, { now: () => 0, frame: () => 1, cancel: () => {}, send: () => {}, draw: () => {}, onEvents: () => {}, onChange: () => {} });
+  s._frame(0);
+  assert.equal(seen.local.params.photo, ID, "eigenes Foto fuer die Anzeige");
+  assert.doesNotMatch(JSON.stringify(peer), /local:/);
+});

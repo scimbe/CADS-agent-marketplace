@@ -385,7 +385,7 @@ export const actions = {
     const live = ctx.mode === "live" && ctx.session;
     const seed = live ? ctx.session.seed : ev.rand[0];
     const seat = live ? ctx.session.mine[0] : Math.min(ctx.seat || 0, m.players.max - 1);
-    emit({ type: "rt.start", mode: live ? "live" : ctx.mode, seat, seed, params: live ? G.peerParams(ctx) : G.paramsOf(ctx), level: ctx.level || 2, serving: seat === 0 });
+    emit({ type: "rt.start", mode: live ? "live" : ctx.mode, seat, seed, params: live ? G.peerParams(ctx) : G.paramsOf(ctx), localParams: G.paramsOf(ctx), level: ctx.level || 2, serving: seat === 0 });
     return { ...ctx, rtSeed: seed, rtResult: null, rtAgain: null, link: null, sent: false, error: null, viewer: seat };
   },
   acceptGhost: (ctx, ev, emit) => {
@@ -410,7 +410,7 @@ export const actions = {
     // Revanche: beide haben "again" gesendet; neuer Seed rein aus dem alten (beide rechnen denselben)
     if (ev.type === "AGAIN") emit({ type: "peer", msg: { t: "again" } });
     const seed = sha256(ctx.rtSeed + "|again").slice(0, 32), seat = ctx.session ? ctx.session.mine[0] : ctx.seat;
-    emit({ type: "rt.start", mode: "live", seat, seed, params: G.peerParams(ctx), level: ctx.level || 2, serving: seat === 1 ? true : false });
+    emit({ type: "rt.start", mode: "live", seat, seed, params: G.peerParams(ctx), localParams: G.paramsOf(ctx), level: ctx.level || 2, serving: seat === 1 ? true : false });
     return { ...ctx, rtSeed: seed, rtResult: null, rtAgain: null, error: null };
   },
   setMuted: (ctx, ev, emit) => { const muted = ev.on === true; emit({ type: "ton.save", muted }); return { ...ctx, muted }; },

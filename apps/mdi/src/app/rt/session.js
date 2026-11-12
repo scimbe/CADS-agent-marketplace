@@ -71,7 +71,8 @@ export function createRtSession(card, o, d) {
     // Review M5: pausiert der Partner zu lange, endet die Partie ehrlich
     if (peerPaused && peerPausedAt !== null && t - peerPausedAt > PEER_PAUSE_MS) { finish({ type: "peer-lost", reason: "pause" }); return; }
     if (phase === "ready" && goAt !== null && t >= goAt) { phase = "run"; d.onChange({ type: "go" }); }
-    const ctx = { seat, alpha, reduced: !!o.reduced, lang: o.lang || "de", t: t / 1000, paused: loop.paused, countdown: phase === "ready" && goAt !== null ? Math.max(1, Math.ceil((goAt - t) / 1000)) : 0 };
+    // local.params: die ungefilterten Parameter dieses Geraets, nur fuer die Anzeige (eigenes Foto); gespielt wird mit o.params
+    const ctx = { seat, alpha, local: { params: o.localParams || o.params }, reduced: !!o.reduced, lang: o.lang || "de", t: t / 1000, paused: loop.paused, countdown: phase === "ready" && goAt !== null ? Math.max(1, Math.ceil((goAt - t) / 1000)) : 0 };
     let node = split ? split.view({ ...ctx, tracked: split.tracked(dtFrame) }) : match.view(ctx);
     // Review M7: Echtzeit zeichnet immer in rt.view (dieselbe Flaeche wie die Zeigerumrechnung)
     if (node && node.t === "canvas" && (node.w !== rt.view.w || node.h !== rt.view.h || (node.fit || "contain") !== (rt.view.fit || "contain"))) node = { ...node, w: rt.view.w, h: rt.view.h, fit: rt.view.fit || "contain" };

@@ -200,7 +200,7 @@ export function createRuntime(deps) {
         const ghost = fx.ghost ? fromB64url(fx.ghost) : undefined;
         const R = deps.rt;
         try {
-          rtSess = createRtSession(c, { mode: fx.mode, seat: fx.seat, params: fx.params, seed: fx.seed, level: fx.level, ghost, serving: fx.serving, lang: state.ctx.lang, reduced: R.reduced ? R.reduced() : false }, {
+          rtSess = createRtSession(c, { mode: fx.mode, seat: fx.seat, params: fx.params, localParams: fx.localParams || fx.params, seed: fx.seed, level: fx.level, ghost, serving: fx.serving, lang: state.ctx.lang, reduced: R.reduced ? R.reduced() : false }, {
             now: R.now, frame: R.frame, cancel: R.cancel,
             send: (m) => sendPeer({ msg: m }),
             draw: (node, info) => R.draw(node, info),
