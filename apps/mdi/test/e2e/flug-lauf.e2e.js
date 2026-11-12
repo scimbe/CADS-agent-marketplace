@@ -20,7 +20,8 @@ async function start(p, card, mode = "alone") {
   if (card) { await act(p, "open-" + card); await waitScreen(p, "card-view"); }
   if (mode) await pickMode(p, "de", mode);
   await act(p, "go"); await waitScreen(p, "card-rt-ready");
-  await waitScreen(p, "card-rt-run", 6000);
+  // nach dem Countdown (3 s Host-Uhr): run – oder schon over, wenn ein kurzer Flug unter Last sofort endet
+  await p.waitForFunction(() => /\bs-card-rt-(run|over)\b/.test(document.querySelector("main").className), null, { timeout: 15000 });
 }
 const covered = (p) => p.evaluate(async () => {
   const out = [];
@@ -37,23 +38,26 @@ const covered = (p) => p.evaluate(async () => {
 });
 const b64u = (s) => Buffer.from(s).toString("base64url");
 
-test("Flug in der App: Regal, LOS, Countdown, Lauf mit Leertaste, Pause per Knopf, Ende mit Ergebniszeile, Nochmal", async () => {
+// Pause-Pruefungen laufen gegen den Computer: Solange der Computer-Vogel fliegt, bleibt die Partie im Zustand run. Allein
+// kann ein Flug ohne Eingaben unter Last vor dem Pausenklick vorbei sein (94 Ticks) – das waere ein Wettlauf mit der Uhr.
+test("Flug in der App: Regal, LOS, Countdown, Pause per Knopf haelt an (gegen den Computer); allein bis zum Ende, Ergebniszeile, Nochmal", async () => {
   const { p, errs } = await open(b, { view: "phone390" });
-  await start(p, "flug");
+  await start(p, "flug", "bot");
   assert.match(await label(p), /Flugspiel: Bau dein Lava-Level/);
-  // Pause sofort nach dem Start (unter Last kann ein Flug ohne Eingaben nach gut 1 s vorbei sein, Labor F2/F3)
   await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-pause");
   const before = await label(p); await p.waitForTimeout(400);
   assert.equal(await label(p), before, "Pause haelt das Spiel an");
   assert.equal(await screen(p), "card-rt-pause", "Pause bleibt, bis man weiterspielt");
   await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-run");
-  for (let i = 0; i < 4 && (await screen(p)) === "card-rt-run"; i++) { await p.keyboard.press("Space"); await p.waitForTimeout(180); }
-  await waitScreen(p, "card-rt-over", 30000);
-  const res = await p.locator(".result").textContent();
+  const A = await open(b, { view: "phone390" });
+  await start(A.p, "flug", "alone");
+  for (let i = 0; i < 4 && (await screen(A.p)) === "card-rt-run"; i++) await A.p.keyboard.press("Space");
+  await waitScreen(A.p, "card-rt-over", 30000);
+  const res = await A.p.locator(".result").textContent();
   assert.match(res, /^\d+ Lücken!$/, "Ergebniszeile aus status.say (allein): " + res);
-  assert.ok(!/object Object|gewinnt/i.test(await p.locator("main").innerText()));
-  await act(p, "again"); await waitScreen(p, "card-rt-ready");
-  assert.deepEqual(errs, []);
+  assert.ok(!/object Object|gewinnt/i.test(await A.p.locator("main").innerText()));
+  await act(A.p, "again"); await waitScreen(A.p, "card-rt-ready");
+  assert.deepEqual([...errs, ...A.errs], []);
 });
 
 // Flugdauer in Ticks statt Wanduhr (Befund Integrator, Kandidat 4ec48b49: unter Last lastabhaengig): Nach dem Ende einer
@@ -164,7 +168,7 @@ for (const card of ["flug", "lauf"]) test("Gegen den Computer (" + card + ", Vor
 test("Reduzierte Bewegung: in der Pause steht das Bild still; ohne Einstellung ziehen die Wolken weiter", async () => {
   for (const reduced of [true, false]) {
     const { p } = await open(b, { view: "phone390", reduced });
-    await start(p, "flug");
+    await start(p, "flug", "bot");   // gegen den Computer: die Partie laeuft sicher noch beim Pausenklick
     await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-pause"); await p.waitForTimeout(150);
     const a = await p.evaluate(() => document.querySelector("canvas.rt-canvas").toDataURL()); await p.waitForTimeout(600);
     const c = await p.evaluate(() => document.querySelector("canvas.rt-canvas").toDataURL());
@@ -176,18 +180,24 @@ for (const view of ["phone360", "phone390", "phone412", "desk1280"]) for (const 
   const bad = [];
   {
     const { p, errs, ctx } = await open(b, { view });
-    await act(p, "open-" + card); await waitScreen(p, "card-view"); await pickMode(p, "de", "alone");
-    const check = async (name) => {
-      for (const x of await covered(p)) bad.push(card + " " + name + ": " + x);
-      if (!(await noOverflow(p))) bad.push(card + " " + name + ": Ueberlauf");
-      for (const x of await axe(p, card + " " + name)) bad.push(x);
+    const check = async (q, name) => {
+      for (const x of await covered(q)) bad.push(card + " " + name + ": " + x);
+      if (!(await noOverflow(q))) bad.push(card + " " + name + ": Ueberlauf");
+      for (const x of await axe(q, card + " " + name)) bad.push(x);
     };
-    await check("Karte");
-    await act(p, "go"); await waitScreen(p, "card-rt-run", 6000);
+    // Karte, Lauf und Pause gegen den Computer (die Partie laeuft sicher beim Pausenklick)
+    await act(p, "open-" + card); await waitScreen(p, "card-view"); await pickMode(p, "de", "bot");
+    await check(p, "Karte");
+    await act(p, "go"); await waitScreen(p, "card-rt-ready"); await waitScreen(p, "card-rt-run", 15000);
     const vh = await p.evaluate(() => innerHeight), cv = await p.locator("canvas.rt-canvas").boundingBox();
     if (cv.y + cv.height / 2 > vh) bad.push(card + ": Spielflaeche nicht im ersten Bildschirm");
-    await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-pause"); await check("Pause");
-    await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-over", 120000); await check("Ende");
+    await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-pause"); await check(p, "Pause");
+    // Ende allein (ohne Pause, kein Wettlauf)
+    const E = await open(b, { view });
+    await start(E.p, card, "alone");
+    await waitScreen(E.p, "card-rt-over", 120000); await check(E.p, "Ende");
+    for (const e of E.errs) bad.push(card + ": " + e);
+    await E.ctx.close();
     for (const e of errs) bad.push(card + ": " + e);
     await ctx.close();
   }
@@ -207,6 +217,19 @@ const magenta = (p) => p.evaluate(() => {
   for (let i = 0; i < d.length; i += 4) if (d[i] > 100 && d[i + 1] < 50 && d[i + 2] > 60 && d[i + 2] < d[i] + 10) n++;
   return n / (d.length / 4);
 });
+// Ohne Wanduhr (Befund Integrator: einmal am 20-s-Limit): jede Wartestelle wartet auf einen Zustand.
+// - Pixelprobe im Countdown (card-rt-ready, 3 s Bild ohne Spiellauf): kein Pausen-Wettlauf mit einem Flug, der unter Last
+//   nach 94 Ticks schon vorbei sein kann, bevor der Pausenklick ankommt.
+// - Dialog: axe erst, wenn keine Animation mehr laeuft (statt fester 450 ms).
+// - Ende: Der Aufnahme-Link entsteht beim Eintritt in card-rt-over synchron (machine.makeGhostLink). Fehlt er, scheitert
+//   der Test sofort mit dem sichtbaren Grund, statt 20 s zu warten.
+// Anteil magentaartiger Pixel >= min auf der Buehne (im Browser ausgewertet)
+const hasMagenta = (p, min) => p.evaluate((m) => { const c = document.querySelector("canvas.rt-canvas"); if (!c) return false; const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let n = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i] > 100 && d[i + 1] < 50 && d[i + 2] > 60 && d[i + 2] < d[i] + 10) n++; return n / (d.length / 4) >= m; }, min);
+const waitMagentaOrLeave = (p, min, leaf) => p.waitForFunction(([m, l]) => { if (!document.querySelector("main.s-" + l)) return true; const c = document.querySelector("canvas.rt-canvas"); if (!c) return false;
+  const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let n = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i] > 100 && d[i + 1] < 50 && d[i + 2] > 60 && d[i + 2] < d[i] + 10) n++; return n / (d.length / 4) >= m; }, [min, leaf], { polling: 50 });
+const animationsDone = (p, sel) => p.waitForFunction((s) => { const el = document.querySelector(s); return !!el && el.getAnimations({ subtree: true }).every((a) => a.playState !== "running"); }, sel);
 // Flug: Foto als Hintergrund (dunkler Lava-Himmel, Magenta bleibt erkennbar); Lauf: Foto als Figur (volle Deckkraft, im hellen
 // Bruecken-Himmel waere der durchscheinende Hintergrund kein reines Magenta mehr)
 for (const [card, slot, min] of [["flug", 1, 0.05], ["lauf", 0, 0.004]]) test("Eigenes Foto (" + card + ", " + (slot ? "Hintergrund" : "Figur") + "): im Spiel sichtbar (Pixelprobe), nicht im Aufnahme-Link, nicht beim Empfaenger", async () => {
@@ -218,24 +241,27 @@ for (const [card, slot, min] of [["flug", 1, 0.05], ["lauf", 0, 0.004]]) test("E
   assert.equal(await files.count(), 2, "Figur und Hintergrund");
   await files.nth(slot).setInputFiles({ name: "test.png", mimeType: "image/png", buffer: await testPng(A.p) });
   await A.p.locator("#dialog .ef-photo [role=status]").first().waitFor();
-  await A.p.waitForTimeout(450);   // der Dialog waechst aus der Blase (FLIP); axe misst erst das fertige Bild
+  await animationsDone(A.p, "#dialog");
   assert.deepEqual(await axe(A.p, card + " foto-dialog"), []);
   await A.p.keyboard.press("Escape"); await act(A.p, "done"); await waitScreen(A.p, "card-view");
-  await start(A.p, null, "alone");
-  await A.p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(A.p, "card-rt-pause"); await A.p.waitForTimeout(200);
-  const m = await magenta(A.p);
-  assert.ok(m >= min, card + ": Foto auf der Buehne, Anteil " + m);
-  await A.p.locator(".rt-pause").dispatchEvent("click");
+  await pickMode(A.p, "de", "alone");
+  assert.ok(await A.p.getByRole("radio", { name: "Ein Gerät", exact: true }).isChecked(), "Modus allein gewaehlt (nur dann gibt es die Aufnahme)");
+  await act(A.p, "go"); await waitScreen(A.p, "card-rt-ready");
+  // Foto im Bild, solange der Countdown laeuft (die Buehne zeichnet schon, das Spiel steht)
+  await waitMagentaOrLeave(A.p, min, "card-rt-ready");
+  assert.equal(await screen(A.p), "card-rt-ready", card + ": Foto erschien nicht im Countdown");
   await waitScreen(A.p, "card-rt-over", 120000);
-  await A.p.locator("#linkfield").waitFor({ state: "attached", timeout: 20000 });
+  const why = await A.p.locator("main").innerText();
+  assert.equal(await A.p.locator("#linkfield").count(), 1, "Aufnahme-Link fehlt am Ende: " + why.slice(0, 200));
   const url = await A.p.locator("#linkfield").inputValue(), data = Buffer.from(url.slice(url.indexOf("#")).split(".")[2], "base64url").toString();
   const ids = await A.p.evaluate(() => new Promise((ok) => { const r = indexedDB.open("mdi.media"); r.onsuccess = () => { const q = r.result.transaction("fotos").objectStore("fotos").getAllKeys(); q.onsuccess = () => ok(q.result); }; }));
   assert.equal(ids.length, 1);
   assert.ok(!data.includes(ids[0]) && !/local:|data:image|blob:/.test(data), "kein Foto im Aufnahme-Link: " + data.slice(0, 160));
   const B = await open(b, { view: "phone390", hash: url.slice(url.indexOf("#")) });
-  await waitScreen(B.p, "receive-show"); await act(B.p, "accept"); await waitScreen(B.p, "card-rt-run", 8000);
-  await B.p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(B.p, "card-rt-pause"); await B.p.waitForTimeout(200);
-  assert.ok((await magenta(B.p)) < 0.01, "Empfaenger hat das Foto nicht");
+  await waitScreen(B.p, "receive-show"); await act(B.p, "accept"); await waitScreen(B.p, "card-rt-ready");
+  // Empfaenger: im Countdown ist das Bild gezeichnet (Aria-Label gesetzt), aber ohne Magenta
+  await B.p.waitForFunction(() => (document.querySelector("canvas.rt-canvas") || {}).getAttribute?.("aria-label")?.length > 0 || !document.querySelector("main.s-card-rt-ready"), null, { polling: 50 });
+  assert.equal(await hasMagenta(B.p, 0.01), false, "Empfaenger hat das Foto nicht");
   assert.deepEqual([...A.errs, ...B.errs], []);
 });
 
