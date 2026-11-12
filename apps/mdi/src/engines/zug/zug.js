@@ -42,6 +42,17 @@ export function seed32(seed) {
  *   games: Variante -> alter GAMES-Eintrag; variantKey nennt den Parameter, der die Variante waehlt (sonst die einzige).
  *   docOf: Parameter -> alte doc-Felder (w, pk, …); seed kommt immer aus der Partie.
  */
+/** Variante, deren Parameter die Partie traegt (alle params der Variante gleich), sonst null. */
+export function variantOf(manifest, params) {
+  const p = params || {};
+  return (manifest.variants || []).find((v) => Object.entries(v.params || {}).every(([k, x]) => p[k] === x)) || null;
+}
+/** Ein Satz Regel fuer die Kopfzeile: der der Variante (variants[].rule), sonst rule bzw. howto der Karte. */
+export function ruleOf(manifest, params, lang) {
+  const v = variantOf(manifest, params), r = (v && v.rule) || manifest.rule || manifest.howto;
+  return r ? r[lang] || r.de : "";
+}
+
 export function makeZug(def) {
   const { manifest } = def;
   const seating = def.seating || "pair";
@@ -165,7 +176,11 @@ export function makeZug(def) {
     },
     /** Eingabe fuer eine Antwort (Host/Ansicht). today nur noetig, wenn dieser Prompt einen Tag traegt. */
     answer(pub, seat, v, today) { return { t: "ans", seat, a: v, ...dayFor(gameOf(pub), pub, today) }; },
-    view(obs, seat, ctx) { return viewOf(card, obs, seat, ctx || {}, def); },
+    view(obs, seat, ctx) {
+      const v = viewOf(card, obs, seat, ctx || {}, def), b = badgeNode(obs.pub && obs.pub.p, (ctx || {}).lang);
+      if (ctx && ctx.preview && def.preview) return v;   // eigene Vorschau der Karte setzt das Abzeichen selbst an seinen Platz
+      return b && v && Array.isArray(v.children) ? { ...v, children: [...v.children, b] } : v;   // "Mit KI erstellt" (Siegel)
+    },
     /** Freie Karte (Strang K): Doc {k:"turn", i:<Katalog-id>, t?, s?, w?} -> Parameter oder null; und zurueck (Robot). */
     fromFree(doc) {
       if (!doc || typeof doc !== "object" || typeof doc.i !== "string") return null;
@@ -175,11 +190,12 @@ export function makeZug(def) {
       if (variant) Object.assign(out, variant.params);
       else if (!(manifest.legacy || []).includes(doc.i)) return null;
       if (props.titel && typeof doc.t === "string") { const t = cleanText(doc.t, props.titel.maxLength); if (t) out.titel = t; }
-      return out;
+      // Siegel der freien Karte reist im Link mit (Status-Gate beim Empfaenger, KI-Badge), Strang K engines/frei/seal.js
+      return { ...out, ...sealParams(doc, props) };
     },
     toFree(params) {
       const variant = (manifest.variants || []).find((v) => Object.entries(v.params).every(([k, x]) => params[k] === x));
-      return { k: "turn", i: variant ? (variant.legacy || [variant.id])[0] : manifest.id, ...(params.titel ? { t: params.titel } : {}) };
+      return { k: "turn", i: variant ? (variant.legacy || [variant.id])[0] : manifest.id, ...(params.titel ? { t: params.titel } : {}), ...sealDoc(params) };
     },
     /** snap-Karten (manifest.link.snap, ADR 0001 f): Der Link traegt die Liste, wie sie jetzt ist, nicht den Weg dorthin
      *  (alt snap, turns.js:1186). Der letzte Zug einer snap-Karte ist ein einzelner Prompt mit der ganzen Liste; aus ihm
@@ -228,11 +244,12 @@ export function makeZug(def) {
 
 // ---------- Ansicht: eine Frage je Bildschirm (13-produktverstaendnis §6.4) ----------
 import { widget, ui } from "./widgets.js";
+import { sealParams, sealDoc, badgeNode } from "../frei/seal.js";
 
 function viewOf(card, obs, seat, ctx, def) {
   const pub = obs.pub, lang = ctx.lang || "de", X = card.T(lang), g = card.gameOf(pub), st = card.status({ pub });
   const words = card.words(pub, lang);
-  const head = { who: st.turn, turn: st.turnNo, total: st.turns, rule: def.manifest.howto ? def.manifest.howto[lang] || def.manifest.howto.de : "" };
+  const head = { who: st.turn, turn: st.turnNo, total: st.turns, rule: ruleOf(def.manifest, pub.p, lang) };
   const kids = [];
   if (ctx.preview) {
     if (def.preview) return def.preview(card, pub, lang);

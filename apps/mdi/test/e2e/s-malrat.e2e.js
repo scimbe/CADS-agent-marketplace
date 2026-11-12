@@ -7,12 +7,7 @@ import { browser, open, act, axe, noOverflow, waitScreen, screen } from "./lib/g
 import { texts } from "../../src/app/texts.js";
 import M from "../../src/engines/malrat/malrat.json" with { type: "json" };
 
-// Haengt an zwei Befunden in Strang F (Stand 3c80c38), nicht in der Karte: (1) src/render/widgets.js wrap() gibt der
-// Widget-Sektion die Klasse "w-draw" (bzw. "w-aim"), widgets.css setzt fuer .w-draw aspect-ratio 1/1 -> die Sektion
-// blaest die Seite auf ~1135 px auf, Knoepfe werden verdeckt; (2) src/broker/storage.js speichert entry.pub nicht, damit
-// lehnt game.receive jeden Rueckweg einer Snapshot-Karte als "manipuliert" ab. Mit beidem lokal behoben laeuft der Ablauf
-// auf allen vier Ansichten durch (axe 0, nichts verdeckt). Der Test laeuft als todo mit, bis F das liefert.
-const WAIT_F = "wartet auf Strang F: Klasse w-draw an der Widget-Sektion (widgets.js wrap/widgets.css) und entry.pub in broker/storage.js";
+// Ratezeit: das Stoppuhr-Widget (rate) schreibt die Sekunden beim Raten in den Entwurf; A sieht sie im Gegenbild.
 let b;
 test.before(async () => { b = await browser(); });
 test.after(async () => { await b.close(); });
@@ -48,7 +43,7 @@ const linkOf = (p) => p.locator("#linkfield").inputValue().then((u) => u.slice(u
 
 // Strich ueber echte Eingabe: Touch per CDP (erzeugt Pointer-Events mit pointerType "touch"), sonst Maus
 async function stroke(p, touch, pts) {
-  const surf = p.locator("section.w-draw div.w-draw").first();
+  const surf = p.locator("section.wg-draw div.w-draw").first();
   await surf.evaluate((e) => e.scrollIntoView({ block: "center" }));
   const box = await surf.boundingBox();
   const at = ([x, y]) => ({ x: box.x + box.width * x, y: box.y + box.height * y });
@@ -70,13 +65,13 @@ async function drawTurn(P, lang, touch, bad, label) {
   const opt = P.p.locator(".choice .opt").filter({ hasText: T.mr_lvl_0 + ": " }).first();
   const word = (await opt.textContent()).split(": ").pop();
   await opt.click();
-  await P.p.locator("section.w-draw div.w-draw").first().waitFor();
+  await P.p.locator("section.wg-draw div.w-draw").first().waitFor();
   if (bad) await audit(P.p, label + " zeichnen", bad);
   await stroke(P.p, touch, [[0.2, 0.2], [0.5, 0.4], [0.8, 0.8]]);
-  await P.p.locator("section.w-draw polyline").first().waitFor();
+  await P.p.locator("section.wg-draw polyline").first().waitFor();
   await P.p.getByRole("radio", { name: /3$/ }).last().click(); // dickster Stift (Breite 3)
   await stroke(P.p, touch, [[0.2, 0.8], [0.8, 0.2]]);
-  await P.p.waitForFunction(() => document.querySelectorAll("section.w-draw polyline").length >= 2);
+  await P.p.waitForFunction(() => document.querySelectorAll("section.wg-draw polyline").length >= 2);
   await P.p.locator('[data-act="w-bild"]').click();
   await waitScreen(P.p, "card-play-send");
   return word;
@@ -84,19 +79,22 @@ async function drawTurn(P, lang, touch, bad, label) {
 async function guessTurn(P, lang, word, reduced, bad, label) {
   const T = M.text[lang];
   // Abspielen: mit reduzierter Bewegung sofort alle Striche, sonst Strich fuer Strich bis alle stehen
-  if (reduced) assert.equal(await P.p.locator("section.w-strokes polyline").count(), 2, label + ": alle Striche sofort");
-  await P.p.waitForFunction(() => document.querySelectorAll("section.w-strokes polyline").length === 2, null, { timeout: 8000 });
+  if (reduced) assert.equal(await P.p.locator("section.wg-strokes polyline").count(), 2, label + ": alle Striche sofort");
+  await P.p.waitForFunction(() => document.querySelectorAll("section.wg-strokes polyline").length === 2, null, { timeout: 8000 });
   if (bad) await audit(P.p, label + " raten", bad);
   const field = P.p.getByLabel(T.mr_guess_h, { exact: true }).locator("visible=true").first();
   await field.focus(); await P.p.keyboard.type(word.toLowerCase());
-  await P.p.waitForTimeout(400); // Feld entprellt 150 ms
-  await P.p.locator(".choice .opt").filter({ hasText: T.mr_try }).click();
-  await P.p.locator("p").filter({ hasText: word }).filter({ hasText: /Richtig|Right|Correct/ }).first().waitFor();
+  await P.p.waitForTimeout(1300); // Feld entprellt 150 ms; danach ist mindestens eine Sekunde Ratezeit vergangen
+  await P.p.locator('[data-act="w-rate"]').click();
+  const right = P.p.locator("p").filter({ hasText: word }).filter({ hasText: /Richtig|Right|Correct/ }).first();
+  await right.waitFor();
+  const secs = Number(/(\d+) (Sekunde|second)/.exec(await right.textContent())[1]);
+  assert.ok(secs >= 1 && secs < 120, label + ": Ratezeit aus der Stoppuhr " + secs);
   await P.p.locator(".choice .opt").filter({ hasText: T.mr_back }).click();
 }
 
 for (const [view, lang] of [["phone360", "de"], ["phone390", "de"], ["phone412", "en"], ["desk1280", "en"]]) {
-  test("Mal & Rat per Link: zeichnen, abspielen, raten, zurueckzeichnen – " + view + "/" + lang, { todo: WAIT_F }, async () => {
+  test("Mal & Rat per Link: zeichnen, abspielen, raten, zurueckzeichnen – " + view + "/" + lang, async () => {
     const touch = view !== "desk1280", reduced = view === "phone390", bad = [];
     const A = await open(b, { view, lang });
     await act(A.p, "open-zug-malrat"); await waitScreen(A.p, "card-view");
@@ -116,7 +114,8 @@ for (const [view, lang] of [["phone360", "de"], ["phone390", "de"], ["phone412",
     await A.p.goto(A.p.url().split("#")[0] + back);
     await waitScreen(A.p, "receive-show"); await act(A.p, "accept");
     assert.equal(await screen(A.p), "card-play-turn", "A raet das Gegenbild");
-    await A.p.waitForFunction(() => document.querySelectorAll("section.w-strokes polyline").length === 2, null, { timeout: 8000 });
+    await A.p.locator("p").filter({ hasText: /Sekunde|second/ }).first().waitFor(); // A sieht, wie schnell B geraten hat
+    await A.p.waitForFunction(() => document.querySelectorAll("section.wg-strokes polyline").length === 2, null, { timeout: 8000 });
     assert.deepEqual(bad, []);
     assert.deepEqual([...A.errs, ...B.errs], []);
     await A.ctx.close(); await B.ctx.close();

@@ -126,7 +126,9 @@ export const freiState = {
       entry: ["fxShareGate"],
       on: {
         GATE: [
-          { target: T("inhalt.card.share"), cond: "gateOk", actions: ["gateDone"] },
+          { target: T("inhalt.card.share"), cond: "gateOkStatic", actions: ["gateDone"] },
+          // Zug- und Echtzeitkarten: frei -> zurueck zur Karte und GO noch einmal (dann ohne Gate in die Partie)
+          { target: T("inhalt.card.view"), cond: "gateOk", actions: ["gateDone", "markShareOk"], raise: "GO" },
           // veraendert (eigene Aenderungen an der freien Karte): als Remix teilen – ohne KI-Siegel, die Wurzel-id bleibt pruefbar
           { target: T("inhalt.frei.sharegate"), cond: "remixable", actions: ["toRemix"] },
           { target: T("inhalt.card.view"), actions: ["shareNo"] }
@@ -252,10 +254,13 @@ export const freiGuards = {
   robotFromCard: (ctx) => !!ctx.frei.robot && ctx.frei.robot.back === "card",
   robotOk: (ctx) => { const c = ctx.cardId && cardOf(ctx.cardId); return !!c && typeof c.toFree === "function"; },
   // jede Karte, deren Parameter eine freie Karte tragen (Siegel ki.h oder Remix fr, ueber den Adapter toFree der Karte)
-  linkFrei: (ctx, ev) => { if (!("_r" in ev)) ev._r = G.receive(ev.hash, ev.stored || null, ev.rand || []); const r = ev._r; return !!(r && r.ok && r.kind === "card" && gateChecksOf(freeDocOf(r.cardId, r.params)).length); },
+  linkFrei: (ctx, ev) => { if (!("_r" in ev)) ev._r = G.receive(ev.hash, ev.stored || null, ev.rand || []); const r = ev._r; return !!(r && r.ok && ["card", "challenge", "ghost"].includes(r.kind) && gateChecksOf(freeDocOf(r.cardId, r.params)).length); },
   remixable: (ctx, ev) => ev.st === "changed" && ctx.cardId === "frei" && !!paramsOfCard(ctx, "frei").hash,
   gateOk: (ctx, ev) => ev.st === "ok",
-  goFreiShare: (ctx) => !!ctx.cardId && cardOf(ctx.cardId).manifest.mode === "static" && ctx.mode === "link" && gateChecksOf(freeDocOf(ctx.cardId, paramsOfCard(ctx, ctx.cardId))).length > 0,
+  // jede Karte mit Siegel im Link-Modus (statisch: Karten-Link; Zug/Echtzeit: Partie-/Geist-Link), solange dieser Inhalt
+  // nicht schon freigegeben ist (shareOk: nach "ok" geht GO den gewohnten Weg)
+  goFreiShare: (ctx) => !!ctx.cardId && ctx.mode === "link" && ctx.frei.shareOk !== shareKey(ctx) && gateChecksOf(freeDocOf(ctx.cardId, paramsOfCard(ctx, ctx.cardId))).length > 0,
+  gateOkStatic: (ctx, ev) => ev.st === "ok" && cardOf(ctx.cardId).manifest.mode === "static",
   cardFree: (ctx) => ctx.cardId === "frei" && !!paramsOfCard(ctx, "frei").seal,
   deckCardOk: (ctx, ev) => !!(ctx.frei.deck.cards || []).find((c) => c.cid === ev.cid),
   deckPlayable: (ctx) => !!ctx.frei.card && !targetOf(ctx.frei.card.doc, cardOf).missing,
@@ -280,6 +285,8 @@ function openTarget(ctx, t) {
 export function kiDraft(ctx, ev) {
   return { type: "DRAFT", patch: { [ev.into]: { r: ev.r || { how: "off" }, option: ev.option === undefined ? null : ev.option, seal: ev.seal || null, receipt: typeof ev.receipt === "string" ? ev.receipt : "" } } };
 }
+/** Welcher Inhalt beim Teilen schon freigegeben ist: Karte + Siegel-Hash bzw. Wurzel */
+function shareKey(ctx) { const d = freeDocOf(ctx.cardId, paramsOfCard(ctx, ctx.cardId)); return ctx.cardId + "|" + ((d && d.ki && d.ki.h) || (d && d.fr) || ""); }
 /** Die freie Karte hinter Kartenparametern (Adapter toFree der Karte) oder null */
 function freeDocOf(cardId, params) {
   const c = cardId && cardOf(cardId);
@@ -350,6 +357,7 @@ export const freiActions = {
   fxShareGate: (ctx, ev, emit) => { emit({ type: "frei.status", checks: gateChecksOf(freeDocOf(ctx.cardId, paramsOfCard(ctx, ctx.cardId))) }); return F(ctx, { gate: "busy", share: null }); },
   toRemix: (ctx) => { const p = paramsOfCard(ctx, "frei"); return { ...F(ctx, { share: "remix" }), params: { ...ctx.params, frei: { ...p, root: p.root || p.hash.slice(0, 22), seal: "", hash: "", owner: "" } }, note: "frei-remix" }; },
   gateDone: (ctx, ev) => F(ctx, { gate: ev.st }),
+  markShareOk: (ctx) => F(ctx, { shareOk: shareKey(ctx) }),
   gateNo: (ctx, ev) => ({ ...F(ctx, { gate: ev.st }), reason: ev.st === "blocked" ? "frei-gesperrt" : ev.st === "changed" ? "frei-geaendert" : "frei-ungeprueft" }),
   shareNo: (ctx, ev) => ({ ...F(ctx, { gate: ev.st, share: ev.st }), note: "frei-share-no" }),
   // Deck

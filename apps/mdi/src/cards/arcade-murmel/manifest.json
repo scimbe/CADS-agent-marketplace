@@ -569,6 +569,17 @@
         "type": "sine",
         "vol": 0.05
       }
+    },
+    "preview": {
+      "ticks": 700
+    }
+  },
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Murmel-Ring",
+      "en": "Marble ring"
     }
   }
 }

@@ -547,5 +547,13 @@
         "vol": 0.05
       }
     }
+  },
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Flipper-Duell",
+      "en": "Flipper duel"
+    }
   }
 }

@@ -6,7 +6,7 @@ export const DRAFT = ["field", "go", "link", "copy", "file", "action", "ai", "op
 export const WIDGETS = [
   "pick", "rank", "slide", "input", "list", "money", "pay", "show", "alloc", "grid", "probe", "touch", "rec", "once",
   "parrot", "whose", "nim", "freeze", "voices", "doors", "door", "drop", "hunt", "blocks", "shop", "wish", "slots", "vote",
-  "blow", "ideas", "day", "bw", "explain", "clock", "inner", "blind", "react", "tuer", "aim", "power", "draw", "strokes",
+  "blow", "ideas", "day", "bw", "explain", "clock", "inner", "blind", "react", "tuer", "aim", "power", "draw", "strokes", "stopwatch",
   "steps", "audio", "record", "pcard", "pickn", "form"
 ];
 export const CANVAS = ["canvas"];

@@ -3,7 +3,7 @@
 // Bot: players[seat] === "bot" bei init; der Bot rechnet in step mit Gedaechtnis und Wuerfeln im Zustand (alt
 // arcade-ui.js playBot: "the bot's side runs in this page with the very same engine and messages as a live friend").
 import { W, H, TICK, matchInit, matchStart, matchStep, matchStatus, matchHash, liveInit, liveStep, hashSide, mineTurn } from "./index.js";
-import { drawSide, lookOf } from "./view.js";
+import { drawSide, lookOf, thumbOf } from "./view.js";
 import { CONTROLS } from "./controls.js";
 import { META, COLORS, EMOJI, tx, fmt } from "./meta.js";
 
@@ -43,12 +43,13 @@ export function makeCard(g, manifest) {
     },
     status(state) {
       const s = matchStatus(state), A = state.sides[0], t = textOf(A, "de", state.players[1] === "bot" ? tx("de").bot : tx("de").friend);
-      return { over: s.over, score: s.score, winner: s.winner, draw: s.draw, rejected: s.rejected, say: t.say + (t.note ? ". " + t.note : "") };
+      return { over: s.over, score: s.score, winner: s.winner, draw: s.draw, rejected: s.rejected, timeUp: s.timeUp, say: t.say + (t.note ? ". " + t.note : "") };
     },
     view(state, ctx = {}) {
       const seat = ctx.seat === 1 ? 1 : 0, S = state.sides[seat], T = tx(ctx.lang), c = state.ctl[seat];
       const them = state.players[1 - seat] === "bot" ? T.bot : T.friend, t = textOf(S, ctx.lang, them);
-      return drawSide(S, state.look, { now: (state.now + (ctx.alpha || 0)) / TICK, fx: state.fx[seat], aim: c.aim, swipe: c.swipe, reduced: ctx.reduced, count: ctx.countdown, hud: (state.title ? state.title + "  ·  " : "") + t.say, note: t.note, a11y: (manifest.title[ctx.lang === "en" ? "en" : "de"] || "") + ": " + t.say });
+      const node = drawSide(S, state.look, { now: (state.now + (ctx.alpha || 0)) / TICK, fx: state.fx[seat], aim: c.aim, swipe: c.swipe, reduced: ctx.reduced, count: ctx.countdown, hud: (state.title ? state.title + "  ·  " : "") + t.say, note: t.note, a11y: (manifest.title[ctx.lang === "en" ? "en" : "de"] || "") + ": " + t.say });
+      return ctx.thumb ? thumbOf(node, g) : node;
     },
     /** Bot-Sitz: rechnet in step (Gedaechtnis im Zustand); hier nur die leere Eingabe, damit modesOf "bot" anbietet. */
     bot() { return { b: 0, ax: 0, ay: 0, p: [] }; },
@@ -142,6 +143,8 @@ export function paramsOf(g, rules) {
     ]
   };
 }
+/** Startansicht fuer Vorschau und Thumbnail (Bot gegen Bot, Seed "preview"): ein Moment mit Handlung. */
+export const PREVIEW = { puck: 40, stock: 1100, murmel: 700, elfer: 260, panzer: 360 };
 export function rtOf(g) {
-  return { tick: 120, view: { w: W, h: H, fit: "contain" }, numeric: "f64", net: "split", maxTicks: 216000, controls: CONTROLS[g], sounds: SOUNDS, ...(SMOOTH[g] ? { smooth: SMOOTH[g] } : {}) };
+  return { tick: 120, view: { w: W, h: H, fit: "contain" }, numeric: "f64", net: "split", maxTicks: 216000, controls: CONTROLS[g], sounds: SOUNDS, ...(SMOOTH[g] ? { smooth: SMOOTH[g] } : {}), ...(PREVIEW[g] ? { preview: { ticks: PREVIEW[g] } } : {}) };
 }

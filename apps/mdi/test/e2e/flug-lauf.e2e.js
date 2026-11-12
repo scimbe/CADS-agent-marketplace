@@ -37,11 +37,13 @@ test("Flug in der App: Regal, LOS, Countdown, Lauf mit Leertaste, Pause per Knop
   const { p, errs } = await open(b, { view: "phone390" });
   await start(p, "flug");
   assert.match(await label(p), /Flugspiel: Bau dein Lava-Level/);
-  for (let i = 0; i < 4; i++) { await p.keyboard.press("Space"); await p.waitForTimeout(180); }
+  // Pause sofort nach dem Start (unter Last kann ein Flug ohne Eingaben nach gut 1 s vorbei sein, Labor F2/F3)
   await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-pause");
   const before = await label(p); await p.waitForTimeout(400);
   assert.equal(await label(p), before, "Pause haelt das Spiel an");
+  assert.equal(await screen(p), "card-rt-pause", "Pause bleibt, bis man weiterspielt");
   await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-run");
+  for (let i = 0; i < 4 && (await screen(p)) === "card-rt-run"; i++) { await p.keyboard.press("Space"); await p.waitForTimeout(180); }
   await waitScreen(p, "card-rt-over", 30000);
   const res = await p.locator(".result").textContent();
   assert.match(res, /Rekord: \d+/, "Ergebniszeile aus status.say (solo): " + res);
@@ -136,9 +138,9 @@ test("Reduzierte Bewegung: in der Pause steht das Bild still; ohne Einstellung z
   }
 });
 
-for (const view of ["phone360", "phone390", "phone412", "desk1280"]) test("Verdeckung, Ueberlauf, axe in Karte, Lauf, Pause und Ende (flug, lauf): " + view, async () => {
+for (const view of ["phone360", "phone390", "phone412", "desk1280"]) for (const card of ["flug", "lauf"]) test("Verdeckung, Ueberlauf, axe in Karte, Lauf, Pause und Ende (" + card + "): " + view, async () => {
   const bad = [];
-  for (const card of ["flug", "lauf"]) {
+  {
     const { p, errs, ctx } = await open(b, { view });
     await act(p, "open-" + card); await waitScreen(p, "card-view");
     const check = async (name) => {
