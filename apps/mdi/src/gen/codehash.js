@@ -1,6 +1,16 @@
 // ERZEUGT von scripts/gen.js – nicht von Hand aendern.
 /* eslint-disable */
 export const CODE_HASH = {
+  "arcade-elfer": "9a2ef8b32ad846099daaa7fa8774def5",
+  "arcade-flipper": "de02f8ea044ca4345fa8e73696380860",
+  "arcade-kick": "f116b5c0dbb4995ba99dbfaeb67a3e21",
+  "arcade-murmel": "561f49acb33e6197a111c77909493b5f",
+  "arcade-panzer": "176e15322a8cf4cc5ac36db1ff0ccbef",
+  "arcade-puck": "b1178e8f420ccb9f8ea31a3dd37d29a7",
+  "arcade-snow": "4aacdb37b11288dbf84d1762d82408bd",
+  "arcade-stock": "3a09530a23e6b66a5d300ac7c6aa1dcd",
+  "arcade-volley": "7053421d3b12d3e584b976b1359fdeb5",
+  "arcade-ziegel": "c3c299935d04b52fb6fd2b7694e958f3",
   "bluff": "87c9535399a1be510156b6fc7c6d8f1a",
   "flug": "0e0c156aae82a3cde554ce18655e23c4",
   "frei": "37ae1d362b92ee0f22b8d7902680b572",
