@@ -3,6 +3,7 @@
 // "remote" (Eingabe vom Partner, Lockstep), "none" (leere Eingabe). Rein bis auf die Uhr, die von aussen tickt.
 import { rng as mkRng, stateHash, stateHashF, sha256 } from "../../contract/sdk.js";
 import * as T from "../../contract/trace.js";
+import { paramsForLink } from "../../contract/fields.js";
 
 export const ROLES = ["human", "bot", "ghost", "remote", "none"];
 const EMPTY = Object.freeze({ b: 0 });
@@ -54,6 +55,8 @@ export function createMatch(card, o) {
   let ghost = null;
   if (o.roles.includes("ghost")) { ghost = o.ghost instanceof Uint8Array ? parseTrace(card, o.ghost) : null; if (!ghost) throw new RtError("geist", "Spur ungueltig"); }
   const botRng = mkRng(o.seed + "|bot");
+  // Aufnahme (Geist) reist als Link: Parameter nach der Link-Regel (media.local und Geheimnisse bleiben auf dem Geraet)
+  const wireP = () => paramsForLink(card.manifest.params || {}, o.params || {});
   let state = card.init({ params: o.params, seed: o.seed, players: o.roles.slice(), level, rng: mkRng(o.seed + "|init") });
   let prev = state, tick = 0, timeUp = false, cut = null; // cut: Stand, an dem die Aufnahme endete (Review H1)
   const rec = Number.isInteger(o.record) && o.record >= 0 && rt.ghost ? makeRecorder(card) : null;
@@ -88,11 +91,11 @@ export function createMatch(card, o) {
       if (!rec) throw new RtError("geist", "keine Aufnahme");
       // Aufnahme nach Budget/Tick-Maximum abgeschnitten: Geist ist der Lauf bis dahin (h, n, sc von dort), nie ein Stand,
       // den die Spur nicht erreicht (Review H1)
-      if (cut) return { c: m.id, v: m.version, p: o.params, s: o.seed, tr: T.toB64url(rec.bytes()), n: cut.n, sc: cut.sc, h: cut.h, q: o.record, lv: level, rl: o.roles.map((r, s) => (s === o.record ? "ghost" : r === "bot" ? "bot" : "none")), cut: true };
+      if (cut) return { c: m.id, v: m.version, p: wireP(), s: o.seed, tr: T.toB64url(rec.bytes()), n: cut.n, sc: cut.sc, h: cut.h, q: o.record, lv: level, rl: o.roles.map((r, s) => (s === o.record ? "ghost" : r === "bot" ? "bot" : "none")), cut: true };
       rec.end(tick);
       // rl: Rollen der Aufnahme (der aufgenommene Sitz als "ghost"), damit die Pruefung genau so nachspielt
       const rl = o.roles.map((r, s) => (s === o.record ? "ghost" : r === "bot" ? "bot" : "none"));
-      return { c: m.id, v: m.version, p: o.params, s: o.seed, tr: T.toB64url(rec.bytes()), n: tick, sc: status().score.slice(0, 10), h: hashOf(card, state).slice(0, 16), q: o.record, lv: level, rl };
+      return { c: m.id, v: m.version, p: wireP(), s: o.seed, tr: T.toB64url(rec.bytes()), n: tick, sc: status().score.slice(0, 10), h: hashOf(card, state).slice(0, 16), q: o.record, lv: level, rl };
     }
   };
 }

@@ -208,3 +208,16 @@ test("Gate C: Mein Regal heisst so (de/en) und hat ein Symbol; Eigene Karte ist 
   const m = go(s, { type: "HOME", to: "meins" });
   assert.ok(texts(m).includes("Mein Regal"), "Ueberschrift");
 });
+
+test("Laden eines Teils: main traegt data-loading=<teil> und aria-busy, die Ladezeile kuendigt sich an (aria-live); danach weg", () => {
+  const s = start();
+  const find = (n, pred) => { if (!n || typeof n !== "object") return null; if (pred(n)) return n; for (const c of n.children || []) { const r = find(c, pred); if (r) return r; } return null; };
+  const mainOf = (st) => find({ children: [].concat(view(st, () => {})) }, (n) => n.tag === "main");
+  const busy = { ...s, ctx: { ...s.ctx, loading: "home-find" } };
+  const m = mainOf(busy);
+  assert.equal(m.props["data-loading"], "home-find"); assert.equal(m.props["aria-busy"], "true");
+  const line = find(m, (n) => n.props && n.props.class === "h-loading");
+  assert.equal(line.props.role, "status"); assert.equal(line.props["aria-live"], "polite");
+  const idle = mainOf(s);
+  assert.equal(idle.props["data-loading"], null); assert.equal(idle.props["aria-busy"], null);
+});

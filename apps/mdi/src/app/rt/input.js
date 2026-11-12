@@ -43,6 +43,8 @@ export function createSampler(controls, view) {
       for (const a of Object.values(axes)) if (a.keys.includes(code)) used = true;
       return used;
     },
+    /** Grosse Tipp-Taste des Hosts (controls.screenKey): wirkt wie ein Tippen auf die Buehne, also auf alle zone-"any"-Knoepfe. */
+    tap(down) { for (const b of buttons) if (b.zone === "any") { if (down) press(b.id, "t:key"); else release(b.id, "t:key"); } },
     /** Bildschirmknopf des Hosts (zone "button"). */
     button(id, down) { if (!buttons.some((b) => b.id === id)) return; if (down) press(id, "s:" + id); else release(id, "s:" + id); },
     /** Zeiger in logischen Koordinaten: type "down" | "move" | "up" | "cancel". */
