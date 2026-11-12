@@ -411,3 +411,11 @@ test("Karten: Siegel der freien Karte (ki/fr) reist ueber Server-Doc -> fromFree
   assert.match(txt(zug.view(zug.observe(zs, 0), 0, { lang: "en" })), /Made with AI/);
   assert.equal(card.fromFree({ ...G.docs.flappy, ki: { k: "karte", s: "kurz", h: "x" } }).ki, null, "kaputtes Siegel faellt weg");
 });
+
+test("Baukasten: Modellausgabe (clamp) behebt Kontrast und Erzeuger hinter Waenden mit Hinweis; Links bleiben streng", () => {
+  const raw = { ...clone(FLAPPY), bg: "sky", things: [FLAPPY.things[0], { ...FLAPPY.things[1], color: "yellow" }], world: { gravity: 2600, bottom: "open" } };
+  assert.equal(check(raw).ok, false, "streng: abgelehnt");
+  const c = check(raw, { clamp: true });
+  assert.ok(c.ok, c.errors.join()); assert.equal(c.desc.things[1].color, "ink"); assert.equal(c.desc.world.right, "open");
+  assert.ok(c.notes.some((n) => /rohr.color yellow -> ink/.test(n)) && c.notes.some((n) => /world.right -> open/.test(n)));
+});
