@@ -10,7 +10,7 @@ import { SLOTS } from "./slots.js";
 import { inviteStatus, isSaved, UNDO_MS } from "./store.js";
 import { cardOf, ORDER } from "../../cards/index.js";
 import { render } from "../../render/render.js";
-import { rng } from "../../contract/sdk.js";
+import { previewNode } from "../preview.js";
 
 const INTENT_SHAPE = { gruss: "heart", planen: "ring", spielen: "bolt", stimme: "drop" };
 const INTENT_FAM = { gruss: "gruessen", planen: "planen", spielen: "bluff", stimme: "kreativ" };
@@ -63,9 +63,9 @@ function sheet(ctx, X, dispatch) {
       h("p", { class: "h-teaser" }, tx.s),
       nid ? null : h("p", { class: "h-soonline" }, X.soonLong)),
     h("div", { class: "h-flip" },
-      h("button", { type: "button", class: "h-arrow", "data-act": "day-prev", "aria-label": X.prevDay, disabled: ctx.home.off <= -31 || null, on: { click: () => dispatch({ type: "DAY", d: -1 }) } }, "‹"),
+      h("button", { type: "button", class: "h-arrow", "data-act": "day-prev", "aria-label": X.prevDay, disabled: ctx.home.off <= -31 || null, on: { click: () => dispatch({ type: "DAY", d: -1 }) } }, h("b", { "aria-hidden": "true" }, "‹"), X.prevShort),
       ctx.home.off !== 0 ? h("button", { type: "button", class: "h-today", "data-act": "day-today", on: { click: () => dispatch({ type: "DAY", to0: true }) } }, X.toToday) : h("span", { class: "h-swipe" }, X.swipe),
-      h("button", { type: "button", class: "h-arrow", "data-act": "day-next", "aria-label": X.nextDay, disabled: ctx.home.off >= 31 || null, on: { click: () => dispatch({ type: "DAY", d: 1 }) } }, "›")));
+      h("button", { type: "button", class: "h-arrow", "data-act": "day-next", "aria-label": X.nextDay, disabled: ctx.home.off >= 31 || null, on: { click: () => dispatch({ type: "DAY", d: 1 }) } }, X.nextShort, h("b", { "aria-hidden": "true" }, "›"))));
 }
 
 function primaryBtn(p, dispatch) {
@@ -189,8 +189,7 @@ function workPreview(entry, lang) {
   const card = cardOf(entry.id);
   if (card && entry.p) {
     try {
-      const st = card.init({ rng: rng("preview"), params: entry.p, players: card.manifest.players.max });
-      return h("span", { class: "h-work-live" }, render(card.view(card.observe(st, 0), 0, { lang, preview: true }), { onInput: () => {}, disabled: true, idp: "w" + entry.ts }));
+      return h("span", { class: "h-work-live" }, render(previewNode(card, entry.p, { lang, preview: true }), { onInput: () => {}, disabled: true, idp: "w" + entry.ts }));
     } catch (e) { /* Werk passt nicht mehr zur Karte: Bild, falls vorhanden */ }
   }
   if (entry.th) return h("img", { class: "h-work-img", src: entry.th, alt: "" });
@@ -231,7 +230,7 @@ function meinsView(state, X, dispatch) {
         h("div", { class: "h-inv-acts" },
           h("button", { type: "button", class: "btn secondary h-small", "data-act": "inv-share-" + i, on: { click: () => dispatch({ type: "INV_SHARE", f: x.f }) } }, X.invShare),
           h("button", { type: "button", class: "btn secondary h-small", "data-act": "inv-story-" + i, disabled: mine.busy === "story" || null, on: { click: () => dispatch({ type: "STORY", f: x.f }) } }, X.invStory),
-          h("button", { type: "button", class: "btn secondary h-small h-danger", "data-act": "inv-del-" + i, disabled: mine.busy === x.f || null, on: { click: () => dispatch({ type: "INV_DELETE", f: x.f }) } }, X.invDelete)));
+          h("button", { type: "button", class: "btn secondary h-small h-danger", "data-act": "inv-del-" + i, disabled: mine.busy === x.f || null, on: { click: () => dispatch({ type: "INV_DELETE", f: x.f }) } }, ctx.home.sure === x.f ? X.invSure : X.invDelete)));
     })));
   } else {
     if (!mine.saved.length) panel.push(h("p", { class: "h-empty", key: "empty" }, X.savedEmpty));

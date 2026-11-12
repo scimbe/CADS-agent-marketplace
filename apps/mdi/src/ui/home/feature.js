@@ -15,7 +15,7 @@ export const MAX_OFF = 31;
 const todayOf = (ev) => (Number.isFinite(ev.at) ? Math.floor(ev.at / R.DAY) : null);
 
 export function homeContext() {
-  return { home: { at: "day", off: 0, intent: null, text: "", res: null, rtab: "alles", fam: null, q: "", mtab: "wand", note: null }, today: null, mine: { wall: [], saved: [], invites: [], undo: null, loaded: false, busy: null } };
+  return { home: { at: "day", off: 0, intent: null, text: "", res: null, rtab: "alles", fam: null, q: "", mtab: "wand", note: null, sure: null }, today: null, mine: { wall: [], saved: [], invites: [], undo: null, loaded: false, busy: null } };
 }
 const H = (ctx, o) => ({ ...ctx, home: { ...ctx.home, ...o } });
 const M = (ctx, o) => ({ ...ctx, mine: { ...ctx.mine, ...o } });
@@ -34,7 +34,7 @@ export const actions = {
   homeInit: (ctx, ev, emit) => { if (ctx.mine.loaded || ctx.mine.loading) return ctx; emit({ type: "home.load" }); return M(ctx, { loading: true }); },
   homeGo: (ctx, ev) => {
     const to = AT.includes(ev.to) ? ev.to : "day";
-    const o = { at: to, note: null };
+    const o = { at: to, note: null, sure: null };
     if (to === "family") { o.intent = ["gruss", "planen", "spielen", "stimme"].includes(ev.intent) ? ev.intent : null; o.res = ev.keepRes ? ctx.home.res : null; }
     if (to === "regal") { o.rtab = RTABS.includes(ev.rtab) ? ev.rtab : ctx.home.rtab; if (ev.fam !== undefined) o.fam = ev.fam; }
     if (to === "meins") o.mtab = MTABS.includes(ev.tab) ? ev.tab : ctx.home.mtab;
@@ -54,7 +54,7 @@ export const actions = {
   homeQuery: (ctx, ev) => H(day(ctx, ev), { q: String(ev.q || "").slice(0, 80), rtab: "alles" }),
   homeRtab: (ctx, ev) => H(ctx, { rtab: RTABS.includes(ev.tab) ? ev.tab : "alles" }),
   homeFam: (ctx, ev) => H(ctx, { fam: typeof ev.fam === "string" ? ev.fam : null }),
-  homeMtab: (ctx, ev) => H(ctx, { mtab: MTABS.includes(ev.tab) ? ev.tab : "wand" }),
+  homeMtab: (ctx, ev) => H(ctx, { mtab: MTABS.includes(ev.tab) ? ev.tab : "wand", sure: null }),
   homeLoaded: (ctx, ev) => {
     const d = ev.data || {};
     const c = M(day(ctx, ev), { wall: S.cleanWall(d.wall), saved: S.cleanSaved(d.saved), invites: S.cleanInvites(d.invites), loaded: true, loading: false });
@@ -87,9 +87,12 @@ export const actions = {
     return persist(c, emit);
   },
   shortDone: (ctx, ev, emit) => persist(M(ctx, { invites: S.setShort(ctx.mine.invites, ev.f, ev.r && ev.r.ok ? ev.r.s : null) }), emit),
+  // Loeschen nie ohne Rueckfrage (Design-System Phase C): erster Tipp fragt, zweiter loescht
   invDelete: (ctx, ev, emit) => {
     const x = ctx.mine.invites.find((i) => i.f === ev.f);
     if (!x) return ctx;
+    if (ctx.home.sure !== ev.f) return H(ctx, { sure: ev.f });
+    ctx = H(ctx, { sure: null });
     if (x.s) { emit({ type: "short.delete", f: x.f, s: x.s }); return M(ctx, { busy: x.f }); }
     return persist(M(ctx, { invites: S.dropInvite(ctx.mine.invites, ev.f) }), emit);
   },

@@ -238,8 +238,9 @@ textarea.input { resize: vertical; }
 @keyframes h-stamp { from { transform: scale(1.35) rotate(-6deg); } to { transform: none; } }
 .h-teaser { margin: 0; font-size: var(--t-m); font-weight: 600; }
 .h-soonline { margin: 0; font-size: var(--t-s); color: var(--pmuted); }
-.h-flip { display: grid; grid-template-columns: var(--tap) 1fr var(--tap); gap: var(--s2); align-items: center; }
-.h-arrow { width: var(--tap); height: var(--tap); border: 3px solid var(--ink); border-radius: 14px; background: var(--sheet); color: var(--ink); font: 800 1.6rem/1 var(--font-body); cursor: pointer; box-shadow: 2px 2px 0 var(--ink); }
+.h-flip { display: grid; grid-template-columns: auto 1fr auto; gap: var(--s2); align-items: center; }
+.h-arrow { min-width: var(--tap); min-height: var(--tap); padding: 0 10px; display: inline-flex; align-items: center; gap: 4px; border: 3px solid var(--ink); border-radius: 14px; background: var(--sheet); color: var(--ink); font: 800 .9375rem/1 var(--font-body); cursor: pointer; box-shadow: 2px 2px 0 var(--ink); }
+.h-arrow b { font-size: 1.5rem; line-height: 1; }
 .h-arrow:disabled { opacity: .45; cursor: default; }
 .h-swipe { text-align: center; font-size: .875rem; line-height: 1.2; color: var(--muted); }
 .h-today { justify-self: center; min-height: var(--tap); padding: 0 var(--s4); border: 3px solid var(--ink); border-radius: 999px; background: var(--gelb); color: var(--ink); font-weight: 800; cursor: pointer; }
@@ -308,7 +309,11 @@ textarea.input { resize: vertical; }
 .h-heart[aria-pressed="true"] { background: var(--fam-gruessen); color: var(--ink); border-color: var(--ink); }
 .h-heart[aria-pressed="true"] .h-ico { fill: currentColor; }
 /* Sehr grosse Schrift: Tafel unter das Bild, nichts wird abgeschnitten (Design-System) */
-@media (max-width: 480px) { :root[style*="137.5%"] .h-plate { position: static; transform: none; margin: 0; } }
+/* Ab Schrift "Gross" (Mein Stil): Titeltafel unter das Bild, Stempel ohne Schatten (Design-System Phase C) */
+:root[style*="118.75%"] .h-plate, :root[style*="137.5%"] .h-plate { position: static; transform: none; margin: 4px 0 0; }
+:root[style*="118.75%"] .h-thumb, :root[style*="137.5%"] .h-thumb { aspect-ratio: auto; overflow: visible; }
+:root[style*="118.75%"] .h-thumb .h-art, :root[style*="137.5%"] .h-thumb .h-art { position: relative; aspect-ratio: 16 / 9; height: auto; }
+:root[style*="118.75%"] .h-stamp, :root[style*="137.5%"] .h-stamp { text-shadow: none; }
 
 /* Letzte Tage (Kalender-Historie beim Kalender) */
 .h-days { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s2); }
@@ -332,7 +337,9 @@ textarea.input { resize: vertical; }
 .h-panel { display: grid; gap: var(--s5); padding-top: var(--s2); }
 .h-chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .h-chip { min-height: 44px; padding: 0 var(--s3); border: 2px solid var(--ink); border-radius: 999px; background: var(--sheet); color: var(--ink); font-weight: 800; font-size: .875rem; cursor: pointer; }
-.h-chip[aria-pressed="true"] { outline: 3px solid var(--text); outline-offset: 2px; box-shadow: 2px 2px 0 var(--ink); }
+/* Auswahl nie nur Farbe (Design-System Phase C): Tinte-Flaeche, gelbe Schrift, Haken davor */
+.h-chip[aria-pressed="true"] { background: var(--ink); color: var(--gelb); box-shadow: 2px 2px 0 var(--signal); }
+.h-chip[aria-pressed="true"]::before, .h-tabs [aria-selected="true"]::before { content: "✓ "; }
 .h-hits, .h-empty, .h-sync, .h-note { margin: 0; }
 .h-empty { padding: var(--s5); border: 3px dashed var(--text); border-radius: 16px; font-weight: 700; text-align: center; }
 .h-sync { font-size: var(--t-s); color: var(--muted); }

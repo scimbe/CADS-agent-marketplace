@@ -6,11 +6,11 @@ import { texts, fmt } from "../app/texts.js";
 import { cardOf, ORDER, modesOf } from "../cards/index.js";
 import * as G from "../app/game.js";
 import * as S from "../contract/session.js";
-import { rng } from "../contract/sdk.js";
 import { render } from "../render/render.js";
 import { LEVELS } from "../bot/ismcts.js";
 import { stilView, stilActions } from "./stil-view.js";
 import { homeView, dayPrimary, meinsButton } from "./home/views.js";
+import { previewNode } from "./preview.js";
 import { SLOTS } from "./home/slots.js";
 
 export function leaf(state) {
