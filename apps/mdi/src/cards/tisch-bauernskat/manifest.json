@@ -16,6 +16,12 @@
     "de": "Skat zu zweit: 8 Stapel, je eine Karte offen auf einer verdeckten. Vorhand sagt an, 61 Augen gewinnen.",
     "en": "Skat for two: 8 stacks, each one card face up on one face down. Forehand names the game, 61 card points win."
   },
+  "family": "tisch-bauernskat",
+  "order": 502,
+  "dur": 600,
+  "legacy": [
+    "tisch-bauernskat"
+  ],
   "players": {
     "min": 2,
     "max": 2

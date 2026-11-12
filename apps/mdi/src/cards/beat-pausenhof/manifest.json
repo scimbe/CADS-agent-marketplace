@@ -1,0 +1,387 @@
+{
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.2",
+  "players": {
+    "min": 1,
+    "max": 1
+  },
+  "hidden": "none",
+  "limits": {
+    "stepBudget": 1,
+    "stateBytes": 4096
+  },
+  "id": "beat-pausenhof",
+  "kind": "sound",
+  "mode": "static",
+  "order": 70,
+  "title": {
+    "de": "Bau einen Beat",
+    "en": "Build a beat"
+  },
+  "teaser": {
+    "de": "Tippen, bis es knallt.",
+    "en": "Tap until it slaps."
+  },
+  "howto": {
+    "de": "16 Schritte, vier Spuren. Der Link trägt nur Muster, Tempo und Text.",
+    "en": "16 steps, four tracks. The link carries only the pattern, tempo and text."
+  },
+  "uses": [
+    "audio-out"
+  ],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "x",
+      "bpm",
+      "p",
+      "pair",
+      "sk"
+    ],
+    "properties": {
+      "x": {
+        "type": "string",
+        "maxLength": 28,
+        "pattern": "^[^\\u0000-\\u001f\\u007f<>]*$",
+        "default": "Bau einen Beat",
+        "x-default": {
+          "en": "Build a beat"
+        },
+        "x-field": "text",
+        "x-model": true,
+        "x-label": {
+          "de": "Text",
+          "en": "Text"
+        }
+      },
+      "p": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "k",
+          "s",
+          "h",
+          "b"
+        ],
+        "properties": {
+          "k": {
+            "type": "string",
+            "pattern": "^[x-]{16}$"
+          },
+          "s": {
+            "type": "string",
+            "pattern": "^[x-]{16}$"
+          },
+          "h": {
+            "type": "string",
+            "pattern": "^[x-]{16}$"
+          },
+          "b": {
+            "type": "string",
+            "pattern": "^[x-]{16}$"
+          }
+        },
+        "default": {
+          "k": "x---x---x--x-x--",
+          "s": "----x-------x---",
+          "h": "x-x-x-x-x-x-x-x-",
+          "b": "------x---x-----"
+        },
+        "x-field": "steps",
+        "x-rows": {
+          "de": {
+            "k": "Kick",
+            "s": "Snare",
+            "h": "Hi-Hat",
+            "b": "Bass"
+          },
+          "en": {
+            "k": "Kick",
+            "s": "Snare",
+            "h": "Hi-hat",
+            "b": "Bass"
+          }
+        },
+        "x-label": {
+          "de": "Beat",
+          "en": "Beat"
+        }
+      },
+      "bpm": {
+        "type": "integer",
+        "minimum": 70,
+        "maximum": 170,
+        "default": 100,
+        "x-field": "slide",
+        "x-label": {
+          "de": "Tempo",
+          "en": "Tempo"
+        },
+        "x-unit": "BPM"
+      },
+      "pair": {
+        "type": "string",
+        "enum": [
+          "advent",
+          "p0",
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6",
+          "p7"
+        ],
+        "default": "p2",
+        "x-field": "pair",
+        "x-label": {
+          "de": "Farbe",
+          "en": "Colour"
+        },
+        "x-pairs": {
+          "advent": [
+            "#0f5132",
+            "#ffd400"
+          ],
+          "p0": [
+            "#ffd400",
+            "#ff3b1d"
+          ],
+          "p1": [
+            "#2b4bff",
+            "#ffe600"
+          ],
+          "p2": [
+            "#ff4fa3",
+            "#0a7f55"
+          ],
+          "p3": [
+            "#14c872",
+            "#ff3da5"
+          ],
+          "p4": [
+            "#ff6a1f",
+            "#1b2bd8"
+          ],
+          "p5": [
+            "#c8ff00",
+            "#7a1fff"
+          ],
+          "p6": [
+            "#ffffff",
+            "#ff2d2d"
+          ],
+          "p7": [
+            "#7ee0ff",
+            "#ff5a1f"
+          ]
+        }
+      },
+      "sk": {
+        "type": "array",
+        "maxItems": 8,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "e",
+            "x",
+            "y",
+            "r",
+            "z"
+          ],
+          "properties": {
+            "e": {
+              "type": "string",
+              "enum": [
+                "🐸",
+                "🦆",
+                "🐙",
+                "🦝",
+                "🐌",
+                "🦖",
+                "🍕",
+                "🌮",
+                "🍩",
+                "🥨",
+                "🍟",
+                "🧃",
+                "🚀",
+                "🛸",
+                "👽",
+                "🪐",
+                "🌟",
+                "☄️",
+                "💥",
+                "🔥",
+                "💀",
+                "🤡",
+                "🌀",
+                "⚡",
+                "🎃",
+                "👻",
+                "🦇",
+                "🕷️",
+                "🧛",
+                "🕸️",
+                "💛",
+                "🌻",
+                "✨",
+                "🫶",
+                "🌈",
+                "☀️",
+                "🎄",
+                "⭐",
+                "🎁",
+                "❄️",
+                "⛄",
+                "🍪",
+                "🤖",
+                "🦄",
+                "🐝",
+                "🪁"
+              ]
+            },
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "r": {
+              "type": "number",
+              "minimum": -3.14,
+              "maximum": 3.14
+            },
+            "z": {
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 2.5
+            }
+          }
+        },
+        "default": [],
+        "x-field": "stickers",
+        "x-set": "chaos",
+        "x-label": {
+          "de": "Sticker",
+          "en": "Stickers"
+        }
+      }
+    }
+  },
+  "parts": [
+    {
+      "id": "beat",
+      "params": [
+        "p",
+        "bpm"
+      ],
+      "label": {
+        "de": "Beat",
+        "en": "Beat"
+      }
+    },
+    {
+      "id": "text",
+      "params": [
+        "x"
+      ],
+      "label": {
+        "de": "Text",
+        "en": "Text"
+      }
+    },
+    {
+      "id": "farbe",
+      "params": [
+        "pair"
+      ],
+      "label": {
+        "de": "Farbe",
+        "en": "Colour"
+      }
+    },
+    {
+      "id": "sticker",
+      "params": [
+        "sk"
+      ],
+      "label": {
+        "de": "Sticker",
+        "en": "Stickers"
+      }
+    }
+  ],
+  "variants": [
+    {
+      "id": "beat-boss",
+      "title": {
+        "de": "Musik für den Endkampf",
+        "en": "Boss fight music"
+      },
+      "teaser": {
+        "de": "Klingt teuer. War umsonst.",
+        "en": "Sounds expensive. Was free."
+      },
+      "params": {
+        "x": "Musik für den Endkampf",
+        "bpm": 150,
+        "p": {
+          "k": "x-x---x-x-x---x-",
+          "s": "----x--x----x---",
+          "h": "xxxxxxxxxxxxxxxx",
+          "b": "x---x---x-x-x-x-"
+        }
+      }
+    },
+    {
+      "id": "plan-05",
+      "title": {
+        "de": "Beat im Tunnel",
+        "en": "Tunnel beat"
+      },
+      "teaser": {
+        "de": "Bass rein. Pakete raus.",
+        "en": "Bass in. Packets out."
+      },
+      "params": {
+        "x": "Beat im Tunnel",
+        "bpm": 128,
+        "p": {
+          "k": "x---x---x---x---",
+          "s": "----x-------x---",
+          "h": "x-x-x-x-x-x-x-x-",
+          "b": "x--x----x--x----"
+        }
+      }
+    },
+    {
+      "id": "plan-12",
+      "title": {
+        "de": "Klingelton bauen",
+        "en": "Build a ringtone"
+      },
+      "teaser": {
+        "de": "Bau dir deinen eigenen Klingelton.",
+        "en": "Build your own ringtone."
+      },
+      "params": {
+        "x": "Klingelton bauen",
+        "bpm": 140,
+        "p": {
+          "k": "x-------x-------",
+          "s": "----x-------x---",
+          "h": "x---x---x---x---",
+          "b": "x-x---x-x---x---"
+        }
+      }
+    }
+  ],
+  "dur": 45
+}

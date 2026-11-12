@@ -37,6 +37,8 @@ export function fakeFrei(fw, o = {}) {
     await ctx.route(origin + "/**", async (r) => {
       const req = r.request(), u = new URL(req.url()), p = u.pathname;
       if (origin !== APP && (p === "/duell" || p === "/duell/")) return r.fulfill({ status: 200, path: path.join(ROOT, "dist/index.html"), contentType: "text/html; charset=utf-8" });
+      // nachladbare Teile (ADR 0001 Nachtrag 2) liefert jeder Wrapper-Host statisch aus, auch der ohne Pin
+      { const m = origin !== APP && /\/parts\/([A-Za-z0-9._-]+\.js)$/.exec(p); if (m) return r.fulfill({ status: 200, path: path.join(ROOT, "dist/parts", m[1]), contentType: "text/javascript", headers: { "cache-control": "no-cache" } }); }
       if (!PATHS.test(p)) return origin === APP ? r.fallback() : r.fulfill(json(404, { error: "nf" }));
       let body = null; try { body = req.postDataJSON(); } catch (e) { body = null; }
       S.log.push(req.method() + " " + p + (body && body.kind ? " " + body.kind : ""));

@@ -118,6 +118,8 @@ export function fakeWrapper({ accounts = { "lea@example.org": "pw-lea", "tom@exa
       const req = r.request(), u = new URL(req.url()), p = u.pathname;
       log.push(req.method() + " " + p);
       if (p === "/duell" || p === "/duell/") return r.fulfill({ status: 200, path: path.join(ROOT, "dist/index.html"), contentType: "text/html; charset=utf-8", headers: { "cache-control": "no-cache" } });
+      // nachladbare Teile (ADR 0001 Nachtrag 2) liegen neben der Seite, wie im echten Wrapper (statische Dateien von dist/)
+      { const m = /\/parts\/([A-Za-z0-9._-]+\.(js|html))$/.exec(p); if (m) return r.fulfill({ status: 200, path: path.join(ROOT, "dist/parts", m[1]), contentType: m[2] === "js" ? "text/javascript" : "text/html", headers: { "cache-control": "no-cache" } }); }
       if (p === "/auth/login") return r.fulfill(redirect(loginUrl(safeReturn(u.searchParams.get("return")), u.searchParams.get("lang"))));
       if (p === "/auth/me") {
         const id = await who(req);

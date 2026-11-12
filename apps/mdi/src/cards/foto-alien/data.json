@@ -1,0 +1,87 @@
+{
+  "min": 20,
+  "tags": [
+    "außerirdisch",
+    "unbekannt",
+    "mysteriös",
+    "fotografie",
+    "extraterrestrial",
+    "unknown",
+    "mysterious",
+    "photography"
+  ],
+  "texts": {
+    "de": {
+      "pick": "Foto wählen",
+      "note": "Dein Foto bleibt auf diesem Handy.",
+      "send": "Fertig"
+    },
+    "en": {
+      "pick": "Pick a photo",
+      "note": "Your photo stays on this phone.",
+      "send": "Done"
+    }
+  },
+  "variants": {
+    "foto-tour": {
+      "x-default": {
+        "en": {
+          "x": "WORLD TOUR",
+          "y": "SOLD OUT"
+        }
+      },
+      "tags": [
+        "weltreise",
+        "konzert",
+        "musik",
+        "auftritt",
+        "fan",
+        "global",
+        "travel",
+        "concert",
+        "music",
+        "performance",
+        "globe"
+      ]
+    },
+    "foto-haustier": {
+      "x-default": {
+        "en": {
+          "x": "I HAVE",
+          "y": "SEEN EVERYTHING"
+        }
+      },
+      "tags": [
+        "tierliebe",
+        "familie",
+        "haustierbesitzer",
+        "animal lover",
+        "family",
+        "pet owner",
+        "cute"
+      ]
+    },
+    "foto-essen": {
+      "x-default": {
+        "en": {
+          "x": "TASTY",
+          "y": "ALLEGEDLY"
+        }
+      },
+      "tags": [
+        "kantine",
+        "mittagessen",
+        "essen fotografieren",
+        "foodie",
+        "essen teilen",
+        "schule",
+        "cafeteria",
+        "canteen",
+        "food photography",
+        "meal",
+        "share food",
+        "school"
+      ]
+    }
+  }
+}

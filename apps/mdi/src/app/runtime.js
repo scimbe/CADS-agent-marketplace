@@ -10,6 +10,7 @@ import { fromB64url } from "../contract/trace.js";
 import { cardOf, isLoaded, loadCard, manifestOf } from "../cards/index.js";
 import { createBotAgent } from "../bot/agent.js";
 import * as V from "../gen/validators.js";
+import { depthOk } from "../contract/equal.js";
 import { decode } from "./link.js";
 import { kontoSaved } from "./konto-chart.js";
 
@@ -37,7 +38,9 @@ export function createRuntime(deps) {
   const schedule = deps.schedule || ((f) => setTimeout(f, 0));
   const now = deps.now || (() => Date.now());
   const saved = deps.storage.loadKonto ? (() => { try { return deps.storage.loadKonto(); } catch (e) { return null; } })() : null;
-  let state = machine.initial(initialContext(deps.lang, saved));
+  // Ton aus (Buehne) liegt getrennt vom Konto auf dem Geraet
+  const ton = deps.storage.loadTon ? (() => { try { return deps.storage.loadTon(); } catch (e) { return false; } })() : false;
+  let state = machine.initial(initialContext(deps.lang, { ...(saved || {}), muted: ton === true }));
   if (!state.ctx.device) state = { ...state, ctx: { ...state.ctx, device: deps.entropy() } };
   let bot = null, live = null, liveGen = 0, rtSess = null, rtGen = 0;
   const lives = new Map(); // Gruppe: Gastsitz -> Kanal
@@ -88,7 +91,9 @@ export function createRuntime(deps) {
   /** Nachricht vom Partner (Bot oder Live): erst Schema, dann Ereignis. */
   // from = Sitz des Gastes, von dem die Nachricht kommt (nur beim Gastgeber einer Gruppe), sonst undefined
   function fromPeer(msg, from) {
-    if (V.liveMsg(msg) !== true) { dispatch({ type: "FAIL", reason: "schema" }); return; }
+    // Review M1: Tiefe vorher begrenzen, Validator darf nie werfen
+    let ok = false; try { ok = depthOk(msg, 8) && V.liveMsg(msg) === true; } catch (e) { ok = false; }
+    if (!ok) { dispatch({ type: "FAIL", reason: "schema" }); return; }
     if (RT_MSG.has(msg.t)) { if (rtSess) rtSess.receive(msg); return; }
     dispatch({ type: EVENT_OF[msg.t], msg, from });
   }
@@ -145,6 +150,7 @@ export function createRuntime(deps) {
       case "share": deps.share(fx.fragment).then((r) => dispatch({ type: r === "shared" ? "SENT" : r === "copied" ? "COPIED" : "SHARE_FAIL" })); break;
       case "copy": (deps.copy || (() => Promise.resolve(false)))(fx.fragment).then((ok) => dispatch({ type: ok ? "COPIED" : "COPY_FAIL" })); break;
       case "url.clear": deps.clearUrl(); break;
+      case "ton.save": if (deps.storage.saveTon) deps.storage.saveTon(fx.muted); break;
       case "redispatch": schedule(() => dispatch({ ...fx.ev, at: undefined, rand: undefined })); break;
       // ---- Konto (Ergebnisse kommen als Ereignisse zurueck; ohne API ehrlich „nicht hier“) ----
       case "konto.status":

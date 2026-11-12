@@ -16,6 +16,12 @@
     "de": "Doppelkopf zu viert nach den Turnierregeln des DDV: Vorbehalte, Hochzeit, Soli, Ansagen bis schwarz, Sonderpunkte. 121 Augen gewinnen für Re.",
     "en": "Doppelkopf for four under the DDV tournament rules: reservations, marriage, solos, calls up to schwarz, special points. Re needs 121 card points."
   },
+  "family": "tisch-skat",
+  "order": 501,
+  "dur": 900,
+  "legacy": [
+    "tisch-doko"
+  ],
   "players": {
     "min": 4,
     "max": 4

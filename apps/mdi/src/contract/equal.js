@@ -11,3 +11,16 @@ export function deepEqual(a, b) {
   }
   return a !== a && b !== b; // NaN
 }
+
+/** Verschachtelungstiefe iterativ pruefen (Review M1): tiefe Strukturen lassen Validatoren rekursiv ueberlaufen. */
+export function depthOk(v, max = 8) {
+  const stack = [[v, 0]];
+  while (stack.length) {
+    const [x, d] = stack.pop();
+    if (x && typeof x === "object") {
+      if (d >= max) return false;
+      for (const k in x) if (Object.prototype.hasOwnProperty.call(x, k)) stack.push([x[k], d + 1]);
+    }
+  }
+  return true;
+}

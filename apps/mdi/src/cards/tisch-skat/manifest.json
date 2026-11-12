@@ -16,6 +16,12 @@
     "de": "Skat zu dritt nach der Internationalen Skatordnung: reizen, Skat aufnehmen und drücken, Farbspiel, Grand oder Null ansagen. Wer allein spielt, braucht 61 Augen.",
     "en": "Skat for three under the International Skat Order: bid, pick up and discard the skat, announce a suit game, Grand or Null. The declarer needs 61 card points."
   },
+  "family": "tisch-skat",
+  "order": 500,
+  "dur": 600,
+  "legacy": [
+    "tisch-skat"
+  ],
   "players": {
     "min": 3,
     "max": 3

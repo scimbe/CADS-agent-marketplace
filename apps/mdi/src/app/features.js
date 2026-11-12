@@ -20,12 +20,15 @@
 // Pfade sind absolute Zustandspfade ohne Praefix, z. B. "inhalt.card.view", "inhalt.card.play.over".
 
 import tisch from "../engines/tisch/feature.js";   // Strang T: Kartenbild fuer pcard
+import { home } from "../ui/home/feature.js";
 import { frei } from "../features/frei/chart.js";   // Strang K: freie Karte, KI-Arten, Deck, KI-Bild
+import { posterFeature } from "../engines/poster/feature.js";
 
 export const FEATURES = [
-  tisch,
-  // home,   // Strang H: src/ui/home/feature.js
-  frei,
+  tisch,     // Strang T: Kartenbild fuer pcard (env.cardSvg)
+  home,      // Strang H: src/ui/home/feature.js
+  frei,      // Strang K: src/features/frei/chart.js
+  posterFeature, // Strang P: hohe Poster-Ops (env.high) und Ton (env.audio)
 ];
 
 /** Geraetedienste aller Features zusammensetzen (doppelte Dienste sind ein Fehler). */

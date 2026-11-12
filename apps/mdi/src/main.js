@@ -32,7 +32,8 @@ let rtApi = null;
 const fenv = featureEnv(window);
 const stageEnv = { high: fenv.high || null, images: fenv.images || null, win: window, doc: document, rt: { get active() { return rtApi && rtApi.active; }, get view() { return rtApi && rtApi.view; }, screenButtons: () => (rtApi ? rtApi.screenButtons() : []), get controls() { return rtApi && rtApi.controls; }, key: (c, d) => rtApi && rtApi.key(c, d), pointer: (...a) => rtApi && rtApi.pointer(...a), button: (...a) => rtApi && rtApi.button(...a), blur: () => rtApi && rtApi.blur(), hidden: () => rtApi && rtApi.hidden() }, reduced: () => reducedMq.matches };
 const stage = createStage(stageEnv);
-const sound = createSound({ audioContext: () => new AudioContext(), vibrate: navigator.vibrate ? (ms) => navigator.vibrate(ms) : null });
+let rtState = () => null;
+const sound = createSound({ audioContext: () => new AudioContext(), vibrate: navigator.vibrate ? (ms) => navigator.vibrate(ms) : null, muted: () => { const s = rtState(); return !!(s && s.ctx.muted); } });
 function randomInt(n) { const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0] % Math.max(1, n); }
 const viewEnv = { stage, thumb: (id, variant) => parts.thumb(id, variant), random: randomInt, clock: () => performance.now(), reduced: reducedMq.matches, audio: fenv.audio || null, high: fenv.high || null, cardSvg: fenv.cardSvg || null, images: fenv.images || null };
 
@@ -59,6 +60,8 @@ const rt = createRuntime({
   live: () => loadLive(),
   share: (fragment) => share(linkUrl(fragment), document.title),
   copy: (fragment) => copy(linkUrl(fragment)),
+  // Heimseite (Strang H): Leinwand fuer Story-Bild und Wand, Teilen, Takt (Speicher und Netz laufen ueber storage und api)
+  home: { document, navigator, location, File, URL, setInterval: (f, ms) => setInterval(f, ms), setTimeout: (f, ms) => setTimeout(f, ms) },
   clearUrl: () => { try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) { /* file:// in manchen Hosts */ } },
   onChange: draw
 });
@@ -120,7 +123,10 @@ function draw(state, info) {
     // Bildschirmwechsel: Fokus an den Hauptbereich (Screenreader liest den neuen Inhalt)
     const m = root.querySelector("#main"); if (m && !m.contains(document.activeElement)) m.focus({ preventScroll: true });
   }
-  syncHistory(nowLeaf);
+  // Heimseite: neue Unterseite (Familie, Regal, Meins, Reiter) beginnt oben, wie ein Bildschirmwechsel
+  const hb = info && info.before && info.before.ctx.home, hn = state.ctx.home;
+  if (hb && hn && nowLeaf === "shelf" && beforeLeaf === "shelf" && (hb.at !== hn.at || hb.intent !== hn.intent || hb.mtab !== hn.mtab || hb.rtab !== hn.rtab)) { window.scrollTo(0, 0); const m = root.querySelector("#main"); if (m) m.focus({ preventScroll: true }); }
+  syncHistory(nowLeaf === "shelf" && state.ctx.home && (state.ctx.home.at !== "day" || state.ctx.home.off !== 0) ? "shelf.tief" : nowLeaf);
   // Schriftgroesse aus Mein Stil (Lesen & Bedienen): Projektion des Zustands auf die Wurzel, alles skaliert per rem
   const fs = { n: "100%", g: "118.75%", sg: "137.5%" }[state.ctx.pref.fs] || "100%";
   if (document.documentElement.style.getPropertyValue("font-size") !== fs) document.documentElement.style.setProperty("font-size", fs);
@@ -148,6 +154,7 @@ addEventListener("resize", placeBubbles);
 addEventListener("hashchange", () => { if (/^#v2\./.test(location.hash)) rt.link(location.hash); });
 
 rtApi = rt.rt;
+rtState = () => rt.state;
 // Bilder, die nachladen (KI-Bild ueber Strang K), zeichnen die Ansicht neu, sobald sie da sind
 if (fenv.images && typeof fenv.images.subscribe === "function") fenv.images.subscribe(() => draw(rt.state, null));
 draw(rt.state, null);

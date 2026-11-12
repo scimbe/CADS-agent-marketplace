@@ -35,6 +35,9 @@ for (const view of ["phone360", "desk1280"]) {
     assert.equal(await p.locator(".rt-pause").getAttribute("aria-pressed"), "true");
     await p.locator(".rt-pause").click(); await p.waitForFunction(() => window.__rt.phase === "run");
     assert.equal(await p.locator('.rt-axis[aria-label="Links"]').count(), 1, "Achse als echter Knopf");
+    assert.equal(await p.locator(".rt-hud .rt-sound").getAttribute("aria-pressed"), "false");
+    await p.locator(".rt-hud .rt-sound").click();
+    assert.equal(await p.locator(".rt-hud .rt-sound").getAttribute("aria-pressed"), "true", "Ton aus im HUD");
     assert.deepEqual(await axe(p, "rt-" + view), []);
     assert.ok(await noOverflow(p));
     assert.deepEqual(errs, []);
@@ -51,12 +54,12 @@ test("Echtzeit-Buehne mit reduzierter Bewegung und dunklem Schema: axe, keine Fe
 for (const view of ["phone360", "phone412", "desk1280"]) {
   test("Widgets " + view + ": axe ohne Verstoesse, kein Ueberlauf, Tastatur waehlt und sendet, grosse Schrift", async () => {
     const { p, errs } = await openPage(wUrl, { view });
-    await p.locator(".w-pick").waitFor();
+    await p.locator(".wg-pick").waitFor();
     assert.deepEqual(await axe(p, "widgets-" + view), []);
     assert.ok(await noOverflow(p), "kein waagerechter Ueberlauf");
-    await p.locator(".w-pick .opt").first().focus(); await p.keyboard.press("Enter");
-    await p.locator(".w-pick .opt").nth(1).focus(); await p.keyboard.press("Enter");
-    await p.locator(".w-pick .w-go").click();
+    await p.locator(".wg-pick .opt").first().focus(); await p.keyboard.press("Enter");
+    await p.locator(".wg-pick .opt").nth(1).focus(); await p.keyboard.press("Enter");
+    await p.locator(".wg-pick .w-go").click();
     assert.deepEqual(await p.evaluate(() => window.__sent[0]), { t: "answer", seat: 0, a: [0, 1] });
     await p.evaluate(() => document.documentElement.style.setProperty("font-size", "137.5%"));
     assert.ok(await noOverflow(p), "grosse Schrift ohne Ueberlauf");
