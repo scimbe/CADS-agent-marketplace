@@ -102,11 +102,13 @@ export function createMatch(card, o) {
  * bei der Aufnahme: Bot mit gleicher Stufe) und vergleicht Endhash und Stand. Ehrlich ablehnen, nie raten.
  */
 export function verifyGhost(card, w) {
-  const n = card.manifest.players.max, q = w.q;
-  // Review M4: Geist-Sitz gueltig, Rollen der Aufnahme Pflicht (genau ein Geist an q), Stand je Sitz
+  // Review M4: Geist-Sitz gueltig, Rollen der Aufnahme Pflicht (genau ein Geist an q), Stand je Sitz. Sitzzahl = die der
+  // Aufnahme (rl), im Rahmen players.min..max: Karten mit 1–2 Sitzen nehmen allein mit einem Sitz auf (Baukasten, B).
+  const P = card.manifest.players, n = Array.isArray(w.rl) ? w.rl.length : 0, q = w.q;
+  if (n < P.min || n > P.max || w.rl.filter((r) => r === "ghost").length !== 1) return { ok: false, reason: "geist", detail: "Rollen" };
   if (!Number.isInteger(q) || q < 0 || q >= n) return { ok: false, reason: "geist", detail: "Sitz" };
-  if (!Array.isArray(w.rl) || w.rl.length !== n || w.rl.filter((r) => r === "ghost").length !== 1) return { ok: false, reason: "geist", detail: "Rollen" };
-  if (!Array.isArray(w.sc) || w.sc.length !== n) return { ok: false, reason: "geist", detail: "Stand" };
+  // Stand je spielendem Sitz (allein: ein Eintrag, auch bei zwei Sitzplaetzen); genau verglichen wird nach dem Nachspielen
+  if (!Array.isArray(w.sc) || w.sc.length < 1 || w.sc.length > n || !w.sc.every(Number.isFinite)) return { ok: false, reason: "geist", detail: "Stand" };
   const bytes = T.fromB64url(w.tr);
   if (!bytes) return { ok: false, reason: "geist" };
   if (w.rl[q] !== "ghost" || w.rl.some((r, s) => s !== q && !["bot", "none"].includes(r))) return { ok: false, reason: "geist", detail: "Rollen" };
@@ -117,6 +119,6 @@ export function verifyGhost(card, w) {
   if (mt.tick !== w.n) return { ok: false, reason: "abweichung", detail: "Ticks" };
   if (mt.hash().slice(0, 16) !== w.h) return { ok: false, reason: "abweichung", detail: "Hash" };
   const sc = mt.status().score;
-  if (w.sc.some((v, i) => sc[i] !== v)) return { ok: false, reason: "abweichung", detail: "Stand" };
+  if (!Array.isArray(sc) || sc.length !== w.sc.length || w.sc.some((v, i) => sc[i] !== v)) return { ok: false, reason: "abweichung", detail: "Stand" };
   return { ok: true, bytes, ticks: w.n, score: sc, seat: q };
 }
