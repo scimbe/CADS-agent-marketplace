@@ -21,7 +21,7 @@ export const TX = {
     wWinT: "{c} gewinnt: höchster Trumpf im Stich.", wWin: "{c} gewinnt: höchste {s} im Stich.", wFirst: "{c} gewinnt: zwei gleiche Karten, die zuerst gespielte zählt.",
     wDulle: "{c} gewinnt: Hausregel, die zweite Dulle sticht die erste.", wOrder: "Trumpf von oben: {o} …", wNoTrump: "Kein Trumpf in diesem Spiel.", trumpW: "Trumpf",
     bsDeclare: "Sag das Spiel an:", bsHow: "Skat zu zweit: 8 Stapel, je eine Karte offen auf einer verdeckten. Vorhand sagt an, 61 Augen gewinnen.",
-    total: "Gesamt", hand: "Spiel {h} von {n}", myHand: "Deine Karten", trick: "Stich", stacksOf: "Stapel von {n}", openHand: "Offene Karten von {n}",
+    total: "Gesamt", hand: "Spiel {h} von {n}", games: "{n} Spiele", myHand: "Deine Karten", trick: "Stich", stacksOf: "Stapel von {n}", openHand: "Offene Karten von {n}",
     over: "Partie vorbei", wait: "Warte auf {n} …", lastHand: "Letztes Spiel", nextWait: "Bereit für das nächste Spiel?", hidden: "verdeckt", empty: "leer" },
   en: { doko: "Doppelkopf", skat: "Skat", bauernskat: "Bauernskat", shuffle: "Shuffling together …", keys: "Dealing …", open: "Turning a card …",
     turnYou: "Your turn", turnOf: "{n}'s turn", you: "You", seat: "Seat {n}", next: "Next game", end: "Stop",
@@ -40,7 +40,7 @@ export const TX = {
     wWinT: "{c} wins: highest trump in the trick.", wWin: "{c} wins: highest {s} in the trick.", wFirst: "{c} wins: two equal cards, the first one played counts.",
     wDulle: "{c} wins: house rule, the second Heart Ten beats the first.", wOrder: "Trumps from the top: {o} …", wNoTrump: "No trumps in this game.", trumpW: "trump",
     bsDeclare: "Name the game:", bsHow: "Skat for two: 8 stacks, each one card face up on one face down. Forehand names the game, 61 card points win.",
-    total: "Total", hand: "Game {h} of {n}", myHand: "Your cards", trick: "Trick", stacksOf: "{n}'s stacks", openHand: "{n}'s open cards",
+    total: "Total", hand: "Game {h} of {n}", games: "{n} games", myHand: "Your cards", trick: "Trick", stacksOf: "{n}'s stacks", openHand: "{n}'s open cards",
     over: "Match over", wait: "Waiting for {n} …", lastHand: "Last game", nextWait: "Ready for the next game?", hidden: "face down", empty: "empty" }
 };
 
@@ -54,10 +54,12 @@ export function tableView(T, manifest, obs, seat, ctx) {
   const pc = (code, o = {}) => ({ t: "pcard", code: code || null, a11y: code ? cn(code) : X.hidden, size: o.size || "m", state: o.state || "none", ...(o.input ? { submit: o.input } : {}) });
   const kids = [];
   if (ctx.preview) {
-    const fan = game === "skat" ? ["CJ", "SJ", "HA", "DT"] : game === "bauernskat" ? ["DJ", "SA", "HT", "CJ"] : ["HT", "CQ", "SQ", "DA"];
+    // Vorschau und Thumbnail: der Spielname, ein Faecher aus fuenf Karten, darunter kurz die eingestellten Regeln
+    const fan = game === "skat" ? ["CJ", "SJ", "HJ", "HA", "HT"] : game === "bauernskat" ? ["DJ", "SA", "HT", "CJ", "CA"] : ["HT", "CQ", "SQ", "DA", "DT"];
     kids.push({ t: "text", role: "title", text: X[game] });
-    kids.push({ t: "row", wrap: false, children: fan.map((c) => pc(c, { size: "m" })) });
-    kids.push({ t: "text", role: "body", text: (manifest.howto && manifest.howto[L]) || "", part: "regeln" });
+    kids.push({ t: "row", wrap: false, children: fan.map((c) => pc(c, { size: "l" })) });
+    const rules = (pub.rules || []).length ? pub.rules.map((k) => t("r_" + k)).join(" · ") : X.houseNone;
+    kids.push({ t: "text", role: "body", text: t("games", { n: pub.runden }) + " · " + rules, part: "regeln" });
     return { t: "stack", children: kids };
   }
   const pt = T.protoTurn(pub), mine = pt && pt.seat === seat, moves = T.moves(obs, seat);
