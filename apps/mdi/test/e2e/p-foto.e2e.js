@@ -38,7 +38,8 @@ for (const [id, part, view, min] of [["foto-alien", "foto", "phone390", 0.2], ["
   test(id + " " + view + ": Foto waehlen, Karte zeigt es (Pixelprobe), der Link traegt es nicht, Empfaenger sieht es nicht", async () => {
     const A = await open(b, { view, before: clock(new Date("2026-12-05T09:00:00Z")) });
     await act(A.p, "open-" + id); await waitScreen(A.p, "card-view");
-    assert.equal(await magenta(A.p), 0, "ohne Foto kein Magenta");
+    // ohne Foto: Platzhalter (Bot-Gesicht, Glitch) kann vereinzelt magentaartige Pixel haben, das Foto bringt >= min
+    const base = await magenta(A.p); assert.ok(base < 0.01, "ohne Foto kaum Magenta: " + base);
     await pickPhoto(A.p, part);
     const m = await waitMagenta(A.p, min);
     assert.ok(m >= min, id + ": Foto auf der Leinwand, Anteil " + m);
@@ -51,7 +52,7 @@ for (const [id, part, view, min] of [["foto-alien", "foto", "phone390", 0.2], ["
     await waitScreen(B.p, "receive-show");
     if (id === "advent-tuer") { await B.p.getByRole("button", { name: "Türchen 5 öffnen" }).click(); await B.p.locator("canvas").first().waitFor(); }
     await B.p.waitForTimeout(500);
-    assert.equal(await magenta(B.p), 0, "Empfaenger hat das Foto nicht");
+    const rx = await magenta(B.p); assert.ok(rx < 0.01, "Empfaenger hat das Foto nicht: " + rx);
     assert.deepEqual([...A.errs, ...B.errs], []);
   });
 }
