@@ -2,6 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { generate, discover, GenError } from "../scripts/gen.js";
@@ -29,7 +30,7 @@ test("Register: entdeckt alle Kartenordner aus den Manifesten (keine Handpflege)
 });
 
 function tmpCards(files) {
-  const base = fs.mkdtempSync(path.join(ROOT, "test", ".tmp-gen-"));
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "mdi-gen-"));
   for (const [f, s] of Object.entries(files)) { const p = path.join(base, f); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, typeof s === "string" ? s : Buffer.isBuffer(s) ? s : JSON.stringify(s)); }
   return base;
 }
