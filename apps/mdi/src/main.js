@@ -123,6 +123,8 @@ function draw(state, info) {
     // Bildschirmwechsel: Fokus an den Hauptbereich (Screenreader liest den neuen Inhalt)
     const m = root.querySelector("#main"); if (m && !m.contains(document.activeElement)) m.focus({ preventScroll: true });
   }
+  // Echtzeit-Buehne fuellt den Bildschirm: beim Eintritt oben beginnen (sonst bleibt der Scroll der Kartenansicht, Befund A)
+  if (nowLeaf.startsWith("card.rt.") && beforeLeaf !== null && !beforeLeaf.startsWith("card.rt.")) window.scrollTo(0, 0);
   // Heimseite: neue Unterseite (Familie, Regal, Meins, Reiter) beginnt oben, wie ein Bildschirmwechsel
   const hb = info && info.before && info.before.ctx.home, hn = state.ctx.home;
   if (hb && hn && nowLeaf === "shelf" && beforeLeaf === "shelf" && (hb.at !== hn.at || hb.intent !== hn.intent || hb.mtab !== hn.mtab || hb.rtab !== hn.rtab)) { window.scrollTo(0, 0); const m = root.querySelector("#main"); if (m) m.focus({ preventScroll: true }); }
