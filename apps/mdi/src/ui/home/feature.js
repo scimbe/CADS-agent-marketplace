@@ -4,7 +4,7 @@
 import * as R from "./rotation.js";
 import * as S from "./store.js";
 import { partOf } from "../../gen/fparts.js";
-import { cardOf } from "../../cards/index.js";
+import { cardOf, validParams } from "../../cards/index.js";
 import { fragmentOf } from "./shortlink.js";
 import * as G from "../../app/game.js";
 import { ORDER } from "../../cards/index.js";
@@ -132,6 +132,13 @@ export const actions = {
     const c = M(ctx, m); saveFx(c, emit); return c;
   },
   homeNoteClear: (ctx) => H(ctx, { note: null }),
+  // Level-Regler in der Startansicht (Board GFlugStart): nur Parameter mit benannten Stufen (x-steps), nur Stufenwerte, Schema geprueft
+  levelStep: (ctx, ev) => {
+    const c = G.card(ctx), p = c && c.manifest.params.properties[ev.key], st = p && p["x-steps"];
+    if (!st || !Array.isArray(st.values) || !st.values.includes(ev.value)) return ctx;
+    const next = { ...G.paramsOf(ctx), [ev.key]: ev.value };
+    return validParams(ctx.cardId, next) ? { ...ctx, params: { ...ctx.params, [ctx.cardId]: next } } : ctx;
+  },
   // Wetter im Editor (Feld weather, Strang P): Tag als Datum aus dem Ereignis-Zeitpunkt, der Server liefert echte Zahlen
   wxGet: (ctx, ev, emit) => {
     if (typeof ev.key !== "string" || !ev.place) return { ...ctx, wx: { key: ev.key, st: "blocked" } };
@@ -200,4 +207,4 @@ export const profileLocal = (ctx) => (ctx.mine ? { wall: S.wallForServer(ctx.min
 // Teile ausserhalb des Kerns (src/app/feature-parts.json): Satz und Suche (home-find); Story/Wand-Bild laedt der Effekt selbst
 export const needParts = (ev) => (ev.type === "UNDERSTAND" || ev.type === "QUERY" ? ["home-find"] : []);
 
-export const home = { id: "home", shelfOn, on: { inhalt: inhaltOn, "inhalt.card.share": { SHARE_IMAGE: { actions: ["shareImage"] } }, "inhalt.card.customize.dialog": { WX_GET: { actions: ["wxGet"] }, PHOTO_PUT: { actions: ["photoPut"] } } }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };
+export const home = { id: "home", shelfOn, on: { inhalt: inhaltOn, "inhalt.card.view": { LEVEL_STEP: { actions: ["levelStep"] } }, "inhalt.card.share": { SHARE_IMAGE: { actions: ["shareImage"] } }, "inhalt.card.customize.dialog": { WX_GET: { actions: ["wxGet"] }, PHOTO_PUT: { actions: ["photoPut"] } } }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };

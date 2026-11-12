@@ -81,6 +81,31 @@ export function actionsOf(state) {
 function arOf(tree) { const m = tree && typeof tree.ratio === "string" && /^(\d{1,2}):(\d{1,2})$/.exec(tree.ratio); return m ? String(Number(m[1]) / Number(m[2])) : null; }
 function stage(node, extra = {}, tree = null) { const ar = arOf(tree); return h("div", { class: "stage", id: "stage", ...extra, ...(ar ? { style: { "--ar": ar } } : {}) }, node); }
 
+/** Startansicht (Board GFlugStart, Integrator): Parameter mit benannten Stufen (x-steps) als Regler mit -/+ (>= 48 px),
+ *  Stufenname sichtbar und als aria-valuetext; Varianten mit "chip" (Manifest) als Chips (OPEN {id, variant}). Generisch. */
+export function levelBox(card, ctx, dispatch) {
+  const lang = ctx.lang, L = (o) => (o && typeof o === "object" ? o[lang] || o.de : o), props = card.manifest.params.properties;
+  const keys = Object.keys(props).filter((k) => props[k]["x-steps"] && Array.isArray(props[k]["x-steps"].values) && props[k]["x-steps"].values.length > 1);
+  const chips = (card.manifest.variants || []).filter((v) => v.chip);
+  if (!keys.length && !chips.length) return null;
+  const P = keys.length ? G.paramsOf(ctx) : {};
+  const v = (card.manifest.variants || []).find((x) => x.id === ctx.variant), Y = lang === "en" ? { less: "less", more: "more", level: "Level" } : { less: "weniger", more: "mehr", level: "Level" };
+  const rows = keys.map((k) => {
+    const st = props[k]["x-steps"], names = (st.names && (st.names[lang] || st.names.de)) || st.values.map(String), label = L(props[k]["x-label"]) || k;
+    let at = 0; st.values.forEach((x, i) => { if (Math.abs(x - P[k]) < Math.abs(st.values[at] - P[k])) at = i; });
+    const to = (i) => dispatch({ type: "LEVEL_STEP", key: k, value: st.values[i] }), id = "lv-" + k;
+    return h("div", { class: "lv-row", key: k },
+      h("label", { class: "lv-l", for: id }, label),
+      h("button", { type: "button", class: "lv-b", "aria-label": label + " " + Y.less, "data-act": "lv-minus-" + k, disabled: at === 0 || null, on: { click: () => to(at - 1) } }, "−"),
+      h("input", { id, class: "lv-r", type: "range", min: "0", max: String(st.values.length - 1), step: "1", value: String(at), "aria-valuetext": names[at], on: { input: (e) => to(Number(e.target.value)) } }),
+      h("button", { type: "button", class: "lv-b", "aria-label": label + " " + Y.more, "data-act": "lv-plus-" + k, disabled: at === st.values.length - 1 || null, on: { click: () => to(at + 1) } }, "+"),
+      h("span", { class: "lv-n", "aria-hidden": "true" }, names[at]));
+  });
+  return h("section", { class: "lv-box", key: "level", "aria-label": L(v && v.title) || Y.level },
+    h("p", { class: "lv-t" }, L(v && v.title) || Y.level), ...rows,
+    chips.length ? h("div", { class: "lv-chips", role: "group", "aria-label": L(card.manifest.title) }, chips.map((c) => h("button", { type: "button", class: "chip", key: c.id, "data-act": "lv-var-" + c.id, "aria-pressed": c.id === ctx.variant ? "true" : "false", on: { click: () => dispatch({ type: "OPEN", id: card.manifest.id, variant: c.id }) } }, L(c.chip)))) : null);
+}
+
 function radios(name, label, items, value, onPick) {
   const id = label ? "lbl-" + name : "dlg-title";
   return h("div", { class: "seg", role: "radiogroup", "aria-labelledby": id, key: name },
@@ -205,6 +230,7 @@ export function view(state, dispatch, env = {}) {
   } else if (L === "card.view") {
     const modes = modesOf(card), isStatic = card.manifest.mode === "static";
     body = [stage(preview, {}, tree)];
+    panel.push(levelBox(card, ctx, dispatch));   // Board GFlugStart: Level mit -/+ und Stufennamen, Varianten-Chips
     panel.push(radios("mode", isStatic ? X.send : X.mode, modes.map((x) => ({ value: x, label: X.modes[x] })), ctx.mode, (mode) => dispatch({ type: "MODE", mode })));
     panel.push(h("p", { class: "hint", key: "mode-hint" }, X.modeHint[ctx.mode]));
     if (!isStatic && ctx.mode !== "alone" && card.manifest.players.max > 1) {
@@ -257,11 +283,19 @@ export function view(state, dispatch, env = {}) {
       const live = render(node, { onInput: (input) => dispatch({ type: "INPUT", input }), onDraft: (draft) => dispatch({ type: "DRAFT", draft }), onDraftPatch: (patch) => dispatch({ type: "DRAFT", patch }), high: env.high, onAction: (x) => dispatch({ type: "ACT", ...x }), onMemo: (memo) => dispatch({ type: "MEMO", memo }), onPrepare: (n) => dispatch({ type: "PREPARE", draft: n && n.draft !== undefined ? n.draft : undefined }), draft: ctx.draft, lang: ctx.lang, age18: G.viewCtx(ctx).age18, nick: G.viewCtx(ctx).nick, disabled: phase !== "turn", idp: "g", random: env.random, clock: env.clock, audio: env.audio, cardSvg: env.cardSvg, images: env.images, reduced: env.reduced });
       const lines = [];
       // Wer bin ich, wie weit (13 §6.4 Punkt 7): mit Zugnummer, wenn die Karte sie meldet (Zugvertrag v0.2 status.turnNo/turns)
-      if (card.manifest.players.max > 1 && ctx.mode !== "alone") lines.push(h("p", { class: "seat", key: "seat" }, fmt(X.yourSeat, { s: seatName(card, ctx.lang, seat) }) + (Number.isInteger(st.turnNo) && Number.isInteger(st.turns) ? " · " + fmt(ctx.lang === "en" ? "Turn {n} of {m}" : "Zug {n} von {m}", { n: st.turnNo, m: st.turns }) : "")));
+      // Board Bote1: Leiste "Du bist dran" mit Zug-Plakette und "Regeln" (natives Aufklappen, kein Zustand)
+      const turnPill = Number.isInteger(st.turnNo) && Number.isInteger(st.turns) ? fmt(ctx.lang === "en" ? "Turn {n} of {m}" : "Zug {n} von {m}", { n: st.turnNo, m: st.turns }) : null;
+      const who = card.manifest.players.max > 1 && ctx.mode !== "alone" ? fmt(X.yourSeat, { s: seatName(card, ctx.lang, seat) }) : null;
+      const rule = card.manifest.rule ? (card.manifest.rule[ctx.lang] || card.manifest.rule.de) : null;
+      if (phase === "turn" || phase === "wait") lines.push(h("div", { class: "play-bar", key: "pbar" },
+        h("p", { class: "play-bar-s", role: "status" }, phase === "turn" ? X.yourTurnNow : X.waitShort, who ? h("span", { class: "play-bar-w" }, " · " + who) : null),
+        turnPill ? h("span", { class: "pill", key: "pill" }, turnPill) : null));
+      else if (who) lines.push(h("p", { class: "seat", key: "seat" }, who + (turnPill ? " · " + turnPill : "")));
+      if (rule && (phase === "turn" || phase === "wait")) lines.push(h("details", { class: "play-rules", key: "rules" }, h("summary", { "data-act": "rules" }, X.rules), h("p", null, rule)));
       // Spielweise im Spielkopf (Board Bote1, Folge-PR 2): wechselbar bis zum ersten Zug, danach gesperrt mit Grund (MODE, Waechter modeOpen bei F)
       if ((phase === "turn" || phase === "wait") && ctx.mode !== "live") {
         const offer = playOf(card, ctx.variant).offer.filter((x) => x !== "live"), locked = G.movesMade(ctx) > 0;
-        if (offer.length > 1 && offer.includes(ctx.mode)) lines.unshift(h("div", { class: "play-modes", key: "pm" },
+        if (offer.length > 1 && offer.includes(ctx.mode)) lines.splice(lines.length && lines[0].key === "pbar" ? 1 : 0, 0, h("div", { class: "play-modes", key: "pm" },
           h("div", { class: "pm-seg", role: "group", "aria-label": X.mode }, offer.map((x) => h("button", { type: "button", class: "pm-opt", key: x, "data-act": "pm-" + x, "aria-pressed": x === ctx.mode ? "true" : "false", disabled: (locked && x !== ctx.mode) || null, on: { click: () => dispatch({ type: "MODE", mode: x }) } }, X.modes[x]))),
           h("p", { class: "hint", key: "pm-h" }, locked ? X.note["modus-gesperrt"] : X.modeSwitch)));
       }

@@ -300,3 +300,31 @@ test("Board Desktop: Suchfeld in der Kopfzeile nur breit (Umgebung wide), Tippen
   assert.equal((rw.match(/"id":"h-q"/g) || []).length, 1, "breit genau ein Suchfeld (oben), im Regal nicht doppelt");
   assert.ok(texts(s).includes('"class":"h-ico h-line"'), "Strich-Symbole");
 });
+
+test("Startansicht Flug (Board GFlugStart): Level-Regler mit -/+ und Stufennamen; LEVEL_STEP setzt nur Stufenwerte; Spielkopf mit Leiste und Regeln", () => {
+  let s = go(start(), { type: "OPEN", id: "flug", variant: "spiel-lava" });
+  const t = texts(s);
+  for (const k of ["gravity", "jump", "gap", "speed"]) assert.ok(t.includes('"data-act":"lv-minus-' + k + '"') && t.includes('"data-act":"lv-plus-' + k + '"'), k);
+  assert.ok(t.includes('"aria-valuetext"'), "Vorlesehilfe nennt die Stufe");
+  const g0 = s.ctx.params.flug ? s.ctx.params.flug.gravity : null;
+  const r = go(s, { type: "LEVEL_STEP", key: "gravity", value: 900 });
+  assert.equal(r.ctx.params.flug.gravity, 900); assert.ok(texts(r).includes("Mond"), "Stufenname");
+  const bad = go(r, { type: "LEVEL_STEP", key: "gravity", value: 1000 });
+  assert.equal(bad.ctx.params.flug.gravity, 900, "nur Stufenwerte");
+  assert.notEqual(g0, undefined);
+  let p = go(start(), { type: "OPEN", id: "zug-einkauf", start: true });
+  const pt = texts(p);
+  assert.ok(pt.includes("Du bist dran") && pt.includes('"class":"play-bar"') && pt.includes("Regeln"), "Leiste und Regeln");
+});
+
+test("Varianten-Chips: nur Varianten mit chip (Manifest), Wechsel per OPEN {id, variant}", async () => {
+  const { levelBox } = await import("../src/ui/view.js");
+  const card = { manifest: { id: "flug", title: { de: "Flug" }, params: { properties: {} }, variants: [{ id: "a", chip: { de: "Klassisch" } }, { id: "b" }, { id: "c", chip: { de: "Mond", en: "Moon" } }] } };
+  const sent = [], n = levelBox(card, { lang: "de", variant: "a", params: {}, cardId: "flug" }, (e) => sent.push(e));
+  const find = (x, pred, out = []) => { if (!x || typeof x !== "object") return out; if (pred(x)) out.push(x); for (const c of x.children || []) find(c, pred, out); return out; };
+  const chips = find(n, (x) => x.props && /^lv-var-/.test(x.props["data-act"] || ""));
+  assert.deepEqual(chips.map((c) => c.children[0]), ["Klassisch", "Mond"]);
+  assert.equal(chips[0].props["aria-pressed"], "true");
+  chips[1].props.on.click(); assert.deepEqual(sent, [{ type: "OPEN", id: "flug", variant: "c" }]);
+  assert.equal(levelBox({ manifest: { params: { properties: {} }, variants: [{ id: "x" }] } }, { lang: "de", params: {} }, () => {}), null, "ohne Stufen und Chips nichts");
+});

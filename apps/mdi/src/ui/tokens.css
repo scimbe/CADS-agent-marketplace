@@ -466,6 +466,25 @@ textarea.input { resize: vertical; }
 .h-headsearch { display: flex; align-items: center; gap: 8px; width: min(460px, 36vw); min-height: 48px; margin-right: 16px; padding: 0 12px; border: 3px solid var(--ink); border-radius: 14px; background: var(--sheet); color: var(--ink); align-self: center; }
 .h-headsearch .h-input { flex: 1; min-width: 0; height: 42px; border: 0; background: transparent; color: inherit; font: 400 var(--t-m)/1.2 var(--font-body); }
 .h-headsearch .h-input:focus-visible { outline: none; } .h-headsearch:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* Startansicht Level (Board GFlugStart): Regler mit -/+ (48 px), Stufenname rechts, Varianten-Chips */
+.lv-box { display: grid; gap: 8px; padding: 12px; border: 2px solid var(--ink); border-radius: 16px; }
+.lv-t { margin: 0; font: 800 var(--t-m)/1.2 var(--font-body); }
+.lv-row { display: grid; grid-template-columns: minmax(64px, 96px) var(--tap) minmax(0, 1fr) var(--tap) minmax(56px, auto); gap: 6px; align-items: center; }
+.lv-l { font-weight: 700; font-size: var(--t-s); }
+.lv-b { min-width: var(--tap); min-height: var(--tap); border: 3px solid var(--ink); border-radius: 12px; background: var(--sheet); color: var(--ink); font: 800 1.375rem/1 var(--font-body); cursor: pointer; }
+.lv-b:disabled { opacity: .45; cursor: not-allowed; }
+.lv-r { width: 100%; min-width: 0; height: 32px; accent-color: var(--ink); }
+.lv-n { font-weight: 800; font-size: var(--t-s); text-align: right; }
+.lv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Spielkopf (Board Bote1): dunkle Leiste "Du bist dran" mit Zug-Plakette; Regeln zum Aufklappen */
+.play-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 -16px; padding: 8px 16px; background: #17140F; color: #FBF5DD; }
+.play-bar-s { margin: 0; font-weight: 800; font-size: var(--t-s); }
+.play-bar-w { font-weight: 700; }
+.play-bar .pill { flex: none; padding: 2px 10px; border-radius: 999px; background: var(--gelb); color: #17140F; font-weight: 800; font-size: var(--t-s); }
+.play-rules > summary { min-height: var(--tap); display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 2px solid var(--ink); border-radius: 999px; font-weight: 800; cursor: pointer; }
+.play-rules > p { margin: 8px 0 0; }
+/* Board Desktop: Absichten als 6er-Reihe (ab 1100 px, sonst passt der Text nicht) */
+@media (min-width: 1100px) { .h-intents { grid-template-columns: repeat(6, minmax(0, 1fr)); } .h-intents .h-intent { grid-template-columns: auto; justify-items: start; row-gap: 4px; } }
 /* ================= Dunkelmodus (Canvas v54 „Start dunkel“): Flaechen mit fester heller Farbe behalten dunkle Tinte,
    Kopfzeile dunkel mit gelber Schrift, Hauptknopf gelb. Steht am Ende, damit es die hellen Regeln uebersteuert. */
 @media (prefers-color-scheme: dark) {
