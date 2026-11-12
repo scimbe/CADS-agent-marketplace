@@ -1,9 +1,10 @@
-// Laeuft durch alle D0-Zustaende und ruft cb(name, page) je Zustand (fuer axe, Ueberlauf, Screenshots).
+// Laeuft durch alle D0-Zustaende und die Heimseite und ruft cb(name, page) je Zustand (fuer axe, Ueberlauf, Screenshots).
 import fs from "node:fs";
 import path from "node:path";
 import { open, act, waitScreen, screen } from "./grund.mjs";
 import { pickMode, pickSeat, liveInvite } from "./scenarios.mjs";
 import { ROOT } from "./grund.mjs";
+import { visitHome } from "./home-states.mjs";
 
 const VEC = JSON.parse(fs.readFileSync(path.join(ROOT, "test/fixtures/link-vectors.json"), "utf8"));
 
@@ -11,6 +12,7 @@ export async function visitAll(b, o, cb) {
   const errs = [];
   const A = await open(b, o); errs.push(A.errs);
   const p = A.p;
+  await visitHome(p, cb, o.lang); // Heimseite (Strang H)
   await cb("01-regal", p);
   await act(p, "open-gruss"); await waitScreen(p, "card-view"); await cb("02-gruss-ansehen", p);
   await act(p, "customize"); await waitScreen(p, "card-customize-bubbles"); await cb("03-gruss-blasen", p);

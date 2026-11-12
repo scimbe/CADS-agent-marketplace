@@ -74,14 +74,14 @@ export function createApi(deps) {
   }
 
   /** -> {status, body} | Fehler "nicht-hier"/"netz" */
-  async function call(method, path, body, opt) {
+  async function call(method, path, body, opt) {   // opt: { headers?, zeit? }
     if (native) return viaApp(method, path, body);
     if (!here) return fail("nicht-hier");
     const ctl = typeof AbortController === "function" ? new AbortController() : null;
     const t = ctl ? setTimeout(() => ctl.abort(), timeout) : null;
     try {
       const r = await doFetch(path, { method, credentials: "same-origin", referrerPolicy: "no-referrer", cache: "no-store", redirect: "error",
-        headers: body !== undefined ? { "Content-Type": "application/json" } : {}, body: body !== undefined ? JSON.stringify(body) : undefined, signal: ctl ? ctl.signal : undefined });
+        headers: { ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...((opt && opt.headers) || {}) }, body: body !== undefined ? JSON.stringify(body) : undefined, signal: ctl ? ctl.signal : undefined });
       let j = null; try { j = await r.json(); } catch (e) { j = null; }
       return { status: r.status, body: j };
     } catch (e) { return fail(opt && opt.zeit && e && e.name === "AbortError" ? "zeit" : "netz"); }   // zeit: Strang K, nur raw()
@@ -226,6 +226,37 @@ export function createApi(deps) {
   const appOp = async (op) => { const r = await native.call({ op }); return r && r.ok === true ? { ok: true, signedIn: r.signedIn === true } : fail("nicht-hier"); };
   const app = native ? { login: () => appOp("login"), logout: () => appOp("logout") } : null;
 
+  // ---- Kurzlinks (Strang H; Server: CADS-DEMO-wrapper lib/shortlink.mjs) ----
+  // POST /api/s { f, k, l } -> 201 { id, url, token, exp }. f ist das Fragment ohne "#", nur v2.card./v2.challenge.
+  // (src/ui/home/shortlink.js SAFE; Live-Einladungen tragen ein Einmal-Token und gehen nie an den Server).
+  const SHORT_ID = /^[2-9a-km-np-zA-HJ-NP-Z]{8}$/;
+  /** -> { ok:true, s:{id, token, exp, url} } | Fehler form (Server kennt die Form nicht, 400) | limit | aus | server | netz | nicht-hier */
+  async function shortCreate(f, k, l) {
+    const r = await call("POST", "/api/s", { f, k, l });
+    if (!r.status) return r;
+    if (r.status === 400) return fail("form", 400);
+    if (r.status !== 201) return common(r.status, r.body);
+    const j = r.body;
+    if (!isObj(j) || !SHORT_ID.test(j.id) || typeof j.token !== "string" || !Number.isSafeInteger(j.exp) || typeof j.url !== "string" || !/^https?:\/\/[^\s#]+\/s\/[2-9a-km-np-zA-HJ-NP-Z]{8}$/.test(j.url) || !j.url.endsWith("/s/" + j.id)) return fail("server", 201);
+    return { ok: true, s: { id: j.id, token: j.token, exp: j.exp, url: j.url } };
+  }
+  /** DELETE /api/s/<id> mit Bearer-Token -> { ok:true } (204, oder 404/410: schon weg) | Fehler */
+  async function shortDelete(id, token) {
+    if (!SHORT_ID.test(id)) return fail("server");
+    const r = await call("DELETE", "/api/s/" + id, undefined, { headers: { Authorization: "Bearer " + token } });
+    if (!r.status) return r;
+    return r.status === 204 || r.status === 404 || r.status === 410 ? { ok: true } : common(r.status, r.body);
+  }
+  /** GET /api/s/<id> -> { ok:true, f, exp } | Fehler weg (404/410) */
+  async function shortResolve(id) {
+    if (!SHORT_ID.test(id)) return fail("server");
+    const r = await call("GET", "/api/s/" + id);
+    if (!r.status) return r;
+    if (r.status === 404 || r.status === 410) return fail("weg", r.status);
+    if (r.status !== 200 || !isObj(r.body) || typeof r.body.f !== "string" || !Number.isSafeInteger(r.body.exp)) return fail("server", r.status);
+    return { ok: true, f: r.body.f, exp: r.body.exp };
+  }
+
   // ---- Strang K (freie Karte, KI, Deck, KI-Bild): additiv. Die Dienste in src/broker/ai.js, deck.js, bild.js bilden die
   // Antworten selbst ab; hier steht nur der Transport, damit fetch weiter genau an dieser Stelle steht (build.test). ----
   const RAW_PATHS = /^\/api\/duell\/(ai(\/(status|accept|discard))?|queue|report|deck(\/(key|use|vote|me))?|deck\/status\?c=[A-Za-z0-9_-]{22}(&d=[A-Za-z0-9_-]{43})?|bild(\/(status|job|cancel|keep|avatar))?)$/;
@@ -250,5 +281,5 @@ export function createApi(deps) {
     } catch (e) { return fail("netz"); }
   }
 
-  return { here, app, status, me, loginHref, logoutFrom, profileGet, profilePut, profileDelete, redeem, modMe, appeal, raw, image };
+  return { here, app, status, me, loginHref, logoutFrom, profileGet, profilePut, profileDelete, redeem, modMe, appeal, raw, image, shortCreate, shortDelete, shortResolve };
 }
