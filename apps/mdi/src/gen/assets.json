@@ -43,6 +43,10 @@
     "assets": [],
     "thumbs": []
   },
+  "beat-disco": {
+    "assets": [],
+    "thumbs": []
+  },
   "beat-pausenhof": {
     "assets": [],
     "thumbs": []
@@ -56,6 +60,10 @@
         "bytes": 12750
       }
     ]
+  },
+  "duell-liest": {
+    "assets": [],
+    "thumbs": []
   },
   "flug": {
     "assets": [],
@@ -173,7 +181,15 @@
     "assets": [],
     "thumbs": []
   },
+  "karte-ausrede": {
+    "assets": [],
+    "thumbs": []
+  },
   "karte-danke": {
+    "assets": [],
+    "thumbs": []
+  },
+  "karte-regel": {
     "assets": [],
     "thumbs": []
   },
@@ -187,11 +203,47 @@
       }
     ]
   },
+  "mut-tierstory": {
+    "assets": [],
+    "thumbs": []
+  },
+  "mut-werbung": {
+    "assets": [],
+    "thumbs": []
+  },
   "quiz-preis": {
     "assets": [],
     "thumbs": []
   },
+  "raum-damals": {
+    "assets": [],
+    "thumbs": []
+  },
+  "raum-erklaeren": {
+    "assets": [],
+    "thumbs": []
+  },
+  "raum-maschine": {
+    "assets": [],
+    "thumbs": []
+  },
+  "raum-maus": {
+    "assets": [],
+    "thumbs": []
+  },
+  "raum-papagei": {
+    "assets": [],
+    "thumbs": []
+  },
   "raum-sorry": {
+    "assets": [],
+    "thumbs": []
+  },
+  "raum-streichen": {
+    "assets": [],
+    "thumbs": []
+  },
+  "raum-suche": {
     "assets": [],
     "thumbs": []
   },
@@ -219,6 +271,18 @@
     "assets": [],
     "thumbs": []
   },
+  "zug-auftrag": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-auktion": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-blitz": {
+    "assets": [],
+    "thumbs": []
+  },
   "zug-einig": {
     "assets": [],
     "thumbs": []
@@ -231,11 +295,51 @@
     "assets": [],
     "thumbs": []
   },
+  "zug-hoeflich": {
+    "assets": [],
+    "thumbs": []
+  },
   "zug-kapsel": {
     "assets": [],
     "thumbs": []
   },
+  "zug-kennst": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-kreis": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-lob": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-luecke": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-luege": {
+    "assets": [],
+    "thumbs": []
+  },
   "zug-malrat": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-pokal": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-rap": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-reaktion": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-recht": {
     "assets": [],
     "thumbs": []
   },
@@ -244,6 +348,22 @@
     "thumbs": []
   },
   "zug-sammeln": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-schmuggel": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-snack": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-socken": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-steine": {
     "assets": [],
     "thumbs": []
   },
@@ -263,7 +383,19 @@
     "assets": [],
     "thumbs": []
   },
+  "zug-wette": {
+    "assets": [],
+    "thumbs": []
+  },
   "zug-wichteln": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-woerter": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-wort": {
     "assets": [],
     "thumbs": []
   },

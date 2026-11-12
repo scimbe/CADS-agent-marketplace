@@ -18,9 +18,10 @@ function local(el, init) { if (!el.__w) el.__w = init(); return el.__w; }
 function send(host, n, a) { host.onInput({ ...n.submit, a }); }
 
 // ---------- Countdown-Tor (Altcode turn2.js gate) ----------
+// Die Startzeit liegt unter eigenem Schluessel "w:<id>:t0"; "w:<id>" gehoert dem Zustand des Koerpers (react/explain/tuer).
 function gate(n, host, body) {
-  const Z = Y(host), started = drafted(host, n, null);
-  if (started === null) return [h("p", { class: "w-note" }, Z.ready), h("button", { type: "button", class: "btn primary big", "data-act": "w-ready", disabled: host.disabled ? true : null, on: { click: () => setDraft(host, n, now(host)) } }, Z.go)];
+  const key = { id: n.id + ":t0" }, Z = Y(host), started = drafted(host, key, null);
+  if (typeof started !== "number") return [h("p", { class: "w-note" }, Z.ready), h("button", { type: "button", class: "btn primary big", "data-act": "w-ready", disabled: host.disabled ? true : null, on: { click: () => setDraft(host, key, now(host)) } }, Z.go)];
   return body(started);
 }
 function ticker(el, host, ms, f) { const s = local(el, () => ({})); if (s.t) return; const loop = () => { if (!el.isConnected) { s.t = null; return; } f(); s.t = setTimeout(loop, ms); }; s.t = setTimeout(loop, ms); }
