@@ -2,9 +2,11 @@
 /* eslint-disable */
 export const CODE_HASH = {
   "bluff": "87c9535399a1be510156b6fc7c6d8f1a",
+  "flug": "0e0c156aae82a3cde554ce18655e23c4",
   "geschenk-finder": "1c32c1632a208ff9f3dc5fab62657e27",
   "gruss": "5348013d7cd9f87b8d89ebe3653dcf41",
   "karte-danke": "64b234b5d549f15cfed34765a4220fd0",
+  "lauf": "586bac22a0f07998f15f4486c07655a1",
   "raum-sorry": "c21aceab589a411bf90826c17bbc5e99",
   "zug-einig": "bcfb32593d4fe65fe5bcf6cde1d6167b",
   "zug-einkauf": "91ea215b45dc259f34994b6b08d428e3",
