@@ -15,8 +15,14 @@ export const SHAPE_PATH = {
   coin: "M50 8a42 42 0 1 0 0.1 0z",
   ring: "M50 14a36 36 0 1 0 0.1 0zM50 34a16 16 0 1 1-0.1 0z",
   grid: "M10 10h34v34H10zM56 10h34v34H56zM10 56h34v34H10zM56 56h34v34H56z",
-  plus: "M40 8h20v32h32v20H60v32H40V60H8V40h32z"
+  plus: "M40 8h20v32h32v20H60v32H40V60H8V40h32z",
+  lupe: "M42 10a32 32 0 1 1 0 64 32 32 0 0 1 0-64zm0 12a20 20 0 1 0 0 40 20 20 0 0 0 0-40zm22 44l10-10 22 22-10 10z"
 };
+/** Symbol "Mein Regal" (D, Canvas v52): Strichzeichnung 24 px, Strich 2.2 */
+export function regalIcon(cls = "h-ico-s") {
+  return h("svg", { class: cls, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2.2", "stroke-linecap": "round", "aria-hidden": "true", focusable: "false" },
+    h("path", { d: "M3 3v18M21 3v18M3 12h18M3 21h18" }), h("path", { d: "M6 12V6M9 12V5M12 12V7M15 21v-6M18 21v-5" }));
+}
 export function icon(shape, cls = "h-ico") {
   return h("svg", { class: cls, viewBox: "0 0 100 100", "aria-hidden": "true", focusable: "false" }, h("path", { d: SHAPE_PATH[shape] || SHAPE_PATH.star }));
 }

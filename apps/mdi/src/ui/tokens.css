@@ -143,8 +143,13 @@ button, input, textarea { font: inherit; color: inherit; }
 
 /* Blasen und Dialog */
 .bubbles { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; }
-.bubble { position: absolute; min-height: 44px; padding: 0 var(--s4); border: 3px solid var(--ink); border-radius: var(--r3); background: var(--yellow); color: var(--ink); font-weight: 800; white-space: nowrap; cursor: pointer; box-shadow: 0 3px 0 var(--ink); }
+/* Blasen nach Design-System (.blase, Canvas v52): Pille >= 44 px, Gelb, Rahmen 3, Schatten 0 3; offen = invertiert mit gelbem Hof */
+.bubble { position: absolute; min-height: 44px; padding: 0 12px; border: 3px solid #17140F; border-radius: 999px; background: #F9D84A; color: #17140F; font: 700 var(--t-s)/1 var(--font-body); white-space: nowrap; cursor: pointer; box-shadow: 0 3px 0 #17140F; }
+.bubble[aria-expanded="true"] { background: #17140F; color: #F9D84A; box-shadow: 0 0 0 4px #F9D84A; }
+.stage.editing { margin-top: 40px; margin-bottom: 36px; }
 .bubble::before { content: "✎ "; }
+.bubble-row { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s2); }
+.bubble.inflow { position: static; }
 .stage.editing .frame, .stage.editing .stack { outline: 3px dashed var(--muted); outline-offset: 6px; }
 .layer { position: fixed; inset: 0; z-index: 20; display: grid; align-items: end; justify-items: center; }
 @media (min-width: 900px) { .layer { align-items: center; } }
@@ -195,7 +200,7 @@ textarea.input { resize: vertical; }
 /* ================= Heimseite (Strang H): Abreisskalender, Absichten, Regal, Meins ================= */
 .bar { background: var(--gelb); color: var(--ink); border-bottom: 3px solid var(--ink); }
 .bar .icon { border-color: var(--ink); background: var(--sheet); color: var(--ink); }
-.brand.home { transform: rotate(-1.5deg); font-size: 1.65rem; text-align: left; }
+.brand.home { transform: rotate(-1.5deg); font-size: 1.25rem; text-align: left; white-space: nowrap; }
 .bar-end { display: flex; gap: var(--s2); justify-self: end; }
 .h-meins { position: relative; display: grid; place-items: center; padding: 0; }
 .h-meins .h-ico { width: 22px; height: 22px; fill: var(--ink); }
@@ -263,7 +268,7 @@ textarea.input { resize: vertical; }
 
 /* Ein Satz */
 .h-ask { display: grid; gap: var(--s2); }
-.h-ask-q { font: 700 var(--t-m)/1.25 var(--font-body); }
+.h-ask-q { margin: 0; font: 700 var(--t-m)/1.25 var(--font-body); }
 .h-field { display: flex; gap: var(--s2); align-items: stretch; min-height: 56px; border: 3px solid var(--text); border-radius: 16px; background: var(--surface); padding: 4px 4px 4px 14px; }
 .h-input { flex: 1; min-width: 0; border: 0; background: transparent; font-size: var(--t-m); color: var(--text); }
 .h-input:focus-visible { outline: none; }
@@ -278,7 +283,7 @@ textarea.input { resize: vertical; }
 .h-intent-t { font-weight: 800; font-size: 1rem; line-height: 1.1; hyphens: manual; overflow-wrap: normal; min-width: 0; }
 @media (max-width: 389px) { .h-intent .h-ico { width: 20px; height: 20px; } .h-intent-t { font-size: .9375rem; } }
 .h-intent-s { font-size: .875rem; line-height: 1.15; font-weight: 600; min-width: 0; }
-.h-intent-frei { background: repeating-linear-gradient(-45deg, var(--gelb) 0 14px, var(--gelb-hell) 14px 28px); color: var(--ink); }
+.h-intent-such { background: var(--sheet); color: var(--ink); }
 .h-intent-alle { background: var(--sheet); color: var(--ink); }
 .h-intent:active, .h-frei:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
 
@@ -380,3 +385,51 @@ textarea.input { resize: vertical; }
 @media (prefers-reduced-motion: reduce) { .h-loading::before { animation: none; border-right-color: var(--ink); } }
 .s-partfail .notice { background: var(--gelb-hell); color: var(--ink); border-color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
 .s-partfail .notice .warn { color: var(--rot); }
+
+/* Gate C: beschriftete Kopfknoepfe (Mein Regal, Mein Stil), gross hervorgehobene "Eigene Karte" mit Satzfeld */
+.h-headbtn { min-width: var(--tap); min-height: var(--tap); display: inline-grid; justify-items: center; align-content: center; gap: 1px; padding: 2px 4px; border: 0; background: transparent; color: var(--ink); font: 700 .8125rem/1.05 var(--font-body); cursor: pointer; border-radius: 12px; }
+.h-aa { font: 400 1.1rem/1 var(--font-head); } .h-aa span { font-size: 1.4rem; }
+.h-ico-s { width: 24px; height: 24px; }
+.h-headbtn-i { position: relative; display: grid; place-items: center; width: 30px; height: 26px; font-size: 1.25rem; line-height: 1; }
+.h-headbtn .h-ico { width: 26px; height: 26px; fill: var(--ink); }
+.h-headbtn .h-meins-n { right: -10px; top: -6px; }
+.h-headbtn-t { white-space: nowrap; }
+/* "Neu erfinden" (D, Canvas v52 .erfinden): Tuerkis mit Tinte (7,0:1), Rahmen 3, Ecken 22, harter Schatten 6/6 */
+.h-erf { display: grid; gap: 10px; margin-top: var(--s4); padding: 0 14px 14px; border: 3px solid #17140F; border-radius: 22px; background: #17B3A3; color: #17140F; box-shadow: 6px 6px 0 #17140F; }
+.h-erf-t { margin: 14px 0 0; display: flex; align-items: center; gap: 8px; font: 400 1.875rem/1 var(--font-head); text-transform: uppercase; }
+.h-erf-sym { font-size: 28px; line-height: 1; }
+.h-erf-s { margin: 0; font-size: var(--t-s); font-weight: 700; }
+.h-erf-form { display: grid; gap: 10px; }
+.h-erf-in { min-height: 56px; padding: 10px 12px; border: 3px solid #17140F; border-radius: 14px; background: #FFFDF5; color: #17140F; font: 400 var(--t-m)/1.3 var(--font-body); resize: vertical; }
+.h-erf-in::placeholder { color: #5C5444; }
+.h-erf-in:focus-visible { outline: 3px solid #17140F; outline-offset: 2px; box-shadow: 0 0 0 7px #F9D84A; }
+.h-erf-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.h-erf-n { margin: 0; font-size: .875rem; font-weight: 700; }
+.h-erf-go { min-height: 56px; padding: 0 18px; border: 3px solid #17140F; border-radius: 16px; background: #FF3B1D; color: #17140F; font: 400 1.375rem/1 var(--font-head); text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 0 #17140F; }
+:root[style*="137.5%"] .h-erf-row { grid-template-columns: minmax(0, 1fr); }
+
+/* Ks Einstieg im Regal, schlanke Form (freiEntry compact): gelb gestreifte Zeile wie Board "Regal" */
+.frei-entry.compact { display: grid; gap: var(--s1); }
+.frei-row { display: flex; align-items: center; gap: var(--s3); width: 100%; min-height: 64px; padding: 8px 14px; border: 3px solid var(--ink); border-radius: 14px; color: var(--ink); text-align: left; cursor: pointer;
+  background: repeating-linear-gradient(-45deg, var(--gelb) 0 14px, var(--gelb-hell) 14px 28px); box-shadow: 4px 4px 0 var(--ink); }
+.frei-row-t { flex: 1; font: 800 var(--t-m)/1.2 var(--font-body); }
+.frei-row-arrow { font: 800 1.5rem/1 var(--font-body); }
+
+/* Editor-Felder (Folge-PR 2): Schritte, Sticker, Wetter, Listen aus dem Schema */
+.ef-obj, .ef-list, .ef-steps, .ef-sk, .ef-wx { display: grid; gap: var(--s3); margin: 0; padding: var(--s3); border: 2px solid var(--line); border-radius: var(--r1); min-width: 0; }
+.ef-obj legend, .ef-list legend, .ef-steps legend, .ef-sk legend, .ef-wx legend { font-weight: 700; padding: 0 4px; }
+.ef-item { display: grid; gap: var(--s2); padding-bottom: var(--s2); border-bottom: 1px dashed var(--line); }
+.ef-range { display: flex; gap: var(--s3); align-items: center; }
+.ef-range .range { flex: 1; min-width: 0; min-height: var(--tap); }
+.ef-range output { min-width: 4.5em; font-weight: 800; text-align: right; }
+.ef-steprow { display: grid; grid-template-columns: 4.5em minmax(0, 1fr); gap: var(--s2); align-items: center; }
+.ef-steplbl { font-weight: 700; font-size: .9375rem; }
+.ef-stepcells { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; } /* 2 Zeilen je Reihe: jeder Schritt >= 44 px (WCAG 2.5.8) */
+.ef-step { min-height: 44px; min-width: 0; padding: 0; border: 2px solid var(--text); border-radius: 6px; background: var(--surface); cursor: pointer; }
+.ef-step.beat { border-width: 3px; }
+.ef-step[aria-pressed="true"] { background: var(--text); }
+.ef-skcur { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+.ef-skemo { font-size: 2rem; line-height: 1; }
+.ef-skcur .seg-opt { min-width: var(--tap); min-height: var(--tap); font-size: 1.2rem; }
+.ef-wxform { display: grid; gap: var(--s2); }
+.ef-wxday { display: flex; flex-wrap: wrap; gap: var(--s3); margin: 0; padding: 0; border: 0; }
