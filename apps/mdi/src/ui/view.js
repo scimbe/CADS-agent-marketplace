@@ -66,8 +66,9 @@ function linkBox(X, link, ctx, dispatch) {
   // Rueckfall ohne Teilen-Menue: ein Knopf kopiert mit einem Tipp (Kritikrunde 2); markieren nur, wenn auch das scheitert
   const url = linkUrl(link), info = ctx.copied ? X.copied : ctx.copyFailed ? X.copyFail : ctx.shareFailed ? X.shareFail : null;
   return h("div", { class: "linkbox" },
-    info ? h("p", { class: "hint strong", role: "status" }, info) : null,
-    h("details", { class: "linkdetails", open: ctx.copyFailed ? true : null },
+    // Schluessel: kommt das Teilen-Ergebnis nach, bleibt das (evtl. aufgeklappte) Feld derselbe Knoten statt ersetzt zu werden
+    info ? h("p", { class: "hint strong", role: "status", key: "info" }, info) : null,
+    h("details", { class: "linkdetails", key: "details", open: ctx.copyFailed ? true : null },
       h("summary", null, X.shareTitle),
       h("input", { id: "linkfield", class: "linkfield", type: "text", readonly: true, "aria-label": X.shareTitle, value: url, on: { focus: (e) => e.target.select() } })));
 }
@@ -130,7 +131,8 @@ export function view(state, dispatch) {
         : h("span", { class: "icon-gap" }));
 
   let body = [], panel = [];
-  const preview = card ? render(card.view(previewState(card, G.paramsOf(ctx)), 0, { lang: ctx.lang, preview: true }), { onInput: () => {}, disabled: true, idp: "pv" }) : null;
+  const tree = card ? card.view(previewState(card, G.paramsOf(ctx)), 0, { lang: ctx.lang, preview: true }) : null;
+  const preview = tree ? render(tree, { onInput: () => {}, disabled: true, idp: "pv" }) : null;
 
   if (L.startsWith("stil.")) {
     const r = stilView(state, X, dispatch, L);
@@ -221,7 +223,7 @@ export function view(state, dispatch) {
     acts.primary ? btn(acts.primary, "primary") : null,
     acts.secondary.map((s) => btn(s, "secondary")));
 
-  const main = h("main", { id: "main", class: "main s-" + L.replace(/\./g, "-") + (L === "card.view" ? " sticky-actions" : ""), key: "main", tabindex: "-1" },
+  const main = h("main", { id: "main", class: "main s-" + L.replace(/\./g, "-") + (L === "card.view" ? " sticky-actions" + (tree && tree.t === "frame" ? " fit-card" : "") : ""), key: "main", tabindex: "-1" },
     h("div", { class: "col-a", key: "a" }, body),
     h("div", { class: "col-b", key: "b" }, panel, L === "card.customize.dialog" || L === "shelf" ? null : actions));
 
