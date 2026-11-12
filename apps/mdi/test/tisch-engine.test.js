@@ -196,3 +196,23 @@ test("auto: der Auto-Zug (Live-Zeitgeber) ist in jeder Lage ein legaler Zug und 
     assert.ok(n > 3);
   }
 });
+
+test("Rundenende ohne langen Schritt: geoeffnete Karten pruefen ohne Leiterschritt, der Rest in Pflichtschritten zu hoechstens 12 Positionen; Mischen/Sperren je Eingabe hoechstens 12 Punkte", () => {
+  const seen = {};
+  for (const [game, regeln] of [["doko", []], ["skat", []], ["bauernskat", []]]) {
+    let maxPend = 0, checks = 0, maxPts = 0;
+    const s = playAlone(game, { tag: "kurz|" + game, params: { runden: 1, regeln }, chooser: autoChooser(), onState(x) {
+      const p = x.state.pub; if (p.pend) maxPend = Math.max(maxPend, p.pend.length);
+      const last = x.log[x.log.length - 1];
+      if (last && last.t === "check") checks++;
+      if (last && (last.t === "mix" || last.t === "lock")) maxPts = Math.max(maxPts, last.d.length);
+    } });
+    seen[game] = { checks, maxPend };
+    assert.ok(maxPts <= 12, game + ": " + maxPts + " Punkte je Eingabe");
+    assert.deepEqual(s.state.pub.last.audit, []);
+    // eine Pruefeingabe je angefangene 12 nie geoeffnete Positionen
+    assert.equal(checks, Math.ceil(maxPend / 12), game);
+  }
+  assert.equal(seen.doko.checks, 0, "Doppelkopf: alle 48 Karten gespielt, keine Leiterschritte am Ende");
+  assert.ok(seen.skat.checks >= 1, "Skat eingepasst: nie geoeffnete Karten in Abschnitten");
+});

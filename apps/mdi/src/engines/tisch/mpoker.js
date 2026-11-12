@@ -116,5 +116,13 @@ function verify(t) {
   if (sorted.some(function (x, i) { return x !== i; })) return { ok: false, seat: -1, why: "deck" };
   return { ok: true, deck: ids };
 }
-const api = { L: L, ladder: ladder, pow: pow, cards: cards, secrets: secrets, shuffle: shuffle, lock: lock, open: open, verify: verify, isPoint: isPoint, validSecrets: validSecrets };
+// Neu (Strang T, schnelle Pruefung am Rundenende): Mischen multipliziert jede Karte mit k, Sperren mit k^-1 * k_i. Nach allen
+// Sitzen liegt an Position i also (id_i + 1) * (Produkt der k_i aller Sitze) * G – EIN Leiterschritt statt 2n je Position.
+// composed: Karten-id an jeder Position nach allen Permutationen; pointFor: der erwartete Punkt einer Position.
+function composed(secs, n) { var out = []; for (var i = 0; i < n; i++) { var id = i; for (var s = secs.length - 1; s >= 0; s--) id = secs[s].perm[id]; out.push(id); } return out; }
+function pointFor(id, kis) { var p = BigInt(id + 1) % L; kis.forEach(function (k) { p = p * toBig(k) % L; }); return pow(fromBig(p), G); }
+// Teilstuecke (Strang T): nur die Positionen from..to-1 berechnen, damit ein Schritt hoechstens ein paar Leiterschritte kostet
+function shuffleAt(deck, sec, from, to) { var o = []; for (var i = from; i < to; i++) o.push(pow(sec.k, deck[sec.perm[i]])); return o; }
+function lockAt(deck, sec, from, to) { var ik = invL(toBig(sec.k)), o = []; for (var i = from; i < to; i++) o.push(pow(fromBig(ik * toBig(sec.ki[i]) % L), deck[i])); return o; }
+const api = { shuffleAt: shuffleAt, lockAt: lockAt, composed: composed, pointFor: pointFor, L: L, ladder: ladder, pow: pow, cards: cards, secrets: secrets, shuffle: shuffle, lock: lock, open: open, verify: verify, isPoint: isPoint, validSecrets: validSecrets };
 export default api;

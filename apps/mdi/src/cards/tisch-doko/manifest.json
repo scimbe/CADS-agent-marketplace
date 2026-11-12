@@ -81,14 +81,24 @@
           "enum": [
             "dulle",
             "nosp"
-          ]
+          ],
+          "x-names": {
+            "dulle": {
+              "de": "2. Dulle sticht 1.",
+              "en": "2nd Ten beats 1st"
+            },
+            "nosp": {
+              "de": "Ohne Fuchs & Karlchen",
+              "en": "No Fox & Charlie"
+            }
+          }
         },
         "default": [],
         "x-field": "list",
         "x-model": true,
         "x-label": {
-          "de": "Hausregeln: dulle = 2. Dulle sticht 1. · nosp = Ohne Fuchs & Karlchen",
-          "en": "House rules: dulle = 2nd Ten beats 1st · nosp = No Fox & Charlie"
+          "de": "Hausregeln",
+          "en": "House rules"
         }
       }
     }
@@ -140,7 +150,7 @@
           "d": {
             "type": "array",
             "minItems": 1,
-            "maxItems": 24,
+            "maxItems": 12,
             "items": {
               "type": "string",
               "pattern": "^[0-9a-f]{64}$"
@@ -168,7 +178,7 @@
           "d": {
             "type": "array",
             "minItems": 1,
-            "maxItems": 24,
+            "maxItems": 12,
             "items": {
               "type": "string",
               "pattern": "^[0-9a-f]{64}$"
@@ -385,7 +395,33 @@
             ]
           }
         }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "t",
+          "seat"
+        ],
+        "properties": {
+          "t": {
+            "const": "check"
+          },
+          "seat": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          }
+        }
       }
     ]
+  },
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Fünf Spielkarten: Herz-Zehn, Kreuz-Dame, Pik-Dame, Karo-Ass und Karo-Zehn",
+      "en": "Five playing cards: ten of hearts, queens of clubs and spades, ace and ten of diamonds"
+    }
   }
 }

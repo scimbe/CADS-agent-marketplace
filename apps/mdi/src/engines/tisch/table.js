@@ -20,11 +20,15 @@
 import MP from "./mpoker.js";
 import { rng as mkRng, sha256, canon } from "../../contract/sdk.js";
 
-export const CH = 24;                        // Punkte/Schluessel je Eingabe (Huelle: kanonisch hoechstens 2048 Byte, ADR 0001 f)
+export const CH = 24;                        // Schluessel je Eingabe (Huelle: kanonisch hoechstens 2048 Byte, ADR 0001 f)
+export const CHP = 12;                       // Punkte je Misch-/Sperr-Eingabe: je Punkt ein Leiterschritt (~2 ms), Schritt bleibt kurz
+export const CHK = 12;                       // Positionen je Pruefschritt am Rundenende (je Position ein Leiterschritt)
 const HEX64 = /^[0-9a-f]{64}$/, HEXD = "0123456789abcdef";
 
 export function handSeed(m, h) { return sha256(m + "|hand|" + h); }
 export function secretsFor(N, m, h) { return MP.secrets(N, mkRng(handSeed(m, h))); }
+// Hash der Schluessel, mit denen eine Karte offen gelegt wurde (spart am Ende den Leiterschritt fuer diese Position)
+function keyHash(ks) { return sha256(ks.join("|")).slice(0, 16); }
 function deckHash(d) { return sha256(d.join("")).slice(0, 32); }
 function pushCommit(k, a, b) { return sha256("mdi-push|" + k + "|" + a + "|" + b); }
 function range(n) { const o = []; for (let i = 0; i < n; i++) o.push(i); return o; }
@@ -76,6 +80,7 @@ export function makeTable(R, game) {
       return { seat: R.turn(pub.r), auto: false };
     }
     if (pub.ph === "seed") return { seat: pub.seeds.length, auto: true };
+    if (pub.ph === "check") return { seat: pub.r.dealer, auto: true };
     if (pub.ph === "next") return { seat: pub.ready.length, auto: false };
     if (pub.ph === "reveal") return { seat: pub.rev.length, auto: false, reveal: true };
     return null;
@@ -100,11 +105,13 @@ export function makeTable(R, game) {
   function handOpen(pub, seat, mine) { return !hasHands || (!!mine && ownPositions(pub, seat).every((p) => mine.hand[p] !== undefined)); }
 
   // eigene Ausgabe beim Mischen/Sperren (wird im eigenen priv zwischengespeichert)
+  // nur das naechste Stueck (CHP Punkte); im eigenen priv vorbereitet, damit moves() und die Pruefung nichts doppelt rechnen
+  function outKey(pub) { return pub.ph + ":" + pub.hand + ":" + (pub.ph === "mix" ? pub.h1.length : pub.h2.length) + ":" + pub.buf.length; }
   function outFor(pub, seat, mine) {
-    const key = pub.ph + ":" + pub.hand;
-    if (mine.out && mine.outKey === key) return mine.out;
-    if (pub.ph === "mix") return MP.shuffle(seat === 0 ? MP.cards(N) : pub.deck, mine.sec);
-    return MP.lock(seat === 0 ? pub.deck : pub.deck, mine.sec);
+    if (mine.out && mine.outKey === outKey(pub)) return mine.out;
+    const from = pub.buf.length, to = Math.min(N, from + CHP);
+    if (pub.ph === "mix") return MP.shuffleAt(seat === 0 ? MP.cards(N) : pub.deck, mine.sec, from, to);
+    return MP.lockAt(pub.deck, mine.sec, from, to);
   }
   function chunkMove(t, seat, items) { return { t, seat, d: items.slice() }; }
   function chunkItems(input) { return Array.isArray(input.d) ? input.d : []; }
@@ -135,10 +142,10 @@ export function makeTable(R, game) {
     if (!pt || pt.seat !== seat || !mine) return [];
     if (pt.reveal) return [{ t: "reveal", seat }];
     if (pub.ph === "mix" || pub.ph === "lock") {
-      const out = outFor(pub, seat, mine), got = pub.buf.length;
-      return [chunkMove(pub.ph, seat, out.slice(got, got + CH))];
+      return [chunkMove(pub.ph, seat, outFor(pub, seat, mine))];
     }
     if (pub.ph === "seed") return [{ t: "seed", seat, s: handSeed(mine.m, pub.hand) }];
+    if (pub.ph === "check") return [{ t: "check", seat }];
     if (pub.ph === "next") return [{ t: "next", seat }, { t: "end", seat }];
     if (pub.ph !== "play") return [];
     const kt = keyTask(pub);
@@ -167,7 +174,7 @@ export function makeTable(R, game) {
 
   // ---------- neue Runde ----------
   function freshHand(pub) {
-    Object.assign(pub, { ph: "mix", h1: [], h2: [], buf: [], deck: null, fin: null, keys: {}, op: {}, show: {}, push: null, seeds: [], ready: [],
+    Object.assign(pub, { ph: "mix", h1: [], h2: [], buf: [], deck: null, fin: null, keys: {}, op: {}, kh: {}, show: {}, push: null, seeds: [], ready: [],
       r: R.start({ dealer: pub.hand % n, rules: pub.rules }) });
   }
   function freshMine(pub, mine) {
@@ -186,7 +193,7 @@ export function makeTable(R, game) {
           if (id < 0) bad("Schluessel oeffnet keine Karte");
           const r = R.apply(pub.r, { t: "turn", seat: x.rev.seat, i: x.rev.i, card: R.DECK[id] });
           if (!r.ok) bad("aufdecken " + r.err);
-          pub.r = r.state; pub.op[x.pos] = id; delete pub.keys[x.pos]; moved = true;
+          pub.r = r.state; pub.op[x.pos] = id; pub.kh[x.pos] = keyHash(k); delete pub.keys[x.pos]; moved = true;
           break;
         }
       }
@@ -195,7 +202,7 @@ export function makeTable(R, game) {
     for (let s = 0; s < n; s++) {
       const mine = priv[s]; if (!mine) continue;
       if ((pub.ph === "mix" && pub.h1.length === s) || (pub.ph === "lock" && pub.h2.length === s)) {
-        const key = pub.ph + ":" + pub.hand;
+        const key = outKey(pub);
         if (mine.outKey !== key) { const out = outFor(pub, s, { ...mine, out: null }); priv[s] = { ...mine, out, outKey: key }; }
       }
       if (pub.fin && hasHands) {
@@ -214,16 +221,46 @@ export function makeTable(R, game) {
     }
   }
 
-  // ---------- Rundenende: alles nachrechnen ----------
-  function finishHand(pub) {
-    const secs = pub.seeds.map((s) => MP.secrets(N, mkRng(s)));
-    const out = { hand: pub.hand, dealer: pub.r.dealer, state: pub.r, flags: [] };
-    let deck = MP.cards(N), cheat = -1;
-    for (let s = 0; s < n && cheat < 0; s++) { deck = MP.shuffle(deck, secs[s]); if (deckHash(deck) !== pub.h1[s]) cheat = s; }
-    for (let s = 0; s < n && cheat < 0; s++) { deck = MP.lock(deck, secs[s]); if (deckHash(deck) !== pub.h2[s]) cheat = s; }
-    if (cheat >= 0) { out.cheat = cheat; return out; }
-    const ids = deck.map((v, i) => MP.open(v, secs.map((x) => x.ki[i]), N));
-    if (ids.slice().sort((a, b) => a - b).some((x, i) => x !== i)) { out.cheat = -1; return out; }
+  // ---------- Rundenende: alles nachrechnen, in kurzen Schritten ----------
+  // Mischen multipliziert jede Karte mit k, Sperren mit k^-1 * k_i: an Position i liegt am Ende (id_i + 1) * Produkt(k_i) * G.
+  // Offen gelegte Positionen sind ohne Leiterschritt belegt (aufgedeckte k_i == die Schluessel, mit denen sie geoeffnet
+  // wurden, und gleiche id). Nur nie geoeffnete Positionen kosten je einen Leiterschritt; sie laufen in Pflichtschritten
+  // „check“ zu je CHK Positionen. Bei jeder Abweichung wird das ganze Geben wie im Altcode nachgespielt, um den Sitz zu finden.
+  function secsOf(pub) { return pub.seeds.map((s) => MP.secrets(N, mkRng(s))); }
+  function startCheck(pub) {
+    const secs = secsOf(pub);
+    for (let s = 0; s < n; s++) if (!MP.validSecrets(secs[s], N)) return endHand(pub, { cheat: s });
+    const ids = MP.composed(secs, N), pend = [];
+    for (let p = 0; p < N; p++) {
+      if (pub.kh[p] === undefined) { pend.push(p); continue; }
+      if (pub.kh[p] !== keyHash(secs.map((x) => x.ki[p])) || pub.op[p] !== ids[p]) return endHand(pub, { cheat: replay(pub, secs) });
+    }
+    if (!pend.length) return endHand(pub, { ids, secs });
+    pub.ph = "check"; pub.pend = pend;
+  }
+  function stepCheck(pub) {
+    const secs = secsOf(pub), ids = MP.composed(secs, N), now = pub.pend.slice(0, CHK);
+    for (const p of now) if (MP.pointFor(ids[p], secs.map((x) => x.ki[p])) !== pub.fin[p]) return endHand(pub, { cheat: replay(pub, secs) });
+    pub.pend = pub.pend.slice(CHK);
+    if (!pub.pend.length) endHand(pub, { ids, secs });
+  }
+  function replay(pub, secs) {
+    let deck = MP.cards(N);
+    for (let s = 0; s < n; s++) { deck = MP.shuffle(deck, secs[s]); if (deckHash(deck) !== pub.h1[s]) return s; }
+    for (let s = 0; s < n; s++) { deck = MP.lock(deck, secs[s]); if (deckHash(deck) !== pub.h2[s]) return s; }
+    return -1;
+  }
+  function endHand(pub, { cheat, ids, secs }) {
+    const res = { hand: pub.hand, dealer: pub.r.dealer, state: pub.r, flags: [] };
+    if (cheat !== undefined) res.cheat = cheat;
+    else fillResult(pub, res, ids, secs);
+    score(pub, res);
+    pub.allSeeds.push(pub.seeds.slice());
+    pub.last = res; pub.hist.push(res.result ? (game === "skat" ? res.result.list : res.result.points) : range(n).map(() => 0));
+    delete pub.pend;
+    pub.ph = pub.hand + 1 >= pub.runden ? "reveal" : "next";
+  }
+  function fillResult(pub, out, ids, secs) {
     // jede oeffentlich gewordene Karte muss die echte sein
     for (const p of Object.keys(pub.op)) if (ids[p] !== pub.op[p]) out.flags.push({ seat: -1, why: "karte" });
     const C = (p) => R.DECK[ids[p]], full = { hands: lay.hands.map((ps) => ps.map(C)) };
@@ -267,7 +304,7 @@ export function makeTable(R, game) {
     }
     if (pub.ph === "mix" || pub.ph === "lock") {
       if (input.t !== pub.ph) bad(pub.ph);
-      const it = chunkItems(input), want = Math.min(CH, N - pub.buf.length);
+      const it = chunkItems(input), want = Math.min(CHP, N - pub.buf.length);
       if (it.length !== want || !it.every((x) => HEX64.test(x))) bad("Punkte");
       pub.buf.push(...it);
       if (pub.buf.length === N) {
@@ -280,13 +317,10 @@ export function makeTable(R, game) {
     } else if (pub.ph === "seed") {
       if (input.t !== "seed" || typeof input.s !== "string" || !HEX64.test(input.s)) bad("seed");
       pub.seeds.push(input.s);
-      if (pub.seeds.length === n) {
-        const res = finishHand(pub);
-        score(pub, res);
-        pub.allSeeds.push(pub.seeds.slice());
-        pub.last = res; pub.hist.push(res.result ? (game === "skat" ? res.result.list : res.result.points) : range(n).map(() => 0));
-        pub.ph = pub.hand + 1 >= pub.runden ? "reveal" : "next";
-      }
+      if (pub.seeds.length === n) startCheck(pub);
+    } else if (pub.ph === "check") {
+      if (input.t !== "check") bad("check");
+      stepCheck(pub);
     } else if (pub.ph === "next") {
       if (input.t === "end") { pub.ph = "reveal"; return { pub, priv }; }
       if (input.t !== "next") bad("next");
@@ -326,7 +360,7 @@ export function makeTable(R, game) {
           if (ks.length !== n || !ks.every((x) => !!x)) bad("Schluessel fehlen");
           const id = MP.open(pub.fin[p], ks, N); if (id < 0) bad("Schluessel oeffnet keine Karte");
           a = { t: "play", seat, card: R.DECK[id] };
-          pub.op[p] = id; delete pub.keys[p];
+          pub.op[p] = id; pub.kh[p] = keyHash(ks); delete pub.keys[p];
         } else if (input.t === "play") a = { t: "play", seat, card: input.c };
         else if (input.t === "push") {
           if (typeof input.c !== "string" || !HEX64.test(input.c)) bad("push");
