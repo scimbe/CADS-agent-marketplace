@@ -3,6 +3,46 @@
     "assets": [],
     "thumbs": []
   },
+  "arcade-elfer": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-flipper": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-kick": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-murmel": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-panzer": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-puck": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-snow": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-stock": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-volley": {
+    "assets": [],
+    "thumbs": []
+  },
+  "arcade-ziegel": {
+    "assets": [],
+    "thumbs": []
+  },
   "beat-pausenhof": {
     "assets": [],
     "thumbs": []
@@ -17,7 +57,101 @@
       }
     ]
   },
+  "flug": {
+    "assets": [],
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 4708
+      },
+      {
+        "file": "thumb-spiel-lava.webp",
+        "src": "shot",
+        "bytes": 4714
+      },
+      {
+        "file": "thumb-spiel-mond.webp",
+        "src": "shot",
+        "bytes": 4104
+      },
+      {
+        "file": "thumb-spiel-pizza.webp",
+        "src": "shot",
+        "bytes": 3954
+      },
+      {
+        "file": "thumb-spiel-tiefsee.webp",
+        "src": "shot",
+        "bytes": 4600
+      },
+      {
+        "file": "thumb-spiel-neon.webp",
+        "src": "shot",
+        "bytes": 4890
+      },
+      {
+        "file": "thumb-spiel-geist.webp",
+        "src": "shot",
+        "bytes": 3908
+      },
+      {
+        "file": "thumb-spiel-einhorn.webp",
+        "src": "shot",
+        "bytes": 4128
+      },
+      {
+        "file": "thumb-spiel-retro.webp",
+        "src": "shot",
+        "bytes": 3938
+      },
+      {
+        "file": "thumb-flug-agent.webp",
+        "src": "shot",
+        "bytes": 3044
+      },
+      {
+        "file": "thumb-flug-mond.webp",
+        "src": "shot",
+        "bytes": 3000
+      },
+      {
+        "file": "thumb-plan-01.webp",
+        "src": "shot",
+        "bytes": 4782
+      },
+      {
+        "file": "thumb-plan-08.webp",
+        "src": "shot",
+        "bytes": 4038
+      },
+      {
+        "file": "thumb-plan-13.webp",
+        "src": "shot",
+        "bytes": 3930
+      },
+      {
+        "file": "thumb-plan-18.webp",
+        "src": "shot",
+        "bytes": 5914
+      },
+      {
+        "file": "thumb-plan-22.webp",
+        "src": "shot",
+        "bytes": 4840
+      },
+      {
+        "file": "thumb-plan-28.webp",
+        "src": "shot",
+        "bytes": 4020
+      }
+    ]
+  },
   "foto-alien": {
+    "assets": [],
+    "thumbs": []
+  },
+  "frei": {
     "assets": [],
     "thumbs": []
   },
@@ -43,7 +177,25 @@
     "assets": [],
     "thumbs": []
   },
+  "lauf": {
+    "assets": [],
+    "thumbs": [
+      {
+        "file": "thumb.webp",
+        "src": "shot",
+        "bytes": 8384
+      }
+    ]
+  },
+  "quiz-preis": {
+    "assets": [],
+    "thumbs": []
+  },
   "raum-sorry": {
+    "assets": [],
+    "thumbs": []
+  },
+  "spiel-dart": {
     "assets": [],
     "thumbs": []
   },
@@ -56,6 +208,10 @@
     "thumbs": []
   },
   "zettel": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-abfragen": {
     "assets": [],
     "thumbs": []
   },
@@ -79,6 +235,10 @@
     "assets": [],
     "thumbs": []
   },
+  "zug-malrat": {
+    "assets": [],
+    "thumbs": []
+  },
   "zug-reihum": {
     "assets": [],
     "thumbs": []
@@ -92,6 +252,10 @@
     "thumbs": []
   },
   "zug-termin": {
+    "assets": [],
+    "thumbs": []
+  },
+  "zug-typen": {
     "assets": [],
     "thumbs": []
   },

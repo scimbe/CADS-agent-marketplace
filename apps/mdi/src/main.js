@@ -14,6 +14,11 @@ import { download, downloadText } from "./broker/share.js";
 import { createStage } from "./render/rt-stage.js";
 import { createSound } from "./render/sound.js";
 import { featureEnv } from "./app/features.js";
+import { createAi } from "./broker/ai.js";        // Strang K: freie Karte und KI-Arten
+import { createDeck } from "./broker/deck.js";
+import { createBild } from "./broker/bild.js";
+import { sanitizeDoc } from "./features/frei/doc.js";
+import { pinFor } from "./broker/deck-pin.js";
 
 const root = document.getElementById("app");
 const lang = langOf(navigator);
@@ -34,11 +39,13 @@ function entropy() { const b = new Uint8Array(16); crypto.getRandomValues(b); re
 
 let lastDialog = null, lastDialogRect = null, opener = null;
 // Rueckweg vom Gate: diese Seite, mit dem Hinweis, Mein Stil wieder zu oeffnen (nur ein Pfad, nie ein anderer Host)
-const returnPath = () => location.pathname + "?go=konto";
+// Strang K: aus der freien Karte heraus angemeldet -> zurueck zur freien Karte (?go=erschaffen, wie im Altcode)
+const returnPath = () => location.pathname + (rt && rt.matches("inhalt.frei.start") ? "?go=erschaffen" : "?go=konto");
+const api = createApi({ location, native: nativeAccount(window) });
 const rt = createRuntime({
   lang, entropy, storage: createStorage(),
   // App-Huelle mit Konto-Bruecke: Anmelden nativ (OIDC + PKCE), Aufrufe mit Bearer durch die Huelle; sonst Web (Cookie)
-  api: createApi({ location, native: nativeAccount(window) }),
+  api, ai: createAi({ api }), deck: createDeck({ api, sanitize: sanitizeDoc, pin: pinFor(location.hostname) }), bild: createBild({ api }),
   returnPath,
   setLook: (colors) => { const k = lookCookie(colors, location.hostname); if (k) document.cookie = k; },
   navigate: (url) => { if (!/^https?:$/.test(location.protocol)) return false; location.assign(url); return true; },
@@ -48,6 +55,8 @@ const rt = createRuntime({
   live: () => loadLive(),
   share: (fragment) => share(linkUrl(fragment), document.title),
   copy: (fragment) => copy(linkUrl(fragment)),
+  // Heimseite (Strang H): Leinwand fuer Story-Bild und Wand, Teilen, Takt (Speicher und Netz laufen ueber storage und api)
+  home: { document, navigator, location, File, URL, setInterval: (f, ms) => setInterval(f, ms), setTimeout: (f, ms) => setTimeout(f, ms) },
   clearUrl: () => { try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) { /* file:// in manchen Hosts */ } },
   onChange: draw
 });
@@ -109,7 +118,10 @@ function draw(state, info) {
     // Bildschirmwechsel: Fokus an den Hauptbereich (Screenreader liest den neuen Inhalt)
     const m = root.querySelector("#main"); if (m && !m.contains(document.activeElement)) m.focus({ preventScroll: true });
   }
-  syncHistory(nowLeaf);
+  // Heimseite: neue Unterseite (Familie, Regal, Meins, Reiter) beginnt oben, wie ein Bildschirmwechsel
+  const hb = info && info.before && info.before.ctx.home, hn = state.ctx.home;
+  if (hb && hn && nowLeaf === "shelf" && beforeLeaf === "shelf" && (hb.at !== hn.at || hb.intent !== hn.intent || hb.mtab !== hn.mtab || hb.rtab !== hn.rtab)) { window.scrollTo(0, 0); const m = root.querySelector("#main"); if (m) m.focus({ preventScroll: true }); }
+  syncHistory(nowLeaf === "shelf" && state.ctx.home && (state.ctx.home.at !== "day" || state.ctx.home.off !== 0) ? "shelf.tief" : nowLeaf);
   // Schriftgroesse aus Mein Stil (Lesen & Bedienen): Projektion des Zustands auf die Wurzel, alles skaliert per rem
   const fs = { n: "100%", g: "118.75%", sg: "137.5%" }[state.ctx.pref.fs] || "100%";
   if (document.documentElement.style.getPropertyValue("font-size") !== fs) document.documentElement.style.setProperty("font-size", fs);
@@ -141,7 +153,10 @@ rtApi = rt.rt;
 if (fenv.images && typeof fenv.images.subscribe === "function") fenv.images.subscribe(() => draw(rt.state, null));
 draw(rt.state, null);
 if (location.hash.length > 1) rt.link(location.hash);
-else if (new URLSearchParams(location.search).get("go") === "konto") {
+else if (new URLSearchParams(location.search).get("go") === "erschaffen") {
+  try { history.replaceState(history.state, "", location.pathname); } catch (e) { /* ohne Verlauf */ }
+  rt.dispatch({ type: "FREI" });
+} else if (new URLSearchParams(location.search).get("go") === "konto") {
   // zurueck vom Anmelden: Mein Stil wieder oeffnen, die Adresse ohne ?go= behalten
   try { history.replaceState(history.state, "", location.pathname); } catch (e) { /* ohne Verlauf */ }
   rt.dispatch({ type: "STIL" });
