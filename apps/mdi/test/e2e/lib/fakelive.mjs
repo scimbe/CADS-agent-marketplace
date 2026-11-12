@@ -63,11 +63,13 @@ const BRIDGE_ALLOWED = new Set(["https://demos-34a13a96.bunsenbrenner.org", "htt
 /** strict: true = CORS wie die echte Bruecke (Realnetz-Pruefung 2026-11-11); false = alles erlaubt (alter Rueckfall). */
 export function fakeLive({ strict = false } = {}) {
   const invites = new Map(), wire = { dc: [], edge: [], http: [], origins: [], preflights: 0 };
-  const sides = {};
+  // Jede Sitzung hat ihren eigenen Broker-Rahmen (live-host.js: ein iframe je Sitzung); Gruppen-Gastgeber haben also
+  // mehrere Rahmen mit je eigenen ws-/pc-Zaehlern. Endpunkt ist daher der Rahmen, nicht die Seite.
+  const sides = {}, frames = new Map();
+  let nFrame = 0;
+  const fidOf = (fr) => { let f = frames.get(fr); if (!f) { f = { id: ++nFrame, fr, q: Promise.resolve() }; frames.set(fr, f); } return f; };
+  const push = (f, fn, arg) => { f.q = f.q.then(() => f.fr.evaluate(([g, a]) => window[g](a), [fn, arg])).catch(() => {}); };
   let n = 0;
-  const chain = (side, f) => { sides[side].q = sides[side].q.then(f).catch(() => {}); };
-  // Der Broker laeuft im abgeschotteten Rahmen: Antworten gehen an den Rahmen, aus dem der Aufruf kam
-  const push = (side, fn, arg) => chain(side, () => (sides[side].frame || sides[side].page.mainFrame()).evaluate(([f, a]) => window[f](a), [fn, arg]));
 
   async function bridge(route) {
     const req = route.request(), url = new URL(req.url()), m = req.method();
@@ -105,40 +107,41 @@ export function fakeLive({ strict = false } = {}) {
     }
   }
 
-  // Verbindungen: Edge je (Seite, ws-id) mit Token; Datenkanal je Offer-Kennung (tag) mit zwei Seiten
+  // Verbindungen: Edge je (Rahmen, ws-id) mit Token; Datenkanal je Offer-Kennung (tag) mit zwei Rahmen
   const conns = new Map(), byToken = new Map(), tags = new Map();
-  const ckey = (side, id) => side + ":" + id;
   const dec = (arr) => { try { return JSON.parse(Buffer.from(arr.slice(2)).toString("utf8")); } catch (e) { return null; } };
-  /** Seite anbinden (beliebig viele Seiten, beliebig viele Verbindungen je Seite). Vor goto aufrufen. */
+  const peerOf = (c) => (byToken.get(c.token) || []).map((x) => conns.get(x)).find((o) => o && o !== c);
+  const deliver = (o, arr) => { if (o.stage === 2) push(o.f, "__wsIn", [o.id, arr]); else o.pending.push(arr); };
+  /** Seite anbinden (beliebig viele Seiten, beliebig viele Rahmen und Verbindungen je Seite). Vor goto aufrufen. */
   async function attach(ctx, page, side) {
-    sides[side] = { page, q: Promise.resolve() };
+    sides[side] = { page };
     await ctx.route(WC + "/**", bridge);
     await page.addInitScript(PAGE_FAKES);
     await page.exposeBinding("__edgeSend", (src, [id, arr]) => {
-      const k = ckey(side, id), s = sides[side]; s.frame = src.frame;
+      const f = fidOf(src.frame), k = f.id + ":" + id;
       let c = conns.get(k);
-      if (!c) { c = { side, id, stage: 0, pending: [], token: null }; conns.set(k, c); }
+      if (!c) { c = { side, f, id, stage: 0, pending: [], token: null }; conns.set(k, c); }
       if (c.stage === 0) {
         const j = dec(arr), tok = j && j.grant ? String(j.grant).replace(/^fake-grant-/, "") : null;
         c.token = tok; c.stage = 1;
         const list = byToken.get(tok) || []; list.push(k); byToken.set(tok, list);
-        const ch = new Array(32).fill(0).map((_, i) => (i * 7 + 3) & 255); push(side, "__wsIn", [id, ch]); return;
+        const ch = new Array(32).fill(0).map((_, i) => (i * 7 + 3) & 255); push(f, "__wsIn", [id, ch]); return;
       }
-      if (c.stage === 1) { c.stage = 2; push(side, "__wsIn", [id, Array.from(Buffer.from("OK chan " + "ab".repeat(32) + "\n"))]); for (const p of c.pending.splice(0)) push(side, "__wsIn", [id, p]); return; }
+      if (c.stage === 1) { c.stage = 2; push(f, "__wsIn", [id, Array.from(Buffer.from("OK chan " + "ab".repeat(32) + "\n"))]); for (const p of c.pending.splice(0)) push(f, "__wsIn", [id, p]); return; }
       wire.edge.push(Buffer.from(arr).toString("latin1"));
-      const m = dec(arr); if (m && m.kind === "offer") { const tag = String(m.sdp).split(" ").pop(); tags.set(tag, { a: side, b: null, ready: new Set() }); }
-      const other = (byToken.get(c.token) || []).map((x) => conns.get(x)).find((o) => o && o !== c);
-      if (other && other.stage === 2) push(other.side, "__wsIn", [other.id, arr]); else if (other) other.pending.push(arr);
-      else { const wait = setInterval(() => { const o = (byToken.get(c.token) || []).map((x) => conns.get(x)).find((x) => x && x !== c); if (o) { clearInterval(wait); if (o.stage === 2) push(o.side, "__wsIn", [o.id, arr]); else o.pending.push(arr); } }, 20); }
+      const m = dec(arr); if (m && m.kind === "offer") { const tag = String(m.sdp).split(" ").pop(); tags.set(tag, { a: f, b: null, sa: side, sb: null, ready: new Set() }); }
+      const other = peerOf(c);
+      if (other) deliver(other, arr);
+      else { const wait = setInterval(() => { const o = peerOf(c); if (o) { clearInterval(wait); deliver(o, arr); } }, 20); }
     });
     await page.exposeBinding("__rtcReady", (src, tag) => {
-      sides[side].frame = src.frame;
-      const t = tags.get(tag) || { a: null, b: null, ready: new Set() }; tags.set(tag, t);
-      if (t.a !== side) t.b = side; t.ready.add(side);
+      const f = fidOf(src.frame);
+      const t = tags.get(tag) || { a: null, b: null, sa: null, sb: null, ready: new Set() }; tags.set(tag, t);
+      if (t.a !== f) { t.b = f; t.sb = side; } t.ready.add(f);
       if (t.a && t.b && t.ready.has(t.a) && t.ready.has(t.b)) { push(t.a, "__rtcOpen", tag); push(t.b, "__rtcOpen", tag); }
     });
-    await page.exposeBinding("__dcSend", (src, [tag, s]) => { const t = tags.get(tag); wire.dc.push({ from: side, s }); if (t) { const o = t.a === side ? t.b : t.a; if (o) push(o, "__dcIn", [tag, s]); } });
-    await page.exposeBinding("__dcClose", (src, tag) => { const t = tags.get(tag); if (t) { const o = t.a === side ? t.b : t.a; if (o) push(o, "__dcDown", tag); } });
+    await page.exposeBinding("__dcSend", (src, [tag, s]) => { const f = fidOf(src.frame), t = tags.get(tag); wire.dc.push({ from: side, s }); if (t) { const o = t.a === f ? t.b : t.a; if (o) push(o, "__dcIn", [tag, s]); } });
+    await page.exposeBinding("__dcClose", (src, tag) => { const f = fidOf(src.frame), t = tags.get(tag); if (t) { const o = t.a === f ? t.b : t.a; if (o) push(o, "__dcDown", tag); } });
   }
   return { attach, wire };
 }
