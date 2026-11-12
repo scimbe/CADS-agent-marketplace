@@ -71,6 +71,15 @@ export const effects = {
       else dispatch({ type: "WX_DONE", key: fx.key, st: r.ok ? "fail" : r.error === "no-place" ? "no-place" : r.error === "blocked" ? "blocked" : "fail" });
     });
   },
+  // Foto: nur auf dem Geraet (broker/media.js), danach Feldwert "local:<id>" ueber PARAM; ohne Speicher ehrlich nicht-verfuegbar
+  "home.photo": (fx, { dispatch, deps }) => {
+    const md = envOf(deps).media;
+    if (!md || !md.available) { dispatch({ type: "PHOTO_DONE", key: fx.key, st: "nicht-verfuegbar" }); return; }
+    md.put(fx.file).then((r) => {
+      if (r.ok) dispatch({ type: "PARAM", key: fx.key, value: r.value });
+      dispatch({ type: "PHOTO_DONE", key: fx.key, st: r.ok ? "ok" : r.error });
+    });
+  },
   "home.save": (fx, { deps }) => { const st = deps && deps.storage; if (st && st.saveHome) st.saveHome(fx.data); },
   "short.create": (fx, { dispatch, api, deps, state }) => {
     if (!api || !api.shortCreate || !SL.fragmentOf("#" + fx.f)) { dispatch({ type: "SHORT_DONE", f: fx.f, r: { ok: false, error: "nicht-hier" } }); return; }

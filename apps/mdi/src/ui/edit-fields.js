@@ -10,13 +10,13 @@ const T = {
     wxPlace: "Ort", wxToday: "Heute", wxTomorrow: "Morgen", wxAfter: "Übermorgen", wxGo: "Wetter holen", wxOff: "Wetter weg", wxBusy: "Wetter wird geholt …",
     wxNote: "Der Ort geht an unseren Server. Zahlen von open-meteo.com (CC BY 4.0, gerundet), nie von der KI. Kostet keinen Versuch.", wxFail: "Gerade keine Wetterdaten. Ohne echte Zahlen kein Wetterbericht.", wxNoPlace: "Diesen Ort finden wir nicht.", wxFilter: "Das lassen wir lieber weg.",
     wxShow: "{p}: {lo} bis {hi} °C, Regen {rn} %", dice: "Würfeln", diceNote: "Nächster Vorschlag",
-    photoSoon: "Fotos wählen kommt mit dem nächsten Stand: Dein Foto bleibt dann auf diesem Handy.", kibildSoon: "KI-Bilder für diese Karte kommen mit der freien Karte.", rows: "Reihe {r}, Schritt {s}" },
+    photoPick: "Foto wählen", photoOther: "Anderes Foto", photoOff: "Foto weg", photoBusy: "Foto wird gespeichert …", photoSet: "Foto gewählt ✓", photoNote: "Dein Foto bleibt auf diesem Gerät. Im Link reist es nicht mit.", photoErr: { "nicht-verfuegbar": "Hier kann die App keine Fotos speichern (zum Beispiel im privaten Fenster).", "kein-bild": "Das ist kein Bild.", "zu-gross": "Das Foto ist zu groß.", fehler: "Das Foto ließ sich nicht speichern." }, kibildSoon: "KI-Bilder für diese Karte kommen mit der freien Karte.", rows: "Reihe {r}, Schritt {s}" },
   en: { add: "Add", remove: "Remove", on: "On", off: "Off", up: "Up", down: "Down", left: "Left", right: "Right", bigger: "Bigger", smaller: "Smaller", turnL: "Turn left", turnR: "Turn right",
     skFull: "No room for more stickers.", skDelete: "Delete sticker", skUndo: "Undo", skPick: "Add a sticker", skChosen: "Sticker {n} of {m}", skHint: "Pick a sticker, then move, turn or resize it.",
     wxPlace: "Place", wxToday: "Today", wxTomorrow: "Tomorrow", wxAfter: "Day after", wxGo: "Get weather", wxOff: "Remove weather", wxBusy: "Getting the weather …",
     wxNote: "The place goes to our server. Figures from open-meteo.com (CC BY 4.0, rounded), never from the AI. Costs no try.", wxFail: "No weather data right now. No real figures, no report.", wxNoPlace: "We can't find that place.", wxFilter: "Let's skip that one.",
     wxShow: "{p}: {lo} to {hi} °C, rain {rn} %", dice: "Roll", diceNote: "Next suggestion",
-    photoSoon: "Picking a photo comes with the next version: your photo will then stay on this phone.", kibildSoon: "AI pictures for this card come with the free card.", rows: "Row {r}, step {s}" }
+    photoPick: "Pick a photo", photoOther: "Other photo", photoOff: "Remove photo", photoBusy: "Saving photo …", photoSet: "Photo chosen ✓", photoNote: "Your photo stays on this device. It never travels in the link.", photoErr: { "nicht-verfuegbar": "The app can't store photos here (for example in a private window).", "kein-bild": "That is not a picture.", "zu-gross": "The photo is too big.", fehler: "The photo could not be saved." }, kibildSoon: "AI pictures for this card come with the free card.", rows: "Row {r}, step {s}" }
 };
 const tx = (lang) => T[lang === "en" ? "en" : "de"];
 const fmt = (s, o) => String(s).replace(/\{(\w+)\}/g, (m, k) => (k in o ? String(o[k]) : m));
@@ -157,9 +157,23 @@ function weatherField(p, key, v, set, label, lang, ctx, dispatch) {
     h("p", { class: "hint" }, X.wxNote));
 }
 
+/** Foto auf dem Geraet (media.local, broker/media.js): Auswahl -> PHOTO_PUT (Effekt speichert, setzt "local:<id>" per PARAM).
+ *  Das Foto selbst bleibt in IndexedDB; Fehler werden ehrlich genannt, ohne stillen Ersatz. */
+function photoField(p, key, v, set, label, lang, ctx, dispatch) {
+  const X = tx(lang), ph = ctx.photo || {}, st = ph.key === key ? ph.st : null, id = "ph-" + key, has = typeof v === "string" && /^local:[0-9a-f]{32}$/.test(v);
+  return h("fieldset", { class: "field ef-photo", key }, label ? h("legend", null, label) : null,
+    has ? h("p", { class: "hint strong", role: "status" }, X.photoSet) : null,
+    h("label", { class: "btn secondary ef-photo-pick", for: id, "data-act": "photo-pick" }, st === "busy" ? X.photoBusy : has ? X.photoOther : X.photoPick),
+    h("input", { id, class: "visually-hidden", type: "file", accept: "image/*", disabled: st === "busy" || null,
+      on: { change: (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) dispatch({ type: "PHOTO_PUT", key, file: f }); } } }),
+    has ? h("button", { type: "button", class: "btn secondary h-small", "data-act": "photo-off", on: { click: () => set(null) } }, X.photoOff) : null,
+    st && st !== "busy" && st !== "ok" ? h("p", { class: "warn", role: "alert" }, X.photoErr[st] || X.photoErr.fehler) : null,
+    h("p", { class: "hint" }, L(p["x-note"], lang) ? L(p["x-note"], lang) + " " : "", X.photoNote));
+}
+
 /**
  * Feld fuer einen Editor-Typ jenseits von text/choice/color/number (Folge-PR 2). Liefert null fuer unbekannte Typen.
- * @param ctx { lang, me, wx, slots } ; dispatch fuer Ereignisse (PARAM ueber set, WX_GET)
+ * @param ctx { lang, me, wx, photo, slots } ; dispatch fuer Ereignisse (PARAM ueber set, WX_GET, PHOTO_PUT)
  */
 export function extraField(p, key, v, set, label, ctx, dispatch) {
   const lang = ctx.lang, id = "f-" + key, X = tx(lang);
@@ -170,7 +184,7 @@ export function extraField(p, key, v, set, label, ctx, dispatch) {
     case "stickers": return stickersField(p, key, v, set, label, lang, ctx);
     case "weather": return weatherField(p, key, v, set, label, lang, ctx, dispatch);
     case "kibild": return ctx.slots && ctx.slots.kibildField ? ctx.slots.kibildField(p, key, v, set, label, ctx, dispatch) : h("p", { class: "hint", key }, (label ? label + ": " : "") + X.kibildSoon);
-    case "media.local": return h("div", { class: "field", key }, label ? h("p", { class: "seg-label" }, label) : null, h("p", { class: "hint" }, L(p["x-note"], lang) ? L(p["x-note"], lang) + " " : "", X.photoSoon));
+    case "media.local": return photoField(p, key, v, set, label, lang, ctx, dispatch);
     case "spiel": case "list": return schemaEditor(p, v, set, id, label, lang);
     default: return null;
   }

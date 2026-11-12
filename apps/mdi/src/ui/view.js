@@ -109,7 +109,7 @@ function fieldControls(card, part, params, X, lang, dispatch, ctx = {}) {
   // beide Formen: x-names[wert][sprache] (P) und x-names[sprache][wert] (S, FIELD_VOCAB)
   const nameOf = (p, e) => {
     const xn = p["x-names"] || {}, byVal = xn[e], byLang = xn[lang] || xn.de, ic = p["x-icons"] && p["x-icons"][e];
-    const t = (byVal && typeof byVal === "object" && (byVal[lang] || byVal.de)) || (byLang && typeof byLang === "object" && byLang[e]) || X.names[e] || e;
+    const t = (byVal && typeof byVal === "object" && (byVal[lang] || byVal.de)) || (byLang && typeof byLang === "object" && byLang[e]) || X.names[e] || (e === "" ? (lang === "en" ? "None" : "Keine") : e); // leerer Wert (z. B. Figur aus) braucht einen Namen (axe button-name)
     return ic ? ic + " " + t : t;
   };
   return shown.map((key) => {
@@ -148,7 +148,7 @@ function fieldControls(card, part, params, X, lang, dispatch, ctx = {}) {
             on: { change: (e) => { const n = Number(e.target.value); if (Number.isInteger(n) && n >= p.minimum && n <= p.maximum) set(n); } } }));
       }
       case "list": {
-        if (!(p.items && Array.isArray(p.items.enum))) return extraField(p, key, v, set, label, { lang, me: ctx.me, wx: ctx.wx, slots: SLOTS }, dispatch); // Objekte/Listen aus dem Schema (Strang L)
+        if (!(p.items && Array.isArray(p.items.enum))) return extraField(p, key, v, set, label, { lang, me: ctx.me, wx: ctx.wx, photo: ctx.photo, slots: SLOTS }, dispatch); // Objekte/Listen aus dem Schema (Strang L)
         const max = p.maxItems, lid = label ? "lbl-" + key : "dlg-title";
         return h("div", { class: "field", key, role: "group", "aria-labelledby": lid },
           label ? h("p", { class: "seg-label", id: lid }, label) : null,
@@ -158,7 +158,7 @@ function fieldControls(card, part, params, X, lang, dispatch, ctx = {}) {
           })),
           v.length >= max ? h("p", { class: "hint" }, fmt(X.maxReached, { n: max })) : null);
       }
-      default: return extraField(p, key, v, set, label, { lang, me: ctx.me, wx: ctx.wx, slots: SLOTS }, dispatch); // pair, slide, steps, stickers, weather, kibild, media.local, spiel
+      default: return extraField(p, key, v, set, label, { lang, me: ctx.me, wx: ctx.wx, photo: ctx.photo, slots: SLOTS }, dispatch); // pair, slide, steps, stickers, weather, kibild, media.local, spiel
     }
   });
 }

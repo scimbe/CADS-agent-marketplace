@@ -25,7 +25,7 @@ export const MAX_OFF = 31;
 const todayOf = (ev) => (Number.isFinite(ev.at) ? Math.floor(ev.at / R.DAY) : null);
 
 export function homeContext() {
-  return { thumbs: {}, wx: null, home: { at: "day", off: 0, intent: null, text: "", res: null, rtab: "alles", fam: null, q: "", mtab: "wand", note: null, sure: null }, today: null, mine: { wall: [], saved: [], invites: [], undo: null, loaded: false, busy: null } };
+  return { thumbs: {}, wx: null, photo: null, home: { at: "day", off: 0, intent: null, text: "", res: null, rtab: "alles", fam: null, q: "", mtab: "wand", note: null, sure: null }, today: null, mine: { wall: [], saved: [], invites: [], undo: null, loaded: false, busy: null } };
 }
 const H = (ctx, o) => ({ ...ctx, home: { ...ctx.home, ...o } });
 const M = (ctx, o) => ({ ...ctx, mine: { ...ctx.mine, ...o } });
@@ -137,7 +137,14 @@ export const actions = {
     emit({ type: "home.wx", key: ev.key, place: ev.place, date });
     return { ...ctx, wx: { key: ev.key, st: "busy" } };
   },
-  wxDone: (ctx, ev) => ({ ...ctx, wx: { key: ev.key, st: ev.st } })
+  wxDone: (ctx, ev) => ({ ...ctx, wx: { key: ev.key, st: ev.st } }),
+  // Foto im Editor (Feld media.local): der Effekt speichert es auf dem Geraet und setzt "local:<id>" ueber PARAM
+  photoPut: (ctx, ev, emit) => {
+    if (typeof ev.key !== "string" || !ev.file) return { ...ctx, photo: { key: ev.key, st: "kein-bild" } };
+    emit({ type: "home.photo", key: ev.key, file: ev.file });
+    return { ...ctx, photo: { key: ev.key, st: "busy" } };
+  },
+  photoDone: (ctx, ev) => ({ ...ctx, photo: { key: ev.key, st: ev.st } })
 };
 
 // Uebergaenge in inhalt.shelf (OPEN und STIL wie bisher)
@@ -164,6 +171,7 @@ export const inhaltOn = {
   HOME_TICK: { actions: ["homeTick"] },
   THUMBS: { actions: ["thumbsTake"] },
   WX_DONE: { actions: ["wxDone"] },
+  PHOTO_DONE: { actions: ["photoDone"] },
   MERKEN: { actions: ["merken"] },
   WALL_SNAP: { actions: ["wallSnap"] },
   SHORT_DONE: { actions: ["shortDone"] },
@@ -181,4 +189,4 @@ export const profileLocal = (ctx) => (ctx.mine ? { wall: S.wallForServer(ctx.min
 // Teile ausserhalb des Kerns (src/app/feature-parts.json): Satz und Suche (home-find); Story/Wand-Bild laedt der Effekt selbst
 export const needParts = (ev) => (ev.type === "UNDERSTAND" || ev.type === "QUERY" ? ["home-find"] : []);
 
-export const home = { id: "home", shelfOn, on: { inhalt: inhaltOn, "inhalt.card.customize.dialog": { WX_GET: { actions: ["wxGet"] } } }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };
+export const home = { id: "home", shelfOn, on: { inhalt: inhaltOn, "inhalt.card.customize.dialog": { WX_GET: { actions: ["wxGet"] }, PHOTO_PUT: { actions: ["photoPut"] } } }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };

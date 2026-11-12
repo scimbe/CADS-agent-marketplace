@@ -79,3 +79,18 @@ test("Listen und Objekte aus dem Schema (flug route/look): anschalten, Eintraege
   }
   assert.equal(blank({ type: "array", minItems: 3, items: { type: "string", enum: ["a", "b"] } }).length, 3);
 });
+
+test("media.local: Foto waehlen sendet PHOTO_PUT mit der Datei; gewaehltes Foto ist schemagueltig; Foto weg setzt null; Fehler ehrlich", () => {
+  const m = manifestOf("arcade-panzer"), p = m.params.properties.photo, params = defaults(m.params), sent = [];
+  let v = params.photo;
+  const set = (nv) => { v = nv; };
+  let n = extraField(p, "photo", v, set, "Foto", ctx, (ev) => sent.push(ev));
+  const input = find(n, (x) => x.tag === "input" && x.props.type === "file")[0], file = { type: "image/png" }, target = { files: [file], value: "C:\\x.png" };
+  assert.equal(input.props.accept, "image/*");
+  input.props.on.change({ target }); assert.deepEqual(sent, [{ type: "PHOTO_PUT", key: "photo", file }]); assert.equal(target.value, "", "dieselbe Datei erneut waehlbar");
+  v = "local:" + "ab".repeat(16); assert.ok(validParams("arcade-panzer", { ...params, photo: v, photoUse: "figure" }));
+  n = extraField(p, "photo", v, set, "Foto", ctx, () => {});
+  assert.ok(JSON.stringify(n).includes("Foto gewählt")); click(byAct(n, "photo-off")); assert.equal(v, null);
+  n = extraField(p, "photo", null, set, "Foto", { ...ctx, photo: { key: "photo", st: "nicht-verfuegbar" } }, () => {});
+  assert.ok(JSON.stringify(n).includes("privaten Fenster"));
+});
