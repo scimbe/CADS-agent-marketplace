@@ -1,0 +1,215 @@
+{
+  "id": "karte-danke",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.1",
+  "kind": "turn",
+  "mode": "turn",
+  "order": 18,
+  "title": {
+    "de": "Schick wem ein Danke",
+    "en": "Send someone a thank you"
+  },
+  "teaser": {
+    "de": "Mit Grund. Zum Aufheben.",
+    "en": "With a reason. To keep."
+  },
+  "howto": {
+    "de": "Du schreibst, wofür du dankst, und schickst es. Oder du wählst eine fertige Karte mit einem warmen Satz.",
+    "en": "You write what you thank them for and send it. Or you pick a ready card with a warm line."
+  },
+  "rule": {
+    "de": "Du schreibst, wofür du dankst, und schickst es. Oder du wählst eine fertige Karte mit einem warmen Satz.",
+    "en": "You write what you thank them for and send it. Or you pick a ready card with a warm line."
+  },
+  "seats": {
+    "de": [
+      "Dankt",
+      "Bekommt"
+    ],
+    "en": [
+      "Thanks",
+      "Receives"
+    ]
+  },
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "hidden": "none",
+  "uses": [],
+  "limits": {
+    "stepBudget": 64,
+    "stateBytes": 4096
+  },
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "alone"
+    ]
+  },
+  "legacy": {
+    "karte-danke": "danke",
+    "karte-urkunde": "urkunde",
+    "karte-lob": "karte-lob",
+    "warm-toll": "warm-toll",
+    "warm-danke": "warm-danke",
+    "warm-super": "warm-super",
+    "warm-denke": "warm-denke",
+    "warm-daumen": "warm-daumen",
+    "warm-lachen": "warm-lachen",
+    "warm-freunde": "warm-freunde",
+    "warm-mutig": "warm-mutig",
+    "warm-besserung": "warm-besserung",
+    "warm-gruss": "warm-gruss"
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "t": {
+        "enum": [
+          "ans",
+          "close"
+        ]
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9
+      },
+      "a": {},
+      "d": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 100000
+      }
+    }
+  },
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "titel",
+      "spiel"
+    ],
+    "properties": {
+      "titel": {
+        "type": "string",
+        "maxLength": 40,
+        "pattern": "^[^\\u0000-\\u001f\\u007f<>]*$",
+        "default": "Schick wem ein Danke",
+        "x-field": "text",
+        "x-model": true,
+        "x-label": {
+          "de": "Titel",
+          "en": "Title"
+        }
+      },
+      "spiel": {
+        "type": "string",
+        "enum": [
+          "danke",
+          "urkunde",
+          "karte-lob",
+          "warm-toll",
+          "warm-danke",
+          "warm-super",
+          "warm-denke",
+          "warm-daumen",
+          "warm-lachen",
+          "warm-freunde",
+          "warm-mutig",
+          "warm-besserung",
+          "warm-gruss"
+        ],
+        "default": "danke",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Art",
+          "en": "Kind"
+        },
+        "x-names": {
+          "danke": {
+            "de": "Danke mit Grund",
+            "en": "Thanks with a reason"
+          },
+          "urkunde": {
+            "de": "Urkunde für nix",
+            "en": "Certificate for nothing"
+          },
+          "karte-lob": {
+            "de": "Urkunde für nix",
+            "en": "Award for nothing"
+          },
+          "warm-toll": {
+            "de": "Du bist toll",
+            "en": "You are awesome"
+          },
+          "warm-danke": {
+            "de": "Danke, dass es dich gibt",
+            "en": "So glad you exist"
+          },
+          "warm-super": {
+            "de": "Das hast du super gemacht",
+            "en": "You did great"
+          },
+          "warm-denke": {
+            "de": "Ich denk an dich",
+            "en": "Thinking of you"
+          },
+          "warm-daumen": {
+            "de": "Ich drück dir die Daumen",
+            "en": "Fingers crossed"
+          },
+          "warm-lachen": {
+            "de": "Dein Lachen steckt an",
+            "en": "Your laugh is contagious"
+          },
+          "warm-freunde": {
+            "de": "Schön, dass wir Freunde sind",
+            "en": "Glad we're friends"
+          },
+          "warm-mutig": {
+            "de": "Ich bin stolz auf dich",
+            "en": "Proud of you"
+          },
+          "warm-besserung": {
+            "de": "Gute Besserung",
+            "en": "Get well soon"
+          },
+          "warm-gruss": {
+            "de": "Kleiner Gruß für deinen Tag",
+            "en": "Have a good one"
+          }
+        }
+      }
+    }
+  },
+  "parts": [
+    {
+      "id": "art",
+      "params": [
+        "spiel"
+      ],
+      "label": {
+        "de": "Art",
+        "en": "Kind"
+      }
+    },
+    {
+      "id": "titel",
+      "params": [
+        "titel"
+      ],
+      "label": {
+        "de": "Titel",
+        "en": "Title"
+      }
+    }
+  ]
+}
