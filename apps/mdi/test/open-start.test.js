@@ -68,3 +68,16 @@ test("MODE nach dem ersten Zug oder live: bleibt im Spiel, Hinweis modus-gesperr
   const live = machine.send({ ...s, ctx: { ...s.ctx, mode: "live" } }, { type: "MODE", mode: "alone", rand: [], at: 0 });
   assert.equal(live.ctx.note, "modus-gesperrt");
 });
+
+test("startsGo: ein Feature-Ereignis, das GO ausloest (H: PLAY_AS), laedt vorher die Teile fuer GO mit dem neuen Modus", async () => {
+  const FPR = createFeatParts({ "x-ui": { file: "parts/feat-x-ui.000000000000.js", sri: "x" } });
+  const asked = [], seenMode = [];
+  const feats = [{ id: "fx", startsGo: ["PLAY_AS"], needParts: (ev, ctx) => { if (ev.type === "GO") { seenMode.push(ctx.mode); return ["x-ui"]; } return []; } }];
+  const rt = createRuntime({ lang: "de", entropy: counter("a"), storage: memStorage(), schedule: (f) => f(), onChange: () => {}, clearUrl: () => {},
+    needFeatures: feats, featParts: FPR, loadFeat: async (n) => { asked.push(n); return { name: n, mod: {} }; } });
+  rt.dispatch({ type: "OPEN", id: "bluff" });
+  rt.dispatch({ type: "PLAY_AS", mode: "bot" });
+  assert.equal(rt.state.ctx.loading, "x-ui", "PLAY_AS wartet auf den Teil fuer GO");
+  await tick(); await tick();
+  assert.deepEqual(asked, ["x-ui"]); assert.ok(seenMode.includes("bot"), "needParts sieht den neuen Modus");
+});
