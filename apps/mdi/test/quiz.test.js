@@ -360,6 +360,14 @@ test("Freie Karte: fromFree/toFree für zug-abfragen (Paket über sanitize, Spie
   assert.equal(S.status(abfragen, s).over, true);
   assert.deepEqual(abfragen.toFree(p), { k: "turn", g: "quiz", t: "Planeten", pk: p.pk });
   assert.deepEqual(abfragen.fromFree(abfragen.toFree(p)), p, "Rundreise");
+  assert.deepEqual([p.ki, p.fr], [null, null], "ohne Siegel: ki/fr leer");
+  // mit Siegel einer freien Karte (Strang K): ki/fr reisen in den Parametern und kommen in toFree zurueck
+  const ki = { k: "karte", s: "s2.karte.mwbw1pc0.abcdefgh", h: "K3K7AJM0DUBL8uyj5_gedU3wzYWzMGcBF3raQjXmjlQ", o: "tKth2odsojBqLziO0Em5h6" };
+  const ps = abfragen.fromFree({ k: "turn", g: "quiz", t: "Planeten", pk, ki, fr: "R".repeat(22) });
+  assert.deepEqual([ps.ki, ps.fr], [ki, "R".repeat(22)]);
+  assert.deepEqual(abfragen.toFree(ps), { k: "turn", g: "quiz", t: "Planeten", pk: ps.pk, ki, fr: "R".repeat(22) });
+  assert.deepEqual(abfragen.fromFree(abfragen.toFree(ps)), ps, "Rundreise mit Siegel");
+  assert.equal(abfragen.fromFree({ k: "turn", g: "quiz", t: "Planeten", pk, ki: { k: "karte", s: "x" } }).ki, null, "kaputtes Siegel: null, nie geraten");
   // abgelehnt statt still ersetzt
   assert.equal(abfragen.fromFree(null), null);
   assert.equal(abfragen.fromFree({ k: "card", g: "quiz", pk }), null, "keine Zugkarte");
