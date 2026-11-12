@@ -1,6 +1,6 @@
 // Anzeigeliste fuer den Tisch (Skat, Doppelkopf, Bauernskat). Texte aus dem Altcode table-ui.js (TX), Aufbau wie dort:
 // Ansage/Info, wer dran ist, Stich mit „Warum?", eigene Hand bzw. Stapel, Knoepfe, Stand. Primitive: pcard, pickn, more
-// (Renderer, Strang F) sowie stack/row/text/choice. Jede Karte traegt ihren Namen fuer Screenreader (Farbe + Rang).
+// (Renderer, Strang F; pcard mit submit: der Host schickt {...submit, a:0}) sowie stack/row/text/choice. Jede Karte traegt ihren Namen fuer Screenreader (Farbe + Rang).
 import { cardName } from "./deck.js";
 
 export const TX = {
@@ -51,7 +51,7 @@ export function tableView(T, manifest, obs, seat, ctx) {
   const pub = obs.pub, r = pub.r, R = T.R, game = T.game, n = T.n;
   const name = (s) => (s === seat && !ctx.preview ? X.you : (ctx.names && ctx.names[s]) || (manifest.seats && manifest.seats[L] && manifest.seats[L][s]) || t("seat", { n: s + 1 }));
   const cn = (c) => cardName(c, L);
-  const pc = (code, o = {}) => ({ t: "pcard", code: code || null, a11y: code ? cn(code) : X.hidden, size: o.size || "m", state: o.state || "none", ...(o.input ? { input: o.input } : {}) });
+  const pc = (code, o = {}) => ({ t: "pcard", code: code || null, a11y: code ? cn(code) : X.hidden, size: o.size || "m", state: o.state || "none", ...(o.input ? { submit: o.input } : {}) });
   const kids = [];
   if (ctx.preview) {
     const fan = game === "skat" ? ["CJ", "SJ", "HA", "DT"] : game === "bauernskat" ? ["DJ", "SA", "HT", "CJ"] : ["HT", "CQ", "SQ", "DA"];

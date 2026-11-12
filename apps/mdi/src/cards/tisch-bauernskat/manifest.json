@@ -293,6 +293,9 @@
           "c": {
             "type": "string",
             "pattern": "^[CSHD][AKQJT987]$"
+          },
+          "a": {
+            "const": 0
           }
         }
       },

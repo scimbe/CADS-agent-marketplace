@@ -368,6 +368,11 @@ export function makeTable(R, game) {
     },
     step, status, moves,
     observe(state, seat) { return { pub: state.pub, mine: state.priv[seat] || null }; },
+    // Eine angetippte Karte (Widget pcard) kommt als {...submit, a: 0}; sonst muss die Eingabe genau ein Zug sein
+    accepts(obs, seat, input) {
+      const x = input && input.t === "play" && input.a === 0 ? (({ a, ...rest }) => rest)(input) : input;
+      return moves(obs, seat).some((m) => canon(m) === canon(x));
+    },
     // fuer Ansicht und Bot
     myCards: (obs, seat) => myCards(obs.pub, seat, obs.mine),
     handOpen: (obs, seat) => handOpen(obs.pub, seat, obs.mine),

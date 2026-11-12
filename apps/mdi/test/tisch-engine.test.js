@@ -164,3 +164,21 @@ test("Kartendeck: 32 Bilder mit Farbe UND eigener Form je Farbe, Namen fuer Scre
   assert.equal(cardName("HQ", "de"), "Herz-Dame"); assert.equal(cardName("CJ", "en"), "Jack of Clubs");
   assert.ok(!JSON.stringify(cardSvg(null)).includes("text"));
 });
+
+test("accepts: angetippte Karte ({...submit, a:0}) zaehlt als genau dieser Zug; fremde Felder und falsche Karten nicht", () => {
+  const card = cardFor("bauernskat");
+  let checked = 0;
+  playAlone("bauernskat", { tag: "accepts", params: { runden: 1, regeln: [] }, chooser: (c, obs, seat) => {
+    const ms = c.moves(obs, seat), play = ms.find((m) => m.t === "play");
+    if (play && !checked) {
+      assert.equal(card.accepts(obs, seat, { ...play, a: 0 }), true);
+      assert.equal(card.accepts(obs, seat, { ...play, a: 1 }), false);
+      assert.equal(card.accepts(obs, seat, { ...play, c: "XX" }), false);
+      assert.equal(card.accepts(obs, 1 - seat, { ...play, seat: 1 - seat }), false, "nicht am Zug");
+      checked++;
+      return { input: { ...play, a: 0 } };
+    }
+    return autoChooser()(c, obs, seat);
+  } });
+  assert.equal(checked, 1);
+});

@@ -9,7 +9,7 @@ const T = makeTable(Doko, "doko");
 
 export default {
   manifest,
-  init: T.init, deal: T.deal, step: T.step, status: T.status, moves: T.moves, observe: T.observe,
+  init: T.init, deal: T.deal, step: T.step, status: T.status, moves: T.moves, observe: T.observe, accepts: T.accepts,
   // Determinisierung auf Vertragsebene: fremde Schluessel lassen sich nicht auslosen (sie muessten zum oeffentlichen
   // Deck passen). Die Welt enthaelt deshalb nur die eigene Sicht; gespielt wird ueber bot() auf Regelebene.
   sample: (obs, seat) => ({ pub: obs.pub, priv: obs.pub.score.map((_, s) => (s === seat ? obs.mine : null)) }),
