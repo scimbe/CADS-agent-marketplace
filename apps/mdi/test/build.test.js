@@ -204,7 +204,7 @@ test("Kein fast-uri/ajv-URI-Code im Auslieferungsstand und in den Validatoren (L
 test("build.json listet jeden Teil unter parts/ nach dem Wrapper-Muster (Vertrag mit W)", () => {
   const bj = JSON.parse(fs.readFileSync(path.join(DIST, "build.json"), "utf8"));
   const listed = new Set(Object.keys(bj.report.parts).filter((k) => k.startsWith("parts/")).map((k) => k.slice(6)));
-  const W = [/^card-[a-z0-9-]{1,40}\.[0-9a-f]{12}\.js$/, /^thumbs-\d+\.[0-9a-f]{12}\.js$/, /^live-frame\.[0-9a-f]{10}\.html$/, /^feat-[a-z0-9-]{1,40}\.[0-9a-f]{12}\.js$/];
+  const W = [/^card-[a-z0-9-]{1,40}\.[0-9a-f]{12}\.js$/, /^thumbs-[0-9]{1,4}\.[0-9a-f]{12}\.js$/, /^live-frame\.[0-9a-f]{10}\.html$/, /^feat-[a-z0-9-]{1,40}\.[0-9a-f]{12}\.js$/];
   for (const f of fs.readdirSync(path.join(DIST, "parts"))) {
     assert.ok(listed.has(f), "nicht in build.json: " + f);
     assert.ok(W.some((re) => re.test(f)), "passt zu keinem Wrapper-Muster: " + f);
