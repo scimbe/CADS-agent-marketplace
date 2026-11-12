@@ -11,7 +11,8 @@ export function titleOf(id, lang = "de") { const m = cardOf(id).manifest; return
 export async function openCard(p, id, mode, lang = "de") {
   await p.locator("main.h-at-day").waitFor();
   await act(p, "intent-alle"); await p.locator("main.h-at-regal").waitFor();
-  await p.locator("#h-q").fill(titleOf(id, lang));
+  // Karten aus dem Altkatalog ueber die Suche; neue Karten (z. B. duell-liest) stehen ohne Suche in ihrer Familie
+  if (!cardOf(id).manifest.family) await p.locator("#h-q").fill(titleOf(id, lang));
   await p.locator('[data-act="open-' + id + '"]').first().click();
   await waitScreen(p, "card-view");
   if (mode) await pickMode(p, lang, mode);

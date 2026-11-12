@@ -41,6 +41,7 @@
     ]
   },
   "grip": "pause",
+  "family": "bluff",
   "dur": 60,
   "players": {
     "min": 1,

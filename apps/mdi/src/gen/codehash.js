@@ -3,7 +3,7 @@
 export const CODE_HASH = {
   "beat-disco": "677e4ddef645291c62c1278c846b503f",
   "bluff": "aadba2becc7afdcebfbedcc5fa9ea31b",
-  "duell-liest": "911bc73ea471b67ce7e526d8e8b24a8f",
+  "duell-liest": "b80b0ffc5138a264fd72183db867c6e6",
   "geschenk-finder": "1c32c1632a208ff9f3dc5fab62657e27",
   "gruss": "b03afcb8f1a8ad4c401f9811a24b3501",
   "karte-ausrede": "388ecdd3e704e53a1452814ad074a04c",
