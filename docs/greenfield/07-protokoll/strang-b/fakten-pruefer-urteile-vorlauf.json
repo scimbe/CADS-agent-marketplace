@@ -1,0 +1,358 @@
+{
+ "modell": "claude-haiku-5-5",
+ "zeit": "2026-11-12T10:50:38.109Z",
+ "aufrufe": 28,
+ "usd": 0.0032164299999999993,
+ "urteile": [
+  {
+   "nr": "f01",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f02",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f03",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f04",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f05",
+   "urteil": "unsicher",
+   "grund": "Keine falschen Antworten angegeben; Frage unvollständig, 'Darin' ist unklar.",
+   "besser": "Woran hängen an Weihnachten Kugeln und Lichter? -> Tannenbaum",
+   "ok": true
+  },
+  {
+   "nr": "f06",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f07",
+   "urteil": "falsch",
+   "grund": "Das Sprichwort lautet 'Aller Anfang ist schwer'; 'leicht' ist zwar falsch, aber die Antwort 'schwer' ist korrekt, daher sicher. Prüfung: 'leicht' ist eine falsche Option, 'schwer' die richtige.",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f08",
+   "urteil": "unsicher",
+   "grund": "Der Osterhase ist Brauchtum, kein echtes Tier; die Frage ist nicht faktisch eindeutig.",
+   "besser": "Welches Fabeltier bringt in Deutschland zu Ostern oft Eier? -> Osterhase",
+   "ok": true
+  },
+  {
+   "nr": "f09",
+   "urteil": "unsicher",
+   "grund": "Ski fahren auch auf zwei Brettern über Schnee; Snowboard hat nur ein Brett.",
+   "besser": "Man fährt mit zwei Brettern über Schnee (Ski)? -> Ski",
+   "ok": true
+  },
+  {
+   "nr": "f10",
+   "urteil": "unsicher",
+   "grund": "Keine Frage gestellt und keine falschen Antworten; Quiz-Format unvollständig.",
+   "besser": "Was ist gefrorenes Wasser? -> Eis (mit mindestens drei falschen Antworten)",
+   "ok": true
+  },
+  {
+   "nr": "f11",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f12",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f13",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f14",
+   "urteil": "unsicher",
+   "grund": "Frage ist unvollständig und ohne falsche Antworten; Lückentext unklar, wohl 'Mond' gemeint.",
+   "besser": "Was scheint nachts am Himmel? -> Mond",
+   "ok": true
+  },
+  {
+   "nr": "f15",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f16",
+   "urteil": "unsicher",
+   "grund": "Keine falschen Antworten angegeben; Frage ist vage, da mehrere lange gelbe Früchte denkbar sind.",
+   "besser": "Which long yellow fruit do monkeys love to eat? -> Banana",
+   "ok": true
+  },
+  {
+   "nr": "f17",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f18",
+   "urteil": "unsicher",
+   "grund": "Keine falschen Antworten angegeben; Begriff ist regional unterschiedlich (Kekse, Plätzchen).",
+   "besser": "Wie nennt man im Advent gebackenes süßes Gebäck aus Teig, oft in Sternform, in Norddeutschland? -> Plätzchen",
+   "ok": true
+  },
+  {
+   "nr": "f19",
+   "urteil": "unsicher",
+   "grund": "Keine falschen Antworten angegeben und die Frage ist sehr vage; mehrere Begriffe wie Rasen passen ebenfalls.",
+   "besser": "Wie nennt man eine mit Gras bewachsene Freifläche, die gemäht oder beweidet wird? -> Wiese",
+   "ok": true
+  },
+  {
+   "nr": "f20",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f21",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f22",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f23",
+   "urteil": "unsicher",
+   "grund": "Keine Frage gestellt und keine falschen Antworten; Quiz-Format unvollständig.",
+   "besser": "Was wärmt den Hals? -> Schal (mit mindestens drei falschen Antworten)",
+   "ok": true
+  },
+  {
+   "nr": "f24",
+   "urteil": "unsicher",
+   "grund": "Hauptgrund ist Lichtmangel und Frost; Wassersparen ist eine Folge, keine klar unstrittige Hauptursache.",
+   "besser": "Warum werfen Laubbaeume im Herbst ihre Blaetter ab? -> Wegen Lichtmangels und Frostgefahr, um Wasserverlust zu vermeiden",
+   "ok": true
+  },
+  {
+   "nr": "f25",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f26",
+   "urteil": "falsch",
+   "grund": "Die Lücke beginnt mit B, die Antwort Julbock passt nicht zum Satz; sie ist selbst der Strohbock.",
+   "besser": "Wie heißt der schwedische Weihnachts-Strohbock? -> Julbock",
+   "ok": true
+  },
+  {
+   "nr": "f27",
+   "urteil": "unsicher",
+   "grund": "Viele Zugvögel fliegen im Herbst nach Süden, z. B. Schwalbe oder Kranich; die Frage ist nicht eindeutig.",
+   "besser": "Welcher Vogel aus Deutschland fliegt im Herbst nach Afrika und kommt im Frühjahr zurück? -> Storch",
+   "ok": true
+  },
+  {
+   "nr": "f28",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f29",
+   "urteil": "unsicher",
+   "grund": "'home' ist ebenfalls eine korrekte Bedeutung von Haus bzw. Zuhause; die Antwort ist mehrdeutig.",
+   "besser": "Was heisst 'Haus' auf Englisch (Gebaeude)? -> house",
+   "ok": true
+  },
+  {
+   "nr": "f30",
+   "urteil": "unsicher",
+   "grund": "Keine falschen Antworten angegeben; Frage ist unpräzise, Zitrone ist nicht immer gelb oder klein.",
+   "besser": "Which small sour yellow citrus fruit is often used in lemonade? -> Lemon",
+   "ok": true
+  },
+  {
+   "nr": "f31",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f32",
+   "urteil": "unsicher",
+   "grund": "Frage ist keine klare Frage; 'Geisterwort' ist mehrdeutig und ohne Auswahlantworten.",
+   "besser": "Wie nennt man einen Geist, der als Erscheinung umgeht? -> Gespenst",
+   "ok": true
+  },
+  {
+   "nr": "f33",
+   "urteil": "unsicher",
+   "grund": "Frage ist unpräzise: Stegosaurus ist der Name einer Art, nicht eine Bezeichnung für alle Dinos mit Rückenplatten.",
+   "besser": "Welcher Dinosaurier hatte Rückenplatten und Schwanzstacheln? -> Stegosaurus",
+   "ok": true
+  },
+  {
+   "nr": "f34",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f35",
+   "urteil": "unsicher",
+   "grund": "Die Beschreibung passt auf viele Tiere, etwa Wolf, Hase oder Elch; der Fuchs ist nicht eindeutig.",
+   "besser": "Welches Tier mit dickem Fell hinterlässt im Schnee typische Spuren in Wäldern Mitteleuropas? -> Fuchs (nur mit Auswahl aus Distraktoren eindeutig)",
+   "ok": true
+  },
+  {
+   "nr": "f36",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f37",
+   "urteil": "falsch",
+   "grund": "Zwiebeln haben meist braune oder rote Schalen und sind innen weiss bis violett; Schale ist nicht gruen typisch. Die Frage passt eher nicht sicher zur Zwiebel.",
+   "besser": "Welches Gemuese hat innen weisse Zwiebeln? Nicht eindeutig; besser Frage aendern, z.B. Welches Gemuese ist innen weiss und hat Knollen? -> Kohlrabi",
+   "ok": true
+  },
+  {
+   "nr": "f38",
+   "urteil": "unsicher",
+   "grund": "Kiwi und Mango sind nicht rot; aber Erdbeere passt nur mit Sommer-Hinweis, Kirsche/Johannisbeere ebenfalls rot und klein.",
+   "besser": "Welche kleine rote Beerenfrucht reift im Sommer? -> Erdbeere",
+   "ok": true
+  },
+  {
+   "nr": "f39",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f40",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f41",
+   "urteil": "unsicher",
+   "grund": "Frage ist unvollständig formuliert; ohne Lücke oder klaren Hinweis ist die Antwort nicht eindeutig; keine Alternativen.",
+   "besser": "Wo liegen alle Bücher einer Schule oder Stadt zum Ausleihen? -> Bibliothek",
+   "ok": true
+  },
+  {
+   "nr": "f42",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f43",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f44",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f45",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f46",
+   "urteil": "unsicher",
+   "grund": "Keine echte Frage erkennbar; Antwort wirkt nur wie eine Umschreibung, ohne Fragewort oder Lücke.",
+   "besser": "Wie nennt man die Pause zwischen den Unterrichtsstunden? -> Pause",
+   "ok": true
+  },
+  {
+   "nr": "f47",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f48",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f49",
+   "urteil": "unsicher",
+   "grund": "Keine falschen Antworten angegeben; Quiz-Format erfordert Auswahl, und Blumenkohl oder Romanesco wären ebenfalls möglich.",
+   "besser": "Welches grüne Gemüse hat kleine Röschen? -> Brokkoli (Auswahl mit Blumenkohl, Rosenkohl, Spinat)",
+   "ok": true
+  },
+  {
+   "nr": "f50",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  }
+ ]
+}

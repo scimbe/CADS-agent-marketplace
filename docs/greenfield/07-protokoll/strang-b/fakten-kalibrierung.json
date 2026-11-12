@@ -1,0 +1,566 @@
+{
+ "n": 50,
+ "quelle": "Spiele aus test-v2, dev-*, gold-lauf2..4 (Haiku 5.5, 2026-11-12)",
+ "fragen": [
+  {
+   "nr": "f01",
+   "quelle": "dev-repair-mehr-3/d38#4",
+   "id": "d38",
+   "satz": "Fragen zu Ländern und Flaggen",
+   "art": "auswahl",
+   "q": "Welches Land hat eine grüne Flagge mit einem Zedernbaum?",
+   "a": "Libanon",
+   "wrong": [
+    "Irland",
+    "Italien"
+   ]
+  },
+  {
+   "nr": "f02",
+   "quelle": "test-v2/t091#3",
+   "id": "t091",
+   "satz": "mathe quiz einmaleins",
+   "art": "auswahl",
+   "q": "Was ist 9 mal 9?",
+   "a": "81",
+   "wrong": [
+    "72",
+    "91"
+   ]
+  },
+  {
+   "nr": "f03",
+   "quelle": "gold-lauf3/g25#3",
+   "id": "g25",
+   "satz": "Quiz über das Sonnensystem für zwei",
+   "art": "auswahl",
+   "q": "Welcher Planet hat die auffaelligsten Ringe?",
+   "a": "Saturn",
+   "wrong": [
+    "Merkur",
+    "Erde"
+   ]
+  },
+  {
+   "nr": "f04",
+   "quelle": "test-v2/t106#1",
+   "id": "t106",
+   "satz": "Lückentext über Weihnachtsbräuche in anderen Ländern",
+   "art": "luecke",
+   "q": "In Mexiko ziehen Kinder vor Weihnachten von Haus zu Haus und singen. Dieser Brauch heißt L",
+   "a": "Posadas",
+   "wrong": []
+  },
+  {
+   "nr": "f05",
+   "quelle": "dev-drafts-basis/d39#1",
+   "id": "d39",
+   "satz": "Wörter zu Weihnachten eintippen",
+   "art": "eintippen",
+   "q": "Darin stehen die Kugeln und Lichter",
+   "a": "Tannenbaum",
+   "wrong": []
+  },
+  {
+   "nr": "f06",
+   "quelle": "dev-drafts-basis/d36#1",
+   "id": "d36",
+   "satz": "Lückentext mit Vögeln",
+   "art": "luecke",
+   "q": "Ein Vogel kann mit den Flügeln",
+   "a": "schlagen",
+   "wrong": []
+  },
+  {
+   "nr": "f07",
+   "quelle": "test-v2/t103#3",
+   "id": "t103",
+   "satz": "Sprichwörter ergänzen, ein Wort fehlt immer",
+   "art": "luecke",
+   "q": "Aller Anfang ist",
+   "a": "schwer",
+   "wrong": []
+  },
+  {
+   "nr": "f08",
+   "quelle": "test-v2/t094#0",
+   "id": "t094",
+   "satz": "Quiz zu Ostern was weißt du über Hasen",
+   "art": "auswahl",
+   "q": "Welches Tier bringt zu Ostern oft Eier?",
+   "a": "Osterhase",
+   "wrong": [
+    "Osterfuchs",
+    "Osterbär"
+   ]
+  },
+  {
+   "nr": "f09",
+   "quelle": "test-v2/t105#3",
+   "id": "t105",
+   "satz": "Wortsalat mit Sportarten",
+   "art": "buchstaben",
+   "q": "Man fährt auf zwei Brettern über Schnee",
+   "a": "Snowboard",
+   "wrong": []
+  },
+  {
+   "nr": "f10",
+   "quelle": "test-v2/t102#3",
+   "id": "t102",
+   "satz": "unscramble words about winter",
+   "art": "buchstaben",
+   "q": "Frozen water",
+   "a": "Ice",
+   "wrong": []
+  },
+  {
+   "nr": "f11",
+   "quelle": "test-v2/t090#3",
+   "id": "t090",
+   "satz": "Quiz über Fußballregeln",
+   "art": "auswahl",
+   "q": "Wie heißt der Strafstoß vom Elfmeterpunkt aus?",
+   "a": "Elfmeter",
+   "wrong": [
+    "Einwurf",
+    "Abstoß"
+   ]
+  },
+  {
+   "nr": "f12",
+   "quelle": "dev-drafts-mehr/d34#3",
+   "id": "d34",
+   "satz": "Quiz über Dinosaurier",
+   "art": "auswahl",
+   "q": "Welcher Dino hatte drei Hoerner am Kopf?",
+   "a": "Triceratops",
+   "wrong": [
+    "Pteranodon",
+    "Diplodocus"
+   ]
+  },
+  {
+   "nr": "f13",
+   "quelle": "test-v2/t096#1",
+   "id": "t096",
+   "satz": "Englisch Vokabeln: deutsches Wort steht da und man wählt die Übersetzung",
+   "art": "auswahl",
+   "q": "Hund",
+   "a": "dog",
+   "wrong": [
+    "duck",
+    "door"
+   ]
+  },
+  {
+   "nr": "f14",
+   "quelle": "test-v2/t110#5",
+   "id": "t110",
+   "satz": "halloween wörter durcheinander, man muss sie richtig schreiben",
+   "art": "buchstaben",
+   "q": "Nachts scheint der",
+   "a": "Mond",
+   "wrong": []
+  },
+  {
+   "nr": "f15",
+   "quelle": "test-v2/t094#3",
+   "id": "t094",
+   "satz": "Quiz zu Ostern was weißt du über Hasen",
+   "art": "auswahl",
+   "q": "Welche Ohren hat der Feldhase meist?",
+   "a": "Lange Ohren",
+   "wrong": [
+    "Kurze Stummelohren",
+    "Gar keine Ohren"
+   ]
+  },
+  {
+   "nr": "f16",
+   "quelle": "gold-lauf2/g32#1",
+   "id": "g32",
+   "satz": "Word scramble with fruit names",
+   "art": "buchstaben",
+   "q": "A long yellow fruit monkeys love",
+   "a": "Banana",
+   "wrong": []
+  },
+  {
+   "nr": "f17",
+   "quelle": "gold-lauf2/g31#1",
+   "id": "g31",
+   "satz": "Animal quiz for my little sister",
+   "art": "auswahl",
+   "q": "Which animal has a long neck and eats leaves high up?",
+   "a": "Giraffe",
+   "wrong": [
+    "Penguin",
+    "Rabbit"
+   ]
+  },
+  {
+   "nr": "f18",
+   "quelle": "dev-repair-basis/d39#3",
+   "id": "d39",
+   "satz": "Wörter zu Weihnachten eintippen",
+   "art": "eintippen",
+   "q": "Süßes Gebäck aus Teig, oft in Sternform",
+   "a": "Plätzchen",
+   "wrong": []
+  },
+  {
+   "nr": "f19",
+   "quelle": "test-v2/t107#0",
+   "id": "t107",
+   "satz": "Rechtschreibung üben: Wörter mit ie oder i eintippen",
+   "art": "luecke",
+   "q": "Grüne Fläche mit Gras",
+   "a": "Wiese",
+   "wrong": []
+  },
+  {
+   "nr": "f20",
+   "quelle": "gold-lauf3/g28#1",
+   "id": "g28",
+   "satz": "Hauptstädte Europas raten",
+   "art": "auswahl",
+   "q": "Welche Stadt ist die Hauptstadt von Italien?",
+   "a": "Rom",
+   "wrong": [
+    "Mailand",
+    "Neapel"
+   ]
+  },
+  {
+   "nr": "f21",
+   "quelle": "test-v2/t090#4",
+   "id": "t090",
+   "satz": "Quiz über Fußballregeln",
+   "art": "auswahl",
+   "q": "Womit darf der Torwart den Ball im eigenen Strafraum berühren?",
+   "a": "Mit den Händen",
+   "wrong": [
+    "Nur mit dem Kopf",
+    "Gar nicht"
+   ]
+  },
+  {
+   "nr": "f22",
+   "quelle": "test-v2/t105#2",
+   "id": "t105",
+   "satz": "Wortsalat mit Sportarten",
+   "art": "buchstaben",
+   "q": "Mit Schläger und Ball auf Tischplatte",
+   "a": "Tischtennis",
+   "wrong": []
+  },
+  {
+   "nr": "f23",
+   "quelle": "test-v2/t102#4",
+   "id": "t102",
+   "satz": "unscramble words about winter",
+   "art": "buchstaben",
+   "q": "Warm around the neck",
+   "a": "Scarf",
+   "wrong": []
+  },
+  {
+   "nr": "f24",
+   "quelle": "test-v2/t097#3",
+   "id": "t097",
+   "satz": "Herbstquiz mit Pilzen und Blättern",
+   "art": "auswahl",
+   "q": "Warum werfen Baeume im Herbst ihre Blaetter ab?",
+   "a": "Um Wasser zu sparen",
+   "wrong": [
+    "Weil es zu warm ist",
+    "Weil sie wachsen wollen"
+   ]
+  },
+  {
+   "nr": "f25",
+   "quelle": "test-v2/t104#2",
+   "id": "t104",
+   "satz": "Land wird angezeigt und man tippt die Hauptstadt ein",
+   "art": "eintippen",
+   "q": "Land: Japan. Wie heisst die Hauptstadt?",
+   "a": "Tokio",
+   "wrong": []
+  },
+  {
+   "nr": "f26",
+   "quelle": "test-v2/t106#0",
+   "id": "t106",
+   "satz": "Lückentext über Weihnachtsbräuche in anderen Ländern",
+   "art": "luecke",
+   "q": "In Schweden steht zu Weihnachten oft ein Strohbock, der Julbock. Er stammt aus dem alten B",
+   "a": "Julbock",
+   "wrong": []
+  },
+  {
+   "nr": "f27",
+   "quelle": "gold-lauf4/g26#4",
+   "id": "g26",
+   "satz": "Buchstabensalat mit Wintertieren",
+   "art": "buchstaben",
+   "q": "Zieht im Herbst in den Süden, ein Vogel",
+   "a": "Storch",
+   "wrong": []
+  },
+  {
+   "nr": "f28",
+   "quelle": "test-v2/t092#3",
+   "id": "t092",
+   "satz": "a quiz about volcanoes",
+   "art": "auswahl",
+   "q": "What is a mountain that is no longer active called?",
+   "a": "Dormant volcano",
+   "wrong": [
+    "Glacier",
+    "Canyon"
+   ]
+  },
+  {
+   "nr": "f29",
+   "quelle": "test-v2/t096#0",
+   "id": "t096",
+   "satz": "Englisch Vokabeln: deutsches Wort steht da und man wählt die Übersetzung",
+   "art": "auswahl",
+   "q": "Haus",
+   "a": "house",
+   "wrong": [
+    "horse",
+    "home"
+   ]
+  },
+  {
+   "nr": "f30",
+   "quelle": "gold-lauf2/g32#2",
+   "id": "g32",
+   "satz": "Word scramble with fruit names",
+   "art": "buchstaben",
+   "q": "A small sour yellow fruit used in lemonade",
+   "a": "Lemon",
+   "wrong": []
+  },
+  {
+   "nr": "f31",
+   "quelle": "dev-repair-mehr/d35#5",
+   "id": "d35",
+   "satz": "Buchstabensalat mit Gemüse",
+   "art": "buchstaben",
+   "q": "Kleine grüne Kugeln in der Schote",
+   "a": "Erbse",
+   "wrong": []
+  },
+  {
+   "nr": "f32",
+   "quelle": "test-v2/t110#3",
+   "id": "t110",
+   "satz": "halloween wörter durcheinander, man muss sie richtig schreiben",
+   "art": "buchstaben",
+   "q": "Gruseliges Geisterwort",
+   "a": "Gespenst",
+   "wrong": []
+  },
+  {
+   "nr": "f33",
+   "quelle": "dev-repair-mehr/d34#1",
+   "id": "d34",
+   "satz": "Quiz über Dinosaurier",
+   "art": "auswahl",
+   "q": "Wie nennt man Dinosaurier mit Dornenplatten auf dem Rücken?",
+   "a": "Stegosaurus",
+   "wrong": [
+    "Brachiosaurus",
+    "Diplodocus"
+   ]
+  },
+  {
+   "nr": "f34",
+   "quelle": "gold-lauf3/g27#2",
+   "id": "g27",
+   "satz": "Lückentext mit Obstsorten",
+   "art": "luecke",
+   "q": "Die Kirsche hat einen harten",
+   "a": "Kern",
+   "wrong": []
+  },
+  {
+   "nr": "f35",
+   "quelle": "gold-lauf2/g26#1",
+   "id": "g26",
+   "satz": "Buchstabensalat mit Wintertieren",
+   "art": "buchstaben",
+   "q": "Ein Tier mit dickem Fell, das im Schnee Spuren hinterlässt",
+   "a": "Fuchs",
+   "wrong": []
+  },
+  {
+   "nr": "f36",
+   "quelle": "test-v2/t098#4",
+   "id": "t098",
+   "satz": "Buchstabensalat mit Tiernamen",
+   "art": "buchstaben",
+   "q": "Hat Streifen und faucht gern",
+   "a": "Tiger",
+   "wrong": []
+  },
+  {
+   "nr": "f37",
+   "quelle": "test-v2/t093#1",
+   "id": "t093",
+   "satz": "Wie gut kennst du Gemüse? Quiz",
+   "art": "auswahl",
+   "q": "Welches Gemuese hat grüne Schalen und ist innen weiss?",
+   "a": "Zwiebel",
+   "wrong": [
+    "Tomate",
+    "Paprika"
+   ]
+  },
+  {
+   "nr": "f38",
+   "quelle": "gold-lauf4/g27#3",
+   "id": "g27",
+   "satz": "Lückentext mit Obstsorten",
+   "art": "luecke",
+   "q": "Kleine rote Früchte im Sommer sind die",
+   "a": "Erdbeere",
+   "wrong": []
+  },
+  {
+   "nr": "f39",
+   "quelle": "test-v2/t100#2",
+   "id": "t100",
+   "satz": "Lückentext über Planeten",
+   "art": "luecke",
+   "q": "Unsere Heimat ist die E de.",
+   "a": "Erde",
+   "wrong": []
+  },
+  {
+   "nr": "f40",
+   "quelle": "test-v2/t098#1",
+   "id": "t098",
+   "satz": "Buchstabensalat mit Tiernamen",
+   "art": "buchstaben",
+   "q": "Hat einen langen Hals und Flecken",
+   "a": "Giraffe",
+   "wrong": []
+  },
+  {
+   "nr": "f41",
+   "quelle": "test-v2/t099#3",
+   "id": "t099",
+   "satz": "Wörter entwirren zum Thema Schule",
+   "art": "buchstaben",
+   "q": "Hier liegen alle Bücher",
+   "a": "Bibliothek",
+   "wrong": []
+  },
+  {
+   "nr": "f42",
+   "quelle": "gold-lauf3/g31#3",
+   "id": "g31",
+   "satz": "Animal quiz for my little sister",
+   "art": "auswahl",
+   "q": "Which animal lays eggs and says quack?",
+   "a": "Duck",
+   "wrong": [
+    "Sheep",
+    "Bear"
+   ]
+  },
+  {
+   "nr": "f43",
+   "quelle": "dev-repair-mehr-2/d38#0",
+   "id": "d38",
+   "satz": "Fragen zu Ländern und Flaggen",
+   "art": "auswahl",
+   "q": "Welches Land hat eine rote Flagge mit einem weißen Ahornblatt?",
+   "a": "Kanada",
+   "wrong": [
+    "Peru",
+    "Dänemark"
+   ]
+  },
+  {
+   "nr": "f44",
+   "quelle": "gold-lauf2/g28#5",
+   "id": "g28",
+   "satz": "Hauptstädte Europas raten",
+   "art": "auswahl",
+   "q": "Was ist die Hauptstadt von Griechenland?",
+   "a": "Athen",
+   "wrong": [
+    "Thessaloniki",
+    "Patras"
+   ]
+  },
+  {
+   "nr": "f45",
+   "quelle": "test-v2/t091#1",
+   "id": "t091",
+   "satz": "mathe quiz einmaleins",
+   "art": "auswahl",
+   "q": "Was ist 6 mal 9?",
+   "a": "54",
+   "wrong": [
+    "56",
+    "45"
+   ]
+  },
+  {
+   "nr": "f46",
+   "quelle": "test-v2/t099#4",
+   "id": "t099",
+   "satz": "Wörter entwirren zum Thema Schule",
+   "art": "buchstaben",
+   "q": "Die Pause zwischen den Stunden",
+   "a": "Pause",
+   "wrong": []
+  },
+  {
+   "nr": "f47",
+   "quelle": "test-v2/t103#2",
+   "id": "t103",
+   "satz": "Sprichwörter ergänzen, ein Wort fehlt immer",
+   "art": "luecke",
+   "q": "Übung macht den",
+   "a": "Meister",
+   "wrong": []
+  },
+  {
+   "nr": "f48",
+   "quelle": "dev-drafts-basis/d36#2",
+   "id": "d36",
+   "satz": "Lückentext mit Vögeln",
+   "art": "luecke",
+   "q": "Die Krähe baut ihr Nest aus",
+   "a": "Zweigen",
+   "wrong": []
+  },
+  {
+   "nr": "f49",
+   "quelle": "dev-drafts-basis/d35#3",
+   "id": "d35",
+   "satz": "Buchstabensalat mit Gemüse",
+   "art": "buchstaben",
+   "q": "Grünes Röschen-Gemüse",
+   "a": "Brokkoli",
+   "wrong": []
+  },
+  {
+   "nr": "f50",
+   "quelle": "test-v2/t100#0",
+   "id": "t100",
+   "satz": "Lückentext über Planeten",
+   "art": "luecke",
+   "q": "Der Planet mit den auffälligsten Ringen heißt Sa urn.",
+   "a": "Saturn",
+   "wrong": []
+  }
+ ]
+}

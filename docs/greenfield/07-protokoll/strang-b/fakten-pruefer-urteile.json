@@ -1,0 +1,358 @@
+{
+ "modell": "claude-haiku-5-5",
+ "zeit": "2026-11-12T10:52:42.366Z",
+ "aufrufe": 28,
+ "usd": 0.00373777,
+ "urteile": [
+  {
+   "nr": "f01",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f02",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f03",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f04",
+   "urteil": "unsicher",
+   "grund": "Posadas ist der richtige Brauch, aber der Hinweis 'heißt L' passt nicht zur Lösung; die Frage führt nicht eindeutig darauf.",
+   "besser": "In Mexiko ziehen Kinder vor Weihnachten von Haus zu Haus und singen. Dieser Brauch heißt -> Posadas",
+   "ok": true
+  },
+  {
+   "nr": "f05",
+   "urteil": "unsicher",
+   "grund": "Kugeln und Lichter hängen am Weihnachtsbaum, aber auch Weihnachtsbaum, Christbaum oder Tannenbaum sind mehrdeutig, daher nur eintippbar mit einer Antwort; Mehrdeutigkeit bei Synonymen.",
+   "besser": "Darin stehen die Kugeln und Lichter eines Weihnachtsbaums? -> Tannenbaum",
+   "ok": true
+  },
+  {
+   "nr": "f06",
+   "urteil": "unsicher",
+   "grund": "Der Satz ist sinnvoll, aber auch 'flattern' oder 'rudern' passen als Luecke, daher nicht eindeutig.",
+   "besser": "Ein Vogel kann mit den Flügeln ... -> schlagen (Clue mit eindeutigerem Kontext formulieren, z.B. 'Zum Abheben schlägt ein Vogel mit den ...')",
+   "ok": true
+  },
+  {
+   "nr": "f07",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f08",
+   "urteil": "sicher",
+   "grund": "Der Osterhase ist die traditionelle Figur; die anderen Tiere sind erfunden und falsch.",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f09",
+   "urteil": "unsicher",
+   "grund": "Snowboard ist ein korrektes Wort; man fährt darauf über Schnee, nur 'zwei Brettern' passt nicht ganz, da es ein Brett ist.",
+   "besser": "Man gleitet mit einem Brett über Schnee -> Snowboard",
+   "ok": true
+  },
+  {
+   "nr": "f10",
+   "urteil": "sicher",
+   "grund": "Ice is a real word meaning frozen water and fits the clue.",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f11",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f12",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f13",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f14",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f15",
+   "urteil": "sicher",
+   "grund": "Feldhasen haben lange Ohren, die Antwort ist korrekt; die Formulierung ist aber unnoetig vage, passt aber als Fakt.",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f16",
+   "urteil": "sicher",
+   "grund": "Banana ist ein echtes Wort und passt zur Beschreibung; Schreibweise mit grossem B ist unproblematisch.",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f17",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f18",
+   "urteil": "unsicher",
+   "grund": "Plätzchen ist eine Gebäckart in Sternform; Synonyme wie Kekse oder Keks sind ebenfalls richtig, daher nicht eindeutig.",
+   "besser": "Süßes Gebäck aus Teig, oft in Sternform, Weihnachtsgebäck (Mehrdeutigkeit mit Keks vermeiden durch Zusatz wie 'das man zu Weihnachten backt') -> Plätzchen",
+   "ok": true
+  },
+  {
+   "nr": "f19",
+   "urteil": "unsicher",
+   "grund": "Wiese passt zum Hinweis Grüne Fläche mit Gras; Rasen oder Weide wären ebenfalls möglich, daher nicht eindeutig.",
+   "besser": "Grüne Fläche mit Gras, die gemäht wird und oft im Garten liegt -> Rasen",
+   "ok": true
+  },
+  {
+   "nr": "f20",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f21",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f22",
+   "urteil": "sicher",
+   "grund": "Tischtennis ist korrekt; mit Schläger und Ball auf einer Tischplatte gespielt.",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f23",
+   "urteil": "sicher",
+   "grund": "Scarf is a real word fitting the clue of something warm worn around the neck.",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f24",
+   "urteil": "unsicher",
+   "grund": "Laubbaeume werfen im Herbst Blaetter ab, vor allem wegen Lichtmangel und Kaelte, um Wasserverlust zu vermeiden; die Antwort ist eine vereinfachte, aber geläufige Erklaerung. Falsche Antworten sind klar falsch.",
+   "besser": "Warum werfen Laubbaeume im Herbst ihre Blaetter ab? -> Wegen Kaelte und weniger Licht, um Wasserverlust zu vermeiden",
+   "ok": true
+  },
+  {
+   "nr": "f25",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f26",
+   "urteil": "unsicher",
+   "grund": "Die Lösung 'Julbock' steht schon in der Frage; der Lückentext führt nicht eindeutig auf ein anderes Wort und ist daher zirkulär.",
+   "besser": "In Schweden steht zu Weihnachten oft ein Strohbock. Er stammt aus dem alten Brauchtum der Germanen. Wie heißt er? -> Julbock",
+   "ok": true
+  },
+  {
+   "nr": "f27",
+   "urteil": "sicher",
+   "grund": "Storch ist ein Zugvogel, der im Herbst in den Süden zieht; passt zur Beschreibung.",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f28",
+   "urteil": "sicher",
+   "grund": "A volcano that is no longer active is called extinct or dormant; 'dormant volcano' is correct, though the question asks for a mountain generally and 'extinct volcano' is also accepted.",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f29",
+   "urteil": "unsicher",
+   "grund": "Haus heisst englisch house; 'home' bedeutet eher Zuhause und koennte ebenfalls passen.",
+   "besser": "Wie heisst Haus auf Englisch? -> house (Wrong: horse, mouse)",
+   "ok": true
+  },
+  {
+   "nr": "f30",
+   "urteil": "sicher",
+   "grund": "Lemon ist ein echtes Wort und passt zur Beschreibung einer sauren gelben Frucht.",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f31",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f32",
+   "urteil": "unsicher",
+   "grund": "Gespenst ist ein passendes deutsches Wort; die Umschreibung 'Geisterwort' ist aber vage und lässt auch Geist oder Spuk zu.",
+   "besser": "Wie nennt man ein gruseliges Geisterwesen, das in Schlössern spukt? -> Gespenst",
+   "ok": true
+  },
+  {
+   "nr": "f33",
+   "urteil": "unsicher",
+   "grund": "Stegosaurus hat Dornenplatten auf dem Rücken; die Frage ist aber sprachlich ungenau formuliert, da 'Wie nennt man' nach einem Namen fragt, den es so nicht gibt.",
+   "besser": "Welcher Dinosaurier hatte Knochenplatten und Stacheln auf dem Rücken? -> Stegosaurus",
+   "ok": true
+  },
+  {
+   "nr": "f34",
+   "urteil": "unsicher",
+   "grund": "Kern ist idiomatisch richtig, aber Stein waere ebenso plausibel fuer den harten Kern der Kirsche.",
+   "besser": "Die Kirsche hat im Inneren einen harten Stein. -> Steinkern",
+   "ok": true
+  },
+  {
+   "nr": "f35",
+   "urteil": "unsicher",
+   "grund": "Fuchs passt grob, aber 'dickes Fell' und 'Spuren im Schnee' treffen auch auf Hase, Bär, Wolf oder Luchs zu; nicht eindeutig.",
+   "besser": "Welches Raubtier mit rotem Fell und buschigem Schwanz lebt auch in Städten? -> Fuchs",
+   "ok": true
+  },
+  {
+   "nr": "f36",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f37",
+   "urteil": "falsch",
+   "grund": "Zwiebeln haben trockene braune Schalen und sind innen weiss bis violett; gruene Schalen mit weissem Inneren passen nicht zur Zwiebel, und die Frage ist unklar.",
+   "besser": "Welches Gemuese hat weisses Inneres und ist eine Knolle? -> Knoblauch",
+   "ok": true
+  },
+  {
+   "nr": "f38",
+   "urteil": "unsicher",
+   "grund": "Mehrere kleine rote Sommerfruechte (Himbeere, Johannisbeere, Kirsche) passen ebenso; die Satzform ist zudem im Plural.",
+   "besser": "Welche Sommerfrucht wird oft als Erdbeere auf dem Feld gepflueckt? -> Erdbeere",
+   "ok": true
+  },
+  {
+   "nr": "f39",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f40",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f41",
+   "urteil": "sicher",
+   "grund": "Bibliothek ist ein echtes Wort und passt zur Umschreibung 'Hier liegen alle Bücher'.",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f42",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f43",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f44",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f45",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f46",
+   "urteil": "sicher",
+   "grund": "Pause ist ein echtes Wort und passt zur Umschreibung der Pause zwischen den Stunden.",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f47",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  },
+  {
+   "nr": "f48",
+   "urteil": "unsicher",
+   "grund": "Krähen bauen Nester meist aus Zweigen, aber 'Ästen' oder 'Stöcken' waeren ebenso richtig.",
+   "besser": "Die Krähe baut ihr Nest aus dünnen ... -> Zweigen (oder Frage nach dem Material praezisieren)",
+   "ok": true
+  },
+  {
+   "nr": "f49",
+   "urteil": "unsicher",
+   "grund": "Brokkoli ist ein Kohlgemuese; das Roeschen-Gemuese ist eher Rosenkohl, Brokkoli ist eine Blumenkohl-aehnliche Bluetenstand.",
+   "besser": "Gruenes Gemuese mit kleinen Roeschen, Kohlart -> Rosenkohl",
+   "ok": true
+  },
+  {
+   "nr": "f50",
+   "urteil": "sicher",
+   "grund": "",
+   "besser": "",
+   "ok": true
+  }
+ ]
+}
