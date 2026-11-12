@@ -544,5 +544,13 @@
         ]
       }
     ]
+  },
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Ziegel-Duell",
+      "en": "Brick duel"
+    }
   }
 }

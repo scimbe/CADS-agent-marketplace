@@ -44,7 +44,7 @@ export function fx(S, k, x, y, more) {
   const e = { k, x, y }; if (more) for (const q of Object.keys(more)) e[q] = more[q];
   S.ev.push(e); if (S.ev.length > 80) S.ev.shift();
 }
-function finish(S) { S.over = true; S.ending = false; S.serveAt = 0; S.draw = S.score[0] === S.score[1]; fx(S, S.draw ? "draw" : S.score[0] > S.score[1] ? "won" : "lost", W / 2, H / 2); }
+export function finish(S) { S.over = true; S.ending = false; S.serveAt = 0; S.draw = S.score[0] === S.score[1]; fx(S, S.draw ? "draw" : S.score[0] > S.score[1] ? "won" : "lost", W / 2, H / 2); }
 /** Ende: bei G.fin (mehrere Granaten/Schneebaelle in der Luft) friert jede Seite ein und meldet ihre Treffer ("fin"). */
 export function check(S, G) {
   if (S.over || !(S.score[0] >= S.WIN || S.score[1] >= S.WIN || S.oppFin !== null)) return;

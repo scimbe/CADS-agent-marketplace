@@ -15,10 +15,11 @@ const X = (lang) => D.T(lang);
 const linkOf = (p) => p.locator("#linkfield").inputValue().then((u) => u.slice(u.indexOf("#")));
 
 /** Spielart waehlen (Regeln-Blase): a 301 Double-Out … d Hoechste Punktzahl. */
-async function setGame(p, k) {
+// Spielart im Editor ueber ihren Namen (manifest x-names, z. B. "Hoechste Punktzahl"), nicht ueber den Rohwert
+async function setGame(p, k, lang) {
   await act(p, "customize");
   await p.locator('.bubble[data-for="regeln"]').click();
-  await p.getByRole("radio", { name: k, exact: true }).first().click();
+  await p.getByRole("radio", { name: X(lang)["da_m_" + k], exact: true }).first().click();
   await act(p, "close"); await act(p, "done");
 }
 /** Bis der eigene Wurf-Bildschirm da ist (Abdecken bestaetigen, Bert abwarten). */
@@ -65,7 +66,7 @@ const covered = (p) => p.evaluate(async () => {
 for (const [view, lang] of [["phone390", "de"], ["desk1280", "en"]]) {
   test(view + "/" + lang + ": gegen Bert per Klick bis zum Ende (Hoechste Punktzahl, 3 Runden)", async () => {
     const A = await open(b, { view, lang });
-    await act(A.p, "open-spiel-dart"); await setGame(A.p, "d");
+    await act(A.p, "open-spiel-dart"); await setGame(A.p, "d", lang);
     await pickMode(A.p, lang, "bot"); await act(A.p, "go");
     let darts = 0;
     for (let i = 0; i < 40; i++) {
@@ -94,7 +95,9 @@ test("Zielen per Touch (Tippen aufs Brett) und per Pfeiltasten; Kraft am Regler 
   await A.p.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
   await A.p.waitForTimeout(250);
   const [cx, cy] = await val();
-  assert.ok(Math.abs(cx - 1320) < 60 && Math.abs(cy - 1320) < 60, "Mitte getroffen: " + cx + "," + cy);
+  // Touch zielt 52 px ueber den Finger (alt TOUCH_UP), damit der Finger das Ziel nicht verdeckt
+  const lift = Math.round(52 / box.height * 2641);
+  assert.ok(Math.abs(cx - 1320) < 60 && Math.abs(cy - Math.max(0, 1320 - lift)) < 60, "Mitte mit Versatz getroffen: " + cx + "," + cy + " (Versatz " + lift + ")");
   // Pfeiltasten: ein Schritt nach links und einer nach oben
   await slider.focus(); await A.p.keyboard.press("ArrowLeft"); await A.p.waitForTimeout(250);
   await A.p.getByRole("slider", { name: new RegExp("^" + X("de").da_aim) }).focus(); await A.p.keyboard.press("ArrowUp"); await A.p.waitForTimeout(250);
@@ -111,7 +114,49 @@ test("Zielen per Touch (Tippen aufs Brett) und per Pfeiltasten; Kraft am Regler 
   await A.ctx.close();
 });
 
-test("Kraft per Halten (Zeiger) und per Leertaste im Pendel-Modus", { todo: "Strang F: power im Pendel-Modus innerhalb von form sendet an ein noop und legt einen Zeitstempel als Wert ab; ausserdem ohne Startstufe aus dem Seed (alt hand().lv) und ohne SWING 160 ms (alt swing)" }, () => {});
+test("Kraft per Halten (Zeiger) und per Leertaste im Pendel-Modus; Fadenkreuz zittert", async () => {
+  const A = await open(b, { view: "desk1280", lang: "de" });
+  await act(A.p, "open-spiel-dart"); await pickMode(A.p, "de", "bot"); await act(A.p, "go");
+  await untilTurn(A.p);
+  // Zitterbahn: das Kreuz laeuft die Stuetzpunkte ab (nur Bild)
+  const frame = () => A.p.locator(".w-cross").first().getAttribute("data-frame");
+  await A.p.waitForFunction(() => document.querySelector(".w-cross") && document.querySelector(".w-cross").dataset.frame !== undefined, null, { timeout: 5000 });
+  const f1 = await frame();
+  await A.p.waitForFunction((f) => document.querySelector(".w-cross").dataset.frame !== f, f1, { timeout: 5000 }); // laeuft weiter (auch unter Last)
+  const hold = A.p.getByRole("button", { name: /Halten für Kraft/ }).first();
+  const shown = () => hold.textContent();
+  // Zeiger: halten laesst die Kraft pendeln (Takt 160 ms), loslassen legt die Stufe ins Formular
+  await hold.scrollIntoViewIfNeeded();
+  const box = await hold.boundingBox();
+  await A.p.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await A.p.mouse.down();
+  await A.p.waitForFunction(() => document.querySelector('[data-holding="1"]'), null, { timeout: 5000 });
+  const s1 = await shown();
+  assert.match(s1, /Kraft \d von 9/);
+  // Pendel bewegt sich, solange gehalten wird (Takt 160 ms; Warten statt fester Zeit, damit Last nicht stoert)
+  await A.p.waitForFunction((t) => { const b = document.querySelector('[data-holding="1"]'); return b && b.textContent !== t; }, s1, { timeout: 5000 });
+  await A.p.mouse.up();
+  await A.p.locator('[data-act="w-wurf"]').click();
+  await A.p.waitForFunction(() => /Pfeil 2 von 3/.test(document.querySelector("main").innerText), null, { timeout: 5000 });
+  // Tastatur: Leertaste halten und loslassen, dann Werfen per Enter
+  await untilTurn(A.p);
+  const hold2 = A.p.getByRole("button", { name: /Halten für Kraft/ }).first();
+  await hold2.focus(); await A.p.keyboard.down(" "); await A.p.waitForTimeout(350); await A.p.keyboard.up(" ");
+  await A.p.locator('[data-act="w-wurf"]').focus(); await A.p.keyboard.press("Enter");
+  await A.p.waitForFunction(() => /Pfeil 3 von 3/.test(document.querySelector("main").innerText), null, { timeout: 5000 });
+  assert.deepEqual(A.errs, []);
+  await A.ctx.close();
+});
+
+for (const view of ["phone360", "phone390", "phone412"]) {
+  test("Brett fuellt auf dem Telefon die Breite (Kernhandlung im ersten Bildschirm) – " + view, async () => {
+    const A = await open(b, { view, lang: "de" });
+    await act(A.p, "open-spiel-dart"); await pickMode(A.p, "de", "bot"); await act(A.p, "go");
+    await untilTurn(A.p);
+    const r = await A.p.evaluate(() => { const a = document.querySelector(".w-aim").getBoundingClientRect(); return { w: a.width, vw: innerWidth }; });
+    assert.ok(r.w >= 0.8 * r.vw, "Brett " + Math.round(r.w) + " px bei " + r.vw + " px Ansicht");
+    await A.ctx.close();
+  });
+}
 
 for (const view of ["phone360", "phone390", "phone412", "desk1280"]) {
   test("Wurf-Zustand: nichts verdeckt, kein Ueberlauf, axe 0 – " + view, async () => {

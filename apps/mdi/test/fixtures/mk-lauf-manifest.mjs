@@ -26,7 +26,7 @@ Object.assign(props, {
   hintergrund: { type: ["string", "null"], default: null, "x-field": "media.local", "x-slot": "hintergrund", "x-label": Lb("Eigenes Foto als Hintergrund", "Own photo as background") },
   col: { type: "array", minItems: 2, maxItems: 2, items: { type: "string", pattern: "^#[0-9a-fA-F]{6}$" }, default: def.col, "x-field": "color", "x-label": Lb("Farben", "Colours") },
   t: { type: "string", maxLength: 40, default: def.t, "x-field": "text", "x-model": true, "x-label": Lb(T.de.lf_title, T.en.lf_title) },
-  ki: { type: ["object", "null"], default: null, "x-field": "text", "x-hidden": true, "x-label": Lb("KI-Siegel", "AI seal") },
+  ki: { type: ["object", "null"], additionalProperties: false, required: ["k", "s"], properties: { k: { type: "string", enum: ["karte"] }, s: { type: "string", pattern: "^[A-Za-z0-9._~-]{8,200}$" }, h: { type: "string", pattern: "^[A-Za-z0-9_-]{43}$" }, o: { type: "string", pattern: "^[A-Za-z0-9_-]{22}$" } }, default: null, "x-field": "text", "x-hidden": true, "x-label": Lb("KI-Siegel", "AI seal") },
   by: { type: "array", maxItems: 8, default: [], "x-field": "list", "x-hidden": true, "x-label": Lb("Bearbeitet von", "Edited by"), items: { type: "object", additionalProperties: false, required: ["n", "w"], properties: { n: { type: "string", maxLength: 16 }, w: { type: "array", items: { type: "string" } } } } },
 
   fr: { type: ["string", "null"], pattern: "^[A-Za-z0-9_-]{22}$", default: null, "x-field": "text", "x-hidden": true, "x-label": Lb("Freie Karte", "Free card") }

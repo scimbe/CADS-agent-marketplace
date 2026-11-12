@@ -559,5 +559,13 @@
         ]
       }
     ]
+  },
+  "thumb": {
+    "src": "shot",
+    "file": "thumb.webp",
+    "alt": {
+      "de": "Netz-Volley",
+      "en": "Net volley"
+    }
   }
 }

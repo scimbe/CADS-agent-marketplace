@@ -327,7 +327,12 @@ M.aim = (n, host, X) => {
     on: { pointerdown: (e) => { const el = e.currentTarget, r = el.getBoundingClientRect(), bx = el.clientLeft || 0, by = el.clientTop || 0, w = el.clientWidth || r.width, hh = el.clientHeight || r.height, lift = e.pointerType === "touch" ? (n.lift === undefined ? 52 : n.lift) : 0; set((e.clientX - r.left - bx) / w * g, (e.clientY - lift - r.top - by) / hh * g); },
       keydown: (e) => { const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key]; if (d) { e.preventDefault(); set(v[0] + d[0] * stepK, v[1] + d[1] * stepK); } if (e.key === "Enter") send(host, n, v); } } },
     n.card ? host.renderChild(n.card) : null,
-    h("span", { class: "w-cross", "aria-hidden": "true", style: { left: (v[0] / g * 100) + "%", top: (v[1] / g * 100) + "%" } }, "✛")), ...mainBtn(host, n, v, "", X)]);
+    h("span", { class: "w-cross", "aria-hidden": "true", style: { left: (v[0] / g * 100) + "%", top: (v[1] / g * 100) + "%" },
+      // Zitterbahn (S, alt dart-ui.js): n.wobble = [[dx, dy] …] im Raster relativ zum Ziel, ein Schritt je n.wobbleMs (alt
+      // STEP_MS 70). Nur Bild: der Wurf haengt nicht vom Zeitpunkt ab. Bei reduzierter Bewegung steht das Kreuz still.
+      ref: (el) => { const fr = Array.isArray(n.wobble) ? n.wobble.filter((f) => Array.isArray(f) && f.length === 2 && Number.isFinite(f[0]) && Number.isFinite(f[1])).slice(0, 256) : [];
+        if (!fr.length || host.reduced) return; const st = local(el, () => ({ i: 0 }));
+        ticker(el, host, n.wobbleMs || 70, () => { st.i = (st.i + 1) % fr.length; const f = fr[st.i], x = Math.max(0, Math.min(g - 1, v[0] + f[0])), y = Math.max(0, Math.min(g - 1, v[1] + f[1])); el.style.left = (x / g * 100) + "%"; el.style.top = (y / g * 100) + "%"; el.dataset.frame = String(st.i); }); } }, "✛")), ...mainBtn(host, n, v, "", X)]);
 };
 // Kraft: Pendel (zeitgetrieben) oder Schieber; Leertaste halten
 // Kraft: Pendel ueber die Stufen 0..L-1, Start bei n.value (alt hand().lv), Takt n.swing ms je Stufe (alt 160 ms);
@@ -337,9 +342,15 @@ M.power = (n, host, X) => {
   const start = Number.isInteger(n.value) && n.value >= 0 && n.value < L ? n.value : 0, swing = n.swing || 160;
   if (n.mode === "schieber" || host.reduced) return renderWidget({ ...n, t: "slide", min: 0, max: L - 1, step: 1, def: start, label: n.label || Z.hold }, host);
   const level = (t0) => { const k = Math.floor((now(host) - t0) / swing), per = 2 * (L - 1) || 1, p = (start + k) % per; return p < L ? p : per - p; };
-  return wrap(n, host, [h("button", { type: "button", class: "btn primary big", "aria-label": Z.hold,
-    on: { pointerdown: () => setDraft(host, n, now(host)), pointerup: () => v !== null && send(host, n, level(v)), keydown: (e) => { if (e.key === " " && v === null) { e.preventDefault(); setDraft(host, n, now(host)); } }, keyup: (e) => { if (e.key === " " && v !== null) send(host, n, level(v)); } } },
-    v === null ? Z.hold : h("span", { ref: (el) => ticker(el, host, 50, () => { el.textContent = fmt(Z.power, { n: level(v) + 1, m: L }); }) }, fmt(Z.power, { n: level(v) + 1, m: L })))]);
+  // Der Entwurf traegt waehrend des Haltens {t0} (Objekt), sonst die Stufe: im form ist der Feldwert vor dem ersten
+  // Loslassen die Startstufe (f.value) und darf nicht als Zeitpunkt gelesen werden (S, Befund Pendel im form).
+  const t0 = v && typeof v === "object" && Number.isFinite(v.t0) ? v.t0 : null;
+  const down = () => { if (t0 === null) setDraft(host, n, { t0: now(host) }); };
+  // im form wird die Stufe der Feldwert (der Knopf des form wirft), allein geht sie direkt als Eingabe hinaus
+  const up = () => { if (t0 === null) return; const lv = level(t0); if (host.embedded) setDraft(host, n, lv); else send(host, n, lv); };
+  return wrap(n, host, [h("button", { type: "button", class: "btn primary big", "aria-label": Z.hold, "data-holding": t0 === null ? null : "1",
+    on: { pointerdown: down, pointerup: up, keydown: (e) => { if (e.key === " ") { e.preventDefault(); down(); } }, keyup: (e) => { if (e.key === " ") { e.preventDefault(); up(); } } } },
+    t0 === null ? (Number.isInteger(v) ? fmt(Z.power, { n: v + 1, m: L }) : Z.hold) : h("span", { ref: (el) => ticker(el, host, 50, () => { el.textContent = fmt(Z.power, { n: level(t0) + 1, m: L }); }) }, fmt(Z.power, { n: level(t0) + 1, m: L })))]);
 };
 /** Radiogruppe mit Pfeiltasten (roving tabindex, Review L1). */
 function radioGroup(label, count, sel, pick, attrs, text) {
@@ -380,6 +391,19 @@ M.strokes = (n, host) => {
   const shown = host.reduced ? all.length : drafted(host, n, 0);
   return wrap(n, host, [h("div", { class: "w-draw", role: "img", "aria-label": txt(n.label), ref: (el) => { if (!host.reduced && shown < all.length) { const s = local(el, () => ({})); clearTimeout(s.t); s.t = setTimeout(() => el.isConnected && setDraft(host, n, shown + 1), n.ms || 600); } } },
     h("svg", { viewBox: "0 0 1000 1000", "aria-hidden": "true" }, all.slice(0, shown).map((s, i) => h("polyline", { key: i, points: s[2].join(" "), fill: "none", stroke: colors[s[0]] || "#111111", "stroke-width": String(widths[s[1]] * 4 || 8), "stroke-linecap": "round" }))))]);
+};
+// Stoppuhr-Knopf (S, Malrat-Ratezeit): Startzeit beim ersten Anzeigen im Entwurf ("w:<id>:t0", Geraeteuhr host.clock);
+// der Knopf schreibt n.draft + {[n.key]: Sekunden seit dem Start} als Entwurf. Die Anzeige laeuft ohne Neuzeichnen
+// (role="timer"); n.run === false haelt sie an. Kein Zug: die Karte liest die Sekunden aus ctx.draft.
+M.stopwatch = (n, host, X) => {
+  const Z = Y(host), key = typeof n.key === "string" && /^[a-z][a-z0-9_]{0,15}$/.test(n.key) ? n.key : "sec";
+  let t0 = drafted({ ...host }, { id: n.id + ":t0" }, null);
+  if (t0 === null && host.onDraft) { t0 = now(host); setDraft(host, { id: n.id + ":t0" }, t0); }
+  const secs = () => Math.max(0, Math.min(3600, Math.floor((now(host) - (t0 === null ? now(host) : t0)) / 1000)));
+  const base = n.draft && typeof n.draft === "object" ? n.draft : {};
+  return h("div", { class: "w-stopwatch", key: "sw-" + n.id },
+    h("span", { class: "w-time", role: "timer", "aria-label": txt(n.timeLabel || "", 60) || null, ref: (el) => { if (n.run !== false) ticker(el, host, 500, () => { const t = fmt(Z.time, { s: secs() }); if (el.textContent !== t) el.textContent = t; }); } }, fmt(Z.time, { s: secs() })),
+    h("button", { type: "button", class: "opt chip", "data-act": "w-" + n.id, disabled: host.disabled || n.disabled ? true : null, on: { click: () => host.onDraft && host.onDraft({ ...base, [key]: secs() }) } }, txt(n.label || X.next, 40)));
 };
 // 16-Schritt-Raster (Strang P, Beat): jeder Tipp ist eine Eingabe {row, i}
 M.steps = (n, host) => wrap(n, host, [h("div", { class: "w-steps" }, (n.rows || []).slice(0, 8).map((r) => h("div", { class: "w-steprow", role: "group", "aria-label": txt(r.label, 30), key: r.id }, h("span", { class: "w-lbl" }, txt(r.label, 30)),
