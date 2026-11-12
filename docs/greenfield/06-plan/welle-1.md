@@ -43,3 +43,15 @@ Auftrag des Users vom 2026-11-12: „Do! Push! Deliver a better product as the F
 | **D Design** (Session „design“, Claude Design) | Design-System und alle Bildschirme. Grundlage ist die alte Designsprache (Papierkalender + Meme, wie im Altcode), dichter und interessanter, Thumbnails 16:9. Kritik durch Swarm ohne Vorwissen. | alte Screenshots `alt-shots/`, 13-produktverstaendnis.md §3 | Canvas zur Abnahme (Gate C) |
 
 Integrator (Hauptsession): führt die Stränge zusammen, prüft jeden PR selbst (Diff und Läufe), stellt Staging bereit und bereitet Phase F vor.
+
+## Voraussetzungen für Phase F (Stand 2026-11-12, Integrator)
+
+| # | Voraussetzung | Quelle |
+|---|---|---|
+| 1 | Der Wrapper liefert `/duell/parts/*.js` statisch aus (nachladbare Kartenteile, F2 #256). Fehlt das, zeigt jede Karte „Teil fehlt“. | F2 |
+| 2 | Wrapper #131 (Deck-Status mit Inhalts-Hash) → #132 (v2-Kurzlinks, Profil) → #133 (eingebundener App-Code, Drift-Prüfung) in dieser Reihenfolge, davor ein Re-Vendor auf den Release-Commit. Danach wird der Parameter `d` im Status-Gate Pflicht. | K, W |
+| 3 | `SHORT_V2_PATH`: In Produktion bleibt der Standard `/duell`. Auf Staging zeigt er auf den Staging-Pfad und wird im Runbook eingetragen. | W |
+| 4 | App-OIDC: Keycloak-Scopes `ct-api`/`mdi-api` an `cads-mobile` vor CADS-Tunnel #899. Das gilt als Core-Eingriff mit 10 Minuten Vorwarnung und braucht die Freigabe des Users. Assetlinks-Fix #898. | OIDC |
+| 5 | Gerätetest auf echten Handys (iOS und Android, Mittelklasse): 60 fps in Arcade und Flug, Mikrofon- und Ton-Karten, Teilen-Sheet, große Schrift. | A, Z2, D |
+| 6 | Gate C: Der User nimmt die Design-Canvas ab. Offene Produktfrage: eigene Domain oder Logo auf der Anmeldeseite. | D |
+| 7 | Staging mit gleicher Herkunft wie Produktion, Abnahmetest gegen Phase B, Rauchtest, Rollback geprobt. | vorgehen.md |
