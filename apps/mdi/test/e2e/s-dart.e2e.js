@@ -15,10 +15,11 @@ const X = (lang) => D.T(lang);
 const linkOf = (p) => p.locator("#linkfield").inputValue().then((u) => u.slice(u.indexOf("#")));
 
 /** Spielart waehlen (Regeln-Blase): a 301 Double-Out … d Hoechste Punktzahl. */
-async function setGame(p, k) {
+// Spielart im Editor ueber ihren Namen (manifest x-names, z. B. "Hoechste Punktzahl"), nicht ueber den Rohwert
+async function setGame(p, k, lang) {
   await act(p, "customize");
   await p.locator('.bubble[data-for="regeln"]').click();
-  await p.getByRole("radio", { name: k, exact: true }).first().click();
+  await p.getByRole("radio", { name: X(lang)["da_m_" + k], exact: true }).first().click();
   await act(p, "close"); await act(p, "done");
 }
 /** Bis der eigene Wurf-Bildschirm da ist (Abdecken bestaetigen, Bert abwarten). */
@@ -65,7 +66,7 @@ const covered = (p) => p.evaluate(async () => {
 for (const [view, lang] of [["phone390", "de"], ["desk1280", "en"]]) {
   test(view + "/" + lang + ": gegen Bert per Klick bis zum Ende (Hoechste Punktzahl, 3 Runden)", async () => {
     const A = await open(b, { view, lang });
-    await act(A.p, "open-spiel-dart"); await setGame(A.p, "d");
+    await act(A.p, "open-spiel-dart"); await setGame(A.p, "d", lang);
     await pickMode(A.p, lang, "bot"); await act(A.p, "go");
     let darts = 0;
     for (let i = 0; i < 40; i++) {
@@ -119,17 +120,21 @@ test("Kraft per Halten (Zeiger) und per Leertaste im Pendel-Modus; Fadenkreuz zi
   await untilTurn(A.p);
   // Zitterbahn: das Kreuz laeuft die Stuetzpunkte ab (nur Bild)
   const frame = () => A.p.locator(".w-cross").first().getAttribute("data-frame");
-  await A.p.waitForTimeout(200); const f1 = await frame(); await A.p.waitForTimeout(300); const f2 = await frame();
-  assert.ok(f1 !== null && f2 !== null && f1 !== f2, "Zitterbahn laeuft: " + f1 + " -> " + f2);
+  await A.p.waitForFunction(() => document.querySelector(".w-cross") && document.querySelector(".w-cross").dataset.frame !== undefined, null, { timeout: 5000 });
+  const f1 = await frame();
+  await A.p.waitForFunction((f) => document.querySelector(".w-cross").dataset.frame !== f, f1, { timeout: 5000 }); // laeuft weiter (auch unter Last)
   const hold = A.p.getByRole("button", { name: /Halten für Kraft/ }).first();
   const shown = () => hold.textContent();
   // Zeiger: halten laesst die Kraft pendeln (Takt 160 ms), loslassen legt die Stufe ins Formular
   await hold.scrollIntoViewIfNeeded();
   const box = await hold.boundingBox();
   await A.p.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await A.p.mouse.down();
-  await A.p.waitForTimeout(60); const s1 = await shown(); await A.p.waitForTimeout(400); const s2 = await shown();
+  await A.p.waitForFunction(() => document.querySelector('[data-holding="1"]'), null, { timeout: 5000 });
+  const s1 = await shown();
+  assert.match(s1, /Kraft \d von 9/);
+  // Pendel bewegt sich, solange gehalten wird (Takt 160 ms; Warten statt fester Zeit, damit Last nicht stoert)
+  await A.p.waitForFunction((t) => { const b = document.querySelector('[data-holding="1"]'); return b && b.textContent !== t; }, s1, { timeout: 5000 });
   await A.p.mouse.up();
-  assert.match(s1, /Kraft \d von 9/); assert.notEqual(s1, s2, "Pendel bewegt sich: " + s1 + " / " + s2);
   await A.p.locator('[data-act="w-wurf"]').click();
   await A.p.waitForFunction(() => /Pfeil 2 von 3/.test(document.querySelector("main").innerText), null, { timeout: 5000 });
   // Tastatur: Leertaste halten und loslassen, dann Werfen per Enter
