@@ -210,5 +210,6 @@ test("hashOf: Ganzzahl-Karten kanonisch, f64 ueber Bit-Hex, eigener hash() hat V
   assert.equal(hashOf(card, { a: 1 }).length, 16);
   const f = { manifest: { rt: { numeric: "f64" } } };
   assert.notEqual(hashOf(f, { a: 0.1 }), hashOf(f, { a: 0.2 }));
-  assert.equal(hashOf({ ...f, hash: () => "abc" }, {}), "abc");
+  assert.match(hashOf({ ...f, hash: () => "abc" }, {}), /^[0-9a-f]{16}$/, "eigener Hash auf 16 Hex normiert (Review M3)");
+  assert.equal(hashOf({ ...f, hash: () => "0123456789abcdef99" }, {}), "0123456789abcdef");
 });

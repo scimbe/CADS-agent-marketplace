@@ -1,7 +1,7 @@
 // Echtzeit-Partie ueber den Vertrag (ADR 0001 b): init/step/status/view/bot/hash, kartenunabhaengig.
 // Rollen je Sitz: "human" (Eingabe vom Geraet), "bot" (card.bot, Zufall aus dem Seed), "ghost" (Eingabespur),
 // "remote" (Eingabe vom Partner, Lockstep), "none" (leere Eingabe). Rein bis auf die Uhr, die von aussen tickt.
-import { rng as mkRng, stateHash, stateHashF } from "../../contract/sdk.js";
+import { rng as mkRng, stateHash, stateHashF, sha256 } from "../../contract/sdk.js";
 import * as T from "../../contract/trace.js";
 
 export const ROLES = ["human", "bot", "ghost", "remote", "none"];
@@ -25,10 +25,12 @@ function makeRecorder(card) {
   const max = card.manifest.rt.ghost.bytes;
   if (!usesSpur(card)) return T.recorder(max);
   const r = T.spurRecorder(max);
-  return { put: (t, x) => r.put(t, (x && x.b) || 0), end: (t) => r.end(t), bytes: () => r.bytes() };
+  // Tick-Maximum des Spur-Formats: danach endet die Aufnahme ausdruecklich (nicht still weiter)
+  return { put: (t, x) => { if (t >= T.SPUR_TMAX) r.end(T.SPUR_TMAX); else r.put(t, (x && x.b) || 0); }, end: (t) => r.end(t), bytes: () => r.bytes(), get cutAt() { return r.cutAt; } };
 }
+/** 16 Hex-Zeichen (Live-Schema rh, Geist h); ein eigener Hash der Karte wird darauf normiert (Review M3). */
 export function hashOf(card, state) {
-  if (typeof card.hash === "function") return String(card.hash(state));
+  if (typeof card.hash === "function") { const h = String(card.hash(state)); return /^[0-9a-f]{16}/.test(h) ? h.slice(0, 16) : sha256("mdi-hash|" + h).slice(0, 16); }
   return card.manifest.rt.numeric === "f64" ? stateHashF(state) : stateHash(state);
 }
 
@@ -53,7 +55,7 @@ export function createMatch(card, o) {
   if (o.roles.includes("ghost")) { ghost = o.ghost instanceof Uint8Array ? parseTrace(card, o.ghost) : null; if (!ghost) throw new RtError("geist", "Spur ungueltig"); }
   const botRng = mkRng(o.seed + "|bot");
   let state = card.init({ params: o.params, seed: o.seed, players: o.roles.slice(), level, rng: mkRng(o.seed + "|init") });
-  let prev = state, tick = 0, timeUp = false;
+  let prev = state, tick = 0, timeUp = false, cut = null; // cut: Stand, an dem die Aufnahme endete (Review H1)
   const rec = Number.isInteger(o.record) && o.record >= 0 && rt.ghost ? makeRecorder(card) : null;
   const status = () => { const s = card.status(state); return timeUp && !s.over ? { ...s, over: true, timeUp: true } : s; };
   return {
@@ -71,7 +73,7 @@ export function createMatch(card, o) {
         else if (r === "none") inputs.push(EMPTY);
         else { const x = given[s]; if (!x) throw new RtError("eingabe-fehlt", "Sitz " + s + " Tick " + tick); inputs.push(x); }
       }
-      if (rec) rec.put(tick, inputs[o.record]);
+      if (rec && !cut) { rec.put(tick, inputs[o.record]); if (rec.cutAt !== null && rec.cutAt !== undefined && rec.cutAt <= tick) cut = { n: rec.cutAt, h: hashOf(card, state), sc: status().score.slice(0, 10) }; }
       const r = card.step(state, inputs, tick);
       if (!r || typeof r !== "object" || !("state" in r)) throw new RtError("vertrag", "step liefert {state, ev}");
       prev = state; state = r.state; tick++;
@@ -84,6 +86,9 @@ export function createMatch(card, o) {
     /** Geist-Link-Daten nach dem Ende (Spur des aufgenommenen Sitzes). */
     ghostWire() {
       if (!rec) throw new RtError("geist", "keine Aufnahme");
+      // Aufnahme nach Budget/Tick-Maximum abgeschnitten: Geist ist der Lauf bis dahin (h, n, sc von dort), nie ein Stand,
+      // den die Spur nicht erreicht (Review H1)
+      if (cut) return { c: m.id, v: m.version, p: o.params, s: o.seed, tr: T.toB64url(rec.bytes()), n: cut.n, sc: cut.sc, h: cut.h, q: o.record, lv: level, rl: o.roles.map((r, s) => (s === o.record ? "ghost" : r === "bot" ? "bot" : "none")), cut: true };
       rec.end(tick);
       // rl: Rollen der Aufnahme (der aufgenommene Sitz als "ghost"), damit die Pruefung genau so nachspielt
       const rl = o.roles.map((r, s) => (s === o.record ? "ghost" : r === "bot" ? "bot" : "none"));
@@ -97,12 +102,15 @@ export function createMatch(card, o) {
  * bei der Aufnahme: Bot mit gleicher Stufe) und vergleicht Endhash und Stand. Ehrlich ablehnen, nie raten.
  */
 export function verifyGhost(card, w) {
-  const n = card.manifest.players.max, q = Number.isInteger(w.q) ? w.q : 0;
+  const n = card.manifest.players.max, q = w.q;
+  // Review M4: Geist-Sitz gueltig, Rollen der Aufnahme Pflicht (genau ein Geist an q), Stand je Sitz
+  if (!Number.isInteger(q) || q < 0 || q >= n) return { ok: false, reason: "geist", detail: "Sitz" };
+  if (!Array.isArray(w.rl) || w.rl.length !== n || w.rl.filter((r) => r === "ghost").length !== 1) return { ok: false, reason: "geist", detail: "Rollen" };
+  if (!Array.isArray(w.sc) || w.sc.length !== n) return { ok: false, reason: "geist", detail: "Stand" };
   const bytes = T.fromB64url(w.tr);
   if (!bytes) return { ok: false, reason: "geist" };
-  let roles;
-  if (Array.isArray(w.rl)) { if (w.rl.length !== n || w.rl[q] !== "ghost" || w.rl.some((r, s) => s !== q && !["bot", "none"].includes(r))) return { ok: false, reason: "geist" }; roles = w.rl.slice(); }
-  else { roles = []; for (let s = 0; s < n; s++) roles.push(s === q ? "ghost" : typeof card.bot === "function" ? "bot" : "none"); }
+  if (w.rl[q] !== "ghost" || w.rl.some((r, s) => s !== q && !["bot", "none"].includes(r))) return { ok: false, reason: "geist", detail: "Rollen" };
+  const roles = w.rl.slice();
   let mt;
   try { mt = createMatch(card, { params: w.p, seed: w.s, roles, level: w.lv, ghost: bytes }); } catch (e) { return { ok: false, reason: e.code || "geist" }; }
   for (let i = 0; i < w.n && !mt.status().over; i++) mt.step();

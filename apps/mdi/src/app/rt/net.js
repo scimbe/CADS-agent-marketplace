@@ -14,37 +14,47 @@ export const BATCH = 2;
 /**
  * @param {object} o  { seat, other, delay, tick, send(msg), onDesync(info) }
  */
+// Fenster fuer Partner-Eingaben und -Hashes (Review M6): nur Ticks nahe der eigenen Simulation werden angenommen
+export const WINDOW = 600;
 export function createLockstep(o) {
   const delay = Math.max(0, o.delay | 0), mine = new Map(), theirs = new Map(), hashes = new Map();
-  let pending = [], pendingFrom = null, desynced = false, peerHash = new Map();
+  // Review H2: bei kleiner Verzoegerung sofort senden, sonst warten beide auf den halben Stapel des anderen
+  const batch = Math.max(1, Math.min(BATCH, delay));
+  let pending = [], pendingFrom = null, desynced = false, peerHash = new Map(), now = 0, dropped = 0;
   function flush() { if (pending.length) { o.send({ t: "rt", i: pendingFrom, x: pending }); pending = []; pendingFrom = null; } }
+  const inWindow = (i) => i >= now - 4 * delay - 8 && i <= now + WINDOW;
   return {
     /** Eigene Eingabe, abgetastet beim lokalen Tick n, gilt bei n + delay. */
     local(n, input) {
       const at = n + delay; mine.set(at, input);
       if (pendingFrom === null) pendingFrom = at;
       pending.push(input);
-      if (pending.length >= BATCH) flush();
+      if (pending.length >= batch) flush();
     },
     flush,
     receive(msg) {
-      if (msg.t === "rt") { msg.x.forEach((x, k) => theirs.set(msg.i + k, x)); return true; }
-      if (msg.t === "rh") { peerHash.set(msg.i, msg.h); check(msg.i); return true; }
+      if (msg.t === "rt") { msg.x.forEach((x, k) => { if (inWindow(msg.i + k)) theirs.set(msg.i + k, x); else dropped++; }); return true; }
+      if (msg.t === "rh") { if (inWindow(msg.i)) { peerHash.set(msg.i, msg.h); check(msg.i); } else dropped++; return true; }
       return false;
     },
+    get dropped() { return dropped; },
+    get sizes() { return { theirs: theirs.size, peerHash: peerHash.size, hashes: hashes.size }; },
     ready(n) { return n < delay || theirs.has(n); },
     inputs(n) {
+      now = n;
       const g = {};
       g[o.seat] = n < delay ? EMPTY : mine.get(n) || EMPTY;
       g[o.other] = n < delay ? EMPTY : theirs.get(n);
       mine.delete(n - 4 * delay - 8); theirs.delete(n - 4 * delay - 8);
       return g;
     },
-    /** nach Tick n: Hash merken und alle `tick` Ticks senden */
-    after(n, hash) {
+    /** nach Tick n: Hash nur im Pruefintervall berechnen (Review M2), merken und senden; alte Eintraege raeumen (M6) */
+    after(n, hashFn) {
       if ((n + 1) % o.tick !== 0) return;
+      const hash = typeof hashFn === "function" ? hashFn() : hashFn;
       hashes.set(n, hash); o.send({ t: "rh", i: n, h: hash }); check(n);
       for (const k of [...hashes.keys()]) if (k < n - 10 * o.tick) hashes.delete(k);
+      for (const k of [...peerHash.keys()]) if (k < n - 10 * o.tick) peerHash.delete(k);
     },
     get desynced() { return desynced; }
   };

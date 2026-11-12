@@ -20,6 +20,8 @@
     "on": { "type": "array", "maxItems": 12, "items": { "type": "string", "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$" } },
     "dur": { "type": "integer", "minimum": 5, "maximum": 3600 },
     "legacy": { "$ref": "#/$defs/legacy" },
+    "shelf": { "type": "boolean" },
+    "receive": { "type": "object", "additionalProperties": false, "properties": { "accept": { "$ref": "#/$defs/i18n" }, "decline": { "$ref": "#/$defs/i18n" }, "after": { "type": "string", "pattern": "^[A-Za-z0-9:_-]{1,40}$" } } },
     "order": { "type": "integer", "minimum": 0, "maximum": 100000 },
     "players": { "type": "object", "additionalProperties": false, "required": ["min", "max"], "properties": { "min": { "type": "integer", "minimum": 1, "maximum": 10 }, "max": { "type": "integer", "minimum": 1, "maximum": 10 } } },
     "modes": { "type": "array", "minItems": 1, "items": { "enum": ["alone", "bot", "link", "live", "ghost"] } },
@@ -92,7 +94,7 @@
       "type": "object", "required": ["x-field", "x-label", "default"],
       "properties": {
         "default": true,
-        "x-field": { "enum": ["text", "color", "choice", "number", "list", "media.local", "media.server", "secret", "stickers", "weather", "kibild", "steps", "slide", "pair"] },
+        "x-field": { "enum": ["text", "color", "choice", "number", "list", "media.local", "media.server", "secret", "stickers", "weather", "kibild", "steps", "slide", "pair", "spiel"] },
         "x-pairs": { "type": "object" },
         "x-label": { "$ref": "#/$defs/i18n" },
         "x-model": { "type": "boolean" }

@@ -3,13 +3,13 @@
 // Jedes Zeiger- oder Mikrofon-Widget hat einen Tastatur- bzw. Tipp-Ersatz (Altcode-Luecke touch/react/blow).
 // Uhr und Ton kommen ueber host.clock()/host.audio (testbar), Zustand am Element (el.__w), nie global.
 import { h } from "../ui/dom.js";
-import { registerWidgets, internals, fmt, euro, why as whyBase } from "./widgets.js";
+import { registerWidgets, internals, fmt, euro, why as whyBase, renderWidget } from "./widgets.js";
 import { clean, fold } from "../contract/text.js";
 
 const { wrap, mainBtn, drafted, setDraft, press, gridCells, txt } = internals;
 const T2 = {
-  de: { ready: "Bereit?", go: "Los", stop: "Stopp", start: "Start", done: "Fertig", hit: "Erraten", skip: "Weiter", out: "Raus", inn: "Rein", buy: "Kaufen", price: "Preis {v}", rec: "Aufnehmen", recOn: "Nimmt auf …", play: "Abspielen", playOnce: "Einmal abspielen", back: "Rückwärts abspielen", gone: "Die Aufnahme ist nicht mehr da.", end: "Ende", round: "Runde {n} von {m}", next: "Nächste", draw: "Ziehen", tapPick: "Zufall ziehen", candle: "Kerze {n}", blow: "Ins Mikro pusten", noMic: "Kein Mikrofon – tippe die Kerzen an.", take: "Nehmen", mark: "Markieren", undo: "Rückgängig", clear: "Löschen", color: "Farbe {n}", width: "Breite {n}", aimHint: "Pfeiltasten bewegen, Enter wählt", power: "Kraft {n} von {m}", hold: "Halten für Kraft", door: "Tür {n}", closed: "zu", openD: "Aufklappen", star: "Stern antippen (Leertaste)", time: "{s} s", pressed: "gewählt", yes: "Ja", maybe: "Vielleicht", no: "Nein", allYes: "Überall ja", name: "Dein Name", add: "Hinzufügen", del: "Löschen", bring: "bringe ich", got: "gekauft", needName: "Bitte zuerst deinen Namen eingeben.", have: "Steht schon drauf.", full: "Die Liste ist voll.", taken: "Schon vergeben", mine: "Meins", step: "Schritt {n}", blocks: "Punkte {n}", score: "Treffer {n}" },
-  en: { ready: "Ready?", go: "Go", stop: "Stop", start: "Start", done: "Done", hit: "Got it", skip: "Skip", out: "Out", inn: "In", buy: "Buy", price: "Price {v}", rec: "Record", recOn: "Recording …", play: "Play", playOnce: "Play once", back: "Play backwards", gone: "The recording is gone.", end: "End", round: "Round {n} of {m}", next: "Next", draw: "Draw", tapPick: "Pick at random", candle: "Candle {n}", blow: "Blow into the mic", noMic: "No microphone – tap the candles.", take: "Take", mark: "Mark", undo: "Undo", clear: "Clear", color: "Colour {n}", width: "Width {n}", aimHint: "Arrow keys move, Enter picks", power: "Power {n} of {m}", hold: "Hold for power", door: "Door {n}", closed: "closed", openD: "Open", star: "Tap the star (Space)", time: "{s} s", pressed: "chosen", yes: "Yes", maybe: "Maybe", no: "No", allYes: "Yes everywhere", name: "Your name", add: "Add", del: "Delete", bring: "I'll bring it", got: "bought", needName: "Please enter your name first.", have: "Already on the list.", full: "The list is full.", taken: "Already taken", mine: "Mine", step: "Step {n}", blocks: "Points {n}", score: "Hits {n}" }
+  de: { ready: "Bereit?", go: "Los", stop: "Stopp", start: "Start", done: "Fertig", hit: "Erraten", skip: "Weiter", out: "Raus", inn: "Rein", buy: "Kaufen", price: "Preis {v}", rec: "Aufnehmen", recOn: "Nimmt auf …", play: "Abspielen", playOnce: "Einmal abspielen", back: "Rückwärts abspielen", gone: "Die Aufnahme ist nicht mehr da.", end: "Ende", round: "Runde {n} von {m}", next: "Nächste", draw: "Ziehen", tapPick: "Zufall ziehen", candle: "Kerze {n}", blow: "Ins Mikro pusten", noMic: "Kein Mikrofon – tippe die Kerzen an.", take: "Nehmen", mark: "Markieren", undo: "Rückgängig", clear: "Löschen", color: "Farbe {n}", width: "Breite {n}", aimHint: "Pfeiltasten bewegen, Enter wählt", power: "Kraft {n} von {m}", hold: "Halten für Kraft", door: "Tür {n}", closed: "zu", openD: "Aufklappen", star: "Stern antippen (Leertaste)", time: "{s} s", pressed: "gewählt", colorGroup: "Farbe", widthGroup: "Breite", pen: "Stift: Pfeiltasten bewegen, Leertaste setzt ab und hebt an", penAt: "Stift bei {x}, {y}", yes: "Ja", maybe: "Vielleicht", no: "Nein", allYes: "Überall ja", name: "Dein Name", add: "Hinzufügen", del: "Löschen", bring: "bringe ich", got: "gekauft", needName: "Bitte zuerst deinen Namen eingeben.", have: "Steht schon drauf.", full: "Die Liste ist voll.", taken: "Schon vergeben", mine: "Meins", step: "Schritt {n}", blocks: "Punkte {n}", score: "Treffer {n}" },
+  en: { ready: "Ready?", go: "Go", stop: "Stop", start: "Start", done: "Done", hit: "Got it", skip: "Skip", out: "Out", inn: "In", buy: "Buy", price: "Price {v}", rec: "Record", recOn: "Recording …", play: "Play", playOnce: "Play once", back: "Play backwards", gone: "The recording is gone.", end: "End", round: "Round {n} of {m}", next: "Next", draw: "Draw", tapPick: "Pick at random", candle: "Candle {n}", blow: "Blow into the mic", noMic: "No microphone – tap the candles.", take: "Take", mark: "Mark", undo: "Undo", clear: "Clear", color: "Colour {n}", width: "Width {n}", aimHint: "Arrow keys move, Enter picks", power: "Power {n} of {m}", hold: "Hold for power", door: "Door {n}", closed: "closed", openD: "Open", star: "Tap the star (Space)", time: "{s} s", pressed: "chosen", colorGroup: "Colour", widthGroup: "Width", pen: "Pen: arrow keys move, Space puts it down and lifts it", penAt: "Pen at {x}, {y}", yes: "Yes", maybe: "Maybe", no: "No", allYes: "Yes everywhere", name: "Your name", add: "Add", del: "Delete", bring: "I'll bring it", got: "bought", needName: "Please enter your name first.", have: "Already on the list.", full: "The list is full.", taken: "Already taken", mine: "Mine", step: "Step {n}", blocks: "Points {n}", score: "Hits {n}" }
 };
 const Y = (host) => T2[host.lang] || T2.de;
 const now = (host) => (host.clock ? host.clock() : Date.now());
@@ -188,7 +188,7 @@ M.rec = (n, host, X) => { const Z = Y(host), done = drafted(host, n, false); ret
 M.record = M.rec;
 M.once = (n, host, X) => { const Z = Y(host), done = drafted(host, n, false); return wrap(n, host, [done ? h("p", { class: "w-note" }, "✓") : audioBtn(host, "▶ " + Z.playOnce, () => host.audio.playOnce(n.slot, n.fx).then((ok) => setDraft(host, n, ok ? true : "gone"))), done === "gone" ? h("p", { class: "w-note" }, Z.gone) : null, ...(done ? mainBtn(host, n, 0, "", X) : [])]); };
 M.parrot = (n, host, X) => { const Z = Y(host), st = drafted(host, n, 0); return wrap(n, host, [audioBtn(host, "▶ " + Z.back, () => host.audio.playReversed(n.from).then(() => setDraft(host, n, Math.max(st, 1)))), st >= 1 ? audioBtn(host, "🎙 " + Z.rec, () => host.audio.record(n.slot, 2500).then(() => host.audio.playReversed(n.slot)).then(() => setDraft(host, n, 2))) : null, ...(st >= 2 ? mainBtn(host, n, 0, "", X) : [])]); };
-M.whose = (n, host, X) => { const Z = Y(host), played = drafted(host, n, false); return wrap(n, host, [audioBtn(host, "▶ " + Z.play, () => host.audio.playOnce(n.slot, n.fx).then(() => setDraft(host, n, true))), played ? h("div", { class: "options" }, (n.options || []).slice(0, 3).map((o, i) => h("button", { type: "button", class: "chip", key: i, on: { click: () => send(host, n, i) } }, txt(o.label, 40)))) : null]); };
+M.whose = (n, host, X) => { const Z = Y(host), played = drafted(host, n, false); /* beliebig oft abspielbar, der Slot bleibt (alt turn-ui.js whose, Studio.warp) */ return wrap(n, host, [audioBtn(host, "▶ " + Z.play, () => host.audio.playFx(n.slot, n.fx).then(() => setDraft(host, n, true))), played ? h("div", { class: "options" }, (n.options || []).slice(0, 3).map((o, i) => h("button", { type: "button", class: "chip", key: i, on: { click: () => send(host, n, i) } }, txt(o.label, 40)))) : null]); };
 M.audio = (n, host) => wrap(n, host, [audioBtn(host, "▶ " + txt(n.label || Y(host).play, 40), () => host.audio.play(n.src))]);
 M.freeze = (n, host, X) => {
   const Z = Y(host), st = drafted(host, n, { r: 0, stopped: false });
@@ -323,20 +323,29 @@ M.aim = (n, host, X) => {
   const Z = Y(host), g = n.grid || 4096, v = drafted(host, n, [g >> 1, g >> 1]), stepK = Math.max(1, g >> 6);
   const set = (x, y) => setDraft(host, n, [Math.max(0, Math.min(g - 1, Math.round(x))), Math.max(0, Math.min(g - 1, Math.round(y)))]);
   return wrap(n, host, [h("div", { class: "w-aim", tabindex: "0", role: "slider", "aria-label": txt(n.label) + " – " + Z.aimHint, "aria-valuetext": v[0] + ", " + v[1],
-    on: { pointerdown: (e) => { const r = e.currentTarget.getBoundingClientRect(); set((e.clientX - r.left) / r.width * g, (e.clientY - r.top) / r.height * g); },
+    // Innenflaeche ohne Rand (S: 3-px-Rand verschob ~1 %); Touch zielt n.lift px ueber den Finger (alt 52 px)
+    on: { pointerdown: (e) => { const el = e.currentTarget, r = el.getBoundingClientRect(), bx = el.clientLeft || 0, by = el.clientTop || 0, w = el.clientWidth || r.width, hh = el.clientHeight || r.height, lift = e.pointerType === "touch" ? (n.lift === undefined ? 52 : n.lift) : 0; set((e.clientX - r.left - bx) / w * g, (e.clientY - lift - r.top - by) / hh * g); },
       keydown: (e) => { const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key]; if (d) { e.preventDefault(); set(v[0] + d[0] * stepK, v[1] + d[1] * stepK); } if (e.key === "Enter") send(host, n, v); } } },
     n.card ? host.renderChild(n.card) : null,
     h("span", { class: "w-cross", "aria-hidden": "true", style: { left: (v[0] / g * 100) + "%", top: (v[1] / g * 100) + "%" } }, "✛")), ...mainBtn(host, n, v, "", X)]);
 };
 // Kraft: Pendel (zeitgetrieben) oder Schieber; Leertaste halten
+// Kraft: Pendel ueber die Stufen 0..L-1, Start bei n.value (alt hand().lv), Takt n.swing ms je Stufe (alt 160 ms);
+// Schieber ohne Zeit (mode "schieber" oder reduzierte Bewegung) – dasselbe Ergebnis ohne Reaktionsdruck
 M.power = (n, host, X) => {
   const Z = Y(host), L = n.levels || 9, v = drafted(host, n, null);
-  if (n.mode === "schieber" || host.reduced) return M.slide({ ...n, t: "slide", min: 0, max: L - 1, step: 1, def: L >> 1, label: n.label || Z.hold }, host, X);
-  const level = (t0) => { const p = ((now(host) - t0) / (n.period || 1200)) % 2; return Math.min(L - 1, Math.floor((p < 1 ? p : 2 - p) * L)); };
+  const start = Number.isInteger(n.value) && n.value >= 0 && n.value < L ? n.value : 0, swing = n.swing || 160;
+  if (n.mode === "schieber" || host.reduced) return renderWidget({ ...n, t: "slide", min: 0, max: L - 1, step: 1, def: start, label: n.label || Z.hold }, host);
+  const level = (t0) => { const k = Math.floor((now(host) - t0) / swing), per = 2 * (L - 1) || 1, p = (start + k) % per; return p < L ? p : per - p; };
   return wrap(n, host, [h("button", { type: "button", class: "btn primary big", "aria-label": Z.hold,
     on: { pointerdown: () => setDraft(host, n, now(host)), pointerup: () => v !== null && send(host, n, level(v)), keydown: (e) => { if (e.key === " " && v === null) { e.preventDefault(); setDraft(host, n, now(host)); } }, keyup: (e) => { if (e.key === " " && v !== null) send(host, n, level(v)); } } },
     v === null ? Z.hold : h("span", { ref: (el) => ticker(el, host, 50, () => { el.textContent = fmt(Z.power, { n: level(v) + 1, m: L }); }) }, fmt(Z.power, { n: level(v) + 1, m: L })))]);
 };
+/** Radiogruppe mit Pfeiltasten (roving tabindex, Review L1). */
+function radioGroup(label, count, sel, pick, attrs, text) {
+  const move = (e, i) => { const d = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]; if (!d) return; e.preventDefault(); const j = (i + d + count) % count; pick(j); const sib = e.currentTarget.parentNode && e.currentTarget.parentNode.children[j]; if (sib) sib.focus(); };
+  return h("div", { class: "options", role: "radiogroup", "aria-label": label }, Array.from({ length: count }, (_, i) => h("button", { type: "button", key: i, role: "radio", "aria-checked": sel === i ? "true" : "false", tabindex: sel === i ? "0" : "-1", ...attrs(i), on: { click: () => pick(i), keydown: (e) => move(e, i) } }, text(i))));
+}
 // Zeichnen (Strang S, Malrat): Striche in 0..1000, Farben/Breiten, Rueckgaengig/Loeschen
 M.draw = (n, host, X) => {
   const Z = Y(host), colors = (n.colors || ["#111111"]).slice(0, 8), widths = (n.widths || [4]).slice(0, 3), st = drafted(host, n, { c: 0, w: 0, s: [] });
@@ -350,10 +359,18 @@ M.draw = (n, host, X) => {
     el.addEventListener("pointerup", () => { const d = el.__d(); if (loc.cur && d.pts + loc.cur.length / 2 <= maxPts) d.commit(loc.cur); loc.cur = null; });
   };
   return wrap(n, host, [
-    h("div", { class: "options", role: "radiogroup", "aria-label": "Farbe" }, colors.map((c, i) => h("button", { type: "button", key: i, class: "chip swatch", role: "radio", "aria-checked": st.c === i ? "true" : "false", "aria-label": fmt(Z.color, { n: i + 1 }), style: { background: /^#[0-9a-fA-F]{6}$/.test(c) ? c : "#111111" }, on: { click: () => setDraft(host, n, { ...st, c: i }) } }))),
-    h("div", { class: "options", role: "radiogroup", "aria-label": "Breite" }, widths.map((w, i) => h("button", { type: "button", key: i, class: "chip", role: "radio", "aria-checked": st.w === i ? "true" : "false", on: { click: () => setDraft(host, n, { ...st, w: i }) } }, fmt(Z.width, { n: i + 1 })))),
-    h("div", { class: "w-draw", role: "img", "aria-label": txt(n.label), ref: (el) => { el.__d = () => ({ pts, commit: (p) => setDraft(host, n, { ...st, s: st.s.concat([[st.c, st.w, p]]) }) }); surf(el); } },
-      h("svg", { viewBox: "0 0 1000 1000", "aria-hidden": "true" }, st.s.map((s, i) => h("polyline", { key: i, points: s[2].join(" "), fill: "none", stroke: colors[s[0]] || "#111111", "stroke-width": String(widths[s[1]] * 4 || 8), "stroke-linecap": "round" })))),
+    radioGroup(Z.colorGroup, colors.length, st.c, (i) => setDraft(host, n, { ...st, c: i }), (i) => ({ class: "chip swatch", "aria-label": fmt(Z.color, { n: i + 1 }), style: { background: /^#[0-9a-fA-F]{6}$/.test(colors[i]) ? colors[i] : "#111111" } }), () => null),
+    radioGroup(Z.widthGroup, widths.length, st.w, (i) => setDraft(host, n, { ...st, w: i }), () => ({ class: "chip" }), (i) => fmt(Z.width, { n: i + 1 })),
+    // Review L1: Tastaturersatz – Pfeiltasten bewegen den Stift (Schritt 25), Leertaste setzt ab/hebt an, ein Strich je Absetzen
+    h("div", { class: "w-draw", tabindex: "0", role: "application", "aria-label": txt(n.label) + " – " + Z.pen, "aria-describedby": (host.idp || "w") + "-" + n.id + "-pen", ref: (el) => { el.__d = () => ({ pts, commit: (p) => setDraft(host, n, { ...st, s: st.s.concat([[st.c, st.w, p]]), pen: null }) }); surf(el); },
+      on: { keydown: (e) => {
+        const d = { ArrowLeft: [-25, 0], ArrowRight: [25, 0], ArrowUp: [0, -25], ArrowDown: [0, 25] }[e.key], pen = st.pen || { x: 500, y: 500, down: false, p: [] };
+        if (d) { e.preventDefault(); const x = Math.max(0, Math.min(1000, pen.x + d[0])), y = Math.max(0, Math.min(1000, pen.y + d[1])); setDraft(host, n, { ...st, pen: { ...pen, x, y, p: pen.down && pen.p.length < 400 ? pen.p.concat([x, y]) : pen.p } }); }
+        else if (e.key === " ") { e.preventDefault(); if (!pen.down) setDraft(host, n, { ...st, pen: { ...pen, down: true, p: [pen.x, pen.y] } }); else if (pen.p.length >= 4 && pts + pen.p.length / 2 <= maxPts) setDraft(host, n, { ...st, s: st.s.concat([[st.c, st.w, pen.p]]), pen: { ...pen, down: false, p: [] } }); else setDraft(host, n, { ...st, pen: { ...pen, down: false, p: [] } }); }
+      } } },
+      h("svg", { viewBox: "0 0 1000 1000", "aria-hidden": "true" }, st.s.map((s, i) => h("polyline", { key: i, points: s[2].join(" "), fill: "none", stroke: colors[s[0]] || "#111111", "stroke-width": String(widths[s[1]] * 4 || 8), "stroke-linecap": "round" })),
+        st.pen ? h("circle", { key: "pen", cx: String(st.pen.x), cy: String(st.pen.y), r: "14", fill: st.pen.down ? "#111111" : "none", stroke: "#111111", "stroke-width": "4" }) : null)),
+    h("p", { class: "w-note", id: (host.idp || "w") + "-" + n.id + "-pen", "aria-live": "polite" }, st.pen ? fmt(Z.penAt, { x: st.pen.x, y: st.pen.y }) : ""),
     h("div", { class: "options" }, h("button", { type: "button", class: "chip", disabled: !st.s.length ? true : null, on: { click: () => setDraft(host, n, { ...st, s: st.s.slice(0, -1) }) } }, Z.undo), h("button", { type: "button", class: "chip", disabled: !st.s.length ? true : null, on: { click: () => setDraft(host, n, { ...st, s: [] }) } }, Z.clear)),
     ...mainBtn(host, n, st.s, st.s.length ? "" : X.fill, X)
   ]);

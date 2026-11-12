@@ -1,6 +1,7 @@
 // Ein Fragmentformat: #v2.<typ>.<b64url(JSON)> (02-spec/02-links.md). Harte Groessengrenze vor dem Parsen,
 // UTF-8 fatal, Schema je Typ (Ajv standalone). Ablehnen immer mit Grund – nie raten (A4).
 import * as V from "../gen/validators.js";
+import { depthOk } from "../contract/equal.js";
 
 // 4000 Zeichen (ADR 0001 f): darueber bietet der Host den Kurzlink an; nie still kuerzen
 export const MAX_FRAGMENT = 4000;
@@ -39,6 +40,8 @@ export function decode(hash) {
   if (!bytes) return { ok: false, reason: "base64" };
   let text; try { text = new TextDecoder("utf-8", { fatal: true }).decode(bytes); } catch (e) { return { ok: false, reason: "utf8" }; }
   let data; try { data = JSON.parse(text); } catch (e) { return { ok: false, reason: "json" }; }
-  if (TYPES[type](data) !== true) return { ok: false, reason: "schema" };
+  if (!depthOk(data, 8)) return { ok: false, reason: "schema" };
+  let ok; try { ok = TYPES[type](data) === true; } catch (e) { ok = false; }
+  if (!ok) return { ok: false, reason: "schema" };
   return { ok: true, type, data };
 }

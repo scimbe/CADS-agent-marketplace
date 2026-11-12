@@ -72,6 +72,17 @@ async function scenario(id, mode) {
     assert.equal(L(a), "card.play.over"); assert.equal(L(B), "card.play.over");
     return { a, b: B, sent };
   }
+  if (mode === "live" && c.manifest.players.max > 2) {
+    // Gruppen-Live: ein Geraet je Gastsitz ueber die Einladung dieses Sitzes (ctx.raum.invites)
+    await until(() => a.state.ctx.raum && a.state.ctx.raum.invites && Object.keys(a.state.ctx.raum.invites).length === c.manifest.players.max - 1);
+    const guests = Object.keys(a.state.ctx.raum.invites).map((seat, k) => { const g = testRuntime({ entropy: counter("e" + k), async: true, live: net.loader }); g.link(a.state.ctx.raum.invites[seat]); g.dispatch("ACCEPT"); return g; });
+    const devs = [a, ...guests];
+    for (let i = 0; i < 4000 && !devs.every((d) => L(d) === "card.play.over"); i++) { await tick(); for (const d of devs) { noForeignSecret(d); playTurns(d); } }
+    assert.ok(devs.every((d) => L(d) === "card.play.over"), devs.map(L).join());
+    const pub = devs.map((d) => JSON.stringify(d.state.ctx.session.state.pub));
+    assert.ok(pub.every((x) => x === pub[0]), "alle sehen denselben Stand");
+    return { a, b: guests[0], wire: net.wire };
+  }
   if (mode === "live") {
     await until(() => a.state.ctx.raum && a.state.ctx.raum.inviteLink);
     B.link(a.state.ctx.raum.inviteLink); assert.equal(L(B), "receive.live"); B.dispatch("ACCEPT");

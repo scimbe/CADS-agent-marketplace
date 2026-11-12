@@ -4,7 +4,7 @@
 //   priv[sitz] = card.deal(rng(SHA-256(salt + "|" + seed)))      – nur wer das Salz kennt, kennt die Karten
 //   Aufloesung: Eingabe {t:"reveal", seat, salt}; alle pruefen commit und rechnen nach.
 // Ein Geraet haelt priv[s] nur fuer Sitze, deren Salz es kennt; fremde Teile sind null.
-import { rng, sha256, canon, stateHash } from "./sdk.js";
+import { rng, sha256, canon, stateHash, utf8 } from "./sdk.js";
 
 export const COMMIT_PREFIX = "mdi-commit|";
 export function commitOf(salt) { return sha256(COMMIT_PREFIX + salt); }
@@ -56,7 +56,8 @@ function sameInput(a, b) { return canon(a) === canon(b); }
 /** Eine Eingabe anwenden. Wirft GameError bei ungueltigen Zuegen (nie stilles Raten, A4). */
 export function apply(card, session, input) {
   if (!input || typeof input !== "object" || typeof input.t !== "string" || !Number.isInteger(input.seat)) throw new GameError("eingabe");
-  let size; try { size = canon(input).length; } catch (e) { throw new GameError("eingabe", "nicht kanonisch"); }
+  // UTF-8-Byte zaehlen, nicht UTF-16-Einheiten (Review L10)
+  let size; try { size = utf8(canon(input)).length; } catch (e) { throw new GameError("eingabe", "nicht kanonisch"); }
   if (size > MAX_INPUT_BYTES) throw new GameError("eingabe", "zu gross");
   const st = session.state, status = card.status(st);
   if (status.over) throw new GameError("vorbei");
