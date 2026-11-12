@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { makeZug, enc } from "../src/engines/zug/zug.js";
+import { makeZug } from "../src/engines/zug/zug.js";
 import { GAMES, TEXT } from "../src/engines/zug/spiele.js";
 import { okAnswer } from "../src/engines/zug/check.js";
 
@@ -68,7 +68,7 @@ for (const g of Object.keys(GAMES)) {
       if (f.endAt !== undefined) {
         // pay: der Zug bleibt stehen, nichts ist eine gueltige Antwort (alt end:true)
         const seat = card.status(st).turn;
-        assert.equal(card.accepts(card.observe(st, seat), seat, { t: "ans", seat, a: enc(0) }), false);
+        assert.equal(card.accepts(card.observe(st, seat), seat, { t: "ans", seat, a: 0 }), false);
       }
     }
   });
