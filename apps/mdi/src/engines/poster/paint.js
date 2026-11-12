@@ -153,7 +153,7 @@ function cover(c, img, x, y, w, h) {
   c.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 function photoLayer(env, img, st, col, seed, W, H) {
-  const cache = env.cache instanceof Map ? env.cache : (env.cache || (env.cache = {})), key = [img._id || "p", W, H, st, col.join(), st === "glitch" ? seed : 0].join("/");
+  const cache = env.cache instanceof Map ? env.cache : (env.cache || (env.cache = {})), key = [img._id || img.src || "p", W, H, st, col.join(), st === "glitch" ? seed : 0].join("/");
   const hit = cache instanceof Map ? cache.get("poster-photo") : cache.photo;
   if (hit && hit.key === key) return hit.cv;
   const cv = env.makeCanvas ? env.makeCanvas(W, H) : Object.assign(document.createElement("canvas"), { width: W, height: H });

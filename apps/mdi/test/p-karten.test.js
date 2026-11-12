@@ -20,6 +20,7 @@ import zettel, { lines as zLines } from "../src/cards/zettel/card.js";
 
 const CARDS = { "advent-tuer": advent, "zug-advent": zugAdvent, "foto-alien": foto, "beat-pausenhof": beat, "stimme-verzerren": stimme, "zug-stimme": zugStimme, "kanal-geheim": kanal, zettel };
 const fx = (f) => JSON.parse(fs.readFileSync(new URL("./fixtures/" + f, import.meta.url), "utf8"));
+const PID = "0123456789abcdef0123456789abcdef", PHOTO = "local:" + PID;
 const day = (y, m, d) => Math.floor(Date.UTC(y, m - 1, d) / 86400000);
 const J = (x) => JSON.parse(JSON.stringify(x));
 const walk = (n, f) => { if (!n || typeof n !== "object") return; f(n); for (const v of Object.values(n)) if (Array.isArray(v)) v.forEach((c) => walk(c, f)); else if (v && typeof v === "object") walk(v, f); };
@@ -73,13 +74,13 @@ test("advent-tuer: Empfaenger sieht die Tuer zu (Tippen zum Oeffnen), nie gesper
   assert.equal(find(late, "door")[0].label, "Open door 5");
 });
 test("advent-tuer: eigenes Foto bleibt lokal (nur mit ausdruecklicher Wahl im Link), KI-Bild reist als Referenz, Wetter als Zahlen", () => {
-  const p = { ...advP, photo: "slot:photo", gi: { p: "A".repeat(22) + ".jpg" }, w: { p: "Hamburg", d: "2026-12-03", hi: 4, lo: -1, rn: 60, c: 61 } };
+  const p = { ...advP, photo: PHOTO, gi: { p: "A".repeat(22) + ".jpg" }, w: { p: "Hamburg", d: "2026-12-03", hi: 4, lo: -1, rn: 60, c: 61 } };
   const link = paramsForLink(advent.manifest.params, p);
   assert.ok(!("photo" in link), "Foto nicht im Link");
   assert.ok("photo" in paramsForLink(advent.manifest.params, p, { withLocalMedia: true }), "nur auf ausdrueckliche Wahl");
   assert.deepEqual(link.gi, p.gi); assert.deepEqual(link.w, p.w);
   const c = find(advent.view(advent.observe(advent.init({ params: { ...p, nr: 3 } }), 0), 0, {}), "canvas")[0];
-  assert.deepEqual(c.src.photo, { kind: "local", slot: "photo" }); assert.deepEqual(c.src.gi, { kind: "server", ref: p.gi.p });
+  assert.deepEqual(c.src.photo, { kind: "local", id: PID }, "Bilddienst bekommt nur die id"); assert.deepEqual(c.src.gi, { kind: "server", ref: p.gi.p });
   assert.ok(c.ops2d.some((o) => o.op === "image" && o.a[0] === "photo"), "eigenes Foto vor KI-Bild im Feld");
   assert.ok(c.ops2d.some((o) => o.m === "fillText" && /open-meteo/.test(o.a[0])), "Quelle steht drauf");
 });
@@ -112,11 +113,17 @@ test("zug-advent: Filter, Laenge und Anzahl werden geprueft; nur Sitz 0 schreibt
 
 // ---------- foto-alien ----------
 test("foto-alien: Foto nie im Link und nie beim Empfaenger; Varianten tragen Text und Stil aus dem Katalog", () => {
-  const p = { ...defaults(foto.manifest.params), photo: "slot:photo" };
+  const p = { ...defaults(foto.manifest.params), photo: PHOTO };
   assert.ok(!("photo" in paramsForLink(foto.manifest.params, p)));
   const mine = find(foto.view(foto.observe(foto.init({ params: p }), 0), 0, {}), "canvas")[0];
   const theirs = find(foto.view(foto.observe(foto.init({ params: p }), 0), 0, { receive: true }), "canvas")[0];
   assert.ok(mine.ops2d.some((o) => o.op === "photo")); assert.ok(!theirs.ops2d.some((o) => o.op === "photo")); assert.equal(theirs.src.photo, undefined);
+  assert.deepEqual(mine.src.photo, { kind: "local", id: PID });
+  // nur ein echter Geraetewert gilt: alter Slot-Name, fremde Werte und URLs zeichnen kein Foto
+  for (const bad of ["slot:photo", "local:xyz", "https://x/y.jpg", "local:" + PID.toUpperCase()]) {
+    const c = find(foto.view(foto.observe(foto.init({ params: { ...p, photo: bad } }), 0), 0, {}), "canvas")[0];
+    assert.ok(!c.ops2d.some((o) => o.op === "photo") && c.src.photo === undefined, bad);
+  }
   const by = Object.fromEntries(foto.manifest.variants.map((v) => [v.id, v.params]));
   assert.deepEqual([by["foto-tour"].st, by["foto-haustier"].st, by["foto-essen"].st, defaults(foto.manifest.params).st], ["poster", "meme", "sticker", "glitch"]);
 });

@@ -3,7 +3,7 @@
 // ohne Foto zeigt die Karte die Flaeche in der ersten Farbe, wie im Altcode beim Empfaenger.
 import manifest from "./manifest.json" with { type: "json" };
 import data from "./data.json" with { type: "json" };
-import { docOf, canvasNode } from "../../engines/poster/card.js";
+import { docOf, canvasNode, photoId } from "../../engines/poster/card.js";
 
 export default {
   manifest,
@@ -15,7 +15,7 @@ export default {
   view(obs, seat, ctx = {}) {
     const p = obs.pub, doc = docOf("photo", p);
     // das Foto nur auf dem Geraet, das es gewaehlt hat (Slot), nie beim Empfaenger
-    const pic = canvasNode(doc, { format: "4:5", nick: ctx.nick, photo: !!p.photo && !ctx.receive, a11y: [doc.x, doc.y].filter(Boolean).join(" – ") || manifest.title[ctx.lang || "de"], part: "foto" });
+    const pic = canvasNode(doc, { format: "4:5", nick: ctx.nick, photo: ctx.receive ? null : photoId(p.photo), a11y: [doc.x, doc.y].filter(Boolean).join(" – ") || manifest.title[ctx.lang || "de"], part: "foto" });
     return { t: "frame", ratio: "4:5", fill: "paper", a11y: pic.a11y, children: [pic] };
   }
 };
