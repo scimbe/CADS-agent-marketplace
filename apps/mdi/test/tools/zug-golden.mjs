@@ -75,7 +75,7 @@ function bad(p, doc, m, now, lang = "de") {
 }
 
 const SPIELE = { einig: 6, rangliste: 6, kapsel: 6, post: 6, gutschein: 6, rubbellos: 6, urkunde: 6, morgen: 6, umschlag: 6, wichteln: 6, reihum: 6, kerzen: 6, termin: 6, danke: 6, sorry: 6, sammeln: 6, einkauf: 8, wunsch: 6, geschenk: 6 };
-const TODAY = 20770; // 2026-11-12
+const TODAY = 20770; // 2026-11-13 (UTC-Tag)
 const out = { herkunft: "Altbaum, Tag " + TAG + ": turns.js, turn.json, kontakt.js, geschenke.js(.json). Erzeugt mit test/tools/zug-golden.mjs; kein Import aus dem Altbaum im Test.", heute: TODAY, faelle: [] };
 for (const [g, n] of Object.entries(SPIELE)) {
   for (let s = 0; s < n; s++) {

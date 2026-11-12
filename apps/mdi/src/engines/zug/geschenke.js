@@ -60,7 +60,7 @@ export function ideas(seed, ask, lang) {
 export function ok(s) { return !fold(s).split(/[^a-z0-9]+/).some(bad); }
 /** Antwort der KI-Art liste (posten[].n) -> hoechstens fuenf saubere, neue, harmlose Texte. */
 export function fromAi(opt) {
-  const out = [], seen = {};
+  const out = [], seen = Object.create(null);
   ((opt && opt.posten) || []).forEach((p) => {
     const t = clean(p && p.n, MAX), k = qfold(t);
     if (out.length < N && t && k && !seen[k] && ok(t)) { seen[k] = 1; out.push(t); }
