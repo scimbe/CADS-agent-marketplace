@@ -304,3 +304,17 @@ test("KI-Knoten der Zugkarten (Z1): KI_ASK in jeder Kartenansicht -> Effekt frei
   s = go(s, { type: "KI_SETTLE", receipt: "r1.f.x", how: "accept" });
   assert.deepEqual(fx(s, "frei.settle"), [{ type: "frei.settle", how: "accept", receipt: "r1.f.x" }]);
 });
+
+test("FREI mit Satz (Startseiten-Block, H Gate C): Satz vorausgefuellt, keine Kategorie vorgewaehlt, Senden erst nach Wahl; Krise sofort Hilfe; ohne text wie bisher", async () => {
+  let s = go(await signedIn(), { type: "FREI", text: "  Ein Frosch, der\u0000 Astronaut werden will <b>  " });
+  assert.equal(leaf(s), "frei.start");
+  assert.equal(s.ctx.frei.text, "Ein Frosch, der Astronaut werden will b", "bereinigt, gekuerzt");
+  assert.equal(s.ctx.frei.art, "", "keine Vorauswahl der Kategorie");
+  go(s, { type: "SEND", crisis: false }, { consumed: false });
+  s = go(go(s, { type: "ART", art: "card" }), { type: "SEND", crisis: false });
+  assert.deepEqual(fx(s, "frei.ask")[0].input, { text: "Ein Frosch, der Astronaut werden will b", art: "card" });
+  const k = go(await signedIn(), { type: "FREI", text: "ich will nicht mehr leben" });
+  assert.equal(k.ctx.frei.res.how, "crisis"); assert.ok(txt(k).includes("Nummer gegen Kummer"));
+  assert.equal(go(await signedIn(), { type: "FREI" }).ctx.frei.text, "");
+  assert.equal(go(await signedIn(), { type: "FREI", text: "x".repeat(300) }).ctx.frei.text.length, 200);
+});
