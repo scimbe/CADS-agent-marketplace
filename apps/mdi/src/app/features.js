@@ -20,10 +20,12 @@
 
 import { home } from "../ui/home/feature.js";
 import { frei } from "../features/frei/chart.js";   // Strang K: freie Karte, KI-Arten, Deck, KI-Bild
+import { posterFeature } from "../engines/poster/feature.js";
 
 export const FEATURES = [
   home,      // Strang H: src/ui/home/feature.js
   frei,      // Strang K: src/features/frei/chart.js
+  posterFeature, // Strang P: hohe Poster-Ops (env.high) und Ton (env.audio)
 ];
 
 /** Geraetedienste aller Features zusammensetzen (doppelte Dienste sind ein Fehler). */

@@ -1,0 +1,76 @@
+{
+  "id": "zug-advent",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.2",
+  "kind": "turn",
+  "mode": "turn",
+  "order": 21,
+  "title": {
+    "de": "24 Türen für eine Person",
+    "en": "24 doors for one person"
+  },
+  "teaser": {
+    "de": "Jeden Tag im Dezember ein Satz von dir.",
+    "en": "A line from you every day in December."
+  },
+  "howto": {
+    "de": "Du schreibst 24 kurze Sätze. Ab dem 1. Dezember geht jeden Tag eine Tür auf.",
+    "en": "You write 24 short lines. From 1 December one door opens each day."
+  },
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "seats": {
+    "de": [
+      "Du schreibst",
+      "Du öffnest"
+    ],
+    "en": [
+      "You write",
+      "You open"
+    ]
+  },
+  "modes": [
+    "link"
+  ],
+  "hidden": "none",
+  "uses": [],
+  "limits": {
+    "stepBudget": 4,
+    "stateBytes": 4096
+  },
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [],
+    "properties": {}
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat",
+      "a"
+    ],
+    "properties": {
+      "t": {
+        "const": "write"
+      },
+      "seat": {
+        "const": 0
+      },
+      "a": {
+        "type": "array",
+        "minItems": 24,
+        "maxItems": 24,
+        "items": {
+          "type": "string",
+          "maxLength": 20
+        }
+      }
+    }
+  },
+  "parts": [],
+  "dur": 600
+}
