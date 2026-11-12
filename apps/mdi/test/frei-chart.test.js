@@ -304,3 +304,50 @@ test("KI-Knoten der Zugkarten (Z1): KI_ASK in jeder Kartenansicht -> Effekt frei
   s = go(s, { type: "KI_SETTLE", receipt: "r1.f.x", how: "accept" });
   assert.deepEqual(fx(s, "frei.settle"), [{ type: "frei.settle", how: "accept", receipt: "r1.f.x" }]);
 });
+
+test("Einstieg schlank fuer das Regal (H, Design D): eine Zeile in Leseschrift mit Pfeil, sendet FREI; die grosse Form bleibt", async () => {
+  const { freiEntry } = await import("../src/features/frei/view-core.js");
+  const s = machine.initial(initialContext("de")), sent = [];
+  const v = freiEntry(s, {}, (e) => sent.push(e), { compact: true });
+  const j = JSON.stringify(v, (k, x) => (k === "on" || k === "el" ? undefined : x));
+  assert.ok(j.includes("Eigene Karte: ein Satz, die KI baut sie")); assert.ok(j.includes("frei-row")); assert.ok(!j.includes("frei-tile"));
+  v.children[0].props.on.click(); assert.deepEqual(sent, [{ type: "FREI" }]);
+  assert.ok(JSON.stringify(freiEntry(s, {}, () => {}), (k, x) => (k === "on" ? undefined : x)).includes("frei-tile"), "ohne compact die bisherige Form");
+  const en = machine.initial(initialContext("en"));
+  assert.ok(JSON.stringify(freiEntry(en, {}, () => {}, { compact: true }), (k, x) => (k === "on" ? undefined : x)).includes("Your own card"));
+});
+
+test("FREI mit Satz (Startseiten-Block, H Gate C): Satz vorausgefuellt, keine Kategorie vorgewaehlt, Senden erst nach Wahl; Krise sofort Hilfe; ohne text wie bisher", async () => {
+  let s = go(await signedIn(), { type: "FREI", text: "  Ein Frosch, der\u0000 Astronaut werden will <b>  " });
+  assert.equal(leaf(s), "frei.start");
+  assert.equal(s.ctx.frei.text, "Ein Frosch, der Astronaut werden will b", "bereinigt, gekuerzt");
+  assert.equal(s.ctx.frei.art, "", "keine Vorauswahl der Kategorie");
+  go(s, { type: "SEND", crisis: false }, { consumed: false });
+  s = go(go(s, { type: "ART", art: "card" }), { type: "SEND", crisis: false });
+  assert.deepEqual(fx(s, "frei.ask")[0].input, { text: "Ein Frosch, der Astronaut werden will b", art: "card" });
+  const k = go(await signedIn(), { type: "FREI", text: "ich will nicht mehr leben" });
+  assert.equal(k.ctx.frei.res.how, "crisis"); assert.ok(txt(k).includes("Nummer gegen Kummer"));
+  assert.equal(go(await signedIn(), { type: "FREI" }).ctx.frei.text, "");
+  assert.equal(go(await signedIn(), { type: "FREI", text: "x".repeat(300) }).ctx.frei.text.length, 200);
+});
+
+test("needParts frei-ui (Befund Z2, Bisect 3aca9f06): nur Ereignisse, die eine Ansicht der freien Karte oeffnen; GO und LINK nie", async () => {
+  const { freiParts } = await import("../src/features/frei/chart.js");
+  for (const t of ["FREI", "DECK", "DECK_OPEN", "MINE", "BILD", "KI", "ROBOT", "MELDEN"]) assert.deepEqual(freiParts({ type: t }), ["frei-ui"], t);
+  for (const t of ["GO", "LINK", "OPEN", "INPUT", "SEND", "GATE"]) assert.deepEqual(freiParts({ type: t }), [], t);
+});
+
+test("Status-Gate beim Teilen ok: das ausgeloeste GO traegt rand, die versiegelte Zugkarte startet (Befund Z2)", () => {
+  let s = machine.initial(initialContext("de"));
+  s = { ...s, ctx: { ...s.ctx, frei: { ...s.ctx.frei, req: 1, art: "faehigkeit", text: "x" } }, config: [...s.config.filter((c) => !c.startsWith("inhalt.")), "inhalt", "inhalt.frei", "inhalt.frei.warten"] };
+  const b = rec("karte-ok-faehigkeit").body;
+  s = go(s, { type: "FREI_RESULT", req: 1, r: { how: "result", options: b.options, seals: b.seals, hashes: b.hashes, receipt: b.receipt } });
+  s = go(s, { type: "TAKE" });
+  assert.equal(s.ctx.cardId, "zug-termin");
+  s = go(s, { type: "MODE", mode: "link" });
+  s = go(s, { type: "GO" });
+  assert.equal(leaf(s), "frei.sharegate");
+  s = go(s, { type: "GATE", st: "ok" });
+  assert.equal(leaf(s), "card.play.turn");
+  assert.equal(s.ctx.error, null);
+});

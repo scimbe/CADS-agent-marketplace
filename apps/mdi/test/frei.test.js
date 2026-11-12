@@ -555,3 +555,16 @@ test("H1: ein Siegel ohne gueltigen Hash bringt nie das KI-Badge und nie ein ok 
   assert.match(view(good), /Mit KI erstellt/); assert.equal(gateChecksOf(c.toFree(good))[0].cid, o.ki.h.slice(0, 22));
   assert.equal(G.receive(encode("card", { c: "frei", v: c.manifest.version, p: good }), null, []).ok, true);
 });
+
+test("Jeder Absagecode des Servers hat einen festen Text in de und en (ABSAGE + Baukasten bau_*, auch bau_fakten)", async () => {
+  const CODES = JSON.parse(fs.readFileSync(new URL("./fixtures/absage-codes.json", import.meta.url), "utf8"));
+  const { refusalText } = (await import("../src/features/frei/view-core.js")).freiUi();
+  const reasons = [...CODES.absage, ...CODES.bau.map((c) => "bau_" + c)];
+  assert.ok(CODES.bau.includes("fakten"), "bau_fakten ist dabei");
+  for (const r of reasons) for (const l of ["de", "en"]) {
+    assert.ok(FREI_TEXTS[l]["create_absage_" + r], l + ": create_absage_" + r + " fehlt");
+    const t = refusalText({ how: "notyet", notyet: { what: r.startsWith("bau_") ? "bau" : "game", name: "" }, reason: r }, l);
+    assert.ok(!/\[create_/.test(t) && t.includes(FREI_TEXTS[l]["create_absage_" + r]), l + " " + r + ": " + t);
+  }
+  assert.match(FREI_TEXTS.de.create_absage_bau_fakten, /Fakten nicht sicher genug/);
+});

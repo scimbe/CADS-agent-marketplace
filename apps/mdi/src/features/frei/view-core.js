@@ -28,12 +28,20 @@ export function freiUi() {
 export function freiView(state, X, dispatch, L) {
   const ui = freiUi();
   if (ui) return ui.freiView(state, X, dispatch, L);
-  return { body: [h("p", { class: "hint", role: "status", key: "laden" }, ftCore(state.ctx.lang, "frei_status_wait"))], panel: [], actions: { primary: null, secondary: [] }, heading: ftCore(state.ctx.lang, "create_tile") };
+  // Pruefzustaende (Gate beim Empfaenger, vor dem Teilen) laden den Teil bewusst nicht: ihr Statussatz steht hier im Kern
+  const lang = state.ctx.lang;
+  const gate = machine.matches(state, "inhalt.frei.gate") ? "frei_gate_wait" : machine.matches(state, "inhalt.frei.sharegate") ? "frei_share_wait" : "frei_status_wait";
+  return { body: [h("p", { class: "hint", role: "status", key: "laden" }, ftCore(lang, gate))], panel: [], actions: { primary: null, secondary: [] }, heading: ftCore(lang, "create_tile") };
 }
 
 /** Einstieg "Eigene Karte", immer sichtbar (Regal, Tagesblatt, Absichten). Offline: ehrlicher Hinweis. */
-export function freiEntry(state, X, dispatch) {
+export function freiEntry(state, X, dispatch, opts = {}) {
   const L = state.ctx.lang, off = state.ctx.konto && state.ctx.konto.err === "netz";
+  // schlanke Zeile fuer das Regal (Design D, Board "Regal": Leseschrift, Pfeil rechts); Gestalt der Klasse frei-row bei H
+  if (opts.compact) return h("div", { class: "frei-entry compact", key: "frei-entry" },
+    h("button", { type: "button", class: "frei-row", "data-act": "frei", on: { click: () => dispatch({ type: "FREI" }) } },
+      h("span", { class: "frei-row-t" }, ftCore(L, "create_row")), h("span", { class: "frei-row-arrow", "aria-hidden": "true" }, "→")),
+    off ? h("p", { class: "hint", role: "status" }, ftCore(L, "aiNet")) : null);
   return h("div", { class: "frei-entry", key: "frei-entry" },
     h("button", { type: "button", class: "btn primary frei-tile", "data-act": "frei", on: { click: () => dispatch({ type: "FREI" }) } },
       h("span", { class: "sc-title" }, ftCore(L, "create_tile")), " ", h("span", { class: "sc-teaser" }, ftCore(L, "create_sub"))),
