@@ -201,7 +201,8 @@ test("Gate C: Mein Regal heisst so (de/en) und hat ein Symbol; Eigene Karte ist 
   const s = start(), t = texts(s);
   assert.ok(t.includes("Mein Regal"), "Kopfzeile");
   assert.ok(!/"Meins"/.test(t), "kein altes Wort");
-  assert.ok(t.includes('"data-act":"frei-go"') && t.includes('"id":"frei-satz"'), "Satzfeld der eigenen Karte");
+  assert.ok(t.includes('"data-act":"frei"') && t.includes('"id":"frei-satz"') && t.includes("Neu erfinden"), "Block Neu erfinden mit Satzfeld");
+  assert.ok(t.includes('"data-act":"intent-suchen"') && !t.includes('"data-act":"intent-eigene"'), "Suchen statt Eigene Karte");
   const en = machine.send(machine.initial(initialContext("en")), { type: "HOME_LOADED", data: {}, at: AT });
   assert.ok(texts(en).includes("My shelf"));
   const m = go(s, { type: "HOME", to: "meins" });

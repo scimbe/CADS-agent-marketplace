@@ -9,7 +9,7 @@ import * as S from "../contract/session.js";
 import { render } from "../render/render.js";
 import { LEVELS } from "../bot/ismcts.js";
 import { stilView, stilActions } from "./stil-view.js";
-import { homeView, dayPrimary, meinsButton } from "./home/views.js";
+import { homeView, dayPrimary, meinsButton, schriftButton } from "./home/views.js";
 import { SLOTS } from "./home/slots.js";
 import { ftCore as ft } from "../features/frei/texts-core.js";   // Strang K: Texte fuer Robot/Melden in der Kartenansicht
 
@@ -181,7 +181,7 @@ export function view(state, dispatch, env = {}) {
     canBack ? h("button", { type: "button", class: "icon", "aria-label": X.back, "data-act": "back", on: { click: () => dispatch({ type: "BACK" }) } }, "←") : h("span", { class: "icon-gap" }),
     h("h1", { class: "brand" + (homeR && !homeR.heading ? " home" : "") }, heading),
     m("raum.verbunden") ? h("span", { class: "badge", role: "status" }, X.connected)
-      : L === "shelf" ? h("span", { class: "bar-end" }, meinsButton(state, dispatch), h("button", { type: "button", class: "h-headbtn me", "aria-label": X.stilOpen, "data-act": "stil", on: { click: () => dispatch({ type: "STIL" }) } }, h("span", { class: "h-headbtn-i", "aria-hidden": "true" }, ctx.me.emoji), h("span", { class: "h-headbtn-t", "aria-hidden": "true" }, X.stil)))
+      : L === "shelf" ? h("span", { class: "bar-end" }, schriftButton(state, dispatch), meinsButton(state, dispatch), h("button", { type: "button", class: "h-headbtn me", "aria-label": X.stilOpen, "data-act": "stil", on: { click: () => dispatch({ type: "STIL" }) } }, h("span", { class: "h-headbtn-i", "aria-hidden": "true" }, ctx.me.emoji), h("span", { class: "h-headbtn-t", "aria-hidden": "true" }, X.stil)))
         : h("span", { class: "icon-gap" }));
 
   let body = [], panel = [];

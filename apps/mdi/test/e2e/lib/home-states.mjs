@@ -10,7 +10,7 @@ export async function visitHome(p, cb, lang = "de") {
   await act(p, "day-next"); await cb("h02-kalender-morgen", p);
   await act(p, "day-today");
   await act(p, "merken-zug-kennst").catch(() => {});
-  await p.locator("#h-sentence").fill(lang === "de" ? "Danke an Oma" : "Thanks to Grandma"); await act(p, "understand");
+  await act(p, "intent-suchen"); await p.locator("#h-sentence").fill(lang === "de" ? "Danke an Oma" : "Thanks to Grandma"); await act(p, "understand");
   await p.locator("main.h-at-family").waitFor(); await cb("h03-satz-verstanden", p);
   await home(p); await act(p, "intent-spielen"); await p.locator("main.h-at-family").waitFor(); await cb("h04-familie-spielen", p);
   await act(p, "merken-zug-kennst");

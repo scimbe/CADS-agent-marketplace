@@ -6,7 +6,7 @@ import { bundesweit } from "./feiertage.js";
 import { partOf } from "../../gen/fparts.js";
 import { FAMILIES, INTENT_ORDER, familiesOf, family, familyOf, newIdOf, variantOf, extras, catalogIdOf } from "./families.js";
 import { homeTexts, fmt } from "./texts.js";
-import { ideaTile, extraTile, icon, ideaText, plateLines, duration, badge, art, thumbKey } from "./tile.js";
+import { ideaTile, extraTile, icon, regalIcon, ideaText, plateLines, duration, badge, art, thumbKey } from "./tile.js";
 import { SLOTS } from "./slots.js";
 import { inviteStatus, isSaved, UNDO_MS } from "./store.js";
 import { cardOf, manifestOf, ORDER } from "../../cards/index.js";
@@ -88,9 +88,9 @@ function intents(state, X, dispatch) {
   return h("nav", { class: "h-intents", key: "intents", "aria-label": X.ask },
     INTENT_ORDER.map((k) => h("button", { type: "button", key: k, class: "h-intent fam-" + INTENT_FAM[k], "data-act": "intent-" + k, on: { click: () => dispatch({ type: "HOME", to: "family", intent: k }) } },
       icon(INTENT_SHAPE[k], "h-ico"), h("span", { class: "h-intent-t", lang: state.ctx.lang }, X.intentHead[k]), h("span", { class: "visually-hidden" }, ": " + X.intents[k].s))),
-    // Strang K vorhanden: direkt in die freie Karte (FREI); sonst die eigene Route mit ehrlichem "kommt"
-    h("button", { type: "button", key: "eigene", class: "h-intent h-intent-frei", "data-act": "frei", on: { click: () => dispatch(SLOTS.freiEntry ? { type: "FREI" } : { type: "HOME", to: "eigene" }) } },
-      icon("plus", "h-ico"), h("span", { class: "h-intent-t" }, X.own.t), h("span", { class: "visually-hidden" }, ": " + X.own.s)),
+    // Gate C (D): an die Stelle von "Eigene Karte" (jetzt der grosse Block "Neu erfinden") tritt "Suchen"
+    h("button", { type: "button", key: "suchen", class: "h-intent h-intent-such", "data-act": "intent-suchen", on: { click: () => dispatch({ type: "HOME", to: "family", intent: null, focus: "sentence" }) } },
+      icon("lupe", "h-ico"), h("span", { class: "h-intent-t" }, X.searchShort), h("span", { class: "visually-hidden" }, ": " + X.search)),
     h("button", { type: "button", key: "alle", class: "h-intent h-intent-alle", "data-act": "intent-alle", on: { click: () => dispatch({ type: "HOME", to: "regal", rtab: "alles", fam: null }) } },
       icon("grid", "h-ico"), h("span", { class: "h-intent-t" }, X.all), h("span", { class: "visually-hidden" }, ": " + fmt(X.hits, { n: R.IDEAS.length }))));
 }
@@ -101,18 +101,19 @@ function section(title, kids, o = {}) {
     h("h2", { class: "h-sec-h", id: o.id }, o.fam ? h("span", { class: "h-dot fam-" + o.fam, "aria-hidden": "true" }) : null, title, o.count !== undefined ? h("span", { class: "h-count" }, String(o.count)) : null), kids);
 }
 
-// Gate C (User): "Eigene Karte" gross und mit Satzfeld direkt auf dem Start. Aus dem Satz baut die freie Karte (Strang K)
-// eine ganz neue Karte oder ein neues Spiel; das Feld ist nur Eingabe, der Satz geht beim Absenden mit FREI {text} an K.
+// Gate C (User, Masse und Texte von D, Canvas v52 ".erfinden"): "Neu erfinden" gross mit Satzfeld direkt unter dem Blatt und
+// dem Hauptknopf. Aus dem Satz baut die freie Karte (Strang K) eine ganz neue Karte oder ein neues Spiel; der Satz geht beim
+// Absenden mit FREI {text} an K (ohne K: Seite "Eigene Karte"). Das Feld ist nur Eingabe, kein Zustand in der Statechart.
 function freiHero(state, X, dispatch) {
   const go = (text) => dispatch(SLOTS.freiEntry ? { type: "FREI", text } : { type: "HOME", to: "eigene" });
-  return h("section", { class: "h-hero", key: "hero", "aria-labelledby": "h-hero-t" },
-    h("div", { class: "h-hero-head" }, icon("plus", "h-ico"), h("h2", { class: "h-hero-t", id: "h-hero-t" }, X.hero.t)),
-    h("p", { class: "h-hero-s" }, X.hero.s),
-    h("form", { class: "h-hero-form", on: { submit: (e) => { e.preventDefault(); const f = e.target.elements.namedItem("frei-satz"); go(f ? String(f.value || "").trim().slice(0, 300) : ""); } } },
+  return h("section", { class: "h-erf", key: "hero", "aria-labelledby": "h-erf-t" },
+    h("h2", { class: "h-erf-t", id: "h-erf-t" }, h("span", { class: "h-erf-sym", "aria-hidden": "true" }, "✦"), X.hero.t),
+    h("p", { class: "h-erf-s" }, X.hero.s),
+    h("form", { class: "h-erf-form", on: { submit: (e) => { e.preventDefault(); const f = e.target.elements.namedItem("frei-satz"); go(f ? String(f.value || "").trim().slice(0, 300) : ""); } } },
       h("label", { class: "visually-hidden", for: "frei-satz" }, X.hero.label),
-      h("input", { id: "frei-satz", name: "frei-satz", class: "h-input", type: "text", autocomplete: "off", maxlength: "300", placeholder: X.hero.ph }),
-      h("button", { type: "submit", class: "h-hero-go", "data-act": "frei-go" }, X.hero.go)),
-    h("p", { class: "h-hero-n" }, X.hero.note));
+      h("textarea", { id: "frei-satz", name: "frei-satz", class: "h-erf-in", rows: "2", maxlength: "300", placeholder: X.hero.label }),
+      h("div", { class: "h-erf-row" }, h("p", { class: "h-erf-n" }, X.hero.note),
+        h("button", { type: "submit", class: "h-erf-go", "data-act": "frei" }, X.hero.go))));
 }
 
 // "Diese Woche im Kalender" (Board Desktop): die letzten 6 Blaetter als Kacheln; die ganze Historie steht im Regal (Letzte Tage)
@@ -143,12 +144,15 @@ function dayView(state, X, dispatch) {
       // Raster wie Board Start/Desktop: Blatt | Hauptknopf | Satz, Absichten, Diese Woche (ab 900 px: Blatt links, rechts oben der Knopf)
       h("div", { class: "h-top-a" }, known ? sheet(ctx, X, dispatch) : h("p", { class: "h-wait", role: "status", key: "wait" }, "…")),
       p ? h("div", { class: "h-top-go" }, primaryBtn(p, dispatch), freiHero(state, X, dispatch)) : h("div", { class: "h-top-go" }, freiHero(state, X, dispatch)),
-      h("div", { class: "h-top-b" }, sentenceForm(ctx, X, dispatch), intents(state, X, dispatch), known ? weekRow(ctx, X, dispatch) : null))
+      // Board Start v52: Frage als Ueberschrift ueber den Absichten; der Satz-Weg liegt unter "Suchen" (Board Treffer)
+      h("div", { class: "h-top-b" }, h("p", { class: "h-ask-q", key: "askq" }, X.ask), intents(state, X, dispatch), known ? weekRow(ctx, X, dispatch) : null))
   ];
 }
 
 function familyView(state, X, dispatch) {
   const ctx = state.ctx, res = ctx.home.res, intent = ctx.home.intent, out = [];
+  // "Suchen" (Board Treffer): ein Satz -> passende Karten (alt Startbox); auch nach einem Satz bleibt das Feld zum Aendern da
+  if (!intent) out.push(sentenceForm(ctx, X, dispatch));
   if (res) {
     const name = res.name || (res.who && res.who.call ? res.who[ctx.lang] || res.who.de : "");
     out.push(h("div", { class: "h-heard", key: "heard", role: "status" },
@@ -291,7 +295,7 @@ function eigeneView(state, X, dispatch) {
 /** -> { heading, body, cls } */
 export function homeView(state, dispatch) {
   const ctx = state.ctx, X = homeTexts(ctx.lang, ctx.pref && ctx.pref.easy), at = ctx.home.at;
-  if (at === "family") return { heading: ctx.home.intent ? X.intentHead[ctx.home.intent] : X.heard, body: familyView(state, X, dispatch), cls: "family" };
+  if (at === "family") return { heading: ctx.home.intent ? X.intentHead[ctx.home.intent] : X.searchShort, body: familyView(state, X, dispatch), cls: "family" };
   if (at === "regal") return { heading: X.all, body: regalView(state, X, dispatch), cls: "regal" };
   if (at === "meins") return { heading: X.meins, body: meinsView(state, X, dispatch), cls: "meins" };
   if (at === "eigene") return { heading: X.own.page, body: eigeneView(state, X, dispatch), cls: "eigene" };
@@ -302,6 +306,12 @@ export function meinsButton(state, dispatch) {
   const ctx = state.ctx, X = homeTexts(ctx.lang, ctx.pref && ctx.pref.easy), n = ctx.mine.wall.length + ctx.mine.invites.length + ctx.mine.saved.length;
   // Gate C: "Mein Regal" mit Symbol und sichtbarem Namen (Board Start: beschriftete Kopfknoepfe)
   return h("button", { type: "button", class: "h-headbtn h-meins", key: "meins", "aria-label": X.meinsOpen + (n ? " (" + n + ")" : ""), "data-act": "meins", on: { click: () => dispatch({ type: "HOME", to: "meins" }) } },
-    h("span", { class: "h-headbtn-i", "aria-hidden": "true" }, icon("regal", "h-ico"), n ? h("span", { class: "h-meins-n" }, String(n)) : null), h("span", { class: "h-headbtn-t", "aria-hidden": "true" }, X.meins));
+    h("span", { class: "h-headbtn-i", "aria-hidden": "true" }, regalIcon(), n ? h("span", { class: "h-meins-n" }, String(n)) : null), h("span", { class: "h-headbtn-t", "aria-hidden": "true" }, X.meins));
+}
+/** Kopfknopf "Schrift" (AA, Board Start): fuehrt zu Mein Stil, wo Schriftgroesse und Einfache Sprache stehen (Fenster folgt mit PR 4). */
+export function schriftButton(state, dispatch) {
+  const X = homeTexts(state.ctx.lang, state.ctx.pref && state.ctx.pref.easy);
+  return h("button", { type: "button", class: "h-headbtn", key: "schrift", "aria-label": X.schriftOpen, "data-act": "schrift", on: { click: () => dispatch({ type: "STIL" }) } },
+    h("span", { class: "h-headbtn-i h-aa", "aria-hidden": "true" }, "A", h("span", null, "A")), h("span", { class: "h-headbtn-t", "aria-hidden": "true" }, X.schrift));
 }
 export { UNDO_MS };
