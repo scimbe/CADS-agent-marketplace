@@ -1,0 +1,67 @@
+{
+  "herkunft": "scimbe/CADS-DEMO-wrapper @ 5d8e9385 (main): server.mjs, lib/duell-ai.mjs (route, sub weather -> lib/duell-weather.mjs), lib/duell-profile.mjs, lib/duell-mod.mjs, lib/shortlink.mjs, lib/auth.mjs; von Hand aus den Quellen gelesen, 2026-11-12",
+  "about": "Server-Aufrufe der Seite (src/broker/api.js) und wo der Wrapper sie bedient. Quelle: scimbe/CADS-DEMO-wrapper @ 5d8e9385 (main). Mit MDI_WRAPPER=<Pfad zum Wrapper-Checkout> prueft test/api-routes.test.js live, dass jede needle in ihrer Datei steht.",
+  "wrapper": "5d8e93859985d16d236ad799bb98b0cd3240f61b",
+  "routes": [
+    {
+      "call": "POST /api/duell/ai/status",
+      "file": "lib/duell-ai.mjs",
+      "needle": "'status'"
+    },
+    {
+      "call": "POST /api/duell/ai/weather",
+      "file": "lib/duell-ai.mjs",
+      "needle": "'weather'"
+    },
+    {
+      "call": "POST /api/duell/profile/get",
+      "file": "lib/duell-profile.mjs",
+      "needle": "profile/get"
+    },
+    {
+      "call": "POST /api/duell/profile/put",
+      "file": "lib/duell-profile.mjs",
+      "needle": "profile/put"
+    },
+    {
+      "call": "POST /api/duell/profile/delete",
+      "file": "lib/duell-profile.mjs",
+      "needle": "profile/delete"
+    },
+    {
+      "call": "POST /api/duell/credit/redeem",
+      "file": "server.mjs",
+      "needle": "credit/redeem"
+    },
+    {
+      "call": "POST /api/duell/mod/me",
+      "file": "lib/duell-mod.mjs",
+      "needle": "mod/me"
+    },
+    {
+      "call": "POST /api/duell/mod/appeal",
+      "file": "lib/duell-mod.mjs",
+      "needle": "mod/appeal"
+    },
+    {
+      "call": "POST /api/s",
+      "file": "lib/shortlink.mjs",
+      "needle": "/api/s"
+    },
+    {
+      "call": "GET /api/s/<id>",
+      "file": "lib/shortlink.mjs",
+      "needle": "/api/s"
+    },
+    {
+      "call": "DELETE /api/s/<id>",
+      "file": "lib/shortlink.mjs",
+      "needle": "/api/s"
+    },
+    {
+      "call": "GET /auth/me",
+      "file": "lib/auth.mjs",
+      "needle": "/auth/me"
+    }
+  ]
+}

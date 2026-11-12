@@ -135,11 +135,11 @@ test("Laufzeit in der App: abgebrochene Anmeldung -> wieder anonym mit Hinweis; 
   assert.ok(machine.matches(s, "konto.fehler"));
 });
 
-test("Konto-Bruecke: EINE exakte Liste (29 Aufrufe) aus bridge-account-v1.json, generiert fuer iOS und Android, nicht von Hand veraendert", () => {
+test("Konto-Bruecke: EINE exakte Liste (30 Aufrufe) aus bridge-account-v1.json, generiert fuer iOS und Android, nicht von Hand veraendert", () => {
   const apps = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const fx = JSON.parse(fs.readFileSync(path.join(apps, "android/app/src/test/resources/bridge-account-v1.json"), "utf8")).route;
   const want = fx.filter((c) => c.ok).map((c) => c.method + " " + c.path).sort();
-  assert.equal(want.length, 29);
+  assert.equal(want.length, 30);
   const listed = (f) => [...fs.readFileSync(path.join(apps, f), "utf8").matchAll(/^\s+"((?:GET|POST) [^"]+)",$/gm)].map((m) => m[1]).sort();
   assert.deepEqual(listed("ios/App/Duell/AccountRoutes.generated.swift"), want, "iOS veraltet: python3 -I apps/gen-account-routes.py");
   assert.deepEqual(listed("android/app/src/main/java/org/bunsenbrenner/cads/duell/AccountRoutes.kt"), want, "Android veraltet");
