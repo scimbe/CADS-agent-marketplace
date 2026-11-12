@@ -53,6 +53,11 @@ export function actionsOf(state) {
       if (ctx.mode === "link" && ctx.link && !ctx.sent && send(X.sendResult)) return { primary: send(X.sendResult), secondary: [a("again", X.again2, "AGAIN")] };
       return { primary: a("again", X.again2, "AGAIN"), secondary: [] };
     case "card.play.error": return { primary: a("back", X.back, "BACK"), secondary: [] };
+    // Gruppe: Platz frei geworden (ADR 0001 Nachtrag 3) – neu einladen, dann teilen
+    case "card.play.vacant": {
+      const inv = ctx.raum && ctx.raum.invites ? (ctx.vacant || []).map((s) => ctx.raum.invites[s]).filter(Boolean) : [];
+      return inv.length ? { primary: send(X.inviteSend), secondary: [a("back", X.back, "BACK")] } : { primary: a("reinvite", X.reinvite, "REINVITE"), secondary: [a("back", X.back, "BACK")] };
+    }
     // Echtzeit (ADR 0001 b, Strang F): Spielen ist die Handlung; nach dem Ende Nochmal und Geist teilen
     case "card.rt.over":
       if (ctx.link && !ctx.sent && send(X.ghostSend)) return { primary: a("again", X.again2, "AGAIN"), secondary: [send(X.ghostSend)] };
@@ -198,6 +203,10 @@ export function view(state, dispatch, env = {}) {
     else if (phase === "cover") {
       const s = seatName(card, ctx.lang, G.gameStatus(ctx).turn);
       body = [h("div", { class: "notice cover" }, h("h2", { class: "t-title" }, X.coverTitle), h("p", null, fmt(X.coverText, { s })))];
+    } else if (phase === "vacant") {
+      const r = ctx.raum || {};
+      body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.vacantTitle), h("p", { role: "status" }, fmt(X.vacantText, { s: (ctx.vacant || []).map((q) => seatName(card, ctx.lang, q)).join(", ") })),
+        ...(ctx.vacant || []).filter((q) => r.invites && r.invites[q]).map((q) => h("div", { class: "invite", key: "vac-" + q }, h("p", { class: "seat" }, seatName(card, ctx.lang, q) + ((r.up || []).includes(q) ? " ✓" : "")), linkBox(X, r.invites[q], ctx, dispatch, "-v" + q))))];
     } else if (phase === "error") {
       body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.errTitle), h("p", { class: "warn", role: "alert" }, X.reasons[ctx.error] || X.reasons["zug-ungueltig"]))];
     } else {
