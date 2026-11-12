@@ -139,3 +139,12 @@ test("image: nur data:-Bilder oder vom Host aufgeloeste Quellen, Alt-Text; sonst
   const srv = harness({ t: "image", src: { kind: "server", ref: "gi1" }, alt: "KI" }, { images: { url: (s) => (s.ref === "gi1" ? "data:image/jpeg;base64,AAAA" : null) } });
   assert.equal(srv.tree().find((x) => x.tag === "img").props.src, "data:image/jpeg;base64,AAAA");
 });
+
+test("form: eingebettete Widgets mit eigenem Senden (aim) landen im Formularwert (Dart: ein Wurf = aim + power)", () => {
+  const f = harness({ t: "form", id: "wurf", fields: [{ t: "aim", id: "aim", grid: 4096 }, { t: "slide", id: "power", min: 0, max: 8, def: 4 }], submit: { t: "throw", seat: 0 } });
+  const aim = f.tree().find((x) => x.props && x.props.class === "w-aim");
+  aim.props.on.keydown({ key: "ArrowRight", preventDefault() {} });
+  f.tree().find((x) => x.props && x.props.class === "w-aim").props.on.keydown({ key: "Enter", preventDefault() {} });
+  f.main().props.on.click();
+  assert.deepEqual(f.sent[0], { t: "throw", seat: 0, a: { aim: [2048 + 64, 2048], power: 4 } });
+});

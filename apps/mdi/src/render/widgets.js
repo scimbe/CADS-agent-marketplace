@@ -238,12 +238,17 @@ W.day = (n, host, X) => {
 };
 
 W.form = (n, host, X) => {
+  // Felder halten ihren Zwischenstand unter "~<id>", ihren fertigen Wert (onInput eines Feldes) unter "<id>"
   const fields = (n.fields || []).slice(0, 12);
-  const init = {}; for (const f of fields) { const d = f.value !== undefined ? f.value : f.def !== undefined ? f.def : f.t === "slide" ? f.min || 0 : undefined; if (d !== undefined) init[f.id] = d; }
+  const init = {}; for (const f of fields) { const d = f.value !== undefined ? f.value : f.def !== undefined ? f.def : f.t === "slide" ? f.min || 0 : undefined; if (d !== undefined) init["~" + f.id] = d; }
   const v = drafted(host, n, init);
-  const sub = (f) => ({ ...host, embedded: true, onInput: () => {}, draft: { ["w:" + f.id]: v[f.id] }, onDraft: (d) => setDraft(host, n, { ...v, [f.id]: d["w:" + f.id] }) });
-  const kids = fields.map((f) => { const node = renderWidget({ ...f, submit: null, confirm: null }, sub(f), true); return node; });
-  return wrap(n, host, [...kids, ...mainBtn(host, n, v, why(n, v, host.lang), X)]);
+  const valueOf = () => { const out = {}; for (const f of fields) { const x = f.id in v ? v[f.id] : v["~" + f.id]; if (x !== undefined) out[f.id] = typeof x === "string" ? x.trim() : x; } return out; };
+  const sub = (f) => ({ ...host, embedded: true, draft: { ["w:" + f.id]: v["~" + f.id] },
+    onDraft: (d) => setDraft(host, n, { ...v, ["~" + f.id]: d["w:" + f.id] }),
+    onInput: (x) => setDraft(host, n, { ...v, [f.id]: x.a }) });
+  const kids = fields.map((f) => renderWidget({ ...f, submit: {}, confirm: null }, sub(f), true));
+  const val = valueOf();
+  return wrap(n, host, [...kids, ...mainBtn(host, n, val, why(n, val, host.lang), X)]);
 };
 
 W.ideas = (n, host, X) => {
