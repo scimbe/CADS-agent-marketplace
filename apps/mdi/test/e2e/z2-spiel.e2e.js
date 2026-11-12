@@ -23,7 +23,7 @@ for (const id of LINK) {
     let k = 0;
     const r = await roundTrip(A, B, { onScreen: (p) => check(p, id + " Zug " + (++k), bad) });
     await check(r.end.p, id + " Ergebnis", bad);
-    assert.ok((await r.end.p.locator("main .t-big").first().innerText()).trim().length > 0, "Ergebnis steht da");
+    assert.ok((await r.end.p.locator("#stage").innerText()).trim().length > 0, "Ergebnis steht da");
     assert.deepEqual(bad, []);
     assert.deepEqual([...A.errs, ...B.errs], []);
     await A.ctx.close(); await B.ctx.close();
@@ -46,7 +46,7 @@ for (const id of ROOM) {
     const s = await playTurn(A.p, (p) => check(p, id + " Schritt " + (++k), bad));
     for (let i = 0; i < 30 && s !== "card-play-over"; i++) { const t = await playTurn(A.p, (p) => check(p, id + " Schritt " + (++k), bad)); if (t === "card-play-over") break; }
     await check(A.p, id + " Ergebnis", bad);
-    assert.ok((await A.p.locator("main .t-big").first().innerText()).trim().length > 0);
+    assert.ok((await A.p.locator("#stage").innerText()).trim().length > 0);
     assert.deepEqual(bad, []);
     assert.deepEqual(A.errs, []);
     await A.ctx.close();
