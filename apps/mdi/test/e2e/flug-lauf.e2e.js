@@ -212,12 +212,6 @@ async function testPng(p) {
   const url = await p.evaluate(() => { const c = document.createElement("canvas"); c.width = c.height = 96; const x = c.getContext("2d"); x.fillStyle = "#ff00aa"; x.fillRect(0, 0, 96, 96); return c.toDataURL("image/png"); });
   return Buffer.from(url.split(",")[1], "base64");
 }
-const magenta = (p) => p.evaluate(() => {
-  const c = document.querySelector("canvas.rt-canvas") || document.querySelector("#stage canvas") || document.querySelector("canvas"); if (!c) return -1;
-  const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let n = 0;
-  for (let i = 0; i < d.length; i += 4) if (d[i] > 100 && d[i + 1] < 50 && d[i + 2] > 60 && d[i + 2] < d[i] + 10) n++;
-  return n / (d.length / 4);
-});
 // Ohne Wanduhr (Befund Integrator: einmal am 20-s-Limit): jede Wartestelle wartet auf einen Zustand.
 // - Pixelprobe im Countdown (card-rt-ready, 3 s Bild ohne Spiellauf): kein Pausen-Wettlauf mit einem Flug, der unter Last
 //   nach 94 Ticks schon vorbei sein kann, bevor der Pausenklick ankommt.
@@ -230,7 +224,12 @@ const hasMagenta = (p, min) => p.evaluate((m) => { const c = document.querySelec
 const waitMagentaOrLeave = (p, min, leaf) => p.waitForFunction(([m, l]) => { if (!document.querySelector("main.s-" + l)) return true; const c = document.querySelector("canvas.rt-canvas"); if (!c) return false;
   const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let n = 0;
   for (let i = 0; i < d.length; i += 4) if (d[i] > 100 && d[i + 1] < 50 && d[i + 2] > 60 && d[i + 2] < d[i] + 10) n++; return n / (d.length / 4) >= m; }, [min, leaf], { polling: 50 });
-const animationsDone = (p, sel) => p.waitForFunction((s) => { const el = document.querySelector(s); return !!el && el.getAnimations({ subtree: true }).every((a) => a.playState !== "running"); }, sel);
+// Buehne hat wirklich gezeichnet: mindestens die Haelfte der Pixel deckend (das aria-label steht schon beim Rendern und
+// sagt nichts ueber den ersten Frame; eine leere Leinwand haette trivial "kein Magenta")
+const waitPainted = (p) => p.waitForFunction(() => { const c = document.querySelector("canvas.rt-canvas"); if (!c || !c.width) return false;
+  const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let n = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++; return n / (d.length / 4) >= 0.5; }, null, { polling: 50 });
+const animationsDone =(p, sel) => p.waitForFunction((s) => { const el = document.querySelector(s); return !!el && el.getAnimations({ subtree: true }).every((a) => a.playState !== "running"); }, sel);
 // Flug: Foto als Hintergrund (dunkler Lava-Himmel, Magenta bleibt erkennbar); Lauf: Foto als Figur (volle Deckkraft, im hellen
 // Bruecken-Himmel waere der durchscheinende Hintergrund kein reines Magenta mehr)
 for (const [card, slot, min] of [["flug", 1, 0.05], ["lauf", 0, 0.004]]) test("Eigenes Foto (" + card + ", " + (slot ? "Hintergrund" : "Figur") + "): im Spiel sichtbar (Pixelprobe), nicht im Aufnahme-Link, nicht beim Empfaenger", async () => {
@@ -260,8 +259,8 @@ for (const [card, slot, min] of [["flug", 1, 0.05], ["lauf", 0, 0.004]]) test("E
   assert.ok(!data.includes(ids[0]) && !/local:|data:image|blob:/.test(data), "kein Foto im Aufnahme-Link: " + data.slice(0, 160));
   const B = await open(b, { view: "phone390", hash: url.slice(url.indexOf("#")) });
   await waitScreen(B.p, "receive-show"); await act(B.p, "accept"); await waitScreen(B.p, "card-rt-ready");
-  // Empfaenger: im Countdown ist das Bild gezeichnet (Aria-Label gesetzt), aber ohne Magenta
-  await B.p.waitForFunction(() => (document.querySelector("canvas.rt-canvas") || {}).getAttribute?.("aria-label")?.length > 0 || !document.querySelector("main.s-card-rt-ready"), null, { polling: 50 });
+  // Empfaenger: die Buehne ist gezeichnet (Countdown oder schon Lauf, die Leinwand bleibt dieselbe), aber ohne Magenta
+  await waitPainted(B.p);
   assert.equal(await hasMagenta(B.p, 0.01), false, "Empfaenger hat das Foto nicht");
   assert.deepEqual([...A.errs, ...B.errs], []);
 });
