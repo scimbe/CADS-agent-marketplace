@@ -68,7 +68,8 @@ export const effects = {
     api.weather(fx.place, fx.date).then((r) => {
       const w = r.ok ? weatherFromApi(r.body) : null;
       if (w) { dispatch({ type: "PARAM", key: fx.key, value: w }); dispatch({ type: "WX_DONE", key: fx.key, st: "ok" }); }
-      else dispatch({ type: "WX_DONE", key: fx.key, st: r.ok ? "fail" : r.error === "no-place" ? "no-place" : r.error === "blocked" ? "blocked" : "fail" });
+      // ehrliche Gruende (wie die alte App): Anmeldung noetig (401), Ort unbekannt, gefiltert, nur 7 Tage, Grenze erreicht
+      else dispatch({ type: "WX_DONE", key: fx.key, st: r.ok ? "fail" : ["no-place", "blocked", "login", "date-range", "limit"].includes(r.error) ? r.error : "fail" });
     });
   },
   // Foto: nur auf dem Geraet (broker/media.js), danach Feldwert "local:<id>" ueber PARAM; ohne Speicher ehrlich nicht-verfuegbar

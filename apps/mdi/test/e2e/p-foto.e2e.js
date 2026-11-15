@@ -2,6 +2,7 @@
 // Foto waehlen ueber das echte Feld -> Wert "local:<id>" -> die Karte zeichnet {kind:"local", id} -> Pixelprobe auf der Buehne
 // (Testbild Magenta #ff00aa). Der Link traegt das Foto nicht (weder id noch Pixel); der Empfaenger sieht kein Magenta.
 import test from "node:test";
+import { NEEDS_FAKE } from "./lib/ziel.mjs";
 import assert from "node:assert/strict";
 import { browser, open, act, axe, waitScreen } from "./lib/grund.mjs";
 import { liveInvite } from "./lib/scenarios.mjs";
@@ -76,7 +77,7 @@ test("foto-alien Varianten: foto-tour (Poster/Duoton), foto-haustier (Meme), fot
 // Live mit selbst gewaehltem Foto (Fs media-travel 0509ea1f prueft den fremden Fall): das eigene Foto bleibt auf dem Geraet,
 // weder die id noch "local:" stehen im Netzverkehr (Bruecke, Edge, Datenkanal), der Partner sieht kein Foto.
 for (const id of ["foto-alien", "advent-tuer"]) {
-  test(id + " live: selbst gewaehltes Foto reist nicht (Netzverkehr ohne id, Partner ohne Foto)", async () => {
+  test(id + " live: selbst gewaehltes Foto reist nicht (Netzverkehr ohne id, Partner ohne Foto)", { skip: NEEDS_FAKE }, async () => {
     let pid = null;
     const { A, B, net } = await liveInvite(b, { view: "phone390", lang: "de" }, id, async (p) => {
       await pickPhoto(p, "foto");

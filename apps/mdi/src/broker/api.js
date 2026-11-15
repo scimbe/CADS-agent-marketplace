@@ -309,9 +309,11 @@ export function createApi(deps) {
   }
 
   // ---- Wetter (Strang H fuer P: Feld weather; Server CADS-DEMO-wrapper lib/duell-weather.mjs, echte Zahlen oder keine) ----
-  /** POST /api/duell/weather { place, date } -> { ok:true, body:{place,date,hi,lo,rain,code} } | Fehler no-place|blocked|date-range|limit|server|netz|nicht-hier */
+  /** POST /api/duell/ai/weather { place, date } (Wrapper lib/duell-ai.mjs route sub "weather" -> lib/duell-weather.mjs, wie
+   *  die alte App: alt src/wetter.js, Ai-Route "weather") -> { ok:true, body:{place,date,hi,lo,rain,code,source} }
+   *  | Fehler no-place (404) | blocked | date-range (422) | limit (429) | login (401) | aus (503) | server | netz | nicht-hier */
   async function weather(place, date) {
-    const r = await call("POST", P + "/weather", { place, date });
+    const r = await post("/ai/weather", { place, date });
     if (!r.status) return r;
     if (r.status === 404) return fail("no-place", 404);
     if (r.status === 422) return fail(isObj(r.body) && r.body.error === "date-range" ? "date-range" : "blocked", 422);

@@ -12,6 +12,7 @@ import { LEVELS } from "../bot/ismcts.js";
 import { stilView, stilActions } from "./stil-view.js";
 import { homeView, dayPrimary, meinsButton, schriftButton, headSearch, shareImageBox } from "./home/views.js";
 import { SLOTS } from "./home/slots.js";
+import { familyOf, family, catalogIdOf } from "./home/families.js";
 import { extraField, suggestButton } from "./edit-fields.js";
 import { ftCore as ft } from "../features/frei/texts-core.js";   // Strang K: Texte fuer Robot/Melden in der Kartenansicht
 
@@ -40,7 +41,7 @@ export function actionsOf(state) {
       // Strang K: Robot (eigene Karte daraus) fuer jede Karte mit Adapter; Melden fuer eine freie Karte mit Siegel
       if (typeof c.toFree === "function") sec.push(a("robot", ft(ctx.lang, "create_robot_h"), "ROBOT"));
       if (ctx.cardId === "frei" && G.paramsOf(ctx).seal) sec.push(a("melden", ft(ctx.lang, "deck_report"), "MELDEN"));
-      return { primary: a("go", c.manifest.mode === "static" ? X.goSend : X.go, "GO"), secondary: sec };
+      return { primary: duoOf(c, ctx) ? null : a("go", c.manifest.mode === "static" ? X.goSend : X.go, "GO"), secondary: sec };
     }
     case "card.customize.bubbles": return { primary: a("done", X.done, "DONE"), secondary: [] };
     // Im Feld heisst der Knopf "Uebernehmen" (Design-System); nur der Hauptknopf unten heisst "Fertig"
@@ -83,6 +84,25 @@ function stage(node, extra = {}, tree = null) { const ar = arOf(tree); return h(
 
 /** Startansicht (Board GFlugStart, Integrator): Parameter mit benannten Stufen (x-steps) als Regler mit -/+ (>= 48 px),
  *  Stufenname sichtbar und als aria-valuetext; Varianten mit "chip" (Manifest) als Chips (OPEN {id, variant}). Generisch. */
+/** Echtzeitkarten (Board GFlugStart/GArcadeStart): die ersten zwei angebotenen Spielweisen (manifest play.offer) als grosse
+ *  Doppelknoepfe statt "Los". Der Knopf der aktuellen Spielweise traegt data-act "go" (wie bisher), der andere "go-<modus>". */
+export function duoOf(card, ctx) {
+  if (!card || card.manifest.mode !== "realtime") return null;
+  const offer = playOf(card, ctx.variant).offer;
+  return offer.length >= 2 ? offer.slice(0, 2) : null;
+}
+const RT_MODES = {
+  de: { bot: ["Gegen den Computer", "sofort, allein"], alone: ["Per Link", "dein Freund spielt gegen deine Aufnahme"], live: ["Live", "gleichzeitig, sobald dein Freund öffnet"] },
+  en: { bot: ["Against the computer", "right away, on your own"], alone: ["By link", "your friend plays against your recording"], live: ["Live", "at the same time, once your friend opens it"] }
+};
+function duoBox(card, ctx, dispatch, X) {
+  const duo = duoOf(card, ctx);
+  if (!duo) return null;
+  const T = RT_MODES[ctx.lang === "en" ? "en" : "de"];
+  return h("div", { class: "rt-duo", key: "duo" }, duo.map((m, i) => h("button", { type: "button", class: "rt-duo-b" + (i ? " b2" : ""), key: m, "data-act": m === ctx.mode ? "go" : "go-" + m, on: { click: () => dispatch({ type: "PLAY_AS", mode: m }) } },
+    h("span", { class: "rt-duo-t" }, (T[m] || [X.modes[m]])[0]), h("span", { class: "rt-duo-s" }, (T[m] || [, X.modeHint[m] || ""])[1]))));
+}
+
 export function levelBox(card, ctx, dispatch) {
   const lang = ctx.lang, L = (o) => (o && typeof o === "object" ? o[lang] || o.de : o), props = card.manifest.params.properties;
   const keys = Object.keys(props).filter((k) => props[k]["x-steps"] && Array.isArray(props[k]["x-steps"].values) && props[k]["x-steps"].values.length > 1);
@@ -208,7 +228,9 @@ export function view(state, dispatch, env = {}) {
   const heading = homeR ? homeR.heading || X.app : freiR ? freiR.heading : L === "stil.start" ? X.stil : L === "stil.daten" ? X.k.data : L === "stil.widerspruch" ? X.k.appealTitle : card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang, G.paramsOf(ctx)) : X.app;
   const btn = (act, cls) => h("button", { type: "button", class: "btn " + cls, key: act.id, "data-act": act.id, on: { click: () => dispatch(act.ev) } }, act.label);
 
-  const head = h("header", { class: "bar" + (canBack ? "" : " bar-noback"), key: "bar" },
+  // Spielkopf in der Familienfarbe (Canvas v54 Bote1/GFlugStart): Farbe und Tinte aus der Familie (D, Kontrast geprueft)
+  const fam = card && L.startsWith("card.") ? familyOf(catalogIdOf(card.manifest.id)) || family(card.manifest.family) : null;
+  const head = h("header", { class: "bar" + (canBack ? "" : " bar-noback") + (fam ? " bar-fam" : ""), key: "bar", style: fam ? { "--hb": fam.color, "--hc": fam.ink } : null },
     canBack ? h("button", { type: "button", class: "icon", "aria-label": X.back, "data-act": "back", on: { click: () => dispatch({ type: "BACK" }) } }, "←") : h("span", { class: "icon-gap" }),
     h("h1", { class: "brand" + (homeR && !homeR.heading ? " home" : "") }, heading),
     m("raum.verbunden") ? h("span", { class: "badge", role: "status" }, X.connected)
@@ -232,8 +254,11 @@ export function view(state, dispatch, env = {}) {
     const modes = modesOf(card), isStatic = card.manifest.mode === "static";
     body = [stage(preview, {}, tree)];
     panel.push(levelBox(card, ctx, dispatch));   // Board GFlugStart: Level mit -/+ und Stufennamen, Varianten-Chips
-    panel.push(radios("mode", isStatic ? X.send : X.mode, modes.map((x) => ({ value: x, label: X.modes[x] })), ctx.mode, (mode) => dispatch({ type: "MODE", mode })));
-    panel.push(h("p", { class: "hint", key: "mode-hint" }, X.modeHint[ctx.mode]));
+    const duo = duoOf(card, ctx);
+    // mit Doppelknopf liegen die uebrigen Einstellungen (alle Spielweisen) unter "Andere Spielweise" (natives Aufklappen)
+    const modeRows = [radios("mode", isStatic ? X.send : X.mode, modes.map((x) => ({ value: x, label: X.modes[x] })), ctx.mode, (mode) => dispatch({ type: "MODE", mode })), h("p", { class: "hint", key: "mode-hint" }, X.modeHint[ctx.mode])];
+    if (duo) panel.push(h("details", { class: "rt-more", key: "rt-more" }, h("summary", { "data-act": "rt-more" }, ctx.lang === "en" ? "Other ways to play" : "Andere Spielweise"), ...modeRows));
+    else panel.push(...modeRows);
     if (!isStatic && ctx.mode !== "alone" && card.manifest.players.max > 1) {
       const items = []; for (let s = 0; s < card.manifest.players.max; s++) items.push({ value: s, label: seatName(card, ctx.lang, s) });
       panel.push(radios("seat", X.seat, items, ctx.seat, (seat) => dispatch({ type: "SEAT", seat })));
@@ -246,6 +271,7 @@ export function view(state, dispatch, env = {}) {
       const on = G.paramsOf(ctx).tempo !== undefined && G.paramsOf(ctx).tempo < 1;
       panel.push(h("button", { type: "button", class: "btn big rt-slow", key: "slow", role: "switch", "aria-checked": on ? "true" : "false", "data-act": "slow", on: { click: () => dispatch({ type: "SLOW", on: !on }) } }, (on ? "✓ " : "") + X.slowPlay));
     }
+    panel.push(duoBox(card, ctx, dispatch, X));   // Board GFlugStart/GArcadeStart: grosse Doppelknoepfe als Hauptaktion
     if (ctx.note) panel.push(h("p", { class: "note", role: "status", key: "note" }, String(ctx.note).startsWith("frei-") ? freiNote(ctx) : X.note[ctx.note]));
   } else if (L.startsWith("card.customize")) {
     body = [stage(preview, { class: "stage editing" }, tree), bubbleRow(card, ctx, X, dispatch, tree), h("p", { class: "hint center" }, X.bubblesHint)];
@@ -357,7 +383,7 @@ export function view(state, dispatch, env = {}) {
     acts.primary ? btn(acts.primary, "primary") : null,
     acts.secondary.map((s) => btn(s, "secondary")));
 
-  const main = h("main", { id: "main", class: "main s-" + L.replace(/\./g, "-") + (homeR ? " h-at-" + homeR.cls : "") + (L === "card.view" ? " sticky-actions" + (tree && tree.t === "frame" ? " fit-card" : "") : ""), key: "main", tabindex: "-1",
+  const main = h("main", { id: "main", class: "main s-" + L.replace(/\./g, "-") + (L === "card.view" && card && card.manifest.mode === "realtime" ? " rt-dark" : "") + (homeR ? " h-at-" + homeR.cls : "") + (L === "card.view" ? " sticky-actions" + (tree && tree.t === "frame" ? " fit-card" : "") : ""), key: "main", tabindex: "-1",
     // Laden eines Teils (ctx.loading): fuer Screenreader (aria-busy) und Testtreiber (data-loading="<teil>") erkennbar
     "data-loading": typeof ctx.loading === "string" && ctx.loading ? ctx.loading : null, "aria-busy": ctx.loading ? "true" : null },
     h("div", { class: "col-a", key: "a" }, body),

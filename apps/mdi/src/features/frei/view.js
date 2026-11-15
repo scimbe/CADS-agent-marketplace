@@ -192,7 +192,12 @@ function noteLines(notes, lang, dispatch) {
   const out = [];
   for (const c of notes || []) {
     const m = /^(days|people|chars):(\d{1,3})$/.exec(c);
+    // Faktenpruefung der Quizfragen (Wrapper #141, Strang B): ehrlich, dass sie noch nicht von Menschen nachgemessen ist,
+    // und wie viele Fragen offen weggelassen wurden
+    const fe = /^bau:fakten-entfernt:(\d{1,3})$/.exec(c);
     if (c === "drinks") out.push(h("p", { class: "hint", key: c }, ft(lang, "create_drinks")));
+    else if (c === "bau:fakten-unkalibriert") out.push(h("p", { class: "hint", key: c }, ft(lang, "create_fakten_unkalibriert")));
+    else if (fe && Number(fe[1]) > 0) out.push(h("p", { class: "hint", key: "bau:fakten-entfernt" }, Number(fe[1]) === 1 ? ft(lang, "create_fakten_entfernt_1") : ft(lang, "create_fakten_entfernt", { n: Number(fe[1]) })));
     else if (m) out.push(h("p", { class: "hint", key: c }, ft(lang, "create_lim_" + m[1], { n: Number(m[2]) })));
     else if (["money18", "nosend", "async", "duel"].includes(c)) out.push(h("p", { class: "hint", key: c }, ft(lang, "create_lim_" + c)));
     else if (c === "engine:flug" || c === "engine:lauf") {

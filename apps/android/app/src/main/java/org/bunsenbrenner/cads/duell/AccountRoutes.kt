@@ -11,6 +11,7 @@ object AccountRoutes {
         "POST /api/duell/ai/accept",
         "POST /api/duell/ai/discard",
         "POST /api/duell/ai/status",
+        "POST /api/duell/ai/weather",
         "POST /api/duell/bild",
         "POST /api/duell/bild/avatar",
         "POST /api/duell/bild/cancel",
