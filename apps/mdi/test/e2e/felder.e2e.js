@@ -3,7 +3,7 @@
 // aendern die Vorschau; Wetter fragt den Server (hier ohne Server: ehrliche Meldung, keine Zahlen).
 import test from "node:test";
 import assert from "node:assert/strict";
-import { browser, open, act, axe, noOverflow } from "./lib/grund.mjs";
+import { browser, open, act, axe, noOverflow, URL_MODE } from "./lib/grund.mjs";
 
 let b;
 test.before(async () => { b = await browser(); });
@@ -51,7 +51,9 @@ test("Sticker dazulegen und verschieben aendert die Vorschau; Schritte schalten;
   assert.notEqual(await pic(), before, "Vorschau zeigt den Sticker");
   await p.locator('.bubble[data-for="wetter"]').click(); await p.locator("#dialog").waitFor();
   await p.locator("#wx-place-w").fill("Hamburg"); await act(p, "wx-go");
-  await p.locator("#dialog [role=alert]").waitFor();
+  // ohne Server: ehrliche Meldung; gegen einen echten Server (URL-Modus) kommen echte Zahlen fuer den Ort (#320)
+  if (URL_MODE) assert.match(await p.locator("#dialog [role=status]").first().innerText({ timeout: 15000 }), /Hamburg/);
+  else await p.locator("#dialog [role=alert]").waitFor();
   await p.keyboard.press("Escape");
   await act(p, "done"); await act(p, "back");
   await act(p, "open-beat-pausenhof"); await p.locator("main.s-card-view").waitFor(); await act(p, "customize");
