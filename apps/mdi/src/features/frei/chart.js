@@ -339,7 +339,9 @@ export const freiActions = {
     const c = askFx(ctx, emit, inputOf(f));
     return F(c, { last: { art: f.art, genre: f.genre }, ask: "", fest: false });
   },
-  takeAlt: (ctx, ev) => F(ctx, { text: [...String(ev.text).trim()].slice(0, 200).join(""), ask: ctx.frei.res.alt.id, art: ctx.frei.res.alt.id === "G11" ? "quiz" : ctx.frei.res.alt.id.startsWith("G") && ["G1", "G2"].includes(ctx.frei.res.alt.id) ? "game" : ctx.frei.art, genre: ["G1", "G2"].includes(ctx.frei.res.alt.id) ? ctx.frei.res.alt.id : ctx.frei.genre }),
+  // Gegenvorschlag eines Genres: G1/G2/G3 werden ein Spielwunsch dieses Genres (G3: der feste Satz des Servers, GEGEN in
+  // lib/duell-bau.mjs; die Person hat ihn ausdruecklich abgeschickt), G11 ein Quiz
+  takeAlt: (ctx, ev) => { const id = ctx.frei.res.alt.id; return F(ctx, { text: [...String(ev.text).trim()].slice(0, 200).join(""), ask: id, art: id === "G11" ? "quiz" : GENRES.includes(id) ? "game" : ctx.frei.art, genre: GENRES.includes(id) ? id : ctx.frei.genre, mode: GENRES.includes(id) && id !== ctx.frei.genre ? "" : ctx.frei.mode }); },
   takeResend: (ctx, ev) => F(ctx, { art: "game", genre: ev.genre, ask: ev.genre, fest: true }),
   openCatalog: (ctx, ev, emit) => openTarget(ctx, { cardId: ev.id, params: null, own: false }),
   setPhase: (ctx, ev) => F(ctx, { phase: ev.step, place: ev.n || 0 }),

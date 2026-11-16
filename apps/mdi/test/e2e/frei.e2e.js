@@ -288,3 +288,58 @@ test("Zugkarte: Los startet die Partie sofort, ohne frei-ui zu laden; mit ki/fr 
   assert.equal(await p.locator("main.s-partfail").count(), 0);
   assert.deepEqual(errs, []);
 });
+
+// ---- G3 Baukasten (Integrator 16.11.): Einstieg, Faktenhinweise, Absage nach gescheitertem Bot-Playtest, Tippflaechen ----
+/** Bedienbare Elemente der Ansicht unter 48 x 48 px (WCAG 2.5.8 verlangt 24, die App 48: --tap) */
+const small = (p, sel) => p.evaluate((sel) => [...document.querySelectorAll(sel)].filter((e) => e.checkVisibility()).map((e) => { const r = e.getBoundingClientRect(); return { t: (e.textContent || "").trim().slice(0, 24), w: Math.round(r.width), h: Math.round(r.height) }; }).filter((x) => x.w < 48 || x.h < 48), sel);
+const TAPS = "main .seg[data-frei] button, main [data-act=alt-send], main [data-act=send], main [data-act=take], main [data-act=drop]";
+for (const [view, scheme] of [["phone360", "light"], ["phone390", "dark"], ["desk1280", "dark"]]) {
+  test("G3: Neues Spiel ausdruecklich waehlen, Quiz mit Faktenhinweisen, Uebernehmen -> baukasten-zug; Playtest-Absage mit G3-Gegenvorschlag; " + view + " " + scheme, async () => {
+    const fw = fakeWrapper(), ff = fakeFrei(fw, { karte: "karte-g3-quiz" }), found = [];
+    const { p, errs, ctx } = await openApp(fw, ff, { view, scheme });
+    await loginFromFrei(p, fw);
+    await p.locator('[aria-labelledby="lbl-art"] [data-v="game"]').click();
+    const g3 = p.locator('[aria-labelledby="lbl-genre"] [data-v="G3"]');
+    assert.match(await g3.innerText(), /Neues Spiel/); assert.equal(await g3.getAttribute("aria-pressed"), "false", "keine Vorauswahl");
+    assert.match(await g3.getAttribute("class"), /\bneu\b/, "hervorgehoben");
+    await g3.click();
+    await p.locator('[data-k="g3-x"]').waitFor();
+    assert.equal(await p.locator('[aria-labelledby="lbl-mode"]').count(), 0, "G3 ohne Wer spielt?");
+    await p.locator("#frei-text").fill("Quiz über das Sonnensystem");
+    assert.deepEqual(await small(p, TAPS), [], "Tippflaechen >= 48 px (Formular)");
+    await checks(p, "g3-" + view + "-01-formular", found);
+    await act(p, "send");
+    await screenIs(p, "frei-vorschau");
+    assert.deepEqual(ff.state.inputs.at(-1), { text: "Quiz über das Sonnensystem", art: "game", genre: "G3" });
+    const t = await p.locator("main").innerText();
+    assert.match(t, /noch nicht von Menschen nachgemessen/); assert.match(t, /Eine Frage mit unsicheren Fakten habe ich weggelassen/); assert.match(t, /Mit KI erstellt/);
+    assert.deepEqual(await small(p, TAPS), [], "Tippflaechen >= 48 px (Vorschau)");
+    await checks(p, "g3-" + view + "-02-vorschau", found);
+    await act(p, "take");
+    await screenIs(p, "card-view");
+    assert.ok(ff.state.log.includes("POST /api/duell/ai/accept"));
+    await checks(p, "g3-" + view + "-03-karte", found, { layout: false });
+    // Bot-Playtest gescheitert: ehrliche Absage, fester Gegenvorschlag, Senden waehlt G3 ausdruecklich
+    ff.state.karte = "karte-g3-playtest";
+    await p.goto(APP + "/duell"); await p.locator("header.bar").waitFor();
+    await act(p, "frei"); await screenIs(p, "frei-start");
+    await p.locator('[aria-labelledby="lbl-art"] [data-v="game"]').click();
+    await p.locator('[aria-labelledby="lbl-genre"] [data-v="G3"]').click();
+    await p.locator("#frei-text").fill("Ein Vogel fliegt einfach so herum");
+    await act(p, "send");
+    const satz = rec("karte-g3-playtest").body.alt.satz;
+    await p.locator("#frei-alt").waitFor();
+    assert.equal(await p.locator("#frei-alt").inputValue(), satz);
+    await p.locator('[data-k="alt-g3"]').waitFor();
+    assert.doesNotMatch(await p.locator("main").innerText(), /\[create_/, "kein Rohschluessel");
+    assert.deepEqual(await small(p, TAPS), [], "Tippflaechen >= 48 px (Absage)");
+    await checks(p, "g3-" + view + "-04-absage", found);
+    ff.state.karte = "karte-g3-flug";
+    await act(p, "alt-send");
+    await screenIs(p, "frei-vorschau");
+    assert.deepEqual(ff.state.inputs.at(-1), { text: satz, art: "game", genre: "G3" });
+    assert.doesNotMatch(await p.locator("main").innerText(), /nachgemessen/, "Echtzeit: kein Faktenhinweis");
+    assert.deepEqual(found, []); assert.deepEqual(errs, []);
+    assert.deepEqual(ctx._blocked || [], [], "keine Anfrage an einen anderen Host");
+  });
+}

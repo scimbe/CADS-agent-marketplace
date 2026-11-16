@@ -4,14 +4,18 @@
 // Das Modell ist ein Doppel mit festen Antworten (keine Secrets, kein Netz); alles danach – Harness S1-S5, Pot, Schlange,
 // Siegel, Deck-Signatur, Moderation, Bild-Pruefung (stub) – ist der echte Servercode.
 // Aufruf: node scripts/record-frei.mjs <pfad-zum-CADS-DEMO-wrapper>
+//         node scripts/record-frei.mjs <pfad-zum-CADS-DEMO-wrapper> --bau   (nur Genre G3 Baukasten -> test/fixtures/wrapper-bau.json;
+//         Wrapper mit lib/duell-bau.mjs, z. B. feat/duell-baukasten-3; Modell-Doppel fuer den Baukasten: scripts/bau-double.mjs von B)
 import http from "node:http";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { bauDouble } from "./bau-double.mjs";
 
 const W = path.resolve(process.argv[2] || "");
+const NUR_BAU = process.argv.includes("--bau");
 if (!fs.existsSync(path.join(W, "lib/duell-karte.mjs"))) { console.error("Aufruf: node scripts/record-frei.mjs <pfad-zum-CADS-DEMO-wrapper>"); process.exit(2); }
 const lib = (f) => import(pathToFileURL(path.join(W, "lib", f)).href);
 const { createAuth } = await lib("auth.mjs");
@@ -48,8 +52,12 @@ const CARDS = {
   quiz: { ok: true, title: "Unser Sonnensystem", questions: [{ q: "Welcher Planet ist der Sonne am nächsten?", a: "Merkur", wrong: ["Venus", "Mars", "Erde"] }, { q: "Welcher Planet ist der größte?", a: "Jupiter", wrong: ["Saturn", "Neptun", "Erde"] }, { q: "Wie heißt der rote Planet?", a: "Mars", wrong: ["Venus", "Uranus", "Merkur"] }, { q: "Was umkreist die Erde?", a: "Der Mond", wrong: ["Die Sonne", "Der Mars", "Ein Komet"] }] },
   faehigkeit: { ok: true, cap: "zug-termin", title: "Grillabend", sub: "Termine antippen, alle stimmen ab.", word: "" }
 };
+// G3 (nur mit --bau): Takt-Frage, Baukasten-Aufrufe und Faktenpruefung beantwortet das Doppel von B mit den Beispielen
+// des im Wrapper vendorten Baukastens (dieselben Dateien wie die App); BAU.mode waehlt das Ergebnis
+const BAU = { mode: "quiz" }, bau = NUR_BAU ? bauDouble(W, () => BAU.mode) : async () => null;
 const cardLlm = {
   async generate(req) {
+    { const r = await bau(req); if (r) return r; }
     if (MODEL.delay) await new Promise((ok) => setTimeout(ok, MODEL.delay));
     if (req.name === "check" || /^check/.test(req.name || "")) return { json: { risk: 0, cats: [], drink: "none", ...(req.schema && req.schema.properties && req.schema.properties.spiel ? { spiel: "szene" } : {}) }, usage: { out: 10 }, stop: "end_turn" };
     const art = String(req.name || "").replace(/^card_/, "");
@@ -100,6 +108,32 @@ const DEV = "0123456789abcdef0123456789abcdef";
 const ask = (art, text, extra = {}) => ({ kind: "karte", input: { art, text, ...extra }, device: DEV, proof: "0", lang: "de", queue: "ticket" });
 const put16 = (b, sess) => rec(b, "setup-profil-" + sess, "POST", "/api/duell/profile/put", { via: "account", rev: 0, profile: { me: { nick: "X" }, wall: [], saved: [] }, fresh: true, age16: true }, sess);
 
+if (NUR_BAU) {
+  const G = server();
+  const bb = await listen(G);
+  try {
+    await put16(bb, "sess-lea");
+    const g3 = (text) => ask("game", text, { genre: "G3" });
+    BAU.mode = "quiz";
+    const q = await rec(bb, "karte-g3-quiz", "POST", "/api/duell/ai", g3("Quiz über das Sonnensystem"), "sess-lea");
+    await rec(bb, "karte-g3-accept", "POST", "/api/duell/ai/accept", { device: DEV, receipt: q.body.receipt }, "sess-lea");
+    BAU.mode = "flug";
+    await rec(bb, "karte-g3-flug", "POST", "/api/duell/ai", g3("Ein Küken flattert durch Wolkenlücken"), "sess-lea");
+    BAU.mode = "kaputt";
+    await rec(bb, "karte-g3-playtest", "POST", "/api/duell/ai", g3("Ein Vogel fliegt einfach so herum"), "sess-lea");
+    BAU.mode = "fakten";
+    await rec(bb, "karte-g3-fakten", "POST", "/api/duell/ai", g3("Quiz über seltene Tiefseefische"), "sess-lea");
+    // Spielwuensche ohne Genre, die Flug und Lauf nicht bauen: der G3-Tipp des Servers (bauTip)
+    BAU.mode = "quiz";
+    for (const [i, t] of ["Ein Spiel wie Snake, die Schlange frisst Äpfel", "Memory mit Tieren, abwechselnd Paare finden", "Drei in einer Reihe gegeneinander"].entries()) await rec(bb, "karte-g3-tipp-" + i, "POST", "/api/duell/ai", ask("game", t), "sess-lea");
+  } finally { G.stop(); G.srv.close(); fs.rmSync(G.dir, { recursive: true, force: true }); }
+  const ROOTB = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const fileB = path.join(ROOTB, "test/fixtures/wrapper-bau.json");
+  fs.writeFileSync(fileB, JSON.stringify({ herkunft: "Aufgenommen mit scripts/record-frei.mjs --bau gegen CADS-DEMO-wrapper @ " + commit + " (Genre G3: lib/duell-bau.mjs, duell-bau-fakten.mjs, duell-karte.mjs, duell-ai.mjs, Siegel duell-deck.mjs). Modell als Doppel: scripts/bau-double.mjs (Strang B; Beispiele des vendorten Baukastens), sonst wie wrapper-frei.json. Playtests, Pruefung, Reparaturrunden, Faktenregel, S4 und Siegel sind der echte Servercode. Uhr fest ab " + new Date(T0).toISOString() + ".", host: HOST, device: DEV, exchanges: out }, null, 1) + "\n");
+  console.log("record-frei --bau: " + out.length + " Antworten -> " + path.relative(ROOTB, fileB));
+  for (const e of out) console.log(String(e.res.status).padEnd(4) + e.name + (e.res.body && (e.res.body.error || e.res.body.reason) ? " (" + (e.res.body.error || e.res.body.reason) + ")" : "") + (e.res.body && e.res.body.note ? " " + e.res.body.note.join(",") : "") + (e.res.body && e.res.body.alt ? " alt=" + JSON.stringify(e.res.body.alt) : ""));
+  process.exit(0);
+}
 const A = server();
 const base = await listen(A);
 try {

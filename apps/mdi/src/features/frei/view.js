@@ -16,9 +16,9 @@ const plainTitle = (s) => String(s || "").replace(/-\|(\p{Ll})/gu, "$1").replace
 const date = (iso, lang) => { try { return new Date(iso).toLocaleDateString(lang === "en" ? "en-GB" : "de-DE", { day: "numeric", month: "long", year: "numeric" }); } catch (e) { return String(iso); } };
 
 function chips(id, label, items, value, onPick, sug, lang) {
-  return h("div", { class: "seg", role: "group", "aria-labelledby": "lbl-" + id, key: id },
+  return h("div", { class: "seg", "data-frei": "1", role: "group", "aria-labelledby": "lbl-" + id, key: id },
     h("p", { class: "seg-label", id: "lbl-" + id }, label),
-    h("div", { class: "seg-row" }, items.map((it) => h("button", { type: "button", class: "seg-opt" + (!value && sug === it.value ? " sug" : ""), key: it.value, "data-v": it.value, "aria-pressed": it.value === value ? "true" : "false", disabled: it.off ? true : null, title: !value && sug === it.value ? ft(lang, "create_last") : null, on: { click: () => onPick(it.value) } }, it.label))));
+    h("div", { class: "seg-row" }, items.map((it) => h("button", { type: "button", class: "seg-opt" + (!value && sug === it.value ? " sug" : "") + (it.cls ? " " + it.cls : ""), key: it.value, "data-v": it.value, "aria-pressed": it.value === value ? "true" : "false", disabled: it.off ? true : null, title: !value && sug === it.value ? ft(lang, "create_last") : null, on: { click: () => onPick(it.value) } }, it.label, it.badge ? h("span", { class: "neu-badge" }, it.badge) : null))));
 }
 
 /** Vorschau eines Server-Docs: freie Karte ueber den Renderer, sonst eine Zusammenfassung; immer mit KI-Badge. */
@@ -95,6 +95,7 @@ function refusalBlock(ctx, lang, dispatch) {
     if (alt && alt.kind === "genre" && /^G\d{1,2}$/.test(alt.id) && typeof alt.satz === "string") {
       out.push(h("div", { class: "notice", key: "altg", role: "group", "aria-label": ft(lang, "create_alt") },
         h("p", { class: "hint" }, ft(lang, "create_alt")),
+        alt.id === "G3" ? h("p", { class: "hint", "data-k": "alt-g3" }, ft(lang, "create_alt_G3")) : null,
         h("label", { for: "frei-alt" }, ft(lang, "create_alt_edit")),
         h("textarea", { id: "frei-alt", class: "input", rows: "3", maxlength: "200", value: alt.satz.slice(0, 200) }),
         h("button", { type: "button", class: "btn secondary", "data-act": "alt-send", on: { click: () => { const t = document.getElementById("frei-alt").value; dispatch({ type: "ALT_SEND", text: t, crisis: crisis(t) }); } } }, ft(lang, "create_alt_send"))));
@@ -129,7 +130,8 @@ function startView(state, dispatch) {
   // Formular
   panel.push(chips("art", ft(lang, "create_art"), ARTS.map((v) => ({ value: v, label: ft(lang, "create_art_" + v) })), f.art, (art) => dispatch({ type: "ART", art }), f.last.art, lang));
   if (f.art === "game") {
-    panel.push(chips("genre", ft(lang, "create_genre"), GENRES.map((g) => ({ value: g, label: ft(lang, "create_genre_" + g) })), f.genre, (genre) => dispatch({ type: "GENRE", genre }), f.last.art === "game" ? f.last.genre : "", lang));
+    // G3 (ganz neues Spiel aus einem Satz) ist hervorgehoben (Gate-C-Auflage), gewaehlt wird es nur ausdruecklich
+    panel.push(chips("genre", ft(lang, "create_genre"), GENRES.map((g) => ({ value: g, label: ft(lang, "create_genre_" + g), ...(g === "G3" ? { cls: "neu", badge: ft(lang, "create_genre_G3_neu") } : {}) })), f.genre, (genre) => dispatch({ type: "GENRE", genre }), f.last.art === "game" ? f.last.genre : "", lang));
     panel.push(chips("soon", ft(lang, "create_soon"), SOON.map((x) => ({ value: x[0], label: ft(lang, "create_soon_" + x[0]) })), f.soon ? f.soon.id : "", (id) => dispatch({ type: "SOON_PICK", id }), "", lang));
     if (f.soon) {
       const name = ft(lang, "create_soon_" + f.soon.id).replace(/^\S+\s/, "");
@@ -138,7 +140,8 @@ function startView(state, dispatch) {
       else if (f.soon.near.length) panel.push(...catalogButtons(f.soon.near, lang, dispatch, ft(lang, "create_soon_near")));
       else panel.push(h("p", { class: "hint", key: "soonn" }, ft(lang, "create_soon_nonear")));
     }
-    if (f.genre) {
+    if (f.genre === "G3") panel.push(h("p", { class: "hint", key: "g3x", "data-k": "g3-x" }, ft(lang, "create_genre_G3_x")));
+    else if (f.genre) {
       const m = MODES[f.genre];
       panel.push(chips("mode", ft(lang, "create_mode"), ["allein", "bot", "duell"].map((v) => ({ value: v, label: ft(lang, "create_mode_" + v), off: !m[v] })), f.mode, (mode) => dispatch({ type: "PLAYMODE", mode }), "", lang));
       if (!m.bot) panel.push(h("p", { class: "hint", key: "mbot" }, ft(lang, "create_mode_bot_off")));
