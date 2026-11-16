@@ -1,5 +1,5 @@
 {
- "herkunft": "Aufgenommen mit scripts/record-frei.mjs --bau gegen CADS-DEMO-wrapper @ 4f81825 (Genre G3: lib/duell-bau.mjs, duell-bau-fakten.mjs, duell-karte.mjs, duell-ai.mjs, Siegel duell-deck.mjs). Modell als Doppel: scripts/bau-double.mjs (Strang B; Beispiele des vendorten Baukastens), sonst wie wrapper-frei.json. Playtests, Pruefung, Reparaturrunden, Faktenregel, S4 und Siegel sind der echte Servercode. Uhr fest ab 2026-11-11T09:00:00.000Z.",
+ "herkunft": "Aufgenommen mit scripts/record-frei.mjs --bau gegen CADS-DEMO-wrapper @ b883df0 (Genre G3: lib/duell-bau.mjs, duell-bau-fakten.mjs, duell-karte.mjs, duell-ai.mjs, Siegel duell-deck.mjs). Modell als Doppel: scripts/bau-double.mjs (Strang B; Beispiele des vendorten Baukastens), sonst wie wrapper-frei.json. Playtests, Pruefung, Reparaturrunden, Faktenregel, S4 und Siegel sind der echte Servercode. Uhr fest ab 2026-11-11T09:00:00.000Z.",
  "host": "demos-34a13a96.bunsenbrenner.org",
  "device": "0123456789abcdef0123456789abcdef",
  "exchanges": [
@@ -76,20 +76,20 @@
        },
        "ki": {
         "k": "karte",
-        "s": "s2.karte.mwbw1pc0.Yf5cPCCzNur8m6lDyVw9YytLOxyKJsMr",
-        "h": "Vc2mXpasO4ztZUkxTZXau8gIp5XDKH5VKM22ICUyeJY",
-        "o": "4wWHc0XMBUtXNDrmcPyFK3"
+        "s": "s2.karte.mwbw1pc0.Uhk_ltd-BjhyUDo937XtsM5PYWykheAy",
+        "h": "jQtjFZ9jCVZPCzqsFTb32i2wP_vL_rgisgoiUIgQWag",
+        "o": "o4eTbG6-CglCSy3fmH2Ca8"
        }
       }
      ],
      "seals": [
-      "s2.karte.mwbw1pc0.Yf5cPCCzNur8m6lDyVw9YytLOxyKJsMr"
+      "s2.karte.mwbw1pc0.Uhk_ltd-BjhyUDo937XtsM5PYWykheAy"
      ],
      "hashes": [
-      "Vc2mXpasO4ztZUkxTZXau8gIp5XDKH5VKM22ICUyeJY"
+      "jQtjFZ9jCVZPCzqsFTb32i2wP_vL_rgisgoiUIgQWag"
      ],
      "cost": 1,
-     "receipt": "r1.c.unkCoosvLiI.1.0000-00.tobzq0.qBi1UKxq7dWw4c1NNlAZCK",
+     "receipt": "r1.c.zIZZQaDCPZY.1.0000-00.tobzq0.LfCwKlqA1oJXVh3ONt-MOX",
      "note": [
       "engine:bau",
       "takt:zug",
@@ -137,7 +137,7 @@
     "path": "/api/duell/ai/accept",
     "body": {
      "device": "0123456789abcdef0123456789abcdef",
-     "receipt": "r1.c.unkCoosvLiI.1.0000-00.tobzq0.qBi1UKxq7dWw4c1NNlAZCK"
+     "receipt": "r1.c.zIZZQaDCPZY.1.0000-00.tobzq0.LfCwKlqA1oJXVh3ONt-MOX"
     },
     "session": "signed-in:lea"
    },
@@ -311,20 +311,20 @@
        },
        "ki": {
         "k": "karte",
-        "s": "s2.karte.mwbw1pc0.yzBOUp9YcgkIxQTiqvqTc9WadFQOd5a8",
-        "h": "tbNMOrjB7CF9OGHJ83rvCkmYkHbKHyl_Nc5c-DPhA7s",
-        "o": "xH0H1xtNrDSeI_wq9SGCrt"
+        "s": "s2.karte.mwbw1pc0.rR4W14dtEGc_T1Bof9liuey0A_qvuOBA",
+        "h": "cOehn0dMaMahdRbmPx6uwhpZ9OR9b1PJHYVVjDqBSWc",
+        "o": "tZpLYOCBv0Q2ZudKi4adNg"
        }
       }
      ],
      "seals": [
-      "s2.karte.mwbw1pc0.yzBOUp9YcgkIxQTiqvqTc9WadFQOd5a8"
+      "s2.karte.mwbw1pc0.rR4W14dtEGc_T1Bof9liuey0A_qvuOBA"
      ],
      "hashes": [
-      "tbNMOrjB7CF9OGHJ83rvCkmYkHbKHyl_Nc5c-DPhA7s"
+      "cOehn0dMaMahdRbmPx6uwhpZ9OR9b1PJHYVVjDqBSWc"
      ],
      "cost": 1,
-     "receipt": "r1.c.5JMFk67IcPI.1.0000-00.tobzq0.yoFvXJhA4QgWS5effO2Q4X",
+     "receipt": "r1.c.0pw1_aiaYbg.1.0000-00.tobzq0.Yjp_dknaX8d45JHwYZO_3O",
      "note": [
       "engine:bau",
       "takt:echtzeit"
@@ -528,7 +528,7 @@
      "alt": {
       "kind": "genre",
       "id": "G3",
-      "satz": "Flugspiel: Tippe zum Flattern und fliege durch Lücken"
+      "satz": "Schlangenspiel: Steuere die Schlange zu den Äpfeln"
      },
      "catalog": [],
      "meter": {
@@ -664,7 +664,7 @@
         "by": [],
         "t": "Tiefsee-Sturm",
         "g": {
-         "seed": 3533636706,
+         "seed": 1465305958,
          "params": {
           "gravity": 1800,
           "jump": 430,
@@ -710,20 +710,20 @@
        },
        "ki": {
         "k": "karte",
-        "s": "s2.karte.mwbw1pc0.OPCeSR06m1jrpbtzUtj5Nb5vhXQz9phb",
-        "h": "M_5mqnhBxjkrlTxfih5yh8zscz73bD5GUX-oFV_Mlec",
-        "o": "qcO00m71P1LeYr52EM848t"
+        "s": "s2.karte.mwbw1pc0.eSSJtOFZBfnTVaBdNMZ3axdseXFYLi3U",
+        "h": "Zr1NUyRJe7WJiIYlyNG2gQkiWCasRj1_lDYX4bJT2mg",
+        "o": "Ut7dKSJeosTL4TEt7nYDc1"
        }
       }
      ],
      "seals": [
-      "s2.karte.mwbw1pc0.OPCeSR06m1jrpbtzUtj5Nb5vhXQz9phb"
+      "s2.karte.mwbw1pc0.eSSJtOFZBfnTVaBdNMZ3axdseXFYLi3U"
      ],
      "hashes": [
-      "M_5mqnhBxjkrlTxfih5yh8zscz73bD5GUX-oFV_Mlec"
+      "Zr1NUyRJe7WJiIYlyNG2gQkiWCasRj1_lDYX4bJT2mg"
      ],
      "cost": 1,
-     "receipt": "r1.c.oEC6Lmyr2X8.1.0000-00.tobzq0.MKalHHJ9NoULHw-v9CIdek",
+     "receipt": "r1.c.rdyMFx355k8.1.0000-00.tobzq0.l7D41GOmhFOj8MjkLbufmW",
      "note": [
       "engine:flug"
      ],
