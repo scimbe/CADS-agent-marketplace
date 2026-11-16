@@ -10,6 +10,7 @@
 #   host.sh check            HTTP checks of the served app (page, parts with SRI, headers, APIs)
 #   host.sh smoke            browser smoke test (Playwright container, host network -> 127.0.0.1:${STAGING_PORT})
 #   host.sh rollback-probe [NEWTAG]  tag current as :prev, start a new version, roll back, verify; prints the times
+#   STAGING_BAU=on host.sh up [TAG]; host.sh kit-check   game kit (G3) with fact check end to end (API, kit-check.mjs)
 #   host.sh e2e-url BRANCH   e2e suites of an app branch in URL mode against staging (MDI_BASE_URL, ziel.mjs)
 #
 # Test values only: secrets/staging.env is generated here on first use (random salts, a staging-only Ed25519 deck key,
@@ -169,17 +170,17 @@ envlimits() {
   done
 }
 
-doubles() {
-  local name="$1" file="$2"
+doubles() {   # $3: image to run from (default NODE_IMAGE); the model double runs from the wrapper image to use its kit code
+  local name="$1" file="$2" image="${3:-$NODE_IMAGE}"
   docker rm -f "$name" >/dev/null 2>&1 || true
   docker run -d --name "$name" --network "$NET" --restart unless-stopped --cpus=0.25 --memory=128m \
-    --label org.mdi.staging=1 -u "$UIDGID" -v "$T/doubles:/d:ro" "$NODE_IMAGE" node "/d/$file" >/dev/null
+    --label org.mdi.staging=1 -u "$UIDGID" -v "$T/doubles:/d:ro" --entrypoint node "$image" "/d/$file" >/dev/null
 }
 
 start_wrapper() {
   local tag="$1"
   docker run -d --name "$WC" --network "$NET" --restart unless-stopped -p "127.0.0.1:$PORT:8790" --cpus=2 --memory=1536m \
-    --label org.mdi.staging=1 --env-file "$ENVF" \
+    --label org.mdi.staging=1 --env-file "$ENVF" $( [ "${STAGING_BAU:-off}" = on ] && echo "-e DUELL_BAU_OFF=0" ) \
     -v mdi-staging-duell-ai:/var/lib/duell-ai -v mdi-staging-shortlinks:/data/shortlinks -v mdi-staging-profile:/data/duell-profile \
     "$tag" >/dev/null
 }
@@ -206,7 +207,7 @@ up() {
   docker image inspect "$tag" >/dev/null 2>&1 || die "Image $tag fehlt"
   mkenv; envlimits
   docker network inspect "$NET" >/dev/null 2>&1 || docker network create --label org.mdi.staging=1 "$NET" >/dev/null
-  doubles "$GC" gate.mjs; doubles "$MC" model.mjs
+  doubles "$GC" gate.mjs; doubles "$MC" model.mjs "$tag"
   for c in "$GC" "$MC"; do   # the wrapper asks the gate on the first request: doubles must listen first
     for _ in $(seq 1 40); do docker logs "$c" 2>&1 | grep -q 'on :8080' && break; sleep 0.25; done
     docker logs "$c" 2>&1 | grep -q 'on :8080' || die "$c startet nicht"
@@ -304,6 +305,16 @@ e2e_url() {
   echo "e2e-url gesamt: pass=$P fail=$F cancelled=$C skipped=$S   logs: $W/logs"
 }
 
+# Game kit (G3) with fact check end to end on the server (kit-check.mjs); needs the kit on: STAGING_BAU=on host.sh up
+kit_check() {
+  local tag; tag="$(docker inspect -f '{{.Config.Image}}' "$WC")"
+  docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$WC" | grep -qx 'DUELL_BAU_OFF=0' || die "Baukasten ist aus: erst STAGING_BAU=on host.sh up"
+  local rc=0
+  docker run --rm --network host --entrypoint node -e B="http://127.0.0.1:$PORT" -v "$T:/t:ro" "$tag" /t/kit-check.mjs || rc=1
+  echo "Modell-Double, Aufrufe je Art: $(docker logs "$MC" 2>&1 | grep -o '"kind":"[a-z]*"' | sort | uniq -c | tr '\n' ' ')"
+  return $rc
+}
+
 # ------------------------------------------------------------------------------------------------------ rollback probe
 rollback_probe() {
   local cur prevtag newtag; cur="$(docker inspect -f '{{.Config.Image}}' "$WC")"
@@ -339,5 +350,5 @@ rollback_probe() {
 
 case "${1:-}" in
   build) build ;; up) up "${2:-}" ;; down) down ;; status) status ;; check) check ;; smoke) smoke ;;
-  rollback-probe) rollback_probe "${2:-}" ;; e2e-url) e2e_url "${2:-}" "${3:-3}" ;; *) sed -n '2,15p' "$0"; exit 2 ;;
+  rollback-probe) rollback_probe "${2:-}" ;; kit-check) kit_check ;; e2e-url) e2e_url "${2:-}" "${3:-3}" ;; *) sed -n '2,15p' "$0"; exit 2 ;;
 esac

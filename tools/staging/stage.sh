@@ -16,4 +16,4 @@ fi
 ssh -o BatchMode=yes "$HOST" 'mkdir -p ~/mdi-staging/tools'
 # the folder is replaced as a whole: what is not in git here does not run there
 COPYFILE_DISABLE=1 tar --no-xattrs -C "$D" -cf - --exclude=.DS_Store . | ssh -o BatchMode=yes "$HOST" 'rm -rf ~/mdi-staging/tools.new && mkdir ~/mdi-staging/tools.new && tar -C ~/mdi-staging/tools.new -xf - && rm -rf ~/mdi-staging/tools && mv ~/mdi-staging/tools.new ~/mdi-staging/tools'
-exec ssh -o BatchMode=yes "$HOST" "STAGING_PORT=$PORT STAGING_PATH=${STAGING_PATH:-/duell} bash ~/mdi-staging/tools/host.sh $*"
+exec ssh -o BatchMode=yes "$HOST" "STAGING_PORT=$PORT STAGING_PATH=${STAGING_PATH:-/duell} STAGING_BAU=${STAGING_BAU:-off} bash ~/mdi-staging/tools/host.sh $*"

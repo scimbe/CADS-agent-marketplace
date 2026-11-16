@@ -37,6 +37,24 @@ function gen(s, key) {
   }
 }
 
+// Game kit (G3, wrapper lib/duell-bau.mjs): when this double runs from the wrapper image (host.sh), it answers the kit call
+// with the kit's own example quiz (BEISPIELE.quiz, checked by check.js) and the fact check (lib/duell-bau-fakten.mjs) with
+// "falsch" for question 0, "sicher" for the rest – so the repair round and the removal of one question are exercised.
+let QUIZ = null;
+try {
+  const { BEISPIELE } = await import("/app/lib/vendor/mdi-baukasten/engines/baukasten/beispiele.js");
+  const { check } = await import("/app/lib/vendor/mdi-baukasten/engines/baukasten/check.js");
+  QUIZ = { ok: true, ...check(BEISPIELE.quiz).desc };
+} catch { /* not in the wrapper image: no kit answers */ }
+// the kit call asks for (a subset of) the game description: recognised by its core fields
+const isKit = (schema) => !!(QUIZ && schema && schema.properties && ["goal", "things", "turn"].every((k) => k in schema.properties));
+const isFakten = (body) => (Array.isArray(body.system) ? body.system : []).some((b) => String(b.text || "").startsWith("You check the facts of a short quiz"));
+function fakten(body) {
+  const u = typeof body.messages[0].content === "string" ? body.messages[0].content : "";
+  let f = []; try { f = JSON.parse(u.slice(u.indexOf("<data>") + 6, u.lastIndexOf("</data>"))); } catch { /* none */ }
+  return { items: f.map((x) => ({ i: x.i, urteil: x.i === 0 ? "falsch" : "sicher", grund: x.i === 0 ? "staging: absichtlich falsch markiert" : "", besser: "" })) };
+}
+
 const read = (req) => new Promise((ok) => { let b = ""; req.on("data", (c) => { b += c; if (b.length > 4e6) req.destroy(); }); req.on("end", () => ok(b)); });
 createServer(async (req, res) => {
   const send = (st, o) => res.writeHead(st, { "content-type": "application/json" }).end(JSON.stringify(o));
@@ -46,8 +64,9 @@ createServer(async (req, res) => {
   if (req.url === "/v1/messages/count_tokens") return send(200, { input_tokens: 2048 });
   if (req.url !== "/v1/messages") return send(404, { error: "not found" });
   const schema = body.output_config && body.output_config.format && body.output_config.format.schema;
-  const out = schema ? gen(schema, "") : { ok: true };
-  console.log(JSON.stringify({ at: new Date().toISOString(), model: body.model, fields: schema ? Object.keys(schema.properties || {}) : [], out }));
+  const kind = isFakten(body) ? "fakten" : isKit(schema) ? "bau" : "schema";
+  const out = kind === "fakten" ? fakten(body) : kind === "bau" ? QUIZ : schema ? gen(schema, "") : { ok: true };
+  console.log(JSON.stringify({ at: new Date().toISOString(), model: body.model, kind, fields: schema ? Object.keys(schema.properties || {}) : [], out: kind === "bau" ? "BEISPIELE.quiz" : out }));
   send(200, { id: "msg_staging", type: "message", role: "assistant", model: body.model, stop_reason: "end_turn",
     content: [{ type: "text", text: JSON.stringify(out) }], usage: { input_tokens: 40, output_tokens: 30, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } });
 }).listen(8080, () => console.log("model double on :8080"));
