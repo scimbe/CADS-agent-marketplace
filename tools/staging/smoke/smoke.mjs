@@ -195,6 +195,43 @@ if (shortUrl) {
   await ctx.close();
 }
 
+// ---- 6b. G3 "Neues Spiel" (game kit) with the model double – only with the kit switched on (KIT=1, STAGING_BAU=on up).
+// The double answers the kit with the kit's own example quiz and marks question 0 of the fact check as wrong; a wish with
+// "Vogel" gets a game the kit must refuse.
+if (process.env.KIT === "1") {
+  const { ctx, p, errs } = await open({ login: true });
+  try {
+    await p.locator("header.bar").waitFor();
+    await act(p, "frei"); await p.locator("main.s-frei-start").waitFor();
+    await p.locator('[aria-labelledby="lbl-art"] [data-v="game"]').click();
+    const g3 = p.locator('[aria-labelledby="lbl-genre"] [data-v="G3"]');
+    const chip = (await g3.innerText()).trim(), pressed = await g3.getAttribute("aria-pressed"), cls = await g3.getAttribute("class");
+    log(/Neues Spiel/.test(chip) && pressed === "false" && /\bneu\b/.test(cls), "G3: Chip „Neues Spiel“ sichtbar, hervorgehoben, nicht vorgewaehlt", chip);
+    await g3.click();
+    await p.locator("#frei-text").fill("Quiz über das Sonnensystem");
+    await act(p, "send");
+    await p.locator("main.s-frei-vorschau").waitFor({ timeout: 120000 });
+    const t = await p.locator("main").innerText();
+    const h1 = /noch nicht von Menschen nachgemessen/.test(t), h2 = /Eine Frage mit unsicheren Fakten habe ich weggelassen/.test(t);
+    log(h1 && h2, "G3: Quiz-Vorschau mit beiden Faktenhinweisen", "unkalibriert=" + h1 + " weggelassen=" + h2);
+    const accepted = p.waitForResponse((r) => new URL(r.url()).pathname === "/api/duell/ai/accept"); accepted.catch(() => {});
+    await act(p, "take"); await p.locator("main.s-card-view").waitFor();
+    log((await accepted).status() === 200 && errs.length === 0, "G3: Uebernehmen -> eigene Karte", (await screen(p)) + (errs.length ? " | " + errs.join("; ") : ""));
+    // refusal with alternative
+    await p.goto(PAGE); await p.locator("header.bar").waitFor();
+    await act(p, "frei"); await p.locator("main.s-frei-start").waitFor();
+    await p.locator('[aria-labelledby="lbl-art"] [data-v="game"]').click();
+    await p.locator('[aria-labelledby="lbl-genre"] [data-v="G3"]').click();
+    await p.locator("#frei-text").fill("Ein Vogel fliegt einfach so herum");
+    await act(p, "send");
+    await p.locator("#frei-alt").waitFor({ timeout: 120000 });
+    const alt = await p.locator("#frei-alt").inputValue(), g3alt = await p.locator('[data-k="alt-g3"]').count();
+    const raw = /\[create_/.test(await p.locator("main").innerText());
+    log(alt.length > 0 && g3alt > 0 && !raw && errs.length === 0, "G3: Absage mit Gegenvorschlag", "Vorschlag: " + alt.slice(0, 60) + (raw ? " | Rohschluessel sichtbar" : ""));
+  } catch (e) { log(false, "G3 Baukasten", e.message.split("\n")[0].slice(0, 160)); await shot(p, "g3"); }
+  await ctx.close();
+}
+
 // ---- 7. live between two pages: the broker is the web conference (webconference.bunsenbrenner.org), not part of the
 // wrapper. Over http://127.0.0.1 the app uses its local frame (parts/live-frame.*.html, served by no route of the wrapper),
 // over https the production frame, whose frame-ancestors only allow the production origins. Not run against production.

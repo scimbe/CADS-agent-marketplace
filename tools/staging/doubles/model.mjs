@@ -65,8 +65,11 @@ createServer(async (req, res) => {
   if (req.url !== "/v1/messages") return send(404, { error: "not found" });
   const schema = body.output_config && body.output_config.format && body.output_config.format.schema;
   const kind = isFakten(body) ? "fakten" : isKit(schema) ? "bau" : "schema";
-  const out = kind === "fakten" ? fakten(body) : kind === "bau" ? QUIZ : schema ? gen(schema, "") : { ok: true };
-  console.log(JSON.stringify({ at: new Date().toISOString(), model: body.model, kind, fields: schema ? Object.keys(schema.properties || {}) : [], out: kind === "bau" ? "BEISPIELE.quiz" : out }));
+  // a wish with "Vogel" gets a game the kit must refuse (the generic schema answer fails check.js): refusal with alternative
+  const wish = typeof body.messages[0].content === "string" ? body.messages[0].content : "";
+  const broken = kind === "bau" && /Vogel/i.test(wish);
+  const out = kind === "fakten" ? fakten(body) : kind === "bau" && !broken ? QUIZ : schema ? gen(schema, "") : { ok: true };
+  console.log(JSON.stringify({ at: new Date().toISOString(), model: body.model, kind, fields: schema ? Object.keys(schema.properties || {}) : [], out: kind === "bau" ? (broken ? "kaputt (Absage-Test)" : "BEISPIELE.quiz") : out }));
   send(200, { id: "msg_staging", type: "message", role: "assistant", model: body.model, stop_reason: "end_turn",
     content: [{ type: "text", text: JSON.stringify(out) }], usage: { input_tokens: 40, output_tokens: 30, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } });
 }).listen(8080, () => console.log("model double on :8080"));

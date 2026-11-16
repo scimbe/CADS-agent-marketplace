@@ -277,7 +277,7 @@ smoke() {
   local B; B="$(grep '^build=' "$R/builds/latest.env" | cut -d= -f2)"; B="$R/builds/$B"
   mkdir -p "$R/smoke-out"
   timeout 2400 docker run --rm --init --network host --ipc=host --cpus=3 --memory=3g -u "$UIDGID" -e HOME=/tmp \
-    -e STAGING_URL="http://127.0.0.1:$PORT" -e STAGING_PATH="${STAGING_PATH:-/duell}" -e OUT=/out \
+    -e STAGING_URL="http://127.0.0.1:$PORT" -e STAGING_PATH="${STAGING_PATH:-/duell}" -e KIT="$( [ "${STAGING_BAU:-off}" = on ] && echo 1 || echo 0 )" -e OUT=/out \
     -v "$T/smoke:/smoke:ro" -v "$B/mp/$APP_DIR:/app:ro" -v "$R/smoke-out:/out" \
     -w /app "$PW_IMAGE" node /smoke/smoke.mjs
 }
