@@ -12,7 +12,21 @@ if [[ "$REF" =~ ^[0-9a-f]{7,40}$ ]]; then echo "ABBRUCH: SHA statt Branch-Name u
 HOST="${LABOR_HOST:-ssh.labor-setup.de}"
 IMG="mcr.microsoft.com/playwright:v1.56.1-noble"
 RUN="$(date -u +%Y%m%d-%H%M%S)-$(echo "$REF" | tr '/' '_' | cut -c1-40)"
+# Losgeloest (Standard): Das Skript laeuft per nohup auf dem Host weiter, auch wenn die SSH-Verbindung abreisst.
+# Das Ergebnis wird ueber kurze Verbindungen abgeholt. LABOR_ATTACHED=1 haelt die Verbindung wie frueher offen.
+if [ -z "${LABOR_ATTACHED:-}" ]; then
+  SCRIPT="$(sed -n "/^# REMOTE_BODY_START$/,/^REMOTE$/p" "$0" | sed '1d;$d')"
+  printf '%s\n' "$SCRIPT" | ssh -o BatchMode=yes "$HOST" "mkdir -p \$HOME/mdi-runner/.jobs && cat > \$HOME/mdi-runner/.jobs/$RUN.sh && test -s \$HOME/mdi-runner/.jobs/$RUN.sh || { echo ABBRUCH: Skript leer; exit 4; }; nohup setsid bash \$HOME/mdi-runner/.jobs/$RUN.sh '$REF' '$APP' '$PAR' '$IMG' '$RUN' > \$HOME/mdi-runner/.jobs/$RUN.out 2>&1 < /dev/null & echo gestartet $RUN" | tee /dev/stderr | grep -q "^gestartet" || { echo "ABBRUCH: Start auf $HOST fehlgeschlagen"; exit 4; }
+  OUT="\$HOME/mdi-runner/.jobs/$RUN.out"; MISS=0; T=0
+  while :; do
+    sleep 30; T=$((T+30)); [ $T -ge 5400 ] && { echo "ABBRUCH: nach 90 Minuten kein Ergebnis, Lauf $RUN"; exit 3; }
+    if R=$(ssh -o BatchMode=yes -o ConnectTimeout=20 "$HOST" "cat $OUT" 2>/dev/null); then
+      MISS=0; if grep -q "^logs: \|^ABBRUCH\|^SETUP FAIL" <<<"$R"; then printf '%s\n' "$R"; exit 0; fi
+    else MISS=$((MISS+1)); [ $MISS -ge 40 ] && { echo "ABBRUCH: Host 20 Minuten nicht erreichbar, Lauf $RUN laeuft evtl. weiter"; exit 3; }; fi
+  done
+fi
 ssh -o BatchMode=yes "$HOST" bash -s -- "$REF" "$APP" "$PAR" "$IMG" "$RUN" <<'REMOTE'
+# REMOTE_BODY_START
 set -euo pipefail
 REF="$1"; APP="$2"; PAR="$3"; IMG="$4"; RUN="$5"
 find "$HOME/mdi-runner" -mindepth 1 -maxdepth 1 -type d -mtime +3 -exec rm -rf {} + 2>/dev/null || true
