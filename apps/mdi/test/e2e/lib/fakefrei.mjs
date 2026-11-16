@@ -16,7 +16,9 @@ const GH = new Map(REC_CARDS().map((c) => [c.cid, gateHash(c.doc)]));
 function REC_CARDS() { return JSON.parse(fs.readFileSync(path.join(ROOT, "test/fixtures/wrapper-frei.json"), "utf8")).exchanges.find((e) => e.name === "deck-mit-karte").res.body.cards; }
 
 const REC = JSON.parse(fs.readFileSync(path.join(ROOT, "test/fixtures/wrapper-frei.json"), "utf8"));
-export const rec = (n) => JSON.parse(JSON.stringify(REC.exchanges.find((e) => e.name === n).res));
+// G3 Baukasten: Aufnahmen gegen Wrapper #141 (scripts/record-frei.mjs --bau), Namen "karte-g3-*"
+const BAU = JSON.parse(fs.readFileSync(path.join(ROOT, "test/fixtures/wrapper-bau.json"), "utf8"));
+export const rec = (n) => JSON.parse(JSON.stringify((n.startsWith("karte-g3-") ? BAU : REC).exchanges.find((e) => e.name === n).res));
 const PATHS = /^\/(api\/duell\/(ai(\/(status|accept|discard))?|queue|report|deck(\/(key|status|use|vote|me))?|bild(\/(status|job|cancel|keep|avatar))?)|duell\/bild\/[A-Za-z0-9_-]{22}\.png)$/;
 
 /**
@@ -27,7 +29,7 @@ const PATHS = /^\/(api\/duell\/(ai(\/(status|accept|discard))?|queue|report|deck
  */
 export function fakeFrei(fw, o = {}) {
   const origin = o.origin || APP;
-  const S = { karte: o.karte || "karte-ok-card", status: o.status || null, deckStatus: o.deckStatus || "ok", log: [], queued: 0 };
+  const S = { karte: o.karte || "karte-ok-card", status: o.status || null, deckStatus: o.deckStatus || "ok", log: [], inputs: [], queued: 0 };
   const json = (status, body) => ({ status, contentType: "application/json; charset=utf-8", headers: { "cache-control": "no-store" }, body: JSON.stringify(body) });
   async function signedIn(req) {
     const h = await req.allHeaders(), m = /(?:^|;\s*)ct_gate_session=([^;]+)/.exec(h.cookie || "");
@@ -49,6 +51,7 @@ export function fakeFrei(fw, o = {}) {
         return r.fulfill(json(st.status, st.body));
       }
       if (p === "/api/duell/ai") {
+        if (body && body.kind === "karte") S.inputs.push(body.input);
         if (!me) { const x = rec("karte-anonym"); return r.fulfill(json(x.status, x.body)); }
         if (body.kind === "line") { const x = rec("ki-line"); return r.fulfill(json(x.status, x.body)); }
         if (S.karte === "queue" || S.karte === "queue-forever") { S.queued = 0; const x = rec("karte-warteschlange"); x.body.position = 2; return r.fulfill(json(x.status, x.body)); }

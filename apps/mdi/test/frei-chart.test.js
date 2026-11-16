@@ -367,3 +367,73 @@ test("Vorschau: Hinweise der Faktenpruefung (Wrapper #141): unkalibriert und weg
     }
   }
 });
+
+// ---- G3 Baukasten (Integrator 16.11.: G3 kommt in die App) gegen die Aufnahmen des echten Servers #141 (wrapper-bau.json) ----
+const BAU = JSON.parse(fs.readFileSync(new URL("./fixtures/wrapper-bau.json", import.meta.url), "utf8"));
+const recB = (n) => BAU.exchanges.find((x) => x.name === n).res;
+const resultOf = (b) => ({ how: "result", options: b.options, seals: b.seals, hashes: b.hashes, receipt: b.receipt, note: b.note });
+const refusalOf = (b) => ({ how: "notyet", notyet: b.notyet, reason: b.reason || "", alt: b.alt || null, catalog: b.catalog || [] });
+
+test("G3: Chip Neues Spiel ist hervorgehoben, nur ausdruecklich gewaehlt; Quiz mit Faktenhinweisen; Uebernehmen spielt baukasten-zug mit Siegel", async () => {
+  const { GENRES } = await import("../src/features/frei/doc.js");
+  assert.deepEqual(GENRES, ["G1", "G2", "G3"]);
+  let s = go(go(await signedIn(), { type: "FREI" }), { type: "ART", art: "game" });
+  const t0 = txt(s);
+  assert.ok(t0.includes("🧩 Neues Spiel") && t0.includes("neu-badge") && t0.includes("seg-opt neu"), "G3 hervorgehoben");
+  assert.equal(s.ctx.frei.genre, "", "keine Vorauswahl");
+  s = go(s, { type: "GENRE", genre: "G3" });
+  assert.ok(txt(s).includes("spielen Bots es durch") && !txt(s).includes("Wer spielt"), "G3: Erklaerung statt Wer spielt?");
+  s = go(go(s, { type: "TEXT", value: "Quiz über das Sonnensystem" }), { type: "SEND", crisis: false });
+  const ask = fx(s, "frei.ask")[0];
+  assert.deepEqual(ask.input, { text: "Quiz über das Sonnensystem", art: "game", genre: "G3" });
+  const b = recB("karte-g3-quiz").body;
+  s = go(s, { type: "FREI_RESULT", req: ask.req, r: resultOf(b) });
+  assert.equal(leaf(s), "frei.vorschau");
+  const t = txt(s);
+  assert.ok(t.includes("noch nicht von Menschen nachgemessen"), "Hinweis unkalibriert (#321)");
+  assert.ok(t.includes("Eine Frage mit unsicheren Fakten habe ich weggelassen."), "Hinweis entfernt:1");
+  assert.ok(t.includes("Mit KI erstellt"));
+  s = go(s, { type: "TAKE" });
+  assert.equal(leaf(s), "card.view"); assert.equal(s.ctx.cardId, "baukasten-zug"); assert.equal(s.ctx.own, true);
+  const p = s.ctx.params["baukasten-zug"];
+  assert.equal(p.ki.h, b.options[0].ki.h, "Siegel reist mit (M1)"); assert.equal(p.desc.turn.items.length, 3, "3 von 4 Fragen");
+});
+
+test("G3: Echtzeit-Spiel -> baukasten; Bot-Playtest gescheitert -> ehrliche Absage mit festem G3-Gegenvorschlag; Faktenabsage; G3-Tipp bei G1", async () => {
+  let s = go(go(go(await signedIn(), { type: "FREI" }), { type: "ART", art: "game" }), { type: "GENRE", genre: "G3" });
+  s = go(go(s, { type: "TEXT", value: "Ein Küken flattert durch Wolkenlücken" }), { type: "SEND", crisis: false });
+  s = go(s, { type: "FREI_RESULT", req: fx(s, "frei.ask")[0].req, r: resultOf(recB("karte-g3-flug").body) });
+  assert.ok(!txt(s).includes("nachgemessen"), "Echtzeit: kein Faktenhinweis");
+  s = go(s, { type: "TAKE" });
+  assert.equal(s.ctx.cardId, "baukasten"); assert.ok(s.ctx.params.baukasten.ki.s);
+  // Playtest: bau_trivial, Gegenvorschlag G3 mit festem Satz; Senden schickt ihn ausdruecklich als G3
+  s = go(go(go(go(await signedIn(), { type: "FREI" }), { type: "ART", art: "game" }), { type: "GENRE", genre: "G3" }), { type: "TEXT", value: "Ein Vogel fliegt einfach so herum" });
+  s = go(s, { type: "SEND", crisis: false });
+  const pt = recB("karte-g3-playtest").body;
+  s = go(s, { type: "FREI_RESULT", req: fx(s, "frei.ask")[0].req, r: refusalOf(pt) });
+  let t = txt(s);
+  assert.ok(!t.includes("[create_absage_bau_trivial]") && t.includes("Stattdessen:") && t.includes(pt.alt.satz) && t.includes("mit Bot-Test vorher"), t.slice(0, 300));
+  s = go(s, { type: "ALT_SEND", text: pt.alt.satz, crisis: false });
+  assert.deepEqual(fx(s, "frei.ask")[0].input, { text: pt.alt.satz, art: "game", genre: "G3" });
+  // Fakten: bau_fakten, ebenfalls mit Gegenvorschlag
+  const fk = recB("karte-g3-fakten").body;
+  s = go(s, { type: "FREI_RESULT", req: fx(s, "frei.ask")[0].req, r: refusalOf(fk) });
+  t = txt(s);
+  assert.ok(!t.includes("[create_absage_bau_fakten]") && t.includes(fk.alt.satz));
+  // ohne G3: ein Spielwunsch, den Flug nicht baut, bekommt den G3-Tipp; Senden waehlt G3 ausdruecklich
+  s = go(go(go(go(go(await signedIn(), { type: "FREI" }), { type: "ART", art: "game" }), { type: "GENRE", genre: "G1" }), { type: "TEXT", value: "Ein Spiel wie Snake, die Schlange frisst Äpfel" }), { type: "SEND", crisis: false });
+  const tp = recB("karte-g3-tipp-0").body;
+  s = go(s, { type: "FREI_RESULT", req: fx(s, "frei.ask")[0].req, r: refusalOf(tp) });
+  assert.ok(txt(s).includes("Schlangenspiel") && txt(s).includes(tp.alt.satz));
+  s = go(s, { type: "ALT_SEND", text: "Eine Schlange sammelt Äpfel ein", crisis: false });
+  assert.deepEqual(fx(s, "frei.ask")[0].input, { text: "Eine Schlange sammelt Äpfel ein", art: "game", genre: "G3" });
+  assert.equal(s.ctx.frei.genre, "G3");
+});
+
+test("G3 M1: baukasten spielt eine Beschreibung ohne Siegel nur als eingebautes Beispiel", async () => {
+  const { descOf } = await import("../src/engines/baukasten/karte.js");
+  const b = recB("karte-g3-flug").body.options[0];
+  assert.throws(() => descOf({ desc: { ...b.doc.b, title: "Von Hand" } }), /ohne Siegel/);
+  assert.ok(descOf({ desc: b.doc.b }), "das eingebaute Beispiel (flappy) laeuft");
+  assert.ok(descOf({ desc: { ...b.doc.b, title: "Von Hand" }, ki: { k: "karte", s: b.ki.s, h: b.ki.h } }), "mit Siegel");
+});

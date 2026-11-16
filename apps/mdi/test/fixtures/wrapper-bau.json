@@ -1,0 +1,764 @@
+{
+ "herkunft": "Aufgenommen mit scripts/record-frei.mjs --bau gegen CADS-DEMO-wrapper @ b883df0 (Genre G3: lib/duell-bau.mjs, duell-bau-fakten.mjs, duell-karte.mjs, duell-ai.mjs, Siegel duell-deck.mjs). Modell als Doppel: scripts/bau-double.mjs (Strang B; Beispiele des vendorten Baukastens), sonst wie wrapper-frei.json. Playtests, Pruefung, Reparaturrunden, Faktenregel, S4 und Siegel sind der echte Servercode. Uhr fest ab 2026-11-11T09:00:00.000Z.",
+ "host": "demos-34a13a96.bunsenbrenner.org",
+ "device": "0123456789abcdef0123456789abcdef",
+ "exchanges": [
+  {
+   "name": "karte-g3-quiz",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "game",
+      "text": "Quiz über das Sonnensystem",
+      "genre": "G3"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [
+      {
+       "art": "game",
+       "doc": {
+        "k": "bau",
+        "t": "Weltraum-Quiz",
+        "b": {
+         "title": "Weltraum-Quiz",
+         "goal": "Waehle die richtige Antwort. Mehr Treffer gewinnen.",
+         "mode": "turn",
+         "players": 2,
+         "turn": {
+          "kind": "answer",
+          "items": [
+           {
+            "q": "Wie heisst der rote Planet?",
+            "a": "Mars",
+            "wrong": [
+             "Jupiter",
+             "Saturn"
+            ]
+           },
+           {
+            "q": "Was umkreist die Erde?",
+            "a": "Der Mond",
+            "wrong": [
+             "Die Sonne",
+             "Der Mars"
+            ]
+           },
+           {
+            "q": "Welcher Planet hat die auffaelligsten Ringe?",
+            "a": "Saturn",
+            "wrong": [
+             "Merkur",
+             "Erde"
+            ]
+           }
+          ]
+         },
+         "v": 1
+        },
+        "col": [
+         "#ffd400",
+         "#ff3b1d"
+        ],
+        "by": []
+       },
+       "ki": {
+        "k": "karte",
+        "s": "s2.karte.mwbw1pc0.Uhk_ltd-BjhyUDo937XtsM5PYWykheAy",
+        "h": "jQtjFZ9jCVZPCzqsFTb32i2wP_vL_rgisgoiUIgQWag",
+        "o": "o4eTbG6-CglCSy3fmH2Ca8"
+       }
+      }
+     ],
+     "seals": [
+      "s2.karte.mwbw1pc0.Uhk_ltd-BjhyUDo937XtsM5PYWykheAy"
+     ],
+     "hashes": [
+      "jQtjFZ9jCVZPCzqsFTb32i2wP_vL_rgisgoiUIgQWag"
+     ],
+     "cost": 1,
+     "receipt": "r1.c.zIZZQaDCPZY.1.0000-00.tobzq0.LfCwKlqA1oJXVh3ONt-MOX",
+     "note": [
+      "engine:bau",
+      "takt:zug",
+      "bau:repariert",
+      "bau:fakten-entfernt:1",
+      "bau:fakten-unkalibriert"
+     ],
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 1,
+      "remaining": 4,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-g3-accept",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai/accept",
+    "body": {
+     "device": "0123456789abcdef0123456789abcdef",
+     "receipt": "r1.c.zIZZQaDCPZY.1.0000-00.tobzq0.LfCwKlqA1oJXVh3ONt-MOX"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "final": true,
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 1,
+      "remaining": 4,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-g3-flug",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "game",
+      "text": "Ein Küken flattert durch Wolkenlücken",
+      "genre": "G3"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [
+      {
+       "art": "game",
+       "doc": {
+        "k": "bau",
+        "t": "Wolkenflug",
+        "b": {
+         "title": "Wolkenflug",
+         "goal": "Tippe zum Flattern und fliege durch 15 Luecken.",
+         "bg": "sky",
+         "world": {
+          "gravity": 2600,
+          "bottom": "open",
+          "left": "open",
+          "right": "open"
+         },
+         "things": [
+          {
+           "id": "vogel",
+           "look": "emoji",
+           "emoji": "🐤",
+           "w": 84,
+           "h": 84,
+           "gravity": true,
+           "control": "flap",
+           "power": 880
+          },
+          {
+           "id": "rohr",
+           "color": "violet",
+           "w": 150,
+           "h": 200,
+           "vx": -280
+          }
+         ],
+         "start": [
+          {
+           "thing": "vogel",
+           "x": 300,
+           "y": 760,
+           "seat": 0
+          }
+         ],
+         "spawn": [
+          {
+           "thing": "rohr",
+           "every": 1650,
+           "after": 900,
+           "x": 1100,
+           "y": 800,
+           "yr": 330,
+           "gap": 440
+          }
+         ],
+         "rules": [
+          {
+           "a": "vogel",
+           "b": "rohr",
+           "do": [
+            {
+             "act": "life",
+             "n": -1
+            }
+           ]
+          },
+          {
+           "when": "out",
+           "a": "vogel",
+           "b": "bottom",
+           "do": [
+            {
+             "act": "life",
+             "n": -1
+            }
+           ]
+          },
+          {
+           "when": "pass",
+           "a": "vogel",
+           "b": "rohr",
+           "do": [
+            {
+             "act": "score",
+             "on": "a",
+             "n": 1,
+             "thing": ""
+            }
+           ]
+          }
+         ],
+         "end": {
+          "score": 15,
+          "lives": 1
+         },
+         "bot": {
+          "kind": "flap",
+          "thing": "vogel",
+          "target": "rohr"
+         },
+         "v": 1,
+         "mode": "realtime"
+        },
+        "col": [
+         "#ffd400",
+         "#ff3b1d"
+        ],
+        "by": []
+       },
+       "ki": {
+        "k": "karte",
+        "s": "s2.karte.mwbw1pc0.rR4W14dtEGc_T1Bof9liuey0A_qvuOBA",
+        "h": "cOehn0dMaMahdRbmPx6uwhpZ9OR9b1PJHYVVjDqBSWc",
+        "o": "tZpLYOCBv0Q2ZudKi4adNg"
+       }
+      }
+     ],
+     "seals": [
+      "s2.karte.mwbw1pc0.rR4W14dtEGc_T1Bof9liuey0A_qvuOBA"
+     ],
+     "hashes": [
+      "cOehn0dMaMahdRbmPx6uwhpZ9OR9b1PJHYVVjDqBSWc"
+     ],
+     "cost": 1,
+     "receipt": "r1.c.0pw1_aiaYbg.1.0000-00.tobzq0.Yjp_dknaX8d45JHwYZO_3O",
+     "note": [
+      "engine:bau",
+      "takt:echtzeit"
+     ],
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 2,
+      "remaining": 3,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-g3-playtest",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "game",
+      "text": "Ein Vogel fliegt einfach so herum",
+      "genre": "G3"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [],
+     "notyet": {
+      "what": "bau",
+      "name": "trivial"
+     },
+     "reason": "bau_trivial",
+     "alt": {
+      "kind": "genre",
+      "id": "G3",
+      "satz": "Flugspiel: Tippe zum Flattern und fliege durch Lücken"
+     },
+     "catalog": [],
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 2,
+      "remaining": 3,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-g3-fakten",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "game",
+      "text": "Quiz über seltene Tiefseefische",
+      "genre": "G3"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [],
+     "notyet": {
+      "what": "bau",
+      "name": "fakten"
+     },
+     "reason": "bau_fakten",
+     "alt": {
+      "kind": "genre",
+      "id": "G3",
+      "satz": "Buchstabensalat: Ordne die Buchstaben zum richtigen Wort"
+     },
+     "catalog": [],
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 2,
+      "remaining": 3,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-g3-tipp-0",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "game",
+      "text": "Ein Spiel wie Snake, die Schlange frisst Äpfel"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [],
+     "notyet": {
+      "what": "game",
+      "name": "Schlangenspiel"
+     },
+     "alt": {
+      "kind": "genre",
+      "id": "G3",
+      "satz": "Schlangenspiel: Steuere die Schlange zu den Äpfeln"
+     },
+     "catalog": [],
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 2,
+      "remaining": 3,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-g3-tipp-1",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "game",
+      "text": "Memory mit Tieren, abwechselnd Paare finden"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [],
+     "notyet": true,
+     "reason": "memory",
+     "alt": {
+      "kind": "katalog",
+      "id": "zug-kennst",
+      "satz": "Kennst du mich wirklich?"
+     },
+     "catalog": [
+      "zug-kennst"
+     ],
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 2,
+      "remaining": 3,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-g3-tipp-2",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "game",
+      "text": "Drei in einer Reihe gegeneinander"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [
+      {
+       "art": "game",
+       "doc": {
+        "k": "game",
+        "col": [
+         "#ffd400",
+         "#ff3b1d"
+        ],
+        "by": [],
+        "t": "Tiefsee-Sturm",
+        "g": {
+         "seed": 1465305958,
+         "params": {
+          "gravity": 1800,
+          "jump": 430,
+          "gap": 140,
+          "speed": 130
+         },
+         "theme": "ocean",
+         "title": "Tiefsee-Sturm",
+         "emoji": "🐠",
+         "look": {
+          "d": "bubbles"
+         },
+         "route": [
+          {
+           "p": "ruhig",
+           "d": {
+            "gravity": -200,
+            "gap": 20,
+            "speed": -20
+           },
+           "t": "ocean",
+           "e": "🐟"
+          },
+          {
+           "p": "sturm",
+           "d": {
+            "gap": -15,
+            "speed": 30
+           },
+           "t": "night",
+           "e": "⚡"
+          },
+          {
+           "p": "schnell",
+           "d": {
+            "speed": 40
+           },
+           "t": "ocean",
+           "e": "🐳"
+          }
+         ]
+        }
+       },
+       "ki": {
+        "k": "karte",
+        "s": "s2.karte.mwbw1pc0.eSSJtOFZBfnTVaBdNMZ3axdseXFYLi3U",
+        "h": "Zr1NUyRJe7WJiIYlyNG2gQkiWCasRj1_lDYX4bJT2mg",
+        "o": "Ut7dKSJeosTL4TEt7nYDc1"
+       }
+      }
+     ],
+     "seals": [
+      "s2.karte.mwbw1pc0.eSSJtOFZBfnTVaBdNMZ3axdseXFYLi3U"
+     ],
+     "hashes": [
+      "Zr1NUyRJe7WJiIYlyNG2gQkiWCasRj1_lDYX4bJT2mg"
+     ],
+     "cost": 1,
+     "receipt": "r1.c.rdyMFx355k8.1.0000-00.tobzq0.l7D41GOmhFOj8MjkLbufmW",
+     "note": [
+      "engine:flug"
+     ],
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 3,
+      "remaining": 2,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  }
+ ]
+}
