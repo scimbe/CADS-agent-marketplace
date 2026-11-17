@@ -21,6 +21,14 @@ export function leaf(state) {
   return l[l.length - 1].slice("inhalt.".length);
 }
 function seatName(card, lang, seat) { const s = card.manifest.seats; return s ? (s[lang] || s.de)[seat] : String(seat + 1); }
+/** Name des Gewinners in der Ergebniszeile: was die Karte selbst nennt (status.names je Sprache, z. B. Dart „Bert“), sonst
+ *  gegen den Computer der Computer, sonst der Sitzname des Manifests bzw. die Sitznummer (Befund A9 F8: „gewinnt: 2.“). */
+function winnerName(card, X, lang, st, mode, mine) {
+  const n = st.names && (st.names[lang] || st.names.de);
+  if (n && typeof n[st.winner] === "string" && n[st.winner]) return n[st.winner];
+  if (mode === "bot" && st.winner !== mine) return X.computer;
+  return seatName(card, lang, st.winner);
+}
 // Eigener Titel der Karte (params.title, Strang Z2) steht vor dem Manifesttitel; leer = Manifesttitel, kein Ersatztext
 function title(card, lang, params) { const t = params && typeof params.title === "string" ? params.title.trim() : ""; return t || card.manifest.title[lang] || card.manifest.title.de; }
 
@@ -333,7 +341,7 @@ export function view(state, dispatch, env = {}) {
       if (phase === "send") lines.push(h("div", { class: "notice", key: "send" }, h("h2", { class: "t-title" }, X.sendTitle), h("p", null, X.sendText)));
       if (phase === "over") {
         const me = ctx.mode === "alone" ? -2 : seat;
-        const wn = st.winner >= 0 ? seatName(card, ctx.lang, st.winner) : "";
+        const wn = st.winner >= 0 ? winnerName(card, X, ctx.lang, st, ctx.mode, me) : "";
         const res = st.winner === -1 ? X.overDraw : me === -2 ? fmt(X.overWinner, { s: wn }) : st.winner === me ? X.overWin : fmt(X.overLose, { s: wn });
         // Karten ohne Wertung (score leer, z. B. Partydeck, Raumkarten) zeigen ihr Ergebnis selbst: keine Sieger-/Unentschieden-Zeile
         if (!(Array.isArray(st.score) && st.score.length === 0)) lines.push(h("p", { class: "result", role: "status", key: "res" }, res));
@@ -350,7 +358,7 @@ export function view(state, dispatch, env = {}) {
       const st = ctx.rtResult.status, seat = ctx.viewer, say = typeof st.say === "string" ? st.say : st.say && typeof st.say === "object" ? st.say[ctx.lang] || st.say.de : "";
       // Solo-Partien (status.solo oder kein Gewinner) zeigen den Stand statt einer Gewinnerzeile (Anfrage L)
       if (st.solo || !Number.isInteger(st.winner)) lines.push(h("p", { class: "result", role: "status", key: "res" }, say || X.overAll));
-      else { const wn = st.winner >= 0 ? seatName(card, ctx.lang, st.winner) : ""; lines.push(h("p", { class: "result", role: "status", key: "res" }, st.winner === -1 ? X.overDraw : ctx.mode === "alone" ? fmt(X.overWinner, { s: wn }) : st.winner === seat ? X.overWin : fmt(X.overLose, { s: wn }))); }
+      else { const wn = st.winner >= 0 ? winnerName(card, X, ctx.lang, st, ctx.mode, seat) : ""; lines.push(h("p", { class: "result", role: "status", key: "res" }, st.winner === -1 ? X.overDraw : ctx.mode === "alone" ? fmt(X.overWinner, { s: wn }) : st.winner === seat ? X.overWin : fmt(X.overLose, { s: wn }))); }
     }
     if (ctx.ghostOf) lines.push(h("p", { class: "hint", key: "gh" }, fmt(X.ghostScore, { s: ctx.ghostOf.sc.join(" : ") })));
     if (L === "card.rt.error") lines.push(h("div", { class: "notice", key: "err" }, h("h2", { class: "t-title" }, X.errTitle), h("p", { class: "warn", role: "alert" }, X.reasons[ctx.error] || X.reasons["zug-ungueltig"])));

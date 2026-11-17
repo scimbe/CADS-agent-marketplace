@@ -186,3 +186,56 @@ for (const view of ["desk1280", "phone390"]) for (const [card, mode] of [["flug"
   assert.ok(["card-rt-pause"].includes(await screen(p)));
   assert.deepEqual(errs, []); await ctx.close();
 });
+
+// ---------- Funde des Echtzeit-Tests (A9) im gemeinsamen Host ----------
+test("F4: nach Mausklick auf Ton und Pause liegt die Eingabe wieder beim Feld; per Tastatur ausgeloest bleibt der Fokus am Knopf", async () => {
+  const { ctx, p, errs } = await openStage({ card: "arcade-ziegel", mode: "bot", seed: "fokus" }, "desk1280");
+  await p.waitForFunction(() => globalThis.__arcPhase === "go", null, { timeout: 8000 });
+  for (const sel of [".rt-sound", ".rt-pause"]) {
+    await p.locator(sel).click();
+    assert.equal(await p.evaluate(() => document.activeElement && document.activeElement.className), "rt-canvas", sel + ": Fokus zurueck auf dem Feld");
+    const x0 = await paddle(p);
+    await p.keyboard.down(x0 > 500 ? "ArrowLeft" : "ArrowRight"); await p.waitForTimeout(400); await p.keyboard.up(x0 > 500 ? "ArrowLeft" : "ArrowRight");
+    await p.waitForTimeout(100);
+    assert.ok(Math.abs((await paddle(p)) - x0) > 80, sel + ": Pfeiltaste bewegt den Schlaeger nach dem Klick");
+  }
+  // Tastatur: Ton per Tab und Enter -> Fokus bleibt auf dem Knopf (Tastaturbedienung der Knoepfe bleibt erhalten)
+  await p.locator(".rt-sound").focus(); await p.keyboard.press("Enter");
+  assert.match(await p.evaluate(() => document.activeElement.className), /rt-sound/, "per Tastatur bleibt der Fokus am Knopf");
+  assert.deepEqual(errs, []); await ctx.close();
+});
+
+test("F3: das letzte Bild zeigt den Endstand (Leinwand und Ansage = Stand der Partie)", async () => {
+  const { ctx, p, errs } = await openStage({ card: "arcade-ziegel", mode: "bot", seed: "endstand", fast: 24 }, "desk1280");
+  await p.waitForFunction(() => globalThis.__arcDone === true, null, { timeout: 120000 });
+  await p.waitForTimeout(100);
+  const r = await p.evaluate(() => ({ st: globalThis.__arc.status(), drawn: globalThis.__arc.stage.last.info.status, label: document.querySelector("canvas.rt-canvas").getAttribute("aria-label") }));
+  assert.ok(r.st.over && r.drawn.over, "das gezeichnete Bild ist das Ende: " + JSON.stringify(r.drawn));
+  assert.deepEqual(r.drawn.score, r.st.score, "gezeichneter Stand = Endstand");
+  assert.ok(r.label.includes(r.st.score[0] + " : " + r.st.score[1]), "Leinwand nennt den Endstand: " + r.label + " / " + r.st.score);
+  assert.deepEqual(errs, []); await ctx.close();
+});
+
+test("F10: Handy - die Hauptaktion hat einen grossen Knopf am Feld (Kick, Volley, Schnee, Panzer, Elfer, Stock, Murmel)", async () => {
+  for (const [id, label] of [["arcade-kick", "Kicken"], ["arcade-volley", "Springen"], ["arcade-snow", "Werfen"], ["arcade-panzer", "Feuer"], ["arcade-elfer", "Schießen"], ["arcade-stock", "Werfen"], ["arcade-murmel", "Werfen"]]) {
+    const { ctx, p, errs } = await openStage({ card: id, mode: "bot", seed: "knopf" }, "phone390");
+    const btn = p.locator(".rt-controls .rt-btn", { hasText: label });
+    assert.equal(await btn.count(), 1, id + ": Knopf " + label);
+    const r = await btn.boundingBox();
+    assert.ok(r.height >= 60 && r.width >= 60, id + ": gross genug " + JSON.stringify(r));
+    assert.deepEqual(errs, [], id); await ctx.close();
+  }
+});
+
+for (const card of ["flug", "lauf"]) test("F5/F8 (" + card + ", Handy): am Ende stehen Ergebnis und „Nochmal“ im ersten Bildschirm, keine Steuerknoepfe; gegen den Computer heisst der Sieger Computer", async () => {
+  const { p, errs, ctx } = await open(b, { view: "phone390" });
+  await act(p, "open-" + card); await waitScreen(p, "card-view"); await pickMode(p, "de", "bot");
+  await act(p, "go"); await waitScreen(p, "card-rt-over", 180000);
+  const r = await p.evaluate(() => { scrollTo(0, 0); const a = document.querySelector('[data-act="again"]').getBoundingClientRect();
+    return { vh: innerHeight, again: a.bottom, res: document.querySelector(".result").textContent, ctl: document.querySelectorAll(".rt-controls, .rt-key").length }; });
+  assert.ok(r.again <= r.vh, card + ": „Nochmal“ sichtbar ohne Scrollen: " + Math.round(r.again) + " > " + r.vh);
+  assert.equal(r.ctl, 0, "keine Steuerknoepfe nach dem Ende");
+  assert.doesNotMatch(r.res, /gewinnt: \d/, "kein Sitz als Zahl: " + r.res);
+  if (/gewinnt/.test(r.res)) assert.match(r.res, /gewinnt: Computer\./);
+  assert.deepEqual(errs, []); await ctx.close();
+});

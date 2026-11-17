@@ -12,22 +12,25 @@ import { PANZER, tankPos } from "./panzer.js";
 
 const K = (id, kind, keys, de, en, extra) => Object.assign({ id, kind, keys, zone: "none", label: { de, en } }, extra || {});
 const AX = { keys: ["ArrowLeft", "ArrowRight"] }, AY = { keys: ["ArrowUp", "ArrowDown"] };
+// Hauptaktion als grosser Bildschirmknopf unter dem Feld (Befund A9 F10: auf dem Handy gab es nur ←/→, Feuer, Schuss,
+// Wurf, Sprung gingen nur per Geste ohne Hinweis). Die Geste im Feld bleibt, die Taste auch.
+const MAIN = { zone: "button" };
 /** rt.controls je Spiel (Manifest). Reihenfolge der Knoepfe = Bits in b. */
 export const CONTROLS = {
   puck: { buttons: [], axes: { x: AX, y: AY }, pointer: { max: 1 } },
   ziegel: { buttons: [], axes: { x: AX }, pointer: { max: 1 } },
-  volley: { buttons: [K("jump", "pulse", ["Space", "ArrowUp", "KeyW"], "Springen", "Jump")], axes: { x: AX }, pointer: { max: 1 } },
-  kick: { buttons: [K("kick", "pulse", ["Space", "ArrowUp", "KeyW"], "Kicken", "Kick")], axes: { x: AX }, pointer: { max: 1 } },
-  snow: { buttons: [K("fire", "pulse", ["Space", "ArrowUp", "KeyW"], "Werfen", "Throw")], axes: { x: AX }, pointer: { max: 1 } },
+  volley: { buttons: [K("jump", "pulse", ["Space", "ArrowUp", "KeyW"], "Springen", "Jump", MAIN)], axes: { x: AX }, pointer: { max: 1 } },
+  kick: { buttons: [K("kick", "pulse", ["Space", "ArrowUp", "KeyW"], "Kicken", "Kick", MAIN)], axes: { x: AX }, pointer: { max: 1 } },
+  snow: { buttons: [K("fire", "pulse", ["Space", "ArrowUp", "KeyW"], "Werfen", "Throw", MAIN)], axes: { x: AX }, pointer: { max: 1 } },
   flipper: {
     buttons: [K("left", "hold", ["ArrowLeft", "KeyA", "KeyZ"], "Linke Klappe", "Left flipper", { zone: "left" }), K("right", "hold", ["ArrowRight", "KeyD", "KeyM"], "Rechte Klappe", "Right flipper", { zone: "right" })],
     pointer: { max: 2 }
   },
-  panzer: { buttons: [K("fire", "pulse", ["Space", "Enter"], "Feuer", "Fire")], axes: { x: AX, y: AY }, pointer: { max: 1 } },
-  elfer: { buttons: [K("shoot", "pulse", ["Space", "Enter"], "Schießen", "Shoot")], axes: { x: AX, y: AY }, pointer: { max: 1 } },
-  stock: { buttons: [K("throw", "pulse", ["Space", "Enter"], "Werfen", "Throw")], axes: { x: AX, y: AY }, pointer: { max: 1 } },
+  panzer: { buttons: [K("fire", "pulse", ["Space", "Enter"], "Feuer", "Fire", MAIN)], axes: { x: AX, y: AY }, pointer: { max: 1 } },
+  elfer: { buttons: [K("shoot", "pulse", ["Space", "Enter"], "Schießen", "Shoot", MAIN)], axes: { x: AX, y: AY }, pointer: { max: 1 } },
+  stock: { buttons: [K("throw", "pulse", ["Space", "Enter"], "Werfen", "Throw", MAIN)], axes: { x: AX, y: AY }, pointer: { max: 1 } },
   murmel: {
-    buttons: [K("throw", "pulse", ["Space", "Enter"], "Werfen", "Throw"), K("left", "hold", ["KeyA"], "Start nach links", "Start left"), K("right", "hold", ["KeyD"], "Start nach rechts", "Start right")],
+    buttons: [K("throw", "pulse", ["Space", "Enter"], "Werfen", "Throw", MAIN), K("left", "hold", ["KeyA"], "Start nach links", "Start left"), K("right", "hold", ["KeyD"], "Start nach rechts", "Start right")],
     axes: { x: AX, y: AY }, pointer: { max: 1 }
   }
 };

@@ -30,8 +30,8 @@ function textOf(S, lang, them) {
 export function makeCard(g, manifest) {
   const card = {
     manifest,
-    init({ params, seed, players }) {
-      const st = matchInit({ g, seed: String(seed), players: players || ["human", "bot"], win: winOf(g, params) });
+    init({ params, seed, players, level }) {
+      const st = matchInit({ g, seed: String(seed), players: players || ["human", "bot"], win: winOf(g, params), level });
       st.look = lookOf(g, params); st.title = params && typeof params.title === "string" ? params.title : "";
       st.fx = [[], []]; st.fxn = 0;
       return matchStart(st);

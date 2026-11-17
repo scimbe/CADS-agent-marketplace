@@ -34,6 +34,9 @@ export function createRtSession(card, o, d) {
     if (lock) { try { lock.flush(); } catch (e) { /* Kanal zu */ } }
     let st = null; try { st = status(); } catch (e) { st = null; }
     d.onChange({ ...info, status: st });
+    // Letztes Bild nach dem letzten Tick: die Schleife steht schon, ohne dieses Bild bliebe der Stand vor dem
+    // entscheidenden Punkt stehen („Gewonnen!“ ueber „4 : 4“, Befund A9 F3). Wirft die Karte hier, faengt es guard.
+    if (phase === "over") onFrame(0);
   }
   // Review H3: ein Fehler der Karte (step/view) friert nie still ein, sondern beendet ehrlich mit "error"
   function guard(f) { return (...a) => { if (ended) return false; try { return f(...a); } catch (e) { finish({ type: "error", reason: "karte-fehler", detail: String(e && e.message || e).slice(0, 200) }); return false; } }; }

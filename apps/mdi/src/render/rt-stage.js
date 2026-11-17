@@ -107,39 +107,45 @@ export function createStage(env) {
     // Review L2: Achsenknoepfe auch per Tastatur (Leertaste/Enter halten) und mit aria-pressed
     const press = (code, el, down) => { env.rt.key(code, down); if (el) el.setAttribute("aria-pressed", down ? "true" : "false"); };
     const axisBtn = (code, label, aria) => h("button", { type: "button", class: "rt-btn rt-axis", key: "ax-" + code, "aria-label": aria, "aria-pressed": "false",
-      on: { pointerdown: (e) => { e.preventDefault(); press(code, e.currentTarget, true); }, pointerup: (e) => press(code, e.currentTarget, false), pointercancel: (e) => press(code, e.currentTarget, false), pointerleave: (e) => press(code, e.currentTarget, false),
+      on: { pointerdown: (e) => { e.preventDefault(); press(code, e.currentTarget, true); }, pointerup: (e) => { press(code, e.currentTarget, false); toFieldPtr(); }, pointercancel: (e) => press(code, e.currentTarget, false), pointerleave: (e) => press(code, e.currentTarget, false),
         keydown: (e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); press(code, e.currentTarget, true); } }, keyup: (e) => { if (e.key === " " || e.key === "Enter") press(code, e.currentTarget, false); }, blur: (e) => press(code, e.currentTarget, false) } }, label);
     const sk = env.rt.controls && env.rt.controls.screenKey && env.rt.controls.screenKey.label ? env.rt.controls.screenKey : null;
     const skSize = sk ? Math.max(84, Math.min(160, sk.size || 96)) : 0;
     const tapKey = (el, down) => { if (env.rt.tap) env.rt.tap(down); if (el) el.setAttribute("aria-pressed", down ? "true" : "false"); };
     // HUD oben: Pause und Ton als echte Schalter (Design Phase C); Steuerknoepfe unter dem Spielfeld
-    const muted = !!opt.muted;
+    const muted = !!opt.muted, playing = phase !== "over" && phase !== "error";
+    // Nach einem Klick oder Tippen auf einen Knopf gehoert die Spieleingabe wieder dem Feld (Befund A9 F4: sonst bleibt
+    // der Fokus auf Pause/Ton, Pfeile wirken nicht, die Leertaste loest den Knopf erneut aus). Per Tastatur ausgeloest
+    // (click.detail 0, keyup) bleibt der Fokus auf dem Knopf, damit die Tastaturbedienung der Knoepfe erhalten bleibt.
+    const toField = (e) => { if (e.detail > 0 && canvas && canvas.isConnected) canvas.focus({ preventScroll: true }); };
+    const toFieldPtr = () => { if (canvas && canvas.isConnected) canvas.focus({ preventScroll: true }); };
     return h("div", { class: "rt-stage", key: "rt" },
       h("div", { key: "hud", class: "rt-hud" },
-        phase === "run" || phase === "pause" ? h("button", { type: "button", class: "rt-btn rt-pause", key: "pause", "aria-pressed": phase === "pause" ? "true" : "false", on: { click: () => dispatch({ type: phase === "pause" ? "RESUME" : "PAUSE" }) } }, phase === "pause" ? X.resume : X.pause) : null,
-        h("button", { type: "button", class: "rt-btn rt-sound", key: "sound", "aria-pressed": muted ? "true" : "false", "aria-label": X.soundOff, on: { click: () => dispatch({ type: "MUTE", on: !muted }) } }, muted ? "🔇 " + X.soundOff : "🔊 " + X.sound)),
+        phase === "run" || phase === "pause" ? h("button", { type: "button", class: "rt-btn rt-pause", key: "pause", "aria-pressed": phase === "pause" ? "true" : "false", on: { click: (e) => { dispatch({ type: phase === "pause" ? "RESUME" : "PAUSE" }); toField(e); } } }, phase === "pause" ? X.resume : X.pause) : null,
+        h("button", { type: "button", class: "rt-btn rt-sound", key: "sound", "aria-pressed": muted ? "true" : "false", "aria-label": X.soundOff, on: { click: (e) => { dispatch({ type: "MUTE", on: !muted }); toField(e); } } }, muted ? "🔇 " + X.soundOff : "🔊 " + X.sound)),
       h("canvas", { key: "cv", class: "rt-canvas", role: "img", "aria-label": X.stage, tabindex: "0", style: { "aspect-ratio": ratio }, ref: mount }),
       h("p", { key: "msg", class: "rt-msg", "aria-hidden": "true", ref: (el) => { msg = el; } }, ""),
       h("p", { key: "say", class: "rt-say visually-hidden", "aria-live": "polite", ref: (el) => { live = el; } }, ""),
       // Grosse Tipp-Taste (controls.screenKey, Gate C): wie Tippen auf die Buehne; halten = gedrueckt halten
-      sk ? h("button", { type: "button", class: "rt-btn rt-key", key: "skey", "aria-pressed": "false", style: { "min-height": skSize + "px" },
+      // Nach dem Ende keine Steuerknoepfe mehr (Befund A9 F5: nutzlose ←/→ schoben „Nochmal“ unter den Bildschirmrand)
+      sk && playing ? h("button", { type: "button", class: "rt-btn rt-key", key: "skey", "aria-pressed": "false", style: { "min-height": skSize + "px" },
         on: {
-          pointerdown: (e) => { e.preventDefault(); tapKey(e.currentTarget, true); }, pointerup: (e) => tapKey(e.currentTarget, false), pointercancel: (e) => tapKey(e.currentTarget, false), pointerleave: (e) => tapKey(e.currentTarget, false),
+          pointerdown: (e) => { e.preventDefault(); tapKey(e.currentTarget, true); }, pointerup: (e) => { tapKey(e.currentTarget, false); toFieldPtr(); }, pointercancel: (e) => tapKey(e.currentTarget, false), pointerleave: (e) => tapKey(e.currentTarget, false),
           keydown: (e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); tapKey(e.currentTarget, true); } }, keyup: (e) => { if (e.key === " " || e.key === "Enter") tapKey(e.currentTarget, false); }, blur: (e) => tapKey(e.currentTarget, false)
         } }, sk.label[lang] || sk.label.de) : null,
-      h("div", { key: "ctl", class: "rt-controls" },
+      playing ? h("div", { key: "ctl", class: "rt-controls" },
         ax ? axisBtn(ax[0], "←", lang === "en" ? "Left" : "Links") : null,
         ax ? axisBtn(ax[1], "→", lang === "en" ? "Right" : "Rechts") : null,
         ...buttons.map((b) => h("button", {
           type: "button", class: "rt-btn", key: "b-" + b.id, "aria-pressed": b.kind === "hold" ? "false" : null,
           on: {
             pointerdown: (e) => { e.preventDefault(); env.rt.button(b.id, true); if (b.kind === "hold") e.currentTarget.setAttribute("aria-pressed", "true"); },
-            pointerup: (e) => { env.rt.button(b.id, false); if (b.kind === "hold") e.currentTarget.setAttribute("aria-pressed", "false"); },
+            pointerup: (e) => { env.rt.button(b.id, false); if (b.kind === "hold") e.currentTarget.setAttribute("aria-pressed", "false"); toFieldPtr(); },
             pointercancel: () => env.rt.button(b.id, false),
             keydown: (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); env.rt.button(b.id, true); } },
             keyup: (e) => { if (e.key === " " || e.key === "Enter") env.rt.button(b.id, false); }
           }
-        }, (b.label && (b.label[lang] || b.label.de)) || b.id))));
+        }, (b.label && (b.label[lang] || b.label.de)) || b.id))) : null);
   }
   return { draw, stageNode, get mounted() { return !!canvas; }, get last() { return { node: lastNode, info: lastInfo, fit }; } };
 }

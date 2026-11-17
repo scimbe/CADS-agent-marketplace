@@ -304,7 +304,7 @@
             "Space",
             "Enter"
           ],
-          "zone": "none",
+          "zone": "button",
           "label": {
             "de": "Schießen",
             "en": "Shoot"

@@ -324,7 +324,7 @@
             "Space",
             "Enter"
           ],
-          "zone": "none",
+          "zone": "button",
           "label": {
             "de": "Werfen",
             "en": "Throw"

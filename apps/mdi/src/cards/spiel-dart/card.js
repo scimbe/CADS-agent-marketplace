@@ -168,7 +168,9 @@ export default {
     if (!g) return { over: true, turn: -1, reveal: false, score: [0, 0], winner: -1 };
     const score = g.kind === "x01" ? g.left.slice() : g.kind === "atc" ? [g.next[0] - 1, g.next[1] - 1] : g.total.slice();
     return { over: g.over, turn: turnOf(g), reveal: false, score, winner: g.over ? g.win : -1, bot: g.bot,
-      turnNo: Math.min(D.rounds(g), Math.floor(done(g) / 2) + 1), turns: D.rounds(g) };
+      turnNo: Math.min(D.rounds(g), Math.floor(done(g) / 2) + 1), turns: D.rounds(g),
+      // Namen je Sitz fuer die Ergebniszeile des Hosts (gegen Bert: „Bert“ statt „Spieler 2“)
+      ...(g.bot ? { names: { de: [D.who(g, 0, "de"), D.who(g, 1, "de")], en: [D.who(g, 0, "en"), D.who(g, 1, "en")] } } : {}) };
   },
   moves,
   accepts,
