@@ -63,13 +63,27 @@ test("Desktop (desk1280): Maus-Ziehen ueber den Text blaettert, auch beim Loslas
   await p.mouse.move(s.x + 40, s.y + 10); await p.mouse.down(); await p.mouse.move(s.x + 48, s.y + 12); await p.mouse.up();
   assert.equal(await num(), d0, "8 px sind kein Wischen");
   await act(p, "day-next"); assert.equal(await wait(d1, true), d1);
-  // Review: Druecken im Blatt, vor der Schwelle hinaus und draussen loslassen; danach nur Ueberfahren ohne Taste blaettert nicht
-  const s2 = await p.locator(".h-stamp").boundingBox(), d2 = await num();
-  await p.mouse.move(s2.x + 20, s2.y + 10); await p.mouse.down(); await p.mouse.move(s2.x - 300, s2.y + 10, { steps: 1 }); await p.mouse.up();
-  await p.mouse.move(s2.x + 20, s2.y + 10); await p.mouse.move(s2.x + 200, s2.y + 10, { steps: 8 });
+  // Live-Befund 17.11.: Wisch in einem Sprung (erste Bewegung schon ausserhalb des Blatts) blaettert und markiert nichts
+  const s3 = await p.locator(".h-stamp").boundingBox(), d3 = await num();
+  await p.mouse.move(s3.x + 10, s3.y + s3.height / 2); await p.mouse.down(); await p.mouse.move(1200, s3.y + s3.height / 2 + 5, { steps: 1 }); await p.mouse.up();
+  const d4 = await wait(d3, false);
+  assert.equal(d4, d0, "Sprung nach rechts blaettert einen Tag zurueck");
+  assert.equal(await p.evaluate(() => String(getSelection())), "", "Sprung-Wisch markiert keinen Text");
+  // danach: nur Ueberfahren ohne Taste und ein Klick blaettern nicht, keine haengende Geste
+  await p.mouse.move(s3.x + 20, s3.y + 10); await p.mouse.move(s3.x + 200, s3.y + 10, { steps: 8 });
   assert.equal(await p.evaluate(() => document.querySelector(".h-leaf").classList.contains("h-drag")), false, "keine haengende Geste");
   await p.mouse.down(); await p.mouse.up();
-  assert.equal(await num(), d2, "Klick nach ueberfahren blaettert nicht");
+  assert.equal(await num(), d4, "Klick nach Ueberfahren blaettert nicht");
+  await act(p, "day-next"); assert.equal(await wait(d1, true), d1);
+  // Review: Wisch innerhalb des Knopfs „Zu heute“ (Druecken und Loslassen auf dem Knopf) blaettert nur einen Tag,
+  // der Knopf loest danach keinen zusaetzlichen Klick aus
+  await act(p, "day-next"); const d2b = await wait(d1, false);
+  const zh = await p.locator('[data-act="day-today"]').boundingBox();
+  assert.ok(zh.width > 80, "Knopf breit genug fuer den Test: " + zh.width);
+  await p.mouse.move(zh.x + 4, zh.y + zh.height / 2); await p.mouse.down();
+  await p.mouse.move(zh.x + zh.width - 4, zh.y + zh.height / 2, { steps: 6 }); await p.mouse.up();
+  await p.waitForTimeout(600);
+  assert.equal(await num(), d1, "genau ein Tag zurueck (von " + d2b + "), nicht zu heute");
   // Tastatur: Blatt fokussieren, Pfeil links/rechts
   await p.locator(".h-leaf").focus(); await p.keyboard.press("ArrowLeft"); assert.equal(await wait(d0, true), d0);
   await p.locator(".h-leaf").focus(); await p.keyboard.press("ArrowRight"); assert.equal(await wait(d1, true), d1);
