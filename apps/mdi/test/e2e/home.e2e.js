@@ -37,6 +37,38 @@ test("Wischen nach links blaettert vor, nach rechts zurueck; Heute springt zurue
   await act(p, "day-next"); await act(p, "day-today"); assert.equal(await day(true), d0);
 });
 
+test("Desktop (desk1280): Maus-Ziehen ueber den Text blaettert, auch beim Loslassen ausserhalb; keine Textmarkierung; Klick und Pfeiltasten bleiben", async () => {
+  // User-Feedback 17.11.: „das swipen des kalenders mit der maus ist nicht im browser moeglich“
+  const { p, errs } = await open(b, { view: "desk1280" });
+  const leaf = p.locator(".h-leaf"); await leaf.waitFor(); await p.waitForLoadState("networkidle"); await p.waitForTimeout(500);
+  const num = () => p.locator(".h-dnum").textContent();
+  const wait = async (d, same) => { await p.waitForFunction(([x, eq]) => (document.querySelector(".h-dnum").textContent === x) === eq, [d, same], { timeout: 10000 }); return num(); };
+  const d0 = await num();
+  const t = await p.locator(".h-stamp").boundingBox();
+  // vom Titel aus nach links, losgelassen weit ausserhalb des Blatts
+  await p.mouse.move(t.x + t.width - 10, t.y + t.height / 2); await p.mouse.down();
+  await p.mouse.move(t.x - 400 < 0 ? 2 : t.x - 400, t.y + t.height / 2 + 4, { steps: 10 });
+  const mid = await p.evaluate(() => ({ drag: document.querySelector(".h-leaf").classList.contains("h-drag"), sel: String(getSelection()) }));
+  await p.mouse.move(1200, t.y + t.height / 2 + 4, { steps: 2 }); await p.mouse.move(2, t.y + 10, { steps: 2 });
+  await p.mouse.up();
+  assert.ok(mid.drag, "Blatt folgt der Maus (h-drag)"); assert.equal(mid.sel, "", "Ziehen markiert keinen Text");
+  const d1 = await wait(d0, false);
+  assert.equal(await p.evaluate(() => String(getSelection())), "", "keine Textmarkierung nach dem Loslassen");
+  // nach rechts zurueck
+  const t2 = await p.locator(".h-stamp").boundingBox();
+  await p.mouse.move(t2.x + 10, t2.y + t2.height / 2); await p.mouse.down(); await p.mouse.move(t2.x + 300, t2.y + t2.height / 2, { steps: 8 }); await p.mouse.up();
+  assert.equal(await wait(d0, true), d0);
+  // kleiner Wackler ist kein Wischen, ein Klick auf › blaettert weiter wie bisher
+  const s = await p.locator(".h-stamp").boundingBox();
+  await p.mouse.move(s.x + 40, s.y + 10); await p.mouse.down(); await p.mouse.move(s.x + 48, s.y + 12); await p.mouse.up();
+  assert.equal(await num(), d0, "8 px sind kein Wischen");
+  await act(p, "day-next"); assert.equal(await wait(d1, true), d1);
+  // Tastatur: Blatt fokussieren, Pfeil links/rechts
+  await p.locator(".h-leaf").focus(); await p.keyboard.press("ArrowLeft"); assert.equal(await wait(d0, true), d0);
+  await p.locator(".h-leaf").focus(); await p.keyboard.press("ArrowRight"); assert.equal(await wait(d1, true), d1);
+  assert.deepEqual(errs, []);
+});
+
 test("Ein Satz fuehrt zur Familie; System-Zurueck fuehrt zum Blatt", async () => {
   const { p } = await open(b, { view: "phone390" });
   await act(p, "intent-suchen"); await p.locator("#h-sentence").fill("Termin für den Spieleabend"); await p.keyboard.press("Enter");

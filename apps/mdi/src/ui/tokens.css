@@ -309,6 +309,7 @@ textarea.input { resize: vertical; }
 .h-thumb { position: relative; display: block; aspect-ratio: 16 / 9; border: 3px solid var(--ink); border-radius: 12px; overflow: hidden; box-shadow: 4px 4px 0 var(--shade); background: var(--ink); }
 .h-tile-open:not(.soon):active .h-thumb { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--shade); }
 .h-leaf-art .h-art { pointer-events: none; } /* Wischen gehoert dem Blatt, nicht dem Bild */
+.h-leaf.h-drag { translate: var(--dx, 0) 0; user-select: none; -webkit-user-select: none; cursor: grabbing; } /* Blatt folgt der Maus/dem Finger; translate statt transform, weil die Einblend-Animation transform haelt */
 .h-art { -webkit-user-drag: none; user-select: none; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .h-art-fam { overflow: hidden; }
 .h-rays { position: absolute; inset: -40%; background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,255,255,.24) 0 9deg, transparent 9deg 18deg); }

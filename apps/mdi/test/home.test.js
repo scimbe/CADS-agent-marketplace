@@ -232,6 +232,21 @@ test("Kopfzeile Start: ohne Zurueck keine leere Spalte (bar-noback), Schrift-Kno
   assert.ok(texts(deep).includes('"class":"bar"'), "mit Zurueck die normale Kopfzeile");
 });
 
+test("Kopfzeile bleibt beim Blaettern gleich: morgen und gestern ohne Zurueck-Knopf, Rueckweg ueber „Zu heute“ und BACK", () => {
+  const s = start();
+  const head = (st) => { const t = texts(st); return t.slice(t.indexOf('"tag":"header"'), t.indexOf('"tag":"main"') > 0 ? t.indexOf('"tag":"main"') : undefined); };
+  const h0 = head(s);
+  for (const d of [1, -1, 3]) {
+    const moved = go(s, { type: "DAY", d });
+    assert.notEqual(moved.ctx.home.off, 0);
+    assert.equal(head(moved), h0, "Kopfzeile identisch zu heute bei off=" + d);
+    assert.ok(texts(moved).includes('"data-act":"day-today"'), "Zu heute sichtbar");
+    assert.equal(go(moved, { type: "BACK" }).ctx.home.off, 0, "BACK fuehrt weiter zu heute");
+  }
+  const deep = go(s, { type: "HOME", to: "meins" });
+  assert.ok(texts(deep).includes('"data-act":"back"'), "Unterseiten behalten Zurueck");
+});
+
 test("Folge-PR 2: Spiel des Tages startet mit einem Ereignis OPEN {start}; Erst ueben = gegen den Computer bzw. ein Geraet; hoechstens 3 Taps bis zum Spiel", async () => {
   const { dayPrimary, practiceOf } = await import("../src/ui/home/views.js");
   const { modesOfId, manifestOf } = await import("../src/cards/index.js");
