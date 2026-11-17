@@ -224,7 +224,8 @@ function freiView(state, X, dispatch, L) {
       const r = startView(state, dispatch);
       body = r.body; panel = r.panel;
       // Freie Karte 2 (P1): erst klaeren, dann bauen – ein eigener Weg neben dem Formular, nur mit Konto und 16+
-      if (["ready", "form", "empty", "paused"].includes(r.gate)) body.unshift(h("button", { type: "button", class: "frei-row k-entry", key: "k-entry", "data-act": "klaeren", on: { click: () => dispatch({ type: "KLAEREN" }) } },
+      // nur wenn der Server den Dialog eingeschaltet hat (DUELL_KLAERUNG=on, Standard aus bis P3 live ist)
+      if (ctx.frei.kan === true && ["ready", "form", "empty", "paused"].includes(r.gate)) body.unshift(h("button", { type: "button", class: "frei-row k-entry", key: "k-entry", "data-act": "klaeren", on: { click: () => dispatch({ type: "KLAEREN" }) } },
         h("span", { class: "frei-row-t" }, KV.entryLabel(lang)), h("span", { class: "frei-row-arrow", "aria-hidden": "true" }, "→")));
       const extra = [a("mine", ft(lang, "frei_mine"), "MINE"), a("deck", ft(lang, "deck_open"), "DECK"), a("bild", ft(lang, "frei_bild"), "BILD")];
       if (r.gate === "login") primary = a("login", ft(lang, "create_login"), "LOGIN");

@@ -6,7 +6,7 @@
 //   how: login | age16 | paused | throttled | daily | crisis | refused | blocked | bad | gone | limit | conflict | unknown |
 //        off | netz | nicht-hier
 
-export const OPS = ["fragen", "antwort", "liste", "auftrag", "optin", "status", "nachbessern", "melden", "behalten"];
+export const OPS = ["an", "fragen", "antwort", "liste", "auftrag", "optin", "status", "nachbessern", "melden", "behalten"];
 
 /** Bedeutung einer Serverantwort */
 export function klaerVerdict(status, body) {

@@ -33,7 +33,7 @@ function fakeDienst(answers) {
 }
 const tick = () => new Promise((r) => setTimeout(r, 5));
 function boot(answers) {
-  const klaerung = fakeDienst(answers);
+  const klaerung = fakeDienst({ an: { how: "ok", body: { on: true } }, ...answers });
   const rt = createRuntime({ lang: "de", entropy: () => "e".repeat(32), schedule: (f) => f(), onChange: () => {}, storage: { loadKonto: () => null, saveKonto: () => true, loadFeature: () => null, saveFeature: () => true },
     klaerung, api: { loginHref: (r) => "/gate?r=" + r, status: async () => ({ ok: true, canLogin: true, account: false }), me: async () => ({ ok: false }) } });
   return { rt, klaerung, k: () => rt.state.ctx.frei.k };
@@ -100,7 +100,7 @@ test("Ablauf: Satz -> Fragen -> eigene Worte abgelehnt (Weiter gesperrt, Vorschl
   rt.dispatch({ type: "K_GO" });
   assert.ok(rt.matches("inhalt.frei.kwarten")); await tick();
   assert.ok(rt.matches("inhalt.frei.kfrage"));
-  assert.deepEqual(s.klaerung.calls[0], { op: "fragen", body: { satz: "Space Invaders mit Segelbooten", lang: "de" } });
+  assert.deepEqual(s.klaerung.calls.find((c) => c.op === "fragen"), { op: "fragen", body: { satz: "Space Invaders mit Segelbooten", lang: "de" } });
   // Frage 1: Kachel, Weiter
   assert.equal(view(rt).actions.primary.disabled, true, "nichts gewaehlt");
   rt.dispatch({ type: "K_PICK", kachel: 0 });
@@ -236,4 +236,15 @@ test("Ansichten: echte Buttons, Labels fuer jedes Feld, Mikrofon mit Namen, Text
   assert.equal(tiles.length, 3, "2 Kacheln + Egal"); assert.ok(tiles.every((t) => ["true", "false"].includes(t.props["aria-pressed"])));
   const eigen = all({ children: view(rt).body }).find((n) => n.props && n.props.id === "k-eigen-0");
   assert.equal(eigen.props.maxlength, "120");
+});
+
+test("Schalter: der Einstieg erscheint nur, wenn der Server DUELL_KLAERUNG=on meldet; aus ist der Standard", async () => {
+  for (const [an, want] of [[{ how: "ok", body: { on: false } }, false], [{ how: "netz" }, false], [{ how: "ok", body: { on: true } }, true]]) {
+    const s = boot({ an });
+    s.rt.dispatch({ type: "FREI" }); await tick();
+    assert.ok(s.klaerung.calls.some((c) => c.op === "an"), "der Client fragt den Server");
+    assert.equal(s.rt.state.ctx.frei.kan, want);
+    s.rt.dispatch({ type: "KLAEREN" });
+    assert.equal(s.rt.matches("inhalt.frei.klaeren"), want, JSON.stringify(an));
+  }
 });

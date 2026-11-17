@@ -78,12 +78,13 @@ const LISTE = { titel: "Segelboot gegen Piraten", verstehe: "Ein Spiel mit Wasse
   nicht: ["Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."], dauerMaxMin: 15, kosten: { guthaben: 1, nurBeiErfolg: true } };
 /** Attrappe des Servers; nachbessern zaehlt hier wie dort (der Client zaehlt nie) */
 async function fakeKlaerung(ctx) {
-  const S = { log: [], left: 3, gemeldet: false };
+  const S = { log: [], left: 3, gemeldet: false, an: true };
   const json = (status, body) => ({ status, contentType: "application/json; charset=utf-8", body: JSON.stringify(body) });
   const status = () => ({ titel: LISTE.titel, nachbessernLeft: S.left, gemeldet: S.gemeldet, behalten: false, ergebnis: { titel: LISTE.titel, fehlt: 1, punkte: LISTE.punkte.map((p, i) => ({ id: p.id, text: p.text, erfuellt: i !== 3, notiz: i === 3 ? "bleibt gleich schnell" : "" })) } });
   await ctx.route(APP + "/api/duell/klaerung/**", async (r) => {
     const op = new URL(r.request().url()).pathname.split("/").pop(); let b = {}; try { b = r.request().postDataJSON() || {}; } catch (e) { b = {}; }
     S.log.push(op + " " + JSON.stringify(b));
+    if (op === "an") return r.fulfill(json(200, { on: S.an }));
     if (op === "fragen") return r.fulfill(json(200, FRAGEN));
     if (op === "antwort") return r.fulfill(/Raketen/.test(b.text) ? json(422, { error: "refused", reason: "weapons", vorschlaege: [0, 2] }) : json(200, { ok: true, text: b.text }));
     if (op === "liste") return r.fulfill(json(200, LISTE));

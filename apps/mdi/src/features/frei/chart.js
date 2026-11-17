@@ -74,8 +74,10 @@ export const freiState = {
   on: { SETTLE_FAIL: { actions: ["settleFail"] } },
   states: {
     start: {
-      entry: ["freiRefresh"],
+      entry: ["freiRefresh", "kAnFx"],
       on: {
+        // Freie Karte 2: ob der Klaerungsdialog an ist, sagt der Server (DUELL_KLAERUNG); erst dann erscheint der Einstieg
+        K_R: { cond: "kAnR", actions: ["kTakeAn"] },
         ART: { actions: ["setArt"] },
         GENRE: { actions: ["setGenre"] },
         PLAYMODE: { cond: "modeOk", actions: ["setPlayMode"] },
@@ -91,7 +93,7 @@ export const freiState = {
         DECK: { target: T("inhalt.frei.deck") },
         BILD: { target: T("inhalt.frei.bild") },
         // Freie Karte 2: erst klaeren, dann bauen (P1, ./klaeren.js)
-        KLAEREN: { target: T("inhalt.frei.klaeren"), actions: ["kStart"] },
+        KLAEREN: { target: T("inhalt.frei.klaeren"), cond: "kAn", actions: ["kStart"] },
         // Profil eben mit 16+ angelegt (erste Anmeldung aus der freien Karte): den Stand neu fragen, sonst stuende "ab 16" da
         PROFIL: { cond: "profilCreated", actions: ["freiRefresh"] },
         BACK: { target: T("inhalt.shelf"), actions: ["clearForm"] }
@@ -462,7 +464,7 @@ export function freiContext(saved) {
       deck: { load: null, cards: [], v: -1 }, card: null, use: null, vote: null, acted: false, mine: null,
       report: { reason: null, sending: false, sent: null, back: null, doc: null },
       bild: { use: "card", style: "comic", text: "", st: null, err: null, req: 0, phase: null, place: 0, res: null, kept: false },
-      ki: { part: null, field: null, fields: [], opts: [], res: null, req: 0 }, k: freshK() }
+      ki: { part: null, field: null, fields: [], opts: [], res: null, req: 0 }, k: freshK(), kan: null }
   };
 }
 

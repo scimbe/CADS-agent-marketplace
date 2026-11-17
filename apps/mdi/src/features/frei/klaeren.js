@@ -151,6 +151,8 @@ export const klaerenGuards = {
   kMeldenOk: (ctx) => { const f = k(ctx).fertig; return !!f && f.fehlt > 0 && f.left === 0 && !f.behalten; },
   kMeldenSend: (ctx) => { const f = k(ctx).fertig; return !!f && !f.gemeldet && !k(ctx).busy && [...K.line(k(ctx).meldText)].length <= K.MELDUNG_MAX; },
   kBehaltenOk: (ctx) => { const f = k(ctx).fertig; return !!f && !f.behalten && !k(ctx).busy; },
+  kAnR: (ctx, ev) => ev.op === "an",
+  kAn: (ctx) => ctx.frei.kan === true,
   kFertigOk: (ctx, ev) => typeof ev.auftrag === "string" && /^[A-Za-z0-9_-]{22}$/.test(ev.auftrag)
 };
 
@@ -163,6 +165,9 @@ const errOf = (r) => (r && r.how && r.how !== "ok" ? { how: r.how, reason: r.rea
 
 export const klaerenActions = {
   kClear: (ctx) => KF(ctx, freshK()),
+  // der Schalter des Servers (POST /api/duell/klaerung/an); ohne klare Antwort bleibt der Einstieg weg (aus ist der Standard)
+  kAnFx: (ctx, ev, emit) => { emit({ type: "frei.k", op: "an", req: 0, body: {} }); return ctx; },
+  kTakeAn: (ctx, ev) => ({ ...ctx, frei: { ...ctx.frei, kan: !!ev.r && ev.r.how === "ok" && !!ev.r.body && ev.r.body.on === true } }),
   kStart: (ctx) => KF(ctx, { ...freshK(), satz: cut(ctx.frei.text, K.SATZ_MAX) }),   // ein schon getippter Satz der freien Karte kommt mit
   kSatz: (ctx, ev) => KF(ctx, { satz: cut(ev.value, K.SATZ_MAX), err: null }),
   kMic: (ctx, ev) => KF(ctx, { mic: ["hoert", "nein", "fehler"].includes(ev.st) ? ev.st : null }),
