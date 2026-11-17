@@ -46,7 +46,10 @@ export const chart = {
         partfail: { on: { RETRY: { target: T("inhalt.shelf"), actions: ["retryPart"] }, BACK: { target: T("inhalt.shelf"), actions: ["clearPartFail"] }, DONE: { target: T("inhalt.shelf"), actions: ["clearPartFail"] } } },
         // OPEN {id, variant?, mode?, start?}: ein Ereignis, atomar. start:true fuehrt direkt ins Spiel (raise GO, wenn der
         // Modus zur Karte passt); ein fremder Modus bleibt ehrlich in card.view mit Hinweis, ohne Ersatzwahl (Board Bote1, H)
-        shelf: { on: { OPEN: { target: T("inhalt.card"), cond: "cardExists", actions: ["openCard"], raise: openStart }, STIL: T("inhalt.stil") } },
+        shelf: { on: { OPEN: { target: T("inhalt.card"), cond: "cardExists", actions: ["openCard"], raise: openStart }, STIL: T("inhalt.stil"), DEMO_INFO: T("inhalt.demoinfo") } },
+        // „Ueber diese Demo“: eigener Bildschirm, betreten ueber ?go=demo (der Hinweis oeffnet ihn in einem neuen Tab, damit
+        // eine laufende Partie oder ein empfangener Link hier nicht verloren geht)
+        demoinfo: { on: { BACK: T("inhalt.shelf"), DONE: T("inhalt.shelf") } },
         stil: stilState,
         card: {
           initial: "view",

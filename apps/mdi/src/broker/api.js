@@ -30,6 +30,14 @@ function topf(m) {
   if (!isObj(m) || int(m.remaining) === null || int(m.size) === null || typeof m.period !== "string") return null;
   return { enabled: m.enabled !== false, remaining: m.remaining, size: m.size, period: m.period, resetAt: typeof m.resetAt === "string" ? m.resetAt : null };
 }
+/** Kontaktangabe des Servers -> {kind:"mail"|"web", value} | null (keine) | false (ungueltig). */
+export function contactOf(c) {
+  if (c === undefined || c === null) return null;
+  if (typeof c !== "string" || c.length > 200) return false;
+  if (/^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(\.[A-Za-z0-9-]{1,63})*\.[A-Za-z]{2,24}$/.test(c)) return { kind: "mail", value: c };
+  if (/^https:\/\/[A-Za-z0-9.-]+(:\d{1,5})?(\/[\x21-\x7e]*)?$/.test(c) && !/["'<>\\`]/.test(c)) return { kind: "web", value: c };
+  return false;
+}
 /** Allgemeine Fehlerabbildung nach HTTP-Status und Fehlercode des Servers. */
 function common(status, body) {
   const e = isObj(body) ? body.error : null;
@@ -130,11 +138,15 @@ export function createApi(deps) {
       if (!k) return fail("server", 200);
       karte = { ...k, credit: int(c.credit) || 0, voucher: c.voucher === true, age16: c.age16 === true, age18: c.age18 === true, paused: c.paused === true, off: c.off === true, refundsLeft: int(c.refundsLeft) || 0 };   // refundsLeft: Strang K, additiv
     }
-    if (!native) return { ok: true, account: m.account, canLogin: m.canLogin, ki, karte };
+    // Kontakt fuer „Ueber diese Demo“ (Server-Env des Wrappers, z. B. MDI_CONTACT): fehlt/null = noch keine Adresse.
+    // Erlaubt sind eine Mail-Adresse oder eine https-Adresse; alles andere ist eine kaputte Antwort, kein stiller Ersatz.
+    const contact = contactOf(r.body.contact);
+    if (contact === false) return fail("server", 200);
+    if (!native) return { ok: true, account: m.account, canLogin: m.canLogin, ki, karte, contact };
     // App: Anmelden geht, wenn der Server Bearer annimmt (app_login) UND die Huelle angemeldet werden kann
     const s = await native.call({ op: "state" }), me0 = await me();
     const appLogin = !!(s && s.ok === true && s.available === true && me0.ok && me0.appLogin);
-    return { ok: true, account: m.account, canLogin: m.canLogin && appLogin, ki, karte, app: true };
+    return { ok: true, account: m.account, canLogin: m.canLogin && appLogin, ki, karte, contact, app: true };
   }
 
   /** GET /auth/me -> { ok, authenticated, logoutUrl } ; logoutUrl aus der Gate-Adresse des Servers abgeleitet (gleiche Herkunft wie login_url). */
