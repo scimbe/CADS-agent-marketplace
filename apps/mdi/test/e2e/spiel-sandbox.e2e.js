@@ -125,12 +125,20 @@ test("Haertung im echten Worker: Iterator-Prototypen, Date, RegExp, typisierte A
   assert.equal(r.error, null);
 });
 
-test("Speicher-Wachstum in einer Schleife: Heap-Grenze, Absturz wird als \"absturz\" gemeldet; der Runner prueft danach weiter", async () => {
+// Zwei unabhaengige Abbrueche laufen hier um die Wette: die Heap-Grenze (Renderer stuerzt ab -> "absturz") und das
+// Ladefenster des Rahmens (Worker wird beendet -> "watchdog"). Wer zuerst greift, haengt nur davon ab, wie schnell die
+// Maschine Speicher anlegt (macOS: Absturz, Linux-Labor: Fenster). Fachlich verlangt ist: das Spiel wird beendet, mit
+// Grund, ohne die Frist abzuwarten, und der Runner prueft danach weiter. Beide Wege erfuellen das; eine Schwelle, die
+// einen Weg erzwingt, waere geraten. Die Erkennung des Absturzes selbst ist ueber die Meldung abgesichert, wenn er eintritt.
+test("Speicher-Wachstum in einer Schleife: das Spiel wird beendet (Absturz an der Heap-Grenze oder Fenster), der Runner prueft danach weiter", async (t) => {
   const t0 = Date.now();
   const r = await runGame(b, built, { name: "bombe-wachstum", code: src(NEG, "bombe-wachstum"), seed: "neg", seconds: 10 });
+  t.diagnostic("bombe-wachstum: " + JSON.stringify(r.error) + " nach " + (Date.now() - t0) + " ms");
   assert.equal(r.ok, false);
-  assert.equal(r.error.code, "absturz", JSON.stringify(r.error));
-  assert.ok(Date.now() - t0 < 30000, "Absturz sofort erkannt, nicht erst nach der Frist");
+  assert.ok(["absturz", "watchdog"].includes(r.error.code), JSON.stringify(r.error));
+  if (r.error.code === "absturz") assert.match(r.error.message, /Heap-Grenze von \d+ MB/);
+  else assert.match(r.error.message, /antwortet nicht seit/, "Fenster, nicht die Gesamtfrist");
+  assert.ok(Date.now() - t0 < 30000, "beendet ohne die Gesamtfrist abzuwarten");
   const ok = await runGame(b, built, { name: "snake", code: src(BEISPIELE, "snake"), seed: "e2e", seconds: 60 });
   assert.equal(ok.ok, true, "naechstes Spiel laeuft normal");
 });
