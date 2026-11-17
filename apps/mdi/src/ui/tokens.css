@@ -582,3 +582,64 @@ textarea.input { resize: vertical; }
   /* Karten selbst (Buehne, Werk auf der Wand) sind gestaltete Gegenstaende: ihre Tinte bleibt dunkel wie bisher */
   .stage, .h-work-pic { --ink: #17140F; --sheet: #FFFDF5; --paper: #FBF5DD; --gelb-hell: #FFF0A8; --pmuted: #5C5444; --rot: #B3321F; --shade: #17140F; }
 }
+
+/* Freie Karte 2, Klaerungsdialog (P1, src/features/frei/klaeren-view.js): Design-Canvas "Freie Karte 2 – Klaerungsdialog".
+   Creme/Tinte/Sonne/Ziegel, harte Schatten, Radien 16/22, Touch-Ziele >= 48 px, Anton fuer Ueberschriften.
+   Zustand steht nur im DOM-Attribut (aria-pressed, disabled, aria-invalid), nie in CSS-Klassen ausser dem Blattnamen. */
+.k-h { margin: 0; font: 400 1.875rem/1.02 var(--font-head); text-transform: uppercase; color: var(--text); }
+.k-lede { margin: 0; font-weight: 600; color: var(--muted); }
+.k-step { margin: 0; font-weight: 800; font-size: .875rem; }
+.k-label { margin: 0; font-size: .875rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.k-field { display: grid; gap: 6px; }
+.k-field label { font-weight: 700; }
+.k-row { display: flex; gap: var(--s2); align-items: stretch; }
+.k-input { flex: 1; min-width: 0; min-height: 52px; padding: 12px 14px; border: 3px solid var(--text); border-radius: 16px; background: var(--surface); color: var(--text); font: 600 1rem/1.3 var(--font-body); }
+textarea.k-input { resize: none; }
+.k-input[aria-invalid="true"] { border-color: var(--rot); }
+.k-input.on { background: var(--yellow); color: var(--ink-fix); box-shadow: 4px 4px 0 var(--shade); }
+.k-mic { flex: none; width: 52px; min-height: 52px; display: grid; place-items: center; border: 3px solid var(--text); border-radius: 16px; background: var(--surface); color: var(--text); cursor: pointer; }
+.k-chips { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.k-chip { min-height: var(--tap); padding: 0 14px; border: 2px solid var(--muted); border-radius: var(--r3); background: var(--surface); color: var(--text); font-weight: 700; cursor: pointer; }
+.k-note, .k-ehrlich { margin: 0; padding: 12px 14px; border: 2px solid var(--text); border-radius: 16px; background: var(--gelb-hell); color: var(--text); font-weight: 500; }
+.k-verstehe { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--s2); padding: 10px 12px; border: 2px solid var(--text); border-radius: 16px; background: var(--surface); }
+.k-verstehe p { margin: 0; flex: 1 1 14rem; }
+.k-link { min-height: var(--tap); padding: 0 var(--s2); border: 0; background: none; color: var(--rot); font-weight: 700; text-decoration: underline; cursor: pointer; }
+.k-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); }
+.k-tile { min-height: 128px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: var(--s2); border: 3px solid var(--text); border-radius: 22px; background: var(--surface); color: var(--text); box-shadow: 4px 4px 0 var(--shade); font: 800 1.0625rem/1.2 var(--font-body); text-align: center; cursor: pointer; }
+.k-tile[aria-pressed="true"] { background: var(--yellow); color: var(--ink-fix); box-shadow: 6px 6px 0 var(--shade); }
+.k-tile.k-egal { border-style: dashed; background: var(--bg); box-shadow: none; }
+.k-tile.k-egal[aria-pressed="true"] { background: var(--yellow); color: var(--ink-fix); }
+.k-emoji { font-size: 2.75rem; line-height: 1; }
+.k-tile-s { font-size: .8125rem; font-weight: 500; }
+.k-absage { display: grid; gap: var(--s2); padding: 14px; border: 3px solid var(--text); border-radius: 16px; background: var(--gelb-hell); color: var(--text); }
+.k-absage p { margin: 0; }
+.k-vor { display: grid; gap: 10px; }
+.k-vor-b { min-height: 56px; padding: 0 16px; border: 3px solid var(--text); border-radius: 16px; background: var(--surface); color: var(--text); box-shadow: 4px 4px 0 var(--shade); font-weight: 800; text-align: left; cursor: pointer; }
+.k-ok { margin: 0; color: #1e5631; font-weight: 700; }
+.k-bisher { padding: 12px 14px; border: 2px solid var(--text); border-radius: 16px; background: var(--surface); }
+.k-bisher p { margin: 0; }
+.k-titel { margin: 0; font: 400 1.375rem/1.1 var(--font-head); }
+.k-haken, .k-steps, .k-result { list-style: none; margin: 0; padding: 14px; display: grid; gap: 12px; border: 3px solid var(--text); border-radius: 22px; background: var(--surface); box-shadow: 5px 5px 0 var(--shade); }
+.k-haken li { display: flex; gap: 10px; align-items: flex-start; font-weight: 600; }
+.k-haken .k-ico { flex: none; color: #1e5631; margin-top: 1px; }
+.k-pruef { display: block; margin-top: 2px; font-size: .8125rem; font-weight: 500; color: var(--muted); }
+.k-kosten { margin: 0; font-weight: 600; color: var(--muted); }
+.k-steps li { display: flex; gap: 12px; align-items: center; font-weight: 700; }
+.k-dot { flex: none; width: 32px; height: 32px; display: grid; place-items: center; border: 3px solid var(--muted); border-radius: 50%; }
+.k-steps li.done .k-dot { border-color: #1e5631; background: #1e5631; color: #fff; }
+.k-s-t { flex: 1; }
+.k-s-st { font-size: .8125rem; }
+.k-optin { display: grid; gap: 4px; margin: 0; padding: 12px 14px; border: 2px solid var(--text); border-radius: 16px; background: var(--surface); }
+.k-optin legend { padding: 0 6px; font-size: .875rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.k-check { min-height: var(--tap); display: flex; align-items: center; gap: 12px; font-weight: 600; }
+.k-check input { width: 24px; height: 24px; margin: 0; accent-color: var(--ink); }
+.k-result { box-shadow: none; border-width: 2px; border-radius: 16px; gap: 8px; }
+.k-result li { display: flex; gap: 8px; font-weight: 600; }
+.k-yes, .k-no { flex: none; font-weight: 800; }
+.k-yes { color: #1e5631; } .k-no { color: var(--rot); }
+.btn.primary.k-go { min-height: var(--btn-main); width: 100%; border: 0; border-radius: 6px; background: var(--ink-fix); color: var(--gelb); font: 400 1.875rem/1.05 var(--font-head); letter-spacing: .02em; box-shadow: 0 6px 0 var(--signal); }
+.btn.primary.k-go:disabled { background: #c9c0a3; color: var(--ink-fix); box-shadow: none; cursor: default; }
+.s-frei-kfertig .btn:disabled, .s-frei-kmelden .btn:disabled { cursor: default; opacity: .6; }
+.btn .btn-t, .btn .btn-sub { display: block; }
+.btn .btn-sub { font-size: .8125rem; font-weight: 600; text-transform: none; letter-spacing: 0; }
+@media (prefers-color-scheme: dark) { .k-ok, .k-yes, .k-haken .k-ico { color: #7fd99a; } .k-steps li.done .k-dot { background: #2f7a47; border-color: #7fd99a; } }

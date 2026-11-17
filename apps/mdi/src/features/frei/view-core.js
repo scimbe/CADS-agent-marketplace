@@ -12,9 +12,10 @@ import { cardOf, cardIdOf, modelFields } from "./chart.js";
 import { manifestOf } from "../../cards/index.js";
 import { crisis } from "../../broker/ai.js";
 import { partOf } from "../../gen/fparts.js";
+import * as K from "./klaerung.js";
 
 const plainTitle = (s) => String(s || "").replace(/-\|(\p{Ll})/gu, "$1").replace(/-\|/g, "-").replace(/\|/g, " ").trim();
-const DEPS = { h, matches: (s, p) => machine.matches(s, p), render, rng, cardOf, cardIdOf, modelFields, manifestOf, crisis, ARTS, GENRES, MODES, previewOf, targetOf, targetIdOf, freiParams };
+const DEPS = { h, matches: (s, p) => machine.matches(s, p), render, rng, cardOf, cardIdOf, modelFields, manifestOf, crisis, ARTS, GENRES, MODES, previewOf, targetOf, targetIdOf, freiParams, K };
 let made = null;
 /** Die Ansichten des Teils "frei-ui" oder null, solange er nicht geladen ist */
 export function freiUi() {
