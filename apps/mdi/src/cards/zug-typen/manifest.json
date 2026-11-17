@@ -53,6 +53,16 @@
           "klassenfahrt",
           "teamtyp"
         ],
+        "x-names": {
+          "klassenfahrt": {
+            "de": "Klassenfahrt: Wer bist du?",
+            "en": "Klassenfahrt: Wer bist du?"
+          },
+          "teamtyp": {
+            "de": "Welcher Team-Typ bist du?",
+            "en": "Welcher Team-Typ bist du?"
+          }
+        },
         "default": "klassenfahrt",
         "x-field": "choice",
         "x-label": {

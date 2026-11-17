@@ -54,11 +54,11 @@ const m = {
   // Animation und Fotos kommen zurueck, sobald H sie rendert (Nachricht an strang-h, PR #243 offen)
   // Blasen nach Gate C (Reihe Dach-Lauf, gleiches Muster wie Lava-Flug); Fotos und Animation folgen mit dem Editor (H/P)
   parts: [
-    { id: "figur", params: ["e", "f", "fp"], label: Lb("Figur", "Runner") },
-    { id: "welt", params: ["w", "o", "c"], label: Lb("Welt", "World") },
-    { id: "foto", params: ["figur", "hintergrund"], label: Lb("Eigenes Foto", "Own photo") },
-    { id: "level", params: ["m", "len", "v", "a", "vm", "g", "j", "lu", "lw", "hi", "du", "mu", "ge", "fa", "hv", "seed"], label: Lb("Level", "Level") },
-    { id: "text", params: ["t", "col"], label: Lb("Text", "Text") }
+    { id: "figur", params: ["e", "f", "fp"], label: Lb("Figur", "Runner"), at: [0.35, 0.6] },
+    { id: "welt", params: ["w", "o", "c"], label: Lb("Welt", "World"), at: [0.7, 0.15] },
+    { id: "foto", params: ["figur", "hintergrund"], label: Lb("Eigenes Foto", "Own photo"), at: [0.2, 0.3] },
+    { id: "level", params: ["m", "len", "v", "a", "vm", "g", "j", "lu", "lw", "hi", "du", "mu", "ge", "fa", "hv", "seed"], label: Lb("Level", "Level"), at: [0.6, 0.78] },
+    { id: "text", params: ["t", "col"], label: Lb("Text", "Text"), at: [0.5, 0.06] }
   ]
 };
 // nur die Vokabeln, die der Generator kennt (x-field, x-label, x-model, x-pairs, x-steps, x-hidden; ADR 0001, F @ 15338b5)
@@ -66,4 +66,6 @@ const { FIELD_VOCAB } = await import(root + "/scripts/gen.js");
 const strip = (o) => { if (Array.isArray(o)) return o.map(strip); if (o && typeof o === "object") { const r = {}; for (const [k, v] of Object.entries(o)) if (!/^x-/.test(k) || FIELD_VOCAB.includes(k)) r[k] = strip(v); return r; } return o; };
 m.thumb = { src: "shot", file: "thumb.webp", alt: m.title };   // scripts/thumbs.js (F) erzeugt die Datei
 m.params = strip(m.params);
+// Strecke (seed) ist eine ID: im Editor gewuerfelt statt als Zahl getippt
+if (m.params.properties.seed) m.params.properties.seed["x-dice"] = true;
 process.stdout.write(JSON.stringify(m, null, 1) + "\n");

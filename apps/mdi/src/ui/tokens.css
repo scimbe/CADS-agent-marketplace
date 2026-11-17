@@ -147,15 +147,46 @@ button, input, textarea { font: inherit; color: inherit; }
   .fit-card .stage { max-width: min(520px, calc((100cqh - 6px) * var(--ar, .75))); }
 }
 
-/* Blasen und Dialog */
-.bubbles { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; }
-/* Blasen nach Design-System (.blase, Canvas v52): Pille >= 44 px, Gelb, Rahmen 3, Schatten 0 3; offen = invertiert mit gelbem Hof */
-.bubble { position: absolute; min-height: 44px; padding: 0 12px; border: 3px solid #17140F; border-radius: 999px; background: #F9D84A; color: #17140F; font: 700 var(--t-s)/1 var(--font-body); white-space: nowrap; cursor: pointer; box-shadow: 0 3px 0 #17140F; }
-.bubble[aria-expanded="true"] { background: #17140F; color: #F9D84A; box-shadow: 0 0 0 4px #F9D84A; }
-.stage.editing { margin-top: 40px; margin-bottom: 36px; }
-.bubble::before { content: "✎ "; }
-.bubble-row { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s2); }
-.bubble.inflow { position: static; }
+/* Blasen und Dialog – Muster „Anpassen mit Bubbles“ (Canvas 10.11.): runde Blase mit Symbol und Namen, Faden zum Teil,
+   Gelb = direkt einstellen, Rot = KI, offen = dunkel. Die Ebene deckt die Buehne (Lage in main.js, kein Zustand). */
+.bubbles { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 6; pointer-events: none; }
+.threads { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.threads .th-a { fill: none; stroke: #17140F; stroke-width: 5; stroke-linecap: round; }
+.threads .th-b { fill: none; stroke: #FFFFFF; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 1 6; }
+.threads .th-dot { fill: #FFFFFF; stroke: #17140F; stroke-width: 2.5; }
+.bubble { position: absolute; left: 0; top: 0; width: var(--bs, 72px); height: var(--bs, 72px); padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 3px solid #17140F; border-radius: 50%; background: #FFE680; color: #17140F; box-shadow: 0 4px 0 #17140F; font: 800 max(12px, .75rem)/1.05 var(--font-body);
+  cursor: grab; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+.bubble .b-icon { width: calc(var(--bs, 72px) / 3); height: calc(var(--bs, 72px) / 3); fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.bubble .b-label { max-width: calc(var(--bs, 72px) - 10px); font-size: max(12px, .75rem); text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.bubble.ki { background: #B3321F; color: #FFFFFF; }
+.bubble.sig { background: #FBF5DD; }
+.bubble[aria-expanded="true"] { background: #3A352B; color: #FFFFFF; }
+.bubble-tools { display: flex; justify-content: flex-end; }
+.bubble-toggle { display: inline-flex; align-items: center; gap: var(--s2); min-height: var(--tap); min-width: var(--tap); padding: 0 var(--s3); border: 2px solid var(--text); border-radius: var(--r3); background: var(--surface); color: var(--text); font-weight: 700; cursor: pointer; }
+.bubble-toggle .bt-icon { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.bubble-toggle .bt-strike { stroke-width: 2.6; }
+.stage.editing { margin-top: var(--s2); margin-bottom: var(--s2); }
+.stage.editing [data-part] { cursor: pointer; }
+.magic-rows { display: grid; gap: var(--s2); }
+.magic-fill { display: flex; justify-content: space-between; align-items: center; gap: var(--s2); text-align: left; }
+/* Farbfelder (swatch.js): Kreis >= 48 px in der Farbe, Auswahl = Rahmen + Haekchen, belegt = durchgestrichen */
+.sw-row { display: flex; flex-wrap: wrap; gap: var(--s3); }
+.sw-opt { position: relative; width: 52px; height: 52px; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }
+.sw-dot { position: absolute; inset: 2px; border-radius: 50%; border: 2px solid var(--text); }
+.sw-opt[aria-checked="true"] .sw-dot { inset: 5px; box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--text); }
+.sw-mark { position: absolute; right: -4px; bottom: -4px; width: 24px; height: 24px; }
+.sw-mark circle { fill: #FFFFFF; stroke: #17140F; stroke-width: 2; }
+.sw-mark path { fill: none; stroke: #17140F; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.sw-taken { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sw-taken path { stroke: var(--text); stroke-width: 4; stroke-linecap: round; }
+.sw-opt:disabled { cursor: not-allowed; }
+.sw-opt:disabled .sw-dot { opacity: .5; }
+/* Zahlen als Menge: Ziffer und Punkte */
+.seg-opt.num { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: var(--tap); min-height: 56px; padding: 4px var(--s2); gap: 2px; }
+.pip-n { font-weight: 800; }
+.pips { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; max-width: 40px; }
+.pips i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 .stage.editing .frame, .stage.editing .stack { outline: 3px dashed var(--muted); outline-offset: 6px; }
 .layer { position: fixed; inset: 0; z-index: 20; display: grid; align-items: end; justify-items: center; }
 @media (min-width: 900px) { .layer { align-items: center; } }
@@ -201,7 +232,7 @@ textarea.input { resize: vertical; }
 .mod-item p { margin: 0; }
 .liveframe { position: fixed; left: 0; top: 0; width: 1px; height: 1px; border: 0; opacity: 0; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
-@media (forced-colors: active) { .btn, .opt, .seg-opt, .bubble, .tile { border: 2px solid ButtonText; } }
+@media (forced-colors: active) { .btn, .opt, .seg-opt, .bubble, .tile { border: 2px solid ButtonText; } .sw-dot { forced-color-adjust: none; } }
 
 /* ================= Heimseite (Strang H): Abreisskalender, Absichten, Regal, Meins ================= */
 .bar { background: var(--gelb); color: var(--ink); border-bottom: 3px solid var(--ink); }

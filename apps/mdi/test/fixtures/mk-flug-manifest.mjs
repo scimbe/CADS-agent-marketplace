@@ -62,11 +62,11 @@ const m = {
   // Blasen nach Gate C (Reihe Lava-Flug): Vogel, Lava (Welt), Level (Regler mit benannten Stufen), Gemuetlich, Text.
   // "Eigenes Foto" (media.local, broker/media.js); Look/Route/Animation (Objekt-Felder) folgen mit dem Editor (H/P).
   parts: [
-    { id: "vogel", params: ["emoji"], label: L("Vogel", "Bird") },
-    { id: "lava", params: ["theme"], label: L("Lava", "Lava") },
-    { id: "foto", params: ["figur", "hintergrund"], label: L("Eigenes Foto", "Own photo") },
-    { id: "level", params: ["gravity", "jump", "gap", "speed", "seed"], label: L("Level", "Level") },
-    { id: "text", params: ["title", "t", "col"], label: L("Text", "Text") }
+    { id: "vogel", params: ["emoji"], label: L("Vogel", "Bird"), at: [0.3, 0.53] },
+    { id: "lava", params: ["theme"], label: L("Lava", "Lava"), at: [0.5, 0.93] },
+    { id: "foto", params: ["figur", "hintergrund"], label: L("Eigenes Foto", "Own photo"), at: [0.25, 0.25] },
+    { id: "level", params: ["gravity", "jump", "gap", "speed", "seed"], label: L("Level", "Level"), at: [0.8, 0.3] },
+    { id: "text", params: ["title", "t", "col"], label: L("Text", "Text"), at: [0.5, 0.1] }
   ],
   variants: V.VARIANTS.map((v) => ({ id: v.id, title: { de: V.plainTitle(v.de.t), en: V.plainTitle(v.en.t) }, teaser: { de: v.de.s, en: v.en.s }, ...(chipOk && CHIPS[v.id] ? { chip: CHIPS[v.id] } : {}), legacy: [v.id], thumb: { src: "shot", file: "thumb-" + v.id + ".webp", alt: { de: V.plainTitle(v.de.t), en: V.plainTitle(v.en.t) } }, modes: v.kind === "duel" ? ["alone"] : ["alone", "bot", "ghost"],
     tags: [...new Set(v.tags.map((t) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")).filter((t) => /^[a-z0-9-]{1,24}$/.test(t)))].slice(0, 8), params: Object.assign({}, props && {}, Object.fromEntries(Object.entries(props).map(([k, p]) => [k, p.default])), V.variantParams(v.id, "de", { nick: "", emoji: "🦊" })) }))
@@ -76,4 +76,6 @@ const { FIELD_VOCAB } = await import(root + "/scripts/gen.js");
 const strip = (o) => { if (Array.isArray(o)) return o.map(strip); if (o && typeof o === "object") { const r = {}; for (const [k, v] of Object.entries(o)) if (!/^x-/.test(k) || FIELD_VOCAB.includes(k)) r[k] = strip(v); return r; } return o; };
 m.thumb = { src: "shot", file: "thumb.webp", alt: m.title };   // scripts/thumbs.js (F) erzeugt die Dateien
 m.params = strip(m.params);
+// Strecke (seed) ist eine ID: im Editor gewuerfelt statt als Zahl getippt
+if (m.params.properties.seed) m.params.properties.seed["x-dice"] = true;
 process.stdout.write(JSON.stringify(m, null, 1) + "\n");

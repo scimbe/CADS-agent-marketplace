@@ -120,26 +120,33 @@ export const SMOOTH = {
   elfer: [{ msg: "p", fields: ["x", "v"], vmax: 950, lo: [240], hi: [760] }],
   panzer: [{ msg: "p", fields: ["vx", "vy"], vmax: 1000000, lo: [-1350, -1350], hi: [1350, 1350] }]
 };
+// Editor (Fix 17.11.): kuratierte Farbfelder statt 30 Hex-Werten – die zwei Farben des Spiels und die Kartenfarben des
+// Design-Systems (pair1–pair8); enum bleibt fuer alte Links. Die Gegnerfarbe ist nie die eigene (x-differs).
+const PALETTE = ["#ffd400", "#ff3b1d", "#ff6a1f", "#ff4fa3", "#7a1fff", "#2b4bff", "#7ee0ff", "#c8ff00", "#ffffff"];
+// Ort der Teile auf der Vorschau (Blasen-Faden), Bruchteile der Spielflaeche: eigene Figur bzw. Schlaeger, Ball, Anzeige oben
+const AT = { elfer: [[0.47, 0.69], [0.47, 0.64]], flipper: [[0.47, 0.74], [0.39, 0.18]], kick: [[0.47, 0.62], [0.47, 0.58]], murmel: [[0.32, 0.54], [0.47, 0.63]],
+  panzer: [[0.15, 0.8], [0.75, 0.37]], puck: [[0.47, 0.79], [0.47, 0.66]], snow: [[0.15, 0.72], [0.55, 0.92]], stock: [[0.5, 0.5], [0.52, 0.7]],
+  volley: [[0.26, 0.85], [0.3, 0.67]], ziegel: [[0.52, 0.87], [0.48, 0.2]] };
 /** Parameter jeder Arcade-Karte: Farben, Figur, Texte, Punkte zum Sieg (wie alt frei.js) und eigenes Foto. */
 export function paramsOf(g, rules) {
-  const m = META[g], props = {
-    colA: { type: "string", enum: COLORS, default: m.a, "x-field": "color", "x-label": L("Deine Farbe", "Your colour") },
-    colB: { type: "string", enum: COLORS, default: m.b, "x-field": "color", "x-label": L("Farbe des Gegners", "Opponent's colour") },
+  const m = META[g], pal = [...new Set([m.a, m.b, ...PALETTE])], props = {
+    colA: { type: "string", enum: COLORS, "x-palette": pal, "x-differs": "colB", default: m.a, "x-field": "color", "x-label": L("Deine Farbe", "Your colour") },
+    colB: { type: "string", enum: COLORS, "x-palette": pal, "x-differs": "colA", default: m.b, "x-field": "color", "x-label": L("Farbe des Gegners", "Opponent's colour") },
     emoji: { type: "string", enum: ["", ...EMOJI], default: "", "x-field": "choice", "x-label": L("Figur", "Figure") },
     title: { type: "string", maxLength: 34, pattern: "^[^\\u0000-\\u001f\\u007f<>]*$", default: "", "x-field": "text", "x-model": true, "x-label": L("Titel", "Title") },
     sub: { type: "string", maxLength: 60, pattern: "^[^\\u0000-\\u001f\\u007f<>]*$", default: "", "x-field": "text", "x-model": true, "x-label": L("Untertitel", "Subtitle") },
     photo: { type: ["string", "null"], maxLength: 200, default: null, "x-field": "media.local", "x-label": L("Eigenes Foto (bleibt auf dem Gerät)", "Your photo (stays on this device)") },
-    photoUse: { type: "string", enum: ["off", "figure", "bg"], default: "off", "x-field": "choice", "x-label": L("Foto als", "Use photo as") }
+    photoUse: { type: "string", enum: ["off", "figure", "bg"], "x-names": { off: L("Kein Foto", "No photo"), figure: L("🙂 Als Figur", "🙂 As figure"), bg: L("🖼️ Als Hintergrund", "🖼️ As background") }, default: "off", "x-field": "choice", "x-label": L("Foto als", "Use photo as") }
   };
-  if (g !== "elfer") props.win = { type: "integer", minimum: 1, maximum: 9, default: rules.WIN, "x-field": "number", "x-model": true, "x-label": L("Punkte zum Sieg", "Points to win") };
+  if (g !== "elfer") props.win = { type: "integer", minimum: 1, maximum: 9, default: rules.WIN, "x-field": "number", "x-unit": L("Punkte", "points"), "x-model": true, "x-label": L("Punkte zum Sieg", "Points to win") };
   const req = Object.keys(props);
   return {
     params: { type: "object", additionalProperties: false, required: req, properties: props },
     parts: [
-      { id: "farben", params: ["colA", "colB"], label: L("Farben", "Colours") },
-      { id: "figur", params: ["emoji", "photo", "photoUse"], label: L("Figur und Foto", "Figure and photo") },
-      { id: "texte", params: ["title", "sub"], label: L("Texte", "Texts") },
-      ...(g !== "elfer" ? [{ id: "regeln", params: ["win"], label: L("Regeln", "Rules") }] : [])
+      { id: "farben", params: ["colA", "colB"], label: L("Farben", "Colours"), at: AT[g][0] },
+      { id: "figur", params: ["emoji", "photo", "photoUse"], label: L("Figur und Foto", "Figure and photo"), at: AT[g][1] },
+      { id: "texte", params: ["title", "sub"], label: L("Texte", "Texts"), at: g !== "elfer" ? [0.3, 0.03] : [0.5, 0.03] },
+      ...(g !== "elfer" ? [{ id: "regeln", params: ["win"], label: L("Regeln", "Rules"), at: [0.7, 0.03] }] : [])
     ]
   };
 }
