@@ -12,7 +12,8 @@ test.after(async () => { await b.close(); });
 test("Gruss anpassen: Text live, Farbe, Sticker bis 3, dann per Link beim Empfaenger gleich", async () => {
   const { p, errs } = await open(b, { view: "desk1280", lang: "de" });
   await act(p, "open-gruss"); await act(p, "customize");
-  assert.equal(await p.locator(".bubble").count(), 4, "eine Blase je Teil aus dem Manifest");
+  assert.equal(await p.locator('.bubble[data-kind="part"]').count(), 4, "eine Blase je Teil aus dem Manifest");
+  assert.equal(await p.locator(".bubble").count(), 6, "dazu Magie und Signatur vom Host");
   await p.locator('.bubble[data-for="titel"]').click();
   await p.locator("#dialog input").fill("Mutig sein");
   assert.equal(await p.locator(".frame .t-title").textContent(), "Mutig sein", "Karte aendert sich, waehrend der Dialog offen ist");
@@ -40,7 +41,7 @@ test("Bluff anpassen: Regeln-Blase aendert Kartenzahl, Partie nutzt sie", async 
   const { p } = await open(b, { view: "phone390", lang: "en" });
   await act(p, "open-bluff"); await act(p, "customize");
   await p.locator('.bubble[data-for="regeln"]').click();
-  await p.getByRole("radio", { name: "3", exact: true }).first().click();
+  await p.getByRole("radio", { name: "3 cards", exact: true }).first().click();   // Zahl mit Einheit (x-unit)
   await act(p, "close"); await act(p, "done"); await act(p, "go");
   // Abdecken vor dem ersten Zug nur auf einem Handy (ADR 0001 f); Bluff ist per Link vorgewaehlt (play.default, 13 §6.4)
   await p.locator("main.s-card-play-cover, main.s-card-play-turn").waitFor();

@@ -4,6 +4,7 @@ import { h } from "./dom.js";
 import { machine } from "../app/machine.js";
 import { fmt } from "../app/texts.js";
 import { PAIRS, EMOJI, SETS, FONT, fmtCode } from "../app/konto.js";
+import { swatchField } from "./swatch.js";
 
 const kState = (state) => ["pruefen", "anonym", "anmelden", "angemeldet", "abmelden", "fehler"].find((s) => machine.matches(state, "konto." + s));
 const date = (iso, lang) => { try { return new Date(iso).toLocaleDateString(lang === "en" ? "en-GB" : "de-DE", { day: "numeric", month: "long", year: "numeric" }); } catch (e) { return iso; } };
@@ -73,6 +74,21 @@ function styleForm(ctx, X, dispatch) {
       radios("fs", K.fs, FONT.map((f) => ({ value: f, label: K.fsOpt[f] })), ctx.pref.fs, (v) => dispatch({ type: "PREF", key: "fs", value: v })),
       h("div", { class: "seg-row" }, h("button", { type: "button", class: "seg-opt", "aria-pressed": ctx.pref.easy ? "true" : "false", "aria-describedby": "easy-note", "data-act": "easy", on: { click: () => dispatch({ type: "PREF", key: "easy", value: !ctx.pref.easy }) } }, K.easy)),
       h("p", { class: "hint", id: "easy-note" }, K.easyNote))
+  ];
+}
+
+/** Signatur fuer die Blase „Signatur“ beim Anpassen: Name, Logo (Emoji), Hintergrund (Farbpaar) – dieselben Ereignisse (ME)
+ *  wie in Mein Stil; das Paar als Farbfeld mit Namen statt „Farbpaar n“. */
+export function signatureForm(ctx, X, dispatch) {
+  const K = X.k, me = ctx.me, set = (key) => (value) => dispatch({ type: "ME", key, value });
+  const pairs = Object.fromEntries(PAIRS.map((q) => [q.join(","), q]));
+  return [
+    h("div", { class: "field", key: "sig-nick" },
+      h("label", { for: "sig-nick" }, X.sigName),
+      h("input", { id: "sig-nick", class: "input", type: "text", maxlength: "16", autocomplete: "nickname", placeholder: K.nickPh, value: me.nick, on: { input: (e) => set("nick")(e.target.value) } }),
+      ctx.konto.nickErr ? h("p", { class: "warn", role: "alert" }, K.nickErr) : null),
+    radios("sig-emoji", X.sigLogo, EMOJI.map((e) => ({ value: e, label: e, cls: "emo" })), me.emoji, set("emoji"), "emos"),
+    swatchField({ id: "sig-bg", label: X.sigBg, values: Object.keys(pairs), value: me.colors.join(","), set: (v) => set("colors")(v.split(",")), lang: ctx.lang, pairs })
   ];
 }
 

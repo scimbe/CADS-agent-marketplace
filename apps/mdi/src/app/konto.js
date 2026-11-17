@@ -28,7 +28,20 @@ export function cleanMe(m) {
   };
 }
 export function nickOk(s) { return !CONTACT.test(String(s || "")); }
-export function cleanPref(p) { const x = p && typeof p === "object" ? p : {}; return { fs: FONT.includes(x.fs) ? x.fs : "n", easy: x.easy === true }; }
+export function cleanPref(p) { const x = p && typeof p === "object" ? p : {}; return { fs: FONT.includes(x.fs) ? x.fs : "n", easy: x.easy === true, blasen: cleanBlasen(x.blasen) }; }
+// Blasen beim Anpassen (nur dieses Geraet): aus = ausgeblendet; lage[karte][teil] = [x, y] als Bruchteile der Buehne.
+// Gespeichertes vom Geraet wird geprueft; Ungueltiges zaehlt als nicht gemerkt.
+const BL_CARDS = 120, BL_PARTS = 16, CARD_ID = /^[a-z][a-z0-9-]{1,31}$/, PART_ID = /^[a-z]+$/;
+function cleanBlasen(b) {
+  const x = b && typeof b === "object" ? b : {}, src = x.lage && typeof x.lage === "object" && !Array.isArray(x.lage) ? x.lage : {}, lage = {};
+  for (const [cid, parts] of Object.entries(src).slice(0, BL_CARDS)) {
+    if (!CARD_ID.test(cid) || !parts || typeof parts !== "object" || Array.isArray(parts)) continue;
+    const o = {};
+    for (const [pid, at] of Object.entries(parts).slice(0, BL_PARTS)) if (PART_ID.test(pid) && Array.isArray(at) && at.length === 2 && at.every((n) => typeof n === "number" && n >= 0 && n <= 1)) o[pid] = [at[0], at[1]];
+    if (Object.keys(o).length) lage[cid] = o;
+  }
+  return { aus: x.aus === true, lage };
+}
 
 export function fmtCode(c) { return (String(c).match(/.{4}/g) || []).join("-"); }
 /** Was jemand tippt: Gross/klein, Striche und Leerzeichen erlaubt. -> Code oder null */

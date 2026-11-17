@@ -90,15 +90,20 @@ export function report(S, sendP, sendSt) {
 export function hashSide(S) { return hashOf(S, VOLATILE); }
 
 // ---------- Ball, der der Haelfte gehoert, in der er ist (arcade2.js:11-49) ----------
-const HOLD = 6;
+const HOLD = 6, REST_V = 20;   // REST_V: darunter gilt der Ball als liegend (Einheiten/s)
 /** G: { serve(seed, n), R, VMAX, free(b, d) } */
-export function halfInit(S) { S.st.b = null; S.st.own = false; S.st.held = false; S.h.hitAt = -1; S.h.since = 0; }
+export function halfInit(S) { S.st.b = null; S.st.own = false; S.st.held = false; S.h.hitAt = -1; S.h.since = 0; S.h.moved = 0; }
 function halfServe(S, G) { const st = S.st; st.b = G.serve(S.seed, S.n); st.own = true; st.held = false; S.h.since = S.t; send(S, { t: "serve", n: S.n, b: mirror(st.b) }); S.n++; S.serveAt = 0; fx(S, "serve", st.b.x, st.b.y); }
 function halfGive(S, G) { const st = S.st; st.b = mirror(G.serve(S.seed, S.n)); st.own = false; st.held = false; send(S, { t: "give", n: S.n }); S.n++; fx(S, "give", st.b.x, st.b.y); }
 export function halfStep(S, G, Rules, d, collide) {
   const st = S.st;
   if (S.serveAt && S.t >= S.serveAt) halfServe(S, G);
   const b = st.b; if (!b || st.held) return;
+  // Schutz gegen Stillstand (Befund A9 F9: Ball lag 90 s hinter dem Torwart, beide Seiten hielten ihn fuer den der
+  // anderen): liegt der Ball laenger als HOLD in der eigenen Haelfte, gibt diese Seite einen neuen Anstoss an die andere,
+  // egal wem er gerade gehoert. Nur die Seite, in deren Haelfte er liegt, loest aus (gespiegelt: genau eine).
+  if (speed(b) > REST_V) S.h.moved = S.t;
+  else if (b.y >= H / 2 && S.t - S.h.moved > HOLD) { S.h.moved = S.t; halfGive(S, G); return; }
   if (st.own) {
     const w = G.free(b, d); if (w) fx(S, w, b.x, b.y);
     const h = collide(b); if (h && S.t - S.h.hitAt > 0.08) { S.h.hitAt = S.t; send(S, { t: "hit", b: mirror(b) }); fx(S, h === true ? "hit" : h, b.x, b.y, { v: speed(b) }); }

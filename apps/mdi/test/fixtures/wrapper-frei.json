@@ -1,5 +1,5 @@
 {
- "herkunft": "Aufgenommen mit scripts/record-frei.mjs gegen CADS-DEMO-wrapper @ 5d8e938 (lib/duell-ai.mjs, duell-karte.mjs, duell-frei.mjs, duell-absage.mjs, duell-deck.mjs, duell-mod.mjs, duell-credit.mjs, duell-report.mjs, duell-bild.mjs, duell.mjs Schlange; Routenreihenfolge wie server.mjs). Gate und Modell als Doppel (feste Antworten), Bild-Backend stub, Uhr fest ab 2026-11-11T09:00:00.000Z.",
+ "herkunft": "Aufgenommen mit scripts/record-frei.mjs gegen CADS-DEMO-wrapper @ 5d8e938 (lib/duell-ai.mjs, duell-karte.mjs, duell-frei.mjs, duell-absage.mjs, duell-deck.mjs, duell-mod.mjs, duell-credit.mjs, duell-report.mjs, duell-bild.mjs, duell.mjs Schlange; Routenreihenfolge wie server.mjs). Gate und Modell als Doppel (feste Antworten), Bild-Backend stub, Uhr fest ab 2026-11-11T09:00:00.000Z. Nachtrag: karte-ki-limit und status-nach-ki-limit aufgenommen gegen CADS-DEMO-wrapper fix/ki-ausfall-hinweis (lib/ki-ausfall.mjs), Modell-Doppel wirft kiFehler(\"ki-limit\"); die uebrigen Aufnahmen unveraendert.",
  "host": "demos-34a13a96.bunsenbrenner.org",
  "device": "0123456789abcdef0123456789abcdef",
  "exchanges": [
@@ -2475,6 +2475,114 @@
       "canLogin": true,
       "free": 7,
       "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-ki-limit",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "card",
+      "text": "Danke an mein Team"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:tom"
+   },
+   "res": {
+    "status": 503,
+    "body": {
+     "error": "ki-nicht-verfuegbar",
+     "grund": "ki-limit",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 0,
+      "remaining": 5,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "status-nach-ki-limit",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai/status",
+    "body": {
+     "device": "0123456789abcdef0123456789abcdef"
+    },
+    "session": "signed-in:tom"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 0,
+      "remaining": 5,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false,
+      "paused": false,
+      "off": false,
+      "age16": true,
+      "age18": false,
+      "credit": 0,
+      "voucher": false
      }
     }
    }

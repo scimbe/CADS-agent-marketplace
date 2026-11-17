@@ -1,6 +1,30 @@
 // Oberflaechentexte de/en. Praesens, Ist-Zustand, kurze Saetze. Luecke im Englischen -> Deutsch.
 const de = {
   stil: "Mein Stil", stilOpen: "Mein Stil öffnen",
+  // Hinweis „Demo – Testinstallation“ (Kopf jeder Seite) und die Seite „Über diese Demo“ (?go=demo). Inhalt gegen den Code
+  // geprueft (CADS-DEMO-wrapper lib/duell-llm, duell-bild, duell-profile, duell-weather, shortlink; CADS-Tunnel Keycloak-Realm)
+  demo: {
+    bar: "Demo – Testinstallation", more: "Was heißt das?", newTab: "(öffnet in neuem Tab)", title: "Über diese Demo",
+    lede: "My Daily Idea ist eine Testinstallation. Du probierst eine Demo aus.",
+    testH: "Was das für dich heißt",
+    test: ["Wir testen hier noch. Es gibt keine Garantie, dass alles läuft.", "Karten, Kurzlinks und Konten können gelöscht werden. Auch ohne Vorwarnung.", "Du bezahlst bei uns nichts. Du kannst hier nichts kaufen."],
+    dataH: "Deine Daten: was wohin geht",
+    data: [
+      "Fotos bleiben auf deinem Gerät. In einem Link reist nie ein Foto.",
+      "Ein Link trägt deine Karte im Teil nach #. Diesen Teil sieht unser Server nie.",
+      "Ein Kurzlink speichert die Karte auf unserem Server.",
+      "KI-Anfragen gehen an Anthropic in den USA: dein Satz für die freie Karte, für „Eigene Karte daraus“ und für KI-Bilder. Ein KI-Bild geht vor dem Zeigen zur Prüfung auch dorthin.",
+      "Freie Karten und KI-Bilder speichert unser Server.",
+      "Anmelden läuft über unseren Anmeldedienst (Keycloak). Du kannst dort HAW-GitLab, Google, GitHub oder GitLab wählen. Dieser Anbieter erfährt dann, dass du dich anmeldest.",
+      "Mails vom Anmeldedienst, zum Beispiel zum Bestätigen deiner Adresse, laufen über Strato.",
+      "Sicherst du Mein Stil mit Konto oder Sync-Code, liegt er auf unserem Server. Fotos nie.",
+      "Live-Spiele verbindet unser Server. Die Züge gehen dann verschlüsselt zwischen euren Geräten.",
+      "Für die Wetterkarte schickt unser Server den Ortsnamen an Open-Meteo."
+    ],
+    contactH: "Kontakt",
+    contactNone: "Eine Kontaktadresse gibt es noch nicht. Stimmt mit einer Karte etwas nicht, die eine KI gebaut hat? Dann tipp an der Karte auf „Melden“.",
+    contactIs: "Du erreichst uns so:"
+  },
   k: {
     preview: "So sehen deine Karten aus", previewLabel: "Vorschau: {n}, {e}, Farben {c}, Sticker {s}", noName: "Dein Name",
     nick: "Spitzname", nickNote: "Steht nur auf deinen Karten und in Links, die du schickst.", nickPh: "z. B. Oma Gisela", nickErr: "Keine E-Mail, Telefonnummer oder Adresse im Spitznamen.",
@@ -52,7 +76,12 @@ const de = {
   modeHint: { alone: "Ihr gebt das Gerät weiter.", bot: "Der Computer sieht nur, was er sehen darf.", link: "Jeder spielt, wann er will.", live: "Ihr spielt zur selben Zeit." },
   modeSwitch: "Wechseln geht bis zum ersten Zug.", mode: "Wie spielst du?", send: "Wie verschickst du?", seat: "Du spielst als", level: "Stärke des Computers", levels: ["Leicht", "Mittel", "Schwer"],
   go: "Los", goSend: "Senden", customize: "Anpassen", done: "Fertig",
-  bubblesHint: "Tippe auf eine Blase, um diesen Teil zu ändern.", bubble: "{p} ändern",
+  bubblesHint: "Tippe auf eine Blase oder direkt auf die Karte. Blasen lassen sich verschieben.", bubble: "{p} ändern",
+  bubblesOffHint: "Blasen sind ausgeblendet. Der Pinsel holt sie zurück.", bubblesHide: "Blasen ausblenden", bubblesShow: "Blasen zeigen", bubblesOn: "Blasen", bubblesOff: "Aus",
+  bubbleDrag: "(ziehen zum Verschieben)", bubbleMagic: "Magie: offene Felder mit KI füllen", bubbleSig: "Signatur: Logo, Hintergrund, Name",
+  magicHint: "Die KI füllt Textfelder dieser Karte. Sie ändert nur das Feld, das du wählst; vorher siehst du Vorschläge.", magicNone: "Diese Karte hat keine Textfelder, die die KI füllen kann.", magicFill: "✨ {p} mit KI füllen", magicOpen: "offen",
+  sigHint: "Deine Signatur steht auf deinen Karten. Sie gilt auch in Mein Stil.", sigName: "Name", sigLogo: "Logo", sigBg: "Hintergrund",
+  taken: "belegt", pips: "{n} {u}",
   shareTitle: "Oder den Link selbst kopieren", shareLink: "Link senden", sentAlready: "Schon gesendet", copied: "Kopiert. Füge den Link im Chat ein.", shareFail: "Hier öffnet sich kein Teilen-Menü. Kopiere den Link und füge ihn im Chat ein.", copyLink: "Link kopieren", copyFail: "Kopieren geht hier nicht. Halte den Finger auf den Link und wähle Kopieren.",
   linkTooLong: "Diese Karte ist für einen Link zu groß. Kürze den Text.",
   lobbyTitle: "Live-Einladung", lobbyWait: "Warte auf deinen Partner …", lobbySend: "Schick die Einladung. Sobald dein Partner sie öffnet, geht es los.", inviteSend: "Einladung senden", again: "Neu einladen",
@@ -66,7 +95,7 @@ const de = {
   retry: "Nochmal versuchen", loadingCard: "Die Karte lädt …", partFailTitle: "Die Karte konnte nicht laden",
   partFail: { "teil-fehlt": "Die Karte ist gerade nicht erreichbar. Prüfe die Verbindung und versuche es nochmal.", "teil-manipuliert": "Die geladene Karte war nicht unversehrt. Aus Sicherheit wird sie nicht geöffnet.", "teil-falsch": "Die geladene Karte passt nicht zu dieser App-Version. Lade die Seite neu.", "zeit": "Die Karte hat zu lange gebraucht. Versuche es nochmal.", "karte-unbekannt": "Diese Karte gibt es nicht." },
   ghostSend: "Aufnahme teilen · Freund spielt gegen deinen Lauf", ghostFor: "Gegen diese Aufnahme spielen", ghostText: "Jemand hat dir eine Aufnahme geschickt. Du spielst gegen genau diese Eingaben.", rtNoHost: "Echtzeitspiele laufen hier nicht.", ghostScore: "Die Aufnahme hat {s} erreicht.", slowPlay: "Gemütlich spielen",
-  overWin: "Gewonnen!", overLose: "Diesmal gewinnt: {s}.", overWinner: "Es gewinnt: {s}.", overDraw: "Unentschieden.", overAll: "Ergebnis", again2: "Nochmal", sendResult: "Ergebnis senden",
+  overWin: "Gewonnen!", computer: "Computer", overLose: "Diesmal gewinnt: {s}.", overWinner: "Es gewinnt: {s}.", overDraw: "Unentschieden.", overAll: "Ergebnis", again2: "Nochmal", sendResult: "Ergebnis senden",
   sendResultText: "Schick das Ergebnis, damit dein Partner es auch sieht.",
   errTitle: "Die Partie ist beendet",
   acceptTitle: "Jemand hat dir eine Karte geschickt", accept: "Annehmen", acceptCard: "Karte übernehmen", acceptGame: "Mitspielen", decline: "Nein danke", challengeFor: "Du wirst herausgefordert", yourTurnAs: "Du spielst als {s}.", resultFor: "Das Ergebnis ist da.", free: "Kostenlos, ohne Anmeldung.",
@@ -89,6 +118,28 @@ const de = {
 };
 const en = {
   stil: "My style", stilOpen: "Open my style",
+  demo: {
+    bar: "Demo – test installation", more: "What does that mean?", newTab: "(opens in a new tab)", title: "About this demo",
+    lede: "My Daily Idea is a test installation. You are trying out a demo.",
+    testH: "What this means for you",
+    test: ["We are still testing. There is no guarantee that everything works.", "Cards, short links and accounts can be deleted. Even without warning.", "You pay us nothing. You cannot buy anything here."],
+    dataH: "Your data: what goes where",
+    data: [
+      "Photos stay on your device. A photo never travels in a link.",
+      "A link carries your card in the part after #. Our server never sees that part.",
+      "A short link stores the card on our server.",
+      "AI requests go to Anthropic in the USA: your sentence for the free card, for “Make it your own card” and for AI pictures. An AI picture also goes there to be checked before it is shown.",
+      "Our server stores free cards and AI pictures.",
+      "Signing in runs through our sign-in service (Keycloak). There you can choose HAW GitLab, Google, GitHub or GitLab. That provider then learns that you are signing in.",
+      "Emails from the sign-in service, for example to confirm your address, go through Strato.",
+      "If you save My style with an account or a sync code, it is on our server. Never photos.",
+      "Our server connects live games. The moves then go encrypted between your devices.",
+      "For the weather card our server sends the place name to Open-Meteo."
+    ],
+    contactH: "Contact",
+    contactNone: "There is no contact address yet. Is something wrong with a card an AI built? Then tap “Report” on the card.",
+    contactIs: "You can reach us here:"
+  },
   k: {
     preview: "This is how your cards look", previewLabel: "Preview: {n}, {e}, colours {c}, stickers {s}", noName: "Your name",
     nick: "Nickname", nickNote: "Only on your cards and in links you send.", nickPh: "e.g. Granny Gisela", nickErr: "No e-mail, phone number or address in the nickname.",
@@ -140,7 +191,12 @@ const en = {
   modeSwitch: "You can switch until the first move.", modeHint: { alone: "You pass the device around.", bot: "The computer only sees what it may see.", link: "Everyone plays when they like.", live: "You play at the same time." },
   mode: "How do you play?", send: "How do you send it?", seat: "You play as", level: "Computer strength", levels: ["Easy", "Medium", "Hard"],
   go: "Go", goSend: "Send", customize: "Customise", done: "Done",
-  bubblesHint: "Tap a bubble to change that part.", bubble: "Change {p}",
+  bubblesHint: "Tap a bubble or the card itself. You can move bubbles.", bubble: "Change {p}",
+  bubblesOffHint: "Bubbles are hidden. The brush brings them back.", bubblesHide: "Hide bubbles", bubblesShow: "Show bubbles", bubblesOn: "Bubbles", bubblesOff: "Off",
+  bubbleDrag: "(drag to move)", bubbleMagic: "Magic: fill open fields with AI", bubbleSig: "Signature: logo, background, name",
+  magicHint: "The AI fills text fields of this card. It only changes the field you pick; you see suggestions first.", magicNone: "This card has no text fields the AI can fill.", magicFill: "✨ Fill {p} with AI", magicOpen: "empty",
+  sigHint: "Your signature is on your cards. It also applies in My style.", sigName: "Name", sigLogo: "Logo", sigBg: "Background",
+  taken: "taken", pips: "{n} {u}",
   shareTitle: "Or copy the link yourself", shareLink: "Send link", sentAlready: "Already sent", copied: "Copied. Paste the link into your chat.", shareFail: "No share menu opens here. Copy the link and paste it into your chat.", copyLink: "Copy link", copyFail: "Copying does not work here. Long-press the link and choose Copy.",
   linkTooLong: "This card is too big for a link. Shorten the text.",
   lobbyTitle: "Live invite", lobbyWait: "Waiting for your partner …", lobbySend: "Send the invite. The game starts as soon as your partner opens it.", inviteSend: "Send invite", again: "Invite again",
@@ -154,7 +210,7 @@ const en = {
   retry: "Try again", loadingCard: "Loading the card …", partFailTitle: "The card could not load",
   partFail: { "teil-fehlt": "The card cannot be reached right now. Check your connection and try again.", "teil-manipuliert": "The loaded card was not intact. For your safety it will not open.", "teil-falsch": "The loaded card does not match this app version. Reload the page.", "zeit": "The card took too long. Try again.", "karte-unbekannt": "This card does not exist." },
   ghostSend: "Share your run", ghostFor: "Play against this run", ghostText: "Someone sent you a run. You play against exactly these inputs.", rtNoHost: "Real-time games do not run here.", ghostScore: "The run reached {s}.", slowPlay: "Play slowly",
-  overWin: "You win!", overLose: "This time the winner is: {s}.", overWinner: "The winner is: {s}.", overDraw: "Draw.", overAll: "Result", again2: "Again", sendResult: "Send result",
+  overWin: "You win!", computer: "Computer", overLose: "This time the winner is: {s}.", overWinner: "The winner is: {s}.", overDraw: "Draw.", overAll: "Result", again2: "Again", sendResult: "Send result",
   sendResultText: "Send the result so your partner sees it too.",
   errTitle: "The game has ended",
   acceptTitle: "Someone sent you a card", accept: "Accept", acceptCard: "Keep this card", acceptGame: "Play", decline: "No thanks", challengeFor: "You are challenged", yourTurnAs: "You play as {s}.", resultFor: "The result is here.", free: "Free, no sign-up.",
@@ -180,7 +236,7 @@ const en = {
 const deEasy = {
   modeHint: { alone: "Ein Handy für alle.", bot: "Du spielst gegen den Computer.", link: "Ihr spielt nacheinander.", live: "Ihr spielt gleichzeitig." },
   ipHint: "Live: Das andere Handy sieht deine Internet-Adresse. Per Link nicht.",
-  bubblesHint: "Tipp auf eine Blase. Dann änderst du diesen Teil.",
+  bubblesHint: "Tipp auf eine Blase oder auf die Karte. Dann änderst du diesen Teil.",
   dialogHint: "Die Karte ändert sich sofort.",
   free: "Kostenlos. Ohne Anmelden.",
   waitLink: "Warte auf die Antwort. Du kannst die Seite zumachen."
@@ -188,7 +244,7 @@ const deEasy = {
 const enEasy = {
   modeHint: { alone: "One phone for everyone.", bot: "You play against the computer.", link: "You take turns.", live: "You play at the same time." },
   ipHint: "Live: the other phone sees your internet address. By link it does not.",
-  bubblesHint: "Tap a bubble. Then you change that part.",
+  bubblesHint: "Tap a bubble or the card. Then you change that part.",
   dialogHint: "The card changes right away.",
   free: "Free. No sign-in.",
   waitLink: "Wait for the answer. You can close the page."

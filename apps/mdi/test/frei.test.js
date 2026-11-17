@@ -567,3 +567,33 @@ test("Jeder Absagecode des Servers hat einen festen Text in de und en (ABSAGE + 
   }
   assert.match(FREI_TEXTS.de.create_absage_bau_fakten, /Fakten nicht sicher genug/);
 });
+
+// ---------------------------------------------------------------- KI nicht erreichbar (Wrapper lib/ki-ausfall.mjs)
+// Antwortet die KI selbst nicht (API-Limit wie am 17.11.2026, Ueberlast, Ausfall, Schluessel), sagt der Server 503
+// ki-nicht-verfuegbar mit einer Klasse. Die App zeigt dafuer EINEN festen, ruhigen Satz ohne Technik und ohne Klasse (die
+// Regel liegt beim Server), nicht als Fehler der Person, und nie einen Ersatz.
+test("KI nicht erreichbar: Aufnahme des echten Servers -> kiaus, fester Satz in de/en, nichts verbraucht; jede Klasse gleich", async () => {
+  const x = rec("karte-ki-limit");
+  assert.deepEqual([x.status, x.body.error, x.body.grund], [503, "ki-nicht-verfuegbar", "ki-limit"]);
+  assert.equal(x.body.create.remaining, rec("status-nach-ki-limit").body.create.remaining, "der Server hat nichts abgebucht");
+  for (const grund of ["ki-limit", "ki-ueberlastet", "ki-ausfall", "ki-key", "unbekannt"]) assert.equal(A.verdict(503, { error: "ki-nicht-verfuegbar", grund }), "kiaus", grund);
+  assert.equal(A.verdict(503, { error: "llm-unavailable" }), "off", "ein anderer 503 bleibt, was er war");
+  const r = await ai([x]).c.ask(ASK);
+  assert.equal(r.how, "kiaus"); assert.deepEqual(r.options, []); assert.equal(r.receipt, "");
+  assert.equal(r.meter.remaining, x.body.meter.remaining);
+  const { freiUi } = await import("../src/features/frei/view-core.js");
+  for (const l of ["de", "en"]) assert.equal(freiUi().refusalText({ how: "kiaus" }, l), ft(l, "ki_aus"));
+  assert.equal(ft("de", "ki_aus"), "Die KI ist gerade nicht erreichbar. Wir sind dran – bitte später nochmal. Es wurde nichts verbraucht.");
+  assert.match(ft("en", "ki_aus"), /^The AI can’t be reached right now\./);
+  for (const l of ["de", "en"]) assert.ok(!/limit|429|503|api|key|schlüssel|fehler|error|du hast|you /i.test(ft(l, "ki_aus")), "keine Technik, kein Vorwurf: " + l);
+});
+
+test("KI nicht erreichbar beim KI-Bild: beim Senden und in der Bildpruefung derselbe Zustand kiaus", async () => {
+  assert.equal(bildVerdict(503, { error: "ki-nicht-verfuegbar", grund: "ki-ausfall" }), "kiaus");
+  assert.equal(bildVerdict(503, { error: "check-off" }), "off");
+  const seq = [rec("bild-auftrag"), { status: 200, body: { state: "failed", error: "ki-nicht-verfuegbar", grund: "ki-ueberlastet", refunded: true } }];
+  const r = await createBild({ api: { raw: async () => seq.shift() }, sleep: async () => {} }).make({ use: "card", text: "Ein Fuchs, der Pizza liefert", style: "comic" });
+  assert.deepEqual(r, { how: "kiaus", refunded: true });
+  const s = await createBild({ api: { raw: async () => ({ status: 503, body: { error: "ki-nicht-verfuegbar", grund: "ki-limit" } }) } }).make({ use: "card", text: "Ein Fuchs" });
+  assert.equal(s.how, "kiaus");
+});

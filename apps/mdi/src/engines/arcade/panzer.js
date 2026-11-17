@@ -124,15 +124,18 @@ function speedFor(T, mz, ang, aimX, w) {
   return { ang, v, miss: f.k === "land" ? Math.abs(f.x - aimX) : Infinity };
 }
 export function botInit(r) { return { wait: 1.6 + r() * 1.0, ang: 0 }; }
+// Staerke je Stufe (Befund A9 F11: auf Mittel 6 von 6 Partien verloren, zwei Treffer in 0,9 s): Streuung des Ziels und
+// Pause zwischen den Schuessen. Stufe 3 ist der Altcode (Golden-Partien), dieselben Wuerfel auf jeder Stufe.
+export const PANZER_BOT = { spread: [2.2, 1.6, 1], pause: [2.0, 1.2, 0] };
 export function bot(S, B, r, dt) {
   B.wait -= dt; if (B.wait > 0 || !S.started) return;
   const st = S.st, T = st.T, mz = muzzle(T, true), tgt = tankPos(T, false);
   if (st.reload < 1) return;
   B.ang = (48 + r() * 18) * PI / 180;
-  const aimX = tgt.x + (r() - 0.5) * PANZER.AIM;
+  const lv = B.lv - 1, aimX = tgt.x + (r() - 0.5) * PANZER.AIM * PANZER_BOT.spread[lv];
   let best = speedFor(T, mz, B.ang, aimX, st.wind);
   for (let a = 30; a <= 84 && best.miss > 24; a += 6) { const c = speedFor(T, mz, a * PI / 180, aimX, st.wind); if (c.miss < best.miss) best = c; }
   input(S, { aim: { vx: cosD(best.ang) * best.v, vy: -sinD(best.ang) * best.v }, fire: true });
-  B.wait = PANZER.RELOAD + 1.2 + r() * 1.4;
+  B.wait = PANZER.RELOAD + 1.2 + r() * 1.4 + PANZER_BOT.pause[lv];
 }
 export const rules = PANZER;

@@ -28,6 +28,8 @@ const { createDeck } = await lib("duell-deck.mjs");
 const { createVouchers } = await lib("duell-voucher.mjs");
 const { createReports } = await lib("duell-report.mjs");
 const { createBild } = await lib("duell-bild.mjs");
+// KI antwortet nicht (Limit, Ueberlast, Ausfall, Schluessel): der Fehler, den die echte Modellschicht wirft (lib/ki-ausfall.mjs)
+const { kiFehler } = await lib("ki-ausfall.mjs");
 let commit = "unbekannt";
 try { commit = execFileSync("git", ["-C", W, "rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim(); } catch (e) { /* kein git */ }
 
@@ -43,7 +45,7 @@ const gateFetch = async (url, o) => {
 };
 
 // Modell-Doppel: S2/S4 (Moderation) sagt harmlos, S3 (Karte) liefert die Beispielkarte der Art; langsam, wenn gewuenscht
-const MODEL = { delay: 0 };
+const MODEL = { delay: 0, fault: "" };
 const CARDS = {
   card: { ok: true, title: "Sonnenblumen-Tag", x: "Alles Gute! Du bringst Sonne in jeden Tag.", st: "herz", palette: 0, stickers: ["🌻", "🎂", "✨"] },
   meme: { ok: true, title: "Kein Leckerli", top: "Wenn du sagst", bottom: "Heute kein Leckerli", st: "meme" },
@@ -59,6 +61,7 @@ const cardLlm = {
   async generate(req) {
     { const r = await bau(req); if (r) return r; }
     if (MODEL.delay) await new Promise((ok) => setTimeout(ok, MODEL.delay));
+    if (MODEL.fault) throw kiFehler(MODEL.fault);
     if (req.name === "check" || /^check/.test(req.name || "")) return { json: { risk: 0, cats: [], drink: "none", ...(req.schema && req.schema.properties && req.schema.properties.spiel ? { spiel: "szene" } : {}) }, usage: { out: 10 }, stop: "end_turn" };
     const art = String(req.name || "").replace(/^card_/, "");
     return { json: CARDS[art] || CARDS.card, usage: { out: 80 }, stop: "end_turn" };
@@ -229,6 +232,17 @@ try {
   await rec(b4, "status-karte-aus", "POST", "/api/duell/ai/status", { device: DEV }, "sess-lea");
   await rec(b4, "karte-aus", "POST", "/api/duell/ai", ask("card", "Danke an mein Team"), "sess-lea");
 } finally { D.stop(); D.srv.close(); fs.rmSync(D.dir, { recursive: true, force: true }); }
+
+// Die KI antwortet nicht (z. B. API-Limit wie am 17.11.2026): 503 ki-nicht-verfuegbar, der Topf bleibt voll
+const E = server();
+const b5 = await listen(E);
+try {
+  await put16(b5, "sess-tom");
+  MODEL.fault = "ki-limit";
+  await rec(b5, "karte-ki-limit", "POST", "/api/duell/ai", ask("card", "Danke an mein Team"), "sess-tom");
+  MODEL.fault = "";
+  await rec(b5, "status-nach-ki-limit", "POST", "/api/duell/ai/status", { device: DEV }, "sess-tom");
+} finally { E.stop(); E.srv.close(); fs.rmSync(E.dir, { recursive: true, force: true }); }
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const file = path.join(ROOT, "test/fixtures/wrapper-frei.json");

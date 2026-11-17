@@ -172,6 +172,33 @@ test("Kein Kontingent: kein Erschaffen-Knopf, ehrlicher Zaehler; unter 16: Hinwe
   assert.deepEqual(found, []); assert.deepEqual(errs, []); assert.deepEqual(o2.errs, []);
 });
 
+// Die KI antwortet nicht (Aufnahme karte-ki-limit des echten Servers, lib/ki-ausfall.mjs): ein ruhiger Hinweis im Kasten
+// (.notice), kein Fehlerton (.warn), der Zaehler bleibt, der Satz bleibt stehen und kann nochmal gesendet werden
+for (const [view, lang, scheme] of [["phone360", "de", "light"], ["desk1280", "en", "dark"]]) {
+  test("KI nicht erreichbar: ehrlicher Hinweis im Kasten, nicht als Fehler der Person, nichts verbraucht; " + view + " " + lang + " " + scheme, async () => {
+    const fw = fakeWrapper(), ff = fakeFrei(fw, { karte: "karte-ki-limit" }), found = [];
+    const { p, errs } = await openApp(fw, ff, { view, lang, scheme });
+    if (lang === "de") await loginFromFrei(p, fw);
+    else {   // englische Oberflaeche: derselbe Weg, die Texte der Seite auf Englisch
+      await act(p, "frei"); await screenIs(p, "frei-start"); await act(p, "login"); await p.locator("#frei-16").check(); await act(p, "login");
+      await p.waitForURL(/\/duell$/); await screenIs(p, "frei-start"); await p.locator('[data-k="frei-left"]').waitFor();
+    }
+    const left = await p.locator('[data-k="frei-left"]').textContent();
+    await writeCard(p, "card", "Danke an mein Team");
+    await act(p, "send");
+    const note = p.locator('.notice[data-how="kiaus"][role="status"]');
+    await note.waitFor();
+    assert.equal((await note.textContent()).trim(), lang === "de" ? "Die KI ist gerade nicht erreichbar. Wir sind dran – bitte später nochmal. Es wurde nichts verbraucht." : "The AI can’t be reached right now. We’re on it – please try again later. Nothing was used.");
+    assert.equal(await p.locator('.warn[data-how]').count(), 0, "kein Fehlerton");
+    assert.equal(await p.locator('[data-k="frei-left"]').textContent(), left, "Zaehler unveraendert");
+    assert.equal(await p.locator("#frei-text").inputValue(), "Danke an mein Team", "der Satz bleibt stehen");
+    assert.equal(await p.locator('[data-act="send"]').count(), 1, "nochmal senden geht");
+    await screenIs(p, "frei-start");
+    await checks(p, "12-ki-aus-" + view + "-" + lang, found);
+    assert.deepEqual(found, []); assert.deepEqual(errs, []);
+  });
+}
+
 test("Deck: Status-Gate mit Inhalts-Hash beim Empfaenger (gesperrt, veraendert, ok); gepinnter Schluessel lehnt fremdes Deck ab", async () => {
   const ki = rec("deck-mit-karte").body.cards[0].doc.ki, card = rec("deck-mit-karte").body.cards[0].doc;
   const params = { kind: "card", title: card.t, text: card.x, top: "", bottom: "", style: card.st, palette: "gelb", stickers: card.sk.map((x) => x.e), seal: ki.s, hash: ki.h, owner: ki.o, root: "" };

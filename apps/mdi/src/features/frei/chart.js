@@ -17,6 +17,8 @@
 //   melden     Meldung mit Grund und Einwilligung
 //   bild, bildwarten  KI-Bild (Karte, Logo, Kontobild) mit Kontingent
 //   ki         KI-Vorschlaege fuer die x-model-Felder eines Teils der offenen Karte
+//   klaeren … kmelden  Freie Karte 2, Klaerungsdialog (P1): ./klaeren.js
+import { KLAEREN_STATES, klaerenGuards, klaerenActions, klaerenEffects, freshK } from "./klaeren.js";
 import { ARTS, GENRES, MODES, artOk, kindOk, sanitizeDoc, sanitizeKi, targetOf, targetIdOf, freeIdOf, gateChecksOf } from "./doc.js";
 import { cardOf as cardById, validParams, LEGACY, manifestOf } from "../../cards/index.js";
 import { defaults } from "../../contract/fields.js";
@@ -34,7 +36,7 @@ export function cardIdOf(id) { return manifestOf(id) ? id : LEGACY[id] ? LEGACY[
  *  verlangt und damit Partien gewoehnlicher Zugkarten aufgehalten. GO und LINK laden ihn nicht mehr: die Pruefzustaende
  *  frei.gate und frei.sharegate zeigen nur einen Statussatz, den view-core.js ohne Teil selbst rendert; die Karte danach
  *  (receive.show, card.share, card.play) braucht frei-ui nicht. */
-const UI_EVENTS = new Set(["FREI", "DECK", "DECK_OPEN", "MINE", "BILD", "KI", "ROBOT", "MELDEN"]);
+const UI_EVENTS = new Set(["FREI", "DECK", "DECK_OPEN", "MINE", "BILD", "KI", "ROBOT", "MELDEN", "KLAEREN", "K_FERTIG"]);
 function freiParts(ev) {
   return ev && UI_EVENTS.has(ev.type) ? ["frei-ui"] : [];
 }
@@ -72,8 +74,10 @@ export const freiState = {
   on: { SETTLE_FAIL: { actions: ["settleFail"] } },
   states: {
     start: {
-      entry: ["freiRefresh"],
+      entry: ["freiRefresh", "kAnFx"],
       on: {
+        // Freie Karte 2: ob der Klaerungsdialog an ist, sagt der Server (DUELL_KLAERUNG); erst dann erscheint der Einstieg
+        K_R: { cond: "kAnR", actions: ["kTakeAn"] },
         ART: { actions: ["setArt"] },
         GENRE: { actions: ["setGenre"] },
         PLAYMODE: { cond: "modeOk", actions: ["setPlayMode"] },
@@ -88,6 +92,8 @@ export const freiState = {
         MINE: { target: T("inhalt.frei.meine") },
         DECK: { target: T("inhalt.frei.deck") },
         BILD: { target: T("inhalt.frei.bild") },
+        // Freie Karte 2: erst klaeren, dann bauen (P1, ./klaeren.js)
+        KLAEREN: { target: T("inhalt.frei.klaeren"), cond: "kAn", actions: ["kStart"] },
         // Profil eben mit 16+ angelegt (erste Anmeldung aus der freien Karte): den Stand neu fragen, sonst stuende "ab 16" da
         PROFIL: { cond: "profilCreated", actions: ["freiRefresh"] },
         BACK: { target: T("inhalt.shelf"), actions: ["clearForm"] }
@@ -207,6 +213,7 @@ export const freiState = {
         BACK: { target: T("inhalt.frei.bild"), actions: ["cancelBild"] }
       }
     },
+    ...KLAEREN_STATES,
     ki: {
       on: {
         KI_RESULT: { cond: "kiCur", actions: ["takeKi"] },
@@ -228,6 +235,9 @@ export const FREI_SHELF = {
   DECK: { target: T("inhalt.frei.deck") },
   MINE: { target: T("inhalt.frei.meine") }
 };
+/** Freie Karte 2: Ergebnis eines Bauauftrags (Mitteilung, ?go=fertig, Meine Karten; P3) aus jedem Zustand; angezeigt wird,
+ *  was der Server meldet (auch erneut, wenn nach dem Nachbessern ein neues Ergebnis da ist) */
+export const K_FERTIG_ON = { target: T("inhalt.frei.kfertig"), cond: "kFertigOk", actions: ["kFertigOpen"] };
 /** Ereignisse in inhalt.card.view (F setzt sie ein; GO-Uebergang VOR goStaticLink) */
 export const CARD_VIEW_ON = {
   GO_FIRST: { target: T("inhalt.frei.sharegate"), cond: "goFreiShare" },
@@ -286,7 +296,8 @@ export const freiGuards = {
   bildDone: (ctx) => !!ctx.frei.bild.res && ctx.frei.bild.res.how === "done" && !ctx.frei.bild.kept,
   kiOk: (ctx, ev) => { const c = ctx.cardId && cardOf(ctx.cardId); return !!c && modelFields(c.manifest, ev.part).length > 0; },
   kiCur: (ctx, ev) => ev.req === ctx.frei.ki.req,
-  kiPickOk: (ctx, ev) => { const k = ctx.frei.ki, o = k.opts[ev.i]; if (!o) return false; const next = { ...paramsOfCard(ctx, ctx.cardId), [k.field]: o }; return validParams(ctx.cardId, next); }
+  kiPickOk: (ctx, ev) => { const k = ctx.frei.ki, o = k.opts[ev.i]; if (!o) return false; const next = { ...paramsOfCard(ctx, ctx.cardId), [k.field]: o }; return validParams(ctx.cardId, next); },
+  ...klaerenGuards
 };
 
 function openTarget(ctx, t) {
@@ -433,7 +444,8 @@ export const freiActions = {
   cancelKi: (ctx, ev, emit) => { const k = ctx.frei.ki; if (k.receipt) emit({ type: "frei.settle", how: "discard", receipt: k.receipt }); return F(ctx, { ki: { ...k, req: (k.req || 0) + 1, opts: [], res: null, receipt: "" } }); },
   fxKiAsk: (ctx, ev, emit) => { emit({ type: "frei.kiask", kind: ev.kind, input: ev.input, into: ev.into, cardId: ctx.cardId }); return ctx; },
   fxKiSettle: (ctx, ev, emit) => { if (typeof ev.receipt === "string" && ev.receipt && (ev.how === "accept" || ev.how === "discard")) emit({ type: "frei.settle", how: ev.how, receipt: ev.receipt }); return ctx; },
-  settleFail: (ctx) => F(ctx, { note: "settle-fail" })
+  settleFail: (ctx) => F(ctx, { note: "settle-fail" }),
+  ...klaerenActions
 };
 
 /** Kontext der freien Karte (zuletzt gewaehlt nur als markierter Vorschlag, nie als stille Auswahl) */
@@ -453,7 +465,7 @@ export function freiContext(saved) {
       deck: { load: null, cards: [], v: -1 }, card: null, use: null, vote: null, acted: false, mine: null,
       report: { reason: null, sending: false, sent: null, back: null, doc: null },
       bild: { use: "card", style: "comic", text: "", st: null, err: null, req: 0, phase: null, place: 0, res: null, kept: false },
-      ki: { part: null, field: null, fields: [], opts: [], res: null, req: 0 } }
+      ki: { part: null, field: null, fields: [], opts: [], res: null, req: 0 }, k: freshK(), kan: null }
   };
 }
 
@@ -474,7 +486,7 @@ export const frei = {
   on: {
     "inhalt.card.view": { GO: CARD_VIEW_ON.GO_FIRST, ROBOT: CARD_VIEW_ON.ROBOT, MELDEN: CARD_VIEW_ON.MELDEN },
     "inhalt.card.customize.bubbles": CUSTOMIZE_ON,
-    "inhalt": { LINK: LINK_FIRST },
+    "inhalt": { LINK: LINK_FIRST, K_FERTIG: K_FERTIG_ON },
     // KI-Knoten der Zugkarten ({t:"ai", kind, input, into}, Z1 zug-termin/geschenk-finder): der Host (F) sendet KI_ASK, das
     // Ergebnis kommt als KI_DONE {into, option, seal, receipt}; die Karte uebernimmt -> KI_SETTLE {receipt, how:"accept"|"discard"}
     "inhalt.card": { KI_ASK: { cond: "kiAskOk", actions: ["fxKiAsk"] }, KI_DONE: { cond: "kiDoneOk", raise: kiDraft }, KI_SETTLE: { actions: ["fxKiSettle"] } }
@@ -482,7 +494,7 @@ export const frei = {
   guards: freiGuards,
   actions: freiActions,
   context: freiContext,
-  effects: freiEffects,
+  effects: { ...freiEffects, ...klaerenEffects },
   // Dienste fuer den Host (F: main.js featureEnv(window)): Bildbruecke fuer Vorschau, Spiel, Canvas und Buehne
   env: { images: (win) => { const md = browserMedia(win); return createImages(win, null, md.available ? { local: (id) => md.open(id), revoke: (u) => win.URL.revokeObjectURL(u) } : {}); } }
 };

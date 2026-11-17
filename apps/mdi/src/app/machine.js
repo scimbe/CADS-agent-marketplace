@@ -12,6 +12,8 @@ import { paramsForLink, defaults, travelsOnly } from "../contract/fields.js";
 import { kontoRegion, stilState, kontoGuards, kontoActions, kontoContext } from "./konto-chart.js";
 import { FEATURES } from "./features.js";
 import { playOf } from "../contract/modes.js";
+import { HOST_PART_IDS } from "./host-parts.js";
+import { cleanPref } from "./konto.js";
 
 const T = (p) => p; // Lesbarkeit: absolute Zielpfade
 const leaveIfLive = (ctx) => (ctx.mode === "live" ? { type: "LEAVE" } : null);
@@ -46,7 +48,10 @@ export const chart = {
         partfail: { on: { RETRY: { target: T("inhalt.shelf"), actions: ["retryPart"] }, BACK: { target: T("inhalt.shelf"), actions: ["clearPartFail"] }, DONE: { target: T("inhalt.shelf"), actions: ["clearPartFail"] } } },
         // OPEN {id, variant?, mode?, start?}: ein Ereignis, atomar. start:true fuehrt direkt ins Spiel (raise GO, wenn der
         // Modus zur Karte passt); ein fremder Modus bleibt ehrlich in card.view mit Hinweis, ohne Ersatzwahl (Board Bote1, H)
-        shelf: { on: { OPEN: { target: T("inhalt.card"), cond: "cardExists", actions: ["openCard"], raise: openStart }, STIL: T("inhalt.stil") } },
+        shelf: { on: { OPEN: { target: T("inhalt.card"), cond: "cardExists", actions: ["openCard"], raise: openStart }, STIL: T("inhalt.stil"), DEMO_INFO: T("inhalt.demoinfo") } },
+        // „Ueber diese Demo“: eigener Bildschirm, betreten ueber ?go=demo (der Hinweis oeffnet ihn in einem neuen Tab, damit
+        // eine laufende Partie oder ein empfangener Link hier nicht verloren geht)
+        demoinfo: { on: { BACK: T("inhalt.shelf"), DONE: T("inhalt.shelf") } },
         stil: stilState,
         card: {
           initial: "view",
@@ -68,6 +73,8 @@ export const chart = {
             },
             customize: {
               initial: "bubbles",
+              // Blasen-Muster: Pinsel blendet die Blasen aus/ein, Ziehen merkt die Lage je Kartenart (beides auf dem Geraet)
+              on: { BLASEN: { actions: ["toggleBlasen"] }, BLASE_LAGE: { cond: "lageOk", actions: ["setBlaseLage"] } },
               states: {
                 bubbles: { on: { BUBBLE: { target: T("inhalt.card.customize.dialog"), cond: "partExists", actions: ["setPart"] }, DONE: T("inhalt.card.view"), BACK: T("inhalt.card.view") } },
                 dialog: { on: { PARAM: { actions: ["setParam"] }, CLOSE: T("inhalt.card.customize.bubbles"), BACK: T("inhalt.card.customize.bubbles") } }
@@ -240,7 +247,9 @@ export const AUTO_MS = 20000;
 
 export const guards = {
   cardExists: (ctx, ev) => !!cardOf(ev.id),
-  partExists: (ctx, ev) => G.card(ctx).manifest.parts.some((p) => p.id === ev.part),
+  // gezogene Blase: bekannter Teil, Lage als Bruchteile [0..1] der Ebene; sonst wird das Ereignis nicht verbraucht
+  lageOk: (ctx, ev) => guards.partExists(ctx, ev) && Array.isArray(ev.at) && ev.at.length === 2 && ev.at.every((n) => typeof n === "number" && n >= 0 && n <= 1),
+  partExists: (ctx, ev) => G.card(ctx).manifest.parts.some((p) => p.id === ev.part) || HOST_PART_IDS.includes(ev.part),
   goStaticLink: (ctx) => G.card(ctx).manifest.mode === "static" && ctx.mode === "link",
   goLive: (ctx) => ctx.mode === "live",
   goRt: (ctx) => G.card(ctx).manifest.mode === "realtime" && ["alone", "bot"].includes(ctx.mode),
@@ -306,6 +315,12 @@ export const actions = {
   setSeat: (ctx, ev) => (Number.isInteger(ev.seat) && ev.seat >= 0 && ev.seat < G.card(ctx).manifest.players.max ? { ...ctx, seat: ev.seat } : ctx),
   setLevel: (ctx, ev) => ([1, 2, 3].includes(ev.level) ? { ...ctx, level: ev.level } : ctx),
   setPart: (ctx, ev) => ({ ...ctx, part: ev.part }),
+  toggleBlasen: (ctx, ev, emit) => { emit({ type: "device.save" }); return { ...ctx, pref: cleanPref({ ...ctx.pref, blasen: { ...ctx.pref.blasen, aus: !ctx.pref.blasen.aus } }) }; },
+  setBlaseLage: (ctx, ev, emit) => {
+    const b = ctx.pref.blasen, id = ctx.cardId, next = cleanPref({ ...ctx.pref, blasen: { ...b, lage: { ...b.lage, [id]: { ...(b.lage[id] || {}), [ev.part]: ev.at } } } });
+    emit({ type: "device.save" });
+    return { ...ctx, pref: next };
+  },
   setParam: (ctx, ev) => {
     const c = G.card(ctx), part = c.manifest.parts.find((p) => p.id === ctx.part);
     if (!part || !part.params.includes(ev.key)) return ctx;

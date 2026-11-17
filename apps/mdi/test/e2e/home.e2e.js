@@ -152,3 +152,73 @@ test("Folge-PR 2: Jetzt spielen fuehrt mit einem Tap ins Spiel; Erst ueben (wo e
   await p.locator("main:not([data-loading])").waitFor();
   assert.deepEqual(errs, []);
 });
+
+// User-Feedback 17.11.: „doppelklick auf Karte im brwoser oefnet nichts“. Das Blatt oeffnet die Karte wie der Hauptknopf:
+// Klick/Tipp, Doppelklick (genau einmal), Enter und Leertaste; Wischen ueber 60 px blaettert und oeffnet nicht; Ziehen unter
+// der Schwelle ist ein Klick. Jede Geste auf frischer Seite; Vergleich mit der Ansicht und dem Verlauf nach dem Hauptknopf.
+const state = (p) => p.evaluate(() => ({ cls: document.querySelector("main").className, hist: history.length }));
+async function sheetPage(view) {
+  const r = await open(b, { view });
+  await r.p.locator(".h-leaf").waitFor(); await r.p.waitForLoadState("networkidle"); await r.p.waitForTimeout(500);
+  return r;
+}
+async function opened(p) { await p.locator("main:not(.h-at-day)").waitFor({ timeout: 5000 }).catch(() => {}); await p.waitForTimeout(400); return state(p); }
+async function opensLikeGo(view, how, gesture) {
+  const ref = await sheetPage(view); await ref.p.locator(".h-go").first().click(); const want = await opened(ref.p); await ref.ctx.close();
+  assert.doesNotMatch(want.cls, /\bh-at-day\b/, "Hauptknopf oeffnet");
+  const { p, ctx, errs } = await sheetPage(view);
+  await gesture(p);
+  assert.deepEqual(await opened(p), want, how + ": dieselbe Ansicht und derselbe Verlauf wie nach einem Hauptknopf-Klick (genau einmal)");
+  assert.deepEqual(errs, []); await ctx.close();
+}
+const touchDrag = async (p, x, y, dx, steps) => {
+  const cdp = await p.context().newCDPSession(p);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+  for (let i = 1; i <= steps; i++) await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: x + dx * i / steps, y }] });
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+};
+
+test("Desktop (desk1280): Blatt hat Rolle und Namen; Klick, Doppelklick (einmal), Enter, Leertaste und Ziehen unter der Schwelle oeffnen", async () => {
+  const { p, ctx } = await sheetPage("desk1280");
+  const leaf = p.locator(".h-leaf");
+  assert.equal(await leaf.getAttribute("role"), "group", "kein role=button: das Blatt enthaelt Knoepfe (‹ ›)");
+  const title = await p.evaluate(() => [...document.querySelectorAll(".h-stamp-l")].map((l) => l.textContent).join(" "));
+  assert.equal(await leaf.getAttribute("aria-label"), "Karte öffnen: " + title);
+  assert.match(await leaf.getAttribute("aria-keyshortcuts"), /Enter Space ArrowLeft ArrowRight/);
+  // der zweite Klick eines Doppelklicks (detail 2) oeffnet nicht noch einmal, auch wenn das Blatt noch steht (langsames Laden)
+  await p.evaluate(() => document.querySelector(".h-stamp").dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 2 })));
+  await p.waitForTimeout(400);
+  assert.match((await state(p)).cls, /\bh-at-day\b/, "Klick mit detail 2 oeffnet nicht");
+  await ctx.close();
+  await opensLikeGo("desk1280", "Klick", (p) => p.locator(".h-stamp").click());
+  await opensLikeGo("desk1280", "Doppelklick", (p) => p.locator(".h-stamp").dblclick());
+  await opensLikeGo("desk1280", "Enter", async (p) => { await p.locator(".h-leaf").focus(); await p.keyboard.press("Enter"); });
+  await opensLikeGo("desk1280", "Leertaste", async (p) => { await p.locator(".h-leaf").focus(); await p.keyboard.press(" "); });
+  await opensLikeGo("desk1280", "Ziehen 8 px", async (p) => { const s = await p.locator(".h-stamp").boundingBox();
+    await p.mouse.move(s.x + 40, s.y + 10); await p.mouse.down(); await p.mouse.move(s.x + 48, s.y + 12); await p.mouse.up(); });
+});
+
+test("Desktop (desk1280): Maus-Wisch ueber 60 px blaettert und oeffnet nicht; ‹ im Blatt oeffnet nicht", async () => {
+  const { p, errs } = await sheetPage("desk1280");
+  const d0 = await p.locator(".h-dnum").textContent(), s = await p.locator(".h-stamp").boundingBox(), y = s.y + s.height / 2;
+  await p.mouse.move(s.x + s.width - 10, y); await p.mouse.down(); await p.mouse.move(s.x + s.width - 160, y, { steps: 8 }); await p.mouse.up();
+  await p.waitForFunction((d) => document.querySelector(".h-dnum").textContent !== d, d0, { timeout: 10000 });
+  await p.waitForTimeout(600);
+  assert.match((await state(p)).cls, /\bh-at-day\b/, "Wischen oeffnet nicht");
+  await p.locator('[data-act="day-prev"]').click(); await p.waitForTimeout(400);
+  assert.equal(await p.locator(".h-dnum").textContent(), d0, "‹ blaettert");
+  assert.match((await state(p)).cls, /\bh-at-day\b/, "‹ oeffnet nicht");
+  assert.deepEqual(errs, []);
+});
+
+test("Handy (phone390): Tipp und Finger-Wackler unter der Schwelle oeffnen; Finger-Wisch blaettert und oeffnet nicht", async () => {
+  await opensLikeGo("phone390", "Tipp", (p) => p.locator(".h-stamp").tap());
+  await opensLikeGo("phone390", "Finger-Wackler 6 px", async (p) => { const s = await p.locator(".h-stamp").boundingBox(); await touchDrag(p, s.x + 40, s.y + s.height / 2, 6, 2); });
+  const { p, errs } = await sheetPage("phone390");
+  const d0 = await p.locator(".h-dnum").textContent(), s = await p.locator(".h-stamp").boundingBox();
+  await touchDrag(p, s.x + s.width - 10, s.y + s.height / 2, -160, 8);
+  await p.waitForFunction((d) => document.querySelector(".h-dnum").textContent !== d, d0, { timeout: 10000 });
+  await p.waitForTimeout(600);
+  assert.match((await state(p)).cls, /\bh-at-day\b/, "Finger-Wisch oeffnet nicht");
+  assert.deepEqual(errs, []);
+});
