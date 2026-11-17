@@ -1,6 +1,6 @@
 // Baut Spielrahmen und lokale Host-Seite im Speicher (esbuild, wie scripts/build.js). Kein Schreiben nach dist/: der
-// Bot-Runner liefert die Dateien per Playwright-Route aus. Die CSP des Rahmens ist hier die eine Quelle; ein echter
-// Spiel-Ursprung (spiel-…bunsenbrenner.org, spaeter) setzt dieselben Kopfzeilen.
+// Bot-Runner liefert die Dateien per Playwright-Route aus. Die CSP des Rahmens kommt aus src/broker/spiel-csp.js;
+// ein echter Spiel-Ursprung (spiel-…bunsenbrenner.org, spaeter) setzt dieselben Kopfzeilen.
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as esbuild from "esbuild";
@@ -8,14 +8,8 @@ import * as esbuild from "esbuild";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const common = { bundle: true, write: false, target: "es2022", legalComments: "none", logLevel: "silent" };
 
-/** CSP des Spielrahmens: kein Netz, keine Bilder/Medien/Schriften von aussen, kein eval; Worker und Spielcode nur als blob:. */
-export function frameCsp(frameOrigin, hostOrigin) {
-  return ["default-src 'none'", "script-src " + frameOrigin + " blob:", "worker-src blob:", "style-src " + frameOrigin, "connect-src 'none'", "img-src 'none'",
-    "media-src 'none'", "font-src 'none'", "frame-src 'none'", "object-src 'none'", "form-action 'none'", "base-uri 'none'", "frame-ancestors " + hostOrigin].join("; ");
-}
-export function hostCsp(hostOrigin, frameOrigin) {
-  return ["default-src 'none'", "script-src " + hostOrigin, "connect-src " + hostOrigin, "style-src " + hostOrigin, "frame-src " + frameOrigin, "base-uri 'none'"].join("; ");
-}
+// CSP liegt in src/broker/spiel-csp.js (der Host braucht sie fuer iframe.csp); hier nur weitergereicht.
+export { frameCsp, hostCsp } from "../../src/broker/spiel-csp.js";
 
 const FRAME_HTML = "<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\">" +
   "<link rel=\"stylesheet\" href=\"frame.css\"><title>Spiel</title></head><body><main id=\"spiel\"></main><script src=\"frame.js\"></script></body></html>";
@@ -42,11 +36,14 @@ const HOST_HTML = "<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\
   "<script type=\"module\" src=\"host.js\"></script></body></html>";
 const HOST_CSS = "body { margin: 0; font-family: system-ui, sans-serif; } .spielrahmen { display: block; width: 390px; height: 700px; border: 0; } output { display: block; font: 12px monospace; }";
 
-/** @returns {Promise<{workerJs:string, files: Record<string, {body:string, type:string}>}>} */
-export async function buildSpiel() {
+/**
+ * @param {{fristen?: object}} [opt] fristen: Abweichungen von spiel/fristen.js, nur fuer Tests (mitFristen prueft die Schluessel)
+ * @returns {Promise<{workerJs:string, files: Record<string, {body:string, type:string}>}>}
+ */
+export async function buildSpiel(opt = {}) {
   const worker = await esbuild.build({ ...common, format: "iife", entryPoints: [path.join(ROOT, "src/broker/spiel-worker.js")] });
   const workerJs = worker.outputFiles[0].text;
-  const frame = await esbuild.build({ ...common, format: "iife", entryPoints: [path.join(ROOT, "src/broker/spiel-frame.js")], define: { __SPIEL_WORKER__: JSON.stringify(workerJs) } });
+  const frame = await esbuild.build({ ...common, format: "iife", entryPoints: [path.join(ROOT, "src/broker/spiel-frame.js")], define: { __SPIEL_WORKER__: JSON.stringify(workerJs), __SPIEL_FRISTEN__: JSON.stringify(opt.fristen || {}) } });
   const host = await esbuild.build({ ...common, format: "esm", entryPoints: [path.join(ROOT, "scripts/spiel/host-seite.js")] });
   return {
     workerJs,

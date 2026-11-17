@@ -70,7 +70,7 @@ export function checkCardSource(src, opt = {}) {
 // Spielmodule der Freien Karte 2 (src/spiel/api.js): eine Datei, keine Importe, dieselben Mathe-/Uhr-/Netz-Regeln wie
 // Kartenlogik, dazu kein Zugriff auf Rahmen, Worker-Kanaele und Zeitgeber. Vorpruefung vor der Sandbox, kein Ersatz.
 export const SPIEL_GLOBALS_BANNED = ["parent", "opener", "postMessage", "onmessage", "addEventListener", "removeEventListener", "dispatchEvent",
-  "close", "queueMicrotask", "MessageChannel", "MessagePort", "BroadcastChannel", "EventSource", "indexedDB", "caches", "Proxy", "Reflect", "SharedArrayBuffer", "Atomics", "WebAssembly"];
+  "close", "queueMicrotask", "MessageChannel", "MessagePort", "BroadcastChannel", "Worker", "SharedWorker", "importScripts", "EventSource", "indexedDB", "caches", "Proxy", "Reflect", "SharedArrayBuffer", "Atomics", "WebAssembly"];
 /** @returns {string[]} Befunde (leer = bestanden) */
 export function checkSpielSource(src) {
   let out;

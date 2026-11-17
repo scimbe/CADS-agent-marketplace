@@ -3,13 +3,33 @@
 // damit dieselbe Pruefung in Node (Unit-Test) und im Sandbox-Worker (Bot-Runner) laeuft.
 // Netzversuche kann nur der Browser sehen; der Runner traegt sie als checks.noNetwork nach (finish()).
 import { createGame, checkModule, API_VERSION, HZ, LIMITS } from "./api.js";
-import { BOTS, makeBot, actions, press } from "./bots.js";
+import { BOTS, GREEDY, makeBot, actions, press } from "./bots.js";
 
 /** Schwellen (Startwerte, eigene Setzung; Kalibrierung gegen menschliches Urteil steht aus). */
 export const THRESHOLDS = Object.freeze({ p95Ms: 4, probeFrames: 45, probeStarts: [0, 30, 90, 240], detFrames: 900, restartWarmup: 200 });
 
 const p95 = (xs) => { if (!xs.length) return 0; const a = xs.slice().sort((x, y) => x - y); return a[Math.min(a.length - 1, Math.floor(a.length * 0.95))]; };
 const round3 = (x) => Math.round(x * 1000) / 1000;
+/** Pruefphasen in Reihenfolge; jede meldet Fortschritt je Spielschritt (der Rahmen haelt je Phase ein eigenes Fenster). */
+export const PHASES = Object.freeze(["bots", "eingaben", "determinismus", "neustart"]);
+const RESTART_TAIL = 30;
+
+/**
+ * Obergrenze der Spielschritte (game.step) einer Pruefung je Phase. Grundlage der Gesamtfrist im Rahmen und im Host
+ * (spiel/fristen.js): eine Frist, die mit der Arbeit waechst, nicht mit jedem Fortschritt neu beginnt.
+ * @param {number} seconds  simulierte Sekunden je Bot
+ * @param {number} controls Anzahl deklarierter Steuerungen (1..5)
+ */
+export function workSteps(seconds, controls) {
+  const frames = seconds * HZ, acts = 1 + 2 * (controls - 1) + 1; // Obergrenze von actions(): nichts, je Richtung, Feuer, je Richtung + Feuer
+  const greedy = frames + Math.ceil(frames / GREEDY.decide) * acts * GREEDY.horizon;
+  return {
+    bots: 2 * frames + greedy,
+    eingaben: Math.max(...THRESHOLDS.probeStarts) + controls * THRESHOLDS.probeStarts.length * 2 * THRESHOLDS.probeFrames,
+    determinismus: 2 * THRESHOLDS.detFrames,
+    neustart: THRESHOLDS.restartWarmup + RESTART_TAIL
+  };
+}
 const fresh = (st, meta, round) => st.frame === 0 && st.score === 0 && st.lives === meta.lives && st.level === 1 && !st.over && !st.won && st.round === round;
 
 function runBot(mod, kind, o, ctx) {
@@ -33,8 +53,7 @@ function runBot(mod, kind, o, ctx) {
       game.restart();
       if (!fresh(game.status(), meta, after.round + 1)) { restartOk = false; broken = broken || { frame: t, restart: game.status() }; }
     }
-    ctx.done++;
-    o.onProgress(ctx.done, ctx.total);
+    ctx.tick();
   }
   const last = game.status();
   const all = games.concat(last.frame > 0 ? [{ score: last.score, level: last.level, frames: last.frame, won: false, open: true }] : []);
@@ -46,13 +65,13 @@ function runBot(mod, kind, o, ctx) {
 }
 
 /** Wirkt jede deklarierte Steuerung? Je Startpunkt: nichts tun vs. Steuerung halten, Hash vergleichen. */
-function probeInputs(mod, o) {
+function probeInputs(mod, o, ctx) {
   const out = {};
   const base = createGame(mod, { seed: o.seed }), warm = makeBot("random", base, o.seed + "|probe");
   const starts = [];
   let t = 0;
   for (const at of THRESHOLDS.probeStarts) {
-    while (t < at && !base.status().over) { base.step(warm.next(t)); t++; }
+    while (t < at && !base.status().over) { base.step(warm.next(t)); t++; ctx.tick(); }
     if (base.status().over) break;
     starts.push(base.snapshot());
   }
@@ -61,10 +80,10 @@ function probeInputs(mod, o) {
     let effect = false;
     for (const snap of starts) {
       base.restore(snap);
-      for (let k = 0; k < THRESHOLDS.probeFrames; k++) base.step({});
+      for (let k = 0; k < THRESHOLDS.probeFrames; k++) { base.step({}); ctx.tick(); }
       const idle = base.hash();
       base.restore(snap);
-      for (let k = 0; k < THRESHOLDS.probeFrames; k++) base.step(press(a, k));
+      for (let k = 0; k < THRESHOLDS.probeFrames; k++) { base.step(press(a, k)); ctx.tick(); }
       if (base.hash() !== idle) { effect = true; break; }
     }
     out[c] = effect;
@@ -73,10 +92,10 @@ function probeInputs(mod, o) {
 }
 
 /** Gleicher Seed + gleiche Bot-Eingaben => gleicher Hash (zwei frische Laeufe). Faengt auch Zustand ausserhalb von s. */
-function determinism(mod, o) {
+function determinism(mod, o, ctx) {
   const run = () => {
     const g = createGame(mod, { seed: o.seed }), b = makeBot("random", g, o.seed + "|det");
-    for (let t = 0; t < THRESHOLDS.detFrames; t++) { g.step(b.next(t)); if (g.status().over) g.restart(); }
+    for (let t = 0; t < THRESHOLDS.detFrames; t++) { g.step(b.next(t)); ctx.tick(); if (g.status().over) g.restart(); }
     return g.hash();
   };
   const a = run(), b = run();
@@ -84,38 +103,42 @@ function determinism(mod, o) {
 }
 
 /** Neustart = frischer Start der naechsten Runde (Stand zurueckgesetzt, Zustand gleich einem neuen Spiel dieser Runde). */
-function restartProbe(mod, o) {
+function restartProbe(mod, o, ctx) {
   const g = createGame(mod, { seed: o.seed }), b = makeBot("random", g, o.seed + "|neu");
-  for (let t = 0; t < THRESHOLDS.restartWarmup && !g.status().over; t++) g.step(b.next(t));
+  for (let t = 0; t < THRESHOLDS.restartWarmup && !g.status().over; t++) { g.step(b.next(t)); ctx.tick(); }
   const round = g.status().round + 1;
   g.restart();
   const st0 = g.status();
   const ref = createGame(mod, { seed: o.seed, round });
   const sameStart = g.hash() === ref.hash();
-  for (let k = 0; k < 30; k++) { g.step({}); ref.step({}); }
+  for (let k = 0; k < RESTART_TAIL; k++) { g.step({}); ref.step({}); ctx.tick(); }
   return { ok: fresh(st0, g.meta, round) && sameStart && g.hash() === ref.hash(), sameStart };
 }
 
 /**
  * Spielt ein Modul mit allen Bots und prueft die Invarianten.
  * @param {object} mod  Spielmodul
- * @param {{seed:string, seconds:number, now:() => number, onProgress?:(done:number,total:number)=>void, name?:string}} o
+ * @param {{seed:string, seconds:number, now:() => number, onProgress?:(done:number,total:number,phase:string)=>void, name?:string}} o
  * @returns {object} Bericht (JSON-faehig)
  */
 export function playtest(mod, o) {
   const opt = { ...o, onProgress: o.onProgress || (() => {}) };
   const report = { api: API_VERSION, name: o.name || null, title: null, controls: null, seed: o.seed, seconds: o.seconds, ok: false, error: null, checks: {}, bots: {} };
-  const ctx = { done: 0, total: o.seconds * HZ * BOTS.length, where: "modul" };
+  // Fortschritt in allen Phasen: je Bot-Frame (Greedy-Vorausspiel inklusive) und je Spielschritt in Eingaben,
+  // Determinismus und Neustart. total = Obergrenze dieser Meldungen (Eingaben kann frueher enden).
+  const ctx = { done: 0, total: 0, where: "modul", phase: "bots", tick() { ctx.done++; opt.onProgress(ctx.done, ctx.total, ctx.phase); } };
   try {
     const meta = checkModule(mod);
     report.title = meta.title; report.controls = meta.controls;
+    const w = workSteps(o.seconds, meta.controls.length);
+    ctx.total = BOTS.length * o.seconds * HZ + w.eingaben + w.determinismus + w.neustart;
     ctx.where = "init";
     createGame(mod, { seed: o.seed });
     const runs = {};
     for (const kind of BOTS) runs[kind] = runBot(mod, kind, opt, ctx);
-    ctx.where = "eingaben"; const inputs = probeInputs(mod, opt);
-    ctx.where = "determinismus"; const det = determinism(mod, opt);
-    ctx.where = "neustart"; const rs = restartProbe(mod, opt);
+    ctx.where = ctx.phase = "eingaben"; const inputs = probeInputs(mod, opt, ctx);
+    ctx.where = ctx.phase = "determinismus"; const det = determinism(mod, opt, ctx);
+    ctx.where = ctx.phase = "neustart"; const rs = restartProbe(mod, opt, ctx);
     const allTimes = BOTS.flatMap((k) => runs[k].times);
     for (const k of BOTS) { const { times, ...rest } = runs[k]; void times; report.bots[k] = rest; }
     const played = Math.max(runs.random.bestScore, runs.greedy.bestScore);

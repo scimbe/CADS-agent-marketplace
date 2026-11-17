@@ -5,9 +5,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "playwright";
 import { buildSpiel } from "./spiel/build.mjs";
-import { runGame } from "./spiel/runner.mjs";
+import { runGame, launchBrowser } from "./spiel/runner.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2), opt = { seconds: 60, seed: "fk2", out: path.join(ROOT, "dist/spiel-berichte") }, files = [];
@@ -21,7 +20,7 @@ if (!files.length) { const dir = path.join(ROOT, "src/spiel/beispiele"); for (co
 
 fs.mkdirSync(opt.out, { recursive: true });
 const built = await buildSpiel();
-const browser = await chromium.launch({ executablePath: process.env.PW_CHROME || undefined });
+const browser = await launchBrowser();
 const summary = [];
 try {
   for (const f of files) {

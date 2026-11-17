@@ -1,19 +1,28 @@
 // Spielrahmen (eigener, opaker Ursprung; CSP ohne Netz). Nimmt vom Elternfenster genau das Schema aus spiel/protokoll.js an,
 // startet den Spielcode in einem Worker (spiel-worker.js, als Text eingebaut) und meldet nur Status, Fortschritt, Bericht und
 // Fehler zurueck. Watchdog: antwortet der Worker nicht rechtzeitig, wird er beendet (Endlosschleife, Ueberlast).
+// Zwei Fristen (spiel/fristen.js): ein Fenster je Phase ohne Lebenszeichen und in der Pruefung eine Gesamtfrist ab Start,
+// die Fortschritt nicht verlaengert. Im Spielmodus gilt nur das Tick-Fenster (die Spieldauer bestimmt der Mensch).
+// Fail closed: Vor dem ersten Befehl prueft der Rahmen opaken Ursprung und aktive CSP (Bild-Probe gesperrt und gemeldet);
+// sonst meldet er "sandbox" und startet nie einen Worker.
+// Was der Rahmen meldet (auch der Bericht), ist Anzeige. Ueber Abnahme oder Guthaben entscheidet nur runGame auf dem Server.
 // Der Rahmen nimmt Befehle nur vom eigenen Elternfenster (e.source === parent). Er haelt keine Geheimnisse; was er
 // sendet, darf jeder Einbettende sehen. Wiederverwendet: Tick-Schleife (app/rt/loop.js), Eingabe-Abtastung und Letterbox
 // (app/rt/input.js), Ton-Synthese (render/sound.js).
-/* global __SPIEL_WORKER__ */
+/* global __SPIEL_WORKER__, __SPIEL_FRISTEN__ */
 import { createLoop } from "../app/rt/loop.js";
 import { createSampler, fitView, toWorld } from "../app/rt/input.js";
 import { createSound } from "../render/sound.js";
 import { W, H, HZ } from "../spiel/api.js";
 import { paint } from "../spiel/paint.js";
 import { V, checkToFrame, checkToHost } from "../spiel/protokoll.js";
-import { finish } from "../spiel/pruefung.js";
+import { finish, PHASES } from "../spiel/pruefung.js";
+import { FRISTEN, gesamtfristMs, mitFristen } from "../spiel/fristen.js";
 
-export const LIMIT_MS = Object.freeze({ load: 3000, tick: 1000, test: 2500 });
+/** Kurzform der Fenster (Laden, Spiel-Tick, Pruefschritt); massgeblich ist spiel/fristen.js. */
+export const LIMIT_MS = Object.freeze({ load: FRISTEN.fenster.load, tick: FRISTEN.fenster.tick, test: FRISTEN.fenster.eingaben });
+/** So lange wartet der Rahmen auf das Verstoss-Ereignis seiner Bild-Probe (img-src 'none'). */
+export const PROBE_MS = 2000;
 const TEXTS = {
   de: { score: "Punkte", level: "Level", over: "Spiel vorbei", won: "Geschafft!", again: "Nochmal: Feuer oder tippen", pause: "Pause", resume: "Weiter: tippen", left: "Links", right: "Rechts", up: "Hoch", down: "Runter", fire: "Feuer", sound: "Ton" },
   en: { score: "Score", level: "Level", over: "Game over", won: "Done!", again: "Again: fire or tap", pause: "Paused", resume: "Tap to resume", left: "Left", right: "Right", up: "Up", down: "Down", fire: "Fire", sound: "Sound" }
@@ -61,14 +70,13 @@ function icon(doc, d) {
 
 /**
  * Startet den Rahmen in einem Dokument. Alle Abhaengigkeiten kommen als Argument (testbar, keine Globals).
- * @param {{win: Window, doc: Document, workerSrc: string}} env
+ * @param {{win: Window, doc: Document, workerSrc: string, fristen?: typeof FRISTEN}} env
  */
 export function startFrame(env) {
-  const { win, doc } = env;
+  const { win, doc } = env, fristen = env.fristen || FRISTEN;
   const toHost = (m) => { const msg = { v: V, ...m }; const bad = checkToHost(msg); if (bad) throw new Error("Rahmen: eigene Nachricht ungueltig: " + bad); win.parent.postMessage(msg, "*"); };
   const frameNet = [];
-  doc.addEventListener("securitypolicyviolation", (e) => frameNet.push(String(e.violatedDirective) + " " + String(e.blockedURI).slice(0, 120)));
-  let worker = null, port = null, mode = null, pendingSince = 0, pendingLimit = 0, dead = false, texts = TEXTS.de;
+  let worker = null, port = null, mode = null, pendingSince = 0, pendingLimit = 0, deadline = 0, dead = false, texts = TEXTS.de;
   let st = null, ops = [], paused = false, muted = false, loop = null, ctx2d = null, fit = null, canvas = null, sampler = null, snd = null;
   const queue = [];
 
@@ -81,7 +89,10 @@ export function startFrame(env) {
   }
   const wait = (limit) => { pendingSince = win.performance.now(); pendingLimit = limit; };
   win.setInterval(() => {
-    if (!dead && pendingSince && win.performance.now() - pendingSince > pendingLimit) kill("watchdog", "Spielcode antwortet nicht seit " + pendingLimit + " ms – Endlosschleife oder zu viel Rechenarbeit je Frame");
+    if (dead) return;
+    const t = win.performance.now();
+    if (deadline && t > deadline) kill("watchdog", "Gesamtfrist der Pruefung ueberschritten – das Spiel rechnet zu lange (Frist waechst mit der Pruefdauer, nicht mit Fortschritt)");
+    else if (pendingSince && t - pendingSince > pendingLimit) kill("watchdog", "Spielcode antwortet nicht seit " + pendingLimit + " ms – Endlosschleife oder zu viel Rechenarbeit je Frame");
   }, 100);
   win.setInterval(() => { if (st && mode === "play" && !dead) toHost({ t: "status", status: pub() }); }, 500);
 
@@ -144,7 +155,7 @@ export function startFrame(env) {
     const inputs = queue.splice(0, queue.length);
     if (st && st.over && inputs.some((i) => i.firePressed)) port.postMessage({ t: "restart" });
     else port.postMessage({ t: "ticks", inputs });
-    wait(LIMIT_MS.tick);
+    wait(fristen.fenster.tick);
   }
 
   function onWorker(e) {
@@ -152,9 +163,12 @@ export function startFrame(env) {
     if (dead || !m || typeof m !== "object") return;
     if (m.t === "ready") return;
     if (m.t === "error") { kill(m.code, m.message); return; }
-    if (m.t === "progress") { wait(LIMIT_MS.test); toHost({ t: "progress", done: m.done, total: m.total }); return; }
+    if (m.t === "progress") {
+      if (!PHASES.includes(m.phase)) { kill("protokoll", "Worker meldet unbekannte Phase " + JSON.stringify(m.phase)); return; }
+      wait(fristen.fenster[m.phase]); toHost({ t: "progress", done: m.done, total: m.total }); return;
+    }
     if (m.t === "report") {
-      pendingSince = 0;
+      pendingSince = 0; deadline = 0;
       const r = m.report, attempts = [...m.net, ...frameNet];
       r.checks.noNetwork = { ok: attempts.length === 0, attempts };
       finish(r);
@@ -189,22 +203,51 @@ export function startFrame(env) {
     port.onmessage = onWorker;
     worker.postMessage({ t: "init" }, [ch.port2]);
     port.postMessage({ t: "load", code: m.code, seed: m.seed, mode: m.mode, seconds: m.mode === "test" ? m.seconds : 0 });
-    wait(LIMIT_MS.load);
+    wait(fristen.fenster.load);
+    if (m.mode === "test") deadline = win.performance.now() + gesamtfristMs(m.seconds, fristen);
   }
 
-  doc.addEventListener("visibilitychange", () => { if (doc.hidden) setPaused(true); });
-  win.addEventListener("message", (e) => {
-    if (e.source !== win.parent) return;
-    const bad = checkToFrame(e.data);
-    if (bad) { toHost({ t: "error", code: "protokoll", message: "abgelehnt: " + bad }); return; }
-    const m = e.data;
-    if (m.t === "start") { if (worker) { toHost({ t: "error", code: "protokoll", message: "abgelehnt: schon gestartet" }); return; } start(m); }
-    else if (m.t === "pause") setPaused(true);
-    else if (m.t === "resume") setPaused(false);
-    else if (m.t === "stop") { if (!dead) { dead = true; if (worker) worker.terminate(); if (loop) loop.stop(); } }
+  /**
+   * Fail closed: opaker Ursprung und aktive, meldende CSP. Probe: ein data:-Bild (kein Netz, ohne CSP harmlos). Nur
+   * wenn die CSP es mit img-src 'none' sperrt UND den Verstoss als Ereignis meldet, geht es weiter – genau auf diese
+   * Meldungen stuetzt sich checks.noNetwork. Die Probe laeuft vor dem Zaehler, sie zaehlt nicht als Netzversuch.
+   * @returns {Promise<string|null>} Grund der Verweigerung oder null
+   */
+  async function selfCheck() {
+    if (win.origin !== "null") return "Rahmen hat keinen opaken Ursprung (sandbox fehlt)";
+    let on = null;
+    const reported = new Promise((res) => {
+      on = (e) => { if (e.effectiveDirective === "img-src") res(true); };
+      doc.addEventListener("securitypolicyviolation", on);
+      win.setTimeout(() => res(false), PROBE_MS);
+    });
+    doc.createElement("img").src = "data:,";
+    const ok = await reported;
+    doc.removeEventListener("securitypolicyviolation", on);
+    return ok ? null : "CSP des Rahmens fehlt oder meldet keine Verstoesse (Bild-Probe nicht gesperrt)";
+  }
+
+  function listen() {
+    doc.addEventListener("securitypolicyviolation", (e) => frameNet.push(String(e.violatedDirective) + " " + String(e.blockedURI).slice(0, 120)));
+    doc.addEventListener("visibilitychange", () => { if (doc.hidden) setPaused(true); });
+    win.addEventListener("message", (e) => {
+      if (e.source !== win.parent) return;
+      const bad = checkToFrame(e.data);
+      if (bad) { toHost({ t: "error", code: "protokoll", message: "abgelehnt: " + bad }); return; }
+      const m = e.data;
+      if (m.t === "start") { if (worker) { toHost({ t: "error", code: "protokoll", message: "abgelehnt: schon gestartet" }); return; } start(m); }
+      else if (m.t === "pause") setPaused(true);
+      else if (m.t === "resume") setPaused(false);
+      else if (m.t === "stop") { if (!dead) { dead = true; if (worker) worker.terminate(); if (loop) loop.stop(); } }
+    });
+  }
+
+  return selfCheck().then((why) => {
+    if (why) { dead = true; toHost({ t: "error", code: "sandbox", message: why }); return; }
+    listen();
+    toHost({ t: "ready" });
   });
-  toHost({ t: "ready" });
 }
 
 // Einstieg im echten Rahmen (der Build setzt __SPIEL_WORKER__). In Node-Tests wird nur importiert, nicht gestartet.
-if (typeof __SPIEL_WORKER__ === "string") startFrame({ win: window, doc: document, workerSrc: __SPIEL_WORKER__ });
+if (typeof __SPIEL_WORKER__ === "string") startFrame({ win: window, doc: document, workerSrc: __SPIEL_WORKER__, fristen: mitFristen(__SPIEL_FRISTEN__) });

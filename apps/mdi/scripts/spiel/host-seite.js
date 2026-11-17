@@ -2,11 +2,12 @@
 // Spielrahmen ueber src/broker/spiel-host.js ein und schreibt Ereignisse sichtbar ins DOM (#status, #bericht), wo der Runner
 // sie liest. Keine Globals.
 import { createSpielHost } from "../../src/broker/spiel-host.js";
+import { mitFristen } from "../../src/spiel/fristen.js";
 
 const out = (id, v) => { document.getElementById(id).textContent = JSON.stringify(v); };
 const job = await (await fetch("./job.json")).json();
 const host = createSpielHost({
-  doc: document, win: window, mount: document.getElementById("buehne"), frameUrl: job.frameUrl,
+  doc: document, win: window, mount: document.getElementById("buehne"), frameUrl: job.frameUrl, fristen: mitFristen(job.fristen),
   onEvent(m) {
     if (m.t === "status") out("status", m.status);
     else if (m.t === "started") out("meta", m.meta);

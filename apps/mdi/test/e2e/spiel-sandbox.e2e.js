@@ -6,14 +6,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { browser, ROOT } from "./lib/grund.mjs";
-import { buildSpiel } from "../../scripts/spiel/build.mjs";
-import { runGame, openSandbox, waitReport, FRAME } from "../../scripts/spiel/runner.mjs";
+import { ROOT } from "./lib/grund.mjs";
+import { buildSpiel, frameCsp } from "../../scripts/spiel/build.mjs";
+import { runGame, openSandbox, waitReport, launchBrowser, FRAME, HOST, VIEW } from "../../scripts/spiel/runner.mjs";
+import { V } from "../../src/spiel/protokoll.js";
 
 const BEISPIELE = path.join(ROOT, "src/spiel/beispiele"), NEG = path.join(ROOT, "test/fixtures/spiel");
 const src = (dir, n) => fs.readFileSync(path.join(dir, n + ".js"), "utf8");
 let b, built;
-test.before(async () => { b = await browser(); built = await buildSpiel(); });
+test.before(async () => { b = await launchBrowser(); built = await buildSpiel(); });
 test.after(async () => { await b.close(); });
 
 const failedOf = (r) => Object.entries(r.checks).filter(([, c]) => !c.ok).map(([k]) => k);
@@ -37,7 +38,14 @@ const NEGATIVE = {
   zufall: (r) => { assert.match(r.error.message, /g\.random\(\)/); },
   syntax: (r) => { assert.equal(r.error.code, "syntax"); },
   leck: (r) => { assert.ok(!r.checks.deterministic.ok || !r.checks.restartWorks.ok); },
-  faelscher: (r) => { assert.equal(r.checks.gameOverReachable.ok, false, "echter Bericht, nicht der gefaelschte"); assert.equal(r.checks.static.ok, false); }
+  faelscher: (r) => { assert.equal(r.checks.gameOverReachable.ok, false, "echter Bericht, nicht der gefaelschte"); assert.equal(r.checks.static.ok, false); },
+  // Befund 8: verschachtelter Worker / BroadcastChannel gesperrt und gezaehlt, obwohl das Spiel die Fehler verschluckt
+  worker: (r) => { assert.equal(r.error, null); assert.equal(r.checks.noNetwork.ok, false); for (const n of ["Worker", "BroadcastChannel"]) assert.ok(r.checks.noNetwork.attempts.includes(n), n); assert.equal(r.checks.static.ok, false); },
+  // Befund 8: import("https://…") blockt die CSP, der Verstoss wird gezaehlt, die statische Pruefung meldet ihn
+  import: (r) => { assert.equal(r.checks.noNetwork.ok, false); assert.ok(r.checks.noNetwork.attempts.some((a) => /script-src.*example\.org/.test(a)), r.checks.noNetwork.attempts); assert.equal(r.checks.static.ok, false); },
+  // Befund 11: Speicherbombe in einem Tick
+  "bombe-array": (r) => { assert.equal(r.error.code, "speicher"); assert.match(r.error.message, /Array\.fill/); },
+  "bombe-text": (r) => { assert.equal(r.error.code, "speicher"); assert.match(r.error.message, /String\.repeat/); }
 };
 test("Negativfaelle: kaputte und boesartige Module werden sauber abgefangen, nichts verlaesst den Rahmen", async (t) => {
   for (const [name, expect] of Object.entries(NEGATIVE)) {
@@ -109,4 +117,80 @@ test("Protokoll: ungueltige Nachricht an den Rahmen wird mit Grund abgelehnt; Ho
   assert.equal(r.error.code, "protokoll");
   assert.match(r.error.message, /unbekannter Typ "eval"/);
   await ctx.close();
+});
+
+test("Haertung im echten Worker: Iterator-Prototypen, Date, RegExp, typisierte Arrays und Bindungen lassen sich nicht umbiegen", async () => {
+  const r = await runGame(b, built, { name: "weich", code: src(NEG, "weich"), seed: "hart", seconds: 2 });
+  assert.equal(r.title, "weich 0", "jeder Versuch scheiterte");
+  assert.equal(r.error, null);
+});
+
+test("Speicher-Wachstum in einer Schleife: Heap-Grenze, Absturz wird als \"absturz\" gemeldet; der Runner prueft danach weiter", async () => {
+  const t0 = Date.now();
+  const r = await runGame(b, built, { name: "bombe-wachstum", code: src(NEG, "bombe-wachstum"), seed: "neg", seconds: 10 });
+  assert.equal(r.ok, false);
+  assert.equal(r.error.code, "absturz", JSON.stringify(r.error));
+  assert.ok(Date.now() - t0 < 30000, "Absturz sofort erkannt, nicht erst nach der Frist");
+  const ok = await runGame(b, built, { name: "snake", code: src(BEISPIELE, "snake"), seed: "e2e", seconds: 60 });
+  assert.equal(ok.ok, true, "naechstes Spiel laeuft normal");
+});
+
+test("Langsam, aber im Budget: Phasen ohne Bot-Frames (Eingaben, Determinismus, Neustart) loesen keinen Watchdog aus", async (t) => {
+  const r = await runGame(b, built, { name: "langsam", code: src(NEG, "langsam"), seed: "lahm", seconds: 2 });
+  t.diagnostic("langsam: p95=" + r.checks.performance?.p95Ms + "ms wall=" + r.sandbox.wallMs + "ms verletzt=" + failedOf(r).join(","));
+  assert.equal(r.error, null, JSON.stringify(r.error));
+  assert.deepEqual(failedOf(r).filter((k) => k !== "performance"), [], "hoechstens das Leistungsbudget darf scheitern");
+});
+
+test("Gesamtfrist: Fortschritt verlaengert sie nicht – im Rahmen und im Host", async () => {
+  const kurz = await buildSpiel({ fristen: { faktor: 0 } }); // Rahmen-Frist = Ladefenster (3 s)
+  const r1 = await runGame(b, kurz, { name: "zaeh", code: src(NEG, "zaeh"), seed: "zaeh", seconds: 60 });
+  assert.equal(r1.error.code, "watchdog"); assert.match(r1.error.message, /Gesamtfrist der Pruefung ueberschritten/);
+  const { ctx, page } = await openSandbox(b, built, { mode: "test", code: src(NEG, "zaeh"), seed: "zaeh", seconds: 60 }, { hostFristen: { faktor: 0, hostZugabeMs: 0 } });
+  const r2 = await waitReport(page, 20000);
+  assert.equal(r2.error.code, "watchdog"); assert.match(r2.error.message, /Gesamtfrist der Pruefung im Host/);
+  await ctx.close();
+});
+
+test("CSP: ausgelieferte Kopfzeile des Rahmens == frameCsp() == iframe.csp des Hosts", async () => {
+  const { ctx, page, served } = await openSandbox(b, built, { mode: "play", code: src(BEISPIELE, "snake"), seed: "csp" });
+  await page.waitForFunction(() => document.getElementById("status").textContent.length > 0);
+  const want = frameCsp(FRAME, HOST);
+  assert.ok(want.includes("sandbox allow-scripts"));
+  const html = served.find((x) => x.path === "frame.html");
+  assert.equal(html.headers["Content-Security-Policy"], want);
+  assert.equal(await page.locator("iframe").getAttribute("csp"), want);
+  await ctx.close();
+});
+
+test("Fail closed: ohne oder mit schwaecherer CSP-Kopfzeile laedt der Rahmen nicht und kein Spielcode laeuft", async () => {
+  for (const [label, headers] of [["ohne", {}], ["schwaecher", { "Content-Security-Policy": frameCsp(FRAME, HOST).replace("connect-src 'none'", "connect-src *") }]]) {
+    const { ctx, page, served, netz } = await openSandbox(b, built, { mode: "test", code: src(BEISPIELE, "snake"), seed: "zu", seconds: 5 }, { frameHeaders: headers, hostFristen: { faktor: 0, hostZugabeMs: 0 } });
+    const r = await waitReport(page, 20000);
+    assert.equal(r.ok, false, label);
+    assert.equal(r.error.code, "watchdog", label);
+    assert.deepEqual(served.map((x) => x.path), ["frame.html"], label + ": frame.js (und damit der Worker) wurde nie geladen");
+    assert.deepEqual(netz, [], label);
+    await ctx.close();
+  }
+});
+
+test("Fail closed im Rahmen selbst: ohne Kopfzeile oder nur mit sandbox (direkt geoeffnet) verweigert er mit \"sandbox\", mit Kopfzeile meldet er bereit", async () => {
+  const cases = [["ohne", {}, /opaken Ursprung/], ["nur sandbox", { "Content-Security-Policy": "sandbox allow-scripts" }, /CSP des Rahmens fehlt/], ["mit", { "Content-Security-Policy": frameCsp(FRAME, HOST) }, "ready"]];
+  for (const [label, headers, want] of cases) {
+    const ctx = await b.newContext(VIEW);
+    await ctx.route("**/*", (r) => {
+      const u = new URL(r.request().url()), f = built.frame[u.pathname.slice(1)];
+      return u.origin === FRAME && f ? r.fulfill({ body: f.body, contentType: f.type, headers }) : r.abort("blockedbyclient");
+    });
+    const page = await ctx.newPage();
+    await page.addInitScript(() => { const seen = []; Object.defineProperty(self, "gesehen", { value: seen }); self.addEventListener("message", (e) => seen.push(e.data)); });
+    await page.goto(FRAME + "/frame.html");
+    await page.waitForFunction(() => self.gesehen.length > 0, null, { timeout: 5000 });
+    const [m] = await page.evaluate(() => self.gesehen);
+    assert.equal(m.v, V);
+    if (want === "ready") assert.equal(m.t, "ready", label + ": " + JSON.stringify(m));
+    else { assert.equal(m.t, "error", label); assert.equal(m.code, "sandbox"); assert.match(m.message, want, label); }
+    await ctx.close();
+  }
 });

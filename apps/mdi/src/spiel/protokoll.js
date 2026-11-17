@@ -4,7 +4,7 @@
 import { CONTROLS, LIMITS } from "./api.js";
 
 export const V = 1;
-export const ERROR_CODES = Object.freeze(["modul", "zustand", "api", "zeichnen", "eingabe", "speicher", "exception", "syntax", "watchdog", "netz", "protokoll"]);
+export const ERROR_CODES = Object.freeze(["modul", "zustand", "api", "zeichnen", "eingabe", "speicher", "exception", "syntax", "watchdog", "netz", "protokoll", "sandbox"]);
 export const SEED_RE = /^[A-Za-z0-9_-]{1,64}$/;
 export const MAX_SECONDS = 600;
 export const LANGS = Object.freeze(["de", "en"]);
