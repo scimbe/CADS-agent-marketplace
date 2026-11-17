@@ -3,8 +3,8 @@
 // Server: CADS-DEMO-wrapper lib/duell-klaerung.mjs.
 //
 //   -> { how: "ok", body } | { how, reason?, help?, vorschlaege?, frage? }
-//   how: login | age16 | paused | throttled | daily | crisis | refused | blocked | bad | gone | limit | conflict | unknown |
-//        off | netz | nicht-hier
+//   how: login | age16 | paused | throttled | daily | crisis | refused | blocked | bad | bad-request | gone | limit |
+//        conflict | unknown | off | llm-off | store-off | auth-off | server (any other status, with status) | netz | nicht-hier
 
 export const OPS = ["an", "fragen", "antwort", "liste", "auftrag", "optin", "status", "nachbessern", "melden", "behalten"];
 
@@ -20,11 +20,16 @@ export function klaerVerdict(status, body) {
     return { how: b.error === "blocked" ? "blocked" : "refused", reason: typeof b.reason === "string" && /^[a-z_]{1,20}$/.test(b.reason) ? b.reason : "other",
       vorschlaege: Array.isArray(b.vorschlaege) ? b.vorschlaege.filter(Number.isInteger).slice(0, 2) : [], ...(Number.isInteger(b.frage) ? { frage: b.frage } : {}) };
   }
+  if (status === 400) return { how: "bad-request" };
   if (status === 502) return { how: "bad" };
   if (status === 410) return { how: "gone" };
   if (status === 409) return b.error === "limit" ? { how: "limit" } : { how: "conflict", reason: typeof b.error === "string" ? b.error.slice(0, 30) : "" };
   if (status === 404) return { how: "unknown" };
-  return { how: "off" };
+  if (status === 503) {
+    const e = b.error;
+    return { how: e === "off" ? "off" : e === "llm-off" || e === "check-off" ? "llm-off" : e === "store-off" ? "store-off" : e === "auth-unavailable" || e === "age-check-off" ? "auth-off" : "server", status };
+  }
+  return { how: "server", status: Number.isInteger(status) ? status : 0 };
 }
 
 /** @param {{raw(method:string, path:string, body?:object):Promise<object>}} deps.api  src/broker/api.js */

@@ -80,7 +80,7 @@ const LISTE = { titel: "Segelboot gegen Piraten", verstehe: "Ein Spiel mit Wasse
 async function fakeKlaerung(ctx) {
   const S = { log: [], left: 3, gemeldet: false, an: true };
   const json = (status, body) => ({ status, contentType: "application/json; charset=utf-8", body: JSON.stringify(body) });
-  const status = () => ({ titel: LISTE.titel, nachbessernLeft: S.left, gemeldet: S.gemeldet, behalten: false, ergebnis: { titel: LISTE.titel, fehlt: 1, punkte: LISTE.punkte.map((p, i) => ({ id: p.id, text: p.text, erfuellt: i !== 3, notiz: i === 3 ? "bleibt gleich schnell" : "" })) } });
+  const status = () => ({ titel: LISTE.titel, status: "fertig", kosten: 1, nachbessernLeft: S.left, gemeldet: S.gemeldet, behalten: false, ergebnis: { titel: LISTE.titel, fehlt: 1, punkte: LISTE.punkte.map((p, i) => ({ id: p.id, text: p.text, erfuellt: i !== 3, notiz: i === 3 ? "bleibt gleich schnell" : "" })) } });
   await ctx.route(APP + "/api/duell/klaerung/**", async (r) => {
     const op = new URL(r.request().url()).pathname.split("/").pop(); let b = {}; try { b = r.request().postDataJSON() || {}; } catch (e) { b = {}; }
     S.log.push(op + " " + JSON.stringify(b));
@@ -148,7 +148,14 @@ test("Fertig: Nachbessern noch 3× bis 0 (Server zaehlt), dann Melden mit Entsch
   await screenIs(p, "frei-kfertig");
   assert.match(await p.locator('[data-act="k-nach"]').innerText(), /noch 3×/);
   await checks(p, "k7-fertig", found);
-  for (const n of [2, 1, 0]) { await act(p, "k-nach"); if (n) await p.locator('[data-act="k-nach"]').filter({ hasText: "noch " + n + "×" }).waitFor(); }
+  for (const n of [2, 1, 0]) {
+    await act(p, "k-nach");
+    await p.getByText("Wir bauen neu und prüfen wieder", { exact: false }).waitFor();
+    if (n === 2) await checks(p, "k7b-nachbessern", found);
+    // P3 hat neu gebaut: die Mitteilung oeffnet das neue Ergebnis
+    await p.goto(APP + "/duell?go=fertig&auftrag=" + AUF); await screenIs(p, "frei-kfertig");
+    if (n) await p.locator('[data-act="k-nach"]').filter({ hasText: "noch " + n + "×" }).waitFor();
+  }
   await p.locator('[data-act="k-melden-open"]').waitFor();
   assert.equal(S.left, 0);
   await act(p, "k-melden-open"); await screenIs(p, "frei-kmelden");

@@ -21,7 +21,7 @@ const LISTE = { titel: "Segelboot gegen Piraten", verstehe: "Ein Spiel mit Wasse
   { id: "p1", text: "Du steuerst ein Segelboot unten am Rand.", pruefung: "Wischen bewegt das Boot." },
   { id: "p2", text: `Ein großer Knopf wirft „${EIGEN}“.`, pruefung: "Antippen wirft." },
   { id: "p3", text: "Mit jeder Runde etwas schneller.", pruefung: "Runde 2 ist schneller." }], nicht: ["Gleichzeitig online gegeneinander spielen ist nicht dabei."], dauerMaxMin: 15, kosten: { guthaben: 1, nurBeiErfolg: true } };
-const STATUS = (left, extra = {}) => ({ how: "ok", body: { titel: "Segelboot gegen Piraten", nachbessernLeft: left, gemeldet: false, behalten: false, ergebnis: { titel: "Segelboot gegen Piraten", fehlt: 1, punkte: [
+const STATUS = (left, extra = {}) => ({ how: "ok", body: { titel: "Segelboot gegen Piraten", status: "fertig", kosten: 1, nachbessernLeft: left, gemeldet: false, behalten: false, ergebnis: { titel: "Segelboot gegen Piraten", fehlt: 1, punkte: [
   { id: "p1", text: LISTE.punkte[0].text, erfuellt: true, notiz: "" }, { id: "p2", text: LISTE.punkte[1].text, erfuellt: true, notiz: "" }, { id: "p3", text: LISTE.punkte[2].text, erfuellt: false, notiz: "bleibt gleich schnell" }] }, ...extra } });
 
 /** Dienst-Doppel: je Aufruf eine Antwort (Funktion oder Wert), merkt sich die Aufrufe */
@@ -75,6 +75,13 @@ test("Dienst: Serverantworten ehrlich abgebildet; Pfade nur ueber api.raw", asyn
   assert.equal(klaerVerdict(422, { error: "blocked", why: "crisis", help: "116 111" }).how, "crisis");
   assert.equal(klaerVerdict(502, { error: "bad-output" }).how, "bad"); assert.equal(klaerVerdict(410).how, "gone");
   assert.equal(klaerVerdict(409, { error: "limit" }).how, "limit"); assert.equal(klaerVerdict(503, { error: "off" }).how, "off");
+  // nichts wird stumm zu "aus": 400, die 503-Arten und unbekannte Status sind eigene Zustaende
+  assert.equal(klaerVerdict(400, { error: "bad-request" }).how, "bad-request");
+  assert.equal(klaerVerdict(503, { error: "llm-off" }).how, "llm-off"); assert.equal(klaerVerdict(503, { error: "check-off" }).how, "llm-off");
+  assert.equal(klaerVerdict(503, { error: "store-off" }).how, "store-off"); assert.equal(klaerVerdict(503, { error: "auth-unavailable" }).how, "auth-off");
+  assert.deepEqual(klaerVerdict(500, {}), { how: "server", status: 500 }); assert.deepEqual(klaerVerdict(418, null), { how: "server", status: 418 });
+  assert.equal(klaerVerdict(409, { error: "wird-nachgebessert" }).reason, "wird-nachgebessert");
+  for (const how of ["bad-request", "llm-off", "store-off", "auth-off", "server"]) assert.ok(!KLAEREN_TEXTS.de["k_e_" + how.replace(/-/g, "_")].startsWith("["), how);
   const sent = [];
   const d = createKlaerung({ api: { raw: async (m, p, b) => { sent.push([m, p, b]); return p.endsWith("fragen") ? { status: 200, body: FRAGEN } : { ok: false, error: "netz" }; } } });
   assert.equal((await d.fragen({ satz: "x" })).how, "ok");
@@ -172,7 +179,7 @@ test("Fehler sind ehrlich: Server aus, kaputte Antwort, Krise; eine im Server ab
 });
 
 test("Fertig: Zaehler kommt vom Server; nach dem 3. Nachbessern steht Melden an seiner Stelle; der 4. Versuch wird abgelehnt", async () => {
-  const s = boot({ status: STATUS(3), nachbessern: [{ how: "ok", body: { nachbessernLeft: 2 } }, { how: "ok", body: { nachbessernLeft: 1 } }, { how: "ok", body: { nachbessernLeft: 0 } }, { how: "limit" }],
+  const s = boot({ status: [STATUS(3), STATUS(2), STATUS(1), STATUS(0)], nachbessern: [{ how: "ok", body: { nachbessernLeft: 2 } }, { how: "ok", body: { nachbessernLeft: 1 } }, { how: "ok", body: { nachbessernLeft: 0 } }, { how: "limit" }],
     melden: { how: "ok", body: { gemeldet: true, kosten: { erlassen: true } } }, behalten: { how: "ok", body: { behalten: true, abgebucht: false, guthaben: 1 } } });
   const { rt } = s;
   rt.dispatch({ type: "K_FERTIG", auftrag: "kurz" }); assert.ok(!rt.matches("inhalt.frei.kfertig"), "nur echte Auftrags-ids");
@@ -182,7 +189,14 @@ test("Fertig: Zaehler kommt vom Server; nach dem 3. Nachbessern steht Melden an 
   assert.match(text({ children: v.body }), /fehlt.*Mit jeder Runde etwas schneller\. – bleibt gleich schnell/);
   assert.match(text({ children: v.body }), /Ein Punkt fehlt noch\. Abgebucht ist nichts\./);
   assert.deepEqual(v.actions.secondary.map((x) => [x.id, x.sub]), [["k-nach", "kostenlos · noch 3×"], ["k-behalten", "1 Guthaben"]]);
-  for (const left of [2, 1, 0]) { rt.dispatch({ type: "K_NACHBESSERN" }); await tick(); assert.equal(s.k().fertig.left, left); }
+  for (const left of [2, 1, 0]) {
+    rt.dispatch({ type: "K_NACHBESSERN" }); await tick();
+    assert.equal(s.k().fertig.left, left); assert.equal(s.k().fertig.wartet, true, "bis zum neuen Ergebnis");
+    assert.deepEqual(view(rt).actions.secondary, [], "waehrend des Neubaus keine Knoepfe");
+    rt.dispatch({ type: "K_NACHBESSERN" }); await tick();   // ohne neues Ergebnis: die Wache sendet nichts
+    rt.dispatch({ type: "K_FERTIG", auftrag: AUF }); await tick();   // P3 hat neu gebaut (Mitteilung)
+  }
+  assert.equal(s.klaerung.calls.filter((c) => c.op === "nachbessern").length, 3, "je Neubau genau ein Nachbessern");
   v = view(rt);
   assert.deepEqual(v.actions.secondary.map((x) => x.id), ["k-melden-open", "k-behalten"], "Melden statt Nachbessern");
   // die App sendet keinen 4. Versuch (Wache), und selbst wenn: der Server sagt limit
@@ -247,4 +261,29 @@ test("Schalter: der Einstieg erscheint nur, wenn der Server DUELL_KLAERUNG=on me
     s.rt.dispatch({ type: "KLAEREN" });
     assert.equal(s.rt.matches("inhalt.frei.klaeren"), want, JSON.stringify(an));
   }
+});
+
+test("Preis und Dauer kommen vom Server; req laeuft monoton, eine spaete Antwort eines frueheren Aufrufs zaehlt nicht", async () => {
+  const later = [];
+  const s = boot({ fragen: { how: "ok", body: FRAGEN }, liste: { how: "ok", body: { ...LISTE, dauerMaxMin: 20, kosten: { guthaben: 2, nurBeiErfolg: true } } }, antwort: (b) => ({ how: "ok", body: { ok: true, text: b.text } }),
+    status: (b) => new Promise((ok) => later.push(() => ok(STATUS(3, { kosten: 2 })))) });
+  const { rt } = s;
+  rt.dispatch({ type: "FREI" }); await tick(); rt.dispatch({ type: "KLAEREN" }); rt.dispatch({ type: "K_TEXT", value: "Space Invaders" }); rt.dispatch({ type: "K_GO" }); await tick();
+  rt.dispatch({ type: "K_PICK", kachel: 0 }); rt.dispatch({ type: "K_WEITER" });
+  rt.dispatch({ type: "K_EIGEN_TEXT", value: EIGEN }); rt.dispatch({ type: "K_EIGEN_GO" }); await tick(); rt.dispatch({ type: "K_WEITER" }); await tick();
+  assert.match(text({ children: view(rt).body }), /bis zu 20 Minuten\. Kostet 2 Guthaben/);
+  const before = s.k().req;
+  rt.dispatch({ type: "BACK" }); rt.dispatch({ type: "BACK" }); rt.dispatch({ type: "BACK" }); rt.dispatch({ type: "BACK" });
+  rt.dispatch({ type: "K_FERTIG", auftrag: AUF }); assert.ok(s.k().req > before, "kein Zuruecksetzen auf 0");
+  const r1 = s.k().req;
+  rt.dispatch({ type: "BACK" }); rt.dispatch({ type: "K_FERTIG", auftrag: AUF });
+  assert.ok(s.k().req > r1);
+  later.shift()(); await tick();   // die Antwort des ersten Aufrufs: veraltet
+  assert.equal(s.k().fertig, null);
+  later.shift()(); await tick();
+  assert.equal(s.k().fertig.kosten, 2);
+  assert.deepEqual(view(rt).actions.secondary.map((x) => x.sub), ["kostenlos · noch 3×", "2 Guthaben"]);
+  // falsche Art bei passender Nummer zaehlt auch nicht
+  rt.dispatch({ type: "K_R", op: "melden", req: s.k().req, r: { how: "ok", body: { gemeldet: true } } });
+  assert.equal(s.k().fertig.gemeldet, false);
 });

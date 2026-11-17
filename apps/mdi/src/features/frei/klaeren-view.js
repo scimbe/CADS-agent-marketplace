@@ -159,14 +159,14 @@ export function makeKlaerenView(D) {
     if (!f) return { body: [k.err ? errLine(lang, k.err) : status(kt(lang, "k_fertig_lade"))], primary: null, secondary: [] };
     const body = [h("h2", { class: "k-h", key: "h" }, f.titel), resultList(lang, f, false),
       status(f.fehlt === 0 ? kt(lang, "k_alles") : f.fehlt === 1 ? kt(lang, "k_fehlt_1") : kt(lang, "k_fehlt_n", { n: f.fehlt }), "hint strong", "fs")];
-    if (k.note === "nachbessern") body.push(status(kt(lang, "k_nach_ok", { n: f.left }), "k-ok", "nb"));
+    if (f.wartet) return { body: [h("h2", { class: "k-h", key: "h" }, f.titel), status(kt(lang, "k_nach_ok", { n: f.left }), "k-ok", "nb"), h("p", { class: "hint", key: "wt" }, kt(lang, "k_nach_wartet")), errLine(lang, k.err)], primary: null, secondary: [] };
     if (f.gemeldet) body.push(status(kt(lang, "k_meld_frei"), "k-ok", "gm"));
     if (f.behalten) body.push(status(kt(lang, "k_behalten_frei"), "k-ok", "bh"));
     body.push(errLine(lang, k.err));
     const sec = [];
     // Nachbessern, solange der Server noch welche zaehlt; danach steht "Melden" an seiner Stelle
     if (f.fehlt > 0 && !f.behalten && !f.gemeldet) sec.push(f.left > 0 ? a("k-nach", kt(lang, "k_nach"), "K_NACHBESSERN", { sub: kt(lang, "k_nach_sub", { n: f.left }), disabled: !!k.busy }) : a("k-melden-open", kt(lang, "k_melden"), "K_MELDEN_OPEN"));
-    if (!f.behalten) sec.push(a("k-behalten", kt(lang, "k_behalten"), "K_BEHALTEN", { sub: kt(lang, "k_behalten_sub", { n: K.KOSTEN }), disabled: !!k.busy }));
+    if (!f.behalten) sec.push(a("k-behalten", kt(lang, "k_behalten"), "K_BEHALTEN", { sub: kt(lang, "k_behalten_sub", { n: f.kosten }), disabled: !!k.busy }));
     return { body, primary: null, secondary: sec };
   }
   function meldenView(ctx, dispatch) {
@@ -187,7 +187,7 @@ export function makeKlaerenView(D) {
     if (f.behalten) body.push(status(kt(lang, "k_behalten_frei"), "k-ok", "bh"));
     body.push(errLine(lang, k.err));
     return { body, primary: f.gemeldet ? null : a("k-melden", kt(lang, "k_melden"), "K_MELDEN", { cls: "k-go", disabled: !!k.busy }),
-      secondary: f.behalten ? [] : [a("k-behalten", kt(lang, "k_trotzdem"), "K_BEHALTEN", { sub: kt(lang, "k_behalten_sub", { n: K.KOSTEN }), disabled: !!k.busy })] };
+      secondary: f.behalten ? [] : [a("k-behalten", kt(lang, "k_trotzdem"), "K_BEHALTEN", { sub: kt(lang, "k_behalten_sub", { n: f.kosten }), disabled: !!k.busy })] };
   }
 
   function waitView(ctx, key) {

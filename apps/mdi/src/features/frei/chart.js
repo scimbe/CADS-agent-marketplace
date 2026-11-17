@@ -233,10 +233,11 @@ export const FREI_SHELF = {
   FREI: { target: T("inhalt.frei.start"), actions: ["clearForm", "takeBack", "takeFreiText"] },
   DECK_OPEN: { target: T("inhalt.frei.deckkarte"), cond: "deckCardOk", actions: ["openDeckCard"] },
   DECK: { target: T("inhalt.frei.deck") },
-  MINE: { target: T("inhalt.frei.meine") },
-  // Freie Karte 2: Ergebnis eines Bauauftrags (Mitteilung, Meine Karten; P3) – angezeigt wird, was der Server meldet
-  K_FERTIG: { target: T("inhalt.frei.kfertig"), cond: "kFertigOk", actions: ["kFertigOpen"] }
+  MINE: { target: T("inhalt.frei.meine") }
 };
+/** Freie Karte 2: Ergebnis eines Bauauftrags (Mitteilung, ?go=fertig, Meine Karten; P3) aus jedem Zustand; angezeigt wird,
+ *  was der Server meldet (auch erneut, wenn nach dem Nachbessern ein neues Ergebnis da ist) */
+export const K_FERTIG_ON = { target: T("inhalt.frei.kfertig"), cond: "kFertigOk", actions: ["kFertigOpen"] };
 /** Ereignisse in inhalt.card.view (F setzt sie ein; GO-Uebergang VOR goStaticLink) */
 export const CARD_VIEW_ON = {
   GO_FIRST: { target: T("inhalt.frei.sharegate"), cond: "goFreiShare" },
@@ -485,7 +486,7 @@ export const frei = {
   on: {
     "inhalt.card.view": { GO: CARD_VIEW_ON.GO_FIRST, ROBOT: CARD_VIEW_ON.ROBOT, MELDEN: CARD_VIEW_ON.MELDEN },
     "inhalt.card.customize.bubbles": CUSTOMIZE_ON,
-    "inhalt": { LINK: LINK_FIRST },
+    "inhalt": { LINK: LINK_FIRST, K_FERTIG: K_FERTIG_ON },
     // KI-Knoten der Zugkarten ({t:"ai", kind, input, into}, Z1 zug-termin/geschenk-finder): der Host (F) sendet KI_ASK, das
     // Ergebnis kommt als KI_DONE {into, option, seal, receipt}; die Karte uebernimmt -> KI_SETTLE {receipt, how:"accept"|"discard"}
     "inhalt.card": { KI_ASK: { cond: "kiAskOk", actions: ["fxKiAsk"] }, KI_DONE: { cond: "kiDoneOk", raise: kiDraft }, KI_SETTLE: { actions: ["fxKiSettle"] } }
