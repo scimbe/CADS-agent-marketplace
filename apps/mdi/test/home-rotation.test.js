@@ -42,6 +42,7 @@ test("Keine Karte zweimal innerhalb von 14 Tagen, nie zweimal dieselbe Art, 10 J
     }
     assert.deepEqual(dup.slice(0, 5), [], dup.length + " Wiederholungen " + JSON.stringify(caps));
   }
+  for (const bad of [Infinity, NaN, 1.5]) assert.equal(R.ideaOn(bad), null, "ungueltiger Tag " + bad);
   // der gemeldete Fall: Woche bis 17.11.2026 zeigte „Stangen Kick“ dreimal
   const wk = R.lastDays(new Date(Date.UTC(2026, 10, 17)), 6).map((x) => x.idea.id);
   assert.equal(new Set(wk).size, 6, wk.join(","));

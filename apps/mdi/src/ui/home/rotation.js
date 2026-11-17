@@ -130,6 +130,7 @@ function pick(n, caps, m) {
 }
 /** Karte des Tages n (Tagesnummer seit 1970, UTC). Gleich fuer alle mit gleichen Faehigkeiten. */
 export function ideaOn(n, caps = WEB_CAPS) {
+  if (!Number.isSafeInteger(n)) return null;   // kein Tag (Review: Infinity liefe endlos)
   if (n < ANCHOR) return legacyIdeaOn(n, caps);
   const ck = [caps.crypto, caps.channel, caps.call].map((x) => (x ? 1 : 0)).join("");
   let m = memo.get(ck); if (!m) memo.set(ck, (m = new Map()));
