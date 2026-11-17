@@ -415,3 +415,9 @@ Nicht in der Mindestversion, aber zeitnah:
 - `age-de.xml` / Jugendschutz-Feinschliff (WP 10), sofern die Prüfung nichts anderes sagt,
 - Barrierefreiheitserklärung (WP 17),
 - Transparenzzahlen (WP 12).
+
+## Nachtrag 17.11. abends: Demo-Hinweis
+
+Der User hat entschieden: „mach erstmal klar das es sich noch um eine Testinstalltion handelt (demo)“. Umgesetzt wird ein sichtbares Band „Demo – Testinstallation“ auf jeder Seite und in geteilten Karten. Es verlinkt eine Info-Seite „Über diese Demo“: Testbetrieb, keine Garantie, Löschung möglich, keine Bezahlung, Datenflüsse.
+
+⚖️ **Offener Punkt für die rechtliche Prüfung:** Ein Demo-Hinweis ersetzt Impressum (§ 5 DDG) und Datenschutzerklärung (Art. 13 DSGVO) vermutlich nicht, sobald die App öffentlich erreichbar ist und personenbezogene Daten verarbeitet. Die Angaben des Users aus Abschnitt „Was nur der User liefern kann“ bleiben nötig, er liefert sie später.
