@@ -68,3 +68,11 @@
     4. Abnahme durch Sonnet: Kostenschätzung vorgelegt, etwa 0,23 $ statt 0,03 $ je Karte. Vorschlag ist Haiku mit umschaltbarer Abnahme und Vergleichsmessung. Offen.
     5. Bau im Hintergrund bis 15 Minuten, 1 Guthaben je Karte, abgebucht nur bei Erfolg (User: „5 OK“).
   - Punkte 2 (Sandbox-Hostname) und 3 (Mail über Brevo) sind offen; die Schritt-für-Schritt-Anleitungen hat der User erhalten.
+- 2026-11-17 abends, **Freie Karte 2, Ergänzungen des Users:**
+  - Klärungsdialog: Jede Auswahlfrage bekommt gleichwertig eine freie Eingabe (ein Wort bis ein Satz, Mikrofon). Sie geht wörtlich in „So verstehe ich dich“ und in die Häkchenliste ein. Gleiche Moderation wie der Wunschsatz. Abgelehntes wird ehrlich benannt und nie still ersetzt.
+  - Deck-Befüllung nach Fertigstellung von P1–P3, wörtlich: „Wenn das system soweit steht, lass nochmal 50 Agenten Spiele und 20 Agenten KArten erstellen und Erwartungshaltung (Sollten auch disjukt sein ueber alle Agenten) und sie sollen direkt alle in das deck uebernommen werden (mit dem hinweis (ki), wenn es ein mensch gemacht hat (ki supported)“.
+    - 70 nicht informierte Agenten bauen über den echten Dienst: 50 Spiele und 20 Karten, die keine Spiele sind. Jeder schreibt vorher seine Erwartung auf.
+    - Wünsche und Erwartungen sind über alle 70 disjunkt; vorher läuft eine Dublettenprüfung.
+    - Agenten-Karten kommen ohne Einzelfreigabe ins Deck, mit der Kennzeichnung „(KI)“. Karten von Menschen mit KI-Hilfe tragen „(KI-unterstützt)“. Das ändert für Agenten-Karten die Regel vom 06.11. („ein Mensch gibt frei“).
+    - Annahme, vom User noch zu bestätigen: Moderation, Siegel, Bot-Abnahme und „ohne Gewalt“ gelten weiter. Ins Deck kommt nur, was alles besteht und keinen „fehlt“-Punkt hat.
+    - Kosten: geschätzt 10–25 $ aus dem Budget von 100 $.
