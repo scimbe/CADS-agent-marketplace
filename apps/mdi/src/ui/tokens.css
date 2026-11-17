@@ -213,6 +213,8 @@ textarea.input { resize: vertical; }
 .h-meins-n { position: absolute; right: -6px; top: -6px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; background: var(--signal); color: var(--ink); border: 2px solid var(--ink); font: 800 .75rem/18px var(--font-body); }
 .s-shelf { grid-template-columns: minmax(0, 1fr); max-width: 1180px; overflow-x: clip; } /* gedrehte Blaetter und Stempel duerfen nicht seitlich schieben */
 @media (min-width: 900px) { .main.s-shelf { grid-template-columns: minmax(0, 1fr); } }
+/* Echtzeit im Spiel (Countdown, Lauf, Pause): keine rechte Spalte, das Feld steht mittig (nach dem Ende wieder mit Ergebnisspalte) */
+@media (min-width: 900px) { .main.s-card-rt-ready, .main.s-card-rt-run, .main.s-card-rt-pause { grid-template-columns: minmax(0, 1fr); } }
 .h-ico { width: 24px; height: 24px; flex: none; fill: currentColor; }
 
 /* Familienfarben: Flaeche + Schrift darauf (je >= 4,5:1) */

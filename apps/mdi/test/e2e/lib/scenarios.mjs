@@ -68,3 +68,8 @@ export async function turnLink(b, o) {
   }
   return { A, B, hops };
 }
+/** Pause gleich beim Start des Laufs (im Seitenkontext, ein Bild nach card-rt-run): gegen den Computer endet die Flug-Runde,
+ *  sobald die eigene Figur abstuerzt (ohne Tippen nach ca. 0,8 s) - ein Pausenklick per Testtreiber kaeme unter Last zu spaet. */
+export async function pauseOnRun(p) {
+  await p.evaluate(() => { const f = () => { const b = document.querySelector("main.s-card-rt-run .rt-pause"); if (b) { b.click(); return; } requestAnimationFrame(f); }; requestAnimationFrame(f); });
+}

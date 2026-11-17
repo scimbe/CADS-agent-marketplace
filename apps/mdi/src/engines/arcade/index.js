@@ -30,7 +30,8 @@ export function receive(S, m) { if (m && typeof m === "object") GAMES[S.g].recei
 export { hashSide };
 /** Wuerfel eines Bots: Zaehler im Bot-Zustand, Seed im Strom. */
 function dice(B) { return () => die(B.seed, B.n++); }
-export function botNew(g, seed) { const B = { seed: String(seed) + "|bot", n: 0 }; Object.assign(B, GAMES[g].botInit(dice(B))); return B; }
+/** Bot einer Seite. lv: Staerke 1..3 (Leicht, Mittel, Schwer = Altcode); die Wuerfelfolge haengt nie von lv ab. */
+export function botNew(g, seed, lv = 3) { const B = { seed: String(seed) + "|bot", n: 0, lv: [1, 2, 3].includes(lv) ? lv : 3 }; Object.assign(B, GAMES[g].botInit(dice(B))); return B; }
 export function botStep(S, B, dt = STEP) { GAMES[S.g].bot(S, B, dice(B), dt); }
 
 // ---------- die Partie ----------
@@ -41,7 +42,8 @@ function clone(o) {
 }
 /**
  * Neue Partie. Sitz 0 ist der Einladende (schlaegt auf, eigenes Bild = gemeinsames Bild der Rundenspiele).
- * o: { g, seed, players:["human"|"bot", …], win, lag } – lag: Nachrichten kommen so viele Ticks spaeter an (Tests).
+ * o: { g, seed, players:["human"|"bot", …], win, lag, level } – lag: Nachrichten kommen so viele Ticks spaeter an (Tests);
+ * level: Staerke der Bots 1..3 wie im Host („Staerke des Computers“); ohne Angabe 3, die Staerke des Altcodes (Golden-Partien).
  */
 export function matchInit(o) {
   // players: Sitzarten ["human"|"bot", …]; eine Zahl (Zugvertrag) heisst alle menschlich; ohne Angabe Mensch gegen Bot.
@@ -49,7 +51,7 @@ export function matchInit(o) {
   const players = [0, 1].map((s) => (raw[s] === "bot" || (raw[s] && raw[s].kind === "bot") ? "bot" : "human"));
   const A = side(g, { seed, serving: true, win: o.win }), B = side(g, { seed, serving: false, win: o.win });
   const st = { g, seed, now: 0, lag: Number.isInteger(o.lag) && o.lag >= 0 && o.lag <= 120 ? o.lag : 0, sides: [A, B], q: [[], []], players, bots: [null, null], ctl: [ctlInit(), ctlInit()] };
-  for (let s = 0; s < 2; s++) if (players[s] === "bot") st.bots[s] = botNew(g, seed + "|" + s);
+  for (let s = 0; s < 2; s++) if (players[s] === "bot") st.bots[s] = botNew(g, seed + "|" + s, o.level === undefined ? 3 : o.level);
   return st;
 }
 export function matchStart(st) { st = clone(st); start(st.sides[0]); start(st.sides[1]); return st; }

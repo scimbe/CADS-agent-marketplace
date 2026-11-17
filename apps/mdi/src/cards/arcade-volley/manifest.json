@@ -325,7 +325,7 @@
             "ArrowUp",
             "KeyW"
           ],
-          "zone": "none",
+          "zone": "button",
           "label": {
             "de": "Springen",
             "en": "Jump"

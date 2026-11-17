@@ -377,3 +377,39 @@ test("Eis-Stock und Murmel: auch wenn die Gegenseite waehrend ihres rollenden St
     assert.ok(worst <= 2, g + " (" + net.base + " s): laengste Wartezeit auf den eigenen Wurf " + worst.toFixed(2) + " s");
   }
 });
+
+// Befund A9 F11 (Insel-Panzer kaum gewinnbar): auf Mittel (Standard im Host) zielt der Bot breiter und schiesst seltener als
+// der Altcode (Stufe 3, bleibt fuer die Golden-Partien unveraendert); er gewinnt gegen Stillstand trotzdem in endlicher Zeit.
+function panzerLevel(seed, lv, max) {
+  const toMe = [], toBot = [];
+  const S = Side("panzer", { seed, serving: true, send: (m) => toBot.push(m) });
+  const B = Side("panzer", { seed, serving: false, send: (m) => toMe.push(m) });
+  const Bt = A.botNew("panzer", seed, lv), bot = (dt) => A.botStep(B.S, Bt, dt);
+  S.start(); B.start();
+  let t = 0, shots = 0;
+  while (t < max && !S.over) { S.tick(1 / 60); while (toBot.length) B.receive(toBot.shift()); bot(1 / 60); B.tick(1 / 60); while (toMe.length) { const m = toMe.shift(); if (m.t === "shot") shots++; S.receive(m); } t += 1 / 60; }
+  return { S, t, shots };
+}
+test("Panzer-Bot nach Stufe: Mittel trifft seltener und langsamer als Schwer (Altcode), Leicht noch seltener", () => {
+  const sum = (lv) => { let t = 0, hits = 0; for (let n = 0; n < 16; n++) { const r = panzerLevel("lv-" + n, lv, 400); t += r.t; hits += r.S.score[1]; } return { t: t / 16, hits }; };
+  const L1 = sum(1), L2 = sum(2), L3 = sum(3);
+  assert.ok(L2.t >= L3.t * 1.4, "Mittel dauert deutlich laenger: " + L2.t.toFixed(1) + " s gegen " + L3.t.toFixed(1) + " s");
+  assert.ok(L1.t >= L2.t, "Leicht dauert am laengsten: " + L1.t.toFixed(1) + " s");
+  assert.ok(L2.hits >= 16 * PANZER.WIN * 0.9, "Mittel gewinnt gegen Stillstand weiterhin: " + L2.hits);
+});
+
+// Befund A9 F9 (Stangen-Kick: Ball lag 90 s in der Ecke, kein Anstoss, kein Ende): ein liegender Ball in der eigenen
+// Haelfte, der keiner Seite gehoert, fuehrt nach HOLD zu einem neuen Anstoss an die andere Seite.
+for (const g of ["kick", "flipper"]) test("Stillstand-Schutz (" + g + "): liegender Ball ohne Besitzer -> neuer Anstoss nach 6 s, die Gegenseite spielt weiter", () => {
+  const toB = [], S = Side(g, { seed: "rest", serving: true, send: (m) => toB.push(m) }), B = Side(g, { seed: "rest", serving: false, send: () => {} });
+  S.start(); B.start();
+  for (let i = 0; i < 120 && !S.S.st.b; i++) { S.tick(1 / 60); while (toB.length) B.receive(toB.shift()); }
+  // Ball liegt in der eigenen Haelfte (unten rechts), keiner haelt ihn fuer sich: der Zustand aus dem Befund
+  S.S.st.b = { x: W - 60, y: H - 140, vx: 0, vy: 0 }; S.S.st.own = false; S.S.st.held = false; toB.length = 0;
+  let gave = null, t = 0;
+  for (; t < 8 && !gave; t += 1 / 60) { S.tick(1 / 60); gave = toB.find((m) => m.t === "give"); }
+  assert.ok(gave, g + ": neuer Anstoss gesendet");
+  assert.ok(t > 5.8 && t < 6.5, g + ": nach HOLD = 6 s, nicht frueher: " + t.toFixed(2));
+  B.receive(gave);
+  assert.ok(B.S.st.own && B.S.st.b, g + ": die Gegenseite hat den neuen Ball");
+});

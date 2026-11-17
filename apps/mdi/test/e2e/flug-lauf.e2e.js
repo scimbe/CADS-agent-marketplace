@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { browser, open, act, screen, waitScreen, axe, noOverflow } from "./lib/grund.mjs";
-import { pickMode, moreModes } from "./lib/scenarios.mjs";
+import { pickMode, moreModes, pauseOnRun } from "./lib/scenarios.mjs";
 import flug from "../../src/cards/flug/card.js";
 
 let b;
@@ -38,17 +38,20 @@ const covered = (p) => p.evaluate(async () => {
 });
 const b64u = (s) => Buffer.from(s).toString("base64url");
 
-// Pause-Pruefungen laufen gegen den Computer: Solange der Computer-Vogel fliegt, bleibt die Partie im Zustand run. Allein
-// kann ein Flug ohne Eingaben unter Last vor dem Pausenklick vorbei sein (94 Ticks) – das waere ein Wettlauf mit der Uhr.
+// Pause-Pruefungen: Gegen den Computer endet die Runde, sobald die eigene Figur abstuerzt (ohne Tippen nach 94 Ticks), wie
+// allein. Ein Pausenklick per Testtreiber waere ein Wettlauf mit der Uhr; pauseOnRun klickt im Seitenkontext ein Bild nach
+// dem Start auf den echten Pause-Knopf.
 test("Flug in der App: Regal, LOS, Countdown, Pause per Knopf haelt an (gegen den Computer); allein bis zum Ende, Ergebniszeile, Nochmal", async () => {
   const { p, errs } = await open(b, { view: "phone390" });
-  await start(p, "flug", "bot");
+  await act(p, "open-flug"); await waitScreen(p, "card-view"); await pickMode(p, "de", "bot");
+  await pauseOnRun(p);
+  await act(p, "go"); await waitScreen(p, "card-rt-pause", 20000);
   assert.match(await label(p), /Flugspiel: Bau dein Lava-Level/);
-  await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-pause");
   const before = await label(p); await p.waitForTimeout(400);
   assert.equal(await label(p), before, "Pause haelt das Spiel an");
   assert.equal(await screen(p), "card-rt-pause", "Pause bleibt, bis man weiterspielt");
-  await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-run");
+  await p.locator(".rt-pause").dispatchEvent("click");
+  await p.waitForFunction(() => /\bs-card-rt-(run|over)\b/.test(document.querySelector("main").className));   // weiter (die Figur stuerzt bald ab)
   const A = await open(b, { view: "phone390" });
   await start(A.p, "flug", "alone");
   for (let i = 0; i < 4 && (await screen(A.p)) === "card-rt-run"; i++) await A.p.keyboard.press("Space");
@@ -169,8 +172,8 @@ for (const card of ["flug", "lauf"]) test("Gegen den Computer (" + card + ", Vor
 test("Reduzierte Bewegung: in der Pause steht das Bild still; ohne Einstellung ziehen die Wolken weiter", async () => {
   for (const reduced of [true, false]) {
     const { p } = await open(b, { view: "phone390", reduced });
-    await start(p, "flug", "bot");   // gegen den Computer: die Partie laeuft sicher noch beim Pausenklick
-    await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-pause"); await p.waitForTimeout(150);
+    await act(p, "open-flug"); await waitScreen(p, "card-view"); await pickMode(p, "de", "bot");
+    await pauseOnRun(p); await act(p, "go"); await waitScreen(p, "card-rt-pause", 20000); await p.waitForTimeout(150);
     const a = await p.evaluate(() => document.querySelector("canvas.rt-canvas").toDataURL()); await p.waitForTimeout(600);
     const c = await p.evaluate(() => document.querySelector("canvas.rt-canvas").toDataURL());
     if (reduced) assert.equal(c, a, "reduziert: Standbild"); else assert.notEqual(c, a, "ohne Einstellung: Bewegung");
@@ -186,13 +189,13 @@ for (const view of ["phone360", "phone390", "phone412", "desk1280"]) for (const 
       if (!(await noOverflow(q))) bad.push(card + " " + name + ": Ueberlauf");
       for (const x of await axe(q, card + " " + name)) bad.push(x);
     };
-    // Karte, Lauf und Pause gegen den Computer (die Partie laeuft sicher beim Pausenklick)
+    // Karte, Lauf und Pause gegen den Computer (Pause ein Bild nach dem Start, siehe pauseOnRun)
     await act(p, "open-" + card); await waitScreen(p, "card-view"); await pickMode(p, "de", "bot");
     await check(p, "Karte");
-    await act(p, "go"); await waitScreen(p, "card-rt-ready"); await waitScreen(p, "card-rt-run", 15000);
+    await pauseOnRun(p); await act(p, "go"); await waitScreen(p, "card-rt-pause", 20000);
     const vh = await p.evaluate(() => innerHeight), cv = await p.locator("canvas.rt-canvas").boundingBox();
     if (cv.y + cv.height / 2 > vh) bad.push(card + ": Spielflaeche nicht im ersten Bildschirm");
-    await p.locator(".rt-pause").dispatchEvent("click"); await waitScreen(p, "card-rt-pause"); await check(p, "Pause");
+    await check(p, "Pause");
     // Ende allein (ohne Pause, kein Wettlauf)
     const E = await open(b, { view });
     await start(E.p, card, "alone");
