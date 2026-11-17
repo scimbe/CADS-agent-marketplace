@@ -65,31 +65,46 @@ function freiEntry(state, X, dispatch, where) {
 // Text und das Blatt folgt sichtbar; Loslassen ausserhalb des Blatts zaehlt mit. Pfeiltasten am fokussierten Blatt.
 const SWIPE_START = 12, SWIPE_DAY = 60;
 export function sheetSwipe(dispatch) {
-  const end = (el, dx) => {
-    const g = el.__swipe; el.__swipe = null;
-    el.classList.remove("h-drag"); el.style.removeProperty("--dx");
-    if (g && g.on && el.hasPointerCapture && el.hasPointerCapture(g.id)) el.releasePointerCapture(g.id);
-    if (g && g.on && Math.abs(dx) > SWIPE_DAY) dispatch({ type: "DAY", d: dx < 0 ? 1 : -1 });
+  // Bewegung und Loslassen hoeren waehrend der Geste am Fenster: so zaehlt auch ein schneller Wisch, dessen erste Bewegung
+  // schon ausserhalb des Blatts liegt (Live-Pruefung 17.11.), ohne Pointer Capture beim Druecken (Klicks auf ‹ › bleiben Klicks).
+  const clearSel = () => { const sel = typeof getSelection === "function" ? getSelection() : null; if (sel) sel.removeAllRanges(); };
+  const start = (el, e) => {
+    const g = { id: e.pointerId, x: e.clientX, y: e.clientY, on: false, mouse: e.pointerType === "mouse" };
+    const win = el.ownerDocument && el.ownerDocument.defaultView;
+    const move = (ev) => {
+      if (ev.pointerId !== g.id || el.__swipe !== g) return;
+      if (g.mouse && ev.buttons === 0) { end(0); return; }   // Taste ausserhalb des Fensters losgelassen
+      const dx = ev.clientX - g.x, dy = ev.clientY - g.y;
+      if (!g.on) {
+        if (Math.abs(dy) > SWIPE_START && Math.abs(dy) > Math.abs(dx)) { end(0); return; }   // senkrecht: Seite scrollt
+        if (Math.abs(dx) < SWIPE_START) return;
+        g.on = true; el.classList.add("h-drag"); clearSel();
+      }
+      if (ev.cancelable) ev.preventDefault();
+      el.style.setProperty("--dx", Math.max(-120, Math.min(120, dx)) + "px");
+    };
+    const up = (ev) => {
+      if (ev.pointerId !== g.id || el.__swipe !== g) return;
+      const dx = ev.clientX - g.x, dy = ev.clientY - g.y;
+      // auch ohne Zwischenbewegung: deutlich waagerecht ueber die Schwelle ist ein Wisch
+      if (!g.on && Math.abs(dx) > SWIPE_DAY && Math.abs(dx) > Math.abs(dy)) g.on = true;
+      end(dx);
+    };
+    const cancel = (ev) => { if (ev.pointerId === g.id) end(0); };
+    const noSel = (ev) => { if (g.on) ev.preventDefault(); };
+    const end = (dx) => {
+      if (el.__swipe !== g) return;
+      el.__swipe = null;
+      if (win) { win.removeEventListener("pointermove", move, true); win.removeEventListener("pointerup", up, true); win.removeEventListener("pointercancel", cancel, true); win.removeEventListener("selectstart", noSel, true); }
+      el.classList.remove("h-drag"); el.style.removeProperty("--dx");
+      if (g.on) clearSel();
+      if (g.on && Math.abs(dx) > SWIPE_DAY) dispatch({ type: "DAY", d: dx < 0 ? 1 : -1 });
+    };
+    g.end = end; el.__swipe = g;
+    if (win) { win.addEventListener("pointermove", move, true); win.addEventListener("pointerup", up, true); win.addEventListener("pointercancel", cancel, true); win.addEventListener("selectstart", noSel, true); }
   };
   return {
-    pointerdown: (e) => { if (e.button > 0 || !e.isPrimary) return; e.currentTarget.__swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, on: false }; },
-    pointermove: (e) => {
-      const el = e.currentTarget, g = el.__swipe; if (!g || g.id !== e.pointerId) return;
-      if (e.pointerType === "mouse" && e.buttons === 0) { end(el, 0); return; }   // Taste ausserhalb losgelassen: Geste verwerfen
-      const dx = e.clientX - g.x, dy = e.clientY - g.y;
-      if (!g.on) {
-        if (Math.abs(dy) > SWIPE_START && Math.abs(dy) > Math.abs(dx)) { el.__swipe = null; return; }   // senkrecht: Seite scrollt
-        if (Math.abs(dx) < SWIPE_START) return;
-        g.on = true; el.classList.add("h-drag");
-        try { if (el.setPointerCapture) el.setPointerCapture(e.pointerId); } catch { end(el, 0); return; }
-        const sel = typeof getSelection === "function" ? getSelection() : null; if (sel) sel.removeAllRanges();
-      }
-      e.preventDefault();
-      el.style.setProperty("--dx", Math.max(-120, Math.min(120, dx)) + "px");
-    },
-    pointerup: (e) => { const el = e.currentTarget, g = el.__swipe; if (g && g.id === e.pointerId) end(el, e.clientX - g.x); },
-    pointercancel: (e) => end(e.currentTarget, 0),
-    lostpointercapture: (e) => { const g = e.currentTarget.__swipe; if (g && g.on) end(e.currentTarget, 0); },
+    pointerdown: (e) => { if (e.button > 0 || !e.isPrimary) return; const old = e.currentTarget.__swipe; if (old) old.end(0); start(e.currentTarget, e); },
     keydown: (e) => {
       if (e.target !== e.currentTarget || e.altKey || e.ctrlKey || e.metaKey) return;
       if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); dispatch({ type: "DAY", d: e.key === "ArrowRight" ? 1 : -1 }); }
