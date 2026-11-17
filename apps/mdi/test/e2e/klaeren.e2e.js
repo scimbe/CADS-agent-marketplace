@@ -5,7 +5,7 @@ import nodeTest from "node:test";
 import { fakeOnly } from "./lib/ziel.mjs";
 const test = fakeOnly(nodeTest); // Gegenstelle ist eine Attrappe: im URL-Modus uebersprungen
 import assert from "node:assert/strict";
-import { browser, VIEWS, act, axe, noOverflow, shotsDir } from "./lib/grund.mjs";
+import { browser, VIEWS, act, axe, noOverflow, shotsDir, istSpielSonde } from "./lib/grund.mjs";
 import { fakeWrapper, APP } from "./lib/fakewrapper.mjs";
 import { fakeFrei } from "./lib/fakefrei.mjs";
 import { createHash } from "node:crypto";
@@ -25,7 +25,7 @@ async function openApp(fw, ff, { view = "phone390", lang = "de", scheme = "light
   await fw.attach(ctx); await ff.attach(ctx);
   const p = await ctx.newPage(), errs = [];
   p.on("pageerror", (e) => errs.push("pageerror " + e));
-  p.on("console", (m) => { if (m.type() === "error" && !/^Failed to load resource: the server responded with a status of (401|403|404|409|410|422|429|503)/.test(m.text())) errs.push("console " + m.text()); });
+  p.on("console", (m) => { if (m.type() === "error" && !istSpielSonde(m.text()) && !/^Failed to load resource: the server responded with a status of (401|403|404|409|410|422|429|503)/.test(m.text())) errs.push("console " + m.text()); });
   await p.addInitScript(() => { document.addEventListener("securitypolicyviolation", (e) => console.error("CSP " + e.violatedDirective + " " + e.blockedURI)); });
   await p.goto(origin + path);
   await p.locator("header.bar").waitFor();
@@ -203,12 +203,8 @@ test("Fertig: Nachbessern noch 3× bis 0 (Server zaehlt), dann Melden mit Entsch
   await checks(p, "k8-melden", found);
   await act(p, "k-melden");
   await p.getByText("Die Karte kostet dich nichts.", { exact: false }).first().waitFor();
-  // die Selbstpruefung des Spielrahmens (spiel-frame.js selfCheck) laedt absichtlich ein data:-Bild, das seine CSP sperren MUSS.
-  // Dass die CSP aktiv ist, belegt schon das gestartete Spiel (canvas oben): ohne gemeldete Sperre verweigert der Rahmen den
-  // Start. Wie viele Konsolenmeldungen der Browser dazu schreibt, ist plattformabhaengig (Labor Linux: 1, macOS: 2) und wird
-  // darum nicht gezaehlt, nur ausgefiltert.
-  const probe = (e) => e === "console CSP img-src data" || e.startsWith("console Loading the image 'data:,' violates the following Content Security Policy directive: \"img-src 'none'\"");
-  assert.deepEqual(found, []); assert.deepEqual(errs.filter((e) => !probe(e)), []);
+  // die erwartete CSP-Sonde des Spielrahmens filtert der Sammler exakt heraus (lib/grund.mjs SPIEL_SONDE); alles andere zaehlt
+  assert.deepEqual(found, []); assert.deepEqual(errs, []);
 });
 
 // Freie Karte 2, P4: Push-Abo der neuen App gegen ein Push-Double (Erlaubnis, Service Worker und Push-Dienst im Browser

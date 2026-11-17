@@ -23,14 +23,26 @@ export async function browser(kind = "chromium") {
   const t = kind === "webkit" ? webkit : chromium;
   return t.launch({ executablePath: kind === "chromium" ? process.env.PW_CHROME || undefined : undefined });
 }
-/** Neue Seite mit Ansicht/Sprache/Farbschema; sammelt Fehler und CSP-Verstoesse. */
+/**
+ * Die absichtliche CSP-Sonde des Spielrahmens (src/broker/spiel-frame.js selfCheck): er laedt ein data:-Bild, das seine CSP
+ * mit img-src 'none' sperren MUSS, sonst startet er nicht. Genau diese Meldungen sind erwartet – je Chromium-Version in einer
+ * der beiden Formulierungen, dazu die Zeile des CSP-Sammlers unten. Exakt verglichen; jeder andere Konsolenfehler bleibt einer.
+ */
+export const SPIEL_SONDE = Object.freeze([
+  "Refused to load the image 'data:,' because it violates the following Content Security Policy directive: \"img-src 'none'\".",
+  "Loading the image 'data:,' violates the following Content Security Policy directive: \"img-src 'none'\". The action has been blocked.",
+  "CSP img-src data"
+]);
+export const istSpielSonde = (text) => SPIEL_SONDE.includes(text);
+
+/** Neue Seite mit Ansicht/Sprache/Farbschema; sammelt Fehler und CSP-Verstoesse (ohne die erwartete Sonde des Spielrahmens). */
 export async function open(b, { view = "phone390", lang = "de", scheme = "light", reduced = false, hash = "", init = [], before = null } = {}) {
   const ctx = await b.newContext({ ...VIEWS[view], locale: lang === "de" ? "de-DE" : "en-GB", colorScheme: scheme, reducedMotion: reduced ? "reduce" : "no-preference" });
   ctx.setDefaultTimeout(15000);
   const p = await ctx.newPage();
   const errs = [];
   p.on("pageerror", (e) => errs.push("pageerror " + e));
-  p.on("console", (m) => { if (m.type() === "error") errs.push("console " + m.text()); });
+  p.on("console", (m) => { if (m.type() === "error" && !istSpielSonde(m.text())) errs.push("console " + m.text()); });
   await p.addInitScript(() => { document.addEventListener("securitypolicyviolation", (e) => console.error("CSP " + e.violatedDirective + " " + e.blockedURI)); });
   for (const s of init) await p.addInitScript(s);
   if (before) await before(ctx, p);
