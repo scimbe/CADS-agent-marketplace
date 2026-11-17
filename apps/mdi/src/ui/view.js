@@ -222,6 +222,9 @@ export function view(state, dispatch, env = {}) {
   const ctx = state.ctx, X = texts(ctx.lang, ctx.pref && ctx.pref.easy), L = leaf(state), m = (p) => machine.matches(state, p);
   const acts = actionsOf(state);
   const canBack = machine.send(state, { type: "BACK" }).consumed;
+  // Tagesansicht: kein Zurueck in der Kopfzeile, auch an anderen Tagen. Sonst springt die Kopfzeile beim Blaettern
+  // (User-Feedback 17.11.). Rueckweg ist „Zu heute“ auf dem Blatt; BACK (Escape/Browser-Zurueck) wirkt weiter.
+  const headBack = canBack && !(L === "shelf" && ctx.home && ctx.home.at === "day");
   const card = ctx.cardId ? cardOf(ctx.cardId) : null;
   const homeR = L === "shelf" ? homeView(state, dispatch, env) : null;
   const freiR = L.startsWith("frei.") && SLOTS.freiView ? SLOTS.freiView(state, X, dispatch, L) : null;
@@ -230,8 +233,8 @@ export function view(state, dispatch, env = {}) {
 
   // Spielkopf in der Familienfarbe (Canvas v54 Bote1/GFlugStart): Farbe und Tinte aus der Familie (D, Kontrast geprueft)
   const fam = card && L.startsWith("card.") ? familyOf(catalogIdOf(card.manifest.id)) || family(card.manifest.family) : null;
-  const head = h("header", { class: "bar" + (canBack ? "" : " bar-noback") + (fam ? " bar-fam" : ""), key: "bar", style: fam ? { "--hb": fam.color, "--hc": fam.ink } : null },
-    canBack ? h("button", { type: "button", class: "icon", "aria-label": X.back, "data-act": "back", on: { click: () => dispatch({ type: "BACK" }) } }, "←") : h("span", { class: "icon-gap" }),
+  const head = h("header", { class: "bar" + (headBack ? "" : " bar-noback") + (fam ? " bar-fam" : ""), key: "bar", style: fam ? { "--hb": fam.color, "--hc": fam.ink } : null },
+    headBack ? h("button", { type: "button", class: "icon", "aria-label": X.back, "data-act": "back", on: { click: () => dispatch({ type: "BACK" }) } }, "←") : h("span", { class: "icon-gap" }),
     h("h1", { class: "brand" + (homeR && !homeR.heading ? " home" : "") }, heading),
     m("raum.verbunden") ? h("span", { class: "badge", role: "status" }, X.connected)
       // Board Meins: auf „Mein Regal“ selbst keine Kopfknoepfe, damit die Ueberschrift ungekuerzt bleibt

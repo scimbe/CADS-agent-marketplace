@@ -59,18 +59,50 @@ function freiEntry(state, X, dispatch, where) {
     icon("plus", "h-ico"), h("span", { class: "h-frei-t" }, h("span", { class: "h-frei-k" }, X.own.t), h("span", { class: "h-frei-s" }, X.own.s)));
 }
 
+// Blatt wischen mit Finger und Maus (User-Feedback 17.11.: mit der Maus ging es nicht). Der Zustand der Geste haengt am
+// Element, nicht an der Render-Closure, damit ein Neuzeichnen mitten im Ziehen sie nicht verliert. Pointer Capture erst
+// ab der Schwelle: ein normaler Klick auf ‹ › oder „Zu heute“ bleibt ein Klick. Ab der Schwelle markiert das Ziehen keinen
+// Text und das Blatt folgt sichtbar; Loslassen ausserhalb des Blatts zaehlt mit. Pfeiltasten am fokussierten Blatt.
+const SWIPE_START = 12, SWIPE_DAY = 60;
+export function sheetSwipe(dispatch) {
+  const end = (el, dx) => {
+    const g = el.__swipe; el.__swipe = null;
+    el.classList.remove("h-drag"); el.style.removeProperty("--dx");
+    if (g && g.on && el.hasPointerCapture && el.hasPointerCapture(g.id)) el.releasePointerCapture(g.id);
+    if (g && g.on && Math.abs(dx) > SWIPE_DAY) dispatch({ type: "DAY", d: dx < 0 ? 1 : -1 });
+  };
+  return {
+    pointerdown: (e) => { if (e.button > 0 || !e.isPrimary) return; e.currentTarget.__swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, on: false }; },
+    pointermove: (e) => {
+      const el = e.currentTarget, g = el.__swipe; if (!g || g.id !== e.pointerId) return;
+      const dx = e.clientX - g.x, dy = e.clientY - g.y;
+      if (!g.on) {
+        if (Math.abs(dy) > SWIPE_START && Math.abs(dy) > Math.abs(dx)) { el.__swipe = null; return; }   // senkrecht: Seite scrollt
+        if (Math.abs(dx) < SWIPE_START) return;
+        g.on = true; el.classList.add("h-drag");
+        if (el.setPointerCapture) el.setPointerCapture(e.pointerId);
+        const sel = typeof getSelection === "function" ? getSelection() : null; if (sel) sel.removeAllRanges();
+      }
+      e.preventDefault();
+      el.style.setProperty("--dx", Math.max(-120, Math.min(120, dx)) + "px");
+    },
+    pointerup: (e) => { const el = e.currentTarget, g = el.__swipe; if (g && g.id === e.pointerId) end(el, e.clientX - g.x); },
+    pointercancel: (e) => end(e.currentTarget, 0),
+    lostpointercapture: (e) => { const g = e.currentTarget.__swipe; if (g && g.on) end(e.currentTarget, 0); },
+    keydown: (e) => {
+      if (e.target !== e.currentTarget || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); dispatch({ type: "DAY", d: e.key === "ArrowRight" ? 1 : -1 }); }
+    }
+  };
+}
+
 function sheet(ctx, X, dispatch) {
   const n = ctx.today + ctx.home.off, idea = R.ideaOn(n, caps()), dp = dateParts(n, X), tx = ideaText(idea, ctx.lang);
   const fam = familyOf(idea.id) || family("gruessen"), nid = newIdOf(idea.id), hol = bundesweit(dp.key, ctx.lang);
   const title = plateLines(tx.t);
-  let x0 = null;
-  const swipe = {
-    pointerdown: (e) => { x0 = e.clientX; },
-    pointerup: (e) => { if (x0 === null) return; const dx = e.clientX - x0; x0 = null; if (Math.abs(dx) > 60) dispatch({ type: "DAY", d: dx < 0 ? 1 : -1 }); },
-    pointercancel: () => { x0 = null; }
-  };
+  const swipe = sheetSwipe(dispatch);
   return h("section", { class: "h-cal", key: "cal", "aria-label": fmt(X.sheetLabel, { d: dp.num + ". " + dp.mon, t: title.join(" ") }) },
-    h("div", { class: "h-leaf", key: "leaf-" + n, on: swipe },
+    h("div", { class: "h-leaf", key: "leaf-" + n, tabindex: "0", "aria-keyshortcuts": "ArrowLeft ArrowRight", on: swipe },
       h("div", { class: "h-holes", "aria-hidden": "true" }, [0, 1, 2, 3, 4, 5, 6].map((i) => h("i", { key: String(i) }))),
       h("div", { class: "h-date" },
         h("span", { class: "h-dnum" }, dp.num),
