@@ -4,11 +4,13 @@
 // Karten geladen sind. Reine Funktion des Statechart-Zustands (gegen A2); je Zustand hoechstens eine Hauptaktion und drei
 // Nebenaktionen (04-ux/disclosure). Texte: ./texts.js (Altcode-Schluessel unveraendert).
 import { ft } from "./texts.js";
+import { makeKlaerenView } from "./klaeren-view.js";
 
 /** D: { h, matches, render, rng, cardOf, cardIdOf, modelFields, manifestOf, crisis, ARTS, GENRES, MODES, previewOf, targetOf, targetIdOf, freiParams } */
 export function makeFreiView(D) {
 const { h, render, rng, cardOf, cardIdOf, manifestOf, crisis, ARTS, GENRES, MODES, previewOf, targetOf, targetIdOf, freiParams } = D;
 const machine = { matches: D.matches };
+const KV = makeKlaerenView(D);   // Freie Karte 2, Klaerungsdialog (P1)
 const kState = (state) => ["pruefen", "anonym", "anmelden", "angemeldet", "abmelden", "fehler"].find((s) => machine.matches(state, "konto." + s));
 const a = (id, label, ev) => ({ id, label, ev: typeof ev === "string" ? { type: ev } : ev });
 const status = (text, cls = "hint", key) => h("p", { class: cls, role: "status", key: key || "st" }, text);
@@ -213,12 +215,18 @@ const MOD_TY = { "card-hidden": "mod_hidden", "card-held": "mod_held", "card-rem
  */
 function freiView(state, X, dispatch, L) {
   const ctx = state.ctx, f = ctx.frei, lang = ctx.lang, leafName = L.slice("frei.".length);
+  const kr = KV.klaerenView(state, dispatch, leafName);
+  if (kr) return kr;
   let body = [], panel = [], primary = null, secondary = [], heading = ft(lang, "create_title");
   const back = a("back", ft(lang, "frei_back"), "BACK");
   switch (leafName) {
     case "start": {
       const r = startView(state, dispatch);
       body = r.body; panel = r.panel;
+      // Freie Karte 2 (P1): erst klaeren, dann bauen – ein eigener Weg neben dem Formular, nur mit Konto und 16+
+      // nur wenn der Server den Dialog eingeschaltet hat (DUELL_KLAERUNG=on, Standard aus bis P3 live ist)
+      if (ctx.frei.kan === true && ["ready", "form", "empty", "paused"].includes(r.gate)) body.unshift(h("button", { type: "button", class: "frei-row k-entry", key: "k-entry", "data-act": "klaeren", on: { click: () => dispatch({ type: "KLAEREN" }) } },
+        h("span", { class: "frei-row-t" }, KV.entryLabel(lang)), h("span", { class: "frei-row-arrow", "aria-hidden": "true" }, "→")));
       const extra = [a("mine", ft(lang, "frei_mine"), "MINE"), a("deck", ft(lang, "deck_open"), "DECK"), a("bild", ft(lang, "frei_bild"), "BILD")];
       if (r.gate === "login") primary = a("login", ft(lang, "create_login"), "LOGIN");
       else if (r.gate === "retry") primary = a("retry", ft(lang, "frei_retry"), "CHECK");
