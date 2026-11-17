@@ -156,6 +156,10 @@ if (location.hash.length > 1) rt.link(location.hash);
 else if (new URLSearchParams(location.search).get("go") === "erschaffen") {
   try { history.replaceState(history.state, "", location.pathname); } catch (e) { /* ohne Verlauf */ }
   rt.dispatch({ type: "FREI" });
+} else if (new URLSearchParams(location.search).get("go") === "demo") {
+  // „Ueber diese Demo“ (Hinweis unter der Kopfzeile, src/ui/demo-view.js): eigener Bildschirm, ohne Anmelden erreichbar
+  try { history.replaceState(history.state, "", location.pathname); } catch (e) { /* ohne Verlauf */ }
+  rt.dispatch({ type: "DEMO_INFO" });
 } else if (new URLSearchParams(location.search).get("go") === "konto") {
   // zurueck vom Anmelden: Mein Stil wieder oeffnen, die Adresse ohne ?go= behalten
   try { history.replaceState(history.state, "", location.pathname); } catch (e) { /* ohne Verlauf */ }

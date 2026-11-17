@@ -10,6 +10,7 @@ import * as S from "../contract/session.js";
 import { render } from "../render/render.js";
 import { LEVELS } from "../bot/ismcts.js";
 import { stilView, stilActions } from "./stil-view.js";
+import { demoBar, demoView } from "./demo-view.js";
 import { homeView, dayPrimary, meinsButton, schriftButton, headSearch, shareImageBox } from "./home/views.js";
 import { SLOTS } from "./home/slots.js";
 import { familyOf, family, catalogIdOf } from "./home/families.js";
@@ -47,6 +48,7 @@ export function actionsOf(state) {
   switch (L) {
     // Heimseite (Strang H): eine Hauptaktion = Hauptknopf des Kalenderblatts; alles andere ist Inhalt der Seite
     case "shelf": { const p = ctx.home.at === "day" ? dayPrimary(ctx) : null; return { primary: p ? a(p.id, p.label, p.ev) : null, secondary: [] }; }
+    case "demoinfo": return { primary: a("to-shelf", X.toShelf, "DONE"), secondary: [] };
     case "partfail": return { primary: a("retry", X.retry, "RETRY"), secondary: [a("to-shelf", X.toShelf, "BACK")] };
     case "card.view": {
       const c = G.card(ctx), sec = [a("customize", X.customize, "CUSTOMIZE")];
@@ -257,7 +259,8 @@ export function view(state, dispatch, env = {}) {
   const card = ctx.cardId ? cardOf(ctx.cardId) : null;
   const homeR = L === "shelf" ? homeView(state, dispatch, env) : null;
   const freiR = L.startsWith("frei.") && SLOTS.freiView ? SLOTS.freiView(state, X, dispatch, L) : null;
-  const heading = homeR ? homeR.heading || X.app : freiR ? freiR.heading : L === "stil.start" ? X.stil : L === "stil.daten" ? X.k.data : L === "stil.widerspruch" ? X.k.appealTitle : card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang, G.paramsOf(ctx)) : X.app;
+  const demoR = L === "demoinfo" ? demoView(state, X) : null;
+  const heading = homeR ? homeR.heading || X.app : freiR ? freiR.heading : demoR ? demoR.heading : L === "stil.start" ? X.stil : L === "stil.daten" ? X.k.data : L === "stil.widerspruch" ? X.k.appealTitle : card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang, G.paramsOf(ctx)) : X.app;
   const btn = (act, cls) => h("button", { type: "button", class: "btn " + cls, key: act.id, "data-act": act.id, on: { click: () => dispatch(act.ev) } }, act.label);
 
   // Spielkopf in der Familienfarbe (Canvas v54 Bote1/GFlugStart): Farbe und Tinte aus der Familie (D, Kontrast geprueft)
@@ -279,6 +282,8 @@ export function view(state, dispatch, env = {}) {
     body = r.body; panel = r.panel;
   } else if (freiR) {
     body = freiR.body; panel = freiR.panel || [];
+  } else if (demoR) {
+    body = demoR.body;
   } else if (homeR) {
     // Nachladen (ADR 0001 Nachtrag 2): ehrliche Ladezeile, solange ein Kartenteil kommt
     body = [ctx.loading ? h("p", { class: "h-loading", role: "status", "aria-live": "polite", key: "loading" }, X.loadingCard) : null, ...homeR.body];
@@ -422,7 +427,8 @@ export function view(state, dispatch, env = {}) {
     h("div", { class: "col-a", key: "a" }, body),
     h("div", { class: "col-b", key: "b" }, panel, L === "card.customize.dialog" || L === "shelf" ? null : actions));
 
-  const out = [head, main];
+  // Hinweis „Demo – Testinstallation“ im Fluss unter der Kopfzeile, auf jeder Seite (src/ui/demo-view.js)
+  const out = [head, demoBar(X, L === "demoinfo"), main];
   if (m("inhalt.card.customize") && !ctx.pref.blasen.aus) out.push(bubbleLayer(card, ctx, X, dispatch, tree, ctx.lang));
   if (m("inhalt.card.customize.dialog")) out.push(dialogLayer(card, ctx, X, dispatch, acts, state));
   return out;

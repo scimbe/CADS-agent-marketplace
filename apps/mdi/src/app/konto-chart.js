@@ -133,7 +133,7 @@ function getNow(ctx, emit) { emit({ type: "profil.get", who: linkOf(ctx.profil) 
 
 export const kontoActions = {
   fxStatus: (ctx, ev, emit) => { emit({ type: "konto.status" }); return K(ctx, { err: null }); },
-  takeStatus: (ctx, ev) => K(ctx, { st: { account: R(ev).account, canLogin: R(ev).canLogin, ki: R(ev).ki, karte: R(ev).karte, app: R(ev).app === true }, logout: ev.logout || null, err: null }),
+  takeStatus: (ctx, ev) => K(ctx, { st: { account: R(ev).account, canLogin: R(ev).canLogin, ki: R(ev).ki, karte: R(ev).karte, contact: R(ev).contact || null, app: R(ev).app === true }, logout: ev.logout || null, err: null }),
   takeStatusError: (ctx, ev) => K(ctx, { st: null, err: R(ev).error || "server" }),
   // angemeldet: Profil des Kontos lesen (Lesen legt nichts an). Ein Geraete-Code bleibt, wenn er verbunden ist.
   afterSignIn: (ctx, ev, emit) => {

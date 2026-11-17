@@ -73,7 +73,7 @@ function eventsFor(state) {
     { type: "LINK", hash: LINKS.card }, { type: "LINK", hash: LINKS.challenge }, { type: "LINK", hash: LINKS.live }, { type: "LINK", hash: LINKS.bad },
     { type: "LIVE_TOKEN", token: "B".repeat(22) }, { type: "LIVE_UP" }, { type: "LIVE_DOWN" }, { type: "LIVE_FAIL", reason: "gone" },
     { type: "HELLO", msg: HELLO }, { type: "PEER_IN", msg: { t: "in", i: 0, x: { t: "say", seat: 0, v: 6 }, h: "0".repeat(16) } },
-    { type: "STATUS", result: ST_IN }, { type: "STATUS", result: ST_ANON }, { type: "STIL" }, { type: "DATEN" }
+    { type: "STATUS", result: ST_IN }, { type: "STATUS", result: ST_ANON }, { type: "STIL" }, { type: "DATEN" }, { type: "DEMO_INFO" }
   ];
   if (ctx.cardId) {
     const c = cardOf(ctx.cardId);
@@ -135,9 +135,12 @@ test("Pfad-Enumeration bis Tiefe 6: gueltige Konfiguration, Disclosure, keine to
     const v = view(s, () => {});
     const hasDialog = JSON.stringify(v, (k, x) => (k === "el" || k === "on" ? undefined : x)).includes('"role":"dialog"');
     assert.equal(hasDialog, machine.matches(s, "inhalt.card.customize.dialog"), L + ": Dialog sichtbar nur im Zustand dialog");
+    // Hinweis „Demo – Testinstallation“ steht in jedem Zustand direkt unter der Kopfzeile; Link auf ?go=demo ausser auf der Info-Seite
+    assert.equal(v[1].props.class, "demo-bar", L + ": Demo-Hinweis fehlt unter der Kopfzeile");
+    assert.equal(JSON.stringify(v[1], (k, x) => (k === "el" || k === "on" ? undefined : x)).includes('"href":"?go=demo"'), L !== "demoinfo", L + ": Demo-Hinweis verlinkt die Info-Seite");
   }
   assert.equal(machine.send(start, { type: "BACK" }).consumed, false, "Regal verbraucht BACK nicht (Host darf App verlassen)");
-  const must = ["shelf", "card.view", "card.customize.bubbles", "card.customize.dialog", "card.share", "card.lobby", "card.play.turn", "card.play.hand", "receive.show", "receive.reject", "receive.live", "receive.wait"];
+  const must = ["shelf", "demoinfo", "card.view", "card.customize.bubbles", "card.customize.dialog", "card.share", "card.lobby", "card.play.turn", "card.play.hand", "receive.show", "receive.reject", "receive.live", "receive.wait"];
   for (const m of must) assert.ok(leaves.has(m), "nicht erreicht: " + m);
   console.log("# enumeration: Tiefe " + depthReached + ", " + seen.size + " Zustaende, " + edges + " Kanten geprueft, Blattzustaende: " + [...leaves].sort().join(" "));
 });

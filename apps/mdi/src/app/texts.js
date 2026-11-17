@@ -1,6 +1,30 @@
 // Oberflaechentexte de/en. Praesens, Ist-Zustand, kurze Saetze. Luecke im Englischen -> Deutsch.
 const de = {
   stil: "Mein Stil", stilOpen: "Mein Stil öffnen",
+  // Hinweis „Demo – Testinstallation“ (Kopf jeder Seite) und die Seite „Über diese Demo“ (?go=demo). Inhalt gegen den Code
+  // geprueft (CADS-DEMO-wrapper lib/duell-llm, duell-bild, duell-profile, duell-weather, shortlink; CADS-Tunnel Keycloak-Realm)
+  demo: {
+    bar: "Demo – Testinstallation", more: "Was heißt das?", newTab: "(öffnet in neuem Tab)", title: "Über diese Demo",
+    lede: "My Daily Idea ist eine Testinstallation. Du probierst eine Demo aus.",
+    testH: "Was das für dich heißt",
+    test: ["Wir testen hier noch. Es gibt keine Garantie, dass alles läuft.", "Karten, Kurzlinks und Konten können gelöscht werden. Auch ohne Vorwarnung.", "Du bezahlst bei uns nichts. Du kannst hier nichts kaufen."],
+    dataH: "Deine Daten: was wohin geht",
+    data: [
+      "Fotos bleiben auf deinem Gerät. In einem Link reist nie ein Foto.",
+      "Ein Link trägt deine Karte im Teil nach #. Diesen Teil sieht unser Server nie.",
+      "Ein Kurzlink speichert die Karte auf unserem Server.",
+      "KI-Anfragen gehen an Anthropic in den USA: dein Satz für die freie Karte, für „Eigene Karte daraus“ und für KI-Bilder. Ein KI-Bild geht vor dem Zeigen zur Prüfung auch dorthin.",
+      "Freie Karten und KI-Bilder speichert unser Server.",
+      "Anmelden läuft über unseren Anmeldedienst (Keycloak). Du kannst dort HAW-GitLab, Google, GitHub oder GitLab wählen. Dieser Anbieter erfährt dann, dass du dich anmeldest.",
+      "Mails vom Anmeldedienst, zum Beispiel zum Bestätigen deiner Adresse, laufen über Strato.",
+      "Sicherst du Mein Stil mit Konto oder Sync-Code, liegt er auf unserem Server. Fotos nie.",
+      "Live-Spiele verbindet unser Server. Die Züge gehen dann verschlüsselt zwischen euren Geräten.",
+      "Für die Wetterkarte schickt unser Server den Ortsnamen an Open-Meteo."
+    ],
+    contactH: "Kontakt",
+    contactNone: "Eine Kontaktadresse gibt es noch nicht. Stimmt mit einer Karte etwas nicht, die eine KI gebaut hat? Dann tipp an der Karte auf „Melden“.",
+    contactIs: "Du erreichst uns so:"
+  },
   k: {
     preview: "So sehen deine Karten aus", previewLabel: "Vorschau: {n}, {e}, Farben {c}, Sticker {s}", noName: "Dein Name",
     nick: "Spitzname", nickNote: "Steht nur auf deinen Karten und in Links, die du schickst.", nickPh: "z. B. Oma Gisela", nickErr: "Keine E-Mail, Telefonnummer oder Adresse im Spitznamen.",
@@ -94,6 +118,28 @@ const de = {
 };
 const en = {
   stil: "My style", stilOpen: "Open my style",
+  demo: {
+    bar: "Demo – test installation", more: "What does that mean?", newTab: "(opens in a new tab)", title: "About this demo",
+    lede: "My Daily Idea is a test installation. You are trying out a demo.",
+    testH: "What this means for you",
+    test: ["We are still testing. There is no guarantee that everything works.", "Cards, short links and accounts can be deleted. Even without warning.", "You pay us nothing. You cannot buy anything here."],
+    dataH: "Your data: what goes where",
+    data: [
+      "Photos stay on your device. A photo never travels in a link.",
+      "A link carries your card in the part after #. Our server never sees that part.",
+      "A short link stores the card on our server.",
+      "AI requests go to Anthropic in the USA: your sentence for the free card, for “Make it your own card” and for AI pictures. An AI picture also goes there to be checked before it is shown.",
+      "Our server stores free cards and AI pictures.",
+      "Signing in runs through our sign-in service (Keycloak). There you can choose HAW GitLab, Google, GitHub or GitLab. That provider then learns that you are signing in.",
+      "Emails from the sign-in service, for example to confirm your address, go through Strato.",
+      "If you save My style with an account or a sync code, it is on our server. Never photos.",
+      "Our server connects live games. The moves then go encrypted between your devices.",
+      "For the weather card our server sends the place name to Open-Meteo."
+    ],
+    contactH: "Contact",
+    contactNone: "There is no contact address yet. Is something wrong with a card an AI built? Then tap “Report” on the card.",
+    contactIs: "You can reach us here:"
+  },
   k: {
     preview: "This is how your cards look", previewLabel: "Preview: {n}, {e}, colours {c}, stickers {s}", noName: "Your name",
     nick: "Nickname", nickNote: "Only on your cards and in links you send.", nickPh: "e.g. Granny Gisela", nickErr: "No e-mail, phone number or address in the nickname.",
