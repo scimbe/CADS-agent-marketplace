@@ -33,7 +33,9 @@ export const SPIEL_SONDE = Object.freeze([
   "Loading the image 'data:,' violates the following Content Security Policy directive: \"img-src 'none'\". The action has been blocked.",
   "CSP img-src data"
 ]);
-export const istSpielSonde = (text) => SPIEL_SONDE.includes(text);
+/** Normalisiert nur Rahmen (Praefix "console " des Sammlers, Leerraum/Zeilenumbruch am Ende, z. B. unter Linux), der Text
+ *  selbst wird exakt verglichen. */
+export const istSpielSonde = (text) => SPIEL_SONDE.includes(String(text).replace(/^console /, "").trim());
 
 /** Neue Seite mit Ansicht/Sprache/Farbschema; sammelt Fehler und CSP-Verstoesse (ohne die erwartete Sonde des Spielrahmens). */
 export async function open(b, { view = "phone390", lang = "de", scheme = "light", reduced = false, hash = "", init = [], before = null } = {}) {
