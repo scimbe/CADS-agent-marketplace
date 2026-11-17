@@ -5,6 +5,7 @@
 //   POST /api/duell/bild/status  -> { on, login, age16, free:{left,size,period}, credit, perDay:{left,size}, can, why, avatar, estS, deadlineS }
 //   POST /api/duell/bild         { use, text, style, lang } -> 202 { job, state, position, etaS, paid } | 401 | 402 quota|credit | 403 age16|account-paused
 //                                | 422 refused{reason} | blocked{reason|why:crisis} | 429 busy{position,etaS,retryS}|daily-cap|throttled | 503 off|check-off
+//                                | 503 ki-nicht-verfuegbar{grund} (die KI antwortet nicht, nichts verbraucht) -> "kiaus"
 //   POST /api/duell/bild/job     { job } -> { state: queued|generating|checking, position?, etaS? } | { state:"done", id, url, seal } | { state:"failed", error, refunded }
 //   POST /api/duell/bild/cancel  { job } -> { cancelled, refunded }
 //   POST /api/duell/bild/keep    { id } -> { kept }
@@ -26,6 +27,7 @@ export function bildVerdict(status, b) {
   if (status === 403) return b.error === "age16" ? "age16" : "modpause";
   if (status === 422) return b.why === "crisis" ? "crisis" : b.error === "refused" ? "refused" : "blocked";
   if (status === 429) return b.error === "daily-cap" ? "daily" : b.error === "throttled" ? "paused" : "busy";
+  if (status === 503 && b.error === "ki-nicht-verfuegbar") return "kiaus";
   return "off";
 }
 
@@ -68,6 +70,8 @@ export function createBild(deps) {
         const img = await api.image(b.url);
         return img.ok ? { how: "done", id: b.id, url: b.url, dataUrl: img.url, seal: typeof b.seal === "string" ? b.seal : "" } : { how: "off" };
       }
+      // die Bildpruefung fand keine KI: derselbe Hinweis wie beim Senden, zurueckgebucht hat der Server
+      if (b.state === "failed" && b.error === "ki-nicht-verfuegbar") return { how: "kiaus", refunded: b.refunded === true };
       if (b.state === "failed") return { how: "failed", refunded: b.refunded === true, reason: typeof b.error === "string" ? b.error.slice(0, 20) : "" };
       onPhase(b.state, int(b.position));
       await sleep(1000);

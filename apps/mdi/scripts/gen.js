@@ -20,7 +20,7 @@ export const BUDGET = { image: 120 * 1024, sheet: 120 * 1024, json: 64 * 1024, s
 
 export class GenError extends Error {}
 // Editor-Vokabeln an Parameterfeldern (ADR 0001, Anfragen P/L): nur Beschreibung, keine Pruefregeln
-export const FIELD_VOCAB = ["x-field", "x-label", "x-model", "x-pairs", "x-names", "x-hidden", "x-set", "x-suggest", "x-default", "x-rows", "x-unit", "x-note", "x-use", "x-icons", "x-steps"];
+export const FIELD_VOCAB = ["x-field", "x-label", "x-model", "x-pairs", "x-names", "x-hidden", "x-set", "x-suggest", "x-default", "x-rows", "x-unit", "x-note", "x-use", "x-icons", "x-steps", "x-palette", "x-differs", "x-dice"];
 // Ajv-Standalone setzt fuer manche Schluesselwoerter Laufzeit-Hilfen per require() ein; im ESM-Bundle gibt es kein
 // require. Bekannte Hilfen werden durch ESM-Importe ersetzt, unbekannte lehnt der Generator ab.
 const AJV_RUNTIME = { "ajv/dist/runtime/equal": "__ajvEqual" };

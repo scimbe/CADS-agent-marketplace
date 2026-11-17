@@ -64,7 +64,11 @@ function freiEntry(state, X, dispatch, where) {
 // ab der Schwelle: ein normaler Klick auf ‹ › oder „Zu heute“ bleibt ein Klick. Ab der Schwelle markiert das Ziehen keinen
 // Text und das Blatt folgt sichtbar; Loslassen ausserhalb des Blatts zaehlt mit. Pfeiltasten am fokussierten Blatt.
 const SWIPE_START = 12, SWIPE_DAY = 60;
-export function sheetSwipe(dispatch) {
+// Klick, Tipp, Enter und Leertaste auf dem Blatt oeffnen die Karte wie der Hauptknopf (User-Feedback 17.11.: „doppelklick auf
+// Karte im brwoser oefnet nichts“ – das Blatt hatte keine Oeffnen-Aktion). Nach einem Wisch schluckt die Geste den Klick (s. u.).
+// Klicks auf Knoepfe im Blatt (‹ › „Zu heute“) gehoeren dem Knopf; der zweite Klick eines Doppelklicks (detail > 1) oeffnet
+// nicht noch einmal. open ist das Ereignis des Hauptknopfs oder null (Blatt ohne Karte: nur Blaettern).
+export function sheetSwipe(dispatch, open = null) {
   // Bewegung und Loslassen hoeren waehrend der Geste am Fenster: so zaehlt auch ein schneller Wisch, dessen erste Bewegung
   // schon ausserhalb des Blatts liegt (Live-Pruefung 17.11.), ohne Pointer Capture beim Druecken (Klicks auf ‹ › bleiben Klicks).
   const clearSel = () => { const sel = typeof getSelection === "function" ? getSelection() : null; if (sel) sel.removeAllRanges(); };
@@ -111,9 +115,16 @@ export function sheetSwipe(dispatch) {
   };
   return {
     pointerdown: (e) => { if (e.button > 0 || !e.isPrimary) return; const old = e.currentTarget.__swipe; if (old) old.end(0); start(e.currentTarget, e); },
+    click: (e) => {
+      if (!open || e.detail > 1) return;
+      const own = e.target.closest("button, a, input, select, textarea");
+      if (own && own !== e.currentTarget && e.currentTarget.contains(own)) return;
+      dispatch(open);
+    },
     keydown: (e) => {
       if (e.target !== e.currentTarget || e.altKey || e.ctrlKey || e.metaKey) return;
       if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); dispatch({ type: "DAY", d: e.key === "ArrowRight" ? 1 : -1 }); }
+      else if (open && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); if (!e.repeat) dispatch(open); }
     }
   };
 }
@@ -122,9 +133,14 @@ function sheet(ctx, X, dispatch) {
   const n = ctx.today + ctx.home.off, idea = R.ideaOn(n, caps()), dp = dateParts(n, X), tx = ideaText(idea, ctx.lang);
   const fam = familyOf(idea.id) || family("gruessen"), nid = newIdOf(idea.id), hol = bundesweit(dp.key, ctx.lang);
   const title = plateLines(tx.t);
-  const swipe = sheetSwipe(dispatch);
+  // Oeffnen nur, wenn der Hauptknopf eine Karte oeffnet (nicht „Merken“ bei Karten, die es bald wieder gibt)
+  const p = nid ? dayPrimary(ctx) : null, openEv = p && p.ev.type === "OPEN" ? p.ev : null;
+  const swipe = sheetSwipe(dispatch, openEv);
+  // role=group statt button: das Blatt enthaelt Knoepfe (‹ › „Zu heute“), ein button darf keine interaktiven Kinder haben
+  const leafA11y = openEv ? { role: "group", "aria-label": fmt(X.openSheet, { t: title.join(" ") }), "aria-keyshortcuts": "Enter Space ArrowLeft ArrowRight", "data-open": "" }
+    : { "aria-keyshortcuts": "ArrowLeft ArrowRight" };
   return h("section", { class: "h-cal", key: "cal", "aria-label": fmt(X.sheetLabel, { d: dp.num + ". " + dp.mon, t: title.join(" ") }) },
-    h("div", { class: "h-leaf", key: "leaf-" + n, tabindex: "0", "aria-keyshortcuts": "ArrowLeft ArrowRight", on: swipe },
+    h("div", { class: "h-leaf", key: "leaf-" + n, tabindex: "0", ...leafA11y, on: swipe },
       h("div", { class: "h-holes", "aria-hidden": "true" }, [0, 1, 2, 3, 4, 5, 6].map((i) => h("i", { key: String(i) }))),
       h("div", { class: "h-date" },
         h("span", { class: "h-dnum" }, dp.num),

@@ -38,6 +38,10 @@ function preview(doc, lang, key = "pv") {
     h("p", { class: "badge", "aria-hidden": "true" }, ft(lang, "kiBadgeL")));
 }
 
+/** Die KI antwortet nicht (503 ki-nicht-verfuegbar): ein ruhiger Hinweis im Kasten des Design-Systems (.notice), kein
+ *  Fehlerton (.warn), denn die Person hat nichts falsch gemacht; ein fester Satz, keine Technik, kein Grund. */
+const kiAus = (lang, key = "kiaus") => h("div", { class: "notice", role: "status", key, "data-how": "kiaus" }, h("p", { class: "hint strong" }, ft(lang, "ki_aus")));
+
 /** Satz fuer das Ergebnis einer Anfrage, die keine Karte brachte (Altcode stateText + notyet) */
 function refusalText(r, lang) {
   switch (r.how) {
@@ -50,6 +54,7 @@ function refusalText(r, lang) {
     case "age": return ft(lang, "create_lim_money18");
     case "modpause": return ft(lang, "mod_st_paused", { d: r.until ? date(r.until, lang) : "—" });
     case "karteoff": return ft(lang, "create_off");
+    case "kiaus": return ft(lang, "ki_aus");
     case "login": return ft(lang, "create_login_h", { m: 5 });
     case "bad": return ft(lang, "create_bad");
     case "nicht-hier": return ft(lang, "create_app");
@@ -82,6 +87,7 @@ function potLine(k, lang) {
 
 function refusalBlock(ctx, lang, dispatch) {
   const r = ctx.frei.res; if (!r) return [];
+  if (r.how === "kiaus") return [kiAus(lang, "res")];
   const out = [h("p", { class: r.how === "crisis" || (r.how === "blocked" && r.why === "crisis") ? "warn strong" : "warn", role: r.how === "crisis" || r.why === "crisis" ? "alert" : "status", key: "res", "data-how": r.how }, refusalText(r, lang))];
   if (r.how === "notyet" && r.notyet && r.notyet.what === "genre" && GENRES.includes(r.notyet.name)) {
     const nm = (g) => ft(lang, "create_genre_" + g).replace(/^\S+\s/, "");
@@ -367,6 +373,7 @@ function freiView(state, X, dispatch, L) {
       const res = b.res;
       if (res && res.how === "done") body.push(h("p", { class: "hint", key: "again" }, ft(lang, "kb_again_cost")));
       if (res && res.how === "done") body.push(h("figure", { class: "stage", key: "img" }, h("img", { src: res.dataUrl, alt: ft(lang, "kb_alt", { x: b.text }), class: "frei-img", width: "512", height: "512" })), b.kept ? status(ft(lang, "create_robot_kept"), "hint strong", "kept") : null);
+      else if (res && res.how === "kiaus") body.push(kiAus(lang, "br"));
       else if (res) {
         const K = { crisis: "aiCrisis", login: "kb_login", age16: "kb_age16", quota: "kb_quota", credit: "kb_credit", daily: "kb_daycap", paused: "kb_throttled", modpause: "kb_paused", blocked: "kb_blocked", refused: "kb_no_" + (["sexual", "minors", "hate", "gore", "violence", "weapons", "real_person", "brand", "drugs", "youth", "contact"].includes(res.reason) ? res.reason : "other"), failed: res.reason === "timeout" ? "kb_timeout" : res.reason === "unsafe" ? "kb_unsafe" : "kb_failed", gone: "create_wait_cancelled", kurz: "kb_ask", off: "kb_offline" };
         body.push(status(res.how === "busy" ? ft(lang, "kb_busy", { n: res.position || 1, s: res.etaS || "?", r: res.retryS || 10 }) : ft(lang, K[res.how] || "kb_offline"), res.how === "crisis" ? "warn strong" : "warn", "br"));
@@ -379,6 +386,7 @@ function freiView(state, X, dispatch, L) {
       const k = f.ki;
       heading = ft(lang, "frei_ki_fill");
       if (k.res && k.res.how === "busy") body.push(status(ft(lang, "aiThinking") + " …"));
+      else if (k.res && k.res.how === "kiaus") body.push(kiAus(lang));
       else if (k.res && k.res.how !== "result") body.push(status(refusalText(k.res, lang), "warn"));
       if (k.opts.length) {
         body.push(h("p", { class: "hint", key: "kp" }, ft(lang, "frei_ki_pick")));

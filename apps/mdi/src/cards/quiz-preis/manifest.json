@@ -53,6 +53,16 @@
           "preis",
           "schaetzen"
         ],
+        "x-names": {
+          "preis": {
+            "de": "Preis raten",
+            "en": "Guess the price"
+          },
+          "schaetzen": {
+            "de": "Schätzen",
+            "en": "Estimate"
+          }
+        },
         "default": "preis",
         "x-field": "choice",
         "x-label": {
@@ -69,6 +79,24 @@
           "solar",
           "ocean"
         ],
+        "x-names": {
+          "planeten": {
+            "de": "Unsere Planeten",
+            "en": "Unsere Planeten"
+          },
+          "koerper": {
+            "de": "Körper und Skelett",
+            "en": "Körper und Skelett"
+          },
+          "solar": {
+            "de": "Our solar system",
+            "en": "Our solar system"
+          },
+          "ocean": {
+            "de": "Oceans and sea life",
+            "en": "Oceans and sea life"
+          }
+        },
         "default": "",
         "x-field": "choice",
         "x-label": {

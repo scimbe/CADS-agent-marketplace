@@ -2,14 +2,14 @@
 // jede Antwort wird auf genau ein Ergebnis abgebildet, nichts Unbekanntes wird still zu „ok“.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createApi, safeReturn } from "../src/broker/api.js";
+import { createApi, safeReturn, contactOf } from "../src/broker/api.js";
 import { apiFor, REC, HERE } from "./wrapper.js";
 
 const DEV = REC.device, CODE = REC.code;
 
 test("status: anonym, angemeldet ohne/mit 16+, Guthaben, ungueltiges Geraet, Gate weg", async () => {
   let { api } = apiFor("status-anonym");
-  assert.deepEqual(await api.status(DEV), { ok: true, account: false, canLogin: true, ki: { enabled: true, remaining: 7, size: 7, period: "week", resetAt: "2026-11-16T00:00:00.000Z" }, karte: null });
+  assert.deepEqual(await api.status(DEV), { ok: true, account: false, canLogin: true, ki: { enabled: true, remaining: 7, size: 7, period: "week", resetAt: "2026-11-16T00:00:00.000Z" }, karte: null, contact: null });
   ({ api } = apiFor("status-angemeldet-ohne-16"));
   let r = await api.status(DEV);
   assert.equal(r.account, true); assert.equal(r.karte.age16, false); assert.equal(r.karte.remaining, 5); assert.equal(r.karte.voucher, true);
@@ -140,4 +140,16 @@ test("lookCookie: Anmeldeseite im Look von My Daily Idea, nur auf bunsenbrenner.
   assert.equal(lookCookie(["#111111", "#222222"], ""), null);
   assert.equal(lookCookie(["#111111", "#222222"], "evilbunsenbrenner.org"), null);
   assert.equal(lookCookie(["#111111", "#222222"], "localhost"), null);
+});
+
+test("Kontakt fuer „Ueber diese Demo“: fehlt = keine Adresse, Mail oder https, alles andere ist eine kaputte Antwort", async () => {
+  assert.equal(contactOf(undefined), null); assert.equal(contactOf(null), null);
+  assert.deepEqual(contactOf("hallo@example.org"), { kind: "mail", value: "hallo@example.org" });
+  assert.deepEqual(contactOf("https://example.org/kontakt"), { kind: "web", value: "https://example.org/kontakt" });
+  for (const bad of ["javascript:alert(1)", "http://example.org", "a b@c.de", "https://x.org/\"<b>", 5, "x".repeat(201) + "@a.de", ""]) assert.equal(contactOf(bad), false, String(bad));
+  const body = (contact) => ({ meter: { enabled: true, remaining: 7, size: 7, period: "week", resetAt: null, account: false, canLogin: true }, ...(contact === undefined ? {} : { contact }) });
+  const apiWith = (b) => createApi({ location: HERE, fetch: async () => new Response(JSON.stringify(b), { status: 200, headers: { "content-type": "application/json" } }) });
+  assert.equal((await apiWith(body(undefined)).status(DEV)).contact, null);
+  assert.deepEqual((await apiWith(body("hallo@example.org")).status(DEV)).contact, { kind: "mail", value: "hallo@example.org" });
+  assert.deepEqual(await apiWith(body("javascript:alert(1)")).status(DEV), { ok: false, error: "server", status: 200 });
 });

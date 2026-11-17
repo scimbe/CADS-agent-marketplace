@@ -317,7 +317,11 @@
       "label": {
         "de": "Stil",
         "en": "Style"
-      }
+      },
+      "at": [
+        0.5,
+        0.5
+      ]
     },
     {
       "id": "farbe",
@@ -327,7 +331,11 @@
       "label": {
         "de": "Farbe",
         "en": "Colour"
-      }
+      },
+      "at": [
+        0.1,
+        0.9
+      ]
     },
     {
       "id": "sticker",
@@ -337,7 +345,11 @@
       "label": {
         "de": "Sticker",
         "en": "Stickers"
-      }
+      },
+      "at": [
+        0.9,
+        0.15
+      ]
     },
     {
       "id": "foto",
@@ -347,7 +359,11 @@
       "label": {
         "de": "Foto",
         "en": "Photo"
-      }
+      },
+      "at": [
+        0.2,
+        0.55
+      ]
     },
     {
       "id": "bild",
@@ -357,7 +373,11 @@
       "label": {
         "de": "Mit KI",
         "en": "With AI"
-      }
+      },
+      "at": [
+        0.5,
+        0.75
+      ]
     },
     {
       "id": "wetter",
@@ -367,7 +387,11 @@
       "label": {
         "de": "Wetter",
         "en": "Weather"
-      }
+      },
+      "at": [
+        0.85,
+        0.85
+      ]
     }
   ],
   "dur": 40,

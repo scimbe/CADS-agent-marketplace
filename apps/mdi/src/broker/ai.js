@@ -9,6 +9,8 @@
 //     200 { options, seals[], hashes[], cost, receipt?, meter, note? } | 200 { options:[], notyet, reason?, alt?, catalog }
 //     202 { ticket, position, etaS } -> POST /api/duell/queue { ticket } (gleiche Antworten; 404 = Ticket verfallen)
 //     401 login | 403 age16|age|account-paused | 409 pending | 422 blocked {why: crisis|kind_ok} | 429 quota|busy|throttled|daily-cap|new-limit | 503 off
+//     503 ki-nicht-verfuegbar {grund}: die KI selbst antwortet nicht (Limit, Ueberlast, Ausfall, Schluessel; lib/ki-ausfall.mjs). Nichts
+//     verbraucht. Der Client zeigt dafuer einen festen Hinweis ("kiaus"); den Grund wertet er nicht aus (die Regel liegt beim Server).
 //   POST /api/duell/ai/accept|discard { device, receipt } -> 200
 // Es gibt kein Abbrechen auf dem Server: ein Ticket, nach dem 15 s niemand fragt, verfaellt kostenlos. Wer abbricht, laesst
 // die Anfrage im Hintergrund zu Ende laufen und gibt ein spaetes Ergebnis sofort zurueck (wie "Verwerfen").
@@ -41,6 +43,7 @@ export function verdict(status, json) {
   if (status === 403 && json && json.error === "age") return "age";
   if (status === 403 && json && (json.error === "account-paused" || json.error === "account-banned")) return "modpause";
   if (status === 503 && json && json.error === "karte-off") return "karteoff";
+  if (status === 503 && json && json.error === "ki-nicht-verfuegbar") return "kiaus";
   if (status === 422) return "blocked";
   if (status === 429 || status === 409) return "busy";
   return "off";

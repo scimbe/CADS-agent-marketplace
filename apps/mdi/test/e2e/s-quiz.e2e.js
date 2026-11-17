@@ -39,7 +39,7 @@ async function audit(p, label, bad) {
 }
 const linkOf = (p) => p.locator("#linkfield").inputValue().then((u) => u.slice(u.indexOf("#")));
 
-// Parameter ueber die Blasen des Editors setzen (Teil -> Radio mit dem Wert)
+// Parameter ueber die Blasen des Editors setzen (Teil -> Radio mit dem Namen des Werts, keine rohe ID; x-names im Manifest)
 async function customize(p, sets) {
   await act(p, "customize");
   for (const [part, value] of sets) {
@@ -110,7 +110,7 @@ for (const o of [{ view: "phone390", lang: "de" }, { view: "desk1280", lang: "en
   const touch = o.view !== "desk1280";
   test("zug-quiz (zug-abfragen, Paket planeten) per Link, beide Seiten bis zum Ergebnis – " + o.view, async () => {
     const bad = [];
-    const A = await startLink(o, "zug-abfragen", [["regeln", "quiz"], ["paket", "planeten"]]);
+    const A = await startLink(o, "zug-abfragen", [["regeln", "Quiz"], ["paket", "Unsere Planeten"]]);
     assert.equal(await play(A, { label: "A", bad }), "card-play-send");
     const B = await hop(A, null, o);
     const sb = await play(B, { label: "B", bad });
@@ -144,7 +144,7 @@ for (const o of [{ view: "phone390", lang: "de" }, { view: "desk1280", lang: "en
     const bad = [];
     const A = await open(b, o);
     await act(A.p, "open-quiz-preis"); await waitScreen(A.p, "card-view");
-    await customize(A.p, [["regeln", "schaetzen"]]);
+    await customize(A.p, [["regeln", o.lang === "en" ? "Estimate" : "Schätzen"]]);
     await A.p.getByRole("radio", { name: texts(o.lang).modes.alone, exact: true }).click(); await act(A.p, "go");
     assert.equal(await play(A, { slider: "keys", label: "A", bad }), "card-play-over");
     await audit(A.p, "Ergebnis", bad);

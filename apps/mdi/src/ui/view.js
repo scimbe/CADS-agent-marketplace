@@ -10,10 +10,15 @@ import * as S from "../contract/session.js";
 import { render } from "../render/render.js";
 import { LEVELS } from "../bot/ismcts.js";
 import { stilView, stilActions } from "./stil-view.js";
+import { demoBar, demoView } from "./demo-view.js";
 import { homeView, dayPrimary, meinsButton, schriftButton, headSearch, shareImageBox } from "./home/views.js";
 import { SLOTS } from "./home/slots.js";
 import { familyOf, family, catalogIdOf } from "./home/families.js";
 import { extraField, suggestButton } from "./edit-fields.js";
+import { swatchField } from "./swatch.js";
+import { bubbleLayer, bubbleToggle } from "./bubbles.js";
+import { HOST_PARTS, kiFields } from "../app/host-parts.js";
+import { signatureForm } from "./stil-view.js";
 import { ftCore as ft } from "../features/frei/texts-core.js";   // Strang K: Texte fuer Robot/Melden in der Kartenansicht
 
 export function leaf(state) {
@@ -21,6 +26,14 @@ export function leaf(state) {
   return l[l.length - 1].slice("inhalt.".length);
 }
 function seatName(card, lang, seat) { const s = card.manifest.seats; return s ? (s[lang] || s.de)[seat] : String(seat + 1); }
+/** Name des Gewinners in der Ergebniszeile: was die Karte selbst nennt (status.names je Sprache, z. B. Dart „Bert“), sonst
+ *  gegen den Computer der Computer, sonst der Sitzname des Manifests bzw. die Sitznummer (Befund A9 F8: „gewinnt: 2.“). */
+function winnerName(card, X, lang, st, mode, mine) {
+  const n = st.names && (st.names[lang] || st.names.de);
+  if (n && typeof n[st.winner] === "string" && n[st.winner]) return n[st.winner];
+  if (mode === "bot" && st.winner !== mine) return X.computer;
+  return seatName(card, lang, st.winner);
+}
 // Eigener Titel der Karte (params.title, Strang Z2) steht vor dem Manifesttitel; leer = Manifesttitel, kein Ersatztext
 function title(card, lang, params) { const t = params && typeof params.title === "string" ? params.title.trim() : ""; return t || card.manifest.title[lang] || card.manifest.title.de; }
 
@@ -35,6 +48,7 @@ export function actionsOf(state) {
   switch (L) {
     // Heimseite (Strang H): eine Hauptaktion = Hauptknopf des Kalenderblatts; alles andere ist Inhalt der Seite
     case "shelf": { const p = ctx.home.at === "day" ? dayPrimary(ctx) : null; return { primary: p ? a(p.id, p.label, p.ev) : null, secondary: [] }; }
+    case "demoinfo": return { primary: a("to-shelf", X.toShelf, "DONE"), secondary: [] };
     case "partfail": return { primary: a("retry", X.retry, "RETRY"), secondary: [a("to-shelf", X.toShelf, "BACK")] };
     case "card.view": {
       const c = G.card(ctx), sec = [a("customize", X.customize, "CUSTOMIZE")];
@@ -127,11 +141,11 @@ export function levelBox(card, ctx, dispatch) {
     chips.length ? h("p", { class: "hint", key: "lv-h" }, lang === "en" ? "A chip loads that variant's values; your own changes go." : "Ein Chip lädt die Werte der Variante, eigene Änderungen gehen dabei verloren.") : null);
 }
 
-function radios(name, label, items, value, onPick) {
+function radios(name, label, items, value, onPick, cls = "") {
   const id = label ? "lbl-" + name : "dlg-title";
   return h("div", { class: "seg", role: "radiogroup", "aria-labelledby": id, key: name },
     label ? h("p", { class: "seg-label", id }, label) : null,
-    h("div", { class: "seg-row" }, items.map((it) => h("button", { type: "button", role: "radio", class: "seg-opt", key: String(it.value), "aria-checked": it.value === value ? "true" : "false", on: { click: () => onPick(it.value) } }, it.label))));
+    h("div", { class: "seg-row" }, items.map((it) => h("button", { type: "button", role: "radio", class: "seg-opt" + (cls ? " " + cls : ""), key: String(it.value), "aria-checked": it.value === value ? "true" : "false", "aria-label": it.aria || null, on: { click: () => onPick(it.value) } }, it.label))));
 }
 
 // Der Link selbst ist Rueckfall: zugeklappt, ausser Teilen ging nicht (dann offen mit Hinweis)
@@ -170,9 +184,16 @@ function fieldControls(card, part, params, X, lang, dispatch, ctx = {}) {
           label ? h("label", { for: id }, label) : null,
           h(p.maxLength > 40 ? "textarea" : "input", { id, class: "input", "aria-labelledby": label ? null : "dlg-title", ...(p.maxLength > 40 ? { rows: "3" } : { type: "text" }), maxlength: String(p.maxLength), value: v, on: { input: (e) => set(e.target.value) } }),
           suggestButton(p, v, set, lang));
-      case "color": case "choice":
-        // freie Farbe ohne Liste (#rrggbb, Strang L): Farbwaehler; sonst die Wahl aus der Liste
+      case "color": {
+        // freie Farbe ohne Liste (#rrggbb, Strang L): Farbwaehler des Systems (zeigt die Farbe selbst)
         if (!Array.isArray(p.enum)) return h("div", { class: "field", key }, label ? h("label", { for: id }, label) : null, h("input", { id, class: "input color", type: "color", "aria-labelledby": label ? null : "dlg-title", value: /^#[0-9a-f]{6}$/i.test(v) ? v : "#000000", on: { input: (e) => set(e.target.value.toLowerCase()) } }));
+        // Farbfelder statt Hex-Text: kuratierte Palette der Karte (x-palette, Teilmenge von enum) oder die ganze Liste;
+        // x-differs nennt das Feld, dessen Farbe hier belegt ist (z. B. Gegner != Spieler)
+        const other = p["x-differs"], op = other && props[other];
+        return swatchField({ id: key, label, values: Array.isArray(p["x-palette"]) ? p["x-palette"] : p.enum, value: v, set, lang,
+          taken: op ? params[other] : null, takenBy: op ? op["x-label"][lang] || op["x-label"].de : null });
+      }
+      case "choice":
         return h("div", { class: "field", key }, radios(key, label, p.enum.map((e) => ({ value: e, label: nameOf(p, e) })), v, set));
       case "number": {
         // benannte Stufen (x-steps, alt regler-ui.js): Schieber ueber die Stufen, Name als Wert; Zwischenwerte alter Links
@@ -185,14 +206,24 @@ function fieldControls(card, part, params, X, lang, dispatch, ctx = {}) {
             h("input", { id, class: "input range", type: "range", min: "0", max: String(st.values.length - 1), step: "1", value: String(at), "aria-valuetext": names[at], "aria-labelledby": label ? null : "dlg-title", on: { input: (e) => set(st.values[Number(e.target.value)]) } }),
             h("p", { class: "hint strong", "aria-hidden": "true" }, names[at]));
         }
-        // kleiner Bereich: Wahl als Knoepfe; grosser Bereich (Seed, Laenge, Chancen): Schieber mit Zahl, nie tausende Knoepfe
+        // kleiner Bereich: Wahl als Knoepfe. Benannte Werte (x-names, z. B. Zeichensatz) zeigen ihren Namen; sonst die Zahl
+        // mit Einheit (x-unit) und so vielen Punkten, wie sie zaehlt (Menge sichtbar, nicht nur eine Ziffer)
         if (p.maximum - p.minimum <= 12) {
-          const items = []; for (let n = p.minimum; n <= p.maximum; n++) items.push({ value: n, label: String(n) });
-          return h("div", { class: "field", key }, radios(key, label, items, v, set));
+          const unit = p["x-unit"] ? p["x-unit"][lang] || p["x-unit"].de : "", items = [];
+          for (let n = p.minimum; n <= p.maximum; n++) items.push(p["x-names"] ? { value: n, label: nameOf(p, String(n)) } : { value: n, aria: unit ? fmt(X.pips, { n, u: unit }) : null, label: [h("span", { class: "pip-n", key: "n" }, String(n)), n > 0 ? h("span", { class: "pips", key: "p", "aria-hidden": "true" }, Array.from({ length: n }, (_, i) => h("i", { key: String(i) }))) : null] });
+          return h("div", { class: "field", key }, radios(key, label, items, v, set, p["x-names"] ? "" : "num"));
         }
+        // grosser Bereich: Schieber (Lage sichtbar) mit Zahl und Einheit; eine Strecke (x-dice) wird gewuerfelt statt getippt
+        if (p["x-dice"]) {
+          const next = (Math.imul(v ^ 0x5bd1e995, 2654435761) >>> 0) % (p.maximum - p.minimum + 1) + p.minimum;
+          return h("div", { class: "field", key }, label ? h("p", { class: "seg-label", id: "lbl-" + key }, label) : null,
+            h("button", { type: "button", class: "btn secondary", "data-act": "dice-" + key, "aria-describedby": label ? "lbl-" + key : "dlg-title", on: { click: () => set(next) } }, "🎲 " + (lang === "en" ? "New course" : "Neue Strecke")));
+        }
+        const unit = p["x-unit"] ? " " + (p["x-unit"][lang] || p["x-unit"].de) : "";
         return h("div", { class: "field", key }, label ? h("label", { for: id }, label) : null,
-          h("input", { id, class: "input", type: "number", inputmode: "numeric", min: String(p.minimum), max: String(p.maximum), step: String(p.multipleOf || 1), value: String(v), "aria-labelledby": label ? null : "dlg-title",
-            on: { change: (e) => { const n = Number(e.target.value); if (Number.isInteger(n) && n >= p.minimum && n <= p.maximum) set(n); } } }));
+          h("div", { class: "ef-range" }, h("input", { id, class: "input range", type: "range", min: String(p.minimum), max: String(p.maximum), step: String(p.multipleOf || 1), value: String(v), "aria-valuetext": v + unit, "aria-labelledby": label ? null : "dlg-title",
+            on: { input: (e) => { const n = Number(e.target.value); if (Number.isInteger(n) && n >= p.minimum && n <= p.maximum) set(n); } } }),
+          h("output", { for: id }, String(v) + unit)));
       }
       case "list": {
         if (!(p.items && Array.isArray(p.items.enum))) return extraField(p, key, v, set, label, { lang, me: ctx.me, wx: ctx.wx, photo: ctx.photo, slots: SLOTS }, dispatch); // Objekte/Listen aus dem Schema (Strang L)
@@ -228,7 +259,8 @@ export function view(state, dispatch, env = {}) {
   const card = ctx.cardId ? cardOf(ctx.cardId) : null;
   const homeR = L === "shelf" ? homeView(state, dispatch, env) : null;
   const freiR = L.startsWith("frei.") && SLOTS.freiView ? SLOTS.freiView(state, X, dispatch, L) : null;
-  const heading = homeR ? homeR.heading || X.app : freiR ? freiR.heading : L === "stil.start" ? X.stil : L === "stil.daten" ? X.k.data : L === "stil.widerspruch" ? X.k.appealTitle : card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang, G.paramsOf(ctx)) : X.app;
+  const demoR = L === "demoinfo" ? demoView(state, X) : null;
+  const heading = homeR ? homeR.heading || X.app : freiR ? freiR.heading : demoR ? demoR.heading : L === "stil.start" ? X.stil : L === "stil.daten" ? X.k.data : L === "stil.widerspruch" ? X.k.appealTitle : card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang, G.paramsOf(ctx)) : X.app;
   // act: { id, label, ev, cls?, disabled?, sub? } – sub: eine zweite Zeile im Knopf (z. B. "kostenlos · noch 3×"), disabled: echt gesperrt
   const btn = (act, cls) => h("button", { type: "button", class: "btn " + cls + (act.cls ? " " + act.cls : ""), key: act.id, "data-act": act.id, disabled: act.disabled ? true : null, on: { click: () => dispatch(act.ev) } }, act.sub ? [h("span", { class: "btn-t", key: "t" }, act.label), h("span", { class: "btn-sub", key: "s" }, act.sub)] : act.label);
 
@@ -251,6 +283,8 @@ export function view(state, dispatch, env = {}) {
     body = r.body; panel = r.panel;
   } else if (freiR) {
     body = freiR.body; panel = freiR.panel || [];
+  } else if (demoR) {
+    body = demoR.body;
   } else if (homeR) {
     // Nachladen (ADR 0001 Nachtrag 2): ehrliche Ladezeile, solange ein Kartenteil kommt
     body = [ctx.loading ? h("p", { class: "h-loading", role: "status", "aria-live": "polite", key: "loading" }, X.loadingCard) : null, ...homeR.body];
@@ -278,7 +312,8 @@ export function view(state, dispatch, env = {}) {
     panel.push(duoBox(card, ctx, dispatch, X));   // Board GFlugStart/GArcadeStart: grosse Doppelknoepfe als Hauptaktion
     if (ctx.note) panel.push(h("p", { class: "note", role: "status", key: "note" }, String(ctx.note).startsWith("frei-") ? freiNote(ctx) : X.note[ctx.note]));
   } else if (L.startsWith("card.customize")) {
-    body = [stage(preview, { class: "stage editing" }, tree), bubbleRow(card, ctx, X, dispatch, tree), h("p", { class: "hint center" }, X.bubblesHint)];
+    // Blasen-Muster: Pinsel (ein/aus) ueber der Karte, Blasen als Ebene darueber (bubbleLayer unten), Hinweis darunter
+    body = [h("div", { class: "bubble-tools", key: "btools" }, bubbleToggle(ctx, X, dispatch)), stage(preview, { class: "stage editing" }, tree), h("p", { class: "hint center", key: "bhint" }, ctx.pref.blasen.aus ? X.bubblesOffHint : X.bubblesHint)];
   } else if (L === "card.share") {
     body = [stage(preview, {}, tree)];
     panel.push(ctx.link ? linkBox(X, ctx.link, ctx, dispatch) : h("p", { class: "warn", role: "alert" }, X.linkTooLong));
@@ -334,7 +369,7 @@ export function view(state, dispatch, env = {}) {
       if (phase === "send") lines.push(h("div", { class: "notice", key: "send" }, h("h2", { class: "t-title" }, X.sendTitle), h("p", null, X.sendText)));
       if (phase === "over") {
         const me = ctx.mode === "alone" ? -2 : seat;
-        const wn = st.winner >= 0 ? seatName(card, ctx.lang, st.winner) : "";
+        const wn = st.winner >= 0 ? winnerName(card, X, ctx.lang, st, ctx.mode, me) : "";
         const res = st.winner === -1 ? X.overDraw : me === -2 ? fmt(X.overWinner, { s: wn }) : st.winner === me ? X.overWin : fmt(X.overLose, { s: wn });
         // Karten ohne Wertung (score leer, z. B. Partydeck, Raumkarten) zeigen ihr Ergebnis selbst: keine Sieger-/Unentschieden-Zeile
         if (!(Array.isArray(st.score) && st.score.length === 0)) lines.push(h("p", { class: "result", role: "status", key: "res" }, res));
@@ -351,7 +386,7 @@ export function view(state, dispatch, env = {}) {
       const st = ctx.rtResult.status, seat = ctx.viewer, say = typeof st.say === "string" ? st.say : st.say && typeof st.say === "object" ? st.say[ctx.lang] || st.say.de : "";
       // Solo-Partien (status.solo oder kein Gewinner) zeigen den Stand statt einer Gewinnerzeile (Anfrage L)
       if (st.solo || !Number.isInteger(st.winner)) lines.push(h("p", { class: "result", role: "status", key: "res" }, say || X.overAll));
-      else { const wn = st.winner >= 0 ? seatName(card, ctx.lang, st.winner) : ""; lines.push(h("p", { class: "result", role: "status", key: "res" }, st.winner === -1 ? X.overDraw : ctx.mode === "alone" ? fmt(X.overWinner, { s: wn }) : st.winner === seat ? X.overWin : fmt(X.overLose, { s: wn }))); }
+      else { const wn = st.winner >= 0 ? winnerName(card, X, ctx.lang, st, ctx.mode, seat) : ""; lines.push(h("p", { class: "result", role: "status", key: "res" }, st.winner === -1 ? X.overDraw : ctx.mode === "alone" ? fmt(X.overWinner, { s: wn }) : st.winner === seat ? X.overWin : fmt(X.overLose, { s: wn }))); }
     }
     if (ctx.ghostOf) lines.push(h("p", { class: "hint", key: "gh" }, fmt(X.ghostScore, { s: ctx.ghostOf.sc.join(" : ") })));
     if (L === "card.rt.error") lines.push(h("div", { class: "notice", key: "err" }, h("h2", { class: "t-title" }, X.errTitle), h("p", { class: "warn", role: "alert" }, X.reasons[ctx.error] || X.reasons["zug-ungueltig"])));
@@ -393,8 +428,9 @@ export function view(state, dispatch, env = {}) {
     h("div", { class: "col-a", key: "a" }, body),
     h("div", { class: "col-b", key: "b" }, panel, L === "card.customize.dialog" || L === "shelf" ? null : actions));
 
-  const out = [head, main];
-  if (m("inhalt.card.customize")) out.push(bubbleLayer(card, ctx, X, dispatch, tree));
+  // Hinweis „Demo – Testinstallation“ im Fluss unter der Kopfzeile, auf jeder Seite (src/ui/demo-view.js)
+  const out = [head, demoBar(X, L === "demoinfo"), main];
+  if (m("inhalt.card.customize") && !ctx.pref.blasen.aus) out.push(bubbleLayer(card, ctx, X, dispatch, tree, ctx.lang));
   if (m("inhalt.card.customize.dialog")) out.push(dialogLayer(card, ctx, X, dispatch, acts, state));
   return out;
 }
@@ -408,25 +444,22 @@ function freiNote(ctx) {
   return "";
 }
 
-// Teile, die in der Anzeigeliste einen Ort haben (part an einem Knoten), bekommen eine Blase auf der Karte; die anderen
-// (z. B. Farbe, Sticker, Foto, Wetter bei gezeichneten Karten) stehen als Knoepfe im Fluss unter der Karte: jeder Teil bleibt
-// erreichbar, nichts wird versteckt und nichts verdeckt etwas (Folge-PR 2, Befund Advent/Beat).
-function partsInTree(tree) { const out = new Set(); (function walk(n) { if (!n || typeof n !== "object") return; if (typeof n.part === "string") out.add(n.part); for (const c of n.children || []) walk(c); for (const l of n.layers || []) walk(l); for (const o of n.ops || []) walk(o); })(tree); return out; }
-function bubbleBtn(p, ctx, X, dispatch, cls) {
-  const label = p.label[ctx.lang] || p.label.de, dialog = !!ctx.part;
-  return h("button", { type: "button", class: cls, key: p.id, "data-for": p.id, "aria-label": fmt(X.bubble, { p: label }), "aria-expanded": dialog && ctx.part === p.id ? "true" : "false", on: { click: () => dispatch({ type: "BUBBLE", part: p.id }) } }, label);
-}
-function bubbleRow(card, ctx, X, dispatch, tree) {
-  const anchored = partsInTree(tree), rest = card.manifest.parts.filter((p) => !anchored.has(p.id));
-  return rest.length ? h("div", { class: "bubble-row", key: "brow", role: "group", "aria-label": X.bubblesHint }, rest.map((p) => bubbleBtn(p, ctx, X, dispatch, "bubble inflow"))) : null;
-}
-function bubbleLayer(card, ctx, X, dispatch, tree) {
-  const anchored = partsInTree(tree);
-  return h("div", { class: "bubbles", key: "bubbles", "aria-hidden": null },
-    card.manifest.parts.filter((p) => anchored.has(p.id)).map((p) => bubbleBtn(p, ctx, X, dispatch, "bubble")));
+// Inhalt der Host-Teile: Magie (KI fuellt Textfelder der Karte, offene zuerst) und Signatur (Mein Stil: Name, Logo, Hintergrund)
+function hostControls(card, part, ctx, X, dispatch) {
+  if (part.kind === "sig") return [h("p", { class: "hint", key: "sh" }, X.sigHint), ...signatureForm(ctx, X, dispatch)];
+  const m = card.manifest, params = G.paramsOf(ctx);
+  const rows = m.parts.map((p) => ({ p, f: kiFields(m, p) })).filter((r) => r.f.length).map((r) => ({ ...r, open: r.f.some((k) => !String(params[k] || "").trim()) }));
+  rows.sort((a, b) => Number(b.open) - Number(a.open));
+  if (!rows.length) return [h("p", { class: "hint strong", role: "status", key: "mn" }, X.magicNone)];
+  return [h("p", { class: "hint", key: "mh" }, X.magicHint),
+    h("div", { class: "magic-rows", key: "mr" }, rows.map((r) => {
+      const l = r.p.label[ctx.lang] || r.p.label.de;
+      return h("button", { type: "button", class: "btn secondary magic-fill", key: r.p.id, "data-act": "magie-" + r.p.id, on: { click: () => { dispatch({ type: "CLOSE" }); dispatch({ type: "KI", part: r.p.id }); } } },
+        fmt(X.magicFill, { p: l }), r.open ? h("span", { class: "pill" }, X.magicOpen) : null);
+    }))];
 }
 function dialogLayer(card, ctx, X, dispatch, acts, state) {
-  const part = card.manifest.parts.find((p) => p.id === ctx.part);
+  const host = HOST_PARTS.find((p) => p.id === ctx.part), part = host || card.manifest.parts.find((p) => p.id === ctx.part);
   const label = part.label[ctx.lang] || part.label.de;
   return h("div", { class: "layer", key: "layer" },
     h("div", { class: "scrim", "aria-hidden": "true", on: { click: () => dispatch({ type: "CLOSE" }) } }),
@@ -434,9 +467,9 @@ function dialogLayer(card, ctx, X, dispatch, acts, state) {
       h("div", { class: "dlg-head" },
         h("h2", { id: "dlg-title", class: "t-label" }, label),
         h("button", { type: "button", class: "icon", "aria-label": X.close, "data-act": "close-x", on: { click: () => dispatch({ type: "CLOSE" }) } }, "✕")),
-      h("p", { class: "hint" }, X.dialogHint),
-      fieldControls(card, part, G.paramsOf(ctx), X, ctx.lang, dispatch, ctx),
-      // Strang K: "Mit KI" fuer Teile mit KI-faehigen Feldern (x-model); schliesst den Dialog vor dem KI-Ereignis
-      SLOTS.kiButton ? SLOTS.kiButton({ ctx }, X, (ev) => { dispatch({ type: "CLOSE" }); dispatch(ev); }, ctx.part) : null,
+      host ? hostControls(card, part, ctx, X, dispatch) : [h("p", { class: "hint", key: "dh" }, X.dialogHint),
+        fieldControls(card, part, G.paramsOf(ctx), X, ctx.lang, dispatch, ctx),
+        // Strang K: "Mit KI" fuer Teile mit KI-faehigen Feldern (x-model); schliesst den Dialog vor dem KI-Ereignis
+        SLOTS.kiButton ? SLOTS.kiButton({ ctx }, X, (ev) => { dispatch({ type: "CLOSE" }); dispatch(ev); }, ctx.part) : null],
       h("div", { class: "actions" }, h("button", { type: "button", class: "btn primary", "data-act": acts.primary.id, on: { click: () => dispatch(acts.primary.ev) } }, acts.primary.label))));
 }

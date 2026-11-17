@@ -60,6 +60,10 @@
         "maximum": 10,
         "default": 2,
         "x-field": "number",
+        "x-unit": {
+          "de": "Spiele",
+          "en": "games"
+        },
         "x-model": true,
         "x-label": {
           "de": "Spiele in der Partie",
