@@ -1,0 +1,380 @@
+{
+  "id": "zettel",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.2",
+  "kind": "card",
+  "mode": "static",
+  "order": 40,
+  "title": {
+    "de": "Welches Chaos bist du?",
+    "en": "What kind of chaos are you?"
+  },
+  "teaser": {
+    "de": "Such dir eine Zeile aus. Schreib sie um.",
+    "en": "Pick a line. Rewrite it."
+  },
+  "howto": {
+    "de": "Such dir eine Zeile aus. Schreib sie um.",
+    "en": "Pick a line. Rewrite it."
+  },
+  "players": {
+    "min": 1,
+    "max": 1
+  },
+  "hidden": "none",
+  "uses": [],
+  "limits": {
+    "stepBudget": 1,
+    "stateBytes": 4096
+  },
+  "dur": 30,
+  "legacy": [
+    "quiz-chaos"
+  ],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "x",
+      "st",
+      "pair",
+      "sk"
+    ],
+    "properties": {
+      "x": {
+        "type": "string",
+        "maxLength": 90,
+        "pattern": "^[^\\u0000-\\u001f\\u007f<>]*$",
+        "default": "Heimliche Chefin vom Chaos: Du tust ordentlich. Aber du steuerst alles.",
+        "x-default": {
+          "en": "Secret boss of chaos: You look tidy. But you run everything."
+        },
+        "x-field": "text",
+        "x-model": true,
+        "x-label": {
+          "de": "Text",
+          "en": "Text"
+        },
+        "x-suggest": {
+          "de": [
+            "Heimliche Chefin vom Chaos: Du tust ordentlich. Aber du steuerst alles.",
+            "Wandelnde Überraschung: Niemand weiß, was als Nächstes passiert. Du auch nicht.",
+            "Profi- Verschwinder: Eben warst du noch da. Respekt."
+          ],
+          "en": [
+            "Secret boss of chaos: You look tidy. But you run everything.",
+            "Walking surprise: Nobody knows what's next. Neither do you.",
+            "Professional vanisher: You were just here. Respect."
+          ]
+        }
+      },
+      "st": {
+        "type": "string",
+        "enum": [
+          "zettel",
+          "druck",
+          "stempel",
+          "neon",
+          "herz",
+          "advent"
+        ],
+        "default": "zettel",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Stil",
+          "en": "Style"
+        },
+        "x-names": {
+          "de": {
+            "advent": "Advent",
+            "druck": "Druck",
+            "zettel": "Zettel",
+            "stempel": "Stempel",
+            "neon": "Neon",
+            "herz": "Herz"
+          },
+          "en": {
+            "advent": "Advent",
+            "druck": "Print",
+            "zettel": "Note",
+            "stempel": "Stamp",
+            "neon": "Neon",
+            "herz": "Heart"
+          }
+        }
+      },
+      "pair": {
+        "type": "string",
+        "enum": [
+          "advent",
+          "p0",
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6",
+          "p7"
+        ],
+        "default": "p0",
+        "x-field": "pair",
+        "x-label": {
+          "de": "Farbe",
+          "en": "Colour"
+        },
+        "x-pairs": {
+          "advent": [
+            "#0f5132",
+            "#ffd400"
+          ],
+          "p0": [
+            "#ffd400",
+            "#ff3b1d"
+          ],
+          "p1": [
+            "#2b4bff",
+            "#ffe600"
+          ],
+          "p2": [
+            "#ff4fa3",
+            "#0a7f55"
+          ],
+          "p3": [
+            "#14c872",
+            "#ff3da5"
+          ],
+          "p4": [
+            "#ff6a1f",
+            "#1b2bd8"
+          ],
+          "p5": [
+            "#c8ff00",
+            "#7a1fff"
+          ],
+          "p6": [
+            "#ffffff",
+            "#ff2d2d"
+          ],
+          "p7": [
+            "#7ee0ff",
+            "#ff5a1f"
+          ]
+        }
+      },
+      "sk": {
+        "type": "array",
+        "maxItems": 8,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "e",
+            "x",
+            "y",
+            "r",
+            "z"
+          ],
+          "properties": {
+            "e": {
+              "type": "string",
+              "enum": [
+                "🐸",
+                "🦆",
+                "🐙",
+                "🦝",
+                "🐌",
+                "🦖",
+                "🍕",
+                "🌮",
+                "🍩",
+                "🥨",
+                "🍟",
+                "🧃",
+                "🚀",
+                "🛸",
+                "👽",
+                "🪐",
+                "🌟",
+                "☄️",
+                "💥",
+                "🔥",
+                "💀",
+                "🤡",
+                "🌀",
+                "⚡",
+                "🎃",
+                "👻",
+                "🦇",
+                "🕷️",
+                "🧛",
+                "🕸️",
+                "💛",
+                "🌻",
+                "✨",
+                "🫶",
+                "🌈",
+                "☀️",
+                "🎄",
+                "⭐",
+                "🎁",
+                "❄️",
+                "⛄",
+                "🍪",
+                "🤖",
+                "🦄",
+                "🐝",
+                "🪁"
+              ]
+            },
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "r": {
+              "type": "number",
+              "minimum": -3.14,
+              "maximum": 3.14
+            },
+            "z": {
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 2.5
+            }
+          }
+        },
+        "default": [],
+        "x-field": "stickers",
+        "x-set": "chaos",
+        "x-label": {
+          "de": "Sticker",
+          "en": "Stickers"
+        }
+      }
+    }
+  },
+  "parts": [
+    {
+      "id": "text",
+      "params": [
+        "x"
+      ],
+      "label": {
+        "de": "Text",
+        "en": "Text"
+      }
+    },
+    {
+      "id": "stil",
+      "params": [
+        "st"
+      ],
+      "label": {
+        "de": "Stil",
+        "en": "Style"
+      }
+    },
+    {
+      "id": "farbe",
+      "params": [
+        "pair"
+      ],
+      "label": {
+        "de": "Farbe",
+        "en": "Colour"
+      }
+    },
+    {
+      "id": "sticker",
+      "params": [
+        "sk"
+      ],
+      "label": {
+        "de": "Sticker",
+        "en": "Stickers"
+      }
+    }
+  ],
+  "variants": [
+    {
+      "id": "quiz-snack",
+      "title": {
+        "de": "Welcher Snack bist du?",
+        "en": "Which snack are you?"
+      },
+      "teaser": {
+        "de": "Such dir eine Zeile aus. Schreib sie um.",
+        "en": "Pick a line. Rewrite it."
+      },
+      "params": {
+        "x": "Scharfe Chips: Laut, knackig, keiner kann aufhören.",
+        "st": "zettel"
+      }
+    },
+    {
+      "id": "quiz-superkraft",
+      "title": {
+        "de": "Deine nutzlose Superkraft",
+        "en": "Your useless superpower"
+      },
+      "teaser": {
+        "de": "Such dir eine Zeile aus. Schreib sie um.",
+        "en": "Pick a line. Rewrite it."
+      },
+      "params": {
+        "x": "Immer grüne Ampel: Nur wenn du schon zu spät bist.",
+        "st": "zettel"
+      }
+    },
+    {
+      "id": "quiz-film",
+      "title": {
+        "de": "Welche Filmrolle bist du?",
+        "en": "Which movie role are you?"
+      },
+      "teaser": {
+        "de": "Such dir eine Zeile aus. Schreib sie um.",
+        "en": "Pick a line. Rewrite it."
+      },
+      "params": {
+        "x": "Coole Hauptrolle: Dreht sich nie zur Explosion um.",
+        "st": "zettel"
+      }
+    },
+    {
+      "id": "quiz-wetter",
+      "title": {
+        "de": "Welches Wetter bist du?",
+        "en": "What weather are you?"
+      },
+      "teaser": {
+        "de": "Such dir eine Zeile aus. Schreib sie um.",
+        "en": "Pick a line. Rewrite it."
+      },
+      "params": {
+        "x": "Gewitter mit Blitz: Kurz, laut, alle reden danach drüber.",
+        "st": "zettel"
+      }
+    },
+    {
+      "id": "plan-24",
+      "title": {
+        "de": "Video- Quiz",
+        "en": "Video quiz"
+      },
+      "teaser": {
+        "de": "Eine Frage für den Anruf. Wer kennt wen?",
+        "en": "One question for the call. Who knows who?"
+      },
+      "params": {
+        "x": "Frage 1: Was esse ich nie?",
+        "st": "druck"
+      }
+    }
+  ]
+}

@@ -3,31 +3,49 @@
 import { h } from "./dom.js";
 import { machine } from "../app/machine.js";
 import { texts, fmt } from "../app/texts.js";
-import { cardOf, ORDER, modesOf } from "../cards/index.js";
+import { cardOf, ORDER, modesOf, manifestOf } from "../cards/index.js";
+import { playOf } from "../contract/modes.js";
 import * as G from "../app/game.js";
 import * as S from "../contract/session.js";
-import { rng } from "../contract/sdk.js";
 import { render } from "../render/render.js";
 import { LEVELS } from "../bot/ismcts.js";
+import { stilView, stilActions } from "./stil-view.js";
+import { homeView, dayPrimary, meinsButton, schriftButton, headSearch, shareImageBox } from "./home/views.js";
+import { SLOTS } from "./home/slots.js";
+import { familyOf, family, catalogIdOf } from "./home/families.js";
+import { extraField, suggestButton } from "./edit-fields.js";
+import { ftCore as ft } from "../features/frei/texts-core.js";   // Strang K: Texte fuer Robot/Melden in der Kartenansicht
 
 export function leaf(state) {
   const l = state.config.filter((s) => s.startsWith("inhalt."));
   return l[l.length - 1].slice("inhalt.".length);
 }
 function seatName(card, lang, seat) { const s = card.manifest.seats; return s ? (s[lang] || s.de)[seat] : String(seat + 1); }
-function title(card, lang) { return card.manifest.title[lang] || card.manifest.title.de; }
+// Eigener Titel der Karte (params.title, Strang Z2) steht vor dem Manifesttitel; leer = Manifesttitel, kein Ersatztext
+function title(card, lang, params) { const t = params && typeof params.title === "string" ? params.title.trim() : ""; return t || card.manifest.title[lang] || card.manifest.title.de; }
 
 /** Aktionen je Zustand – Grundlage fuer Knoepfe und fuer den Disclosure-Test. */
 export function actionsOf(state) {
-  const ctx = state.ctx, X = texts(ctx.lang), L = leaf(state);
+  const ctx = state.ctx, X = texts(ctx.lang, ctx.pref && ctx.pref.easy), L = leaf(state);
+  if (L.startsWith("stil.")) return stilActions(state, X, L);
+  if (L.startsWith("frei.") && SLOTS.freiView) return SLOTS.freiView(state, X, () => {}, L).actions; // Strang K
   const a = (id, label, ev) => ({ id, label, ev: typeof ev === "string" ? { type: ev } : ev });
   // Ohne Teilen-Menue wird Kopieren die Hauptaktion (Kritikrunde 3); nach dem Kopieren: gesendet melden
   const send = (label) => (ctx.shareFailed && !ctx.copied ? a("copy", X.copyLink, "COPY") : ctx.copied ? null : a("share", label, "SHARE"));
   switch (L) {
-    case "shelf": return { primary: a("open-" + ORDER[0], title(cardOf(ORDER[0]), ctx.lang), { type: "OPEN", id: ORDER[0] }), secondary: ORDER.slice(1).map((id) => a("open-" + id, title(cardOf(id), ctx.lang), { type: "OPEN", id })) };
-    case "card.view": return { primary: a("go", G.card(ctx).manifest.mode === "static" ? X.goSend : X.go, "GO"), secondary: [a("customize", X.customize, "CUSTOMIZE")] };
+    // Heimseite (Strang H): eine Hauptaktion = Hauptknopf des Kalenderblatts; alles andere ist Inhalt der Seite
+    case "shelf": { const p = ctx.home.at === "day" ? dayPrimary(ctx) : null; return { primary: p ? a(p.id, p.label, p.ev) : null, secondary: [] }; }
+    case "partfail": return { primary: a("retry", X.retry, "RETRY"), secondary: [a("to-shelf", X.toShelf, "BACK")] };
+    case "card.view": {
+      const c = G.card(ctx), sec = [a("customize", X.customize, "CUSTOMIZE")];
+      // Strang K: Robot (eigene Karte daraus) fuer jede Karte mit Adapter; Melden fuer eine freie Karte mit Siegel
+      if (typeof c.toFree === "function") sec.push(a("robot", ft(ctx.lang, "create_robot_h"), "ROBOT"));
+      if (ctx.cardId === "frei" && G.paramsOf(ctx).seal) sec.push(a("melden", ft(ctx.lang, "deck_report"), "MELDEN"));
+      return { primary: duoOf(c, ctx) ? null : a("go", c.manifest.mode === "static" ? X.goSend : X.go, "GO"), secondary: sec };
+    }
     case "card.customize.bubbles": return { primary: a("done", X.done, "DONE"), secondary: [] };
-    case "card.customize.dialog": return { primary: a("close", X.done, "CLOSE"), secondary: [] };
+    // Im Feld heisst der Knopf "Uebernehmen" (Design-System); nur der Hauptknopf unten heisst "Fertig"
+    case "card.customize.dialog": return { primary: a("close", ctx.lang === "en" ? "Apply" : "Übernehmen", "CLOSE"), secondary: [] };
     case "card.share": return ctx.link && send(X.shareLink) ? { primary: send(X.shareLink), secondary: [a("done", X.done, "DONE")] } : { primary: a("done", X.done, "DONE"), secondary: [] };
     case "card.lobby":
       if (ctx.raum && ctx.raum.error) return { primary: a("again", X.again, "AGAIN"), secondary: [] };
@@ -38,19 +56,76 @@ export function actionsOf(state) {
       if (ctx.mode === "link" && ctx.link && !ctx.sent && send(X.sendResult)) return { primary: send(X.sendResult), secondary: [a("again", X.again2, "AGAIN")] };
       return { primary: a("again", X.again2, "AGAIN"), secondary: [] };
     case "card.play.error": return { primary: a("back", X.back, "BACK"), secondary: [] };
-    case "receive.show": return { primary: a("accept", ctx.incoming && ctx.incoming.kind === "card" ? X.acceptCard : X.acceptGame, "ACCEPT"), secondary: [a("decline", X.decline, "BACK")] };
+    // Gruppe: Platz frei geworden (ADR 0001 Nachtrag 3) – neu einladen, dann teilen
+    case "card.play.vacant": {
+      const inv = ctx.raum && ctx.raum.invites ? (ctx.vacant || []).map((s) => ctx.raum.invites[s]).filter(Boolean) : [];
+      return inv.length ? { primary: send(X.inviteSend), secondary: [a("back", X.back, "BACK")] } : { primary: a("reinvite", X.reinvite, "REINVITE"), secondary: [a("back", X.back, "BACK")] };
+    }
+    // Echtzeit (ADR 0001 b, Strang F): Spielen ist die Handlung; nach dem Ende Nochmal und Geist teilen
+    case "card.rt.over":
+      if (ctx.link && !ctx.sent && send(X.ghostSend)) return { primary: a("again", X.again2, "AGAIN"), secondary: [send(X.ghostSend)] };
+      return { primary: a("again", X.again2, "AGAIN"), secondary: [] };
+    case "card.rt.error": return { primary: a("back", X.back, "BACK"), secondary: [] };
+    // Karten duerfen ihre Empfangs-Knoepfe benennen (manifest.receive {accept, decline}, z. B. Adventstuer "Eigenes Tuerchen machen" / "Weiter", alt door.js)
+    case "receive.show": { const rc = ctx.incoming && ctx.incoming.kind === "card" && cardOf(ctx.incoming.cardId) && cardOf(ctx.incoming.cardId).manifest.receive;
+      // receive.after: Knoepfe erst, wenn der Entwurfsschluessel true ist (Tuer erst aufklappen, alt door.js)
+      if (rc && typeof rc.after === "string" && !(ctx.draft && ctx.draft[rc.after] === true)) return { primary: null, secondary: [] };
+      if (rc && rc.accept && rc.decline) return { primary: a("accept", rc.accept[ctx.lang] || rc.accept.de, "ACCEPT"), secondary: [a("decline", rc.decline[ctx.lang] || rc.decline.de, "BACK")] };
+      return { primary: a("accept", ctx.incoming && ctx.incoming.kind === "card" ? X.acceptCard : ctx.incoming && ctx.incoming.kind === "ghost" ? X.ghostFor : X.acceptGame, "ACCEPT"), secondary: [a("decline", X.decline, "BACK")] }; }
     case "receive.live": return { primary: a("accept", X.acceptGame, "ACCEPT"), secondary: [a("decline", X.decline, "BACK")] };
     case "receive.reject": return { primary: a("to-shelf", X.toShelf, "DONE"), secondary: [] };
     default: return { primary: null, secondary: [] }; // hand, turn (das Spiel selbst ist die Handlung), wait
   }
 }
 
-function previewState(card, params) {
-  const st = card.init({ rng: rng("preview"), params, players: card.manifest.players.max });
-  return card.observe(st, 0);
+// Seitenverhaeltnis der Buehne aus der Anzeigeliste (frame.ratio, Strang P/F); ohne Angabe 3:4 wie bisher
+function arOf(tree) { const m = tree && typeof tree.ratio === "string" && /^(\d{1,2}):(\d{1,2})$/.exec(tree.ratio); return m ? String(Number(m[1]) / Number(m[2])) : null; }
+function stage(node, extra = {}, tree = null) { const ar = arOf(tree); return h("div", { class: "stage", id: "stage", ...extra, ...(ar ? { style: { "--ar": ar } } : {}) }, node); }
+
+/** Startansicht (Board GFlugStart, Integrator): Parameter mit benannten Stufen (x-steps) als Regler mit -/+ (>= 48 px),
+ *  Stufenname sichtbar und als aria-valuetext; Varianten mit "chip" (Manifest) als Chips (OPEN {id, variant}). Generisch. */
+/** Echtzeitkarten (Board GFlugStart/GArcadeStart): die ersten zwei angebotenen Spielweisen (manifest play.offer) als grosse
+ *  Doppelknoepfe statt "Los". Der Knopf der aktuellen Spielweise traegt data-act "go" (wie bisher), der andere "go-<modus>". */
+export function duoOf(card, ctx) {
+  if (!card || card.manifest.mode !== "realtime") return null;
+  const offer = playOf(card, ctx.variant).offer;
+  return offer.length >= 2 ? offer.slice(0, 2) : null;
+}
+const RT_MODES = {
+  de: { bot: ["Gegen den Computer", "sofort, allein"], alone: ["Per Link", "dein Freund spielt gegen deine Aufnahme"], live: ["Live", "gleichzeitig, sobald dein Freund öffnet"] },
+  en: { bot: ["Against the computer", "right away, on your own"], alone: ["By link", "your friend plays against your recording"], live: ["Live", "at the same time, once your friend opens it"] }
+};
+function duoBox(card, ctx, dispatch, X) {
+  const duo = duoOf(card, ctx);
+  if (!duo) return null;
+  const T = RT_MODES[ctx.lang === "en" ? "en" : "de"];
+  return h("div", { class: "rt-duo", key: "duo" }, duo.map((m, i) => h("button", { type: "button", class: "rt-duo-b" + (i ? " b2" : ""), key: m, "data-act": m === ctx.mode ? "go" : "go-" + m, on: { click: () => dispatch({ type: "PLAY_AS", mode: m }) } },
+    h("span", { class: "rt-duo-t" }, (T[m] || [X.modes[m]])[0]), h("span", { class: "rt-duo-s" }, (T[m] || [, X.modeHint[m] || ""])[1]))));
 }
 
-function stage(node, extra = {}) { return h("div", { class: "stage", id: "stage", ...extra }, node); }
+export function levelBox(card, ctx, dispatch) {
+  const lang = ctx.lang, L = (o) => (o && typeof o === "object" ? o[lang] || o.de : o), props = card.manifest.params.properties;
+  const keys = Object.keys(props).filter((k) => props[k]["x-steps"] && Array.isArray(props[k]["x-steps"].values) && props[k]["x-steps"].values.length > 1);
+  const chips = (card.manifest.variants || []).filter((v) => v.chip);
+  if (!keys.length && !chips.length) return null;
+  const P = keys.length ? G.paramsOf(ctx) : {};
+  const v = (card.manifest.variants || []).find((x) => x.id === ctx.variant), Y = lang === "en" ? { less: "less", more: "more", level: "Level" } : { less: "weniger", more: "mehr", level: "Level" };
+  const rows = keys.map((k) => {
+    const st = props[k]["x-steps"], names = (st.names && (st.names[lang] || st.names.de)) || st.values.map(String), label = L(props[k]["x-label"]) || k;
+    let at = 0; st.values.forEach((x, i) => { if (Math.abs(x - P[k]) < Math.abs(st.values[at] - P[k])) at = i; });
+    const to = (i) => dispatch({ type: "LEVEL_STEP", key: k, value: st.values[i] }), id = "lv-" + k;
+    return h("div", { class: "lv-row", key: k },
+      h("label", { class: "lv-l", for: id }, label),
+      h("button", { type: "button", class: "lv-b", "aria-label": label + " " + Y.less, "data-act": "lv-minus-" + k, disabled: at === 0 || null, on: { click: () => to(at - 1) } }, "−"),
+      h("input", { id, class: "lv-r", type: "range", min: "0", max: String(st.values.length - 1), step: "1", value: String(at), "aria-valuetext": names[at], on: { input: (e) => to(Number(e.target.value)) } }),
+      h("button", { type: "button", class: "lv-b", "aria-label": label + " " + Y.more, "data-act": "lv-plus-" + k, disabled: at === st.values.length - 1 || null, on: { click: () => to(at + 1) } }, "+"),
+      h("span", { class: "lv-n", "aria-hidden": "true" }, names[at]));
+  });
+  return h("section", { class: "lv-box", key: "lvbox", "aria-label": L(v && v.title) || Y.level },
+    h("p", { class: "lv-t", key: "lv-t" }, L(v && v.title) || Y.level), ...rows,
+    chips.length ? h("div", { class: "lv-chips", key: "lv-c", role: "group", "aria-label": L(card.manifest.title) }, chips.map((c) => h("button", { type: "button", class: "chip", key: c.id, "data-act": "lv-var-" + c.id, "aria-pressed": c.id === ctx.variant ? "true" : "false", on: { click: () => dispatch({ type: "VARIANT", variant: c.id }) } }, L(c.chip)))) : null,
+    chips.length ? h("p", { class: "hint", key: "lv-h" }, lang === "en" ? "A chip loads that variant's values; your own changes go." : "Ein Chip lädt die Werte der Variante, eigene Änderungen gehen dabei verloren.") : null);
+}
 
 function radios(name, label, items, value, onPick) {
   const id = label ? "lbl-" + name : "dlg-title";
@@ -60,23 +135,31 @@ function radios(name, label, items, value, onPick) {
 }
 
 // Der Link selbst ist Rueckfall: zugeklappt, ausser Teilen ging nicht (dann offen mit Hinweis)
-function linkBox(X, link, ctx, dispatch) {
+function linkBox(X, link, ctx, dispatch, suffix = "") {
   // Rueckfall ohne Teilen-Menue: ein Knopf kopiert mit einem Tipp (Kritikrunde 2); markieren nur, wenn auch das scheitert
   const url = linkUrl(link), info = ctx.copied ? X.copied : ctx.copyFailed ? X.copyFail : ctx.shareFailed ? X.shareFail : null;
   return h("div", { class: "linkbox" },
-    info ? h("p", { class: "hint strong", role: "status" }, info) : null,
-    h("details", { class: "linkdetails", open: ctx.copyFailed ? true : null },
+    // Schluessel: kommt das Teilen-Ergebnis nach, bleibt das (evtl. aufgeklappte) Feld derselbe Knoten statt ersetzt zu werden
+    info ? h("p", { class: "hint strong", role: "status", key: "info" }, info) : null,
+    h("details", { class: "linkdetails", key: "details", open: ctx.copyFailed ? true : null },
       h("summary", null, X.shareTitle),
-      h("input", { id: "linkfield", class: "linkfield", type: "text", readonly: true, "aria-label": X.shareTitle, value: url, on: { focus: (e) => e.target.select() } })));
+      h("input", { id: "linkfield" + suffix, class: "linkfield", type: "text", readonly: true, "aria-label": X.shareTitle, value: url, on: { focus: (e) => e.target.select() } })));
 }
 export function linkUrl(fragment) {
   const loc = typeof location !== "undefined" ? location : { href: "https://example.invalid/" };
   return loc.href.split("#")[0] + fragment;
 }
 
-function fieldControls(card, part, params, X, lang, dispatch) {
-  const props = card.manifest.params.properties, single = part.params.length === 1;
-  return part.params.map((key) => {
+function fieldControls(card, part, params, X, lang, dispatch, ctx = {}) {
+  const props = card.manifest.params.properties, shown = part.params.filter((k) => props[k]["x-hidden"] !== true), single = shown.length === 1;
+  // Name eines Enum-Werts: x-names der Karte (je Sprache), sonst Host-Woerter, sonst der Wert; x-icons davor (Strang P)
+  // beide Formen: x-names[wert][sprache] (P) und x-names[sprache][wert] (S, FIELD_VOCAB)
+  const nameOf = (p, e) => {
+    const xn = p["x-names"] || {}, byVal = xn[e], byLang = xn[lang] || xn.de, ic = p["x-icons"] && p["x-icons"][e];
+    const t = (byVal && typeof byVal === "object" && (byVal[lang] || byVal.de)) || (byLang && typeof byLang === "object" && byLang[e]) || X.names[e] || (e === "" ? (lang === "en" ? "None" : "Keine") : e); // leerer Wert (z. B. Figur aus) braucht einen Namen (axe button-name)
+    return ic ? ic + " " + t : t;
+  };
+  return shown.map((key) => {
     const p = props[key], id = "f-" + key, v = params[key];
     // ein Feld je Blase: der Dialogtitel ist die Beschriftung (nichts doppelt)
     const label = single ? null : p["x-label"][lang] || p["x-label"].de;
@@ -85,24 +168,44 @@ function fieldControls(card, part, params, X, lang, dispatch) {
       case "text":
         return h("div", { class: "field", key },
           label ? h("label", { for: id }, label) : null,
-          h(p.maxLength > 40 ? "textarea" : "input", { id, class: "input", "aria-labelledby": label ? null : "dlg-title", ...(p.maxLength > 40 ? { rows: "3" } : { type: "text" }), maxlength: String(p.maxLength), value: v, on: { input: (e) => set(e.target.value) } }));
+          h(p.maxLength > 40 ? "textarea" : "input", { id, class: "input", "aria-labelledby": label ? null : "dlg-title", ...(p.maxLength > 40 ? { rows: "3" } : { type: "text" }), maxlength: String(p.maxLength), value: v, on: { input: (e) => set(e.target.value) } }),
+          suggestButton(p, v, set, lang));
       case "color": case "choice":
-        return h("div", { class: "field", key }, radios(key, label, p.enum.map((e) => ({ value: e, label: X.names[e] || e })), v, set));
+        // freie Farbe ohne Liste (#rrggbb, Strang L): Farbwaehler; sonst die Wahl aus der Liste
+        if (!Array.isArray(p.enum)) return h("div", { class: "field", key }, label ? h("label", { for: id }, label) : null, h("input", { id, class: "input color", type: "color", "aria-labelledby": label ? null : "dlg-title", value: /^#[0-9a-f]{6}$/i.test(v) ? v : "#000000", on: { input: (e) => set(e.target.value.toLowerCase()) } }));
+        return h("div", { class: "field", key }, radios(key, label, p.enum.map((e) => ({ value: e, label: nameOf(p, e) })), v, set));
       case "number": {
-        const items = []; for (let n = p.minimum; n <= p.maximum; n++) items.push({ value: n, label: String(n) });
-        return h("div", { class: "field", key }, radios(key, label, items, v, set));
+        // benannte Stufen (x-steps, alt regler-ui.js): Schieber ueber die Stufen, Name als Wert; Zwischenwerte alter Links
+        // bleiben, bis man schiebt (angezeigt wird die naechste Stufe)
+        const st = p["x-steps"];
+        if (st && Array.isArray(st.values) && st.values.length) {
+          const names = (st.names && (st.names[lang] || st.names.de)) || st.values.map(String);
+          let at = 0; st.values.forEach((x, i) => { if (Math.abs(x - v) < Math.abs(st.values[at] - v)) at = i; });
+          return h("div", { class: "field", key }, label ? h("label", { for: id }, label) : null,
+            h("input", { id, class: "input range", type: "range", min: "0", max: String(st.values.length - 1), step: "1", value: String(at), "aria-valuetext": names[at], "aria-labelledby": label ? null : "dlg-title", on: { input: (e) => set(st.values[Number(e.target.value)]) } }),
+            h("p", { class: "hint strong", "aria-hidden": "true" }, names[at]));
+        }
+        // kleiner Bereich: Wahl als Knoepfe; grosser Bereich (Seed, Laenge, Chancen): Schieber mit Zahl, nie tausende Knoepfe
+        if (p.maximum - p.minimum <= 12) {
+          const items = []; for (let n = p.minimum; n <= p.maximum; n++) items.push({ value: n, label: String(n) });
+          return h("div", { class: "field", key }, radios(key, label, items, v, set));
+        }
+        return h("div", { class: "field", key }, label ? h("label", { for: id }, label) : null,
+          h("input", { id, class: "input", type: "number", inputmode: "numeric", min: String(p.minimum), max: String(p.maximum), step: String(p.multipleOf || 1), value: String(v), "aria-labelledby": label ? null : "dlg-title",
+            on: { change: (e) => { const n = Number(e.target.value); if (Number.isInteger(n) && n >= p.minimum && n <= p.maximum) set(n); } } }));
       }
       case "list": {
+        if (!(p.items && Array.isArray(p.items.enum))) return extraField(p, key, v, set, label, { lang, me: ctx.me, wx: ctx.wx, photo: ctx.photo, slots: SLOTS }, dispatch); // Objekte/Listen aus dem Schema (Strang L)
         const max = p.maxItems, lid = label ? "lbl-" + key : "dlg-title";
         return h("div", { class: "field", key, role: "group", "aria-labelledby": lid },
           label ? h("p", { class: "seg-label", id: lid }, label) : null,
           h("div", { class: "seg-row" }, p.items.enum.map((e) => {
             const on = v.includes(e), full = !on && v.length >= max;
-            return h("button", { type: "button", class: "seg-opt chip", key: e, "aria-pressed": on ? "true" : "false", disabled: full || null, on: { click: () => set(on ? v.filter((x) => x !== e) : v.concat([e])) } }, X.names[e] || e);
+            return h("button", { type: "button", class: "seg-opt chip", key: e, "aria-pressed": on ? "true" : "false", disabled: full || null, on: { click: () => set(on ? v.filter((x) => x !== e) : v.concat([e])) } }, nameOf(p.items, e));
           })),
           v.length >= max ? h("p", { class: "hint" }, fmt(X.maxReached, { n: max })) : null);
       }
-      default: return null;
+      default: return extraField(p, key, v, set, label, { lang, me: ctx.me, wx: ctx.wx, photo: ctx.photo, slots: SLOTS }, dispatch); // pair, slide, steps, stickers, weather, kibild, media.local, spiel
     }
   });
 }
@@ -112,53 +215,80 @@ function fieldControls(card, part, params, X, lang, dispatch) {
  * @param dispatch Ereignis senden
  * @returns vnodes [kopf, hauptbereich, dialogebene?]
  */
-export function view(state, dispatch) {
-  const ctx = state.ctx, X = texts(ctx.lang), L = leaf(state), m = (p) => machine.matches(state, p);
+/**
+ * @param env optionale Geraetedienste (main.js): { stage (src/render/rt-stage.js), random(n), clock(), audio, cardSvg, images }
+ */
+export function view(state, dispatch, env = {}) {
+  const ctx = state.ctx, X = texts(ctx.lang, ctx.pref && ctx.pref.easy), L = leaf(state), m = (p) => machine.matches(state, p);
   const acts = actionsOf(state);
   const canBack = machine.send(state, { type: "BACK" }).consumed;
   const card = ctx.cardId ? cardOf(ctx.cardId) : null;
-  const heading = card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang) : X.app;
+  const homeR = L === "shelf" ? homeView(state, dispatch, env) : null;
+  const freiR = L.startsWith("frei.") && SLOTS.freiView ? SLOTS.freiView(state, X, dispatch, L) : null;
+  const heading = homeR ? homeR.heading || X.app : freiR ? freiR.heading : L === "stil.start" ? X.stil : L === "stil.daten" ? X.k.data : L === "stil.widerspruch" ? X.k.appealTitle : card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang, G.paramsOf(ctx)) : X.app;
   const btn = (act, cls) => h("button", { type: "button", class: "btn " + cls, key: act.id, "data-act": act.id, on: { click: () => dispatch(act.ev) } }, act.label);
 
-  const head = h("header", { class: "bar", key: "bar" },
+  // Spielkopf in der Familienfarbe (Canvas v54 Bote1/GFlugStart): Farbe und Tinte aus der Familie (D, Kontrast geprueft)
+  const fam = card && L.startsWith("card.") ? familyOf(catalogIdOf(card.manifest.id)) || family(card.manifest.family) : null;
+  const head = h("header", { class: "bar" + (canBack ? "" : " bar-noback") + (fam ? " bar-fam" : ""), key: "bar", style: fam ? { "--hb": fam.color, "--hc": fam.ink } : null },
     canBack ? h("button", { type: "button", class: "icon", "aria-label": X.back, "data-act": "back", on: { click: () => dispatch({ type: "BACK" }) } }, "←") : h("span", { class: "icon-gap" }),
-    h("h1", { class: "brand" + (L === "shelf" ? " home" : "") }, heading),
-    m("raum.verbunden") ? h("span", { class: "badge", role: "status" }, X.connected) : h("span", { class: "icon-gap" }));
+    h("h1", { class: "brand" + (homeR && !homeR.heading ? " home" : "") }, heading),
+    m("raum.verbunden") ? h("span", { class: "badge", role: "status" }, X.connected)
+      // Board Meins: auf „Mein Regal“ selbst keine Kopfknoepfe, damit die Ueberschrift ungekuerzt bleibt
+      : L === "shelf" && !(homeR && homeR.cls === "meins") ? h("span", { class: "bar-end" }, env.wide && homeR && (homeR.cls === "day" || homeR.cls === "regal") ? headSearch(state, dispatch) : null, schriftButton(state, dispatch), meinsButton(state, dispatch), h("button", { type: "button", class: "h-headbtn me", "aria-label": X.stilOpen, "data-act": "stil", on: { click: () => dispatch({ type: "STIL" }) } }, h("span", { class: "h-headbtn-i", "aria-hidden": "true" }, ctx.me.emoji), h("span", { class: "h-headbtn-t", "aria-hidden": "true" }, X.stil)))
+        : h("span", { class: "icon-gap" }));
 
   let body = [], panel = [];
-  const preview = card ? render(card.view(previewState(card, G.paramsOf(ctx)), 0, { lang: ctx.lang, preview: true }), { onInput: () => {}, disabled: true, idp: "pv" }) : null;
+  const tree = card ? G.previewNode(card, G.paramsOf(ctx), ctx.lang, G.viewCtx(ctx)) : null;
+  const preview = tree ? render(tree, { onInput: () => {}, disabled: true, idp: "pv", lang: ctx.lang, high: env.high, images: env.images, cardSvg: env.cardSvg }) : null;
 
-  if (L === "shelf") {
-    body = [h("p", { class: "lede" }, X.today), h("div", { class: "shelf" }, ORDER.map((id, i) => {
-      const c = cardOf(id), prim = i === 0;
-      return h("button", { type: "button", key: id, class: "shelf-card " + (prim ? "primary" : "secondary"), "data-act": "open-" + id, on: { click: () => dispatch({ type: "OPEN", id }) } },
-        h("span", { class: "sc-kicker" }, prim ? X.today : X.more),
-        h("span", { class: "sc-title" }, title(c, ctx.lang)),
-        h("span", { class: "sc-teaser" }, c.manifest.teaser[ctx.lang] || c.manifest.teaser.de));
-    }))];
+  if (L.startsWith("stil.")) {
+    const r = stilView(state, X, dispatch, L);
+    body = r.body; panel = r.panel;
+  } else if (freiR) {
+    body = freiR.body; panel = freiR.panel || [];
+  } else if (homeR) {
+    // Nachladen (ADR 0001 Nachtrag 2): ehrliche Ladezeile, solange ein Kartenteil kommt
+    body = [ctx.loading ? h("p", { class: "h-loading", role: "status", "aria-live": "polite", key: "loading" }, X.loadingCard) : null, ...homeR.body];
   } else if (L === "card.view") {
     const modes = modesOf(card), isStatic = card.manifest.mode === "static";
-    body = [stage(preview)];
-    panel.push(radios("mode", isStatic ? X.send : X.mode, modes.map((x) => ({ value: x, label: X.modes[x] })), ctx.mode, (mode) => dispatch({ type: "MODE", mode })));
-    panel.push(h("p", { class: "hint", key: "mode-hint" }, X.modeHint[ctx.mode]));
+    body = [stage(preview, {}, tree)];
+    panel.push(levelBox(card, ctx, dispatch));   // Board GFlugStart: Level mit -/+ und Stufennamen, Varianten-Chips
+    const duo = duoOf(card, ctx);
+    // mit Doppelknopf liegen die uebrigen Einstellungen (alle Spielweisen) unter "Andere Spielweise" (natives Aufklappen)
+    const modeRows = [radios("mode", isStatic ? X.send : X.mode, modes.map((x) => ({ value: x, label: X.modes[x] })), ctx.mode, (mode) => dispatch({ type: "MODE", mode })), h("p", { class: "hint", key: "mode-hint" }, X.modeHint[ctx.mode])];
+    if (duo) panel.push(h("details", { class: "rt-more", key: "rt-more" }, h("summary", { "data-act": "rt-more" }, ctx.lang === "en" ? "Other ways to play" : "Andere Spielweise"), ...modeRows));
+    else panel.push(...modeRows);
     if (!isStatic && ctx.mode !== "alone" && card.manifest.players.max > 1) {
       const items = []; for (let s = 0; s < card.manifest.players.max; s++) items.push({ value: s, label: seatName(card, ctx.lang, s) });
       panel.push(radios("seat", X.seat, items, ctx.seat, (seat) => dispatch({ type: "SEAT", seat })));
     }
     if (ctx.mode === "bot") panel.push(radios("level", X.level, LEVELS.map((l, i) => ({ value: l.id, label: X.levels[i] })), ctx.level, (level) => dispatch({ type: "LEVEL", level })));
     if (ctx.mode === "live") panel.push(h("p", { class: "hint", key: "ip" }, X.ipHint));
-    if (ctx.note) panel.push(h("p", { class: "note", role: "status", key: "note" }, X.note[ctx.note]));
+    // Gemuetlich spielen (Gate C): Echtzeitkarte mit rt.slow und Parameter tempo; ein grosser Schalter statt Zahlen
+    const slow = card.manifest.rt && Array.isArray(card.manifest.rt.slow) ? card.manifest.rt.slow : null;
+    if (slow && card.manifest.params.properties && card.manifest.params.properties.tempo) {
+      const on = G.paramsOf(ctx).tempo !== undefined && G.paramsOf(ctx).tempo < 1;
+      panel.push(h("button", { type: "button", class: "btn big rt-slow", key: "slow", role: "switch", "aria-checked": on ? "true" : "false", "data-act": "slow", on: { click: () => dispatch({ type: "SLOW", on: !on }) } }, (on ? "✓ " : "") + X.slowPlay));
+    }
+    panel.push(duoBox(card, ctx, dispatch, X));   // Board GFlugStart/GArcadeStart: grosse Doppelknoepfe als Hauptaktion
+    if (ctx.note) panel.push(h("p", { class: "note", role: "status", key: "note" }, String(ctx.note).startsWith("frei-") ? freiNote(ctx) : X.note[ctx.note]));
   } else if (L.startsWith("card.customize")) {
-    body = [stage(preview, { class: "stage editing" }), h("p", { class: "hint center" }, X.bubblesHint)];
+    body = [stage(preview, { class: "stage editing" }, tree), bubbleRow(card, ctx, X, dispatch, tree), h("p", { class: "hint center" }, X.bubblesHint)];
   } else if (L === "card.share") {
-    body = [stage(preview)];
+    body = [stage(preview, {}, tree)];
     panel.push(ctx.link ? linkBox(X, ctx.link, ctx, dispatch) : h("p", { class: "warn", role: "alert" }, X.linkTooLong));
+    panel.push(shareImageBox(tree, ctx, dispatch));   // Karte mit lokalem Foto als Bild teilen (zusaetzlich zum fotofreien Link)
+    if (ctx.note === "frei-remix") panel.push(h("p", { class: "note", role: "status", key: "remix" }, freiNote(ctx)));   // Strang K
   } else if (L === "card.lobby") {
     const r = ctx.raum || {};
     body = [h("div", { class: "notice" },
       h("h2", { class: "t-title" }, X.lobbyTitle),
       r.error ? h("p", { class: "warn", role: "alert" }, X.reasons[r.error] || X.reasons.verbindung) : h("p", { role: "status" }, r.step && r.step !== "open" ? X.steps[r.step] || X.lobbyWait : (r.inviteLink ? (ctx.copied || ctx.sent ? X.lobbyWait : X.lobbySend) : X.steps.open)),
-      r.inviteLink && !r.error ? linkBox(X, r.inviteLink, ctx, dispatch) : null,
+      // Gruppe: ein Einladungslink je Gastsitz (ADR 0001 f, Stufe 2)
+      r.invites && Object.keys(r.invites).length > 1 && !r.error
+        ? Object.keys(r.invites).sort().map((seat) => h("div", { class: "invite", key: "inv-" + seat }, h("p", { class: "seat" }, fmt(X.yourTurnAs, { s: seatName(card, ctx.lang, Number(seat)) }).replace(/^[^:]*:?/, "") || seatName(card, ctx.lang, Number(seat)), (r.up || []).includes(Number(seat)) ? " ✓" : ""), linkBox(X, r.invites[seat], ctx, dispatch, "-" + seat)))
+        : r.inviteLink && !r.error ? linkBox(X, r.inviteLink, ctx, dispatch) : null,
       h("p", { class: "hint" }, X.ipHint))];
   } else if (L.startsWith("card.play")) {
     const phase = L.slice("card.play.".length);
@@ -166,42 +296,81 @@ export function view(state, dispatch) {
     else if (phase === "cover") {
       const s = seatName(card, ctx.lang, G.gameStatus(ctx).turn);
       body = [h("div", { class: "notice cover" }, h("h2", { class: "t-title" }, X.coverTitle), h("p", null, fmt(X.coverText, { s })))];
+    } else if (phase === "vacant") {
+      const r = ctx.raum || {};
+      body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.vacantTitle), h("p", { role: "status" }, fmt(X.vacantText, { s: (ctx.vacant || []).map((q) => seatName(card, ctx.lang, q)).join(", ") })),
+        ...(ctx.vacant || []).filter((q) => r.invites && r.invites[q]).map((q) => h("div", { class: "invite", key: "vac-" + q }, h("p", { class: "seat" }, seatName(card, ctx.lang, q) + ((r.up || []).includes(q) ? " ✓" : "")), linkBox(X, r.invites[q], ctx, dispatch, "-v" + q))))];
     } else if (phase === "error") {
       body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.errTitle), h("p", { class: "warn", role: "alert" }, X.reasons[ctx.error] || X.reasons["zug-ungueltig"]))];
     } else {
       const seat = ctx.viewer, st = G.gameStatus(ctx);
       const obs = S.observe(card, ctx.session, seat);
-      const node = card.view(obs, seat, { lang: ctx.lang });
-      const live = render(node, { onInput: (input) => dispatch({ type: "INPUT", input }), disabled: phase !== "turn", idp: "g" });
+      const node = card.view(obs, seat, G.viewCtx(ctx));
+      // Widget-Host (ADR 0001 c, Strang F): Entwurf, Aktionen, Geraetedienste
+      const live = render(node, { onInput: (input) => dispatch({ type: "INPUT", input }), onDraft: (draft) => dispatch({ type: "DRAFT", draft }), onDraftPatch: (patch) => dispatch({ type: "DRAFT", patch }), high: env.high, onAction: (x) => dispatch({ type: "ACT", ...x }), onMemo: (memo) => dispatch({ type: "MEMO", memo }), onPrepare: (n) => dispatch({ type: "PREPARE", draft: n && n.draft !== undefined ? n.draft : undefined }), draft: ctx.draft, lang: ctx.lang, age18: G.viewCtx(ctx).age18, nick: G.viewCtx(ctx).nick, disabled: phase !== "turn", idp: "g", random: env.random, clock: env.clock, audio: env.audio, cardSvg: env.cardSvg, images: env.images, reduced: env.reduced });
       const lines = [];
-      if (card.manifest.players.max > 1 && ctx.mode !== "alone") lines.push(h("p", { class: "seat", key: "seat" }, fmt(X.yourSeat, { s: seatName(card, ctx.lang, seat) })));
+      // Wer bin ich, wie weit (13 §6.4 Punkt 7): mit Zugnummer, wenn die Karte sie meldet (Zugvertrag v0.2 status.turnNo/turns)
+      // Board Bote1: Leiste "Du bist dran" mit Zug-Plakette und "Regeln" (natives Aufklappen, kein Zustand)
+      const turnPill = Number.isInteger(st.turnNo) && Number.isInteger(st.turns) ? fmt(ctx.lang === "en" ? "Turn {n} of {m}" : "Zug {n} von {m}", { n: st.turnNo, m: st.turns }) : null;
+      const who = card.manifest.players.max > 1 && ctx.mode !== "alone" ? fmt(X.yourSeat, { s: seatName(card, ctx.lang, seat) }) : null;
+      const rule = card.manifest.rule ? (card.manifest.rule[ctx.lang] || card.manifest.rule.de) : null;
+      if (phase === "turn" || phase === "wait") lines.push(h("div", { class: "play-bar", key: "pbar" },
+        h("p", { class: "play-bar-s", role: "status" }, phase === "turn" ? X.yourTurnNow : X.waitShort, who ? h("span", { class: "play-bar-w" }, " · " + who) : null),
+        turnPill ? h("span", { class: "pill", key: "pill" }, turnPill) : null));
+      else if (who) lines.push(h("p", { class: "seat", key: "seat" }, who + (turnPill ? " · " + turnPill : "")));
+      if (rule && (phase === "turn" || phase === "wait")) lines.push(h("details", { class: "play-rules", key: "rules" }, h("summary", { "data-act": "rules" }, X.rules), h("p", null, rule)));
+      // Spielweise im Spielkopf (Board Bote1, Folge-PR 2): wechselbar bis zum ersten Zug, danach gesperrt mit Grund (MODE, Waechter modeOpen bei F)
+      if ((phase === "turn" || phase === "wait") && ctx.mode !== "live") {
+        const offer = playOf(card, ctx.variant).offer.filter((x) => x !== "live"), locked = G.movesMade(ctx) > 0;
+        if (offer.length > 1 && offer.includes(ctx.mode)) lines.splice(lines.length && lines[0].key === "pbar" ? 1 : 0, 0, h("div", { class: "play-modes", key: "pm" },
+          h("div", { class: "pm-seg", role: "group", "aria-label": X.mode }, offer.map((x) => h("button", { type: "button", class: "pm-opt", key: x, "data-act": "pm-" + x, "aria-pressed": x === ctx.mode ? "true" : "false", disabled: (locked && x !== ctx.mode) || null, on: { click: () => dispatch({ type: "MODE", mode: x }) } }, X.modes[x]))),
+          h("p", { class: "hint", key: "pm-h" }, locked ? X.note["modus-gesperrt"] : X.modeSwitch)));
+      }
       if (phase === "wait") lines.push(h("p", { class: "status", role: "status", key: "st" }, ctx.mode === "bot" ? X.waitBot : ctx.mode === "link" ? X.waitLink : X.waitLive));
       if (phase === "send") lines.push(h("div", { class: "notice", key: "send" }, h("h2", { class: "t-title" }, X.sendTitle), h("p", null, X.sendText)));
       if (phase === "over") {
         const me = ctx.mode === "alone" ? -2 : seat;
         const wn = st.winner >= 0 ? seatName(card, ctx.lang, st.winner) : "";
         const res = st.winner === -1 ? X.overDraw : me === -2 ? fmt(X.overWinner, { s: wn }) : st.winner === me ? X.overWin : fmt(X.overLose, { s: wn });
-        lines.push(h("p", { class: "result", role: "status", key: "res" }, res));
+        // Karten ohne Wertung (score leer, z. B. Partydeck, Raumkarten) zeigen ihr Ergebnis selbst: keine Sieger-/Unentschieden-Zeile
+        if (!(Array.isArray(st.score) && st.score.length === 0)) lines.push(h("p", { class: "result", role: "status", key: "res" }, res));
         if (ctx.mode === "link" && ctx.link && !ctx.sent) lines.push(h("p", { class: "hint", key: "sr" }, X.sendResultText));
       }
       // beim Senden ist der andere dran: kein Spielfeld, nur die Bitte zu senden (Kritikrunde 1)
       body = phase === "send" ? lines : [...lines, stage(live, { class: "stage play" })];
       if ((phase === "send" || phase === "over") && ctx.link) panel.push(linkBox(X, ctx.link, ctx, dispatch));
     }
+  } else if (L.startsWith("card.rt")) {
+    // Echtzeitkarten: Buehne mit Canvas aus src/render/rt-stage.js (Strang F); ohne Buehne ehrlich „laeuft hier nicht“
+    const lines = [];
+    if (L === "card.rt.over" && ctx.rtResult && ctx.rtResult.status) {
+      const st = ctx.rtResult.status, seat = ctx.viewer, say = typeof st.say === "string" ? st.say : st.say && typeof st.say === "object" ? st.say[ctx.lang] || st.say.de : "";
+      // Solo-Partien (status.solo oder kein Gewinner) zeigen den Stand statt einer Gewinnerzeile (Anfrage L)
+      if (st.solo || !Number.isInteger(st.winner)) lines.push(h("p", { class: "result", role: "status", key: "res" }, say || X.overAll));
+      else { const wn = st.winner >= 0 ? seatName(card, ctx.lang, st.winner) : ""; lines.push(h("p", { class: "result", role: "status", key: "res" }, st.winner === -1 ? X.overDraw : ctx.mode === "alone" ? fmt(X.overWinner, { s: wn }) : st.winner === seat ? X.overWin : fmt(X.overLose, { s: wn }))); }
+    }
+    if (ctx.ghostOf) lines.push(h("p", { class: "hint", key: "gh" }, fmt(X.ghostScore, { s: ctx.ghostOf.sc.join(" : ") })));
+    if (L === "card.rt.error") lines.push(h("div", { class: "notice", key: "err" }, h("h2", { class: "t-title" }, X.errTitle), h("p", { class: "warn", role: "alert" }, X.reasons[ctx.error] || X.reasons["zug-ungueltig"])));
+    body = [...lines, env.stage ? env.stage.stageNode(L, dispatch, ctx.lang, { muted: !!ctx.muted }) : h("p", { class: "warn", role: "alert", key: "nohost" }, X.rtNoHost)];
+    if (L === "card.rt.over" && ctx.link) panel.push(linkBox(X, ctx.link, ctx, dispatch));
+  } else if (L === "partfail") {
+    const f = ctx.partFail || {};
+    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.partFailTitle), h("p", { class: "warn", role: "alert", "data-reason": f.reason }, X.partFail[f.reason] || X.partFail["teil-fehlt"]))];
   } else if (L === "receive.show") {
     const inc = ctx.incoming, c = cardOf(inc.cardId);
-    if (inc.kind === "card") body = [h("p", { class: "lede plain" }, X.acceptTitle), stage(render(c.view(previewState(c, inc.params), 0, { lang: ctx.lang, preview: true }), { onInput: () => {}, disabled: true, idp: "rx" })), h("p", { class: "hint" }, X.free)];
+    if (inc.kind === "ghost") body = [h("div", { class: "notice" }, h("p", { class: "lede plain" }, X.ghostText), h("h2", { class: "t-title" }, title(c, ctx.lang)), h("p", null, fmt(X.ghostScore, { s: inc.score.join(" : ") })), h("p", { class: "hint" }, X.free))];
+    else if (inc.kind === "card") body = [h("p", { class: "lede plain" }, X.acceptTitle), stage(render(G.previewNode(c, inc.params, ctx.lang, G.viewCtx(ctx, { receive: true })), { onInput: () => {}, onDraft: (draft) => dispatch({ type: "DRAFT", draft }), draft: ctx.draft, disabled: true, idp: "rx", lang: ctx.lang, high: env.high, images: env.images, cardSvg: env.cardSvg })), h("p", { class: "hint" }, X.free)];
     else {
       const st = S.status(c, inc.session), seat = inc.session.mine[0];
       body = [h("div", { class: "notice" },
         h("p", { class: "lede plain" }, st.over ? X.resultFor : X.challengeFor),
-        h("h2", { class: "t-title" }, title(c, ctx.lang)),
+        h("h2", { class: "t-title" }, title(c, ctx.lang, inc.params)),
         st.over ? null : h("p", null, c.manifest.howto ? c.manifest.howto[ctx.lang] || c.manifest.howto.de : ""),
         st.over ? null : h("p", { class: "seat" }, fmt(X.yourTurnAs, { s: seatName(c, ctx.lang, seat) })),
         h("p", { class: "hint" }, X.free))];
     }
   } else if (L === "receive.reject") {
-    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.rejectTitle), h("p", { class: "warn", role: "alert", "data-reason": ctx.reason }, X.reasons[ctx.reason] || ctx.reason), h("p", null, X.rejectAsk))];
+    body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.rejectTitle), h("p", { class: "warn", role: "alert", "data-reason": ctx.reason }, X.reasons[ctx.reason] || (ctx.reason === "frei-gesperrt" ? ft(ctx.lang, "deck_gone") : ctx.reason === "frei-ungeprueft" ? ft(ctx.lang, "deck_nocheck") : ctx.reason === "frei-geaendert" ? ft(ctx.lang, "frei_changed") : ctx.reason)), h("p", null, X.rejectAsk))];
   } else if (L === "receive.live" || L === "receive.wait") {
     const r = ctx.raum || {};
     body = [h("div", { class: "notice" }, h("h2", { class: "t-title" }, X.liveInvite),
@@ -214,26 +383,45 @@ export function view(state, dispatch) {
     acts.primary ? btn(acts.primary, "primary") : null,
     acts.secondary.map((s) => btn(s, "secondary")));
 
-  const main = h("main", { id: "main", class: "main s-" + L.replace(/\./g, "-") + (L === "card.view" ? " sticky-actions" : ""), key: "main", tabindex: "-1" },
+  const main = h("main", { id: "main", class: "main s-" + L.replace(/\./g, "-") + (L === "card.view" && card && card.manifest.mode === "realtime" ? " rt-dark" : "") + (homeR ? " h-at-" + homeR.cls : "") + (L === "card.view" ? " sticky-actions" + (tree && tree.t === "frame" ? " fit-card" : "") : ""), key: "main", tabindex: "-1",
+    // Laden eines Teils (ctx.loading): fuer Screenreader (aria-busy) und Testtreiber (data-loading="<teil>") erkennbar
+    "data-loading": typeof ctx.loading === "string" && ctx.loading ? ctx.loading : null, "aria-busy": ctx.loading ? "true" : null },
     h("div", { class: "col-a", key: "a" }, body),
     h("div", { class: "col-b", key: "b" }, panel, L === "card.customize.dialog" || L === "shelf" ? null : actions));
 
   const out = [head, main];
-  if (m("inhalt.card.customize")) out.push(bubbleLayer(card, ctx, X, dispatch));
-  if (m("inhalt.card.customize.dialog")) out.push(dialogLayer(card, ctx, X, dispatch, acts));
+  if (m("inhalt.card.customize")) out.push(bubbleLayer(card, ctx, X, dispatch, tree));
+  if (m("inhalt.card.customize.dialog")) out.push(dialogLayer(card, ctx, X, dispatch, acts, state));
   return out;
 }
 
-function bubbleLayer(card, ctx, X, dispatch) {
-  const dialog = !!ctx.part && ctx.part !== null;
-  return h("div", { class: "bubbles", key: "bubbles", "aria-hidden": null },
-    card.manifest.parts.map((p) => {
-      const label = p.label[ctx.lang] || p.label.de;
-      return h("button", { type: "button", class: "bubble", key: p.id, "data-for": p.id, "aria-label": fmt(X.bubble, { p: label }), "aria-expanded": dialog && ctx.part === p.id ? "true" : "false", on: { click: () => dispatch({ type: "BUBBLE", part: p.id }) } }, label);
-    }));
+// Strang K: Hinweise zur freien Karte in der Kartenansicht (uebernommen, aus dem Deck, Teilen gesperrt)
+function freiNote(ctx) {
+  if (ctx.note === "frei-remix") return ft(ctx.lang, "frei_remix");
+  if (ctx.note === "frei-own") return ft(ctx.lang, "create_robot_kept");
+  if (ctx.note === "frei-deck") return ft(ctx.lang, "deck_from");
+  if (ctx.note === "frei-share-no") return ft(ctx.lang, "frei_share_no", { x: ft(ctx.lang, "frei_st_" + (ctx.frei.share || "unknown")) });
+  return "";
 }
 
-function dialogLayer(card, ctx, X, dispatch, acts) {
+// Teile, die in der Anzeigeliste einen Ort haben (part an einem Knoten), bekommen eine Blase auf der Karte; die anderen
+// (z. B. Farbe, Sticker, Foto, Wetter bei gezeichneten Karten) stehen als Knoepfe im Fluss unter der Karte: jeder Teil bleibt
+// erreichbar, nichts wird versteckt und nichts verdeckt etwas (Folge-PR 2, Befund Advent/Beat).
+function partsInTree(tree) { const out = new Set(); (function walk(n) { if (!n || typeof n !== "object") return; if (typeof n.part === "string") out.add(n.part); for (const c of n.children || []) walk(c); for (const l of n.layers || []) walk(l); for (const o of n.ops || []) walk(o); })(tree); return out; }
+function bubbleBtn(p, ctx, X, dispatch, cls) {
+  const label = p.label[ctx.lang] || p.label.de, dialog = !!ctx.part;
+  return h("button", { type: "button", class: cls, key: p.id, "data-for": p.id, "aria-label": fmt(X.bubble, { p: label }), "aria-expanded": dialog && ctx.part === p.id ? "true" : "false", on: { click: () => dispatch({ type: "BUBBLE", part: p.id }) } }, label);
+}
+function bubbleRow(card, ctx, X, dispatch, tree) {
+  const anchored = partsInTree(tree), rest = card.manifest.parts.filter((p) => !anchored.has(p.id));
+  return rest.length ? h("div", { class: "bubble-row", key: "brow", role: "group", "aria-label": X.bubblesHint }, rest.map((p) => bubbleBtn(p, ctx, X, dispatch, "bubble inflow"))) : null;
+}
+function bubbleLayer(card, ctx, X, dispatch, tree) {
+  const anchored = partsInTree(tree);
+  return h("div", { class: "bubbles", key: "bubbles", "aria-hidden": null },
+    card.manifest.parts.filter((p) => anchored.has(p.id)).map((p) => bubbleBtn(p, ctx, X, dispatch, "bubble")));
+}
+function dialogLayer(card, ctx, X, dispatch, acts, state) {
   const part = card.manifest.parts.find((p) => p.id === ctx.part);
   const label = part.label[ctx.lang] || part.label.de;
   return h("div", { class: "layer", key: "layer" },
@@ -243,6 +431,8 @@ function dialogLayer(card, ctx, X, dispatch, acts) {
         h("h2", { id: "dlg-title", class: "t-label" }, label),
         h("button", { type: "button", class: "icon", "aria-label": X.close, "data-act": "close-x", on: { click: () => dispatch({ type: "CLOSE" }) } }, "✕")),
       h("p", { class: "hint" }, X.dialogHint),
-      fieldControls(card, part, G.paramsOf(ctx), X, ctx.lang, dispatch),
+      fieldControls(card, part, G.paramsOf(ctx), X, ctx.lang, dispatch, ctx),
+      // Strang K: "Mit KI" fuer Teile mit KI-faehigen Feldern (x-model); schliesst den Dialog vor dem KI-Ereignis
+      SLOTS.kiButton ? SLOTS.kiButton({ ctx }, X, (ev) => { dispatch({ type: "CLOSE" }); dispatch(ev); }, ctx.part) : null,
       h("div", { class: "actions" }, h("button", { type: "button", class: "btn primary", "data-act": acts.primary.id, on: { click: () => dispatch(acts.primary.ev) } }, acts.primary.label))));
 }

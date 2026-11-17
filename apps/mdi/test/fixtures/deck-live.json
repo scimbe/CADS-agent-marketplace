@@ -1,0 +1,16 @@
+{
+ "herkunft": "Oeffentlich abgerufen am 2026-11-12 von https://demos-34a13a96.bunsenbrenner.org/api/duell/deck und /api/duell/deck/key (Produktion, CADS-DEMO-wrapper lib/duell-deck.mjs, Schluessel aus DUELL_DECK_SIGN_KEY). Prueft den in src/broker/deck-pin.js gepinnten Schluessel.",
+ "key": {
+  "kid": "6Ijl6K6M",
+  "alg": "Ed25519",
+  "pub": "Fb1VF61mb3WdeKMETv-x1keoo4IqMmHKIZ2x1KM2wok"
+ },
+ "deck": {
+  "v": 0,
+  "at": "2026-11-10T08:10:33.842Z",
+  "kid": "6Ijl6K6M",
+  "cards": [],
+  "revoked": [],
+  "sig": "2Ryk-YAXCnQBN3hHqiP01cGW9TrVvn2VXzmNycu9U_32mgvQsE_hIe7L5k0ehGW4eCDL2pUS_mxma0TG64ALBA"
+ }
+}

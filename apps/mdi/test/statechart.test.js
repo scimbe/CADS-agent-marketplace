@@ -60,6 +60,9 @@ function demoLinks() {
   };
 }
 const LINKS = demoLinks();
+const KI = { enabled: true, remaining: 7, size: 7, period: "week", resetAt: null };
+const ST_IN = { ok: true, account: true, canLogin: true, ki: KI, karte: { ...KI, period: "ever", credit: 0, voucher: true, age16: true, age18: false, paused: false, off: false } };
+const ST_ANON = { ok: true, account: false, canLogin: true, ki: KI, karte: null };
 const HELLO = (() => { const r = H.hello(cardOf("bluff"), { cards: 3, bonus: 2, accent: "red" }, 0, [counter("c")(), counter("d")()]); return r.msg; })();
 
 function eventsFor(state) {
@@ -70,7 +73,7 @@ function eventsFor(state) {
     { type: "LINK", hash: LINKS.card }, { type: "LINK", hash: LINKS.challenge }, { type: "LINK", hash: LINKS.live }, { type: "LINK", hash: LINKS.bad },
     { type: "LIVE_TOKEN", token: "B".repeat(22) }, { type: "LIVE_UP" }, { type: "LIVE_DOWN" }, { type: "LIVE_FAIL", reason: "gone" },
     { type: "HELLO", msg: HELLO }, { type: "PEER_IN", msg: { t: "in", i: 0, x: { t: "say", seat: 0, v: 6 }, h: "0".repeat(16) } },
-    { type: "KONTO_IN" }, { type: "KONTO_OUT" }
+    { type: "STATUS", result: ST_IN }, { type: "STATUS", result: ST_ANON }, { type: "STIL" }, { type: "DATEN" }
   ];
   if (ctx.cardId) {
     const c = cardOf(ctx.cardId);
@@ -120,7 +123,9 @@ test("Pfad-Enumeration bis Tiefe 6: gueltige Konfiguration, Disclosure, keine to
     // Review M2: wer auf dem Regal steht, hat keinen offenen Raum (keine haengende Einladung/Verbindung)
     if (L === "shelf") assert.ok(machine.matches(s, "raum.allein"), "Regal mit offenem Raum: " + s.config.join());
     const acts = actionsOf(s);
-    assert.ok(acts.secondary.length <= 3, L + ": zu viele Nebenaktionen");
+    // Disclosure (KONZEPT §7): je Zustand eine Hauptaktion, hoechstens drei Nebenaktionen. Das Regal ist ein Katalog
+    // (Liste der Karten), kein Entscheidungszustand; seine Gestaltung gehoert Strang H.
+    if (L !== "shelf") assert.ok(acts.secondary.length <= 3, L + ": zu viele Nebenaktionen");
     for (const a of [acts.primary, ...acts.secondary].filter(Boolean)) assert.ok(machine.send(s, { ...a.ev, rand: ["1".repeat(32), "2".repeat(32), "3".repeat(32), "4".repeat(32)] }).consumed, L + ": toter Knopf " + a.id);
     // BACK: hoechstens 6 Schritte bis zum Regal
     let b = s;
@@ -143,7 +148,8 @@ test("laengere Pfade (ueber Tiefe 6 hinaus): Weitergeben, Senden, Ende sind erre
   const play = (s) => { const c = cardOf(s.ctx.cardId); for (let i = 0; i < 20 && machine.matches(s, "inhalt.card.play.turn"); i++) { const v = s.ctx.viewer; s = go(s, { type: "INPUT", input: c.moves(c.observe(s.ctx.session.state, v), v)[0] }); } return s; };
   let s = go(machine.initial(initialContext("en")), { type: "OPEN", id: "bluff" });
   s = go(go(s, { type: "MODE", mode: "alone" }), { type: "GO" });
-  s = play(s); assert.equal(leaf(s), "card.play.cover");
+  assert.equal(leaf(s), "card.play.cover", "Abdecken schon vor dem ersten Zug (ADR 0001 f)");
+  s = play(go(s, { type: "COVER_OK" })); assert.equal(leaf(s), "card.play.cover");
   assert.equal(actionsOf(s).primary.id, "cover-ok");
   s = play(go(s, { type: "COVER_OK" })); assert.equal(leaf(s), "card.play.over", "Aufloesung laeuft automatisch, das Geraet haelt das Salz");
   assert.equal(s.ctx.session.log[s.ctx.session.log.length - 1].t, "reveal");

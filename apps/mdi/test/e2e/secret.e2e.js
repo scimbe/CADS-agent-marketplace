@@ -1,5 +1,6 @@
 // Abnahme D0: "gegnerische Hand aus Geraet, Link oder Netz lesen" muss scheitern.
 import test from "node:test";
+import { NEEDS_FAKE } from "./lib/ziel.mjs";
 import assert from "node:assert/strict";
 import { browser, open, act, waitScreen, screen } from "./lib/grund.mjs";
 import { pickMode, pickSeat, turnLink, turnLive } from "./lib/scenarios.mjs";
@@ -65,7 +66,7 @@ test("Link: Ansage-Link enthaelt kein Salz und keine Karten; der Pruefer sieht v
   assert.deepEqual([...A.ctx._blocked, ...B.ctx._blocked], []);
 });
 
-test("Netz: live sieht der Kanal vor der Aufloesung weder Salz noch Karten", async () => {
+test("Netz: live sieht der Kanal vor der Aufloesung weder Salz noch Karten", { skip: NEEDS_FAKE }, async () => {
   const { A, B, net } = await turnLive(b, { view: "phone390", lang: "de" });
   const msgs = net.wire.dc.map((x) => x.s);
   const ri = msgs.findIndex((m) => m.includes('"reveal"'));
@@ -81,7 +82,7 @@ test("Netz: live sieht der Kanal vor der Aufloesung weder Salz noch Karten", asy
   assert.deepEqual([...A.errs, ...B.errs], []);
 });
 
-test("Realm-Trennung (Review M4): Webkonferenz-Modul, Socket und PeerConnection nur im abgeschotteten Rahmen; App-Realm ohne Netz", async () => {
+test("Realm-Trennung (Review M4): Webkonferenz-Modul, Socket und PeerConnection nur im abgeschotteten Rahmen; App-Realm ohne Netz", { skip: NEEDS_FAKE }, async () => {
   const { liveInvite } = await import("./lib/scenarios.mjs");
   const { A, B } = await liveInvite(b, { view: "phone390", lang: "de" }, "bluff");
   await B.p.locator("main.s-card-play-wait, main.s-card-play-turn").first().waitFor({ timeout: 20000 });

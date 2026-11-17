@@ -8,19 +8,66 @@ import { createStorage } from "./broker/storage.js";
 import { share, copy } from "./broker/share.js";
 import { loadLive } from "./broker/live-host.js";
 import { linkUrl } from "./ui/view.js";
+import { createApi, lookCookie } from "./broker/api.js";
+import { nativeAccount } from "./broker/native.js";
+import { download, downloadText } from "./broker/share.js";
+import { createStage } from "./render/rt-stage.js";
+import { createSound } from "./render/sound.js";
+import { featureEnv } from "./app/features.js";
+import { loadFeatPart } from "./gen/fparts.js";
+import { createParts } from "./broker/parts.js";
+import { createAi } from "./broker/ai.js";        // Strang K: freie Karte und KI-Arten
+import { createDeck } from "./broker/deck.js";
+import { createBild } from "./broker/bild.js";
+import { sanitizeDoc } from "./features/frei/doc.js";
+import { pinFor } from "./broker/deck-pin.js";
+import { browserMedia } from "./broker/media.js";
 
 const root = document.getElementById("app");
 const lang = langOf(navigator);
 document.documentElement.lang = lang;
 
+const reducedMq = matchMedia("(prefers-reduced-motion: reduce)");
+// Breite Ansicht (Board Desktop): Suchfeld in der Kopfzeile. Umgebung wie reduced, kein Zustand der Statechart
+const wideMq = matchMedia("(min-width: 900px)");
+// Echtzeit-Buehne und Klang (ADR 0001 b): die Laufzeit zeichnet ueber stage.draw, view.js haengt stage.stageNode ein
+let rtApi = null;
+// Dienste aus Features (Strang P: audio/high, T: cardSvg, K: images) – ohne Feature ehrlich gesperrt im Widget
+const featPart = (name) => loadFeatPart(name, (n) => parts.feat(n));
+const fenv = featureEnv(window, undefined, { part: featPart });
+const stageEnv = { high: fenv.high || null, images: fenv.images || null, win: window, doc: document, rt: { get active() { return rtApi && rtApi.active; }, get view() { return rtApi && rtApi.view; }, screenButtons: () => (rtApi ? rtApi.screenButtons() : []), get controls() { return rtApi && rtApi.controls; }, key: (c, d) => rtApi && rtApi.key(c, d), pointer: (...a) => rtApi && rtApi.pointer(...a), button: (...a) => rtApi && rtApi.button(...a), tap: (d) => rtApi && rtApi.tap(d), blur: () => rtApi && rtApi.blur(), hidden: () => rtApi && rtApi.hidden() }, reduced: () => reducedMq.matches };
+const stage = createStage(stageEnv);
+let rtState = () => null;
+const sound = createSound({ audioContext: () => new AudioContext(), vibrate: navigator.vibrate ? (ms) => navigator.vibrate(ms) : null, muted: () => { const s = rtState(); return !!(s && s.ctx.muted); } });
+function randomInt(n) { const b = new Uint32Array(1); crypto.getRandomValues(b); return b[0] % Math.max(1, n); }
+const viewEnv = { stage, thumb: (id, variant) => parts.thumb(id, variant), random: randomInt, clock: () => performance.now(), reduced: reducedMq.matches, audio: fenv.audio || null, high: fenv.high || null, cardSvg: fenv.cardSvg || null, images: fenv.images || null, part: featPart };
+
 function entropy() { const b = new Uint8Array(16); crypto.getRandomValues(b); return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join(""); }
 
 let lastDialog = null, lastDialogRect = null, opener = null;
+// Rueckweg vom Gate: diese Seite, mit dem Hinweis, Mein Stil wieder zu oeffnen (nur ein Pfad, nie ein anderer Host)
+// Strang K: aus der freien Karte heraus angemeldet -> zurueck zur freien Karte (?go=erschaffen, wie im Altcode)
+const returnPath = () => location.pathname + (rt && rt.matches("inhalt.frei.start") ? "?go=erschaffen" : "?go=konto");
+const api = createApi({ location, native: nativeAccount(window) });
+// Nachladbare Teile (Karten, Thumbnails): Cache auf http(s), gebuendelt in App-Huellen/file://
+const parts = createParts({ win: window, doc: document });
 const rt = createRuntime({
+  loadPart: (id) => parts.card(id),
+  loadFeat: (name) => parts.feat(name),
   lang, entropy, storage: createStorage(),
+  // App-Huelle mit Konto-Bruecke: Anmelden nativ (OIDC + PKCE), Aufrufe mit Bearer durch die Huelle; sonst Web (Cookie)
+  api, ai: createAi({ api }), deck: createDeck({ api, sanitize: sanitizeDoc, pin: pinFor(location.hostname) }), bild: createBild({ api }),
+  returnPath,
+  setLook: (colors) => { const k = lookCookie(colors, location.hostname); if (k) document.cookie = k; },
+  navigate: (url) => { if (!/^https?:$/.test(location.protocol)) return false; location.assign(url); return true; },
+  download, downloadText,
+  copyText: (t) => copy(t),
+  rt: { now: () => performance.now(), frame: (f) => requestAnimationFrame(f), cancel: (h) => cancelAnimationFrame(h), draw: (node, info) => stage.draw(node, info), sound: (ev, sounds) => sound.play(ev, sounds), reduced: () => reducedMq.matches },
   live: () => loadLive(),
   share: (fragment) => share(linkUrl(fragment), document.title),
   copy: (fragment) => copy(linkUrl(fragment)),
+  // Heimseite (Strang H): Leinwand fuer Story-Bild und Wand, Teilen, Takt (Speicher und Netz laufen ueber storage und api)
+  home: { document, navigator, location, File, URL, subtle: crypto.subtle, FontFace: window.FontFace, media: browserMedia(window), cardImage: fenv.cardImage || null, images: fenv.images || null, high: fenv.high || null, thumb: (id, variant) => parts.thumb(id, variant), setInterval: (f, ms) => setInterval(f, ms), setTimeout: (f, ms) => setTimeout(f, ms) },
   clearUrl: () => { try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) { /* file:// in manchen Hosts */ } },
   onChange: draw
 });
@@ -60,9 +107,10 @@ function trapFocus(e) {
   else if (!d.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
 }
 
+wideMq.addEventListener("change", () => draw(rt.state, null));
 function draw(state, info) {
   const beforeLeaf = info && info.before ? leaf(info.before) : null, nowLeaf = leaf(state);
-  patch(root, view(state, (ev) => rt.dispatch(ev)));
+  patch(root, view(state, (ev) => rt.dispatch(ev), { ...viewEnv, reduced: reducedMq.matches, wide: wideMq.matches }));
   placeBubbles();
   const d = root.querySelector("#dialog");
   if (d && beforeLeaf !== "card.customize.dialog") {
@@ -82,7 +130,15 @@ function draw(state, info) {
     // Bildschirmwechsel: Fokus an den Hauptbereich (Screenreader liest den neuen Inhalt)
     const m = root.querySelector("#main"); if (m && !m.contains(document.activeElement)) m.focus({ preventScroll: true });
   }
-  syncHistory(nowLeaf);
+  // Echtzeit-Buehne fuellt den Bildschirm: beim Eintritt oben beginnen (sonst bleibt der Scroll der Kartenansicht, Befund A)
+  if (nowLeaf.startsWith("card.rt.") && beforeLeaf !== null && !beforeLeaf.startsWith("card.rt.")) window.scrollTo(0, 0);
+  // Heimseite: neue Unterseite (Familie, Regal, Meins, Reiter) beginnt oben, wie ein Bildschirmwechsel
+  const hb = info && info.before && info.before.ctx.home, hn = state.ctx.home;
+  if (hb && hn && nowLeaf === "shelf" && beforeLeaf === "shelf" && (hb.at !== hn.at || hb.intent !== hn.intent || hb.mtab !== hn.mtab || hb.rtab !== hn.rtab)) { window.scrollTo(0, 0); const m = hn.focus === "search" ? root.querySelector("#h-q") : hn.focus === "sentence" ? root.querySelector("#h-sentence") : root.querySelector("#main"); if (m) m.focus({ preventScroll: true }); }
+  syncHistory(nowLeaf === "shelf" && state.ctx.home && (state.ctx.home.at !== "day" || state.ctx.home.off !== 0) ? "shelf.tief" : nowLeaf);
+  // Schriftgroesse aus Mein Stil (Lesen & Bedienen): Projektion des Zustands auf die Wurzel, alles skaliert per rem
+  const fs = { n: "100%", g: "118.75%", sg: "137.5%" }[state.ctx.pref.fs] || "100%";
+  if (document.documentElement.style.getPropertyValue("font-size") !== fs) document.documentElement.style.setProperty("font-size", fs);
 }
 
 // System-Zurueck (Browser/Android): ein Verlaufseintrag, solange die App Zurueck verbrauchen kann.
@@ -100,10 +156,23 @@ addEventListener("popstate", () => {
 
 addEventListener("keydown", (e) => {
   if (e.key === "Escape") { if (rt.dispatch({ type: "BACK" })) e.preventDefault(); return; }
+  if (e.code === "KeyP" && rt.rt.active && !/^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName)) { rt.dispatch({ type: "PAUSE" }); e.preventDefault(); return; }
   trapFocus(e);
 });
 addEventListener("resize", placeBubbles);
 addEventListener("hashchange", () => { if (/^#v2\./.test(location.hash)) rt.link(location.hash); });
 
+rtApi = rt.rt;
+rtState = () => rt.state;
+// Bilder, die nachladen (KI-Bild ueber Strang K), zeichnen die Ansicht neu, sobald sie da sind
+if (fenv.images && typeof fenv.images.subscribe === "function") fenv.images.subscribe(() => draw(rt.state, null));
 draw(rt.state, null);
 if (location.hash.length > 1) rt.link(location.hash);
+else if (new URLSearchParams(location.search).get("go") === "erschaffen") {
+  try { history.replaceState(history.state, "", location.pathname); } catch (e) { /* ohne Verlauf */ }
+  rt.dispatch({ type: "FREI" });
+} else if (new URLSearchParams(location.search).get("go") === "konto") {
+  // zurueck vom Anmelden: Mein Stil wieder oeffnen, die Adresse ohne ?go= behalten
+  try { history.replaceState(history.state, "", location.pathname); } catch (e) { /* ohne Verlauf */ }
+  rt.dispatch({ type: "STIL" });
+}

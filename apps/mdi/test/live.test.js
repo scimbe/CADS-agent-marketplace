@@ -62,3 +62,20 @@ test("Abbruch waehrend des Wartens auf den Datenkanal: PeerConnection und Socket
   await until(() => w.pcs[0].closed && w.sockets.every((s) => s.closed) && w.calls.includes("POST /done"), 1000);
   assert.ok(Date.now() - t0 < 1000, "nicht erst nach der Zeitgrenze");
 });
+
+test("Edge-Bytestrom hat einen Deckel (Security-Review L2): Ueberlauf schliesst ehrlich mit \"ueberlauf\", darunter normal", async () => {
+  const { byteStream, MAX_STREAM } = await import("../src/broker/live.js");
+  const mk = () => { const ws = new EventTarget(); ws.closed = 0; ws.close = () => { ws.closed++; }; ws.send = () => {}; return ws; };
+  const msg = (ws, n) => ws.dispatchEvent(Object.assign(new Event("message"), { data: new Uint8Array(n).fill(1).buffer }));
+  // normal: Rahmen unterhalb des Deckels kommen an
+  const a = mk(), sa = byteStream(a);
+  msg(a, 3); assert.equal((await sa.exact(3, 100)).length, 3);
+  // Flut: mehr Ungelesenes als MAX_STREAM, ohne dass jemand liest
+  const b = mk(), sb = byteStream(b), pending = sb.exact(MAX_STREAM + 10, 5000);
+  for (let i = 0; i < 5; i++) msg(b, 64 * 1024);
+  await assert.rejects(pending, /^Error: ueberlauf$/);
+  assert.equal(b.closed, 1, "Socket geschlossen");
+  assert.equal(sb.overflow, true);
+  await assert.rejects(sb.exact(1, 100), /ueberlauf/, "danach liefert der Strom nichts mehr");
+  msg(b, 10); // spaete Nachrichten werden verworfen
+});

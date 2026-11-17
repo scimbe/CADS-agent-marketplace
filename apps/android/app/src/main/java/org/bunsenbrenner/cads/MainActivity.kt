@@ -22,7 +22,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.AndroidViewModel
+import org.bunsenbrenner.cads.auth.AccountPort
 import org.bunsenbrenner.cads.auth.AuthManager
+import androidx.compose.runtime.remember
+import kotlinx.coroutines.CompletableDeferred
 import org.bunsenbrenner.cads.data.Catalog
 import org.bunsenbrenner.cads.data.InstallationsApi
 import org.bunsenbrenner.cads.data.RustInstallationsApi
@@ -94,20 +97,38 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun Root(vm: AppViewModel, onImmersive: (Boolean) -> Unit) {
     val signedIn by vm.auth.signedIn.collectAsState()
+    // The account bridge waits for the browser round trip: one pending sign-in at a time, completed by the launcher.
+    val pending = remember { arrayOfNulls<CompletableDeferred<Boolean>>(1) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        vm.auth.handleSignInResult(result.data) { /* signedIn flow updates the UI */ }
+        vm.auth.handleSignInResult(result.data) { ok -> pending[0]?.complete(ok); pending[0] = null }
     }
     val endSessionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { /* result not needed */ }
+    val account = remember {
+        object : AccountPort {
+            override val available: Boolean get() = vm.auth.available
+            override fun signedIn() = vm.auth.signedIn.value
+            override suspend fun login(): Boolean {
+                val intent = vm.auth.signInIntent() ?: return true   // already signed in
+                pending[0]?.complete(false)
+                val d = CompletableDeferred<Boolean>().also { pending[0] = it }
+                launcher.launch(intent)
+                return d.await()
+            }
+            override suspend fun logout() { vm.auth.signOut()?.let { endSessionLauncher.launch(it) } }
+            override suspend fun accessToken(): String? = vm.auth.freshAccessToken()
+        }
+    }
     CadsApp(
         catalog = vm.catalog,
         api = vm.api,
         signedIn = signedIn,
         beforeRequest = { vm.auth.ensureFresh() },
-        onSignIn = { launcher.launch(vm.auth.signInIntent()) },
+        onSignIn = { vm.auth.signInIntent()?.let { launcher.launch(it) } },
         onSignOut = { vm.auth.signOut()?.let { endSessionLauncher.launch(it) } },
         duellFragment = vm.duellFragment,
         duellLinkSeq = vm.duellLinkSeq,
         peerToken = { vm.auth.accessToken() },
         onImmersive = onImmersive,
+        account = account,
     )
 }

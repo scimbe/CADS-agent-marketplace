@@ -87,6 +87,7 @@ fun CadsApp(
     duellLinkSeq: Int = 0,
     peerToken: () -> String? = { null },
     onImmersive: (Boolean) -> Unit = {},
+    account: org.bunsenbrenner.cads.auth.AccountPort? = null,
 ) {
     MaterialTheme(
         colorScheme = lightColorScheme(
@@ -116,6 +117,7 @@ fun CadsApp(
                 visible = screen == Screen.Idea,
                 apiBase = BuildConfig.DUELL_API_BASE,
                 peerToken = peerToken,
+                account = account,
                 onMore = { moreOpen = true },
                 modifier = Modifier.fillMaxSize(),
             )

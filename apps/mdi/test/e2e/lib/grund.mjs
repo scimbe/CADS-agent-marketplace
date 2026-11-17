@@ -7,9 +7,13 @@ import { chromium, webkit } from "playwright";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(DIR, "../../..");
-export const PAGE = "file://" + path.join(ROOT, "dist/index.html");
+// Datei (Standard) oder laufender Server (MDI_BASE_URL), siehe ziel.mjs
+export { PAGE, BASE, URL_MODE } from "./ziel.mjs";
+import { PAGE, URL_MODE } from "./ziel.mjs";
 export const VIEWS = {
+  phone360: { viewport: { width: 360, height: 740 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
   phone390: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
+  phone412: { viewport: { width: 412, height: 915 }, deviceScaleFactor: 2.6, isMobile: true, hasTouch: true },
   desk1280: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 }
 };
 const require = createRequire(import.meta.url);
@@ -34,7 +38,27 @@ export async function open(b, { view = "phone390", lang = "de", scheme = "light"
   await p.locator("header.bar").waitFor();
   return { ctx, p, errs };
 }
-export const act = (p, id) => p.locator('[data-act="' + id + '"]').first().click();
+// Karte oeffnen: steht sie nicht auf der aktuellen Seite (Startseite zeigt nur das Blatt und diese Woche), dann ueber das Regal,
+// wo jede Karte des Registers eine Kachel hat (Strang H)
+export async function act(p, id) {
+  const l = p.locator('[data-act="' + id + '"]').first();
+  if (id.startsWith("open-") && !(await l.count())) {
+    const alle = p.locator('[data-act="intent-alle"]');
+    if (await alle.count()) { await alle.first().click(); await p.locator("main.h-at-regal").waitFor(); }
+    if (await p.locator("main.h-at-regal").count()) {   // Regal: Reiter Alles, ohne Suche und Filter, damit jede Karte eine Kachel hat
+      await p.locator('[data-act="tab-alles"]').click();
+      const q = p.locator("#h-q"); if (await q.count() && (await q.inputValue())) await q.fill("");
+      const fam = p.locator('[data-act="fam-alle"]'); if (await fam.count() && (await fam.getAttribute("aria-pressed")) !== "true") await fam.click();
+    }
+  }
+  await p.locator('[data-act="' + id + '"]').first().click();
+  // URL-Modus: nach "Los" laedt die Seite den Kartenteil vom Server und zeigt bis dahin noch "card-view" (auf file:// sofort weiter)
+  if (id === "go" && URL_MODE) await leftView(p);
+}
+/** Warten, bis die Seite "card-view" bzw. den Empfang verlassen hat (Kartenteil geladen, Partie steht). */
+export async function leftView(p, timeout = 20000) {
+  await p.waitForFunction(() => !/\bs-(card-view|receive-[a-z-]+)\b/.test(document.querySelector("main").className), null, { timeout });
+}
 export async function screen(p) { return p.locator("main").getAttribute("class").then((c) => c.split(" ").find((x) => x.startsWith("s-")).slice(2)); }
 export async function waitScreen(p, s, ms = 15000) { await p.locator("main.s-" + s).waitFor({ timeout: ms }); }
 

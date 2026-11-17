@@ -3,13 +3,17 @@
 // zuerst eine Route, die jede Anfrage ausser file:/data:/blob: abbricht und mitschreibt. Routen, die ein Test selbst
 // setzt (z. B. der falsche Live-Server), gewinnen, weil neuere Routen vorgehen. So belegt jeder Lauf: ohne Live
 // verlaesst nichts das Geraet.
+// URL-Modus (MDI_BASE_URL, test/e2e/lib/ziel.mjs): genau dieser Ursprung ist erlaubt, jeder andere Host bleibt gesperrt.
 const pw = require("playwright-core");
+const ALLOW = process.env.MDI_BASE_URL ? new URL(process.env.MDI_BASE_URL).origin : null;
 
 async function guard(ctx) {
   if (!ctx || ctx._nolive) return ctx;
   ctx._nolive = true;
   ctx._blocked = [];
-  await ctx.route(/^https?:|^wss?:/, (r) => { ctx._blocked.push(r.request().method() + " " + r.request().url()); return r.abort("blockedbyclient"); });
+  await ctx.route(/^https?:|^wss?:/, (r) => {
+    if (ALLOW && new URL(r.request().url()).origin === ALLOW) return r.fallback();
+    ctx._blocked.push(r.request().method() + " " + r.request().url()); return r.abort("blockedbyclient"); });
   return ctx;
 }
 function wrapBrowser(b) {

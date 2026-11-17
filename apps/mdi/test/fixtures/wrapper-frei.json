@@ -1,0 +1,2483 @@
+{
+ "herkunft": "Aufgenommen mit scripts/record-frei.mjs gegen CADS-DEMO-wrapper @ 5d8e938 (lib/duell-ai.mjs, duell-karte.mjs, duell-frei.mjs, duell-absage.mjs, duell-deck.mjs, duell-mod.mjs, duell-credit.mjs, duell-report.mjs, duell-bild.mjs, duell.mjs Schlange; Routenreihenfolge wie server.mjs). Gate und Modell als Doppel (feste Antworten), Bild-Backend stub, Uhr fest ab 2026-11-11T09:00:00.000Z.",
+ "host": "demos-34a13a96.bunsenbrenner.org",
+ "device": "0123456789abcdef0123456789abcdef",
+ "exchanges": [
+  {
+   "name": "karte-anonym",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "card",
+      "text": "Geburtstagskarte für meine Freundin"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 401,
+    "body": {
+     "error": "login",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": false,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-ohne-16",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "card",
+      "text": "Geburtstagskarte für meine Freundin"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 403,
+    "body": {
+     "error": "age16",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "status-angemeldet-16",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai/status",
+    "body": {
+     "device": "0123456789abcdef0123456789abcdef"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 0,
+      "remaining": 5,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false,
+      "paused": false,
+      "off": false,
+      "age16": true,
+      "age18": false,
+      "credit": 0,
+      "voucher": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-krise",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "card",
+      "text": "ich will nicht mehr leben"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 422,
+    "body": {
+     "error": "blocked",
+     "why": "crisis",
+     "help": "Du bist nicht allein. Nummer gegen Kummer: 116 111 (kostenlos, anonym). TelefonSeelsorge: 0800 111 0 111, rund um die Uhr.",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-ohne-kategorie",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "",
+      "text": "Geburtstagskarte für meine Freundin"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 400,
+    "body": {
+     "error": "bad-request",
+     "why": "art"
+    }
+   }
+  },
+  {
+   "name": "karte-absage-tetris",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "game",
+      "text": "Tetris mit bunten Steinen",
+      "genre": "G1"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [],
+     "notyet": true,
+     "reason": "tetris",
+     "alt": {
+      "kind": "katalog",
+      "id": "zug-steine",
+      "satz": "Gleiche Steine für uns beide"
+     },
+     "catalog": [
+      "zug-steine"
+     ],
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 0,
+      "remaining": 5,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-absage-sound",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "sound",
+      "text": "Beat für mein Team"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [],
+     "notyet": true,
+     "reason": "sound",
+     "alt": {
+      "kind": "katalog",
+      "id": "beat-pausenhof",
+      "satz": "Bau einen Beat"
+     },
+     "catalog": [
+      "beat-pausenhof"
+     ],
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 0,
+      "remaining": 5,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-genre-frage",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "game",
+      "text": "Endless Runner über Brücken",
+      "genre": "G1"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [],
+     "notyet": {
+      "what": "genre",
+      "name": "G2",
+      "chosen": "G1"
+     },
+     "catalog": [],
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 0,
+      "remaining": 5,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-noch-nicht-spiel",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "game",
+      "text": "Ein Zahlen-Schiebepuzzle wie 2048"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [],
+     "notyet": {
+      "what": "game",
+      "name": "Zahlen-Schiebepuzzle"
+     },
+     "catalog": [
+      "zug-steine"
+     ],
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 0,
+      "remaining": 5,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-ok-card",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "card",
+      "text": "Geburtstagskarte für meine Freundin, sie liebt Sonnenblumen"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [
+      {
+       "art": "card",
+       "doc": {
+        "k": "card",
+        "col": [
+         "#ffd400",
+         "#ff3b1d"
+        ],
+        "by": [],
+        "t": "Sonnenblumen-Tag",
+        "x": "Alles Gute! Du bringst Sonne in jeden Tag.",
+        "st": "herz",
+        "sk": [
+         {
+          "e": "🌻",
+          "x": 0.119,
+          "y": 0.147,
+          "r": -0.172,
+          "z": 1.038
+         },
+         {
+          "e": "🎂",
+          "x": 0.144,
+          "y": 0.851,
+          "r": -0.156,
+          "z": 0.998
+         },
+         {
+          "e": "✨",
+          "x": 0.883,
+          "y": 0.111,
+          "r": 0.08,
+          "z": 0.991
+         }
+        ]
+       },
+       "ki": {
+        "k": "karte",
+        "s": "s2.karte.mwbw1pc0.XcjB3oJ9mEDMdWVoEi9Zi5to5iNRAUL1",
+        "h": "6v-iwp49U8t5g-4w8DvGrXbw43BI8NPS_-X_dBRl5hc",
+        "o": "4J2kZ7tMNA9cHUKBOyIiCH"
+       }
+      }
+     ],
+     "seals": [
+      "s2.karte.mwbw1pc0.XcjB3oJ9mEDMdWVoEi9Zi5to5iNRAUL1"
+     ],
+     "hashes": [
+      "6v-iwp49U8t5g-4w8DvGrXbw43BI8NPS_-X_dBRl5hc"
+     ],
+     "cost": 1,
+     "receipt": "r1.c.8Jj5hwdqrtQ.1.0000-00.tobzq0.GGMXxFC15RPPBG4ryHo_GV",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 1,
+      "remaining": 4,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-accept",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai/accept",
+    "body": {
+     "device": "0123456789abcdef0123456789abcdef",
+     "receipt": "r1.c.8Jj5hwdqrtQ.1.0000-00.tobzq0.GGMXxFC15RPPBG4ryHo_GV"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "final": true,
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 1,
+      "remaining": 4,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "status-nach-accept",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai/status",
+    "body": {
+     "device": "0123456789abcdef0123456789abcdef"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 1,
+      "remaining": 4,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false,
+      "paused": false,
+      "off": false,
+      "age16": true,
+      "age18": false,
+      "credit": 0,
+      "voucher": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-ok-meme",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "meme",
+      "text": "Mein Hund schaut beleidigt, weil es kein Leckerli gab"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [
+      {
+       "art": "meme",
+       "doc": {
+        "k": "photo",
+        "col": [
+         "#ffd400",
+         "#ff3b1d"
+        ],
+        "by": [],
+        "t": "Kein Leckerli",
+        "x": "Wenn du sagst",
+        "y": "Heute kein Leckerli",
+        "st": "meme",
+        "sk": []
+       },
+       "ki": {
+        "k": "karte",
+        "s": "s2.karte.mwbw1pc0.EkjLrwkMU12Lwh8WxHRpkgPA7LjqJSX0",
+        "h": "MWy0AHydhtXc9gpBACJUZL6D6xq_XEdhM7XEFmqHpAQ",
+        "o": "6mtrwxf4b2I1ppYJqGB0ay"
+       }
+      }
+     ],
+     "seals": [
+      "s2.karte.mwbw1pc0.EkjLrwkMU12Lwh8WxHRpkgPA7LjqJSX0"
+     ],
+     "hashes": [
+      "MWy0AHydhtXc9gpBACJUZL6D6xq_XEdhM7XEFmqHpAQ"
+     ],
+     "cost": 1,
+     "receipt": "r1.c.b28dFKtPpoM.1.0000-00.tobzq0.vzxWGjm30aYKXmjbsjf3Hq",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 2,
+      "remaining": 3,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-discard",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai/discard",
+    "body": {
+     "device": "0123456789abcdef0123456789abcdef",
+     "receipt": "r1.c.b28dFKtPpoM.1.0000-00.tobzq0.vzxWGjm30aYKXmjbsjf3Hq"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "refunded": 1,
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 1,
+      "remaining": 4,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 1,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-ok-game",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "game",
+      "text": "Unter Wasser mit Fischen, dann ein Sturm",
+      "genre": "G1"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:tom"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [
+      {
+       "art": "game",
+       "doc": {
+        "k": "game",
+        "col": [
+         "#ffd400",
+         "#ff3b1d"
+        ],
+        "by": [],
+        "t": "Tiefsee-Sturm",
+        "g": {
+         "seed": 1197465097,
+         "params": {
+          "gravity": 1800,
+          "jump": 430,
+          "gap": 140,
+          "speed": 130
+         },
+         "theme": "ocean",
+         "title": "Tiefsee-Sturm",
+         "emoji": "🐠",
+         "look": {
+          "d": "bubbles"
+         },
+         "route": [
+          {
+           "p": "ruhig",
+           "d": {
+            "gravity": -200,
+            "gap": 20,
+            "speed": -20
+           },
+           "t": "ocean",
+           "e": "🐟"
+          },
+          {
+           "p": "sturm",
+           "d": {
+            "gap": -15,
+            "speed": 30
+           },
+           "t": "night",
+           "e": "⚡"
+          },
+          {
+           "p": "schnell",
+           "d": {
+            "speed": 40
+           },
+           "t": "ocean",
+           "e": "🐳"
+          }
+         ]
+        }
+       },
+       "ki": {
+        "k": "karte",
+        "s": "s2.karte.mwbw1pc0.5HNNXonbvcIfZlgOHchXobj9XAphQWrn",
+        "h": "FWdrf3LLBZRYE7H_1VVEP_xAG8a4Zvrp1vHyUuTJSL8",
+        "o": "lPIHZyE2kSiva-l4cFAgcj"
+       }
+      }
+     ],
+     "seals": [
+      "s2.karte.mwbw1pc0.5HNNXonbvcIfZlgOHchXobj9XAphQWrn"
+     ],
+     "hashes": [
+      "FWdrf3LLBZRYE7H_1VVEP_xAG8a4Zvrp1vHyUuTJSL8"
+     ],
+     "cost": 1,
+     "receipt": "r1.c.BLuWuj6FBkw.1.0000-00.tobzq0.z3hQ86oP216v5G1Qvp4CF5",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 1,
+      "remaining": 4,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-ok-lauf",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "game",
+      "text": "Endless Runner über Brücken",
+      "genre": "G2"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:tom"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [
+      {
+       "art": "lauf",
+       "doc": {
+        "k": "lauf",
+        "col": [
+         "#2b4bff",
+         "#ffe600"
+        ],
+        "by": [],
+        "t": "Brückenlauf",
+        "l": {
+         "m": "endlos",
+         "seed": 1843114889,
+         "w": "bruecke",
+         "e": "🦊",
+         "o": "📦",
+         "c": "🪙",
+         "f": "🐦",
+         "fp": [
+          "geh"
+         ],
+         "p": {
+          "g": 2000,
+          "j": 700,
+          "v": 200,
+          "a": 9,
+          "vm": 360,
+          "lu": 45,
+          "lw": 75,
+          "hi": 40,
+          "du": 0,
+          "mu": 60,
+          "ge": 0,
+          "fa": 0,
+          "hv": 35,
+          "len": 700
+         },
+         "ev": 1
+        }
+       },
+       "ki": {
+        "k": "karte",
+        "s": "s2.karte.mwbw1pc0.i271SXpURrxeZQpO2tMHxzr-ufodpCIy",
+        "h": "zP47rJBxw4fp1HnmOV82wdHDTDpTq0Vezr43q3ffG6A",
+        "o": "HKx472QpYH4hYtzjKRkvaA"
+       }
+      }
+     ],
+     "seals": [
+      "s2.karte.mwbw1pc0.i271SXpURrxeZQpO2tMHxzr-ufodpCIy"
+     ],
+     "hashes": [
+      "zP47rJBxw4fp1HnmOV82wdHDTDpTq0Vezr43q3ffG6A"
+     ],
+     "cost": 1,
+     "receipt": "r1.c.XTfRHXgw5Ps.1.0000-00.tobzq0.FxVEM5JYolt9FMjb1j8X1w",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 2,
+      "remaining": 3,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-ok-quiz",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "quiz",
+      "text": "Quiz über das Sonnensystem"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:tom"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [
+      {
+       "art": "quiz",
+       "doc": {
+        "k": "turn",
+        "col": [
+         "#ff6a1f",
+         "#1b2bd8"
+        ],
+        "by": [],
+        "t": "Unser Sonnensystem",
+        "g": "quiz",
+        "seed": 145462858,
+        "q": "",
+        "f": "bolt",
+        "pk": {
+         "t": "Unser Sonnensystem",
+         "m": "l",
+         "q": [
+          [
+           "Welcher Planet ist der Sonne am nächsten?",
+           "Merkur",
+           "Venus",
+           "Mars",
+           "Erde"
+          ],
+          [
+           "Welcher Planet ist der größte?",
+           "Jupiter",
+           "Saturn",
+           "Neptun",
+           "Erde"
+          ],
+          [
+           "Wie heißt der rote Planet?",
+           "Mars",
+           "Venus",
+           "Uranus",
+           "Merkur"
+          ],
+          [
+           "Was umkreist die Erde?",
+           "Der Mond",
+           "Die Sonne",
+           "Der Mars",
+           "Ein Komet"
+          ]
+         ]
+        }
+       },
+       "ki": {
+        "k": "karte",
+        "s": "s2.karte.mwbw1pc0.24G0_lcIWF4Fdj4z2vey-4guHpu6udXu",
+        "h": "K3K7AJM0DUBL8uyj5_gedU3wzYWzMGcBF3raQjXmjlQ",
+        "o": "tKth2odsojBqLziO0Em5h6"
+       }
+      }
+     ],
+     "seals": [
+      "s2.karte.mwbw1pc0.24G0_lcIWF4Fdj4z2vey-4guHpu6udXu"
+     ],
+     "hashes": [
+      "K3K7AJM0DUBL8uyj5_gedU3wzYWzMGcBF3raQjXmjlQ"
+     ],
+     "cost": 1,
+     "receipt": "r1.c.ql6BiVs6sLg.1.0000-00.tobzq0.hMrnucw_e4rZkbdc4TtuEW",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 3,
+      "remaining": 2,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-ok-faehigkeit",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "faehigkeit",
+      "text": "Wann können alle zum Grillen?"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:tom"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [
+      {
+       "art": "faehigkeit",
+       "doc": {
+        "k": "turn",
+        "col": [
+         "#ff4fa3",
+         "#0a7f55"
+        ],
+        "by": [],
+        "i": "zug-termin",
+        "t": "Grillabend",
+        "s": "Termine antippen, alle stimmen ab.",
+        "g": "termin",
+        "seed": 3943903906,
+        "q": "",
+        "f": "star"
+       },
+       "ki": {
+        "k": "karte",
+        "s": "s2.karte.mwbw1pc0.MdOpyO6QQrGe2HEHVvP5MOBbWQ243rCd",
+        "h": "SQlqBYjKWLukRUUoS8F9XBtoD7HwGTL2q9u9m_I7TkE",
+        "o": "2IUb7YhYxs0ilALZr5tsMc"
+       }
+      }
+     ],
+     "seals": [
+      "s2.karte.mwbw1pc0.MdOpyO6QQrGe2HEHVvP5MOBbWQ243rCd"
+     ],
+     "hashes": [
+      "SQlqBYjKWLukRUUoS8F9XBtoD7HwGTL2q9u9m_I7TkE"
+     ],
+     "cost": 1,
+     "receipt": "r1.c.n0ILRyo-SbA.1.0000-00.tobzq0.fnWvJULESh1JYPWRPb-gtQ",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 4,
+      "remaining": 1,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-robot-katalog",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "text": "Im Weltraum, mit Raketen",
+      "from": "zug-termin"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:max"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [
+      {
+       "art": "faehigkeit",
+       "doc": {
+        "k": "turn",
+        "col": [
+         "#ffd400",
+         "#ff3b1d"
+        ],
+        "by": [],
+        "i": "zug-termin",
+        "t": "Grillabend",
+        "s": "Termine antippen, alle stimmen ab.",
+        "g": "termin",
+        "seed": 118157789,
+        "q": "",
+        "f": "star"
+       },
+       "ki": {
+        "k": "karte",
+        "s": "s2.karte.mwbw1pc0.EMBvx1P0Lbafs8J0rSmmS_-HTxZ3f6yo",
+        "h": "3HAEl3J3oIv1P15sfR0SqIDgjZ7TRhsubaKiasAf95A",
+        "o": "fyEexdiFBxVUS_Joa47-mh"
+       }
+      }
+     ],
+     "seals": [
+      "s2.karte.mwbw1pc0.EMBvx1P0Lbafs8J0rSmmS_-HTxZ3f6yo"
+     ],
+     "hashes": [
+      "3HAEl3J3oIv1P15sfR0SqIDgjZ7TRhsubaKiasAf95A"
+     ],
+     "cost": 1,
+     "receipt": "r1.c.1m5OGQoCd-8.1.0000-00.tobzq0.mwtmC6GFa24i430W2Ibjfx",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 1,
+      "remaining": 4,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-robot-gleich",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "text": "Nochmal genau so",
+      "base": {
+       "k": "card",
+       "col": [
+        "#ffd400",
+        "#ff3b1d"
+       ],
+       "by": [],
+       "t": "Sonnenblumen-Tag",
+       "x": "Alles Gute! Du bringst Sonne in jeden Tag.",
+       "st": "herz",
+       "sk": [
+        {
+         "e": "🌻",
+         "x": 0.119,
+         "y": 0.147,
+         "r": -0.172,
+         "z": 1.038
+        },
+        {
+         "e": "🎂",
+         "x": 0.144,
+         "y": 0.851,
+         "r": -0.156,
+         "z": 0.998
+        },
+        {
+         "e": "✨",
+         "x": 0.883,
+         "y": 0.111,
+         "r": 0.08,
+         "z": 0.991
+        }
+       ],
+       "ki": {
+        "k": "karte",
+        "s": "s2.karte.mwbw1pc0.XcjB3oJ9mEDMdWVoEi9Zi5to5iNRAUL1",
+        "h": "6v-iwp49U8t5g-4w8DvGrXbw43BI8NPS_-X_dBRl5hc",
+        "o": "4J2kZ7tMNA9cHUKBOyIiCH"
+       }
+      }
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:max"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [
+      {
+       "art": "card",
+       "doc": {
+        "k": "card",
+        "col": [
+         "#ffd400",
+         "#ff3b1d"
+        ],
+        "by": [],
+        "t": "Sonnenblumen-Tag",
+        "x": "Alles Gute! Du bringst Sonne in jeden Tag.",
+        "st": "herz",
+        "sk": [
+         {
+          "e": "🌻",
+          "x": 0.849,
+          "y": 0.907,
+          "r": -0.057,
+          "z": 0.937
+         },
+         {
+          "e": "🎂",
+          "x": 0.128,
+          "y": 0.852,
+          "r": 0.256,
+          "z": 0.945
+         },
+         {
+          "e": "✨",
+          "x": 0.153,
+          "y": 0.124,
+          "r": -0.216,
+          "z": 0.917
+         }
+        ]
+       },
+       "ki": {
+        "k": "karte",
+        "s": "s2.karte.mwbw1pc0.K20qklUUDwcayzefalAiThHHWKO7svcE",
+        "h": "YHKtZuu33zNlmZEtLVkWc3V8wCvplDKsXBGk2WjY_pw",
+        "o": "jJq0OEqsW_RS3kHCkb5viV"
+       }
+      }
+     ],
+     "seals": [
+      "s2.karte.mwbw1pc0.K20qklUUDwcayzefalAiThHHWKO7svcE"
+     ],
+     "hashes": [
+      "YHKtZuu33zNlmZEtLVkWc3V8wCvplDKsXBGk2WjY_pw"
+     ],
+     "cost": 1,
+     "receipt": "r1.c.44Cq9HYmC10.1.0000-00.tobzq0.wvPG8Ne8y7WzoJsw6PFnkg",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 2,
+      "remaining": 3,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "deck-status-privat",
+   "req": {
+    "method": "GET",
+    "path": "/api/duell/deck/status?c=6v-iwp49U8t5g-4w8DvGrX",
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "c": "6v-iwp49U8t5g-4w8DvGrX",
+     "st": "ok"
+    }
+   }
+  },
+  {
+   "name": "deck-status-unbekannt",
+   "req": {
+    "method": "GET",
+    "path": "/api/duell/deck/status?c=AAAAAAAAAAAAAAAAAAAAAA",
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "c": "AAAAAAAAAAAAAAAAAAAAAA",
+     "st": "unknown"
+    }
+   }
+  },
+  {
+   "name": "deck-use-anonym",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/deck/use",
+    "body": {
+     "ki": {
+      "k": "karte",
+      "s": "s2.karte.mwbw1pc0.XcjB3oJ9mEDMdWVoEi9Zi5to5iNRAUL1",
+      "h": "6v-iwp49U8t5g-4w8DvGrXbw43BI8NPS_-X_dBRl5hc",
+      "o": "4J2kZ7tMNA9cHUKBOyIiCH"
+     },
+     "ev": "start"
+    },
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 401,
+    "body": {
+     "error": "login"
+    }
+   }
+  },
+  {
+   "name": "deck-use-start",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/deck/use",
+    "body": {
+     "ki": {
+      "k": "karte",
+      "s": "s2.karte.mwbw1pc0.XcjB3oJ9mEDMdWVoEi9Zi5to5iNRAUL1",
+      "h": "6v-iwp49U8t5g-4w8DvGrXbw43BI8NPS_-X_dBRl5hc",
+      "o": "4J2kZ7tMNA9cHUKBOyIiCH"
+     },
+     "ev": "start"
+    },
+    "session": "signed-in:tom"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "t": "mwbw1pc0.PowFBuHGn1XoMjdh758g-9"
+    }
+   }
+  },
+  {
+   "name": "deck-use-done",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/deck/use",
+    "body": {
+     "ki": {
+      "k": "karte",
+      "s": "s2.karte.mwbw1pc0.XcjB3oJ9mEDMdWVoEi9Zi5to5iNRAUL1",
+      "h": "6v-iwp49U8t5g-4w8DvGrXbw43BI8NPS_-X_dBRl5hc",
+      "o": "4J2kZ7tMNA9cHUKBOyIiCH"
+     },
+     "ev": "done",
+     "t": "mwbw1pc0.PowFBuHGn1XoMjdh758g-9"
+    },
+    "session": "signed-in:tom"
+   },
+   "res": {
+    "status": 204
+   }
+  },
+  {
+   "name": "deck-vote",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/deck/vote",
+    "body": {
+     "ki": {
+      "k": "karte",
+      "s": "s2.karte.mwbw1pc0.XcjB3oJ9mEDMdWVoEi9Zi5to5iNRAUL1",
+      "h": "6v-iwp49U8t5g-4w8DvGrXbw43BI8NPS_-X_dBRl5hc",
+      "o": "4J2kZ7tMNA9cHUKBOyIiCH"
+     },
+     "v": 1,
+     "t": "mwbw1pc0.PowFBuHGn1XoMjdh758g-9"
+    },
+    "session": "signed-in:tom"
+   },
+   "res": {
+    "status": 204
+   }
+  },
+  {
+   "name": "deck-use-start",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/deck/use",
+    "body": {
+     "ki": {
+      "k": "karte",
+      "s": "s2.karte.mwbw1pc0.XcjB3oJ9mEDMdWVoEi9Zi5to5iNRAUL1",
+      "h": "6v-iwp49U8t5g-4w8DvGrXbw43BI8NPS_-X_dBRl5hc",
+      "o": "4J2kZ7tMNA9cHUKBOyIiCH"
+     },
+     "ev": "start"
+    },
+    "session": "signed-in:max"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "t": "mwbw25jc.IKCgVORr573QNKPy9U6-7s"
+    }
+   }
+  },
+  {
+   "name": "deck-use-done",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/deck/use",
+    "body": {
+     "ki": {
+      "k": "karte",
+      "s": "s2.karte.mwbw1pc0.XcjB3oJ9mEDMdWVoEi9Zi5to5iNRAUL1",
+      "h": "6v-iwp49U8t5g-4w8DvGrXbw43BI8NPS_-X_dBRl5hc",
+      "o": "4J2kZ7tMNA9cHUKBOyIiCH"
+     },
+     "ev": "done",
+     "t": "mwbw25jc.IKCgVORr573QNKPy9U6-7s"
+    },
+    "session": "signed-in:max"
+   },
+   "res": {
+    "status": 204
+   }
+  },
+  {
+   "name": "deck-vote",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/deck/vote",
+    "body": {
+     "ki": {
+      "k": "karte",
+      "s": "s2.karte.mwbw1pc0.XcjB3oJ9mEDMdWVoEi9Zi5to5iNRAUL1",
+      "h": "6v-iwp49U8t5g-4w8DvGrXbw43BI8NPS_-X_dBRl5hc",
+      "o": "4J2kZ7tMNA9cHUKBOyIiCH"
+     },
+     "v": 1,
+     "t": "mwbw25jc.IKCgVORr573QNKPy9U6-7s"
+    },
+    "session": "signed-in:max"
+   },
+   "res": {
+    "status": 204
+   }
+  },
+  {
+   "name": "deck-key",
+   "req": {
+    "method": "GET",
+    "path": "/api/duell/deck/key",
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kid": "WzGDu1mT",
+     "alg": "Ed25519",
+     "pub": "jAfj7zdcKnGru7-RQTgtBUwGPF9qDevyPj-jliHHs2I"
+    }
+   }
+  },
+  {
+   "name": "deck-mit-karte",
+   "req": {
+    "method": "GET",
+    "path": "/api/duell/deck",
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "v": 1,
+     "at": "2026-11-11T09:00:42.000Z",
+     "kid": "WzGDu1mT",
+     "cards": [
+      {
+       "cid": "6v-iwp49U8t5g-4w8DvGrX",
+       "doc": {
+        "k": "card",
+        "col": [
+         "#ffd400",
+         "#ff3b1d"
+        ],
+        "by": [],
+        "t": "Sonnenblumen-Tag",
+        "x": "Alles Gute! Du bringst Sonne in jeden Tag.",
+        "st": "herz",
+        "sk": [
+         {
+          "e": "🌻",
+          "x": 0.119,
+          "y": 0.147,
+          "r": -0.172,
+          "z": 1.038
+         },
+         {
+          "e": "🎂",
+          "x": 0.144,
+          "y": 0.851,
+          "r": -0.156,
+          "z": 0.998
+         },
+         {
+          "e": "✨",
+          "x": 0.883,
+          "y": 0.111,
+          "r": 0.08,
+          "z": 0.991
+         }
+        ],
+        "ki": {
+         "k": "karte",
+         "s": "s2.karte.mwbw1pc0.XcjB3oJ9mEDMdWVoEi9Zi5to5iNRAUL1",
+         "h": "6v-iwp49U8t5g-4w8DvGrXbw43BI8NPS_-X_dBRl5hc",
+         "o": "4J2kZ7tMNA9cHUKBOyIiCH"
+        }
+       }
+      }
+     ],
+     "revoked": [],
+     "sig": "x2zsl-9HvlfVJFA-JuOJxnTSUFcZjMVtMGTkHXlrgZE5a84A4ggFnSYSiAuMmclXeZQA6gJJ2RwO5LUzgTxWAg"
+    }
+   }
+  },
+  {
+   "name": "deck-status-ok",
+   "req": {
+    "method": "GET",
+    "path": "/api/duell/deck/status?c=6v-iwp49U8t5g-4w8DvGrX",
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "c": "6v-iwp49U8t5g-4w8DvGrX",
+     "st": "ok"
+    }
+   }
+  },
+  {
+   "name": "deck-me",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/deck/me",
+    "body": {},
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "cards": [
+      {
+       "cid": "6v-iwp49U8t5g-4w8DvGrX",
+       "st": "deck"
+      }
+     ],
+     "credit": {
+      "balance": 5,
+      "items": [
+       {
+        "cid": "6v-iwp49U8t5g-4w8DvGrX",
+        "reason": "use",
+        "n": 2,
+        "at": "2026-11-11T09:00:42.000Z",
+        "revoked": false
+       },
+       {
+        "cid": "6v-iwp49U8t5g-4w8DvGrX",
+        "reason": "deck",
+        "n": 3,
+        "at": "2026-11-11T09:00:42.000Z",
+        "revoked": false
+       }
+      ],
+      "transferable": false,
+      "purchasable": false,
+      "payable": false,
+      "abo": {
+       "offered": false,
+       "why": "provider-open",
+       "minAge": 18
+      }
+     },
+     "mod": {
+      "st": "ok"
+     }
+    }
+   }
+  },
+  {
+   "name": "deck-me-anonym",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/deck/me",
+    "body": {},
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 401,
+    "body": {
+     "error": "login"
+    }
+   }
+  },
+  {
+   "name": "report-ok",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/report",
+    "body": {
+     "reason": "wrong",
+     "consent": true,
+     "kind": "karte",
+     "seal": "s2.karte.mwbw1pc0.XcjB3oJ9mEDMdWVoEi9Zi5to5iNRAUL1",
+     "optionHash": "6v-iwp49U8t5g-4w8DvGrXbw43BI8NPS_-X_dBRl5hc",
+     "content": {
+      "type": "card",
+      "t": "Sonnenblumen-Tag"
+     }
+    },
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 202,
+    "body": {
+     "id": "UUOY2T8HR6xV"
+    }
+   }
+  },
+  {
+   "name": "deck-status-gesperrt",
+   "req": {
+    "method": "GET",
+    "path": "/api/duell/deck/status?c=6v-iwp49U8t5g-4w8DvGrX",
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "c": "6v-iwp49U8t5g-4w8DvGrX",
+     "st": "blocked"
+    }
+   }
+  },
+  {
+   "name": "ki-line",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "line",
+     "input": {
+      "text": "Du schaffst das",
+      "style": "druck"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:kim"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "line",
+     "options": [
+      "Du rockst den Tag!",
+      "Heute zählt nur Mut.",
+      "Kleiner Schritt, große Wirkung."
+     ],
+     "seals": [
+      "s2.line.mwbw2lqo.t5f1IG2c3tgvuvuerrzEf9qblknynmPO",
+      "s2.line.mwbw2lqo.RExGfFfKQlLQ-pL2_jiXm109AJrVQAOM",
+      "s2.line.mwbw2lqo.C3AB_EfAthukuJdno7m7IntDhl4bI_cy"
+     ],
+     "hashes": [
+      "VoFxmU9yC8FTuXjdtl3Q6TYfmSSRRyOhgJ8cPD7IGfk",
+      "nuxeFtbSZX6hnMX0Aa68N1_iSEF2MoFHXGetPGV5wiY",
+      "zAF0Q4Qai9v17C7ozkPnonNQDtwXUjaxlv0ftSfOUMI"
+     ],
+     "cost": 1,
+     "receipt": "r1.f.RvsJ73fMGDc.1.2026-W46.tobzr6.YK24r2FTP6pJQLf3_GY824",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 1,
+      "remaining": 6,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "bild-status-anonym",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/bild/status",
+    "body": {},
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "on": true,
+     "login": false
+    }
+   }
+  },
+  {
+   "name": "bild-status",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/bild/status",
+    "body": {},
+    "session": "signed-in:kim"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "on": true,
+     "login": true,
+     "age16": true,
+     "free": {
+      "left": 3,
+      "size": 3,
+      "period": "month"
+     },
+     "credit": 0,
+     "perDay": {
+      "left": 10,
+      "size": 10
+     },
+     "can": {
+      "card": true,
+      "logo": true,
+      "avatar": false
+     },
+     "why": {
+      "card": "",
+      "logo": "",
+      "avatar": "credit"
+     },
+     "avatar": null,
+     "estS": {
+      "card": 13,
+      "logo": 8,
+      "avatar": 8
+     },
+     "deadlineS": 30
+    }
+   }
+  },
+  {
+   "name": "bild-krise",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/bild",
+    "body": {
+     "use": "card",
+     "text": "ich will nicht mehr leben",
+     "style": "comic",
+     "lang": "de"
+    },
+    "session": "signed-in:kim"
+   },
+   "res": {
+    "status": 422,
+    "body": {
+     "error": "blocked",
+     "why": "crisis",
+     "help": "Du bist nicht allein. Nummer gegen Kummer: 116 111 (kostenlos, anonym). TelefonSeelsorge: 0800 111 0 111, rund um die Uhr."
+    }
+   }
+  },
+  {
+   "name": "bild-avatar-ohne-guthaben",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/bild",
+    "body": {
+     "use": "avatar",
+     "text": "Ein Fuchs mit Brille",
+     "style": "comic",
+     "lang": "de"
+    },
+    "session": "signed-in:kim"
+   },
+   "res": {
+    "status": 402,
+    "body": {
+     "error": "credit",
+     "why": "avatar-needs-credit",
+     "credit": 0
+    }
+   }
+  },
+  {
+   "name": "bild-auftrag",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/bild",
+    "body": {
+     "use": "card",
+     "text": "Ein Fuchs, der Pizza liefert",
+     "style": "comic",
+     "lang": "de"
+    },
+    "session": "signed-in:kim"
+   },
+   "res": {
+    "status": 202,
+    "body": {
+     "job": "hT9prCeCrzgKt2C0",
+     "state": "generating",
+     "position": 0,
+     "etaS": 13,
+     "paid": "free",
+     "deadlineS": 30
+    }
+   }
+  },
+  {
+   "name": "bild-job-fertig",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/bild/job",
+    "body": {
+     "job": "hT9prCeCrzgKt2C0"
+    },
+    "session": "signed-in:kim"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "state": "done",
+     "id": "EX-Ofbz0jr7JbgwUyL9uMA",
+     "url": "/duell/bild/EX-Ofbz0jr7JbgwUyL9uMA.png",
+     "seal": "s2.bild.mwbw2lqo.nVLmy33SoBVa_aECnJQAu-4NMqzRUop6",
+     "w": 512,
+     "h": 768,
+     "use": "card",
+     "paid": "free"
+    }
+   }
+  },
+  {
+   "name": "bild-datei",
+   "req": {
+    "method": "GET",
+    "path": "/duell/bild/EX-Ofbz0jr7JbgwUyL9uMA.png",
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 200,
+    "contentType": "image/png",
+    "bytes": 10265,
+    "base64": "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"
+   }
+  },
+  {
+   "name": "bild-keep",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/bild/keep",
+    "body": {
+     "id": "EX-Ofbz0jr7JbgwUyL9uMA"
+    },
+    "session": "signed-in:kim"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kept": true
+    }
+   }
+  },
+  {
+   "name": "status-leer",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai/status",
+    "body": {
+     "device": "0123456789abcdef0123456789abcdef"
+    },
+    "session": "signed-in:tom"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 1,
+      "used": 1,
+      "remaining": 0,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 0,
+      "account": true,
+      "canLogin": true,
+      "free": 1,
+      "abo": false,
+      "paused": false,
+      "off": false,
+      "age16": true,
+      "age18": false,
+      "credit": 0,
+      "voucher": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-kein-kontingent",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "card",
+      "text": "Viel Glück bei der Prüfung morgen"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:tom"
+   },
+   "res": {
+    "status": 429,
+    "body": {
+     "error": "quota",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 1,
+      "used": 1,
+      "remaining": 0,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 0,
+      "account": true,
+      "canLogin": true,
+      "free": 1,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-warteschlange",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "card",
+      "text": "Ein Frosch, der Astronaut werden will"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:max"
+   },
+   "res": {
+    "status": 202,
+    "body": {
+     "queued": true,
+     "ticket": "6mwbfemdUKaRPaoURi4gtQ",
+     "position": 0,
+     "etaS": 1
+    }
+   }
+  },
+  {
+   "name": "karte-queue-202",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/queue",
+    "body": {
+     "ticket": "6mwbfemdUKaRPaoURi4gtQ"
+    },
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 202,
+    "body": {
+     "queued": true,
+     "ticket": "6mwbfemdUKaRPaoURi4gtQ",
+     "position": 0,
+     "etaS": 1
+    }
+   }
+  },
+  {
+   "name": "karte-queue-fertig",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/queue",
+    "body": {
+     "ticket": "6mwbfemdUKaRPaoURi4gtQ"
+    },
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "kind": "karte",
+     "options": [
+      {
+       "art": "card",
+       "doc": {
+        "k": "card",
+        "col": [
+         "#ffd400",
+         "#ff3b1d"
+        ],
+        "by": [],
+        "t": "Sonnenblumen-Tag",
+        "x": "Alles Gute! Du bringst Sonne in jeden Tag.",
+        "st": "herz",
+        "sk": [
+         {
+          "e": "🌻",
+          "x": 0.879,
+          "y": 0.112,
+          "r": 0.113,
+          "z": 1.005
+         },
+         {
+          "e": "🎂",
+          "x": 0.139,
+          "y": 0.103,
+          "r": 0.051,
+          "z": 1.034
+         },
+         {
+          "e": "✨",
+          "x": 0.103,
+          "y": 0.909,
+          "r": 0.273,
+          "z": 0.992
+         }
+        ]
+       },
+       "ki": {
+        "k": "karte",
+        "s": "s2.karte.mwbw2lqo.tS4hcgnHYsA3BgpGvYXOhbMISA02jz72",
+        "h": "e9dnPHtaHLCcYjX4lJ2MGuooXLkvJM80CH5C7CXBVVQ",
+        "o": "5VXFRrxKPW7_qZk-v3CBFG"
+       }
+      }
+     ],
+     "seals": [
+      "s2.karte.mwbw2lqo.tS4hcgnHYsA3BgpGvYXOhbMISA02jz72"
+     ],
+     "hashes": [
+      "e9dnPHtaHLCcYjX4lJ2MGuooXLkvJM80CH5C7CXBVVQ"
+     ],
+     "cost": 1,
+     "receipt": "r1.c.xgE0JgLTv0E.1.0000-00.tobzr6.zyNqQpP1ogo1-macdEdp_z",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 1,
+      "remaining": 4,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-queue-verfallen",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/queue",
+    "body": {
+     "ticket": "abcd1234unbekannt"
+    },
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 404,
+    "body": {
+     "error": "ticket"
+    }
+   }
+  },
+  {
+   "name": "status-karte-aus",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai/status",
+    "body": {
+     "device": "0123456789abcdef0123456789abcdef"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 0,
+      "remaining": 5,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false,
+      "paused": false,
+      "off": true,
+      "age16": true,
+      "age18": false,
+      "credit": 0,
+      "voucher": false
+     }
+    }
+   }
+  },
+  {
+   "name": "karte-aus",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai",
+    "body": {
+     "kind": "karte",
+     "input": {
+      "art": "card",
+      "text": "Danke an mein Team"
+     },
+     "device": "0123456789abcdef0123456789abcdef",
+     "proof": "0",
+     "lang": "de",
+     "queue": "ticket"
+    },
+    "session": "signed-in:lea"
+   },
+   "res": {
+    "status": 503,
+    "body": {
+     "error": "karte-off",
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     }
+    }
+   }
+  }
+ ]
+}

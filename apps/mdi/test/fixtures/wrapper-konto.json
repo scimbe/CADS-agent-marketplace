@@ -1,0 +1,1149 @@
+{
+ "herkunft": "Aufgenommen mit scripts/record-wrapper.mjs gegen CADS-DEMO-wrapper @ 5d8e938 (lib/auth.mjs, duell-ai.mjs, duell-profile.mjs, duell-voucher.mjs, duell-deck.mjs, duell-mod.mjs; Routenreihenfolge wie server.mjs). Gate als Doppel, Uhr fest auf 2026-11-11T09:00:00.000Z.",
+ "host": "demos-34a13a96.bunsenbrenner.org",
+ "device": "0123456789abcdef0123456789abcdef",
+ "code": "fedcba9876543210fedcba9876543210",
+ "exchanges": [
+  {
+   "name": "auth-me-anonym",
+   "req": {
+    "method": "GET",
+    "path": "/auth/me?return=%2Fduell%3Fgo%3Dkonto&lang=de",
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "authenticated": false,
+     "login_url": "https://bunsenbrenner.org/gate/start?host=demos-34a13a96.bunsenbrenner.org&return=%2Fduell%3Fgo%3Dkonto&lang=de"
+    }
+   }
+  },
+  {
+   "name": "auth-me-angemeldet",
+   "req": {
+    "method": "GET",
+    "path": "/auth/me?return=%2Fduell&lang=de",
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "authenticated": true,
+     "login_url": "https://bunsenbrenner.org/gate/start?host=demos-34a13a96.bunsenbrenner.org&return=%2Fduell&lang=de"
+    }
+   }
+  },
+  {
+   "name": "auth-login",
+   "req": {
+    "method": "GET",
+    "path": "/auth/login?return=%2Fduell%3Fgo%3Dkonto&lang=de",
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 302,
+    "location": "https://bunsenbrenner.org/gate/start?host=demos-34a13a96.bunsenbrenner.org&return=%2Fduell%3Fgo%3Dkonto&lang=de"
+   }
+  },
+  {
+   "name": "status-anonym",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai/status",
+    "body": {
+     "device": "0123456789abcdef0123456789abcdef"
+    },
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": false,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     }
+    }
+   }
+  },
+  {
+   "name": "status-geraet-ungueltig",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai/status",
+    "body": {
+     "device": "kurz"
+    },
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 400,
+    "body": {
+     "error": "bad-device"
+    }
+   }
+  },
+  {
+   "name": "status-angemeldet-ohne-16",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai/status",
+    "body": {
+     "device": "0123456789abcdef0123456789abcdef"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 0,
+      "remaining": 5,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false,
+      "paused": false,
+      "off": false,
+      "age16": false,
+      "age18": false,
+      "credit": 0,
+      "voucher": true
+     }
+    }
+   }
+  },
+  {
+   "name": "profil-get-anonym-konto",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/get",
+    "body": {
+     "via": "account"
+    },
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 401,
+    "body": {
+     "error": "login-required",
+     "login_url": "https://bunsenbrenner.org/gate/start?host=demos-34a13a96.bunsenbrenner.org&return=%2Fduell"
+    }
+   }
+  },
+  {
+   "name": "profil-get-leer",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/get",
+    "body": {
+     "via": "account"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "profile": null,
+     "rev": 0,
+     "via": "account"
+    }
+   }
+  },
+  {
+   "name": "profil-put-ohne-16",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/put",
+    "body": {
+     "via": "account",
+     "rev": 0,
+     "profile": {
+      "me": {
+       "nick": "Lea",
+       "emoji": "🦊",
+       "colors": [
+        "#ffd400",
+        "#ff3b1d"
+       ],
+       "set": ""
+      },
+      "wall": [],
+      "saved": []
+     },
+     "fresh": true
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 403,
+    "body": {
+     "error": "age16"
+    }
+   }
+  },
+  {
+   "name": "profil-put-mit-16",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/put",
+    "body": {
+     "via": "account",
+     "rev": 0,
+     "profile": {
+      "me": {
+       "nick": "Lea",
+       "emoji": "🦊",
+       "colors": [
+        "#ffd400",
+        "#ff3b1d"
+       ],
+       "set": ""
+      },
+      "wall": [],
+      "saved": []
+     },
+     "fresh": true,
+     "age16": true
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "rev": 1,
+     "via": "account"
+    }
+   }
+  },
+  {
+   "name": "status-angemeldet-16",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai/status",
+    "body": {
+     "device": "0123456789abcdef0123456789abcdef"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 0,
+      "remaining": 5,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false,
+      "paused": false,
+      "off": false,
+      "age16": true,
+      "age18": false,
+      "credit": 0,
+      "voucher": true
+     }
+    }
+   }
+  },
+  {
+   "name": "profil-get-da",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/get",
+    "body": {
+     "via": "account"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "profile": {
+      "v": 1,
+      "me": {
+       "nick": "Lea",
+       "emoji": "🦊",
+       "colors": [
+        "#ffd400",
+        "#ff3b1d"
+       ],
+       "set": ""
+      },
+      "wall": [],
+      "saved": []
+     },
+     "rev": 1,
+     "via": "account",
+     "age18": false
+    }
+   }
+  },
+  {
+   "name": "profil-put-veraltet",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/put",
+    "body": {
+     "via": "account",
+     "rev": 0,
+     "profile": {
+      "me": {
+       "nick": "Alt"
+      }
+     }
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 409,
+    "body": {
+     "error": "stale",
+     "rev": 1
+    }
+   }
+  },
+  {
+   "name": "profil-put-18",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/put",
+    "body": {
+     "via": "account",
+     "rev": 1,
+     "profile": {
+      "me": {
+       "nick": "Lea M",
+       "emoji": "🦊",
+       "colors": [
+        "#0b3d91",
+        "#ffd400"
+       ],
+       "set": ""
+      },
+      "wall": [],
+      "saved": []
+     },
+     "age18": true
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "rev": 2,
+     "via": "account"
+    }
+   }
+  },
+  {
+   "name": "profil-get-18",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/get",
+    "body": {
+     "via": "account"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "profile": {
+      "v": 1,
+      "me": {
+       "nick": "Lea M",
+       "emoji": "🦊",
+       "colors": [
+        "#0b3d91",
+        "#ffd400"
+       ],
+       "set": ""
+      },
+      "wall": [],
+      "saved": []
+     },
+     "rev": 2,
+     "via": "account",
+     "age18": true
+    }
+   }
+  },
+  {
+   "name": "status-angemeldet-18",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai/status",
+    "body": {
+     "device": "0123456789abcdef0123456789abcdef"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 0,
+      "remaining": 5,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false,
+      "paused": false,
+      "off": false,
+      "age16": true,
+      "age18": true,
+      "credit": 0,
+      "voucher": true
+     }
+    }
+   }
+  },
+  {
+   "name": "profil-put-code-ohne-konto",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/put",
+    "body": {
+     "via": "code",
+     "code": "fedcba9876543210fedcba9876543210",
+     "rev": 0,
+     "profile": {
+      "me": {
+       "nick": "Kind"
+      }
+     },
+     "fresh": true
+    },
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 403,
+    "body": {
+     "error": "code-needs-login",
+     "login_url": "https://bunsenbrenner.org/gate/start?host=demos-34a13a96.bunsenbrenner.org&return=%2Fduell"
+    }
+   }
+  },
+  {
+   "name": "profil-put-code-neu",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/put",
+    "body": {
+     "via": "code",
+     "code": "fedcba9876543210fedcba9876543210",
+     "rev": 0,
+     "profile": {
+      "me": {
+       "nick": "Kind",
+       "emoji": "🐢",
+       "colors": null,
+       "set": ""
+      },
+      "wall": [],
+      "saved": []
+     },
+     "fresh": true
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "rev": 1,
+     "via": "code"
+    }
+   }
+  },
+  {
+   "name": "profil-get-code",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/get",
+    "body": {
+     "via": "code",
+     "code": "fedcba9876543210fedcba9876543210"
+    },
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "profile": {
+      "v": 1,
+      "me": {
+       "nick": "Kind",
+       "emoji": "🐢",
+       "colors": null,
+       "set": ""
+      },
+      "wall": [],
+      "saved": []
+     },
+     "rev": 1,
+     "via": "code"
+    }
+   }
+  },
+  {
+   "name": "profil-get-code-unbekannt",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/get",
+    "body": {
+     "via": "code",
+     "code": "00000000000000000000000000000000"
+    },
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "profile": null,
+     "rev": 0,
+     "via": "code"
+    }
+   }
+  },
+  {
+   "name": "profil-get-code-ungueltig",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/get",
+    "body": {
+     "via": "code",
+     "code": "xyz"
+    },
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 400,
+    "body": {
+     "error": "bad-code"
+    }
+   }
+  },
+  {
+   "name": "gutschein-anonym",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/credit/redeem",
+    "body": {
+     "code": "TEST-GUTSCHEIN-1"
+    },
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 401,
+    "body": {
+     "ok": false,
+     "error": "login"
+    }
+   }
+  },
+  {
+   "name": "gutschein-unbekannt",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/credit/redeem",
+    "body": {
+     "code": "FALSCH-1234"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 403,
+    "body": {
+     "ok": false,
+     "error": "unknown"
+    }
+   }
+  },
+  {
+   "name": "gutschein-ok",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/credit/redeem",
+    "body": {
+     "code": "test-gutschein-1"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "ok": true,
+     "added": 5,
+     "credit": 5
+    }
+   }
+  },
+  {
+   "name": "status-guthaben",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai/status",
+    "body": {
+     "device": "0123456789abcdef0123456789abcdef"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "meter": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "free",
+      "size": 7,
+      "used": 0,
+      "remaining": 7,
+      "period": "week",
+      "resetAt": "2026-11-16T00:00:00.000Z",
+      "refundsLeft": 3,
+      "account": true,
+      "canLogin": true,
+      "free": 7,
+      "abo": false
+     },
+     "create": {
+      "enabled": true,
+      "tier": "free",
+      "pot": "create",
+      "size": 5,
+      "used": 0,
+      "remaining": 5,
+      "period": "ever",
+      "resetAt": null,
+      "refundsLeft": 2,
+      "account": true,
+      "canLogin": true,
+      "free": 5,
+      "abo": false,
+      "paused": false,
+      "off": false,
+      "age16": true,
+      "age18": true,
+      "credit": 5,
+      "voucher": true
+     }
+    }
+   }
+  },
+  {
+   "name": "gutschein-falsch-0",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/credit/redeem",
+    "body": {
+     "code": "FALSCH-X0"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 403,
+    "body": {
+     "ok": false,
+     "error": "unknown"
+    }
+   }
+  },
+  {
+   "name": "gutschein-falsch-1",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/credit/redeem",
+    "body": {
+     "code": "FALSCH-X1"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 403,
+    "body": {
+     "ok": false,
+     "error": "unknown"
+    }
+   }
+  },
+  {
+   "name": "gutschein-falsch-2",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/credit/redeem",
+    "body": {
+     "code": "FALSCH-X2"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 403,
+    "body": {
+     "ok": false,
+     "error": "unknown"
+    }
+   }
+  },
+  {
+   "name": "gutschein-falsch-3",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/credit/redeem",
+    "body": {
+     "code": "FALSCH-X3"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 403,
+    "body": {
+     "ok": false,
+     "error": "unknown"
+    }
+   }
+  },
+  {
+   "name": "gutschein-falsch-4",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/credit/redeem",
+    "body": {
+     "code": "FALSCH-X4"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 403,
+    "body": {
+     "ok": false,
+     "error": "unknown"
+    }
+   }
+  },
+  {
+   "name": "gutschein-limit",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/credit/redeem",
+    "body": {
+     "code": "FALSCH-X9"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 429,
+    "body": {
+     "ok": false,
+     "error": "limit"
+    }
+   }
+  },
+  {
+   "name": "mod-me-anonym",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/mod/me",
+    "body": {},
+    "session": "anonymous"
+   },
+   "res": {
+    "status": 401,
+    "body": {
+     "error": "login"
+    }
+   }
+  },
+  {
+   "name": "mod-me-leer",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/mod/me",
+    "body": {},
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "st": "ok",
+     "notices": []
+    }
+   }
+  },
+  {
+   "name": "mod-me-hinweise",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/mod/me",
+    "body": {},
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "st": "ok",
+     "notices": [
+      {
+       "nid": "04Y16LtlzyYg",
+       "at": "2026-11-11T09:00:00.000Z",
+       "type": "card-hidden",
+       "scope": "card",
+       "cid": "c-abc123",
+       "facts": {
+        "down": 8,
+        "share": 72
+       },
+       "ground": "terms:community-cards",
+       "automated": {
+        "detected": true,
+        "decided": true
+       },
+       "redress": [
+        "appeal",
+        "court"
+       ],
+       "appealUntil": "2027-05-13T09:00:00.000Z"
+      },
+      {
+       "nid": "pEJp4WMXHhf2",
+       "at": "2026-11-11T09:01:00.000Z",
+       "type": "strike",
+       "scope": "account",
+       "facts": {
+        "src": "confirmed",
+        "cards": [
+         "c-abc123"
+        ],
+        "n": 1,
+        "lapses": "2026-12-11T09:01:00.000Z",
+        "ground": "harm"
+       },
+       "ground": "terms:community-cards",
+       "automated": {
+        "detected": false,
+        "decided": false
+       },
+       "redress": [
+        "appeal",
+        "court"
+       ],
+       "appealUntil": "2027-05-13T09:01:00.000Z"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "name": "mod-widerspruch-leer",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/mod/appeal",
+    "body": {
+     "nid": "04Y16LtlzyYg",
+     "text": "  "
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 400,
+    "body": {
+     "error": "bad-text",
+     "max": 1000
+    }
+   }
+  },
+  {
+   "name": "mod-widerspruch-ok",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/mod/appeal",
+    "body": {
+     "nid": "04Y16LtlzyYg",
+     "text": "Die Karte war ein Witz unter Freunden."
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 202,
+    "body": {
+     "nid": "04Y16LtlzyYg"
+    }
+   }
+  },
+  {
+   "name": "mod-widerspruch-doppelt",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/mod/appeal",
+    "body": {
+     "nid": "04Y16LtlzyYg",
+     "text": "Nochmal"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 409,
+    "body": {
+     "error": "appealed",
+     "state": "open"
+    }
+   }
+  },
+  {
+   "name": "mod-me-nach-widerspruch",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/mod/me",
+    "body": {},
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "st": "ok",
+     "notices": [
+      {
+       "nid": "04Y16LtlzyYg",
+       "at": "2026-11-11T09:00:00.000Z",
+       "type": "card-hidden",
+       "scope": "card",
+       "cid": "c-abc123",
+       "facts": {
+        "down": 8,
+        "share": 72
+       },
+       "ground": "terms:community-cards",
+       "automated": {
+        "detected": true,
+        "decided": true
+       },
+       "redress": [
+        "appeal",
+        "court"
+       ],
+       "appealUntil": "2027-05-13T09:00:00.000Z",
+       "appeal": {
+        "text": "Die Karte war ein Witz unter Freunden.",
+        "at": "2026-11-11T09:01:00.000Z",
+        "state": "open"
+       }
+      },
+      {
+       "nid": "pEJp4WMXHhf2",
+       "at": "2026-11-11T09:01:00.000Z",
+       "type": "strike",
+       "scope": "account",
+       "facts": {
+        "src": "confirmed",
+        "cards": [
+         "c-abc123"
+        ],
+        "n": 1,
+        "lapses": "2026-12-11T09:01:00.000Z",
+        "ground": "harm"
+       },
+       "ground": "terms:community-cards",
+       "automated": {
+        "detected": false,
+        "decided": false
+       },
+       "redress": [
+        "appeal",
+        "court"
+       ],
+       "appealUntil": "2027-05-13T09:01:00.000Z"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "name": "profil-delete",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/delete",
+    "body": {
+     "via": "account"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "deleted": true
+    }
+   }
+  },
+  {
+   "name": "profil-get-geloescht",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/get",
+    "body": {
+     "via": "account"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 200,
+    "body": {
+     "profile": null,
+     "rev": 3,
+     "via": "account",
+     "gone": true
+    }
+   }
+  },
+  {
+   "name": "profil-put-geloescht",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/profile/put",
+    "body": {
+     "via": "account",
+     "rev": 3,
+     "profile": {
+      "me": {
+       "nick": "X"
+      }
+     }
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 410,
+    "body": {
+     "error": "gone",
+     "rev": 3
+    }
+   }
+  },
+  {
+   "name": "status-gate-weg",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/ai/status",
+    "body": {
+     "device": "0123456789abcdef0123456789abcdef"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 503,
+    "body": {
+     "error": "auth-unavailable"
+    }
+   }
+  },
+  {
+   "name": "auth-me-gate-weg",
+   "req": {
+    "method": "GET",
+    "path": "/auth/me?return=%2Fduell&lang=de",
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 503,
+    "body": {
+     "authenticated": false,
+     "login_url": "https://bunsenbrenner.org/gate/start?host=demos-34a13a96.bunsenbrenner.org&return=%2Fduell&lang=de"
+    }
+   }
+  },
+  {
+   "name": "gutschein-aus",
+   "req": {
+    "method": "POST",
+    "path": "/api/duell/credit/redeem",
+    "body": {
+     "code": "TEST-GUTSCHEIN-1"
+    },
+    "session": "signed-in"
+   },
+   "res": {
+    "status": 503,
+    "body": {
+     "ok": false,
+     "error": "off"
+    }
+   }
+  }
+ ]
+}

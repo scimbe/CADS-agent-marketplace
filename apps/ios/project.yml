@@ -80,6 +80,10 @@ targets:
       - path: App/Duell/PeerBridge.swift
       - path: App/Duell/DuellAi.swift
       - path: App/Duell/DuellPush.swift
+      - path: App/Duell/AccountRoute.swift
+      - path: App/Duell/AccountRoutes.generated.swift
+      - path: App/Auth/DPoP.swift
+      - path: App/Auth/Keychain.swift
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

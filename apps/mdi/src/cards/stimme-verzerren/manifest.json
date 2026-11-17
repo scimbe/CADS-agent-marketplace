@@ -1,0 +1,261 @@
+{
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.2",
+  "players": {
+    "min": 1,
+    "max": 1
+  },
+  "hidden": "none",
+  "limits": {
+    "stepBudget": 1,
+    "stateBytes": 4096
+  },
+  "id": "stimme-verzerren",
+  "kind": "sound",
+  "mode": "static",
+  "order": 900,
+  "title": {
+    "de": "Stimme verzerren",
+    "en": "Distort your voice"
+  },
+  "teaser": {
+    "de": "Monster, Hamster, Roboter. Schick's als Video.",
+    "en": "Monster, hamster, robot. Send it as a video."
+  },
+  "howto": {
+    "de": "Bis zu 10 Sekunden. Tipp auf einen Effekt: Du hörst ihn sofort. Der Link zur Karte trägt nur Effekt und Text.",
+    "en": "Up to 10 seconds. Tap an effect: you hear it at once. The link to the card carries only the effect and the text."
+  },
+  "uses": [
+    "voice",
+    "audio-out"
+  ],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "x",
+      "fx",
+      "tp",
+      "pair"
+    ],
+    "properties": {
+      "x": {
+        "type": "string",
+        "maxLength": 28,
+        "pattern": "^[^\\u0000-\\u001f\\u007f<>]*$",
+        "default": "Stimme verzerren",
+        "x-default": {
+          "en": "Distort your voice"
+        },
+        "x-field": "text",
+        "x-model": true,
+        "x-label": {
+          "de": "Text",
+          "en": "Text"
+        }
+      },
+      "fx": {
+        "type": "string",
+        "enum": [
+          "chip",
+          "monster",
+          "robot",
+          "echo",
+          "rev",
+          "alien",
+          "tel",
+          "chor"
+        ],
+        "default": "monster",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Effekt",
+          "en": "Effect"
+        },
+        "x-names": {
+          "de": {
+            "chip": "Hamster",
+            "monster": "Monster",
+            "robot": "Roboter",
+            "echo": "Echo",
+            "rev": "Rückwärts",
+            "alien": "Alien",
+            "tel": "Telefon",
+            "chor": "Chor"
+          },
+          "en": {
+            "chip": "Hamster",
+            "monster": "Monster",
+            "robot": "Robot",
+            "echo": "Echo",
+            "rev": "Backwards",
+            "alien": "Alien",
+            "tel": "Phone",
+            "chor": "Choir"
+          }
+        },
+        "x-icons": {
+          "chip": "🐹",
+          "monster": "👹",
+          "robot": "🤖",
+          "echo": "🏔️",
+          "rev": "⏪",
+          "alien": "👽",
+          "tel": "📞",
+          "chor": "🎶"
+        }
+      },
+      "tp": {
+        "type": "string",
+        "enum": [
+          "",
+          "slow",
+          "fast"
+        ],
+        "default": "",
+        "x-field": "choice",
+        "x-label": {
+          "de": "Tempo",
+          "en": "Speed"
+        },
+        "x-names": {
+          "de": {
+            "": "Normal",
+            "slow": "Zeitlupe",
+            "fast": "Chipmunk-Tempo"
+          },
+          "en": {
+            "": "Normal",
+            "slow": "Slow motion",
+            "fast": "Chipmunk speed"
+          }
+        }
+      },
+      "pair": {
+        "type": "string",
+        "enum": [
+          "advent",
+          "p0",
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6",
+          "p7"
+        ],
+        "default": "p0",
+        "x-field": "pair",
+        "x-label": {
+          "de": "Farbe",
+          "en": "Colour"
+        },
+        "x-pairs": {
+          "advent": [
+            "#0f5132",
+            "#ffd400"
+          ],
+          "p0": [
+            "#ffd400",
+            "#ff3b1d"
+          ],
+          "p1": [
+            "#2b4bff",
+            "#ffe600"
+          ],
+          "p2": [
+            "#ff4fa3",
+            "#0a7f55"
+          ],
+          "p3": [
+            "#14c872",
+            "#ff3da5"
+          ],
+          "p4": [
+            "#ff6a1f",
+            "#1b2bd8"
+          ],
+          "p5": [
+            "#c8ff00",
+            "#7a1fff"
+          ],
+          "p6": [
+            "#ffffff",
+            "#ff2d2d"
+          ],
+          "p7": [
+            "#7ee0ff",
+            "#ff5a1f"
+          ]
+        }
+      }
+    }
+  },
+  "parts": [
+    {
+      "id": "stimme",
+      "params": [
+        "fx",
+        "tp"
+      ],
+      "label": {
+        "de": "Stimme",
+        "en": "Voice"
+      }
+    },
+    {
+      "id": "text",
+      "params": [
+        "x"
+      ],
+      "label": {
+        "de": "Text",
+        "en": "Text"
+      }
+    },
+    {
+      "id": "farbe",
+      "params": [
+        "pair"
+      ],
+      "label": {
+        "de": "Farbe",
+        "en": "Colour"
+      }
+    }
+  ],
+  "variants": [
+    {
+      "id": "stimme-monster",
+      "title": {
+        "de": "Stimme verzerren",
+        "en": "Distort your voice"
+      },
+      "params": {
+        "fx": "monster"
+      }
+    },
+    {
+      "id": "stimme-maus",
+      "title": {
+        "de": "Stimme verzerren",
+        "en": "Distort your voice"
+      },
+      "params": {
+        "fx": "chip"
+      }
+    },
+    {
+      "id": "stimme-robo",
+      "title": {
+        "de": "Stimme verzerren",
+        "en": "Distort your voice"
+      },
+      "params": {
+        "fx": "robot"
+      }
+    }
+  ],
+  "dur": 30
+}

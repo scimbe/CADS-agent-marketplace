@@ -1,0 +1,120 @@
+{
+  "texts": {
+    "de": {
+      "quest": "Geheim",
+      "invite": "{n} hat dir etwas verschlossen.",
+      "need": "Antworten eintragen",
+      "lock": "Abschließen",
+      "q": "Rätsel {n}",
+      "a": "Antwort, nur ihr beide wisst sie",
+      "add": "Rätsel dazu",
+      "del": "Rätsel weg",
+      "end": "Was ganz am Ende wartet",
+      "blocked": "Keine Treffpunkte, Adressen oder Nummern. Nur Rätsel.",
+      "note": "Rätsel 1 liest jeder mit dem Link. Alles danach ist verschlüsselt, die Antworten stehen nirgends drin. Ein Spiel, kein Tresor.",
+      "you": "Offen im Link: Rätsel 1",
+      "sees": "Verschlüsselt: alles danach",
+      "try": "Aufschließen",
+      "wrong": "Falsch. Schloss bleibt zu.",
+      "tip": "Tipp: fängt mit {l} an, {n} Zeichen",
+      "ans": "Deine Antwort",
+      "open": "Offen!",
+      "step": "Schloss {n} von {m}",
+      "gone": "Dieser Inhalt ist gesperrt.",
+      "own": "Bau dein eigenes",
+      "tunWord": "Euer gemeinsames Wort",
+      "tunH": "Eure Geheimschrift",
+      "tunNote": "Gleiches Wort auf dem anderen Handy ergibt dieselben Zeichen. Abmalen, mit Stift schreiben.",
+      "tunGo": "Zeichen zeigen",
+      "endDef": "Du hast es gelöst. Das bleibt unter uns."
+    },
+    "en": {
+      "quest": "Secret",
+      "invite": "{n} locked something for you.",
+      "need": "Fill in the answers",
+      "lock": "Lock it",
+      "q": "Riddle {n}",
+      "a": "Answer only you two know",
+      "add": "Add riddle",
+      "del": "Remove riddle",
+      "end": "What waits at the very end",
+      "blocked": "No meeting places, addresses or numbers. Riddles only.",
+      "note": "Anyone with the link reads riddle 1. Everything after it is encrypted, the answers are nowhere in it. A game, not a safe.",
+      "you": "Open in the link: riddle 1",
+      "sees": "Encrypted: everything after",
+      "try": "Unlock",
+      "wrong": "Wrong. Still locked.",
+      "tip": "Tip: starts with {l}, {n} characters",
+      "ans": "Your answer",
+      "open": "Open!",
+      "step": "Lock {n} of {m}",
+      "gone": "This content is blocked.",
+      "own": "Build your own",
+      "tunWord": "Your shared word",
+      "tunH": "Your secret script",
+      "tunNote": "The same word on the other phone gives the same signs. Copy them, write with a pen.",
+      "tunGo": "Show the signs",
+      "endDef": "You cracked it. This stays between us."
+    }
+  },
+  "ends": {
+    "kanal-geheim": [
+      "Du hast es gelöst. Das bleibt unter uns.",
+      "You cracked it. This stays between us."
+    ],
+    "kanal-link": [
+      "Der Schatz: ein Kompliment, nur für dich.",
+      "The treasure: a compliment, just for you."
+    ],
+    "kanal-drei": [
+      "Alle drei auf. Respekt.",
+      "All three open. Respect."
+    ],
+    "kanal-kennst": [
+      "Du kennst mich wirklich.",
+      "You really know me."
+    ],
+    "kanal-staffel": [
+      "Jetzt bist du dran. Bau das nächste.",
+      "Your turn. Build the next one."
+    ],
+    "kanal-erfinder": [
+      "Willkommen im Klub der zwei.",
+      "Welcome to the club of two."
+    ]
+  },
+  "riddlesEn": {
+    "kanal-geheim": [
+      "What is our inside joke called?",
+      "Which animal would we be together?"
+    ],
+    "kanal-link": [
+      "What colour is my favourite snack?"
+    ],
+    "kanal-drei": [
+      "What was our best day?",
+      "Which song goes with it?",
+      "Who won back then?"
+    ],
+    "kanal-kennst": [
+      "What do I always eat first?",
+      "What makes me laugh most?"
+    ],
+    "kanal-staffel": [
+      "What is the best game of all time?"
+    ],
+    "kanal-erfinder": [
+      "What do we call pizza?"
+    ]
+  },
+  "tags": [
+    "rätsel",
+    "teamwork",
+    "geheimkanal",
+    "detektiv",
+    "lösungsfindung",
+    "riddle",
+    "detective",
+    "problem solving"
+  ]
+}

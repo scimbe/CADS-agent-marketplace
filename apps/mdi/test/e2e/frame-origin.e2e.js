@@ -4,7 +4,9 @@
 // deshalb hat der fruehere E2E das Problem nicht gesehen. Geprueft wird hier, was der Browser wirklich festlegt:
 // Ursprung des Rahmens und der Origin-Kopf jeder /api/play-Anfrage. Das CORS-Verhalten der echten Bruecke prueft
 // scripts/probe-bridge.sh (nur lesend, curl).
-import test from "node:test";
+import nodeTest from "node:test";
+import { fakeOnly } from "./lib/ziel.mjs";
+const test = fakeOnly(nodeTest); // Gegenstelle ist eine Attrappe: im URL-Modus uebersprungen
 import assert from "node:assert/strict";
 import path from "node:path";
 import { browser, VIEWS, ROOT, act, waitScreen, screen, playVisible } from "./lib/grund.mjs";
@@ -23,7 +25,8 @@ async function openApp(net, side, hash = "") {
   const p = await ctx.newPage(); const errs = [];
   p.on("pageerror", (e) => errs.push(String(e)));
   await net.attach(ctx, p, side);
-  await ctx.route(APP + "**", (r) => r.fulfill({ path: path.join(ROOT, "dist/index.html"), contentType: "text/html" }));
+  // Seite und ihre nachladbaren Teile (ADR 0001 Nachtrag 2) wie vom Wrapper
+  await ctx.route(APP + "**", (r) => { const m = /\/parts\/([A-Za-z0-9._-]+\.js)$/.exec(new URL(r.request().url()).pathname); return m ? r.fulfill({ path: path.join(ROOT, "dist/parts", m[1]), contentType: "text/javascript" }) : r.fulfill({ path: path.join(ROOT, "dist/index.html"), contentType: "text/html" }); });
   await p.goto(APP + "index.html" + hash);
   await p.locator("header.bar").waitFor();
   return { ctx, p, errs };

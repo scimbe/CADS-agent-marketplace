@@ -1,0 +1,35 @@
+{
+ "herkunft": "Absagecodes des Servers (CADS-DEMO-wrapper): lib/duell-absage.mjs ABSAGE @ main 5d8e938 (reason = Schluessel, Text create_absage_<reason>) und lib/duell-bau.mjs REASONS @ feat/duell-baukasten-3 43dfcc4 (reason = bau_<code>, Text create_absage_bau_<code>). Neu erzeugen, wenn der Server einen Code hinzufuegt.",
+ "absage": [
+  "tetris",
+  "match3",
+  "memory",
+  "puzzle",
+  "rhythmus",
+  "schach",
+  "skat",
+  "dart",
+  "shooter",
+  "bot_gegen_bot",
+  "rennen",
+  "pong",
+  "flipper",
+  "marke",
+  "person",
+  "gluecksspiel",
+  "spielwaffe",
+  "alkohol",
+  "horror",
+  "allgemein",
+  "sound"
+ ],
+ "bau": [
+  "nicht_gewinnbar",
+  "trivial",
+  "endet_nicht",
+  "zu_kurz",
+  "unfair",
+  "kaputt",
+  "fakten"
+ ]
+}

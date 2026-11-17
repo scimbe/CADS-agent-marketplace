@@ -1,0 +1,102 @@
+// Texte der Heimseite (de/en). Woertlich aus dem Altcode, wo es sie gab (alt:start.json texts, alt:texts.json; Abzug in
+// test/fixtures/home-alt-texts.json), sonst neu: Praesens, kurze Saetze. "easy" ersetzt einzelne Saetze in einfacher Sprache.
+const de = {
+  ask: "Wem willst du heute eine Freude machen?", field: "Sag in einem Satz, was du vorhast", hint: "Danke an Oma", fieldGo: "Weiter",
+  local: "Dein Satz bleibt auf dem Gerät.",
+  intents: {
+    gruss: { t: "Gruß schicken", s: "Danke, Besserung, einfach so" },
+    planen: { t: "Zusammen planen", s: "Termin, Umfrage, Wichteln" },
+    spielen: { t: "Spiele", s: "Quiz, Bluff, Duell, Skat" },
+    stimme: { t: "Stimme & Ton", s: "Monster, Beat, Malen, vor Ort" }
+  },
+  intentHead: { gruss: "Grüßen", planen: "Planen", spielen: "Spiele", stimme: "Stimme & Ton" },
+  own: { t: "Eigene Karte", s: "Erschaffe deine Karte: ein Satz, die KI baut sie", page: "Eigene Karte", soon: "Eigene Karten kommen hier hin: ein Satz, und die KI baut deine Karte. Das ist gerade in Arbeit.", blank: "Oder leer anfangen:" },
+  all: "Alle Karten", allShort: "Alles",
+  families: {
+    gruessen: "Grüßen & Schenken", planen: "Planen & Organisieren", kennen: "Kennen & Raten", bluff: "Bluff & Taktik", geschick: "Geschick",
+    tisch: "Kartentisch", raetsel: "Rätsel & Geheim", kreativ: "Wort & Kreativ", vorort: "Vor Ort, ein Handy"
+  },
+  months: ["JAN", "FEB", "MÄR", "APR", "MAI", "JUN", "JUL", "AUG", "SEP", "OKT", "NOV", "DEZ"],
+  days: ["SONNTAG", "MONTAG", "DIENSTAG", "MITTWOCH", "DONNERSTAG", "FREITAG", "SAMSTAG"],
+  prevShort: "gestern", nextShort: "morgen", invSure: "Wirklich löschen? Nochmal tippen.", todayIs: "Heute", prevDay: "Ein Blatt zurück", nextDay: "Nächstes Blatt", toToday: "Zu heute", dayOf: "Blatt vom {d}",
+  swipe: "Blättern (oder wischen)", sheetLabel: "Kalenderblatt {d}: {t}",
+  bdg: { link: "Per Link", room: "Ein Handy, reihum", bot: "Gegen den Computer", solo: "Allein", game: "Spiel", photo: "Bild", sound: "Ton", card: "Karte", quest: "Rätsel", table: "Kartentisch", arcade: "Spiel", duel: "Duell", lauf: "Lauf" },
+  sec: "{n} Sek", mins: "{n} Min",
+  practice: "Erst üben", practiceSub: { bot: "gegen den Computer", alone: "ein Gerät" },
+  go: { turn: "Los, du fängst an", table: "Tisch aufmachen", game: "Losfliegen", sound: "Ton bauen", photo: "Meme bauen", card: "Karte machen", arcade: "Los, spielen", quest: "Rätsel bauen", default: "Mach's zu deinem" },
+  soon: "kommt", soonLong: "Wird gerade neu gebaut. Merk sie dir: Sie steht dann in deinem Regal.", soonSave: "Merken, kommt bald", soonSaved: "Gemerkt",
+  holiday: "Feiertag: {n}", door: "Tür {n}",
+  ready: "Schon spielbar", week: "Diese Woche im Kalender", lastDays: "Letzte Tage", lastSeen: "zuletzt am {d}", calendarOnly: "nur an bestimmten Tagen",
+  heard: "So verstehe ich dich", forName: "Für: {n}", missing: "{w} habe ich noch nicht. Stattdessen:", none: "Dazu habe ich noch keine passende Karte. Probier ein anderes Wort.",
+  exact: "Passt genau", near: "Passt ungefähr", change: "Andere Absicht",
+  regal: "Alle Karten", search: "Karten suchen", searchAllPh: "Alle {n} Karten durchsuchen", searchPh: "z. B. Quiz, Skat, Wichteln", searchNone: "Keine Karte gefunden.", hits: "{n} Karten",
+  tabs: { alles: "Alles", tage: "Letzte Tage", andere: "Von anderen" }, filterAll: "Alle",
+  others: "Von anderen", othersSoon: "Karten von anderen erscheinen hier, sobald jemand eine teilt und sie geprüft ist.",
+  meins: "Mein Regal", meinsOpen: "Mein Regal öffnen: Wand, Einladungen, Gemerkt",
+  hero: { t: "Neu erfinden", s: "Aus einem Satz wird eine ganz neue Karte oder ein ganz neues Spiel. Zum Beispiel: „Ein Quiz über unseren Hund Bruno“.", label: "Beschreib deine Idee in einem Satz", go: "Erfinden ›", note: "Karte, Spiel, Quiz oder Witzbild · ab 16" },
+  schrift: "Schrift", schriftOpen: "Schrift und Lesen einstellen (Mein Stil)", searchShort: "Suchen",
+  mtabs: { wand: "Gemacht", einladungen: "Verschickt", gemerkt: "Gemerkt" }, more: "Mehr zu „{t}“: Weiter bauen, Von der Wand nehmen",
+  wallEmpty: "Noch leer. Bau was.", wallGone: "Von der Wand genommen", undo: "Rückgängig", takeOff: "Von der Wand nehmen", openAgain: "Weiter bauen",
+  wallAdd: "Auf meine Wand", wallAdded: "Liegt auf deiner Wand.",
+  invEmpty: "Noch keine Einladungen. Teil etwas, dann steht es hier.", invShare: "Noch mal teilen", invDelete: "Löschen", invStory: "Story-Bild",
+  inv: { bis: "Kurzlink bis {d}", lang: "Langer Link, ohne unseren Server", offen: "Verschickt am {d}", abgelaufen: "Abgelaufen", weg: "Gelöscht" },
+  invDeleted: "Link gelöscht.", invDeleteFail: "Ging gerade nicht. Versuch es online noch einmal.",
+  savedEmpty: "Noch nichts gemerkt. Tipp auf das Herz an einer Karte.", save: "Merken", unsave: "Nicht mehr merken",
+  sync: { on: "Mit deinem Konto auf allen Geräten (ohne Fotos).", off: "Nur auf diesem Gerät. Mit Konto auch auf deinen anderen Geräten." },
+  share: "Teilen", shareCard: "Karte empfehlen", story: "Für Story", storyNote: "Bild 9:16 mit QR-Code für Status und Story.", storyDone: "Story-Bild ist fertig.", storyFail: "Das Bild ging hier nicht.",
+  storyCta: "Code scannen oder eintippen", imgBusy: "Bild wird gezeichnet …", imgNote: "Das Bild mit deinem Foto teilst du selbst über dein Handy. Der Link oben bleibt ohne Foto.", imgErr: { "foto-fehlt": "Dein Foto ist auf diesem Gerät nicht mehr da.", "nicht-verfuegbar": "Ein Bild geht hier nicht.", fehler: "Das Bild ging hier nicht." }, shortMaking: "Kurzlink wird angelegt …",
+  open: "Öffnen", play: "Spielen", soonA11y: "{t} (kommt)", thumbAlt: "Vorschau: {t}"
+};
+const en = {
+  ask: "Who do you want to make happy today?", field: "Say in one sentence what you have in mind", hint: "Thanks to Grandma", fieldGo: "Next",
+  local: "Your sentence stays on this device.",
+  intents: {
+    gruss: { t: "Send a note", s: "Thanks, get well, just because" },
+    planen: { t: "Plan together", s: "Date, poll, Secret Santa" },
+    spielen: { t: "Games", s: "Quiz, bluff, duel, Skat" },
+    stimme: { t: "Voice & sound", s: "Monster, beat, draw, in the room" }
+  },
+  intentHead: { gruss: "Notes", planen: "Plan", spielen: "Play", stimme: "Voice" },
+  own: { t: "Your own card", s: "Create your card: one sentence, the AI builds it", page: "Your own card", soon: "Your own cards go here: one sentence, and the AI builds your card. This is being built right now.", blank: "Or start empty:" },
+  all: "All cards", allShort: "All",
+  families: {
+    gruessen: "Notes & gifts", planen: "Plan & organise", kennen: "Know & guess", bluff: "Bluff & tactics", geschick: "Skill",
+    tisch: "Card table", raetsel: "Riddles & secrets", kreativ: "Words & creative", vorort: "In the room, one phone"
+  },
+  months: ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"],
+  days: ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"],
+  prevShort: "back", nextShort: "next", invSure: "Really delete? Tap again.", todayIs: "Today", prevDay: "One sheet back", nextDay: "Next sheet", toToday: "To today", dayOf: "Sheet of {d}",
+  swipe: "Flip (or swipe)", sheetLabel: "Calendar sheet {d}: {t}",
+  bdg: { link: "By link", room: "One phone, take turns", bot: "Against the computer", solo: "Alone", game: "Game", photo: "Picture", sound: "Sound", card: "Card", quest: "Riddle", table: "Card table", arcade: "Game", duel: "Duel", lauf: "Run" },
+  sec: "{n} sec", mins: "{n} min",
+  practice: "Practise first", practiceSub: { bot: "against the computer", alone: "one device" },
+  go: { turn: "Go, you start", table: "Open the table", game: "Take off", sound: "Make a sound", photo: "Make a meme", card: "Make a card", arcade: "Go, play", quest: "Build a riddle", default: "Make it yours" },
+  soon: "coming", soonLong: "We are rebuilding this card. Save it, then you find it on your shelf.", soonSave: "Save, coming soon", soonSaved: "Saved",
+  holiday: "Holiday: {n}", door: "Door {n}",
+  ready: "Ready to play", week: "This week in the calendar", lastDays: "Last days", lastSeen: "last on {d}", calendarOnly: "only on certain days",
+  heard: "This is how I understand you", forName: "For: {n}", missing: "I don't have {w} yet. Instead:", none: "I have no card for that yet. Try another word.",
+  exact: "Exact match", near: "Close match", change: "Other intent",
+  regal: "All cards", search: "Search cards", searchAllPh: "Search all {n} cards", searchPh: "e.g. quiz, Skat, Secret Santa", searchNone: "No card found.", hits: "{n} cards",
+  tabs: { alles: "All", tage: "Last days", andere: "From others" }, filterAll: "All",
+  others: "From others", othersSoon: "Cards from others show up here once someone shares one and it has been checked.",
+  meins: "My shelf", meinsOpen: "Open My shelf: wall, invitations, saved",
+  hero: { t: "Invent something new", s: "One sentence becomes a brand-new card or a brand-new game. For example: “A quiz about our dog Bruno”.", label: "Describe your idea in one sentence", go: "Invent ›", note: "Card, game, quiz or funny picture · 16+" },
+  schrift: "Text", schriftOpen: "Text size and reading (My style)", searchShort: "Search",
+  mtabs: { wand: "Made", einladungen: "Sent", gemerkt: "Saved" }, more: "More for “{t}”: keep building, take off the wall",
+  wallEmpty: "Still empty. Make something.", wallGone: "Taken off the wall", undo: "Undo", takeOff: "Take off the wall", openAgain: "Keep building",
+  wallAdd: "To my wall", wallAdded: "It is on your wall.",
+  invEmpty: "No invitations yet. Share something, then it shows up here.", invShare: "Share again", invDelete: "Delete", invStory: "Story picture",
+  inv: { bis: "Short link until {d}", lang: "Long link, without our server", offen: "Sent on {d}", abgelaufen: "Expired", weg: "Deleted" },
+  invDeleted: "Link deleted.", invDeleteFail: "That did not work. Try again when you are online.",
+  savedEmpty: "Nothing saved yet. Tap the heart on a card.", save: "Save", unsave: "Remove from saved",
+  sync: { on: "With your account on all your devices (no photos).", off: "Only on this device. With an account also on your other devices." },
+  share: "Share", shareCard: "Recommend card", story: "For story", storyNote: "9:16 picture with a QR code for status and story.", storyDone: "Story picture is ready.", storyFail: "The picture did not work here.",
+  storyCta: "Scan or type the code", imgBusy: "Drawing the picture …", imgNote: "You share the picture with your photo yourself from your phone. The link above stays without the photo.", imgErr: { "foto-fehlt": "Your photo is no longer on this device.", "nicht-verfuegbar": "A picture does not work here.", fehler: "The picture did not work here." }, shortMaking: "Making a short link …",
+  open: "Open", play: "Play", soonA11y: "{t} (coming)", thumbAlt: "Preview: {t}"
+};
+const easy = {
+  de: { soonLong: "Diese Karte gibt es bald wieder. Tipp auf Merken, dann steht sie in deinem Regal.", ask: "Wem willst du heute eine Freude machen?", swipe: "Blättern (oder zur Seite wischen)" },
+  en: { soonLong: "This card comes back soon. Tap Save.", swipe: "Flip (or swipe sideways)" }
+};
+export function homeTexts(lang, isEasy) { const base = lang === "en" ? { ...de, ...en } : de; return isEasy ? { ...base, ...(easy[lang === "en" ? "en" : "de"]) } : base; }
+export function fmt(s, o) { return String(s).replace(/\{(\w+)\}/g, (m, k) => (k in o ? String(o[k]) : m)); }

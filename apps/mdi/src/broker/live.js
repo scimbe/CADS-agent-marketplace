@@ -18,6 +18,38 @@ const unhex = (h) => { const o = new Uint8Array(h.length / 2); for (let i = 0; i
 /**
  * @param {object} [deps] fuer Tests: { wasm(), fetch, openWs(url), openPc(cfg), timing }
  */
+// Edge-Bytestrom mit Deckel (Security-Review L2): ungelesene Bytes hoechstens MAX_STREAM. Ein Rahmen ist <= 2 + 65535 Byte;
+// mehr Ungelesenes heisst, die Gegenseite flutet. Dann ehrlicher Abbruch: Socket zu, alle Wartenden mit "ueberlauf".
+export const MAX_STREAM = 256 * 1024;
+export function byteStream(ws, max = MAX_STREAM) {
+  let buf = new Uint8Array(0), closed = false, over = false;
+  const waiters = new Set();
+  ws.binaryType = "arraybuffer";
+  const onClose = () => { closed = true; for (const w of [...waiters]) w(); };
+  ws.addEventListener("message", (ev) => {
+    if (closed) return;
+    const c = new Uint8Array(ev.data);
+    if (buf.length + c.length > max) { over = true; buf = new Uint8Array(0); try { ws.close(); } catch (e) { /* schon zu */ } onClose(); return; }
+    const n = new Uint8Array(buf.length + c.length); n.set(buf); n.set(c, buf.length); buf = n; for (const w of [...waiters]) w();
+  });
+  ws.addEventListener("close", onClose);
+  function wait(take, ms) {
+    return new Promise((ok, bad) => {
+      const t = setTimeout(() => { waiters.delete(check); bad(new Error("zeit")); }, ms);
+      function check() { const r = over ? null : take(); if (r) { clearTimeout(t); waiters.delete(check); ok(r); } else if (closed) { clearTimeout(t); waiters.delete(check); bad(new Error(over ? "ueberlauf" : "zu")); } }
+      waiters.add(check); check();
+    });
+  }
+  const cut = (n) => { const o = buf.slice(0, n); buf = buf.slice(n); return o; };
+  return {
+    exact: (n, ms) => wait(() => (buf.length >= n ? cut(n) : null), ms),
+    line: (ms) => wait(() => { const i = buf.indexOf(10); return i >= 0 ? cut(i + 1) : null; }, ms),
+    send: (b) => ws.send(b),
+    close: () => { try { ws.close(); } catch (e) { /* schon zu */ } onClose(); },
+    get overflow() { return over; }
+  };
+}
+
 export function createLive(deps = {}) {
   const T = { ...DEFAULT_TIMING, ...(deps.timing || {}) };
   const doFetch = deps.fetch || ((u, o) => fetch(u, o));
@@ -49,28 +81,6 @@ export function createLive(deps = {}) {
     const pre = new Uint8Array(4 + dom.length + 96);
     pre.set(len, 0); pre.set(dom, 4); pre.set(unhex(channel), 4 + dom.length); pre.set(unhex(me.hp), 36 + dom.length); pre.set(unhex(me.np), 68 + dom.length);
     return hex(w.holderSign(me.hk, pre));
-  }
-  function byteStream(ws) {
-    let buf = new Uint8Array(0), closed = false;
-    const waiters = new Set();
-    ws.binaryType = "arraybuffer";
-    ws.addEventListener("message", (ev) => { const c = new Uint8Array(ev.data), n = new Uint8Array(buf.length + c.length); n.set(buf); n.set(c, buf.length); buf = n; for (const w of [...waiters]) w(); });
-    const onClose = () => { closed = true; for (const w of [...waiters]) w(); };
-    ws.addEventListener("close", onClose);
-    function wait(take, ms) {
-      return new Promise((ok, bad) => {
-        const t = setTimeout(() => { waiters.delete(check); bad(new Error("zeit")); }, ms);
-        function check() { const r = take(); if (r) { clearTimeout(t); waiters.delete(check); ok(r); } else if (closed) { clearTimeout(t); waiters.delete(check); bad(new Error("zu")); } }
-        waiters.add(check); check();
-      });
-    }
-    const cut = (n) => { const o = buf.slice(0, n); buf = buf.slice(n); return o; };
-    return {
-      exact: (n, ms) => wait(() => (buf.length >= n ? cut(n) : null), ms),
-      line: (ms) => wait(() => { const i = buf.indexOf(10); return i >= 0 ? cut(i + 1) : null; }, ms),
-      send: (b) => ws.send(b),
-      close: () => { try { ws.close(); } catch (e) { /* schon zu */ } onClose(); }
-    };
   }
   const framed = async (s, ms) => { const l = await s.exact(2, ms); return s.exact((l[0] << 8) | l[1], ms); };
 

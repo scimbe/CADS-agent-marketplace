@@ -1,0 +1,37 @@
+{
+  "id": "fx-rt",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.2",
+  "kind": "realtime",
+  "mode": "realtime",
+  "title": { "de": "Testkarte Echtzeit", "en": "Test card realtime" },
+  "rule": { "de": "Halte den Ball im Spiel. Drei Punkte gewinnen.", "en": "Keep the ball in play. Three points win." },
+  "players": { "min": 1, "max": 2 },
+  "hidden": "none",
+  "uses": ["audio-out"],
+  "limits": { "stepBudget": 1, "stateBytes": 4096 },
+  "params": { "type": "object", "additionalProperties": false, "required": ["win", "speed"], "properties": {
+    "win": { "type": "integer", "minimum": 1, "maximum": 9, "default": 3, "x-field": "number", "x-label": { "de": "Punkte zum Sieg", "en": "Points to win" } },
+    "speed": { "type": "integer", "minimum": 4, "maximum": 20, "default": 8, "x-field": "number", "x-label": { "de": "Tempo", "en": "Speed" } }
+  } },
+  "parts": [],
+  "rt": {
+    "tick": 60,
+    "view": { "w": 400, "h": 640, "fit": "contain" },
+    "numeric": "int",
+    "net": "lockstep",
+    "delay": 3,
+    "maxTicks": 36000,
+    "controls": {
+      "buttons": [ { "id": "serve", "kind": "pulse", "keys": ["Space", "Enter"], "zone": "any", "label": { "de": "Aufschlag", "en": "Serve" } } ],
+      "axes": { "x": { "keys": ["ArrowLeft", "ArrowRight"] } },
+      "pointer": { "max": 1 }
+    },
+    "sounds": {
+      "hit": { "synth": "tone", "f0": 520, "f1": 260, "dur": 0.08, "type": "square", "vol": 0.2 },
+      "score": { "synth": "noise", "dur": 0.3, "freq": 900, "vol": 0.4 },
+      "win": { "haptic": 80 }
+    },
+    "ghost": { "bytes": 600 }
+  }
+}

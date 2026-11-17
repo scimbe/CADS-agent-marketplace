@@ -18,13 +18,22 @@ const rel = (p) => path.relative(ROOT, p);
 let report;
 test.before(async () => { report = await build(); });
 
-test("Budgets: Kern < 700 KiB, je Teil < 300 KB, Kern + Teile < 1,75 MiB", () => {
+// Budgets (ADR 0001 Nachtrag 2): Karten und Thumbnails sind nachladbare Teile. Kern <= 700 KiB mit allen Karten,
+// je Kartenteil < 300 KB, je Thumbnail-Teil < 96 KB, erste Karte (Kern + groesster Kartenteil) < 1 MiB.
+test("Budgets: Kern <= 700 KiB, je Kartenteil < 300 KB, je Thumbnail-Teil < 96 KB, Kern + groesster Kartenteil < 1 MiB", () => {
   const html = fs.statSync(path.join(DIST, "index.html")).size;
-  assert.ok(html < 716800, "Kern " + html);
-  let sum = html;
-  for (const [f, n] of Object.entries(report.parts)) { assert.ok(n < 300000, f + " " + n); sum += n; }
-  assert.ok(sum < 1835008, "gesamt " + sum);
-  console.log("# budget: Kern " + html + " B, Teile " + JSON.stringify(report.parts));
+  assert.ok(html <= 716800, "Kern " + html);
+  let maxCard = 0;
+  for (const [f, n] of Object.entries(report.parts)) {
+    if (f.startsWith("parts/thumbs-")) assert.ok(n < 98304, f + " " + n);
+    else assert.ok(n < 300000, f + " " + n);
+    if (f.startsWith("parts/card-")) maxCard = Math.max(maxCard, n);
+  }
+  assert.ok(html + maxCard < 1048576, "erste Karte " + (html + maxCard));
+  const meta = JSON.parse(fs.readFileSync(path.join(DIST, "build.json"), "utf8"));
+  assert.ok(Object.keys(meta.cards).length >= 2, "jede Karte ist ein Teil");
+  for (const p of Object.values(meta.cards)) { assert.match(p.file, /^parts\/card-[a-z0-9-]+\.[0-9a-f]{12}\.js$/); assert.match(p.sri, /^sha384-/); assert.ok(fs.existsSync(path.join(DIST, p.file))); }
+  console.log("# budget: Kern " + html + " B, groesster Kartenteil " + maxCard + " B, Teile " + Object.keys(report.parts).length);
 });
 
 test("Kern ist offline: keine externen Ressourcen im HTML ausser CSP-Hosts", () => {
@@ -48,10 +57,13 @@ test("CSP: strikt, ohne unsafe-inline/unsafe-eval; Hashes passen zu Skript und S
 });
 
 const DANGEROUS = /\binnerHTML\b|\bouterHTML\b|insertAdjacentHTML|document\.write|\beval\s*\(|new\s+Function\b|[^.\w]Function\s*\(|setTimeout\s*\(\s*["'`]/;
-test("Realm-Trennung (Review M4): App ohne Netz und ohne Fremdskript; Live nur im abgeschotteten Rahmen mit eigener CSP", () => {
+test("Realm-Trennung (Review M4): App nur zum eigenen Server und ohne Fremdskript; Live nur im abgeschotteten Rahmen mit eigener CSP", () => {
   const html = fs.readFileSync(path.join(DIST, "index.html"), "utf8");
   const csp = /http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(html)[1];
-  assert.match(csp, /connect-src 'none'/);
+  // P1 Konto: genau die eigene Herkunft (/api/duell, /auth/me), sonst nichts – kein Host, kein Schema, kein Wildcard
+  assert.equal(/connect-src ([^;]+)/.exec(csp)[1].trim(), "'self'");
+  for (const d of ["img-src data:", "font-src data:", "default-src 'none'"]) assert.ok(csp.includes(d), d);
+  assert.ok(!/worker-src|manifest-src|media-src/.test(csp), "keine weiteren Quellen: " + csp);
   assert.match(csp, /frame-src 'self' https:\/\/webconference\.bunsenbrenner\.org\/play-frame\.html(;|$)/, "nur genau der Live-Rahmen der Webkonferenz");
   assert.ok(!/https?:|'self'/.test(/script-src ([^;]+)/.exec(csp)[1]), "script-src nur Hash: " + csp);
   const frames = fs.readdirSync(path.join(DIST, "parts")).filter((f) => /^live-frame\./.test(f));
@@ -89,6 +101,20 @@ test("Netz und Geraetespeicher nur im Broker (src/broker/*)", () => {
     const m = NET.exec(fs.readFileSync(f, "utf8"));
     assert.equal(m, null, rel(f) + ": " + (m && m[0]));
   }
+});
+
+test("Server-Aufrufe nur ueber EIN API-Modul (src/broker/api.js); kein fetch sonst, auch nicht im Broker", () => {
+  const hits = files(SRC, /\.js$/).filter((f) => /\bfetch\s*\(/.test(fs.readFileSync(f, "utf8"))).map(rel).sort();
+  // live.js spricht im abgeschotteten Rahmen mit /api/play der Webkonferenz (nicht mit diesem Server);
+  // parts.js laedt nur die eigenen statischen Teile (Dateinamen aus dem Build, ohne Cookies), keine Server-Aufrufe
+  assert.deepEqual(hits, [path.join("src", "broker", "api.js"), path.join("src", "broker", "live.js"), path.join("src", "broker", "parts.js")].sort());
+  const parts = fs.readFileSync(path.join(SRC, "broker/parts.js"), "utf8");
+  assert.match(parts, /win\.fetch\(file, \{ cache: "no-cache", credentials: "omit" \}\)/, "Teile ohne Cookies, nur Dateinamen aus dem Build");
+  const api = fs.readFileSync(path.join(SRC, "broker/api.js"), "utf8");
+  assert.ok(!/https?:\/\//.test(api.replace(/\/\/.*$/gm, "")), "API nur relativ (gleiche Herkunft)");
+  assert.match(api, /credentials: "same-origin"/);
+  const html = fs.readFileSync(path.join(DIST, "index.html"), "utf8"), js = /<script>([\s\S]*)<\/script>/.exec(html)[1];
+  for (const p of ["/api/duell", "/auth/me", "/auth/login"]) assert.ok(js.includes(p), p + " im Kern");
 });
 
 test("Genau EIN WebSocket und EINE RTCPeerConnection je Live-Rahmen, keiner im Kern; keine stun:/turn:-Literale", () => {
@@ -144,12 +170,13 @@ test("Sperre erkennt alle Umgehungen aus dem Review (relativ, nackt, mehrzeilig,
 });
 
 test("Kopierte Fixtures tragen einen Herkunftsvermerk", () => {
-  for (const f of files(path.join(ROOT, "test/fixtures"), /\.json$/)) assert.ok(typeof JSON.parse(fs.readFileSync(f, "utf8")).herkunft === "string", rel(f));
+  // Testkarten (test/fixtures/cards/*) sind eigene Vertragsbeispiele, keine kopierten Erwartungen
+  for (const f of files(path.join(ROOT, "test/fixtures"), /\.json$/).filter((f) => !/[\\/]fixtures[\\/]cards[\\/]/.test(f))) assert.ok(typeof JSON.parse(fs.readFileSync(f, "utf8")).herkunft === "string", rel(f));
 });
 
 test("Erzeugte Dateien (Validatoren, Code-Hashes) sind aktuell", () => {
   const g = generate();
-  for (const [f, s] of Object.entries(g)) assert.equal(fs.readFileSync(path.join(SRC, "gen", f), "utf8"), s, "src/gen/" + f + " veraltet: node scripts/gen.js");
+  for (const [f, s] of Object.entries(g)) assert.equal(fs.readFileSync(path.join(SRC, f), "utf8"), s, "src/" + f + " veraltet: node scripts/gen.js");
 });
 
 test("Abhaengigkeiten gepinnt, nur FOSS-Lizenzen", () => {
@@ -160,4 +187,27 @@ test("Abhaengigkeiten gepinnt, nur FOSS-Lizenzen", () => {
     const lic = JSON.parse(fs.readFileSync(path.join(ROOT, "node_modules", n, "package.json"), "utf8")).license;
     assert.ok(["MIT", "Apache-2.0", "MPL-2.0", "OFL-1.1", "BSD-2-Clause", "BSD-3-Clause", "ISC"].includes(lic), n + " " + lic);
   }
+});
+
+// Security-Review L1: fast-uri (ueber ajv) hat offene High-Meldungen ohne behobene Version (3.x bis 3.1.2, 4.0.0 und 2.x
+// betroffen). Ajv laeuft nur zur Build-Zeit ueber eigene Schemata; dieser Test haelt fest, dass weder ajv-Laufzeit-URI-Code
+// noch fast-uri im ausgelieferten Kern oder in einem Teil landet, und die erzeugten Validatoren nichts davon importieren.
+test("Kein fast-uri/ajv-URI-Code im Auslieferungsstand und in den Validatoren (L1)", () => {
+  const SIG = /fast-uri|removeDotSegments|reescapeHostDelimiters|normalizeIPv6|ajv\/dist\/runtime\/uri/;
+  const out = [path.join(DIST, "index.html"), ...files(path.join(DIST, "parts"), /\.js$/)];
+  for (const f of out) assert.doesNotMatch(fs.readFileSync(f, "utf8"), SIG, path.relative(ROOT, f));
+  for (const f of files(path.join(SRC, "gen"), /\.js$/)) assert.doesNotMatch(fs.readFileSync(f, "utf8"), /from\s+["'](ajv|fast-uri)/, path.relative(ROOT, f));
+});
+
+// Vertrag mit dem Wrapper (CADS-DEMO-wrapper#138, Staging L3): er liefert unter /duell/parts/ nur Namen aus, die
+// dist/build.json listet (report.parts mit "parts/…"-Schluesseln, parts.live.file) und die seinen Mustern folgen.
+test("build.json listet jeden Teil unter parts/ nach dem Wrapper-Muster (Vertrag mit W)", () => {
+  const bj = JSON.parse(fs.readFileSync(path.join(DIST, "build.json"), "utf8"));
+  const listed = new Set(Object.keys(bj.report.parts).filter((k) => k.startsWith("parts/")).map((k) => k.slice(6)));
+  const W = [/^card-[a-z0-9-]{1,40}\.[0-9a-f]{12}\.js$/, /^thumbs-[0-9]{1,4}\.[0-9a-f]{12}\.js$/, /^live-frame\.[0-9a-f]{10}\.html$/, /^feat-[a-z0-9-]{1,40}\.[0-9a-f]{12}\.js$/];
+  for (const f of fs.readdirSync(path.join(DIST, "parts"))) {
+    assert.ok(listed.has(f), "nicht in build.json: " + f);
+    assert.ok(W.some((re) => re.test(f)), "passt zu keinem Wrapper-Muster: " + f);
+  }
+  assert.equal(bj.parts.live.file, "parts/" + [...listed].find((f) => f.startsWith("live-frame.")));
 });

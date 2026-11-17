@@ -1,0 +1,225 @@
+// Feature "home" (ADR 0001 §g, Form aus src/app/features.js): Heimseite als Zustand inhalt.shelf. Navigation in der Heimseite ist erweiterter Zustand
+// (ctx.home), damit Zurueck aus einer Karte genau dorthin fuehrt, wo man war (Regal, Familie, Meins), ohne History-Zustaende.
+// Die Ansicht leitet alles aus ctx.home/ctx.mine ab (A2). Effekte (Speichern, Kurzlink, Story-Bild) gibt nur die Aktion aus.
+import * as R from "./rotation.js";
+import * as S from "./store.js";
+import { partOf } from "../../gen/fparts.js";
+import { cardOf, validParams } from "../../cards/index.js";
+import { defaults } from "../../contract/fields.js";
+import { playOf } from "../../contract/modes.js";
+import { fragmentOf } from "./shortlink.js";
+import * as G from "../../app/game.js";
+import { ORDER } from "../../cards/index.js";
+import { newIdOf, variantOf } from "./families.js";
+import { thumbKey } from "./tile.js";
+
+/** Alle Startbilder, die Regal und Blatt zeigen koennen: jede Karte und jede Katalog-Variante (Karte/Variante). */
+export function thumbKeys() {
+  const out = new Set(ORDER);
+  for (const i of R.IDEAS) { const n = newIdOf(i.id), v = variantOf(i.id); if (n && v) out.add(thumbKey(n, v)); }
+  return [...out];
+}
+import { effects } from "./effects.js";
+
+export const AT = ["day", "family", "regal", "meins", "eigene"];
+const RTABS = ["alles", "tage", "andere"], MTABS = ["wand", "einladungen", "gemerkt"];
+export const MAX_OFF = 31;
+const todayOf = (ev) => (Number.isFinite(ev.at) ? Math.floor(ev.at / R.DAY) : null);
+
+export function homeContext() {
+  return { thumbs: {}, wx: null, photo: null, home: { at: "day", off: 0, intent: null, text: "", res: null, rtab: "alles", fam: null, q: "", mtab: "wand", note: null, sure: null }, today: null, mine: { wall: [], saved: [], invites: [], undo: null, loaded: false, busy: null } };
+}
+const H = (ctx, o) => ({ ...ctx, home: { ...ctx.home, ...o } });
+const M = (ctx, o) => ({ ...ctx, mine: { ...ctx.mine, ...o } });
+const day = (ctx, ev) => { const t = todayOf(ev); return t === null || t === ctx.today ? ctx : { ...ctx, today: t }; };
+function saveFx(ctx, emit) { emit({ type: "home.save", data: { wall: ctx.mine.wall, saved: ctx.mine.saved, invites: ctx.mine.invites } }); }
+// Konto verbunden: Profil als geaendert markieren, damit SAVE (Konto-Region) Wand und Gemerktes mitschickt
+function dirty(ctx) { return ctx.profil && ctx.profil.via ? { ...ctx, profil: { ...ctx.profil, dirty: true } } : ctx; }
+const persist = (ctx, emit) => { saveFx(ctx, emit); return dirty(ctx); };
+
+export const guards = {
+  playAsOk: (ctx, ev) => { const c = G.card(ctx); return !!c && typeof ev.mode === "string" && playOf(c, ctx.variant).offer.includes(ev.mode); },
+  homeDeep: (ctx) => ctx.home.at !== "day" || ctx.home.off !== 0 || !!ctx.home.note,
+  homeLinked: (ctx) => !!(ctx.profil && ctx.profil.via)
+};
+
+export const actions = {
+  // erster Besuch: Meins laden, danach (nach dem ersten Bild) Startbilder der Kacheln und die Leseschrift nachladen
+  homeInit: (ctx, ev, emit) => {
+    if (ctx.mine.loaded || ctx.mine.loading) return ctx;
+    emit({ type: "home.load" }); emit({ type: "home.thumbs", keys: thumbKeys() }); emit({ type: "home.font" });
+    return M(ctx, { loading: true });
+  },
+  thumbsTake: (ctx, ev) => (ev.map && typeof ev.map === "object" ? { ...ctx, thumbs: { ...ctx.thumbs, ...ev.map } } : ctx),
+  homeGo: (ctx, ev) => {
+    const to = AT.includes(ev.to) ? ev.to : "day";
+    const o = { at: to, note: null, sure: null };
+    if (to === "family") { o.intent = ["gruss", "planen", "spielen", "stimme"].includes(ev.intent) ? ev.intent : null; o.res = ev.keepRes ? ctx.home.res : null; o.focus = ev.focus === "sentence" ? "sentence" : null; }
+    if (to === "regal") { o.rtab = RTABS.includes(ev.rtab) ? ev.rtab : ctx.home.rtab; if (ev.fam !== undefined) o.fam = ev.fam; o.focus = ev.focus === "search" ? "search" : null; }
+    if (to === "meins") o.mtab = MTABS.includes(ev.tab) ? ev.tab : ctx.home.mtab;
+    if (to === "day") o.off = Number.isInteger(ev.off) ? Math.max(-MAX_OFF, Math.min(MAX_OFF, ev.off)) : 0;
+    return H(day(ctx, ev), o);
+  },
+  homeBack: (ctx) => (ctx.home.note ? H(ctx, { note: null }) : ctx.home.at !== "day" ? H(ctx, { at: "day" }) : H(ctx, { off: 0 })),
+  homeDay: (ctx, ev) => { const c = day(ctx, ev); const d = Number.isInteger(ev.d) ? ev.d : 0; return H(c, { off: Math.max(-MAX_OFF, Math.min(MAX_OFF, ev.to0 ? 0 : c.home.off + d)) }); },
+  homeText: (ctx, ev) => H(ctx, { text: String(ev.text || "").slice(0, 200) }),
+  homeUnderstand: (ctx, ev) => {
+    const c = day(ctx, ev), text = c.home.text.trim();
+    if (!text) return H(c, { note: "empty" });
+    // Teil home-find, geladen vor UNDERSTAND (needParts)
+    const r = partOf("home-find").understand(text, { date: new Date((c.today ?? todayOf(ev) ?? 0) * R.DAY), intent: ev.intent || undefined });
+    const res = { text, intent: r.intent, name: r.name, who: r.who, missing: r.missing, top: r.top.map((t) => ({ id: t.idea.id, exact: t.exact })) };
+    return H(c, { at: "family", intent: r.intent || null, res, note: null });
+  },
+  // open: Suche aus der Kopfzeile (breit) fuehrt ins Regal, ohne zweites Ereignis
+  homeQuery: (ctx, ev) => H(day(ctx, ev), { q: String(ev.q || "").slice(0, 80), rtab: "alles", ...(ev.open && ctx.home.at !== "regal" ? { at: "regal", fam: null, focus: "search" } : {}) }),
+  homeRtab: (ctx, ev) => H(ctx, { rtab: RTABS.includes(ev.tab) ? ev.tab : "alles" }),
+  homeFam: (ctx, ev) => H(ctx, { fam: typeof ev.fam === "string" ? ev.fam : null }),
+  homeMtab: (ctx, ev) => H(ctx, { mtab: MTABS.includes(ev.tab) ? ev.tab : "wand", sure: null, menu: null }),
+  homeMenu: (ctx, ev) => H(ctx, { menu: typeof ev.k === "string" && ctx.home.menu !== ev.k ? ev.k : null }),
+  homeLoaded: (ctx, ev) => {
+    const d = ev.data || {};
+    const c = M(day(ctx, ev), { wall: S.cleanWall(d.wall), saved: S.cleanSaved(d.saved), invites: S.cleanInvites(d.invites), loaded: true, loading: false });
+    return c;
+  },
+  // Minutentakt: neuer Tag -> heute zeigt das neue Blatt (alt:app.js:372-380); abgelaufenes Rueckgaengig verschwindet
+  homeTick: (ctx, ev) => {
+    const c = day(ctx, ev);
+    return c.mine.undo && Number.isFinite(ev.at) && ev.at - c.mine.undo.at >= S.UNDO_MS ? M(c, { undo: null }) : c;
+  },
+  merken: (ctx, ev, emit) => (typeof ev.id === "string" ? persist(M(ctx, { saved: S.toggleSaved(ctx.mine.saved, ev.id, ev.at) }), emit) : ctx),
+  wallOff: (ctx, ev, emit) => { const r = S.takeOff(ctx.mine.wall, ev.i, ev.at); if (r.undo) emit({ type: "home.later", ms: S.UNDO_MS }); return persist(H(M(ctx, { wall: r.wall, undo: r.undo }), { menu: null }), emit); },
+  wallUndo: (ctx, ev, emit) => persist(M(ctx, { wall: S.undoOff(ctx.mine.wall, ctx.mine.undo, ev.at), undo: null }), emit),
+  wallSnap: (ctx, ev, emit) => persist(M(ctx, { wall: S.setThumb(ctx.mine.wall, ev.id, ev.ts, ev.th) }), emit),
+  // Jeder erzeugte Link ins Archiv; ein fertiges Werk (Karte verschickt) auf die Wand, wie alt bei "Fertig"
+  homeArchive: (ctx, ev, emit) => {
+    if (!ctx.link || !ctx.cardId) return ctx;
+    const f = String(ctx.link).replace(/^#/, ""), card = cardOf(ctx.cardId), at = Number.isFinite(ev.at) ? ev.at : 1;
+    const title = card ? card.manifest.title[ctx.lang] || card.manifest.title.de : ctx.cardId;
+    if (ctx.mine.invites.some((x) => x.f === f)) return ctx;
+    let c = M(ctx, { invites: S.archive(ctx.mine.invites, { f, c: ctx.cardId, t: title, at }) });
+    if (card && card.manifest.mode === "static") {
+      const params = G.paramsOf(ctx);
+      if (params) {
+        c = M(c, { wall: S.addWall(c.mine.wall, { id: ctx.cardId, ts: at, k: "card", f, p: params, t: title }) });
+        emit({ type: "wall.snap", id: ctx.cardId, ts: at, params, lang: ctx.lang });
+      }
+    }
+    if (fragmentOf(f)) emit({ type: "short.create", f, lang: ctx.lang });
+    return persist(c, emit);
+  },
+  shortDone: (ctx, ev, emit) => persist(M(ctx, { invites: S.setShort(ctx.mine.invites, ev.f, ev.r && ev.r.ok ? ev.r.s : null) }), emit),
+  // Loeschen nie ohne Rueckfrage (Design-System Phase C): erster Tipp fragt, zweiter loescht
+  invDelete: (ctx, ev, emit) => {
+    const x = ctx.mine.invites.find((i) => i.f === ev.f);
+    if (!x) return ctx;
+    if (ctx.home.sure !== ev.f) return H(ctx, { sure: ev.f });
+    ctx = H(ctx, { sure: null });
+    if (x.s) { emit({ type: "short.delete", f: x.f, s: x.s }); return M(ctx, { busy: x.f }); }
+    return persist(M(ctx, { invites: S.dropInvite(ctx.mine.invites, ev.f) }), emit);
+  },
+  shortDeleted: (ctx, ev, emit) => (ev.ok ? persist(M(ctx, { invites: S.dropInvite(ctx.mine.invites, ev.f), busy: null }), emit) : H(M(ctx, { busy: null }), { note: "delFail" })),
+  invShare: (ctx, ev, emit) => { const x = ctx.mine.invites.find((i) => i.f === ev.f); if (x) emit({ type: "home.share", inv: x, at: ev.at }); return ctx; },
+  story: (ctx, ev, emit) => {
+    const x = ctx.mine.invites.find((i) => i.f === ev.f);
+    if (x) emit({ type: "story.make", inv: x, at: ev.at, lang: ctx.lang });
+    return M(ctx, { busy: x ? "story" : null });
+  },
+  storyDone: (ctx, ev) => H(M(ctx, { busy: null }), { note: ev.ok ? "storyOk" : "storyFail" }),
+  // Server-Profil (P1) kam: Wand und Gemerktes beider Seiten zusammenfuehren (neueste zuerst, ohne Doppelte)
+  homeProfil: (ctx, ev, emit) => {
+    const r = ev.result;
+    if (!r || !r.ok || !r.profile || (ev.op !== "get" && ev.op !== "put")) return ctx;
+    const m = S.mergeRemote(ctx.mine, r.profile);
+    if (JSON.stringify(m.wall) === JSON.stringify(ctx.mine.wall) && JSON.stringify(m.saved) === JSON.stringify(ctx.mine.saved)) return ctx;
+    const c = M(ctx, m); saveFx(c, emit); return c;
+  },
+  homeNoteClear: (ctx) => H(ctx, { note: null }),
+  // Doppelknopf der Startansicht (Board GFlugStart/GArcadeStart): Spielweise setzen; GO folgt im selben Makroschritt
+  playAs: (ctx, ev) => ({ ...ctx, mode: ev.mode, note: null }),
+  // Varianten-Chip in der Startansicht: Variante mit ihren Parametern wie beim Oeffnen aus dem Regal (eigene Aenderungen weg)
+  levelVariant: (ctx, ev) => {
+    const c = G.card(ctx), v = c && (c.manifest.variants || []).find((x) => x.id === ev.variant && x.chip);
+    if (!v) return ctx;
+    const p = { ...defaults(c.manifest.params), ...v.params };
+    if (!validParams(ctx.cardId, p)) return ctx;
+    const play = playOf(c, v.id), mode = playOf(c, v.id).offer.includes(ctx.mode) ? ctx.mode : play.default;
+    return { ...ctx, variant: v.id, mode, params: { ...ctx.params, [ctx.cardId]: p } };
+  },
+  // Level-Regler in der Startansicht (Board GFlugStart): nur Parameter mit benannten Stufen (x-steps), nur Stufenwerte, Schema geprueft
+  levelStep: (ctx, ev) => {
+    const c = G.card(ctx), p = c && c.manifest.params.properties[ev.key], st = p && p["x-steps"];
+    if (!st || !Array.isArray(st.values) || !st.values.includes(ev.value)) return ctx;
+    const next = { ...G.paramsOf(ctx), [ev.key]: ev.value };
+    return validParams(ctx.cardId, next) ? { ...ctx, params: { ...ctx.params, [ctx.cardId]: next } } : ctx;
+  },
+  // Wetter im Editor (Feld weather, Strang P): Tag als Datum aus dem Ereignis-Zeitpunkt, der Server liefert echte Zahlen
+  wxGet: (ctx, ev, emit) => {
+    if (typeof ev.key !== "string" || !ev.place) return { ...ctx, wx: { key: ev.key, st: "blocked" } };
+    const day = [0, 1, 2].includes(ev.day) ? ev.day : 0, date = new Date((Math.floor((ev.at || 0) / R.DAY) + day) * R.DAY).toISOString().slice(0, 10);
+    emit({ type: "home.wx", key: ev.key, place: ev.place, date });
+    return { ...ctx, wx: { key: ev.key, st: "busy" } };
+  },
+  wxDone: (ctx, ev) => ({ ...ctx, wx: { key: ev.key, st: ev.st } }),
+  // Foto im Editor (Feld media.local): der Effekt speichert es auf dem Geraet und setzt "local:<id>" ueber PARAM
+  photoPut: (ctx, ev, emit) => {
+    if (typeof ev.key !== "string" || !ev.file) return { ...ctx, photo: { key: ev.key, st: "kein-bild" } };
+    emit({ type: "home.photo", key: ev.key, file: ev.file });
+    return { ...ctx, photo: { key: ev.key, st: "busy" } };
+  },
+  photoDone: (ctx, ev) => ({ ...ctx, photo: { key: ev.key, st: ev.st } }),
+  // Karte als Bild teilen: der Knoten kommt aus der Anzeigeliste der Karte (nur Daten), gezeichnet wird im Effekt
+  shareImage: (ctx, ev, emit) => {
+    if (!ev.node || typeof ev.node !== "object" || ev.node.t !== "canvas") return H(ctx, { img: "fehler" });
+    emit({ type: "home.image", name: ev.name, node: ev.node });
+    return H(ctx, { img: "busy" });
+  },
+  imageDone: (ctx, ev) => H(ctx, { img: ev.st })
+};
+
+// Uebergaenge in inhalt.shelf (OPEN und STIL wie bisher)
+export const shelfOn = {
+  HOME: { actions: ["homeGo"] },
+  DAY: { actions: ["homeDay"] },
+  SENTENCE: { actions: ["homeText"] },
+  UNDERSTAND: { actions: ["homeUnderstand"] },
+  QUERY: { actions: ["homeQuery"] },
+  RTAB: { actions: ["homeRtab"] },
+  FAM: { actions: ["homeFam"] },
+  MTAB: { actions: ["homeMtab"] },
+  WMENU: { actions: ["homeMenu"] },
+  WALL_OFF: { actions: ["wallOff"] },
+  WALL_UNDO: { actions: ["wallUndo"] },
+  INV_DELETE: { actions: ["invDelete"] },
+  INV_SHARE: { actions: ["invShare"] },
+  STORY: { actions: ["story"] },
+  NOTE_OK: { actions: ["homeNoteClear"] },
+  BACK: { cond: "homeDeep", actions: ["homeBack"] }
+};
+// Ereignisse in jedem Inhalt-Zustand (Ergebnisse von Effekten, Merken aus der Kartenansicht, Profil)
+export const inhaltOn = {
+  HOME_LOADED: { actions: ["homeLoaded"] },
+  HOME_TICK: { actions: ["homeTick"] },
+  THUMBS: { actions: ["thumbsTake"] },
+  WX_DONE: { actions: ["wxDone"] },
+  PHOTO_DONE: { actions: ["photoDone"] },
+  MERKEN: { actions: ["merken"] },
+  WALL_SNAP: { actions: ["wallSnap"] },
+  SHORT_DONE: { actions: ["shortDone"] },
+  IMAGE_DONE: { actions: ["imageDone"] },
+  SHORT_DELETED: { actions: ["shortDeleted"] },
+  STORY_DONE: { actions: ["storyDone"] },
+  PROFIL: { actions: ["homeProfil"] }
+};
+// homeInit beim Betreten der Heimseite: beim ersten Mal Meins laden und den Minutentakt starten (Effekte des Anfangszustands
+// fuehrt die Laufzeit aus)
+export const entry = { "inhalt.shelf": ["homeInit"], "inhalt.card.share": ["homeArchive"], "inhalt.card.play.send": ["homeArchive"], "inhalt.card.play.over": ["homeArchive"] };
+
+// Wand-Sync ueber das Profil (P1): was der Server von Meins bekommt (konto-chart put -> pack(me, remote, local))
+export const profileLocal = (ctx) => (ctx.mine ? { wall: S.wallForServer(ctx.mine.wall), saved: ctx.mine.saved } : null);
+
+// Teile ausserhalb des Kerns (src/app/feature-parts.json): Satz und Suche (home-find); Story/Wand-Bild laedt der Effekt selbst
+export const needParts = (ev) => (ev.type === "UNDERSTAND" || ev.type === "QUERY" ? ["home-find"] : []);
+
+// startsGo (Laufzeit F): PLAY_AS fuehrt im selben Schritt zu GO; die Laufzeit laedt vorher dessen Teile
+export const home = { id: "home", startsGo: ["PLAY_AS"], shelfOn, on: { inhalt: inhaltOn, "inhalt.card.view": { LEVEL_STEP: { actions: ["levelStep"] }, VARIANT: { actions: ["levelVariant"] }, PLAY_AS: { cond: "playAsOk", actions: ["playAs"], raise: (ctx, ev) => ({ type: "GO", rand: ev.rand, at: ev.at }) } }, "inhalt.card.share": { SHARE_IMAGE: { actions: ["shareImage"] } }, "inhalt.card.customize.dialog": { WX_GET: { actions: ["wxGet"] }, PHOTO_PUT: { actions: ["photoPut"] } } }, entry, guards, actions, context: homeContext, effects, profileLocal, needParts };

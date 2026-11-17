@@ -111,7 +111,7 @@ export function createMachine(def, impl = {}) {
       plan.push({ t, domain, exitSet });
     }
     // raise wird VOR den Aktionen ausgewertet (Review M2): die Bedingung sieht den Kontext, der zum Ereignis fuehrte
-    const raised = plan.filter((p) => p.t.raise).map((p) => (typeof p.t.raise === "function" ? p.t.raise(ctx, ev) : { type: p.t.raise })).filter(Boolean);
+    const raised = plan.filter((p) => p.t.raise).map((p) => (typeof p.t.raise === "function" ? p.t.raise(ctx, ev) : typeof p.t.raise === "string" ? { type: p.t.raise } : p.t.raise)).filter(Boolean);
     const exits = [...new Set(plan.flatMap((p) => p.exitSet))].sort(byOrder).reverse();
     for (const s of exits) { ctx = runActions(nodes.get(s).exit, ctx, ev, fx); active.delete(s); }
     for (const p of plan) ctx = runActions(p.t.actions, ctx, ev, fx);

@@ -7,25 +7,33 @@ import { onFill } from "../../contract/tokens.js";
 
 const TX = {
   de: {
-    you0: "Sag jede Karte an – gleich hoch oder höher.",
-    you1: "Glaub die Ansage oder deck sie auf.",
-    say: "Karte {n}: Du hast {v}. Was sagst du an?",
-    see: "Karte {n}: angesagt {v}. Glaubst du das?",
+    role0: "Du bist der Bote. Du kennst deine Karten und darfst schwindeln.",
+    role1: "Du bist der Prüfer. Du siehst nur die Ansagen.",
+    goal0: "Sag jede Karte an: gleich hoch oder höher. Wer am Ende mehr Punkte hat, gewinnt.",
+    goal1: "Glaub die Ansage oder deck sie auf. Erwischst du eine Lüge, bekommst du ihre Punkte.",
+    say: "Karte {n} von {m}: Du hast {v}. Was sagst du an?",
+    see: "Karte {n} von {m}: Der Bote sagt {v}. Glaubst du das?",
+    honestOpt: "{v} (ehrlich)",
     yes: "Glauben", no: "Aufdecken",
     said: "Ansage\u00a0{v}", believed: "geglaubt", opened: "aufgedeckt", lie: "gelogen",
     line: "Karte {n}: Ansage {c}, in Wahrheit {t}.",
+    why: { believed: "Geglaubt: Bote +{p}.", honest: "Aufgedeckt, ehrlich: Bote +{p}.", caught: "Aufgedeckt, gelogen: Prüfer +{p}." },
     score: "{s0} {a} – {s1} {b}", cheat: "Ansage unter dem echten Wert: Die Partie zählt nicht.",
     rule: "So zählt es: Geglaubt – der Bote bekommt die Ansage. Aufgedeckt und ehrlich – der Bote bekommt den Wert plus {b}. Aufgedeckt und gelogen – der Prüfer bekommt die Ansage.",
     hidden: "verdeckt", card: "Karte {n}", honest: "Alles war ehrlich. Gegen eine ehrliche Hand punktet nur der Bote."
   },
   en: {
-    you0: "Announce each card – the same or higher.",
-    you1: "Believe the announcement or reveal it.",
-    say: "Card {n}: you hold {v}. What do you announce?",
-    see: "Card {n}: announced {v}. Do you believe it?",
+    role0: "You are the messenger. You know your cards and you may fib.",
+    role1: "You are the checker. You only see the announcements.",
+    goal0: "Announce each card: the same or higher. Whoever has more points at the end wins.",
+    goal1: "Believe the announcement or reveal it. Catch a lie and its points are yours.",
+    say: "Card {n} of {m}: you hold {v}. What do you announce?",
+    see: "Card {n} of {m}: the messenger says {v}. Do you believe it?",
+    honestOpt: "{v} (honest)",
     yes: "Believe", no: "Reveal",
     said: "Said\u00a0{v}", believed: "believed", opened: "revealed", lie: "a lie",
     line: "Card {n}: announced {c}, really {t}.",
+    why: { believed: "Believed: messenger +{p}.", honest: "Revealed, honest: messenger +{p}.", caught: "Revealed, a lie: checker +{p}." },
     score: "{s0} {a} – {s1} {b}", cheat: "An announcement below the real value: this game does not count.",
     rule: "How it counts: believed – the messenger scores the announcement. Revealed and honest – the messenger scores the value plus {b}. Revealed and a lie – the checker scores the announcement.",
     hidden: "face down", card: "Card {n}", honest: "Everything was honest. Against an honest hand only the messenger scores."
@@ -90,7 +98,8 @@ export default {
   status(state) {
     const p = state.pub, over = p.phase === "over";
     const winner = !over ? -1 : p.cheat ? 1 : p.score[0] > p.score[1] ? 0 : p.score[1] > p.score[0] ? 1 : -1;
-    return { over, turn: p.phase === "say" || p.phase === "reveal" ? 0 : p.phase === "call" ? 1 : -1, reveal: p.phase === "reveal", score: p.score.slice(), winner, cheat: p.cheat };
+    // turnNo/turns: "Zug n von m" fuer die Kopfzeile des Hosts (Bote = Zug 1, Pruefer = Zug 2, wie alt note_turn)
+    return { over, turn: p.phase === "say" || p.phase === "reveal" ? 0 : p.phase === "call" ? 1 : -1, reveal: p.phase === "reveal", score: p.score.slice(), winner, cheat: p.cheat, turnNo: p.phase === "say" ? 1 : 2, turns: 2 };
   },
   moves,
   // Determinisierung fuer ISMCTS: eine zur Sicht passende Welt, nur aus der Beobachtung und dem rng
@@ -123,26 +132,37 @@ export default {
         t: "tile", fill: p.accent, ink, value: truth === null ? null : String(truth), sub,
         mark: p.truth && said !== truth ? "hit" : "none", // Luegen nach der Aufloesung sichtbar markieren
         focus: !preview && ((p.phase === "say" && i === p.say.length) || (p.phase === "call" && i === p.call.length)),
-        a11y: fmt(X.card, { n: i + 1 }) + ": " + (truth === null ? X.hidden : truth) + (sub ? ", " + sub : ""),
+        a11y: fmt(X.card, { n: i + 1 }) + ": " + (truth === null ? X.hidden : truth) + (sub ? ", " + sub.replace(/\n/g, ", ") : ""),
         part: "farbe"
       });
     }
     const kids = [];
+    // Muster 13 §6.4: Rolle und Ziel stehen vor der ersten Handlung, eine Frage je Bildschirm mit dem eigenen Wert
+    const acting = !preview && ((p.phase === "say" && seat === 0 && obs.mine) || (p.phase === "call" && seat === 1));
     if (preview) kids.push({ t: "text", role: "body", text: manifest.howto[ctx.lang] || manifest.howto.de, part: "regeln" });
-    else if (p.phase === "say" && seat === 0) kids.push({ t: "text", role: "label", text: X.you0 });
-    else if (p.phase === "call" && seat === 1) kids.push({ t: "text", role: "label", text: X.you1 });
+    else if (acting) {
+      kids.push({ t: "text", role: "label", text: seat === 0 ? X.role0 : X.role1 });
+      kids.push({ t: "text", role: "small", text: seat === 0 ? X.goal0 : X.goal1, part: "regeln" });
+    }
     kids.push({ t: "row", wrap: false, children: tiles });
     if (!preview) {
       const i = p.phase === "say" ? p.say.length : p.call.length;
       if (p.phase === "say" && seat === 0 && obs.mine) {
-        kids.push({ t: "choice", label: fmt(X.say, { n: i + 1, v: obs.mine.cards[i] }), options: moves(obs, seat).map((m) => ({ label: String(m.v), input: m })) });
+        const own = obs.mine.cards[i];
+        kids.push({ t: "choice", label: fmt(X.say, { n: i + 1, m: p.n, v: own }), options: moves(obs, seat).map((mv) => ({ label: mv.v === own ? fmt(X.honestOpt, { v: mv.v }) : String(mv.v), input: mv })) });
       } else if (p.phase === "call" && seat === 1) {
-        kids.push({ t: "choice", label: fmt(X.see, { n: i + 1, v: p.say[i] }), options: [{ label: X.yes, input: { t: "call", seat: 1, open: false } }, { label: X.no, input: { t: "call", seat: 1, open: true } }] });
+        kids.push({ t: "choice", label: fmt(X.see, { n: i + 1, m: p.n, v: p.say[i] }), options: [{ label: X.yes, input: { t: "call", seat: 1, open: false } }, { label: X.no, input: { t: "call", seat: 1, open: true } }] });
       } else if (p.phase === "over") {
         const names = manifest.seats[ctx.lang] || manifest.seats.de;
         kids.push({ t: "text", role: "big", text: p.cheat ? "–" : fmt(X.score, { s0: names[0], a: p.score[0], s1: names[1], b: p.score[1] }) });
         if (p.cheat) kids.push({ t: "text", role: "body", text: X.cheat });
         else {
+          // jede Karte erklaert ihre Punkte: Ansage, Wahrheit, Entscheidung, wer wie viel bekommt
+          for (let k = 0; k < p.n; k++) {
+            const s = p.say[k], t = p.truth[k], open = p.call[k];
+            const why = !open ? fmt(X.why.believed, { p: s }) : s === t ? fmt(X.why.honest, { p: t + p.bonus }) : fmt(X.why.caught, { p: s });
+            kids.push({ t: "text", role: "body", text: fmt(X.line, { n: k + 1, c: s, t }) + " " + why });
+          }
           if (p.say.every((s, k) => s === p.truth[k])) kids.push({ t: "text", role: "body", text: X.honest });
           kids.push({ t: "text", role: "small", text: fmt(X.rule, { b: p.bonus }) });
         }

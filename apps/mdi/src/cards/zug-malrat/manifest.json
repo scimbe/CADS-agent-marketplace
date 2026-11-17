@@ -1,0 +1,181 @@
+{
+  "id": "zug-malrat",
+  "version": "1.1.0",
+  "sdk": "mdi-sdk/0.2",
+  "kind": "turn",
+  "mode": "turn",
+  "title": {
+    "de": "Mal & Rat",
+    "en": "Draw & Guess"
+  },
+  "teaser": {
+    "de": "Mal ein Wort. Wer errät dein Bild?",
+    "en": "Draw a word. Who can guess your picture?"
+  },
+  "howto": {
+    "de": "Wähle ein Wort und male es. Rate das Bild. Dann malst du zurück.",
+    "en": "Pick a word and draw it. Guess the picture. Then you draw back."
+  },
+  "rule": {
+    "de": "Einer malt ein Wort, der andere sieht das Bild Strich für Strich und rät. Dann malt er zurück.",
+    "en": "One draws a word, the other watches the picture line by line and guesses. Then they draw back."
+  },
+  "seats": {
+    "de": [
+      "Spieler 1",
+      "Spieler 2"
+    ],
+    "en": [
+      "Player 1",
+      "Player 2"
+    ]
+  },
+  "roles": {
+    "de": [
+      "malt das erste Bild, rät dann und malt zurück",
+      "rät das Bild und malt zurück"
+    ],
+    "en": [
+      "draws the first picture, then guesses and draws back",
+      "guesses the picture and draws back"
+    ]
+  },
+  "grip": "abend",
+  "on": [
+    "12-25"
+  ],
+  "dur": 120,
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "modes": [
+    "link",
+    "live"
+  ],
+  "play": {
+    "default": "link",
+    "offer": [
+      "link",
+      "live"
+    ]
+  },
+  "hidden": "none",
+  "uses": [],
+  "limits": {
+    "stepBudget": 20,
+    "stateBytes": 2048
+  },
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  },
+  "inputs": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "t",
+      "seat",
+      "k",
+      "h",
+      "l",
+      "sec",
+      "r",
+      "d"
+    ],
+    "properties": {
+      "t": {
+        "const": "draw"
+      },
+      "seat": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "k": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{11}$"
+      },
+      "h": {
+        "type": "string",
+        "maxLength": 8,
+        "pattern": "^\\p{L}\\d{1,2}$"
+      },
+      "l": {
+        "enum": [
+          0,
+          1
+        ]
+      },
+      "s": {
+        "type": "string",
+        "minLength": 3,
+        "maxLength": 600,
+        "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+      },
+      "sec": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 3600
+      },
+      "r": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 999
+      },
+      "d": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000000
+      },
+      "a": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 80,
+        "items": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    },
+    "oneOf": [
+      {
+        "properties": {
+          "s": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 600,
+            "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$"
+          }
+        },
+        "required": [
+          "s"
+        ]
+      },
+      {
+        "properties": {
+          "a": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 80,
+            "items": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3
+            }
+          }
+        },
+        "required": [
+          "a"
+        ]
+      }
+    ]
+  },
+  "inputDay": true,
+  "link": {
+    "snap": true
+  },
+  "parts": []
+}

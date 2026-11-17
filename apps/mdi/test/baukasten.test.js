@@ -1,0 +1,510 @@
+// Strang B, Spiel-Baukasten: Sprache (spec/check), Interpreter (engine/zug), Bots, Pruefer und die beiden Karten.
+// Goldwerte (test/fixtures/baukasten-gold.json) frieren Ablauf und Zahlen ein: gleicher Seed + gleiche Bot-Eingaben ->
+// gleicher Zustandshash; eine Aenderung am Interpreter muss die Datei bewusst neu erzeugen (siehe unten, GOLD=1).
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import Ajv2020 from "ajv/dist/2020.js";
+import { stateHash, rng, canon } from "../src/contract/sdk.js";
+import { schemaFull, schemaLlm, normalize, compact, SPEC, txt } from "../src/engines/baukasten/spec.js";
+import { check, contrast, LIMITS, textsOf } from "../src/engines/baukasten/check.js";
+import * as E from "../src/engines/baukasten/engine.js";
+import * as Z from "../src/engines/baukasten/zug.js";
+import { botInput, planOf, randomBot } from "../src/engines/baukasten/bot.js";
+import { pruefe, feedback, hintOf, SCHWELLEN } from "../src/engines/baukasten/pruefer.js";
+import { BEISPIELE, FLAPPY, BREAKOUT, PONG, AUSWEICHEN, MEMORY, DREI, QUIZ, WORTSALAT, SNAKE } from "../src/engines/baukasten/beispiele.js";
+import card from "../src/cards/baukasten/card.js";
+import zug from "../src/cards/baukasten-zug/card.js";
+import { createMatch, verifyGhost } from "../src/app/rt/match.js";
+import { newSession, apply } from "../src/contract/session.js";
+
+const clone = (x) => JSON.parse(JSON.stringify(x));
+const GOLD_FILE = new URL("./fixtures/baukasten-gold.json", import.meta.url);
+
+// ---- Sprache ------------------------------------------------------------------------------------------------------
+test("Baukasten: alle Beispiele sind gueltig und drueckt die bestehenden Spielarten aus", () => {
+  // Nachweis der Ausdrucksstaerke: Flug (Flappy), Ziegel (Breakout), Pong, Kick, Schlange (Snake), Reaktion, Ausweichen,
+  // Lauf (Huepfer), Memory, Drei/Vier gewinnt, Wortspiele (Wortsalat, Quiz, Luecke)
+  assert.deepEqual(Object.keys(BEISPIELE).sort(), ["auffangen", "ausweichen", "breakout", "drei", "flappy", "huepfer", "kick", "luecke", "memory", "plattform", "pong", "quiz", "reaktion", "sammeln", "snake", "tauchen", "tippduell", "vier", "wortsalat"]);
+  for (const [n, raw] of Object.entries(BEISPIELE)) { const c = check(raw); assert.ok(c.ok, n + ": " + c.errors.join("; ")); }
+});
+
+test("Baukasten: Kurzform und Normalform sind verlustfrei (normalize(compact(d)) = d)", () => {
+  for (const [n, raw] of Object.entries(BEISPIELE)) {
+    const d = check(raw).desc, k = compact(d), back = normalize(k);
+    assert.deepEqual(back.errors, [], n);
+    assert.deepEqual(back.desc, d, n);
+    assert.ok(JSON.stringify(k).length < JSON.stringify(d).length, n + ": Kurzform kuerzer");
+    assert.ok(JSON.stringify(k).length <= LIMITS.descBytes, n + ": passt in die Grenze");
+  }
+});
+
+test("Baukasten: JSON Schema (voll) und check() urteilen gleich ueber Strukturvektoren", () => {
+  const ajv = new Ajv2020({ strict: true, allErrors: false, unicodeRegExp: true });
+  const valid = ajv.compile(schemaFull());
+  const good = Object.values(BEISPIELE).map((b) => check(b).desc);
+  for (const d of good) assert.ok(valid(d), ajv.errorsText(valid.errors));
+  const bad = [
+    { ...clone(FLAPPY), extra: 1 },                                           // unbekanntes Feld
+    { ...clone(FLAPPY), players: 3 },                                         // Bereich
+    { ...clone(FLAPPY), mode: "rundlauf" },                                   // Aufzaehlung
+    { ...clone(FLAPPY), things: [{ ...FLAPPY.things[0], id: "Vogel!" }] },   // id-Muster
+    { ...clone(FLAPPY), title: "" },                                          // Pflichttext leer
+    { ...clone(FLAPPY), world: { ...FLAPPY.world, gravity: 1.5 } },           // keine Ganzzahl
+    { ...clone(FLAPPY), rules: [{ when: "touch", a: "vogel", b: "rohr", do: [] }] }   // Regel ohne Wirkung
+  ];
+  for (const b of bad) {
+    assert.equal(valid(b), false, "Ajv lehnt ab: " + JSON.stringify(b).slice(0, 60));
+    assert.ok(normalize(b).errors.length > 0, "normalize lehnt ab: " + JSON.stringify(b).slice(0, 60));
+  }
+});
+
+test("Baukasten: LLM-Schema passt zu Structured Outputs (flach, alles Pflicht, ohne Grenzen, Rekursion, Unions)", () => {
+  for (const mode of ["realtime", "turn"]) {
+    const s = schemaLlm(mode), banned = ["minimum", "maximum", "minLength", "maxLength", "pattern", "maxItems", "minItems", "anyOf", "oneOf", "$ref", "default"];
+    let objects = 0, optional = 0;
+    const walk = (n, path) => {
+      for (const k of banned) assert.ok(!(k in n), path + ": " + k);
+      if (n.type === "object") {
+        objects++;
+        assert.equal(n.additionalProperties, false, path);
+        const keys = Object.keys(n.properties);
+        optional += keys.filter((k) => !n.required.includes(k)).length;
+        for (const k of keys) walk(n.properties[k], path + "." + k);
+      }
+      if (n.type === "array") walk(n.items, path + "[]");
+    };
+    walk(s, mode);
+    assert.equal(optional, 0, "keine optionalen Felder (Grenze 24)");
+    assert.ok(objects > 5);
+    assert.ok(JSON.stringify(s).length < 12000, "Schema klein genug fuer den Cache-Praefix");
+    assert.deepEqual(s.properties.mode.enum, [mode]);
+  }
+  assert.ok(!("turn" in schemaLlm("realtime").properties) && !("spawn" in schemaLlm("turn").properties));
+});
+
+test("Baukasten: Modellausgabe wird begrenzt statt abgelehnt (clamp) und meldet jede Begrenzung", () => {
+  const raw = { ok: true, ...clone(FLAPPY), world: { ...FLAPPY.world, gravity: 99999 }, things: FLAPPY.things.map((t) => ({ ...t, w: 99999 })) };
+  assert.equal(check(raw, { llm: true }).ok, false);
+  const c = check(raw, { llm: true, clamp: true });
+  assert.ok(c.desc.world.gravity === 6000 && c.notes.some((n) => /gravity/.test(n)), JSON.stringify(c.notes));
+});
+
+test("Baukasten: Texte werden bereinigt (Steuerzeichen, spitze Klammern, Laenge)", () => {
+  assert.equal(txt("a\u0000b<script>c\u202e", 30), "a b script c");
+  const d = check({ ...clone(FLAPPY), title: "  Hallo\n<b>Welt</b>  " }).desc;
+  assert.equal(d.title, "Hallo b Welt /b");
+  assert.ok(textsOf(d).includes("Hallo b Welt /b"));
+});
+
+test("Baukasten: check() nennt konkrete Gruende fuer Sinnfehler", () => {
+  const why = (raw) => check(raw).errors.join(" | ");
+  assert.match(why({ ...clone(FLAPPY), rules: [{ when: "touch", a: "vogel", b: "wolke", do: [{ act: "score" }] }] }), /b wolke ist kein Ding/);
+  assert.match(why({ ...clone(FLAPPY), bg: "yellow", things: [FLAPPY.things[0], { ...FLAPPY.things[1], color: "white" }] }), /zu schwach/);
+  assert.match(why({ ...clone(FLAPPY), start: [{ thing: "vogel", x: 300, y: 760 }] }), /Sitz 0 hat keine Steuerung/);
+  assert.match(why({ ...clone(FLAPPY), end: {}, rules: FLAPPY.rules.filter((r) => r.when === "pass") }), /kein Ende/);
+  assert.match(why({ ...clone(FLAPPY), world: { gravity: 2600 } }), /rechts ausserhalb der Wand/);
+  assert.match(why({ ...clone(PONG), rules: [{ when: "out", a: "ball", b: "top", do: [{ act: "score", on: "a", n: 1 }] }] }), /erreicht keinen Sitz/);
+  assert.match(why({ ...clone(SNAKE), things: [{ ...SNAKE.things[0], control: "lr" }, SNAKE.things[1]] }), /passt nicht zum Raster/);
+  assert.match(why({ ...clone(FLAPPY), things: [{ ...FLAPPY.things[0], look: "emoji", emoji: "abc" }, FLAPPY.things[1]] }), /ohne gueltiges Emoji/);
+  assert.match(why({ ...clone(MEMORY), turn: { ...MEMORY.turn, cols: 3 } }), /cols x rows muss/);
+  assert.match(why({ ...clone(QUIZ), turn: { ...QUIZ.turn, items: QUIZ.turn.items.map((i) => ({ ...i, wrong: [i.a] })) } }), /gleich der richtigen/);
+  assert.match(why({ ...clone(FLAPPY), start: [{ thing: "rohr", x: 10, y: 10, n: 120, cols: 10 }, { thing: "rohr", x: 10, y: 10, n: 60, cols: 10 }, ...FLAPPY.start] }), /zu viele Dinge/);
+  assert.ok(contrast("ink", "paper") > 15 && contrast("yellow", "white") < 3);
+});
+
+// ---- Interpreter --------------------------------------------------------------------------------------------------
+function runBots(d, seed, ticks, roles) {
+  const plan = planOf(d);
+  let st = E.init(d, seed, roles);
+  const evs = [];
+  for (let i = 0; i < ticks && !st.over; i++) {
+    const r = E.step(d, st, [botInput(d, st, 0, 3, plan), botInput(d, st, 1, 2, plan)], (s, seat) => botInput(d, s, seat, 2, plan));
+    st = r.state; if (r.ev.length) evs.push(st.t + ":" + r.ev.map((e) => e.k).join(","));
+  }
+  return { st, evs };
+}
+
+test("Baukasten: Zustand ist kanonisch (nur Ganzzahlen) und deterministisch", () => {
+  for (const [n, raw] of Object.entries(BEISPIELE)) {
+    const d = check(raw).desc;
+    if (d.mode !== "realtime") continue;
+    const roles = ["bot", d.players === 2 ? "bot" : "none"];
+    const a = runBots(d, "det", 900, roles), b = runBots(d, "det", 900, roles);
+    assert.doesNotThrow(() => canon(a.st), n + ": nur Ganzzahlen");
+    assert.equal(stateHash(a.st), stateHash(b.st), n);
+    assert.deepEqual(a.evs, b.evs, n);
+    assert.notEqual(stateHash(runBots(d, "anders", 900, roles).st), stateHash(a.st), n + ": Seed wirkt");
+  }
+});
+
+test("Baukasten: Goldwerte (Hash nach 600 Ticks, Endstand) sind eingefroren", () => {
+  const now = {};
+  for (const [n, raw] of Object.entries(BEISPIELE)) {
+    const d = check(raw).desc;
+    if (d.mode === "realtime") {
+      const roles = ["bot", d.players === 2 ? "bot" : "none"];
+      const mid = runBots(d, "gold", 600, roles).st, end = runBots(d, "gold", LIMITS.maxTicks, roles).st;
+      now[n] = { h600: stateHash(mid), t: end.t, sc: end.sc, win: end.win };
+    } else {
+      let s = Z.init(d, "gold", d.players), k = 0;
+      while (!s.pub.over && k++ < 400) s = Z.step(d, s, Z.botMove(d, s.pub, s.pub.tu, 3, "gold"));
+      now[n] = { h: stateHash(s.pub), sc: s.pub.sc, win: s.pub.win, moves: s.pub.moves };
+    }
+  }
+  const HERKUNFT = "Eigene Goldwerte des Baukasten-Interpreters (Strang B), erzeugt mit GOLD=1 node --test test/baukasten.test.js aus src/engines/baukasten/beispiele.js; keine Kopie aus dem Altcode";
+  if (process.env.GOLD === "1") fs.writeFileSync(GOLD_FILE, JSON.stringify({ herkunft: HERKUNFT, ...now }, null, 1) + "\n");
+  const { herkunft, ...gold } = JSON.parse(fs.readFileSync(GOLD_FILE, "utf8"));
+  assert.equal(herkunft, HERKUNFT);
+  assert.deepEqual(now, gold);
+});
+
+test("Baukasten: Tunnelschutz – kein Ding bewegt sich je Tick weiter als seine halbe kleinste Seite", () => {
+  const d = check({ ...clone(PONG), things: [PONG.things[0], { ...PONG.things[1], vy: 3000, vx: 3000 }] }).desc;
+  // Kern des Schutzes: vor jeder Bewegung wird auf die halbe kleinste Seite begrenzt
+  const ball = check(PONG).desc.things[1];
+  assert.ok(Math.min(ball.w, ball.h) * 128 < Math.trunc(3000 * 256 / 60), "Testfall uebersteigt die Grenze wirklich");
+  const s0 = E.init(d, "t", ["bot", "bot"]), b0 = s0.e.find((e) => d.things[e.k].id === "ball");
+  const one = E.step(d, s0, [{ b: 0 }, { b: 0 }]).state.e.find((e) => d.things[e.k].id === "ball");
+  assert.ok(Math.abs(b0.vy) > Math.min(b0.hw, b0.hh), "Start schneller als erlaubt");
+  assert.ok(Math.abs(one.y - b0.y) <= Math.min(one.hw, one.hh) && Math.abs(one.x - b0.x) <= Math.min(one.hw, one.hh), "Weg je Tick begrenzt");
+});
+
+test("Baukasten: Wettlauf – ein Solo-Spiel mit zwei Sitzen hat getrennte Bahnen, Erzeugtes ist geteilt", () => {
+  const d = check(BREAKOUT).desc;
+  const st = E.init(d, "race", ["human", "ghost"]);
+  assert.equal(st.race, 1);
+  const bricks = (ln) => st.e.filter((e) => d.things[e.k].id === "ziegel" && e.ln === ln).length;
+  assert.equal(bricks(0), 24); assert.equal(bricks(1), 24);
+  let s = st;
+  for (let i = 0; i < 1500 && !s.over; i++) {
+    s = E.step(d, s, [botInput(d, s, 0, 3), { b: 0 }]).state;
+    // jede Bahn zaehlt nur ihre eigenen Ziegel: Stand = abgeraeumte Ziegel der eigenen Bahn
+    for (const ln of [0, 1]) assert.equal(s.sc[ln], 24 - s.e.filter((e) => d.things[e.k].id === "ziegel" && e.ln === ln).length);
+  }
+  assert.notEqual(s.sc[0], s.sc[1], "Bahnen laufen unabhaengig");
+  const f = check(FLAPPY).desc;
+  let r = E.init(f, "race", ["human", "ghost"]);
+  for (let i = 0; i < 200; i++) r = E.step(f, r, [{ b: 0 }, { b: 0 }]).state;
+  assert.ok(r.e.filter((e) => e.k === 1).every((e) => e.ln === -1), "Roehren gehoeren beiden Bahnen");
+});
+
+test("Baukasten: Zeiger werden ueber die Buehnen-Abbildung exakt in Weltkoordinaten umgerechnet", () => {
+  const d = check({ ...clone(REAKTION_SQUARE()) }).desc, f = E.fitOf(d);
+  assert.deepEqual(f, { num: 1000, den: 1000, ox: 0, oy: 300 });
+  assert.deepEqual(E.toWorld(d, f, 500, 800), [500, 500]);
+});
+function REAKTION_SQUARE() { return { ...clone(BEISPIELE.reaktion), world: { w: 1000, h: 1000 }, spawn: [{ ...BEISPIELE.reaktion.spawn[0], y: 500, yr: 300 }] }; }
+
+test("Baukasten: Grenzen zur Laufzeit – hoechstens LIMITS.alive Dinge, Notbremse nach LIMITS.maxTicks", () => {
+  const d = check({ ...clone(AUSWEICHEN), spawn: [{ thing: "stein", every: 100, x: 500, y: -40, xr: 400, max: 60 }, { thing: "stein", every: 100, x: 500, y: -40, xr: 400, max: 60 }, { thing: "stein", every: 100, x: 500, y: -40, xr: 400, max: 60 }, { thing: "stein", every: 100, x: 500, y: -40, xr: 400, max: 60 }], world: { ...AUSWEICHEN.world, gravity: 0 }, things: [AUSWEICHEN.things[0], { ...AUSWEICHEN.things[1], gravity: false }], end: { time: 0, lives: 3, win: "survive" }, rules: [{ when: "every", n: 1000, do: [{ act: "score", on: "all", n: 1 }] }] }).desc;
+  let st = E.init(d, "lim", ["human", "none"]), maxAlive = 0;
+  while (!st.over) { st = E.step(d, st, [{ b: 0 }]).state; maxAlive = Math.max(maxAlive, st.e.length); }
+  assert.ok(maxAlive <= LIMITS.alive);
+  assert.equal(st.t, LIMITS.maxTicks); assert.equal(st.cap, 1);
+});
+
+test("Baukasten: Zugspiele – Drei gewinnt erkennt Reihen, Memory endet immer, Antworten werten tolerant", () => {
+  const d = check(DREI).desc;
+  let s = Z.init(d, "z", 2);
+  for (const [seat, i] of [[0, 0], [1, 3], [0, 1], [1, 4], [0, 2]]) s = Z.step(d, s, { t: "put", seat, i });
+  assert.deepEqual([s.pub.over, s.pub.win], [1, 0]);
+  assert.throws(() => Z.step(d, Z.init(d, "z", 2), { t: "put", seat: 1, i: 0 }), /nicht am Zug/);
+  const m = check(MEMORY).desc;
+  let t = Z.init(m, "mem", 2), n = 0;
+  while (!t.pub.over) { const ms = Z.moves(m, t.pub, t.pub.tu); t = Z.step(m, t, ms[ms.length - 1]); n++; }
+  assert.ok(n <= 2 * Z.TRIES_PER_PAIR * m.turn.pairs.length);
+  const w = check(WORTSALAT).desc, ws = Z.init(w, "w", 2);
+  const it = w.turn.items[ws.pub.order[0]];
+  assert.ok(Z.correct(w, ws.pub, "  " + it.a.toUpperCase() + "! "));
+  assert.notEqual(ws.pub.show[0].replace(/ /g, ""), it.a.toUpperCase().replace(/ /g, ""), "gemischt");
+});
+
+// ---- Bots und Pruefer -----------------------------------------------------------------------------------------------
+test("Baukasten: Pruefer laesst alle Beispiele durch (Determinismus, endet, gewinnbar, nicht trivial, fair)", () => {
+  for (const [n, raw] of Object.entries(BEISPIELE)) {
+    const v = pruefe(raw, { games: 6 });
+    assert.ok(v.ok, n + ": " + JSON.stringify(v.reasons) + " " + JSON.stringify(v.metrics));
+    assert.ok(v.desc.mode === "turn" || v.metrics.determinismus, n);
+  }
+});
+
+test("Baukasten: Pruefer lehnt kaputte Spiele mit Grund ab", () => {
+  const codes = (raw) => pruefe(raw, { games: 6 }).reasons.map((r) => r.code);
+  // zu enge Luecke: nicht gewinnbar
+  assert.ok(codes({ ...clone(FLAPPY), spawn: [{ ...FLAPPY.spawn[0], gap: 140 }] }).includes("nicht-gewinnbar"));
+  // keine Gefahr: Ueberleben ist geschenkt
+  assert.ok(codes({ ...clone(AUSWEICHEN), rules: AUSWEICHEN.rules.filter((r) => r.when !== "touch") }).includes("trivial"));
+  // Ziel unerreichbar und keine Zeit: endet erst an der Notbremse
+  assert.ok(codes({ ...clone(PONG), end: { score: 999, win: "score" } }).includes("endet-nicht"));
+  // Startplatz im Hindernis: sofort vorbei
+  const kurz = { ...clone(BEISPIELE.huepfer), start: [{ thing: "fuchs", x: 250, y: 1500, seat: 0 }, { thing: "kiste", x: 250, y: 1555 }], end: { score: 20, lives: 1, win: "score" } };
+  assert.ok(codes(kurz).includes("zu-kurz"), codes(kurz).join());
+  // Schemafehler kommen als Stufe "schema" mit Rueckmeldung fuers Modell
+  const s = pruefe({ ...clone(FLAPPY), things: [] });
+  assert.equal(s.stage, "schema"); assert.match(feedback(s), /ungueltig/);
+  assert.ok(SCHWELLEN.nichtsMax <= 0.05 && SCHWELLEN.endet >= 0.95);
+});
+
+test("Baukasten: Pruefer haelt das Rechenbudget ein und lehnt dann ab (fail closed)", () => {
+  const v = pruefe(BREAKOUT, { games: 6, budget: 5000 });
+  assert.equal(v.ok, false); assert.equal(v.stage, "budget");
+});
+
+test("Baukasten: Zufallsbot kennt keine Ziele (Tippspiele), Bot-Plan wird aus der Steuerung abgeleitet", () => {
+  const d = check(BEISPIELE.reaktion).desc;
+  let st = E.init(d, "r", ["bot", "none"]);
+  for (let i = 0; i < 100; i++) st = E.step(d, st, [{ b: 0 }]).state;
+  const star = st.e[0];
+  for (let s = 0; s < 64; s++) { const x = randomBot(d, { ...st, t: s * 8 }, 0, 7); if (x.p) assert.ok(x.p[0][1] !== (star.x >> 8) || x.p[0][2] !== (star.y >> 8)); }
+  assert.deepEqual(planOf(check({ ...clone(FLAPPY), bot: undefined }).desc), { kind: "flap", thing: "vogel", target: "rohr" });
+  assert.deepEqual(planOf(check({ ...clone(SNAKE), bot: undefined }).desc), { kind: "seek", thing: "schlange", target: "apfel" });
+  assert.deepEqual(planOf(check({ ...clone(BREAKOUT), bot: undefined }).desc), { kind: "track", thing: "schlaeger", target: "ball" });
+});
+
+// ---- Karten -------------------------------------------------------------------------------------------------------
+test("Karte baukasten: Echtzeit-Vertrag, Bot als zweite Seite, Geist aus einer Bot-Partie und aus allein", () => {
+  for (const ex of [PONG, FLAPPY]) {
+    const params = { desc: compact(check(ex).desc) };
+    const roles = ex.players === 2 ? ["human", "bot"] : ["human", "none"];
+    const mt = createMatch(card, { params, seed: "geist", roles, level: 2, record: 0 });
+    const plan = planOf(check(ex).desc);
+    for (let i = 0; i < 1200 && !mt.status().over; i++) mt.step({ 0: botInput(mt.state.D, mt.state, 0, 3, plan) });
+    const w = mt.ghostWire();
+    const v = verifyGhost(card, JSON.parse(JSON.stringify(w)));
+    assert.ok(v.ok, ex.title + ": " + JSON.stringify(v));
+    const view = mt.view({ seat: 0 });
+    assert.equal(view.t, "canvas"); assert.ok(view.layers.find((l) => l.id === "world").ops.length > 0);
+  }
+  assert.throws(() => card.init({ params: { desc: { v: 1, title: "x", mode: "realtime" } }, seed: "s", players: ["human", "none"] }), /ungueltig/);
+  assert.throws(() => card.init({ params: { desc: DREI }, seed: "s", players: ["human", "none"] }), /baukasten-zug/);
+});
+
+test("Karte baukasten-zug: Zugvertrag ueber die Partie-Logik (session) bis zum Ende, nur erlaubte Zuege", () => {
+  for (const ex of [DREI, MEMORY, QUIZ, WORTSALAT]) {
+    const params = { desc: compact(check(ex).desc) };
+    let s = newSession(zug, { params, seed: "zs", mine: [0, 1], commits: [null, null] });
+    for (let k = 0; k < 400 && !zug.status(s.state).over; k++) {
+      const st = zug.status(s.state), obs = zug.observe(s.state, st.turn);
+      s = apply(zug, s, zug.bot(obs, st.turn, { level: 2, seed: "b" + k }));
+    }
+    assert.ok(zug.status(s.state).over, ex.title);
+    const view = zug.view(zug.observe(s.state, 0), 0, { lang: "de" });
+    assert.equal(view.t, "frame");
+  }
+  const s0 = newSession(zug, { params: { desc: DREI }, seed: "x", mine: [0, 1], commits: [null, null] });
+  assert.throws(() => apply(zug, s0, { t: "put", seat: 0, i: 99 }));
+});
+
+test("Karten: Adapter der freien Karte (fromFree/toFree) bilden das Server-Doc {k:\"bau\"} verlustfrei ab", () => {
+  const doc = { k: "bau", t: "Wolkenflug", b: compact(check(FLAPPY).desc), col: ["#ffd400", "#ff3b1d"] };
+  const p = card.fromFree(doc);
+  assert.deepEqual(check(p.desc).desc, check(FLAPPY).desc);
+  assert.equal(zug.fromFree(doc), null, "Echtzeitbeschreibung passt nicht zur Zugkarte");
+  assert.equal(card.fromFree({ k: "game", g: {} }), null);
+  assert.equal(card.fromFree({ k: "bau", b: { v: 1, title: "kaputt", mode: "realtime", things: "x" } }), null);
+  const back = card.toFree(p);
+  assert.equal(back.k, "bau"); assert.deepEqual(check(back.b).desc, check(FLAPPY).desc);
+  assert.ok(zug.fromFree({ k: "bau", t: "M", b: MEMORY }));
+});
+
+test("Karten: Manifeste – Parameter-Standard ist ein gueltiges Spiel, Modi und Grenzen passen", () => {
+  for (const [c, mode] of [[card, "realtime"], [zug, "turn"]]) {
+    const m = c.manifest, def = m.params.properties.desc.default;
+    assert.equal(check(def).ok, true); assert.equal(check(def).desc.mode, mode);
+    assert.equal(m.mode, mode); assert.equal(m.hidden, "none"); assert.equal(m.family, "frei");
+  }
+  assert.equal(card.manifest.rt.maxTicks, LIMITS.maxTicks);
+  assert.equal(card.manifest.rt.tick, 60);
+});
+
+test("Baukasten: RNG-Nutzung nur ueber den Zustand (gleiches Ergebnis nach Serialisierung mitten in der Partie)", () => {
+  const d = check(SNAKE).desc, plan = planOf(d);
+  let a = E.init(d, "ser", ["bot", "none"]);
+  for (let i = 0; i < 300; i++) a = E.step(d, a, [botInput(d, a, 0, 2, plan)]).state;
+  let b = JSON.parse(JSON.stringify(a));
+  for (let i = 0; i < 300; i++) { a = E.step(d, a, [botInput(d, a, 0, 2, plan)]).state; b = E.step(d, b, [botInput(d, b, 0, 2, plan)]).state; }
+  assert.equal(stateHash(a), stateHash(b));
+  void rng; void SPEC;
+});
+
+test("Baukasten: Fairness nur bei statistisch belegter Schieflage (exakter Binomialtest)", async () => {
+  const { binomP } = await import("../src/engines/baukasten/pruefer.js");
+  assert.equal(binomP(4, 4), 0.125);                  // 4 von 4 ist bei fairer Muenze zu oft Zufall
+  assert.ok(Math.abs(binomP(6, 6) - 0.03125) < 1e-12);
+  assert.ok(Math.abs(binomP(7, 8) - 0.0703125) < 1e-12);
+  assert.equal(binomP(3, 6), 1);
+  for (const seed of ["pruef", "srv", "a", "b", "c"]) assert.ok(pruefe(PONG, { seed, games: 8 }).ok, seed);
+});
+
+test("Baukasten: Gold-Korpus-Befunde – Gleichstand am Ziel, Boden fuer jump, Diagnose der ersten Lebensverluste", async () => {
+  const { diagnose } = await import("../src/engines/baukasten/pruefer.js");
+  // g15: beide erreichen das Ziel im selben Tick -> unentschieden, nicht Sitz 0
+  const race = check({ v: 1, title: "Wettlauf", mode: "realtime", players: 2, bg: "paper", things: [{ id: "knopf", look: "emoji", emoji: "🐌", control: "tap" }],
+    start: [{ thing: "knopf", x: 500, y: 1200, seat: 0 }, { thing: "knopf", x: 500, y: 400, seat: 1 }], rules: [{ when: "tap", a: "knopf", do: [{ act: "score", on: "actor", n: 1 }] }], end: { score: 1, time: 30 } }).desc;
+  const st = E.init(race, "t", ["bot", "bot"]), f = E.fitOf(race), at = (e) => [0, f.ox + Math.trunc((e.x >> 8) * f.num / f.den), f.oy + Math.trunc((e.y >> 8) * f.num / f.den), 3];
+  const r = E.step(race, st, [{ b: 0, p: [at(st.e[0])] }, { b: 0, p: [at(st.e[1])] }]).state;
+  assert.deepEqual([r.over, r.win, r.sc], [1, -1, [1, 1]]);
+  // g09/g19: jump ohne Boden wird vor jedem Playtest mit Grund abgelehnt
+  const noGround = { ...clone(BEISPIELE.huepfer), world: { gravity: 3200, left: "open", right: "open", bottom: "open" } };
+  assert.match(check(noGround).errors.join(), /jump braucht Boden/);
+  // Diagnose nennt Regel, Sekunden und den fehlenden Boden
+  const fall = check({ ...clone(FLAPPY), spawn: [] , end: { lives: 1, time: 30, win: "survive" } }).desc;
+  assert.match(diagnose(fall), /Regel 2 \(out vogel bottom\) nach [0-9.]+ s .*Boden/);
+  const v = pruefe({ ...clone(FLAPPY), spawn: [{ ...FLAPPY.spawn[0], gap: 140 }] }, { games: 4 });
+  assert.match(feedback({ stage: v.stage, reasons: v.reasons, metrics: v.metrics }), /Ohne jede Eingabe/);
+});
+
+test("Baukasten: Review-Befunde – feindliche Beschreibungen und Eingaben bleiben begrenzt", async () => {
+  const { candidates, MAX_CANDIDATES, botInput: bi } = await import("../src/engines/baukasten/bot.js");
+  // H1: 120 Tipp-Ziele und ein Rollout-Bot ohne eigenes Ding: hoechstens MAX_CANDIDATES Kandidaten, Bot-Ding muss einem Sitz gehoeren
+  const many = { v: 1, title: "Viele", mode: "realtime", players: 2, bg: "ink", things: [{ id: "lenk", look: "box", color: "yellow", control: "lr", power: 500 }, { id: "ziel", look: "circle", color: "paper", w: 20, h: 20, control: "tap" }],
+    start: [{ thing: "lenk", x: 500, y: 800 }, { thing: "ziel", x: 30, y: 30, n: 120, cols: 12, dx: 70, dy: 60 }], rules: [{ when: "tap", a: "ziel", do: [{ act: "score", on: "actor", n: 1 }] }], end: { time: 30 }, bot: { kind: "rollout", thing: "lenk" } };
+  assert.match(check(many).errors.join(), /gehoert keinem Sitz/);
+  const ok = check({ ...many, bot: { kind: "rollout" } }).desc, st = E.init(ok, "h1", ["human", "none"]);
+  assert.ok(candidates(ok, 1, st).length <= MAX_CANDIDATES);
+  const meter = { steps: 0 }, t0 = Date.now();
+  bi(ok, st, 1, 3, { kind: "rollout", thing: "", target: "" }, meter);
+  assert.ok(meter.steps <= MAX_CANDIDATES * MAX_CANDIDATES * 30 && Date.now() - t0 < 3000, meter.steps + " Schritte");
+  // H2: Zugbot mit dicker Beschreibung im Zustand bleibt im Knotenbudget
+  const fat = check({ v: 1, title: "Dick", goal: "x".repeat(90), mode: "turn", players: 2, bg: "paper", things: Array.from({ length: 12 }, (_, i) => ({ id: "s" + i, look: "emoji", emoji: "⭐" })), turn: { kind: "place", cols: 4, rows: 6, line: 4, pieces: ["s0", "s1"] } }).desc;
+  const s0 = Z.init(fat, "h2", 2), t1 = Date.now();
+  Z.botMove(fat, { ...s0.pub, D: fat }, 0, 3, "h2");
+  assert.ok(Date.now() - t1 < 5000, "Botzug " + (Date.now() - t1) + " ms");
+  // M1: kaputte Eingaben eines Partners werfen nicht und halten den Zustand ganzzahlig
+  const p = check(PONG).desc;
+  let s = E.init(p, "m1", ["human", "remote"]);
+  for (const x of [{ b: 0, p: 5 }, { ax: "abc" }, { p: [[0, 1.5, 2, 3]] }, null, { b: -1, ay: 1e9, p: [[0, 10, 10, 3], "x"] }]) s = E.step(p, s, [x, x]).state;
+  assert.doesNotThrow(() => canon(s));
+  // L2: geerbte Namen sind keine Felder
+  assert.ok(normalize({ ...clone(FLAPPY), toString: 5 }).errors.some((e) => /toString/.test(e)));
+});
+
+test("Karten: Manifeste nutzen x-field \"spiel\" und stehen nicht als Kachel im Regal (shelf false)", () => {
+  for (const c of [card, zug]) { assert.equal(c.manifest.params.properties.desc["x-field"], "spiel"); assert.equal(c.manifest.shelf, false); assert.ok(!("x-hidden" in c.manifest.params.properties.desc)); }
+});
+
+test("Karten: Siegel der freien Karte (ki/fr) reist ueber Server-Doc -> fromFree -> Link -> toFree; Gate-Hash = Server-Vektor; Abzeichen", async () => {
+  const crypto = await import("node:crypto"), subtle = crypto.webcrypto.subtle;
+  const A = await import("../src/broker/ai.js"), { gateView, gateChecksOf } = await import("../src/features/frei/doc.js");
+  const { validParams } = await import("../src/cards/index.js"), { paramsForLink } = await import("../src/contract/fields.js");
+  const G = JSON.parse(fs.readFileSync(new URL("./fixtures/baukasten-gate.json", import.meta.url), "utf8"));
+  for (const [ex, c, id] of [["flappy", card, "baukasten"], ["memory", zug, "baukasten-zug"]]) {
+    const doc = G.docs[ex], want = G.gateHash[ex];
+    assert.equal(await A.optionHash(gateView(doc), subtle), want, ex + ": App-Projektion = Server");
+    const params = c.fromFree(doc);
+    assert.ok(validParams(id, params), ex + ": Parameter gueltig");
+    const linked = paramsForLink(c.manifest.params, params);
+    assert.deepEqual(linked.ki, doc.ki, "ki reist im Link"); assert.equal(linked.fr, doc.fr, "fr reist im Link");
+    const back = c.toFree(linked);
+    assert.equal(await A.optionHash(gateView(back), subtle), want, ex + ": Gate-Hash nach dem Weg ueber die Karte = Server-Vektor");
+    assert.ok(gateChecksOf(back).length === 2, "Empfaenger fragt das Gate (eigenes Siegel und Remix-Wurzel)");
+    const forged = { ...linked, desc: { ...linked.desc, title: "Gefaelscht" } };
+    assert.notEqual(await A.optionHash(gateView(c.toFree(forged)), subtle), want, "anderer Inhalt -> anderer Hash");
+  }
+  // Abzeichen nur mit gueltigem Siegel, in beiden Ansichten
+  const fp = card.fromFree(G.docs.flappy), st = card.init({ params: fp, seed: "b", players: ["human", "none"] });
+  const txt = (v) => JSON.stringify(v);
+  assert.match(txt(card.view(st, { lang: "de" })), /Mit KI erstellt/);
+  assert.doesNotMatch(txt(card.view(card.init({ params: { ...fp, ki: null }, seed: "b", players: ["human", "none"] }), { lang: "de" })), /Mit KI erstellt/);
+  const zp = zug.fromFree(G.docs.memory), zs = zug.init({ rng: (await import("../src/contract/sdk.js")).rng("x"), params: zp, players: 2 });
+  assert.match(txt(zug.view(zug.observe(zs, 0), 0, { lang: "en" })), /Made with AI/);
+  assert.equal(card.fromFree({ ...G.docs.flappy, ki: { k: "karte", s: "kurz", h: "x" } }).ki, null, "kaputtes Siegel faellt weg");
+});
+
+test("Baukasten: Modellausgabe (clamp) behebt Kontrast und Erzeuger hinter Waenden mit Hinweis; Links bleiben streng", () => {
+  const raw = { ...clone(FLAPPY), bg: "sky", things: [FLAPPY.things[0], { ...FLAPPY.things[1], color: "yellow" }], world: { gravity: 2600, bottom: "open" } };
+  assert.equal(check(raw).ok, false, "streng: abgelehnt");
+  const c = check(raw, { clamp: true });
+  assert.ok(c.ok, c.errors.join()); assert.equal(c.desc.things[1].color, "ink"); assert.equal(c.desc.world.right, "open");
+  assert.ok(c.notes.some((n) => /rohr.color yellow -> ink/.test(n)) && c.notes.some((n) => /world.right -> open/.test(n)));
+});
+
+test("Baukasten: Sprung-Machbarkeit wird diagnostiziert (zu langsames Hindernis), Beispiele sind machbar", async () => {
+  const { jumpCheck } = await import("../src/engines/baukasten/pruefer.js");
+  assert.equal(jumpCheck(check(BEISPIELE.huepfer).desc), "");
+  assert.equal(jumpCheck(check(BEISPIELE.plattform).desc), "");
+  const slow = check({ ...clone(BEISPIELE.plattform), things: BEISPIELE.plattform.things.map((t) => (t.id === "stein" ? { ...t, vx: -150, h: 110 } : t)) }).desc;
+  assert.match(jumpCheck(slow), /reicht nicht ueber stein/);
+});
+
+test("Baukasten: Modellausgabe (clamp) bringt ids in Form und schreibt alle Verweise gleich um; streng bleibt es ein Fehler", async () => {
+  const { idOf } = await import("../src/engines/baukasten/spec.js");
+  assert.equal(idOf("Eichhörnchen"), "eichhoernche"); assert.equal(idOf("roter Ball"), "roterball"); assert.equal(idOf("1up"), "d1up");
+  const raw = JSON.parse(JSON.stringify(FLAPPY).replace(/"vogel"/g, '"Vögelchen"'));
+  assert.equal(check(raw).ok, false);
+  const c = check(raw, { clamp: true });
+  assert.ok(c.ok, c.errors.join()); assert.equal(c.desc.things[0].id, "voegelchen");
+  assert.ok(c.desc.rules.every((r) => r.a === "voegelchen") && c.desc.start[0].thing === "voegelchen" && c.desc.bot.thing === "voegelchen");
+});
+
+test("Security-Review M1: G3-Docs werden bereinigt und zugeordnet; ohne Siegel spielt die Karte nur eingebaute Beispiele", async () => {
+  const { sanitizeDoc, BAU_BYTES } = await import("../src/engines/frei/doc.js");
+  const { targetIdOf, kindOk, previewOf } = await import("../src/features/frei/doc.js");
+  const G = JSON.parse(fs.readFileSync(new URL("./fixtures/baukasten-gate.json", import.meta.url), "utf8"));
+  const d = sanitizeDoc(G.docs.flappy);
+  assert.deepEqual(d.b, G.docs.flappy.b, "Beschreibung unveraendert (Texte nicht gekuerzt)");
+  assert.equal(targetIdOf(d), "baukasten"); assert.equal(targetIdOf(sanitizeDoc(G.docs.memory)), "baukasten-zug");
+  assert.ok(kindOk("game", d)); assert.equal(previewOf(d).lines[0], G.docs.flappy.b.goal);
+  assert.equal(sanitizeDoc({ ...G.docs.flappy, b: { t: "x".repeat(BAU_BYTES) } }), null, "zu gross");
+  assert.equal(sanitizeDoc({ ...G.docs.flappy, b: [1] }), null);
+  // ohne Siegel: eingebautes Beispiel ja, selbst gebaute Beschreibung nein (umginge S1/S4 des Servers)
+  assert.doesNotThrow(() => card.init({ params: { desc: compact(check(FLAPPY).desc) }, seed: "s", players: ["human", "none"] }));
+  const own = { ...clone(FLAPPY), title: "Eigener Text" };
+  assert.throws(() => card.init({ params: { desc: own }, seed: "s", players: ["human", "none"] }), /ohne Siegel/);
+  assert.doesNotThrow(() => card.init({ params: { desc: own, ki: G.docs.flappy.ki }, seed: "s", players: ["human", "none"] }), "mit Siegel (das Gate prueft den Inhalt)");
+  assert.throws(() => zug.init({ rng: rng("x"), params: { desc: { ...clone(MEMORY), title: "Eigen" } }, players: 2 }), /ohne Siegel/);
+});
+
+test("Security-Review M5: Rechenaufwand je Tick ist begrenzt (check) und der Pruefer bucht Arbeit statt Ticks", async () => {
+  const { WORK_UNIT } = await import("../src/engines/baukasten/pruefer.js");
+  const heavy = { v: 1, title: "x", mode: "realtime", bg: "ink", things: [{ id: "a", color: "yellow", w: 2000, h: 2000, control: "tap" }, { id: "b", color: "red", w: 2000, h: 2000 }],
+    start: [{ thing: "a", n: 75, cols: 10, dx: 1, dy: 1, x: 100, y: 100 }, { thing: "b", n: 75, cols: 10, dx: 1, dy: 1, x: 100, y: 100 }],
+    rules: Array.from({ length: 16 }, (_, i) => ({ when: "touch", a: i % 2 ? "a" : "b", b: i % 2 ? "b" : "a", do: [{ act: "score", on: "a", n: 1 }] })), end: { time: 600 } };
+  assert.match(check(heavy).errors.join(), /zu viel Rechenaufwand/);
+  for (const ex of Object.values(BEISPIELE)) assert.ok(check(ex).ok, "Beispiele bleiben unter der Grenze");
+  const d = check(BREAKOUT).desc, r = E.step(d, E.init(d, "w", ["bot", "none"]), [{ b: 0 }]);
+  assert.ok(r.work >= 24, "Arbeit zaehlt die Paarpruefungen (Ball x 24 Ziegel)"); assert.ok(WORK_UNIT > 0);
+  const t0 = Date.now(), v = pruefe({ ...clone(BREAKOUT) }, { games: 2, budget: 20000 });
+  assert.equal(v.stage, "budget"); assert.ok(Date.now() - t0 < 5000);
+});
+
+test("Baukasten: zu lange Texte werden nie still gekuerzt, auch nicht in der Modellausgabe (Zweitbewerter t106)", () => {
+  const L = BEISPIELE.luecke, raw = { ...clone(L), turn: { ...L.turn, items: [{ q: "x".repeat(95), a: "Elefant", wrong: ["Giraffe"] }, ...L.turn.items.slice(1)] } };
+  for (const opt of [{}, { clamp: true, llm: true }]) assert.match(check(raw, opt).errors.join(), /laenger als 90 Zeichen/);
+});
+
+// ---- Runde 3: Fehlerklassen aus Gold v2 (echte Modellantworten, test/fixtures/baukasten-runde3.json) ----------------------
+const R3 = JSON.parse(fs.readFileSync(new URL("./fixtures/baukasten-runde3.json", import.meta.url), "utf8")).spiele;
+const r3 = (id) => check(R3[id].antwort, { llm: true, clamp: true });
+
+test("Runde 3: Hindernis im Boden wird auf den Boden gestellt, umgedrehte pass-Regel getauscht (gemeldet); t009 wird spielbar", () => {
+  const c = r3("t009");
+  assert.ok(c.ok, c.errors.join("; "));
+  assert.ok(c.notes.some((n) => /spawn kaktus\.y 1490 -> 1465 \(auf den Boden\)/.test(n)), c.notes.join("; "));
+  assert.ok(c.notes.some((n) => /pass kaktus dino -> dino kaktus/.test(n)));
+  assert.equal(c.desc.rules.find((r) => r.when === "pass").a, "dino");
+  // ohne clamp (Links) bleibt alles wie geschrieben
+  assert.equal(check(c.desc).desc.spawn[0].y, 1465);
+  const raw = check(R3.t009.antwort, { llm: true }); assert.equal(raw.desc.spawn[0].y, 1490);
+  assert.equal(pruefe(c.desc, { games: 6 }).ok, true);
+});
+
+test("Runde 3: Bot-Plan – abprallende Gegner sind kein Ball, track auf ein Punkte-Ziel bei freier Bewegung wird seek", () => {
+  const d = r3("t062").desc;
+  assert.equal(d.bot.kind, "track");
+  assert.deepEqual(planOf(d), { kind: "seek", thing: "biene", target: "pollen" });
+  assert.deepEqual(planOf({ ...d, bot: { kind: "none", thing: "", target: "" } }), { kind: "seek", thing: "biene", target: "pollen" });
+  assert.equal(pruefe(d, { games: 6 }).ok, true);
+  // Pong bleibt track auf den Ball
+  assert.equal(planOf({ ...clone(PONG), bot: { kind: "none", thing: "", target: "" } }).kind, "track");
+});
+
+test("Runde 3: Diagnose nennt knappe Spruenge und unerreichbare Ziele konkret (fuer die Reparatur)", () => {
+  const j = pruefe(r3("t010").desc, { games: 6 });
+  assert.equal(j.ok, false); assert.match(j.metrics.diagnose, /nur bei perfektem Timing ueber stein/);
+  assert.match(feedback(j), /schneller \(vx etwa -290\)/, "die genaue Diagnose ersetzt den allgemeinen Hinweis");
+  assert.match(hintOf({ reasons: [{ code: "nicht-gewinnbar" }] }), /nicht langsamer/);
+  const l = pruefe(r3("t061").desc, { games: 6 });
+  assert.equal(l.ok, false); assert.match(l.metrics.diagnose, /schueler faehrt nur waagrecht.*control move/);
+});

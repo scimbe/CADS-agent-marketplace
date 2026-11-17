@@ -1,0 +1,137 @@
+// Buehne fuer Echtzeitkarten (ADR 0001 b): Canvas mit Letterbox, Zeiger (mehrere, Pointer Capture), Tasten nur solange
+// die Buehne steht, echte Bildschirmknoepfe (>= 60 px, aria-pressed bei "hold"), Pause/Weiter, Ansage per aria-live,
+// Pause beim Verstecken der Seite. Zeichnet die Anzeigeliste mit src/render/canvas.js. view.js (Strang H) haengt den
+// Knoten aus stageNode() im Zustand inhalt.card.rt.* ein; main.js gibt draw() als deps.rt.draw an die Laufzeit.
+import { h } from "../ui/dom.js";
+import { paint, tokenColors } from "./canvas.js";
+import { fitView, toWorld } from "../app/rt/input.js";
+
+const TX = {
+  de: { sound: "Ton", soundOff: "Ton aus", pause: "Pause", resume: "Weiter", ready: "Gleich geht's los: {n}", wait: "Wartet auf den Partner …", paused: "Pausiert", over: "Ende", stage: "Spielfläche" },
+  en: { sound: "Sound", soundOff: "Sound off", pause: "Pause", resume: "Resume", ready: "Starting in {n}", wait: "Waiting for your partner …", paused: "Paused", over: "Game over", stage: "Play area" }
+};
+// status.say darf Text oder {de, en} sein (status kennt keine Sprache)
+function sayText(v, lang) { if (typeof v === "string") return v.slice(0, 200); if (v && typeof v === "object") return String(v[lang] || v.de || "").slice(0, 200); return ""; }
+const fmt = (s, o) => String(s).replace(/\{(\w+)\}/g, (m, k) => String(o[k]));
+
+/**
+ * @param {object} env { win: Window, doc: Document, rt: runtime.rt, images?, reduced?: () => boolean }
+ */
+export function createStage(env) {
+  const { win, doc } = env;
+  let canvas = null, ctx2d = null, cache = new Map(), colors = null, colorsKey = "", lastNode = null, lastInfo = null, fit = null, live = null;
+  const ptrIds = new Map(); let nextPtr = 0;
+  function readColors() {
+    const cs = win.getComputedStyle(doc.documentElement);
+    colors = tokenColors((n) => cs.getPropertyValue(n));
+    colorsKey = Object.values(colors).join(",");
+  }
+  function size() {
+    if (!canvas) return null;
+    const r = canvas.getBoundingClientRect(), dpr = Math.min(win.devicePixelRatio || 1, 2);
+    const w = Math.max(1, Math.round(r.width * dpr)), hgt = Math.max(1, Math.round(r.height * dpr));
+    if (canvas.width !== w || canvas.height !== hgt) { canvas.width = w; canvas.height = hgt; cache = new Map(); }
+    return { cw: r.width, ch: r.height, dpr, left: r.left, top: r.top };
+  }
+  function world(e) {
+    const s = size(), v = env.rt.view; if (!s || !v) return null;
+    fit = fitView(v, s.cw, s.ch);
+    return toWorld(fit, e.clientX - s.left, e.clientY - s.top);
+  }
+  function pid(e, up) {
+    if (!ptrIds.has(e.pointerId)) ptrIds.set(e.pointerId, nextPtr++ % 5);
+    const id = ptrIds.get(e.pointerId);
+    if (up) ptrIds.delete(e.pointerId);
+    return id;
+  }
+  const onKey = (down) => (e) => {
+    if (!env.rt.active || e.repeat && !down) return;
+    // Review L2: Tasten in Knoepfen/Feldern gehoeren dem Element (Bildschirmknoepfe, Pause), nicht dem Spiel
+    const tg = e.target && e.target.tagName;
+    if (tg === "BUTTON" || tg === "INPUT" || tg === "TEXTAREA" || tg === "SELECT" || tg === "A") return;
+    if (e.key === "Escape" || (down && e.code === "KeyP")) return; // Zurueck/Pause bleiben beim Host
+    if (env.rt.key(e.code, down)) e.preventDefault();
+  };
+  const kd = onKey(true), ku = onKey(false);
+  const onVis = () => { if (doc.hidden) env.rt.hidden(); };
+  const onBlur = () => env.rt.blur();
+  const onScheme = () => { readColors(); cache = new Map(); };
+  let mq = null;
+  function mount(el) {
+    if (el === canvas) return;
+    unmount();
+    canvas = el; ctx2d = el.getContext("2d"); cache = new Map(); readColors();
+    el.addEventListener("pointerdown", (e) => { const p = world(e); if (!p) return; e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (x) { /* ohne Capture */ } env.rt.pointer("down", pid(e), p[0], p[1]); });
+    el.addEventListener("pointermove", (e) => { if (!ptrIds.has(e.pointerId)) return; const p = world(e); if (p) env.rt.pointer("move", pid(e), p[0], p[1]); });
+    for (const t of ["pointerup", "pointercancel"]) el.addEventListener(t, (e) => { if (!ptrIds.has(e.pointerId)) return; const p = world(e) || [0, 0]; env.rt.pointer(t === "pointerup" ? "up" : "cancel", pid(e, true), p[0], p[1]); });
+    el.addEventListener("contextmenu", (e) => e.preventDefault());
+    win.addEventListener("keydown", kd); win.addEventListener("keyup", ku);
+    doc.addEventListener("visibilitychange", onVis); win.addEventListener("blur", onBlur);
+    mq = win.matchMedia ? win.matchMedia("(prefers-color-scheme: dark)") : null;
+    if (mq && mq.addEventListener) mq.addEventListener("change", onScheme);
+  }
+  function unmount() {
+    if (!canvas) return;
+    win.removeEventListener("keydown", kd); win.removeEventListener("keyup", ku);
+    doc.removeEventListener("visibilitychange", onVis); win.removeEventListener("blur", onBlur);
+    if (mq && mq.removeEventListener) mq.removeEventListener("change", onScheme); // Review L6
+    mq = null; canvas = null; ctx2d = null; ptrIds.clear();
+  }
+  /** deps.rt.draw fuer die Laufzeit */
+  function draw(node, info) {
+    lastNode = node; lastInfo = info;
+    if (!canvas || !canvas.isConnected) { if (canvas && !canvas.isConnected) unmount(); return; }
+    const s = size(); if (!s) return;
+    const r = paint(ctx2d, node, { cw: s.cw, ch: s.ch, dpr: s.dpr, colors, colorsKey, reduced: env.reduced ? env.reduced() : false, t: Date.now() / 1000, cache, makeCanvas: (w, hh) => { const c = doc.createElement("canvas"); c.width = w; c.height = hh; return c; }, images: env.images || null, high: env.high || null, path2d: (d) => new win.Path2D(d) });
+    if (r.unknown.length && env.onUnknown) env.onUnknown(r.unknown);
+    canvas.setAttribute("aria-label", String(node.a11y || "").slice(0, 200));
+    const say = info.countdown ? fmt((TX[env.lang] || TX.de).ready, { n: info.countdown }) : info.stalled ? (TX[env.lang] || TX.de).wait : info.paused ? (TX[env.lang] || TX.de).paused : sayText(info.status && info.status.say, env.lang);
+    if (live && live.textContent !== say) live.textContent = say;
+  }
+  /** Knoten fuer view.js im Zustand inhalt.card.rt.* (leaf = "card.rt.run" usw.) */
+  /** opt.muted: Ton aus (HUD-Schalter, Design Phase C) */
+  function stageNode(leafName, dispatch, lang, opt = {}) {
+    env.lang = lang;
+    const X = TX[lang] || TX.de, phase = leafName.slice("card.rt.".length);
+    const v = env.rt.view, ratio = v ? v.w + " / " + v.h : "3 / 4";
+    const buttons = env.rt.screenButtons();
+    // Achsen als zwei echte Knoepfe unter dem Spielfeld (Design Phase C): halten = Taste gedrueckt
+    const ax = env.rt.controls && env.rt.controls.axes && env.rt.controls.axes.x && env.rt.controls.axes.x.keys.length >= 2 ? env.rt.controls.axes.x.keys : null;
+    // Review L2: Achsenknoepfe auch per Tastatur (Leertaste/Enter halten) und mit aria-pressed
+    const press = (code, el, down) => { env.rt.key(code, down); if (el) el.setAttribute("aria-pressed", down ? "true" : "false"); };
+    const axisBtn = (code, label, aria) => h("button", { type: "button", class: "rt-btn rt-axis", key: "ax-" + code, "aria-label": aria, "aria-pressed": "false",
+      on: { pointerdown: (e) => { e.preventDefault(); press(code, e.currentTarget, true); }, pointerup: (e) => press(code, e.currentTarget, false), pointercancel: (e) => press(code, e.currentTarget, false), pointerleave: (e) => press(code, e.currentTarget, false),
+        keydown: (e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); press(code, e.currentTarget, true); } }, keyup: (e) => { if (e.key === " " || e.key === "Enter") press(code, e.currentTarget, false); }, blur: (e) => press(code, e.currentTarget, false) } }, label);
+    const sk = env.rt.controls && env.rt.controls.screenKey && env.rt.controls.screenKey.label ? env.rt.controls.screenKey : null;
+    const skSize = sk ? Math.max(84, Math.min(160, sk.size || 96)) : 0;
+    const tapKey = (el, down) => { if (env.rt.tap) env.rt.tap(down); if (el) el.setAttribute("aria-pressed", down ? "true" : "false"); };
+    // HUD oben: Pause und Ton als echte Schalter (Design Phase C); Steuerknoepfe unter dem Spielfeld
+    const muted = !!opt.muted;
+    return h("div", { class: "rt-stage", key: "rt" },
+      h("div", { key: "hud", class: "rt-hud" },
+        phase === "run" || phase === "pause" ? h("button", { type: "button", class: "rt-btn rt-pause", key: "pause", "aria-pressed": phase === "pause" ? "true" : "false", on: { click: () => dispatch({ type: phase === "pause" ? "RESUME" : "PAUSE" }) } }, phase === "pause" ? X.resume : X.pause) : null,
+        h("button", { type: "button", class: "rt-btn rt-sound", key: "sound", "aria-pressed": muted ? "true" : "false", "aria-label": X.soundOff, on: { click: () => dispatch({ type: "MUTE", on: !muted }) } }, muted ? "🔇 " + X.soundOff : "🔊 " + X.sound)),
+      h("canvas", { key: "cv", class: "rt-canvas", role: "img", "aria-label": X.stage, tabindex: "0", style: { "aspect-ratio": ratio }, ref: mount }),
+      h("p", { key: "say", class: "rt-say", "aria-live": "polite", ref: (el) => { live = el; } }, ""),
+      // Grosse Tipp-Taste (controls.screenKey, Gate C): wie Tippen auf die Buehne; halten = gedrueckt halten
+      sk ? h("button", { type: "button", class: "rt-btn rt-key", key: "skey", "aria-pressed": "false", style: { "min-height": skSize + "px" },
+        on: {
+          pointerdown: (e) => { e.preventDefault(); tapKey(e.currentTarget, true); }, pointerup: (e) => tapKey(e.currentTarget, false), pointercancel: (e) => tapKey(e.currentTarget, false), pointerleave: (e) => tapKey(e.currentTarget, false),
+          keydown: (e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); tapKey(e.currentTarget, true); } }, keyup: (e) => { if (e.key === " " || e.key === "Enter") tapKey(e.currentTarget, false); }, blur: (e) => tapKey(e.currentTarget, false)
+        } }, sk.label[lang] || sk.label.de) : null,
+      h("div", { key: "ctl", class: "rt-controls" },
+        ax ? axisBtn(ax[0], "←", lang === "en" ? "Left" : "Links") : null,
+        ax ? axisBtn(ax[1], "→", lang === "en" ? "Right" : "Rechts") : null,
+        ...buttons.map((b) => h("button", {
+          type: "button", class: "rt-btn", key: "b-" + b.id, "aria-pressed": b.kind === "hold" ? "false" : null,
+          on: {
+            pointerdown: (e) => { e.preventDefault(); env.rt.button(b.id, true); if (b.kind === "hold") e.currentTarget.setAttribute("aria-pressed", "true"); },
+            pointerup: (e) => { env.rt.button(b.id, false); if (b.kind === "hold") e.currentTarget.setAttribute("aria-pressed", "false"); },
+            pointercancel: () => env.rt.button(b.id, false),
+            keydown: (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); env.rt.button(b.id, true); } },
+            keyup: (e) => { if (e.key === " " || e.key === "Enter") env.rt.button(b.id, false); }
+          }
+        }, (b.label && (b.label[lang] || b.label.de)) || b.id))));
+  }
+  return { draw, stageNode, get mounted() { return !!canvas; }, get last() { return { node: lastNode, info: lastInfo, fit }; } };
+}

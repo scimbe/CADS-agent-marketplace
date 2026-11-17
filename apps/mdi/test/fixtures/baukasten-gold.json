@@ -1,0 +1,174 @@
+{
+ "herkunft": "Eigene Goldwerte des Baukasten-Interpreters (Strang B), erzeugt mit GOLD=1 node --test test/baukasten.test.js aus src/engines/baukasten/beispiele.js; keine Kopie aus dem Altcode",
+ "auffangen": {
+  "h600": "744932907e5f1f45",
+  "t": 988,
+  "sc": [
+   16,
+   0
+  ],
+  "win": -1
+ },
+ "sammeln": {
+  "h600": "c368432b4635e241",
+  "t": 1127,
+  "sc": [
+   2,
+   0
+  ],
+  "win": -1
+ },
+ "tauchen": {
+  "h600": "1c4e4527f38cfaa8",
+  "t": 2700,
+  "sc": [
+   44,
+   0
+  ],
+  "win": 0
+ },
+ "tippduell": {
+  "h600": "b7482efff563d16a",
+  "t": 668,
+  "sc": [
+   15,
+   0
+  ],
+  "win": 0
+ },
+ "plattform": {
+  "h600": "01a7c63d4b84efdb",
+  "t": 1539,
+  "sc": [
+   15,
+   0
+  ],
+  "win": 0
+ },
+ "flappy": {
+  "h600": "04e0df38c62155de",
+  "t": 1637,
+  "sc": [
+   15,
+   0
+  ],
+  "win": 0
+ },
+ "breakout": {
+  "h600": "81b77a8c8566d990",
+  "t": 4424,
+  "sc": [
+   24,
+   0
+  ],
+  "win": 0
+ },
+ "pong": {
+  "h600": "40836d1c3cfeab2a",
+  "t": 9000,
+  "sc": [
+   0,
+   0
+  ],
+  "win": -1
+ },
+ "kick": {
+  "h600": "79dc1df941ecf114",
+  "t": 10800,
+  "sc": [
+   0,
+   0
+  ],
+  "win": -1
+ },
+ "snake": {
+  "h600": "edfdd151d063e2a6",
+  "t": 1921,
+  "sc": [
+   15,
+   0
+  ],
+  "win": 0
+ },
+ "reaktion": {
+  "h600": "187efdf97b93845a",
+  "t": 1154,
+  "sc": [
+   15,
+   0
+  ],
+  "win": 0
+ },
+ "ausweichen": {
+  "h600": "0da0114c7a98737b",
+  "t": 2400,
+  "sc": [
+   39,
+   0
+  ],
+  "win": 0
+ },
+ "huepfer": {
+  "h600": "51f9f8fad9d0e5be",
+  "t": 1900,
+  "sc": [
+   20,
+   0
+  ],
+  "win": 0
+ },
+ "memory": {
+  "h": "1c4b9789d02a34bc",
+  "sc": [
+   8,
+   0
+  ],
+  "win": 0,
+  "moves": 24
+ },
+ "drei": {
+  "h": "8cf44a3384a2b6be",
+  "sc": [
+   0,
+   0
+  ],
+  "win": -1,
+  "moves": 9
+ },
+ "vier": {
+  "h": "81f795d7c4ca4312",
+  "sc": [
+   0,
+   1
+  ],
+  "win": 1,
+  "moves": 38
+ },
+ "wortsalat": {
+  "h": "5a3a2df92b2bdc7f",
+  "sc": [
+   3,
+   3
+  ],
+  "win": -1,
+  "moves": 6
+ },
+ "quiz": {
+  "h": "9e6d6b2eb2583c02",
+  "sc": [
+   2,
+   2
+  ],
+  "win": -1,
+  "moves": 4
+ },
+ "luecke": {
+  "h": "de207ad5b090605f",
+  "sc": [
+   3,
+   0
+  ],
+  "win": 0,
+  "moves": 3
+ }
+}

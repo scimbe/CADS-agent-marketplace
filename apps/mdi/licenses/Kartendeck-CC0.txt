@@ -1,0 +1,10 @@
+Kartendeck von My Daily Idea (Skat, Doppelkopf, Bauernskat)
+
+Die Kartenbilder werden im Code gezeichnet (src/engines/tisch/deck.js, Funktion cardSvg): Rahmen, Rang, Farbsymbol
+als gezeichnete Form, Vierfarbblatt (Kreuz schwarz, Pik grün, Herz rot, Karo orange). Sie wurden für diese App selbst
+gestaltet (übernommen aus dem eigenen Altcode, dort ebenfalls CC0) und nicht aus fremden Vorlagen übernommen.
+
+CC0 1.0 Universal – Public Domain Dedication.
+Soweit gesetzlich möglich, verzichten die Urheber auf alle Urheber- und verwandten Schutzrechte an diesen
+Kartenbildern. Sie dürfen ohne Erlaubnis kopiert, verändert und verbreitet werden, auch kommerziell.
+https://creativecommons.org/publicdomain/zero/1.0/

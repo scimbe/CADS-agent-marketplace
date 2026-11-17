@@ -1,0 +1,94 @@
+{
+  "id": "zug-stimme",
+  "version": "1.0.0",
+  "sdk": "mdi-sdk/0.2",
+  "kind": "turn",
+  "mode": "turn",
+  "order": 80,
+  "title": {
+    "de": "Stimmen-Rätsel",
+    "en": "Voice riddle"
+  },
+  "teaser": {
+    "de": "Ruft euch an. Einer spricht mit Fake-Stimme.",
+    "en": "Call each other. One talks in a fake voice."
+  },
+  "howto": {
+    "de": "Ruft euch an, egal mit welcher App. Teile den Link. Beide öffnen ihn während des Anrufs. Einer spricht fünf Figuren, der andere rät.",
+    "en": "Call each other, in any app. Share the link. You both open it during the call. One speaks five characters, the other guesses."
+  },
+  "rule": {
+    "de": "Fünf Runden: Wer spricht, sieht die Figur. Wer rät, tippt eine von sechs.",
+    "en": "Five rounds: the speaker sees the character, the guesser taps one of six."
+  },
+  "players": {
+    "min": 2,
+    "max": 2
+  },
+  "seats": {
+    "de": [
+      "Du lädst ein",
+      "Du spielst mit"
+    ],
+    "en": [
+      "You invite",
+      "You join"
+    ]
+  },
+  "modes": [
+    "link"
+  ],
+  "hidden": "none",
+  "uses": [],
+  "limits": {
+    "stepBudget": 4,
+    "stateBytes": 2048
+  },
+  "on": [
+    "11-22"
+  ],
+  "params": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [],
+    "properties": {}
+  },
+  "inputs": {
+    "type": "object",
+    "required": [
+      "t",
+      "seat"
+    ],
+    "properties": {
+      "t": {
+        "enum": [
+          "call",
+          "play"
+        ]
+      },
+      "seat": {
+        "enum": [
+          0,
+          1
+        ]
+      },
+      "r": {
+        "enum": [
+          0,
+          1
+        ]
+      },
+      "a": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 5
+      }
+    }
+  },
+  "parts": [],
+  "dur": 120,
+  "legacy": [
+    "anruf-quiz",
+    "anruf-stimme"
+  ]
+}

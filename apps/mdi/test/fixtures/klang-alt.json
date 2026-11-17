@@ -1,0 +1,63 @@
+{
+ "herkunft": "Tag pre-legacy-removal, Altbaum src/klang.js (KlangFx.apply) und studio.js (renderBeat, dummyVoice, warp): SHA-256 der Float32-Samples, einmalig berechnet. Stimme = 220 Hz Sinus, 2 s, Amplitude 0.5 mit Anschwellen; Beat 2 Takte.",
+ "beats": {
+  "pausenhof": {
+   "p": {
+    "k": "x---x---x--x-x--",
+    "s": "----x-------x---",
+    "h": "x-x-x-x-x-x-x-x-",
+    "b": "------x---x-----"
+   },
+   "bpm": 100
+  },
+  "boss": {
+   "p": {
+    "k": "x-x---x-x-x---x-",
+    "s": "----x--x----x---",
+    "h": "xxxxxxxxxxxxxxxx",
+    "b": "x---x---x-x-x-x-"
+   },
+   "bpm": 150
+  }
+ },
+ "fx": {
+  "monster/": "f1dc81e23879e782d0258f2014554f3f4873e23e8d7cf20971671b57eb061950",
+  "monster/slow": "eb26176893018c41b37e736bba3802e9dc83261917738ff7ee62b9416dee5165",
+  "monster/fast": "08c048f83efa8fd522aa70a5de4f4a93edbf2f676b59f627cad30e0041d3311c",
+  "chip/": "2c65abdbd3ae726695d542e69266d0ebd67aa75f3929d01d0c3aee8e450f348a",
+  "chip/slow": "121c921292f88a5519569ca8b1558f1bb5d6d404d9a2767e26fe434ca2c27b90",
+  "chip/fast": "2626beb2b9b3a886c94e3d4965ddf0c8d12348ec31c671ca8d55e3cd5472ae0e",
+  "robot/": "43df367ef94143ddc038c3a1362a61f0a15efba5ba4770cfcf3950407780c334",
+  "robot/slow": "4881bda4956d042cccb4a43619c53e289eb99470eee479de05af8d68cef01b26",
+  "robot/fast": "e78efe11cfdd1be6abc750fd81c4383e61d2232e7104074bc428bbcfb918073e",
+  "echo/": "d8738211c41252052d87415f2012d6ab109252105489f4d6520e68060f843f64",
+  "echo/slow": "70cbcb4fae1e6bb88f4f4c43061f57f772d23c87cc321fc5afe976980d514510",
+  "echo/fast": "876223a9090f0df5e66f580b18164b01e77490800cebe79e967df676fb29fe11",
+  "rev/": "35f697d73eb5484e6f6d207531cd51670564ad97888fad863de3ea9404ba75f2",
+  "rev/slow": "d4d7d099c38c54e8cbe85e589ef0e009e911203fd4461202c4350c96733fa694",
+  "rev/fast": "2fbbacc315f303794dabc6980cc75386a7d20cffb1a98316c5f6fae58e719631",
+  "alien/": "6fe86e90bf9e407538e323b8ec622c63a880ae8cf48c660a58c4422ef88a8fbe",
+  "alien/slow": "9091741ff0cbb4fc13f7e56035a37c96b57b35d7e58182a3858f67a9631cf7c2",
+  "alien/fast": "d4ebec5504e273b4c16544022508cb7a69255aacca84ce021c616b1907335df2",
+  "tel/": "623460015d9a490d2965cde0d52b7252d63321879de7a50e302c11c1dc7a6a26",
+  "tel/slow": "7994990bbfe78a1a939b9c18ff11626c288195b2d244884b66998d2a46fbe270",
+  "tel/fast": "5762bdd810b0c64d0862cbd7773f6bdfe6924ea6a38808e0b7c0068812f53c7e",
+  "chor/": "6f792c3c92f0480dec4be73c080a3de89b7a62b960294646f76c61446266207b",
+  "chor/slow": "3451522794022ba0b0e07b998acbf9edf744467da9985adafbc12bc2bce0452c",
+  "chor/fast": "acd6cf12db4b9bc023aef739d1b315d31ccb7f3fb6988404564cce2145f818b6",
+  "/": "fce551e8885ab162ef8fa21c910b3b67a2d4276d4eb04f24fb6eeed27fd607b5",
+  "/slow": "6a648fe253f95ba4e46274e5fa30f54e26d4c0bce6d648d6baf709b045b3f66c",
+  "/fast": "12292cabd0b8f0284ecb7595c00b4c5e9bd0ee81fa56b756de80ced648f366ec"
+ },
+ "beat": {
+  "pausenhof": "291c6999604359cfb3d26869ee26d82eea94dedd64b575a208ed4794f77d5479",
+  "boss": "a3182a0a0592fc8f454c1e4f7e32288cd2aad909e63a775490032a8d3de8fd03"
+ },
+ "dummy": "048f439d605f076cad505483921eaf03eb6f6f84aa048393e5b3bca298fa9575",
+ "warp": {
+  "chip": "f0a22a5c4f470657d21645fefe83c346a3c06815ccc34620004edfd04f0469bf",
+  "monster": "ed466e0b6cbae1690ca41f0438381352be740b3a1f8c5e3a9c4b6a156142a74a",
+  "robot": "41fbac686fa166e1c9956555ce2ad1408046e4e10e8e846f6102cf56c63ba93b",
+  "echo": "57901997bd9c946c8b70f888728311e2d2ebd31a3534319dd4d70da56f95e258"
+ }
+}
