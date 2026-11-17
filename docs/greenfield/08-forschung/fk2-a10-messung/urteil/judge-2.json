@@ -1,0 +1,327 @@
+[
+ {
+  "fall": "9b23490a94",
+  "id": "P02",
+  "persona": {
+   "name": "Jonas",
+   "alter": 16,
+   "rolle": "Schueler, 10. Klasse",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "breakout aber die mauern sind lego steine und der ball ist ne pizza",
+  "erwartung": [
+   "Ich erwarte, dass ich mit einem Schlaeger unten einen Ball steuere",
+   "Ich erwarte, dass der Ball aus Pizza besteht und Steine aussieht wie Lego",
+   "Ich erwarte, dass Steine verschwinden, wenn der Ball sie trifft",
+   "Ich erwarte, dass ich gewinne, wenn alle Steine weg sind"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Das bauen wir nicht. Marken und bekannte Spiele, Filme oder Figuren kommen nicht vor. Beschreib es mit eigenen Worten."
+   ]
+  },
+  "bildschirmfotos": []
+ },
+ {
+  "fall": "7b2e0dfe0c",
+  "id": "P07",
+  "persona": {
+   "name": "Marcel",
+   "alter": 28,
+   "rolle": "Pflegekraft",
+   "technik": "mittel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G1",
+   "wer_spielt": "duell"
+  },
+  "wunsch": "zwei spieler schiessen mit wasserballons aufeinander, nass wer getroffen wird, ohne blut",
+  "erwartung": [
+   "Ich erwarte, dass zwei Personen gegeneinander spielen",
+   "Ich erwarte, dass die Geschosse Wasserballons sind",
+   "Ich erwarte, dass ein Treffer jemanden nass macht und nichts Gewalttaetiges zeigt",
+   "Ich erwarte, dass am Ende klar ist, wer gewonnen hat"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Beim Bauen ist etwas schiefgegangen. Abgebucht ist nichts."
+   ]
+  },
+  "bildschirmfotos": [],
+  "spielcode": null
+ },
+ {
+  "fall": "e2eb3c1c88",
+  "id": "P12",
+  "persona": {
+   "name": "Irmgard",
+   "alter": 81,
+   "rolle": "Oma, Urgrossmutter",
+   "technik": "wenig"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "Memory mit Fotos von meinen Enkeln, 12 Karten",
+  "erwartung": [
+   "Ich erwarte, dass es genau 12 verdeckte Karten gibt",
+   "Ich erwarte, dass ich Paare aufdecken kann",
+   "Ich erwarte, dass Fotos von Kindern auf den Karten sind",
+   "Ich erwarte, dass Paare liegen bleiben, wenn ich sie gefunden habe"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Das bauen wir nicht. Das passt nicht zu dieser App."
+   ]
+  },
+  "bildschirmfotos": []
+ },
+ {
+  "fall": "539a06b846",
+  "id": "P12",
+  "persona": {
+   "name": "Irmgard",
+   "alter": 81,
+   "rolle": "Oma, Urgrossmutter",
+   "technik": "wenig"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "Memory mit Fotos von meinen Enkeln, 12 Karten",
+  "erwartung": [
+   "Ich erwarte, dass es genau 12 verdeckte Karten gibt",
+   "Ich erwarte, dass ich Paare aufdecken kann",
+   "Ich erwarte, dass Fotos von Kindern auf den Karten sind",
+   "Ich erwarte, dass Paare liegen bleiben, wenn ich sie gefunden habe"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Memory mit 12 bunten Karten",
+   "das_kann_dein_spiel": [
+    "Es gibt genau 12 Karten, in einem Raster mit 4 Spalten und 3 Reihen, alle verdeckt am Anfang. (nicht automatisch prüfbar)",
+    "Ein Tipp auf eine Karte dreht sie um, ein zweiter Tipp dreht eine zweite Karte um. (nicht automatisch prüfbar)",
+    "Zwei gleiche Bilder bleiben offen liegen, zwei verschiedene drehen sich nach kurzer Zeit wieder zurück. (nicht automatisch prüfbar)",
+    "Die Karten zeigen einfache, fröhliche Zeichnungen wie Sonne, Blume, Stern, Herz, Haus und Ball. (nicht automatisch prüfbar)",
+    "Eine Anzeige oben zählt die Versuche, und am Ende erscheint ein warmer Glückwunsch. (nicht automatisch prüfbar)",
+    "Es gibt keine Uhr und keinen Zeitdruck, das Spiel wartet immer auf dich. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Ein Knopf startet ein neues Spiel mit neu gemischten Karten. – Im Spiel gibt es keinen eigenen Knopf, der ein neues Spiel mit neu gemischten Karten startet. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Echte Fotos von deinen Enkeln sind hier nicht möglich, weil keine Bilder echter Menschen in die Spiele kommen. Die Karten zeigen stattdessen Zeichnungen.",
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/539a06b846-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/539a06b846-1.png"
+  ],
+  "spielcode": "// Memory mit 12 Karten (6 Paare), Cursor mit Richtungen, Feuer waehlt. Keine Uhr, nur Zuglimit.\nconst BILDER = [\"🌞\", \"🌸\", \"⭐\", \"❤️\", \"🏠\", \"⚽\"];\nconst SPALTEN = 4, ZEILEN = 3, ZELLE = 80, KARTE = 68, X0 = 26, Y0 = 150;\nconst ZUEGE = 24, WIEDERHOLEN = 12, ZEIGEN = 40;\n\nexport default {\n  title: \"Memory mit 12 bunten Karten\",\n  controls: [\"left\", \"right\", \"up\", \"down\", \"fire\"],\n  lives: 1,\n\n  init(g) {\n    const karten = [];\n    for (const b of BILDER) {\n      karten.push({ b, offen: false, paar: false });\n      karten.push({ b, offen: false, paar: false });\n    }\n    for (let i = karten.length - 1; i > 0; i--) {\n      const j = g.randInt(0, i);\n      const t = karten[i]; karten[i] = karten[j]; karten[j] = t;\n    }\n    return { karten, cx: 0, cy: 0, halten: 0, wahl: [], zeigen: 0, zuege: 0, paare: 0, fertig: false };\n  },\n\n  update(s, input, g) {\n    if (s.fertig) return;\n    // zwei offene Karten ohne Paar kurz zeigen, dann wieder verdecken\n    if (s.zeigen > 0) {\n      s.zeigen -= 1;\n      if (s.zeigen === 0) {\n        for (const i of s.wahl) s.karten[i].offen = false;\n        s.wahl = [];\n      }\n      return;\n    }\n    // Cursor: sofort beim Druecken, dann alle WIEDERHOLEN Frames solange gehalten\n    const dx = (input.right ? 1 : 0) - (input.left ? 1 : 0);\n    const dy = (input.down ? 1 : 0) - (input.up ? 1 : 0);\n    if (dx !== 0 || dy !== 0) {\n      if (s.halten % WIEDERHOLEN === 0) {\n        s.cx = g.clamp(s.cx + dx, 0, SPALTEN - 1);\n        s.cy = g.clamp(s.cy + dy, 0, ZEILEN - 1);\n      }\n      s.halten += 1;\n    } else s.halten = 0;\n\n    if (!input.firePressed) return;\n    const i = s.cy * SPALTEN + s.cx;\n    const k = s.karten[i];\n    if (k.offen || k.paar) return;\n    k.offen = true;\n    s.wahl.push(i);\n    g.sound(\"pop\");\n    if (s.wahl.length < 2) return;\n\n    s.zuege += 1;\n    const a = s.karten[s.wahl[0]], b = s.karten[s.wahl[1]];\n    if (a.b === b.b) {\n      a.paar = true; b.paar = true;\n      s.wahl = [];\n      s.paare += 1;\n      g.addScore(10);\n      g.sound(\"coin\");\n      if (s.paare === BILDER.length) {\n        s.fertig = true;\n        g.addScore(Math.max(0, ZUEGE - s.zuege));\n        g.win();\n        return;\n      }\n    } else {\n      g.addScore(1);\n      s.zeigen = ZEIGEN;\n    }\n    if (s.zuege >= ZUEGE) g.gameOver();\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    d.text(\"Züge: \" + s.zuege + \" / \" + ZUEGE, g.W / 2, 90, { size: 20, align: \"center\" });\n    for (let i = 0; i < s.karten.length; i++) {\n      const k = s.karten[i];\n      const x = X0 + (i % SPALTEN) * ZELLE, y = Y0 + Math.floor(i / SPALTEN) * ZELLE;\n      if (k.paar) d.rect(x, y, KARTE, KARTE, \"cream\", { round: 10, line: true });\n      else d.rect(x, y, KARTE, KARTE, k.offen ? \"cream\" : \"yellow\", { round: 10, shadow: true, line: true });\n      if (k.offen || k.paar) d.emoji(k.b, x + KARTE / 2, y + KARTE / 2, 40);\n    }\n    if (!s.fertig) {\n      const cx = X0 + s.cx * ZELLE - 6, cy = Y0 + s.cy * ZELLE - 6;\n      d.rect(cx, cy, KARTE + 12, 4, \"red\");\n      d.rect(cx, cy + KARTE + 8, KARTE + 12, 4, \"red\");\n      d.rect(cx, cy, 4, KARTE + 12, \"red\");\n      d.rect(cx + KARTE + 8, cy, 4, KARTE + 12, \"red\");\n    } else {\n      d.text(\"Glückwunsch, schön gemacht!\", g.W / 2, g.H / 2, { size: 22, color: \"ink\", align: \"center\" });\n    }\n  }\n};\n"
+ },
+ {
+  "fall": "aeefade020",
+  "id": "P07",
+  "persona": {
+   "name": "Marcel",
+   "alter": 28,
+   "rolle": "Pflegekraft",
+   "technik": "mittel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G1",
+   "wer_spielt": "duell"
+  },
+  "wunsch": "zwei spieler schiessen mit wasserballons aufeinander, nass wer getroffen wird, ohne blut",
+  "erwartung": [
+   "Ich erwarte, dass zwei Personen gegeneinander spielen",
+   "Ich erwarte, dass die Geschosse Wasserballons sind",
+   "Ich erwarte, dass ein Treffer jemanden nass macht und nichts Gewalttaetiges zeigt",
+   "Ich erwarte, dass am Ende klar ist, wer gewonnen hat"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Wasserballon-Duell auf dem Teich",
+   "das_kann_dein_spiel": [
+    "Die Wurftaste schickt „Wasserballons“ – so wie du es gesagt hast – vom eigenen Boot in Richtung des Gegners.",
+    "In der Mitte des Teichs steht ein Holzsteg, an dem Wasserballons zerplatzen, ohne ein Boot zu treffen. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Zwei Segelboote liegen sich auf einem Teich gegenüber, und jeder Spieler steuert sein eigenes Boot am Rand. – Beide Spieler koennen nicht gleichzeitig mit eigenen Tasten steuern, weil nur eine Person am Geraet sitzt. Ihr spielt abwechselnd am selben Geraet. (nicht automatisch prüfbar)",
+    "„nass wer getroffen wird“ – so wie du es gesagt hast: Das getroffene Boot wird mit Wasser übergossen und kippt kurz zur Seite. – Ein Boot kann sich nicht zur Seite neigen. Es gibt eine Wasserspritzer-Figur am getroffenen Boot, aber das Boot kippt nicht. (nicht automatisch prüfbar)",
+    "Jeder Treffer zählt einen Punkt, und wer zuerst fünf Treffer hat, gewinnt das Duell. – Am Ende wird nur allgemein gesagt, dass das Duell vorbei ist, aber nicht, welcher Spieler gewonnen hat. (nicht automatisch prüfbar)",
+    "Es fließt kein Blut; zu sehen sind nur Wasser, Tropfen und Wellen. – Das macht das Spiel noch nicht so, wie es hier steht. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Zwei Spieler sitzen am selben Gerät; gleichzeitig online gegeneinander spielen ist nicht dabei.",
+    "Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/aeefade020-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/aeefade020-1.png"
+  ],
+  "spielcode": "// Wasserballon-Duell: zwei Boote am Teich, Zug um Zug am selben Geraet. Wer trifft, bekommt Punkte.\n// Keine Gewalt, kein Blut: nur Wasserballons, Spritzer und Wellen.\n// Der Holzsteg liegt links, damit Wuerfe zur Gegenlinie nicht zwangslaeufig an ihm zerplatzen.\nconst STEG = { x: 40, y: 316, w: 110, h: 14 };\n\nexport default {\n  title: \"Wasserballon-Duell auf dem Teich\",\n  controls: [\"left\", \"right\", \"fire\"],\n  lives: 1,\n\n  init(g) {\n    return { spieler: 1, zz: 180, halten: 0, flug: null, spritz: null, treffer: [0, 0], zuege: 0 };\n  },\n\n  update(s, input, g) {\n    if (s.spritz) { s.spritz.t -= 1; if (s.spritz.t <= 0) s.spritz = null; }\n\n    if (s.flug) {\n      const f = s.flug;\n      f.t += 1;\n      const k = f.t / 30;\n      f.x = f.x0 + (f.x1 - f.x0) * k;\n      f.y = f.y0 + (f.y1 - f.y0) * k;\n      // Steg: der Ballon platzt, kein Punkt\n      if (f.y >= STEG.y && f.y <= STEG.y + STEG.h && f.x >= STEG.x && f.x <= STEG.x + STEG.w) {\n        g.sound(\"pop\");\n        endeZug(s, g, false);\n        return;\n      }\n      if (f.t >= 30) {\n        endeZug(s, g, Math.abs(f.x1 - 180) <= 30);\n      }\n      return;\n    }\n\n    // Zielen: Zielmarke bewegen, mit fire werfen\n    const dx = (input.right ? 1 : 0) - (input.left ? 1 : 0);\n    if (dx !== 0) {\n      if (s.halten % 12 === 0) s.zz = g.clamp(s.zz + 10 * dx, 20, 340);\n      s.halten += 1;\n    } else s.halten = 0;\n\n    if (input.firePressed) {\n      const sp = s.spieler;\n      s.flug = { sp, x0: 180, y0: sp === 1 ? 150 : 490, x1: s.zz, y1: sp === 1 ? 500 : 140, t: 0, x: 180, y: sp === 1 ? 150 : 490 };\n      s.halten = 0;\n      g.sound(\"shoot\");\n    }\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    d.rect(10, 100, 340, 520, \"cream\", { round: 24, line: true });\n    d.rect(STEG.x, STEG.y, STEG.w, STEG.h, \"yellow\", { round: 4, line: true });\n    d.emoji(\"⛵\", 180, 120, 40);\n    d.emoji(\"🚤\", 180, 520, 40);\n    if (!s.flug) {\n      const ziel = s.spieler === 1 ? 500 : 140;\n      d.circle(s.zz, ziel, 7, \"ink\", { line: true });\n    }\n    if (s.flug) d.emoji(\"🎈\", s.flug.x, s.flug.y, 26);\n    if (s.spritz) d.emoji(\"💦\", 180, s.spritz.y, 40);\n    d.text(s.flug ? \"Wurf läuft ...\" : \"Spieler \" + s.spieler + \" dran\", 180, 84, { size: 20, align: \"center\" });\n    d.text(\"Treffer: \" + s.treffer[0] + \" : \" + s.treffer[1], 180, 610, { size: 18, align: \"center\" });\n    d.text(\"Zug: \" + s.zuege + \" / 30\", 180, 632, { size: 16, align: \"center\" });\n  }\n};\n\nfunction endeZug(s, g, treffer) {\n  const sp = s.flug.sp;\n  s.flug = null;\n  s.zuege += 1;\n  if (treffer) {\n    s.treffer[sp - 1] += 1;\n    g.addScore(1);\n    g.sound(\"hit\");\n    s.spritz = { y: sp === 1 ? 520 : 120, t: 40 };\n    if (s.treffer[sp - 1] >= 5) { g.win(); return; }\n  }\n  s.spieler = 3 - sp;\n  if (s.zuege >= 30) g.gameOver();\n}\n"
+ },
+ {
+  "fall": "c98234f78c",
+  "id": "P12",
+  "persona": {
+   "name": "Irmgard",
+   "alter": 81,
+   "rolle": "Oma, Urgrossmutter",
+   "technik": "wenig"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "Memory mit Fotos von meinen Enkeln, 12 Karten",
+  "erwartung": [
+   "Ich erwarte, dass es genau 12 verdeckte Karten gibt",
+   "Ich erwarte, dass ich Paare aufdecken kann",
+   "Ich erwarte, dass Fotos von Kindern auf den Karten sind",
+   "Ich erwarte, dass Paare liegen bleiben, wenn ich sie gefunden habe"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Bunte Memory-Karten",
+   "das_kann_dein_spiel": [
+    "Es gibt „12 Karten“ – so wie du es gesagt hast, also 6 Paare, die verdeckt auf dem Tisch liegen. (nicht automatisch prüfbar)",
+    "Zwei umgedrehte gleiche Bilder bleiben offen liegen; zwei verschiedene drehen sich nach kurzer Zeit wieder zu. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Ein Tipp auf eine Karte dreht sie wie eine Buchseite um und zeigt ein fröhliches Bild wie Sonne, Blume oder Boot. – Das macht das Spiel noch nicht so, wie es hier steht. (nicht automatisch prüfbar)",
+    "Ein Zähler oben zeigt, wie viele Züge du bisher gebraucht hast. – „Züge: 1 / 24“ war beim Ausprobieren nicht zu lesen.",
+    "Wenn alle 6 Paare gefunden sind, erscheint der Text Gut gemacht und ein Knopf startet eine neue Runde. – Einen Knopf zum Antippen gibt es hier nicht. Eine neue Runde startest du stattdessen mit dem Feuer-Knopf. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Echte Fotos deiner Enkel sind nicht dabei, denn echte Fotos von anderen Menschen können nicht eingebaut werden. Die Karten zeigen gemalte Symbole."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/c98234f78c-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/c98234f78c-1.png"
+  ],
+  "spielcode": "// Bunte Memory-Karten: 6 Paare gemalter Symbole, 12 verdeckte Karten. Feuer dreht um, Cursor mit Richtungen.\n// Spielende: Zuglimit, Zeitlimit oder Ruhezeit nach dem Finale (Text bleibt sichtbar).\nconst BILDER = [\"🌞\", \"🌸\", \"⛵\", \"🐸\", \"🍓\", \"🎈\"];\nconst SPALTEN = 3, ZEILEN = 4, ZELLE = 76, KARTE = 68, X0 = 28, Y0 = 120;\nconst ZUEGE = 24, WIEDERHOLEN = 12, ZEIGEN = 120, DAUER = 2400, RUHE = 900;\n\nexport default {\n  title: \"Bunte Memory-Karten\",\n  controls: [\"left\", \"right\", \"up\", \"down\", \"fire\"],\n  lives: 1,\n\n  init(g) {\n    const s = { karten: [], cx: 0, cy: 0, halten: 0, wahl: [], zeigen: 0, zuege: 0, paare: 0, fertig: false, dauer: 0, ruhe: 0 };\n    mische(s, g);\n    return s;\n  },\n\n  update(s, input, g) {\n    if (s.fertig) {\n      s.ruhe += 1;\n      if (input.firePressed) { mische(s, g); return; }\n      if (s.ruhe >= RUHE) g.gameOver();\n      return;\n    }\n    s.dauer += 1;\n    if (s.dauer >= DAUER) { g.gameOver(); return; }\n    // zwei offene Karten ohne Paar: kurz zeigen, dann wieder verdecken\n    if (s.zeigen > 0) {\n      s.zeigen -= 1;\n      if (s.zeigen === 0) {\n        for (const i of s.wahl) s.karten[i].offen = false;\n        s.wahl = [];\n      }\n      return;\n    }\n    // Cursor: sofort beim Druecken, dann alle WIEDERHOLEN Frames solange gehalten\n    const dx = (input.right ? 1 : 0) - (input.left ? 1 : 0);\n    const dy = (input.down ? 1 : 0) - (input.up ? 1 : 0);\n    if (dx !== 0 || dy !== 0) {\n      if (s.halten % WIEDERHOLEN === 0) {\n        s.cx = g.clamp(s.cx + dx, 0, SPALTEN - 1);\n        s.cy = g.clamp(s.cy + dy, 0, ZEILEN - 1);\n      }\n      s.halten += 1;\n    } else s.halten = 0;\n\n    if (!input.firePressed) return;\n    const i = s.cy * SPALTEN + s.cx;\n    const k = s.karten[i];\n    if (k.offen || k.weg) return;\n    k.offen = true;\n    s.wahl.push(i);\n    g.sound(\"pop\");\n    if (s.wahl.length < 2) return;\n\n    s.zuege += 1;\n    const a = s.karten[s.wahl[0]], b = s.karten[s.wahl[1]];\n    if (a.b === b.b) {\n      a.weg = true; b.weg = true;\n      s.wahl = [];\n      s.paare += 1;\n      g.addScore(10);\n      g.sound(\"coin\");\n      if (s.paare === BILDER.length) { s.fertig = true; s.ruhe = 0; return; }\n    } else {\n      g.addScore(1);\n      s.zeigen = ZEIGEN;\n    }\n    if (s.zuege >= ZUEGE) g.gameOver();\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    d.text(\"Züge: \" + s.zuege + \" / \" + ZUEGE, g.W / 2, 64, { size: 20, align: \"center\" });\n    for (let i = 0; i < s.karten.length; i++) {\n      const k = s.karten[i];\n      const x = X0 + (i % SPALTEN) * ZELLE, y = Y0 + Math.floor(i / SPALTEN) * ZELLE;\n      if (k.weg) { d.rect(x, y, KARTE, KARTE, \"cream\", { round: 10, line: true }); continue; }\n      d.rect(x, y, KARTE, KARTE, k.offen ? \"cream\" : \"yellow\", { round: 10, shadow: true, line: true });\n      if (k.offen) d.emoji(k.b, x + KARTE / 2, y + KARTE / 2, 40);\n    }\n    if (!s.fertig) {\n      const cx = X0 + s.cx * ZELLE - 4, cy = Y0 + s.cy * ZELLE - 4;\n      d.rect(cx, cy, ZELLE, 4, \"red\"); d.rect(cx, cy + ZELLE - 4, ZELLE, 4, \"red\");\n      d.rect(cx, cy, 4, ZELLE, \"red\"); d.rect(cx + ZELLE - 4, cy, 4, ZELLE, \"red\");\n    } else {\n      d.text(\"Gut gemacht\", g.W / 2, 90, { size: 28, align: \"center\" });\n      d.text(\"Neue Runde mit Feuer\", g.W / 2, 470, { size: 20, align: \"center\" });\n    }\n  }\n};\n\nfunction mische(s, g) {\n  const karten = [];\n  for (const b of BILDER) {\n    karten.push({ b, offen: false, weg: false });\n    karten.push({ b, offen: false, weg: false });\n  }\n  for (let i = karten.length - 1; i > 0; i--) {\n    const j = g.randInt(0, i);\n    const t = karten[i]; karten[i] = karten[j]; karten[j] = t;\n  }\n  s.karten = karten;\n  s.cx = 0; s.cy = 0; s.halten = 0; s.wahl = []; s.zeigen = 0;\n  s.zuege = 0; s.paare = 0; s.fertig = false; s.dauer = 0; s.ruhe = 0;\n}\n"
+ },
+ {
+  "fall": "cf5b1be2a7",
+  "id": "P07",
+  "persona": {
+   "name": "Marcel",
+   "alter": 28,
+   "rolle": "Pflegekraft",
+   "technik": "mittel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G1",
+   "wer_spielt": "duell"
+  },
+  "wunsch": "zwei spieler schiessen mit wasserballons aufeinander, nass wer getroffen wird, ohne blut",
+  "erwartung": [
+   "Ich erwarte, dass zwei Personen gegeneinander spielen",
+   "Ich erwarte, dass die Geschosse Wasserballons sind",
+   "Ich erwarte, dass ein Treffer jemanden nass macht und nichts Gewalttaetiges zeigt",
+   "Ich erwarte, dass am Ende klar ist, wer gewonnen hat"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Wasserballon-Duell auf dem Teich",
+   "das_kann_dein_spiel": [
+    "Mit einem Knopf wirft jedes Boot einen Wasserballon in Richtung des Gegners. Der Ballon fliegt in einem Bogen über das Wasser. (nicht automatisch prüfbar)",
+    "Die Punkte stehen oben in der Mitte: Wer zuerst fünf Treffer landet, gewinnt, und das Gewinner-Boot wird mit einem kleinen Jubel gefeiert. (nicht automatisch prüfbar)",
+    "Nach dem Ende gibt es einen Knopf für ein neues Duell mit denselben zwei Booten. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Zwei Boote liegen sich am Teich gegenüber, eins unten links und eins oben rechts. Jeder Spieler steuert sein Boot mit eigenen Tasten. – Beide Boote lassen sich nicht gleichzeitig mit eigenen Tasten steuern. Ihr spielt abwechselnd an einem Geraet, einer nach dem anderen. (nicht automatisch prüfbar)",
+    "Trifft ein Wasserballon das Segel des anderen Bootes, platzt er bunt und das Segel wird nass. Der Treffer zählt einen Punkt. – Der Treffer zaehlt einen Punkt, aber das Segel wird nicht nass gezeigt und das Platzen sieht nur wie ein gelber Ring mit einem Spritzer aus, nicht bunt. (nicht automatisch prüfbar)",
+    "Trifft ein Ballon das Segel genau fünfmal, kippt das getroffene Boot kurz schräg, richtet sich dann wieder auf und das Spiel läuft weiter. – Nach einem Treffer bekommt das Boot nur einen roten Strich quer darueber, es kippt aber nicht wirklich zur Seite. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Menschen sind keine Ziele, deshalb treffen die Ballons Boote und Segel und keine Personen.",
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/cf5b1be2a7-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/cf5b1be2a7-1.png"
+  ],
+  "spielcode": "// Wasserballon-Duell: zwei Boote am Teich, Zug fuer Zug auf einem Geraet. Treffer aufs Segel zaehlt einen Punkt.\nconst YS = [500, 250], V = 10, G = 0.15, LIFE = 90, ZUGE = 30, TREFFER = 5;\n\nfunction fresh() {\n  return { x: [20, 300], y: [YS[0], YS[1]], wer: 0, zug: 0, treffer: [0, 0], ang: [60, 60], acool: 0, ballon: null, pop: null, kippen: [0, 0], ende: 0 };\n}\nfunction reset(s) {\n  const f = fresh();\n  for (const k of Object.keys(f)) s[k] = f[k];\n}\n\nexport default {\n  title: \"Wasserballon-Duell auf dem Teich\",\n  controls: [\"left\", \"right\", \"up\", \"down\", \"fire\"],\n  lives: 1,\n\n  init() {\n    return fresh();\n  },\n\n  update(s, input, g) {\n    if (s.ende !== 0) { if (input.firePressed) reset(s); return; }\n    for (let i = 0; i < 2; i++) if (s.kippen[i] > 0) s.kippen[i] -= 1;\n    if (s.pop) { s.pop.t -= 1; if (s.pop.t <= 0) s.pop = null; }\n    if (s.ballon) { flight(s, g); return; }\n\n    const w = s.wer;\n    if (input.left) s.x[w] = g.clamp(s.x[w] - 4, 0, g.W - 40);\n    if (input.right) s.x[w] = g.clamp(s.x[w] + 4, 0, g.W - 40);\n    if (input.up || input.down) {\n      if (s.acool === 0) { s.ang[w] = g.clamp(s.ang[w] + (input.up ? 1 : -1), 20, 70); s.acool = 6; }\n      else s.acool -= 1;\n    } else s.acool = 0;\n\n    if (input.firePressed) {\n      const dir = w === 0 ? 1 : -1, a = s.ang[w];\n      s.ballon = { x: s.x[w] + (dir > 0 ? 40 : 0), y: YS[w] + 8, vx: dir * V * g.cos(a), vy: -V * g.sin(a), n: 0 };\n      s.zug += 1;\n      g.sound(\"shoot\");\n    }\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    d.rect(10, 60, 340, 570, \"yellow\", { round: 16, line: true });\n    d.text(\"Treffer \" + s.treffer[0] + \" : \" + s.treffer[1] + \"   Zug \" + s.zug + \" / \" + ZUGE, g.W / 2, 74, { size: 18, align: \"center\", color: \"ink\" });\n    d.text(\"Am Zug: Spieler \" + (s.wer + 1), g.W / 2, 98, { size: 18, align: \"center\", color: \"ink\" });\n\n    for (let i = 0; i < 2; i++) {\n      const bx = s.x[i], by = YS[i];\n      d.emoji(\"⛵\", bx + 20, by + 15, 36);\n      if (s.kippen[i] > 0) d.line(bx - 4, by + 24, bx + 44, by + (s.kippen[i] > 15 ? 4 : 28), \"red\", 3);\n    }\n\n    if (!s.ballon && s.ende === 0) {\n      const w = s.wer, dir = w === 0 ? 1 : -1, a = s.ang[w];\n      const tx = s.x[w] + (dir > 0 ? 40 : 0), ty = YS[w] + 8;\n      d.line(tx, ty, tx + dir * 60 * g.cos(a), ty - 60 * g.sin(a), \"red\", 3);\n      d.text(a + \"°\", tx + dir * 20, ty - 70, { size: 16, align: \"center\", color: \"red\" });\n    }\n\n    if (s.ballon) d.emoji(\"🎈\", s.ballon.x, s.ballon.y, 22);\n    if (s.pop) {\n      d.circle(s.pop.x, s.pop.y, 4 + (20 - s.pop.t) * 1.2, \"yellow\", { line: true });\n      d.emoji(\"💦\", s.pop.x, s.pop.y, 28);\n    }\n\n    if (s.ende === 1 || s.ende === 2) {\n      d.emoji(\"🎉\", g.W / 2, 330, 80);\n      d.text(\"Spieler \" + s.ende + \" gewinnt!\", g.W / 2, 400, { size: 24, align: \"center\", color: \"ink\" });\n      d.text(\"fire: neues Duell\", g.W / 2, 440, { size: 16, align: \"center\", color: \"ink\" });\n    } else if (s.ende === 3) {\n      d.text(\"Zuglimit erreicht\", g.W / 2, 400, { size: 24, align: \"center\", color: \"ink\" });\n      d.text(\"fire: neues Duell\", g.W / 2, 440, { size: 16, align: \"center\", color: \"ink\" });\n    }\n  }\n};\n\nfunction flight(s, g) {\n  const b = s.ballon, w = s.wer, t = 1 - w;\n  b.n += 1;\n  b.vy += G;\n  b.x += b.vx;\n  b.y += b.vy;\n  if (g.hit({ x: b.x, y: b.y, r: 6 }, { x: s.x[t] + 20, y: YS[t] + 4, r: 14 })) {\n    s.treffer[w] += 1;\n    g.addScore(1);\n    g.sound(\"pop\");\n    s.pop = { x: b.x, y: b.y, t: 20 };\n    s.kippen[t] = 30;\n    s.ballon = null;\n    s.wer = t;\n    if (s.treffer[w] >= TREFFER) { s.ende = w + 1; g.win(); return; }\n  } else if (b.n >= LIFE || b.y >= g.H - 30 || b.x < -20 || b.x > g.W + 20) {\n    s.ballon = null;\n    s.wer = t;\n  } else return;\n  if (s.zug >= ZUGE) { s.ende = 3; g.gameOver(); }\n}\n"
+ },
+ {
+  "fall": "5dd74614f5",
+  "id": "P02",
+  "persona": {
+   "name": "Jonas",
+   "alter": 16,
+   "rolle": "Schueler, 10. Klasse",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "breakout aber die mauern sind lego steine und der ball ist ne pizza",
+  "erwartung": [
+   "Ich erwarte, dass ich mit einem Schlaeger unten einen Ball steuere",
+   "Ich erwarte, dass der Ball aus Pizza besteht und Steine aussieht wie Lego",
+   "Ich erwarte, dass Steine verschwinden, wenn der Ball sie trifft",
+   "Ich erwarte, dass ich gewinne, wenn alle Steine weg sind"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Das bauen wir nicht. Marken und bekannte Spiele, Filme oder Figuren kommen nicht vor. Beschreib es mit eigenen Worten."
+   ]
+  },
+  "bildschirmfotos": []
+ },
+ {
+  "fall": "60c1f2b6a2",
+  "id": "P02",
+  "persona": {
+   "name": "Jonas",
+   "alter": 16,
+   "rolle": "Schueler, 10. Klasse",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "breakout aber die mauern sind lego steine und der ball ist ne pizza",
+  "erwartung": [
+   "Ich erwarte, dass ich mit einem Schlaeger unten einen Ball steuere",
+   "Ich erwarte, dass der Ball aus Pizza besteht und Steine aussieht wie Lego",
+   "Ich erwarte, dass Steine verschwinden, wenn der Ball sie trifft",
+   "Ich erwarte, dass ich gewinne, wenn alle Steine weg sind"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Das bauen wir nicht. Marken und bekannte Spiele, Filme oder Figuren kommen nicht vor. Beschreib es mit eigenen Worten."
+   ]
+  },
+  "bildschirmfotos": []
+ }
+]

@@ -1,0 +1,321 @@
+[
+ {
+  "fall": "fc144166f2",
+  "id": "P11",
+  "persona": {
+   "name": "Svenja",
+   "alter": 31,
+   "rolle": "Grafikdesignerin",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "tetris mit fallenden bunten kuchenstuecken",
+  "erwartung": [
+   "Ich erwarte, dass Kuchenstuecke von oben herunterfallen",
+   "Ich erwarte, dass ich sie drehen und seitlich schieben kann",
+   "Ich erwarte, dass volle Reihen verschwinden",
+   "Ich erwarte, dass die Stuecke bunt sind"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Das bauen wir nicht. Marken und bekannte Spiele, Filme oder Figuren kommen nicht vor. Beschreib es mit eigenen Worten."
+   ]
+  },
+  "bildschirmfotos": []
+ },
+ {
+  "fall": "560e1102eb",
+  "id": "P11",
+  "persona": {
+   "name": "Svenja",
+   "alter": 31,
+   "rolle": "Grafikdesignerin",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "tetris mit fallenden bunten kuchenstuecken",
+  "erwartung": [
+   "Ich erwarte, dass Kuchenstuecke von oben herunterfallen",
+   "Ich erwarte, dass ich sie drehen und seitlich schieben kann",
+   "Ich erwarte, dass volle Reihen verschwinden",
+   "Ich erwarte, dass die Stuecke bunt sind"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Das bauen wir nicht. Marken und bekannte Spiele, Filme oder Figuren kommen nicht vor. Beschreib es mit eigenen Worten."
+   ]
+  },
+  "bildschirmfotos": []
+ },
+ {
+  "fall": "be48133348",
+  "id": "P11",
+  "persona": {
+   "name": "Svenja",
+   "alter": 31,
+   "rolle": "Grafikdesignerin",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "tetris mit fallenden bunten kuchenstuecken",
+  "erwartung": [
+   "Ich erwarte, dass Kuchenstuecke von oben herunterfallen",
+   "Ich erwarte, dass ich sie drehen und seitlich schieben kann",
+   "Ich erwarte, dass volle Reihen verschwinden",
+   "Ich erwarte, dass die Stuecke bunt sind"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Das bauen wir nicht. Marken und bekannte Spiele, Filme oder Figuren kommen nicht vor. Beschreib es mit eigenen Worten."
+   ]
+  },
+  "bildschirmfotos": []
+ },
+ {
+  "fall": "d6261dd982",
+  "id": "P06",
+  "persona": {
+   "name": "Lena",
+   "alter": 19,
+   "rolle": "Studentin, Lehramt",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G2",
+   "wer_spielt": "allein"
+  },
+  "wunsch": "Jump and Run mit einer Katze die ueber Daecher huepft und Fischgraeten sammelt",
+  "erwartung": [
+   "Ich erwarte, dass eine Katze die Spielfigur ist",
+   "Ich erwarte, dass ich springen und ueber Luecken kommen kann",
+   "Ich erwarte, dass ich Fischgraeten einsammeln kann und sie gezaehlt werden",
+   "Ich erwarte, dass die Kulisse aus Daechern besteht"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Katze auf den Dächern",
+   "das_kann_dein_spiel": [
+    "Du steuerst eine Katze, die von Dach zu Dach hüpft – Tippen oder Pfeiltaste nach oben zum Springen.",
+    "Auf den Dächern liegen Fischgräten, die die Katze einsammelt.",
+    "Zwischen den Dächern gibt es Lücken, in die die Katze fallen kann; dann beginnt das Spiel von vorn.",
+    "Das Tempo wird nach und nach etwas schneller, damit es mit der Zeit spannender wird."
+   ],
+   "fehlt": [
+    "Die Katze sieht lustig aus: Sie hat einen gestreiften Schwanz und große grüne Augen. – Die Katze ist ein Katzen-Emoji. Einen gestreiften Schwanz und grosse gruene Augen kann das Spiel damit nicht zeichnen. (nicht automatisch prüfbar)",
+    "Nach dem Spiel zeigt eine Anzeige die gesammelten Fischgräten und den bisher besten Stand. – Einen bisher besten Stand ueber mehrere Spiele speichert das Spiel nicht. Die Punkte zeigt am Ende nur die Anzeige des Spiels. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/d6261dd982-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/d6261dd982-1.png"
+  ],
+  "spielcode": "// Katze auf den Daechern (nur Spiel-API). Umgesetzt: p1 Springen, p2 Fischgraeten, p3 Luecken und Neustart, p5 Tempo.\n// Nicht umgesetzt (ehrlich): p4 (gestreifter Schwanz, gruene Augen: nur das Emoji 🐱 ist moeglich),\n// p6 (Ergebnisanzeige nach dem Spiel mit bestem Stand: fehlt).\n// Luecken 40 bis 80 px statt 120: bei Tempo 2 ist der Sprung (ca. 37 Frames Flug) sonst nicht schaffbar.\nconst ROOF_Y = 400, RUN_END = 900;\n\nexport default {\n  title: \"Katze auf den Dächern\",\n  controls: [\"up\"],\n  lives: 3,\n\n  init(g) {\n    const s = { cat: null, roofs: [], fish: 0, held: false, safe: 0 };\n    reset(s, g);\n    return s;\n  },\n\n  update(s, input, g) {\n    const c = s.cat;\n    if (s.safe > 0) s.safe -= 1;\n\n    // Welt scrollt nach links\n    const sp = 2 + 0.5 * (g.level - 1);\n    for (const r of s.roofs) r.x -= sp;\n    s.roofs = s.roofs.filter((r) => r.x + r.w > -4);\n    let last = 0;\n    for (const r of s.roofs) last = Math.max(last, r.x + r.w);\n    fill(s, g, last);\n\n    // Auf einem Dach bleiben, nur solange es unter der Katze liegt\n    if (c.ground && !onRoof(s, c)) c.ground = false;\n\n    // Sprung nur vom Dach und nur beim Druecken (nicht beim Halten)\n    if (input.up && !s.held && c.ground) { c.vy = -11; c.ground = false; g.sound(\"jump\"); }\n    s.held = !!input.up;\n\n    if (!c.ground) {\n      const prev = c.y + c.h;\n      c.vy = Math.min(c.vy + 0.6, 14);\n      c.y += c.vy;\n      for (const r of s.roofs) {\n        if (c.vy >= 0 && c.x + c.w > r.x && c.x < r.x + r.w && prev <= r.y && c.y + c.h >= r.y) {\n          c.y = r.y - c.h; c.vy = 0; c.ground = true; break;\n        }\n      }\n    }\n\n    // Fischgraeten einsammeln (kein Leben-Verlust)\n    for (const r of s.roofs) {\n      if (!r.f) continue;\n      const fish = { x: r.x + r.w / 2 - 9, y: r.y - 18, w: 18, h: 18 };\n      if (g.hit(c, fish)) { r.f = false; s.fish += 1; g.addScore(1); g.sound(\"coin\"); }\n    }\n\n    // Sturz durch eine Luecke: ein Leben, Neustart an der Startposition\n    if (c.y > g.H) {\n      if (s.safe === 0) g.loseLife();\n      reset(s, g);\n      return;\n    }\n\n    if ((g.frame + 1) % 600 === 0) { g.nextLevel(); g.sound(\"level\"); }\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    for (const r of s.roofs) {\n      d.rect(r.x, r.y, r.w, 16, \"yellow\", { round: 6, shadow: true, line: true });\n      if (r.f) d.emoji(\"🐟\", r.x + r.w / 2, r.y - 9, 18);\n    }\n    const c = s.cat;\n    d.emoji(\"🐱\", c.x + c.w / 2, c.y + c.h / 2, 30);\n    d.text(\"Fischgräten: \" + s.fish, 12, g.H - 16, { size: 20, align: \"left\" });\n  }\n};\n\nfunction reset(s, g) {\n  s.cat = { x: 40, y: ROOF_Y - 30, w: 26, h: 30, vy: 0, ground: true };\n  s.fish = 0;\n  s.safe = 60;\n  s.roofs = [];\n  for (let x = 0; x < RUN_END; x += 150) s.roofs.push({ x, y: ROOF_Y, w: 150, f: x % 300 === 0 });\n  fill(s, g, RUN_END);\n}\n\nfunction fill(s, g, last) {\n  while (last < g.W + 60) {\n    const r = addRoof(s, g, last + g.randInt(40, 80));\n    last = r.x + r.w;\n  }\n}\n\nfunction addRoof(s, g, x) {\n  const r = { x, y: g.randInt(360, 440), w: g.randInt(90, 150), f: g.random() < 0.5 };\n  s.roofs.push(r);\n  return r;\n}\n\nfunction onRoof(s, c) {\n  return s.roofs.some((r) => Math.abs(r.y - (c.y + c.h)) < 0.5 && c.x + c.w > r.x && c.x < r.x + r.w);\n}\n"
+ },
+ {
+  "fall": "2ef3773125",
+  "id": "P01",
+  "persona": {
+   "name": "Torben",
+   "alter": 34,
+   "rolle": "Handwerker, Dachdecker",
+   "technik": "mittel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G1",
+   "wer_spielt": "allein"
+  },
+  "wunsch": "Space Invaders mit Segelbooten",
+  "erwartung": [
+   "Ich erwarte, dass Segelboote die Figuren sind, auf die ich ziele",
+   "Ich erwarte, dass die Boote in Reihen von oben nach unten kommen",
+   "Ich erwarte, dass ich unten mein eigenes Ding hin und her bewegen und schiessen kann",
+   "Ich erwarte, dass ich Punkte sehe und verlieren kann, wenn die Boote unten ankommen"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Das bauen wir nicht. Das passt nicht zu dieser App."
+   ]
+  },
+  "bildschirmfotos": []
+ },
+ {
+  "fall": "7cece8d722",
+  "id": "P06",
+  "persona": {
+   "name": "Lena",
+   "alter": 19,
+   "rolle": "Studentin, Lehramt",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G2",
+   "wer_spielt": "allein"
+  },
+  "wunsch": "Jump and Run mit einer Katze die ueber Daecher huepft und Fischgraeten sammelt",
+  "erwartung": [
+   "Ich erwarte, dass eine Katze die Spielfigur ist",
+   "Ich erwarte, dass ich springen und ueber Luecken kommen kann",
+   "Ich erwarte, dass ich Fischgraeten einsammeln kann und sie gezaehlt werden",
+   "Ich erwarte, dass die Kulisse aus Daechern besteht"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Katze auf den Dächern",
+   "das_kann_dein_spiel": [
+    "Eine Katze steht links auf einem Dach und läuft mit Pfeiltasten oder Wischen nach rechts.",
+    "Die Katze springt mit der Leertaste oder einem Tipp von einem Dach zum nächsten.",
+    "Auf den Dächern liegen Fischgräten, die beim Berühren eingesammelt werden und den Punktestand erhöhen.",
+    "Zwischen den Dächern gibt es Lücken; fällt die Katze hinein, beginnt das Spiel von vorne.",
+    "Die Katze ist gemütlich gezeichnet, mit Schwanz und Ohren, und die Dächer haben bunte Ziegel."
+   ],
+   "fehlt": [
+    "Am Ende zeigt eine kurze Anzeige die gesammelten Fischgräten und einen Knopf für einen neuen Versuch. – Das kann diese Art Spiel leider nicht. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/7cece8d722-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/7cece8d722-1.png"
+  ],
+  "spielcode": "// Katze auf den Daechern: Jump and Run ueber Daecher, Fischgraeten sammeln, Luecke = Lauf vorbei.\n// Nicht umgesetzt: Ende-Anzeige mit Fischgraeten-Zahl und Neustart-Knopf (p6, nicht machbar).\nconst SCROLL = 3, GAP = 50, ROOF_Y = 600, ROOF_H = 40;\n\nexport default {\n  title: \"Katze auf den Dächern\",\n  controls: [\"left\", \"right\", \"fire\"],\n  lives: 1,\n\n  init(g) {\n    return {\n      me: { x: 30, y: 576, w: 24, h: 24, vx: 0, vy: 0, ground: true },\n      roofs: [\n        { x: 0, y: ROOF_Y, w: 120, h: ROOF_H },\n        { x: 170, y: ROOF_Y, w: 120, h: ROOF_H },\n        { x: 340, y: ROOF_Y, w: 140, h: ROOF_H },\n        { x: 530, y: ROOF_Y, w: 130, h: ROOF_H },\n        { x: 700, y: ROOF_Y, w: 160, h: ROOF_H }\n      ],\n      fische: [{ x: 100, y: 552, got: false }],\n      scroll: 0\n    };\n  },\n\n  update(s, input, g) {\n    const me = s.me;\n    me.vx = input.left ? -3 : input.right ? 3 : 0;\n    me.x = g.clamp(me.x + me.vx, 0, g.W - me.w);\n\n    // Daecher und Fische scrollen nach links; neue Daecher rechts nachliefern\n    for (const r of s.roofs) r.x -= SCROLL;\n    for (const f of s.fische) f.x -= SCROLL;\n    s.scroll += SCROLL;\n    s.roofs = s.roofs.filter((r) => r.x + r.w > -10);\n    s.fische = s.fische.filter((f) => f.x > -30 && !f.got);\n    let last = s.roofs[s.roofs.length - 1];\n    while (last.x + last.w < g.W + 60) {\n      const x = last.x + last.w + GAP, w = g.randInt(80, 160);\n      last = { x, y: ROOF_Y, w, h: ROOF_H };\n      s.roofs.push(last);\n      if (g.random() < 0.5) s.fische.push({ x: x + 30, y: 552, got: false });\n    }\n\n    const feet = () => me.y + me.h;\n\n    // Sprung\n    if ((input.fire || input.firePressed) && me.ground) {\n      me.vy = -10; me.ground = false; g.sound(\"jump\");\n    }\n\n    // Auf dem Dach bleiben nur, solange noch ein Dach unter den Fuessen ist\n    if (me.ground) {\n      const on = s.roofs.some((r) => me.x + me.w > r.x && me.x < r.x + r.w && r.y === feet());\n      if (!on) { me.ground = false; me.vy = 0; }\n    }\n\n    // Schwerkraft und Landung von oben\n    me.vy = Math.min(me.vy + 0.5, 12);\n    const oldBottom = feet();\n    me.y += me.vy;\n    if (me.vy >= 0) {\n      for (const r of s.roofs) {\n        const over = me.x + me.w > r.x && me.x < r.x + r.w;\n        if (over && oldBottom <= r.y && feet() >= r.y) { me.y = r.y - me.h; me.vy = 0; me.ground = true; }\n      }\n    }\n\n    // Fischgraeten einsammeln\n    for (const f of s.fische) {\n      if (!f.got && g.hit({ x: f.x, y: f.y, w: 24, h: 36 }, { x: me.x, y: me.y, w: me.w, h: me.h })) {\n        f.got = true; g.addScore(1); g.sound(\"coin\");\n      }\n    }\n    s.fische = s.fische.filter((f) => !f.got);\n\n    // Gefallen: Lauf vorbei\n    if (me.y > g.H) { g.sound(\"hurt\"); g.loseLife(); return; }\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    for (const r of s.roofs) {\n      d.rect(r.x, r.y, r.w, r.h, \"yellow\", { round: 6, line: true });\n      for (let bx = r.x + 8; bx < r.x + r.w - 14; bx += 24) {\n        const c = Math.floor(bx / 24) % 2 ? \"red\" : \"ink\";\n        d.rect(bx, r.y + 6, 14, 8, c, { round: 2 });\n        d.rect(bx + 12, r.y + 20, 14, 8, c === \"red\" ? \"ink\" : \"red\", { round: 2 });\n      }\n    }\n    for (const f of s.fische) d.emoji(\"🐟\", f.x + 12, f.y + 12, 24);\n    d.emoji(\"🐈\", s.me.x + 12, s.me.y + 12, 30);\n  }\n};\n"
+ },
+ {
+  "fall": "da695d3c9f",
+  "id": "P01",
+  "persona": {
+   "name": "Torben",
+   "alter": 34,
+   "rolle": "Handwerker, Dachdecker",
+   "technik": "mittel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G1",
+   "wer_spielt": "allein"
+  },
+  "wunsch": "Space Invaders mit Segelbooten",
+  "erwartung": [
+   "Ich erwarte, dass Segelboote die Figuren sind, auf die ich ziele",
+   "Ich erwarte, dass die Boote in Reihen von oben nach unten kommen",
+   "Ich erwarte, dass ich unten mein eigenes Ding hin und her bewegen und schiessen kann",
+   "Ich erwarte, dass ich Punkte sehe und verlieren kann, wenn die Boote unten ankommen"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Segelboot-Wellen im Hafen",
+   "das_kann_dein_spiel": [
+    "Du steuerst ein Segelboot unten am Rand des Wassers – nach links und rechts, mit Wischen oder Pfeiltasten.",
+    "Berührt ein Holzboot dein Segelboot oder erreicht den unteren Rand, ist die Runde vorbei und der Punktestand wird angezeigt."
+   ],
+   "fehlt": [
+    "Vom Boot aus fliegen bunte Wasserbomben nach oben, die beim Aufprall bunt platzen. – Das macht das Spiel noch nicht so, wie es hier steht.",
+    "Holzboote fahren von rechts nach links in Reihen über den Bildschirm und werden mit jeder neuen Welle schneller. – Die Holzboote fahren hin und her statt nur von rechts nach links, und in der naechsten Welle sind sie nicht deutlich schneller. (nicht automatisch prüfbar)",
+    "Trifft eine Wasserbombe ein Holzboot, kippt es um und treibt davon, und es gibt einen Punkt. – Das macht das Spiel noch nicht so, wie es hier steht. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/da695d3c9f-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/da695d3c9f-1.png"
+  ],
+  "spielcode": "// Segelboot-Wellen im Hafen (nur Spiel-API). Holzboote wandern in Reihen, Wasserbomben stoppen sie.\nexport default {\n  title: \"Segelboot-Wellen im Hafen\",\n  controls: [\"left\", \"right\", \"fire\"],\n  lives: 3,\n\n  init(g) {\n    return { ship: { x: g.W / 2 - 20, y: 580, w: 40, h: 30 }, bombs: [], boats: fleet(g), drift: [], effekte: [], dir: -1, cool: 0, step: 0 };\n  },\n\n  update(s, input, g) {\n    const ship = s.ship;\n    if (input.left) ship.x -= 4;\n    if (input.right) ship.x += 4;\n    ship.x = g.clamp(ship.x, 4, g.W - 44);\n\n    if (s.cool > 0) s.cool -= 1;\n    if ((input.firePressed || input.fire) && s.cool === 0 && s.bombs.length < 3) {\n      s.bombs.push({ x: ship.x + 20, y: ship.y, r: 7 });\n      s.cool = 14;\n      g.sound(\"shoot\");\n    }\n    for (const b of s.bombs) b.y -= 8;\n    s.bombs = s.bombs.filter((b) => b.y >= g.TOP);\n\n    // Holzboote: seitwaerts, am Rand umkehren und eine Reihe tiefer\n    const speed = 0.5 + 0.2 * g.level + (24 - s.boats.length) * 0.04;\n    let edge = false;\n    for (const b of s.boats) {\n      b.x += s.dir * speed;\n      if ((s.dir < 0 && b.x < 6) || (s.dir > 0 && b.x + b.w > g.W - 6)) edge = true;\n    }\n    if (edge) { s.dir = -s.dir; for (const b of s.boats) b.y += 14; }\n\n    // Die Flotte rueckt auch ohne Treffer langsam vor (sonst wuerde sie nie das Ufer erreichen)\n    s.step += 1;\n    if (s.step >= 28) { s.step = 0; for (const b of s.boats) b.y += 14; }\n\n    // Beruehrung des Segelboots oder untere Grenze beendet die Runde\n    for (const b of s.boats) {\n      if (b.y + b.h >= 560 || g.hit(ship, b)) { g.gameOver(); return; }\n    }\n\n    // Treffer: Bombe versenkt das Boot, es treibt weg\n    for (const bomb of s.bombs) {\n      for (const b of s.boats) {\n        if (!b.sunk && g.hit(bomb, b)) {\n          b.sunk = true;\n          bomb.y = -100;\n          g.addScore(1);\n          g.sound(\"pop\");\n          s.drift.push({ x: b.x, y: b.y, w: b.w, h: b.h, t: 60 });\n          s.effekte.push({ x: b.x + b.w / 2, y: b.y + b.h / 2, t: 10 });\n          break;\n        }\n      }\n    }\n    s.bombs = s.bombs.filter((b) => b.y >= g.TOP);\n    s.boats = s.boats.filter((b) => !b.sunk);\n\n    for (const d of s.drift) { d.x -= 0.6; d.y += 1; d.t -= 1; }\n    s.drift = s.drift.filter((d) => d.t > 0 && d.y < g.H);\n    for (const e of s.effekte) e.t -= 1;\n    s.effekte = s.effekte.filter((e) => e.t > 0);\n\n    // Welle geschafft: naechste, schnellere Welle\n    if (s.boats.length === 0) {\n      g.nextLevel();\n      g.sound(\"level\");\n      s.boats = fleet(g);\n      s.dir = -1;\n      s.bombs = [];\n      s.step = 0;\n    }\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    for (let y = 120; y < g.H; y += 60) d.line(0, y + (g.frame >> 3) % 6, g.W, y + (g.frame >> 3) % 6, \"yellow\", 2);\n    for (const b of s.boats) d.emoji(\"🛶\", b.x + b.w / 2, b.y + b.h / 2, 30);\n    for (const t of s.drift) {\n      d.rect(t.x, t.y, t.w, t.h, \"red\", { round: 8 });\n      d.emoji(\"🛶\", t.x + t.w / 2, t.y + t.h / 2, 20);\n    }\n    for (const e of s.effekte) {\n      d.circle(e.x, e.y, 4 + (10 - e.t), \"yellow\");\n      d.circle(e.x + 3, e.y - 3, 3 + (10 - e.t) / 2, \"red\");\n    }\n    for (const b of s.bombs) {\n      d.circle(b.x, b.y, 11, \"yellow\");\n      d.emoji(\"💧\", b.x, b.y, 22);\n    }\n    d.emoji(\"⛵\", s.ship.x + 20, s.ship.y + 15, 36);\n  }\n};\n\nfunction fleet(g) {\n  const out = [];\n  const rows = Math.min(2 + g.level, 5);\n  for (let r = 0; r < rows; r++) {\n    for (let c = 0; c < 6; c++) out.push({ x: 20 + c * 52, y: g.TOP + 20 + r * 42, w: 34, h: 30, sunk: false });\n  }\n  return out;\n}\n"
+ },
+ {
+  "fall": "8c7443bd90",
+  "id": "P06",
+  "persona": {
+   "name": "Lena",
+   "alter": 19,
+   "rolle": "Studentin, Lehramt",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G2",
+   "wer_spielt": "allein"
+  },
+  "wunsch": "Jump and Run mit einer Katze die ueber Daecher huepft und Fischgraeten sammelt",
+  "erwartung": [
+   "Ich erwarte, dass eine Katze die Spielfigur ist",
+   "Ich erwarte, dass ich springen und ueber Luecken kommen kann",
+   "Ich erwarte, dass ich Fischgraeten einsammeln kann und sie gezaehlt werden",
+   "Ich erwarte, dass die Kulisse aus Daechern besteht"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Katze auf den Dächern",
+   "das_kann_dein_spiel": [
+    "Eine Katze steht auf dem ersten Dach, und du bringst sie mit Leertaste oder Tippen zum Springen.",
+    "Die Dächer ziehen von rechts nach links vorbei, und zwischen den Dächern gibt es Lücken, in die die Katze fallen kann.",
+    "Die Katze springt höher, wenn du die Taste länger gedrückt hältst. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Fischgräten liegen in der Luft und auf den Dächern verteilt. Jede eingesammelte Gräte erhöht den Zähler oben um eins. – Statt Fischgräten siehst du kleine Fische, die eingesammelt werden und den Zähler um eins erhöhen.",
+    "Am Ende der Runde steht ein Bestand an Fischgräten, und der beste Stand bleibt auf dem Bildschirm sichtbar. – Ein bester Stand ueber mehrere Runden kann hier nicht gespeichert werden. Die Anzeige zeigt nur den Stand der aktuellen Runde. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/8c7443bd90-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/8c7443bd90-1.png"
+  ],
+  "spielcode": "// Katze auf den Daechern: Jump and Run ueber Daecher, Fischgraeten sammeln, Luecken sind toedlich.\nconst GRAV = 0.5, CAT = 26, CATX = 60, SPRUNG = -9, BOOST = 14;\n\nexport default {\n  title: \"Katze auf den Dächern\",\n  controls: [\"fire\"],\n  lives: 1,\n\n  init(g) {\n    return {\n      cat: { x: CATX, y: 534, vy: 0, ground: true, boost: 0 },\n      roofs: [{ x: 0, y: 560, w: 360 }],\n      bones: [{ x: 180, y: 538, r: 11 }],\n      scroll: 2\n    };\n  },\n\n  update(s, input, g) {\n    const c = s.cat;\n\n    // Sprung und Hochhalten (langer Druck springt hoeher)\n    if (input.firePressed && c.ground) {\n      c.vy = SPRUNG; c.boost = BOOST; c.ground = false; g.sound(\"jump\");\n    } else if (input.fire && c.boost > 0 && c.vy < 0) {\n      c.vy -= 0.45; c.boost -= 1;\n    } else {\n      c.boost = 0;\n    }\n\n    // Schwerkraft und Bewegung\n    const feet = c.y + CAT;\n    c.vy = Math.min(c.vy + GRAV, 12);\n    c.y += c.vy;\n    c.ground = false;\n    if (c.vy >= 0) {\n      for (const r of s.roofs) {\n        if (feet <= r.y + 0.01 && c.y + CAT >= r.y && c.x + CAT > r.x && c.x < r.x + r.w) {\n          c.y = r.y - CAT; c.vy = 0; c.ground = true; c.boost = 0;\n          break;\n        }\n      }\n    }\n\n    // Neue Daecher und Graeten rechts anlegen\n    let last = 0;\n    for (const r of s.roofs) if (r.x + r.w > last) last = r.x + r.w;\n    while (last < g.W + 20) {\n      const x = last + g.randInt(50, 95);\n      const w = g.randInt(90, 170);\n      const y = g.randInt(440, 580);\n      s.roofs.push({ x, y, w });\n      if (g.random() < 0.5) s.bones.push({ x: x + w / 2, y: y - 22, r: 11 });\n      last = x + w;\n    }\n\n    // Scrollen nach links\n    const sc = 2 + 0.3 * g.level;\n    for (const r of s.roofs) r.x -= sc;\n    for (const b of s.bones) b.x -= sc;\n    s.roofs = s.roofs.filter((r) => r.x + r.w >= 0);\n\n    // Graeten einsammeln\n    const katze = { x: c.x, y: c.y, w: CAT, h: CAT };\n    s.bones = s.bones.filter((b) => {\n      if (g.hit(katze, b)) { g.addScore(1); g.sound(\"coin\"); return false; }\n      return b.x > -20;\n    });\n\n    // Level alle 600 Frames\n    if (g.frame > 0 && g.frame % 600 === 0) { g.nextLevel(); g.sound(\"level\"); }\n\n    // Fallen in eine Luecke\n    if (c.y > g.H) { g.sound(\"hurt\"); g.loseLife(); }\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    for (const r of s.roofs) d.rect(r.x, r.y, r.w, 24, \"yellow\", { round: 8, line: true });\n    for (const b of s.bones) d.emoji(\"🐟\", b.x, b.y, 22);\n    d.emoji(\"🐱\", s.cat.x + CAT / 2, s.cat.y + CAT / 2, 28);\n  }\n};\n"
+ },
+ {
+  "fall": "c5c22d4998",
+  "id": "P01",
+  "persona": {
+   "name": "Torben",
+   "alter": 34,
+   "rolle": "Handwerker, Dachdecker",
+   "technik": "mittel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G1",
+   "wer_spielt": "allein"
+  },
+  "wunsch": "Space Invaders mit Segelbooten",
+  "erwartung": [
+   "Ich erwarte, dass Segelboote die Figuren sind, auf die ich ziele",
+   "Ich erwarte, dass die Boote in Reihen von oben nach unten kommen",
+   "Ich erwarte, dass ich unten mein eigenes Ding hin und her bewegen und schiessen kann",
+   "Ich erwarte, dass ich Punkte sehe und verlieren kann, wenn die Boote unten ankommen"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Das bauen wir nicht. Marken und bekannte Spiele, Filme oder Figuren kommen nicht vor. Beschreib es mit eigenen Worten."
+   ]
+  },
+  "bildschirmfotos": []
+ }
+]

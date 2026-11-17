@@ -1,0 +1,398 @@
+[
+ {
+  "fall": "b9079191e2",
+  "id": "P05",
+  "persona": {
+   "name": "Dieter",
+   "alter": 58,
+   "rolle": "Kfz-Meister",
+   "technik": "mittel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G1",
+   "wer_spielt": "allein"
+  },
+  "wunsch": "Asteroids, ein Raumschiff das Felsbrocken abschiesst",
+  "erwartung": [
+   "Ich erwarte, dass ich ein Raumschiff drehen und fliegen kann",
+   "Ich erwarte, dass Felsbrocken durchs Bild treiben",
+   "Ich erwarte, dass grosse Brocken in kleinere zerfallen, wenn ich sie treffe",
+   "Ich erwarte, dass ich verliere, wenn mich ein Brocken trifft"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Raumschiff und schwebende Felsbrocken",
+   "das_kann_dein_spiel": [
+    "Du steuerst ein Raumschiff unten am Bildrand – mit Wischen nach links und rechts oder mit den Pfeiltasten.",
+    "Das Raumschiff schießt Seifenblasen nach oben, die bei einem Treffer einen Felsbrocken mit Glitzer zerplatzen lassen. (nicht automatisch prüfbar)",
+    "Felsbrocken schweben langsam von oben herab; ein großer Brocken zerfällt beim Treffer in zwei kleinere, die weiter schweben. (nicht automatisch prüfbar)",
+    "Jeder zerplatzte Felsbrocken bringt Punkte, die oben im Bild angezeigt werden. (nicht automatisch prüfbar)",
+    "Berührt ein Felsbrocken das Raumschiff, endet die Runde und die erreichte Punktzahl wird gezeigt."
+   ],
+   "fehlt": [],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/b9079191e2-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/b9079191e2-1.png"
+  ],
+  "spielcode": "// Raumschiff und schwebende Felsbrocken: Seifenblasen zerplatzen Felsbrocken, Beruehrung beendet die Runde.\nexport default {\n  title: \"Raumschiff und schwebende Felsbrocken\",\n  controls: [\"left\", \"right\", \"fire\"],\n  lives: 1,\n\n  init(g) {\n    return { ship: { x: 160, y: 590, w: 40, h: 30 }, bubbles: [], rocks: [], parts: [] };\n  },\n\n  update(s, input, g) {\n    const ship = s.ship;\n    if (input.left) ship.x -= 4;\n    if (input.right) ship.x += 4;\n    ship.x = g.clamp(ship.x, 0, 320);\n\n    if (input.firePressed && s.bubbles.length < 3) {\n      s.bubbles.push({ x: ship.x + 20, y: 580, r: 8, hit: false });\n      g.sound(\"shoot\");\n    }\n    for (const b of s.bubbles) b.y -= 6;\n\n    // grosse Felsbrocken erscheinen von oben\n    if (g.frame % (g.level >= 2 ? 40 : 50) === 0) {\n      s.rocks.push({ x: g.randInt(28, g.W - 28), y: g.TOP - 20, r: 28, big: true, vx: 0 });\n    }\n    for (const r of s.rocks) {\n      r.y += r.big ? 0.8 : 1.2;\n      r.x += r.vx;\n    }\n\n    // Treffer Blase gegen Felsbrocken\n    const alive = [];\n    for (const r of s.rocks) {\n      let hit = false;\n      for (const b of s.bubbles) {\n        if (!b.hit && g.hit({ x: b.x, y: b.y, r: b.r }, { x: r.x, y: r.y, r: r.r })) { b.hit = true; hit = true; break; }\n      }\n      if (!hit) { alive.push(r); continue; }\n      for (let i = 0; i < 6; i++) s.parts.push({ x: r.x + g.randInt(-12, 12), y: r.y + g.randInt(-12, 12), t: 8 });\n      if (r.big) {\n        alive.push({ x: r.x - 12, y: r.y, r: 14, big: false, vx: -0.5 });\n        alive.push({ x: r.x + 12, y: r.y, r: 14, big: false, vx: 0.5 });\n        g.addScore(10);\n        g.sound(\"pop\");\n      } else {\n        g.addScore(20);\n        g.sound(\"coin\");\n      }\n    }\n    s.rocks = alive.filter((r) => r.y <= g.H);\n    s.bubbles = s.bubbles.filter((b) => !b.hit && b.y >= g.TOP);\n\n    // Level alle 100 Punkte\n    while (g.score >= g.level * 100) g.nextLevel();\n\n    for (const p of s.parts) p.t -= 1;\n    s.parts = s.parts.filter((p) => p.t > 0);\n\n    // Beruehrung mit dem Raumschiff beendet die Runde\n    const shipC = { x: ship.x + 20, y: ship.y + 15, r: 16 };\n    for (const r of s.rocks) {\n      if (g.hit(shipC, { x: r.x, y: r.y, r: r.r })) { g.sound(\"hurt\"); g.loseLife(); return; }\n    }\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    for (const b of s.bubbles) d.circle(b.x, b.y, b.r, \"yellow\", { line: true });\n    for (const r of s.rocks) d.emoji(\"🌑\", r.x, r.y, r.big ? 60 : 30);\n    for (const p of s.parts) d.circle(p.x, p.y, 3, \"yellow\");\n    d.emoji(\"🚀\", s.ship.x + 20, s.ship.y + 15, 36);\n  }\n};\n"
+ },
+ {
+  "fall": "fecd72bbff",
+  "id": "P16",
+  "persona": {
+   "name": "Waltraud",
+   "alter": 77,
+   "rolle": "Rentnerin, Doppelkopf-Spielerin",
+   "technik": "wenig"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "ein kartenspiel wie mau mau gegen den computer",
+  "erwartung": [
+   "Ich erwarte, dass ich Karten auf der Hand habe",
+   "Ich erwarte, dass ich eine passende Karte ablegen kann",
+   "Ich erwarte, dass der Computer auch Karten ablegt",
+   "Ich erwarte, dass gewonnen hat, wer zuerst keine Karten mehr hat"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Kartenspiel gegen den Computer",
+   "das_kann_dein_spiel": [
+    "Du bekommst zu Beginn 5 Karten, der Computer bekommt auch 5 Karten, und oben liegt eine offene Karte.",
+    "Der Computer spielt seine Züge selbst, und du siehst, welche Karte er ablegt. (nicht automatisch prüfbar)",
+    "Wer zuerst keine Karten mehr hat, gewinnt, und es erscheint eine Anzeige mit Sieg oder Niederlage. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Du legst eine Karte ab, die zur offenen Karte passt, indem du auf sie tippst oder klickst. – Eine bestimmte Karte mit dem Finger antippen geht hier nicht. Du waehlst die Karte mit den Pfeiltasten und drueckst Feuer. (nicht automatisch prüfbar)",
+    "Wenn du keine passende Karte hast, ziehst du eine Karte vom Stapel. – Ein Tipp auf den Stapel geht hier nicht. Du waehlst den Stapel mit den Pfeiltasten und drueckst Feuer. (nicht automatisch prüfbar)",
+    "Die Karten zeigen einfache, bunte Muster wie Sterne, Herzen, Kreise und Früchte, die gut zu erkennen sind. – Die Kartenmuster sind nicht alle deutlich verschieden: der Kreis ist nur ein blasser gelber Punkt, und die Muster haben nicht vier klar unterschiedliche Farben.",
+    "Du kannst zwischen drei Schwierigkeitsstufen wählen: leicht, mittel und schwer. – Das macht das Spiel noch nicht so, wie es hier steht. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord.",
+    "Echte Fotos oder Bilder aus dem Internet gibt es nicht. Die Kartenmuster sind selbst gezeichnet."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/fecd72bbff-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/fecd72bbff-1.png"
+  ],
+  "spielcode": "// Kartenspiel gegen den Computer (Runden-Vorlage). Ablegen und Ziehen laufen ueber Cursor und Feuer, nicht ueber Tippen auf Karten.\nconst STUFEN = [\"leicht\", \"mittel\", \"schwer\"];\nconst MUSTER = [\"Stern\", \"Herz\", \"Kreis\", \"Apfel\"];\nconst EMO = [\"⭐\", \"💗\", null, \"🍎\"];\nconst MAX_ZUEGE = 30, WIEDERHOLEN = 12;\n\nexport default {\n  title: \"Kartenspiel gegen den Computer\",\n  controls: [\"left\", \"right\", \"up\", \"down\", \"fire\"],\n  lives: 1,\n\n  init() {\n    return { phase: \"menue\", schwierigkeit: \"mittel\", hand: [], comp: [], stapel: [], ablage: null, turn: \"spieler\", cur: 0, halten: 0, wait: 0, hinweis: \"\", hinweisT: 0, zuege: 0, ergebnis: \"\" };\n  },\n\n  update(s, input, g) {\n    const dx = (input.right ? 1 : 0) - (input.left ? 1 : 0);\n    const dy = (input.down ? 1 : 0) - (input.up ? 1 : 0);\n    let step = false;\n    if (dx === 0 && dy === 0) s.halten = 0;\n    else if (s.halten <= 0) { step = true; s.halten = WIEDERHOLEN - 1; }\n    else s.halten -= 1;\n    if (s.hinweisT > 0) { s.hinweisT -= 1; if (s.hinweisT === 0) s.hinweis = \"\"; }\n\n    if (s.phase === \"menue\") {\n      if (step) { const i = STUFEN.indexOf(s.schwierigkeit); s.schwierigkeit = STUFEN[g.clamp(i + dx + dy, 0, 2)]; }\n      if (input.firePressed) start(s, g);\n      return;\n    }\n    if (s.phase !== \"spiel\") return;\n\n    const n = s.hand.length;\n    s.cur = Math.min(s.cur, n);\n    if (s.turn === \"computer\") {\n      s.wait -= 1;\n      if (s.wait <= 0) computerZug(s, g);\n      return;\n    }\n    if (step) {\n      if (dx !== 0) s.cur = g.clamp(s.cur + dx, 0, n);\n      if (dy > 0) s.cur = n;\n      else if (dy < 0 && s.cur === n) s.cur = Math.max(0, n - 1);\n    }\n    if (!input.firePressed) return;\n    if (s.cur < n) spielKarte(s, g, s.cur);\n    else stapelZug(s, g);\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    if (s.phase === \"menue\") {\n      d.text(\"Kartenspiel\", 180, 150, { size: 32, align: \"center\" });\n      d.text(\"gegen den Computer\", 180, 190, { size: 20, align: \"center\" });\n      d.text(\"Schwierigkeit\", 180, 260, { size: 20, align: \"center\" });\n      STUFEN.forEach((st, i) => d.text(st === s.schwierigkeit ? \"> \" + st + \" <\" : st, 180, 300 + i * 40, { size: 24, align: \"center\" }));\n      d.text(\"Auf/Ab wählt, Feuer startet\", 180, 470, { size: 16, align: \"center\" });\n      return;\n    }\n    if (s.phase === \"ende\") {\n      d.text(s.ergebnis, 180, 300, { size: 44, align: \"center\" });\n      d.text(\"Züge: \" + s.zuege, 180, 360, { size: 20, align: \"center\" });\n      return;\n    }\n    d.text(s.turn === \"spieler\" ? \"Du bist dran\" : \"Computer ist dran\", 180, 70, { size: 20, align: \"center\" });\n    const cn = s.comp.length;\n    for (let i = 0; i < cn; i++) d.rect(rowX(g, cn, 44, 6, i), 100, 44, 60, \"yellow\", { round: 8, line: true });\n    d.rect(70, 236, 64, 92, s.stapel.length > 0 ? \"yellow\" : \"cream\", { round: 8, shadow: s.stapel.length > 0, line: true });\n    d.text(\"Stapel: \" + s.stapel.length, 102, 345, { size: 16, align: \"center\" });\n    if (s.ablage) drawCard(d, s.ablage, 226, 236, 64, 92);\n    if (s.hinweisT > 0) d.text(s.hinweis, 180, 380, { size: 18, align: \"center\" });\n    const hn = s.hand.length;\n    for (let i = 0; i < hn; i++) drawCard(d, s.hand[i], rowX(g, hn, 60, 6, i), 440, 60, 88);\n    if (s.turn === \"spieler\") {\n      if (s.cur < hn) frame(d, rowX(g, hn, 60, 6, s.cur) - 4, 436, 68, 96);\n      else frame(d, 66, 232, 72, 100);\n    }\n    d.text(\"Züge: \" + s.zuege + \" / \" + MAX_ZUEGE, 180, 600, { size: 16, align: \"center\" });\n  }\n};\n\nfunction start(s, g) {\n  const deck = [];\n  for (let m = 0; m < 4; m++) for (let w = 1; w <= 4; w++) deck.push({ m, w });\n  for (let i = deck.length - 1; i > 0; i--) { const j = g.randInt(0, i); const t = deck[i]; deck[i] = deck[j]; deck[j] = t; }\n  const nimm = (m) => deck.splice(deck.findIndex((c) => c.m === m), 1)[0];\n  const rest = () => deck.splice(g.randInt(0, deck.length - 1), 1)[0];\n  s.hand = []; s.comp = [];\n  for (let m = 0; m < 4; m++) s.hand.push(nimm(m));\n  for (let m = 0; m < 4; m++) s.comp.push(nimm(m));\n  s.hand.push(rest());\n  s.comp.push(rest());\n  s.ablage = rest();\n  s.stapel = deck;\n  s.phase = \"spiel\"; s.turn = \"spieler\"; s.cur = 0; s.halten = 0; s.wait = 0;\n  s.hinweis = \"\"; s.hinweisT = 0; s.zuege = 0; s.ergebnis = \"\";\n}\n\nfunction passt(a, b) { return a.m === b.m || a.w === b.w; }\n\nfunction spielKarte(s, g, i) {\n  const c = s.hand[i];\n  if (!passt(c, s.ablage)) { s.hinweis = \"Passt nicht\"; s.hinweisT = 60; g.sound(\"hurt\"); return; }\n  s.hand.splice(i, 1);\n  s.ablage = c;\n  g.addScore(10);\n  g.sound(\"pop\");\n  if (s.hand.length === 0) return ende(s, g, true);\n  endZug(s, g, \"computer\");\n}\n\nfunction stapelZug(s, g) {\n  if (s.stapel.length === 0) {\n    if (s.hand.some((c) => passt(c, s.ablage))) { s.hinweis = \"Stapel ist leer\"; s.hinweisT = 60; return; }\n    s.hinweis = \"Keine Karte passt, Zug aussetzen\"; s.hinweisT = 60;\n    endZug(s, g, \"computer\");\n    return;\n  }\n  s.hand.push(s.stapel.pop());\n  g.addScore(2);\n  g.sound(\"coin\");\n  s.hinweis = \"Du ziehst eine Karte\"; s.hinweisT = 60;\n  endZug(s, g, \"computer\");\n}\n\nfunction computerZug(s, g) {\n  const idx = [];\n  s.comp.forEach((c, i) => { if (passt(c, s.ablage)) idx.push(i); });\n  if (idx.length > 0) {\n    let pick = idx[0];\n    if (s.schwierigkeit === \"leicht\") pick = idx[g.randInt(0, idx.length - 1)];\n    else if (s.schwierigkeit === \"schwer\") {\n      let best = -1;\n      for (const i of idx) {\n        const k = s.comp.filter((c) => c.m === s.comp[i].m).length;\n        if (k > best) { best = k; pick = i; }\n      }\n    }\n    const c = s.comp.splice(pick, 1)[0];\n    s.ablage = c;\n    s.hinweis = \"Computer legt \" + MUSTER[c.m] + \" \" + c.w; s.hinweisT = 60;\n    g.sound(\"pop\");\n    if (s.comp.length === 0) return ende(s, g, false);\n    endZug(s, g, \"spieler\");\n  } else {\n    if (s.stapel.length > 0) { s.comp.push(s.stapel.pop()); s.hinweis = \"Computer zieht eine Karte\"; }\n    else s.hinweis = \"Computer passt\";\n    s.hinweisT = 60;\n    endZug(s, g, \"spieler\");\n  }\n}\n\nfunction endZug(s, g, next) {\n  s.zuege += 1;\n  if (s.zuege >= MAX_ZUEGE) return ende(s, g, s.hand.length < s.comp.length);\n  s.turn = next;\n  s.cur = Math.min(s.cur, s.hand.length);\n  if (next === \"computer\") s.wait = 40;\n}\n\nfunction ende(s, g, sieg) {\n  s.phase = \"ende\";\n  s.ergebnis = sieg ? \"Sieg!\" : \"Niederlage\";\n  if (sieg) g.win(); else g.gameOver();\n}\n\nfunction rowX(g, n, w, gap, i) {\n  return (g.W - (n * (w + gap) - gap)) / 2 + i * (w + gap);\n}\n\nfunction frame(d, x, y, w, h) {\n  d.rect(x, y, w, 4, \"red\"); d.rect(x, y + h - 4, w, 4, \"red\");\n  d.rect(x, y, 4, h, \"red\"); d.rect(x + w - 4, y, 4, h, \"red\");\n}\n\nfunction drawCard(d, c, x, y, w, h) {\n  d.rect(x, y, w, h, \"cream\", { round: 8, line: true });\n  if (c.m === 2) d.circle(x + w / 2, y + h / 2 - 10, 14, \"yellow\", { line: true });\n  else d.emoji(EMO[c.m], x + w / 2, y + h / 2 - 10, 30);\n  d.text(String(c.w), x + w / 2, y + h - 18, { size: 18, align: \"center\", color: \"ink\" });\n}\n"
+ },
+ {
+  "fall": "88bc1cda4e",
+  "id": "P16",
+  "persona": {
+   "name": "Waltraud",
+   "alter": 77,
+   "rolle": "Rentnerin, Doppelkopf-Spielerin",
+   "technik": "wenig"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "ein kartenspiel wie mau mau gegen den computer",
+  "erwartung": [
+   "Ich erwarte, dass ich Karten auf der Hand habe",
+   "Ich erwarte, dass ich eine passende Karte ablegen kann",
+   "Ich erwarte, dass der Computer auch Karten ablegt",
+   "Ich erwarte, dass gewonnen hat, wer zuerst keine Karten mehr hat"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Mau Mau gegen den Computer",
+   "das_kann_dein_spiel": [
+    "Am Tisch sitzen du und genau ein Computer-Gegner; beide bekommen zu Beginn gleich viele Karten, und eine offene Karte liegt in der Mitte.",
+    "Du kannst nur eine Karte ablegen, die zur offenen Karte passt, nach Farbe oder Zahl. (nicht automatisch prüfbar)",
+    "Der Computer legt seine Karten nach einer kurzen Pause selbst ab, mal klüger, mal weniger klug. (nicht automatisch prüfbar)",
+    "Wer zuerst keine Karten mehr hat, gewinnt die Runde, und der Stand wird oben angezeigt. (nicht automatisch prüfbar)",
+    "Ein Knopf startet eine neue Runde, ohne dass das Spiel neu geladen werden muss. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Wenn du keine passende Karte hast, ziehst du eine Karte vom verdeckten Stapel. – Das macht das Spiel noch nicht so, wie es hier steht. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegen andere Menschen spielen ist nicht dabei.",
+    "Mehr als ein Computer-Gegner sitzt nicht am Tisch."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/88bc1cda4e-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/88bc1cda4e-1.png"
+  ],
+  "spielcode": "// Mau Mau gegen den Computer (nur Spiel-API, keine Importe). Runde: 5 Karten je Seite, passende Karte nach Farbe oder Rang.\n// Jede Steuerung und jeder Tipp zeigt sofort eine Rueckmeldung (s.msg), damit nichts wirkungslos bleibt.\nconst RANKS = [\"7\", \"8\", \"9\", \"10\", \"U\", \"O\", \"K\", \"A\"];\nconst SUITS = [\"♥\", \"♦\", \"♣\", \"♠\"];\nconst ZUGLIMIT = 30, WARTE = 40, HALTEN = 12;\n\nexport default {\n  title: \"Mau Mau gegen den Computer\",\n  controls: [\"left\", \"right\", \"up\", \"down\", \"fire\"],\n  lives: 1,\n\n  init(g) {\n    const deck = [];\n    for (let f = 0; f < 4; f++) for (let r = 0; r < 8; r++) deck.push({ r, f });\n    shuffle(deck, g);\n    const hand = [], comp = [];\n    for (let i = 0; i < 5; i++) { hand.push(deck.pop()); comp.push(deck.pop()); }\n    const ablage = deck.pop();\n    return { hand, comp, stapel: deck, ablage, cx: 0, zone: 0, halten: 0, phase: \"du\", warte: 0, zuegeS: 0, zuegeC: 0, ende: \"\", msg: \"\", msgT: 0, tasten: 0 };\n  },\n\n  update(s, input, g) {\n    if (s.msgT > 0) { s.msgT -= 1; if (s.msgT === 0) s.msg = \"\"; }\n    if (s.phase === \"comp\") {\n      s.warte -= 1;\n      if (s.warte <= 0) computerZug(s, g);\n      return;\n    }\n    if (input.left || input.right || input.up || input.down) s.tasten += 1;\n    if (input.up) s.zone = 1;\n    else if (input.down) s.zone = 0;\n    const dx = (input.right ? 1 : 0) - (input.left ? 1 : 0);\n    if (dx !== 0 && s.zone === 0) {\n      if (s.halten % HALTEN === 0) s.cx = g.clamp(s.cx + dx, 0, s.hand.length - 1);\n      s.halten += 1;\n    } else s.halten = 0;\n    if (!input.firePressed || s.ende) return;\n    if (s.zone === 0) spielerKarte(s, g);\n    else spielerStapel(s, g);\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    const n = s.comp.length;\n    const sp = Math.min(50, 300 / Math.max(1, n));\n    for (let i = 0; i < n; i++) d.rect(20 + i * sp, 90, 46, 64, \"ink\", { round: 6 });\n    d.text(\"Computer: \" + n + \" Karten\", 20, 70, { size: 16 });\n\n    if (s.zone === 1) d.rect(114, 294, 58, 76, \"red\", { round: 8 });\n    d.rect(120, 300, 46, 64, \"yellow\", { round: 6, line: true });\n    d.text(String(s.stapel.length), 143, 322, { size: 16, align: \"center\" });\n    cardDraw(d, s.ablage, 180, 300);\n    d.text(s.phase === \"du\" ? \"Du am Zug\" : \"Computer am Zug\", 180, 250, { size: 18, align: \"center\" });\n    d.text(\"Züge: du \" + s.zuegeS + \" / \" + ZUGLIMIT + \", Computer \" + s.zuegeC, 180, 390, { size: 14, align: \"center\" });\n    if (s.msg) d.text(s.msg, 180, 420, { size: 14, align: \"center\" });\n\n    const hn = s.hand.length;\n    const hsp = Math.min(50, 300 / Math.max(1, hn));\n    for (let i = 0; i < hn; i++) {\n      const x = 20 + i * hsp;\n      if (s.zone === 0 && i === s.cx) d.rect(x - 3, 497, 52, 70, \"red\", { round: 8 });\n      cardDraw(d, s.hand[i], x, 500);\n    }\n    d.text(\"Deine Karten\", 20, 476, { size: 18 });\n\n    if (s.ende) {\n      d.rect(50, 230, 260, 70, \"yellow\", { round: 10, line: true });\n      d.text(s.ende, 180, 262, { size: 20, align: \"center\" });\n    }\n  }\n};\n\nfunction shuffle(deck, g) {\n  for (let i = deck.length - 1; i > 0; i--) {\n    const j = g.randInt(0, i);\n    const t = deck[i];\n    deck[i] = deck[j];\n    deck[j] = t;\n  }\n}\n\nfunction passt(c, a) {\n  return c.r === a.r || c.f === a.f;\n}\n\nfunction sag(s, text) {\n  s.msg = text;\n  s.msgT = 60;\n}\n\nfunction cardDraw(d, c, x, y) {\n  const farbe = c.f === 0 || c.f === 1 ? \"red\" : \"ink\";\n  d.rect(x, y, 46, 64, \"cream\", { round: 6, line: true });\n  d.text(RANKS[c.r], x + 6, y + 8, { size: 14, color: \"ink\" });\n  d.text(SUITS[c.f], x + 23, y + 30, { size: 22, color: farbe, align: \"center\" });\n}\n\nfunction spielerKarte(s, g) {\n  const c = s.hand[s.cx];\n  if (!c) return;\n  if (!passt(c, s.ablage)) { sag(s, \"Passt nicht zur Ablage\"); return; }\n  s.hand.splice(s.cx, 1);\n  s.ablage = c;\n  s.zuegeS += 1;\n  s.msg = \"\";\n  s.msgT = 0;\n  g.addScore(5);\n  g.sound(\"pop\");\n  if (s.hand.length === 0) {\n    s.ende = \"Du hast gewonnen\";\n    g.addScore(20);\n    g.sound(\"win\");\n    g.win();\n    return;\n  }\n  s.cx = g.clamp(s.cx, 0, s.hand.length - 1);\n  if (s.zuegeS >= ZUGLIMIT) { s.ende = \"Zuglimit erreicht\"; g.gameOver(); return; }\n  s.phase = \"comp\";\n  s.warte = WARTE;\n}\n\nfunction spielerStapel(s, g) {\n  if (s.hand.some((c) => passt(c, s.ablage))) { sag(s, \"Du hast eine passende Karte\"); return; }\n  if (s.stapel.length === 0) { sag(s, \"Stapel ist leer\"); return; }\n  s.zuegeS += 1;\n  s.hand.push(s.stapel.pop());\n  s.msg = \"\";\n  s.msgT = 0;\n  g.sound(\"pop\");\n  if (s.zuegeS >= ZUGLIMIT) { s.ende = \"Zuglimit erreicht\"; g.gameOver(); return; }\n  s.phase = \"comp\";\n  s.warte = WARTE;\n}\n\nfunction computerZug(s, g) {\n  const idx = [];\n  for (let i = 0; i < s.comp.length; i++) if (passt(s.comp[i], s.ablage)) idx.push(i);\n  if (idx.length > 0) {\n    const i = g.random() < 0.7 ? idx[0] : idx[g.randInt(0, idx.length - 1)];\n    s.ablage = s.comp.splice(i, 1)[0];\n    s.zuegeC += 1;\n    g.sound(\"pop\");\n    if (s.comp.length === 0) { s.ende = \"Computer hat gewonnen\"; g.gameOver(); return; }\n  } else {\n    if (s.stapel.length > 0) s.comp.push(s.stapel.pop());\n    s.zuegeC += 1;\n  }\n  if (s.zuegeC >= ZUGLIMIT) { s.ende = \"Zuglimit erreicht\"; g.gameOver(); return; }\n  s.phase = \"du\";\n}\n"
+ },
+ {
+  "fall": "871209d95f",
+  "id": "P10",
+  "persona": {
+   "name": "Helmut",
+   "alter": 66,
+   "rolle": "Rentner, frueher Tennistrainer",
+   "technik": "wenig"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "Tennis wie das alte Pong, ich gegen den Computer",
+  "erwartung": [
+   "Ich erwarte, dass ich einen Schlaeger bewege und einen Ball zurueckspiele",
+   "Ich erwarte, dass der Computer der Gegenspieler ist",
+   "Ich erwarte, dass ich Punkte bekomme, wenn der Gegner den Ball verpasst",
+   "Ich erwarte, dass ich es mit einem Finger bedienen kann"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Pong-Tennis gegen den Computer",
+   "das_kann_dein_spiel": [
+    "Du steuerst deinen Schläger am linken Rand – nach oben und unten mit Wischen oder den Pfeiltasten.",
+    "Ein Ball fliegt zwischen dir und dem Computer-Schläger am rechten Rand hin und her, im Stil von altem Pong.",
+    "Der Computer bewegt seinen Schläger selbst und hat eine Stärke, die ich passend gewählt habe: mal ruhig, mal schneller, damit es spannend bleibt. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Wenn der Ball an deinem Rand vorbeifliegt, bekommt der Computer einen Punkt, und umgekehrt; die Punkte stehen oben in der Mitte. – Den Punktestand der beiden Seiten sieht man oben in der Mitte nicht, dort steht stattdessen das Level, und oben links zählt eine andere Punktzahl mit. (nicht automatisch prüfbar)",
+    "Nach dem Punktestand von 7 endet das Spiel und zeigt, wer gewonnen hat, mit einem Knopf für ein neues Spiel. – Die Partie endet nach etwa 19 Sekunden auch dann, wenn noch niemand 7 Punkte hat, und die Siegmeldung mit dem Knopf für ein neues Spiel ist nicht belegt."
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/871209d95f-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/871209d95f-1.png"
+  ],
+  "spielcode": "// Pong-Tennis: Schlaeger links (du) gegen Computer-Schlaeger rechts. Ball prallt ab, wer verpasst, gibt einen Punkt ab.\n// Zeitlimit: nach 1140 Frames endet die Partie, wer mehr Punkte hat, gewinnt.\nconst PX = 40, CX = 320, PH = 90, BR = 8, SPEED = 4, ZEIT = 1140;\n\nexport default {\n  title: \"Pong-Tennis gegen den Computer\",\n  controls: [\"up\", \"down\"],\n  lives: 1,\n\n  init(g) {\n    return { py: 320, cy: 320, off: 0, t: 0, bx: 180, by: 320, vx: g.randInt(0, 1) === 0 ? SPEED : -SPEED, vy: g.randInt(-2, 2), me: 0, cpu: 0 };\n  },\n\n  update(s, input, g) {\n    if (input.up) s.py -= 5;\n    if (input.down) s.py += 5;\n    s.py = g.clamp(s.py, 60, 600);\n\n    s.t += 1;\n    if (s.t % 60 === 0) s.off = g.randInt(-40, 40);\n    const step = g.clamp(s.by + s.off - s.cy, -3, 3);\n    s.cy = g.clamp(s.cy + step, 60, 600);\n\n    s.bx += s.vx;\n    s.by += s.vy;\n    if (s.by <= 56) { s.by = 56; s.vy = Math.abs(s.vy); }\n    if (s.by >= 632) { s.by = 632; s.vy = -Math.abs(s.vy); }\n\n    if (s.vx < 0 && s.bx <= 48 && Math.abs(s.by - s.py) <= 50) {\n      s.vx = SPEED; s.bx = 48; g.addScore(1); g.sound(\"hit\");\n    } else if (s.vx > 0 && s.bx >= 312 && Math.abs(s.by - s.cy) <= 50) {\n      s.vx = -SPEED; s.bx = 312; g.sound(\"hit\");\n    }\n\n    if (s.bx < 0) {\n      s.cpu += 1; g.sound(\"hurt\"); serve(s, g, SPEED);\n    } else if (s.bx > 360) {\n      s.me += 1; g.addScore(5); g.sound(\"coin\"); serve(s, g, -SPEED);\n    }\n\n    if (s.cpu >= 7) { g.gameOver(); return; }\n    if (s.me >= 7) { g.win(); return; }\n    if (g.frame >= ZEIT) {\n      if (s.me > s.cpu) g.win(); else g.gameOver();\n    }\n  },\n\n  draw(s, d) {\n    d.clear(\"cream\");\n    d.line(180, 56, 180, 632, \"yellow\", 2);\n    d.text(String(s.me), 150, 28, { size: 24, color: \"ink\", align: \"center\" });\n    d.text(String(s.cpu), 210, 28, { size: 24, color: \"ink\", align: \"center\" });\n    d.emoji(\"🏓\", PX, s.py, 40);\n    d.emoji(\"🤖\", CX, s.cy, 40);\n    d.emoji(\"🎾\", s.bx, s.by, 20);\n  }\n};\n\nfunction serve(s, g, vx) {\n  s.bx = 180; s.by = 320; s.vx = vx; s.vy = g.randInt(-2, 2);\n}\n"
+ },
+ {
+  "fall": "3f0fc5f473",
+  "id": "P10",
+  "persona": {
+   "name": "Helmut",
+   "alter": 66,
+   "rolle": "Rentner, frueher Tennistrainer",
+   "technik": "wenig"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "Tennis wie das alte Pong, ich gegen den Computer",
+  "erwartung": [
+   "Ich erwarte, dass ich einen Schlaeger bewege und einen Ball zurueckspiele",
+   "Ich erwarte, dass der Computer der Gegenspieler ist",
+   "Ich erwarte, dass ich Punkte bekomme, wenn der Gegner den Ball verpasst",
+   "Ich erwarte, dass ich es mit einem Finger bedienen kann"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Tennis gegen den Computer",
+   "das_kann_dein_spiel": [
+    "Du siehst von oben ein Spielfeld mit zwei Schlägern, einer links und einer rechts, und einem Ball in der Mitte.",
+    "Du steuerst deinen Schläger rechts mit den Pfeiltasten hoch und runter oder mit Wischen auf dem Bildschirm.",
+    "Der Computer steuert den linken Schläger und versucht, den Ball zurückzuschlagen, mit einer Stärke, die sich langsam steigert. (nicht automatisch prüfbar)",
+    "Trifft der Ball die Wand hinter einem Schläger, bekommt der andere Spieler einen Punkt, und die Punkte stehen oben auf dem Bildschirm. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Wer zuerst 11 Punkte hat, gewinnt, danach erscheint eine Anzeige mit Sieg oder Niederlage und ein Knopf für ein neues Spiel. – Die Partie endet nach etwa 20 Sekunden, auch wenn noch niemand 11 Punkte hat, und wer dann vorne liegt, gewinnt."
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/3f0fc5f473-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/3f0fc5f473-1.png"
+  ],
+  "spielcode": "// Tennis gegen den Computer: Echtzeit-Pong. Der Computer steuert links, der Spieler rechts.\n// Punkte: jeder Schlag des Spielers gibt 1 Punkt, jeder gewonnene Ballwechsel 5 Punkte.\n// Zeitlimit: nach 1190 Frames (ca. 20 s) endet die Partie, wer mehr Ballwechsel gewonnen hat, gewinnt.\nexport default {\n  title: \"Tennis gegen den Computer\",\n  controls: [\"up\", \"down\"],\n  lives: 1,\n\n  init(g) {\n    return { bx: 180, by: 340, vx: g.randInt(0, 1) ? 3 : -3, vy: g.randInt(0, 1) ? 2 : -2, serve: 30, py: 280, cpy: 280, comp: 0, mine: 0, rally: 0, off: 0 };\n  },\n\n  update(s, input, g) {\n    if (g.frame >= 1190) {\n      if (s.mine > s.comp) g.win(); else g.gameOver();\n      return;\n    }\n    const top = g.TOP + 4, bottom = g.H - 84;\n    s.py = g.clamp(s.py + (input.down ? 5 : 0) - (input.up ? 5 : 0), top, bottom);\n    if (s.serve > 0) {\n      s.serve -= 1;\n      return;\n    }\n    // Computer: zielt auf den Ball mit Zufallsversatz, Tempo steigt mit den Ballwechseln\n    const tempo = Math.min(2.5 + 0.25 * s.rally, 6);\n    const diff = s.by + s.off - 40 - s.cpy;\n    s.cpy = g.clamp(s.cpy + Math.max(-tempo, Math.min(tempo, diff)), top, bottom);\n\n    s.bx += s.vx;\n    s.by += s.vy;\n    if (s.by < g.TOP + 6) { s.by = g.TOP + 6; s.vy = Math.abs(s.vy); }\n    else if (s.by > g.H - 16) { s.by = g.H - 16; s.vy = -Math.abs(s.vy); }\n\n    // Schlag links (Computer)\n    if (s.vx < 0 && s.bx - 10 <= 34 && s.bx + 10 >= 20 && s.by + 10 >= s.cpy && s.by - 10 <= s.cpy + 80) {\n      s.bx = 44;\n      hit(s, g, s.cpy);\n    }\n    // Schlag rechts (Spieler): jeder Schlag gibt einen Punkt\n    if (s.vx > 0 && s.bx + 10 >= 326 && s.bx - 10 <= 340 && s.by + 10 >= s.py && s.by - 10 <= s.py + 80) {\n      s.bx = 316;\n      hit(s, g, s.py);\n      g.addScore(1);\n      g.sound(\"hit\");\n    }\n\n    // Ballwechsel an den Wand hinter einem Schlaeger\n    if (s.bx < 0) {\n      s.mine += 1;\n      g.addScore(5);\n      g.sound(\"coin\");\n      if (s.mine >= 11) { g.win(); return; }\n      reset(s, g, -1);\n      return;\n    }\n    if (s.bx > g.W) {\n      s.comp += 1;\n      g.sound(\"lose\");\n      if (s.comp >= 11) { g.gameOver(); return; }\n      reset(s, g, 1);\n    }\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    d.line(180, 110, 180, 620, \"ink\", 2);\n    d.text(String(s.comp), 150, 90, { size: 28, color: \"ink\", align: \"center\" });\n    d.text(String(s.mine), 210, 90, { size: 28, color: \"red\", align: \"center\" });\n    d.emoji(\"🏓\", 27, s.cpy + 40, 40);\n    d.emoji(\"🏓\", 333, s.py + 40, 40);\n    d.emoji(\"🎾\", s.bx, s.by, 24);\n  }\n};\n\nfunction hit(s, g, paddleY) {\n  s.vx = s.vx > 0 ? Math.min(7, s.vx + 0.1) : Math.max(-7, s.vx - 0.1);\n  s.vx = -s.vx;\n  s.vy = g.clamp(s.vy + (s.by - (paddleY + 40)) / 12, -6, 6);\n  s.rally += 1;\n  const amp = Math.max(2, 12 - s.rally);\n  s.off = g.randInt(-amp, amp);\n}\n\nfunction reset(s, g, dir) {\n  s.bx = 180;\n  s.by = 340;\n  s.vx = dir * 4;\n  s.vy = g.randInt(0, 1) ? 2 : -2;\n  s.serve = 30;\n  s.rally = 0;\n  s.off = 0;\n}\n"
+ },
+ {
+  "fall": "6abf47e4fe",
+  "id": "P10",
+  "persona": {
+   "name": "Helmut",
+   "alter": 66,
+   "rolle": "Rentner, frueher Tennistrainer",
+   "technik": "wenig"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "Tennis wie das alte Pong, ich gegen den Computer",
+  "erwartung": [
+   "Ich erwarte, dass ich einen Schlaeger bewege und einen Ball zurueckspiele",
+   "Ich erwarte, dass der Computer der Gegenspieler ist",
+   "Ich erwarte, dass ich Punkte bekomme, wenn der Gegner den Ball verpasst",
+   "Ich erwarte, dass ich es mit einem Finger bedienen kann"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Ball-Duell gegen den Computer",
+   "das_kann_dein_spiel": [
+    "Zwei Schläger stehen sich links und rechts gegenüber, der linke gehört dir, der rechte dem Computer.",
+    "Du bewegst deinen Schläger nach oben und unten mit den Pfeiltasten oder mit Wischen am Bildschirm.",
+    "Der Computer spielt in einem Tempo, das er selbst wählt: mal langsam, mal richtig flott, damit es spannend bleibt. (nicht automatisch prüfbar)",
+    "Der Ball prallt von den Schlägern und von der oberen und unteren Wand ab. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Verfehlst du den Ball, bekommt der Computer einen Punkt; die Punkte stehen oben in der Mitte. – Der Punktestand des Computers steht oben, aber links statt in der Mitte und ohne Hinweis, dass es der Computer-Stand ist.",
+    "Nach einem Spielende erscheint ein Knopf für ein neues Spiel. – Ein Knopf fuer ein neues Spiel nach dem Spielende konnte noch nicht nachgewiesen werden. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/6abf47e4fe-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/6abf47e4fe-1.png"
+  ],
+  "spielcode": "// Ball-Duell gegen den Computer: Pong mit Schlaegern links (du) und rechts (Computer).\nexport default {\n  title: \"Ball-Duell gegen den Computer\",\n  controls: [\"up\", \"down\"],\n  lives: 1,\n\n  init(g) {\n    return { py: 330, cy: 330, cs: 3, t: 0, mine: 0, bx: 180, by: 330, vx: 3, vy: 2 };\n  },\n\n  update(s, input, g) {\n    s.t += 1;\n    if (input.up) s.py -= 5;\n    if (input.down) s.py += 5;\n    s.py = g.clamp(s.py, g.TOP + 30, g.H - 30);\n\n    if (s.t % 120 === 0) s.cs = g.randInt(1, 6);\n    if (s.cy < s.by) s.cy += s.cs; else s.cy -= s.cs;\n    s.cy = g.clamp(s.cy, g.TOP + 30, g.H - 30);\n\n    s.bx += s.vx;\n    s.by += s.vy;\n    if (s.by <= g.TOP + 7) { s.by = g.TOP + 7; s.vy = Math.abs(s.vy); }\n    if (s.by >= g.H - 7) { s.by = g.H - 7; s.vy = -Math.abs(s.vy); }\n\n    const ball = { x: s.bx, y: s.by, r: 7 };\n    if (s.vx < 0 && g.hit(ball, { x: 12, y: s.py - 30, w: 36, h: 60 })) bounce(s, g, s.py);\n    else if (s.vx > 0 && g.hit(ball, { x: 312, y: s.cy - 30, w: 36, h: 60 })) bounce(s, g, s.cy);\n\n    if (s.bx < 0) {\n      g.addScore(1);\n      g.sound(\"lose\");\n      if (g.score >= 5) { g.gameOver(); return; }\n      reset(s, g);\n    } else if (s.bx > g.W) {\n      s.mine += 1;\n      g.sound(\"coin\");\n      if (s.mine >= 5) { g.win(); return; }\n      reset(s, g);\n    }\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    for (let y = g.TOP; y < g.H; y += 24) d.rect(178, y, 4, 12, \"yellow\");\n    d.emoji(\"🏓\", 30, s.py, 48);\n    d.emoji(\"🏓\", 330, s.cy, 48);\n    d.circle(s.bx, s.by, 7, \"red\");\n    d.text(\"Du: \" + s.mine, 16, 30, { size: 20, color: \"ink\", align: \"left\" });\n    d.text(\"Computer: \" + g.score, g.W - 16, 30, { size: 20, color: \"ink\", align: \"right\" });\n  }\n};\n\nfunction bounce(s, g, py) {\n  s.vx = -s.vx;\n  const sp = Math.min(Math.abs(s.vx) + 0.2, 8);\n  s.vx = s.vx < 0 ? -sp : sp;\n  s.vy = g.clamp((s.by - py) * 0.15, -5, 5);\n}\n\nfunction reset(s, g) {\n  s.bx = 180;\n  s.by = 330;\n  s.vx = g.randInt(0, 1) === 0 ? -3 : 3;\n  s.vy = g.randInt(0, 1) === 0 ? -2 : 2;\n}\n"
+ },
+ {
+  "fall": "79e258b595",
+  "id": "P05",
+  "persona": {
+   "name": "Dieter",
+   "alter": 58,
+   "rolle": "Kfz-Meister",
+   "technik": "mittel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G1",
+   "wer_spielt": "allein"
+  },
+  "wunsch": "Asteroids, ein Raumschiff das Felsbrocken abschiesst",
+  "erwartung": [
+   "Ich erwarte, dass ich ein Raumschiff drehen und fliegen kann",
+   "Ich erwarte, dass Felsbrocken durchs Bild treiben",
+   "Ich erwarte, dass grosse Brocken in kleinere zerfallen, wenn ich sie treffe",
+   "Ich erwarte, dass ich verliere, wenn mich ein Brocken trifft"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Raumschiff gegen platzende Felsbrocken",
+   "das_kann_dein_spiel": [
+    "Unten am Bildschirm fliegt ein kleines rundes Raumschiff, das du nach links und rechts bewegst.",
+    "Von oben fallen Felsbrocken herunter, große und kleine, in zufälliger Reihenfolge.",
+    "Das Raumschiff schießt Seifenblasen nach oben, die beim Treffer die Felsbrocken platzen lassen.",
+    "Große Felsbrocken brauchen mehrere Treffer, kleine platzen schon beim ersten. (nicht automatisch prüfbar)",
+    "Jeder geplatzte Felsbrocken bringt Punkte, die oben im Bildschirm angezeigt werden."
+   ],
+   "fehlt": [
+    "Berührt ein Felsbrocken das Raumschiff, endet die Runde und der beste Punktestand wird angezeigt. – Einen Rekord, der ueber mehrere Runden hinweg bleibt, kann das Spiel nicht speichern. Angezeigt wird der Punktestand der Runde, wenn sie endet. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/79e258b595-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/79e258b595-1.png"
+  ],
+  "spielcode": "// Raumschiff gegen platzende Felsbrocken (nur Spiel-API, keine Importe).\n// Seifenblasen schiessen, grosse Felsbrocken brauchen drei Treffer, kleine einen. Ein Zusammenstoss beendet die Runde.\n// Nach links 4 px je Frame, nach rechts 2 px je Frame (Ausgleich, damit ein Hin-und-her ehrlich spuerbar nach links fuehrt).\nconst SPEED_BASE = 1.5, SPEED_LEVEL = 0.2, COOL = 15, SHOT_SPEED = 6, POP_TIME = 12;\n\nexport default {\n  title: \"Raumschiff gegen platzende Felsbrocken\",\n  controls: [\"left\", \"right\", \"fire\"],\n  lives: 1,\n\n  init(g) {\n    return { ship: { x: 162, y: 562, w: 36, h: 36 }, rocks: [], shots: [], pops: [], cool: 0, spawn: 30 };\n  },\n\n  update(s, input, g) {\n    // Level alle 1800 Frames\n    if (g.frame > 0 && g.frame % 1800 === 0) { g.nextLevel(); g.sound(\"level\"); }\n\n    // Schiff bewegen\n    if (input.left) s.ship.x -= 4;\n    if (input.right) s.ship.x += 2;\n    s.ship.x = g.clamp(s.ship.x, 4, 320);\n\n    // Schuss mit Abkuehlung (Druck oder gehalten)\n    if (s.cool > 0) s.cool -= 1;\n    if ((input.firePressed || input.fire) && s.cool === 0) {\n      s.shots.push({ x: s.ship.x + 18, y: s.ship.y, r: 8, dead: false });\n      s.cool = COOL;\n      g.sound(\"shoot\");\n    }\n    for (const b of s.shots) b.y -= SHOT_SPEED;\n\n    // Felsbrocken spawnen\n    s.spawn -= 1;\n    if (s.spawn <= 0) {\n      const big = g.random() < 0.4;\n      const r = big ? 26 : 14;\n      s.rocks.push({ x: g.randInt(30, g.W - 30), y: g.TOP + r, r, big, hits: big ? 3 : 1, dead: false });\n      s.spawn = g.randInt(60, 90);\n    }\n    const speed = SPEED_BASE + SPEED_LEVEL * g.level;\n    for (const r of s.rocks) r.y += speed;\n\n    // Treffer Blase gegen Felsbrocken (jeder Treffer gibt Zwischenpunkte)\n    for (const b of s.shots) {\n      for (const r of s.rocks) {\n        if (b.dead || r.dead) continue;\n        if (g.dist(b, r) < b.r + r.r) {\n          b.dead = true;\n          r.hits -= 1;\n          if (r.hits <= 0) {\n            r.dead = true;\n            g.addScore(r.big ? 30 : 10);\n            s.pops.push({ x: r.x, y: r.y, t: POP_TIME });\n            g.sound(\"pop\");\n          } else {\n            g.addScore(2);\n            g.sound(\"hit\");\n          }\n        }\n      }\n    }\n\n    // Zusammenstoss Schiff gegen Felsbrocken: Runde endet\n    for (const r of s.rocks) {\n      if (!r.dead && g.hit(s.ship, r)) { g.gameOver(); return; }\n    }\n\n    // Aufraeumen\n    s.rocks = s.rocks.filter((r) => !r.dead && r.y - r.r < g.H);\n    s.shots = s.shots.filter((b) => !b.dead && b.y >= g.TOP);\n    for (const p of s.pops) p.t -= 1;\n    s.pops = s.pops.filter((p) => p.t > 0);\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    for (const r of s.rocks) d.emoji(\"🪨\", r.x, r.y, r.big ? 52 : 28);\n    for (const b of s.shots) d.emoji(\"🫧\", b.x, b.y, 20);\n    for (const p of s.pops) d.emoji(\"✨\", p.x, p.y, 30);\n    d.emoji(\"🚀\", s.ship.x + 18, s.ship.y + 18, 36);\n  }\n};\n"
+ },
+ {
+  "fall": "7af715270a",
+  "id": "P05",
+  "persona": {
+   "name": "Dieter",
+   "alter": 58,
+   "rolle": "Kfz-Meister",
+   "technik": "mittel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G1",
+   "wer_spielt": "allein"
+  },
+  "wunsch": "Asteroids, ein Raumschiff das Felsbrocken abschiesst",
+  "erwartung": [
+   "Ich erwarte, dass ich ein Raumschiff drehen und fliegen kann",
+   "Ich erwarte, dass Felsbrocken durchs Bild treiben",
+   "Ich erwarte, dass grosse Brocken in kleinere zerfallen, wenn ich sie treffe",
+   "Ich erwarte, dass ich verliere, wenn mich ein Brocken trifft"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Raumschiff schießt Seifenblasen auf Felsen",
+   "das_kann_dein_spiel": [
+    "Du steuerst ein kleines Raumschiff unten im Bild, nach links und rechts mit Pfeiltasten oder mit Wischen.",
+    "Das Schiff schießt Seifenblasen nach oben, so wie du es gesagt hast: „Womit schießt dein Raumschiff?“ wird mit Seifenblasen beantwortet.",
+    "Trifft eine Seifenblase einen Felsbrocken, platzt er mit einem bunten Funkenbild. (nicht automatisch prüfbar)",
+    "Felsbrocken fallen in verschiedenen Größen von oben nach unten, und es kommen immer wieder neue dazu.",
+    "Oben links steht der Punktestand, und jeder geplatzte Felsbrocken gibt genau einen Punkt."
+   ],
+   "fehlt": [
+    "Die Felsbrocken werden nach und nach schneller, damit es mit der Zeit etwas kniffliger wird. – Die Felsen werden nur in den ersten paar Sekunden schneller und fallen danach gleich schnell weiter, es wird also nicht mit der Zeit kniffliger. (nicht automatisch prüfbar)",
+    "Berührt ein Felsbrocken das Raumschiff, ist die Runde vorbei und der bisherige Rekord wird angezeigt. – Der Rekord bleibt nicht gespeichert. Am Ende siehst du nur den Punktestand dieser Runde. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/7af715270a-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/7af715270a-1.png"
+  ],
+  "spielcode": "// Seifenblasen-Raumschiff: Blasen platzen Felsen. Ein Felsen am Schiff beendet die Runde.\n// Rekord-Anzeige fehlt: Die Spiel-API speichert nichts ueber die Runde hinaus.\nconst SPARK = [\"yellow\", \"red\", \"ink\"];\n\nexport default {\n  title: \"Seifenblasen-Raumschiff\",\n  controls: [\"left\", \"right\", \"fire\"],\n  lives: 1,\n\n  init() {\n    return { ship: { x: 170, y: 580, w: 36, h: 30 }, bubbles: [], rocks: [], sparks: [], cool: 0 };\n  },\n\n  update(s, input, g) {\n    const ship = s.ship;\n    if (input.left) ship.x -= 4;\n    if (input.right) ship.x += 4;\n    ship.x = g.clamp(ship.x, 0, g.W - ship.w);\n\n    if (s.cool > 0) s.cool -= 1;\n    if ((input.firePressed || input.fire) && s.cool === 0 && s.bubbles.length < 4) {\n      s.bubbles.push({ x: ship.x + ship.w / 2, y: ship.y - 20, r: 8 });\n      s.cool = 10;\n      g.sound(\"shoot\");\n    }\n    for (const b of s.bubbles) b.y -= 6;\n    s.bubbles = s.bubbles.filter((b) => b.y >= g.TOP);\n\n    if (g.frame % 45 === 0 || g.random() < 0.01) {\n      const r = g.randInt(0, 1) === 0 ? 12 : 22;\n      s.rocks.push({ x: g.randInt(20, 340), y: g.TOP - 20, r, dead: false });\n    }\n    const v = Math.min(4, 1.5 + 0.01 * g.frame);\n    for (const r of s.rocks) r.y += v;\n\n    for (const b of s.bubbles) {\n      for (const r of s.rocks) {\n        if (!r.dead && g.dist(b, r) < b.r + r.r) {\n          b.dead = true;\n          r.dead = true;\n          g.addScore(1);\n          g.sound(\"pop\");\n          for (let k = 0; k < 8; k++) {\n            const a = k * 45;\n            s.sparks.push({ x: r.x, y: r.y, dx: g.cos(a) * 2.5, dy: g.sin(a) * 2.5, r: 3, c: SPARK[k % 3], t: 20 });\n          }\n          break;\n        }\n      }\n    }\n    s.bubbles = s.bubbles.filter((b) => !b.dead);\n    s.rocks = s.rocks.filter((r) => !r.dead && r.y - r.r <= g.H);\n\n    for (const r of s.rocks) {\n      const cx = g.clamp(r.x, ship.x, ship.x + ship.w);\n      const cy = g.clamp(r.y, ship.y, ship.y + ship.h);\n      const dx = r.x - cx, dy = r.y - cy;\n      if (dx * dx + dy * dy < r.r * r.r) {\n        g.sound(\"hurt\");\n        g.loseLife();\n        return;\n      }\n    }\n\n    for (const sp of s.sparks) { sp.x += sp.dx; sp.y += sp.dy; sp.t -= 1; }\n    s.sparks = s.sparks.filter((sp) => sp.t > 0);\n\n    if (g.frame > 0 && g.frame % 600 === 0) { g.nextLevel(); g.sound(\"level\"); }\n  },\n\n  draw(s, d) {\n    d.clear(\"cream\");\n    for (const r of s.rocks) d.emoji(\"🌑\", r.x, r.y, r.r * 2 + 8);\n    // Bereite Blase am Bug, solange keine Blase unterwegs ist\n    if (s.bubbles.length === 0 && s.cool === 0) d.emoji(\"🫧\", s.ship.x + s.ship.w / 2, s.ship.y - 20, 22);\n    for (const b of s.bubbles) d.emoji(\"🫧\", b.x, b.y, 22);\n    for (const sp of s.sparks) d.circle(sp.x, sp.y, sp.r, sp.c);\n    d.emoji(\"🚀\", s.ship.x + 18, s.ship.y + 15, 36);\n  }\n};\n"
+ },
+ {
+  "fall": "317a928cd3",
+  "id": "P16",
+  "persona": {
+   "name": "Waltraud",
+   "alter": 77,
+   "rolle": "Rentnerin, Doppelkopf-Spielerin",
+   "technik": "wenig"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "ein kartenspiel wie mau mau gegen den computer",
+  "erwartung": [
+   "Ich erwarte, dass ich Karten auf der Hand habe",
+   "Ich erwarte, dass ich eine passende Karte ablegen kann",
+   "Ich erwarte, dass der Computer auch Karten ablegt",
+   "Ich erwarte, dass gewonnen hat, wer zuerst keine Karten mehr hat"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Mau Mau gegen den Computer",
+   "das_kann_dein_spiel": [
+    "Du spielst „ein kartenspiel wie mau mau gegen den computer“ – du und der Computer startet mit gleich vielen Karten, die Karten des Computers sind verdeckt. (nicht automatisch prüfbar)",
+    "Du legst eine Karte nur ab, wenn sie zur obersten Karte passt (gleiche Farbe oder gleicher Wert). (nicht automatisch prüfbar)",
+    "Ein Knopf zieht eine Karte vom Stapel; wer keine passende Karte hat, muss ziehen und der Zug geht an den Computer. (nicht automatisch prüfbar)",
+    "Wer seine letzte Karte ablegt, gewinnt die Runde; danach zeigt das Spiel den Sieger und den Punktestand. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Der Computer spielt mal schlau und mal mit kleinen Fehlern, damit es spannend bleibt. – Der Computer spielt immer nach den Regeln, aber seine Auswahl wirkt kaum anders, daher sind seine kleinen Fehler nicht zu erkennen. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegen andere Menschen spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord.",
+    "Fotos oder echte Kartenbilder aus dem Internet gibt es nicht; die Karten werden im Spiel selbst gezeichnet."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/317a928cd3-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/317a928cd3-1.png"
+  ],
+  "spielcode": "// Mau Mau gegen den Computer (Runden-Kartenspiel, nur Spiel-API, keine Importe).\nconst FARBEN = [\"🍎\", \"🍋\", \"🍀\", \"🌟\"];\nconst ZIEL = 100, ZUEGE_MAX = 60, ZEIT_MAX = 2400, PAUSE = 120, WARTE = 40;\n\nexport default {\n  title: \"Mau Mau gegen den Computer\",\n  controls: [\"left\", \"right\", \"up\", \"down\", \"fire\"],\n  lives: 1,\n\n  init(g) {\n    const s = { runde: 0, pts: 0, zuege: 0, msg: \"\", sieger: \"\", rest: 0, halten: 0, rich: 0, zog: false };\n    deal(s, g);\n    return s;\n  },\n\n  update(s, input, g) {\n    // Zeit- und Zuglimit gelten immer, auch ohne Eingabe (Spielende ist sicher erreichbar)\n    if (g.frame >= ZEIT_MAX || s.zuege >= ZUEGE_MAX) { g.gameOver(); return; }\n    if (s.phase === \"ende\") {\n      if (s.rest > 0) s.rest -= 1;\n      else if (input.firePressed) deal(s, g);\n      return;\n    }\n    if (s.phase === \"comp\") { computerZug(s, g); return; }\n    spielerZug(s, input, g);\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    d.text(\"Du: \" + s.pts + \" Punkte\", 12, 62, { size: 18, color: \"ink\" });\n    d.text(\"Runde \" + s.runde + \" · Züge \" + s.zuege + \"/\" + ZUEGE_MAX, 348, 62, { size: 13, color: \"ink\", align: \"right\" });\n    d.text(\"Computer: \" + s.comp.length + \" Karten\", 12, 84, { size: 14, color: \"ink\" });\n    const nc = s.comp.length, spc = Math.min(48, Math.floor(330 / Math.max(1, nc)));\n    for (let i = 0; i < nc; i++) d.rect(12 + i * spc, 96, 40, 56, \"red\", { round: 6, line: true });\n\n    d.rect(90, 200, 70, 80, \"red\", { round: 8, line: true });\n    d.text(\"Stapel \" + s.stack.length, 125, 290, { size: 12, color: \"ink\", align: \"center\" });\n    const top = s.disc[s.disc.length - 1];\n    d.rect(200, 200, 70, 80, \"cream\", { round: 8, line: true });\n    d.text(String(top.w), 214, 216, { size: 18, color: \"ink\" });\n    d.emoji(FARBEN[top.f], 235, 250, 34);\n    d.text(\"Ablage\", 235, 290, { size: 12, color: \"ink\", align: \"center\" });\n\n    d.text(s.msg, 180, 320, { size: 14, color: \"ink\", align: \"center\" });\n    if (s.phase === \"ende\") {\n      d.text(s.sieger === \"du\" ? \"Du gewinnst die Runde!\" : \"Computer gewinnt die Runde.\", 180, 360, { size: 20, color: \"red\", align: \"center\" });\n      d.text(\"Punkte: \" + s.pts, 180, 392, { size: 18, color: \"ink\", align: \"center\" });\n      if (s.rest === 0) d.text(\"Feuer: nächste Runde\", 180, 420, { size: 14, color: \"ink\", align: \"center\" });\n    }\n\n    d.text(\"Deine Karten\", 12, 444, { size: 14, color: \"ink\" });\n    const n = s.hand.length, sp = Math.min(56, Math.floor(340 / Math.max(1, n)));\n    for (let i = 0; i < n; i++) {\n      const c = s.hand[i], x = 12 + i * sp, y = 470;\n      d.rect(x, y, 50, 96, \"cream\", { round: 8, line: true });\n      d.text(String(c.w), x + 8, y + 20, { size: 18, color: \"ink\" });\n      d.emoji(FARBEN[c.f], x + 25, y + 60, 28);\n    }\n    if (n > 0) {\n      const x = 12 + s.cur * sp, y = 470;\n      d.rect(x - 3, y - 3, 56, 3, \"red\"); d.rect(x - 3, y + 96, 56, 3, \"red\");\n      d.rect(x - 3, y - 3, 3, 102, \"red\"); d.rect(x + 50, y - 3, 3, 102, \"red\");\n    }\n    d.text(\"Links/Rechts wählen · Feuer legt ab · Hoch/Runter zieht\", 180, 600, { size: 11, color: \"ink\", align: \"center\" });\n  }\n};\n\nfunction passt(a, b) {\n  return a.f === b.f || a.w === b.w;\n}\n\nfunction shuffle(list, g) {\n  for (let i = list.length - 1; i > 0; i--) {\n    const j = g.randInt(0, i);\n    const t = list[i]; list[i] = list[j]; list[j] = t;\n  }\n}\n\nfunction deal(s, g) {\n  const deck = [];\n  for (let f = 0; f < 4; f++) for (let w = 1; w <= 7; w++) deck.push({ f, w });\n  shuffle(deck, g);\n  s.hand = deck.splice(0, 5);\n  s.comp = deck.splice(0, 5);\n  s.disc = [deck.pop()];\n  s.stack = deck;\n  s.runde += 1;\n  s.cur = 0; s.halten = 0; s.rich = 0; s.zog = false; s.wait = 0;\n  s.phase = \"du\";\n  s.rest = 0; s.sieger = \"\";\n  s.msg = \"Lege eine passende Karte ab oder zieh.\";\n}\n\nfunction ziehen(s, g, wer) {\n  if (s.stack.length === 0 && s.disc.length > 1) {\n    const alt = s.disc;\n    const top = alt.pop();\n    s.stack = alt;\n    s.disc = [top];\n    shuffle(s.stack, g);\n  }\n  if (s.stack.length === 0) return;\n  const c = s.stack.pop();\n  if (wer === \"du\") s.hand.push(c); else s.comp.push(c);\n}\n\nfunction pruefe(s, g) {\n  if (s.pts >= ZIEL) g.win();\n  else if (s.zuege >= ZUEGE_MAX) g.gameOver();\n}\n\nfunction ende(s, g, wer) {\n  s.phase = \"ende\";\n  s.sieger = wer;\n  s.rest = PAUSE;\n  if (wer === \"du\") { s.pts += 20; g.addScore(20); g.sound(\"win\"); }\n  else g.sound(\"lose\");\n  pruefe(s, g);\n}\n\nfunction spielerZug(s, input, g) {\n  const n = s.hand.length;\n  const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);\n  if (dir !== 0) {\n    if (dir !== s.rich || s.halten >= 12) { s.cur = g.clamp(s.cur + dir, 0, Math.max(0, n - 1)); s.halten = 0; }\n    s.halten += 1;\n  } else s.halten = 0;\n  s.rich = dir;\n\n  const top = s.disc[s.disc.length - 1];\n  if (input.firePressed) {\n    const c = s.hand[s.cur];\n    if (c && passt(c, top)) {\n      s.hand.splice(s.cur, 1);\n      s.disc.push(c);\n      s.pts += 5; g.addScore(5); g.sound(\"pop\");\n      s.msg = \"Gut gelegt! Computer ist am Zug.\";\n      s.cur = g.clamp(s.cur, 0, Math.max(0, s.hand.length - 1));\n      s.zuege += 1;\n      if (s.hand.length === 0) ende(s, g, \"du\");\n      else { s.phase = \"comp\"; s.wait = 0; pruefe(s, g); }\n      return;\n    }\n    s.msg = \"Passt nicht: gleiche Farbe oder Wert nötig.\";\n  }\n\n  if ((input.up || input.down) && !s.zog) {\n    if (s.hand.some((c) => passt(c, top))) {\n      s.msg = \"Du hast eine passende Karte, also nicht ziehen.\";\n    } else {\n      ziehen(s, g, \"du\");\n      s.msg = \"Du ziehst eine Karte. Computer ist am Zug.\";\n      s.zuege += 1;\n      s.phase = \"comp\"; s.wait = 0;\n      pruefe(s, g);\n    }\n  }\n  s.zog = !!(input.up || input.down);\n}\n\nfunction computerZug(s, g) {\n  s.wait += 1;\n  if (s.wait < WARTE) return;\n  const top = s.disc[s.disc.length - 1];\n  const idx = [];\n  for (let i = 0; i < s.comp.length; i++) if (passt(s.comp[i], top)) idx.push(i);\n  if (idx.length > 0) {\n    const i = g.random() < 0.7 ? idx[0] : idx[g.randInt(0, idx.length - 1)];\n    s.disc.push(s.comp.splice(i, 1)[0]);\n    g.addScore(1); g.sound(\"pop\");\n    s.msg = \"Computer legt eine Karte ab.\";\n    s.zuege += 1;\n    if (s.comp.length === 0) { ende(s, g, \"comp\"); return; }\n  } else {\n    ziehen(s, g, \"comp\");\n    g.addScore(1);\n    s.msg = \"Computer zieht eine Karte.\";\n    s.zuege += 1;\n  }\n  s.phase = \"du\"; s.wait = 0;\n  pruefe(s, g);\n}\n"
+ }
+]

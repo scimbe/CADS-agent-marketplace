@@ -1,0 +1,341 @@
+[
+ {
+  "fall": "4e837daf59",
+  "id": "P15",
+  "persona": {
+   "name": "Kevin",
+   "alter": 24,
+   "rolle": "Azubi, Mechatroniker",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "schaetzspiel wie viele gummibaerchen sind im glas, wer am naechsten dran ist gewinnt",
+  "erwartung": [
+   "Ich erwarte, dass ein Glas mit Gummibaerchen zu sehen ist",
+   "Ich erwarte, dass jeder eine Zahl tippen kann",
+   "Ich erwarte, dass der Gewinner der ist, der am naechsten dran liegt",
+   "Ich erwarte, dass die richtige Zahl am Ende gezeigt wird"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Beim Bauen ist etwas schiefgegangen. Abgebucht ist nichts."
+   ]
+  },
+  "bildschirmfotos": [],
+  "spielcode": null
+ },
+ {
+  "fall": "e89546a59b",
+  "id": "P09",
+  "persona": {
+   "name": "Paul",
+   "alter": 17,
+   "rolle": "Schueler, Berufsschule",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G2",
+   "wer_spielt": "allein"
+  },
+  "wunsch": "flappy bird aber mit nem huhn",
+  "erwartung": [
+   "Ich erwarte, dass ein Huhn die Spielfigur ist",
+   "Ich erwarte, dass ich durch Antippen das Huhn flattern lasse",
+   "Ich erwarte, dass Hindernisse mit Luecken von rechts kommen",
+   "Ich erwarte, dass der Punktestand pro Hindernis hochzaehlt"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Das bauen wir nicht. Marken und bekannte Spiele, Filme oder Figuren kommen nicht vor. Beschreib es mit eigenen Worten."
+   ]
+  },
+  "bildschirmfotos": []
+ },
+ {
+  "fall": "f22ae8da56",
+  "id": "P04",
+  "persona": {
+   "name": "Hakan",
+   "alter": 45,
+   "rolle": "Busfahrer",
+   "technik": "mittel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G1",
+   "wer_spielt": "allein"
+  },
+  "wunsch": "rennspiel mit rotem sportwagen, auf der autobahn andere autos ueberholen",
+  "erwartung": [
+   "Ich erwarte, dass ich ein rotes Auto fahre",
+   "Ich erwarte, dass andere Autos auf der Strasse sind, die ich ueberholen muss",
+   "Ich erwarte, dass ich nach links und rechts lenken kann",
+   "Ich erwarte, dass ein Zusammenstoss das Spiel beendet",
+   "Ich erwarte, dass ich sehe, wie weit ich gekommen bin"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Überholen auf der Autobahn",
+   "das_kann_dein_spiel": [
+    "Du steuerst einen roten Sportwagen auf einer geraden Autobahn mit zwei Spuren – links und rechts am Bildschirmrand, per Wischen oder Pfeiltasten.",
+    "Andere Autos fahren auf der Autobahn vor dir her, und du kannst sie überholen, indem du an ihnen vorbeifährst.",
+    "Die Autobahn ist mal leer, mal ziemlich voll – der Verkehr wechselt zufällig zwischen wenig und viel Autos. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Berührst du ein anderes Auto, ist die Fahrt vorbei und ein Knopf startet eine neue Runde. – Statt eines Knopfs mit dem Wort Neue Runde steht dort nur der Hinweis, dass man zum Neustart tippen oder Feuer druecken soll.",
+    "Oben rechts zeigt eine Anzeige die Zahl der überholten Autos und den bisherigen Rekord auf diesem Gerät. – Einen Rekord, der auf diesem Geraet bleibt, kann das Spiel hier nicht speichern. Die Zahl der Ueberholungen sehen Sie aber oben rechts. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/f22ae8da56-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/f22ae8da56-1.png"
+  ],
+  "spielcode": "// Rennspiel aus der Vogelperspektive: zwei Spuren, Autos kommen entgegen, Ueberholen zaehlt Punkte.\nconst TOP_Y = 520;\n\nexport default {\n  title: \"Überholen auf der Autobahn\",\n  controls: [\"left\", \"right\"],\n  lives: 1,\n\n  init(g) {\n    return { lane: 1, x: 260, cars: [], dichte: 0.035, ueberholt: 0 };\n  },\n\n  update(s, input, g) {\n    if (input.left) s.lane = 0;\n    if (input.right) s.lane = 1;\n    const tx = s.lane === 0 ? 100 : 260;\n    const dx = tx - s.x;\n    s.x += Math.sign(dx) * Math.min(6, Math.abs(dx));\n\n    if (g.frame > 0 && g.frame % 300 === 0) s.dichte = g.random() < 0.5 ? 0.008 : 0.035;\n    if (g.frame % 30 === 0) g.addScore(1);\n\n    for (const c of s.cars) c.y += 3;\n\n    for (const c of s.cars) {\n      if (!c.gez && c.lane !== s.lane && c.y > TOP_Y + 35) {\n        c.gez = true;\n        s.ueberholt += 1;\n        g.addScore(1);\n        g.sound(\"pop\");\n      }\n    }\n\n    for (const c of s.cars) {\n      if (c.lane === s.lane && Math.abs(c.y - TOP_Y) < 70) {\n        s.cars = [];\n        g.sound(\"hurt\");\n        g.loseLife();\n        return;\n      }\n    }\n\n    if (s.cars.length < 30) {\n      for (const lane of [0, 1]) {\n        if (g.random() < s.dichte) s.cars.push({ x: lane === 0 ? 100 : 260, y: -80, lane, gez: false });\n      }\n    }\n    s.cars = s.cars.filter((c) => c.y <= g.H + 80);\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    d.rect(40, 48, 120, 592, \"yellow\", { round: 8 });\n    d.rect(200, 48, 120, 592, \"yellow\", { round: 8 });\n    for (const c of s.cars) d.emoji(\"🚙\", c.x, c.y, 34);\n    d.emoji(\"🏎️\", s.x, TOP_Y, 36);\n    d.text(\"Ueberholt: \" + s.ueberholt, 352, 30, { size: 18, align: \"right\" });\n  }\n};\n"
+ },
+ {
+  "fall": "78f2ee95fc",
+  "id": "P09",
+  "persona": {
+   "name": "Paul",
+   "alter": 17,
+   "rolle": "Schueler, Berufsschule",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G2",
+   "wer_spielt": "allein"
+  },
+  "wunsch": "flappy bird aber mit nem huhn",
+  "erwartung": [
+   "Ich erwarte, dass ein Huhn die Spielfigur ist",
+   "Ich erwarte, dass ich durch Antippen das Huhn flattern lasse",
+   "Ich erwarte, dass Hindernisse mit Luecken von rechts kommen",
+   "Ich erwarte, dass der Punktestand pro Hindernis hochzaehlt"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Das bauen wir nicht. Marken und bekannte Spiele, Filme oder Figuren kommen nicht vor. Beschreib es mit eigenen Worten."
+   ]
+  },
+  "bildschirmfotos": []
+ },
+ {
+  "fall": "a21425ce88",
+  "id": "P15",
+  "persona": {
+   "name": "Kevin",
+   "alter": 24,
+   "rolle": "Azubi, Mechatroniker",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "schaetzspiel wie viele gummibaerchen sind im glas, wer am naechsten dran ist gewinnt",
+  "erwartung": [
+   "Ich erwarte, dass ein Glas mit Gummibaerchen zu sehen ist",
+   "Ich erwarte, dass jeder eine Zahl tippen kann",
+   "Ich erwarte, dass der Gewinner der ist, der am naechsten dran liegt",
+   "Ich erwarte, dass die richtige Zahl am Ende gezeigt wird"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Gummibärchen-Schätzspiel",
+   "das_kann_dein_spiel": [
+    "Es gibt 5 Spielrunden, und in jeder Runde ist ein neues Glas mit einer anderen Anzahl Gummibärchen. (nicht automatisch prüfbar)",
+    "Wer am nächsten an der richtigen Anzahl liegt, bekommt den Punkt für die Runde, und am Ende steht der Sieger mit den meisten Punkten."
+   ],
+   "fehlt": [
+    "Auf dem Bildschirm steht ein großes Glas mit Gummibärchen, und darunter ist ein Feld für deine Schätzung. – Zahlen eintippen gibt es hier nicht. Du stellst deine Schaetzung mit den Pfeiltasten oben und unten ein und bestaetigst mit dem Feuer-Knopf. (nicht automatisch prüfbar)",
+    "Du tippst eine Zahl ein und bestätigst sie mit einem Knopf „Schätzen“. – Zahlen eintippen gibt es hier nicht. Du stellst die Schaetzung mit oben und unten ein und bestaetigst sie mit dem Feuer-Knopf statt mit einem Schaetzen-Feld. (nicht automatisch prüfbar)",
+    "Am Ende gibt es einen Link, den du teilen kannst; wer ihn öffnet, spielt allein und versucht deinen Rekord. – Einen Link zum Teilen gibt es hier nicht. Spielstaende koennen nicht weitergegeben werden, und niemand kann deinen Rekord online oeffnen. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord.",
+    "Echte Fotos von Gummibärchen oder Gläsern aus dem Internet sind nicht dabei; das Glas wird selbst gezeichnet."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/a21425ce88-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/a21425ce88-1.png"
+  ],
+  "spielcode": "// Schaetzspiel (Runden-Vorlage): Gummibaerchen zaehlen, 5 Runden, Computer schaetzt mit.\nconst RUNDEN = 5, KI_ZEIT = 30, AUSW = 90, WIEDERHOLEN = 12;\n\nexport default {\n  title: \"Gummibärchen-Schätzspiel\",\n  controls: [\"up\", \"down\", \"fire\"],\n  lives: 1,\n\n  init(g) {\n    return { runde: 1, glas: g.randInt(10, 60), schaetzung: 20, ki: null, gesch: null, rt: 0, halten: 0,\n      punkte: 0, ki_punkte: 0, info: \"Schätze, wie viele Bärchen im Glas sind!\", ende: false };\n  },\n\n  update(s, input, g) {\n    if (s.ende) return;\n    // Zahl aendern: sofort beim Druecken, dann alle WIEDERHOLEN Frames, solange gehalten\n    const dir = (input.up ? 1 : 0) - (input.down ? 1 : 0);\n    if (dir !== 0) {\n      if (s.halten % WIEDERHOLEN === 0) s.schaetzung = g.clamp(s.schaetzung + dir, 0, 99);\n      s.halten += 1;\n    } else s.halten = 0;\n    // Schaetzen: jede Bestaetigung gibt sofort 1 Punkt\n    if (input.firePressed) {\n      s.gesch = s.schaetzung;\n      s.punkte += 1;\n      g.addScore(1);\n      g.sound(\"pop\");\n    }\n    s.rt += 1;\n    if (s.rt === KI_ZEIT && s.ki === null) s.ki = g.randInt(0, 99);\n    if (s.rt >= AUSW) auswerten(s, g);\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    d.text(\"Runde \" + s.runde + \" von \" + RUNDEN, g.W / 2, 90, { size: 22, align: \"center\" });\n    d.emoji(\"🫙\", 180, 300, 150);\n    for (let i = 0; i < s.glas; i++) {\n      const col = i % 8, row = Math.floor(i / 8);\n      d.emoji(\"🐻\", 128 + col * 14, 236 + row * 16, 16);\n    }\n    d.text(\"Deine Schätzung: \" + s.schaetzung, g.W / 2, 130, { size: 22, align: \"center\" });\n    d.text(\"Computer: \" + (s.ki === null ? \"schätzt noch ...\" : s.ki), g.W / 2, 162, { size: 18, align: \"center\" });\n    d.text(s.gesch === null ? \"Du bist dran\" : \"Geschätzt, warte auf Auswertung\", g.W / 2, 500, { size: 18, align: \"center\" });\n    d.text(\"Hoch/runter: ändern, Feuer: schätzen\", g.W / 2, 530, { size: 16, align: \"center\" });\n    d.text(\"Du \" + s.punkte + \"  :  Computer \" + s.ki_punkte, g.W / 2, 565, { size: 22, align: \"center\" });\n    d.text(s.info, g.W / 2, 605, { size: 14, align: \"center\" });\n  }\n};\n\nfunction auswerten(s, g) {\n  const dSp = s.gesch === null ? 999 : Math.abs(s.gesch - s.glas);\n  const dKi = Math.abs(s.ki - s.glas);\n  let txt = \"Glas: \" + s.glas + \". \";\n  if (dSp < dKi) { s.punkte += 10; g.addScore(10); txt += \"Du bist näher dran (+10).\"; }\n  else if (dKi < dSp) { s.ki_punkte += 10; txt += \"Computer ist näher dran (+10).\"; }\n  else { s.punkte += 5; g.addScore(5); s.ki_punkte += 5; txt += \"Gleichstand (je +5).\"; }\n  s.info = txt;\n  if (s.runde >= RUNDEN) {\n    s.ende = true;\n    if (s.punkte > s.ki_punkte) g.win(); else g.gameOver();\n    return;\n  }\n  s.runde += 1;\n  s.glas = g.randInt(10, 60);\n  s.gesch = null;\n  s.ki = null;\n  s.rt = 0;\n  s.halten = 0;\n  g.sound(\"level\");\n}\n"
+ },
+ {
+  "fall": "5241213377",
+  "id": "P04",
+  "persona": {
+   "name": "Hakan",
+   "alter": 45,
+   "rolle": "Busfahrer",
+   "technik": "mittel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G1",
+   "wer_spielt": "allein"
+  },
+  "wunsch": "rennspiel mit rotem sportwagen, auf der autobahn andere autos ueberholen",
+  "erwartung": [
+   "Ich erwarte, dass ich ein rotes Auto fahre",
+   "Ich erwarte, dass andere Autos auf der Strasse sind, die ich ueberholen muss",
+   "Ich erwarte, dass ich nach links und rechts lenken kann",
+   "Ich erwarte, dass ein Zusammenstoss das Spiel beendet",
+   "Ich erwarte, dass ich sehe, wie weit ich gekommen bin"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Überhol-Rennen auf der Autobahn",
+   "das_kann_dein_spiel": [
+    "Du steuerst einen roten Sportwagen auf einer geraden Autobahn mit zwei Spuren.",
+    "Mit den Pfeiltasten oder Wischen nach links und rechts wechselst du die Spur.",
+    "Andere Autos fahren vor dir her, und du kannst sie links oder rechts überholen.",
+    "Stößt du mit einem anderen Auto zusammen, endet die Fahrt und ein Neustart-Knopf erscheint.",
+    "Oben im Bildschirm zeigt eine Anzeige die Zahl deiner überholten Autos an."
+   ],
+   "fehlt": [
+    "Mit jedem überholten Auto wird die Straße etwas schneller, damit es spannender wird. – Nach zehn überholten Autos werden nur die Straße und die anderen Autos etwas schneller, dein Wagen selbst fährt nicht schneller. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord.",
+    "Echte Autos, Fotos oder Musik aus dem Internet sind nicht dabei; alles wird selbst gezeichnet."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/5241213377-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/5241213377-1.png"
+  ],
+  "spielcode": "// Ueberhol-Rennen: Rennwagen auf zwei Spuren, fremde Autos ueberholen, Zusammenstoss beendet die Fahrt.\nexport default {\n  title: \"Überhol-Rennen auf der Autobahn\",\n  controls: [\"left\", \"right\"],\n  lives: 3,\n\n  init(g) {\n    return { me: { x: 250, y: 520, w: 40, h: 60 }, cars: [], ueberholt: 0, road: 0 };\n  },\n\n  update(s, input, g) {\n    if (input.left) s.me.x -= 6;\n    if (input.right) s.me.x += 6;\n    s.me.x = g.clamp(s.me.x, 70, 250);\n\n    const tempo = 4 + 0.4 * Math.floor(s.ueberholt / 10);\n    s.road = (s.road + tempo) % 60;\n\n    const pl = s.me.x < 160 ? 0 : 1;\n    if (g.frame >= 30 && g.random() < 0.03) {\n      // Meist auf der anderen Spur, damit Ueberholen moeglich ist; manchmal auf der eigenen Spur.\n      const lane = g.random() < 0.75 ? 1 - pl : pl;\n      s.cars.push({ x: lane === 0 ? 70 : 250, y: -60, w: 40, h: 60, lane, counted: false });\n    }\n\n    for (const c of s.cars) {\n      c.y += tempo;\n      if (g.hit(s.me, c)) { g.sound(\"lose\"); g.gameOver(); return; }\n      if (!c.counted && c.y > s.me.y + s.me.h && c.lane !== pl) {\n        c.counted = true;\n        s.ueberholt += 1;\n        g.addScore(1);\n        g.sound(\"pop\");\n        if (s.ueberholt % 10 === 0) g.nextLevel();\n      }\n    }\n    s.cars = s.cars.filter((c) => c.y < g.H);\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    d.rect(40, g.TOP, 280, g.H - g.TOP, \"ink\");\n    for (let y = g.TOP - 60 + s.road; y < g.H; y += 60) d.rect(176, y, 8, 30, \"yellow\");\n    for (const c of s.cars) d.emoji(\"🚙\", c.x + 20, c.y + 30, 50);\n    d.emoji(\"🏎️\", s.me.x + 20, s.me.y + 30, 56);\n    d.text(\"Überholt: \" + s.ueberholt, 20, 30, { size: 22, color: \"ink\", align: \"left\" });\n  }\n};\n"
+ },
+ {
+  "fall": "2519f7bab7",
+  "id": "P04",
+  "persona": {
+   "name": "Hakan",
+   "alter": 45,
+   "rolle": "Busfahrer",
+   "technik": "mittel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G1",
+   "wer_spielt": "allein"
+  },
+  "wunsch": "rennspiel mit rotem sportwagen, auf der autobahn andere autos ueberholen",
+  "erwartung": [
+   "Ich erwarte, dass ich ein rotes Auto fahre",
+   "Ich erwarte, dass andere Autos auf der Strasse sind, die ich ueberholen muss",
+   "Ich erwarte, dass ich nach links und rechts lenken kann",
+   "Ich erwarte, dass ein Zusammenstoss das Spiel beendet",
+   "Ich erwarte, dass ich sehe, wie weit ich gekommen bin"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Überhol-Rennen auf der Autobahn",
+   "das_kann_dein_spiel": [
+    "Du steuerst einen roten Sportwagen auf einer geraden Autobahn mit zwei Fahrspuren.",
+    "Andere Autos fahren langsamer vor dir her und kommen von vorne auf deiner Spur.",
+    "Jedes Auto, das du überholst, bringt dir einen Punkt und zählt im Punktestand oben links."
+   ],
+   "fehlt": [
+    "Berührst du ein anderes Auto, wird dein Wagen kurz bunt blinkend zurückgesetzt und das Tempo sinkt. – Das macht das Spiel noch nicht so, wie es hier steht.",
+    "Das Spiel wird mit der Zeit schneller, und nach jedem Durchgang steht dein bester Punktestand auf dem Bildschirm. – Das Tempo steigt mit der Zeit, aber der beste Punktestand kann nach einem Neustart nicht stehen bleiben, weil jede neue Runde von vorne beginnt. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/2519f7bab7-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/2519f7bab7-1.png"
+  ],
+  "spielcode": "// Ueberhol-Rennen: Spielauto wechselt zwischen zwei Spuren, andere Autos kommen von vorne.\n// Start auf der rechten Spur, damit Links-Wechsel von Anfang an moeglich ist.\nconst LANES = [110, 250];\nconst PY = 520;\n\nexport default {\n  title: \"Überhol-Rennen auf der Autobahn\",\n  controls: [\"left\", \"right\", \"up\", \"down\"],\n  lives: 5,\n\n  init(g) {\n    return { lane: 1, v: 4, sw: 12, cars: [], tick: 0, next: 90, safe: 0, off: 0 };\n  },\n\n  update(s, input, g) {\n    s.sw += 1;\n    if ((input.left || input.right) && s.sw >= 12) {\n      const want = input.left ? 0 : 1;\n      if (want !== s.lane) { s.lane = want; s.sw = 0; }\n    }\n    if (input.up) s.v = Math.min(8, s.v + 0.1);\n    if (input.down) s.v = Math.max(2, s.v - 0.1);\n    s.off += s.v;\n\n    s.tick += 1;\n    if (s.tick >= s.next) {\n      s.tick = 0;\n      s.next = 90 + g.randInt(0, 30);\n      // Zufaellige Spur; meist die Spur neben dem Spielauto, damit Ueberholen moeglich ist\n      let li = g.randInt(0, 1);\n      if (li === s.lane && g.random() < 0.7) li = 1 - li;\n      s.cars.push({ li, x: LANES[li], y: g.TOP - 40, passed: false, gone: false });\n    }\n\n    if (s.safe > 0) s.safe -= 1;\n    const pl = { x: LANES[s.lane] - 20, y: PY - 30, w: 40, h: 60 };\n    for (const c of s.cars) {\n      if (c.gone) continue;\n      c.y += 0.5 * s.v + 0.1 * g.level;\n      if (!c.passed && c.y > PY + 60) {\n        c.passed = true;\n        if (c.li !== s.lane) { g.addScore(1); g.sound(\"pop\"); }\n        continue;\n      }\n      if (!c.passed && s.safe === 0 && g.hit(pl, { x: c.x - 18, y: c.y - 28, w: 36, h: 56 })) {\n        c.gone = true;\n        s.v = 2;\n        s.safe = 60;\n        g.sound(\"hurt\");\n        g.loseLife();\n      }\n    }\n    s.cars = s.cars.filter((c) => !c.gone && c.y < g.H + 40);\n\n    if (g.frame > 0 && g.frame % 600 === 0) { g.nextLevel(); g.sound(\"level\"); }\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    d.rect(40, g.TOP, 280, g.H - g.TOP, \"ink\");\n    d.rect(40, g.TOP, 4, g.H - g.TOP, \"yellow\");\n    d.rect(316, g.TOP, 4, g.H - g.TOP, \"yellow\");\n    for (let y = g.TOP - 60 + (s.off % 60); y < g.H; y += 60) d.rect(178, y, 4, 36, \"yellow\");\n    for (const c of s.cars) d.emoji(\"🚙\", c.x, c.y, 36);\n    const px = LANES[s.lane];\n    if (s.safe > 0) {\n      const col = (s.safe >> 2) % 2 === 0 ? \"red\" : \"cream\";\n      d.rect(px - 24, PY - 34, 48, 68, col, { round: 12 });\n    }\n    d.emoji(\"🏎️\", px, PY, 40);\n  }\n};\n"
+ },
+ {
+  "fall": "0229d85c82",
+  "id": "P09",
+  "persona": {
+   "name": "Paul",
+   "alter": 17,
+   "rolle": "Schueler, Berufsschule",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G2",
+   "wer_spielt": "allein"
+  },
+  "wunsch": "flappy bird aber mit nem huhn",
+  "erwartung": [
+   "Ich erwarte, dass ein Huhn die Spielfigur ist",
+   "Ich erwarte, dass ich durch Antippen das Huhn flattern lasse",
+   "Ich erwarte, dass Hindernisse mit Luecken von rechts kommen",
+   "Ich erwarte, dass der Punktestand pro Hindernis hochzaehlt"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Das bauen wir nicht. Marken und bekannte Spiele, Filme oder Figuren kommen nicht vor. Beschreib es mit eigenen Worten."
+   ]
+  },
+  "bildschirmfotos": []
+ },
+ {
+  "fall": "e18c5d79d3",
+  "id": "P15",
+  "persona": {
+   "name": "Kevin",
+   "alter": 24,
+   "rolle": "Azubi, Mechatroniker",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "schaetzspiel wie viele gummibaerchen sind im glas, wer am naechsten dran ist gewinnt",
+  "erwartung": [
+   "Ich erwarte, dass ein Glas mit Gummibaerchen zu sehen ist",
+   "Ich erwarte, dass jeder eine Zahl tippen kann",
+   "Ich erwarte, dass der Gewinner der ist, der am naechsten dran liegt",
+   "Ich erwarte, dass die richtige Zahl am Ende gezeigt wird"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Gummibärchen-Schätzspiel",
+   "das_kann_dein_spiel": [
+    "Nach jeder Schätzung zeigt das Spiel, wie weit du danebenlagst, und wer am nächsten dran ist, gewinnt die Runde.",
+    "Die Anzahl der Gummibärchen ist bei jeder Runde neu und liegt in einem sinnvollen Bereich, den das Spiel selbst wählt. (nicht automatisch prüfbar)",
+    "Ein Knopf startet ein neues Spiel mit einem frischen Glas. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Auf dem Bildschirm steht ein Glas mit Gummibärchen, und darunter ist ein Feld für deine Schätzzahl. – Du tippst deine Zahl nicht ein, sondern stellst sie mit den Pfeiltasten hoch und runter.",
+    "Das Spiel hat eine feste Anzahl Runden, die das Spiel selbst wählt, und zeigt am Ende den Gesamtsieger. – Am Ende steht nicht zuverlaessig ein klarer Gesamtsieger auf dem Bildschirm, und bei einem Gleichstand gewinnt der Computer."
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord.",
+    "Echte Fotos von Gummibärchen oder Gläsern aus dem Internet sind nicht dabei; das Glas wird gezeichnet."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/e18c5d79d3-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/e18c5d79d3-1.png"
+  ],
+  "spielcode": "// Gummibaerchen-Schaetzspiel: 3 Runden, Tipp per Pfeiltasten, Computer schaetzt mit. Naehere Schaetzung gewinnt die Runde.\nexport default {\n  title: \"Gummibärchen-Schätzspiel\",\n  controls: [\"up\", \"down\", \"fire\"],\n  lives: 1,\n\n  init(g) {\n    const glas = g.randInt(20, 80);\n    return {\n      runde: 1, glas, tipp: 50,\n      komp: g.clamp(glas + g.randInt(-12, 12), 0, 200),\n      siegSp: 0, siegKomp: 0, phase: \"tipp\", zaehler: 0, halten: 0,\n      msg: \"Schätze die Anzahl!\"\n    };\n  },\n\n  update(s, input, g) {\n    if (s.phase === \"zeigen\") {\n      s.zaehler -= 1;\n      if (s.zaehler > 0) return;\n      if (s.runde < 3) {\n        s.runde += 1;\n        s.glas = g.randInt(20, 80);\n        s.komp = g.clamp(s.glas + g.randInt(-12, 12), 0, 200);\n        s.tipp = 50;\n        s.phase = \"tipp\";\n        s.msg = \"Neue Runde: Schätze!\";\n        return;\n      }\n      if (s.siegSp >= 2) { s.msg = \"Gesamtsieger: du!\"; g.win(); }\n      else { s.msg = \"Gesamtsieger: Computer\"; g.gameOver(); }\n      return;\n    }\n\n    const dir = (input.up ? 1 : 0) - (input.down ? 1 : 0);\n    if (dir !== 0) {\n      if (s.halten % 10 === 0) s.tipp = g.clamp(s.tipp + dir, 0, 200);\n      s.halten += 1;\n    } else s.halten = 0;\n\n    if (!input.firePressed) return;\n\n    g.addScore(1);\n    const p = Math.abs(s.tipp - s.glas);\n    const k = Math.abs(s.komp - s.glas);\n    if (p < k) { s.siegSp += 1; g.addScore(10); s.msg = \"Runde an dich\"; g.sound(\"coin\"); }\n    else if (k < p) { s.siegKomp += 1; s.msg = \"Runde an den Computer\"; g.sound(\"pop\"); }\n    else s.msg = \"Gleichstand, keiner gewinnt\";\n    s.phase = \"zeigen\";\n    s.zaehler = 120;\n  },\n\n  draw(s, d) {\n    d.clear(\"cream\");\n    d.text(\"Runde \" + s.runde + \" von 3\", 180, 80, { size: 20, align: \"center\" });\n    d.rect(110, 120, 140, 200, \"cream\", { round: 12, line: true });\n    for (let i = 0; i < s.glas; i++) {\n      const col = i % 8, row = Math.floor(i / 8);\n      d.circle(120 + col * 16, 130 + row * 16, 6, \"red\");\n    }\n    if (s.phase === \"tipp\") {\n      d.text(\"Dein Tipp: \" + s.tipp, 180, 380, { size: 24, align: \"center\" });\n    } else {\n      d.text(\"Dein Tipp: \" + s.tipp + \"  Computer: \" + s.komp + \"  Glas: \" + s.glas, 180, 400, { size: 16, align: \"center\" });\n      d.text(s.msg, 180, 430, { size: 20, align: \"center\" });\n      if (s.runde === 3) d.text(\"Gesamt: \" + s.siegSp + \" : \" + s.siegKomp, 180, 470, { size: 20, align: \"center\" });\n    }\n    d.emoji(\"🍬\", 180, 440, 48);\n  }\n};\n"
+ }
+]

@@ -1,0 +1,5 @@
+{"t":"2026-11-17T23:18:16.719Z","event":"egress-start","port":3128,"allow":["api.anthropic.com:443"]}
+{"t":"2026-11-17T23:18:23.090Z","event":"egress","ok":false,"why":"ziel","ziel":"example.org:443"}
+{"t":"2026-11-17T23:18:32.353Z","event":"egress","ok":true,"ziel":"api.anthropic.com:443"}
+{"t":"2026-11-17T23:18:35.217Z","event":"egress","ok":true,"ziel":"api.anthropic.com:443"}
+{"t":"2026-11-17T23:18:56.834Z","event":"egress","ok":true,"ziel":"api.anthropic.com:443"}

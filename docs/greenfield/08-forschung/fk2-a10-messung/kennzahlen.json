@@ -1,0 +1,173 @@
+{
+ "n_karten": 45,
+ "n_geurteilt": 45,
+ "ende": {
+  "p1-fragen-422": 13,
+  "p1-liste-422": 2,
+  "geliefert": 28,
+  "gescheitert": 2
+ },
+ "quote_p3_spiele": 0.51,
+ "quote_arcade": 0.453,
+ "quote_andere_spiele": 0.667,
+ "vergleich": {
+  "null_auf_denselben_15": 0.2,
+  "prototyp_A": 0.852
+ },
+ "quote_nur_bau": 0.767,
+ "quote_nur_gelieferte_karten": 0.82,
+ "p1_abgelehnt": {
+  "karten": 15,
+  "wuensche": [
+   "P01",
+   "P02",
+   "P08",
+   "P09",
+   "P11",
+   "P12"
+  ],
+  "ueberblockt": 5,
+  "urteile": {
+   "ehrlich_abgesagt": 40,
+   "nicht": 20
+  }
+ },
+ "quote_je_wunsch": {
+  "P01": [
+   0,
+   0,
+   0.875
+  ],
+  "P02": [
+   0,
+   0,
+   0
+  ],
+  "P03": [
+   1,
+   1,
+   1
+  ],
+  "P04": [
+   0.9,
+   0.9,
+   0.9
+  ],
+  "P05": [
+   0.875,
+   0.625,
+   0.625
+  ],
+  "P06": [
+   0.75,
+   0.875,
+   0.625
+  ],
+  "P07": [
+   0.5,
+   0,
+   0.75
+  ],
+  "P08": [
+   0,
+   0,
+   0
+  ],
+  "P09": [
+   0,
+   0,
+   0
+  ],
+  "P10": [
+   1,
+   0.75,
+   1
+  ],
+  "P11": [
+   0,
+   0,
+   0
+  ],
+  "P12": [
+   0.75,
+   0.5,
+   0
+  ],
+  "P13": [
+   1,
+   0.625,
+   1
+  ],
+  "P15": [
+   0,
+   0.625,
+   0.5
+  ],
+  "P16": [
+   1,
+   1,
+   1
+  ]
+ },
+ "punkte_anteil": {
+  "ehrlich_abgesagt": 25.1,
+  "nicht": 17.5,
+  "teilweise": 10.4,
+  "erfuellt": 46.4,
+  "scheinangebot": 0.5
+ },
+ "punkte_n": 183,
+ "ehrlich_an_nicht_vollen": 46.9,
+ "scheinangebot_punkte": 0.5,
+ "scheinangebot_karten": 2.2,
+ "gesamt_anteil": {
+  "ehrlich_abgesagt": 22.2,
+  "nicht": 15.6,
+  "teilweise": 33.3,
+  "erfuellt": 28.9
+ },
+ "ueberblockt": 5,
+ "mit_inhaltsfehler": 20,
+ "abnahme_vs_urteil": {
+  "abnahme_erfuellt_anteil": 67.5,
+  "urteil_erfuellt_anteil_geliefert": 73.9,
+  "gespielt_anteil": 45.6
+ },
+ "kosten": {
+  "gesamt_usd": 0.38181,
+  "p1_usd": 0.04085,
+  "worker_usd": 0.34095,
+  "je_karte_worker_mittel": 0.01137,
+  "je_karte_worker_max": 0.02088,
+  "je_karte_p1_mittel": 0.00091,
+  "je_rolle": {
+   "planer": 0.10383,
+   "bauer": 0.18475,
+   "abnahme": 0.05237
+  }
+ },
+ "latenz_s": {
+  "gesamt": {
+   "median": 89,
+   "p90": 146,
+   "max": 201
+  },
+  "bau": {
+   "median": 96,
+   "p90": 138,
+   "max": 192
+  }
+ },
+ "abgeschnitten": {
+  "bauer_aufrufe": 50,
+  "max_tokens": 0,
+  "alle_max_tokens": 6,
+  "bauer_out_max": 21248,
+  "bauer_out_median": 5015
+ },
+ "aufrufe": {
+  "worker": 112,
+  "p1": 129,
+  "fehler": 0
+ }
+}

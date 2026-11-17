@@ -1,0 +1,5 @@
+{"t":"2026-11-17T23:06:26.358Z","event":"fk2-bau-start","rollen":{"planer":"claude-haiku-5-5","bauer":"claude-haiku-5-5","abnahme":"claude-haiku-5-5"},"effort":{"planer":"medium","bauer":"medium","abnahme":"medium"},"double":false,"kosten":{"jeAuftragUsd":0.25,"jeTagUsd":1.15}}
+{"t":"2026-11-17T23:08:32.996Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:08:35.998Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:08:39.001Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}
+{"t":"2026-11-17T23:08:42.003Z","event":"fk2-bau-queue","ok":false,"msg":"fetch failed"}

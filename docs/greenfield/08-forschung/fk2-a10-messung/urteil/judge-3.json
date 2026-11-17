@@ -1,0 +1,352 @@
+[
+ {
+  "fall": "b74bae6a89",
+  "id": "P03",
+  "persona": {
+   "name": "Gertrud",
+   "alter": 72,
+   "rolle": "Rentnerin, ehemalige Buchhalterin",
+   "technik": "wenig"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "Das Schlangenspiel wie frueher auf dem Nokia Handy. Die Schlange soll Aepfel fressen.",
+  "erwartung": [
+   "Ich erwarte, dass eine Schlange ueber den Bildschirm kriecht",
+   "Ich erwarte, dass die Schlange laenger wird, wenn sie einen Apfel frisst",
+   "Ich erwarte, dass ich die Schlange mit dem Finger lenken kann",
+   "Ich erwarte, dass das Spiel zu Ende ist, wenn sie sich selbst beisst"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Die Apfel-Schlange",
+   "das_kann_dein_spiel": [
+    "Eine Schlange bewegt sich über ein Spielfeld. Sie soll Äpfel fressen – „Die Schlange soll Aepfel fressen.“ – so wie du es gesagt hast.",
+    "Du steuerst die Schlange mit den Pfeiltasten oder mit Wischen auf dem Bildschirm.",
+    "Mit jedem gefressenen Apfel wird die Schlange um ein kleines Stück länger.",
+    "Die Schlange wird mit jedem Apfel ein wenig schneller.",
+    "Verlässt die Schlange das Spielfeld am Rand, kommt sie auf der gegenüberliegenden Seite wieder herein.",
+    "Beißt die Schlange in ihren eigenen Körper, endet das Spiel. Der Punktestand wird gezeigt und ein Knopf startet neu. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/b74bae6a89-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/b74bae6a89-1.png"
+  ],
+  "spielcode": "// Die Apfel-Schlange: Schlange auf einem Raster, jeder Apfel macht sie laenger und schneller.\n// Raender sind verbunden. Beisst der Kopf in den eigenen Koerper, endet das Spiel.\n// Zeitlimit: nach 2400 Frames (40 s) endet die Runde mit dem Punktestand.\nconst CELL = 20, COLS = 18, ROWS = 29, Y0 = 56, LIMIT = 2400;\nconst START_APPLE = { x: 9, y: 14 };\n\nexport default {\n  title: \"Die Apfel-Schlange\",\n  controls: [\"up\", \"down\", \"left\", \"right\"],\n  lives: 1,\n\n  init(g) {\n    const s = { body: [], dir: { x: 1, y: 0 }, next: { x: 1, y: 0 }, apple: { x: 0, y: 0 }, wait: 0, eaten: 0, alter: 0 };\n    reset(s, g);\n    return s;\n  },\n\n  update(s, input, g) {\n    s.alter += 1;\n    if (s.alter >= LIMIT) { g.gameOver(); return; }\n\n    const want = input.up ? { x: 0, y: -1 } : input.down ? { x: 0, y: 1 } : input.left ? { x: -1, y: 0 } : input.right ? { x: 1, y: 0 } : null;\n    if (want && !(want.x === -s.dir.x && want.y === -s.dir.y)) s.next = { x: want.x, y: want.y };\n\n    s.wait += 1;\n    if (s.wait < Math.max(4, 9 - g.level)) return;\n    s.wait = 0;\n\n    s.dir = { x: s.next.x, y: s.next.y };\n    const hx = (s.body[0].x + s.dir.x + COLS) % COLS;\n    const hy = (s.body[0].y + s.dir.y + ROWS) % ROWS;\n    const eat = hx === s.apple.x && hy === s.apple.y;\n    const teil = eat ? s.body : s.body.slice(0, -1);\n    if (teil.some((p) => p.x === hx && p.y === hy)) {\n      g.sound(\"hurt\");\n      g.loseLife();\n      reset(s, g);\n      return;\n    }\n    s.body.unshift({ x: hx, y: hy });\n    if (eat) {\n      g.addScore(10);\n      g.sound(\"coin\");\n      s.eaten += 1;\n      g.nextLevel();\n      placeApple(s, g);\n    } else {\n      s.body.pop();\n    }\n  },\n\n  draw(s, d) {\n    d.clear(\"cream\");\n    d.rect(0, Y0, COLS * CELL, ROWS * CELL, \"yellow\", { round: 16, line: true });\n    d.emoji(\"🍎\", s.apple.x * CELL + CELL / 2, Y0 + s.apple.y * CELL + CELL / 2, 18);\n    s.body.forEach((p, i) => {\n      d.emoji(i === 0 ? \"🐍\" : \"🟢\", p.x * CELL + CELL / 2, Y0 + p.y * CELL + CELL / 2, 18);\n    });\n  }\n};\n\nfunction reset(s, g) {\n  s.body = [{ x: 6, y: 14 }, { x: 5, y: 14 }, { x: 4, y: 14 }];\n  s.dir = { x: 1, y: 0 };\n  s.next = { x: 1, y: 0 };\n  s.wait = 0;\n  s.eaten = 0;\n  s.alter = 0;\n  s.apple = { x: START_APPLE.x, y: START_APPLE.y };\n}\n\nfunction placeApple(s, g) {\n  for (let tries = 0; tries < 200; tries++) {\n    const a = { x: g.randInt(0, COLS - 1), y: g.randInt(0, ROWS - 1) };\n    if (!s.body.some((p) => p.x === a.x && p.y === a.y)) { s.apple = a; return; }\n  }\n  for (let y = 0; y < ROWS; y++) {\n    for (let x = 0; x < COLS; x++) {\n      if (!s.body.some((p) => p.x === x && p.y === y)) { s.apple = { x, y }; return; }\n    }\n  }\n}\n"
+ },
+ {
+  "fall": "98b171f322",
+  "id": "P13",
+  "persona": {
+   "name": "Bernd",
+   "alter": 52,
+   "rolle": "Elektriker",
+   "technik": "mittel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "wuerfelspiel fuer 4 leute am tisch, wer zuerst 100 punkte hat gewinnt",
+  "erwartung": [
+   "Ich erwarte, dass vier Leute nacheinander wuerfeln koennen",
+   "Ich erwarte, dass Punkte pro Spieler gezaehlt werden",
+   "Ich erwarte, dass bei 100 Punkten das Spiel endet",
+   "Ich erwarte, dass angezeigt wird, wer gewonnen hat"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Würfelrunde für vier am Tisch",
+   "das_kann_dein_spiel": [
+    "Jeder Wurf bringt Punkte: Eine 6 gibt einen Bonuswurf, und eine 1 setzt die Punkte dieser Runde auf null. (nicht automatisch prüfbar)",
+    "Die Punktestände aller vier stehen gut lesbar oben auf dem Bildschirm. (nicht automatisch prüfbar)",
+    "Sobald eine Person 100 Punkte erreicht, erscheint eine fröhliche Gewinnanzeige mit ihrem Namen. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Das Spiel ist für vier Spielerinnen und Spieler am Tisch, sie wechseln sich ab und jeder hat seine eigene Farbe. – Das macht das Spiel noch nicht so, wie es hier steht.",
+    "Auf dem Bildschirm werden Würfel gezeigt; wer dran ist, drückt einen großen Knopf zum Würfeln. – Statt eines Würfelbildes erscheint nur die gewürfelte Zahl in großer Schrift, und der Knopf zum Würfeln ist ein roter Kasten mit dem Wort Würfeln.",
+    "Ein Knopf startet ein neues Spiel mit null Punkten für alle. – Das macht das Spiel noch nicht so, wie es hier steht. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/98b171f322-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/98b171f322-1.png"
+  ],
+  "spielcode": "// Wuerfelrunde fuer vier am Tisch: Reihum wuerfeln, 1 setzt die Rundenpunkte auf 0, 6 gibt einen Bonuswurf.\nconst FIG = [\"🐸\", \"🐢\", \"🍓\", \"🎈\"];\nconst NAMEN = [\"Person 1\", \"Person 2\", \"Person 3\", \"Person 4\"];\nconst ZIEL = 100, ZUGLIMIT = 200;\n\nexport default {\n  title: \"Würfelrunde für vier am Tisch\",\n  controls: [\"fire\"],\n  lives: 1,\n\n  init(g) {\n    return {\n      spieler: [0, 1, 2, 3].map(() => ({ total: 0, turn: 0 })),\n      aktuell: 0, sieger: -1, bonus: false, zuege: 0, wurf: 0\n    };\n  },\n\n  update(s, input, g) {\n    if (s.sieger !== -1 || !input.firePressed) return;\n    const v = g.randInt(1, 6);\n    const p = s.spieler[s.aktuell];\n    s.zuege += 1;\n    s.wurf = v;\n    if (v === 1) {\n      p.total -= p.turn; p.turn = 0; s.bonus = false;\n      g.sound(\"pop\");\n      s.aktuell = (s.aktuell + 1) % 4;\n    } else if (v === 6) {\n      p.total += 6; p.turn += 6; s.bonus = true;\n      g.addScore(6); g.sound(\"coin\");\n    } else {\n      p.total += v; p.turn = 0; s.bonus = false;\n      g.addScore(v); g.sound(\"coin\");\n      s.aktuell = (s.aktuell + 1) % 4;\n    }\n    if (p.total >= ZIEL) { s.sieger = s.spieler.indexOf(p); g.win(); return; }\n    if (s.zuege >= ZUGLIMIT) g.gameOver();\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    for (let i = 0; i < 4; i++) {\n      const y = 60 + i * 62, p = s.spieler[i];\n      if (i === s.aktuell && s.sieger === -1) d.rect(16, y - 4, 328, 62, \"red\", { round: 14 });\n      d.rect(20, y, 320, 54, \"yellow\", { round: 12, line: true });\n      d.emoji(FIG[i], 52, y + 27, 36);\n      d.text(NAMEN[i], 84, y + 20, { size: 20, color: \"ink\", align: \"left\" });\n      d.text(String(p.total), 332, y + 20, { size: 20, color: \"ink\", align: \"right\" });\n    }\n    d.text(s.wurf > 0 ? String(s.wurf) : \"-\", 180, 390, { size: 64, color: \"ink\", align: \"center\" });\n    d.rect(60, 470, 240, 80, \"red\", { round: 20, shadow: true });\n    d.text(\"Würfeln\", 180, 500, { size: 28, color: \"cream\", align: \"center\" });\n    if (s.sieger >= 0) d.text(\"Person \" + (s.sieger + 1) + \" gewinnt\", 180, 590, { size: 24, color: \"red\", align: \"center\" });\n    else d.text(\"Dran: \" + NAMEN[s.aktuell], 180, 590, { size: 20, color: \"ink\", align: \"center\" });\n  }\n};\n"
+ },
+ {
+  "fall": "f406007912",
+  "id": "P03",
+  "persona": {
+   "name": "Gertrud",
+   "alter": 72,
+   "rolle": "Rentnerin, ehemalige Buchhalterin",
+   "technik": "wenig"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "Das Schlangenspiel wie frueher auf dem Nokia Handy. Die Schlange soll Aepfel fressen.",
+  "erwartung": [
+   "Ich erwarte, dass eine Schlange ueber den Bildschirm kriecht",
+   "Ich erwarte, dass die Schlange laenger wird, wenn sie einen Apfel frisst",
+   "Ich erwarte, dass ich die Schlange mit dem Finger lenken kann",
+   "Ich erwarte, dass das Spiel zu Ende ist, wenn sie sich selbst beisst"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Die Schlange sucht Aepfel",
+   "das_kann_dein_spiel": [
+    "Die Schlange soll Aepfel fressen. Du lenkst sie mit Pfeiltasten oder Wischen über den Bildschirm.",
+    "Fährt die Schlange über einen Apfel, verschwindet der Apfel und die Schlange wird ein Stück länger. (nicht automatisch prüfbar)",
+    "Die Schlange startet langsam und wird Schritt für Schritt schneller. (nicht automatisch prüfbar)",
+    "Oben steht deine Punktzahl, jeder gegessene Apfel bringt einen Punkt. (nicht automatisch prüfbar)",
+    "Stößt die Schlange gegen die Wand oder gegen sich selbst, ist das Spiel vorbei und der Endstand erscheint.",
+    "Nach dem Spielende startet ein Knopf eine neue Runde. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/f406007912-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/f406007912-1.png"
+  ],
+  "spielcode": "// Schlange: Aepfel fressen, Wand oder eigener Koerper beendet das Spiel. Steuerung: Pfeile oder Wischen.\nconst CELL = 20, COLS = 18, ROWS = 29, Y0 = 56;\n\nexport default {\n  title: \"Die Schlange sucht Aepfel\",\n  controls: [\"up\", \"down\", \"left\", \"right\"],\n  lives: 1,\n\n  init(g) {\n    const s = { body: [], dir: { x: 1, y: 0 }, next: { x: 1, y: 0 }, apple: { x: 0, y: 0 }, wait: 0 };\n    reset(s, g);\n    return s;\n  },\n\n  update(s, input, g) {\n    const want = input.up ? { x: 0, y: -1 } : input.down ? { x: 0, y: 1 } : input.left ? { x: -1, y: 0 } : input.right ? { x: 1, y: 0 } : null;\n    if (want && !(want.x === -s.dir.x && want.y === -s.dir.y)) s.next = want;\n    s.wait += 1;\n    if (s.wait < Math.max(4, 9 - Math.floor(g.frame / 600))) return;\n    s.wait = 0;\n    s.dir = { x: s.next.x, y: s.next.y };\n    const head = { x: s.body[0].x + s.dir.x, y: s.body[0].y + s.dir.y };\n    const crash = head.x < 0 || head.y < 0 || head.x >= COLS || head.y >= ROWS || s.body.some((p) => p.x === head.x && p.y === head.y);\n    if (crash) { g.sound(\"hurt\"); g.gameOver(); return; }\n    s.body.unshift(head);\n    if (head.x === s.apple.x && head.y === s.apple.y) {\n      g.addScore(1); g.sound(\"coin\");\n      placeApple(s, g);\n    } else {\n      s.body.pop();\n    }\n  },\n\n  draw(s, d) {\n    d.clear(\"cream\");\n    d.rect(0, Y0, COLS * CELL, ROWS * CELL, \"yellow\", { round: 16, line: true });\n    d.emoji(\"🍎\", s.apple.x * CELL + CELL / 2, Y0 + s.apple.y * CELL + CELL / 2, 18);\n    for (let i = 1; i < s.body.length; i++) {\n      const p = s.body[i];\n      d.rect(p.x * CELL + 1, Y0 + p.y * CELL + 1, CELL - 2, CELL - 2, \"ink\", { round: 6 });\n    }\n    const h = s.body[0];\n    d.emoji(\"🐍\", h.x * CELL + CELL / 2, Y0 + h.y * CELL + CELL / 2, 22);\n  }\n};\n\nfunction reset(s, g) {\n  s.body = [{ x: 6, y: 14 }, { x: 5, y: 14 }, { x: 4, y: 14 }];\n  s.dir = { x: 1, y: 0 };\n  s.next = { x: 1, y: 0 };\n  s.wait = 0;\n  placeApple(s, g);\n}\n\nfunction placeApple(s, g) {\n  for (let tries = 0; tries < 200; tries++) {\n    const a = { x: g.randInt(0, COLS - 1), y: g.randInt(0, ROWS - 1) };\n    if (!s.body.some((p) => p.x === a.x && p.y === a.y)) { s.apple = a; return; }\n  }\n}\n"
+ },
+ {
+  "fall": "8caf2056b8",
+  "id": "P13",
+  "persona": {
+   "name": "Bernd",
+   "alter": 52,
+   "rolle": "Elektriker",
+   "technik": "mittel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "wuerfelspiel fuer 4 leute am tisch, wer zuerst 100 punkte hat gewinnt",
+  "erwartung": [
+   "Ich erwarte, dass vier Leute nacheinander wuerfeln koennen",
+   "Ich erwarte, dass Punkte pro Spieler gezaehlt werden",
+   "Ich erwarte, dass bei 100 Punkten das Spiel endet",
+   "Ich erwarte, dass angezeigt wird, wer gewonnen hat"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Würfeln bis 100 am Tisch",
+   "das_kann_dein_spiel": [
+    "Es gibt vier Spielerplätze, und die Spieler sind nacheinander am Zug. Der aktuelle Spieler ist deutlich markiert.",
+    "Der Spieler am Zug tippt auf einen großen Knopf und es werden zwei Würfel geworfen, die ihre Augen zeigen.",
+    "Die Augenzahlen beider Würfel werden zusammengezählt und dem Spieler am Zug gutgeschrieben. Die Punktestände stehen für alle sichtbar oben.",
+    "Eine gewürfelte 1 mit einer anderen Zahl ergibt nur dann Punkte, wenn beide Würfel gleich sind; sonst bleibt der Stand unverändert und der Zug endet. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Sobald ein Spieler 100 Punkte oder mehr hat, erscheint eine Siegesanzeige mit seinem Namen und das Würfeln ist beendet. – Die Siegesanzeige mit dem Namen ist im Spiel vorgesehen, aber nicht zuverlaessig zu sehen, weil das Spiel sofort endet. (nicht automatisch prüfbar)",
+    "Das Thema ist ein fröhliches Sommerfest im Garten mit bunten Lampions und Sonnenschirmen als Hintergrund. – Das macht das Spiel noch nicht so, wie es hier steht.",
+    "Ein Knopf startet eine neue Runde mit null Punkten für alle Spieler. – Das macht das Spiel noch nicht so, wie es hier steht. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Alle vier sitzen am selben Gerät und würfeln der Reihe nach."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/8caf2056b8-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/8caf2056b8-1.png"
+  ],
+  "spielcode": "// Wuerfelspiel fuer 4 Spieler am selben Geraet, Zug fuer Zug. Zwei Wuerfel, Summe als Punkte.\n// Eine 1 mit einer anderen Zahl zaehlt nicht. Wer zuerst 100 Punkte hat, gewinnt.\nconst DICE = [\"⚀\", \"⚁\", \"⚂\", \"⚃\", \"⚄\", \"⚅\"];\nconst LAMPS = [[30, 140], [80, 170], [130, 132], [180, 178], [230, 132], [280, 170], [330, 140], [55, 188]];\nconst SCHIRME = [60, 180, 300];\nconst ZIEL = 100, ZEIT = 60, ZUEGE_MAX = 40;\n\nexport default {\n  title: \"Würfeln bis 100 am Tisch\",\n  controls: [\"fire\"],\n  lives: 1,\n\n  init(g) {\n    return { namen: [\"Spieler 1\", \"Spieler 2\", \"Spieler 3\", \"Spieler 4\"], scores: [0, 0, 0, 0], cur: 0, phase: \"wurf\", timer: 0, w1: 0, w2: 0, zuege: 0, sieger: -1 };\n  },\n\n  update(s, input, g) {\n    if (s.phase === \"ende\") return;\n    if (s.phase === \"zeige\") {\n      s.timer -= 1;\n      if (s.timer > 0) return;\n      if (s.zuege >= ZUEGE_MAX) { g.gameOver(); return; }\n      s.cur = (s.cur + 1) % 4;\n      s.phase = \"wurf\";\n      return;\n    }\n    if (!input.firePressed) return;\n    s.w1 = g.randInt(1, 6);\n    s.w2 = g.randInt(1, 6);\n    s.zuege += 1;\n    s.phase = \"zeige\";\n    s.timer = ZEIT;\n    if ((s.w1 === 1 || s.w2 === 1) && s.w1 !== s.w2) return;\n    const summe = s.w1 + s.w2;\n    s.scores[s.cur] += summe;\n    g.addScore(summe);\n    g.sound(\"coin\");\n    if (s.scores[s.cur] >= ZIEL) {\n      s.sieger = s.cur;\n      s.phase = \"ende\";\n      g.sound(\"win\");\n      g.win();\n    }\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    d.rect(0, 580, g.W, 60, \"yellow\");\n    for (const [x, y] of LAMPS) d.emoji(\"🏮\", x, y, 30);\n    for (const x of SCHIRME) d.emoji(\"⛱️\", x, 600, 40);\n    for (let i = 0; i < 4; i++) {\n      const x0 = 6 + i * 88, aktiv = i === s.cur && s.phase !== \"ende\";\n      d.rect(x0, 50, 84, 58, aktiv ? \"yellow\" : \"cream\", { round: 10, line: true });\n      d.text(s.namen[i], x0 + 42, 64, { size: 13, color: \"ink\", align: \"center\" });\n      d.text(String(s.scores[i]), x0 + 42, 84, { size: 20, color: \"red\", align: \"center\" });\n      if (aktiv) d.text(\"am Zug\", x0 + 42, 100, { size: 11, color: \"ink\", align: \"center\" });\n    }\n    if (s.zuege > 0) {\n      d.emoji(DICE[s.w1 - 1], 130, 390, 80);\n      d.emoji(DICE[s.w2 - 1], 230, 390, 80);\n      d.text(\"Augen\", 180, 325, { size: 20, color: \"ink\", align: \"center\" });\n    }\n    d.text(\"Am Zug: \" + s.namen[s.cur], 180, 445, { size: 14, color: \"ink\", align: \"center\" });\n    d.rect(30, 470, 300, 120, \"red\", { round: 20, shadow: true });\n    d.text(\"Würfeln\", 180, 520, { size: 32, color: \"cream\", align: \"center\" });\n    if (s.phase === \"ende\") {\n      d.rect(40, 250, 280, 100, \"yellow\", { round: 16, shadow: true, line: true });\n      d.text(\"Sieg: \" + s.namen[s.sieger], 180, 290, { size: 26, color: \"ink\", align: \"center\" });\n    }\n  }\n};\n"
+ },
+ {
+  "fall": "e1596b8127",
+  "id": "P08",
+  "persona": {
+   "name": "Ayse",
+   "alter": 23,
+   "rolle": "Studentin, BWL",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "sowas wie pacman aber ich bin ein donut im labyrinth und sammle streusel, die gegner sind hungrige moewen",
+  "erwartung": [
+   "Ich erwarte, dass ich einen Donut durch ein Labyrinth steuere",
+   "Ich erwarte, dass ich Streusel einsammle",
+   "Ich erwarte, dass Moewen mich verfolgen",
+   "Ich erwarte, dass ich gewonnen habe, wenn alle Streusel weg sind"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Das bauen wir nicht. Marken und bekannte Spiele, Filme oder Figuren kommen nicht vor. Beschreib es mit eigenen Worten."
+   ]
+  },
+  "bildschirmfotos": []
+ },
+ {
+  "fall": "28a7fa95eb",
+  "id": "P13",
+  "persona": {
+   "name": "Bernd",
+   "alter": 52,
+   "rolle": "Elektriker",
+   "technik": "mittel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "wuerfelspiel fuer 4 leute am tisch, wer zuerst 100 punkte hat gewinnt",
+  "erwartung": [
+   "Ich erwarte, dass vier Leute nacheinander wuerfeln koennen",
+   "Ich erwarte, dass Punkte pro Spieler gezaehlt werden",
+   "Ich erwarte, dass bei 100 Punkten das Spiel endet",
+   "Ich erwarte, dass angezeigt wird, wer gewonnen hat"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Würfeln bis 100 Punkte",
+   "das_kann_dein_spiel": [
+    "Vier Spielerfelder liegen nebeneinander am Bildschirm, je eines pro Person, mit Namen Spieler 1 bis Spieler 4.",
+    "Wer am Zug ist, drückt einen großen Knopf zum Würfeln, und es erscheint eine Zahl von 1 bis 6.",
+    "Die gewürfelten Zahlen werden als Punkte gutgeschrieben, und der Punktestand jedes Spielers ist immer oben im Feld zu sehen.",
+    "Eine Würfelzahl von 1 bringt keinen Punkt, sondern setzt die Punkte dieser Runde auf null zurück, so wie du es gesagt hast. (nicht automatisch prüfbar)",
+    "Sobald eine Person 100 Punkte oder mehr hat, erscheint der Satz „Gewonnen!“ mit ihrem Namen und das Spiel stoppt. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Ein Neustart-Knopf setzt alle Punkte auf null und beginnt eine neue Runde. – Das macht das Spiel noch nicht so, wie es hier steht. (nicht automatisch prüfbar)"
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord.",
+    "Echte Würfel werden nicht erkannt; alles läuft auf dem Bildschirm."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/28a7fa95eb-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/28a7fa95eb-1.png"
+  ],
+  "spielcode": "// Wuerfelspiel fuer 4 Personen am Tisch: reihum wuerfeln, wer zuerst 100 Punkte hat, gewinnt. Eine 1 setzt die Rundenpunkte auf 0.\nconst X = 12, W = 336, H = 130, Y0 = 60, DY = 145, ZIEL = 100, ZUEGE_MAX = 120;\n\nexport default {\n  title: \"Würfeln bis 100 Punkte\",\n  controls: [\"fire\"],\n  lives: 1,\n\n  init(g) {\n    return { t: [0, 0, 0, 0], rund: [0, 0, 0, 0], letzt: [0, 0, 0, 0], zug: 0, zuege: 0, ende: false, sieger: -1 };\n  },\n\n  update(s, input, g) {\n    if (s.ende) return;\n    if (!input.firePressed) return;\n    const z = s.zug;\n    const r = g.randInt(1, 6);\n    s.zuege += 1;\n    s.letzt[z] = r;\n    if (r === 1) {\n      s.rund[z] = 0;\n    } else {\n      s.t[z] += r;\n      s.rund[z] += r;\n      g.addScore(r);\n      g.sound(\"coin\");\n    }\n    if (s.t[z] >= ZIEL) {\n      s.sieger = z;\n      s.ende = true;\n      g.sound(\"win\");\n      g.win();\n    } else if (s.zuege >= ZUEGE_MAX) {\n      s.ende = true;\n      g.sound(\"lose\");\n      g.gameOver();\n    } else {\n      s.zug = (z + 1) % 4;\n    }\n  },\n\n  draw(s, d, g) {\n    d.clear(\"cream\");\n    d.emoji(\"🎲\", g.W / 2, 26, 48);\n    for (let i = 0; i < 4; i++) {\n      const y = Y0 + i * DY;\n      const aktiv = !s.ende && s.zug === i;\n      d.rect(X, y, W, H, aktiv ? \"red\" : \"ink\", { round: 14, shadow: true });\n      d.rect(X + 4, y + 4, W - 8, H - 8, \"cream\", { round: 12 });\n      d.text(\"Spieler \" + (i + 1), X + 18, y + 26, { size: 22, color: \"ink\", align: \"left\" });\n      d.text(String(s.t[i]), X + W - 18, y + 26, { size: 28, color: \"ink\", align: \"right\" });\n      d.text(\"Runde: \" + s.rund[i], X + 18, y + 72, { size: 16, color: \"ink\", align: \"left\" });\n      const letzt = s.letzt[i] > 0 ? String(s.letzt[i]) : \"\";\n      d.text(\"Letzter Wurf: \" + letzt, X + 18, y + 102, { size: 16, color: \"ink\", align: \"left\" });\n    }\n    if (!s.ende) {\n      d.text(\"Dran: Spieler \" + (s.zug + 1) + \", Feuer zum Wuerfeln\", g.W / 2, 634, { size: 18, color: \"ink\", align: \"center\" });\n    }\n    if (s.ende && s.sieger >= 0) {\n      d.rect(20, 250, 320, 140, \"yellow\", { round: 20, shadow: true });\n      d.text(\"Gewonnen!\", g.W / 2, 300, { size: 40, color: \"ink\", align: \"center\" });\n      d.text(\"Spieler \" + (s.sieger + 1), g.W / 2, 350, { size: 40, color: \"ink\", align: \"center\" });\n    }\n  }\n};\n"
+ },
+ {
+  "fall": "27a02a2593",
+  "id": "P08",
+  "persona": {
+   "name": "Ayse",
+   "alter": 23,
+   "rolle": "Studentin, BWL",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "sowas wie pacman aber ich bin ein donut im labyrinth und sammle streusel, die gegner sind hungrige moewen",
+  "erwartung": [
+   "Ich erwarte, dass ich einen Donut durch ein Labyrinth steuere",
+   "Ich erwarte, dass ich Streusel einsammle",
+   "Ich erwarte, dass Moewen mich verfolgen",
+   "Ich erwarte, dass ich gewonnen habe, wenn alle Streusel weg sind"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Das bauen wir nicht. Marken und bekannte Spiele, Filme oder Figuren kommen nicht vor. Beschreib es mit eigenen Worten."
+   ]
+  },
+  "bildschirmfotos": []
+ },
+ {
+  "fall": "b44a16ab08",
+  "id": "P08",
+  "persona": {
+   "name": "Ayse",
+   "alter": 23,
+   "rolle": "Studentin, BWL",
+   "technik": "viel"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "sowas wie pacman aber ich bin ein donut im labyrinth und sammle streusel, die gegner sind hungrige moewen",
+  "erwartung": [
+   "Ich erwarte, dass ich einen Donut durch ein Labyrinth steuere",
+   "Ich erwarte, dass ich Streusel einsammle",
+   "Ich erwarte, dass Moewen mich verfolgen",
+   "Ich erwarte, dass ich gewonnen habe, wenn alle Streusel weg sind"
+  ],
+  "anzeige": {
+   "ergebnis": "Keine Karte",
+   "meldung": [
+    "Das bauen wir nicht. Marken und bekannte Spiele, Filme oder Figuren kommen nicht vor. Beschreib es mit eigenen Worten."
+   ]
+  },
+  "bildschirmfotos": []
+ },
+ {
+  "fall": "b4051708ea",
+  "id": "P03",
+  "persona": {
+   "name": "Gertrud",
+   "alter": 72,
+   "rolle": "Rentnerin, ehemalige Buchhalterin",
+   "technik": "wenig"
+  },
+  "gewaehlt": {
+   "art": "game",
+   "genre": "G3",
+   "wer_spielt": null
+  },
+  "wunsch": "Das Schlangenspiel wie frueher auf dem Nokia Handy. Die Schlange soll Aepfel fressen.",
+  "erwartung": [
+   "Ich erwarte, dass eine Schlange ueber den Bildschirm kriecht",
+   "Ich erwarte, dass die Schlange laenger wird, wenn sie einen Apfel frisst",
+   "Ich erwarte, dass ich die Schlange mit dem Finger lenken kann",
+   "Ich erwarte, dass das Spiel zu Ende ist, wenn sie sich selbst beisst"
+  ],
+  "anzeige": {
+   "ergebnis": "Karte erstellt",
+   "titel": "Die Schlange sammelt Äpfel",
+   "das_kann_dein_spiel": [
+    "Die Schlange bewegt sich von selbst über das Spielfeld; du lenkst sie mit den Pfeiltasten oder mit Wischen.",
+    "Ein roter Apfel erscheint an zufälliger Stelle; frisst die Schlange ihn, wird sie um ein Stück länger. (nicht automatisch prüfbar)",
+    "Die Schlange startet langsam und wird nach jedem Apfel etwas schneller, so wie du es dir überraschend ausgesucht hast. (nicht automatisch prüfbar)"
+   ],
+   "fehlt": [
+    "Oben auf dem Bildschirm steht die Anzahl der gefressenen Äpfel als Punktestand. – Oben steht nicht nur die Zahl der gefressenen Äpfel, sondern zusaetzlich Punkte fuers Ueberleben und fuer jede Stufe. (nicht automatisch prüfbar)",
+    "Berührt die Schlange die Wand oder sich selbst, ist das Spiel vorbei und der Punktestand wird angezeigt. – Das macht das Spiel noch nicht so, wie es hier steht."
+   ],
+   "hinweise": [
+    "Gleichzeitig online gegeneinander spielen ist nicht dabei. Wer deinen Link öffnet, spielt allein und versucht deinen Rekord."
+   ]
+  },
+  "bildschirmfotos": [
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/b4051708ea-0.png",
+   "/private/tmp/claude-502/-Users-dev-claude-workspace-Praktikum-RN-ITS-BOARD/3812bc6a-ee0c-420e-9db1-ce45770241b4/scratchpad/a10/urteil/fotos/b4051708ea-1.png"
+  ],
+  "spielcode": "// Schlange: Die Schlange bewegt sich von selbst, Aepfel machen sie laenger. Wand oder eigener Koerper beendet das Spiel.\n// Punkte: 1 je Apfel, 1 je 300 Frames Ueberleben (Ausweichen), 5 Bonuspunkte je Levelaufstieg (nach jeweils 5 Aepfeln).\nconst CELL = 20, COLS = 18, ROWS = 29, Y0 = 56, START_SPEED = 10, MIN_SPEED = 4, LEVEL_BONUS = 5, SURVIVE = 300;\n\nexport default {\n  title: \"Die Schlange sammelt Äpfel\",\n  controls: [\"up\", \"down\", \"left\", \"right\"],\n  lives: 1,\n\n  init(g) {\n    const s = { body: [], dir: { x: 1, y: 0 }, next: { x: 1, y: 0 }, apple: { x: 0, y: 0 }, wait: 0, eaten: 0, speed: START_SPEED, age: 0 };\n    s.body = [{ x: 6, y: 14 }, { x: 5, y: 14 }, { x: 4, y: 14 }];\n    placeApple(s, g);\n    return s;\n  },\n\n  update(s, input, g) {\n    s.age += 1;\n    if (s.age % SURVIVE === 0) g.addScore(1);   // Ueberleben belohnt: Ausweichen bringt Punkte\n    const want = input.up ? { x: 0, y: -1 } : input.down ? { x: 0, y: 1 } : input.left ? { x: -1, y: 0 } : input.right ? { x: 1, y: 0 } : null;\n    if (want && !(want.x === -s.dir.x && want.y === -s.dir.y)) s.next = { x: want.x, y: want.y };\n    s.wait += 1;\n    if (s.wait < s.speed) return;\n    s.wait = 0;\n    s.dir = { x: s.next.x, y: s.next.y };\n    const head = { x: s.body[0].x + s.dir.x, y: s.body[0].y + s.dir.y };\n    const crash = head.x < 0 || head.y < 0 || head.x >= COLS || head.y >= ROWS || s.body.some((p) => p.x === head.x && p.y === head.y);\n    if (crash) { g.sound(\"hurt\"); g.loseLife(); return; }\n    s.body.unshift(head);\n    if (head.x === s.apple.x && head.y === s.apple.y) {\n      s.eaten += 1;\n      g.addScore(1);\n      g.sound(\"coin\");\n      if (s.speed > MIN_SPEED) s.speed -= 1;\n      if (s.eaten % 5 === 0) { g.nextLevel(); g.addScore(LEVEL_BONUS); g.sound(\"level\"); }\n      placeApple(s, g);\n    } else {\n      s.body.pop();\n    }\n  },\n\n  draw(s, d) {\n    d.clear(\"cream\");\n    d.rect(0, Y0, COLS * CELL, ROWS * CELL, \"yellow\", { round: 16, line: true });\n    d.emoji(\"🍎\", s.apple.x * CELL + CELL / 2, Y0 + s.apple.y * CELL + CELL / 2, 18);\n    s.body.forEach((p, i) => {\n      if (i === 0) d.emoji(\"🐍\", p.x * CELL + CELL / 2, Y0 + p.y * CELL + CELL / 2, 20);\n      else d.rect(p.x * CELL + 1, Y0 + p.y * CELL + 1, CELL - 2, CELL - 2, i % 2 ? \"ink\" : \"red\", { round: 6 });\n    });\n  }\n};\n\nfunction placeApple(s, g) {\n  for (let tries = 0; tries < 200; tries++) {\n    const a = { x: g.randInt(0, COLS - 1), y: g.randInt(0, ROWS - 1) };\n    if (!s.body.some((p) => p.x === a.x && p.y === a.y)) { s.apple = a; return; }\n  }\n}\n"
+ }
+]
