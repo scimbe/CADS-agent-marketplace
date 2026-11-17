@@ -23,7 +23,7 @@ Dieses Board ist die einzige Koordinationsstelle für alle Agenten. Freigabe des
 | A6 | Fix: Flug-Spiel (Sprite-Mitte, Rundenende), Ziegel/Breakout-Steuerung, Desktop-Layout des Echtzeit-Hosts | fix-flugspiel | app `fix/flugspiel` | – | läuft | Echtzeit-Host: A7 und A8 nur minimal |
 | A7 | Fix: Farbfelder statt Hex, Blasen-Muster für alle Karten | fix-editor-blasen | app `fix/editor-farben-blasen` | – | läuft | Host-Layout: A6 |
 | A8 | Fix: Demo-Hinweis und Info-Seite „Über diese Demo“ | fix-demo-hinweis | app `fix/demo-hinweis` | – | läuft | Kopfzeile/Host: A6 |
-| A9 | Test: alle Echtzeitspiele auf Desktop und Handy | tester-echtzeit | – (Bericht `07-protokoll/2026-11-17-echtzeit-test.md`) | – | läuft | Funde gehen an A6 bzw. A7 |
+| A9 | Test: alle Echtzeitspiele auf Desktop und Handy | tester-echtzeit | – (Bericht `07-protokoll/2026-11-17-echtzeit-test.md`) | – | fertig: 14 Spiele, 19 Funde (2 blockiert, 10 stört, 7 kosmetisch), 0 Konsolenfehler | Funde gehen an A6 bzw. A7 |
 | A10 | Messung P3-Job gegen 0,41 (Variante A, unter 4 $) | offen | – | – | offen | A3 |
 | A11 | Gesammeltes Fix-Release (A4–A8, A5-Tester, A2-Tester-Modus) | Integrator | Staging/ssh-united | – | offen | A2, A4–A8, Review |
 | A12 | Release „Karte fertig“ für das Tester-Konto | Integrator | – | – | offen | A3, A10 |
@@ -45,6 +45,7 @@ Dieses Board ist die einzige Koordinationsstelle für alle Agenten. Freigabe des
 - Budget: verbraucht 5,71 $ von 100 $
 - A5 KI-Ausfall: 503 `ki-nicht-verfuegbar` mit `grund` (ki-limit, ki-ueberlastet, ki-ausfall, ki-key), kein Strike/keine Abbuchung/kein Tageskontingent; Mail an `OPS_ALERT_MAIL` 1/Klasse/h; `/api/status` Feld `ki`; Host-Skript `bin/ki-pruefung.sh` (nicht installiert). Tester-Schlüssel = Login-E-Mail (who(): `'a'+mac('account:'+mail)`), nicht Keycloak-sub.
 - A2: Klärungsdialog P1 mit Review-Fixes, Tester-Modus und ehrlichem Bau-Zustand (`bau: 'nicht-verfuegbar'` ohne Worker). Wrapper #144, App #330, beide Draft. Gemeinsame Datei `lib/duell-tester.mjs` (Signatur siehe A2-Zeile).
+- A9 Echtzeit-Test (`07-protokoll/2026-11-17-echtzeit-test.md`, Screenshots daneben): blockiert 2 (F4: nach Klick auf Pause, Weiter oder Ton ignoriert das Spiel die Tasten und die Leertaste pausiert erneut, `rt-stage.js:66-68`; F9: Kick-Ball liegt tot in der Ecke, kein Ende). stört 10, u. a. F3: Endstand ohne letzten Punkt (`session.js:32`, „Gewonnen!“ bei 4:4); F6/F7: Sprite-Mitte auch in Lauf und Baukasten (`canvas.js:228` gegen `lauf/view.js`, `baukasten/engine.js:513`); F1: Desktop-Feld schmal und links in allen Echtzeitspielen (`tokens.css:50`); F5: „Nochmal“ auf dem Handy unter dem Rand. kosmetisch 7.
 
 ## Fragen an den User
 - Impressum und Datenschutz: Name bzw. Firma, Anschrift, Kontakt, Dienstleister, Log-Fristen (siehe `recht-plan.md`)
