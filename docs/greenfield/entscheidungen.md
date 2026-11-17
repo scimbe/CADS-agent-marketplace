@@ -83,3 +83,9 @@
     - b) Vorerst kommen nur die 70 Agenten-Karten ohne menschliche Freigabe ins Deck. Für Kunden-Karten bleibt die Regel vom 06.11.
     - c) Die Karten werden normal einsortiert; die Daumen bestimmen die Reihenfolge. „(KI)“ ist sichtbar, es gibt keinen eigenen Bereich.
     - d) Die Kennzeichnung lautet „(KI)“ bzw. „(KI-unterstützt)“.
+  - **Nachbessern höchstens 3×, danach Melden** (User, wörtlich: „Nachbessern sollte aber max dreimal gedeckelt werden. Sonst noch ein feld. Melden! (Anstelle von Nachbessern), woi der nutzer begrunden darf, warum die nachbesserung aus seiner sicht nicht ausreichend war. (Wir entschuldigen uns das wir es nciht so hinbekommen haben, wie er wollte, moechten das aber in zukunft schaffen)“).
+    - Der Zähler ist sichtbar und wird serverseitig gezählt.
+    - Nach dem 3. Mal steht „Melden“ an Stelle von „Nachbessern“: eine Entschuldigung und ein Freitext mit Begründung (max. 500 Zeichen, gleiche Moderation).
+    - „Trotzdem so behalten (1 Guthaben)“ bleibt wählbar.
+    - Annahme, vom User noch zu bestätigen: Bei einer Meldung kostet die Karte nichts.
+    - Meldungen gehen in die Betreiber-Prüfansicht und in die Harness-Optimierung, zusammen mit den Abweichungsberichten der Erwartungstests.
