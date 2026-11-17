@@ -8,6 +8,7 @@
 //   ersten echten Aufruf geladen: Tests mit Modell-Doubles brauchen weder SDK noch Key.
 import fs from "node:fs";
 import path from "node:path";
+import { proxyFetch } from "./proxy-fetch.mjs";
 
 /** Preise USD je MTok (Auftrag FK2-P3). write = Cache-Write (5 min). */
 export const PRICES = Object.freeze({
@@ -76,16 +77,19 @@ function estimateTokens(req) {
 
 /**
  * Client fuer die Pipeline.
- * @param {{keyFile?:string, ledger:ReturnType<typeof createLedger>, log?:(row:object)=>void, fake?:(req:object, o:{signal?:AbortSignal})=>Promise<object>}} o
+ * @param {{keyFile?:string, proxy?:string, ledger:ReturnType<typeof createLedger>, log?:(row:object)=>void, fake?:(req:object, o:{signal?:AbortSignal})=>Promise<object>}} o
  *   fake: Modell-Double an Stelle des gestreamten Aufrufs (liefert die fertige Nachricht); Tests ohne Netz, SDK und Key.
+ *   proxy: Egress-Proxy (HTTPS_PROXY); ohne ihn gibt es keinen echten Client – der Worker hat keinen anderen Weg hinaus.
  */
 export function createLlm(o) {
   let client = null;
+  if (!o.fake && !o.proxy) throw new Error("createLlm: ohne Egress-Proxy (HTTPS_PROXY) kein Modellaufruf");
+  const viaProxy = o.fake ? null : proxyFetch(o.proxy);
   async function real(req, { signal }) {
     if (!client) {
       const key = fs.readFileSync(o.keyFile, "utf8").trim();
       const { default: Anthropic } = await import("@anthropic-ai/sdk");
-      client = new Anthropic({ apiKey: key, maxRetries: 4, timeout: 600000 });
+      client = new Anthropic({ apiKey: key, maxRetries: 4, timeout: 600000, fetch: viaProxy });
     }
     return client.messages.stream(req, { signal }).finalMessage();
   }

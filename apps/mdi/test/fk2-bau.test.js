@@ -49,7 +49,7 @@ test("Abnahme je Punkt: gespielt schlaegt gelesen, nicht machbar und fehlende Ur
 });
 
 test("Konfiguration: Rollen A als Standard, Modell je Rolle umschaltbar, Unbekanntes ist ein Startfehler; Kostenbremse fest", () => {
-  const env = { MDI_BAU_QUEUE_URL: "http://demos-wrapper:8791", MDI_BAU_PRUEF_URL: "http://mdi-pruef:8796", MDI_BAU_TOKEN_FILE: "/run/secrets/t", MDI_ANTHROPIC_KEY_FILE: "/run/secrets/k" };
+  const env = { MDI_BAU_QUEUE_URL: "http://demos-wrapper:8791", MDI_BAU_PRUEF_URL: "http://mdi-pruef:8796", MDI_BAU_TOKEN_FILE: "/run/secrets/t", MDI_ANTHROPIC_KEY_FILE: "/run/secrets/k", HTTPS_PROXY: "http://mdi-egress:3128" };
   const c = konfig(env);
   assert.deepEqual(c.rollen, ROLLEN_STANDARD);
   assert.deepEqual(Object.values(c.rollen), ["claude-haiku-5-5", "claude-haiku-5-5", "claude-haiku-5-5"]);
@@ -58,6 +58,7 @@ test("Konfiguration: Rollen A als Standard, Modell je Rolle umschaltbar, Unbekan
   assert.throws(() => konfig({ ...env, MDI_BAU_AUFWAND_BAUER: "max" }), /AUFWAND_BAUER/);
   assert.throws(() => konfig({ MDI_BAU_TOKEN_FILE: "x" }), /QUEUE_URL[\s\S]*PRUEF_URL[\s\S]*KEY_FILE/);
   assert.throws(() => konfig({ ...env, MDI_BAU_PRUEF_URL: "" }), /getrennt von Key und Token/);
+  assert.throws(() => konfig({ ...env, HTTPS_PROXY: "" }), /HTTPS_PROXY fehlt/, "ohne Egress-Proxy kein Start");
   assert.equal(konfig({ MDI_BAU_QUEUE_URL: "http://w:1", MDI_BAU_PRUEF_URL: "http://p:2", MDI_BAU_TOKEN_FILE: "t", MDI_BAU_MODELL_DOUBLE: "1" }).double, true);
   assert.ok(Object.isFrozen(KOSTEN) && KOSTEN.jeAuftragUsd === 0.25 && KOSTEN.jeTagUsd === 5);
   assert.equal(GRENZEN.bauzeitMs, 15 * 60 * 1000); assert.ok(GRENZEN.maxTokensBau >= 32000);

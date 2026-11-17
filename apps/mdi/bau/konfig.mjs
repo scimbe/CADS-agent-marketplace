@@ -14,6 +14,8 @@
 //   MDI_BAU_TOKEN_FILE       Datei mit dem Token der internen Warteschlange (Pflicht, read-only gemountet)
 //   MDI_ANTHROPIC_KEY_FILE   Datei mit dem API-Key (Pflicht ausser mit MDI_BAU_MODELL_DOUBLE=1)
 //   MDI_BAU_PRUEF_URL        Pruef-Dienst (eigener Container mit Chromium, ohne Geheimnisse), z. B. http://mdi-pruef:8796 (Pflicht)
+//   HTTPS_PROXY              Egress-Proxy (bau/egress-proxy.mjs), z. B. http://mdi-egress:3128; der einzige Weg zur Modell-API
+//                            (Pflicht ausser mit MDI_BAU_MODELL_DOUBLE=1; der Worker haengt nur an --internal-Netzen)
 //   MDI_BAU_STATE_DIR        Kostenbuch je Tag (Standard /var/lib/mdi-bau)
 //   MDI_BAU_MODELL_PLANER | _BAUER | _ABNAHME   Modell je Rolle (Standard claude-haiku-5-5, Rollenverteilung A)
 //   MDI_BAU_AUFWAND_PLANER | _BAUER | _ABNAHME  low | medium | high (Standard medium)
@@ -25,7 +27,7 @@ export const KOSTEN = Object.freeze({ jeAuftragUsd: 0.25, jeTagUsd: 5 });
 export const ROLLEN_STANDARD = Object.freeze({ planer: "claude-haiku-5-5", bauer: "claude-haiku-5-5", abnahme: "claude-haiku-5-5" });
 const AUFWAND = ["low", "medium", "high"];
 
-/** @returns {{queueUrl:string, pruefUrl:string, tokenFile:string, keyFile:string, stateDir:string, rollen:object, effort:object, pollMs:number, double:boolean}} */
+/** @returns {{queueUrl:string, pruefUrl:string, proxy:string, tokenFile:string, keyFile:string, stateDir:string, rollen:object, effort:object, pollMs:number, double:boolean}} */
 export function konfig(env = process.env) {
   const fehler = [];
   const rollen = {}, effort = {};
@@ -39,13 +41,14 @@ export function konfig(env = process.env) {
   }
   const double = env.MDI_BAU_MODELL_DOUBLE === "1";
   const c = {
-    queueUrl: String(env.MDI_BAU_QUEUE_URL || "").replace(/\/+$/, ""), pruefUrl: String(env.MDI_BAU_PRUEF_URL || "").replace(/\/+$/, ""), tokenFile: env.MDI_BAU_TOKEN_FILE || "", keyFile: env.MDI_ANTHROPIC_KEY_FILE || "",
+    queueUrl: String(env.MDI_BAU_QUEUE_URL || "").replace(/\/+$/, ""), pruefUrl: String(env.MDI_BAU_PRUEF_URL || "").replace(/\/+$/, ""), proxy: String(env.HTTPS_PROXY || "").replace(/\/+$/, ""), tokenFile: env.MDI_BAU_TOKEN_FILE || "", keyFile: env.MDI_ANTHROPIC_KEY_FILE || "",
     stateDir: env.MDI_BAU_STATE_DIR || "/var/lib/mdi-bau", rollen, effort, pollMs: Number(env.MDI_BAU_POLL_MS || 5000), double
   };
   if (!/^https?:\/\/[^/]+$/.test(c.queueUrl)) fehler.push("MDI_BAU_QUEUE_URL fehlt oder ist keine Basis-URL");
   if (!c.tokenFile) fehler.push("MDI_BAU_TOKEN_FILE fehlt");
   if (!/^https?:\/\/[^/]+$/.test(c.pruefUrl)) fehler.push("MDI_BAU_PRUEF_URL fehlt (der Pruefstand laeuft getrennt von Key und Token)");
   if (!double && !c.keyFile) fehler.push("MDI_ANTHROPIC_KEY_FILE fehlt");
+  if (!double && !/^http:\/\/[^/]+$/.test(c.proxy)) fehler.push("HTTPS_PROXY fehlt (Egress-Proxy, http://host:port)");
   if (!Number.isInteger(c.pollMs) || c.pollMs < 500) fehler.push("MDI_BAU_POLL_MS mindestens 500");
   if (fehler.length) throw new Error("Bau-Worker: Konfiguration ungueltig:\n- " + fehler.join("\n- "));
   return c;

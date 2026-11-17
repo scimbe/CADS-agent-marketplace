@@ -2,6 +2,7 @@
 #   mdi-bau          node bau/main.mjs          Key + Token, Modell-API, Warteschlange; startet KEINEN Browser
 #   mdi-pruef        node bau/pruef-dienst.mjs  Chromium mit Sandbox (MDI_CHROMIUM_SANDBOX=1, seccomp-Profil), ohne Geheimnisse, ohne Netz
 #   mdi-spiel-dienst node bau/spiel-dienst.mjs  statisch, read-only
+#   mdi-egress       node bau/egress-proxy.mjs  einziger Ausgang des Bau-Workers: nur CONNECT api.anthropic.com:443
 # Kontext: apps/mdi. Bauen: docker build -f bau/Dockerfile -t mdi-bau:<tag> apps/mdi
 # Playwright-Image in genau der Version aus package.json (1.56.1): der Browser fuer die Sandbox-Pruefung ist dabei.
 # Laeuft als Nutzer pwuser (kein root), ohne Port; der Spiel-Dienst veroeffentlicht nur 127.0.0.1:8795 (siehe Deploy-Doku).
