@@ -22,9 +22,15 @@ export const HEAP_MB = 256;
 /** Zeit nach der Host-Frist, bis der Runner selbst aufgibt (Host und Rahmen melden vorher mit Grund). */
 export const RUNNER_ZUGABE_MS = 5000;
 
-/** Startet den Browser fuer die Sandbox (Heap-Grenze, optional PW_CHROME). */
-export function launchBrowser() {
-  return chromium.launch({ executablePath: process.env.PW_CHROME || undefined, args: ["--js-flags=--max-old-space-size=" + HEAP_MB] });
+/** WebRTC und STUN sind im Pruef-Browser aus: kein UDP an der CSP vorbei (Review S1); dazu kein Netz im Pruef-Container. */
+export const BROWSER_ARGS = Object.freeze(["--js-flags=--max-old-space-size=" + HEAP_MB, "--webrtc-ip-handling-policy=disable_non_proxied_udp", "--force-webrtc-ip-handling-policy",
+  "--disable-features=WebRtcHideLocalIpsWithMdns", "--enforce-webrtc-ip-permission-check"]);
+/**
+ * Startet den Browser fuer die Sandbox (Heap-Grenze, optional PW_CHROME). MDI_CHROMIUM_SANDBOX=1 schaltet die Sandbox von
+ * Chromium ein (Pruef-Container mit seccomp-Profil, deploy/fk2-p34); lokal und in Tests bleibt es beim Standard von Playwright.
+ */
+export function launchBrowser(env = process.env) {
+  return chromium.launch({ executablePath: env.PW_CHROME || undefined, chromiumSandbox: env.MDI_CHROMIUM_SANDBOX === "1", args: [...BROWSER_ARGS] });
 }
 
 /**

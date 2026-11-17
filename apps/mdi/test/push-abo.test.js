@@ -39,21 +39,27 @@ test("Push-Abo: Erlaubnis, eigener Service Worker, VAPID vom Server, Abo beim Se
 
 test("Service Worker: nur die drei Karten-Arten, Satz in der Sprache des Geraets, Klick oeffnet ?go=fertig&auftrag=<id>; kein fetch, kein Cache", async () => {
   const L = {}, shown = [], opened = [];
+  const focused = [];
   const sw = { registration: { scope: "https://demos.example/duell", showNotification: async (t, o) => { shown.push([t, o]); } }, navigator: { language: "de-DE" }, location: { origin: "https://demos.example" },
-    clients: { openWindow: async (u) => { opened.push(u); } }, addEventListener: (t, f) => { L[t] = f; } };
+    skipWaiting: () => {}, clients: { claim: async () => {}, openWindow: async (u) => { opened.push(u); }, matchAll: async () => [{ url: "https://demos.example/duell", focus: async () => focused.push(1) }] }, addEventListener: (t, f) => { L[t] = f; } };
   installiere(sw);
-  assert.deepEqual(Object.keys(L).sort(), ["notificationclick", "push"], "kein fetch-Handler");
+  assert.deepEqual(Object.keys(L).sort(), ["activate", "install", "notificationclick", "push"], "kein fetch-Handler");
   const waits = [];
   const ev = (data) => ({ data: { json: () => data }, waitUntil: (p) => waits.push(p) });
   L.push(ev({ r: "karte-fast", a: AUF })); await Promise.all(waits);
   assert.deepEqual(shown[0], ["Deine Karte ist fast fertig", { body: "Ein Punkt fehlt noch – abgebucht ist nichts.", tag: "mdi-" + AUF, data: { url: "https://demos.example/duell?go=fertig&auftrag=" + AUF } }]);
-  L.push(ev({ r: "reply" })); L.push(ev({ r: "karte-fertig", a: "kurz" })); L.push({ data: { json: () => { throw new Error("x"); } }, waitUntil: () => {} });
-  assert.equal(shown.length, 1, "andere Arten und kaputte Nachrichten zeigen nichts");
+  // alte Arten und alles Unbekannte: der neutrale Satz des alten Service Workers (nie die allgemeine Meldung des Browsers)
+  L.push(ev({ r: "reply" })); L.push(ev({ r: "live" })); L.push(ev({ r: "karte-fertig", a: "kurz" })); L.push({ data: { json: () => { throw new Error("x"); } }, waitUntil: (p) => waits.push(p) });
+  await Promise.all(waits);
+  assert.deepEqual(shown.slice(1).map(([t, o]) => [t, o.body, o.data.url]), [["My Daily Idea", "Jemand hat auf deine Karte geantwortet.", null], ["My Daily Idea", "Deine Live-Einladung wurde angenommen.", null],
+    ["My Daily Idea", "Es gibt etwas Neues für dich.", null], ["My Daily Idea", "Es gibt etwas Neues für dich.", null]]);
   let closed = 0;
   L.notificationclick({ notification: { close: () => closed++, data: shown[0][1].data }, waitUntil: (p) => waits.push(p) }); await Promise.all(waits);
   assert.deepEqual(opened, ["https://demos.example/duell?go=fertig&auftrag=" + AUF]); assert.equal(closed, 1);
   L.notificationclick({ notification: { close: () => {}, data: { url: "https://boese.example/" } }, waitUntil: (p) => waits.push(p) });
   assert.equal(opened.length, 1, "nur der eigene Ursprung");
+  L.notificationclick({ notification: { close: () => {}, data: { url: null } }, waitUntil: (p) => waits.push(p) }); await Promise.all(waits);
+  assert.deepEqual(focused, [1], "alte Art: die offene Seite kommt nach vorn");
   assert.equal(mitteilung({ r: "karte-nicht", a: AUF }, "en", "https://x.example/duell").titel, "Your card did not work out");
   assert.deepEqual([...ARTEN], ["karte-fertig", "karte-fast", "karte-nicht"]);
 });

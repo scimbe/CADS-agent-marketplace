@@ -18,6 +18,8 @@ import { checkPolicy, checkTexte } from "../bau/policy.mjs";
 import { checkSpielSource } from "../scripts/harness.js";
 import { praefix, VORLAGEN } from "../bau/doku.mjs";
 import { modellDouble } from "../bau/doppel.mjs";
+import { createPruefDienst, createPruefClient } from "../bau/pruef-dienst.mjs";
+import { BROWSER_ARGS } from "../scripts/spiel/runner.mjs";
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "fk2-bau-"));
 const AUFTRAG = { id: "A".repeat(22), lang: "de", satz: "Boote abwehren", titel: "Segelabwehr", verstehe: "", nicht: [], fragen: [],
@@ -47,15 +49,16 @@ test("Abnahme je Punkt: gespielt schlaegt gelesen, nicht machbar und fehlende Ur
 });
 
 test("Konfiguration: Rollen A als Standard, Modell je Rolle umschaltbar, Unbekanntes ist ein Startfehler; Kostenbremse fest", () => {
-  const env = { MDI_BAU_QUEUE_URL: "http://demos-wrapper:8790", MDI_BAU_TOKEN_FILE: "/run/secrets/t", MDI_ANTHROPIC_KEY_FILE: "/run/secrets/k" };
+  const env = { MDI_BAU_QUEUE_URL: "http://demos-wrapper:8791", MDI_BAU_PRUEF_URL: "http://mdi-pruef:8796", MDI_BAU_TOKEN_FILE: "/run/secrets/t", MDI_ANTHROPIC_KEY_FILE: "/run/secrets/k" };
   const c = konfig(env);
   assert.deepEqual(c.rollen, ROLLEN_STANDARD);
   assert.deepEqual(Object.values(c.rollen), ["claude-haiku-5-5", "claude-haiku-5-5", "claude-haiku-5-5"]);
   assert.equal(konfig({ ...env, MDI_BAU_MODELL_ABNAHME: "claude-sonnet-5-5" }).rollen.abnahme, "claude-sonnet-5-5");
   assert.throws(() => konfig({ ...env, MDI_BAU_MODELL_BAUER: "gpt-9" }), /unbekanntes Modell gpt-9/);
   assert.throws(() => konfig({ ...env, MDI_BAU_AUFWAND_BAUER: "max" }), /AUFWAND_BAUER/);
-  assert.throws(() => konfig({ MDI_BAU_TOKEN_FILE: "x" }), /QUEUE_URL[\s\S]*KEY_FILE/);
-  assert.equal(konfig({ MDI_BAU_QUEUE_URL: "http://w:1", MDI_BAU_TOKEN_FILE: "t", MDI_BAU_MODELL_DOUBLE: "1" }).double, true);
+  assert.throws(() => konfig({ MDI_BAU_TOKEN_FILE: "x" }), /QUEUE_URL[\s\S]*PRUEF_URL[\s\S]*KEY_FILE/);
+  assert.throws(() => konfig({ ...env, MDI_BAU_PRUEF_URL: "" }), /getrennt von Key und Token/);
+  assert.equal(konfig({ MDI_BAU_QUEUE_URL: "http://w:1", MDI_BAU_PRUEF_URL: "http://p:2", MDI_BAU_TOKEN_FILE: "t", MDI_BAU_MODELL_DOUBLE: "1" }).double, true);
   assert.ok(Object.isFrozen(KOSTEN) && KOSTEN.jeAuftragUsd === 0.25 && KOSTEN.jeTagUsd === 5);
   assert.equal(GRENZEN.bauzeitMs, 15 * 60 * 1000); assert.ok(GRENZEN.maxTokensBau >= 32000);
 });
@@ -191,4 +194,26 @@ test("Policy ohne Fehlalarme (Liste statt Bereiche) und Statik ohne parent-Fehla
   assert.deepEqual([...VORLAGEN], ["invaders", "snake", "plattformer", "memory"]);
   const p = praefix();
   for (const s of ["Bot-Regeln fuer Runden- und Brettspiele", "Zwischenpunkte je Zug", "Vorlage memory.js", "Szenario-Bots", "figur_bewegt"]) assert.ok(p.includes(s), s);
+});
+
+test("Review S1: Pruef-Dienst getrennt (nur /pruefe und /fotos, Eingaben geprueft), Client mit gleicher Schnittstelle; Browser ohne WebRTC", async () => {
+  const calls = [];
+  const fake = { async pruefe(code, o) { calls.push(["pruefe", code, o]); return { ok: true, policy: [], report: { ok: true, szenarien: [] } }; }, async fotos(code, o) { calls.push(["fotos", code, o]); return { shots: [Buffer.from("png")], status: null, errs: [] }; } };
+  const server = createPruefDienst(fake);
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  const base = "http://127.0.0.1:" + server.address().port;
+  try {
+    const c = createPruefClient({ base });
+    assert.deepEqual(await c.pruefe("export default {}", { name: "x", seed: "s", seconds: 60, szenarien: [] }), { ok: true, policy: [], report: { ok: true, szenarien: [] } });
+    const f = await c.fotos("export default {}", { seed: "foto" });
+    assert.ok(Buffer.isBuffer(f.shots[0])); assert.equal(f.shots[0].toString(), "png");
+    for (const [p, b] of [["/pruefe", { code: "", seed: "s", seconds: 60, name: "x" }], ["/pruefe", { code: "x", seed: "a b", seconds: 60, name: "x" }], ["/pruefe", { code: "x", seed: "s", seconds: 9999, name: "x" }],
+      ["/pruefe", { code: "x", seed: "s", seconds: 60, name: "x", szenarien: [{ id: "p1" }] }], ["/fotos", { code: "x".repeat(70000), seed: "s" }]]) {
+      assert.equal((await fetch(base + p, { method: "POST", body: JSON.stringify(b) })).status, 400, JSON.stringify(b).slice(0, 60));
+    }
+    assert.equal((await fetch(base + "/key", { method: "POST", body: "{}" })).status, 404);
+    assert.equal((await fetch(base + "/pruefe")).status, 404);
+    assert.equal(calls.length, 2);
+  } finally { server.close(); }
+  for (const a of ["--webrtc-ip-handling-policy=disable_non_proxied_udp", "--force-webrtc-ip-handling-policy"]) assert.ok(BROWSER_ARGS.includes(a), a);
 });

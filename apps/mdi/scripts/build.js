@@ -13,6 +13,7 @@ export const WC = "https://webconference.bunsenbrenner.org";
 // Eltern, die den Live-Rahmen der Webkonferenz einbetten duerfen (= PLAY_ALLOWED_ORIGINS der Bruecke); per Umgebung aenderbar
 // Freie Karte 2: eigener Ursprung der Spiel-Sandbox (statischer Spiel-Dienst, bau/spiel-dienst.mjs); per Umgebung fuer Staging
 export const SPIEL_ORIGIN = process.env.MDI_SPIEL_ORIGIN || "https://spiel-f29c55da.bunsenbrenner.org";
+if (!/^https:\/\/[a-z0-9.-]+$/.test(SPIEL_ORIGIN)) throw new Error("build: MDI_SPIEL_ORIGIN muss ein https-Ursprung ohne Pfad sein: " + SPIEL_ORIGIN);
 export const PLAY_PARENTS = String(process.env.MDI_PLAY_PARENTS || "https://demos-34a13a96.bunsenbrenner.org,https://bunsenbrenner.org").split(",").map((x) => x.trim()).filter(Boolean);
 
 if (process.argv.includes("--flavor")) console.log("build: --flavor wird in D0 ignoriert (Business-Sicht ist Slice S14b)");

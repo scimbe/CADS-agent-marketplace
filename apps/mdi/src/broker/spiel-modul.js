@@ -6,13 +6,15 @@
 /* global __SPIEL_ORIGIN__ */
 import { LIMITS } from "../spiel/api.js";
 
-export const SPIEL_ORIGIN = typeof __SPIEL_ORIGIN__ === "string" ? __SPIEL_ORIGIN__ : "https://spiel-f29c55da.bunsenbrenner.org";
+/** Spiel-Ursprung aus dem Build (scripts/build.js, MDI_SPIEL_ORIGIN); ohne ihn gibt es keinen (kein stiller Rueckfall) */
+export const SPIEL_ORIGIN = typeof __SPIEL_ORIGIN__ === "string" ? __SPIEL_ORIGIN__ : null;
 
 const hex = (buf) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
 
 /** @param {{win: {fetch: typeof fetch}, subtle: SubtleCrypto|null, origin?: string}} o */
 export function createSpielModul(o) {
   const origin = o.origin || SPIEL_ORIGIN;
+  if (!origin || !/^https:\/\/[a-z0-9.-]+$/.test(origin)) throw new Error("spiel-modul: kein Spiel-Ursprung (Build setzt __SPIEL_ORIGIN__)");
   return {
     async laden(modul, sha256) {
       if (!o.subtle || !o.win || typeof o.win.fetch !== "function") return { how: "nicht-hier" };

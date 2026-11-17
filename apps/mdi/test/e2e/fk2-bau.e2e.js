@@ -13,6 +13,7 @@ import { createLlm, createTagesbuch } from "../../bau/llm.mjs";
 import { createPruefstand } from "../../bau/pruefen.mjs";
 import { createBauPipeline } from "../../bau/pipeline.mjs";
 import { createQueueClient, createWorker } from "../../bau/worker.mjs";
+import { createPruefDienst, createPruefClient } from "../../bau/pruef-dienst.mjs";
 
 const BOOT = fs.readFileSync(path.join(ROOT, "test/fixtures/spiel/tropfenboot.js"), "utf8");
 const msg = (text, stop = "end_turn") => ({ stop_reason: stop, content: [{ type: "text", text }], usage: { input_tokens: 100, output_tokens: 100 } });
@@ -54,7 +55,10 @@ test("Bau-Worker: Szenarien entscheiden je Punkt, ehrliche Kundensaetze, Ergebni
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fk2-bau-e2e-")), tokenFile = path.join(dir, "token");
   fs.writeFileSync(tokenFile, "t0k3n-fuer-den-test");
   const tagesbuch = createTagesbuch({ cap: 5, dir });
-  const pruef = await createPruefstand();
+  // wie in Produktion: Chromium im Pruef-Dienst, der Worker spricht ihn ueber HTTP an (Review S1)
+  const pruefstand = await createPruefstand(), dienst = createPruefDienst(pruefstand);
+  await new Promise((r) => dienst.listen(0, "127.0.0.1", r));
+  const pruef = createPruefClient({ base: "http://127.0.0.1:" + dienst.address().port });
   try {
     const pipeline = createBauPipeline({ llm: createLlm({ ledger: tagesbuch(), fake }), pruef, rollen: { planer: "claude-haiku-5-5", bauer: "claude-haiku-5-5", abnahme: "claude-haiku-5-5" } });
     const w = createWorker({ queue: createQueueClient({ base: "http://127.0.0.1:" + server.address().port, tokenFile }), pipeline, tagesbuch, log: () => {} });
@@ -80,5 +84,5 @@ test("Bau-Worker: Szenarien entscheiden je Punkt, ehrliche Kundensaetze, Ergebni
     assert.match(nb.user, /- \[p3\] Beim Ausprobieren ließ sich so nicht gewinnen\./);
     assert.match(nb.user, /<data>"Ich möchte gewinnen können\."<\/data>/);
     assert.equal(await w.einmal(), "leer");
-  } finally { await pruef.close(); server.close(); }
+  } finally { dienst.close(); await pruefstand.close(); server.close(); }
 });

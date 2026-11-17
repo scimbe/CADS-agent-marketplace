@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Freie Karte 2, P3: Einstieg des Bau-Worker-Containers (bau/Dockerfile, Befehl "node bau/main.mjs").
+// Freie Karte 2, P3: Einstieg des Bau-Worker-Containers (bau/Dockerfile, Befehl "node bau/main.mjs"). Er haelt Key und
+// Token, spricht nur mit der Modell-API, der Warteschlange des Wrappers und dem Pruef-Dienst (bau/pruef-dienst.mjs).
 // Konfiguration: bau/konfig.mjs. SIGTERM/SIGINT: der laufende Auftrag wird zu Ende gebaut, dann endet der Prozess
 // (ein abgebrochener Bau kaeme nach Ablauf der Lease ohnehin wieder in die Warteschlange).
 import { konfig } from "./konfig.mjs";
 import { createLlm, createTagesbuch } from "./llm.mjs";
-import { createPruefstand } from "./pruefen.mjs";
+import { createPruefClient } from "./pruef-dienst.mjs";
 import { createBauPipeline } from "./pipeline.mjs";
 import { createQueueClient, createWorker } from "./worker.mjs";
 import { KOSTEN } from "./konfig.mjs";
@@ -15,7 +16,8 @@ const log = (o) => console.log(JSON.stringify({ t: new Date().toISOString(), ...
 const tagesbuch = createTagesbuch({ cap: KOSTEN.jeTagUsd, dir: c.stateDir });
 // Aufruf-Protokoll ohne Inhalte: Rolle, Modell, Tokens, Kosten
 const llm = createLlm({ keyFile: c.keyFile, ledger: tagesbuch(), log: (row) => log({ event: "fk2-llm", ...row }), ...(c.double ? { fake: modellDouble() } : {}) });
-const pruef = await createPruefstand();
+// Chromium und der fremde Code laufen NICHT hier, sondern im Pruef-Container ohne Key, Token und Netz (Review S1)
+const pruef = createPruefClient({ base: c.pruefUrl });
 const pipeline = createBauPipeline({ llm, pruef, rollen: c.rollen, effort: c.effort, log });
 const worker = createWorker({ queue: createQueueClient({ base: c.queueUrl, tokenFile: c.tokenFile }), pipeline, tagesbuch, log });
 const ac = new AbortController();

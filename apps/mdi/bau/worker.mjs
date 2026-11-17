@@ -12,10 +12,11 @@ import { GRENZEN } from "./pipeline.mjs";
 import { KOSTEN } from "./konfig.mjs";
 
 /** Client der internen Warteschlange. Das Token wird bei jedem Aufruf aus der Datei gelesen (Rotation ohne Neustart). */
-export function createQueueClient({ base, tokenFile, fetchImpl = fetch }) {
+export function createQueueClient({ base, tokenFile, fetchImpl = fetch, timeoutMs = 30000 }) {
   const token = () => fs.readFileSync(tokenFile, "utf8").trim();
   async function post(path, body) {
-    const res = await fetchImpl(base + path, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token() }, body: JSON.stringify(body) });
+    // feste Frist: ein haengender Wrapper haelt den Worker nicht auf (Review S4)
+    const res = await fetchImpl(base + path, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token() }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
     const text = await res.text();
     let json = null;
     try { json = text ? JSON.parse(text) : null; } catch { json = null; }
