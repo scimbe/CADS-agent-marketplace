@@ -21,6 +21,8 @@ test("Policy: Referenzspiele bestehen; Waffen, Menschen und Gewaltwoerter fallen
   assert.match(checkPolicy('d.text("Gegner getötet", 1, 1)')[0], /Gewalt/);
   assert.deepEqual(checkPolicy('// Blut gibt es nicht, kein 🔫\nd.text("nass!", 1, 1); d.emoji("💧", 1, 1, 20)'), []);
   assert.deepEqual(checkPolicy('d.text("Wasserbomben-Duell", 1, 1); d.emoji("🎈", 1, 1, 20)'), [], "harmloses Werfen ist erlaubt");
+  assert.deepEqual(checkPolicy('d.emoji("🏆", 1, 1, 20); d.emoji("🏅", 1, 1, 20); d.emoji("🏈", 1, 1, 20)'), [], "Pokal/Medaille/Ball sind keine Menschen (Fehlalarm aus der P3-Messung)");
+  assert.match(checkPolicy('d.emoji("🏊", 1, 1, 20)')[0], /Menschen/);
 });
 
 test("Befunde: Saetze mit Abhilfe und feste Fehlerarten", () => {

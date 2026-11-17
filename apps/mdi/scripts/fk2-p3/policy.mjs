@@ -10,8 +10,8 @@
 export const EMOJI_VERBOTEN = Object.freeze(["🔫", "🔪", "🗡", "⚔", "💣", "🧨", "🪓", "🏹", "🩸", "💀", "☠", "⚰", "🪦", "🥷", "💉", "🪖"]);
 
 // Menschen und Koerperteile: U+1F466–1F487 (Junge … Friseur), U+1F9D1–1F9DD (Person … Elf), 1F46A–1F46F,
-// 1F574–1F57A, 1F645–1F64F, 1F6B4–1F6B6, 1F3C3–1F3CC (Laeufer, Schwimmer …), 1F930–1F93E, 1F9CD–1F9CF, Hauttoene 1F3FB–1F3FF.
-const MENSCH_RANGES = [[0x1f466, 0x1f487], [0x1f9d1, 0x1f9dd], [0x1f574, 0x1f57a], [0x1f645, 0x1f64f], [0x1f6b4, 0x1f6b6], [0x1f3c3, 0x1f3cc], [0x1f930, 0x1f93e], [0x1f9cd, 0x1f9cf], [0x1f3fb, 0x1f3ff], [0x1f46a, 0x1f46f], [0x1f9b8, 0x1f9b9]];
+// 1F574–1F57A, 1F645–1F64F, 1F6B4–1F6B6, 1F3C3/1F3C4/1F3C7/1F3CA–1F3CC (Laeufer, Surfer, Reiter, Schwimmer …; nicht 1F3C5/1F3C6 Medaille/Pokal), 1F930–1F93E, 1F9CD–1F9CF, Hauttoene 1F3FB–1F3FF.
+const MENSCH_RANGES = [[0x1f466, 0x1f487], [0x1f9d1, 0x1f9dd], [0x1f574, 0x1f57a], [0x1f645, 0x1f64f], [0x1f6b4, 0x1f6b6], [0x1f3c3, 0x1f3c4], [0x1f3c7, 0x1f3c7], [0x1f3ca, 0x1f3cc], [0x1f930, 0x1f93e], [0x1f9cd, 0x1f9cf], [0x1f3fb, 0x1f3ff], [0x1f46a, 0x1f46f], [0x1f9b8, 0x1f9b9]];
 const isMensch = (cp) => MENSCH_RANGES.some(([a, b]) => cp >= a && cp <= b);
 
 /** Woerter in Texten (Titel, d.text, Kommentare zaehlen nicht): Gewalt gegen Lebewesen. Wortanfang, Umlaute beide Formen. */

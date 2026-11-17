@@ -27,12 +27,13 @@ const numbered = (code) => code.split("\n").map((l, i) => String(i + 1).padStart
 export function createPipeline(deps) {
   const PRAEFIX = praefix();
   const now = deps.now || Date.now;
-  const effort = deps.effort || "medium";
+  // Aufwand je Rolle: Text fuer alle Rollen oder { planer, bauer, abnahme } (Standard medium)
+  const effortOf = (rolle) => (typeof deps.effort === "object" && deps.effort ? deps.effort[rolle] : deps.effort) || "medium";
   const system = (rolle) => [{ type: "text", text: PRAEFIX, cache_control: { type: "ephemeral" } }, { type: "text", text: ROLLEN[rolle] }];
 
   async function ask(rolle, content, extra, tag) {
     const model = deps.rollen[rolle];
-    const req = { max_tokens: extra.max_tokens, system: system(rolle), messages: [{ role: "user", content }], output_config: { effort, ...(extra.schema ? { format: { type: "json_schema", schema: extra.schema } } : {}) } };
+    const req = { max_tokens: extra.max_tokens, system: system(rolle), messages: [{ role: "user", content }], output_config: { effort: effortOf(rolle), ...(extra.schema ? { format: { type: "json_schema", schema: extra.schema } } : {}) } };
     return deps.llm.call({ role: rolle, model, req, tag });
   }
 

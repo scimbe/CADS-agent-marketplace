@@ -5,6 +5,7 @@
 //
 //   node scripts/fk2-p3/messung.mjs --in wuensche.jsonl --out /work/out --key /run/secrets/anthropic.key \
 //        --varianten A,C,B --laeufe 3 --cap 14.5 --parallel 3 [--nur P01,P05] [--nachbesserungen 3]
+//        [--effort-bauer low] [--effort-planer medium] [--effort-abnahme medium]   (Variante "A2" = Rollen von A, eigener Name)
 //
 // Schreibt nach --out: karten.jsonl (je Karte, mit Code; Fotos als PNG unter fotos/), aufrufe.jsonl (jeder Modellaufruf
 // mit Tokens und Kosten), abweichungen.jsonl (Format fk2-abweichung/1, siehe unten), budget.json, lauf.log.
@@ -53,7 +54,7 @@ function abweichungen(karte, variante, lauf) {
 async function eineKarte(variante, w, lauf) {
   const tag = variante + "-" + w.id + "-L" + lauf;
   if (erledigt.has(tag) || stop) return;
-  const pipe = createPipeline({ llm, pruef, rollen: VARIANTEN[variante] });
+  const pipe = createPipeline({ llm, pruef, rollen: VARIANTEN[variante.replace(/[^ABC]/g, "")], effort: { planer: opt["effort-planer"], bauer: opt["effort-bauer"], abnahme: opt["effort-abnahme"] } });
   const t0 = Date.now();
   try {
     const karte = await pipe.neu({ ...w, tag });
