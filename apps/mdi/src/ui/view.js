@@ -229,7 +229,8 @@ export function view(state, dispatch, env = {}) {
   const homeR = L === "shelf" ? homeView(state, dispatch, env) : null;
   const freiR = L.startsWith("frei.") && SLOTS.freiView ? SLOTS.freiView(state, X, dispatch, L) : null;
   const heading = homeR ? homeR.heading || X.app : freiR ? freiR.heading : L === "stil.start" ? X.stil : L === "stil.daten" ? X.k.data : L === "stil.widerspruch" ? X.k.appealTitle : card && !L.startsWith("receive") && L !== "shelf" ? title(card, ctx.lang, G.paramsOf(ctx)) : X.app;
-  const btn = (act, cls) => h("button", { type: "button", class: "btn " + cls, key: act.id, "data-act": act.id, on: { click: () => dispatch(act.ev) } }, act.label);
+  // act: { id, label, ev, cls?, disabled?, sub? } – sub: eine zweite Zeile im Knopf (z. B. "kostenlos · noch 3×"), disabled: echt gesperrt
+  const btn = (act, cls) => h("button", { type: "button", class: "btn " + cls + (act.cls ? " " + act.cls : ""), key: act.id, "data-act": act.id, disabled: act.disabled ? true : null, on: { click: () => dispatch(act.ev) } }, act.sub ? [h("span", { class: "btn-t", key: "t" }, act.label), h("span", { class: "btn-sub", key: "s" }, act.sub)] : act.label);
 
   // Spielkopf in der Familienfarbe (Canvas v54 Bote1/GFlugStart): Farbe und Tinte aus der Familie (D, Kontrast geprueft)
   const fam = card && L.startsWith("card.") ? familyOf(catalogIdOf(card.manifest.id)) || family(card.manifest.family) : null;

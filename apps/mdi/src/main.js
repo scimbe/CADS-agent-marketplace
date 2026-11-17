@@ -18,6 +18,7 @@ import { loadFeatPart } from "./gen/fparts.js";
 import { createParts } from "./broker/parts.js";
 import { createAi } from "./broker/ai.js";        // Strang K: freie Karte und KI-Arten
 import { createDeck } from "./broker/deck.js";
+import { createKlaerung } from "./broker/klaerung.js";
 import { createBild } from "./broker/bild.js";
 import { sanitizeDoc } from "./features/frei/doc.js";
 import { pinFor } from "./broker/deck-pin.js";
@@ -56,7 +57,7 @@ const rt = createRuntime({
   loadFeat: (name) => parts.feat(name),
   lang, entropy, storage: createStorage(),
   // App-Huelle mit Konto-Bruecke: Anmelden nativ (OIDC + PKCE), Aufrufe mit Bearer durch die Huelle; sonst Web (Cookie)
-  api, ai: createAi({ api }), deck: createDeck({ api, sanitize: sanitizeDoc, pin: pinFor(location.hostname) }), bild: createBild({ api }),
+  api, ai: createAi({ api }), deck: createDeck({ api, sanitize: sanitizeDoc, pin: pinFor(location.hostname) }), bild: createBild({ api }), klaerung: createKlaerung({ api }),
   returnPath,
   setLook: (colors) => { const k = lookCookie(colors, location.hostname); if (k) document.cookie = k; },
   navigate: (url) => { if (!/^https?:$/.test(location.protocol)) return false; location.assign(url); return true; },
@@ -171,6 +172,12 @@ if (location.hash.length > 1) rt.link(location.hash);
 else if (new URLSearchParams(location.search).get("go") === "erschaffen") {
   try { history.replaceState(history.state, "", location.pathname); } catch (e) { /* ohne Verlauf */ }
   rt.dispatch({ type: "FREI" });
+} else if (new URLSearchParams(location.search).get("go") === "fertig") {
+  // Freie Karte 2: Ziel einer Mitteilung oder E-Mail (Opt-in auf dem Bau-Bildschirm): das Ergebnis eines Bauauftrags. Die id
+  // prueft die Statechart (kFertigOk), den Stand liefert der Server; die Adresse bleibt ohne Parameter
+  const auftrag = new URLSearchParams(location.search).get("auftrag") || "";
+  try { history.replaceState(history.state, "", location.pathname); } catch (e) { /* ohne Verlauf */ }
+  rt.dispatch({ type: "K_FERTIG", auftrag });
 } else if (new URLSearchParams(location.search).get("go") === "konto") {
   // zurueck vom Anmelden: Mein Stil wieder oeffnen, die Adresse ohne ?go= behalten
   try { history.replaceState(history.state, "", location.pathname); } catch (e) { /* ohne Verlauf */ }
