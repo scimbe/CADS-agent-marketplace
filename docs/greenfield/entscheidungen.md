@@ -54,3 +54,17 @@
 - 2026-11-17 **Release freigegeben** (User: „Realese jetzt“). Gerätetest auf echten Handys übersprungen. Ausgerollt 06:49 UTC, siehe 07-protokoll/2026-11-17-release.md.
 - 2026-11-17 „Trust Email“ beim IdP haw-gitlab wieder an (User: „SMTP einrichten oder zurückstellen – mach das!“). SMTP-Zugangsdaten gibt der Integrator nicht ein, deshalb zurückgestellt.
 - 2026-11-17 Doppelte Session „Marketplace“ aufgelöst (User: „beide agenten muessen sich einigen“): Die Session [a27c4e] verantwortet MDI-Release und Repos. Die andere wurde in „handover-session-rename-marketing“ umbenannt und fasst die Repos nicht an.
+- 2026-11-17 **Fix-Release** live, 09:45 UTC. Freigabe des Users: „ja, aktuell stehen wir in einer testphase, immer fix und upgrades raus“.
+  - Inhalt: App #326 und #327, Wrapper #143.
+  - Seitdem gilt eine stehende Freigabe für Fixes und Upgrades in der Testphase, wenn Labor, Review, Staging, Rollback-Container und Live-Prüfung grün sind.
+  - Ausgenommen bleiben Keycloak, Zugangsdaten und Produktentscheidungen.
+- 2026-11-17 **Freie Karte 2**, die Anforderungen des Users:
+  - LLM-Code statt DSL, starker Harness, Bau im Hintergrund mit mehreren Agenten, Benachrichtigung per Mail und Push.
+  - Klärungsdialog für Laien, Abnahme gegen den Wunsch, keine Scheinangebote.
+  - Erwartungs-Tests mit nicht informierten Agenten, Budget 100 $.
+  - Das hebt die Entscheidung „deklarativ, keine Textsprache“ vom 12.11. auf; generierter Code läuft nur in einer Sandbox auf eigenem Ursprung.
+  - Entscheidungen des Users:
+    1. Arcade-Schießen ohne Gewalt ist erlaubt (User: „ja“): Wasserbomben, Seifenblasen, Kanonenkugeln aufs Holz; kein Blut, keine realistischen Waffen, keine Menschen als Ziel; ab 16.
+    4. Abnahme durch Sonnet: Kostenschätzung vorgelegt, etwa 0,23 $ statt 0,03 $ je Karte. Vorschlag ist Haiku mit umschaltbarer Abnahme und Vergleichsmessung. Offen.
+    5. Bau im Hintergrund bis 15 Minuten, 1 Guthaben je Karte, abgebucht nur bei Erfolg (User: „5 OK“).
+  - Punkte 2 (Sandbox-Hostname) und 3 (Mail über Brevo) sind offen; die Schritt-für-Schritt-Anleitungen hat der User erhalten.
