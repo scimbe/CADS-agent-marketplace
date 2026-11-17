@@ -67,6 +67,9 @@
 .rt-stage > .rt-canvas { flex: 1 1 0; min-height: 0; height: auto; width: auto; max-width: 100%; max-height: none; align-self: center; }
 /* Nach dem Ende: Ergebniszeile darueber, „Nochmal“ darunter – beide im ersten Bildschirm (Befund A9 F5); Bild kleiner */
 .main.s-card-rt-over .rt-stage { height: calc(100dvh - 21rem); min-height: 14rem; }
+/* Mit dem Demo-Hinweis (44 px im Fluss unter der Kopfzeile, src/ui/demo-view.js) wird das Endbild um genau diese Hoehe
+   kleiner, damit „Nochmal“ im ersten Bildschirm bleibt (Handy 390x844) */
+.demo-bar ~ .main.s-card-rt-over .rt-stage { height: calc(100dvh - 21rem - 44px); }
 /* Ansage des Hosts (Countdown, Warten, Pause) sichtbar; der Spielstand steht nur im Feld (.rt-say nur fuer Screenreader) */
 .rt-msg { margin: 0; min-height: 1.5em; font-weight: 700; text-align: center; color: #FFF6DC; }
 .rt-controls { display: flex; flex-wrap: wrap; gap: var(--s2); justify-content: center; }
