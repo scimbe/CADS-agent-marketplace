@@ -2,7 +2,7 @@
 // (Altcode-Luecke: nur Zeiger). Eingabe des Hosts je Tick (ADR 0001 b): { b, ax, ay, p:[[id,x,y,f]] }, f: bit0 unten,
 // bit1 neu gedrueckt, bit2 losgelassen. Die Gestenerinnerung (wo der Finger aufsetzte, Wischspur, Zielpunkte) liegt im
 // Zustand (ctl), damit die Partie rein und wiederholbar bleibt.
-import { W, H, num, mineTurn } from "./core.js";
+import { W, H, STEP, num, mineTurn } from "./core.js";
 import { sinD, cosD, PI } from "./num.js";
 import { VOLLEY } from "./volley.js";
 import { ELF } from "./elfer.js";
@@ -32,7 +32,12 @@ export const CONTROLS = {
   }
 };
 
-export function ctlInit() { return { down: null, pts: {}, aim: null, swipe: null, kAng: 0, kPow: 0.5, kx: null, from: W / 2 }; }
+export function ctlInit() { return { down: null, pts: {}, aim: null, swipe: null, kAng: 0, kPow: 0.5, kx: null, from: W / 2, kHold: 0 }; }
+// Pfeiltasten halten: der Schlaeger gleitet mit KEY.V0 an und wird ueber KEY.RAMP Ticks bis KEY.V1 schneller (Einheiten/s).
+// Das Ziel liegt immer nur einen Tick voraus; beim Loslassen haelt er an der aktuellen Stelle (kein Nachrutschen).
+export const KEY = { V0: 420, V1: 2200, RAMP: 48 };
+/** Schritt dieses Ticks fuer die gehaltene Achse (Einheiten), zaehlt die Haltedauer in c.kHold. */
+export function keyStep(c) { const v = KEY.V0 + (KEY.V1 - KEY.V0) * Math.min(1, c.kHold / KEY.RAMP); c.kHold++; return v * STEP; }
 function bit(inp, i) { return !!inp && ((inp.b | 0) >> i & 1) === 1; }
 function ax(inp) { return inp && num(inp.ax) ? Math.max(-1000, Math.min(1000, inp.ax)) / 1000 : 0; }
 function ay(inp) { return inp && num(inp.ay) ? Math.max(-1000, Math.min(1000, inp.ay)) / 1000 : 0; }
@@ -98,13 +103,25 @@ function up(g, c, S, p, k, apply) {
   c.down = null;
 }
 // ---------- Tastatur (neu: jede Zeigersteuerung hat eine Tastenentsprechung) ----------
+// Wo die Figur jedes Gleit-Spiels steht (Bezugssystem der eigenen Seite); y nur, wo die Achse y die Figur bewegt
+// und welcher Knopf (Bit 0) mitgeht
+const SLIDE = { puck: { at: (st) => ({ x: st.me.x, y: st.me.y }) }, ziegel: { at: (st) => ({ x: st.me }) }, volley: { at: (st) => ({ x: st.me.x }), btn: "jump" },
+  kick: { at: (st) => ({ x: st.c }), btn: "kick" }, snow: { at: (st) => ({ x: st.me.x }), btn: "fire" }, elfer: { at: (st) => ({ x: st.k.x }) } };
 function keys(g, c, S, inp, apply) {
   const x = ax(inp), y = ay(inp), st = S.st;
-  if (g === "puck") { if (x || y) apply({ x: st.me.x + x * 300, y: st.me.y + y * 300 }); return; }
-  if (g === "ziegel") { if (x) apply({ x: st.me + x * 300 }); return; }
-  if (g === "volley") { if (x || bit(inp, 0)) apply({ x: st.me.x + x * 300, jump: bit(inp, 0) }); return; }
-  if (g === "kick") { if (x || bit(inp, 0)) apply({ x: st.c + x * 300, kick: bit(inp, 0) }); return; }
-  if (g === "snow") { if (x || bit(inp, 0)) apply({ x: st.me.x + x * 300, fire: bit(inp, 0) }); return; }
+  // Gleiten (Schlaeger, Spieler, Stange): gehaltene Achse -> Ziel einen Schritt voraus; losgelassen -> Ziel = Stelle
+  const slide = SLIDE[g];
+  if (slide && !(g === "elfer" && st.shooting)) {
+    const held = !!(x || y), stop = !held && c.kHold > 0, at = slide.at(st), d = held ? keyStep(c) : 0, btn = !!slide.btn && bit(inp, 0);
+    if (!held) c.kHold = 0;
+    if (held || stop || btn) {
+      const gi = { x: at.x + x * d };
+      if (at.y !== undefined) gi.y = at.y + y * d;
+      if (slide.btn) gi[slide.btn] = btn;
+      apply(gi);
+    }
+    if (g !== "elfer") return;
+  }
   if (g === "panzer") {
     // Pfeil hoch/runter: Winkel (10..85 Grad), links/rechts: Kraft; Leertaste feuert mit dem gezeigten Ziel.
     if (x || y || (bit(inp, 0) && !c.aim)) {
@@ -127,7 +144,7 @@ function keys(g, c, S, inp, apply) {
         const dx = c.kx - st.spot.x, dy = ELF.GY - st.spot.y, l = Math.sqrt(dx * dx + dy * dy), v = 1800, cv = c.kAng * 700;
         apply({ shot: { vx: dx / l * v - cv * 0.35, vy: dy / l * v, c: cv } }); c.aim = null; c.kx = null; c.kAng = 0;
       }
-    } else if (x) apply({ x: st.k.x + x * 300 });
+    }
     return;
   }
   if (g === "stock" || g === "murmel") {

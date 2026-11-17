@@ -19,7 +19,7 @@ const fmt = (s, o) => String(s).replace(/\{(\w+)\}/g, (m, k) => String(o[k]));
  */
 export function createStage(env) {
   const { win, doc } = env;
-  let canvas = null, ctx2d = null, cache = new Map(), colors = null, colorsKey = "", lastNode = null, lastInfo = null, fit = null, live = null;
+  let canvas = null, ctx2d = null, cache = new Map(), colors = null, colorsKey = "", lastNode = null, lastInfo = null, fit = null, live = null, msg = null, fieldW = "";
   const ptrIds = new Map(); let nextPtr = 0;
   function readColors() {
     const cs = win.getComputedStyle(doc.documentElement);
@@ -31,6 +31,10 @@ export function createStage(env) {
     const r = canvas.getBoundingClientRect(), dpr = Math.min(win.devicePixelRatio || 1, 2);
     const w = Math.max(1, Math.round(r.width * dpr)), hgt = Math.max(1, Math.round(r.height * dpr));
     if (canvas.width !== w || canvas.height !== hgt) { canvas.width = w; canvas.height = hgt; cache = new Map(); }
+    // Feldbreite fuer die Buehne (CSS --rt-fw): was die Leinwand bei ihrer Hoehe im Seitenverhaeltnis braucht. Aus der Hoehe,
+    // nicht der Breite: die Breite begrenzt die Buehne selbst, so koennte das Feld nie wieder wachsen.
+    const v = env.rt.view, fw = v ? Math.round(r.height * v.w / v.h) + "px" : "";
+    if (fw && fw !== fieldW && canvas.parentElement) { fieldW = fw; canvas.parentElement.style.setProperty("--rt-fw", fw); }
     return { cw: r.width, ch: r.height, dpr, left: r.left, top: r.top };
   }
   function world(e) {
@@ -75,7 +79,7 @@ export function createStage(env) {
     win.removeEventListener("keydown", kd); win.removeEventListener("keyup", ku);
     doc.removeEventListener("visibilitychange", onVis); win.removeEventListener("blur", onBlur);
     if (mq && mq.removeEventListener) mq.removeEventListener("change", onScheme); // Review L6
-    mq = null; canvas = null; ctx2d = null; ptrIds.clear();
+    mq = null; canvas = null; ctx2d = null; fieldW = ""; ptrIds.clear();
   }
   /** deps.rt.draw fuer die Laufzeit */
   function draw(node, info) {
@@ -85,8 +89,11 @@ export function createStage(env) {
     const r = paint(ctx2d, node, { cw: s.cw, ch: s.ch, dpr: s.dpr, colors, colorsKey, reduced: env.reduced ? env.reduced() : false, t: Date.now() / 1000, cache, makeCanvas: (w, hh) => { const c = doc.createElement("canvas"); c.width = w; c.height = hh; return c; }, images: env.images || null, high: env.high || null, path2d: (d) => new win.Path2D(d) });
     if (r.unknown.length && env.onUnknown) env.onUnknown(r.unknown);
     canvas.setAttribute("aria-label", String(node.a11y || "").slice(0, 200));
-    const say = info.countdown ? fmt((TX[env.lang] || TX.de).ready, { n: info.countdown }) : info.stalled ? (TX[env.lang] || TX.de).wait : info.paused ? (TX[env.lang] || TX.de).paused : sayText(info.status && info.status.say, env.lang);
+    const X = TX[env.lang] || TX.de, host = info.countdown ? fmt(X.ready, { n: info.countdown }) : info.stalled ? X.wait : info.paused ? X.paused : "";
+    const say = host || sayText(info.status && info.status.say, env.lang);
     if (live && live.textContent !== say) live.textContent = say;
+    // sichtbar nur die Ansage des Hosts; den Spielstand zeigt das Feld selbst (sonst stuende er doppelt)
+    if (msg && msg.textContent !== host) msg.textContent = host;
   }
   /** Knoten fuer view.js im Zustand inhalt.card.rt.* (leaf = "card.rt.run" usw.) */
   /** opt.muted: Ton aus (HUD-Schalter, Design Phase C) */
@@ -112,7 +119,8 @@ export function createStage(env) {
         phase === "run" || phase === "pause" ? h("button", { type: "button", class: "rt-btn rt-pause", key: "pause", "aria-pressed": phase === "pause" ? "true" : "false", on: { click: () => dispatch({ type: phase === "pause" ? "RESUME" : "PAUSE" }) } }, phase === "pause" ? X.resume : X.pause) : null,
         h("button", { type: "button", class: "rt-btn rt-sound", key: "sound", "aria-pressed": muted ? "true" : "false", "aria-label": X.soundOff, on: { click: () => dispatch({ type: "MUTE", on: !muted }) } }, muted ? "🔇 " + X.soundOff : "🔊 " + X.sound)),
       h("canvas", { key: "cv", class: "rt-canvas", role: "img", "aria-label": X.stage, tabindex: "0", style: { "aspect-ratio": ratio }, ref: mount }),
-      h("p", { key: "say", class: "rt-say", "aria-live": "polite", ref: (el) => { live = el; } }, ""),
+      h("p", { key: "msg", class: "rt-msg", "aria-hidden": "true", ref: (el) => { msg = el; } }, ""),
+      h("p", { key: "say", class: "rt-say visually-hidden", "aria-live": "polite", ref: (el) => { live = el; } }, ""),
       // Grosse Tipp-Taste (controls.screenKey, Gate C): wie Tippen auf die Buehne; halten = gedrueckt halten
       sk ? h("button", { type: "button", class: "rt-btn rt-key", key: "skey", "aria-pressed": "false", style: { "min-height": skSize + "px" },
         on: {
