@@ -34,25 +34,39 @@ const L = (o, lang) => o[lang === "en" ? "en" : "de"];
  * @param pairs x-pairs eines Felds (pair) oder null
  */
 export function colorsOf(value, pairs = null) {
-  if (pairs && Array.isArray(pairs[value])) return pairs[value].map((c) => String(c).toLowerCase());
+  // nur eigene Schluessel (Object.hasOwn): "constructor" oder "toString" sind keine Farben
+  if (pairs && typeof value === "string" && Object.hasOwn(pairs, value) && Array.isArray(pairs[value])) return pairs[value].map((c) => String(c).toLowerCase());
   if (typeof value !== "string") return null;
   if (HEX.test(value)) return [value.toLowerCase()];
-  if (TOKENS[value]) return [TOKENS[value]];
-  if (FREI[value]) return FREI[value].slice();
+  if (Object.hasOwn(TOKENS, value)) return [TOKENS[value]];
+  if (Object.hasOwn(FREI, value)) return FREI[value].slice();
   return null;
 }
 /** Name eines Farbwerts; null, wenn es keinen gibt (der Aufrufer entscheidet ehrlich, siehe swatchField). */
 export function colorName(value, lang, pairs = null) {
   const cs = colorsOf(value, pairs);
   if (!cs) return null;
-  if (TOKEN_NAMES[value]) return L(TOKEN_NAMES[value], lang);
-  if (FREI_LABEL[value]) return L(FREI_LABEL[value], lang);
-  const n = cs.map((c) => COLOR_NAMES[c] && L(COLOR_NAMES[c], lang));
+  if (Object.hasOwn(TOKEN_NAMES, value)) return L(TOKEN_NAMES[value], lang);
+  if (Object.hasOwn(FREI_LABEL, value)) return L(FREI_LABEL[value], lang);
+  const n = cs.map((c) => Object.hasOwn(COLOR_NAMES, c) && L(COLOR_NAMES[c], lang));
   return n.every(Boolean) ? n.join(" / ") : null;
 }
 // Haekchen und Strich: Tinte auf weissem Kreis mit Tintenrand, auf jeder Farbe >= 3:1 (WCAG 1.4.11)
 const check = () => h("svg", { class: "sw-mark", viewBox: "0 0 24 24", "aria-hidden": "true" }, h("circle", { cx: "12", cy: "12", r: "10.5" }), h("path", { d: "M7 12.5l3.2 3.2L17 9" }));
 const strike = () => h("svg", { class: "sw-taken", viewBox: "0 0 48 48", "aria-hidden": "true" }, h("path", { d: "M10 38L38 10" }));
+
+/** Pfeiltasten in der Radiogruppe: naechstes/voriges freies Feld (im Kreis), Pos1/Ende; Fokus und Auswahl wandern mit. */
+function arrows(e, set) {
+  const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1, Home: "first", End: "last" }[e.key];
+  if (step === undefined) return;
+  const all = [...e.currentTarget.parentNode.querySelectorAll(".sw-opt")].filter((b) => !b.disabled);
+  if (!all.length) return;
+  const i = all.indexOf(e.currentTarget);
+  const next = step === "first" ? all[0] : step === "last" ? all[all.length - 1] : all[(i + step + all.length) % all.length];
+  e.preventDefault();
+  next.focus();
+  set(next.dataset.v);   // Farbwerte sind Zeichenketten (Hex, Token, Paarname)
+}
 
 /**
  * Farbfelder als Auswahl (role radiogroup). Werte in Reihenfolge; ein aktueller Wert ausserhalb der Liste steht vorne
@@ -63,15 +77,18 @@ export function swatchField(o) {
   const { id, label, value, set, lang } = o, lid = label ? "lbl-" + id : "dlg-title";
   const values = o.values.includes(value) || value === undefined || value === null ? o.values : [value, ...o.values];
   const own = lang === "en" ? "Own colour" : "Eigene Farbe";
+  const isTaken = (v) => o.taken !== undefined && o.taken !== null && v === o.taken && v !== value;
+  // Roving Tabindex (ARIA-Radiogruppe): ein Tab-Stopp je Gruppe (die Auswahl, sonst das erste freie Feld)
+  const stop = values.includes(value) ? value : values.find((v) => !isTaken(v));
   return h("div", { class: "field", key: id },
     h("div", { class: "seg", role: "radiogroup", "aria-labelledby": lid },
       label ? h("p", { class: "seg-label", id: lid }, label) : null,
       h("div", { class: "sw-row" }, values.map((v) => {
-        const cs = colorsOf(v, o.pairs) || [], on = v === value, taken = o.taken !== undefined && o.taken !== null && v === o.taken && !on;
+        const cs = colorsOf(v, o.pairs) || [], on = v === value, taken = isTaken(v);
         const name = colorName(v, lang, o.pairs) || own;
         const tip = taken ? name + " – " + (lang === "en" ? "taken by " : "belegt: ") + o.takenBy : name;
         const bg = cs.length === 2 ? { "background-image": "linear-gradient(135deg, " + cs[0] + " 50%, " + cs[1] + " 50%)", "background-color": cs[0] } : { "background-color": cs[0] || "transparent" };
-        return h("button", { type: "button", role: "radio", class: "sw-opt", key: String(v), "data-v": String(v), "aria-checked": on ? "true" : "false", "aria-label": tip, title: tip, disabled: taken || null, on: { click: () => set(v) } },
+        return h("button", { type: "button", role: "radio", class: "sw-opt", key: String(v), "data-v": String(v), "aria-checked": on ? "true" : "false", "aria-label": tip, title: tip, disabled: taken || null, tabindex: v === stop ? "0" : "-1", on: { click: () => set(v), keydown: (e) => arrows(e, set) } },
           h("span", { class: "sw-dot", style: bg }), on ? check() : null, taken ? strike() : null);
       }))));
 }

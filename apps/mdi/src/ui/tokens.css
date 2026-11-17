@@ -155,10 +155,10 @@ button, input, textarea { font: inherit; color: inherit; }
 .threads .th-b { fill: none; stroke: #FFFFFF; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 1 6; }
 .threads .th-dot { fill: #FFFFFF; stroke: #17140F; stroke-width: 2.5; }
 .bubble { position: absolute; left: 0; top: 0; width: var(--bs, 72px); height: var(--bs, 72px); padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  border: 3px solid #17140F; border-radius: 50%; background: #FFE680; color: #17140F; box-shadow: 0 4px 0 #17140F; font: 800 .72rem/1.05 var(--font-body);
+  border: 3px solid #17140F; border-radius: 50%; background: #FFE680; color: #17140F; box-shadow: 0 4px 0 #17140F; font: 800 max(12px, .75rem)/1.05 var(--font-body);
   cursor: grab; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
 .bubble .b-icon { width: calc(var(--bs, 72px) / 3); height: calc(var(--bs, 72px) / 3); fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
-.bubble .b-label { max-width: calc(var(--bs, 72px) - 10px); font-size: calc(var(--bs, 72px) / 6.5); text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.bubble .b-label { max-width: calc(var(--bs, 72px) - 10px); font-size: max(12px, .75rem); text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .bubble.ki { background: #B3321F; color: #FFFFFF; }
 .bubble.sig { background: #FBF5DD; }
 .bubble[aria-expanded="true"] { background: #3A352B; color: #FFFFFF; }

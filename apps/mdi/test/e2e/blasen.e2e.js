@@ -115,3 +115,60 @@ test("Blase ziehen: Lage bleibt (auch nach Neuladen), Ziehen oeffnet keinen Dial
   assert.equal(await p.locator('.bubble[data-for="regeln"]').getAttribute("data-pos"), pos, "Lage nach Neuladen");
   assert.deepEqual(errs, []);
 });
+
+test("Farbfelder per Tastatur: ein Tab-Stopp je Gruppe, Pfeiltasten waehlen und ueberspringen die belegte Farbe", async () => {
+  const { p, errs } = await open(b, { view: "desk1280" });
+  await customize(p, "arcade-volley");
+  await p.locator('.bubble[data-for="farben"]').click(); await p.locator('#dialog[data-part="farben"]').waitFor(); await p.waitForTimeout(300);
+  const g = p.locator("#dialog [role=radiogroup]").first();
+  const stops = () => g.evaluate((x) => [...x.querySelectorAll(".sw-opt")].filter((o) => o.tabIndex === 0).map((o) => o.dataset.v));
+  const state = () => g.evaluate((x) => ({ checked: x.querySelector('[aria-checked="true"]').dataset.v, focus: document.activeElement.dataset.v, order: [...x.querySelectorAll(".sw-opt")].map((o) => ({ v: o.dataset.v, dis: o.disabled })) }));
+  const s0 = await state();
+  assert.deepEqual(await stops(), [s0.checked], "genau ein Tab-Stopp: die Auswahl");
+  await g.locator('[aria-checked="true"]').focus();
+  const free = s0.order.filter((o) => !o.dis).map((o) => o.v), taken = s0.order.find((o) => o.dis);
+  assert.ok(taken, "eine belegte Farbe (Gegner)");
+  let at = free.indexOf(s0.checked);
+  for (const [key, d] of [["ArrowRight", 1], ["ArrowRight", 1], ["ArrowDown", 1], ["ArrowLeft", -1], ["ArrowUp", -1], ["ArrowLeft", -1]]) {
+    await p.keyboard.press(key); at = (at + d + free.length) % free.length;
+    const s = await state();
+    assert.equal(s.checked, free[at], key + " waehlt das naechste freie Feld"); assert.equal(s.focus, free[at], key + ": Fokus wandert mit");
+    assert.notEqual(s.checked, taken.v); assert.deepEqual(await stops(), [s.checked]);
+  }
+  await p.keyboard.press("End"); assert.equal((await state()).checked, free[free.length - 1]);
+  await p.keyboard.press("Home"); assert.equal((await state()).checked, free[0]);
+  // Tab verlaesst die Gruppe in einem Schritt und landet in der Gegner-Gruppe
+  await p.keyboard.press("Tab");
+  assert.equal(await p.evaluate(() => document.activeElement.closest("[role=radiogroup]") === document.querySelectorAll("#dialog [role=radiogroup]")[1]), true);
+  assert.deepEqual(await axe(p, "tastatur"), []);
+  assert.deepEqual(errs, []);
+});
+
+for (const [fs, root] of [["n", 16], ["g", 19], ["sg", 22]]) {
+  test("Blasen-Beschriftung bei Schriftgroesse " + fs + ": mindestens 12 px, mit der Einstellung gross, Blasen ueberlappen nicht", async () => {
+    const init = [`try { localStorage.setItem("mdi.konto", JSON.stringify({ pref: { fs: "${fs}" } })); } catch (e) {}`];
+    for (const [view, id] of [["phone360", "advent-tuer"], ["phone390", "arcade-volley"], ["desk1280", "gruss"]]) {
+      const { p, errs } = await open(b, { view, init });
+      await customize(p, id);
+      const r = await p.evaluate(() => {
+        const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize), bs = [...document.querySelectorAll(".bubbles .bubble")];
+        return { rootPx, labels: bs.map((x) => { const l = x.querySelector(".b-label"); return { id: x.dataset.for, px: parseFloat(getComputedStyle(l).fontSize), hidden: l.getAttribute("aria-hidden"), name: x.getAttribute("aria-label"), text: l.textContent }; }),
+          rects: bs.map((x) => { const q = x.getBoundingClientRect(); return [q.left, q.top, q.width]; }) };
+      });
+      assert.ok(Math.abs(r.rootPx - root * 1) < 1, fs + ": Wurzelschrift " + r.rootPx);
+      for (const l of r.labels) {
+        assert.ok(l.px >= 12 && l.px >= 0.75 * r.rootPx - 0.01, id + "/" + l.id + ": " + l.px + " px");
+        assert.equal(l.hidden, null, "Beschriftung sichtbar fuer alle");
+        assert.ok(l.name.includes(l.text), "sichtbarer Name steckt im zugaenglichen Namen (WCAG 2.5.3): " + l.name);
+      }
+      for (let i = 0; i < r.rects.length; i++) for (let j = i + 1; j < r.rects.length; j++) {
+        const [a, c] = [r.rects[i], r.rects[j]];
+        assert.ok(Math.abs(a[0] - c[0]) >= a[2] - 1 || Math.abs(a[1] - c[1]) >= a[2] - 1, id + " " + view + ": Blasen " + i + "/" + j + " ueberlappen");
+      }
+      assert.ok(r.rects[0][2] >= Math.max(48, 4.5 * r.rootPx) - 1, "Blase waechst mit der Schrift");
+      assert.deepEqual(await axe(p, id + "-" + fs), []);
+      assert.deepEqual(errs, []);
+      await p.context().close();
+    }
+  });
+}

@@ -92,3 +92,11 @@ test("pref.blasen vom Geraet wird geprueft", () => {
   assert.deepEqual(cleanPref({ blasen: { aus: true, lage: { "arcade-volley": { farben: [0.5, 0.5], x1: [1, 1], figur: [3, 0] }, "BAD!": { a: [0, 0] } } } }).blasen,
     { aus: true, lage: { "arcade-volley": { farben: [0.5, 0.5] } } });
 });
+
+test("Farbwerte: nur eigene Schluessel, kein Prototyp (constructor, toString, __proto__)", () => {
+  for (const v of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+    assert.equal(colorsOf(v), null, v); assert.equal(colorName(v, "de"), null, v);
+    assert.equal(colorsOf(v, { a: ["#ffffff", "#000000"] }), null, v + " mit Paaren");
+  }
+  assert.deepEqual(colorsOf("a", { a: ["#FFFFFF", "#000000"] }), ["#ffffff", "#000000"]);
+});

@@ -63,7 +63,7 @@ export function bubbleLayer(card, ctx, X, dispatch, tree, lang) {
       return h("button", { type: "button", class: "bubble" + (p.kind === "ki" ? " ki" : p.kind === "sig" ? " sig" : ""), key: p.id, "data-for": p.id, "data-kind": p.kind,
         "data-anchor": p.kind !== "part" ? null : at ? "at" : "part", "data-at": at, "data-pos": pos,
         "aria-label": aria + " " + X.bubbleDrag, "aria-expanded": open ? "true" : "false", on: { click: () => dispatch({ type: "BUBBLE", part: p.id }) } },
-        svgIcon(iconOf(m, p), "b-icon"), h("span", { class: "b-label", "aria-hidden": "true" }, label));
+        svgIcon(iconOf(m, p), "b-icon"), h("span", { class: "b-label" }, label));
     }));
 }
 export function partsInTree(tree) { const out = new Set(); (function walk(n) { if (!n || typeof n !== "object") return; if (typeof n.part === "string") out.add(n.part); for (const c of n.children || []) walk(c); for (const l of n.layers || []) walk(l); for (const o of n.ops || []) walk(o); })(tree); return out; }
@@ -89,20 +89,27 @@ const overlaps = (a, b, s) => Math.abs(a[0] - b[0]) < s && Math.abs(a[1] - b[1])
  */
 export function placeBubbles(root) {
   const stage = root.querySelector("#stage"), layer = root.querySelector(".bubbles");
+  if (stage && !layer) stage.style.removeProperty("margin-bottom");   // Abstand fuer Zusatzreihen gilt nur mit Blasen
   if (!stage || !layer) return;
   const card = stage.firstElementChild || stage, sr = stage.getBoundingClientRect();
   for (const [k, v] of [["left", sr.left + window.scrollX + "px"], ["top", sr.top + window.scrollY + "px"], ["width", sr.width + "px"], ["height", sr.height + "px"]]) layer.style.setProperty(k, v);
   const lr = layer.getBoundingClientRect(), W = lr.width, H = lr.height;
   const bubbles = [...layer.querySelectorAll(".bubble")], placed = [], gap = 6;
-  // Groesse nach Platz: 72 px auf grossen Karten, kleiner auf kleinen (z. B. 16:9 auf 360 px), nie unter 48 px (Touch-Ziel)
-  const size = Math.max(48, Math.min(72, Math.floor(Math.sqrt((W * H) / (bubbles.length * 2.2))))), half = size / 2, step = size + gap;
+  // Groesse folgt der Schrift (Mein Stil: Lesen & Bedienen skaliert rem): 4.5 rem, also 72 px bei 16 px. Die Beschriftung
+  // bleibt >= 12 px (WCAG 1.4.4); reicht der Platz auf der Karte nicht, wird die Blase nicht kleiner, sondern es gibt
+  // zusaetzliche Reihen unter der Karte (die Buehne bekommt dafuer Abstand)
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const size = Math.max(48, Math.round(4.5 * rem)), half = size / 2, step = size + gap;
   layer.style.setProperty("--bs", size + "px");
   const clampC = (c) => [Math.max(half, Math.min(W - half, c[0])), Math.max(half, Math.min(H - half, c[1]))];
   const free = (c) => !placed.some((p) => overlaps(p, c, step));
   const centers = new Map();
   // Raster der moeglichen Mitten: jede Blase nimmt die freie Zelle, die ihrem Anker am naechsten ist (ohne ihn zu verdecken)
-  const cells = [];
+  const cells = [], cols = Math.max(1, Math.floor((W + gap) / step));
   for (let y = half; y <= H - half + 0.5; y += step) for (let x = half; x <= W - half + 0.5; x += step) cells.push([x, y]);
+  const extra = Math.max(0, Math.ceil((bubbles.length - cells.length) / cols));
+  for (let r = 0; r < extra; r++) for (let k = 0; k < cols; k++) cells.push([half + k * step, H + gap + half + r * step]);
+  stage.style.setProperty("margin-bottom", extra ? extra * step + gap + "px" : "");
   const nearest = (a, avoid) => { let best = null, bd = Infinity; for (const c of cells) { if (!free(c) || (avoid && overlaps(c, a, size * 0.6))) continue; const d = Math.hypot(c[0] - a[0], c[1] - a[1]); if (d < bd) { bd = d; best = c; } } return best; };
   // 1. gemerkte Lagen, 2. Magie/Signatur in die unteren Ecken, 3. Teile nahe an ihrem Anker
   for (const b of bubbles) if (b.dataset.pos) { const [fx, fy] = num2(b.dataset.pos), c = clampC([fx * W, fy * H]); centers.set(b, c); placed.push(c); }
