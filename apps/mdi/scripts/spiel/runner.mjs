@@ -32,12 +32,12 @@ export function launchBrowser() {
  * @param {import("playwright").Browser} browser
  * @param {Awaited<ReturnType<typeof buildSpiel>>} built
  * @param {{mode:"play"|"test", code:string, seed:string, lang?:"de"|"en", seconds?:number}} job
- * @param {{frameHeaders?: Record<string, string>, hostFristen?: object}} [opt] nur fuer Tests: andere Kopfzeilen des
- *   Rahmens (fail-closed-Pruefung) und kuerzere Host-Fristen
+ * @param {{frameHeaders?: Record<string, string>, hostFristen?: object, view?: object}} [opt] nur fuer Tests: andere Kopfzeilen des
+ *   Rahmens (fail-closed-Pruefung) und kuerzere Host-Fristen; view: Playwright-Kontext (Standard VIEW; P3-Fotos mit deviceScaleFactor 1)
  * @returns {Promise<{ctx: any, page: any, netz: string[], errs: string[], served: Array<{path: string, headers: Record<string, string>}>, crashed: Promise<string>}>}
  */
 export async function openSandbox(browser, built, job, opt = {}) {
-  const ctx = await browser.newContext(VIEW);
+  const ctx = await browser.newContext(opt.view || VIEW);
   const netz = [], errs = [], served = [];
   const frameHeaders = opt.frameHeaders || { "Content-Security-Policy": frameCsp(FRAME, HOST), "X-Content-Type-Options": "nosniff" };
   const body = JSON.stringify({ frameUrl: FRAME + "/frame.html", lang: "de", fristen: opt.hostFristen || {}, ...job });
