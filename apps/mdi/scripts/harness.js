@@ -26,7 +26,8 @@ function walk(node, visit, parent) {
 /** @returns {string[]} Befunde (leer = bestanden) */
 /** @param {string} src @param {{file?:string}} [opt] file relativ zum Projekt (bestimmt die Import-Regel) */
 export function checkCardSource(src, opt = {}) {
-  const IMPORTS_OK = importsFor(opt.file);
+  const IMPORTS_OK = opt.imports || importsFor(opt.file);
+  const banned = opt.globals ? new Set([...GLOBALS_BANNED, ...opt.globals]) : GLOBALS_BANNED;
   // Testkarten liegen unter test/fixtures/cards/<id>/: ihr Weg zu src/ ist vier Ebenen laenger, die Regel dieselbe
   const fixture = !!(opt.file && /^test\/fixtures\/cards\//.test(opt.file));
   const spec = (v) => (fixture ? v.replace(/^\.\.\/\.\.\/\.\.\/\.\.\/src\//, "../../") : v);
@@ -49,7 +50,7 @@ export function checkCardSource(src, opt = {}) {
       if (n.computed) out.push("berechneter Zugriff auf Math" + at);
       else if (!MATH_OK.has(n.property.name)) out.push("Math." + n.property.name + " nicht erlaubt" + at);
     }
-    if (n.type === "Identifier" && GLOBALS_BANNED.has(n.name) && !declared.has(n.name)) {
+    if (n.type === "Identifier" && banned.has(n.name) && !declared.has(n.name)) {
       const isProp = parent && parent.type === "MemberExpression" && parent.property === n && !parent.computed;
       const isKey = parent && parent.type === "Property" && parent.key === n && !parent.computed;
       if (!isProp && !isKey) out.push("Global " + n.name + " nicht erlaubt" + at);
@@ -63,5 +64,19 @@ export function checkCardSource(src, opt = {}) {
       if (p === "toString" && parent && parent.type === "CallExpression" && parent.callee === n && parent.arguments.length > 0) out.push("toString(radix) nicht erlaubt" + at);
     }
   });
+  return out;
+}
+
+// Spielmodule der Freien Karte 2 (src/spiel/api.js): eine Datei, keine Importe, dieselben Mathe-/Uhr-/Netz-Regeln wie
+// Kartenlogik, dazu kein Zugriff auf Rahmen, Worker-Kanaele und Zeitgeber. Vorpruefung vor der Sandbox, kein Ersatz.
+export const SPIEL_GLOBALS_BANNED = ["parent", "opener", "postMessage", "onmessage", "addEventListener", "removeEventListener", "dispatchEvent",
+  "close", "queueMicrotask", "MessageChannel", "MessagePort", "BroadcastChannel", "EventSource", "indexedDB", "caches", "Proxy", "Reflect", "SharedArrayBuffer", "Atomics", "WebAssembly"];
+/** @returns {string[]} Befunde (leer = bestanden) */
+export function checkSpielSource(src) {
+  let out;
+  try { out = checkCardSource(src, { imports: [], globals: SPIEL_GLOBALS_BANNED }); }
+  catch (e) { return ["Syntax: " + e.message]; }
+  if (!/export\s+default\b/.test(src)) out.push("export default fehlt");
+  for (const p of ["__proto__", "prototype", "defineProperty", "setPrototypeOf", "constructor"]) if (new RegExp("\\b" + p + "\\b").test(src)) out.push(p + " nicht erlaubt");
   return out;
 }
