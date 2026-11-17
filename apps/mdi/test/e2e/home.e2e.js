@@ -67,13 +67,14 @@ test("Desktop (desk1280): Maus-Ziehen ueber den Text blaettert, auch beim Loslas
   const s3 = await p.locator(".h-stamp").boundingBox(), d3 = await num();
   await p.mouse.move(s3.x + 10, s3.y + s3.height / 2); await p.mouse.down(); await p.mouse.move(1200, s3.y + s3.height / 2 + 5, { steps: 1 }); await p.mouse.up();
   const d4 = await wait(d3, false);
+  assert.equal(d4, d0, "Sprung nach rechts blaettert einen Tag zurueck");
   assert.equal(await p.evaluate(() => String(getSelection())), "", "Sprung-Wisch markiert keinen Text");
   // danach: nur Ueberfahren ohne Taste und ein Klick blaettern nicht, keine haengende Geste
   await p.mouse.move(s3.x + 20, s3.y + 10); await p.mouse.move(s3.x + 200, s3.y + 10, { steps: 8 });
   assert.equal(await p.evaluate(() => document.querySelector(".h-leaf").classList.contains("h-drag")), false, "keine haengende Geste");
   await p.mouse.down(); await p.mouse.up();
   assert.equal(await num(), d4, "Klick nach Ueberfahren blaettert nicht");
-  await act(p, "day-prev"); assert.equal(await wait(d1, true), d1);
+  await act(p, "day-next"); assert.equal(await wait(d1, true), d1);
   // Tastatur: Blatt fokussieren, Pfeil links/rechts
   await p.locator(".h-leaf").focus(); await p.keyboard.press("ArrowLeft"); assert.equal(await wait(d0, true), d0);
   await p.locator(".h-leaf").focus(); await p.keyboard.press("ArrowRight"); assert.equal(await wait(d1, true), d1);
