@@ -75,8 +75,8 @@ test("Kategorie ohne Vorauswahl, Genre G1/G2, Wer spielt (kein Bot), Bald mit na
   s = go(s, { type: "PLAYMODE", mode: "bot" }, { consumed: false });
   s = go(s, { type: "PLAYMODE", mode: "duell" });
   assert.ok(txt(s).includes("Duell per Link: Die andere Person muss deine Punkte schlagen."));
-  s = go(s, { type: "SOON_PICK", id: "rennen" });
-  assert.ok(txt(s).includes("„Rennen“ gibt es noch nicht."));
+  assert.ok(!txt(s).includes("Bald:") && !txt(s).includes("gibt es noch nicht"), "keine Scheinangebote");
+  go(s, { type: "SOON_PICK", id: "rennen" }, { consumed: false });
   s = go(s, { type: "ART", art: "zauber" });
   assert.equal(s.ctx.frei.art, "game", "unbekannte Kategorie aendert nichts");
 });
