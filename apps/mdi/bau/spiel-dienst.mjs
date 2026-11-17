@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Freie Karte 2, P3: statischer Spiel-Dienst fuer den eigenen Ursprung (spiel-f29c55da.bunsenbrenner.org; auf ssh-united
-// zeigt ein CADS-Tunnel auf 127.0.0.1:8794). Liefert NUR den Sandbox-Rahmen (frame.html, frame.js, frame.css aus
+// zeigt der Tunnel spiel-agent auf 127.0.0.1:8795; der Produktions-Wrapper bleibt auf 8794). Liefert NUR den Sandbox-Rahmen (frame.html, frame.js, frame.css aus
 // scripts/spiel/build.mjs) und fertige Spielmodule /m/<sha256>.js aus SPIEL_MODULE_DIR (read-only gemountet; geschrieben
 // vom Wrapper, nachdem der Bau-Worker das Spiel abgenommen hat). Sonst nichts: kein Verzeichnis, keine anderen Dateien,
 // keine anderen Methoden als GET/HEAD.
@@ -14,8 +14,8 @@
 // erlaubten Origin der Anfrage, damit die App sie holen und gegen den sha256 aus dem Server-Status pruefen kann (die Datei
 // heisst nach ihrem Hash; stimmt der Inhalt nicht, gibt es 404).
 //
-// Umgebung: SPIEL_ORIGIN, APP_ORIGINS (Pflicht, Urspruenge mit Komma), SPIEL_MODULE_DIR (Pflicht), SPIEL_PORT (8794),
-// SPIEL_HOST (0.0.0.0 im Container; veroeffentlicht wird nur 127.0.0.1:8794).
+// Umgebung: SPIEL_ORIGIN, APP_ORIGINS (Pflicht, Urspruenge mit Komma), SPIEL_MODULE_DIR (Pflicht), SPIEL_PORT (8795),
+// SPIEL_HOST (0.0.0.0 im Container; veroeffentlicht wird nur 127.0.0.1:8795).
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -76,7 +76,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   const cfg = { spielOrigin: process.env.SPIEL_ORIGIN || "", appOrigins: String(process.env.APP_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean), moduleDir: process.env.SPIEL_MODULE_DIR || "" };
   const log = (o) => console.log(JSON.stringify({ t: new Date().toISOString(), ...o }));
   const server = createSpielDienst(cfg, await buildSpiel(), log);
-  const port = Number(process.env.SPIEL_PORT || 8794), host = process.env.SPIEL_HOST || "0.0.0.0";
+  const port = Number(process.env.SPIEL_PORT || 8795), host = process.env.SPIEL_HOST || "0.0.0.0";
   server.listen(port, host, () => log({ event: "spiel-dienst-start", port, spiel: cfg.spielOrigin, app: cfg.appOrigins }));
   for (const s of ["SIGTERM", "SIGINT"]) process.once(s, () => server.close(() => process.exit(0)));
 }

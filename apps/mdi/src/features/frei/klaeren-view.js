@@ -135,11 +135,21 @@ export function makeKlaerenView(D) {
   function bauenView(ctx, dispatch) {
     const lang = ctx.lang, k = ctx.frei.k, n = k.liste ? k.liste.punkte.length : 0;
     const step = (key, label, st, done) => h("li", { key, class: done ? "done" : "" }, h("span", { class: "k-dot", "aria-hidden": "true" }, done ? svg(CHECK, 18) : null), h("span", { class: "k-s-t" }, label), h("span", { class: "k-s-st" }, st));
-    // nur Kanaele, die der Server zustellen kann; Mitteilungen erst, wenn dieses Geraet ein Push-Abo hat (pushMark)
-    const kanaele = ["mail", "push"].filter((x) => k.kanaele[x] && (x !== "push" || !!k.pushMark));
+    // nur Kanaele, die der Server zustellen kann; ein Haekchen zeigt immer, was der Server gespeichert hat (der Klick setzt es
+    // nicht selbst): das Push-Haekchen also erst nach Erlaubnis des Browsers, Abo und Opt-in
+    const kanaele = ["mail", "push"].filter((x) => k.kanaele[x]);
     const box = (kanal, label) => h("label", { class: "k-check", key: kanal },
-      h("input", { type: "checkbox", "data-act": "k-optin-" + kanal, checked: k.optin[kanal], disabled: k.busy ? true : null, on: { change: (e) => dispatch({ type: "K_OPTIN", kanal, on: e.target.checked }) } }), h("span", null, label));
-    const body = [
+      h("input", { type: "checkbox", "data-act": "k-optin-" + kanal, checked: k.optin[kanal], disabled: k.busy || k.pushSt === "frage" ? true : null, on: { change: (e) => { const on = e.target.checked; e.target.checked = k.optin[kanal]; dispatch({ type: "K_OPTIN", kanal, on }); } } }), h("span", null, label));
+    const pushLine = k.pushSt && k.pushSt !== "ok" ? h("p", { class: k.pushSt === "frage" ? "hint" : "warn", role: "status", key: "ps", "data-push": k.pushSt }, kt(lang, "k_push_" + k.pushSt.replace("-", "_"))) : null;
+    const optin = kanaele.length ? h("fieldset", { class: "k-optin", key: "o" }, h("legend", null, kt(lang, "k_optin_h")), kanaele.map((x) => box(x, kt(lang, "k_optin_" + x))), pushLine, h("p", { class: "hint" }, kt(lang, "k_optin_note")))
+      : h("p", { class: "hint", key: "o0" }, kt(lang, "k_optin_keins"));
+    const optErr = k.optErr ? h("p", { class: "warn", role: "alert", key: "oe" }, kt(lang, "k_optin_err")) : null;
+    // ohne Bau-Worker (der Server sagt bau: "nicht-verfuegbar") kein Fortschritt, keine Dauer: nur ehrlich, was ist
+    const body = k.bau === "nicht-verfuegbar" ? [
+      h("h2", { class: "k-h", key: "h" }, kt(lang, "k_gespeichert_h")),
+      h("p", { class: "k-note", role: "status", key: "nv", "data-bau": "nicht-verfuegbar" }, kt(lang, "k_bau_nv")),
+      h("p", { class: "hint", key: "nk" }, kt(lang, "k_bau_nv_kosten")),
+      optin, optErr] : [
       h("h2", { class: "k-h", key: "h" }, kt(lang, "k_bauen_h")),
       h("p", { class: "k-lede", key: "l" }, kt(lang, "k_bauen_lede")),
       h("ol", { class: "k-steps", key: "s" },
@@ -149,10 +159,8 @@ export function makeKlaerenView(D) {
         step("pruef", kt(lang, "k_s_pruef", { n }), kt(lang, "k_st_danach"), false)),
       status(kt(lang, "k_bauen_p3"), "hint strong", "p3"),
       h("p", { class: "hint", key: "d" }, kt(lang, "k_dauer")),
-      kanaele.length ? h("fieldset", { class: "k-optin", key: "o" }, h("legend", null, kt(lang, "k_optin_h")), kanaele.map((x) => box(x, kt(lang, "k_optin_" + x))), h("p", { class: "hint" }, kt(lang, "k_optin_note")))
-        : h("p", { class: "hint", key: "o0" }, kt(lang, "k_optin_keins")),
-      k.optErr ? h("p", { class: "warn", role: "alert", key: "oe" }, kt(lang, "k_optin_err")) : null];
-    return { body, primary: a("k-home", kt(lang, "k_home"), "K_HOME", { cls: "k-go" }), secondary: [a("k-stand", kt(lang, "k_stand"), { type: "K_FERTIG", auftrag: k.auftrag })] };
+      optin, optErr];
+    return { body, primary: a("k-home", kt(lang, "k_home"), "K_HOME", { cls: "k-go" }), secondary: k.bau === "wartet" ? [a("k-stand", kt(lang, "k_stand"), { type: "K_FERTIG", auftrag: k.auftrag })] : [] };
   }
 
   // ---- 5 Fertig / Melden --------------------------------------------------------------------------------------------
@@ -185,7 +193,7 @@ export function makeKlaerenView(D) {
       resultList(lang, f, false),
       status(f.fehlt === 0 ? kt(lang, "k_alles") : f.fehlt === 1 ? kt(lang, "k_fehlt_1") : kt(lang, "k_fehlt_n", { n: f.fehlt }), "hint strong", "fs"),
       f.punkte.some((p) => p.geprueft === "gelesen") ? h("p", { class: "hint", key: "gl" }, kt(lang, "k_gelesen_hint")) : null,
-      f.fehlt === 0 || f.behalten ? kostenLine(lang, f) : null,
+      f.fehlt === 0 || f.behalten ? kostenLine(lang, f) : f.vorgemerkt ? status(kt(lang, "k_vorgemerkt", { n: f.kosten }), "hint", "vm") : null,
       probe(lang, f, k)];
     if (f.gemeldet) body.push(status(kt(lang, "k_meld_frei"), "k-ok", "gm"));
     if (f.behalten) body.push(status(f.abgebucht ? kt(lang, "k_behalten_ab", { n: f.kosten }) : kt(lang, "k_behalten_frei"), "k-ok", "bh"));

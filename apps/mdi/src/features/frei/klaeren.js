@@ -25,11 +25,10 @@ const KF = (ctx, o) => ({ ...ctx, frei: { ...ctx.frei, k: { ...ctx.frei.k, ...o 
 const fresh = (ctx, o = {}) => KF(ctx, { ...freshK(), req: ctx.frei.k.req, ...o });
 const cut = (v, n) => [...String(v == null ? "" : v)].slice(0, n).join("");
 export const freshK = () => ({ satz: "", req: 0, busy: null, err: null, id: null, verstehe: "", fragen: [], i: 0, antworten: [], eigen: [], pruef: null,
-  liste: null, auftrag: null, optin: { push: false, mail: false }, kanaele: { push: false, mail: false }, optErr: null, fertig: null, meldText: "", meld: null, note: null, mic: null,
+  liste: null, auftrag: null, bau: null, optin: { push: false, mail: false }, kanaele: { push: false, mail: false }, optErr: null, fertig: null, meldText: "", meld: null, note: null, mic: null,
   nachText: "", probe: null,
-  // Push-Abo dieses Geraets (Marke aus /api/duell/push/subscribe); der Neuentwurf hat noch keins, darum bietet die App keine
-  // Mitteilung an (nichts anbieten, was es nicht gibt) – der Server koennte sie zustellen (Kanal "push")
-  pushMark: null });
+  // Push-Abo dieses Geraets (Marke aus /api/duell/push/subscribe, src/broker/push-abo.js) und wie die Erlaubnis ausging
+  pushMark: null, pushSt: null });
 
 export const KLAEREN_STATES = {
   klaeren: {
@@ -88,7 +87,9 @@ export const KLAEREN_STATES = {
   },
   kbauen: {
     on: {
-      K_OPTIN: { cond: "kOptinOk", actions: ["kOptinFx"] },
+      // Push: erst Erlaubnis des Browsers und Abo (Effekt frei.push), dann das Opt-in mit der Marke dieses Geraets
+      K_OPTIN: [{ cond: "kPushAboNoetig", actions: ["kPushFx"] }, { cond: "kOptinOk", actions: ["kOptinFx"] }],
+      K_PUSH_R: { cond: "kPushR", actions: ["kTakePush"] },
       K_R: [{ cond: "kOptinR", actions: ["kTakeOptin"] }],
       K_HOME: { target: T("inhalt.shelf"), actions: ["kClear"] },
       BACK: { target: T("inhalt.shelf"), actions: ["kClear"] }
@@ -121,6 +122,7 @@ export const KLAEREN_STATES = {
 
 const k = (ctx) => ctx.frei.k;
 const isR = (op) => (ctx, ev) => ev.op === op && ev.req === k(ctx).req && k(ctx).busy === op;
+const BAU = ["nicht-verfuegbar", "wartet"];
 const pos = (n) => (Number.isInteger(n) && n > 0 ? n : null);
 const ok = (ev) => !!ev.r && ev.r.how === "ok";
 const answered = (ctx) => !!k(ctx).antworten[k(ctx).i];
@@ -143,9 +145,9 @@ export function fertigOf(b) {
   const spiel = fertig ? K.checkSpielRef(b.spiel) : null;
   const left = Number.isInteger(b.nachbessernLeft) && b.nachbessernLeft >= 0 && b.nachbessernLeft <= K.NACHBESSERN_MAX ? b.nachbessernLeft : null;
   const kosten = pos(b.kosten);   // Preis kommt vom Server, nie aus der App
-  if (!titel || (fertig && (!punkte.length || !spiel)) || left === null || !kosten || typeof b.abgebucht !== "boolean") return null;
+  if (!titel || (fertig && (!punkte.length || !spiel)) || left === null || !kosten || typeof b.abgebucht !== "boolean" || typeof b.vorgemerkt !== "boolean") return null;
   return { titel: cut(titel, K.LEN.titel), punkte, fehlt: punkte.filter((p) => !p.erfuellt).length, left, wartet, baut: wartet && b.status === "baut", gescheitert, spiel,
-    hinweis: K.HINWEISE.includes(b.hinweis) ? b.hinweis : null, kosten, abgebucht: b.abgebucht, gemeldet: b.gemeldet === true, behalten: b.behalten === true };
+    hinweis: K.HINWEISE.includes(b.hinweis) ? b.hinweis : null, kosten, abgebucht: b.abgebucht, vorgemerkt: b.vorgemerkt, gemeldet: b.gemeldet === true, behalten: b.behalten === true };
 }
 
 /** Antwort von auftrag/optin: welche Benachrichtigung der Server wirklich zustellen kann (nichts anbieten, was es nicht gibt) */
@@ -166,8 +168,11 @@ export const klaerenGuards = {
   kNotFirst: (ctx) => k(ctx).i > 0,
   kListeOk: (ctx, ev) => isR("liste")(ctx, ev) && ok(ev) && K.checkListe({ ok: true, titel: ev.r.body.titel, verstehe: ev.r.body.verstehe, punkte: (ev.r.body.punkte || []).map((p) => ({ text: p && p.text, pruefung: p && p.pruefung })), nicht: ev.r.body.nicht }, eigene(k(ctx))).ok
     && !!pos(ev.r.body.dauerMaxMin) && !!ev.r.body.kosten && !!pos(ev.r.body.kosten.guthaben),
-  kAuftragOk: (ctx, ev) => isR("auftrag")(ctx, ev) && ok(ev) && /^[A-Za-z0-9_-]{22}$/.test(String(ev.r.body.auftrag)),
-  kOptinOk: (ctx, ev) => ["push", "mail"].includes(ev.kanal) && typeof ev.on === "boolean" && !k(ctx).busy,
+  // bau: ob gebaut werden kann, sagt nur der Server ("nicht-verfuegbar" ohne Bau-Worker, "wartet" mit); sonst kein Auftrag
+  kAuftragOk: (ctx, ev) => isR("auftrag")(ctx, ev) && ok(ev) && /^[A-Za-z0-9_-]{22}$/.test(String(ev.r.body.auftrag)) && BAU.includes(ev.r.body.bau),
+  kOptinOk: (ctx, ev) => ["push", "mail"].includes(ev.kanal) && typeof ev.on === "boolean" && !k(ctx).busy && k(ctx).kanaele[ev.kanal] === true && (ev.kanal !== "push" || !ev.on || !!k(ctx).pushMark),
+  kPushAboNoetig: (ctx, ev) => ev.kanal === "push" && ev.on === true && !k(ctx).pushMark && !k(ctx).busy && k(ctx).pushSt !== "frage" && k(ctx).kanaele.push === true,
+  kPushR: (ctx) => k(ctx).pushSt === "frage",
   kOptinR: isR("optin"),
   kStatusR: isR("status"),
   kProbeOk: (ctx) => { const f = k(ctx).fertig; return !!f && !!f.spiel && !f.wartet && !(k(ctx).probe && k(ctx).probe.how === "busy"); },
@@ -185,6 +190,8 @@ export const klaerenGuards = {
   kFertigOk: (ctx, ev) => typeof ev.auftrag === "string" && /^[A-Za-z0-9_-]{22}$/.test(ev.auftrag)
 };
 
+/** Opt-in an den Server; mit Push immer die Marke dieses Geraets */
+const optinCall = (ctx, emit, o) => call(ctx, emit, "optin", { auftrag: k(ctx).auftrag, push: o.push, mail: o.mail, ...(o.push ? { mark: k(ctx).pushMark } : {}) }, { optErr: null });
 function call(ctx, emit, op, body, o = {}) {
   const req = k(ctx).req + 1;
   emit({ type: "frei.k", op, req, body });
@@ -246,8 +253,15 @@ export const klaerenActions = {
     return KF(ctx, { busy: null, err: null, liste: { ...v, dauerMaxMin: b.dauerMaxMin, kosten: b.kosten.guthaben } });
   },
   kAuftragFx: (ctx, ev, emit) => call(ctx, emit, "auftrag", { id: k(ctx).id }),
-  kTakeAuftrag: (ctx, ev) => KF(ctx, { busy: null, auftrag: ev.r.body.auftrag, optin: { push: false, mail: false }, kanaele: kanaeleOf(ev.r.body) }),
-  kOptinFx: (ctx, ev, emit) => { const o = { ...k(ctx).optin, [ev.kanal]: ev.on }; return call(ctx, emit, "optin", { auftrag: k(ctx).auftrag, ...o }, { optErr: null }); },
+  kTakeAuftrag: (ctx, ev) => KF(ctx, { busy: null, auftrag: ev.r.body.auftrag, bau: ev.r.body.bau, optin: { push: false, mail: false }, kanaele: kanaeleOf(ev.r.body) }),
+  kOptinFx: (ctx, ev, emit) => optinCall(ctx, emit, { ...k(ctx).optin, [ev.kanal]: ev.on }),
+  kPushFx: (ctx, ev, emit) => { emit({ type: "frei.push" }); return KF(ctx, { pushSt: "frage", optErr: null }); },
+  // erlaubt und abonniert: jetzt erst gilt das Haekchen (der Server speichert die Marke mit dem Auftrag)
+  kTakePush: (ctx, ev, emit) => {
+    const r = ev.r || {};
+    if (r.how === "ok" && /^[A-Za-z0-9_-]{22}$/.test(String(r.mark))) return optinCall(KF(ctx, { pushMark: r.mark, pushSt: "ok" }), emit, { ...k(ctx).optin, push: true });
+    return KF(ctx, { pushSt: ["verweigert", "nicht-hier"].includes(r.how) ? r.how : "fehler" });
+  },
   // angezeigt wird, was der Server gespeichert hat; scheitert es, bleibt der alte Stand mit ehrlichem Hinweis
   kTakeOptin: (ctx, ev) => (ok(ev) && ev.r.body.optin ? KF(ctx, { busy: null, optin: { push: ev.r.body.optin.push === true, mail: ev.r.body.optin.mail === true }, ...(ev.r.body.kanaele ? { kanaele: kanaeleOf(ev.r.body) } : {}) }) : KF(ctx, { busy: null, optErr: errOf(ev.r) })),
   kFertigOpen: (ctx, ev, emit) => call(fresh(ctx, { auftrag: ev.auftrag }), emit, "status", { auftrag: ev.auftrag }),
@@ -275,7 +289,7 @@ export const klaerenActions = {
   kMeldenFx: (ctx, ev, emit) => { const t = K.line(k(ctx).meldText); return call(ctx, emit, "melden", { auftrag: k(ctx).auftrag, ...(t ? { text: t } : {}) }, { meld: null }); },
   kTakeMelden: (ctx, ev) => (ok(ev) && ev.r.body.gemeldet === true ? KF(ctx, { busy: null, meld: { how: "ok" }, fertig: { ...k(ctx).fertig, gemeldet: true } }) : KF(ctx, { busy: null, meld: errOf(ev.r) })),
   kBehaltenFx: (ctx, ev, emit) => call(ctx, emit, "behalten", { auftrag: k(ctx).auftrag }),
-  kTakeBehalten: (ctx, ev) => (ok(ev) && ev.r.body.behalten === true ? KF(ctx, { busy: null, note: ev.r.body.abgebucht === true ? "behalten" : "behalten-frei", fertig: { ...k(ctx).fertig, behalten: true, abgebucht: ev.r.body.abgebucht === true } }) : KF(ctx, { busy: null, err: errOf(ev.r) }))
+  kTakeBehalten: (ctx, ev) => (ok(ev) && ev.r.body.behalten === true ? KF(ctx, { busy: null, note: ev.r.body.abgebucht === true ? "behalten" : "behalten-frei", fertig: { ...k(ctx).fertig, behalten: true, abgebucht: ev.r.body.abgebucht === true, vorgemerkt: false } }) : KF(ctx, { busy: null, err: errOf(ev.r) }))
 };
 function setAnswer(ctx, a, eigenText) {
   const ks = k(ctx), ant = ks.antworten.slice(), eigen = ks.eigen.slice();
@@ -285,6 +299,12 @@ function setAnswer(ctx, a, eigenText) {
 
 /** Effekte: ein Aufruf des Klaerungsdienstes (K_R {op, req, r}, gilt nur fuer req); das Spielmodul fuer die Probe (K_PROBE_R) */
 export const klaerenEffects = {
+  // Push-Abo: Erlaubnis des Browsers, Service Worker, Abo beim Server (src/broker/push-abo.js) -> K_PUSH_R
+  "frei.push": (fx, env) => {
+    const svc = env.deps.pushAbo;
+    const run = async () => env.dispatch({ type: "K_PUSH_R", r: svc && typeof svc.abonnieren === "function" ? await svc.abonnieren() : { how: "nicht-hier" } });
+    run().catch((e) => setTimeout(() => { throw e; }, 0));
+  },
   "frei.probe": (fx, env) => {
     const svc = env.deps.spielModul;
     const run = async () => {

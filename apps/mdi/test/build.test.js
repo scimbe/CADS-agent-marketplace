@@ -64,7 +64,11 @@ test("Realm-Trennung (Review M4): App nur zum eigenen Server und ohne Fremdskrip
   // dort das gepruefte Modul, ohne Cookies, Hash gegen den Server-Stand) – kein weiterer Host, kein Schema, kein Wildcard
   assert.equal(/connect-src ([^;]+)/.exec(csp)[1].trim(), "'self' " + SPIEL_ORIGIN);
   for (const d of ["img-src data:", "font-src data:", "default-src 'none'"]) assert.ok(csp.includes(d), d);
-  assert.ok(!/worker-src|manifest-src|media-src/.test(csp), "keine weiteren Quellen: " + csp);
+  // Push "Karte fertig": genau der eigene Service Worker, sonst keine weiteren Quellen
+  assert.equal(/worker-src ([^;]+)/.exec(csp)[1].trim(), "'self'");
+  assert.ok(!/manifest-src|media-src/.test(csp), "keine weiteren Quellen: " + csp);
+  const sw = fs.readFileSync(path.join(DIST, "mdi-push-sw.js"), "utf8");
+  assert.ok(!/addEventListener\("fetch"|caches\.|importScripts/.test(sw), "Service Worker nur fuer Push: kein fetch-Handler, kein Cache");
   assert.match(csp, /frame-src 'self' https:\/\/webconference\.bunsenbrenner\.org\/play-frame\.html https:\/\/spiel-f29c55da\.bunsenbrenner\.org\/frame\.html(;|$)/, "nur genau der Live-Rahmen der Webkonferenz und der Spielrahmen");
   assert.ok(!/https?:|'self'/.test(/script-src ([^;]+)/.exec(csp)[1]), "script-src nur Hash: " + csp);
   const frames = fs.readdirSync(path.join(DIST, "parts")).filter((f) => /^live-frame\./.test(f));

@@ -23,7 +23,7 @@ const LISTE = { titel: "Segelboot gegen Piraten", verstehe: "Ein Spiel mit Wasse
   { id: "p3", text: "Mit jeder Runde etwas schneller.", pruefung: "Runde 2 ist schneller." }], nicht: ["Gleichzeitig online gegeneinander spielen ist nicht dabei."], dauerMaxMin: 15, kosten: { guthaben: 1, nurBeiErfolg: true } };
 const SHA = "c".repeat(64), SPIEL_O = "https://spiel-f29c55da.bunsenbrenner.org";
 const SPIEL = { rahmen: SPIEL_O + "/frame.html", modul: SPIEL_O + "/m/" + SHA + ".js", sha256: SHA };
-const STATUS = (left, extra = {}) => ({ how: "ok", body: { titel: "Segelboot gegen Piraten", status: "fertig", kosten: 1, abgebucht: false, nachbessernLeft: left, gemeldet: false, behalten: false, hinweis: null, grund: null, spiel: SPIEL, ergebnis: { titel: "Segelboot gegen Piraten", fehlt: 1, punkte: [
+const STATUS = (left, extra = {}) => ({ how: "ok", body: { titel: "Segelboot gegen Piraten", status: "fertig", kosten: 1, abgebucht: false, vorgemerkt: true, nachbessernLeft: left, gemeldet: false, behalten: false, hinweis: null, grund: null, spiel: SPIEL, ergebnis: { titel: "Segelboot gegen Piraten", fehlt: 1, punkte: [
   { id: "p1", text: LISTE.punkte[0].text, erfuellt: true, notiz: "", geprueft: "gespielt" }, { id: "p2", text: LISTE.punkte[1].text, erfuellt: true, notiz: "", geprueft: "gelesen" }, { id: "p3", text: LISTE.punkte[2].text, erfuellt: false, notiz: "bleibt gleich schnell", geprueft: "gespielt" }] }, ...extra } });
 
 /** Dienst-Doppel: je Aufruf eine Antwort (Funktion oder Wert), merkt sich die Aufrufe */
@@ -98,7 +98,7 @@ test("Ablauf: Satz -> Fragen -> eigene Worte abgelehnt (Weiter gesperrt, Vorschl
     fragen: { how: "ok", body: FRAGEN },
     antwort: (b) => (/Raketen/.test(b.text) ? { how: "refused", reason: "weapons", vorschlaege: [0, 2] } : { how: "ok", body: { ok: true, text: b.text } }),
     liste: { how: "ok", body: LISTE },
-    auftrag: { how: "ok", body: { auftrag: AUF, status: "bestaetigt", kanaele: { push: true, mail: true } } },
+    auftrag: [{ how: "ok", body: { auftrag: AUF, status: "bestaetigt" } }, { how: "ok", body: { auftrag: AUF, status: "bestaetigt", bau: "nicht-verfuegbar", kanaele: { push: true, mail: true } } }],
     optin: (b) => ({ how: "ok", body: { optin: { push: b.push, mail: b.mail } } })
   });
   const { rt } = s;
@@ -152,15 +152,22 @@ test("Ablauf: Satz -> Fragen -> eigene Worte abgelehnt (Weiter gesperrt, Vorschl
   assert.match(t, /Ehrlich gesagt: Gleichzeitig online/); assert.match(t, /bis zu 15 Minuten\. Kostet 1 Guthaben – nur wenn alles klappt/);
   assert.equal(v.actions.primary.label, "Ja, so bauen");
   rt.dispatch({ type: "K_JA" }); await tick();
-  assert.ok(rt.matches("inhalt.frei.kbauen")); assert.equal(s.k().auftrag, AUF);
+  assert.ok(rt.matches("inhalt.frei.kliste"), "ohne Bau-Zustand des Servers keine Annahme der App"); assert.equal(s.k().err.how, "off");
+  rt.dispatch({ type: "K_JA" }); await tick();
+  assert.ok(rt.matches("inhalt.frei.kbauen")); assert.equal(s.k().auftrag, AUF); assert.equal(s.k().bau, "nicht-verfuegbar");
+  {
+    const t = text({ children: view(rt).body });
+    assert.match(t, /Dein Bauauftrag ist gespeichert\. Das Bauen selbst kommt im nächsten Schritt – wir sagen Bescheid\./);
+    assert.match(t, /Kein Guthaben, keine Abbuchung/);
+    assert.ok(!/Spiel wird gebaut|Minuten/.test(t), "kein vorgetaeuschter Fortschritt");
+  }
   assert.deepEqual(s.k().optin, { push: false, mail: false }, "kein Haekchen vorausgewaehlt");
-  rt.dispatch({ type: "K_OPTIN", kanal: "push", on: true }); await tick();
-  assert.deepEqual(s.klaerung.calls.at(-1), { op: "optin", body: { auftrag: AUF, push: true, mail: false } });
-  assert.deepEqual(s.k().optin, { push: true, mail: false });
-  assert.match(text({ children: view(rt).body }), /abgebucht wird nur, wenn alles klappt/);
-  // Mitteilung nur mit Push-Abo dieses Geraets (der Neuentwurf hat keins): angeboten wird nur die E-Mail
-  assert.deepEqual(all({ children: view(rt).body }).filter((x) => x.props && x.props["data-act"] && x.props["data-act"].startsWith("k-optin-")).map((x) => x.props["data-act"]), ["k-optin-mail"]);
-  assert.deepEqual(view(rt).actions.secondary.map((x) => [x.id, x.ev.type, x.ev.auftrag]), [["k-stand", "K_FERTIG", AUF]]);
+  rt.dispatch({ type: "K_OPTIN", kanal: "mail", on: true }); await tick();
+  assert.deepEqual(s.klaerung.calls.at(-1), { op: "optin", body: { auftrag: AUF, push: false, mail: true } });
+  assert.deepEqual(s.k().optin, { push: false, mail: true });
+  // beide Kanaele, die der Server zustellen kann; ohne Bau-Worker kein "Stand ansehen"
+  assert.deepEqual(all({ children: view(rt).body }).filter((x) => x.props && x.props["data-act"] && x.props["data-act"].startsWith("k-optin-")).map((x) => x.props["data-act"]), ["k-optin-mail", "k-optin-push"]);
+  assert.deepEqual(view(rt).actions.secondary, []);
   rt.dispatch({ type: "K_HOME" }); assert.ok(rt.matches("inhalt.shelf"));
 });
 
@@ -300,12 +307,13 @@ test("Vertrag P3: Spielverweis nur vom eigenen Ursprung, Modul heisst nach seine
   assert.deepEqual(K.checkSpielRef(SPIEL), { origin: SPIEL_O, rahmen: SPIEL.rahmen, modul: SPIEL.modul, sha256: SHA });
   for (const bad of [{ ...SPIEL, modul: "https://boese.example/m/" + SHA + ".js" }, { ...SPIEL, rahmen: "http://spiel-f29c55da.bunsenbrenner.org/frame.html" }, { ...SPIEL, modul: SPIEL_O + "/m/" + "d".repeat(64) + ".js" },
     { ...SPIEL, rahmen: SPIEL_O + "/host.html" }, { ...SPIEL, extra: 1 }, { ...SPIEL, sha256: "C".repeat(64) }, { ...SPIEL, modul: SPIEL.modul + "?x=1" }, null]) assert.equal(K.checkSpielRef(bad), null, JSON.stringify(bad));
-  const base = { titel: "T", kosten: 1, abgebucht: false, nachbessernLeft: 3, gemeldet: false, behalten: false, ergebnis: null, spiel: null };
+  const base = { titel: "T", kosten: 1, abgebucht: false, vorgemerkt: true, nachbessernLeft: 3, gemeldet: false, behalten: false, ergebnis: null, spiel: null };
   assert.deepEqual([fertigOf({ ...base, status: "baut" }).wartet, fertigOf({ ...base, status: "baut" }).baut], [true, true]);
   assert.equal(fertigOf({ ...base, status: "gescheitert", grund: "zeit" }).gescheitert, "zeit");
   assert.equal(fertigOf({ ...base, status: "gescheitert", grund: "irgendwas" }), null, "nur Gruende aus der festen Liste");
   assert.equal(fertigOf({ ...STATUS(3).body, spiel: null }), null, "fertig ohne Spiel gibt es nicht");
   assert.equal(fertigOf({ ...STATUS(3).body, abgebucht: undefined }), null, "ob abgebucht ist, sagt immer der Server");
+  assert.equal(fertigOf({ ...STATUS(3).body, vorgemerkt: undefined }), null, "ob Guthaben vorgemerkt ist, auch");
   assert.equal(fertigOf({ ...STATUS(3).body, hinweis: "nachbessern_nicht_geschafft" }).hinweis, "nachbessern_nicht_geschafft");
   assert.equal(klaerVerdict(402, { error: "guthaben" }).how, "guthaben");
 });
@@ -313,7 +321,7 @@ test("Vertrag P3: Spielverweis nur vom eigenen Ursprung, Modul heisst nach seine
 test("Fertig P3: baut -> neu abfragen -> fertig mit gespielt/nicht automatisch pruefbar, Probe mit Hash-Pruefung, Nachbessern mit Text", async () => {
   const laden = [];
   const spielModul = { laden: async (modul, sha) => { laden.push([modul, sha]); return laden.length === 1 ? { how: "hash" } : { how: "ok", code: "export default {}" }; } };
-  const klaerung = fakeDienst({ an: { how: "ok", body: { on: true } }, status: [{ how: "ok", body: { titel: "Segelboot gegen Piraten", status: "baut", ergebnis: null, spiel: null, grund: null, hinweis: null, kosten: 1, abgebucht: false, nachbessernLeft: 3, gemeldet: false, behalten: false } }, STATUS(3)],
+  const klaerung = fakeDienst({ an: { how: "ok", body: { on: true } }, status: [{ how: "ok", body: { titel: "Segelboot gegen Piraten", status: "baut", ergebnis: null, spiel: null, grund: null, hinweis: null, kosten: 1, abgebucht: false, vorgemerkt: true, nachbessernLeft: 3, gemeldet: false, behalten: false } }, STATUS(3)],
     nachbessern: { how: "ok", body: { nachbessernLeft: 2 } } });
   const rt = createRuntime({ lang: "de", entropy: () => "e".repeat(32), schedule: (f) => f(), onChange: () => {}, storage: { loadKonto: () => null, saveKonto: () => true, loadFeature: () => null, saveFeature: () => true },
     klaerung, spielModul, api: { loginHref: (r) => "/gate?r=" + r, status: async () => ({ ok: true, canLogin: true, account: false }), me: async () => ({ ok: false }) } });
@@ -325,7 +333,7 @@ test("Fertig P3: baut -> neu abfragen -> fertig mit gespielt/nicht automatisch p
   rt.dispatch({ type: "K_STATUS" }); await tick();
   v = view(rt);
   const t = text({ children: v.body });
-  assert.match(t, /ausprobiert/); assert.match(t, /nicht automatisch prüfbar/); assert.match(t, /bleibt gleich schnell/); assert.match(t, /Ein Punkt fehlt noch\. Abgebucht ist nichts\./);
+  assert.match(t, /ausprobiert/); assert.match(t, /nicht automatisch prüfbar/); assert.match(t, /bleibt gleich schnell/); assert.match(t, /Ein Punkt fehlt noch\. Abgebucht ist nichts\./); assert.match(t, /1 Guthaben ist vorgemerkt; abgebucht wird nur, wenn du die Karte behältst\./);
   assert.equal(v.actions.primary.id, "k-probe");
   rt.dispatch({ type: "K_PROBE" }); await tick();
   assert.deepEqual(laden[0], [SPIEL.modul, SHA]);
@@ -346,7 +354,7 @@ test("Fertig P3: baut -> neu abfragen -> fertig mit gespielt/nicht automatisch p
 });
 
 test("Fertig P3: voller Erfolg ist abgebucht und bietet kein Behalten; Behalten bei Teilerfolg bucht ab; gescheitert sagt warum", async () => {
-  const voll = STATUS(3, { abgebucht: true, ergebnis: { ...STATUS(3).body.ergebnis, fehlt: 0, punkte: STATUS(3).body.ergebnis.punkte.map((p) => ({ ...p, erfuellt: true, notiz: "" })) } });
+  const voll = STATUS(3, { abgebucht: true, vorgemerkt: false, ergebnis: { ...STATUS(3).body.ergebnis, fehlt: 0, punkte: STATUS(3).body.ergebnis.punkte.map((p) => ({ ...p, erfuellt: true, notiz: "" })) } });
   let s = boot({ status: voll });
   s.rt.dispatch({ type: "K_FERTIG", auftrag: AUF }); await tick();
   let v = view(s.rt);
@@ -357,9 +365,16 @@ test("Fertig P3: voller Erfolg ist abgebucht und bietet kein Behalten; Behalten 
   s.rt.dispatch({ type: "K_FERTIG", auftrag: AUF }); await tick();
   s.rt.dispatch({ type: "K_BEHALTEN" }); await tick();
   assert.match(text({ children: view(s.rt).body }), /Behalten\. 1 Guthaben ist abgebucht\./);
-  s = boot({ status: { how: "ok", body: { titel: "T", status: "gescheitert", grund: "nicht_geschafft", ergebnis: null, spiel: null, hinweis: null, kosten: 1, abgebucht: false, nachbessernLeft: 3, gemeldet: false, behalten: false } } });
+  s = boot({ status: { how: "ok", body: { titel: "T", status: "gescheitert", grund: "nicht_geschafft", ergebnis: null, spiel: null, hinweis: null, kosten: 1, abgebucht: false, vorgemerkt: false, nachbessernLeft: 3, gemeldet: false, behalten: false } } });
   s.rt.dispatch({ type: "K_FERTIG", auftrag: AUF }); await tick();
   v = view(s.rt);
   assert.match(text({ children: v.body }), /nicht bestanden\. Wir zeigen kein halb funktionierendes Spiel\. Abgebucht ist nichts\./);
   assert.equal(v.actions.primary.id, "k-home"); assert.deepEqual(v.actions.secondary, []);
+});
+
+test("Bau-Bildschirm mit angeschlossenem Bau-Worker (Server: bau wartet): Schritte ohne vorgetaeuschtes Laufen", () => {
+  const ctx = { lang: "de", frei: { k: { liste: { punkte: [1, 2, 3] }, bau: "wartet", optin: { push: false, mail: false }, kanaele: { push: false, mail: false }, busy: null, optErr: null } } };
+  const v = V.klaerenView({ ctx }, () => {}, "kbauen"), t = text({ children: v.body });
+  assert.match(t, /Plan steht.*fertig.*Spiel wird gebaut.*wartet/); assert.ok(!/läuft/.test(t));
+  assert.ok(!/Dein Bauauftrag ist gespeichert/.test(t));
 });

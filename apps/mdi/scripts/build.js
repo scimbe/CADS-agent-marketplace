@@ -122,6 +122,11 @@ export async function build() {
   fs.writeFileSync(path.join(DIST, "remote/play-frame.headers.json"), JSON.stringify(remoteHeaders, null, 2) + "\n");
   const liveRemote = { src: WC + "/play-frame.html", origin: WC };
 
+  // 2b) Service Worker nur fuer Push "Karte fertig" (src/broker/push-sw.js), neben index.html; der Wrapper liefert ihn mit
+  //     Service-Worker-Allowed fuer die Seite aus. Eigener Dateiname: der alte push-sw.js bleibt unberuehrt.
+  const sw = await esbuild.build({ ...common, entryPoints: [path.join(SRC, "broker/push-sw.js")] });
+  fs.writeFileSync(path.join(DIST, "mdi-push-sw.js"), sw.outputFiles[0].text);
+
   // 3) Karten- und Thumbnail-Teile
   const cp = await cardParts(common), tp = thumbParts(), fp = await featParts(common);
 
@@ -147,6 +152,8 @@ export async function build() {
     // dessen Netz laeuft im abgeschotteten Rahmen mit eigener CSP.
     // Freie Karte 2: "Probe spielen" holt das gepruefte Modul vom Spiel-Ursprung und bettet dessen Sandbox-Rahmen ein
     "connect-src 'self' " + SPIEL_ORIGIN, "frame-src 'self' " + liveRemote.src + " " + SPIEL_ORIGIN + "/frame.html",
+    // Push "Karte fertig": genau der eigene Service Worker (dist/mdi-push-sw.js), sonst keine Worker
+    "worker-src 'self'",
     "base-uri 'none'", "form-action 'none'", "object-src 'none'"
   ].join("; ");
   const tpl = fs.readFileSync(path.join(SRC, "index.template.html"), "utf8");
