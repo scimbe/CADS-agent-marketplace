@@ -59,6 +59,8 @@ test("Konfiguration: Rollen A als Standard, Modell je Rolle umschaltbar, Unbekan
   assert.throws(() => konfig({ MDI_BAU_TOKEN_FILE: "x" }), /QUEUE_URL[\s\S]*PRUEF_URL[\s\S]*KEY_FILE/);
   assert.throws(() => konfig({ ...env, MDI_BAU_PRUEF_URL: "" }), /getrennt von Key und Token/);
   assert.throws(() => konfig({ ...env, HTTPS_PROXY: "" }), /HTTPS_PROXY fehlt/, "ohne Egress-Proxy kein Start");
+  assert.equal(konfig(env).tagesgrenze, KOSTEN.jeTagUsd); assert.equal(konfig({ ...env, MDI_BAU_TAGESGRENZE_USD: "1.15" }).tagesgrenze, 1.15);
+  assert.throws(() => konfig({ ...env, MDI_BAU_TAGESGRENZE_USD: "50" }), /nur senken/);
   assert.equal(konfig({ MDI_BAU_QUEUE_URL: "http://w:1", MDI_BAU_PRUEF_URL: "http://p:2", MDI_BAU_TOKEN_FILE: "t", MDI_BAU_MODELL_DOUBLE: "1" }).double, true);
   assert.ok(Object.isFrozen(KOSTEN) && KOSTEN.jeAuftragUsd === 0.25 && KOSTEN.jeTagUsd === 5);
   assert.equal(GRENZEN.bauzeitMs, 15 * 60 * 1000); assert.ok(GRENZEN.maxTokensBau >= 32000);

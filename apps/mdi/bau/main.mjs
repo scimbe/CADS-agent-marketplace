@@ -14,7 +14,7 @@ import { modellDouble } from "./doppel.mjs";
 
 const c = konfig();
 const log = (o) => console.log(JSON.stringify({ t: new Date().toISOString(), ...o }));
-const tagesbuch = createTagesbuch({ cap: KOSTEN.jeTagUsd, dir: c.stateDir });
+const tagesbuch = createTagesbuch({ cap: c.tagesgrenze, dir: c.stateDir });
 // Aufruf-Protokoll ohne Inhalte: Rolle, Modell, Tokens, Kosten
 const llm = createLlm({ keyFile: c.keyFile, proxy: c.proxy, ledger: tagesbuch(), log: (row) => log({ event: "fk2-llm", ...row }), ...(c.double ? { fake: modellDouble() } : {}) });
 // Chromium und der fremde Code laufen NICHT hier, sondern im Pruef-Container ohne Key, Token und Netz (Review S1)
@@ -23,6 +23,6 @@ const pipeline = createBauPipeline({ llm, pruef, rollen: c.rollen, effort: c.eff
 const worker = createWorker({ queue: createQueueClient({ base: c.queueUrl, tokenFile: c.tokenFile }), pipeline, tagesbuch, log });
 const ac = new AbortController();
 for (const s of ["SIGTERM", "SIGINT"]) process.once(s, () => { log({ event: "fk2-bau-stop", signal: s }); ac.abort(); });
-log({ event: "fk2-bau-start", rollen: c.rollen, effort: c.effort, double: c.double, kosten: KOSTEN });
+log({ event: "fk2-bau-start", rollen: c.rollen, effort: c.effort, double: c.double, kosten: { ...KOSTEN, jeTagUsd: c.tagesgrenze } });
 await worker.laufen({ signal: ac.signal, pollMs: c.pollMs });
 await pruef.close();

@@ -19,6 +19,8 @@
 //   MDI_BAU_STATE_DIR        Kostenbuch je Tag (Standard /var/lib/mdi-bau)
 //   MDI_BAU_MODELL_PLANER | _BAUER | _ABNAHME   Modell je Rolle (Standard claude-haiku-5-5, Rollenverteilung A)
 //   MDI_BAU_AUFWAND_PLANER | _BAUER | _ABNAHME  low | medium | high (Standard medium)
+//   MDI_BAU_TAGESGRENZE_USD  nur zum Senken der Tagesgrenze (Messlaeufe, z. B. A10 mit hartem Deckel); hoeher als
+//                            KOSTEN.jeTagUsd ist ein Startfehler
 //   MDI_BAU_POLL_MS          Abstand der Abfragen bei leerer Warteschlange (Standard 5000)
 //   MDI_BAU_MODELL_DOUBLE    1 = Modell-Double statt API (nur Staging/Tests: baut immer die Vorlage invaders)
 import { PRICES } from "./llm.mjs";
@@ -40,9 +42,11 @@ export function konfig(env = process.env) {
     effort[r] = e;
   }
   const double = env.MDI_BAU_MODELL_DOUBLE === "1";
+  const tag = env.MDI_BAU_TAGESGRENZE_USD === undefined || env.MDI_BAU_TAGESGRENZE_USD === "" ? KOSTEN.jeTagUsd : Number(env.MDI_BAU_TAGESGRENZE_USD);
+  if (!(Number.isFinite(tag) && tag > 0 && tag <= KOSTEN.jeTagUsd)) fehler.push("MDI_BAU_TAGESGRENZE_USD: nur senken, 0 < x <= " + KOSTEN.jeTagUsd);
   const c = {
     queueUrl: String(env.MDI_BAU_QUEUE_URL || "").replace(/\/+$/, ""), pruefUrl: String(env.MDI_BAU_PRUEF_URL || "").replace(/\/+$/, ""), proxy: String(env.HTTPS_PROXY || "").replace(/\/+$/, ""), tokenFile: env.MDI_BAU_TOKEN_FILE || "", keyFile: env.MDI_ANTHROPIC_KEY_FILE || "",
-    stateDir: env.MDI_BAU_STATE_DIR || "/var/lib/mdi-bau", rollen, effort, pollMs: Number(env.MDI_BAU_POLL_MS || 5000), double
+    stateDir: env.MDI_BAU_STATE_DIR || "/var/lib/mdi-bau", tagesgrenze: tag, rollen, effort, pollMs: Number(env.MDI_BAU_POLL_MS || 5000), double
   };
   if (!/^https?:\/\/[^/]+$/.test(c.queueUrl)) fehler.push("MDI_BAU_QUEUE_URL fehlt oder ist keine Basis-URL");
   if (!c.tokenFile) fehler.push("MDI_BAU_TOKEN_FILE fehlt");
