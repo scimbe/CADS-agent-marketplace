@@ -87,5 +87,5 @@
     - Der Zähler ist sichtbar und wird serverseitig gezählt.
     - Nach dem 3. Mal steht „Melden“ an Stelle von „Nachbessern“: eine Entschuldigung und ein Freitext mit Begründung (max. 500 Zeichen, gleiche Moderation).
     - „Trotzdem so behalten (1 Guthaben)“ bleibt wählbar.
-    - Annahme, vom User noch zu bestätigen: Bei einer Meldung kostet die Karte nichts.
+    - Bei einer Meldung kostet die Karte nichts (User: „OK“).
     - Meldungen gehen in die Betreiber-Prüfansicht und in die Harness-Optimierung, zusammen mit den Abweichungsberichten der Erwartungstests.
