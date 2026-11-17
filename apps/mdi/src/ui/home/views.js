@@ -75,12 +75,13 @@ export function sheetSwipe(dispatch) {
     pointerdown: (e) => { if (e.button > 0 || !e.isPrimary) return; e.currentTarget.__swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, on: false }; },
     pointermove: (e) => {
       const el = e.currentTarget, g = el.__swipe; if (!g || g.id !== e.pointerId) return;
+      if (e.pointerType === "mouse" && e.buttons === 0) { end(el, 0); return; }   // Taste ausserhalb losgelassen: Geste verwerfen
       const dx = e.clientX - g.x, dy = e.clientY - g.y;
       if (!g.on) {
         if (Math.abs(dy) > SWIPE_START && Math.abs(dy) > Math.abs(dx)) { el.__swipe = null; return; }   // senkrecht: Seite scrollt
         if (Math.abs(dx) < SWIPE_START) return;
         g.on = true; el.classList.add("h-drag");
-        if (el.setPointerCapture) el.setPointerCapture(e.pointerId);
+        try { if (el.setPointerCapture) el.setPointerCapture(e.pointerId); } catch { end(el, 0); return; }
         const sel = typeof getSelection === "function" ? getSelection() : null; if (sel) sel.removeAllRanges();
       }
       e.preventDefault();

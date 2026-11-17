@@ -63,6 +63,13 @@ test("Desktop (desk1280): Maus-Ziehen ueber den Text blaettert, auch beim Loslas
   await p.mouse.move(s.x + 40, s.y + 10); await p.mouse.down(); await p.mouse.move(s.x + 48, s.y + 12); await p.mouse.up();
   assert.equal(await num(), d0, "8 px sind kein Wischen");
   await act(p, "day-next"); assert.equal(await wait(d1, true), d1);
+  // Review: Druecken im Blatt, vor der Schwelle hinaus und draussen loslassen; danach nur Ueberfahren ohne Taste blaettert nicht
+  const s2 = await p.locator(".h-stamp").boundingBox(), d2 = await num();
+  await p.mouse.move(s2.x + 20, s2.y + 10); await p.mouse.down(); await p.mouse.move(s2.x - 300, s2.y + 10, { steps: 1 }); await p.mouse.up();
+  await p.mouse.move(s2.x + 20, s2.y + 10); await p.mouse.move(s2.x + 200, s2.y + 10, { steps: 8 });
+  assert.equal(await p.evaluate(() => document.querySelector(".h-leaf").classList.contains("h-drag")), false, "keine haengende Geste");
+  await p.mouse.down(); await p.mouse.up();
+  assert.equal(await num(), d2, "Klick nach ueberfahren blaettert nicht");
   // Tastatur: Blatt fokussieren, Pfeil links/rechts
   await p.locator(".h-leaf").focus(); await p.keyboard.press("ArrowLeft"); assert.equal(await wait(d0, true), d0);
   await p.locator(".h-leaf").focus(); await p.keyboard.press("ArrowRight"); assert.equal(await wait(d1, true), d1);
