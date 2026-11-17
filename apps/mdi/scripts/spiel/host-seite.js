@@ -16,5 +16,5 @@ const host = createSpielHost({
     else if (m.t === "error") out("bericht", { ok: false, error: { code: m.code, message: m.message } });
   }
 });
-host.start({ mode: job.mode, code: job.code, seed: job.seed, lang: job.lang, seconds: job.seconds });
+host.start({ mode: job.mode, code: job.code, seed: job.seed, lang: job.lang, seconds: job.seconds, szenarien: job.szenarien });
 for (const [id, f] of [["pause", () => host.pause()], ["weiter", () => host.resume()]]) document.getElementById(id).addEventListener("click", f);

@@ -57,7 +57,7 @@ test("Negativfaelle ohne Browser: Ausnahme, Speicher, Zustand ausserhalb von s w
 });
 
 test("Protokoll: exakte Schluessel, Werte geprueft, Ablehnung mit Grund", () => {
-  const start = { v: V, t: "start", mode: "test", code: "export default {}", seed: "abc", lang: "de", seconds: 60 };
+  const start = { v: V, t: "start", mode: "test", code: "export default {}", seed: "abc", lang: "de", seconds: 60, szenarien: [] };
   assert.equal(checkToFrame(start), null);
   assert.equal(checkToFrame({ v: V, t: "start", mode: "play", code: "x", seed: "abc", lang: "en" }), null);
   assert.match(checkToFrame({ ...start, extra: 1 }), /Schluessel/);

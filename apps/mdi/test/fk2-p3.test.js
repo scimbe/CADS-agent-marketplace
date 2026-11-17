@@ -5,10 +5,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkPolicy } from "../scripts/fk2-p3/policy.mjs";
-import { repairNotes, errorKinds, extractCode } from "../scripts/fk2-p3/befund.mjs";
-import { createLedger, createLlm, usd, BudgetAbbruch } from "../scripts/fk2-p3/llm.mjs";
-import { praefix } from "../scripts/fk2-p3/doku.mjs";
+import { checkPolicy } from "../bau/policy.mjs";
+import { repairNotes, errorKinds, extractCode } from "../bau/befund.mjs";
+import { createLedger, createLlm, usd, BudgetAbbruch } from "../bau/llm.mjs";
+import { praefix } from "../bau/doku.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ref = (n) => fs.readFileSync(path.join(ROOT, "src/spiel/beispiele", n + ".js"), "utf8");

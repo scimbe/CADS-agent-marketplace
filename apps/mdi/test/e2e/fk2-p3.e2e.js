@@ -6,8 +6,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { ROOT } from "./lib/grund.mjs";
-import { createLedger, createLlm } from "../../scripts/fk2-p3/llm.mjs";
-import { createPruefstand } from "../../scripts/fk2-p3/pruefen.mjs";
+import { createLedger, createLlm } from "../../bau/llm.mjs";
+import { createPruefstand } from "../../bau/pruefen.mjs";
 import { createPipeline, VARIANTEN } from "../../scripts/fk2-p3/pipeline.mjs";
 
 const INV = fs.readFileSync(path.join(ROOT, "src/spiel/beispiele/invaders.js"), "utf8");

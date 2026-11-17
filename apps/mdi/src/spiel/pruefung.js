@@ -4,6 +4,7 @@
 // Netzversuche kann nur der Browser sehen; der Runner traegt sie als checks.noNetwork nach (finish()).
 import { createGame, checkModule, API_VERSION, HZ, LIMITS } from "./api.js";
 import { BOTS, GREEDY, makeBot, actions, press } from "./bots.js";
+import { runSzenario, SZ_MAX_STEPS } from "./szenario.js";
 
 /** Schwellen (Startwerte, eigene Setzung; Kalibrierung gegen menschliches Urteil steht aus). */
 export const THRESHOLDS = Object.freeze({ p95Ms: 4, probeFrames: 45, probeStarts: [0, 30, 90, 240], detFrames: 900, restartWarmup: 200 });
@@ -11,7 +12,7 @@ export const THRESHOLDS = Object.freeze({ p95Ms: 4, probeFrames: 45, probeStarts
 const p95 = (xs) => { if (!xs.length) return 0; const a = xs.slice().sort((x, y) => x - y); return a[Math.min(a.length - 1, Math.floor(a.length * 0.95))]; };
 const round3 = (x) => Math.round(x * 1000) / 1000;
 /** Pruefphasen in Reihenfolge; jede meldet Fortschritt je Spielschritt (der Rahmen haelt je Phase ein eigenes Fenster). */
-export const PHASES = Object.freeze(["bots", "eingaben", "determinismus", "neustart"]);
+export const PHASES = Object.freeze(["bots", "eingaben", "determinismus", "neustart", "szenarien"]);
 const RESTART_TAIL = 30;
 
 /**
@@ -27,7 +28,8 @@ export function workSteps(seconds, controls) {
     bots: 2 * frames + greedy,
     eingaben: Math.max(...THRESHOLDS.probeStarts) + controls * THRESHOLDS.probeStarts.length * 2 * THRESHOLDS.probeFrames,
     determinismus: 2 * THRESHOLDS.detFrames,
-    neustart: THRESHOLDS.restartWarmup + RESTART_TAIL
+    neustart: THRESHOLDS.restartWarmup + RESTART_TAIL,
+    szenarien: SZ_MAX_STEPS   // Obergrenze, unabhaengig von der Zahl der Szenarien (die Frist waechst nicht mit dem Auftrag)
   };
 }
 const fresh = (st, meta, round) => st.frame === 0 && st.score === 0 && st.lives === meta.lives && st.level === 1 && !st.over && !st.won && st.round === round;
@@ -118,12 +120,15 @@ function restartProbe(mod, o, ctx) {
 /**
  * Spielt ein Modul mit allen Bots und prueft die Invarianten.
  * @param {object} mod  Spielmodul
- * @param {{seed:string, seconds:number, now:() => number, onProgress?:(done:number,total:number,phase:string)=>void, name?:string}} o
+ * @param {{seed:string, seconds:number, now:() => number, onProgress?:(done:number,total:number,phase:string)=>void, name?:string, szenarien?:object[]}} o
+ *   szenarien: geprueft mit checkSzenarien (protokoll.js); sie laufen nach den Invarianten und entscheiden nicht ueber ok,
+ *   sondern je Haekchen-Punkt (report.szenarien, Abnahme in bau/abnahme.mjs)
  * @returns {object} Bericht (JSON-faehig)
  */
 export function playtest(mod, o) {
   const opt = { ...o, onProgress: o.onProgress || (() => {}) };
-  const report = { api: API_VERSION, name: o.name || null, title: null, controls: null, seed: o.seed, seconds: o.seconds, ok: false, error: null, checks: {}, bots: {} };
+  const szenarien = o.szenarien || [];
+  const report = { api: API_VERSION, name: o.name || null, title: null, controls: null, seed: o.seed, seconds: o.seconds, ok: false, error: null, checks: {}, bots: {}, szenarien: [] };
   // Fortschritt in allen Phasen: je Bot-Frame (Greedy-Vorausspiel inklusive) und je Spielschritt in Eingaben,
   // Determinismus und Neustart. total = Obergrenze dieser Meldungen (Eingaben kann frueher enden).
   const ctx = { done: 0, total: 0, where: "modul", phase: "bots", tick() { ctx.done++; opt.onProgress(ctx.done, ctx.total, ctx.phase); } };
@@ -131,7 +136,7 @@ export function playtest(mod, o) {
     const meta = checkModule(mod);
     report.title = meta.title; report.controls = meta.controls;
     const w = workSteps(o.seconds, meta.controls.length);
-    ctx.total = BOTS.length * o.seconds * HZ + w.eingaben + w.determinismus + w.neustart;
+    ctx.total = BOTS.length * o.seconds * HZ + w.eingaben + w.determinismus + w.neustart + szenarien.reduce((a, sz) => a + sz.schritte.reduce((b, x) => b + x.frames, 0), 0);
     ctx.where = "init";
     createGame(mod, { seed: o.seed });
     const runs = {};
@@ -139,6 +144,8 @@ export function playtest(mod, o) {
     ctx.where = ctx.phase = "eingaben"; const inputs = probeInputs(mod, opt, ctx);
     ctx.where = ctx.phase = "determinismus"; const det = determinism(mod, opt, ctx);
     ctx.where = ctx.phase = "neustart"; const rs = restartProbe(mod, opt, ctx);
+    ctx.where = ctx.phase = "szenarien";
+    report.szenarien = szenarien.map((sz) => runSzenario(mod, sz, { seed: o.seed, tick: () => ctx.tick() }));
     const allTimes = BOTS.flatMap((k) => runs[k].times);
     for (const k of BOTS) { const { times, ...rest } = runs[k]; void times; report.bots[k] = rest; }
     const played = Math.max(runs.random.bestScore, runs.greedy.bestScore);

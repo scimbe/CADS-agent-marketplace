@@ -1,10 +1,10 @@
-// Freie Karte 2, P3: Pruefstand fuer erzeugte Spiele. Ein Browser fuer alle Karten; Bot-Laeufe hintereinander (Mutex),
+// Freie Karte 2, P3: Pruefstand fuer erzeugte Spiele (laeuft nur im Bau-Worker, nie im Produktions-Wrapper). Ein Browser fuer alle Karten; Bot-Laeufe hintereinander (Mutex),
 // damit parallele Karten die Zeitmessung der Invariante "performance" nicht verfaelschen. Dazu Bildschirmfotos aus dem
 // echten Spielmodus (Sandbox, play) fuer Abnahme und Urteil.
-import { buildSpiel } from "../spiel/build.mjs";
-import { runGame, openSandbox, launchBrowser, FRAME } from "../spiel/runner.mjs";
+import { buildSpiel } from "../scripts/spiel/build.mjs";
+import { runGame, openSandbox, launchBrowser, FRAME } from "../scripts/spiel/runner.mjs";
 import { checkPolicy } from "./policy.mjs";
-import { rng } from "../../src/contract/sdk.js";
+import { rng } from "../src/contract/sdk.js";
 
 const KEYS = { left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp", down: "ArrowDown", fire: "Space" };
 const SHOT_VIEW = { viewport: { width: 390, height: 760 }, deviceScaleFactor: 1, hasTouch: true };
@@ -15,10 +15,14 @@ export async function createPruefstand() {
   let chain = Promise.resolve();
   const exclusive = (fn) => { const p = chain.then(fn, fn); chain = p.catch(() => {}); return p; };
   return {
-    /** Statik + Policy + Bots in der Sandbox. @returns {Promise<{report:object, policy:string[], ok:boolean}>} */
-    async pruefe(code, { name = "karte", seed = "p3", seconds = 60 } = {}) {
+    /**
+     * Statik + Policy + Bots (+ Szenario-Bots je Punkt) in der Sandbox. ok heisst: Invarianten und Policy bestanden; die
+     * Szenarien stehen in report.szenarien und entscheiden je Punkt (bau/abnahme.mjs).
+     * @returns {Promise<{report:object, policy:string[], ok:boolean}>}
+     */
+    async pruefe(code, { name = "karte", seed = "p3", seconds = 60, szenarien = [] } = {}) {
       const policy = checkPolicy(code);
-      const report = await exclusive(() => runGame(browser, built, { name, code, seed, seconds }));
+      const report = await exclusive(() => runGame(browser, built, { name, code, seed, seconds, szenarien }));
       return { report, policy, ok: report.ok && policy.length === 0 };
     },
     /**

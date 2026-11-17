@@ -31,7 +31,7 @@ export function launchBrowser() {
  * Oeffnet Host-Seite und Rahmen mit einem Auftrag.
  * @param {import("playwright").Browser} browser
  * @param {Awaited<ReturnType<typeof buildSpiel>>} built
- * @param {{mode:"play"|"test", code:string, seed:string, lang?:"de"|"en", seconds?:number}} job
+ * @param {{mode:"play"|"test", code:string, seed:string, lang?:"de"|"en", seconds?:number, szenarien?:object[]}} job
  * @param {{frameHeaders?: Record<string, string>, hostFristen?: object, view?: object}} [opt] nur fuer Tests: andere Kopfzeilen des
  *   Rahmens (fail-closed-Pruefung) und kuerzere Host-Fristen; view: Playwright-Kontext (Standard VIEW; P3-Fotos mit deviceScaleFactor 1)
  * @returns {Promise<{ctx: any, page: any, netz: string[], errs: string[], served: Array<{path: string, headers: Record<string, string>}>, crashed: Promise<string>}>}
@@ -65,13 +65,14 @@ export async function waitReport(page, timeout) {
 
 /**
  * Spielt ein Modul durch die Sandbox und liefert den Bericht.
- * @param {{name:string, code:string, seed?:string, seconds?:number}} g
+ * @param {{name:string, code:string, seed?:string, seconds?:number, szenarien?:object[]}} g  szenarien: Szenario-Bots je
+ *   Haekchen-Punkt (src/spiel/szenario.js); ohne Angabe keine (der Bericht hat dann szenarien: [])
  */
 export async function runGame(browser, built, g) {
-  const seed = g.seed || "fk2", seconds = g.seconds || 60;
+  const seed = g.seed || "fk2", seconds = g.seconds || 60, szenarien = g.szenarien || [];
   const findings = checkSpielSource(g.code);
   const t0 = Date.now();
-  const { ctx, page, netz, errs, crashed } = await openSandbox(browser, built, { mode: "test", code: g.code, seed, seconds });
+  const { ctx, page, netz, errs, crashed } = await openSandbox(browser, built, { mode: "test", code: g.code, seed, seconds, szenarien });
   const crash = crashed.then((message) => ({ ok: false, error: { code: "absturz", message } }));
   // Bleibt der Bericht aus, ist das Ergebnis immer ok=false: Absturz, sonst Frist. (Ein Absturz laesst waitReport erst
   // spaeter scheitern; darum kurz auf das crash-Ereignis warten, bevor "watchdog" gemeldet wird.)
@@ -80,7 +81,7 @@ export async function runGame(browser, built, g) {
   let report = await Promise.race([waiting, crash]);
   await ctx.close();
   await waiting;
-  if (!report.checks) report = { api: API_VERSION, title: null, controls: null, seed, seconds, ok: false, error: report.error, checks: {}, bots: {} };
+  if (!report.checks) report = { api: API_VERSION, title: null, controls: null, seed, seconds, ok: false, error: report.error, checks: {}, bots: {}, szenarien: [] };
   report.name = g.name;
   const prev = report.checks.noNetwork || { ok: true, attempts: [] };
   report.checks.noNetwork = { ok: prev.ok && netz.length === 0, attempts: [...prev.attempts, ...netz] };

@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import { buildSpiel } from "../spiel/build.mjs";
 import { runGame, launchBrowser } from "../spiel/runner.mjs";
-import { checkPolicy } from "./policy.mjs";
+import { checkPolicy } from "../../bau/policy.mjs";
 
 const [IN, OUT] = process.argv.slice(2);
 const karten = fs.readFileSync(IN, "utf8").trim().split("\n").map((l) => JSON.parse(l));

@@ -96,11 +96,12 @@ test("Fristen: Fenster je Phase passen in die Host-Stille, Gesamtfrist waechst m
   assert.throws(() => mitFristen({ fenster: { gesamt: 1 } }), /unbekanntes Fenster/);
 });
 
-test("Fortschritt kommt aus allen Phasen (bots, eingaben, determinismus, neustart), done bleibt <= total", async () => {
+test("Fortschritt kommt aus allen Phasen (bots, eingaben, determinismus, neustart, szenarien), done bleibt <= total", async () => {
   const mod = (await import(path.join(DIR, "../src/spiel/beispiele/breakout.js"))).default;
   const seen = new Set();
   let last = 0, total = 0;
-  const r = playtest(mod, { seed: "p", seconds: 2, now: () => performance.now(), onProgress(done, t, phase) { assert.equal(done, last + 1); last = done; total = t; seen.add(phase); } });
+  const szenarien = [{ id: "p1", schritte: [{ halte: ["left"], frames: 30 }], erwartung: { art: "punkte_steigen" } }];
+  const r = playtest(mod, { seed: "p", seconds: 2, szenarien, now: () => performance.now(), onProgress(done, t, phase) { assert.equal(done, last + 1); last = done; total = t; seen.add(phase); } });
   assert.equal(r.error, null);
   assert.deepEqual([...seen], [...PHASES]);
   assert.ok(last <= total, last + " <= " + total);

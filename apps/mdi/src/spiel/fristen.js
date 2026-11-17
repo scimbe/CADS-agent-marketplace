@@ -19,7 +19,8 @@ export const FRISTEN = Object.freeze({
     bots: Math.max(2500, 2 * GREEDY_UNIT_MS), // Meldung je Bot-Frame, der teuerste ist ein Greedy-Entscheid
     eingaben: 2500, // Meldung je Spielschritt
     determinismus: 2500,
-    neustart: 2500
+    neustart: 2500,
+    szenarien: 2500
   }),
   /** Gesamtfrist = Ladefenster + Spielschritte * p95-Budget * faktor */
   faktor: 1.5,
@@ -41,7 +42,7 @@ export function mitFristen(over = {}) {
 /** Gesamtfrist einer Pruefung im Rahmen (ms), fuer die unguenstigste Steuerung (alle fuenf). */
 export function gesamtfristMs(seconds, f = FRISTEN) {
   const w = workSteps(seconds, CONTROLS.length);
-  return f.fenster.load + Math.ceil((w.bots + w.eingaben + w.determinismus + w.neustart) * THRESHOLDS.p95Ms * f.faktor);
+  return f.fenster.load + Math.ceil((w.bots + w.eingaben + w.determinismus + w.neustart + w.szenarien) * THRESHOLDS.p95Ms * f.faktor);
 }
 
 /** Gesamtfrist im Host (ms): Rahmen-Frist plus Zugabe. */

@@ -12,8 +12,8 @@
 // Bricht hart ab, sobald die Kostengrenze einen weiteren Aufruf nicht mehr zulaesst. Gibt nie den Key aus.
 import fs from "node:fs";
 import path from "node:path";
-import { createLedger, createLlm, BudgetAbbruch } from "./llm.mjs";
-import { createPruefstand } from "./pruefen.mjs";
+import { createLedger, createLlm, BudgetAbbruch } from "../../bau/llm.mjs";
+import { createPruefstand } from "../../bau/pruefen.mjs";
 import { createPipeline, VARIANTEN } from "./pipeline.mjs";
 
 const a = process.argv.slice(2), opt = { varianten: "A", laeufe: 1, cap: 1, parallel: 2, nachbesserungen: 3 };

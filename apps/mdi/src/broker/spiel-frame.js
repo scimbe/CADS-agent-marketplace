@@ -202,7 +202,7 @@ export function startFrame(env) {
     port = ch.port1;
     port.onmessage = onWorker;
     worker.postMessage({ t: "init" }, [ch.port2]);
-    port.postMessage({ t: "load", code: m.code, seed: m.seed, mode: m.mode, seconds: m.mode === "test" ? m.seconds : 0 });
+    port.postMessage({ t: "load", code: m.code, seed: m.seed, mode: m.mode, seconds: m.mode === "test" ? m.seconds : 0, szenarien: m.mode === "test" ? m.szenarien : [] });
     wait(fristen.fenster.load);
     if (m.mode === "test") deadline = win.performance.now() + gesamtfristMs(m.seconds, fristen);
   }

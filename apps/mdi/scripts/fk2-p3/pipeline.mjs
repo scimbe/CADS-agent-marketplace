@@ -4,9 +4,9 @@
 //
 // Modell je Rolle umschaltbar (planer, bauer, abnahme). Der Klaerungsdialog P1 ist hier NICHT simuliert: die Pipeline
 // startet direkt mit Wunsch + Knoepfen, der Planer erzeugt die Haekchenliste selbst (Variante "direkt").
-import { praefix, ROLLEN, SCHEMA_PLAN, SCHEMA_ABNAHME } from "./doku.mjs";
-import { repairNotes, errorKinds, extractCode } from "./befund.mjs";
-import { BudgetAbbruch } from "./llm.mjs";
+import { praefix, ROLLEN, SCHEMA_PLAN, SCHEMA_ABNAHME } from "./proto-rollen.mjs";
+import { repairNotes, errorKinds, extractCode } from "../../bau/befund.mjs";
+import { BudgetAbbruch } from "../../bau/llm.mjs";
 
 export const MODELLE = Object.freeze({ haiku: "claude-haiku-5-5", sonnet: "claude-sonnet-5-5" });
 /** Rollen-Varianten der Messung. */
@@ -21,7 +21,7 @@ const GENRE = { G1: "Spiel / Fliegen", G2: "Spiel / Jump & Run", G3: "Spiel / Ne
 const numbered = (code) => code.split("\n").map((l, i) => String(i + 1).padStart(3) + "  " + l).join("\n");
 
 /**
- * @param {{llm:ReturnType<import("./llm.mjs").createLlm>, pruef:Awaited<ReturnType<import("./pruefen.mjs").createPruefstand>>,
+ * @param {{llm:ReturnType<import("../../bau/llm.mjs").createLlm>, pruef:Awaited<ReturnType<import("./pruefen.mjs").createPruefstand>>,
  *          rollen:{planer:string,bauer:string,abnahme:string}, effort?:string, now?:()=>number}} deps
  */
 export function createPipeline(deps) {

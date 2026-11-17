@@ -33,7 +33,7 @@ async function load(m) {
   try { mod = (await import(url)).default; } catch (e) { send(errOf(e, e instanceof SyntaxError ? "syntax" : "exception")); return; } finally { URL.revokeObjectURL(url); }
   if (m.mode === "test") {
     let last = now(), phase = "bots";
-    const report = playtest(mod, { seed: m.seed, seconds: m.seconds, now, onProgress(done, total, ph) {
+    const report = playtest(mod, { seed: m.seed, seconds: m.seconds, szenarien: m.szenarien, now, onProgress(done, total, ph) {
       const t = now();
       // Phasenwechsel sofort melden: der Rahmen schaltet auf das Fenster der neuen Phase
       if (t - last > PROGRESS_EVERY_MS || ph !== phase) { last = t; phase = ph; send({ t: "progress", done, total, phase: ph }); }

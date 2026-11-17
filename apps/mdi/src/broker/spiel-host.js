@@ -16,7 +16,7 @@ export const HOST_SILENCE_MS = 6000;
 
 /**
  * @param {{doc: Document, win: Window, mount: Element, frameUrl: string, onEvent: (m: object) => void, fristen?: typeof FRISTEN}} o
- * @returns {{ start(job: {mode:"play"|"test", code:string, seed:string, lang:"de"|"en", seconds?:number}): void, pause(): void, resume(): void, stop(): void, iframe: HTMLIFrameElement }}
+ * @returns {{ start(job: {mode:"play"|"test", code:string, seed:string, lang:"de"|"en", seconds?:number, szenarien?:object[]}): void, pause(): void, resume(): void, stop(): void, iframe: HTMLIFrameElement }}
  */
 export function createSpielHost(o) {
   const { doc, win } = o, fristen = o.fristen || FRISTEN;
@@ -27,7 +27,7 @@ export function createSpielHost(o) {
   iframe.setAttribute("referrerpolicy", "no-referrer");
   iframe.setAttribute("title", "Spiel");
   iframe.className = "spielrahmen";
-  let ready = false, queued = null, last = 0, closed = false, timer = 0, deadline = 0;
+  let ready = false, queued = null, last = 0, closed = false, timer = 0, deadline = 0, attached = false;
 
   function close(code, message) {
     if (closed) return;
@@ -53,6 +53,8 @@ export function createSpielHost(o) {
   win.addEventListener("message", onMsg);
   timer = win.setInterval(() => {
     if (closed) return;
+    // die Ansicht hat den Rahmen entfernt (z. B. "Probe schliessen"): aufraeumen, ohne Fehler zu melden
+    if (iframe.isConnected) attached = true; else if (attached) { close(null); return; }
     const t = win.performance.now();
     if (deadline && t > deadline) close("watchdog", "Gesamtfrist der Pruefung im Host ueberschritten");
     else if (last && t - last > HOST_SILENCE_MS) close("watchdog", "Spielrahmen meldet sich nicht seit " + HOST_SILENCE_MS + " ms");
@@ -63,7 +65,7 @@ export function createSpielHost(o) {
   return {
     iframe,
     start(job) {
-      const m = { t: "start", mode: job.mode, code: job.code, seed: job.seed, lang: job.lang, ...(job.mode === "test" ? { seconds: job.seconds } : {}) };
+      const m = { t: "start", mode: job.mode, code: job.code, seed: job.seed, lang: job.lang, ...(job.mode === "test" ? { seconds: job.seconds, szenarien: job.szenarien } : {}) };
       const bad = checkToFrame({ v: V, ...m });
       if (bad) throw new Error("Spiel-Host: Auftrag ungueltig: " + bad);
       last = win.performance.now();

@@ -144,9 +144,9 @@ test("Langsam, aber im Budget: Phasen ohne Bot-Frames (Eingaben, Determinismus, 
 
 test("Gesamtfrist: Fortschritt verlaengert sie nicht – im Rahmen und im Host", async () => {
   const kurz = await buildSpiel({ fristen: { faktor: 0 } }); // Rahmen-Frist = Ladefenster (3 s)
-  const r1 = await runGame(b, kurz, { name: "zaeh", code: src(NEG, "zaeh"), seed: "zaeh", seconds: 60 });
+  const r1 = await runGame(b, kurz, { name: "zaeh", code: src(NEG, "zaeh"), seed: "zaeh", seconds: 60, szenarien: [] });
   assert.equal(r1.error.code, "watchdog"); assert.match(r1.error.message, /Gesamtfrist der Pruefung ueberschritten/);
-  const { ctx, page } = await openSandbox(b, built, { mode: "test", code: src(NEG, "zaeh"), seed: "zaeh", seconds: 60 }, { hostFristen: { faktor: 0, hostZugabeMs: 0 } });
+  const { ctx, page } = await openSandbox(b, built, { mode: "test", code: src(NEG, "zaeh"), seed: "zaeh", seconds: 60, szenarien: [] }, { hostFristen: { faktor: 0, hostZugabeMs: 0 } });
   const r2 = await waitReport(page, 20000);
   assert.equal(r2.error.code, "watchdog"); assert.match(r2.error.message, /Gesamtfrist der Pruefung im Host/);
   await ctx.close();
@@ -165,7 +165,7 @@ test("CSP: ausgelieferte Kopfzeile des Rahmens == frameCsp() == iframe.csp des H
 
 test("Fail closed: ohne oder mit schwaecherer CSP-Kopfzeile laedt der Rahmen nicht und kein Spielcode laeuft", async () => {
   for (const [label, headers] of [["ohne", {}], ["schwaecher", { "Content-Security-Policy": frameCsp(FRAME, HOST).replace("connect-src 'none'", "connect-src *") }]]) {
-    const { ctx, page, served, netz } = await openSandbox(b, built, { mode: "test", code: src(BEISPIELE, "snake"), seed: "zu", seconds: 5 }, { frameHeaders: headers, hostFristen: { faktor: 0, hostZugabeMs: 0 } });
+    const { ctx, page, served, netz } = await openSandbox(b, built, { mode: "test", code: src(BEISPIELE, "snake"), seed: "zu", seconds: 5, szenarien: [] }, { frameHeaders: headers, hostFristen: { faktor: 0, hostZugabeMs: 0 } });
     const r = await waitReport(page, 20000);
     assert.equal(r.ok, false, label);
     assert.equal(r.error.code, "watchdog", label);

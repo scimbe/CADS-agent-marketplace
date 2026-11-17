@@ -1,0 +1,25 @@
+#!/usr/bin/env node
+// Freie Karte 2, P3: Einstieg des Bau-Worker-Containers (bau/Dockerfile, Befehl "node bau/main.mjs").
+// Konfiguration: bau/konfig.mjs. SIGTERM/SIGINT: der laufende Auftrag wird zu Ende gebaut, dann endet der Prozess
+// (ein abgebrochener Bau kaeme nach Ablauf der Lease ohnehin wieder in die Warteschlange).
+import { konfig } from "./konfig.mjs";
+import { createLlm, createTagesbuch } from "./llm.mjs";
+import { createPruefstand } from "./pruefen.mjs";
+import { createBauPipeline } from "./pipeline.mjs";
+import { createQueueClient, createWorker } from "./worker.mjs";
+import { KOSTEN } from "./konfig.mjs";
+import { modellDouble } from "./doppel.mjs";
+
+const c = konfig();
+const log = (o) => console.log(JSON.stringify({ t: new Date().toISOString(), ...o }));
+const tagesbuch = createTagesbuch({ cap: KOSTEN.jeTagUsd, dir: c.stateDir });
+// Aufruf-Protokoll ohne Inhalte: Rolle, Modell, Tokens, Kosten
+const llm = createLlm({ keyFile: c.keyFile, ledger: tagesbuch(), log: (row) => log({ event: "fk2-llm", ...row }), ...(c.double ? { fake: modellDouble() } : {}) });
+const pruef = await createPruefstand();
+const pipeline = createBauPipeline({ llm, pruef, rollen: c.rollen, effort: c.effort, log });
+const worker = createWorker({ queue: createQueueClient({ base: c.queueUrl, tokenFile: c.tokenFile }), pipeline, tagesbuch, log });
+const ac = new AbortController();
+for (const s of ["SIGTERM", "SIGINT"]) process.once(s, () => { log({ event: "fk2-bau-stop", signal: s }); ac.abort(); });
+log({ event: "fk2-bau-start", rollen: c.rollen, effort: c.effort, double: c.double, kosten: KOSTEN });
+await worker.laufen({ signal: ac.signal, pollMs: c.pollMs });
+await pruef.close();

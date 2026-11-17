@@ -2,6 +2,7 @@
 // Schema auf Ein- und Ausgang, Ablehnung immer mit Grund. Exakte Schluessel: Unbekanntes wird abgelehnt, nicht
 // uebergangen. Handgeschrieben statt Ajv, weil der Rahmen ohne Laufzeit-Abhaengigkeiten auskommen soll.
 import { CONTROLS, LIMITS } from "./api.js";
+import { checkSzenarien } from "./szenario.js";
 
 export const V = 1;
 export const ERROR_CODES = Object.freeze(["modul", "zustand", "api", "zeichnen", "eingabe", "speicher", "exception", "syntax", "watchdog", "netz", "protokoll", "sandbox"]);
@@ -22,13 +23,14 @@ export function checkToFrame(m) {
   if (!isObj(m) || m.v !== V) return "kein Objekt mit v=" + V;
   switch (m.t) {
     case "start": {
-      const want = m.mode === "test" ? ["v", "t", "mode", "code", "seed", "lang", "seconds"] : ["v", "t", "mode", "code", "seed", "lang"];
+      const want = m.mode === "test" ? ["v", "t", "mode", "code", "seed", "lang", "seconds", "szenarien"] : ["v", "t", "mode", "code", "seed", "lang"];
       const bad = keys(m, want); if (bad) return "start: " + bad;
       if (m.mode !== "play" && m.mode !== "test") return "start: mode muss play oder test sein";
       if (typeof m.code !== "string" || m.code.length < 1 || m.code.length > LIMITS.codeBytes) return "start: code fehlt oder ist groesser als " + LIMITS.codeBytes;
       if (typeof m.seed !== "string" || !SEED_RE.test(m.seed)) return "start: seed ungueltig";
       if (!LANGS.includes(m.lang)) return "start: lang muss " + LANGS.join(" oder ") + " sein";
       if (m.mode === "test" && !isInt(m.seconds, 1, MAX_SECONDS)) return "start: seconds muss 1.." + MAX_SECONDS + " sein";
+      if (m.mode === "test") { const sz = checkSzenarien(m.szenarien); if (sz) return "start: " + sz; }
       return null;
     }
     case "pause": case "resume": case "stop": return keys(m, ["v", "t"]);
