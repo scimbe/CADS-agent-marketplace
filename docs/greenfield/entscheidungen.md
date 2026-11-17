@@ -51,3 +51,6 @@
   4. Faktencheck-Kalibrierung (50 Fragen): User: „Erst akzeptieren“. Auslegung: Der Faktencheck geht ohne menschliche Kalibrierung in Betrieb; die Bewertung der 50 Fragen wird nachgeholt.
   5. 77,3 % Bot-Playtest-Quote für Echtzeitspiele im Baukasten reicht für den Start (User: „77% ok“).
   6. Neue Strike-Regel der Moderation (Wrapper #142, Strikes nur bei klaren Verstößen) angenommen (User: „Moderation ja“).
+- 2026-11-17 **Release freigegeben** (User: „Realese jetzt“). Gerätetest auf echten Handys übersprungen. Ausgerollt 06:49 UTC, siehe 07-protokoll/2026-11-17-release.md.
+- 2026-11-17 „Trust Email“ beim IdP haw-gitlab wieder an (User: „SMTP einrichten oder zurückstellen – mach das!“). SMTP-Zugangsdaten gibt der Integrator nicht ein, deshalb zurückgestellt.
+- 2026-11-17 Doppelte Session „Marketplace“ aufgelöst (User: „beide agenten muessen sich einigen“): Die Session [a27c4e] verantwortet MDI-Release und Repos. Die andere wurde in „handover-session-rename-marketing“ umbenannt und fasst die Repos nicht an.
