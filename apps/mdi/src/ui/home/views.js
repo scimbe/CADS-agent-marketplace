@@ -81,6 +81,7 @@ export function sheetSwipe(dispatch) {
         g.on = true; el.classList.add("h-drag"); clearSel();
       }
       if (ev.cancelable) ev.preventDefault();
+      clearSel();
       el.style.setProperty("--dx", Math.max(-120, Math.min(120, dx)) + "px");
     };
     const up = (ev) => {
@@ -97,8 +98,13 @@ export function sheetSwipe(dispatch) {
       el.__swipe = null;
       if (win) { win.removeEventListener("pointermove", move, true); win.removeEventListener("pointerup", up, true); win.removeEventListener("pointercancel", cancel, true); win.removeEventListener("selectstart", noSel, true); }
       el.classList.remove("h-drag"); el.style.removeProperty("--dx");
-      if (g.on) clearSel();
-      if (g.on && Math.abs(dx) > SWIPE_DAY) dispatch({ type: "DAY", d: dx < 0 ? 1 : -1 });
+      if (g.on) {
+        clearSel();
+        // Review 17.11.: endet der Wisch auf einem Knopf im Blatt (‹ › „Zu heute“), keinen zweiten Tageswechsel per Klick
+        if (win) { const eat = (c) => { c.preventDefault(); c.stopPropagation(); win.removeEventListener("click", eat, true); }; win.addEventListener("click", eat, true); win.setTimeout(() => win.removeEventListener("click", eat, true), 400); }
+      }
+      // nur, wenn das Blatt noch zu sehen ist (sonst gehoert der Wisch zu keiner sichtbaren Ansicht mehr)
+      if (g.on && el.isConnected && Math.abs(dx) > SWIPE_DAY) dispatch({ type: "DAY", d: dx < 0 ? 1 : -1 });
     };
     g.end = end; el.__swipe = g;
     if (win) { win.addEventListener("pointermove", move, true); win.addEventListener("pointerup", up, true); win.addEventListener("pointercancel", cancel, true); win.addEventListener("selectstart", noSel, true); }
