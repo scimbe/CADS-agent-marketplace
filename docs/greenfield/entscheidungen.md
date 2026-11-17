@@ -74,7 +74,12 @@
     - 70 nicht informierte Agenten bauen über den echten Dienst: 50 Spiele und 20 Karten, die keine Spiele sind. Jeder schreibt vorher seine Erwartung auf.
     - Wünsche und Erwartungen sind über alle 70 disjunkt; vorher läuft eine Dublettenprüfung.
     - Agenten-Karten kommen ohne Einzelfreigabe ins Deck, mit der Kennzeichnung „(KI)“. Karten von Menschen mit KI-Hilfe tragen „(KI-unterstützt)“. Das ändert für Agenten-Karten die Regel vom 06.11. („ein Mensch gibt frei“).
-    - Annahme, vom User noch zu bestätigen: Moderation, Siegel, Bot-Abnahme und „ohne Gewalt“ gelten weiter. Ins Deck kommt nur, was alles besteht und keinen „fehlt“-Punkt hat.
+    - Moderation, Siegel, Bot-Abnahme und „ohne Gewalt“ gelten weiter; vom User bestätigt (siehe unten, a).
     - Kosten: geschätzt 10–25 $ aus dem Budget von 100 $.
   - **P1 Klärungsdialog vom User abgenommen** (17.11. abends). Canvas: https://claude.ai/artifact/GooQEjvqm2S4ZAXtikWGaS, mit freier Eingabe in jeder Frage.
     - Regel bei Teilerfolg: Fehlt ein Punkt, wird nichts abgebucht. Der Kunde wählt dann zwischen „Nachbessern (kostenlos)“ und „So behalten (1 Guthaben)“. User: „passt“.
+  - **Deck-Befüllung, Entscheidungen des Users:** „a) ja b) nur erstmal die 70 Agenten-Karten c) ja d) ja“.
+    - a) Moderation, Siegel, Bot-Abnahme und „ohne Gewalt“ gelten weiter. Eine Karte mit einem „fehlt“-Punkt kommt nicht ins Deck.
+    - b) Vorerst kommen nur die 70 Agenten-Karten ohne menschliche Freigabe ins Deck. Für Kunden-Karten bleibt die Regel vom 06.11.
+    - c) Die Karten werden normal einsortiert; die Daumen bestimmen die Reihenfolge. „(KI)“ ist sichtbar, es gibt keinen eigenen Bereich.
+    - d) Die Kennzeichnung lautet „(KI)“ bzw. „(KI-unterstützt)“.
