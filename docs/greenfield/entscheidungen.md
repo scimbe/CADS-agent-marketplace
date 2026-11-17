@@ -76,3 +76,5 @@
     - Agenten-Karten kommen ohne Einzelfreigabe ins Deck, mit der Kennzeichnung „(KI)“. Karten von Menschen mit KI-Hilfe tragen „(KI-unterstützt)“. Das ändert für Agenten-Karten die Regel vom 06.11. („ein Mensch gibt frei“).
     - Annahme, vom User noch zu bestätigen: Moderation, Siegel, Bot-Abnahme und „ohne Gewalt“ gelten weiter. Ins Deck kommt nur, was alles besteht und keinen „fehlt“-Punkt hat.
     - Kosten: geschätzt 10–25 $ aus dem Budget von 100 $.
+  - **P1 Klärungsdialog vom User abgenommen** (17.11. abends). Canvas: https://claude.ai/artifact/GooQEjvqm2S4ZAXtikWGaS, mit freier Eingabe in jeder Frage.
+    - Regel bei Teilerfolg: Fehlt ein Punkt, wird nichts abgebucht. Der Kunde wählt dann zwischen „Nachbessern (kostenlos)“ und „So behalten (1 Guthaben)“. User: „passt“.
