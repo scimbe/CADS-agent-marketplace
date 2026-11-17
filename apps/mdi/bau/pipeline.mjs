@@ -18,9 +18,10 @@ import { praefix, ROLLEN, SCHEMA_PLAN, SCHEMA_ABNAHME } from "./doku.mjs";
 import { repairNotes, errorKinds, extractCode } from "./befund.mjs";
 import { BudgetAbbruch } from "./llm.mjs";
 import { bewerte, szenarioAusPlan } from "./abnahme.mjs";
+import { kiKlasse } from "./ki-klasse.mjs";
 
 /** Gruende fuer "keine Karte" (geschlossene Liste; der Vertrag features/frei/klaerung.js kennt dieselbe) */
-export const BAU_GRUENDE = Object.freeze(["nicht_geschafft", "kein_spiel", "policy", "zeit", "kosten", "fehler"]);
+export const BAU_GRUENDE = Object.freeze(["nicht_geschafft", "kein_spiel", "policy", "zeit", "kosten", "fehler", "ki_nicht_verfuegbar"]);
 export const GRENZEN = Object.freeze({ reparaturen: 3, bauzeitMs: 15 * 60 * 1000, maxTokensBau: 32000, maxTokensPlan: 8000, maxTokensAbnahme: 8000, sekunden: 60 });
 
 const numbered = (code) => code.split("\n").map((l, i) => String(i + 1).padStart(3) + "  " + l).join("\n");
@@ -160,6 +161,9 @@ export function createBauPipeline(deps) {
     try { return await fn(); } catch (e) {
       if (e instanceof Zeit || (e && e.name === "AbortError") || ctx.signal.aborted) return fertig(ctx, { ok: false, grund: "zeit" });
       if (e instanceof BudgetAbbruch) { log({ event: "fk2-bau-kosten", tag: ctx.tag, msg: e.message }); return fertig(ctx, { ok: false, grund: "kosten" }); }
+      // die Modell-API antwortet nicht (Limit, Schluessel, Ueberlast, Ausfall): ehrlich "nicht verfuegbar", nichts abgebucht
+      const ki = kiKlasse(e);
+      if (ki) { log({ event: "fk2-bau-ki", tag: ctx.tag, ki, status: Number(e.status) || 0 }); return fertig(ctx, { ok: false, grund: "ki_nicht_verfuegbar", ki }); }
       log({ event: "fk2-bau-fehler", tag: ctx.tag, msg: String(e && e.message || e).slice(0, 300) });
       return fertig(ctx, { ok: false, grund: "fehler" });
     }

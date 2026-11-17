@@ -218,3 +218,28 @@ test("Review S1: Pruef-Dienst getrennt (nur /pruefe und /fotos, Eingaben gepruef
   } finally { server.close(); }
   for (const a of ["--webrtc-ip-handling-policy=disable_non_proxied_udp", "--force-webrtc-ip-handling-policy"]) assert.ok(BROWSER_ARGS.includes(a), a);
 });
+
+test("KI-Ausfall im Bau: ki-limit (auch als 400 mit Limit-Text) endet ehrlich mit ki_nicht_verfuegbar, Worker pausiert", async () => {
+  const { kiKlasse } = await import("../bau/ki-klasse.mjs");
+  assert.equal(kiKlasse({ status: 400, message: "You have reached your specified API usage limits." }), "ki-limit");
+  assert.equal(kiKlasse({ status: 402 }), "ki-limit"); assert.equal(kiKlasse({ status: 401 }), "ki-key");
+  assert.equal(kiKlasse({ status: 529 }), "ki-ueberlastet"); assert.equal(kiKlasse({ status: 503 }), "ki-ausfall");
+  assert.equal(kiKlasse({ name: "APIConnectionError" }), "ki-ausfall"); assert.equal(kiKlasse({ code: "proxy-403" }), "ki-ausfall");
+  assert.equal(kiKlasse({ status: 400, message: "messages: field required" }), "", "eigener Fehler bleibt ein Fehler");
+  assert.equal(kiKlasse(new TypeError("x")), "");
+  const limit = async () => { throw Object.assign(new Error("400 You have reached your specified API usage limits"), { status: 400 }); };
+  const pruef = { async pruefe() { throw new Error("nie"); }, async fotos() { throw new Error("nie"); } };
+  const p = createBauPipeline({ llm: createLlm({ ledger: createLedger({ cap: 1 }), fake: limit }), pruef, rollen: ROLLEN_STANDARD });
+  const e = await p.bauen(AUFTRAG, { signal: new AbortController().signal, ledger: createLedger({ cap: 1 }) });
+  assert.deepEqual([e.ok, e.grund, e.ki], [false, "ki_nicht_verfuegbar", "ki-limit"]);
+  assert.ok(BAU_GRUENDE.includes("ki_nicht_verfuegbar"));
+  assert.deepEqual(meldung({ auftrag: { id: "x" }, lease: "l", art: "neu" }, e).ki, "ki-limit");
+  // der Worker meldet und holt danach 15 Minuten nichts
+  let holen = 0, t = 0;
+  const queue = { async holen() { holen++; return { auftrag: AUFTRAG, lease: "L".repeat(22), art: "neu" }; }, async ergebnis() { return { ok: true }; } };
+  const w = createWorker({ queue, pipeline: p, tagesbuch: createTagesbuch({ cap: 5, dir: tmp() }), log: () => {}, now: () => t });
+  assert.equal(await w.einmal(), "gebaut");
+  assert.equal(await w.einmal(), "ki-pause"); assert.equal(holen, 1);
+  t += 15 * 60000 + 1;
+  assert.equal(await w.einmal(), "gebaut"); assert.equal(holen, 2);
+});

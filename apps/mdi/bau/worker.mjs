@@ -10,6 +10,7 @@ import fs from "node:fs";
 import { createLedger } from "./llm.mjs";
 import { GRENZEN } from "./pipeline.mjs";
 import { KOSTEN } from "./konfig.mjs";
+import { PAUSE_MS } from "./ki-klasse.mjs";
 
 /** Client der internen Warteschlange. Das Token wird bei jedem Aufruf aus der Datei gelesen (Rotation ohne Neustart). */
 export function createQueueClient({ base, tokenFile, fetchImpl = fetch, timeoutMs = 30000 }) {
@@ -41,7 +42,7 @@ export function createQueueClient({ base, tokenFile, fetchImpl = fetch, timeoutM
 /** Was an den Wrapper geht: nur Ergebnis, Spiel, Plan und Kennzahlen; keine Fotos, keine Belege des Modells. */
 export function meldung(job, e) {
   const base = { auftrag: job.auftrag.id, lease: job.lease, art: job.art, ms: e.ms, usd: Math.round(e.usd * 1e6) / 1e6 };
-  if (!e.ok) return { ...base, ok: false, grund: e.grund, alt: e.alt === true };
+  if (!e.ok) return { ...base, ok: false, grund: e.grund, alt: e.alt === true, ...(e.ki ? { ki: e.ki } : {}) };
   return {
     ...base, ok: true, titel: e.titel, punkte: e.punkte.map((p) => ({ id: p.id, erfuellt: p.erfuellt, notiz: p.notiz, geprueft: p.geprueft })),
     spiel: e.spiel, plan: e.plan, ersetzt: e.ersetzt, versuche: (e.versuche || []).map((v) => ({ runde: v.runde, ok: v.ok, fehlerarten: v.fehlerarten, szenarien: v.szenarien || null }))
@@ -55,8 +56,11 @@ export function meldung(job, e) {
 export function createWorker(o) {
   const log = o.log || ((x) => console.log(JSON.stringify(x)));
   const bauzeitMs = o.bauzeitMs || GRENZEN.bauzeitMs;
-  /** Einen Auftrag holen und bauen. -> "leer" | "tagesgrenze" | "gebaut" */
+  let pauseBis = 0;
+  const jetzt = o.now || Date.now;
+  /** Einen Auftrag holen und bauen. -> "leer" | "tagesgrenze" | "ki-pause" | "gebaut" */
   async function einmal() {
+    if (jetzt() < pauseBis) return "ki-pause";   // nach einer KI-Stoerung keine weiteren Auftraege verbrennen
     const tag = o.tagesbuch();
     if (tag.spent >= tag.cap) return "tagesgrenze";
     const job = await o.queue.holen();
@@ -69,7 +73,8 @@ export function createWorker(o) {
     finally { clearTimeout(timer); }
     const m = meldung(job, e);
     await o.queue.ergebnis(m);
-    log({ event: "fk2-bau", art: job.art, ok: e.ok, grund: e.grund || null, fehlt: e.ok ? e.fehlt : null, ersetzt: e.ersetzt || 0, ms: Date.now() - t0, usd: m.usd });
+    if (e.ki) pauseBis = jetzt() + PAUSE_MS[e.ki];
+    log({ event: "fk2-bau", art: job.art, ok: e.ok, grund: e.grund || null, ki: e.ki || null, fehlt: e.ok ? e.fehlt : null, ersetzt: e.ersetzt || 0, ms: Date.now() - t0, usd: m.usd });
     return "gebaut";
   }
   return {
@@ -80,7 +85,7 @@ export function createWorker(o) {
       while (!signal.aborted) {
         let r;
         try { r = await einmal(); } catch (err) { log({ event: "fk2-bau-queue", ok: false, msg: String(err && err.message || err).slice(0, 200) }); r = "fehler"; }
-        if (r !== "gebaut") await sleep(r === "tagesgrenze" ? 60000 : pollMs);
+        if (r !== "gebaut") await sleep(r === "tagesgrenze" || r === "ki-pause" ? 60000 : pollMs);
       }
     }
   };
