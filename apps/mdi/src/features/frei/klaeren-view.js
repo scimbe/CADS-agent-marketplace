@@ -136,7 +136,14 @@ export function makeKlaerenView(D) {
     const step = (key, label, st, done) => h("li", { key, class: done ? "done" : "" }, h("span", { class: "k-dot", "aria-hidden": "true" }, done ? svg(CHECK, 18) : null), h("span", { class: "k-s-t" }, label), h("span", { class: "k-s-st" }, st));
     const box = (kanal, label) => h("label", { class: "k-check", key: kanal },
       h("input", { type: "checkbox", "data-act": "k-optin-" + kanal, checked: k.optin[kanal], disabled: k.busy ? true : null, on: { change: (e) => dispatch({ type: "K_OPTIN", kanal, on: e.target.checked }) } }), h("span", null, label));
-    const body = [
+    const optin = h("fieldset", { class: "k-optin", key: "o" }, h("legend", null, kt(lang, "k_optin_h")), box("push", kt(lang, "k_optin_push")), box("mail", kt(lang, "k_optin_mail")), h("p", { class: "hint" }, kt(lang, "k_optin_note")));
+    const optErr = k.optErr ? h("p", { class: "warn", role: "alert", key: "oe" }, kt(lang, "k_optin_err")) : null;
+    // ohne Bau-Worker (der Server sagt bau: "nicht-verfuegbar") kein Fortschritt, keine Dauer: nur ehrlich, was ist
+    const body = k.bau === "nicht-verfuegbar" ? [
+      h("h2", { class: "k-h", key: "h" }, kt(lang, "k_gespeichert_h")),
+      h("p", { class: "k-note", role: "status", key: "nv", "data-bau": "nicht-verfuegbar" }, kt(lang, "k_bau_nv")),
+      h("p", { class: "hint", key: "nk" }, kt(lang, "k_bau_nv_kosten")),
+      optin, optErr] : [
       h("h2", { class: "k-h", key: "h" }, kt(lang, "k_bauen_h")),
       h("p", { class: "k-lede", key: "l" }, kt(lang, "k_bauen_lede")),
       h("ol", { class: "k-steps", key: "s" },
@@ -144,10 +151,8 @@ export function makeKlaerenView(D) {
         step("bau", kt(lang, "k_s_bau"), kt(lang, "k_st_wartet"), false),
         step("probe", kt(lang, "k_s_probe"), kt(lang, "k_st_danach"), false),
         step("pruef", kt(lang, "k_s_pruef", { n }), kt(lang, "k_st_danach"), false)),
-      status(kt(lang, "k_bauen_p1"), "hint strong", "p1"),
       h("p", { class: "hint", key: "d" }, kt(lang, "k_dauer")),
-      h("fieldset", { class: "k-optin", key: "o" }, h("legend", null, kt(lang, "k_optin_h")), box("push", kt(lang, "k_optin_push")), box("mail", kt(lang, "k_optin_mail")), h("p", { class: "hint" }, kt(lang, "k_optin_note"))),
-      k.optErr ? h("p", { class: "warn", role: "alert", key: "oe" }, kt(lang, "k_optin_err")) : null];
+      optin, optErr];
     return { body, primary: a("k-home", kt(lang, "k_home"), "K_HOME", { cls: "k-go" }), secondary: [] };
   }
 

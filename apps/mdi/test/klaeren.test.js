@@ -94,7 +94,7 @@ test("Ablauf: Satz -> Fragen -> eigene Worte abgelehnt (Weiter gesperrt, Vorschl
     fragen: { how: "ok", body: FRAGEN },
     antwort: (b) => (/Raketen/.test(b.text) ? { how: "refused", reason: "weapons", vorschlaege: [0, 2] } : { how: "ok", body: { ok: true, text: b.text } }),
     liste: { how: "ok", body: LISTE },
-    auftrag: { how: "ok", body: { auftrag: AUF, status: "bestaetigt" } },
+    auftrag: [{ how: "ok", body: { auftrag: AUF, status: "bestaetigt" } }, { how: "ok", body: { auftrag: AUF, status: "bestaetigt", bau: "nicht-verfuegbar" } }],
     optin: (b) => ({ how: "ok", body: { optin: { push: b.push, mail: b.mail } } })
   });
   const { rt } = s;
@@ -148,12 +148,19 @@ test("Ablauf: Satz -> Fragen -> eigene Worte abgelehnt (Weiter gesperrt, Vorschl
   assert.match(t, /Ehrlich gesagt: Gleichzeitig online/); assert.match(t, /bis zu 15 Minuten\. Kostet 1 Guthaben – nur wenn alles klappt/);
   assert.equal(v.actions.primary.label, "Ja, so bauen");
   rt.dispatch({ type: "K_JA" }); await tick();
-  assert.ok(rt.matches("inhalt.frei.kbauen")); assert.equal(s.k().auftrag, AUF);
+  assert.ok(rt.matches("inhalt.frei.kliste"), "ohne Bau-Zustand des Servers keine Annahme der App"); assert.equal(s.k().err.how, "off");
+  rt.dispatch({ type: "K_JA" }); await tick();
+  assert.ok(rt.matches("inhalt.frei.kbauen")); assert.equal(s.k().auftrag, AUF); assert.equal(s.k().bau, "nicht-verfuegbar");
+  {
+    const t = text({ children: view(rt).body });
+    assert.match(t, /Dein Bauauftrag ist gespeichert\. Das Bauen selbst kommt im nächsten Schritt – wir sagen Bescheid\./);
+    assert.match(t, /Kein Guthaben, keine Abbuchung/);
+    assert.ok(!/Spiel wird gebaut|Minuten/.test(t), "kein vorgetaeuschter Fortschritt");
+  }
   assert.deepEqual(s.k().optin, { push: false, mail: false }, "kein Haekchen vorausgewaehlt");
   rt.dispatch({ type: "K_OPTIN", kanal: "push", on: true }); await tick();
   assert.deepEqual(s.klaerung.calls.at(-1), { op: "optin", body: { auftrag: AUF, push: true, mail: false } });
   assert.deepEqual(s.k().optin, { push: true, mail: false });
-  assert.match(text({ children: view(rt).body }), /abgebucht ist nichts/);
   rt.dispatch({ type: "K_HOME" }); assert.ok(rt.matches("inhalt.shelf"));
 });
 
@@ -286,4 +293,11 @@ test("Preis und Dauer kommen vom Server; req laeuft monoton, eine spaete Antwort
   // falsche Art bei passender Nummer zaehlt auch nicht
   rt.dispatch({ type: "K_R", op: "melden", req: s.k().req, r: { how: "ok", body: { gemeldet: true } } });
   assert.equal(s.k().fertig.gemeldet, false);
+});
+
+test("Bau-Bildschirm mit angeschlossenem Bau-Worker (Server: bau wartet): Schritte ohne vorgetaeuschtes Laufen", () => {
+  const ctx = { lang: "de", frei: { k: { liste: { punkte: [1, 2, 3] }, bau: "wartet", optin: { push: false, mail: false }, busy: null, optErr: null } } };
+  const v = V.klaerenView({ ctx }, () => {}, "kbauen"), t = text({ children: v.body });
+  assert.match(t, /Plan steht.*fertig.*Spiel wird gebaut.*wartet/); assert.ok(!/läuft/.test(t));
+  assert.ok(!/Dein Bauauftrag ist gespeichert/.test(t));
 });

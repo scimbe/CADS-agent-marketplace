@@ -22,7 +22,7 @@ const KF = (ctx, o) => ({ ...ctx, frei: { ...ctx.frei, k: { ...ctx.frei.k, ...o 
 const fresh = (ctx, o = {}) => KF(ctx, { ...freshK(), req: ctx.frei.k.req, ...o });
 const cut = (v, n) => [...String(v == null ? "" : v)].slice(0, n).join("");
 export const freshK = () => ({ satz: "", req: 0, busy: null, err: null, id: null, verstehe: "", fragen: [], i: 0, antworten: [], eigen: [], pruef: null,
-  liste: null, auftrag: null, optin: { push: false, mail: false }, optErr: null, fertig: null, meldText: "", meld: null, note: null, mic: null });
+  liste: null, auftrag: null, bau: null, optin: { push: false, mail: false }, optErr: null, fertig: null, meldText: "", meld: null, note: null, mic: null });
 
 export const KLAEREN_STATES = {
   klaeren: {
@@ -109,6 +109,7 @@ export const KLAEREN_STATES = {
 
 const k = (ctx) => ctx.frei.k;
 const isR = (op) => (ctx, ev) => ev.op === op && ev.req === k(ctx).req && k(ctx).busy === op;
+const BAU = ["nicht-verfuegbar", "wartet"];
 const pos = (n) => (Number.isInteger(n) && n > 0 ? n : null);
 const ok = (ev) => !!ev.r && ev.r.how === "ok";
 const answered = (ctx) => !!k(ctx).antworten[k(ctx).i];
@@ -146,7 +147,8 @@ export const klaerenGuards = {
   kNotFirst: (ctx) => k(ctx).i > 0,
   kListeOk: (ctx, ev) => isR("liste")(ctx, ev) && ok(ev) && K.checkListe({ ok: true, titel: ev.r.body.titel, verstehe: ev.r.body.verstehe, punkte: (ev.r.body.punkte || []).map((p) => ({ text: p && p.text, pruefung: p && p.pruefung })), nicht: ev.r.body.nicht }, eigene(k(ctx))).ok
     && !!pos(ev.r.body.dauerMaxMin) && !!ev.r.body.kosten && !!pos(ev.r.body.kosten.guthaben),
-  kAuftragOk: (ctx, ev) => isR("auftrag")(ctx, ev) && ok(ev) && /^[A-Za-z0-9_-]{22}$/.test(String(ev.r.body.auftrag)),
+  // bau: ob gebaut werden kann, sagt nur der Server ("nicht-verfuegbar" ohne Bau-Worker, "wartet" mit); sonst kein Auftrag
+  kAuftragOk: (ctx, ev) => isR("auftrag")(ctx, ev) && ok(ev) && /^[A-Za-z0-9_-]{22}$/.test(String(ev.r.body.auftrag)) && BAU.includes(ev.r.body.bau),
   kOptinOk: (ctx, ev) => ["push", "mail"].includes(ev.kanal) && typeof ev.on === "boolean" && !k(ctx).busy,
   kOptinR: isR("optin"),
   kStatusR: isR("status"),
@@ -224,7 +226,7 @@ export const klaerenActions = {
     return KF(ctx, { busy: null, err: null, liste: { ...v, dauerMaxMin: b.dauerMaxMin, kosten: b.kosten.guthaben } });
   },
   kAuftragFx: (ctx, ev, emit) => call(ctx, emit, "auftrag", { id: k(ctx).id }),
-  kTakeAuftrag: (ctx, ev) => KF(ctx, { busy: null, auftrag: ev.r.body.auftrag, optin: { push: false, mail: false } }),
+  kTakeAuftrag: (ctx, ev) => KF(ctx, { busy: null, auftrag: ev.r.body.auftrag, bau: ev.r.body.bau, optin: { push: false, mail: false } }),
   kOptinFx: (ctx, ev, emit) => { const o = { ...k(ctx).optin, [ev.kanal]: ev.on }; return call(ctx, emit, "optin", { auftrag: k(ctx).auftrag, ...o }, { optErr: null }); },
   // angezeigt wird, was der Server gespeichert hat; scheitert es, bleibt der alte Stand mit ehrlichem Hinweis
   kTakeOptin: (ctx, ev) => (ok(ev) && ev.r.body.optin ? KF(ctx, { busy: null, optin: { push: ev.r.body.optin.push === true, mail: ev.r.body.optin.mail === true } }) : KF(ctx, { busy: null, optErr: errOf(ev.r) })),

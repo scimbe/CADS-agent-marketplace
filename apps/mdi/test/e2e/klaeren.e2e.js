@@ -88,7 +88,7 @@ async function fakeKlaerung(ctx) {
     if (op === "fragen") return r.fulfill(json(200, FRAGEN));
     if (op === "antwort") return r.fulfill(/Raketen/.test(b.text) ? json(422, { error: "refused", reason: "weapons", vorschlaege: [0, 2] }) : json(200, { ok: true, text: b.text }));
     if (op === "liste") return r.fulfill(json(200, LISTE));
-    if (op === "auftrag") return r.fulfill(json(202, { auftrag: AUF, status: "bestaetigt" }));
+    if (op === "auftrag") return r.fulfill(json(202, { auftrag: AUF, status: "bestaetigt", bau: "nicht-verfuegbar" }));
     if (op === "optin") return r.fulfill(json(200, { optin: { push: b.push, mail: b.mail } }));
     if (op === "status") return r.fulfill(json(200, status()));
     if (op === "nachbessern") { if (S.left <= 0) return r.fulfill(json(409, { error: "limit" })); S.left--; return r.fulfill(json(200, { nachbessernLeft: S.left })); }
@@ -129,6 +129,12 @@ for (const view of ["phone360", "phone390", "desk1280"]) {
     assert.match(await p.locator("main").innerText(), new RegExp("„" + EIGEN + "“"));
     await checks(p, view + "-k5-liste", found);
     await act(p, "k-ja"); await screenIs(p, "frei-kbauen");
+    // ohne Bau-Worker: ehrlich gespeichert, kein Fortschritt, keine Dauer
+    await p.locator('[data-bau="nicht-verfuegbar"]').waitFor();
+    const bt = await p.locator("main").innerText();
+    assert.match(bt, /Dein Bauauftrag ist gespeichert\. Das Bauen selbst kommt im nächsten Schritt – wir sagen Bescheid\./);
+    assert.match(bt, /Kein Guthaben, keine Abbuchung/);
+    assert.equal(await p.locator(".k-steps").count(), 0); assert.ok(!/Minuten|wird gebaut/.test(bt));
     await p.locator('[data-act="k-optin-push"]').check();
     await p.waitForFunction(() => document.querySelector('[data-act="k-optin-push"]').checked && !document.querySelector('[data-act="k-optin-push"]').disabled);
     await checks(p, view + "-k6-bauen", found);
